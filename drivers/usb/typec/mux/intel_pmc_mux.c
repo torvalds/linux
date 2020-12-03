@@ -176,6 +176,7 @@ static int hsl_orientation(struct pmc_usb_port *port)
 static int pmc_usb_command(struct pmc_usb_port *port, u8 *msg, u32 len)
 {
 	u8 response[4];
+	u8 status_res;
 	int ret;
 
 	/*
@@ -189,9 +190,13 @@ static int pmc_usb_command(struct pmc_usb_port *port, u8 *msg, u32 len)
 	if (ret)
 		return ret;
 
-	if (response[2] & PMC_USB_RESP_STATUS_FAILURE) {
-		if (response[2] & PMC_USB_RESP_STATUS_FATAL)
+	status_res = (msg[0] & 0xf) < PMC_USB_SAFE_MODE ?
+		     response[2] : response[1];
+
+	if (status_res & PMC_USB_RESP_STATUS_FAILURE) {
+		if (status_res & PMC_USB_RESP_STATUS_FATAL)
 			return -EIO;
+
 		return -EBUSY;
 	}
 
