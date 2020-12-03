@@ -2132,8 +2132,6 @@ static void allegro_set_default_params(struct allegro_channel *channel)
 	channel->level =
 		select_minimum_h264_level(channel->width, channel->height);
 
-	channel->bitrate = maximum_bitrate(channel->level);
-	channel->bitrate_peak = maximum_bitrate(channel->level);
 	channel->cpb_size = maximum_cpb_size(channel->level);
 	channel->gop_size = ALLEGRO_GOP_SIZE_DEFAULT;
 }
@@ -2421,6 +2419,8 @@ static int allegro_open(struct file *file)
 	struct v4l2_ctrl_handler *handler;
 	u64 mask;
 	int ret;
+	unsigned int bitrate_max;
+	unsigned int bitrate_def;
 
 	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
 	if (!channel)
@@ -2486,16 +2486,17 @@ static int allegro_open(struct file *file)
 			V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
 			V4L2_MPEG_VIDEO_BITRATE_MODE_CBR, 0,
 			V4L2_MPEG_VIDEO_BITRATE_MODE_CBR);
+
+	bitrate_max = maximum_bitrate(V4L2_MPEG_VIDEO_H264_LEVEL_5_1);
+	bitrate_def = maximum_bitrate(V4L2_MPEG_VIDEO_H264_LEVEL_5_1);
 	channel->mpeg_video_bitrate = v4l2_ctrl_new_std(handler,
 			&allegro_ctrl_ops,
 			V4L2_CID_MPEG_VIDEO_BITRATE,
-			0, maximum_bitrate(V4L2_MPEG_VIDEO_H264_LEVEL_5_1),
-			1, channel->bitrate);
+			0, bitrate_max, 1, bitrate_def);
 	channel->mpeg_video_bitrate_peak = v4l2_ctrl_new_std(handler,
 			&allegro_ctrl_ops,
 			V4L2_CID_MPEG_VIDEO_BITRATE_PEAK,
-			0, maximum_bitrate(V4L2_MPEG_VIDEO_H264_LEVEL_5_1),
-			1, channel->bitrate_peak);
+			0, bitrate_max, 1, bitrate_def);
 	channel->mpeg_video_cpb_size = v4l2_ctrl_new_std(handler,
 			&allegro_ctrl_ops,
 			V4L2_CID_MPEG_VIDEO_H264_CPB_SIZE,
