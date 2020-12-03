@@ -94,7 +94,7 @@ config ARM_IMX6Q_CPUFREQ
 	tristate "Freescale i.MX6 cpufreq support"
 	depends on ARCH_MXC
 	depends on REGULATOR_ANATOP
-	select NVMEM_IMX_OCOTP
+	depends on NVMEM_IMX_OCOTP || COMPILE_TEST
 	select PM_OPP
 	help
 	  This adds cpufreq driver support for Freescale i.MX6 series SoCs.
