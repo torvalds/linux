@@ -66,18 +66,31 @@ static void xdp_umem_release(struct xdp_umem *umem)
 	kfree(umem);
 }
 
+static void xdp_umem_release_deferred(struct work_struct *work)
+{
+	struct xdp_umem *umem = container_of(work, struct xdp_umem, work);
+
+	xdp_umem_release(umem);
+}
+
 void xdp_get_umem(struct xdp_umem *umem)
 {
 	refcount_inc(&umem->users);
 }
 
-void xdp_put_umem(struct xdp_umem *umem)
+void xdp_put_umem(struct xdp_umem *umem, bool defer_cleanup)
 {
 	if (!umem)
 		return;
 
-	if (refcount_dec_and_test(&umem->users))
-		xdp_umem_release(umem);
+	if (refcount_dec_and_test(&umem->users)) {
+		if (defer_cleanup) {
+			INIT_WORK(&umem->work, xdp_umem_release_deferred);
+			schedule_work(&umem->work);
+		} else {
+			xdp_umem_release(umem);
+		}
+	}
 }
 
 static int xdp_umem_pin_pages(struct xdp_umem *umem, unsigned long address)
