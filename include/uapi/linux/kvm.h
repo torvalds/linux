@@ -1594,9 +1594,12 @@ struct kvm_xen_hvm_attr {
 	__u16 type;
 	__u16 pad[3];
 	union {
+		__u8 long_mode;
 		__u64 pad[8];
 	} u;
 };
+
+#define KVM_XEN_ATTR_TYPE_LONG_MODE		0x0
 
 /* Secure Encrypted Virtualization command */
 enum sev_cmd_id {
