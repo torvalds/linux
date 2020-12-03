@@ -8976,6 +8976,48 @@ static bool should_reset_plane(struct drm_atomic_state *state,
 	return false;
 }
 
+static int dm_check_cursor_fb(struct amdgpu_crtc *new_acrtc,
+			      struct drm_plane_state *new_plane_state,
+			      struct drm_framebuffer *fb)
+{
+	unsigned int pitch;
+
+	if (fb->width > new_acrtc->max_cursor_width ||
+	    fb->height > new_acrtc->max_cursor_height) {
+		DRM_DEBUG_ATOMIC("Bad cursor FB size %dx%d\n",
+				 new_plane_state->fb->width,
+				 new_plane_state->fb->height);
+		return -EINVAL;
+	}
+	if (new_plane_state->src_w != fb->width << 16 ||
+	    new_plane_state->src_h != fb->height << 16) {
+		DRM_DEBUG_ATOMIC("Cropping not supported for cursor plane\n");
+		return -EINVAL;
+	}
+
+	/* Pitch in pixels */
+	pitch = fb->pitches[0] / fb->format->cpp[0];
+
+	if (fb->width != pitch) {
+		DRM_DEBUG_ATOMIC("Cursor FB width %d doesn't match pitch %d",
+				 fb->width, pitch);
+		return -EINVAL;
+	}
+
+	switch (pitch) {
+	case 64:
+	case 128:
+	case 256:
+		/* FB pitch is supported by cursor plane */
+		break;
+	default:
+		DRM_DEBUG_ATOMIC("Bad cursor FB pitch %d px\n", pitch);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int dm_update_plane_state(struct dc *dc,
 				 struct drm_atomic_state *state,
 				 struct drm_plane *plane,
@@ -8993,7 +9035,6 @@ static int dm_update_plane_state(struct dc *dc,
 	struct amdgpu_crtc *new_acrtc;
 	bool needs_reset;
 	int ret = 0;
-	unsigned int pitch;
 
 
 	new_plane_crtc = new_plane_state->crtc;
@@ -9014,40 +9055,10 @@ static int dm_update_plane_state(struct dc *dc,
 		}
 
 		if (new_plane_state->fb) {
-			if (new_plane_state->fb->width > new_acrtc->max_cursor_width ||
-			    new_plane_state->fb->height > new_acrtc->max_cursor_height) {
-				DRM_DEBUG_ATOMIC("Bad cursor FB size %dx%d\n",
-						 new_plane_state->fb->width,
-						 new_plane_state->fb->height);
-				return -EINVAL;
-			}
-			if (new_plane_state->src_w != new_plane_state->fb->width << 16 ||
-			    new_plane_state->src_h != new_plane_state->fb->height << 16) {
-				DRM_DEBUG_ATOMIC("Cropping not supported for cursor plane\n");
-				return -EINVAL;
-			}
-
-			/* Pitch in pixels */
-			pitch = new_plane_state->fb->pitches[0] / new_plane_state->fb->format->cpp[0];
-
-			if (new_plane_state->fb->width != pitch) {
-				DRM_DEBUG_ATOMIC("Cursor FB width %d doesn't match pitch %d",
-						 new_plane_state->fb->width,
-						 pitch);
-				return -EINVAL;
-			}
-
-			switch (pitch) {
-			case 64:
-			case 128:
-			case 256:
-				/* FB pitch is supported by cursor plane */
-				break;
-			default:
-				DRM_DEBUG_ATOMIC("Bad cursor FB pitch %d px\n",
-						 pitch);
-				return -EINVAL;
-			}
+			ret = dm_check_cursor_fb(new_acrtc, new_plane_state,
+						 new_plane_state->fb);
+			if (ret)
+				return ret;
 		}
 
 		return 0;
