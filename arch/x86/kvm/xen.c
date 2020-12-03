@@ -18,6 +18,36 @@
 
 DEFINE_STATIC_KEY_DEFERRED_FALSE(kvm_xen_enabled, HZ);
 
+int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
+{
+	int r = -ENOENT;
+
+	mutex_unlock(&kvm->lock);
+
+	switch (data->type) {
+	default:
+		break;
+	}
+
+	mutex_unlock(&kvm->lock);
+	return r;
+}
+
+int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
+{
+	int r = -ENOENT;
+
+	mutex_lock(&kvm->lock);
+
+	switch (data->type) {
+	default:
+		break;
+	}
+
+	mutex_unlock(&kvm->lock);
+	return r;
+}
+
 int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
 {
 	struct kvm *kvm = vcpu->kvm;
