@@ -987,9 +987,7 @@ chcr_ktls_write_tcp_options(struct chcr_ktls_info *tx_info, struct sk_buff *skb,
 	struct fw_eth_tx_pkt_wr *wr;
 	struct cpl_tx_pkt_core *cpl;
 	u32 ctrl, iplen, maclen;
-#if IS_ENABLED(CONFIG_IPV6)
 	struct ipv6hdr *ip6;
-#endif
 	unsigned int ndesc;
 	struct tcphdr *tcp;
 	int len16, pktlen;
@@ -1043,17 +1041,15 @@ chcr_ktls_write_tcp_options(struct chcr_ktls_info *tx_info, struct sk_buff *skb,
 	cpl->len = htons(pktlen);
 
 	memcpy(buf, skb->data, pktlen);
-	if (tx_info->ip_family == AF_INET) {
+	if (!IS_ENABLED(CONFIG_IPV6) || tx_info->ip_family == AF_INET) {
 		/* we need to correct ip header len */
 		ip = (struct iphdr *)(buf + maclen);
 		ip->tot_len = htons(pktlen - maclen);
 		cntrl1 = TXPKT_CSUM_TYPE_V(TX_CSUM_TCPIP);
-#if IS_ENABLED(CONFIG_IPV6)
 	} else {
 		ip6 = (struct ipv6hdr *)(buf + maclen);
 		ip6->payload_len = htons(pktlen - maclen - iplen);
 		cntrl1 = TXPKT_CSUM_TYPE_V(TX_CSUM_TCPIP6);
-#endif
 	}
 
 	cntrl1 |= T6_TXPKT_ETHHDR_LEN_V(maclen - ETH_HLEN) |
