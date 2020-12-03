@@ -90,7 +90,7 @@
  * because it needs to write SPS/PPS NAL units. The encoder writes the actual
  * frame data after the offset.
  */
-#define ENCODER_STREAM_OFFSET SZ_64
+#define ENCODER_STREAM_OFFSET SZ_128
 
 #define SIZE_MACROBLOCK 16
 
