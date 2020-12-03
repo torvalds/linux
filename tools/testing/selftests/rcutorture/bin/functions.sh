@@ -203,6 +203,7 @@ identify_qemu () {
 # and the TORTURE_QEMU_INTERACTIVE environment variable.
 identify_qemu_append () {
 	echo debug_boot_weak_hash
+	echo panic=-1
 	local console=ttyS0
 	case "$1" in
 	qemu-system-x86_64|qemu-system-i386)
