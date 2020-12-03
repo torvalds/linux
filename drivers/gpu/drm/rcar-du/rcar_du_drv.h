@@ -99,6 +99,11 @@ struct rcar_du_device {
 	unsigned int vspd1_sink;
 };
 
+static inline struct rcar_du_device *to_rcar_du_device(struct drm_device *dev)
+{
+	return container_of(dev, struct rcar_du_device, ddev);
+}
+
 static inline bool rcar_du_has(struct rcar_du_device *rcdu,
 			       unsigned int feature)
 {

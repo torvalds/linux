@@ -128,7 +128,7 @@ static int rcar_du_plane_hwalloc(struct rcar_du_plane *plane,
 int rcar_du_atomic_check_planes(struct drm_device *dev,
 				struct drm_atomic_state *state)
 {
-	struct rcar_du_device *rcdu = dev->dev_private;
+	struct rcar_du_device *rcdu = to_rcar_du_device(dev);
 	unsigned int group_freed_planes[RCAR_DU_MAX_GROUPS] = { 0, };
 	unsigned int group_free_planes[RCAR_DU_MAX_GROUPS] = { 0, };
 	bool needs_realloc = false;
