@@ -57,7 +57,7 @@ gf100_fifo_runlist_commit(struct gf100_fifo *fifo)
 	int nr = 0;
 	int target;
 
-	mutex_lock(&subdev->mutex);
+	mutex_lock(&fifo->base.mutex);
 	cur = fifo->runlist.mem[fifo->runlist.active];
 	fifo->runlist.active = !fifo->runlist.active;
 
@@ -73,7 +73,7 @@ gf100_fifo_runlist_commit(struct gf100_fifo *fifo)
 	case NVKM_MEM_TARGET_VRAM: target = 0; break;
 	case NVKM_MEM_TARGET_NCOH: target = 3; break;
 	default:
-		mutex_unlock(&subdev->mutex);
+		mutex_unlock(&fifo->base.mutex);
 		WARN_ON(1);
 		return;
 	}
@@ -86,23 +86,23 @@ gf100_fifo_runlist_commit(struct gf100_fifo *fifo)
 			       !(nvkm_rd32(device, 0x00227c) & 0x00100000),
 			       msecs_to_jiffies(2000)) == 0)
 		nvkm_error(subdev, "runlist update timeout\n");
-	mutex_unlock(&subdev->mutex);
+	mutex_unlock(&fifo->base.mutex);
 }
 
 void
 gf100_fifo_runlist_remove(struct gf100_fifo *fifo, struct gf100_fifo_chan *chan)
 {
-	mutex_lock(&fifo->base.engine.subdev.mutex);
+	mutex_lock(&fifo->base.mutex);
 	list_del_init(&chan->head);
-	mutex_unlock(&fifo->base.engine.subdev.mutex);
+	mutex_unlock(&fifo->base.mutex);
 }
 
 void
 gf100_fifo_runlist_insert(struct gf100_fifo *fifo, struct gf100_fifo_chan *chan)
 {
-	mutex_lock(&fifo->base.engine.subdev.mutex);
+	mutex_lock(&fifo->base.mutex);
 	list_add_tail(&chan->head, &fifo->chan);
-	mutex_unlock(&fifo->base.engine.subdev.mutex);
+	mutex_unlock(&fifo->base.mutex);
 }
 
 static inline int

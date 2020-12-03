@@ -40,6 +40,7 @@ struct nvkm_fifo {
 	int nr;
 	struct list_head chan;
 	spinlock_t lock;
+	struct mutex mutex;
 
 	struct nvkm_event uevent; /* async user trigger */
 	struct nvkm_event cevent; /* channel creation event */

@@ -168,12 +168,11 @@ gk104_fifo_runlist_update(struct gk104_fifo *fifo, int runl)
 {
 	const struct gk104_fifo_runlist_func *func = fifo->func->runlist;
 	struct gk104_fifo_chan *chan;
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_memory *mem;
 	struct nvkm_fifo_cgrp *cgrp;
 	int nr = 0;
 
-	mutex_lock(&subdev->mutex);
+	mutex_lock(&fifo->base.mutex);
 	mem = fifo->runlist[runl].mem[fifo->runlist[runl].next];
 	fifo->runlist[runl].next = !fifo->runlist[runl].next;
 
@@ -191,27 +190,27 @@ gk104_fifo_runlist_update(struct gk104_fifo *fifo, int runl)
 	nvkm_done(mem);
 
 	func->commit(fifo, runl, mem, nr);
-	mutex_unlock(&subdev->mutex);
+	mutex_unlock(&fifo->base.mutex);
 }
 
 void
 gk104_fifo_runlist_remove(struct gk104_fifo *fifo, struct gk104_fifo_chan *chan)
 {
 	struct nvkm_fifo_cgrp *cgrp = chan->cgrp;
-	mutex_lock(&fifo->base.engine.subdev.mutex);
+	mutex_lock(&fifo->base.mutex);
 	if (!list_empty(&chan->head)) {
 		list_del_init(&chan->head);
 		if (cgrp && !--cgrp->chan_nr)
 			list_del_init(&cgrp->head);
 	}
-	mutex_unlock(&fifo->base.engine.subdev.mutex);
+	mutex_unlock(&fifo->base.mutex);
 }
 
 void
 gk104_fifo_runlist_insert(struct gk104_fifo *fifo, struct gk104_fifo_chan *chan)
 {
 	struct nvkm_fifo_cgrp *cgrp = chan->cgrp;
-	mutex_lock(&fifo->base.engine.subdev.mutex);
+	mutex_lock(&fifo->base.mutex);
 	if (cgrp) {
 		if (!cgrp->chan_nr++)
 			list_add_tail(&cgrp->head, &fifo->runlist[chan->runl].cgrp);
@@ -219,7 +218,7 @@ gk104_fifo_runlist_insert(struct gk104_fifo *fifo, struct gk104_fifo_chan *chan)
 	} else {
 		list_add_tail(&chan->head, &fifo->runlist[chan->runl].chan);
 	}
-	mutex_unlock(&fifo->base.engine.subdev.mutex);
+	mutex_unlock(&fifo->base.mutex);
 }
 
 void

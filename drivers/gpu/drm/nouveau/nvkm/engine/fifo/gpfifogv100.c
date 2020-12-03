@@ -44,7 +44,7 @@ gv100_fifo_gpfifo_engine_valid(struct gk104_fifo_chan *chan, bool ce, bool valid
 	int ret;
 
 	/* Block runlist to prevent the channel from being rescheduled. */
-	mutex_lock(&subdev->mutex);
+	mutex_lock(&chan->fifo->base.mutex);
 	nvkm_mask(device, 0x002630, BIT(chan->runl), BIT(chan->runl));
 
 	/* Preempt the channel. */
@@ -58,7 +58,7 @@ gv100_fifo_gpfifo_engine_valid(struct gk104_fifo_chan *chan, bool ce, bool valid
 
 	/* Resume runlist. */
 	nvkm_mask(device, 0x002630, BIT(chan->runl), 0);
-	mutex_unlock(&subdev->mutex);
+	mutex_unlock(&chan->fifo->base.mutex);
 	return ret;
 }
 

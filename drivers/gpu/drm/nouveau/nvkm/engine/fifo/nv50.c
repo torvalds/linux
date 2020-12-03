@@ -51,9 +51,9 @@ nv50_fifo_runlist_update_locked(struct nv50_fifo *fifo)
 void
 nv50_fifo_runlist_update(struct nv50_fifo *fifo)
 {
-	mutex_lock(&fifo->base.engine.subdev.mutex);
+	mutex_lock(&fifo->base.mutex);
 	nv50_fifo_runlist_update_locked(fifo);
-	mutex_unlock(&fifo->base.engine.subdev.mutex);
+	mutex_unlock(&fifo->base.mutex);
 }
 
 int

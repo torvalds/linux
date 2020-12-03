@@ -159,10 +159,10 @@ nv40_fifo_dma_object_ctor(struct nvkm_fifo_chan *base,
 		return -EINVAL;
 	}
 
-	mutex_lock(&chan->fifo->base.engine.subdev.mutex);
+	mutex_lock(&chan->fifo->base.mutex);
 	hash = nvkm_ramht_insert(imem->ramht, object, chan->base.chid, 4,
 				 handle, context);
-	mutex_unlock(&chan->fifo->base.engine.subdev.mutex);
+	mutex_unlock(&chan->fifo->base.mutex);
 	return hash;
 }
 

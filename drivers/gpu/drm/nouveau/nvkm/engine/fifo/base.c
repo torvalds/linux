@@ -334,6 +334,7 @@ nvkm_fifo_dtor(struct nvkm_engine *engine)
 	nvkm_event_fini(&fifo->kevent);
 	nvkm_event_fini(&fifo->cevent);
 	nvkm_event_fini(&fifo->uevent);
+	mutex_destroy(&fifo->mutex);
 	return data;
 }
 
@@ -358,6 +359,7 @@ nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 	fifo->func = func;
 	INIT_LIST_HEAD(&fifo->chan);
 	spin_lock_init(&fifo->lock);
+	mutex_init(&fifo->mutex);
 
 	if (WARN_ON(fifo->nr > NVKM_FIFO_CHID_NR))
 		fifo->nr = NVKM_FIFO_CHID_NR;

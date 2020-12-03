@@ -65,9 +65,9 @@ int
 gk104_fifo_gpfifo_kick(struct gk104_fifo_chan *chan)
 {
 	int ret;
-	mutex_lock(&chan->base.fifo->engine.subdev.mutex);
+	mutex_lock(&chan->base.fifo->mutex);
 	ret = gk104_fifo_gpfifo_kick_locked(chan);
-	mutex_unlock(&chan->base.fifo->engine.subdev.mutex);
+	mutex_unlock(&chan->base.fifo->mutex);
 	return ret;
 }
 
