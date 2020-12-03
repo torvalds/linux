@@ -35,3 +35,4 @@ test_cpp
 /tools
 /runqslower
 /bench
+*.ko

@@ -66,6 +66,7 @@ struct test_env {
 	enum verbosity verbosity;
 
 	bool jit_enabled;
+	bool has_testmod;
 	bool get_test_cnt;
 	bool list_test_names;
 
