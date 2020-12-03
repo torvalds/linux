@@ -669,6 +669,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	bch2_fs_btree_cache_init_early(&c->btree_cache);
 
+	mutex_init(&c->sectors_available_lock);
+
 	if (percpu_init_rwsem(&c->mark_lock))
 		goto err;
 
