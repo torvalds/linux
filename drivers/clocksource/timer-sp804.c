@@ -5,6 +5,9 @@
  *  Copyright (C) 1999 - 2003 ARM Limited
  *  Copyright (C) 2000 Deep Blue Solutions Ltd
  */
+
+#define pr_fmt(fmt)    KBUILD_MODNAME ": " fmt
+
 #include <linux/clk.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
@@ -34,8 +37,7 @@
 #define HISI_TIMER_BGLOAD	0x20
 #define HISI_TIMER_BGLOAD_H	0x24
 
-
-struct sp804_timer __initdata arm_sp804_timer = {
+static struct sp804_timer arm_sp804_timer __initdata = {
 	.load		= TIMER_LOAD,
 	.value		= TIMER_VALUE,
 	.ctrl		= TIMER_CTRL,
@@ -44,7 +46,7 @@ struct sp804_timer __initdata arm_sp804_timer = {
 	.width		= 32,
 };
 
-struct sp804_timer __initdata hisi_sp804_timer = {
+static struct sp804_timer hisi_sp804_timer __initdata = {
 	.load		= HISI_TIMER_LOAD,
 	.load_h		= HISI_TIMER_LOAD_H,
 	.value		= HISI_TIMER_VALUE,
@@ -59,40 +61,23 @@ static struct sp804_clkevt sp804_clkevt[NR_TIMERS];
 
 static long __init sp804_get_clock_rate(struct clk *clk, const char *name)
 {
-	long rate;
 	int err;
 
 	if (!clk)
 		clk = clk_get_sys("sp804", name);
 	if (IS_ERR(clk)) {
-		pr_err("sp804: %s clock not found: %ld\n", name, PTR_ERR(clk));
+		pr_err("%s clock not found: %ld\n", name, PTR_ERR(clk));
 		return PTR_ERR(clk);
 	}
 
-	err = clk_prepare(clk);
+	err = clk_prepare_enable(clk);
 	if (err) {
-		pr_err("sp804: clock failed to prepare: %d\n", err);
+		pr_err("clock failed to enable: %d\n", err);
 		clk_put(clk);
 		return err;
 	}
 
-	err = clk_enable(clk);
-	if (err) {
-		pr_err("sp804: clock failed to enable: %d\n", err);
-		clk_unprepare(clk);
-		clk_put(clk);
-		return err;
-	}
-
-	rate = clk_get_rate(clk);
-	if (rate < 0) {
-		pr_err("sp804: clock failed to get rate: %ld\n", rate);
-		clk_disable(clk);
-		clk_unprepare(clk);
-		clk_put(clk);
-	}
-
-	return rate;
+	return clk_get_rate(clk);
 }
 
 static struct sp804_clkevt * __init sp804_clkevt_get(void __iomem *base)
@@ -117,10 +102,10 @@ static u64 notrace sp804_read(void)
 	return ~readl_relaxed(sched_clkevt->value);
 }
 
-int __init sp804_clocksource_and_sched_clock_init(void __iomem *base,
-						  const char *name,
-						  struct clk *clk,
-						  int use_sched_clock)
+static int __init sp804_clocksource_and_sched_clock_init(void __iomem *base,
+							 const char *name,
+							 struct clk *clk,
+							 int use_sched_clock)
 {
 	long rate;
 	struct sp804_clkevt *clkevt;
@@ -216,8 +201,8 @@ static struct clock_event_device sp804_clockevent = {
 	.rating			= 300,
 };
 
-int __init sp804_clockevents_init(void __iomem *base, unsigned int irq,
-				  struct clk *clk, const char *name)
+static int __init sp804_clockevents_init(void __iomem *base, unsigned int irq,
+					 struct clk *clk, const char *name)
 {
 	struct clock_event_device *evt = &sp804_clockevent;
 	long rate;
@@ -236,7 +221,7 @@ int __init sp804_clockevents_init(void __iomem *base, unsigned int irq,
 
 	if (request_irq(irq, sp804_timer_interrupt, IRQF_TIMER | IRQF_IRQPOLL,
 			"timer", &sp804_clockevent))
-		pr_err("%s: request_irq() failed\n", "timer");
+		pr_err("request_irq() failed\n");
 	clockevents_config_and_register(evt, rate, 0xf, 0xffffffff);
 
 	return 0;
@@ -298,7 +283,7 @@ static int __init sp804_of_init(struct device_node *np, struct sp804_timer *time
 	if (of_clk_get_parent_count(np) == 3) {
 		clk2 = of_clk_get(np, 1);
 		if (IS_ERR(clk2)) {
-			pr_err("sp804: %pOFn clock not found: %d\n", np,
+			pr_err("%pOFn clock not found: %d\n", np,
 				(int)PTR_ERR(clk2));
 			clk2 = NULL;
 		}
