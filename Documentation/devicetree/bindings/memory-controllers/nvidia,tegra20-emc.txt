@@ -16,6 +16,12 @@ Properties:
 - #interconnect-cells : Should be 0.
 - operating-points-v2: See ../bindings/opp/opp.txt for details.
 
+For each opp entry in 'operating-points-v2' table:
+- opp-supported-hw: One bitfield indicating SoC process ID mask
+
+	A bitwise AND is performed against this value and if any bit
+	matches, the OPP gets enabled.
+
 Optional properties:
 - core-supply: Phandle of voltage regulator of the SoC "core" power domain.
 
