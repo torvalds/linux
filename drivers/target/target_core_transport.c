@@ -1313,6 +1313,26 @@ target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 			" %u does not match SCSI CDB Length: %u for SAM Opcode:"
 			" 0x%02x\n", cmd->se_tfo->fabric_name,
 				cmd->data_length, size, cmd->t_task_cdb[0]);
+		/*
+		 * For READ command for the overflow case keep the existing
+		 * fabric provided ->data_length. Otherwise for the underflow
+		 * case, reset ->data_length to the smaller SCSI expected data
+		 * transfer length.
+		 */
+		if (size > cmd->data_length) {
+			cmd->se_cmd_flags |= SCF_OVERFLOW_BIT;
+			cmd->residual_count = (size - cmd->data_length);
+		} else {
+			cmd->se_cmd_flags |= SCF_UNDERFLOW_BIT;
+			cmd->residual_count = (cmd->data_length - size);
+			/*
+			 * Do not truncate ->data_length for WRITE command to
+			 * dump all payload
+			 */
+			if (cmd->data_direction == DMA_FROM_DEVICE) {
+				cmd->data_length = size;
+			}
+		}
 
 		if (cmd->data_direction == DMA_TO_DEVICE) {
 			if (cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) {
@@ -1331,20 +1351,6 @@ target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 						   " WRITE control CDB\n");
 				return TCM_INVALID_CDB_FIELD;
 			}
-		}
-		/*
-		 * For the overflow case keep the existing fabric provided
-		 * ->data_length.  Otherwise for the underflow case, reset
-		 * ->data_length to the smaller SCSI expected data transfer
-		 * length.
-		 */
-		if (size > cmd->data_length) {
-			cmd->se_cmd_flags |= SCF_OVERFLOW_BIT;
-			cmd->residual_count = (size - cmd->data_length);
-		} else {
-			cmd->se_cmd_flags |= SCF_UNDERFLOW_BIT;
-			cmd->residual_count = (cmd->data_length - size);
-			cmd->data_length = size;
 		}
 	}
 
