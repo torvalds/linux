@@ -127,11 +127,15 @@
 	fan1: j10-pwm {
 		compatible = "pwm-fan";
 		pwms = <&gpio1 9 40000>;	/* Target freq:25 kHz */
+		pinctrl-names = "default";
+		pinctrl-0 = <&helios_fan1_pins>;
 	};
 
 	fan2: j17-pwm {
 		compatible = "pwm-fan";
 		pwms = <&gpio1 23 40000>;	/* Target freq:25 kHz */
+		pinctrl-names = "default";
+		pinctrl-0 = <&helios_fan2_pins>;
 	};
 
 	usb2_phy: usb2-phy {
@@ -302,9 +306,12 @@
 						       "mpp54";
 					marvell,function = "gpio";
 				};
-				helios_fan_pins: helios-fan-pins {
-					marvell,pins = "mpp41", "mpp43",
-						       "mpp48", "mpp55";
+				helios_fan1_pins: helios_fan1_pins {
+					marvell,pins = "mpp41", "mpp43";
+					marvell,function = "gpio";
+				};
+				helios_fan2_pins: helios_fan2_pins {
+					marvell,pins = "mpp48", "mpp55";
 					marvell,function = "gpio";
 				};
 				microsom_spi1_cs_pins: spi1-cs-pins {
