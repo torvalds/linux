@@ -1345,6 +1345,18 @@ static inline void __down_read(struct rw_semaphore *sem)
 	}
 }
 
+static inline int __down_read_interruptible(struct rw_semaphore *sem)
+{
+	if (!rwsem_read_trylock(sem)) {
+		if (IS_ERR(rwsem_down_read_slowpath(sem, TASK_INTERRUPTIBLE)))
+			return -EINTR;
+		DEBUG_RWSEMS_WARN_ON(!is_rwsem_reader_owned(sem), sem);
+	} else {
+		rwsem_set_reader_owned(sem);
+	}
+	return 0;
+}
+
 static inline int __down_read_killable(struct rw_semaphore *sem)
 {
 	if (!rwsem_read_trylock(sem)) {
@@ -1494,6 +1506,20 @@ void __sched down_read(struct rw_semaphore *sem)
 	LOCK_CONTENDED(sem, __down_read_trylock, __down_read);
 }
 EXPORT_SYMBOL(down_read);
+
+int __sched down_read_interruptible(struct rw_semaphore *sem)
+{
+	might_sleep();
+	rwsem_acquire_read(&sem->dep_map, 0, 0, _RET_IP_);
+
+	if (LOCK_CONTENDED_RETURN(sem, __down_read_trylock, __down_read_interruptible)) {
+		rwsem_release(&sem->dep_map, _RET_IP_);
+		return -EINTR;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(down_read_interruptible);
 
 int __sched down_read_killable(struct rw_semaphore *sem)
 {
