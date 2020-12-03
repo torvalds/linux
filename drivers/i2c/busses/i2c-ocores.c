@@ -682,7 +682,7 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 
 	init_waitqueue_head(&i2c->wait);
 
-	irq = platform_get_irq(pdev, 0);
+	irq = platform_get_irq_optional(pdev, 0);
 	/*
 	 * Since the SoC does have an interrupt, its DT has an interrupt
 	 * property - But this should be bypassed as the IRQ logic in this
