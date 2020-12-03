@@ -337,8 +337,7 @@ int snor_prog_page(struct SFNOR_DEV *p_dev,
 	op.sfctrl.d32 = 0;
 	op.sfctrl.b.datalines = p_dev->prog_lines;
 	op.sfctrl.b.enbledma = 1;
-	if (p_dev->prog_lines == DATA_LINES_X4)
-		op.sfctrl.b.addrlines = SFC_4BITS_LINE;
+	op.sfctrl.b.addrlines = p_dev->prog_addr_lines;
 
 	if (p_dev->addr_mode == ADDR_MODE_4BYTE)
 		op.sfcmd.b.addrbits = SFC_ADDR_32BITS;
@@ -642,6 +641,10 @@ static int snor_parse_flash_table(struct SFNOR_DEV *p_dev,
 		    p_dev->read_lines == DATA_LINES_X4) {
 			p_dev->prog_lines = DATA_LINES_X4;
 			p_dev->prog_cmd = g_spi_flash_info->prog_cmd_4;
+			if ((p_dev->manufacturer == MID_MACRONIX) &&
+			    (p_dev->prog_cmd == CMD_PAGE_PROG_A4 ||
+			     p_dev->prog_cmd == CMD_PAGE_PROG_4PP))
+				p_dev->prog_addr_lines = DATA_LINES_X4;
 		}
 
 		if (g_spi_flash_info->feature & FEA_4BYTE_ADDR)
@@ -686,6 +689,7 @@ int snor_init(struct SFNOR_DEV *p_dev)
 		p_dev->sec_erase_cmd = CMD_SECTOR_ERASE;
 		p_dev->blk_erase_cmd = CMD_BLOCK_ERASE;
 		p_dev->prog_lines = DATA_LINES_X1;
+		p_dev->prog_addr_lines = DATA_LINES_X1;
 		p_dev->read_lines = DATA_LINES_X1;
 		p_dev->write_status = snor_write_status;
 		snor_reset_device();
