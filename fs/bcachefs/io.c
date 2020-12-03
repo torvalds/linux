@@ -588,7 +588,8 @@ static void __bch2_write_index(struct bch_write_op *op)
 		op->written += sectors_start - keylist_sectors(keys);
 
 		if (ret) {
-			__bcache_io_error(c, "btree IO error %i", ret);
+			bch_err_inum_ratelimited(c, op->pos.inode,
+				"write error %i from btree update", ret);
 			op->error = ret;
 		}
 	}
@@ -633,7 +634,10 @@ static void bch2_write_endio(struct bio *bio)
 	struct bch_fs *c		= wbio->c;
 	struct bch_dev *ca		= bch_dev_bkey_exists(c, wbio->dev);
 
-	if (bch2_dev_io_err_on(bio->bi_status, ca, "data write: %s",
+	if (bch2_dev_inum_io_err_on(bio->bi_status, ca,
+				    op->pos.inode,
+				    op->pos.offset - bio_sectors(bio), /* XXX definitely wrong */
+				    "data write error: %s",
 			       bch2_blk_status_to_str(bio->bi_status)))
 		set_bit(wbio->dev, op->failed.d);
 
@@ -1276,15 +1280,14 @@ void bch2_write(struct closure *cl)
 	wbio_init(bio)->put_bio = false;
 
 	if (bio_sectors(bio) & (c->opts.block_size - 1)) {
-		__bcache_io_error(c, "misaligned write");
+		bch_err_inum_ratelimited(c, op->pos.inode,
+					 "misaligned write");
 		op->error = -EIO;
 		goto err;
 	}
 
 	if (c->opts.nochanges ||
 	    !percpu_ref_tryget(&c->writes)) {
-		if (!(op->flags & BCH_WRITE_FROM_INTERNAL))
-			__bcache_io_error(c, "read only");
 		op->error = -EROFS;
 		goto err;
 	}
@@ -1707,7 +1710,8 @@ retry:
 	 * reading a btree node
 	 */
 	BUG_ON(!ret);
-	__bcache_io_error(c, "btree IO error: %i", ret);
+	bch_err_inum_ratelimited(c, inode,
+			"read error %i from btree lookup", ret);
 err:
 	rbio->bio.bi_status = BLK_STS_IOERR;
 out:
@@ -1911,17 +1915,15 @@ csum_err:
 		return;
 	}
 
-	bch2_dev_io_error(ca,
-		"data checksum error, inode %llu offset %llu: expected %0llx:%0llx got %0llx:%0llx (type %u)",
-		rbio->pos.inode, (u64) rbio->bvec_iter.bi_sector,
+	bch2_dev_inum_io_error(ca, rbio->pos.inode, (u64) rbio->bvec_iter.bi_sector,
+		"data checksum error: expected %0llx:%0llx got %0llx:%0llx (type %u)",
 		rbio->pick.crc.csum.hi, rbio->pick.crc.csum.lo,
 		csum.hi, csum.lo, crc.csum_type);
 	bch2_rbio_error(rbio, READ_RETRY_AVOID, BLK_STS_IOERR);
 	return;
 decompression_err:
-	__bcache_io_error(c, "decompression error, inode %llu offset %llu",
-			  rbio->pos.inode,
-			  (u64) rbio->bvec_iter.bi_sector);
+	bch_err_inum_ratelimited(c, rbio->pos.inode,
+				 "decompression error");
 	bch2_rbio_error(rbio, READ_ERR, BLK_STS_IOERR);
 	return;
 }
@@ -1943,7 +1945,14 @@ static void bch2_read_endio(struct bio *bio)
 	if (!rbio->split)
 		rbio->bio.bi_end_io = rbio->end_io;
 
-	if (bch2_dev_io_err_on(bio->bi_status, ca, "data read; %s",
+	/*
+	 * XXX: rbio->pos is not what we want here when reading from indirect
+	 * extents
+	 */
+	if (bch2_dev_inum_io_err_on(bio->bi_status, ca,
+				    rbio->pos.inode,
+				    rbio->pos.offset,
+				    "data read error: %s",
 			       bch2_blk_status_to_str(bio->bi_status))) {
 		bch2_rbio_error(rbio, READ_RETRY_AVOID, bio->bi_status);
 		return;
@@ -1993,7 +2002,7 @@ int __bch2_read_indirect_extent(struct btree_trans *trans,
 
 	if (k.k->type != KEY_TYPE_reflink_v &&
 	    k.k->type != KEY_TYPE_indirect_inline_data) {
-		__bcache_io_error(trans->c,
+		bch_err_inum_ratelimited(trans->c, orig_k->k->k.p.inode,
 				"pointer to nonexistent indirect extent");
 		ret = -EIO;
 		goto err;
@@ -2038,7 +2047,8 @@ int __bch2_read_extent(struct bch_fs *c, struct bch_read_bio *orig,
 		goto hole;
 
 	if (pick_ret < 0) {
-		__bcache_io_error(c, "no device to read from");
+		bch_err_inum_ratelimited(c, k.k->p.inode,
+					 "no device to read from");
 		goto err;
 	}
 
@@ -2190,7 +2200,8 @@ get_bio:
 
 	if (!rbio->pick.idx) {
 		if (!rbio->have_ioref) {
-			__bcache_io_error(c, "no device to read from");
+			bch_err_inum_ratelimited(c, k.k->p.inode,
+						 "no device to read from");
 			bch2_rbio_error(rbio, READ_RETRY_AVOID, BLK_STS_IOERR);
 			goto out;
 		}
@@ -2345,7 +2356,9 @@ err:
 	if (ret == -EINTR)
 		goto retry;
 
-	bcache_io_error(c, &rbio->bio, "btree IO error: %i", ret);
+	bch_err_inum_ratelimited(c, inode,
+				 "read error %i from btree lookup", ret);
+	rbio->bio.bi_status = BLK_STS_IOERR;
 	bch2_rbio_done(rbio);
 	goto out;
 }

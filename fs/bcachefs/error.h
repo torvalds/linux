@@ -181,9 +181,15 @@ void bch2_io_error(struct bch_dev *);
 /* Logs message and handles the error: */
 #define bch2_dev_io_error(ca, fmt, ...)					\
 do {									\
-	printk_ratelimited(KERN_ERR bch2_fmt((ca)->fs,			\
-		"IO error on %s for " fmt),				\
+	printk_ratelimited(KERN_ERR "bcachefs (%s): " fmt,		\
 		(ca)->name, ##__VA_ARGS__);				\
+	bch2_io_error(ca);						\
+} while (0)
+
+#define bch2_dev_inum_io_error(ca, _inum, _offset, fmt, ...)		\
+do {									\
+	printk_ratelimited(KERN_ERR "bcachefs (%s inum %llu offset %llu): " fmt,\
+		(ca)->name, (_inum), (_offset), ##__VA_ARGS__);		\
 	bch2_io_error(ca);						\
 } while (0)
 
@@ -196,16 +202,13 @@ do {									\
 	_ret;								\
 })
 
-/* kill? */
-
-#define __bcache_io_error(c, fmt, ...)					\
-	printk_ratelimited(KERN_ERR bch2_fmt(c,				\
-			"IO error: " fmt), ##__VA_ARGS__)
-
-#define bcache_io_error(c, bio, fmt, ...)				\
-do {									\
-	__bcache_io_error(c, fmt, ##__VA_ARGS__);			\
-	(bio)->bi_status = BLK_STS_IOERR;					\
-} while (0)
+#define bch2_dev_inum_io_err_on(cond, ca, _inum, _offset, ...)		\
+({									\
+	bool _ret = (cond);						\
+									\
+	if (_ret)							\
+		bch2_dev_inum_io_error(ca, _inum, _offset, __VA_ARGS__);\
+	_ret;								\
+})
 
 #endif /* _BCACHEFS_ERROR_H */

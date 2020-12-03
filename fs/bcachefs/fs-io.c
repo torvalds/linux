@@ -839,7 +839,9 @@ retry:
 		goto retry;
 
 	if (ret) {
-		bcache_io_error(c, &rbio->bio, "btree IO error %i", ret);
+		bch_err_inum_ratelimited(c, inum,
+				"read error %i from btree lookup", ret);
+		rbio->bio.bi_status = BLK_STS_IOERR;
 		bio_endio(&rbio->bio);
 	}
 

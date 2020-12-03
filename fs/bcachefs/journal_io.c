@@ -557,7 +557,7 @@ reread:
 			kfree(bio);
 
 			if (bch2_dev_io_err_on(ret, ca,
-					       "journal read from sector %llu",
+					       "journal read error: sector %llu",
 					       offset) ||
 			    bch2_meta_read_fault("journal"))
 				return -EIO;
@@ -1015,7 +1015,7 @@ static void journal_write_endio(struct bio *bio)
 	struct bch_dev *ca = bio->bi_private;
 	struct journal *j = &ca->fs->journal;
 
-	if (bch2_dev_io_err_on(bio->bi_status, ca, "journal write: %s",
+	if (bch2_dev_io_err_on(bio->bi_status, ca, "journal write error: %s",
 			       bch2_blk_status_to_str(bio->bi_status)) ||
 	    bch2_meta_write_fault("journal")) {
 		struct journal_buf *w = journal_prev_buf(j);

@@ -597,18 +597,25 @@ void bch2_btree_init_next(struct bch_fs *c, struct btree *b,
 		bch2_btree_iter_reinit_node(iter, b);
 }
 
+static void btree_pos_to_text(struct printbuf *out, struct bch_fs *c,
+			  struct btree *b)
+{
+	pr_buf(out, "%s level %u/%u\n  ",
+	       bch2_btree_ids[b->c.btree_id],
+	       b->c.level,
+	       c->btree_roots[b->c.btree_id].level);
+	bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(&b->key));
+}
+
 static void btree_err_msg(struct printbuf *out, struct bch_fs *c,
 			  struct btree *b, struct bset *i,
 			  unsigned offset, int write)
 {
-	pr_buf(out, "error validating btree node %sat btree %u level %u/%u\n"
-	       "pos ",
-	       write ? "before write " : "",
-	       b->c.btree_id, b->c.level,
-	       c->btree_roots[b->c.btree_id].level);
-	bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(&b->key));
+	pr_buf(out, "error validating btree node %sat btree ",
+	       write ? "before write " : "");
+	btree_pos_to_text(out, c, b);
 
-	pr_buf(out, " node offset %u", b->written);
+	pr_buf(out, "\n  node offset %u", b->written);
 	if (i)
 		pr_buf(out, " bset u64s %u", le16_to_cpu(i->u64s));
 }
@@ -1104,6 +1111,8 @@ static void btree_node_read_work(struct work_struct *work)
 	struct btree *b		= rb->bio.bi_private;
 	struct bio *bio		= &rb->bio;
 	struct bch_io_failures failed = { .nr = 0 };
+	char buf[200];
+	struct printbuf out;
 	bool can_retry;
 
 	goto start;
@@ -1122,8 +1131,10 @@ static void btree_node_read_work(struct work_struct *work)
 			bio->bi_status = BLK_STS_REMOVED;
 		}
 start:
-		bch2_dev_io_err_on(bio->bi_status, ca, "btree read: %s",
-				   bch2_blk_status_to_str(bio->bi_status));
+		out = PBUF(buf);
+		btree_pos_to_text(&out, c, b);
+		bch2_dev_io_err_on(bio->bi_status, ca, "btree read error %s for %s",
+				   bch2_blk_status_to_str(bio->bi_status), buf);
 		if (rb->have_ioref)
 			percpu_ref_put(&ca->io_ref);
 		rb->have_ioref = false;
@@ -1408,7 +1419,7 @@ static void btree_node_write_endio(struct bio *bio)
 	if (wbio->have_ioref)
 		bch2_latency_acct(ca, wbio->submit_time, WRITE);
 
-	if (bch2_dev_io_err_on(bio->bi_status, ca, "btree write: %s",
+	if (bch2_dev_io_err_on(bio->bi_status, ca, "btree write error: %s",
 			       bch2_blk_status_to_str(bio->bi_status)) ||
 	    bch2_meta_write_fault("btree")) {
 		spin_lock_irqsave(&c->btree_write_error_lock, flags);

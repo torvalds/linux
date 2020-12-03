@@ -214,9 +214,11 @@
 	 dynamic_fault("bcachefs:meta:write:" name)
 
 #ifdef __KERNEL__
-#define bch2_fmt(_c, fmt)	"bcachefs (%s): " fmt "\n", ((_c)->name)
+#define bch2_fmt(_c, fmt)		"bcachefs (%s): " fmt "\n", ((_c)->name)
+#define bch2_fmt_inum(_c, _inum, fmt)	"bcachefs (%s inum %llu): " fmt "\n", ((_c)->name), (_inum)
 #else
-#define bch2_fmt(_c, fmt)	fmt "\n"
+#define bch2_fmt(_c, fmt)		fmt "\n"
+#define bch2_fmt_inum(_c, _inum, fmt)	"inum %llu: " fmt "\n", (_inum)
 #endif
 
 #define bch_info(c, fmt, ...) \
@@ -229,8 +231,11 @@
 	printk_ratelimited(KERN_WARNING bch2_fmt(c, fmt), ##__VA_ARGS__)
 #define bch_err(c, fmt, ...) \
 	printk(KERN_ERR bch2_fmt(c, fmt), ##__VA_ARGS__)
+
 #define bch_err_ratelimited(c, fmt, ...) \
 	printk_ratelimited(KERN_ERR bch2_fmt(c, fmt), ##__VA_ARGS__)
+#define bch_err_inum_ratelimited(c, _inum, fmt, ...) \
+	printk_ratelimited(KERN_ERR bch2_fmt_inum(c, _inum, fmt), ##__VA_ARGS__)
 
 #define bch_verbose(c, fmt, ...)					\
 do {									\
