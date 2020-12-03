@@ -491,8 +491,6 @@ config MACH_LOONGSON64
 	select SYS_SUPPORTS_ZBOOT
 	select SYS_SUPPORTS_RELOCATABLE
 	select ZONE_DMA32
-	select NUMA
-	select SMP
 	select COMMON_CLK
 	select USE_OF
 	select BUILTIN_DTB
@@ -2758,6 +2756,7 @@ config ARCH_SPARSEMEM_ENABLE
 config NUMA
 	bool "NUMA Support"
 	depends on SYS_SUPPORTS_NUMA
+	select SMP
 	help
 	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
 	  Access).  This option improves performance on systems with more
