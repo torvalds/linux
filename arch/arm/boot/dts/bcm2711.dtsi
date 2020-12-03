@@ -540,6 +540,7 @@
 
 &dsi1 {
 	interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+	compatible = "brcm,bcm2711-dsi1";
 };
 
 &gpio {
