@@ -29,6 +29,11 @@ void rbsp_init(struct rbsp *rbsp, void *addr, size_t size,
 	rbsp->error = 0;
 }
 
+void rbsp_unsupported(struct rbsp *rbsp)
+{
+	rbsp->error = -EINVAL;
+}
+
 static int rbsp_read_bits(struct rbsp *rbsp, int n, unsigned int *value);
 static int rbsp_write_bits(struct rbsp *rbsp, int n, unsigned int value);
 

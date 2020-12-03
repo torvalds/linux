@@ -49,6 +49,7 @@ extern struct nal_rbsp_ops read;
 
 void rbsp_init(struct rbsp *rbsp, void *addr, size_t size,
 	       struct nal_rbsp_ops *ops);
+void rbsp_unsupported(struct rbsp *rbsp);
 
 void rbsp_bit(struct rbsp *rbsp, int *value);
 void rbsp_bits(struct rbsp *rbsp, int n, int *value);
