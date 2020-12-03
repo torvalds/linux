@@ -3035,10 +3035,9 @@ static inline enum tcpm_state unattached_state(struct tcpm_port *port)
 static void tcpm_check_send_discover(struct tcpm_port *port)
 {
 	if (port->data_role == TYPEC_HOST && port->send_discover &&
-	    port->pd_capable) {
+	    port->pd_capable)
 		tcpm_send_vdm(port, USB_SID_PD, CMD_DISCOVER_IDENT, NULL, 0);
-		port->send_discover = false;
-	}
+	port->send_discover = false;
 }
 
 static void tcpm_swap_complete(struct tcpm_port *port, int result)
