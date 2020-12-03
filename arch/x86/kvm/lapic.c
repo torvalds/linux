@@ -2892,14 +2892,15 @@ void kvm_apic_accept_events(struct kvm_vcpu *vcpu)
 		else
 			vcpu->arch.mp_state = KVM_MP_STATE_INIT_RECEIVED;
 	}
-	if (test_bit(KVM_APIC_SIPI, &pe) &&
-	    vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED) {
+	if (test_bit(KVM_APIC_SIPI, &pe)) {
 		clear_bit(KVM_APIC_SIPI, &apic->pending_events);
-		/* evaluate pending_events before reading the vector */
-		smp_rmb();
-		sipi_vector = apic->sipi_vector;
-		kvm_vcpu_deliver_sipi_vector(vcpu, sipi_vector);
-		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
+		if (vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED) {
+			/* evaluate pending_events before reading the vector */
+			smp_rmb();
+			sipi_vector = apic->sipi_vector;
+			kvm_vcpu_deliver_sipi_vector(vcpu, sipi_vector);
+			vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
+		}
 	}
 }
 
