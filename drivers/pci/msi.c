@@ -623,11 +623,11 @@ static int msi_verify_entries(struct pci_dev *dev)
 	struct msi_desc *entry;
 
 	for_each_pci_msi_entry(entry, dev) {
-		if (!dev->no_64bit_msi || !entry->msg.address_hi)
-			continue;
-		pci_err(dev, "Device has broken 64-bit MSI but arch"
-			" tried to assign one above 4G\n");
-		return -EIO;
+		if (entry->msg.address_hi && dev->no_64bit_msi) {
+			pci_err(dev, "arch assigned 64-bit MSI address %#x%08x but device only supports 32 bits\n",
+				entry->msg.address_hi, entry->msg.address_lo);
+			return -EIO;
+		}
 	}
 	return 0;
 }
@@ -1619,6 +1619,9 @@ void pci_msi_init(struct pci_dev *dev)
 	if (ctrl & PCI_MSI_FLAGS_ENABLE)
 		pci_write_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS,
 				      ctrl & ~PCI_MSI_FLAGS_ENABLE);
+
+	if (!(ctrl & PCI_MSI_FLAGS_64BIT))
+		dev->no_64bit_msi = 1;
 }
 
 void pci_msix_init(struct pci_dev *dev)
