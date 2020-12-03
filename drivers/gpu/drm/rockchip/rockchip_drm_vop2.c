@@ -3334,7 +3334,9 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 	struct vop2_zpos *vop2_zpos;
 	struct vop2_cluster cluster;
 	uint8_t nr_wins = 0;
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 
+	vcstate->yuv_overlay = is_yuv_output(vcstate->bus_format);
 	vop2_zpos = kmalloc_array(vop2->data->win_size, sizeof(*vop2_zpos), GFP_KERNEL);
 	if (!vop2_zpos)
 		return;
