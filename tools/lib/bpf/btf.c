@@ -432,6 +432,11 @@ __u32 btf__get_nr_types(const struct btf *btf)
 	return btf->start_id + btf->nr_types - 1;
 }
 
+const struct btf *btf__base_btf(const struct btf *btf)
+{
+	return btf->base_btf;
+}
+
 /* internal helper returning non-const pointer to a type */
 static struct btf_type *btf_type_by_id(struct btf *btf, __u32 type_id)
 {
