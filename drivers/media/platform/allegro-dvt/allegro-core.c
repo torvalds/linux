@@ -944,6 +944,14 @@ static s16 get_qp_delta(int minuend, int subtrahend)
 		return minuend - subtrahend;
 }
 
+static u32 allegro_channel_get_entropy_mode(struct allegro_channel *channel)
+{
+#define ALLEGRO_ENTROPY_MODE_CAVLC 0
+#define ALLEGRO_ENTROPY_MODE_CABAC 1
+
+	return ALLEGRO_ENTROPY_MODE_CAVLC;
+}
+
 static int fill_create_channel_param(struct allegro_channel *channel,
 				     struct create_channel_param *param)
 {
@@ -974,6 +982,7 @@ static int fill_create_channel_param(struct allegro_channel *channel,
 	param->temporal_mvp_enable = channel->temporal_mvp_enable;
 
 	param->dbf_ovr_en = channel->dbf_ovr_en;
+	param->entropy_mode = allegro_channel_get_entropy_mode(channel);
 	param->rdo_cost_mode = 1;
 	param->custom_lda = 1;
 	param->lf = 1;
