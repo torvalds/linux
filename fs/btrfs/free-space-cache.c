@@ -142,16 +142,14 @@ static int __create_free_space_inode(struct btrfs_root *root,
 	struct btrfs_free_space_header *header;
 	struct btrfs_inode_item *inode_item;
 	struct extent_buffer *leaf;
-	u64 flags = BTRFS_INODE_NOCOMPRESS | BTRFS_INODE_PREALLOC;
+	/* We inline CRCs for the free disk space cache */
+	const u64 flags = BTRFS_INODE_NOCOMPRESS | BTRFS_INODE_PREALLOC |
+			  BTRFS_INODE_NODATASUM | BTRFS_INODE_NODATACOW;
 	int ret;
 
 	ret = btrfs_insert_empty_inode(trans, root, path, ino);
 	if (ret)
 		return ret;
-
-	/* We inline crc's for the free disk space cache */
-	if (ino != BTRFS_FREE_INO_OBJECTID)
-		flags |= BTRFS_INODE_NODATASUM | BTRFS_INODE_NODATACOW;
 
 	leaf = path->nodes[0];
 	inode_item = btrfs_item_ptr(leaf, path->slots[0],
