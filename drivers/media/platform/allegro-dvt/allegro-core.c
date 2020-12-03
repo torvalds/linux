@@ -2520,6 +2520,8 @@ static int allegro_open(struct file *file)
 
 	v4l2_ctrl_cluster(3, &channel->mpeg_video_bitrate_mode);
 
+	v4l2_ctrl_handler_setup(handler);
+
 	channel->mcu_channel_id = -1;
 	channel->user_id = -1;
 
