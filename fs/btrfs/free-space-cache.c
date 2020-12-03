@@ -597,6 +597,44 @@ static int io_ctl_read_bitmap(struct btrfs_io_ctl *io_ctl,
 	return 0;
 }
 
+static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
+{
+	struct btrfs_block_group *block_group = ctl->private;
+	u64 max_bytes;
+	u64 bitmap_bytes;
+	u64 extent_bytes;
+	u64 size = block_group->length;
+	u64 bytes_per_bg = BITS_PER_BITMAP * ctl->unit;
+	u64 max_bitmaps = div64_u64(size + bytes_per_bg - 1, bytes_per_bg);
+
+	max_bitmaps = max_t(u64, max_bitmaps, 1);
+
+	ASSERT(ctl->total_bitmaps <= max_bitmaps);
+
+	/*
+	 * We are trying to keep the total amount of memory used per 1GiB of
+	 * space to be MAX_CACHE_BYTES_PER_GIG.  However, with a reclamation
+	 * mechanism of pulling extents >= FORCE_EXTENT_THRESHOLD out of
+	 * bitmaps, we may end up using more memory than this.
+	 */
+	if (size < SZ_1G)
+		max_bytes = MAX_CACHE_BYTES_PER_GIG;
+	else
+		max_bytes = MAX_CACHE_BYTES_PER_GIG * div_u64(size, SZ_1G);
+
+	bitmap_bytes = ctl->total_bitmaps * ctl->unit;
+
+	/*
+	 * we want the extent entry threshold to always be at most 1/2 the max
+	 * bytes we can have, or whatever is less than that.
+	 */
+	extent_bytes = max_bytes - bitmap_bytes;
+	extent_bytes = min_t(u64, extent_bytes, max_bytes >> 1);
+
+	ctl->extents_thresh =
+		div_u64(extent_bytes, sizeof(struct btrfs_free_space));
+}
+
 static int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 				   struct btrfs_free_space_ctl *ctl,
 				   struct btrfs_path *path, u64 offset)
@@ -715,7 +753,7 @@ static int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 			spin_lock(&ctl->tree_lock);
 			ret = link_free_space(ctl, e);
 			ctl->total_bitmaps++;
-			ctl->op->recalc_thresholds(ctl);
+			recalculate_thresholds(ctl);
 			spin_unlock(&ctl->tree_lock);
 			if (ret) {
 				btrfs_err(fs_info,
@@ -1632,44 +1670,6 @@ static int link_free_space(struct btrfs_free_space_ctl *ctl,
 	return ret;
 }
 
-static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
-{
-	struct btrfs_block_group *block_group = ctl->private;
-	u64 max_bytes;
-	u64 bitmap_bytes;
-	u64 extent_bytes;
-	u64 size = block_group->length;
-	u64 bytes_per_bg = BITS_PER_BITMAP * ctl->unit;
-	u64 max_bitmaps = div64_u64(size + bytes_per_bg - 1, bytes_per_bg);
-
-	max_bitmaps = max_t(u64, max_bitmaps, 1);
-
-	ASSERT(ctl->total_bitmaps <= max_bitmaps);
-
-	/*
-	 * We are trying to keep the total amount of memory used per 1GiB of
-	 * space to be MAX_CACHE_BYTES_PER_GIG.  However, with a reclamation
-	 * mechanism of pulling extents >= FORCE_EXTENT_THRESHOLD out of
-	 * bitmaps, we may end up using more memory than this.
-	 */
-	if (size < SZ_1G)
-		max_bytes = MAX_CACHE_BYTES_PER_GIG;
-	else
-		max_bytes = MAX_CACHE_BYTES_PER_GIG * div_u64(size, SZ_1G);
-
-	bitmap_bytes = ctl->total_bitmaps * ctl->unit;
-
-	/*
-	 * we want the extent entry threshold to always be at most 1/2 the max
-	 * bytes we can have, or whatever is less than that.
-	 */
-	extent_bytes = max_bytes - bitmap_bytes;
-	extent_bytes = min_t(u64, extent_bytes, max_bytes >> 1);
-
-	ctl->extents_thresh =
-		div_u64(extent_bytes, sizeof(struct btrfs_free_space));
-}
-
 static inline void __bitmap_clear_bits(struct btrfs_free_space_ctl *ctl,
 				       struct btrfs_free_space *info,
 				       u64 offset, u64 bytes)
@@ -1881,8 +1881,7 @@ static void add_new_bitmap(struct btrfs_free_space_ctl *ctl,
 	INIT_LIST_HEAD(&info->list);
 	link_free_space(ctl, info);
 	ctl->total_bitmaps++;
-
-	ctl->op->recalc_thresholds(ctl);
+	recalculate_thresholds(ctl);
 }
 
 static void free_bitmap(struct btrfs_free_space_ctl *ctl,
@@ -1904,7 +1903,7 @@ static void free_bitmap(struct btrfs_free_space_ctl *ctl,
 	kmem_cache_free(btrfs_free_space_bitmap_cachep, bitmap_info->bitmap);
 	kmem_cache_free(btrfs_free_space_cachep, bitmap_info);
 	ctl->total_bitmaps--;
-	ctl->op->recalc_thresholds(ctl);
+	recalculate_thresholds(ctl);
 }
 
 static noinline int remove_from_bitmap(struct btrfs_free_space_ctl *ctl,
@@ -2071,7 +2070,6 @@ static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 }
 
 static const struct btrfs_free_space_op free_space_op = {
-	.recalc_thresholds	= recalculate_thresholds,
 	.use_bitmap		= use_bitmap,
 };
 
@@ -2991,7 +2989,7 @@ out:
 			kmem_cache_free(btrfs_free_space_bitmap_cachep,
 					entry->bitmap);
 			ctl->total_bitmaps--;
-			ctl->op->recalc_thresholds(ctl);
+			recalculate_thresholds(ctl);
 		} else if (!btrfs_free_space_trimmed(entry)) {
 			ctl->discardable_extents[BTRFS_STAT_CURR]--;
 		}

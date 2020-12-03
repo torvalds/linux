@@ -60,7 +60,6 @@ struct btrfs_free_space_ctl {
 };
 
 struct btrfs_free_space_op {
-	void (*recalc_thresholds)(struct btrfs_free_space_ctl *ctl);
 	bool (*use_bitmap)(struct btrfs_free_space_ctl *ctl,
 			   struct btrfs_free_space *info);
 };
