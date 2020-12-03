@@ -178,6 +178,7 @@ static int mfi_fc_probe(struct usb_device *udev)
 {
 	struct power_supply_config battery_cfg = {};
 	struct mfi_device *mfi = NULL;
+	int err;
 
 	if (!mfi_fc_match(udev))
 		return -ENODEV;
@@ -194,8 +195,9 @@ static int mfi_fc_probe(struct usb_device *udev)
 						&battery_cfg);
 	if (IS_ERR(mfi->battery)) {
 		dev_err(&udev->dev, "Can't register battery\n");
+		err = PTR_ERR(mfi->battery);
 		kfree(mfi);
-		return PTR_ERR(mfi->battery);
+		return err;
 	}
 
 	mfi->udev = usb_get_dev(udev);
