@@ -37,6 +37,10 @@
  * @ASPEED_MCTP_IOCTL_REGISTER_DEFAULT_HANDLER Register client as default
  * handler that receives all MCTP messages that were not dispatched to other
  * clients
+ * @ASPEED_MCTP_IOCTL_REGISTER_TYPE_HANDLER Register client to receive all
+ * messages of specified MCTP type or PCI vendor defined type
+ * @ASPEED_MCTP_IOCTL_UNREGISTER_TYPE_HANDLER Unregister client as handler
+ * for specified MCTP type or PCI vendor defined message type
  */
 
 struct aspeed_mctp_filter_eid {
@@ -56,6 +60,14 @@ struct aspeed_mctp_get_mtu {
 	__u8 mtu;
 };
 
+struct aspeed_mctp_type_handler_ioctl {
+	__u8 mctp_type;		/* MCTP message type as per DSP239*/
+	/* Below params must be 0 if mctp_type is not Vendor Defined PCI */
+	__u16 pci_vendor_id;	/* PCI Vendor ID */
+	__u16 vendor_type;	/* Vendor specific type */
+	__u16 vendor_type_mask; /* Mask applied to vendor type */
+};
+
 #define ASPEED_MCTP_IOCTL_BASE	0x4d
 
 #define ASPEED_MCTP_IOCTL_FILTER_EID \
@@ -68,5 +80,9 @@ struct aspeed_mctp_get_mtu {
 	_IOR(ASPEED_MCTP_IOCTL_BASE, 3, struct aspeed_mctp_get_mtu)
 #define ASPEED_MCTP_IOCTL_REGISTER_DEFAULT_HANDLER \
 	_IO(ASPEED_MCTP_IOCTL_BASE, 4)
+#define ASPEED_MCTP_IOCTL_REGISTER_TYPE_HANDLER \
+	_IOW(ASPEED_MCTP_IOCTL_BASE, 6, struct aspeed_mctp_type_handler_ioctl)
+#define ASPEED_MCTP_IOCTL_UNREGISTER_TYPE_HANDLER \
+	_IOW(ASPEED_MCTP_IOCTL_BASE, 7, struct aspeed_mctp_type_handler_ioctl)
 
 #endif /* _UAPI_LINUX_ASPEED_MCTP_H */

@@ -121,6 +121,18 @@
 #define GET_PCI_DEV_NUM(x)	((x) & PCI_DEV_NUM_MASK)
 #define GET_PCI_BUS_NUM(x)	(((x) & PCI_BUS_NUM_MASK) >> PCI_BUS_NUM_SHIFT)
 
+/* MCTP header definitions */
+#define MCTP_HDR_TAG_OFFSET		15
+#define MCTP_HDR_SOM			BIT(7)
+#define MCTP_HDR_EOM			BIT(6)
+#define MCTP_HDR_SOM_EOM		(MCTP_HDR_SOM | MCTP_HDR_EOM)
+#define MCTP_HDR_TYPE_OFFSET		16
+#define MCTP_HDR_TYPE_VDM_PCI		0x7e
+#define MCTP_HDR_TYPE_SPDM		0x5
+#define MCTP_HDR_TYPE_BASE_LAST		MCTP_HDR_TYPE_SPDM
+#define MCTP_HDR_VENDOR_OFFSET		17
+#define MCTP_HDR_VDM_TYPE_OFFSET	19
+
 /* FIXME: ast2600 supports variable max transmission unit */
 #define ASPEED_MCTP_MTU 64
 
@@ -169,7 +181,12 @@ struct aspeed_mctp {
 	struct mctp_channel rx;
 	struct list_head clients;
 	struct mctp_client *default_client;
-	spinlock_t clients_lock; /* to protect clients list operations */
+	struct list_head mctp_type_handlers;
+	/*
+	 * clients_lock protects list of clients, list of type handlers
+	 * and default client
+	 */
+	spinlock_t clients_lock;
 	struct {
 		struct regmap *map;
 		struct delayed_work rst_dwork;
@@ -186,6 +203,15 @@ struct mctp_client {
 	struct ptr_ring rx_queue;
 	struct list_head link;
 	wait_queue_head_t wait_queue;
+};
+
+struct mctp_type_handler {
+	u8 mctp_type;
+	u16 pci_vendor_id;
+	u16 vdm_type;
+	u16 vdm_mask;
+	struct mctp_client *client;
+	struct list_head link;
 };
 
 #define TX_CMD_BUF_SIZE \
@@ -303,6 +329,46 @@ static void aspeed_mctp_client_put(struct mctp_client *client)
 	kref_put(&client->ref, &aspeed_mctp_client_free);
 }
 
+static struct mctp_client *
+aspeed_mctp_find_handler(struct aspeed_mctp *priv,
+			 struct mctp_pcie_packet *packet)
+{
+	struct mctp_type_handler *handler;
+	u8 *hdr = (u8 *)packet->data.hdr;
+	struct mctp_client *client = NULL;
+	u8 mctp_type, som_eom;
+	u16 vendor = 0;
+	u16 vdm_type = 0;
+
+	lockdep_assert_held(&priv->clients_lock);
+
+	/*
+	 * Middle and EOM fragments cannot be matched to MCTP type.
+	 * For consistency do not match type for any fragmented messages.
+	 */
+	som_eom = hdr[MCTP_HDR_TAG_OFFSET] & MCTP_HDR_SOM_EOM;
+	if (som_eom != MCTP_HDR_SOM_EOM)
+		return NULL;
+
+	mctp_type = hdr[MCTP_HDR_TYPE_OFFSET];
+	if (mctp_type == MCTP_HDR_TYPE_VDM_PCI) {
+		vendor = *((u16 *)&hdr[MCTP_HDR_VENDOR_OFFSET]);
+		vdm_type = *((u16 *)&hdr[MCTP_HDR_VDM_TYPE_OFFSET]);
+	}
+
+	list_for_each_entry(handler, &priv->mctp_type_handlers, link) {
+		if (handler->mctp_type == mctp_type &&
+		    handler->pci_vendor_id == vendor &&
+		    handler->vdm_type == (vdm_type & handler->vdm_mask)) {
+			dev_dbg(priv->dev, "Found client for type %x vdm %x\n",
+				mctp_type, handler->vdm_type);
+			client = handler->client;
+			break;
+		}
+	}
+	return client;
+}
+
 static void aspeed_mctp_dispatch_packet(struct aspeed_mctp *priv,
 					struct mctp_pcie_packet *packet)
 {
@@ -311,7 +377,10 @@ static void aspeed_mctp_dispatch_packet(struct aspeed_mctp *priv,
 
 	spin_lock(&priv->clients_lock);
 
-	client = priv->default_client;
+	client = aspeed_mctp_find_handler(priv, packet);
+
+	if (!client)
+		client = priv->default_client;
 
 	if (client)
 		aspeed_mctp_client_get(client);
@@ -496,6 +565,7 @@ static int aspeed_mctp_open(struct inode *inode, struct file *file)
 static void aspeed_mctp_delete_client(struct mctp_client *client)
 {
 	struct aspeed_mctp *priv = client->priv;
+	struct mctp_type_handler *handler, *tmp;
 
 	spin_lock_bh(&priv->clients_lock);
 
@@ -504,6 +574,13 @@ static void aspeed_mctp_delete_client(struct mctp_client *client)
 	if (priv->default_client == client)
 		priv->default_client = NULL;
 
+	list_for_each_entry_safe(handler, tmp, &priv->mctp_type_handlers,
+				 link) {
+		if (handler->client == client) {
+			list_del(&handler->link);
+			kfree(handler);
+		}
+	}
 	spin_unlock_bh(&priv->clients_lock);
 
 	/* Disable the tasklet to appease lockdep */
@@ -608,6 +685,80 @@ out:
 	return ret;
 }
 
+int aspeed_mctp_add_type_handler(struct mctp_client *client,
+				 u8 mctp_type, u16 pci_vendor_id,
+				 u16 vdm_type, u16 vdm_mask)
+{
+	struct aspeed_mctp *priv = client->priv;
+	struct mctp_type_handler *handler, *new_handler;
+	int ret = 0;
+
+	if (mctp_type <= MCTP_HDR_TYPE_BASE_LAST) {
+		/* Vendor, type and type mask must be zero for types 0-5 */
+		if (pci_vendor_id != 0 || vdm_type != 0 || vdm_mask != 0)
+			return -EINVAL;
+	} else if (mctp_type == MCTP_HDR_TYPE_VDM_PCI) {
+		/* For Vendor Defined PCI type the the vendor ID must be nonzero */
+		if (pci_vendor_id == 0 || pci_vendor_id == 0xffff)
+			return -EINVAL;
+	} else {
+		return -EINVAL;
+	}
+
+	new_handler = kzalloc(sizeof(*new_handler), GFP_KERNEL);
+	if (!new_handler)
+		return -ENOMEM;
+	new_handler->mctp_type = mctp_type;
+	new_handler->pci_vendor_id = pci_vendor_id;
+	new_handler->vdm_type = vdm_type & vdm_mask;
+	new_handler->vdm_mask = vdm_mask;
+	new_handler->client = client;
+
+	spin_lock_bh(&priv->clients_lock);
+	list_for_each_entry(handler, &priv->mctp_type_handlers, link) {
+		if (handler->mctp_type == new_handler->mctp_type &&
+		    handler->pci_vendor_id == new_handler->pci_vendor_id &&
+		    handler->vdm_type == new_handler->vdm_type) {
+			if (handler->client != new_handler->client)
+				ret = -EBUSY;
+			kfree(new_handler);
+			goto out_unlock;
+		}
+	}
+	list_add_tail(&new_handler->link, &priv->mctp_type_handlers);
+out_unlock:
+	spin_unlock_bh(&priv->clients_lock);
+
+	return ret;
+}
+
+int aspeed_mctp_remove_type_handler(struct mctp_client *client,
+				    u8 mctp_type, u16 pci_vendor_id,
+				    u16 vdm_type, u16 vdm_mask)
+{
+	struct aspeed_mctp *priv = client->priv;
+	struct mctp_type_handler *handler, *tmp;
+	int ret = -EINVAL;
+
+	vdm_type &= vdm_mask;
+
+	spin_lock_bh(&priv->clients_lock);
+	list_for_each_entry_safe(handler, tmp, &priv->mctp_type_handlers,
+				 link) {
+		if (handler->client == client &&
+		    handler->mctp_type == mctp_type &&
+		    handler->pci_vendor_id == pci_vendor_id &&
+		    handler->vdm_type == vdm_type) {
+			list_del(&handler->link);
+			kfree(handler);
+			ret = 0;
+			break;
+		}
+	}
+	spin_unlock_bh(&priv->clients_lock);
+	return ret;
+}
+
 static int aspeed_mctp_register_default_handler(struct mctp_client *client)
 {
 	struct aspeed_mctp *priv = client->priv;
@@ -623,6 +774,42 @@ static int aspeed_mctp_register_default_handler(struct mctp_client *client)
 	spin_unlock_bh(&priv->clients_lock);
 
 	return ret;
+}
+
+static int
+aspeed_mctp_register_type_handler(struct mctp_client *client,
+				  void __user *userbuf)
+{
+	struct aspeed_mctp *priv = client->priv;
+	struct aspeed_mctp_type_handler_ioctl handler;
+
+	if (copy_from_user(&handler, userbuf, sizeof(handler))) {
+		dev_err(priv->dev, "copy from user failed\n");
+		return -EFAULT;
+	}
+
+	return aspeed_mctp_add_type_handler(client, handler.mctp_type,
+					    handler.pci_vendor_id,
+					    handler.vendor_type,
+					    handler.vendor_type_mask);
+}
+
+static int
+aspeed_mctp_unregister_type_handler(struct mctp_client *client,
+				    void __user *userbuf)
+{
+	struct aspeed_mctp *priv = client->priv;
+	struct aspeed_mctp_type_handler_ioctl handler;
+
+	if (copy_from_user(&handler, userbuf, sizeof(handler))) {
+		dev_err(priv->dev, "copy from user failed\n");
+		return -EFAULT;
+	}
+
+	return aspeed_mctp_remove_type_handler(client, handler.mctp_type,
+					       handler.pci_vendor_id,
+					       handler.vendor_type,
+					       handler.vendor_type_mask);
 }
 
 static int
@@ -708,6 +895,14 @@ aspeed_mctp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case ASPEED_MCTP_IOCTL_REGISTER_DEFAULT_HANDLER:
 		ret = aspeed_mctp_register_default_handler(client);
+	break;
+
+	case ASPEED_MCTP_IOCTL_REGISTER_TYPE_HANDLER:
+		ret = aspeed_mctp_register_type_handler(client, userbuf);
+	break;
+
+	case ASPEED_MCTP_IOCTL_UNREGISTER_TYPE_HANDLER:
+		ret = aspeed_mctp_unregister_type_handler(client, userbuf);
 	break;
 
 	default:
@@ -914,6 +1109,7 @@ static irqreturn_t aspeed_mctp_pcie_rst_irq_handler(int irq, void *arg)
 static void aspeed_mctp_drv_init(struct aspeed_mctp *priv)
 {
 	INIT_LIST_HEAD(&priv->clients);
+	INIT_LIST_HEAD(&priv->mctp_type_handlers);
 
 	spin_lock_init(&priv->clients_lock);
 
