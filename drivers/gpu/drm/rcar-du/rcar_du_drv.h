@@ -13,6 +13,8 @@
 #include <linux/kernel.h>
 #include <linux/wait.h>
 
+#include <drm/drm_device.h>
+
 #include "rcar_cmm.h"
 #include "rcar_du_crtc.h"
 #include "rcar_du_group.h"
@@ -21,7 +23,6 @@
 struct clk;
 struct device;
 struct drm_bridge;
-struct drm_device;
 struct drm_property;
 struct rcar_du_device;
 
@@ -79,7 +80,7 @@ struct rcar_du_device {
 
 	void __iomem *mmio;
 
-	struct drm_device *ddev;
+	struct drm_device ddev;
 
 	struct rcar_du_crtc crtcs[RCAR_DU_MAX_CRTCS];
 	unsigned int num_crtcs;
