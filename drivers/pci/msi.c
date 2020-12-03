@@ -26,6 +26,8 @@
 
 #include "pci.h"
 
+#ifdef CONFIG_PCI_MSI
+
 static int pci_msi_enable = 1;
 int pci_msi_ignore_mask;
 
@@ -1577,3 +1579,37 @@ bool pci_dev_has_special_msi_domain(struct pci_dev *pdev)
 }
 
 #endif /* CONFIG_PCI_MSI_IRQ_DOMAIN */
+#endif /* CONFIG_PCI_MSI */
+
+void pci_msi_init(struct pci_dev *dev)
+{
+	u16 ctrl;
+
+	/*
+	 * Disable the MSI hardware to avoid screaming interrupts
+	 * during boot.  This is the power on reset default so
+	 * usually this should be a noop.
+	 */
+	dev->msi_cap = pci_find_capability(dev, PCI_CAP_ID_MSI);
+	if (!dev->msi_cap)
+		return;
+
+	pci_read_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, &ctrl);
+	if (ctrl & PCI_MSI_FLAGS_ENABLE)
+		pci_write_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS,
+				      ctrl & ~PCI_MSI_FLAGS_ENABLE);
+}
+
+void pci_msix_init(struct pci_dev *dev)
+{
+	u16 ctrl;
+
+	dev->msix_cap = pci_find_capability(dev, PCI_CAP_ID_MSIX);
+	if (!dev->msix_cap)
+		return;
+
+	pci_read_config_word(dev, dev->msix_cap + PCI_MSIX_FLAGS, &ctrl);
+	if (ctrl & PCI_MSIX_FLAGS_ENABLE)
+		pci_write_config_word(dev, dev->msix_cap + PCI_MSIX_FLAGS,
+				      ctrl & ~PCI_MSIX_FLAGS_ENABLE);
+}
