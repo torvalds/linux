@@ -692,8 +692,10 @@ static int kvaser_pciefd_open(struct net_device *netdev)
 		return err;
 
 	err = kvaser_pciefd_bus_on(can);
-	if (err)
+	if (err) {
+		close_candev(netdev);
 		return err;
+	}
 
 	return 0;
 }

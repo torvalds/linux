@@ -34,6 +34,7 @@
 #include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
 #include <asm/esr.h>
+#include <asm/exception.h>
 #include <asm/extable.h>
 #include <asm/insn.h>
 #include <asm/kprobes.h>
@@ -753,8 +754,10 @@ const char *esr_get_class_string(u32 esr)
  * bad_mode handles the impossible case in the exception vector. This is always
  * fatal.
  */
-asmlinkage void bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
+asmlinkage void notrace bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
 {
+	arm64_enter_nmi(regs);
+
 	console_verbose();
 
 	pr_crit("Bad mode in %s handler detected on CPU%d, code 0x%08x -- %s\n",
@@ -786,13 +789,15 @@ void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 DEFINE_PER_CPU(unsigned long [OVERFLOW_STACK_SIZE/sizeof(long)], overflow_stack)
 	__aligned(16);
 
-asmlinkage void handle_bad_stack(struct pt_regs *regs)
+asmlinkage void noinstr handle_bad_stack(struct pt_regs *regs)
 {
 	unsigned long tsk_stk = (unsigned long)current->stack;
 	unsigned long irq_stk = (unsigned long)this_cpu_read(irq_stack_ptr);
 	unsigned long ovf_stk = (unsigned long)this_cpu_ptr(overflow_stack);
 	unsigned int esr = read_sysreg(esr_el1);
 	unsigned long far = read_sysreg(far_el1);
+
+	arm64_enter_nmi(regs);
 
 	console_verbose();
 	pr_emerg("Insufficient stack space to handle exception!");
@@ -865,23 +870,16 @@ bool arm64_is_fatal_ras_serror(struct pt_regs *regs, unsigned int esr)
 	}
 }
 
-asmlinkage void do_serror(struct pt_regs *regs, unsigned int esr)
+asmlinkage void noinstr do_serror(struct pt_regs *regs, unsigned int esr)
 {
-	nmi_enter();
+	arm64_enter_nmi(regs);
 
 	/* non-RAS errors are not containable */
 	if (!arm64_is_ras_serror(esr) || arm64_is_fatal_ras_serror(regs, esr))
 		arm64_serror_panic(regs, esr);
 
-	nmi_exit();
+	arm64_exit_nmi(regs);
 }
-
-asmlinkage void enter_from_user_mode(void)
-{
-	CT_WARN_ON(ct_state() != CONTEXT_USER);
-	user_exit_irqoff();
-}
-NOKPROBE_SYMBOL(enter_from_user_mode);
 
 /* GENERIC_BUG traps */
 

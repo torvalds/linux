@@ -730,7 +730,7 @@ EXPORT_SYMBOL(vringh_iov_pull_user);
 /**
  * vringh_iov_push_user - copy bytes into vring_iov.
  * @wiov: the wiov as passed to vringh_getdesc_user() (updated as we consume)
- * @dst: the place to copy.
+ * @src: the place to copy from.
  * @len: the maximum length to copy.
  *
  * Returns the bytes copied <= len or a negative errno.
@@ -976,7 +976,7 @@ EXPORT_SYMBOL(vringh_iov_pull_kern);
 /**
  * vringh_iov_push_kern - copy bytes into vring_iov.
  * @wiov: the wiov as passed to vringh_getdesc_kern() (updated as we consume)
- * @dst: the place to copy.
+ * @src: the place to copy from.
  * @len: the maximum length to copy.
  *
  * Returns the bytes copied <= len or a negative errno.
@@ -1333,7 +1333,7 @@ EXPORT_SYMBOL(vringh_iov_pull_iotlb);
  * vringh_iov_push_iotlb - copy bytes into vring_iov.
  * @vrh: the vring.
  * @wiov: the wiov as passed to vringh_getdesc_iotlb() (updated as we consume)
- * @dst: the place to copy.
+ * @src: the place to copy from.
  * @len: the maximum length to copy.
  *
  * Returns the bytes copied <= len or a negative errno.

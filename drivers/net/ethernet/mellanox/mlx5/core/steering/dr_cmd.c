@@ -92,6 +92,7 @@ int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 	caps->eswitch_manager	= MLX5_CAP_GEN(mdev, eswitch_manager);
 	caps->gvmi		= MLX5_CAP_GEN(mdev, vhca_id);
 	caps->flex_protocols	= MLX5_CAP_GEN(mdev, flex_parser_protocols);
+	caps->sw_format_ver	= MLX5_CAP_GEN(mdev, steering_format_version);
 
 	if (caps->flex_protocols & MLX5_FLEX_PARSER_ICMP_V4_ENABLED) {
 		caps->flex_parser_id_icmp_dw0 = MLX5_CAP_GEN(mdev, flex_parser_id_icmp_dw0);

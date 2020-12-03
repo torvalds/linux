@@ -110,6 +110,7 @@ static int lpass_platform_pcmops_open(struct snd_soc_component *component,
 	struct regmap *map;
 	unsigned int dai_id = cpu_dai->driver->id;
 
+	component->id = dai_id;
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -451,19 +452,34 @@ static int lpass_platform_pcmops_trigger(struct snd_soc_component *component,
 	unsigned int reg_irqclr = 0, val_irqclr = 0;
 	unsigned int  reg_irqen = 0, val_irqen = 0, val_mask = 0;
 	unsigned int dai_id = cpu_dai->driver->id;
+	unsigned int dma_ctrl_reg = 0;
 
 	ch = pcm_data->dma_ch;
 	if (dir ==  SNDRV_PCM_STREAM_PLAYBACK) {
 		id = pcm_data->dma_ch;
-		if (dai_id == LPASS_DP_RX)
+		if (dai_id == LPASS_DP_RX) {
 			dmactl = drvdata->hdmi_rd_dmactl;
-		else
+			map = drvdata->hdmiif_map;
+		} else {
 			dmactl = drvdata->rd_dmactl;
+			map = drvdata->lpaif_map;
+		}
 	} else {
 		dmactl = drvdata->wr_dmactl;
 		id = pcm_data->dma_ch - v->wrdma_channel_start;
+		map = drvdata->lpaif_map;
+	}
+	ret = regmap_read(map, LPAIF_DMACTL_REG(v, ch, dir, dai_id), &dma_ctrl_reg);
+	if (ret) {
+		dev_err(soc_runtime->dev, "error reading from rdmactl reg: %d\n", ret);
+		return ret;
 	}
 
+	if (dma_ctrl_reg == LPAIF_DMACTL_RESET_STATE ||
+		dma_ctrl_reg == LPAIF_DMACTL_RESET_STATE + 1) {
+		dev_err(soc_runtime->dev, "error in rdmactl register state\n");
+		return -ENOTRECOVERABLE;
+	}
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
