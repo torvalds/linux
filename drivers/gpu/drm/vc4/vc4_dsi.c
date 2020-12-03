@@ -1388,12 +1388,12 @@ vc4_dsi_init_phy_clocks(struct vc4_dsi *dsi)
 	struct device *dev = &dsi->pdev->dev;
 	const char *parent_name = __clk_get_name(dsi->pll_phy_clock);
 	static const struct {
-		const char *dsi0_name, *dsi1_name;
+		const char *name;
 		int div;
 	} phy_clocks[] = {
-		{ "dsi0_byte", "dsi1_byte", 8 },
-		{ "dsi0_ddr2", "dsi1_ddr2", 4 },
-		{ "dsi0_ddr", "dsi1_ddr", 2 },
+		{ "byte", 8 },
+		{ "ddr2", 4 },
+		{ "ddr", 2 },
 	};
 	int i;
 
@@ -1409,7 +1409,11 @@ vc4_dsi_init_phy_clocks(struct vc4_dsi *dsi)
 	for (i = 0; i < ARRAY_SIZE(phy_clocks); i++) {
 		struct clk_fixed_factor *fix = &dsi->phy_clocks[i];
 		struct clk_init_data init;
+		char clk_name[16];
 		int ret;
+
+		snprintf(clk_name, sizeof(clk_name),
+			 "dsi%u_%s", dsi->port, phy_clocks[i].name);
 
 		/* We just use core fixed factor clock ops for the PHY
 		 * clocks.  The clocks are actually gated by the
@@ -1427,10 +1431,7 @@ vc4_dsi_init_phy_clocks(struct vc4_dsi *dsi)
 		memset(&init, 0, sizeof(init));
 		init.parent_names = &parent_name;
 		init.num_parents = 1;
-		if (dsi->port == 1)
-			init.name = phy_clocks[i].dsi1_name;
-		else
-			init.name = phy_clocks[i].dsi0_name;
+		init.name = clk_name;
 		init.ops = &clk_fixed_factor_ops;
 
 		ret = devm_clk_hw_register(dev, &fix->hw);
