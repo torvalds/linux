@@ -3363,6 +3363,7 @@ static int mvpp2_open(struct net_device *dev)
 	if (!valid) {
 		netdev_err(port->dev,
 			   "invalid configuration: no dt or link IRQ");
+		err = -ENOENT;
 		goto err_free_irq;
 	}
 
