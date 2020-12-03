@@ -8980,7 +8980,10 @@ static int dm_check_cursor_fb(struct amdgpu_crtc *new_acrtc,
 			      struct drm_plane_state *new_plane_state,
 			      struct drm_framebuffer *fb)
 {
+	struct amdgpu_device *adev = drm_to_adev(new_acrtc->base.dev);
+	struct amdgpu_framebuffer *afb = to_amdgpu_framebuffer(fb);
 	unsigned int pitch;
+	bool linear;
 
 	if (fb->width > new_acrtc->max_cursor_width ||
 	    fb->height > new_acrtc->max_cursor_height) {
@@ -9013,6 +9016,22 @@ static int dm_check_cursor_fb(struct amdgpu_crtc *new_acrtc,
 	default:
 		DRM_DEBUG_ATOMIC("Bad cursor FB pitch %d px\n", pitch);
 		return -EINVAL;
+	}
+
+	/* Core DRM takes care of checking FB modifiers, so we only need to
+	 * check tiling flags when the FB doesn't have a modifier. */
+	if (!(fb->flags & DRM_MODE_FB_MODIFIERS)) {
+		if (adev->family < AMDGPU_FAMILY_AI) {
+			linear = AMDGPU_TILING_GET(afb->tiling_flags, ARRAY_MODE) != DC_ARRAY_2D_TILED_THIN1 &&
+			         AMDGPU_TILING_GET(afb->tiling_flags, ARRAY_MODE) != DC_ARRAY_1D_TILED_THIN1 &&
+				 AMDGPU_TILING_GET(afb->tiling_flags, MICRO_TILE_MODE) == 0;
+		} else {
+			linear = AMDGPU_TILING_GET(afb->tiling_flags, SWIZZLE_MODE) == 0;
+		}
+		if (!linear) {
+			DRM_DEBUG_ATOMIC("Cursor FB not linear");
+			return -EINVAL;
+		}
 	}
 
 	return 0;
