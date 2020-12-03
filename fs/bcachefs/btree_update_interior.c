@@ -603,17 +603,30 @@ err:
 
 		list_del(&as->write_blocked_list);
 
-		if (!ret && as->b == b) {
+		/*
+		 * Node might have been freed, recheck under
+		 * btree_interior_update_lock:
+		 */
+		if (as->b == b) {
 			struct bset *i = btree_bset_last(b);
 
 			BUG_ON(!b->c.level);
 			BUG_ON(!btree_node_dirty(b));
 
-			i->journal_seq = cpu_to_le64(
-				max(journal_seq,
-				    le64_to_cpu(i->journal_seq)));
+			if (!ret) {
+				i->journal_seq = cpu_to_le64(
+					max(journal_seq,
+					    le64_to_cpu(i->journal_seq)));
 
-			bch2_btree_add_journal_pin(c, b, journal_seq);
+				bch2_btree_add_journal_pin(c, b, journal_seq);
+			} else {
+				/*
+				 * If we didn't get a journal sequence number we
+				 * can't write this btree node, because recovery
+				 * won't know to ignore this write:
+				 */
+				set_btree_node_never_write(b);
+			}
 		}
 
 		mutex_unlock(&c->btree_interior_update_lock);

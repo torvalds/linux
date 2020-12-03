@@ -1499,6 +1499,9 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 		if (!btree_node_may_write(b))
 			return;
 
+		if (old & (1 << BTREE_NODE_never_write))
+			return;
+
 		if (old & (1 << BTREE_NODE_write_in_flight)) {
 			btree_node_wait_on_io(b);
 			continue;
@@ -1544,6 +1547,8 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 			      btree_bkey_last(b, t));
 		seq = max(seq, le64_to_cpu(i->journal_seq));
 	}
+
+	BUG_ON(b->written && !seq);
 
 	/* bch2_varint_decode may read up to 7 bytes past the end of the buffer: */
 	bytes += 8;
