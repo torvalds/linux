@@ -264,6 +264,36 @@ struct allegro_channel {
 	unsigned int error;
 };
 
+static inline int
+allegro_channel_get_i_frame_qp(struct allegro_channel *channel)
+{
+	return v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_i_frame_qp);
+}
+
+static inline int
+allegro_channel_get_p_frame_qp(struct allegro_channel *channel)
+{
+	return v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_p_frame_qp);
+}
+
+static inline int
+allegro_channel_get_b_frame_qp(struct allegro_channel *channel)
+{
+	return v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_b_frame_qp);
+}
+
+static inline int
+allegro_channel_get_min_qp(struct allegro_channel *channel)
+{
+	return v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_min_qp);
+}
+
+static inline int
+allegro_channel_get_max_qp(struct allegro_channel *channel)
+{
+	return v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_max_qp);
+}
+
 struct allegro_m2m_buffer {
 	struct v4l2_m2m_buffer buf;
 	struct list_head head;
@@ -917,9 +947,9 @@ static s16 get_qp_delta(int minuend, int subtrahend)
 static int fill_create_channel_param(struct allegro_channel *channel,
 				     struct create_channel_param *param)
 {
-	int i_frame_qp = v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_i_frame_qp);
-	int p_frame_qp = v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_p_frame_qp);
-	int b_frame_qp = v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_b_frame_qp);
+	int i_frame_qp = allegro_channel_get_i_frame_qp(channel);
+	int p_frame_qp = allegro_channel_get_p_frame_qp(channel);
+	int b_frame_qp = allegro_channel_get_b_frame_qp(channel);
 	int bitrate_mode = v4l2_ctrl_g_ctrl(channel->mpeg_video_bitrate_mode);
 	unsigned int cpb_size = v4l2_ctrl_g_ctrl(channel->mpeg_video_cpb_size);
 	enum v4l2_mpeg_video_h264_profile profile;
@@ -982,8 +1012,8 @@ static int fill_create_channel_param(struct allegro_channel *channel,
 	param->target_bitrate = channel->bitrate;
 	param->max_bitrate = channel->bitrate_peak;
 	param->initial_qp = i_frame_qp;
-	param->min_qp = v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_min_qp);
-	param->max_qp = v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_max_qp);
+	param->min_qp = allegro_channel_get_min_qp(channel);
+	param->max_qp = allegro_channel_get_max_qp(channel);
 	param->ip_delta = get_qp_delta(i_frame_qp, p_frame_qp);
 	param->pb_delta = get_qp_delta(p_frame_qp, b_frame_qp);
 	param->golden_ref = 0;
