@@ -1570,7 +1570,7 @@ recv_xsks_map_fd(int *xsks_map_fd)
 
 	err = recv_xsks_map_fd_from_ctrl_node(sock, xsks_map_fd);
 	if (err) {
-		fprintf(stderr, "Error %d recieving fd\n", err);
+		fprintf(stderr, "Error %d receiving fd\n", err);
 		return err;
 	}
 	return 0;
