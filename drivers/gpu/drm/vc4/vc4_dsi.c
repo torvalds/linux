@@ -1324,6 +1324,13 @@ static const struct drm_encoder_helper_funcs vc4_dsi_encoder_helper_funcs = {
 	.mode_fixup = vc4_dsi_encoder_mode_fixup,
 };
 
+static const struct vc4_dsi_variant bcm2835_dsi0_variant = {
+	.port			= 0,
+	.debugfs_name		= "dsi0_regs",
+	.regs			= dsi0_regs,
+	.nregs			= ARRAY_SIZE(dsi0_regs),
+};
+
 static const struct vc4_dsi_variant bcm2835_dsi1_variant = {
 	.port			= 1,
 	.broken_axi_workaround	= true,
@@ -1333,6 +1340,7 @@ static const struct vc4_dsi_variant bcm2835_dsi1_variant = {
 };
 
 static const struct of_device_id vc4_dsi_dt_match[] = {
+	{ .compatible = "brcm,bcm2835-dsi0", &bcm2835_dsi0_variant },
 	{ .compatible = "brcm,bcm2835-dsi1", &bcm2835_dsi1_variant },
 	{}
 };
