@@ -2488,6 +2488,7 @@ config MIPS_CPS
 	select SYS_SUPPORTS_SCHED_SMT if CPU_MIPSR6
 	select SYS_SUPPORTS_SMP
 	select WEAK_ORDERING
+	select GENERIC_IRQ_MIGRATION if HOTPLUG_CPU
 	help
 	  Select this if you wish to run an SMP kernel across multiple cores
 	  within a MIPS Coherent Processing System. When this option is
