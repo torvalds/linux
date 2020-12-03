@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <linux/percpu-rwsem.h>
 #include <uapi/linux/sched/types.h>
+#include <linux/cpuset.h>
 
 #include <trace/events/power.h>
 #define CREATE_TRACE_POINTS
@@ -1252,6 +1253,15 @@ int resume_cpus(struct cpumask *cpus)
 
 	if (cpumask_empty(cpus))
 		goto err_cpu_maps_update;
+
+	for_each_cpu(cpu, cpus)
+		set_cpu_active(cpu, true);
+
+	/* Lazy Resume.  Build domains immediately instead of scheduling
+	 * a workqueue.  This is so that the cpu can pull load when
+	 * sent a load balancing kick.
+	 */
+	cpuset_hotplug_workfn(NULL);
 
 	cpus_write_lock();
 

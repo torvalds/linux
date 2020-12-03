@@ -342,9 +342,9 @@ static DEFINE_SPINLOCK(callback_lock);
 static struct workqueue_struct *cpuset_migrate_mm_wq;
 
 /*
- * CPU / memory hotplug is handled asynchronously.
+ * CPU / memory hotplug is handled asynchronously
+ * for hotplug, synchronously for resume_cpus
  */
-static void cpuset_hotplug_workfn(struct work_struct *work);
 static DECLARE_WORK(cpuset_hotplug_work, cpuset_hotplug_workfn);
 
 static DECLARE_WAIT_QUEUE_HEAD(cpuset_attach_wq);
@@ -3136,7 +3136,7 @@ update_tasks:
  * Note that CPU offlining during suspend is ignored.  We don't modify
  * cpusets across suspend/resume cycles at all.
  */
-static void cpuset_hotplug_workfn(struct work_struct *work)
+void cpuset_hotplug_workfn(struct work_struct *work)
 {
 	static cpumask_t new_cpus;
 	static nodemask_t new_mems;
