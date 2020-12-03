@@ -5786,6 +5786,9 @@ int skb_mpls_dec_ttl(struct sk_buff *skb)
 	if (unlikely(!eth_p_mpls(skb->protocol)))
 		return -EINVAL;
 
+	if (!pskb_may_pull(skb, skb_network_offset(skb) + MPLS_HLEN))
+		return -ENOMEM;
+
 	lse = be32_to_cpu(mpls_hdr(skb)->label_stack_entry);
 	ttl = (lse & MPLS_LS_TTL_MASK) >> MPLS_LS_TTL_SHIFT;
 	if (!--ttl)
