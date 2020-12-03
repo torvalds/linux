@@ -92,6 +92,7 @@ config IR_SONY_DECODER
 config IR_SANYO_DECODER
 	tristate "Enable IR raw decoder for the Sanyo protocol"
 	depends on RC_CORE
+	select BITREVERSE
 
 	help
 	   Enable this option if you have an infrared remote control which
@@ -101,6 +102,7 @@ config IR_SANYO_DECODER
 config IR_SHARP_DECODER
 	tristate "Enable IR raw decoder for the Sharp protocol"
 	depends on RC_CORE
+	select BITREVERSE
 
 	help
 	   Enable this option if you have an infrared remote control which

@@ -77,5 +77,6 @@ config VIDEO_EM28XX_RC
 	depends on VIDEO_EM28XX
 	depends on !(RC_CORE=m && VIDEO_EM28XX=y)
 	default VIDEO_EM28XX
+	select BITREVERSE
 	help
 	  Enables Remote Controller support on em28xx driver.
