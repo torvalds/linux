@@ -2051,7 +2051,7 @@ static void rtw_coex_action_bt_a2dp_hid(struct rtw_dev *rtwdev)
 	struct rtw_coex_dm *coex_dm = &coex->dm;
 	struct rtw_efuse *efuse = &rtwdev->efuse;
 	struct rtw_chip_info *chip = rtwdev->chip;
-	u8 table_case, tdma_case, interval;
+	u8 table_case, tdma_case, interval = 0;
 	u32 slot_type = 0;
 	bool is_toggle_table = false;
 
