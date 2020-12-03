@@ -1223,6 +1223,7 @@ struct hl_cs_job {
  *                    MSG_PROT packets. Relevant only for GAUDI as GOYA doesn't
  *                    have streams so the engine can't be busy by another
  *                    stream.
+ * @completion: true if we need completion for this CS.
  */
 struct hl_cs_parser {
 	struct hl_cb		*user_cb;
@@ -1237,6 +1238,7 @@ struct hl_cs_parser {
 	u8			job_id;
 	u8			is_kernel_allocated_cb;
 	u8			contains_dma_pkt;
+	u8			completion;
 };
 
 /*

@@ -5060,7 +5060,8 @@ static int gaudi_validate_cb(struct hl_device *hdev,
 	 * 1. A packet that will act as a completion packet
 	 * 2. A packet that will generate MSI-X interrupt
 	 */
-	parser->patched_cb_size += sizeof(struct packet_msg_prot) * 2;
+	if (parser->completion)
+		parser->patched_cb_size += sizeof(struct packet_msg_prot) * 2;
 
 	return rc;
 }
@@ -5287,8 +5288,11 @@ static int gaudi_parse_cb_mmu(struct hl_device *hdev,
 	 * 1. A packet that will act as a completion packet
 	 * 2. A packet that will generate MSI interrupt
 	 */
-	parser->patched_cb_size = parser->user_cb_size +
-			sizeof(struct packet_msg_prot) * 2;
+	if (parser->completion)
+		parser->patched_cb_size = parser->user_cb_size +
+				sizeof(struct packet_msg_prot) * 2;
+	else
+		parser->patched_cb_size = parser->user_cb_size;
 
 	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr, hdev->kernel_ctx,
 				parser->patched_cb_size, false, false,

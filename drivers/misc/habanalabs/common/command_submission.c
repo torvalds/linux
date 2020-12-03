@@ -225,6 +225,7 @@ static int cs_parser(struct hl_fpriv *hpriv, struct hl_cs_job *job)
 	parser.queue_type = job->queue_type;
 	parser.is_kernel_allocated_cb = job->is_kernel_allocated_cb;
 	job->patched_cb = NULL;
+	parser.completion = true;
 
 	rc = hdev->asic_funcs->cs_parser(hdev, &parser);
 
