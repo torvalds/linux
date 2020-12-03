@@ -1,6 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 .. _v4l2-meta-fmt-rk-isp1-params:
+
 .. _v4l2-meta-fmt-rk-isp1-stat-3a:
 
 *****************************************************************************
