@@ -423,7 +423,6 @@ config 64BIT
 config COMPAT
 	def_bool y
 	prompt "Kernel support for 31 bit emulation"
-	select COMPAT_BINFMT_ELF if BINFMT_ELF
 	select ARCH_WANT_OLD_COMPAT_IPC
 	select COMPAT_OLD_SIGACTION
 	select HAVE_UID16

@@ -2899,7 +2899,6 @@ config COMPAT_32
 config COMPAT
 	def_bool y
 	depends on IA32_EMULATION || X86_X32
-	select COMPAT_BINFMT_ELF if BINFMT_ELF
 
 if COMPAT
 config COMPAT_FOR_U64_ALIGNMENT
