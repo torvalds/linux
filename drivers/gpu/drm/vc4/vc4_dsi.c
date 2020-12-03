@@ -1324,6 +1324,13 @@ static const struct drm_encoder_helper_funcs vc4_dsi_encoder_helper_funcs = {
 	.mode_fixup = vc4_dsi_encoder_mode_fixup,
 };
 
+static const struct vc4_dsi_variant bcm2711_dsi1_variant = {
+	.port			= 1,
+	.debugfs_name		= "dsi1_regs",
+	.regs			= dsi1_regs,
+	.nregs			= ARRAY_SIZE(dsi1_regs),
+};
+
 static const struct vc4_dsi_variant bcm2835_dsi0_variant = {
 	.port			= 0,
 	.debugfs_name		= "dsi0_regs",
@@ -1340,6 +1347,7 @@ static const struct vc4_dsi_variant bcm2835_dsi1_variant = {
 };
 
 static const struct of_device_id vc4_dsi_dt_match[] = {
+	{ .compatible = "brcm,bcm2711-dsi1", &bcm2711_dsi1_variant },
 	{ .compatible = "brcm,bcm2835-dsi0", &bcm2835_dsi0_variant },
 	{ .compatible = "brcm,bcm2835-dsi1", &bcm2835_dsi1_variant },
 	{}
@@ -1524,8 +1532,8 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 		return -ENODEV;
 	}
 
-	/* DSI1 has a broken AXI slave that doesn't respond to writes
-	 * from the ARM.  It does handle writes from the DMA engine,
+	/* DSI1 on BCM2835/6/7 has a broken AXI slave that doesn't respond to
+	 * writes from the ARM.  It does handle writes from the DMA engine,
 	 * so set up a channel for talking to it.
 	 */
 	if (dsi->variant->broken_axi_workaround) {
