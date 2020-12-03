@@ -6629,6 +6629,16 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	char *log_buf = NULL;
 	int btf_fd, ret;
 
+	if (prog->type == BPF_PROG_TYPE_UNSPEC) {
+		/*
+		 * The program type must be set.  Most likely we couldn't find a proper
+		 * section definition at load time, and thus we didn't infer the type.
+		 */
+		pr_warn("prog '%s': missing BPF prog type, check ELF section name '%s'\n",
+			prog->name, prog->sec_name);
+		return -EINVAL;
+	}
+
 	if (!insns || !insns_cnt)
 		return -EINVAL;
 
@@ -6920,9 +6930,12 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 
 	bpf_object__for_each_program(prog, obj) {
 		prog->sec_def = find_sec_def(prog->sec_name);
-		if (!prog->sec_def)
+		if (!prog->sec_def) {
 			/* couldn't guess, but user might manually specify */
+			pr_debug("prog '%s': unrecognized ELF section name '%s'\n",
+				prog->name, prog->sec_name);
 			continue;
+		}
 
 		if (prog->sec_def->is_sleepable)
 			prog->prog_flags |= BPF_F_SLEEPABLE;
