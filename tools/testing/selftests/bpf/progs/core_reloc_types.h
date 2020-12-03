@@ -16,6 +16,23 @@ struct core_reloc_kernel_output {
 };
 
 /*
+ * MODULE
+ */
+
+struct core_reloc_module_output {
+	long long len;
+	long long off;
+	int read_ctx_sz;
+	bool read_ctx_exists;
+	bool buf_exists;
+	bool len_exists;
+	bool off_exists;
+	/* we have test_progs[-flavor], so cut flavor part */
+	char comm[sizeof("test_progs")];
+	int comm_len;
+};
+
+/*
  * FLAVORS
  */
 struct core_reloc_flavors {
