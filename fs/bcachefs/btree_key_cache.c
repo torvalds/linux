@@ -317,7 +317,7 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct journal *j = &c->journal;
 	struct btree_iter *c_iter = NULL, *b_iter = NULL;
-	struct bkey_cached *ck;
+	struct bkey_cached *ck = NULL;
 	int ret;
 
 	b_iter = bch2_trans_get_iter(trans, key.btree_id, key.pos,
