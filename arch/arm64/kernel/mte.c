@@ -189,7 +189,8 @@ long get_mte_ctrl(struct task_struct *task)
 
 	switch (task->thread.sctlr_tcf0) {
 	case SCTLR_EL1_TCF0_NONE:
-		return PR_MTE_TCF_NONE;
+		ret |= PR_MTE_TCF_NONE;
+		break;
 	case SCTLR_EL1_TCF0_SYNC:
 		ret |= PR_MTE_TCF_SYNC;
 		break;
