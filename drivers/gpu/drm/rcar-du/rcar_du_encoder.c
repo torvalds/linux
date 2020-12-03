@@ -123,11 +123,8 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	}
 
 done:
-	if (ret < 0) {
-		if (encoder->name)
-			encoder->funcs->destroy(encoder);
+	if (ret < 0)
 		devm_kfree(rcdu->dev, renc);
-	}
 
 	return ret;
 }
