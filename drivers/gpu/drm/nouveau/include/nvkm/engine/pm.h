@@ -7,7 +7,10 @@ struct nvkm_pm {
 	const struct nvkm_pm_func *func;
 	struct nvkm_engine engine;
 
-	struct nvkm_object *perfmon;
+	struct {
+		spinlock_t lock;
+		struct nvkm_object *object;
+	} client;
 
 	struct list_head domains;
 	struct list_head sources;
