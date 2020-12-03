@@ -267,7 +267,7 @@ static int rockchip_edp_phy_power_on(struct phy *phy)
 	usleep_range(100, 101);
 
 	writel(EDP_PHY_AUX_RCV_VCM(0x4) | EDP_PHY_AUX_MODE(0x1) |
-	       EDP_PHY_AUX_AMP_SCALE(0x1) | EDP_PHY_AUX_AMP(0x0) |
+	       EDP_PHY_AUX_AMP_SCALE(0x1) | EDP_PHY_AUX_AMP(0x3) |
 	       EDP_PHY_AUX_RTERM(0x1), edpphy->regs + EDP_PHY_GRF_CON11);
 
 	writel(EDP_PHY_AUX_RCV_PD(0x0) | EDP_PHY_AUX_DRV_PD(0x0),
