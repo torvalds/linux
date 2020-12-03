@@ -52,7 +52,7 @@ struct da9121_range {
 	int reg_max;
 };
 
-struct da9121_range da9121_10A_2phase_current = {
+static struct da9121_range da9121_10A_2phase_current = {
 	.val_min =  7000000,
 	.val_max = 20000000,
 	.val_stp =  1000000,
@@ -60,7 +60,7 @@ struct da9121_range da9121_10A_2phase_current = {
 	.reg_max = 14,
 };
 
-struct da9121_range da9121_6A_2phase_current = {
+static struct da9121_range da9121_6A_2phase_current = {
 	.val_min =  7000000,
 	.val_max = 12000000,
 	.val_stp =  1000000,
@@ -68,7 +68,7 @@ struct da9121_range da9121_6A_2phase_current = {
 	.reg_max = 6,
 };
 
-struct da9121_range da9121_5A_1phase_current = {
+static struct da9121_range da9121_5A_1phase_current = {
 	.val_min =  3500000,
 	.val_max = 10000000,
 	.val_stp =   500000,
@@ -76,7 +76,7 @@ struct da9121_range da9121_5A_1phase_current = {
 	.reg_max = 14,
 };
 
-struct da9121_range da9121_3A_1phase_current = {
+static struct da9121_range da9121_3A_1phase_current = {
 	.val_min = 3500000,
 	.val_max = 6000000,
 	.val_stp =  500000,
@@ -148,7 +148,7 @@ struct status_event_data {
  *
  * GPIO0/1/2 are not configured for use by default, so should not be seen.
  */
-const struct status_event_data status_event_handling[] = {
+static const struct status_event_data status_event_handling[] = {
 	DA9xxx_STATUS(0, 0, SG, 0, "Handled E_SG\n"),
 	DA9121_STATUS(0, 0, TEMP_CRIT, (REGULATOR_EVENT_OVER_TEMP|REGULATOR_EVENT_DISABLE), NULL),
 	DA9121_STATUS(0, 0, TEMP_WARN, REGULATOR_EVENT_OVER_TEMP, NULL),
