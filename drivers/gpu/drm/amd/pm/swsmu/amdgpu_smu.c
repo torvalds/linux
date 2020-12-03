@@ -141,6 +141,34 @@ int smu_get_dpm_freq_range(struct smu_context *smu,
 	return ret;
 }
 
+u32 smu_get_mclk(void *handle, bool low)
+{
+	struct smu_context *smu = handle;
+	uint32_t clk_freq;
+	int ret = 0;
+
+	ret = smu_get_dpm_freq_range(smu, SMU_UCLK,
+				     low ? &clk_freq : NULL,
+				     !low ? &clk_freq : NULL);
+	if (ret)
+		return 0;
+	return clk_freq * 100;
+}
+
+u32 smu_get_sclk(void *handle, bool low)
+{
+	struct smu_context *smu = handle;
+	uint32_t clk_freq;
+	int ret = 0;
+
+	ret = smu_get_dpm_freq_range(smu, SMU_GFXCLK,
+				     low ? &clk_freq : NULL,
+				     !low ? &clk_freq : NULL);
+	if (ret)
+		return 0;
+	return clk_freq * 100;
+}
+
 static int smu_dpm_set_vcn_enable_locked(struct smu_context *smu,
 					 bool enable)
 {
@@ -216,7 +244,7 @@ static int smu_dpm_set_jpeg_enable(struct smu_context *smu,
 /**
  * smu_dpm_set_power_gate - power gate/ungate the specific IP block
  *
- * @smu:        smu_context pointer
+ * @handle:        smu_context pointer
  * @block_type: the IP block to power gate/ungate
  * @gate:       to power gate if true, ungate otherwise
  *
@@ -227,9 +255,10 @@ static int smu_dpm_set_jpeg_enable(struct smu_context *smu,
  *    Under this case, the smu->mutex lock protection is already enforced on
  *    the parent API smu_force_performance_level of the call path.
  */
-int smu_dpm_set_power_gate(struct smu_context *smu, uint32_t block_type,
+int smu_dpm_set_power_gate(void *handle, uint32_t block_type,
 			   bool gate)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -1678,6 +1707,18 @@ out:
 	return ret;
 }
 
+int smu_handle_dpm_task(void *handle,
+			enum amd_pp_task task_id,
+			enum amd_pm_state_type *user_state)
+{
+	struct smu_context *smu = handle;
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+
+	return smu_handle_task(smu, smu_dpm->dpm_level, task_id, true);
+
+}
+
+
 int smu_switch_power_profile(void *handle,
 			     enum PP_SMC_POWER_PROFILE type,
 			     bool en)
@@ -2918,9 +2959,13 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.get_pp_table            = smu_sys_get_pp_table,
 	.switch_power_profile    = smu_switch_power_profile,
 	/* export to amdgpu */
+	.dispatch_tasks          = smu_handle_dpm_task,
+	.set_powergating_by_smu  = smu_dpm_set_power_gate,
 	.set_power_limit         = smu_set_power_limit,
 	.set_mp1_state           = smu_set_mp1_state,
 	/* export to DC */
+	.get_sclk                = smu_get_sclk,
+	.get_mclk                = smu_get_mclk,
 	.enable_mgpu_fan_boost   = smu_enable_mgpu_fan_boost,
 	.get_asic_baco_capability = smu_get_baco_capability,
 	.set_asic_baco_state     = smu_baco_set_state,

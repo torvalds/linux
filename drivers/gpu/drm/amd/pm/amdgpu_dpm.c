@@ -911,50 +911,28 @@ amdgpu_get_vce_clock_state(void *handle, u32 idx)
 
 int amdgpu_dpm_get_sclk(struct amdgpu_device *adev, bool low)
 {
-	uint32_t clk_freq;
-	int ret = 0;
-	if (is_support_sw_smu(adev)) {
-		ret = smu_get_dpm_freq_range(&adev->smu, SMU_GFXCLK,
-					     low ? &clk_freq : NULL,
-					     !low ? &clk_freq : NULL);
-		if (ret)
-			return 0;
-		return clk_freq * 100;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 
-	} else {
-		return (adev)->powerplay.pp_funcs->get_sclk((adev)->powerplay.pp_handle, (low));
-	}
+	return pp_funcs->get_sclk((adev)->powerplay.pp_handle, (low));
 }
 
 int amdgpu_dpm_get_mclk(struct amdgpu_device *adev, bool low)
 {
-	uint32_t clk_freq;
-	int ret = 0;
-	if (is_support_sw_smu(adev)) {
-		ret = smu_get_dpm_freq_range(&adev->smu, SMU_UCLK,
-					     low ? &clk_freq : NULL,
-					     !low ? &clk_freq : NULL);
-		if (ret)
-			return 0;
-		return clk_freq * 100;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 
-	} else {
-		return (adev)->powerplay.pp_funcs->get_mclk((adev)->powerplay.pp_handle, (low));
-	}
+	return pp_funcs->get_mclk((adev)->powerplay.pp_handle, (low));
 }
 
 int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev, uint32_t block_type, bool gate)
 {
 	int ret = 0;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	bool swsmu = is_support_sw_smu(adev);
 
 	switch (block_type) {
 	case AMD_IP_BLOCK_TYPE_UVD:
 	case AMD_IP_BLOCK_TYPE_VCE:
-		if (swsmu) {
-			ret = smu_dpm_set_power_gate(&adev->smu, block_type, gate);
-		} else if (adev->powerplay.pp_funcs &&
-			   adev->powerplay.pp_funcs->set_powergating_by_smu) {
+		if (pp_funcs && pp_funcs->set_powergating_by_smu) {
 			/*
 			 * TODO: need a better lock mechanism
 			 *
@@ -982,7 +960,7 @@ int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev, uint32_t block
 			 *     amdgpu_set_dpm_forced_performance_level+0x129/0x330 [amdgpu]
 			 */
 			mutex_lock(&adev->pm.mutex);
-			ret = ((adev)->powerplay.pp_funcs->set_powergating_by_smu(
+			ret = (pp_funcs->set_powergating_by_smu(
 				(adev)->powerplay.pp_handle, block_type, gate));
 			mutex_unlock(&adev->pm.mutex);
 		}
@@ -990,12 +968,10 @@ int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev, uint32_t block
 	case AMD_IP_BLOCK_TYPE_GFX:
 	case AMD_IP_BLOCK_TYPE_VCN:
 	case AMD_IP_BLOCK_TYPE_SDMA:
-		if (swsmu)
-			ret = smu_dpm_set_power_gate(&adev->smu, block_type, gate);
-		else if (adev->powerplay.pp_funcs &&
-			 adev->powerplay.pp_funcs->set_powergating_by_smu)
-			ret = ((adev)->powerplay.pp_funcs->set_powergating_by_smu(
+		if (pp_funcs && pp_funcs->set_powergating_by_smu) {
+			ret = (pp_funcs->set_powergating_by_smu(
 				(adev)->powerplay.pp_handle, block_type, gate));
+		}
 		break;
 	case AMD_IP_BLOCK_TYPE_JPEG:
 		if (swsmu)
@@ -1003,10 +979,10 @@ int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev, uint32_t block
 		break;
 	case AMD_IP_BLOCK_TYPE_GMC:
 	case AMD_IP_BLOCK_TYPE_ACP:
-		if (adev->powerplay.pp_funcs &&
-		    adev->powerplay.pp_funcs->set_powergating_by_smu)
-			ret = ((adev)->powerplay.pp_funcs->set_powergating_by_smu(
+		if (pp_funcs && pp_funcs->set_powergating_by_smu) {
+			ret = (pp_funcs->set_powergating_by_smu(
 				(adev)->powerplay.pp_handle, block_type, gate));
+		}
 		break;
 	default:
 		break;
@@ -1512,36 +1488,30 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 			amdgpu_fence_wait_empty(ring);
 	}
 
-	if (is_support_sw_smu(adev)) {
-		struct smu_dpm_context *smu_dpm = &adev->smu.smu_dpm;
-		smu_handle_task(&adev->smu,
-				smu_dpm->dpm_level,
-				AMD_PP_TASK_DISPLAY_CONFIG_CHANGE,
-				true);
-	} else {
-		if (adev->powerplay.pp_funcs->dispatch_tasks) {
-			if (!amdgpu_device_has_dc_support(adev)) {
-				mutex_lock(&adev->pm.mutex);
-				amdgpu_dpm_get_active_displays(adev);
-				adev->pm.pm_display_cfg.num_display = adev->pm.dpm.new_active_crtc_count;
-				adev->pm.pm_display_cfg.vrefresh = amdgpu_dpm_get_vrefresh(adev);
-				adev->pm.pm_display_cfg.min_vblank_time = amdgpu_dpm_get_vblank_time(adev);
-				/* we have issues with mclk switching with refresh rates over 120 hz on the non-DC code. */
-				if (adev->pm.pm_display_cfg.vrefresh > 120)
-					adev->pm.pm_display_cfg.min_vblank_time = 0;
-				if (adev->powerplay.pp_funcs->display_configuration_change)
-					adev->powerplay.pp_funcs->display_configuration_change(
-									adev->powerplay.pp_handle,
-									&adev->pm.pm_display_cfg);
-				mutex_unlock(&adev->pm.mutex);
-			}
-			amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_DISPLAY_CONFIG_CHANGE, NULL);
-		} else {
+	if (adev->powerplay.pp_funcs->dispatch_tasks) {
+		if (!amdgpu_device_has_dc_support(adev)) {
 			mutex_lock(&adev->pm.mutex);
 			amdgpu_dpm_get_active_displays(adev);
-			amdgpu_dpm_change_power_state_locked(adev);
+			adev->pm.pm_display_cfg.num_display = adev->pm.dpm.new_active_crtc_count;
+			adev->pm.pm_display_cfg.vrefresh = amdgpu_dpm_get_vrefresh(adev);
+			adev->pm.pm_display_cfg.min_vblank_time = amdgpu_dpm_get_vblank_time(adev);
+			/* we have issues with mclk switching with
+			 * refresh rates over 120 hz on the non-DC code.
+			 */
+			if (adev->pm.pm_display_cfg.vrefresh > 120)
+				adev->pm.pm_display_cfg.min_vblank_time = 0;
+			if (adev->powerplay.pp_funcs->display_configuration_change)
+				adev->powerplay.pp_funcs->display_configuration_change(
+							adev->powerplay.pp_handle,
+							&adev->pm.pm_display_cfg);
 			mutex_unlock(&adev->pm.mutex);
 		}
+		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_DISPLAY_CONFIG_CHANGE, NULL);
+	} else {
+		mutex_lock(&adev->pm.mutex);
+		amdgpu_dpm_get_active_displays(adev);
+		amdgpu_dpm_change_power_state_locked(adev);
+		mutex_unlock(&adev->pm.mutex);
 	}
 }
 
