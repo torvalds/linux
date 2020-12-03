@@ -496,15 +496,6 @@ static const struct clk_ops axi_clkgen_ops = {
 	.get_parent = axi_clkgen_get_parent,
 };
 
-static const struct of_device_id axi_clkgen_ids[] = {
-	{
-		.compatible = "adi,axi-clkgen-2.00.a",
-		.data = &axi_clkgen_zynq_default_limits,
-	},
-	{ },
-};
-MODULE_DEVICE_TABLE(of, axi_clkgen_ids);
-
 static int axi_clkgen_probe(struct platform_device *pdev)
 {
 	const struct axi_clkgen_limits *dflt_limits;
@@ -567,6 +558,15 @@ static int axi_clkgen_remove(struct platform_device *pdev)
 
 	return 0;
 }
+
+static const struct of_device_id axi_clkgen_ids[] = {
+	{
+		.compatible = "adi,axi-clkgen-2.00.a",
+		.data = &axi_clkgen_zynq_default_limits,
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, axi_clkgen_ids);
 
 static struct platform_driver axi_clkgen_driver = {
 	.driver = {
