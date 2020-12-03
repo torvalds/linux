@@ -65,16 +65,6 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	struct drm_bridge *bridge;
 	int ret;
 
-	renc = kzalloc(sizeof(*renc), GFP_KERNEL);
-	if (renc == NULL)
-		return -ENOMEM;
-
-	renc->output = output;
-	encoder = rcar_encoder_to_drm_encoder(renc);
-
-	dev_dbg(rcdu->dev, "initializing encoder %pOF for output %u\n",
-		enc_node, output);
-
 	/*
 	 * Locate the DRM bridge from the DT node. For the DPAD outputs, if the
 	 * DT node has a single port, assume that it describes a panel and
@@ -85,23 +75,17 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	    rcar_du_encoder_count_ports(enc_node) == 1) {
 		struct drm_panel *panel = of_drm_find_panel(enc_node);
 
-		if (IS_ERR(panel)) {
-			ret = PTR_ERR(panel);
-			goto error;
-		}
+		if (IS_ERR(panel))
+			return PTR_ERR(panel);
 
 		bridge = devm_drm_panel_bridge_add_typed(rcdu->dev, panel,
 							 DRM_MODE_CONNECTOR_DPI);
-		if (IS_ERR(bridge)) {
-			ret = PTR_ERR(bridge);
-			goto error;
-		}
+		if (IS_ERR(bridge))
+			return PTR_ERR(bridge);
 	} else {
 		bridge = of_drm_find_bridge(enc_node);
-		if (!bridge) {
-			ret = -EPROBE_DEFER;
-			goto error;
-		}
+		if (!bridge)
+			return -EPROBE_DEFER;
 
 		if (output == RCAR_DU_OUTPUT_LVDS0 ||
 		    output == RCAR_DU_OUTPUT_LVDS1)
@@ -109,20 +93,31 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	}
 
 	/*
-	 * On Gen3 skip the LVDS1 output if the LVDS1 encoder is used as a
-	 * companion for LVDS0 in dual-link mode.
+	 * Create and initialize the encoder. On Gen3 skip the LVDS1 output if
+	 * the LVDS1 encoder is used as a companion for LVDS0 in dual-link
+	 * mode.
 	 */
 	if (rcdu->info->gen >= 3 && output == RCAR_DU_OUTPUT_LVDS1) {
-		if (rcar_lvds_dual_link(bridge)) {
-			ret = -ENOLINK;
-			goto error;
-		}
+		if (rcar_lvds_dual_link(bridge))
+			return -ENOLINK;
 	}
+
+	renc = kzalloc(sizeof(*renc), GFP_KERNEL);
+	if (renc == NULL)
+		return -ENOMEM;
+
+	renc->output = output;
+	encoder = rcar_encoder_to_drm_encoder(renc);
+
+	dev_dbg(rcdu->dev, "initializing encoder %pOF for output %u\n",
+		enc_node, output);
 
 	ret = drm_encoder_init(&rcdu->ddev, encoder, &rcar_du_encoder_funcs,
 			       DRM_MODE_ENCODER_NONE, NULL);
-	if (ret < 0)
-		goto error;
+	if (ret < 0) {
+		kfree(renc);
+		return ret;
+	}
 
 	ret = drmm_add_action_or_reset(&rcdu->ddev, rcar_du_encoder_release,
 				       renc);
@@ -134,8 +129,4 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	 * connector.
 	 */
 	return drm_bridge_attach(encoder, bridge, NULL, 0);
-
-error:
-	kfree(renc);
-	return ret;
 }
