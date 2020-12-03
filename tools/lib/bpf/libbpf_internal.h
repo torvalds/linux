@@ -155,6 +155,7 @@ int bpf_object__section_size(const struct bpf_object *obj, const char *name,
 			     __u32 *size);
 int bpf_object__variable_offset(const struct bpf_object *obj, const char *name,
 				__u32 *off);
+struct btf *btf_get_from_fd(int btf_fd, struct btf *base_btf);
 
 struct btf_ext_info {
 	/*
