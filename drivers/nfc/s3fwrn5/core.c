@@ -20,12 +20,25 @@
 				NFC_PROTO_ISO14443_B_MASK | \
 				NFC_PROTO_ISO15693_MASK)
 
+static int s3fwrn5_firmware_init(struct s3fwrn5_info *info)
+{
+	struct s3fwrn5_fw_info *fw_info = &info->fw_info;
+	int ret;
+
+	s3fwrn5_fw_init(fw_info, "sec_s3fwrn5_firmware.bin");
+
+	/* Get firmware data */
+	ret = s3fwrn5_fw_request_firmware(fw_info);
+	if (ret < 0)
+		dev_err(&fw_info->ndev->nfc_dev->dev,
+			"Failed to get fw file, ret=%02x\n", ret);
+	return ret;
+}
+
 static int s3fwrn5_firmware_update(struct s3fwrn5_info *info)
 {
 	bool need_update;
 	int ret;
-
-	s3fwrn5_fw_init(&info->fw_info, "sec_s3fwrn5_firmware.bin");
 
 	/* Update firmware */
 
@@ -108,6 +121,12 @@ static int s3fwrn5_nci_post_setup(struct nci_dev *ndev)
 {
 	struct s3fwrn5_info *info = nci_get_drvdata(ndev);
 	int ret;
+
+	if (s3fwrn5_firmware_init(info)) {
+		//skip bootloader mode
+		ret = 0;
+		goto out;
+	}
 
 	ret = s3fwrn5_firmware_update(info);
 	if (ret < 0)
