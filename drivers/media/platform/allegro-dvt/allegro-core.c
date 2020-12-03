@@ -1279,6 +1279,8 @@ static ssize_t allegro_h264_write_sps(struct allegro_channel *channel,
 	/* Calculation of crop units in Rec. ITU-T H.264 (04/2017) p. 76 */
 	unsigned int crop_unit_x = 2;
 	unsigned int crop_unit_y = 2;
+	unsigned int cpb_size;
+	unsigned int cpb_size_scale;
 
 	sps = kzalloc(sizeof(*sps), GFP_KERNEL);
 	if (!sps)
@@ -1336,13 +1338,15 @@ static ssize_t allegro_h264_write_sps(struct allegro_channel *channel,
 	sps->vui.vcl_hrd_parameters_present_flag = 1;
 	sps->vui.vcl_hrd_parameters.cpb_cnt_minus1 = 0;
 	sps->vui.vcl_hrd_parameters.bit_rate_scale = 0;
-	sps->vui.vcl_hrd_parameters.cpb_size_scale = 1;
 	/* See Rec. ITU-T H.264 (04/2017) p. 410 E-53 */
 	sps->vui.vcl_hrd_parameters.bit_rate_value_minus1[0] =
 		channel->bitrate_peak / (1 << (6 + sps->vui.vcl_hrd_parameters.bit_rate_scale)) - 1;
 	/* See Rec. ITU-T H.264 (04/2017) p. 410 E-54 */
+	cpb_size = channel->cpb_size;
+	cpb_size_scale = ffs(cpb_size) - 4;
+	sps->vui.vcl_hrd_parameters.cpb_size_scale = cpb_size_scale;
 	sps->vui.vcl_hrd_parameters.cpb_size_value_minus1[0] =
-		(channel->cpb_size * 1000) / (1 << (4 + sps->vui.vcl_hrd_parameters.cpb_size_scale)) - 1;
+		(cpb_size * 1000) / (1 << (4 + cpb_size_scale)) - 1;
 	sps->vui.vcl_hrd_parameters.cbr_flag[0] =
 		!v4l2_ctrl_g_ctrl(channel->mpeg_video_frame_rc_enable);
 	sps->vui.vcl_hrd_parameters.initial_cpb_removal_delay_length_minus1 = 31;
