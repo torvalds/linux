@@ -33,6 +33,7 @@ void bch2_pagecache_block_get(struct pagecache_lock *);
 
 struct bch_inode_info {
 	struct inode		v;
+	unsigned long		ei_flags;
 
 	struct mutex		ei_update_lock;
 	u64			ei_journal_seq;
@@ -48,6 +49,12 @@ struct bch_inode_info {
 	/* copy of inode in btree: */
 	struct bch_inode_unpacked ei_inode;
 };
+
+/*
+ * Set if we've gotten a btree error for this inode, and thus the vfs inode and
+ * btree inode may be inconsistent:
+ */
+#define EI_INODE_ERROR			0
 
 #define to_bch_ei(_inode)					\
 	container_of_or_null(_inode, struct bch_inode_info, v)

@@ -1161,6 +1161,7 @@ static void bch2_vfs_inode_init(struct bch_fs *c,
 	inode->v.i_generation	= bi->bi_generation;
 	inode->v.i_size		= bi->bi_size;
 
+	inode->ei_flags		= 0;
 	inode->ei_journal_seq	= 0;
 	inode->ei_quota_reserved = 0;
 	inode->ei_str_hash	= bch2_hash_info_init(c, bi);
