@@ -343,7 +343,7 @@ end:
 
 void rkispp_free_common_dummy_buf(struct rkispp_device *dev)
 {
-	mutex_lock(&dev->hw_dev->dev_lock);
+	if (atomic_read(&dev->hw_dev->refcnt))
+		return;
 	rkispp_free_buffer(dev, &dev->hw_dev->dummy_buf);
-	mutex_unlock(&dev->hw_dev->dev_lock);
 }

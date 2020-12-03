@@ -304,8 +304,6 @@ static int __maybe_unused rkispp_runtime_suspend(struct device *dev)
 	struct rkispp_device *ispp_dev = dev_get_drvdata(dev);
 	int ret;
 
-	rkispp_free_common_dummy_buf(ispp_dev);
-
 	mutex_lock(&ispp_dev->hw_dev->dev_lock);
 	ret = pm_runtime_put_sync(ispp_dev->hw_dev->dev);
 	mutex_unlock(&ispp_dev->hw_dev->dev_lock);

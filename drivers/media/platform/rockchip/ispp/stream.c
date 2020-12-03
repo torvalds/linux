@@ -1387,6 +1387,7 @@ static void rkispp_destroy_dummy_buf(struct rkispp_stream *stream)
 		nr_free_buf(dev);
 		fec_free_buf(dev);
 		rkispp_event_handle(dev, CMD_FREE_POOL, NULL);
+		rkispp_free_common_dummy_buf(dev);
 	}
 }
 
