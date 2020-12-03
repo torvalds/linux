@@ -807,7 +807,7 @@ static int hl_cs_copy_chunk_array(struct hl_device *hdev,
 }
 
 static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
-				u32 num_chunks, u64 *cs_seq, bool timestamp)
+				u32 num_chunks, u64 *cs_seq, u32 flags)
 {
 	bool int_queues_only = true;
 	struct hl_device *hdev = hpriv->hdev;
@@ -836,7 +836,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 		goto free_cs_chunk_array;
 	}
 
-	cs->timestamp = !!timestamp;
+	cs->timestamp = !!(flags & HL_CS_FLAGS_TIMESTAMP);
 	*cs_seq = cs->sequence;
 
 	hl_debugfs_add_cs(cs);
@@ -1004,7 +1004,7 @@ static int hl_cs_ctx_switch(struct hl_fpriv *hpriv, union hl_cs_args *args,
 			rc = 0;
 		} else {
 			rc = cs_ioctl_default(hpriv, chunks, num_chunks,
-						cs_seq, false);
+								cs_seq, 0);
 		}
 
 		mutex_unlock(&hpriv->restore_phase_mutex);
@@ -1347,7 +1347,7 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 	enum hl_cs_type cs_type;
 	u64 cs_seq = ULONG_MAX;
 	void __user *chunks;
-	u32 num_chunks;
+	u32 num_chunks, flags;
 	int rc;
 
 	rc = hl_cs_sanity_checks(hpriv, args);
@@ -1362,6 +1362,12 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 					~HL_CS_FLAGS_FORCE_RESTORE);
 	chunks = (void __user *) (uintptr_t) args->in.chunks_execute;
 	num_chunks = args->in.num_chunks_execute;
+	flags = args->in.cs_flags;
+
+	/* In case this is a staged CS, user should supply the CS sequence */
+	if ((flags & HL_CS_FLAGS_STAGED_SUBMISSION) &&
+			!(flags & HL_CS_FLAGS_STAGED_SUBMISSION_FIRST))
+		cs_seq = args->in.seq;
 
 	switch (cs_type) {
 	case CS_TYPE_SIGNAL:
@@ -1372,7 +1378,7 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 		break;
 	default:
 		rc = cs_ioctl_default(hpriv, chunks, num_chunks, &cs_seq,
-				args->in.cs_flags & HL_CS_FLAGS_TIMESTAMP);
+							args->in.cs_flags);
 		break;
 	}
 

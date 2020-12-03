@@ -604,11 +604,14 @@ struct hl_cs_chunk {
 };
 
 /* SIGNAL and WAIT/COLLECTIVE_WAIT flags are mutually exclusive */
-#define HL_CS_FLAGS_FORCE_RESTORE	0x1
-#define HL_CS_FLAGS_SIGNAL		0x2
-#define HL_CS_FLAGS_WAIT		0x4
-#define HL_CS_FLAGS_COLLECTIVE_WAIT	0x8
-#define HL_CS_FLAGS_TIMESTAMP		0x20
+#define HL_CS_FLAGS_FORCE_RESTORE		0x1
+#define HL_CS_FLAGS_SIGNAL			0x2
+#define HL_CS_FLAGS_WAIT			0x4
+#define HL_CS_FLAGS_COLLECTIVE_WAIT		0x8
+#define HL_CS_FLAGS_TIMESTAMP			0x20
+#define HL_CS_FLAGS_STAGED_SUBMISSION		0x40
+#define HL_CS_FLAGS_STAGED_SUBMISSION_FIRST	0x80
+#define HL_CS_FLAGS_STAGED_SUBMISSION_LAST	0x100
 
 #define HL_CS_STATUS_SUCCESS		0
 
@@ -622,10 +625,17 @@ struct hl_cs_in {
 	/* holds address of array of hl_cs_chunk for execution phase */
 	__u64 chunks_execute;
 
-	/* this holds address of array of hl_cs_chunk for store phase -
-	 * Currently not in use
-	 */
-	__u64 chunks_store;
+	union {
+		/* this holds address of array of hl_cs_chunk for store phase -
+		 * Currently not in use
+		 */
+		__u64 chunks_store;
+
+		/* Sequence number of a staged submission CS
+		 * valid only if HL_CS_FLAGS_STAGED_SUBMISSION is set
+		 */
+		__u64 seq;
+	};
 
 	/* Number of chunks in restore phase array. Maximum number is
 	 * HL_MAX_JOBS_PER_CS
