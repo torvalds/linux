@@ -249,7 +249,6 @@ static int hibmc_unload(struct drm_device *dev)
 
 	pci_disable_msi(dev->pdev);
 	hibmc_kms_fini(priv);
-	hibmc_mm_fini(priv);
 	dev->dev_private = NULL;
 	return 0;
 }
