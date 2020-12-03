@@ -30,6 +30,7 @@ properties:
       - st,lsm6ds0
       - st,lsm6dsrx
       - st,lsm6dst
+      - st,lsm6dsop
 
   reg:
     maxItems: 1
@@ -41,6 +42,12 @@ properties:
       Supports up to 2 interrupt lines via the INT1 and INT2 pins.
 
   spi-max-frequency: true
+
+  vdd-supply:
+    description: if defined provides VDD power to the sensor.
+
+  vddio-supply:
+    description: if defined provides VDD IO power to the sensor.
 
   st,drdy-int-pin:
     $ref: '/schemas/types.yaml#/definitions/uint32'
