@@ -560,7 +560,7 @@ static const struct ov5695_mode supported_modes[] = {
 			.numerator = 10000,
 			.denominator = 1200000,
 		},
-		.exp_def = 0x0450,
+		.exp_def = 0x0200,
 		.hts_def = 0x02a0 * 4,
 		.vts_def = 0x022e,
 		.reg_list = ov5695_640x480_regs,
