@@ -211,6 +211,8 @@ static int nvme_loop_init_request(struct blk_mq_tag_set *set,
 			(set == &ctrl->tag_set) ? hctx_idx + 1 : 0);
 }
 
+static struct lock_class_key loop_hctx_fq_lock_key;
+
 static int nvme_loop_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 		unsigned int hctx_idx)
 {
@@ -218,6 +220,14 @@ static int nvme_loop_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 	struct nvme_loop_queue *queue = &ctrl->queues[hctx_idx + 1];
 
 	BUG_ON(hctx_idx >= ctrl->ctrl.queue_count);
+
+	/*
+	 * flush_end_io() can be called recursively for us, so use our own
+	 * lock class key for avoiding lockdep possible recursive locking,
+	 * then we can remove the dynamically allocated lock class for each
+	 * flush queue, that way may cause horrible boot delay.
+	 */
+	blk_mq_hctx_set_fq_lock_class(hctx, &loop_hctx_fq_lock_key);
 
 	hctx->driver_data = queue;
 	return 0;
