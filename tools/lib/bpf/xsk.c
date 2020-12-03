@@ -583,7 +583,7 @@ static int xsk_create_xsk_struct(int ifindex, struct xsk_socket *xsk)
 	}
 
 	ctx->ifindex = ifindex;
-	strncpy(ctx->ifname, ifname, IFNAMSIZ - 1);
+	memcpy(ctx->ifname, ifname, IFNAMSIZ -1);
 	ctx->ifname[IFNAMSIZ - 1] = 0;
 
 	xsk->ctx = ctx;
