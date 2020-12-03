@@ -14,6 +14,20 @@ usage()
         exit 1
 }
 
+ensure_mount_securityfs()
+{
+        local securityfs_dir=$(grep "securityfs" /proc/mounts | awk '{print $2}')
+
+        if [ -z "${securityfs_dir}" ]; then
+                securityfs_dir=/sys/kernel/security
+                mount -t securityfs security "${securityfs_dir}"
+        fi
+
+        if [ ! -d "${securityfs_dir}" ]; then
+                echo "${securityfs_dir}: securityfs is not mounted" && exit 1
+        fi
+}
+
 setup()
 {
         local tmp_dir="$1"
@@ -33,6 +47,7 @@ setup()
         cp "${TEST_BINARY}" "${mount_dir}"
         local mount_uuid="$(blkid ${loop_device} | sed 's/.*UUID="\([^"]*\)".*/\1/')"
 
+        ensure_mount_securityfs
         echo "measure func=BPRM_CHECK fsuuid=${mount_uuid}" > ${IMA_POLICY_FILE}
 }
 
