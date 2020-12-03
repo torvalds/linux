@@ -882,8 +882,9 @@
 		clocks = <&cru CLK_CAM0_OUT>;
 		clock-names = "xvclk";
 		power-domains = <&power RK3568_PD_VI>;
-		pinctrl-names = "default";
+		pinctrl-names = "rockchip,camera_default", "rockchip,camera_sleep";
 		pinctrl-0 = <&cam_clkout0>;
+		pinctrl-1 = <&cam_sleep>;
 		//reset pin control by hardware,used this pin switch to mipi input
 		//1->2LANE(LANE 0&1) FRONT camera, 0->4LANE REAR camera
 		reset-gpios = <&gpio4 17 GPIO_ACTIVE_LOW>;
@@ -980,6 +981,12 @@
 			rockchip,pins =
 				/* cam_clkout0 */
 				<4 RK_PA7 RK_FUNC_1 &pcfg_pull_none>;
+		};
+
+		cam_sleep: cam-sleep {
+			rockchip,pins =
+				/* cam_sleep */
+				<4 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		camera_rst: camera-rst {
