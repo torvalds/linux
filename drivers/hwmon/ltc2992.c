@@ -8,6 +8,7 @@
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/err.h>
+#include <linux/gpio/driver.h>
 #include <linux/hwmon.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
@@ -54,6 +55,9 @@
 #define LTC2992_G4_MAX_THRESH		0x74
 #define LTC2992_G4_MIN_THRESH		0x76
 #define LTC2992_FAULT3			0x92
+#define LTC2992_GPIO_STATUS		0x95
+#define LTC2992_GPIO_IO_CTRL		0x96
+#define LTC2992_GPIO_CTRL		0x97
 
 #define LTC2992_POWER(x)		(LTC2992_POWER1 + ((x) * 0x32))
 #define LTC2992_POWER_MAX(x)		(LTC2992_POWER1_MAX + ((x) * 0x32))
@@ -96,8 +100,18 @@
 #define LTC2992_VADC_UV_LSB		25000
 #define LTC2992_VADC_GPIO_UV_LSB	500
 
+#define LTC2992_GPIO_NR		4
+#define LTC2992_GPIO1_BIT	7
+#define LTC2992_GPIO2_BIT	6
+#define LTC2992_GPIO3_BIT	0
+#define LTC2992_GPIO4_BIT	6
+#define LTC2992_GPIO_BIT(x)	(LTC2992_GPIO_NR - (x) - 1)
+
 struct ltc2992_state {
 	struct i2c_client		*client;
+	struct gpio_chip		gc;
+	struct mutex			gpio_mutex; /* lock for gpio access */
+	const char			*gpio_names[LTC2992_GPIO_NR];
 	struct regmap			*regmap;
 	u32				r_sense_uohm[2];
 };
@@ -111,6 +125,8 @@ struct ltc2992_gpio_regs {
 	u8	alarm;
 	u8	min_alarm_msk;
 	u8	max_alarm_msk;
+	u8	ctrl;
+	u8	ctrl_bit;
 };
 
 static const struct ltc2992_gpio_regs ltc2992_gpio_addr_map[] = {
@@ -123,6 +139,8 @@ static const struct ltc2992_gpio_regs ltc2992_gpio_addr_map[] = {
 		.alarm = LTC2992_FAULT1,
 		.min_alarm_msk = LTC2992_GPIO1_FAULT_MSK(0),
 		.max_alarm_msk = LTC2992_GPIO1_FAULT_MSK(1),
+		.ctrl = LTC2992_GPIO_IO_CTRL,
+		.ctrl_bit = LTC2992_GPIO1_BIT,
 	},
 	{
 		.data = LTC2992_G2,
@@ -133,6 +151,8 @@ static const struct ltc2992_gpio_regs ltc2992_gpio_addr_map[] = {
 		.alarm = LTC2992_FAULT2,
 		.min_alarm_msk = LTC2992_GPIO2_FAULT_MSK(0),
 		.max_alarm_msk = LTC2992_GPIO2_FAULT_MSK(1),
+		.ctrl = LTC2992_GPIO_IO_CTRL,
+		.ctrl_bit = LTC2992_GPIO2_BIT,
 	},
 	{
 		.data = LTC2992_G3,
@@ -143,6 +163,8 @@ static const struct ltc2992_gpio_regs ltc2992_gpio_addr_map[] = {
 		.alarm = LTC2992_FAULT3,
 		.min_alarm_msk = LTC2992_GPIO3_FAULT_MSK(0),
 		.max_alarm_msk = LTC2992_GPIO3_FAULT_MSK(1),
+		.ctrl = LTC2992_GPIO_IO_CTRL,
+		.ctrl_bit = LTC2992_GPIO3_BIT,
 	},
 	{
 		.data = LTC2992_G4,
@@ -153,14 +175,20 @@ static const struct ltc2992_gpio_regs ltc2992_gpio_addr_map[] = {
 		.alarm = LTC2992_FAULT3,
 		.min_alarm_msk = LTC2992_GPIO4_FAULT_MSK(0),
 		.max_alarm_msk = LTC2992_GPIO4_FAULT_MSK(1),
+		.ctrl = LTC2992_GPIO_CTRL,
+		.ctrl_bit = LTC2992_GPIO4_BIT,
 	},
+};
+
+static const char *ltc2992_gpio_names[LTC2992_GPIO_NR] = {
+	"GPIO1", "GPIO2", "GPIO3", "GPIO4",
 };
 
 static int ltc2992_read_reg(struct ltc2992_state *st, u8 addr, const u8 reg_len)
 {
 	u8 regvals[4];
-	int ret;
 	int val;
+	int ret;
 	int i;
 
 	ret = regmap_bulk_read(st->regmap, addr, regvals, reg_len);
@@ -183,6 +211,132 @@ static int ltc2992_write_reg(struct ltc2992_state *st, u8 addr, const u8 reg_len
 		regvals[reg_len - i - 1] = (val >> (i * 8)) & 0xFF;
 
 	return regmap_bulk_write(st->regmap, addr, regvals, reg_len);
+}
+
+static int ltc2992_gpio_get(struct gpio_chip *chip, unsigned int offset)
+{
+	struct ltc2992_state *st = gpiochip_get_data(chip);
+	unsigned long gpio_status;
+	int reg;
+
+	mutex_lock(&st->gpio_mutex);
+	reg = ltc2992_read_reg(st, LTC2992_GPIO_STATUS, 1);
+	mutex_unlock(&st->gpio_mutex);
+
+	if (reg < 0)
+		return reg;
+
+	gpio_status = reg;
+
+	return !test_bit(LTC2992_GPIO_BIT(offset), &gpio_status);
+}
+
+static int ltc2992_gpio_get_multiple(struct gpio_chip *chip, unsigned long *mask,
+				     unsigned long *bits)
+{
+	struct ltc2992_state *st = gpiochip_get_data(chip);
+	unsigned long gpio_status;
+	unsigned int gpio_nr;
+	int reg;
+
+	mutex_lock(&st->gpio_mutex);
+	reg = ltc2992_read_reg(st, LTC2992_GPIO_STATUS, 1);
+	mutex_unlock(&st->gpio_mutex);
+
+	if (reg < 0)
+		return reg;
+
+	gpio_status = reg;
+
+	gpio_nr = 0;
+	for_each_set_bit_from(gpio_nr, mask, LTC2992_GPIO_NR) {
+		if (test_bit(LTC2992_GPIO_BIT(gpio_nr), &gpio_status))
+			set_bit(gpio_nr, bits);
+	}
+
+	return 0;
+}
+
+static void ltc2992_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+{
+	struct ltc2992_state *st = gpiochip_get_data(chip);
+	unsigned long gpio_ctrl;
+	int reg;
+
+	mutex_lock(&st->gpio_mutex);
+	reg = ltc2992_read_reg(st, ltc2992_gpio_addr_map[offset].ctrl, 1);
+	if (reg < 0) {
+		mutex_unlock(&st->gpio_mutex);
+		return;
+	}
+
+	gpio_ctrl = reg;
+	assign_bit(ltc2992_gpio_addr_map[offset].ctrl_bit, &gpio_ctrl, value);
+
+	ltc2992_write_reg(st, ltc2992_gpio_addr_map[offset].ctrl, 1, gpio_ctrl);
+	mutex_unlock(&st->gpio_mutex);
+}
+
+static void ltc2992_gpio_set_multiple(struct gpio_chip *chip, unsigned long *mask,
+				      unsigned long *bits)
+{
+	struct ltc2992_state *st = gpiochip_get_data(chip);
+	unsigned long gpio_ctrl_io = 0;
+	unsigned long gpio_ctrl = 0;
+	unsigned int gpio_nr;
+
+	for_each_set_bit(gpio_nr, mask, LTC2992_GPIO_NR) {
+		if (gpio_nr < 3)
+			assign_bit(ltc2992_gpio_addr_map[gpio_nr].ctrl_bit, &gpio_ctrl_io, true);
+
+		if (gpio_nr == 3)
+			assign_bit(ltc2992_gpio_addr_map[gpio_nr].ctrl_bit, &gpio_ctrl, true);
+	}
+
+	mutex_lock(&st->gpio_mutex);
+	ltc2992_write_reg(st, LTC2992_GPIO_IO_CTRL, 1, gpio_ctrl_io);
+	ltc2992_write_reg(st, LTC2992_GPIO_CTRL, 1, gpio_ctrl);
+	mutex_unlock(&st->gpio_mutex);
+}
+
+static int ltc2992_config_gpio(struct ltc2992_state *st)
+{
+	const char *name = dev_name(&st->client->dev);
+	char *gpio_name;
+	int ret;
+	int i;
+
+	ret = ltc2992_write_reg(st, LTC2992_GPIO_IO_CTRL, 1, 0);
+	if (ret < 0)
+		return ret;
+
+	mutex_init(&st->gpio_mutex);
+
+	for (i = 0; i < ARRAY_SIZE(st->gpio_names); i++) {
+		gpio_name = devm_kasprintf(&st->client->dev, GFP_KERNEL, "ltc2992-%x-%s",
+					   st->client->addr, ltc2992_gpio_names[i]);
+		if (!gpio_name)
+			return -ENOMEM;
+
+		st->gpio_names[i] = gpio_name;
+	}
+
+	st->gc.label = name;
+	st->gc.parent = &st->client->dev;
+	st->gc.owner = THIS_MODULE;
+	st->gc.base = -1;
+	st->gc.names = st->gpio_names;
+	st->gc.ngpio = ARRAY_SIZE(st->gpio_names);
+	st->gc.get = ltc2992_gpio_get;
+	st->gc.get_multiple = ltc2992_gpio_get_multiple;
+	st->gc.set = ltc2992_gpio_set;
+	st->gc.set_multiple = ltc2992_gpio_set_multiple;
+
+	ret = devm_gpiochip_add_data(&st->client->dev, &st->gc, st);
+	if (ret)
+		dev_err(&st->client->dev, "GPIO registering failed (%d)\n", ret);
+
+	return ret;
 }
 
 static umode_t ltc2992_is_visible(const void *data, enum hwmon_sensor_types type, u32 attr,
@@ -776,6 +930,10 @@ static int ltc2992_i2c_probe(struct i2c_client *client, const struct i2c_device_
 		return PTR_ERR(st->regmap);
 
 	ret = ltc2992_parse_dt(st);
+	if (ret < 0)
+		return ret;
+
+	ret = ltc2992_config_gpio(st);
 	if (ret < 0)
 		return ret;
 
