@@ -430,6 +430,13 @@
 	vdds-supply = <&vreg_l5a_0p88>;
 };
 
+&gpu {
+	zap-shader {
+		memory-region = <&gpu_mem>;
+		firmware-name = "qcom/sm8250/a650_zap.mbn";
+	};
+};
+
 /* LS-I2C0 */
 &i2c4 {
 	status = "okay";
