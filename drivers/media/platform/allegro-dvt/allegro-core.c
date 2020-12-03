@@ -1963,7 +1963,6 @@ static int allegro_create_channel(struct allegro_channel *channel)
 {
 	struct allegro_dev *dev = channel->dev;
 	unsigned long timeout;
-	enum v4l2_mpeg_video_h264_level min_level;
 
 	if (channel_exists(channel)) {
 		v4l2_warn(&dev->v4l2_dev,
@@ -1985,16 +1984,6 @@ static int allegro_create_channel(struct allegro_channel *channel)
 		 (char *)&channel->codec, channel->width, channel->height,
 		 DIV_ROUND_UP(channel->framerate.numerator,
 			      channel->framerate.denominator));
-
-	min_level = select_minimum_h264_level(channel->width, channel->height);
-	if (channel->level < min_level) {
-		v4l2_warn(&dev->v4l2_dev,
-			  "user %d: selected Level %s too low: increasing to Level %s\n",
-			  channel->user_id,
-			  v4l2_ctrl_get_menu(V4L2_CID_MPEG_VIDEO_H264_LEVEL)[channel->level],
-			  v4l2_ctrl_get_menu(V4L2_CID_MPEG_VIDEO_H264_LEVEL)[min_level]);
-		channel->level = min_level;
-	}
 
 	v4l2_ctrl_grab(channel->mpeg_video_h264_profile, true);
 	v4l2_ctrl_grab(channel->mpeg_video_h264_level, true);
@@ -2031,6 +2020,53 @@ err:
 	return channel->error;
 }
 
+/**
+ * allegro_channel_adjust() - Adjust channel parameters to current format
+ * @channel: the channel to adjust
+ *
+ * Various parameters of a channel and their limits depend on the currently
+ * set format. Adjust the parameters after a format change in one go.
+ */
+static void allegro_channel_adjust(struct allegro_channel *channel)
+{
+	struct allegro_dev *dev = channel->dev;
+	struct v4l2_ctrl *ctrl;
+	s64 min;
+	s64 max;
+
+	channel->sizeimage_encoded =
+		estimate_stream_size(channel->width, channel->height);
+
+	ctrl = channel->mpeg_video_h264_level;
+	min = select_minimum_h264_level(channel->width, channel->height);
+	if (ctrl->minimum > min)
+		v4l2_dbg(1, debug, &dev->v4l2_dev,
+			 "%s.minimum: %lld -> %lld\n",
+			 v4l2_ctrl_get_name(ctrl->id), ctrl->minimum, min);
+	v4l2_ctrl_lock(ctrl);
+	__v4l2_ctrl_modify_range(ctrl, min, ctrl->maximum,
+				 ctrl->step, ctrl->default_value);
+	v4l2_ctrl_unlock(ctrl);
+	channel->level = v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_level);
+
+	ctrl = channel->mpeg_video_bitrate;
+	max = maximum_bitrate(v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_level));
+	if (ctrl->maximum < max)
+		v4l2_dbg(1, debug, &dev->v4l2_dev,
+			 "%s: maximum: %lld -> %lld\n",
+			 v4l2_ctrl_get_name(ctrl->id), ctrl->maximum, max);
+	v4l2_ctrl_lock(ctrl);
+	__v4l2_ctrl_modify_range(ctrl, ctrl->minimum, max,
+				 ctrl->step, ctrl->default_value);
+	v4l2_ctrl_unlock(ctrl);
+
+	ctrl = channel->mpeg_video_bitrate_peak;
+	v4l2_ctrl_lock(ctrl);
+	__v4l2_ctrl_modify_range(ctrl, ctrl->minimum, max,
+				 ctrl->step, ctrl->default_value);
+	v4l2_ctrl_unlock(ctrl);
+}
+
 static void allegro_set_default_params(struct allegro_channel *channel)
 {
 	channel->width = ALLEGRO_WIDTH_DEFAULT;
@@ -2050,8 +2086,6 @@ static void allegro_set_default_params(struct allegro_channel *channel)
 	channel->profile = V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE;
 	channel->level =
 		select_minimum_h264_level(channel->width, channel->height);
-	channel->sizeimage_encoded =
-		estimate_stream_size(channel->width, channel->height);
 
 	channel->bitrate = maximum_bitrate(channel->level);
 	channel->bitrate_peak = maximum_bitrate(channel->level);
@@ -2459,6 +2493,8 @@ static int allegro_open(struct file *file)
 	file->private_data = &channel->fh;
 	v4l2_fh_add(&channel->fh);
 
+	allegro_channel_adjust(channel);
+
 	return 0;
 
 error:
@@ -2577,6 +2613,8 @@ static int allegro_s_fmt_vid_cap(struct file *file, void *fh,
 
 	channel->codec = f->fmt.pix.pixelformat;
 
+	allegro_channel_adjust(channel);
+
 	return 0;
 }
 
@@ -2647,10 +2685,7 @@ static int allegro_s_fmt_vid_out(struct file *file, void *fh,
 	channel->quantization = f->fmt.pix.quantization;
 	channel->xfer_func = f->fmt.pix.xfer_func;
 
-	channel->level =
-		select_minimum_h264_level(channel->width, channel->height);
-	channel->sizeimage_encoded =
-		estimate_stream_size(channel->width, channel->height);
+	allegro_channel_adjust(channel);
 
 	return 0;
 }
