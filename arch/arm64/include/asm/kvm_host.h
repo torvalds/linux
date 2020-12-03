@@ -121,6 +121,7 @@ struct kvm_arch {
 	unsigned int pmuver;
 
 	u8 pfr0_csv2;
+	u8 pfr0_csv3;
 };
 
 struct kvm_vcpu_fault_info {
