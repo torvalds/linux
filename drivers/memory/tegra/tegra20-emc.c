@@ -910,43 +910,36 @@ err_msg:
 
 static int tegra_emc_opp_table_init(struct tegra_emc *emc)
 {
-	struct opp_table *reg_opp_table = NULL, *clk_opp_table;
-	const char *rname = "core";
+	u32 hw_version = BIT(tegra_sku_info.soc_process_id);
+	struct opp_table *clk_opp_table, *hw_opp_table;
 	int err;
-
-	/*
-	 * Legacy device-trees don't have OPP table and EMC driver isn't
-	 * useful in this case.
-	 */
-	if (!device_property_present(emc->dev, "operating-points-v2")) {
-		dev_err(emc->dev,
-			"OPP table not found, please update your device tree\n");
-		return -ENODEV;
-	}
-
-	/* voltage scaling is optional */
-	if (device_property_present(emc->dev, "core-supply")) {
-		reg_opp_table = dev_pm_opp_set_regulators(emc->dev, &rname, 1);
-		if (IS_ERR(reg_opp_table))
-			return dev_err_probe(emc->dev, PTR_ERR(reg_opp_table),
-					     "failed to set OPP regulator\n");
-	}
 
 	clk_opp_table = dev_pm_opp_set_clkname(emc->dev, NULL);
 	err = PTR_ERR_OR_ZERO(clk_opp_table);
 	if (err) {
 		dev_err(emc->dev, "failed to set OPP clk: %d\n", err);
-		goto put_reg_table;
+		return err;
+	}
+
+	hw_opp_table = dev_pm_opp_set_supported_hw(emc->dev, &hw_version, 1);
+	err = PTR_ERR_OR_ZERO(hw_opp_table);
+	if (err) {
+		dev_err(emc->dev, "failed to set OPP supported HW: %d\n", err);
+		goto put_clk_table;
 	}
 
 	err = dev_pm_opp_of_add_table(emc->dev);
 	if (err) {
-		dev_err(emc->dev, "failed to add OPP table: %d\n", err);
-		goto put_clk_table;
+		if (err == -ENODEV)
+			dev_err(emc->dev, "OPP table not found, please update your device tree\n");
+		else
+			dev_err(emc->dev, "failed to add OPP table: %d\n", err);
+
+		goto put_hw_table;
 	}
 
-	dev_info(emc->dev, "current clock rate %lu MHz\n",
-		 clk_get_rate(emc->clk) / 1000000);
+	dev_info(emc->dev, "OPP HW ver. 0x%x, current clock rate %lu MHz\n",
+		 hw_version, clk_get_rate(emc->clk) / 1000000);
 
 	/* first dummy rate-set initializes voltage state */
 	err = dev_pm_opp_set_rate(emc->dev, clk_get_rate(emc->clk));
@@ -959,11 +952,10 @@ static int tegra_emc_opp_table_init(struct tegra_emc *emc)
 
 remove_table:
 	dev_pm_opp_of_remove_table(emc->dev);
+put_hw_table:
+	dev_pm_opp_put_supported_hw(hw_opp_table);
 put_clk_table:
 	dev_pm_opp_put_clkname(clk_opp_table);
-put_reg_table:
-	if (reg_opp_table)
-		dev_pm_opp_put_regulators(reg_opp_table);
 
 	return err;
 }
