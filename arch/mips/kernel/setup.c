@@ -498,8 +498,8 @@ static void __init request_crashkernel(struct resource *res)
 
 static void __init check_kernel_sections_mem(void)
 {
-	phys_addr_t start = PFN_PHYS(PFN_DOWN(__pa_symbol(&_text)));
-	phys_addr_t size = PFN_PHYS(PFN_UP(__pa_symbol(&_end))) - start;
+	phys_addr_t start = __pa_symbol(&_text);
+	phys_addr_t size = __pa_symbol(&_end) - start;
 
 	if (!memblock_is_region_memory(start, size)) {
 		pr_info("Kernel sections are not in the memory maps\n");
