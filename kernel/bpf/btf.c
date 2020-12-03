@@ -5738,6 +5738,11 @@ u32 btf_obj_id(const struct btf *btf)
 	return btf->id;
 }
 
+bool btf_is_kernel(const struct btf *btf)
+{
+	return btf->kernel_btf;
+}
+
 static int btf_id_cmp_func(const void *a, const void *b)
 {
 	const int *pa = a, *pb = b;

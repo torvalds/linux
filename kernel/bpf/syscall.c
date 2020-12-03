@@ -1926,10 +1926,14 @@ static void bpf_prog_load_fixup_attach_type(union bpf_attr *attr)
 static int
 bpf_prog_load_check_attach(enum bpf_prog_type prog_type,
 			   enum bpf_attach_type expected_attach_type,
-			   u32 btf_id, u32 prog_fd)
+			   struct btf *attach_btf, u32 btf_id,
+			   struct bpf_prog *dst_prog)
 {
 	if (btf_id) {
 		if (btf_id > BTF_MAX_TYPE)
+			return -EINVAL;
+
+		if (!attach_btf && !dst_prog)
 			return -EINVAL;
 
 		switch (prog_type) {
@@ -1943,7 +1947,10 @@ bpf_prog_load_check_attach(enum bpf_prog_type prog_type,
 		}
 	}
 
-	if (prog_fd && prog_type != BPF_PROG_TYPE_TRACING &&
+	if (attach_btf && (!btf_id || dst_prog))
+		return -EINVAL;
+
+	if (dst_prog && prog_type != BPF_PROG_TYPE_TRACING &&
 	    prog_type != BPF_PROG_TYPE_EXT)
 		return -EINVAL;
 
@@ -2060,7 +2067,8 @@ static bool is_perfmon_prog_type(enum bpf_prog_type prog_type)
 static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 {
 	enum bpf_prog_type type = attr->prog_type;
-	struct bpf_prog *prog;
+	struct bpf_prog *prog, *dst_prog = NULL;
+	struct btf *attach_btf = NULL;
 	int err;
 	char license[128];
 	bool is_gpl;
@@ -2102,44 +2110,56 @@ static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 	if (is_perfmon_prog_type(type) && !perfmon_capable())
 		return -EPERM;
 
+	/* attach_prog_fd/attach_btf_obj_fd can specify fd of either bpf_prog
+	 * or btf, we need to check which one it is
+	 */
+	if (attr->attach_prog_fd) {
+		dst_prog = bpf_prog_get(attr->attach_prog_fd);
+		if (IS_ERR(dst_prog)) {
+			dst_prog = NULL;
+			attach_btf = btf_get_by_fd(attr->attach_btf_obj_fd);
+			if (IS_ERR(attach_btf))
+				return -EINVAL;
+			if (!btf_is_kernel(attach_btf)) {
+				btf_put(attach_btf);
+				return -EINVAL;
+			}
+		}
+	} else if (attr->attach_btf_id) {
+		/* fall back to vmlinux BTF, if BTF type ID is specified */
+		attach_btf = bpf_get_btf_vmlinux();
+		if (IS_ERR(attach_btf))
+			return PTR_ERR(attach_btf);
+		if (!attach_btf)
+			return -EINVAL;
+		btf_get(attach_btf);
+	}
+
 	bpf_prog_load_fixup_attach_type(attr);
 	if (bpf_prog_load_check_attach(type, attr->expected_attach_type,
-				       attr->attach_btf_id,
-				       attr->attach_prog_fd))
+				       attach_btf, attr->attach_btf_id,
+				       dst_prog)) {
+		if (dst_prog)
+			bpf_prog_put(dst_prog);
+		if (attach_btf)
+			btf_put(attach_btf);
 		return -EINVAL;
+	}
 
 	/* plain bpf_prog allocation */
 	prog = bpf_prog_alloc(bpf_prog_size(attr->insn_cnt), GFP_USER);
-	if (!prog)
+	if (!prog) {
+		if (dst_prog)
+			bpf_prog_put(dst_prog);
+		if (attach_btf)
+			btf_put(attach_btf);
 		return -ENOMEM;
+	}
 
 	prog->expected_attach_type = attr->expected_attach_type;
+	prog->aux->attach_btf = attach_btf;
 	prog->aux->attach_btf_id = attr->attach_btf_id;
-
-	if (attr->attach_btf_id && !attr->attach_prog_fd) {
-		struct btf *btf;
-
-		btf = bpf_get_btf_vmlinux();
-		if (IS_ERR(btf))
-			return PTR_ERR(btf);
-		if (!btf)
-			return -EINVAL;
-
-		btf_get(btf);
-		prog->aux->attach_btf = btf;
-	}
-
-	if (attr->attach_prog_fd) {
-		struct bpf_prog *dst_prog;
-
-		dst_prog = bpf_prog_get(attr->attach_prog_fd);
-		if (IS_ERR(dst_prog)) {
-			err = PTR_ERR(dst_prog);
-			goto free_prog;
-		}
-		prog->aux->dst_prog = dst_prog;
-	}
-
+	prog->aux->dst_prog = dst_prog;
 	prog->aux->offload_requested = !!attr->prog_ifindex;
 	prog->aux->sleepable = attr->prog_flags & BPF_F_SLEEPABLE;
 
