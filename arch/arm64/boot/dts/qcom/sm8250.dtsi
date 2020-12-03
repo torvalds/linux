@@ -332,7 +332,7 @@
 		};
 	};
 
-	smem: qcom,smem {
+	smem {
 		compatible = "qcom,smem";
 		memory-region = <&smem_mem>;
 		hwlocks = <&tcsr_mutex 3>;
