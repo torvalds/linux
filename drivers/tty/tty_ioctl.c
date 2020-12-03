@@ -443,51 +443,6 @@ static int get_termio(struct tty_struct *tty, struct termio __user *termio)
 	return 0;
 }
 
-
-#ifdef TCGETX
-
-/**
- *	set_termiox	-	set termiox fields if possible
- *	@tty: terminal
- *	@arg: termiox structure from user
- *	@opt: option flags for ioctl type
- *
- *	Implement the device calling points for the SYS5 termiox ioctl
- *	interface in Linux
- */
-
-static int set_termiox(struct tty_struct *tty, void __user *arg, int opt)
-{
-	struct termiox tnew;
-	struct tty_ldisc *ld;
-
-	if (tty->termiox == NULL)
-		return -EINVAL;
-	if (copy_from_user(&tnew, arg, sizeof(struct termiox)))
-		return -EFAULT;
-
-	ld = tty_ldisc_ref(tty);
-	if (ld != NULL) {
-		if ((opt & TERMIOS_FLUSH) && ld->ops->flush_buffer)
-			ld->ops->flush_buffer(tty);
-		tty_ldisc_deref(ld);
-	}
-	if (opt & TERMIOS_WAIT) {
-		tty_wait_until_sent(tty, 0);
-		if (signal_pending(current))
-			return -ERESTARTSYS;
-	}
-
-	down_write(&tty->termios_rwsem);
-	if (tty->ops->set_termiox)
-		tty->ops->set_termiox(tty, &tnew);
-	up_write(&tty->termios_rwsem);
-	return 0;
-}
-
-#endif
-
-
 #ifdef TIOCGETP
 /*
  * These are deprecated, but there is limited support..
@@ -815,23 +770,11 @@ int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 		return ret;
 #endif
 #ifdef TCGETX
-	case TCGETX: {
-		struct termiox ktermx;
-		if (real_tty->termiox == NULL)
-			return -EINVAL;
-		down_read(&real_tty->termios_rwsem);
-		memcpy(&ktermx, real_tty->termiox, sizeof(struct termiox));
-		up_read(&real_tty->termios_rwsem);
-		if (copy_to_user(p, &ktermx, sizeof(struct termiox)))
-			ret = -EFAULT;
-		return ret;
-	}
+	case TCGETX:
 	case TCSETX:
-		return set_termiox(real_tty, p, 0);
 	case TCSETXW:
-		return set_termiox(real_tty, p, TERMIOS_WAIT);
 	case TCSETXF:
-		return set_termiox(real_tty, p, TERMIOS_FLUSH);
+		return -EINVAL;
 #endif		
 	case TIOCGSOFTCAR:
 		copy_termios(real_tty, &kterm);
