@@ -1333,17 +1333,6 @@ target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 			}
 		}
 		/*
-		 * Reject READ_* or WRITE_* with overflow/underflow for
-		 * type SCF_SCSI_DATA_CDB.
-		 */
-		if (dev->dev_attrib.block_size != 512)  {
-			pr_err("Failing OVERFLOW/UNDERFLOW for LBA op"
-				" CDB on non 512-byte sector setup subsystem"
-				" plugin: %s\n", dev->transport->name);
-			/* Returns CHECK_CONDITION + INVALID_CDB_FIELD */
-			return TCM_INVALID_CDB_FIELD;
-		}
-		/*
 		 * For the overflow case keep the existing fabric provided
 		 * ->data_length.  Otherwise for the underflow case, reset
 		 * ->data_length to the smaller SCSI expected data transfer
