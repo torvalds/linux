@@ -8591,9 +8591,8 @@ void md_submit_discard_bio(struct mddev *mddev, struct md_rdev *rdev,
 	bio_chain(discard_bio, bio);
 	bio_clone_blkg_association(discard_bio, bio);
 	if (mddev->gendisk)
-		trace_block_bio_remap(bdev_get_queue(rdev->bdev),
-			discard_bio, disk_devt(mddev->gendisk),
-			bio->bi_iter.bi_sector);
+		trace_block_bio_remap(discard_bio, disk_devt(mddev->gendisk),
+				      bio->bi_iter.bi_sector);
 	submit_bio_noacct(discard_bio);
 }
 EXPORT_SYMBOL(md_submit_discard_bio);
