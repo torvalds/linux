@@ -195,8 +195,6 @@ struct allegro_channel {
 	unsigned int osequence;
 
 	u32 codec;
-	enum v4l2_mpeg_video_h264_profile profile;
-	enum v4l2_mpeg_video_h264_level level;
 	unsigned int sizeimage_encoded;
 	unsigned int csequence;
 
@@ -924,6 +922,8 @@ static int fill_create_channel_param(struct allegro_channel *channel,
 	int b_frame_qp = v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_b_frame_qp);
 	int bitrate_mode = v4l2_ctrl_g_ctrl(channel->mpeg_video_bitrate_mode);
 	unsigned int cpb_size = v4l2_ctrl_g_ctrl(channel->mpeg_video_cpb_size);
+	enum v4l2_mpeg_video_h264_profile profile;
+	enum v4l2_mpeg_video_h264_level level;
 
 	param->width = channel->width;
 	param->height = channel->height;
@@ -931,11 +931,13 @@ static int fill_create_channel_param(struct allegro_channel *channel,
 	param->colorspace =
 		v4l2_colorspace_to_mcu_colorspace(channel->colorspace);
 	param->src_mode = 0x0;
-	param->profile = v4l2_profile_to_mcu_profile(channel->profile);
-	param->constraint_set_flags = BIT(1);
+
 	param->codec = channel->codec;
-	param->level = v4l2_level_to_mcu_level(channel->level);
-	param->tier = 0;
+	profile = v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_profile);
+	level = v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_level);
+	param->profile = v4l2_profile_to_mcu_profile(profile);
+	param->constraint_set_flags = BIT(1);
+	param->level = v4l2_level_to_mcu_level(level);
 
 	param->log2_max_poc = LOG2_MAX_PIC_ORDER_CNT;
 	param->log2_max_frame_num = channel->log2_max_frame_num;
@@ -1277,6 +1279,8 @@ static ssize_t allegro_h264_write_sps(struct allegro_channel *channel,
 	/* Calculation of crop units in Rec. ITU-T H.264 (04/2017) p. 76 */
 	unsigned int crop_unit_x = 2;
 	unsigned int crop_unit_y = 2;
+	enum v4l2_mpeg_video_h264_profile profile;
+	enum v4l2_mpeg_video_h264_level level;
 	unsigned int cpb_size;
 	unsigned int cpb_size_scale;
 
@@ -1284,14 +1288,17 @@ static ssize_t allegro_h264_write_sps(struct allegro_channel *channel,
 	if (!sps)
 		return -ENOMEM;
 
-	sps->profile_idc = nal_h264_profile_from_v4l2(channel->profile);
+	profile = v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_profile);
+	level = v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_level);
+
+	sps->profile_idc = nal_h264_profile_from_v4l2(profile);
 	sps->constraint_set0_flag = 0;
 	sps->constraint_set1_flag = 1;
 	sps->constraint_set2_flag = 0;
 	sps->constraint_set3_flag = 0;
 	sps->constraint_set4_flag = 0;
 	sps->constraint_set5_flag = 0;
-	sps->level_idc = nal_h264_level_from_v4l2(channel->level);
+	sps->level_idc = nal_h264_level_from_v4l2(level);
 	sps->seq_parameter_set_id = 0;
 	sps->log2_max_frame_num_minus4 = LOG2_MAX_FRAME_NUM - 4;
 	sps->pic_order_cnt_type = 0;
@@ -2076,7 +2083,6 @@ static void allegro_channel_adjust(struct allegro_channel *channel)
 	__v4l2_ctrl_modify_range(ctrl, min, ctrl->maximum,
 				 ctrl->step, ctrl->default_value);
 	v4l2_ctrl_unlock(ctrl);
-	channel->level = v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_level);
 
 	ctrl = channel->mpeg_video_bitrate;
 	max = maximum_bitrate(v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_level));
@@ -2130,9 +2136,6 @@ static void allegro_set_default_params(struct allegro_channel *channel)
 	channel->sizeimage_raw = channel->stride * channel->height * 3 / 2;
 
 	channel->codec = V4L2_PIX_FMT_H264;
-	channel->profile = V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE;
-	channel->level =
-		select_minimum_h264_level(channel->width, channel->height);
 }
 
 static int allegro_queue_setup(struct vb2_queue *vq,
@@ -2377,9 +2380,6 @@ static int allegro_s_ctrl(struct v4l2_ctrl *ctrl)
 		 "s_ctrl: %s = %d\n", v4l2_ctrl_get_name(ctrl->id), ctrl->val);
 
 	switch (ctrl->id) {
-	case V4L2_CID_MPEG_VIDEO_H264_LEVEL:
-		channel->level = ctrl->val;
-		break;
 	case V4L2_CID_MPEG_VIDEO_FRAME_RC_ENABLE:
 		channel->frame_rc_enable = ctrl->val;
 		break;
