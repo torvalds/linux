@@ -3,6 +3,7 @@
 
 set -e
 set -u
+set -o pipefail
 
 IMA_POLICY_FILE="/sys/kernel/security/ima/policy"
 TEST_BINARY="/bin/true"
@@ -23,13 +24,15 @@ setup()
 
         dd if=/dev/zero of="${mount_img}" bs=1M count=10
 
-        local loop_device="$(losetup --find --show ${mount_img})"
+        losetup -f "${mount_img}"
+        local loop_device=$(losetup -a | grep ${mount_img:?} | cut -d ":" -f1)
 
-        mkfs.ext4 "${loop_device}"
+        mkfs.ext2 "${loop_device:?}"
         mount "${loop_device}" "${mount_dir}"
 
         cp "${TEST_BINARY}" "${mount_dir}"
-        local mount_uuid="$(blkid -s UUID -o value ${loop_device})"
+        local mount_uuid="$(blkid ${loop_device} | sed 's/.*UUID="\([^"]*\)".*/\1/')"
+
         echo "measure func=BPRM_CHECK fsuuid=${mount_uuid}" > ${IMA_POLICY_FILE}
 }
 
@@ -38,7 +41,8 @@ cleanup() {
         local mount_img="${tmp_dir}/test.img"
         local mount_dir="${tmp_dir}/mnt"
 
-        local loop_devices=$(losetup -j ${mount_img} -O NAME --noheadings)
+        local loop_devices=$(losetup -a | grep ${mount_img:?} | cut -d ":" -f1)
+
         for loop_dev in "${loop_devices}"; do
                 losetup -d $loop_dev
         done
