@@ -3,7 +3,7 @@
  * Copyright (c) 2015 MediaTek Inc.
  */
 
-#include "mtk_mipi_tx.h"
+#include "phy-mtk-mipi-dsi.h"
 
 inline struct mtk_mipi_tx *mtk_mipi_tx_from_clk_hw(struct clk_hw *hw)
 {
@@ -242,4 +242,7 @@ struct platform_driver mtk_mipi_tx_driver = {
 		.of_match_table = mtk_mipi_tx_match,
 	},
 };
+module_platform_driver(mtk_mipi_tx_driver);
 
+MODULE_DESCRIPTION("MediaTek MIPI TX Driver");
+MODULE_LICENSE("GPL v2");
