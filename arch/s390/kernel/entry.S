@@ -118,7 +118,7 @@ _LPP_OFFSET	= __LC_LPP
 
 	.macro	SWITCH_ASYNC savearea,timer
 	tmhh	%r8,0x0001		# interrupting from user ?
-	jnz	2f
+	jnz	4f
 #if IS_ENABLED(CONFIG_KVM)
 	lgr	%r14,%r9
 	larl	%r13,.Lsie_gmap
@@ -131,9 +131,25 @@ _LPP_OFFSET	= __LC_LPP
 #endif
 0:	larl	%r13,.Lpsw_idle_exit
 	cgr	%r13,%r9
-	jne	1f
+	jne	3f
 
-	mvc	__CLOCK_IDLE_EXIT(8,%r2), __LC_INT_CLOCK
+	larl	%r1,smp_cpu_mtid
+	llgf	%r1,0(%r1)
+	ltgr	%r1,%r1
+	jz	2f			# no SMT, skip mt_cycles calculation
+	.insn	rsy,0xeb0000000017,%r1,5,__SF_EMPTY+80(%r15)
+	larl	%r3,mt_cycles
+	ag	%r3,__LC_PERCPU_OFFSET
+	la	%r4,__SF_EMPTY+16(%r15)
+1:	lg	%r0,0(%r3)
+	slg	%r0,0(%r4)
+	alg	%r0,64(%r4)
+	stg	%r0,0(%r3)
+	la	%r3,8(%r3)
+	la	%r4,8(%r4)
+	brct	%r1,1b
+
+2:	mvc	__CLOCK_IDLE_EXIT(8,%r2), __LC_INT_CLOCK
 	mvc	__TIMER_IDLE_EXIT(8,%r2), __LC_ASYNC_ENTER_TIMER
 	# account system time going idle
 	ni	__LC_CPU_FLAGS+7,255-_CIF_ENABLED_WAIT
@@ -152,17 +168,17 @@ _LPP_OFFSET	= __LC_LPP
 	mvc	__LC_LAST_UPDATE_TIMER(8),__TIMER_IDLE_EXIT(%r2)
 
 	nihh	%r8,0xfcfd		# clear wait state and irq bits
-1:	lg	%r14,__LC_ASYNC_STACK	# are we already on the target stack?
+3:	lg	%r14,__LC_ASYNC_STACK	# are we already on the target stack?
 	slgr	%r14,%r15
 	srag	%r14,%r14,STACK_SHIFT
-	jnz	3f
+	jnz	5f
 	CHECK_STACK \savearea
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
-	j	4f
-2:	UPDATE_VTIME %r14,%r15,\timer
+	j	6f
+4:	UPDATE_VTIME %r14,%r15,\timer
 	BPENTER __TI_flags(%r12),_TIF_ISOLATE_BP
-3:	lg	%r15,__LC_ASYNC_STACK	# load async stack
-4:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
+5:	lg	%r15,__LC_ASYNC_STACK	# load async stack
+6:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	.endm
 
 	.macro UPDATE_VTIME w1,w2,enter_timer
