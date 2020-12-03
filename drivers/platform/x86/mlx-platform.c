@@ -212,15 +212,6 @@ static struct i2c_mux_reg_platform_data mlxplat_mux_data[] = {
 };
 
 /* Platform hotplug devices */
-static struct i2c_board_info mlxplat_mlxcpld_psu[] = {
-	{
-		I2C_BOARD_INFO("24c02", 0x51),
-	},
-	{
-		I2C_BOARD_INFO("24c02", 0x50),
-	},
-};
-
 static struct i2c_board_info mlxplat_mlxcpld_pwr[] = {
 	{
 		I2C_BOARD_INFO("dps460", 0x59),
@@ -324,7 +315,7 @@ static struct mlxreg_core_item mlxplat_mlxcpld_default_items[] = {
 		.aggr_mask = MLXPLAT_CPLD_AGGR_PSU_MASK_DEF,
 		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFFSET,
 		.mask = MLXPLAT_CPLD_PSU_MASK,
-		.count = ARRAY_SIZE(mlxplat_mlxcpld_psu),
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_default_psu_items_data),
 		.inversed = 1,
 		.health = false,
 	},
