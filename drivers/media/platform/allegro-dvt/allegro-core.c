@@ -2105,6 +2105,7 @@ err:
 static void allegro_channel_adjust(struct allegro_channel *channel)
 {
 	struct allegro_dev *dev = channel->dev;
+	u32 codec = channel->codec;
 	struct v4l2_ctrl *ctrl;
 	s64 min;
 	s64 max;
@@ -2139,6 +2140,21 @@ static void allegro_channel_adjust(struct allegro_channel *channel)
 	__v4l2_ctrl_modify_range(ctrl, ctrl->minimum, max,
 				 ctrl->step, ctrl->default_value);
 	v4l2_ctrl_unlock(ctrl);
+
+	v4l2_ctrl_activate(channel->mpeg_video_h264_profile,
+			   codec == V4L2_PIX_FMT_H264);
+	v4l2_ctrl_activate(channel->mpeg_video_h264_level,
+			   codec == V4L2_PIX_FMT_H264);
+	v4l2_ctrl_activate(channel->mpeg_video_h264_i_frame_qp,
+			   codec == V4L2_PIX_FMT_H264);
+	v4l2_ctrl_activate(channel->mpeg_video_h264_max_qp,
+			   codec == V4L2_PIX_FMT_H264);
+	v4l2_ctrl_activate(channel->mpeg_video_h264_min_qp,
+			   codec == V4L2_PIX_FMT_H264);
+	v4l2_ctrl_activate(channel->mpeg_video_h264_p_frame_qp,
+			   codec == V4L2_PIX_FMT_H264);
+	v4l2_ctrl_activate(channel->mpeg_video_h264_b_frame_qp,
+			   codec == V4L2_PIX_FMT_H264);
 
 	channel->log2_max_frame_num = LOG2_MAX_FRAME_NUM;
 	channel->temporal_mvp_enable = true;
