@@ -6809,7 +6809,7 @@ static int
 load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	     char *license, __u32 kern_version, int *pfd)
 {
-	struct bpf_load_program_attr load_attr;
+	struct bpf_prog_load_params load_attr = {};
 	char *cp, errmsg[STRERR_BUFSIZE];
 	size_t log_buf_size = 0;
 	char *log_buf = NULL;
@@ -6828,7 +6828,6 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	if (!insns || !insns_cnt)
 		return -EINVAL;
 
-	memset(&load_attr, 0, sizeof(struct bpf_load_program_attr));
 	load_attr.prog_type = prog->type;
 	/* old kernels might not support specifying expected_attach_type */
 	if (!kernel_supports(FEAT_EXP_ATTACH_TYPE) && prog->sec_def &&
@@ -6839,19 +6838,14 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	if (kernel_supports(FEAT_PROG_NAME))
 		load_attr.name = prog->name;
 	load_attr.insns = insns;
-	load_attr.insns_cnt = insns_cnt;
+	load_attr.insn_cnt = insns_cnt;
 	load_attr.license = license;
-	if (prog->type == BPF_PROG_TYPE_STRUCT_OPS ||
-	    prog->type == BPF_PROG_TYPE_LSM) {
-		load_attr.attach_btf_id = prog->attach_btf_id;
-	} else if (prog->type == BPF_PROG_TYPE_TRACING ||
-		   prog->type == BPF_PROG_TYPE_EXT) {
-		load_attr.attach_prog_fd = prog->attach_prog_fd;
-		load_attr.attach_btf_id = prog->attach_btf_id;
-	} else {
-		load_attr.kern_version = kern_version;
-		load_attr.prog_ifindex = prog->prog_ifindex;
-	}
+	load_attr.attach_btf_id = prog->attach_btf_id;
+	load_attr.attach_prog_fd = prog->attach_prog_fd;
+	load_attr.attach_btf_id = prog->attach_btf_id;
+	load_attr.kern_version = kern_version;
+	load_attr.prog_ifindex = prog->prog_ifindex;
+
 	/* specify func_info/line_info only if kernel supports them */
 	btf_fd = bpf_object__btf_fd(prog->obj);
 	if (btf_fd >= 0 && kernel_supports(FEAT_BTF_FUNC)) {
@@ -6875,7 +6869,9 @@ retry_load:
 		*log_buf = 0;
 	}
 
-	ret = bpf_load_program_xattr(&load_attr, log_buf, log_buf_size);
+	load_attr.log_buf = log_buf;
+	load_attr.log_buf_sz = log_buf_size;
+	ret = libbpf__bpf_prog_load(&load_attr);
 
 	if (ret >= 0) {
 		if (log_buf && load_attr.log_level)
@@ -6916,9 +6912,9 @@ retry_load:
 		pr_warn("-- BEGIN DUMP LOG ---\n");
 		pr_warn("\n%s\n", log_buf);
 		pr_warn("-- END LOG --\n");
-	} else if (load_attr.insns_cnt >= BPF_MAXINSNS) {
+	} else if (load_attr.insn_cnt >= BPF_MAXINSNS) {
 		pr_warn("Program too large (%zu insns), at most %d insns\n",
-			load_attr.insns_cnt, BPF_MAXINSNS);
+			load_attr.insn_cnt, BPF_MAXINSNS);
 		ret = -LIBBPF_ERRNO__PROG2BIG;
 	} else if (load_attr.prog_type != BPF_PROG_TYPE_KPROBE) {
 		/* Wrong program type? */
@@ -6926,7 +6922,9 @@ retry_load:
 
 		load_attr.prog_type = BPF_PROG_TYPE_KPROBE;
 		load_attr.expected_attach_type = 0;
-		fd = bpf_load_program_xattr(&load_attr, NULL, 0);
+		load_attr.log_buf = NULL;
+		load_attr.log_buf_sz = 0;
+		fd = libbpf__bpf_prog_load(&load_attr);
 		if (fd >= 0) {
 			close(fd);
 			ret = -LIBBPF_ERRNO__PROGTYPE;
