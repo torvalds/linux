@@ -76,7 +76,6 @@ struct btrfs_io_ctl {
 	int num_pages;
 	int entries;
 	int bitmaps;
-	unsigned check_crcs:1;
 };
 
 struct inode *lookup_free_space_inode(struct btrfs_block_group *block_group,
