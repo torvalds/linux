@@ -1062,10 +1062,21 @@ static int vop2_get_cluster_lb_mode(struct vop2_win *win, struct vop2_plane_stat
 #define VOP2_BILI_SCL_DN(src, dst)	(((src - 1) << 12) / (dst - 1))
 #define VOP2_COMMON_SCL(src, dst)	(((src - 1) << 16) / (dst - 1))
 
+#define VOP2_BILI_SCL_FAC_CHECK(src, dst, fac)	 \
+				(fac * (dst - 1) >> 12 < (src - 1))
+#define VOP2_COMMON_SCL_FAC_CHECK(src, dst, fac) \
+				(fac * (dst - 1) >> 16 < (src - 1))
+
 static uint16_t vop2_scale_factor(enum scale_mode mode,
 				  int32_t filter_mode,
 				  uint32_t src, uint32_t dst)
 {
+	uint32_t fac = 0;
+	int i = 0;
+
+	if (mode == SCALE_NONE)
+		return 0;
+
 	/*
 	 * A workaround to avoid zero div.
 	 */
@@ -1074,10 +1085,26 @@ static uint16_t vop2_scale_factor(enum scale_mode mode,
 		src = src + 1;
 	}
 
-	if ((mode == SCALE_DOWN) && (filter_mode == VOP2_SCALE_DOWN_BIL))
-		return VOP2_BILI_SCL_DN(src, dst);
-	else
-		return VOP2_COMMON_SCL(src, dst);
+
+	if ((mode == SCALE_DOWN) && (filter_mode == VOP2_SCALE_DOWN_BIL)) {
+		fac = VOP2_BILI_SCL_DN(src, dst);
+		for (i = 0; i < 100; i++) {
+			if (VOP2_BILI_SCL_FAC_CHECK(src, dst, fac))
+				break;
+			fac -= 1;
+			DRM_WARN("down fac cali: src:%d, dst:%d, fac:0x%x\n", src, dst, fac);
+		}
+	} else {
+		fac = VOP2_COMMON_SCL(src, dst);
+		for (i = 0; i < 100; i++) {
+			if (VOP2_COMMON_SCL_FAC_CHECK(src, dst, fac))
+				break;
+			fac -= 1;
+			DRM_WARN("up fac cali:  src:%d, dst:%d, fac:0x%x\n", src, dst, fac);
+		}
+	}
+
+	return fac;
 }
 
 static void vop2_setup_scale(struct vop2 *vop2, const struct vop2_win *win,
