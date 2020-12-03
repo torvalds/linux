@@ -686,6 +686,7 @@ struct skl_wm_level {
 	u8 plane_res_l;
 	bool plane_en;
 	bool ignore_lines;
+	bool can_sagv;
 };
 
 struct skl_plane_wm {
@@ -737,24 +738,35 @@ struct g4x_wm_state {
 
 struct intel_crtc_wm_state {
 	union {
+		/*
+		 * raw:
+		 * The "raw" watermark values produced by the formula
+		 * given the plane's current state. They do not consider
+		 * how much FIFO is actually allocated for each plane.
+		 *
+		 * optimal:
+		 * The "optimal" watermark values given the current
+		 * state of the planes and the amount of FIFO
+		 * allocated to each, ignoring any previous state
+		 * of the planes.
+		 *
+		 * intermediate:
+		 * The "intermediate" watermark values when transitioning
+		 * between the old and new "optimal" values. Used when
+		 * the watermark registers are single buffered and hence
+		 * their state changes asynchronously with regards to the
+		 * actual plane registers. These are essentially the
+		 * worst case combination of the old and new "optimal"
+		 * watermarks, which are therefore safe to use when the
+		 * plane is in either its old or new state.
+		 */
 		struct {
-			/*
-			 * Intermediate watermarks; these can be
-			 * programmed immediately since they satisfy
-			 * both the current configuration we're
-			 * switching away from and the new
-			 * configuration we're switching to.
-			 */
 			struct intel_pipe_wm intermediate;
-
-			/*
-			 * Optimal watermarks, programmed post-vblank
-			 * when this state is committed.
-			 */
 			struct intel_pipe_wm optimal;
 		} ilk;
 
 		struct {
+			struct skl_pipe_wm raw;
 			/* gen9+ only needs 1-step wm programming */
 			struct skl_pipe_wm optimal;
 			struct skl_ddb_entry ddb;
@@ -763,22 +775,15 @@ struct intel_crtc_wm_state {
 		} skl;
 
 		struct {
-			/* "raw" watermarks (not inverted) */
-			struct g4x_pipe_wm raw[NUM_VLV_WM_LEVELS];
-			/* intermediate watermarks (inverted) */
-			struct vlv_wm_state intermediate;
-			/* optimal watermarks (inverted) */
-			struct vlv_wm_state optimal;
-			/* display FIFO split */
+			struct g4x_pipe_wm raw[NUM_VLV_WM_LEVELS]; /* not inverted */
+			struct vlv_wm_state intermediate; /* inverted */
+			struct vlv_wm_state optimal; /* inverted */
 			struct vlv_fifo_state fifo_state;
 		} vlv;
 
 		struct {
-			/* "raw" watermarks */
 			struct g4x_pipe_wm raw[NUM_G4X_WM_LEVELS];
-			/* intermediate watermarks */
 			struct g4x_wm_state intermediate;
-			/* optimal watermarks */
 			struct g4x_wm_state optimal;
 		} g4x;
 	};
@@ -817,15 +822,22 @@ struct intel_crtc_state {
 	 * The following members are used to verify the hardware state:
 	 * - enable
 	 * - active
-	 * - mode / adjusted_mode
+	 * - mode / pipe_mode / adjusted_mode
 	 * - color property blobs.
 	 *
 	 * During initial hw readout, they need to be copied to uapi.
+	 *
+	 * Bigjoiner will allow a transcoder mode that spans 2 pipes;
+	 * Use the pipe_mode for calculations like watermarks, pipe
+	 * scaler, and bandwidth.
+	 *
+	 * Use adjusted_mode for things that need to know the full
+	 * mode on the transcoder, which spans all pipes.
 	 */
 	struct {
 		bool active, enable;
 		struct drm_property_blob *degamma_lut, *gamma_lut, *ctm;
-		struct drm_display_mode mode, adjusted_mode;
+		struct drm_display_mode mode, pipe_mode, adjusted_mode;
 		enum drm_scaling_filter scaling_filter;
 	} hw;
 
@@ -838,6 +850,7 @@ struct intel_crtc_state {
 	 * accordingly.
 	 */
 #define PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS	(1<<0) /* unreliable sync mode.flags */
+#define PIPE_CONFIG_QUIRK_BIGJOINER_SLAVE      (1<<1) /* bigjoiner slave, partial readout */
 	unsigned long quirks;
 
 	unsigned fb_bits; /* framebuffers to flip */
@@ -1019,6 +1032,10 @@ struct intel_crtc_state {
 
 	u32 data_rate[I915_MAX_PLANES];
 
+	/* FIXME unify with data_rate[] */
+	u64 plane_data_rate[I915_MAX_PLANES];
+	u64 uv_plane_data_rate[I915_MAX_PLANES];
+
 	/* Gamma mode programmed on the pipe */
 	u32 gamma_mode;
 
@@ -1062,6 +1079,15 @@ struct intel_crtc_state {
 
 	/* enable pipe csc? */
 	bool csc_enable;
+
+	/* enable pipe big joiner? */
+	bool bigjoiner;
+
+	/* big joiner slave crtc? */
+	bool bigjoiner_slave;
+
+	/* linked crtc for bigjoiner, either slave or master */
+	struct intel_crtc *bigjoiner_linked_crtc;
 
 	/* Display Stream compression state */
 	struct {
@@ -1189,6 +1215,15 @@ struct intel_plane {
 	 * the intel_plane_state structure and accessed via plane_state.
 	 */
 
+	int (*min_width)(const struct drm_framebuffer *fb,
+			 int color_plane,
+			 unsigned int rotation);
+	int (*max_width)(const struct drm_framebuffer *fb,
+			 int color_plane,
+			 unsigned int rotation);
+	int (*max_height)(const struct drm_framebuffer *fb,
+			  int color_plane,
+			  unsigned int rotation);
 	unsigned int (*max_stride)(struct intel_plane *plane,
 				   u32 pixel_format, u64 modifier,
 				   unsigned int rotation);
