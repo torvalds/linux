@@ -2604,7 +2604,6 @@ static int msdc_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static void msdc_save_reg(struct msdc_host *host)
 {
 	u32 tune_reg = host->dev_comp->pad_tune_reg;
@@ -2663,7 +2662,7 @@ static void msdc_restore_reg(struct msdc_host *host)
 		__msdc_enable_sdio_irq(host, 1);
 }
 
-static int msdc_runtime_suspend(struct device *dev)
+static int __maybe_unused msdc_runtime_suspend(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct msdc_host *host = mmc_priv(mmc);
@@ -2673,7 +2672,7 @@ static int msdc_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int msdc_runtime_resume(struct device *dev)
+static int __maybe_unused msdc_runtime_resume(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct msdc_host *host = mmc_priv(mmc);
@@ -2683,7 +2682,7 @@ static int msdc_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int msdc_suspend(struct device *dev)
+static int __maybe_unused msdc_suspend(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	int ret;
@@ -2697,11 +2696,10 @@ static int msdc_suspend(struct device *dev)
 	return pm_runtime_force_suspend(dev);
 }
 
-static int msdc_resume(struct device *dev)
+static int __maybe_unused msdc_resume(struct device *dev)
 {
 	return pm_runtime_force_resume(dev);
 }
-#endif
 
 static const struct dev_pm_ops msdc_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(msdc_suspend, msdc_resume)
