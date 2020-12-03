@@ -348,7 +348,9 @@ static long vhost_vdpa_get_iova_range(struct vhost_vdpa *v, u32 __user *argp)
 		.last = v->range.last,
 	};
 
-	return copy_to_user(argp, &range, sizeof(range));
+	if (copy_to_user(argp, &range, sizeof(range)))
+		return -EFAULT;
+	return 0;
 }
 
 static long vhost_vdpa_vring_ioctl(struct vhost_vdpa *v, unsigned int cmd,

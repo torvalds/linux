@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <endian.h>
 
 #include <linux/kernel.h>
 #include <linux/bootconfig.h>
@@ -183,9 +184,11 @@ static int load_xbc_from_initrd(int fd, char **buf)
 
 	if (read(fd, &size, sizeof(u32)) < 0)
 		return pr_errno("Failed to read size", -errno);
+	size = le32toh(size);
 
 	if (read(fd, &csum, sizeof(u32)) < 0)
 		return pr_errno("Failed to read checksum", -errno);
+	csum = le32toh(csum);
 
 	/* Wrong size error  */
 	if (stat.st_size < size + 8 + BOOTCONFIG_MAGIC_LEN) {
@@ -407,10 +410,10 @@ static int apply_xbc(const char *path, const char *xbc_path)
 
 	/* Add a footer */
 	p = data + size;
-	*(u32 *)p = size;
+	*(u32 *)p = htole32(size);
 	p += sizeof(u32);
 
-	*(u32 *)p = csum;
+	*(u32 *)p = htole32(csum);
 	p += sizeof(u32);
 
 	memcpy(p, BOOTCONFIG_MAGIC, BOOTCONFIG_MAGIC_LEN);
