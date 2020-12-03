@@ -20,6 +20,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
+#include <drm/drm_bridge_connector.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_of.h>
 #include <drm/drm_simple_kms_helper.h>
@@ -66,6 +67,7 @@ struct mtk_dpi {
 	struct drm_encoder encoder;
 	struct drm_bridge bridge;
 	struct drm_bridge *next_bridge;
+	struct drm_connector *connector;
 	void __iomem *regs;
 	struct device *dev;
 	struct clk *engine_clk;
@@ -591,11 +593,20 @@ static int mtk_dpi_bind(struct device *dev, struct device *master, void *data)
 
 	dpi->encoder.possible_crtcs = mtk_drm_find_possible_crtc_by_comp(drm_dev, dpi->dev);
 
-	ret = drm_bridge_attach(&dpi->encoder, &dpi->bridge, NULL, 0);
+	ret = drm_bridge_attach(&dpi->encoder, &dpi->bridge, NULL,
+				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 	if (ret) {
 		dev_err(dev, "Failed to attach bridge: %d\n", ret);
 		goto err_cleanup;
 	}
+
+	dpi->connector = drm_bridge_connector_init(drm_dev, &dpi->encoder);
+	if (IS_ERR(dpi->connector)) {
+		dev_err(dev, "Unable to create bridge connector\n");
+		ret = PTR_ERR(dpi->connector);
+		goto err_cleanup;
+	}
+	drm_connector_attach_encoder(dpi->connector, &dpi->encoder);
 
 	dpi->bit_num = MTK_DPI_OUT_BIT_NUM_8BITS;
 	dpi->channel_swap = MTK_DPI_OUT_CHANNEL_SWAP_RGB;
