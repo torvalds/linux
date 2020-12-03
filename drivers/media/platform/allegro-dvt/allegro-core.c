@@ -507,7 +507,7 @@ select_minimum_h264_level(unsigned int width, unsigned int height)
 	return level;
 }
 
-static unsigned int maximum_bitrate(enum v4l2_mpeg_video_h264_level level)
+static unsigned int h264_maximum_bitrate(enum v4l2_mpeg_video_h264_level level)
 {
 	switch (level) {
 	case V4L2_MPEG_VIDEO_H264_LEVEL_1_0:
@@ -546,7 +546,7 @@ static unsigned int maximum_bitrate(enum v4l2_mpeg_video_h264_level level)
 	}
 }
 
-static unsigned int maximum_cpb_size(enum v4l2_mpeg_video_h264_level level)
+static unsigned int h264_maximum_cpb_size(enum v4l2_mpeg_video_h264_level level)
 {
 	switch (level) {
 	case V4L2_MPEG_VIDEO_H264_LEVEL_1_0:
@@ -2124,7 +2124,7 @@ static void allegro_channel_adjust(struct allegro_channel *channel)
 	v4l2_ctrl_unlock(ctrl);
 
 	ctrl = channel->mpeg_video_bitrate;
-	max = maximum_bitrate(v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_level));
+	max = h264_maximum_bitrate(v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_level));
 	if (ctrl->maximum < max)
 		v4l2_dbg(1, debug, &dev->v4l2_dev,
 			 "%s: maximum: %lld -> %lld\n",
@@ -2521,10 +2521,10 @@ static int allegro_open(struct file *file)
 			V4L2_MPEG_VIDEO_BITRATE_MODE_CBR, 0,
 			V4L2_MPEG_VIDEO_BITRATE_MODE_CBR);
 
-	bitrate_max = maximum_bitrate(V4L2_MPEG_VIDEO_H264_LEVEL_5_1);
-	bitrate_def = maximum_bitrate(V4L2_MPEG_VIDEO_H264_LEVEL_5_1);
-	cpb_size_max = maximum_cpb_size(V4L2_MPEG_VIDEO_H264_LEVEL_5_1);
-	cpb_size_def = maximum_cpb_size(V4L2_MPEG_VIDEO_H264_LEVEL_5_1);
+	bitrate_max = h264_maximum_bitrate(V4L2_MPEG_VIDEO_H264_LEVEL_5_1);
+	bitrate_def = h264_maximum_bitrate(V4L2_MPEG_VIDEO_H264_LEVEL_5_1);
+	cpb_size_max = h264_maximum_cpb_size(V4L2_MPEG_VIDEO_H264_LEVEL_5_1);
+	cpb_size_def = h264_maximum_cpb_size(V4L2_MPEG_VIDEO_H264_LEVEL_5_1);
 	channel->mpeg_video_bitrate = v4l2_ctrl_new_std(handler,
 			&allegro_ctrl_ops,
 			V4L2_CID_MPEG_VIDEO_BITRATE,
