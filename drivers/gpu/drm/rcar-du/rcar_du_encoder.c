@@ -8,12 +8,13 @@
  */
 
 #include <linux/export.h>
+#include <linux/slab.h>
 
 #include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_simple_kms_helper.h>
 
 #include "rcar_du_drv.h"
 #include "rcar_du_encoder.h"
@@ -44,6 +45,17 @@ static unsigned int rcar_du_encoder_count_ports(struct device_node *node)
 	return num_ports;
 }
 
+static const struct drm_encoder_funcs rcar_du_encoder_funcs = {
+};
+
+static void rcar_du_encoder_release(struct drm_device *dev, void *res)
+{
+	struct rcar_du_encoder *renc = res;
+
+	drm_encoder_cleanup(&renc->base);
+	kfree(renc);
+}
+
 int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 			 enum rcar_du_output output,
 			 struct device_node *enc_node)
@@ -53,7 +65,7 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	struct drm_bridge *bridge;
 	int ret;
 
-	renc = devm_kzalloc(rcdu->dev, sizeof(*renc), GFP_KERNEL);
+	renc = kzalloc(sizeof(*renc), GFP_KERNEL);
 	if (renc == NULL)
 		return -ENOMEM;
 
@@ -75,20 +87,20 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 
 		if (IS_ERR(panel)) {
 			ret = PTR_ERR(panel);
-			goto done;
+			goto error;
 		}
 
 		bridge = devm_drm_panel_bridge_add_typed(rcdu->dev, panel,
 							 DRM_MODE_CONNECTOR_DPI);
 		if (IS_ERR(bridge)) {
 			ret = PTR_ERR(bridge);
-			goto done;
+			goto error;
 		}
 	} else {
 		bridge = of_drm_find_bridge(enc_node);
 		if (!bridge) {
 			ret = -EPROBE_DEFER;
-			goto done;
+			goto error;
 		}
 
 		if (output == RCAR_DU_OUTPUT_LVDS0 ||
@@ -103,28 +115,27 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	if (rcdu->info->gen >= 3 && output == RCAR_DU_OUTPUT_LVDS1) {
 		if (rcar_lvds_dual_link(bridge)) {
 			ret = -ENOLINK;
-			goto done;
+			goto error;
 		}
 	}
 
-	ret = drm_simple_encoder_init(rcdu->ddev, encoder,
-				      DRM_MODE_ENCODER_NONE);
+	ret = drm_encoder_init(rcdu->ddev, encoder, &rcar_du_encoder_funcs,
+			       DRM_MODE_ENCODER_NONE, NULL);
 	if (ret < 0)
-		goto done;
+		goto error;
+
+	ret = drmm_add_action_or_reset(rcdu->ddev, rcar_du_encoder_release,
+				       renc);
+	if (ret)
+		return ret;
 
 	/*
 	 * Attach the bridge to the encoder. The bridge will create the
 	 * connector.
 	 */
-	ret = drm_bridge_attach(encoder, bridge, NULL, 0);
-	if (ret) {
-		drm_encoder_cleanup(encoder);
-		return ret;
-	}
+	return drm_bridge_attach(encoder, bridge, NULL, 0);
 
-done:
-	if (ret < 0)
-		devm_kfree(rcdu->dev, renc);
-
+error:
+	kfree(renc);
 	return ret;
 }
