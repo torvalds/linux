@@ -365,6 +365,13 @@
 	firmware-name = "qcom/sm8250/cdsp.mbn";
 };
 
+&gpu {
+	zap-shader {
+		memory-region = <&gpu_mem>;
+		firmware-name = "qcom/sm8250/a650_zap.mbn";
+	};
+};
+
 &i2c1 {
 	status = "okay";
 	clock-frequency = <1000000>;
