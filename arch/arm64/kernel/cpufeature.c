@@ -2634,7 +2634,7 @@ bool this_cpu_has_cap(unsigned int n)
  * - The SYSTEM_FEATURE cpu_hwcaps may not have been set.
  * In all other cases cpus_have_{const_}cap() should be used.
  */
-static bool __system_matches_cap(unsigned int n)
+static bool __maybe_unused __system_matches_cap(unsigned int n)
 {
 	if (n < ARM64_NCAPS) {
 		const struct arm64_cpu_capabilities *cap = cpu_hwcaps_ptrs[n];
