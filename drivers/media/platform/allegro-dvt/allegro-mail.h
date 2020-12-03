@@ -65,6 +65,7 @@ struct create_channel_param {
 	u32 temporal_mvp_enable;
 	u32 enable_reordering;
 	u32 dbf_ovr_en;
+	u32 override_lf;
 	u32 num_ref_idx_l0;
 	u32 num_ref_idx_l1;
 	u32 custom_lda;
