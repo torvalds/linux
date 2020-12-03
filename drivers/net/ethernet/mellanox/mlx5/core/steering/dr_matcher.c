@@ -643,7 +643,7 @@ static int dr_matcher_init(struct mlx5dr_matcher *matcher,
 	}
 
 	if (mask) {
-		if (mask->match_sz > sizeof(struct mlx5dr_match_param)) {
+		if (mask->match_sz > DR_SZ_MATCH_PARAM) {
 			mlx5dr_err(dmn, "Invalid match size attribute\n");
 			return -EINVAL;
 		}
