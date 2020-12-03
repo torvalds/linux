@@ -1485,7 +1485,8 @@ void hl_device_fini(struct hl_device *hdev)
 		usleep_range(50, 200);
 		rc = atomic_cmpxchg(&hdev->in_reset, 0, 1);
 		if (ktime_compare(ktime_get(), timeout) > 0) {
-			WARN(1, "Failed to remove device because reset function did not finish\n");
+			dev_crit(hdev->dev,
+				"Failed to remove device because reset function did not finish\n");
 			return;
 		}
 	}

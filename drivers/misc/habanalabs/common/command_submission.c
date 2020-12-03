@@ -48,8 +48,8 @@ void hl_sob_reset_error(struct kref *ref)
 	struct hl_device *hdev = hw_sob->hdev;
 
 	dev_crit(hdev->dev,
-			"SOB release shouldn't be called here, q_idx: %d, sob_id: %d\n",
-			hw_sob->q_idx, hw_sob->sob_id);
+		"SOB release shouldn't be called here, q_idx: %d, sob_id: %d\n",
+		hw_sob->q_idx, hw_sob->sob_id);
 }
 
 /**

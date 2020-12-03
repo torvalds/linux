@@ -5308,10 +5308,10 @@ static int gaudi_parse_cb_mmu(struct hl_device *hdev,
 	patched_cb_handle >>= PAGE_SHIFT;
 	parser->patched_cb = hl_cb_get(hdev, &hdev->kernel_cb_mgr,
 				(u32) patched_cb_handle);
-	/* hl_cb_get should never fail here so use kernel WARN */
-	WARN(!parser->patched_cb, "DMA CB handle invalid 0x%x\n",
-			(u32) patched_cb_handle);
+	/* hl_cb_get should never fail */
 	if (!parser->patched_cb) {
+		dev_crit(hdev->dev, "DMA CB handle invalid 0x%x\n",
+			(u32) patched_cb_handle);
 		rc = -EFAULT;
 		goto out;
 	}
@@ -5380,10 +5380,10 @@ static int gaudi_parse_cb_no_mmu(struct hl_device *hdev,
 	patched_cb_handle >>= PAGE_SHIFT;
 	parser->patched_cb = hl_cb_get(hdev, &hdev->kernel_cb_mgr,
 				(u32) patched_cb_handle);
-	/* hl_cb_get should never fail here so use kernel WARN */
-	WARN(!parser->patched_cb, "DMA CB handle invalid 0x%x\n",
-			(u32) patched_cb_handle);
+	/* hl_cb_get should never fail here */
 	if (!parser->patched_cb) {
+		dev_crit(hdev->dev, "DMA CB handle invalid 0x%x\n",
+				(u32) patched_cb_handle);
 		rc = -EFAULT;
 		goto out;
 	}
@@ -5928,7 +5928,7 @@ static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid)
 		return;
 
 	if (asid & ~DMA0_QM_GLBL_NON_SECURE_PROPS_0_ASID_MASK) {
-		WARN(1, "asid %u is too big\n", asid);
+		dev_crit(hdev->dev, "asid %u is too big\n", asid);
 		return;
 	}
 
