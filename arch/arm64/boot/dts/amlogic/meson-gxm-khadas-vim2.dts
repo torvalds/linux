@@ -7,9 +7,8 @@
 
 /dts-v1/;
 
-#include <dt-bindings/input/input.h>
-
 #include "meson-gxm.dtsi"
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/sound/meson-aiu.h>
 
 / {
@@ -193,7 +192,6 @@
 	pinctrl-names = "default";
 	hdmi-phandle = <&hdmi_tx>;
 };
-
 
 &cpu_cooling_maps {
 	map0 {
