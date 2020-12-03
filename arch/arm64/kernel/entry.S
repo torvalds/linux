@@ -182,7 +182,6 @@ alternative_else_nop_endif
 	mrs_s	\tmp2, SYS_GCR_EL1
 	bfi	\tmp2, \tmp, #0, #16
 	msr_s	SYS_GCR_EL1, \tmp2
-	isb
 #endif
 	.endm
 
@@ -194,6 +193,7 @@ alternative_else_nop_endif
 	ldr_l	\tmp, gcr_kernel_excl
 
 	mte_set_gcr \tmp, \tmp2
+	isb
 1:
 #endif
 	.endm
