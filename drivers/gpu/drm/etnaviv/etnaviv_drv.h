@@ -33,7 +33,6 @@ struct etnaviv_file_private {
 
 struct etnaviv_drm_private {
 	int num_gpus;
-	struct device_dma_parameters dma_parms;
 	struct etnaviv_gpu *gpu[ETNA_MAX_PIPES];
 	gfp_t shm_gfp_mask;
 
