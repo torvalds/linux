@@ -736,6 +736,9 @@ int f2fs_submit_page_bio(struct f2fs_io_info *fio)
 static bool page_is_mergeable(struct f2fs_sb_info *sbi, struct bio *bio,
 				block_t last_blkaddr, block_t cur_blkaddr)
 {
+	if (unlikely(sbi->max_io_bytes &&
+			bio->bi_iter.bi_size >= sbi->max_io_bytes))
+		return false;
 	if (last_blkaddr + 1 != cur_blkaddr)
 		return false;
 	return __same_bdev(sbi, cur_blkaddr, bio);
