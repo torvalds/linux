@@ -137,8 +137,8 @@ static void create_mkey_callback(int status, struct mlx5_async_work *context)
 {
 	struct mlx5_ib_mr *mr =
 		container_of(context, struct mlx5_ib_mr, cb_work);
-	struct mlx5_ib_dev *dev = mr->dev;
 	struct mlx5_cache_ent *ent = mr->cache_ent;
+	struct mlx5_ib_dev *dev = ent->dev;
 	unsigned long flags;
 
 	if (status) {
@@ -176,7 +176,6 @@ static struct mlx5_ib_mr *alloc_cache_mr(struct mlx5_cache_ent *ent, void *mkc)
 	if (!mr)
 		return NULL;
 	mr->cache_ent = ent;
-	mr->dev = ent->dev;
 
 	set_mkc_access_pd_addr_fields(mkc, 0, 0, ent->dev->umrc.pd);
 	MLX5_SET(mkc, mkc, free, 1);
@@ -931,6 +930,7 @@ static void set_mr_fields(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr,
 	mr->ibmr.lkey = mr->mmkey.key;
 	mr->ibmr.rkey = mr->mmkey.key;
 	mr->ibmr.length = length;
+	mr->ibmr.device = &dev->ib_dev;
 	mr->access_flags = access_flags;
 }
 
@@ -1062,7 +1062,7 @@ static void *mlx5_ib_create_xlt_wr(struct mlx5_ib_mr *mr,
 				   size_t nents, size_t ent_size,
 				   unsigned int flags)
 {
-	struct mlx5_ib_dev *dev = mr->dev;
+	struct mlx5_ib_dev *dev = mr_to_mdev(mr);
 	struct device *ddev = &dev->mdev->pdev->dev;
 	dma_addr_t dma;
 	void *xlt;
@@ -1124,7 +1124,7 @@ static unsigned int xlt_wr_final_send_flags(unsigned int flags)
 int mlx5_ib_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 		       int page_shift, int flags)
 {
-	struct mlx5_ib_dev *dev = mr->dev;
+	struct mlx5_ib_dev *dev = mr_to_mdev(mr);
 	struct device *ddev = &dev->mdev->pdev->dev;
 	void *xlt;
 	struct mlx5_umr_wr wr;
@@ -1203,7 +1203,7 @@ int mlx5_ib_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
  */
 static int mlx5_ib_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags)
 {
-	struct mlx5_ib_dev *dev = mr->dev;
+	struct mlx5_ib_dev *dev = mr_to_mdev(mr);
 	struct device *ddev = &dev->mdev->pdev->dev;
 	struct ib_block_iter biter;
 	struct mlx5_mtt *cur_mtt;
@@ -1335,7 +1335,6 @@ static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, struct ib_umem *umem,
 	}
 	mr->mmkey.type = MLX5_MKEY_MR;
 	mr->desc_size = sizeof(struct mlx5_mtt);
-	mr->dev = dev;
 	mr->umem = umem;
 	set_mr_fields(dev, mr, umem->length, access_flags);
 	kvfree(in);
@@ -1579,17 +1578,17 @@ int mlx5_mr_cache_invalidate(struct mlx5_ib_mr *mr)
 {
 	struct mlx5_umr_wr umrwr = {};
 
-	if (mr->dev->mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
+	if (mr_to_mdev(mr)->mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
 		return 0;
 
 	umrwr.wr.send_flags = MLX5_IB_SEND_UMR_DISABLE_MR |
 			      MLX5_IB_SEND_UMR_UPDATE_PD_ACCESS;
 	umrwr.wr.opcode = MLX5_IB_WR_UMR;
-	umrwr.pd = mr->dev->umrc.pd;
+	umrwr.pd = mr_to_mdev(mr)->umrc.pd;
 	umrwr.mkey = mr->mmkey.key;
 	umrwr.ignore_free_state = 1;
 
-	return mlx5_ib_post_send_wait(mr->dev, &umrwr);
+	return mlx5_ib_post_send_wait(mr_to_mdev(mr), &umrwr);
 }
 
 /*
