@@ -101,6 +101,7 @@ Hardware Monitoring Kernel Drivers
    lm95234
    lm95245
    lochnagar
+   ltc2992
    ltc2945
    ltc2947
    ltc2978
