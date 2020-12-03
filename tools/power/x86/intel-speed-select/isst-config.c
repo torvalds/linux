@@ -328,8 +328,12 @@ int get_physical_die_id(int cpu)
 		int core_id, pkg_id, die_id;
 
 		ret = get_stored_topology_info(cpu, &core_id, &pkg_id, &die_id);
-		if (!ret)
+		if (!ret) {
+			if (die_id < 0)
+				die_id = 0;
+
 			return die_id;
+		}
 	}
 
 	if (ret < 0)
