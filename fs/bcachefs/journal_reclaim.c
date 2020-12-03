@@ -485,13 +485,14 @@ static u64 journal_seq_to_flush(struct journal *j)
  * 512 journal entries or 25% of all journal buckets, then
  * journal_next_bucket() should not stall.
  */
-static void __bch2_journal_reclaim(struct journal *j, bool direct)
+static int __bch2_journal_reclaim(struct journal *j, bool direct)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	bool kthread = (current->flags & PF_KTHREAD) != 0;
 	u64 seq_to_flush, nr_flushed = 0;
 	size_t min_nr;
 	unsigned flags;
+	int ret = 0;
 
 	/*
 	 * We can't invoke memory reclaim while holding the reclaim_lock -
@@ -505,6 +506,11 @@ static void __bch2_journal_reclaim(struct journal *j, bool direct)
 	do {
 		if (kthread && kthread_should_stop())
 			break;
+
+		if (bch2_journal_error(j)) {
+			ret = -EIO;
+			break;
+		}
 
 		bch2_journal_do_discards(j);
 
@@ -547,27 +553,30 @@ static void __bch2_journal_reclaim(struct journal *j, bool direct)
 	} while (min_nr);
 
 	memalloc_noreclaim_restore(flags);
+
+	return ret;
 }
 
-void bch2_journal_reclaim(struct journal *j)
+int bch2_journal_reclaim(struct journal *j)
 {
-	__bch2_journal_reclaim(j, true);
+	return __bch2_journal_reclaim(j, true);
 }
 
 static int bch2_journal_reclaim_thread(void *arg)
 {
 	struct journal *j = arg;
 	unsigned long next;
+	int ret = 0;
 
 	set_freezable();
 
 	kthread_wait_freezable(test_bit(JOURNAL_RECLAIM_STARTED, &j->flags));
 
-	while (!kthread_should_stop()) {
+	while (!ret && !kthread_should_stop()) {
 		j->reclaim_kicked = false;
 
 		mutex_lock(&j->reclaim_lock);
-		__bch2_journal_reclaim(j, false);
+		ret = __bch2_journal_reclaim(j, false);
 		mutex_unlock(&j->reclaim_lock);
 
 		next = j->last_flushed + msecs_to_jiffies(j->reclaim_delay_ms);

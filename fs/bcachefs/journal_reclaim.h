@@ -73,7 +73,7 @@ static inline void bch2_journal_pin_update(struct journal *j, u64 seq,
 void bch2_journal_pin_flush(struct journal *, struct journal_entry_pin *);
 
 void bch2_journal_do_discards(struct journal *);
-void bch2_journal_reclaim(struct journal *);
+int bch2_journal_reclaim(struct journal *);
 
 void bch2_journal_reclaim_stop(struct journal *);
 int bch2_journal_reclaim_start(struct journal *);

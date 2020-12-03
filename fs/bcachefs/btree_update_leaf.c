@@ -659,13 +659,13 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 	case BTREE_INSERT_NEED_JOURNAL_RECLAIM:
 		bch2_trans_unlock(trans);
 
-		while (bch2_btree_key_cache_must_wait(c)) {
+		do {
 			mutex_lock(&c->journal.reclaim_lock);
-			bch2_journal_reclaim(&c->journal);
+			ret = bch2_journal_reclaim(&c->journal);
 			mutex_unlock(&c->journal.reclaim_lock);
-		}
+		} while (!ret && bch2_btree_key_cache_must_wait(c));
 
-		if (bch2_trans_relock(trans))
+		if (!ret && bch2_trans_relock(trans))
 			return 0;
 
 		trace_trans_restart_journal_reclaim(trans->ip);
