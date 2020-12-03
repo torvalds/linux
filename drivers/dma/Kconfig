@@ -740,6 +740,8 @@ source "drivers/dma/ti/Kconfig"
 
 source "drivers/dma/fsl-dpaa2-qdma/Kconfig"
 
+source "drivers/dma/lgm/Kconfig"
+
 # clients
 comment "DMA Clients"
 	depends on DMA_ENGINE
