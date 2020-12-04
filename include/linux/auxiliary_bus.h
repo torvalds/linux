@@ -10,7 +10,6 @@
 
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
-#include <linux/slab.h>
 
 struct auxiliary_device {
 	struct device dev;
