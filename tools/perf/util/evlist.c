@@ -179,11 +179,22 @@ void evlist__remove(struct evlist *evlist, struct evsel *evsel)
 
 void evlist__splice_list_tail(struct evlist *evlist, struct list_head *list)
 {
-	struct evsel *evsel, *temp;
+	while (!list_empty(list)) {
+		struct evsel *evsel, *temp, *leader = NULL;
 
-	__evlist__for_each_entry_safe(list, temp, evsel) {
-		list_del_init(&evsel->core.node);
-		evlist__add(evlist, evsel);
+		__evlist__for_each_entry_safe(list, temp, evsel) {
+			list_del_init(&evsel->core.node);
+			evlist__add(evlist, evsel);
+			leader = evsel;
+			break;
+		}
+
+		__evlist__for_each_entry_safe(list, temp, evsel) {
+			if (evsel->leader == leader) {
+				list_del_init(&evsel->core.node);
+				evlist__add(evlist, evsel);
+			}
+		}
 	}
 }
 
