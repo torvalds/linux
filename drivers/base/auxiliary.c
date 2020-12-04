@@ -50,8 +50,8 @@ static int auxiliary_uevent(struct device *dev, struct kobj_uevent_env *env)
 	name = dev_name(dev);
 	p = strrchr(name, '.');
 
-	return add_uevent_var(env, "MODALIAS=%s%.*s", AUXILIARY_MODULE_PREFIX, (int)(p - name),
-			      name);
+	return add_uevent_var(env, "MODALIAS=%s%.*s", AUXILIARY_MODULE_PREFIX,
+			      (int)(p - name), name);
 }
 
 static const struct dev_pm_ops auxiliary_dev_pm_ops = {
@@ -113,16 +113,18 @@ static struct bus_type auxiliary_bus_type = {
  * auxiliary_device_init - check auxiliary_device and initialize
  * @auxdev: auxiliary device struct
  *
- * This is the first step in the two-step process to register an auxiliary_device.
+ * This is the first step in the two-step process to register an
+ * auxiliary_device.
  *
- * When this function returns an error code, then the device_initialize will *not* have
- * been performed, and the caller will be responsible to free any memory allocated for the
- * auxiliary_device in the error path directly.
+ * When this function returns an error code, then the device_initialize will
+ * *not* have been performed, and the caller will be responsible to free any
+ * memory allocated for the auxiliary_device in the error path directly.
  *
- * It returns 0 on success.  On success, the device_initialize has been performed.  After this
- * point any error unwinding will need to include a call to auxiliary_device_uninit().
- * In this post-initialize error scenario, a call to the device's .release callback will be
- * triggered, and all memory clean-up is expected to be handled there.
+ * It returns 0 on success.  On success, the device_initialize has been
+ * performed.  After this point any error unwinding will need to include a call
+ * to auxiliary_device_uninit().  In this post-initialize error scenario, a call
+ * to the device's .release callback will be triggered, and all memory clean-up
+ * is expected to be handled there.
  */
 int auxiliary_device_init(struct auxiliary_device *auxdev)
 {
@@ -149,16 +151,19 @@ EXPORT_SYMBOL_GPL(auxiliary_device_init);
  * @auxdev: auxiliary bus device to add to the bus
  * @modname: name of the parent device's driver module
  *
- * This is the second step in the two-step process to register an auxiliary_device.
+ * This is the second step in the two-step process to register an
+ * auxiliary_device.
  *
- * This function must be called after a successful call to auxiliary_device_init(), which
- * will perform the device_initialize.  This means that if this returns an error code, then a
- * call to auxiliary_device_uninit() must be performed so that the .release callback will
- * be triggered to free the memory associated with the auxiliary_device.
+ * This function must be called after a successful call to
+ * auxiliary_device_init(), which will perform the device_initialize.  This
+ * means that if this returns an error code, then a call to
+ * auxiliary_device_uninit() must be performed so that the .release callback
+ * will be triggered to free the memory associated with the auxiliary_device.
  *
- * The expectation is that users will call the "auxiliary_device_add" macro so that the caller's
- * KBUILD_MODNAME is automatically inserted for the modname parameter.  Only if a user requires
- * a custom name would this version be called directly.
+ * The expectation is that users will call the "auxiliary_device_add" macro so
+ * that the caller's KBUILD_MODNAME is automatically inserted for the modname
+ * parameter.  Only if a user requires a custom name would this version be
+ * called directly.
  */
 int __auxiliary_device_add(struct auxiliary_device *auxdev, const char *modname)
 {
@@ -166,13 +171,13 @@ int __auxiliary_device_add(struct auxiliary_device *auxdev, const char *modname)
 	int ret;
 
 	if (!modname) {
-		pr_err("auxiliary device modname is NULL\n");
+		dev_err(dev, "auxiliary device modname is NULL\n");
 		return -EINVAL;
 	}
 
 	ret = dev_set_name(dev, "%s.%s.%d", modname, auxdev->name, auxdev->id);
 	if (ret) {
-		pr_err("auxiliary device dev_set_name failed: %d\n", ret);
+		dev_err(dev, "auxiliary device dev_set_name failed: %d\n", ret);
 		return ret;
 	}
 
@@ -197,9 +202,9 @@ EXPORT_SYMBOL_GPL(__auxiliary_device_add);
  * if it does.  If the callback returns non-zero, this function will
  * return to the caller and not iterate over any more devices.
  */
-struct auxiliary_device *
-auxiliary_find_device(struct device *start, const void *data,
-		      int (*match)(struct device *dev, const void *data))
+struct auxiliary_device *auxiliary_find_device(struct device *start,
+					       const void *data,
+					       int (*match)(struct device *dev, const void *data))
 {
 	struct device *dev;
 
@@ -217,14 +222,15 @@ EXPORT_SYMBOL_GPL(auxiliary_find_device);
  * @owner: owning module/driver
  * @modname: KBUILD_MODNAME for parent driver
  */
-int __auxiliary_driver_register(struct auxiliary_driver *auxdrv, struct module *owner,
-				const char *modname)
+int __auxiliary_driver_register(struct auxiliary_driver *auxdrv,
+				struct module *owner, const char *modname)
 {
 	if (WARN_ON(!auxdrv->probe) || WARN_ON(!auxdrv->id_table))
 		return -EINVAL;
 
 	if (auxdrv->name)
-		auxdrv->driver.name = kasprintf(GFP_KERNEL, "%s.%s", modname, auxdrv->name);
+		auxdrv->driver.name = kasprintf(GFP_KERNEL, "%s.%s", modname,
+						auxdrv->name);
 	else
 		auxdrv->driver.name = kasprintf(GFP_KERNEL, "%s", modname);
 	if (!auxdrv->driver.name)
