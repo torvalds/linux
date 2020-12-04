@@ -2450,6 +2450,11 @@ cancel_port_requests(struct intel_engine_execlists * const execlists)
 
 	smp_wmb(); /* complete the seqlock for execlists_active() */
 	WRITE_ONCE(execlists->active, execlists->inflight);
+
+	/* Having cancelled all outstanding process_csb(), stop their timers */
+	GEM_BUG_ON(execlists->pending[0]);
+	cancel_timer(&execlists->timer);
+	cancel_timer(&execlists->preempt);
 }
 
 static inline void
