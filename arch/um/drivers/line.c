@@ -608,7 +608,6 @@ static void free_winch(struct winch *winch)
 	winch->fd = -1;
 	if (fd != -1)
 		os_close_file(fd);
-	list_del(&winch->list);
 	__free_winch(&winch->work);
 }
 
@@ -709,6 +708,8 @@ static void unregister_winch(struct tty_struct *tty)
 		winch = list_entry(ele, struct winch, list);
 		wtty = tty_port_tty_get(winch->port);
 		if (wtty == tty) {
+			list_del(&winch->list);
+			spin_unlock(&winch_handler_lock);
 			free_winch(winch);
 			break;
 		}
@@ -719,14 +720,17 @@ static void unregister_winch(struct tty_struct *tty)
 
 static void winch_cleanup(void)
 {
-	struct list_head *ele, *next;
 	struct winch *winch;
 
 	spin_lock(&winch_handler_lock);
+	while ((winch = list_first_entry_or_null(&winch_handlers,
+						 struct winch, list))) {
+		list_del(&winch->list);
+		spin_unlock(&winch_handler_lock);
 
-	list_for_each_safe(ele, next, &winch_handlers) {
-		winch = list_entry(ele, struct winch, list);
 		free_winch(winch);
+
+		spin_lock(&winch_handler_lock);
 	}
 
 	spin_unlock(&winch_handler_lock);
