@@ -34,6 +34,7 @@ problems and bugs in particular.
 .. toctree::
    :maxdepth: 1
 
+   reporting-issues
    reporting-bugs
    security-bugs
    bug-hunting
