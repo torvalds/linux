@@ -35,7 +35,7 @@ problems and bugs in particular.
    :maxdepth: 1
 
    reporting-issues
-   reporting-bugs
+   Reporting bugs (obsolete) <reporting-bugs>
    security-bugs
    bug-hunting
    bug-bisect
