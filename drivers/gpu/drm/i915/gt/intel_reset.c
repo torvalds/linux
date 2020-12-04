@@ -231,7 +231,7 @@ static int g4x_do_reset(struct intel_gt *gt,
 			      GRDOM_MEDIA | GRDOM_RESET_ENABLE);
 	ret =  wait_for_atomic(g4x_reset_complete(pdev), 50);
 	if (ret) {
-		drm_dbg(&gt->i915->drm, "Wait for media reset failed\n");
+		GT_TRACE(gt, "Wait for media reset failed\n");
 		goto out;
 	}
 
@@ -239,7 +239,7 @@ static int g4x_do_reset(struct intel_gt *gt,
 			      GRDOM_RENDER | GRDOM_RESET_ENABLE);
 	ret =  wait_for_atomic(g4x_reset_complete(pdev), 50);
 	if (ret) {
-		drm_dbg(&gt->i915->drm, "Wait for render reset failed\n");
+		GT_TRACE(gt, "Wait for render reset failed\n");
 		goto out;
 	}
 
@@ -265,7 +265,7 @@ static int ilk_do_reset(struct intel_gt *gt, intel_engine_mask_t engine_mask,
 					   5000, 0,
 					   NULL);
 	if (ret) {
-		drm_dbg(&gt->i915->drm, "Wait for render reset failed\n");
+		GT_TRACE(gt, "Wait for render reset failed\n");
 		goto out;
 	}
 
@@ -276,7 +276,7 @@ static int ilk_do_reset(struct intel_gt *gt, intel_engine_mask_t engine_mask,
 					   5000, 0,
 					   NULL);
 	if (ret) {
-		drm_dbg(&gt->i915->drm, "Wait for media reset failed\n");
+		GT_TRACE(gt, "Wait for media reset failed\n");
 		goto out;
 	}
 
@@ -305,9 +305,9 @@ static int gen6_hw_domain_reset(struct intel_gt *gt, u32 hw_domain_mask)
 					   500, 0,
 					   NULL);
 	if (err)
-		drm_dbg(&gt->i915->drm,
-			"Wait for 0x%08x engines reset failed\n",
-			hw_domain_mask);
+		GT_TRACE(gt,
+			 "Wait for 0x%08x engines reset failed\n",
+			 hw_domain_mask);
 
 	return err;
 }
@@ -407,8 +407,7 @@ static int gen11_lock_sfc(struct intel_engine_cs *engine, u32 *hw_mask)
 		return 0;
 
 	if (ret) {
-		drm_dbg(&engine->i915->drm,
-			"Wait for SFC forced lock ack failed\n");
+		ENGINE_TRACE(engine, "Wait for SFC forced lock ack failed\n");
 		return ret;
 	}
 
@@ -1148,8 +1147,7 @@ int intel_engine_reset(struct intel_engine_cs *engine, const char *msg)
 		ret = intel_guc_reset_engine(&engine->gt->uc.guc, engine);
 	if (ret) {
 		/* If we fail here, we expect to fallback to a global reset */
-		drm_dbg(&gt->i915->drm, "%sFailed to reset %s, ret=%d\n",
-			uses_guc ? "GuC " : "", engine->name, ret);
+		ENGINE_TRACE(engine, "Failed to reset, err: %d\n", ret);
 		goto out;
 	}
 
@@ -1186,7 +1184,7 @@ static void intel_gt_reset_global(struct intel_gt *gt,
 
 	kobject_uevent_env(kobj, KOBJ_CHANGE, error_event);
 
-	drm_dbg(&gt->i915->drm, "resetting chip, engines=%x\n", engine_mask);
+	GT_TRACE(gt, "resetting chip, engines=%x\n", engine_mask);
 	kobject_uevent_env(kobj, KOBJ_CHANGE, reset_event);
 
 	/* Use a watchdog to ensure that our reset completes */
