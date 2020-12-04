@@ -3769,7 +3769,8 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	case KVM_CAP_XEN_HVM:
 		r = KVM_XEN_HVM_CONFIG_HYPERCALL_MSR |
-		    KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL;
+		    KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL |
+		    KVM_XEN_HVM_CONFIG_SHARED_INFO;
 		break;
 	case KVM_CAP_SYNC_REGS:
 		r = KVM_SYNC_X86_VALID_FIELDS;
