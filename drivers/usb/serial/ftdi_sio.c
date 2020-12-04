@@ -2009,6 +2009,12 @@ static int ftdi_gpio_init_valid_mask(struct gpio_chip *gc,
 
 	bitmap_complement(valid_mask, &map, ngpios);
 
+	if (bitmap_empty(valid_mask, ngpios))
+		dev_dbg(&port->dev, "no CBUS pin configured for GPIO\n");
+	else
+		dev_dbg(&port->dev, "CBUS%*pbl configured for GPIO\n", ngpios,
+			valid_mask);
+
 	return 0;
 }
 
