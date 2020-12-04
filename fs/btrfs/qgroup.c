@@ -3565,16 +3565,6 @@ static int try_flush_qgroup(struct btrfs_root *root)
 	bool can_commit = true;
 
 	/*
-	 * We don't want to run flush again and again, so if there is a running
-	 * one, we won't try to start a new flush, but exit directly.
-	 */
-	if (test_and_set_bit(BTRFS_ROOT_QGROUP_FLUSHING, &root->state)) {
-		wait_event(root->qgroup_flush_wait,
-			!test_bit(BTRFS_ROOT_QGROUP_FLUSHING, &root->state));
-		return 0;
-	}
-
-	/*
 	 * If current process holds a transaction, we shouldn't flush, as we
 	 * assume all space reservation happens before a transaction handle is
 	 * held.
@@ -3587,6 +3577,26 @@ static int try_flush_qgroup(struct btrfs_root *root)
 	if (current->journal_info &&
 	    current->journal_info != BTRFS_SEND_TRANS_STUB)
 		can_commit = false;
+
+	/*
+	 * We don't want to run flush again and again, so if there is a running
+	 * one, we won't try to start a new flush, but exit directly.
+	 */
+	if (test_and_set_bit(BTRFS_ROOT_QGROUP_FLUSHING, &root->state)) {
+		/*
+		 * We are already holding a transaction, thus we can block other
+		 * threads from flushing.  So exit right now. This increases
+		 * the chance of EDQUOT for heavy load and near limit cases.
+		 * But we can argue that if we're already near limit, EDQUOT is
+		 * unavoidable anyway.
+		 */
+		if (!can_commit)
+			return 0;
+
+		wait_event(root->qgroup_flush_wait,
+			!test_bit(BTRFS_ROOT_QGROUP_FLUSHING, &root->state));
+		return 0;
+	}
 
 	ret = btrfs_start_delalloc_snapshot(root);
 	if (ret < 0)
