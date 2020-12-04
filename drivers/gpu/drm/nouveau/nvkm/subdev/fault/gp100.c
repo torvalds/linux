@@ -82,8 +82,8 @@ gp100_fault = {
 };
 
 int
-gp100_fault_new(struct nvkm_device *device, int index,
+gp100_fault_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		struct nvkm_fault **pfault)
 {
-	return nvkm_fault_new_(&gp100_fault, device, index, pfault);
+	return nvkm_fault_new_(&gp100_fault, device, type, inst, pfault);
 }

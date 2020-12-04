@@ -181,8 +181,8 @@ tu102_fault = {
 };
 
 int
-tu102_fault_new(struct nvkm_device *device, int index,
+tu102_fault_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		struct nvkm_fault **pfault)
 {
-	return nvkm_fault_new_(&tu102_fault, device, index, pfault);
+	return nvkm_fault_new_(&tu102_fault, device, type, inst, pfault);
 }
