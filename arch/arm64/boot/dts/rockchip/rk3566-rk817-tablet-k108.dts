@@ -11,7 +11,7 @@
 #include <dt-bindings/input/rk-input.h>
 #include <dt-bindings/sensor-dev.h>
 #include <dt-bindings/display/drm_mipi_dsi.h>
-#include "rk3568.dtsi"
+#include "rk3566.dtsi"
 #include "rk3568-android.dtsi"
 
 / {
@@ -1224,11 +1224,6 @@
 };
 
 &usbdrd_dwc3 {
-	dr_mode = "otg";
-	phys = <&u2phy0_otg>;
-	phy-names = "usb2-phy";
-	extcon = <&usb2phy0>;
-	maximum-speed = "high-speed";
 	status = "okay";
 };
 

@@ -8,7 +8,8 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
-#include "rk3568-evb.dtsi"
+#include "rk3566.dtsi"
+#include "rk3566-evb.dtsi"
 
 / {
 	model = "Rockchip RK3566 EVB3 DDR3 V10 Board";
@@ -214,10 +215,6 @@
 	};
 };
 
-&sata2 {
-	status = "okay";
-};
-
 &sdio_pwrseq {
 	compatible = "mmc-pwrseq-simple";
 	clocks = <&rk809 1>;
@@ -259,19 +256,6 @@
 };
 
 &uart1 {
-	status = "okay";
-};
-
-&usbdrd_dwc3 {
-	dr_mode = "otg";
-	phys = <&u2phy0_otg>;
-	phy-names = "usb2-phy";
-	extcon = <&usb2phy0>;
-	maximum-speed = "high-speed";
-	status = "okay";
-};
-
-&usbdrd30 {
 	status = "okay";
 };
 

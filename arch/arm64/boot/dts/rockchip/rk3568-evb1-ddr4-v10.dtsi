@@ -8,6 +8,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include "rk3568.dtsi"
 #include "rk3568-evb.dtsi"
 #include "rk3568-android.dtsi"
 

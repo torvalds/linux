@@ -7,7 +7,8 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
-#include "rk3568-evb.dtsi"
+#include "rk3566.dtsi"
+#include "rk3566-evb.dtsi"
 
 / {
 	model = "Rockchip RK3566 EVB1 DDR4 V10 Board";
@@ -101,33 +102,6 @@
 	pinctrl-0 = <&lcd1_rst_gpio>;
 };
 
-&gmac0 {
-	phy-mode = "rgmii";
-	clock_in_out = "output";
-
-	snps,reset-gpio = <&gpio3 RK_PC2 GPIO_ACTIVE_LOW>;
-	snps,reset-active-low;
-	/* Reset time is 20ms, 100ms for rtl8211f */
-	snps,reset-delays-us = <0 20000 100000>;
-
-	assigned-clocks = <&cru SCLK_GMAC0_RX_TX>, <&cru SCLK_GMAC0>;
-	assigned-clock-parents = <&cru SCLK_GMAC0_RGMII_SPEED>;
-	assigned-clock-rates = <0>, <125000000>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&gmac0_miim
-		     &gmac0_tx_bus2
-		     &gmac0_rx_bus2
-		     &gmac0_rgmii_clk
-		     &gmac0_rgmii_bus>;
-
-	tx_delay = <0x38>;
-	rx_delay = <0x2c>;
-
-	phy-handle = <&rgmii_phy0>;
-	status = "okay";
-};
-
 /*
  * power-supply should switche to vcc3v3_lcd1_n
  * when mipi panel is connected to dsi1.
@@ -148,13 +122,6 @@
 
 &i2s3_2ch {
 	status = "disabled";
-};
-
-&mdio0 {
-	rgmii_phy0: phy@0 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0x0>;
-	};
 };
 
 &mipi_dphy0 {
@@ -192,19 +159,6 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1m1_xfer &uart1m1_ctsn>;
-};
-
-&usbdrd_dwc3 {
-	dr_mode = "otg";
-	phys = <&u2phy0_otg>;
-	phy-names = "usb2-phy";
-	extcon = <&usb2phy0>;
-	maximum-speed = "high-speed";
-	status = "okay";
-};
-
-&usbdrd30 {
-	status = "okay";
 };
 
 &vcc3v3_lcd0_n {

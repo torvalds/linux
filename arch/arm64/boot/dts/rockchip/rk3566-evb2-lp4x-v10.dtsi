@@ -8,7 +8,8 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
-#include "rk3568-evb.dtsi"
+#include "rk3566.dtsi"
+#include "rk3566-evb.dtsi"
 
 / {
 	model = "Rockchip RK3566 EVB2 LP4X V10 Board";
@@ -362,19 +363,6 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1m0_xfer &uart1m0_ctsn>;
-};
-
-&usbdrd_dwc3 {
-	dr_mode = "otg";
-	phys = <&u2phy0_otg>;
-	phy-names = "usb2-phy";
-	extcon = <&usb2phy0>;
-	maximum-speed = "high-speed";
-	status = "okay";
-};
-
-&usbdrd30 {
-	status = "okay";
 };
 
 &vcc3v3_lcd0_n {
