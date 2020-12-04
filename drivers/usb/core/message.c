@@ -204,9 +204,6 @@ int usb_control_msg_send(struct usb_device *dev, __u8 endpoint, __u8 request,
 	int ret;
 	u8 *data = NULL;
 
-	if (usb_pipe_type_check(dev, pipe))
-		return -EINVAL;
-
 	if (size) {
 		data = kmemdup(driver_data, size, memflags);
 		if (!data)
@@ -272,7 +269,7 @@ int usb_control_msg_recv(struct usb_device *dev, __u8 endpoint, __u8 request,
 	int ret;
 	u8 *data;
 
-	if (!size || !driver_data || usb_pipe_type_check(dev, pipe))
+	if (!size || !driver_data)
 		return -EINVAL;
 
 	data = kmalloc(size, memflags);
