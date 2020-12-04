@@ -247,6 +247,19 @@ static void packet_free(void *packet)
 	kmem_cache_free(packet_cache, packet);
 }
 
+/*
+ * HW produces and expects VDM header in little endian and payload in network order.
+ * To allow userspace to use network order for the whole packet, PCIe VDM header needs
+ * to be swapped.
+ */
+static void aspeed_mctp_swap_pcie_vdm_hdr(struct mctp_pcie_packet_data *data)
+{
+	int i;
+
+	for (i = 0; i < PCIE_VDM_HDR_SIZE_DW; i++)
+		data->hdr[i] = swab32(data->hdr[i]);
+}
+
 static void aspeed_mctp_rx_trigger(struct mctp_channel *rx)
 {
 	struct aspeed_mctp *priv = container_of(rx, typeof(*priv), rx);
@@ -292,6 +305,8 @@ static void aspeed_mctp_emit_tx_cmd(struct mctp_channel *tx,
 	u32 packet_sz_dw = packet->size / sizeof(u32) -
 		sizeof(packet->data.hdr) / sizeof(u32);
 	u32 offset = tx->wr_ptr * sizeof(packet->data);
+
+	aspeed_mctp_swap_pcie_vdm_hdr(&packet->data);
 
 	memcpy((u8 *)tx->data.vaddr + offset, &packet->data,
 	       sizeof(packet->data));
@@ -462,7 +477,6 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 	struct aspeed_mctp *priv = container_of(rx, typeof(*priv), rx);
 	struct mctp_pcie_packet *rx_packet;
 	struct mctp_pcie_packet_data *rx_buf;
-	int i;
 	u32 *hdr;
 
 	/*
@@ -479,15 +493,10 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 			dev_err(priv->dev, "Failed to allocate RX packet\n");
 			break;
 		}
-		/*
-		 * XXX: HW outputs VDM header in little endian, swap to present
-		 * the whole packet to userspace in network order
-		 */
-		for (i = 0; i < PCIE_VDM_HDR_SIZE_DW; i++)
-			rx_packet->data.hdr[i] = swab32(hdr[i]);
 
-		memcpy(&rx_packet->data.payload, hdr + PCIE_VDM_HDR_SIZE_DW,
-		       sizeof(rx_packet->data) - sizeof(rx_packet->data.hdr));
+		memcpy(&rx_packet->data, hdr, sizeof(rx_packet->data));
+
+		aspeed_mctp_swap_pcie_vdm_hdr(&rx_packet->data);
 
 		*hdr = 0;
 		rx->wr_ptr = (rx->wr_ptr + 1) % RX_PACKET_COUNT;
@@ -617,7 +626,6 @@ static ssize_t aspeed_mctp_read(struct file *file, char __user *buf,
 	struct mctp_client *client = file->private_data;
 	struct aspeed_mctp *priv = client->priv;
 	struct mctp_pcie_packet *rx_packet;
-	size_t packet_sz = sizeof(rx_packet->data);
 
 	if (count < PCIE_MCTP_MIN_PACKET_SIZE)
 		return -EINVAL;
@@ -625,8 +633,8 @@ static ssize_t aspeed_mctp_read(struct file *file, char __user *buf,
 	if (priv->pcie.bdf == 0)
 		return -EIO;
 
-	if (count > packet_sz)
-		count = packet_sz;
+	if (count > sizeof(rx_packet->data))
+		count = sizeof(rx_packet->data);
 
 	rx_packet = ptr_ring_consume_bh(&client->rx_queue);
 	if (!rx_packet)
@@ -648,8 +656,7 @@ static ssize_t aspeed_mctp_write(struct file *file, const char __user *buf,
 	struct mctp_client *client = file->private_data;
 	struct aspeed_mctp *priv = client->priv;
 	struct mctp_pcie_packet *tx_packet;
-	u16 bdf = priv->pcie.bdf;
-	int ret, i;
+	int ret;
 
 	if (count < PCIE_MCTP_MIN_PACKET_SIZE)
 		return -EINVAL;
@@ -657,7 +664,7 @@ static ssize_t aspeed_mctp_write(struct file *file, const char __user *buf,
 	if (count > sizeof(tx_packet->data))
 		return -ENOSPC;
 
-	if (bdf == 0)
+	if (priv->pcie.bdf == 0)
 		return -EIO;
 
 	tx_packet = packet_alloc(GFP_KERNEL);
@@ -673,16 +680,8 @@ static ssize_t aspeed_mctp_write(struct file *file, const char __user *buf,
 	}
 	tx_packet->size = count;
 
-	/* Update PCIE header with requester BDF */
 	be32p_replace_bits(&tx_packet->data.hdr[PCIE_VDM_HDR_REQUESTER_BDF_DW],
-			   bdf, PCIE_VDM_HDR_REQUESTER_BDF_MASK);
-
-	/*
-	 * XXX: HW expects VDM header in little endian, swap to let
-	 * userspace use network order for the whole packet
-	 */
-	for (i = 0; i < PCIE_VDM_HDR_SIZE_DW; i++)
-		tx_packet->data.hdr[i] = swab32(tx_packet->data.hdr[i]);
+			   priv->pcie.bdf, PCIE_VDM_HDR_REQUESTER_BDF_MASK);
 
 	ret = ptr_ring_produce_bh(&client->tx_queue, tx_packet);
 	if (ret)
