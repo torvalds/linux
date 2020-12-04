@@ -325,10 +325,10 @@ sub output_feature {
 # Output all features for all architectures
 #
 
-sub matrix_lines($$) {
-	my $partial = shift;
+sub matrix_lines($$$) {
+	my $desc_size = shift;
+	my $status_size = shift;
 	my $header = shift;
-	my $split;
 	my $fill;
 	my $ln_marker;
 
@@ -338,24 +338,14 @@ sub matrix_lines($$) {
 		$ln_marker = "-";
 	}
 
-	if ($partial) {
-		$split = "|";
-		$fill = " ";
-	} else {
-		$split = "+";
-		$fill = $ln_marker;
-	}
+	$fill = $ln_marker;
 
-	print $split;
+	print "+";
 	print $fill x $max_size_name;
-	print $split;
-	print $fill x $max_size_kconfig;
-	print $split;
-	print $fill x $max_size_description;
 	print "+";
-	print $ln_marker x $max_size_arch;
+	print $fill x $desc_size;
 	print "+";
-	print $ln_marker x $max_size_status;
+	print $ln_marker x $status_size;
 	print "+\n";
 }
 
@@ -365,6 +355,14 @@ sub output_matrix {
 	print "=" x length($title) . "\n";
 	print "$title\n";
 	print "=" x length($title) . "\n\n";
+
+	my $desc_title = "$h_kconfig / $h_description";
+
+	my $desc_size = $max_size_kconfig + 4;
+	$desc_size = $max_size_description if ($max_size_description > $desc_size);
+	$desc_size = length($desc_title) if (length($desc_title) > $desc_size);
+
+	my $status_size = 60;
 
 	my $cur_subsys = "";
 	foreach my $name (sort {
@@ -383,36 +381,69 @@ sub output_matrix {
 			print "$title\n";
 			print "=" x length($title) . "\n\n";
 
-			matrix_lines(0, 0);
+
+			matrix_lines($desc_size, $status_size, 0);
+
 			printf "|%-${max_size_name}s", $h_name;
-			printf "|%-${max_size_kconfig}s", $h_kconfig;
-			printf "|%-${max_size_description}s", $h_description;
+			printf "|%-${desc_size}s", $desc_title;
 
-			printf "|%-${max_size_arch}s", $h_arch;
-			printf "|%-${max_size_status}s|\n", $h_status;
-
-			matrix_lines(0, 1);
+			printf "|%-${status_size}s|\n", "Status per architecture";
+			matrix_lines($desc_size, $status_size, 1);
 		}
 
 		my %arch_table = %{$data{$name}->{table}};
-		my $first = 1;
-		foreach my $arch (sort keys %arch_table) {
-			if ($first) {
-				printf "|%-${max_size_name}s", $name;
-				printf "|%-${max_size_kconfig}s", $data{$name}->{kconfig};
-				printf "|%-${max_size_description}s", $data{$name}->{description};
-				$first = 0;
-			} else {
-				matrix_lines(1, 0);
+		my $cur_status = "";
 
-				printf "|%-${max_size_name}s", "";
-				printf "|%-${max_size_kconfig}s", "";
-				printf "|%-${max_size_description}s", "";
+		my @lines;
+		my $line = "";
+		foreach my $arch (sort {
+					($arch_table{$a} cmp $arch_table{$b}) or
+					("\L$a" cmp "\L$b")
+				       } keys %arch_table) {
+
+			my $status = $arch_table{$arch};
+
+			if ($status eq "---") {
+				$status = "Not compatible";
 			}
-			printf "|%-${max_size_arch}s", $arch;
-			printf "|%-${max_size_status}s|\n", $arch_table{$arch};
+
+			if ($status ne $cur_status) {
+				if ($line ne "") {
+					push @lines, $line;
+					$line = "";
+				}
+				$line = "- **" . $status . "**: " . $arch;
+			} elsif (length($line) + length ($arch) + 2 < $status_size) {
+				$line .= ", " . $arch;
+			} else {
+				push @lines, $line;
+				$line = "  " . $arch;
+			}
+			$cur_status = $status;
 		}
-		matrix_lines(0, 0);
+		push @lines, $line if ($line ne "");
+
+		# Ensure that description will be printed
+		push @lines, "" while (scalar(@lines) < 2);
+
+		my $ln = 0;
+		for my $line(@lines) {
+			if (!$ln) {
+				printf "|%-${max_size_name}s", $name;
+				printf "|%-${desc_size}s", "``" . $data{$name}->{kconfig} . "``";
+			} elsif ($ln == 2) {
+				printf "|%-${max_size_name}s", "";
+				printf "|%-${desc_size}s", $data{$name}->{description};
+			} else {
+				printf "|%-${max_size_name}s", "";
+				printf "|%-${desc_size}s", "";
+			}
+
+			printf "|%-${status_size}s|\n", $line;
+
+			$ln++;
+		}
+		matrix_lines($desc_size, $status_size, 0);
 	}
 }
 
