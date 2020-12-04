@@ -9672,10 +9672,16 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 		 * clear_offset by our extent size.
 		 */
 		clear_offset += ins.offset;
-		btrfs_dec_block_group_reservations(fs_info, ins.objectid);
 
 		last_alloc = ins.offset;
 		trans = insert_prealloc_file_extent(trans, inode, &ins, cur_offset);
+		/*
+		 * Now that we inserted the prealloc extent we can finally
+		 * decrement the number of reservations in the block group.
+		 * If we did it before, we could race with relocation and have
+		 * relocation miss the reserved extent, making it fail later.
+		 */
+		btrfs_dec_block_group_reservations(fs_info, ins.objectid);
 		if (IS_ERR(trans)) {
 			ret = PTR_ERR(trans);
 			btrfs_free_reserved_extent(fs_info, ins.objectid,

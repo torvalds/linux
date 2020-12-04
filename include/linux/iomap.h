@@ -221,7 +221,7 @@ struct iomap_writeback_ops {
 	 * Optional, allows the file system to discard state on a page where
 	 * we failed to submit any I/O.
 	 */
-	void (*discard_page)(struct page *page);
+	void (*discard_page)(struct page *page, loff_t fileoff);
 };
 
 struct iomap_writepage_ctx {

@@ -1051,7 +1051,7 @@ static int fsl_ep_fifo_status(struct usb_ep *_ep)
 	u32 bitmask;
 	struct ep_queue_head *qh;
 
-	if (!_ep || _ep->desc || !(_ep->desc->bEndpointAddress&0xF))
+	if (!_ep || !_ep->desc || !(_ep->desc->bEndpointAddress&0xF))
 		return -ENODEV;
 
 	ep = container_of(_ep, struct fsl_ep, ep);

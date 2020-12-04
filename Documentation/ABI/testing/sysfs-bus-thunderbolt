@@ -37,16 +37,18 @@ Contact:	thunderbolt-software@lists.01.org
 Description:	This attribute holds current Thunderbolt security level
 		set by the system BIOS. Possible values are:
 
-		none: All devices are automatically authorized
-		user: Devices are only authorized based on writing
-		      appropriate value to the authorized attribute
-		secure: Require devices that support secure connect at
-			minimum. User needs to authorize each device.
-		dponly: Automatically tunnel Display port (and USB). No
-			PCIe tunnels are created.
-		usbonly: Automatically tunnel USB controller of the
+		=======  ==================================================
+		none     All devices are automatically authorized
+		user     Devices are only authorized based on writing
+		         appropriate value to the authorized attribute
+		secure   Require devices that support secure connect at
+			 minimum. User needs to authorize each device.
+		dponly   Automatically tunnel Display port (and USB). No
+			 PCIe tunnels are created.
+		usbonly  Automatically tunnel USB controller of the
 			 connected Thunderbolt dock (and Display Port). All
 			 PCIe links downstream of the dock are removed.
+		=======  ==================================================
 
 What: /sys/bus/thunderbolt/devices/.../authorized
 Date:		Sep 2017
@@ -61,17 +63,23 @@ Description:	This attribute is used to authorize Thunderbolt devices
 		yet authorized.
 
 		Possible values are supported:
-		1: The device will be authorized and connected
+
+		==  ===========================================
+		1   The device will be authorized and connected
+		==  ===========================================
 
 		When key attribute contains 32 byte hex string the possible
 		values are:
-		1: The 32 byte hex string is added to the device NVM and
-		   the device is authorized.
-		2: Send a challenge based on the 32 byte hex string. If the
-		   challenge response from device is valid, the device is
-		   authorized. In case of failure errno will be ENOKEY if
-		   the device did not contain a key at all, and
-		   EKEYREJECTED if the challenge response did not match.
+
+		==  ========================================================
+		1   The 32 byte hex string is added to the device NVM and
+		    the device is authorized.
+		2   Send a challenge based on the 32 byte hex string. If the
+		    challenge response from device is valid, the device is
+		    authorized. In case of failure errno will be ENOKEY if
+		    the device did not contain a key at all, and
+		    EKEYREJECTED if the challenge response did not match.
+		==  ========================================================
 
 What: /sys/bus/thunderbolt/devices/.../boot
 Date:		Jun 2018
@@ -185,10 +193,11 @@ Description:	When new NVM image is written to the non-active NVM
 		verification fails an error code is returned instead.
 
 		This file will accept writing values "1" or "2"
+
 		- Writing "1" will flush the image to the storage
-		area and authenticate the image in one action.
+		  area and authenticate the image in one action.
 		- Writing "2" will run some basic validation on the image
-		and flush it to the storage area.
+		  and flush it to the storage area.
 
 		When read holds status of the last authentication
 		operation if an error occurred during the process. This
@@ -205,9 +214,11 @@ Description:	This contains name of the property directory the XDomain
 		question. Following directories are already reserved by
 		the Apple XDomain specification:
 
-		network:  IP/ethernet over Thunderbolt
-		targetdm: Target disk mode protocol over Thunderbolt
-		extdisp:  External display mode protocol over Thunderbolt
+		========  ===============================================
+		network   IP/ethernet over Thunderbolt
+		targetdm  Target disk mode protocol over Thunderbolt
+		extdisp   External display mode protocol over Thunderbolt
+		========  ===============================================
 
 What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/modalias
 Date:		Jan 2018
@@ -285,7 +296,8 @@ Description:	For supported devices, automatically authenticate the new Thunderbo
 		image when the device is disconnected from the host system.
 
 		This file will accept writing values "1" or "2"
+
 		- Writing "1" will flush the image to the storage
-		area and prepare the device for authentication on disconnect.
+		  area and prepare the device for authentication on disconnect.
 		- Writing "2" will run some basic validation on the image
-		and flush it to the storage area.
+		  and flush it to the storage area.

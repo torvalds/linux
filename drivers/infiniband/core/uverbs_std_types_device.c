@@ -401,9 +401,6 @@ static int UVERBS_HANDLER(UVERBS_METHOD_QUERY_GID_ENTRY)(
 	if (!rdma_is_port_valid(ib_dev, port_num))
 		return -EINVAL;
 
-	if (!rdma_ib_or_roce(ib_dev, port_num))
-		return -EOPNOTSUPP;
-
 	gid_attr = rdma_get_gid_attr(ib_dev, port_num, gid_index);
 	if (IS_ERR(gid_attr))
 		return PTR_ERR(gid_attr);

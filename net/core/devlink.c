@@ -4213,10 +4213,12 @@ static int devlink_nl_region_fill(struct sk_buff *msg, struct devlink *devlink,
 	if (err)
 		goto nla_put_failure;
 
-	if (region->port)
-		if (nla_put_u32(msg, DEVLINK_ATTR_PORT_INDEX,
-				region->port->index))
+	if (region->port) {
+		err = nla_put_u32(msg, DEVLINK_ATTR_PORT_INDEX,
+				  region->port->index);
+		if (err)
 			goto nla_put_failure;
+	}
 
 	err = nla_put_string(msg, DEVLINK_ATTR_REGION_NAME, region->ops->name);
 	if (err)
@@ -4265,10 +4267,12 @@ devlink_nl_region_notify_build(struct devlink_region *region,
 	if (err)
 		goto out_cancel_msg;
 
-	if (region->port)
-		if (nla_put_u32(msg, DEVLINK_ATTR_PORT_INDEX,
-				region->port->index))
+	if (region->port) {
+		err = nla_put_u32(msg, DEVLINK_ATTR_PORT_INDEX,
+				  region->port->index);
+		if (err)
 			goto out_cancel_msg;
+	}
 
 	err = nla_put_string(msg, DEVLINK_ATTR_REGION_NAME,
 			     region->ops->name);
@@ -4915,8 +4919,10 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 		index = nla_get_u32(info->attrs[DEVLINK_ATTR_PORT_INDEX]);
 
 		port = devlink_port_get_by_index(devlink, index);
-		if (!port)
-			return -ENODEV;
+		if (!port) {
+			err = -ENODEV;
+			goto out_unlock;
+		}
 	}
 
 	region_name = nla_data(attrs[DEVLINK_ATTR_REGION_NAME]);
@@ -4962,10 +4968,12 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 	if (err)
 		goto nla_put_failure;
 
-	if (region->port)
-		if (nla_put_u32(skb, DEVLINK_ATTR_PORT_INDEX,
-				region->port->index))
+	if (region->port) {
+		err = nla_put_u32(skb, DEVLINK_ATTR_PORT_INDEX,
+				  region->port->index);
+		if (err)
 			goto nla_put_failure;
+	}
 
 	err = nla_put_string(skb, DEVLINK_ATTR_REGION_NAME, region_name);
 	if (err)

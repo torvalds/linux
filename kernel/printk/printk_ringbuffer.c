@@ -345,7 +345,7 @@ DESC_ID((id) - DESCS_COUNT(desc_ring))
  */
 struct prb_data_block {
 	unsigned long	id;
-	char		data[0];
+	char		data[];
 };
 
 /*

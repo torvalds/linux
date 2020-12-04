@@ -125,3 +125,5 @@ properties:
           - enum:
               - nvidia,tegra234-vdk
           - const: nvidia,tegra234
+
+additionalProperties: true

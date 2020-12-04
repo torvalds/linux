@@ -19,7 +19,7 @@
 	regulator-min-microvolt = <680000>;
 	regulator-max-microvolt = <1040000>;
 
-	pwms = <&pwm_AO_cd 1 1500 0>;
+	pwms = <&pwm_ab 0 1500 0>;
 };
 
 &vddcpu_b {

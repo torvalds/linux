@@ -72,6 +72,7 @@ available subsections can be seen below.
    thermal/index
    fpga/index
    acpi/index
+   auxiliary_bus
    backlight/lp855x-driver.rst
    connector
    console
