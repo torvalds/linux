@@ -33,7 +33,6 @@ nvkm_subdev_type[NVKM_SUBDEV_NR] = {
 #include <core/layout.h>
 #undef NVKM_LAYOUT_ONCE
 #undef NVKM_LAYOUT_INST
-	[NVKM_SUBDEV_TOP     ] = "top",
 	[NVKM_SUBDEV_VOLT    ] = "volt",
 	[NVKM_ENGINE_BSP     ] = "bsp",
 	[NVKM_ENGINE_CE0     ] = "ce0",

@@ -29,5 +29,5 @@ int nvkm_top_fault_id(struct nvkm_device *, enum nvkm_devidx);
 enum nvkm_devidx nvkm_top_fault(struct nvkm_device *, int fault);
 enum nvkm_devidx nvkm_top_engine(struct nvkm_device *, int, int *runl, int *engn);
 
-int gk104_top_new(struct nvkm_device *, int, struct nvkm_top **);
+int gk104_top_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_top **);
 #endif
