@@ -25,7 +25,7 @@
 #include "intel_display_types.h"
 #include "intel_dp_aux_backlight.h"
 
-static void set_aux_backlight_enable(struct intel_dp *intel_dp, bool enable)
+static void set_vesa_backlight_enable(struct intel_dp *intel_dp, bool enable)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	u8 reg_val = 0;
@@ -52,7 +52,7 @@ static void set_aux_backlight_enable(struct intel_dp *intel_dp, bool enable)
 	}
 }
 
-static bool intel_dp_aux_backlight_dpcd_mode(struct intel_connector *connector)
+static bool intel_dp_aux_vesa_backlight_dpcd_mode(struct intel_connector *connector)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
@@ -75,7 +75,7 @@ static bool intel_dp_aux_backlight_dpcd_mode(struct intel_connector *connector)
  * Read the current backlight value from DPCD register(s) based
  * on if 8-bit(MSB) or 16-bit(MSB and LSB) values are supported
  */
-static u32 intel_dp_aux_get_backlight(struct intel_connector *connector)
+static u32 intel_dp_aux_vesa_get_backlight(struct intel_connector *connector)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
@@ -86,7 +86,7 @@ static u32 intel_dp_aux_get_backlight(struct intel_connector *connector)
 	 * If we're not in DPCD control mode yet, the programmed brightness
 	 * value is meaningless and we should assume max brightness
 	 */
-	if (!intel_dp_aux_backlight_dpcd_mode(connector))
+	if (!intel_dp_aux_vesa_backlight_dpcd_mode(connector))
 		return connector->panel.backlight.max;
 
 	if (drm_dp_dpcd_read(&intel_dp->aux, DP_EDP_BACKLIGHT_BRIGHTNESS_MSB,
@@ -107,7 +107,8 @@ static u32 intel_dp_aux_get_backlight(struct intel_connector *connector)
  * 8-bit or 16 bit value (MSB and LSB)
  */
 static void
-intel_dp_aux_set_backlight(const struct drm_connector_state *conn_state, u32 level)
+intel_dp_aux_vesa_set_backlight(const struct drm_connector_state *conn_state,
+				u32 level)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
@@ -137,7 +138,7 @@ intel_dp_aux_set_backlight(const struct drm_connector_state *conn_state, u32 lev
  * - Where P = 2^Pn, where Pn is the value programmed by field 4:0 of the
  *             EDP_PWMGEN_BIT_COUNT register (DPCD Address 00724h)
  */
-static bool intel_dp_aux_set_pwm_freq(struct intel_connector *connector)
+static bool intel_dp_aux_vesa_set_pwm_freq(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
@@ -173,8 +174,9 @@ static bool intel_dp_aux_set_pwm_freq(struct intel_connector *connector)
 	return true;
 }
 
-static void intel_dp_aux_enable_backlight(const struct intel_crtc_state *crtc_state,
-					  const struct drm_connector_state *conn_state, u32 level)
+static void
+intel_dp_aux_vesa_enable_backlight(const struct intel_crtc_state *crtc_state,
+				   const struct drm_connector_state *conn_state, u32 level)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
@@ -214,7 +216,7 @@ static void intel_dp_aux_enable_backlight(const struct intel_crtc_state *crtc_st
 	}
 
 	if (intel_dp->edp_dpcd[2] & DP_EDP_BACKLIGHT_FREQ_AUX_SET_CAP)
-		if (intel_dp_aux_set_pwm_freq(connector))
+		if (intel_dp_aux_vesa_set_pwm_freq(connector))
 			new_dpcd_buf |= DP_EDP_BACKLIGHT_FREQ_AUX_SET_ENABLE;
 
 	if (new_dpcd_buf != dpcd_buf) {
@@ -225,18 +227,18 @@ static void intel_dp_aux_enable_backlight(const struct intel_crtc_state *crtc_st
 		}
 	}
 
-	intel_dp_aux_set_backlight(conn_state, level);
-	set_aux_backlight_enable(intel_dp, true);
+	intel_dp_aux_vesa_set_backlight(conn_state, level);
+	set_vesa_backlight_enable(intel_dp, true);
 }
 
-static void intel_dp_aux_disable_backlight(const struct drm_connector_state *old_conn_state,
-					   u32 level)
+static void intel_dp_aux_vesa_disable_backlight(const struct drm_connector_state *old_conn_state,
+						u32 level)
 {
-	set_aux_backlight_enable(enc_to_intel_dp(to_intel_encoder(old_conn_state->best_encoder)),
-				 false);
+	set_vesa_backlight_enable(enc_to_intel_dp(to_intel_encoder(old_conn_state->best_encoder)),
+				  false);
 }
 
-static u32 intel_dp_aux_calc_max_backlight(struct intel_connector *connector)
+static u32 intel_dp_aux_vesa_calc_max_backlight(struct intel_connector *connector)
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
@@ -316,25 +318,25 @@ static u32 intel_dp_aux_calc_max_backlight(struct intel_connector *connector)
 	return max_backlight;
 }
 
-static int intel_dp_aux_setup_backlight(struct intel_connector *connector,
-					enum pipe pipe)
+static int intel_dp_aux_vesa_setup_backlight(struct intel_connector *connector,
+					     enum pipe pipe)
 {
 	struct intel_panel *panel = &connector->panel;
 
-	panel->backlight.max = intel_dp_aux_calc_max_backlight(connector);
+	panel->backlight.max = intel_dp_aux_vesa_calc_max_backlight(connector);
 	if (!panel->backlight.max)
 		return -ENODEV;
 
 	panel->backlight.min = 0;
-	panel->backlight.level = intel_dp_aux_get_backlight(connector);
-	panel->backlight.enabled = intel_dp_aux_backlight_dpcd_mode(connector) &&
+	panel->backlight.level = intel_dp_aux_vesa_get_backlight(connector);
+	panel->backlight.enabled = intel_dp_aux_vesa_backlight_dpcd_mode(connector) &&
 				   panel->backlight.level != 0;
 
 	return 0;
 }
 
 static bool
-intel_dp_aux_display_control_capable(struct intel_connector *connector)
+intel_dp_aux_supports_vesa_backlight(struct intel_connector *connector)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
@@ -350,12 +352,12 @@ intel_dp_aux_display_control_capable(struct intel_connector *connector)
 	return false;
 }
 
-static const struct intel_panel_bl_funcs intel_dp_bl_funcs = {
-	.setup = intel_dp_aux_setup_backlight,
-	.enable = intel_dp_aux_enable_backlight,
-	.disable = intel_dp_aux_disable_backlight,
-	.set = intel_dp_aux_set_backlight,
-	.get = intel_dp_aux_get_backlight,
+static const struct intel_panel_bl_funcs intel_dp_vesa_bl_funcs = {
+	.setup = intel_dp_aux_vesa_setup_backlight,
+	.enable = intel_dp_aux_vesa_enable_backlight,
+	.disable = intel_dp_aux_vesa_disable_backlight,
+	.set = intel_dp_aux_vesa_set_backlight,
+	.get = intel_dp_aux_vesa_get_backlight,
 };
 
 int intel_dp_aux_init_backlight_funcs(struct intel_connector *intel_connector)
@@ -365,7 +367,7 @@ int intel_dp_aux_init_backlight_funcs(struct intel_connector *intel_connector)
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 
 	if (i915->params.enable_dpcd_backlight == 0 ||
-	    !intel_dp_aux_display_control_capable(intel_connector))
+	    !intel_dp_aux_supports_vesa_backlight(intel_connector))
 		return -ENODEV;
 
 	/*
@@ -387,7 +389,7 @@ int intel_dp_aux_init_backlight_funcs(struct intel_connector *intel_connector)
 		return -ENODEV;
 	}
 
-	panel->backlight.funcs = &intel_dp_bl_funcs;
+	panel->backlight.funcs = &intel_dp_vesa_bl_funcs;
 
 	return 0;
 }
