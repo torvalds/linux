@@ -36,9 +36,6 @@ nvkm_subdev_type[NVKM_SUBDEV_NR] = {
 	[NVKM_ENGINE_NVENC0  ] = "nvenc0",
 	[NVKM_ENGINE_NVENC1  ] = "nvenc1",
 	[NVKM_ENGINE_NVENC2  ] = "nvenc2",
-	[NVKM_ENGINE_NVDEC0  ] = "nvdec0",
-	[NVKM_ENGINE_NVDEC1  ] = "nvdec1",
-	[NVKM_ENGINE_NVDEC2  ] = "nvdec2",
 	[NVKM_ENGINE_PM      ] = "pm",
 	[NVKM_ENGINE_SEC     ] = "sec",
 	[NVKM_ENGINE_SEC2    ] = "sec2",
@@ -193,10 +190,6 @@ nvkm_subdev_ctor_(const struct nvkm_subdev_func *func, bool old,
 		case NVKM_ENGINE_NVENC0 ... NVKM_ENGINE_NVENC_LAST:
 			subdev->type = NVKM_ENGINE_NVENC;
 			subdev->inst = subdev->index - NVKM_ENGINE_NVENC0;
-			break;
-		case NVKM_ENGINE_NVDEC0 ... NVKM_ENGINE_NVDEC_LAST:
-			subdev->type = NVKM_ENGINE_NVDEC;
-			subdev->inst = subdev->index - NVKM_ENGINE_NVDEC0;
 			break;
 		default:
 			break;
