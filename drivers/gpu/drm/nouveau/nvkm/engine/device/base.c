@@ -2199,7 +2199,7 @@ nv132_chipset = {
 	.gr       = { 0x00000001, gp102_gr_new },
 	.nvdec    = { 0x00000001, gm107_nvdec_new },
 	.nvenc    = { 0x00000003, gm107_nvenc_new },
-	.sec2 = gp102_sec2_new,
+	.sec2     = { 0x00000001, gp102_sec2_new },
 	.sw = gf100_sw_new,
 };
 
@@ -2233,7 +2233,7 @@ nv134_chipset = {
 	.gr       = { 0x00000001, gp104_gr_new },
 	.nvdec    = { 0x00000001, gm107_nvdec_new },
 	.nvenc    = { 0x00000003, gm107_nvenc_new },
-	.sec2 = gp102_sec2_new,
+	.sec2     = { 0x00000001, gp102_sec2_new },
 	.sw = gf100_sw_new,
 };
 
@@ -2267,7 +2267,7 @@ nv136_chipset = {
 	.gr       = { 0x00000001, gp104_gr_new },
 	.nvdec    = { 0x00000001, gm107_nvdec_new },
 	.nvenc    = { 0x00000001, gm107_nvenc_new },
-	.sec2 = gp102_sec2_new,
+	.sec2     = { 0x00000001, gp102_sec2_new },
 	.sw = gf100_sw_new,
 };
 
@@ -2301,7 +2301,7 @@ nv137_chipset = {
 	.gr       = { 0x00000001, gp107_gr_new },
 	.nvdec    = { 0x00000001, gm107_nvdec_new },
 	.nvenc    = { 0x00000003, gm107_nvenc_new },
-	.sec2 = gp102_sec2_new,
+	.sec2     = { 0x00000001, gp102_sec2_new },
 	.sw = gf100_sw_new,
 };
 
@@ -2334,7 +2334,7 @@ nv138_chipset = {
 	.fifo     = { 0x00000001, gp100_fifo_new },
 	.gr       = { 0x00000001, gp108_gr_new },
 	.nvdec    = { 0x00000001, gm107_nvdec_new },
-	.sec2 = gp108_sec2_new,
+	.sec2     = { 0x00000001, gp108_sec2_new },
 	.sw = gf100_sw_new,
 };
 
@@ -2393,7 +2393,7 @@ nv140_chipset = {
 	.gr       = { 0x00000001, gv100_gr_new },
 	.nvdec    = { 0x00000001, gm107_nvdec_new },
 	.nvenc    = { 0x00000007, gm107_nvenc_new },
-	.sec2 = gp108_sec2_new,
+	.sec2     = { 0x00000001, gp108_sec2_new },
 };
 
 static const struct nvkm_device_chip
@@ -2427,7 +2427,7 @@ nv162_chipset = {
 	.gr       = { 0x00000001, tu102_gr_new },
 	.nvdec    = { 0x00000001, gm107_nvdec_new },
 	.nvenc    = { 0x00000001, gm107_nvenc_new },
-	.sec2 = tu102_sec2_new,
+	.sec2     = { 0x00000001, tu102_sec2_new },
 };
 
 static const struct nvkm_device_chip
@@ -2461,7 +2461,7 @@ nv164_chipset = {
 	.gr       = { 0x00000001, tu102_gr_new },
 	.nvdec    = { 0x00000003, gm107_nvdec_new },
 	.nvenc    = { 0x00000001, gm107_nvenc_new },
-	.sec2 = tu102_sec2_new,
+	.sec2     = { 0x00000001, tu102_sec2_new },
 };
 
 static const struct nvkm_device_chip
@@ -2495,7 +2495,7 @@ nv166_chipset = {
 	.gr       = { 0x00000001, tu102_gr_new },
 	.nvdec    = { 0x00000007, gm107_nvdec_new },
 	.nvenc    = { 0x00000001, gm107_nvenc_new },
-	.sec2 = tu102_sec2_new,
+	.sec2     = { 0x00000001, tu102_sec2_new },
 };
 
 static const struct nvkm_device_chip
@@ -2529,7 +2529,7 @@ nv167_chipset = {
 	.gr       = { 0x00000001, tu102_gr_new },
 	.nvdec    = { 0x00000001, gm107_nvdec_new },
 	.nvenc    = { 0x00000001, gm107_nvenc_new },
-	.sec2 = tu102_sec2_new,
+	.sec2     = { 0x00000001, tu102_sec2_new },
 };
 
 static const struct nvkm_device_chip
@@ -2563,7 +2563,7 @@ nv168_chipset = {
 	.gr       = { 0x00000001, tu102_gr_new },
 	.nvdec    = { 0x00000001, gm107_nvdec_new },
 	.nvenc    = { 0x00000001, gm107_nvenc_new },
-	.sec2 = tu102_sec2_new,
+	.sec2     = { 0x00000001, tu102_sec2_new },
 };
 
 static const struct nvkm_device_chip
@@ -3162,7 +3162,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 #include <core/layout.h>
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
-		_(NVKM_ENGINE_SEC2    ,     sec2);
 		_(NVKM_ENGINE_SW      ,       sw);
 		_(NVKM_ENGINE_VIC     ,      vic);
 		case NVKM_ENGINE_CE1:
