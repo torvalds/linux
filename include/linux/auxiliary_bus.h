@@ -19,7 +19,7 @@ struct auxiliary_device {
 
 struct auxiliary_driver {
 	int (*probe)(struct auxiliary_device *auxdev, const struct auxiliary_device_id *id);
-	int (*remove)(struct auxiliary_device *auxdev);
+	void (*remove)(struct auxiliary_device *auxdev);
 	void (*shutdown)(struct auxiliary_device *auxdev);
 	int (*suspend)(struct auxiliary_device *auxdev, pm_message_t state);
 	int (*resume)(struct auxiliary_device *auxdev);

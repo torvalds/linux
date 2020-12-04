@@ -150,7 +150,7 @@ and shutdown notifications using the standard conventions.
 	struct auxiliary_driver {
 		int (*probe)(struct auxiliary_device *,
                              const struct auxiliary_device_id *id);
-		int (*remove)(struct auxiliary_device *);
+		void (*remove)(struct auxiliary_device *);
 		void (*shutdown)(struct auxiliary_device *);
 		int (*suspend)(struct auxiliary_device *, pm_message_t);
 		int (*resume)(struct auxiliary_device *);
