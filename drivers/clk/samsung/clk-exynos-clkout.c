@@ -207,7 +207,7 @@ static int exynos_clkout_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int exynos_clkout_suspend(struct device *dev)
+static int __maybe_unused exynos_clkout_suspend(struct device *dev)
 {
 	struct exynos_clkout *clkout = dev_get_drvdata(dev);
 
@@ -216,7 +216,7 @@ static int exynos_clkout_suspend(struct device *dev)
 	return 0;
 }
 
-static int exynos_clkout_resume(struct device *dev)
+static int __maybe_unused exynos_clkout_resume(struct device *dev)
 {
 	struct exynos_clkout *clkout = dev_get_drvdata(dev);
 
