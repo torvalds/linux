@@ -195,6 +195,17 @@ struct mt7615_phy {
 	struct timer_list roc_timer;
 	wait_queue_head_t roc_wait;
 	bool roc_grant;
+
+#ifdef CONFIG_NL80211_TESTMODE
+	struct {
+		u32 *reg_backup;
+
+		s16 last_freq_offset;
+		u8 last_rcpi[4];
+		s8 last_ib_rssi[4];
+		s8 last_wb_rssi[4];
+	} test;
+#endif
 };
 
 #define mt7615_mcu_add_tx_ba(dev, ...)	(dev)->mcu_ops->add_tx_ba((dev), __VA_ARGS__)
@@ -280,17 +291,6 @@ struct mt7615_dev {
 	u32 debugfs_rf_reg;
 
 	u32 muar_mask;
-
-#ifdef CONFIG_NL80211_TESTMODE
-	struct {
-		u32 *reg_backup;
-
-		s16 last_freq_offset;
-		u8 last_rcpi[4];
-		s8 last_ib_rssi[4];
-		s8 last_wb_rssi[4];
-	} test;
-#endif
 
 	struct {
 		bool enable;
