@@ -30,6 +30,7 @@ struct perf_pmu_caps {
 
 struct perf_pmu {
 	char *name;
+	char *id;
 	__u32 type;
 	bool selectable;
 	bool is_uncore;
