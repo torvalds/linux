@@ -547,6 +547,7 @@ static int rockchip_iodomain_probe(struct platform_device *pdev)
 		if (uV < 0) {
 			dev_err(iod->dev, "Can't determine voltage: %s\n",
 				supply_name);
+			ret = uV;
 			goto unreg_notify;
 		}
 
