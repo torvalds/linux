@@ -3030,7 +3030,7 @@ static int ccs_probe(struct i2c_client *client)
 				dev_err(&client->dev,
 					"can't set clock freq, asked for %u but got %lu\n",
 					sensor->hwcfg.ext_clk, rate);
-				return rval;
+				return -EINVAL;
 			}
 		} else {
 			sensor->hwcfg.ext_clk = clk_get_rate(sensor->ext_clk);
