@@ -60,7 +60,6 @@ struct nvkm_device {
 		struct notifier_block nb;
 	} acpi;
 
-	struct nvkm_fifo *fifo;
 	struct nvkm_gr *gr;
 	struct nvkm_engine *ifb;
 	struct nvkm_engine *me;
@@ -117,7 +116,6 @@ struct nvkm_device_chip {
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
 
-	int (*fifo    )(struct nvkm_device *, int idx, struct nvkm_fifo **);
 	int (*gr      )(struct nvkm_device *, int idx, struct nvkm_gr **);
 	int (*ifb     )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*me      )(struct nvkm_device *, int idx, struct nvkm_engine **);

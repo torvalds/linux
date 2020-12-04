@@ -56,7 +56,8 @@ g84_fifo = {
 };
 
 int
-g84_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+g84_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	     struct nvkm_fifo **pfifo)
 {
-	return nv50_fifo_new_(&g84_fifo, device, index, pfifo);
+	return nv50_fifo_new_(&g84_fifo, device, type, inst, pfifo);
 }

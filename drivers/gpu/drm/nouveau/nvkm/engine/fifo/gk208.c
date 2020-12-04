@@ -57,7 +57,8 @@ gk208_fifo = {
 };
 
 int
-gk208_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+gk208_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_fifo **pfifo)
 {
-	return gk104_fifo_new_(&gk208_fifo, device, index, 1024, pfifo);
+	return gk104_fifo_new_(&gk208_fifo, device, type, inst, 1024, pfifo);
 }

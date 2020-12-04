@@ -90,8 +90,8 @@ nv17_fifo = {
 };
 
 int
-nv17_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+nv17_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_fifo **pfifo)
 {
-	return nv04_fifo_new_(&nv17_fifo, device, index, 32,
-			      nv17_fifo_ramfc, pfifo);
+	return nv04_fifo_new_(&nv17_fifo, device, type, inst, 32, nv17_fifo_ramfc, pfifo);
 }

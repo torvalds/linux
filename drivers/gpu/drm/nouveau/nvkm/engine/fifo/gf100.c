@@ -682,7 +682,8 @@ gf100_fifo = {
 };
 
 int
-gf100_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+gf100_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_fifo **pfifo)
 {
 	struct gf100_fifo *fifo;
 
@@ -692,5 +693,5 @@ gf100_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
 	INIT_WORK(&fifo->recover.work, gf100_fifo_recover_work);
 	*pfifo = &fifo->base;
 
-	return nvkm_fifo_ctor(&gf100_fifo, device, index, 128, &fifo->base);
+	return nvkm_fifo_ctor(&gf100_fifo, device, type, inst, 128, &fifo->base);
 }

@@ -464,7 +464,8 @@ tu102_fifo_ = {
 };
 
 int
-tu102_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+tu102_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_fifo **pfifo)
 {
 	struct gk104_fifo *fifo;
 
@@ -474,5 +475,5 @@ tu102_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
 	INIT_WORK(&fifo->recover.work, tu102_fifo_recover_work);
 	*pfifo = &fifo->base;
 
-	return nvkm_fifo_ctor(&tu102_fifo_, device, index, 4096, &fifo->base);
+	return nvkm_fifo_ctor(&tu102_fifo_, device, type, inst, 4096, &fifo->base);
 }

@@ -352,7 +352,7 @@ nvkm_fifo = {
 
 int
 nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
-	       int index, int nr, struct nvkm_fifo *fifo)
+	       enum nvkm_subdev_type type, int inst, int nr, struct nvkm_fifo *fifo)
 {
 	int ret;
 
@@ -367,7 +367,7 @@ nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 		fifo->nr = nr;
 	bitmap_clear(fifo->mask, 0, fifo->nr);
 
-	ret = nvkm_engine_ctor(&nvkm_fifo, device, index, true, &fifo->engine);
+	ret = nvkm_engine_ctor(&nvkm_fifo, device, type, inst, true, &fifo->engine);
 	if (ret)
 		return ret;
 

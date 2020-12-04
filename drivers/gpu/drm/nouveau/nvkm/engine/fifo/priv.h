@@ -4,8 +4,8 @@
 #define nvkm_fifo(p) container_of((p), struct nvkm_fifo, engine)
 #include <engine/fifo.h>
 
-int nvkm_fifo_ctor(const struct nvkm_fifo_func *, struct nvkm_device *,
-		   int index, int nr, struct nvkm_fifo *);
+int nvkm_fifo_ctor(const struct nvkm_fifo_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		   int nr, struct nvkm_fifo *);
 void nvkm_fifo_uevent(struct nvkm_fifo *);
 void nvkm_fifo_cevent(struct nvkm_fifo *);
 void nvkm_fifo_kevent(struct nvkm_fifo *, int chid);

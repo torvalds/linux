@@ -326,7 +326,7 @@ nv04_fifo_init(struct nvkm_fifo *base)
 
 int
 nv04_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
-	       int index, int nr, const struct nv04_fifo_ramfc *ramfc,
+	       enum nvkm_subdev_type type, int inst, int nr, const struct nv04_fifo_ramfc *ramfc,
 	       struct nvkm_fifo **pfifo)
 {
 	struct nv04_fifo *fifo;
@@ -337,7 +337,7 @@ nv04_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 	fifo->ramfc = ramfc;
 	*pfifo = &fifo->base;
 
-	ret = nvkm_fifo_ctor(func, device, index, nr, &fifo->base);
+	ret = nvkm_fifo_ctor(func, device, type, inst, nr, &fifo->base);
 	if (ret)
 		return ret;
 
@@ -358,8 +358,8 @@ nv04_fifo = {
 };
 
 int
-nv04_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+nv04_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_fifo **pfifo)
 {
-	return nv04_fifo_new_(&nv04_fifo, device, index, 16,
-			      nv04_fifo_ramfc, pfifo);
+	return nv04_fifo_new_(&nv04_fifo, device, type, inst, 16, nv04_fifo_ramfc, pfifo);
 }

@@ -1029,7 +1029,7 @@ gk104_fifo_ = {
 
 int
 gk104_fifo_new_(const struct gk104_fifo_func *func, struct nvkm_device *device,
-		int index, int nr, struct nvkm_fifo **pfifo)
+		enum nvkm_subdev_type type, int inst, int nr, struct nvkm_fifo **pfifo)
 {
 	struct gk104_fifo *fifo;
 
@@ -1039,7 +1039,7 @@ gk104_fifo_new_(const struct gk104_fifo_func *func, struct nvkm_device *device,
 	INIT_WORK(&fifo->recover.work, gk104_fifo_recover_work);
 	*pfifo = &fifo->base;
 
-	return nvkm_fifo_ctor(&gk104_fifo_, device, index, nr, &fifo->base);
+	return nvkm_fifo_ctor(&gk104_fifo_, device, type, inst, nr, &fifo->base);
 }
 
 const struct nvkm_enum
@@ -1178,7 +1178,8 @@ gk104_fifo = {
 };
 
 int
-gk104_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+gk104_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_fifo **pfifo)
 {
-	return gk104_fifo_new_(&gk104_fifo, device, index, 4096, pfifo);
+	return gk104_fifo_new_(&gk104_fifo, device, type, inst, 4096, pfifo);
 }
