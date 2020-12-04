@@ -669,6 +669,7 @@ mt7915_mcu_bss_basic_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 	switch (vif->type) {
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_MONITOR:
 		break;
 	case NL80211_IFTYPE_STATION:
 		/* TODO: enable BSS_INFO_UAPSD & BSS_INFO_PM */
@@ -697,15 +698,20 @@ mt7915_mcu_bss_basic_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 	}
 
 	bss = (struct bss_info_basic *)tlv;
-	memcpy(bss->bssid, vif->bss_conf.bssid, ETH_ALEN);
-	bss->bcn_interval = cpu_to_le16(vif->bss_conf.beacon_int);
 	bss->network_type = cpu_to_le32(type);
-	bss->dtim_period = vif->bss_conf.dtim_period;
 	bss->bmc_wcid_lo = to_wcid_lo(wlan_idx);
 	bss->bmc_wcid_hi = to_wcid_hi(wlan_idx);
-	bss->phy_mode = mt7915_get_phy_mode(phy->dev, vif, band, NULL);
 	bss->wmm_idx = mvif->wmm_idx;
 	bss->active = enable;
+
+	if (vif->type != NL80211_IFTYPE_MONITOR) {
+		memcpy(bss->bssid, vif->bss_conf.bssid, ETH_ALEN);
+		bss->bcn_interval = cpu_to_le16(vif->bss_conf.beacon_int);
+		bss->dtim_period = vif->bss_conf.dtim_period;
+		bss->phy_mode = mt7915_get_phy_mode(phy->dev, vif, band, NULL);
+	} else {
+		memcpy(bss->bssid, phy->mt76->macaddr, ETH_ALEN);
+	}
 
 	return 0;
 }
@@ -722,6 +728,7 @@ mt7915_mcu_bss_omac_tlv(struct sk_buff *skb, struct ieee80211_vif *vif)
 	tlv = mt7915_mcu_add_tlv(skb, BSS_INFO_OMAC, sizeof(*omac));
 
 	switch (vif->type) {
+	case NL80211_IFTYPE_MONITOR:
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_AP:
 		type = CONNECTION_INFRA_AP;
@@ -991,6 +998,9 @@ int mt7915_mcu_add_bss_info(struct mt7915_phy *phy,
 
 	mt7915_mcu_bss_basic_tlv(skb, vif, phy, enable);
 
+	if (vif->type == NL80211_IFTYPE_MONITOR)
+		goto out;
+
 	if (enable) {
 		mt7915_mcu_bss_rfch_tlv(skb, vif, phy);
 		mt7915_mcu_bss_bmc_tlv(skb, phy);
@@ -1004,7 +1014,7 @@ int mt7915_mcu_add_bss_info(struct mt7915_phy *phy,
 		    mvif->omac_idx < REPEATER_BSSID_START)
 			mt7915_mcu_bss_ext_tlv(skb, mvif);
 	}
-
+out:
 	return mt76_mcu_skb_send_msg(&phy->dev->mt76, skb,
 				     MCU_EXT_CMD_BSS_INFO_UPDATE, true);
 }

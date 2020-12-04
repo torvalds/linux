@@ -192,6 +192,8 @@ mt7915_tm_init(struct mt7915_dev *dev)
 	mt7915_tm_mode_ctrl(dev, en);
 	mt7915_tm_reg_backup_restore(dev, &dev->phy);
 	mt7915_tm_set_trx(dev, &dev->phy, TM_MAC_TXRX, !en);
+
+	mt7915_mcu_add_bss_info(&dev->phy, dev->phy.monitor_vif, en);
 }
 
 static void
