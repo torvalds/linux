@@ -4,10 +4,10 @@
 #define nvkm_mmu(p) container_of((p), struct nvkm_mmu, subdev)
 #include <subdev/mmu.h>
 
-void nvkm_mmu_ctor(const struct nvkm_mmu_func *, struct nvkm_device *,
-		   int index, struct nvkm_mmu *);
-int nvkm_mmu_new_(const struct nvkm_mmu_func *, struct nvkm_device *,
-		  int index, struct nvkm_mmu **);
+void nvkm_mmu_ctor(const struct nvkm_mmu_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		   struct nvkm_mmu *);
+int nvkm_mmu_new_(const struct nvkm_mmu_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		  struct nvkm_mmu **);
 
 struct nvkm_mmu_func {
 	void (*init)(struct nvkm_mmu *);

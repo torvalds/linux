@@ -415,9 +415,9 @@ nvkm_mmu = {
 
 void
 nvkm_mmu_ctor(const struct nvkm_mmu_func *func, struct nvkm_device *device,
-	      int index, struct nvkm_mmu *mmu)
+	      enum nvkm_subdev_type type, int inst, struct nvkm_mmu *mmu)
 {
-	nvkm_subdev_ctor(&nvkm_mmu, device, index, &mmu->subdev);
+	nvkm_subdev_ctor(&nvkm_mmu, device, type, inst, &mmu->subdev);
 	mmu->func = func;
 	mmu->dma_bits = func->dma_bits;
 	nvkm_mmu_ptc_init(mmu);
@@ -428,10 +428,10 @@ nvkm_mmu_ctor(const struct nvkm_mmu_func *func, struct nvkm_device *device,
 
 int
 nvkm_mmu_new_(const struct nvkm_mmu_func *func, struct nvkm_device *device,
-	      int index, struct nvkm_mmu **pmmu)
+	      enum nvkm_subdev_type type, int inst, struct nvkm_mmu **pmmu)
 {
 	if (!(*pmmu = kzalloc(sizeof(**pmmu), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_mmu_ctor(func, device, index, *pmmu);
+	nvkm_mmu_ctor(func, device, type, inst, *pmmu);
 	return 0;
 }
