@@ -1159,7 +1159,7 @@ suffix_kstrtoint(
  * NOTE: mp->m_super is NULL here!
  */
 static int
-xfs_fc_parse_param(
+xfs_fs_parse_param(
 	struct fs_context	*fc,
 	struct fs_parameter	*param)
 {
@@ -1317,7 +1317,7 @@ xfs_fc_parse_param(
 }
 
 static int
-xfs_fc_validate_params(
+xfs_fs_validate_params(
 	struct xfs_mount	*mp)
 {
 	/*
@@ -1386,7 +1386,7 @@ xfs_fc_validate_params(
 }
 
 static int
-xfs_fc_fill_super(
+xfs_fs_fill_super(
 	struct super_block	*sb,
 	struct fs_context	*fc)
 {
@@ -1396,7 +1396,7 @@ xfs_fc_fill_super(
 
 	mp->m_super = sb;
 
-	error = xfs_fc_validate_params(mp);
+	error = xfs_fs_validate_params(mp);
 	if (error)
 		goto out_free_names;
 
@@ -1660,10 +1660,10 @@ xfs_fc_fill_super(
 }
 
 static int
-xfs_fc_get_tree(
+xfs_fs_get_tree(
 	struct fs_context	*fc)
 {
-	return get_tree_bdev(fc, xfs_fc_fill_super);
+	return get_tree_bdev(fc, xfs_fs_fill_super);
 }
 
 static int
@@ -1782,7 +1782,7 @@ xfs_remount_ro(
  * silently ignore all options that we can't actually change.
  */
 static int
-xfs_fc_reconfigure(
+xfs_fs_reconfigure(
 	struct fs_context *fc)
 {
 	struct xfs_mount	*mp = XFS_M(fc->root->d_sb);
@@ -1795,7 +1795,7 @@ xfs_fc_reconfigure(
 	if (XFS_SB_VERSION_NUM(&mp->m_sb) == XFS_SB_VERSION_5)
 		fc->sb_flags |= SB_I_VERSION;
 
-	error = xfs_fc_validate_params(new_mp);
+	error = xfs_fs_validate_params(new_mp);
 	if (error)
 		return error;
 
@@ -1832,7 +1832,7 @@ xfs_fc_reconfigure(
 	return 0;
 }
 
-static void xfs_fc_free(
+static void xfs_fs_free(
 	struct fs_context	*fc)
 {
 	struct xfs_mount	*mp = fc->s_fs_info;
@@ -1848,10 +1848,10 @@ static void xfs_fc_free(
 }
 
 static const struct fs_context_operations xfs_context_ops = {
-	.parse_param = xfs_fc_parse_param,
-	.get_tree    = xfs_fc_get_tree,
-	.reconfigure = xfs_fc_reconfigure,
-	.free        = xfs_fc_free,
+	.parse_param = xfs_fs_parse_param,
+	.get_tree    = xfs_fs_get_tree,
+	.reconfigure = xfs_fs_reconfigure,
+	.free        = xfs_fs_free,
 };
 
 static int xfs_init_fs_context(
