@@ -490,7 +490,7 @@ xfs_rui_validate_map(
 	    !xfs_verify_ino(mp, rmap->me_owner))
 		return false;
 
-	if (rmap->me_startoff + rmap->me_len <= rmap->me_startoff)
+	if (!xfs_verify_fileext(mp, rmap->me_startoff, rmap->me_len))
 		return false;
 
 	return xfs_verify_fsbext(mp, rmap->me_startblock, rmap->me_len);

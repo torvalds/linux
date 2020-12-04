@@ -445,7 +445,7 @@ xfs_bui_validate(
 	if (!xfs_verify_ino(mp, bmap->me_owner))
 		return false;
 
-	if (bmap->me_startoff + bmap->me_len <= bmap->me_startoff)
+	if (!xfs_verify_fileext(mp, bmap->me_startoff, bmap->me_len))
 		return false;
 
 	return xfs_verify_fsbext(mp, bmap->me_startblock, bmap->me_len);

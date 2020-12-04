@@ -6227,7 +6227,7 @@ xfs_bmap_validate_extent(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 
-	if (irec->br_startoff + irec->br_blockcount <= irec->br_startoff)
+	if (!xfs_verify_fileext(mp, irec->br_startoff, irec->br_blockcount))
 		return __this_address;
 
 	if (XFS_IS_REALTIME_INODE(ip) && whichfork == XFS_DATA_FORK) {

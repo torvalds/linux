@@ -1521,7 +1521,7 @@ xfs_itruncate_extents_flags(
 	 * the page cache can't scale that far.
 	 */
 	first_unmap_block = XFS_B_TO_FSB(mp, (xfs_ufsize_t)new_size);
-	if (first_unmap_block >= XFS_MAX_FILEOFF) {
+	if (!xfs_verify_fileoff(mp, first_unmap_block)) {
 		WARN_ON_ONCE(first_unmap_block > XFS_MAX_FILEOFF);
 		return 0;
 	}
