@@ -27,7 +27,6 @@
 #include "originator.h"
 #include "routing.h"
 #include "send.h"
-#include "soft-interface.h"
 
 /**
  * batadv_frag_clear_chain() - delete entries in the fragment buffer chain
