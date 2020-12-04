@@ -20,15 +20,21 @@ struct isst_mmio_range {
 	int end;
 };
 
-struct isst_mmio_range mmio_range[] = {
+struct isst_mmio_range mmio_range_devid_0[] = {
 	{0x04, 0x14},
 	{0x20, 0xD0},
+};
+
+struct isst_mmio_range mmio_range_devid_1[] = {
+	{0x04, 0x14},
+	{0x20, 0x11C},
 };
 
 struct isst_if_device {
 	void __iomem *punit_mmio;
 	u32 range_0[5];
-	u32 range_1[45];
+	u32 range_1[64];
+	struct isst_mmio_range *mmio_range;
 	struct mutex mutex;
 };
 
@@ -39,8 +45,6 @@ static long isst_if_mmio_rd_wr(u8 *cmd_ptr, int *write_only, int resume)
 	struct pci_dev *pdev;
 
 	io_reg = (struct isst_if_io_reg *)cmd_ptr;
-	if (io_reg->reg < 0x04 || io_reg->reg > 0xD0)
-		return -EINVAL;
 
 	if (io_reg->reg % 4)
 		return -EINVAL;
@@ -54,6 +58,10 @@ static long isst_if_mmio_rd_wr(u8 *cmd_ptr, int *write_only, int resume)
 
 	punit_dev = pci_get_drvdata(pdev);
 	if (!punit_dev)
+		return -EINVAL;
+
+	if (io_reg->reg < punit_dev->mmio_range[0].beg ||
+	    io_reg->reg > punit_dev->mmio_range[1].end)
 		return -EINVAL;
 
 	/*
@@ -74,8 +82,10 @@ static long isst_if_mmio_rd_wr(u8 *cmd_ptr, int *write_only, int resume)
 }
 
 static const struct pci_device_id isst_if_ids[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, INTEL_RAPL_PRIO_DEVID_0)},
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, INTEL_RAPL_PRIO_DEVID_1)},
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, INTEL_RAPL_PRIO_DEVID_0),
+		.driver_data = (kernel_ulong_t)&mmio_range_devid_0},
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, INTEL_RAPL_PRIO_DEVID_1),
+		.driver_data = (kernel_ulong_t)&mmio_range_devid_1},
 	{ 0 },
 };
 MODULE_DEVICE_TABLE(pci, isst_if_ids);
@@ -112,6 +122,7 @@ static int isst_if_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	mutex_init(&punit_dev->mutex);
 	pci_set_drvdata(pdev, punit_dev);
+	punit_dev->mmio_range = (struct isst_mmio_range *) ent->driver_data;
 
 	memset(&cb, 0, sizeof(cb));
 	cb.cmd_size = sizeof(struct isst_if_io_reg);
@@ -141,10 +152,15 @@ static int __maybe_unused isst_if_suspend(struct device *device)
 
 	for (i = 0; i < ARRAY_SIZE(punit_dev->range_0); ++i)
 		punit_dev->range_0[i] = readl(punit_dev->punit_mmio +
-						mmio_range[0].beg + 4 * i);
-	for (i = 0; i < ARRAY_SIZE(punit_dev->range_1); ++i)
-		punit_dev->range_1[i] = readl(punit_dev->punit_mmio +
-						mmio_range[1].beg + 4 * i);
+						punit_dev->mmio_range[0].beg + 4 * i);
+	for (i = 0; i < ARRAY_SIZE(punit_dev->range_1); ++i) {
+		u32 addr;
+
+		addr = punit_dev->mmio_range[1].beg + 4 * i;
+		if (addr > punit_dev->mmio_range[1].end)
+			break;
+		punit_dev->range_1[i] = readl(punit_dev->punit_mmio + addr);
+	}
 
 	return 0;
 }
@@ -156,10 +172,16 @@ static int __maybe_unused isst_if_resume(struct device *device)
 
 	for (i = 0; i < ARRAY_SIZE(punit_dev->range_0); ++i)
 		writel(punit_dev->range_0[i], punit_dev->punit_mmio +
-						mmio_range[0].beg + 4 * i);
-	for (i = 0; i < ARRAY_SIZE(punit_dev->range_1); ++i)
-		writel(punit_dev->range_1[i], punit_dev->punit_mmio +
-						mmio_range[1].beg + 4 * i);
+						punit_dev->mmio_range[0].beg + 4 * i);
+	for (i = 0; i < ARRAY_SIZE(punit_dev->range_1); ++i) {
+		u32 addr;
+
+		addr = punit_dev->mmio_range[1].beg + 4 * i;
+		if (addr > punit_dev->mmio_range[1].end)
+			break;
+
+		writel(punit_dev->range_1[i], punit_dev->punit_mmio + addr);
+	}
 
 	return 0;
 }
