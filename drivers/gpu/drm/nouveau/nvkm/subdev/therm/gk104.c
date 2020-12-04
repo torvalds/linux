@@ -106,9 +106,8 @@ gk104_therm_func = {
 };
 
 static int
-gk104_therm_new_(const struct nvkm_therm_func *func,
-		 struct nvkm_device *device,
-		 int index,
+gk104_therm_new_(const struct nvkm_therm_func *func, struct nvkm_device *device,
+		 enum nvkm_subdev_type type, int inst,
 		 const struct gk104_clkgate_engine_info *clkgate_order,
 		 const struct gf100_idle_filter *idle_filter,
 		 struct nvkm_therm **ptherm)
@@ -118,19 +117,17 @@ gk104_therm_new_(const struct nvkm_therm_func *func,
 	if (!therm)
 		return -ENOMEM;
 
-	nvkm_therm_ctor(&therm->base, device, index, func);
+	nvkm_therm_ctor(&therm->base, device, type, inst, func);
 	*ptherm = &therm->base;
 	therm->clkgate_order = clkgate_order;
 	therm->idle_filter = idle_filter;
-
 	return 0;
 }
 
 int
-gk104_therm_new(struct nvkm_device *device,
-		int index, struct nvkm_therm **ptherm)
+gk104_therm_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_therm **ptherm)
 {
-	return gk104_therm_new_(&gk104_therm_func, device, index,
+	return gk104_therm_new_(&gk104_therm_func, device, type, inst,
 				gk104_clkgate_engine_info, &gk104_idle_filter,
 				ptherm);
 }

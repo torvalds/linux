@@ -33,7 +33,6 @@ nvkm_subdev_type[NVKM_SUBDEV_NR] = {
 #include <core/layout.h>
 #undef NVKM_LAYOUT_ONCE
 #undef NVKM_LAYOUT_INST
-	[NVKM_SUBDEV_THERM   ] = "therm",
 	[NVKM_SUBDEV_TIMER   ] = "tmr",
 	[NVKM_SUBDEV_TOP     ] = "top",
 	[NVKM_SUBDEV_VOLT    ] = "volt",
