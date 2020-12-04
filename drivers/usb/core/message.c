@@ -289,7 +289,7 @@ int usb_control_msg_recv(struct usb_device *dev, __u8 endpoint, __u8 request,
 		memcpy(driver_data, data, size);
 		ret = 0;
 	} else {
-		ret = -EINVAL;
+		ret = -EREMOTEIO;
 	}
 
 exit:
