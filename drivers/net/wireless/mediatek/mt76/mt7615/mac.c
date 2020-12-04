@@ -2017,7 +2017,16 @@ mt7615_update_vif_beacon(void *priv, u8 *mac, struct ieee80211_vif *vif)
 	struct ieee80211_hw *hw = priv;
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 
-	mt7615_mcu_add_beacon(dev, hw, vif, vif->bss_conf.enable_beacon);
+	switch (vif->type) {
+	case NL80211_IFTYPE_MESH_POINT:
+	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_AP:
+		mt7615_mcu_add_beacon(dev, hw, vif,
+				      vif->bss_conf.enable_beacon);
+		break;
+	default:
+		break;
+	}
 }
 
 static void
