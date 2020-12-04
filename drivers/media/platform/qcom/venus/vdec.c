@@ -761,7 +761,7 @@ static int vdec_session_init(struct venus_inst *inst)
 	int ret;
 
 	ret = hfi_session_init(inst, inst->fmt_out->pixfmt);
-	if (ret == -EINVAL)
+	if (ret == -EALREADY)
 		return 0;
 	else if (ret)
 		return ret;
