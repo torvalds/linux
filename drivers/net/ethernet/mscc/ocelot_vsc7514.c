@@ -1254,6 +1254,7 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	}
 
 	ocelot->num_phys_ports = of_get_child_count(ports);
+	ocelot->num_flooding_pgids = 1;
 
 	ocelot->vcap = vsc7514_vcap_props;
 	ocelot->inj_prefix = OCELOT_TAG_PREFIX_NONE;
