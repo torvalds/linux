@@ -112,15 +112,15 @@ tu102_mc = {
 	.reset = gk104_mc_reset,
 };
 
-int
+static int
 tu102_mc_new_(const struct nvkm_mc_func *func, struct nvkm_device *device,
-	      int index, struct nvkm_mc **pmc)
+	      enum nvkm_subdev_type type, int inst, struct nvkm_mc **pmc)
 {
 	struct tu102_mc *mc;
 
 	if (!(mc = kzalloc(sizeof(*mc), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_mc_ctor(func, device, index, &mc->base);
+	nvkm_mc_ctor(func, device, type, inst, &mc->base);
 	*pmc = &mc->base;
 
 	spin_lock_init(&mc->lock);
@@ -130,7 +130,7 @@ tu102_mc_new_(const struct nvkm_mc_func *func, struct nvkm_device *device,
 }
 
 int
-tu102_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+tu102_mc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_mc **pmc)
 {
-	return tu102_mc_new_(&tu102_mc, device, index, pmc);
+	return tu102_mc_new_(&tu102_mc, device, type, inst, pmc);
 }

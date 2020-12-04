@@ -203,19 +203,19 @@ nvkm_mc = {
 
 void
 nvkm_mc_ctor(const struct nvkm_mc_func *func, struct nvkm_device *device,
-	     int index, struct nvkm_mc *mc)
+	     enum nvkm_subdev_type type, int inst, struct nvkm_mc *mc)
 {
-	nvkm_subdev_ctor(&nvkm_mc, device, index, &mc->subdev);
+	nvkm_subdev_ctor(&nvkm_mc, device, type, inst, &mc->subdev);
 	mc->func = func;
 }
 
 int
 nvkm_mc_new_(const struct nvkm_mc_func *func, struct nvkm_device *device,
-	     int index, struct nvkm_mc **pmc)
+	     enum nvkm_subdev_type type, int inst, struct nvkm_mc **pmc)
 {
 	struct nvkm_mc *mc;
 	if (!(mc = *pmc = kzalloc(sizeof(*mc), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_mc_ctor(func, device, index, *pmc);
+	nvkm_mc_ctor(func, device, type, inst, *pmc);
 	return 0;
 }

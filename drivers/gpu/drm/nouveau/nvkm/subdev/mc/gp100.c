@@ -106,13 +106,13 @@ gp100_mc = {
 
 int
 gp100_mc_new_(const struct nvkm_mc_func *func, struct nvkm_device *device,
-	      int index, struct nvkm_mc **pmc)
+	      enum nvkm_subdev_type type, int inst, struct nvkm_mc **pmc)
 {
 	struct gp100_mc *mc;
 
 	if (!(mc = kzalloc(sizeof(*mc), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_mc_ctor(func, device, index, &mc->base);
+	nvkm_mc_ctor(func, device, type, inst, &mc->base);
 	*pmc = &mc->base;
 
 	spin_lock_init(&mc->lock);
@@ -122,7 +122,7 @@ gp100_mc_new_(const struct nvkm_mc_func *func, struct nvkm_device *device,
 }
 
 int
-gp100_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+gp100_mc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_mc **pmc)
 {
-	return gp100_mc_new_(&gp100_mc, device, index, pmc);
+	return gp100_mc_new_(&gp100_mc, device, type, inst, pmc);
 }
