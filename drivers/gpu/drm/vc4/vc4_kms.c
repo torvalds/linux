@@ -40,6 +40,11 @@ static struct vc4_ctm_state *to_vc4_ctm_state(struct drm_private_state *priv)
 struct vc4_hvs_state {
 	struct drm_private_state base;
 	unsigned int unassigned_channels;
+
+	struct {
+		unsigned in_use: 1;
+		struct drm_crtc_commit *pending_commit;
+	} fifo_state[HVS_NUM_CHANNELS];
 };
 
 static struct vc4_hvs_state *
@@ -183,6 +188,32 @@ vc4_ctm_commit(struct vc4_dev *vc4, struct drm_atomic_state *state)
 }
 
 static struct vc4_hvs_state *
+vc4_hvs_get_new_global_state(struct drm_atomic_state *state)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(state->dev);
+	struct drm_private_state *priv_state;
+
+	priv_state = drm_atomic_get_new_private_obj_state(state, &vc4->hvs_channels);
+	if (IS_ERR(priv_state))
+		return ERR_CAST(priv_state);
+
+	return to_vc4_hvs_state(priv_state);
+}
+
+static struct vc4_hvs_state *
+vc4_hvs_get_old_global_state(struct drm_atomic_state *state)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(state->dev);
+	struct drm_private_state *priv_state;
+
+	priv_state = drm_atomic_get_old_private_obj_state(state, &vc4->hvs_channels);
+	if (IS_ERR(priv_state))
+		return ERR_CAST(priv_state);
+
+	return to_vc4_hvs_state(priv_state);
+}
+
+static struct vc4_hvs_state *
 vc4_hvs_get_global_state(struct drm_atomic_state *state)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(state->dev);
@@ -308,8 +339,10 @@ vc4_atomic_complete_commit(struct drm_atomic_state *state)
 	struct drm_device *dev = state->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_hvs *hvs = vc4->hvs;
+	struct drm_crtc_state *old_crtc_state;
 	struct drm_crtc_state *new_crtc_state;
 	struct drm_crtc *crtc;
+	struct vc4_hvs_state *old_hvs_state;
 	int i;
 
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
@@ -328,6 +361,36 @@ vc4_atomic_complete_commit(struct drm_atomic_state *state)
 	drm_atomic_helper_wait_for_fences(dev, state, false);
 
 	drm_atomic_helper_wait_for_dependencies(state);
+
+	old_hvs_state = vc4_hvs_get_old_global_state(state);
+	if (!old_hvs_state)
+		return;
+
+	for_each_old_crtc_in_state(state, crtc, old_crtc_state, i) {
+		struct vc4_crtc_state *vc4_crtc_state =
+			to_vc4_crtc_state(old_crtc_state);
+		struct drm_crtc_commit *commit;
+		unsigned int channel = vc4_crtc_state->assigned_channel;
+		unsigned long done;
+
+		if (channel == VC4_HVS_CHANNEL_DISABLED)
+			continue;
+
+		if (!old_hvs_state->fifo_state[channel].in_use)
+			continue;
+
+		commit = old_hvs_state->fifo_state[i].pending_commit;
+		if (!commit)
+			continue;
+
+		done = wait_for_completion_timeout(&commit->hw_done, 10 * HZ);
+		if (!done)
+			drm_err(dev, "Timed out waiting for hw_done\n");
+
+		done = wait_for_completion_timeout(&commit->flip_done, 10 * HZ);
+		if (!done)
+			drm_err(dev, "Timed out waiting for flip_done\n");
+	}
 
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
@@ -366,6 +429,36 @@ static void commit_work(struct work_struct *work)
 						      struct drm_atomic_state,
 						      commit_work);
 	vc4_atomic_complete_commit(state);
+}
+
+static int vc4_atomic_commit_setup(struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *crtc_state;
+	struct vc4_hvs_state *hvs_state;
+	struct drm_crtc *crtc;
+	unsigned int i;
+
+	hvs_state = vc4_hvs_get_new_global_state(state);
+	if (!hvs_state)
+		return -EINVAL;
+
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+		struct vc4_crtc_state *vc4_crtc_state =
+			to_vc4_crtc_state(crtc_state);
+		unsigned int channel =
+			vc4_crtc_state->assigned_channel;
+
+		if (channel == VC4_HVS_CHANNEL_DISABLED)
+			continue;
+
+		if (!hvs_state->fifo_state[channel].in_use)
+			continue;
+
+		hvs_state->fifo_state[channel].pending_commit =
+			drm_crtc_commit_get(crtc_state->commit);
+	}
+
+	return 0;
 }
 
 /**
@@ -697,6 +790,7 @@ vc4_hvs_channels_duplicate_state(struct drm_private_obj *obj)
 {
 	struct vc4_hvs_state *old_state = to_vc4_hvs_state(obj->state);
 	struct vc4_hvs_state *state;
+	unsigned int i;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
@@ -706,6 +800,16 @@ vc4_hvs_channels_duplicate_state(struct drm_private_obj *obj)
 
 	state->unassigned_channels = old_state->unassigned_channels;
 
+	for (i = 0; i < HVS_NUM_CHANNELS; i++) {
+		state->fifo_state[i].in_use = old_state->fifo_state[i].in_use;
+
+		if (!old_state->fifo_state[i].pending_commit)
+			continue;
+
+		state->fifo_state[i].pending_commit =
+			drm_crtc_commit_get(old_state->fifo_state[i].pending_commit);
+	}
+
 	return &state->base;
 }
 
@@ -713,6 +817,14 @@ static void vc4_hvs_channels_destroy_state(struct drm_private_obj *obj,
 					   struct drm_private_state *state)
 {
 	struct vc4_hvs_state *hvs_state = to_vc4_hvs_state(state);
+	unsigned int i;
+
+	for (i = 0; i < HVS_NUM_CHANNELS; i++) {
+		if (!hvs_state->fifo_state[i].pending_commit)
+			continue;
+
+		drm_crtc_commit_put(hvs_state->fifo_state[i].pending_commit);
+	}
 
 	kfree(hvs_state);
 }
@@ -805,7 +917,10 @@ static int vc4_pv_muxing_atomic_check(struct drm_device *dev,
 
 		/* If we're disabling our CRTC, we put back our channel */
 		if (!new_crtc_state->enable) {
-			hvs_new_state->unassigned_channels |= BIT(old_vc4_crtc_state->assigned_channel);
+			channel = old_vc4_crtc_state->assigned_channel;
+
+			hvs_new_state->unassigned_channels |= BIT(channel);
+			hvs_new_state->fifo_state[channel].in_use = false;
 			new_vc4_crtc_state->assigned_channel = VC4_HVS_CHANNEL_DISABLED;
 			continue;
 		}
@@ -841,6 +956,7 @@ static int vc4_pv_muxing_atomic_check(struct drm_device *dev,
 		channel = ffs(matching_channels) - 1;
 		new_vc4_crtc_state->assigned_channel = channel;
 		hvs_new_state->unassigned_channels &= ~BIT(channel);
+		hvs_new_state->fifo_state[channel].in_use = true;
 	}
 
 	return 0;
@@ -865,6 +981,10 @@ vc4_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 
 	return vc4_load_tracker_atomic_check(state);
 }
+
+static struct drm_mode_config_helper_funcs vc4_mode_config_helpers = {
+	.atomic_commit_setup	= vc4_atomic_commit_setup,
+};
 
 static const struct drm_mode_config_funcs vc4_mode_funcs = {
 	.atomic_check = vc4_atomic_check,
@@ -909,6 +1029,7 @@ int vc4_kms_load(struct drm_device *dev)
 	}
 
 	dev->mode_config.funcs = &vc4_mode_funcs;
+	dev->mode_config.helper_private = &vc4_mode_config_helpers;
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.async_page_flip = true;
 	dev->mode_config.allow_fb_modifiers = true;
