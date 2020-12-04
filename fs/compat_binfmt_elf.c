@@ -62,7 +62,6 @@
  * differ from the native ones, or omitted when they match.
  */
 
-#undef	ELF_ARCH
 #undef	elf_check_arch
 #define	elf_check_arch	compat_elf_check_arch
 
