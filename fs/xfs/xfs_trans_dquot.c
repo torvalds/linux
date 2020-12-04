@@ -194,6 +194,9 @@ xfs_trans_mod_dquot(
 	ASSERT(XFS_IS_QUOTA_RUNNING(tp->t_mountp));
 	qtrx = NULL;
 
+	if (!delta)
+		return;
+
 	if (tp->t_dqinfo == NULL)
 		xfs_trans_alloc_dqinfo(tp);
 	/*
@@ -205,10 +208,8 @@ xfs_trans_mod_dquot(
 	if (qtrx->qt_dquot == NULL)
 		qtrx->qt_dquot = dqp;
 
-	if (delta) {
-		trace_xfs_trans_mod_dquot_before(qtrx);
-		trace_xfs_trans_mod_dquot(tp, dqp, field, delta);
-	}
+	trace_xfs_trans_mod_dquot_before(qtrx);
+	trace_xfs_trans_mod_dquot(tp, dqp, field, delta);
 
 	switch (field) {
 	/* regular disk blk reservation */
@@ -261,8 +262,7 @@ xfs_trans_mod_dquot(
 		ASSERT(0);
 	}
 
-	if (delta)
-		trace_xfs_trans_mod_dquot_after(qtrx);
+	trace_xfs_trans_mod_dquot_after(qtrx);
 }
 
 
@@ -687,14 +687,9 @@ xfs_trans_dqresv(
 	 */
 	if (tp) {
 		ASSERT(flags & XFS_QMOPT_RESBLK_MASK);
-		if (nblks != 0)
-			xfs_trans_mod_dquot(tp, dqp,
-					    flags & XFS_QMOPT_RESBLK_MASK,
-					    nblks);
-		if (ninos != 0)
-			xfs_trans_mod_dquot(tp, dqp,
-					    XFS_TRANS_DQ_RES_INOS,
-					    ninos);
+		xfs_trans_mod_dquot(tp, dqp, flags & XFS_QMOPT_RESBLK_MASK,
+				    nblks);
+		xfs_trans_mod_dquot(tp, dqp, XFS_TRANS_DQ_RES_INOS, ninos);
 	}
 	ASSERT(dqp->q_blk.reserved >= dqp->q_blk.count);
 	ASSERT(dqp->q_rtb.reserved >= dqp->q_rtb.count);
