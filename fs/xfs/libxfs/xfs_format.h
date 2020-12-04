@@ -633,7 +633,6 @@ xfs_is_quota_inode(struct xfs_sb *sbp, xfs_ino_t ino)
 #define XFS_B_TO_FSB(mp,b)	\
 	((((uint64_t)(b)) + (mp)->m_blockmask) >> (mp)->m_sb.sb_blocklog)
 #define XFS_B_TO_FSBT(mp,b)	(((uint64_t)(b)) >> (mp)->m_sb.sb_blocklog)
-#define XFS_B_FSB_OFFSET(mp,b)	((b) & (mp)->m_blockmask)
 
 /*
  * Allocation group header
