@@ -997,10 +997,9 @@ static void aspeed_mctp_reset_work(struct work_struct *work)
 {
 	struct aspeed_mctp *priv = container_of(work, typeof(*priv),
 						pcie.rst_dwork.work);
+	struct kobject *kobj = &aspeed_mctp_miscdev.this_device->kobj;
 
 	if (priv->pcie.need_uevent) {
-		struct kobject *kobj = &aspeed_mctp_miscdev.this_device->kobj;
-
 		aspeed_mctp_send_pcie_uevent(kobj, false);
 		priv->pcie.need_uevent = false;
 	}
@@ -1008,7 +1007,7 @@ static void aspeed_mctp_reset_work(struct work_struct *work)
 	aspeed_mctp_pcie_setup(priv);
 
 	if (priv->pcie.bdf) {
-		aspeed_mctp_send_pcie_uevent(&priv->dev->kobj, true);
+		aspeed_mctp_send_pcie_uevent(kobj, true);
 		aspeed_mctp_irq_enable(priv);
 	}
 }
