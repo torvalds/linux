@@ -217,14 +217,14 @@ nv04_instmem = {
 };
 
 int
-nv04_instmem_new(struct nvkm_device *device, int index,
+nv04_instmem_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		 struct nvkm_instmem **pimem)
 {
 	struct nv04_instmem *imem;
 
 	if (!(imem = kzalloc(sizeof(*imem), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_instmem_ctor(&nv04_instmem, device, index, &imem->base);
+	nvkm_instmem_ctor(&nv04_instmem, device, type, inst, &imem->base);
 	*pimem = &imem->base;
 	return 0;
 }

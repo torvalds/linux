@@ -235,7 +235,7 @@ nv40_instmem = {
 };
 
 int
-nv40_instmem_new(struct nvkm_device *device, int index,
+nv40_instmem_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		 struct nvkm_instmem **pimem)
 {
 	struct nv40_instmem *imem;
@@ -243,7 +243,7 @@ nv40_instmem_new(struct nvkm_device *device, int index,
 
 	if (!(imem = kzalloc(sizeof(*imem), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_instmem_ctor(&nv40_instmem, device, index, &imem->base);
+	nvkm_instmem_ctor(&nv40_instmem, device, type, inst, &imem->base);
 	*pimem = &imem->base;
 
 	/* map bar */

@@ -386,14 +386,14 @@ nv50_instmem = {
 };
 
 int
-nv50_instmem_new(struct nvkm_device *device, int index,
+nv50_instmem_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		 struct nvkm_instmem **pimem)
 {
 	struct nv50_instmem *imem;
 
 	if (!(imem = kzalloc(sizeof(*imem), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_instmem_ctor(&nv50_instmem, device, index, &imem->base);
+	nvkm_instmem_ctor(&nv50_instmem, device, type, inst, &imem->base);
 	INIT_LIST_HEAD(&imem->lru);
 	*pimem = &imem->base;
 	return 0;

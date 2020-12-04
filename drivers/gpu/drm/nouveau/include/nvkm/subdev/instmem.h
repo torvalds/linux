@@ -30,8 +30,8 @@ int nvkm_instobj_new(struct nvkm_instmem *, u32 size, u32 align, bool zero,
 		     struct nvkm_memory **);
 
 
-int nv04_instmem_new(struct nvkm_device *, int, struct nvkm_instmem **);
-int nv40_instmem_new(struct nvkm_device *, int, struct nvkm_instmem **);
-int nv50_instmem_new(struct nvkm_device *, int, struct nvkm_instmem **);
-int gk20a_instmem_new(struct nvkm_device *, int, struct nvkm_instmem **);
+int nv04_instmem_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_instmem **);
+int nv40_instmem_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_instmem **);
+int nv50_instmem_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_instmem **);
+int gk20a_instmem_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_instmem **);
 #endif
