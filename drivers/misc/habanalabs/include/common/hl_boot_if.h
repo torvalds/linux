@@ -162,6 +162,10 @@
  *					statuses.
  *					Initialized in: preboot
  *
+ * CPU_BOOT_DEV_STS0_SP_SRAM_EN		SP SRAM is initialized and available
+ *					for use.
+ *					Initialized in: preboot
+ *
  */
 #define CPU_BOOT_DEV_STS0_SECURITY_EN			(1 << 0)
 #define CPU_BOOT_DEV_STS0_DEBUG_EN			(1 << 1)
@@ -175,6 +179,7 @@
 #define CPU_BOOT_DEV_STS0_DRAM_SCR_EN			(1 << 9)
 #define CPU_BOOT_DEV_STS0_FW_HARD_RST_EN		(1 << 10)
 #define CPU_BOOT_DEV_STS0_PLL_INFO_EN			(1 << 11)
+#define CPU_BOOT_DEV_STS0_SP_SRAM_EN			(1 << 12)
 #define CPU_BOOT_DEV_STS0_CLK_GATE_EN			(1 << 13)
 #define CPU_BOOT_DEV_STS0_ENABLED			(1 << 31)
 
