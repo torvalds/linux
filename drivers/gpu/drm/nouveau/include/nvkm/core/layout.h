@@ -2,6 +2,7 @@
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_VBIOS   , struct nvkm_bios    ,     bios)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_DEVINIT , struct nvkm_devinit ,  devinit)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_GPIO    , struct nvkm_gpio    ,     gpio)
+NVKM_LAYOUT_ONCE(NVKM_SUBDEV_I2C     , struct nvkm_i2c     ,      i2c)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_FUSE    , struct nvkm_fuse    ,     fuse)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_BUS     , struct nvkm_bus     ,      bus)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_FB      , struct nvkm_fb      ,       fb)

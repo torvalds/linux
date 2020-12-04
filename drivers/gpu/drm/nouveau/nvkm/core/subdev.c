@@ -33,7 +33,6 @@ nvkm_subdev_type[NVKM_SUBDEV_NR] = {
 #include <core/layout.h>
 #undef NVKM_LAYOUT_ONCE
 #undef NVKM_LAYOUT_INST
-	[NVKM_SUBDEV_I2C     ] = "i2c",
 	[NVKM_SUBDEV_IBUS    ] = "priv",
 	[NVKM_SUBDEV_ICCSENSE] = "iccsense",
 	[NVKM_SUBDEV_INSTMEM ] = "imem",
