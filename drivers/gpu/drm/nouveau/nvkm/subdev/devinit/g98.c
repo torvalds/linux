@@ -60,8 +60,8 @@ g98_devinit = {
 };
 
 int
-g98_devinit_new(struct nvkm_device *device, int index,
+g98_devinit_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		struct nvkm_devinit **pinit)
 {
-	return nv50_devinit_new_(&g98_devinit, device, index, pinit);
+	return nv50_devinit_new_(&g98_devinit, device, type, inst, pinit);
 }

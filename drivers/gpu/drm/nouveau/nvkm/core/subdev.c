@@ -33,7 +33,6 @@ nvkm_subdev_type[NVKM_SUBDEV_NR] = {
 #include <core/layout.h>
 #undef NVKM_LAYOUT_ONCE
 #undef NVKM_LAYOUT_INST
-	[NVKM_SUBDEV_DEVINIT ] = "devinit",
 	[NVKM_SUBDEV_FAULT   ] = "fault",
 	[NVKM_SUBDEV_FB      ] = "fb",
 	[NVKM_SUBDEV_FUSE    ] = "fuse",

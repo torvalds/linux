@@ -126,11 +126,10 @@ nvkm_devinit = {
 };
 
 void
-nvkm_devinit_ctor(const struct nvkm_devinit_func *func,
-		  struct nvkm_device *device, int index,
-		  struct nvkm_devinit *init)
+nvkm_devinit_ctor(const struct nvkm_devinit_func *func, struct nvkm_device *device,
+		  enum nvkm_subdev_type type, int inst, struct nvkm_devinit *init)
 {
-	nvkm_subdev_ctor(&nvkm_devinit, device, index, &init->subdev);
+	nvkm_subdev_ctor(&nvkm_devinit, device, type, inst, &init->subdev);
 	init->func = func;
 	init->force_post = nvkm_boolopt(device->cfgopt, "NvForcePost", false);
 }

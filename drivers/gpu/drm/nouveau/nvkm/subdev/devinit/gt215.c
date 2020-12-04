@@ -146,8 +146,8 @@ gt215_devinit = {
 };
 
 int
-gt215_devinit_new(struct nvkm_device *device, int index,
-		struct nvkm_devinit **pinit)
+gt215_devinit_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+		  struct nvkm_devinit **pinit)
 {
-	return nv50_devinit_new_(&gt215_devinit, device, index, pinit);
+	return nv50_devinit_new_(&gt215_devinit, device, type, inst, pinit);
 }
