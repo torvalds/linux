@@ -858,11 +858,11 @@ nvkm_pm = {
 
 int
 nvkm_pm_ctor(const struct nvkm_pm_func *func, struct nvkm_device *device,
-	     int index, struct nvkm_pm *pm)
+	     enum nvkm_subdev_type type, int inst, struct nvkm_pm *pm)
 {
 	pm->func = func;
 	INIT_LIST_HEAD(&pm->domains);
 	INIT_LIST_HEAD(&pm->sources);
 	spin_lock_init(&pm->client.lock);
-	return nvkm_engine_ctor(&nvkm_pm, device, index, true, &pm->engine);
+	return nvkm_engine_ctor(&nvkm_pm, device, type, inst, true, &pm->engine);
 }

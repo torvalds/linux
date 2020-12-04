@@ -17,13 +17,13 @@ struct nvkm_pm {
 	u32 sequence;
 };
 
-int nv40_pm_new(struct nvkm_device *, int, struct nvkm_pm **);
-int nv50_pm_new(struct nvkm_device *, int, struct nvkm_pm **);
-int g84_pm_new(struct nvkm_device *, int, struct nvkm_pm **);
-int gt200_pm_new(struct nvkm_device *, int, struct nvkm_pm **);
-int gt215_pm_new(struct nvkm_device *, int, struct nvkm_pm **);
-int gf100_pm_new(struct nvkm_device *, int, struct nvkm_pm **);
-int gf108_pm_new(struct nvkm_device *, int, struct nvkm_pm **);
-int gf117_pm_new(struct nvkm_device *, int, struct nvkm_pm **);
-int gk104_pm_new(struct nvkm_device *, int, struct nvkm_pm **);
+int nv40_pm_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pm **);
+int nv50_pm_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pm **);
+int g84_pm_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pm **);
+int gt200_pm_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pm **);
+int gt215_pm_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pm **);
+int gf100_pm_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pm **);
+int gf108_pm_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pm **);
+int gf117_pm_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pm **);
+int gk104_pm_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pm **);
 #endif
