@@ -42,6 +42,9 @@ static long isst_if_mmio_rd_wr(u8 *cmd_ptr, int *write_only, int resume)
 	if (io_reg->reg < 0x04 || io_reg->reg > 0xD0)
 		return -EINVAL;
 
+	if (io_reg->reg % 4)
+		return -EINVAL;
+
 	if (io_reg->read_write && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
