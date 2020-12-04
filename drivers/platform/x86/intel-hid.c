@@ -435,6 +435,19 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 	struct platform_device *device = context;
 	struct intel_hid_priv *priv = dev_get_drvdata(&device->dev);
 	unsigned long long ev_index;
+	int err;
+
+	/*
+	 * Some convertible have unreliable VGBS return which could cause incorrect
+	 * SW_TABLET_MODE report, in these cases we enable support when receiving
+	 * the first event instead of during driver setup.
+	 */
+	if (!priv->switches && (event == 0xcc || event == 0xcd)) {
+		dev_info(&device->dev, "switch event received, enable switches supports\n");
+		err = intel_hid_switches_setup(device);
+		if (err)
+			pr_err("Failed to setup Intel HID switches\n");
+	}
 
 	if (priv->wakeup_mode) {
 		/*
