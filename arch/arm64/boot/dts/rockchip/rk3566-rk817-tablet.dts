@@ -835,6 +835,9 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3m1_xfer>;
+	clock-frequency = <400000>;
+	i2c-scl-rising-time-ns = <138>;
+	i2c-scl-falling-time-ns = <4>;
 
 	ts@40 {
 		compatible = "gslX680-pad";
@@ -856,6 +859,8 @@
 &i2c5 {
 	status = "okay";
 	clock-frequency = <400000>;
+	i2c-scl-rising-time-ns = <144>;
+	i2c-scl-falling-time-ns = <4>;
 
 	sensor@18 {
 		compatible = "gs_sc7a20";
