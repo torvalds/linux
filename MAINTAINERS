@@ -7284,7 +7284,6 @@ F:	drivers/staging/gasket/
 
 GCC PLUGINS
 M:	Kees Cook <keescook@chromium.org>
-R:	Emese Revfy <re.emese@gmail.com>
 L:	linux-hardening@vger.kernel.org
 S:	Maintained
 F:	Documentation/kbuild/gcc-plugins.rst
