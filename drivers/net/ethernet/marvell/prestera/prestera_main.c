@@ -318,8 +318,10 @@ static int prestera_port_create(struct prestera_switch *sw, u32 id)
 		goto err_port_init;
 	}
 
-	if (port->fp_id >= PRESTERA_MAC_ADDR_NUM_MAX)
+	if (port->fp_id >= PRESTERA_MAC_ADDR_NUM_MAX) {
+		err = -EINVAL;
 		goto err_port_init;
+	}
 
 	/* firmware requires that port's MAC address consist of the first
 	 * 5 bytes of the base MAC address
