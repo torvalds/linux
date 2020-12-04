@@ -70,5 +70,5 @@ Deleting binder Devices
 Binderfs binder devices can be deleted via `unlink() <unlink_>`_.  This means
 that the `rm() <rm_>`_ tool can be used to delete them. Note that the
 ``binder-control`` device cannot be deleted since this would make the binderfs
-instance unuseable.  The ``binder-control`` device will be deleted when the
+instance unusable.  The ``binder-control`` device will be deleted when the
 binderfs instance is unmounted and all references to it have been dropped.
