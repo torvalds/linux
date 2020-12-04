@@ -1214,17 +1214,6 @@ void dcn20_pipe_control_lock(
 		!flip_immediate)
 	    dcn20_setup_gsl_group_as_lock(dc, pipe, false);
 
-
-	// If changing VTG FP2: wait until back in vactive to program FP2
-	// Need to ensure that pipe unlock happens soon after to minimize race condition
-	if (!lock && pipe->update_flags.bits.global_sync) {
-		pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg, CRTC_STATE_VBLANK);
-		pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg, CRTC_STATE_VACTIVE);
-
-		pipe->stream_res.tg->funcs->set_vtg_params(
-				pipe->stream_res.tg, &pipe->stream->timing, true);
-	}
-
 	if (pipe->stream && should_use_dmub_lock(pipe->stream->link)) {
 		union dmub_hw_lock_flags hw_locks = { 0 };
 		struct dmub_hw_lock_inst_flags inst_flags = { 0 };
