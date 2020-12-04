@@ -779,8 +779,6 @@ ENTRY(io_int_handler)
 	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	TRACE_IRQS_OFF
-	TSTMSK	__LC_CPU_FLAGS,_CIF_IGNORE_IRQ
-	jo	.Lio_restore
 .Lio_loop:
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	lghi	%r3,IO_INTERRUPT
@@ -967,8 +965,6 @@ ENTRY(ext_int_handler)
 	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	TRACE_IRQS_OFF
-	TSTMSK	__LC_CPU_FLAGS,_CIF_IGNORE_IRQ
-	jo	.Lio_restore
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	lghi	%r3,EXT_INTERRUPT
 	brasl	%r14,do_IRQ
