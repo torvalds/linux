@@ -448,16 +448,7 @@ xfs_bui_validate(
 	if (bmap->me_startoff + bmap->me_len <= bmap->me_startoff)
 		return false;
 
-	if (bmap->me_startblock + bmap->me_len <= bmap->me_startblock)
-		return false;
-
-	if (!xfs_verify_fsbno(mp, bmap->me_startblock))
-		return false;
-
-	if (!xfs_verify_fsbno(mp, bmap->me_startblock + bmap->me_len - 1))
-		return false;
-
-	return true;
+	return xfs_verify_fsbext(mp, bmap->me_startblock, bmap->me_len);
 }
 
 /*

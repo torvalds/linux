@@ -584,16 +584,7 @@ xfs_efi_validate_ext(
 	struct xfs_mount		*mp,
 	struct xfs_extent		*extp)
 {
-	if (extp->ext_start + extp->ext_len <= extp->ext_start)
-		return false;
-
-	if (!xfs_verify_fsbno(mp, extp->ext_start))
-		return false;
-
-	if (!xfs_verify_fsbno(mp, extp->ext_start + extp->ext_len - 1))
-		return false;
-
-	return true;
+	return xfs_verify_fsbext(mp, extp->ext_start, extp->ext_len);
 }
 
 /*

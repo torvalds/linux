@@ -6242,12 +6242,8 @@ xfs_bmap_validate_extent(
 		if (!xfs_verify_rtbno(mp, endfsb))
 			return __this_address;
 	} else {
-		if (!xfs_verify_fsbno(mp, irec->br_startblock))
-			return __this_address;
-		if (!xfs_verify_fsbno(mp, endfsb))
-			return __this_address;
-		if (XFS_FSB_TO_AGNO(mp, irec->br_startblock) !=
-		    XFS_FSB_TO_AGNO(mp, endfsb))
+		if (!xfs_verify_fsbext(mp, irec->br_startblock,
+					   irec->br_blockcount))
 			return __this_address;
 	}
 	if (irec->br_state != XFS_EXT_NORM && whichfork != XFS_DATA_FORK)

@@ -61,6 +61,29 @@ xfs_verify_fsbno(
 	return xfs_verify_agbno(mp, agno, XFS_FSB_TO_AGBNO(mp, fsbno));
 }
 
+/*
+ * Verify that a data device extent is fully contained inside the filesystem,
+ * does not cross an AG boundary, and does not point at static metadata.
+ */
+bool
+xfs_verify_fsbext(
+	struct xfs_mount	*mp,
+	xfs_fsblock_t		fsbno,
+	xfs_fsblock_t		len)
+{
+	if (fsbno + len <= fsbno)
+		return false;
+
+	if (!xfs_verify_fsbno(mp, fsbno))
+		return false;
+
+	if (!xfs_verify_fsbno(mp, fsbno + len - 1))
+		return false;
+
+	return  XFS_FSB_TO_AGNO(mp, fsbno) ==
+		XFS_FSB_TO_AGNO(mp, fsbno + len - 1);
+}
+
 /* Calculate the first and last possible inode number in an AG. */
 void
 xfs_agino_range(

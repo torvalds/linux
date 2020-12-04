@@ -184,6 +184,8 @@ xfs_agblock_t xfs_ag_block_count(struct xfs_mount *mp, xfs_agnumber_t agno);
 bool xfs_verify_agbno(struct xfs_mount *mp, xfs_agnumber_t agno,
 		xfs_agblock_t agbno);
 bool xfs_verify_fsbno(struct xfs_mount *mp, xfs_fsblock_t fsbno);
+bool xfs_verify_fsbext(struct xfs_mount *mp, xfs_fsblock_t fsbno,
+		xfs_fsblock_t len);
 
 void xfs_agino_range(struct xfs_mount *mp, xfs_agnumber_t agno,
 		xfs_agino_t *first, xfs_agino_t *last);

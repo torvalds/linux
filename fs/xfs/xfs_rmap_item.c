@@ -493,16 +493,7 @@ xfs_rui_validate_map(
 	if (rmap->me_startoff + rmap->me_len <= rmap->me_startoff)
 		return false;
 
-	if (rmap->me_startblock + rmap->me_len <= rmap->me_startblock)
-		return false;
-
-	if (!xfs_verify_fsbno(mp, rmap->me_startblock))
-		return false;
-
-	if (!xfs_verify_fsbno(mp, rmap->me_startblock + rmap->me_len - 1))
-		return false;
-
-	return true;
+	return xfs_verify_fsbext(mp, rmap->me_startblock, rmap->me_len);
 }
 
 /*

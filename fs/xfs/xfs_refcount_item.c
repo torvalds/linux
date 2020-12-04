@@ -439,16 +439,7 @@ xfs_cui_validate_phys(
 		return false;
 	}
 
-	if (refc->pe_startblock + refc->pe_len <= refc->pe_startblock)
-		return false;
-
-	if (!xfs_verify_fsbno(mp, refc->pe_startblock))
-		return false;
-
-	if (!xfs_verify_fsbno(mp, refc->pe_startblock + refc->pe_len - 1))
-		return false;
-
-	return true;
+	return xfs_verify_fsbext(mp, refc->pe_startblock, refc->pe_len);
 }
 
 /*
