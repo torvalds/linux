@@ -10,6 +10,6 @@ struct nvkm_gsp_fwif {
 	const struct nvkm_falcon_func *flcn;
 };
 
-int nvkm_gsp_new_(const struct nvkm_gsp_fwif *, struct nvkm_device *, int,
+int nvkm_gsp_new_(const struct nvkm_gsp_fwif *, struct nvkm_device *, enum nvkm_subdev_type, int,
 		  struct nvkm_gsp **);
 #endif

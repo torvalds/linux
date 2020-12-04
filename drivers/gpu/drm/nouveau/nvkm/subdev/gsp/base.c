@@ -40,14 +40,14 @@ nvkm_gsp = {
 
 int
 nvkm_gsp_new_(const struct nvkm_gsp_fwif *fwif, struct nvkm_device *device,
-	      int index, struct nvkm_gsp **pgsp)
+	      enum nvkm_subdev_type type, int inst, struct nvkm_gsp **pgsp)
 {
 	struct nvkm_gsp *gsp;
 
 	if (!(gsp = *pgsp = kzalloc(sizeof(*gsp), GFP_KERNEL)))
 		return -ENOMEM;
 
-	nvkm_subdev_ctor(&nvkm_gsp, device, index, &gsp->subdev);
+	nvkm_subdev_ctor(&nvkm_gsp, device, type, inst, &gsp->subdev);
 
 	fwif = nvkm_firmware_load(&gsp->subdev, fwif, "Gsp", gsp);
 	if (IS_ERR(fwif))

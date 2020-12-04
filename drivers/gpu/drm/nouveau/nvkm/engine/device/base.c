@@ -2427,7 +2427,7 @@ nv140_chipset = {
 	.fb       = { 0x00000001, gv100_fb_new },
 	.fuse     = { 0x00000001, gm107_fuse_new },
 	.gpio     = { 0x00000001, gk104_gpio_new },
-	.gsp = gv100_gsp_new,
+	.gsp      = { 0x00000001, gv100_gsp_new },
 	.i2c = gm200_i2c_new,
 	.ibus = gm200_ibus_new,
 	.imem = nv50_instmem_new,
@@ -2471,7 +2471,7 @@ nv162_chipset = {
 	.fb       = { 0x00000001, gv100_fb_new },
 	.fuse     = { 0x00000001, gm107_fuse_new },
 	.gpio     = { 0x00000001, gk104_gpio_new },
-	.gsp = gv100_gsp_new,
+	.gsp      = { 0x00000001, gv100_gsp_new },
 	.i2c = gm200_i2c_new,
 	.ibus = gm200_ibus_new,
 	.imem = nv50_instmem_new,
@@ -2509,7 +2509,7 @@ nv164_chipset = {
 	.fb       = { 0x00000001, gv100_fb_new },
 	.fuse     = { 0x00000001, gm107_fuse_new },
 	.gpio     = { 0x00000001, gk104_gpio_new },
-	.gsp = gv100_gsp_new,
+	.gsp      = { 0x00000001, gv100_gsp_new },
 	.i2c = gm200_i2c_new,
 	.ibus = gm200_ibus_new,
 	.imem = nv50_instmem_new,
@@ -2548,7 +2548,7 @@ nv166_chipset = {
 	.fb       = { 0x00000001, gv100_fb_new },
 	.fuse     = { 0x00000001, gm107_fuse_new },
 	.gpio     = { 0x00000001, gk104_gpio_new },
-	.gsp = gv100_gsp_new,
+	.gsp      = { 0x00000001, gv100_gsp_new },
 	.i2c = gm200_i2c_new,
 	.ibus = gm200_ibus_new,
 	.imem = nv50_instmem_new,
@@ -2588,7 +2588,7 @@ nv167_chipset = {
 	.fb       = { 0x00000001, gv100_fb_new },
 	.fuse     = { 0x00000001, gm107_fuse_new },
 	.gpio     = { 0x00000001, gk104_gpio_new },
-	.gsp = gv100_gsp_new,
+	.gsp      = { 0x00000001, gv100_gsp_new },
 	.i2c = gm200_i2c_new,
 	.ibus = gm200_ibus_new,
 	.imem = nv50_instmem_new,
@@ -2626,7 +2626,7 @@ nv168_chipset = {
 	.fb       = { 0x00000001, gv100_fb_new },
 	.fuse     = { 0x00000001, gm107_fuse_new },
 	.gpio     = { 0x00000001, gk104_gpio_new },
-	.gsp = gv100_gsp_new,
+	.gsp      = { 0x00000001, gv100_gsp_new },
 	.i2c = gm200_i2c_new,
 	.ibus = gm200_ibus_new,
 	.imem = nv50_instmem_new,
@@ -3248,7 +3248,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 #include <core/layout.h>
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
-		_(NVKM_SUBDEV_GSP     ,      gsp);
 		_(NVKM_SUBDEV_I2C     ,      i2c);
 		_(NVKM_SUBDEV_IBUS    ,     ibus);
 		_(NVKM_SUBDEV_ICCSENSE, iccsense);
