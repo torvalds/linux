@@ -10,7 +10,6 @@
 
 int main(int ac, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	char filename[256], symbol[256];
 	struct bpf_object *obj = NULL;
 	struct bpf_link *links[20];
@@ -19,11 +18,6 @@ int main(int ac, char **argv)
 	int map_fd, i, j = 0;
 	const char *section;
 	struct ksym *sym;
-
-	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
-		perror("setrlimit(RLIMIT_MEMLOCK)");
-		return 1;
-	}
 
 	if (load_kallsyms()) {
 		printf("failed to process /proc/kallsyms\n");

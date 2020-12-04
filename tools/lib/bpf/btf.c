@@ -432,6 +432,11 @@ __u32 btf__get_nr_types(const struct btf *btf)
 	return btf->start_id + btf->nr_types - 1;
 }
 
+const struct btf *btf__base_btf(const struct btf *btf)
+{
+	return btf->base_btf;
+}
+
 /* internal helper returning non-const pointer to a type */
 static struct btf_type *btf_type_by_id(struct btf *btf, __u32 type_id)
 {
@@ -674,12 +679,12 @@ int btf__resolve_type(const struct btf *btf, __u32 type_id)
 
 __s32 btf__find_by_name(const struct btf *btf, const char *type_name)
 {
-	__u32 i;
+	__u32 i, nr_types = btf__get_nr_types(btf);
 
 	if (!strcmp(type_name, "void"))
 		return 0;
 
-	for (i = 1; i <= btf->nr_types; i++) {
+	for (i = 1; i <= nr_types; i++) {
 		const struct btf_type *t = btf__type_by_id(btf, i);
 		const char *name = btf__name_by_offset(btf, t->name_off);
 
@@ -693,12 +698,12 @@ __s32 btf__find_by_name(const struct btf *btf, const char *type_name)
 __s32 btf__find_by_name_kind(const struct btf *btf, const char *type_name,
 			     __u32 kind)
 {
-	__u32 i;
+	__u32 i, nr_types = btf__get_nr_types(btf);
 
 	if (kind == BTF_KIND_UNKN || !strcmp(type_name, "void"))
 		return 0;
 
-	for (i = 1; i <= btf->nr_types; i++) {
+	for (i = 1; i <= nr_types; i++) {
 		const struct btf_type *t = btf__type_by_id(btf, i);
 		const char *name;
 
@@ -1318,35 +1323,27 @@ const char *btf__name_by_offset(const struct btf *btf, __u32 offset)
 	return btf__str_by_offset(btf, offset);
 }
 
-int btf__get_from_id(__u32 id, struct btf **btf)
+struct btf *btf_get_from_fd(int btf_fd, struct btf *base_btf)
 {
-	struct bpf_btf_info btf_info = { 0 };
+	struct bpf_btf_info btf_info;
 	__u32 len = sizeof(btf_info);
 	__u32 last_size;
-	int btf_fd;
+	struct btf *btf;
 	void *ptr;
 	int err;
-
-	err = 0;
-	*btf = NULL;
-	btf_fd = bpf_btf_get_fd_by_id(id);
-	if (btf_fd < 0)
-		return 0;
 
 	/* we won't know btf_size until we call bpf_obj_get_info_by_fd(). so
 	 * let's start with a sane default - 4KiB here - and resize it only if
 	 * bpf_obj_get_info_by_fd() needs a bigger buffer.
 	 */
-	btf_info.btf_size = 4096;
-	last_size = btf_info.btf_size;
+	last_size = 4096;
 	ptr = malloc(last_size);
-	if (!ptr) {
-		err = -ENOMEM;
-		goto exit_free;
-	}
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
 
-	memset(ptr, 0, last_size);
+	memset(&btf_info, 0, sizeof(btf_info));
 	btf_info.btf = ptr_to_u64(ptr);
+	btf_info.btf_size = last_size;
 	err = bpf_obj_get_info_by_fd(btf_fd, &btf_info, &len);
 
 	if (!err && btf_info.btf_size > last_size) {
@@ -1355,31 +1352,48 @@ int btf__get_from_id(__u32 id, struct btf **btf)
 		last_size = btf_info.btf_size;
 		temp_ptr = realloc(ptr, last_size);
 		if (!temp_ptr) {
-			err = -ENOMEM;
+			btf = ERR_PTR(-ENOMEM);
 			goto exit_free;
 		}
 		ptr = temp_ptr;
-		memset(ptr, 0, last_size);
+
+		len = sizeof(btf_info);
+		memset(&btf_info, 0, sizeof(btf_info));
 		btf_info.btf = ptr_to_u64(ptr);
+		btf_info.btf_size = last_size;
+
 		err = bpf_obj_get_info_by_fd(btf_fd, &btf_info, &len);
 	}
 
 	if (err || btf_info.btf_size > last_size) {
-		err = errno;
+		btf = err ? ERR_PTR(-errno) : ERR_PTR(-E2BIG);
 		goto exit_free;
 	}
 
-	*btf = btf__new((__u8 *)(long)btf_info.btf, btf_info.btf_size);
-	if (IS_ERR(*btf)) {
-		err = PTR_ERR(*btf);
-		*btf = NULL;
-	}
+	btf = btf_new(ptr, btf_info.btf_size, base_btf);
 
 exit_free:
-	close(btf_fd);
 	free(ptr);
+	return btf;
+}
 
-	return err;
+int btf__get_from_id(__u32 id, struct btf **btf)
+{
+	struct btf *res;
+	int btf_fd;
+
+	*btf = NULL;
+	btf_fd = bpf_btf_get_fd_by_id(id);
+	if (btf_fd < 0)
+		return -errno;
+
+	res = btf_get_from_fd(btf_fd, NULL);
+	close(btf_fd);
+	if (IS_ERR(res))
+		return PTR_ERR(res);
+
+	*btf = res;
+	return 0;
 }
 
 int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,

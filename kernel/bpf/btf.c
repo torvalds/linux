@@ -1524,6 +1524,11 @@ static void btf_free_rcu(struct rcu_head *rcu)
 	btf_free(btf);
 }
 
+void btf_get(struct btf *btf)
+{
+	refcount_inc(&btf->refcnt);
+}
+
 void btf_put(struct btf *btf)
 {
 	if (btf && refcount_dec_and_test(&btf->refcnt)) {
@@ -4555,11 +4560,10 @@ struct btf *bpf_prog_get_target_btf(const struct bpf_prog *prog)
 {
 	struct bpf_prog *tgt_prog = prog->aux->dst_prog;
 
-	if (tgt_prog) {
+	if (tgt_prog)
 		return tgt_prog->aux->btf;
-	} else {
-		return btf_vmlinux;
-	}
+	else
+		return prog->aux->attach_btf;
 }
 
 static bool is_string_ptr(struct btf *btf, const struct btf_type *t)
@@ -4700,6 +4704,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 
 		if (ctx_arg_info->offset == off) {
 			info->reg_type = ctx_arg_info->reg_type;
+			info->btf = btf_vmlinux;
 			info->btf_id = ctx_arg_info->btf_id;
 			return true;
 		}
@@ -4716,6 +4721,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 
 		ret = btf_translate_to_vmlinux(log, btf, t, tgt_type, arg);
 		if (ret > 0) {
+			info->btf = btf_vmlinux;
 			info->btf_id = ret;
 			return true;
 		} else {
@@ -4723,6 +4729,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		}
 	}
 
+	info->btf = btf;
 	info->btf_id = t->type;
 	t = btf_type_by_id(btf, t->type);
 	/* skip modifiers */
@@ -4749,7 +4756,7 @@ enum bpf_struct_walk_result {
 	WALK_STRUCT,
 };
 
-static int btf_struct_walk(struct bpf_verifier_log *log,
+static int btf_struct_walk(struct bpf_verifier_log *log, const struct btf *btf,
 			   const struct btf_type *t, int off, int size,
 			   u32 *next_btf_id)
 {
@@ -4760,7 +4767,7 @@ static int btf_struct_walk(struct bpf_verifier_log *log,
 	u32 vlen, elem_id, mid;
 
 again:
-	tname = __btf_name_by_offset(btf_vmlinux, t->name_off);
+	tname = __btf_name_by_offset(btf, t->name_off);
 	if (!btf_type_is_struct(t)) {
 		bpf_log(log, "Type '%s' is not a struct\n", tname);
 		return -EINVAL;
@@ -4777,7 +4784,7 @@ again:
 			goto error;
 
 		member = btf_type_member(t) + vlen - 1;
-		mtype = btf_type_skip_modifiers(btf_vmlinux, member->type,
+		mtype = btf_type_skip_modifiers(btf, member->type,
 						NULL);
 		if (!btf_type_is_array(mtype))
 			goto error;
@@ -4793,7 +4800,7 @@ again:
 		/* Only allow structure for now, can be relaxed for
 		 * other types later.
 		 */
-		t = btf_type_skip_modifiers(btf_vmlinux, array_elem->type,
+		t = btf_type_skip_modifiers(btf, array_elem->type,
 					    NULL);
 		if (!btf_type_is_struct(t))
 			goto error;
@@ -4851,10 +4858,10 @@ error:
 
 		/* type of the field */
 		mid = member->type;
-		mtype = btf_type_by_id(btf_vmlinux, member->type);
-		mname = __btf_name_by_offset(btf_vmlinux, member->name_off);
+		mtype = btf_type_by_id(btf, member->type);
+		mname = __btf_name_by_offset(btf, member->name_off);
 
-		mtype = __btf_resolve_size(btf_vmlinux, mtype, &msize,
+		mtype = __btf_resolve_size(btf, mtype, &msize,
 					   &elem_type, &elem_id, &total_nelems,
 					   &mid);
 		if (IS_ERR(mtype)) {
@@ -4949,7 +4956,7 @@ error:
 					mname, moff, tname, off, size);
 				return -EACCES;
 			}
-			stype = btf_type_skip_modifiers(btf_vmlinux, mtype->type, &id);
+			stype = btf_type_skip_modifiers(btf, mtype->type, &id);
 			if (btf_type_is_struct(stype)) {
 				*next_btf_id = id;
 				return WALK_PTR;
@@ -4975,7 +4982,7 @@ error:
 	return -EINVAL;
 }
 
-int btf_struct_access(struct bpf_verifier_log *log,
+int btf_struct_access(struct bpf_verifier_log *log, const struct btf *btf,
 		      const struct btf_type *t, int off, int size,
 		      enum bpf_access_type atype __maybe_unused,
 		      u32 *next_btf_id)
@@ -4984,7 +4991,7 @@ int btf_struct_access(struct bpf_verifier_log *log,
 	u32 id;
 
 	do {
-		err = btf_struct_walk(log, t, off, size, &id);
+		err = btf_struct_walk(log, btf, t, off, size, &id);
 
 		switch (err) {
 		case WALK_PTR:
@@ -5000,7 +5007,7 @@ int btf_struct_access(struct bpf_verifier_log *log,
 			 * by diving in it. At this point the offset is
 			 * aligned with the new type, so set it to 0.
 			 */
-			t = btf_type_by_id(btf_vmlinux, id);
+			t = btf_type_by_id(btf, id);
 			off = 0;
 			break;
 		default:
@@ -5016,21 +5023,37 @@ int btf_struct_access(struct bpf_verifier_log *log,
 	return -EINVAL;
 }
 
+/* Check that two BTF types, each specified as an BTF object + id, are exactly
+ * the same. Trivial ID check is not enough due to module BTFs, because we can
+ * end up with two different module BTFs, but IDs point to the common type in
+ * vmlinux BTF.
+ */
+static bool btf_types_are_same(const struct btf *btf1, u32 id1,
+			       const struct btf *btf2, u32 id2)
+{
+	if (id1 != id2)
+		return false;
+	if (btf1 == btf2)
+		return true;
+	return btf_type_by_id(btf1, id1) == btf_type_by_id(btf2, id2);
+}
+
 bool btf_struct_ids_match(struct bpf_verifier_log *log,
-			  int off, u32 id, u32 need_type_id)
+			  const struct btf *btf, u32 id, int off,
+			  const struct btf *need_btf, u32 need_type_id)
 {
 	const struct btf_type *type;
 	int err;
 
 	/* Are we already done? */
-	if (need_type_id == id && off == 0)
+	if (off == 0 && btf_types_are_same(btf, id, need_btf, need_type_id))
 		return true;
 
 again:
-	type = btf_type_by_id(btf_vmlinux, id);
+	type = btf_type_by_id(btf, id);
 	if (!type)
 		return false;
-	err = btf_struct_walk(log, type, off, 1, &id);
+	err = btf_struct_walk(log, btf, type, off, 1, &id);
 	if (err != WALK_STRUCT)
 		return false;
 
@@ -5039,7 +5062,7 @@ again:
 	 * continue the search with offset 0 in the new
 	 * type.
 	 */
-	if (need_type_id != id) {
+	if (!btf_types_are_same(btf, id, need_btf, need_type_id)) {
 		off = 0;
 		goto again;
 	}
@@ -5710,9 +5733,14 @@ int btf_get_fd_by_id(u32 id)
 	return fd;
 }
 
-u32 btf_id(const struct btf *btf)
+u32 btf_obj_id(const struct btf *btf)
 {
 	return btf->id;
+}
+
+bool btf_is_kernel(const struct btf *btf)
+{
+	return btf->kernel_btf;
 }
 
 static int btf_id_cmp_func(const void *a, const void *b)

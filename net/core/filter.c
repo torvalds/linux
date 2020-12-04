@@ -4910,6 +4910,9 @@ static int _bpf_setsockopt(struct sock *sk, int level, int optname,
 				tp->notsent_lowat = val;
 				sk->sk_write_space(sk);
 				break;
+			case TCP_WINDOW_CLAMP:
+				ret = tcp_set_window_clamp(sk, val);
+				break;
 			default:
 				ret = -EINVAL;
 			}
@@ -6995,6 +6998,8 @@ sock_addr_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_sk_storage_delete_proto;
 	case BPF_FUNC_setsockopt:
 		switch (prog->expected_attach_type) {
+		case BPF_CGROUP_INET4_BIND:
+		case BPF_CGROUP_INET6_BIND:
 		case BPF_CGROUP_INET4_CONNECT:
 		case BPF_CGROUP_INET6_CONNECT:
 			return &bpf_sock_addr_setsockopt_proto;
@@ -7003,6 +7008,8 @@ sock_addr_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		}
 	case BPF_FUNC_getsockopt:
 		switch (prog->expected_attach_type) {
+		case BPF_CGROUP_INET4_BIND:
+		case BPF_CGROUP_INET6_BIND:
 		case BPF_CGROUP_INET4_CONNECT:
 		case BPF_CGROUP_INET6_CONNECT:
 			return &bpf_sock_addr_getsockopt_proto;

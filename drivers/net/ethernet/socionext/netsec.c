@@ -1314,7 +1314,7 @@ static int netsec_setup_rx_dring(struct netsec_priv *priv)
 		goto err_out;
 	}
 
-	err = xdp_rxq_info_reg(&dring->xdp_rxq, priv->ndev, 0);
+	err = xdp_rxq_info_reg(&dring->xdp_rxq, priv->ndev, 0, priv->napi.napi_id);
 	if (err)
 		goto err_out;
 

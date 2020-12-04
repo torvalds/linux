@@ -434,7 +434,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 	rq_xdp_ix = rq->ix;
 	if (xsk)
 		rq_xdp_ix += params->num_channels * MLX5E_RQ_GROUP_XSK;
-	err = xdp_rxq_info_reg(&rq->xdp_rxq, rq->netdev, rq_xdp_ix);
+	err = xdp_rxq_info_reg(&rq->xdp_rxq, rq->netdev, rq_xdp_ix, 0);
 	if (err < 0)
 		goto err_rq_xdp_prog;
 

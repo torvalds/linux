@@ -340,9 +340,12 @@ LIBBPF_0.2.0 {
 
 LIBBPF_0.3.0 {
 	global:
+		btf__base_btf;
 		btf__parse_elf_split;
 		btf__parse_raw_split;
 		btf__parse_split;
 		btf__new_empty_split;
 		btf__new_split;
+		xsk_setup_xdp_prog;
+		xsk_socket__update_xskmap;
 } LIBBPF_0.2.0;

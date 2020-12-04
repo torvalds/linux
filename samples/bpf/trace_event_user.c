@@ -294,13 +294,11 @@ static void test_bpf_perf_event(void)
 
 int main(int argc, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	struct bpf_object *obj = NULL;
 	char filename[256];
 	int error = 1;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-	setrlimit(RLIMIT_MEMLOCK, &r);
 
 	signal(SIGINT, err_exit);
 	signal(SIGTERM, err_exit);

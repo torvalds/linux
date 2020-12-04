@@ -42,6 +42,10 @@ static void verify_result(struct tcpbpf_globals *result)
 
 	/* check getsockopt for SAVED_SYN */
 	ASSERT_EQ(result->tcp_saved_syn, 1, "tcp_saved_syn");
+
+	/* check getsockopt for window_clamp */
+	ASSERT_EQ(result->window_clamp_client, 9216, "window_clamp_client");
+	ASSERT_EQ(result->window_clamp_server, 9216, "window_clamp_server");
 }
 
 static void run_test(struct tcpbpf_globals *result)

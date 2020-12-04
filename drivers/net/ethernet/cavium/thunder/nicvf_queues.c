@@ -770,7 +770,7 @@ static void nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 	rq->caching = 1;
 
 	/* Driver have no proper error path for failed XDP RX-queue info reg */
-	WARN_ON(xdp_rxq_info_reg(&rq->xdp_rxq, nic->netdev, qidx) < 0);
+	WARN_ON(xdp_rxq_info_reg(&rq->xdp_rxq, nic->netdev, qidx, 0) < 0);
 
 	/* Send a mailbox msg to PF to config RQ */
 	mbx.rq.msg = NIC_MBOX_MSG_RQ_CFG;

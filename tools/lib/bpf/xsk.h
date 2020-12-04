@@ -113,8 +113,7 @@ static inline __u32 xsk_cons_nb_avail(struct xsk_ring_cons *r, __u32 nb)
 	return (entries > nb) ? nb : entries;
 }
 
-static inline size_t xsk_ring_prod__reserve(struct xsk_ring_prod *prod,
-					    size_t nb, __u32 *idx)
+static inline __u32 xsk_ring_prod__reserve(struct xsk_ring_prod *prod, __u32 nb, __u32 *idx)
 {
 	if (xsk_prod_nb_free(prod, nb) < nb)
 		return 0;
@@ -125,7 +124,7 @@ static inline size_t xsk_ring_prod__reserve(struct xsk_ring_prod *prod,
 	return nb;
 }
 
-static inline void xsk_ring_prod__submit(struct xsk_ring_prod *prod, size_t nb)
+static inline void xsk_ring_prod__submit(struct xsk_ring_prod *prod, __u32 nb)
 {
 	/* Make sure everything has been written to the ring before indicating
 	 * this to the kernel by writing the producer pointer.
@@ -135,10 +134,9 @@ static inline void xsk_ring_prod__submit(struct xsk_ring_prod *prod, size_t nb)
 	*prod->producer += nb;
 }
 
-static inline size_t xsk_ring_cons__peek(struct xsk_ring_cons *cons,
-					 size_t nb, __u32 *idx)
+static inline __u32 xsk_ring_cons__peek(struct xsk_ring_cons *cons, __u32 nb, __u32 *idx)
 {
-	size_t entries = xsk_cons_nb_avail(cons, nb);
+	__u32 entries = xsk_cons_nb_avail(cons, nb);
 
 	if (entries > 0) {
 		/* Make sure we do not speculatively read the data before
@@ -153,7 +151,12 @@ static inline size_t xsk_ring_cons__peek(struct xsk_ring_cons *cons,
 	return entries;
 }
 
-static inline void xsk_ring_cons__release(struct xsk_ring_cons *cons, size_t nb)
+static inline void xsk_ring_cons__cancel(struct xsk_ring_cons *cons, __u32 nb)
+{
+	cons->cached_cons -= nb;
+}
+
+static inline void xsk_ring_cons__release(struct xsk_ring_cons *cons, __u32 nb)
 {
 	/* Make sure data has been read before indicating we are done
 	 * with the entries by updating the consumer pointer.
@@ -200,6 +203,11 @@ struct xsk_umem_config {
 	__u32 frame_headroom;
 	__u32 flags;
 };
+
+LIBBPF_API int xsk_setup_xdp_prog(int ifindex,
+				  int *xsks_map_fd);
+LIBBPF_API int xsk_socket__update_xskmap(struct xsk_socket *xsk,
+					 int xsks_map_fd);
 
 /* Flags for the libbpf_flags field. */
 #define XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD (1 << 0)

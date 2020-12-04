@@ -416,7 +416,7 @@ static int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
 {
 	int rc;
 
-	rc = xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev, rx_ring->qid);
+	rc = xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev, rx_ring->qid, 0);
 
 	if (rc) {
 		netif_err(rx_ring->adapter, ifup, rx_ring->netdev,

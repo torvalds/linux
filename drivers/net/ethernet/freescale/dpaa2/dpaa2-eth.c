@@ -3334,7 +3334,7 @@ static int dpaa2_eth_setup_rx_flow(struct dpaa2_eth_priv *priv,
 		return 0;
 
 	err = xdp_rxq_info_reg(&fq->channel->xdp_rxq, priv->net_dev,
-			       fq->flowid);
+			       fq->flowid, 0);
 	if (err) {
 		dev_err(dev, "xdp_rxq_info_reg failed\n");
 		return err;

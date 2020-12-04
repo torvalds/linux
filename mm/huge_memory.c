@@ -470,7 +470,7 @@ pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
 #ifdef CONFIG_MEMCG
 static inline struct deferred_split *get_deferred_split_queue(struct page *page)
 {
-	struct mem_cgroup *memcg = compound_head(page)->mem_cgroup;
+	struct mem_cgroup *memcg = page_memcg(compound_head(page));
 	struct pglist_data *pgdat = NODE_DATA(page_to_nid(page));
 
 	if (memcg)
@@ -2764,7 +2764,7 @@ void deferred_split_huge_page(struct page *page)
 {
 	struct deferred_split *ds_queue = get_deferred_split_queue(page);
 #ifdef CONFIG_MEMCG
-	struct mem_cgroup *memcg = compound_head(page)->mem_cgroup;
+	struct mem_cgroup *memcg = page_memcg(compound_head(page));
 #endif
 	unsigned long flags;
 

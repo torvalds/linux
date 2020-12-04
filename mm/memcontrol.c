@@ -533,7 +533,7 @@ struct cgroup_subsys_state *mem_cgroup_css_from_page(struct page *page)
 {
 	struct mem_cgroup *memcg;
 
-	memcg = page->mem_cgroup;
+	memcg = page_memcg(page);
 
 	if (!memcg || !cgroup_subsys_on_dfl(memory_cgrp_subsys))
 		memcg = root_mem_cgroup;
@@ -560,16 +560,7 @@ ino_t page_cgroup_ino(struct page *page)
 	unsigned long ino = 0;
 
 	rcu_read_lock();
-	memcg = page->mem_cgroup;
-
-	/*
-	 * The lowest bit set means that memcg isn't a valid
-	 * memcg pointer, but a obj_cgroups pointer.
-	 * In this case the page is shared and doesn't belong
-	 * to any specific memory cgroup.
-	 */
-	if ((unsigned long) memcg & 0x1UL)
-		memcg = NULL;
+	memcg = page_memcg_check(page);
 
 	while (memcg && !(memcg->css.flags & CSS_ONLINE))
 		memcg = parent_mem_cgroup(memcg);
@@ -1055,7 +1046,7 @@ EXPORT_SYMBOL(get_mem_cgroup_from_mm);
  */
 struct mem_cgroup *get_mem_cgroup_from_page(struct page *page)
 {
-	struct mem_cgroup *memcg = page->mem_cgroup;
+	struct mem_cgroup *memcg = page_memcg(page);
 
 	if (mem_cgroup_disabled())
 		return NULL;
@@ -1354,7 +1345,7 @@ struct lruvec *mem_cgroup_page_lruvec(struct page *page, struct pglist_data *pgd
 		goto out;
 	}
 
-	memcg = page->mem_cgroup;
+	memcg = page_memcg(page);
 	/*
 	 * Swapcache readahead pages are added to the LRU - and
 	 * possibly migrated - before they are charged.
@@ -2114,7 +2105,7 @@ void mem_cgroup_print_oom_group(struct mem_cgroup *memcg)
 }
 
 /**
- * lock_page_memcg - lock a page->mem_cgroup binding
+ * lock_page_memcg - lock a page and memcg binding
  * @page: the page
  *
  * This function protects unlocked LRU pages from being moved to
@@ -2146,7 +2137,7 @@ struct mem_cgroup *lock_page_memcg(struct page *page)
 	if (mem_cgroup_disabled())
 		return NULL;
 again:
-	memcg = head->mem_cgroup;
+	memcg = page_memcg(head);
 	if (unlikely(!memcg))
 		return NULL;
 
@@ -2154,7 +2145,7 @@ again:
 		return memcg;
 
 	spin_lock_irqsave(&memcg->move_lock, flags);
-	if (memcg != head->mem_cgroup) {
+	if (memcg != page_memcg(head)) {
 		spin_unlock_irqrestore(&memcg->move_lock, flags);
 		goto again;
 	}
@@ -2192,14 +2183,14 @@ void __unlock_page_memcg(struct mem_cgroup *memcg)
 }
 
 /**
- * unlock_page_memcg - unlock a page->mem_cgroup binding
+ * unlock_page_memcg - unlock a page and memcg binding
  * @page: the page
  */
 void unlock_page_memcg(struct page *page)
 {
 	struct page *head = compound_head(page);
 
-	__unlock_page_memcg(head->mem_cgroup);
+	__unlock_page_memcg(page_memcg(head));
 }
 EXPORT_SYMBOL(unlock_page_memcg);
 
@@ -2889,7 +2880,7 @@ static void cancel_charge(struct mem_cgroup *memcg, unsigned int nr_pages)
 
 static void commit_charge(struct page *page, struct mem_cgroup *memcg)
 {
-	VM_BUG_ON_PAGE(page->mem_cgroup, page);
+	VM_BUG_ON_PAGE(page_memcg(page), page);
 	/*
 	 * Any of the following ensures page->mem_cgroup stability:
 	 *
@@ -2898,7 +2889,7 @@ static void commit_charge(struct page *page, struct mem_cgroup *memcg)
 	 * - lock_page_memcg()
 	 * - exclusive reference
 	 */
-	page->mem_cgroup = memcg;
+	page->memcg_data = (unsigned long)memcg;
 }
 
 #ifdef CONFIG_MEMCG_KMEM
@@ -2913,8 +2904,7 @@ int memcg_alloc_page_obj_cgroups(struct page *page, struct kmem_cache *s,
 	if (!vec)
 		return -ENOMEM;
 
-	if (cmpxchg(&page->obj_cgroups, NULL,
-		    (struct obj_cgroup **) ((unsigned long)vec | 0x1UL)))
+	if (!set_page_objcgs(page, vec))
 		kfree(vec);
 	else
 		kmemleak_not_leak(vec);
@@ -2924,6 +2914,12 @@ int memcg_alloc_page_obj_cgroups(struct page *page, struct kmem_cache *s,
 
 /*
  * Returns a pointer to the memory cgroup to which the kernel object is charged.
+ *
+ * A passed kernel object can be a slab object or a generic kernel page, so
+ * different mechanisms for getting the memory cgroup pointer should be used.
+ * In certain cases (e.g. kernel stacks or large kmallocs with SLUB) the caller
+ * can not know for sure how the kernel object is implemented.
+ * mem_cgroup_from_obj() can be safely used in such cases.
  *
  * The caller must ensure the memcg lifetime, e.g. by taking rcu_read_lock(),
  * cgroup_mutex, etc.
@@ -2938,35 +2934,30 @@ struct mem_cgroup *mem_cgroup_from_obj(void *p)
 	page = virt_to_head_page(p);
 
 	/*
-	 * If page->mem_cgroup is set, it's either a simple mem_cgroup pointer
-	 * or a pointer to obj_cgroup vector. In the latter case the lowest
-	 * bit of the pointer is set.
-	 * The page->mem_cgroup pointer can be asynchronously changed
-	 * from NULL to (obj_cgroup_vec | 0x1UL), but can't be changed
-	 * from a valid memcg pointer to objcg vector or back.
-	 */
-	if (!page->mem_cgroup)
-		return NULL;
-
-	/*
 	 * Slab objects are accounted individually, not per-page.
 	 * Memcg membership data for each individual object is saved in
 	 * the page->obj_cgroups.
 	 */
-	if (page_has_obj_cgroups(page)) {
+	if (page_objcgs_check(page)) {
 		struct obj_cgroup *objcg;
 		unsigned int off;
 
 		off = obj_to_index(page->slab_cache, page, p);
-		objcg = page_obj_cgroups(page)[off];
+		objcg = page_objcgs(page)[off];
 		if (objcg)
 			return obj_cgroup_memcg(objcg);
 
 		return NULL;
 	}
 
-	/* All other pages use page->mem_cgroup */
-	return page->mem_cgroup;
+	/*
+	 * page_memcg_check() is used here, because page_has_obj_cgroups()
+	 * check above could fail because the object cgroups vector wasn't set
+	 * at that moment, but it can be set concurrently.
+	 * page_memcg_check(page) will guarantee that a proper memory
+	 * cgroup pointer or NULL will be returned.
+	 */
+	return page_memcg_check(page);
 }
 
 __always_inline struct obj_cgroup *get_obj_cgroup_from_current(void)
@@ -3104,8 +3095,8 @@ int __memcg_kmem_charge_page(struct page *page, gfp_t gfp, int order)
 	if (memcg && !mem_cgroup_is_root(memcg)) {
 		ret = __memcg_kmem_charge(memcg, gfp, 1 << order);
 		if (!ret) {
-			page->mem_cgroup = memcg;
-			__SetPageKmemcg(page);
+			page->memcg_data = (unsigned long)memcg |
+				MEMCG_DATA_KMEM;
 			return 0;
 		}
 		css_put(&memcg->css);
@@ -3120,7 +3111,7 @@ int __memcg_kmem_charge_page(struct page *page, gfp_t gfp, int order)
  */
 void __memcg_kmem_uncharge_page(struct page *page, int order)
 {
-	struct mem_cgroup *memcg = page->mem_cgroup;
+	struct mem_cgroup *memcg = page_memcg(page);
 	unsigned int nr_pages = 1 << order;
 
 	if (!memcg)
@@ -3128,12 +3119,8 @@ void __memcg_kmem_uncharge_page(struct page *page, int order)
 
 	VM_BUG_ON_PAGE(mem_cgroup_is_root(memcg), page);
 	__memcg_kmem_uncharge(memcg, nr_pages);
-	page->mem_cgroup = NULL;
+	page->memcg_data = 0;
 	css_put(&memcg->css);
-
-	/* slab pages do not have PageKmemcg flag set */
-	if (PageKmemcg(page))
-		__ClearPageKmemcg(page);
 }
 
 static bool consume_obj_stock(struct obj_cgroup *objcg, unsigned int nr_bytes)
@@ -3279,7 +3266,7 @@ void obj_cgroup_uncharge(struct obj_cgroup *objcg, size_t size)
  */
 void mem_cgroup_split_huge_fixup(struct page *head)
 {
-	struct mem_cgroup *memcg = head->mem_cgroup;
+	struct mem_cgroup *memcg = page_memcg(head);
 	int i;
 
 	if (mem_cgroup_disabled())
@@ -3287,7 +3274,7 @@ void mem_cgroup_split_huge_fixup(struct page *head)
 
 	for (i = 1; i < HPAGE_PMD_NR; i++) {
 		css_get(&memcg->css);
-		head[i].mem_cgroup = memcg;
+		head[i].memcg_data = (unsigned long)memcg;
 	}
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
@@ -4669,7 +4656,7 @@ void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pfilepages,
 void mem_cgroup_track_foreign_dirty_slowpath(struct page *page,
 					     struct bdi_writeback *wb)
 {
-	struct mem_cgroup *memcg = page->mem_cgroup;
+	struct mem_cgroup *memcg = page_memcg(page);
 	struct memcg_cgwb_frn *frn;
 	u64 now = get_jiffies_64();
 	u64 oldest_at = now;
@@ -5646,14 +5633,14 @@ static int mem_cgroup_move_account(struct page *page,
 
 	/*
 	 * Prevent mem_cgroup_migrate() from looking at
-	 * page->mem_cgroup of its source page while we change it.
+	 * page's memory cgroup of its source page while we change it.
 	 */
 	ret = -EBUSY;
 	if (!trylock_page(page))
 		goto out;
 
 	ret = -EINVAL;
-	if (page->mem_cgroup != from)
+	if (page_memcg(page) != from)
 		goto out_unlock;
 
 	pgdat = page_pgdat(page);
@@ -5708,13 +5695,13 @@ static int mem_cgroup_move_account(struct page *page,
 	/*
 	 * All state has been migrated, let's switch to the new memcg.
 	 *
-	 * It is safe to change page->mem_cgroup here because the page
+	 * It is safe to change page's memcg here because the page
 	 * is referenced, charged, isolated, and locked: we can't race
 	 * with (un)charging, migration, LRU putback, or anything else
-	 * that would rely on a stable page->mem_cgroup.
+	 * that would rely on a stable page's memory cgroup.
 	 *
 	 * Note that lock_page_memcg is a memcg lock, not a page lock,
-	 * to save space. As soon as we switch page->mem_cgroup to a
+	 * to save space. As soon as we switch page's memory cgroup to a
 	 * new memcg that isn't locked, the above state can change
 	 * concurrently again. Make sure we're truly done with it.
 	 */
@@ -5723,7 +5710,7 @@ static int mem_cgroup_move_account(struct page *page,
 	css_get(&to->css);
 	css_put(&from->css);
 
-	page->mem_cgroup = to;
+	page->memcg_data = (unsigned long)to;
 
 	__unlock_page_memcg(from);
 
@@ -5789,7 +5776,7 @@ static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
 		 * mem_cgroup_move_account() checks the page is valid or
 		 * not under LRU exclusion.
 		 */
-		if (page->mem_cgroup == mc.from) {
+		if (page_memcg(page) == mc.from) {
 			ret = MC_TARGET_PAGE;
 			if (is_device_private_page(page))
 				ret = MC_TARGET_DEVICE;
@@ -5833,7 +5820,7 @@ static enum mc_target_type get_mctgt_type_thp(struct vm_area_struct *vma,
 	VM_BUG_ON_PAGE(!page || !PageHead(page), page);
 	if (!(mc.flags & MOVE_ANON))
 		return ret;
-	if (page->mem_cgroup == mc.from) {
+	if (page_memcg(page) == mc.from) {
 		ret = MC_TARGET_PAGE;
 		if (target) {
 			get_page(page);
@@ -6779,12 +6766,12 @@ int mem_cgroup_charge(struct page *page, struct mm_struct *mm, gfp_t gfp_mask)
 		/*
 		 * Every swap fault against a single page tries to charge the
 		 * page, bail as early as possible.  shmem_unuse() encounters
-		 * already charged pages, too.  page->mem_cgroup is protected
-		 * by the page lock, which serializes swap cache removal, which
-		 * in turn serializes uncharging.
+		 * already charged pages, too.  page and memcg binding is
+		 * protected by the page lock, which serializes swap cache
+		 * removal, which in turn serializes uncharging.
 		 */
 		VM_BUG_ON_PAGE(!PageLocked(page), page);
-		if (compound_head(page)->mem_cgroup)
+		if (page_memcg(compound_head(page)))
 			goto out;
 
 		id = lookup_swap_cgroup_id(ent);
@@ -6868,21 +6855,21 @@ static void uncharge_page(struct page *page, struct uncharge_gather *ug)
 
 	VM_BUG_ON_PAGE(PageLRU(page), page);
 
-	if (!page->mem_cgroup)
+	if (!page_memcg(page))
 		return;
 
 	/*
 	 * Nobody should be changing or seriously looking at
-	 * page->mem_cgroup at this point, we have fully
+	 * page_memcg(page) at this point, we have fully
 	 * exclusive access to the page.
 	 */
 
-	if (ug->memcg != page->mem_cgroup) {
+	if (ug->memcg != page_memcg(page)) {
 		if (ug->memcg) {
 			uncharge_batch(ug);
 			uncharge_gather_clear(ug);
 		}
-		ug->memcg = page->mem_cgroup;
+		ug->memcg = page_memcg(page);
 
 		/* pairs with css_put in uncharge_batch */
 		css_get(&ug->memcg->css);
@@ -6891,15 +6878,13 @@ static void uncharge_page(struct page *page, struct uncharge_gather *ug)
 	nr_pages = compound_nr(page);
 	ug->nr_pages += nr_pages;
 
-	if (!PageKmemcg(page)) {
-		ug->pgpgout++;
-	} else {
+	if (PageMemcgKmem(page))
 		ug->nr_kmem += nr_pages;
-		__ClearPageKmemcg(page);
-	}
+	else
+		ug->pgpgout++;
 
 	ug->dummy_page = page;
-	page->mem_cgroup = NULL;
+	page->memcg_data = 0;
 	css_put(&ug->memcg->css);
 }
 
@@ -6942,7 +6927,7 @@ void mem_cgroup_uncharge(struct page *page)
 		return;
 
 	/* Don't touch page->lru of any random page, pre-check: */
-	if (!page->mem_cgroup)
+	if (!page_memcg(page))
 		return;
 
 	uncharge_gather_clear(&ug);
@@ -6992,11 +6977,11 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage)
 		return;
 
 	/* Page cache replacement: new page already charged? */
-	if (newpage->mem_cgroup)
+	if (page_memcg(newpage))
 		return;
 
 	/* Swapcache readahead pages can get replaced before being charged */
-	memcg = oldpage->mem_cgroup;
+	memcg = page_memcg(oldpage);
 	if (!memcg)
 		return;
 
@@ -7191,7 +7176,7 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
 	if (cgroup_subsys_on_dfl(memory_cgrp_subsys))
 		return;
 
-	memcg = page->mem_cgroup;
+	memcg = page_memcg(page);
 
 	/* Readahead page, never charged */
 	if (!memcg)
@@ -7212,7 +7197,7 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
 	VM_BUG_ON_PAGE(oldid, page);
 	mod_memcg_state(swap_memcg, MEMCG_SWAP, nr_entries);
 
-	page->mem_cgroup = NULL;
+	page->memcg_data = 0;
 
 	if (!mem_cgroup_is_root(memcg))
 		page_counter_uncharge(&memcg->memory, nr_entries);
@@ -7255,7 +7240,7 @@ int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry)
 	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys))
 		return 0;
 
-	memcg = page->mem_cgroup;
+	memcg = page_memcg(page);
 
 	/* Readahead page, never charged */
 	if (!memcg)
@@ -7336,7 +7321,7 @@ bool mem_cgroup_swap_full(struct page *page)
 	if (cgroup_memory_noswap || !cgroup_subsys_on_dfl(memory_cgrp_subsys))
 		return false;
 
-	memcg = page->mem_cgroup;
+	memcg = page_memcg(page);
 	if (!memcg)
 		return false;
 

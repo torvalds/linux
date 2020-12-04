@@ -256,6 +256,7 @@ static INLINE void* populate_cgroup_info(struct cgroup_data_t* cgroup_data,
 		BPF_CORE_READ(task, nsproxy, cgroup_ns, root_cset, dfl_cgrp, kn);
 	struct kernfs_node* proc_kernfs = BPF_CORE_READ(task, cgroups, dfl_cgrp, kn);
 
+#if __has_builtin(__builtin_preserve_enum_value)
 	if (ENABLE_CGROUP_V1_RESOLVER && CONFIG_CGROUP_PIDS) {
 		int cgrp_id = bpf_core_enum_value(enum cgroup_subsys_id___local,
 						  pids_cgrp_id___local);
@@ -275,6 +276,7 @@ static INLINE void* populate_cgroup_info(struct cgroup_data_t* cgroup_data,
 			}
 		}
 	}
+#endif
 
 	cgroup_data->cgroup_root_inode = get_inode_from_kernfs(root_kernfs);
 	cgroup_data->cgroup_proc_inode = get_inode_from_kernfs(proc_kernfs);

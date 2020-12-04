@@ -3493,7 +3493,7 @@ int ixgbevf_setup_rx_resources(struct ixgbevf_adapter *adapter,
 
 	/* XDP RX-queue info */
 	if (xdp_rxq_info_reg(&rx_ring->xdp_rxq, adapter->netdev,
-			     rx_ring->queue_index) < 0)
+			     rx_ring->queue_index, 0) < 0)
 		goto err;
 
 	rx_ring->xdp_prog = adapter->xdp_prog;
