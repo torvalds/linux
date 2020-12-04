@@ -68,7 +68,7 @@ Using without lircd
 
 Xorg recognizes several IR keycodes that have its numerical value lower
 than 247. With the advent of Wayland, the input driver got updated too,
-and should now accept all keycodes. Yet, you may want to just reasign
+and should now accept all keycodes. Yet, you may want to just reassign
 the keycodes to something that your favorite media application likes.
 
 This can be done by setting

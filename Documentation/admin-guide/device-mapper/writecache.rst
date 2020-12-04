@@ -37,10 +37,10 @@ Constructor parameters:
 	autocommit_blocks n	(default: 64 for pmem, 65536 for ssd)
 		when the application writes this amount of blocks without
 		issuing the FLUSH request, the blocks are automatically
-		commited
+		committed
 	autocommit_time ms	(default: 1000)
 		autocommit time in milliseconds. The data is automatically
-		commited if this time passes and no FLUSH request is
+		committed if this time passes and no FLUSH request is
 		received
 	fua			(by default on)
 		applicable only to persistent memory - use the FUA flag

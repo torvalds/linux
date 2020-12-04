@@ -879,7 +879,7 @@ The default value is 127.
 perf_event_mlock_kb
 ===================
 
-Control size of per-cpu ring buffer not counted agains mlock limit.
+Control size of per-cpu ring buffer not counted against mlock limit.
 
 The default value is 512 + 1 page
 
