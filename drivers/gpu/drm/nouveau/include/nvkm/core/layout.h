@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_VBIOS   , struct nvkm_bios    ,     bios)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_DEVINIT , struct nvkm_devinit ,  devinit)
+NVKM_LAYOUT_ONCE(NVKM_SUBDEV_IBUS    , struct nvkm_subdev  ,     ibus)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_GPIO    , struct nvkm_gpio    ,     gpio)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_I2C     , struct nvkm_i2c     ,      i2c)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_FUSE    , struct nvkm_fuse    ,     fuse)

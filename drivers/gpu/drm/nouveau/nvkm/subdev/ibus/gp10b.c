@@ -48,8 +48,8 @@ gp10b_ibus = {
 };
 
 int
-gp10b_ibus_new(struct nvkm_device *device, int index,
+gp10b_ibus_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_subdev **pibus)
 {
-	return nvkm_subdev_new_(&gp10b_ibus, device, index, pibus);
+	return nvkm_subdev_new_(&gp10b_ibus, device, type, inst, pibus);
 }

@@ -104,8 +104,8 @@ struct nvkm_subdev_func {
 };
 
 extern const char *nvkm_subdev_type[NVKM_SUBDEV_NR];
-int nvkm_subdev_new_(const struct nvkm_subdev_func *, struct nvkm_device *,
-		     int index, struct nvkm_subdev **);
+int nvkm_subdev_new_(const struct nvkm_subdev_func *, struct nvkm_device *, enum nvkm_subdev_type,
+		     int inst, struct nvkm_subdev **);
 void nvkm_subdev_ctor_(const struct nvkm_subdev_func *, bool old, struct nvkm_device *,
 		       enum nvkm_subdev_type, int inst, struct nvkm_subdev *);
 #define nvkm_subdev_ctor_o(f,d,i,  s) nvkm_subdev_ctor_((f),  true, (d), (i), -1 , (s))

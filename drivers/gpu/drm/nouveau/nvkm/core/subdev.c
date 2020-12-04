@@ -33,7 +33,6 @@ nvkm_subdev_type[NVKM_SUBDEV_NR] = {
 #include <core/layout.h>
 #undef NVKM_LAYOUT_ONCE
 #undef NVKM_LAYOUT_INST
-	[NVKM_SUBDEV_IBUS    ] = "priv",
 	[NVKM_SUBDEV_ICCSENSE] = "iccsense",
 	[NVKM_SUBDEV_INSTMEM ] = "imem",
 	[NVKM_SUBDEV_LTC     ] = "ltc",
@@ -253,12 +252,11 @@ nvkm_subdev_ctor_(const struct nvkm_subdev_func *func, bool old,
 }
 
 int
-nvkm_subdev_new_(const struct nvkm_subdev_func *func,
-		 struct nvkm_device *device, int index,
-		 struct nvkm_subdev **psubdev)
+nvkm_subdev_new_(const struct nvkm_subdev_func *func, struct nvkm_device *device,
+		 enum nvkm_subdev_type type, int inst, struct nvkm_subdev **psubdev)
 {
 	if (!(*psubdev = kzalloc(sizeof(**psubdev), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_subdev_ctor(func, device, index, *psubdev);
+	nvkm_subdev_ctor(func, device, type, inst, *psubdev);
 	return 0;
 }
