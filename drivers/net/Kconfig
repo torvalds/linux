@@ -287,7 +287,7 @@ config GTP
 	  3GPP TS 29.060 standards.
 
 	  To compile this drivers as a module, choose M here: the module
-	  wil be called gtp.
+	  will be called gtp.
 
 config MACSEC
 	tristate "IEEE 802.1AE MAC-level encryption (MACsec)"
