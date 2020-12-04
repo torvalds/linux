@@ -60,8 +60,6 @@ struct nvkm_device {
 		struct notifier_block nb;
 	} acpi;
 
-	struct nvkm_volt *volt;
-
 	struct nvkm_engine *bsp;
 	struct nvkm_engine *ce[9];
 	struct nvkm_engine *cipher;
@@ -124,7 +122,6 @@ struct nvkm_device_chip {
 #include <core/layout.h>
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
-	int (*volt    )(struct nvkm_device *, int idx, struct nvkm_volt **);
 
 	int (*bsp     )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*ce[9]   )(struct nvkm_device *, int idx, struct nvkm_engine **);
