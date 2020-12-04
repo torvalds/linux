@@ -1767,7 +1767,7 @@ qla4_82xx_start_firmware(struct scsi_qla_host *ha, uint32_t image_start)
 
 int qla4_82xx_try_start_fw(struct scsi_qla_host *ha)
 {
-	int rval = QLA_ERROR;
+	int rval;
 
 	/*
 	 * FW Load priority:
