@@ -558,10 +558,6 @@ xchk_bmap_check_ag_rmaps(
 		return error;
 
 	cur = xfs_rmapbt_init_cursor(sc->mp, sc->tp, agf, agno);
-	if (!cur) {
-		error = -ENOMEM;
-		goto out_agf;
-	}
 
 	sbcri.sc = sc;
 	sbcri.whichfork = whichfork;
@@ -570,7 +566,6 @@ xchk_bmap_check_ag_rmaps(
 		error = 0;
 
 	xfs_btree_del_cursor(cur, error);
-out_agf:
 	xfs_trans_brelse(sc->tp, agf);
 	return error;
 }

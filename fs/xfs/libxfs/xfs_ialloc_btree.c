@@ -672,11 +672,6 @@ xfs_inobt_cur(
 		return error;
 
 	cur = xfs_inobt_init_cursor(mp, tp, *agi_bpp, agno, which);
-	if (!cur) {
-		xfs_trans_brelse(tp, *agi_bpp);
-		*agi_bpp = NULL;
-		return -ENOMEM;
-	}
 	*curpp = cur;
 	return 0;
 }
