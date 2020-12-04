@@ -86,14 +86,14 @@
 	assigned-clock-rates = <0>, <125000000>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac1m1_miim
-		     &gmac1m1_tx_bus2
-		     &gmac1m1_rx_bus2
-		     &gmac1m1_rgmii_clk
-		     &gmac1m1_rgmii_bus>;
+	pinctrl-0 = <&gmac1m0_miim
+		     &gmac1m0_tx_bus2
+		     &gmac1m0_rx_bus2
+		     &gmac1m0_rgmii_clk
+		     &gmac1m0_rgmii_bus>;
 
-	tx_delay = <0x2a>;
-	rx_delay = <0x1a>;
+	tx_delay = <0x59>;
+	rx_delay = <0x2e>;
 
 	phy-handle = <&rgmii_phy1>;
 	status = "okay";
