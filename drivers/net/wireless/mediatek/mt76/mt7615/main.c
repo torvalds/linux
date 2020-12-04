@@ -97,7 +97,7 @@ static void mt7615_stop(struct ieee80211_hw *hw)
 
 	mt7615_mutex_acquire(dev);
 
-	mt76_testmode_reset(&dev->mt76, true);
+	mt76_testmode_reset(phy->mt76, true);
 
 	clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 	cancel_delayed_work_sync(&phy->scan_work);
@@ -181,7 +181,7 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 
 	mt7615_mutex_acquire(dev);
 
-	mt76_testmode_reset(&dev->mt76, true);
+	mt76_testmode_reset(phy->mt76, true);
 
 	if (vif->type == NL80211_IFTYPE_MONITOR &&
 	    is_zero_ether_addr(vif->addr))
@@ -252,7 +252,7 @@ static void mt7615_remove_interface(struct ieee80211_hw *hw,
 
 	mt7615_mutex_acquire(dev);
 
-	mt76_testmode_reset(&dev->mt76, true);
+	mt76_testmode_reset(phy->mt76, true);
 	if (vif == phy->monitor_vif)
 	    phy->monitor_vif = NULL;
 
@@ -321,7 +321,7 @@ int mt7615_set_channel(struct mt7615_phy *phy)
 	mt7615_mac_set_timing(phy);
 	ret = mt7615_dfs_init_radar_detector(phy);
 	mt7615_mac_cca_stats_reset(phy);
-	mt7615_mcu_set_sku_en(phy, !mt76_testmode_enabled(&dev->mt76));
+	mt7615_mcu_set_sku_en(phy, !mt76_testmode_enabled(phy->mt76));
 
 	mt7615_mac_reset_counters(dev);
 	phy->noise = 0;
@@ -334,7 +334,7 @@ out:
 
 	mt76_txq_schedule_all(phy->mt76);
 
-	if (!mt76_testmode_enabled(&dev->mt76))
+	if (!mt76_testmode_enabled(phy->mt76))
 		ieee80211_queue_delayed_work(phy->mt76->hw, &phy->mac_work,
 					     MT7615_WATCHDOG_TIME);
 
@@ -411,9 +411,9 @@ static int mt7615_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & (IEEE80211_CONF_CHANGE_CHANNEL |
 		       IEEE80211_CONF_CHANGE_POWER)) {
 #ifdef CONFIG_NL80211_TESTMODE
-		if (dev->mt76.test.state != MT76_TM_STATE_OFF) {
+		if (phy->mt76->test.state != MT76_TM_STATE_OFF) {
 			mt7615_mutex_acquire(dev);
-			mt76_testmode_reset(&dev->mt76, false);
+			mt76_testmode_reset(phy->mt76, false);
 			mt7615_mutex_release(dev);
 		}
 #endif
@@ -425,7 +425,7 @@ static int mt7615_config(struct ieee80211_hw *hw, u32 changed)
 	mt7615_mutex_acquire(dev);
 
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
-		mt76_testmode_reset(&dev->mt76, true);
+		mt76_testmode_reset(phy->mt76, true);
 
 		if (!(hw->conf.flags & IEEE80211_CONF_MONITOR))
 			phy->rxfilter |= MT_WF_RFCR_DROP_OTHER_UC;
@@ -480,7 +480,7 @@ static void mt7615_configure_filter(struct ieee80211_hw *hw,
 #define MT76_FILTER(_flag, _hw) do { \
 		flags |= *total_flags & FIF_##_flag;			\
 		phy->rxfilter &= ~(_hw);				\
-		if (!mt76_testmode_enabled(&dev->mt76))			\
+		if (!mt76_testmode_enabled(phy->mt76))			\
 			phy->rxfilter |= !(flags & FIF_##_flag) * (_hw);\
 	} while (0)
 

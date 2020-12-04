@@ -67,8 +67,8 @@ mt7615_tm_set_tx_power(struct mt7615_phy *phy)
 	};
 	u8 *tx_power = NULL;
 
-	if (dev->mt76.test.state != MT76_TM_STATE_OFF)
-		tx_power = dev->mt76.test.tx_power;
+	if (mphy->test.state != MT76_TM_STATE_OFF)
+		tx_power = mphy->test.tx_power;
 
 	len = MT7615_EE_MAX - MT_EE_NIC_CONF_0;
 	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL, sizeof(req_hdr) + len);
@@ -95,14 +95,15 @@ mt7615_tm_set_tx_power(struct mt7615_phy *phy)
 }
 
 static void
-mt7615_tm_reg_backup_restore(struct mt7615_dev *dev)
+mt7615_tm_reg_backup_restore(struct mt7615_phy *phy)
 {
+	struct mt7615_dev *dev = phy->dev;
 	u32 *b = dev->test.reg_backup;
 	int n_regs = ARRAY_SIZE(reg_backup_list);
 	int n_rf_regs = ARRAY_SIZE(rf_backup_list);
 	int i;
 
-	if (dev->mt76.test.state == MT76_TM_STATE_OFF) {
+	if (dev->mphy.test.state == MT76_TM_STATE_OFF) {
 		for (i = 0; i < n_regs; i++)
 			mt76_wr(dev, reg_backup_list[i], b[i]);
 
@@ -128,10 +129,10 @@ mt7615_tm_reg_backup_restore(struct mt7615_dev *dev)
 					     rf_backup_list[i].reg);
 }
 
-
 static void
-mt7615_tm_init_phy(struct mt7615_dev *dev, struct mt7615_phy *phy)
+mt7615_tm_init(struct mt7615_phy *phy)
 {
+	struct mt7615_dev *dev = phy->dev;
 	unsigned int total_flags = ~0;
 
 	if (!test_bit(MT76_STATE_RUNNING, &phy->mt76->state))
@@ -142,16 +143,7 @@ mt7615_tm_init_phy(struct mt7615_dev *dev, struct mt7615_phy *phy)
 	mt7615_ops.configure_filter(phy->mt76->hw, 0, &total_flags, 0);
 	mutex_lock(&dev->mt76.mutex);
 
-	mt7615_tm_reg_backup_restore(dev);
-}
-
-static void
-mt7615_tm_init(struct mt7615_dev *dev)
-{
-	mt7615_tm_init_phy(dev, &dev->phy);
-
-	if (dev->mt76.phy2)
-		mt7615_tm_init_phy(dev, dev->mt76.phy2->priv);
+	mt7615_tm_reg_backup_restore(phy);
 }
 
 static void
@@ -175,9 +167,10 @@ mt7615_tm_set_rx_enable(struct mt7615_dev *dev, bool en)
 }
 
 static void
-mt7615_tm_set_tx_antenna(struct mt7615_dev *dev, bool en)
+mt7615_tm_set_tx_antenna(struct mt7615_phy *phy, bool en)
 {
-	struct mt76_testmode_data *td = &dev->mt76.test;
+	struct mt7615_dev *dev = phy->dev;
+	struct mt76_testmode_data *td = &phy->mt76->test;
 	u8 mask = td->tx_antenna_mask;
 	int i;
 
@@ -185,7 +178,7 @@ mt7615_tm_set_tx_antenna(struct mt7615_dev *dev, bool en)
 		return;
 
 	if (!en)
-		mask = dev->phy.chainmask;
+		mask = phy->chainmask;
 
 	for (i = 0; i < 4; i++) {
 		mt76_rmw_field(dev, MT_WF_PHY_RFINTF3_0(i),
@@ -228,26 +221,28 @@ mt7615_tm_set_tx_antenna(struct mt7615_dev *dev, bool en)
 }
 
 static void
-mt7615_tm_set_tx_frames(struct mt7615_dev *dev, bool en)
+mt7615_tm_set_tx_frames(struct mt7615_phy *phy, bool en)
 {
+	struct mt7615_dev *dev = phy->dev;
 	struct ieee80211_tx_info *info;
-	struct sk_buff *skb = dev->mt76.test.tx_skb;
+	struct sk_buff *skb = phy->mt76->test.tx_skb;
 
-	mt7615_mcu_set_chan_info(&dev->phy, MCU_EXT_CMD_SET_RX_PATH);
-	mt7615_tm_set_tx_antenna(dev, en);
+	mt7615_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
+	mt7615_tm_set_tx_antenna(phy, en);
 	mt7615_tm_set_rx_enable(dev, !en);
 	if (!en || !skb)
 		return;
 
 	info = IEEE80211_SKB_CB(skb);
-	info->control.vif = dev->phy.monitor_vif;
+	info->control.vif = phy->monitor_vif;
 }
 
 static void
-mt7615_tm_update_params(struct mt7615_dev *dev, u32 changed)
+mt7615_tm_update_params(struct mt7615_phy *phy, u32 changed)
 {
-	struct mt76_testmode_data *td = &dev->mt76.test;
-	bool en = dev->mt76.test.state != MT76_TM_STATE_OFF;
+	struct mt7615_dev *dev = phy->dev;
+	struct mt76_testmode_data *td = &phy->mt76->test;
+	bool en = phy->mt76->test.state != MT76_TM_STATE_OFF;
 
 	if (changed & BIT(TM_CHANGED_TXPOWER_CTRL))
 		mt7615_mcu_set_test_param(dev, MCU_ATE_SET_TX_POWER_CONTROL,
@@ -256,25 +251,25 @@ mt7615_tm_update_params(struct mt7615_dev *dev, u32 changed)
 		mt7615_mcu_set_test_param(dev, MCU_ATE_SET_FREQ_OFFSET,
 					  en, en ? td->freq_offset : 0);
 	if (changed & BIT(TM_CHANGED_TXPOWER))
-		mt7615_tm_set_tx_power(&dev->phy);
+		mt7615_tm_set_tx_power(phy);
 }
 
 static int
-mt7615_tm_set_state(struct mt76_dev *mdev, enum mt76_testmode_state state)
+mt7615_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
 {
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
-	struct mt76_testmode_data *td = &mdev->test;
+	struct mt7615_phy *phy = mphy->priv;
+	struct mt76_testmode_data *td = &mphy->test;
 	enum mt76_testmode_state prev_state = td->state;
 
-	mdev->test.state = state;
+	mphy->test.state = state;
 
 	if (prev_state == MT76_TM_STATE_TX_FRAMES)
-		mt7615_tm_set_tx_frames(dev, false);
+		mt7615_tm_set_tx_frames(phy, false);
 	else if (state == MT76_TM_STATE_TX_FRAMES)
-		mt7615_tm_set_tx_frames(dev, true);
+		mt7615_tm_set_tx_frames(phy, true);
 
 	if (state <= MT76_TM_STATE_IDLE)
-		mt7615_tm_init(dev);
+		mt7615_tm_init(phy);
 
 	if ((state == MT76_TM_STATE_IDLE &&
 	     prev_state == MT76_TM_STATE_OFF) ||
@@ -290,18 +285,18 @@ mt7615_tm_set_state(struct mt76_dev *mdev, enum mt76_testmode_state state)
 				changed |= BIT(i);
 		}
 
-		mt7615_tm_update_params(dev, changed);
+		mt7615_tm_update_params(phy, changed);
 	}
 
 	return 0;
 }
 
 static int
-mt7615_tm_set_params(struct mt76_dev *mdev, struct nlattr **tb,
+mt7615_tm_set_params(struct mt76_phy *mphy, struct nlattr **tb,
 		     enum mt76_testmode_state new_state)
 {
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
-	struct mt76_testmode_data *td = &dev->mt76.test;
+	struct mt76_testmode_data *td = &mphy->test;
+	struct mt7615_phy *phy = mphy->priv;
 	u32 changed = 0;
 	int i;
 
@@ -311,7 +306,7 @@ mt7615_tm_set_params(struct mt76_dev *mdev, struct nlattr **tb,
 	    td->state == MT76_TM_STATE_OFF)
 		return 0;
 
-	if (td->tx_antenna_mask & ~dev->phy.chainmask)
+	if (td->tx_antenna_mask & ~phy->chainmask)
 		return -EINVAL;
 
 	for (i = 0; i < ARRAY_SIZE(tm_change_map); i++) {
@@ -319,15 +314,16 @@ mt7615_tm_set_params(struct mt76_dev *mdev, struct nlattr **tb,
 			changed |= BIT(i);
 	}
 
-	mt7615_tm_update_params(dev, changed);
+	mt7615_tm_update_params(phy, changed);
 
 	return 0;
 }
 
 static int
-mt7615_tm_dump_stats(struct mt76_dev *mdev, struct sk_buff *msg)
+mt7615_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
 {
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+	struct mt7615_phy *phy = mphy->priv;
+	struct mt7615_dev *dev = phy->dev;
 	void *rx, *rssi;
 	int i;
 

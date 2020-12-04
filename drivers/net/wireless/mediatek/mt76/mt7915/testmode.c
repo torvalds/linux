@@ -70,8 +70,8 @@ mt7915_tm_set_tx_power(struct mt7915_phy *phy)
 	};
 	u8 *tx_power = NULL;
 
-	if (dev->mt76.test.state != MT76_TM_STATE_OFF)
-		tx_power = dev->mt76.test.tx_power;
+	if (phy->mt76->test.state != MT76_TM_STATE_OFF)
+		tx_power = phy->mt76->test.tx_power;
 
 	/* Tx power of the other antennas are the same as antenna 0 */
 	if (tx_power && tx_power[0])
@@ -85,11 +85,13 @@ mt7915_tm_set_tx_power(struct mt7915_phy *phy)
 }
 
 static int
-mt7915_tm_set_freq_offset(struct mt7915_dev *dev, bool en, u32 val)
+mt7915_tm_set_freq_offset(struct mt7915_phy *phy, bool en, u32 val)
 {
+	struct mt7915_dev *dev = phy->dev;
 	struct mt7915_tm_cmd req = {
 		.testmode_en = en,
 		.param_idx = MCU_ATE_SET_FREQ_OFFSET,
+		.param.freq.band = phy != &dev->phy,
 		.param.freq.freq_offset = cpu_to_le32(val),
 	};
 
@@ -115,9 +117,9 @@ mt7915_tm_mode_ctrl(struct mt7915_dev *dev, bool enable)
 }
 
 static int
-mt7915_tm_set_trx(struct mt7915_dev *dev, struct mt7915_phy *phy,
-		  int type, bool en)
+mt7915_tm_set_trx(struct mt7915_phy *phy, int type, bool en)
 {
+	struct mt7915_dev *dev = phy->dev;
 	struct mt7915_tm_cmd req = {
 		.testmode_en = 1,
 		.param_idx = MCU_ATE_SET_TRX,
@@ -131,14 +133,15 @@ mt7915_tm_set_trx(struct mt7915_dev *dev, struct mt7915_phy *phy,
 }
 
 static void
-mt7915_tm_reg_backup_restore(struct mt7915_dev *dev, struct mt7915_phy *phy)
+mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
 {
 	int n_regs = ARRAY_SIZE(reg_backup_list);
+	struct mt7915_dev *dev = phy->dev;
 	bool ext_phy = phy != &dev->phy;
 	u32 *b = dev->test.reg_backup;
 	int i;
 
-	if (dev->mt76.test.state == MT76_TM_STATE_OFF) {
+	if (dev->mphy.test.state == MT76_TM_STATE_OFF) {
 		for (i = 0; i < n_regs; i++)
 			mt76_wr(dev, reg_backup_list[i].band[ext_phy], b[i]);
 		return;
@@ -182,95 +185,101 @@ mt7915_tm_reg_backup_restore(struct mt7915_dev *dev, struct mt7915_phy *phy)
 }
 
 static void
-mt7915_tm_init(struct mt7915_dev *dev)
+mt7915_tm_init(struct mt7915_phy *phy)
 {
-	bool en = !(dev->mt76.test.state == MT76_TM_STATE_OFF);
+	bool en = !(phy->mt76->test.state == MT76_TM_STATE_OFF);
+	struct mt7915_dev *dev = phy->dev;
 
-	if (!test_bit(MT76_STATE_RUNNING, &dev->phy.mt76->state))
+	if (!test_bit(MT76_STATE_RUNNING, &phy->mt76->state))
 		return;
 
 	mt7915_tm_mode_ctrl(dev, en);
-	mt7915_tm_reg_backup_restore(dev, &dev->phy);
-	mt7915_tm_set_trx(dev, &dev->phy, TM_MAC_TXRX, !en);
+	mt7915_tm_reg_backup_restore(phy);
+	mt7915_tm_set_trx(phy, TM_MAC_TXRX, !en);
 
-	mt7915_mcu_add_bss_info(&dev->phy, dev->phy.monitor_vif, en);
+	mt7915_mcu_add_bss_info(phy, phy->monitor_vif, en);
 }
 
 static void
-mt7915_tm_set_tx_frames(struct mt7915_dev *dev, bool en)
+mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
 {
 	static const u8 spe_idx_map[] = {0, 0, 1, 0, 3, 2, 4, 0,
 					 9, 8, 6, 10, 16, 12, 18, 0};
-	struct sk_buff *skb = dev->mt76.test.tx_skb;
+	struct sk_buff *skb = phy->mt76->test.tx_skb;
+	struct mt7915_dev *dev = phy->dev;
 	struct ieee80211_tx_info *info;
 
-	mt7915_tm_set_trx(dev, &dev->phy, TM_MAC_RX_RXV, false);
+	mt7915_tm_set_trx(phy, TM_MAC_RX_RXV, false);
 
 	if (en) {
-		u8 tx_ant = dev->mt76.test.tx_antenna_mask;
+		u8 tx_ant = phy->mt76->test.tx_antenna_mask;
 
 		mutex_unlock(&dev->mt76.mutex);
-		mt7915_set_channel(&dev->phy);
+		mt7915_set_channel(phy);
 		mutex_lock(&dev->mt76.mutex);
 
-		mt7915_mcu_set_chan_info(&dev->phy, MCU_EXT_CMD_SET_RX_PATH);
+		mt7915_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
+
+		if (phy != &dev->phy)
+			tx_ant >>= 2;
 		dev->test.spe_idx = spe_idx_map[tx_ant];
 	}
 
-	mt7915_tm_set_trx(dev, &dev->phy, TM_MAC_TX, en);
+	mt7915_tm_set_trx(phy, TM_MAC_TX, en);
 
 	if (!en || !skb)
 		return;
 
 	info = IEEE80211_SKB_CB(skb);
-	info->control.vif = dev->phy.monitor_vif;
+	info->control.vif = phy->monitor_vif;
 }
 
 static void
-mt7915_tm_set_rx_frames(struct mt7915_dev *dev, bool en)
+mt7915_tm_set_rx_frames(struct mt7915_phy *phy, bool en)
 {
+	struct mt7915_dev *dev = phy->dev;
 	if (en) {
 		mutex_unlock(&dev->mt76.mutex);
-		mt7915_set_channel(&dev->phy);
+		mt7915_set_channel(phy);
 		mutex_lock(&dev->mt76.mutex);
 
-		mt7915_mcu_set_chan_info(&dev->phy, MCU_EXT_CMD_SET_RX_PATH);
+		mt7915_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
 	}
 
-	mt7915_tm_set_trx(dev, &dev->phy, TM_MAC_RX_RXV, en);
+	mt7915_tm_set_trx(phy, TM_MAC_RX_RXV, en);
 }
 
 static void
-mt7915_tm_update_params(struct mt7915_dev *dev, u32 changed)
+mt7915_tm_update_params(struct mt7915_phy *phy, u32 changed)
 {
-	struct mt76_testmode_data *td = &dev->mt76.test;
-	bool en = dev->mt76.test.state != MT76_TM_STATE_OFF;
+	struct mt76_testmode_data *td = &phy->mt76->test;
+	bool en = phy->mt76->test.state != MT76_TM_STATE_OFF;
 
 	if (changed & BIT(TM_CHANGED_FREQ_OFFSET))
-		mt7915_tm_set_freq_offset(dev, en, en ? td->freq_offset : 0);
+		mt7915_tm_set_freq_offset(phy, en, en ? td->freq_offset : 0);
 	if (changed & BIT(TM_CHANGED_TXPOWER))
-		mt7915_tm_set_tx_power(&dev->phy);
+		mt7915_tm_set_tx_power(phy);
 }
 
 static int
-mt7915_tm_set_state(struct mt76_dev *mdev, enum mt76_testmode_state state)
+mt7915_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
 {
-	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
-	struct mt76_testmode_data *td = &mdev->test;
+	struct mt76_testmode_data *td = &mphy->test;
+	struct mt7915_phy *phy = mphy->priv;
 	enum mt76_testmode_state prev_state = td->state;
 
-	mdev->test.state = state;
+	mphy->test.state = state;
 
 	if (prev_state == MT76_TM_STATE_TX_FRAMES)
-		mt7915_tm_set_tx_frames(dev, false);
+		mt7915_tm_set_tx_frames(phy, false);
 	else if (state == MT76_TM_STATE_TX_FRAMES)
-		mt7915_tm_set_tx_frames(dev, true);
+		mt7915_tm_set_tx_frames(phy, true);
 	else if (prev_state == MT76_TM_STATE_RX_FRAMES)
-		mt7915_tm_set_rx_frames(dev, false);
+		mt7915_tm_set_rx_frames(phy, false);
 	else if (state == MT76_TM_STATE_RX_FRAMES)
-		mt7915_tm_set_rx_frames(dev, true);
+		mt7915_tm_set_rx_frames(phy, true);
 	else if (prev_state == MT76_TM_STATE_OFF || state == MT76_TM_STATE_OFF)
-		mt7915_tm_init(dev);
+		mt7915_tm_init(phy);
 
 	if ((state == MT76_TM_STATE_IDLE &&
 	     prev_state == MT76_TM_STATE_OFF) ||
@@ -286,18 +295,18 @@ mt7915_tm_set_state(struct mt76_dev *mdev, enum mt76_testmode_state state)
 				changed |= BIT(i);
 		}
 
-		mt7915_tm_update_params(dev, changed);
+		mt7915_tm_update_params(phy, changed);
 	}
 
 	return 0;
 }
 
 static int
-mt7915_tm_set_params(struct mt76_dev *mdev, struct nlattr **tb,
+mt7915_tm_set_params(struct mt76_phy *mphy, struct nlattr **tb,
 		     enum mt76_testmode_state new_state)
 {
-	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
-	struct mt76_testmode_data *td = &dev->mt76.test;
+	struct mt76_testmode_data *td = &mphy->test;
+	struct mt7915_phy *phy = mphy->priv;
 	u32 changed = 0;
 	int i;
 
@@ -307,7 +316,7 @@ mt7915_tm_set_params(struct mt76_dev *mdev, struct nlattr **tb,
 	    td->state == MT76_TM_STATE_OFF)
 		return 0;
 
-	if (td->tx_antenna_mask & ~dev->phy.chainmask)
+	if (td->tx_antenna_mask & ~phy->chainmask)
 		return -EINVAL;
 
 	for (i = 0; i < ARRAY_SIZE(tm_change_map); i++) {
@@ -315,15 +324,16 @@ mt7915_tm_set_params(struct mt76_dev *mdev, struct nlattr **tb,
 			changed |= BIT(i);
 	}
 
-	mt7915_tm_update_params(dev, changed);
+	mt7915_tm_update_params(phy, changed);
 
 	return 0;
 }
 
 static int
-mt7915_tm_dump_stats(struct mt76_dev *mdev, struct sk_buff *msg)
+mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
 {
-	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
+	struct mt7915_phy *phy = mphy->priv;
+	struct mt7915_dev *dev = phy->dev;
 	void *rx, *rssi;
 	int i;
 

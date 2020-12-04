@@ -515,10 +515,10 @@ struct mt76_rx_status {
 };
 
 struct mt76_testmode_ops {
-	int (*set_state)(struct mt76_dev *dev, enum mt76_testmode_state state);
-	int (*set_params)(struct mt76_dev *dev, struct nlattr **tb,
+	int (*set_state)(struct mt76_phy *phy, enum mt76_testmode_state state);
+	int (*set_params)(struct mt76_phy *phy, struct nlattr **tb,
 			  enum mt76_testmode_state new_state);
-	int (*dump_stats)(struct mt76_dev *dev, struct sk_buff *msg);
+	int (*dump_stats)(struct mt76_phy *phy, struct sk_buff *msg);
 };
 
 struct mt76_testmode_data {
@@ -582,6 +582,10 @@ struct mt76_phy {
 
 	int txpower_cur;
 	u8 antenna_mask;
+
+#ifdef CONFIG_NL80211_TESTMODE
+	struct mt76_testmode_data test;
+#endif
 };
 
 struct mt76_dev {
@@ -661,9 +665,7 @@ struct mt76_dev {
 
 #ifdef CONFIG_NL80211_TESTMODE
 	const struct mt76_testmode_ops *test_ops;
-	struct mt76_testmode_data test;
 #endif
-
 	struct workqueue_struct *wq;
 
 	union {
@@ -931,10 +933,27 @@ static inline u8 mt76_tx_power_nss_delta(u8 nss)
 	return nss_delta[nss - 1];
 }
 
-static inline bool mt76_testmode_enabled(struct mt76_dev *dev)
+static inline bool mt76_testmode_enabled(struct mt76_phy *phy)
 {
 #ifdef CONFIG_NL80211_TESTMODE
-	return dev->test.state != MT76_TM_STATE_OFF;
+	return phy->test.state != MT76_TM_STATE_OFF;
+#else
+	return false;
+#endif
+}
+
+static inline bool mt76_is_testmode_skb(struct mt76_dev *dev,
+					struct sk_buff *skb,
+					struct ieee80211_hw **hw)
+{
+#ifdef CONFIG_NL80211_TESTMODE
+	if (skb == dev->phy.test.tx_skb)
+		*hw = dev->phy.hw;
+	else if (dev->phy2 && skb == dev->phy2->test.tx_skb)
+		*hw = dev->phy2->hw;
+	else
+		return false;
+	return true;
 #else
 	return false;
 #endif
@@ -1016,17 +1035,17 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      void *data, int len);
 int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
 		       struct netlink_callback *cb, void *data, int len);
-int mt76_testmode_set_state(struct mt76_dev *dev, enum mt76_testmode_state state);
+int mt76_testmode_set_state(struct mt76_phy *phy, enum mt76_testmode_state state);
 
-static inline void mt76_testmode_reset(struct mt76_dev *dev, bool disable)
+static inline void mt76_testmode_reset(struct mt76_phy *phy, bool disable)
 {
 #ifdef CONFIG_NL80211_TESTMODE
 	enum mt76_testmode_state state = MT76_TM_STATE_IDLE;
 
-	if (disable || dev->test.state == MT76_TM_STATE_OFF)
+	if (disable || phy->test.state == MT76_TM_STATE_OFF)
 		state = MT76_TM_STATE_OFF;
 
-	mt76_testmode_set_state(dev, state);
+	mt76_testmode_set_state(phy, state);
 #endif
 }
 
@@ -1052,7 +1071,7 @@ void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
 void mt76_rx_poll_complete(struct mt76_dev *dev, enum mt76_rxq_id q,
 			   struct napi_struct *napi);
 void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames);
-void mt76_testmode_tx_pending(struct mt76_dev *dev);
+void mt76_testmode_tx_pending(struct mt76_phy *phy);
 void mt76_queue_tx_complete(struct mt76_dev *dev, struct mt76_queue *q,
 			    struct mt76_queue_entry *e);
 

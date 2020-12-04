@@ -2895,7 +2895,7 @@ int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd)
 	req.band_idx = phy != &dev->phy;
 	req.bw = mt7615_mcu_chan_bw(chandef);
 
-	if (mt76_testmode_enabled(&dev->mt76))
+	if (mt76_testmode_enabled(phy->mt76))
 		memset(req.txpower_sku, 0x3f, 49);
 	else
 		mt7615_mcu_set_txpower_sku(phy, req.txpower_sku);

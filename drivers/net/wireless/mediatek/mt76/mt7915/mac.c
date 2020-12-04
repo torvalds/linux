@@ -601,18 +601,19 @@ void mt7915_mac_fill_rx_vector(struct mt7915_dev *dev, struct sk_buff *skb)
 #endif
 
 static void
-mt7915_mac_write_txwi_tm(struct mt7915_dev *dev, struct mt76_phy *mphy,
-			 __le32 *txwi, struct sk_buff *skb)
+mt7915_mac_write_txwi_tm(struct mt7915_phy *phy, __le32 *txwi,
+			 struct sk_buff *skb)
 {
 #ifdef CONFIG_NL80211_TESTMODE
-	struct mt76_testmode_data *td = &dev->mt76.test;
+	struct mt76_testmode_data *td = &phy->mt76->test;
+	struct mt7915_dev *dev = phy->dev;
 	u8 rate_idx = td->tx_rate_idx;
 	u8 nss = td->tx_rate_nss;
 	u8 bw, mode;
 	u16 rateval = 0;
 	u32 val;
 
-	if (skb != dev->mt76.test.tx_skb)
+	if (skb != phy->mt76->test.tx_skb)
 		return;
 
 	switch (td->tx_rate_mode) {
@@ -644,7 +645,7 @@ mt7915_mac_write_txwi_tm(struct mt7915_dev *dev, struct mt76_phy *mphy,
 		break;
 	}
 
-	switch (mphy->chandef.width) {
+	switch (phy->mt76->chandef.width) {
 	case NL80211_CHAN_WIDTH_40:
 		bw = 1;
 		break;
@@ -902,8 +903,8 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 		txwi[3] |= cpu_to_le32(MT_TXD3_BA_DISABLE);
 	}
 
-	if (mt76_testmode_enabled(&dev->mt76))
-		mt7915_mac_write_txwi_tm(dev, mphy, txwi, skb);
+	if (mt76_testmode_enabled(mphy))
+		mt7915_mac_write_txwi_tm(mphy->priv, txwi, skb);
 }
 
 static void
@@ -1051,19 +1052,18 @@ mt7915_tx_complete_status(struct mt76_dev *mdev, struct sk_buff *skb,
 		status.rate = &msta->stats.tx_rate;
 	}
 
-	hw = mt76_tx_status_get_hw(mdev, skb);
-
 #ifdef CONFIG_NL80211_TESTMODE
-	if (skb == mdev->test.tx_skb) {
+	if (mt76_is_testmode_skb(mdev, skb, &hw)) {
 		struct mt7915_phy *phy = mt7915_hw_phy(hw);
 		struct ieee80211_vif *vif = phy->monitor_vif;
 		struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
 
 		mt76_tx_complete_skb(mdev, mvif->sta.wcid.idx, skb);
-
 		return;
 	}
 #endif
+
+	hw = mt76_tx_status_get_hw(mdev, skb);
 
 	if (info->flags & IEEE80211_TX_CTL_AMPDU)
 		info->flags |= IEEE80211_TX_STAT_AMPDU;

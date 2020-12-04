@@ -44,12 +44,12 @@ static int mt7915_start(struct ieee80211_hw *hw)
 		mt7915_mac_enable_nf(dev, 1);
 	}
 
-	mt7915_mcu_set_sku_en(phy, !mt76_testmode_enabled(&dev->mt76));
+	mt7915_mcu_set_sku_en(phy, !mt76_testmode_enabled(phy->mt76));
 	mt7915_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
 
 	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 
-	if (!mt76_testmode_enabled(&dev->mt76))
+	if (!mt76_testmode_enabled(phy->mt76))
 		ieee80211_queue_delayed_work(hw, &phy->mac_work,
 					     MT7915_WATCHDOG_TIME);
 
@@ -70,7 +70,7 @@ static void mt7915_stop(struct ieee80211_hw *hw)
 
 	mutex_lock(&dev->mt76.mutex);
 
-	mt76_testmode_reset(&dev->mt76, true);
+	mt76_testmode_reset(phy->mt76, true);
 
 	clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 
@@ -153,7 +153,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&dev->mt76.mutex);
 
-	mt76_testmode_reset(&dev->mt76, true);
+	mt76_testmode_reset(phy->mt76, true);
 
 	if (vif->type == NL80211_IFTYPE_MONITOR &&
 	    is_zero_ether_addr(vif->addr))
@@ -228,7 +228,7 @@ static void mt7915_remove_interface(struct ieee80211_hw *hw,
 	/* TODO: disable beacon for the bss */
 
 	mutex_lock(&dev->mt76.mutex);
-	mt76_testmode_reset(&dev->mt76, true);
+	mt76_testmode_reset(phy->mt76, true);
 	mutex_unlock(&dev->mt76.mutex);
 
 	if (vif == phy->monitor_vif)
@@ -298,7 +298,7 @@ out:
 
 	mt76_txq_schedule_all(phy->mt76);
 
-	if (!mt76_testmode_enabled(&dev->mt76))
+	if (!mt76_testmode_enabled(phy->mt76))
 		ieee80211_queue_delayed_work(phy->mt76->hw, &phy->mac_work,
 					     MT7915_WATCHDOG_TIME);
 
@@ -365,9 +365,9 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 #ifdef CONFIG_NL80211_TESTMODE
-		if (dev->mt76.test.state != MT76_TM_STATE_OFF) {
+		if (phy->mt76->test.state != MT76_TM_STATE_OFF) {
 			mutex_lock(&dev->mt76.mutex);
-			mt76_testmode_reset(&dev->mt76, false);
+			mt76_testmode_reset(phy->mt76, false);
 			mutex_unlock(&dev->mt76.mutex);
 		}
 #endif
@@ -396,7 +396,7 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
 
 		mt76_rmw_field(dev, MT_DMA_DCR0(band), MT_DMA_DCR0_RXD_G5_EN,
 			       enabled);
-		mt76_testmode_reset(&dev->mt76, true);
+		mt76_testmode_reset(phy->mt76, true);
 		mt76_wr(dev, MT_WF_RFCR(band), phy->rxfilter);
 	}
 
