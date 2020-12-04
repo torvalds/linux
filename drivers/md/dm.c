@@ -1201,11 +1201,9 @@ static int dm_dax_zero_page_range(struct dax_device *dax_dev, pgoff_t pgoff,
 		 * ->zero_page_range() is mandatory dax operation. If we are
 		 *  here, something is wrong.
 		 */
-		dm_put_live_table(md, srcu_idx);
 		goto out;
 	}
 	ret = ti->type->dax_zero_page_range(ti, pgoff, nr_pages);
-
  out:
 	dm_put_live_table(md, srcu_idx);
 
