@@ -15,6 +15,9 @@
 #include <linux/platform_device.h>
 #include <linux/suspend.h>
 
+/* When NOT in tablet mode, VGBS returns with the flag 0x40 */
+#define TABLET_MODE_FLAG BIT(6)
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alex Hung");
 
@@ -89,9 +92,26 @@ static const struct dmi_system_id button_array_table[] = {
 	{ }
 };
 
+/*
+ * Some convertible use the intel-hid ACPI interface to report SW_TABLET_MODE,
+ * these need to be compared via a DMI based authorization list because some
+ * models have unreliable VGBS return which could cause incorrect
+ * SW_TABLET_MODE report.
+ */
+static const struct dmi_system_id dmi_vgbs_allow_list[] = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP Spectre x360 Convertible 15-df0xxx"),
+		},
+	},
+	{ }
+};
+
 struct intel_hid_priv {
 	struct input_dev *input_dev;
 	struct input_dev *array;
+	struct input_dev *switches;
 	bool wakeup_mode;
 };
 
@@ -359,6 +379,57 @@ static int intel_button_array_input_setup(struct platform_device *device)
 	return input_register_device(priv->array);
 }
 
+static int intel_hid_switches_setup(struct platform_device *device)
+{
+	struct intel_hid_priv *priv = dev_get_drvdata(&device->dev);
+
+	/* Setup input device for switches */
+	priv->switches = devm_input_allocate_device(&device->dev);
+	if (!priv->switches)
+		return -ENOMEM;
+
+	__set_bit(EV_SW, priv->switches->evbit);
+	__set_bit(SW_TABLET_MODE, priv->switches->swbit);
+
+	priv->switches->name = "Intel HID switches";
+	priv->switches->id.bustype = BUS_HOST;
+	return input_register_device(priv->switches);
+}
+
+static void report_tablet_mode_state(struct platform_device *device)
+{
+	struct intel_hid_priv *priv = dev_get_drvdata(&device->dev);
+	acpi_handle handle = ACPI_HANDLE(&device->dev);
+	unsigned long long vgbs;
+	int m;
+
+	if (!intel_hid_evaluate_method(handle, INTEL_HID_DSM_VGBS_FN, &vgbs))
+		return;
+
+	m = !(vgbs & TABLET_MODE_FLAG);
+	input_report_switch(priv->switches, SW_TABLET_MODE, m);
+	input_sync(priv->switches);
+}
+
+static bool report_tablet_mode_event(struct input_dev *input_dev, u32 event)
+{
+	if (!input_dev)
+		return false;
+
+	switch (event) {
+	case 0xcc:
+		input_report_switch(input_dev, SW_TABLET_MODE, 1);
+		input_sync(input_dev);
+		return true;
+	case 0xcd:
+		input_report_switch(input_dev, SW_TABLET_MODE, 0);
+		input_sync(input_dev);
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void notify_handler(acpi_handle handle, u32 event, void *context)
 {
 	struct platform_device *device = context;
@@ -375,6 +446,13 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 		if (event == 0xce)
 			goto wakeup;
 
+		/*
+		 * Switch events will wake the device and report the new switch
+		 * position to the input subsystem.
+		 */
+		if (priv->switches && (event == 0xcc || event == 0xcd))
+			goto wakeup;
+
 		/* Wake up on 5-button array events only. */
 		if (event == 0xc0 || !priv->array)
 			return;
@@ -386,6 +464,10 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 
 wakeup:
 		pm_wakeup_hard_event(&device->dev);
+
+		if (report_tablet_mode_event(priv->switches, event))
+			return;
+
 		return;
 	}
 
@@ -409,6 +491,9 @@ wakeup:
 			return;
 		}
 	}
+
+	if (report_tablet_mode_event(priv->switches, event))
+		return;
 
 	/* 0xC0 is for HID events, other values are for 5 button array */
 	if (event != 0xc0) {
@@ -495,6 +580,16 @@ static int intel_hid_probe(struct platform_device *device)
 		err = intel_button_array_input_setup(device);
 		if (err)
 			pr_err("Failed to setup Intel 5 button array hotkeys\n");
+	}
+
+	/* Setup switches for devices that we know VGBS return correctly */
+	if (dmi_check_system(dmi_vgbs_allow_list)) {
+		dev_info(&device->dev, "platform supports switches\n");
+		err = intel_hid_switches_setup(device);
+		if (err)
+			pr_err("Failed to setup Intel HID switches\n");
+		else
+			report_tablet_mode_state(device);
 	}
 
 	status = acpi_install_notify_handler(handle,
