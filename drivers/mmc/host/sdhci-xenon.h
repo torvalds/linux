@@ -101,8 +101,8 @@ struct xenon_priv {
 };
 
 int xenon_phy_adj(struct sdhci_host *host, struct mmc_ios *ios);
-int xenon_phy_parse_dt(struct device_node *np,
-		       struct sdhci_host *host);
+int xenon_phy_parse_params(struct device *dev,
+			   struct sdhci_host *host);
 void xenon_soc_pad_ctrl(struct sdhci_host *host,
 			unsigned char signal_voltage);
 #endif
