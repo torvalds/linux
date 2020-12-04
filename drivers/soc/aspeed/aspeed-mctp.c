@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2020, Intel Corporation.
 
+#include <linux/aspeed-mctp.h>
 #include <linux/bitfield.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
@@ -142,20 +143,6 @@
 #define PCIE_VDM_HDR_REQUESTER_BDF_DW 1
 #define PCIE_VDM_HDR_REQUESTER_BDF_MASK GENMASK(31, 16)
 
-#define PCIE_VDM_HDR_SIZE_DW (ASPEED_MCTP_PCIE_VDM_HDR_SIZE / 4)
-#define PCIE_VDM_DATA_SIZE_DW (ASPEED_MCTP_MTU / 4)
-
-#define PCIE_MCTP_MIN_PACKET_SIZE (ASPEED_MCTP_PCIE_VDM_HDR_SIZE + 4)
-
-struct mctp_pcie_packet_data {
-	u32 hdr[PCIE_VDM_HDR_SIZE_DW];
-	u32 payload[PCIE_VDM_DATA_SIZE_DW];
-};
-
-struct mctp_pcie_packet {
-	struct mctp_pcie_packet_data data;
-	u32 size;
-};
 
 struct aspeed_mctp_tx_cmd {
 	u32 tx_lo;
@@ -237,15 +224,17 @@ struct aspeed_mctp_endpoint {
 
 struct kmem_cache *packet_cache;
 
-static void *packet_alloc(gfp_t flags)
+void *aspeed_mctp_packet_alloc(gfp_t flags)
 {
 	return kmem_cache_alloc(packet_cache, flags);
 }
+EXPORT_SYMBOL_GPL(aspeed_mctp_packet_alloc);
 
-static void packet_free(void *packet)
+void aspeed_mctp_packet_free(void *packet)
 {
 	kmem_cache_free(packet_cache, packet);
 }
+EXPORT_SYMBOL_GPL(aspeed_mctp_packet_free);
 
 /*
  * HW produces and expects VDM header in little endian and payload in network order.
@@ -339,8 +328,8 @@ static void aspeed_mctp_client_free(struct kref *ref)
 {
 	struct mctp_client *client = container_of(ref, typeof(*client), ref);
 
-	ptr_ring_cleanup(&client->rx_queue, &packet_free);
-	ptr_ring_cleanup(&client->tx_queue, &packet_free);
+	ptr_ring_cleanup(&client->rx_queue, &aspeed_mctp_packet_free);
+	ptr_ring_cleanup(&client->tx_queue, &aspeed_mctp_packet_free);
 
 	kfree(client);
 }
@@ -419,14 +408,14 @@ static void aspeed_mctp_dispatch_packet(struct aspeed_mctp *priv,
 		ret = ptr_ring_produce(&client->rx_queue, packet);
 		if (ret) {
 			dev_warn(priv->dev, "Failed to produce RX packet\n");
-			packet_free(packet);
+			aspeed_mctp_packet_free(packet);
 		} else {
 			wake_up_all(&client->wait_queue);
 		}
 		aspeed_mctp_client_put(client);
 	} else {
 		dev_dbg(priv->dev, "Failed to dispatch RX packet\n");
-		packet_free(packet);
+		aspeed_mctp_packet_free(packet);
 	}
 }
 
@@ -460,7 +449,7 @@ static void aspeed_mctp_tx_tasklet(unsigned long data)
 
 			ptr_ring_consume(&client->tx_queue);
 			aspeed_mctp_emit_tx_cmd(tx, packet);
-			packet_free(packet);
+			aspeed_mctp_packet_free(packet);
 			trigger = true;
 		}
 	}
@@ -488,7 +477,7 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 	hdr = (u32 *)&rx_buf[rx->wr_ptr];
 
 	while (*hdr != 0) {
-		rx_packet = packet_alloc(GFP_ATOMIC);
+		rx_packet = aspeed_mctp_packet_alloc(GFP_ATOMIC);
 		if (!rx_packet) {
 			dev_err(priv->dev, "Failed to allocate RX packet\n");
 			break;
@@ -541,7 +530,7 @@ static void aspeed_mctp_tx_chan_init(struct mctp_channel *tx)
 	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_WR_PTR, 0);
 }
 
-static struct mctp_client *aspeed_mctp_create_client(struct aspeed_mctp *priv)
+struct mctp_client *aspeed_mctp_create_client(struct aspeed_mctp *priv)
 {
 	struct mctp_client *client;
 
@@ -567,6 +556,7 @@ static struct mctp_client *aspeed_mctp_create_client(struct aspeed_mctp *priv)
 
 	return client;
 }
+EXPORT_SYMBOL_GPL(aspeed_mctp_create_client);
 
 static int aspeed_mctp_open(struct inode *inode, struct file *file)
 {
@@ -584,7 +574,7 @@ static int aspeed_mctp_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static void aspeed_mctp_delete_client(struct mctp_client *client)
+void aspeed_mctp_delete_client(struct mctp_client *client)
 {
 	struct aspeed_mctp *priv = client->priv;
 	struct mctp_type_handler *handler, *tmp;
@@ -610,6 +600,7 @@ static void aspeed_mctp_delete_client(struct mctp_client *client)
 	aspeed_mctp_client_put(client);
 	local_bh_enable();
 }
+EXPORT_SYMBOL_GPL(aspeed_mctp_delete_client);
 
 static int aspeed_mctp_release(struct inode *inode, struct file *file)
 {
@@ -619,6 +610,56 @@ static int aspeed_mctp_release(struct inode *inode, struct file *file)
 
 	return 0;
 }
+
+int aspeed_mctp_send_packet(struct mctp_client *client,
+			    struct mctp_pcie_packet *tx_packet)
+{
+	struct aspeed_mctp *priv = client->priv;
+	int ret;
+
+	if (priv->pcie.bdf == 0)
+		return -EIO;
+
+	be32p_replace_bits(&tx_packet->data.hdr[PCIE_VDM_HDR_REQUESTER_BDF_DW],
+			   priv->pcie.bdf, PCIE_VDM_HDR_REQUESTER_BDF_MASK);
+
+	ret = ptr_ring_produce_bh(&client->tx_queue, tx_packet);
+	if (!ret)
+		tasklet_hi_schedule(&priv->tx.tasklet);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(aspeed_mctp_send_packet);
+
+struct mctp_pcie_packet *aspeed_mctp_receive_packet(struct mctp_client *client,
+						    unsigned long timeout)
+{
+	struct aspeed_mctp *priv = client->priv;
+	int ret;
+
+	if (priv->pcie.bdf == 0)
+		return ERR_PTR(-EIO);
+
+	ret = wait_event_interruptible_timeout(client->wait_queue,
+					       __ptr_ring_peek(&client->rx_queue),
+					       timeout);
+	if (ret < 0)
+		return ERR_PTR(ret);
+	else if (ret == 0)
+		return ERR_PTR(-ETIME);
+
+	return ptr_ring_consume_bh(&client->rx_queue);
+}
+EXPORT_SYMBOL_GPL(aspeed_mctp_receive_packet);
+
+void aspeed_mctp_flush_rx_queue(struct mctp_client *client)
+{
+	struct mctp_pcie_packet *packet;
+
+	while ((packet = ptr_ring_consume_bh(&client->rx_queue)))
+		aspeed_mctp_packet_free(packet);
+}
+EXPORT_SYMBOL_GPL(aspeed_mctp_flush_rx_queue);
 
 static ssize_t aspeed_mctp_read(struct file *file, char __user *buf,
 				size_t count, loff_t *ppos)
@@ -645,7 +686,7 @@ static ssize_t aspeed_mctp_read(struct file *file, char __user *buf,
 		count = -EFAULT;
 	}
 
-	packet_free(rx_packet);
+	aspeed_mctp_packet_free(rx_packet);
 
 	return count;
 }
@@ -664,10 +705,7 @@ static ssize_t aspeed_mctp_write(struct file *file, const char __user *buf,
 	if (count > sizeof(tx_packet->data))
 		return -ENOSPC;
 
-	if (priv->pcie.bdf == 0)
-		return -EIO;
-
-	tx_packet = packet_alloc(GFP_KERNEL);
+	tx_packet = aspeed_mctp_packet_alloc(GFP_KERNEL);
 	if (!tx_packet) {
 		ret = -ENOMEM;
 		goto out;
@@ -678,28 +716,23 @@ static ssize_t aspeed_mctp_write(struct file *file, const char __user *buf,
 		ret = -EFAULT;
 		goto out_packet;
 	}
+
 	tx_packet->size = count;
 
-	be32p_replace_bits(&tx_packet->data.hdr[PCIE_VDM_HDR_REQUESTER_BDF_DW],
-			   priv->pcie.bdf, PCIE_VDM_HDR_REQUESTER_BDF_MASK);
-
-	ret = ptr_ring_produce_bh(&client->tx_queue, tx_packet);
+	ret = aspeed_mctp_send_packet(client, tx_packet);
 	if (ret)
 		goto out_packet;
-
-	tasklet_hi_schedule(&priv->tx.tasklet);
 
 	return count;
 
 out_packet:
-	packet_free(tx_packet);
+	aspeed_mctp_packet_free(tx_packet);
 out:
 	return ret;
 }
 
-int aspeed_mctp_add_type_handler(struct mctp_client *client,
-				 u8 mctp_type, u16 pci_vendor_id,
-				 u16 vdm_type, u16 vdm_mask)
+int aspeed_mctp_add_type_handler(struct mctp_client *client, u8 mctp_type,
+				 u16 pci_vendor_id, u16 vdm_type, u16 vdm_mask)
 {
 	struct aspeed_mctp *priv = client->priv;
 	struct mctp_type_handler *handler, *new_handler;
@@ -743,6 +776,7 @@ out_unlock:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(aspeed_mctp_add_type_handler);
 
 int aspeed_mctp_remove_type_handler(struct mctp_client *client,
 				    u8 mctp_type, u16 pci_vendor_id,
