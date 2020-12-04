@@ -1841,9 +1841,6 @@ static int ftdi_gpio_request(struct gpio_chip *gc, unsigned int offset)
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	int result;
 
-	if (priv->gpio_altfunc & BIT(offset))
-		return -ENODEV;
-
 	mutex_lock(&priv->gpio_lock);
 	if (!priv->gpio_used) {
 		/* Set default pin states, as we cannot get them from device */
