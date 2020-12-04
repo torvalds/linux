@@ -1594,7 +1594,7 @@ select_cpu:
  * __blk_mq_delay_run_hw_queue - Run (or schedule to run) a hardware queue.
  * @hctx: Pointer to the hardware queue to run.
  * @async: If we want to run the queue asynchronously.
- * @msecs: Microseconds of delay to wait before running the queue.
+ * @msecs: Milliseconds of delay to wait before running the queue.
  *
  * If !@async, try to run the queue now. Else, run the queue asynchronously and
  * with a delay of @msecs.
@@ -1623,7 +1623,7 @@ static void __blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async,
 /**
  * blk_mq_delay_run_hw_queue - Run a hardware queue asynchronously.
  * @hctx: Pointer to the hardware queue to run.
- * @msecs: Microseconds of delay to wait before running the queue.
+ * @msecs: Milliseconds of delay to wait before running the queue.
  *
  * Run a hardware queue asynchronously with a delay of @msecs.
  */
@@ -1687,7 +1687,7 @@ EXPORT_SYMBOL(blk_mq_run_hw_queues);
 /**
  * blk_mq_delay_run_hw_queues - Run all hardware queues asynchronously.
  * @q: Pointer to the request queue to run.
- * @msecs: Microseconds of delay to wait before running the queues.
+ * @msecs: Milliseconds of delay to wait before running the queues.
  */
 void blk_mq_delay_run_hw_queues(struct request_queue *q, unsigned long msecs)
 {
