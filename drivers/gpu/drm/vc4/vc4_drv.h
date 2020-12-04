@@ -214,8 +214,6 @@ struct vc4_dev {
 		struct work_struct reset_work;
 	} hangcheck;
 
-	struct semaphore async_modeset;
-
 	struct drm_modeset_lock ctm_state_lock;
 	struct drm_private_obj ctm_manager;
 	struct drm_private_obj hvs_channels;
