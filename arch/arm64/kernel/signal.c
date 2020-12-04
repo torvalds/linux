@@ -922,9 +922,6 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
 	trace_hardirqs_off();
 
 	do {
-		/* Check valid user FS if needed */
-		addr_limit_user_check();
-
 		if (thread_flags & _TIF_NEED_RESCHED) {
 			/* Unmask Debug and SError for the next task */
 			local_daif_restore(DAIF_PROCCTX_NOIRQ);

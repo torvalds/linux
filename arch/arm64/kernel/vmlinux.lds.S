@@ -201,7 +201,7 @@ SECTIONS
 		INIT_CALLS
 		CON_INITCALL
 		INIT_RAM_FS
-		*(.init.rodata.* .init.bss)	/* from the EFI stub */
+		*(.init.altinstructions .init.rodata.* .init.bss)	/* from the EFI stub */
 	}
 	.exit.data : {
 		EXIT_DATA

@@ -479,11 +479,6 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	}
 
 	if (is_ttbr0_addr(addr) && is_el1_permission_fault(addr, esr, regs)) {
-		/* regs->orig_addr_limit may be 0 if we entered from EL0 */
-		if (regs->orig_addr_limit == KERNEL_DS)
-			die_kernel_fault("access to user memory with fs=KERNEL_DS",
-					 addr, esr, regs);
-
 		if (is_el1_instruction_abort(esr))
 			die_kernel_fault("execution of user memory",
 					 addr, esr, regs);

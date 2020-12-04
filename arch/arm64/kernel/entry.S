@@ -216,12 +216,6 @@ alternative_else_nop_endif
 	.else
 	add	x21, sp, #S_FRAME_SIZE
 	get_current_task tsk
-	/* Save the task's original addr_limit and set USER_DS */
-	ldr	x20, [tsk, #TSK_TI_ADDR_LIMIT]
-	str	x20, [sp, #S_ORIG_ADDR_LIMIT]
-	mov	x20, #USER_DS
-	str	x20, [tsk, #TSK_TI_ADDR_LIMIT]
-	/* No need to reset PSTATE.UAO, hardware's already set it to 0 for us */
 	.endif /* \el == 0 */
 	mrs	x22, elr_el1
 	mrs	x23, spsr_el1
@@ -279,12 +273,6 @@ alternative_else_nop_endif
 	.macro	kernel_exit, el
 	.if	\el != 0
 	disable_daif
-
-	/* Restore the task's original addr_limit. */
-	ldr	x20, [sp, #S_ORIG_ADDR_LIMIT]
-	str	x20, [tsk, #TSK_TI_ADDR_LIMIT]
-
-	/* No need to restore UAO, it will be restored from SPSR_EL1 */
 	.endif
 
 	/* Restore pmr */
@@ -999,10 +987,9 @@ SYM_CODE_START(__sdei_asm_entry_trampoline)
 	mov	x4, xzr
 
 	/*
-	 * Use reg->interrupted_regs.addr_limit to remember whether to unmap
-	 * the kernel on exit.
+	 * Remember whether to unmap the kernel on exit.
 	 */
-1:	str	x4, [x1, #(SDEI_EVENT_INTREGS + S_ORIG_ADDR_LIMIT)]
+1:	str	x4, [x1, #(SDEI_EVENT_INTREGS + S_SDEI_TTBR1)]
 
 #ifdef CONFIG_RANDOMIZE_BASE
 	adr	x4, tramp_vectors + PAGE_SIZE
@@ -1023,7 +1010,7 @@ NOKPROBE(__sdei_asm_entry_trampoline)
  * x4: struct sdei_registered_event argument from registration time.
  */
 SYM_CODE_START(__sdei_asm_exit_trampoline)
-	ldr	x4, [x4, #(SDEI_EVENT_INTREGS + S_ORIG_ADDR_LIMIT)]
+	ldr	x4, [x4, #(SDEI_EVENT_INTREGS + S_SDEI_TTBR1)]
 	cbnz	x4, 1f
 
 	tramp_unmap_kernel	tmp=x4

@@ -667,10 +667,16 @@ static __always_inline bool system_supports_fpsimd(void)
 	return !cpus_have_const_cap(ARM64_HAS_NO_FPSIMD);
 }
 
+static inline bool system_uses_hw_pan(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_PAN) &&
+		cpus_have_const_cap(ARM64_HAS_PAN);
+}
+
 static inline bool system_uses_ttbr0_pan(void)
 {
 	return IS_ENABLED(CONFIG_ARM64_SW_TTBR0_PAN) &&
-		!cpus_have_const_cap(ARM64_HAS_PAN);
+		!system_uses_hw_pan();
 }
 
 static __always_inline bool system_supports_sve(void)
@@ -760,6 +766,13 @@ static inline bool cpu_has_hw_af(void)
 	mmfr1 = read_cpuid(ID_AA64MMFR1_EL1);
 	return cpuid_feature_extract_unsigned_field(mmfr1,
 						ID_AA64MMFR1_HADBS_SHIFT);
+}
+
+static inline bool cpu_has_pan(void)
+{
+	u64 mmfr1 = read_cpuid(ID_AA64MMFR1_EL1);
+	return cpuid_feature_extract_unsigned_field(mmfr1,
+						    ID_AA64MMFR1_PAN_SHIFT);
 }
 
 #ifdef CONFIG_ARM64_AMU_EXTN
