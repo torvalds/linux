@@ -942,14 +942,19 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 		index = TX_SEQ_TO_INDEX(seq);
 		ack_recd = false;
 		if (ba_recd) {
+			int block_acked;
+
 			bindex = MODSUB_POW2(seq, start_seq, SEQNUM_MAX);
+			if (bindex < AMPDU_TX_BA_MAX_WSIZE)
+				block_acked = isset(bitmap, bindex);
+			else
+				block_acked = 0;
 			brcms_dbg_ht(wlc->hw->d11core,
 				     "tid %d seq %d, start_seq %d, bindex %d set %d, index %d\n",
 				     tid, seq, start_seq, bindex,
-				     isset(bitmap, bindex), index);
+				     block_acked, index);
 			/* if acked then clear bit and free packet */
-			if ((bindex < AMPDU_TX_BA_MAX_WSIZE)
-			    && isset(bitmap, bindex)) {
+			if (block_acked) {
 				ini->txretry[index] = 0;
 
 				/*

@@ -31,6 +31,7 @@ enum rtw_c2h_cmd_id {
 	C2H_RA_RPT = 0x0c,
 	C2H_HW_FEATURE_REPORT = 0x19,
 	C2H_WLAN_INFO = 0x27,
+	C2H_WLAN_RFON = 0x32,
 	C2H_HW_FEATURE_DUMP = 0xfd,
 	C2H_HALMAC = 0xff,
 };
@@ -70,6 +71,14 @@ enum rtw_fw_rf_type {
 	FW_RF_3T4R = 7,
 	FW_RF_4T4R = 8,
 	FW_RF_MAX_TYPE = 0xF,
+};
+
+enum rtw_fw_feature {
+	FW_FEATURE_SIG = BIT(0),
+	FW_FEATURE_LPS_C2H = BIT(1),
+	FW_FEATURE_LCLK = BIT(2),
+	FW_FEATURE_PG = BIT(3),
+	FW_FEATURE_MAX = BIT(31),
 };
 
 struct rtw_coex_info_req {
@@ -177,7 +186,7 @@ struct rtw_fw_hdr {
 	u8 subversion;
 	u8 subindex;
 	__le32 rsvd;		/* 0x08 */
-	__le32 rsvd2;		/* 0x0C */
+	__le32 feature;		/* 0x0C */
 	u8 month;		/* 0x10 */
 	u8 day;
 	u8 hour;

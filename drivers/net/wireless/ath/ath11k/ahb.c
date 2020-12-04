@@ -340,6 +340,31 @@ static void ath11k_ahb_power_down(struct ath11k_base *ab)
 	rproc_shutdown(ab_ahb->tgt_rproc);
 }
 
+static int ath11k_ahb_fwreset_from_cold_boot(struct ath11k_base *ab)
+{
+	int timeout;
+
+	if (ath11k_cold_boot_cal == 0 || ab->qmi.cal_done ||
+	    ab->hw_params.cold_boot_calib == 0)
+		return 0;
+
+	ath11k_dbg(ab, ATH11K_DBG_AHB, "wait for cold boot done\n");
+	timeout = wait_event_timeout(ab->qmi.cold_boot_waitq,
+				     (ab->qmi.cal_done  == 1),
+				     ATH11K_COLD_BOOT_FW_RESET_DELAY);
+	if (timeout <= 0) {
+		ath11k_cold_boot_cal = 0;
+		ath11k_warn(ab, "Coldboot Calibration failed timed out\n");
+	}
+
+	/* reset the firmware */
+	ath11k_ahb_power_down(ab);
+	ath11k_ahb_power_up(ab);
+
+	ath11k_dbg(ab, ATH11K_DBG_AHB, "exited from cold boot mode\n");
+	return 0;
+}
+
 static void ath11k_ahb_init_qmi_ce_config(struct ath11k_base *ab)
 {
 	struct ath11k_qmi_ce_cfg *cfg = &ab->qmi.ce_cfg;
@@ -699,6 +724,8 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 		ath11k_err(ab, "failed to configure irq: %d\n", ret);
 		goto err_ce_free;
 	}
+
+	ath11k_ahb_fwreset_from_cold_boot(ab);
 
 	return 0;
 

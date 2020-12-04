@@ -99,6 +99,7 @@ static int mwifiex_check_ibss_peer_capabilities(struct mwifiex_private *priv,
 			case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895:
 				sta_ptr->max_amsdu =
 					MWIFIEX_TX_DATA_BUF_SIZE_4K;
+				break;
 			default:
 				break;
 			}

@@ -1276,6 +1276,23 @@ int wilc_get_mac_address(struct wilc_vif *vif, u8 *mac_addr)
 	return result;
 }
 
+int wilc_set_mac_address(struct wilc_vif *vif, u8 *mac_addr)
+{
+	struct wid wid;
+	int result;
+
+	wid.id = WID_MAC_ADDR;
+	wid.type = WID_STR;
+	wid.size = ETH_ALEN;
+	wid.val = mac_addr;
+
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
+	if (result)
+		netdev_err(vif->ndev, "Failed to get mac address\n");
+
+	return result;
+}
+
 int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ies,
 		      size_t ies_len)
 {
