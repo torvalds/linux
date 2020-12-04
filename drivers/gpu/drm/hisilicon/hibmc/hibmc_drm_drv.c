@@ -16,6 +16,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_irq.h>
 #include <drm/drm_managed.h>
@@ -41,6 +42,12 @@ static irqreturn_t hibmc_drm_interrupt(int irq, void *arg)
 	}
 
 	return IRQ_HANDLED;
+}
+
+static int hibmc_dumb_create(struct drm_file *file, struct drm_device *dev,
+			     struct drm_mode_create_dumb *args)
+{
+	return drm_gem_vram_fill_create_dumb(file, dev, 0, 128, args);
 }
 
 static const struct drm_driver hibmc_driver = {
@@ -75,6 +82,13 @@ static int  __maybe_unused hibmc_pm_resume(struct device *dev)
 static const struct dev_pm_ops hibmc_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(hibmc_pm_suspend,
 				hibmc_pm_resume)
+};
+
+static const struct drm_mode_config_funcs hibmc_mode_funcs = {
+	.mode_valid = drm_vram_helper_mode_valid,
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = drm_atomic_helper_commit,
+	.fb_create = drm_gem_fb_create,
 };
 
 static int hibmc_kms_init(struct hibmc_drm_private *priv)
@@ -262,9 +276,12 @@ static int hibmc_load(struct drm_device *dev)
 	if (ret)
 		goto err;
 
-	ret = hibmc_mm_init(priv);
-	if (ret)
+	ret = drmm_vram_helper_init(dev, pci_resource_start(dev->pdev, 0),
+				    priv->fb_size);
+	if (ret) {
+		drm_err(dev, "Error initializing VRAM MM; %d\n", ret);
 		goto err;
+	}
 
 	ret = hibmc_kms_init(priv);
 	if (ret)
