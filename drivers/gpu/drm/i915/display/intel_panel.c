@@ -589,7 +589,7 @@ static u32 bxt_get_backlight(struct intel_connector *connector)
 			     BXT_BLC_PWM_DUTY(panel->backlight.controller));
 }
 
-static u32 pwm_get_backlight(struct intel_connector *connector)
+static u32 ext_pwm_get_backlight(struct intel_connector *connector)
 {
 	struct intel_panel *panel = &connector->panel;
 	struct pwm_state state;
@@ -666,7 +666,7 @@ static void bxt_set_backlight(const struct drm_connector_state *conn_state, u32 
 		       BXT_BLC_PWM_DUTY(panel->backlight.controller), level);
 }
 
-static void pwm_set_backlight(const struct drm_connector_state *conn_state, u32 level)
+static void ext_pwm_set_backlight(const struct drm_connector_state *conn_state, u32 level)
 {
 	struct intel_panel *panel = &to_intel_connector(conn_state->connector)->panel;
 
@@ -835,7 +835,7 @@ static void cnp_disable_backlight(const struct drm_connector_state *old_conn_sta
 		       tmp & ~BXT_BLC_PWM_ENABLE);
 }
 
-static void pwm_disable_backlight(const struct drm_connector_state *old_conn_state)
+static void ext_pwm_disable_backlight(const struct drm_connector_state *old_conn_state)
 {
 	struct intel_connector *connector = to_intel_connector(old_conn_state->connector);
 	struct intel_panel *panel = &connector->panel;
@@ -1168,8 +1168,8 @@ static void cnp_enable_backlight(const struct intel_crtc_state *crtc_state,
 		       pwm_ctl | BXT_BLC_PWM_ENABLE);
 }
 
-static void pwm_enable_backlight(const struct intel_crtc_state *crtc_state,
-				 const struct drm_connector_state *conn_state)
+static void ext_pwm_enable_backlight(const struct intel_crtc_state *crtc_state,
+				     const struct drm_connector_state *conn_state)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct intel_panel *panel = &connector->panel;
@@ -1890,8 +1890,8 @@ cnp_setup_backlight(struct intel_connector *connector, enum pipe unused)
 	return 0;
 }
 
-static int pwm_setup_backlight(struct intel_connector *connector,
-			       enum pipe pipe)
+static int ext_pwm_setup_backlight(struct intel_connector *connector,
+				   enum pipe pipe)
 {
 	struct drm_device *dev = connector->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -2061,12 +2061,12 @@ static const struct intel_panel_bl_funcs pch_funcs = {
 	.hz_to_pwm = pch_hz_to_pwm,
 };
 
-static const struct intel_panel_bl_funcs pwm_funcs = {
-	.setup = pwm_setup_backlight,
-	.enable = pwm_enable_backlight,
-	.disable = pwm_disable_backlight,
-	.set = pwm_set_backlight,
-	.get = pwm_get_backlight,
+static const struct intel_panel_bl_funcs ext_pwm_funcs = {
+	.setup = ext_pwm_setup_backlight,
+	.enable = ext_pwm_enable_backlight,
+	.disable = ext_pwm_disable_backlight,
+	.set = ext_pwm_set_backlight,
+	.get = ext_pwm_get_backlight,
 };
 
 static const struct intel_panel_bl_funcs vlv_funcs = {
@@ -2125,7 +2125,7 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 		panel->backlight.funcs = &pch_funcs;
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		if (connector->base.connector_type == DRM_MODE_CONNECTOR_DSI) {
-			panel->backlight.funcs = &pwm_funcs;
+			panel->backlight.funcs = &ext_pwm_funcs;
 		} else {
 			panel->backlight.funcs = &vlv_funcs;
 		}
