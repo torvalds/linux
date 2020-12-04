@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: MIT */
+NVKM_LAYOUT_ONCE(NVKM_SUBDEV_PCI     , struct nvkm_pci     ,      pci)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_VBIOS   , struct nvkm_bios    ,     bios)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_DEVINIT , struct nvkm_devinit ,  devinit)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_IBUS    , struct nvkm_subdev  ,     ibus)
