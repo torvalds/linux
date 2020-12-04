@@ -654,7 +654,7 @@ static int rvin_parallel_parse_of(struct rvin_dev *vin)
 out:
 	fwnode_handle_put(fwnode);
 
-	return 0;
+	return ret;
 }
 
 static int rvin_parallel_init(struct rvin_dev *vin)
