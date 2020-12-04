@@ -33,9 +33,6 @@ nvkm_subdev_type[NVKM_SUBDEV_NR] = {
 #include <core/layout.h>
 #undef NVKM_LAYOUT_ONCE
 #undef NVKM_LAYOUT_INST
-	[NVKM_ENGINE_NVENC0  ] = "nvenc0",
-	[NVKM_ENGINE_NVENC1  ] = "nvenc1",
-	[NVKM_ENGINE_NVENC2  ] = "nvenc2",
 	[NVKM_ENGINE_PM      ] = "pm",
 	[NVKM_ENGINE_SEC     ] = "sec",
 	[NVKM_ENGINE_SEC2    ] = "sec2",
@@ -184,18 +181,6 @@ nvkm_subdev_ctor_(const struct nvkm_subdev_func *func, bool old,
 	subdev->type = type;
 	subdev->inst = inst < 0 ? 0 : inst;
 	subdev->index = type + subdev->inst;
-
-	if (old) {
-		switch (subdev->type) {
-		case NVKM_ENGINE_NVENC0 ... NVKM_ENGINE_NVENC_LAST:
-			subdev->type = NVKM_ENGINE_NVENC;
-			subdev->inst = subdev->index - NVKM_ENGINE_NVENC0;
-			break;
-		default:
-			break;
-		}
-		inst = -1;
-	}
 
 	if (inst >= 0)
 		snprintf(subdev->name, sizeof(subdev->name), "%s%d", nvkm_subdev_type[type], inst);

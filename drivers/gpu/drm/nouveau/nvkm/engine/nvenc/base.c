@@ -39,7 +39,7 @@ nvkm_nvenc = {
 
 int
 nvkm_nvenc_new_(const struct nvkm_nvenc_fwif *fwif, struct nvkm_device *device,
-		int index, struct nvkm_nvenc **pnvenc)
+		enum nvkm_subdev_type type, int inst, struct nvkm_nvenc **pnvenc)
 {
 	struct nvkm_nvenc *nvenc;
 	int ret;
@@ -47,7 +47,7 @@ nvkm_nvenc_new_(const struct nvkm_nvenc_fwif *fwif, struct nvkm_device *device,
 	if (!(nvenc = *pnvenc = kzalloc(sizeof(*nvenc), GFP_KERNEL)))
 		return -ENOMEM;
 
-	ret = nvkm_engine_ctor(&nvkm_nvenc, device, index, true,
+	ret = nvkm_engine_ctor(&nvkm_nvenc, device, type, inst, true,
 			       &nvenc->engine);
 	if (ret)
 		return ret;
