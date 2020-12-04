@@ -397,7 +397,7 @@ sub output_matrix {
 		my @lines;
 		my $line = "";
 		foreach my $arch (sort {
-					($arch_table{$a} cmp $arch_table{$b}) or
+					($arch_table{$b} cmp $arch_table{$a}) or
 					("\L$a" cmp "\L$b")
 				       } keys %arch_table) {
 
