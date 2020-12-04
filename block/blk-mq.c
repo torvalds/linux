@@ -3382,6 +3382,12 @@ static int blk_mq_realloc_tag_set_tags(struct blk_mq_tag_set *set,
 	return 0;
 }
 
+static int blk_mq_alloc_tag_set_tags(struct blk_mq_tag_set *set,
+				int new_nr_hw_queues)
+{
+	return blk_mq_realloc_tag_set_tags(set, 0, new_nr_hw_queues);
+}
+
 /*
  * Alloc a tag set to be associated with one or more request queues.
  * May fail with EINVAL for various error conditions. May adjust the
@@ -3435,7 +3441,7 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 	if (set->nr_maps == 1 && set->nr_hw_queues > nr_cpu_ids)
 		set->nr_hw_queues = nr_cpu_ids;
 
-	if (blk_mq_realloc_tag_set_tags(set, 0, set->nr_hw_queues) < 0)
+	if (blk_mq_alloc_tag_set_tags(set, set->nr_hw_queues) < 0)
 		return -ENOMEM;
 
 	ret = -ENOMEM;
