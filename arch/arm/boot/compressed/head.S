@@ -11,6 +11,12 @@
 
 #include "efi-header.S"
 
+#ifdef __ARMEB__
+#define OF_DT_MAGIC 0xd00dfeed
+#else
+#define OF_DT_MAGIC 0xedfe0dd0
+#endif
+
  AR_CLASS(	.arch	armv7-a	)
  M_CLASS(	.arch	armv7-m	)
 
@@ -335,11 +341,7 @@ restart:	adr	r0, LC1
  */
 
 		ldr	lr, [r6, #0]
-#ifndef __ARMEB__
-		ldr	r1, =0xedfe0dd0		@ sig is 0xd00dfeed big endian
-#else
-		ldr	r1, =0xd00dfeed
-#endif
+		ldr	r1, =OF_DT_MAGIC
 		cmp	lr, r1
 		bne	dtb_check_done		@ not found
 
