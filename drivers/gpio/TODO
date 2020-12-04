@@ -142,3 +142,39 @@ use of the global GPIO numbers. Once the above is complete, it may
 make sense to simply join the subsystems into one and make pin
 multiplexing, pin configuration, GPIO, etc selectable options in one
 and the same pin control and GPIO subsystem.
+
+
+Debugfs in place of sysfs
+
+The old sysfs code that enables simple uses of GPIOs from the
+command line is still popular despite the existance of the proper
+character device. The reason is that it is simple to use on
+root filesystems where you only have a minimal set of tools such
+as "cat", "echo" etc.
+
+The old sysfs still need to be strongly deprecated and removed
+as it relies on the global GPIO numberspace that assume a strict
+order of global GPIO numbers that do not change between boots
+and is independent of probe order.
+
+To solve this and provide an ABI that people can use for hacks
+and development, implement a debugfs interface to manipulate
+GPIO lines that can do everything that sysfs can do today: one
+directory per gpiochip and one file entry per line:
+
+/sys/kernel/debug/gpiochip/gpiochip0
+/sys/kernel/debug/gpiochip/gpiochip0/gpio0
+/sys/kernel/debug/gpiochip/gpiochip0/gpio1
+/sys/kernel/debug/gpiochip/gpiochip0/gpio2
+/sys/kernel/debug/gpiochip/gpiochip0/gpio3
+...
+/sys/kernel/debug/gpiochip/gpiochip1
+/sys/kernel/debug/gpiochip/gpiochip1/gpio0
+/sys/kernel/debug/gpiochip/gpiochip1/gpio1
+...
+
+The exact files and design of the debugfs interface can be
+discussed but the idea is to provide a low-level access point
+for debugging and hacking and to expose all lines without the
+need of any exporting. Also provide ample ammunition to shoot
+oneself in the foot, because this is debugfs after all.
