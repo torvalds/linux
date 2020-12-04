@@ -545,9 +545,6 @@ struct mt76_testmode_data {
 	u8 tx_power[4];
 	u8 tx_power_control;
 
-	const char *mtd_name;
-	u32 mtd_offset;
-
 	u32 tx_pending;
 	u32 tx_queued;
 	u32 tx_done;
@@ -665,6 +662,10 @@ struct mt76_dev {
 
 #ifdef CONFIG_NL80211_TESTMODE
 	const struct mt76_testmode_ops *test_ops;
+	struct {
+		const char *name;
+		u32 offset;
+	} test_mtd;
 #endif
 	struct workqueue_struct *wq;
 

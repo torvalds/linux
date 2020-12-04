@@ -482,9 +482,9 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
 	if (nla_put_u32(msg, MT76_TM_ATTR_STATE, td->state))
 		goto out;
 
-	if (td->mtd_name &&
-	    (nla_put_string(msg, MT76_TM_ATTR_MTD_PART, td->mtd_name) ||
-	     nla_put_u32(msg, MT76_TM_ATTR_MTD_OFFSET, td->mtd_offset)))
+	if (dev->test_mtd.name &&
+	    (nla_put_string(msg, MT76_TM_ATTR_MTD_PART, dev->test_mtd.name) ||
+	     nla_put_u32(msg, MT76_TM_ATTR_MTD_OFFSET, dev->test_mtd.offset)))
 		goto out;
 
 	if (nla_put_u32(msg, MT76_TM_ATTR_TX_COUNT, td->tx_count) ||
