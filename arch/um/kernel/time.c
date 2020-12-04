@@ -190,7 +190,13 @@ static void time_travel_ext_update_request(unsigned long long time)
 
 void __time_travel_propagate_time(void)
 {
+	static unsigned long long last_propagated;
+
+	if (last_propagated == time_travel_time)
+		return;
+
 	time_travel_ext_req(UM_TIMETRAVEL_UPDATE, time_travel_time);
+	last_propagated = time_travel_time;
 }
 EXPORT_SYMBOL_GPL(__time_travel_propagate_time);
 
