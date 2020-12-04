@@ -174,7 +174,7 @@ static bool intel_dp_aux_set_pwm_freq(struct intel_connector *connector)
 }
 
 static void intel_dp_aux_enable_backlight(const struct intel_crtc_state *crtc_state,
-					  const struct drm_connector_state *conn_state)
+					  const struct drm_connector_state *conn_state, u32 level)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
@@ -225,12 +225,12 @@ static void intel_dp_aux_enable_backlight(const struct intel_crtc_state *crtc_st
 		}
 	}
 
-	intel_dp_aux_set_backlight(conn_state,
-				   connector->panel.backlight.level);
+	intel_dp_aux_set_backlight(conn_state, level);
 	set_aux_backlight_enable(intel_dp, true);
 }
 
-static void intel_dp_aux_disable_backlight(const struct drm_connector_state *old_conn_state)
+static void intel_dp_aux_disable_backlight(const struct drm_connector_state *old_conn_state,
+					   u32 level)
 {
 	set_aux_backlight_enable(enc_to_intel_dp(to_intel_encoder(old_conn_state->best_encoder)),
 				 false);

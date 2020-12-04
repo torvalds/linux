@@ -77,7 +77,7 @@ static void dcs_set_backlight(const struct drm_connector_state *conn_state, u32 
 	}
 }
 
-static void dcs_disable_backlight(const struct drm_connector_state *conn_state)
+static void dcs_disable_backlight(const struct drm_connector_state *conn_state, u32 level)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(to_intel_encoder(conn_state->best_encoder));
 	struct mipi_dsi_device *dsi_device;
@@ -111,10 +111,9 @@ static void dcs_disable_backlight(const struct drm_connector_state *conn_state)
 }
 
 static void dcs_enable_backlight(const struct intel_crtc_state *crtc_state,
-				 const struct drm_connector_state *conn_state)
+				 const struct drm_connector_state *conn_state, u32 level)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(to_intel_encoder(conn_state->best_encoder));
-	struct intel_panel *panel = &to_intel_connector(conn_state->connector)->panel;
 	struct mipi_dsi_device *dsi_device;
 	enum port port;
 
@@ -142,7 +141,7 @@ static void dcs_enable_backlight(const struct intel_crtc_state *crtc_state,
 				   &cabc, sizeof(cabc));
 	}
 
-	dcs_set_backlight(conn_state, panel->backlight.level);
+	dcs_set_backlight(conn_state, level);
 }
 
 static int dcs_setup_backlight(struct intel_connector *connector,
