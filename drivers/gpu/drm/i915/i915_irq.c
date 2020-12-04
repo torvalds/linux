@@ -1044,17 +1044,12 @@ static bool gen11_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 {
 	switch (pin) {
 	case HPD_PORT_TC1:
-		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(HPD_PORT_TC1);
 	case HPD_PORT_TC2:
-		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(HPD_PORT_TC2);
 	case HPD_PORT_TC3:
-		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(HPD_PORT_TC3);
 	case HPD_PORT_TC4:
-		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(HPD_PORT_TC4);
 	case HPD_PORT_TC5:
-		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(HPD_PORT_TC5);
 	case HPD_PORT_TC6:
-		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(HPD_PORT_TC6);
+		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(pin);
 	default:
 		return false;
 	}
@@ -1078,13 +1073,10 @@ static bool icp_ddi_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 {
 	switch (pin) {
 	case HPD_PORT_A:
-		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(HPD_PORT_A);
 	case HPD_PORT_B:
-		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(HPD_PORT_B);
 	case HPD_PORT_C:
-		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(HPD_PORT_C);
 	case HPD_PORT_D:
-		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(HPD_PORT_D);
+		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(pin);
 	default:
 		return false;
 	}
@@ -1094,17 +1086,12 @@ static bool icp_tc_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 {
 	switch (pin) {
 	case HPD_PORT_TC1:
-		return val & ICP_TC_HPD_LONG_DETECT(HPD_PORT_TC1);
 	case HPD_PORT_TC2:
-		return val & ICP_TC_HPD_LONG_DETECT(HPD_PORT_TC2);
 	case HPD_PORT_TC3:
-		return val & ICP_TC_HPD_LONG_DETECT(HPD_PORT_TC3);
 	case HPD_PORT_TC4:
-		return val & ICP_TC_HPD_LONG_DETECT(HPD_PORT_TC4);
 	case HPD_PORT_TC5:
-		return val & ICP_TC_HPD_LONG_DETECT(HPD_PORT_TC5);
 	case HPD_PORT_TC6:
-		return val & ICP_TC_HPD_LONG_DETECT(HPD_PORT_TC6);
+		return val & ICP_TC_HPD_LONG_DETECT(pin);
 	default:
 		return false;
 	}
