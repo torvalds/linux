@@ -533,7 +533,6 @@ static void sysmon_stop(struct rproc_subdev *subdev, bool crashed)
 		.subsys_name = sysmon->name,
 		.ssr_event = SSCTL_SSR_EVENT_BEFORE_SHUTDOWN
 	};
-	bool acked;
 
 	sysmon->shutdown_acked = false;
 
@@ -547,11 +546,9 @@ static void sysmon_stop(struct rproc_subdev *subdev, bool crashed)
 		return;
 
 	if (sysmon->ssctl_version)
-		acked = ssctl_request_shutdown(sysmon);
+		sysmon->shutdown_acked = ssctl_request_shutdown(sysmon);
 	else if (sysmon->ept)
-		acked = sysmon_request_shutdown(sysmon);
-
-	sysmon->shutdown_acked = acked;
+		sysmon->shutdown_acked = sysmon_request_shutdown(sysmon);
 }
 
 static void sysmon_unprepare(struct rproc_subdev *subdev)
