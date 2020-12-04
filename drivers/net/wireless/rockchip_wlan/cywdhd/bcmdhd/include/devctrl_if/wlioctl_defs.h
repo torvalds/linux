@@ -1,10 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Custom OID/ioctl definitions for
  * Broadcom 802.11abg Networking Device Driver
  *
  * Definitions subject to change without notice.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -27,14 +28,12 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wlioctl_defs.h 607461 2015-12-20 02:01:43Z $
+ * $Id: wlioctl_defs.h 640883 2016-05-31 12:45:03Z $
  */
 
 
 #ifndef wlioctl_defs_h
 #define wlioctl_defs_h
-
-
 
 
 /* All builds use the new 11ac ratespec/chanspec */
@@ -343,6 +342,10 @@
 #define WL_BSS_FLAGS_SNR_INVALID	0x40	/* BSS contains invalid SNR */
 #define WL_BSS_FLAGS_NF_INVALID		0x80	/* BSS contains invalid noise floor */
 
+/* bit definitions for bcnflags in wl_bss_info */
+#define WL_BSS_BCNFLAGS_INTERWORK_PRESENT	0x01 /* beacon had IE, accessnet valid */
+#define WL_BSS_BCNFLAGS_INTERWORK_PRESENT_VALID 0x02 /* on indicates support for this API */
+
 /* bssinfo flag for nbss_cap */
 #define VHT_BI_SGI_80MHZ			0x00000100
 #define VHT_BI_80MHZ			    0x00000200
@@ -385,6 +388,26 @@
 
 #define CRYPTO_ALGO_NONE        CRYPTO_ALGO_OFF
 
+/* algo bit vector */
+#define KEY_ALGO_MASK(_algo)	(1 << _algo)
+
+#if defined(BCMEXTCCX)
+#define KEY_ALGO_MASK_CCX		(KEY_ALGO_MASK(CRYPTO_ALGO_CKIP) | \
+					KEY_ALGO_MASK(CRYPTO_ALGO_CKIP_MMH) | \
+					KEY_ALGO_MASK(CRYPTO_ALGO_WEP_MMH))
+#endif 
+
+#define KEY_ALGO_MASK_WEP		(KEY_ALGO_MASK(CRYPTO_ALGO_WEP1) | \
+					KEY_ALGO_MASK(CRYPTO_ALGO_WEP128) | \
+					KEY_ALGO_MASK(CRYPTO_ALGO_NALG))
+
+#define KEY_ALGO_MASK_AES		(KEY_ALGO_MASK(CRYPTO_ALGO_AES_CCM) | \
+					KEY_ALGO_MASK(CRYPTO_ALGO_AES_CCM256) | \
+					KEY_ALGO_MASK(CRYPTO_ALGO_AES_GCM) | \
+					KEY_ALGO_MASK(CRYPTO_ALGO_AES_GCM256))
+#define KEY_ALGO_MASK_TKIP		(KEY_ALGO_MASK(CRYPTO_ALGO_TKIP))
+#define KEY_ALGO_MASK_WAPI		(KEY_ALGO_MASK(CRYPTO_ALGO_SMS4))
+
 #define WSEC_GEN_MIC_ERROR	0x0001
 #define WSEC_GEN_REPLAY		0x0002
 #define WSEC_GEN_ICV_ERROR	0x0004
@@ -410,13 +433,14 @@
 #define WSEC_SWFLAG		0x0008
 #define SES_OW_ENABLED		0x0040	/* to go into transition mode without setting wep */
 
-/* wsec macros for operating on the above definitions */
 #define WSEC_WEP_ENABLED(wsec)	((wsec) & WEP_ENABLED)
 #define WSEC_TKIP_ENABLED(wsec)	((wsec) & TKIP_ENABLED)
 #define WSEC_AES_ENABLED(wsec)	((wsec) & AES_ENABLED)
 
 #define WSEC_ENABLED(wsec)	((wsec) & (WEP_ENABLED | TKIP_ENABLED | AES_ENABLED))
+
 #define WSEC_SES_OW_ENABLED(wsec)	((wsec) & SES_OW_ENABLED)
+
 
 /* Following macros are not used any more. Just kept here to
  * avoid build issue in BISON/CARIBOU branch
@@ -1169,6 +1193,7 @@
 #define WL_LOFT_VAL		0x00000000	/* retired in TOT on 6/10/2009 */
 #define WL_PFN_VAL		0x00040000 /* Using retired LOFT_VAL */
 #define WL_REGULATORY_VAL	0x00080000
+#define WL_CSA_VAL		0x00080000  /* Reusing REGULATORY_VAL due to lackof bits */
 #define WL_TAF_VAL		0x00100000
 #define WL_RADAR_VAL		0x00000000	/* retired in TOT on 6/10/2009 */
 #define WL_WDI_VAL		0x00200000	/* Using retired WL_RADAR_VAL VAL */
@@ -1191,6 +1216,8 @@
  */
 #define WL_DPT_VAL		0x00000001
 /* re-using WL_DPT_VAL */
+/* re-using WL_MESH_VAL */
+#define WL_NATOE_VAL		0x00000001
 #define WL_MESH_VAL		0x00000001
 #define WL_SCAN_VAL		0x00000002
 #define WL_WOWL_VAL		0x00000004
@@ -1220,8 +1247,12 @@
 
 /* This level is currently used in Phoenix2 only */
 #define WL_SRSCAN_VAL		0x02000000
+/* Reusing it for CXO in trunk */
+#define WL_CXO_VAL		0x02000000
 
 #define WL_WNM_VAL		0x04000000
+/* re-using WL_WNM_VAL for MBO */
+#define WL_MBO_VAL		0x04000000
 #define WL_PWRSEL_VAL		0x10000000
 #define WL_NET_DETECT_VAL	0x20000000
 #define WL_PCIE_VAL		0x40000000
@@ -1275,6 +1306,8 @@
 #define BCMIO_NBBY		8
 #define WL_EVENTING_MASK_LEN	16
 
+#define WL_EVENTING_MASK_EXT_LEN \
+    MAX(WL_EVENTING_MASK_LEN, (ROUNDUP(WLC_E_LAST, NBBY)/NBBY))
 
 /* join preference types */
 #define WL_JOIN_PREF_RSSI	1	/* by RSSI */
@@ -1445,8 +1478,7 @@
 #define WL_WOWL_EAPID           (1 << 7)    /* Wakeup after receipt of EAP-Identity Req */
 #define WL_WOWL_PME_GPIO        (1 << 8)    /* Wakeind via PME(0) or GPIO(1) */
 #define WL_WOWL_ULP_BAILOUT     (1 << 8)    /* wakeind via unknown pkt by basic ULP-offloads -
- * WL_WOWL_ULP_BAILOUT - same as WL_WOWL_PME_GPIO used only for DONGLE BUILDS and
- * not WLC_HIGH_ONLY case
+ * WL_WOWL_ULP_BAILOUT - same as WL_WOWL_PME_GPIO used only for DONGLE BUILDS
  */
 #define WL_WOWL_NEEDTKIP1       (1 << 9)    /* need tkip phase 1 key to be updated by the driver */
 #define WL_WOWL_GTK_FAILURE     (1 << 10)   /* enable wakeup if GTK fails */
@@ -1547,6 +1579,7 @@
 #define VNDR_IE_PRBREQ_FLAG	0x10
 #define VNDR_IE_ASSOCREQ_FLAG	0x20
 #define VNDR_IE_IWAPID_FLAG	0x40 /* vendor IE in IW advertisement protocol ID field */
+#define VNDR_IE_AUTHREQ_FLAG	0x80
 #define VNDR_IE_CUSTOM_FLAG	0x100 /* allow custom IE id */
 
 #if defined(WLP2P)
@@ -1598,7 +1631,13 @@
 #define CCASTATS_TXOP	6
 #define CCASTATS_GDTXDUR        7
 #define CCASTATS_BDTXDUR        8
+
+#ifndef WLCHANIM_V2
 #define CCASTATS_MAX    9
+#else /* WLCHANIM_V2 */
+#define CCASTATS_MYRX      9
+#define CCASTATS_MAX    10
+#endif /* WLCHANIM_V2 */
 
 #define WL_CHANIM_COUNT_ALL	0xff
 #define WL_CHANIM_COUNT_ONE	0x1
@@ -1874,8 +1913,14 @@
 #define BESTN_BSSID_ONLY_MASK		0x1000
 
 #define PFN_VERSION			2
+#ifdef PFN_SCANRESULT_2
+#define PFN_SCANRESULT_VERSION		2
+#else
 #define PFN_SCANRESULT_VERSION		1
+#endif /* PFN_SCANRESULT_2 */
+#ifndef MAX_PFN_LIST_COUNT
 #define MAX_PFN_LIST_COUNT		16
+#endif /* MAX_PFN_LIST_COUNT */
 
 #define PFN_COMPLETE			1
 #define PFN_INCOMPLETE			0
@@ -1912,7 +1957,7 @@
 #define MAX_BSSID_BLACKLIST_NUM        32
 
 #ifndef BESTN_MAX
-#define BESTN_MAX			8
+#define BESTN_MAX			10
 #endif
 
 #ifndef MSCAN_MAX
@@ -2132,5 +2177,16 @@
 #define AP_ISOLATE_DISABLED		0x0
 #define AP_ISOLATE_SENDUP_ALL		0x01
 #define AP_ISOLATE_SENDUP_MCAST		0x02
+
+/* Type values for the wl_pwrstats_t data field */
+#define WL_PWRSTATS_TYPE_PHY		0 /**< struct wl_pwr_phy_stats */
+#define WL_PWRSTATS_TYPE_SCAN		1 /**< struct wl_pwr_scan_stats */
+#define WL_PWRSTATS_TYPE_USB_HSIC	2 /**< struct wl_pwr_usb_hsic_stats */
+#define WL_PWRSTATS_TYPE_PM_AWAKE1	3 /**< struct wl_pwr_pm_awake_stats_v1 */
+#define WL_PWRSTATS_TYPE_CONNECTION	4 /* struct wl_pwr_connect_stats; assoc and key-exch time */
+#define WL_PWRSTATS_TYPE_PCIE		6 /**< struct wl_pwr_pcie_stats */
+#define WL_PWRSTATS_TYPE_PM_AWAKE2	7 /**< struct wl_pwr_pm_awake_stats_v2 */
+#define WL_PWRSTATS_TYPE_SDIO		8 /* struct wl_pwr_sdio_stats */
+#define WL_PWRSTATS_TYPE_MIMO_PS_METRICS 9 /* struct wl_mimo_meas_metrics_t */
 
 #endif /* wlioctl_defs_h */

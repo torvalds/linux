@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Declare directives for structure packing. No padding will be provided
  * between the members of packed structures, and therefore, there is no
@@ -15,7 +16,7 @@
  * #include <packed_section_end.h>
  *
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you

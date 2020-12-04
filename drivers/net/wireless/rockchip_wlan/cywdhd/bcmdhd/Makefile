@@ -1,41 +1,36 @@
 # SPDX-License-Identifier: GPL-2.0
 # cywdhd
+#################
+# Usage and porting guide for this Makefile
+#################
+# 1 Default to the module external build, that is, no need to copy the driver into the kernel source tree
+#  Build with:
+#       make KDIR=/path/to/your/kernel
+# 2 Default to x86 build: Build the x86 driver without any modification outside of kernel
+# 3 Just change the 'DHD_PLATFORM=imx' and the IMx OOB version can work!
+# 4 Copy DHD_PLATFORM=imx as the start point and create your own name
+
 #####################
 # SDIO Basic feature
 #####################
-CONFIG_BCMDHD := y
-CONFIG_CFG80211 := y
-CONFIG_BCMDHD_SDIO := y
-CONFIG_BCMDHD_OOB := y
-CONFIG_BCM43455 := y
-CONFIG_PLAT_ROCKCHIP := y
 
 DHDCFLAGS += -Wall -Wstrict-prototypes -Dlinux -DLINUX -DBCMDRIVER            \
 	-DBCMDONGLEHOST -DUNRELEASEDCHIP -DBCMDMA32 -DBCMFILEIMAGE            \
-	-DDHDTHREAD -DSHOW_EVENTS -DBCMDBG -DWLP2P                            \
+	-DSHOW_EVENTS -DBCMDBG -DWLP2P                                        \
 	-DWIFI_ACT_FRAME -DARP_OFFLOAD_SUPPORT                                \
 	-DKEEP_ALIVE -DCSCAN -DPKT_FILTER_SUPPORT                             \
 	-DEMBEDDED_PLATFORM -DPNO_SUPPORT                                     \
-	-DDHD_DONOT_FORWARD_BCMEVENT_AS_NETWORK_PKT                           \
-	-DCUSTOMER_HW2 -DGET_CUSTOM_MAC_ENABLE
+	-DCUSTOMER_HW2
+#	-DCUSTOMER_HW2 -DENABLE_INSMOD_NO_FW_LOAD -DGET_OTP_MAC_ENABLE
+
+#ifeq ($(CONFIG_SDIO_CIS_CYW43438)$(CONFIG_SDIO_CIS_CYW43012),)
+#DHDCFLAGS += -DDHD_DONOT_FORWARD_BCMEVENT_AS_NETWORK_PKT
+#endif
 
 #################
 # Common feature
 #################
-ifneq ($(CONFIG_BCMDHD_SDIO),)
-  DHDCFLAGS += -DBDC -DDHD_BCMEVENTS -DMMC_SDIO_ABORT
-  DHDCFLAGS += -DBCMSDIO -DBCMLXSDMMC -DUSE_SDIOFIFO_IOVAR
-  DHDCFLAGS += -DPROP_TXSTATUS
-endif
-
-ifneq ($(CONFIG_BCMDHD_OOB),)
-  DHDCFLAGS += -DOOB_INTR_ONLY -DCUSTOMER_OOB -DHW_OOB
-else
-  DHDCFLAGS += -DSDIO_ISR_THREAD
-endif
-
 DHDCFLAGS += -DWL_CFG80211
-DHDCFLAGS += -DWL_VIRTUAL_APSTA #-DWL_WIRELESS_EXT
 # Print out kernel panic point of file and line info when assertion happened
 DHDCFLAGS += -DBCMASSERT_LOG
 
@@ -44,11 +39,17 @@ DHDCFLAGS += -DCUSTOM_KEEP_ALIVE_SETTING=28000
 
 DHDCFLAGS += -DVSDB
 
+# Fix __DATE__ & __TIME__ error on gcc version 4.9 or later
+GCCVERSION = $(shell $(CC) -dumpversion | cut -f1-2 -d.)
+ifeq ($(shell expr $(GCCVERSION) \>= 4.9),1)
+  DHDCFLAGS += -Wno-error=date-time
+endif
+
 # For p2p connection issue
 DHDCFLAGS += -DWL_SCB_TIMEOUT=10
 
 # TDLS enable
-DHDCFLAGS += -DWLTDLS -DWLTDLS_AUTO_ENABLE
+DHDCFLAGS += -DWLTDLS
 # For TDLS tear down inactive time 40 sec
 DHDCFLAGS += -DCUSTOM_TDLS_IDLE_MODE_SETTING=40000
 # for TDLS RSSI HIGH for establishing TDLS link
@@ -63,14 +64,15 @@ DHDCFLAGS += -DENABLE_FW_ROAM_SUSPEND
 # Roaming trigger
 DHDCFLAGS += -DCUSTOM_ROAM_TRIGGER_SETTING=-75
 DHDCFLAGS += -DCUSTOM_ROAM_DELTA_SETTING=10
+# Voice Enterprise
+DHDCFLAGS += -DWLFBT
 # Set PM 2 always regardless suspend/resume
 DHDCFLAGS += -DSUPPORT_PM2_ONLY
 
 # For special PNO Event keep wake lock for 10sec
 DHDCFLAGS += -DCUSTOM_PNO_EVENT_LOCK_xTIME=10
 DHDCFLAGS += -DMIRACAST_AMPDU_SIZE=8
-#Vendor Extension
-DHDCFLAGS += -DWL_VENDOR_EXT_SUPPORT
+
 #Gscan
 DHDCFLAGS += -DGSCAN_SUPPORT
 #RTT
@@ -101,14 +103,11 @@ DHDCFLAGS += -DIOCTL_RESP_TIMEOUT=5000
 # Prevent rx thread monopolize
 DHDCFLAGS += -DWAIT_DEQUEUE
 
-# Config PM Control
-DHDCFLAGS += -DCONFIG_CONTROL_PM
-
 # idle count
 DHDCFLAGS += -DDHD_USE_IDLECOUNT
 
 # SKB TAILPAD to avoid out of boundary memory access
-#DHDCFLAGS += -DDHDENABLE_TAILPAD
+DHDCFLAGS += -DDHDENABLE_TAILPAD
 
 # Wi-Fi Direct
 DHDCFLAGS += -DWL_CFG80211_VSDB_PRIORITIZE_SCAN_REQUEST
@@ -121,63 +120,123 @@ DHDCFLAGS += -DCUSTOM_FORCE_NODFS_FLAG
 
 
 # SoftAP
-DHDCFLAGS += -DDISABLE_11H_SOFTAP
 DHDCFLAGS += -DSET_RANDOM_MAC_SOFTAP
 DHDCFLAGS += -DWL_CFG80211_ACL
-
-#Disable FRAMEBURST on VSDB
-DHDCFLAGS += -DDISABLE_FRAMEBURST_VSDB
-
-
-#Rochip Platform
-ifneq ($(CONFIG_PLAT_ROCKCHIP),)
-DHDCFLAGS += -DCONFIG_PLAT_ROCKCHIP
-DHDCFLAGS += -DDHD_OF_SUPPORT
-endif
 
 ##########################
 # driver type
 # m: module type driver
 # y: built-in type driver
 ##########################
-DRIVER_TYPE ?= $(CONFIG_BCMDHD)
+DRIVER_TYPE ?= $(CONFIG_CYW_BCMDHD)
 
 #########################
 # Chip dependent feature
 #########################
 
-ifneq ($(filter y, $(CONFIG_BCM4354) $(CONFIG_BCM4356) $(CONFIG_BCM43455)),)
-  DHDCFLAGS += -DUSE_WL_TXBF
-  DHDCFLAGS += -DUSE_WL_FRAMEBURST
-  DHDCFLAGS += -DCUSTOM_DPC_CPUCORE=0
-  DHDCFLAGS += -DPROP_TXSTATUS_VSDB
-  DHDCFLAGS += -DCUSTOM_PSPRETEND_THR=30
-  DHDCFLAGS += -DMAX_AP_CLIENT_CNT=10
-  DHDCFLAGS += -DMAX_GO_CLIENT_CNT=5
+DHDCFLAGS += -DUSE_WL_TXBF
+# DHDCFLAGS += -DUSE_WL_FRAMEBURST
+DHDCFLAGS += -DCUSTOM_DPC_CPUCORE=0
+DHDCFLAGS += -DPROP_TXSTATUS_VSDB
+DHDCFLAGS += -DCUSTOM_PSPRETEND_THR=30
 # New Features
-  DHDCFLAGS += -DWL11U
-  DHDCFLAGS += -DMFP
-  DHDCFLAGS += -DDHD_ENABLE_LPC
-  DHDCFLAGS += -DCUSTOM_COUNTRY_CODE
-  DHDCFLAGS += -DSAR_SUPPORT
-# debug info
-  DHDCFLAGS += -DDHD_WAKE_STATUS
+DHDCFLAGS += -DWL11U
+DHDCFLAGS += -DMFP
+# The LPC would have the Tx 5G tput drop around 10Mbps but saving powers
+# DHDCFLAGS += -DDHD_ENABLE_LPC
+DHDCFLAGS += -DCUSTOM_COUNTRY_CODE
+
+### Platform dependent START
+DHD_PLATFORM ?= rockchip
+
+#Rochip Platform
+ifeq ($(DHD_PLATFORM), rockchip)
+  CONFIG_BCMDHD_SDIO = y
+  CONFIG_BCMDHD_OOB = y
+  CONFIG_PLAT_ROCKCHIP = y
+
+  ## We only add here for the flags in our rockchip code
+  DHDCFLAGS += -DANDROID_SDIO_RESET
+  DHDCFLAGS += -DCUSTOM_SDIO_F2_BLKSIZE=256
+  DHDCFLAGS += -DDHD_OF_SUPPORT 
+  DHDCFLAGS += -DCONFIG_PLAT_ROCKCHIP
+ifeq ($(CONFIG_BCMDHD_OOB),y)
+DHDCFLAGS += -DOOB_INTR_ONLY -DCUSTOMER_OOB -DHW_OOB
+ifeq ($(CONFIG_BCMDHD_DISABLE_WOWLAN),y)
+DHDCFLAGS += -DDISABLE_WOWLAN
+endif
+else
+DHDCFLAGS += -DSDIO_ISR_THREAD
+endif
+  DHDCFLAGS += -DHOST_FLAG
+  DHDCFLAGS += -DLOAD_DHD_WITH_FW_ALIVE
+  FW_ALIVE = 1
+endif
+
+ifeq ($(DHD_PLATFORM), ingenic)
+  CONFIG_BCMDHD_SDIO = y
+  ## We only add here for the flags in our generic code
+  DHDCFLAGS += -DOOB_INTR_ONLY -DHW_OOB
+  DHDCFLAGS += -DCUSTOM_SDIO_F2_BLKSIZE=128
+  DHDCFLAGS += -DDHD_OF_SUPPORT -DCUSTOMER_OOB
+  DHDCFLAGS += -DLOAD_DHD_WITH_FW_ALIVE
+  FW_ALIVE = 1
+endif
+
+
+ifeq ($(DHD_PLATFORM), imx_android)
+  CONFIG_BCMDHD_SDIO = y
+# Config DTS support
+  DHDCFLAGS += -DCONFIG_DTS
+# for iMX platform
+  DHDCFLAGS += -DCUSTOMER_IMX
+  DHDCFLAGS += -DOOB_INTR_ONLY -DHW_OOB
+  DHDCFLAGS += -DANDROID_SDIO_RESET
+# The flags only worked for supported host
+# Remove it if you found the dhdsdio_rxglom erros
+  DHDCFLAGS += -DCUSTOM_RXCHAIN=1
+endif
+
+ifeq ($(DHD_PLATFORM), imx)
+  CONFIG_BCMDHD_SDIO = y
+# Config DTS support
+  DHDCFLAGS += -DCONFIG_DTS
+# for iMX platform
+  DHDCFLAGS += -DCUSTOMER_IMX
+  DHDCFLAGS += -DOOB_INTR_ONLY -DHW_OOB
+# The flags only worked for supported host
+# Remove it if you found the dhdsdio_rxglom erros
+  DHDCFLAGS += -DCUSTOM_RXCHAIN=1
+endif
+
+ifeq ($(CONFIG_BCMDHD_PCIE), y)
+  CONFIG_BCMDHD_PCIE = y
+else
+ifeq ($(CONFIG_BCMDHD_USB), y)
+  CONFIG_BCMDHD_USB = y
+else
+  CONFIG_BCMDHD_SDIO = y
+endif
+endif
+
+### Platform dependent END
+
 ifneq ($(CONFIG_BCMDHD_SDIO),)
+  DHDCFLAGS += -DBDC -DTOE -DDHD_BCMEVENTS -DMMC_SDIO_ABORT
+  DHDCFLAGS += -DBCMSDIO -DBCMLXSDMMC -DUSE_SDIOFIFO_IOVAR
+  DHDCFLAGS += -DPROP_TXSTATUS
   DHDCFLAGS += -DCUSTOM_AMPDU_MPDU=16
   DHDCFLAGS += -DCUSTOM_AMPDU_BA_WSIZE=64
 # tput enhancement
-  DHDCFLAGS += -DCUSTOM_GLOM_SETTING=8 -DCUSTOM_RXCHAIN=1
-  DHDCFLAGS += -DUSE_DYNAMIC_F2_BLKSIZE -DDYNAMIC_F2_BLKSIZE_FOR_NONLEGACY=128
-  DHDCFLAGS += -DBCMSDIOH_TXGLOM -DCUSTOM_TXGLOM=1 -DBCMSDIOH_TXGLOM_HIGHSPEED
+  DHDCFLAGS += -DCUSTOM_GLOM_SETTING=8
+  DHDCFLAGS += -DBCMSDIOH_TXGLOM -DCUSTOM_TXGLOM=1
   DHDCFLAGS += -DDHDTCPACK_SUPPRESS
   DHDCFLAGS += -DRXFRAME_THREAD
-  DHDCFLAGS += -DREPEAT_READFRAME
   DHDCFLAGS += -DCUSTOM_MAX_TXGLOM_SIZE=31
   DHDCFLAGS += -DMAX_HDR_READ=128
   DHDCFLAGS += -DDHD_FIRSTREAD=128
   # bcn_timeout
   DHDCFLAGS += -DCUSTOM_BCN_TIMEOUT=5
-  DHDCFLAGS += -DWLFC_STATE_PREALLOC
  endif
 
 ifneq ($(CONFIG_BCMDHD_PCIE),)
@@ -191,50 +250,51 @@ ifneq ($(CONFIG_BCMDHD_PCIE),)
   DHDCFLAGS += -DCUSTOM_DHD_WATCHDOG_MS=0
   DHDCFLAGS += -DMAX_CNTL_TX_TIMEOUT=1
   DHDCFLAGS += -DSUPPORT_LINKDOWN_RECOVERY
-  endif
+endif
+
+ifneq ($(CONFIG_BCMDHD_USB),)
+  DHDCFLAGS += -DBDC -DTOE
+  DHDCFLAGS += -DDHD_BCMEVENTS -DSHOW_EVENTS -DSHOW_LOGTRACE
+  DHDCFLAGS += -DBCMDHDUSB -DBCMDBUS -DBCMTRXV2 -DDBUS_USB_LOOPBACK
+  DHDCFLAGS += -DPROP_TXSTATUS
+  DHDCFLAGS += -DLIMIT_BORROW
+endif
+
 ifeq ($(CONFIG_DHD_USE_STATIC_BUF),y)
   DHDCFLAGS += -DDHD_USE_STATIC_IOCTLBUF
 endif
-  DHDCFLAGS += -DDONGLE_ENABLE_ISOLATION
 # Print 802.1X packets
-  DHDCFLAGS += -DDHD_8021X_DUMP
+DHDCFLAGS += -DDHD_8021X_DUMP
 # Print DHCP packets
-  DHDCFLAGS += -DDHD_DHCP_DUMP
-endif
+DHDCFLAGS += -DDHD_DHCP_DUMP
 
 
-ifneq ($(CONFIG_BCM4339),)
-  DHDCFLAGS += -DBCM4339_CHIP -DHW_OOB
-
-  # tput enhancement
-  DHDCFLAGS += -DCUSTOM_GLOM_SETTING=8 -DCUSTOM_RXCHAIN=1
-  DHDCFLAGS += -DUSE_DYNAMIC_F2_BLKSIZE -DDYNAMIC_F2_BLKSIZE_FOR_NONLEGACY=128
-  DHDCFLAGS += -DBCMSDIOH_TXGLOM -DCUSTOM_TXGLOM=1 -DBCMSDIOH_TXGLOM_HIGHSPEED
-  DHDCFLAGS += -DDHDTCPACK_SUPPRESS
-  DHDCFLAGS += -DUSE_WL_TXBF
-  DHDCFLAGS += -DUSE_WL_FRAMEBURST
-  DHDCFLAGS += -DRXFRAME_THREAD
-  DHDCFLAGS += -DCUSTOM_AMPDU_BA_WSIZE=64
-  DHDCFLAGS += -DCUSTOM_DPC_CPUCORE=0
-  DHDCFLAGS += -DPROP_TXSTATUS_VSDB
-  DHDCFLAGS += -DCUSTOM_MAX_TXGLOM_SIZE=40
-
-  # New Features
-  DHDCFLAGS += -DWL11U
-  DHDCFLAGS += -DDHD_ENABLE_LPC
-  DHDCFLAGS += -DCUSTOM_PSPRETEND_THR=30
-endif
-
-
-#EXTRA_LDFLAGS += --strip-debug
+EXTRA_LDFLAGS += --strip-debug
 
 ifeq ($(DRIVER_TYPE),y)
-  DHDCFLAGS += -DENABLE_INSMOD_NO_FW_LOAD
   DHDCFLAGS += -DUSE_LATE_INITCALL_SYNC
 endif
 
 ## Attend to fix the suspend/resume -16 error issue, refer to SWDHD-409
 DHDCFLAGS += -DSUSPEND16
+
+
+## Flags merged from Linux build
+DHDCFLAGS += -DCUSTOMER_IPCAM -DWL11ULB -DWL_NAN -DWL_SUPPORT_AUTO_CHANNEL -DWL_VIRTUAL_APSTA
+
+## Flags that may depends on Linux kernel versions
+DHDCFLAGS += -DTSQ_MULTIPLIER=10
+
+## Flags maybe useful but disable it
+
+# The WLFC AC queue credit borrow
+# DHDCFLAGS += -DLIMIT_BORROW
+
+# Advanced IBSS features
+# DHDCFLAGS += -DWLAIBSS -DWLAIBSS_PS
+
+# p2P service discovery offload
+# DHDCFLAGS += -DWL_SDO
 
 EXTRA_CFLAGS += $(DHDCFLAGS) -DDHD_DEBUG
 EXTRA_CFLAGS += -DSRCBASE=\"$(src)\"
@@ -246,7 +306,14 @@ DHDOFILES := dhd_pno.o dhd_common.o dhd_ip.o dhd_custom_gpio.o \
 	bcmutils.o bcmwifi_channels.o hndpmu.o linux_osl.o sbutils.o siutils.o \
 	wl_android.o wl_cfg80211.o wl_cfgp2p.o wl_cfg_btcoex.o wldev_common.o wl_linux_mon.o  \
 	dhd_linux_platdev.o dhd_pno.o dhd_rtt.o dhd_linux_wq.o wl_cfg_btcoex.o \
-        hnd_pktq.o hnd_pktpool.o wl_cfgvendor.o dhd_debug_linux.o bcmxtlv.o dhd_debug.o bcm_app_utils.o
+        hnd_pktq.o hnd_pktpool.o wl_cfgvendor.o dhd_debug_linux.o bcmxtlv.o dhd_debug.o bcm_app_utils.o \
+	wl_cfgnan.o
+
+ifeq ($(FW_ALIVE), 1)
+  DHDCFLAGS += -DLOAD_DHD_WITH_FW_ALIVE
+  DHDOFILES += dhd_chip_info.o
+endif
+
 
 ifneq ($(CONFIG_BCMDHD_SDIO),)
   DHDOFILES += bcmsdh.o bcmsdh_linux.o bcmsdh_sdmmc.o bcmsdh_sdmmc_linux.o
@@ -258,13 +325,17 @@ ifneq ($(CONFIG_BCMDHD_PCIE),)
   DHDOFILES += pcie_core.o
 endif
 
-ifneq ($(CONFIG_PLAT_ROCKCHIP),)
-DHDOFILES += dhd_gpio.o
-DHDOFILES += rkversion.o
+ifneq ($(CONFIG_BCMDHD_USB),)
+  DHDOFILES += dbus.o dbus_usb.o dbus_usb_linux.o
+  DHDOFILES += dhd_cdc.o dhd_wlfc.o
 endif
 
-bcmdhd-objs := $(DHDOFILES)
-obj-$(DRIVER_TYPE)   += bcmdhd.o
+ifneq ($(CONFIG_PLAT_ROCKCHIP),)
+  DHDOFILES += dhd_gpio.o
+endif
+
+cywdhd-objs := $(DHDOFILES)
+obj-$(DRIVER_TYPE)   += cywdhd.o
 
 all:
 	@echo "$(MAKE) --no-print-directory -C $(KDIR) SUBDIRS=$(CURDIR) modules"

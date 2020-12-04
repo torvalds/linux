@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Linux cfgp2p driver
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wl_cfgp2p.h 594074 2015-10-20 11:48:33Z $
+ * $Id: wl_cfgp2p.h 709309 2019-01-17 09:04:00Z $
  */
 #ifndef _wl_cfgp2p_h_
 #define _wl_cfgp2p_h_
@@ -82,6 +83,7 @@ struct p2p_info {
 	wl_p2p_ops_t ops;
 	wlc_ssid_t ssid;
 	s8 p2p_go_count;
+	struct bcm_cfg80211 *cfg;
 };
 
 #define MAX_VNDR_IE_NUMBER	5
@@ -167,12 +169,23 @@ enum wl_cfgp2p_status {
 			printk args;							\
 		}									\
 	} while (0)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
 #define INIT_TIMER(timer, func, duration, extra_delay)	\
 	do {				   \
 		timer_setup(timer, func, 0); \
 		timer->expires = jiffies + msecs_to_jiffies(duration + extra_delay); \
 		add_timer(timer); \
 	} while (0);
+#else
+#define INIT_TIMER(timer, func, duration, extra_delay)	\
+	do {				   \
+		init_timer(timer); \
+		timer->function = func; \
+		timer->expires = jiffies + msecs_to_jiffies(duration + extra_delay); \
+		timer->data = (unsigned long) cfg; \
+		add_timer(timer); \
+	} while (0);
+#endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)) && !defined(WL_CFG80211_P2P_DEV_IF)
 #define WL_CFG80211_P2P_DEV_IF
@@ -215,7 +228,11 @@ enum wl_cfgp2p_status {
 #define P2P_ECSA_CNT 50
 
 extern void
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
 wl_cfgp2p_listen_expired(struct timer_list *t);
+#else
+wl_cfgp2p_listen_expired(unsigned long data);
+#endif
 extern bool
 wl_cfgp2p_is_pub_action(void *frame, u32 frame_len);
 extern bool

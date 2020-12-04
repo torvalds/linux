@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * BT-AMP support routines
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -38,7 +39,11 @@
 #include <proto/bt_amp_hci.h>
 #include <dngl_stats.h>
 #include <dhd.h>
+#ifdef BCMDBUS
+#include <dbus.h>
+#else
 #include <dhd_bus.h>
+#endif
 #include <dhd_proto.h>
 #include <dhdioctl.h>
 #include <dhd_dbg.h>
@@ -86,7 +91,11 @@ dhd_bta_flush_hcidata(dhd_pub_t *pub, uint16 llh)
 	struct pktq *q;
 	uint count = 0;
 
+#ifdef BCMDBUS
+	q = dhd_dbus_txq(pub->dbus);
+#else
 	q = dhd_bus_txq(pub->bus);
+#endif /* BCMDBUS */
 	if (q == NULL)
 		return;
 
@@ -102,6 +111,9 @@ dhd_bta_flush_hcidata(dhd_pub_t *pub, uint16 llh)
 			void *pkt = pktq_pdeq(q, prec);
 			int ifidx;
 
+#ifdef BCMDBUS
+			PKTPULL(pub->osh, pkt, dhd_dbus_hdrlen(pub->dbus));
+#endif /* BCMDBUS */
 			dhd_prot_hdrpull(pub, &ifidx, pkt, NULL, NULL);
 
 			if (PKTLEN(pub->osh, pkt) >= RFC1042_HDR_LEN) {
@@ -129,6 +141,9 @@ dhd_bta_flush_hcidata(dhd_pub_t *pub, uint16 llh)
 			}
 
 			dhd_prot_hdrpush(pub, ifidx, pkt);
+#ifdef BCMDBUS
+			PKTPUSH(pub->osh, pkt, dhd_dbus_hdrlen(pub->dbus));
+#endif /* BCMDBUS */
 
 			if (head_pkt == NULL)
 				head_pkt = pkt;

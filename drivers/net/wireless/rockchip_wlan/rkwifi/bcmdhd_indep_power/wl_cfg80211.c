@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Linux cfg80211 driver
  *
@@ -34,8 +35,6 @@
 
 #include <wlc_types.h>
 #include <bcmutils.h>
-
-/* SPDX-License-Identifier: GPL-2.0 */
 #include <bcmstdlib_s.h>
 #include <bcmwifi_channels.h>
 #include <bcmendian.h>

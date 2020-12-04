@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Linux cfg80211 driver
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -488,6 +489,9 @@ struct parsed_ies {
 /* Max length of Interworking element */
 #define IW_IES_MAX_BUF_LEN 		9
 #endif
+#ifdef WLFBT
+#define FBT_KEYLEN		32
+#endif
 #define MAX_EVENT_BUF_NUM 16
 typedef struct wl_eventmsg_buf {
     u16 num;
@@ -566,9 +570,9 @@ struct bcm_cfg80211 {
 	bool pwr_save;
 	bool roam_on;		/* on/off switch for self-roaming */
 	bool scan_tried;	/* indicates if first scan attempted */
-#if defined(BCMSDIO) || defined(BCMPCIE)
+#if defined(BCMSDIO) || defined(BCMDBUS) || defined(BCMPCIE)
 	bool wlfc_on;
-#endif 
+#endif /* defined(BCMSDIO) || defined(BCMDBUS) */
 	bool vsdb_mode;
 #define WL_ROAM_OFF_ON_CONCURRENT		0x0001
 #define WL_ROAM_OFF_REVERT				0x0002
@@ -626,6 +630,9 @@ struct bcm_cfg80211 {
 	bcm_struct_cfgdev *bss_cfgdev;  /* For DUAL STA/STA+AP */
 	s32 cfgdev_bssidx;
 	bool bss_pending_op;		/* indicate where there is a pending IF operation */
+#ifdef WLFBT
+	uint8 fbt_key[FBT_KEYLEN];
+#endif
 	int roam_offload;
 #ifdef WL_NAN
 	bool nan_enable;
@@ -1167,7 +1174,20 @@ wl_get_netinfo_by_wdev(struct bcm_cfg80211 *cfg, struct wireless_dev *wdev)
 	 (!_sme->crypto.n_ciphers_pairwise) && \
 	 (!_sme->crypto.cipher_group))
 
+#ifdef WLFBT
+#if defined(WLAN_AKM_SUITE_FT_8021X) && defined(WLAN_AKM_SUITE_FT_PSK)
+#define IS_AKM_SUITE_FT(sec) (sec->wpa_auth == WLAN_AKM_SUITE_FT_8021X || \
+	sec->wpa_auth == WLAN_AKM_SUITE_FT_PSK)
+#elif defined(WLAN_AKM_SUITE_FT_8021X)
+#define IS_AKM_SUITE_FT(sec) (sec->wpa_auth == WLAN_AKM_SUITE_FT_8021X)
+#elif defined(WLAN_AKM_SUITE_FT_PSK)
+#define IS_AKM_SUITE_FT(sec) (sec->wpa_auth == WLAN_AKM_SUITE_FT_PSK)
+#else
 #define IS_AKM_SUITE_FT(sec) false
+#endif /* WLAN_AKM_SUITE_FT_8021X && WLAN_AKM_SUITE_FT_PSK */
+#else
+#define IS_AKM_SUITE_FT(sec) false
+#endif /* WLFBT */
 
 #define IS_AKM_SUITE_CCKM(sec) false
 
@@ -1279,6 +1299,9 @@ extern int wl_cfg80211_set_mgmt_vndr_ies(struct bcm_cfg80211 *cfg,
 	bcm_struct_cfgdev *cfgdev, s32 bssidx, s32 pktflag,
 	const u8 *vndr_ie, u32 vndr_ie_len);
 
+#ifdef WLFBT
+extern void wl_cfg80211_get_fbt_key(uint8 *key);
+#endif
 
 /* Action frame specific functions */
 extern u8 wl_get_action_category(void *frame, u32 frame_len);

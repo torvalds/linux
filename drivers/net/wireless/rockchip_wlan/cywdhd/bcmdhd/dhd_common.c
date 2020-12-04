@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Broadcom Dongle Host Driver (DHD), common DHD core.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_common.c 674559 2017-10-27 03:07:31Z $
+ * $Id: dhd_common.c 715966 2019-05-30 02:36:59Z $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -47,7 +48,11 @@
 #include <dhd_flowring.h>
 #endif
 
+#ifdef BCMDBUS
+#include <dbus.h>
+#else
 #include <dhd_bus.h>
+#endif /* BCMDBUS */
 #include <dhd_proto.h>
 #include <dhd_dbg.h>
 #include <dhd_debug.h>
@@ -89,7 +94,7 @@
 extern void htsf_update(struct dhd_info *dhd, void *data);
 #endif
 
-int dhd_msg_level = DHD_ERROR_VAL | DHD_MSGTRACE_VAL | DHD_FWLOG_VAL;
+int dhd_msg_level = DHD_ERROR_VAL | DHD_MSGTRACE_VAL | DHD_EVENT_VAL;
 
 
 #if defined(WL_WLC_SHIM)
@@ -160,6 +165,9 @@ static int traffic_mgmt_add_dwm_filter(dhd_pub_t *dhd,
 	trf_mgmt_filter_list_t * trf_mgmt_filter_list, int len);
 #endif
 
+#ifdef HOST_FLAG
+extern int hostsleep;
+#endif
 
 /* IOVar table */
 enum {
@@ -504,6 +512,11 @@ dhd_wl_ioctl(dhd_pub_t *dhd_pub, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 	int ret = BCME_ERROR;
 	unsigned long flags;
 
+#ifdef HOST_FLAG
+	int hostsleep_set = 0;
+	int hostsleep_val = 0;
+	char *psleep = NULL;
+#endif
 #ifdef KEEPIF_ON_DEVICE_RESET
 		if (ioc->cmd == WLC_GET_VAR) {
 			dbus_config_t config;
@@ -550,8 +563,41 @@ dhd_wl_ioctl(dhd_pub_t *dhd_pub, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 			}
 		}
 #else
+#ifdef HOST_FLAG
+		/*save hostsleep val first, if ioctl success, set hostsleep to val*/
+		if (ioc->cmd == WLC_SET_VAR) {
+			psleep = strstr(buf, "hostsleep");
+			if (psleep) {
+				hostsleep_set = 1;
+				memcpy(&hostsleep_val, psleep + strlen("hostsleep") + 1, sizeof(hostsleep_val));
+				printf("###hostsleep: cmd = %d, hostsleep_val = %d, buf = %s\n",
+					ioc->cmd, hostsleep_val, (char *)buf);
+			}
+		}
+		/* block all cmd, expect hostsleep remove */
+		if (hostsleep && (!hostsleep_set || hostsleep_val)) {
+			printf("%s: block all none hostsleep clr cmd\n", __FUNCTION__);
+			dhd_os_proto_unblock(dhd_pub);
+			return BCME_EPERM;
+		} else if (hostsleep_set && hostsleep_val) {
+			printf("%s: set dhd hostsleep 1\n", __FUNCTION__);
+			hostsleep = 1;
+		}
+#endif
 		ret = dhd_prot_ioctl(dhd_pub, ifidx, ioc, buf, len);
 #endif /* defined(WL_WLC_SHIM) */
+
+#ifdef HOST_FLAG
+		if (hostsleep_set) {
+			if (hostsleep_val && ret) { // reset hostsleep if host_sleep 1 set failed
+				printf("%s: reset hostsleep\n", __FUNCTION__);
+				hostsleep = 0;
+			} else if (!hostsleep_val && !ret) { // clear hostsleep if host_sleep 0 set successfully
+				printf("%s: clear hostsleep\n", __FUNCTION__);
+				hostsleep = 0;
+			}
+		}
+#endif
 
 		if (ret && dhd_pub->up) {
 			/* Send hang event only if dhd_open() was success */
@@ -683,10 +729,12 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 		bcopy(&int_val, arg, val_size);
 		break;
 
+#ifndef BCMDBUS
 	case IOV_GVAL(IOV_WDTICK):
 		int_val = (int32)dhd_watchdog_ms;
 		bcopy(&int_val, arg, val_size);
 		break;
+#endif
 
 	case IOV_SVAL(IOV_WDTICK):
 		if (!dhd_pub->up) {
@@ -705,6 +753,7 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 		bcmerror = dhd_dump(dhd_pub, arg, len);
 		break;
 
+#ifndef BCMDBUS
 #ifdef DHD_DEBUG
 	case IOV_GVAL(IOV_DCONSOLE_POLL):
 		int_val = (int32)dhd_console_ms;
@@ -720,6 +769,7 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 			bcmerror = dhd_bus_console_in(dhd_pub, arg, len - 1);
 		break;
 #endif /* DHD_DEBUG */
+#endif /* BCMDBUS */
 
 	case IOV_SVAL(IOV_CLEARCOUNTS):
 		dhd_pub->tx_packets = dhd_pub->rx_packets = 0;
@@ -1598,11 +1648,21 @@ dhd_ioctl(dhd_pub_t * dhd_pub, dhd_ioctl_t *ioc, void * buf, uint buflen)
 
 		/* if still not found, try bus module */
 		if (ioc->cmd == DHD_GET_VAR) {
+#ifdef BCMDBUS
+			bcmerror = dbus_iovar_op(dhd_pub->dbus, buf,
+				arg, arglen, buf, buflen, IOV_GET);
+#else
 			bcmerror = dhd_bus_iovar_op(dhd_pub, buf,
 				arg, arglen, buf, buflen, IOV_GET);
+#endif
 		} else {
+#ifdef BCMDBUS
+			bcmerror = dbus_iovar_op(dhd_pub->dbus, buf,
+				NULL, 0, arg, arglen, IOV_SET);
+#else
 			bcmerror = dhd_bus_iovar_op(dhd_pub, buf,
 				NULL, 0, arg, arglen, IOV_SET);
+#endif
 		}
 
 		break;
@@ -1840,8 +1900,8 @@ wl_show_host_event(dhd_pub_t *dhd_pub, wl_event_msg_t *event, void *event_data,
 		break;
 	case WLC_E_ESCAN_RESULT:
 	{
-		DHD_EVENT(("MACEVENT: %s %d, MAC %s, status %d \n",
-		       event_name, event_type, eabuf, (int)status));
+		//DHD_EVENT(("MACEVENT: %s %d, MAC %s, status %d \n",
+		//       event_name, event_type, eabuf, (int)status));
 	}
 		break;
 	default:
@@ -1874,16 +1934,19 @@ wl_event_process_default(wl_event_msg_t *event, struct wl_evt_pport *evt_pport)
 }
 
 int
-wl_event_process(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata, void **data_ptr, void *raw_event)
+wl_event_process(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata, uint pktlen, void **data_ptr,
+	void *raw_event)
 {
 	wl_evt_pport_t evt_pport;
 	wl_event_msg_t event;
+	bcm_event_msg_u_t evu;
 
 	/* make sure it is a BRCM event pkt and record event data */
-	int ret = wl_host_event_get_data(pktdata, &event, data_ptr);
+	int ret = wl_host_event_get_data(pktdata, pktlen, &evu);
 	if (ret != BCME_OK) {
 		return ret;
 	}
+	memcpy(&event, &evu.event, sizeof(wl_event_msg_t));
 
 	/* convert event from network order to host order */
 	wl_event_to_host_order(&event);
@@ -1894,6 +1957,7 @@ wl_event_process(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata, void **data_ptr,
 	evt_pport.pktdata = pktdata;
 	evt_pport.data_ptr = data_ptr;
 	evt_pport.raw_event = raw_event;
+	evt_pport.data_len = pktlen;
 
 #if defined(WL_WLC_SHIM) && defined(WL_WLC_SHIM_EVENTS)
 	{
@@ -1910,46 +1974,57 @@ wl_event_process(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata, void **data_ptr,
 
 /* Check whether packet is a BRCM event pkt. If it is, record event data. */
 int
-wl_host_event_get_data(void *pktdata, wl_event_msg_t *event, void **data_ptr)
+wl_host_event_get_data(void *pktdata, uint pktlen, bcm_event_msg_u_t *evu)
 {
-	bcm_event_t *pvt_data = (bcm_event_t *)pktdata;
+	int ret;
 
-	if (bcmp(BRCM_OUI, &pvt_data->bcm_hdr.oui[0], DOT11_OUI_LEN)) {
-		DHD_ERROR(("%s: mismatched OUI, bailing\n", __FUNCTION__));
-		return BCME_ERROR;
+	ret = is_wlc_event_frame(pktdata, pktlen, 0, evu);
+	if (ret != BCME_OK) {
+		DHD_ERROR(("%s: Invalid event frame, err = %d\n",
+			__FUNCTION__, ret));
 	}
-
-	/* BRCM event pkt may be unaligned - use xxx_ua to load user_subtype. */
-	if (ntoh16_ua((void *)&pvt_data->bcm_hdr.usr_subtype) != BCMILCP_BCM_SUBTYPE_EVENT) {
-		DHD_ERROR(("%s: mismatched subtype, bailing\n", __FUNCTION__));
-		return BCME_ERROR;
-	}
-
-	*data_ptr = &pvt_data[1];
-
-	/* memcpy since BRCM event pkt may be unaligned. */
-	memcpy(event, &pvt_data->event, sizeof(wl_event_msg_t));
-
-	return BCME_OK;
+	return ret;
 }
 
 int
-wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
+wl_process_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata, uint pktlen,
 	wl_event_msg_t *event, void **data_ptr, void *raw_event)
 {
-	bcm_event_t *pvt_data;
+	bcm_event_t *pvt_data = (bcm_event_t *)pktdata;
+	bcm_event_msg_u_t evu;
 	uint8 *event_data;
 	uint32 type, status, datalen, reason;
 	uint16 flags;
-	int evlen;
-
-	/* make sure it is a BRCM event pkt and record event data */
-	int ret = wl_host_event_get_data(pktdata, event, data_ptr);
+	uint evlen;
+	int ret;
+	uint16 usr_subtype;
+	ret = wl_host_event_get_data(pktdata, pktlen, &evu);
 	if (ret != BCME_OK) {
 		return ret;
 	}
+	usr_subtype = ntoh16_ua((void *)&pvt_data->bcm_hdr.usr_subtype);
+	switch (usr_subtype) {
+	case BCMILCP_BCM_SUBTYPE_EVENT:
+		memcpy(event, &evu.event, sizeof(wl_event_msg_t));
+		*data_ptr = &pvt_data[1];
+		break;
+	case BCMILCP_BCM_SUBTYPE_DNGLEVENT:
+#ifdef HEALTH_CHECK
+	/* If it is a DNGL event process it first */
+	if (dngl_host_event(dhd_pub, pktdata, &evu.dngl_event, pktlen) == BCME_OK) {
+			/*
+			* Return error purposely to prevent DNGL event being processed
+			* as BRCM event
+			*/
+			return BCME_ERROR;
+	}
+#endif /* HEALTH_CHECK */
+		return BCME_NOTFOUND;
+	default:
+		return BCME_NOTFOUND;
+	}
 
-	pvt_data = (bcm_event_t *)pktdata;
+	/* start wl_event_msg process */
 	event_data = *data_ptr;
 
 	type = ntoh32_ua((void *)&event->event_type);
@@ -1957,8 +2032,8 @@ wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
 	status = ntoh32_ua((void *)&event->status);
 	reason = ntoh32_ua((void *)&event->reason);
 	datalen = ntoh32_ua((void *)&event->datalen);
-	evlen = datalen + sizeof(bcm_event_t);
 
+	evlen = datalen + sizeof(bcm_event_t);
 	switch (type) {
 #ifdef PROP_TXSTATUS
 	case WLC_E_FIFO_CREDIT_MAP:
@@ -2096,7 +2171,7 @@ wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
 			dhd_ifname2idx(dhd_pub->info, event->ifname),
 			&event->addr.octet);
 		break;
-#if defined(DHD_FW_COREDUMP)
+#if !defined(BCMDBUS) && defined(DHD_FW_COREDUMP)
 	case WLC_E_PSM_WATCHDOG:
 		DHD_ERROR(("%s: WLC_E_PSM_WATCHDOG event received : \n", __FUNCTION__));
 		if (dhd_socram_dump(dhd_pub->bus) != BCME_OK) {
@@ -2181,6 +2256,14 @@ wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
 #endif /* SHOW_EVENTS */
 
 	return (BCME_OK);
+}
+
+int
+wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata, uint pktlen,
+	wl_event_msg_t *event, void **data_ptr, void *raw_event)
+{
+	return wl_process_host_event(dhd_pub, ifidx, pktdata, pktlen, event, data_ptr,
+		raw_event);
 }
 
 void

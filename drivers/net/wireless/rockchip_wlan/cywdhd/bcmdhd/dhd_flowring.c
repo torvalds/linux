@@ -1,10 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /**
  * @file Broadcom Dongle Host Driver (DHD), Flow ring specific code at top level
  *
  * Flow rings are transmit traffic (=propagating towards antenna) related entities
  *
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you

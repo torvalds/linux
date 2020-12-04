@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * bcmevent read-only data shared by kernel or app layers
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmevent.c 606400 2015-12-15 09:59:42Z $
+ * $Id: bcmevent.c 715966 2019-05-30 02:36:59Z $
  */
 
 #include <typedefs.h>
@@ -33,6 +34,7 @@
 #include <proto/ethernet.h>
 #include <proto/bcmeth.h>
 #include <proto/bcmevent.h>
+#include <proto/802.11.h>
 
 
 /* Table of event name strings for UIs and debugging dumps */
@@ -165,6 +167,9 @@ static const bcmevent_name_str_t bcmevent_names[] = {
 #if defined(BT_WIFI_HANDOVER) || defined(WL_TBOW)
 	BCMEVENT_NAME(WLC_E_BT_WIFI_HANDOVER_REQ),
 #endif
+#ifdef WLFBT
+	BCMEVENT_NAME(WLC_E_FBT_AUTH_REQ_IND),
+#endif /* WLFBT */
 	BCMEVENT_NAME(WLC_E_AUTHORIZED),
 	BCMEVENT_NAME(WLC_E_PROBREQ_MSG_RX),
 	BCMEVENT_NAME(WLC_E_CSA_START_IND),
@@ -198,6 +203,139 @@ const char *bcmevent_get_name(uint event_type)
 	 * otherwise return unknown string.
 	 */
 	return ((event_name) ? event_name : "Unknown Event");
+}
+
+/*
+ * Validate if the event is proper and if valid copy event header to event.
+ * If proper event pointer is passed, to just validate, pass NULL to event.
+ *
+ * Return values are
+ *	BCME_OK - It is a BRCM event or BRCM dongle event
+ *	BCME_NOTFOUND - Not BRCM, not an event, may be okay
+ *	BCME_BADLEN - Bad length, should not process, just drop
+ */
+int
+is_wlc_event_frame(void *pktdata, uint pktlen, uint16 exp_usr_subtype,
+	bcm_event_msg_u_t *out_event)
+{
+	uint16 evlen = 0;	/* length in bcmeth_hdr */
+	uint16 subtype;
+	uint16 usr_subtype;
+	bcm_event_t *bcm_event;
+	uint8 *pktend;
+	uint8 *evend;
+	int err = BCME_OK;
+	uint32 data_len = 0; /* data length in bcm_event */
+
+	pktend = (uint8 *)pktdata + pktlen;
+	bcm_event = (bcm_event_t *)pktdata;
+
+	/* only care about 16-bit subtype / length versions */
+	if ((uint8 *)&bcm_event->bcm_hdr < pktend) {
+		uint8 short_subtype = *(uint8 *)&bcm_event->bcm_hdr;
+		if (!(short_subtype & 0x80)) {
+			err = BCME_NOTFOUND;
+			goto done;
+		}
+	}
+
+	/* must have both ether_header and bcmeth_hdr */
+	if (pktlen < OFFSETOF(bcm_event_t, event)) {
+		err = BCME_BADLEN;
+		goto done;
+	}
+
+	/* check length in bcmeth_hdr */
+	/* temporary - header length not always set properly. When the below
+	 * !BCMDONGLEHOST is in all branches that use trunk DHD, the code
+	 * under BCMDONGLEHOST can be removed.
+	 */
+	evlen = (uint16)(pktend - (uint8 *)&bcm_event->bcm_hdr.version);
+	evend = (uint8 *)&bcm_event->bcm_hdr.version + evlen;
+	if (evend > pktend) {
+		err = BCME_BADLEN;
+		goto done;
+	}
+
+	/* match on subtype, oui and usr subtype for BRCM events */
+	subtype = ntoh16_ua((void *)&bcm_event->bcm_hdr.subtype);
+	if (subtype != BCMILCP_SUBTYPE_VENDOR_LONG) {
+		err = BCME_NOTFOUND;
+		goto done;
+	}
+
+	if (bcmp(BRCM_OUI, &bcm_event->bcm_hdr.oui[0], DOT11_OUI_LEN)) {
+		err = BCME_NOTFOUND;
+		goto done;
+	}
+
+	/* if it is a bcm_event or bcm_dngl_event_t, validate it */
+	usr_subtype = ntoh16_ua((void *)&bcm_event->bcm_hdr.usr_subtype);
+	switch (usr_subtype) {
+	case BCMILCP_BCM_SUBTYPE_EVENT:
+		/* check that header length and pkt length are sufficient */
+		if ((pktlen < sizeof(bcm_event_t)) ||
+			(evend < ((uint8 *)bcm_event + sizeof(bcm_event_t)))) {
+			err = BCME_BADLEN;
+			goto done;
+		}
+
+		/* ensure data length in event is not beyond the packet. */
+		data_len = ntoh32_ua((void *)&bcm_event->event.datalen);
+		if (data_len > (pktlen - sizeof(bcm_event_t))) {
+			err = BCME_BADLEN;
+			goto done;
+		}
+
+		if (exp_usr_subtype && (exp_usr_subtype != usr_subtype)) {
+			err = BCME_NOTFOUND;
+			goto done;
+		}
+
+		if (out_event) {
+			/* ensure BRCM event pkt aligned */
+			memcpy(&out_event->event, &bcm_event->event, sizeof(wl_event_msg_t));
+		}
+
+		break;
+	case BCMILCP_BCM_SUBTYPE_DNGLEVENT:
+#ifdef HEALTH_CHECK
+		if ((pktlen < sizeof(bcm_dngl_event_t)) ||
+			(evend < ((uint8 *)bcm_event + sizeof(bcm_dngl_event_t)))) {
+			err = BCME_BADLEN;
+			goto done;
+		}
+
+		/* ensure data length in event is not beyond the packet. */
+		data_len = ntoh16_ua((void *)&((bcm_dngl_event_t *)pktdata)->dngl_event.datalen);
+		if (data_len > (pktlen - sizeof(bcm_dngl_event_t))) {
+			err = BCME_BADLEN;
+			goto done;
+		}
+
+		if (exp_usr_subtype && (exp_usr_subtype != usr_subtype)) {
+			err = BCME_NOTFOUND;
+			goto done;
+		}
+
+		if (out_event) {
+			/* ensure BRCM dngl event pkt aligned */
+			memcpy(&out_event->dngl_event, &((bcm_dngl_event_t *)pktdata)->dngl_event,
+				sizeof(bcm_dngl_event_msg_t));
+		}
+
+		break;
+#endif /* HEALTH_CHECK */
+		err = BCME_UNSUPPORTED;
+		break;
+	default:
+		err = BCME_NOTFOUND;
+		goto done;
+	}
+
+	BCM_REFERENCE(data_len);
+done:
+	return err;
 }
 
 void

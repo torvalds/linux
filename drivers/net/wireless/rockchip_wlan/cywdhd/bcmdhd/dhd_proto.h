@@ -1,10 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Header file describing the internal (inter-module) DHD interfaces.
  *
  * Provides type definitions and function prototypes used to link the
  * DHD OS, bus, and protocol modules.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -113,6 +114,9 @@ extern void dhd_prot_dstats(dhd_pub_t *dhdp);
 extern int dhd_ioctl(dhd_pub_t * dhd_pub, dhd_ioctl_t *ioc, void * buf, uint buflen);
 
 extern int dhd_preinit_ioctls(dhd_pub_t *dhd);
+#ifdef LOAD_DHD_WITH_FW_ALIVE
+extern int dhd_preinit_ioctls_alive(dhd_pub_t *dhd);
+#endif /* LOAD_DHD_WITH_FW_ALIVE */
 
 extern int dhd_process_pkt_reorder_info(dhd_pub_t *dhd, uchar *reorder_info_buf,
 	uint reorder_info_len, void **pkt, uint32 *free_buf_count);

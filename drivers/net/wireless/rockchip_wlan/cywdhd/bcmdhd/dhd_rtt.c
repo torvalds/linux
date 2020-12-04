@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Broadcom Dongle Host Driver (DHD), RTT
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -1512,7 +1513,11 @@ dhd_rtt_convert_results_to_host(rtt_report_t *rtt_report, uint8 *p_data, uint16 
 	wl_proxd_result_flags_t flags;
 	wl_proxd_session_state_t session_state;
 	wl_proxd_status_t proxd_status;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0))
+	struct timespec64 ts;
+#else
 	struct timespec ts;
+#endif
 	uint32 ratespec;
 	uint32 avg_dist;
 	wl_proxd_rtt_sample_t *p_sample;
@@ -1601,7 +1606,11 @@ dhd_rtt_convert_results_to_host(rtt_report_t *rtt_report, uint8 *p_data, uint16 
 	}
 	/* time stamp */
 	/* get the time elapsed from boot time */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0))
+	ktime_get_boottime_ts64(&ts);
+#else
 	get_monotonic_boottime(&ts);
+#endif
 	rtt_report->ts = (uint64)TIMESPEC_TO_US(ts);
 
 	if (proxd_status == WL_PROXD_E_REMOTE_FAIL) {

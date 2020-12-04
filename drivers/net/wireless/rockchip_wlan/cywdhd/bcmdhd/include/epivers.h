@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -35,17 +36,17 @@
 
 #define	EPI_RC_NUMBER		125
 
-#define	EPI_INCREMENTAL_NUMBER	7
+#define	EPI_INCREMENTAL_NUMBER	19
 
 #define	EPI_BUILD_NUMBER	0
 
-#define	EPI_VERSION		1, 363, 125, 7
+#define	EPI_VERSION		1, 363, 125, 19
 
-#define	EPI_VERSION_NUM		0x0116b7d0
+#define	EPI_VERSION_NUM		0x0116b7d1
 
 #define EPI_VERSION_DEV		1.363.125
 
 /* Driver Version String, ASCII, 32 chars max */
-#define	EPI_VERSION_STR		"1.363.125.7 (r)"
+#define	EPI_VERSION_STR		"1.363.125.19 (r)"
 
 #endif /* _epivers_h_ */

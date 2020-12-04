@@ -1,9 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Misc utility routines used by kernel or app-level.
  * Contents are wifi-specific, used by any kernel or app-level
  * software that might want wifi things as it grows.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -1251,3 +1252,41 @@ wf_chspec_channel(chanspec_t chspec)
 	}
 }
 #endif /* WL11AC_80P80 */
+
+#ifdef WL_OLDPPR
+/* given a chanspec and a string buffer, format the chanspec as a
+ * string, and return the original pointer a.
+ * Min buffer length must be CHANSPEC_STR_LEN.
+ * On error return NULL
+ */
+char *
+wf_chspec_ntoa_old(chanspec_t chspec, char *buf)
+{
+	const char *band, *bw, *sb;
+	uint channel;
+
+	band = "";
+	bw = "";
+	sb = "";
+	channel = CHSPEC_CHANNEL_OLD(chspec);
+	/* check for non-default band spec */
+	if ((CHSPEC_IS2G_OLD(chspec) && channel > CH_MAX_2G_CHANNEL) ||
+	    (CHSPEC_IS5G_OLD(chspec) && channel <= CH_MAX_2G_CHANNEL))
+		band = (CHSPEC_IS2G_OLD(chspec)) ? "b" : "a";
+	if (CHSPEC_IS40_OLD(chspec)) {
+		if (CHSPEC_SB_UPPER_OLD(chspec)) {
+			sb = "u";
+			channel += CH_10MHZ_APART;
+		} else {
+			sb = "l";
+			channel -= CH_10MHZ_APART;
+		}
+	} else if (CHSPEC_IS10_OLD(chspec)) {
+		bw = "n";
+	}
+
+	/* Outputs a max of 6 chars including '\0'  */
+	snprintf(buf, 6, "%d%s%s%s", channel, band, bw, sb);
+	return (buf);
+}
+#endif /* WL_OLDPPR */

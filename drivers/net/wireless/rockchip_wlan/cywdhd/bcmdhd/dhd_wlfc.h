@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -111,8 +112,13 @@ typedef struct wlfc_hanger {
 
 #define WLFC_PSQ_LEN			2048
 
+#ifdef BCMDBUS
+#define WLFC_FLOWCONTROL_HIWATER	512
+#define WLFC_FLOWCONTROL_LOWATER	(WLFC_FLOWCONTROL_HIWATER / 4)
+#else
 #define WLFC_FLOWCONTROL_HIWATER	(2048 - 256)
 #define WLFC_FLOWCONTROL_LOWATER	256
+#endif
 
 #if (WLFC_FLOWCONTROL_HIWATER >= (WLFC_PSQ_LEN - 256))
 #undef WLFC_FLOWCONTROL_HIWATER

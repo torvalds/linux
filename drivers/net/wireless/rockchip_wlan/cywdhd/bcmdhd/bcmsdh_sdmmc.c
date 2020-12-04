@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * BCMSDH Function Driver for the native SDIO/MMC driver in the Linux Kernel
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary,Open:>>
  *
- * $Id: bcmsdh_sdmmc.c 666459 2017-08-22 06:08:52Z $
+ * $Id: bcmsdh_sdmmc.c 712404 2019-03-20 06:20:25Z $
  */
 #include <typedefs.h>
 
@@ -62,7 +63,15 @@ static void IRQHandler(struct sdio_func *func);
 static void IRQHandlerF2(struct sdio_func *func);
 #endif /* !defined(OOB_INTR_ONLY) */
 static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, uint32 regaddr);
+
+#if defined(ANDROID_SDIO_RESET)
 extern int sdio_reset_comm(struct mmc_card *card);
+#else
+static int sdio_reset_comm(struct mmc_card *card)
+{
+	return 0;
+}
+#endif /* ANDROID_SDIO_RESET */
 
 #define DEFAULT_SDIO_F2_BLKSIZE		512
 #ifndef CUSTOM_SDIO_F2_BLKSIZE
@@ -84,7 +93,7 @@ uint sd_divisor = 2;			/* Default 48MHz/2 = 24MHz */
 uint sd_power = 1;		/* Default to SD Slot powered ON */
 uint sd_clock = 1;		/* Default to SD Clock turned ON */
 uint sd_hiok = FALSE;	/* Don't use hi-speed mode by default */
-uint sd_msglevel = SDH_ERROR_VAL;
+uint sd_msglevel = 0x01;
 uint sd_use_dma = TRUE;
 
 #ifndef CUSTOM_RXCHAIN
@@ -97,7 +106,7 @@ uint sd_use_dma = TRUE;
  */
 #ifdef BCMSDIOH_TXGLOM
 uint sd_txglom = 1;
-module_param(sd_txglom, uint, 0);
+module_param(sd_txglom, uint, 0664);
 #endif /* BCMSDIOH_TXGLOM */
 
 DHD_PM_RESUME_WAIT_INIT(sdioh_request_byte_wait);
@@ -1398,7 +1407,8 @@ sdioh_start(sdioh_info_t *sd, int stage)
 			and enable the fucntion 1 for in preparation for
 			downloading the code
 		*/
-		/* sdio_reset_comm() - has been fixed in latest kernel/msm.git for Linux
+		/* sdio_reset_comm() For Android kernel only
+		   has been fixed in latest kernel/msm.git for Linux
 		   2.6.27. The implementation prior to that is buggy, and needs broadcom's
 		   patch for it
 		*/

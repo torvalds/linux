@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * BCMSDH Function Driver for the native SDIO/MMC driver in the Linux Kernel
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -30,12 +31,12 @@
 #ifndef __BCMSDH_SDMMC_H__
 #define __BCMSDH_SDMMC_H__
 
-#define sd_err(x)	do { if (sd_msglevel & SDH_ERROR_VAL) printf x; } while (0)
-#define sd_trace(x)	do { if (sd_msglevel & SDH_TRACE_VAL) printf x; } while (0)
-#define sd_info(x)	do { if (sd_msglevel & SDH_INFO_VAL) printf x; } while (0)
-#define sd_debug(x)	do { if (sd_msglevel & SDH_DEBUG_VAL) printf x; } while (0)
-#define sd_data(x)	do { if (sd_msglevel & SDH_DATA_VAL) printf x; } while (0)
-#define sd_ctrl(x)	do { if (sd_msglevel & SDH_CTRL_VAL) printf x; } while (0)
+#define sd_err(x)       do { if (sd_msglevel & SDH_ERROR_VAL) printf x; } while (0)
+#define sd_trace(x)     do { if (sd_msglevel & SDH_TRACE_VAL) printf x; } while (0)
+#define sd_info(x)      do { if (sd_msglevel & SDH_INFO_VAL) printf x; } while (0)
+#define sd_debug(x)     do { if (sd_msglevel & SDH_DEBUG_VAL) printf x; } while (0)
+#define sd_data(x)      do { if (sd_msglevel & SDH_DATA_VAL) printf x; } while (0)
+#define sd_ctrl(x)      do { if (sd_msglevel & SDH_CTRL_VAL) printf x; } while (0)
 
 
 #define sd_sync_dma(sd, read, nbytes)

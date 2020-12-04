@@ -1,8 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Misc utility routines for accessing chip-specific features
  * of the SiliconBackplane-based Broadcom chips.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -25,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: aiutils.c 526024 2015-01-13 03:59:33Z $
+ * $Id: aiutils.c 708487 2018-10-31 05:33:14Z $
  */
 #include <bcm_cfg.h>
 #include <typedefs.h>
@@ -38,6 +39,12 @@
 #include <pcicfg.h>
 
 #include "siutils_priv.h"
+
+
+#ifdef LOAD_DHD_WITH_FW_ALIVE
+#include <bcmdevs.h>
+#include <dhd_chip_info.h>
+#endif
 
 #define BCM47162_DMP() (0)
 #define BCM5357_DMP() (0)
@@ -141,6 +148,42 @@ ai_scan(si_t *sih, void *regs, uint devid)
 	si_cores_info_t *cores_info = (si_cores_info_t *)sii->cores_info;
 	chipcregs_t *cc = (chipcregs_t *)regs;
 	uint32 erombase, *eromptr, *eromlim;
+
+#ifdef LOAD_DHD_WITH_FW_ALIVE
+	if(alive == FW_ALIVE_MAGIC) {
+		switch(card_dev) {
+			case BCM43430_CHIP_ID:
+				sii->numcores = ai_core_43430;
+				sii->oob_router = oob_router_43430;
+				memcpy(&cores_info->coreid, &bcm43430_coreid, sii->numcores * 4);
+				memcpy(&cores_info->coresba, &bcm43430_coresba, sii->numcores * 4);
+				memcpy(&cores_info->coresba_size, &bcm43430_coresba_size, sii->numcores * 4);
+				memcpy(&cores_info->wrapba, &bcm43430_wrapba, sii->numcores * 4);
+				memcpy(&cores_info->cia, &bcm43430_cia, sii->numcores * 4);
+				if(card_rev == 2) {
+					memcpy(&cores_info->cib, &bcm43436_cib, sii->numcores * 4);
+				} else {
+					memcpy(&cores_info->cib, &bcm43430_cib, sii->numcores * 4);
+				}
+				break;
+
+			case BCM43012_CHIP_ID:
+				sii->numcores = ai_core_43012;
+				sii->oob_router = oob_router_43012;
+				memcpy(&cores_info->coreid, &bcm43012_coreid, sii->numcores * 4);
+				memcpy(&cores_info->coresba, &bcm43012_coresba, sii->numcores * 4);
+				memcpy(&cores_info->coresba_size, &bcm43012_coresba_size, sii->numcores * 4);
+				memcpy(&cores_info->wrapba, &bcm43012_wrapba, sii->numcores * 4);
+				memcpy(&cores_info->cia, &bcm43012_cia, sii->numcores * 4);
+				memcpy(&cores_info->cib, &bcm43012_cib, sii->numcores * 4);
+
+			default:
+				break;
+		}
+
+		return;
+	}
+#endif
 
 	erombase = R_REG(sii->osh, &cc->eromptr);
 

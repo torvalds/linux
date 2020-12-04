@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Driver O/S-independent utility routines
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmutils.c 674349 2017-10-19 07:59:24Z $
+ * $Id: bcmutils.c 692666 2018-07-30 08:58:07Z $
  */
 
 #include <bcm_cfg.h>
@@ -2361,7 +2362,7 @@ bcm_bprintf(struct bcmstrbuf *b, const char *fmt, ...)
 
 	r = vsnprintf(b->buf, b->size, fmt, ap);
 	if (bcm_bprintf_bypass == TRUE) {
-		printf(b->buf);
+		printf("%s\n", b->buf);
 		goto exit;
 	}
 
@@ -3612,3 +3613,66 @@ dll_pool_free_tail(dll_pool_t * dll_pool_p, void * elem_p)
 }
 
 #endif 
+
+/* calculate partial checksum */
+static uint32
+ip_cksum_partial(uint32 sum, uint8 *val8, uint32 count)
+{
+	uint32 i;
+	uint16 *val16 = (uint16 *)val8;
+
+	ASSERT(val8 != NULL);
+	/* partial chksum calculated on 16-bit values */
+	ASSERT((count % 2) == 0);
+
+	count /= 2;
+
+	for (i = 0; i < count; i++) {
+		sum += *val16++;
+	}
+	return sum;
+}
+
+/* calculate IP checksum */
+static uint16
+ip_cksum(uint32 sum, uint8 *val8, uint32 count)
+{
+	uint16 *val16 = (uint16 *)val8;
+
+	ASSERT(val8 != NULL);
+
+	while (count > 1) {
+		sum += *val16++;
+		count -= 2;
+	}
+	/*  add left-over byte, if any */
+	if (count > 0) {
+		sum += (*(uint8 *)val16);
+	}
+
+	/*  fold 32-bit sum to 16 bits */
+	sum = (sum >> 16) + (sum & 0xffff);
+	sum += (sum >> 16);
+	return ((uint16)~sum);
+}
+
+/* calculate IPv4 header checksum
+ * - input ip points to IP header in network order
+ * - output cksum is in network order
+ */
+uint16
+ipv4_hdr_cksum(uint8 *ip, int ip_len)
+{
+	uint32 sum = 0;
+	uint8 *ptr = ip;
+
+	ASSERT(ip != NULL);
+	ASSERT(ip_len >= IPV4_MIN_HEADER_LEN);
+
+	/* partial cksum skipping the hdr_chksum field */
+	sum = ip_cksum_partial(sum, ptr, OFFSETOF(struct ipv4_hdr, hdr_chksum));
+	ptr += OFFSETOF(struct ipv4_hdr, hdr_chksum) + 2;
+
+	/* return calculated chksum */
+	return ip_cksum(sum, ptr, ip_len - OFFSETOF(struct ipv4_hdr, src_ip));
+}

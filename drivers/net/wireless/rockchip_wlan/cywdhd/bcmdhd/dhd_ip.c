@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * IP Packet Parser Module.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_ip.c 575241 2015-07-29 09:17:04Z $
+ * $Id: dhd_ip.c 709309 2019-01-17 09:04:00Z $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -289,10 +290,16 @@ static void _tdata_psh_info_pool_deinit(dhd_pub_t *dhdp,
 }
 #endif /* BCMSDIO */
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
 static void dhd_tcpack_send(struct timer_list *t)
 {
-	tcpack_sup_module_t *tcpack_sup_mod;
 	tcpack_info_t *cur_tbl = from_timer(cur_tbl, t, timer);
+#else
+static void dhd_tcpack_send(ulong data)
+{
+	tcpack_info_t *cur_tbl = (tcpack_info_t *)data;
+#endif
+	tcpack_sup_module_t *tcpack_sup_mod;
 	dhd_pub_t *dhdp;
 	int ifidx;
 	void* pkt;
@@ -418,9 +425,14 @@ int dhd_tcpack_suppress_set(dhd_pub_t *dhdp, uint8 mode)
 		for (i = 0; i < TCPACK_INFO_MAXNUM; i++)
 		{
 			tcpack_sup_mod->tcpack_info_tbl[i].dhdp = dhdp;
-			timer_setup(&tcpack_sup_mod->tcpack_info_tbl[i].timer,
-				    dhd_tcpack_send,
-				    0);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
+			timer_setup((struct timer_list *)&tcpack_sup_mod->tcpack_info_tbl[i].timer, dhd_tcpack_send, 0);
+#else
+			init_timer(&tcpack_sup_mod->tcpack_info_tbl[i].timer);
+			tcpack_sup_mod->tcpack_info_tbl[i].timer.data =
+				(ulong)&tcpack_sup_mod->tcpack_info_tbl[i];
+			tcpack_sup_mod->tcpack_info_tbl[i].timer.function = dhd_tcpack_send;
+#endif
 		}
 	}
 

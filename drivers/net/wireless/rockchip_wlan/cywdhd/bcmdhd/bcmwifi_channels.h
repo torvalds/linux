@@ -1,9 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Misc utility routines for WL and Apps
  * This header file housing the define and function prototype use by
  * both the wl driver, tools & Apps.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -628,4 +629,36 @@ extern chanspec_t wf_chspec_primary80_chspec(chanspec_t chspec);
  */
 extern uint8 wf_chspec_channel(chanspec_t chspec);
 #endif
+
+#ifdef WL_OLDPPR
+#define WL_CHANSPEC_CTL_SB_MASK_OLD	0x0300
+#define WL_CHANSPEC_CTL_SB_SHIFT_OLD	8
+#define WL_CHANSPEC_CTL_SB_LOWER_OLD	0x0100
+#define WL_CHANSPEC_CTL_SB_UPPER_OLD	0x0200
+#define WL_CHANSPEC_CTL_SB_NONE_OLD	0x0300
+
+#define WL_CHANSPEC_BW_MASK_OLD		0x0C00
+#define WL_CHANSPEC_BW_SHIFT_OLD	10
+#define WL_CHANSPEC_BW_10_OLD		0x0400
+#define WL_CHANSPEC_BW_20_OLD		0x0800
+#define WL_CHANSPEC_BW_40_OLD		0x0C00
+
+#define WL_CHANSPEC_BAND_MASK_OLD	0xf000
+#define WL_CHANSPEC_BAND_SHIFT_OLD	12
+#define WL_CHANSPEC_BAND_5G_OLD		0x1000
+#define WL_CHANSPEC_BAND_2G_OLD		0x2000
+
+#define CHSPEC_CHANNEL_OLD(chspec)  ((uint8)((chspec) & WL_CHANSPEC_CHAN_MASK))
+#define CHSPEC_BAND_OLD(chspec)     ((chspec) & WL_CHANSPEC_BAND_MASK_OLD)
+
+#define CHSPEC_IS10_OLD(chspec)	(((chspec) & WL_CHANSPEC_BW_MASK_OLD) == WL_CHANSPEC_BW_10_OLD)
+#define CHSPEC_IS20_OLD(chspec)	(((chspec) & WL_CHANSPEC_BW_MASK_OLD) == WL_CHANSPEC_BW_20_OLD)
+#define CHSPEC_IS40_OLD(chspec)	(((chspec) & WL_CHANSPEC_BW_MASK_OLD) == WL_CHANSPEC_BW_40_OLD)
+#define CHSPEC_IS5G_OLD(chspec)	(((chspec) & WL_CHANSPEC_BAND_MASK_OLD) == WL_CHANSPEC_BAND_5G_OLD)
+#define CHSPEC_IS2G_OLD(chspec)	(((chspec) & WL_CHANSPEC_BAND_MASK_OLD) == WL_CHANSPEC_BAND_2G_OLD)
+#define CHSPEC_SB_NONE_OLD(chspec)	(((chspec) & WL_CHANSPEC_CTL_SB_MASK_OLD) == WL_CHANSPEC_CTL_SB_NONE_OLD)
+#define CHSPEC_SB_UPPER_OLD(chspec)	(((chspec) & WL_CHANSPEC_CTL_SB_MASK_OLD) == WL_CHANSPEC_CTL_SB_UPPER_OLD)
+#define CHSPEC_SB_LOWER_OLD(chspec)	(((chspec) & WL_CHANSPEC_CTL_SB_MASK_OLD) == WL_CHANSPEC_CTL_SB_LOWER_OLD)
+#endif /* WL_OLDPPR */
+
 #endif	/* _bcmwifi_channels_h_ */

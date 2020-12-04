@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Linux cfg80211 driver - Dongle Host Driver (DHD) related
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -149,6 +150,7 @@ struct net_device * dhd_cfg80211_netdev_free(struct net_device *ndev)
 			kfree(ndev->ieee80211_ptr);
 			ndev->ieee80211_ptr = NULL;
 		}
+		free_netdev(ndev);
 		return NULL;
 	}
 
@@ -160,6 +162,8 @@ void dhd_netdev_free(struct net_device *ndev)
 #ifdef WL_CFG80211
 	ndev = dhd_cfg80211_netdev_free(ndev);
 #endif
+	if (ndev)
+		free_netdev(ndev);
 }
 
 static s32

@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Misc useful os-independent macros and functions.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmutils.h 569587 2015-07-08 16:41:50Z $
+ * $Id: bcmutils.h 696078 2018-08-15 09:24:11Z $
  */
 
 #ifndef	_bcmutils_h_
@@ -1111,6 +1112,7 @@ extern void bcm_uint64_right_shift(uint32* r, uint32 a_high, uint32 a_low, uint3
 
 void bcm_add_64(uint32* r_hi, uint32* r_lo, uint32 offset);
 void bcm_sub_64(uint32* r_hi, uint32* r_lo, uint32 offset);
+uint16 ipv4_hdr_cksum(uint8 *ip, int ip_len);
 
 /* calculate checksum for ip header, tcp / udp header / data */
 uint16 bcm_ip_cksum(uint8 *buf, uint32 len, uint32 sum);

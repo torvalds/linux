@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Linux cfgp2p driver
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wl_cfgp2p.c 598851 2015-11-11 06:48:53Z $
+ * $Id: wl_cfgp2p.c 709309 2019-01-17 09:04:00Z $
  *
  */
 #include <typedefs.h>
@@ -337,6 +338,9 @@ wl_cfgp2p_init_priv(struct bcm_cfg80211 *cfg)
 	wl_to_p2p_bss_bssidx(cfg, P2PAPI_BSSCFG_CONNECTION1) = -1;
 	wl_to_p2p_bss_ndev(cfg, P2PAPI_BSSCFG_CONNECTION2) = NULL;
 	wl_to_p2p_bss_bssidx(cfg, P2PAPI_BSSCFG_CONNECTION2) = -1;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
+	cfg->p2p->cfg = cfg;
+#endif
 	return BCME_OK;
 
 }
@@ -1347,12 +1351,19 @@ wl_cfgp2p_listen_complete(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
  *  We can't report cfg80211_remain_on_channel_expired from Timer ISR context,
  *  so lets do it from thread context.
  */
+
 void
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
 wl_cfgp2p_listen_expired(struct timer_list *t)
 {
-	wl_event_msg_t msg;
 	struct p2p_info *p2p = from_timer(p2p, t, listen_timer);
-	struct bcm_cfg80211 *cfg = container_of(&p2p, typeof(*cfg), p2p);
+	struct bcm_cfg80211 *cfg = p2p->cfg;
+#else
+wl_cfgp2p_listen_expired(unsigned long data)
+{
+	struct bcm_cfg80211 *cfg = (struct bcm_cfg80211 *) data;
+#endif
+	wl_event_msg_t msg;
 	CFGP2P_DBG((" Enter\n"));
 	bzero(&msg, sizeof(wl_event_msg_t));
 	msg.event_type =  hton32(WLC_E_P2P_DISC_LISTEN_COMPLETE);

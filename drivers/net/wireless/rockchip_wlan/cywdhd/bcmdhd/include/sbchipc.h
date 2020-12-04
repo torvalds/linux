@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * SiliconBackplane Chipcommon core hardware definitions.
  *
@@ -5,9 +6,9 @@
  * JTAG, 0/1/2 UARTs, clock frequency control, a watchdog interrupt timer,
  * GPIO interface, extbus, and support for serial and parallel flashes.
  *
- * $Id: sbchipc.h 603826 2015-12-03 08:57:00Z $
+ * $Id: sbchipc.h 722050 2019-08-21 02:24:57Z $
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -2852,6 +2853,31 @@ typedef volatile struct {
 #define CC6_4349_PMU_ENABLE_L2REFCLKPAD_PWRDWN	(1 << 15)
 #define CC6_4349_PMU_EN_MDIO_MASK		(1 << 16)
 #define CC6_4349_PMU_EN_ASSERT_L2_MASK		(1 << 25)
+
+#define CR4_4373_RAM_BASE                       (0x160000)
+
+#define CST4373_JTAG_ENABLE(cs)                (((cs) & (1 << 0)) != 0)
+#define CST4373_CHIPMODE_RSRC_INIT0(cs) (((cs) & (1 << 1)) != 0)
+#define CST4373_SFLASH_PRESENT(cs)      (((cs) & (1 << 4)) != 0)
+#define CST4373_SDIO_PADVDDIO(cs)       (((cs) & (1 << 5)) != 0)
+#define CST4373_CHIPMODE_PCIE(cs)       (((cs) & (1 << 6)) != 0)
+#define CST4373_CHIPMODE_SDIOD(cs)      (((cs) & (1 << 7)) != 0)
+#define CST4373_CHIPMODE_USB20D(cs)     (((cs) & (1 << 8)) != 0)
+#define CST4373_USBHUB_BYPASS(cs)       (((cs) & (1 << 9)) != 0)
+#define STRAP4373_CHIPMODE_RSRC_INIT1           0x1
+#define STRAP4373_VTRIM_EN                      0x1
+#define STRAP4373_SFLASH_PRESENT                0x1
+#define OTP4373_SFLASH_BYTE_OFFSET              680
+#define OTP4373_SFLASH_MASK                     0x3F
+#define OTP4373_SFLASH_PRESENT_MASK             0x1
+#define OTP4373_SFLASH_TYPE_MASK                0x2
+#define OTP4373_SFLASH_TYPE_SHIFT               0x1
+#define OTP4373_SFLASH_CLKDIV_MASK              0x3C
+#define OTP4373_SFLASH_CLKDIV_SHIFT             0x2
+#define SPROM4373_OTP_SELECT                    0x00000010
+#define SPROM4373_OTP_PRESENT                   0x00000020
+#define CC4373_SFLASH_CLKDIV_MASK               0x1F000000
+#define CC4373_SFLASH_CLKDIV_SHIFT		25
 
 
 

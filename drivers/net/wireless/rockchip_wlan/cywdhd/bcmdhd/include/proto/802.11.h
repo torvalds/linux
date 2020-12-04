@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Fundamental types and constants relating to 802.11
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: 802.11.h 608148 2015-12-23 22:39:49Z $
+ * $Id: 802.11.h 639448 2016-05-23 20:23:42Z $
  */
 
 #ifndef _802_11_H_
@@ -633,6 +634,12 @@ BWL_PRE_PACKED_STRUCT struct dot11_meas_req_loc {
 			uint8 data[1];
 		} BWL_POST_PACKED_STRUCT civic;
 		BWL_PRE_PACKED_STRUCT struct {
+			uint8 subject;
+			uint8 siu;   /* service interval units */
+			uint16 si; /* service interval */
+			uint8 data[1];
+		} BWL_POST_PACKED_STRUCT locid;
+		BWL_PRE_PACKED_STRUCT struct {
 			uint16 max_init_delay;		/* maximum random initial delay */
 			uint8 min_ap_count;
 			uint8 data[1];
@@ -686,6 +693,12 @@ BWL_PRE_PACKED_STRUCT struct dot11_meas_rep {
 			uint8 data[1];
 		} BWL_POST_PACKED_STRUCT civic;
 		BWL_PRE_PACKED_STRUCT struct {
+			uint8 exp_tsf[8];
+			uint8 subelement;
+			uint8 length;
+			uint8 data[1];
+		} BWL_POST_PACKED_STRUCT locid;
+		BWL_PRE_PACKED_STRUCT struct {
 			uint8 entry_count;
 			uint8 data[1];
 		} BWL_POST_PACKED_STRUCT ftm_range;
@@ -696,6 +709,7 @@ typedef struct dot11_meas_rep dot11_meas_rep_t;
 #define DOT11_MNG_IE_MREP_MIN_LEN           5	/* d11 measurement report IE length */
 #define DOT11_MNG_IE_MREP_LCI_FIXED_LEN     5	/* d11 measurement report IE length */
 #define DOT11_MNG_IE_MREP_CIVIC_FIXED_LEN   6	/* d11 measurement report IE length */
+#define DOT11_MNG_IE_MREP_LOCID_FIXED_LEN   13	/* d11 measurement report IE length */
 #define DOT11_MNG_IE_MREP_BASIC_FIXED_LEN   15	/* d11 measurement report IE length */
 #define DOT11_MNG_IE_MREP_FRNG_FIXED_LEN    4
 
@@ -1330,6 +1344,7 @@ typedef struct ti_ie ti_ie_t;
 #define DOT11_MNG_COUNTRY_ID			7	/* d11 management country id */
 #define DOT11_MNG_HOPPING_PARMS_ID		8	/* d11 management hopping parameter id */
 #define DOT11_MNG_HOPPING_TABLE_ID		9	/* d11 management hopping table id */
+#define DOT11_MNG_FTM_SYNC_INFO_ID		9	/* 11mc D4.3 */
 #define DOT11_MNG_REQUEST_ID			10	/* d11 management request id */
 #define DOT11_MNG_QBSS_LOAD_ID 			11	/* d11 management QBSS Load id */
 #define DOT11_MNG_EDCA_PARAM_ID			12	/* 11E EDCA Parameter id */
@@ -1396,7 +1411,7 @@ typedef struct ti_ie ti_ie_t;
 #define DOT11_MNG_WAKEUP_SCHEDULE_ID		102	/* 11z TDLS Wakeup Schedule IE */
 #define DOT11_MNG_CHANNEL_SWITCH_TIMING_ID	104	/* 11z TDLS Channel Switch Timing IE */
 #define DOT11_MNG_PTI_CONTROL_ID		105	/* 11z TDLS PTI Control IE */
-#define DOT11_MNG_PU_BUFFER_STATUS_ID	106	/* 11z TDLS PU Buffer Status IE */
+#define DOT11_MNG_PU_BUFFER_STATUS_ID		106	/* 11z TDLS PU Buffer Status IE */
 #define DOT11_MNG_INTERWORKING_ID		107	/* 11u interworking */
 #define DOT11_MNG_ADVERTISEMENT_ID		108	/* 11u advertisement protocol */
 #define DOT11_MNG_EXP_BW_REQ_ID			109	/* 11u expedited bandwith request */
@@ -1406,7 +1421,6 @@ typedef struct ti_ie ti_ie_t;
 #define DOT11_MNG_MESH_CONFIG			113	/* Mesh Configuration */
 #define DOT11_MNG_MESH_ID			114	/* Mesh ID */
 #define DOT11_MNG_MESH_PEER_MGMT_ID		117	/* Mesh PEER MGMT IE */
-
 #define DOT11_MNG_EXT_CAP_ID			127	/* d11 mgmt ext capability */
 #define DOT11_MNG_EXT_PREQ_ID			130	/* Mesh PREQ IE */
 #define DOT11_MNG_EXT_PREP_ID			131	/* Mesh PREP IE */
@@ -1414,20 +1428,21 @@ typedef struct ti_ie ti_ie_t;
 #define	DOT11_MNG_VHT_CAP_ID			191	/* d11 mgmt VHT cap id */
 #define	DOT11_MNG_VHT_OPERATION_ID		192	/* d11 mgmt VHT op id */
 #define	DOT11_MNG_EXT_BSSLOAD_ID		193	/* d11 mgmt VHT extended bss load id */
-#define DOT11_MNG_WIDE_BW_CHANNEL_SWITCH_ID		194	/* Wide BW Channel Switch IE */
-#define DOT11_MNG_VHT_TRANSMIT_POWER_ENVELOPE_ID	195	/* VHT transmit Power Envelope IE */
-#define DOT11_MNG_CHANNEL_SWITCH_WRAPPER_ID		196	/* Channel Switch Wrapper IE */
-#define DOT11_MNG_AID_ID					197	/* Association ID  IE */
-#define	DOT11_MNG_OPER_MODE_NOTIF_ID	199	/* d11 mgmt VHT oper mode notif */
+#define DOT11_MNG_WIDE_BW_CHANNEL_SWITCH_ID	194	/* Wide BW Channel Switch IE */
+#define DOT11_MNG_VHT_TRANSMIT_POWER_ENVELOPE_ID 195	/* VHT transmit Power Envelope IE */
+#define DOT11_MNG_CHANNEL_SWITCH_WRAPPER_ID	196	/* Channel Switch Wrapper IE */
+#define DOT11_MNG_AID_ID			197	/* Association ID  IE */
+#define	DOT11_MNG_OPER_MODE_NOTIF_ID		199	/* d11 mgmt VHT oper mode notif */
+#define DOT11_MNG_HE_CAP_ID			201
+#define DOT11_MNG_HE_OP_ID			202
 #define DOT11_MNG_FTM_PARAMS_ID			206
-
+#define DOT11_MNG_TWT_ID			216	/* 11ah D5.0 */
 #define DOT11_MNG_WPA_ID			221	/* d11 management WPA id */
 #define DOT11_MNG_PROPR_ID			221
 /* should start using this one instead of above two */
 #define DOT11_MNG_VS_ID				221	/* d11 management Vendor Specific IE */
 
-#define DOT11_MNG_ID_EXT_ID			255 /* Element ID Extension 11mc D4.3 */
-#define DOT11_MNG_FTM_SYNC_INFO_ID		9	/* 11mc D4.3 */
+#define DOT11_MNG_ID_EXT_ID			255	/* Element ID Extension 11mc D4.3 */
 
 #define DOT11_MNG_IE_ID_EXT_MATCH(_ie, _id) (\
 	((_ie)->id == DOT11_MNG_ID_EXT_ID) && \
@@ -1545,6 +1560,8 @@ typedef struct ti_ie ti_ie_t;
 /* service Interval granularity bit position and mask */
 #define DOT11_EXT_CAP_SI			41
 #define DOT11_EXT_CAP_SI_MASK			0x0E
+/* Location Identifier service */
+#define DOT11_EXT_CAP_IDENT_LOC			44
 /* WNM notification */
 #define DOT11_EXT_CAP_WNM_NOTIF			46
 /* Operating mode notification - VHT (11ac D3.0 - 8.4.2.29) */
@@ -1647,6 +1664,7 @@ typedef struct dot11_oper_mode_notif_ie dot11_oper_mode_notif_ie_t;
 #define DOT11_ACTION_CAT_SELFPROT	15	/* category for Mesh, self protected */
 #define DOT11_ACTION_NOTIFICATION	17
 #define DOT11_ACTION_CAT_VHT		21	/* VHT action */
+#define DOT11_ACTION_CAT_HE		26	/* HE action frame */
 #define DOT11_ACTION_CAT_VSP		126	/* protected vendor specific */
 #define DOT11_ACTION_CAT_VS		127	/* category Vendor Specific */
 
@@ -2566,7 +2584,10 @@ typedef struct dot11_rrm_cap_ie dot11_rrm_cap_ie_t;
 #define DOT11_RRM_CAP_TTSCM		15
 #define DOT11_RRM_CAP_AP_CHANREP	16
 #define DOT11_RRM_CAP_RMMIB		17
-/* bit18-bit26, not used for RRM_IOVAR */
+/* bit18-bit23, not used for RRM_IOVAR */
+#define DOT11_RRM_CAP_MPC0		24
+#define DOT11_RRM_CAP_MPC1		25
+#define DOT11_RRM_CAP_MPC2		26
 #define DOT11_RRM_CAP_MPTI		27
 #define DOT11_RRM_CAP_NBRTSFO		28
 #define DOT11_RRM_CAP_RCPI		29
@@ -2576,8 +2597,10 @@ typedef struct dot11_rrm_cap_ie dot11_rrm_cap_ie_t;
 #define DOT11_RRM_CAP_AI		33
 #define DOT11_RRM_CAP_FTM_RANGE		34
 #define DOT11_RRM_CAP_CIVIC_LOC		35
-#define DOT11_RRM_CAP_LAST		35
+#define DOT11_RRM_CAP_IDENT_LOC		36
+#define DOT11_RRM_CAP_LAST		36
 
+#define DOT11_RRM_CAP_MPA_MASK		0x7
 /* Operating Class (formerly "Regulatory Class") definitions */
 #define DOT11_OP_CLASS_NONE			255
 
@@ -2596,6 +2619,7 @@ typedef struct do11_ap_chrep dot11_ap_chrep_t;
 #define DOT11_RM_ACTION_LM_REP		3	/* Link measurement report */
 #define DOT11_RM_ACTION_NR_REQ		4	/* Neighbor report request */
 #define DOT11_RM_ACTION_NR_REP		5	/* Neighbor report response */
+#define DOT11_PUB_ACTION_MP		7	/* Measurement Pilot public action id */
 
 /** Generic radio measurement action frame header */
 BWL_PRE_PACKED_STRUCT struct dot11_rm_action {
@@ -2991,6 +3015,7 @@ BWL_PRE_PACKED_STRUCT struct dot11_rmreq_tx_stream {
 	uint8 bin0_range;
 } BWL_POST_PACKED_STRUCT;
 typedef struct dot11_rmreq_tx_stream dot11_rmreq_tx_stream_t;
+#define DOT11_RMREQ_TXSTREAM_LEN	17
 
 /** Transmit stream/category measurement report */
 BWL_PRE_PACKED_STRUCT struct dot11_rmrep_tx_stream {
@@ -3015,7 +3040,25 @@ BWL_PRE_PACKED_STRUCT struct dot11_rmrep_tx_stream {
 	uint32 bin5;
 } BWL_POST_PACKED_STRUCT;
 typedef struct dot11_rmrep_tx_stream dot11_rmrep_tx_stream_t;
+#define DOT11_RMREP_TXSTREAM_LEN	71
 
+typedef struct rrm_tscm {
+	uint32 msdu_tx;
+	uint32 msdu_exp;
+	uint32 msdu_fail;
+	uint32 msdu_retries;
+	uint32 cfpolls_lost;
+	uint32 queue_delay;
+	uint32 tx_delay_sum;
+	uint32 tx_delay_cnt;
+	uint32 bin0_range_us;
+	uint32 bin0;
+	uint32 bin1;
+	uint32 bin2;
+	uint32 bin3;
+	uint32 bin4;
+	uint32 bin5;
+} rrm_tscm_t;
 enum {
 	DOT11_FTM_LOCATION_SUBJ_LOCAL = 0, 		/* Where am I? */
 	DOT11_FTM_LOCATION_SUBJ_REMOTE = 1,		/* Where are you? */
@@ -3038,6 +3081,7 @@ BWL_PRE_PACKED_STRUCT struct dot11_rmreq_ftm_lci {
 	/* optional sub-elements */
 } BWL_POST_PACKED_STRUCT;
 typedef struct dot11_rmreq_ftm_lci dot11_rmreq_ftm_lci_t;
+#define DOT11_RMREQ_LCI_LEN	9
 
 BWL_PRE_PACKED_STRUCT struct dot11_rmrep_ftm_lci {
 	uint8 id;
@@ -3070,6 +3114,7 @@ BWL_PRE_PACKED_STRUCT struct dot11_rmreq_ftm_civic {
 	/* optional sub-elements */
 } BWL_POST_PACKED_STRUCT;
 typedef struct dot11_rmreq_ftm_civic dot11_rmreq_ftm_civic_t;
+#define DOT11_RMREQ_CIVIC_LEN	10
 
 BWL_PRE_PACKED_STRUCT struct dot11_rmrep_ftm_civic {
 	uint8 id;
@@ -3091,6 +3136,37 @@ typedef struct dot11_rmrep_ftm_civic dot11_rmrep_ftm_civic_t;
 #define DOT11_FTM_CIVIC_LOC_SI_NONE			0
 #define DOT11_FTM_CIVIC_TYPE_LEN			1
 #define DOT11_FTM_CIVIC_UNKNOWN_LEN 		3
+
+/* Location Identifier measurement request */
+BWL_PRE_PACKED_STRUCT struct dot11_rmreq_locid {
+	uint8 id;
+	uint8 len;
+	uint8 token;
+	uint8 mode;
+	uint8 type;
+	uint8 subj;
+	uint8 siu;
+	uint16 si;
+} BWL_POST_PACKED_STRUCT;
+typedef struct dot11_rmreq_locid dot11_rmreq_locid_t;
+#define DOT11_RMREQ_LOCID_LEN	9
+
+/* Location Identifier measurement report */
+BWL_PRE_PACKED_STRUCT struct dot11_rmrep_locid {
+	uint8 id;
+	uint8 len;
+	uint8 token;
+	uint8 mode;
+	uint8 type;
+	uint8 exp_tsf[8];
+	uint8 locid_sub_id;
+	uint8 locid_sub_len;
+	/* optional location identifier field */
+	/* optional sub-elements */
+} BWL_POST_PACKED_STRUCT;
+typedef struct dot11_rmrep_locid dot11_rmrep_locid_t;
+#define DOT11_LOCID_UNKNOWN_LEN		10
+#define DOT11_LOCID_SUBELEM_ID		0
 
 BWL_PRE_PACKED_STRUCT struct dot11_ftm_range_subel {
 	uint8 id;
@@ -3172,6 +3248,7 @@ BWL_PRE_PACKED_STRUCT struct dot11_rmreq_pause_time {
 	uint16 pause_time;
 } BWL_POST_PACKED_STRUCT;
 typedef struct dot11_rmreq_pause_time dot11_rmreq_pause_time_t;
+#define DOT11_RMREQ_PAUSE_LEN	7
 
 
 /* Neighbor Report subelements ID (11k & 11v) */
@@ -3264,6 +3341,19 @@ BWL_PRE_PACKED_STRUCT struct dot11_lmrep {
 } BWL_POST_PACKED_STRUCT;
 typedef struct dot11_lmrep dot11_lmrep_t;
 #define DOT11_LMREP_LEN	11
+
+#define DOT11_MP_CAP_SPECTRUM			0x01	/* d11 cap. spectrum */
+#define DOT11_MP_CAP_SHORTSLOT			0x02	/* d11 cap. shortslot */
+/* Measurement Pilot */
+BWL_PRE_PACKED_STRUCT struct dot11_mprep {
+	uint8 cap_info;				/* Condensed capability Info. */
+	uint8 country[2];				/* Condensed country string */
+	uint8 opclass;				/* Op. Class */
+	uint8 channel;				/* Channel */
+	uint8 mp_interval;			/* Measurement Pilot Interval */
+} BWL_POST_PACKED_STRUCT;
+typedef struct dot11_mprep dot11_mprep_t;
+#define DOT11_MPREP_LEN	6
 
 /* 802.11 BRCM "Compromise" Pre N constants */
 #define PREN_PREAMBLE		24	/* green field preamble time */
@@ -3416,12 +3506,18 @@ typedef struct d11cnt {
 #define BRCM_PROP_OUI		"\x00\x90\x4C"
 
 
-/* Action frame type for FTM Initiator Report */
-#define BRCM_FTM_VS_AF_TYPE	14
-enum {
-	BRCM_FTM_VS_INITIATOR_RPT_SUBTYPE = 1,	/* FTM Initiator Report */
-	BRCM_FTM_VS_COLLECT_SUBTYPE = 2,	/* FTM Collect debug protocol */
-};
+#define BRCM_FTM_IE_TYPE			14
+
+/* #define HT_CAP_IE_TYPE			51
+ * #define HT_ADD_IE_TYPE			52
+ * #define BRCM_EXTCH_IE_TYPE		53
+ * #define MEMBER_OF_BRCM_PROP_IE_TYPE	54
+ * #define BRCM_RELMACST_IE_TYPE		55
+ * #define BRCM_EVT_WL_BSS_INFO		64
+ * #define RWL_ACTION_WIFI_FRAG_TYPE	85
+ * #define BTC_INFO_BRCM_PROP_IE_TYPE	90
+ * #define ULB_BRCM_PROP_IE_TYPE	91
+ */
 
 /* Action frame type for RWL */
 #define RWL_WIFI_DEFAULT		0
@@ -3431,6 +3527,14 @@ enum {
 
 #define PROXD_AF_TYPE			11 /* Wifi proximity action frame type */
 #define BRCM_RELMACST_AF_TYPE	        12 /* RMC action frame type */
+
+/* Action frame type for FTM Initiator Report */
+#define BRCM_FTM_VS_AF_TYPE	14
+enum {
+	BRCM_FTM_VS_INITIATOR_RPT_SUBTYPE = 1,	/* FTM Initiator Report */
+	BRCM_FTM_VS_COLLECT_SUBTYPE = 2,	/* FTM Collect debug protocol */
+};
+
 
 
 
@@ -3630,6 +3734,11 @@ typedef struct ht_prop_cap_ie ht_prop_cap_ie_t;
 #define HT_CAP_TX_BF_CAP_EXPLICIT_COMPRESSED_FB_MASK 0x18000
 #define HT_CAP_TX_BF_CAP_EXPLICIT_COMPRESSED_FB_SHIFT 15
 
+#define HT_CAP_MCS_FLAGS_SUPP_BYTE 12 /* byte offset in HT Cap Supported MCS for various flags */
+#define HT_CAP_MCS_RX_8TO15_BYTE_OFFSET                1
+#define HT_CAP_MCS_FLAGS_TX_RX_UNEQUAL              0x02
+#define HT_CAP_MCS_FLAGS_MAX_SPATIAL_STREAM_MASK    0x0C
+
 #define VHT_MAX_MPDU		11454	/* max mpdu size for now (bytes) */
 #define VHT_MPDU_MSDU_DELTA	56		/* Difference in spec - vht mpdu, amsdu len */
 /* Max AMSDU len - per spec */
@@ -3746,6 +3855,13 @@ typedef struct ht_prop_add_ie ht_prop_add_ie_t;
 					== DOT11N_TXBURST)	/* Tx Burst present */
 #define DOT11N_OBSS_NONHT_PRESENT(add_ie)	((ltoh16_ua(&add_ie->opmode) & DOT11N_OBSS_NONHT) \
 					== DOT11N_OBSS_NONHT)	/* OBSS Non-HT present */
+/* Macros for HT MCS filed access */
+#define HT_CAP_MCS_BITMASK(supp_mcs)                 \
+	((supp_mcs)[HT_CAP_MCS_RX_8TO15_BYTE_OFFSET])
+#define HT_CAP_MCS_TX_RX_UNEQUAL(supp_mcs)          \
+	((supp_mcs)[HT_CAP_MCS_FLAGS_SUPP_BYTE] & HT_CAP_MCS_FLAGS_TX_RX_UNEQUAL)
+#define HT_CAP_MCS_TX_STREAM_SUPPORT(supp_mcs)          \
+		((supp_mcs)[HT_CAP_MCS_FLAGS_SUPP_BYTE] & HT_CAP_MCS_FLAGS_MAX_SPATIAL_STREAM_MASK)
 
 BWL_PRE_PACKED_STRUCT struct obss_params {
 	uint16	passive_dwell;
@@ -3836,6 +3952,7 @@ typedef struct vht_cap_ie vht_cap_ie_t;
 /* VHT Supported MCS Set - 64-bit - in VHT Cap IE */
 #define VHT_CAP_SUPP_MCS_RX_HIGHEST_RATE_MASK   0x1fff
 #define VHT_CAP_SUPP_MCS_RX_HIGHEST_RATE_SHIFT  0
+#define VHT_CAP_SUPP_CHAN_WIDTH_SHIFT		5
 
 #define VHT_CAP_SUPP_MCS_TX_HIGHEST_RATE_MASK   0x1fff
 #define VHT_CAP_SUPP_MCS_TX_HIGHEST_RATE_SHIFT  0
@@ -3982,6 +4099,16 @@ typedef struct vht_features_ie_hdr vht_features_ie_hdr_t;
 #define VHT_MCS_SS_SUPPORTED(nss, mcsMap) \
 		 (VHT_MCS_MAP_GET_MCS_PER_SS((nss), (mcsMap)) != VHT_CAP_MCS_MAP_NONE)
 
+/* Get the max ss supported from the mcs map */
+#define VHT_MAX_SS_SUPPORTED(mcsMap) \
+	VHT_MCS_SS_SUPPORTED(8, mcsMap) ? 8 : \
+	VHT_MCS_SS_SUPPORTED(7, mcsMap) ? 7 : \
+	VHT_MCS_SS_SUPPORTED(6, mcsMap) ? 6 : \
+	VHT_MCS_SS_SUPPORTED(5, mcsMap) ? 5 : \
+	VHT_MCS_SS_SUPPORTED(4, mcsMap) ? 4 : \
+	VHT_MCS_SS_SUPPORTED(3, mcsMap) ? 3 : \
+	VHT_MCS_SS_SUPPORTED(2, mcsMap) ? 2 : \
+	VHT_MCS_SS_SUPPORTED(1, mcsMap) ? 1 : 0
 
 /* ************* WPA definitions. ************* */
 #define WPA_OUI			"\x00\x50\xF2"	/* WPA OUI */
@@ -4022,6 +4149,7 @@ typedef struct vht_features_ie_hdr vht_features_ie_hdr_t;
 #define WFA_OUI_TYPE_HS20	0x10
 #define WFA_OUI_TYPE_OSEN	0x12
 #define WFA_OUI_TYPE_NAN	0x13
+#define WFA_OUI_TYPE_MBO	0x16
 
 /* RSN authenticated key managment suite */
 #define RSN_AKM_NONE		0	/* None (IBSS) */
@@ -4532,26 +4660,52 @@ typedef BWL_PRE_PACKED_STRUCT struct {
 	uint8	data[1];
 } BWL_POST_PACKED_STRUCT ftm_vs_tlv_t;
 
-#define FTM_TPK_LEN		16
-#define FTM_RI_RR_BUF_LEN	32
-#define FTM_TPK_RI_RR_LEN	13
-#define FTM_TPK_DIGEST_LEN	32
-#define FTM_TPK_BUFFER_LEN	128
-#define FTM_TPK_RI_PHY_LEN	7
-#define FTM_TPK_RR_PHY_LEN	7
+BWL_PRE_PACKED_STRUCT struct dot11_ftm_vs_ie {
+	uint8 id;						/* DOT11_MNG_VS_ID */
+	uint8 len;						/* length following */
+	uint8 oui[3];					/* BRCM_PROP_OUI (or Customer) */
+	uint8 sub_type;					/* BRCM_FTM_IE_TYPE (or Customer) */
+	uint8 version;
+	ftm_vs_tlv_t	tlvs[1];
+} BWL_POST_PACKED_STRUCT;
+typedef struct dot11_ftm_vs_ie dot11_ftm_vs_ie_t;
+
+/* ftm vs api version */
+#define BCM_FTM_VS_PARAMS_VERSION 0x01
+
+/* ftm vendor specific information tlv types */
+enum {
+	FTM_VS_TLV_NONE = 0,
+	FTM_VS_TLV_REQ_PARAMS = 1,		/* additional request params (in FTM_REQ) */
+	FTM_VS_TLV_MEAS_INFO = 2,		/* measurement information (in FTM_MEAS) */
+	FTM_VS_TLV_SEC_PARAMS = 3,		/* security parameters (in either) */
+	FTM_VS_TLV_SEQ_PARAMS = 4,		/* toast parameters (FTM_REQ, BRCM proprietary) */
+	FTM_VS_TLV_MF_BUF = 5,			/* multi frame buffer - may span ftm vs ie's */
+	/* add additional types above */
+};
+
+/* the following definitions are *DEPRECATED* and moved to implemenetion files. They
+ * are retained here because previous (May 2016) some branches use them
+ */
+#define FTM_TPK_LEN            16
+#define FTM_RI_RR_BUF_LEN      32
+#define FTM_TPK_RI_RR_LEN      13
+#define FTM_TPK_DIGEST_LEN     32
+#define FTM_TPK_BUFFER_LEN     128
+#define FTM_TPK_RI_PHY_LEN     7
+#define FTM_TPK_RR_PHY_LEN     7
 #define FTM_TPK_DATA_BUFFER_LEN 88
 
-
 BWL_PRE_PACKED_STRUCT struct dot11_ftm_vs_params {
-	uint8 id;						/* DOT11_MNG_VS_ID */
+	uint8 id;                       /* DOT11_MNG_VS_ID */
 	uint8 len;
-	uint8 oui[3];					/* Proprietary OUI, BRCM_PROP_OUI */
+	uint8 oui[3];                   /* Proprietary OUI, BRCM_PROP_OUI */
 	uint8 bcm_vs_id;
-	ftm_vs_tlv_t ftm_tpk_ri_rr[1];			/* ftm_TPK_ri_rr place holder */
+	ftm_vs_tlv_t ftm_tpk_ri_rr[1];          /* ftm_TPK_ri_rr place holder */
 } BWL_POST_PACKED_STRUCT;
 typedef struct dot11_ftm_vs_params dot11_ftm_vs_tpk_ri_rr_params_t;
-
 #define DOT11_FTM_VS_LEN  (sizeof(dot11_ftm_vs_tpk_ri_rr_params_t) - TLV_HDR_LEN)
+/* end *DEPRECATED* ftm definitions */
 
 BWL_PRE_PACKED_STRUCT struct dot11_ftm_sync_info {
 	uint8 id;		/* Extended - 255 11mc D4.3  */
