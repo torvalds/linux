@@ -279,7 +279,9 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 			 * when then group is left.
 			 */
 			if (!has_constraint &&
-			    ev->leader != metric_events[i]->leader)
+			    ev->leader != metric_events[i]->leader &&
+			    !strcmp(ev->leader->pmu_name,
+				    metric_events[i]->leader->pmu_name))
 				break;
 			if (!strcmp(metric_events[i]->name, ev->name)) {
 				set_bit(ev->idx, evlist_used);
