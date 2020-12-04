@@ -92,7 +92,7 @@ nv4_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv04_fifo_new },
 	.gr       = { 0x00000001, nv04_gr_new },
-	.sw = nv04_sw_new,
+	.sw       = { 0x00000001, nv04_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -113,7 +113,7 @@ nv5_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv04_fifo_new },
 	.gr       = { 0x00000001, nv04_gr_new },
-	.sw = nv04_sw_new,
+	.sw       = { 0x00000001, nv04_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -155,7 +155,7 @@ nv11_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv10_fifo_new },
 	.gr       = { 0x00000001, nv15_gr_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -177,7 +177,7 @@ nv15_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv10_fifo_new },
 	.gr       = { 0x00000001, nv15_gr_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -199,7 +199,7 @@ nv17_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv17_fifo_new },
 	.gr       = { 0x00000001, nv17_gr_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -221,7 +221,7 @@ nv18_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv17_fifo_new },
 	.gr       = { 0x00000001, nv17_gr_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -243,7 +243,7 @@ nv1a_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv10_fifo_new },
 	.gr       = { 0x00000001, nv15_gr_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -265,7 +265,7 @@ nv1f_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv17_fifo_new },
 	.gr       = { 0x00000001, nv17_gr_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -287,7 +287,7 @@ nv20_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv17_fifo_new },
 	.gr       = { 0x00000001, nv20_gr_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -309,7 +309,7 @@ nv25_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv17_fifo_new },
 	.gr       = { 0x00000001, nv25_gr_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -331,7 +331,7 @@ nv28_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv17_fifo_new },
 	.gr       = { 0x00000001, nv25_gr_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -353,7 +353,7 @@ nv2a_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv17_fifo_new },
 	.gr       = { 0x00000001, nv2a_gr_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -375,7 +375,7 @@ nv30_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv17_fifo_new },
 	.gr       = { 0x00000001, nv30_gr_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -398,7 +398,7 @@ nv31_chipset = {
 	.fifo     = { 0x00000001, nv17_fifo_new },
 	.gr       = { 0x00000001, nv30_gr_new },
 	.mpeg     = { 0x00000001, nv31_mpeg_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -421,7 +421,7 @@ nv34_chipset = {
 	.fifo     = { 0x00000001, nv17_fifo_new },
 	.gr       = { 0x00000001, nv34_gr_new },
 	.mpeg     = { 0x00000001, nv31_mpeg_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -443,7 +443,7 @@ nv35_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv17_fifo_new },
 	.gr       = { 0x00000001, nv35_gr_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -466,7 +466,7 @@ nv36_chipset = {
 	.fifo     = { 0x00000001, nv17_fifo_new },
 	.gr       = { 0x00000001, nv35_gr_new },
 	.mpeg     = { 0x00000001, nv31_mpeg_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -492,7 +492,7 @@ nv40_chipset = {
 	.gr       = { 0x00000001, nv40_gr_new },
 	.mpeg     = { 0x00000001, nv40_mpeg_new },
 	.pm       = { 0x00000001, nv40_pm_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -518,7 +518,7 @@ nv41_chipset = {
 	.gr       = { 0x00000001, nv40_gr_new },
 	.mpeg     = { 0x00000001, nv40_mpeg_new },
 	.pm       = { 0x00000001, nv40_pm_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -544,7 +544,7 @@ nv42_chipset = {
 	.gr       = { 0x00000001, nv40_gr_new },
 	.mpeg     = { 0x00000001, nv40_mpeg_new },
 	.pm       = { 0x00000001, nv40_pm_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -570,7 +570,7 @@ nv43_chipset = {
 	.gr       = { 0x00000001, nv40_gr_new },
 	.mpeg     = { 0x00000001, nv40_mpeg_new },
 	.pm       = { 0x00000001, nv40_pm_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -596,7 +596,7 @@ nv44_chipset = {
 	.gr       = { 0x00000001, nv44_gr_new },
 	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm       = { 0x00000001, nv40_pm_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -622,7 +622,7 @@ nv45_chipset = {
 	.gr       = { 0x00000001, nv40_gr_new },
 	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm       = { 0x00000001, nv40_pm_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -648,7 +648,7 @@ nv46_chipset = {
 	.gr       = { 0x00000001, nv44_gr_new },
 	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm       = { 0x00000001, nv40_pm_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -674,7 +674,7 @@ nv47_chipset = {
 	.gr       = { 0x00000001, nv40_gr_new },
 	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm       = { 0x00000001, nv40_pm_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -700,7 +700,7 @@ nv49_chipset = {
 	.gr       = { 0x00000001, nv40_gr_new },
 	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm       = { 0x00000001, nv40_pm_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -726,7 +726,7 @@ nv4a_chipset = {
 	.gr       = { 0x00000001, nv44_gr_new },
 	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm       = { 0x00000001, nv40_pm_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -752,7 +752,7 @@ nv4b_chipset = {
 	.gr       = { 0x00000001, nv40_gr_new },
 	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm       = { 0x00000001, nv40_pm_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -778,7 +778,7 @@ nv4c_chipset = {
 	.gr       = { 0x00000001, nv44_gr_new },
 	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm       = { 0x00000001, nv40_pm_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -804,7 +804,7 @@ nv4e_chipset = {
 	.gr       = { 0x00000001, nv44_gr_new },
 	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm       = { 0x00000001, nv40_pm_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -833,7 +833,7 @@ nv50_chipset = {
 	.gr       = { 0x00000001, nv50_gr_new },
 	.mpeg     = { 0x00000001, nv50_mpeg_new },
 	.pm       = { 0x00000001, nv50_pm_new },
-	.sw = nv50_sw_new,
+	.sw       = { 0x00000001, nv50_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -859,7 +859,7 @@ nv63_chipset = {
 	.gr       = { 0x00000001, nv44_gr_new },
 	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm       = { 0x00000001, nv40_pm_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -885,7 +885,7 @@ nv67_chipset = {
 	.gr       = { 0x00000001, nv44_gr_new },
 	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm       = { 0x00000001, nv40_pm_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -911,7 +911,7 @@ nv68_chipset = {
 	.gr       = { 0x00000001, nv44_gr_new },
 	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm       = { 0x00000001, nv40_pm_new },
-	.sw = nv10_sw_new,
+	.sw       = { 0x00000001, nv10_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -942,7 +942,7 @@ nv84_chipset = {
 	.gr       = { 0x00000001, g84_gr_new },
 	.mpeg     = { 0x00000001, g84_mpeg_new },
 	.pm       = { 0x00000001, g84_pm_new },
-	.sw = nv50_sw_new,
+	.sw       = { 0x00000001, nv50_sw_new },
 	.vp       = { 0x00000001, g84_vp_new },
 };
 
@@ -974,7 +974,7 @@ nv86_chipset = {
 	.gr       = { 0x00000001, g84_gr_new },
 	.mpeg     = { 0x00000001, g84_mpeg_new },
 	.pm       = { 0x00000001, g84_pm_new },
-	.sw = nv50_sw_new,
+	.sw       = { 0x00000001, nv50_sw_new },
 	.vp       = { 0x00000001, g84_vp_new },
 };
 
@@ -1006,7 +1006,7 @@ nv92_chipset = {
 	.gr       = { 0x00000001, g84_gr_new },
 	.mpeg     = { 0x00000001, g84_mpeg_new },
 	.pm       = { 0x00000001, g84_pm_new },
-	.sw = nv50_sw_new,
+	.sw       = { 0x00000001, nv50_sw_new },
 	.vp       = { 0x00000001, g84_vp_new },
 };
 
@@ -1038,7 +1038,7 @@ nv94_chipset = {
 	.gr       = { 0x00000001, g84_gr_new },
 	.mpeg     = { 0x00000001, g84_mpeg_new },
 	.pm       = { 0x00000001, g84_pm_new },
-	.sw = nv50_sw_new,
+	.sw       = { 0x00000001, nv50_sw_new },
 	.vp       = { 0x00000001, g84_vp_new },
 };
 
@@ -1070,7 +1070,7 @@ nv96_chipset = {
 	.gr       = { 0x00000001, g84_gr_new },
 	.mpeg     = { 0x00000001, g84_mpeg_new },
 	.pm       = { 0x00000001, g84_pm_new },
-	.sw = nv50_sw_new,
+	.sw       = { 0x00000001, nv50_sw_new },
 	.vp       = { 0x00000001, g84_vp_new },
 };
 
@@ -1103,7 +1103,7 @@ nv98_chipset = {
 	.msvld    = { 0x00000001, g98_msvld_new },
 	.pm       = { 0x00000001, g84_pm_new },
 	.sec      = { 0x00000001, g98_sec_new },
-	.sw = nv50_sw_new,
+	.sw       = { 0x00000001, nv50_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1134,7 +1134,7 @@ nva0_chipset = {
 	.gr       = { 0x00000001, gt200_gr_new },
 	.mpeg     = { 0x00000001, g84_mpeg_new },
 	.pm       = { 0x00000001, gt200_pm_new },
-	.sw = nv50_sw_new,
+	.sw       = { 0x00000001, nv50_sw_new },
 	.vp       = { 0x00000001, g84_vp_new },
 };
 
@@ -1169,7 +1169,7 @@ nva3_chipset = {
 	.msppp    = { 0x00000001, gt215_msppp_new },
 	.msvld    = { 0x00000001, gt215_msvld_new },
 	.pm       = { 0x00000001, gt215_pm_new },
-	.sw = nv50_sw_new,
+	.sw       = { 0x00000001, nv50_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1202,7 +1202,7 @@ nva5_chipset = {
 	.msppp    = { 0x00000001, gt215_msppp_new },
 	.msvld    = { 0x00000001, gt215_msvld_new },
 	.pm       = { 0x00000001, gt215_pm_new },
-	.sw = nv50_sw_new,
+	.sw       = { 0x00000001, nv50_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1235,7 +1235,7 @@ nva8_chipset = {
 	.msppp    = { 0x00000001, gt215_msppp_new },
 	.msvld    = { 0x00000001, gt215_msvld_new },
 	.pm       = { 0x00000001, gt215_pm_new },
-	.sw = nv50_sw_new,
+	.sw       = { 0x00000001, nv50_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1267,7 +1267,7 @@ nvaa_chipset = {
 	.msvld    = { 0x00000001, g98_msvld_new },
 	.pm       = { 0x00000001, g84_pm_new },
 	.sec      = { 0x00000001, g98_sec_new },
-	.sw = nv50_sw_new,
+	.sw       = { 0x00000001, nv50_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1299,7 +1299,7 @@ nvac_chipset = {
 	.msvld    = { 0x00000001, g98_msvld_new },
 	.pm       = { 0x00000001, g84_pm_new },
 	.sec      = { 0x00000001, g98_sec_new },
-	.sw = nv50_sw_new,
+	.sw       = { 0x00000001, nv50_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1332,7 +1332,7 @@ nvaf_chipset = {
 	.msppp    = { 0x00000001, gt215_msppp_new },
 	.msvld    = { 0x00000001, mcp89_msvld_new },
 	.pm       = { 0x00000001, gt215_pm_new },
-	.sw = nv50_sw_new,
+	.sw       = { 0x00000001, nv50_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1368,7 +1368,7 @@ nvc0_chipset = {
 	.msppp    = { 0x00000001, gf100_msppp_new },
 	.msvld    = { 0x00000001, gf100_msvld_new },
 	.pm       = { 0x00000001, gf100_pm_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1404,7 +1404,7 @@ nvc1_chipset = {
 	.msppp    = { 0x00000001, gf100_msppp_new },
 	.msvld    = { 0x00000001, gf100_msvld_new },
 	.pm       = { 0x00000001, gf108_pm_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1440,7 +1440,7 @@ nvc3_chipset = {
 	.msppp    = { 0x00000001, gf100_msppp_new },
 	.msvld    = { 0x00000001, gf100_msvld_new },
 	.pm       = { 0x00000001, gf100_pm_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1476,7 +1476,7 @@ nvc4_chipset = {
 	.msppp    = { 0x00000001, gf100_msppp_new },
 	.msvld    = { 0x00000001, gf100_msvld_new },
 	.pm       = { 0x00000001, gf100_pm_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1512,7 +1512,7 @@ nvc8_chipset = {
 	.msppp    = { 0x00000001, gf100_msppp_new },
 	.msvld    = { 0x00000001, gf100_msvld_new },
 	.pm       = { 0x00000001, gf100_pm_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1548,7 +1548,7 @@ nvce_chipset = {
 	.msppp    = { 0x00000001, gf100_msppp_new },
 	.msvld    = { 0x00000001, gf100_msvld_new },
 	.pm       = { 0x00000001, gf100_pm_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1584,7 +1584,7 @@ nvcf_chipset = {
 	.msppp    = { 0x00000001, gf100_msppp_new },
 	.msvld    = { 0x00000001, gf100_msvld_new },
 	.pm       = { 0x00000001, gf100_pm_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1619,7 +1619,7 @@ nvd7_chipset = {
 	.msppp    = { 0x00000001, gf100_msppp_new },
 	.msvld    = { 0x00000001, gf100_msvld_new },
 	.pm       = { 0x00000001, gf117_pm_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1655,7 +1655,7 @@ nvd9_chipset = {
 	.msppp    = { 0x00000001, gf100_msppp_new },
 	.msvld    = { 0x00000001, gf100_msvld_new },
 	.pm       = { 0x00000001, gf117_pm_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1692,7 +1692,7 @@ nve4_chipset = {
 	.msppp    = { 0x00000001, gf100_msppp_new },
 	.msvld    = { 0x00000001, gk104_msvld_new },
 	.pm       = { 0x00000001, gk104_pm_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1729,7 +1729,7 @@ nve6_chipset = {
 	.msppp    = { 0x00000001, gf100_msppp_new },
 	.msvld    = { 0x00000001, gk104_msvld_new },
 	.pm       = { 0x00000001, gk104_pm_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1766,7 +1766,7 @@ nve7_chipset = {
 	.msppp    = { 0x00000001, gf100_msppp_new },
 	.msvld    = { 0x00000001, gk104_msvld_new },
 	.pm       = { 0x00000001, gk104_pm_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1791,7 +1791,7 @@ nvea_chipset = {
 	.fifo     = { 0x00000001, gk20a_fifo_new },
 	.gr       = { 0x00000001, gk20a_gr_new },
 	.pm       = { 0x00000001, gk104_pm_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1827,7 +1827,7 @@ nvf0_chipset = {
 	.mspdec   = { 0x00000001, gk104_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
 	.msvld    = { 0x00000001, gk104_msvld_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1863,7 +1863,7 @@ nvf1_chipset = {
 	.mspdec   = { 0x00000001, gk104_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
 	.msvld    = { 0x00000001, gk104_msvld_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1899,7 +1899,7 @@ nv106_chipset = {
 	.mspdec   = { 0x00000001, gk104_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
 	.msvld    = { 0x00000001, gk104_msvld_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1935,7 +1935,7 @@ nv108_chipset = {
 	.mspdec   = { 0x00000001, gk104_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
 	.msvld    = { 0x00000001, gk104_msvld_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -1970,7 +1970,7 @@ nv117_chipset = {
 	.gr       = { 0x00000001, gm107_gr_new },
 	.nvdec    = { 0x00000001, gm107_nvdec_new },
 	.nvenc    = { 0x00000001, gm107_nvenc_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -2003,7 +2003,7 @@ nv118_chipset = {
 	.dma      = { 0x00000001, gf119_dma_new },
 	.fifo     = { 0x00000001, gm107_fifo_new },
 	.gr       = { 0x00000001, gm107_gr_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -2038,7 +2038,7 @@ nv120_chipset = {
 	.gr       = { 0x00000001, gm200_gr_new },
 	.nvdec    = { 0x00000001, gm107_nvdec_new },
 	.nvenc    = { 0x00000003, gm107_nvenc_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -2073,7 +2073,7 @@ nv124_chipset = {
 	.gr       = { 0x00000001, gm200_gr_new },
 	.nvdec    = { 0x00000001, gm107_nvdec_new },
 	.nvenc    = { 0x00000003, gm107_nvenc_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -2108,7 +2108,7 @@ nv126_chipset = {
 	.gr       = { 0x00000001, gm200_gr_new },
 	.nvdec    = { 0x00000001, gm107_nvdec_new },
 	.nvenc    = { 0x00000001, gm107_nvenc_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -2133,7 +2133,7 @@ nv12b_chipset = {
 	.dma      = { 0x00000001, gf119_dma_new },
 	.fifo     = { 0x00000001, gm20b_fifo_new },
 	.gr       = { 0x00000001, gm20b_gr_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -2166,7 +2166,7 @@ nv130_chipset = {
 	.gr       = { 0x00000001, gp100_gr_new },
 	.nvdec    = { 0x00000001, gm107_nvdec_new },
 	.nvenc    = { 0x00000007, gm107_nvenc_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -2200,7 +2200,7 @@ nv132_chipset = {
 	.nvdec    = { 0x00000001, gm107_nvdec_new },
 	.nvenc    = { 0x00000003, gm107_nvenc_new },
 	.sec2     = { 0x00000001, gp102_sec2_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -2234,7 +2234,7 @@ nv134_chipset = {
 	.nvdec    = { 0x00000001, gm107_nvdec_new },
 	.nvenc    = { 0x00000003, gm107_nvenc_new },
 	.sec2     = { 0x00000001, gp102_sec2_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -2268,7 +2268,7 @@ nv136_chipset = {
 	.nvdec    = { 0x00000001, gm107_nvdec_new },
 	.nvenc    = { 0x00000001, gm107_nvenc_new },
 	.sec2     = { 0x00000001, gp102_sec2_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -2302,7 +2302,7 @@ nv137_chipset = {
 	.nvdec    = { 0x00000001, gm107_nvdec_new },
 	.nvenc    = { 0x00000003, gm107_nvenc_new },
 	.sec2     = { 0x00000001, gp102_sec2_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -2335,7 +2335,7 @@ nv138_chipset = {
 	.gr       = { 0x00000001, gp108_gr_new },
 	.nvdec    = { 0x00000001, gm107_nvdec_new },
 	.sec2     = { 0x00000001, gp108_sec2_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -2359,7 +2359,7 @@ nv13b_chipset = {
 	.dma      = { 0x00000001, gf119_dma_new },
 	.fifo     = { 0x00000001, gp10b_fifo_new },
 	.gr       = { 0x00000001, gp10b_gr_new },
-	.sw = gf100_sw_new,
+	.sw       = { 0x00000001, gf100_sw_new },
 };
 
 static const struct nvkm_device_chip
@@ -3162,7 +3162,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 #include <core/layout.h>
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
-		_(NVKM_ENGINE_SW      ,       sw);
 		_(NVKM_ENGINE_VIC     ,      vic);
 		case NVKM_ENGINE_CE1:
 		case NVKM_ENGINE_CE2:

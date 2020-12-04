@@ -176,10 +176,10 @@ nvkm_engine = {
 };
 
 int
-nvkm_engine_ctor_(const struct nvkm_engine_func *func, bool old, struct nvkm_device *device,
-		  enum nvkm_subdev_type type, int inst, bool enable, struct nvkm_engine *engine)
+nvkm_engine_ctor(const struct nvkm_engine_func *func, struct nvkm_device *device,
+		 enum nvkm_subdev_type type, int inst, bool enable, struct nvkm_engine *engine)
 {
-	nvkm_subdev_ctor_(&nvkm_engine, old, device, type, inst, &engine->subdev);
+	nvkm_subdev_ctor(&nvkm_engine, device, type, inst, &engine->subdev);
 	engine->func = func;
 	refcount_set(&engine->use.refcount, 0);
 	mutex_init(&engine->use.mutex);

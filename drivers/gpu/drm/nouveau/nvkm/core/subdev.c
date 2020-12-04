@@ -33,7 +33,6 @@ nvkm_subdev_type[NVKM_SUBDEV_NR] = {
 #include <core/layout.h>
 #undef NVKM_LAYOUT_ONCE
 #undef NVKM_LAYOUT_INST
-	[NVKM_ENGINE_SW      ] = "sw",
 	[NVKM_ENGINE_VIC     ] = "vic",
 };
 
@@ -169,9 +168,8 @@ nvkm_subdev_disable(struct nvkm_device *device, enum nvkm_subdev_type type, int 
 }
 
 void
-nvkm_subdev_ctor_(const struct nvkm_subdev_func *func, bool old,
-		 struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
-		 struct nvkm_subdev *subdev)
+nvkm_subdev_ctor(const struct nvkm_subdev_func *func, struct nvkm_device *device,
+		 enum nvkm_subdev_type type, int inst, struct nvkm_subdev *subdev)
 {
 	subdev->func = func;
 	subdev->device = device;

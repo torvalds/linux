@@ -106,12 +106,8 @@ struct nvkm_subdev_func {
 extern const char *nvkm_subdev_type[NVKM_SUBDEV_NR];
 int nvkm_subdev_new_(const struct nvkm_subdev_func *, struct nvkm_device *, enum nvkm_subdev_type,
 		     int inst, struct nvkm_subdev **);
-void nvkm_subdev_ctor_(const struct nvkm_subdev_func *, bool old, struct nvkm_device *,
-		       enum nvkm_subdev_type, int inst, struct nvkm_subdev *);
-#define nvkm_subdev_ctor_o(f,d,i,  s) nvkm_subdev_ctor_((f),  true, (d), (i), -1 , (s))
-#define nvkm_subdev_ctor_n(f,d,t,i,s) nvkm_subdev_ctor_((f), false, (d), (t), (i), (s))
-#define nvkm_subdev_ctor__(_1,_2,_3,_4,_5,IMPL,...) IMPL
-#define nvkm_subdev_ctor(A...) nvkm_subdev_ctor__(A, nvkm_subdev_ctor_n, nvkm_subdev_ctor_o)(A)
+void nvkm_subdev_ctor(const struct nvkm_subdev_func *, struct nvkm_device *,
+		      enum nvkm_subdev_type, int inst, struct nvkm_subdev *);
 void nvkm_subdev_disable(struct nvkm_device *, enum nvkm_subdev_type, int inst);
 void nvkm_subdev_del(struct nvkm_subdev **);
 int  nvkm_subdev_preinit(struct nvkm_subdev *);
