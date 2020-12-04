@@ -901,8 +901,11 @@ int amdgpu_display_framebuffer_init(struct drm_device *dev,
 	if (dev->mode_config.allow_fb_modifiers &&
 	    !(rfb->base.flags & DRM_MODE_FB_MODIFIERS)) {
 		ret = convert_tiling_flags_to_modifier(rfb);
-		if (ret)
+		if (ret) {
+			drm_dbg_kms(dev, "Failed to convert tiling flags 0x%llX to a modifier",
+				    rfb->tiling_flags);
 			goto fail;
+		}
 	}
 
 	for (i = 1; i < rfb->base.format->num_planes; ++i) {
