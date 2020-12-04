@@ -39,7 +39,6 @@ static struct vc4_ctm_state *to_vc4_ctm_state(struct drm_private_state *priv)
 
 struct vc4_hvs_state {
 	struct drm_private_state base;
-	unsigned int unassigned_channels;
 
 	struct {
 		unsigned in_use: 1;
@@ -798,7 +797,6 @@ vc4_hvs_channels_duplicate_state(struct drm_private_obj *obj)
 
 	__drm_atomic_helper_private_obj_duplicate_state(obj, &state->base);
 
-	state->unassigned_channels = old_state->unassigned_channels;
 
 	for (i = 0; i < HVS_NUM_CHANNELS; i++) {
 		state->fifo_state[i].in_use = old_state->fifo_state[i].in_use;
@@ -849,7 +847,6 @@ static int vc4_hvs_channels_obj_init(struct vc4_dev *vc4)
 	if (!state)
 		return -ENOMEM;
 
-	state->unassigned_channels = GENMASK(HVS_NUM_CHANNELS - 1, 0);
 	drm_atomic_private_obj_init(&vc4->base, &vc4->hvs_channels,
 				    &state->base,
 				    &vc4_hvs_state_funcs);
@@ -893,11 +890,16 @@ static int vc4_pv_muxing_atomic_check(struct drm_device *dev,
 	struct vc4_hvs_state *hvs_new_state;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct drm_crtc *crtc;
+	unsigned int unassigned_channels = 0;
 	unsigned int i;
 
 	hvs_new_state = vc4_hvs_get_global_state(state);
 	if (!hvs_new_state)
 		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(hvs_new_state->fifo_state); i++)
+		if (!hvs_new_state->fifo_state[i].in_use)
+			unassigned_channels |= BIT(i);
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		struct vc4_crtc_state *old_vc4_crtc_state =
@@ -918,8 +920,6 @@ static int vc4_pv_muxing_atomic_check(struct drm_device *dev,
 		/* If we're disabling our CRTC, we put back our channel */
 		if (!new_crtc_state->enable) {
 			channel = old_vc4_crtc_state->assigned_channel;
-
-			hvs_new_state->unassigned_channels |= BIT(channel);
 			hvs_new_state->fifo_state[channel].in_use = false;
 			new_vc4_crtc_state->assigned_channel = VC4_HVS_CHANNEL_DISABLED;
 			continue;
@@ -949,13 +949,13 @@ static int vc4_pv_muxing_atomic_check(struct drm_device *dev,
 		 * the future, we will need to have something smarter,
 		 * but it works so far.
 		 */
-		matching_channels = hvs_new_state->unassigned_channels & vc4_crtc->data->hvs_available_channels;
+		matching_channels = unassigned_channels & vc4_crtc->data->hvs_available_channels;
 		if (!matching_channels)
 			return -EINVAL;
 
 		channel = ffs(matching_channels) - 1;
 		new_vc4_crtc_state->assigned_channel = channel;
-		hvs_new_state->unassigned_channels &= ~BIT(channel);
+		unassigned_channels &= ~BIT(channel);
 		hvs_new_state->fifo_state[channel].in_use = true;
 	}
 
