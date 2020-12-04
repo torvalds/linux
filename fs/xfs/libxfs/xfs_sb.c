@@ -360,21 +360,18 @@ xfs_validate_sb_common(
 		}
 	}
 
-	if (sbp->sb_unit) {
-		if (!xfs_sb_version_hasdalign(sbp) ||
-		    sbp->sb_unit > sbp->sb_width ||
-		    (sbp->sb_width % sbp->sb_unit) != 0) {
-			xfs_notice(mp, "SB stripe unit sanity check failed");
-			return -EFSCORRUPTED;
-		}
-	} else if (xfs_sb_version_hasdalign(sbp)) {
+	/*
+	 * Either (sb_unit and !hasdalign) or (!sb_unit and hasdalign)
+	 * would imply the image is corrupted.
+	 */
+	if (!!sbp->sb_unit ^ xfs_sb_version_hasdalign(sbp)) {
 		xfs_notice(mp, "SB stripe alignment sanity check failed");
-		return -EFSCORRUPTED;
-	} else if (sbp->sb_width) {
-		xfs_notice(mp, "SB stripe width sanity check failed");
 		return -EFSCORRUPTED;
 	}
 
+	if (!xfs_validate_stripe_geometry(mp, XFS_FSB_TO_B(mp, sbp->sb_unit),
+			XFS_FSB_TO_B(mp, sbp->sb_width), 0, false))
+		return -EFSCORRUPTED;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
 	    sbp->sb_blocksize < XFS_MIN_CRC_BLOCKSIZE) {
@@ -1205,4 +1202,62 @@ xfs_sb_get_secondary(
 	xfs_buf_oneshot(bp);
 	*bpp = bp;
 	return 0;
+}
+
+/*
+ * sunit, swidth, sectorsize(optional with 0) should be all in bytes,
+ * so users won't be confused by values in error messages.
+ */
+bool
+xfs_validate_stripe_geometry(
+	struct xfs_mount	*mp,
+	__s64			sunit,
+	__s64			swidth,
+	int			sectorsize,
+	bool			silent)
+{
+	if (swidth > INT_MAX) {
+		if (!silent)
+			xfs_notice(mp,
+"stripe width (%lld) is too large", swidth);
+		return false;
+	}
+
+	if (sunit > swidth) {
+		if (!silent)
+			xfs_notice(mp,
+"stripe unit (%lld) is larger than the stripe width (%lld)", sunit, swidth);
+		return false;
+	}
+
+	if (sectorsize && (int)sunit % sectorsize) {
+		if (!silent)
+			xfs_notice(mp,
+"stripe unit (%lld) must be a multiple of the sector size (%d)",
+				   sunit, sectorsize);
+		return false;
+	}
+
+	if (sunit && !swidth) {
+		if (!silent)
+			xfs_notice(mp,
+"invalid stripe unit (%lld) and stripe width of 0", sunit);
+		return false;
+	}
+
+	if (!sunit && swidth) {
+		if (!silent)
+			xfs_notice(mp,
+"invalid stripe width (%lld) and stripe unit of 0", swidth);
+		return false;
+	}
+
+	if (sunit && (int)swidth % (int)sunit) {
+		if (!silent)
+			xfs_notice(mp,
+"stripe width (%lld) must be a multiple of the stripe unit (%lld)",
+				   swidth, sunit);
+		return false;
+	}
+	return true;
 }
