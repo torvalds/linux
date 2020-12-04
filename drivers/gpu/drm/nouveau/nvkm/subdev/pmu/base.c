@@ -163,11 +163,11 @@ nvkm_pmu = {
 
 int
 nvkm_pmu_ctor(const struct nvkm_pmu_fwif *fwif, struct nvkm_device *device,
-	      int index, struct nvkm_pmu *pmu)
+	      enum nvkm_subdev_type type, int inst, struct nvkm_pmu *pmu)
 {
 	int ret;
 
-	nvkm_subdev_ctor(&nvkm_pmu, device, index, &pmu->subdev);
+	nvkm_subdev_ctor(&nvkm_pmu, device, type, inst, &pmu->subdev);
 
 	mutex_init(&pmu->send.mutex);
 
@@ -197,10 +197,10 @@ nvkm_pmu_ctor(const struct nvkm_pmu_fwif *fwif, struct nvkm_device *device,
 
 int
 nvkm_pmu_new_(const struct nvkm_pmu_fwif *fwif, struct nvkm_device *device,
-	      int index, struct nvkm_pmu **ppmu)
+	      enum nvkm_subdev_type type, int inst, struct nvkm_pmu **ppmu)
 {
 	struct nvkm_pmu *pmu;
 	if (!(pmu = *ppmu = kzalloc(sizeof(*pmu), GFP_KERNEL)))
 		return -ENOMEM;
-	return nvkm_pmu_ctor(fwif, device, index, *ppmu);
+	return nvkm_pmu_ctor(fwif, device, type, inst, *ppmu);
 }

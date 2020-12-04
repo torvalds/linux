@@ -60,7 +60,6 @@ struct nvkm_device {
 		struct notifier_block nb;
 	} acpi;
 
-	struct nvkm_pmu *pmu;
 	struct nvkm_therm *therm;
 	struct nvkm_timer *timer;
 	struct nvkm_top *top;
@@ -128,7 +127,6 @@ struct nvkm_device_chip {
 #include <core/layout.h>
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
-	int (*pmu     )(struct nvkm_device *, int idx, struct nvkm_pmu **);
 	int (*therm   )(struct nvkm_device *, int idx, struct nvkm_therm **);
 	int (*timer   )(struct nvkm_device *, int idx, struct nvkm_timer **);
 	int (*top     )(struct nvkm_device *, int idx, struct nvkm_top **);
