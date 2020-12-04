@@ -3174,7 +3174,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 #include <core/layout.h>
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
-		_(NVKM_ENGINE_IFB     ,      ifb);
 		_(NVKM_ENGINE_ME      ,       me);
 		_(NVKM_ENGINE_MPEG    ,     mpeg);
 		_(NVKM_ENGINE_MSENC   ,    msenc);
