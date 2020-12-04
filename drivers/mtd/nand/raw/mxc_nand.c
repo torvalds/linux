@@ -1610,22 +1610,11 @@ static inline int is_imx53_nfc(struct mxc_nand_host *host)
 }
 
 static const struct of_device_id mxcnd_dt_ids[] = {
-	{
-		.compatible = "fsl,imx21-nand",
-		.data = &imx21_nand_devtype_data,
-	}, {
-		.compatible = "fsl,imx27-nand",
-		.data = &imx27_nand_devtype_data,
-	}, {
-		.compatible = "fsl,imx25-nand",
-		.data = &imx25_nand_devtype_data,
-	}, {
-		.compatible = "fsl,imx51-nand",
-		.data = &imx51_nand_devtype_data,
-	}, {
-		.compatible = "fsl,imx53-nand",
-		.data = &imx53_nand_devtype_data,
-	},
+	{ .compatible = "fsl,imx21-nand", .data = &imx21_nand_devtype_data, },
+	{ .compatible = "fsl,imx27-nand", .data = &imx27_nand_devtype_data, },
+	{ .compatible = "fsl,imx25-nand", .data = &imx25_nand_devtype_data, },
+	{ .compatible = "fsl,imx51-nand", .data = &imx51_nand_devtype_data, },
+	{ .compatible = "fsl,imx53-nand", .data = &imx53_nand_devtype_data, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mxcnd_dt_ids);
