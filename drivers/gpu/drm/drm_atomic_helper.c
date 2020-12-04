@@ -2040,6 +2040,9 @@ crtc_or_fake_commit(struct drm_atomic_state *state, struct drm_crtc *crtc)
  * should always call this function from their
  * &drm_mode_config_funcs.atomic_commit hook.
  *
+ * Drivers that need to extend the commit setup to private objects can use the
+ * &drm_mode_config_helper_funcs.atomic_commit_setup hook.
+ *
  * To be able to use this support drivers need to use a few more helper
  * functions. drm_atomic_helper_wait_for_dependencies() must be called before
  * actually committing the hardware state, and for nonblocking commits this call
@@ -2083,7 +2086,10 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 	struct drm_plane *plane;
 	struct drm_plane_state *old_plane_state, *new_plane_state;
 	struct drm_crtc_commit *commit;
+	const struct drm_mode_config_helper_funcs *funcs;
 	int i, ret;
+
+	funcs = state->dev->mode_config.helper_private;
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		commit = kzalloc(sizeof(*commit), GFP_KERNEL);
@@ -2168,6 +2174,9 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 
 		new_plane_state->commit = drm_crtc_commit_get(commit);
 	}
+
+	if (funcs && funcs->atomic_commit_setup)
+		return funcs->atomic_commit_setup(state);
 
 	return 0;
 }
