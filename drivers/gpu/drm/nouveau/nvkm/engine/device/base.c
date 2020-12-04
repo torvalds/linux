@@ -810,7 +810,7 @@ nv4e_chipset = {
 static const struct nvkm_device_chip
 nv50_chipset = {
 	.name = "G80",
-	.bar = nv50_bar_new,
+	.bar      = { 0x00000001, nv50_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = nv50_bus_new,
 	.clk = nv50_clk_new,
@@ -917,7 +917,7 @@ nv68_chipset = {
 static const struct nvkm_device_chip
 nv84_chipset = {
 	.name = "G84",
-	.bar = g84_bar_new,
+	.bar      = { 0x00000001, g84_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = nv50_bus_new,
 	.clk = g84_clk_new,
@@ -949,7 +949,7 @@ nv84_chipset = {
 static const struct nvkm_device_chip
 nv86_chipset = {
 	.name = "G86",
-	.bar = g84_bar_new,
+	.bar      = { 0x00000001, g84_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = nv50_bus_new,
 	.clk = g84_clk_new,
@@ -981,7 +981,7 @@ nv86_chipset = {
 static const struct nvkm_device_chip
 nv92_chipset = {
 	.name = "G92",
-	.bar = g84_bar_new,
+	.bar      = { 0x00000001, g84_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = nv50_bus_new,
 	.clk = g84_clk_new,
@@ -1013,7 +1013,7 @@ nv92_chipset = {
 static const struct nvkm_device_chip
 nv94_chipset = {
 	.name = "G94",
-	.bar = g84_bar_new,
+	.bar      = { 0x00000001, g84_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = g94_bus_new,
 	.clk = g84_clk_new,
@@ -1045,7 +1045,7 @@ nv94_chipset = {
 static const struct nvkm_device_chip
 nv96_chipset = {
 	.name = "G96",
-	.bar = g84_bar_new,
+	.bar      = { 0x00000001, g84_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = g94_bus_new,
 	.clk = g84_clk_new,
@@ -1077,7 +1077,7 @@ nv96_chipset = {
 static const struct nvkm_device_chip
 nv98_chipset = {
 	.name = "G98",
-	.bar = g84_bar_new,
+	.bar      = { 0x00000001, g84_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = g94_bus_new,
 	.clk = g84_clk_new,
@@ -1109,7 +1109,7 @@ nv98_chipset = {
 static const struct nvkm_device_chip
 nva0_chipset = {
 	.name = "GT200",
-	.bar = g84_bar_new,
+	.bar      = { 0x00000001, g84_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = g94_bus_new,
 	.clk = g84_clk_new,
@@ -1141,7 +1141,7 @@ nva0_chipset = {
 static const struct nvkm_device_chip
 nva3_chipset = {
 	.name = "GT215",
-	.bar = g84_bar_new,
+	.bar      = { 0x00000001, g84_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = g94_bus_new,
 	.clk = gt215_clk_new,
@@ -1175,7 +1175,7 @@ nva3_chipset = {
 static const struct nvkm_device_chip
 nva5_chipset = {
 	.name = "GT216",
-	.bar = g84_bar_new,
+	.bar      = { 0x00000001, g84_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = g94_bus_new,
 	.clk = gt215_clk_new,
@@ -1208,7 +1208,7 @@ nva5_chipset = {
 static const struct nvkm_device_chip
 nva8_chipset = {
 	.name = "GT218",
-	.bar = g84_bar_new,
+	.bar      = { 0x00000001, g84_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = g94_bus_new,
 	.clk = gt215_clk_new,
@@ -1241,7 +1241,7 @@ nva8_chipset = {
 static const struct nvkm_device_chip
 nvaa_chipset = {
 	.name = "MCP77/MCP78",
-	.bar = g84_bar_new,
+	.bar      = { 0x00000001, g84_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = g94_bus_new,
 	.clk = mcp77_clk_new,
@@ -1273,7 +1273,7 @@ nvaa_chipset = {
 static const struct nvkm_device_chip
 nvac_chipset = {
 	.name = "MCP79/MCP7A",
-	.bar = g84_bar_new,
+	.bar      = { 0x00000001, g84_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = g94_bus_new,
 	.clk = mcp77_clk_new,
@@ -1305,7 +1305,7 @@ nvac_chipset = {
 static const struct nvkm_device_chip
 nvaf_chipset = {
 	.name = "MCP89",
-	.bar = g84_bar_new,
+	.bar      = { 0x00000001, g84_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = g94_bus_new,
 	.clk = gt215_clk_new,
@@ -1338,7 +1338,7 @@ nvaf_chipset = {
 static const struct nvkm_device_chip
 nvc0_chipset = {
 	.name = "GF100",
-	.bar = gf100_bar_new,
+	.bar      = { 0x00000001, gf100_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gf100_clk_new,
@@ -1375,7 +1375,7 @@ nvc0_chipset = {
 static const struct nvkm_device_chip
 nvc1_chipset = {
 	.name = "GF108",
-	.bar = gf100_bar_new,
+	.bar      = { 0x00000001, gf100_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gf100_clk_new,
@@ -1411,7 +1411,7 @@ nvc1_chipset = {
 static const struct nvkm_device_chip
 nvc3_chipset = {
 	.name = "GF106",
-	.bar = gf100_bar_new,
+	.bar      = { 0x00000001, gf100_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gf100_clk_new,
@@ -1447,7 +1447,7 @@ nvc3_chipset = {
 static const struct nvkm_device_chip
 nvc4_chipset = {
 	.name = "GF104",
-	.bar = gf100_bar_new,
+	.bar      = { 0x00000001, gf100_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gf100_clk_new,
@@ -1484,7 +1484,7 @@ nvc4_chipset = {
 static const struct nvkm_device_chip
 nvc8_chipset = {
 	.name = "GF110",
-	.bar = gf100_bar_new,
+	.bar      = { 0x00000001, gf100_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gf100_clk_new,
@@ -1521,7 +1521,7 @@ nvc8_chipset = {
 static const struct nvkm_device_chip
 nvce_chipset = {
 	.name = "GF114",
-	.bar = gf100_bar_new,
+	.bar      = { 0x00000001, gf100_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gf100_clk_new,
@@ -1558,7 +1558,7 @@ nvce_chipset = {
 static const struct nvkm_device_chip
 nvcf_chipset = {
 	.name = "GF116",
-	.bar = gf100_bar_new,
+	.bar      = { 0x00000001, gf100_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gf100_clk_new,
@@ -1594,7 +1594,7 @@ nvcf_chipset = {
 static const struct nvkm_device_chip
 nvd7_chipset = {
 	.name = "GF117",
-	.bar = gf100_bar_new,
+	.bar      = { 0x00000001, gf100_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gf100_clk_new,
@@ -1629,7 +1629,7 @@ nvd7_chipset = {
 static const struct nvkm_device_chip
 nvd9_chipset = {
 	.name = "GF119",
-	.bar = gf100_bar_new,
+	.bar      = { 0x00000001, gf100_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gf100_clk_new,
@@ -1665,7 +1665,7 @@ nvd9_chipset = {
 static const struct nvkm_device_chip
 nve4_chipset = {
 	.name = "GK104",
-	.bar = gf100_bar_new,
+	.bar      = { 0x00000001, gf100_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gk104_clk_new,
@@ -1704,7 +1704,7 @@ nve4_chipset = {
 static const struct nvkm_device_chip
 nve6_chipset = {
 	.name = "GK106",
-	.bar = gf100_bar_new,
+	.bar      = { 0x00000001, gf100_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gk104_clk_new,
@@ -1743,7 +1743,7 @@ nve6_chipset = {
 static const struct nvkm_device_chip
 nve7_chipset = {
 	.name = "GK107",
-	.bar = gf100_bar_new,
+	.bar      = { 0x00000001, gf100_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gk104_clk_new,
@@ -1782,7 +1782,7 @@ nve7_chipset = {
 static const struct nvkm_device_chip
 nvea_chipset = {
 	.name = "GK20A",
-	.bar = gk20a_bar_new,
+	.bar      = { 0x00000001, gk20a_bar_new },
 	.bus = gf100_bus_new,
 	.clk = gk20a_clk_new,
 	.fb = gk20a_fb_new,
@@ -1807,7 +1807,7 @@ nvea_chipset = {
 static const struct nvkm_device_chip
 nvf0_chipset = {
 	.name = "GK110",
-	.bar = gf100_bar_new,
+	.bar      = { 0x00000001, gf100_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gk104_clk_new,
@@ -1845,7 +1845,7 @@ nvf0_chipset = {
 static const struct nvkm_device_chip
 nvf1_chipset = {
 	.name = "GK110B",
-	.bar = gf100_bar_new,
+	.bar      = { 0x00000001, gf100_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gk104_clk_new,
@@ -1883,7 +1883,7 @@ nvf1_chipset = {
 static const struct nvkm_device_chip
 nv106_chipset = {
 	.name = "GK208B",
-	.bar = gf100_bar_new,
+	.bar      = { 0x00000001, gf100_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gk104_clk_new,
@@ -1921,7 +1921,7 @@ nv106_chipset = {
 static const struct nvkm_device_chip
 nv108_chipset = {
 	.name = "GK208",
-	.bar = gf100_bar_new,
+	.bar      = { 0x00000001, gf100_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gk104_clk_new,
@@ -1959,7 +1959,7 @@ nv108_chipset = {
 static const struct nvkm_device_chip
 nv117_chipset = {
 	.name = "GM107",
-	.bar = gm107_bar_new,
+	.bar      = { 0x00000001, gm107_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gk104_clk_new,
@@ -1995,7 +1995,7 @@ nv117_chipset = {
 static const struct nvkm_device_chip
 nv118_chipset = {
 	.name = "GM108",
-	.bar = gm107_bar_new,
+	.bar      = { 0x00000001, gm107_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gk104_clk_new,
@@ -2030,7 +2030,7 @@ static const struct nvkm_device_chip
 nv120_chipset = {
 	.name = "GM200",
 	.acr      = { 0x00000001, gm200_acr_new },
-	.bar = gm107_bar_new,
+	.bar      = { 0x00000001, gm107_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
@@ -2068,7 +2068,7 @@ static const struct nvkm_device_chip
 nv124_chipset = {
 	.name = "GM204",
 	.acr      = { 0x00000001, gm200_acr_new },
-	.bar = gm107_bar_new,
+	.bar      = { 0x00000001, gm107_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
@@ -2106,7 +2106,7 @@ static const struct nvkm_device_chip
 nv126_chipset = {
 	.name = "GM206",
 	.acr      = { 0x00000001, gm200_acr_new },
-	.bar = gm107_bar_new,
+	.bar      = { 0x00000001, gm107_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
@@ -2143,7 +2143,7 @@ static const struct nvkm_device_chip
 nv12b_chipset = {
 	.name = "GM20B",
 	.acr      = { 0x00000001, gm20b_acr_new },
-	.bar = gm20b_bar_new,
+	.bar      = { 0x00000001, gm20b_bar_new },
 	.bus = gf100_bus_new,
 	.clk = gm20b_clk_new,
 	.fb = gm20b_fb_new,
@@ -2168,7 +2168,7 @@ static const struct nvkm_device_chip
 nv130_chipset = {
 	.name = "GP100",
 	.acr      = { 0x00000001, gm200_acr_new },
-	.bar = gm107_bar_new,
+	.bar      = { 0x00000001, gm107_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
@@ -2208,7 +2208,7 @@ static const struct nvkm_device_chip
 nv132_chipset = {
 	.name = "GP102",
 	.acr      = { 0x00000001, gp102_acr_new },
-	.bar = gm107_bar_new,
+	.bar      = { 0x00000001, gm107_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
@@ -2246,7 +2246,7 @@ static const struct nvkm_device_chip
 nv134_chipset = {
 	.name = "GP104",
 	.acr      = { 0x00000001, gp102_acr_new },
-	.bar = gm107_bar_new,
+	.bar      = { 0x00000001, gm107_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
@@ -2284,7 +2284,7 @@ static const struct nvkm_device_chip
 nv136_chipset = {
 	.name = "GP106",
 	.acr      = { 0x00000001, gp102_acr_new },
-	.bar = gm107_bar_new,
+	.bar      = { 0x00000001, gm107_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
@@ -2321,7 +2321,7 @@ static const struct nvkm_device_chip
 nv137_chipset = {
 	.name = "GP107",
 	.acr      = { 0x00000001, gp102_acr_new },
-	.bar = gm107_bar_new,
+	.bar      = { 0x00000001, gm107_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
@@ -2359,7 +2359,7 @@ static const struct nvkm_device_chip
 nv138_chipset = {
 	.name = "GP108",
 	.acr      = { 0x00000001, gp108_acr_new },
-	.bar = gm107_bar_new,
+	.bar      = { 0x00000001, gm107_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
@@ -2395,7 +2395,7 @@ static const struct nvkm_device_chip
 nv13b_chipset = {
 	.name = "GP10B",
 	.acr      = { 0x00000001, gp10b_acr_new },
-	.bar = gm20b_bar_new,
+	.bar      = { 0x00000001, gm20b_bar_new },
 	.bus = gf100_bus_new,
 	.fault = gp10b_fault_new,
 	.fb = gp10b_fb_new,
@@ -2419,7 +2419,7 @@ static const struct nvkm_device_chip
 nv140_chipset = {
 	.name = "GV100",
 	.acr      = { 0x00000001, gp108_acr_new },
-	.bar = gm107_bar_new,
+	.bar      = { 0x00000001, gm107_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = gv100_devinit_new,
@@ -2463,7 +2463,7 @@ static const struct nvkm_device_chip
 nv162_chipset = {
 	.name = "TU102",
 	.acr      = { 0x00000001, tu102_acr_new },
-	.bar = tu102_bar_new,
+	.bar      = { 0x00000001, tu102_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = tu102_devinit_new,
@@ -2501,7 +2501,7 @@ static const struct nvkm_device_chip
 nv164_chipset = {
 	.name = "TU104",
 	.acr      = { 0x00000001, tu102_acr_new },
-	.bar = tu102_bar_new,
+	.bar      = { 0x00000001, tu102_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = tu102_devinit_new,
@@ -2540,7 +2540,7 @@ static const struct nvkm_device_chip
 nv166_chipset = {
 	.name = "TU106",
 	.acr      = { 0x00000001, tu102_acr_new },
-	.bar = tu102_bar_new,
+	.bar      = { 0x00000001, tu102_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = tu102_devinit_new,
@@ -2580,7 +2580,7 @@ static const struct nvkm_device_chip
 nv167_chipset = {
 	.name = "TU117",
 	.acr      = { 0x00000001, tu102_acr_new },
-	.bar = tu102_bar_new,
+	.bar      = { 0x00000001, tu102_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = tu102_devinit_new,
@@ -2618,7 +2618,7 @@ static const struct nvkm_device_chip
 nv168_chipset = {
 	.name = "TU116",
 	.acr      = { 0x00000001, tu102_acr_new },
-	.bar = tu102_bar_new,
+	.bar      = { 0x00000001, tu102_bar_new },
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = tu102_devinit_new,
@@ -2655,7 +2655,7 @@ nv168_chipset = {
 static const struct nvkm_device_chip
 nv170_chipset = {
 	.name = "GA100",
-	.bar = tu102_bar_new,
+	.bar      = { 0x00000001, tu102_bar_new },
 	.bios = nvkm_bios_new,
 	.devinit = ga100_devinit_new,
 	.fb = ga100_fb_new,
@@ -2672,7 +2672,7 @@ nv170_chipset = {
 static const struct nvkm_device_chip
 nv172_chipset = {
 	.name = "GA102",
-	.bar = tu102_bar_new,
+	.bar      = { 0x00000001, tu102_bar_new },
 	.bios = nvkm_bios_new,
 	.devinit = ga100_devinit_new,
 	.fb = ga102_fb_new,
@@ -2691,7 +2691,7 @@ nv172_chipset = {
 static const struct nvkm_device_chip
 nv174_chipset = {
 	.name = "GA104",
-	.bar = tu102_bar_new,
+	.bar      = { 0x00000001, tu102_bar_new },
 	.bios = nvkm_bios_new,
 	.devinit = ga100_devinit_new,
 	.fb = ga102_fb_new,
@@ -3248,7 +3248,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 #include <core/layout.h>
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
-		_(NVKM_SUBDEV_BAR     ,      bar);
 		_(NVKM_SUBDEV_VBIOS   ,     bios);
 		_(NVKM_SUBDEV_BUS     ,      bus);
 		_(NVKM_SUBDEV_CLK     ,      clk);

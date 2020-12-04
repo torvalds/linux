@@ -33,7 +33,6 @@ nvkm_subdev_type[NVKM_SUBDEV_NR] = {
 #include <core/layout.h>
 #undef NVKM_LAYOUT_ONCE
 #undef NVKM_LAYOUT_INST
-	[NVKM_SUBDEV_BAR     ] = "bar",
 	[NVKM_SUBDEV_VBIOS   ] = "bios",
 	[NVKM_SUBDEV_BUS     ] = "bus",
 	[NVKM_SUBDEV_CLK     ] = "clk",
