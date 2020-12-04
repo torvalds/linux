@@ -2827,14 +2827,8 @@ EXPORT_SYMBOL(sock_no_mmap);
 void __receive_sock(struct file *file)
 {
 	struct socket *sock;
-	int error;
 
-	/*
-	 * The resulting value of "error" is ignored here since we only
-	 * need to take action when the file is a socket and testing
-	 * "sock" for NULL is sufficient.
-	 */
-	sock = sock_from_file(file, &error);
+	sock = sock_from_file(file);
 	if (sock) {
 		sock_update_netprioidx(&sock->sk->sk_cgrp_data);
 		sock_update_classid(&sock->sk->sk_cgrp_data);

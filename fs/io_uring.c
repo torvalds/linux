@@ -4356,9 +4356,9 @@ static int io_sendmsg(struct io_kiocb *req, bool force_nonblock,
 	unsigned flags;
 	int ret;
 
-	sock = sock_from_file(req->file, &ret);
+	sock = sock_from_file(req->file);
 	if (unlikely(!sock))
-		return ret;
+		return -ENOTSOCK;
 
 	if (req->async_data) {
 		kmsg = req->async_data;
@@ -4405,9 +4405,9 @@ static int io_send(struct io_kiocb *req, bool force_nonblock,
 	unsigned flags;
 	int ret;
 
-	sock = sock_from_file(req->file, &ret);
+	sock = sock_from_file(req->file);
 	if (unlikely(!sock))
-		return ret;
+		return -ENOTSOCK;
 
 	ret = import_single_range(WRITE, sr->buf, sr->len, &iov, &msg.msg_iter);
 	if (unlikely(ret))
@@ -4584,9 +4584,9 @@ static int io_recvmsg(struct io_kiocb *req, bool force_nonblock,
 	unsigned flags;
 	int ret, cflags = 0;
 
-	sock = sock_from_file(req->file, &ret);
+	sock = sock_from_file(req->file);
 	if (unlikely(!sock))
-		return ret;
+		return -ENOTSOCK;
 
 	if (req->async_data) {
 		kmsg = req->async_data;
@@ -4647,9 +4647,9 @@ static int io_recv(struct io_kiocb *req, bool force_nonblock,
 	unsigned flags;
 	int ret, cflags = 0;
 
-	sock = sock_from_file(req->file, &ret);
+	sock = sock_from_file(req->file);
 	if (unlikely(!sock))
-		return ret;
+		return -ENOTSOCK;
 
 	if (req->flags & REQ_F_BUFFER_SELECT) {
 		kbuf = io_recv_buffer_select(req, !force_nonblock);

@@ -68,9 +68,8 @@ struct update_classid_context {
 
 static int update_classid_sock(const void *v, struct file *file, unsigned n)
 {
-	int err;
 	struct update_classid_context *ctx = (void *)v;
-	struct socket *sock = sock_from_file(file, &err);
+	struct socket *sock = sock_from_file(file);
 
 	if (sock) {
 		spin_lock(&cgroup_sk_update_lock);

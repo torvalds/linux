@@ -416,12 +416,11 @@ static inline void ep_set_busy_poll_napi_id(struct epitem *epi)
 	unsigned int napi_id;
 	struct socket *sock;
 	struct sock *sk;
-	int err;
 
 	if (!net_busy_loop_on())
 		return;
 
-	sock = sock_from_file(epi->ffd.file, &err);
+	sock = sock_from_file(epi->ffd.file);
 	if (!sock)
 		return;
 
