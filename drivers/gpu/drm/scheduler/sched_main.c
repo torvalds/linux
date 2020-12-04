@@ -198,7 +198,7 @@ EXPORT_SYMBOL(drm_sched_dependency_optimized);
 static void drm_sched_start_timeout(struct drm_gpu_scheduler *sched)
 {
 	if (sched->timeout != MAX_SCHEDULE_TIMEOUT &&
-	    !list_empty(&sched->ring_mirror_list))
+	    !list_empty(&sched->pending_list))
 		schedule_delayed_work(&sched->work_tdr, sched->timeout);
 }
 
@@ -258,7 +258,7 @@ void drm_sched_resume_timeout(struct drm_gpu_scheduler *sched,
 {
 	spin_lock(&sched->job_list_lock);
 
-	if (list_empty(&sched->ring_mirror_list))
+	if (list_empty(&sched->pending_list))
 		cancel_delayed_work(&sched->work_tdr);
 	else
 		mod_delayed_work(system_wq, &sched->work_tdr, remaining);
@@ -272,7 +272,7 @@ static void drm_sched_job_begin(struct drm_sched_job *s_job)
 	struct drm_gpu_scheduler *sched = s_job->sched;
 
 	spin_lock(&sched->job_list_lock);
-	list_add_tail(&s_job->list, &sched->ring_mirror_list);
+	list_add_tail(&s_job->list, &sched->pending_list);
 	drm_sched_start_timeout(sched);
 	spin_unlock(&sched->job_list_lock);
 }
@@ -286,7 +286,7 @@ static void drm_sched_job_timedout(struct work_struct *work)
 
 	/* Protects against concurrent deletion in drm_sched_get_cleanup_job */
 	spin_lock(&sched->job_list_lock);
-	job = list_first_entry_or_null(&sched->ring_mirror_list,
+	job = list_first_entry_or_null(&sched->pending_list,
 				       struct drm_sched_job, list);
 
 	if (job) {
@@ -371,7 +371,7 @@ EXPORT_SYMBOL(drm_sched_increase_karma);
  * Stop the scheduler and also removes and frees all completed jobs.
  * Note: bad job will not be freed as it might be used later and so it's
  * callers responsibility to release it manually if it's not part of the
- * mirror list any more.
+ * pending list any more.
  *
  */
 void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad)
@@ -392,15 +392,15 @@ void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad)
 		 * Add at the head of the queue to reflect it was the earliest
 		 * job extracted.
 		 */
-		list_add(&bad->list, &sched->ring_mirror_list);
+		list_add(&bad->list, &sched->pending_list);
 
 	/*
 	 * Iterate the job list from later to  earlier one and either deactive
-	 * their HW callbacks or remove them from mirror list if they already
+	 * their HW callbacks or remove them from pending list if they already
 	 * signaled.
 	 * This iteration is thread safe as sched thread is stopped.
 	 */
-	list_for_each_entry_safe_reverse(s_job, tmp, &sched->ring_mirror_list,
+	list_for_each_entry_safe_reverse(s_job, tmp, &sched->pending_list,
 					 list) {
 		if (s_job->s_fence->parent &&
 		    dma_fence_remove_callback(s_job->s_fence->parent,
@@ -408,7 +408,7 @@ void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad)
 			atomic_dec(&sched->hw_rq_count);
 		} else {
 			/*
-			 * remove job from ring_mirror_list.
+			 * remove job from pending_list.
 			 * Locking here is for concurrent resume timeout
 			 */
 			spin_lock(&sched->job_list_lock);
@@ -463,7 +463,7 @@ void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery)
 	 * so no new jobs are being inserted or removed. Also concurrent
 	 * GPU recovers can't run in parallel.
 	 */
-	list_for_each_entry_safe(s_job, tmp, &sched->ring_mirror_list, list) {
+	list_for_each_entry_safe(s_job, tmp, &sched->pending_list, list) {
 		struct dma_fence *fence = s_job->s_fence->parent;
 
 		atomic_inc(&sched->hw_rq_count);
@@ -494,7 +494,7 @@ void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery)
 EXPORT_SYMBOL(drm_sched_start);
 
 /**
- * drm_sched_resubmit_jobs - helper to relunch job from mirror ring list
+ * drm_sched_resubmit_jobs - helper to relunch job from pending ring list
  *
  * @sched: scheduler instance
  *
@@ -506,7 +506,7 @@ void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched)
 	bool found_guilty = false;
 	struct dma_fence *fence;
 
-	list_for_each_entry_safe(s_job, tmp, &sched->ring_mirror_list, list) {
+	list_for_each_entry_safe(s_job, tmp, &sched->pending_list, list) {
 		struct drm_sched_fence *s_fence = s_job->s_fence;
 
 		if (!found_guilty && atomic_read(&s_job->karma) > sched->hang_limit) {
@@ -665,7 +665,7 @@ static void drm_sched_process_job(struct dma_fence *f, struct dma_fence_cb *cb)
  *
  * @sched: scheduler instance
  *
- * Returns the next finished job from the mirror list (if there is one)
+ * Returns the next finished job from the pending list (if there is one)
  * ready for it to be destroyed.
  */
 static struct drm_sched_job *
@@ -675,7 +675,7 @@ drm_sched_get_cleanup_job(struct drm_gpu_scheduler *sched)
 
 	/*
 	 * Don't destroy jobs while the timeout worker is running  OR thread
-	 * is being parked and hence assumed to not touch ring_mirror_list
+	 * is being parked and hence assumed to not touch pending_list
 	 */
 	if ((sched->timeout != MAX_SCHEDULE_TIMEOUT &&
 	    !cancel_delayed_work(&sched->work_tdr)) ||
@@ -684,11 +684,11 @@ drm_sched_get_cleanup_job(struct drm_gpu_scheduler *sched)
 
 	spin_lock(&sched->job_list_lock);
 
-	job = list_first_entry_or_null(&sched->ring_mirror_list,
+	job = list_first_entry_or_null(&sched->pending_list,
 				       struct drm_sched_job, list);
 
 	if (job && dma_fence_is_signaled(&job->s_fence->finished)) {
-		/* remove job from ring_mirror_list */
+		/* remove job from pending_list */
 		list_del_init(&job->list);
 	} else {
 		job = NULL;
@@ -858,7 +858,7 @@ int drm_sched_init(struct drm_gpu_scheduler *sched,
 
 	init_waitqueue_head(&sched->wake_up_worker);
 	init_waitqueue_head(&sched->job_scheduled);
-	INIT_LIST_HEAD(&sched->ring_mirror_list);
+	INIT_LIST_HEAD(&sched->pending_list);
 	spin_lock_init(&sched->job_list_lock);
 	atomic_set(&sched->hw_rq_count, 0);
 	INIT_DELAYED_WORK(&sched->work_tdr, drm_sched_job_timedout);
