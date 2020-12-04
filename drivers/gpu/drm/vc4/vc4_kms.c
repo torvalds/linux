@@ -332,8 +332,7 @@ static void vc5_hvs_pv_muxing_commit(struct vc4_dev *vc4,
 	}
 }
 
-static void
-vc4_atomic_complete_commit(struct drm_atomic_state *state)
+static void vc4_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -356,10 +355,6 @@ vc4_atomic_complete_commit(struct drm_atomic_state *state)
 
 	if (vc4->hvs->hvs5)
 		clk_set_min_rate(hvs->core_clk, 500000000);
-
-	drm_atomic_helper_wait_for_fences(dev, state, false);
-
-	drm_atomic_helper_wait_for_dependencies(state);
 
 	old_hvs_state = vc4_hvs_get_old_global_state(state);
 	if (!old_hvs_state)
@@ -412,20 +407,8 @@ vc4_atomic_complete_commit(struct drm_atomic_state *state)
 
 	drm_atomic_helper_cleanup_planes(dev, state);
 
-	drm_atomic_helper_commit_cleanup_done(state);
-
 	if (vc4->hvs->hvs5)
 		clk_set_min_rate(hvs->core_clk, 0);
-
-	drm_atomic_state_put(state);
-}
-
-static void commit_work(struct work_struct *work)
-{
-	struct drm_atomic_state *state = container_of(work,
-						      struct drm_atomic_state,
-						      commit_work);
-	vc4_atomic_complete_commit(state);
 }
 
 static int vc4_atomic_commit_setup(struct drm_atomic_state *state)
@@ -454,94 +437,6 @@ static int vc4_atomic_commit_setup(struct drm_atomic_state *state)
 		hvs_state->fifo_state[channel].pending_commit =
 			drm_crtc_commit_get(crtc_state->commit);
 	}
-
-	return 0;
-}
-
-/**
- * vc4_atomic_commit - commit validated state object
- * @dev: DRM device
- * @state: the driver state object
- * @nonblock: nonblocking commit
- *
- * This function commits a with drm_atomic_helper_check() pre-validated state
- * object. This can still fail when e.g. the framebuffer reservation fails. For
- * now this doesn't implement asynchronous commits.
- *
- * RETURNS
- * Zero for success or -errno.
- */
-static int vc4_atomic_commit(struct drm_device *dev,
-			     struct drm_atomic_state *state,
-			     bool nonblock)
-{
-	int ret;
-
-	if (state->async_update) {
-		ret = drm_atomic_helper_prepare_planes(dev, state);
-		if (ret)
-			return ret;
-
-		drm_atomic_helper_async_commit(dev, state);
-
-		drm_atomic_helper_cleanup_planes(dev, state);
-
-		return 0;
-	}
-
-	/* We know for sure we don't want an async update here. Set
-	 * state->legacy_cursor_update to false to prevent
-	 * drm_atomic_helper_setup_commit() from auto-completing
-	 * commit->flip_done.
-	 */
-	state->legacy_cursor_update = false;
-	ret = drm_atomic_helper_setup_commit(state, nonblock);
-	if (ret)
-		return ret;
-
-	INIT_WORK(&state->commit_work, commit_work);
-
-	ret = drm_atomic_helper_prepare_planes(dev, state);
-	if (ret)
-		return ret;
-
-	if (!nonblock) {
-		ret = drm_atomic_helper_wait_for_fences(dev, state, true);
-		if (ret) {
-			drm_atomic_helper_cleanup_planes(dev, state);
-			return ret;
-		}
-	}
-
-	/*
-	 * This is the point of no return - everything below never fails except
-	 * when the hw goes bonghits. Which means we can commit the new state on
-	 * the software side now.
-	 */
-
-	BUG_ON(drm_atomic_helper_swap_state(state, false) < 0);
-
-	/*
-	 * Everything below can be run asynchronously without the need to grab
-	 * any modeset locks at all under one condition: It must be guaranteed
-	 * that the asynchronous work has either been cancelled (if the driver
-	 * supports it, which at least requires that the framebuffers get
-	 * cleaned up with drm_atomic_helper_cleanup_planes()) or completed
-	 * before the new state gets committed on the software side with
-	 * drm_atomic_helper_swap_state().
-	 *
-	 * This scheme allows new atomic state updates to be prepared and
-	 * checked in parallel to the asynchronous completion of the previous
-	 * update. Which is important since compositors need to figure out the
-	 * composition of the next frame right after having submitted the
-	 * current layout.
-	 */
-
-	drm_atomic_state_get(state);
-	if (nonblock)
-		queue_work(system_unbound_wq, &state->commit_work);
-	else
-		vc4_atomic_complete_commit(state);
 
 	return 0;
 }
@@ -966,11 +861,12 @@ vc4_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 
 static struct drm_mode_config_helper_funcs vc4_mode_config_helpers = {
 	.atomic_commit_setup	= vc4_atomic_commit_setup,
+	.atomic_commit_tail	= vc4_atomic_commit_tail,
 };
 
 static const struct drm_mode_config_funcs vc4_mode_funcs = {
 	.atomic_check = vc4_atomic_check,
-	.atomic_commit = vc4_atomic_commit,
+	.atomic_commit = drm_atomic_helper_commit,
 	.fb_create = vc4_fb_create,
 };
 
