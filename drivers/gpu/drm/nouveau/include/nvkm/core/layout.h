@@ -2,6 +2,7 @@
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_VBIOS   , struct nvkm_bios    ,     bios)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_DEVINIT , struct nvkm_devinit ,  devinit)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_BUS     , struct nvkm_bus     ,      bus)
+NVKM_LAYOUT_ONCE(NVKM_SUBDEV_FB      , struct nvkm_fb      ,       fb)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_BAR     , struct nvkm_bar     ,      bar)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_FAULT   , struct nvkm_fault   ,    fault)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_ACR     , struct nvkm_acr     ,      acr)

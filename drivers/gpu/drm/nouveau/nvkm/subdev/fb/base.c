@@ -227,9 +227,9 @@ nvkm_fb = {
 
 void
 nvkm_fb_ctor(const struct nvkm_fb_func *func, struct nvkm_device *device,
-	     int index, struct nvkm_fb *fb)
+	     enum nvkm_subdev_type type, int inst, struct nvkm_fb *fb)
 {
-	nvkm_subdev_ctor(&nvkm_fb, device, index, &fb->subdev);
+	nvkm_subdev_ctor(&nvkm_fb, device, type, inst, &fb->subdev);
 	fb->func = func;
 	fb->tile.regions = fb->func->tile.regions;
 	fb->page = nvkm_longopt(device->cfgopt, "NvFbBigPage", fb->func->default_bigpage);
@@ -238,10 +238,10 @@ nvkm_fb_ctor(const struct nvkm_fb_func *func, struct nvkm_device *device,
 
 int
 nvkm_fb_new_(const struct nvkm_fb_func *func, struct nvkm_device *device,
-	     int index, struct nvkm_fb **pfb)
+	     enum nvkm_subdev_type type, int inst, struct nvkm_fb **pfb)
 {
 	if (!(*pfb = kzalloc(sizeof(**pfb), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_fb_ctor(func, device, index, *pfb);
+	nvkm_fb_ctor(func, device, type, inst, *pfb);
 	return 0;
 }
