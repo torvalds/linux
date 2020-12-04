@@ -189,14 +189,14 @@ struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f);
  */
 struct drm_sched_job {
 	struct spsc_node		queue_node;
+	struct list_head		list;
 	struct drm_gpu_scheduler	*sched;
 	struct drm_sched_fence		*s_fence;
 	struct dma_fence_cb		finish_cb;
-	struct list_head		node;
 	uint64_t			id;
 	atomic_t			karma;
 	enum drm_sched_priority		s_priority;
-	struct drm_sched_entity  *entity;
+	struct drm_sched_entity         *entity;
 	struct dma_fence_cb		cb;
 };
 

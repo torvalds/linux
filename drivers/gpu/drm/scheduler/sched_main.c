@@ -272,7 +272,7 @@ static void drm_sched_job_begin(struct drm_sched_job *s_job)
 	struct drm_gpu_scheduler *sched = s_job->sched;
 
 	spin_lock(&sched->job_list_lock);
-	list_add_tail(&s_job->node, &sched->ring_mirror_list);
+	list_add_tail(&s_job->list, &sched->ring_mirror_list);
 	drm_sched_start_timeout(sched);
 	spin_unlock(&sched->job_list_lock);
 }
@@ -287,7 +287,7 @@ static void drm_sched_job_timedout(struct work_struct *work)
 	/* Protects against concurrent deletion in drm_sched_get_cleanup_job */
 	spin_lock(&sched->job_list_lock);
 	job = list_first_entry_or_null(&sched->ring_mirror_list,
-				       struct drm_sched_job, node);
+				       struct drm_sched_job, list);
 
 	if (job) {
 		/*
@@ -295,7 +295,7 @@ static void drm_sched_job_timedout(struct work_struct *work)
 		 * drm_sched_cleanup_jobs. It will be reinserted back after sched->thread
 		 * is parked at which point it's safe.
 		 */
-		list_del_init(&job->node);
+		list_del_init(&job->list);
 		spin_unlock(&sched->job_list_lock);
 
 		job->sched->ops->timedout_job(job);
@@ -392,7 +392,7 @@ void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad)
 		 * Add at the head of the queue to reflect it was the earliest
 		 * job extracted.
 		 */
-		list_add(&bad->node, &sched->ring_mirror_list);
+		list_add(&bad->list, &sched->ring_mirror_list);
 
 	/*
 	 * Iterate the job list from later to  earlier one and either deactive
@@ -400,7 +400,8 @@ void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad)
 	 * signaled.
 	 * This iteration is thread safe as sched thread is stopped.
 	 */
-	list_for_each_entry_safe_reverse(s_job, tmp, &sched->ring_mirror_list, node) {
+	list_for_each_entry_safe_reverse(s_job, tmp, &sched->ring_mirror_list,
+					 list) {
 		if (s_job->s_fence->parent &&
 		    dma_fence_remove_callback(s_job->s_fence->parent,
 					      &s_job->cb)) {
@@ -411,7 +412,7 @@ void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad)
 			 * Locking here is for concurrent resume timeout
 			 */
 			spin_lock(&sched->job_list_lock);
-			list_del_init(&s_job->node);
+			list_del_init(&s_job->list);
 			spin_unlock(&sched->job_list_lock);
 
 			/*
@@ -462,7 +463,7 @@ void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery)
 	 * so no new jobs are being inserted or removed. Also concurrent
 	 * GPU recovers can't run in parallel.
 	 */
-	list_for_each_entry_safe(s_job, tmp, &sched->ring_mirror_list, node) {
+	list_for_each_entry_safe(s_job, tmp, &sched->ring_mirror_list, list) {
 		struct dma_fence *fence = s_job->s_fence->parent;
 
 		atomic_inc(&sched->hw_rq_count);
@@ -505,7 +506,7 @@ void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched)
 	bool found_guilty = false;
 	struct dma_fence *fence;
 
-	list_for_each_entry_safe(s_job, tmp, &sched->ring_mirror_list, node) {
+	list_for_each_entry_safe(s_job, tmp, &sched->ring_mirror_list, list) {
 		struct drm_sched_fence *s_fence = s_job->s_fence;
 
 		if (!found_guilty && atomic_read(&s_job->karma) > sched->hang_limit) {
@@ -565,7 +566,7 @@ int drm_sched_job_init(struct drm_sched_job *job,
 		return -ENOMEM;
 	job->id = atomic64_inc_return(&sched->job_id_count);
 
-	INIT_LIST_HEAD(&job->node);
+	INIT_LIST_HEAD(&job->list);
 
 	return 0;
 }
@@ -684,11 +685,11 @@ drm_sched_get_cleanup_job(struct drm_gpu_scheduler *sched)
 	spin_lock(&sched->job_list_lock);
 
 	job = list_first_entry_or_null(&sched->ring_mirror_list,
-				       struct drm_sched_job, node);
+				       struct drm_sched_job, list);
 
 	if (job && dma_fence_is_signaled(&job->s_fence->finished)) {
 		/* remove job from ring_mirror_list */
-		list_del_init(&job->node);
+		list_del_init(&job->list);
 	} else {
 		job = NULL;
 		/* queue timeout for next job */
