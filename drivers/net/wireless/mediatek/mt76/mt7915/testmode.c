@@ -138,10 +138,10 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
 	int n_regs = ARRAY_SIZE(reg_backup_list);
 	struct mt7915_dev *dev = phy->dev;
 	bool ext_phy = phy != &dev->phy;
-	u32 *b = dev->test.reg_backup;
+	u32 *b = phy->test.reg_backup;
 	int i;
 
-	if (dev->mphy.test.state == MT76_TM_STATE_OFF) {
+	if (phy->mt76->test.state == MT76_TM_STATE_OFF) {
 		for (i = 0; i < n_regs; i++)
 			mt76_wr(dev, reg_backup_list[i].band[ext_phy], b[i]);
 		return;
@@ -154,7 +154,7 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
 	if (!b)
 		return;
 
-	dev->test.reg_backup = b;
+	phy->test.reg_backup = b;
 	for (i = 0; i < n_regs; i++)
 		b[i] = mt76_rr(dev, reg_backup_list[i].band[ext_phy]);
 
@@ -222,7 +222,7 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
 
 		if (phy != &dev->phy)
 			tx_ant >>= 2;
-		dev->test.spe_idx = spe_idx_map[tx_ant];
+		phy->test.spe_idx = spe_idx_map[tx_ant];
 	}
 
 	mt7915_tm_set_trx(phy, TM_MAC_TX, en);
@@ -333,7 +333,6 @@ static int
 mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
 {
 	struct mt7915_phy *phy = mphy->priv;
-	struct mt7915_dev *dev = phy->dev;
 	void *rx, *rssi;
 	int i;
 
@@ -341,15 +340,15 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
 	if (!rx)
 		return -ENOMEM;
 
-	if (nla_put_s32(msg, MT76_TM_RX_ATTR_FREQ_OFFSET, dev->test.last_freq_offset))
+	if (nla_put_s32(msg, MT76_TM_RX_ATTR_FREQ_OFFSET, phy->test.last_freq_offset))
 		return -ENOMEM;
 
 	rssi = nla_nest_start(msg, MT76_TM_RX_ATTR_RCPI);
 	if (!rssi)
 		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(dev->test.last_rcpi); i++)
-		if (nla_put_u8(msg, i, dev->test.last_rcpi[i]))
+	for (i = 0; i < ARRAY_SIZE(phy->test.last_rcpi); i++)
+		if (nla_put_u8(msg, i, phy->test.last_rcpi[i]))
 			return -ENOMEM;
 
 	nla_nest_end(msg, rssi);
@@ -358,8 +357,8 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
 	if (!rssi)
 		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(dev->test.last_ib_rssi); i++)
-		if (nla_put_s8(msg, i, dev->test.last_ib_rssi[i]))
+	for (i = 0; i < ARRAY_SIZE(phy->test.last_ib_rssi); i++)
+		if (nla_put_s8(msg, i, phy->test.last_ib_rssi[i]))
 			return -ENOMEM;
 
 	nla_nest_end(msg, rssi);
@@ -368,13 +367,13 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
 	if (!rssi)
 		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(dev->test.last_wb_rssi); i++)
-		if (nla_put_s8(msg, i, dev->test.last_wb_rssi[i]))
+	for (i = 0; i < ARRAY_SIZE(phy->test.last_wb_rssi); i++)
+		if (nla_put_s8(msg, i, phy->test.last_wb_rssi[i]))
 			return -ENOMEM;
 
 	nla_nest_end(msg, rssi);
 
-	if (nla_put_u8(msg, MT76_TM_RX_ATTR_SNR, dev->test.last_snr))
+	if (nla_put_u8(msg, MT76_TM_RX_ATTR_SNR, phy->test.last_snr))
 		return -ENOMEM;
 
 	nla_nest_end(msg, rx);

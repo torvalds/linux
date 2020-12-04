@@ -143,6 +143,20 @@ struct mt7915_phy {
 	struct delayed_work mac_work;
 	u8 mac_work_count;
 	u8 sta_work_count;
+
+#ifdef CONFIG_NL80211_TESTMODE
+	struct {
+		u32 *reg_backup;
+
+		s32 last_freq_offset;
+		u8 last_rcpi[4];
+		s8 last_ib_rssi[4];
+		s8 last_wb_rssi[4];
+		u8 last_snr;
+
+		u8 spe_idx;
+	} test;
+#endif
 };
 
 struct mt7915_dev {
@@ -177,20 +191,6 @@ struct mt7915_dev {
 	bool dbdc_support;
 	bool flash_mode;
 	bool fw_debug;
-
-#ifdef CONFIG_NL80211_TESTMODE
-	struct {
-		u32 *reg_backup;
-
-		s32 last_freq_offset;
-		u8 last_rcpi[4];
-		s8 last_ib_rssi[4];
-		s8 last_wb_rssi[4];
-		u8 last_snr;
-
-		u8 spe_idx;
-	} test;
-#endif
 };
 
 enum {

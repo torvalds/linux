@@ -565,12 +565,19 @@ int mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 #ifdef CONFIG_NL80211_TESTMODE
 void mt7915_mac_fill_rx_vector(struct mt7915_dev *dev, struct sk_buff *skb)
 {
+	struct mt7915_phy *phy = &dev->phy;
 	__le32 *rxd = (__le32 *)skb->data;
+	__le32 *rxv_hdr = rxd + 2;
 	__le32 *rxv = rxd + 4;
 	u32 rcpi, ib_rssi, wb_rssi, v20, v21;
+	bool ext_phy;
 	s32 foe;
 	u8 snr;
 	int i;
+
+	ext_phy = FIELD_GET(MT_RXV_HDR_BAND_IDX, le32_to_cpu(rxv_hdr[1]));
+	if (ext_phy)
+		phy = mt7915_ext_phy(dev);
 
 	rcpi = le32_to_cpu(rxv[6]);
 	ib_rssi = le32_to_cpu(rxv[7]);
@@ -580,9 +587,9 @@ void mt7915_mac_fill_rx_vector(struct mt7915_dev *dev, struct sk_buff *skb)
 		if (i == 3)
 			wb_rssi = le32_to_cpu(rxv[9]);
 
-		dev->test.last_rcpi[i] = rcpi & 0xff;
-		dev->test.last_ib_rssi[i] = ib_rssi & 0xff;
-		dev->test.last_wb_rssi[i] = wb_rssi & 0xff;
+		phy->test.last_rcpi[i] = rcpi & 0xff;
+		phy->test.last_ib_rssi[i] = ib_rssi & 0xff;
+		phy->test.last_wb_rssi[i] = wb_rssi & 0xff;
 	}
 
 	v20 = le32_to_cpu(rxv[20]);
@@ -593,8 +600,8 @@ void mt7915_mac_fill_rx_vector(struct mt7915_dev *dev, struct sk_buff *skb)
 
 	snr = FIELD_GET(MT_CRXV_SNR, v20) - 16;
 
-	dev->test.last_freq_offset = foe;
-	dev->test.last_snr = snr;
+	phy->test.last_freq_offset = foe;
+	phy->test.last_snr = snr;
 
 	dev_kfree_skb(skb);
 }
@@ -606,7 +613,6 @@ mt7915_mac_write_txwi_tm(struct mt7915_phy *phy, __le32 *txwi,
 {
 #ifdef CONFIG_NL80211_TESTMODE
 	struct mt76_testmode_data *td = &phy->mt76->test;
-	struct mt7915_dev *dev = phy->dev;
 	u8 rate_idx = td->tx_rate_idx;
 	u8 nss = td->tx_rate_nss;
 	u8 bw, mode;
@@ -699,7 +705,7 @@ mt7915_mac_write_txwi_tm(struct mt7915_phy *phy, __le32 *txwi,
 
 	txwi[6] |= cpu_to_le32(val);
 	txwi[7] |= cpu_to_le32(FIELD_PREP(MT_TXD7_SPE_IDX,
-					  dev->test.spe_idx));
+					  phy->test.spe_idx));
 #endif
 }
 
