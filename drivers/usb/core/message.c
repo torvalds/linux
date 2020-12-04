@@ -219,9 +219,8 @@ int usb_control_msg_send(struct usb_device *dev, __u8 endpoint, __u8 request,
 
 	if (ret < 0)
 		return ret;
-	if (ret == size)
-		return 0;
-	return -EINVAL;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(usb_control_msg_send);
 
