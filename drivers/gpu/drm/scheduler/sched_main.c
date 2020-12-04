@@ -60,8 +60,6 @@
 #define to_drm_sched_job(sched_job)		\
 		container_of((sched_job), struct drm_sched_job, queue_node)
 
-static void drm_sched_process_job(struct dma_fence *f, struct dma_fence_cb *cb);
-
 /**
  * drm_sched_rq_init - initialize a given run queue struct
  *
@@ -160,6 +158,40 @@ drm_sched_rq_select_entity(struct drm_sched_rq *rq)
 	spin_unlock(&rq->lock);
 
 	return NULL;
+}
+
+/**
+ * drm_sched_job_done - complete a job
+ * @s_job: pointer to the job which is done
+ *
+ * Finish the job's fence and wake up the worker thread.
+ */
+static void drm_sched_job_done(struct drm_sched_job *s_job)
+{
+	struct drm_sched_fence *s_fence = s_job->s_fence;
+	struct drm_gpu_scheduler *sched = s_fence->sched;
+
+	atomic_dec(&sched->hw_rq_count);
+	atomic_dec(&sched->score);
+
+	trace_drm_sched_process_job(s_fence);
+
+	dma_fence_get(&s_fence->finished);
+	drm_sched_fence_finished(s_fence);
+	dma_fence_put(&s_fence->finished);
+	wake_up_interruptible(&sched->wake_up_worker);
+}
+
+/**
+ * drm_sched_job_done_cb - the callback for a done job
+ * @f: fence
+ * @cb: fence callbacks
+ */
+static void drm_sched_job_done_cb(struct dma_fence *f, struct dma_fence_cb *cb)
+{
+	struct drm_sched_job *s_job = container_of(cb, struct drm_sched_job, cb);
+
+	drm_sched_job_done(s_job);
 }
 
 /**
@@ -473,14 +505,14 @@ void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery)
 
 		if (fence) {
 			r = dma_fence_add_callback(fence, &s_job->cb,
-						   drm_sched_process_job);
+						   drm_sched_job_done_cb);
 			if (r == -ENOENT)
-				drm_sched_process_job(fence, &s_job->cb);
+				drm_sched_job_done(s_job);
 			else if (r)
 				DRM_ERROR("fence add callback failed (%d)\n",
 					  r);
 		} else
-			drm_sched_process_job(NULL, &s_job->cb);
+			drm_sched_job_done(s_job);
 	}
 
 	if (full_recovery) {
@@ -636,31 +668,6 @@ drm_sched_select_entity(struct drm_gpu_scheduler *sched)
 }
 
 /**
- * drm_sched_process_job - process a job
- *
- * @f: fence
- * @cb: fence callbacks
- *
- * Called after job has finished execution.
- */
-static void drm_sched_process_job(struct dma_fence *f, struct dma_fence_cb *cb)
-{
-	struct drm_sched_job *s_job = container_of(cb, struct drm_sched_job, cb);
-	struct drm_sched_fence *s_fence = s_job->s_fence;
-	struct drm_gpu_scheduler *sched = s_fence->sched;
-
-	atomic_dec(&sched->hw_rq_count);
-	atomic_dec(&sched->score);
-
-	trace_drm_sched_process_job(s_fence);
-
-	dma_fence_get(&s_fence->finished);
-	drm_sched_fence_finished(s_fence);
-	dma_fence_put(&s_fence->finished);
-	wake_up_interruptible(&sched->wake_up_worker);
-}
-
-/**
  * drm_sched_get_cleanup_job - fetch the next finished job to be destroyed
  *
  * @sched: scheduler instance
@@ -809,9 +816,9 @@ static int drm_sched_main(void *param)
 		if (!IS_ERR_OR_NULL(fence)) {
 			s_fence->parent = dma_fence_get(fence);
 			r = dma_fence_add_callback(fence, &sched_job->cb,
-						   drm_sched_process_job);
+						   drm_sched_job_done_cb);
 			if (r == -ENOENT)
-				drm_sched_process_job(fence, &sched_job->cb);
+				drm_sched_job_done(sched_job);
 			else if (r)
 				DRM_ERROR("fence add callback failed (%d)\n",
 					  r);
@@ -820,7 +827,7 @@ static int drm_sched_main(void *param)
 			if (IS_ERR(fence))
 				dma_fence_set_error(&s_fence->finished, PTR_ERR(fence));
 
-			drm_sched_process_job(NULL, &sched_job->cb);
+			drm_sched_job_done(sched_job);
 		}
 
 		wake_up(&sched->job_scheduled);
