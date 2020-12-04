@@ -60,7 +60,6 @@ struct nvkm_device {
 		struct notifier_block nb;
 	} acpi;
 
-	struct nvkm_fuse *fuse;
 	struct nvkm_gpio *gpio;
 	struct nvkm_gsp *gsp;
 	struct nvkm_i2c *i2c;
@@ -140,7 +139,6 @@ struct nvkm_device_chip {
 #include <core/layout.h>
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
-	int (*fuse    )(struct nvkm_device *, int idx, struct nvkm_fuse **);
 	int (*gpio    )(struct nvkm_device *, int idx, struct nvkm_gpio **);
 	int (*gsp     )(struct nvkm_device *, int idx, struct nvkm_gsp **);
 	int (*i2c     )(struct nvkm_device *, int idx, struct nvkm_i2c **);
