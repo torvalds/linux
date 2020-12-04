@@ -127,14 +127,14 @@ nvkm_ltc = {
 
 int
 nvkm_ltc_new_(const struct nvkm_ltc_func *func, struct nvkm_device *device,
-	      int index, struct nvkm_ltc **pltc)
+	      enum nvkm_subdev_type type, int inst, struct nvkm_ltc **pltc)
 {
 	struct nvkm_ltc *ltc;
 
 	if (!(ltc = *pltc = kzalloc(sizeof(*ltc), GFP_KERNEL)))
 		return -ENOMEM;
 
-	nvkm_subdev_ctor(&nvkm_ltc, device, index, &ltc->subdev);
+	nvkm_subdev_ctor(&nvkm_ltc, device, type, inst, &ltc->subdev);
 	ltc->func = func;
 	mutex_init(&ltc->mutex);
 	ltc->zbc_min = 1; /* reserve 0 for disabled */

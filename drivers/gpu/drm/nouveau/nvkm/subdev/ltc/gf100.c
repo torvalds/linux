@@ -249,7 +249,8 @@ gf100_ltc = {
 };
 
 int
-gf100_ltc_new(struct nvkm_device *device, int index, struct nvkm_ltc **pltc)
+gf100_ltc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_ltc **pltc)
 {
-	return nvkm_ltc_new_(&gf100_ltc, device, index, pltc);
+	return nvkm_ltc_new_(&gf100_ltc, device, type, inst, pltc);
 }

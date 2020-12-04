@@ -60,7 +60,6 @@ struct nvkm_device {
 		struct notifier_block nb;
 	} acpi;
 
-	struct nvkm_ltc *ltc;
 	struct nvkm_mc *mc;
 	struct nvkm_mmu *mmu;
 	struct nvkm_subdev *mxm;
@@ -133,7 +132,6 @@ struct nvkm_device_chip {
 #include <core/layout.h>
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
-	int (*ltc     )(struct nvkm_device *, int idx, struct nvkm_ltc **);
 	int (*mc      )(struct nvkm_device *, int idx, struct nvkm_mc **);
 	int (*mmu     )(struct nvkm_device *, int idx, struct nvkm_mmu **);
 	int (*mxm     )(struct nvkm_device *, int idx, struct nvkm_subdev **);
