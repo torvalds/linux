@@ -52,9 +52,7 @@ xchk_rtbitmap_rec(
 	startblock = rec->ar_startext * tp->t_mountp->m_sb.sb_rextsize;
 	blockcount = rec->ar_extcount * tp->t_mountp->m_sb.sb_rextsize;
 
-	if (startblock + blockcount <= startblock ||
-	    !xfs_verify_rtbno(sc->mp, startblock) ||
-	    !xfs_verify_rtbno(sc->mp, startblock + blockcount - 1))
+	if (!xfs_verify_rtext(sc->mp, startblock, blockcount))
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 	return 0;
 }

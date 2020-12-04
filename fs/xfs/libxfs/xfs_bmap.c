@@ -6226,20 +6226,13 @@ xfs_bmap_validate_extent(
 	struct xfs_bmbt_irec	*irec)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	xfs_fsblock_t		endfsb;
-	bool			isrt;
 
-	if (irec->br_startblock + irec->br_blockcount <= irec->br_startblock)
-		return __this_address;
 	if (irec->br_startoff + irec->br_blockcount <= irec->br_startoff)
 		return __this_address;
 
-	isrt = XFS_IS_REALTIME_INODE(ip);
-	endfsb = irec->br_startblock + irec->br_blockcount - 1;
-	if (isrt && whichfork == XFS_DATA_FORK) {
-		if (!xfs_verify_rtbno(mp, irec->br_startblock))
-			return __this_address;
-		if (!xfs_verify_rtbno(mp, endfsb))
+	if (XFS_IS_REALTIME_INODE(ip) && whichfork == XFS_DATA_FORK) {
+		if (!xfs_verify_rtext(mp, irec->br_startblock,
+					  irec->br_blockcount))
 			return __this_address;
 	} else {
 		if (!xfs_verify_fsbext(mp, irec->br_startblock,

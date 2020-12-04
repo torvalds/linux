@@ -198,6 +198,22 @@ xfs_verify_rtbno(
 	return rtbno < mp->m_sb.sb_rblocks;
 }
 
+/* Verify that a realtime device extent is fully contained inside the volume. */
+bool
+xfs_verify_rtext(
+	struct xfs_mount	*mp,
+	xfs_rtblock_t		rtbno,
+	xfs_rtblock_t		len)
+{
+	if (rtbno + len <= rtbno)
+		return false;
+
+	if (!xfs_verify_rtbno(mp, rtbno))
+		return false;
+
+	return xfs_verify_rtbno(mp, rtbno + len - 1);
+}
+
 /* Calculate the range of valid icount values. */
 void
 xfs_icount_range(
