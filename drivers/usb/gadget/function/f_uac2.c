@@ -809,6 +809,7 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 			dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
 			return -ENODEV;
 		}
+		agdev->in_ep->maxpacket = usb_endpoint_maxp(&fs_epin_desc);
 	}
 
 	agdev->in_ep_maxpsize = max_t(u16,

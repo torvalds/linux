@@ -926,6 +926,7 @@ static int f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 		ep = usb_ep_autoconfig(cdev->gadget, &as_in_ep_desc);
 		if (!ep)
 			goto fail;
+		ep->maxpacket = usb_endpoint_maxp(&as_in_ep_desc);
 		audio->in_ep = ep;
 		audio->in_ep->desc = &as_in_ep_desc;
 	}
