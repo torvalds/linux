@@ -415,6 +415,12 @@ static bool match_metric(const char *n, const char *list)
 	return false;
 }
 
+static bool match_pe_metric(struct pmu_event *pe, const char *metric)
+{
+	return match_metric(pe->metric_group, metric) ||
+	       match_metric(pe->metric_name, metric);
+}
+
 struct mep {
 	struct rb_node nd;
 	const char *name;
@@ -757,6 +763,16 @@ int __weak arch_get_runtimeparam(struct pmu_event *pe __maybe_unused)
 	return 1;
 }
 
+struct metricgroup_add_iter_data {
+	struct list_head *metric_list;
+	const char *metric;
+	struct metric **m;
+	struct expr_ids *ids;
+	int *ret;
+	bool *has_match;
+	bool metric_no_group;
+};
+
 static int __add_metric(struct list_head *metric_list,
 			struct pmu_event *pe,
 			bool metric_no_group,
@@ -866,10 +882,11 @@ static int __add_metric(struct list_head *metric_list,
 	return 0;
 }
 
-#define map_for_each_event(__pe, __idx, __map)				\
-	for (__idx = 0, __pe = &__map->table[__idx];			\
-	     __pe->name || __pe->metric_group || __pe->metric_name;	\
-	     __pe = &__map->table[++__idx])
+#define map_for_each_event(__pe, __idx, __map)					\
+	if (__map)								\
+		for (__idx = 0, __pe = &__map->table[__idx];			\
+		     __pe->name || __pe->metric_group || __pe->metric_name;	\
+		     __pe = &__map->table[++__idx])
 
 #define map_for_each_metric(__pe, __idx, __map, __metric)		\
 	map_for_each_event(__pe, __idx, __map)				\
@@ -1037,6 +1054,29 @@ static int add_metric(struct list_head *metric_list,
 	return ret;
 }
 
+static int metricgroup__add_metric_sys_event_iter(struct pmu_event *pe,
+						  void *data)
+{
+	struct metricgroup_add_iter_data *d = data;
+	int ret;
+
+	if (!match_pe_metric(pe, d->metric))
+		return 0;
+
+	ret = add_metric(d->metric_list, pe, d->metric_no_group, d->m, NULL, d->ids);
+	if (ret)
+		return ret;
+
+	ret = resolve_metric(d->metric_no_group,
+				     d->metric_list, NULL, d->ids);
+	if (ret)
+		return ret;
+
+	*(d->has_match) = true;
+
+	return *d->ret;
+}
+
 static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 				   struct strbuf *events,
 				   struct list_head *metric_list,
@@ -1067,6 +1107,22 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 			goto out;
 	}
 
+	{
+		struct metricgroup_iter_data data = {
+			.fn = metricgroup__add_metric_sys_event_iter,
+			.data = (void *) &(struct metricgroup_add_iter_data) {
+				.metric_list = &list,
+				.metric = metric,
+				.metric_no_group = metric_no_group,
+				.m = &m,
+				.ids = &ids,
+				.has_match = &has_match,
+				.ret = &ret,
+			},
+		};
+
+		pmu_for_each_sys_event(metricgroup__sys_event_iter, &data);
+	}
 	/* End of pmu events. */
 	if (!has_match) {
 		ret = -EINVAL;
@@ -1193,8 +1249,6 @@ int metricgroup__parse_groups(const struct option *opt,
 	struct evlist *perf_evlist = *(struct evlist **)opt->value;
 	struct pmu_events_map *map = perf_pmu__find_map(NULL);
 
-	if (!map)
-		return 0;
 
 	return parse_groups(perf_evlist, str, metric_no_group,
 			    metric_no_merge, NULL, metric_events, map);
