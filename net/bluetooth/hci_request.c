@@ -707,6 +707,9 @@ void hci_req_add_le_scan_disable(struct hci_request *req, bool rpa_le_conn)
 		return;
 	}
 
+	if (hdev->suspended)
+		set_bit(SUSPEND_SCAN_DISABLE, hdev->suspend_tasks);
+
 	if (use_ext_scan(hdev)) {
 		struct hci_cp_le_set_ext_scan_enable cp;
 
@@ -1158,6 +1161,11 @@ static void hci_req_set_event_filter(struct hci_request *req)
 		hci_req_add(req, HCI_OP_SET_EVENT_FLT, sizeof(f), &f);
 		scan = SCAN_PAGE;
 	}
+
+	if (scan)
+		set_bit(SUSPEND_SCAN_ENABLE, hdev->suspend_tasks);
+	else
+		set_bit(SUSPEND_SCAN_DISABLE, hdev->suspend_tasks);
 
 	hci_req_add(req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
 }
