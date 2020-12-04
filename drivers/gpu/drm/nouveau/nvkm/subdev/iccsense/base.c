@@ -312,20 +312,20 @@ iccsense_func = {
 };
 
 void
-nvkm_iccsense_ctor(struct nvkm_device *device, int index,
+nvkm_iccsense_ctor(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		   struct nvkm_iccsense *iccsense)
 {
-	nvkm_subdev_ctor(&iccsense_func, device, index, &iccsense->subdev);
+	nvkm_subdev_ctor(&iccsense_func, device, type, inst, &iccsense->subdev);
 }
 
 int
-nvkm_iccsense_new_(struct nvkm_device *device, int index,
+nvkm_iccsense_new_(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		   struct nvkm_iccsense **iccsense)
 {
 	if (!(*iccsense = kzalloc(sizeof(**iccsense), GFP_KERNEL)))
 		return -ENOMEM;
 	INIT_LIST_HEAD(&(*iccsense)->sensors);
 	INIT_LIST_HEAD(&(*iccsense)->rails);
-	nvkm_iccsense_ctor(device, index, *iccsense);
+	nvkm_iccsense_ctor(device, type, inst, *iccsense);
 	return 0;
 }
