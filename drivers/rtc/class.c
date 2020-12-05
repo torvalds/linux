@@ -335,7 +335,6 @@ static void devm_rtc_unregister_device(void *data)
 	cdev_device_del(&rtc->char_dev, &rtc->dev);
 	rtc->ops = NULL;
 	mutex_unlock(&rtc->ops_lock);
-	put_device(&rtc->dev);
 }
 
 static void devm_rtc_release_device(void *res)
