@@ -2403,8 +2403,6 @@ static void gaudi_init_golden_registers(struct hl_device *hdev)
 	gaudi_init_e2e(hdev);
 	gaudi_init_hbm_cred(hdev);
 
-	hdev->asic_funcs->disable_clock_gating(hdev);
-
 	for (tpc_id = 0, tpc_offset = 0;
 				tpc_id < TPC_NUMBER_OF_ENGINES;
 				tpc_id++, tpc_offset += TPC_CFG_OFFSET) {
@@ -3416,6 +3414,9 @@ static void gaudi_set_clock_gating(struct hl_device *hdev)
 	if (hdev->in_debug)
 		return;
 
+	if (!hdev->asic_prop.fw_security_disabled)
+		return;
+
 	for (i = GAUDI_PCI_DMA_1, qman_offset = 0 ; i < GAUDI_HBM_DMA_1 ; i++) {
 		enable = !!(hdev->clock_gating_mask &
 				(BIT_ULL(gaudi_dma_assignment[i])));
@@ -3467,7 +3468,7 @@ static void gaudi_disable_clock_gating(struct hl_device *hdev)
 	u32 qman_offset;
 	int i;
 
-	if (!(gaudi->hw_cap_initialized & HW_CAP_CLK_GATE))
+	if (!hdev->asic_prop.fw_security_disabled)
 		return;
 
 	for (i = 0, qman_offset = 0 ; i < DMA_NUMBER_OF_CHANNELS ; i++) {
@@ -3800,6 +3801,13 @@ static int gaudi_hw_init(struct hl_device *hdev)
 		dev_err(hdev->dev, "failed to initialize CPU\n");
 		return rc;
 	}
+
+	/* In case the clock gating was enabled in preboot we need to disable
+	 * it here before touching the MME/TPC registers.
+	 * There is no need to take clk gating mutex because when this function
+	 * runs, no other relevant code can run
+	 */
+	hdev->asic_funcs->disable_clock_gating(hdev);
 
 	/* SRAM scrambler must be initialized after CPU is running from HBM */
 	gaudi_init_scrambler_sram(hdev);
