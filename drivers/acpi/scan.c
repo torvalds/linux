@@ -719,25 +719,40 @@ int acpi_device_add(struct acpi_device *device,
 /* --------------------------------------------------------------------------
                                  Device Enumeration
    -------------------------------------------------------------------------- */
-static bool acpi_info_matches_hids(struct acpi_device_info *info,
-				   const char * const hids[])
+static bool acpi_info_matches_ids(struct acpi_device_info *info,
+				  const char * const ids[])
 {
+	struct acpi_pnp_device_id_list *cid_list = NULL;
 	int i;
 
 	if (!(info->valid & ACPI_VALID_HID))
 		return false;
 
-	for (i = 0; hids[i]; i++) {
-		if (!strcmp(info->hardware_id.string, hids[i]))
+	if (info->valid & ACPI_VALID_CID)
+		cid_list = &info->compatible_id_list;
+
+	for (i = 0; ids[i]; i++) {
+		int j;
+
+		if (!strcmp(info->hardware_id.string, ids[i]))
 			return true;
+
+		if (!cid_list)
+			continue;
+
+		for (j = 0; j < cid_list->count; j++) {
+			if (!strcmp(cid_list->ids[j].string, ids[i]))
+				return true;
+		}
 	}
 
 	return false;
 }
 
 /* List of HIDs for which we ignore matching ACPI devices, when checking _DEP lists. */
-static const char * const acpi_ignore_dep_hids[] = {
+static const char * const acpi_ignore_dep_ids[] = {
 	"INT3396", /* Windows System Power Management Controller */
+	"PNP0D80", /* Windows-compatible System Power Management Controller */
 	NULL
 };
 
@@ -1857,7 +1872,7 @@ static void acpi_device_dep_initialize(struct acpi_device *adev)
 			continue;
 		}
 
-		skip = acpi_info_matches_hids(info, acpi_ignore_dep_hids);
+		skip = acpi_info_matches_ids(info, acpi_ignore_dep_ids);
 		kfree(info);
 
 		if (skip)
