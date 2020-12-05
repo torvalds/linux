@@ -229,8 +229,12 @@ wa_masked_dis(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
 	wa_add(wal, reg, 0, _MASKED_BIT_DISABLE(val), val);
 }
 
-#define WA_SET_FIELD_MASKED(addr, mask, value) \
-	wa_write_masked_or(wal, (addr), 0, _MASKED_FIELD((mask), (value)))
+static void
+wa_masked_field_set(struct i915_wa_list *wal, i915_reg_t reg,
+		    u32 mask, u32 val)
+{
+	wa_write_masked_or(wal, reg, 0, _MASKED_FIELD(mask, val));
+}
 
 static void gen6_ctx_workarounds_init(struct intel_engine_cs *engine,
 				      struct i915_wa_list *wal)
@@ -287,7 +291,7 @@ static void gen8_ctx_workarounds_init(struct intel_engine_cs *engine,
 	 * disable bit, which we don't touch here, but it's good
 	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
 	 */
-	WA_SET_FIELD_MASKED(GEN7_GT_MODE,
+	wa_masked_field_set(wal, GEN7_GT_MODE,
 			    GEN6_WIZ_HASHING_MASK,
 			    GEN6_WIZ_HASHING_16x4);
 }
@@ -419,7 +423,7 @@ static void gen9_ctx_workarounds_init(struct intel_engine_cs *engine,
 	wa_masked_dis(wal, GEN8_CS_CHICKEN1, GEN9_PREEMPT_3D_OBJECT_LEVEL);
 
 	/* WaDisableGPGPUMidCmdPreemption:skl,bxt,blk,cfl,[cnl] */
-	WA_SET_FIELD_MASKED(GEN8_CS_CHICKEN1,
+	wa_masked_field_set(wal, GEN8_CS_CHICKEN1,
 			    GEN9_PREEMPT_GPGPU_LEVEL_MASK,
 			    GEN9_PREEMPT_GPGPU_COMMAND_LEVEL);
 
@@ -459,7 +463,7 @@ static void skl_tune_iz_hashing(struct intel_engine_cs *engine,
 		return;
 
 	/* Tune IZ hashing. See intel_device_info_runtime_init() */
-	WA_SET_FIELD_MASKED(GEN7_GT_MODE,
+	wa_masked_field_set(wal, GEN7_GT_MODE,
 			    GEN9_IZ_HASHING_MASK(2) |
 			    GEN9_IZ_HASHING_MASK(1) |
 			    GEN9_IZ_HASHING_MASK(0),
@@ -551,7 +555,7 @@ static void cnl_ctx_workarounds_init(struct intel_engine_cs *engine,
 	wa_masked_dis(wal, GEN8_CS_CHICKEN1, GEN9_PREEMPT_3D_OBJECT_LEVEL);
 
 	/* WaDisableGPGPUMidCmdPreemption:cnl */
-	WA_SET_FIELD_MASKED(GEN8_CS_CHICKEN1,
+	wa_masked_field_set(wal, GEN8_CS_CHICKEN1,
 			    GEN9_PREEMPT_GPGPU_LEVEL_MASK,
 			    GEN9_PREEMPT_GPGPU_COMMAND_LEVEL);
 
@@ -605,7 +609,7 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 			   _MASKED_BIT_ENABLE(FLOAT_BLEND_OPTIMIZATION_ENABLE));
 
 	/* WaDisableGPGPUMidThreadPreemption:icl */
-	WA_SET_FIELD_MASKED(GEN8_CS_CHICKEN1,
+	wa_masked_field_set(wal, GEN8_CS_CHICKEN1,
 			    GEN9_PREEMPT_GPGPU_LEVEL_MASK,
 			    GEN9_PREEMPT_GPGPU_THREAD_GROUP_LEVEL);
 
@@ -641,7 +645,7 @@ static void gen12_ctx_workarounds_init(struct intel_engine_cs *engine,
 		     GEN12_DISABLE_CPS_AWARE_COLOR_PIPE);
 
 	/* WaDisableGPGPUMidThreadPreemption:gen12 */
-	WA_SET_FIELD_MASKED(GEN8_CS_CHICKEN1,
+	wa_masked_field_set(wal, GEN8_CS_CHICKEN1,
 			    GEN9_PREEMPT_GPGPU_LEVEL_MASK,
 			    GEN9_PREEMPT_GPGPU_THREAD_GROUP_LEVEL);
 }
