@@ -59,11 +59,10 @@ static void htpic_reg_init(void)
 	int i;
 
 	for (i = 0; i < HTINT_NUM_VECTORS; i++) {
-		uint32_t val;
-
 		/* Disable all HT Vectors */
 		writel(0x0, htpic->base + HTINT_EN_OFF + i * 0x4);
-		val = readl(htpic->base + i * 0x4);
+		/* Read back to force write */
+		(void) readl(htpic->base + i * 0x4);
 		/* Ack all possible pending IRQs */
 		writel(GENMASK(31, 0), htpic->base + i * 0x4);
 	}
@@ -81,7 +80,7 @@ struct syscore_ops htpic_syscore_ops = {
 	.resume		= htpic_resume,
 };
 
-int __init htpic_of_init(struct device_node *node, struct device_node *parent)
+static int __init htpic_of_init(struct device_node *node, struct device_node *parent)
 {
 	unsigned int parent_irq[4];
 	int i, err;
