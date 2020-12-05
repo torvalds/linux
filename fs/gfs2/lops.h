@@ -10,13 +10,6 @@
 #include <linux/list.h>
 #include "incore.h"
 
-#define BUF_OFFSET \
-	((sizeof(struct gfs2_log_descriptor) + sizeof(__be64) - 1) & \
-	 ~(sizeof(__be64) - 1))
-#define DATABUF_OFFSET \
-	((sizeof(struct gfs2_log_descriptor) + (2 * sizeof(__be64) - 1)) & \
-	 ~(2 * sizeof(__be64) - 1))
-
 extern const struct gfs2_log_operations *gfs2_log_ops[];
 extern void gfs2_log_incr_head(struct gfs2_sbd *sdp);
 extern u64 gfs2_log_bmap(struct gfs2_jdesc *jd, unsigned int lbn);
@@ -29,18 +22,12 @@ extern int gfs2_find_jhead(struct gfs2_jdesc *jd,
 			   struct gfs2_log_header_host *head, bool keep_cache);
 static inline unsigned int buf_limit(struct gfs2_sbd *sdp)
 {
-	unsigned int limit;
-
-	limit = (sdp->sd_sb.sb_bsize - BUF_OFFSET) / sizeof(__be64);
-	return limit;
+	return sdp->sd_ldptrs;
 }
 
 static inline unsigned int databuf_limit(struct gfs2_sbd *sdp)
 {
-	unsigned int limit;
-
-	limit = (sdp->sd_sb.sb_bsize - DATABUF_OFFSET) / (2 * sizeof(__be64));
-	return limit;
+	return sdp->sd_ldptrs / 2;
 }
 
 static inline void lops_before_commit(struct gfs2_sbd *sdp,
