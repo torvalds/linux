@@ -229,9 +229,6 @@ wa_masked_dis(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
 	wa_add(wal, reg, 0, _MASKED_BIT_DISABLE(val), val);
 }
 
-#define WA_CLR_BIT_MASKED(addr, mask) \
-	wa_masked_dis(wal, (addr), (mask))
-
 #define WA_SET_FIELD_MASKED(addr, mask, value) \
 	wa_write_masked_or(wal, (addr), 0, _MASKED_FIELD((mask), (value)))
 
@@ -277,7 +274,7 @@ static void gen8_ctx_workarounds_init(struct intel_engine_cs *engine,
 	 *
 	 * This optimization is off by default for BDW and CHV; turn it on.
 	 */
-	WA_CLR_BIT_MASKED(CACHE_MODE_0_GEN7, HIZ_RAW_STALL_OPT_DISABLE);
+	wa_masked_dis(wal, CACHE_MODE_0_GEN7, HIZ_RAW_STALL_OPT_DISABLE);
 
 	/* Wa4x4STCOptimizationDisable:bdw,chv */
 	wa_masked_en(wal, CACHE_MODE_1, GEN8_4x4_STC_OPTIMIZATION_DISABLE);
@@ -371,8 +368,8 @@ static void gen9_ctx_workarounds_init(struct intel_engine_cs *engine,
 		     GEN9_PARTIAL_RESOLVE_IN_VC_DISABLE);
 
 	/* WaCcsTlbPrefetchDisable:skl,bxt,kbl,glk,cfl */
-	WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
-			  GEN9_CCS_TLB_PREFETCH_ENABLE);
+	wa_masked_dis(wal, GEN9_HALF_SLICE_CHICKEN5,
+		      GEN9_CCS_TLB_PREFETCH_ENABLE);
 
 	/* WaForceContextSaveRestoreNonCoherent:skl,bxt,kbl,cfl */
 	wa_masked_en(wal, HDC_CHICKEN0,
@@ -419,7 +416,7 @@ static void gen9_ctx_workarounds_init(struct intel_engine_cs *engine,
 	 */
 
 	/* WaDisable3DMidCmdPreemption:skl,bxt,glk,cfl,[cnl] */
-	WA_CLR_BIT_MASKED(GEN8_CS_CHICKEN1, GEN9_PREEMPT_3D_OBJECT_LEVEL);
+	wa_masked_dis(wal, GEN8_CS_CHICKEN1, GEN9_PREEMPT_3D_OBJECT_LEVEL);
 
 	/* WaDisableGPGPUMidCmdPreemption:skl,bxt,blk,cfl,[cnl] */
 	WA_SET_FIELD_MASKED(GEN8_CS_CHICKEN1,
@@ -551,7 +548,7 @@ static void cnl_ctx_workarounds_init(struct intel_engine_cs *engine,
 	wa_masked_en(wal, HALF_SLICE_CHICKEN3, CNL_FAST_ANISO_L1_BANKING_FIX);
 
 	/* WaDisable3DMidCmdPreemption:cnl */
-	WA_CLR_BIT_MASKED(GEN8_CS_CHICKEN1, GEN9_PREEMPT_3D_OBJECT_LEVEL);
+	wa_masked_dis(wal, GEN8_CS_CHICKEN1, GEN9_PREEMPT_3D_OBJECT_LEVEL);
 
 	/* WaDisableGPGPUMidCmdPreemption:cnl */
 	WA_SET_FIELD_MASKED(GEN8_CS_CHICKEN1,
@@ -677,8 +674,8 @@ static void dg1_ctx_workarounds_init(struct intel_engine_cs *engine,
 	gen12_ctx_workarounds_init(engine, wal);
 
 	/* Wa_1409044764 */
-	WA_CLR_BIT_MASKED(GEN11_COMMON_SLICE_CHICKEN3,
-			  DG1_FLOAT_POINT_BLEND_OPT_STRICT_MODE_EN);
+	wa_masked_dis(wal, GEN11_COMMON_SLICE_CHICKEN3,
+		      DG1_FLOAT_POINT_BLEND_OPT_STRICT_MODE_EN);
 
 	/* Wa_22010493298 */
 	wa_masked_en(wal, HIZ_CHICKEN,
