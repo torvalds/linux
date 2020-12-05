@@ -1850,8 +1850,8 @@ int dsa_slave_create(struct dsa_port *port)
 	ret = dsa_slave_change_mtu(slave_dev, ETH_DATA_LEN);
 	rtnl_unlock();
 	if (ret && ret != -EOPNOTSUPP)
-		dev_warn(ds->dev, "nonfatal error %d setting MTU on port %d\n",
-			 ret, port->index);
+		dev_warn(ds->dev, "nonfatal error %d setting MTU to %d on port %d\n",
+			 ret, ETH_DATA_LEN, port->index);
 
 	netif_carrier_off(slave_dev);
 
