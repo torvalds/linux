@@ -2405,49 +2405,49 @@ es7243e_i2c_detect(struct i2c_client *client, struct i2c_board_info *info)
 	if (adapter->nr == ES7243E_I2C_BUS_NUM) {
 #if ES7243E_CHANNELS_MAX > 0
 		if (client->addr == ES7243E_I2C_CHIP_ADDRESS_0) {
-			strlcpy(info->type, "MicArray_0", I2C_NAME_SIZE);
+			strlcpy(info->type, "ES7243E_MicArray_0", I2C_NAME_SIZE);
 			return 0;
 		}
 #endif
 #if ES7243E_CHANNELS_MAX > 2
 		else if (client->addr == ES7243E_I2C_CHIP_ADDRESS_1) {
-			strlcpy(info->type, "MicArray_1", I2C_NAME_SIZE);
+			strlcpy(info->type, "ES7243E_MicArray_1", I2C_NAME_SIZE);
 			return 0;
 		}
 #endif
 #if ES7243E_CHANNELS_MAX > 4
 		else if (client->addr == ES7243E_I2C_CHIP_ADDRESS_2) {
-			strlcpy(info->type, "MicArray_2", I2C_NAME_SIZE);
+			strlcpy(info->type, "ES7243E_MicArray_2", I2C_NAME_SIZE);
 			return 0;
 		}
 #endif
 #if ES7243E_CHANNELS_MAX > 6
 		else if (client->addr == ES7243E_I2C_CHIP_ADDRESS_3) {
-			strlcpy(info->type, "MicArray_3", I2C_NAME_SIZE);
+			strlcpy(info->type, "ES7243E_MicArray_3", I2C_NAME_SIZE);
 			return 0;
 		}
 #endif
 #if ES7243E_CHANNELS_MAX > 8
 		else if (client->addr == ES7243E_I2C_CHIP_ADDRESS_4) {
-			strlcpy(info->type, "MicArray_4", I2C_NAME_SIZE);
+			strlcpy(info->type, "ES7243E_MicArray_4", I2C_NAME_SIZE);
 			return 0;
 		}
 #endif
 #if ES7243E_CHANNELS_MAX > 10
 		else if (client->addr == ES7243E_I2C_CHIP_ADDRESS_5) {
-			strlcpy(info->type, "MicArray_5", I2C_NAME_SIZE);
+			strlcpy(info->type, "ES7243E_MicArray_5", I2C_NAME_SIZE);
 			return 0;
 		}
 #endif
 #if ES7243E_CHANNELS_MAX > 12
 		else if (client->addr == ES7243E_I2C_CHIP_ADDRESS_6) {
-			strlcpy(info->type, "MicArray_6", I2C_NAME_SIZE);
+			strlcpy(info->type, "ES7243E_MicArray_6", I2C_NAME_SIZE);
 			return 0;
 		}
 #endif
 #if ES7243E_CHANNELS_MAX > 14
 		else if (client->addr == ES7243E_I2C_CHIP_ADDRESS_7) {
-			strlcpy(info->type, "MicArray_7", I2C_NAME_SIZE);
+			strlcpy(info->type, "ES7243E_MicArray_7", I2C_NAME_SIZE);
 			return 0;
 		}
 #endif
@@ -2499,68 +2499,68 @@ static const unsigned short es7243e_i2c_addr[] = {
 #if !ES7243E_MATCH_DTS_EN
 static struct i2c_board_info es7243e_i2c_board_info[] = {
 #if ES7243E_CHANNELS_MAX > 0
-	{I2C_BOARD_INFO("MicArray_0", ES7243E_I2C_CHIP_ADDRESS_0),},	//es7243e_0
+	{I2C_BOARD_INFO("ES7243E_MicArray_0", ES7243E_I2C_CHIP_ADDRESS_0),},	//es7243e_0
 #endif
 
 #if ES7243E_CHANNELS_MAX > 2
-	{I2C_BOARD_INFO("MicArray_1", ES7243E_I2C_CHIP_ADDRESS_1),},	//es7243e_1
+	{I2C_BOARD_INFO("ES7243E_MicArray_1", ES7243E_I2C_CHIP_ADDRESS_1),},	//es7243e_1
 #endif
 
 #if ES7243E_CHANNELS_MAX > 4
-	{I2C_BOARD_INFO("MicArray_2", ES7243E_I2C_CHIP_ADDRESS_2),},	//es7243e_2
+	{I2C_BOARD_INFO("ES7243E_MicArray_2", ES7243E_I2C_CHIP_ADDRESS_2),},	//es7243e_2
 #endif
 
 #if ES7243E_CHANNELS_MAX > 6
-	{I2C_BOARD_INFO("MicArray_3", ES7243E_I2C_CHIP_ADDRESS_3),},	//es7243e_3
+	{I2C_BOARD_INFO("ES7243E_MicArray_3", ES7243E_I2C_CHIP_ADDRESS_3),},	//es7243e_3
 #endif
 #if ES7243E_CHANNELS_MAX > 8
-	{I2C_BOARD_INFO("MicArray_4", ES7243E_I2C_CHIP_ADDRESS_4),},	//es7243e_4
+	{I2C_BOARD_INFO("ES7243E_MicArray_4", ES7243E_I2C_CHIP_ADDRESS_4),},	//es7243e_4
 #endif
 
 #if ES7243E_CHANNELS_MAX > 10
-	{I2C_BOARD_INFO("MicArray_5", ES7243E_I2C_CHIP_ADDRESS_5),},	//es7243e_5
+	{I2C_BOARD_INFO("ES7243E_MicArray_5", ES7243E_I2C_CHIP_ADDRESS_5),},	//es7243e_5
 #endif
 
 #if ES7243E_CHANNELS_MAX > 12
-	{I2C_BOARD_INFO("MicArray_6", ES7243E_I2C_CHIP_ADDRESS_6),},	//es7243e_6
+	{I2C_BOARD_INFO("ES7243E_MicArray_6", ES7243E_I2C_CHIP_ADDRESS_6),},	//es7243e_6
 #endif
 
 #if ES7243E_CHANNELS_MAX > 14
-	{I2C_BOARD_INFO("MicArray_7", ES7243E_I2C_CHIP_ADDRESS_7),},	//es7243e_7
+	{I2C_BOARD_INFO("ES7243E_MicArray_7", ES7243E_I2C_CHIP_ADDRESS_7),},	//es7243e_7
 #endif
 };
 #endif
 static const struct i2c_device_id es7243e_i2c_id[] = {
 #if ES7243E_CHANNELS_MAX > 0
-	{"MicArray_0", 0},	//es7243e_0
+	{"ES7243E_MicArray_0", 0},	//es7243e_0
 #endif
 
 #if ES7243E_CHANNELS_MAX > 2
-	{"MicArray_1", 1},	//es7243e_1
+	{"ES7243E_MicArray_1", 1},	//es7243e_1
 #endif
 
 #if ES7243E_CHANNELS_MAX > 4
-	{"MicArray_2", 2},	//es7243e_2
+	{"ES7243E_MicArray_2", 2},	//es7243e_2
 #endif
 
 #if ES7243E_CHANNELS_MAX > 6
-	{"MicArray_3", 3},	//es7243e_3
+	{"ES7243E_MicArray_3", 3},	//es7243e_3
 #endif
 
 #if ES7243E_CHANNELS_MAX > 8
-	{"MicArray_4", 4},	//es7243e_4
+	{"ES7243E_MicArray_4", 4},	//es7243e_4
 #endif
 
 #if ES7243E_CHANNELS_MAX > 10
-	{"MicArray_5", 5},	//es7243e_5
+	{"ES7243E_MicArray_5", 5},	//es7243e_5
 #endif
 
 #if ES7243E_CHANNELS_MAX > 12
-	{"MicArray_6", 6},	//es7243e_6
+	{"ES7243E_MicArray_6", 6},	//es7243e_6
 #endif
 
 #if ES7243E_CHANNELS_MAX > 14
-	{"MicArray_7", 7},	//es7243e_7
+	{"ES7243E_MicArray_7", 7},	//es7243e_7
 #endif
 	{}
 };
@@ -2569,35 +2569,35 @@ MODULE_DEVICE_TABLE(i2c, es7243e_i2c_id);
 
 static const struct of_device_id es7243e_dt_ids[] = {
 #if ES7243E_CHANNELS_MAX > 0
-	{.compatible = "MicArray_0",},	//es7243e_0
+	{.compatible = "ES7243E_MicArray_0",},	//es7243e_0
 #endif
 
 #if ES7243E_CHANNELS_MAX > 2
-	{.compatible = "MicArray_1",},	//es7243e_1
+	{.compatible = "ES7243E_MicArray_1",},	//es7243e_1
 #endif
 
 #if ES7243E_CHANNELS_MAX > 4
-	{.compatible = "MicArray_2",},	//es7243e_2
+	{.compatible = "ES7243E_MicArray_2",},	//es7243e_2
 #endif
 
 #if ES7243E_CHANNELS_MAX > 6
-	{.compatible = "MicArray_3",},	//es7243e_3
+	{.compatible = "ES7243E_MicArray_3",},	//es7243e_3
 #endif
 
 #if ES7243E_CHANNELS_MAX > 8
-	{.compatible = "MicArray_4",},	//es7243e_4
+	{.compatible = "ES7243E_MicArray_4",},	//es7243e_4
 #endif
 
 #if ES7243E_CHANNELS_MAX > 10
-	{.compatible = "MicArray_5",},	//es7243e_5
+	{.compatible = "ES7243E_MicArray_5",},	//es7243e_5
 #endif
 
 #if ES7243E_CHANNELS_MAX > 12
-	{.compatible = "MicArray_6",},	//es7243e_6
+	{.compatible = "ES7243E_MicArray_6",},	//es7243e_6
 #endif
 
 #if ES7243E_CHANNELS_MAX > 14
-	{.compatible = "MicArray_7",},	//es7243e_7
+	{.compatible = "ES7243E_MicArray_7",},	//es7243e_7
 #endif
 };
 
