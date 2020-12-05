@@ -1076,10 +1076,12 @@ static inline unsigned int blk_max_size_offset(struct request_queue *q,
 					       sector_t offset,
 					       unsigned int chunk_sectors)
 {
-	if (!chunk_sectors && q->limits.chunk_sectors)
-		chunk_sectors = q->limits.chunk_sectors;
-	else
-		return q->limits.max_sectors;
+	if (!chunk_sectors) {
+		if (q->limits.chunk_sectors)
+			chunk_sectors = q->limits.chunk_sectors;
+		else
+			return q->limits.max_sectors;
+	}
 
 	if (likely(is_power_of_2(chunk_sectors)))
 		chunk_sectors -= offset & (chunk_sectors - 1);
