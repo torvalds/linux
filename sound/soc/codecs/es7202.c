@@ -198,7 +198,7 @@ static int es7202_micboost3_setting_set(struct snd_kcontrol *kcontrol,
 static int es7202_micboost3_setting_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
-	u8 val;
+	u8 val = 0;
 	es7202_read(0x1d, &val, i2c_ctl[1]);
 	ucontrol->value.integer.value[0] = val & 0x0f;
 	return 0;
@@ -216,7 +216,7 @@ static int es7202_micboost4_setting_set(struct snd_kcontrol *kcontrol,
 static int es7202_micboost4_setting_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
-	u8 val;
+	u8 val = 0;
 	es7202_read(0x1e, &val, i2c_ctl[1]);
 	ucontrol->value.integer.value[0] = val & 0x0f;
 	return 0;
@@ -909,28 +909,28 @@ static int es7202_i2c_detect(struct i2c_client *client,
 
 	if (adapter->nr == ES7202_I2C_BUS_NUM) {
 		if (client->addr == 0x30) {
-			strlcpy(info->type, "PDM_ADC_1", I2C_NAME_SIZE);
+			strlcpy(info->type, "ES7202_PDM_ADC_1", I2C_NAME_SIZE);
 			return 0;
 		} else if (client->addr == 0x31) {
-			strlcpy(info->type, "PDM_ADC_2", I2C_NAME_SIZE);
+			strlcpy(info->type, "ES7202_PDM_ADC_2", I2C_NAME_SIZE);
 			return 0;
 		} else if (client->addr == 0x32) {
-			strlcpy(info->type, "PDM_ADC_3", I2C_NAME_SIZE);
+			strlcpy(info->type, "ES7202_PDM_ADC_3", I2C_NAME_SIZE);
 			return 0;
 		} else if (client->addr == 0x33) {
-			strlcpy(info->type, "PDM_ADC_4", I2C_NAME_SIZE);
+			strlcpy(info->type, "ES7202_PDM_ADC_4", I2C_NAME_SIZE);
 			return 0;
 		}else if (client->addr == 0x34) {
-			strlcpy(info->type, "PDM_ADC_5", I2C_NAME_SIZE);
+			strlcpy(info->type, "ES7202_PDM_ADC_5", I2C_NAME_SIZE);
 			return 0;
 		}else if (client->addr == 0x35) {
-			strlcpy(info->type, "PDM_ADC_6", I2C_NAME_SIZE);
+			strlcpy(info->type, "ES7202_PDM_ADC_6", I2C_NAME_SIZE);
 			return 0;
 		}else if (client->addr == 0x36) {
-			strlcpy(info->type, "PDM_ADC_7", I2C_NAME_SIZE);
+			strlcpy(info->type, "ES7202_PDM_ADC_7", I2C_NAME_SIZE);
 			return 0;
 		}else if (client->addr == 0x37) {
-			strlcpy(info->type, "PDM_ADC_8", I2C_NAME_SIZE);
+			strlcpy(info->type, "ES7202_PDM_ADC_8", I2C_NAME_SIZE);
 			return 0;
 		}
 	}
@@ -983,104 +983,104 @@ static const unsigned short es7202_i2c_addr[] = {
 #if 0
 static struct i2c_board_info es7202_i2c_board_info[] = {
 #if ES7202_CHANNELS_MAX > 0
-	{I2C_BOARD_INFO("PDM_ADC_1", 0x30),},	
+	{I2C_BOARD_INFO("ES7202_PDM_ADC_1", 0x30),},
 #endif
 
 #if ES7202_CHANNELS_MAX > 2
-	{I2C_BOARD_INFO("PDM_ADC_2", 0x31),},	
+	{I2C_BOARD_INFO("ES7202_PDM_ADC_2", 0x31),},
 #endif
 
 #if ES7202_CHANNELS_MAX > 4
-	{I2C_BOARD_INFO("PDM_ADC_3", 0x32),},	
+	{I2C_BOARD_INFO("ES7202_PDM_ADC_3", 0x32),},
 #endif
 
 #if ES7202_CHANNELS_MAX > 6
-	{I2C_BOARD_INFO("PDM_ADC_4", 0x33),},	
+	{I2C_BOARD_INFO("ES7202_PDM_ADC_4", 0x33),},
 #endif
 
 #if ES7202_CHANNELS_MAX > 8
-	{I2C_BOARD_INFO("PDM_ADC_5", 0x34),},	
+	{I2C_BOARD_INFO("ES7202_PDM_ADC_5", 0x34),},
 #endif
 
 #if ES7202_CHANNELS_MAX > 10
-	{I2C_BOARD_INFO("PDM_ADC_6", 0x35),},	
+	{I2C_BOARD_INFO("ES7202_PDM_ADC_6", 0x35),},
 #endif
 
 #if ES7202_CHANNELS_MAX > 12
-	{I2C_BOARD_INFO("PDM_ADC_7", 0x36),},	
+	{I2C_BOARD_INFO("ES7202_PDM_ADC_7", 0x36),},
 #endif
 
 #if ES7202_CHANNELS_MAX > 14
-	{I2C_BOARD_INFO("PDM_ADC_8", 0x37),},	
+	{I2C_BOARD_INFO("ES7202_PDM_ADC_8", 0x37),},
 #endif
 };
 #endif
 static const struct of_device_id es7202_dt_ids[] = {
 #if ES7202_CHANNELS_MAX > 0
-	{.compatible = "PDM_ADC_1",},	
+	{.compatible = "ES7202_PDM_ADC_1",},
 #endif
 
 #if ES7202_CHANNELS_MAX > 2
-	{.compatible = "PDM_ADC_2",},	
+	{.compatible = "ES7202_PDM_ADC_2",},
 #endif
 
 #if ES7202_CHANNELS_MAX > 4
-	{.compatible = "PDM_ADC_3",},	
+	{.compatible = "ES7202_PDM_ADC_3",},
 #endif
 
 #if ES7202_CHANNELS_MAX > 6
-	{.compatible = "PDM_ADC_4",},	
+	{.compatible = "ES7202_PDM_ADC_4",},
 #endif
 
 #if ES7202_CHANNELS_MAX > 8
-	{.compatible = "PDM_ADC_5",},	
+	{.compatible = "ES7202_PDM_ADC_5",},
 #endif
 
 #if ES7202_CHANNELS_MAX > 10
-	{.compatible = "PDM_ADC_6",},	
+	{.compatible = "ES7202_PDM_ADC_6",},
 #endif
 
 #if ES7202_CHANNELS_MAX > 12
-	{.compatible = "PDM_ADC_7",},	
+	{.compatible = "ES7202_PDM_ADC_7",},
 #endif
 
 #if ES7202_CHANNELS_MAX > 14
-	{.compatible = "PDM_ADC_8",},	
+	{.compatible = "ES7202_PDM_ADC_8",},
 #endif
 };
 #endif
 
 static const struct i2c_device_id es7202_i2c_id[] = {
 #if ES7202_CHANNELS_MAX > 0
-	{"PDM_ADC_1", 0},	
+	{"ES7202_PDM_ADC_1", 0},
 #endif
 
 #if ES7202_CHANNELS_MAX > 2
-	{"PDM_ADC_2", 1},	
+	{"ES7202_PDM_ADC_2", 1},
 #endif
 
 #if ES7202_CHANNELS_MAX > 4
-	{"PDM_ADC_3", 2},	
+	{"ES7202_PDM_ADC_3", 2},
 #endif
 
 #if ES7202_CHANNELS_MAX > 6
-	{"PDM_ADC_4", 3},	
+	{"ES7202_PDM_ADC_4", 3},
 #endif
 
 #if ES7202_CHANNELS_MAX > 8
-	{"PDM_ADC_5", 4},	
+	{"ES7202_PDM_ADC_5", 4},
 #endif
 
 #if ES7202_CHANNELS_MAX > 10
-	{"PDM_ADC_6", 5},	
+	{"ES7202_PDM_ADC_6", 5},
 #endif
 
 #if ES7202_CHANNELS_MAX > 12
-	{"PDM_ADC_7", 6},	
+	{"ES7202_PDM_ADC_7", 6},
 #endif
 
 #if ES7202_CHANNELS_MAX > 14
-	{"PDM_ADC_8", 7},	
+	{"ES7202_PDM_ADC_8", 7},
 #endif
 	{}
 };

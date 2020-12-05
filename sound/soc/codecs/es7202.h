@@ -56,7 +56,7 @@
 #define MIC_CHN_4       4
 #define MIC_CHN_2       2
 
-#define ES7202_CHANNELS_MAX     MIC_CHN_2
+#define ES7202_CHANNELS_MAX     MIC_CHN_4
 
 #if ES7202_CHANNELS_MAX == MIC_CHN_2
 #define ADC_DEV_MAXNUM  1
