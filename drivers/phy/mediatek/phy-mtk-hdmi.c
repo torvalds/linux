@@ -201,7 +201,7 @@ static const struct of_device_id mtk_hdmi_phy_match[] = {
 	{},
 };
 
-struct platform_driver mtk_hdmi_phy_driver = {
+static struct platform_driver mtk_hdmi_phy_driver = {
 	.probe = mtk_hdmi_phy_probe,
 	.driver = {
 		.name = "mediatek-hdmi-phy",
