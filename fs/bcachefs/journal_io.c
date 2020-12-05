@@ -1098,7 +1098,6 @@ static void journal_write_done(struct closure *cl)
 	if (!w->noflush) {
 		j->flushed_seq_ondisk = seq;
 		j->last_seq_ondisk = last_seq;
-		bch2_journal_space_available(j);
 	}
 
 	/*
@@ -1121,6 +1120,8 @@ static void journal_write_done(struct closure *cl)
 		new.unwritten_idx++;
 	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
 				       old.v, new.v)) != old.v);
+
+	bch2_journal_space_available(j);
 
 	closure_wake_up(&w->wait);
 	journal_wake(j);

@@ -386,7 +386,7 @@ out:
 static inline bool journal_check_may_get_unreserved(struct journal *j)
 {
 	union journal_preres_state s = READ_ONCE(j->prereserved);
-	bool ret = s.reserved <= s.remaining &&
+	bool ret = s.reserved < s.remaining &&
 		fifo_free(&j->pin) > 8;
 
 	lockdep_assert_held(&j->lock);
@@ -510,6 +510,7 @@ static inline void bch2_journal_set_replay_done(struct journal *j)
 void bch2_journal_unblock(struct journal *);
 void bch2_journal_block(struct journal *);
 
+void __bch2_journal_debug_to_text(struct printbuf *, struct journal *);
 void bch2_journal_debug_to_text(struct printbuf *, struct journal *);
 void bch2_journal_pins_to_text(struct printbuf *, struct journal *);
 

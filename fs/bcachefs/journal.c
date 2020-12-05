@@ -442,20 +442,6 @@ unlock:
 	if (!ret)
 		goto retry;
 
-	if (WARN_ONCE(ret == cur_entry_journal_full &&
-		      !can_discard &&
-		      (flags & JOURNAL_RES_GET_RESERVED),
-		      "JOURNAL_RES_GET_RESERVED set but journal full")) {
-		char *buf;
-
-		buf = kmalloc(4096, GFP_NOFS);
-		if (buf) {
-			bch2_journal_debug_to_text(&_PBUF(buf, 4096), j);
-			pr_err("\n%s", buf);
-			kfree(buf);
-		}
-	}
-
 	/*
 	 * Journal is full - can't rely on reclaim from work item due to
 	 * freezing:
@@ -1139,7 +1125,7 @@ out:
 
 /* debug: */
 
-void bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
+void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	union journal_res_state s;
@@ -1147,7 +1133,6 @@ void bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	unsigned i;
 
 	rcu_read_lock();
-	spin_lock(&j->lock);
 	s = READ_ONCE(j->reservations);
 
 	pr_buf(out,
@@ -1247,8 +1232,14 @@ void bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 		       ja->cur_idx,		ja->bucket_seq[ja->cur_idx]);
 	}
 
-	spin_unlock(&j->lock);
 	rcu_read_unlock();
+}
+
+void bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
+{
+	spin_lock(&j->lock);
+	__bch2_journal_debug_to_text(out, j);
+	spin_unlock(&j->lock);
 }
 
 void bch2_journal_pins_to_text(struct printbuf *out, struct journal *j)
