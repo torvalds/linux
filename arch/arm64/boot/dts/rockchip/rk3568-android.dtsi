@@ -27,6 +27,11 @@
 		#size-cells = <2>;
 		ranges;
 
+		drm_logo: drm-logo@00000000 {
+			compatible = "rockchip,drm-logo";
+			reg = <0x0 0x0 0x0 0x0>;
+		};
+
 		linux,cma {
 			compatible = "shared-dma-pool";
 			inactive;
@@ -59,6 +64,61 @@
 			<0x0 0xfd90d000 0x0 0x1000>,
 			<0x0 0xfd90e000 0x0 0x1000>,
 			<0x0 0xfd90f000 0x0 0x1000>;
+	};
+};
+
+&display_subsystem {
+	logo-memory-region = <&drm_logo>;
+
+	route {
+		route_dsi0: route-dsi0 {
+			status = "disabled";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vp0_out_dsi0>;
+		};
+		route_dsi1: route-dsi1 {
+			status = "disabled";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vp0_out_dsi1>;
+		};
+		route_edp: route-edp {
+			status = "disabled";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vp0_out_edp>;
+		};
+		route_hdmi: route-hdmi {
+			status = "disabled";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vp1_out_hdmi>;
+		};
+		route_lvds: route-lvds {
+			status = "disabled";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vp1_out_lvds>;
+		};
+		route_rgb: route-rgb {
+			status = "disabled";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vp2_out_rgb>;
+		};
 	};
 };
 
