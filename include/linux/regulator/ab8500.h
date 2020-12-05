@@ -153,14 +153,4 @@ enum ab8500_ext_regulator_id {
 	AB8500_NUM_EXT_REGULATORS,
 };
 
-/* AB8500 regulator platform data */
-struct ab8500_regulator_platform_data {
-	int num_reg_init;
-	struct ab8500_regulator_reg_init *reg_init;
-	int num_regulator;
-	struct regulator_init_data *regulator;
-	int num_ext_regulator;
-	struct regulator_init_data *ext_regulator;
-};
-
 #endif
