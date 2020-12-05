@@ -218,6 +218,7 @@ struct vop2_plane_state {
 	uint8_t ymirror_en;
 	uint8_t rotate_90_en;
 	uint8_t rotate_270_en;
+	uint8_t afbc_half_block_en;
 	int eotf;
 	int color_space;
 	int global_alpha;
@@ -912,6 +913,120 @@ static int vop2_afbc_half_block_enable(struct vop2_plane_state *vpstate)
 		return 0;
 	else
 		return 1;
+}
+
+static uint32_t vop2_afbc_transform_offset(struct vop2_plane_state *vpstate)
+{
+	struct drm_rect *src = &vpstate->src;
+	struct drm_framebuffer *fb = vpstate->base.fb;
+	uint32_t bpp = fb->format->bpp[0];
+	uint32_t vir_width = (fb->pitches[0] << 3) / bpp;
+	uint32_t width = drm_rect_width(src) >> 16;
+	uint32_t height = drm_rect_height(src) >> 16;
+	uint32_t act_xoffset = src->x1 >> 16;
+	uint32_t act_yoffset = src->y1 >> 16;
+	uint32_t align16_crop = 0;
+	uint32_t align64_crop = 0;
+	uint32_t height_tmp = 0;
+	uint32_t transform_tmp = 0;
+	uint8_t transform_xoffset = 0;
+	uint8_t transform_yoffset = 0;
+	uint8_t top_crop = 0;
+	uint8_t top_crop_line_num = 0;
+	uint8_t bottom_crop_line_num = 0;
+
+	/* 16 pixel align */
+	if (height & 0xf)
+		align16_crop = 16 - (height & 0xf);
+
+	height_tmp = height + align16_crop;
+
+	/* 64 pixel align */
+	if (height_tmp & 0x3f)
+		align64_crop = 64 - (height_tmp & 0x3f);
+
+	top_crop_line_num = top_crop << 2;
+	if (top_crop == 0)
+		bottom_crop_line_num = align16_crop + align64_crop;
+	else if (top_crop == 1)
+		bottom_crop_line_num = align16_crop + align64_crop + 12;
+	else if (top_crop == 2)
+		bottom_crop_line_num = align16_crop + align64_crop + 8;
+
+	if (vpstate->xmirror_en) {
+		if (vpstate->ymirror_en) {
+			if (vpstate->afbc_half_block_en) {
+				transform_tmp = act_xoffset + width;
+				transform_xoffset = 16 - (transform_tmp & 0xf);
+				transform_tmp = bottom_crop_line_num - act_yoffset;
+				transform_yoffset = transform_tmp & 0x7;
+			} else { //FULL MODEL
+				transform_tmp = act_xoffset + width;
+				transform_xoffset = 16 - (transform_tmp & 0xf);
+				transform_tmp = bottom_crop_line_num - act_yoffset;
+				transform_yoffset = (transform_tmp & 0xf);
+			}
+		} else if (vpstate->rotate_90_en) {
+			transform_tmp = bottom_crop_line_num - act_yoffset;
+			transform_xoffset = transform_tmp & 0xf;
+			transform_tmp = vir_width - width - act_xoffset;
+			transform_yoffset = transform_tmp & 0xf;
+		} else if (vpstate->rotate_270_en) {
+			transform_tmp = top_crop_line_num + act_yoffset;
+			transform_xoffset = transform_tmp & 0xf;
+			transform_tmp = act_xoffset;
+			transform_yoffset = transform_tmp & 0xf;
+
+		} else { //xmir
+			if (vpstate->afbc_half_block_en) {
+				transform_tmp = act_xoffset + width;
+				transform_xoffset = 16 - (transform_tmp & 0xf);
+				transform_tmp = top_crop_line_num + act_yoffset;
+				transform_yoffset = transform_tmp & 0x7;
+			} else {
+				transform_tmp = act_xoffset + width;
+				transform_xoffset = 16 - (transform_tmp & 0xf);
+				transform_tmp = top_crop_line_num + act_yoffset;
+				transform_yoffset = transform_tmp & 0xf;
+			}
+		}
+	} else if (vpstate->ymirror_en) {
+		if (vpstate->afbc_half_block_en) {
+			transform_tmp = act_xoffset;
+			transform_xoffset = transform_tmp & 0xf;
+			transform_tmp = bottom_crop_line_num - act_yoffset;
+			transform_yoffset = transform_tmp & 0x7;
+		} else { //full_mode
+			transform_tmp = act_xoffset;
+			transform_xoffset = transform_tmp & 0xf;
+			transform_tmp = bottom_crop_line_num - act_yoffset;
+			transform_yoffset = transform_tmp & 0xf;
+		}
+	} else if (vpstate->rotate_90_en) {
+		transform_tmp = bottom_crop_line_num - act_yoffset;
+		transform_xoffset = transform_tmp & 0xf;
+		transform_tmp = act_xoffset;
+		transform_yoffset = transform_tmp & 0xf;
+	} else if (vpstate->rotate_270_en) {
+		transform_tmp = top_crop_line_num + act_yoffset;
+		transform_xoffset = transform_tmp & 0xf;
+		transform_tmp = vir_width - width - act_xoffset;
+		transform_yoffset = transform_tmp & 0xf;
+	} else { //normal
+		if (vpstate->afbc_half_block_en) {
+			transform_tmp = act_xoffset;
+			transform_xoffset = transform_tmp & 0xf;
+			transform_tmp = top_crop_line_num + act_yoffset;
+			transform_yoffset = transform_tmp & 0x7;
+		} else { //full_mode
+			transform_tmp = act_xoffset;
+			transform_xoffset = transform_tmp & 0xf;
+			transform_tmp = top_crop_line_num + act_yoffset;
+			transform_yoffset = transform_tmp & 0xf;
+		}
+	}
+
+	return (transform_xoffset & 0xf) | ((transform_yoffset & 0xf) << 16);
 }
 
 /*
@@ -1700,6 +1815,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	uint32_t afbc_half_block_en;
 	uint32_t lb_mode;
 	uint32_t stride;
+	uint32_t transform_offset;
 
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	bool AFBC_flag = false;
@@ -1779,6 +1895,8 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 			format = VOP2_CLUSTER_YUV444_10;
 
 		afbc_half_block_en = vop2_afbc_half_block_enable(vpstate);
+		vpstate->afbc_half_block_en = afbc_half_block_en;
+		transform_offset = vop2_afbc_transform_offset(vpstate);
 		VOP_CLUSTER_SET(vop2, win, afbc_enable, 1);
 		VOP_AFBC_SET(vop2, win, format, afbc_format);
 		VOP_AFBC_SET(vop2, win, rb_swap, rb_swap);
@@ -1788,6 +1906,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 		VOP_AFBC_SET(vop2, win, half_block_en, afbc_half_block_en);
 		VOP_AFBC_SET(vop2, win, hdr_ptr, vpstate->yrgb_mst);
 		VOP_AFBC_SET(vop2, win, pic_size, act_info);
+		VOP_AFBC_SET(vop2, win, transform_offset, transform_offset);
 		VOP_AFBC_SET(vop2, win, pic_offset, ((src->x1 >> 16) | src->y1));
 		VOP_AFBC_SET(vop2, win, dsp_offset, (dest->x1 | (dest->y1 << 16)));
 		VOP_AFBC_SET(vop2, win, pic_vir_width, stride);

@@ -321,6 +321,7 @@ struct vop_afbc {
 	struct vop_reg pic_offset;
 	struct vop_reg pic_size;
 	struct vop_reg dsp_offset;
+	struct vop_reg transform_offset;
 	struct vop_reg hdr_ptr;
 	struct vop_reg half_block_en;
 	struct vop_reg xmirror;
