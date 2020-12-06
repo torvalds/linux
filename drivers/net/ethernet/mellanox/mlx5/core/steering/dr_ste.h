@@ -160,6 +160,9 @@ struct mlx5dr_ste_ctx {
 					u8 *hw_action,
 					u32 hw_action_sz,
 					u16 *used_hw_action_num);
+
+	/* Send */
+	void (*prepare_for_postsend)(u8 *hw_ste_p, u32 ste_size);
 };
 
 extern struct mlx5dr_ste_ctx ste_ctx_v0;

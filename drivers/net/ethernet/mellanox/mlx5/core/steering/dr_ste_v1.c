@@ -324,6 +324,26 @@ static void dr_ste_v1_init(u8 *hw_ste_p, u16 lu_type,
 	MLX5_SET(ste_match_bwc_v1, hw_ste_p, miss_address_63_48, gvmi);
 }
 
+static void dr_ste_v1_prepare_for_postsend(u8 *hw_ste_p,
+					   u32 ste_size)
+{
+	u8 *tag = hw_ste_p + DR_STE_SIZE_CTRL;
+	u8 *mask = tag + DR_STE_SIZE_TAG;
+	u8 tmp_tag[DR_STE_SIZE_TAG] = {};
+
+	if (ste_size == DR_STE_SIZE_CTRL)
+		return;
+
+	WARN_ON(ste_size != DR_STE_SIZE);
+
+	/* Backup tag */
+	memcpy(tmp_tag, tag, DR_STE_SIZE_TAG);
+
+	/* Swap mask and tag  both are the same size */
+	memcpy(tag, mask, DR_STE_SIZE_MASK);
+	memcpy(mask, tmp_tag, DR_STE_SIZE_TAG);
+}
+
 static void dr_ste_v1_set_rx_flow_tag(u8 *s_action, u32 flow_tag)
 {
 	MLX5_SET(ste_single_action_flow_tag_v1, s_action, action_id,
@@ -1608,4 +1628,6 @@ struct mlx5dr_ste_ctx ste_ctx_v1 = {
 	.set_action_add			= &dr_ste_v1_set_action_add,
 	.set_action_copy		= &dr_ste_v1_set_action_copy,
 	.set_action_decap_l3_list	= &dr_ste_v1_set_action_decap_l3_list,
+	/* Send */
+	.prepare_for_postsend		= &dr_ste_v1_prepare_for_postsend,
 };

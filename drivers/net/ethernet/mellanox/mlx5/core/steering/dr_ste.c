@@ -356,6 +356,13 @@ void mlx5dr_ste_set_hit_addr_by_next_htbl(struct mlx5dr_ste_ctx *ste_ctx,
 	ste_ctx->set_hit_addr(hw_ste, chunk->icm_addr, chunk->num_of_entries);
 }
 
+void mlx5dr_ste_prepare_for_postsend(struct mlx5dr_ste_ctx *ste_ctx,
+				     u8 *hw_ste_p, u32 ste_size)
+{
+	if (ste_ctx->prepare_for_postsend)
+		ste_ctx->prepare_for_postsend(hw_ste_p, ste_size);
+}
+
 /* Init one ste as a pattern for ste data array */
 void mlx5dr_ste_set_formatted_ste(struct mlx5dr_ste_ctx *ste_ctx,
 				  u16 gvmi,
