@@ -411,6 +411,24 @@ void cal_ctx_wr_dma_addr(struct cal_ctx *ctx, unsigned int dmaaddr)
 	cal_write(ctx->cal, CAL_WR_DMA_ADDR(ctx->index), dmaaddr);
 }
 
+void cal_ctx_enable_irqs(struct cal_ctx *ctx)
+{
+	/* Enable IRQ_WDMA_END and IRQ_WDMA_START. */
+	cal_write(ctx->cal, CAL_HL_IRQENABLE_SET(1),
+		  CAL_HL_IRQ_MASK(ctx->index));
+	cal_write(ctx->cal, CAL_HL_IRQENABLE_SET(2),
+		  CAL_HL_IRQ_MASK(ctx->index));
+}
+
+void cal_ctx_disable_irqs(struct cal_ctx *ctx)
+{
+	/* Disable IRQ_WDMA_END and IRQ_WDMA_START. */
+	cal_write(ctx->cal, CAL_HL_IRQENABLE_CLR(1),
+		  CAL_HL_IRQ_MASK(ctx->index));
+	cal_write(ctx->cal, CAL_HL_IRQENABLE_CLR(2),
+		  CAL_HL_IRQ_MASK(ctx->index));
+}
+
 /* ------------------------------------------------------------------
  *	IRQ Handling
  * ------------------------------------------------------------------
@@ -1040,6 +1058,12 @@ static int cal_runtime_resume(struct device *dev)
 		for (i = 0; i < cal->data->num_csi2_phy; i++)
 			cal_camerarx_i913_errata(cal->phy[i]);
 	}
+
+	/*
+	 * Enable global interrupts that are not related to a particular
+	 * CAMERARAX or context.
+	 */
+	cal_write(cal, CAL_HL_IRQENABLE_SET(0), CAL_HL_IRQ_OCPO_ERR_MASK);
 
 	return 0;
 }

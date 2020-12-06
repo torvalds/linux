@@ -517,8 +517,7 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 	cal_ctx_csi2_config(ctx);
 	cal_ctx_pix_proc_config(ctx);
 	cal_ctx_wr_dma_config(ctx);
-
-	cal_camerarx_enable_irqs(ctx->phy);
+	cal_ctx_enable_irqs(ctx);
 
 	ret = v4l2_subdev_call(&ctx->phy->subdev, video, s_stream, 1);
 	if (ret)
@@ -570,7 +569,8 @@ static void cal_stop_streaming(struct vb2_queue *vq)
 	if (dma_act)
 		ctx_err(ctx, "failed to disable dma cleanly\n");
 
-	cal_camerarx_disable_irqs(ctx->phy);
+	cal_ctx_disable_irqs(ctx);
+
 	v4l2_subdev_call(&ctx->phy->subdev, video, s_stream, 0);
 
 	/* Release all active buffers */

@@ -233,6 +233,29 @@ static void cal_camerarx_wait_stop_state(struct cal_camerarx *phy)
 		phy_err(phy, "Timeout waiting for stop state\n");
 }
 
+static void cal_camerarx_enable_irqs(struct cal_camerarx *phy)
+{
+	const u32 cio_err_mask =
+		CAL_CSI2_COMPLEXIO_IRQ_LANE_ERRORS_MASK |
+		CAL_CSI2_COMPLEXIO_IRQ_FIFO_OVR_MASK |
+		CAL_CSI2_COMPLEXIO_IRQ_SHORT_PACKET_MASK |
+		CAL_CSI2_COMPLEXIO_IRQ_ECC_NO_CORRECTION_MASK;
+
+	/* Enable CIO error IRQs. */
+	cal_write(phy->cal, CAL_HL_IRQENABLE_SET(0),
+		  CAL_HL_IRQ_CIO_MASK(phy->instance));
+	cal_write(phy->cal, CAL_CSI2_COMPLEXIO_IRQENABLE(phy->instance),
+		  cio_err_mask);
+}
+
+static void cal_camerarx_disable_irqs(struct cal_camerarx *phy)
+{
+	/* Disable CIO error irqs */
+	cal_write(phy->cal, CAL_HL_IRQENABLE_CLR(0),
+		  CAL_HL_IRQ_CIO_MASK(phy->instance));
+	cal_write(phy->cal, CAL_CSI2_COMPLEXIO_IRQENABLE(phy->instance), 0);
+}
+
 static int cal_camerarx_start(struct cal_camerarx *phy)
 {
 	s64 external_rate;
@@ -249,6 +272,8 @@ static int cal_camerarx_start(struct cal_camerarx *phy)
 		phy_err(phy, "power on failed in subdev\n");
 		return ret;
 	}
+
+	cal_camerarx_enable_irqs(phy);
 
 	/*
 	 * CSI-2 PHY Link Initialization Sequence, according to the DRA74xP /
@@ -339,6 +364,7 @@ static int cal_camerarx_start(struct cal_camerarx *phy)
 	ret = v4l2_subdev_call(phy->sensor, video, s_stream, 1);
 	if (ret) {
 		v4l2_subdev_call(phy->sensor, core, s_power, 0);
+		cal_camerarx_disable_irqs(phy);
 		phy_err(phy, "stream on failed in subdev\n");
 		return ret;
 	}
@@ -365,6 +391,8 @@ static void cal_camerarx_stop(struct cal_camerarx *phy)
 {
 	unsigned int i;
 	int ret;
+
+	cal_camerarx_disable_irqs(phy);
 
 	cal_camerarx_power(phy, false);
 
@@ -425,61 +453,6 @@ void cal_camerarx_i913_errata(struct cal_camerarx *phy)
 
 	phy_dbg(1, phy, "CSI2_%d_REG10 = 0x%08x\n", phy->instance, reg10);
 	camerarx_write(phy, CAL_CSI2_PHY_REG10, reg10);
-}
-
-/*
- * Enable the expected IRQ sources
- */
-void cal_camerarx_enable_irqs(struct cal_camerarx *phy)
-{
-	u32 val;
-
-	const u32 cio_err_mask =
-		CAL_CSI2_COMPLEXIO_IRQ_LANE_ERRORS_MASK |
-		CAL_CSI2_COMPLEXIO_IRQ_FIFO_OVR_MASK |
-		CAL_CSI2_COMPLEXIO_IRQ_SHORT_PACKET_MASK |
-		CAL_CSI2_COMPLEXIO_IRQ_ECC_NO_CORRECTION_MASK;
-
-	/* Enable CIO error irqs */
-	cal_write(phy->cal, CAL_HL_IRQENABLE_SET(0),
-		  CAL_HL_IRQ_CIO_MASK(phy->instance));
-	cal_write(phy->cal, CAL_CSI2_COMPLEXIO_IRQENABLE(phy->instance),
-		  cio_err_mask);
-
-	/* Always enable OCPO error */
-	cal_write(phy->cal, CAL_HL_IRQENABLE_SET(0), CAL_HL_IRQ_OCPO_ERR_MASK);
-
-	/* Enable IRQ_WDMA_END 0/1 */
-	val = 0;
-	cal_set_field(&val, 1, CAL_HL_IRQ_MASK(phy->instance));
-	cal_write(phy->cal, CAL_HL_IRQENABLE_SET(1), val);
-	/* Enable IRQ_WDMA_START 0/1 */
-	val = 0;
-	cal_set_field(&val, 1, CAL_HL_IRQ_MASK(phy->instance));
-	cal_write(phy->cal, CAL_HL_IRQENABLE_SET(2), val);
-	/* Todo: Add VC_IRQ and CSI2_COMPLEXIO_IRQ handling */
-	cal_write(phy->cal, CAL_CSI2_VC_IRQENABLE(0), 0xFF000000);
-}
-
-void cal_camerarx_disable_irqs(struct cal_camerarx *phy)
-{
-	u32 val;
-
-	/* Disable CIO error irqs */
-	cal_write(phy->cal, CAL_HL_IRQENABLE_CLR(0),
-		  CAL_HL_IRQ_CIO_MASK(phy->instance));
-	cal_write(phy->cal, CAL_CSI2_COMPLEXIO_IRQENABLE(phy->instance), 0);
-
-	/* Disable IRQ_WDMA_END 0/1 */
-	val = 0;
-	cal_set_field(&val, 1, CAL_HL_IRQ_MASK(phy->instance));
-	cal_write(phy->cal, CAL_HL_IRQENABLE_CLR(1), val);
-	/* Disable IRQ_WDMA_START 0/1 */
-	val = 0;
-	cal_set_field(&val, 1, CAL_HL_IRQ_MASK(phy->instance));
-	cal_write(phy->cal, CAL_HL_IRQENABLE_CLR(2), val);
-	/* Todo: Add VC_IRQ and CSI2_COMPLEXIO_IRQ handling */
-	cal_write(phy->cal, CAL_CSI2_VC_IRQENABLE(0), 0);
 }
 
 void cal_camerarx_ppi_enable(struct cal_camerarx *phy)
