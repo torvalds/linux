@@ -564,117 +564,52 @@ static inline bool rtc_tv_nsec_ok(unsigned long set_offset_nsec,
 	return false;
 }
 
-#ifdef CONFIG_RTC_SYSTOHC
-/*
- * rtc_set_ntp_time - Save NTP synchronized time to the RTC
- */
-static int rtc_set_ntp_time(struct timespec64 now, unsigned long *offset_nsec)
-{
-	struct timespec64 to_set;
-	struct rtc_device *rtc;
-	struct rtc_time tm;
-	int err = -ENODEV;
-	bool ok;
-
-	rtc = rtc_class_open(CONFIG_RTC_SYSTOHC_DEVICE);
-	if (!rtc)
-		goto out_err;
-
-	if (!rtc->ops || !rtc->ops->set_time)
-		goto out_close;
-
-	/* Store the update offset for this RTC */
-	*offset_nsec = rtc->set_offset_nsec;
-
-	ok = rtc_tv_nsec_ok(rtc->set_offset_nsec, &to_set, &now);
-	if (!ok) {
-		err = -EPROTO;
-		goto out_close;
-	}
-
-	rtc_time64_to_tm(to_set.tv_sec, &tm);
-
-	err = rtc_set_time(rtc, &tm);
-
-out_close:
-	rtc_class_close(rtc);
-out_err:
-	return err;
-}
-
-static void sync_rtc_clock(void)
-{
-	unsigned long offset_nsec;
-	struct timespec64 adjust;
-	int rc;
-
-	ktime_get_real_ts64(&adjust);
-
-	if (persistent_clock_is_local)
-		adjust.tv_sec -= (sys_tz.tz_minuteswest * 60);
-
-	/*
-	 * The current RTC in use will provide the nanoseconds offset prior
-	 * to a full second it wants to be called at, and invokes
-	 * rtc_tv_nsec_ok() internally.
-	 */
-	rc = rtc_set_ntp_time(adjust, &offset_nsec);
-	if (rc == -ENODEV)
-		return;
-
-	sched_sync_hw_clock(offset_nsec, rc != 0);
-}
-#else
-static inline void sync_rtc_clock(void) { }
-#endif
-
 #ifdef CONFIG_GENERIC_CMOS_UPDATE
 int __weak update_persistent_clock64(struct timespec64 now64)
 {
 	return -ENODEV;
 }
+#else
+static inline int update_persistent_clock64(struct timespec64 now64)
+{
+	return -ENODEV;
+}
 #endif
 
-static bool sync_cmos_clock(void)
+#ifdef CONFIG_RTC_SYSTOHC
+/* Save NTP synchronized time to the RTC */
+static int update_rtc(struct timespec64 *to_set, unsigned long *offset_nsec)
 {
-	static bool no_cmos;
-	struct timespec64 now;
-	struct timespec64 adjust;
-	int rc = -EPROTO;
-	long target_nsec = NSEC_PER_SEC / 2;
+	struct rtc_device *rtc;
+	struct rtc_time tm;
+	int err = -ENODEV;
 
-	if (!IS_ENABLED(CONFIG_GENERIC_CMOS_UPDATE))
-		return false;
+	rtc = rtc_class_open(CONFIG_RTC_SYSTOHC_DEVICE);
+	if (!rtc)
+		return -ENODEV;
 
-	if (no_cmos)
-		return false;
+	if (!rtc->ops || !rtc->ops->set_time)
+		goto out_close;
 
-	/*
-	 * Historically update_persistent_clock64() has followed x86
-	 * semantics, which match the MC146818A/etc RTC. This RTC will store
-	 * 'adjust' and then in .5s it will advance once second.
-	 *
-	 * Architectures are strongly encouraged to use rtclib and not
-	 * implement this legacy API.
-	 */
-	ktime_get_real_ts64(&now);
-	if (rtc_tv_nsec_ok(target_nsec, &adjust, &now)) {
-		if (persistent_clock_is_local)
-			adjust.tv_sec -= (sys_tz.tz_minuteswest * 60);
-		rc = update_persistent_clock64(adjust);
-		/*
-		 * The machine does not support update_persistent_clock64 even
-		 * though it defines CONFIG_GENERIC_CMOS_UPDATE.
-		 */
-		if (rc == -ENODEV) {
-			no_cmos = true;
-			return false;
-		}
+	/* First call might not have the correct offset */
+	if (*offset_nsec == rtc->set_offset_nsec) {
+		rtc_time64_to_tm(to_set->tv_sec, &tm);
+		err = rtc_set_time(rtc, &tm);
+	} else {
+		/* Store the update offset and let the caller try again */
+		*offset_nsec = rtc->set_offset_nsec;
+		err = -EAGAIN;
 	}
-
-	sched_sync_hw_clock(target_nsec, rc != 0);
-	return true;
+out_close:
+	rtc_class_close(rtc);
+	return err;
 }
+#else
+static inline int update_rtc(struct timespec64 *to_set, unsigned long *offset_nsec)
+{
+	return -ENODEV;
+}
+#endif
 
 /*
  * If we have an externally synchronized Linux clock, then update RTC clock
@@ -687,6 +622,15 @@ static bool sync_cmos_clock(void)
 static void sync_hw_clock(struct work_struct *work)
 {
 	/*
+	 * The default synchronization offset is 500ms for the deprecated
+	 * update_persistent_clock64() under the assumption that it uses
+	 * the infamous CMOS clock (MC146818).
+	 */
+	static unsigned long offset_nsec = NSEC_PER_SEC / 2;
+	struct timespec64 now, to_set;
+	int res = -EAGAIN;
+
+	/*
 	 * Don't update if STA_UNSYNC is set and if ntp_notify_cmos_timer()
 	 * managed to schedule the work between the timer firing and the
 	 * work being able to rearm the timer. Wait for the timer to expire.
@@ -694,10 +638,26 @@ static void sync_hw_clock(struct work_struct *work)
 	if (!ntp_synced() || hrtimer_is_queued(&sync_hrtimer))
 		return;
 
-	if (sync_cmos_clock())
-		return;
+	ktime_get_real_ts64(&now);
+	/* If @now is not in the allowed window, try again */
+	if (!rtc_tv_nsec_ok(offset_nsec, &to_set, &now))
+		goto rearm;
 
-	sync_rtc_clock();
+	/* Take timezone adjusted RTCs into account */
+	if (persistent_clock_is_local)
+		to_set.tv_sec -= (sys_tz.tz_minuteswest * 60);
+
+	/* Try the legacy RTC first. */
+	res = update_persistent_clock64(to_set);
+	if (res != -ENODEV)
+		goto rearm;
+
+	/* Try the RTC class */
+	res = update_rtc(&to_set, &offset_nsec);
+	if (res == -ENODEV)
+		return;
+rearm:
+	sched_sync_hw_clock(offset_nsec, res != 0);
 }
 
 void ntp_notify_cmos_timer(void)
