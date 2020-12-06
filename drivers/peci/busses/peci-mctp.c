@@ -1,0 +1,349 @@
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2020 Intel Corporation
+
+#include <linux/aspeed-mctp.h>
+#include <linux/jiffies.h>
+#include <linux/module.h>
+#include <linux/peci.h>
+#include <linux/platform_device.h>
+
+static bool enable_probe;
+module_param_named(enable, enable_probe, bool, 0644);
+MODULE_PARM_DESC(enable, "Enable peci-mctp device (default: false)");
+
+#define PCIE_SET_DATA_LEN(x, val)	((x)->len_lo |= (val))
+#define PCIE_SET_TARGET_ID(x, val)	((x)->target |= (swab16(val)))
+#define PCIE_PKT_ALIGN(x)		ALIGN(x, sizeof(u32))
+#define PCIE_GET_REQUESTER_ID(x)	(swab16((x)->requester))
+
+/*
+ * PCIe header template in "network format" - Big Endian
+ */
+#define MSG_4DW_HDR_ROUTE_BY_ID	0x72
+#define MSG_CODE_VDM_TYPE_1	0x7f
+#define VENDOR_ID_DMTF_VDM	0xb41a
+static const struct pcie_transport_hdr pcie_hdr_template_be = {
+	.fmt_type = MSG_4DW_HDR_ROUTE_BY_ID,
+	.code = MSG_CODE_VDM_TYPE_1,
+	.vendor = VENDOR_ID_DMTF_VDM
+};
+
+#define MSG_TAG_MASK			GENMASK(2, 0)
+#define MCTP_SET_MSG_TAG(x, val)	((x)->flags_seq_tag |= ((val) & MSG_TAG_MASK))
+#define MCTP_GET_MSG_TAG(x)		((x)->flags_seq_tag & MSG_TAG_MASK)
+#define MCTP_HDR_VERSION		1
+#define REQUEST_FLAGS			0xc8
+#define RESPONSE_FLAGS			0xc0
+static const struct mctp_protocol_hdr mctp_hdr_template_be = {
+	.ver = MCTP_HDR_VERSION,
+	.flags_seq_tag = REQUEST_FLAGS
+};
+
+static struct mctp_peci_vdm_hdr {
+	u8 type;
+	u16 vendor_id;
+	u8 instance_req_d;
+	u8 vendor_code;
+} __packed;
+
+#define PCIE_VDM_TYPE	0x7e
+#define INTEL_VENDOR_ID	0x8680
+#define PECI_REQUEST	0x80
+#define PECI_RESPONSE	0
+#define PECI_MSG_OPCODE	0x02
+static const struct mctp_peci_vdm_hdr peci_hdr_template = {
+	.type = PCIE_VDM_TYPE,
+	.vendor_id = INTEL_VENDOR_ID,
+	.instance_req_d = PECI_REQUEST,
+	.vendor_code = PECI_MSG_OPCODE
+};
+
+#define PECI_VDM_TYPE	0x0200
+#define PECI_VDM_MASK	0xff00
+
+struct mctp_peci {
+	struct peci_adapter *adapter;
+	struct device *dev;
+	struct mctp_client *peci_client;
+	u8 tag;
+};
+
+static int mctp_peci_get_address(u8 peci_addr, u8 *eid, u16 *bdf)
+{
+	/*
+	 * TODO: This is just a temporary hack to enable PECI over MCTP on
+	 * platforms with 2 sockets.
+	 * We are only able to hardcode MCTP endpoints and BDFs for CPU 0 and
+	 * CPU 1. To support all CPUs, we need to add resolving CPU ID and
+	 * endpoint ID.
+	 */
+	switch (peci_addr) {
+	case 0x30:
+		*eid = 0x1d;
+		*bdf = 0x6a18;
+	break;
+	case 0x31:
+		*eid = 0x3d;
+		*bdf = 0xe818;
+	break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void prepare_tx_packet(struct mctp_pcie_packet *tx_packet,
+			      struct peci_xfer_msg *msg, u8 eid,
+			      u16 bdf, u8 tag)
+{
+	struct pcie_transport_hdr *pcie_hdr;
+	struct mctp_protocol_hdr *mctp_hdr;
+	struct mctp_peci_vdm_hdr *peci_hdr;
+	u8 *peci_payload;
+	u32 payload_len, payload_len_dw;
+
+	BUILD_BUG_ON((sizeof(struct pcie_transport_hdr) +
+		     sizeof(struct mctp_protocol_hdr)) != PCIE_VDM_HDR_SIZE);
+
+	pcie_hdr = (struct pcie_transport_hdr *)tx_packet;
+	*pcie_hdr = pcie_hdr_template_be;
+
+	mctp_hdr = (struct mctp_protocol_hdr *)&tx_packet->data.hdr[3];
+	*mctp_hdr = mctp_hdr_template_be;
+
+	peci_hdr = (struct mctp_peci_vdm_hdr *)tx_packet->data.payload;
+	*peci_hdr = peci_hdr_template;
+
+	peci_payload = (u8 *)(tx_packet->data.payload) + sizeof(struct mctp_peci_vdm_hdr);
+	peci_payload[0] = msg->tx_len;
+	peci_payload[1] = msg->rx_len;
+	memcpy(&peci_payload[2], msg->tx_buf, msg->tx_len);
+
+	/*
+	 * MCTP packet payload consists of PECI VDM header, WL, RL and actual
+	 * PECI payload
+	 */
+	payload_len = sizeof(struct mctp_peci_vdm_hdr) + 2 + msg->tx_len;
+	payload_len_dw = PCIE_PKT_ALIGN(payload_len) / sizeof(u32);
+
+	PCIE_SET_DATA_LEN(pcie_hdr, payload_len_dw);
+
+	tx_packet->size = PCIE_PKT_ALIGN(payload_len) + PCIE_VDM_HDR_SIZE;
+
+	mctp_hdr->dest = eid;
+	PCIE_SET_TARGET_ID(pcie_hdr, bdf);
+	MCTP_SET_MSG_TAG(mctp_hdr, tag);
+}
+
+static int
+verify_rx_packet(struct peci_adapter *adapter, struct mctp_pcie_packet *rx_packet,
+		 u8 eid, u16 bdf, u8 tag)
+{
+	struct mctp_peci *priv = peci_get_adapdata(adapter);
+	bool invalid_packet = false;
+	struct pcie_transport_hdr *pcie_hdr;
+	struct mctp_protocol_hdr *mctp_hdr;
+	struct mctp_peci_vdm_hdr *peci_hdr;
+	u8 expected_flags;
+	u16 requester_id;
+
+	expected_flags = (RESPONSE_FLAGS | (tag & MSG_TAG_MASK));
+
+	pcie_hdr = (struct pcie_transport_hdr *)rx_packet;
+	mctp_hdr = (struct mctp_protocol_hdr *)&rx_packet->data.hdr[3];
+	peci_hdr = (struct mctp_peci_vdm_hdr *)rx_packet->data.payload;
+
+	requester_id = PCIE_GET_REQUESTER_ID(pcie_hdr);
+
+	if (requester_id != bdf) {
+		dev_dbg(priv->dev,
+			"mismatch in src bdf: expected: 0x%.4x, got: 0x%.4x",
+			bdf, requester_id);
+		invalid_packet = true;
+	}
+	if (mctp_hdr->src != eid) {
+		dev_dbg(priv->dev,
+			"mismatch in src eid: expected: 0x%.2x, got: 0x%.2x",
+			eid, mctp_hdr->src);
+		invalid_packet = true;
+	}
+	if (mctp_hdr->flags_seq_tag != expected_flags) {
+		dev_dbg(priv->dev,
+			"mismatch in mctp flags: expected: 0x%.2x, got: 0x%.2x",
+			expected_flags, mctp_hdr->flags_seq_tag);
+		invalid_packet = true;
+	}
+	if (peci_hdr->instance_req_d != PECI_RESPONSE) {
+		dev_dbg(priv->dev,
+			"packet doesn't match a response: expected: 0x%.2x, got: 0x%.2x",
+			PECI_RESPONSE, peci_hdr->instance_req_d);
+		invalid_packet = true;
+	}
+
+	if (invalid_packet) {
+		dev_warn_ratelimited(priv->dev, "unexpected peci response found\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int
+mctp_peci_xfer(struct peci_adapter *adapter, struct peci_xfer_msg *msg)
+{
+	struct mctp_peci *priv = peci_get_adapdata(adapter);
+	/* XXX: Sporadically it can take up to 1100 ms for response to arrive */
+	unsigned long timeout = msecs_to_jiffies(1100);
+	u32 max_len = sizeof(struct mctp_pcie_packet_data) -
+		PCIE_VDM_HDR_SIZE - sizeof(struct mctp_peci_vdm_hdr);
+	u8 tag = priv->tag;
+	struct mctp_pcie_packet *tx_packet, *rx_packet;
+	unsigned long current_time, end_time;
+	int ret;
+	u16 bdf;
+	u8 eid;
+
+	if (msg->tx_len > max_len || msg->rx_len > max_len)
+		return -EINVAL;
+
+	ret = mctp_peci_get_address(msg->addr, &eid, &bdf);
+	if (ret)
+		return ret;
+
+	tx_packet = aspeed_mctp_packet_alloc(GFP_KERNEL);
+	if (!tx_packet)
+		return -ENOMEM;
+
+	prepare_tx_packet(tx_packet, msg, eid, bdf, tag);
+
+	aspeed_mctp_flush_rx_queue(priv->peci_client);
+
+	ret = aspeed_mctp_send_packet(priv->peci_client, tx_packet);
+	if (ret) {
+		dev_dbg_ratelimited(priv->dev, "failed to send mctp packet: %d\n", ret);
+		aspeed_mctp_packet_free(tx_packet);
+		return ret;
+	}
+	priv->tag++;
+
+	end_time = jiffies + timeout;
+retry:
+	rx_packet = aspeed_mctp_receive_packet(priv->peci_client, timeout);
+	if (IS_ERR(rx_packet)) {
+		if (PTR_ERR(rx_packet) != -ERESTARTSYS)
+			dev_err_ratelimited(priv->dev, "failed to receive mctp packet: %ld\n",
+					    PTR_ERR(rx_packet));
+
+		return PTR_ERR(rx_packet);
+	}
+	WARN_ON(!rx_packet);
+
+	ret = verify_rx_packet(adapter, rx_packet, eid, bdf, tag);
+	current_time = jiffies;
+	if (ret && time_before(current_time, end_time)) {
+		aspeed_mctp_packet_free(rx_packet);
+		timeout = ((long)end_time - (long)current_time);
+		goto retry;
+	}
+
+	if (!ret)
+		memcpy(msg->rx_buf,
+		       (u8 *)(rx_packet->data.payload) + sizeof(struct mctp_peci_vdm_hdr),
+		       msg->rx_len);
+
+	aspeed_mctp_packet_free(rx_packet);
+
+	return ret;
+}
+
+static int mctp_peci_init_peci_client(struct mctp_peci *priv)
+{
+	struct device *parent = priv->dev->parent;
+	int ret;
+
+	priv->peci_client = aspeed_mctp_create_client(dev_get_drvdata(parent));
+	if (IS_ERR(priv->peci_client))
+		return -ENOMEM;
+
+	ret = aspeed_mctp_add_type_handler(priv->peci_client, PCIE_VDM_TYPE,
+					   INTEL_VENDOR_ID, PECI_VDM_TYPE,
+					   PECI_VDM_MASK);
+	if (ret)
+		aspeed_mctp_delete_client(priv->peci_client);
+
+	return ret;
+}
+
+static int mctp_peci_probe(struct platform_device *pdev)
+{
+	struct peci_adapter *adapter;
+	struct mctp_peci *priv;
+	int ret;
+
+	if (!enable_probe) {
+		dev_info(&pdev->dev,
+			 "peci-mctp is disabled - use peci-mctp.enable=1 to enable it\n");
+		return 0;
+	}
+
+	adapter = peci_alloc_adapter(&pdev->dev, sizeof(*priv));
+	if (!adapter)
+		return -ENOMEM;
+
+	priv = peci_get_adapdata(adapter);
+	priv->dev = &pdev->dev;
+	dev_set_drvdata(&pdev->dev, priv);
+
+	adapter->owner = THIS_MODULE;
+	strlcpy(adapter->name, pdev->name, sizeof(adapter->name));
+
+	adapter->xfer = mctp_peci_xfer;
+	adapter->peci_revision = 0x41;
+
+	priv->adapter = adapter;
+
+	ret = mctp_peci_init_peci_client(priv);
+	if (ret)
+		goto out_put_device;
+
+	ret = peci_add_adapter(adapter);
+	if (ret)
+		goto out_del_client;
+
+	return 0;
+
+out_del_client:
+	aspeed_mctp_delete_client(priv->peci_client);
+out_put_device:
+	put_device(&adapter->dev);
+	return ret;
+}
+
+static int mctp_peci_remove(struct platform_device *pdev)
+{
+	struct mctp_peci *priv = dev_get_drvdata(&pdev->dev);
+
+	if (!priv)
+		goto out;
+
+	aspeed_mctp_delete_client(priv->peci_client);
+
+	peci_del_adapter(priv->adapter);
+out:
+	return 0;
+}
+
+static struct platform_driver mctp_peci_driver = {
+	.probe  = mctp_peci_probe,
+	.remove = mctp_peci_remove,
+	.driver = {
+		.name = "peci-mctp",
+	},
+};
+module_platform_driver(mctp_peci_driver);
+
+MODULE_ALIAS("platform:peci-mctp");
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Iwona Winiarska <iwona.winiarska@intel.com>");
+MODULE_DESCRIPTION("PECI MCTP driver");
