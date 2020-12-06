@@ -305,6 +305,18 @@ config SND_SOC_IMX_AUDMIX
 	  Say Y if you want to add support for SoC audio on an i.MX board with
 	  an Audio Mixer.
 
+config SND_SOC_IMX_HDMI
+	tristate "SoC Audio support for i.MX boards with HDMI port"
+	select SND_SOC_FSL_SAI
+	select SND_SOC_FSL_AUD2HTX
+	select SND_SOC_HDMI_CODEC
+	help
+	  ALSA SoC Audio support with HDMI feature for Freescale SoCs that have
+	  SAI/AUD2HTX and connect with internal HDMI IP or external module
+	  SII902X.
+	  Say Y if you want to add support for SoC audio on an i.MX board with
+	  IMX HDMI.
+
 endif # SND_IMX_SOC
 
 endmenu
