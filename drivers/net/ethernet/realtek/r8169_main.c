@@ -68,7 +68,7 @@
 #define R8169_REGS_SIZE		256
 #define R8169_RX_BUF_SIZE	(SZ_16K - 1)
 #define NUM_TX_DESC	256	/* Number of Tx descriptor registers */
-#define NUM_RX_DESC	256U	/* Number of Rx descriptor registers */
+#define NUM_RX_DESC	256	/* Number of Rx descriptor registers */
 #define R8169_TX_RING_BYTES	(NUM_TX_DESC * sizeof(struct TxDesc))
 #define R8169_RX_RING_BYTES	(NUM_RX_DESC * sizeof(struct RxDesc))
 
@@ -3844,7 +3844,7 @@ static struct page *rtl8169_alloc_rx_data(struct rtl8169_private *tp,
 
 static void rtl8169_rx_clear(struct rtl8169_private *tp)
 {
-	unsigned int i;
+	int i;
 
 	for (i = 0; i < NUM_RX_DESC && tp->Rx_databuff[i]; i++) {
 		dma_unmap_page(tp_to_dev(tp),
@@ -3859,7 +3859,7 @@ static void rtl8169_rx_clear(struct rtl8169_private *tp)
 
 static int rtl8169_rx_fill(struct rtl8169_private *tp)
 {
-	unsigned int i;
+	int i;
 
 	for (i = 0; i < NUM_RX_DESC; i++) {
 		struct page *data;
