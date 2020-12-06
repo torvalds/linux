@@ -262,8 +262,6 @@ const struct cal_fmt *cal_format_by_code(u32 code);
 void cal_quickdump_regs(struct cal_dev *cal);
 
 void cal_camerarx_disable(struct cal_camerarx *phy);
-int cal_camerarx_start(struct cal_camerarx *phy, const struct cal_fmt *fmt);
-void cal_camerarx_stop(struct cal_camerarx *phy);
 void cal_camerarx_enable_irqs(struct cal_camerarx *phy);
 void cal_camerarx_disable_irqs(struct cal_camerarx *phy);
 void cal_camerarx_ppi_enable(struct cal_camerarx *phy);

@@ -116,8 +116,7 @@ void cal_camerarx_disable(struct cal_camerarx *phy)
 #define TCLK_MISS	1
 #define TCLK_SETTLE	14
 
-static void cal_camerarx_config(struct cal_camerarx *phy, s64 external_rate,
-				const struct cal_fmt *fmt)
+static void cal_camerarx_config(struct cal_camerarx *phy, s64 external_rate)
 {
 	unsigned int reg0, reg1;
 	unsigned int ths_term, ths_settle;
@@ -132,9 +131,9 @@ static void cal_camerarx_config(struct cal_camerarx *phy, s64 external_rate,
 	 * CSI-2 is DDR and we only count used lanes.
 	 *
 	 * csi2_ddrclk_khz = external_rate / 1000
-	 *		   / (2 * num_lanes) * fmt->bpp;
+	 *		   / (2 * num_lanes) * phy->fmtinfo->bpp;
 	 */
-	csi2_ddrclk_khz = div_s64(external_rate * fmt->bpp,
+	csi2_ddrclk_khz = div_s64(external_rate * phy->fmtinfo->bpp,
 				  2 * num_lanes * 1000);
 
 	phy_dbg(1, phy, "csi2_ddrclk_khz: %d\n", csi2_ddrclk_khz);
@@ -234,7 +233,7 @@ static void cal_camerarx_wait_stop_state(struct cal_camerarx *phy)
 		phy_err(phy, "Timeout waiting for stop state\n");
 }
 
-int cal_camerarx_start(struct cal_camerarx *phy, const struct cal_fmt *fmt)
+static int cal_camerarx_start(struct cal_camerarx *phy)
 {
 	s64 external_rate;
 	u32 sscounter;
@@ -289,7 +288,7 @@ int cal_camerarx_start(struct cal_camerarx *phy, const struct cal_fmt *fmt)
 	camerarx_read(phy, CAL_CSI2_PHY_REG0);
 
 	/* Program the PHY timing parameters. */
-	cal_camerarx_config(phy, external_rate, fmt);
+	cal_camerarx_config(phy, external_rate);
 
 	/*
 	 *    b. Assert the FORCERXMODE signal.
@@ -362,7 +361,7 @@ int cal_camerarx_start(struct cal_camerarx *phy, const struct cal_fmt *fmt)
 	return 0;
 }
 
-void cal_camerarx_stop(struct cal_camerarx *phy)
+static void cal_camerarx_stop(struct cal_camerarx *phy)
 {
 	unsigned int i;
 	int ret;
@@ -629,7 +628,7 @@ static int cal_camerarx_sd_s_stream(struct v4l2_subdev *sd, int enable)
 	struct cal_camerarx *phy = to_cal_camerarx(sd);
 
 	if (enable)
-		return cal_camerarx_start(phy, NULL);
+		return cal_camerarx_start(phy);
 
 	cal_camerarx_stop(phy);
 	return 0;

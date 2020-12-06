@@ -256,8 +256,11 @@ static int cal_s_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct cal_ctx *ctx = video_drvdata(file);
 	struct vb2_queue *q = &ctx->vb_vidq;
+	struct v4l2_subdev_format sd_fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.pad = CAL_CAMERARX_PAD_SINK,
+	};
 	const struct cal_fmt *fmt;
-	struct v4l2_mbus_framefmt mbus_fmt;
 	int ret;
 
 	if (vb2_is_busy(q)) {
@@ -271,25 +274,28 @@ static int cal_s_fmt_vid_cap(struct file *file, void *priv,
 
 	fmt = find_format_by_pix(ctx, f->fmt.pix.pixelformat);
 
-	v4l2_fill_mbus_format(&mbus_fmt, &f->fmt.pix, fmt->code);
+	v4l2_fill_mbus_format(&sd_fmt.format, &f->fmt.pix, fmt->code);
 
-	ret = __subdev_set_format(ctx, &mbus_fmt);
+	ret = __subdev_set_format(ctx, &sd_fmt.format);
 	if (ret)
 		return ret;
 
 	/* Just double check nothing has gone wrong */
-	if (mbus_fmt.code != fmt->code) {
+	if (sd_fmt.format.code != fmt->code) {
 		ctx_dbg(3, ctx,
 			"%s subdev changed format on us, this should not happen\n",
 			__func__);
 		return -EINVAL;
 	}
 
-	v4l2_fill_pix_format(&ctx->v_fmt.fmt.pix, &mbus_fmt);
+	v4l2_fill_pix_format(&ctx->v_fmt.fmt.pix, &sd_fmt.format);
 	ctx->v_fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	ctx->v_fmt.fmt.pix.pixelformat = fmt->fourcc;
-	ctx->v_fmt.fmt.pix.field = mbus_fmt.field;
+	ctx->v_fmt.fmt.pix.field = sd_fmt.format.field;
 	cal_calc_format_size(ctx, fmt, &ctx->v_fmt);
+
+	v4l2_subdev_call(&ctx->phy->subdev, pad, set_fmt, NULL, &sd_fmt);
+
 	ctx->fmt = fmt;
 	*f = ctx->v_fmt;
 
@@ -455,9 +461,6 @@ static int cal_buffer_prepare(struct vb2_buffer *vb)
 					      vb.vb2_buf);
 	unsigned long size;
 
-	if (WARN_ON(!ctx->fmt))
-		return -EINVAL;
-
 	size = ctx->v_fmt.fmt.pix.sizeimage;
 	if (vb2_plane_size(vb, 0) < size) {
 		ctx_err(ctx,
@@ -518,7 +521,7 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	cal_camerarx_enable_irqs(ctx->phy);
 
-	ret = cal_camerarx_start(ctx->phy, ctx->fmt);
+	ret = v4l2_subdev_call(&ctx->phy->subdev, video, s_stream, 1);
 	if (ret)
 		goto err;
 
@@ -569,7 +572,7 @@ static void cal_stop_streaming(struct vb2_queue *vq)
 		ctx_err(ctx, "failed to disable dma cleanly\n");
 
 	cal_camerarx_disable_irqs(ctx->phy);
-	cal_camerarx_stop(ctx->phy);
+	v4l2_subdev_call(&ctx->phy->subdev, video, s_stream, 0);
 
 	/* Release all active buffers */
 	spin_lock_irqsave(&ctx->slock, flags);
