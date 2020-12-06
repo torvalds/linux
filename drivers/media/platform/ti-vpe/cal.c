@@ -263,11 +263,8 @@ void cal_quickdump_regs(struct cal_dev *cal)
 		       (__force const void *)cal->base,
 		       resource_size(cal->res), false);
 
-	for (i = 0; i < ARRAY_SIZE(cal->phy); ++i) {
+	for (i = 0; i < cal->data->num_csi2_phy; ++i) {
 		struct cal_camerarx *phy = cal->phy[i];
-
-		if (!phy)
-			continue;
 
 		cal_info(cal, "CSI2 Core %u Registers @ %pa:\n", i,
 			 &phy->res->start);
@@ -464,7 +461,7 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 		if (status & CAL_HL_IRQ_OCPO_ERR_MASK)
 			dev_err_ratelimited(cal->dev, "OCPO ERROR\n");
 
-		for (i = 0; i < CAL_NUM_CSI2_PORTS; ++i) {
+		for (i = 0; i < cal->data->num_csi2_phy; ++i) {
 			if (status & CAL_HL_IRQ_CIO_MASK(i)) {
 				u32 cio_stat = cal_read(cal,
 							CAL_CSI2_COMPLEXIO_IRQSTATUS(i));
@@ -608,13 +605,13 @@ static int cal_async_notifier_register(struct cal_dev *cal)
 	v4l2_async_notifier_init(&cal->notifier);
 	cal->notifier.ops = &cal_async_notifier_ops;
 
-	for (i = 0; i < ARRAY_SIZE(cal->phy); ++i) {
+	for (i = 0; i < cal->data->num_csi2_phy; ++i) {
 		struct cal_camerarx *phy = cal->phy[i];
 		struct cal_v4l2_async_subdev *casd;
 		struct v4l2_async_subdev *asd;
 		struct fwnode_handle *fwnode;
 
-		if (!phy || !phy->sensor_node)
+		if (!phy->sensor_node)
 			continue;
 
 		fwnode = of_fwnode_handle(phy->sensor_node);
@@ -997,7 +994,7 @@ error_context:
 	}
 
 error_camerarx:
-	for (i = 0; i < ARRAY_SIZE(cal->phy); i++)
+	for (i = 0; i < cal->data->num_csi2_phy; i++)
 		cal_camerarx_destroy(cal->phy[i]);
 
 	cal_media_cleanup(cal);
@@ -1026,7 +1023,7 @@ static int cal_remove(struct platform_device *pdev)
 
 	cal_media_cleanup(cal);
 
-	for (i = 0; i < ARRAY_SIZE(cal->phy); i++)
+	for (i = 0; i < cal->data->num_csi2_phy; i++)
 		cal_camerarx_destroy(cal->phy[i]);
 
 	pm_runtime_put_sync(&pdev->dev);
@@ -1038,14 +1035,15 @@ static int cal_remove(struct platform_device *pdev)
 static int cal_runtime_resume(struct device *dev)
 {
 	struct cal_dev *cal = dev_get_drvdata(dev);
+	unsigned int i;
 
 	if (cal->data->flags & DRA72_CAL_PRE_ES2_LDO_DISABLE) {
 		/*
 		 * Apply errata on both port everytime we (re-)enable
 		 * the clock
 		 */
-		cal_camerarx_i913_errata(cal->phy[0]);
-		cal_camerarx_i913_errata(cal->phy[1]);
+		for (i = 0; i < cal->data->num_csi2_phy; i++)
+			cal_camerarx_i913_errata(cal->phy[i]);
 	}
 
 	return 0;
