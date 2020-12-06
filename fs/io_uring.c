@@ -6341,8 +6341,19 @@ static struct io_wq_work *io_wq_submit_work(struct io_wq_work *work)
 	}
 
 	if (ret) {
-		req_set_fail_links(req);
-		io_req_complete(req, ret);
+		/*
+		 * io_iopoll_complete() does not hold completion_lock to complete
+		 * polled io, so here for polled io, just mark it done and still let
+		 * io_iopoll_complete() complete it.
+		 */
+		if (req->ctx->flags & IORING_SETUP_IOPOLL) {
+			struct kiocb *kiocb = &req->rw.kiocb;
+
+			kiocb_done(kiocb, ret, NULL);
+		} else {
+			req_set_fail_links(req);
+			io_req_complete(req, ret);
+		}
 	}
 
 	return io_steal_work(req);
