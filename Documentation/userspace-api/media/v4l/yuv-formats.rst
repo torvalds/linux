@@ -270,11 +270,4 @@ image.
     pixfmt-y8i
     pixfmt-y12i
     pixfmt-uv8
-    pixfmt-yuv420
-    pixfmt-yuv420m
-    pixfmt-yuv422m
-    pixfmt-yuv444m
-    pixfmt-yuv410
-    pixfmt-yuv422p
-    pixfmt-yuv411p
     pixfmt-m420

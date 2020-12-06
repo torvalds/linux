@@ -461,3 +461,490 @@ number of lines as the luma plane.
       - Cr\ :sub:`32`
       - Cb\ :sub:`33`
       - Cr\ :sub:`33`
+
+
+Fully Planar YUV Formats
+========================
+
+These formats store the Y, Cb and Cr components in three separate planes. The
+luma plane comes first, and the order of the two chroma planes varies between
+formats. The two chroma planes always use the same subsampling.
+
+For memory contiguous formats, the number of padding pixels at the end of the
+chroma lines is identical to the padding of the luma lines. The chroma line
+stride (in bytes) is thus equal to the luma line stride divided by the
+horizontal subsampling factor. Vertical subsampling doesn't affect the line
+stride.
+
+For non-contiguous formats, no constraints are enforced by the format on the
+relationship between the luma and chroma line padding and stride.
+
+All components are stored with the same number of bits per component.
+
+.. flat-table:: Overview of Fully Planar YUV Formats
+    :header-rows:  1
+    :stub-columns: 0
+
+    * - Identifier
+      - Code
+      - Bits per component
+      - Subsampling
+      - Planes order [4]_
+      - Contiguous [5]_
+
+    * - V4L2_PIX_FMT_YUV410
+      - 'YUV9'
+      - 8
+      - 4:1:0
+      - Y, Cb, Cr
+      - Yes
+    * - V4L2_PIX_FMT_YVU410
+      - 'YVU9'
+      - 8
+      - 4:1:0
+      - Y, Cr, Cb
+      - Yes
+    * - V4L2_PIX_FMT_YUV411P
+      - '411P'
+      - 8
+      - 4:1:1
+      - Y, Cb, Cr
+      - Yes
+    * - V4L2_PIX_FMT_YUV420M
+      - 'YM12'
+      - 8
+      - 4:2:0
+      - Y, Cb, Cr
+      - No
+    * - V4L2_PIX_FMT_YVU420M
+      - 'YM21'
+      - 8
+      - 4:2:0
+      - Y, Cr, Cb
+      - No
+    * - V4L2_PIX_FMT_YUV420
+      - 'YU12'
+      - 8
+      - 4:2:0
+      - Y, Cb, Cr
+      - Yes
+    * - V4L2_PIX_FMT_YVU420
+      - 'YV12'
+      - 8
+      - 4:2:0
+      - Y, Cr, Cb
+      - Yes
+    * - V4L2_PIX_FMT_YUV422P
+      - '422P'
+      - 8
+      - 4:2:2
+      - Y, Cb, Cr
+      - Yes
+    * - V4L2_PIX_FMT_YUV422M
+      - 'YM16'
+      - 8
+      - 4:2:2
+      - Y, Cb, Cr
+      - No
+    * - V4L2_PIX_FMT_YVU422M
+      - 'YM61'
+      - 8
+      - 4:2:2
+      - Y, Cr, Cb
+      - No
+    * - V4L2_PIX_FMT_YUV444M
+      - 'YM24'
+      - 8
+      - 4:4:4
+      - Y, Cb, Cr
+      - No
+    * - V4L2_PIX_FMT_YVU444M
+      - 'YM42'
+      - 8
+      - 4:4:4
+      - Y, Cr, Cb
+      - No
+
+.. note::
+
+   .. [4] Order of luma and chroma planes
+   .. [5] Indicates if planes have to be contiguous in memory or can be
+      disjoint
+
+
+**Color Sample Location:**
+Chroma samples are :ref:`interstitially sited<yuv-chroma-centered>`
+horizontally.
+
+.. _V4L2-PIX-FMT-YUV410:
+.. _V4L2-PIX-FMT-YVU410:
+
+YUV410 and YVU410
+-----------------
+
+Planar YUV 4:1:0 formats. The chroma planes are subsampled by 4 in each
+direction. Chroma lines contain a quarter of the number of pixels and bytes of
+the luma lines, and the chroma planes contain a quarter of the number of lines
+of the luma plane.
+
+.. flat-table:: Sample 4x4 YUV410 Image
+    :header-rows:  0
+    :stub-columns: 0
+
+    * - start + 0:
+      - Y'\ :sub:`00`
+      - Y'\ :sub:`01`
+      - Y'\ :sub:`02`
+      - Y'\ :sub:`03`
+    * - start + 4:
+      - Y'\ :sub:`10`
+      - Y'\ :sub:`11`
+      - Y'\ :sub:`12`
+      - Y'\ :sub:`13`
+    * - start + 8:
+      - Y'\ :sub:`20`
+      - Y'\ :sub:`21`
+      - Y'\ :sub:`22`
+      - Y'\ :sub:`23`
+    * - start + 12:
+      - Y'\ :sub:`30`
+      - Y'\ :sub:`31`
+      - Y'\ :sub:`32`
+      - Y'\ :sub:`33`
+    * - start + 16:
+      - Cr\ :sub:`00`
+    * - start + 17:
+      - Cb\ :sub:`00`
+
+
+.. _V4L2-PIX-FMT-YUV411P:
+
+YUV411P
+-------
+
+Planar YUV 4:1:1 formats. The chroma planes are subsampled by 4 in the
+horizontal direction. Chroma lines contain a quarter of the number of pixels
+and bytes of the luma lines, and the chroma planes contain the same number of
+lines as the luma plane.
+
+.. flat-table:: Sample 4x4 YUV411P Image
+    :header-rows:  0
+    :stub-columns: 0
+
+    * - start + 0:
+      - Y'\ :sub:`00`
+      - Y'\ :sub:`01`
+      - Y'\ :sub:`02`
+      - Y'\ :sub:`03`
+    * - start + 4:
+      - Y'\ :sub:`10`
+      - Y'\ :sub:`11`
+      - Y'\ :sub:`12`
+      - Y'\ :sub:`13`
+    * - start + 8:
+      - Y'\ :sub:`20`
+      - Y'\ :sub:`21`
+      - Y'\ :sub:`22`
+      - Y'\ :sub:`23`
+    * - start + 12:
+      - Y'\ :sub:`30`
+      - Y'\ :sub:`31`
+      - Y'\ :sub:`32`
+      - Y'\ :sub:`33`
+    * - start + 16:
+      - Cb\ :sub:`00`
+    * - start + 17:
+      - Cb\ :sub:`10`
+    * - start + 18:
+      - Cb\ :sub:`20`
+    * - start + 19:
+      - Cb\ :sub:`30`
+    * - start + 20:
+      - Cr\ :sub:`00`
+    * - start + 21:
+      - Cr\ :sub:`10`
+    * - start + 22:
+      - Cr\ :sub:`20`
+    * - start + 23:
+      - Cr\ :sub:`30`
+
+
+.. _V4L2-PIX-FMT-YUV420:
+.. _V4L2-PIX-FMT-YVU420:
+.. _V4L2-PIX-FMT-YUV420M:
+.. _V4L2-PIX-FMT-YVU420M:
+
+YUV420, YVU420, YUV420M and YVU420M
+-----------------------------------
+
+Planar YUV 4:2:0 formats. The chroma planes are subsampled by 2 in each
+direction. Chroma lines contain half of the number of pixels and bytes of the
+luma lines, and the chroma planes contain half of the number of lines of the
+luma plane.
+
+.. flat-table:: Sample 4x4 YUV420 Image
+    :header-rows:  0
+    :stub-columns: 0
+
+    * - start + 0:
+      - Y'\ :sub:`00`
+      - Y'\ :sub:`01`
+      - Y'\ :sub:`02`
+      - Y'\ :sub:`03`
+    * - start + 4:
+      - Y'\ :sub:`10`
+      - Y'\ :sub:`11`
+      - Y'\ :sub:`12`
+      - Y'\ :sub:`13`
+    * - start + 8:
+      - Y'\ :sub:`20`
+      - Y'\ :sub:`21`
+      - Y'\ :sub:`22`
+      - Y'\ :sub:`23`
+    * - start + 12:
+      - Y'\ :sub:`30`
+      - Y'\ :sub:`31`
+      - Y'\ :sub:`32`
+      - Y'\ :sub:`33`
+    * - start + 16:
+      - Cr\ :sub:`00`
+      - Cr\ :sub:`01`
+    * - start + 18:
+      - Cr\ :sub:`10`
+      - Cr\ :sub:`11`
+    * - start + 20:
+      - Cb\ :sub:`00`
+      - Cb\ :sub:`01`
+    * - start + 22:
+      - Cb\ :sub:`10`
+      - Cb\ :sub:`11`
+
+.. flat-table:: Sample 4x4 YUV420M Image
+    :header-rows:  0
+    :stub-columns: 0
+
+    * - start0 + 0:
+      - Y'\ :sub:`00`
+      - Y'\ :sub:`01`
+      - Y'\ :sub:`02`
+      - Y'\ :sub:`03`
+    * - start0 + 4:
+      - Y'\ :sub:`10`
+      - Y'\ :sub:`11`
+      - Y'\ :sub:`12`
+      - Y'\ :sub:`13`
+    * - start0 + 8:
+      - Y'\ :sub:`20`
+      - Y'\ :sub:`21`
+      - Y'\ :sub:`22`
+      - Y'\ :sub:`23`
+    * - start0 + 12:
+      - Y'\ :sub:`30`
+      - Y'\ :sub:`31`
+      - Y'\ :sub:`32`
+      - Y'\ :sub:`33`
+    * -
+    * - start1 + 0:
+      - Cb\ :sub:`00`
+      - Cb\ :sub:`01`
+    * - start1 + 2:
+      - Cb\ :sub:`10`
+      - Cb\ :sub:`11`
+    * -
+    * - start2 + 0:
+      - Cr\ :sub:`00`
+      - Cr\ :sub:`01`
+    * - start2 + 2:
+      - Cr\ :sub:`10`
+      - Cr\ :sub:`11`
+
+
+.. _V4L2-PIX-FMT-YUV422P:
+.. _V4L2-PIX-FMT-YUV422M:
+.. _V4L2-PIX-FMT-YVU422M:
+
+YUV422P, YUV422M and YVU422M
+----------------------------
+
+Planar YUV 4:2:2 formats. The chroma planes are subsampled by 2 in the
+horizontal direction. Chroma lines contain half of the number of pixels and
+bytes of the luma lines, and the chroma planes contain the same number of lines
+as the luma plane.
+
+.. flat-table:: Sample 4x4 YUV422P Image
+    :header-rows:  0
+    :stub-columns: 0
+
+    * - start + 0:
+      - Y'\ :sub:`00`
+      - Y'\ :sub:`01`
+      - Y'\ :sub:`02`
+      - Y'\ :sub:`03`
+    * - start + 4:
+      - Y'\ :sub:`10`
+      - Y'\ :sub:`11`
+      - Y'\ :sub:`12`
+      - Y'\ :sub:`13`
+    * - start + 8:
+      - Y'\ :sub:`20`
+      - Y'\ :sub:`21`
+      - Y'\ :sub:`22`
+      - Y'\ :sub:`23`
+    * - start + 12:
+      - Y'\ :sub:`30`
+      - Y'\ :sub:`31`
+      - Y'\ :sub:`32`
+      - Y'\ :sub:`33`
+    * - start + 16:
+      - Cb\ :sub:`00`
+      - Cb\ :sub:`01`
+    * - start + 18:
+      - Cb\ :sub:`10`
+      - Cb\ :sub:`11`
+    * - start + 20:
+      - Cb\ :sub:`20`
+      - Cb\ :sub:`21`
+    * - start + 22:
+      - Cb\ :sub:`30`
+      - Cb\ :sub:`31`
+    * - start + 24:
+      - Cr\ :sub:`00`
+      - Cr\ :sub:`01`
+    * - start + 26:
+      - Cr\ :sub:`10`
+      - Cr\ :sub:`11`
+    * - start + 28:
+      - Cr\ :sub:`20`
+      - Cr\ :sub:`21`
+    * - start + 30:
+      - Cr\ :sub:`30`
+      - Cr\ :sub:`31`
+
+.. flat-table:: Sample 4x4 YUV422M Image
+    :header-rows:  0
+    :stub-columns: 0
+
+    * - start0 + 0:
+      - Y'\ :sub:`00`
+      - Y'\ :sub:`01`
+      - Y'\ :sub:`02`
+      - Y'\ :sub:`03`
+    * - start0 + 4:
+      - Y'\ :sub:`10`
+      - Y'\ :sub:`11`
+      - Y'\ :sub:`12`
+      - Y'\ :sub:`13`
+    * - start0 + 8:
+      - Y'\ :sub:`20`
+      - Y'\ :sub:`21`
+      - Y'\ :sub:`22`
+      - Y'\ :sub:`23`
+    * - start0 + 12:
+      - Y'\ :sub:`30`
+      - Y'\ :sub:`31`
+      - Y'\ :sub:`32`
+      - Y'\ :sub:`33`
+    * -
+    * - start1 + 0:
+      - Cb\ :sub:`00`
+      - Cb\ :sub:`01`
+    * - start1 + 2:
+      - Cb\ :sub:`10`
+      - Cb\ :sub:`11`
+    * - start1 + 4:
+      - Cb\ :sub:`20`
+      - Cb\ :sub:`21`
+    * - start1 + 6:
+      - Cb\ :sub:`30`
+      - Cb\ :sub:`31`
+    * -
+    * - start2 + 0:
+      - Cr\ :sub:`00`
+      - Cr\ :sub:`01`
+    * - start2 + 2:
+      - Cr\ :sub:`10`
+      - Cr\ :sub:`11`
+    * - start2 + 4:
+      - Cr\ :sub:`20`
+      - Cr\ :sub:`21`
+    * - start2 + 6:
+      - Cr\ :sub:`30`
+      - Cr\ :sub:`31`
+
+
+.. _V4L2-PIX-FMT-YUV444M:
+.. _V4L2-PIX-FMT-YVU444M:
+
+YUV444M and YVU444M
+-------------------
+
+Planar YUV 4:4:4 formats. The chroma planes are no subsampled. Chroma lines
+contain the same number of pixels and bytes of the luma lines, and the chroma
+planes contain the same number of lines as the luma plane.
+
+.. flat-table:: Sample 4x4 YUV444M Image
+    :header-rows:  0
+    :stub-columns: 0
+
+    * - start0 + 0:
+      - Y'\ :sub:`00`
+      - Y'\ :sub:`01`
+      - Y'\ :sub:`02`
+      - Y'\ :sub:`03`
+    * - start0 + 4:
+      - Y'\ :sub:`10`
+      - Y'\ :sub:`11`
+      - Y'\ :sub:`12`
+      - Y'\ :sub:`13`
+    * - start0 + 8:
+      - Y'\ :sub:`20`
+      - Y'\ :sub:`21`
+      - Y'\ :sub:`22`
+      - Y'\ :sub:`23`
+    * - start0 + 12:
+      - Y'\ :sub:`30`
+      - Y'\ :sub:`31`
+      - Y'\ :sub:`32`
+      - Y'\ :sub:`33`
+    * -
+    * - start1 + 0:
+      - Cb\ :sub:`00`
+      - Cb\ :sub:`01`
+      - Cb\ :sub:`02`
+      - Cb\ :sub:`03`
+    * - start1 + 4:
+      - Cb\ :sub:`10`
+      - Cb\ :sub:`11`
+      - Cb\ :sub:`12`
+      - Cb\ :sub:`13`
+    * - start1 + 8:
+      - Cb\ :sub:`20`
+      - Cb\ :sub:`21`
+      - Cb\ :sub:`22`
+      - Cb\ :sub:`23`
+    * - start1 + 12:
+      - Cb\ :sub:`20`
+      - Cb\ :sub:`21`
+      - Cb\ :sub:`32`
+      - Cb\ :sub:`33`
+    * -
+    * - start2 + 0:
+      - Cr\ :sub:`00`
+      - Cr\ :sub:`01`
+      - Cr\ :sub:`02`
+      - Cr\ :sub:`03`
+    * - start2 + 4:
+      - Cr\ :sub:`10`
+      - Cr\ :sub:`11`
+      - Cr\ :sub:`12`
+      - Cr\ :sub:`13`
+    * - start2 + 8:
+      - Cr\ :sub:`20`
+      - Cr\ :sub:`21`
+      - Cr\ :sub:`22`
+      - Cr\ :sub:`23`
+    * - start2 + 12:
+      - Cr\ :sub:`30`
+      - Cr\ :sub:`31`
+      - Cr\ :sub:`32`
+      - Cr\ :sub:`33`
