@@ -4415,15 +4415,13 @@ static inline void rtl8169_rx_csum(struct sk_buff *skb, u32 opts1)
 		skb_checksum_none_assert(skb);
 }
 
-static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, u32 budget)
+static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, int budget)
 {
-	unsigned int cur_rx, rx_left, count;
 	struct device *d = tp_to_dev(tp);
+	int count;
 
-	cur_rx = tp->cur_rx;
-
-	for (rx_left = min(budget, NUM_RX_DESC); rx_left > 0; rx_left--, cur_rx++) {
-		unsigned int pkt_size, entry = cur_rx % NUM_RX_DESC;
+	for (count = 0; count < budget; count++, tp->cur_rx++) {
+		unsigned int pkt_size, entry = tp->cur_rx % NUM_RX_DESC;
 		struct RxDesc *desc = tp->RxDescArray + entry;
 		struct sk_buff *skb;
 		const void *rx_buf;
@@ -4500,9 +4498,6 @@ release_descriptor:
 		rtl8169_mark_to_asic(desc);
 	}
 
-	count = cur_rx - tp->cur_rx;
-	tp->cur_rx = cur_rx;
-
 	return count;
 }
 
@@ -4561,7 +4556,7 @@ static int rtl8169_poll(struct napi_struct *napi, int budget)
 	struct net_device *dev = tp->dev;
 	int work_done;
 
-	work_done = rtl_rx(dev, tp, (u32) budget);
+	work_done = rtl_rx(dev, tp, budget);
 
 	rtl_tx(dev, tp, budget);
 
