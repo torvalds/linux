@@ -305,11 +305,13 @@ static const struct of_device_id goldfish_fb_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, goldfish_fb_of_match);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id goldfish_fb_acpi_match[] = {
 	{ "GFSH0004", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, goldfish_fb_acpi_match);
+#endif
 
 static struct platform_driver goldfish_fb_driver = {
 	.probe		= goldfish_fb_probe,
