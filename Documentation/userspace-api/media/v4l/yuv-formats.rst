@@ -265,14 +265,7 @@ image.
     :maxdepth: 1
 
     pixfmt-packed-yuv
-    pixfmt-grey
-    pixfmt-y10
-    pixfmt-y12
-    pixfmt-y14
-    pixfmt-y10b
-    pixfmt-y10p
-    pixfmt-y16
-    pixfmt-y16-be
+    pixfmt-yuv-luma
     pixfmt-y8i
     pixfmt-y12i
     pixfmt-uv8
