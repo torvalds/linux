@@ -28,6 +28,8 @@ nvkm_top_device_new(struct nvkm_top *top)
 {
 	struct nvkm_top_device *info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (info) {
+		info->type = NVKM_SUBDEV_NR;
+		info->inst = -1;
 		info->index = NVKM_SUBDEV_NR;
 		info->addr = 0;
 		info->fault = -1;

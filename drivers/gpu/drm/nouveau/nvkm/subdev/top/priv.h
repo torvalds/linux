@@ -12,6 +12,8 @@ int nvkm_top_new_(const struct nvkm_top_func *, struct nvkm_device *,
 		  int, struct nvkm_top **);
 
 struct nvkm_top_device {
+	enum nvkm_subdev_type type;
+	int inst;
 	enum nvkm_devidx index;
 	u32 addr;
 	int fault;
