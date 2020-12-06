@@ -516,8 +516,7 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	cal_ctx_csi2_config(ctx);
 	cal_ctx_pix_proc_config(ctx);
-	cal_ctx_wr_dma_config(ctx, ctx->v_fmt.fmt.pix.bytesperline,
-			      ctx->v_fmt.fmt.pix.height);
+	cal_ctx_wr_dma_config(ctx);
 
 	cal_camerarx_enable_irqs(ctx->phy);
 

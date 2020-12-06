@@ -273,8 +273,7 @@ void cal_camerarx_destroy(struct cal_camerarx *phy);
 
 void cal_ctx_csi2_config(struct cal_ctx *ctx);
 void cal_ctx_pix_proc_config(struct cal_ctx *ctx);
-void cal_ctx_wr_dma_config(struct cal_ctx *ctx, unsigned int width,
-			   unsigned int height);
+void cal_ctx_wr_dma_config(struct cal_ctx *ctx);
 void cal_ctx_wr_dma_addr(struct cal_ctx *ctx, unsigned int dmaaddr);
 
 int cal_ctx_v4l2_register(struct cal_ctx *ctx);

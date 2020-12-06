@@ -356,14 +356,15 @@ void cal_ctx_pix_proc_config(struct cal_ctx *ctx)
 		cal_read(ctx->cal, CAL_PIX_PROC(ctx->index)));
 }
 
-void cal_ctx_wr_dma_config(struct cal_ctx *ctx, unsigned int width,
-			    unsigned int height)
+void cal_ctx_wr_dma_config(struct cal_ctx *ctx)
 {
+	unsigned int stride = ctx->v_fmt.fmt.pix.bytesperline;
 	u32 val;
 
 	val = cal_read(ctx->cal, CAL_WR_DMA_CTRL(ctx->index));
 	cal_set_field(&val, ctx->cport, CAL_WR_DMA_CTRL_CPORT_MASK);
-	cal_set_field(&val, height, CAL_WR_DMA_CTRL_YSIZE_MASK);
+	cal_set_field(&val, ctx->v_fmt.fmt.pix.height,
+		      CAL_WR_DMA_CTRL_YSIZE_MASK);
 	cal_set_field(&val, CAL_WR_DMA_CTRL_DTAG_PIX_DAT,
 		      CAL_WR_DMA_CTRL_DTAG_MASK);
 	cal_set_field(&val, CAL_WR_DMA_CTRL_MODE_CONST,
@@ -375,14 +376,8 @@ void cal_ctx_wr_dma_config(struct cal_ctx *ctx, unsigned int width,
 	ctx_dbg(3, ctx, "CAL_WR_DMA_CTRL(%d) = 0x%08x\n", ctx->index,
 		cal_read(ctx->cal, CAL_WR_DMA_CTRL(ctx->index)));
 
-	/*
-	 * width/16 not sure but giving it a whirl.
-	 * zero does not work right
-	 */
-	cal_write_field(ctx->cal,
-			CAL_WR_DMA_OFST(ctx->index),
-			(width / 16),
-			CAL_WR_DMA_OFST_MASK);
+	cal_write_field(ctx->cal, CAL_WR_DMA_OFST(ctx->index),
+			stride / 16, CAL_WR_DMA_OFST_MASK);
 	ctx_dbg(3, ctx, "CAL_WR_DMA_OFST(%d) = 0x%08x\n", ctx->index,
 		cal_read(ctx->cal, CAL_WR_DMA_OFST(ctx->index)));
 
@@ -390,11 +385,11 @@ void cal_ctx_wr_dma_config(struct cal_ctx *ctx, unsigned int width,
 	/* 64 bit word means no skipping */
 	cal_set_field(&val, 0, CAL_WR_DMA_XSIZE_XSKIP_MASK);
 	/*
-	 * (width*8)/64 this should be size of an entire line
-	 * in 64bit word but 0 means all data until the end
-	 * is detected automagically
+	 * The XSIZE field is expressed in 64-bit units and prevents overflows
+	 * in case of synchronization issues by limiting the number of bytes
+	 * written per line.
 	 */
-	cal_set_field(&val, (width / 8), CAL_WR_DMA_XSIZE_MASK);
+	cal_set_field(&val, stride / 8, CAL_WR_DMA_XSIZE_MASK);
 	cal_write(ctx->cal, CAL_WR_DMA_XSIZE(ctx->index), val);
 	ctx_dbg(3, ctx, "CAL_WR_DMA_XSIZE(%d) = 0x%08x\n", ctx->index,
 		cal_read(ctx->cal, CAL_WR_DMA_XSIZE(ctx->index)));
