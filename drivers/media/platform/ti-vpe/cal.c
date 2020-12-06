@@ -496,7 +496,7 @@ static inline void cal_irq_wdma_start(struct cal_ctx *ctx)
 		struct cal_buffer *buf;
 		unsigned long addr;
 
-		buf = list_entry(dma_q->active.next, struct cal_buffer, list);
+		buf = list_first_entry(&dma_q->active, struct cal_buffer, list);
 		addr = vb2_dma_contig_plane_dma_addr(&buf->vb.vb2_buf, 0);
 		cal_ctx_wr_dma_addr(ctx, addr);
 

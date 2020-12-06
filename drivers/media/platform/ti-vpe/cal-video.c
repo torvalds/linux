@@ -511,7 +511,7 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 	int ret;
 
 	spin_lock_irq(&ctx->slock);
-	buf = list_entry(dma_q->active.next, struct cal_buffer, list);
+	buf = list_first_entry(&dma_q->active, struct cal_buffer, list);
 	ctx->cur_frm = buf;
 	ctx->next_frm = buf;
 	list_del(&buf->list);
