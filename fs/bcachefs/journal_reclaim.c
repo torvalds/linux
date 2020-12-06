@@ -240,6 +240,7 @@ void bch2_journal_space_available(struct journal *j)
 	u64s_remaining -= (u64) total << 3;
 	u64s_remaining = max(0LL, u64s_remaining);
 	u64s_remaining /= 2;
+	u64s_remaining = min_t(u64, u64s_remaining, U32_MAX);
 out:
 	j->cur_entry_sectors	= !ret ? j->space[journal_space_discarded].next_entry : 0;
 	j->cur_entry_error	= ret;
