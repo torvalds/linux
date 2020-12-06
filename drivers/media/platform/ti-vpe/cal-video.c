@@ -486,11 +486,34 @@ static void cal_buffer_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&ctx->slock, flags);
 }
 
+static void cal_release_buffers(struct cal_ctx *ctx,
+				enum vb2_buffer_state state)
+{
+	struct cal_buffer *buf, *tmp;
+
+	/* Release all active buffers. */
+	spin_lock_irq(&ctx->slock);
+
+	list_for_each_entry_safe(buf, tmp, &ctx->vidq.active, list) {
+		list_del(&buf->list);
+		vb2_buffer_done(&buf->vb.vb2_buf, state);
+	}
+
+	if (ctx->next_frm != ctx->cur_frm)
+		vb2_buffer_done(&ctx->next_frm->vb.vb2_buf, state);
+	vb2_buffer_done(&ctx->cur_frm->vb.vb2_buf, state);
+
+	ctx->cur_frm = NULL;
+	ctx->next_frm = NULL;
+
+	spin_unlock_irq(&ctx->slock);
+}
+
 static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct cal_ctx *ctx = vb2_get_drv_priv(vq);
 	struct cal_dmaqueue *dma_q = &ctx->vidq;
-	struct cal_buffer *buf, *tmp;
+	struct cal_buffer *buf;
 	unsigned long addr;
 	int ret;
 
@@ -533,46 +556,20 @@ err:
 	cal_ctx_disable_irqs(ctx);
 	ctx->dma_state = CAL_DMA_STOPPED;
 
-	spin_lock_irq(&ctx->slock);
-	vb2_buffer_done(&ctx->cur_frm->vb.vb2_buf, VB2_BUF_STATE_QUEUED);
-	ctx->cur_frm = NULL;
-	ctx->next_frm = NULL;
-	list_for_each_entry_safe(buf, tmp, &dma_q->active, list) {
-		list_del(&buf->list);
-		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_QUEUED);
-	}
-	spin_unlock_irq(&ctx->slock);
+	cal_release_buffers(ctx, VB2_BUF_STATE_QUEUED);
 	return ret;
 }
 
 static void cal_stop_streaming(struct vb2_queue *vq)
 {
 	struct cal_ctx *ctx = vb2_get_drv_priv(vq);
-	struct cal_dmaqueue *dma_q = &ctx->vidq;
-	struct cal_buffer *buf, *tmp;
 
 	cal_ctx_wr_dma_stop(ctx);
 	cal_ctx_disable_irqs(ctx);
 
 	v4l2_subdev_call(&ctx->phy->subdev, video, s_stream, 0);
 
-	/* Release all active buffers */
-	spin_lock_irq(&ctx->slock);
-	list_for_each_entry_safe(buf, tmp, &dma_q->active, list) {
-		list_del(&buf->list);
-		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
-	}
-
-	if (ctx->cur_frm == ctx->next_frm) {
-		vb2_buffer_done(&ctx->cur_frm->vb.vb2_buf, VB2_BUF_STATE_ERROR);
-	} else {
-		vb2_buffer_done(&ctx->cur_frm->vb.vb2_buf, VB2_BUF_STATE_ERROR);
-		vb2_buffer_done(&ctx->next_frm->vb.vb2_buf,
-				VB2_BUF_STATE_ERROR);
-	}
-	ctx->cur_frm = NULL;
-	ctx->next_frm = NULL;
-	spin_unlock_irq(&ctx->slock);
+	cal_release_buffers(ctx, VB2_BUF_STATE_ERROR);
 
 	pm_runtime_put_sync(ctx->cal->dev);
 }
