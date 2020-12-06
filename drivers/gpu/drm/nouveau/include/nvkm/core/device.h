@@ -3,6 +3,7 @@
 #define __NVKM_DEVICE_H__
 #include <core/oclass.h>
 #include <core/event.h>
+enum nvkm_subdev_type;
 
 #define nvkm_devidx nvkm_subdev_type
 
@@ -108,6 +109,11 @@ struct nvkm_device {
 	struct nvkm_engine *vic;
 	struct nvkm_engine *vp;
 
+#define NVKM_LAYOUT_ONCE(type,data,ptr) data *ptr;
+#define NVKM_LAYOUT_INST(type,data,ptr,cnt) data *ptr[cnt];
+#include <core/layout.h>
+#undef NVKM_LAYOUT_INST
+#undef NVKM_LAYOUT_ONCE
 	struct list_head subdev;
 };
 
@@ -133,7 +139,15 @@ struct nvkm_device_quirk {
 
 struct nvkm_device_chip {
 	const char *name;
-
+#define NVKM_LAYOUT_ONCE(type,data,ptr,...)                                                  \
+	struct {                                                                             \
+		u32 inst;                                                                    \
+		int (*ctor)(struct nvkm_device *, enum nvkm_subdev_type, int inst, data **); \
+	} ptr;
+#define NVKM_LAYOUT_INST(A...) NVKM_LAYOUT_ONCE(A)
+#include <core/layout.h>
+#undef NVKM_LAYOUT_INST
+#undef NVKM_LAYOUT_ONCE
 	int (*acr     )(struct nvkm_device *, int idx, struct nvkm_acr **);
 	int (*bar     )(struct nvkm_device *, int idx, struct nvkm_bar **);
 	int (*bios    )(struct nvkm_device *, int idx, struct nvkm_bios **);

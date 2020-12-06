@@ -28,6 +28,11 @@
 
 const char *
 nvkm_subdev_type[NVKM_SUBDEV_NR] = {
+#define NVKM_LAYOUT_ONCE(type,data,ptr,...) [type] = #ptr,
+#define NVKM_LAYOUT_INST(A...) NVKM_LAYOUT_ONCE(A)
+#include <core/layout.h>
+#undef NVKM_LAYOUT_ONCE
+#undef NVKM_LAYOUT_INST
 	[NVKM_SUBDEV_ACR     ] = "acr",
 	[NVKM_SUBDEV_BAR     ] = "bar",
 	[NVKM_SUBDEV_VBIOS   ] = "bios",
@@ -204,6 +209,19 @@ nvkm_subdev_del(struct nvkm_subdev **psubdev)
 		nvkm_trace(subdev, "destroy completed in %lldus\n", time);
 		kfree(*psubdev);
 		*psubdev = NULL;
+	}
+}
+
+void
+nvkm_subdev_disable(struct nvkm_device *device, enum nvkm_subdev_type type, int inst)
+{
+	struct nvkm_subdev *subdev;
+	list_for_each_entry(subdev, &device->subdev, head) {
+		if (subdev->type == type && subdev->inst == inst) {
+			*subdev->pself = NULL;
+			nvkm_subdev_del(&subdev);
+			break;
+		}
 	}
 }
 

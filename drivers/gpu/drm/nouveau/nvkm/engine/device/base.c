@@ -3206,6 +3206,48 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	}                                                                      \
 	break
 		switch (i) {
+#define NVKM_LAYOUT_ONCE(type,data,ptr) case type:                                           \
+	if (device->chip->ptr.inst && (subdev_mask & (BIT_ULL(type)))) {                     \
+		WARN_ON(device->chip->ptr.inst != 0x00000001);                               \
+		ret = device->chip->ptr.ctor(device, (type), -1, &device->ptr);              \
+		subdev = nvkm_device_subdev(device, (type), 0);                              \
+		if (ret) {                                                                   \
+			nvkm_subdev_del(&subdev);                                            \
+			device->ptr = NULL;                                                  \
+			if (ret != -ENODEV) {                                                \
+				nvdev_error(device, "%s ctor failed: %d\n",                  \
+					    nvkm_subdev_type[(type)], ret);                  \
+				goto done;                                                   \
+			}                                                                    \
+		} else {                                                                     \
+			subdev->pself = (void **)&device->ptr;                               \
+		}                                                                            \
+	}                                                                                    \
+	break;
+#define NVKM_LAYOUT_INST(type,data,ptr,cnt) case type:                                       \
+	WARN_ON(device->chip->ptr.inst & ~((1 << ARRAY_SIZE(device->ptr)) - 1));             \
+	for (j = 0; device->chip->ptr.inst && j < ARRAY_SIZE(device->ptr); j++) {            \
+		if ((device->chip->ptr.inst & BIT(j)) && (subdev_mask & BIT_ULL(type))) {    \
+			int inst = (device->chip->ptr.inst == 1) ? -1 : (j);                 \
+			ret = device->chip->ptr.ctor(device, (type), inst, &device->ptr[j]); \
+			subdev = nvkm_device_subdev(device, (type), (j));                    \
+			if (ret) {                                                           \
+				nvkm_subdev_del(&subdev);                                    \
+				device->ptr[j] = NULL;                                       \
+				if (ret != -ENODEV) {                                        \
+					nvdev_error(device, "%s%d ctor failed: %d\n",        \
+						    nvkm_subdev_type[(type)], (j), ret);     \
+					goto done;                                           \
+				}                                                            \
+			} else {                                                             \
+				subdev->pself = (void **)&device->ptr[j];                    \
+			}                                                                    \
+		}                                                                            \
+	}                                                                                    \
+	break;
+#include <core/layout.h>
+#undef NVKM_LAYOUT_INST
+#undef NVKM_LAYOUT_ONCE
 		_(NVKM_SUBDEV_ACR     ,      acr);
 		_(NVKM_SUBDEV_BAR     ,      bar);
 		_(NVKM_SUBDEV_VBIOS   ,     bios);
