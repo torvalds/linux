@@ -160,6 +160,7 @@ struct mlxsw_rx_listener_item {
 
 struct mlxsw_event_listener_item {
 	struct list_head list;
+	struct mlxsw_core *mlxsw_core;
 	struct mlxsw_event_listener el;
 	void *priv;
 };
@@ -2171,10 +2172,15 @@ static void mlxsw_core_event_listener_func(struct sk_buff *skb, u8 local_port,
 					   void *priv)
 {
 	struct mlxsw_event_listener_item *event_listener_item = priv;
+	struct mlxsw_core *mlxsw_core;
 	struct mlxsw_reg_info reg;
 	char *payload;
 	char *reg_tlv;
 	char *op_tlv;
+
+	mlxsw_core = event_listener_item->mlxsw_core;
+	trace_devlink_hwmsg(priv_to_devlink(mlxsw_core), true, 0,
+			    skb->data, skb->len);
 
 	mlxsw_emad_tlv_parse(skb);
 	op_tlv = mlxsw_emad_op_tlv(skb);
@@ -2225,6 +2231,7 @@ int mlxsw_core_event_listener_register(struct mlxsw_core *mlxsw_core,
 	el_item = kmalloc(sizeof(*el_item), GFP_KERNEL);
 	if (!el_item)
 		return -ENOMEM;
+	el_item->mlxsw_core = mlxsw_core;
 	el_item->el = *el;
 	el_item->priv = priv;
 
