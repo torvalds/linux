@@ -777,6 +777,12 @@ properties:
           - const: sinlinx,sina33
           - const: allwinner,sun8i-a33
 
+      - description: SL631 Action Camera with IMX179
+        items:
+          - const: allwinner,sl631-imx179
+          - const: allwinner,sl631
+          - const: allwinner,sun8i-v3
+
       - description: Tanix TX6
         items:
           - const: oranth,tanix-tx6
