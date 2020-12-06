@@ -25,6 +25,14 @@ components and thus differ in how they interlave the three components.
 These formats do not subsample the chroma components and store each pixels as a
 full triplet of Y, Cb and Cr values.
 
+The next table lists the packed YUV 4:4:4 formats with less than 8 bits per
+component. They are named based on the order of the Y, Cb and Cr components as
+seen in a 16-bit word, which is then stored in memory in little endian byte
+order, and on the number of bits for each component. For instance the YUV565
+format stores a pixel in a 16-bit word [15:0] laid out at as [Y'\ :sub:`4-0`
+Cb\ :sub:`5-0` Cr\ :sub:`4-0`], and stored in memory in two bytes,
+[Cb\ :sub:`2-0` Cr\ :sub:`4-0`] followed by [Y'\ :sub:`4-0` Cb\ :sub:`5-3`].
+
 .. raw:: latex
 
     \begingroup
@@ -144,6 +152,12 @@ full triplet of Y, Cb and Cr values.
     when alpha blending has been negotiated for a :ref:`Video Overlay
     <overlay>` or :ref:`Video Output Overlay <osd>`.
 
+
+The next table lists the packed YUV 4:4:4 formats with 8 bits per component.
+They are named based on the order of the Y, Cb and Cr components as stored in
+memory, and on the total number of bits per pixel. For instance, the VUYX32
+format stores a pixel with Cr\ :sub:`7-0` in the first byte, Cb\ :sub:`7-0` in
+the second byte and Y'\ :sub:`7-0` in the third byte.
 
 .. flat-table:: Packed YUV Image Formats (8bpc)
     :header-rows: 1
