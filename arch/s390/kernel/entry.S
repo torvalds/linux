@@ -116,7 +116,7 @@ _LPP_OFFSET	= __LC_LPP
 #endif
 	.endm
 
-	.macro	SWITCH_ASYNC savearea,timer
+	.macro	SWITCH_ASYNC savearea,timer,clock
 	tmhh	%r8,0x0001		# interrupting from user ?
 	jnz	4f
 #if IS_ENABLED(CONFIG_KVM)
@@ -149,8 +149,8 @@ _LPP_OFFSET	= __LC_LPP
 	la	%r4,8(%r4)
 	brct	%r1,1b
 
-2:	mvc	__CLOCK_IDLE_EXIT(8,%r2), __LC_INT_CLOCK
-	mvc	__TIMER_IDLE_EXIT(8,%r2), __LC_ASYNC_ENTER_TIMER
+2:	mvc	__CLOCK_IDLE_EXIT(8,%r2), \clock
+	mvc	__TIMER_IDLE_EXIT(8,%r2), \timer
 	# account system time going idle
 	ni	__LC_CPU_FLAGS+7,255-_CIF_ENABLED_WAIT
 
@@ -757,7 +757,7 @@ ENTRY(io_int_handler)
 	stmg	%r8,%r15,__LC_SAVE_AREA_ASYNC
 	lg	%r12,__LC_CURRENT
 	lmg	%r8,%r9,__LC_IO_OLD_PSW
-	SWITCH_ASYNC __LC_SAVE_AREA_ASYNC,__LC_ASYNC_ENTER_TIMER
+	SWITCH_ASYNC __LC_SAVE_AREA_ASYNC,__LC_ASYNC_ENTER_TIMER,__LC_INT_CLOCK
 	stmg	%r0,%r7,__PT_R0(%r11)
 	# clear user controlled registers to prevent speculative use
 	xgr	%r0,%r0
@@ -952,7 +952,7 @@ ENTRY(ext_int_handler)
 	stmg	%r8,%r15,__LC_SAVE_AREA_ASYNC
 	lg	%r12,__LC_CURRENT
 	lmg	%r8,%r9,__LC_EXT_OLD_PSW
-	SWITCH_ASYNC __LC_SAVE_AREA_ASYNC,__LC_ASYNC_ENTER_TIMER
+	SWITCH_ASYNC __LC_SAVE_AREA_ASYNC,__LC_ASYNC_ENTER_TIMER,__LC_INT_CLOCK
 	stmg	%r0,%r7,__PT_R0(%r11)
 	# clear user controlled registers to prevent speculative use
 	xgr	%r0,%r0
@@ -1183,7 +1183,7 @@ ENTRY(mcck_int_handler)
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_IA_VALID
 	jno	.Lmcck_panic
 4:	ssm	__LC_PGM_NEW_PSW	# turn dat on, keep irqs off
-	SWITCH_ASYNC __LC_GPREGS_SAVE_AREA+64,__LC_MCCK_ENTER_TIMER
+	SWITCH_ASYNC __LC_GPREGS_SAVE_AREA+64,__LC_MCCK_ENTER_TIMER,__LC_MCCK_CLOCK
 .Lmcck_skip:
 	lghi	%r14,__LC_GPREGS_SAVE_AREA+64
 	stmg	%r0,%r7,__PT_R0(%r11)
