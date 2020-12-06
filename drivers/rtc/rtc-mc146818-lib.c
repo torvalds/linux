@@ -8,41 +8,41 @@
 #include <linux/acpi.h>
 #endif
 
-/*
- * Returns true if a clock update is in progress
- */
-static inline unsigned char mc146818_is_updating(void)
-{
-	unsigned char uip;
-	unsigned long flags;
-
-	spin_lock_irqsave(&rtc_lock, flags);
-	uip = (CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP);
-	spin_unlock_irqrestore(&rtc_lock, flags);
-	return uip;
-}
-
 unsigned int mc146818_get_time(struct rtc_time *time)
 {
 	unsigned char ctrl;
 	unsigned long flags;
 	unsigned char century = 0;
+	bool retry;
 
 #ifdef CONFIG_MACH_DECSTATION
 	unsigned int real_year;
 #endif
 
+again:
+	spin_lock_irqsave(&rtc_lock, flags);
 	/*
-	 * read RTC once any update in progress is done. The update
-	 * can take just over 2ms. We wait 20ms. There is no need to
-	 * to poll-wait (up to 1s - eeccch) for the falling edge of RTC_UIP.
-	 * If you need to know *exactly* when a second has started, enable
-	 * periodic update complete interrupts, (via ioctl) and then
-	 * immediately read /dev/rtc which will block until you get the IRQ.
-	 * Once the read clears, read the RTC time (again via ioctl). Easy.
+	 * Check whether there is an update in progress during which the
+	 * readout is unspecified. The maximum update time is ~2ms. Poll
+	 * every msec for completion.
+	 *
+	 * Store the second value before checking UIP so a long lasting NMI
+	 * which happens to hit after the UIP check cannot make an update
+	 * cycle invisible.
 	 */
-	if (mc146818_is_updating())
-		mdelay(20);
+	time->tm_sec = CMOS_READ(RTC_SECONDS);
+
+	if (CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP) {
+		spin_unlock_irqrestore(&rtc_lock, flags);
+		mdelay(1);
+		goto again;
+	}
+
+	/* Revalidate the above readout */
+	if (time->tm_sec != CMOS_READ(RTC_SECONDS)) {
+		spin_unlock_irqrestore(&rtc_lock, flags);
+		goto again;
+	}
 
 	/*
 	 * Only the values that we read from the RTC are set. We leave
@@ -50,8 +50,6 @@ unsigned int mc146818_get_time(struct rtc_time *time)
 	 * RTC has RTC_DAY_OF_WEEK, we ignore it, as it is only updated
 	 * by the RTC when initially set to a non-zero value.
 	 */
-	spin_lock_irqsave(&rtc_lock, flags);
-	time->tm_sec = CMOS_READ(RTC_SECONDS);
 	time->tm_min = CMOS_READ(RTC_MINUTES);
 	time->tm_hour = CMOS_READ(RTC_HOURS);
 	time->tm_mday = CMOS_READ(RTC_DAY_OF_MONTH);
@@ -66,7 +64,23 @@ unsigned int mc146818_get_time(struct rtc_time *time)
 		century = CMOS_READ(acpi_gbl_FADT.century);
 #endif
 	ctrl = CMOS_READ(RTC_CONTROL);
+	/*
+	 * Check for the UIP bit again. If it is set now then
+	 * the above values may contain garbage.
+	 */
+	retry = CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP;
+	/*
+	 * A NMI might have interrupted the above sequence so check whether
+	 * the seconds value has changed which indicates that the NMI took
+	 * longer than the UIP bit was set. Unlikely, but possible and
+	 * there is also virt...
+	 */
+	retry |= time->tm_sec != CMOS_READ(RTC_SECONDS);
+
 	spin_unlock_irqrestore(&rtc_lock, flags);
+
+	if (retry)
+		goto again;
 
 	if (!(ctrl & RTC_DM_BINARY) || RTC_ALWAYS_BCD)
 	{
