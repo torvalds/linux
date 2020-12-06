@@ -1572,9 +1572,17 @@ ieee80211_find_80211h_pwr_constr(struct ieee80211_sub_if_data *sdata,
 		chan_increment = 1;
 		break;
 	case NL80211_BAND_5GHZ:
-	case NL80211_BAND_6GHZ:
 		chan_increment = 4;
 		break;
+	case NL80211_BAND_6GHZ:
+		/*
+		 * In the 6 GHz band, the "maximum transmit power level"
+		 * field in the triplets is reserved, and thus will be
+		 * zero and we shouldn't use it to control TX power.
+		 * The actual TX power will be given in the transmit
+		 * power envelope element instead.
+		 */
+		return false;
 	}
 
 	/* find channel */
