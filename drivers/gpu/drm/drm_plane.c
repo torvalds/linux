@@ -40,7 +40,7 @@
  * A plane represents an image source that can be blended with or overlayed on
  * top of a CRTC during the scanout process. Planes take their input data from a
  * &drm_framebuffer object. The plane itself specifies the cropping and scaling
- * of that image, and where it is placed on the visible are of a display
+ * of that image, and where it is placed on the visible area of a display
  * pipeline, represented by &drm_crtc. A plane can also have additional
  * properties that specify how the pixels are positioned and blended, like
  * rotation or Z-position. All these properties are stored in &drm_plane_state.

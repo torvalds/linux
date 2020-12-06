@@ -67,7 +67,7 @@
  * &drm_crtc_funcs.page_flip and &drm_crtc_funcs.cursor_set2, and other legacy
  * operations like &drm_crtc_funcs.gamma_set. For atomic drivers all these
  * features are controlled through &drm_property and
- * &drm_mode_config_funcs.atomic_check and &drm_mode_config_funcs.atomic_check.
+ * &drm_mode_config_funcs.atomic_check.
  */
 
 /**
