@@ -280,7 +280,7 @@ void cal_quickdump_regs(struct cal_dev *cal)
  * ------------------------------------------------------------------
  */
 
-void cal_ctx_csi2_config(struct cal_ctx *ctx)
+static void cal_ctx_csi2_config(struct cal_ctx *ctx)
 {
 	u32 val;
 
@@ -305,7 +305,7 @@ void cal_ctx_csi2_config(struct cal_ctx *ctx)
 		cal_read(ctx->cal, CAL_CSI2_CTX0(ctx->index)));
 }
 
-void cal_ctx_pix_proc_config(struct cal_ctx *ctx)
+static void cal_ctx_pix_proc_config(struct cal_ctx *ctx)
 {
 	u32 val, extract, pack;
 
@@ -356,7 +356,7 @@ void cal_ctx_pix_proc_config(struct cal_ctx *ctx)
 		cal_read(ctx->cal, CAL_PIX_PROC(ctx->index)));
 }
 
-void cal_ctx_wr_dma_config(struct cal_ctx *ctx)
+static void cal_ctx_wr_dma_config(struct cal_ctx *ctx)
 {
 	unsigned int stride = ctx->v_fmt.fmt.pix.bytesperline;
 	u32 val;
@@ -406,12 +406,12 @@ void cal_ctx_wr_dma_config(struct cal_ctx *ctx)
 	ctx_dbg(3, ctx, "CAL_CTRL = 0x%08x\n", cal_read(ctx->cal, CAL_CTRL));
 }
 
-void cal_ctx_wr_dma_addr(struct cal_ctx *ctx, dma_addr_t addr)
+void cal_ctx_set_dma_addr(struct cal_ctx *ctx, dma_addr_t addr)
 {
 	cal_write(ctx->cal, CAL_WR_DMA_ADDR(ctx->index), addr);
 }
 
-void cal_ctx_wr_dma_disable(struct cal_ctx *ctx)
+static void cal_ctx_wr_dma_disable(struct cal_ctx *ctx)
 {
 	u32 val = cal_read(ctx->cal, CAL_WR_DMA_CTRL(ctx->index));
 
@@ -431,11 +431,31 @@ static bool cal_ctx_wr_dma_stopped(struct cal_ctx *ctx)
 	return stopped;
 }
 
-int cal_ctx_wr_dma_stop(struct cal_ctx *ctx)
+void cal_ctx_start(struct cal_ctx *ctx)
+{
+	ctx->sequence = 0;
+	ctx->dma.state = CAL_DMA_RUNNING;
+
+	/* Configure the CSI-2, pixel processing and write DMA contexts. */
+	cal_ctx_csi2_config(ctx);
+	cal_ctx_pix_proc_config(ctx);
+	cal_ctx_wr_dma_config(ctx);
+
+	/* Enable IRQ_WDMA_END and IRQ_WDMA_START. */
+	cal_write(ctx->cal, CAL_HL_IRQENABLE_SET(1),
+		  CAL_HL_IRQ_MASK(ctx->index));
+	cal_write(ctx->cal, CAL_HL_IRQENABLE_SET(2),
+		  CAL_HL_IRQ_MASK(ctx->index));
+}
+
+void cal_ctx_stop(struct cal_ctx *ctx)
 {
 	long timeout;
 
-	/* Request DMA stop and wait until it completes. */
+	/*
+	 * Request DMA stop and wait until it completes. If completion times
+	 * out, forcefully disable the DMA.
+	 */
 	spin_lock_irq(&ctx->dma.lock);
 	ctx->dma.state = CAL_DMA_STOP_REQUESTED;
 	spin_unlock_irq(&ctx->dma.lock);
@@ -444,28 +464,16 @@ int cal_ctx_wr_dma_stop(struct cal_ctx *ctx)
 				     msecs_to_jiffies(500));
 	if (!timeout) {
 		ctx_err(ctx, "failed to disable dma cleanly\n");
-		return -ETIMEDOUT;
+		cal_ctx_wr_dma_disable(ctx);
 	}
 
-	return 0;
-}
-
-void cal_ctx_enable_irqs(struct cal_ctx *ctx)
-{
-	/* Enable IRQ_WDMA_END and IRQ_WDMA_START. */
-	cal_write(ctx->cal, CAL_HL_IRQENABLE_SET(1),
-		  CAL_HL_IRQ_MASK(ctx->index));
-	cal_write(ctx->cal, CAL_HL_IRQENABLE_SET(2),
-		  CAL_HL_IRQ_MASK(ctx->index));
-}
-
-void cal_ctx_disable_irqs(struct cal_ctx *ctx)
-{
 	/* Disable IRQ_WDMA_END and IRQ_WDMA_START. */
 	cal_write(ctx->cal, CAL_HL_IRQENABLE_CLR(1),
 		  CAL_HL_IRQ_MASK(ctx->index));
 	cal_write(ctx->cal, CAL_HL_IRQENABLE_CLR(2),
 		  CAL_HL_IRQ_MASK(ctx->index));
+
+	ctx->dma.state = CAL_DMA_STOPPED;
 }
 
 /* ------------------------------------------------------------------
@@ -496,7 +504,7 @@ static inline void cal_irq_wdma_start(struct cal_ctx *ctx)
 		buf = list_first_entry(&ctx->dma.queue, struct cal_buffer,
 				       list);
 		addr = vb2_dma_contig_plane_dma_addr(&buf->vb.vb2_buf, 0);
-		cal_ctx_wr_dma_addr(ctx, addr);
+		cal_ctx_set_dma_addr(ctx, addr);
 
 		ctx->dma.pending = buf;
 		list_del(&buf->list);

@@ -518,16 +518,11 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 	spin_unlock_irq(&ctx->dma.lock);
 
 	addr = vb2_dma_contig_plane_dma_addr(&buf->vb.vb2_buf, 0);
-	ctx->sequence = 0;
-	ctx->dma.state = CAL_DMA_RUNNING;
 
 	pm_runtime_get_sync(ctx->cal->dev);
 
-	cal_ctx_csi2_config(ctx);
-	cal_ctx_pix_proc_config(ctx);
-	cal_ctx_wr_dma_config(ctx);
-	cal_ctx_wr_dma_addr(ctx, addr);
-	cal_ctx_enable_irqs(ctx);
+	cal_ctx_set_dma_addr(ctx, addr);
+	cal_ctx_start(ctx);
 
 	ret = v4l2_subdev_call(&ctx->phy->subdev, video, s_stream, 1);
 	if (ret)
@@ -539,9 +534,8 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 	return 0;
 
 err:
-	cal_ctx_wr_dma_disable(ctx);
-	cal_ctx_disable_irqs(ctx);
-	ctx->dma.state = CAL_DMA_STOPPED;
+	cal_ctx_stop(ctx);
+	pm_runtime_put_sync(ctx->cal->dev);
 
 	cal_release_buffers(ctx, VB2_BUF_STATE_QUEUED);
 	return ret;
@@ -551,14 +545,13 @@ static void cal_stop_streaming(struct vb2_queue *vq)
 {
 	struct cal_ctx *ctx = vb2_get_drv_priv(vq);
 
-	cal_ctx_wr_dma_stop(ctx);
-	cal_ctx_disable_irqs(ctx);
+	cal_ctx_stop(ctx);
 
 	v4l2_subdev_call(&ctx->phy->subdev, video, s_stream, 0);
 
-	cal_release_buffers(ctx, VB2_BUF_STATE_ERROR);
-
 	pm_runtime_put_sync(ctx->cal->dev);
+
+	cal_release_buffers(ctx, VB2_BUF_STATE_ERROR);
 }
 
 static const struct vb2_ops cal_video_qops = {

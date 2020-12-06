@@ -296,14 +296,9 @@ struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 					 unsigned int instance);
 void cal_camerarx_destroy(struct cal_camerarx *phy);
 
-void cal_ctx_csi2_config(struct cal_ctx *ctx);
-void cal_ctx_pix_proc_config(struct cal_ctx *ctx);
-void cal_ctx_wr_dma_config(struct cal_ctx *ctx);
-void cal_ctx_wr_dma_addr(struct cal_ctx *ctx, dma_addr_t addr);
-void cal_ctx_wr_dma_disable(struct cal_ctx *ctx);
-int cal_ctx_wr_dma_stop(struct cal_ctx *ctx);
-void cal_ctx_enable_irqs(struct cal_ctx *ctx);
-void cal_ctx_disable_irqs(struct cal_ctx *ctx);
+void cal_ctx_set_dma_addr(struct cal_ctx *ctx, dma_addr_t addr);
+void cal_ctx_start(struct cal_ctx *ctx);
+void cal_ctx_stop(struct cal_ctx *ctx);
 
 int cal_ctx_v4l2_register(struct cal_ctx *ctx);
 void cal_ctx_v4l2_unregister(struct cal_ctx *ctx);
