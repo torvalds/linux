@@ -146,16 +146,11 @@ static int __subdev_set_format(struct cal_ctx *ctx,
 	return 0;
 }
 
-static int cal_calc_format_size(struct cal_ctx *ctx,
-				const struct cal_format_info *fmtinfo,
-				struct v4l2_format *f)
+static void cal_calc_format_size(struct cal_ctx *ctx,
+				 const struct cal_format_info *fmtinfo,
+				 struct v4l2_format *f)
 {
 	u32 bpl, max_width;
-
-	if (!fmtinfo) {
-		ctx_dbg(3, ctx, "No cal_fmt provided!\n");
-		return -EINVAL;
-	}
 
 	/*
 	 * Maximum width is bound by the DMA max width in bytes.
@@ -177,8 +172,6 @@ static int cal_calc_format_size(struct cal_ctx *ctx,
 		__func__, fourcc_to_str(f->fmt.pix.pixelformat),
 		f->fmt.pix.width, f->fmt.pix.height,
 		f->fmt.pix.bytesperline, f->fmt.pix.sizeimage);
-
-	return 0;
 }
 
 static int cal_g_fmt_vid_cap(struct file *file, void *priv,
@@ -247,7 +240,8 @@ static int cal_try_fmt_vid_cap(struct file *file, void *priv,
 	 * updated properly during s_fmt
 	 */
 	f->fmt.pix.colorspace = ctx->v_fmt.fmt.pix.colorspace;
-	return cal_calc_format_size(ctx, fmtinfo, f);
+	cal_calc_format_size(ctx, fmtinfo, f);
+	return 0;
 }
 
 static int cal_s_fmt_vid_cap(struct file *file, void *priv,
