@@ -22,6 +22,7 @@ ALL_TESTS="
 	duplicate_vlans_test
 	vlan_rif_refcount_test
 	subport_rif_refcount_test
+	subport_rif_lag_join_test
 	vlan_dev_deletion_test
 	lag_unlink_slaves_test
 	lag_dev_deletion_test
@@ -437,6 +438,48 @@ subport_rif_refcount_test()
 	log_test "subport rif refcount"
 
 	ip link del dev bond1.10
+	ip link del dev bond1
+}
+
+subport_rif_lag_join_test()
+{
+	# Test that the reference count of a RIF configured for a LAG is
+	# incremented / decremented when ports join / leave the LAG. We use the
+	# offload indication on routes configured on the RIF to understand if
+	# it was created / destroyed
+	RET=0
+
+	ip link add name bond1 type bond mode 802.3ad
+	ip link set dev $swp1 down
+	ip link set dev $swp2 down
+	ip link set dev $swp1 master bond1
+	ip link set dev $swp2 master bond1
+
+	ip link set dev bond1 up
+	ip -6 address add 2001:db8:1::1/64 dev bond1
+
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:1::2 dev bond1
+	check_err $? "subport rif was not created on lag device"
+
+	ip link set dev $swp1 nomaster
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:1::2 dev bond1
+	check_err $? "subport rif of lag device was destroyed after removing one port"
+
+	ip link set dev $swp1 master bond1
+	ip link set dev $swp2 nomaster
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:1::2 dev bond1
+	check_err $? "subport rif of lag device was destroyed after re-adding a port and removing another"
+
+	ip link set dev $swp1 nomaster
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:1::2 dev bond1
+	check_err $? "subport rif of lag device was not destroyed when should"
+
+	log_test "subport rif lag join"
+
 	ip link del dev bond1
 }
 
