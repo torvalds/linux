@@ -239,14 +239,14 @@ full triplet of Y, Cb and Cr values.
       - ``V4L2_PIX_FMT_XYUV32``
       - 'XYUV'
 
-      -
-      -
-      -
-      -
-      -
-      -
-      -
-      -
+      - X\ :sub:`7`
+      - X\ :sub:`6`
+      - X\ :sub:`5`
+      - X\ :sub:`4`
+      - X\ :sub:`3`
+      - X\ :sub:`2`
+      - X\ :sub:`1`
+      - X\ :sub:`0`
 
       - Y'\ :sub:`7`
       - Y'\ :sub:`6`
@@ -348,14 +348,14 @@ full triplet of Y, Cb and Cr values.
       - Y'\ :sub:`1`
       - Y'\ :sub:`0`
 
-      -
-      -
-      -
-      -
-      -
-      -
-      -
-      -
+      - X\ :sub:`7`
+      - X\ :sub:`6`
+      - X\ :sub:`5`
+      - X\ :sub:`4`
+      - X\ :sub:`3`
+      - X\ :sub:`2`
+      - X\ :sub:`1`
+      - X\ :sub:`0`
 
 .. raw:: latex
 
