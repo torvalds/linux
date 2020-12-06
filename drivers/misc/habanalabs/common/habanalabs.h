@@ -486,6 +486,7 @@ struct asic_fixed_properties {
  * struct hl_fence - software synchronization primitive
  * @completion: fence is implemented using completion
  * @refcount: refcount for this fence
+ * @cs_sequence: sequence of the corresponding command submission
  * @error: mark this fence with error
  * @timestamp: timestamp upon completion
  *
@@ -493,6 +494,7 @@ struct asic_fixed_properties {
 struct hl_fence {
 	struct completion	completion;
 	struct kref		refcount;
+	u64			cs_sequence;
 	int			error;
 	ktime_t			timestamp;
 };
@@ -1176,7 +1178,11 @@ struct hl_userptr {
  * @tdr_active: true if TDR was activated for this CS (to prevent
  *		double TDR activation).
  * @aborted: true if CS was aborted due to some device error.
- * @timestamp: true if a timestmap must be captured upon completion
+ * @timestamp: true if a timestmap must be captured upon completion.
+ * @staged_last: true if this is the last staged CS and needs completion.
+ * @staged_first: true if this is the first staged CS and we need to receive
+ *                timeout for this CS.
+ * @staged_cs: true if this CS is part of a staged submission.
  */
 struct hl_cs {
 	u16			*jobs_in_queue_cnt;
@@ -1198,6 +1204,9 @@ struct hl_cs {
 	u8			tdr_active;
 	u8			aborted;
 	u8			timestamp;
+	u8			staged_last;
+	u8			staged_first;
+	u8			staged_cs;
 };
 
 /**
@@ -2118,7 +2127,7 @@ int hl_hw_queue_send_cb_no_cmpl(struct hl_device *hdev, u32 hw_queue_id,
 int hl_hw_queue_schedule_cs(struct hl_cs *cs);
 u32 hl_hw_queue_add_ptr(u32 ptr, u16 val);
 void hl_hw_queue_inc_ci_kernel(struct hl_device *hdev, u32 hw_queue_id);
-void hl_int_hw_queue_update_ci(struct hl_cs *cs);
+void hl_hw_queue_update_ci(struct hl_cs *cs);
 void hl_hw_queue_reset(struct hl_device *hdev, bool hard_reset);
 
 #define hl_queue_inc_ptr(p)		hl_hw_queue_add_ptr(p, 1)
@@ -2196,6 +2205,8 @@ int hl_gen_sob_mask(u16 sob_base, u8 sob_mask, u8 *mask);
 void hl_fence_put(struct hl_fence *fence);
 void hl_fence_get(struct hl_fence *fence);
 void cs_get(struct hl_cs *cs);
+bool cs_needs_completion(struct hl_cs *cs);
+bool cs_needs_timeout(struct hl_cs *cs);
 
 void goya_set_asic_funcs(struct hl_device *hdev);
 void gaudi_set_asic_funcs(struct hl_device *hdev);

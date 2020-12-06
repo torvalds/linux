@@ -149,9 +149,10 @@ void hl_fence_get(struct hl_fence *fence)
 		kref_get(&fence->refcount);
 }
 
-static void hl_fence_init(struct hl_fence *fence)
+static void hl_fence_init(struct hl_fence *fence, u64 sequence)
 {
 	kref_init(&fence->refcount);
+	fence->cs_sequence = sequence;
 	fence->error = 0;
 	fence->timestamp = ktime_set(0, 0);
 	init_completion(&fence->completion);
@@ -182,6 +183,28 @@ static void cs_job_do_release(struct kref *ref)
 static void cs_job_put(struct hl_cs_job *job)
 {
 	kref_put(&job->refcount, cs_job_do_release);
+}
+
+bool cs_needs_completion(struct hl_cs *cs)
+{
+	/* In case this is a staged CS, only the last CS in sequence should
+	 * get a completion, any non staged CS will always get a completion
+	 */
+	if (cs->staged_cs && !cs->staged_last)
+		return false;
+
+	return true;
+}
+
+bool cs_needs_timeout(struct hl_cs *cs)
+{
+	/* In case this is a staged CS, only the first CS in sequence should
+	 * get a timeout, any non staged CS will always get a timeout
+	 */
+	if (cs->staged_cs && !cs->staged_first)
+		return false;
+
+	return true;
 }
 
 static bool is_cb_patched(struct hl_device *hdev, struct hl_cs_job *job)
@@ -225,7 +248,7 @@ static int cs_parser(struct hl_fpriv *hpriv, struct hl_cs_job *job)
 	parser.queue_type = job->queue_type;
 	parser.is_kernel_allocated_cb = job->is_kernel_allocated_cb;
 	job->patched_cb = NULL;
-	parser.completion = true;
+	parser.completion = cs_needs_completion(job->cs);
 
 	rc = hdev->asic_funcs->cs_parser(hdev, &parser);
 
@@ -291,8 +314,21 @@ static void complete_job(struct hl_device *hdev, struct hl_cs_job *job)
 
 	hl_debugfs_remove_job(hdev, job);
 
-	if (job->queue_type == QUEUE_TYPE_EXT ||
-			job->queue_type == QUEUE_TYPE_HW)
+	/* We decrement reference only for a CS that gets completion
+	 * because the reference was incremented only for this kind of CS
+	 * right before it was scheduled.
+	 *
+	 * In staged submission, only the last CS marked as 'staged_last'
+	 * gets completion, hence its release function will be called from here.
+	 * As for all the rest CS's in the staged submission which do not get
+	 * completion, their CS reference will be decremented by the
+	 * 'staged_last' CS during the CS release flow.
+	 * All relevant PQ CI counters will be incremented during the CS release
+	 * flow by calling 'hl_hw_queue_update_ci'.
+	 */
+	if (cs_needs_completion(cs) &&
+		(job->queue_type == QUEUE_TYPE_EXT ||
+			job->queue_type == QUEUE_TYPE_HW))
 		cs_put(cs);
 
 	cs_job_put(job);
@@ -347,8 +383,8 @@ static void cs_do_release(struct kref *ref)
 
 	hdev->asic_funcs->hw_queues_unlock(hdev);
 
-	/* Need to update CI for internal queues */
-	hl_int_hw_queue_update_ci(cs);
+	/* Need to update CI for all queue jobs that does not get completion */
+	hl_hw_queue_update_ci(cs);
 
 	/* remove CS from CS mirror list */
 	spin_lock(&hdev->cs_mirror_lock);
@@ -359,6 +395,7 @@ static void cs_do_release(struct kref *ref)
 	 * running from the TDR context
 	 */
 	if (!cs->timedout && hdev->timeout_jiffies != MAX_SCHEDULE_TIMEOUT) {
+		bool next_entry_found = false;
 		struct hl_cs *next;
 
 		if (cs->tdr_active)
@@ -367,10 +404,13 @@ static void cs_do_release(struct kref *ref)
 		spin_lock(&hdev->cs_mirror_lock);
 
 		/* queue TDR for next CS */
-		next = list_first_entry_or_null(&hdev->cs_mirror_list,
-						struct hl_cs, mirror_node);
+		list_for_each_entry(next, &hdev->cs_mirror_list, mirror_node)
+			if (cs_needs_timeout(next)) {
+				next_entry_found = true;
+				break;
+			}
 
-		if (next && !next->tdr_active) {
+		if (next_entry_found && !next->tdr_active) {
 			next->tdr_active = true;
 			schedule_delayed_work(&next->work_tdr,
 						hdev->timeout_jiffies);
@@ -462,7 +502,8 @@ static void cs_timedout(struct work_struct *work)
 }
 
 static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
-			enum hl_cs_type cs_type, struct hl_cs **cs_new)
+			enum hl_cs_type cs_type, u64 user_sequence,
+			struct hl_cs **cs_new)
 {
 	struct hl_cs_counters_atomic *cntr;
 	struct hl_fence *other = NULL;
@@ -511,6 +552,18 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 				(hdev->asic_prop.max_pending_cs - 1)];
 
 	if (other && !completion_done(&other->completion)) {
+		/* If the following statement is true, it means we have reached
+		 * a point in which only part of the staged submission was
+		 * submitted and we don't have enough room in the 'cs_pending'
+		 * array for the rest of the submission.
+		 * This causes a deadlock because this CS will never be
+		 * completed as it depends on future CS's for completion.
+		 */
+		if (other->cs_sequence == user_sequence)
+			dev_crit_ratelimited(hdev->dev,
+				"Staged CS %llu deadlock due to lack of resources",
+				user_sequence);
+
 		dev_dbg_ratelimited(hdev->dev,
 			"Rejecting CS because of too many in-flights CS\n");
 		atomic64_inc(&ctx->cs_counters.max_cs_in_flight_drop_cnt);
@@ -529,7 +582,7 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	}
 
 	/* init hl_fence */
-	hl_fence_init(&cs_cmpl->base_fence);
+	hl_fence_init(&cs_cmpl->base_fence, cs_cmpl->cs_seq);
 
 	cs->sequence = cs_cmpl->cs_seq;
 
@@ -825,7 +878,7 @@ static int hl_cs_copy_chunk_array(struct hl_device *hdev,
 static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 				u32 num_chunks, u64 *cs_seq, u32 flags)
 {
-	bool int_queues_only = true;
+	bool staged_mid, int_queues_only = true;
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_cs_chunk *cs_chunk_array;
 	struct hl_cs_counters_atomic *cntr;
@@ -833,9 +886,11 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 	struct hl_cs_job *job;
 	struct hl_cs *cs;
 	struct hl_cb *cb;
+	u64 user_sequence;
 	int rc, i;
 
 	cntr = &hdev->aggregated_cs_counters;
+	user_sequence = *cs_seq;
 	*cs_seq = ULLONG_MAX;
 
 	rc = hl_cs_copy_chunk_array(hdev, &cs_chunk_array, chunks, num_chunks,
@@ -843,7 +898,14 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 	if (rc)
 		goto out;
 
-	rc = allocate_cs(hdev, hpriv->ctx, CS_TYPE_DEFAULT, &cs);
+	if ((flags & HL_CS_FLAGS_STAGED_SUBMISSION) &&
+			!(flags & HL_CS_FLAGS_STAGED_SUBMISSION_FIRST))
+		staged_mid = true;
+	else
+		staged_mid = false;
+
+	rc = allocate_cs(hdev, hpriv->ctx, CS_TYPE_DEFAULT,
+			staged_mid ? user_sequence : ULLONG_MAX, &cs);
 	if (rc)
 		goto free_cs_chunk_array;
 
@@ -911,8 +973,9 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 		 * Only increment for JOB on external or H/W queues, because
 		 * only for those JOBs we get completion
 		 */
-		if (job->queue_type == QUEUE_TYPE_EXT ||
-				job->queue_type == QUEUE_TYPE_HW)
+		if (cs_needs_completion(cs) &&
+			(job->queue_type == QUEUE_TYPE_EXT ||
+				job->queue_type == QUEUE_TYPE_HW))
 			cs_get(cs);
 
 		hl_debugfs_add_job(hdev, job);
@@ -928,11 +991,14 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 		}
 	}
 
-	if (int_queues_only) {
+	/* We allow a CS with any queue type combination as long as it does
+	 * not get a completion
+	 */
+	if (int_queues_only && cs_needs_completion(cs)) {
 		atomic64_inc(&ctx->cs_counters.validation_drop_cnt);
 		atomic64_inc(&cntr->validation_drop_cnt);
 		dev_err(hdev->dev,
-			"Reject CS %d.%llu because only internal queues jobs are present\n",
+			"Reject CS %d.%llu since it contains only internal queues jobs and needs completion\n",
 			cs->ctx->asid, cs->sequence);
 		rc = -EINVAL;
 		goto free_cs_object;
@@ -1037,7 +1103,7 @@ static int hl_submit_pending_cb(struct hl_fpriv *hpriv)
 		list_move_tail(&pending_cb->cb_node, &local_cb_list);
 	spin_unlock(&ctx->pending_cb_lock);
 
-	rc = allocate_cs(hdev, ctx, CS_TYPE_DEFAULT, &cs);
+	rc = allocate_cs(hdev, ctx, CS_TYPE_DEFAULT, ULLONG_MAX, &cs);
 	if (rc)
 		goto add_list_elements;
 
@@ -1410,7 +1476,7 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 		}
 	}
 
-	rc = allocate_cs(hdev, ctx, cs_type, &cs);
+	rc = allocate_cs(hdev, ctx, cs_type, ULLONG_MAX, &cs);
 	if (rc) {
 		if (cs_type == CS_TYPE_WAIT ||
 			cs_type == CS_TYPE_COLLECTIVE_WAIT)
