@@ -2329,7 +2329,7 @@ static unsigned io_cqring_events(struct io_ring_ctx *ctx, bool noflush)
 		 * we wake up the task, and the next invocation will flush the
 		 * entries. We cannot safely to it from here.
 		 */
-		if (noflush && !list_empty(&ctx->cq_overflow_list))
+		if (noflush)
 			return -1U;
 
 		io_cqring_overflow_flush(ctx, false, NULL, NULL);
