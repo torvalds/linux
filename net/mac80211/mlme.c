@@ -2741,7 +2741,7 @@ static void ieee80211_report_disconnect(struct ieee80211_sub_if_data *sdata,
 	};
 
 	if (tx)
-		cfg80211_tx_mlme_mgmt(sdata->dev, buf, len);
+		cfg80211_tx_mlme_mgmt(sdata->dev, buf, len, false);
 	else
 		cfg80211_rx_mlme_mgmt(sdata->dev, buf, len);
 
@@ -4721,7 +4721,8 @@ void ieee80211_mgd_quiesce(struct ieee80211_sub_if_data *sdata)
 		if (ifmgd->auth_data)
 			ieee80211_destroy_auth_data(sdata, false);
 		cfg80211_tx_mlme_mgmt(sdata->dev, frame_buf,
-				      IEEE80211_DEAUTH_FRAME_LEN);
+				      IEEE80211_DEAUTH_FRAME_LEN,
+				      false);
 	}
 
 	/* This is a bit of a hack - we should find a better and more generic
