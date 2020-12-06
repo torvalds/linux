@@ -256,6 +256,20 @@ static void cal_camerarx_disable_irqs(struct cal_camerarx *phy)
 	cal_write(phy->cal, CAL_CSI2_COMPLEXIO_IRQENABLE(phy->instance), 0);
 }
 
+static void cal_camerarx_ppi_enable(struct cal_camerarx *phy)
+{
+	cal_write(phy->cal, CAL_CSI2_PPI_CTRL(phy->instance),
+		  CAL_CSI2_PPI_CTRL_FRAME_MASK);
+	cal_write_field(phy->cal, CAL_CSI2_PPI_CTRL(phy->instance),
+			1, CAL_CSI2_PPI_CTRL_IF_EN_MASK);
+}
+
+void cal_camerarx_ppi_disable(struct cal_camerarx *phy)
+{
+	cal_write_field(phy->cal, CAL_CSI2_PPI_CTRL(phy->instance),
+			0, CAL_CSI2_PPI_CTRL_IF_EN_MASK);
+}
+
 static int cal_camerarx_start(struct cal_camerarx *phy)
 {
 	s64 external_rate;
@@ -384,6 +398,9 @@ static int cal_camerarx_start(struct cal_camerarx *phy)
 	 * implemented.
 	 */
 
+	/* Finally, enable the PHY Protocol Interface (PPI). */
+	cal_camerarx_ppi_enable(phy);
+
 	return 0;
 }
 
@@ -453,20 +470,6 @@ void cal_camerarx_i913_errata(struct cal_camerarx *phy)
 
 	phy_dbg(1, phy, "CSI2_%d_REG10 = 0x%08x\n", phy->instance, reg10);
 	camerarx_write(phy, CAL_CSI2_PHY_REG10, reg10);
-}
-
-void cal_camerarx_ppi_enable(struct cal_camerarx *phy)
-{
-	cal_write(phy->cal, CAL_CSI2_PPI_CTRL(phy->instance),
-		  CAL_CSI2_PPI_CTRL_FRAME_MASK);
-	cal_write_field(phy->cal, CAL_CSI2_PPI_CTRL(phy->instance),
-			1, CAL_CSI2_PPI_CTRL_IF_EN_MASK);
-}
-
-void cal_camerarx_ppi_disable(struct cal_camerarx *phy)
-{
-	cal_write_field(phy->cal, CAL_CSI2_PPI_CTRL(phy->instance),
-			0, CAL_CSI2_PPI_CTRL_IF_EN_MASK);
 }
 
 static int cal_camerarx_regmap_init(struct cal_dev *cal,

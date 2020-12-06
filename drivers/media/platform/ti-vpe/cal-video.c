@@ -517,14 +517,12 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 	cal_ctx_csi2_config(ctx);
 	cal_ctx_pix_proc_config(ctx);
 	cal_ctx_wr_dma_config(ctx);
+	cal_ctx_wr_dma_addr(ctx, addr);
 	cal_ctx_enable_irqs(ctx);
 
 	ret = v4l2_subdev_call(&ctx->phy->subdev, video, s_stream, 1);
 	if (ret)
 		goto err;
-
-	cal_ctx_wr_dma_addr(ctx, addr);
-	cal_camerarx_ppi_enable(ctx->phy);
 
 	if (cal_debug >= 4)
 		cal_quickdump_regs(ctx->cal);
