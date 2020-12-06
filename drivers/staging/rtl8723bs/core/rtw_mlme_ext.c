@@ -940,13 +940,13 @@ unsigned int OnAuth(struct adapter *padapter, union recv_frame *precv_frame)
 		DBG_871X("auth rejected due to bad alg [alg =%d, auth_mib =%d] %02X%02X%02X%02X%02X%02X\n",
 			algorithm, auth_mode, sa[0], sa[1], sa[2], sa[3], sa[4], sa[5]);
 
-		status = _STATS_NO_SUPP_ALG_;
+		status = WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG;
 
 		goto auth_fail;
 	}
 
 	if (rtw_access_ctrl(padapter, sa) == false) {
-		status = _STATS_UNABLE_HANDLE_STA_;
+		status = WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA;
 		goto auth_fail;
 	}
 
@@ -958,7 +958,7 @@ unsigned int OnAuth(struct adapter *padapter, union recv_frame *precv_frame)
 		pstat = rtw_alloc_stainfo(pstapriv, sa);
 		if (pstat == NULL) {
 			DBG_871X(" Exceed the upper limit of supported clients...\n");
-			status = _STATS_UNABLE_HANDLE_STA_;
+			status = WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA;
 			goto auth_fail;
 		}
 
@@ -999,7 +999,7 @@ unsigned int OnAuth(struct adapter *padapter, union recv_frame *precv_frame)
 	if ((pstat->auth_seq + 1) != seq) {
 		DBG_871X("(1)auth rejected because out of seq [rx_seq =%d, exp_seq =%d]!\n",
 			seq, pstat->auth_seq+1);
-		status = _STATS_OUT_OF_AUTH_SEQ_;
+		status = WLAN_STATUS_UNKNOWN_AUTH_TRANSACTION;
 		goto auth_fail;
 	}
 
@@ -1012,7 +1012,7 @@ unsigned int OnAuth(struct adapter *padapter, union recv_frame *precv_frame)
 		} else {
 			DBG_871X("(2)auth rejected because out of seq [rx_seq =%d, exp_seq =%d]!\n",
 				seq, pstat->auth_seq+1);
-			status = _STATS_OUT_OF_AUTH_SEQ_;
+			status = WLAN_STATUS_UNKNOWN_AUTH_TRANSACTION;
 			goto auth_fail;
 		}
 	} else { /*  shared system or auto authentication */
@@ -1033,7 +1033,7 @@ unsigned int OnAuth(struct adapter *padapter, union recv_frame *precv_frame)
 
 			if ((p == NULL) || (ie_len <= 0)) {
 				DBG_871X("auth rejected because challenge failure!(1)\n");
-				status = _STATS_CHALLENGE_FAIL_;
+				status = WLAN_STATUS_CHALLENGE_FAIL;
 				goto auth_fail;
 			}
 
@@ -1044,13 +1044,13 @@ unsigned int OnAuth(struct adapter *padapter, union recv_frame *precv_frame)
 				pstat->expire_to =  pstapriv->assoc_to;
 			} else {
 				DBG_871X("auth rejected because challenge failure!\n");
-				status = _STATS_CHALLENGE_FAIL_;
+				status = WLAN_STATUS_CHALLENGE_FAIL;
 				goto auth_fail;
 			}
 		} else {
 			DBG_871X("(3)auth rejected because out of seq [rx_seq =%d, exp_seq =%d]!\n",
 				seq, pstat->auth_seq+1);
-			status = _STATS_OUT_OF_AUTH_SEQ_;
+			status = WLAN_STATUS_UNKNOWN_AUTH_TRANSACTION;
 			goto auth_fail;
 		}
 	}
@@ -1059,7 +1059,7 @@ unsigned int OnAuth(struct adapter *padapter, union recv_frame *precv_frame)
 	/*  Now, we are going to issue_auth... */
 	pstat->auth_seq = seq + 1;
 
-	issue_auth(padapter, pstat, (unsigned short)(_STATS_SUCCESSFUL_));
+	issue_auth(padapter, pstat, (unsigned short)(WLAN_STATUS_SUCCESS));
 
 	if (pstat->state & WIFI_FW_AUTH_SUCCESS)
 		pstat->auth_seq = 0;
@@ -1178,7 +1178,7 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 	int		i, ie_len, wpa_ie_len, left;
 	unsigned char 	supportRate[16];
 	int					supportRateNum;
-	unsigned short		status = _STATS_SUCCESSFUL_;
+	unsigned short		status = WLAN_STATUS_SUCCESS;
 	unsigned short		frame_type, ie_offset = 0;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
@@ -1245,7 +1245,7 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 	    !elems.ssid) {
 		DBG_871X("STA %pM sent invalid association request\n",
 		       MAC_ARG(pstat->hwaddr));
-		status = _STATS_FAILURE_;
+		status = WLAN_STATUS_CHALLENGE_FAIL;
 		goto OnAssocReqFail;
 	}
 
@@ -1256,18 +1256,18 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 
 	if (!p || ie_len == 0) {
 		/*  broadcast ssid, however it is not allowed in assocreq */
-		status = _STATS_FAILURE_;
+		status = WLAN_STATUS_CHALLENGE_FAIL;
 		goto OnAssocReqFail;
 	} else {
 		/*  check if ssid match */
 		if (memcmp((void *)(p+2), cur->Ssid.Ssid, cur->Ssid.SsidLength))
-			status = _STATS_FAILURE_;
+			status = WLAN_STATUS_CHALLENGE_FAIL;
 
 		if (ie_len != cur->Ssid.SsidLength)
-			status = _STATS_FAILURE_;
+			status = WLAN_STATUS_CHALLENGE_FAIL;
 	}
 
-	if (status != _STATS_SUCCESSFUL_)
+	if (status != WLAN_STATUS_SUCCESS)
 		goto OnAssocReqFail;
 
 	/*  check if the supported rate is ok */
@@ -1278,7 +1278,7 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 		/* memcpy(supportRate, AP_BSSRATE, AP_BSSRATE_LEN); */
 		/* supportRateNum = AP_BSSRATE_LEN; */
 
-		status = _STATS_FAILURE_;
+		status = WLAN_STATUS_CHALLENGE_FAIL;
 		goto OnAssocReqFail;
 	} else {
 		memcpy(supportRate, p+2, ie_len);
@@ -1326,10 +1326,10 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 			pstat->wpa2_pairwise_cipher = pairwise_cipher&psecuritypriv->wpa2_pairwise_cipher;
 
 			if (!pstat->wpa2_group_cipher)
-				status = WLAN_STATUS_GROUP_CIPHER_NOT_VALID;
+				status = WLAN_STATUS_INVALID_GROUP_CIPHER;
 
 			if (!pstat->wpa2_pairwise_cipher)
-				status = WLAN_STATUS_PAIRWISE_CIPHER_NOT_VALID;
+				status = WLAN_STATUS_INVALID_PAIRWISE_CIPHER;
 		} else {
 			status = WLAN_STATUS_INVALID_IE;
 		}
@@ -1349,10 +1349,10 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 			pstat->wpa_pairwise_cipher = pairwise_cipher&psecuritypriv->wpa_pairwise_cipher;
 
 			if (!pstat->wpa_group_cipher)
-				status = WLAN_STATUS_GROUP_CIPHER_NOT_VALID;
+				status = WLAN_STATUS_INVALID_GROUP_CIPHER;
 
 			if (!pstat->wpa_pairwise_cipher)
-				status = WLAN_STATUS_PAIRWISE_CIPHER_NOT_VALID;
+				status = WLAN_STATUS_INVALID_PAIRWISE_CIPHER;
 
 		} else {
 			status = WLAN_STATUS_INVALID_IE;
@@ -1363,7 +1363,7 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 		wpa_ie_len = 0;
 	}
 
-	if (status != _STATS_SUCCESSFUL_)
+	if (status != WLAN_STATUS_SUCCESS)
 		goto OnAssocReqFail;
 
 	pstat->flags &= ~(WLAN_STA_WPS | WLAN_STA_MAYBE_WPS);
@@ -1396,7 +1396,7 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 				if (!selected_registrar) {
 					DBG_871X("selected_registrar is false , or AP is not ready to do WPS\n");
 
-					status = _STATS_UNABLE_HANDLE_STA_;
+					status = WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA;
 
 					goto OnAssocReqFail;
 				}
@@ -1507,7 +1507,7 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 
 
 	if ((pmlmepriv->htpriv.ht_option == false) && (pstat->flags&WLAN_STA_HT)) {
-		status = _STATS_FAILURE_;
+		status = WLAN_STATUS_CHALLENGE_FAIL;
 		goto OnAssocReqFail;
 	}
 
@@ -1517,7 +1517,7 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 		      (pstat->wpa_pairwise_cipher&WPA_CIPHER_TKIP))) {
 		DBG_871X("HT: %pM tried to use TKIP with HT association\n", MAC_ARG(pstat->hwaddr));
 
-		/* status = WLAN_STATUS_CIPHER_REJECTED_PER_POLICY; */
+		/* status = WLAN_STATUS_CIPHER_SUITE_REJECTED; */
 		/* goto OnAssocReqFail; */
 	}
 	pstat->flags |= WLAN_STA_NONERP;
@@ -1535,7 +1535,7 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 
 
 
-	if (status != _STATS_SUCCESSFUL_)
+	if (status != WLAN_STATUS_SUCCESS)
 		goto OnAssocReqFail;
 
 	/* TODO: identify_proprietary_vendor_ie(); */
@@ -1592,7 +1592,7 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 	spin_unlock_bh(&pstapriv->asoc_list_lock);
 
 	/*  now the station is qualified to join our BSS... */
-	if (pstat && (pstat->state & WIFI_FW_ASSOC_SUCCESS) && (_STATS_SUCCESSFUL_ == status)) {
+	if (pstat && (pstat->state & WIFI_FW_ASSOC_SUCCESS) && (WLAN_STATUS_SUCCESS == status)) {
 		/* 1 bss_cap_update & sta_info_update */
 		bss_cap_update_on_sta_join(padapter, pstat);
 		sta_info_update(padapter, pstat);
@@ -3004,7 +3004,7 @@ void issue_auth(struct adapter *padapter, struct sta_info *psta, unsigned short 
 		/*  setting auth algo number */
 		val16 = (u16)psta->authalg;
 
-		if (status != _STATS_SUCCESSFUL_)
+		if (status != WLAN_STATUS_SUCCESS)
 			val16 = 0;
 
 		if (val16)

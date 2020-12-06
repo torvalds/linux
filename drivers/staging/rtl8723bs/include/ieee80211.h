@@ -347,9 +347,6 @@ struct ieee80211_snap_hdr {
 #define WLAN_CAPABILITY_BSS (1<<0)
 #define WLAN_CAPABILITY_SHORT_SLOT (1<<10)
 
-/* 802.11b */
-#define WLAN_STATUS_ASSOC_DENIED_NOSHORT 19
-
 /* Reason codes */
 #define WLAN_REASON_ACTIVE_ROAM 65533
 #define WLAN_REASON_JOIN_WRONG_CHANNEL       65534
