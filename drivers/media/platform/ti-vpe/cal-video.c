@@ -470,13 +470,12 @@ static void cal_buffer_queue(struct vb2_buffer *vb)
 	struct cal_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct cal_buffer *buf = container_of(vb, struct cal_buffer,
 					      vb.vb2_buf);
-	struct cal_dmaqueue *vidq = &ctx->vidq;
 	unsigned long flags;
 
 	/* recheck locking */
-	spin_lock_irqsave(&ctx->slock, flags);
-	list_add_tail(&buf->list, &vidq->active);
-	spin_unlock_irqrestore(&ctx->slock, flags);
+	spin_lock_irqsave(&ctx->dma.lock, flags);
+	list_add_tail(&buf->list, &ctx->dma.queue);
+	spin_unlock_irqrestore(&ctx->dma.lock, flags);
 }
 
 static void cal_release_buffers(struct cal_ctx *ctx,
@@ -484,42 +483,41 @@ static void cal_release_buffers(struct cal_ctx *ctx,
 {
 	struct cal_buffer *buf, *tmp;
 
-	/* Release all active buffers. */
-	spin_lock_irq(&ctx->slock);
+	/* Release all queued buffers. */
+	spin_lock_irq(&ctx->dma.lock);
 
-	list_for_each_entry_safe(buf, tmp, &ctx->vidq.active, list) {
+	list_for_each_entry_safe(buf, tmp, &ctx->dma.queue, list) {
 		list_del(&buf->list);
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 	}
 
-	if (ctx->next_frm != ctx->cur_frm)
-		vb2_buffer_done(&ctx->next_frm->vb.vb2_buf, state);
-	vb2_buffer_done(&ctx->cur_frm->vb.vb2_buf, state);
+	if (ctx->dma.pending != ctx->dma.active)
+		vb2_buffer_done(&ctx->dma.pending->vb.vb2_buf, state);
+	vb2_buffer_done(&ctx->dma.active->vb.vb2_buf, state);
 
-	ctx->cur_frm = NULL;
-	ctx->next_frm = NULL;
+	ctx->dma.active = NULL;
+	ctx->dma.pending = NULL;
 
-	spin_unlock_irq(&ctx->slock);
+	spin_unlock_irq(&ctx->dma.lock);
 }
 
 static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct cal_ctx *ctx = vb2_get_drv_priv(vq);
-	struct cal_dmaqueue *dma_q = &ctx->vidq;
 	struct cal_buffer *buf;
 	unsigned long addr;
 	int ret;
 
-	spin_lock_irq(&ctx->slock);
-	buf = list_first_entry(&dma_q->active, struct cal_buffer, list);
-	ctx->cur_frm = buf;
-	ctx->next_frm = buf;
+	spin_lock_irq(&ctx->dma.lock);
+	buf = list_first_entry(&ctx->dma.queue, struct cal_buffer, list);
+	ctx->dma.active = buf;
+	ctx->dma.pending = buf;
 	list_del(&buf->list);
-	spin_unlock_irq(&ctx->slock);
+	spin_unlock_irq(&ctx->dma.lock);
 
-	addr = vb2_dma_contig_plane_dma_addr(&ctx->cur_frm->vb.vb2_buf, 0);
+	addr = vb2_dma_contig_plane_dma_addr(&ctx->dma.active->vb.vb2_buf, 0);
 	ctx->sequence = 0;
-	ctx->dma_state = CAL_DMA_RUNNING;
+	ctx->dma.state = CAL_DMA_RUNNING;
 
 	pm_runtime_get_sync(ctx->cal->dev);
 
@@ -541,7 +539,7 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 err:
 	cal_ctx_wr_dma_disable(ctx);
 	cal_ctx_disable_irqs(ctx);
-	ctx->dma_state = CAL_DMA_STOPPED;
+	ctx->dma.state = CAL_DMA_STOPPED;
 
 	cal_release_buffers(ctx, VB2_BUF_STATE_QUEUED);
 	return ret;
@@ -710,10 +708,10 @@ int cal_ctx_v4l2_init(struct cal_ctx *ctx)
 	struct vb2_queue *q = &ctx->vb_vidq;
 	int ret;
 
-	INIT_LIST_HEAD(&ctx->vidq.active);
-	spin_lock_init(&ctx->slock);
+	INIT_LIST_HEAD(&ctx->dma.queue);
+	spin_lock_init(&ctx->dma.lock);
 	mutex_init(&ctx->mutex);
-	init_waitqueue_head(&ctx->dma_wait);
+	init_waitqueue_head(&ctx->dma.wait);
 
 	/* Initialize the vb2 queue. */
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;

@@ -82,8 +82,38 @@ struct cal_buffer {
 	struct list_head	list;
 };
 
+/**
+ * struct cal_dmaqueue - Queue of DMA buffers
+ * @active: Buffer being DMA'ed to for the current frame
+ */
 struct cal_dmaqueue {
-	struct list_head	active;
+	/**
+	 * Protects all fields in the cal_dmaqueue.
+	 */
+	spinlock_t		lock;
+
+	/**
+	 * Buffers queued to the driver and waiting for DMA processing.
+	 * Buffers are added to the list by the vb2 .buffer_queue() operation,
+	 * and move to @pending when they are scheduled for the next frame.
+	 */
+	struct list_head	queue;
+	/**
+	 * Buffer provided to the hardware to DMA the next frame. Will move to
+	 * @active at the end of the current frame.
+	 */
+	struct cal_buffer	*pending;
+	/**
+	 * Buffer being DMA'ed to for the current frame. Will be retired and
+	 * given back to vb2 at the end of the current frame if a @pending
+	 * buffer has been scheduled to replace it.
+	 */
+	struct cal_buffer	*active;
+
+	/** State of the DMA engine. */
+	enum cal_dma_state	state;
+	/** Wait queue to signal a @state transition to CAL_DMA_STOPPED. */
+	struct wait_queue_head	wait;
 };
 
 struct cal_camerarx_data {
@@ -174,10 +204,8 @@ struct cal_ctx {
 
 	/* v4l2_ioctl mutex */
 	struct mutex		mutex;
-	/* v4l2 buffers lock */
-	spinlock_t		slock;
 
-	struct cal_dmaqueue	vidq;
+	struct cal_dmaqueue	dma;
 
 	/* video capture */
 	const struct cal_format_info	*fmtinfo;
@@ -192,14 +220,6 @@ struct cal_ctx {
 	struct vb2_queue	vb_vidq;
 	unsigned int		index;
 	unsigned int		cport;
-
-	/* Pointer pointing to current v4l2_buffer */
-	struct cal_buffer	*cur_frm;
-	/* Pointer pointing to next v4l2_buffer */
-	struct cal_buffer	*next_frm;
-
-	enum cal_dma_state	dma_state;
-	struct wait_queue_head	dma_wait;
 };
 
 extern unsigned int cal_debug;
