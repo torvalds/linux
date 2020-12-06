@@ -2848,7 +2848,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	struct nvkm_subdev *subdev;
 	u64 mmio_base, mmio_size;
 	u32 boot0, boot1, strap;
-	int ret = -EEXIST, i, j;
+	int ret = -EEXIST, j;
 	unsigned chipset;
 
 	mutex_lock(&nv_devices_mutex);
@@ -3099,9 +3099,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 
 	mutex_init(&device->mutex);
 
-	for (i = 0; i < NVKM_SUBDEV_NR; i++) {
-		switch (i) {
-#define NVKM_LAYOUT_ONCE(type,data,ptr) case type:                                           \
+#define NVKM_LAYOUT_ONCE(type,data,ptr)                                                      \
 	if (device->chip->ptr.inst && (subdev_mask & (BIT_ULL(type)))) {                     \
 		WARN_ON(device->chip->ptr.inst != 0x00000001);                               \
 		ret = device->chip->ptr.ctor(device, (type), -1, &device->ptr);              \
@@ -3117,9 +3115,8 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		} else {                                                                     \
 			subdev->pself = (void **)&device->ptr;                               \
 		}                                                                            \
-	}                                                                                    \
-	break;
-#define NVKM_LAYOUT_INST(type,data,ptr,cnt) case type:                                       \
+	}
+#define NVKM_LAYOUT_INST(type,data,ptr,cnt)                                                  \
 	WARN_ON(device->chip->ptr.inst & ~((1 << ARRAY_SIZE(device->ptr)) - 1));             \
 	for (j = 0; device->chip->ptr.inst && j < ARRAY_SIZE(device->ptr); j++) {            \
 		if ((device->chip->ptr.inst & BIT(j)) && (subdev_mask & BIT_ULL(type))) {    \
@@ -3138,29 +3135,10 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 				subdev->pself = (void **)&device->ptr[j];                    \
 			}                                                                    \
 		}                                                                            \
-	}                                                                                    \
-	break;
+	}
 #include <core/layout.h>
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
-		case NVKM_ENGINE_CE1:
-		case NVKM_ENGINE_CE2:
-		case NVKM_ENGINE_CE3:
-		case NVKM_ENGINE_CE4:
-		case NVKM_ENGINE_CE5:
-		case NVKM_ENGINE_CE6:
-		case NVKM_ENGINE_CE7:
-		case NVKM_ENGINE_CE8:
-		case NVKM_ENGINE_NVDEC1:
-		case NVKM_ENGINE_NVDEC2:
-		case NVKM_ENGINE_NVENC1:
-		case NVKM_ENGINE_NVENC2:
-			break;
-		default:
-			WARN_ON(1);
-			continue;
-		}
-	}
 
 	ret = 0;
 done:
