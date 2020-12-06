@@ -4829,8 +4829,11 @@ static int hclge_unmap_ring_frm_vector(struct hnae3_handle *handle, int vector,
 static int hclge_cmd_set_promisc_mode(struct hclge_dev *hdev, u8 vf_id,
 				      bool en_uc, bool en_mc, bool en_bc)
 {
+	struct hclge_vport *vport = &hdev->vport[vf_id];
+	struct hnae3_handle *handle = &vport->nic;
 	struct hclge_promisc_cfg_cmd *req;
 	struct hclge_desc desc;
+	bool uc_tx_en = en_uc;
 	u8 promisc_cfg = 0;
 	int ret;
 
@@ -4839,10 +4842,13 @@ static int hclge_cmd_set_promisc_mode(struct hclge_dev *hdev, u8 vf_id,
 	req = (struct hclge_promisc_cfg_cmd *)desc.data;
 	req->vf_id = vf_id;
 
+	if (test_bit(HNAE3_PFLAG_LIMIT_PROMISC, &handle->priv_flags))
+		uc_tx_en = false;
+
 	hnae3_set_bit(promisc_cfg, HCLGE_PROMISC_UC_RX_EN, en_uc ? 1 : 0);
 	hnae3_set_bit(promisc_cfg, HCLGE_PROMISC_MC_RX_EN, en_mc ? 1 : 0);
 	hnae3_set_bit(promisc_cfg, HCLGE_PROMISC_BC_RX_EN, en_bc ? 1 : 0);
-	hnae3_set_bit(promisc_cfg, HCLGE_PROMISC_UC_TX_EN, en_uc ? 1 : 0);
+	hnae3_set_bit(promisc_cfg, HCLGE_PROMISC_UC_TX_EN, uc_tx_en ? 1 : 0);
 	hnae3_set_bit(promisc_cfg, HCLGE_PROMISC_MC_TX_EN, en_mc ? 1 : 0);
 	hnae3_set_bit(promisc_cfg, HCLGE_PROMISC_BC_TX_EN, en_bc ? 1 : 0);
 	req->extend_promisc = promisc_cfg;

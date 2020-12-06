@@ -227,12 +227,19 @@ static int hclge_set_vf_promisc_mode(struct hclge_vport *vport,
 	bool en_bc = req->msg.en_bc ? true : false;
 	bool en_uc = req->msg.en_uc ? true : false;
 	bool en_mc = req->msg.en_mc ? true : false;
+	struct hnae3_handle *handle = &vport->nic;
 	int ret;
 
 	if (!vport->vf_info.trusted) {
 		en_uc = false;
 		en_mc = false;
 	}
+
+	if (req->msg.en_limit_promisc)
+		set_bit(HNAE3_PFLAG_LIMIT_PROMISC, &handle->priv_flags);
+	else
+		clear_bit(HNAE3_PFLAG_LIMIT_PROMISC,
+			  &handle->priv_flags);
 
 	ret = hclge_set_vport_promisc_mode(vport, en_uc, en_mc, en_bc);
 
