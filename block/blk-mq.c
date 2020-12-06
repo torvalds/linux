@@ -3865,9 +3865,10 @@ int blk_poll(struct request_queue *q, blk_qc_t cookie, bool spin)
 	 * the state. Like for the other success return cases, the
 	 * caller is responsible for checking if the IO completed. If
 	 * the IO isn't complete, we'll get called again and will go
-	 * straight to the busy poll loop.
+	 * straight to the busy poll loop. If specified not to spin,
+	 * we also should not sleep.
 	 */
-	if (blk_mq_poll_hybrid(q, hctx, cookie))
+	if (spin && blk_mq_poll_hybrid(q, hctx, cookie))
 		return 1;
 
 	hctx->poll_considered++;
