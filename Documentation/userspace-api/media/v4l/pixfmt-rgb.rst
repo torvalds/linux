@@ -44,7 +44,7 @@ devices and drivers, for both :ref:`capture` and :ref:`output` devices.
    - In all the tables that follow, bit 7 is the most significant bit in a byte.
    - 'r', 'g' and 'b' denote bits of the red, green and blue components
      respectively. 'a' denotes bits of the alpha component (if supported by the
-     format), and '-' denotes padding bits.
+     format), and 'x' denotes padding bits.
 
 
 Less Than 8 Bits Per Component
@@ -170,10 +170,10 @@ B\ :sub:`0`].
       - b\ :sub:`1`
       - b\ :sub:`0`
 
-      - `-`
-      - `-`
-      - `-`
-      - `-`
+      - x
+      - x
+      - x
+      - x
       - r\ :sub:`3`
       - r\ :sub:`2`
       - r\ :sub:`1`
@@ -211,10 +211,10 @@ B\ :sub:`0`].
       - b\ :sub:`2`
       - b\ :sub:`1`
       - b\ :sub:`0`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
+      - x
+      - x
+      - x
+      - x
 
       - r\ :sub:`3`
       - r\ :sub:`2`
@@ -262,10 +262,10 @@ B\ :sub:`0`].
       - r\ :sub:`1`
       - r\ :sub:`0`
 
-      - `-`
-      - `-`
-      - `-`
-      - `-`
+      - x
+      - x
+      - x
+      - x
       - b\ :sub:`3`
       - b\ :sub:`2`
       - b\ :sub:`1`
@@ -303,10 +303,10 @@ B\ :sub:`0`].
       - r\ :sub:`2`
       - r\ :sub:`1`
       - r\ :sub:`0`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
+      - x
+      - x
+      - x
+      - x
 
       - b\ :sub:`3`
       - b\ :sub:`2`
@@ -354,7 +354,7 @@ B\ :sub:`0`].
       - b\ :sub:`1`
       - b\ :sub:`0`
 
-      - `-`
+      - x
       - r\ :sub:`4`
       - r\ :sub:`3`
       - r\ :sub:`2`
@@ -398,7 +398,7 @@ B\ :sub:`0`].
       - b\ :sub:`2`
       - b\ :sub:`1`
       - b\ :sub:`0`
-      - `-`
+      - x
 
       - r\ :sub:`4`
       - r\ :sub:`3`
@@ -446,7 +446,7 @@ B\ :sub:`0`].
       - r\ :sub:`1`
       - r\ :sub:`0`
 
-      - `-`
+      - x
       - b\ :sub:`4`
       - b\ :sub:`3`
       - b\ :sub:`2`
@@ -490,7 +490,7 @@ B\ :sub:`0`].
       - r\ :sub:`2`
       - r\ :sub:`1`
       - r\ :sub:`0`
-      - `-`
+      - x
 
       - b\ :sub:`4`
       - b\ :sub:`3`
@@ -552,7 +552,7 @@ B\ :sub:`0`].
       - ``V4L2_PIX_FMT_XRGB555X``
       - 'XR15' | (1 << 31)
 
-      - `-`
+      - x
       - r\ :sub:`4`
       - r\ :sub:`3`
       - r\ :sub:`2`
@@ -618,21 +618,21 @@ B\ :sub:`0`].
 
       - r\ :sub:`1`
       - r\ :sub:`0`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
 
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
-      - `-`
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
 
 .. raw:: latex
 
@@ -707,7 +707,7 @@ nomenclature that instead use the order of components as seen in a 24- or
       - B\ :sub:`7-0`
       - G\ :sub:`7-0`
       - R\ :sub:`7-0`
-      - `-`
+      - X\ :sub:`7-0`
     * .. _V4L2-PIX-FMT-BGRA32:
 
       - ``V4L2_PIX_FMT_BGRA32``
@@ -722,7 +722,7 @@ nomenclature that instead use the order of components as seen in a 24- or
       - ``V4L2_PIX_FMT_BGRX32``
       - 'RX24'
 
-      - `-`
+      - X\ :sub:`7-0`
       - B\ :sub:`7-0`
       - G\ :sub:`7-0`
       - R\ :sub:`7-0`
@@ -743,7 +743,7 @@ nomenclature that instead use the order of components as seen in a 24- or
       - R\ :sub:`7-0`
       - G\ :sub:`7-0`
       - B\ :sub:`7-0`
-      - `-`
+      - X\ :sub:`7-0`
     * .. _V4L2-PIX-FMT-ARGB32:
 
       - ``V4L2_PIX_FMT_ARGB32``
@@ -758,7 +758,7 @@ nomenclature that instead use the order of components as seen in a 24- or
       - ``V4L2_PIX_FMT_XRGB32``
       - 'BX24'
 
-      - `-`
+      - X\ :sub:`7-0`
       - R\ :sub:`7-0`
       - G\ :sub:`7-0`
       - B\ :sub:`7-0`
