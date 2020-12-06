@@ -50,10 +50,12 @@ unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct)
 	unsigned int blks;
 	unsigned int first, second;
 
+	/* The initial struct gfs2_log_descriptor block */
 	blks = 1;
 	first = sdp->sd_ldptrs;
 
 	if (nstruct > first) {
+		/* Subsequent struct gfs2_meta_header blocks */
 		second = sdp->sd_inptrs;
 		blks += DIV_ROUND_UP(nstruct - first, second);
 	}
@@ -507,24 +509,20 @@ static inline unsigned int log_distance(struct gfs2_sbd *sdp, unsigned int newer
 }
 
 /**
- * calc_reserved - Calculate the number of blocks to reserve when
- *                 refunding a transaction's unused buffers.
+ * calc_reserved - Calculate the number of blocks to keep reserved
  * @sdp: The GFS2 superblock
  *
  * This is complex.  We need to reserve room for all our currently used
- * metadata buffers (e.g. normal file I/O rewriting file time stamps) and 
- * all our journaled data buffers for journaled files (e.g. files in the 
+ * metadata blocks (e.g. normal file I/O rewriting file time stamps) and
+ * all our journaled data blocks for journaled files (e.g. files in the
  * meta_fs like rindex, or files for which chattr +j was done.)
- * If we don't reserve enough space, gfs2_log_refund and gfs2_log_flush
- * will count it as free space (sd_log_blks_free) and corruption will follow.
+ * If we don't reserve enough space, corruption will follow.
  *
- * We can have metadata bufs and jdata bufs in the same journal.  So each
- * type gets its own log header, for which we need to reserve a block.
- * In fact, each type has the potential for needing more than one header 
- * in cases where we have more buffers than will fit on a journal page.
+ * We can have metadata blocks and jdata blocks in the same journal.  Each
+ * type gets its own log descriptor, for which we need to reserve a block.
+ * In fact, each type has the potential for needing more than one log descriptor
+ * in cases where we have more blocks than will fit in a log descriptor.
  * Metadata journal entries take up half the space of journaled buffer entries.
- * Thus, metadata entries have buf_limit (502) and journaled buffers have
- * databuf_limit (251) before they cause a wrap around.
  *
  * Also, we need to reserve blocks for revoke journal entries and one for an
  * overall header for the lot.
@@ -1008,7 +1006,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 	if (sdp->sd_log_head != sdp->sd_log_flush_head) {
 		log_flush_wait(sdp);
 		log_write_header(sdp, flags);
-	} else if (sdp->sd_log_tail != current_tail(sdp) && !sdp->sd_log_idle){
+	} else if (sdp->sd_log_tail != current_tail(sdp) && !sdp->sd_log_idle) {
 		atomic_dec(&sdp->sd_log_blks_free); /* Adjust for unreserved buffer */
 		trace_gfs2_log_blocks(sdp, -1);
 		log_write_header(sdp, flags);
