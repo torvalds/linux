@@ -10,6 +10,14 @@ Similarly to the packed RGB formats, the packed YUV formats store the Y, Cb and
 Cr components consecutively in memory. They may apply subsampling to the chroma
 components and thus differ in how they interlave the three components.
 
+.. note::
+
+   - In all the tables that follow, bit 7 is the most significant bit in a byte.
+   - 'Y', 'Cb' and 'Cr' denote bits of the luma, blue chroma (also known as
+     'U') and red chroma (also known as 'V') components respectively. 'A'
+     denotes bits of the alpha component (if supported by the format), and 'X'
+     denotes padding bits.
+
 
 4:4:4 Subsampling
 =================
@@ -23,9 +31,9 @@ full triplet of Y, Cb and Cr values.
     \tiny
     \setlength{\tabcolsep}{2pt}
 
-.. tabularcolumns:: |p{2.5cm}|p{0.69cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|
+.. tabularcolumns:: |p{2.5cm}|p{0.69cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|p{0.31cm}|
 
-.. flat-table:: Packed YUV 4:4:4 Image Formats
+.. flat-table:: Packed YUV 4:4:4 Image Formats (less than 8bpc)
     :header-rows:  2
     :stub-columns: 0
 
@@ -36,30 +44,8 @@ full triplet of Y, Cb and Cr values.
 
       - :cspan:`7` Byte 1
 
-      - :cspan:`7` Byte 2
-
-      - :cspan:`7` Byte 3
-
     * -
       -
-      - 7
-      - 6
-      - 5
-      - 4
-      - 3
-      - 2
-      - 1
-      - 0
-
-      - 7
-      - 6
-      - 5
-      - 4
-      - 3
-      - 2
-      - 1
-      - 0
-
       - 7
       - 6
       - 5
@@ -101,8 +87,6 @@ full triplet of Y, Cb and Cr values.
       - Y'\ :sub:`1`
       - Y'\ :sub:`0`
 
-      -  :cspan:`15`
-
     * .. _V4L2-PIX-FMT-YUV555:
 
       - ``V4L2_PIX_FMT_YUV555``
@@ -126,7 +110,6 @@ full triplet of Y, Cb and Cr values.
       - Cb\ :sub:`4`
       - Cb\ :sub:`3`
 
-      -  :cspan:`15`
     * .. _V4L2-PIX-FMT-YUV565:
 
       - ``V4L2_PIX_FMT_YUV565``
@@ -150,229 +133,85 @@ full triplet of Y, Cb and Cr values.
       - Cb\ :sub:`4`
       - Cb\ :sub:`3`
 
-      -  :cspan:`15`
-
-    * .. _V4L2-PIX-FMT-YUV32:
-
-      - ``V4L2_PIX_FMT_YUV32``
-      - 'YUV4'
-
-      - a\ :sub:`7`
-      - a\ :sub:`6`
-      - a\ :sub:`5`
-      - a\ :sub:`4`
-      - a\ :sub:`3`
-      - a\ :sub:`2`
-      - a\ :sub:`1`
-      - a\ :sub:`0`
-
-      - Y'\ :sub:`7`
-      - Y'\ :sub:`6`
-      - Y'\ :sub:`5`
-      - Y'\ :sub:`4`
-      - Y'\ :sub:`3`
-      - Y'\ :sub:`2`
-      - Y'\ :sub:`1`
-      - Y'\ :sub:`0`
-
-      - Cb\ :sub:`7`
-      - Cb\ :sub:`6`
-      - Cb\ :sub:`5`
-      - Cb\ :sub:`4`
-      - Cb\ :sub:`3`
-      - Cb\ :sub:`2`
-      - Cb\ :sub:`1`
-      - Cb\ :sub:`0`
-
-      - Cr\ :sub:`7`
-      - Cr\ :sub:`6`
-      - Cr\ :sub:`5`
-      - Cr\ :sub:`4`
-      - Cr\ :sub:`3`
-      - Cr\ :sub:`2`
-      - Cr\ :sub:`1`
-      - Cr\ :sub:`0`
-
-    * .. _V4L2-PIX-FMT-AYUV32:
-
-      - ``V4L2_PIX_FMT_AYUV32``
-      - 'AYUV'
-
-      - a\ :sub:`7`
-      - a\ :sub:`6`
-      - a\ :sub:`5`
-      - a\ :sub:`4`
-      - a\ :sub:`3`
-      - a\ :sub:`2`
-      - a\ :sub:`1`
-      - a\ :sub:`0`
-
-      - Y'\ :sub:`7`
-      - Y'\ :sub:`6`
-      - Y'\ :sub:`5`
-      - Y'\ :sub:`4`
-      - Y'\ :sub:`3`
-      - Y'\ :sub:`2`
-      - Y'\ :sub:`1`
-      - Y'\ :sub:`0`
-
-      - Cb\ :sub:`7`
-      - Cb\ :sub:`6`
-      - Cb\ :sub:`5`
-      - Cb\ :sub:`4`
-      - Cb\ :sub:`3`
-      - Cb\ :sub:`2`
-      - Cb\ :sub:`1`
-      - Cb\ :sub:`0`
-
-      - Cr\ :sub:`7`
-      - Cr\ :sub:`6`
-      - Cr\ :sub:`5`
-      - Cr\ :sub:`4`
-      - Cr\ :sub:`3`
-      - Cr\ :sub:`2`
-      - Cr\ :sub:`1`
-      - Cr\ :sub:`0`
-
-    * .. _V4L2-PIX-FMT-XYUV32:
-
-      - ``V4L2_PIX_FMT_XYUV32``
-      - 'XYUV'
-
-      - X\ :sub:`7`
-      - X\ :sub:`6`
-      - X\ :sub:`5`
-      - X\ :sub:`4`
-      - X\ :sub:`3`
-      - X\ :sub:`2`
-      - X\ :sub:`1`
-      - X\ :sub:`0`
-
-      - Y'\ :sub:`7`
-      - Y'\ :sub:`6`
-      - Y'\ :sub:`5`
-      - Y'\ :sub:`4`
-      - Y'\ :sub:`3`
-      - Y'\ :sub:`2`
-      - Y'\ :sub:`1`
-      - Y'\ :sub:`0`
-
-      - Cb\ :sub:`7`
-      - Cb\ :sub:`6`
-      - Cb\ :sub:`5`
-      - Cb\ :sub:`4`
-      - Cb\ :sub:`3`
-      - Cb\ :sub:`2`
-      - Cb\ :sub:`1`
-      - Cb\ :sub:`0`
-
-      - Cr\ :sub:`7`
-      - Cr\ :sub:`6`
-      - Cr\ :sub:`5`
-      - Cr\ :sub:`4`
-      - Cr\ :sub:`3`
-      - Cr\ :sub:`2`
-      - Cr\ :sub:`1`
-      - Cr\ :sub:`0`
-
-    * .. _V4L2-PIX-FMT-VUYA32:
-
-      - ``V4L2_PIX_FMT_VUYA32``
-      - 'VUYA'
-
-      - Cr\ :sub:`7`
-      - Cr\ :sub:`6`
-      - Cr\ :sub:`5`
-      - Cr\ :sub:`4`
-      - Cr\ :sub:`3`
-      - Cr\ :sub:`2`
-      - Cr\ :sub:`1`
-      - Cr\ :sub:`0`
-
-      - Cb\ :sub:`7`
-      - Cb\ :sub:`6`
-      - Cb\ :sub:`5`
-      - Cb\ :sub:`4`
-      - Cb\ :sub:`3`
-      - Cb\ :sub:`2`
-      - Cb\ :sub:`1`
-      - Cb\ :sub:`0`
-
-      - Y'\ :sub:`7`
-      - Y'\ :sub:`6`
-      - Y'\ :sub:`5`
-      - Y'\ :sub:`4`
-      - Y'\ :sub:`3`
-      - Y'\ :sub:`2`
-      - Y'\ :sub:`1`
-      - Y'\ :sub:`0`
-
-      - a\ :sub:`7`
-      - a\ :sub:`6`
-      - a\ :sub:`5`
-      - a\ :sub:`4`
-      - a\ :sub:`3`
-      - a\ :sub:`2`
-      - a\ :sub:`1`
-      - a\ :sub:`0`
-
-    * .. _V4L2-PIX-FMT-VUYX32:
-
-      - ``V4L2_PIX_FMT_VUYX32``
-      - 'VUYX'
-
-      - Cr\ :sub:`7`
-      - Cr\ :sub:`6`
-      - Cr\ :sub:`5`
-      - Cr\ :sub:`4`
-      - Cr\ :sub:`3`
-      - Cr\ :sub:`2`
-      - Cr\ :sub:`1`
-      - Cr\ :sub:`0`
-
-      - Cb\ :sub:`7`
-      - Cb\ :sub:`6`
-      - Cb\ :sub:`5`
-      - Cb\ :sub:`4`
-      - Cb\ :sub:`3`
-      - Cb\ :sub:`2`
-      - Cb\ :sub:`1`
-      - Cb\ :sub:`0`
-
-      - Y'\ :sub:`7`
-      - Y'\ :sub:`6`
-      - Y'\ :sub:`5`
-      - Y'\ :sub:`4`
-      - Y'\ :sub:`3`
-      - Y'\ :sub:`2`
-      - Y'\ :sub:`1`
-      - Y'\ :sub:`0`
-
-      - X\ :sub:`7`
-      - X\ :sub:`6`
-      - X\ :sub:`5`
-      - X\ :sub:`4`
-      - X\ :sub:`3`
-      - X\ :sub:`2`
-      - X\ :sub:`1`
-      - X\ :sub:`0`
-
 .. raw:: latex
 
     \endgroup
 
 .. note::
 
-    #) Bit 7 is the most significant bit;
+    For the YUV444 and YUV555 formats, the value of alpha bits is undefined
+    when reading from the driver, ignored when writing to the driver, except
+    when alpha blending has been negotiated for a :ref:`Video Overlay
+    <overlay>` or :ref:`Video Output Overlay <osd>`.
 
-    #) The value of a = alpha bits is undefined when reading from the driver,
-       ignored when writing to the driver, except when alpha blending has
-       been negotiated for a :ref:`Video Overlay <overlay>` or
-       :ref:`Video Output Overlay <osd>` for the formats Y444, YUV555 and
-       YUV4. However, for formats AYUV32 and VUYA32, the alpha component is
-       expected to contain a meaningful value that can be used by drivers
-       and applications. And, the formats XYUV32 and VUYX32 contain undefined
-       alpha values that must be ignored by all applications and drivers.
+
+.. flat-table:: Packed YUV Image Formats (8bpc)
+    :header-rows: 1
+    :stub-columns: 0
+
+    * - Identifier
+      - Code
+      - Byte 0
+      - Byte 1
+      - Byte 2
+      - Byte 3
+
+    * .. _V4L2-PIX-FMT-YUV32:
+
+      - ``V4L2_PIX_FMT_YUV32``
+      - 'YUV4'
+
+      - A\ :sub:`7-0`
+      - Y'\ :sub:`7-0`
+      - Cb\ :sub:`7-0`
+      - Cr\ :sub:`7-0`
+
+    * .. _V4L2-PIX-FMT-AYUV32:
+
+      - ``V4L2_PIX_FMT_AYUV32``
+      - 'AYUV'
+
+      - A\ :sub:`7-0`
+      - Y'\ :sub:`7-0`
+      - Cb\ :sub:`7-0`
+      - Cr\ :sub:`7-0`
+
+    * .. _V4L2-PIX-FMT-XYUV32:
+
+      - ``V4L2_PIX_FMT_XYUV32``
+      - 'XYUV'
+
+      - X\ :sub:`7-0`
+      - Y'\ :sub:`7-0`
+      - Cb\ :sub:`7-0`
+      - Cr\ :sub:`7-0`
+
+    * .. _V4L2-PIX-FMT-VUYA32:
+
+      - ``V4L2_PIX_FMT_VUYA32``
+      - 'VUYA'
+
+      - Cr\ :sub:`7-0`
+      - Cb\ :sub:`7-0`
+      - Y'\ :sub:`7-0`
+      - A\ :sub:`7-0`
+
+    * .. _V4L2-PIX-FMT-VUYX32:
+
+      - ``V4L2_PIX_FMT_VUYX32``
+      - 'VUYX'
+
+      - Cr\ :sub:`7-0`
+      - Cb\ :sub:`7-0`
+      - Y'\ :sub:`7-0`
+      - X\ :sub:`7-0`
+
+.. note::
+
+    - The alpha component is expected to contain a meaningful value that can be
+      used by drivers and applications.
+    - The padding bits contain undefined values that must be ignored by all
+      applications and drivers.
 
 
 4:2:2 Subsampling
