@@ -1284,7 +1284,7 @@ static bool io_identity_cow(struct io_kiocb *req)
 	 */
 	io_init_identity(id);
 	if (creds)
-		req->work.identity->creds = creds;
+		id->creds = creds;
 
 	/* add one for this request */
 	refcount_inc(&id->count);
