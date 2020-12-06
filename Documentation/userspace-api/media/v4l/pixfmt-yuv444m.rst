@@ -107,35 +107,4 @@ Each cell is one byte.
 
 
 **Color Sample Location:**
-
-
-
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
-
-    * -
-      - 0
-      - 1
-      - 2
-      - 3
-    * - 0
-      - YC
-      - YC
-      - YC
-      - YC
-    * - 1
-      - YC
-      - YC
-      - YC
-      - YC
-    * - 2
-      - YC
-      - YC
-      - YC
-      - YC
-    * - 3
-      - YC
-      - YC
-      - YC
-      - YC
+Chroma samples are :ref:`co-sited<yuv-chroma-cosited>`.

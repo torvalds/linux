@@ -66,43 +66,5 @@ Each cell is one byte.
 
 
 **Color Sample Location:**
-
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
-
-    * -
-      - 0
-      -
-      - 1
-      - 2
-      -
-      - 3
-    * - 0
-      - Y
-      - C
-      - Y
-      - Y
-      - C
-      - Y
-    * - 1
-      - Y
-      - C
-      - Y
-      - Y
-      - C
-      - Y
-    * - 2
-      - Y
-      - C
-      - Y
-      - Y
-      - C
-      - Y
-    * - 3
-      - Y
-      - C
-      - Y
-      - Y
-      - C
-      - Y
+Chroma samples are :ref:`interstitially sited<yuv-chroma-centered>`
+horizontally.
