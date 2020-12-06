@@ -4119,7 +4119,7 @@ static void issue_action_BSSCoexistPacket(struct adapter *padapter)
 			if (phead == plist)
 				break;
 
-			pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
+			pnetwork = container_of(plist, struct wlan_network, list);
 
 			plist = get_next(plist);
 
@@ -5601,7 +5601,7 @@ void _linked_info_dump(struct adapter *padapter)
 			phead = &pstapriv->asoc_list;
 			plist = get_next(phead);
 			while (phead != plist) {
-				psta = LIST_CONTAINOR(plist, struct sta_info, asoc_list);
+				psta = container_of(plist, struct sta_info, asoc_list);
 				plist = get_next(plist);
 
 				DBG_871X("STA[%pM]:UndecoratedSmoothedPWDB:%d\n",
@@ -6693,7 +6693,7 @@ u8 chk_bmc_sleepq_hdl(struct adapter *padapter, unsigned char *pbuf)
 		xmitframe_plist = get_next(xmitframe_phead);
 
 		while (xmitframe_phead != xmitframe_plist) {
-			pxmitframe = LIST_CONTAINOR(xmitframe_plist, struct xmit_frame, list);
+			pxmitframe = container_of(xmitframe_plist, struct xmit_frame, list);
 
 			xmitframe_plist = get_next(xmitframe_plist);
 

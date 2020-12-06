@@ -293,7 +293,7 @@ struct recv_buf *rtw_dequeue_recvbuf(struct __queue *queue)
 
 		plist = get_next(phead);
 
-		precvbuf = LIST_CONTAINOR(plist, struct recv_buf, list);
+		precvbuf = container_of(plist, struct recv_buf, list);
 
 		list_del_init(&precvbuf->list);
 
@@ -1132,7 +1132,7 @@ sint validate_recv_ctrl_frame(struct adapter *padapter, union recv_frame *precv_
 			xmitframe_plist = get_next(xmitframe_phead);
 
 			if (xmitframe_phead != xmitframe_plist) {
-				pxmitframe = LIST_CONTAINOR(xmitframe_plist, struct xmit_frame, list);
+				pxmitframe = container_of(xmitframe_plist, struct xmit_frame, list);
 
 				xmitframe_plist = get_next(xmitframe_plist);
 
