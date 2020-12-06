@@ -3936,11 +3936,15 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 
 		WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST,
 			1 << PSOC_GLOBAL_CONF_SW_ALL_RST_IND_SHIFT);
-	}
 
-	dev_info(hdev->dev,
-		"Issued HARD reset command, going to wait %dms\n",
-		reset_timeout_ms);
+		dev_info(hdev->dev,
+			"Issued HARD reset command, going to wait %dms\n",
+			reset_timeout_ms);
+	} else {
+		dev_info(hdev->dev,
+			"Firmware performs HARD reset, going to wait %dms\n",
+			reset_timeout_ms);
+	}
 
 	/*
 	 * After hard reset, we can't poll the BTM_FSM register because the PSOC
