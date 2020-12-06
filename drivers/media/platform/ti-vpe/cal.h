@@ -244,6 +244,11 @@ static inline void cal_set_field(u32 *valp, u32 field, u32 mask)
 	*valp = val;
 }
 
+extern const struct cal_fmt cal_formats[];
+extern const unsigned int cal_num_formats;
+const struct cal_fmt *cal_format_by_fourcc(u32 fourcc);
+const struct cal_fmt *cal_format_by_code(u32 code);
+
 void cal_quickdump_regs(struct cal_dev *cal);
 
 void cal_camerarx_disable(struct cal_camerarx *phy);

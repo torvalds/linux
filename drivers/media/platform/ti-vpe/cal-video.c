@@ -26,107 +26,6 @@
 
 #include "cal.h"
 
-/* ------------------------------------------------------------------
- *	Format Handling
- * ------------------------------------------------------------------
- */
-
-static const struct cal_fmt cal_formats[] = {
-	{
-		.fourcc		= V4L2_PIX_FMT_YUYV,
-		.code		= MEDIA_BUS_FMT_YUYV8_2X8,
-		.bpp		= 16,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_UYVY,
-		.code		= MEDIA_BUS_FMT_UYVY8_2X8,
-		.bpp		= 16,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_YVYU,
-		.code		= MEDIA_BUS_FMT_YVYU8_2X8,
-		.bpp		= 16,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_VYUY,
-		.code		= MEDIA_BUS_FMT_VYUY8_2X8,
-		.bpp		= 16,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_RGB565, /* gggbbbbb rrrrrggg */
-		.code		= MEDIA_BUS_FMT_RGB565_2X8_LE,
-		.bpp		= 16,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_RGB565X, /* rrrrrggg gggbbbbb */
-		.code		= MEDIA_BUS_FMT_RGB565_2X8_BE,
-		.bpp		= 16,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_RGB555, /* gggbbbbb arrrrrgg */
-		.code		= MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE,
-		.bpp		= 16,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_RGB555X, /* arrrrrgg gggbbbbb */
-		.code		= MEDIA_BUS_FMT_RGB555_2X8_PADHI_BE,
-		.bpp		= 16,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_RGB24, /* rgb */
-		.code		= MEDIA_BUS_FMT_RGB888_2X12_LE,
-		.bpp		= 24,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_BGR24, /* bgr */
-		.code		= MEDIA_BUS_FMT_RGB888_2X12_BE,
-		.bpp		= 24,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_RGB32, /* argb */
-		.code		= MEDIA_BUS_FMT_ARGB8888_1X32,
-		.bpp		= 32,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_SBGGR8,
-		.code		= MEDIA_BUS_FMT_SBGGR8_1X8,
-		.bpp		= 8,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_SGBRG8,
-		.code		= MEDIA_BUS_FMT_SGBRG8_1X8,
-		.bpp		= 8,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_SGRBG8,
-		.code		= MEDIA_BUS_FMT_SGRBG8_1X8,
-		.bpp		= 8,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_SRGGB8,
-		.code		= MEDIA_BUS_FMT_SRGGB8_1X8,
-		.bpp		= 8,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_SBGGR10,
-		.code		= MEDIA_BUS_FMT_SBGGR10_1X10,
-		.bpp		= 10,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_SGBRG10,
-		.code		= MEDIA_BUS_FMT_SGBRG10_1X10,
-		.bpp		= 10,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_SGRBG10,
-		.code		= MEDIA_BUS_FMT_SGRBG10_1X10,
-		.bpp		= 10,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_SRGGB10,
-		.code		= MEDIA_BUS_FMT_SRGGB10_1X10,
-		.bpp		= 10,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_SBGGR12,
-		.code		= MEDIA_BUS_FMT_SBGGR12_1X12,
-		.bpp		= 12,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_SGBRG12,
-		.code		= MEDIA_BUS_FMT_SGBRG12_1X12,
-		.bpp		= 12,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_SGRBG12,
-		.code		= MEDIA_BUS_FMT_SGRBG12_1X12,
-		.bpp		= 12,
-	}, {
-		.fourcc		= V4L2_PIX_FMT_SRGGB12,
-		.code		= MEDIA_BUS_FMT_SRGGB12_1X12,
-		.bpp		= 12,
-	},
-};
-
 /*  Print Four-character-code (FOURCC) */
 static char *fourcc_to_str(u32 fmt)
 {
@@ -726,7 +625,7 @@ static int cal_ctx_v4l2_init_formats(struct cal_ctx *ctx)
 	int ret = 0;
 
 	/* Enumerate sub device formats and enable all matching local formats */
-	ctx->active_fmt = devm_kcalloc(ctx->cal->dev, ARRAY_SIZE(cal_formats),
+	ctx->active_fmt = devm_kcalloc(ctx->cal->dev, cal_num_formats,
 				       sizeof(*ctx->active_fmt), GFP_KERNEL);
 	ctx->num_active_fmt = 0;
 
@@ -744,7 +643,7 @@ static int cal_ctx_v4l2_init_formats(struct cal_ctx *ctx)
 			"subdev %s: code: %04x idx: %u\n",
 			ctx->phy->sensor->name, mbus_code.code, j);
 
-		for (k = 0; k < ARRAY_SIZE(cal_formats); k++) {
+		for (k = 0; k < cal_num_formats; k++) {
 			const struct cal_fmt *fmt = &cal_formats[k];
 
 			if (mbus_code.code == fmt->code) {
