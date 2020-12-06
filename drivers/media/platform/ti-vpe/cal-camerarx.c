@@ -604,7 +604,209 @@ done:
  * ------------------------------------------------------------------
  */
 
+static inline struct cal_camerarx *to_cal_camerarx(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct cal_camerarx, subdev);
+}
+
+static struct v4l2_mbus_framefmt *
+cal_camerarx_get_pad_format(struct cal_camerarx *phy,
+			    struct v4l2_subdev_pad_config *cfg,
+			    unsigned int pad, u32 which)
+{
+	switch (which) {
+	case V4L2_SUBDEV_FORMAT_TRY:
+		return v4l2_subdev_get_try_format(&phy->subdev, cfg, pad);
+	case V4L2_SUBDEV_FORMAT_ACTIVE:
+		return &phy->formats[pad];
+	default:
+		return NULL;
+	}
+}
+
+static int cal_camerarx_sd_s_stream(struct v4l2_subdev *sd, int enable)
+{
+	struct cal_camerarx *phy = to_cal_camerarx(sd);
+
+	if (enable)
+		return cal_camerarx_start(phy, NULL);
+
+	cal_camerarx_stop(phy);
+	return 0;
+}
+
+static int cal_camerarx_sd_enum_mbus_code(struct v4l2_subdev *sd,
+					  struct v4l2_subdev_pad_config *cfg,
+					  struct v4l2_subdev_mbus_code_enum *code)
+{
+	struct cal_camerarx *phy = to_cal_camerarx(sd);
+
+	/* No transcoding, source and sink codes must match. */
+	if (code->pad == CAL_CAMERARX_PAD_SOURCE) {
+		struct v4l2_mbus_framefmt *fmt;
+
+		if (code->index > 0)
+			return -EINVAL;
+
+		fmt = cal_camerarx_get_pad_format(phy, cfg,
+						  CAL_CAMERARX_PAD_SINK,
+						  code->which);
+		code->code = fmt->code;
+		return 0;
+	}
+
+	if (code->index >= cal_num_formats)
+		return -EINVAL;
+
+	code->code = cal_formats[code->index].code;
+
+	return 0;
+}
+
+static int cal_camerarx_sd_enum_frame_size(struct v4l2_subdev *sd,
+					   struct v4l2_subdev_pad_config *cfg,
+					   struct v4l2_subdev_frame_size_enum *fse)
+{
+	struct cal_camerarx *phy = to_cal_camerarx(sd);
+	const struct cal_fmt *fmtinfo;
+
+	if (fse->index > 0)
+		return -EINVAL;
+
+	/* No transcoding, source and sink formats must match. */
+	if (fse->pad == CAL_CAMERARX_PAD_SOURCE) {
+		struct v4l2_mbus_framefmt *fmt;
+
+		fmt = cal_camerarx_get_pad_format(phy, cfg,
+						  CAL_CAMERARX_PAD_SINK,
+						  fse->which);
+		if (fse->code != fmt->code)
+			return -EINVAL;
+
+		fse->min_width = fmt->width;
+		fse->max_width = fmt->width;
+		fse->min_height = fmt->height;
+		fse->max_height = fmt->height;
+
+		return 0;
+	}
+
+	fmtinfo = cal_format_by_code(fse->code);
+	if (!fmtinfo)
+		return -EINVAL;
+
+	fse->min_width = CAL_MIN_WIDTH_BYTES * 8 / ALIGN(fmtinfo->bpp, 8);
+	fse->max_width = CAL_MAX_WIDTH_BYTES * 8 / ALIGN(fmtinfo->bpp, 8);
+	fse->min_height = CAL_MIN_HEIGHT_LINES;
+	fse->max_height = CAL_MAX_HEIGHT_LINES;
+
+	return 0;
+}
+
+static int cal_camerarx_sd_get_fmt(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_format *format)
+{
+	struct cal_camerarx *phy = to_cal_camerarx(sd);
+	struct v4l2_mbus_framefmt *fmt;
+
+	fmt = cal_camerarx_get_pad_format(phy, cfg, format->pad, format->which);
+	format->format = *fmt;
+
+	return 0;
+}
+
+static int cal_camerarx_sd_set_fmt(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_format *format)
+{
+	struct cal_camerarx *phy = to_cal_camerarx(sd);
+	const struct cal_fmt *fmtinfo;
+	struct v4l2_mbus_framefmt *fmt;
+	unsigned int bpp;
+
+	/* No transcoding, source and sink formats must match. */
+	if (format->pad == CAL_CAMERARX_PAD_SOURCE)
+		return cal_camerarx_sd_get_fmt(sd, cfg, format);
+
+	/*
+	 * Default to the first format is the requested media bus code isn't
+	 * supported.
+	 */
+	fmtinfo = cal_format_by_code(format->format.code);
+	if (!fmtinfo)
+		fmtinfo = &cal_formats[0];
+
+	/*
+	 * Clamp the size, update the code. The field and colorspace are
+	 * accepted as-is.
+	 */
+	bpp = ALIGN(fmtinfo->bpp, 8);
+
+	format->format.width = clamp_t(unsigned int, format->format.width,
+				       CAL_MIN_WIDTH_BYTES * 8 / bpp,
+				       CAL_MAX_WIDTH_BYTES * 8 / bpp);
+	format->format.height = clamp_t(unsigned int, format->format.height,
+					CAL_MIN_HEIGHT_LINES,
+					CAL_MAX_HEIGHT_LINES);
+	format->format.code = fmtinfo->code;
+
+	/* Store the format and propagate it to the source pad. */
+	fmt = cal_camerarx_get_pad_format(phy, cfg, CAL_CAMERARX_PAD_SINK,
+					  format->which);
+	*fmt = format->format;
+
+	fmt = cal_camerarx_get_pad_format(phy, cfg, CAL_CAMERARX_PAD_SOURCE,
+					  format->which);
+	*fmt = format->format;
+
+	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
+		phy->fmtinfo = fmtinfo;
+
+	return 0;
+}
+
+static int cal_camerarx_sd_init_cfg(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_pad_config *cfg)
+{
+	struct v4l2_subdev_format format = {
+		.which = cfg ? V4L2_SUBDEV_FORMAT_TRY
+		       : V4L2_SUBDEV_FORMAT_ACTIVE,
+		.pad = CAL_CAMERARX_PAD_SINK,
+		.format = {
+			.width = 640,
+			.height = 480,
+			.code = MEDIA_BUS_FMT_UYVY8_2X8,
+			.field = V4L2_FIELD_NONE,
+			.colorspace = V4L2_COLORSPACE_SRGB,
+			.ycbcr_enc = V4L2_YCBCR_ENC_601,
+			.quantization = V4L2_QUANTIZATION_LIM_RANGE,
+			.xfer_func = V4L2_XFER_FUNC_SRGB,
+		},
+	};
+
+	return cal_camerarx_sd_set_fmt(sd, cfg, &format);
+}
+
+static const struct v4l2_subdev_video_ops cal_camerarx_video_ops = {
+	.s_stream = cal_camerarx_sd_s_stream,
+};
+
+static const struct v4l2_subdev_pad_ops cal_camerarx_pad_ops = {
+	.init_cfg = cal_camerarx_sd_init_cfg,
+	.enum_mbus_code = cal_camerarx_sd_enum_mbus_code,
+	.enum_frame_size = cal_camerarx_sd_enum_frame_size,
+	.get_fmt = cal_camerarx_sd_get_fmt,
+	.set_fmt = cal_camerarx_sd_set_fmt,
+};
+
 static const struct v4l2_subdev_ops cal_camerarx_subdev_ops = {
+	.video = &cal_camerarx_video_ops,
+	.pad = &cal_camerarx_pad_ops,
+};
+
+struct media_entity_operations cal_camerarx_media_ops = {
+	.link_validate = v4l2_subdev_link_validate,
 };
 
 /* ------------------------------------------------------------------
@@ -658,10 +860,13 @@ struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 
 	phy->pads[CAL_CAMERARX_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	phy->pads[CAL_CAMERARX_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
+	sd->entity.ops = &cal_camerarx_media_ops;
 	ret = media_entity_pads_init(&sd->entity, ARRAY_SIZE(phy->pads),
 				     phy->pads);
 	if (ret)
 		goto error;
+
+	cal_camerarx_sd_init_cfg(sd, NULL);
 
 	ret = v4l2_device_register_subdev(&cal->v4l2_dev, sd);
 	if (ret)
