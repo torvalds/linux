@@ -875,9 +875,19 @@ static void btree_iter_verify_new_node(struct btree_iter *iter, struct btree *b)
 		char buf[100];
 		struct bkey uk = bkey_unpack_key(b, k);
 
+		bch2_dump_btree_node(iter->trans->c, l->b);
 		bch2_bkey_to_text(&PBUF(buf), &uk);
-		panic("parent iter doesn't point to new node:\n%s\n%llu:%llu\n",
-		      buf, b->key.k.p.inode, b->key.k.p.offset);
+		panic("parent iter doesn't point to new node:\n"
+		      "iter pos %s %llu:%llu\n"
+		      "iter key %s\n"
+		      "new node %llu:%llu-%llu:%llu\n",
+		      bch2_btree_ids[iter->btree_id],
+		      iter->pos.inode,
+		      iter->pos.offset,
+		      buf,
+		      b->data->min_key.inode,
+		      b->data->min_key.offset,
+		      b->key.k.p.inode, b->key.k.p.offset);
 	}
 
 	if (!parent_locked)

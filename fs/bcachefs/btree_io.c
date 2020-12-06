@@ -635,7 +635,12 @@ enum btree_validate_ret {
 ({									\
 	__label__ out;							\
 	char _buf[300];							\
+	char *buf2 = _buf;						\
 	struct printbuf out = PBUF(_buf);				\
+									\
+	buf2 = kmalloc(4096, GFP_ATOMIC);				\
+	if (buf2)							\
+		out = _PBUF(buf2, 4986);				\
 									\
 	btree_err_msg(&out, c, b, i, b->written, write);		\
 	pr_buf(&out, ": " msg, ##__VA_ARGS__);				\
@@ -643,13 +648,13 @@ enum btree_validate_ret {
 	if (type == BTREE_ERR_FIXABLE &&				\
 	    write == READ &&						\
 	    !test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags)) {		\
-		mustfix_fsck_err(c, "%s", _buf);			\
+		mustfix_fsck_err(c, "%s", buf2);			\
 		goto out;						\
 	}								\
 									\
 	switch (write) {						\
 	case READ:							\
-		bch_err(c, "%s", _buf);					\
+		bch_err(c, "%s", buf2);					\
 									\
 		switch (type) {						\
 		case BTREE_ERR_FIXABLE:					\
@@ -670,7 +675,7 @@ enum btree_validate_ret {
 		}							\
 		break;							\
 	case WRITE:							\
-		bch_err(c, "corrupt metadata before write: %s", _buf);	\
+		bch_err(c, "corrupt metadata before write: %s", buf2);	\
 									\
 		if (bch2_fs_inconsistent(c)) {				\
 			ret = BCH_FSCK_ERRORS_NOT_FIXED;		\
@@ -679,6 +684,8 @@ enum btree_validate_ret {
 		break;							\
 	}								\
 out:									\
+	if (buf2 != _buf)						\
+		kfree(buf2);						\
 	true;								\
 })
 
@@ -844,7 +851,7 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 
 			bch2_bkey_val_to_text(&PBUF(buf), c, u.s_c);
 			btree_err(BTREE_ERR_FIXABLE, c, b, i,
-				  "invalid bkey:\n%s\n%s", invalid, buf);
+				  "invalid bkey: %s\n%s", invalid, buf);
 
 			i->u64s = cpu_to_le16(le16_to_cpu(i->u64s) - k->u64s);
 			memmove_u64s_down(k, bkey_next(k),
