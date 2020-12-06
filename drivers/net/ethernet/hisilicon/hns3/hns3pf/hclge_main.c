@@ -8617,6 +8617,8 @@ static int hclge_set_vlan_tx_offload_cfg(struct hclge_vport *vport)
 		      vcfg->insert_tag1_en ? 1 : 0);
 	hnae3_set_bit(req->vport_vlan_cfg, HCLGE_PORT_INS_TAG2_EN_B,
 		      vcfg->insert_tag2_en ? 1 : 0);
+	hnae3_set_bit(req->vport_vlan_cfg, HCLGE_TAG_SHIFT_MODE_EN_B,
+		      vcfg->tag_shift_mode_en ? 1 : 0);
 	hnae3_set_bit(req->vport_vlan_cfg, HCLGE_CFG_NIC_ROCE_SEL_B, 0);
 
 	req->vf_offset = vport->vport_id / HCLGE_VF_NUM_PER_CMD;
@@ -8654,6 +8656,10 @@ static int hclge_set_vlan_rx_offload_cfg(struct hclge_vport *vport)
 		      vcfg->vlan1_vlan_prionly ? 1 : 0);
 	hnae3_set_bit(req->vport_vlan_cfg, HCLGE_SHOW_TAG2_EN_B,
 		      vcfg->vlan2_vlan_prionly ? 1 : 0);
+	hnae3_set_bit(req->vport_vlan_cfg, HCLGE_DISCARD_TAG1_EN_B,
+		      vcfg->strip_tag1_discard_en ? 1 : 0);
+	hnae3_set_bit(req->vport_vlan_cfg, HCLGE_DISCARD_TAG2_EN_B,
+		      vcfg->strip_tag2_discard_en ? 1 : 0);
 
 	req->vf_offset = vport->vport_id / HCLGE_VF_NUM_PER_CMD;
 	bmap_index = vport->vport_id % HCLGE_VF_NUM_PER_CMD /
@@ -8681,7 +8687,10 @@ static int hclge_vlan_offload_cfg(struct hclge_vport *vport,
 		vport->txvlan_cfg.insert_tag1_en = false;
 		vport->txvlan_cfg.default_tag1 = 0;
 	} else {
-		vport->txvlan_cfg.accept_tag1 = false;
+		struct hnae3_ae_dev *ae_dev = pci_get_drvdata(vport->nic.pdev);
+
+		vport->txvlan_cfg.accept_tag1 =
+			ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3;
 		vport->txvlan_cfg.insert_tag1_en = true;
 		vport->txvlan_cfg.default_tag1 = vlan_tag;
 	}
@@ -8696,16 +8705,21 @@ static int hclge_vlan_offload_cfg(struct hclge_vport *vport,
 	vport->txvlan_cfg.accept_untag2 = true;
 	vport->txvlan_cfg.insert_tag2_en = false;
 	vport->txvlan_cfg.default_tag2 = 0;
+	vport->txvlan_cfg.tag_shift_mode_en = true;
 
 	if (port_base_vlan_state == HNAE3_PORT_BASE_VLAN_DISABLE) {
 		vport->rxvlan_cfg.strip_tag1_en = false;
 		vport->rxvlan_cfg.strip_tag2_en =
 				vport->rxvlan_cfg.rx_vlan_offload_en;
+		vport->rxvlan_cfg.strip_tag2_discard_en = false;
 	} else {
 		vport->rxvlan_cfg.strip_tag1_en =
 				vport->rxvlan_cfg.rx_vlan_offload_en;
 		vport->rxvlan_cfg.strip_tag2_en = true;
+		vport->rxvlan_cfg.strip_tag2_discard_en = true;
 	}
+
+	vport->rxvlan_cfg.strip_tag1_discard_en = false;
 	vport->rxvlan_cfg.vlan1_vlan_prionly = false;
 	vport->rxvlan_cfg.vlan2_vlan_prionly = false;
 
@@ -9000,10 +9014,14 @@ int hclge_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable)
 	if (vport->port_base_vlan_cfg.state == HNAE3_PORT_BASE_VLAN_DISABLE) {
 		vport->rxvlan_cfg.strip_tag1_en = false;
 		vport->rxvlan_cfg.strip_tag2_en = enable;
+		vport->rxvlan_cfg.strip_tag2_discard_en = false;
 	} else {
 		vport->rxvlan_cfg.strip_tag1_en = enable;
 		vport->rxvlan_cfg.strip_tag2_en = true;
+		vport->rxvlan_cfg.strip_tag2_discard_en = true;
 	}
+
+	vport->rxvlan_cfg.strip_tag1_discard_en = false;
 	vport->rxvlan_cfg.vlan1_vlan_prionly = false;
 	vport->rxvlan_cfg.vlan2_vlan_prionly = false;
 	vport->rxvlan_cfg.rx_vlan_offload_en = enable;
@@ -9115,6 +9133,7 @@ static u16 hclge_get_port_base_vlan_state(struct hclge_vport *vport,
 static int hclge_set_vf_vlan_filter(struct hnae3_handle *handle, int vfid,
 				    u16 vlan, u8 qos, __be16 proto)
 {
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_vlan_info vlan_info;
@@ -9144,16 +9163,25 @@ static int hclge_set_vf_vlan_filter(struct hnae3_handle *handle, int vfid,
 	vlan_info.qos = qos;
 	vlan_info.vlan_proto = ntohs(proto);
 
-	if (!test_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state)) {
-		return hclge_update_port_base_vlan_cfg(vport, state,
-						       &vlan_info);
-	} else {
-		ret = hclge_push_vf_port_base_vlan_info(&hdev->vport[0],
-							vport->vport_id, state,
-							vlan, qos,
-							ntohs(proto));
+	ret = hclge_update_port_base_vlan_cfg(vport, state, &vlan_info);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to update port base vlan for vf %d, ret = %d\n",
+			vfid, ret);
 		return ret;
 	}
+
+	/* for DEVICE_VERSION_V3, vf doesn't need to know about the port based
+	 * VLAN state.
+	 */
+	if (ae_dev->dev_version < HNAE3_DEVICE_VERSION_V3 &&
+	    test_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state))
+		hclge_push_vf_port_base_vlan_info(&hdev->vport[0],
+						  vport->vport_id, state,
+						  vlan, qos,
+						  ntohs(proto));
+
+	return 0;
 }
 
 static void hclge_clear_vf_vlan(struct hclge_dev *hdev)

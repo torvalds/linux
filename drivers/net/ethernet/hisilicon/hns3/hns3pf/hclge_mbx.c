@@ -378,7 +378,16 @@ static int hclge_set_vf_vlan_cfg(struct hclge_vport *vport,
 		status = hclge_update_port_base_vlan_cfg(vport, *state,
 							 vlan_info);
 	} else if (msg_cmd->subcode == HCLGE_MBX_GET_PORT_BASE_VLAN_STATE) {
-		resp_msg->data[0] = vport->port_base_vlan_cfg.state;
+		struct hnae3_ae_dev *ae_dev = pci_get_drvdata(vport->nic.pdev);
+		/* vf does not need to know about the port based VLAN state
+		 * on device HNAE3_DEVICE_VERSION_V3. So always return disable
+		 * on device HNAE3_DEVICE_VERSION_V3 if vf queries the port
+		 * based VLAN state.
+		 */
+		resp_msg->data[0] =
+			ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3 ?
+			HNAE3_PORT_BASE_VLAN_DISABLE :
+			vport->port_base_vlan_cfg.state;
 		resp_msg->len = sizeof(u8);
 	}
 

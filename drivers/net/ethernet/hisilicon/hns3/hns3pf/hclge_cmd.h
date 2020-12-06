@@ -825,6 +825,7 @@ enum hclge_mac_vlan_cfg_sel {
 #define HCLGE_CFG_NIC_ROCE_SEL_B	4
 #define HCLGE_ACCEPT_TAG2_B		5
 #define HCLGE_ACCEPT_UNTAG2_B		6
+#define HCLGE_TAG_SHIFT_MODE_EN_B	7
 #define HCLGE_VF_NUM_PER_BYTE		8
 
 struct hclge_vport_vtag_tx_cfg_cmd {
@@ -841,6 +842,8 @@ struct hclge_vport_vtag_tx_cfg_cmd {
 #define HCLGE_REM_TAG2_EN_B		1
 #define HCLGE_SHOW_TAG1_EN_B		2
 #define HCLGE_SHOW_TAG2_EN_B		3
+#define HCLGE_DISCARD_TAG1_EN_B		5
+#define HCLGE_DISCARD_TAG2_EN_B		6
 struct hclge_vport_vtag_rx_cfg_cmd {
 	u8 vport_vlan_cfg;
 	u8 vf_offset;

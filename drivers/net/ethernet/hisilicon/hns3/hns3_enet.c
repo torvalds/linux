@@ -1006,6 +1006,7 @@ static int hns3_handle_vtags(struct hns3_enet_ring *tx_ring,
 			     struct sk_buff *skb)
 {
 	struct hnae3_handle *handle = tx_ring->tqp->handle;
+	struct hnae3_ae_dev *ae_dev;
 	struct vlan_ethhdr *vhdr;
 	int rc;
 
@@ -1013,10 +1014,13 @@ static int hns3_handle_vtags(struct hns3_enet_ring *tx_ring,
 	      skb_vlan_tag_present(skb)))
 		return 0;
 
-	/* Since HW limitation, if port based insert VLAN enabled, only one VLAN
-	 * header is allowed in skb, otherwise it will cause RAS error.
+	/* For HW limitation on HNAE3_DEVICE_VERSION_V2, if port based insert
+	 * VLAN enabled, only one VLAN header is allowed in skb, otherwise it
+	 * will cause RAS error.
 	 */
+	ae_dev = pci_get_drvdata(handle->pdev);
 	if (unlikely(skb_vlan_tagged_multi(skb) &&
+		     ae_dev->dev_version <= HNAE3_DEVICE_VERSION_V2 &&
 		     handle->port_base_vlan_state ==
 		     HNAE3_PORT_BASE_VLAN_ENABLE))
 		return -EINVAL;
