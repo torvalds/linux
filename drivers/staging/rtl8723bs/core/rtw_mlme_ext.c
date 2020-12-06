@@ -3880,7 +3880,7 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 	u16 reason_code;
 	u16 BA_timeout_value;
 	u16 BA_starting_seqctrl = 0;
-	enum HT_CAP_AMPDU_FACTOR max_rx_ampdu_factor;
+	enum ieee80211_max_ampdu_length_exp max_rx_ampdu_factor;
 	struct xmit_frame		*pmgntframe;
 	struct pkt_attrib		*pattrib;
 	u8 			*pframe;
@@ -3975,18 +3975,18 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 			pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)(&status), &(pattrib->pktlen));
 			if (padapter->driver_rx_ampdu_factor != 0xFF)
 				max_rx_ampdu_factor =
-				  (enum HT_CAP_AMPDU_FACTOR)padapter->driver_rx_ampdu_factor;
+				  (enum ieee80211_max_ampdu_length_exp)padapter->driver_rx_ampdu_factor;
 			else
 				rtw_hal_get_def_var(padapter,
 						    HW_VAR_MAX_RX_AMPDU_FACTOR, &max_rx_ampdu_factor);
 
-			if (MAX_AMPDU_FACTOR_64K == max_rx_ampdu_factor)
+			if (IEEE80211_HT_MAX_AMPDU_64K == max_rx_ampdu_factor)
 				BA_para_set = ((le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f) | 0x1000); /* 64 buffer size */
-			else if (MAX_AMPDU_FACTOR_32K == max_rx_ampdu_factor)
+			else if (IEEE80211_HT_MAX_AMPDU_32K == max_rx_ampdu_factor)
 				BA_para_set = ((le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f) | 0x0800); /* 32 buffer size */
-			else if (MAX_AMPDU_FACTOR_16K == max_rx_ampdu_factor)
+			else if (IEEE80211_HT_MAX_AMPDU_16K == max_rx_ampdu_factor)
 				BA_para_set = ((le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f) | 0x0400); /* 16 buffer size */
-			else if (MAX_AMPDU_FACTOR_8K == max_rx_ampdu_factor)
+			else if (IEEE80211_HT_MAX_AMPDU_8K == max_rx_ampdu_factor)
 				BA_para_set = ((le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f) | 0x0200); /* 8 buffer size */
 			else
 				BA_para_set = ((le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f) | 0x1000); /* 64 buffer size */

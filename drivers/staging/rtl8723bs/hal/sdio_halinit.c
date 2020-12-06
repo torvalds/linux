@@ -1802,7 +1802,7 @@ static u8 GetHalDefVar8723BSDIO(
 	case HW_VAR_MAX_RX_AMPDU_FACTOR:
 		/*  Stanley@BB.SD3 suggests 16K can get stable performance */
 		/*  coding by Lucas@20130730 */
-		*(u32 *)pValue = MAX_AMPDU_FACTOR_16K;
+		*(u32 *)pValue = IEEE80211_HT_MAX_AMPDU_16K;
 		break;
 	default:
 		bResult = GetHalDefVar8723B(Adapter, eVariable, pValue);

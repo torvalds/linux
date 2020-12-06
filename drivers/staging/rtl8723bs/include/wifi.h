@@ -612,13 +612,6 @@ struct ADDBA_request {
 	__le16	BA_starting_seqctrl;
 }  __attribute__ ((packed));
 
-enum HT_CAP_AMPDU_FACTOR {
-	MAX_AMPDU_FACTOR_8K		= 0,
-	MAX_AMPDU_FACTOR_16K	= 1,
-	MAX_AMPDU_FACTOR_32K	= 2,
-	MAX_AMPDU_FACTOR_64K	= 3,
-};
-
 /* 802.11n HT capabilities masks */
 #define IEEE80211_HT_CAP_LDPC_CODING		0x0001
 #define IEEE80211_HT_CAP_SUP_WIDTH		0x0002

@@ -2585,7 +2585,7 @@ void rtw_build_wmm_ie_ht(struct adapter *padapter, u8 *out_ie, uint *pout_len)
 unsigned int rtw_restructure_ht_ie(struct adapter *padapter, u8 *in_ie, u8 *out_ie, uint in_len, uint *pout_len, u8 channel)
 {
 	u32 ielen, out_len;
-	enum HT_CAP_AMPDU_FACTOR max_rx_ampdu_factor;
+	enum ieee80211_max_ampdu_length_exp max_rx_ampdu_factor;
 	unsigned char *p, *pframe;
 	struct ieee80211_ht_cap ht_capie;
 	u8 cbw40_enable = 0, stbc_rx_enable = 0, rf_type = 0, operation_bw = 0;
@@ -2705,7 +2705,7 @@ unsigned int rtw_restructure_ht_ie(struct adapter *padapter, u8 *in_ie, u8 *out_
 
 	if (padapter->driver_rx_ampdu_factor != 0xFF)
 		max_rx_ampdu_factor =
-		  (enum HT_CAP_AMPDU_FACTOR)padapter->driver_rx_ampdu_factor;
+		  (enum ieee80211_max_ampdu_length_exp)padapter->driver_rx_ampdu_factor;
 	else
 		rtw_hal_get_def_var(padapter, HW_VAR_MAX_RX_AMPDU_FACTOR,
 				    &max_rx_ampdu_factor);
