@@ -610,7 +610,7 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct)
 		else
 			j->nr_background_reclaim += nr_flushed;
 		trace_journal_reclaim_finish(c, nr_flushed);
-	} while (min_nr);
+	} while (min_nr && nr_flushed);
 
 	memalloc_noreclaim_restore(flags);
 
