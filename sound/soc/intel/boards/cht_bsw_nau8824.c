@@ -176,9 +176,6 @@ SND_SOC_DAILINK_DEF(media,
 SND_SOC_DAILINK_DEF(deepbuffer,
 	DAILINK_COMP_ARRAY(COMP_CPU("deepbuffer-cpu-dai")));
 
-SND_SOC_DAILINK_DEF(compress,
-	DAILINK_COMP_ARRAY(COMP_CPU("compress-cpu-dai")));
-
 SND_SOC_DAILINK_DEF(ssp2_port,
 	DAILINK_COMP_ARRAY(COMP_CPU("ssp2-port")));
 SND_SOC_DAILINK_DEF(ssp2_codec,
@@ -208,11 +205,6 @@ static struct snd_soc_dai_link cht_dailink[] = {
 		.dpcm_playback = 1,
 		.ops = &cht_aif1_ops,
 		SND_SOC_DAILINK_REG(deepbuffer, dummy, platform),
-	},
-	[MERR_DPCM_COMPR] = {
-		.name = "Compressed Port",
-		.stream_name = "Compress",
-		SND_SOC_DAILINK_REG(compress, dummy, platform),
 	},
 	/* Back End DAI links */
 	{
