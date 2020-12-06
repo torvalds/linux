@@ -421,6 +421,8 @@ static int cal_async_notifier_bound(struct v4l2_async_notifier *notifier,
 				    struct v4l2_async_subdev *asd)
 {
 	struct cal_camerarx *phy = to_cal_asd(asd)->phy;
+	int pad;
+	int ret;
 
 	if (phy->sensor) {
 		phy_info(phy, "Rejecting subdev %s (Already set!!)",
@@ -430,6 +432,25 @@ static int cal_async_notifier_bound(struct v4l2_async_notifier *notifier,
 
 	phy->sensor = subdev;
 	phy_dbg(1, phy, "Using sensor %s for capture\n", subdev->name);
+
+	pad = media_entity_get_fwnode_pad(&subdev->entity,
+					  of_fwnode_handle(phy->sensor_ep_node),
+					  MEDIA_PAD_FL_SOURCE);
+	if (pad < 0) {
+		phy_err(phy, "Sensor %s has no connected source pad\n",
+			subdev->name);
+		return pad;
+	}
+
+	ret = media_create_pad_link(&subdev->entity, pad,
+				    &phy->subdev.entity, CAL_CAMERARX_PAD_SINK,
+				    MEDIA_LNK_FL_IMMUTABLE |
+				    MEDIA_LNK_FL_ENABLED);
+	if (ret) {
+		phy_err(phy, "Failed to create media link for sensor %s\n",
+			subdev->name);
+		return ret;
+	}
 
 	return 0;
 }
@@ -797,6 +818,11 @@ static int cal_probe(struct platform_device *pdev)
 	cal_get_hwinfo(cal);
 	pm_runtime_put_sync(&pdev->dev);
 
+	/* Initialize the media device. */
+	ret = cal_media_init(cal);
+	if (ret < 0)
+		goto error_pm_runtime;
+
 	/* Create CAMERARX PHYs. */
 	for (i = 0; i < cal->data->num_csi2_phy; ++i) {
 		cal->phy[i] = cal_camerarx_create(cal, i);
@@ -815,11 +841,6 @@ static int cal_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto error_camerarx;
 	}
-
-	/* Initialize the media device. */
-	ret = cal_media_init(cal);
-	if (ret < 0)
-		goto error_camerarx;
 
 	/* Create contexts. */
 	for (i = 0; i < cal->data->num_csi2_phy; ++i) {
@@ -848,11 +869,11 @@ error_context:
 			cal_ctx_v4l2_cleanup(ctx);
 	}
 
-	cal_media_cleanup(cal);
-
 error_camerarx:
 	for (i = 0; i < ARRAY_SIZE(cal->phy); i++)
 		cal_camerarx_destroy(cal->phy[i]);
+
+	cal_media_cleanup(cal);
 
 error_pm_runtime:
 	pm_runtime_disable(&pdev->dev);

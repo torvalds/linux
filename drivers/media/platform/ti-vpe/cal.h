@@ -24,6 +24,7 @@
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
+#include <media/v4l2-subdev.h>
 #include <media/videobuf2-v4l2.h>
 
 #define CAL_MODULE_NAME			"cal"
@@ -33,12 +34,14 @@
 #define MAX_WIDTH_BYTES			(8192 * 8)
 #define MAX_HEIGHT_LINES		16383
 
+#define CAL_CAMERARX_PAD_SINK		0
+#define CAL_CAMERARX_PAD_SOURCE		1
+
 struct device;
 struct device_node;
 struct resource;
 struct regmap;
 struct regmap_fied;
-struct v4l2_subdev;
 
 /* CTRL_CORE_CAMERRX_CONTROL register field id */
 enum cal_camerarx_field {
@@ -108,8 +111,12 @@ struct cal_camerarx {
 	unsigned int		instance;
 
 	struct v4l2_fwnode_endpoint	endpoint;
+	struct device_node	*sensor_ep_node;
 	struct device_node	*sensor_node;
 	struct v4l2_subdev	*sensor;
+
+	struct v4l2_subdev	subdev;
+	struct media_pad	pads[2];
 };
 
 struct cal_dev {

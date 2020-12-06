@@ -533,8 +533,8 @@ static int cal_camerarx_regmap_init(struct cal_dev *cal,
 static int cal_camerarx_parse_dt(struct cal_camerarx *phy)
 {
 	struct v4l2_fwnode_endpoint *endpoint = &phy->endpoint;
-	struct device_node *ep_node;
 	char data_lanes[V4L2_FWNODE_CSI2_MAX_DATA_LANES * 2];
+	struct device_node *ep_node;
 	unsigned int i;
 	int ret;
 
@@ -582,9 +582,11 @@ static int cal_camerarx_parse_dt(struct cal_camerarx *phy)
 		endpoint->bus.mipi_csi2.flags);
 
 	/* Retrieve the connected device and store it for later use. */
-	phy->sensor_node = of_graph_get_remote_port_parent(ep_node);
+	phy->sensor_ep_node = of_graph_get_remote_endpoint(ep_node);
+	phy->sensor_node = of_graph_get_port_parent(phy->sensor_ep_node);
 	if (!phy->sensor_node) {
 		phy_dbg(3, phy, "Can't get remote parent\n");
+		of_node_put(phy->sensor_ep_node);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -596,11 +598,25 @@ done:
 	return ret;
 }
 
+/* ------------------------------------------------------------------
+ *	V4L2 Subdev Operations
+ * ------------------------------------------------------------------
+ */
+
+static const struct v4l2_subdev_ops cal_camerarx_subdev_ops = {
+};
+
+/* ------------------------------------------------------------------
+ *	Create and Destroy
+ * ------------------------------------------------------------------
+ */
+
 struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 					 unsigned int instance)
 {
 	struct platform_device *pdev = to_platform_device(cal->dev);
 	struct cal_camerarx *phy;
+	struct v4l2_subdev *sd;
 	int ret;
 
 	phy = kzalloc(sizeof(*phy), GFP_KERNEL);
@@ -632,9 +648,28 @@ struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 	if (ret)
 		goto error;
 
+	/* Initialize the V4L2 subdev and media entity. */
+	sd = &phy->subdev;
+	v4l2_subdev_init(sd, &cal_camerarx_subdev_ops);
+	sd->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
+	snprintf(sd->name, sizeof(sd->name), "CAMERARX%u", instance);
+	sd->dev = cal->dev;
+
+	phy->pads[CAL_CAMERARX_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
+	phy->pads[CAL_CAMERARX_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
+	ret = media_entity_pads_init(&sd->entity, ARRAY_SIZE(phy->pads),
+				     phy->pads);
+	if (ret)
+		goto error;
+
+	ret = v4l2_device_register_subdev(&cal->v4l2_dev, sd);
+	if (ret)
+		goto error;
+
 	return phy;
 
 error:
+	media_entity_cleanup(&phy->subdev.entity);
 	kfree(phy);
 	return ERR_PTR(ret);
 }
@@ -644,6 +679,9 @@ void cal_camerarx_destroy(struct cal_camerarx *phy)
 	if (!phy)
 		return;
 
+	v4l2_device_unregister_subdev(&phy->subdev);
+	media_entity_cleanup(&phy->subdev.entity);
+	of_node_put(phy->sensor_ep_node);
 	of_node_put(phy->sensor_node);
 	kfree(phy);
 }

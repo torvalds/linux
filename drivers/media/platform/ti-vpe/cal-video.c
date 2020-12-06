@@ -809,6 +809,18 @@ int cal_ctx_v4l2_register(struct cal_ctx *ctx)
 		return ret;
 	}
 
+	ret = media_create_pad_link(&ctx->phy->subdev.entity,
+				    CAL_CAMERARX_PAD_SOURCE,
+				    &vfd->entity, 0,
+				    MEDIA_LNK_FL_IMMUTABLE |
+				    MEDIA_LNK_FL_ENABLED);
+	if (ret) {
+		ctx_err(ctx, "Failed to create media link for context %u\n",
+			ctx->index);
+		video_unregister_device(vfd);
+		return ret;
+	}
+
 	ctx_info(ctx, "V4L2 device registered as %s\n",
 		 video_device_node_name(vfd));
 
