@@ -44,6 +44,7 @@ struct peci_adapter {
 					struct peci_xfer_msg *msg);
 	u32			cmd_mask;
 	bool			use_dma;
+	u8			peci_revision;
 };
 
 static inline struct peci_adapter *to_peci_adapter(void *d)

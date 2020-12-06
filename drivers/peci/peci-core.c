@@ -306,23 +306,33 @@ static int peci_scan_cmd_mask(struct peci_adapter *adapter)
 	msg->tx_buf[0] = PECI_GET_DIB_CMD;
 
 	ret = peci_xfer(adapter, msg);
-	if (ret)
-		return ret;
-
-	dib = le64_to_cpup((__le64 *)msg->rx_buf);
-
-	/* Check special case for Get DIB command */
-	if (dib == 0) {
-		dev_dbg(&adapter->dev, "DIB read as 0\n");
-		ret = -EIO;
+	if (ret) {
+		ret = -EAGAIN;
 		goto out;
 	}
+	if (msg->rx_buf[0] == PECI_DEV_CC_INVALID_REQ) {
+		/*
+		 * if GetDIB() is not supported, use a revision property of
+		 * hardware adapter
+		 */
+		revision = adapter->peci_revision;
+	} else {
+		dib = le64_to_cpup((__le64 *)msg->rx_buf);
 
-	/*
-	 * Setting up the supporting commands based on revision number.
-	 * See PECI Spec Table 3-1.
-	 */
-	revision = FIELD_GET(REVISION_NUM_MASK, dib);
+		/* Check special case for Get DIB command */
+		if (dib == 0) {
+			dev_dbg(&adapter->dev, "DIB read as 0\n");
+			ret = -EIO;
+			goto out;
+		}
+
+		/*
+		 * Setting up the supporting commands based on revision number.
+		 * See PECI Spec Table 3-1.
+		 */
+		revision = FIELD_GET(REVISION_NUM_MASK, dib);
+	}
+
 	if (revision >= 0x40) { /* Rev. 4.0 */
 		adapter->cmd_mask |= BIT(PECI_CMD_RD_IA_MSREX);
 		adapter->cmd_mask |= BIT(PECI_CMD_RD_END_PT_CFG);
