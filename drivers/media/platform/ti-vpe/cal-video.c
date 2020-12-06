@@ -163,9 +163,10 @@ static int cal_calc_format_size(struct cal_ctx *ctx,
 	 * We need to recalculate the actual maxi width depending on the
 	 * number of bytes per pixels required.
 	 */
-	max_width = MAX_WIDTH_BYTES / (ALIGN(fmt->bpp, 8) >> 3);
+	max_width = CAL_MAX_WIDTH_BYTES / (ALIGN(fmt->bpp, 8) >> 3);
 	v4l_bound_align_image(&f->fmt.pix.width, 48, max_width, 2,
-			      &f->fmt.pix.height, 32, MAX_HEIGHT_LINES, 0, 0);
+			      &f->fmt.pix.height, 32, CAL_MAX_HEIGHT_LINES,
+			      0, 0);
 
 	bpl = (f->fmt.pix.width * ALIGN(fmt->bpp, 8)) >> 3;
 	f->fmt.pix.bytesperline = ALIGN(bpl, 16);

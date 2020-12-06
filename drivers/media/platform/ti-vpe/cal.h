@@ -31,8 +31,16 @@
 #define CAL_NUM_CONTEXT			2
 #define CAL_NUM_CSI2_PORTS		2
 
-#define MAX_WIDTH_BYTES			(8192 * 8)
-#define MAX_HEIGHT_LINES		16383
+/*
+ * The width is limited by the size of the CAL_WR_DMA_XSIZE_j.XSIZE field,
+ * expressed in multiples of 64 bits. The height is limited by the size of the
+ * CAL_CSI2_CTXi_j.CTXi_LINES and CAL_WR_DMA_CTRL_j.YSIZE fields, expressed in
+ * lines.
+ */
+#define CAL_MIN_WIDTH_BYTES		16
+#define CAL_MAX_WIDTH_BYTES		(8192 * 8)
+#define CAL_MIN_HEIGHT_LINES		1
+#define CAL_MAX_HEIGHT_LINES		16383
 
 #define CAL_CAMERARX_PAD_SINK		0
 #define CAL_CAMERARX_PAD_SOURCE		1
