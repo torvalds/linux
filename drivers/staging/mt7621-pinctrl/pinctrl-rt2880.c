@@ -318,7 +318,6 @@ static int rt2880_pinmux_probe(struct platform_device *pdev)
 {
 	struct rt2880_priv *p;
 	struct pinctrl_dev *dev;
-	struct device_node *np;
 
 	if (!rt2880_pinmux_data)
 		return -ENOTSUPP;
@@ -345,34 +344,6 @@ static int rt2880_pinmux_probe(struct platform_device *pdev)
 	dev = pinctrl_register(p->desc, &pdev->dev, p);
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
-
-	/* finalize by adding gpio ranges for enables gpio controllers */
-	for_each_compatible_node(np, NULL, "ralink,rt2880-gpio") {
-		const __be32 *ngpio, *gpiobase;
-		struct pinctrl_gpio_range *range;
-
-		if (!of_device_is_available(np))
-			continue;
-
-		ngpio = of_get_property(np, "ralink,num-gpios", NULL);
-		gpiobase = of_get_property(np, "ralink,gpio-base", NULL);
-		if (!ngpio || !gpiobase) {
-			dev_err(&pdev->dev, "failed to load chip info\n");
-			of_node_put(np);
-			return -EINVAL;
-		}
-
-		range = devm_kzalloc(p->dev, sizeof(*range), GFP_KERNEL);
-		if (!range) {
-			of_node_put(np);
-			return -ENOMEM;
-		}
-		range->name = "pio";
-		range->npins = __be32_to_cpu(*ngpio);
-		range->base = __be32_to_cpu(*gpiobase);
-		range->pin_base = range->base;
-		pinctrl_add_gpio_range(dev, range);
-	}
 
 	return 0;
 }
