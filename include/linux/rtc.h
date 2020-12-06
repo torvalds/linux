@@ -110,13 +110,36 @@ struct rtc_device {
 	/* Some hardware can't support UIE mode */
 	int uie_unsupported;
 
-	/* Number of nsec it takes to set the RTC clock. This influences when
-	 * the set ops are called. An offset:
-	 *   - of 0.5 s will call RTC set for wall clock time 10.0 s at 9.5 s
-	 *   - of 1.5 s will call RTC set for wall clock time 10.0 s at 8.5 s
-	 *   - of -0.5 s will call RTC set for wall clock time 10.0 s at 10.5 s
+	/*
+	 * This offset specifies the update timing of the RTC.
+	 *
+	 * tsched     t1 write(t2.tv_sec - 1sec))  t2 RTC increments seconds
+	 *
+	 * The offset defines how tsched is computed so that the write to
+	 * the RTC (t2.tv_sec - 1sec) is correct versus the time required
+	 * for the transport of the write and the time which the RTC needs
+	 * to increment seconds the first time after the write (t2).
+	 *
+	 * For direct accessible RTCs tsched ~= t1 because the write time
+	 * is negligible. For RTCs behind slow busses the transport time is
+	 * significant and has to be taken into account.
+	 *
+	 * The time between the write (t1) and the first increment after
+	 * the write (t2) is RTC specific. For a MC146818 RTC it's 500ms,
+	 * for many others it's exactly 1 second. Consult the datasheet.
+	 *
+	 * The value of this offset is also used to calculate the to be
+	 * written value (t2.tv_sec - 1sec) at tsched.
+	 *
+	 * The default value for this is NSEC_PER_SEC + 10 msec default
+	 * transport time. The offset can be adjusted by drivers so the
+	 * calculation for the to be written value at tsched becomes
+	 * correct:
+	 *
+	 *	newval = tsched + set_offset_nsec - NSEC_PER_SEC
+	 * and  (tsched + set_offset_nsec) % NSEC_PER_SEC == 0
 	 */
-	long set_offset_nsec;
+	unsigned long set_offset_nsec;
 
 	bool registered;
 

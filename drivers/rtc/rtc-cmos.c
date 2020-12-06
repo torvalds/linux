@@ -869,7 +869,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 		goto cleanup2;
 
 	/* Set the sync offset for the periodic 11min update correct */
-	cmos_rtc.rtc->set_offset_nsec = -(NSEC_PER_SEC / 2);
+	cmos_rtc.rtc->set_offset_nsec = NSEC_PER_SEC / 2;
 
 	/* export at least the first block of NVRAM */
 	nvmem_cfg.size = address_space - NVRAM_OFFSET;

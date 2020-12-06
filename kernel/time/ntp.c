@@ -520,22 +520,33 @@ static void sched_sync_hw_clock(unsigned long offset_nsec, bool retry)
 }
 
 /*
- * Determine if we can call to driver to set the time. Drivers can only be
- * called to set a second aligned time value, and the field set_offset_nsec
- * specifies how far away from the second aligned time to call the driver.
+ * Check whether @now is correct versus the required time to update the RTC
+ * and calculate the value which needs to be written to the RTC so that the
+ * next seconds increment of the RTC after the write is aligned with the next
+ * seconds increment of clock REALTIME.
  *
- * This also computes 'to_set' which is the time we are trying to set, and has
- * a zero in tv_nsecs, such that:
- *    to_set - set_delay_nsec == now +/- FUZZ
+ * tsched     t1 write(t2.tv_sec - 1sec))	t2 RTC increments seconds
  *
+ * t2.tv_nsec == 0
+ * tsched = t2 - set_offset_nsec
+ * newval = t2 - NSEC_PER_SEC
+ *
+ * ==> neval = tsched + set_offset_nsec - NSEC_PER_SEC
+ *
+ * As the execution of this code is not guaranteed to happen exactly at
+ * tsched this allows it to happen within a fuzzy region:
+ *
+ *	abs(now - tsched) < FUZZ
+ *
+ * If @now is not inside the allowed window the function returns false.
  */
-static inline bool rtc_tv_nsec_ok(long set_offset_nsec,
+static inline bool rtc_tv_nsec_ok(unsigned long set_offset_nsec,
 				  struct timespec64 *to_set,
 				  const struct timespec64 *now)
 {
 	/* Allowed error in tv_nsec, arbitarily set to 5 jiffies in ns. */
 	const unsigned long TIME_SET_NSEC_FUZZ = TICK_NSEC * 5;
-	struct timespec64 delay = {.tv_sec = 0,
+	struct timespec64 delay = {.tv_sec = -1,
 				   .tv_nsec = set_offset_nsec};
 
 	*to_set = timespec64_add(*now, delay);
@@ -557,11 +568,11 @@ static inline bool rtc_tv_nsec_ok(long set_offset_nsec,
 /*
  * rtc_set_ntp_time - Save NTP synchronized time to the RTC
  */
-static int rtc_set_ntp_time(struct timespec64 now, unsigned long *target_nsec)
+static int rtc_set_ntp_time(struct timespec64 now, unsigned long *offset_nsec)
 {
+	struct timespec64 to_set;
 	struct rtc_device *rtc;
 	struct rtc_time tm;
-	struct timespec64 to_set;
 	int err = -ENODEV;
 	bool ok;
 
@@ -572,19 +583,9 @@ static int rtc_set_ntp_time(struct timespec64 now, unsigned long *target_nsec)
 	if (!rtc->ops || !rtc->ops->set_time)
 		goto out_close;
 
-	/*
-	 * Compute the value of tv_nsec we require the caller to supply in
-	 * now.tv_nsec.  This is the value such that (now +
-	 * set_offset_nsec).tv_nsec == 0.
-	 */
-	set_normalized_timespec64(&to_set, 0, -rtc->set_offset_nsec);
-	*target_nsec = to_set.tv_nsec;
+	/* Store the update offset for this RTC */
+	*offset_nsec = rtc->set_offset_nsec;
 
-	/*
-	 * The ntp code must call this with the correct value in tv_nsec, if
-	 * it does not we update target_nsec and return EPROTO to make the ntp
-	 * code try again later.
-	 */
 	ok = rtc_tv_nsec_ok(rtc->set_offset_nsec, &to_set, &now);
 	if (!ok) {
 		err = -EPROTO;
@@ -657,7 +658,7 @@ static bool sync_cmos_clock(void)
 	 * implement this legacy API.
 	 */
 	ktime_get_real_ts64(&now);
-	if (rtc_tv_nsec_ok(-1 * target_nsec, &adjust, &now)) {
+	if (rtc_tv_nsec_ok(target_nsec, &adjust, &now)) {
 		if (persistent_clock_is_local)
 			adjust.tv_sec -= (sys_tz.tz_minuteswest * 60);
 		rc = update_persistent_clock64(adjust);
