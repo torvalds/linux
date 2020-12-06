@@ -265,6 +265,7 @@ image.
     :maxdepth: 1
 
     pixfmt-packed-yuv
+    pixfmt-yuv-planar
     pixfmt-yuv-luma
     pixfmt-y8i
     pixfmt-y12i
@@ -276,10 +277,4 @@ image.
     pixfmt-yuv410
     pixfmt-yuv422p
     pixfmt-yuv411p
-    pixfmt-nv12
-    pixfmt-nv12m
-    pixfmt-nv12mt
-    pixfmt-nv16
-    pixfmt-nv16m
-    pixfmt-nv24
     pixfmt-m420
