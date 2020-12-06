@@ -477,13 +477,6 @@ static void btrfs_discard_workfn(struct work_struct *work)
 		discard_ctl->discard_extent_bytes += trimmed;
 	}
 
-	/*
-	 * Updated without locks as this is inside the workfn and nothing else
-	 * is reading the values
-	 */
-	discard_ctl->prev_discard = trimmed;
-	discard_ctl->prev_discard_time = ktime_get_ns();
-
 	/* Determine next steps for a block_group */
 	if (block_group->discard_cursor >= btrfs_block_group_end(block_group)) {
 		if (discard_state == BTRFS_DISCARD_BITMAPS) {
@@ -499,7 +492,10 @@ static void btrfs_discard_workfn(struct work_struct *work)
 		}
 	}
 
+	now = ktime_get_ns();
 	spin_lock(&discard_ctl->lock);
+	discard_ctl->prev_discard = trimmed;
+	discard_ctl->prev_discard_time = now;
 	discard_ctl->block_group = NULL;
 	spin_unlock(&discard_ctl->lock);
 
