@@ -494,65 +494,55 @@ out:
 	return leap;
 }
 
+#if defined(CONFIG_GENERIC_CMOS_UPDATE) || defined(CONFIG_RTC_SYSTOHC)
 static void sync_hw_clock(struct work_struct *work);
-static DECLARE_DELAYED_WORK(sync_work, sync_hw_clock);
+static DECLARE_WORK(sync_work, sync_hw_clock);
+static struct hrtimer sync_hrtimer;
+#define SYNC_PERIOD_NS (11UL * 60 * NSEC_PER_SEC)
 
-static void sched_sync_hw_clock(struct timespec64 now,
-				unsigned long target_nsec, bool fail)
-
+static enum hrtimer_restart sync_timer_callback(struct hrtimer *timer)
 {
-	struct timespec64 next;
+	queue_work(system_power_efficient_wq, &sync_work);
 
-	ktime_get_real_ts64(&next);
-	if (!fail)
-		next.tv_sec = 659;
-	else {
-		/*
-		 * Try again as soon as possible. Delaying long periods
-		 * decreases the accuracy of the work queue timer. Due to this
-		 * the algorithm is very likely to require a short-sleep retry
-		 * after the above long sleep to synchronize ts_nsec.
-		 */
-		next.tv_sec = 0;
-	}
+	return HRTIMER_NORESTART;
+}
 
-	/* Compute the needed delay that will get to tv_nsec == target_nsec */
-	next.tv_nsec = target_nsec - next.tv_nsec;
-	if (next.tv_nsec <= 0)
-		next.tv_nsec += NSEC_PER_SEC;
-	if (next.tv_nsec >= NSEC_PER_SEC) {
-		next.tv_sec++;
-		next.tv_nsec -= NSEC_PER_SEC;
-	}
+static void sched_sync_hw_clock(unsigned long offset_nsec, bool retry)
+{
+	ktime_t exp = ktime_set(ktime_get_real_seconds(), 0);
 
-	queue_delayed_work(system_power_efficient_wq, &sync_work,
-			   timespec64_to_jiffies(&next));
+	if (retry)
+		exp = ktime_add_ns(exp, 2 * NSEC_PER_SEC - offset_nsec);
+	else
+		exp = ktime_add_ns(exp, SYNC_PERIOD_NS - offset_nsec);
+
+	hrtimer_start(&sync_hrtimer, exp, HRTIMER_MODE_ABS);
 }
 
 static void sync_rtc_clock(void)
 {
-	unsigned long target_nsec;
-	struct timespec64 adjust, now;
+	unsigned long offset_nsec;
+	struct timespec64 adjust;
 	int rc;
 
 	if (!IS_ENABLED(CONFIG_RTC_SYSTOHC))
 		return;
 
-	ktime_get_real_ts64(&now);
+	ktime_get_real_ts64(&adjust);
 
-	adjust = now;
 	if (persistent_clock_is_local)
 		adjust.tv_sec -= (sys_tz.tz_minuteswest * 60);
 
 	/*
-	 * The current RTC in use will provide the target_nsec it wants to be
-	 * called at, and does rtc_tv_nsec_ok internally.
+	 * The current RTC in use will provide the nanoseconds offset prior
+	 * to a full second it wants to be called at, and invokes
+	 * rtc_tv_nsec_ok() internally.
 	 */
-	rc = rtc_set_ntp_time(adjust, &target_nsec);
+	rc = rtc_set_ntp_time(adjust, &offset_nsec);
 	if (rc == -ENODEV)
 		return;
 
-	sched_sync_hw_clock(now, target_nsec, rc);
+	sched_sync_hw_clock(offset_nsec, rc != 0);
 }
 
 #ifdef CONFIG_GENERIC_CMOS_UPDATE
@@ -599,7 +589,7 @@ static bool sync_cmos_clock(void)
 		}
 	}
 
-	sched_sync_hw_clock(now, target_nsec, rc);
+	sched_sync_hw_clock(target_nsec, rc != 0);
 	return true;
 }
 
@@ -613,7 +603,12 @@ static bool sync_cmos_clock(void)
  */
 static void sync_hw_clock(struct work_struct *work)
 {
-	if (!ntp_synced())
+	/*
+	 * Don't update if STA_UNSYNC is set and if ntp_notify_cmos_timer()
+	 * managed to schedule the work between the timer firing and the
+	 * work being able to rearm the timer. Wait for the timer to expire.
+	 */
+	if (!ntp_synced() || hrtimer_is_queued(&sync_hrtimer))
 		return;
 
 	if (sync_cmos_clock())
@@ -624,13 +619,23 @@ static void sync_hw_clock(struct work_struct *work)
 
 void ntp_notify_cmos_timer(void)
 {
-	if (!ntp_synced())
-		return;
-
-	if (IS_ENABLED(CONFIG_GENERIC_CMOS_UPDATE) ||
-	    IS_ENABLED(CONFIG_RTC_SYSTOHC))
-		queue_delayed_work(system_power_efficient_wq, &sync_work, 0);
+	/*
+	 * When the work is currently executed but has not yet the timer
+	 * rearmed this queues the work immediately again. No big issue,
+	 * just a pointless work scheduled.
+	 */
+	if (ntp_synced() && !hrtimer_is_queued(&sync_hrtimer))
+		queue_work(system_power_efficient_wq, &sync_work);
 }
+
+static void __init ntp_init_cmos_sync(void)
+{
+	hrtimer_init(&sync_hrtimer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
+	sync_hrtimer.function = sync_timer_callback;
+}
+#else /* CONFIG_GENERIC_CMOS_UPDATE) || defined(CONFIG_RTC_SYSTOHC) */
+static inline void __init ntp_init_cmos_sync(void) { }
+#endif /* !CONFIG_GENERIC_CMOS_UPDATE) || defined(CONFIG_RTC_SYSTOHC) */
 
 /*
  * Propagate a new txc->status value into the NTP state:
@@ -1044,4 +1049,5 @@ __setup("ntp_tick_adj=", ntp_tick_adj_setup);
 void __init ntp_init(void)
 {
 	ntp_clear();
+	ntp_init_cmos_sync();
 }
