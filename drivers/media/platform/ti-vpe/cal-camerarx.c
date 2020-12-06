@@ -258,13 +258,11 @@ static void cal_camerarx_disable_irqs(struct cal_camerarx *phy)
 
 static void cal_camerarx_ppi_enable(struct cal_camerarx *phy)
 {
-	cal_write(phy->cal, CAL_CSI2_PPI_CTRL(phy->instance),
-		  CAL_CSI2_PPI_CTRL_FRAME_MASK);
 	cal_write_field(phy->cal, CAL_CSI2_PPI_CTRL(phy->instance),
 			1, CAL_CSI2_PPI_CTRL_IF_EN_MASK);
 }
 
-void cal_camerarx_ppi_disable(struct cal_camerarx *phy)
+static void cal_camerarx_ppi_disable(struct cal_camerarx *phy)
 {
 	cal_write_field(phy->cal, CAL_CSI2_PPI_CTRL(phy->instance),
 			0, CAL_CSI2_PPI_CTRL_IF_EN_MASK);
@@ -408,6 +406,8 @@ static void cal_camerarx_stop(struct cal_camerarx *phy)
 {
 	unsigned int i;
 	int ret;
+
+	cal_camerarx_ppi_disable(phy);
 
 	cal_camerarx_disable_irqs(phy);
 

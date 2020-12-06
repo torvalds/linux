@@ -411,6 +411,45 @@ void cal_ctx_wr_dma_addr(struct cal_ctx *ctx, unsigned int dmaaddr)
 	cal_write(ctx->cal, CAL_WR_DMA_ADDR(ctx->index), dmaaddr);
 }
 
+void cal_ctx_wr_dma_disable(struct cal_ctx *ctx)
+{
+	u32 val = cal_read(ctx->cal, CAL_WR_DMA_CTRL(ctx->index));
+
+	cal_set_field(&val, CAL_WR_DMA_CTRL_MODE_DIS,
+		      CAL_WR_DMA_CTRL_MODE_MASK);
+	cal_write(ctx->cal, CAL_WR_DMA_CTRL(ctx->index), val);
+}
+
+static bool cal_ctx_wr_dma_stopped(struct cal_ctx *ctx)
+{
+	bool stopped;
+
+	spin_lock_irq(&ctx->slock);
+	stopped = ctx->dma_state == CAL_DMA_STOPPED;
+	spin_unlock_irq(&ctx->slock);
+
+	return stopped;
+}
+
+int cal_ctx_wr_dma_stop(struct cal_ctx *ctx)
+{
+	long timeout;
+
+	/* Request DMA stop and wait until it completes. */
+	spin_lock_irq(&ctx->slock);
+	ctx->dma_state = CAL_DMA_STOP_REQUESTED;
+	spin_unlock_irq(&ctx->slock);
+
+	timeout = wait_event_timeout(ctx->dma_wait, cal_ctx_wr_dma_stopped(ctx),
+				     msecs_to_jiffies(500));
+	if (!timeout) {
+		ctx_err(ctx, "failed to disable dma cleanly\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
 void cal_ctx_enable_irqs(struct cal_ctx *ctx)
 {
 	/* Enable IRQ_WDMA_END and IRQ_WDMA_START. */
@@ -434,35 +473,71 @@ void cal_ctx_disable_irqs(struct cal_ctx *ctx)
  * ------------------------------------------------------------------
  */
 
-static inline void cal_schedule_next_buffer(struct cal_ctx *ctx)
+static inline void cal_irq_wdma_start(struct cal_ctx *ctx)
 {
 	struct cal_dmaqueue *dma_q = &ctx->vidq;
-	struct cal_buffer *buf;
-	unsigned long addr;
 
-	buf = list_entry(dma_q->active.next, struct cal_buffer, list);
-	ctx->next_frm = buf;
-	list_del(&buf->list);
+	spin_lock(&ctx->slock);
 
-	addr = vb2_dma_contig_plane_dma_addr(&buf->vb.vb2_buf, 0);
-	cal_ctx_wr_dma_addr(ctx, addr);
+	if (ctx->dma_state == CAL_DMA_STOP_REQUESTED) {
+		/*
+		 * If a stop is requested, disable the write DMA context
+		 * immediately. The CAL_WR_DMA_CTRL_j.MODE field is shadowed,
+		 * the current frame will complete and the DMA will then stop.
+		 */
+		cal_ctx_wr_dma_disable(ctx);
+		ctx->dma_state = CAL_DMA_STOP_PENDING;
+	} else if (!list_empty(&dma_q->active) &&
+		   ctx->cur_frm == ctx->next_frm) {
+		/*
+		 * Otherwise, if a new buffer is available, queue it to the
+		 * hardware.
+		 */
+		struct cal_buffer *buf;
+		unsigned long addr;
+
+		buf = list_entry(dma_q->active.next, struct cal_buffer, list);
+		addr = vb2_dma_contig_plane_dma_addr(&buf->vb.vb2_buf, 0);
+		cal_ctx_wr_dma_addr(ctx, addr);
+
+		ctx->next_frm = buf;
+		list_del(&buf->list);
+	}
+
+	spin_unlock(&ctx->slock);
 }
 
-static inline void cal_process_buffer_complete(struct cal_ctx *ctx)
+static inline void cal_irq_wdma_end(struct cal_ctx *ctx)
 {
-	ctx->cur_frm->vb.vb2_buf.timestamp = ktime_get_ns();
-	ctx->cur_frm->vb.field = ctx->v_fmt.fmt.pix.field;
-	ctx->cur_frm->vb.sequence = ctx->sequence++;
+	struct cal_buffer *buf = NULL;
 
-	vb2_buffer_done(&ctx->cur_frm->vb.vb2_buf, VB2_BUF_STATE_DONE);
-	ctx->cur_frm = ctx->next_frm;
+	spin_lock(&ctx->slock);
+
+	/* If the DMA context was stopping, it is now stopped. */
+	if (ctx->dma_state == CAL_DMA_STOP_PENDING) {
+		ctx->dma_state = CAL_DMA_STOPPED;
+		wake_up(&ctx->dma_wait);
+	}
+
+	/* If a new buffer was queued, complete the current buffer. */
+	if (ctx->cur_frm != ctx->next_frm) {
+		buf = ctx->cur_frm;
+		ctx->cur_frm = ctx->next_frm;
+	}
+
+	spin_unlock(&ctx->slock);
+
+	if (buf) {
+		buf->vb.vb2_buf.timestamp = ktime_get_ns();
+		buf->vb.field = ctx->v_fmt.fmt.pix.field;
+		buf->vb.sequence = ctx->sequence++;
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+	}
 }
 
 static irqreturn_t cal_irq(int irq_cal, void *data)
 {
 	struct cal_dev *cal = data;
-	struct cal_ctx *ctx;
-	struct cal_dmaqueue *dma_q;
 	u32 status;
 
 	status = cal_read(cal, CAL_HL_IRQSTATUS(0));
@@ -497,17 +572,8 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 		cal_write(cal, CAL_HL_IRQSTATUS(1), status);
 
 		for (i = 0; i < ARRAY_SIZE(cal->ctx); ++i) {
-			if (status & CAL_HL_IRQ_MASK(i)) {
-				ctx = cal->ctx[i];
-
-				spin_lock(&ctx->slock);
-				ctx->dma_act = false;
-
-				if (ctx->cur_frm != ctx->next_frm)
-					cal_process_buffer_complete(ctx);
-
-				spin_unlock(&ctx->slock);
-			}
+			if (status & CAL_HL_IRQ_MASK(i))
+				cal_irq_wdma_end(cal->ctx[i]);
 		}
 	}
 
@@ -520,17 +586,8 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 		cal_write(cal, CAL_HL_IRQSTATUS(2), status);
 
 		for (i = 0; i < ARRAY_SIZE(cal->ctx); ++i) {
-			if (status & CAL_HL_IRQ_MASK(i)) {
-				ctx = cal->ctx[i];
-				dma_q = &ctx->vidq;
-
-				spin_lock(&ctx->slock);
-				ctx->dma_act = true;
-				if (!list_empty(&dma_q->active) &&
-				    ctx->cur_frm == ctx->next_frm)
-					cal_schedule_next_buffer(ctx);
-				spin_unlock(&ctx->slock);
-			}
+			if (status & CAL_HL_IRQ_MASK(i))
+				cal_irq_wdma_start(cal->ctx[i]);
 		}
 	}
 

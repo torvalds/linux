@@ -17,6 +17,7 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/videodev2.h>
+#include <linux/wait.h>
 
 #include <media/media-device.h>
 #include <media/v4l2-async.h>
@@ -58,6 +59,13 @@ enum cal_camerarx_field {
 	F_LANEENABLE,
 	F_CSI_MODE,
 	F_MAX_FIELDS,
+};
+
+enum cal_dma_state {
+	CAL_DMA_RUNNING,
+	CAL_DMA_STOP_REQUESTED,
+	CAL_DMA_STOP_PENDING,
+	CAL_DMA_STOPPED,
 };
 
 struct cal_format_info {
@@ -190,7 +198,8 @@ struct cal_ctx {
 	/* Pointer pointing to next v4l2_buffer */
 	struct cal_buffer	*next_frm;
 
-	bool dma_act;
+	enum cal_dma_state	dma_state;
+	struct wait_queue_head	dma_wait;
 };
 
 extern unsigned int cal_debug;
@@ -262,7 +271,6 @@ const struct cal_format_info *cal_format_by_code(u32 code);
 void cal_quickdump_regs(struct cal_dev *cal);
 
 void cal_camerarx_disable(struct cal_camerarx *phy);
-void cal_camerarx_ppi_disable(struct cal_camerarx *phy);
 void cal_camerarx_i913_errata(struct cal_camerarx *phy);
 struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 					 unsigned int instance);
@@ -272,6 +280,8 @@ void cal_ctx_csi2_config(struct cal_ctx *ctx);
 void cal_ctx_pix_proc_config(struct cal_ctx *ctx);
 void cal_ctx_wr_dma_config(struct cal_ctx *ctx);
 void cal_ctx_wr_dma_addr(struct cal_ctx *ctx, unsigned int dmaaddr);
+void cal_ctx_wr_dma_disable(struct cal_ctx *ctx);
+int cal_ctx_wr_dma_stop(struct cal_ctx *ctx);
 void cal_ctx_enable_irqs(struct cal_ctx *ctx);
 void cal_ctx_disable_irqs(struct cal_ctx *ctx);
 

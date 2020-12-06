@@ -9,7 +9,6 @@
  *	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  */
 
-#include <linux/delay.h>
 #include <linux/ioctl.h>
 #include <linux/pm_runtime.h>
 #include <linux/videodev2.h>
@@ -511,6 +510,7 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	addr = vb2_dma_contig_plane_dma_addr(&ctx->cur_frm->vb.vb2_buf, 0);
 	ctx->sequence = 0;
+	ctx->dma_state = CAL_DMA_RUNNING;
 
 	pm_runtime_get_sync(ctx->cal->dev);
 
@@ -530,6 +530,10 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 	return 0;
 
 err:
+	cal_ctx_wr_dma_disable(ctx);
+	cal_ctx_disable_irqs(ctx);
+	ctx->dma_state = CAL_DMA_STOPPED;
+
 	spin_lock_irqsave(&ctx->slock, flags);
 	vb2_buffer_done(&ctx->cur_frm->vb.vb2_buf, VB2_BUF_STATE_QUEUED);
 	ctx->cur_frm = NULL;
@@ -547,26 +551,9 @@ static void cal_stop_streaming(struct vb2_queue *vq)
 	struct cal_ctx *ctx = vb2_get_drv_priv(vq);
 	struct cal_dmaqueue *dma_q = &ctx->vidq;
 	struct cal_buffer *buf, *tmp;
-	unsigned long timeout;
 	unsigned long flags;
-	bool dma_act;
 
-	cal_camerarx_ppi_disable(ctx->phy);
-
-	/* wait for stream and dma to finish */
-	dma_act = true;
-	timeout = jiffies + msecs_to_jiffies(500);
-	while (dma_act && time_before(jiffies, timeout)) {
-		msleep(50);
-
-		spin_lock_irqsave(&ctx->slock, flags);
-		dma_act = ctx->dma_act;
-		spin_unlock_irqrestore(&ctx->slock, flags);
-	}
-
-	if (dma_act)
-		ctx_err(ctx, "failed to disable dma cleanly\n");
-
+	cal_ctx_wr_dma_stop(ctx);
 	cal_ctx_disable_irqs(ctx);
 
 	v4l2_subdev_call(&ctx->phy->subdev, video, s_stream, 0);
@@ -745,6 +732,7 @@ int cal_ctx_v4l2_init(struct cal_ctx *ctx)
 	INIT_LIST_HEAD(&ctx->vidq.active);
 	spin_lock_init(&ctx->slock);
 	mutex_init(&ctx->mutex);
+	init_waitqueue_head(&ctx->dma_wait);
 
 	/* Initialize the vb2 queue. */
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
