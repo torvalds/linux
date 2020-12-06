@@ -164,9 +164,7 @@ struct cal_ctx {
 	/* video capture */
 	const struct cal_fmt	*fmt;
 	/* Used to store current pixel format */
-	struct v4l2_format		v_fmt;
-	/* Used to store current mbus frame format */
-	struct v4l2_mbus_framefmt	m_fmt;
+	struct v4l2_format	v_fmt;
 
 	/* Current subdev enumerated format */
 	const struct cal_fmt	**active_fmt;

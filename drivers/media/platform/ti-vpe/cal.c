@@ -314,7 +314,7 @@ static inline void cal_schedule_next_buffer(struct cal_ctx *ctx)
 static inline void cal_process_buffer_complete(struct cal_ctx *ctx)
 {
 	ctx->cur_frm->vb.vb2_buf.timestamp = ktime_get_ns();
-	ctx->cur_frm->vb.field = ctx->m_fmt.field;
+	ctx->cur_frm->vb.field = ctx->v_fmt.fmt.pix.field;
 	ctx->cur_frm->vb.sequence = ctx->sequence++;
 
 	vb2_buffer_done(&ctx->cur_frm->vb.vb2_buf, VB2_BUF_STATE_DONE);
