@@ -199,13 +199,13 @@ struct aspeed_mctp {
 		bool need_uevent;
 		u16 bdf;
 	} pcie;
-
 	struct {
 		bool enable;
 		bool warmup;
 		int packet_counter;
 	} rx_runaway_wa;
 	u8 eid;
+	struct platform_device *peci_mctp;
 };
 
 struct mctp_client {
@@ -1607,6 +1607,12 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 
 	aspeed_mctp_pcie_setup(priv);
 
+	priv->peci_mctp =
+		platform_device_register_data(priv->dev, "peci-mctp",
+					      PLATFORM_DEVID_NONE, NULL, 0);
+	if (IS_ERR(priv->peci_mctp))
+		dev_err(priv->dev, "Failed to register peci-mctp device\n");
+
 	aspeed_mctp_rx_trigger(&priv->rx);
 
 	return 0;
@@ -1623,6 +1629,8 @@ out:
 static int aspeed_mctp_remove(struct platform_device *pdev)
 {
 	struct aspeed_mctp *priv = platform_get_drvdata(pdev);
+
+	platform_device_unregister(priv->peci_mctp);
 
 	misc_deregister(&aspeed_mctp_miscdev);
 
