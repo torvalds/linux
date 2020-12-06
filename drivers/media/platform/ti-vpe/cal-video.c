@@ -492,12 +492,11 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct cal_dmaqueue *dma_q = &ctx->vidq;
 	struct cal_buffer *buf, *tmp;
 	unsigned long addr;
-	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&ctx->slock, flags);
+	spin_lock_irq(&ctx->slock);
 	if (list_empty(&dma_q->active)) {
-		spin_unlock_irqrestore(&ctx->slock, flags);
+		spin_unlock_irq(&ctx->slock);
 		ctx_dbg(3, ctx, "buffer queue is empty\n");
 		return -EIO;
 	}
@@ -506,7 +505,7 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 	ctx->cur_frm = buf;
 	ctx->next_frm = buf;
 	list_del(&buf->list);
-	spin_unlock_irqrestore(&ctx->slock, flags);
+	spin_unlock_irq(&ctx->slock);
 
 	addr = vb2_dma_contig_plane_dma_addr(&ctx->cur_frm->vb.vb2_buf, 0);
 	ctx->sequence = 0;
@@ -534,7 +533,7 @@ err:
 	cal_ctx_disable_irqs(ctx);
 	ctx->dma_state = CAL_DMA_STOPPED;
 
-	spin_lock_irqsave(&ctx->slock, flags);
+	spin_lock_irq(&ctx->slock);
 	vb2_buffer_done(&ctx->cur_frm->vb.vb2_buf, VB2_BUF_STATE_QUEUED);
 	ctx->cur_frm = NULL;
 	ctx->next_frm = NULL;
@@ -542,7 +541,7 @@ err:
 		list_del(&buf->list);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_QUEUED);
 	}
-	spin_unlock_irqrestore(&ctx->slock, flags);
+	spin_unlock_irq(&ctx->slock);
 	return ret;
 }
 
@@ -551,7 +550,6 @@ static void cal_stop_streaming(struct vb2_queue *vq)
 	struct cal_ctx *ctx = vb2_get_drv_priv(vq);
 	struct cal_dmaqueue *dma_q = &ctx->vidq;
 	struct cal_buffer *buf, *tmp;
-	unsigned long flags;
 
 	cal_ctx_wr_dma_stop(ctx);
 	cal_ctx_disable_irqs(ctx);
@@ -559,7 +557,7 @@ static void cal_stop_streaming(struct vb2_queue *vq)
 	v4l2_subdev_call(&ctx->phy->subdev, video, s_stream, 0);
 
 	/* Release all active buffers */
-	spin_lock_irqsave(&ctx->slock, flags);
+	spin_lock_irq(&ctx->slock);
 	list_for_each_entry_safe(buf, tmp, &dma_q->active, list) {
 		list_del(&buf->list);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
@@ -574,7 +572,7 @@ static void cal_stop_streaming(struct vb2_queue *vq)
 	}
 	ctx->cur_frm = NULL;
 	ctx->next_frm = NULL;
-	spin_unlock_irqrestore(&ctx->slock, flags);
+	spin_unlock_irq(&ctx->slock);
 
 	pm_runtime_put_sync(ctx->cal->dev);
 }
