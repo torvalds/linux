@@ -2,7 +2,7 @@
 /*
 * Portions of this file
 * Copyright(c) 2016-2017 Intel Deutschland GmbH
-* Copyright (C) 2018 - 2019 Intel Corporation
+* Copyright (C) 2018 - 2020 Intel Corporation
 */
 
 #if !defined(__MAC80211_DRIVER_TRACE) || defined(TRACE_HEADER_MULTI_READ)
@@ -2083,6 +2083,27 @@ TRACE_EVENT(api_connection_loss,
 	TP_printk(
 		VIF_PR_FMT,
 		VIF_PR_ARG
+	)
+);
+
+TRACE_EVENT(api_disconnect,
+	TP_PROTO(struct ieee80211_sub_if_data *sdata, bool reconnect),
+
+	TP_ARGS(sdata, reconnect),
+
+	TP_STRUCT__entry(
+		VIF_ENTRY
+		__field(int, reconnect)
+	),
+
+	TP_fast_assign(
+		VIF_ASSIGN;
+		__entry->reconnect = reconnect;
+	),
+
+	TP_printk(
+		VIF_PR_FMT " reconnect:%d",
+		VIF_PR_ARG, __entry->reconnect
 	)
 );
 
