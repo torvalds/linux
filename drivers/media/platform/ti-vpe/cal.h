@@ -60,7 +60,7 @@ enum cal_camerarx_field {
 	F_MAX_FIELDS,
 };
 
-struct cal_fmt {
+struct cal_format_info {
 	u32	fourcc;
 	u32	code;
 	/* Bits per pixel */
@@ -126,7 +126,7 @@ struct cal_camerarx {
 	struct v4l2_subdev	subdev;
 	struct media_pad	pads[2];
 	struct v4l2_mbus_framefmt	formats[2];
-	const struct cal_fmt	*fmtinfo;
+	const struct cal_format_info	*fmtinfo;
 };
 
 struct cal_dev {
@@ -172,12 +172,12 @@ struct cal_ctx {
 	struct cal_dmaqueue	vidq;
 
 	/* video capture */
-	const struct cal_fmt	*fmt;
+	const struct cal_format_info	*fmtinfo;
 	/* Used to store current pixel format */
 	struct v4l2_format	v_fmt;
 
 	/* Current subdev enumerated format */
-	const struct cal_fmt	**active_fmt;
+	const struct cal_format_info	**active_fmt;
 	unsigned int		num_active_fmt;
 
 	unsigned int		sequence;
@@ -254,10 +254,10 @@ static inline void cal_set_field(u32 *valp, u32 field, u32 mask)
 	*valp = val;
 }
 
-extern const struct cal_fmt cal_formats[];
+extern const struct cal_format_info cal_formats[];
 extern const unsigned int cal_num_formats;
-const struct cal_fmt *cal_format_by_fourcc(u32 fourcc);
-const struct cal_fmt *cal_format_by_code(u32 code);
+const struct cal_format_info *cal_format_by_fourcc(u32 fourcc);
+const struct cal_format_info *cal_format_by_code(u32 code);
 
 void cal_quickdump_regs(struct cal_dev *cal);
 

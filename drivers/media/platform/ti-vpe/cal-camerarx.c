@@ -667,7 +667,7 @@ static int cal_camerarx_sd_enum_frame_size(struct v4l2_subdev *sd,
 					   struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct cal_camerarx *phy = to_cal_camerarx(sd);
-	const struct cal_fmt *fmtinfo;
+	const struct cal_format_info *fmtinfo;
 
 	if (fse->index > 0)
 		return -EINVAL;
@@ -720,7 +720,7 @@ static int cal_camerarx_sd_set_fmt(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_format *format)
 {
 	struct cal_camerarx *phy = to_cal_camerarx(sd);
-	const struct cal_fmt *fmtinfo;
+	const struct cal_format_info *fmtinfo;
 	struct v4l2_mbus_framefmt *fmt;
 	unsigned int bpp;
 

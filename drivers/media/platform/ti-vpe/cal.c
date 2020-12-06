@@ -48,7 +48,7 @@ MODULE_PARM_DESC(debug, "activates debug info");
  * ------------------------------------------------------------------
  */
 
-const struct cal_fmt cal_formats[] = {
+const struct cal_format_info cal_formats[] = {
 	{
 		.fourcc		= V4L2_PIX_FMT_YUYV,
 		.code		= MEDIA_BUS_FMT_YUYV8_2X8,
@@ -146,7 +146,7 @@ const struct cal_fmt cal_formats[] = {
 
 const unsigned int cal_num_formats = ARRAY_SIZE(cal_formats);
 
-const struct cal_fmt *cal_format_by_fourcc(u32 fourcc)
+const struct cal_format_info *cal_format_by_fourcc(u32 fourcc)
 {
 	unsigned int i;
 
@@ -158,7 +158,7 @@ const struct cal_fmt *cal_format_by_fourcc(u32 fourcc)
 	return NULL;
 }
 
-const struct cal_fmt *cal_format_by_code(u32 code)
+const struct cal_format_info *cal_format_by_code(u32 code)
 {
 	unsigned int i;
 
@@ -309,7 +309,7 @@ void cal_ctx_pix_proc_config(struct cal_ctx *ctx)
 {
 	u32 val, extract, pack;
 
-	switch (ctx->fmt->bpp) {
+	switch (ctx->fmtinfo->bpp) {
 	case 8:
 		extract = CAL_PIX_PROC_EXTRACT_B8;
 		pack = CAL_PIX_PROC_PACK_B8;
@@ -338,7 +338,7 @@ void cal_ctx_pix_proc_config(struct cal_ctx *ctx)
 		 */
 		dev_warn_once(ctx->cal->dev,
 			      "%s:%d:%s: bpp:%d unsupported! Overwritten with 8.\n",
-			      __FILE__, __LINE__, __func__, ctx->fmt->bpp);
+			      __FILE__, __LINE__, __func__, ctx->fmtinfo->bpp);
 		extract = CAL_PIX_PROC_EXTRACT_B8;
 		pack = CAL_PIX_PROC_PACK_B8;
 		break;
