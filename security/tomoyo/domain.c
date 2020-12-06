@@ -889,7 +889,7 @@ force_jump_domain:
  *
  * @bprm: Pointer to "struct linux_binprm".
  * @pos:  Location to dump.
- * @dump: Poiner to "struct tomoyo_page_dump".
+ * @dump: Pointer to "struct tomoyo_page_dump".
  *
  * Returns true on success, false otherwise.
  */
