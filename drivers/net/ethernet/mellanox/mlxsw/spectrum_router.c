@@ -5142,9 +5142,9 @@ static void mlxsw_sp_fib_entry_pack(struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
 				    fib_entry->priv);
 }
 
-int mlxsw_sp_fib_entry_commit(struct mlxsw_sp *mlxsw_sp,
-			      struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
-			      const struct mlxsw_sp_router_ll_ops *ll_ops)
+static int mlxsw_sp_fib_entry_commit(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
+				     const struct mlxsw_sp_router_ll_ops *ll_ops)
 {
 	bool postponed_for_bulk = false;
 	int err;
@@ -5307,13 +5307,21 @@ mlxsw_sp_fib_entry_op_ipip_decap(struct mlxsw_sp *mlxsw_sp,
 	const struct mlxsw_sp_router_ll_ops *ll_ops = fib_entry->fib_node->fib->ll_ops;
 	struct mlxsw_sp_ipip_entry *ipip_entry = fib_entry->decap.ipip_entry;
 	const struct mlxsw_sp_ipip_ops *ipip_ops;
+	int err;
 
 	if (WARN_ON(!ipip_entry))
 		return -EINVAL;
 
 	ipip_ops = mlxsw_sp->router->ipip_ops_arr[ipip_entry->ipipt];
-	return ipip_ops->fib_entry_op(mlxsw_sp, ll_ops, op_ctx, ipip_entry, op,
-				      fib_entry->decap.tunnel_index, fib_entry->priv);
+	err = ipip_ops->decap_config(mlxsw_sp, ipip_entry,
+				     fib_entry->decap.tunnel_index);
+	if (err)
+		return err;
+
+	mlxsw_sp_fib_entry_pack(op_ctx, fib_entry, op);
+	ll_ops->fib_entry_act_ip2me_tun_pack(op_ctx,
+					     fib_entry->decap.tunnel_index);
+	return mlxsw_sp_fib_entry_commit(mlxsw_sp, op_ctx, ll_ops);
 }
 
 static int mlxsw_sp_fib_entry_op_nve_decap(struct mlxsw_sp *mlxsw_sp,

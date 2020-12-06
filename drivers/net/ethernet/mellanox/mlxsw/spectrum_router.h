@@ -118,10 +118,6 @@ struct mlxsw_sp_router_ll_ops {
 	bool (*fib_entry_is_committed)(struct mlxsw_sp_fib_entry_priv *priv);
 };
 
-int mlxsw_sp_fib_entry_commit(struct mlxsw_sp *mlxsw_sp,
-			      struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
-			      const struct mlxsw_sp_router_ll_ops *ll_ops);
-
 struct mlxsw_sp_rif_ipip_lb;
 struct mlxsw_sp_rif_ipip_lb_config {
 	enum mlxsw_reg_ritr_loopback_ipip_type lb_ipipt;
