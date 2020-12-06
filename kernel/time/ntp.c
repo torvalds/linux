@@ -519,14 +519,93 @@ static void sched_sync_hw_clock(unsigned long offset_nsec, bool retry)
 	hrtimer_start(&sync_hrtimer, exp, HRTIMER_MODE_ABS);
 }
 
+/*
+ * Determine if we can call to driver to set the time. Drivers can only be
+ * called to set a second aligned time value, and the field set_offset_nsec
+ * specifies how far away from the second aligned time to call the driver.
+ *
+ * This also computes 'to_set' which is the time we are trying to set, and has
+ * a zero in tv_nsecs, such that:
+ *    to_set - set_delay_nsec == now +/- FUZZ
+ *
+ */
+static inline bool rtc_tv_nsec_ok(long set_offset_nsec,
+				  struct timespec64 *to_set,
+				  const struct timespec64 *now)
+{
+	/* Allowed error in tv_nsec, arbitarily set to 5 jiffies in ns. */
+	const unsigned long TIME_SET_NSEC_FUZZ = TICK_NSEC * 5;
+	struct timespec64 delay = {.tv_sec = 0,
+				   .tv_nsec = set_offset_nsec};
+
+	*to_set = timespec64_add(*now, delay);
+
+	if (to_set->tv_nsec < TIME_SET_NSEC_FUZZ) {
+		to_set->tv_nsec = 0;
+		return true;
+	}
+
+	if (to_set->tv_nsec > NSEC_PER_SEC - TIME_SET_NSEC_FUZZ) {
+		to_set->tv_sec++;
+		to_set->tv_nsec = 0;
+		return true;
+	}
+	return false;
+}
+
+#ifdef CONFIG_RTC_SYSTOHC
+/*
+ * rtc_set_ntp_time - Save NTP synchronized time to the RTC
+ */
+static int rtc_set_ntp_time(struct timespec64 now, unsigned long *target_nsec)
+{
+	struct rtc_device *rtc;
+	struct rtc_time tm;
+	struct timespec64 to_set;
+	int err = -ENODEV;
+	bool ok;
+
+	rtc = rtc_class_open(CONFIG_RTC_SYSTOHC_DEVICE);
+	if (!rtc)
+		goto out_err;
+
+	if (!rtc->ops || !rtc->ops->set_time)
+		goto out_close;
+
+	/*
+	 * Compute the value of tv_nsec we require the caller to supply in
+	 * now.tv_nsec.  This is the value such that (now +
+	 * set_offset_nsec).tv_nsec == 0.
+	 */
+	set_normalized_timespec64(&to_set, 0, -rtc->set_offset_nsec);
+	*target_nsec = to_set.tv_nsec;
+
+	/*
+	 * The ntp code must call this with the correct value in tv_nsec, if
+	 * it does not we update target_nsec and return EPROTO to make the ntp
+	 * code try again later.
+	 */
+	ok = rtc_tv_nsec_ok(rtc->set_offset_nsec, &to_set, &now);
+	if (!ok) {
+		err = -EPROTO;
+		goto out_close;
+	}
+
+	rtc_time64_to_tm(to_set.tv_sec, &tm);
+
+	err = rtc_set_time(rtc, &tm);
+
+out_close:
+	rtc_class_close(rtc);
+out_err:
+	return err;
+}
+
 static void sync_rtc_clock(void)
 {
 	unsigned long offset_nsec;
 	struct timespec64 adjust;
 	int rc;
-
-	if (!IS_ENABLED(CONFIG_RTC_SYSTOHC))
-		return;
 
 	ktime_get_real_ts64(&adjust);
 
@@ -544,6 +623,9 @@ static void sync_rtc_clock(void)
 
 	sched_sync_hw_clock(offset_nsec, rc != 0);
 }
+#else
+static inline void sync_rtc_clock(void) { }
+#endif
 
 #ifdef CONFIG_GENERIC_CMOS_UPDATE
 int __weak update_persistent_clock64(struct timespec64 now64)
