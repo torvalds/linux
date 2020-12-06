@@ -9,6 +9,19 @@ struct nvkm_top {
 	struct list_head device;
 };
 
+struct nvkm_top_device {
+	enum nvkm_subdev_type type;
+	int inst;
+	enum nvkm_devidx index;
+	u32 addr;
+	int fault;
+	int engine;
+	int runlist;
+	int reset;
+	int intr;
+	struct list_head head;
+};
+
 u32 nvkm_top_addr(struct nvkm_device *, enum nvkm_devidx);
 u32 nvkm_top_reset(struct nvkm_device *, enum nvkm_devidx);
 u32 nvkm_top_intr(struct nvkm_device *, u32 intr, u64 *subdevs);
