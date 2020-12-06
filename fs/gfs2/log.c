@@ -712,11 +712,13 @@ void gfs2_glock_remove_revoke(struct gfs2_glock *gl)
 void gfs2_write_revokes(struct gfs2_sbd *sdp)
 {
 	/* number of revokes we still have room for */
-	int max_revokes = (sdp->sd_sb.sb_bsize - sizeof(struct gfs2_log_descriptor)) / sizeof(u64);
+	unsigned int max_revokes;
 
 	gfs2_log_lock(sdp);
-	while (sdp->sd_log_num_revoke > max_revokes)
-		max_revokes += (sdp->sd_sb.sb_bsize - sizeof(struct gfs2_meta_header)) / sizeof(u64);
+	max_revokes = sdp->sd_ldptrs;
+	if (sdp->sd_log_num_revoke > sdp->sd_ldptrs)
+		max_revokes += roundup(sdp->sd_log_num_revoke - sdp->sd_ldptrs,
+				       sdp->sd_inptrs);
 	max_revokes -= sdp->sd_log_num_revoke;
 	if (!sdp->sd_log_num_revoke) {
 		atomic_dec(&sdp->sd_log_blks_free);
