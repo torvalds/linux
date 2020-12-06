@@ -4600,7 +4600,7 @@ void start_create_ibss(struct adapter *padapter)
 	/* update capability */
 	caps = rtw_get_capability((struct wlan_bssid_ex *)pnetwork);
 	update_capinfo(padapter, caps);
-	if (caps&cap_IBSS) {/* adhoc master */
+	if (caps&WLAN_CAPABILITY_IBSS) {/* adhoc master */
 		val8 = 0xcf;
 		rtw_hal_set_hwreg(padapter, HW_VAR_SEC_CFG, (u8 *)(&val8));
 
@@ -4655,7 +4655,7 @@ void start_clnt_join(struct adapter *padapter)
 	/* update capability */
 	caps = rtw_get_capability((struct wlan_bssid_ex *)pnetwork);
 	update_capinfo(padapter, caps);
-	if (caps&cap_ESS) {
+	if (caps&WLAN_CAPABILITY_ESS) {
 		Set_MSR(padapter, WIFI_FW_STATION_STATE);
 
 		val8 = (pmlmeinfo->auth_algo == dot11AuthAlgrthm_8021X) ? 0xcc : 0xcf;
@@ -4681,7 +4681,7 @@ void start_clnt_join(struct adapter *padapter)
 			(REAUTH_TO * REAUTH_LIMIT) + (REASSOC_TO*REASSOC_LIMIT) + beacon_timeout);
 
 		pmlmeinfo->state = WIFI_FW_AUTH_NULL | WIFI_FW_STATION_STATE;
-	} else if (caps&cap_IBSS) { /* adhoc client */
+	} else if (caps&WLAN_CAPABILITY_IBSS) { /* adhoc client */
 		Set_MSR(padapter, WIFI_FW_ADHOC_STATE);
 
 		val8 = 0xcf;
@@ -5952,9 +5952,9 @@ static int rtw_auto_ap_start_beacon(struct adapter *adapter)
 
 	/* capability info */
 	*(u16 *)ie = 0;
-	*(u16 *)ie |= cpu_to_le16(cap_ESS);
-	*(u16 *)ie |= cpu_to_le16(cap_ShortPremble);
-	/* u16*)ie |= cpu_to_le16(cap_Privacy); */
+	*(u16 *)ie |= cpu_to_le16(WLAN_CAPABILITY_ESS);
+	*(u16 *)ie |= cpu_to_le16(WLAN_CAPABILITY_SHORT_PREAMBLE);
+	/* u16*)ie |= cpu_to_le16(WLAN_CAPABILITY_PRIVACY); */
 	sz += 2;
 	ie += 2;
 
