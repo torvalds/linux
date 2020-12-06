@@ -865,6 +865,7 @@ void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
 			}
 		} else {
 			int s_ret;
+
 			set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
 			pmlmepriv->to_join = false;
 			s_ret = rtw_select_and_join_from_scanned_queue(pmlmepriv);
@@ -1582,6 +1583,7 @@ void rtw_stadel_event_callback(struct adapter *adapter, u8 *pbuf)
 
 	if (mac_id >= 0) {
 		u16 media_status;
+
 		media_status = (mac_id<<8)|0; /*   MACID|OPMODE:0 means disconnect */
 		/* for STA, AP, ADHOC mode, report disconnect stauts to FW */
 		rtw_hal_set_hwreg(adapter, HW_VAR_H2C_MEDIA_STATUS_RPT, (u8 *)&media_status);
@@ -1714,6 +1716,7 @@ void _rtw_join_timeout_handler(struct timer_list *t)
 			rtw_dec_to_roam(adapter);
 			if (rtw_to_roam(adapter) != 0) { /* try another */
 				int do_join_r;
+
 				DBG_871X("%s try another roaming\n", __func__);
 				do_join_r = rtw_do_join(adapter);
 				if (_SUCCESS != do_join_r) {
@@ -1852,12 +1855,14 @@ void rtw_dynamic_check_timer_handler(struct adapter *adapter)
 inline bool rtw_is_scan_deny(struct adapter *adapter)
 {
 	struct mlme_priv *mlmepriv = &adapter->mlmepriv;
+
 	return (atomic_read(&mlmepriv->set_scan_deny) != 0) ? true : false;
 }
 
 inline void rtw_clear_scan_deny(struct adapter *adapter)
 {
 	struct mlme_priv *mlmepriv = &adapter->mlmepriv;
+
 	atomic_set(&mlmepriv->set_scan_deny, 0);
 
 	DBG_871X(FUNC_ADPT_FMT"\n", FUNC_ADPT_ARG(adapter));
@@ -2614,6 +2619,7 @@ unsigned int rtw_restructure_ht_ie(struct adapter *padapter, u8 *in_ie, u8 *out_
 		p = rtw_get_ie(in_ie, _HT_ADD_INFO_IE_, &ielen, in_len);
 		if (p && (ielen == sizeof(struct ieee80211_ht_addt_info))) {
 			struct HT_info_element *pht_info = (struct HT_info_element *)(p+2);
+
 			if (pht_info->infos[0] & BIT(2)) {
 				switch (pht_info->infos[0] & 0x3) {
 				case 1:
@@ -2692,6 +2698,7 @@ unsigned int rtw_restructure_ht_ie(struct adapter *padapter, u8 *in_ie, u8 *out_
 
 	{
 		u32 rx_packet_offset, max_recvbuf_sz;
+
 		rtw_hal_get_def_var(padapter, HAL_DEF_RX_PACKET_OFFSET, &rx_packet_offset);
 		rtw_hal_get_def_var(padapter, HAL_DEF_MAX_RECVBUF_SZ, &max_recvbuf_sz);
 	}
