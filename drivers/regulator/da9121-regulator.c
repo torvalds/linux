@@ -381,7 +381,7 @@ static int da9121_of_parse_cb(struct device_node *np,
 		uint32_t ripple_reg;
 		int ret;
 
-		if (of_property_read_u32(da9121_matches[pdata->num_buck].of_node,
+		if (of_property_read_u32(da9121_matches[pdata->num_buck-1].of_node,
 				"dlg,ripple-cancel", &ripple_cancel)) {
 			if (pdata->num_buck > 1)
 				ripple_reg = DA9xxx_REG_BUCK_BUCK2_7;
