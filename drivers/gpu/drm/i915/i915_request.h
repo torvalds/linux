@@ -177,10 +177,8 @@ struct i915_request {
 	struct intel_ring *ring;
 	struct intel_timeline __rcu *timeline;
 
-	union {
-		struct list_head signal_link;
-		struct llist_node signal_node;
-	};
+	struct list_head signal_link;
+	struct llist_node signal_node;
 
 	/*
 	 * The rcu epoch of when this request was allocated. Used to judiciously
