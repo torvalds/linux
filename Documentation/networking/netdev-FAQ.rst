@@ -254,6 +254,32 @@ you will have done run-time testing specific to your change, but at a
 minimum, your changes should survive an ``allyesconfig`` and an
 ``allmodconfig`` build without new warnings or failures.
 
+Q: How do I post corresponding changes to user space components?
+----------------------------------------------------------------
+A: User space code exercising kernel features should be posted
+alongside kernel patches. This gives reviewers a chance to see
+how any new interface is used and how well it works.
+
+When user space tools reside in the kernel repo itself all changes
+should generally come as one series. If series becomes too large
+or the user space project is not reviewed on netdev include a link
+to a public repo where user space patches can be seen.
+
+In case user space tooling lives in a separate repository but is
+reviewed on netdev  (e.g. patches to `iproute2` tools) kernel and
+user space patches should form separate series (threads) when posted
+to the mailing list, e.g.::
+
+  [PATCH net-next 0/3] net: some feature cover letter
+   └─ [PATCH net-next 1/3] net: some feature prep
+   └─ [PATCH net-next 2/3] net: some feature do it
+   └─ [PATCH net-next 3/3] selftest: net: some feature
+
+  [PATCH iproute2-next] ip: add support for some feature
+
+Posting as one thread is discouraged because it confuses patchwork
+(as of patchwork 2.2.2).
+
 Q: Any other tips to help ensure my net/net-next patch gets OK'd?
 -----------------------------------------------------------------
 A: Attention to detail.  Re-read your own work as if you were the

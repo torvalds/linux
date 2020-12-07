@@ -544,7 +544,9 @@ static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
 		/* need to wait for hw response, can't free tx_info yet. */
 		if (tx_info->open_state == CH_KTLS_OPEN_PENDING)
 			tx_info->pending_close = true;
-		/* free the lock after the cleanup */
+		else
+			spin_unlock_bh(&tx_info->lock);
+		/* if in pending close, free the lock after the cleanup */
 		goto put_module;
 	}
 	spin_unlock_bh(&tx_info->lock);

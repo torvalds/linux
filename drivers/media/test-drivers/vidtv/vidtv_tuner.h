@@ -11,6 +11,7 @@
 #define VIDTV_TUNER_H
 
 #include <linux/types.h>
+
 #include <media/dvb_frontend.h>
 
 #define NUM_VALID_TUNER_FREQS 8

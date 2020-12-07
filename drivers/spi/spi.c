@@ -3372,12 +3372,15 @@ int spi_setup(struct spi_device *spi)
 	if (!spi->max_speed_hz)
 		spi->max_speed_hz = spi->controller->max_speed_hz;
 
+	mutex_lock(&spi->controller->io_mutex);
+
 	if (spi->controller->setup)
 		status = spi->controller->setup(spi);
 
 	if (spi->controller->auto_runtime_pm && spi->controller->set_cs) {
 		status = pm_runtime_get_sync(spi->controller->dev.parent);
 		if (status < 0) {
+			mutex_unlock(&spi->controller->io_mutex);
 			pm_runtime_put_noidle(spi->controller->dev.parent);
 			dev_err(&spi->controller->dev, "Failed to power device: %d\n",
 				status);
@@ -3398,6 +3401,8 @@ int spi_setup(struct spi_device *spi)
 	} else {
 		spi_set_cs(spi, false);
 	}
+
+	mutex_unlock(&spi->controller->io_mutex);
 
 	if (spi->rt && !spi->controller->rt) {
 		spi->controller->rt = true;

@@ -1686,6 +1686,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	pm_runtime_set_autosuspend_delay(spi_imx->dev, MXC_RPM_TIMEOUT);
 	pm_runtime_use_autosuspend(spi_imx->dev);
+	pm_runtime_get_noresume(spi_imx->dev);
 	pm_runtime_set_active(spi_imx->dev);
 	pm_runtime_enable(spi_imx->dev);
 

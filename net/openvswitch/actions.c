@@ -199,6 +199,9 @@ static int set_mpls(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	__be32 lse;
 	int err;
 
+	if (!pskb_may_pull(skb, skb_network_offset(skb) + MPLS_HLEN))
+		return -ENOMEM;
+
 	stack = mpls_hdr(skb);
 	lse = OVS_MASKED(stack->label_stack_entry, *mpls_lse, *mask);
 	err = skb_mpls_update_lse(skb, lse);
@@ -958,14 +961,13 @@ static int dec_ttl_exception_handler(struct datapath *dp, struct sk_buff *skb,
 {
 	/* The first action is always 'OVS_DEC_TTL_ATTR_ARG'. */
 	struct nlattr *dec_ttl_arg = nla_data(attr);
-	int rem = nla_len(attr);
 
 	if (nla_len(dec_ttl_arg)) {
-		struct nlattr *actions = nla_next(dec_ttl_arg, &rem);
+		struct nlattr *actions = nla_data(dec_ttl_arg);
 
 		if (actions)
-			return clone_execute(dp, skb, key, 0, actions, rem,
-					     last, false);
+			return clone_execute(dp, skb, key, 0, nla_data(actions),
+					     nla_len(actions), last, false);
 	}
 	consume_skb(skb);
 	return 0;

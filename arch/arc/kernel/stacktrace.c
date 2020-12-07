@@ -38,15 +38,27 @@
 
 #ifdef CONFIG_ARC_DW2_UNWIND
 
-static void seed_unwind_frame_info(struct task_struct *tsk,
-				   struct pt_regs *regs,
-				   struct unwind_frame_info *frame_info)
+static int
+seed_unwind_frame_info(struct task_struct *tsk, struct pt_regs *regs,
+		       struct unwind_frame_info *frame_info)
 {
-	/*
-	 * synchronous unwinding (e.g. dump_stack)
-	 *  - uses current values of SP and friends
-	 */
-	if (tsk == NULL && regs == NULL) {
+	if (regs) {
+		/*
+		 * Asynchronous unwinding of intr/exception
+		 *  - Just uses the pt_regs passed
+		 */
+		frame_info->task = tsk;
+
+		frame_info->regs.r27 = regs->fp;
+		frame_info->regs.r28 = regs->sp;
+		frame_info->regs.r31 = regs->blink;
+		frame_info->regs.r63 = regs->ret;
+		frame_info->call_frame = 0;
+	} else if (tsk == NULL || tsk == current) {
+		/*
+		 * synchronous unwinding (e.g. dump_stack)
+		 *  - uses current values of SP and friends
+		 */
 		unsigned long fp, sp, blink, ret;
 		frame_info->task = current;
 
@@ -63,12 +75,16 @@ static void seed_unwind_frame_info(struct task_struct *tsk,
 		frame_info->regs.r31 = blink;
 		frame_info->regs.r63 = ret;
 		frame_info->call_frame = 0;
-	} else if (regs == NULL) {
+	} else {
 		/*
-		 * Asynchronous unwinding of sleeping task
-		 *  - Gets SP etc from task's pt_regs (saved bottom of kernel
-		 *    mode stack of task)
+		 * Asynchronous unwinding of a likely sleeping task
+		 *  - first ensure it is actually sleeping
+		 *  - if so, it will be in __switch_to, kernel mode SP of task
+		 *    is safe-kept and BLINK at a well known location in there
 		 */
+
+		if (tsk->state == TASK_RUNNING)
+			return -1;
 
 		frame_info->task = tsk;
 
@@ -90,19 +106,8 @@ static void seed_unwind_frame_info(struct task_struct *tsk,
 		frame_info->regs.r28 += 60;
 		frame_info->call_frame = 0;
 
-	} else {
-		/*
-		 * Asynchronous unwinding of intr/exception
-		 *  - Just uses the pt_regs passed
-		 */
-		frame_info->task = tsk;
-
-		frame_info->regs.r27 = regs->fp;
-		frame_info->regs.r28 = regs->sp;
-		frame_info->regs.r31 = regs->blink;
-		frame_info->regs.r63 = regs->ret;
-		frame_info->call_frame = 0;
 	}
+	return 0;
 }
 
 #endif
@@ -116,7 +121,8 @@ arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,
 	unsigned int address;
 	struct unwind_frame_info frame_info;
 
-	seed_unwind_frame_info(tsk, regs, &frame_info);
+	if (seed_unwind_frame_info(tsk, regs, &frame_info))
+		return 0;
 
 	while (1) {
 		address = UNW_PC(&frame_info);
