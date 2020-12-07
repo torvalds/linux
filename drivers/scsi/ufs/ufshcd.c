@@ -8012,7 +8012,7 @@ static int ufshcd_disable_vreg(struct device *dev, struct ufs_vreg *vreg)
 {
 	int ret = 0;
 
-	if (!vreg || !vreg->enabled)
+	if (!vreg || !vreg->enabled || vreg->always_on)
 		goto out;
 
 	ret = regulator_disable(vreg->reg);
