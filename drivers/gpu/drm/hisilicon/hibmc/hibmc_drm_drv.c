@@ -250,12 +250,9 @@ static int hibmc_hw_init(struct hibmc_drm_private *priv)
 
 static int hibmc_unload(struct drm_device *dev)
 {
-	struct hibmc_drm_private *priv = to_hibmc_drm_private(dev);
-
 	drm_atomic_helper_shutdown(dev);
-
 	pci_disable_msi(dev->pdev);
-	dev->dev_private = NULL;
+
 	return 0;
 }
 
