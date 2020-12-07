@@ -925,66 +925,6 @@ int rtas_suspend_cpu(struct rtas_suspend_me_data *data)
 	return __rtas_suspend_cpu(data, 0);
 }
 
-static void rtas_percpu_suspend_me(void *info)
-{
-	__rtas_suspend_cpu((struct rtas_suspend_me_data *)info, 1);
-}
-
-int rtas_ibm_suspend_me_unsafe(u64 handle)
-{
-	long state;
-	long rc;
-	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
-	struct rtas_suspend_me_data data;
-	DECLARE_COMPLETION_ONSTACK(done);
-
-	if (!rtas_service_present("ibm,suspend-me"))
-		return -ENOSYS;
-
-	/* Make sure the state is valid */
-	rc = plpar_hcall(H_VASI_STATE, retbuf, handle);
-
-	state = retbuf[0];
-
-	if (rc) {
-		printk(KERN_ERR "rtas_ibm_suspend_me: vasi_state returned %ld\n",rc);
-		return rc;
-	} else if (state == H_VASI_ENABLED) {
-		return -EAGAIN;
-	} else if (state != H_VASI_SUSPENDING) {
-		printk(KERN_ERR "rtas_ibm_suspend_me: vasi_state returned state %ld\n",
-		       state);
-		return -EIO;
-	}
-
-	atomic_set(&data.working, 0);
-	atomic_set(&data.done, 0);
-	atomic_set(&data.error, 0);
-	data.token = rtas_token("ibm,suspend-me");
-	data.complete = &done;
-
-	lock_device_hotplug();
-
-	cpu_hotplug_disable();
-
-	/* Call function on all CPUs.  One of us will make the
-	 * rtas call
-	 */
-	on_each_cpu(rtas_percpu_suspend_me, &data, 0);
-
-	wait_for_completion(&done);
-
-	if (atomic_read(&data.error) != 0)
-		printk(KERN_ERR "Error doing global join\n");
-
-
-	cpu_hotplug_enable();
-
-	unlock_device_hotplug();
-
-	return atomic_read(&data.error);
-}
-
 /**
  * rtas_call_reentrant() - Used for reentrant rtas calls
  * @token:	Token for desired reentrant RTAS call
@@ -1035,12 +975,7 @@ int rtas_call_reentrant(int token, int nargs, int nret, int *outputs, ...)
 	return ret;
 }
 
-#else /* CONFIG_PPC_PSERIES */
-int rtas_ibm_suspend_me_unsafe(u64 handle)
-{
-	return -ENOSYS;
-}
-#endif
+#endif /* CONFIG_PPC_PSERIES */
 
 /**
  * Find a specific pseries error log in an RTAS extended event log.
