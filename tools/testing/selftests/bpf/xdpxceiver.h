@@ -38,7 +38,7 @@
 #define SOCK_RECONF_CTR 10
 #define BATCH_SIZE 64
 #define POLL_TMOUT 1000
-#define NEED_WAKEUP 1
+#define NEED_WAKEUP true
 
 typedef __u32 u32;
 typedef __u16 u16;
@@ -46,6 +46,7 @@ typedef __u8 u8;
 
 enum TESTS {
 	ORDER_CONTENT_VALIDATE_XDP_SKB = 0,
+	ORDER_CONTENT_VALIDATE_XDP_DRV = 1,
 };
 
 u8 uut;
