@@ -2614,9 +2614,9 @@ static void rk3399_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
 #define RK3568_SR_PINS_PER_REG		16
 
 static int rk3568_calc_slew_rate_reg_and_bit(struct rockchip_pin_bank *bank,
-					   int pin_num,
-					   struct regmap **regmap,
-					   int *reg, u8 *bit)
+					     int pin_num,
+					     struct regmap **regmap,
+					     int *reg, u8 *bit)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
 
@@ -2672,8 +2672,8 @@ static void rk3568_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 #define RK3568_DRV_BANK_STRIDE		0x40
 
 static void rk3568_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
-				    int pin_num, struct regmap **regmap,
-				    int *reg, u8 *bit)
+					int pin_num, struct regmap **regmap,
+					int *reg, u8 *bit)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
 
@@ -2694,8 +2694,13 @@ static void rk3568_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
 		*bit = (pin_num % RK3568_DRV_PINS_PER_REG);
 		*bit *= RK3568_DRV_BITS_PER_PIN;
 	}
-}
 
+	if (rockchip_get_cpu_version() == 0)
+		if ((bank->bank_num == 1 && (pin_num == 15 || pin_num == 23 || pin_num == 31)) ||
+		    ((bank->bank_num == 2 || bank->bank_num == 3 || bank->bank_num == 4) &&
+		     (pin_num == 7 || pin_num == 15 || pin_num == 23 || pin_num == 31)))
+			*bit -= RK3568_DRV_BITS_PER_PIN;
+}
 
 static int rockchip_perpin_drv_list[DRV_TYPE_MAX][8] = {
 	{ 2, 4, 8, 12, -1, -1, -1, -1 },
@@ -2885,7 +2890,7 @@ config:
 	if (ret)
 		return ret;
 
-	if (ctrl->type == RK3568) {
+	if (ctrl->type == RK3568 && rockchip_get_cpu_version() == 0) {
 		if (bank->bank_num == 1 && pin_num == 21)
 			reg = 0x0840;
 		else if (bank->bank_num == 2 && pin_num == 2)
