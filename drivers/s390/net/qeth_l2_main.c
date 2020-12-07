@@ -2189,7 +2189,7 @@ static int qeth_l2_probe_device(struct ccwgroup_device *gdev)
 	mutex_init(&card->sbp_lock);
 
 	if (gdev->dev.type == &qeth_generic_devtype) {
-		rc = qeth_l2_create_device_attributes(&gdev->dev);
+		rc = device_add_groups(&gdev->dev, qeth_l2_attr_groups);
 		if (rc)
 			return rc;
 	}
@@ -2203,7 +2203,7 @@ static void qeth_l2_remove_device(struct ccwgroup_device *gdev)
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
 
 	if (gdev->dev.type == &qeth_generic_devtype)
-		qeth_l2_remove_device_attributes(&gdev->dev);
+		device_remove_groups(&gdev->dev, qeth_l2_attr_groups);
 	qeth_set_allowed_threads(card, 0, 1);
 	wait_event(card->wait_q, qeth_threads_running(card, 0xffffffff) == 0);
 

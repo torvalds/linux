@@ -6375,13 +6375,11 @@ void qeth_core_free_discipline(struct qeth_card *card)
 
 const struct device_type qeth_generic_devtype = {
 	.name = "qeth_generic",
-	.groups = qeth_generic_attr_groups,
 };
 EXPORT_SYMBOL_GPL(qeth_generic_devtype);
 
 static const struct device_type qeth_osn_devtype = {
 	.name = "qeth_osn",
-	.groups = qeth_osn_attr_groups,
 };
 
 #define DBF_NAME_LEN	20
@@ -6560,6 +6558,11 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 	rc = qeth_update_from_chp_desc(card);
 	if (rc)
 		goto err_chp_desc;
+
+	if (IS_OSN(card))
+		gdev->dev.groups = qeth_osn_dev_groups;
+	else
+		gdev->dev.groups = qeth_dev_groups;
 
 	enforced_disc = qeth_enforce_discipline(card);
 	switch (enforced_disc) {

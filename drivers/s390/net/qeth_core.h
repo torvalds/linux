@@ -1063,10 +1063,8 @@ extern const struct qeth_discipline qeth_l2_discipline;
 extern const struct qeth_discipline qeth_l3_discipline;
 extern const struct ethtool_ops qeth_ethtool_ops;
 extern const struct ethtool_ops qeth_osn_ethtool_ops;
-extern const struct attribute_group *qeth_generic_attr_groups[];
-extern const struct attribute_group *qeth_osn_attr_groups[];
-extern const struct attribute_group qeth_device_attr_group;
-extern const struct attribute_group qeth_device_blkt_group;
+extern const struct attribute_group *qeth_dev_groups[];
+extern const struct attribute_group *qeth_osn_dev_groups[];
 extern const struct device_type qeth_generic_devtype;
 
 const char *qeth_get_cardname_short(struct qeth_card *);
