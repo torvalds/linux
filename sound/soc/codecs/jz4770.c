@@ -190,6 +190,9 @@ static int jz4770_codec_set_bias_level(struct snd_soc_component *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
+		/* Reset all interrupt flags. */
+		regmap_write(regmap, JZ4770_CODEC_REG_IFR, REG_IFR_ALL_MASK);
+
 		regmap_clear_bits(regmap, JZ4770_CODEC_REG_CR_VIC,
 				  REG_CR_VIC_SB);
 		msleep(250);
@@ -642,9 +645,6 @@ static void jz4770_codec_codec_init_regs(struct snd_soc_component *codec)
 	/* Send collected updates. */
 	regcache_cache_only(regmap, false);
 	regcache_sync(regmap);
-
-	/* Reset all interrupt flags. */
-	regmap_write(regmap, JZ4770_CODEC_REG_IFR, REG_IFR_ALL_MASK);
 }
 
 static int jz4770_codec_codec_probe(struct snd_soc_component *codec)
