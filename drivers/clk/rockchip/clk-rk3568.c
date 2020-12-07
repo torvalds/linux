@@ -449,7 +449,7 @@ static struct rockchip_clk_branch rk3568_uart0_fracmux __initdata =
 			RK3568_PMU_CLKSEL_CON(4), 10, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3568_rtc32k_pmu_fracmux __initdata =
-	MUX(CLK_RTC_32K, "clk_rtc_32k", clk_rtc32k_pmu_p, CLK_SET_RATE_PARENT,
+	MUX(CLK_RTC_32K, "clk_rtc_32k", clk_rtc32k_pmu_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 			RK3568_PMU_CLKSEL_CON(0), 6, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3568_clk_npu_np5 __initdata =
