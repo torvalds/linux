@@ -453,7 +453,6 @@ void mlx5e_ipsec_offload_handle_rx_skb(struct net_device *netdev,
 				       struct mlx5_cqe64 *cqe)
 {
 	u32 ipsec_meta_data = be32_to_cpu(cqe->ft_metadata);
-	u8 ipsec_syndrome = ipsec_meta_data & 0xFF;
 	struct mlx5e_priv *priv;
 	struct xfrm_offload *xo;
 	struct xfrm_state *xs;
@@ -481,7 +480,7 @@ void mlx5e_ipsec_offload_handle_rx_skb(struct net_device *netdev,
 	xo = xfrm_offload(skb);
 	xo->flags = CRYPTO_DONE;
 
-	switch (ipsec_syndrome & MLX5_IPSEC_METADATA_SYNDROM_MASK) {
+	switch (MLX5_IPSEC_METADATA_SYNDROM(ipsec_meta_data)) {
 	case MLX5E_IPSEC_OFFLOAD_RX_SYNDROME_DECRYPTED:
 		xo->status = CRYPTO_SUCCESS;
 		if (WARN_ON_ONCE(priv->ipsec->no_trailer))

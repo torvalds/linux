@@ -99,7 +99,8 @@ static irqreturn_t sunkbd_interrupt(struct serio *serio,
 	switch (data) {
 
 	case SUNKBD_RET_RESET:
-		schedule_work(&sunkbd->tq);
+		if (sunkbd->enabled)
+			schedule_work(&sunkbd->tq);
 		sunkbd->reset = -1;
 		break;
 
@@ -200,16 +201,12 @@ static int sunkbd_initialize(struct sunkbd *sunkbd)
 }
 
 /*
- * sunkbd_reinit() sets leds and beeps to a state the computer remembers they
- * were in.
+ * sunkbd_set_leds_beeps() sets leds and beeps to a state the computer remembers
+ * they were in.
  */
 
-static void sunkbd_reinit(struct work_struct *work)
+static void sunkbd_set_leds_beeps(struct sunkbd *sunkbd)
 {
-	struct sunkbd *sunkbd = container_of(work, struct sunkbd, tq);
-
-	wait_event_interruptible_timeout(sunkbd->wait, sunkbd->reset >= 0, HZ);
-
 	serio_write(sunkbd->serio, SUNKBD_CMD_SETLED);
 	serio_write(sunkbd->serio,
 		(!!test_bit(LED_CAPSL,   sunkbd->dev->led) << 3) |
@@ -222,11 +219,39 @@ static void sunkbd_reinit(struct work_struct *work)
 		SUNKBD_CMD_BELLOFF - !!test_bit(SND_BELL, sunkbd->dev->snd));
 }
 
+
+/*
+ * sunkbd_reinit() wait for the keyboard reset to complete and restores state
+ * of leds and beeps.
+ */
+
+static void sunkbd_reinit(struct work_struct *work)
+{
+	struct sunkbd *sunkbd = container_of(work, struct sunkbd, tq);
+
+	/*
+	 * It is OK that we check sunkbd->enabled without pausing serio,
+	 * as we only want to catch true->false transition that will
+	 * happen once and we will be woken up for it.
+	 */
+	wait_event_interruptible_timeout(sunkbd->wait,
+					 sunkbd->reset >= 0 || !sunkbd->enabled,
+					 HZ);
+
+	if (sunkbd->reset >= 0 && sunkbd->enabled)
+		sunkbd_set_leds_beeps(sunkbd);
+}
+
 static void sunkbd_enable(struct sunkbd *sunkbd, bool enable)
 {
 	serio_pause_rx(sunkbd->serio);
 	sunkbd->enabled = enable;
 	serio_continue_rx(sunkbd->serio);
+
+	if (!enable) {
+		wake_up_interruptible(&sunkbd->wait);
+		cancel_work_sync(&sunkbd->tq);
+	}
 }
 
 /*

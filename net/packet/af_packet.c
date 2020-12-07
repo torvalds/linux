@@ -93,8 +93,8 @@
 
 /*
    Assumptions:
-   - If the device has no dev->header_ops, there is no LL header visible
-     above the device. In this case, its hard_header_len should be 0.
+   - If the device has no dev->header_ops->create, there is no LL header
+     visible above the device. In this case, its hard_header_len should be 0.
      The device may prepend its own header internally. In this case, its
      needed_headroom should be set to the space needed for it to add its
      internal header.
@@ -108,26 +108,26 @@
 On receive:
 -----------
 
-Incoming, dev->header_ops != NULL
+Incoming, dev_has_header(dev) == true
    mac_header -> ll header
    data       -> data
 
-Outgoing, dev->header_ops != NULL
+Outgoing, dev_has_header(dev) == true
    mac_header -> ll header
    data       -> ll header
 
-Incoming, dev->header_ops == NULL
+Incoming, dev_has_header(dev) == false
    mac_header -> data
      However drivers often make it point to the ll header.
      This is incorrect because the ll header should be invisible to us.
    data       -> data
 
-Outgoing, dev->header_ops == NULL
+Outgoing, dev_has_header(dev) == false
    mac_header -> data. ll header is invisible to us.
    data       -> data
 
 Resume
-  If dev->header_ops == NULL we are unable to restore the ll header,
+  If dev_has_header(dev) == false we are unable to restore the ll header,
     because it is invisible to us.
 
 
@@ -2069,7 +2069,7 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	skb->dev = dev;
 
-	if (dev->header_ops) {
+	if (dev_has_header(dev)) {
 		/* The device has an explicit notion of ll header,
 		 * exported to higher levels.
 		 *
@@ -2198,7 +2198,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (!net_eq(dev_net(dev), sock_net(sk)))
 		goto drop;
 
-	if (dev->header_ops) {
+	if (dev_has_header(dev)) {
 		if (sk->sk_type != SOCK_DGRAM)
 			skb_push(skb, skb->data - skb_mac_header(skb));
 		else if (skb->pkt_type == PACKET_OUTGOING) {

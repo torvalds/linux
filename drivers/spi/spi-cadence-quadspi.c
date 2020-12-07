@@ -1260,12 +1260,14 @@ static int cqspi_probe(struct platform_device *pdev)
 	/* Obtain QSPI reset control */
 	rstc = devm_reset_control_get_optional_exclusive(dev, "qspi");
 	if (IS_ERR(rstc)) {
+		ret = PTR_ERR(rstc);
 		dev_err(dev, "Cannot get QSPI reset.\n");
 		goto probe_reset_failed;
 	}
 
 	rstc_ocp = devm_reset_control_get_optional_exclusive(dev, "qspi-ocp");
 	if (IS_ERR(rstc_ocp)) {
+		ret = PTR_ERR(rstc_ocp);
 		dev_err(dev, "Cannot get QSPI OCP reset.\n");
 		goto probe_reset_failed;
 	}

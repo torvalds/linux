@@ -8,7 +8,7 @@
 
 #define FONTDATAMAX 3584
 
-static struct font_data fontdata_7x14 = {
+static const struct font_data fontdata_7x14 = {
 	{ 0, 0, FONTDATAMAX, 0 }, {
 	/* 0 0x00 '^@' */
 	0x00, /* 0000000 */

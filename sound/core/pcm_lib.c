@@ -490,7 +490,7 @@ void snd_pcm_set_ops(struct snd_pcm *pcm, int direction,
 EXPORT_SYMBOL(snd_pcm_set_ops);
 
 /**
- * snd_pcm_sync - set the PCM sync id
+ * snd_pcm_set_sync - set the PCM sync id
  * @substream: the pcm substream
  *
  * Sets the PCM sync identifier for the card.

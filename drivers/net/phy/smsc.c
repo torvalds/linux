@@ -291,8 +291,10 @@ static int smsc_phy_probe(struct phy_device *phydev)
 		return ret;
 
 	ret = clk_set_rate(priv->refclk, 50 * 1000 * 1000);
-	if (ret)
+	if (ret) {
+		clk_disable_unprepare(priv->refclk);
 		return ret;
+	}
 
 	return 0;
 }

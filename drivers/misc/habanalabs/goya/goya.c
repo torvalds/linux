@@ -2882,8 +2882,8 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 
 	cb = job->patched_cb;
 
-	fence_pkt = (struct packet_msg_prot *) (uintptr_t) (cb->kernel_address +
-			job->job_cb_size - sizeof(struct packet_msg_prot));
+	fence_pkt = cb->kernel_address +
+			job->job_cb_size - sizeof(struct packet_msg_prot);
 
 	tmp = (PACKET_MSG_PROT << GOYA_PKT_CTL_OPCODE_SHIFT) |
 			(1 << GOYA_PKT_CTL_EB_SHIFT) |
@@ -3475,8 +3475,7 @@ static int goya_validate_cb(struct hl_device *hdev,
 		u16 pkt_size;
 		struct goya_packet *user_pkt;
 
-		user_pkt = (struct goya_packet *) (uintptr_t)
-			(parser->user_cb->kernel_address + cb_parsed_length);
+		user_pkt = parser->user_cb->kernel_address + cb_parsed_length;
 
 		pkt_id = (enum packet_id) (
 				(le64_to_cpu(user_pkt->header) &
@@ -3713,11 +3712,9 @@ static int goya_patch_cb(struct hl_device *hdev,
 		u32 new_pkt_size = 0;
 		struct goya_packet *user_pkt, *kernel_pkt;
 
-		user_pkt = (struct goya_packet *) (uintptr_t)
-			(parser->user_cb->kernel_address + cb_parsed_length);
-		kernel_pkt = (struct goya_packet *) (uintptr_t)
-			(parser->patched_cb->kernel_address +
-					cb_patched_cur_length);
+		user_pkt = parser->user_cb->kernel_address + cb_parsed_length;
+		kernel_pkt = parser->patched_cb->kernel_address +
+					cb_patched_cur_length;
 
 		pkt_id = (enum packet_id) (
 				(le64_to_cpu(user_pkt->header) &
@@ -3841,8 +3838,8 @@ static int goya_parse_cb_mmu(struct hl_device *hdev,
 	 * The check that parser->user_cb_size <= parser->user_cb->size was done
 	 * in validate_queue_index().
 	 */
-	memcpy((void *) (uintptr_t) parser->patched_cb->kernel_address,
-		(void *) (uintptr_t) parser->user_cb->kernel_address,
+	memcpy(parser->patched_cb->kernel_address,
+		parser->user_cb->kernel_address,
 		parser->user_cb_size);
 
 	patched_cb_size = parser->patched_cb_size;
@@ -3974,15 +3971,14 @@ int goya_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser)
 		return goya_parse_cb_no_mmu(hdev, parser);
 }
 
-void goya_add_end_of_cb_packets(struct hl_device *hdev, u64 kernel_address,
+void goya_add_end_of_cb_packets(struct hl_device *hdev, void *kernel_address,
 				u32 len, u64 cq_addr, u32 cq_val, u32 msix_vec,
 				bool eb)
 {
 	struct packet_msg_prot *cq_pkt;
 	u32 tmp;
 
-	cq_pkt = (struct packet_msg_prot *) (uintptr_t)
-		(kernel_address + len - (sizeof(struct packet_msg_prot) * 2));
+	cq_pkt = kernel_address + len - (sizeof(struct packet_msg_prot) * 2);
 
 	tmp = (PACKET_MSG_PROT << GOYA_PKT_CTL_OPCODE_SHIFT) |
 			(1 << GOYA_PKT_CTL_EB_SHIFT) |
@@ -4746,7 +4742,7 @@ static int goya_memset_device_memory(struct hl_device *hdev, u64 addr, u64 size,
 	if (!cb)
 		return -ENOMEM;
 
-	lin_dma_pkt = (struct packet_lin_dma *) (uintptr_t) cb->kernel_address;
+	lin_dma_pkt = cb->kernel_address;
 
 	do {
 		memset(lin_dma_pkt, 0, sizeof(*lin_dma_pkt));

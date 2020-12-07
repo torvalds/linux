@@ -700,6 +700,8 @@ static int kabylake_set_bias_level(struct snd_soc_card *card,
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
 		if (dapm->bias_level == SND_SOC_BIAS_ON) {
+			if (!__clk_is_enabled(priv->mclk))
+				return 0;
 			dev_dbg(card->dev, "Disable mclk");
 			clk_disable_unprepare(priv->mclk);
 		} else {

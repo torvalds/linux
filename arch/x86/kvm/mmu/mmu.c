@@ -856,12 +856,14 @@ static int pte_list_add(struct kvm_vcpu *vcpu, u64 *spte,
 	} else {
 		rmap_printk("pte_list_add: %p %llx many->many\n", spte, *spte);
 		desc = (struct pte_list_desc *)(rmap_head->val & ~1ul);
-		while (desc->sptes[PTE_LIST_EXT-1] && desc->more) {
-			desc = desc->more;
+		while (desc->sptes[PTE_LIST_EXT-1]) {
 			count += PTE_LIST_EXT;
-		}
-		if (desc->sptes[PTE_LIST_EXT-1]) {
-			desc->more = mmu_alloc_pte_list_desc(vcpu);
+
+			if (!desc->more) {
+				desc->more = mmu_alloc_pte_list_desc(vcpu);
+				desc = desc->more;
+				break;
+			}
 			desc = desc->more;
 		}
 		for (i = 0; desc->sptes[i]; ++i)
@@ -3515,7 +3517,7 @@ static bool get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 {
 	u64 sptes[PT64_ROOT_MAX_LEVEL];
 	struct rsvd_bits_validate *rsvd_check;
-	int root = vcpu->arch.mmu->root_level;
+	int root = vcpu->arch.mmu->shadow_root_level;
 	int leaf;
 	int level;
 	bool reserved = false;

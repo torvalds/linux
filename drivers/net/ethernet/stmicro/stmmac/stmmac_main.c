@@ -4757,6 +4757,7 @@ static void stmmac_napi_add(struct net_device *dev)
 
 		ch->priv_data = priv;
 		ch->index = queue;
+		spin_lock_init(&ch->lock);
 
 		if (queue < priv->plat->rx_queues_to_use) {
 			netif_napi_add(dev, &ch->rx_napi, stmmac_napi_poll_rx,
@@ -5246,6 +5247,7 @@ int stmmac_resume(struct device *dev)
 			return ret;
 	}
 
+	rtnl_lock();
 	mutex_lock(&priv->lock);
 
 	stmmac_reset_queues_param(priv);
@@ -5261,6 +5263,7 @@ int stmmac_resume(struct device *dev)
 	stmmac_enable_all_queues(priv);
 
 	mutex_unlock(&priv->lock);
+	rtnl_unlock();
 
 	if (!device_may_wakeup(priv->device) || !priv->plat->pmt) {
 		rtnl_lock();

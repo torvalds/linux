@@ -406,6 +406,9 @@
 	};
 };
 
+&mdio1 {
+	clock-frequency = <5000000>;
+};
 
 &iomuxc {
 	pinctrl_gpio_e6185_eeprom_sel: pinctrl-gpio-e6185-eeprom-spi0 {

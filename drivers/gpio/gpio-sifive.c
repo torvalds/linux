@@ -183,7 +183,7 @@ static int sifive_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(chip->regs);
 
 	ngpio = of_irq_count(node);
-	if (ngpio >= SIFIVE_GPIO_MAX) {
+	if (ngpio > SIFIVE_GPIO_MAX) {
 		dev_err(dev, "Too many GPIO interrupts (max=%d)\n",
 			SIFIVE_GPIO_MAX);
 		return -ENXIO;

@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/init.h>
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>

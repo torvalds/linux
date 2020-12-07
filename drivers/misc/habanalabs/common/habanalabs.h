@@ -452,7 +452,7 @@ struct hl_cb {
 	struct list_head	pool_list;
 	struct list_head	va_block_list;
 	u64			id;
-	u64			kernel_address;
+	void			*kernel_address;
 	dma_addr_t		bus_address;
 	u32			mmap_size;
 	u32			size;
@@ -515,7 +515,7 @@ struct hl_hw_queue {
 	struct hl_hw_sob	hw_sob[HL_RSVD_SOBS];
 	struct hl_cs_job	**shadow_queue;
 	enum hl_queue_type	queue_type;
-	u64			kernel_address;
+	void			*kernel_address;
 	dma_addr_t		bus_address;
 	u32			pi;
 	atomic_t		ci;
@@ -544,7 +544,7 @@ struct hl_hw_queue {
  */
 struct hl_cq {
 	struct hl_device	*hdev;
-	u64			kernel_address;
+	void			*kernel_address;
 	dma_addr_t		bus_address;
 	u32			cq_idx;
 	u32			hw_queue_id;
@@ -562,7 +562,7 @@ struct hl_cq {
  */
 struct hl_eq {
 	struct hl_device	*hdev;
-	u64			kernel_address;
+	void			*kernel_address;
 	dma_addr_t		bus_address;
 	u32			ci;
 };
@@ -757,7 +757,7 @@ struct hl_asic_funcs {
 	u32 (*get_dma_desc_list_size)(struct hl_device *hdev,
 					struct sg_table *sgt);
 	void (*add_end_of_cb_packets)(struct hl_device *hdev,
-					u64 kernel_address, u32 len,
+					void *kernel_address, u32 len,
 					u64 cq_addr, u32 cq_val, u32 msix_num,
 					bool eb);
 	void (*update_eq_ci)(struct hl_device *hdev, u32 val);
@@ -1382,13 +1382,13 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 	for (;;) { \
 		/* Verify we read updates done by other cores or by device */ \
 		mb(); \
-		(val) = *((u32 *) (uintptr_t) (addr)); \
+		(val) = *((u32 *)(addr)); \
 		if (mem_written_by_device) \
 			(val) = le32_to_cpu(*(__le32 *) &(val)); \
 		if (cond) \
 			break; \
 		if (timeout_us && ktime_compare(ktime_get(), __timeout) > 0) { \
-			(val) = *((u32 *) (uintptr_t) (addr)); \
+			(val) = *((u32 *)(addr)); \
 			if (mem_written_by_device) \
 				(val) = le32_to_cpu(*(__le32 *) &(val)); \
 			break; \

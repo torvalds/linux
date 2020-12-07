@@ -29,6 +29,7 @@
 #include <asm/iommu_table.h>
 #include <asm/io_apic.h>
 #include <asm/irq_remapping.h>
+#include <asm/set_memory.h>
 
 #include <linux/crash_dump.h>
 
@@ -672,11 +673,27 @@ static void __init free_command_buffer(struct amd_iommu *iommu)
 	free_pages((unsigned long)iommu->cmd_buf, get_order(CMD_BUFFER_SIZE));
 }
 
+static void *__init iommu_alloc_4k_pages(struct amd_iommu *iommu,
+					 gfp_t gfp, size_t size)
+{
+	int order = get_order(size);
+	void *buf = (void *)__get_free_pages(gfp, order);
+
+	if (buf &&
+	    iommu_feature(iommu, FEATURE_SNP) &&
+	    set_memory_4k((unsigned long)buf, (1 << order))) {
+		free_pages((unsigned long)buf, order);
+		buf = NULL;
+	}
+
+	return buf;
+}
+
 /* allocates the memory where the IOMMU will log its events to */
 static int __init alloc_event_buffer(struct amd_iommu *iommu)
 {
-	iommu->evt_buf = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
-						  get_order(EVT_BUFFER_SIZE));
+	iommu->evt_buf = iommu_alloc_4k_pages(iommu, GFP_KERNEL | __GFP_ZERO,
+					      EVT_BUFFER_SIZE);
 
 	return iommu->evt_buf ? 0 : -ENOMEM;
 }
@@ -715,8 +732,8 @@ static void __init free_event_buffer(struct amd_iommu *iommu)
 /* allocates the memory where the IOMMU will log its events to */
 static int __init alloc_ppr_log(struct amd_iommu *iommu)
 {
-	iommu->ppr_log = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
-						  get_order(PPR_LOG_SIZE));
+	iommu->ppr_log = iommu_alloc_4k_pages(iommu, GFP_KERNEL | __GFP_ZERO,
+					      PPR_LOG_SIZE);
 
 	return iommu->ppr_log ? 0 : -ENOMEM;
 }
@@ -838,7 +855,7 @@ static int iommu_init_ga(struct amd_iommu *iommu)
 
 static int __init alloc_cwwb_sem(struct amd_iommu *iommu)
 {
-	iommu->cmd_sem = (void *)get_zeroed_page(GFP_KERNEL);
+	iommu->cmd_sem = iommu_alloc_4k_pages(iommu, GFP_KERNEL | __GFP_ZERO, 1);
 
 	return iommu->cmd_sem ? 0 : -ENOMEM;
 }

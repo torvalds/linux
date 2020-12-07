@@ -1515,10 +1515,12 @@ static void release_tty(struct tty_struct *tty, int idx)
 		tty->ops->shutdown(tty);
 	tty_save_termios(tty);
 	tty_driver_remove_tty(tty->driver, tty);
-	tty->port->itty = NULL;
+	if (tty->port)
+		tty->port->itty = NULL;
 	if (tty->link)
 		tty->link->port->itty = NULL;
-	tty_buffer_cancel_work(tty->port);
+	if (tty->port)
+		tty_buffer_cancel_work(tty->port);
 	if (tty->link)
 		tty_buffer_cancel_work(tty->link->port);
 
@@ -2895,10 +2897,14 @@ void __do_SAK(struct tty_struct *tty)
 	struct task_struct *g, *p;
 	struct pid *session;
 	int		i;
+	unsigned long flags;
 
 	if (!tty)
 		return;
-	session = tty->session;
+
+	spin_lock_irqsave(&tty->ctrl_lock, flags);
+	session = get_pid(tty->session);
+	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 
 	tty_ldisc_flush(tty);
 
@@ -2930,6 +2936,7 @@ void __do_SAK(struct tty_struct *tty)
 		task_unlock(p);
 	} while_each_thread(g, p);
 	read_unlock(&tasklist_lock);
+	put_pid(session);
 #endif
 }
 

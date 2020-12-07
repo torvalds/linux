@@ -1647,9 +1647,9 @@ static void qed_src_init_pf(struct qed_hwfn *p_hwfn)
 		     ilog2(rounded_conn_num));
 
 	STORE_RT_REG_AGG(p_hwfn, SRC_REG_FIRSTFREE_RT_OFFSET,
-			 p_hwfn->p_cxt_mngr->first_free);
+			 p_hwfn->p_cxt_mngr->src_t2.first_free);
 	STORE_RT_REG_AGG(p_hwfn, SRC_REG_LASTFREE_RT_OFFSET,
-			 p_hwfn->p_cxt_mngr->last_free);
+			 p_hwfn->p_cxt_mngr->src_t2.last_free);
 }
 
 /* Timers PF */

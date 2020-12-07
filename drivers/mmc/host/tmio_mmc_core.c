@@ -175,6 +175,8 @@ static void tmio_mmc_reset(struct tmio_mmc_host *host)
 	if (host->reset)
 		host->reset(host);
 
+	tmio_mmc_abort_dma(host);
+
 	if (host->pdata->flags & TMIO_MMC_SDIO_IRQ) {
 		sd_ctrl_write16(host, CTL_SDIO_IRQ_MASK, host->sdio_irq_mask);
 		sd_ctrl_write16(host, CTL_TRANSACTION_CTL, 0x0001);
@@ -223,8 +225,6 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 
 	/* Ready for new calls */
 	host->mrq = NULL;
-
-	tmio_mmc_abort_dma(host);
 	mmc_request_done(host->mmc, mrq);
 }
 
@@ -927,6 +927,9 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	switch (ios->power_mode) {
 	case MMC_POWER_OFF:
 		tmio_mmc_power_off(host);
+		/* Downgrade ensures a sane state for tuning HW (e.g. SCC) */
+		if (host->mmc->ops->hs400_downgrade)
+			host->mmc->ops->hs400_downgrade(host->mmc);
 		host->set_clock(host, 0);
 		break;
 	case MMC_POWER_UP:

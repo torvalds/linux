@@ -224,8 +224,7 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 	if (ip_tunnel_collect_metadata() || gs->collect_md) {
 		__be16 flags;
 
-		flags = TUNNEL_KEY | TUNNEL_GENEVE_OPT |
-			(gnvh->oam ? TUNNEL_OAM : 0) |
+		flags = TUNNEL_KEY | (gnvh->oam ? TUNNEL_OAM : 0) |
 			(gnvh->critical ? TUNNEL_CRIT_OPT : 0);
 
 		tun_dst = udp_tun_rx_dst(skb, geneve_get_sk_family(gs), flags,
@@ -258,11 +257,21 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 		skb_dst_set(skb, &tun_dst->dst);
 
 	/* Ignore packet loops (and multicast echo) */
-	if (ether_addr_equal(eth_hdr(skb)->h_source, geneve->dev->dev_addr)) {
-		geneve->dev->stats.rx_errors++;
-		goto drop;
-	}
+	if (ether_addr_equal(eth_hdr(skb)->h_source, geneve->dev->dev_addr))
+		goto rx_error;
 
+	switch (skb_protocol(skb, true)) {
+	case htons(ETH_P_IP):
+		if (pskb_may_pull(skb, sizeof(struct iphdr)))
+			goto rx_error;
+		break;
+	case htons(ETH_P_IPV6):
+		if (pskb_may_pull(skb, sizeof(struct ipv6hdr)))
+			goto rx_error;
+		break;
+	default:
+		goto rx_error;
+	}
 	oiph = skb_network_header(skb);
 	skb_reset_network_header(skb);
 
@@ -299,6 +308,8 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 		dev_sw_netstats_rx_add(geneve->dev, len);
 
 	return;
+rx_error:
+	geneve->dev->stats.rx_errors++;
 drop:
 	/* Consume bad packet */
 	kfree_skb(skb);

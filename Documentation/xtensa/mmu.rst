@@ -82,7 +82,8 @@ Default MMUv2-compatible layout::
   +------------------+
   | VMALLOC area     |  VMALLOC_START            0xc0000000  128MB - 64KB
   +------------------+  VMALLOC_END
-  | Cache aliasing   |  TLBTEMP_BASE_1           0xc7ff0000  DCACHE_WAY_SIZE
+  +------------------+
+  | Cache aliasing   |  TLBTEMP_BASE_1           0xc8000000  DCACHE_WAY_SIZE
   | remap area 1     |
   +------------------+
   | Cache aliasing   |  TLBTEMP_BASE_2                       DCACHE_WAY_SIZE
@@ -124,7 +125,8 @@ Default MMUv2-compatible layout::
   +------------------+
   | VMALLOC area     |  VMALLOC_START            0xa0000000  128MB - 64KB
   +------------------+  VMALLOC_END
-  | Cache aliasing   |  TLBTEMP_BASE_1           0xa7ff0000  DCACHE_WAY_SIZE
+  +------------------+
+  | Cache aliasing   |  TLBTEMP_BASE_1           0xa8000000  DCACHE_WAY_SIZE
   | remap area 1     |
   +------------------+
   | Cache aliasing   |  TLBTEMP_BASE_2                       DCACHE_WAY_SIZE
@@ -167,7 +169,8 @@ Default MMUv2-compatible layout::
   +------------------+
   | VMALLOC area     |  VMALLOC_START            0x90000000  128MB - 64KB
   +------------------+  VMALLOC_END
-  | Cache aliasing   |  TLBTEMP_BASE_1           0x97ff0000  DCACHE_WAY_SIZE
+  +------------------+
+  | Cache aliasing   |  TLBTEMP_BASE_1           0x98000000  DCACHE_WAY_SIZE
   | remap area 1     |
   +------------------+
   | Cache aliasing   |  TLBTEMP_BASE_2                       DCACHE_WAY_SIZE
