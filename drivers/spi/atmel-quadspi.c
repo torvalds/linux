@@ -365,9 +365,13 @@ static int atmel_qspi_set_cfg(struct atmel_qspi *aq,
 	if (dummy_cycles)
 		ifr |= QSPI_IFR_NBDUM(dummy_cycles);
 
-	/* Set data enable */
-	if (op->data.nbytes)
+	/* Set data enable and data transfer type. */
+	if (op->data.nbytes) {
 		ifr |= QSPI_IFR_DATAEN;
+
+		if (op->addr.nbytes)
+			ifr |= QSPI_IFR_TFRTYP_MEM;
+	}
 
 	/*
 	 * If the QSPI controller is set in regular SPI mode, set it in
@@ -381,26 +385,23 @@ static int atmel_qspi_set_cfg(struct atmel_qspi *aq,
 	/* Clear pending interrupts */
 	(void)atmel_qspi_read(aq, QSPI_SR);
 
-	if (aq->caps->has_ricr) {
-		if (!op->addr.nbytes && op->data.dir == SPI_MEM_DATA_IN)
-			ifr |= QSPI_IFR_APBTFRTYP_READ;
-
-		/* Set QSPI Instruction Frame registers */
+	/* Set QSPI Instruction Frame registers. */
+	if (op->addr.nbytes && !op->data.nbytes)
 		atmel_qspi_write(iar, aq, QSPI_IAR);
+
+	if (aq->caps->has_ricr) {
 		if (op->data.dir == SPI_MEM_DATA_IN)
 			atmel_qspi_write(icr, aq, QSPI_RICR);
 		else
 			atmel_qspi_write(icr, aq, QSPI_WICR);
-		atmel_qspi_write(ifr, aq, QSPI_IFR);
 	} else {
-		if (op->data.dir == SPI_MEM_DATA_OUT)
+		if (op->data.nbytes && op->data.dir == SPI_MEM_DATA_OUT)
 			ifr |= QSPI_IFR_SAMA5D2_WRITE_TRSFR;
 
-		/* Set QSPI Instruction Frame registers */
-		atmel_qspi_write(iar, aq, QSPI_IAR);
 		atmel_qspi_write(icr, aq, QSPI_ICR);
-		atmel_qspi_write(ifr, aq, QSPI_IFR);
 	}
+
+	atmel_qspi_write(ifr, aq, QSPI_IFR);
 
 	return 0;
 }
