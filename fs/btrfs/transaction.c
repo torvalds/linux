@@ -1526,7 +1526,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	ASSERT(pending->root_item);
 	new_root_item = pending->root_item;
 
-	pending->error = btrfs_find_free_objectid(tree_root, &objectid);
+	pending->error = btrfs_get_free_objectid(tree_root, &objectid);
 	if (pending->error)
 		goto no_free_objectid;
 

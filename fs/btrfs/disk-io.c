@@ -4778,7 +4778,7 @@ error:
 	return ret;
 }
 
-int btrfs_find_free_objectid(struct btrfs_root *root, u64 *objectid)
+int btrfs_get_free_objectid(struct btrfs_root *root, u64 *objectid)
 {
 	int ret;
 	mutex_lock(&root->objectid_mutex);
