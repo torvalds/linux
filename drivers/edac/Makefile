@@ -64,7 +64,6 @@ obj-$(CONFIG_EDAC_SKX)			+= skx_edac.o
 i10nm_edac-y				:= skx_common.o i10nm_base.o
 obj-$(CONFIG_EDAC_I10NM)		+= i10nm_edac.o
 
-obj-$(CONFIG_EDAC_MV64X60)		+= mv64x60_edac.o
 obj-$(CONFIG_EDAC_CELL)			+= cell_edac.o
 obj-$(CONFIG_EDAC_PPC4XX)		+= ppc4xx_edac.o
 obj-$(CONFIG_EDAC_AMD8111)		+= amd8111_edac.o

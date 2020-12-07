@@ -283,13 +283,6 @@ config EDAC_LAYERSCAPE
 	  Support for error detection and correction on Freescale memory
 	  controllers on Layerscape SoCs.
 
-config EDAC_MV64X60
-	tristate "Marvell MV64x60"
-	depends on MV64X60
-	help
-	  Support for error detection and correction on the Marvell
-	  MV64360 and MV64460 chipsets.
-
 config EDAC_PASEMI
 	tristate "PA Semi PWRficient"
 	depends on PPC_PASEMI && PCI
