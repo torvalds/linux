@@ -563,13 +563,12 @@ static int __do_delete(struct btree_trans *trans, struct bpos pos)
 
 	iter = bch2_trans_get_iter(trans, BTREE_ID_XATTRS, pos,
 				   BTREE_ITER_INTENT);
-	ret = PTR_ERR_OR_ZERO(iter);
-	if (ret)
-		goto err;
-
 	k = bch2_btree_iter_peek(iter);
 	ret = bkey_err(k);
 	if (ret)
+		goto err;
+
+	if (!k.k)
 		goto err;
 
 	bkey_init(&delete.k);
