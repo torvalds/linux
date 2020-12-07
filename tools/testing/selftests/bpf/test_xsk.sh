@@ -8,8 +8,17 @@
 #
 # Topology:
 # ---------
-#      -----------           -----------
-#      |  xskX   | --------- |  xskY   |
+#                 -----------
+#               _ | Process | _
+#              /  -----------  \
+#             /        |        \
+#            /         |         \
+#      -----------     |     -----------
+#      | Thread1 |     |     | Thread2 |
+#      -----------     |     -----------
+#           |          |          |
+#      -----------     |     -----------
+#      |  xskX   |     |     |  xskY   |
 #      -----------     |     -----------
 #           |          |          |
 #      -----------     |     ----------
@@ -38,6 +47,8 @@
 #   *** xxxx and yyyy are randomly generated 4 digit numbers used to avoid
 #       conflict with any existing interface
 #   * tests the veth and xsk layers of the topology
+#
+# See the source xdpxceiver.c for information on each test
 #
 # Kernel configuration:
 # ---------------------
@@ -133,6 +144,30 @@ if [ $retval -eq 0 ]; then
 	echo "Switching interfaces [${VETH0}, ${VETH1}] to XDP Native mode"
 	vethXDPnative ${VETH0} ${VETH1} ${NS1}
 fi
+
+retval=$?
+test_status $retval "${TEST_NAME}"
+statusList+=($retval)
+
+### TEST 2
+TEST_NAME="SKB NOPOLL"
+
+vethXDPgeneric ${VETH0} ${VETH1} ${NS1}
+
+params=("-S")
+execxdpxceiver params
+
+retval=$?
+test_status $retval "${TEST_NAME}"
+statusList+=($retval)
+
+### TEST 3
+TEST_NAME="SKB POLL"
+
+vethXDPgeneric ${VETH0} ${VETH1} ${NS1}
+
+params=("-S" "-p")
+execxdpxceiver params
 
 retval=$?
 test_status $retval "${TEST_NAME}"

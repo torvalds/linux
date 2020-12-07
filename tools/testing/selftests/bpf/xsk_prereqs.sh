@@ -14,6 +14,8 @@ RED='\033[0;31m'
 NC='\033[0m'
 STACK_LIM=131072
 SPECFILE=veth.spec
+XSKOBJ=xdpxceiver
+NUMPKTS=10000
 
 validate_root_exec()
 {
@@ -116,4 +118,18 @@ vethXDPnative()
 {
 	ip link set dev $1 xdpgeneric off
 	ip netns exec $3 ip link set dev $2 xdpgeneric off
+}
+
+execxdpxceiver()
+{
+	local -a 'paramkeys=("${!'"$1"'[@]}")' copy
+	paramkeysstr=${paramkeys[*]}
+
+	for index in $paramkeysstr;
+		do
+			current=$1"[$index]"
+			copy[$index]=${!current}
+		done
+
+	./${XSKOBJ} -i ${VETH0} -i ${VETH1},${NS1} ${copy[*]} -C ${NUMPKTS}
 }
