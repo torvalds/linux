@@ -142,9 +142,9 @@ mlxsw_sp_ipip_nexthop_update_gre4(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
 }
 
 static int
-mlxsw_sp_ipip_fib_entry_op_gre4_rtdp(struct mlxsw_sp *mlxsw_sp,
-				     u32 tunnel_index,
-				     struct mlxsw_sp_ipip_entry *ipip_entry)
+mlxsw_sp_ipip_decap_config_gre4(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_ipip_entry *ipip_entry,
+				u32 tunnel_index)
 {
 	u16 rif_index = mlxsw_sp_ipip_lb_rif_index(ipip_entry->ol_lb);
 	u16 ul_rif_id = mlxsw_sp_ipip_lb_ul_rif_id(ipip_entry->ol_lb);
@@ -178,43 +178,6 @@ mlxsw_sp_ipip_fib_entry_op_gre4_rtdp(struct mlxsw_sp *mlxsw_sp,
 				  type_check, has_ikey, daddr4, ikey);
 
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rtdp), rtdp_pl);
-}
-
-static int
-mlxsw_sp_ipip_fib_entry_op_gre4_do(struct mlxsw_sp *mlxsw_sp,
-				   const struct mlxsw_sp_router_ll_ops *ll_ops,
-				   struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
-				   u32 dip, u8 prefix_len, u16 ul_vr_id,
-				   enum mlxsw_sp_fib_entry_op op,
-				   u32 tunnel_index,
-				   struct mlxsw_sp_fib_entry_priv *priv)
-{
-	ll_ops->fib_entry_pack(op_ctx, MLXSW_SP_L3_PROTO_IPV4, op, ul_vr_id,
-			       prefix_len, (unsigned char *) &dip, priv);
-	ll_ops->fib_entry_act_ip2me_tun_pack(op_ctx, tunnel_index);
-	return mlxsw_sp_fib_entry_commit(mlxsw_sp, op_ctx, ll_ops);
-}
-
-static int mlxsw_sp_ipip_fib_entry_op_gre4(struct mlxsw_sp *mlxsw_sp,
-					   const struct mlxsw_sp_router_ll_ops *ll_ops,
-					   struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
-					   struct mlxsw_sp_ipip_entry *ipip_entry,
-					   enum mlxsw_sp_fib_entry_op op, u32 tunnel_index,
-					   struct mlxsw_sp_fib_entry_priv *priv)
-{
-	u16 ul_vr_id = mlxsw_sp_ipip_lb_ul_vr_id(ipip_entry->ol_lb);
-	__be32 dip;
-	int err;
-
-	err = mlxsw_sp_ipip_fib_entry_op_gre4_rtdp(mlxsw_sp, tunnel_index,
-						   ipip_entry);
-	if (err)
-		return err;
-
-	dip = mlxsw_sp_ipip_netdev_saddr(MLXSW_SP_L3_PROTO_IPV4,
-					 ipip_entry->ol_dev).addr4;
-	return mlxsw_sp_ipip_fib_entry_op_gre4_do(mlxsw_sp, ll_ops, op_ctx, be32_to_cpu(dip),
-						  32, ul_vr_id, op, tunnel_index, priv);
 }
 
 static bool mlxsw_sp_ipip_tunnel_complete(enum mlxsw_sp_l3proto proto,
@@ -332,7 +295,7 @@ static const struct mlxsw_sp_ipip_ops mlxsw_sp_ipip_gre4_ops = {
 	.dev_type = ARPHRD_IPGRE,
 	.ul_proto = MLXSW_SP_L3_PROTO_IPV4,
 	.nexthop_update = mlxsw_sp_ipip_nexthop_update_gre4,
-	.fib_entry_op = mlxsw_sp_ipip_fib_entry_op_gre4,
+	.decap_config = mlxsw_sp_ipip_decap_config_gre4,
 	.can_offload = mlxsw_sp_ipip_can_offload_gre4,
 	.ol_loopback_config = mlxsw_sp_ipip_ol_loopback_config_gre4,
 	.ol_netdev_change = mlxsw_sp_ipip_ol_netdev_change_gre4,
