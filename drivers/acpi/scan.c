@@ -751,7 +751,6 @@ static bool acpi_info_matches_ids(struct acpi_device_info *info,
 
 /* List of HIDs for which we ignore matching ACPI devices, when checking _DEP lists. */
 static const char * const acpi_ignore_dep_ids[] = {
-	"INT3396", /* Windows System Power Management Controller */
 	"PNP0D80", /* Windows-compatible System Power Management Controller */
 	NULL
 };
