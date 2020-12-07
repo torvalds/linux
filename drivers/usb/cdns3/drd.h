@@ -206,6 +206,8 @@ bool cdns_is_host(struct cdns *cdns);
 bool cdns_is_device(struct cdns *cdns);
 int cdns_get_id(struct cdns *cdns);
 int cdns_get_vbus(struct cdns *cdns);
+void cdns_clear_vbus(struct cdns *cdns);
+void cdns_set_vbus(struct cdns *cdns);
 int cdns_drd_init(struct cdns *cdns);
 int cdns_drd_exit(struct cdns *cdns);
 int cdns_drd_update_mode(struct cdns *cdns);

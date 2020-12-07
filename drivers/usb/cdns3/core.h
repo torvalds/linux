@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Cadence USBSS DRD Header File.
+ * Cadence USBSS and USBSSP DRD Header File.
  *
  * Copyright (C) 2017-2018 NXP
  * Copyright (C) 2018-2019 Cadence.

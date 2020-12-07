@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Cadence USBSS DRD Driver.
+ * Cadence USBSS and USBSSP DRD Driver.
  *
  * Copyright (C) 2018-2019 Cadence.
  * Copyright (C) 2017-2018 NXP
@@ -136,7 +136,14 @@ static int cdns_core_init_role(struct cdns *cdns)
 	dr_mode = best_dr_mode;
 
 	if (dr_mode == USB_DR_MODE_OTG || dr_mode == USB_DR_MODE_HOST) {
-		ret = cdns_host_init(cdns);
+		if ((cdns->version == CDNSP_CONTROLLER_V2 &&
+		     IS_ENABLED(CONFIG_USB_CDNSP_HOST)) ||
+		    (cdns->version < CDNSP_CONTROLLER_V2 &&
+		     IS_ENABLED(CONFIG_USB_CDNS3_HOST)))
+			ret = cdns_host_init(cdns);
+		else
+			ret = -ENXIO;
+
 		if (ret) {
 			dev_err(dev, "Host initialization failed with %d\n",
 				ret);

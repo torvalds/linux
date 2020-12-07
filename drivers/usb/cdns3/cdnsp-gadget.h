@@ -1460,4 +1460,141 @@ struct cdnsp_device {
 	u16 test_mode;
 };
 
+/*
+ * Registers should always be accessed with double word or quad word accesses.
+ *
+ * Registers with 64-bit address pointers should be written to with
+ * dword accesses by writing the low dword first (ptr[0]), then the high dword
+ * (ptr[1]) second. controller implementations that do not support 64-bit
+ * address pointers will ignore the high dword, and write order is irrelevant.
+ */
+static inline u64 cdnsp_read_64(__le64 __iomem *regs)
+{
+	return lo_hi_readq(regs);
+}
+
+static inline void cdnsp_write_64(const u64 val, __le64 __iomem *regs)
+{
+	lo_hi_writeq(val, regs);
+}
+
+/* CDNSP memory management functions. */
+void cdnsp_mem_cleanup(struct cdnsp_device *pdev);
+int cdnsp_mem_init(struct cdnsp_device *pdev, gfp_t flags);
+int cdnsp_setup_addressable_priv_dev(struct cdnsp_device *pdev);
+void cdnsp_copy_ep0_dequeue_into_input_ctx(struct cdnsp_device *pdev);
+void cdnsp_endpoint_zero(struct cdnsp_device *pdev, struct cdnsp_ep *ep);
+int cdnsp_endpoint_init(struct cdnsp_device *pdev,
+			struct cdnsp_ep *pep,
+			gfp_t mem_flags);
+int cdnsp_ring_expansion(struct cdnsp_device *pdev,
+			 struct cdnsp_ring *ring,
+			 unsigned int num_trbs, gfp_t flags);
+struct cdnsp_ring *cdnsp_dma_to_transfer_ring(struct cdnsp_ep *ep, u64 address);
+int cdnsp_alloc_stream_info(struct cdnsp_device *pdev,
+			    struct cdnsp_ep *pep,
+			    unsigned int num_stream_ctxs,
+			    unsigned int num_streams);
+int cdnsp_alloc_streams(struct cdnsp_device *pdev, struct cdnsp_ep *pep);
+void cdnsp_free_endpoint_rings(struct cdnsp_device *pdev, struct cdnsp_ep *pep);
+
+/* Device controller glue. */
+int cdnsp_find_next_ext_cap(void __iomem *base, u32 start, int id);
+int cdnsp_halt(struct cdnsp_device *pdev);
+void cdnsp_died(struct cdnsp_device *pdev);
+int cdnsp_reset(struct cdnsp_device *pdev);
+irqreturn_t cdnsp_irq_handler(int irq, void *priv);
+int cdnsp_setup_device(struct cdnsp_device *pdev, enum cdnsp_setup_dev setup);
+void cdnsp_set_usb2_hardware_lpm(struct cdnsp_device *usbsssp_data,
+				 struct usb_request *req, int enable);
+irqreturn_t cdnsp_thread_irq_handler(int irq, void *data);
+
+/* Ring, segment, TRB, and TD functions. */
+dma_addr_t cdnsp_trb_virt_to_dma(struct cdnsp_segment *seg,
+				 union cdnsp_trb *trb);
+bool cdnsp_last_trb_on_seg(struct cdnsp_segment *seg, union cdnsp_trb *trb);
+bool cdnsp_last_trb_on_ring(struct cdnsp_ring *ring,
+			    struct cdnsp_segment *seg,
+			    union cdnsp_trb *trb);
+int cdnsp_wait_for_cmd_compl(struct cdnsp_device *pdev);
+void cdnsp_update_erst_dequeue(struct cdnsp_device *pdev,
+			       union cdnsp_trb *event_ring_deq,
+			       u8 clear_ehb);
+void cdnsp_initialize_ring_info(struct cdnsp_ring *ring);
+void cdnsp_ring_cmd_db(struct cdnsp_device *pdev);
+void cdnsp_queue_slot_control(struct cdnsp_device *pdev, u32 trb_type);
+void cdnsp_queue_address_device(struct cdnsp_device *pdev,
+				dma_addr_t in_ctx_ptr,
+				enum cdnsp_setup_dev setup);
+void cdnsp_queue_stop_endpoint(struct cdnsp_device *pdev,
+			       unsigned int ep_index);
+int cdnsp_queue_ctrl_tx(struct cdnsp_device *pdev, struct cdnsp_request *preq);
+int cdnsp_queue_bulk_tx(struct cdnsp_device *pdev, struct cdnsp_request *preq);
+int cdnsp_queue_isoc_tx_prepare(struct cdnsp_device *pdev,
+				struct cdnsp_request *preq);
+void cdnsp_queue_configure_endpoint(struct cdnsp_device *pdev,
+				    dma_addr_t in_ctx_ptr);
+void cdnsp_queue_reset_ep(struct cdnsp_device *pdev, unsigned int ep_index);
+void cdnsp_queue_halt_endpoint(struct cdnsp_device *pdev,
+			       unsigned int ep_index);
+void cdnsp_queue_flush_endpoint(struct cdnsp_device *pdev,
+				unsigned int ep_index);
+void cdnsp_force_header_wakeup(struct cdnsp_device *pdev, int intf_num);
+void cdnsp_queue_reset_device(struct cdnsp_device *pdev);
+void cdnsp_queue_new_dequeue_state(struct cdnsp_device *pdev,
+				   struct cdnsp_ep *pep,
+				   struct cdnsp_dequeue_state *deq_state);
+void cdnsp_ring_doorbell_for_active_rings(struct cdnsp_device *pdev,
+					  struct cdnsp_ep *pep);
+void cdnsp_inc_deq(struct cdnsp_device *pdev, struct cdnsp_ring *ring);
+void cdnsp_set_link_state(struct cdnsp_device *pdev,
+			  __le32 __iomem *port_regs, u32 link_state);
+u32 cdnsp_port_state_to_neutral(u32 state);
+
+/* CDNSP device controller contexts. */
+int cdnsp_enable_slot(struct cdnsp_device *pdev);
+int cdnsp_disable_slot(struct cdnsp_device *pdev);
+struct cdnsp_input_control_ctx
+	*cdnsp_get_input_control_ctx(struct cdnsp_container_ctx *ctx);
+struct cdnsp_slot_ctx *cdnsp_get_slot_ctx(struct cdnsp_container_ctx *ctx);
+struct cdnsp_ep_ctx *cdnsp_get_ep_ctx(struct cdnsp_container_ctx *ctx,
+				      unsigned int ep_index);
+/* CDNSP gadget interface. */
+void cdnsp_suspend_gadget(struct cdnsp_device *pdev);
+void cdnsp_resume_gadget(struct cdnsp_device *pdev);
+void cdnsp_disconnect_gadget(struct cdnsp_device *pdev);
+void cdnsp_gadget_giveback(struct cdnsp_ep *pep, struct cdnsp_request *preq,
+			   int status);
+int cdnsp_ep_enqueue(struct cdnsp_ep *pep, struct cdnsp_request *preq);
+int cdnsp_ep_dequeue(struct cdnsp_ep *pep, struct cdnsp_request *preq);
+unsigned int cdnsp_port_speed(unsigned int port_status);
+void cdnsp_irq_reset(struct cdnsp_device *pdev);
+int cdnsp_halt_endpoint(struct cdnsp_device *pdev,
+			struct cdnsp_ep *pep, int value);
+int cdnsp_cmd_stop_ep(struct cdnsp_device *pdev, struct cdnsp_ep *pep);
+int cdnsp_cmd_flush_ep(struct cdnsp_device *pdev, struct cdnsp_ep *pep);
+void cdnsp_setup_analyze(struct cdnsp_device *pdev);
+int cdnsp_status_stage(struct cdnsp_device *pdev);
+int cdnsp_reset_device(struct cdnsp_device *pdev);
+
+/**
+ * next_request - gets the next request on the given list
+ * @list: the request list to operate on
+ *
+ * Caller should take care of locking. This function return NULL or the first
+ * request available on list.
+ */
+static inline struct cdnsp_request *next_request(struct list_head *list)
+{
+	return list_first_entry_or_null(list, struct cdnsp_request, list);
+}
+
+#define to_cdnsp_ep(ep) (container_of(ep, struct cdnsp_ep, endpoint))
+#define gadget_to_cdnsp(g) (container_of(g, struct cdnsp_device, gadget))
+#define request_to_cdnsp_request(r) (container_of(r, struct cdnsp_request, \
+				     request))
+#define to_cdnsp_request(r) (container_of(r, struct cdnsp_request, request))
+int cdnsp_remove_request(struct cdnsp_device *pdev, struct cdnsp_request *preq,
+			 struct cdnsp_ep *pep);
+
 #endif /* __LINUX_CDNSP_GADGET_H */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Cadence USBSS DRD Driver.
+ * Cadence USBSS and USBSSP DRD Driver.
  *
  * Copyright (C) 2018-2020 Cadence.
  * Copyright (C) 2019 Texas Instruments
@@ -102,6 +102,32 @@ int cdns_get_vbus(struct cdns *cdns)
 
 	return vbus;
 }
+
+void cdns_clear_vbus(struct cdns *cdns)
+{
+	u32 reg;
+
+	if (cdns->version != CDNSP_CONTROLLER_V2)
+		return;
+
+	reg = readl(&cdns->otg_cdnsp_regs->override);
+	reg |= OVERRIDE_SESS_VLD_SEL;
+	writel(reg, &cdns->otg_cdnsp_regs->override);
+}
+EXPORT_SYMBOL_GPL(cdns_clear_vbus);
+
+void cdns_set_vbus(struct cdns *cdns)
+{
+	u32 reg;
+
+	if (cdns->version != CDNSP_CONTROLLER_V2)
+		return;
+
+	reg = readl(&cdns->otg_cdnsp_regs->override);
+	reg &= ~OVERRIDE_SESS_VLD_SEL;
+	writel(reg, &cdns->otg_cdnsp_regs->override);
+}
+EXPORT_SYMBOL_GPL(cdns_set_vbus);
 
 bool cdns_is_host(struct cdns *cdns)
 {
@@ -449,5 +475,6 @@ int cdns_drd_init(struct cdns *cdns)
 int cdns_drd_exit(struct cdns *cdns)
 {
 	cdns_otg_disable_irq(cdns);
+
 	return 0;
 }
