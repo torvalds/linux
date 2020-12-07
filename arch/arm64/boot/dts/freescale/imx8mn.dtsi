@@ -253,7 +253,7 @@
 			#size-cells = <1>;
 			ranges;
 
-			spba: bus@30000000 {
+			spba: spba-bus@30000000 {
 				compatible = "fsl,spba-bus", "simple-bus";
 				#address-cells = <1>;
 				#size-cells = <1>;
