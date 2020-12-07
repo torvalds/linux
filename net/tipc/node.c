@@ -2181,9 +2181,11 @@ void tipc_node_apply_property(struct net *net, struct tipc_bearer *b,
 							&xmitq);
 			else if (prop == TIPC_NLA_PROP_MTU)
 				tipc_link_set_mtu(e->link, b->mtu);
+
+			/* Update MTU for node link entry */
+			e->mtu = tipc_link_mss(e->link);
 		}
-		/* Update MTU for node link entry */
-		e->mtu = tipc_link_mss(e->link);
+
 		tipc_node_write_unlock(n);
 		tipc_bearer_xmit(net, bearer_id, &xmitq, &e->maddr, NULL);
 	}
