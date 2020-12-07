@@ -2129,7 +2129,7 @@ config RAVE_SP_CORE
 	  device found on several devices in RAVE line of hardware.
 
 config SGI_MFD_IOC3
-	tristate "SGI IOC3 core driver"
+	bool "SGI IOC3 core driver"
 	depends on PCI && MIPS && 64BIT
 	select MFD_CORE
 	help
