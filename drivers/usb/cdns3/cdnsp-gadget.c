@@ -23,6 +23,7 @@
 #include "gadget-export.h"
 #include "drd.h"
 #include "cdnsp-gadget.h"
+#include "cdnsp-trace.h"
 
 unsigned int cdnsp_port_speed(unsigned int port_status)
 {
@@ -100,6 +101,7 @@ void cdnsp_set_link_state(struct cdnsp_device *pdev,
 			  __le32 __iomem *port_regs,
 			  u32 link_state)
 {
+	int port_num = 0xFF;
 	u32 temp;
 
 	temp = readl(port_regs);
@@ -110,7 +112,12 @@ void cdnsp_set_link_state(struct cdnsp_device *pdev,
 	temp &= ~PORT_PLS_MASK;
 	temp |= PORT_LINK_STROBE | link_state;
 
+	if (pdev->active_port)
+		port_num = pdev->active_port->port_num;
+
+	trace_cdnsp_handle_port_status(port_num, readl(port_regs));
 	writel(temp, port_regs);
+	trace_cdnsp_link_state_changed(port_num, readl(port_regs));
 }
 
 static void cdnsp_disable_port(struct cdnsp_device *pdev,
@@ -230,6 +237,8 @@ static int cdnsp_start(struct cdnsp_device *pdev)
 	temp |= (CMD_R_S | CMD_DEVEN);
 	writel(temp, &pdev->op_regs->command);
 
+	trace_cdnsp_init("Turn on controller");
+
 	pdev->cdnsp_state = 0;
 
 	/*
@@ -339,8 +348,10 @@ int cdnsp_ep_enqueue(struct cdnsp_ep *pep, struct cdnsp_request *preq)
 	struct usb_request *request;
 	int ret;
 
-	if (preq->epnum == 0 && !list_empty(&pep->pending_list))
+	if (preq->epnum == 0 && !list_empty(&pep->pending_list)) {
+		trace_cdnsp_request_enqueue_busy(preq);
 		return -EBUSY;
+	}
 
 	request = &preq->request;
 	request->actual = 0;
@@ -350,10 +361,14 @@ int cdnsp_ep_enqueue(struct cdnsp_ep *pep, struct cdnsp_request *preq)
 	preq->td.drbl = 0;
 
 	ret = usb_gadget_map_request_by_dev(pdev->dev, request, pep->direction);
-	if (ret)
+	if (ret) {
+		trace_cdnsp_request_enqueue_error(preq);
 		return ret;
+	}
 
 	list_add_tail(&preq->list, &pep->pending_list);
+
+	trace_cdnsp_request_enqueue(preq);
 
 	switch (usb_endpoint_type(pep->endpoint.desc)) {
 	case USB_ENDPOINT_XFER_CONTROL:
@@ -376,6 +391,7 @@ unmap:
 	usb_gadget_unmap_request_by_dev(pdev->dev, &preq->request,
 					pep->direction);
 	list_del(&preq->list);
+	trace_cdnsp_request_enqueue_error(preq);
 
 	return ret;
 }
@@ -409,6 +425,8 @@ int cdnsp_ep_dequeue(struct cdnsp_ep *pep, struct cdnsp_request *preq)
 {
 	struct cdnsp_device *pdev = pep->pdev;
 	int ret;
+
+	trace_cdnsp_request_dequeue(preq);
 
 	if (GET_EP_CTX_STATE(pep->out_ctx) == EP_STATE_RUNNING) {
 		ret = cdnsp_cmd_stop_ep(pdev, pep);
@@ -516,11 +534,14 @@ int cdnsp_wait_for_cmd_compl(struct cdnsp_device *pdev)
 	cmd_trb = pdev->cmd.command_trb;
 	pdev->cmd.status = 0;
 
+	trace_cdnsp_cmd_wait_for_compl(pdev->cmd_ring, &cmd_trb->generic);
+
 	ret = readl_poll_timeout_atomic(&pdev->op_regs->cmd_ring, val,
 					!CMD_RING_BUSY(val), 1,
 					CDNSP_CMD_TIMEOUT);
 	if (ret) {
 		dev_err(pdev->dev, "ERR: Timeout while waiting for command\n");
+		trace_cdnsp_cmd_timeout(pdev->cmd_ring, &cmd_trb->generic);
 		pdev->cdnsp_state = CDNSP_STATE_DYING;
 		return -ETIMEDOUT;
 	}
@@ -562,6 +583,8 @@ int cdnsp_wait_for_cmd_compl(struct cdnsp_device *pdev)
 			continue;
 		}
 
+		trace_cdnsp_handle_command(pdev->cmd_ring, &cmd_trb->generic);
+
 		pdev->cmd.status = GET_COMP_CODE(le32_to_cpu(event->event_cmd.status));
 		if (pdev->cmd.status == COMP_SUCCESS)
 			return 0;
@@ -575,6 +598,8 @@ int cdnsp_halt_endpoint(struct cdnsp_device *pdev,
 			int value)
 {
 	int ret;
+
+	trace_cdnsp_ep_halt(value ? "Set" : "Clear");
 
 	if (value) {
 		ret = cdnsp_cmd_stop_ep(pdev, pep);
@@ -596,6 +621,8 @@ int cdnsp_halt_endpoint(struct cdnsp_device *pdev,
 		cdnsp_queue_reset_ep(pdev, pep->idx);
 		cdnsp_ring_cmd_db(pdev);
 		ret = cdnsp_wait_for_cmd_compl(pdev);
+		trace_cdnsp_handle_cmd_reset_ep(pep->out_ctx);
+
 		if (ret)
 			return ret;
 
@@ -649,6 +676,9 @@ static int cdnsp_update_eps_configuration(struct cdnsp_device *pdev,
 	    (ep_sts != EP_STATE_DISABLED && ctrl_ctx->drop_flags))
 		ret = cdnsp_configure_endpoint(pdev);
 
+	trace_cdnsp_configure_endpoint(cdnsp_get_slot_ctx(&pdev->out_ctx));
+	trace_cdnsp_handle_cmd_config_ep(pep->out_ctx);
+
 	cdnsp_zero_in_ctx(pdev);
 
 	return ret;
@@ -673,6 +703,7 @@ int cdnsp_reset_device(struct cdnsp_device *pdev)
 	/* If device is not setup, there is no point in resetting it. */
 	slot_ctx = cdnsp_get_slot_ctx(&pdev->out_ctx);
 	slot_state = GET_SLOT_STATE(le32_to_cpu(slot_ctx->dev_state));
+	trace_cdnsp_reset_device(slot_ctx);
 
 	if (slot_state <= SLOT_STATE_DEFAULT &&
 	    pdev->eps[0].ep_state & EP_HALTED) {
@@ -699,6 +730,8 @@ int cdnsp_reset_device(struct cdnsp_device *pdev)
 	 */
 	for (i = 1; i < CDNSP_ENDPOINTS_NUM; ++i)
 		pdev->eps[i].ep_state |= EP_STOPPED;
+
+	trace_cdnsp_handle_cmd_reset_dev(slot_ctx);
 
 	if (ret)
 		dev_err(pdev->dev, "Reset device failed with error code %d",
@@ -756,6 +789,8 @@ int cdnsp_alloc_streams(struct cdnsp_device *pdev, struct cdnsp_ep *pep)
 	/* The stream context array size must be a power of two */
 	num_stream_ctxs = roundup_pow_of_two(num_streams);
 
+	trace_cdnsp_stream_number(pep, num_stream_ctxs, num_streams);
+
 	ret = cdnsp_alloc_stream_info(pdev, pep, num_stream_ctxs, num_streams);
 	if (ret)
 		return ret;
@@ -781,6 +816,8 @@ int cdnsp_disable_slot(struct cdnsp_device *pdev)
 	pdev->slot_id = 0;
 	pdev->active_port = NULL;
 
+	trace_cdnsp_handle_cmd_disable_slot(cdnsp_get_slot_ctx(&pdev->out_ctx));
+
 	memset(pdev->in_ctx.bytes, 0, CDNSP_CTX_SIZE);
 	memset(pdev->out_ctx.bytes, 0, CDNSP_CTX_SIZE);
 
@@ -804,11 +841,14 @@ int cdnsp_enable_slot(struct cdnsp_device *pdev)
 	cdnsp_ring_cmd_db(pdev);
 	ret = cdnsp_wait_for_cmd_compl(pdev);
 	if (ret)
-		return ret;
+		goto show_trace;
 
 	pdev->slot_id = 1;
 
-	return 0;
+show_trace:
+	trace_cdnsp_handle_cmd_enable_slot(cdnsp_get_slot_ctx(&pdev->out_ctx));
+
+	return ret;
 }
 
 /*
@@ -822,8 +862,10 @@ int cdnsp_setup_device(struct cdnsp_device *pdev, enum cdnsp_setup_dev setup)
 	int dev_state = 0;
 	int ret;
 
-	if (!pdev->slot_id)
+	if (!pdev->slot_id) {
+		trace_cdnsp_slot_id("incorrect");
 		return -EINVAL;
+	}
 
 	if (!pdev->active_port->port_num)
 		return -EINVAL;
@@ -831,8 +873,10 @@ int cdnsp_setup_device(struct cdnsp_device *pdev, enum cdnsp_setup_dev setup)
 	slot_ctx = cdnsp_get_slot_ctx(&pdev->out_ctx);
 	dev_state = GET_SLOT_STATE(le32_to_cpu(slot_ctx->dev_state));
 
-	if (setup == SETUP_CONTEXT_ONLY && dev_state == SLOT_STATE_DEFAULT)
+	if (setup == SETUP_CONTEXT_ONLY && dev_state == SLOT_STATE_DEFAULT) {
+		trace_cdnsp_slot_already_in_default(slot_ctx);
 		return 0;
+	}
 
 	slot_ctx = cdnsp_get_slot_ctx(&pdev->in_ctx);
 	ctrl_ctx = cdnsp_get_input_control_ctx(&pdev->in_ctx);
@@ -848,9 +892,13 @@ int cdnsp_setup_device(struct cdnsp_device *pdev, enum cdnsp_setup_dev setup)
 	ctrl_ctx->add_flags = cpu_to_le32(SLOT_FLAG | EP0_FLAG);
 	ctrl_ctx->drop_flags = 0;
 
+	trace_cdnsp_setup_device_slot(slot_ctx);
+
 	cdnsp_queue_address_device(pdev, pdev->in_ctx.dma, setup);
 	cdnsp_ring_cmd_db(pdev);
 	ret = cdnsp_wait_for_cmd_compl(pdev);
+
+	trace_cdnsp_handle_cmd_addr_dev(cdnsp_get_slot_ctx(&pdev->out_ctx));
 
 	/* Zero the input context control for later use. */
 	ctrl_ctx->add_flags = 0;
@@ -865,6 +913,8 @@ void cdnsp_set_usb2_hardware_lpm(struct cdnsp_device *pdev,
 {
 	if (pdev->active_port != &pdev->usb2_port || !pdev->gadget.lpm_capable)
 		return;
+
+	trace_cdnsp_lpm(enable);
 
 	if (enable)
 		writel(PORT_BESL(CDNSP_DEFAULT_BESL) | PORT_L1S_NYET | PORT_HLE,
@@ -945,6 +995,7 @@ static int cdnsp_gadget_ep_enable(struct usb_ep *ep,
 	pep->ep_state &= ~EP_STOPPED;
 
 unlock:
+	trace_cdnsp_ep_enable_end(pep, 0);
 	spin_unlock_irqrestore(&pdev->lock, flags);
 
 	return ret;
@@ -1001,6 +1052,7 @@ static int cdnsp_gadget_ep_disable(struct usb_ep *ep)
 	pep->ep_state |= EP_STOPPED;
 
 finish:
+	trace_cdnsp_ep_disable_end(pep, 0);
 	spin_unlock_irqrestore(&pdev->lock, flags);
 
 	return ret;
@@ -1019,6 +1071,8 @@ static struct usb_request *cdnsp_gadget_ep_alloc_request(struct usb_ep *ep,
 	preq->epnum = pep->number;
 	preq->pep = pep;
 
+	trace_cdnsp_alloc_request(preq);
+
 	return &preq->request;
 }
 
@@ -1027,6 +1081,7 @@ static void cdnsp_gadget_ep_free_request(struct usb_ep *ep,
 {
 	struct cdnsp_request *preq = to_cdnsp_request(request);
 
+	trace_cdnsp_free_request(preq);
 	kfree(preq);
 }
 
@@ -1095,6 +1150,7 @@ static int cdnsp_gadget_ep_set_halt(struct usb_ep *ep, int value)
 	preq = next_request(&pep->pending_list);
 	if (value) {
 		if (preq) {
+			trace_cdnsp_ep_busy_try_halt_again(pep, 0);
 			ret = -EAGAIN;
 			goto done;
 		}
@@ -1157,6 +1213,8 @@ void cdnsp_gadget_giveback(struct cdnsp_ep *pep,
 
 	usb_gadget_unmap_request_by_dev(pdev->dev, &preq->request,
 					preq->direction);
+
+	trace_cdnsp_request_giveback(preq);
 
 	if (preq != &pdev->ep0_preq) {
 		spin_unlock(&pdev->lock);
@@ -1238,6 +1296,7 @@ static int cdnsp_run(struct cdnsp_device *pdev,
 	temp = readl(&pdev->ir_set->irq_pending);
 	writel(IMAN_IE_SET(temp), &pdev->ir_set->irq_pending);
 
+	trace_cdnsp_init("Controller ready to work");
 	return 0;
 err:
 	cdnsp_halt(pdev);
@@ -1390,6 +1449,8 @@ static void cdnsp_stop(struct cdnsp_device *pdev)
 
 	cdnsp_consume_all_events(pdev);
 	cdnsp_clear_cmd_ring(pdev);
+
+	trace_cdnsp_exit("Controller stopped.");
 }
 
 /*
@@ -1470,6 +1531,8 @@ static int cdnsp_gadget_pullup(struct usb_gadget *gadget, int is_on)
 {
 	struct cdnsp_device *pdev = gadget_to_cdnsp(gadget);
 	struct cdns *cdns = dev_get_drvdata(pdev->dev);
+
+	trace_cdnsp_pullup(is_on);
 
 	if (!is_on) {
 		cdnsp_reset_device(pdev);

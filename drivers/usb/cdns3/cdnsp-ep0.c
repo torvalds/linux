@@ -13,6 +13,7 @@
 #include <linux/list.h>
 
 #include "cdnsp-gadget.h"
+#include "cdnsp-trace.h"
 
 static void cdnsp_ep0_stall(struct cdnsp_device *pdev)
 {
@@ -23,11 +24,13 @@ static void cdnsp_ep0_stall(struct cdnsp_device *pdev)
 	preq = next_request(&pep->pending_list);
 
 	if (pdev->three_stage_setup) {
+		trace_cdnsp_ep0_data_stage("send stall");
 		cdnsp_halt_endpoint(pdev, pep, true);
 
 		if (preq)
 			cdnsp_gadget_giveback(pep, preq, -ECONNRESET);
 	} else {
+		trace_cdnsp_ep0_status_stage("send stall");
 		pep->ep_state |= EP0_HALTED_STATUS;
 
 		if (preq)
@@ -41,6 +44,8 @@ static int cdnsp_ep0_delegate_req(struct cdnsp_device *pdev,
 				  struct usb_ctrlrequest *ctrl)
 {
 	int ret;
+
+	trace_cdnsp_ep0_request("delagete");
 
 	spin_unlock(&pdev->lock);
 	ret = pdev->gadget_driver->setup(&pdev->gadget, ctrl);
@@ -60,8 +65,10 @@ static int cdnsp_ep0_set_config(struct cdnsp_device *pdev,
 
 	switch (state) {
 	case USB_STATE_ADDRESS:
+		trace_cdnsp_ep0_set_config("from Address state");
 		break;
 	case USB_STATE_CONFIGURED:
+		trace_cdnsp_ep0_set_config("from Configured state");
 		break;
 	default:
 		dev_err(pdev->dev, "Set Configuration - bad device state\n");
@@ -123,6 +130,7 @@ static int cdnsp_ep0_set_address(struct cdnsp_device *pdev,
 
 int cdnsp_status_stage(struct cdnsp_device *pdev)
 {
+	trace_cdnsp_ep0_status_stage("preparing");
 	pdev->ep0_stage = CDNSP_STATUS_STAGE;
 	pdev->ep0_preq.request.length = 0;
 
@@ -211,18 +219,21 @@ static int cdnsp_ep0_handle_feature_device(struct cdnsp_device *pdev,
 	switch (le16_to_cpu(ctrl->wValue)) {
 	case USB_DEVICE_REMOTE_WAKEUP:
 		pdev->may_wakeup = !!set;
+		trace_cdnsp_may_wakeup(set);
 		break;
 	case USB_DEVICE_U1_ENABLE:
 		if (state != USB_STATE_CONFIGURED || speed < USB_SPEED_SUPER)
 			return -EINVAL;
 
 		pdev->u1_allowed = !!set;
+		trace_cdnsp_u1(set);
 		break;
 	case USB_DEVICE_U2_ENABLE:
 		if (state != USB_STATE_CONFIGURED || speed < USB_SPEED_SUPER)
 			return -EINVAL;
 
 		pdev->u2_allowed = !!set;
+		trace_cdnsp_u2(set);
 		break;
 	case USB_DEVICE_LTM_ENABLE:
 		return -EINVAL;
@@ -426,6 +437,8 @@ void cdnsp_setup_analyze(struct cdnsp_device *pdev)
 	int ret = 0;
 	__le16 len;
 
+	trace_cdnsp_ctrl_req(ctrl);
+
 	if (!pdev->gadget_driver)
 		goto out;
 
@@ -436,8 +449,10 @@ void cdnsp_setup_analyze(struct cdnsp_device *pdev)
 	}
 
 	/* Restore the ep0 to Stopped/Running state. */
-	if (pdev->eps[0].ep_state & EP_HALTED)
+	if (pdev->eps[0].ep_state & EP_HALTED) {
+		trace_cdnsp_ep0_halted("Restore to normal state");
 		cdnsp_halt_endpoint(pdev, &pdev->eps[0], 0);
+	}
 
 	/*
 	 * Finishing previous SETUP transfer by removing request from
@@ -446,6 +461,7 @@ void cdnsp_setup_analyze(struct cdnsp_device *pdev)
 	if (!list_empty(&pdev->eps[0].pending_list)) {
 		struct cdnsp_request	*req;
 
+		trace_cdnsp_ep0_request("Remove previous");
 		req = next_request(&pdev->eps[0].pending_list);
 		cdnsp_ep_dequeue(&pdev->eps[0], req);
 	}
@@ -467,8 +483,10 @@ void cdnsp_setup_analyze(struct cdnsp_device *pdev)
 	if (!len)
 		pdev->ep0_stage = CDNSP_STATUS_STAGE;
 
-	if (ret == USB_GADGET_DELAYED_STATUS)
+	if (ret == USB_GADGET_DELAYED_STATUS) {
+		trace_cdnsp_ep0_status_stage("delayed");
 		return;
+	}
 out:
 	if (ret < 0)
 		cdnsp_ep0_stall(pdev);

@@ -16,6 +16,7 @@
 #include <linux/usb.h>
 
 #include "cdnsp-gadget.h"
+#include "cdnsp-trace.h"
 
 static void cdnsp_free_stream_info(struct cdnsp_device *pdev,
 				   struct cdnsp_ep *pep);
@@ -281,6 +282,8 @@ static void cdnsp_ring_free(struct cdnsp_device *pdev, struct cdnsp_ring *ring)
 	if (!ring)
 		return;
 
+	trace_cdnsp_ring_free(ring);
+
 	if (ring->first_seg) {
 		if (ring->type == TYPE_STREAM)
 			cdnsp_remove_stream_mapping(ring);
@@ -397,7 +400,7 @@ static struct cdnsp_ring *cdnsp_ring_alloc(struct cdnsp_device *pdev,
 			cpu_to_le32(LINK_TOGGLE);
 
 	cdnsp_initialize_ring_info(ring);
-
+	trace_cdnsp_ring_alloc(ring);
 	return ring;
 fail:
 	kfree(ring);
@@ -450,6 +453,7 @@ int cdnsp_ring_expansion(struct cdnsp_device *pdev,
 	}
 
 	cdnsp_link_rings(pdev, ring, first, last, num_segs);
+	trace_cdnsp_ring_expansion(ring);
 
 	return 0;
 }
@@ -610,6 +614,8 @@ int cdnsp_alloc_stream_info(struct cdnsp_device *pdev,
 		stream_info->stream_ctx_array[cur_stream].stream_ring =
 			cpu_to_le64(addr);
 
+		trace_cdnsp_set_stream_ring(cur_ring);
+
 		ret = cdnsp_update_stream_mapping(cur_ring);
 		if (ret)
 			goto cleanup_rings;
@@ -695,6 +701,7 @@ static int cdnsp_alloc_priv_device(struct cdnsp_device *pdev, gfp_t flags)
 	pdev->dcbaa->dev_context_ptrs[1] = cpu_to_le64(pdev->out_ctx.dma);
 	pdev->cmd.in_ctx = &pdev->in_ctx;
 
+	trace_cdnsp_alloc_priv_device(pdev);
 	return 0;
 fail:
 	dma_pool_free(pdev->device_pool, pdev->out_ctx.bytes,
@@ -760,6 +767,8 @@ int cdnsp_setup_addressable_priv_dev(struct cdnsp_device *pdev)
 
 	ep0_ctx->deq = cpu_to_le64(pdev->eps[0].ring->first_seg->dma |
 				   pdev->eps[0].ring->cycle_state);
+
+	trace_cdnsp_setup_addressable_priv_device(pdev);
 
 	return 0;
 }
@@ -1112,7 +1121,7 @@ static void cdnsp_add_in_port(struct cdnsp_device *pdev,
 			      struct cdnsp_port *port,
 			      __le32 __iomem *addr)
 {
-	u32 temp, port_offset;
+	u32 temp, port_offset, port_count;
 
 	temp = readl(addr);
 	port->maj_rev = CDNSP_EXT_PORT_MAJOR(temp);
@@ -1121,6 +1130,9 @@ static void cdnsp_add_in_port(struct cdnsp_device *pdev,
 	/* Port offset and count in the third dword.*/
 	temp = readl(addr + 2);
 	port_offset = CDNSP_EXT_PORT_OFF(temp);
+	port_count = CDNSP_EXT_PORT_COUNT(temp);
+
+	trace_cdnsp_port_info(addr, port_offset, port_count, port->maj_rev);
 
 	port->port_num = port_offset;
 	port->exist = 1;
@@ -1170,6 +1182,8 @@ static int cdnsp_setup_port_arrays(struct cdnsp_device *pdev, gfp_t flags)
 		dev_err(pdev->dev, "Error: Only one port detected\n");
 		return -ENODEV;
 	}
+
+	trace_cdnsp_init("Found USB 2.0 ports and  USB 3.0 ports.");
 
 	pdev->usb2_port.regs = (struct cdnsp_port_regs *)
 			       (&pdev->op_regs->port_reg_base + NUM_PORT_REGS *

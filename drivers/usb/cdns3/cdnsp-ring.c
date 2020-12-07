@@ -61,6 +61,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 
+#include "cdnsp-trace.h"
 #include "cdnsp-gadget.h"
 
 /*
@@ -148,7 +149,7 @@ void cdnsp_inc_deq(struct cdnsp_device *pdev, struct cdnsp_ring *ring)
 	if (ring->type == TYPE_EVENT) {
 		if (!cdnsp_last_trb_on_seg(ring->deq_seg, ring->dequeue)) {
 			ring->dequeue++;
-			return;
+			goto out;
 		}
 
 		if (cdnsp_last_trb_on_ring(ring, ring->deq_seg, ring->dequeue))
@@ -156,7 +157,7 @@ void cdnsp_inc_deq(struct cdnsp_device *pdev, struct cdnsp_ring *ring)
 
 		ring->deq_seg = ring->deq_seg->next;
 		ring->dequeue = ring->deq_seg->trbs;
-		return;
+		goto out;
 	}
 
 	/* All other rings have link trbs. */
@@ -168,6 +169,8 @@ void cdnsp_inc_deq(struct cdnsp_device *pdev, struct cdnsp_ring *ring)
 		ring->deq_seg = ring->deq_seg->next;
 		ring->dequeue = ring->deq_seg->trbs;
 	}
+out:
+	trace_cdnsp_inc_deq(ring);
 }
 
 /*
@@ -222,6 +225,8 @@ static void cdnsp_inc_enq(struct cdnsp_device *pdev,
 		ring->enqueue = ring->enq_seg->trbs;
 		next = ring->enqueue;
 	}
+
+	trace_cdnsp_inc_enq(ring);
 }
 
 /*
@@ -261,6 +266,7 @@ static void cdnsp_force_l0_go(struct cdnsp_device *pdev)
 /* Ring the doorbell after placing a command on the ring. */
 void cdnsp_ring_cmd_db(struct cdnsp_device *pdev)
 {
+	trace_cdnsp_cmd_drbl("Ding Dong");
 	writel(DB_VALUE_CMD, &pdev->dba->cmd_db);
 }
 
@@ -298,6 +304,8 @@ static bool cdnsp_ring_ep_doorbell(struct cdnsp_device *pdev,
 		db_value = DB_VALUE_EP0_OUT(pep->idx, stream_id);
 	else
 		db_value = DB_VALUE(pep->idx, stream_id);
+
+	trace_cdnsp_tr_drbl(pep, stream_id);
 
 	writel(db_value, reg_addr);
 
@@ -484,6 +492,8 @@ static void cdnsp_find_new_dequeue_state(struct cdnsp_device *pdev,
 
 	state->new_deq_seg = new_seg;
 	state->new_deq_ptr = new_deq;
+
+	trace_cdnsp_new_deq_state(state);
 }
 
 /*
@@ -544,6 +554,10 @@ static struct cdnsp_segment *cdnsp_trb_in_td(struct cdnsp_device *pdev,
 		/* If the end TRB isn't in this segment, this is set to 0 */
 		end_trb_dma = cdnsp_trb_virt_to_dma(cur_seg, end_trb);
 
+		trace_cdnsp_looking_trb_in_td(suspect_dma, start_dma,
+					      end_trb_dma, cur_seg->dma,
+					      end_seg_dma);
+
 		if (end_trb_dma > 0) {
 			/*
 			 * The end TRB is in this segment, so suspect should
@@ -594,6 +608,9 @@ static void cdnsp_unmap_td_bounce_buffer(struct cdnsp_device *pdev,
 
 	preq = td->preq;
 
+	trace_cdnsp_bounce_unmap(td->preq, seg->bounce_len, seg->bounce_offs,
+				 seg->bounce_dma, 0);
+
 	if (!preq->direction) {
 		dma_unmap_single(pdev->dev, seg->bounce_dma,
 				 ring->bounce_buf_len,  DMA_TO_DEVICE);
@@ -630,6 +647,9 @@ static int cdnsp_cmd_set_deq(struct cdnsp_device *pdev,
 	cdnsp_queue_new_dequeue_state(pdev, pep, deq_state);
 	cdnsp_ring_cmd_db(pdev);
 	ret = cdnsp_wait_for_cmd_compl(pdev);
+
+	trace_cdnsp_handle_cmd_set_deq(cdnsp_get_slot_ctx(&pdev->out_ctx));
+	trace_cdnsp_handle_cmd_set_deq_ep(pep->out_ctx);
 
 	/*
 	 * Update the ring's dequeue segment and dequeue pointer
@@ -681,6 +701,9 @@ int cdnsp_remove_request(struct cdnsp_device *pdev,
 	u64 hw_deq;
 
 	memset(&deq_state, 0, sizeof(deq_state));
+
+	trace_cdnsp_remove_request(pep->out_ctx);
+	trace_cdnsp_remove_request_td(preq);
 
 	cur_td = &preq->td;
 	ep_ring = cdnsp_request_to_transfer_ring(pdev, preq);
@@ -788,6 +811,8 @@ new_event:
 	portsc = readl(&port_regs->portsc);
 	writel(cdnsp_port_state_to_neutral(portsc) |
 	       (portsc & PORT_CHANGE_BITS), &port_regs->portsc);
+
+	trace_cdnsp_handle_port_status(pdev->active_port->port_num, portsc);
 
 	pdev->gadget.speed = cdnsp_port_speed(portsc);
 	link_state = portsc & PORT_PLS_MASK;
@@ -954,8 +979,10 @@ static int cdnsp_giveback_first_trb(struct cdnsp_device *pdev,
 		start_trb->field[3] &= cpu_to_le32(~TRB_CYCLE);
 
 	if ((pep->ep_state & EP_HAS_STREAMS) &&
-	    !pep->stream_info.first_prime_det)
+	    !pep->stream_info.first_prime_det) {
+		trace_cdnsp_wait_for_prime(pep, stream_id);
 		return 0;
+	}
 
 	return cdnsp_ring_ep_doorbell(pdev, pep, stream_id);
 }
@@ -1226,8 +1253,10 @@ static int cdnsp_handle_tx_event(struct cdnsp_device *pdev,
 	if (invalidate || !pdev->gadget.connected)
 		goto cleanup;
 
-	if (GET_EP_CTX_STATE(pep->out_ctx) == EP_STATE_DISABLED)
+	if (GET_EP_CTX_STATE(pep->out_ctx) == EP_STATE_DISABLED) {
+		trace_cdnsp_ep_disabled(pep->out_ctx);
 		goto err_out;
+	}
 
 	/* Some transfer events don't always point to a trb*/
 	if (!ep_ring) {
@@ -1274,8 +1303,23 @@ static int cdnsp_handle_tx_event(struct cdnsp_device *pdev,
 		 * list.
 		 */
 		if (list_empty(&ep_ring->td_list)) {
-			if (pep->skip)
+			/*
+			 * Don't print warnings if it's due to a stopped
+			 * endpoint generating an extra completion event, or
+			 * a event for the last TRB of a short TD we already
+			 * got a short event for.
+			 * The short TD is already removed from the TD list.
+			 */
+			if (!(trb_comp_code == COMP_STOPPED ||
+			      trb_comp_code == COMP_STOPPED_LENGTH_INVALID ||
+			      ep_ring->last_td_was_short))
+				trace_cdnsp_trb_without_td(ep_ring,
+					(struct cdnsp_generic_trb *)event);
+
+			if (pep->skip) {
 				pep->skip = false;
+				trace_cdnsp_ep_list_empty_with_skip(pep, 0);
+			}
 
 			goto cleanup;
 		}
@@ -1331,6 +1375,9 @@ static int cdnsp_handle_tx_event(struct cdnsp_device *pdev,
 
 		ep_trb = &ep_seg->trbs[(ep_trb_dma - ep_seg->dma)
 				       / sizeof(*ep_trb)];
+
+		trace_cdnsp_handle_transfer(ep_ring,
+					    (struct cdnsp_generic_trb *)ep_trb);
 
 		if (cdnsp_trb_is_noop(ep_trb))
 			goto cleanup;
@@ -1396,6 +1443,8 @@ static bool cdnsp_handle_event(struct cdnsp_device *pdev)
 	/* Does the controller or driver own the TRB? */
 	if (cycle_bit != pdev->event_ring->cycle_state)
 		return false;
+
+	trace_cdnsp_handle_event(pdev->event_ring, &event->generic);
 
 	/*
 	 * Barrier between reading the TRB_CYCLE (valid) flag above and any
@@ -1544,6 +1593,7 @@ static void cdnsp_queue_trb(struct cdnsp_device *pdev, struct cdnsp_ring *ring,
 	trb->field[2] = cpu_to_le32(field3);
 	trb->field[3] = cpu_to_le32(field4);
 
+	trace_cdnsp_queue_trb(ring, trb);
 	cdnsp_inc_enq(pdev, ring, more_trbs_coming);
 }
 
@@ -1573,6 +1623,8 @@ static int cdnsp_prepare_ring(struct cdnsp_device *pdev,
 	while (1) {
 		if (cdnsp_room_on_ring(pdev, ep_ring, num_trbs))
 			break;
+
+		trace_cdnsp_no_room_on_ring("try ring expansion");
 
 		num_trbs_needed = num_trbs - ep_ring->num_trbs_free;
 		if (cdnsp_ring_expansion(pdev, ep_ring, num_trbs_needed,
@@ -1737,6 +1789,8 @@ static int cdnsp_align_td(struct cdnsp_device *pdev,
 	/* Is the last nornal TRB alignable by splitting it. */
 	if (*trb_buff_len > unalign) {
 		*trb_buff_len -= unalign;
+		trace_cdnsp_bounce_align_td_split(preq, *trb_buff_len,
+						  enqd_len, 0, unalign);
 		return 0;
 	}
 
@@ -1772,6 +1826,9 @@ static int cdnsp_align_td(struct cdnsp_device *pdev,
 	*trb_buff_len = new_buff_len;
 	seg->bounce_len = new_buff_len;
 	seg->bounce_offs = enqd_len;
+
+	trace_cdnsp_bounce_map(preq, new_buff_len, enqd_len, seg->bounce_dma,
+			       unalign);
 
 	/*
 	 * Bounce buffer successful aligned and seg->bounce_dma will be used
@@ -2009,12 +2066,16 @@ int cdnsp_cmd_stop_ep(struct cdnsp_device *pdev, struct cdnsp_ep *pep)
 	u32 ep_state = GET_EP_CTX_STATE(pep->out_ctx);
 	int ret = 0;
 
-	if (ep_state == EP_STATE_STOPPED || ep_state == EP_STATE_DISABLED)
+	if (ep_state == EP_STATE_STOPPED || ep_state == EP_STATE_DISABLED) {
+		trace_cdnsp_ep_stopped_or_disabled(pep->out_ctx);
 		goto ep_stopped;
+	}
 
 	cdnsp_queue_stop_endpoint(pdev, pep->idx);
 	cdnsp_ring_cmd_db(pdev);
 	ret = cdnsp_wait_for_cmd_compl(pdev);
+
+	trace_cdnsp_handle_cmd_stop_ep(pep->out_ctx);
 
 ep_stopped:
 	pep->ep_state |= EP_STOPPED;
@@ -2028,6 +2089,8 @@ int cdnsp_cmd_flush_ep(struct cdnsp_device *pdev, struct cdnsp_ep *pep)
 	cdnsp_queue_flush_endpoint(pdev, pep->idx);
 	cdnsp_ring_cmd_db(pdev);
 	ret = cdnsp_wait_for_cmd_compl(pdev);
+
+	trace_cdnsp_handle_cmd_flush_ep(pep->out_ctx);
 
 	return ret;
 }

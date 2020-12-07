@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # define_trace.h needs to know how to find our header
 CFLAGS_trace.o					:= -I$(src)
+CFLAGS_cdnsp-trace.o				:= -I$(src)
 
 cdns-usb-common-y				:= core.o drd.o
 cdns3-y						:= cdns3-plat.o
@@ -23,3 +24,7 @@ cdnsp-udc-pci-y					:= cdnsp-pci.o
 obj-$(CONFIG_USB_CDNSP_PCI) 			+= cdnsp-udc-pci.o
 cdnsp-udc-pci-$(CONFIG_USB_CDNSP_GADGET)	+= cdnsp-ring.o cdnsp-gadget.o \
 						   cdnsp-mem.o cdnsp-ep0.o
+
+ifneq ($(CONFIG_USB_CDNSP_GADGET),)
+cdnsp-udc-pci-$(CONFIG_TRACING)			+= cdnsp-trace.o
+endif
