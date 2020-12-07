@@ -1206,6 +1206,7 @@ static struct sock *chtls_recv_sock(struct sock *lsk,
 	sk_setup_caps(newsk, dst);
 	ctx = tls_get_ctx(lsk);
 	newsk->sk_destruct = ctx->sk_destruct;
+	newsk->sk_prot_creator = lsk->sk_prot_creator;
 	csk->sk = newsk;
 	csk->passive_reap_next = oreq;
 	csk->tx_chan = cxgb4_port_chan(ndev);

@@ -963,8 +963,6 @@ struct crt_sd_ctxt {
 	struct create_context ccontext;
 	__u8	Name[8];
 	struct smb3_sd sd;
-	struct smb3_acl acl;
-	/* Followed by at least 4 ACEs */
 } __packed;
 
 
