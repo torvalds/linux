@@ -310,6 +310,12 @@
 	status = "okay";
 };
 
+&spdif_8ch {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spdifm1_tx>;
+};
+
 &uart8 {
 	status = "okay";
 	pinctrl-names = "default";

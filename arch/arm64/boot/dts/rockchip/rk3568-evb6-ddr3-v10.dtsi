@@ -242,6 +242,10 @@
 	reset-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>;
 };
 
+&spdif_8ch {
+	status = "disabled";
+};
+
 &uart1 {
 	status = "okay";
 	pinctrl-names = "default";
