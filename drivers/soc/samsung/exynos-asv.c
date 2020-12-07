@@ -129,7 +129,13 @@ static int exynos_asv_probe(struct platform_device *pdev)
 		return PTR_ERR(asv->chipid_regmap);
 	}
 
-	regmap_read(asv->chipid_regmap, EXYNOS_CHIPID_REG_PRO_ID, &product_id);
+	ret = regmap_read(asv->chipid_regmap, EXYNOS_CHIPID_REG_PRO_ID,
+			  &product_id);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Cannot read revision from ChipID: %d\n",
+			ret);
+		return -ENODEV;
+	}
 
 	switch (product_id & EXYNOS_MASK) {
 	case 0xE5422000:
