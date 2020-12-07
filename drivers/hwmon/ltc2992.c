@@ -480,7 +480,7 @@ static int ltc2992_read_gpios_in(struct device *dev, u32 attr, int nr_gpio, long
 
 static int ltc2992_read_in_alarm(struct ltc2992_state *st, int channel, long *val, u32 attr)
 {
-	u32 reg_val;
+	int reg_val;
 	u32 mask;
 
 	if (attr == hwmon_in_max_alarm)
@@ -534,7 +534,7 @@ static int ltc2992_read_in(struct device *dev, u32 attr, int channel, long *val)
 
 static int ltc2992_get_current(struct ltc2992_state *st, u32 reg, u32 channel, long *val)
 {
-	u32 reg_val;
+	int reg_val;
 
 	reg_val = ltc2992_read_reg(st, reg, 2);
 	if (reg_val < 0)
@@ -558,7 +558,7 @@ static int ltc2992_set_current(struct ltc2992_state *st, u32 reg, u32 channel, l
 
 static int ltc2992_read_curr_alarm(struct ltc2992_state *st, int channel, long *val, u32 attr)
 {
-	u32 reg_val;
+	int reg_val;
 	u32 mask;
 
 	if (attr == hwmon_curr_max_alarm)
@@ -609,7 +609,7 @@ static int ltc2992_read_curr(struct device *dev, u32 attr, int channel, long *va
 
 static int ltc2992_get_power(struct ltc2992_state *st, u32 reg, u32 channel, long *val)
 {
-	u32 reg_val;
+	int reg_val;
 
 	reg_val = ltc2992_read_reg(st, reg, 3);
 	if (reg_val < 0)
@@ -633,7 +633,7 @@ static int ltc2992_set_power(struct ltc2992_state *st, u32 reg, u32 channel, lon
 
 static int ltc2992_read_power_alarm(struct ltc2992_state *st, int channel, long *val, u32 attr)
 {
-	u32 reg_val;
+	int reg_val;
 	u32 mask;
 
 	if (attr == hwmon_power_max_alarm)
