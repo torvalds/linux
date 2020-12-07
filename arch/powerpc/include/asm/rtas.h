@@ -258,6 +258,7 @@ extern void rtas_progress(char *s, unsigned short hex);
 extern int rtas_suspend_cpu(struct rtas_suspend_me_data *data);
 extern int rtas_suspend_last_cpu(struct rtas_suspend_me_data *data);
 int rtas_ibm_suspend_me_unsafe(u64 handle);
+int rtas_ibm_suspend_me(int *fw_status);
 
 struct rtc_time;
 extern time64_t rtas_get_boot_time(void);
