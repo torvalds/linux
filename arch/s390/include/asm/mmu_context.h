@@ -76,7 +76,10 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 {
 	int cpu = smp_processor_id();
 
-	S390_lowcore.user_asce = next->context.asce;
+	if (next == &init_mm)
+		S390_lowcore.user_asce = s390_invalid_asce;
+	else
+		S390_lowcore.user_asce = next->context.asce;
 	cpumask_set_cpu(cpu, &next->context.cpu_attach_mask);
 	/* Clear previous user-ASCE from CR7 */
 	__ctl_load(s390_invalid_asce, 7, 7);
