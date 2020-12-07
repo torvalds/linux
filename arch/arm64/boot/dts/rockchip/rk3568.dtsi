@@ -1303,6 +1303,8 @@
 		interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_VOP>, <&cru HCLK_VOP>, <&cru DCLK_VOP0>, <&cru DCLK_VOP1>, <&cru DCLK_VOP2>;
 		clock-names = "aclk_vop", "hclk_vop", "dclk_vp0", "dclk_vp1", "dclk_vp2";
+		assigned-clocks = <&cru ACLK_VOP>;
+		assigned-clock-rates = <500000000>;
 		iommus = <&vop_mmu>;
 		power-domains = <&power RK3568_PD_VO>;
 		status = "disabled";
