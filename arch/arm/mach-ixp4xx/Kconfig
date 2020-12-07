@@ -7,7 +7,7 @@ comment "IXP4xx Platforms"
 
 config MACH_IXP4XX_OF
 	bool
-	prompt "Devce Tree IXP4xx boards"
+	prompt "Device Tree IXP4xx boards"
 	default y
 	select ARM_APPENDED_DTB # Old Redboot bootloaders deployed
 	select I2C
