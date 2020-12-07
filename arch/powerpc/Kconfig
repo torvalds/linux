@@ -87,7 +87,7 @@ config PPC_WATCHDOG
 	help
 	  This is a placeholder when the powerpc hardlockup detector
 	  watchdog is selected (arch/powerpc/kernel/watchdog.c). It is
-	  seleted via the generic lockup detector menu which is why we
+	  selected via the generic lockup detector menu which is why we
 	  have no standalone config option for it here.
 
 config STACKTRACE_SUPPORT
