@@ -132,71 +132,10 @@ module_param(log_stats, int, 0644);
 
 #define BLKBACK_INVALID_HANDLE (~0)
 
-/* Number of free pages to remove on each call to gnttab_free_pages */
-#define NUM_BATCH_FREE_PAGES 10
-
 static inline bool persistent_gnt_timeout(struct persistent_gnt *persistent_gnt)
 {
 	return pgrant_timeout && (jiffies - persistent_gnt->last_used >=
 			HZ * pgrant_timeout);
-}
-
-static inline int get_free_page(struct xen_blkif_ring *ring, struct page **page)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&ring->free_pages_lock, flags);
-	if (list_empty(&ring->free_pages)) {
-		BUG_ON(ring->free_pages_num != 0);
-		spin_unlock_irqrestore(&ring->free_pages_lock, flags);
-		return gnttab_alloc_pages(1, page);
-	}
-	BUG_ON(ring->free_pages_num == 0);
-	page[0] = list_first_entry(&ring->free_pages, struct page, lru);
-	list_del(&page[0]->lru);
-	ring->free_pages_num--;
-	spin_unlock_irqrestore(&ring->free_pages_lock, flags);
-
-	return 0;
-}
-
-static inline void put_free_pages(struct xen_blkif_ring *ring, struct page **page,
-                                  int num)
-{
-	unsigned long flags;
-	int i;
-
-	spin_lock_irqsave(&ring->free_pages_lock, flags);
-	for (i = 0; i < num; i++)
-		list_add(&page[i]->lru, &ring->free_pages);
-	ring->free_pages_num += num;
-	spin_unlock_irqrestore(&ring->free_pages_lock, flags);
-}
-
-static inline void shrink_free_pagepool(struct xen_blkif_ring *ring, int num)
-{
-	/* Remove requested pages in batches of NUM_BATCH_FREE_PAGES */
-	struct page *page[NUM_BATCH_FREE_PAGES];
-	unsigned int num_pages = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ring->free_pages_lock, flags);
-	while (ring->free_pages_num > num) {
-		BUG_ON(list_empty(&ring->free_pages));
-		page[num_pages] = list_first_entry(&ring->free_pages,
-		                                   struct page, lru);
-		list_del(&page[num_pages]->lru);
-		ring->free_pages_num--;
-		if (++num_pages == NUM_BATCH_FREE_PAGES) {
-			spin_unlock_irqrestore(&ring->free_pages_lock, flags);
-			gnttab_free_pages(num_pages, page);
-			spin_lock_irqsave(&ring->free_pages_lock, flags);
-			num_pages = 0;
-		}
-	}
-	spin_unlock_irqrestore(&ring->free_pages_lock, flags);
-	if (num_pages != 0)
-		gnttab_free_pages(num_pages, page);
 }
 
 #define vaddr(page) ((unsigned long)pfn_to_kaddr(page_to_pfn(page)))
@@ -331,7 +270,8 @@ static void free_persistent_gnts(struct xen_blkif_ring *ring, struct rb_root *ro
 			unmap_data.count = segs_to_unmap;
 			BUG_ON(gnttab_unmap_refs_sync(&unmap_data));
 
-			put_free_pages(ring, pages, segs_to_unmap);
+			gnttab_page_cache_put(&ring->free_pages, pages,
+					      segs_to_unmap);
 			segs_to_unmap = 0;
 		}
 
@@ -371,7 +311,8 @@ void xen_blkbk_unmap_purged_grants(struct work_struct *work)
 		if (++segs_to_unmap == BLKIF_MAX_SEGMENTS_PER_REQUEST) {
 			unmap_data.count = segs_to_unmap;
 			BUG_ON(gnttab_unmap_refs_sync(&unmap_data));
-			put_free_pages(ring, pages, segs_to_unmap);
+			gnttab_page_cache_put(&ring->free_pages, pages,
+					      segs_to_unmap);
 			segs_to_unmap = 0;
 		}
 		kfree(persistent_gnt);
@@ -379,7 +320,7 @@ void xen_blkbk_unmap_purged_grants(struct work_struct *work)
 	if (segs_to_unmap > 0) {
 		unmap_data.count = segs_to_unmap;
 		BUG_ON(gnttab_unmap_refs_sync(&unmap_data));
-		put_free_pages(ring, pages, segs_to_unmap);
+		gnttab_page_cache_put(&ring->free_pages, pages, segs_to_unmap);
 	}
 }
 
@@ -664,9 +605,10 @@ purge_gnt_list:
 
 		/* Shrink the free pages pool if it is too large. */
 		if (time_before(jiffies, blkif->buffer_squeeze_end))
-			shrink_free_pagepool(ring, 0);
+			gnttab_page_cache_shrink(&ring->free_pages, 0);
 		else
-			shrink_free_pagepool(ring, max_buffer_pages);
+			gnttab_page_cache_shrink(&ring->free_pages,
+						 max_buffer_pages);
 
 		if (log_stats && time_after(jiffies, ring->st_print))
 			print_stats(ring);
@@ -697,7 +639,7 @@ void xen_blkbk_free_caches(struct xen_blkif_ring *ring)
 	ring->persistent_gnt_c = 0;
 
 	/* Since we are shutting down remove all pages from the buffer */
-	shrink_free_pagepool(ring, 0 /* All */);
+	gnttab_page_cache_shrink(&ring->free_pages, 0 /* All */);
 }
 
 static unsigned int xen_blkbk_unmap_prepare(
@@ -736,7 +678,7 @@ static void xen_blkbk_unmap_and_respond_callback(int result, struct gntab_unmap_
 	   but is this the best way to deal with this? */
 	BUG_ON(result);
 
-	put_free_pages(ring, data->pages, data->count);
+	gnttab_page_cache_put(&ring->free_pages, data->pages, data->count);
 	make_response(ring, pending_req->id,
 		      pending_req->operation, pending_req->status);
 	free_req(ring, pending_req);
@@ -803,7 +745,8 @@ static void xen_blkbk_unmap(struct xen_blkif_ring *ring,
 		if (invcount) {
 			ret = gnttab_unmap_refs(unmap, NULL, unmap_pages, invcount);
 			BUG_ON(ret);
-			put_free_pages(ring, unmap_pages, invcount);
+			gnttab_page_cache_put(&ring->free_pages, unmap_pages,
+					      invcount);
 		}
 		pages += batch;
 		num -= batch;
@@ -850,7 +793,8 @@ again:
 			pages[i]->page = persistent_gnt->page;
 			pages[i]->persistent_gnt = persistent_gnt;
 		} else {
-			if (get_free_page(ring, &pages[i]->page))
+			if (gnttab_page_cache_get(&ring->free_pages,
+						  &pages[i]->page))
 				goto out_of_memory;
 			addr = vaddr(pages[i]->page);
 			pages_to_gnt[segs_to_map] = pages[i]->page;
@@ -883,7 +827,8 @@ again:
 			BUG_ON(new_map_idx >= segs_to_map);
 			if (unlikely(map[new_map_idx].status != 0)) {
 				pr_debug("invalid buffer -- could not remap it\n");
-				put_free_pages(ring, &pages[seg_idx]->page, 1);
+				gnttab_page_cache_put(&ring->free_pages,
+						      &pages[seg_idx]->page, 1);
 				pages[seg_idx]->handle = BLKBACK_INVALID_HANDLE;
 				ret |= 1;
 				goto next;
@@ -944,7 +889,7 @@ next:
 
 out_of_memory:
 	pr_alert("%s: out of memory\n", __func__);
-	put_free_pages(ring, pages_to_gnt, segs_to_map);
+	gnttab_page_cache_put(&ring->free_pages, pages_to_gnt, segs_to_map);
 	for (i = last_map; i < num; i++)
 		pages[i]->handle = BLKBACK_INVALID_HANDLE;
 	return -ENOMEM;

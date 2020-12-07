@@ -813,6 +813,78 @@ int gnttab_alloc_pages(int nr_pages, struct page **pages)
 }
 EXPORT_SYMBOL_GPL(gnttab_alloc_pages);
 
+void gnttab_page_cache_init(struct gnttab_page_cache *cache)
+{
+	spin_lock_init(&cache->lock);
+	INIT_LIST_HEAD(&cache->pages);
+	cache->num_pages = 0;
+}
+EXPORT_SYMBOL_GPL(gnttab_page_cache_init);
+
+int gnttab_page_cache_get(struct gnttab_page_cache *cache, struct page **page)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&cache->lock, flags);
+
+	if (list_empty(&cache->pages)) {
+		spin_unlock_irqrestore(&cache->lock, flags);
+		return gnttab_alloc_pages(1, page);
+	}
+
+	page[0] = list_first_entry(&cache->pages, struct page, lru);
+	list_del(&page[0]->lru);
+	cache->num_pages--;
+
+	spin_unlock_irqrestore(&cache->lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gnttab_page_cache_get);
+
+void gnttab_page_cache_put(struct gnttab_page_cache *cache, struct page **page,
+			   unsigned int num)
+{
+	unsigned long flags;
+	unsigned int i;
+
+	spin_lock_irqsave(&cache->lock, flags);
+
+	for (i = 0; i < num; i++)
+		list_add(&page[i]->lru, &cache->pages);
+	cache->num_pages += num;
+
+	spin_unlock_irqrestore(&cache->lock, flags);
+}
+EXPORT_SYMBOL_GPL(gnttab_page_cache_put);
+
+void gnttab_page_cache_shrink(struct gnttab_page_cache *cache, unsigned int num)
+{
+	struct page *page[10];
+	unsigned int i = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&cache->lock, flags);
+
+	while (cache->num_pages > num) {
+		page[i] = list_first_entry(&cache->pages, struct page, lru);
+		list_del(&page[i]->lru);
+		cache->num_pages--;
+		if (++i == ARRAY_SIZE(page)) {
+			spin_unlock_irqrestore(&cache->lock, flags);
+			gnttab_free_pages(i, page);
+			i = 0;
+			spin_lock_irqsave(&cache->lock, flags);
+		}
+	}
+
+	spin_unlock_irqrestore(&cache->lock, flags);
+
+	if (i != 0)
+		gnttab_free_pages(i, page);
+}
+EXPORT_SYMBOL_GPL(gnttab_page_cache_shrink);
+
 void gnttab_pages_clear_private(int nr_pages, struct page **pages)
 {
 	int i;
