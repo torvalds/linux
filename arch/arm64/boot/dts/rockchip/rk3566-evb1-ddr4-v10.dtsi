@@ -31,6 +31,16 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hp_det>;
 	};
+
+	vcc3v3_vga: vcc3v3-vga {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_vga";
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vcc3v3_sys>;
+	};
 };
 
 &audiopwmout_diff {
@@ -100,6 +110,23 @@
 	reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&lcd1_rst_gpio>;
+};
+
+&edp {
+	hpd-gpios = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&edp_phy {
+	status = "okay";
+};
+
+&edp_in_vp0 {
+	status = "okay";
+};
+
+&edp_in_vp1 {
+	status = "disabled";
 };
 
 /*
