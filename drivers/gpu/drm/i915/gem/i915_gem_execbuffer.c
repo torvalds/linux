@@ -534,8 +534,6 @@ eb_add_vma(struct i915_execbuffer *eb,
 	struct drm_i915_gem_exec_object2 *entry = &eb->exec[i];
 	struct eb_vma *ev = &eb->vma[i];
 
-	GEM_BUG_ON(i915_vma_is_closed(vma));
-
 	ev->vma = vma;
 	ev->exec = entry;
 	ev->flags = entry->flags;
