@@ -2982,8 +2982,9 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		VOP_CTRL_SET(vop2, hdmi_dclk_pol, 1);
 	}
 
-	if (vcstate->output_mode == ROCKCHIP_OUT_MODE_AAAA &&
-	    !(vp_data->feature & VOP_FEATURE_OUTPUT_10BIT))
+	if ((vcstate->output_mode == ROCKCHIP_OUT_MODE_AAAA &&
+	     !(vp_data->feature & VOP_FEATURE_OUTPUT_10BIT)) ||
+	    vcstate->output_if & VOP_OUTPUT_IF_BT656)
 		out_mode = ROCKCHIP_OUT_MODE_P888;
 	else
 		out_mode = vcstate->output_mode;
