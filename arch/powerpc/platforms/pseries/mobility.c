@@ -513,6 +513,35 @@ static int do_join(void *arg)
 	return ret;
 }
 
+/*
+ * Abort reason code byte 0. We use only the 'Migrating partition' value.
+ */
+enum vasi_aborting_entity {
+	ORCHESTRATOR        = 1,
+	VSP_SOURCE          = 2,
+	PARTITION_FIRMWARE  = 3,
+	PLATFORM_FIRMWARE   = 4,
+	VSP_TARGET          = 5,
+	MIGRATING_PARTITION = 6,
+};
+
+static void pseries_cancel_migration(u64 handle, int err)
+{
+	u32 reason_code;
+	u32 detail;
+	u8 entity;
+	long hvrc;
+
+	entity = MIGRATING_PARTITION;
+	detail = abs(err) & 0xffffff;
+	reason_code = (entity << 24) | detail;
+
+	hvrc = plpar_hcall_norets(H_VASI_SIGNAL, handle,
+				  H_VASI_SIGNAL_CANCEL, reason_code);
+	if (hvrc)
+		pr_err("H_VASI_SIGNAL error: %ld\n", hvrc);
+}
+
 static int pseries_migrate_partition(u64 handle)
 {
 	atomic_t counter = ATOMIC_INIT(0);
@@ -525,6 +554,8 @@ static int pseries_migrate_partition(u64 handle)
 	ret = stop_machine(do_join, &counter, cpu_online_mask);
 	if (ret == 0)
 		post_mobility_fixup();
+	else
+		pseries_cancel_migration(handle, ret);
 
 	return ret;
 }
