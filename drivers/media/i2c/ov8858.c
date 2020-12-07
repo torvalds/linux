@@ -2791,14 +2791,14 @@ static int ov8858_check_sensor_id(struct ov8858 *ov8858,
 			       OV8858_REG_VALUE_24BIT, &id);
 	if (id != CHIP_ID) {
 		dev_err(dev, "Unexpected sensor id(%06x), ret(%d)\n", id, ret);
-		return ret;
+		return -ENODEV;
 	}
 
 	ret = ov8858_read_reg(client, OV8858_CHIP_REVISION_REG,
 			       OV8858_REG_VALUE_08BIT, &id);
 	if (ret) {
 		dev_err(dev, "Read chip revision register error\n");
-		return ret;
+		return -ENODEV;
 	}
 	dev_info(dev, "Detected OV%06x sensor, REVISION 0x%x\n", CHIP_ID, id);
 
