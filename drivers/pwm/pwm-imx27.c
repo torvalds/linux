@@ -235,8 +235,9 @@ static int pwm_imx27_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	period_cycles /= prescale;
 	c = clkrate * state->duty_cycle;
-	do_div(c, NSEC_PER_SEC * prescale);
+	do_div(c, NSEC_PER_SEC);
 	duty_cycles = c;
+	duty_cycles /= prescale;
 
 	/*
 	 * according to imx pwm RM, the real period value should be PERIOD
