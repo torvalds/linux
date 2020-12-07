@@ -1379,7 +1379,9 @@ static int smu_disable_dpms(struct smu_context *smu)
 	if (smu->uploading_custom_pp_table &&
 	    (adev->asic_type >= CHIP_NAVI10) &&
 	    (adev->asic_type <= CHIP_DIMGREY_CAVEFISH))
-		return 0;
+		return smu_disable_all_features_with_exception(smu,
+							       true,
+							       SMU_FEATURE_COUNT);
 
 	/*
 	 * For Sienna_Cichlid, PMFW will handle the features disablement properly
@@ -1387,7 +1389,9 @@ static int smu_disable_dpms(struct smu_context *smu)
 	 */
 	if ((adev->asic_type == CHIP_SIENNA_CICHLID) &&
 	     use_baco)
-		return 0;
+		return smu_disable_all_features_with_exception(smu,
+							       true,
+							       SMU_FEATURE_BACO_BIT);
 
 	/*
 	 * For gpu reset, runpm and hibernation through BACO,
@@ -1395,6 +1399,7 @@ static int smu_disable_dpms(struct smu_context *smu)
 	 */
 	if (use_baco && smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT)) {
 		ret = smu_disable_all_features_with_exception(smu,
+							      false,
 							      SMU_FEATURE_BACO_BIT);
 		if (ret)
 			dev_err(adev->dev, "Failed to disable smu features except BACO.\n");

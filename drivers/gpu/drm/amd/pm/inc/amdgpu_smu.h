@@ -974,7 +974,9 @@ struct pptable_funcs {
 	 * @disable_all_features_with_exception: Disable all features with
 	 *                                       exception to those in &mask.
 	 */
-	int (*disable_all_features_with_exception)(struct smu_context *smu, enum smu_feature_mask mask);
+	int (*disable_all_features_with_exception)(struct smu_context *smu,
+						   bool no_hw_disablement,
+						   enum smu_feature_mask mask);
 
 	/**
 	 * @notify_display_change: Enable fast memory clock switching.

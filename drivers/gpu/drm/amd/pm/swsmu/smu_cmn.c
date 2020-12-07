@@ -588,23 +588,52 @@ int smu_cmn_set_pp_feature_mask(struct smu_context *smu,
 	return ret;
 }
 
+/**
+ * smu_cmn_disable_all_features_with_exception - disable all dpm features
+ *                                               except this specified by
+ *                                               @mask
+ *
+ * @smu:               smu_context pointer
+ * @no_hw_disablement: whether real dpm disablement should be performed
+ *                     true: update the cache(about dpm enablement state) only
+ *                     false: real dpm disablement plus cache update
+ * @mask:              the dpm feature which should not be disabled
+ *                     SMU_FEATURE_COUNT: no exception, all dpm features
+ *                     to disable
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
+ */
 int smu_cmn_disable_all_features_with_exception(struct smu_context *smu,
+						bool no_hw_disablement,
 						enum smu_feature_mask mask)
 {
+	struct smu_feature *feature = &smu->smu_feature;
 	uint64_t features_to_disable = U64_MAX;
 	int skipped_feature_id;
 
-	skipped_feature_id = smu_cmn_to_asic_specific_index(smu,
-							    CMN2ASIC_MAPPING_FEATURE,
-							    mask);
-	if (skipped_feature_id < 0)
-		return -EINVAL;
+	if (mask != SMU_FEATURE_COUNT) {
+		skipped_feature_id = smu_cmn_to_asic_specific_index(smu,
+								    CMN2ASIC_MAPPING_FEATURE,
+								    mask);
+		if (skipped_feature_id < 0)
+			return -EINVAL;
 
-	features_to_disable &= ~(1ULL << skipped_feature_id);
+		features_to_disable &= ~(1ULL << skipped_feature_id);
+	}
 
-	return smu_cmn_feature_update_enable_state(smu,
-						   features_to_disable,
-						   0);
+	if (no_hw_disablement) {
+		mutex_lock(&feature->mutex);
+		bitmap_andnot(feature->enabled, feature->enabled,
+				(unsigned long *)(&features_to_disable), SMU_FEATURE_MAX);
+		mutex_unlock(&feature->mutex);
+
+		return 0;
+	} else {
+		return smu_cmn_feature_update_enable_state(smu,
+							   features_to_disable,
+							   0);
+	}
 }
 
 int smu_cmn_get_smc_version(struct smu_context *smu,
