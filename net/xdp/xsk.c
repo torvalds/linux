@@ -554,12 +554,12 @@ static int xsk_recvmsg(struct socket *sock, struct msghdr *m, size_t len, int fl
 	struct sock *sk = sock->sk;
 	struct xdp_sock *xs = xdp_sk(sk);
 
+	if (unlikely(!xsk_is_bound(xs)))
+		return -ENXIO;
 	if (unlikely(!(xs->dev->flags & IFF_UP)))
 		return -ENETDOWN;
 	if (unlikely(!xs->rx))
 		return -ENOBUFS;
-	if (unlikely(!xsk_is_bound(xs)))
-		return -ENXIO;
 	if (unlikely(need_wait))
 		return -EOPNOTSUPP;
 
