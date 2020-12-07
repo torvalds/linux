@@ -76,11 +76,7 @@ static void pseries_suspend_enable_irqs(void)
  **/
 static int pseries_suspend_enter(suspend_state_t state)
 {
-	int rc = rtas_suspend_last_cpu(&suspend_data);
-
-	atomic_set(&suspending, 0);
-	atomic_set(&suspend_data.done, 1);
-	return rc;
+	return rtas_ibm_suspend_me(NULL);
 }
 
 /**
