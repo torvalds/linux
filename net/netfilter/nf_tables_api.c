@@ -3566,6 +3566,7 @@ static const struct nla_policy nft_set_policy[NFTA_SET_MAX + 1] = {
 	[NFTA_SET_OBJ_TYPE]		= { .type = NLA_U32 },
 	[NFTA_SET_HANDLE]		= { .type = NLA_U64 },
 	[NFTA_SET_EXPR]			= { .type = NLA_NESTED },
+	[NFTA_SET_EXPRESSIONS]		= { .type = NLA_NESTED },
 };
 
 static const struct nla_policy nft_set_desc_policy[NFTA_SET_DESC_MAX + 1] = {
@@ -3773,6 +3774,7 @@ static int nf_tables_fill_set(struct sk_buff *skb, const struct nft_ctx *ctx,
 	u32 portid = ctx->portid;
 	struct nlattr *nest;
 	u32 seq = ctx->seq;
+	int i;
 
 	event = nfnl_msg_type(NFNL_SUBSYS_NFTABLES, event);
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(struct nfgenmsg),
@@ -3846,6 +3848,17 @@ static int nf_tables_fill_set(struct sk_buff *skb, const struct nft_ctx *ctx,
 		if (nf_tables_fill_expr_info(skb, set->exprs[0]) < 0)
 			goto nla_put_failure;
 
+		nla_nest_end(skb, nest);
+	} else if (set->num_exprs > 1) {
+		nest = nla_nest_start_noflag(skb, NFTA_SET_EXPRESSIONS);
+		if (nest == NULL)
+			goto nla_put_failure;
+
+		for (i = 0; i < set->num_exprs; i++) {
+			if (nft_expr_dump(skb, NFTA_LIST_ELEM,
+					  set->exprs[i]) < 0)
+				goto nla_put_failure;
+		}
 		nla_nest_end(skb, nest);
 	}
 
@@ -4215,7 +4228,7 @@ static int nf_tables_newset(struct net *net, struct sock *nlsk,
 			return err;
 	}
 
-	if (nla[NFTA_SET_EXPR])
+	if (nla[NFTA_SET_EXPR] || nla[NFTA_SET_EXPRESSIONS])
 		desc.expr = true;
 
 	table = nft_table_lookup(net, nla[NFTA_SET_TABLE], family, genmask);
@@ -4281,6 +4294,29 @@ static int nf_tables_newset(struct net *net, struct sock *nlsk,
 		}
 		set->exprs[0] = expr;
 		set->num_exprs++;
+	} else if (nla[NFTA_SET_EXPRESSIONS]) {
+		struct nft_expr *expr;
+		struct nlattr *tmp;
+		int left;
+
+		i = 0;
+		nla_for_each_nested(tmp, nla[NFTA_SET_EXPRESSIONS], left) {
+			if (i == NFT_SET_EXPR_MAX) {
+				err = -E2BIG;
+				goto err_set_init;
+			}
+			if (nla_type(tmp) != NFTA_LIST_ELEM) {
+				err = -EINVAL;
+				goto err_set_init;
+			}
+			expr = nft_set_elem_expr_alloc(&ctx, set, tmp);
+			if (IS_ERR(expr)) {
+				err = PTR_ERR(expr);
+				goto err_set_init;
+			}
+			set->exprs[i++] = expr;
+			set->num_exprs++;
+		}
 	}
 
 	udata = NULL;
@@ -4540,6 +4576,7 @@ static const struct nla_policy nft_set_elem_policy[NFTA_SET_ELEM_MAX + 1] = {
 	[NFTA_SET_ELEM_OBJREF]		= { .type = NLA_STRING,
 					    .len = NFT_OBJ_MAXNAMELEN - 1 },
 	[NFTA_SET_ELEM_KEY_END]		= { .type = NLA_NESTED },
+	[NFTA_SET_ELEM_EXPRESSIONS]	= { .type = NLA_NESTED },
 };
 
 static const struct nla_policy nft_set_elem_list_policy[NFTA_SET_ELEM_LIST_MAX + 1] = {
@@ -4580,6 +4617,7 @@ static int nft_set_elem_expr_dump(struct sk_buff *skb,
 	struct nft_set_elem_expr *elem_expr;
 	u32 size, num_exprs = 0;
 	struct nft_expr *expr;
+	struct nlattr *nest;
 
 	elem_expr = nft_set_ext_expr(ext);
 	nft_setelem_expr_foreach(expr, elem_expr, size)
@@ -4591,9 +4629,22 @@ static int nft_set_elem_expr_dump(struct sk_buff *skb,
 			return -1;
 
 		return 0;
-	}
+	} else if (num_exprs > 1) {
+		nest = nla_nest_start_noflag(skb, NFTA_SET_ELEM_EXPRESSIONS);
+		if (nest == NULL)
+			goto nla_put_failure;
 
+		nft_setelem_expr_foreach(expr, elem_expr, size) {
+			expr = nft_setelem_expr_at(elem_expr, size);
+			if (nft_expr_dump(skb, NFTA_LIST_ELEM, expr) < 0)
+				goto nla_put_failure;
+		}
+		nla_nest_end(skb, nest);
+	}
 	return 0;
+
+nla_put_failure:
+	return -1;
 }
 
 static int nf_tables_fill_setelem(struct sk_buff *skb,
@@ -5268,7 +5319,8 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 	      nla[NFTA_SET_ELEM_TIMEOUT] ||
 	      nla[NFTA_SET_ELEM_EXPIRATION] ||
 	      nla[NFTA_SET_ELEM_USERDATA] ||
-	      nla[NFTA_SET_ELEM_EXPR]))
+	      nla[NFTA_SET_ELEM_EXPR] ||
+	      nla[NFTA_SET_ELEM_EXPRESSIONS]))
 		return -EINVAL;
 
 	timeout = 0;
@@ -5307,6 +5359,41 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 		expr_array[0] = expr;
 
 		if (set->exprs[0] && set->exprs[0]->ops != expr->ops) {
+			err = -EOPNOTSUPP;
+			goto err_set_elem_expr;
+		}
+	} else if (nla[NFTA_SET_ELEM_EXPRESSIONS]) {
+		struct nft_expr *expr;
+		struct nlattr *tmp;
+		int left;
+
+		if (set->num_exprs == 0)
+			return -EOPNOTSUPP;
+
+		i = 0;
+		nla_for_each_nested(tmp, nla[NFTA_SET_ELEM_EXPRESSIONS], left) {
+			if (i == set->num_exprs) {
+				err = -E2BIG;
+				goto err_set_elem_expr;
+			}
+			if (nla_type(tmp) != NFTA_LIST_ELEM) {
+				err = -EINVAL;
+				goto err_set_elem_expr;
+			}
+			expr = nft_set_elem_expr_alloc(ctx, set, tmp);
+			if (IS_ERR(expr)) {
+				err = PTR_ERR(expr);
+				goto err_set_elem_expr;
+			}
+			expr_array[i] = expr;
+
+			if (expr->ops != set->exprs[i]->ops) {
+				err = -EOPNOTSUPP;
+				goto err_set_elem_expr;
+			}
+			i++;
+		}
+		if (set->num_exprs != i) {
 			err = -EOPNOTSUPP;
 			goto err_set_elem_expr;
 		}
