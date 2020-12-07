@@ -15,9 +15,6 @@
 #include <asm/topology.h>
 
 static struct device suspend_dev;
-static DECLARE_COMPLETION(suspend_work);
-static struct rtas_suspend_me_data suspend_data;
-static atomic_t suspending;
 
 /**
  * pseries_suspend_begin - First phase of hibernation
@@ -59,23 +56,6 @@ static int pseries_suspend_begin(u64 stream_id)
 static int pseries_suspend_enter(suspend_state_t state)
 {
 	return rtas_ibm_suspend_me(NULL);
-}
-
-/**
- * pseries_prepare_late - Prepare to suspend all other CPUs
- *
- * Return value:
- * 	0 on success / other on failure
- **/
-static int pseries_prepare_late(void)
-{
-	atomic_set(&suspending, 1);
-	atomic_set(&suspend_data.working, 0);
-	atomic_set(&suspend_data.done, 0);
-	atomic_set(&suspend_data.error, 0);
-	suspend_data.complete = &suspend_work;
-	reinit_completion(&suspend_work);
-	return 0;
 }
 
 /**
@@ -152,7 +132,6 @@ static struct bus_type suspend_subsys = {
 
 static const struct platform_suspend_ops pseries_suspend_ops = {
 	.valid		= suspend_valid_only_mem,
-	.prepare_late	= pseries_prepare_late,
 	.enter		= pseries_suspend_enter,
 };
 
@@ -193,10 +172,6 @@ static int __init pseries_suspend_init(void)
 	int rc;
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR))
-		return 0;
-
-	suspend_data.token = rtas_token("ibm,suspend-me");
-	if (suspend_data.token == RTAS_UNKNOWN_SERVICE)
 		return 0;
 
 	if ((rc = pseries_suspend_sysfs_register(&suspend_dev)))
