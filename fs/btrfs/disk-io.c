@@ -4767,10 +4767,10 @@ int btrfs_init_root_free_objectid(struct btrfs_root *root)
 		slot = path->slots[0] - 1;
 		l = path->nodes[0];
 		btrfs_item_key_to_cpu(l, &found_key, slot);
-		root->free_objectid = max_t(u64, found_key.objectid,
-				  BTRFS_FIRST_FREE_OBJECTID - 1);
+		root->free_objectid = max_t(u64, found_key.objectid + 1,
+					    BTRFS_FIRST_FREE_OBJECTID);
 	} else {
-		root->free_objectid = BTRFS_FIRST_FREE_OBJECTID - 1;
+		root->free_objectid = BTRFS_FIRST_FREE_OBJECTID;
 	}
 	ret = 0;
 error:
@@ -4791,7 +4791,7 @@ int btrfs_get_free_objectid(struct btrfs_root *root, u64 *objectid)
 		goto out;
 	}
 
-	*objectid = ++root->free_objectid;
+	*objectid = root->free_objectid++;
 	ret = 0;
 out:
 	mutex_unlock(&root->objectid_mutex);
