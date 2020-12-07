@@ -208,8 +208,8 @@ static int update_dt_node(__be32 phandle, s32 scope)
 				rc = update_dt_property(dn, &prop, prop_name,
 							vd, prop_data);
 				if (rc) {
-					printk(KERN_ERR "Could not update %s"
-					       " property\n", prop_name);
+					pr_err("updating %s property failed: %d\n",
+					       prop_name, rc);
 				}
 
 				prop_data += vd;
@@ -343,8 +343,7 @@ void post_mobility_fixup(void)
 
 	rc = pseries_devicetree_update(MIGRATION_SCOPE);
 	if (rc)
-		printk(KERN_ERR "Post-mobility device tree update "
-			"failed: %d\n", rc);
+		pr_err("device tree update failed: %d\n", rc);
 
 	cacheinfo_rebuild();
 
