@@ -915,6 +915,7 @@ static int da9121_assign_chip_model(struct i2c_client *i2c,
 		ret = PTR_ERR(chip->regmap);
 		dev_err(chip->dev, "Failed to configure a register map: %d\n",
 			ret);
+		return ret;
 	}
 
 	ret = da9121_check_device_type(i2c, chip);
