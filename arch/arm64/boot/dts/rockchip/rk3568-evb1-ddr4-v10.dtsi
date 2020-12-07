@@ -33,6 +33,16 @@
 		vin-supply = <&vcc3v3_sys>;
 	};
 
+	vcc3v3_vga: vcc3v3-vga {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_vga";
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vcc3v3_sys>;
+	};
+
 	pcie30_avdd0v9: pcie30-avdd0v9 {
 		compatible = "regulator-fixed";
 		regulator-name = "pcie30_avdd0v9";
@@ -125,6 +135,23 @@
 
 &dsi1_panel {
 	power-supply = <&vcc3v3_lcd1_n>;
+};
+
+&edp {
+	hpd-gpios = <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&edp_phy {
+	status = "okay";
+};
+
+&edp_in_vp0 {
+	status = "okay";
+};
+
+&edp_in_vp1 {
+	status = "disabled";
 };
 
 &gmac0 {
