@@ -186,7 +186,7 @@ static int sdma_v5_2_init_microcode(struct amdgpu_device *adev)
 			if (err)
 				goto out;
 
-			err = sdma_v5_2_init_inst_ctx(&adev->sdma.instance[0]);
+			err = sdma_v5_2_init_inst_ctx(&adev->sdma.instance[i]);
 			if (err)
 				goto out;
 		}
