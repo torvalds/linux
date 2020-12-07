@@ -52,6 +52,7 @@ struct gve_rx_slot_page_info {
 	struct page *page;
 	void *page_address;
 	u8 page_offset; /* flipped to second half? */
+	u8 can_flip;
 };
 
 /* A list of pages registered with the device during setup and used by a queue
@@ -500,15 +501,6 @@ static inline enum dma_data_direction gve_qpl_dma_dir(struct gve_priv *priv,
 		return DMA_TO_DEVICE;
 	else
 		return DMA_FROM_DEVICE;
-}
-
-/* Returns true if the max mtu allows page recycling */
-static inline bool gve_can_recycle_pages(struct net_device *dev)
-{
-	/* We can't recycle the pages if we can't fit a packet into half a
-	 * page.
-	 */
-	return dev->max_mtu <= PAGE_SIZE / 2;
 }
 
 /* buffers */
