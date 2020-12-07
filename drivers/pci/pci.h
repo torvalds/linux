@@ -516,6 +516,14 @@ static inline int pci_iov_bus_range(struct pci_bus *bus)
 
 #endif /* CONFIG_PCI_IOV */
 
+#ifdef CONFIG_PCIE_PTM
+void pci_save_ptm_state(struct pci_dev *dev);
+void pci_restore_ptm_state(struct pci_dev *dev);
+#else
+static inline void pci_save_ptm_state(struct pci_dev *dev) { }
+static inline void pci_restore_ptm_state(struct pci_dev *dev) { }
+#endif
+
 unsigned long pci_cardbus_resource_alignment(struct resource *);
 
 static inline resource_size_t pci_resource_alignment(struct pci_dev *dev,
