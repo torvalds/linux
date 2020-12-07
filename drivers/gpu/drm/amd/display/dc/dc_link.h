@@ -369,5 +369,6 @@ uint32_t dc_bandwidth_in_kbps_from_timing(
 	const struct dc_crtc_timing *timing);
 
 bool dc_link_is_fec_supported(const struct dc_link *link);
+bool dc_link_should_enable_fec(const struct dc_link *link);
 
 #endif /* DC_LINK_H_ */
