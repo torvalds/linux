@@ -372,7 +372,7 @@ extern const struct earlycon_id __earlycon_table_end[];
 		__aligned(__alignof__(struct earlycon_id))		\
 		= { .name = __stringify(_name),				\
 		    .compatible = compat,				\
-		    .setup = fn };
+		    .setup = fn }
 
 #define EARLYCON_DECLARE(_name, fn)	OF_EARLYCON_DECLARE(_name, "", fn)
 
