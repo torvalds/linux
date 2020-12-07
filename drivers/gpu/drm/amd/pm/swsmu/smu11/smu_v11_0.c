@@ -929,9 +929,13 @@ int smu_v11_0_get_current_power_limit(struct smu_context *smu,
 	if (power_src < 0)
 		return -EINVAL;
 
+	/*
+	 * BIT 24-31: ControllerId (only PPT0 is supported for now)
+	 * BIT 16-23: PowerSource
+	 */
 	ret = smu_cmn_send_smc_msg_with_param(smu,
 					  SMU_MSG_GetPptLimit,
-					  power_src << 16,
+					  (0 << 24) | (power_src << 16),
 					  power_limit);
 	if (ret)
 		dev_err(smu->adev->dev, "[%s] get PPT limit failed!", __func__);
@@ -941,6 +945,7 @@ int smu_v11_0_get_current_power_limit(struct smu_context *smu,
 
 int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 {
+	int power_src;
 	int ret = 0;
 
 	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
@@ -948,6 +953,22 @@ int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 		return -EOPNOTSUPP;
 	}
 
+	power_src = smu_cmn_to_asic_specific_index(smu,
+					CMN2ASIC_MAPPING_PWR,
+					smu->adev->pm.ac_power ?
+					SMU_POWER_SOURCE_AC :
+					SMU_POWER_SOURCE_DC);
+	if (power_src < 0)
+		return -EINVAL;
+
+	/*
+	 * BIT 24-31: ControllerId (only PPT0 is supported for now)
+	 * BIT 16-23: PowerSource
+	 * BIT 0-15: PowerLimit
+	 */
+	n &= 0xFFFF;
+	n |= 0 << 24;
+	n |= (power_src) << 16;
 	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, n, NULL);
 	if (ret) {
 		dev_err(smu->adev->dev, "[%s] Set power limit Failed!\n", __func__);
