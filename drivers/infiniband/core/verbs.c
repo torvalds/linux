@@ -1197,6 +1197,7 @@ static struct ib_qp *create_xrc_qp_user(struct ib_qp *qp,
  * @qp_init_attr: A list of initial attributes required to create the
  *   QP.  If QP creation succeeds, then the attributes are updated to
  *   the actual capabilities of the created QP.
+ * @caller: caller's build-time module name
  *
  * NOTE: for user qp use ib_create_qp_user with valid udata!
  */
