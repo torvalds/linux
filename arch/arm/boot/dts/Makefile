@@ -465,6 +465,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-pico-hobbit.dtb \
 	imx6dl-pico-nymph.dtb \
 	imx6dl-pico-pi.dtb \
+	imx6dl-plybas.dtb \
 	imx6dl-plym2m.dtb \
 	imx6dl-prtrvt.dtb \
 	imx6dl-prtvt7.dtb \
