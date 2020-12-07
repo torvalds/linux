@@ -477,8 +477,7 @@ static void qeth_cleanup_handled_pending(struct qeth_qdio_out_q *q, int bidx,
 
 		while (c) {
 			if (forced_cleanup ||
-			    atomic_read(&c->state) ==
-			      QETH_QDIO_BUF_HANDLED_DELAYED) {
+			    atomic_read(&c->state) == QETH_QDIO_BUF_EMPTY) {
 				struct qeth_qdio_out_buffer *f = c;
 
 				QETH_CARD_TEXT(f->q->card, 5, "fp");
@@ -549,7 +548,7 @@ static void qeth_qdio_handle_aob(struct qeth_card *card,
 				kmem_cache_free(qeth_core_header_cache, data);
 		}
 
-		atomic_set(&buffer->state, QETH_QDIO_BUF_HANDLED_DELAYED);
+		atomic_set(&buffer->state, QETH_QDIO_BUF_EMPTY);
 		break;
 	default:
 		WARN_ON_ONCE(1);

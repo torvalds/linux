@@ -424,8 +424,6 @@ enum qeth_qdio_out_buffer_state {
 	/* Received QAOB notification on CQ: */
 	QETH_QDIO_BUF_QAOB_OK,
 	QETH_QDIO_BUF_QAOB_ERROR,
-	/* Handled via transfer pending / completion queue. */
-	QETH_QDIO_BUF_HANDLED_DELAYED,
 };
 
 struct qeth_qdio_out_buffer {
