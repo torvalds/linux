@@ -1099,7 +1099,7 @@ patternProperties:
   "^tpo,.*":
     description: TPO
   "^tq,.*":
-    description: TQ Systems GmbH
+    description: TQ-Systems GmbH
   "^tronfy,.*":
     description: Tronfy
   "^tronsmart,.*":
