@@ -1688,7 +1688,8 @@ int ath11k_wmi_vdev_install_key(struct ath11k *ar,
 
 static inline void
 ath11k_wmi_copy_peer_flags(struct wmi_peer_assoc_complete_cmd *cmd,
-			   struct peer_assoc_params *param)
+			   struct peer_assoc_params *param,
+			   bool hw_crypto_disabled)
 {
 	cmd->peer_flags = 0;
 
@@ -1742,7 +1743,8 @@ ath11k_wmi_copy_peer_flags(struct wmi_peer_assoc_complete_cmd *cmd,
 		cmd->peer_flags |= WMI_PEER_AUTH;
 	if (param->need_ptk_4_way) {
 		cmd->peer_flags |= WMI_PEER_NEED_PTK_4_WAY;
-		cmd->peer_flags &= ~WMI_PEER_AUTH;
+		if (!hw_crypto_disabled)
+			cmd->peer_flags &= ~WMI_PEER_AUTH;
 	}
 	if (param->need_gtk_2_way)
 		cmd->peer_flags |= WMI_PEER_NEED_GTK_2_WAY;
@@ -1809,7 +1811,9 @@ int ath11k_wmi_send_peer_assoc_cmd(struct ath11k *ar,
 	cmd->peer_new_assoc = param->peer_new_assoc;
 	cmd->peer_associd = param->peer_associd;
 
-	ath11k_wmi_copy_peer_flags(cmd, param);
+	ath11k_wmi_copy_peer_flags(cmd, param,
+				   test_bit(ATH11K_FLAG_HW_CRYPTO_DISABLED,
+					    &ar->ab->dev_flags));
 
 	ether_addr_copy(cmd->peer_macaddr.addr, param->peer_mac);
 
