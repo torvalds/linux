@@ -384,16 +384,15 @@ static int igt_mock_max_segment(void *arg)
 		goto out_put;
 	}
 
-	err = -EINVAL;
+	size = 0;
 	list_for_each_entry(block, &obj->mm.blocks, link) {
-		if (i915_buddy_block_size(&mem->mm, block) > max_segment) {
-			err = 0;
-			break;
-		}
+		if (i915_buddy_block_size(&mem->mm, block) > size)
+			size = i915_buddy_block_size(&mem->mm, block);
 	}
-	if (err) {
-		pr_err("%s: Failed to create a huge contiguous block\n",
-		       __func__);
+	if (size < max_segment) {
+		pr_err("%s: Failed to create a huge contiguous block [> %u], largest block %lld\n",
+		       __func__, max_segment, size);
+		err = -EINVAL;
 		goto out_close;
 	}
 
