@@ -72,12 +72,15 @@ struct gve_rx_desc {
 } __packed;
 static_assert(sizeof(struct gve_rx_desc) == 64);
 
-/* As with the Tx ring format, the qpl_offset entries below are offsets into an
- * ordered list of registered pages.
+/* If the device supports raw dma addressing then the addr in data slot is
+ * the dma address of the buffer.
+ * If the device only supports registered segments then the addr is a byte
+ * offset into the registered segment (an ordered list of pages) where the
+ * buffer is.
  */
-struct gve_rx_data_slot {
-	/* byte offset into the rx registered segment of this slot */
+union gve_rx_data_slot {
 	__be64 qpl_offset;
+	__be64 addr;
 };
 
 /* GVE Recive Packet Descriptor Seq No */
