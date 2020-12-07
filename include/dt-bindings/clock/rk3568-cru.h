@@ -471,6 +471,14 @@
 #define CLK_I2S2_2CH		408
 #define CLK_I2S3_2CH_TX		409
 #define CLK_I2S3_2CH_RX		410
+#define CPLL_500M		411
+#define CPLL_250M		412
+#define CPLL_125M		413
+#define CPLL_62P5M		414
+#define CPLL_50M		415
+#define CPLL_25M		416
+#define CPLL_100M		417
+
 #define PCLK_CORE_PVTM		450
 
 #define CLK_NR_CLKS		(PCLK_CORE_PVTM + 1)
