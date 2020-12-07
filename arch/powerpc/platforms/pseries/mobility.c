@@ -12,9 +12,11 @@
 #include <linux/cpu.h>
 #include <linux/kernel.h>
 #include <linux/kobject.h>
+#include <linux/nmi.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/stat.h>
+#include <linux/stop_machine.h>
 #include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -405,6 +407,128 @@ static int wait_for_vasi_session_suspending(u64 handle)
 	return ret;
 }
 
+static void prod_single(unsigned int target_cpu)
+{
+	long hvrc;
+	int hwid;
+
+	hwid = get_hard_smp_processor_id(target_cpu);
+	hvrc = plpar_hcall_norets(H_PROD, hwid);
+	if (hvrc == H_SUCCESS)
+		return;
+	pr_err_ratelimited("H_PROD of CPU %u (hwid %d) error: %ld\n",
+			   target_cpu, hwid, hvrc);
+}
+
+static void prod_others(void)
+{
+	unsigned int cpu;
+
+	for_each_online_cpu(cpu) {
+		if (cpu != smp_processor_id())
+			prod_single(cpu);
+	}
+}
+
+static u16 clamp_slb_size(void)
+{
+	u16 prev = mmu_slb_size;
+
+	slb_set_size(SLB_MIN_SIZE);
+
+	return prev;
+}
+
+static int do_suspend(void)
+{
+	u16 saved_slb_size;
+	int status;
+	int ret;
+
+	pr_info("calling ibm,suspend-me on CPU %i\n", smp_processor_id());
+
+	/*
+	 * The destination processor model may have fewer SLB entries
+	 * than the source. We reduce mmu_slb_size to a safe minimum
+	 * before suspending in order to minimize the possibility of
+	 * programming non-existent entries on the destination. If
+	 * suspend fails, we restore it before returning. On success
+	 * the OF reconfig path will update it from the new device
+	 * tree after resuming on the destination.
+	 */
+	saved_slb_size = clamp_slb_size();
+
+	ret = rtas_ibm_suspend_me(&status);
+	if (ret != 0) {
+		pr_err("ibm,suspend-me error: %d\n", status);
+		slb_set_size(saved_slb_size);
+	}
+
+	return ret;
+}
+
+static int do_join(void *arg)
+{
+	atomic_t *counter = arg;
+	long hvrc;
+	int ret;
+
+	/* Must ensure MSR.EE off for H_JOIN. */
+	hard_irq_disable();
+	hvrc = plpar_hcall_norets(H_JOIN);
+
+	switch (hvrc) {
+	case H_CONTINUE:
+		/*
+		 * All other CPUs are offline or in H_JOIN. This CPU
+		 * attempts the suspend.
+		 */
+		ret = do_suspend();
+		break;
+	case H_SUCCESS:
+		/*
+		 * The suspend is complete and this cpu has received a
+		 * prod.
+		 */
+		ret = 0;
+		break;
+	case H_BAD_MODE:
+	case H_HARDWARE:
+	default:
+		ret = -EIO;
+		pr_err_ratelimited("H_JOIN error %ld on CPU %i\n",
+				   hvrc, smp_processor_id());
+		break;
+	}
+
+	if (atomic_inc_return(counter) == 1) {
+		pr_info("CPU %u waking all threads\n", smp_processor_id());
+		prod_others();
+	}
+	/*
+	 * Execution may have been suspended for several seconds, so
+	 * reset the watchdog.
+	 */
+	touch_nmi_watchdog();
+	return ret;
+}
+
+static int pseries_migrate_partition(u64 handle)
+{
+	atomic_t counter = ATOMIC_INIT(0);
+	int ret;
+
+	ret = wait_for_vasi_session_suspending(handle);
+	if (ret)
+		return ret;
+
+	ret = stop_machine(do_join, &counter, cpu_online_mask);
+	if (ret == 0)
+		post_mobility_fixup();
+
+	return ret;
+}
+
 static ssize_t migration_store(struct class *class,
 			       struct class_attribute *attr, const char *buf,
 			       size_t count)
@@ -416,15 +540,9 @@ static ssize_t migration_store(struct class *class,
 	if (rc)
 		return rc;
 
-	rc = wait_for_vasi_session_suspending(streamid);
+	rc = pseries_migrate_partition(streamid);
 	if (rc)
 		return rc;
-
-	rc = rtas_ibm_suspend_me_unsafe(streamid);
-	if (rc)
-		return rc;
-
-	post_mobility_fixup();
 
 	return count;
 }
