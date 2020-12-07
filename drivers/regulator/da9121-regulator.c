@@ -816,7 +816,6 @@ static int da9121_check_device_type(struct i2c_client *i2c, struct da9121 *chip)
 	u32 variant_id;
 	u8 variant_mrc, variant_vrc;
 	char *type;
-	const char *name;
 	bool config_match = false;
 	int ret = 0;
 
@@ -867,7 +866,7 @@ static int da9121_check_device_type(struct i2c_client *i2c, struct da9121 *chip)
 		 device_id, variant_id, type);
 
 	if (!config_match) {
-		dev_err(chip->dev, "Device tree configuration '%s' does not match detected device.\n", name);
+		dev_err(chip->dev, "Device tree configuration does not match detected device.\n");
 		ret = -EINVAL;
 		goto error;
 	}
