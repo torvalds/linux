@@ -12,10 +12,10 @@
 
 #ifdef CONFIG_USB_CDNS3_GADGET
 
-int cdns3_gadget_init(struct cdns3 *cdns);
+int cdns3_gadget_init(struct cdns *cdns);
 #else
 
-static inline int cdns3_gadget_init(struct cdns3 *cdns)
+static inline int cdns3_gadget_init(struct cdns *cdns)
 {
 	return -ENXIO;
 }

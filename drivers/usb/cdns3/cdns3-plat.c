@@ -20,7 +20,7 @@
 #include "core.h"
 #include "gadget-export.h"
 
-static int set_phy_power_on(struct cdns3 *cdns)
+static int set_phy_power_on(struct cdns *cdns)
 {
 	int ret;
 
@@ -35,7 +35,7 @@ static int set_phy_power_on(struct cdns3 *cdns)
 	return ret;
 }
 
-static void set_phy_power_off(struct cdns3 *cdns)
+static void set_phy_power_off(struct cdns *cdns)
 {
 	phy_power_off(cdns->usb3_phy);
 	phy_power_off(cdns->usb2_phy);
@@ -51,7 +51,7 @@ static int cdns3_plat_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource	*res;
-	struct cdns3 *cdns;
+	struct cdns *cdns;
 	void __iomem *regs;
 	int ret;
 
@@ -136,7 +136,8 @@ static int cdns3_plat_probe(struct platform_device *pdev)
 		goto err_phy_power_on;
 
 	cdns->gadget_init = cdns3_gadget_init;
-	ret = cdns3_init(cdns);
+
+	ret = cdns_init(cdns);
 	if (ret)
 		goto err_cdns_init;
 
@@ -175,13 +176,13 @@ err_phy3_init:
  */
 static int cdns3_plat_remove(struct platform_device *pdev)
 {
-	struct cdns3 *cdns = platform_get_drvdata(pdev);
+	struct cdns *cdns = platform_get_drvdata(pdev);
 	struct device *dev = cdns->dev;
 
 	pm_runtime_get_sync(dev);
 	pm_runtime_disable(dev);
 	pm_runtime_put_noidle(dev);
-	cdns3_remove(cdns);
+	cdns_remove(cdns);
 	set_phy_power_off(cdns);
 	phy_exit(cdns->usb2_phy);
 	phy_exit(cdns->usb3_phy);
@@ -193,7 +194,7 @@ static int cdns3_plat_remove(struct platform_device *pdev)
 static int cdns3_set_platform_suspend(struct device *dev,
 				      bool suspend, bool wakeup)
 {
-	struct cdns3 *cdns = dev_get_drvdata(dev);
+	struct cdns *cdns = dev_get_drvdata(dev);
 	int ret = 0;
 
 	if (cdns->pdata && cdns->pdata->platform_suspend)
@@ -204,7 +205,7 @@ static int cdns3_set_platform_suspend(struct device *dev,
 
 static int cdns3_controller_suspend(struct device *dev, pm_message_t msg)
 {
-	struct cdns3 *cdns = dev_get_drvdata(dev);
+	struct cdns *cdns = dev_get_drvdata(dev);
 	bool wakeup;
 	unsigned long flags;
 
@@ -228,7 +229,7 @@ static int cdns3_controller_suspend(struct device *dev, pm_message_t msg)
 
 static int cdns3_controller_resume(struct device *dev, pm_message_t msg)
 {
-	struct cdns3 *cdns = dev_get_drvdata(dev);
+	struct cdns *cdns = dev_get_drvdata(dev);
 	int ret;
 	unsigned long flags;
 
@@ -242,7 +243,7 @@ static int cdns3_controller_resume(struct device *dev, pm_message_t msg)
 	cdns3_set_platform_suspend(cdns->dev, false, false);
 
 	spin_lock_irqsave(&cdns->lock, flags);
-	cdns3_resume(cdns, !PMSG_IS_AUTO(msg));
+	cdns_resume(cdns, !PMSG_IS_AUTO(msg));
 	cdns->in_lpm = false;
 	spin_unlock_irqrestore(&cdns->lock, flags);
 	if (cdns->wakeup_pending) {
@@ -268,9 +269,9 @@ static int cdns3_plat_runtime_resume(struct device *dev)
 
 static int cdns3_plat_suspend(struct device *dev)
 {
-	struct cdns3 *cdns = dev_get_drvdata(dev);
+	struct cdns *cdns = dev_get_drvdata(dev);
 
-	cdns3_suspend(cdns);
+	cdns_suspend(cdns);
 
 	return cdns3_controller_suspend(dev, PMSG_SUSPEND);
 }

@@ -84,7 +84,7 @@ struct cdnsp_otg_regs {
 /*
  * Common registers interface for both CDNS3 and CDNSP version of DRD.
  */
-struct cdns3_otg_common_regs {
+struct cdns_otg_common_regs {
 	__le32 cmd;
 	__le32 sts;
 	__le32 state;
@@ -94,7 +94,7 @@ struct cdns3_otg_common_regs {
  * Interrupt related registers. This registers are mapped in different
  * location for CDNSP controller.
  */
-struct cdns3_otg_irq_regs {
+struct cdns_otg_irq_regs {
 	__le32 ien;
 	__le32 ivect;
 };
@@ -202,16 +202,16 @@ struct cdns3_otg_irq_regs {
 #define CDNS3_ID_PERIPHERAL		1
 #define CDNS3_ID_HOST			0
 
-bool cdns3_is_host(struct cdns3 *cdns);
-bool cdns3_is_device(struct cdns3 *cdns);
-int cdns3_get_id(struct cdns3 *cdns);
-int cdns3_get_vbus(struct cdns3 *cdns);
-int cdns3_drd_init(struct cdns3 *cdns);
-int cdns3_drd_exit(struct cdns3 *cdns);
-int cdns3_drd_update_mode(struct cdns3 *cdns);
-int cdns3_drd_gadget_on(struct cdns3 *cdns);
-void cdns3_drd_gadget_off(struct cdns3 *cdns);
-int cdns3_drd_host_on(struct cdns3 *cdns);
-void cdns3_drd_host_off(struct cdns3 *cdns);
+bool cdns_is_host(struct cdns *cdns);
+bool cdns_is_device(struct cdns *cdns);
+int cdns_get_id(struct cdns *cdns);
+int cdns_get_vbus(struct cdns *cdns);
+int cdns_drd_init(struct cdns *cdns);
+int cdns_drd_exit(struct cdns *cdns);
+int cdns_drd_update_mode(struct cdns *cdns);
+int cdns_drd_gadget_on(struct cdns *cdns);
+void cdns_drd_gadget_off(struct cdns *cdns);
+int cdns_drd_host_on(struct cdns *cdns);
+void cdns_drd_host_off(struct cdns *cdns);
 
 #endif /* __LINUX_CDNS3_DRD */

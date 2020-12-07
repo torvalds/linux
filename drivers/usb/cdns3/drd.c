@@ -19,13 +19,13 @@
 #include "core.h"
 
 /**
- * cdns3_set_mode - change mode of OTG Core
+ * cdns_set_mode - change mode of OTG Core
  * @cdns: pointer to context structure
  * @mode: selected mode from cdns_role
  *
  * Returns 0 on success otherwise negative errno
  */
-static int cdns3_set_mode(struct cdns3 *cdns, enum usb_dr_mode mode)
+static int cdns_set_mode(struct cdns *cdns, enum usb_dr_mode mode)
 {
 	u32 __iomem *override_reg;
 	u32 reg;
@@ -83,7 +83,7 @@ static int cdns3_set_mode(struct cdns3 *cdns, enum usb_dr_mode mode)
 	return 0;
 }
 
-int cdns3_get_id(struct cdns3 *cdns)
+int cdns_get_id(struct cdns *cdns)
 {
 	int id;
 
@@ -93,7 +93,7 @@ int cdns3_get_id(struct cdns3 *cdns)
 	return id;
 }
 
-int cdns3_get_vbus(struct cdns3 *cdns)
+int cdns_get_vbus(struct cdns *cdns)
 {
 	int vbus;
 
@@ -103,53 +103,53 @@ int cdns3_get_vbus(struct cdns3 *cdns)
 	return vbus;
 }
 
-bool cdns3_is_host(struct cdns3 *cdns)
+bool cdns_is_host(struct cdns *cdns)
 {
 	if (cdns->dr_mode == USB_DR_MODE_HOST)
 		return true;
-	else if (cdns3_get_id(cdns) == CDNS3_ID_HOST)
+	else if (cdns_get_id(cdns) == CDNS3_ID_HOST)
 		return true;
 
 	return false;
 }
 
-bool cdns3_is_device(struct cdns3 *cdns)
+bool cdns_is_device(struct cdns *cdns)
 {
 	if (cdns->dr_mode == USB_DR_MODE_PERIPHERAL)
 		return true;
 	else if (cdns->dr_mode == USB_DR_MODE_OTG)
-		if (cdns3_get_id(cdns) == CDNS3_ID_PERIPHERAL)
+		if (cdns_get_id(cdns) == CDNS3_ID_PERIPHERAL)
 			return true;
 
 	return false;
 }
 
 /**
- * cdns3_otg_disable_irq - Disable all OTG interrupts
+ * cdns_otg_disable_irq - Disable all OTG interrupts
  * @cdns: Pointer to controller context structure
  */
-static void cdns3_otg_disable_irq(struct cdns3 *cdns)
+static void cdns_otg_disable_irq(struct cdns *cdns)
 {
 	writel(0, &cdns->otg_irq_regs->ien);
 }
 
 /**
- * cdns3_otg_enable_irq - enable id and sess_valid interrupts
+ * cdns_otg_enable_irq - enable id and sess_valid interrupts
  * @cdns: Pointer to controller context structure
  */
-static void cdns3_otg_enable_irq(struct cdns3 *cdns)
+static void cdns_otg_enable_irq(struct cdns *cdns)
 {
 	writel(OTGIEN_ID_CHANGE_INT | OTGIEN_VBUSVALID_RISE_INT |
 	       OTGIEN_VBUSVALID_FALL_INT, &cdns->otg_irq_regs->ien);
 }
 
 /**
- * cdns3_drd_host_on - start host.
+ * cdns_drd_host_on - start host.
  * @cdns: Pointer to controller context structure.
  *
  * Returns 0 on success otherwise negative errno.
  */
-int cdns3_drd_host_on(struct cdns3 *cdns)
+int cdns_drd_host_on(struct cdns *cdns)
 {
 	u32 val, ready_bit;
 	int ret;
@@ -175,10 +175,10 @@ int cdns3_drd_host_on(struct cdns3 *cdns)
 }
 
 /**
- * cdns3_drd_host_off - stop host.
+ * cdns_drd_host_off - stop host.
  * @cdns: Pointer to controller context structure.
  */
-void cdns3_drd_host_off(struct cdns3 *cdns)
+void cdns_drd_host_off(struct cdns *cdns)
 {
 	u32 val;
 
@@ -194,12 +194,12 @@ void cdns3_drd_host_off(struct cdns3 *cdns)
 }
 
 /**
- * cdns3_drd_gadget_on - start gadget.
+ * cdns_drd_gadget_on - start gadget.
  * @cdns: Pointer to controller context structure.
  *
  * Returns 0 on success otherwise negative errno
  */
-int cdns3_drd_gadget_on(struct cdns3 *cdns)
+int cdns_drd_gadget_on(struct cdns *cdns)
 {
 	u32 reg = OTGCMD_OTG_DIS;
 	u32 ready_bit;
@@ -225,13 +225,13 @@ int cdns3_drd_gadget_on(struct cdns3 *cdns)
 	phy_set_mode(cdns->usb3_phy, PHY_MODE_USB_DEVICE);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cdns3_drd_gadget_on);
+EXPORT_SYMBOL_GPL(cdns_drd_gadget_on);
 
 /**
- * cdns3_drd_gadget_off - stop gadget.
+ * cdns_drd_gadget_off - stop gadget.
  * @cdns: Pointer to controller context structure.
  */
-void cdns3_drd_gadget_off(struct cdns3 *cdns)
+void cdns_drd_gadget_off(struct cdns *cdns)
 {
 	u32 val;
 
@@ -249,50 +249,50 @@ void cdns3_drd_gadget_off(struct cdns3 *cdns)
 				  1, 2000000);
 	phy_set_mode(cdns->usb3_phy, PHY_MODE_INVALID);
 }
-EXPORT_SYMBOL_GPL(cdns3_drd_gadget_off);
+EXPORT_SYMBOL_GPL(cdns_drd_gadget_off);
 
 /**
- * cdns3_init_otg_mode - initialize drd controller
+ * cdns_init_otg_mode - initialize drd controller
  * @cdns: Pointer to controller context structure
  *
  * Returns 0 on success otherwise negative errno
  */
-static int cdns3_init_otg_mode(struct cdns3 *cdns)
+static int cdns_init_otg_mode(struct cdns *cdns)
 {
 	int ret;
 
-	cdns3_otg_disable_irq(cdns);
+	cdns_otg_disable_irq(cdns);
 	/* clear all interrupts */
 	writel(~0, &cdns->otg_irq_regs->ivect);
 
-	ret = cdns3_set_mode(cdns, USB_DR_MODE_OTG);
+	ret = cdns_set_mode(cdns, USB_DR_MODE_OTG);
 	if (ret)
 		return ret;
 
-	cdns3_otg_enable_irq(cdns);
+	cdns_otg_enable_irq(cdns);
 
 	return 0;
 }
 
 /**
- * cdns3_drd_update_mode - initialize mode of operation
+ * cdns_drd_update_mode - initialize mode of operation
  * @cdns: Pointer to controller context structure
  *
  * Returns 0 on success otherwise negative errno
  */
-int cdns3_drd_update_mode(struct cdns3 *cdns)
+int cdns_drd_update_mode(struct cdns *cdns)
 {
 	int ret;
 
 	switch (cdns->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
-		ret = cdns3_set_mode(cdns, USB_DR_MODE_PERIPHERAL);
+		ret = cdns_set_mode(cdns, USB_DR_MODE_PERIPHERAL);
 		break;
 	case USB_DR_MODE_HOST:
-		ret = cdns3_set_mode(cdns, USB_DR_MODE_HOST);
+		ret = cdns_set_mode(cdns, USB_DR_MODE_HOST);
 		break;
 	case USB_DR_MODE_OTG:
-		ret = cdns3_init_otg_mode(cdns);
+		ret = cdns_init_otg_mode(cdns);
 		break;
 	default:
 		dev_err(cdns->dev, "Unsupported mode of operation %d\n",
@@ -303,27 +303,27 @@ int cdns3_drd_update_mode(struct cdns3 *cdns)
 	return ret;
 }
 
-static irqreturn_t cdns3_drd_thread_irq(int irq, void *data)
+static irqreturn_t cdns_drd_thread_irq(int irq, void *data)
 {
-	struct cdns3 *cdns = data;
+	struct cdns *cdns = data;
 
-	cdns3_hw_role_switch(cdns);
+	cdns_hw_role_switch(cdns);
 
 	return IRQ_HANDLED;
 }
 
 /**
- * cdns3_drd_irq - interrupt handler for OTG events
+ * cdns_drd_irq - interrupt handler for OTG events
  *
- * @irq: irq number for cdns3 core device
- * @data: structure of cdns3
+ * @irq: irq number for cdns core device
+ * @data: structure of cdns
  *
  * Returns IRQ_HANDLED or IRQ_NONE
  */
-static irqreturn_t cdns3_drd_irq(int irq, void *data)
+static irqreturn_t cdns_drd_irq(int irq, void *data)
 {
 	irqreturn_t ret = IRQ_NONE;
-	struct cdns3 *cdns = data;
+	struct cdns *cdns = data;
 	u32 reg;
 
 	if (cdns->dr_mode != USB_DR_MODE_OTG)
@@ -339,14 +339,14 @@ static irqreturn_t cdns3_drd_irq(int irq, void *data)
 
 	if (reg & OTGIEN_ID_CHANGE_INT) {
 		dev_dbg(cdns->dev, "OTG IRQ: new ID: %d\n",
-			cdns3_get_id(cdns));
+			cdns_get_id(cdns));
 
 		ret = IRQ_WAKE_THREAD;
 	}
 
 	if (reg & (OTGIEN_VBUSVALID_RISE_INT | OTGIEN_VBUSVALID_FALL_INT)) {
 		dev_dbg(cdns->dev, "OTG IRQ: new VBUS: %d\n",
-			cdns3_get_vbus(cdns));
+			cdns_get_vbus(cdns));
 
 		ret = IRQ_WAKE_THREAD;
 	}
@@ -355,7 +355,7 @@ static irqreturn_t cdns3_drd_irq(int irq, void *data)
 	return ret;
 }
 
-int cdns3_drd_init(struct cdns3 *cdns)
+int cdns_drd_init(struct cdns *cdns)
 {
 	void __iomem *regs;
 	u32 state;
@@ -380,7 +380,7 @@ int cdns3_drd_init(struct cdns3 *cdns)
 		cdns->otg_v1_regs = NULL;
 		cdns->otg_cdnsp_regs = NULL;
 		cdns->otg_regs = regs;
-		cdns->otg_irq_regs = (struct cdns3_otg_irq_regs *)
+		cdns->otg_irq_regs = (struct cdns_otg_irq_regs *)
 				     &cdns->otg_v0_regs->ien;
 		writel(1, &cdns->otg_v0_regs->simulate);
 		dev_dbg(cdns->dev, "DRD version v0 (%08x)\n",
@@ -393,11 +393,11 @@ int cdns3_drd_init(struct cdns3 *cdns)
 		cdns->otg_regs = (void *)&cdns->otg_v1_regs->cmd;
 
 		if (cdns->otg_cdnsp_regs->did == OTG_CDNSP_DID) {
-			cdns->otg_irq_regs = (struct cdns3_otg_irq_regs *)
+			cdns->otg_irq_regs = (struct cdns_otg_irq_regs *)
 					      &cdns->otg_cdnsp_regs->ien;
 			cdns->version  = CDNSP_CONTROLLER_V2;
 		} else {
-			cdns->otg_irq_regs = (struct cdns3_otg_irq_regs *)
+			cdns->otg_irq_regs = (struct cdns_otg_irq_regs *)
 					      &cdns->otg_v1_regs->ien;
 			writel(1, &cdns->otg_v1_regs->simulate);
 			cdns->version  = CDNS3_CONTROLLER_V1;
@@ -428,8 +428,8 @@ int cdns3_drd_init(struct cdns3 *cdns)
 	}
 
 	ret = devm_request_threaded_irq(cdns->dev, cdns->otg_irq,
-					cdns3_drd_irq,
-					cdns3_drd_thread_irq,
+					cdns_drd_irq,
+					cdns_drd_thread_irq,
 					IRQF_SHARED,
 					dev_name(cdns->dev), cdns);
 	if (ret) {
@@ -446,8 +446,8 @@ int cdns3_drd_init(struct cdns3 *cdns)
 	return 0;
 }
 
-int cdns3_drd_exit(struct cdns3 *cdns)
+int cdns_drd_exit(struct cdns *cdns)
 {
-	cdns3_otg_disable_irq(cdns);
+	cdns_otg_disable_irq(cdns);
 	return 0;
 }

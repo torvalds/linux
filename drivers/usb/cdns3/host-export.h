@@ -12,17 +12,17 @@
 struct usb_hcd;
 #ifdef CONFIG_USB_CDNS3_HOST
 
-int cdns3_host_init(struct cdns3 *cdns);
+int cdns_host_init(struct cdns *cdns);
 int xhci_cdns3_suspend_quirk(struct usb_hcd *hcd);
 
 #else
 
-static inline int cdns3_host_init(struct cdns3 *cdns)
+static inline int cdns_host_init(struct cdns *cdns)
 {
 	return -ENXIO;
 }
 
-static inline void cdns3_host_exit(struct cdns3 *cdns) { }
+static inline void cdns_host_exit(struct cdns *cdns) { }
 static inline int xhci_cdns3_suspend_quirk(struct usb_hcd *hcd)
 {
 	return 0;

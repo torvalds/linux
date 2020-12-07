@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Cadence USBSS DRD Driver - host side
+ * Cadence USBSS and USBSSP DRD Driver - host side
  *
  * Copyright (C) 2018-2019 Cadence Design Systems.
  * Copyright (C) 2017-2018 NXP
@@ -28,13 +28,13 @@ static const struct xhci_plat_priv xhci_plat_cdns3_xhci = {
 	.suspend_quirk = xhci_cdns3_suspend_quirk,
 };
 
-static int __cdns3_host_init(struct cdns3 *cdns)
+static int __cdns_host_init(struct cdns *cdns)
 {
 	struct platform_device *xhci;
 	int ret;
 	struct usb_hcd *hcd;
 
-	cdns3_drd_host_on(cdns);
+	cdns_drd_host_on(cdns);
 
 	xhci = platform_device_alloc("xhci-hcd", PLATFORM_DEVID_AUTO);
 	if (!xhci) {
@@ -46,7 +46,7 @@ static int __cdns3_host_init(struct cdns3 *cdns)
 	cdns->host_dev = xhci;
 
 	ret = platform_device_add_resources(xhci, cdns->xhci_res,
-					    CDNS3_XHCI_RESOURCES_NUM);
+					    CDNS_XHCI_RESOURCES_NUM);
 	if (ret) {
 		dev_err(cdns->dev, "couldn't add resources to xHCI device\n");
 		goto err1;
@@ -113,25 +113,25 @@ int xhci_cdns3_suspend_quirk(struct usb_hcd *hcd)
 	return 0;
 }
 
-static void cdns3_host_exit(struct cdns3 *cdns)
+static void cdns_host_exit(struct cdns *cdns)
 {
 	kfree(cdns->xhci_plat_data);
 	platform_device_unregister(cdns->host_dev);
 	cdns->host_dev = NULL;
-	cdns3_drd_host_off(cdns);
+	cdns_drd_host_off(cdns);
 }
 
-int cdns3_host_init(struct cdns3 *cdns)
+int cdns_host_init(struct cdns *cdns)
 {
-	struct cdns3_role_driver *rdrv;
+	struct cdns_role_driver *rdrv;
 
 	rdrv = devm_kzalloc(cdns->dev, sizeof(*rdrv), GFP_KERNEL);
 	if (!rdrv)
 		return -ENOMEM;
 
-	rdrv->start	= __cdns3_host_init;
-	rdrv->stop	= cdns3_host_exit;
-	rdrv->state	= CDNS3_ROLE_STATE_INACTIVE;
+	rdrv->start	= __cdns_host_init;
+	rdrv->stop	= cdns_host_exit;
+	rdrv->state	= CDNS_ROLE_STATE_INACTIVE;
 	rdrv->name	= "host";
 
 	cdns->roles[USB_ROLE_HOST] = rdrv;
