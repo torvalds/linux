@@ -200,7 +200,11 @@ void gnttab_free_pages(int nr_pages, struct page **pages);
 
 struct gnttab_page_cache {
 	spinlock_t		lock;
+#ifdef CONFIG_XEN_UNPOPULATED_ALLOC
+	struct page		*pages;
+#else
 	struct list_head	pages;
+#endif
 	unsigned int		num_pages;
 };
 
