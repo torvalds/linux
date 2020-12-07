@@ -279,7 +279,7 @@ extern typeof(name) __mod_##type##__##name##_device_table		\
 			},						\
 			.module_name	= KBUILD_MODNAME,		\
 			.version	= _version,			\
-		};
+		}
 #endif
 
 /* Optional firmware file (or files) needed by the module
