@@ -230,6 +230,10 @@ struct hw_sequencer_funcs {
 			enum dc_color_depth color_depth,
 			const struct tg_color *solid_color,
 			int width, int height, int offset);
+
+	void (*set_hubp_blank)(const struct dc *dc,
+			struct pipe_ctx *pipe_ctx,
+			bool blank_enable);
 };
 
 void color_space_to_black_color(

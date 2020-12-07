@@ -1571,7 +1571,7 @@ static void dcn20_update_dchubp_dpp(
 
 
 	if (is_pipe_tree_visible(pipe_ctx))
-		hubp->funcs->set_blank(hubp, false);
+		dc->hwss.set_hubp_blank(dc, pipe_ctx, false);
 }
 
 

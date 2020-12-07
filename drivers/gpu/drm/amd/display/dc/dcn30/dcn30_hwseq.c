@@ -836,6 +836,53 @@ void dcn30_hardware_release(struct dc *dc)
 				dc->res_pool->hubbub, true, true);
 }
 
+void dcn30_set_hubp_blank(const struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		bool blank_enable)
+{
+	struct pipe_ctx *mpcc_pipe;
+	struct pipe_ctx *odm_pipe;
+
+	if (blank_enable) {
+		struct plane_resource *plane_res = &pipe_ctx->plane_res;
+		struct stream_resource *stream_res = &pipe_ctx->stream_res;
+
+		/* Wait for enter vblank */
+		stream_res->tg->funcs->wait_for_state(stream_res->tg, CRTC_STATE_VBLANK);
+
+		/* Blank HUBP to allow p-state during blank on all timings */
+		pipe_ctx->plane_res.hubp->funcs->set_blank(pipe_ctx->plane_res.hubp, true);
+		/* Confirm hubp in blank */
+		ASSERT(plane_res->hubp->funcs->hubp_in_blank(plane_res->hubp));
+		/* Toggle HUBP_DISABLE */
+		plane_res->hubp->funcs->hubp_soft_reset(plane_res->hubp, true);
+		plane_res->hubp->funcs->hubp_soft_reset(plane_res->hubp, false);
+		for (mpcc_pipe = pipe_ctx->bottom_pipe; mpcc_pipe; mpcc_pipe = mpcc_pipe->bottom_pipe) {
+			mpcc_pipe->plane_res.hubp->funcs->set_blank(mpcc_pipe->plane_res.hubp, true);
+			/* Confirm hubp in blank */
+			ASSERT(mpcc_pipe->plane_res.hubp->funcs->hubp_in_blank(mpcc_pipe->plane_res.hubp));
+			/* Toggle HUBP_DISABLE */
+			mpcc_pipe->plane_res.hubp->funcs->hubp_soft_reset(mpcc_pipe->plane_res.hubp, true);
+			mpcc_pipe->plane_res.hubp->funcs->hubp_soft_reset(mpcc_pipe->plane_res.hubp, false);
+
+		}
+		for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
+			odm_pipe->plane_res.hubp->funcs->set_blank(odm_pipe->plane_res.hubp, true);
+			/* Confirm hubp in blank */
+			ASSERT(odm_pipe->plane_res.hubp->funcs->hubp_in_blank(odm_pipe->plane_res.hubp));
+			/* Toggle HUBP_DISABLE */
+			odm_pipe->plane_res.hubp->funcs->hubp_soft_reset(odm_pipe->plane_res.hubp, true);
+			odm_pipe->plane_res.hubp->funcs->hubp_soft_reset(odm_pipe->plane_res.hubp, false);
+		}
+	} else {
+		pipe_ctx->plane_res.hubp->funcs->set_blank(pipe_ctx->plane_res.hubp, false);
+		for (mpcc_pipe = pipe_ctx->bottom_pipe; mpcc_pipe; mpcc_pipe = mpcc_pipe->bottom_pipe)
+			mpcc_pipe->plane_res.hubp->funcs->set_blank(mpcc_pipe->plane_res.hubp, false);
+		for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
+			odm_pipe->plane_res.hubp->funcs->set_blank(odm_pipe->plane_res.hubp, false);
+	}
+}
+
 void dcn30_set_disp_pattern_generator(const struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		enum controller_dp_test_pattern test_pattern,
