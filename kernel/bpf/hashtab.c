@@ -1412,7 +1412,7 @@ __htab_map_lookup_and_delete_batch(struct bpf_map *map,
 	void *keys = NULL, *values = NULL, *value, *dst_key, *dst_val;
 	void __user *uvalues = u64_to_user_ptr(attr->batch.values);
 	void __user *ukeys = u64_to_user_ptr(attr->batch.keys);
-	void *ubatch = u64_to_user_ptr(attr->batch.in_batch);
+	void __user *ubatch = u64_to_user_ptr(attr->batch.in_batch);
 	u32 batch, max_count, size, bucket_size;
 	struct htab_elem *node_to_free = NULL;
 	u64 elem_map_flags, map_flags;
