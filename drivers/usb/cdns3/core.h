@@ -78,6 +78,7 @@ struct cdns3_platform_data {
  * @pdata: platform data from glue layer
  * @lock: spinlock structure
  * @xhci_plat_data: xhci private data structure pointer
+ * @gadget_init: pointer to gadget initialization function
  */
 struct cdns3 {
 	struct device			*dev;
@@ -115,6 +116,8 @@ struct cdns3 {
 	struct cdns3_platform_data	*pdata;
 	spinlock_t			lock;
 	struct xhci_plat_priv		*xhci_plat_data;
+
+	int (*gadget_init)(struct cdns3 *cdns);
 };
 
 int cdns3_hw_role_switch(struct cdns3 *cdns);

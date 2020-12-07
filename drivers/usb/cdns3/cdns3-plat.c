@@ -18,6 +18,7 @@
 #include <linux/pm_runtime.h>
 
 #include "core.h"
+#include "gadget-export.h"
 
 static int set_phy_power_on(struct cdns3 *cdns)
 {
@@ -134,6 +135,7 @@ static int cdns3_plat_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_phy_power_on;
 
+	cdns->gadget_init = cdns3_gadget_init;
 	ret = cdns3_init(cdns);
 	if (ret)
 		goto err_cdns_init;
