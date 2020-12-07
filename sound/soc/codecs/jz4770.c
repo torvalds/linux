@@ -371,9 +371,9 @@ static int hpout_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		/* set cap-less, unmute HP */
+		/* unmute HP */
 		regmap_clear_bits(jz_codec->regmap, JZ4770_CODEC_REG_CR_HP,
-				  REG_CR_HP_SB_HPCM | REG_CR_HP_MUTE);
+				  REG_CR_HP_MUTE);
 		break;
 
 	case SND_SOC_DAPM_POST_PMU:
@@ -394,9 +394,9 @@ static int hpout_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	case SND_SOC_DAPM_POST_PMD:
-		/* set cap-couple, mute HP */
+		/* mute HP */
 		regmap_set_bits(jz_codec->regmap, JZ4770_CODEC_REG_CR_HP,
-				REG_CR_HP_SB_HPCM | REG_CR_HP_MUTE);
+				REG_CR_HP_MUTE);
 
 		err = regmap_read_poll_timeout(jz_codec->regmap,
 					       JZ4770_CODEC_REG_IFR,
