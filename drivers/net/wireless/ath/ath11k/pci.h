@@ -38,6 +38,7 @@ struct ath11k_msi_config {
 
 enum ath11k_pci_flags {
 	ATH11K_PCI_FLAG_INIT_DONE,
+	ATH11K_PCI_FLAG_IS_MSI_64,
 };
 
 struct ath11k_pci {
