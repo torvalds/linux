@@ -119,11 +119,6 @@ static int exynos_asv_probe(struct platform_device *pdev)
 	u32 product_id = 0;
 	int ret, i;
 
-	cpu_dev = get_cpu_device(0);
-	ret = dev_pm_opp_get_opp_count(cpu_dev);
-	if (ret < 0)
-		return -EPROBE_DEFER;
-
 	asv = devm_kzalloc(&pdev->dev, sizeof(*asv), GFP_KERNEL);
 	if (!asv)
 		return -ENOMEM;
@@ -143,6 +138,11 @@ static int exynos_asv_probe(struct platform_device *pdev)
 	default:
 		return -ENODEV;
 	}
+
+	cpu_dev = get_cpu_device(0);
+	ret = dev_pm_opp_get_opp_count(cpu_dev);
+	if (ret < 0)
+		return -EPROBE_DEFER;
 
 	ret = of_property_read_u32(pdev->dev.of_node, "samsung,asv-bin",
 				   &asv->of_bin);
