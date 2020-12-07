@@ -59,7 +59,6 @@ struct env_config {
 };
 
 static struct env_config ntsc_bt656_config[] = {
-	{ BT656_DECODER_CTRL, 0x00000001 },
 	{ BT656_DECODER_CROP, 0x00000000 },
 	{ BT656_DECODER_SIZE, 0x01e002d0 },
 	{ BT656_DECODER_HTOTAL_HS_END, 0x035a003e },
@@ -67,6 +66,7 @@ static struct env_config ntsc_bt656_config[] = {
 	{ BT656_DECODER_VTOTAL_VS_END, 0x020d0003 },
 	{ BT656_DECODER_VS_ST_END_F1, 0x01060109 },
 	{ BT656_DECODER_DBG_REG, 0x024002d0 },
+	{ BT656_DECODER_CTRL, 0x00000001 },
 };
 
 static struct env_config ntsc_tve_config[] = {
@@ -100,7 +100,6 @@ static struct env_config ntsc_tve_config[] = {
 };
 
 static struct env_config pal_bt656_config[] = {
-	{ BT656_DECODER_CTRL, 0x00000001 },
 	{ BT656_DECODER_CROP, 0x00000000 },
 	{ BT656_DECODER_SIZE, 0x024002d0 },
 	{ BT656_DECODER_HTOTAL_HS_END, 0x0360003f },
@@ -108,6 +107,7 @@ static struct env_config pal_bt656_config[] = {
 	{ BT656_DECODER_VTOTAL_VS_END, 0x02710003 },
 	{ BT656_DECODER_VS_ST_END_F1, 0x0138013b },
 	{ BT656_DECODER_DBG_REG, 0x024002d0 },
+	{ BT656_DECODER_CTRL, 0x00000001 },
 };
 
 static struct env_config pal_tve_config[] = {
