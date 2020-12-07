@@ -48,20 +48,6 @@ static int pseries_suspend_begin(u64 stream_id)
 		       vasi_state);
 		return -EIO;
 	}
-
-	return 0;
-}
-
-/**
- * pseries_suspend_cpu - Suspend a single CPU
- *
- * Makes the H_JOIN call to suspend the CPU
- *
- **/
-static int pseries_suspend_cpu(void)
-{
-	if (atomic_read(&suspending))
-		return rtas_suspend_cpu(&suspend_data);
 	return 0;
 }
 
@@ -235,7 +221,6 @@ static int __init pseries_suspend_init(void)
 	if ((rc = pseries_suspend_sysfs_register(&suspend_dev)))
 		return rc;
 
-	ppc_md.suspend_disable_cpu = pseries_suspend_cpu;
 	ppc_md.suspend_enable_irqs = pseries_suspend_enable_irqs;
 	suspend_set_ops(&pseries_suspend_ops);
 	return 0;
