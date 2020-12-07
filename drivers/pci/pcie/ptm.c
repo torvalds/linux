@@ -29,6 +29,23 @@ static void pci_ptm_info(struct pci_dev *dev)
 		 dev->ptm_root ? " (root)" : "", clock_desc);
 }
 
+void pci_disable_ptm(struct pci_dev *dev)
+{
+	int ptm;
+	u16 ctrl;
+
+	if (!pci_is_pcie(dev))
+		return;
+
+	ptm = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_PTM);
+	if (!ptm)
+		return;
+
+	pci_read_config_word(dev, ptm + PCI_PTM_CTRL, &ctrl);
+	ctrl &= ~(PCI_PTM_CTRL_ENABLE | PCI_PTM_CTRL_ROOT);
+	pci_write_config_word(dev, ptm + PCI_PTM_CTRL, ctrl);
+}
+
 void pci_save_ptm_state(struct pci_dev *dev)
 {
 	int ptm;
