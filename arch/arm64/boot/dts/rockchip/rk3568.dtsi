@@ -573,25 +573,44 @@
 		#reset-cells = <1>;
 
 		assigned-clocks =
-			<&pmucru CLK_RTC_32K>, <&pmucru PLL_PPLL>,
+			<&pmucru CLK_RTC_32K>, <&cru ACLK_RKVDEC_PRE>,
+			<&cru CLK_RKVDEC_CORE>, <&pmucru PLL_PPLL>,
 			<&pmucru PCLK_PMU>, <&cru PLL_CPLL>,
+			<&cru CPLL_500M>, <&cru CPLL_333M>,
+			<&cru CPLL_250M>, <&cru CPLL_125M>,
+			<&cru CPLL_100M>, <&cru CPLL_62P5M>,
+			<&cru CPLL_50M>, <&cru CPLL_25M>,
 			<&cru PLL_GPLL>, <&cru ARMCLK>,
 			<&cru ACLK_BUS>, <&cru PCLK_BUS>,
 			<&cru ACLK_TOP_HIGH>, <&cru ACLK_TOP_LOW>,
 			<&cru HCLK_TOP>, <&cru PCLK_TOP>,
 			<&cru ACLK_PERIMID>, <&cru HCLK_PERIMID>,
-			<&cru PLL_NPLL>;
+			<&cru PLL_NPLL>, <&cru CLK_I2S0_8CH_TX_SRC>,
+			<&cru CLK_I2S0_8CH_RX_SRC>, <&cru CLK_I2S1_8CH_TX_SRC>,
+			<&cru CLK_I2S1_8CH_RX_SRC>, <&cru CLK_I2S2_2CH_SRC>,
+			<&cru CLK_I2S2_2CH_SRC>, <&cru CLK_I2S3_2CH_RX_SRC>,
+			<&cru CLK_I2S3_2CH_TX_SRC>, <&cru MCLK_SPDIF_8CH_SRC>;
 		assigned-clock-rates =
-			<32768>, <200000000>,
+			<32768>, <300000000>,
+			<300000000>, <200000000>,
 			<100000000>, <1000000000>,
+			<500000000>, <333000000>,
+			<250000000>, <125000000>,
+			<100000000>, <62500000>,
+			<50000000>, <25000000>,
 			<1188000000>, <600000000>,
 			<150000000>, <100000000>,
 			<500000000>, <400000000>,
 			<150000000>, <100000000>,
 			<300000000>, <150000000>,
-			<1200000000>;
+			<1200000000>, <1188000000>,
+			<1188000000>, <1188000000>,
+			<1188000000>, <1188000000>,
+			<1188000000>, <1188000000>,
+			<1188000000>, <1188000000>;
 		assigned-clock-parents =
-			<&pmucru CLK_RTC32K_FRAC>;
+			<&pmucru CLK_RTC32K_FRAC>, <&cru PLL_GPLL>,
+			<&cru PLL_GPLL>;
 	};
 
 	i2c0: i2c@fdd40000 {
