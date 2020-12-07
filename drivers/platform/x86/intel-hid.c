@@ -441,8 +441,23 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 	 * Some convertible have unreliable VGBS return which could cause incorrect
 	 * SW_TABLET_MODE report, in these cases we enable support when receiving
 	 * the first event instead of during driver setup.
+	 *
+	 * Some 360 degree hinges (yoga) style 2-in-1 devices use 2 accelerometers
+	 * to allow the OS to determine the angle between the display and the base
+	 * of the device. On Windows these are read by a special HingeAngleService
+	 * process which calls an ACPI DSM (Device Specific Method) on the
+	 * ACPI KIOX010A device node for the sensor in the display, to let the
+	 * firmware know if the 2-in-1 is in tablet- or laptop-mode so that it can
+	 * disable the kbd and touchpad to avoid spurious input in tablet-mode.
+	 *
+	 * The linux kxcjk1013 driver calls the DSM for this once at probe time
+	 * to ensure that the builtin kbd and touchpad work. On some devices this
+	 * causes a "spurious" 0xcd event on the intel-hid ACPI dev. In this case
+	 * there is not a functional tablet-mode switch, so we should not register
+	 * the tablet-mode switch device.
 	 */
-	if (!priv->switches && (event == 0xcc || event == 0xcd)) {
+	if (!priv->switches && (event == 0xcc || event == 0xcd) &&
+	    !acpi_dev_present("KIOX010A", NULL, -1)) {
 		dev_info(&device->dev, "switch event received, enable switches supports\n");
 		err = intel_hid_switches_setup(device);
 		if (err)
