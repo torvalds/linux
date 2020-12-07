@@ -843,7 +843,7 @@ static void rtas_percpu_suspend_me(void *info)
 	__rtas_suspend_cpu((struct rtas_suspend_me_data *)info, 1);
 }
 
-int rtas_ibm_suspend_me(u64 handle)
+int rtas_ibm_suspend_me_unsafe(u64 handle)
 {
 	long state;
 	long rc;
@@ -949,7 +949,7 @@ int rtas_call_reentrant(int token, int nargs, int nret, int *outputs, ...)
 }
 
 #else /* CONFIG_PPC_PSERIES */
-int rtas_ibm_suspend_me(u64 handle)
+int rtas_ibm_suspend_me_unsafe(u64 handle)
 {
 	return -ENOSYS;
 }
@@ -1185,7 +1185,7 @@ SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 		int rc = 0;
 		u64 handle = ((u64)be32_to_cpu(args.args[0]) << 32)
 		              | be32_to_cpu(args.args[1]);
-		rc = rtas_ibm_suspend_me(handle);
+		rc = rtas_ibm_suspend_me_unsafe(handle);
 		if (rc == -EAGAIN)
 			args.rets[0] = cpu_to_be32(RTAS_NOT_SUSPENDABLE);
 		else if (rc == -EIO)
