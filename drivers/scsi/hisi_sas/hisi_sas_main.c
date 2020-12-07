@@ -452,6 +452,12 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		blk_tag = blk_mq_unique_tag(scmd->request);
 		dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
 		*dq_pointer = dq = &hisi_hba->dq[dq_index];
+	} else if (hisi_hba->shost->nr_hw_queues)  {
+		struct Scsi_Host *shost = hisi_hba->shost;
+		struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
+		int queue = qmap->mq_map[raw_smp_processor_id()];
+
+		*dq_pointer = dq = &hisi_hba->dq[queue];
 	} else {
 		*dq_pointer = dq = sas_dev->dq;
 	}
