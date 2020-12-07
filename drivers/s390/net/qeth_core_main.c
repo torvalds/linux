@@ -546,6 +546,7 @@ static void qeth_qdio_handle_aob(struct qeth_card *card,
 
 			if (data && buffer->is_header[i])
 				kmem_cache_free(qeth_core_header_cache, data);
+			buffer->is_header[i] = 0;
 		}
 
 		atomic_set(&buffer->state, QETH_QDIO_BUF_EMPTY);
