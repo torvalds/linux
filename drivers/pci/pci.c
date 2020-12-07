@@ -4191,16 +4191,12 @@ int pci_register_io_range(struct fwnode_handle *fwnode, phys_addr_t addr,
 
 phys_addr_t pci_pio_to_address(unsigned long pio)
 {
-	phys_addr_t address = (phys_addr_t)OF_BAD_ADDR;
-
 #ifdef PCI_IOBASE
-	if (pio >= MMIO_UPPER_LIMIT)
-		return address;
-
-	address = logic_pio_to_hwaddr(pio);
+	if (pio < MMIO_UPPER_LIMIT)
+		return logic_pio_to_hwaddr(pio);
 #endif
 
-	return address;
+	return (phys_addr_t) OF_BAD_ADDR;
 }
 EXPORT_SYMBOL_GPL(pci_pio_to_address);
 
