@@ -213,6 +213,7 @@ static int update_dt_node(__be32 phandle, s32 scope)
 				}
 
 				prop_data += vd;
+				break;
 			}
 
 			cond_resched();
