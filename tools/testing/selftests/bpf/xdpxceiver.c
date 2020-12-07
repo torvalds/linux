@@ -26,6 +26,9 @@
  *    generic XDP path. XDP hook from netif_receive_skb().
  *    a. nopoll - soft-irq processing
  *    b. poll - using poll() syscall
+ *    c. Socket Teardown
+ *       Create a Tx and a Rx socket, Tx from one socket, Rx on another. Destroy
+ *       both sockets, then repeat multiple times. Only nopoll mode is used
  *
  * 2. AF_XDP DRV/Native mode
  *    Works on any netdevice with XDP_REDIRECT support, driver dependent. Processes
@@ -33,10 +36,11 @@
  *    hook available just after DMA of buffer descriptor.
  *    a. nopoll
  *    b. poll
+ *    c. Socket Teardown
  *    - Only copy mode is supported because veth does not currently support
  *      zero-copy mode
  *
- * Total tests: 4
+ * Total tests: 6
  *
  * Flow:
  * -----
@@ -97,7 +101,8 @@ static void __exit_with_error(int error, const char *file, const char *func, int
 #define exit_with_error(error) __exit_with_error(error, __FILE__, __func__, __LINE__)
 
 #define print_ksft_result(void)\
-	(ksft_test_result_pass("PASS: %s %s\n", uut ? "DRV" : "SKB", opt_poll ? "POLL" : "NOPOLL"))
+	(ksft_test_result_pass("PASS: %s %s %s\n", uut ? "DRV" : "SKB", opt_poll ? "POLL" :\
+			       "NOPOLL", opt_teardown ? "Socket Teardown" : ""))
 
 static void pthread_init_mutex(void)
 {
@@ -322,6 +327,7 @@ static struct option long_options[] = {
 	{"xdp-skb", no_argument, 0, 'S'},
 	{"xdp-native", no_argument, 0, 'N'},
 	{"copy", no_argument, 0, 'c'},
+	{"tear-down", no_argument, 0, 'T'},
 	{"debug", optional_argument, 0, 'D'},
 	{"tx-pkt-count", optional_argument, 0, 'C'},
 	{0, 0, 0, 0}
@@ -338,6 +344,7 @@ static void usage(const char *prog)
 	    "  -S, --xdp-skb=n      Use XDP SKB mode\n"
 	    "  -N, --xdp-native=n   Enforce XDP DRV (native) mode\n"
 	    "  -c, --copy           Force copy mode\n"
+	    "  -T, --tear-down      Tear down sockets by repeatedly recreating them\n"
 	    "  -D, --debug          Debug mode - dump packets L2 - L5\n"
 	    "  -C, --tx-pkt-count=n Number of packets to send\n";
 	ksft_print_msg(str, prog);
@@ -428,7 +435,7 @@ static void parse_command_line(int argc, char **argv)
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "i:q:pSNcDC:", long_options, &option_index);
+		c = getopt_long(argc, argv, "i:q:pSNcTDC:", long_options, &option_index);
 
 		if (c == -1)
 			break;
@@ -466,6 +473,9 @@ static void parse_command_line(int argc, char **argv)
 			break;
 		case 'c':
 			opt_xdp_bind_flags |= XDP_COPY;
+			break;
+		case 'T':
+			opt_teardown = 1;
 			break;
 		case 'D':
 			debug_pkt_dump = 1;
@@ -871,6 +881,9 @@ static void *worker_testapp_validate(void *arg)
 
 		ksft_print_msg("Received %d packets on interface %s\n",
 			       pkt_counter, ((struct ifobject *)arg)->ifname);
+
+		if (opt_teardown)
+			ksft_print_msg("Destroying socket\n");
 	}
 
 	xsk_socket__delete(((struct ifobject *)arg)->xsk->xsk);
@@ -914,6 +927,20 @@ static void testapp_validate(void)
 			free(pkt_buf[iter]);
 		}
 		free(pkt_buf);
+	}
+
+	if (!opt_teardown)
+		print_ksft_result();
+}
+
+static void testapp_sockets(void)
+{
+	for (int i = 0; i < MAX_TEARDOWN_ITER; i++) {
+		pkt_counter = 0;
+		prev_pkt = -1;
+		sigvar = 0;
+		ksft_print_msg("Creating socket\n");
+		testapp_validate();
 	}
 
 	print_ksft_result();
@@ -982,7 +1009,7 @@ int main(int argc, char **argv)
 
 	ksft_set_plan(1);
 
-	testapp_validate();
+	opt_teardown ? testapp_sockets() : testapp_validate();
 
 	for (int i = 0; i < MAX_INTERFACES; i++)
 		free(ifdict[i]);
