@@ -6307,8 +6307,7 @@ again:
 			 * root->objectid_mutex is not acquired as log replay
 			 * could only happen during mount.
 			 */
-			ret = btrfs_find_highest_objectid(root,
-						  &root->highest_objectid);
+			ret = btrfs_init_root_free_objectid(root);
 		}
 
 		wc.replay_dest->log_root = NULL;

@@ -134,7 +134,7 @@ int btree_lock_page_hook(struct page *page, void *data,
 				void (*flush_fn)(void *));
 int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags);
 int btrfs_find_free_objectid(struct btrfs_root *root, u64 *objectid);
-int btrfs_find_highest_objectid(struct btrfs_root *root, u64 *objectid);
+int btrfs_init_root_free_objectid(struct btrfs_root *root);
 int __init btrfs_end_io_wq_init(void);
 void __cold btrfs_end_io_wq_exit(void);
 

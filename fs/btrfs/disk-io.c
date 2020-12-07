@@ -1367,8 +1367,7 @@ static int btrfs_init_fs_root(struct btrfs_root *root, dev_t anon_dev)
 	}
 
 	mutex_lock(&root->objectid_mutex);
-	ret = btrfs_find_highest_objectid(root,
-					&root->highest_objectid);
+	ret = btrfs_init_root_free_objectid(root);
 	if (ret) {
 		mutex_unlock(&root->objectid_mutex);
 		goto fail;
@@ -2646,8 +2645,7 @@ static int __cold init_tree_roots(struct btrfs_fs_info *fs_info)
 		 * No need to hold btrfs_root::objectid_mutex since the fs
 		 * hasn't been fully initialised and we are the only user
 		 */
-		ret = btrfs_find_highest_objectid(tree_root,
-						&tree_root->highest_objectid);
+		ret = btrfs_init_root_free_objectid(tree_root);
 		if (ret < 0) {
 			handle_error = true;
 			continue;
@@ -4745,7 +4743,7 @@ static int btrfs_cleanup_transaction(struct btrfs_fs_info *fs_info)
 	return 0;
 }
 
-int btrfs_find_highest_objectid(struct btrfs_root *root, u64 *objectid)
+int btrfs_init_root_free_objectid(struct btrfs_root *root)
 {
 	struct btrfs_path *path;
 	int ret;
@@ -4769,10 +4767,10 @@ int btrfs_find_highest_objectid(struct btrfs_root *root, u64 *objectid)
 		slot = path->slots[0] - 1;
 		l = path->nodes[0];
 		btrfs_item_key_to_cpu(l, &found_key, slot);
-		*objectid = max_t(u64, found_key.objectid,
+		root->highest_objectid = max_t(u64, found_key.objectid,
 				  BTRFS_FIRST_FREE_OBJECTID - 1);
 	} else {
-		*objectid = BTRFS_FIRST_FREE_OBJECTID - 1;
+		root->highest_objectid = BTRFS_FIRST_FREE_OBJECTID - 1;
 	}
 	ret = 0;
 error:
