@@ -2237,7 +2237,7 @@ static bool ath10k_sdio_is_fast_dump_supported(struct ath10k *ar)
 
 	ath10k_dbg(ar, ATH10K_DBG_SDIO, "sdio hi_option_flag2 %x\n", param);
 
-	return param & HI_OPTION_SDIO_CRASH_DUMP_ENHANCEMENT_FW;
+	return !!(param & HI_OPTION_SDIO_CRASH_DUMP_ENHANCEMENT_FW);
 }
 
 static void ath10k_sdio_dump_registers(struct ath10k *ar,
