@@ -51,21 +51,6 @@ static int pseries_suspend_begin(u64 stream_id)
 }
 
 /**
- * pseries_suspend_enable_irqs
- *
- * Post suspend configuration updates
- *
- **/
-static void pseries_suspend_enable_irqs(void)
-{
-	/*
-	 * Update configuration which can be modified based on device tree
-	 * changes during resume.
-	 */
-	post_mobility_fixup();
-}
-
-/**
  * pseries_suspend_enter - Final phase of hibernation
  *
  * Return value:
@@ -127,8 +112,11 @@ static ssize_t store_hibernate(struct device *dev,
 	if (!rc)
 		rc = pm_suspend(PM_SUSPEND_MEM);
 
-	if (!rc)
+	if (!rc) {
 		rc = count;
+		post_mobility_fixup();
+	}
+
 
 	return rc;
 }
@@ -214,7 +202,6 @@ static int __init pseries_suspend_init(void)
 	if ((rc = pseries_suspend_sysfs_register(&suspend_dev)))
 		return rc;
 
-	ppc_md.suspend_enable_irqs = pseries_suspend_enable_irqs;
 	suspend_set_ops(&pseries_suspend_ops);
 	return 0;
 }
