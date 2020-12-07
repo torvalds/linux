@@ -82,7 +82,7 @@ const struct _vcs_dpi_ip_params_st dcn1_0_ip = {
 	.meta_chunk_size_kbytes = 2,
 	.writeback_chunk_size_kbytes = 2,
 	.line_buffer_size_bits = 589824,
-	.max_line_buffer_lines = 12,
+	.max_line_buffer_lines = 32,
 	.IsLineBufferBppFixed = 0,
 	.LineBufferFixedBpp = -1,
 	.writeback_luma_buffer_size_kbytes = 12,
@@ -619,6 +619,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.recovery_enabled = false, /*enable this by default after testing.*/
 		.max_downscale_src_width = 3840,
 		.underflow_assert_delay_us = 0xFFFFFFFF,
+		.use_max_lb = true
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -630,6 +631,7 @@ static const struct dc_debug_options debug_defaults_diags = {
 		.disable_pplib_clock_request = true,
 		.disable_pplib_wm_range = true,
 		.underflow_assert_delay_us = 0xFFFFFFFF,
+		.use_max_lb = true
 };
 
 static void dcn10_dpp_destroy(struct dpp **dpp)

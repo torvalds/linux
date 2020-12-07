@@ -115,7 +115,7 @@ struct _vcs_dpi_ip_params_st dcn2_1_ip = {
 	.is_line_buffer_bpp_fixed = 0,
 	.line_buffer_fixed_bpp = 0,
 	.dcc_supported = true,
-	.max_line_buffer_lines = 12,
+	.max_line_buffer_lines = 32,
 	.writeback_luma_buffer_size_kbytes = 12,
 	.writeback_chroma_buffer_size_kbytes = 8,
 	.writeback_chroma_line_buffer_width_pixels = 4,
@@ -882,7 +882,9 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.scl_reset_length10 = true,
 		.sanity_checks = true,
 		.disable_48mhz_pwrdwn = false,
-		.usbc_combo_phy_reset_wa = true
+		.usbc_combo_phy_reset_wa = true,
+		.dmub_command_table = true,
+		.use_max_lb = true
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -898,7 +900,8 @@ static const struct dc_debug_options debug_defaults_diags = {
 		.disable_stutter = true,
 		.disable_48mhz_pwrdwn = true,
 		.disable_psr = true,
-		.enable_tri_buf = true
+		.enable_tri_buf = true,
+		.use_max_lb = true
 };
 
 enum dcn20_clk_src_array_id {

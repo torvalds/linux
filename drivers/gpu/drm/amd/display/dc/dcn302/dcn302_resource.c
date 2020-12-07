@@ -101,7 +101,7 @@ struct _vcs_dpi_ip_params_st dcn3_02_ip = {
 		.dcc_supported = true,
 		.writeback_interface_buffer_size_kbytes = 90,
 		.writeback_line_buffer_buffer_size = 0,
-		.max_line_buffer_lines = 12,
+		.max_line_buffer_lines = 32,
 		.writeback_luma_buffer_size_kbytes = 12,  // writeback_line_buffer_buffer_size = 656640
 		.writeback_chroma_buffer_size_kbytes = 8,
 		.writeback_chroma_line_buffer_width_pixels = 4,
@@ -223,6 +223,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.underflow_assert_delay_us = 0xFFFFFFFF,
 		.dwb_fi_phase = -1, // -1 = disable,
 		.dmub_command_table = true,
+		.use_max_lb = true
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -241,6 +242,7 @@ static const struct dc_debug_options debug_defaults_diags = {
 		.dmub_command_table = true,
 		.enable_tri_buf = true,
 		.disable_psr = true,
+		.use_max_lb = true
 };
 
 enum dcn302_clk_src_array_id {
