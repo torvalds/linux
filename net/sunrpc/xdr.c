@@ -225,6 +225,9 @@ _shift_data_left_pages(struct page **pages, size_t pgto_base,
 
 	BUG_ON(pgfrom_base <= pgto_base);
 
+	if (!len)
+		return;
+
 	pgto = pages + (pgto_base >> PAGE_SHIFT);
 	pgfrom = pages + (pgfrom_base >> PAGE_SHIFT);
 
@@ -306,6 +309,9 @@ _shift_data_right_pages(struct page **pages, size_t pgto_base,
 	size_t copy;
 
 	BUG_ON(pgto_base <= pgfrom_base);
+
+	if (!len)
+		return;
 
 	pgto_base += len;
 	pgfrom_base += len;
@@ -405,6 +411,9 @@ _copy_to_pages(struct page **pages, size_t pgbase, const char *p, size_t len)
 	char *vto;
 	size_t copy;
 
+	if (!len)
+		return;
+
 	pgto = pages + (pgbase >> PAGE_SHIFT);
 	pgbase &= ~PAGE_MASK;
 
@@ -448,6 +457,9 @@ _copy_from_pages(char *p, struct page **pages, size_t pgbase, size_t len)
 	struct page **pgfrom;
 	char *vfrom;
 	size_t copy;
+
+	if (!len)
+		return;
 
 	pgfrom = pages + (pgbase >> PAGE_SHIFT);
 	pgbase &= ~PAGE_MASK;
