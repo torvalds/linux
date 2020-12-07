@@ -189,6 +189,11 @@ DECLARE_RESTRICTED_HOOK(android_rvh_update_cpu_capacity,
 DECLARE_RESTRICTED_HOOK(android_rvh_update_misfit_status,
 	TP_PROTO(struct task_struct *p, struct rq *rq, bool *need_update),
 	TP_ARGS(p, rq, need_update), 1);
+
+struct cgroup_taskset;
+DECLARE_RESTRICTED_HOOK(android_rvh_cpu_cgroup_attach,
+	TP_PROTO(struct cgroup_taskset *tset),
+	TP_ARGS(tset), 1);
 #else
 #define trace_android_rvh_select_task_rq_fair(p, prev_cpu, sd_flag, wake_flags, new_cpu)
 #define trace_android_rvh_select_task_rq_rt(p, prev_cpu, sd_flag, wake_flags, new_cpu)
@@ -232,6 +237,7 @@ DECLARE_RESTRICTED_HOOK(android_rvh_update_misfit_status,
 #define trace_android_rvh_place_entity(se, vruntime)
 #define trace_android_rvh_update_cpu_capacity(cpu, capacity)
 #define trace_android_rvh_update_misfit_status(p, rq, need_update)
+#define trace_android_rvh_cpu_cgroup_attach(tset)
 #endif
 #endif /* _TRACE_HOOK_SCHED_H */
 /* This part must be outside protection */
