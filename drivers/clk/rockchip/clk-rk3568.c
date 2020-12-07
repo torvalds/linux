@@ -1210,7 +1210,7 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 	GATE(PCLK_TSADC, "pclk_tsadc", "pclk_bus", 0,
 			RK3568_CLKGATE_CON(26), 4, GFLAGS),
 	COMPOSITE(CLK_TSADC_TSEN, "clk_tsadc_tsen", xin24m_gpll100_cpll100_p, 0,
-			RK3568_CLKSEL_CON(51), 4, 1, MFLAGS, 0, 3, DFLAGS,
+			RK3568_CLKSEL_CON(51), 4, 2, MFLAGS, 0, 3, DFLAGS,
 			RK3568_CLKGATE_CON(26), 5, GFLAGS),
 	COMPOSITE_NOMUX(CLK_TSADC, "clk_tsadc", "clk_tsadc_tsen", 0,
 			RK3568_CLKSEL_CON(51), 8, 7, DFLAGS,
