@@ -1214,12 +1214,9 @@ void kvmppc_xive_cleanup_vcpu(struct kvm_vcpu *vcpu)
 static bool kvmppc_xive_vcpu_id_valid(struct kvmppc_xive *xive, u32 cpu)
 {
 	/* We have a block of xive->nr_servers VPs. We just need to check
-	 * raw vCPU ids are below the expected limit for this guest's
-	 * core stride ; kvmppc_pack_vcpu_id() will pack them down to an
-	 * index that can be safely used to compute a VP id that belongs
-	 * to the VP block.
+	 * packed vCPU ids are below that.
 	 */
-	return cpu < xive->nr_servers * xive->kvm->arch.emul_smt_mode;
+	return kvmppc_pack_vcpu_id(xive->kvm, cpu) < xive->nr_servers;
 }
 
 int kvmppc_xive_compute_vp_id(struct kvmppc_xive *xive, u32 cpu, u32 *vp)

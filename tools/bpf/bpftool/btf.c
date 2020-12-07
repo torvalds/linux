@@ -693,6 +693,7 @@ build_btf_type_table(struct btf_attach_table *tab, enum bpf_obj_type type,
 		obj_node = calloc(1, sizeof(*obj_node));
 		if (!obj_node) {
 			p_err("failed to allocate memory: %s", strerror(errno));
+			err = -ENOMEM;
 			goto err_free;
 		}
 

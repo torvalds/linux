@@ -4167,12 +4167,18 @@ int __net_init ip_vs_control_net_init(struct netns_ipvs *ipvs)
 
 	spin_lock_init(&ipvs->tot_stats.lock);
 
-	proc_create_net("ip_vs", 0, ipvs->net->proc_net, &ip_vs_info_seq_ops,
-			sizeof(struct ip_vs_iter));
-	proc_create_net_single("ip_vs_stats", 0, ipvs->net->proc_net,
-			ip_vs_stats_show, NULL);
-	proc_create_net_single("ip_vs_stats_percpu", 0, ipvs->net->proc_net,
-			ip_vs_stats_percpu_show, NULL);
+#ifdef CONFIG_PROC_FS
+	if (!proc_create_net("ip_vs", 0, ipvs->net->proc_net,
+			     &ip_vs_info_seq_ops, sizeof(struct ip_vs_iter)))
+		goto err_vs;
+	if (!proc_create_net_single("ip_vs_stats", 0, ipvs->net->proc_net,
+				    ip_vs_stats_show, NULL))
+		goto err_stats;
+	if (!proc_create_net_single("ip_vs_stats_percpu", 0,
+				    ipvs->net->proc_net,
+				    ip_vs_stats_percpu_show, NULL))
+		goto err_percpu;
+#endif
 
 	if (ip_vs_control_net_init_sysctl(ipvs))
 		goto err;
@@ -4180,6 +4186,17 @@ int __net_init ip_vs_control_net_init(struct netns_ipvs *ipvs)
 	return 0;
 
 err:
+#ifdef CONFIG_PROC_FS
+	remove_proc_entry("ip_vs_stats_percpu", ipvs->net->proc_net);
+
+err_percpu:
+	remove_proc_entry("ip_vs_stats", ipvs->net->proc_net);
+
+err_stats:
+	remove_proc_entry("ip_vs", ipvs->net->proc_net);
+
+err_vs:
+#endif
 	free_percpu(ipvs->tot_stats.cpustats);
 	return -ENOMEM;
 }
@@ -4188,9 +4205,11 @@ void __net_exit ip_vs_control_net_cleanup(struct netns_ipvs *ipvs)
 {
 	ip_vs_trash_cleanup(ipvs);
 	ip_vs_control_net_cleanup_sysctl(ipvs);
+#ifdef CONFIG_PROC_FS
 	remove_proc_entry("ip_vs_stats_percpu", ipvs->net->proc_net);
 	remove_proc_entry("ip_vs_stats", ipvs->net->proc_net);
 	remove_proc_entry("ip_vs", ipvs->net->proc_net);
+#endif
 	free_percpu(ipvs->tot_stats.cpustats);
 }
 
