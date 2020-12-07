@@ -1022,7 +1022,6 @@ static void blk_add_trace_bio_remap(void *ignore, struct bio *bio, dev_t dev,
 /**
  * blk_add_trace_rq_remap - Add a trace for a request-remap operation
  * @ignore:	trace callback data parameter (not used)
- * @q:		queue the io is for
  * @rq:		the source request
  * @dev:	target device
  * @from:	source sector
