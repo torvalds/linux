@@ -2702,15 +2702,11 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 		ddi_translations = ehl_get_combo_buf_trans(encoder, crtc_state, &n_entries);
 	else
 		ddi_translations = icl_get_combo_buf_trans(encoder, crtc_state, &n_entries);
-	if (!ddi_translations)
-		return;
 
-	if (level >= n_entries) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "DDI translation not found for level %d. Using %d instead.",
-			    level, n_entries - 1);
+	if (drm_WARN_ON_ONCE(&dev_priv->drm, !ddi_translations))
+		return;
+	if (drm_WARN_ON_ONCE(&dev_priv->drm, level >= n_entries))
 		level = n_entries - 1;
-	}
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP)) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
@@ -2831,12 +2827,11 @@ static void icl_mg_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 	u32 val;
 
 	ddi_translations = icl_get_mg_buf_trans(encoder, crtc_state, &n_entries);
-	if (level >= n_entries) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "DDI translation not found for level %d. Using %d instead.",
-			    level, n_entries - 1);
+
+	if (drm_WARN_ON_ONCE(&dev_priv->drm, !ddi_translations))
+		return;
+	if (drm_WARN_ON_ONCE(&dev_priv->drm, level >= n_entries))
 		level = n_entries - 1;
-	}
 
 	/* Set MG_TX_LINK_PARAMS cri_use_fs32 to 0. */
 	for (ln = 0; ln < 2; ln++) {
@@ -2968,7 +2963,9 @@ tgl_dkl_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 
 	ddi_translations = tgl_get_dkl_buf_trans(encoder, crtc_state, &n_entries);
 
-	if (level >= n_entries)
+	if (drm_WARN_ON_ONCE(&dev_priv->drm, !ddi_translations))
+		return;
+	if (drm_WARN_ON_ONCE(&dev_priv->drm, level >= n_entries))
 		level = n_entries - 1;
 
 	dpcnt_mask = (DKL_TX_PRESHOOT_COEFF_MASK |
