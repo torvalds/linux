@@ -188,7 +188,8 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 		if (IS_ERR(priv->expr))
 			return PTR_ERR(priv->expr);
 
-		if (set->expr && set->expr->ops != priv->expr->ops) {
+		if (set->num_exprs == 1 &&
+		    set->exprs[0]->ops != priv->expr->ops) {
 			err = -EOPNOTSUPP;
 			goto err_expr_free;
 		}
