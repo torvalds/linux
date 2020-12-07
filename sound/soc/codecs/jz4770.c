@@ -98,7 +98,7 @@ enum {
 #define REG_CR_HP_MUTE			BIT(7)
 #define REG_CR_HP_LOAD			BIT(6)
 #define REG_CR_HP_SB_OFFSET		4
-#define REG_CR_HP_SB_HPCM		BIT(3)
+#define REG_CR_HP_SB_HPCM_OFFSET	3
 #define REG_CR_HP_SEL_OFFSET		0
 #define REG_CR_HP_SEL_MASK		(0x3 << REG_CR_HP_SEL_OFFSET)
 
@@ -519,6 +519,9 @@ static const struct snd_soc_dapm_widget jz4770_codec_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("MICBIAS", JZ4770_CODEC_REG_CR_MIC,
 			    REG_CR_MIC_BIAS_SB_OFFSET, 1, NULL, 0),
 
+	SND_SOC_DAPM_SUPPLY("Cap-less", JZ4770_CODEC_REG_CR_HP,
+			    REG_CR_HP_SB_HPCM_OFFSET, 1, NULL, 0),
+
 	SND_SOC_DAPM_INPUT("MIC1P"),
 	SND_SOC_DAPM_INPUT("MIC1N"),
 	SND_SOC_DAPM_INPUT("MIC2P"),
@@ -640,7 +643,8 @@ static void jz4770_codec_codec_init_regs(struct snd_soc_component *codec)
 	regmap_set_bits(regmap, JZ4770_CODEC_REG_CR_ADC, REG_CR_ADC_LRSWAP);
 
 	/* default to cap-less mode(0) */
-	regmap_clear_bits(regmap, JZ4770_CODEC_REG_CR_HP, REG_CR_HP_SB_HPCM);
+	regmap_clear_bits(regmap, JZ4770_CODEC_REG_CR_HP,
+			  BIT(REG_CR_HP_SB_HPCM_OFFSET));
 
 	/* Send collected updates. */
 	regcache_cache_only(regmap, false);
