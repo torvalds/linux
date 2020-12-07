@@ -15,7 +15,6 @@
 #include <asm/topology.h>
 #include "../../kernel/cacheinfo.h"
 
-static u64 stream_id;
 static struct device suspend_dev;
 static DECLARE_COMPLETION(suspend_work);
 static struct rtas_suspend_me_data suspend_data;
@@ -29,7 +28,7 @@ static atomic_t suspending;
  * Return value:
  * 	0 on success / other on failure
  **/
-static int pseries_suspend_begin(suspend_state_t state)
+static int pseries_suspend_begin(u64 stream_id)
 {
 	long vasi_state, rc;
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
@@ -132,6 +131,7 @@ static ssize_t store_hibernate(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
+	u64 stream_id;
 	int rc;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -140,15 +140,13 @@ static ssize_t store_hibernate(struct device *dev,
 	stream_id = simple_strtoul(buf, NULL, 16);
 
 	do {
-		rc = pseries_suspend_begin(PM_SUSPEND_MEM);
+		rc = pseries_suspend_begin(stream_id);
 		if (rc == -EAGAIN)
 			ssleep(1);
 	} while (rc == -EAGAIN);
 
 	if (!rc)
 		rc = pm_suspend(PM_SUSPEND_MEM);
-
-	stream_id = 0;
 
 	if (!rc)
 		rc = count;
