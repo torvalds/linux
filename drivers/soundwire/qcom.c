@@ -799,7 +799,7 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 	data = of_device_get_match_data(dev);
 	ctrl->rows_index = sdw_find_row_index(data->default_rows);
 	ctrl->cols_index = sdw_find_col_index(data->default_cols);
-#if IS_ENABLED(CONFIG_SLIMBUS)
+#if IS_REACHABLE(CONFIG_SLIMBUS)
 	if (dev->parent->bus == &slimbus_bus) {
 #else
 	if (false) {
