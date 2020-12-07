@@ -221,6 +221,30 @@ retval=$?
 test_status $retval "${TEST_NAME}"
 statusList+=($retval)
 
+### TEST 8
+TEST_NAME="SKB BIDIRECTIONAL SOCKETS"
+
+vethXDPgeneric ${VETH0} ${VETH1} ${NS1}
+
+params=("-S" "-B")
+execxdpxceiver params
+
+retval=$?
+test_status $retval "${TEST_NAME}"
+statusList+=($retval)
+
+### TEST 9
+TEST_NAME="DRV BIDIRECTIONAL SOCKETS"
+
+vethXDPnative ${VETH0} ${VETH1} ${NS1}
+
+params=("-N" "-B")
+execxdpxceiver params
+
+retval=$?
+test_status $retval "${TEST_NAME}"
+statusList+=($retval)
+
 ## END TESTS
 
 cleanup_exit ${VETH0} ${VETH1} ${NS1}
