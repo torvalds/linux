@@ -542,16 +542,71 @@ static void pseries_cancel_migration(u64 handle, int err)
 		pr_err("H_VASI_SIGNAL error: %ld\n", hvrc);
 }
 
+static int pseries_suspend(u64 handle)
+{
+	const unsigned int max_attempts = 5;
+	unsigned int retry_interval_ms = 1;
+	unsigned int attempt = 1;
+	int ret;
+
+	while (true) {
+		atomic_t counter = ATOMIC_INIT(0);
+		unsigned long vasi_state;
+		int vasi_err;
+
+		ret = stop_machine(do_join, &counter, cpu_online_mask);
+		if (ret == 0)
+			break;
+		/*
+		 * Encountered an error. If the VASI stream is still
+		 * in Suspending state, it's likely a transient
+		 * condition related to some device in the partition
+		 * and we can retry in the hope that the cause has
+		 * cleared after some delay.
+		 *
+		 * A better design would allow drivers etc to prepare
+		 * for the suspend and avoid conditions which prevent
+		 * the suspend from succeeding. For now, we have this
+		 * mitigation.
+		 */
+		pr_notice("Partition suspend attempt %u of %u error: %d\n",
+			  attempt, max_attempts, ret);
+
+		if (attempt == max_attempts)
+			break;
+
+		vasi_err = poll_vasi_state(handle, &vasi_state);
+		if (vasi_err == 0) {
+			if (vasi_state != H_VASI_SUSPENDING) {
+				pr_notice("VASI state %lu after failed suspend\n",
+					  vasi_state);
+				break;
+			}
+		} else if (vasi_err != -EOPNOTSUPP) {
+			pr_err("VASI state poll error: %d", vasi_err);
+			break;
+		}
+
+		pr_notice("Will retry partition suspend after %u ms\n",
+			  retry_interval_ms);
+
+		msleep(retry_interval_ms);
+		retry_interval_ms *= 10;
+		attempt++;
+	}
+
+	return ret;
+}
+
 static int pseries_migrate_partition(u64 handle)
 {
-	atomic_t counter = ATOMIC_INIT(0);
 	int ret;
 
 	ret = wait_for_vasi_session_suspending(handle);
 	if (ret)
 		return ret;
 
-	ret = stop_machine(do_join, &counter, cpu_online_mask);
+	ret = pseries_suspend(handle);
 	if (ret == 0)
 		post_mobility_fixup();
 	else
