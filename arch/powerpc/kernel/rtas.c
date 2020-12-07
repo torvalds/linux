@@ -1050,9 +1050,11 @@ static struct rtas_filter rtas_filters[] __ro_after_init = {
 	{ "set-time-for-power-on", -1, -1, -1, -1, -1 },
 	{ "ibm,set-system-parameter", -1, 1, -1, -1, -1 },
 	{ "set-time-of-day", -1, -1, -1, -1, -1 },
+#ifdef CONFIG_CPU_BIG_ENDIAN
 	{ "ibm,suspend-me", -1, -1, -1, -1, -1 },
 	{ "ibm,update-nodes", -1, 0, -1, -1, -1, 4096 },
 	{ "ibm,update-properties", -1, 0, -1, -1, -1, 4096 },
+#endif
 	{ "ibm,physical-attestation", -1, 0, 1, -1, -1 },
 };
 
