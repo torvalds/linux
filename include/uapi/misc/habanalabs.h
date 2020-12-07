@@ -320,6 +320,8 @@ struct hl_info_hw_ip_info {
 	__u8 pad[2];
 	__u8 cpucp_version[HL_INFO_VERSION_MAX_LEN];
 	__u8 card_name[HL_INFO_CARD_NAME_MAX_LEN];
+	__u64 reserved2;
+	__u64 dram_page_size;
 };
 
 struct hl_info_dram_usage {
