@@ -2605,12 +2605,11 @@ static void icl_mg_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 
 	ddi_translations = icl_get_mg_buf_trans(encoder, type, rate,
 						&n_entries);
-	/* The table does not have values for level 3 and level 9. */
-	if (level >= n_entries || level == 3 || level == 9) {
+	if (level >= n_entries) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "DDI translation not found for level %d. Using %d instead.",
-			    level, n_entries - 2);
-		level = n_entries - 2;
+			    level, n_entries - 1);
+		level = n_entries - 1;
 	}
 
 	/* Set MG_TX_LINK_PARAMS cri_use_fs32 to 0. */
