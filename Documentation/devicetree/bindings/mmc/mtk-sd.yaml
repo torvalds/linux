@@ -17,21 +17,21 @@ properties:
   compatible:
     oneOf:
       - enum:
-        - mediatek,mt2701-mmc
-        - mediatek,mt2712-mmc
-        - mediatek,mt6779-mmc
-        - mediatek,mt7620-mmc
-        - mediatek,mt7622-mmc
-        - mediatek,mt8135-mmc
-        - mediatek,mt8173-mmc
-        - mediatek,mt8183-mmc
-        - mediatek,mt8516-mmc
+          - mediatek,mt2701-mmc
+          - mediatek,mt2712-mmc
+          - mediatek,mt6779-mmc
+          - mediatek,mt7620-mmc
+          - mediatek,mt7622-mmc
+          - mediatek,mt8135-mmc
+          - mediatek,mt8173-mmc
+          - mediatek,mt8183-mmc
+          - mediatek,mt8516-mmc
       - items:
-        - const: mediatek,mt7623-mmc
-        - const: mediatek,mt2701-mmc
+          - const: mediatek,mt7623-mmc
+          - const: mediatek,mt2701-mmc
       - items:
-        - const: mediatek,mt8192-mmc
-        - const: mediatek,mt8183-mmc
+          - const: mediatek,mt8192-mmc
+          - const: mediatek,mt8183-mmc
 
   clocks:
     description:
