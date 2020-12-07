@@ -798,6 +798,36 @@ void rtas_os_term(char *str)
 		printk(KERN_EMERG "ibm,os-term call failed %d\n", status);
 }
 
+/**
+ * rtas_activate_firmware() - Activate a new version of firmware.
+ *
+ * Activate a new version of partition firmware. The OS must call this
+ * after resuming from a partition hibernation or migration in order
+ * to maintain the ability to perform live firmware updates. It's not
+ * catastrophic for this method to be absent or to fail; just log the
+ * condition in that case.
+ *
+ * Context: This function may sleep.
+ */
+void rtas_activate_firmware(void)
+{
+	int token;
+	int fwrc;
+
+	token = rtas_token("ibm,activate-firmware");
+	if (token == RTAS_UNKNOWN_SERVICE) {
+		pr_notice("ibm,activate-firmware method unavailable\n");
+		return;
+	}
+
+	do {
+		fwrc = rtas_call(token, 0, 1, NULL);
+	} while (rtas_busy_delay(fwrc));
+
+	if (fwrc)
+		pr_err("ibm,activate-firmware failed (%i)\n", fwrc);
+}
+
 static int ibm_suspend_me_token = RTAS_UNKNOWN_SERVICE;
 #ifdef CONFIG_PPC_PSERIES
 static int __rtas_suspend_last_cpu(struct rtas_suspend_me_data *data, int wake_when_done)
