@@ -312,21 +312,8 @@ int pseries_devicetree_update(s32 scope)
 void post_mobility_fixup(void)
 {
 	int rc;
-	int activate_fw_token;
 
-	activate_fw_token = rtas_token("ibm,activate-firmware");
-	if (activate_fw_token == RTAS_UNKNOWN_SERVICE) {
-		printk(KERN_ERR "Could not make post-mobility "
-		       "activate-fw call.\n");
-		return;
-	}
-
-	do {
-		rc = rtas_call(activate_fw_token, 0, 1, NULL);
-	} while (rtas_busy_delay(rc));
-
-	if (rc)
-		printk(KERN_ERR "Post-mobility activate-fw failed: %d\n", rc);
+	rtas_activate_firmware();
 
 	/*
 	 * We don't want CPUs to go online/offline while the device
