@@ -385,9 +385,11 @@ static int atmel_qspi_set_cfg(struct atmel_qspi *aq,
 	/* Clear pending interrupts */
 	(void)atmel_qspi_read(aq, QSPI_SR);
 
-	if (aq->caps->has_ricr) {
-		/* Set QSPI Instruction Frame registers */
+	/* Set QSPI Instruction Frame registers. */
+	if (op->addr.nbytes && !op->data.nbytes)
 		atmel_qspi_write(iar, aq, QSPI_IAR);
+
+	if (aq->caps->has_ricr) {
 		if (op->data.dir == SPI_MEM_DATA_IN)
 			atmel_qspi_write(icr, aq, QSPI_RICR);
 		else
@@ -397,8 +399,6 @@ static int atmel_qspi_set_cfg(struct atmel_qspi *aq,
 		if (op->data.nbytes && op->data.dir == SPI_MEM_DATA_OUT)
 			ifr |= QSPI_IFR_SAMA5D2_WRITE_TRSFR;
 
-		/* Set QSPI Instruction Frame registers */
-		atmel_qspi_write(iar, aq, QSPI_IAR);
 		atmel_qspi_write(icr, aq, QSPI_ICR);
 		atmel_qspi_write(ifr, aq, QSPI_IFR);
 	}
