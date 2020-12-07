@@ -245,6 +245,9 @@ static int rockchip_pltf_init(struct sdhci_host *host, struct dwcmshc_priv *priv
 
 	/* Disable cmd conflict check */
 	sdhci_writel(host, 0x0, DWCMSHC_HOST_CTRL3);
+	/* Reset previous settings */
+	sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_TXCLK);
+	sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_STRBIN);
 	return 0;
 }
 
