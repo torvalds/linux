@@ -725,7 +725,7 @@ static noinline int create_subvol(struct inode *dir,
 	}
 
 	mutex_lock(&new_root->objectid_mutex);
-	new_root->highest_objectid = new_dirid;
+	new_root->free_objectid = new_dirid;
 	mutex_unlock(&new_root->objectid_mutex);
 
 	/*

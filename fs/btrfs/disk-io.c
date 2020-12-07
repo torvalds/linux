@@ -1016,7 +1016,7 @@ static void __setup_root(struct btrfs_root *root, struct btrfs_fs_info *fs_info,
 	root->orphan_cleanup_state = 0;
 
 	root->last_trans = 0;
-	root->highest_objectid = 0;
+	root->free_objectid = 0;
 	root->nr_delalloc_inodes = 0;
 	root->nr_ordered_extents = 0;
 	root->inode_tree = RB_ROOT;
@@ -1373,7 +1373,7 @@ static int btrfs_init_fs_root(struct btrfs_root *root, dev_t anon_dev)
 		goto fail;
 	}
 
-	ASSERT(root->highest_objectid <= BTRFS_LAST_FREE_OBJECTID);
+	ASSERT(root->free_objectid <= BTRFS_LAST_FREE_OBJECTID);
 
 	mutex_unlock(&root->objectid_mutex);
 
@@ -2651,7 +2651,7 @@ static int __cold init_tree_roots(struct btrfs_fs_info *fs_info)
 			continue;
 		}
 
-		ASSERT(tree_root->highest_objectid <= BTRFS_LAST_FREE_OBJECTID);
+		ASSERT(tree_root->free_objectid <= BTRFS_LAST_FREE_OBJECTID);
 
 		ret = btrfs_read_roots(fs_info);
 		if (ret < 0) {
@@ -4767,10 +4767,10 @@ int btrfs_init_root_free_objectid(struct btrfs_root *root)
 		slot = path->slots[0] - 1;
 		l = path->nodes[0];
 		btrfs_item_key_to_cpu(l, &found_key, slot);
-		root->highest_objectid = max_t(u64, found_key.objectid,
+		root->free_objectid = max_t(u64, found_key.objectid,
 				  BTRFS_FIRST_FREE_OBJECTID - 1);
 	} else {
-		root->highest_objectid = BTRFS_FIRST_FREE_OBJECTID - 1;
+		root->free_objectid = BTRFS_FIRST_FREE_OBJECTID - 1;
 	}
 	ret = 0;
 error:
@@ -4783,7 +4783,7 @@ int btrfs_get_free_objectid(struct btrfs_root *root, u64 *objectid)
 	int ret;
 	mutex_lock(&root->objectid_mutex);
 
-	if (unlikely(root->highest_objectid >= BTRFS_LAST_FREE_OBJECTID)) {
+	if (unlikely(root->free_objectid >= BTRFS_LAST_FREE_OBJECTID)) {
 		btrfs_warn(root->fs_info,
 			   "the objectid of root %llu reaches its highest value",
 			   root->root_key.objectid);
@@ -4791,7 +4791,7 @@ int btrfs_get_free_objectid(struct btrfs_root *root, u64 *objectid)
 		goto out;
 	}
 
-	*objectid = ++root->highest_objectid;
+	*objectid = ++root->free_objectid;
 	ret = 0;
 out:
 	mutex_unlock(&root->objectid_mutex);
