@@ -2053,9 +2053,9 @@ mlxsw_sp_bridge_8021q_port_leave(struct mlxsw_sp_bridge_device *bridge_device,
 }
 
 static int
-mlxsw_sp_bridge_8021q_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
-				 const struct net_device *vxlan_dev, u16 vid,
-				 struct netlink_ext_ack *extack)
+mlxsw_sp_bridge_vlan_aware_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
+				      const struct net_device *vxlan_dev,
+				      u16 vid, struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(bridge_device->dev);
 	struct vxlan_dev *vxlan = netdev_priv(vxlan_dev);
@@ -2099,6 +2099,15 @@ err_nve_fid_enable:
 err_vni_exists:
 	mlxsw_sp_fid_put(fid);
 	return err;
+}
+
+static int
+mlxsw_sp_bridge_8021q_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
+				 const struct net_device *vxlan_dev, u16 vid,
+				 struct netlink_ext_ack *extack)
+{
+	return mlxsw_sp_bridge_vlan_aware_vxlan_join(bridge_device, vxlan_dev,
+						     vid, extack);
 }
 
 static struct net_device *
