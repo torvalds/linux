@@ -1896,7 +1896,7 @@ static void gfx_v7_0_init_gds_vmid(struct amdgpu_device *adev)
 	 * the driver can enable them for graphics. VMID0 should maintain
 	 * access so that HWS firmware can save/restore entries.
 	 */
-	for (vmid = 1; vmid < 16; vmid++) {
+	for (vmid = 1; vmid < AMDGPU_NUM_VMID; vmid++) {
 		WREG32(amdgpu_gds_reg_offset[vmid].mem_base, 0);
 		WREG32(amdgpu_gds_reg_offset[vmid].mem_size, 0);
 		WREG32(amdgpu_gds_reg_offset[vmid].gws, 0);

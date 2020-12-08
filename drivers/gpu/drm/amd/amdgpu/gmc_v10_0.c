@@ -432,7 +432,7 @@ static int gmc_v10_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 		return 0;
 	}
 
-	for (vmid = 1; vmid < 16; vmid++) {
+	for (vmid = 1; vmid < AMDGPU_NUM_VMID; vmid++) {
 
 		ret = gmc_v10_0_get_atc_vmid_pasid_mapping_info(adev, vmid,
 				&queried_pasid);

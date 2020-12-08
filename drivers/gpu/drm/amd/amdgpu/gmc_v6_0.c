@@ -530,7 +530,7 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	 * the VMs are determined by the application and setup and assigned
 	 * on the fly in the vm part of radeon_gart.c
 	 */
-	for (i = 1; i < 16; i++) {
+	for (i = 1; i < AMDGPU_NUM_VMID; i++) {
 		if (i < 8)
 			WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + i,
 			       table_addr >> 12);
