@@ -297,6 +297,7 @@ void mt76x02u_init_mcu(struct mt76_dev *dev)
 		.headroom = MT_CMD_HDR_LEN,
 		.tailroom = 8,
 		.mcu_send_msg = mt76x02u_mcu_send_msg,
+		.mcu_parse_response = mt76x02_mcu_parse_response,
 		.mcu_wr_rp = mt76x02u_mcu_wr_rp,
 		.mcu_rd_rp = mt76x02u_mcu_rd_rp,
 	};

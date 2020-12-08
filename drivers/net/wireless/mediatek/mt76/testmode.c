@@ -11,6 +11,8 @@ static const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
 	[MT76_TM_ATTR_TX_RATE_IDX] = { .type = NLA_U8 },
 	[MT76_TM_ATTR_TX_RATE_SGI] = { .type = NLA_U8 },
 	[MT76_TM_ATTR_TX_RATE_LDPC] = { .type = NLA_U8 },
+	[MT76_TM_ATTR_TX_RATE_STBC] = { .type = NLA_U8 },
+	[MT76_TM_ATTR_TX_LTF] = { .type = NLA_U8 },
 	[MT76_TM_ATTR_TX_ANTENNA] = { .type = NLA_U8 },
 	[MT76_TM_ATTR_TX_POWER_CONTROL] = { .type = NLA_U8 },
 	[MT76_TM_ATTR_TX_POWER] = { .type = NLA_NESTED },
@@ -21,6 +23,7 @@ void mt76_testmode_tx_pending(struct mt76_dev *dev)
 {
 	struct mt76_testmode_data *td = &dev->test;
 	struct mt76_wcid *wcid = &dev->global_wcid;
+	struct mt76_phy *phy = &dev->phy;
 	struct sk_buff *skb = td->tx_skb;
 	struct mt76_queue *q;
 	int qid;
@@ -29,7 +32,7 @@ void mt76_testmode_tx_pending(struct mt76_dev *dev)
 		return;
 
 	qid = skb_get_queue_mapping(skb);
-	q = dev->q_tx[qid];
+	q = phy->q_tx[qid];
 
 	spin_lock_bh(&q->lock);
 
@@ -37,7 +40,8 @@ void mt76_testmode_tx_pending(struct mt76_dev *dev)
 	       q->queued < q->ndesc / 2) {
 		int ret;
 
-		ret = dev->queue_ops->tx_queue_skb(dev, qid, skb_get(skb), wcid, NULL);
+		ret = dev->queue_ops->tx_queue_skb(dev, q, skb_get(skb), wcid,
+						   NULL);
 		if (ret < 0)
 			break;
 
@@ -55,13 +59,14 @@ static int
 mt76_testmode_tx_init(struct mt76_dev *dev)
 {
 	struct mt76_testmode_data *td = &dev->test;
+	struct mt76_phy *phy = &dev->phy;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_hdr *hdr;
 	struct sk_buff *skb;
 	u16 fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA |
 		 IEEE80211_FCTL_FROMDS;
 	struct ieee80211_tx_rate *rate;
-	u8 max_nss = hweight8(dev->phy.antenna_mask);
+	u8 max_nss = hweight8(phy->antenna_mask);
 
 	if (td->tx_antenna_mask)
 		max_nss = min_t(u8, max_nss, hweight8(td->tx_antenna_mask));
@@ -74,28 +79,32 @@ mt76_testmode_tx_init(struct mt76_dev *dev)
 	td->tx_skb = skb;
 	hdr = __skb_put_zero(skb, td->tx_msdu_len);
 	hdr->frame_control = cpu_to_le16(fc);
-	memcpy(hdr->addr1, dev->macaddr, sizeof(dev->macaddr));
-	memcpy(hdr->addr2, dev->macaddr, sizeof(dev->macaddr));
-	memcpy(hdr->addr3, dev->macaddr, sizeof(dev->macaddr));
+	memcpy(hdr->addr1, phy->macaddr, sizeof(phy->macaddr));
+	memcpy(hdr->addr2, phy->macaddr, sizeof(phy->macaddr));
+	memcpy(hdr->addr3, phy->macaddr, sizeof(phy->macaddr));
 
 	info = IEEE80211_SKB_CB(skb);
 	info->flags = IEEE80211_TX_CTL_INJECTED |
 		      IEEE80211_TX_CTL_NO_ACK |
 		      IEEE80211_TX_CTL_NO_PS_BUFFER;
+
+	if (td->tx_rate_mode > MT76_TM_TX_MODE_VHT)
+		goto out;
+
 	rate = &info->control.rates[0];
 	rate->count = 1;
 	rate->idx = td->tx_rate_idx;
 
 	switch (td->tx_rate_mode) {
 	case MT76_TM_TX_MODE_CCK:
-		if (dev->phy.chandef.chan->band != NL80211_BAND_2GHZ)
+		if (phy->chandef.chan->band != NL80211_BAND_2GHZ)
 			return -EINVAL;
 
 		if (rate->idx > 4)
 			return -EINVAL;
 		break;
 	case MT76_TM_TX_MODE_OFDM:
-		if (dev->phy.chandef.chan->band != NL80211_BAND_2GHZ)
+		if (phy->chandef.chan->band != NL80211_BAND_2GHZ)
 			break;
 
 		if (rate->idx > 8)
@@ -106,7 +115,7 @@ mt76_testmode_tx_init(struct mt76_dev *dev)
 	case MT76_TM_TX_MODE_HT:
 		if (rate->idx > 8 * max_nss &&
 			!(rate->idx == 32 &&
-			  dev->phy.chandef.width >= NL80211_CHAN_WIDTH_40))
+			  phy->chandef.width >= NL80211_CHAN_WIDTH_40))
 			return -EINVAL;
 
 		rate->flags |= IEEE80211_TX_RC_MCS;
@@ -131,8 +140,11 @@ mt76_testmode_tx_init(struct mt76_dev *dev)
 	if (td->tx_rate_ldpc)
 		info->flags |= IEEE80211_TX_CTL_LDPC;
 
+	if (td->tx_rate_stbc)
+		info->flags |= IEEE80211_TX_CTL_STBC;
+
 	if (td->tx_rate_mode >= MT76_TM_TX_MODE_HT) {
-		switch (dev->phy.chandef.width) {
+		switch (phy->chandef.width) {
 		case NL80211_CHAN_WIDTH_40:
 			rate->flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
 			break;
@@ -147,7 +159,7 @@ mt76_testmode_tx_init(struct mt76_dev *dev)
 			break;
 		}
 	}
-
+out:
 	skb_set_queue_mapping(skb, IEEE80211_AC_BE);
 
 	return 0;
@@ -334,8 +346,10 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			   0, MT76_TM_TX_MODE_MAX) ||
 	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_RATE_NSS], &td->tx_rate_nss,
 			   1, hweight8(phy->antenna_mask)) ||
-	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_RATE_SGI], &td->tx_rate_sgi, 0, 1) ||
+	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_RATE_SGI], &td->tx_rate_sgi, 0, 2) ||
 	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_RATE_LDPC], &td->tx_rate_ldpc, 0, 1) ||
+	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_RATE_STBC], &td->tx_rate_stbc, 0, 1) ||
+	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_LTF], &td->tx_ltf, 0, 2) ||
 	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_ANTENNA], &td->tx_antenna_mask, 1,
 			   phy->antenna_mask) ||
 	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_POWER_CONTROL],
@@ -472,6 +486,9 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
 	    nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_IDX, td->tx_rate_idx) ||
 	    nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_SGI, td->tx_rate_sgi) ||
 	    nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_LDPC, td->tx_rate_ldpc) ||
+	    nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_STBC, td->tx_rate_stbc) ||
+	    (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_LTF) &&
+	     nla_put_u8(msg, MT76_TM_ATTR_TX_LTF, td->tx_ltf)) ||
 	    (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_ANTENNA) &&
 	     nla_put_u8(msg, MT76_TM_ATTR_TX_ANTENNA, td->tx_antenna_mask)) ||
 	    (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_POWER_CONTROL) &&

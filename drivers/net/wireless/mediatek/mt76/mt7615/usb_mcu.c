@@ -15,14 +15,12 @@
 
 static int
 mt7663u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
-			 int cmd, bool wait_resp)
+			 int cmd, int *seq)
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
-	int ret, seq, ep, len, pad;
+	int ret, ep, len, pad;
 
-	mutex_lock(&mdev->mcu.mutex);
-
-	mt7615_mcu_fill_msg(dev, skb, cmd, &seq);
+	mt7615_mcu_fill_msg(dev, skb, cmd, seq);
 	if (cmd != MCU_CMD_FW_SCATTER)
 		ep = MT_EP_OUT_INBAND_CMD;
 	else
@@ -37,14 +35,8 @@ mt7663u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 
 	ret = mt76u_bulk_msg(&dev->mt76, skb->data, skb->len, NULL,
 			     1000, ep);
-	if (ret < 0)
-		goto out;
-
-	if (wait_resp)
-		ret = mt7615_mcu_wait_response(dev, cmd, seq);
 
 out:
-	mutex_unlock(&mdev->mcu.mutex);
 	dev_kfree_skb(skb);
 
 	return ret;
@@ -56,7 +48,7 @@ int mt7663u_mcu_init(struct mt7615_dev *dev)
 		.headroom = MT_USB_HDR_SIZE + sizeof(struct mt7615_mcu_txd),
 		.tailroom = MT_USB_TAIL_SIZE,
 		.mcu_skb_send_msg = mt7663u_mcu_send_message,
-		.mcu_send_msg = mt7615_mcu_msg_send,
+		.mcu_parse_response = mt7615_mcu_parse_response,
 		.mcu_restart = mt7615_mcu_restart,
 	};
 	int ret;
