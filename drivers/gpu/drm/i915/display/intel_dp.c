@@ -2289,6 +2289,14 @@ static int intel_dp_dsc_compute_params(struct intel_encoder *encoder,
 	u8 line_buf_depth;
 	int ret;
 
+	/*
+	 * RC_MODEL_SIZE is currently a constant across all configurations.
+	 *
+	 * FIXME: Look into using sink defined DPCD DP_DSC_RC_BUF_BLK_SIZE and
+	 * DP_DSC_RC_BUF_SIZE for this.
+	 */
+	vdsc_cfg->rc_model_size = DSC_RC_MODEL_SIZE_CONST;
+
 	ret = intel_dsc_compute_params(encoder, crtc_state);
 	if (ret)
 		return ret;
