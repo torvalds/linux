@@ -1270,24 +1270,6 @@ const struct bpf_func_proto bpf_snprintf_btf_proto = {
 	.arg5_type	= ARG_ANYTHING,
 };
 
-BPF_CALL_1(bpf_sock_from_file, struct file *, file)
-{
-	return (unsigned long) sock_from_file(file);
-}
-
-BTF_ID_LIST(bpf_sock_from_file_btf_ids)
-BTF_ID(struct, socket)
-BTF_ID(struct, file)
-
-static const struct bpf_func_proto bpf_sock_from_file_proto = {
-	.func		= bpf_sock_from_file,
-	.gpl_only	= false,
-	.ret_type	= RET_PTR_TO_BTF_ID_OR_NULL,
-	.ret_btf_id	= &bpf_sock_from_file_btf_ids[0],
-	.arg1_type	= ARG_PTR_TO_BTF_ID,
-	.arg1_btf_id	= &bpf_sock_from_file_btf_ids[1],
-};
-
 const struct bpf_func_proto *
 bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
@@ -1384,8 +1366,6 @@ bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_per_cpu_ptr_proto;
 	case BPF_FUNC_bpf_this_cpu_ptr:
 		return &bpf_this_cpu_ptr_proto;
-	case BPF_FUNC_sock_from_file:
-		return &bpf_sock_from_file_proto;
 	default:
 		return NULL;
 	}
@@ -1778,6 +1758,8 @@ tracing_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_sk_storage_get_tracing_proto;
 	case BPF_FUNC_sk_storage_delete:
 		return &bpf_sk_storage_delete_tracing_proto;
+	case BPF_FUNC_sock_from_file:
+		return &bpf_sock_from_file_proto;
 #endif
 	case BPF_FUNC_seq_printf:
 		return prog->expected_attach_type == BPF_TRACE_ITER ?
