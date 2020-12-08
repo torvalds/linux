@@ -1038,7 +1038,9 @@ static int decode_read_plus_data(struct xdr_stream *xdr, struct nfs_pgio_res *re
 
 	p = xdr_decode_hyper(p, &offset);
 	count = be32_to_cpup(p);
-	recvd = xdr_align_data(xdr, res->count, count);
+	recvd = xdr_align_data(xdr, res->count, xdr_align_size(count));
+	if (recvd > count)
+		recvd = count;
 	res->count += recvd;
 
 	if (count > recvd) {
