@@ -48,6 +48,12 @@
 #define BCDMA_CAP2_BCHAN_CNT(val)	((val) & 0x1ff)
 #define BCDMA_CAP2_TCHAN_CNT(val)	(((val) >> 9) & 0x1ff)
 #define BCDMA_CAP2_RCHAN_CNT(val)	(((val) >> 18) & 0x1ff)
+#define BCDMA_CAP3_HBCHAN_CNT(val)	(((val) >> 14) & 0x1ff)
+#define BCDMA_CAP3_UBCHAN_CNT(val)	(((val) >> 23) & 0x1ff)
+#define BCDMA_CAP4_HRCHAN_CNT(val)	((val) & 0xff)
+#define BCDMA_CAP4_URCHAN_CNT(val)	(((val) >> 8) & 0xff)
+#define BCDMA_CAP4_HTCHAN_CNT(val)	(((val) >> 16) & 0xff)
+#define BCDMA_CAP4_UTCHAN_CNT(val)	(((val) >> 24) & 0xff)
 
 /* UDMA_CHAN_RT_CTL_REG */
 #define UDMA_CHAN_RT_CTL_EN		BIT(31)
