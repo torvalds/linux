@@ -553,6 +553,17 @@ with "depends on m".  E.g.::
 
 limits FOO to module (=m) or disabled (=n).
 
+Compile-testing
+~~~~~~~~~~~~~~~
+If a config symbol has a dependency, but the code controlled by the config
+symbol can still be compiled if the dependency is not met, it is encouraged to
+increase build coverage by adding an "|| COMPILE_TEST" clause to the
+dependency. This is especially useful for drivers for more exotic hardware, as
+it allows continuous-integration systems to compile-test the code on a more
+common system, and detect bugs that way.
+Note that compile-tested code should avoid crashing when run on a system where
+the dependency is not met.
+
 Kconfig recursive dependency limitations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
