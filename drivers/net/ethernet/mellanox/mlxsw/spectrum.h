@@ -1202,6 +1202,7 @@ struct mlxsw_sp_nve_params {
 	enum mlxsw_sp_nve_type type;
 	__be32 vni;
 	const struct net_device *dev;
+	u16 ethertype;
 };
 
 extern const struct mlxsw_sp_nve_ops *mlxsw_sp1_nve_ops_arr[];
