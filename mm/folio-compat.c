@@ -108,3 +108,10 @@ void lru_cache_add(struct page *page)
 	folio_add_lru(page_folio(page));
 }
 EXPORT_SYMBOL(lru_cache_add);
+
+int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
+		pgoff_t index, gfp_t gfp)
+{
+	return filemap_add_folio(mapping, page_folio(page), index, gfp);
+}
+EXPORT_SYMBOL(add_to_page_cache_lru);
