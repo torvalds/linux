@@ -41,9 +41,9 @@
 /*
  * Registers offset
  */
-#define DW_IC_CON		0x0
-#define DW_IC_TAR		0x4
-#define DW_IC_SAR		0x8
+#define DW_IC_CON		0x00
+#define DW_IC_TAR		0x04
+#define DW_IC_SAR		0x08
 #define DW_IC_DATA_CMD		0x10
 #define DW_IC_SS_SCL_HCNT	0x14
 #define DW_IC_SS_SCL_LCNT	0x18
