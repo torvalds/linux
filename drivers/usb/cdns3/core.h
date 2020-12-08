@@ -127,5 +127,10 @@ int cdns_remove(struct cdns *cdns);
 #ifdef CONFIG_PM_SLEEP
 int cdns_resume(struct cdns *cdns, u8 set_active);
 int cdns_suspend(struct cdns *cdns);
+#else /* CONFIG_PM_SLEEP */
+static inline int cdns_resume(struct cdns *cdns, u8 set_active)
+{ return 0; }
+static inline int cdns_suspend(struct cdns *cdns)
+{ return 0; }
 #endif /* CONFIG_PM_SLEEP */
 #endif /* __LINUX_CDNS3_CORE_H */
