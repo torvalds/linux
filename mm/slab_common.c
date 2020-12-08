@@ -545,6 +545,7 @@ bool kmem_valid_obj(void *object)
 	page = virt_to_head_page(object);
 	return PageSlab(page);
 }
+EXPORT_SYMBOL_GPL(kmem_valid_obj);
 
 /**
  * kmem_dump_obj - Print available slab provenance information
@@ -601,6 +602,7 @@ void kmem_dump_obj(void *object)
 		pr_info("    %pS\n", kp.kp_stack[i]);
 	}
 }
+EXPORT_SYMBOL_GPL(kmem_dump_obj);
 #endif
 
 #ifndef CONFIG_SLOB

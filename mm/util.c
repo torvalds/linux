@@ -1014,4 +1014,5 @@ void mem_dump_obj(void *object)
 	}
 	pr_cont(" non-slab/vmalloc memory.\n");
 }
+EXPORT_SYMBOL_GPL(mem_dump_obj);
 #endif

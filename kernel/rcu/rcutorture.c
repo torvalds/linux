@@ -1861,6 +1861,45 @@ rcu_torture_stats(void *arg)
 		torture_shutdown_absorb("rcu_torture_stats");
 	} while (!torture_must_stop());
 	torture_kthread_stopping("rcu_torture_stats");
+
+	{
+		struct rcu_head *rhp;
+		struct kmem_cache *kcp;
+		static int z;
+
+		kcp = kmem_cache_create("rcuscale", 136, 8, SLAB_STORE_USER, NULL);
+		rhp = kmem_cache_alloc(kcp, GFP_KERNEL);
+		pr_alert("mem_dump_obj() slab test: rcu_torture_stats = %px, &rhp = %px, rhp = %px, &z = %px\n", stats_task, &rhp, rhp, &z);
+		pr_alert("mem_dump_obj(ZERO_SIZE_PTR):");
+		mem_dump_obj(ZERO_SIZE_PTR);
+		pr_alert("mem_dump_obj(NULL):");
+		mem_dump_obj(NULL);
+		pr_alert("mem_dump_obj(%px):", &rhp);
+		mem_dump_obj(&rhp);
+		pr_alert("mem_dump_obj(%px):", rhp);
+		mem_dump_obj(rhp);
+		pr_alert("mem_dump_obj(%px):", &rhp->func);
+		mem_dump_obj(&rhp->func);
+		pr_alert("mem_dump_obj(%px):", &z);
+		mem_dump_obj(&z);
+		kmem_cache_free(kcp, rhp);
+		kmem_cache_destroy(kcp);
+		rhp = kmalloc(sizeof(*rhp), GFP_KERNEL);
+		pr_alert("mem_dump_obj() kmalloc test: rcu_torture_stats = %px, &rhp = %px, rhp = %px\n", stats_task, &rhp, rhp);
+		pr_alert("mem_dump_obj(kmalloc %px):", rhp);
+		mem_dump_obj(rhp);
+		pr_alert("mem_dump_obj(kmalloc %px):", &rhp->func);
+		mem_dump_obj(&rhp->func);
+		kfree(rhp);
+		rhp = vmalloc(4096);
+		pr_alert("mem_dump_obj() vmalloc test: rcu_torture_stats = %px, &rhp = %px, rhp = %px\n", stats_task, &rhp, rhp);
+		pr_alert("mem_dump_obj(vmalloc %px):", rhp);
+		mem_dump_obj(rhp);
+		pr_alert("mem_dump_obj(vmalloc %px):", &rhp->func);
+		mem_dump_obj(&rhp->func);
+		vfree(rhp);
+	}
+
 	return 0;
 }
 
