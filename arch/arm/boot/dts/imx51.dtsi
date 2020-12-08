@@ -370,14 +370,14 @@
 				status = "disabled";
 			};
 
-			wdog1: wdog@73f98000 {
+			wdog1: watchdog@73f98000 {
 				compatible = "fsl,imx51-wdt", "fsl,imx21-wdt";
 				reg = <0x73f98000 0x4000>;
 				interrupts = <58>;
 				clocks = <&clks IMX5_CLK_DUMMY>;
 			};
 
-			wdog2: wdog@73f9c000 {
+			wdog2: watchdog@73f9c000 {
 				compatible = "fsl,imx51-wdt", "fsl,imx21-wdt";
 				reg = <0x73f9c000 0x4000>;
 				interrupts = <59>;

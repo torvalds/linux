@@ -1317,7 +1317,7 @@
 			status = "disabled";
 		};
 
-		etn_switch: switch@800f8000 {
+		eth_switch: switch@800f8000 {
 			reg = <0x800f8000 0x8000>;
 			status = "disabled";
 		};

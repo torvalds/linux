@@ -1,20 +1,20 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
 /*
- * Copyright (C) 2019 PHYTEC Messtechnik GmbH
- * Author: Stefan Riedmueller <s.riedmueller@phytec.de>
+ * Copyright (C) 2020 PHYTEC Messtechnik GmbH
+ * Author: Yunus Bas <y.bas@phytec.de>
  */
 
 /dts-v1/;
-#include "imx6ull.dtsi"
-#include "imx6ull-phytec-phycore-som.dtsi"
-#include "imx6ull-phytec-segin.dtsi"
-#include "imx6ull-phytec-segin-peb-eval-01.dtsi"
-#include "imx6ull-phytec-segin-peb-av-02.dtsi"
+#include "imx6ul.dtsi"
+#include "imx6ul-phytec-phycore-som.dtsi"
+#include "imx6ul-phytec-segin.dtsi"
+#include "imx6ul-phytec-segin-peb-eval-01.dtsi"
+#include "imx6ul-phytec-segin-peb-av-02.dtsi"
 
 / {
-	model = "PHYTEC phyBOARD-Segin i.MX6 ULL Full Featured with eMMC";
-	compatible = "phytec,imx6ull-pbacd10-emmc", "phytec,imx6ull-pbacd10",
-		     "phytec,imx6ull-pcl063","fsl,imx6ull";
+	model = "PHYTEC phyBOARD-Segin i.MX6 UltraLite Full Featured with eMMC";
+	compatible = "phytec,imx6ul-pbacd10-emmc", "phytec,imx6ul-pbacd10",
+		     "phytec,imx6ul-pcl063","fsl,imx6ul";
 };
 
 &adc1 {
@@ -22,10 +22,6 @@
 };
 
 &can1 {
-	status = "okay";
-};
-
-&tlv320 {
 	status = "okay";
 };
 
@@ -70,6 +66,10 @@
 };
 
 &sound {
+	status = "okay";
+};
+
+&tlv320 {
 	status = "okay";
 };
 

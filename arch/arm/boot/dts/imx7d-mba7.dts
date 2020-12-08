@@ -14,7 +14,7 @@
 
 / {
 	model = "TQ Systems TQMa7D board on MBa7 carrier board";
-	compatible = "tq,imx7d-mba7", "fsl,imx7d";
+	compatible = "tq,imx7d-mba7", "tq,imx7d-tqma7", "fsl,imx7d";
 };
 
 &fec2 {
@@ -39,10 +39,7 @@
 			ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_50_NS>;
 			ti,tx-internal-delay = <DP83867_RGMIIDCTL_2_50_NS>;
 			ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
-			/* LED1: Link/Activity, LED2: error */
-			ti,led-function = <0x0db0>;
-			/* active low, LED1/2 driven by phy */
-			ti,led-ctrl = <0x1001>;
+			ti,clk-output-sel = <DP83867_CLK_O_SEL_OFF>;
 		};
 	};
 };

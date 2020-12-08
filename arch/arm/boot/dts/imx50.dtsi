@@ -267,7 +267,7 @@
 					      <&iomuxc 20 140 11>;
 			};
 
-			wdog1: wdog@53f98000 {
+			wdog1: watchdog@53f98000 {
 				compatible = "fsl,imx50-wdt", "fsl,imx21-wdt";
 				reg = <0x53f98000 0x4000>;
 				interrupts = <58>;

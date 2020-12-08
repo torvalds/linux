@@ -95,7 +95,7 @@
 				status = "disabled";
 			};
 
-			can0: flexcan@40020000 {
+			can0: can@40020000 {
 				compatible = "fsl,vf610-flexcan";
 				reg = <0x40020000 0x4000>;
 				interrupts = <58 IRQ_TYPE_LEVEL_HIGH>;
@@ -293,7 +293,7 @@
 				status = "disabled";
 			};
 
-			wdoga5: wdog@4003e000 {
+			wdoga5: watchdog@4003e000 {
 				compatible = "fsl,vf610-wdt", "fsl,imx21-wdt";
 				reg = <0x4003e000 0x1000>;
 				interrupts = <20 IRQ_TYPE_LEVEL_HIGH>;
@@ -681,7 +681,7 @@
 				status = "disabled";
 			};
 
-			can1: flexcan@400d4000 {
+			can1: can@400d4000 {
 				compatible = "fsl,vf610-flexcan";
 				reg = <0x400d4000 0x4000>;
 				interrupts = <59 IRQ_TYPE_LEVEL_HIGH>;

@@ -10,8 +10,8 @@
 #include "imx7s.dtsi"
 
 / {
-	model = "Warp i.MX7 Board";
-	compatible = "warp,imx7s-warp", "fsl,imx7s";
+	model = "Element14 Warp i.MX7 Board";
+	compatible = "element14,imx7s-warp", "fsl,imx7s";
 
 	memory@80000000 {
 		device_type = "memory";
