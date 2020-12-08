@@ -515,8 +515,11 @@ SYM_INNER_LABEL(init_el2, SYM_L_LOCAL)
 	 */
 	mrs	x2, id_aa64mmfr1_el1
 	ubfx	x2, x2, #ID_AA64MMFR1_VHE_SHIFT, #4
-	cbz	x2, init_el2_nvhe
+#else
+	mov	x2, xzr
 #endif
+	cbz	x2, init_el2_nvhe
+
 	/*
 	 * When VHE _is_ in use, EL1 will not be used in the host and
 	 * requires no configuration, and all non-hyp-specific EL2 setup
