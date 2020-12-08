@@ -3825,10 +3825,10 @@ static int vop2_find_start_mixer_id_for_vp(struct vop2 *vop2, uint8_t port_id)
 
 	for (i = 0; i < port_id; i++) {
 		vp = &vop2->vps[i];
-		mixer_id += vop2_get_mixer_number(vp->nr_layers);
+		mixer_id += vop2_get_mixer_number(hweight32(vp->win_mask));
 	}
 
-	return mixer_id;
+	return mixer_id ? (mixer_id + 1) : 0;
 }
 
 /*
