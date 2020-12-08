@@ -4826,61 +4826,56 @@ static int hclge_unmap_ring_frm_vector(struct hnae3_handle *handle, int vector,
 	return ret;
 }
 
-static int hclge_cmd_set_promisc_mode(struct hclge_dev *hdev,
-				      struct hclge_promisc_param *param)
+static int hclge_cmd_set_promisc_mode(struct hclge_dev *hdev, u8 vf_id,
+				      bool en_uc, bool en_mc, bool en_bc)
 {
+	struct hclge_vport *vport = &hdev->vport[vf_id];
+	struct hnae3_handle *handle = &vport->nic;
 	struct hclge_promisc_cfg_cmd *req;
 	struct hclge_desc desc;
+	bool uc_tx_en = en_uc;
+	u8 promisc_cfg = 0;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_PROMISC_MODE, false);
 
 	req = (struct hclge_promisc_cfg_cmd *)desc.data;
-	req->vf_id = param->vf_id;
+	req->vf_id = vf_id;
 
-	/* HCLGE_PROMISC_TX_EN_B and HCLGE_PROMISC_RX_EN_B are not supported on
-	 * pdev revision(0x20), new revision support them. The
-	 * value of this two fields will not return error when driver
-	 * send command to fireware in revision(0x20).
-	 */
-	req->flag = (param->enable << HCLGE_PROMISC_EN_B) |
-		HCLGE_PROMISC_TX_EN_B | HCLGE_PROMISC_RX_EN_B;
+	if (test_bit(HNAE3_PFLAG_LIMIT_PROMISC, &handle->priv_flags))
+		uc_tx_en = false;
+
+	hnae3_set_bit(promisc_cfg, HCLGE_PROMISC_UC_RX_EN, en_uc ? 1 : 0);
+	hnae3_set_bit(promisc_cfg, HCLGE_PROMISC_MC_RX_EN, en_mc ? 1 : 0);
+	hnae3_set_bit(promisc_cfg, HCLGE_PROMISC_BC_RX_EN, en_bc ? 1 : 0);
+	hnae3_set_bit(promisc_cfg, HCLGE_PROMISC_UC_TX_EN, uc_tx_en ? 1 : 0);
+	hnae3_set_bit(promisc_cfg, HCLGE_PROMISC_MC_TX_EN, en_mc ? 1 : 0);
+	hnae3_set_bit(promisc_cfg, HCLGE_PROMISC_BC_TX_EN, en_bc ? 1 : 0);
+	req->extend_promisc = promisc_cfg;
+
+	/* to be compatible with DEVICE_VERSION_V1/2 */
+	promisc_cfg = 0;
+	hnae3_set_bit(promisc_cfg, HCLGE_PROMISC_EN_UC, en_uc ? 1 : 0);
+	hnae3_set_bit(promisc_cfg, HCLGE_PROMISC_EN_MC, en_mc ? 1 : 0);
+	hnae3_set_bit(promisc_cfg, HCLGE_PROMISC_EN_BC, en_bc ? 1 : 0);
+	hnae3_set_bit(promisc_cfg, HCLGE_PROMISC_TX_EN, 1);
+	hnae3_set_bit(promisc_cfg, HCLGE_PROMISC_RX_EN, 1);
+	req->promisc = promisc_cfg;
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)
 		dev_err(&hdev->pdev->dev,
-			"failed to set vport %d promisc mode, ret = %d.\n",
-			param->vf_id, ret);
+			"failed to set vport %u promisc mode, ret = %d.\n",
+			vf_id, ret);
 
 	return ret;
-}
-
-static void hclge_promisc_param_init(struct hclge_promisc_param *param,
-				     bool en_uc, bool en_mc, bool en_bc,
-				     int vport_id)
-{
-	if (!param)
-		return;
-
-	memset(param, 0, sizeof(struct hclge_promisc_param));
-	if (en_uc)
-		param->enable = HCLGE_PROMISC_EN_UC;
-	if (en_mc)
-		param->enable |= HCLGE_PROMISC_EN_MC;
-	if (en_bc)
-		param->enable |= HCLGE_PROMISC_EN_BC;
-	param->vf_id = vport_id;
 }
 
 int hclge_set_vport_promisc_mode(struct hclge_vport *vport, bool en_uc_pmc,
 				 bool en_mc_pmc, bool en_bc_pmc)
 {
-	struct hclge_dev *hdev = vport->back;
-	struct hclge_promisc_param param;
-
-	hclge_promisc_param_init(&param, en_uc_pmc, en_mc_pmc, en_bc_pmc,
-				 vport->vport_id);
-	return hclge_cmd_set_promisc_mode(hdev, &param);
+	return hclge_cmd_set_promisc_mode(vport->back, vport->vport_id,
+					  en_uc_pmc, en_mc_pmc, en_bc_pmc);
 }
 
 static int hclge_set_promisc_mode(struct hnae3_handle *handle, bool en_uc_pmc,
@@ -8622,6 +8617,8 @@ static int hclge_set_vlan_tx_offload_cfg(struct hclge_vport *vport)
 		      vcfg->insert_tag1_en ? 1 : 0);
 	hnae3_set_bit(req->vport_vlan_cfg, HCLGE_PORT_INS_TAG2_EN_B,
 		      vcfg->insert_tag2_en ? 1 : 0);
+	hnae3_set_bit(req->vport_vlan_cfg, HCLGE_TAG_SHIFT_MODE_EN_B,
+		      vcfg->tag_shift_mode_en ? 1 : 0);
 	hnae3_set_bit(req->vport_vlan_cfg, HCLGE_CFG_NIC_ROCE_SEL_B, 0);
 
 	req->vf_offset = vport->vport_id / HCLGE_VF_NUM_PER_CMD;
@@ -8659,6 +8656,10 @@ static int hclge_set_vlan_rx_offload_cfg(struct hclge_vport *vport)
 		      vcfg->vlan1_vlan_prionly ? 1 : 0);
 	hnae3_set_bit(req->vport_vlan_cfg, HCLGE_SHOW_TAG2_EN_B,
 		      vcfg->vlan2_vlan_prionly ? 1 : 0);
+	hnae3_set_bit(req->vport_vlan_cfg, HCLGE_DISCARD_TAG1_EN_B,
+		      vcfg->strip_tag1_discard_en ? 1 : 0);
+	hnae3_set_bit(req->vport_vlan_cfg, HCLGE_DISCARD_TAG2_EN_B,
+		      vcfg->strip_tag2_discard_en ? 1 : 0);
 
 	req->vf_offset = vport->vport_id / HCLGE_VF_NUM_PER_CMD;
 	bmap_index = vport->vport_id % HCLGE_VF_NUM_PER_CMD /
@@ -8686,7 +8687,10 @@ static int hclge_vlan_offload_cfg(struct hclge_vport *vport,
 		vport->txvlan_cfg.insert_tag1_en = false;
 		vport->txvlan_cfg.default_tag1 = 0;
 	} else {
-		vport->txvlan_cfg.accept_tag1 = false;
+		struct hnae3_ae_dev *ae_dev = pci_get_drvdata(vport->nic.pdev);
+
+		vport->txvlan_cfg.accept_tag1 =
+			ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3;
 		vport->txvlan_cfg.insert_tag1_en = true;
 		vport->txvlan_cfg.default_tag1 = vlan_tag;
 	}
@@ -8701,16 +8705,21 @@ static int hclge_vlan_offload_cfg(struct hclge_vport *vport,
 	vport->txvlan_cfg.accept_untag2 = true;
 	vport->txvlan_cfg.insert_tag2_en = false;
 	vport->txvlan_cfg.default_tag2 = 0;
+	vport->txvlan_cfg.tag_shift_mode_en = true;
 
 	if (port_base_vlan_state == HNAE3_PORT_BASE_VLAN_DISABLE) {
 		vport->rxvlan_cfg.strip_tag1_en = false;
 		vport->rxvlan_cfg.strip_tag2_en =
 				vport->rxvlan_cfg.rx_vlan_offload_en;
+		vport->rxvlan_cfg.strip_tag2_discard_en = false;
 	} else {
 		vport->rxvlan_cfg.strip_tag1_en =
 				vport->rxvlan_cfg.rx_vlan_offload_en;
 		vport->rxvlan_cfg.strip_tag2_en = true;
+		vport->rxvlan_cfg.strip_tag2_discard_en = true;
 	}
+
+	vport->rxvlan_cfg.strip_tag1_discard_en = false;
 	vport->rxvlan_cfg.vlan1_vlan_prionly = false;
 	vport->rxvlan_cfg.vlan2_vlan_prionly = false;
 
@@ -9005,10 +9014,14 @@ int hclge_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable)
 	if (vport->port_base_vlan_cfg.state == HNAE3_PORT_BASE_VLAN_DISABLE) {
 		vport->rxvlan_cfg.strip_tag1_en = false;
 		vport->rxvlan_cfg.strip_tag2_en = enable;
+		vport->rxvlan_cfg.strip_tag2_discard_en = false;
 	} else {
 		vport->rxvlan_cfg.strip_tag1_en = enable;
 		vport->rxvlan_cfg.strip_tag2_en = true;
+		vport->rxvlan_cfg.strip_tag2_discard_en = true;
 	}
+
+	vport->rxvlan_cfg.strip_tag1_discard_en = false;
 	vport->rxvlan_cfg.vlan1_vlan_prionly = false;
 	vport->rxvlan_cfg.vlan2_vlan_prionly = false;
 	vport->rxvlan_cfg.rx_vlan_offload_en = enable;
@@ -9120,6 +9133,7 @@ static u16 hclge_get_port_base_vlan_state(struct hclge_vport *vport,
 static int hclge_set_vf_vlan_filter(struct hnae3_handle *handle, int vfid,
 				    u16 vlan, u8 qos, __be16 proto)
 {
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_vlan_info vlan_info;
@@ -9149,16 +9163,25 @@ static int hclge_set_vf_vlan_filter(struct hnae3_handle *handle, int vfid,
 	vlan_info.qos = qos;
 	vlan_info.vlan_proto = ntohs(proto);
 
-	if (!test_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state)) {
-		return hclge_update_port_base_vlan_cfg(vport, state,
-						       &vlan_info);
-	} else {
-		ret = hclge_push_vf_port_base_vlan_info(&hdev->vport[0],
-							vport->vport_id, state,
-							vlan, qos,
-							ntohs(proto));
+	ret = hclge_update_port_base_vlan_cfg(vport, state, &vlan_info);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to update port base vlan for vf %d, ret = %d\n",
+			vfid, ret);
 		return ret;
 	}
+
+	/* for DEVICE_VERSION_V3, vf doesn't need to know about the port based
+	 * VLAN state.
+	 */
+	if (ae_dev->dev_version < HNAE3_DEVICE_VERSION_V3 &&
+	    test_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state))
+		hclge_push_vf_port_base_vlan_info(&hdev->vport[0],
+						  vport->vport_id, state,
+						  vlan, qos,
+						  ntohs(proto));
+
+	return 0;
 }
 
 static void hclge_clear_vf_vlan(struct hclge_dev *hdev)

@@ -719,6 +719,11 @@ struct hnae3_roce_private_info {
 #define HNAE3_UPE		(HNAE3_USER_UPE | HNAE3_OVERFLOW_UPE)
 #define HNAE3_MPE		(HNAE3_USER_MPE | HNAE3_OVERFLOW_MPE)
 
+enum hnae3_pflag {
+	HNAE3_PFLAG_LIMIT_PROMISC,
+	HNAE3_PFLAG_MAX
+};
+
 struct hnae3_handle {
 	struct hnae3_client *client;
 	struct pci_dev *pdev;
@@ -741,6 +746,9 @@ struct hnae3_handle {
 
 	/* Network interface message level enabled bits */
 	u32 msg_enable;
+
+	unsigned long supported_pflags;
+	unsigned long priv_flags;
 };
 
 #define hnae3_set_field(origin, mask, shift, val) \

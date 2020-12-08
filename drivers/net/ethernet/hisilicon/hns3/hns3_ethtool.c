@@ -18,6 +18,11 @@ struct hns3_sfp_type {
 	u8 ext_type;
 };
 
+struct hns3_pflag_desc {
+	char name[ETH_GSTRING_LEN];
+	void (*handler)(struct net_device *netdev, bool enable);
+};
+
 /* tqp related stats */
 #define HNS3_TQP_STAT(_string, _member)	{			\
 	.stats_string = _string,				\
@@ -59,6 +64,8 @@ static const struct hns3_stats hns3_rxq_stats[] = {
 	HNS3_TQP_STAT("multicast", rx_multicast),
 	HNS3_TQP_STAT("non_reuse_pg", non_reuse_pg),
 };
+
+#define HNS3_PRIV_FLAGS_LEN ARRAY_SIZE(hns3_priv_flags)
 
 #define HNS3_RXQ_STATS_COUNT ARRAY_SIZE(hns3_rxq_stats)
 
@@ -395,6 +402,23 @@ static void hns3_self_test(struct net_device *ndev,
 	netif_dbg(h, drv, ndev, "self test end\n");
 }
 
+static void hns3_update_limit_promisc_mode(struct net_device *netdev,
+					   bool enable)
+{
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+
+	if (enable)
+		set_bit(HNAE3_PFLAG_LIMIT_PROMISC, &handle->priv_flags);
+	else
+		clear_bit(HNAE3_PFLAG_LIMIT_PROMISC, &handle->priv_flags);
+
+	hns3_request_update_promisc_mode(handle);
+}
+
+static const struct hns3_pflag_desc hns3_priv_flags[HNAE3_PFLAG_MAX] = {
+	{ "limit_promisc",	hns3_update_limit_promisc_mode }
+};
+
 static int hns3_get_sset_count(struct net_device *netdev, int stringset)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
@@ -410,6 +434,9 @@ static int hns3_get_sset_count(struct net_device *netdev, int stringset)
 
 	case ETH_SS_TEST:
 		return ops->get_sset_count(h, stringset);
+
+	case ETH_SS_PRIV_FLAGS:
+		return HNAE3_PFLAG_MAX;
 
 	default:
 		return -EOPNOTSUPP;
@@ -464,6 +491,7 @@ static void hns3_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	const struct hnae3_ae_ops *ops = h->ae_algo->ops;
 	char *buff = (char *)data;
+	int i;
 
 	if (!ops->get_strings)
 		return;
@@ -475,6 +503,13 @@ static void hns3_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 		break;
 	case ETH_SS_TEST:
 		ops->get_strings(h, stringset, data);
+		break;
+	case ETH_SS_PRIV_FLAGS:
+		for (i = 0; i < HNS3_PRIV_FLAGS_LEN; i++) {
+			snprintf(buff, ETH_GSTRING_LEN, "%s",
+				 hns3_priv_flags[i].name);
+			buff += ETH_GSTRING_LEN;
+		}
 		break;
 	default:
 		break;
@@ -1517,6 +1552,53 @@ static int hns3_get_module_eeprom(struct net_device *netdev,
 	return ops->get_module_eeprom(handle, ee->offset, ee->len, data);
 }
 
+static u32 hns3_get_priv_flags(struct net_device *netdev)
+{
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+
+	return handle->priv_flags;
+}
+
+static int hns3_check_priv_flags(struct hnae3_handle *h, u32 changed)
+{
+	u32 i;
+
+	for (i = 0; i < HNAE3_PFLAG_MAX; i++)
+		if ((changed & BIT(i)) && !test_bit(i, &h->supported_pflags)) {
+			netdev_err(h->netdev, "%s is unsupported\n",
+				   hns3_priv_flags[i].name);
+			return -EOPNOTSUPP;
+		}
+
+	return 0;
+}
+
+static int hns3_set_priv_flags(struct net_device *netdev, u32 pflags)
+{
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	u32 changed = pflags ^ handle->priv_flags;
+	int ret;
+	u32 i;
+
+	ret = hns3_check_priv_flags(handle, changed);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < HNAE3_PFLAG_MAX; i++) {
+		if (changed & BIT(i)) {
+			bool enable = !(handle->priv_flags & BIT(i));
+
+			if (enable)
+				handle->priv_flags |= BIT(i);
+			else
+				handle->priv_flags &= ~BIT(i);
+			hns3_priv_flags[i].handler(netdev, enable);
+		}
+	}
+
+	return 0;
+}
+
 #define HNS3_ETHTOOL_COALESCE	(ETHTOOL_COALESCE_USECS |		\
 				 ETHTOOL_COALESCE_USE_ADAPTIVE |	\
 				 ETHTOOL_COALESCE_RX_USECS_HIGH |	\
@@ -1547,6 +1629,8 @@ static const struct ethtool_ops hns3vf_ethtool_ops = {
 	.get_link = hns3_get_link,
 	.get_msglevel = hns3_get_msglevel,
 	.set_msglevel = hns3_set_msglevel,
+	.get_priv_flags = hns3_get_priv_flags,
+	.set_priv_flags = hns3_set_priv_flags,
 };
 
 static const struct ethtool_ops hns3_ethtool_ops = {
@@ -1583,6 +1667,8 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.set_fecparam = hns3_set_fecparam,
 	.get_module_info = hns3_get_module_info,
 	.get_module_eeprom = hns3_get_module_eeprom,
+	.get_priv_flags = hns3_get_priv_flags,
+	.set_priv_flags = hns3_set_priv_flags,
 };
 
 void hns3_ethtool_set_ops(struct net_device *netdev)

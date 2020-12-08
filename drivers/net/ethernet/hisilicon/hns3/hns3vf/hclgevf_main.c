@@ -14,6 +14,9 @@
 #define HCLGEVF_RESET_MAX_FAIL_CNT	5
 
 static int hclgevf_reset_hdev(struct hclgevf_dev *hdev);
+static void hclgevf_task_schedule(struct hclgevf_dev *hdev,
+				  unsigned long delay);
+
 static struct hnae3_ae_algo ae_algovf;
 
 static struct workqueue_struct *hclgevf_wq;
@@ -1146,6 +1149,7 @@ static int hclgevf_cmd_set_promisc_mode(struct hclgevf_dev *hdev,
 					bool en_uc_pmc, bool en_mc_pmc,
 					bool en_bc_pmc)
 {
+	struct hnae3_handle *handle = &hdev->nic;
 	struct hclge_vf_to_pf_msg send_msg;
 	int ret;
 
@@ -1154,6 +1158,8 @@ static int hclgevf_cmd_set_promisc_mode(struct hclgevf_dev *hdev,
 	send_msg.en_bc = en_bc_pmc ? 1 : 0;
 	send_msg.en_uc = en_uc_pmc ? 1 : 0;
 	send_msg.en_mc = en_mc_pmc ? 1 : 0;
+	send_msg.en_limit_promisc = test_bit(HNAE3_PFLAG_LIMIT_PROMISC,
+					     &handle->priv_flags) ? 1 : 0;
 
 	ret = hclgevf_send_mbx_msg(hdev, &send_msg, false, NULL, 0);
 	if (ret)
@@ -1180,6 +1186,7 @@ static void hclgevf_request_update_promisc_mode(struct hnae3_handle *handle)
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 
 	set_bit(HCLGEVF_STATE_PROMISC_CHANGED, &hdev->state);
+	hclgevf_task_schedule(hdev, 0);
 }
 
 static void hclgevf_sync_promisc_mode(struct hclgevf_dev *hdev)

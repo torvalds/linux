@@ -110,6 +110,7 @@ struct hclge_vf_to_pf_msg {
 			u8 en_bc;
 			u8 en_uc;
 			u8 en_mc;
+			u8 en_limit_promisc;
 		};
 		struct {
 			u8 vector_id;

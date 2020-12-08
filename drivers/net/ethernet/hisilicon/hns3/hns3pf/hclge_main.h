@@ -850,15 +850,18 @@ struct hclge_tx_vtag_cfg {
 	bool insert_tag2_en;	/* Whether insert outer vlan tag */
 	u16  default_tag1;	/* The default inner vlan tag to insert */
 	u16  default_tag2;	/* The default outer vlan tag to insert */
+	bool tag_shift_mode_en;
 };
 
 /* VPort level vlan tag configuration for RX direction */
 struct hclge_rx_vtag_cfg {
-	u8 rx_vlan_offload_en;	/* Whether enable rx vlan offload */
-	u8 strip_tag1_en;	/* Whether strip inner vlan tag */
-	u8 strip_tag2_en;	/* Whether strip outer vlan tag */
-	u8 vlan1_vlan_prionly;	/* Inner VLAN Tag up to descriptor Enable */
-	u8 vlan2_vlan_prionly;	/* Outer VLAN Tag up to descriptor Enable */
+	bool rx_vlan_offload_en; /* Whether enable rx vlan offload */
+	bool strip_tag1_en;	 /* Whether strip inner vlan tag */
+	bool strip_tag2_en;	 /* Whether strip outer vlan tag */
+	bool vlan1_vlan_prionly; /* Inner vlan tag up to descriptor enable */
+	bool vlan2_vlan_prionly; /* Outer vlan tag up to descriptor enable */
+	bool strip_tag1_discard_en; /* Inner vlan tag discard for BD enable */
+	bool strip_tag2_discard_en; /* Outer vlan tag discard for BD enable */
 };
 
 struct hclge_rss_tuple_cfg {
