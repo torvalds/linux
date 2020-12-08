@@ -306,10 +306,29 @@ static bool mlxsw_sp2_nve_vxlan_learning_set(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int
+mlxsw_sp2_nve_decap_ethertype_set(struct mlxsw_sp *mlxsw_sp, u16 ethertype)
+{
+	char spvid_pl[MLXSW_REG_SPVID_LEN] = {};
+	u8 sver_type;
+	int err;
+
+	mlxsw_reg_spvid_tport_set(spvid_pl, true);
+	mlxsw_reg_spvid_local_port_set(spvid_pl,
+				       MLXSW_REG_TUNNEL_PORT_NVE);
+	err = mlxsw_sp_ethtype_to_sver_type(ethertype, &sver_type);
+	if (err)
+		return err;
+
+	mlxsw_reg_spvid_et_vlan_set(spvid_pl, sver_type);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvid), spvid_pl);
+}
+
+static int
 mlxsw_sp2_nve_vxlan_config_set(struct mlxsw_sp *mlxsw_sp,
 			       const struct mlxsw_sp_nve_config *config)
 {
 	char tngcr_pl[MLXSW_REG_TNGCR_LEN];
+	char spvtr_pl[MLXSW_REG_SPVTR_LEN];
 	u16 ul_rif_index;
 	int err;
 
@@ -330,8 +349,25 @@ mlxsw_sp2_nve_vxlan_config_set(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_tngcr_write;
 
+	mlxsw_reg_spvtr_pack(spvtr_pl, true, MLXSW_REG_TUNNEL_PORT_NVE,
+			     MLXSW_REG_SPVTR_IPVID_MODE_ALWAYS_PUSH_VLAN);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvtr), spvtr_pl);
+	if (err)
+		goto err_spvtr_write;
+
+	err = mlxsw_sp2_nve_decap_ethertype_set(mlxsw_sp, config->ethertype);
+	if (err)
+		goto err_decap_ethertype_set;
+
 	return 0;
 
+err_decap_ethertype_set:
+	mlxsw_reg_spvtr_pack(spvtr_pl, true, MLXSW_REG_TUNNEL_PORT_NVE,
+			     MLXSW_REG_SPVTR_IPVID_MODE_IEEE_COMPLIANT_PVID);
+	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvtr), spvtr_pl);
+err_spvtr_write:
+	mlxsw_reg_tngcr_pack(tngcr_pl, MLXSW_REG_TNGCR_TYPE_VXLAN, false, 0);
+	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(tngcr), tngcr_pl);
 err_tngcr_write:
 	mlxsw_sp2_nve_vxlan_learning_set(mlxsw_sp, false);
 err_vxlan_learning_set:
@@ -341,8 +377,14 @@ err_vxlan_learning_set:
 
 static void mlxsw_sp2_nve_vxlan_config_clear(struct mlxsw_sp *mlxsw_sp)
 {
+	char spvtr_pl[MLXSW_REG_SPVTR_LEN];
 	char tngcr_pl[MLXSW_REG_TNGCR_LEN];
 
+	/* Set default EtherType */
+	mlxsw_sp2_nve_decap_ethertype_set(mlxsw_sp, ETH_P_8021Q);
+	mlxsw_reg_spvtr_pack(spvtr_pl, true, MLXSW_REG_TUNNEL_PORT_NVE,
+			     MLXSW_REG_SPVTR_IPVID_MODE_IEEE_COMPLIANT_PVID);
+	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvtr), spvtr_pl);
 	mlxsw_reg_tngcr_pack(tngcr_pl, MLXSW_REG_TNGCR_TYPE_VXLAN, false, 0);
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(tngcr), tngcr_pl);
 	mlxsw_sp2_nve_vxlan_learning_set(mlxsw_sp, false);
