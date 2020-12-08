@@ -44,6 +44,7 @@ struct rockchip_combphy_grfcfg {
 	struct combphy_reg pipe_sel_qsgmii;
 	struct combphy_reg pipe_clk_25m;
 	struct combphy_reg pipe_clk_100m;
+	struct combphy_reg pipe_clk_ext;
 	struct combphy_reg con0_for_pcie;
 	struct combphy_reg con1_for_pcie;
 	struct combphy_reg con2_for_pcie;
@@ -397,6 +398,9 @@ static int rk3568_combphy_cfg(struct rockchip_combphy_priv *priv)
 		return -EINVAL;
 	}
 
+	if (device_property_read_bool(priv->dev, "rockchip,ext-refclk"))
+		param_write(priv->phy_grf, &cfg->pipe_clk_ext, true);
+
 	return 0;
 }
 
@@ -414,6 +418,7 @@ static const struct rockchip_combphy_grfcfg rk3568_combphy_grfcfgs = {
 	.pipe_sel_qsgmii	= { 0x000c, 14, 13, 0x00, 0x03 },
 	.pipe_clk_25m		= { 0x0004, 14, 13, 0x00, 0x01 },
 	.pipe_clk_100m		= { 0x0004, 14, 13, 0x00, 0x02 },
+	.pipe_clk_ext		= { 0x000c, 9, 8, 0x02, 0x01 },
 	.con0_for_pcie		= { 0x0000, 15, 0, 0x00, 0x1000 },
 	.con1_for_pcie		= { 0x0004, 15, 0, 0x00, 0x0000 },
 	.con2_for_pcie		= { 0x0008, 15, 0, 0x00, 0x0101 },
