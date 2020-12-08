@@ -570,6 +570,7 @@ static void rdma_init_coredev(struct ib_core_device *coredev,
 struct ib_device *_ib_alloc_device(size_t size)
 {
 	struct ib_device *device;
+	unsigned int i;
 
 	if (WARN_ON(size < sizeof(struct ib_device)))
 		return NULL;
@@ -600,6 +601,10 @@ struct ib_device *_ib_alloc_device(size_t size)
 	mutex_init(&device->compat_devs_mutex);
 	init_completion(&device->unreg_completion);
 	INIT_WORK(&device->unregistration_work, ib_unregister_work);
+
+	spin_lock_init(&device->cq_pools_lock);
+	for (i = 0; i < ARRAY_SIZE(device->cq_pools); i++)
+		INIT_LIST_HEAD(&device->cq_pools[i]);
 
 	device->uverbs_cmd_mask =
 		BIT_ULL(IB_USER_VERBS_CMD_ALLOC_MW) |
@@ -1262,7 +1267,7 @@ static void disable_device(struct ib_device *device)
 		remove_client_context(device, cid);
 	}
 
-	ib_cq_pool_destroy(device);
+	ib_cq_pool_cleanup(device);
 
 	/* Pairs with refcount_set in enable_device */
 	ib_device_put(device);
@@ -1306,8 +1311,6 @@ static int enable_device_and_get(struct ib_device *device)
 		if (ret)
 			goto out;
 	}
-
-	ib_cq_pool_init(device);
 
 	down_read(&clients_rwsem);
 	xa_for_each_marked (&clients, index, client, CLIENT_REGISTERED) {

@@ -349,16 +349,7 @@ void ib_free_cq(struct ib_cq *cq)
 }
 EXPORT_SYMBOL(ib_free_cq);
 
-void ib_cq_pool_init(struct ib_device *dev)
-{
-	unsigned int i;
-
-	spin_lock_init(&dev->cq_pools_lock);
-	for (i = 0; i < ARRAY_SIZE(dev->cq_pools); i++)
-		INIT_LIST_HEAD(&dev->cq_pools[i]);
-}
-
-void ib_cq_pool_destroy(struct ib_device *dev)
+void ib_cq_pool_cleanup(struct ib_device *dev)
 {
 	struct ib_cq *cq, *n;
 	unsigned int i;
@@ -367,6 +358,7 @@ void ib_cq_pool_destroy(struct ib_device *dev)
 		list_for_each_entry_safe(cq, n, &dev->cq_pools[i],
 					 pool_entry) {
 			WARN_ON(cq->cqe_used);
+			list_del(&cq->pool_entry);
 			cq->shared = false;
 			ib_free_cq(cq);
 		}
