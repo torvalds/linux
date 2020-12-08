@@ -816,6 +816,8 @@ static void mt76u_status_worker(struct mt76_worker *w)
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		q = dev->phy.q_tx[i];
+		if (!q)
+			continue;
 
 		while (q->queued > 0) {
 			if (!q->entry[q->tail].done)
