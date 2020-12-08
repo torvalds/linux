@@ -628,8 +628,8 @@ struct tb_ctl *tb_ctl_alloc(struct tb_nhi *nhi, event_cb cb, void *cb_data)
 	if (!ctl->tx)
 		goto err;
 
-	ctl->rx = tb_ring_alloc_rx(nhi, 0, 10, RING_FLAG_NO_SUSPEND, 0xffff,
-				0xffff, NULL, NULL);
+	ctl->rx = tb_ring_alloc_rx(nhi, 0, 10, RING_FLAG_NO_SUSPEND, 0, 0xffff,
+				   0xffff, NULL, NULL);
 	if (!ctl->rx)
 		goto err;
 
@@ -962,6 +962,9 @@ static int tb_cfg_get_error(struct tb_ctl *ctl, enum tb_cfg_space space,
 
 	if (res->tb_error == TB_CFG_ERROR_LOCK)
 		return -EACCES;
+	else if (res->tb_error == TB_CFG_ERROR_PORT_NOT_CONNECTED)
+		return -ENOTCONN;
+
 	return -EIO;
 }
 

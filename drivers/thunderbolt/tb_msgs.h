@@ -106,6 +106,7 @@ enum icm_pkg_code {
 	ICM_APPROVE_XDOMAIN = 0x10,
 	ICM_DISCONNECT_XDOMAIN = 0x11,
 	ICM_PREBOOT_ACL = 0x18,
+	ICM_USB4_SWITCH_OP = 0x20,
 };
 
 enum icm_event_code {
@@ -343,6 +344,8 @@ struct icm_tr_pkg_driver_ready_response {
 #define ICM_TR_FLAGS_RTD3		BIT(6)
 
 #define ICM_TR_INFO_SLEVEL_MASK		GENMASK(2, 0)
+#define ICM_TR_INFO_PROTO_VERSION_MASK	GENMASK(6, 4)
+#define ICM_TR_INFO_PROTO_VERSION_SHIFT	4
 #define ICM_TR_INFO_BOOT_ACL_SHIFT	7
 #define ICM_TR_INFO_BOOT_ACL_MASK	GENMASK(12, 7)
 
@@ -476,6 +479,31 @@ struct icm_tr_pkg_disconnect_xdomain_response {
 struct icm_icl_event_rtd3_veto {
 	struct icm_pkg_header hdr;
 	u32 veto_reason;
+};
+
+/* USB4 ICM messages */
+
+struct icm_usb4_switch_op {
+	struct icm_pkg_header hdr;
+	u32 route_hi;
+	u32 route_lo;
+	u32 metadata;
+	u16 opcode;
+	u16 data_len_valid;
+	u32 data[16];
+};
+
+#define ICM_USB4_SWITCH_DATA_LEN_MASK	GENMASK(3, 0)
+#define ICM_USB4_SWITCH_DATA_VALID	BIT(4)
+
+struct icm_usb4_switch_op_response {
+	struct icm_pkg_header hdr;
+	u32 route_hi;
+	u32 route_lo;
+	u32 metadata;
+	u16 opcode;
+	u16 status;
+	u32 data[16];
 };
 
 /* XDomain messages */
