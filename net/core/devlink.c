@@ -6993,7 +6993,6 @@ static int devlink_nl_cmd_trap_set_doit(struct sk_buff *skb,
 	struct netlink_ext_ack *extack = info->extack;
 	struct devlink *devlink = info->user_ptr[0];
 	struct devlink_trap_item *trap_item;
-	int err;
 
 	if (list_empty(&devlink->trap_list))
 		return -EOPNOTSUPP;
@@ -7004,11 +7003,7 @@ static int devlink_nl_cmd_trap_set_doit(struct sk_buff *skb,
 		return -ENOENT;
 	}
 
-	err = devlink_trap_action_set(devlink, trap_item, info);
-	if (err)
-		return err;
-
-	return 0;
+	return devlink_trap_action_set(devlink, trap_item, info);
 }
 
 static struct devlink_trap_group_item *
