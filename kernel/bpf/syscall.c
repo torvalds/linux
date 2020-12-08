@@ -2121,8 +2121,11 @@ static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 			if (IS_ERR(attach_btf))
 				return -EINVAL;
 			if (!btf_is_kernel(attach_btf)) {
+				/* attaching through specifying bpf_prog's BTF
+				 * objects directly might be supported eventually
+				 */
 				btf_put(attach_btf);
-				return -EINVAL;
+				return -ENOTSUPP;
 			}
 		}
 	} else if (attr->attach_btf_id) {
