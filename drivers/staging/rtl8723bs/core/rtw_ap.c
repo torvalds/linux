@@ -76,7 +76,7 @@ static void update_BCNTIM(struct adapter *padapter)
 
 		p = rtw_get_ie(
 			pie + _FIXED_IE_LENGTH_,
-			_TIM_IE_,
+			WLAN_EID_TIM,
 			&tim_ielen,
 			pnetwork_mlmeext->IELength - _FIXED_IE_LENGTH_
 		);
@@ -133,7 +133,7 @@ static void update_BCNTIM(struct adapter *padapter)
 				memcpy(pbackup_remainder_ie, premainder_ie, remainder_ielen);
 		}
 
-		*dst_ie++ = _TIM_IE_;
+		*dst_ie++ = WLAN_EID_TIM;
 
 		if ((pstapriv->tim_bitmap & 0xff00) && (pstapriv->tim_bitmap & 0x00fe))
 			tim_ielen = 5;
@@ -301,7 +301,7 @@ void expire_timeout_chk(struct adapter *padapter)
 
 					/* to update bcn with tim_bitmap for this station */
 					pstapriv->tim_bitmap |= BIT(psta->aid);
-					update_beacon(padapter, _TIM_IE_, NULL, true);
+					update_beacon(padapter, WLAN_EID_TIM, NULL, true);
 
 					if (!pmlmeext->active_keep_alive_check)
 						continue;
@@ -922,7 +922,7 @@ void start_bss_network(struct adapter *padapter, u8 *pbuf)
 	);
 
 	if (pmlmeext->bstart_bss) {
-		update_beacon(padapter, _TIM_IE_, NULL, true);
+		update_beacon(padapter, WLAN_EID_TIM, NULL, true);
 
 #ifndef CONFIG_INTERRUPT_BASED_TXBCN /* other case will  tx beacon when bcn interrupt coming in. */
 		/* issue beacon frame */
@@ -1762,7 +1762,7 @@ void update_beacon(struct adapter *padapter, u8 ie_id, u8 *oui, u8 tx)
 
 		break;
 
-	case _TIM_IE_:
+	case WLAN_EID_TIM:
 
 		update_BCNTIM(padapter);
 
