@@ -1080,7 +1080,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 	psecuritypriv->wpa2_pairwise_cipher = _NO_PRIVACY_;
 	p = rtw_get_ie(
 		ie + _BEACON_IE_OFFSET_,
-		_RSN_IE_2_,
+		WLAN_EID_RSN,
 		&ie_len,
 		(pbss_network->IELength - _BEACON_IE_OFFSET_)
 	);
@@ -1780,7 +1780,7 @@ void update_beacon(struct adapter *padapter, u8 ie_id, u8 *oui, u8 tx)
 
 		break;
 
-	case _RSN_IE_2_:
+	case WLAN_EID_RSN:
 
 		update_bcn_rsn_ie(padapter);
 

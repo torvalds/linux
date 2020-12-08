@@ -1511,7 +1511,7 @@ unsigned int is_ap_in_tkip(struct adapter *padapter)
 
 				break;
 
-			case _RSN_IE_2_:
+			case WLAN_EID_RSN:
 				if (!memcmp((pIE->data + 8), RSN_TKIP_CIPHER, 4))
 					return true;
 				break;
