@@ -951,7 +951,7 @@ stm_unregister:
 	return ret;
 }
 
-static int __exit stm_remove(struct amba_device *adev)
+static int stm_remove(struct amba_device *adev)
 {
 	struct stm_drvdata *drvdata = dev_get_drvdata(&adev->dev);
 
