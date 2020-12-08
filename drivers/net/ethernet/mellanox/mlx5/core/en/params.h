@@ -41,6 +41,15 @@ struct mlx5e_channel_param {
 	struct mlx5e_sq_param      async_icosq;
 };
 
+struct mlx5e_create_sq_param {
+	struct mlx5_wq_ctrl        *wq_ctrl;
+	u32                         cqn;
+	u32                         ts_cqe_to_dest_cqn;
+	u32                         tisn;
+	u8                          tis_lst_sz;
+	u8                          min_inline_mode;
+};
+
 static inline bool mlx5e_qid_get_ch_if_in_group(struct mlx5e_params *params,
 						u16 qid,
 						enum mlx5e_rq_group group,
@@ -102,6 +111,7 @@ u16 mlx5e_get_rq_headroom(struct mlx5_core_dev *mdev,
 
 /* Build queue parameters */
 
+void mlx5e_build_create_cq_param(struct mlx5e_create_cq_param *ccp, struct mlx5e_channel *c);
 void mlx5e_build_rq_param(struct mlx5e_priv *priv,
 			  struct mlx5e_params *params,
 			  struct mlx5e_xsk_param *xsk,

@@ -1680,7 +1680,6 @@ static int esw_create_restore_table(struct mlx5_eswitch *esw)
 		goto out_free;
 	}
 
-	memset(flow_group_in, 0, inlen);
 	match_criteria = MLX5_ADDR_OF(create_flow_group_in, flow_group_in,
 				      match_criteria);
 	misc = MLX5_ADDR_OF(fte_match_param, match_criteria,
