@@ -11,7 +11,7 @@ Required properties:
 - compatible: should be one of the following:
 		 "hisilicon,hi3660-reset" for HI3660
 		 "hisilicon,hi3670-reset", "hisilicon,hi3660-reset" for HI3670
-- hisi,rst-syscon: phandle of the reset's syscon.
+- hisilicon,rst-syscon: phandle of the reset's syscon.
 - #reset-cells : Specifies the number of cells needed to encode a
   reset source.  The type shall be a <u32> and the value shall be 2.
 
@@ -29,7 +29,7 @@ Example:
 
 	iomcu_rst: iomcu_rst_controller {
 		compatible = "hisilicon,hi3660-reset";
-		hisi,rst-syscon = <&iomcu>;
+		hisilicon,rst-syscon = <&iomcu>;
 		#reset-cells = <2>;
 	};
 
