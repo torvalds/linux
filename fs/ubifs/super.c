@@ -1572,7 +1572,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	dbg_gen("main area LEBs:      %d (%d - %d)",
 		c->main_lebs, c->main_first, c->leb_cnt - 1);
 	dbg_gen("index LEBs:          %d", c->lst.idx_lebs);
-	dbg_gen("total index bytes:   %lld (%lld KiB, %lld MiB)",
+	dbg_gen("total index bytes:   %llu (%llu KiB, %llu MiB)",
 		c->bi.old_idx_sz, c->bi.old_idx_sz >> 10,
 		c->bi.old_idx_sz >> 20);
 	dbg_gen("key hash type:       %d", c->key_hash_type);
