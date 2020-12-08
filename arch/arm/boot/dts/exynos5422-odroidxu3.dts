@@ -15,6 +15,10 @@
 / {
 	model = "Hardkernel Odroid XU3";
 	compatible = "hardkernel,odroid-xu3", "samsung,exynos5800", "samsung,exynos5";
+
+	aliases {
+		ethernet = &ethernet;
+	};
 };
 
 &i2c_0 {
@@ -76,13 +80,13 @@
 	#size-cells = <0>;
 
 	hub@1 {
-		compatible = "usb8087,0024";
+		compatible = "usb0424,9514";
 		reg = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
 		ethernet: usbether@1 {
-			compatible = "usb0c45,6310";
+			compatible = "usb0424,ec00";
 			reg = <1>;
 			local-mac-address = [00 00 00 00 00 00]; /* Filled in by a bootloader */
 		};
