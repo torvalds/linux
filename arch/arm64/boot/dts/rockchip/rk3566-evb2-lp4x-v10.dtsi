@@ -15,6 +15,17 @@
 	model = "Rockchip RK3566 EVB2 LP4X V10 Board";
 	compatible = "rockchip,rk3566-evb2-lp4x-v10", "rockchip,rk3568";
 
+	pcie20_3v3: gpio-regulator {
+		compatible = "regulator-gpio";
+		regulator-name = "pcie20_3v3";
+		regulator-min-microvolt = <0100000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
+		gpios-states = <0x1>;
+		states = <0100000 0x0
+			  3300000 0x1>;
+	};
+
 	rk_headset: rk-headset {
 		compatible = "rockchip_headset";
 		headset_gpio = <&gpio3 RK_PA1 GPIO_ACTIVE_LOW>;
@@ -36,6 +47,10 @@
 
 &combphy1_usq {
 	status = "okay";
+};
+
+&combphy2_psq {
+	status = "disabled";
 };
 
 &csi_dphy {
@@ -230,6 +245,12 @@
 };
 
 &mipi_dphy1 {
+	status = "disabled";
+};
+
+&pcie2x1 {
+	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&pcie20_3v3>;
 	status = "disabled";
 };
 
