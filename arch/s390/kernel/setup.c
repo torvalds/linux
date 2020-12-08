@@ -49,6 +49,7 @@
 #include <linux/memory.h>
 #include <linux/compat.h>
 #include <linux/start_kernel.h>
+#include <linux/hugetlb.h>
 
 #include <asm/boot_data.h>
 #include <asm/ipl.h>
@@ -1146,6 +1147,8 @@ void __init setup_arch(char **cmdline_p)
 	setup_memory();
 	dma_contiguous_reserve(ident_map_size);
 	vmcp_cma_reserve();
+	if (MACHINE_HAS_EDAT2)
+		hugetlb_cma_reserve(PUD_SHIFT - PAGE_SHIFT);
 
 	check_initrd();
 	reserve_crashkernel();
