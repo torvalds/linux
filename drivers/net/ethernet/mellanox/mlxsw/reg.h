@@ -821,8 +821,16 @@ static inline void mlxsw_reg_spms_vid_pack(char *payload, u16 vid,
 
 MLXSW_REG_DEFINE(spvid, MLXSW_REG_SPVID_ID, MLXSW_REG_SPVID_LEN);
 
+/* reg_spvid_tport
+ * Port is tunnel port.
+ * Reserved when SwitchX/-2 or Spectrum-1.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, spvid, tport, 0x00, 24, 1);
+
 /* reg_spvid_local_port
- * Local port number.
+ * When tport = 0: Local port number. Not supported for CPU port.
+ * When tport = 1: Tunnel port.
  * Access: Index
  */
 MLXSW_ITEM32(reg, spvid, local_port, 0x00, 16, 8);
