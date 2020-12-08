@@ -401,7 +401,6 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 #define _ERPINFO_IE_			42
 #define _EXT_SUPPORTEDRATES_IE_	50
 
-#define _HT_CAPABILITY_IE_			45
 #define _FTIE_						55
 #define _TIMEOUT_ITVL_IE_			56
 #define _SRC_IE_				59

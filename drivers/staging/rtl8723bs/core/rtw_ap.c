@@ -1172,7 +1172,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 	/* parsing HT_CAP_IE */
 	p = rtw_get_ie(
 		ie + _BEACON_IE_OFFSET_,
-		_HT_CAPABILITY_IE_,
+		WLAN_EID_HT_CAPABILITY,
 		&ie_len,
 		(pbss_network->IELength - _BEACON_IE_OFFSET_)
 	);
@@ -1774,7 +1774,7 @@ void update_beacon(struct adapter *padapter, u8 ie_id, u8 *oui, u8 tx)
 
 		break;
 
-	case _HT_CAPABILITY_IE_:
+	case WLAN_EID_HT_CAPABILITY:
 
 		update_bcn_htcap_ie(padapter);
 
@@ -2052,7 +2052,7 @@ void bss_cap_update_on_sta_join(struct adapter *padapter, struct sta_info *psta)
 	}
 
 	if (rtw_ht_operation_update(padapter) > 0) {
-		update_beacon(padapter, _HT_CAPABILITY_IE_, NULL, false);
+		update_beacon(padapter, WLAN_EID_HT_CAPABILITY, NULL, false);
 		update_beacon(padapter, _HT_ADD_INFO_IE_, NULL, true);
 	}
 
@@ -2116,7 +2116,7 @@ u8 bss_cap_update_on_sta_leave(struct adapter *padapter, struct sta_info *psta)
 	}
 
 	if (rtw_ht_operation_update(padapter) > 0) {
-		update_beacon(padapter, _HT_CAPABILITY_IE_, NULL, false);
+		update_beacon(padapter, WLAN_EID_HT_CAPABILITY, NULL, false);
 		update_beacon(padapter, _HT_ADD_INFO_IE_, NULL, true);
 	}
 
