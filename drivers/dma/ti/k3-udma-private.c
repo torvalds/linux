@@ -88,6 +88,9 @@ EXPORT_SYMBOL(xudma_free_gp_rflow_range);
 
 bool xudma_rflow_is_gp(struct udma_dev *ud, int id)
 {
+	if (!ud->rflow_gp_map)
+		return false;
+
 	return !test_bit(id, ud->rflow_gp_map);
 }
 EXPORT_SYMBOL(xudma_rflow_is_gp);
@@ -118,6 +121,12 @@ void xudma_rflow_put(struct udma_dev *ud, struct udma_rflow *p)
 	__udma_put_rflow(ud, p);
 }
 EXPORT_SYMBOL(xudma_rflow_put);
+
+int xudma_get_rflow_ring_offset(struct udma_dev *ud)
+{
+	return ud->tflow_cnt;
+}
+EXPORT_SYMBOL(xudma_get_rflow_ring_offset);
 
 #define XUDMA_GET_RESOURCE_ID(res)					\
 int xudma_##res##_get_id(struct udma_##res *p)				\
