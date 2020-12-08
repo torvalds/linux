@@ -157,10 +157,14 @@ static void mt76s_net_worker(struct mt76_worker *w)
 
 static int mt76s_process_tx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 {
-	bool mcu = q == dev->q_mcu[MT_MCUQ_WM];
 	struct mt76_queue_entry entry;
 	int nframes = 0;
+	bool mcu;
 
+	if (!q)
+		return 0;
+
+	mcu = q == dev->q_mcu[MT_MCUQ_WM];
 	while (q->queued > 0) {
 		if (!q->entry[q->tail].done)
 			break;
