@@ -18,7 +18,7 @@
 #define UDMA_RX_FLOW_ID_FW_OES_REG	0x80
 #define UDMA_RX_FLOW_ID_FW_STATUS_REG	0x88
 
-/* TCHANRT/RCHANRT registers */
+/* BCHANRT/TCHANRT/RCHANRT registers */
 #define UDMA_CHAN_RT_CTL_REG		0x0
 #define UDMA_CHAN_RT_SWTRIG_REG		0x8
 #define UDMA_CHAN_RT_STDATA_REG		0x80
@@ -44,6 +44,10 @@
 #define UDMA_CAP3_RFLOW_CNT(val)	((val) & 0x3fff)
 #define UDMA_CAP3_HCHAN_CNT(val)	(((val) >> 14) & 0x1ff)
 #define UDMA_CAP3_UCHAN_CNT(val)	(((val) >> 23) & 0x1ff)
+
+#define BCDMA_CAP2_BCHAN_CNT(val)	((val) & 0x1ff)
+#define BCDMA_CAP2_TCHAN_CNT(val)	(((val) >> 9) & 0x1ff)
+#define BCDMA_CAP2_RCHAN_CNT(val)	(((val) >> 18) & 0x1ff)
 
 /* UDMA_CHAN_RT_CTL_REG */
 #define UDMA_CHAN_RT_CTL_EN		BIT(31)
@@ -82,13 +86,17 @@
  */
 #define PDMA_STATIC_TR_Z(x, mask)	((x) & (mask))
 
+/* Address Space Select */
+#define K3_ADDRESS_ASEL_SHIFT		48
+
 struct udma_dev;
 struct udma_tchan;
 struct udma_rchan;
 struct udma_rflow;
 
 enum udma_rm_range {
-	RM_RANGE_TCHAN = 0,
+	RM_RANGE_BCHAN = 0,
+	RM_RANGE_TCHAN,
 	RM_RANGE_RCHAN,
 	RM_RANGE_RFLOW,
 	RM_RANGE_LAST,
