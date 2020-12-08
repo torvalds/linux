@@ -125,7 +125,6 @@ struct idtcm_channel {
 	enum pll_mode		pll_mode;
 	u8			pll;
 	u16			output_mask;
-	int			write_phase_ready;
 };
 
 struct idtcm {

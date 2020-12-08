@@ -70,16 +70,6 @@ static int contains_full_configuration(const struct firmware *fw)
 	return (count >= full_count);
 }
 
-static long set_write_phase_ready(struct ptp_clock_info *ptp)
-{
-	struct idtcm_channel *channel =
-		container_of(ptp, struct idtcm_channel, caps);
-
-	channel->write_phase_ready = 1;
-
-	return 0;
-}
-
 static int char_array_to_timespec(u8 *buf,
 				  u8 count,
 				  struct timespec64 *ts)
@@ -1339,15 +1329,7 @@ static int _idtcm_adjphase(struct idtcm_channel *channel, s32 delta_ns)
 
 		if (err)
 			return err;
-
-		channel->write_phase_ready = 0;
-
-		ptp_schedule_worker(channel->ptp_clock,
-				    msecs_to_jiffies(WR_PHASE_SETUP_MS));
 	}
-
-	if (!channel->write_phase_ready)
-		delta_ns = 0;
 
 	offset_ps = (s64)delta_ns * 1000;
 
@@ -1928,7 +1910,6 @@ static const struct ptp_clock_info idtcm_caps_v487 = {
 	.gettime64	= &idtcm_gettime,
 	.settime64	= &idtcm_settime_v487,
 	.enable		= &idtcm_enable,
-	.do_aux_work	= &set_write_phase_ready,
 };
 
 static const struct ptp_clock_info idtcm_caps = {
@@ -1941,7 +1922,6 @@ static const struct ptp_clock_info idtcm_caps = {
 	.gettime64	= &idtcm_gettime,
 	.settime64	= &idtcm_settime,
 	.enable		= &idtcm_enable,
-	.do_aux_work	= &set_write_phase_ready,
 };
 
 static int configure_channel_pll(struct idtcm_channel *channel)
@@ -2110,8 +2090,6 @@ static int idtcm_enable_channel(struct idtcm *idtcm, u32 index)
 
 	if (!channel->ptp_clock)
 		return -ENOTSUPP;
-
-	channel->write_phase_ready = 0;
 
 	dev_info(&idtcm->client->dev, "PLL%d registered as ptp%d\n",
 		 index, channel->ptp_clock->index);
