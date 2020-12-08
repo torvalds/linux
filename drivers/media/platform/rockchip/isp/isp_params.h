@@ -71,8 +71,10 @@ struct rkisp_isp_params_vdev {
 
 	struct isp2x_hdrtmo_cfg last_hdrtmo;
 	struct isp2x_hdrmge_cfg last_hdrmge;
+	struct isp21_drc_cfg last_hdrdrc;
 	struct isp2x_hdrtmo_cfg cur_hdrtmo;
 	struct isp2x_hdrmge_cfg cur_hdrmge;
+	struct isp21_drc_cfg cur_hdrdrc;
 	struct isp2x_lsc_cfg cur_lsccfg;
 };
 
