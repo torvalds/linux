@@ -12,7 +12,7 @@
 
 static int arm_smmu_gr0_ns(int offset)
 {
-	switch(offset) {
+	switch (offset) {
 	case ARM_SMMU_GR0_sCR0:
 	case ARM_SMMU_GR0_sACR:
 	case ARM_SMMU_GR0_sGFSR:
@@ -91,14 +91,11 @@ static struct arm_smmu_device *cavium_smmu_impl_init(struct arm_smmu_device *smm
 {
 	struct cavium_smmu *cs;
 
-	cs = devm_kzalloc(smmu->dev, sizeof(*cs), GFP_KERNEL);
+	cs = devm_krealloc(smmu->dev, smmu, sizeof(*cs), GFP_KERNEL);
 	if (!cs)
 		return ERR_PTR(-ENOMEM);
 
-	cs->smmu = *smmu;
 	cs->smmu.impl = &cavium_impl;
-
-	devm_kfree(smmu->dev, smmu);
 
 	return &cs->smmu;
 }
@@ -217,11 +214,7 @@ struct arm_smmu_device *arm_smmu_impl_init(struct arm_smmu_device *smmu)
 	if (of_device_is_compatible(np, "nvidia,tegra194-smmu"))
 		return nvidia_smmu_impl_init(smmu);
 
-	if (of_device_is_compatible(np, "qcom,sdm845-smmu-500") ||
-	    of_device_is_compatible(np, "qcom,sc7180-smmu-500") ||
-	    of_device_is_compatible(np, "qcom,sm8150-smmu-500") ||
-	    of_device_is_compatible(np, "qcom,sm8250-smmu-500"))
-		return qcom_smmu_impl_init(smmu);
+	smmu = qcom_smmu_impl_init(smmu);
 
 	if (of_device_is_compatible(np, "marvell,ap806-smmu-500"))
 		smmu->impl = &mrvl_mmu500_impl;

@@ -33,7 +33,7 @@
 
 #include "arm-smmu-v3.h"
 
-static bool disable_bypass = 1;
+static bool disable_bypass = true;
 module_param(disable_bypass, bool, 0444);
 MODULE_PARM_DESC(disable_bypass,
 	"Disable bypass streams such that incoming transactions from devices that are not attached to an iommu domain will report an abort back to the device and will not be allowed to pass through the SMMU.");
