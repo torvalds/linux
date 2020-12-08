@@ -130,7 +130,7 @@ struct smsm_host {
 /**
  * smsm_update_bits() - change bit in outgoing entry and inform subscribers
  * @data:	smsm context pointer
- * @offset:	bit in the entry
+ * @mask:	value mask
  * @value:	new value
  *
  * Used to set and clear the bits in the outgoing/local entry and inform
@@ -254,10 +254,8 @@ static void smsm_mask_irq(struct irq_data *irqd)
  * smsm_unmask_irq() - subscribe to cascades of IRQs of a certain status bit
  * @irqd:	IRQ handle to be unmasked
  *
-
  * This subscribes the local CPU to interrupts upon changes to the defined
  * status bit. The bit is also marked for cascading.
-
  */
 static void smsm_unmask_irq(struct irq_data *irqd)
 {
