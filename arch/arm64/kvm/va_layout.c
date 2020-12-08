@@ -42,7 +42,7 @@ static void init_hyp_physvirt_offset(void)
 	u64 kern_va, hyp_va;
 
 	/* Compute the offset from the hyp VA and PA of a random symbol. */
-	kern_va = (u64)kvm_ksym_ref(__hyp_text_start);
+	kern_va = (u64)lm_alias(__hyp_text_start);
 	hyp_va = __early_kern_hyp_va(kern_va);
 	CHOOSE_NVHE_SYM(hyp_physvirt_offset) = (s64)__pa(kern_va) - (s64)hyp_va;
 }
