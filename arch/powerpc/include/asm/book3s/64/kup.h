@@ -353,29 +353,29 @@ static inline void set_kuap(unsigned long value)
 	isync();
 }
 
-#define RADIX_KUAP_BLOCK_READ	UL(0x4000000000000000)
-#define RADIX_KUAP_BLOCK_WRITE	UL(0x8000000000000000)
-
 static inline bool bad_kuap_fault(struct pt_regs *regs, unsigned long address,
-				  bool is_write, unsigned long error_code)
+				  bool is_write)
 {
 	if (!mmu_has_feature(MMU_FTR_BOOK3S_KUAP))
 		return false;
-
-	if (radix_enabled()) {
-		/*
-		 * Will be a storage protection fault.
-		 * Only check the details of AMR[0]
-		 */
-		return WARN((regs->kuap & (is_write ? RADIX_KUAP_BLOCK_WRITE : RADIX_KUAP_BLOCK_READ)),
-			    "Bug: %s fault blocked by AMR!", is_write ? "Write" : "Read");
-	}
 	/*
-	 * We don't want to WARN here because userspace can setup
-	 * keys such that a kernel access to user address can cause
-	 * fault
+	 * For radix this will be a storage protection fault (DSISR_PROTFAULT).
+	 * For hash this will be a key fault (DSISR_KEYFAULT)
 	 */
-	return !!(error_code & DSISR_KEYFAULT);
+	/*
+	 * We do have exception table entry, but accessing the
+	 * userspace results in fault.  This could be because we
+	 * didn't unlock the AMR or access is denied by userspace
+	 * using a key value that blocks access. We are only interested
+	 * in catching the use case of accessing without unlocking
+	 * the AMR. Hence check for BLOCK_WRITE/READ against AMR.
+	 */
+	if (is_write) {
+		return WARN(((regs->amr & AMR_KUAP_BLOCK_WRITE) == AMR_KUAP_BLOCK_WRITE),
+			    "Bug: Write fault blocked by AMR!");
+	}
+	return WARN(((regs->amr & AMR_KUAP_BLOCK_READ) == AMR_KUAP_BLOCK_READ),
+		    "Bug: Read fault blocked by AMR!");
 }
 
 static __always_inline void allow_user_access(void __user *to, const void __user *from,
