@@ -3,6 +3,7 @@
  * Copyright (c) 2014, The Linux Foundation. All rights reserved.
  */
 
+#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -28,7 +29,9 @@
 #include <linux/perf_event.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
+
 #include <asm/sections.h>
+#include <asm/sysreg.h>
 #include <asm/local.h>
 #include <asm/virt.h>
 
@@ -103,6 +106,97 @@ struct etm4_enable_arg {
 	int rc;
 };
 
+#ifdef CONFIG_ETM4X_IMPDEF_FEATURE
+
+#define HISI_HIP08_AMBA_ID		0x000b6d01
+#define ETM4_AMBA_MASK			0xfffff
+#define HISI_HIP08_CORE_COMMIT_MASK	0x3000
+#define HISI_HIP08_CORE_COMMIT_SHIFT	12
+#define HISI_HIP08_CORE_COMMIT_FULL	0b00
+#define HISI_HIP08_CORE_COMMIT_LVL_1	0b01
+#define HISI_HIP08_CORE_COMMIT_REG	sys_reg(3, 1, 15, 2, 5)
+
+struct etm4_arch_features {
+	void (*arch_callback)(bool enable);
+};
+
+static bool etm4_hisi_match_pid(unsigned int id)
+{
+	return (id & ETM4_AMBA_MASK) == HISI_HIP08_AMBA_ID;
+}
+
+static void etm4_hisi_config_core_commit(bool enable)
+{
+	u8 commit = enable ? HISI_HIP08_CORE_COMMIT_LVL_1 :
+		    HISI_HIP08_CORE_COMMIT_FULL;
+	u64 val;
+
+	/*
+	 * bit 12 and 13 of HISI_HIP08_CORE_COMMIT_REG are used together
+	 * to set core-commit, 2'b00 means cpu is at full speed, 2'b01,
+	 * 2'b10, 2'b11 mean reduce pipeline speed, and 2'b01 means level-1
+	 * speed(minimun value). So bit 12 and 13 should be cleared together.
+	 */
+	val = read_sysreg_s(HISI_HIP08_CORE_COMMIT_REG);
+	val &= ~HISI_HIP08_CORE_COMMIT_MASK;
+	val |= commit << HISI_HIP08_CORE_COMMIT_SHIFT;
+	write_sysreg_s(val, HISI_HIP08_CORE_COMMIT_REG);
+}
+
+static struct etm4_arch_features etm4_features[] = {
+	[ETM4_IMPDEF_HISI_CORE_COMMIT] = {
+		.arch_callback = etm4_hisi_config_core_commit,
+	},
+	{},
+};
+
+static void etm4_enable_arch_specific(struct etmv4_drvdata *drvdata)
+{
+	struct etm4_arch_features *ftr;
+	int bit;
+
+	for_each_set_bit(bit, drvdata->arch_features, ETM4_IMPDEF_FEATURE_MAX) {
+		ftr = &etm4_features[bit];
+
+		if (ftr->arch_callback)
+			ftr->arch_callback(true);
+	}
+}
+
+static void etm4_disable_arch_specific(struct etmv4_drvdata *drvdata)
+{
+	struct etm4_arch_features *ftr;
+	int bit;
+
+	for_each_set_bit(bit, drvdata->arch_features, ETM4_IMPDEF_FEATURE_MAX) {
+		ftr = &etm4_features[bit];
+
+		if (ftr->arch_callback)
+			ftr->arch_callback(false);
+	}
+}
+
+static void etm4_check_arch_features(struct etmv4_drvdata *drvdata,
+				      unsigned int id)
+{
+	if (etm4_hisi_match_pid(id))
+		set_bit(ETM4_IMPDEF_HISI_CORE_COMMIT, drvdata->arch_features);
+}
+#else
+static void etm4_enable_arch_specific(struct etmv4_drvdata *drvdata)
+{
+}
+
+static void etm4_disable_arch_specific(struct etmv4_drvdata *drvdata)
+{
+}
+
+static void etm4_check_arch_features(struct etmv4_drvdata *drvdata,
+				     unsigned int id)
+{
+}
+#endif /* CONFIG_ETM4X_IMPDEF_FEATURE */
+
 static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 {
 	int i, rc;
@@ -110,6 +204,7 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 	struct device *etm_dev = &drvdata->csdev->dev;
 
 	CS_UNLOCK(drvdata->base);
+	etm4_enable_arch_specific(drvdata);
 
 	etm4_os_unlock(drvdata);
 
@@ -479,6 +574,7 @@ static void etm4_disable_hw(void *info)
 	int i;
 
 	CS_UNLOCK(drvdata->base);
+	etm4_disable_arch_specific(drvdata);
 
 	if (!drvdata->skip_power_up) {
 		/* power can be removed from the trace unit now */
@@ -1562,6 +1658,8 @@ static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
 		coresight_enable(drvdata->csdev);
 		drvdata->boot_enable = true;
 	}
+
+	etm4_check_arch_features(drvdata, id->id);
 
 	return 0;
 }
