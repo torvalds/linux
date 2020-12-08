@@ -20,12 +20,12 @@ struct isst_mmio_range {
 	int end;
 };
 
-struct isst_mmio_range mmio_range_devid_0[] = {
+static struct isst_mmio_range mmio_range_devid_0[] = {
 	{0x04, 0x14},
 	{0x20, 0xD0},
 };
 
-struct isst_mmio_range mmio_range_devid_1[] = {
+static struct isst_mmio_range mmio_range_devid_1[] = {
 	{0x04, 0x14},
 	{0x20, 0x11C},
 };
