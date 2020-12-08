@@ -1169,8 +1169,11 @@ struct hl_userptr {
  * @finish_work: workqueue object to run when CS is completed by H/W.
  * @work_tdr: delayed work node for TDR.
  * @mirror_node : node in device mirror list of command submissions.
+ * @staged_cs_node: node in the staged cs list.
  * @debugfs_list: node in debugfs list of command submissions.
  * @sequence: the sequence number of this CS.
+ * @staged_sequence: the sequence of the staged submission this CS is part of,
+ *                   relevant only if staged_cs is set.
  * @type: CS_TYPE_*.
  * @submitted: true if CS was submitted to H/W.
  * @completed: true if CS was completed by device.
@@ -1195,8 +1198,10 @@ struct hl_cs {
 	struct work_struct	finish_work;
 	struct delayed_work	work_tdr;
 	struct list_head	mirror_node;
+	struct list_head	staged_cs_node;
 	struct list_head	debugfs_list;
 	u64			sequence;
+	u64			staged_sequence;
 	enum hl_cs_type		type;
 	u8			submitted;
 	u8			completed;
@@ -1905,6 +1910,7 @@ struct hl_mmu_funcs {
  *                          user processes
  * @device_fini_pending: true if device_fini was called and might be
  *                       waiting for the reset thread to finish
+ * @supports_staged_submission: true if staged submissions are supported
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -2010,6 +2016,7 @@ struct hl_device {
 	u8				needs_reset;
 	u8				process_kill_trial_cnt;
 	u8				device_fini_pending;
+	u8				supports_staged_submission;
 
 	/* Parameters for bring-up */
 	u64				nic_ports_mask;
@@ -2207,6 +2214,8 @@ void hl_fence_get(struct hl_fence *fence);
 void cs_get(struct hl_cs *cs);
 bool cs_needs_completion(struct hl_cs *cs);
 bool cs_needs_timeout(struct hl_cs *cs);
+bool is_staged_cs_last_exists(struct hl_device *hdev, struct hl_cs *cs);
+struct hl_cs *hl_staged_cs_find_first(struct hl_device *hdev, u64 cs_seq);
 
 void goya_set_asic_funcs(struct hl_device *hdev);
 void gaudi_set_asic_funcs(struct hl_device *hdev);

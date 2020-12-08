@@ -596,6 +596,31 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 		hdev->asic_funcs->collective_wait_init_cs(cs);
 
 	spin_lock(&hdev->cs_mirror_lock);
+
+	/* Verify staged CS exists and add to the staged list */
+	if (cs->staged_cs && !cs->staged_first) {
+		struct hl_cs *staged_cs;
+
+		staged_cs = hl_staged_cs_find_first(hdev, cs->staged_sequence);
+		if (!staged_cs) {
+			dev_err(hdev->dev,
+				"Cannot find staged submission sequence %llu",
+				cs->staged_sequence);
+			rc = -EINVAL;
+			goto unlock_cs_mirror;
+		}
+
+		if (is_staged_cs_last_exists(hdev, staged_cs)) {
+			dev_err(hdev->dev,
+				"Staged submission sequence %llu already submitted",
+				cs->staged_sequence);
+			rc = -EINVAL;
+			goto unlock_cs_mirror;
+		}
+
+		list_add_tail(&cs->staged_cs_node, &staged_cs->staged_cs_node);
+	}
+
 	list_add_tail(&cs->mirror_node, &hdev->cs_mirror_list);
 
 	/* Queue TDR if the CS is the first entry and if timeout is wanted */
@@ -637,6 +662,8 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 
 	goto out;
 
+unlock_cs_mirror:
+	spin_unlock(&hdev->cs_mirror_lock);
 unroll_cq_resv:
 	q = &hdev->kernel_queues[0];
 	for (i = 0 ; (i < max_queues) && (cq_cnt > 0) ; i++, q++) {

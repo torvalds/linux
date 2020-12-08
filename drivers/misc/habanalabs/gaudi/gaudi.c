@@ -1627,6 +1627,7 @@ static int gaudi_sw_init(struct hl_device *hdev)
 
 	hdev->supports_sync_stream = true;
 	hdev->supports_coresight = true;
+	hdev->supports_staged_submission = true;
 
 	return 0;
 
