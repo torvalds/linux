@@ -59,4 +59,13 @@ static inline void __adjust_pc(struct kvm_vcpu *vcpu)
 	}
 }
 
+/*
+ * Skip an instruction while host sysregs are live.
+ * Assumes host is always 64-bit.
+ */
+static inline void kvm_skip_host_instr(void)
+{
+	write_sysreg_el2(read_sysreg_el2(SYS_ELR) + 4, SYS_ELR);
+}
+
 #endif
