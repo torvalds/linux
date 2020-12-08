@@ -124,7 +124,7 @@
 					compatible = "stericsson,abx500-temp";
 					io-channels = <&gpadc 0x06>,
 						      <&gpadc 0x07>;
-					io-channel-name = "aux1", "aux2";
+					io-channel-names = "aux1", "aux2";
 				};
 
 				ab8500_battery: ab8500_battery {
@@ -136,7 +136,7 @@
 					compatible = "stericsson,ab8500-fg";
 					battery	   = <&ab8500_battery>;
 					io-channels = <&gpadc 0x08>;
-					io-channel-name = "main_bat_v";
+					io-channel-names = "main_bat_v";
 				};
 
 				ab8500_btemp {
@@ -144,7 +144,7 @@
 					battery	   = <&ab8500_battery>;
 					io-channels = <&gpadc 0x02>,
 						      <&gpadc 0x01>;
-					io-channel-name = "btemp_ball",
+					io-channel-names = "btemp_ball",
 							"bat_ctrl";
 				};
 
@@ -156,7 +156,7 @@
 						      <&gpadc 0x0a>,
 						      <&gpadc 0x09>,
 						      <&gpadc 0x0b>;
-					io-channel-name = "main_charger_v",
+					io-channel-names = "main_charger_v",
 							"main_charger_c",
 							"vbus_v",
 							"usb_charger_c";
