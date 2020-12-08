@@ -368,7 +368,7 @@ mlxsw_sp_nve_mc_record_refresh(struct mlxsw_sp_nve_mc_record *mc_record)
 		next_valid = true;
 	}
 
-	mlxsw_reg_tnumt_pack(tnumt_pl, type, MLXSW_REG_TNUMT_TUNNEL_PORT_NVE,
+	mlxsw_reg_tnumt_pack(tnumt_pl, type, MLXSW_REG_TUNNEL_PORT_NVE,
 			     mc_record->kvdl_index, next_valid,
 			     next_kvdl_index, mc_record->num_entries);
 
@@ -798,11 +798,11 @@ int mlxsw_sp_nve_fid_enable(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *fid,
 
 	ops = nve->nve_ops_arr[params->type];
 
-	if (!ops->can_offload(nve, params->dev, extack))
+	if (!ops->can_offload(nve, params, extack))
 		return -EINVAL;
 
 	memset(&config, 0, sizeof(config));
-	ops->nve_config(nve, params->dev, &config);
+	ops->nve_config(nve, params, &config);
 	if (nve->num_nve_tunnels &&
 	    memcmp(&config, &nve->config, sizeof(config))) {
 		NL_SET_ERR_MSG_MOD(extack, "Conflicting NVE tunnels configuration");
