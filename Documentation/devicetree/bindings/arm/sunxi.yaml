@@ -201,6 +201,19 @@ properties:
           - const: dserve,dsrv9703c
           - const: allwinner,sun4i-a10
 
+      - description: Elimo Engineering Impetus SoM
+        items:
+          - const: elimo,impetus
+          - const: sochip,s3
+          - const: allwinner,sun8i-v3
+
+      - description: Elimo Engineering Initium
+        items:
+          - const: elimo,initium
+          - const: elimo,impetus
+          - const: sochip,s3
+          - const: allwinner,sun8i-v3
+
       - description: Empire Electronix D709 Tablet
         items:
           - const: empire-electronix,d709
@@ -250,6 +263,16 @@ properties:
         items:
           - const: friendlyarm,nanopi-neo-plus2
           - const: allwinner,sun50i-h5
+
+      - description: FriendlyARM NanoPi R1
+        items:
+          - const: friendlyarm,nanopi-r1
+          - const: allwinner,sun8i-h3
+
+      - description: FriendlyARM ZeroPi
+        items:
+          - const: friendlyarm,zeropi
+          - const: allwinner,sun8i-h3
 
       - description: Gemei G9 Tablet
         items:
