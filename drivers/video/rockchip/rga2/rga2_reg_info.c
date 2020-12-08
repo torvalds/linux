@@ -1168,6 +1168,8 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
     req->rop_mode = req_rga->alpha_rop_mode;
 
     req->color_fill_mode = req_rga->color_fill_mode;
+    req->alpha_zero_key = req_rga->alpha_rop_mode >> 4;
+    req->src_trans_mode = req_rga->src_trans_mode;
     req->color_key_min   = req_rga->color_key_min;
     req->color_key_max   = req_rga->color_key_max;
 
@@ -1233,8 +1235,8 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
                     req->alpha_mode_1 = alpha_mode_1;
                     break;
                 case 4: //dst = (sc*(256-da) + 256*dc) >> 8
-                    req->alpha_mode_0 = 0x1232;
-                    req->alpha_mode_1 = 0x1232;
+                    req->alpha_mode_0 = 0x1A3A;
+                    req->alpha_mode_1 = 0x1A3A;
                     break;
                 case 5: //dst = (da*sc) >> 8
                     break;
@@ -1258,6 +1260,13 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
 		    break;
                 default:
                     break;
+            }
+            /* Real color mode */
+            if ((req_rga->alpha_rop_flag >> 9) & 1) {
+                if (req->alpha_mode_0 & (0x01 << 1))
+                    req->alpha_mode_0 |= (1 << 7);
+                if (req->alpha_mode_0 & (0x01 << 9))
+                    req->alpha_mode_0 |= (1 << 15);
             }
         }
         else {
@@ -1391,6 +1400,8 @@ void RGA_MSG_2_RGA2_MSG_32(struct rga_req_32 *req_rga, struct rga2_req *req)
     req->rop_code = req_rga->rop_code;
     req->rop_mode = req_rga->alpha_rop_mode;
     req->color_fill_mode = req_rga->color_fill_mode;
+    req->alpha_zero_key = req_rga->alpha_rop_mode >> 4;
+    req->src_trans_mode = req_rga->src_trans_mode;
     req->color_key_min   = req_rga->color_key_min;
     req->color_key_max   = req_rga->color_key_max;
     req->fg_color = req_rga->fg_color;
@@ -1446,8 +1457,8 @@ void RGA_MSG_2_RGA2_MSG_32(struct rga_req_32 *req_rga, struct rga2_req *req)
                     req->alpha_mode_1 = alpha_mode_1;
                     break;
                 case 4: //dst = (sc*(256-da) + 256*dc) >> 8
-                    req->alpha_mode_0 = 0x1232;
-                    req->alpha_mode_1 = 0x1232;
+                    req->alpha_mode_0 = 0x1A3A;
+                    req->alpha_mode_1 = 0x1A3A;
                     break;
                 case 5: //dst = (da*sc) >> 8
                     break;
@@ -1471,6 +1482,13 @@ void RGA_MSG_2_RGA2_MSG_32(struct rga_req_32 *req_rga, struct rga2_req *req)
 		    break;
                 default:
                     break;
+            }
+            /* Real color mode */
+            if ((req_rga->alpha_rop_flag >> 9) & 1) {
+                if (req->alpha_mode_0 & (0x01 << 1))
+                    req->alpha_mode_0 |= (1 << 7);
+                if (req->alpha_mode_0 & (0x01 << 9))
+                    req->alpha_mode_0 |= (1 << 15);
             }
         }
         else {
