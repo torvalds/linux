@@ -389,7 +389,6 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 
 #define _SUPPORTED_CH_IE_		36
 #define _CH_SWTICH_ANNOUNCE_	37	/* Secondary Channel Offset */
-#define _EXT_SUPPORTEDRATES_IE_	50
 
 #define _FTIE_						55
 #define _TIMEOUT_ITVL_IE_			56

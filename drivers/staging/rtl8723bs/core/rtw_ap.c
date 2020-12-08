@@ -1043,7 +1043,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 	/* get ext_supported rates */
 	p = rtw_get_ie(
 		ie + _BEACON_IE_OFFSET_,
-		_EXT_SUPPORTEDRATES_IE_,
+		WLAN_EID_EXT_SUPP_RATES,
 		&ie_len,
 		pbss_network->IELength - _BEACON_IE_OFFSET_
 	);
