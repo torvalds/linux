@@ -25,6 +25,8 @@ patternProperties:
   # Keep list in alphabetical order.
   "^70mai,.*":
     description: 70mai Co., Ltd.
+  "^abb,.*":
+    description: ABB
   "^abilis,.*":
     description: Abilis Systems
   "^abracon,.*":
@@ -65,6 +67,8 @@ patternProperties:
     description: AlphaScale Integrated Circuits Systems, Inc.
   "^alps,.*":
     description: Alps Electric Co., Ltd.
+  "^alt,.*":
+    description: Altus-Escon-Company BV
   "^altr,.*":
     description: Altera Corp.
   "^amarula,.*":
@@ -315,6 +319,8 @@ patternProperties:
     description: Einfochips
   "^elan,.*":
     description: Elan Microelectronic Corp.
+  "^element14,.*":
+    description: Element14 (A Premier Farnell Company)
   "^elgin,.*":
     description: Elgin S/A.
   "^elida,.*":
@@ -673,6 +679,8 @@ patternProperties:
     description: Micron Technology Inc.
   "^microsoft,.*":
     description: Microsoft Corporation
+  "^microsys,.*":
+    description: MicroSys Electronics GmbH
   "^mikroe,.*":
     description: MikroElektronika d.o.o.
   "^mikrotik,.*":
@@ -902,6 +910,8 @@ patternProperties:
     description: iMX6 Rex Project
   "^rervision,.*":
     description: Shenzhen Rervision Technology Co., Ltd.
+  "^revotics,.*":
+    description: Revolution Robotics, Inc. (Revotics)
   "^richtek,.*":
     description: Richtek Technology Corporation
   "^ricoh,.*":
@@ -1148,12 +1158,16 @@ patternProperties:
     description: Vamrs Ltd.
   "^variscite,.*":
     description: Variscite Ltd.
+  "^vdl,.*":
+    description: Van der Laan b.v.
   "^via,.*":
     description: VIA Technologies, Inc.
   "^videostrong,.*":
     description: Videostrong Technology Co., Ltd.
   "^virtio,.*":
     description: Virtual I/O Device Specification, developed by the OASIS consortium
+  "^virtual,.*":
+    description: Used for virtual device without specific vendor.
   "^vishay,.*":
     description: Vishay Intertechnology, Inc
   "^vitesse,.*":

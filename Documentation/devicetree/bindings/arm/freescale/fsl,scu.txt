@@ -89,7 +89,10 @@ Required properties:
 			  "fsl,imx8qm-clock"
 			  "fsl,imx8qxp-clock"
 			followed by "fsl,scu-clk"
-- #clock-cells:		Should be 1. Contains the Clock ID value.
+- #clock-cells:		Should be either
+			2: Contains the Resource and Clock ID value.
+			or
+			1: Contains the Clock ID value. (DEPRECATED)
 - clocks:		List of clock specifiers, must contain an entry for
 			each required entry in clock-names
 - clock-names:		Should include entries "xtal_32KHz", "xtal_24MHz"
@@ -208,7 +211,7 @@ firmware {
 
 		clk: clk {
 			compatible = "fsl,imx8qxp-clk", "fsl,scu-clk";
-			#clock-cells = <1>;
+			#clock-cells = <2>;
 		};
 
 		iomuxc {
@@ -263,8 +266,7 @@ serial@5a060000 {
 	...
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpuart0>;
-	clocks = <&clk IMX8QXP_UART0_CLK>,
-		 <&clk IMX8QXP_UART0_IPG_CLK>;
-	clock-names = "per", "ipg";
+	clocks = <&uart0_clk IMX_SC_R_UART_0 IMX_SC_PM_CLK_PER>;
+	clock-names = "ipg";
 	power-domains = <&pd IMX_SC_R_UART_0>;
 };
