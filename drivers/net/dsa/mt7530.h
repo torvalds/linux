@@ -161,6 +161,19 @@ enum mt7530_vlan_egress_attr {
 	MT7530_VLAN_EGRESS_STACK = 3,
 };
 
+/* Register for address age control */
+#define MT7530_AAC			0xa0
+/* Disable ageing */
+#define  AGE_DIS			BIT(20)
+/* Age count */
+#define  AGE_CNT_MASK			GENMASK(19, 12)
+#define  AGE_CNT_MAX			0xff
+#define  AGE_CNT(x)			(AGE_CNT_MASK & ((x) << 12))
+/* Age unit */
+#define  AGE_UNIT_MASK			GENMASK(11, 0)
+#define  AGE_UNIT_MAX			0xfff
+#define  AGE_UNIT(x)			(AGE_UNIT_MASK & (x))
+
 /* Register for port STP state control */
 #define MT7530_SSP_P(x)			(0x2000 + ((x) * 0x100))
 #define  FID_PST(x)			((x) & 0x3)

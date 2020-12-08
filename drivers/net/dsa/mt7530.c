@@ -870,6 +870,46 @@ mt7530_get_sset_count(struct dsa_switch *ds, int port, int sset)
 	return ARRAY_SIZE(mt7530_mib);
 }
 
+static int
+mt7530_set_ageing_time(struct dsa_switch *ds, unsigned int msecs)
+{
+	struct mt7530_priv *priv = ds->priv;
+	unsigned int secs = msecs / 1000;
+	unsigned int tmp_age_count;
+	unsigned int error = -1;
+	unsigned int age_count;
+	unsigned int age_unit;
+
+	/* Applied timer is (AGE_CNT + 1) * (AGE_UNIT + 1) seconds */
+	if (secs < 1 || secs > (AGE_CNT_MAX + 1) * (AGE_UNIT_MAX + 1))
+		return -ERANGE;
+
+	/* iterate through all possible age_count to find the closest pair */
+	for (tmp_age_count = 0; tmp_age_count <= AGE_CNT_MAX; ++tmp_age_count) {
+		unsigned int tmp_age_unit = secs / (tmp_age_count + 1) - 1;
+
+		if (tmp_age_unit <= AGE_UNIT_MAX) {
+			unsigned int tmp_error = secs -
+				(tmp_age_count + 1) * (tmp_age_unit + 1);
+
+			/* found a closer pair */
+			if (error > tmp_error) {
+				error = tmp_error;
+				age_count = tmp_age_count;
+				age_unit = tmp_age_unit;
+			}
+
+			/* found the exact match, so break the loop */
+			if (!error)
+				break;
+		}
+	}
+
+	mt7530_write(priv, MT7530_AAC, AGE_CNT(age_count) | AGE_UNIT(age_unit));
+
+	return 0;
+}
+
 static void mt7530_setup_port5(struct dsa_switch *ds, phy_interface_t interface)
 {
 	struct mt7530_priv *priv = ds->priv;
@@ -2564,6 +2604,7 @@ static const struct dsa_switch_ops mt7530_switch_ops = {
 	.phy_write		= mt753x_phy_write,
 	.get_ethtool_stats	= mt7530_get_ethtool_stats,
 	.get_sset_count		= mt7530_get_sset_count,
+	.set_ageing_time	= mt7530_set_ageing_time,
 	.port_enable		= mt7530_port_enable,
 	.port_disable		= mt7530_port_disable,
 	.port_change_mtu	= mt7530_port_change_mtu,
