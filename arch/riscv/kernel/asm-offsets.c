@@ -11,6 +11,8 @@
 #include <asm/thread_info.h>
 #include <asm/ptrace.h>
 
+void asm_offsets(void);
+
 void asm_offsets(void)
 {
 	OFFSET(TASK_THREAD_RA, task_struct, thread.ra);
