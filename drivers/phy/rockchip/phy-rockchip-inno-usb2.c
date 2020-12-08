@@ -185,6 +185,7 @@ struct rockchip_usb2phy_port_cfg {
  * @reg: the address offset of grf for usb-phy config.
  * @num_ports: specify how many ports that the phy has.
  * @phy_tuning: phy default parameters tuning.
+ * @vbus_detect: vbus voltage level detection function.
  * @clkout_ctl: keep on/turn off output clk of phy.
  * @port_cfgs: usb-phy port configurations.
  * @chg_det: charger detection registers.
@@ -193,6 +194,7 @@ struct rockchip_usb2phy_cfg {
 	unsigned int	reg;
 	unsigned int	num_ports;
 	int (*phy_tuning)(struct rockchip_usb2phy *rphy);
+	int (*vbus_detect)(struct rockchip_usb2phy *rphy, bool en);
 	struct usb2phy_reg	clkout_ctl;
 	const struct rockchip_usb2phy_port_cfg	port_cfgs[USB2PHY_NUM_PORTS];
 	const struct rockchip_chg_det_reg	chg_det;
@@ -839,7 +841,11 @@ static int rockchip_usb2phy_set_mode(struct phy *phy,
 		return ret;
 	}
 
-	ret = property_enable(rphy->grf, &rport->port_cfg->vbus_det_en, vbus_det_en);
+	if (rphy->phy_cfg->vbus_detect)
+		rphy->phy_cfg->vbus_detect(rphy, vbus_det_en);
+	else
+		ret = property_enable(rphy->grf, &rport->port_cfg->vbus_det_en,
+				      vbus_det_en);
 
 	return ret;
 }
@@ -1496,7 +1502,6 @@ static irqreturn_t rockchip_usb2phy_id_irq(int irq, void *data)
 		cable_vbus_state = false;
 	}
 
-
 	extcon_set_state(rphy->edev, EXTCON_USB_HOST, cable_vbus_state);
 	extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, cable_vbus_state);
 
@@ -1527,17 +1532,37 @@ static irqreturn_t rockchip_usb2phy_irq(int irq, void *data)
 	struct rockchip_usb2phy_port *rport;
 	irqreturn_t ret = IRQ_NONE;
 	unsigned int index;
+	bool force_mode;
 
 	for (index = 0; index < rphy->phy_cfg->num_ports; index++) {
 		rport = &rphy->ports[index];
 		if (!rport->phy)
 			continue;
 
+		/* Handle linestate irq for both otg port and host port */
 		ret = rockchip_usb2phy_linestate_irq(irq, rport);
 
+		/*
+		 * Handle bvalid irq and id irq for otg port which
+		 * is assigned to otg controller.
+		 */
 		if (rport->port_id == USB2PHY_PORT_OTG &&
-		    (rport->mode == USB_DR_MODE_PERIPHERAL ||
-		     rport->mode == USB_DR_MODE_OTG)) {
+		    rport->mode != USB_DR_MODE_UNKNOWN) {
+			if (rport->mode == USB_DR_MODE_HOST) {
+				/*
+				 * If otg port work as usb host mode and
+				 * force_mode is true, it means that the
+				 * otg port is forced to host mode by the
+				 * grf plug iddig indicator via the sys
+				 * interface "otg_mode". We need to handle
+				 * the bvalid irq and id irq in this case.
+				 */
+				force_mode = property_enabled(rphy->grf,
+						&rport->port_cfg->iddig_en);
+				if (!force_mode)
+					continue;
+			}
+
 			if (!rport->vbus_always_on)
 				ret |= rockchip_usb2phy_bvalid_irq(irq, rport);
 
@@ -2241,6 +2266,23 @@ static int rk3568_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 	return ret;
 }
 
+static int rk3568_vbus_detect_control(struct rockchip_usb2phy *rphy, bool en)
+{
+	u32 reg;
+
+	if (en) {
+		reg = readl(rphy->phy_base + 0x3c);
+		/* Enable vbus voltage level detection function */
+		writel(reg & ~BIT(7), rphy->phy_base + 0x3c);
+	} else {
+		reg = readl(rphy->phy_base + 0x3c);
+		/* Disable vbus voltage level detection function */
+		writel(reg | BIT(7), rphy->phy_base + 0x3c);
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int rockchip_usb2phy_pm_suspend(struct device *dev)
 {
@@ -2839,6 +2881,7 @@ static const struct rockchip_usb2phy_cfg rk3568_phy_cfgs[] = {
 		.reg = 0xfe8a0000,
 		.num_ports	= 2,
 		.phy_tuning	= rk3568_usb2phy_tuning,
+		.vbus_detect	= rk3568_vbus_detect_control,
 		.clkout_ctl	= { 0x0008, 4, 4, 1, 0 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_OTG] = {
