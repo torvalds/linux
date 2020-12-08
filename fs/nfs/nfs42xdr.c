@@ -1053,8 +1053,9 @@ static int decode_read_plus_data(struct xdr_stream *xdr, struct nfs_pgio_res *re
 	return 0;
 }
 
-static int decode_read_plus_hole(struct xdr_stream *xdr, struct nfs_pgio_res *res,
-				 uint32_t *eof)
+static int decode_read_plus_hole(struct xdr_stream *xdr,
+				 struct nfs_pgio_args *args,
+				 struct nfs_pgio_res *res, uint32_t *eof)
 {
 	uint64_t offset, length, recvd;
 	__be32 *p;
@@ -1065,6 +1066,20 @@ static int decode_read_plus_hole(struct xdr_stream *xdr, struct nfs_pgio_res *re
 
 	p = xdr_decode_hyper(p, &offset);
 	p = xdr_decode_hyper(p, &length);
+	if (offset != args->offset + res->count) {
+		/* Server returned an out-of-sequence extent */
+		if (offset > args->offset + res->count ||
+		    offset + length < args->offset + res->count) {
+			dprintk("NFS: server returned out of sequence extent: "
+				"offset/size = %llu/%llu != expected %llu\n",
+				(unsigned long long)offset,
+				(unsigned long long)length,
+				(unsigned long long)(args->offset +
+						     res->count));
+			return 1;
+		}
+		length -= args->offset + res->count - offset;
+	}
 	recvd = xdr_expand_hole(xdr, res->count, length);
 	res->count += recvd;
 
@@ -1077,6 +1092,9 @@ static int decode_read_plus_hole(struct xdr_stream *xdr, struct nfs_pgio_res *re
 
 static int decode_read_plus(struct xdr_stream *xdr, struct nfs_pgio_res *res)
 {
+	struct nfs_pgio_header *hdr =
+		container_of(res, struct nfs_pgio_header, res);
+	struct nfs_pgio_args *args = &hdr->args;
 	uint32_t eof, segments, type;
 	int status, i;
 	__be32 *p;
@@ -1104,7 +1122,7 @@ static int decode_read_plus(struct xdr_stream *xdr, struct nfs_pgio_res *res)
 		if (type == NFS4_CONTENT_DATA)
 			status = decode_read_plus_data(xdr, res, &eof);
 		else if (type == NFS4_CONTENT_HOLE)
-			status = decode_read_plus_hole(xdr, res, &eof);
+			status = decode_read_plus_hole(xdr, args, res, &eof);
 		else
 			return -EINVAL;
 
