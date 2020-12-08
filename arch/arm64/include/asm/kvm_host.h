@@ -17,6 +17,7 @@
 #include <linux/jump_label.h>
 #include <linux/kvm_types.h>
 #include <linux/percpu.h>
+#include <linux/psci.h>
 #include <asm/arch_gicv3.h>
 #include <asm/barrier.h>
 #include <asm/cpufeature.h>
@@ -239,6 +240,25 @@ struct kvm_host_data {
 	struct kvm_cpu_context host_ctxt;
 	struct kvm_pmu_events pmu_events;
 };
+
+#define KVM_HOST_PSCI_0_1_CPU_SUSPEND	BIT(0)
+#define KVM_HOST_PSCI_0_1_CPU_ON	BIT(1)
+#define KVM_HOST_PSCI_0_1_CPU_OFF	BIT(2)
+#define KVM_HOST_PSCI_0_1_MIGRATE	BIT(3)
+
+struct kvm_host_psci_config {
+	/* PSCI version used by host. */
+	u32 version;
+
+	/* Function IDs used by host if version is v0.1. */
+	struct psci_0_1_function_ids function_ids_0_1;
+
+	/* Bitmask of functions enabled for v0.1, bits KVM_HOST_PSCI_0_1_*. */
+	unsigned int enabled_functions_0_1;
+};
+
+extern struct kvm_host_psci_config kvm_nvhe_sym(kvm_host_psci_config);
+#define kvm_host_psci_config CHOOSE_NVHE_SYM(kvm_host_psci_config)
 
 struct vcpu_reset_state {
 	unsigned long	pc;
