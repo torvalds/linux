@@ -3174,12 +3174,22 @@ static int udma_get_mmrs(struct platform_device *pdev, struct udma_dev *ud)
 	return 0;
 }
 
+static void udma_mark_resource_ranges(struct udma_dev *ud, unsigned long *map,
+				      struct ti_sci_resource_desc *rm_desc,
+				      char *name)
+{
+	bitmap_clear(map, rm_desc->start, rm_desc->num);
+	bitmap_clear(map, rm_desc->start_sec, rm_desc->num_sec);
+	dev_dbg(ud->dev, "ti_sci resource range for %s: %d:%d | %d:%d\n", name,
+		rm_desc->start, rm_desc->num, rm_desc->start_sec,
+		rm_desc->num_sec);
+}
+
 static int udma_setup_resources(struct udma_dev *ud)
 {
 	struct device *dev = ud->dev;
 	int ch_count, ret, i, j;
 	u32 cap2, cap3;
-	struct ti_sci_resource_desc *rm_desc;
 	struct ti_sci_resource *rm_res, irq_res;
 	struct udma_tisci_rm *tisci_rm = &ud->tisci_rm;
 	static const char * const range_names[] = { "ti,sci-rm-range-tchan",
@@ -3264,13 +3274,9 @@ static int udma_setup_resources(struct udma_dev *ud)
 		bitmap_zero(ud->tchan_map, ud->tchan_cnt);
 	} else {
 		bitmap_fill(ud->tchan_map, ud->tchan_cnt);
-		for (i = 0; i < rm_res->sets; i++) {
-			rm_desc = &rm_res->desc[i];
-			bitmap_clear(ud->tchan_map, rm_desc->start,
-				     rm_desc->num);
-			dev_dbg(dev, "ti-sci-res: tchan: %d:%d\n",
-				rm_desc->start, rm_desc->num);
-		}
+		for (i = 0; i < rm_res->sets; i++)
+			udma_mark_resource_ranges(ud, ud->tchan_map,
+						  &rm_res->desc[i], "tchan");
 	}
 	irq_res.sets = rm_res->sets;
 
@@ -3280,13 +3286,9 @@ static int udma_setup_resources(struct udma_dev *ud)
 		bitmap_zero(ud->rchan_map, ud->rchan_cnt);
 	} else {
 		bitmap_fill(ud->rchan_map, ud->rchan_cnt);
-		for (i = 0; i < rm_res->sets; i++) {
-			rm_desc = &rm_res->desc[i];
-			bitmap_clear(ud->rchan_map, rm_desc->start,
-				     rm_desc->num);
-			dev_dbg(dev, "ti-sci-res: rchan: %d:%d\n",
-				rm_desc->start, rm_desc->num);
-		}
+		for (i = 0; i < rm_res->sets; i++)
+			udma_mark_resource_ranges(ud, ud->rchan_map,
+						  &rm_res->desc[i], "rchan");
 	}
 
 	irq_res.sets += rm_res->sets;
@@ -3295,12 +3297,21 @@ static int udma_setup_resources(struct udma_dev *ud)
 	for (i = 0; i < rm_res->sets; i++) {
 		irq_res.desc[i].start = rm_res->desc[i].start;
 		irq_res.desc[i].num = rm_res->desc[i].num;
+		irq_res.desc[i].start_sec = rm_res->desc[i].start_sec;
+		irq_res.desc[i].num_sec = rm_res->desc[i].num_sec;
 	}
 	rm_res = tisci_rm->rm_ranges[RM_RANGE_RCHAN];
 	for (j = 0; j < rm_res->sets; j++, i++) {
-		irq_res.desc[i].start = rm_res->desc[j].start +
+		if (rm_res->desc[j].num) {
+			irq_res.desc[i].start = rm_res->desc[j].start +
 					ud->soc_data->rchan_oes_offset;
-		irq_res.desc[i].num = rm_res->desc[j].num;
+			irq_res.desc[i].num = rm_res->desc[j].num;
+		}
+		if (rm_res->desc[j].num_sec) {
+			irq_res.desc[i].start_sec = rm_res->desc[j].start_sec +
+					ud->soc_data->rchan_oes_offset;
+			irq_res.desc[i].num_sec = rm_res->desc[j].num_sec;
+		}
 	}
 	ret = ti_sci_inta_msi_domain_alloc_irqs(ud->dev, &irq_res);
 	kfree(irq_res.desc);
@@ -3316,13 +3327,9 @@ static int udma_setup_resources(struct udma_dev *ud)
 		bitmap_clear(ud->rflow_gp_map, ud->rchan_cnt,
 			     ud->rflow_cnt - ud->rchan_cnt);
 	} else {
-		for (i = 0; i < rm_res->sets; i++) {
-			rm_desc = &rm_res->desc[i];
-			bitmap_clear(ud->rflow_gp_map, rm_desc->start,
-				     rm_desc->num);
-			dev_dbg(dev, "ti-sci-res: rflow: %d:%d\n",
-				rm_desc->start, rm_desc->num);
-		}
+		for (i = 0; i < rm_res->sets; i++)
+			udma_mark_resource_ranges(ud, ud->rflow_gp_map,
+						  &rm_res->desc[i], "gp-rflow");
 	}
 
 	ch_count -= bitmap_weight(ud->tchan_map, ud->tchan_cnt);
