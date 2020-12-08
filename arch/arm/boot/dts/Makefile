@@ -1327,6 +1327,7 @@ dtb-$(CONFIG_MACH_ARMADA_370) += \
 dtb-$(CONFIG_MACH_ARMADA_375) += \
 	armada-375-db.dtb
 dtb-$(CONFIG_MACH_ARMADA_38X) += \
+	armada-382-rd-ac3x-48g4x2xl.dtb \
 	armada-385-clearfog-gtr-s4.dtb \
 	armada-385-clearfog-gtr-l8.dtb \
 	armada-385-db-88f6820-amc.dtb \
@@ -1348,6 +1349,12 @@ dtb-$(CONFIG_MACH_ARMADA_39X) += \
 	armada-398-db.dtb
 dtb-$(CONFIG_MACH_ARMADA_XP) += \
 	armada-xp-axpwifiap.dtb \
+	armada-xp-crs305-1g-4s.dtb \
+	armada-xp-crs305-1g-4s-bit.dtb \
+	armada-xp-crs326-24g-2s.dtb \
+	armada-xp-crs326-24g-2s-bit.dtb \
+	armada-xp-crs328-4c-20s-4s.dtb \
+	armada-xp-crs328-4c-20s-4s-bit.dtb \
 	armada-xp-db.dtb \
 	armada-xp-db-dxbc2.dtb \
 	armada-xp-db-xc3-24g4xg.dtb \
