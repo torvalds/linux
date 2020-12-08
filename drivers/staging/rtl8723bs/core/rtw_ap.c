@@ -110,7 +110,7 @@ static void update_BCNTIM(struct adapter *padapter)
 			/*  get supported rates len */
 			p = rtw_get_ie(
 				pie + _BEACON_IE_OFFSET_,
-				_SUPPORTEDRATES_IE_, &tmp_len,
+				WLAN_EID_SUPP_RATES, &tmp_len,
 				(pnetwork_mlmeext->IELength - _BEACON_IE_OFFSET_)
 			);
 			if (p)
@@ -1031,7 +1031,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 	/*  get supported rates */
 	p = rtw_get_ie(
 		ie + _BEACON_IE_OFFSET_,
-		_SUPPORTEDRATES_IE_,
+		WLAN_EID_SUPP_RATES,
 		&ie_len,
 		(pbss_network->IELength - _BEACON_IE_OFFSET_)
 	);
