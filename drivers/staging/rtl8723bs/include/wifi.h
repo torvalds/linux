@@ -387,21 +387,6 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 
 #define _FIXED_IE_LENGTH_			_BEACON_IE_OFFSET_
 
-#define _SUPPORTED_CH_IE_		36
-#define _CH_SWTICH_ANNOUNCE_	37	/* Secondary Channel Offset */
-
-#define _FTIE_						55
-#define _TIMEOUT_ITVL_IE_			56
-#define _SRC_IE_				59
-
-#define _RIC_Descriptor_IE_			75
-#define _LINK_ID_IE_					101
-#define _CH_SWITCH_TIMING_		104
-#define _PTI_BUFFER_STATUS_		106
-#define _EXT_CAP_IE_				127
-
-#define	_RESERVED47_				47
-
 enum ELEMENT_ID {
 	EID_SsId					= 0, /* service set identifier (0:32) */
 	EID_SupRates				= 1, /* supported rates (1:8) */
