@@ -134,6 +134,8 @@
 #define PPSMC_MSG_SetGpoFeaturePMask             0x45
 #define PPSMC_MSG_SetSMBUSInterrupt              0x46
 
-#define PPSMC_Message_Count                      0x47
+#define PPSMC_MSG_DisallowGpo                    0x56
+
+#define PPSMC_Message_Count                      0x58
 
 #endif

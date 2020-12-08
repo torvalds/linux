@@ -128,6 +128,7 @@ static struct cmn2asic_msg_mapping sienna_cichlid_message_map[SMU_MSG_MAX_COUNT]
 	MSG_MAP(Mode1Reset,                     PPSMC_MSG_Mode1Reset,		       0),
 	MSG_MAP(SetMGpuFanBoostLimitRpm,	PPSMC_MSG_SetMGpuFanBoostLimitRpm,     0),
 	MSG_MAP(SetGpoFeaturePMask,		PPSMC_MSG_SetGpoFeaturePMask,          0),
+	MSG_MAP(DisallowGpo,			PPSMC_MSG_DisallowGpo,                 0),
 };
 
 static struct cmn2asic_mapping sienna_cichlid_clk_map[SMU_CLK_COUNT] = {
@@ -2653,19 +2654,40 @@ static int sienna_cichlid_enable_mgpu_fan_boost(struct smu_context *smu)
 static int sienna_cichlid_gpo_control(struct smu_context *smu,
 				      bool enablement)
 {
+	uint32_t smu_version;
 	int ret = 0;
 
+
 	if (smu_cmn_feature_is_supported(smu, SMU_FEATURE_DPM_GFX_GPO_BIT)) {
-		if (enablement)
-			ret = smu_cmn_send_smc_msg_with_param(smu,
-							SMU_MSG_SetGpoFeaturePMask,
-							GFX_GPO_PACE_MASK | GFX_GPO_DEM_MASK,
-							NULL);
-		else
-			ret = smu_cmn_send_smc_msg_with_param(smu,
-							SMU_MSG_SetGpoFeaturePMask,
-							0,
-							NULL);
+		ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
+		if (ret)
+			return ret;
+
+		if (enablement) {
+			if (smu_version < 0x003a2500) {
+				ret = smu_cmn_send_smc_msg_with_param(smu,
+								      SMU_MSG_SetGpoFeaturePMask,
+								      GFX_GPO_PACE_MASK | GFX_GPO_DEM_MASK,
+								      NULL);
+			} else {
+				ret = smu_cmn_send_smc_msg_with_param(smu,
+								      SMU_MSG_DisallowGpo,
+								      0,
+								      NULL);
+			}
+		} else {
+			if (smu_version < 0x003a2500) {
+				ret = smu_cmn_send_smc_msg_with_param(smu,
+								      SMU_MSG_SetGpoFeaturePMask,
+								      0,
+								      NULL);
+			} else {
+				ret = smu_cmn_send_smc_msg_with_param(smu,
+								      SMU_MSG_DisallowGpo,
+								      1,
+								      NULL);
+			}
+		}
 	}
 
 	return ret;
