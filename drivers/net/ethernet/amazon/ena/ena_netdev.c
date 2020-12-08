@@ -4192,6 +4192,8 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->pdev = pdev;
 	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
 
+	ena_dev->net_device = netdev;
+
 	pci_set_drvdata(pdev, adapter);
 
 	rc = ena_device_init(ena_dev, pdev, &get_feat_ctx, &wd_state);
