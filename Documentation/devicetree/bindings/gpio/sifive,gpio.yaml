@@ -13,7 +13,9 @@ maintainers:
 properties:
   compatible:
     items:
-      - const: sifive,fu540-c000-gpio
+      - enum:
+          - sifive,fu540-c000-gpio
+          - sifive,fu740-c000-gpio
       - const: sifive,gpio0
 
   reg:
