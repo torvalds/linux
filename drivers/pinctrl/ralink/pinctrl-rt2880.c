@@ -20,8 +20,8 @@
 #include <asm/mach-ralink/pinmux.h>
 #include <asm/mach-ralink/mt7620.h>
 
-#include "core.h"
-#include "pinctrl-utils.h"
+#include "../core.h"
+#include "../pinctrl-utils.h"
 
 #define SYSC_REG_GPIO_MODE	0x60
 #define SYSC_REG_GPIO_MODE2	0x64
