@@ -20,6 +20,7 @@ static const struct soc_device_attribute k3_soc_devices[] = {
 	{ .family = "AM65X", .data = &am654_ep_map },
 	{ .family = "J721E", .data = &j721e_ep_map },
 	{ .family = "J7200", .data = &j7200_ep_map },
+	{ .family = "AM64X", .data = &am64_ep_map },
 	{ /* sentinel */ }
 };
 
