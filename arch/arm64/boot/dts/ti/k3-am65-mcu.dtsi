@@ -2,7 +2,7 @@
 /*
  * Device Tree Source for AM6 SoC Family MCU Domain peripherals
  *
- * Copyright (C) 2016-2018 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (C) 2016-2020 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 &cbass_mcu {
@@ -135,7 +135,6 @@
 			reg-names = "rt", "fifos", "proxy_gcfg", "proxy_target";
 			ti,num-rings = <286>;
 			ti,sci-rm-range-gp-rings = <0x1>; /* GP ring range */
-			ti,dma-ring-reset-quirk;
 			ti,sci = <&dmsc>;
 			ti,sci-dev-id = <195>;
 			msi-parent = <&inta_main_udmass>;
@@ -267,6 +266,46 @@
 				assigned-clocks = <&mcu_cpsw_cpts_mux>;
 				assigned-clock-parents = <&k3_clks 118 5>;
 			};
+		};
+	};
+
+	mcu_r5fss0: r5fss@41000000 {
+		compatible = "ti,am654-r5fss";
+		ti,cluster-mode = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x41000000 0x00 0x41000000 0x20000>,
+			 <0x41400000 0x00 0x41400000 0x20000>;
+		power-domains = <&k3_pds 129 TI_SCI_PD_EXCLUSIVE>;
+
+		mcu_r5fss0_core0: r5f@41000000 {
+			compatible = "ti,am654-r5f";
+			reg = <0x41000000 0x00008000>,
+			      <0x41010000 0x00008000>;
+			reg-names = "atcm", "btcm";
+			ti,sci = <&dmsc>;
+			ti,sci-dev-id = <159>;
+			ti,sci-proc-ids = <0x01 0xff>;
+			resets = <&k3_reset 159 1>;
+			firmware-name = "am65x-mcu-r5f0_0-fw";
+			ti,atcm-enable = <1>;
+			ti,btcm-enable = <1>;
+			ti,loczrama = <1>;
+		};
+
+		mcu_r5fss0_core1: r5f@41400000 {
+			compatible = "ti,am654-r5f";
+			reg = <0x41400000 0x00008000>,
+			      <0x41410000 0x00008000>;
+			reg-names = "atcm", "btcm";
+			ti,sci = <&dmsc>;
+			ti,sci-dev-id = <245>;
+			ti,sci-proc-ids = <0x02 0xff>;
+			resets = <&k3_reset 245 1>;
+			firmware-name = "am65x-mcu-r5f0_1-fw";
+			ti,atcm-enable = <1>;
+			ti,btcm-enable = <1>;
+			ti,loczrama = <1>;
 		};
 	};
 };
