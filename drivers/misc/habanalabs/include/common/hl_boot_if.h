@@ -145,7 +145,7 @@
  *					implemented. This means that FW will
  *					perform hard reset procedure on
  *					receiving the halt-machine event.
- *					Initialized in: linux
+ *					Initialized in: preboot, u-boot, linux
  *
  * CPU_BOOT_DEV_STS0_PLL_INFO_EN	FW retrieval of PLL info is enabled.
  *					Initialized in: linux
