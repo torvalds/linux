@@ -173,7 +173,7 @@ static int tpiu_probe(struct amba_device *adev, const struct amba_id *id)
 	return PTR_ERR(drvdata->csdev);
 }
 
-static int __exit tpiu_remove(struct amba_device *adev)
+static int tpiu_remove(struct amba_device *adev)
 {
 	struct tpiu_drvdata *drvdata = dev_get_drvdata(&adev->dev);
 
