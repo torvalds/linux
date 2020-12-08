@@ -393,7 +393,6 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 #define _FTIE_						55
 #define _TIMEOUT_ITVL_IE_			56
 #define _SRC_IE_				59
-#define _WAPI_IE_					68
 
 #define _RIC_Descriptor_IE_			75
 #define _MME_IE_					76 /* 802.11w Management MIC element */
