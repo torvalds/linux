@@ -1019,29 +1019,24 @@ static int decode_deallocate(struct xdr_stream *xdr, struct nfs42_falloc_res *re
 	return decode_op_hdr(xdr, OP_DEALLOCATE);
 }
 
-static int decode_read_plus_data(struct xdr_stream *xdr, struct nfs_pgio_res *res,
-				 uint32_t *eof)
+static int decode_read_plus_data(struct xdr_stream *xdr,
+				 struct nfs_pgio_res *res)
 {
 	uint32_t count, recvd;
 	uint64_t offset;
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, 8 + 4);
-	if (unlikely(!p))
-		return -EIO;
+	if (!p)
+		return 1;
 
 	p = xdr_decode_hyper(p, &offset);
 	count = be32_to_cpup(p);
 	recvd = xdr_align_data(xdr, res->count, count);
 	res->count += recvd;
 
-	if (count > recvd) {
-		dprintk("NFS: server cheating in read reply: "
-				"count %u > recvd %u\n", count, recvd);
-		*eof = 0;
+	if (count > recvd)
 		return 1;
-	}
-
 	return 0;
 }
 
@@ -1052,18 +1047,16 @@ static int decode_read_plus_hole(struct xdr_stream *xdr, struct nfs_pgio_res *re
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, 8 + 8);
-	if (unlikely(!p))
-		return -EIO;
+	if (!p)
+		return 1;
 
 	p = xdr_decode_hyper(p, &offset);
 	p = xdr_decode_hyper(p, &length);
 	recvd = xdr_expand_hole(xdr, res->count, length);
 	res->count += recvd;
 
-	if (recvd < length) {
-		*eof = 0;
+	if (recvd < length)
 		return 1;
-	}
 	return 0;
 }
 
@@ -1088,12 +1081,12 @@ static int decode_read_plus(struct xdr_stream *xdr, struct nfs_pgio_res *res)
 
 	for (i = 0; i < segments; i++) {
 		p = xdr_inline_decode(xdr, 4);
-		if (unlikely(!p))
-			return -EIO;
+		if (!p)
+			goto early_out;
 
 		type = be32_to_cpup(p++);
 		if (type == NFS4_CONTENT_DATA)
-			status = decode_read_plus_data(xdr, res, &eof);
+			status = decode_read_plus_data(xdr, res);
 		else if (type == NFS4_CONTENT_HOLE)
 			status = decode_read_plus_hole(xdr, res, &eof);
 		else
@@ -1102,11 +1095,16 @@ static int decode_read_plus(struct xdr_stream *xdr, struct nfs_pgio_res *res)
 		if (status < 0)
 			return status;
 		if (status > 0)
-			break;
+			goto early_out;
 	}
 
 out:
 	res->eof = eof;
+	return 0;
+early_out:
+	if (unlikely(!i))
+		return -EIO;
+	res->eof = 0;
 	return 0;
 }
 
