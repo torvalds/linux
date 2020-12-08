@@ -810,9 +810,6 @@ static int cxacru_atm_start(struct usbatm_data *usbatm_instance,
 	mutex_unlock(&instance->poll_state_serialize);
 	mutex_unlock(&instance->adsl_state_serialize);
 
-	printk(KERN_INFO "%s%d: %s %pM\n", atm_dev->type, atm_dev->number,
-			usbatm_instance->description, atm_dev->esi);
-
 	if (start_polling)
 		cxacru_poll_status(&instance->poll_work.work);
 	return 0;
