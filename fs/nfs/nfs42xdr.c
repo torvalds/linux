@@ -1026,6 +1026,7 @@ static int decode_deallocate(struct xdr_stream *xdr, struct nfs42_falloc_res *re
 }
 
 static int decode_read_plus_data(struct xdr_stream *xdr,
+				 struct nfs_pgio_args *args,
 				 struct nfs_pgio_res *res)
 {
 	uint32_t count, recvd;
@@ -1041,8 +1042,12 @@ static int decode_read_plus_data(struct xdr_stream *xdr,
 	recvd = xdr_align_data(xdr, res->count, xdr_align_size(count));
 	if (recvd > count)
 		recvd = count;
+	if (res->count + recvd > args->count) {
+		if (args->count > res->count)
+			res->count += args->count - res->count;
+		return 1;
+	}
 	res->count += recvd;
-
 	if (count > recvd)
 		return 1;
 	return 0;
@@ -1119,7 +1124,7 @@ static int decode_read_plus(struct xdr_stream *xdr, struct nfs_pgio_res *res)
 
 		type = be32_to_cpup(p++);
 		if (type == NFS4_CONTENT_DATA)
-			status = decode_read_plus_data(xdr, res);
+			status = decode_read_plus_data(xdr, args, res);
 		else if (type == NFS4_CONTENT_HOLE)
 			status = decode_read_plus_hole(xdr, args, res, &eof);
 		else
