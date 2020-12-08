@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
- * Copyright (c) 2019, Linaro Limited
+ * Copyright (c) 2020, The Linux Foundation. All rights reserved.
  */
 
 /dts-v1/;
@@ -14,8 +13,8 @@
 #include "pm8150l.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. SM8150 MTP";
-	compatible = "qcom,sm8150-mtp";
+	model = "Qualcomm Technologies, Inc. SM8150 HDK";
+	compatible = "qcom,sm8150-hdk", "qcom,sm8150";
 
 	aliases {
 		serial0 = &uart2;
@@ -32,10 +31,6 @@
 		regulator-max-microvolt = <3700000>;
 	};
 
-	/*
-	 * Apparently RPMh does not provide support for PM8150 S4 because it
-	 * is always-on; model it as a fixed regulator.
-	 */
 	vreg_s4a_1p8: pm8150-s4 {
 		compatible = "regulator-fixed";
 		regulator-name = "vreg_s4a_1p8";
@@ -47,6 +42,16 @@
 		regulator-boot-on;
 
 		vin-supply = <&vph_pwr>;
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		vol-up {
+			label = "Volume Up";
+			linux,code = <KEY_VOLUMEUP>;
+			gpios = <&pm8150_gpios 6 GPIO_ACTIVE_LOW>;
+		};
 	};
 };
 
@@ -369,22 +374,20 @@
 
 &remoteproc_adsp {
 	status = "okay";
-	firmware-name = "qcom/sm8150/adsp.mdt";
+
+	firmware-name = "qcom/sm8150/adsp.mbn";
 };
 
 &remoteproc_cdsp {
 	status = "okay";
-	firmware-name = "qcom/sm8150/cdsp.mdt";
-};
 
-&remoteproc_mpss {
-	status = "okay";
-	firmware-name = "qcom/sm8150/modem.mdt";
+	firmware-name = "qcom/sm8150/cdsp.mbn";
 };
 
 &remoteproc_slpi {
 	status = "okay";
-	firmware-name = "qcom/sm8150/slpi.mdt";
+
+	firmware-name = "qcom/sm8150/slpi.mbn";
 };
 
 &tlmm {
@@ -424,7 +427,20 @@
 	vdda18-supply = <&vdda_usb_hs_1p8>;
 };
 
+&usb_2_hsphy {
+	status = "okay";
+	vdda-pll-supply = <&vdd_usb_hs_core>;
+	vdda33-supply = <&vdda_usb_hs_3p1>;
+	vdda18-supply = <&vdda_usb_hs_1p8>;
+};
+
 &usb_1_qmpphy {
+	status = "okay";
+	vdda-phy-supply = <&vreg_l3c_1p2>;
+	vdda-pll-supply = <&vdda_usb_ss_dp_core_1>;
+};
+
+&usb_2_qmpphy {
 	status = "okay";
 	vdda-phy-supply = <&vreg_l3c_1p2>;
 	vdda-pll-supply = <&vdda_usb_ss_dp_core_1>;
@@ -434,15 +450,14 @@
 	status = "okay";
 };
 
+&usb_2 {
+	status = "okay";
+};
+
 &usb_1_dwc3 {
 	dr_mode = "peripheral";
 };
 
-&wifi {
-	status = "okay";
-
-	vdd-0.8-cx-mx-supply = <&vdda_wcss_pll>;
-	vdd-1.8-xo-supply = <&vreg_l7a_1p8>;
-	vdd-1.3-rfa-supply = <&vdda_wcss_adcdac_1>;
-	vdd-3.3-ch0-supply = <&vreg_l11c_3p3>;
+&usb_2_dwc3 {
+	dr_mode = "host";
 };
