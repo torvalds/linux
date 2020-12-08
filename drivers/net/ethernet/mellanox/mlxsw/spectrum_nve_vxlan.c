@@ -87,10 +87,10 @@ static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 }
 
 static void mlxsw_sp_nve_vxlan_config(const struct mlxsw_sp_nve *nve,
-				      const struct net_device *dev,
+				      const struct mlxsw_sp_nve_params *params,
 				      struct mlxsw_sp_nve_config *config)
 {
-	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct vxlan_dev *vxlan = netdev_priv(params->dev);
 	struct vxlan_config *cfg = &vxlan->cfg;
 
 	config->type = MLXSW_SP_NVE_TYPE_VXLAN;
@@ -101,6 +101,7 @@ static void mlxsw_sp_nve_vxlan_config(const struct mlxsw_sp_nve *nve,
 	config->ul_proto = MLXSW_SP_L3_PROTO_IPV4;
 	config->ul_sip.addr4 = cfg->saddr.sin.sin_addr.s_addr;
 	config->udp_dport = cfg->dst_port;
+	config->ethertype = params->ethertype;
 }
 
 static int __mlxsw_sp_nve_parsing_set(struct mlxsw_sp *mlxsw_sp,

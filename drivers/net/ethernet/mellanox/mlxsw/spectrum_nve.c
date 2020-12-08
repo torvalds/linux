@@ -802,7 +802,7 @@ int mlxsw_sp_nve_fid_enable(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *fid,
 		return -EINVAL;
 
 	memset(&config, 0, sizeof(config));
-	ops->nve_config(nve, params->dev, &config);
+	ops->nve_config(nve, params, &config);
 	if (nve->num_nve_tunnels &&
 	    memcmp(&config, &nve->config, sizeof(config))) {
 		NL_SET_ERR_MSG_MOD(extack, "Conflicting NVE tunnels configuration");
