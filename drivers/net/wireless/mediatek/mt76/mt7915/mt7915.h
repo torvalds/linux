@@ -72,6 +72,11 @@ struct mt7915_sta_stats {
 	unsigned long jiffies;
 };
 
+struct mt7915_sta_key_conf {
+	s8 keyidx;
+	u8 key[16];
+};
+
 struct mt7915_sta {
 	struct mt76_wcid wcid; /* must be first */
 
@@ -85,6 +90,8 @@ struct mt7915_sta {
 	struct mt7915_sta_stats stats;
 
 	unsigned long ampdu_state;
+
+	struct mt7915_sta_key_conf bip;
 };
 
 struct mt7915_vif {

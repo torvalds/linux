@@ -1016,9 +1016,10 @@ int mt7915_mcu_add_bss_info(struct mt7915_phy *phy,
 
 /** starec & wtbl **/
 static int
-mt7915_mcu_sta_key_tlv(struct sk_buff *skb, struct ieee80211_key_conf *key,
-		       enum set_key_cmd cmd)
+mt7915_mcu_sta_key_tlv(struct mt7915_sta *msta, struct sk_buff *skb,
+		       struct ieee80211_key_conf *key, enum set_key_cmd cmd)
 {
+	struct mt7915_sta_key_conf *bip = &msta->bip;
 	struct sta_rec_sec *sec;
 	struct tlv *tlv;
 	u32 len = sizeof(*sec);
@@ -1038,22 +1039,23 @@ mt7915_mcu_sta_key_tlv(struct sk_buff *skb, struct ieee80211_key_conf *key,
 
 		sec_key = &sec->key[0];
 		sec_key->cipher_len = sizeof(*sec_key);
-		sec_key->key_id = key->keyidx;
 
 		if (cipher == MT_CIPHER_BIP_CMAC_128) {
 			sec_key->cipher_id = MT_CIPHER_AES_CCMP;
+			sec_key->key_id = bip->keyidx;
 			sec_key->key_len = 16;
-			memcpy(sec_key->key, key->key, 16);
+			memcpy(sec_key->key, bip->key, 16);
 
 			sec_key = &sec->key[1];
 			sec_key->cipher_id = MT_CIPHER_BIP_CMAC_128;
 			sec_key->cipher_len = sizeof(*sec_key);
 			sec_key->key_len = 16;
-			memcpy(sec_key->key, key->key + 16, 16);
+			memcpy(sec_key->key, key->key, 16);
 
 			sec->n_cipher = 2;
 		} else {
 			sec_key->cipher_id = cipher;
+			sec_key->key_id = key->keyidx;
 			sec_key->key_len = key->keylen;
 			memcpy(sec_key->key, key->key, key->keylen);
 
@@ -1061,6 +1063,12 @@ mt7915_mcu_sta_key_tlv(struct sk_buff *skb, struct ieee80211_key_conf *key,
 				/* Rx/Tx MIC keys are swapped */
 				memcpy(sec_key->key + 16, key->key + 24, 8);
 				memcpy(sec_key->key + 24, key->key + 16, 8);
+			}
+
+			/* store key_conf for BIP batch update */
+			if (cipher == MT_CIPHER_AES_CCMP) {
+				memcpy(bip->key, key->key, key->keylen);
+				bip->keyidx = key->keyidx;
 			}
 
 			len -= sizeof(*sec_key);
@@ -1088,7 +1096,7 @@ int mt7915_mcu_add_key(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
-	ret = mt7915_mcu_sta_key_tlv(skb, key, cmd);
+	ret = mt7915_mcu_sta_key_tlv(msta, skb, key, cmd);
 	if (ret)
 		return ret;
 
