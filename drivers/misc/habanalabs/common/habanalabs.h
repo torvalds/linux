@@ -1000,6 +1000,7 @@ struct hl_va_range {
  * @queue_full_drop_cnt: dropped due to queue full
  * @device_in_reset_drop_cnt: dropped due to device in reset
  * @max_cs_in_flight_drop_cnt: dropped due to maximum CS in-flight
+ * @validation_drop_cnt: dropped due to error in validation
  */
 struct hl_cs_counters_atomic {
 	atomic64_t out_of_mem_drop_cnt;
@@ -1007,6 +1008,7 @@ struct hl_cs_counters_atomic {
 	atomic64_t queue_full_drop_cnt;
 	atomic64_t device_in_reset_drop_cnt;
 	atomic64_t max_cs_in_flight_drop_cnt;
+	atomic64_t validation_drop_cnt;
 };
 
 /**
