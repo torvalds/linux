@@ -100,7 +100,7 @@ static void update_BCNTIM(struct adapter *padapter)
 			/* get ssid_ie len */
 			p = rtw_get_ie(
 				pie + _BEACON_IE_OFFSET_,
-				_SSID_IE_,
+				WLAN_EID_SSID,
 				&tmp_len,
 				(pnetwork_mlmeext->IELength - _BEACON_IE_OFFSET_)
 			);
@@ -1004,7 +1004,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 	/* SSID */
 	p = rtw_get_ie(
 		ie + _BEACON_IE_OFFSET_,
-		_SSID_IE_,
+		WLAN_EID_SSID,
 		&ie_len,
 		(pbss_network->IELength - _BEACON_IE_OFFSET_)
 	);

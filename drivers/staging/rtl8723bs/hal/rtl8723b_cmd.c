@@ -175,7 +175,7 @@ static void ConstructBeacon(struct adapter *padapter, u8 *pframe, u32 *pLength)
 	/* below for ad-hoc mode */
 
 	/*  SSID */
-	pframe = rtw_set_ie(pframe, _SSID_IE_, cur_network->Ssid.SsidLength, cur_network->Ssid.Ssid, &pktlen);
+	pframe = rtw_set_ie(pframe, WLAN_EID_SSID, cur_network->Ssid.SsidLength, cur_network->Ssid.Ssid, &pktlen);
 
 	/*  supported rates... */
 	rate_len = rtw_get_rateset_len(cur_network->SupportedRates);
@@ -695,7 +695,7 @@ static void ConstructProbeReq(struct adapter *padapter, u8 *pframe, u32 *pLength
 	pktlen = sizeof(struct ieee80211_hdr_3addr);
 	pframe += pktlen;
 
-	pframe = rtw_set_ie(pframe, _SSID_IE_, 0, NULL, &pktlen);
+	pframe = rtw_set_ie(pframe, WLAN_EID_SSID, 0, NULL, &pktlen);
 
 	get_rate_set(padapter, bssrate, &bssrate_len);
 
@@ -793,7 +793,7 @@ static void ConstructProbeRsp(struct adapter *padapter, u8 *pframe, u32 *pLength
 		u8 buf[MAX_IE_SZ];
 		u8 *ies = pframe + sizeof(struct ieee80211_hdr_3addr);
 
-		ssid_ie = rtw_get_ie(ies+_FIXED_IE_LENGTH_, _SSID_IE_, &ssid_ielen,
+		ssid_ie = rtw_get_ie(ies+_FIXED_IE_LENGTH_, WLAN_EID_SSID, &ssid_ielen,
 					(pframe-ies)-_FIXED_IE_LENGTH_);
 
 		ssid_ielen_diff = cur_network->Ssid.SsidLength - ssid_ielen;
