@@ -2347,8 +2347,8 @@ mlxsw_sp_bridge_8021ad_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
 				  const struct net_device *vxlan_dev, u16 vid,
 				  struct netlink_ext_ack *extack)
 {
-	NL_SET_ERR_MSG_MOD(extack, "VXLAN is not supported with 802.1ad");
-	return -EOPNOTSUPP;
+	return mlxsw_sp_bridge_vlan_aware_vxlan_join(bridge_device, vxlan_dev,
+						     vid, ETH_P_8021AD, extack);
 }
 
 static const struct mlxsw_sp_bridge_ops mlxsw_sp_bridge_8021ad_ops = {
