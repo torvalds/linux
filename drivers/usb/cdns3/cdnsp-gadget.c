@@ -1543,7 +1543,7 @@ static int cdnsp_gadget_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
-const struct usb_gadget_ops cdnsp_gadget_ops = {
+static const struct usb_gadget_ops cdnsp_gadget_ops = {
 	.get_frame		= cdnsp_gadget_get_frame,
 	.wakeup			= cdnsp_gadget_wakeup,
 	.set_selfpowered	= cdnsp_gadget_set_selfpowered,
