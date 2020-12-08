@@ -581,6 +581,13 @@ mlxsw_reg_sfd_uc_tunnel_pack(char *payload, int rec_index,
 	mlxsw_reg_sfd_uc_tunnel_protocol_set(payload, rec_index, proto);
 }
 
+enum mlxsw_reg_tunnel_port {
+	MLXSW_REG_TUNNEL_PORT_NVE,
+	MLXSW_REG_TUNNEL_PORT_VPLS,
+	MLXSW_REG_TUNNEL_PORT_FLEX_TUNNEL0,
+	MLXSW_REG_TUNNEL_PORT_FLEX_TUNNEL1,
+};
+
 /* SFN - Switch FDB Notification Register
  * -------------------------------------------
  * The switch provides notifications on newly learned FDB entries and
@@ -737,13 +744,6 @@ MLXSW_ITEM32_INDEXED(reg, sfn, uc_tunnel_protocol, MLXSW_REG_SFN_BASE_LEN, 27,
  */
 MLXSW_ITEM32_INDEXED(reg, sfn, uc_tunnel_uip_lsb, MLXSW_REG_SFN_BASE_LEN, 0,
 		     24, MLXSW_REG_SFN_REC_LEN, 0x0C, false);
-
-enum mlxsw_reg_sfn_tunnel_port {
-	MLXSW_REG_SFN_TUNNEL_PORT_NVE,
-	MLXSW_REG_SFN_TUNNEL_PORT_VPLS,
-	MLXSW_REG_SFN_TUNNEL_FLEX_TUNNEL0,
-	MLXSW_REG_SFN_TUNNEL_FLEX_TUNNEL1,
-};
 
 /* reg_sfn_uc_tunnel_port
  * Tunnel port.
@@ -10507,13 +10507,6 @@ enum mlxsw_reg_tnumt_record_type {
  */
 MLXSW_ITEM32(reg, tnumt, record_type, 0x00, 28, 4);
 
-enum mlxsw_reg_tnumt_tunnel_port {
-	MLXSW_REG_TNUMT_TUNNEL_PORT_NVE,
-	MLXSW_REG_TNUMT_TUNNEL_PORT_VPLS,
-	MLXSW_REG_TNUMT_TUNNEL_FLEX_TUNNEL0,
-	MLXSW_REG_TNUMT_TUNNEL_FLEX_TUNNEL1,
-};
-
 /* reg_tnumt_tunnel_port
  * Tunnel port.
  * Access: RW
@@ -10561,7 +10554,7 @@ MLXSW_ITEM32_INDEXED(reg, tnumt, udip_ptr, 0x0C, 0, 24, 0x04, 0x00, false);
 
 static inline void mlxsw_reg_tnumt_pack(char *payload,
 					enum mlxsw_reg_tnumt_record_type type,
-					enum mlxsw_reg_tnumt_tunnel_port tport,
+					enum mlxsw_reg_tunnel_port tport,
 					u32 underlay_mc_ptr, bool vnext,
 					u32 next_underlay_mc_ptr,
 					u8 record_size)
@@ -10725,13 +10718,6 @@ static inline void mlxsw_reg_tndem_pack(char *payload, u8 underlay_ecn,
 
 MLXSW_REG_DEFINE(tnpc, MLXSW_REG_TNPC_ID, MLXSW_REG_TNPC_LEN);
 
-enum mlxsw_reg_tnpc_tunnel_port {
-	MLXSW_REG_TNPC_TUNNEL_PORT_NVE,
-	MLXSW_REG_TNPC_TUNNEL_PORT_VPLS,
-	MLXSW_REG_TNPC_TUNNEL_FLEX_TUNNEL0,
-	MLXSW_REG_TNPC_TUNNEL_FLEX_TUNNEL1,
-};
-
 /* reg_tnpc_tunnel_port
  * Tunnel port.
  * Access: Index
@@ -10751,7 +10737,7 @@ MLXSW_ITEM32(reg, tnpc, learn_enable_v6, 0x04, 1, 1);
 MLXSW_ITEM32(reg, tnpc, learn_enable_v4, 0x04, 0, 1);
 
 static inline void mlxsw_reg_tnpc_pack(char *payload,
-				       enum mlxsw_reg_tnpc_tunnel_port tport,
+				       enum mlxsw_reg_tunnel_port tport,
 				       bool learn_enable)
 {
 	MLXSW_REG_ZERO(tnpc, payload);
