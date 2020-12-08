@@ -456,6 +456,12 @@ struct bufdesc_ex {
  */
 #define FEC_QUIRK_HAS_FRREG		(1 << 16)
 
+/* Some FEC hardware blocks need the MMFR cleared at setup time to avoid
+ * the generation of an MII event. This must be avoided in the older
+ * FEC blocks where it will stop MII events being generated.
+ */
+#define FEC_QUIRK_CLEAR_SETUP_MII	(1 << 17)
+
 struct bufdesc_prop {
 	int qid;
 	/* Address of Rx and Tx buffers */

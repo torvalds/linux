@@ -10,7 +10,8 @@ Description:
 		name/value pairs.
 
 		Userspace must be prepared for the possibility that attributes
-		define overlapping bit ranges. For example:
+		define overlapping bit ranges. For example::
+
 			attr1 = 'config:0-23'
 			attr2 = 'config:0-7'
 			attr3 = 'config:12-35'

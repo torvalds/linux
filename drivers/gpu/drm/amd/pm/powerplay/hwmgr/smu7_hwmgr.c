@@ -1541,6 +1541,10 @@ static int smu7_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE((tmp_result == 0),
 			"Failed to reset to default!", result = tmp_result);
 
+	tmp_result = smum_stop_smc(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to stop smc!", result = tmp_result);
+
 	tmp_result = smu7_force_switch_to_arbf0(hwmgr);
 	PP_ASSERT_WITH_CODE((tmp_result == 0),
 			"Failed to force to switch arbf0!", result = tmp_result);
@@ -1585,18 +1589,24 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	data->current_profile_setting.sclk_down_hyst = 100;
 	data->current_profile_setting.sclk_activity = SMU7_SCLK_TARGETACTIVITY_DFLT;
 	data->current_profile_setting.bupdate_mclk = 1;
-	if (adev->gmc.vram_width == 256) {
-		data->current_profile_setting.mclk_up_hyst = 10;
-		data->current_profile_setting.mclk_down_hyst = 60;
-		data->current_profile_setting.mclk_activity = 25;
-	} else if (adev->gmc.vram_width == 128) {
-		data->current_profile_setting.mclk_up_hyst = 5;
-		data->current_profile_setting.mclk_down_hyst = 16;
-		data->current_profile_setting.mclk_activity = 20;
-	} else if (adev->gmc.vram_width == 64) {
-		data->current_profile_setting.mclk_up_hyst = 3;
-		data->current_profile_setting.mclk_down_hyst = 16;
-		data->current_profile_setting.mclk_activity = 20;
+	if (hwmgr->chip_id >= CHIP_POLARIS10) {
+		if (adev->gmc.vram_width == 256) {
+			data->current_profile_setting.mclk_up_hyst = 10;
+			data->current_profile_setting.mclk_down_hyst = 60;
+			data->current_profile_setting.mclk_activity = 25;
+		} else if (adev->gmc.vram_width == 128) {
+			data->current_profile_setting.mclk_up_hyst = 5;
+			data->current_profile_setting.mclk_down_hyst = 16;
+			data->current_profile_setting.mclk_activity = 20;
+		} else if (adev->gmc.vram_width == 64) {
+			data->current_profile_setting.mclk_up_hyst = 3;
+			data->current_profile_setting.mclk_down_hyst = 16;
+			data->current_profile_setting.mclk_activity = 20;
+		}
+	} else {
+		data->current_profile_setting.mclk_up_hyst = 0;
+		data->current_profile_setting.mclk_down_hyst = 100;
+		data->current_profile_setting.mclk_activity = SMU7_MCLK_TARGETACTIVITY_DFLT;
 	}
 	hwmgr->workload_mask = 1 << hwmgr->workload_prority[PP_SMC_POWER_PROFILE_FULLSCREEN3D];
 	hwmgr->power_profile_mode = PP_SMC_POWER_PROFILE_FULLSCREEN3D;

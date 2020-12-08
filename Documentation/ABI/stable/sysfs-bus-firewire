@@ -47,6 +47,7 @@ Description:
 		IEEE 1394 node device attribute.
 		Read-only and immutable.
 Values:		1: The sysfs entry represents a local node (a controller card).
+
 		0: The sysfs entry represents a remote node.
 
 
@@ -125,7 +126,9 @@ Description:
 		Read-only attribute, immutable during the target's lifetime.
 		Format, as exposed by firewire-sbp2 since 2.6.22, May 2007:
 		Colon-separated hexadecimal string representations of
+
 			u64 EUI-64 : u24 directory_ID : u16 LUN
+
 		without 0x prefixes, without whitespace.  The former sbp2 driver
 		(removed in 2.6.37 after being superseded by firewire-sbp2) used
 		a somewhat shorter format which was not as close to SAM.

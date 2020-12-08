@@ -86,9 +86,6 @@ Other Functions
 .. kernel-doc:: fs/dax.c
    :export:
 
-.. kernel-doc:: fs/direct-io.c
-   :export:
-
 .. kernel-doc:: fs/libfs.c
    :export:
 

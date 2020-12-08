@@ -35,13 +35,8 @@ ENTRY(ll_get_coherency_base)
 
 	/*
 	 * MMU is disabled, use the physical address of the coherency
-	 * base address. However, if the coherency fabric isn't mapped
-	 * (i.e its virtual address is zero), it means coherency is
-	 * not enabled, so we return 0.
+	 * base address, (or 0x0 if the coherency fabric is not mapped)
 	 */
-	ldr	r1, =coherency_base
-	cmp	r1, #0
-	beq	2f
 	adr	r1, 3f
 	ldr	r3, [r1]
 	ldr	r1, [r1, r3]

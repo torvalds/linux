@@ -4,11 +4,13 @@ KernelVersion:	4.14
 Description:
 		The attributes:
 
-		c_chmask - capture channel mask
-		c_srate - capture sampling rate
-		c_ssize - capture sample size (bytes)
-		p_chmask - playback channel mask
-		p_srate - playback sampling rate
-		p_ssize - playback sample size (bytes)
-		req_number - the number of pre-allocated request
-			for both capture and playback
+		==========	===================================
+		c_chmask	capture channel mask
+		c_srate		capture sampling rate
+		c_ssize		capture sample size (bytes)
+		p_chmask	playback channel mask
+		p_srate		playback sampling rate
+		p_ssize		playback sample size (bytes)
+		req_number	the number of pre-allocated request
+				for both capture and playback
+		==========	===================================

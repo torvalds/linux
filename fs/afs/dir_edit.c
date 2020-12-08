@@ -243,10 +243,8 @@ void afs_edit_dir_add(struct afs_vnode *vnode,
 						   index, gfp);
 			if (!page)
 				goto error;
-			if (!PagePrivate(page)) {
-				set_page_private(page, 1);
-				SetPagePrivate(page);
-			}
+			if (!PagePrivate(page))
+				attach_page_private(page, (void *)1);
 			dir_page = kmap(page);
 		}
 

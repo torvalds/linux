@@ -32,3 +32,5 @@ properties:
       that a LED can be made so bright that it gets damaged or causes damage
       due to restrictions in a specific system, such as mounting conditions.
     $ref: /schemas/types.yaml#definitions/uint32
+
+additionalProperties: true
