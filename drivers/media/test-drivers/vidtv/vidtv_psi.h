@@ -743,7 +743,7 @@ struct vidtv_psi_table_eit {
 struct vidtv_psi_table_eit
 *vidtv_psi_eit_table_init(u16 network_id,
 			  u16 transport_stream_id,
-			  u16 service_id);
+			  __be16 service_id);
 
 /**
  * struct vidtv_psi_eit_write_args - Arguments for writing an EIT section
