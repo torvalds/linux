@@ -673,8 +673,9 @@ static int _idtcm_set_dpll_hw_tod(struct idtcm_channel *channel,
 
 		if (idtcm->calculate_overhead_flag) {
 			/* Assumption: I2C @ 400KHz */
-			total_overhead_ns =  ktime_to_ns(ktime_get_raw()
-							 - idtcm->start_time)
+			ktime_t diff = ktime_sub(ktime_get_raw(),
+						 idtcm->start_time);
+			total_overhead_ns =  ktime_to_ns(diff)
 					     + idtcm->tod_write_overhead_ns
 					     + SETTIME_CORRECTION;
 
@@ -755,6 +756,54 @@ static int _idtcm_set_dpll_scsr_tod(struct idtcm_channel *channel,
 	}
 
 	return 0;
+}
+
+static int get_output_base_addr(u8 outn)
+{
+	int base;
+
+	switch (outn) {
+	case 0:
+		base = OUTPUT_0;
+		break;
+	case 1:
+		base = OUTPUT_1;
+		break;
+	case 2:
+		base = OUTPUT_2;
+		break;
+	case 3:
+		base = OUTPUT_3;
+		break;
+	case 4:
+		base = OUTPUT_4;
+		break;
+	case 5:
+		base = OUTPUT_5;
+		break;
+	case 6:
+		base = OUTPUT_6;
+		break;
+	case 7:
+		base = OUTPUT_7;
+		break;
+	case 8:
+		base = OUTPUT_8;
+		break;
+	case 9:
+		base = OUTPUT_9;
+		break;
+	case 10:
+		base = OUTPUT_10;
+		break;
+	case 11:
+		base = OUTPUT_11;
+		break;
+	default:
+		base = -EINVAL;
+	}
+
+	return base;
 }
 
 static int _idtcm_settime(struct idtcm_channel *channel,
@@ -881,6 +930,7 @@ static int set_tod_write_overhead(struct idtcm_channel *channel)
 
 	ktime_t start;
 	ktime_t stop;
+	ktime_t diff;
 
 	char buf[TOD_BYTE_COUNT] = {0};
 
@@ -900,7 +950,9 @@ static int set_tod_write_overhead(struct idtcm_channel *channel)
 
 		stop = ktime_get_raw();
 
-		current_ns = ktime_to_ns(stop - start);
+		diff = ktime_sub(stop, start);
+
+		current_ns = ktime_to_ns(diff);
 
 		if (i == 0) {
 			lowest_ns = current_ns;
@@ -1220,11 +1272,19 @@ static int idtcm_output_enable(struct idtcm_channel *channel,
 			       bool enable, unsigned int outn)
 {
 	struct idtcm *idtcm = channel->idtcm;
+	int base;
 	int err;
 	u8 val;
 
-	err = idtcm_read(idtcm, OUTPUT_MODULE_FROM_INDEX(outn),
-			 OUT_CTRL_1, &val, sizeof(val));
+	base = get_output_base_addr(outn);
+
+	if (!(base > 0)) {
+		dev_err(&idtcm->client->dev,
+			"%s - Unsupported out%d", __func__, outn);
+		return base;
+	}
+
+	err = idtcm_read(idtcm, (u16)base, OUT_CTRL_1, &val, sizeof(val));
 
 	if (err)
 		return err;
@@ -1234,8 +1294,7 @@ static int idtcm_output_enable(struct idtcm_channel *channel,
 	else
 		val &= ~SQUELCH_DISABLE;
 
-	return idtcm_write(idtcm, OUTPUT_MODULE_FROM_INDEX(outn),
-			   OUT_CTRL_1, &val, sizeof(val));
+	return idtcm_write(idtcm, (u16)base, OUT_CTRL_1, &val, sizeof(val));
 }
 
 static int idtcm_output_mask_enable(struct idtcm_channel *channel,
@@ -1276,6 +1335,23 @@ static int idtcm_perout_enable(struct idtcm_channel *channel,
 
 	/* Enable/disable individual output instead */
 	return idtcm_output_enable(channel, enable, perout->index);
+}
+
+static int idtcm_get_pll_mode(struct idtcm_channel *channel,
+			      enum pll_mode *pll_mode)
+{
+	struct idtcm *idtcm = channel->idtcm;
+	int err;
+	u8 dpll_mode;
+
+	err = idtcm_read(idtcm, channel->dpll_n, DPLL_MODE,
+			 &dpll_mode, sizeof(dpll_mode));
+	if (err)
+		return err;
+
+	*pll_mode = (dpll_mode >> PLL_MODE_SHIFT) & PLL_MODE_MASK;
+
+	return 0;
 }
 
 static int idtcm_set_pll_mode(struct idtcm_channel *channel,
@@ -1343,7 +1419,7 @@ static int _idtcm_adjphase(struct idtcm_channel *channel, s32 delta_ns)
 	else if (offset_ps < -MAX_ABS_WRITE_PHASE_PICOSECONDS)
 		offset_ps = -MAX_ABS_WRITE_PHASE_PICOSECONDS;
 
-	phase_50ps = DIV_ROUND_CLOSEST(div64_s64(offset_ps, 50), 1);
+	phase_50ps = div_s64(offset_ps, 50);
 
 	for (i = 0; i < 4; i++) {
 		buf[i] = phase_50ps & 0xff;
@@ -1360,7 +1436,6 @@ static int _idtcm_adjfine(struct idtcm_channel *channel, long scaled_ppm)
 {
 	struct idtcm *idtcm = channel->idtcm;
 	u8 i;
-	bool neg_adj = 0;
 	int err;
 	u8 buf[6] = {0};
 	s64 fcw;
@@ -1384,18 +1459,11 @@ static int _idtcm_adjfine(struct idtcm_channel *channel, long scaled_ppm)
 	 * FCW = -------------
 	 *         111 * 2^4
 	 */
-	if (scaled_ppm < 0) {
-		neg_adj = 1;
-		scaled_ppm = -scaled_ppm;
-	}
 
 	/* 2 ^ -53 = 1.1102230246251565404236316680908e-16 */
 	fcw = scaled_ppm * 244140625ULL;
 
-	fcw = div_u64(fcw, 1776);
-
-	if (neg_adj)
-		fcw = -fcw;
+	fcw = div_s64(fcw, 1776);
 
 	for (i = 0; i < 6; i++) {
 		buf[i] = fcw & 0xff;
@@ -2062,12 +2130,11 @@ static int idtcm_enable_channel(struct idtcm *idtcm, u32 index)
 		}
 	}
 
-	err = idtcm_set_pll_mode(channel, PLL_MODE_WRITE_FREQUENCY);
+	/* Sync pll mode with hardware */
+	err = idtcm_get_pll_mode(channel, &channel->pll_mode);
 	if (err) {
 		dev_err(&idtcm->client->dev,
-			"Failed at line %d in func %s!\n",
-			__LINE__,
-			__func__);
+			"Error: %s - Unable to read pll mode\n", __func__);
 		return err;
 	}
 
