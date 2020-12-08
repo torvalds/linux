@@ -379,6 +379,8 @@ patternProperties:
     description: Shenzhen Feixin Photoelectic Co., Ltd
   "^feiyang,.*":
     description: Shenzhen Fly Young Technology Co.,LTD.
+  "^fii,.*":
+    description: Foxconn Industrial Internet
   "^firefly,.*":
     description: Firefly
   "^focaltech,.*":
