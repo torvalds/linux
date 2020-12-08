@@ -42,12 +42,9 @@
 	status = "okay";
 	cs-gpios = <&gpx3 4 GPIO_ACTIVE_LOW>, <0>;
 
-	assigned-clocks = <&cmu CLK_MOUT_MPLL>, <&cmu CLK_DIV_MPLL_PRE>,
-			  <&cmu CLK_MOUT_SPI0>, <&cmu CLK_DIV_SPI0>,
+	assigned-clocks = <&cmu CLK_MOUT_SPI0>, <&cmu CLK_DIV_SPI0>,
 			  <&cmu CLK_DIV_SPI0_PRE>, <&cmu CLK_SCLK_SPI0>;
-	assigned-clock-parents = <&cmu CLK_FOUT_MPLL>,    /* for: CLK_MOUT_MPLL */
-				 <&cmu CLK_MOUT_MPLL>,    /* for: CLK_DIV_MPLL_PRE */
-				 <&cmu CLK_DIV_MPLL_PRE>, /* for: CLK_MOUT_SPI0 */
+	assigned-clock-parents = <&cmu CLK_DIV_MPLL_PRE>, /* for: CLK_MOUT_SPI0 */
 				 <&cmu CLK_MOUT_SPI0>,    /* for: CLK_DIV_SPI0 */
 				 <&cmu CLK_DIV_SPI0>,     /* for: CLK_DIV_SPI0_PRE */
 				 <&cmu CLK_DIV_SPI0_PRE>; /* for: CLK_SCLK_SPI0 */
