@@ -125,6 +125,18 @@ config KEYSTONE_REMOTEPROC
 	  It's safe to say N here if you're not interested in the Keystone
 	  DSPs or just want to use a bare minimum kernel.
 
+config PRU_REMOTEPROC
+	tristate "TI PRU remoteproc support"
+	depends on TI_PRUSS
+	default TI_PRUSS
+	help
+	  Support for TI PRU remote processors present within a PRU-ICSS
+	  subsystem via the remote processor framework.
+
+	  Say Y or M here to support the Programmable Realtime Unit (PRU)
+	  processors on various TI SoCs. It's safe to say N here if you're
+	  not interested in the PRU or if you are unsure.
+
 config QCOM_PIL_INFO
 	tristate
 
