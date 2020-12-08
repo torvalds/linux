@@ -675,7 +675,7 @@ static int get_fifo_play_length_us(struct fifo_cfg *fifo, u32 t_lra_us)
 	if (!fifo)
 		return -EINVAL;
 
-	for (i = fifo->num_s; i > 0; i--)
+	for (i = fifo->num_s - 1; i > 0; i--)
 		if (fifo->samples[i] != 0)
 			break;
 
