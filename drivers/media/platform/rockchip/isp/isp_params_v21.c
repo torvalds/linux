@@ -3870,6 +3870,7 @@ rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	struct rkisp_isp_params_val_v21 *priv_val =
 		(struct rkisp_isp_params_val_v21 *)params_vdev->priv_val;
 
+	rkisp_alloc_bay3d_buf(params_vdev, params_vdev->isp21_params);
 	spin_lock(&params_vdev->config_lock);
 	/* override the default things */
 	if (!params_vdev->isp21_params->module_cfg_update &&
@@ -3887,7 +3888,6 @@ rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	priv_val->tmo_en = 0;
 	priv_val->lsc_en = 0;
 	priv_val->mge_en = 0;
-	rkisp_alloc_bay3d_buf(params_vdev, params_vdev->isp21_params);
 	__isp_isr_other_config(params_vdev, params_vdev->isp21_params, RKISP_PARAMS_ALL);
 	__isp_isr_meas_config(params_vdev, params_vdev->isp21_params, RKISP_PARAMS_ALL);
 	__preisp_isr_update_hdrae_para(params_vdev, params_vdev->isp21_params);
