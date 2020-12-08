@@ -179,6 +179,8 @@ static int s3fwrn5_i2c_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct s3fwrn5_i2c_phy *phy;
+	struct irq_data *irq_data;
+	unsigned long irqflags;
 	int ret;
 
 	phy = devm_kzalloc(&client->dev, sizeof(*phy), GFP_KERNEL);
@@ -212,8 +214,11 @@ static int s3fwrn5_i2c_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
+	irq_data = irq_get_irq_data(client->irq);
+	irqflags = irqd_get_trigger_type(irq_data) | IRQF_ONESHOT;
+
 	ret = devm_request_threaded_irq(&client->dev, phy->i2c_dev->irq, NULL,
-		s3fwrn5_i2c_irq_thread_fn, IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+		s3fwrn5_i2c_irq_thread_fn, irqflags,
 		S3FWRN5_I2C_DRIVER_NAME, phy);
 	if (ret)
 		s3fwrn5_remove(phy->common.ndev);
