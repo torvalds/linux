@@ -387,7 +387,6 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 
 #define _FIXED_IE_LENGTH_			_BEACON_IE_OFFSET_
 
-#define _DSSET_IE_				3
 #define _TIM_IE_					5
 #define _IBSS_PARA_IE_			6
 #define _COUNTRY_IE_			7

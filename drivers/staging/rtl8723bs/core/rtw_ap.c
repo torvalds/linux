@@ -1019,7 +1019,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 	pbss_network->Configuration.Length = 0;
 	p = rtw_get_ie(
 		ie + _BEACON_IE_OFFSET_,
-		_DSSET_IE_, &ie_len,
+		WLAN_EID_DS_PARAMS, &ie_len,
 		(pbss_network->IELength - _BEACON_IE_OFFSET_)
 	);
 	if (p && ie_len > 0)
