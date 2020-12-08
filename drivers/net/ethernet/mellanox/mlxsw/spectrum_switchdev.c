@@ -3320,8 +3320,8 @@ mlxsw_sp_switchdev_vxlan_vlan_add(struct mlxsw_sp *mlxsw_sp,
 	if (!fid) {
 		if (!flag_untagged || !flag_pvid)
 			return 0;
-		return mlxsw_sp_bridge_8021q_vxlan_join(bridge_device,
-							vxlan_dev, vid, extack);
+		return bridge_device->ops->vxlan_join(bridge_device, vxlan_dev,
+						      vid, extack);
 	}
 
 	/* Second case: FID is associated with the VNI and the VLAN associated
@@ -3360,16 +3360,14 @@ mlxsw_sp_switchdev_vxlan_vlan_add(struct mlxsw_sp *mlxsw_sp,
 	if (!flag_untagged)
 		return 0;
 
-	err = mlxsw_sp_bridge_8021q_vxlan_join(bridge_device, vxlan_dev, vid,
-					       extack);
+	err = bridge_device->ops->vxlan_join(bridge_device, vxlan_dev, vid, extack);
 	if (err)
 		goto err_vxlan_join;
 
 	return 0;
 
 err_vxlan_join:
-	mlxsw_sp_bridge_8021q_vxlan_join(bridge_device, vxlan_dev, old_vid,
-					 NULL);
+	bridge_device->ops->vxlan_join(bridge_device, vxlan_dev, old_vid, NULL);
 	return err;
 }
 
