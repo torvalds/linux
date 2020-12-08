@@ -477,8 +477,9 @@ int smu_sys_get_pp_table(void *handle, char **table)
 	return powerplay_table_size;
 }
 
-int smu_sys_set_pp_table(struct smu_context *smu,  void *buf, size_t size)
+int smu_sys_set_pp_table(void *handle, const char *buf, size_t size)
 {
+	struct smu_context *smu = handle;
 	struct smu_table_context *smu_table = &smu->smu_table;
 	ATOM_COMMON_TABLE_HEADER *header = (ATOM_COMMON_TABLE_HEADER *)buf;
 	int ret = 0;
@@ -1775,8 +1776,9 @@ enum amd_dpm_forced_level smu_get_performance_level(void *handle)
 	return level;
 }
 
-int smu_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level)
+int smu_force_performance_level(void *handle, enum amd_dpm_forced_level level)
 {
+	struct smu_context *smu = handle;
 	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
 	int ret = 0;
 
@@ -2278,10 +2280,11 @@ int smu_print_ppclk_levels(void *handle, enum pp_clock_type type, char *buf)
 	return smu_print_smuclk_levels(smu, clk_type, buf);
 }
 
-int smu_od_edit_dpm_table(struct smu_context *smu,
+int smu_od_edit_dpm_table(void *handle,
 			  enum PP_OD_DPM_TABLE_COMMAND type,
 			  long *input, uint32_t size)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -2291,11 +2294,6 @@ int smu_od_edit_dpm_table(struct smu_context *smu,
 
 	if (smu->ppt_funcs->od_edit_dpm_table) {
 		ret = smu->ppt_funcs->od_edit_dpm_table(smu, type, input, size);
-		if (!ret && (type == PP_OD_COMMIT_DPM_TABLE))
-			ret = smu_handle_task(smu,
-					      smu->smu_dpm.dpm_level,
-					      AMD_PP_TASK_READJUST_POWER_STATE,
-					      false);
 	}
 
 	mutex_unlock(&smu->mutex);
@@ -2950,6 +2948,7 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.get_fan_control_mode    = smu_get_fan_control_mode,
 	.set_fan_speed_percent   = smu_set_fan_speed_percent,
 	.get_fan_speed_percent   = smu_get_fan_speed_percent,
+	.force_performance_level = smu_force_performance_level,
 	.read_sensor             = smu_read_sensor,
 	.get_performance_level   = smu_get_performance_level,
 	.get_current_power_state = smu_get_current_power_state,
@@ -2957,11 +2956,13 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.set_fan_speed_rpm       = smu_set_fan_speed_rpm,
 	.get_pp_num_states       = smu_get_power_num_states,
 	.get_pp_table            = smu_sys_get_pp_table,
+	.set_pp_table            = smu_sys_set_pp_table,
 	.switch_power_profile    = smu_switch_power_profile,
 	/* export to amdgpu */
 	.dispatch_tasks          = smu_handle_dpm_task,
 	.set_powergating_by_smu  = smu_dpm_set_power_gate,
 	.set_power_limit         = smu_set_power_limit,
+	.odn_edit_dpm_table      = smu_od_edit_dpm_table,
 	.set_mp1_state           = smu_set_mp1_state,
 	/* export to DC */
 	.get_sclk                = smu_get_sclk,
