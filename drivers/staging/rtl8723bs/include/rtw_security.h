@@ -21,7 +21,6 @@
 
 const char *security_type_str(u8 value);
 
-#define _WPA_IE_ID_	0xdd
 #define _WPA2_IE_ID_	0x30
 
 #define SHA256_MAC_LEN 32

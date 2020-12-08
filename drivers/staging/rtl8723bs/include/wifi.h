@@ -397,7 +397,6 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 #define _SUPPORTED_CH_IE_		36
 #define _CH_SWTICH_ANNOUNCE_	37	/* Secondary Channel Offset */
 #define _RSN_IE_2_				48
-#define _SSN_IE_1_					221
 #define _ERPINFO_IE_			42
 #define _EXT_SUPPORTEDRATES_IE_	50
 
@@ -414,7 +413,6 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 #define _CH_SWITCH_TIMING_		104
 #define _PTI_BUFFER_STATUS_		106
 #define _EXT_CAP_IE_				127
-#define _VENDOR_SPECIFIC_IE_		221
 
 #define	_RESERVED47_				47
 

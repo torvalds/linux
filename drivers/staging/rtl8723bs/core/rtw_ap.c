@@ -1110,7 +1110,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 	for (p = ie + _BEACON_IE_OFFSET_; ; p += (ie_len + 2)) {
 		p = rtw_get_ie(
 			p,
-			_SSN_IE_1_,
+			WLAN_EID_VENDOR_SPECIFIC,
 			&ie_len,
 			(pbss_network->IELength - _BEACON_IE_OFFSET_ - (ie_len + 2))
 		);
@@ -1146,7 +1146,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 		for (p = ie + _BEACON_IE_OFFSET_; ; p += (ie_len + 2)) {
 			p = rtw_get_ie(
 				p,
-				_VENDOR_SPECIFIC_IE_,
+				WLAN_EID_VENDOR_SPECIFIC,
 				&ie_len,
 				(pbss_network->IELength - _BEACON_IE_OFFSET_ - (ie_len + 2))
 			);
@@ -1792,7 +1792,7 @@ void update_beacon(struct adapter *padapter, u8 ie_id, u8 *oui, u8 tx)
 
 		break;
 
-	case _VENDOR_SPECIFIC_IE_:
+	case WLAN_EID_VENDOR_SPECIFIC:
 
 		update_bcn_vendor_spec_ie(padapter, oui);
 
