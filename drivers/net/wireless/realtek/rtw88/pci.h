@@ -214,7 +214,7 @@ struct rtw_pci {
 	void __iomem *mmap;
 };
 
-const struct dev_pm_ops rtw_pm_ops;
+extern const struct dev_pm_ops rtw_pm_ops;
 
 int rtw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 void rtw_pci_remove(struct pci_dev *pdev);
