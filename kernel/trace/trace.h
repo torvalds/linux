@@ -896,6 +896,8 @@ extern bool ring_buffer_expanded;
 extern bool tracing_selftest_disabled;
 
 #ifdef CONFIG_FTRACE_STARTUP_TEST
+extern void __init disable_tracing_selftest(const char *reason);
+
 extern int trace_selftest_startup_function(struct tracer *trace,
 					   struct trace_array *tr);
 extern int trace_selftest_startup_function_graph(struct tracer *trace,
@@ -919,6 +921,9 @@ extern int trace_selftest_startup_branch(struct tracer *trace,
  */
 #define __tracer_data		__refdata
 #else
+static inline void __init disable_tracing_selftest(const char *reason)
+{
+}
 /* Tracers are seldom changed. Optimize when selftests are disabled. */
 #define __tracer_data		__read_mostly
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
