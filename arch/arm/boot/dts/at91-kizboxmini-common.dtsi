@@ -54,10 +54,10 @@
 		};
 	};
 
-	leds: pwm_leds {
+	leds: led-controller-1 {
 		compatible = "pwm-leds";
 
-		led_blue: pwm_blue {
+		led_blue: led-1 {
 			label = "pwm:blue:user";
 			pwms = <&pwm0 2 10000000 0>;
 			max-brightness = <255>;
@@ -65,14 +65,14 @@
 			status = "disabled";
 		};
 
-		led_green: pwm_green {
+		led_green: led-2 {
 			label = "pwm:green:user";
 			pwms = <&pwm0 0 10000000 0>;
 			max-brightness = <255>;
 			linux,default-trigger = "default-on";
 		};
 
-		led_red: pwm_red {
+		led_red: led-3 {
 			label = "pwm:red:user";
 			pwms = <&pwm0 1 10000000 0>;
 			max-brightness = <255>;
