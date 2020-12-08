@@ -1080,6 +1080,12 @@ static int decode_read_plus_hole(struct xdr_stream *xdr,
 		}
 		length -= args->offset + res->count - offset;
 	}
+	if (length + res->count > args->count) {
+		*eof = 0;
+		if (unlikely(res->count >= args->count))
+			return 1;
+		length = args->count - res->count;
+	}
 	recvd = xdr_expand_hole(xdr, res->count, length);
 	res->count += recvd;
 
