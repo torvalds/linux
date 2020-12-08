@@ -522,13 +522,13 @@ static int arm_v7s_map(struct io_pgtable_ops *ops, unsigned long iova,
 	struct io_pgtable *iop = &data->iop;
 	int ret;
 
-	/* If no access, then nothing to do */
-	if (!(prot & (IOMMU_READ | IOMMU_WRITE)))
-		return 0;
-
 	if (WARN_ON(iova >= (1ULL << data->iop.cfg.ias) ||
 		    paddr >= (1ULL << data->iop.cfg.oas)))
 		return -ERANGE;
+
+	/* If no access, then nothing to do */
+	if (!(prot & (IOMMU_READ | IOMMU_WRITE)))
+		return 0;
 
 	ret = __arm_v7s_map(data, iova, paddr, size, prot, 1, data->pgd, gfp);
 	/*

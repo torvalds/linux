@@ -255,8 +255,10 @@ int iommu_probe_device(struct device *dev)
 		goto err_out;
 
 	group = iommu_group_get(dev);
-	if (!group)
+	if (!group) {
+		ret = -ENODEV;
 		goto err_release;
+	}
 
 	/*
 	 * Try to allocate a default domain - needs support from the
@@ -742,6 +744,7 @@ static int iommu_create_device_direct_mappings(struct iommu_group *group,
 	/* We need to consider overlapping regions for different devices */
 	list_for_each_entry(entry, &mappings, list) {
 		dma_addr_t start, end, addr;
+		size_t map_size = 0;
 
 		if (domain->ops->apply_resv_region)
 			domain->ops->apply_resv_region(dev, domain, entry);
@@ -753,16 +756,27 @@ static int iommu_create_device_direct_mappings(struct iommu_group *group,
 		    entry->type != IOMMU_RESV_DIRECT_RELAXABLE)
 			continue;
 
-		for (addr = start; addr < end; addr += pg_size) {
+		for (addr = start; addr <= end; addr += pg_size) {
 			phys_addr_t phys_addr;
 
-			phys_addr = iommu_iova_to_phys(domain, addr);
-			if (phys_addr)
-				continue;
+			if (addr == end)
+				goto map_end;
 
-			ret = iommu_map(domain, addr, addr, pg_size, entry->prot);
-			if (ret)
-				goto out;
+			phys_addr = iommu_iova_to_phys(domain, addr);
+			if (!phys_addr) {
+				map_size += pg_size;
+				continue;
+			}
+
+map_end:
+			if (map_size) {
+				ret = iommu_map(domain, addr - map_size,
+						addr - map_size, map_size,
+						entry->prot);
+				if (ret)
+					goto out;
+				map_size = 0;
+			}
 		}
 
 	}
@@ -2998,8 +3012,6 @@ EXPORT_SYMBOL_GPL(iommu_sva_bind_device);
  * Put reference to a bond between device and address space. The device should
  * not be issuing any more transaction for this PASID. All outstanding page
  * requests for this PASID must have been flushed to the IOMMU.
- *
- * Returns 0 on success, or an error value
  */
 void iommu_sva_unbind_device(struct iommu_sva *handle)
 {
