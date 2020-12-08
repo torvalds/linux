@@ -7,6 +7,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -14,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_clock.h>
 #include <linux/pm_domain.h>
 #include <linux/reset-controller.h>
 #include <linux/delay.h>
@@ -41,6 +43,7 @@ struct omap_prm_domain {
 	u16 pwrstst;
 	const struct omap_prm_domain_map *cap;
 	u32 pwrstctrl_saved;
+	unsigned int uses_pm_clk:1;
 };
 
 struct omap_rst_map {
@@ -121,6 +124,10 @@ static const struct omap_prm_domain_map omap_prm_onoff_noauto = {
 	.statechange = 1,
 };
 
+static const struct omap_prm_domain_map omap_prm_alwon = {
+	.usable_modes = BIT(OMAP_PRMD_ON_ACTIVE),
+};
+
 static const struct omap_rst_map rst_map_0[] = {
 	{ .rst = 0, .st = 0 },
 	{ .rst = -1 },
@@ -187,13 +194,39 @@ static const struct omap_rst_map am3_wkup_rst_map[] = {
 };
 
 static const struct omap_prm_data am3_prm_data[] = {
-	{ .name = "per", .base = 0x44e00c00, .rstctrl = 0x0, .rstmap = am3_per_rst_map, .flags = OMAP_PRM_HAS_RSTCTRL, .clkdm_name = "pruss_ocp" },
-	{ .name = "wkup", .base = 0x44e00d00, .rstctrl = 0x0, .rstst = 0xc, .rstmap = am3_wkup_rst_map, .flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM },
-	{ .name = "device", .base = 0x44e00f00, .rstctrl = 0x0, .rstst = 0x8, .rstmap = rst_map_01, .flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM },
+	{
+		.name = "per", .base = 0x44e00c00,
+		.pwrstctrl = 0xc, .pwrstst = 0x8, .dmap = &omap_prm_noinact,
+		.rstctrl = 0x0, .rstmap = am3_per_rst_map,
+		.flags = OMAP_PRM_HAS_RSTCTRL, .clkdm_name = "pruss_ocp"
+	},
+	{
+		.name = "wkup", .base = 0x44e00d00,
+		.pwrstctrl = 0x4, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+		.rstctrl = 0x0, .rstst = 0xc, .rstmap = am3_wkup_rst_map,
+		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM
+	},
+	{
+		.name = "mpu", .base = 0x44e00e00,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+	},
+	{
+		.name = "device", .base = 0x44e00f00,
+		.rstctrl = 0x0, .rstst = 0x8, .rstmap = rst_map_01,
+		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM
+	},
+	{
+		.name = "rtc", .base = 0x44e01000,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+	},
 	{
 		.name = "gfx", .base = 0x44e01100,
 		.pwrstctrl = 0, .pwrstst = 0x10, .dmap = &omap_prm_noinact,
 		.rstctrl = 0x4, .rstst = 0x14, .rstmap = rst_map_0, .clkdm_name = "gfx_l3",
+	},
+	{
+		.name = "cefuse", .base = 0x44e01200,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
 	},
 	{ },
 };
@@ -325,6 +358,38 @@ static int omap_prm_domain_power_off(struct generic_pm_domain *domain)
 	return 0;
 }
 
+/*
+ * Note that ti-sysc already manages the module clocks separately so
+ * no need to manage those. Interconnect instances need clocks managed
+ * for simple-pm-bus.
+ */
+static int omap_prm_domain_attach_clock(struct device *dev,
+					struct omap_prm_domain *prmd)
+{
+	struct device_node *np = dev->of_node;
+	int error;
+
+	if (!of_device_is_compatible(np, "simple-pm-bus"))
+		return 0;
+
+	if (!of_property_read_bool(np, "clocks"))
+		return 0;
+
+	error = pm_clk_create(dev);
+	if (error)
+		return error;
+
+	error = of_pm_clk_add_clks(dev);
+	if (error < 0) {
+		pm_clk_destroy(dev);
+		return error;
+	}
+
+	prmd->uses_pm_clk = 1;
+
+	return 0;
+}
+
 static int omap_prm_domain_attach_dev(struct generic_pm_domain *domain,
 				      struct device *dev)
 {
@@ -349,6 +414,10 @@ static int omap_prm_domain_attach_dev(struct generic_pm_domain *domain,
 	genpd_data = dev_gpd_data(dev);
 	genpd_data->data = NULL;
 
+	ret = omap_prm_domain_attach_clock(dev, prmd);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
@@ -356,7 +425,11 @@ static void omap_prm_domain_detach_dev(struct generic_pm_domain *domain,
 				       struct device *dev)
 {
 	struct generic_pm_domain_data *genpd_data;
+	struct omap_prm_domain *prmd;
 
+	prmd = genpd_to_prm_domain(domain);
+	if (prmd->uses_pm_clk)
+		pm_clk_destroy(dev);
 	genpd_data = dev_gpd_data(dev);
 	genpd_data->data = NULL;
 }
@@ -393,6 +466,7 @@ static int omap_prm_domain_init(struct device *dev, struct omap_prm *prm)
 	prmd->pd.power_off = omap_prm_domain_power_off;
 	prmd->pd.attach_dev = omap_prm_domain_attach_dev;
 	prmd->pd.detach_dev = omap_prm_domain_detach_dev;
+	prmd->pd.flags = GENPD_FLAG_PM_CLK;
 
 	pm_genpd_init(&prmd->pd, NULL, true);
 	error = of_genpd_add_provider_simple(np, &prmd->pd);
@@ -483,6 +557,10 @@ static int omap_reset_deassert(struct reset_controller_dev *rcdev,
 	unsigned long flags;
 	struct ti_prm_platform_data *pdata = dev_get_platdata(reset->dev);
 	int ret = 0;
+
+	/* Nothing to do if the reset is already deasserted */
+	if (!omap_reset_status(rcdev, id))
+		return 0;
 
 	has_rstst = reset->prm->data->rstst ||
 		(reset->prm->data->flags & OMAP_PRM_HAS_RSTST);
