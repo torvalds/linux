@@ -508,6 +508,7 @@ int smu_v13_0_get_vbios_bootup_values(struct smu_context *smu)
 		smu->smu_table.boot_values.vdd_gfx = v_3_3->bootup_vddgfx_mv;
 		smu->smu_table.boot_values.cooling_id = v_3_3->coolingsolution_id;
 		smu->smu_table.boot_values.pp_table_id = v_3_3->pplib_pptable_id;
+		break;
 	case 4:
 	default:
 		v_3_4 = (struct atom_firmware_info_v3_4 *)header;
@@ -522,6 +523,7 @@ int smu_v13_0_get_vbios_bootup_values(struct smu_context *smu)
 		smu->smu_table.boot_values.vdd_gfx = v_3_4->bootup_vddgfx_mv;
 		smu->smu_table.boot_values.cooling_id = v_3_4->coolingsolution_id;
 		smu->smu_table.boot_values.pp_table_id = v_3_4->pplib_pptable_id;
+		break;
 	}
 
 	smu->smu_table.boot_values.format_revision = header->format_revision;

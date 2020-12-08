@@ -596,7 +596,10 @@ struct atom_firmware_info_v3_4 {
 	uint32_t maco_pwrlimit_mw;                // bomaco mode power limit in unit of m-watt
 	uint32_t usb_pwrlimit_mw;                 // power limit when USB is enable in unit of m-watt
 	uint32_t fw_reserved_size_in_kb;          // VBIOS reserved extra fw size in unit of kb.
-	uint32_t reserved[5];
+        uint32_t pspbl_init_done_reg_addr;
+        uint32_t pspbl_init_done_value;
+        uint32_t pspbl_init_done_check_timeout;   // time out in unit of us when polling pspbl init done
+        uint32_t reserved[2];
 };
 
 /* 
