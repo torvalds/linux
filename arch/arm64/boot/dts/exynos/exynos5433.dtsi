@@ -23,7 +23,7 @@
 
 	interrupt-parent = <&gic>;
 
-	arm_a53_pmu {
+	arm-a53-pmu {
 		compatible = "arm,cortex-a53-pmu";
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>,
@@ -32,7 +32,7 @@
 		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
 	};
 
-	arm_a57_pmu {
+	arm-a57-pmu {
 		compatible = "arm,cortex-a57-pmu";
 		interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>,
@@ -137,7 +137,7 @@
 		};
 	};
 
-	cluster_a53_opp_table: opp_table0 {
+	cluster_a53_opp_table: opp-table0 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -183,7 +183,7 @@
 		};
 	};
 
-	cluster_a57_opp_table: opp_table1 {
+	cluster_a57_opp_table: opp-table1 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -1029,6 +1029,11 @@
 			reg = <0x145f0000 0x1038>;
 		};
 
+		syscon_fsys: syscon@156f0000 {
+			compatible = "syscon";
+			reg = <0x156f0000 0x1044>;
+		};
+
 		gsc_0: video-scaler@13c00000 {
 			compatible = "samsung,exynos5433-gsc";
 			reg = <0x13c00000 0x1000>;
@@ -1445,7 +1450,6 @@
 			clock-names = "adc";
 			clocks = <&cmu_peric CLK_PCLK_ADCIF>;
 			#io-channel-cells = <1>;
-			io-channel-ranges;
 			status = "disabled";
 		};
 
@@ -1647,7 +1651,7 @@
 			ranges;
 			status = "disabled";
 
-			usbdrd_dwc3: dwc3@15400000 {
+			usbdrd_dwc3: usb@15400000 {
 				compatible = "snps,dwc3";
 				clocks = <&cmu_fsys CLK_SCLK_USBDRD30>,
 					<&cmu_fsys CLK_ACLK_USBDRD30>,
@@ -1700,7 +1704,7 @@
 			ranges;
 			status = "disabled";
 
-			usbhost_dwc3: dwc3@15a00000 {
+			usbhost_dwc3: usb@15a00000 {
 				compatible = "snps,dwc3";
 				clocks = <&cmu_fsys CLK_SCLK_USBHOST30>,
 					<&cmu_fsys CLK_ACLK_USBHOST30>,
@@ -1829,6 +1833,37 @@
 				power-domains = <&pd_aud>;
 				status = "disabled";
 			};
+		};
+
+		pcie_phy: pcie-phy@15680000 {
+			compatible = "samsung,exynos5433-pcie-phy";
+			reg = <0x15680000 0x1000>;
+			samsung,pmu-syscon = <&pmu_system_controller>;
+			samsung,fsys-sysreg = <&syscon_fsys>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		pcie: pcie@15700000 {
+			compatible = "samsung,exynos5433-pcie";
+			reg = <0x15700000 0x1000>, <0x156b0000 0x1000>,
+			      <0x0c000000 0x1000>;
+			reg-names = "dbi", "elbi", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
+			device_type = "pci";
+			interrupts = <GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_fsys CLK_PCIE>,
+				 <&cmu_fsys CLK_PCLK_PCIE_PHY>;
+			clock-names = "pcie", "pcie_bus";
+			num-lanes = <1>;
+			num-viewport = <3>;
+			bus-range = <0x00 0xff>;
+			phys = <&pcie_phy>;
+			ranges = <0x81000000 0 0	  0x0c001000 0 0x00010000>,
+				 <0x82000000 0 0x0c011000 0x0c011000 0 0x03feefff>;
+			status = "disabled";
 		};
 	};
 
