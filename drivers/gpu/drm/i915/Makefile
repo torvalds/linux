@@ -285,7 +285,6 @@ obj-$(CONFIG_DRM_I915_GVT_KVMGT) += gvt/kvmgt.o
 no-header-test := \
 	display/intel_vbt_defs.h \
 	gvt/gvt.h \
-	gvt/mmio_context.h \
 	gvt/mpt.h \
 	gvt/scheduler.h
 
