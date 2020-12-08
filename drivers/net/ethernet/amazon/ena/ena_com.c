@@ -1360,16 +1360,15 @@ int ena_com_execute_admin_command(struct ena_com_admin_queue *admin_queue,
 	comp_ctx = ena_com_submit_admin_cmd(admin_queue, cmd, cmd_size,
 					    comp, comp_size);
 	if (IS_ERR(comp_ctx)) {
-		if (comp_ctx == ERR_PTR(-ENODEV))
+		ret = PTR_ERR(comp_ctx);
+		if (ret == -ENODEV)
 			netdev_dbg(admin_queue->ena_dev->net_device,
-				   "Failed to submit command [%ld]\n",
-				   PTR_ERR(comp_ctx));
+				   "Failed to submit command [%d]\n", ret);
 		else
 			netdev_err(admin_queue->ena_dev->net_device,
-				   "Failed to submit command [%ld]\n",
-				   PTR_ERR(comp_ctx));
+				   "Failed to submit command [%d]\n", ret);
 
-		return PTR_ERR(comp_ctx);
+		return ret;
 	}
 
 	ret = ena_com_wait_and_process_admin_cq(comp_ctx, admin_queue);
@@ -1595,7 +1594,7 @@ int ena_com_set_aenq_config(struct ena_com_dev *ena_dev, u32 groups_flag)
 int ena_com_get_dma_width(struct ena_com_dev *ena_dev)
 {
 	u32 caps = ena_com_reg_bar_read32(ena_dev, ENA_REGS_CAPS_OFF);
-	int width;
+	u32 width;
 
 	if (unlikely(caps == ENA_MMIO_READ_TIMEOUT)) {
 		netdev_err(ena_dev->net_device, "Reg read timeout occurred\n");
@@ -2247,7 +2246,7 @@ int ena_com_get_dev_basic_stats(struct ena_com_dev *ena_dev,
 	return ret;
 }
 
-int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, int mtu)
+int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, u32 mtu)
 {
 	struct ena_com_admin_queue *admin_queue;
 	struct ena_admin_set_feat_cmd cmd;
