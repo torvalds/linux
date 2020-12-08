@@ -628,6 +628,8 @@ int ethnl_parse_bitset(unsigned long *val, unsigned long *mask,
 			return ret;
 
 		change_bits = nla_get_u32(tb[ETHTOOL_A_BITSET_SIZE]);
+		if (change_bits > nbits)
+			change_bits = nbits;
 		bitmap_from_arr32(val, nla_data(tb[ETHTOOL_A_BITSET_VALUE]),
 				  change_bits);
 		if (change_bits < nbits)
