@@ -86,15 +86,11 @@ struct k3_udma_glue_rx_channel {
 static int of_k3_udma_glue_parse(struct device_node *udmax_np,
 				 struct k3_udma_glue_common *common)
 {
-	common->ringacc = of_k3_ringacc_get_by_phandle(udmax_np,
-						       "ti,ringacc");
-	if (IS_ERR(common->ringacc))
-		return PTR_ERR(common->ringacc);
-
 	common->udmax = of_xudma_dev_get(udmax_np, NULL);
 	if (IS_ERR(common->udmax))
 		return PTR_ERR(common->udmax);
 
+	common->ringacc = xudma_get_ringacc(common->udmax);
 	common->tisci_rm = xudma_dev_get_tisci_rm(common->udmax);
 
 	return 0;

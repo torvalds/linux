@@ -56,6 +56,12 @@ struct device *xudma_get_device(struct udma_dev *ud)
 }
 EXPORT_SYMBOL(xudma_get_device);
 
+struct k3_ringacc *xudma_get_ringacc(struct udma_dev *ud)
+{
+	return ud->ringacc;
+}
+EXPORT_SYMBOL(xudma_get_ringacc);
+
 u32 xudma_dev_get_psil_base(struct udma_dev *ud)
 {
 	return ud->psil_base;
