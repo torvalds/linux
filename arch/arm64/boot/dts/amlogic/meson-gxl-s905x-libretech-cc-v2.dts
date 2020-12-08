@@ -84,7 +84,6 @@
 		regulator-always-on;
 	};
 
-
 	vcck: regulator-vcck {
 		compatible = "regulator-fixed";
 		regulator-name = "VCCK";
@@ -123,7 +122,6 @@
 		vin-supply = <&ao_5v>;
 		regulator-always-on;
 	};
-
 
 	vddio_card: regulator-vddio-card {
 		compatible = "regulator-gpio";
@@ -195,7 +193,6 @@
 	};
 };
 
-
 &aiu {
 	status = "okay";
 };
@@ -206,7 +203,6 @@
 	pinctrl-names = "default";
 	hdmi-phandle = <&hdmi_tx>;
 };
-
 
 &ethmac {
 	status = "okay";
