@@ -65,17 +65,17 @@
 #define ASPEED_MCTP_RX_BUF_SIZE		0x024
 #define ASPEED_MCTP_RX_BUF_RD_PTR	0x028
 #define  UPDATE_RX_RD_PTR		BIT(31)
-#define  RX_BUFFER_RD_PTR		GENMASK(11, 0)
+#define  RX_BUF_RD_PTR_MASK		GENMASK(11, 0)
 #define ASPEED_MCTP_RX_BUF_WR_PTR	0x02c
-#define  RX_BUFFER_WR_PTR		GENMASK(11, 0)
+#define  RX_BUF_WR_PTR_MASK		GENMASK(11, 0)
 
 #define ASPEED_MCTP_TX_BUF_ADDR		0x030
 #define ASPEED_MCTP_TX_BUF_SIZE		0x034
 #define ASPEED_MCTP_TX_BUF_RD_PTR	0x038
 #define  UPDATE_TX_RD_PTR		BIT(31)
-#define  TX_BUFFER_RD_PTR		GENMASK(11, 0)
+#define  TX_BUF_RD_PTR_MASK		GENMASK(11, 0)
 #define ASPEED_MCTP_TX_BUF_WR_PTR	0x03c
-#define  TX_BUFFER_WR_PTR		GENMASK(11, 0)
+#define  TX_BUF_WR_PTR_MASK		GENMASK(11, 0)
 
 #define ADDR_LEN	(BIT(26) - 1)
 #define DATA_ADDR(x)	(((x) >> 4) & ADDR_LEN)
@@ -107,12 +107,8 @@
 /* Buffer sizes */
 #define TX_PACKET_COUNT 64
 #define RX_PACKET_COUNT 64
-#define TX_MAX_PACKET_COUNT SZ_4K
-#define RX_MAX_PACKET_COUNT SZ_4K
-
-#define TX_CMD_COUNT TX_PACKET_COUNT
-/* XXX: We need twice the amount programmed in RX_BUF_SIZE */
-#define RX_CMD_COUNT (2 * RX_PACKET_COUNT)
+#define TX_MAX_PACKET_COUNT (TX_BUF_RD_PTR_MASK + 1)
+#define RX_MAX_PACKET_COUNT (RX_BUF_RD_PTR_MASK + 1)
 
 /* PCIe Host Controller registers */
 #define ASPEED_PCIE_MISC_STS_1 0x0c4
@@ -143,7 +139,6 @@
 #define PCIE_VDM_HDR_REQUESTER_BDF_DW 1
 #define PCIE_VDM_HDR_REQUESTER_BDF_MASK GENMASK(31, 16)
 
-
 struct aspeed_mctp_tx_cmd {
 	u32 tx_lo;
 	u32 tx_hi;
@@ -158,8 +153,10 @@ struct mctp_channel {
 	struct mctp_buffer data;
 	struct mctp_buffer cmd;
 	struct tasklet_struct tasklet;
+	u32 buffer_count;
 	u32 rd_ptr;
 	u32 wr_ptr;
+	bool stopped;
 };
 
 struct aspeed_mctp {
@@ -188,7 +185,12 @@ struct aspeed_mctp {
 		bool need_uevent;
 		u16 bdf;
 	} pcie;
-	bool wa_runaway_rx;
+
+	struct {
+		bool enable;
+		bool warmup;
+		int packet_counter;
+	} rx_runaway_wa;
 };
 
 struct mctp_client {
@@ -215,10 +217,10 @@ struct aspeed_mctp_endpoint {
 };
 
 #define TX_CMD_BUF_SIZE \
-	PAGE_ALIGN(TX_CMD_COUNT * sizeof(struct aspeed_mctp_tx_cmd))
+	PAGE_ALIGN(TX_PACKET_COUNT * sizeof(struct aspeed_mctp_tx_cmd))
 #define TX_DATA_BUF_SIZE \
 	 PAGE_ALIGN(TX_PACKET_COUNT * sizeof(struct mctp_pcie_packet_data))
-#define RX_CMD_BUF_SIZE PAGE_ALIGN(RX_CMD_COUNT * sizeof(u32))
+#define RX_CMD_BUF_SIZE PAGE_ALIGN(RX_PACKET_COUNT * sizeof(u32))
 #define RX_DATA_BUF_SIZE \
 	PAGE_ALIGN(RX_PACKET_COUNT * sizeof(struct mctp_pcie_packet_data))
 
@@ -265,6 +267,14 @@ static void aspeed_mctp_rx_trigger(struct mctp_channel *rx)
 	regmap_update_bits(priv->map, ASPEED_MCTP_CTRL, RX_CMD_READY, 0);
 	regmap_write(priv->map, ASPEED_MCTP_RX_BUF_ADDR, rx->cmd.dma_handle);
 	regmap_write(priv->map, ASPEED_MCTP_RX_BUF_WR_PTR, 0);
+
+	/* After re-enabling RX we need to restart WA logic */
+	if (priv->rx_runaway_wa.enable) {
+		priv->rx_runaway_wa.warmup = true;
+		priv->rx_runaway_wa.packet_counter = 0;
+		priv->rx.buffer_count = RX_PACKET_COUNT;
+	}
+
 	regmap_update_bits(priv->map, ASPEED_MCTP_CTRL, RX_CMD_READY,
 			   RX_CMD_READY);
 }
@@ -407,7 +417,11 @@ static void aspeed_mctp_dispatch_packet(struct aspeed_mctp *priv,
 	if (client) {
 		ret = ptr_ring_produce(&client->rx_queue, packet);
 		if (ret) {
-			dev_warn(priv->dev, "Failed to produce RX packet\n");
+			/*
+			 * This can happen if client process does not
+			 * consume packets fast enough
+			 */
+			dev_dbg(priv->dev, "Failed to store packet in client RX queue\n");
 			aspeed_mctp_packet_free(packet);
 		} else {
 			wake_up_all(&client->wait_queue);
@@ -466,7 +480,11 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 	struct aspeed_mctp *priv = container_of(rx, typeof(*priv), rx);
 	struct mctp_pcie_packet *rx_packet;
 	struct mctp_pcie_packet_data *rx_buf;
+	u32 hw_read_ptr;
 	u32 *hdr;
+
+	/* Trigger HW read pointer update, must be done before RX loop */
+	regmap_write(priv->map, ASPEED_MCTP_RX_BUF_RD_PTR, UPDATE_RX_RD_PTR);
 
 	/*
 	 * XXX: Using rd_ptr obtained from HW is unreliable so we need to
@@ -476,25 +494,79 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 	rx_buf = (struct mctp_pcie_packet_data *)rx->data.vaddr;
 	hdr = (u32 *)&rx_buf[rx->wr_ptr];
 
-	while (*hdr != 0) {
-		rx_packet = aspeed_mctp_packet_alloc(GFP_ATOMIC);
-		if (!rx_packet) {
-			dev_err(priv->dev, "Failed to allocate RX packet\n");
-			break;
+	if (priv->rx_runaway_wa.warmup && !*hdr) {
+		u32 tmp_wr_ptr = rx->wr_ptr;
+
+		/*
+		 * HACK: Right after start the RX hardware can put received
+		 * packet into an unexpected offset - in order to locate
+		 * received packet driver has to scan all RX data buffers.
+		 */
+		do {
+			tmp_wr_ptr = (tmp_wr_ptr + 1) % RX_PACKET_COUNT;
+
+			hdr = (u32 *)&rx_buf[tmp_wr_ptr];
+		} while (!*hdr && tmp_wr_ptr != rx->wr_ptr);
+
+		if (tmp_wr_ptr != rx->wr_ptr) {
+			dev_dbg(priv->dev, "Runaway RX packet found %d -> %d\n",
+				rx->wr_ptr, tmp_wr_ptr);
+			rx->wr_ptr = tmp_wr_ptr;
 		}
 
-		memcpy(&rx_packet->data, hdr, sizeof(rx_packet->data));
+		/*
+		 * Once we receive RX_PACKET_COUNT packets, hardware is
+		 * guaranteed to use (RX_PACKET_COUNT - 4) buffers. Decrease
+		 * buffer count by 4, then we can turn off scanning of RX
+		 * buffers. RX buffer scanning should be enabled every time
+		 * RX hardware is started.
+		 * This is just a performance optimization - we could keep
+		 * scanning RX buffers forever, but under heavy traffic it is
+		 * fairly common that rx_tasklet is executed while RX buffer
+		 * ring is empty.
+		 */
+		if (priv->rx_runaway_wa.packet_counter > RX_PACKET_COUNT) {
+			priv->rx_runaway_wa.warmup = false;
+			rx->buffer_count = RX_PACKET_COUNT - 4;
+		}
+	}
 
-		aspeed_mctp_swap_pcie_vdm_hdr(&rx_packet->data);
+	while (*hdr != 0) {
+		rx_packet = aspeed_mctp_packet_alloc(GFP_ATOMIC);
+		if (rx_packet) {
+			memcpy(&rx_packet->data, hdr, sizeof(rx_packet->data));
+
+			aspeed_mctp_swap_pcie_vdm_hdr(&rx_packet->data);
+
+			aspeed_mctp_dispatch_packet(priv, rx_packet);
+		} else {
+			dev_dbg(priv->dev, "Failed to allocate RX packet\n");
+		}
 
 		*hdr = 0;
-		rx->wr_ptr = (rx->wr_ptr + 1) % RX_PACKET_COUNT;
+		rx->wr_ptr = (rx->wr_ptr + 1) % rx->buffer_count;
 		hdr = (u32 *)&rx_buf[rx->wr_ptr];
 
-		aspeed_mctp_dispatch_packet(priv, rx_packet);
+		priv->rx_runaway_wa.packet_counter++;
 	}
-	if (rx->wr_ptr == 0)
-		aspeed_mctp_rx_trigger(rx);
+
+	/*
+	 * Update HW write pointer, this can be done only after driver consumes
+	 * packets from RX ring.
+	 */
+	regmap_read(priv->map, ASPEED_MCTP_RX_BUF_RD_PTR, &hw_read_ptr);
+	hw_read_ptr &= RX_BUF_RD_PTR_MASK;
+	regmap_write(priv->map, ASPEED_MCTP_RX_BUF_WR_PTR, (hw_read_ptr));
+
+	dev_dbg(priv->dev, "RX hw ptr %02d, sw ptr %2d\n",
+		hw_read_ptr, rx->wr_ptr);
+
+	/* Kick RX if it was stopped due to ring full condition */
+	if (rx->stopped) {
+		regmap_update_bits(priv->map, ASPEED_MCTP_CTRL, RX_CMD_READY,
+				   RX_CMD_READY);
+		rx->stopped = false;
+	}
 }
 
 static void aspeed_mctp_rx_chan_init(struct mctp_channel *rx)
@@ -502,24 +574,32 @@ static void aspeed_mctp_rx_chan_init(struct mctp_channel *rx)
 	struct aspeed_mctp *priv = container_of(rx, typeof(*priv), rx);
 	u32 *rx_cmd = (u32 *)rx->cmd.vaddr;
 	u32 data_size = sizeof(struct mctp_pcie_packet_data);
-	u32 packet_offset, i;
+	u32 hw_rx_count = RX_PACKET_COUNT;
+	int i;
 
-	/*
-	 * XXX: Sporadically, after BMC reboot, MCTP hardware starts processing
-	 * commands outside of RX command buffer range defined in registers.
-	 * Generally, it executes commands from memory until it reaches twice
-	 * the expected buffer size. After a single "overflow" it goes back to
-	 * defined range.
-	 * To handle this case (and avoid losing initial packets), we need to
-	 * insert additional RX commands that point to our data buffer.
-	 */
-	for (i = 0; i < RX_CMD_COUNT; i++) {
-		packet_offset = data_size * (i % RX_PACKET_COUNT);
-		*rx_cmd = RX_DATA_ADDR(rx->data.dma_handle + packet_offset);
+	for (i = 0; i < RX_PACKET_COUNT; i++) {
+		*rx_cmd = RX_DATA_ADDR(rx->data.dma_handle + data_size * i);
 		*rx_cmd |= RX_INTERRUPT_AFTER_CMD;
 		rx_cmd++;
 	}
-	regmap_write(priv->map, ASPEED_MCTP_RX_BUF_SIZE, RX_PACKET_COUNT);
+
+	rx->buffer_count = RX_PACKET_COUNT;
+
+	/*
+	 * TODO: Once read pointer runaway bug is fixed in some future AST2x00
+	 * stepping then add chip revision detection and turn on this
+	 * workaround only when needed
+	 */
+	priv->rx_runaway_wa.enable = true;
+
+	/*
+	 * Hardware does not wrap around ASPEED_MCTP_RX_BUF_SIZE
+	 * correctly - we have to set number of buffers to n/4 -1
+	 */
+	if (priv->rx_runaway_wa.enable)
+		hw_rx_count = (RX_PACKET_COUNT / 4 - 1);
+
+	regmap_write(priv->map, ASPEED_MCTP_RX_BUF_SIZE, hw_rx_count);
 }
 
 static void aspeed_mctp_tx_chan_init(struct mctp_channel *tx)
@@ -528,6 +608,7 @@ static void aspeed_mctp_tx_chan_init(struct mctp_channel *tx)
 
 	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_SIZE, TX_PACKET_COUNT);
 	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_WR_PTR, 0);
+	regmap_update_bits(priv->map, ASPEED_MCTP_CTRL, TX_CMD_TRIGGER, 0);
 }
 
 struct mctp_client *aspeed_mctp_create_client(struct aspeed_mctp *priv)
@@ -543,16 +624,6 @@ struct mctp_client *aspeed_mctp_create_client(struct aspeed_mctp *priv)
 	spin_lock_bh(&priv->clients_lock);
 	list_add_tail(&client->link, &priv->clients);
 	spin_unlock_bh(&priv->clients_lock);
-
-	/*
-	 * kick the tasklet to trigger rx
-	 * bh_disable/enable is just to make sure that the tasklet gets
-	 * scheduled immediately in process context without any unnecessary
-	 * delay
-	 */
-	local_bh_disable();
-	tasklet_hi_schedule(&priv->rx.tasklet);
-	local_bh_enable();
 
 	return client;
 }
@@ -1191,7 +1262,7 @@ static void aspeed_mctp_pcie_setup(struct aspeed_mctp *priv)
 static void aspeed_mctp_irq_enable(struct aspeed_mctp *priv)
 {
 	u32 enable = TX_CMD_LAST_INT | TX_CMD_WRONG_INT |
-		     RX_CMD_RECEIVE_INT;
+		     RX_CMD_RECEIVE_INT | RX_CMD_NO_MORE_INT;
 
 	regmap_write(priv->map, ASPEED_MCTP_INT_EN, enable);
 }
@@ -1217,6 +1288,7 @@ static void aspeed_mctp_reset_work(struct work_struct *work)
 	if (priv->pcie.bdf) {
 		aspeed_mctp_send_pcie_uevent(kobj, true);
 		aspeed_mctp_irq_enable(priv);
+		aspeed_mctp_rx_trigger(&priv->rx);
 	}
 }
 
@@ -1241,7 +1313,7 @@ static irqreturn_t aspeed_mctp_irq_handler(int irq, void *arg)
 		regmap_write(priv->map, ASPEED_MCTP_TX_BUF_RD_PTR,
 			     UPDATE_RX_RD_PTR);
 		regmap_read(priv->map, ASPEED_MCTP_TX_BUF_RD_PTR, &rd_ptr);
-		rd_ptr &= TX_BUFFER_RD_PTR;
+		rd_ptr &= TX_BUF_RD_PTR_MASK;
 
 		/*
 		 * rd_ptr on TX side seems to be busted...
@@ -1264,33 +1336,17 @@ static irqreturn_t aspeed_mctp_irq_handler(int irq, void *arg)
 	}
 
 	if (status & RX_CMD_RECEIVE_INT) {
-		/*
-		 * XXX: After BMC reboot, it is possible that rd_ptr of RX
-		 * buffer no longer matches the starting point of the RX
-		 * buffer.
-		 * Since we don't have any mechanism to reset it, we're
-		 * determining the starting point ourselves, based on buffer
-		 * contents when first packet is received.
-		 */
-		if (unlikely(priv->wa_runaway_rx)) {
-			struct mctp_pcie_packet_data *rx_buf;
-			u32 i;
-
-			rx_buf = priv->rx.data.vaddr;
-
-			for (i = 0; i < RX_PACKET_COUNT; i++) {
-				u32 *hdr = (u32 *)&rx_buf[i];
-
-				if (*hdr != 0)
-					break;
-			}
-			WRITE_ONCE(priv->rx.wr_ptr, i % RX_PACKET_COUNT);
-			priv->wa_runaway_rx = false;
-		}
-
 		tasklet_hi_schedule(&priv->rx.tasklet);
 
 		handled |= RX_CMD_RECEIVE_INT;
+	}
+
+	if (status & RX_CMD_NO_MORE_INT) {
+		dev_dbg(priv->dev, "RX full");
+		priv->rx.stopped = true;
+		tasklet_hi_schedule(&priv->rx.tasklet);
+
+		handled |= RX_CMD_NO_MORE_INT;
 	}
 
 	if (!handled)
@@ -1383,7 +1439,7 @@ static int aspeed_mctp_dma_init(struct aspeed_mctp *priv)
 	int ret = -ENOMEM;
 
 	BUILD_BUG_ON(TX_PACKET_COUNT >= TX_MAX_PACKET_COUNT);
-	BUILD_BUG_ON(RX_CMD_COUNT >= RX_MAX_PACKET_COUNT);
+	BUILD_BUG_ON(RX_PACKET_COUNT >= RX_MAX_PACKET_COUNT);
 
 	tx->cmd.vaddr = dma_alloc_coherent(priv->dev, TX_CMD_BUF_SIZE,
 					   &tx->cmd.dma_handle, GFP_KERNEL);
@@ -1482,7 +1538,6 @@ static void aspeed_mctp_hw_reset(struct aspeed_mctp *priv)
 	regmap_read(priv->map, ASPEED_MCTP_TX_BUF_ADDR, &reg);
 
 	if (reg) {
-		priv->wa_runaway_rx = true;
 		dev_info(priv->dev,
 			 "Already initialized - skipping hardware reset\n");
 		return;
@@ -1542,6 +1597,8 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	aspeed_mctp_irq_enable(priv);
 
 	aspeed_mctp_pcie_setup(priv);
+
+	aspeed_mctp_rx_trigger(&priv->rx);
 
 	return 0;
 
