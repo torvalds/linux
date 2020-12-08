@@ -50,6 +50,12 @@ struct udma_dev *of_xudma_dev_get(struct device_node *np, const char *property)
 }
 EXPORT_SYMBOL(of_xudma_dev_get);
 
+struct device *xudma_get_device(struct udma_dev *ud)
+{
+	return ud->dev;
+}
+EXPORT_SYMBOL(xudma_get_device);
+
 u32 xudma_dev_get_psil_base(struct udma_dev *ud)
 {
 	return ud->psil_base;

@@ -493,6 +493,13 @@ int k3_udma_glue_tx_get_irq(struct k3_udma_glue_tx_channel *tx_chn)
 }
 EXPORT_SYMBOL_GPL(k3_udma_glue_tx_get_irq);
 
+struct device *
+	k3_udma_glue_tx_get_dma_device(struct k3_udma_glue_tx_channel *tx_chn)
+{
+	return xudma_get_device(tx_chn->common.udmax);
+}
+EXPORT_SYMBOL_GPL(k3_udma_glue_tx_get_dma_device);
+
 static int k3_udma_glue_cfg_rx_chn(struct k3_udma_glue_rx_channel *rx_chn)
 {
 	const struct udma_tisci_rm *tisci_rm = rx_chn->common.tisci_rm;
@@ -1201,3 +1208,10 @@ int k3_udma_glue_rx_get_irq(struct k3_udma_glue_rx_channel *rx_chn,
 	return flow->virq;
 }
 EXPORT_SYMBOL_GPL(k3_udma_glue_rx_get_irq);
+
+struct device *
+	k3_udma_glue_rx_get_dma_device(struct k3_udma_glue_rx_channel *rx_chn)
+{
+	return xudma_get_device(rx_chn->common.udmax);
+}
+EXPORT_SYMBOL_GPL(k3_udma_glue_rx_get_dma_device);
