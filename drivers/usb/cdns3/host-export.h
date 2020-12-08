@@ -9,9 +9,9 @@
 #ifndef __LINUX_CDNS3_HOST_EXPORT
 #define __LINUX_CDNS3_HOST_EXPORT
 
-#if IS_ENABLED(CONFIG_USB_CDNS_HOST)
-
 struct usb_hcd;
+
+#if IS_ENABLED(CONFIG_USB_CDNS_HOST)
 
 int cdns_host_init(struct cdns *cdns);
 int xhci_cdns3_suspend_quirk(struct usb_hcd *hcd);
