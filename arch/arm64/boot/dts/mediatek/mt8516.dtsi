@@ -237,6 +237,13 @@
 			interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		efuse: efuse@10009000 {
+			compatible = "mediatek,mt8516-efuse", "mediatek,efuse";
+			reg = <0 0x10009000 0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
 		pwrap: pwrap@1000f000 {
 			compatible = "mediatek,mt8516-pwrap";
 			reg = <0 0x1000f000 0 0x1000>;
@@ -455,7 +462,21 @@
 			status = "disabled";
 		};
 
-		usb0_phy: usb@11110000 {
+		usb1: usb@11190000 {
+			compatible = "mediatek,mtk-musb";
+			reg = <0 0x11190000 0 0x1000>;
+			interrupts = <GIC_SPI 210 IRQ_TYPE_LEVEL_LOW>;
+			interrupt-names = "mc";
+			phys = <&usb1_port PHY_TYPE_USB2>;
+			clocks = <&topckgen CLK_TOP_USB>,
+				 <&topckgen CLK_TOP_USBIF>,
+				 <&topckgen CLK_TOP_USB_1P>;
+			clock-names = "main","mcu","univpll";
+			dr_mode = "host";
+			status = "disabled";
+		};
+
+		usb_phy: usb@11110000 {
 			compatible = "mediatek,generic-tphy-v1";
 			reg = <0 0x11110000 0 0x800>;
 			#address-cells = <2>;
@@ -469,6 +490,23 @@
 				clock-names = "ref";
 				#phy-cells = <1>;
 			};
+
+			usb1_port: usb-phy@11110900 {
+				reg = <0 0x11110900 0 0x100>;
+				clocks = <&topckgen CLK_TOP_USB_PHY48M>;
+				clock-names = "ref";
+				#phy-cells = <1>;
+			};
+		};
+
+		auxadc: adc@11003000 {
+			compatible = "mediatek,mt8516-auxadc",
+				     "mediatek,mt8173-auxadc";
+			reg = <0 0x11003000 0 0x1000>;
+			clocks = <&topckgen CLK_TOP_AUX_ADC>;
+			clock-names = "main";
+			#io-channel-cells = <1>;
+			status = "disabled";
 		};
 	};
 };
