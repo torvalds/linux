@@ -33,6 +33,43 @@ module_param(firmware, charp, 0);
 
 #define SETTIME_CORRECTION (0)
 
+static int contains_full_configuration(const struct firmware *fw)
+{
+	s32 full_count = FULL_FW_CFG_BYTES - FULL_FW_CFG_SKIPPED_BYTES;
+	struct idtcm_fwrc *rec = (struct idtcm_fwrc *)fw->data;
+	s32 count = 0;
+	u16 regaddr;
+	u8 loaddr;
+	s32 len;
+
+	/* If the firmware contains 'full configuration' SM_RESET can be used
+	 * to ensure proper configuration.
+	 *
+	 * Full configuration is defined as the number of programmable
+	 * bytes within the configuration range minus page offset addr range.
+	 */
+	for (len = fw->size; len > 0; len -= sizeof(*rec)) {
+		regaddr = rec->hiaddr << 8;
+		regaddr |= rec->loaddr;
+
+		loaddr = rec->loaddr;
+
+		rec++;
+
+		/* Top (status registers) and bottom are read-only */
+		if (regaddr < GPIO_USER_CONTROL || regaddr >= SCRATCH)
+			continue;
+
+		/* Page size 128, last 4 bytes of page skipped */
+		if ((loaddr > 0x7b && loaddr <= 0x7f) || loaddr > 0xfb)
+			continue;
+
+		count++;
+	}
+
+	return (count >= full_count);
+}
+
 static long set_write_phase_ready(struct ptp_clock_info *ptp)
 {
 	struct idtcm_channel *channel =
@@ -259,6 +296,53 @@ static int idtcm_write(struct idtcm *idtcm,
 		       u16 count)
 {
 	return _idtcm_rdwr(idtcm, module + regaddr, buf, count, true);
+}
+
+static int clear_boot_status(struct idtcm *idtcm)
+{
+	int err;
+	u8 buf[4] = {0};
+
+	err = idtcm_write(idtcm, GENERAL_STATUS, BOOT_STATUS, buf, sizeof(buf));
+
+	return err;
+}
+
+static int read_boot_status(struct idtcm *idtcm, u32 *status)
+{
+	int err;
+	u8 buf[4] = {0};
+
+	err = idtcm_read(idtcm, GENERAL_STATUS, BOOT_STATUS, buf, sizeof(buf));
+
+	*status = (buf[3] << 24) | (buf[2] << 16) | (buf[1] << 8) | buf[0];
+
+	return err;
+}
+
+static int wait_for_boot_status_ready(struct idtcm *idtcm)
+{
+	u32 status = 0;
+	u8 i = 30;	/* 30 * 100ms = 3s */
+	int err;
+
+	do {
+		err = read_boot_status(idtcm, &status);
+
+		if (err)
+			return err;
+
+		if (status == 0xA0)
+			return 0;
+
+		msleep(100);
+		i--;
+
+	} while (i);
+
+	dev_warn(&idtcm->client->dev, "%s timed out\n", __func__);
+
+	return -EBUSY;
 }
 
 static int _idtcm_gettime(struct idtcm_channel *channel,
@@ -670,7 +754,7 @@ static int _idtcm_set_dpll_scsr_tod(struct idtcm_channel *channel,
 		if (err)
 			return err;
 
-		if (cmd == 0)
+		if ((cmd & TOD_WRITE_SELECTION_MASK) == 0)
 			break;
 
 		if (++count > 20) {
@@ -684,39 +768,16 @@ static int _idtcm_set_dpll_scsr_tod(struct idtcm_channel *channel,
 }
 
 static int _idtcm_settime(struct idtcm_channel *channel,
-			  struct timespec64 const *ts,
-			  enum hw_tod_write_trig_sel wr_trig)
+			  struct timespec64 const *ts)
 {
 	struct idtcm *idtcm = channel->idtcm;
 	int err;
-	int i;
-	u8 trig_sel;
 
-	err = _idtcm_set_dpll_hw_tod(channel, ts, wr_trig);
-
-	if (err)
-		return err;
-
-	/* Wait for the operation to complete. */
-	for (i = 0; i < 10000; i++) {
-		err = idtcm_read(idtcm, channel->hw_dpll_n,
-				 HW_DPLL_TOD_CTRL_1, &trig_sel,
-				 sizeof(trig_sel));
-
-		if (err)
-			return err;
-
-		if (trig_sel == 0x4a)
-			break;
-
-		err = 1;
-	}
+	err = _idtcm_set_dpll_hw_tod(channel, ts, HW_TOD_WR_TRIG_SEL_MSB);
 
 	if (err) {
 		dev_err(&idtcm->client->dev,
-			"Failed at line %d in func %s!\n",
-			__LINE__,
-			__func__);
+			"%s: Set HW ToD failed\n", __func__);
 		return err;
 	}
 
@@ -891,7 +952,7 @@ static int _idtcm_adjtime(struct idtcm_channel *channel, s64 delta)
 
 		ts = ns_to_timespec64(now);
 
-		err = _idtcm_settime(channel, &ts, HW_TOD_WR_TRIG_SEL_MSB);
+		err = _idtcm_settime(channel, &ts);
 	}
 
 	return err;
@@ -899,13 +960,31 @@ static int _idtcm_adjtime(struct idtcm_channel *channel, s64 delta)
 
 static int idtcm_state_machine_reset(struct idtcm *idtcm)
 {
-	int err;
 	u8 byte = SM_RESET_CMD;
+	u32 status = 0;
+	int err;
+	u8 i;
+
+	clear_boot_status(idtcm);
 
 	err = idtcm_write(idtcm, RESET_CTRL, SM_RESET, &byte, sizeof(byte));
 
-	if (!err)
-		msleep_interruptible(POST_SM_RESET_DELAY_MS);
+	if (!err) {
+		for (i = 0; i < 30; i++) {
+			msleep_interruptible(100);
+			read_boot_status(idtcm, &status);
+
+			if (status == 0xA0) {
+				dev_dbg(&idtcm->client->dev,
+					"SM_RESET completed in %d ms\n",
+					i * 100);
+				break;
+			}
+		}
+
+		if (!status)
+			dev_err(&idtcm->client->dev, "Timed out waiting for CM_RESET to complete\n");
+	}
 
 	return err;
 }
@@ -1099,7 +1178,7 @@ static int idtcm_load_firmware(struct idtcm *idtcm,
 
 	rec = (struct idtcm_fwrc *) fw->data;
 
-	if (fw->size > 0)
+	if (contains_full_configuration(fw))
 		idtcm_state_machine_reset(idtcm);
 
 	for (len = fw->size; len > 0; len -= sizeof(*rec)) {
@@ -1379,7 +1458,7 @@ static int idtcm_settime(struct ptp_clock_info *ptp,
 
 	mutex_lock(&idtcm->reg_lock);
 
-	err = _idtcm_settime(channel, ts, HW_TOD_WR_TRIG_SEL_MSB);
+	err = _idtcm_settime(channel, ts);
 
 	if (err)
 		dev_err(&idtcm->client->dev,
@@ -1810,7 +1889,7 @@ static int idtcm_enable_tod(struct idtcm_channel *channel)
 	if (err)
 		return err;
 
-	return _idtcm_settime(channel, &ts, HW_TOD_WR_TRIG_SEL_MSB);
+	return _idtcm_settime(channel, &ts);
 }
 
 static void idtcm_display_version_info(struct idtcm *idtcm)
@@ -2101,6 +2180,9 @@ static int idtcm_probe(struct i2c_client *client,
 	if (err)
 		dev_warn(&idtcm->client->dev,
 			 "loading firmware failed with %d\n", err);
+
+	if (wait_for_boot_status_ready(idtcm))
+		dev_warn(&idtcm->client->dev, "BOOT_STATUS != 0xA0\n");
 
 	if (idtcm->tod_mask) {
 		for (i = 0; i < MAX_TOD; i++) {

@@ -53,9 +53,14 @@
 
 #define OUTPUT_MODULE_FROM_INDEX(index)	(OUTPUT_0 + (index) * 0x10)
 
-#define PEROUT_ENABLE_OUTPUT_MASK		(0xdeadbeef)
+#define PEROUT_ENABLE_OUTPUT_MASK	(0xdeadbeef)
 
-#define IDTCM_MAX_WRITE_COUNT			(512)
+#define IDTCM_MAX_WRITE_COUNT		(512)
+
+#define FULL_FW_CFG_BYTES		(SCRATCH - GPIO_USER_CONTROL)
+#define FULL_FW_CFG_SKIPPED_BYTES	(((SCRATCH >> 7) \
+					  - (GPIO_USER_CONTROL >> 7)) \
+					 * 4) /* 4 bytes skipped every 0x80 */
 
 /* Values of DPLL_N.DPLL_MODE.PLL_MODE */
 enum pll_mode {
