@@ -22,10 +22,10 @@
 						 VXLAN_F_LEARN)
 
 static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
-					   const struct net_device *dev,
+					   const struct mlxsw_sp_nve_params *params,
 					   struct netlink_ext_ack *extack)
 {
-	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct vxlan_dev *vxlan = netdev_priv(params->dev);
 	struct vxlan_config *cfg = &vxlan->cfg;
 
 	if (cfg->saddr.sa.sa_family != AF_INET) {
@@ -84,6 +84,18 @@ static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 	}
 
 	return true;
+}
+
+static bool mlxsw_sp1_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
+					    const struct mlxsw_sp_nve_params *params,
+					    struct netlink_ext_ack *extack)
+{
+	if (params->ethertype == ETH_P_8021AD) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: 802.1ad bridge is not supported with VxLAN");
+		return false;
+	}
+
+	return mlxsw_sp_nve_vxlan_can_offload(nve, params, extack);
 }
 
 static void mlxsw_sp_nve_vxlan_config(const struct mlxsw_sp_nve *nve,
@@ -287,7 +299,7 @@ mlxsw_sp_nve_vxlan_clear_offload(const struct net_device *nve_dev, __be32 vni)
 
 const struct mlxsw_sp_nve_ops mlxsw_sp1_nve_vxlan_ops = {
 	.type		= MLXSW_SP_NVE_TYPE_VXLAN,
-	.can_offload	= mlxsw_sp_nve_vxlan_can_offload,
+	.can_offload	= mlxsw_sp1_nve_vxlan_can_offload,
 	.nve_config	= mlxsw_sp_nve_vxlan_config,
 	.init		= mlxsw_sp1_nve_vxlan_init,
 	.fini		= mlxsw_sp1_nve_vxlan_fini,

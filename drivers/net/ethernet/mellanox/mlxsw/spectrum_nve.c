@@ -798,7 +798,7 @@ int mlxsw_sp_nve_fid_enable(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *fid,
 
 	ops = nve->nve_ops_arr[params->type];
 
-	if (!ops->can_offload(nve, params->dev, extack))
+	if (!ops->can_offload(nve, params, extack))
 		return -EINVAL;
 
 	memset(&config, 0, sizeof(config));
