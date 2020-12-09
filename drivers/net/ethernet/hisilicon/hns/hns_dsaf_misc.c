@@ -546,9 +546,9 @@ static phy_interface_t hns_mac_get_phy_if_acpi(struct hns_mac_cb *mac_cb)
 	obj_args.integer.type = ACPI_TYPE_INTEGER;
 	obj_args.integer.value = mac_cb->mac_id;
 
-	argv4.type = ACPI_TYPE_PACKAGE,
-	argv4.package.count = 1,
-	argv4.package.elements = &obj_args,
+	argv4.type = ACPI_TYPE_PACKAGE;
+	argv4.package.count = 1;
+	argv4.package.elements = &obj_args;
 
 	obj = acpi_evaluate_dsm(ACPI_HANDLE(mac_cb->dev),
 				&hns_dsaf_acpi_dsm_guid, 0,
@@ -593,9 +593,9 @@ static int hns_mac_get_sfp_prsnt_acpi(struct hns_mac_cb *mac_cb, int *sfp_prsnt)
 	obj_args.integer.type = ACPI_TYPE_INTEGER;
 	obj_args.integer.value = mac_cb->mac_id;
 
-	argv4.type = ACPI_TYPE_PACKAGE,
-	argv4.package.count = 1,
-	argv4.package.elements = &obj_args,
+	argv4.type = ACPI_TYPE_PACKAGE;
+	argv4.package.count = 1;
+	argv4.package.elements = &obj_args;
 
 	obj = acpi_evaluate_dsm(ACPI_HANDLE(mac_cb->dev),
 				&hns_dsaf_acpi_dsm_guid, 0,
