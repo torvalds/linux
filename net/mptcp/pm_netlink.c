@@ -431,12 +431,12 @@ void mptcp_pm_nl_add_addr_send_ack(struct mptcp_sock *msk)
 		release_sock(ssk);
 		spin_lock_bh(&msk->pm.lock);
 
-		add_addr = READ_ONCE(msk->pm.add_addr_signal);
+		add_addr = READ_ONCE(msk->pm.addr_signal);
 		if (mptcp_pm_should_add_signal_ipv6(msk))
 			add_addr &= ~BIT(MPTCP_ADD_ADDR_IPV6);
 		if (mptcp_pm_should_add_signal_port(msk))
 			add_addr &= ~BIT(MPTCP_ADD_ADDR_PORT);
-		WRITE_ONCE(msk->pm.add_addr_signal, add_addr);
+		WRITE_ONCE(msk->pm.addr_signal, add_addr);
 	}
 }
 
