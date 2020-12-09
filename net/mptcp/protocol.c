@@ -3208,6 +3208,17 @@ static int mptcp_stream_accept(struct socket *sock, struct socket *newsock,
 		bool slowpath;
 
 		slowpath = lock_sock_fast(newsk);
+
+		/* PM/worker can now acquire the first subflow socket
+		 * lock without racing with listener queue cleanup,
+		 * we can notify it, if needed.
+		 */
+		subflow = mptcp_subflow_ctx(msk->first);
+		list_add(&subflow->node, &msk->conn_list);
+		sock_hold(msk->first);
+		if (mptcp_is_fully_established(newsk))
+			mptcp_pm_fully_established(msk);
+
 		mptcp_copy_inaddrs(newsk, msk->first);
 		mptcp_rcv_space_init(msk, msk->first);
 

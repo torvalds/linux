@@ -614,8 +614,9 @@ create_child:
 			 */
 			inet_sk_state_store((void *)new_msk, TCP_ESTABLISHED);
 
-			/* link the newly created socket to the msk */
-			mptcp_add_pending_subflow(mptcp_sk(new_msk), ctx);
+			/* record the newly created socket as the first msk
+			 * subflow, but don't link it yet into conn_list
+			 */
 			WRITE_ONCE(mptcp_sk(new_msk)->first, child);
 
 			/* new mpc subflow takes ownership of the newly
@@ -1148,12 +1149,17 @@ int __mptcp_subflow_connect(struct sock *sk, const struct mptcp_addr_info *loc,
 	subflow->request_bkup = !!(loc->flags & MPTCP_PM_ADDR_FLAG_BACKUP);
 	mptcp_info2sockaddr(remote, &addr);
 
+	mptcp_add_pending_subflow(msk, subflow);
 	err = kernel_connect(sf, (struct sockaddr *)&addr, addrlen, O_NONBLOCK);
 	if (err && err != -EINPROGRESS)
-		goto failed;
+		goto failed_unlink;
 
-	mptcp_add_pending_subflow(msk, subflow);
 	return err;
+
+failed_unlink:
+	spin_lock_bh(&msk->join_list_lock);
+	list_del(&subflow->node);
+	spin_unlock_bh(&msk->join_list_lock);
 
 failed:
 	subflow->disposable = 1;

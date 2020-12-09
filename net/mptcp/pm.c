@@ -126,8 +126,14 @@ void mptcp_pm_fully_established(struct mptcp_sock *msk)
 
 	spin_lock_bh(&pm->lock);
 
-	if (READ_ONCE(pm->work_pending))
+	/* mptcp_pm_fully_established() can be invoked by multiple
+	 * racing paths - accept() and check_fully_established()
+	 * be sure to serve this event only once.
+	 */
+	if (READ_ONCE(pm->work_pending) &&
+	    !(msk->pm.status & BIT(MPTCP_PM_ALREADY_ESTABLISHED)))
 		mptcp_pm_schedule_work(msk, MPTCP_PM_ESTABLISHED);
+	msk->pm.status |= BIT(MPTCP_PM_ALREADY_ESTABLISHED);
 
 	spin_unlock_bh(&pm->lock);
 }
