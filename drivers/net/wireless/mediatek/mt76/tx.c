@@ -504,13 +504,10 @@ mt76_txq_schedule_list(struct mt76_phy *phy, enum mt76_txq_id qid)
 
 void mt76_txq_schedule(struct mt76_phy *phy, enum mt76_txq_id qid)
 {
-	struct mt76_queue *q;
 	int len;
 
 	if (qid >= 4)
 		return;
-
-	q = phy->q_tx[qid];
 
 	rcu_read_lock();
 
