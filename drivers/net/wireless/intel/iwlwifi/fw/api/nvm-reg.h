@@ -449,12 +449,12 @@ enum iwl_mcc_source {
 #define IWL_TAS_BLACK_LIST_MAX 16
 /**
  * struct iwl_tas_config_cmd - configures the TAS
- * @black_list_size: size of relevant field in black_list_array
- * @black_list_array: black list countries (without TAS)
+ * @block_list_size: size of relevant field in block_list_array
+ * @block_list_array: block list countries (without TAS)
  */
 struct iwl_tas_config_cmd {
-	__le32 black_list_size;
-	__le32 black_list_array[IWL_TAS_BLACK_LIST_MAX];
+	__le32 block_list_size;
+	__le32 block_list_array[IWL_TAS_BLACK_LIST_MAX];
 } __packed; /* TAS_CONFIG_CMD_API_S_VER_2 */
 
 /**

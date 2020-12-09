@@ -568,7 +568,7 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 {
 	struct iwl_scan_offload_profile *profile;
 	struct iwl_scan_offload_profile_cfg_v1 *profile_cfg_v1;
-	struct iwl_scan_offload_blacklist *blacklist;
+	struct iwl_scan_offload_blocklist *blocklist;
 	struct iwl_scan_offload_profile_cfg_data *data;
 	int max_profiles = iwl_umac_scan_get_max_profiles(mvm->fw);
 	int profile_cfg_size = sizeof(*data) +
@@ -579,7 +579,7 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
 		.dataflags[1] = IWL_HCMD_DFL_NOCOPY,
 	};
-	int blacklist_len;
+	int blocklist_len;
 	int i;
 	int ret;
 
@@ -587,22 +587,22 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 		return -EIO;
 
 	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_SHORT_BL)
-		blacklist_len = IWL_SCAN_SHORT_BLACKLIST_LEN;
+		blocklist_len = IWL_SCAN_SHORT_BLACKLIST_LEN;
 	else
-		blacklist_len = IWL_SCAN_MAX_BLACKLIST_LEN;
+		blocklist_len = IWL_SCAN_MAX_BLACKLIST_LEN;
 
-	blacklist = kcalloc(blacklist_len, sizeof(*blacklist), GFP_KERNEL);
-	if (!blacklist)
+	blocklist = kcalloc(blocklist_len, sizeof(*blocklist), GFP_KERNEL);
+	if (!blocklist)
 		return -ENOMEM;
 
 	profile_cfg_v1 = kzalloc(profile_cfg_size, GFP_KERNEL);
 	if (!profile_cfg_v1) {
 		ret = -ENOMEM;
-		goto free_blacklist;
+		goto free_blocklist;
 	}
 
-	cmd.data[0] = blacklist;
-	cmd.len[0] = sizeof(*blacklist) * blacklist_len;
+	cmd.data[0] = blocklist;
+	cmd.len[0] = sizeof(*blocklist) * blocklist_len;
 	cmd.data[1] = profile_cfg_v1;
 
 	/* if max_profile is MAX_PROFILES_V2, we have the new API */
@@ -615,7 +615,7 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 		data = &profile_cfg_v1->data;
 	}
 
-	/* No blacklist configuration */
+	/* No blocklist configuration */
 	data->num_profiles = req->n_match_sets;
 	data->active_clients = SCAN_CLIENT_SCHED_SCAN;
 	data->pass_match = SCAN_CLIENT_SCHED_SCAN;
@@ -639,8 +639,8 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
 	kfree(profile_cfg_v1);
-free_blacklist:
-	kfree(blacklist);
+free_blocklist:
+	kfree(blocklist);
 
 	return ret;
 }
