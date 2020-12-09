@@ -229,7 +229,7 @@ bool amdgpu_device_supports_atpx(struct drm_device *dev)
 }
 
 /**
- * amdgpu_device_supports_boco - Is the device a dGPU with HG/PX power control
+ * amdgpu_device_supports_boco - Is the device a dGPU with ACPI power resources
  *
  * @dev: drm_device pointer
  *
@@ -240,7 +240,7 @@ bool amdgpu_device_supports_boco(struct drm_device *dev)
 {
 	struct amdgpu_device *adev = drm_to_adev(dev);
 
-	if (adev->flags & AMD_IS_PX)
+	if (adev->has_pr3)
 		return true;
 	return false;
 }
