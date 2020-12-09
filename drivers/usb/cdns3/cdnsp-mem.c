@@ -684,7 +684,7 @@ static void cdnsp_free_priv_device(struct cdnsp_device *pdev)
 	pdev->out_ctx.bytes = NULL;
 }
 
-static int cdnsp_alloc_priv_device(struct cdnsp_device *pdev, gfp_t flags)
+static int cdnsp_alloc_priv_device(struct cdnsp_device *pdev)
 {
 	int ret = -ENOMEM;
 
@@ -693,7 +693,7 @@ static int cdnsp_alloc_priv_device(struct cdnsp_device *pdev, gfp_t flags)
 		return ret;
 
 	/* Allocate endpoint 0 ring. */
-	pdev->eps[0].ring = cdnsp_ring_alloc(pdev, 2, TYPE_CTRL, 0, flags);
+	pdev->eps[0].ring = cdnsp_ring_alloc(pdev, 2, TYPE_CTRL, 0, GFP_ATOMIC);
 	if (!pdev->eps[0].ring)
 		goto fail;
 
@@ -1020,8 +1020,7 @@ void cdnsp_endpoint_zero(struct cdnsp_device *pdev, struct cdnsp_ep *pep)
 
 static int cdnsp_alloc_erst(struct cdnsp_device *pdev,
 			    struct cdnsp_ring *evt_ring,
-			    struct cdnsp_erst *erst,
-			    gfp_t flags)
+			    struct cdnsp_erst *erst)
 {
 	struct cdnsp_erst_entry *entry;
 	struct cdnsp_segment *seg;
@@ -1030,7 +1029,7 @@ static int cdnsp_alloc_erst(struct cdnsp_device *pdev,
 
 	size = sizeof(struct cdnsp_erst_entry) * evt_ring->num_segs;
 	erst->entries = dma_alloc_coherent(pdev->dev, size,
-					   &erst->erst_dma_addr, flags);
+					   &erst->erst_dma_addr, GFP_KERNEL);
 	if (!erst->entries)
 		return -ENOMEM;
 
@@ -1142,7 +1141,7 @@ static void cdnsp_add_in_port(struct cdnsp_device *pdev,
  * Scan the Extended Capabilities for the "Supported Protocol Capabilities" that
  * specify what speeds each port is supposed to be.
  */
-static int cdnsp_setup_port_arrays(struct cdnsp_device *pdev, gfp_t flags)
+static int cdnsp_setup_port_arrays(struct cdnsp_device *pdev)
 {
 	void __iomem *base;
 	u32 offset;
@@ -1203,7 +1202,7 @@ static int cdnsp_setup_port_arrays(struct cdnsp_device *pdev, gfp_t flags)
  * device contexts, set up a command ring segment, create event
  * ring (one for now).
  */
-int cdnsp_mem_init(struct cdnsp_device *pdev, gfp_t flags)
+int cdnsp_mem_init(struct cdnsp_device *pdev)
 {
 	struct device *dev = pdev->dev;
 	int ret = -ENOMEM;
@@ -1255,7 +1254,7 @@ int cdnsp_mem_init(struct cdnsp_device *pdev, gfp_t flags)
 		goto mem_init_fail;
 
 	/* Set up the command ring to have one segments for now. */
-	pdev->cmd_ring = cdnsp_ring_alloc(pdev, 1, TYPE_COMMAND, 0, flags);
+	pdev->cmd_ring = cdnsp_ring_alloc(pdev, 1, TYPE_COMMAND, 0, GFP_KERNEL);
 	if (!pdev->cmd_ring)
 		goto mem_init_fail;
 
@@ -1278,11 +1277,11 @@ int cdnsp_mem_init(struct cdnsp_device *pdev, gfp_t flags)
 	 * the event ring segment table (ERST).
 	 */
 	pdev->event_ring = cdnsp_ring_alloc(pdev, ERST_NUM_SEGS, TYPE_EVENT,
-					    0, flags);
+					    0, GFP_KERNEL);
 	if (!pdev->event_ring)
 		goto mem_init_fail;
 
-	ret = cdnsp_alloc_erst(pdev, pdev->event_ring, &pdev->erst, flags);
+	ret = cdnsp_alloc_erst(pdev, pdev->event_ring, &pdev->erst);
 	if (ret)
 		goto mem_init_fail;
 
@@ -1301,11 +1300,11 @@ int cdnsp_mem_init(struct cdnsp_device *pdev, gfp_t flags)
 	/* Set the event ring dequeue address. */
 	cdnsp_set_event_deq(pdev);
 
-	ret = cdnsp_setup_port_arrays(pdev, flags);
+	ret = cdnsp_setup_port_arrays(pdev);
 	if (ret)
 		goto mem_init_fail;
 
-	ret = cdnsp_alloc_priv_device(pdev, GFP_ATOMIC);
+	ret = cdnsp_alloc_priv_device(pdev);
 	if (ret) {
 		dev_err(pdev->dev,
 			"Could not allocate cdnsp_device data structures\n");

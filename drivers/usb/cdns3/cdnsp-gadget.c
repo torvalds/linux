@@ -1824,7 +1824,7 @@ static int cdnsp_gen_setup(struct cdnsp_device *pdev)
 
 	spin_lock_init(&pdev->lock);
 
-	ret = cdnsp_mem_init(pdev, GFP_KERNEL);
+	ret = cdnsp_mem_init(pdev);
 	if (ret)
 		return ret;
 

@@ -1480,7 +1480,7 @@ static inline void cdnsp_write_64(const u64 val, __le64 __iomem *regs)
 
 /* CDNSP memory management functions. */
 void cdnsp_mem_cleanup(struct cdnsp_device *pdev);
-int cdnsp_mem_init(struct cdnsp_device *pdev, gfp_t flags);
+int cdnsp_mem_init(struct cdnsp_device *pdev);
 int cdnsp_setup_addressable_priv_dev(struct cdnsp_device *pdev);
 void cdnsp_copy_ep0_dequeue_into_input_ctx(struct cdnsp_device *pdev);
 void cdnsp_endpoint_zero(struct cdnsp_device *pdev, struct cdnsp_ep *ep);
