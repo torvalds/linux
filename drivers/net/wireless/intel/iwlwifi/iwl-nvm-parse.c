@@ -580,7 +580,7 @@ static void iwl_init_vht_hw_capab(struct iwl_trans *trans,
 		cpu_to_le16(IEEE80211_VHT_EXT_NSS_BW_CAPABLE);
 }
 
-static struct ieee80211_sband_iftype_data iwl_he_capa[] = {
+static const struct ieee80211_sband_iftype_data iwl_he_capa[] = {
 	{
 		.types_mask = BIT(NL80211_IFTYPE_STATION),
 		.he_cap = {
@@ -748,7 +748,30 @@ static void iwl_init_he_hw_capab(struct iwl_trans *trans,
 				 struct ieee80211_supported_band *sband,
 				 u8 tx_chains, u8 rx_chains)
 {
-	sband->iftype_data = iwl_he_capa;
+	struct ieee80211_sband_iftype_data *iftype_data;
+
+	/* should only initialize once */
+	if (WARN_ON(sband->iftype_data))
+		return;
+
+	BUILD_BUG_ON(sizeof(data->iftd.low) != sizeof(iwl_he_capa));
+	BUILD_BUG_ON(sizeof(data->iftd.high) != sizeof(iwl_he_capa));
+
+	switch (sband->band) {
+	case NL80211_BAND_2GHZ:
+		iftype_data = data->iftd.low;
+		break;
+	case NL80211_BAND_5GHZ:
+		iftype_data = data->iftd.high;
+		break;
+	default:
+		WARN_ON(1);
+		return;
+	}
+
+	memcpy(iftype_data, iwl_he_capa, sizeof(iwl_he_capa));
+
+	sband->iftype_data = iftype_data;
 	sband->n_iftype_data = ARRAY_SIZE(iwl_he_capa);
 
 	/* If not 2x2, we need to indicate 1x1 in the Midamble RX Max NSTS */
@@ -756,11 +779,11 @@ static void iwl_init_he_hw_capab(struct iwl_trans *trans,
 		int i;
 
 		for (i = 0; i < sband->n_iftype_data; i++) {
-			iwl_he_capa[i].he_cap.he_cap_elem.phy_cap_info[1] &=
+			iftype_data[i].he_cap.he_cap_elem.phy_cap_info[1] &=
 				~IEEE80211_HE_PHY_CAP1_MIDAMBLE_RX_TX_MAX_NSTS;
-			iwl_he_capa[i].he_cap.he_cap_elem.phy_cap_info[2] &=
+			iftype_data[i].he_cap.he_cap_elem.phy_cap_info[2] &=
 				~IEEE80211_HE_PHY_CAP2_MIDAMBLE_RX_TX_MAX_NSTS;
-			iwl_he_capa[i].he_cap.he_cap_elem.phy_cap_info[7] &=
+			iftype_data[i].he_cap.he_cap_elem.phy_cap_info[7] &=
 				~IEEE80211_HE_PHY_CAP7_MAX_NC_MASK;
 		}
 	}
