@@ -72,9 +72,9 @@ static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
 	struct ttm_resource_manager *man;
 	int i, mem_type;
 
-	drm_printf(&p, "No space for %p (%lu pages, %luK, %luM)\n",
-		   bo, bo->mem.num_pages, bo->mem.size >> 10,
-		   bo->mem.size >> 20);
+	drm_printf(&p, "No space for %p (%lu pages, %zuK, %zuM)\n",
+		   bo, bo->mem.num_pages, bo->base.size >> 10,
+		   bo->base.size >> 20);
 	for (i = 0; i < placement->num_placement; i++) {
 		mem_type = placement->placement[i].mem_type;
 		drm_printf(&p, "  placement[%d]=0x%08X (%d)\n",
@@ -268,7 +268,7 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 		goto out_err;
 	}
 
-	ctx->bytes_moved += bo->num_pages << PAGE_SHIFT;
+	ctx->bytes_moved += bo->base.size;
 	return 0;
 
 out_err:
@@ -985,8 +985,7 @@ static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 
 	memset(&hop, 0, sizeof(hop));
 
-	mem.num_pages = bo->num_pages;
-	mem.size = mem.num_pages << PAGE_SHIFT;
+	mem.num_pages = PAGE_ALIGN(bo->base.size) >> PAGE_SHIFT;
 	mem.page_alignment = bo->mem.page_alignment;
 	mem.bus.offset = 0;
 	mem.bus.addr = NULL;
@@ -1102,7 +1101,7 @@ EXPORT_SYMBOL(ttm_bo_validate);
 
 int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 			 struct ttm_buffer_object *bo,
-			 unsigned long size,
+			 size_t size,
 			 enum ttm_bo_type type,
 			 struct ttm_placement *placement,
 			 uint32_t page_alignment,
@@ -1113,9 +1112,8 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 			 void (*destroy) (struct ttm_buffer_object *))
 {
 	struct ttm_mem_global *mem_glob = &ttm_mem_glob;
-	int ret = 0;
-	unsigned long num_pages;
 	bool locked;
+	int ret = 0;
 
 	ret = ttm_mem_global_alloc(mem_glob, acc_size, ctx);
 	if (ret) {
@@ -1127,16 +1125,6 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 		return -ENOMEM;
 	}
 
-	num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	if (num_pages == 0) {
-		pr_err("Illegal buffer object size\n");
-		if (destroy)
-			(*destroy)(bo);
-		else
-			kfree(bo);
-		ttm_mem_global_free(mem_glob, acc_size);
-		return -EINVAL;
-	}
 	bo->destroy = destroy ? destroy : ttm_bo_default_destroy;
 
 	kref_init(&bo->kref);
@@ -1145,10 +1133,8 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	INIT_LIST_HEAD(&bo->swap);
 	bo->bdev = bdev;
 	bo->type = type;
-	bo->num_pages = num_pages;
-	bo->mem.size = num_pages << PAGE_SHIFT;
 	bo->mem.mem_type = TTM_PL_SYSTEM;
-	bo->mem.num_pages = bo->num_pages;
+	bo->mem.num_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	bo->mem.mm_node = NULL;
 	bo->mem.page_alignment = page_alignment;
 	bo->mem.bus.offset = 0;
@@ -1166,9 +1152,10 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	}
 	if (!ttm_bo_uses_embedded_gem_object(bo)) {
 		/*
-		 * bo.gem is not initialized, so we have to setup the
+		 * bo.base is not initialized, so we have to setup the
 		 * struct elements we want use regardless.
 		 */
+		bo->base.size = size;
 		dma_resv_init(&bo->base._resv);
 		drm_vma_node_reset(&bo->base.vma_node);
 	}
@@ -1210,7 +1197,7 @@ EXPORT_SYMBOL(ttm_bo_init_reserved);
 
 int ttm_bo_init(struct ttm_bo_device *bdev,
 		struct ttm_buffer_object *bo,
-		unsigned long size,
+		size_t size,
 		enum ttm_bo_type type,
 		struct ttm_placement *placement,
 		uint32_t page_alignment,

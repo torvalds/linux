@@ -129,7 +129,7 @@ static void ttm_tt_init_fields(struct ttm_tt *ttm,
 			       uint32_t page_flags,
 			       enum ttm_caching caching)
 {
-	ttm->num_pages = bo->num_pages;
+	ttm->num_pages = PAGE_ALIGN(bo->base.size) >> PAGE_SHIFT;
 	ttm->caching = ttm_cached;
 	ttm->page_flags = page_flags;
 	ttm->dma_address = NULL;

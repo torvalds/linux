@@ -274,7 +274,7 @@ static int radeon_bo_move(struct ttm_buffer_object *bo, bool evict,
 
 out:
 	/* update statistics */
-	atomic64_add((u64)bo->num_pages << PAGE_SHIFT, &rdev->num_bytes_moved);
+	atomic64_add(bo->base.size, &rdev->num_bytes_moved);
 	radeon_bo_move_notify(bo, evict, new_mem);
 	return 0;
 }

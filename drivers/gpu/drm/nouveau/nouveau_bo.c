@@ -473,10 +473,10 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t domain, bool contig)
 
 	switch (bo->mem.mem_type) {
 	case TTM_PL_VRAM:
-		drm->gem.vram_available -= bo->mem.size;
+		drm->gem.vram_available -= bo->base.size;
 		break;
 	case TTM_PL_TT:
-		drm->gem.gart_available -= bo->mem.size;
+		drm->gem.gart_available -= bo->base.size;
 		break;
 	default:
 		break;
@@ -504,10 +504,10 @@ nouveau_bo_unpin(struct nouveau_bo *nvbo)
 	if (!nvbo->bo.pin_count) {
 		switch (bo->mem.mem_type) {
 		case TTM_PL_VRAM:
-			drm->gem.vram_available += bo->mem.size;
+			drm->gem.vram_available += bo->base.size;
 			break;
 		case TTM_PL_TT:
-			drm->gem.gart_available += bo->mem.size;
+			drm->gem.gart_available += bo->base.size;
 			break;
 		default:
 			break;
@@ -913,7 +913,7 @@ nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_resource *new_reg,
 		return 0;
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_CELSIUS) {
-		*new_tile = nv10_bo_set_tiling(dev, offset, new_reg->size,
+		*new_tile = nv10_bo_set_tiling(dev, offset, bo->base.size,
 					       nvbo->mode, nvbo->zeta);
 	}
 

@@ -125,7 +125,6 @@ struct ttm_buffer_object {
 	struct ttm_bo_device *bdev;
 	enum ttm_bo_type type;
 	void (*destroy) (struct ttm_buffer_object *);
-	unsigned long num_pages;
 	size_t acc_size;
 
 	/**
@@ -397,13 +396,11 @@ size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
 
 int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 			 struct ttm_buffer_object *bo,
-			 unsigned long size,
-			 enum ttm_bo_type type,
+			 size_t size, enum ttm_bo_type type,
 			 struct ttm_placement *placement,
 			 uint32_t page_alignment,
 			 struct ttm_operation_ctx *ctx,
-			 size_t acc_size,
-			 struct sg_table *sg,
+			 size_t acc_size, struct sg_table *sg,
 			 struct dma_resv *resv,
 			 void (*destroy) (struct ttm_buffer_object *));
 
@@ -445,7 +442,7 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
  * -ERESTARTSYS: Interrupted by signal while sleeping waiting for resources.
  */
 int ttm_bo_init(struct ttm_bo_device *bdev, struct ttm_buffer_object *bo,
-		unsigned long size, enum ttm_bo_type type,
+		size_t size, enum ttm_bo_type type,
 		struct ttm_placement *placement,
 		uint32_t page_alignment, bool interrubtible, size_t acc_size,
 		struct sg_table *sg, struct dma_resv *resv,

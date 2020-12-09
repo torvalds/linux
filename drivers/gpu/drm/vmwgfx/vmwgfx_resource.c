@@ -360,7 +360,7 @@ static int vmw_resource_buf_alloc(struct vmw_resource *res,
 	int ret;
 
 	if (likely(res->backup)) {
-		BUG_ON(res->backup->base.num_pages * PAGE_SIZE < size);
+		BUG_ON(res->backup->base.base.size < size);
 		return 0;
 	}
 

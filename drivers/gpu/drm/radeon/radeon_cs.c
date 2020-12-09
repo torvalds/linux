@@ -401,7 +401,8 @@ static int cmp_size_smaller_first(void *priv, struct list_head *a,
 	struct radeon_bo_list *lb = list_entry(b, struct radeon_bo_list, tv.head);
 
 	/* Sort A before B if A is smaller. */
-	return (int)la->robj->tbo.num_pages - (int)lb->robj->tbo.num_pages;
+	return (int)la->robj->tbo.mem.num_pages -
+		(int)lb->robj->tbo.mem.num_pages;
 }
 
 /**

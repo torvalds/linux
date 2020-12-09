@@ -787,7 +787,7 @@ int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr)
 	if (r < 0)
 		return r;
 
-	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.num_pages, &bo->kmap);
+	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.mem.num_pages, &bo->kmap);
 	if (r)
 		return r;
 
