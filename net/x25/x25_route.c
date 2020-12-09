@@ -124,12 +124,7 @@ struct net_device *x25_dev_get(char *devname)
 {
 	struct net_device *dev = dev_get_by_name(&init_net, devname);
 
-	if (dev &&
-	    (!(dev->flags & IFF_UP) || (dev->type != ARPHRD_X25
-#if IS_ENABLED(CONFIG_LLC)
-					&& dev->type != ARPHRD_ETHER
-#endif
-					))){
+	if (dev && (!(dev->flags & IFF_UP) || dev->type != ARPHRD_X25)) {
 		dev_put(dev);
 		dev = NULL;
 	}

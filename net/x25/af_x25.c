@@ -211,11 +211,7 @@ static int x25_device_event(struct notifier_block *this, unsigned long event,
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
-	if (dev->type == ARPHRD_X25
-#if IS_ENABLED(CONFIG_LLC)
-	 || dev->type == ARPHRD_ETHER
-#endif
-	 ) {
+	if (dev->type == ARPHRD_X25) {
 		switch (event) {
 		case NETDEV_REGISTER:
 		case NETDEV_POST_TYPE_CHANGE:
