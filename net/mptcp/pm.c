@@ -188,7 +188,7 @@ void mptcp_pm_rm_addr_received(struct mptcp_sock *msk, u8 rm_id)
 /* path manager helpers */
 
 bool mptcp_pm_add_addr_signal(struct mptcp_sock *msk, unsigned int remaining,
-			      struct mptcp_addr_info *saddr, bool *echo)
+			      struct mptcp_addr_info *saddr, bool *echo, bool *port)
 {
 	int ret = false;
 
@@ -199,8 +199,9 @@ bool mptcp_pm_add_addr_signal(struct mptcp_sock *msk, unsigned int remaining,
 		goto out_unlock;
 
 	*echo = mptcp_pm_should_add_signal_echo(msk);
+	*port = mptcp_pm_should_add_signal_port(msk);
 
-	if (remaining < mptcp_add_addr_len(msk->pm.local.family, *echo))
+	if (remaining < mptcp_add_addr_len(msk->pm.local.family, *echo, *port))
 		goto out_unlock;
 
 	*saddr = msk->pm.local;

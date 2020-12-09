@@ -587,6 +587,7 @@ static bool mptcp_established_options_add_addr(struct sock *sk, struct sk_buff *
 	unsigned int opt_size = *size;
 	struct mptcp_addr_info saddr;
 	bool echo;
+	bool port;
 	int len;
 
 	if (mptcp_pm_should_add_signal_ipv6(msk) &&
@@ -598,10 +599,10 @@ static bool mptcp_established_options_add_addr(struct sock *sk, struct sk_buff *
 	}
 
 	if (!mptcp_pm_should_add_signal(msk) ||
-	    !(mptcp_pm_add_addr_signal(msk, remaining, &saddr, &echo)))
+	    !(mptcp_pm_add_addr_signal(msk, remaining, &saddr, &echo, &port)))
 		return false;
 
-	len = mptcp_add_addr_len(saddr.family, echo);
+	len = mptcp_add_addr_len(saddr.family, echo, port);
 	if (remaining < len)
 		return false;
 
@@ -609,6 +610,8 @@ static bool mptcp_established_options_add_addr(struct sock *sk, struct sk_buff *
 	if (drop_other_suboptions)
 		*size -= opt_size;
 	opts->addr_id = saddr.id;
+	if (port)
+		opts->port = ntohs(saddr.port);
 	if (saddr.family == AF_INET) {
 		opts->suboptions |= OPTION_MPTCP_ADD_ADDR;
 		opts->addr = saddr.addr;
@@ -631,7 +634,8 @@ static bool mptcp_established_options_add_addr(struct sock *sk, struct sk_buff *
 		}
 	}
 #endif
-	pr_debug("addr_id=%d, ahmac=%llu, echo=%d", opts->addr_id, opts->ahmac, echo);
+	pr_debug("addr_id=%d, ahmac=%llu, echo=%d, port=%d",
+		 opts->addr_id, opts->ahmac, echo, opts->port);
 
 	return true;
 }
