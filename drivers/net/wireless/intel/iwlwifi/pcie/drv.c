@@ -1006,7 +1006,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	const struct iwl_cfg *cfg_7265d __maybe_unused = NULL;
 	struct iwl_trans *iwl_trans;
 	struct iwl_trans_pcie *trans_pcie;
-	unsigned long flags;
 	int i, ret;
 	/*
 	 * This is needed for backwards compatibility with the old
@@ -1134,21 +1133,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		trans_pcie->num_rx_bufs = iwl_trans->cfg->num_rbds;
 	} else {
 		trans_pcie->num_rx_bufs = RX_QUEUE_SIZE;
-	}
-
-	if (iwl_trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_8000 &&
-	    iwl_trans_grab_nic_access(iwl_trans, &flags)) {
-		u32 hw_step;
-
-		hw_step = iwl_read_umac_prph_no_grab(iwl_trans, WFPM_CTRL_REG);
-		hw_step |= ENABLE_WFPM;
-		iwl_write_umac_prph_no_grab(iwl_trans, WFPM_CTRL_REG, hw_step);
-		hw_step = iwl_read_prph_no_grab(iwl_trans, CNVI_AUX_MISC_CHIP);
-		hw_step = (hw_step >> HW_STEP_LOCATION_BITS) & 0xF;
-		if (hw_step == 0x3)
-			iwl_trans->hw_rev = (iwl_trans->hw_rev & 0xFFFFFFF3) |
-				(SILICON_C_STEP << 2);
-		iwl_trans_release_nic_access(iwl_trans, &flags);
 	}
 
 	pci_set_drvdata(pdev, iwl_trans);
