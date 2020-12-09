@@ -203,6 +203,23 @@ static void hci_acl_create_connection(struct hci_conn *conn)
 
 	BT_DBG("hcon %p", conn);
 
+	/* Many controllers disallow HCI Create Connection while it is doing
+	 * HCI Inquiry. So we cancel the Inquiry first before issuing HCI Create
+	 * Connection. This may cause the MGMT discovering state to become false
+	 * without user space's request but it is okay since the MGMT Discovery
+	 * APIs do not promise that discovery should be done forever. Instead,
+	 * the user space monitors the status of MGMT discovering and it may
+	 * request for discovery again when this flag becomes false.
+	 */
+	if (test_bit(HCI_INQUIRY, &hdev->flags)) {
+		/* Put this connection to "pending" state so that it will be
+		 * executed after the inquiry cancel command complete event.
+		 */
+		conn->state = BT_CONNECT2;
+		hci_send_cmd(hdev, HCI_OP_INQUIRY_CANCEL, 0, NULL);
+		return;
+	}
+
 	conn->state = BT_CONNECT;
 	conn->out = true;
 	conn->role = HCI_ROLE_MASTER;
