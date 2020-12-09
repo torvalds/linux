@@ -691,8 +691,8 @@ static int rga2_flush(rga2_session *session, unsigned long arg)
 {
 	int ret = 0;
 	int ret_timeout;
-	ktime_t start;
-	ktime_t end;
+	ktime_t start = ktime_set(0, 0);
+	ktime_t end = ktime_set(0, 0);
 
 #if RGA2_DEBUGFS
 	if (RGA2_TEST_TIME)
