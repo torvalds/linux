@@ -1,16 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0+
-// Copyright (c) 2018 Facebook Inc.
+// Copyright (c) 2020 Facebook Inc.
 /dts-v1/;
 
 #include "ast2400-facebook-netbmc-common.dtsi"
 
 / {
-	model = "Facebook Wedge 100 BMC";
-	compatible = "facebook,wedge100-bmc", "aspeed,ast2400";
+	model = "Facebook Galaxy 100 BMC";
+	compatible = "facebook,galaxy100-bmc", "aspeed,ast2400";
 
 	chosen {
-		stdout-path = &uart3;
-		bootargs = "console=ttyS2,9600n8 root=/dev/ram rw";
+		stdout-path = &uart5;
+		bootargs = "console=ttyS0,9600n8 root=/dev/ram rw";
+	};
+
+	ast-adc-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&adc 3>, <&adc 4>, <&adc 8>, <&adc 9>;
 	};
 };
 
@@ -38,21 +43,15 @@
 	};
 };
 
-&i2c7 {
-	i2c-switch@70 {
-		compatible = "nxp,pca9548";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg = <0x70>;
-		i2c-mux-idle-disconnect;
-	};
-};
 
 &i2c9 {
 	status = "okay";
 };
 
-
 &vhub {
+	status = "okay";
+};
+
+&adc {
 	status = "okay";
 };
