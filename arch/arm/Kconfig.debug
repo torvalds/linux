@@ -1192,10 +1192,9 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on ST SPEAr13xx based platforms.
 
-	config STIH41X_DEBUG_ASC2
+	config DEBUG_STIH41X_ASC2
 		bool "Use StiH415/416 ASC2 UART for low-level debug"
 		depends on ARCH_STI
-		select DEBUG_STI_UART
 		help
 		  Say Y here if you want kernel low-level debugging support
 		  on STiH415/416 based platforms like b2000, which has
@@ -1203,10 +1202,9 @@ choice
 
 		  If unsure, say N.
 
-	config STIH41X_DEBUG_SBC_ASC1
+	config DEBUG_STIH41X_SBC_ASC1
 		bool "Use StiH415/416 SBC ASC1 UART for low-level debug"
 		depends on ARCH_STI
-		select DEBUG_STI_UART
 		help
 		  Say Y here if you want kernel low-level debugging support
 		  on STiH415/416 based platforms like b2020. which has
@@ -1552,10 +1550,6 @@ config DEBUG_TEGRA_UART
 	bool
 	depends on ARCH_TEGRA
 
-config DEBUG_STI_UART
-	bool
-	depends on ARCH_STI
-
 config DEBUG_STM32_UART
 	bool
 	depends on ARCH_STM32
@@ -1620,7 +1614,8 @@ config DEBUG_LL_INCLUDE
 	default "debug/s3c24xx.S" if DEBUG_S3C24XX_UART || DEBUG_S3C64XX_UART
 	default "debug/s5pv210.S" if DEBUG_S5PV210_UART
 	default "debug/sirf.S" if DEBUG_SIRFSOC_UART
-	default "debug/sti.S" if DEBUG_STI_UART
+	default "debug/sti.S" if DEBUG_STIH41X_ASC2
+	default "debug/sti.S" if DEBUG_STIH41X_SBC_ASC1
 	default "debug/stm32.S" if DEBUG_STM32_UART
 	default "debug/tegra.S" if DEBUG_TEGRA_UART
 	default "debug/ux500.S" if DEBUG_UX500_UART
@@ -1752,7 +1747,9 @@ config DEBUG_UART_PHYS
 	default 0xfc00c000 if DEBUG_AT91_SAMA5D4_USART3
 	default 0xfcb00000 if DEBUG_HI3620_UART
 	default 0xfd883000 if DEBUG_ALPINE_UART0
+	default 0xfe531000 if DEBUG_STIH41X_SBC_ASC1
 	default 0xfe800000 if ARCH_IOP32X
+	default 0xfed32000 if DEBUG_STIH41X_ASC2
 	default 0xff690000 if DEBUG_RK32_UART2
 	default 0xffc02000 if DEBUG_SOCFPGA_UART0
 	default 0xffc02100 if DEBUG_SOCFPGA_ARRIA10_UART1
@@ -1781,7 +1778,8 @@ config DEBUG_UART_PHYS
 		DEBUG_S3C64XX_UART || \
 		DEBUG_BCM63XX_UART || DEBUG_ASM9260_UART || \
 		DEBUG_SIRFSOC_UART || DEBUG_DIGICOLOR_UA0 || \
-		DEBUG_AT91_UART || DEBUG_STM32_UART
+		DEBUG_AT91_UART || DEBUG_STM32_UART || \
+		DEBUG_STIH41X_ASC2 || DEBUG_STIH41X_SBC_ASC1
 
 config DEBUG_UART_VIRT
 	hex "Virtual base address of debug UART"
@@ -1845,7 +1843,9 @@ config DEBUG_UART_VIRT
 	default 0xfc705000 if DEBUG_ZTE_ZX
 	default 0xfcfe8600 if DEBUG_BCM63XX_UART
 	default 0xfd000000 if DEBUG_SPEAR3XX || DEBUG_SPEAR13XX
+	default 0xfd531000 if DEBUG_STIH41X_SBC_ASC1
 	default 0xfd883000 if DEBUG_ALPINE_UART0
+	default 0xfdd32000 if DEBUG_STIH41X_ASC2
 	default 0xfe010000 if STM32MP1_DEBUG_UART
 	default 0xfe017000 if DEBUG_MMP_UART2
 	default 0xfe018000 if DEBUG_MMP_UART3
@@ -1891,7 +1891,8 @@ config DEBUG_UART_VIRT
 		DEBUG_S3C64XX_UART || \
 		DEBUG_BCM63XX_UART || DEBUG_ASM9260_UART || \
 		DEBUG_SIRFSOC_UART || DEBUG_DIGICOLOR_UA0 || \
-		DEBUG_AT91_UART || DEBUG_STM32_UART
+		DEBUG_AT91_UART || DEBUG_STM32_UART || \
+		DEBUG_STIH41X_ASC2 || DEBUG_STIH41X_SBC_ASC1
 
 config DEBUG_UART_8250_SHIFT
 	int "Register offset shift for the 8250 debug UART"
