@@ -808,7 +808,7 @@ static bool is_trig_data_contained(struct iwl_ucode_tlv *new,
 	struct iwl_fw_ini_trigger_tlv *old_trig = (void *)old->data;
 	__le32 *new_data = new_trig->data, *old_data = old_trig->data;
 	u32 new_dwords_num = iwl_tlv_array_len(new, new_trig, data);
-	u32 old_dwords_num = iwl_tlv_array_len(new, new_trig, data);
+	u32 old_dwords_num = iwl_tlv_array_len(old, old_trig, data);
 	int i, j;
 
 	for (i = 0; i < new_dwords_num; i++) {
