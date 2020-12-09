@@ -194,7 +194,7 @@ static void wa_add(struct i915_wa_list *wal, i915_reg_t reg,
 }
 
 static void
-wa_write_masked_or(struct i915_wa_list *wal, i915_reg_t reg, u32 clear, u32 set)
+wa_write_clr_set(struct i915_wa_list *wal, i915_reg_t reg, u32 clear, u32 set)
 {
 	wa_add(wal, reg, clear, set, clear);
 }
@@ -202,19 +202,19 @@ wa_write_masked_or(struct i915_wa_list *wal, i915_reg_t reg, u32 clear, u32 set)
 static void
 wa_write(struct i915_wa_list *wal, i915_reg_t reg, u32 set)
 {
-	wa_write_masked_or(wal, reg, ~0, set);
+	wa_write_clr_set(wal, reg, ~0, set);
 }
 
 static void
 wa_write_or(struct i915_wa_list *wal, i915_reg_t reg, u32 set)
 {
-	wa_write_masked_or(wal, reg, set, set);
+	wa_write_clr_set(wal, reg, set, set);
 }
 
 static void
 wa_write_clr(struct i915_wa_list *wal, i915_reg_t reg, u32 clr)
 {
-	wa_write_masked_or(wal, reg, clr, 0);
+	wa_write_clr_set(wal, reg, clr, 0);
 }
 
 static void
@@ -603,10 +603,10 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 			     GEN11_BLEND_EMB_FIX_DISABLE_IN_RCC);
 
 	/* WaEnableFloatBlendOptimization:icl */
-	wa_write_masked_or(wal,
-			   GEN10_CACHE_MODE_SS,
-			   0, /* write-only, so skip validation */
-			   _MASKED_BIT_ENABLE(FLOAT_BLEND_OPTIMIZATION_ENABLE));
+	wa_write_clr_set(wal,
+			 GEN10_CACHE_MODE_SS,
+			 0, /* write-only, so skip validation */
+			 _MASKED_BIT_ENABLE(FLOAT_BLEND_OPTIMIZATION_ENABLE));
 
 	/* WaDisableGPGPUMidThreadPreemption:icl */
 	wa_masked_field_set(wal, GEN8_CS_CHICKEN1,
@@ -619,9 +619,9 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 
 	/* Wa_1604278689:icl,ehl */
 	wa_write(wal, IVB_FBC_RT_BASE, 0xFFFFFFFF & ~ILK_FBC_RT_VALID);
-	wa_write_masked_or(wal, IVB_FBC_RT_BASE_UPPER,
-			   0, /* write-only register; skip validation */
-			   0xFFFFFFFF);
+	wa_write_clr_set(wal, IVB_FBC_RT_BASE_UPPER,
+			 0, /* write-only register; skip validation */
+			 0xFFFFFFFF);
 
 	/* Wa_1406306137:icl,ehl */
 	wa_masked_en(wal, GEN9_ROW_CHICKEN4, GEN11_DIS_PICK_2ND_EU);
@@ -881,11 +881,11 @@ ivb_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	 * This actually overrides the dispatch
 	 * mode for all thread types.
 	 */
-	wa_write_masked_or(wal, GEN7_FF_THREAD_MODE,
-			   GEN7_FF_SCHED_MASK,
-			   GEN7_FF_TS_SCHED_HW |
-			   GEN7_FF_VS_SCHED_HW |
-			   GEN7_FF_DS_SCHED_HW);
+	wa_write_clr_set(wal, GEN7_FF_THREAD_MODE,
+			 GEN7_FF_SCHED_MASK,
+			 GEN7_FF_TS_SCHED_HW |
+			 GEN7_FF_VS_SCHED_HW |
+			 GEN7_FF_DS_SCHED_HW);
 
 	if (0) { /* causes HiZ corruption on ivb:gt1 */
 		/* enable HiZ Raw Stall Optimization */
@@ -933,12 +933,12 @@ vlv_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	 * This actually overrides the dispatch
 	 * mode for all thread types.
 	 */
-	wa_write_masked_or(wal,
-			   GEN7_FF_THREAD_MODE,
-			   GEN7_FF_SCHED_MASK,
-			   GEN7_FF_TS_SCHED_HW |
-			   GEN7_FF_VS_SCHED_HW |
-			   GEN7_FF_DS_SCHED_HW);
+	wa_write_clr_set(wal,
+			 GEN7_FF_THREAD_MODE,
+			 GEN7_FF_SCHED_MASK,
+			 GEN7_FF_TS_SCHED_HW |
+			 GEN7_FF_VS_SCHED_HW |
+			 GEN7_FF_DS_SCHED_HW);
 
 	/*
 	 * BSpec says this must be set, even though
@@ -1172,7 +1172,7 @@ wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
 
 	drm_dbg(&i915->drm, "MCR slice/subslice = %x\n", mcr);
 
-	wa_write_masked_or(wal, GEN8_MCR_SELECTOR, mcr_mask, mcr);
+	wa_write_clr_set(wal, GEN8_MCR_SELECTOR, mcr_mask, mcr);
 }
 
 static void
@@ -1197,10 +1197,10 @@ icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 		    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
 
 	/* WaModifyGamTlbPartitioning:icl */
-	wa_write_masked_or(wal,
-			   GEN11_GACB_PERF_CTRL,
-			   GEN11_HASH_CTRL_MASK,
-			   GEN11_HASH_CTRL_BIT0 | GEN11_HASH_CTRL_BIT4);
+	wa_write_clr_set(wal,
+			 GEN11_GACB_PERF_CTRL,
+			 GEN11_HASH_CTRL_MASK,
+			 GEN11_HASH_CTRL_BIT0 | GEN11_HASH_CTRL_BIT4);
 
 	/* Wa_1405766107:icl
 	 * Formerly known as WaCL2SFHalfMaxAlloc
@@ -1844,14 +1844,14 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		 * Wa_1604223664:icl
 		 * Formerly known as WaL3BankAddressHashing
 		 */
-		wa_write_masked_or(wal,
-				   GEN8_GARBCNTL,
-				   GEN11_HASH_CTRL_EXCL_MASK,
-				   GEN11_HASH_CTRL_EXCL_BIT0);
-		wa_write_masked_or(wal,
-				   GEN11_GLBLINVL,
-				   GEN11_BANK_HASH_ADDR_EXCL_MASK,
-				   GEN11_BANK_HASH_ADDR_EXCL_BIT0);
+		wa_write_clr_set(wal,
+				 GEN8_GARBCNTL,
+				 GEN11_HASH_CTRL_EXCL_MASK,
+				 GEN11_HASH_CTRL_EXCL_BIT0);
+		wa_write_clr_set(wal,
+				 GEN11_GLBLINVL,
+				 GEN11_BANK_HASH_ADDR_EXCL_MASK,
+				 GEN11_BANK_HASH_ADDR_EXCL_BIT0);
 
 		/*
 		 * Wa_1405733216:icl
@@ -1880,10 +1880,10 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			    GEN7_DISABLE_SAMPLER_PREFETCH);
 
 		/* Wa_1409178092:icl */
-		wa_write_masked_or(wal,
-				   GEN11_SCRATCH2,
-				   GEN11_COHERENT_PARTIAL_WRITE_MERGE_ENABLE,
-				   0);
+		wa_write_clr_set(wal,
+				 GEN11_SCRATCH2,
+				 GEN11_COHERENT_PARTIAL_WRITE_MERGE_ENABLE,
+				 0);
 
 		/* WaEnable32PlaneMode:icl */
 		wa_masked_en(wal, GEN9_CSFE_CHICKEN1_RCS,
@@ -1957,11 +1957,11 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 
 		/* WaProgramL3SqcReg1DefaultForPerf:bxt,glk */
 		if (IS_GEN9_LP(i915))
-			wa_write_masked_or(wal,
-					   GEN8_L3SQCREG1,
-					   L3_PRIO_CREDITS_MASK,
-					   L3_GENERAL_PRIO_CREDITS(62) |
-					   L3_HIGH_PRIO_CREDITS(2));
+			wa_write_clr_set(wal,
+					 GEN8_L3SQCREG1,
+					 L3_PRIO_CREDITS_MASK,
+					 L3_GENERAL_PRIO_CREDITS(62) |
+					 L3_HIGH_PRIO_CREDITS(2));
 
 		/* WaOCLCoherentLineFlush:skl,bxt,kbl,cfl */
 		wa_write_or(wal,
