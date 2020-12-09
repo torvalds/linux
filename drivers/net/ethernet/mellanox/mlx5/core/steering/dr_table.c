@@ -266,6 +266,8 @@ struct mlx5dr_table *mlx5dr_table_create(struct mlx5dr_domain *dmn, u32 level, u
 	if (ret)
 		goto uninit_tbl;
 
+	INIT_LIST_HEAD(&tbl->dbg_node);
+	mlx5dr_dbg_tbl_add(tbl);
 	return tbl;
 
 uninit_tbl:
@@ -284,6 +286,7 @@ int mlx5dr_table_destroy(struct mlx5dr_table *tbl)
 	if (refcount_read(&tbl->refcount) > 1)
 		return -EBUSY;
 
+	mlx5dr_dbg_tbl_del(tbl);
 	ret = dr_table_destroy_sw_owned_tbl(tbl);
 	if (ret)
 		return ret;

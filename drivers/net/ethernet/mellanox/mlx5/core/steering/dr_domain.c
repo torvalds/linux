@@ -395,7 +395,7 @@ mlx5dr_domain_create(struct mlx5_core_dev *mdev, enum mlx5dr_domain_type type)
 	}
 
 	dr_domain_init_csum_recalc_fts(dmn);
-
+	mlx5dr_dbg_init_dump(dmn);
 	return dmn;
 
 uninit_caps:
@@ -436,6 +436,7 @@ int mlx5dr_domain_destroy(struct mlx5dr_domain *dmn)
 
 	/* make sure resources are not used by the hardware */
 	mlx5dr_cmd_sync_steering(dmn->mdev);
+	mlx5dr_dbg_uninit_dump(dmn);
 	dr_domain_uninit_csum_recalc_fts(dmn);
 	dr_domain_uninit_resources(dmn);
 	dr_domain_caps_uninit(dmn);

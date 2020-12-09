@@ -11,6 +11,7 @@
 #include "lib/mlx5.h"
 #include "mlx5_ifc_dr.h"
 #include "mlx5dr.h"
+#include "dr_dbg.h"
 
 #define DR_RULE_MAX_STES 18
 #define DR_ACTION_MAX_STES 5
@@ -878,6 +879,8 @@ struct mlx5dr_domain {
 	struct mlx5dr_domain_info info;
 	struct xarray csum_fts_xa;
 	struct mlx5dr_ste_ctx *ste_ctx;
+	struct list_head dbg_tbl_list;
+	struct mlx5dr_dbg_dump_info dump_info;
 };
 
 struct mlx5dr_table_rx_tx {
@@ -897,6 +900,7 @@ struct mlx5dr_table {
 	struct list_head matcher_list;
 	struct mlx5dr_action *miss_action;
 	refcount_t refcount;
+	struct list_head dbg_node;
 };
 
 struct mlx5dr_matcher_rx_tx {
@@ -916,11 +920,12 @@ struct mlx5dr_matcher {
 	struct mlx5dr_table *tbl;
 	struct mlx5dr_matcher_rx_tx rx;
 	struct mlx5dr_matcher_rx_tx tx;
-	struct list_head list_node;
+	struct list_head list_node; /* Used for both matchers and dbg managing */
 	u32 prio;
 	struct mlx5dr_match_param mask;
 	u8 match_criteria;
 	refcount_t refcount;
+	struct list_head dbg_rule_list;
 };
 
 struct mlx5dr_ste_action_modify_field {
@@ -992,6 +997,11 @@ struct mlx5dr_action_flow_tag {
 	u32 flow_tag;
 };
 
+struct mlx5dr_rule_action_member {
+	struct mlx5dr_action *action;
+	struct list_head list;
+};
+
 struct mlx5dr_action {
 	enum mlx5dr_action_type action_type;
 	refcount_t refcount;
@@ -1032,6 +1042,7 @@ struct mlx5dr_rule {
 	struct mlx5dr_rule_rx_tx rx;
 	struct mlx5dr_rule_rx_tx tx;
 	struct list_head rule_actions_list;
+	struct list_head dbg_node;
 	u32 flow_source;
 };
 

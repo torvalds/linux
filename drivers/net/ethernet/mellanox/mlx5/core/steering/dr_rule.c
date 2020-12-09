@@ -5,11 +5,6 @@
 
 #define DR_RULE_MAX_STE_CHAIN (DR_RULE_MAX_STES + DR_ACTION_MAX_STES)
 
-struct mlx5dr_rule_action_member {
-	struct mlx5dr_action *action;
-	struct list_head list;
-};
-
 static int dr_rule_append_to_miss_list(struct mlx5dr_ste_ctx *ste_ctx,
 				       struct mlx5dr_ste *new_last_ste,
 				       struct list_head *miss_list,
@@ -1003,6 +998,8 @@ static int dr_rule_destroy_rule(struct mlx5dr_rule *rule)
 {
 	struct mlx5dr_domain *dmn = rule->matcher->tbl->dmn;
 
+	mlx5dr_dbg_rule_del(rule);
+
 	switch (dmn->type) {
 	case MLX5DR_DOMAIN_TYPE_NIC_RX:
 		dr_rule_destroy_rule_nic(rule, &rule->rx);
@@ -1257,6 +1254,8 @@ dr_rule_create_rule(struct mlx5dr_matcher *matcher,
 	if (ret)
 		goto remove_action_members;
 
+	INIT_LIST_HEAD(&rule->dbg_node);
+	mlx5dr_dbg_rule_add(rule);
 	return rule;
 
 remove_action_members:

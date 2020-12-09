@@ -969,6 +969,7 @@ mlx5dr_matcher_create(struct mlx5dr_table *tbl,
 	matcher->match_criteria = match_criteria_enable;
 	refcount_set(&matcher->refcount, 1);
 	INIT_LIST_HEAD(&matcher->list_node);
+	INIT_LIST_HEAD(&matcher->dbg_rule_list);
 
 	mlx5dr_domain_lock(tbl->dmn);
 
