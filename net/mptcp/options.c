@@ -1071,15 +1071,16 @@ void mptcp_write_options(__be32 *ptr, const struct tcp_sock *tp,
 
 mp_capable_done:
 	if (OPTION_MPTCP_ADD_ADDR & opts->suboptions) {
-		if (opts->ahmac)
-			*ptr++ = mptcp_option(MPTCPOPT_ADD_ADDR,
-					      TCPOLEN_MPTCP_ADD_ADDR, 0,
-					      opts->addr_id);
-		else
-			*ptr++ = mptcp_option(MPTCPOPT_ADD_ADDR,
-					      TCPOLEN_MPTCP_ADD_ADDR_BASE,
-					      MPTCP_ADDR_ECHO,
-					      opts->addr_id);
+		u8 len = TCPOLEN_MPTCP_ADD_ADDR_BASE;
+		u8 echo = MPTCP_ADDR_ECHO;
+
+		if (opts->ahmac) {
+			len += sizeof(opts->ahmac);
+			echo = 0;
+		}
+
+		*ptr++ = mptcp_option(MPTCPOPT_ADD_ADDR,
+				      len, echo, opts->addr_id);
 		memcpy((u8 *)ptr, (u8 *)&opts->addr.s_addr, 4);
 		ptr += 1;
 		if (opts->ahmac) {
@@ -1090,15 +1091,15 @@ mp_capable_done:
 
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 	if (OPTION_MPTCP_ADD_ADDR6 & opts->suboptions) {
-		if (opts->ahmac)
-			*ptr++ = mptcp_option(MPTCPOPT_ADD_ADDR,
-					      TCPOLEN_MPTCP_ADD_ADDR6, 0,
-					      opts->addr_id);
-		else
-			*ptr++ = mptcp_option(MPTCPOPT_ADD_ADDR,
-					      TCPOLEN_MPTCP_ADD_ADDR6_BASE,
-					      MPTCP_ADDR_ECHO,
-					      opts->addr_id);
+		u8 len = TCPOLEN_MPTCP_ADD_ADDR6_BASE;
+		u8 echo = MPTCP_ADDR_ECHO;
+
+		if (opts->ahmac) {
+			len += sizeof(opts->ahmac);
+			echo = 0;
+		}
+		*ptr++ = mptcp_option(MPTCPOPT_ADD_ADDR,
+				      len, echo, opts->addr_id);
 		memcpy((u8 *)ptr, opts->addr6.s6_addr, 16);
 		ptr += 4;
 		if (opts->ahmac) {
