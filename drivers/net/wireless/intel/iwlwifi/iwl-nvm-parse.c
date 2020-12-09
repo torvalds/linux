@@ -107,9 +107,11 @@ enum ext_nvm_offsets {
 
 	/* NVM SW-Section offset (in words) definitions */
 	NVM_VERSION_EXT_NVM = 0,
+	N_HW_ADDRS_FAMILY_8000 = 3,
+
+	/* NVM PHY_SKU-Section offset (in words) definitions */
 	RADIO_CFG_FAMILY_EXT_NVM = 0,
 	SKU_FAMILY_8000 = 2,
-	N_HW_ADDRS_FAMILY_8000 = 3,
 
 	/* NVM REGULATORY -Section offset (in words) definitions */
 	NVM_CHANNELS_EXTENDED = 0,
