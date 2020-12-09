@@ -1497,25 +1497,6 @@ static int iwl_fill_data_tbs(struct iwl_trans *trans, struct sk_buff *skb,
 }
 
 #ifdef CONFIG_INET
-static void iwl_compute_pseudo_hdr_csum(void *iph, struct tcphdr *tcph,
-					bool ipv6, unsigned int len)
-{
-	if (ipv6) {
-		struct ipv6hdr *iphv6 = iph;
-
-		tcph->check = ~csum_ipv6_magic(&iphv6->saddr, &iphv6->daddr,
-					       len + tcph->doff * 4,
-					       IPPROTO_TCP, 0);
-	} else {
-		struct iphdr *iphv4 = iph;
-
-		ip_send_check(iphv4);
-		tcph->check = ~csum_tcpudp_magic(iphv4->saddr, iphv4->daddr,
-						 len + tcph->doff * 4,
-						 IPPROTO_TCP, 0);
-	}
-}
-
 static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 				   struct iwl_txq *txq, u8 hdr_len,
 				   struct iwl_cmd_meta *out_meta,
@@ -1523,8 +1504,6 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 				   u16 tb1_len)
 {
 	struct iwl_tx_cmd *tx_cmd = (void *)dev_cmd->payload;
-	struct iwl_trans_pcie *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(txq->trans);
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	unsigned int snap_ip_tcp_hdrlen, ip_hdrlen, total_len, hdr_room;
 	unsigned int mss = skb_shinfo(skb)->gso_size;
@@ -1583,8 +1562,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 		struct sk_buff *csum_skb = NULL;
 		unsigned int hdr_tb_len;
 		dma_addr_t hdr_tb_phys;
-		struct tcphdr *tcph;
-		u8 *iph, *subf_hdrs_start = hdr_page->pos;
+		u8 *subf_hdrs_start = hdr_page->pos;
 
 		total_len -= data_left;
 
@@ -1606,27 +1584,6 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 		 * as MAC header.
 		 */
 		tso_build_hdr(skb, hdr_page->pos, &tso, data_left, !total_len);
-		iph = hdr_page->pos + 8;
-		tcph = (void *)(iph + ip_hdrlen);
-
-		/* For testing on current hardware only */
-		if (trans_pcie->sw_csum_tx) {
-			csum_skb = alloc_skb(data_left + tcp_hdrlen(skb),
-					     GFP_ATOMIC);
-			if (!csum_skb)
-				return -ENOMEM;
-
-			iwl_compute_pseudo_hdr_csum(iph, tcph,
-						    skb->protocol ==
-							htons(ETH_P_IPV6),
-						    data_left);
-
-			skb_put_data(csum_skb, tcph, tcp_hdrlen(skb));
-			skb_reset_transport_header(csum_skb);
-			csum_skb->csum_start =
-				(unsigned char *)tcp_hdr(csum_skb) -
-						 csum_skb->head;
-		}
 
 		hdr_page->pos += snap_ip_tcp_hdrlen;
 
@@ -1653,9 +1610,6 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 						  data_left);
 			dma_addr_t tb_phys;
 
-			if (trans_pcie->sw_csum_tx)
-				skb_put_data(csum_skb, tso.data, size);
-
 			tb_phys = dma_map_single(trans->dev, tso.data,
 						 size, DMA_TO_DEVICE);
 			if (unlikely(dma_mapping_error(trans->dev, tb_phys))) {
@@ -1670,23 +1624,6 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 
 			data_left -= size;
 			tso_build_data(skb, &tso, size);
-		}
-
-		/* For testing on early hardware only */
-		if (trans_pcie->sw_csum_tx) {
-			__wsum csum;
-
-			csum = skb_checksum(csum_skb,
-					    skb_checksum_start_offset(csum_skb),
-					    csum_skb->len -
-					    skb_checksum_start_offset(csum_skb),
-					    0);
-			dev_kfree_skb(csum_skb);
-			dma_sync_single_for_cpu(trans->dev, hdr_tb_phys,
-						hdr_tb_len, DMA_TO_DEVICE);
-			tcph->check = csum_fold(csum);
-			dma_sync_single_for_device(trans->dev, hdr_tb_phys,
-						   hdr_tb_len, DMA_TO_DEVICE);
 		}
 	}
 
@@ -1712,7 +1649,6 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		      struct iwl_device_tx_cmd *dev_cmd, int txq_id)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct ieee80211_hdr *hdr;
 	struct iwl_tx_cmd *tx_cmd = (struct iwl_tx_cmd *)dev_cmd->payload;
 	struct iwl_cmd_meta *out_meta;
@@ -1732,21 +1668,6 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	if (WARN_ONCE(!test_bit(txq_id, trans->txqs.queue_used),
 		      "TX on unused queue %d\n", txq_id))
 		return -EINVAL;
-
-	if (unlikely(trans_pcie->sw_csum_tx &&
-		     skb->ip_summed == CHECKSUM_PARTIAL)) {
-		int offs = skb_checksum_start_offset(skb);
-		int csum_offs = offs + skb->csum_offset;
-		__wsum csum;
-
-		if (skb_ensure_writable(skb, csum_offs + sizeof(__sum16)))
-			return -1;
-
-		csum = skb_checksum(skb, offs, skb->len - offs, 0);
-		*(__sum16 *)(skb->data + csum_offs) = csum_fold(csum);
-
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	}
 
 	if (skb_is_nonlinear(skb) &&
 	    skb_shinfo(skb)->nr_frags > IWL_TRANS_MAX_FRAGS(trans) &&
@@ -1822,7 +1743,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	amsdu = ieee80211_is_data_qos(fc) &&
 		(*ieee80211_get_qos_ctl(hdr) &
 		 IEEE80211_QOS_CTL_A_MSDU_PRESENT);
-	if (trans_pcie->sw_csum_tx || !amsdu) {
+	if (!amsdu) {
 		tb1_len = ALIGN(len, 4);
 		/* Tell NIC about any 2-byte padding after MAC header */
 		if (tb1_len != len)

@@ -1934,7 +1934,6 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 
 	trans->txqs.bc_table_dword = trans_cfg->bc_table_dword;
 	trans_pcie->scd_set_active = trans_cfg->scd_set_active;
-	trans_pcie->sw_csum_tx = trans_cfg->sw_csum_tx;
 
 	trans->command_groups = trans_cfg->command_groups;
 	trans->command_groups_size = trans_cfg->command_groups_size;

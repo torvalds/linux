@@ -105,11 +105,8 @@ static u16 iwl_mvm_tx_csum(struct iwl_mvm *mvm, struct sk_buff *skb,
 	u16 mh_len = ieee80211_hdrlen(hdr->frame_control);
 	u8 protocol = 0;
 
-	/*
-	 * Do not compute checksum if already computed or if transport will
-	 * compute it
-	 */
-	if (skb->ip_summed != CHECKSUM_PARTIAL || IWL_MVM_SW_TX_CSUM_OFFLOAD)
+	/* Do not compute checksum if already computed */
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		goto out;
 
 	/* We do not expect to be requested to csum stuff we do not support */

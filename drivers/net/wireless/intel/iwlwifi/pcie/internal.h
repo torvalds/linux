@@ -348,8 +348,6 @@ struct cont_rec {
  * @def_rx_queue - default rx queue number
  * @rx_buf_size: Rx buffer size
  * @scd_set_active: should the transport configure the SCD for HCMD queue
- * @sw_csum_tx: if true, then the transport will compute the csum of the TXed
- *	frame.
  * @rx_page_order: page order for receive buffer size
  * @rx_buf_bytes: RX buffer (RB) size in bytes
  * @reg_lock: protect hw register access
@@ -432,7 +430,6 @@ struct iwl_trans_pcie {
 
 	enum iwl_amsdu_size rx_buf_size;
 	bool scd_set_active;
-	bool sw_csum_tx;
 	bool pcie_dbg_dumped_once;
 	u32 rx_page_order;
 	u32 rx_buf_bytes;
