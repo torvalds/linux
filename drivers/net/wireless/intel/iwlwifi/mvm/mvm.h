@@ -1946,16 +1946,7 @@ static inline u32 iwl_mvm_flushable_queues(struct iwl_mvm *mvm)
 		~BIT(IWL_MVM_DQA_CMD_QUEUE));
 }
 
-static inline void iwl_mvm_stop_device(struct iwl_mvm *mvm)
-{
-	lockdep_assert_held(&mvm->mutex);
-	iwl_fw_cancel_timestamp(&mvm->fwrt);
-	clear_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
-	iwl_fw_dbg_stop_sync(&mvm->fwrt);
-	iwl_trans_stop_device(mvm->trans);
-	iwl_free_fw_paging(&mvm->fwrt);
-	iwl_fw_dump_conf_clear(&mvm->fwrt);
-}
+void iwl_mvm_stop_device(struct iwl_mvm *mvm);
 
 /* Re-configure the SCD for a queue that has already been configured */
 int iwl_mvm_reconfig_scd(struct iwl_mvm *mvm, int queue, int fifo, int sta_id,

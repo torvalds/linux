@@ -874,6 +874,20 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	return NULL;
 }
 
+void iwl_mvm_stop_device(struct iwl_mvm *mvm)
+{
+	lockdep_assert_held(&mvm->mutex);
+
+	iwl_fw_cancel_timestamp(&mvm->fwrt);
+
+	clear_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
+
+	iwl_fw_dbg_stop_sync(&mvm->fwrt);
+	iwl_trans_stop_device(mvm->trans);
+	iwl_free_fw_paging(&mvm->fwrt);
+	iwl_fw_dump_conf_clear(&mvm->fwrt);
+}
+
 static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
