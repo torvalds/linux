@@ -2019,7 +2019,7 @@ M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 M:	Gregory Clement <gregory.clement@bootlin.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-T:	git git://git.infradead.org/linux-mvebu.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gclement/mvebu.git
 F:	Documentation/devicetree/bindings/soc/dove/
 F:	arch/arm/boot/dts/dove*
 F:	arch/arm/boot/dts/orion5x*
@@ -2036,7 +2036,7 @@ M:	Gregory Clement <gregory.clement@bootlin.com>
 M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-T:	git git://git.infradead.org/linux-mvebu.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gclement/mvebu.git
 F:	arch/arm/boot/dts/armada*
 F:	arch/arm/boot/dts/kirkwood*
 F:	arch/arm/configs/mvebu_*_defconfig
@@ -11625,6 +11625,17 @@ MICROTEK X6 SCANNER
 M:	Oliver Neukum <oliver@neukum.org>
 S:	Maintained
 F:	drivers/usb/image/microtek.*
+
+MIKROTIK CRS3XX 98DX3236 BOARD SUPPORT
+M:	Luka Kovacic <luka.kovacic@sartura.hr>
+M:	Luka Perkov <luka.perkov@sartura.hr>
+S:	Maintained
+F:	arch/arm/boot/dts/armada-xp-crs305-1g-4s-bit.dts
+F:	arch/arm/boot/dts/armada-xp-crs305-1g-4s.dts
+F:	arch/arm/boot/dts/armada-xp-crs326-24g-2s-bit.dts
+F:	arch/arm/boot/dts/armada-xp-crs326-24g-2s.dts
+F:	arch/arm/boot/dts/armada-xp-crs328-4c-20s-4s-bit.dts
+F:	arch/arm/boot/dts/armada-xp-crs328-4c-20s-4s.dts
 
 MIPS
 M:	Thomas Bogendoerfer <tsbogend@alpha.franken.de>
