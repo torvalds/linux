@@ -2283,17 +2283,6 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 		}
 	}
 
-	if (inta_hw & MSIX_HW_INT_CAUSES_REG_IML) {
-		/* Reflect IML transfer status */
-		int res = iwl_read32(trans, CSR_IML_RESP_ADDR);
-
-		IWL_DEBUG_ISR(trans, "IML transfer status: %d\n", res);
-		if (res == IWL_IMAGE_RESP_FAIL) {
-			isr_stats->sw++;
-			iwl_pcie_irq_handle_error(trans);
-		}
-	}
-
 	/* Chip got too hot and stopped itself */
 	if (inta_hw & MSIX_HW_INT_CAUSES_REG_CT_KILL) {
 		IWL_ERR(trans, "Microcode CT kill error detected.\n");
