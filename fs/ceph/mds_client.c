@@ -2478,21 +2478,24 @@ static int set_request_path_attr(struct inode *rinode, struct dentry *rdentry,
 /*
  * called under mdsc->mutex
  */
-static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
+static struct ceph_msg *create_request_message(struct ceph_mds_session *session,
 					       struct ceph_mds_request *req,
-					       int mds, bool drop_cap_releases)
+					       bool drop_cap_releases)
 {
+	int mds = session->s_mds;
+	struct ceph_mds_client *mdsc = session->s_mdsc;
 	struct ceph_msg *msg;
-	struct ceph_mds_request_head *head;
+	struct ceph_mds_request_head_old *head;
 	const char *path1 = NULL;
 	const char *path2 = NULL;
 	u64 ino1 = 0, ino2 = 0;
 	int pathlen1 = 0, pathlen2 = 0;
 	bool freepath1 = false, freepath2 = false;
-	int len;
+	int len, i;
 	u16 releases;
 	void *p, *end;
 	int ret;
+	bool legacy = !(session->s_con.peer_features & CEPH_FEATURE_FS_BTIME);
 
 	ret = set_request_path_attr(req->r_inode, req->r_dentry,
 			      req->r_parent, req->r_path1, req->r_ino1.ino,
@@ -2514,14 +2517,23 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 		goto out_free1;
 	}
 
-	len = sizeof(*head) +
-		pathlen1 + pathlen2 + 2*(1 + sizeof(u32) + sizeof(u64)) +
+	if (legacy) {
+		/* Old style */
+		len = sizeof(*head);
+	} else {
+		/* New style: add gid_list and any later fields */
+		len = sizeof(struct ceph_mds_request_head) + sizeof(u32) +
+		      (sizeof(u64) * req->r_cred->group_info->ngroups);
+	}
+
+	len += pathlen1 + pathlen2 + 2*(1 + sizeof(u32) + sizeof(u64)) +
 		sizeof(struct ceph_timespec);
 
 	/* calculate (max) length for cap releases */
 	len += sizeof(struct ceph_mds_request_release) *
 		(!!req->r_inode_drop + !!req->r_dentry_drop +
 		 !!req->r_old_inode_drop + !!req->r_old_dentry_drop);
+
 	if (req->r_dentry_drop)
 		len += pathlen1;
 	if (req->r_old_dentry_drop)
@@ -2533,11 +2545,25 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 		goto out_free2;
 	}
 
-	msg->hdr.version = cpu_to_le16(3);
 	msg->hdr.tid = cpu_to_le64(req->r_tid);
 
-	head = msg->front.iov_base;
-	p = msg->front.iov_base + sizeof(*head);
+	/*
+	 * The old ceph_mds_request_header didn't contain a version field, and
+	 * one was added when we moved the message version from 3->4.
+	 */
+	if (legacy) {
+		msg->hdr.version = cpu_to_le16(3);
+		head = msg->front.iov_base;
+		p = msg->front.iov_base + sizeof(*head);
+	} else {
+		struct ceph_mds_request_head *new_head = msg->front.iov_base;
+
+		msg->hdr.version = cpu_to_le16(4);
+		new_head->version = cpu_to_le16(CEPH_MDS_REQUEST_HEAD_VERSION);
+		head = (struct ceph_mds_request_head_old *)&new_head->oldest_client_tid;
+		p = msg->front.iov_base + sizeof(*new_head);
+	}
+
 	end = msg->front.iov_base + msg->front.iov_len;
 
 	head->mdsmap_epoch = cpu_to_le32(mdsc->mdsmap->m_epoch);
@@ -2590,6 +2616,14 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 		ceph_encode_copy(&p, &ts, sizeof(ts));
 	}
 
+	/* gid list */
+	if (!legacy) {
+		ceph_encode_32(&p, req->r_cred->group_info->ngroups);
+		for (i = 0; i < req->r_cred->group_info->ngroups; i++)
+			ceph_encode_64(&p, from_kgid(&init_user_ns,
+				       req->r_cred->group_info->gid[i]));
+	}
+
 	if (WARN_ON_ONCE(p > end)) {
 		ceph_msg_put(msg);
 		msg = ERR_PTR(-ERANGE);
@@ -2633,6 +2667,18 @@ static void complete_request(struct ceph_mds_client *mdsc,
 	complete_all(&req->r_completion);
 }
 
+static struct ceph_mds_request_head_old *
+find_old_request_head(void *p, u64 features)
+{
+	bool legacy = !(features & CEPH_FEATURE_FS_BTIME);
+	struct ceph_mds_request_head *new_head;
+
+	if (legacy)
+		return (struct ceph_mds_request_head_old *)p;
+	new_head = (struct ceph_mds_request_head *)p;
+	return (struct ceph_mds_request_head_old *)&new_head->oldest_client_tid;
+}
+
 /*
  * called under mdsc->mutex
  */
@@ -2642,7 +2688,7 @@ static int __prepare_send_request(struct ceph_mds_session *session,
 {
 	int mds = session->s_mds;
 	struct ceph_mds_client *mdsc = session->s_mdsc;
-	struct ceph_mds_request_head *rhead;
+	struct ceph_mds_request_head_old *rhead;
 	struct ceph_msg *msg;
 	int flags = 0;
 
@@ -2661,6 +2707,7 @@ static int __prepare_send_request(struct ceph_mds_session *session,
 
 	if (test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags)) {
 		void *p;
+
 		/*
 		 * Replay.  Do not regenerate message (and rebuild
 		 * paths, etc.); just use the original message.
@@ -2668,7 +2715,8 @@ static int __prepare_send_request(struct ceph_mds_session *session,
 		 * d_move mangles the src name.
 		 */
 		msg = req->r_request;
-		rhead = msg->front.iov_base;
+		rhead = find_old_request_head(msg->front.iov_base,
+					      session->s_con.peer_features);
 
 		flags = le32_to_cpu(rhead->flags);
 		flags |= CEPH_MDS_FLAG_REPLAY;
@@ -2699,14 +2747,15 @@ static int __prepare_send_request(struct ceph_mds_session *session,
 		ceph_msg_put(req->r_request);
 		req->r_request = NULL;
 	}
-	msg = create_request_message(mdsc, req, mds, drop_cap_releases);
+	msg = create_request_message(session, req, drop_cap_releases);
 	if (IS_ERR(msg)) {
 		req->r_err = PTR_ERR(msg);
 		return PTR_ERR(msg);
 	}
 	req->r_request = msg;
 
-	rhead = msg->front.iov_base;
+	rhead = find_old_request_head(msg->front.iov_base,
+				      session->s_con.peer_features);
 	rhead->oldest_client_tid = cpu_to_le64(__get_oldest_tid(mdsc));
 	if (test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags))
 		flags |= CEPH_MDS_FLAG_REPLAY;
