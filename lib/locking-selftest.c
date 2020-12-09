@@ -24,6 +24,7 @@
 #include <linux/debug_locks.h>
 #include <linux/irqflags.h>
 #include <linux/rtmutex.h>
+#include <linux/local_lock.h>
 
 /*
  * Change this to 1 if you want to see the failure printouts:
@@ -51,6 +52,7 @@ __setup("debug_locks_verbose=", setup_debug_locks_verbose);
 #define LOCKTYPE_RWSEM	0x8
 #define LOCKTYPE_WW	0x10
 #define LOCKTYPE_RTMUTEX 0x20
+#define LOCKTYPE_LL	0x40
 
 static struct ww_acquire_ctx t, t2;
 static struct ww_mutex o, o2, o3;
@@ -135,6 +137,8 @@ static DEFINE_RT_MUTEX(rtmutex_Z1);
 static DEFINE_RT_MUTEX(rtmutex_Z2);
 
 #endif
+
+static local_lock_t local_A = INIT_LOCAL_LOCK(local_A);
 
 /*
  * non-inlined runtime initializers, to let separate locks share
@@ -1314,6 +1318,7 @@ GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion3_soft_wlock)
 # define I_MUTEX(x)	lockdep_reset_lock(&mutex_##x.dep_map)
 # define I_RWSEM(x)	lockdep_reset_lock(&rwsem_##x.dep_map)
 # define I_WW(x)	lockdep_reset_lock(&x.dep_map)
+# define I_LOCAL_LOCK(x) lockdep_reset_lock(&local_##x.dep_map)
 #ifdef CONFIG_RT_MUTEXES
 # define I_RTMUTEX(x)	lockdep_reset_lock(&rtmutex_##x.dep_map)
 #endif
@@ -1324,6 +1329,7 @@ GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion3_soft_wlock)
 # define I_MUTEX(x)
 # define I_RWSEM(x)
 # define I_WW(x)
+# define I_LOCAL_LOCK(x)
 #endif
 
 #ifndef I_RTMUTEX
@@ -1364,11 +1370,15 @@ static void reset_locks(void)
 	I1(X1); I1(X2); I1(Y1); I1(Y2); I1(Z1); I1(Z2);
 	I_WW(t); I_WW(t2); I_WW(o.base); I_WW(o2.base); I_WW(o3.base);
 	I_RAW_SPINLOCK(A); I_RAW_SPINLOCK(B);
+	I_LOCAL_LOCK(A);
+
 	lockdep_reset();
+
 	I2(A); I2(B); I2(C); I2(D);
 	init_shared_classes();
 	raw_spin_lock_init(&raw_lock_A);
 	raw_spin_lock_init(&raw_lock_B);
+	local_lock_init(&local_A);
 
 	ww_mutex_init(&o, &ww_lockdep); ww_mutex_init(&o2, &ww_lockdep); ww_mutex_init(&o3, &ww_lockdep);
 	memset(&t, 0, sizeof(t)); memset(&t2, 0, sizeof(t2));
@@ -2649,6 +2659,91 @@ static void wait_context_tests(void)
 	pr_cont("\n");
 }
 
+static void local_lock_2(void)
+{
+	local_lock_acquire(&local_A);	/* IRQ-ON */
+	local_lock_release(&local_A);
+
+	HARDIRQ_ENTER();
+	spin_lock(&lock_A);		/* IN-IRQ */
+	spin_unlock(&lock_A);
+	HARDIRQ_EXIT()
+
+	HARDIRQ_DISABLE();
+	spin_lock(&lock_A);
+	local_lock_acquire(&local_A);	/* IN-IRQ <-> IRQ-ON cycle, false */
+	local_lock_release(&local_A);
+	spin_unlock(&lock_A);
+	HARDIRQ_ENABLE();
+}
+
+static void local_lock_3A(void)
+{
+	local_lock_acquire(&local_A);	/* IRQ-ON */
+	spin_lock(&lock_B);		/* IRQ-ON */
+	spin_unlock(&lock_B);
+	local_lock_release(&local_A);
+
+	HARDIRQ_ENTER();
+	spin_lock(&lock_A);		/* IN-IRQ */
+	spin_unlock(&lock_A);
+	HARDIRQ_EXIT()
+
+	HARDIRQ_DISABLE();
+	spin_lock(&lock_A);
+	local_lock_acquire(&local_A);	/* IN-IRQ <-> IRQ-ON cycle only if we count local_lock(), false */
+	local_lock_release(&local_A);
+	spin_unlock(&lock_A);
+	HARDIRQ_ENABLE();
+}
+
+static void local_lock_3B(void)
+{
+	local_lock_acquire(&local_A);	/* IRQ-ON */
+	spin_lock(&lock_B);		/* IRQ-ON */
+	spin_unlock(&lock_B);
+	local_lock_release(&local_A);
+
+	HARDIRQ_ENTER();
+	spin_lock(&lock_A);		/* IN-IRQ */
+	spin_unlock(&lock_A);
+	HARDIRQ_EXIT()
+
+	HARDIRQ_DISABLE();
+	spin_lock(&lock_A);
+	local_lock_acquire(&local_A);	/* IN-IRQ <-> IRQ-ON cycle only if we count local_lock(), false */
+	local_lock_release(&local_A);
+	spin_unlock(&lock_A);
+	HARDIRQ_ENABLE();
+
+	HARDIRQ_DISABLE();
+	spin_lock(&lock_A);
+	spin_lock(&lock_B);		/* IN-IRQ <-> IRQ-ON cycle, true */
+	spin_unlock(&lock_B);
+	spin_unlock(&lock_A);
+	HARDIRQ_DISABLE();
+
+}
+
+static void local_lock_tests(void)
+{
+	printk("  --------------------------------------------------------------------------\n");
+	printk("  | local_lock tests |\n");
+	printk("  ---------------------\n");
+
+	print_testname("local_lock inversion  2");
+	dotest(local_lock_2, SUCCESS, LOCKTYPE_LL);
+	pr_cont("\n");
+
+	print_testname("local_lock inversion 3A");
+	dotest(local_lock_3A, SUCCESS, LOCKTYPE_LL);
+	pr_cont("\n");
+
+	print_testname("local_lock inversion 3B");
+	dotest(local_lock_3B, FAILURE, LOCKTYPE_LL);
+	pr_cont("\n");
+}
+
 void locking_selftest(void)
 {
 	/*
@@ -2774,6 +2869,8 @@ void locking_selftest(void)
 	/* Wait context test cases that are specific for RAW_LOCK_NESTING */
 	if (IS_ENABLED(CONFIG_PROVE_RAW_LOCK_NESTING))
 		wait_context_tests();
+
+	local_lock_tests();
 
 	if (unexpected_testcase_failures) {
 		printk("-----------------------------------------------------------------\n");
