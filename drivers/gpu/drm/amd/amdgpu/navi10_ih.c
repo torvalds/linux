@@ -151,7 +151,7 @@ static int navi10_ih_toggle_ring_interrupts(struct amdgpu_device *adev,
 	/* enable_intr field is only valid in ring0 */
 	if (ih == &adev->irq.ih)
 		tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, ENABLE_INTR, (enable ? 1 : 0));
-	if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
+	if (amdgpu_sriov_vf(adev)) {
 		if (psp_reg_program(&adev->psp, ih_regs->psp_reg_id, tmp)) {
 			dev_err(adev->dev, "PSP program IH_RB_CNTL failed!\n");
 			return -ETIMEDOUT;
@@ -268,7 +268,7 @@ static int navi10_ih_enable_ring(struct amdgpu_device *adev,
 		tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_ENABLE, 0);
 		tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, RB_FULL_DRAIN_ENABLE, 1);
 	}
-	if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
+	if (amdgpu_sriov_vf(adev)) {
 		if (psp_reg_program(&adev->psp, ih_regs->psp_reg_id, tmp)) {
 			dev_err(adev->dev, "PSP program IH_RB_CNTL failed!\n");
 			return -ETIMEDOUT;
@@ -290,24 +290,6 @@ static int navi10_ih_enable_ring(struct amdgpu_device *adev,
 	WREG32(ih_regs->ih_doorbell_rptr, navi10_ih_doorbell_rptr(ih));
 
 	return 0;
-}
-
-static void navi10_ih_reroute_ih(struct amdgpu_device *adev)
-{
-	uint32_t tmp;
-
-	/* Reroute to IH ring 1 for VMC */
-	WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_INDEX, 0x12);
-	tmp = RREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA);
-	tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, CLIENT_TYPE, 1);
-	tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, RING_ID, 1);
-	WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA, tmp);
-
-	/* Reroute IH ring 1 for UMC */
-	WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_INDEX, 0x1B);
-	tmp = RREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA);
-	tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, RING_ID, 1);
-	WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA, tmp);
 }
 
 /**
@@ -581,24 +563,6 @@ static int navi10_ih_sw_init(void *handle)
 
 	adev->irq.ih1.ring_size = 0;
 	adev->irq.ih2.ring_size = 0;
-
-	if (adev->asic_type < CHIP_NAVI10) {
-		r = amdgpu_ih_ring_init(adev, &adev->irq.ih1, PAGE_SIZE, true);
-		if (r)
-			return r;
-
-		adev->irq.ih1.use_doorbell = true;
-		adev->irq.ih1.doorbell_index =
-					(adev->doorbell_index.ih + 1) << 1;
-
-		r = amdgpu_ih_ring_init(adev, &adev->irq.ih2, PAGE_SIZE, true);
-		if (r)
-			return r;
-
-		adev->irq.ih2.use_doorbell = true;
-		adev->irq.ih2.doorbell_index =
-					(adev->doorbell_index.ih + 2) << 1;
-	}
 
 	/* initialize ih control registers offset */
 	navi10_ih_init_register_offset(adev);
