@@ -2789,6 +2789,55 @@ static void vop2_dither_setup(struct drm_crtc *crtc)
 	VOP_MODULE_SET(vop2, vp, dither_down_sel, DITHER_DOWN_ALLEGRO);
 }
 
+static void vop2_post_config(struct drm_crtc *crtc)
+{
+	struct rockchip_crtc_state *vcstate =
+			to_rockchip_crtc_state(crtc->state);
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	u16 vtotal = mode->crtc_vtotal;
+	u16 hdisplay = mode->crtc_hdisplay;
+	u16 hact_st = mode->crtc_htotal - mode->crtc_hsync_start;
+	u16 vdisplay = mode->crtc_vdisplay;
+	u16 vact_st = mode->crtc_vtotal - mode->crtc_vsync_start;
+	u16 hsize = hdisplay * (vcstate->left_margin + vcstate->right_margin) / 200;
+	u16 vsize = vdisplay * (vcstate->top_margin + vcstate->bottom_margin) / 200;
+	u16 hact_end, vact_end;
+	u32 val;
+
+	vsize = rounddown(vsize, 2);
+	hsize = rounddown(hsize, 2);
+	hact_st += hdisplay * (100 - vcstate->left_margin) / 200;
+	hact_end = hact_st + hsize;
+	val = hact_st << 16;
+	val |= hact_end;
+	VOP_MODULE_SET(vop2, vp, hpost_st_end, val);
+	vact_st += vdisplay * (100 - vcstate->top_margin) / 200;
+	vact_end = vact_st + vsize;
+	val = vact_st << 16;
+	val |= vact_end;
+	VOP_MODULE_SET(vop2, vp, vpost_st_end, val);
+	val = scl_cal_scale2(vdisplay, vsize) << 16;
+	val |= scl_cal_scale2(hdisplay, hsize);
+	VOP_MODULE_SET(vop2, vp, post_scl_factor, val);
+
+#define POST_HORIZONTAL_SCALEDOWN_EN(x)		((x) << 0)
+#define POST_VERTICAL_SCALEDOWN_EN(x)		((x) << 1)
+	VOP_MODULE_SET(vop2, vp, post_scl_ctrl,
+		       POST_HORIZONTAL_SCALEDOWN_EN(hdisplay != hsize) |
+		       POST_VERTICAL_SCALEDOWN_EN(vdisplay != vsize));
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		u16 vact_st_f1 = vtotal + vact_st + 1;
+		u16 vact_end_f1 = vact_st_f1 + vsize;
+
+		val = vact_st_f1 << 16 | vact_end_f1;
+		VOP_MODULE_SET(vop2, vp, vpost_st_end_f1, val);
+	}
+	VOP_MODULE_SET(vop2, vp, post_dsp_out_r2y,
+		       is_yuv_output(vcstate->bus_format));
+}
+
 /*
  * if adjusted mode update, return true, else return false
  */
@@ -3002,17 +3051,10 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	val = hact_st << 16;
 	val |= hact_end;
 	VOP_MODULE_SET(vop2, vp, hact_st_end, val);
-	VOP_MODULE_SET(vop2, vp, hpost_st_end, val);
 
 	val = vact_st << 16;
 	val |= vact_end;
 	VOP_MODULE_SET(vop2, vp, vact_st_end, val);
-	VOP_MODULE_SET(vop2, vp, vpost_st_end, val);
-
-	val = scl_cal_scale2(vdisplay, vdisplay) << 16;
-	val |= scl_cal_scale2(hdisplay, hdisplay);
-	VOP_MODULE_SET(vop2, vp, post_scl_factor, val);
-	VOP_MODULE_SET(vop2, vp, post_scl_ctrl, 0);
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		u16 vact_st_f1 = vtotal + vact_st + 1;
@@ -3020,7 +3062,6 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 
 		val = vact_st_f1 << 16 | vact_end_f1;
 		VOP_MODULE_SET(vop2, vp, vact_st_end_f1, val);
-		VOP_MODULE_SET(vop2, vp, vpost_st_end_f1, val);
 
 		val = vtotal << 16 | (vtotal + vsync_len);
 		VOP_MODULE_SET(vop2, vp, vs_st_end_f1, val);
@@ -3051,6 +3092,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	else
 		val = 0;
 	VOP_MODULE_SET(vop2, vp, dsp_background, val);
+	vop2_post_config(crtc);
 
 	vop2_cfg_done(crtc);
 
@@ -3529,10 +3571,6 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 	}
 
 	kfree(vop2_zpos);
-}
-
-static void vop2_post_config(struct drm_crtc *crtc)
-{
 }
 
 static void vop2_tv_config_update(struct drm_crtc *crtc,
@@ -4308,6 +4346,14 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		rockchip_register_crtc_funcs(crtc, &private_crtc_funcs);
 		drm_object_attach_property(&crtc->base, vop2->soc_id_prop, vp_data->soc_id);
 		drm_object_attach_property(&crtc->base, vop2->vp_id_prop, vp->id);
+		drm_object_attach_property(&crtc->base,
+					   drm_dev->mode_config.tv_left_margin_property, 100);
+		drm_object_attach_property(&crtc->base,
+					   drm_dev->mode_config.tv_right_margin_property, 100);
+		drm_object_attach_property(&crtc->base,
+					   drm_dev->mode_config.tv_top_margin_property, 100);
+		drm_object_attach_property(&crtc->base,
+					   drm_dev->mode_config.tv_bottom_margin_property, 100);
 	}
 
 	/*
