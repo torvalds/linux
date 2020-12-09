@@ -95,7 +95,7 @@ struct mvm_statistics_div {
  * @interference_data_flag: flag for interference data availability. 1 when data
  *	is available.
  * @channel_load: counts RX Enable time in uSec
- * @beacon_rssi_a: beacon RSSI on anntena A
+ * @beacon_rssi_a: beacon RSSI on antenna A
  * @beacon_rssi_b: beacon RSSI on antenna B
  * @beacon_rssi_c: beacon RSSI on antenna C
  * @beacon_energy_a: beacon energy on antenna A
