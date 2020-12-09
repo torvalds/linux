@@ -1625,17 +1625,13 @@ static int dpaa_eth_refill_bpools(struct dpaa_priv *priv)
 {
 	struct dpaa_bp *dpaa_bp;
 	int *countptr;
-	int res;
 
 	dpaa_bp = priv->dpaa_bp;
 	if (!dpaa_bp)
 		return -EINVAL;
 	countptr = this_cpu_ptr(dpaa_bp->percpu_count);
-	res  = dpaa_eth_refill_bpool(dpaa_bp, countptr);
-	if (res)
-		return res;
 
-	return 0;
+	return dpaa_eth_refill_bpool(dpaa_bp, countptr);
 }
 
 /* Cleanup function for outgoing frame descriptors that were built on Tx path,
