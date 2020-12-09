@@ -874,7 +874,7 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 	for_each_keylist_key(&s->keys, k) {
 		ret = ec_stripe_update_ptrs(c, &s->stripe, &k->k);
 		if (ret) {
-			bch_err(c, "error creating stripe: error updating pointers");
+			bch_err(c, "error creating stripe: error %i updating pointers", ret);
 			break;
 		}
 	}
@@ -1341,16 +1341,14 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
 	if (!h)
 		return NULL;
 
-	if (!h->s && ec_new_stripe_alloc(c, h)) {
-		bch2_ec_stripe_head_put(c, h);
-		return NULL;
-	}
+	if (!h->s) {
+		if (ec_new_stripe_alloc(c, h)) {
+			bch2_ec_stripe_head_put(c, h);
+			return NULL;
+		}
 
-	if (!h->s->allocated) {
-		if (!h->s->existing_stripe &&
-		    (idx = get_existing_stripe(c, target, algo, redundancy)) >= 0) {
-			//pr_info("got existing stripe %llu", idx);
-
+		idx = get_existing_stripe(c, target, algo, redundancy);
+		if (idx >= 0) {
 			h->s->existing_stripe = true;
 			h->s->existing_stripe_idx = idx;
 			if (get_stripe_key(c, idx, &h->s->stripe)) {
@@ -1364,7 +1362,9 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
 					ec_block_io(c, &h->s->stripe, READ, i, &cl);
 				}
 		}
+	}
 
+	if (!h->s->allocated) {
 		if (!h->s->existing_stripe &&
 		    !h->s->res.sectors) {
 			ret = bch2_disk_reservation_get(c, &h->s->res,
