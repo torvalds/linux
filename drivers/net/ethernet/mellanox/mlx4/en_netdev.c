@@ -1741,6 +1741,7 @@ int mlx4_en_start_port(struct net_device *dev)
 				mlx4_en_deactivate_cq(priv, cq);
 				goto tx_err;
 			}
+			clear_bit(MLX4_EN_TX_RING_STATE_RECOVERING, &tx_ring->state);
 			if (t != TX_XDP) {
 				tx_ring->tx_queue = netdev_get_tx_queue(dev, i);
 				tx_ring->recycle_ring = NULL;
