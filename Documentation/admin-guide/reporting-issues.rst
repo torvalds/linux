@@ -923,18 +923,6 @@ instead you can join.
 Decode failure messages
 -----------------------
 
-    *If the failure includes a stack dump, like an Oops does, consider decoding
-    it to find the offending line of code.*
-
-When the kernel detects an error, it will print a stack dump that allows to
-identify the exact line of code where the issue happens. But that information
-sometimes needs to get decoded to be readable, which is explained in
-admin-guide/bug-hunting.rst.
-
-
-Special care for regressions
-----------------------------
-
 .. note::
 
    FIXME: The text in this section is a placeholder for now and quite similar to
@@ -952,6 +940,18 @@ Special care for regressions
    CONFIG_UNWINDER_FRAME_POINTER; but is there anything else needed?).
 
 ..
+
+    *If the failure includes a stack dump, like an Oops does, consider decoding
+    it to find the offending line of code.*
+
+When the kernel detects an error, it will print a stack dump that allows to
+identify the exact line of code where the issue happens. But that information
+sometimes needs to get decoded to be readable, which is explained in
+admin-guide/bug-hunting.rst.
+
+
+Special care for regressions
+----------------------------
 
     *If your problem is a regression, try to narrow down when the issue was
     introduced as much as possible.*
