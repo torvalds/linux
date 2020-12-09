@@ -91,6 +91,18 @@ patternProperties:
          controlled indirectly by the "ngpios" property: (ngpios/32).
         const: 3
 
+      interrupts:
+        description: Specifies the sgpio IRQ (in parent controller)
+        maxItems: 1
+
+      interrupt-controller: true
+
+      '#interrupt-cells':
+        description:
+         Specifies the pin (port and bit) and flags, as defined in
+         defined in include/dt-bindings/interrupt-controller/irq.h
+        const: 3
+
       ngpios:
         description: The numbers of GPIO's exposed. This must be a
           multiple of 32.
@@ -118,6 +130,7 @@ required:
 
 examples:
   - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
     sgpio2: gpio@1101059c {
       #address-cells = <1>;
       #size-cells = <0>;
@@ -134,6 +147,9 @@ examples:
         gpio-controller;
         #gpio-cells = <3>;
         ngpios = <96>;
+        interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-controller;
+        #interrupt-cells = <3>;
       };
       sgpio_out2: gpio@1 {
         compatible = "microchip,sparx5-sgpio-bank";
