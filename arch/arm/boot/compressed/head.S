@@ -168,10 +168,7 @@
 		.macro	be32tocpu, val, tmp
 #ifndef __ARMEB__
 		/* convert to little endian */
-		eor	\tmp, \val, \val, ror #16
-		bic	\tmp, \tmp, #0x00ff0000
-		mov	\val, \val, ror #8
-		eor	\val, \val, \tmp, lsr #8
+		rev_l	\val, \tmp
 #endif
 		.endm
 
