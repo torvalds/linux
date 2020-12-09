@@ -413,7 +413,7 @@ static void ipa_client_init_driver_work(struct work_struct *work)
 	int ret;
 
 	ipa_qmi = container_of(work, struct ipa_qmi, init_driver_work);
-	qmi = &ipa_qmi->client_handle,
+	qmi = &ipa_qmi->client_handle;
 
 	ipa = container_of(ipa_qmi, struct ipa, qmi);
 	dev = &ipa->pdev->dev;
