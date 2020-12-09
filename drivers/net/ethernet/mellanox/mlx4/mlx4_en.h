@@ -271,6 +271,10 @@ struct mlx4_en_page_cache {
 	} buf[MLX4_EN_CACHE_SIZE];
 };
 
+enum {
+	MLX4_EN_TX_RING_STATE_RECOVERING,
+};
+
 struct mlx4_en_priv;
 
 struct mlx4_en_tx_ring {
@@ -317,6 +321,7 @@ struct mlx4_en_tx_ring {
 	 * Only queue_stopped might be used if BQL is not properly working.
 	 */
 	unsigned long		queue_stopped;
+	unsigned long		state;
 	struct mlx4_hwq_resources sp_wqres;
 	struct mlx4_qp		sp_qp;
 	struct mlx4_qp_context	sp_context;
