@@ -1352,20 +1352,13 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 		/* Only need to handle PCI state in the driver for ATPX
 		 * PCI core handles it for _PR3.
 		 */
-		if (amdgpu_is_atpx_hybrid()) {
-			pci_ignore_hotplug(pdev);
-		} else {
+		if (!amdgpu_is_atpx_hybrid()) {
 			amdgpu_device_cache_pci_state(pdev);
 			pci_disable_device(pdev);
 			pci_ignore_hotplug(pdev);
 			pci_set_power_state(pdev, PCI_D3cold);
 		}
 		drm_dev->switch_power_state = DRM_SWITCH_POWER_DYNAMIC_OFF;
-	} else if (amdgpu_device_supports_boco(drm_dev)) {
-		/* Only need to handle PCI state in the driver for ATPX
-		 * PCI core handles it for _PR3.
-		 */
-		pci_ignore_hotplug(pdev);
 	} else if (amdgpu_device_supports_baco(drm_dev)) {
 		amdgpu_device_baco_enter(drm_dev);
 	}
