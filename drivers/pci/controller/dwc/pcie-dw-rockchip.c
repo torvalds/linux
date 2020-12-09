@@ -411,6 +411,7 @@ static void rk_pcie_debug_dump(struct rk_pcie *rk_pcie)
 {
 #if RK_PCIE_DBG
 	u32 loop;
+	struct dw_pcie *pci = rk_pcie->pci;
 
 	dev_info(pci->dev, "ltssm = 0x%x\n",
 		 rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS));
