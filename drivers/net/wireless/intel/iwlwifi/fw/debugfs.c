@@ -200,6 +200,34 @@ static int iwl_fw_send_timestamp_marker_cmd(struct iwl_fw_runtime *fwrt)
 	return iwl_trans_send_cmd(fwrt->trans, &hcmd);
 }
 
+static int iwl_dbgfs_enabled_severities_write(struct iwl_fw_runtime *fwrt,
+					      char *buf, size_t count)
+{
+	struct iwl_dbg_host_event_cfg_cmd event_cfg;
+	struct iwl_host_cmd hcmd = {
+		.id = iwl_cmd_id(HOST_EVENT_CFG, DEBUG_GROUP, 0),
+		.flags = CMD_ASYNC,
+		.data[0] = &event_cfg,
+		.len[0] = sizeof(event_cfg),
+	};
+	u32 enabled_severities;
+	int ret = kstrtou32(buf, 10, &enabled_severities);
+
+	if (ret < 0)
+		return ret;
+
+	event_cfg.enabled_severities = cpu_to_le32(enabled_severities);
+
+	ret = iwl_trans_send_cmd(fwrt->trans, &hcmd);
+	IWL_INFO(fwrt,
+		 "sent host event cfg with enabled_severities: %u, ret: %d\n",
+		 enabled_severities, ret);
+
+	return ret ?: count;
+}
+
+FWRT_DEBUGFS_WRITE_FILE_OPS(enabled_severities, 16);
+
 static void iwl_fw_timestamp_marker_wk(struct work_struct *work)
 {
 	int ret;
@@ -431,5 +459,6 @@ void iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
 	FWRT_DEBUGFS_ADD_FILE(timestamp_marker, dbgfs_dir, 0200);
 	FWRT_DEBUGFS_ADD_FILE(fw_info, dbgfs_dir, 0200);
 	FWRT_DEBUGFS_ADD_FILE(send_hcmd, dbgfs_dir, 0200);
+	FWRT_DEBUGFS_ADD_FILE(enabled_severities, dbgfs_dir, 0200);
 	FWRT_DEBUGFS_ADD_FILE(fw_dbg_domain, dbgfs_dir, 0400);
 }
