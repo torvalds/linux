@@ -58,11 +58,6 @@ static inline void x25_stop_t20timer(struct x25_neigh *nb)
 	del_timer(&nb->t20timer);
 }
 
-static inline int x25_t20timer_pending(struct x25_neigh *nb)
-{
-	return timer_pending(&nb->t20timer);
-}
-
 /*
  *	This handles all restart and diagnostic frames.
  */
@@ -70,17 +65,20 @@ void x25_link_control(struct sk_buff *skb, struct x25_neigh *nb,
 		      unsigned short frametype)
 {
 	struct sk_buff *skbn;
-	int confirm;
 
 	switch (frametype) {
 	case X25_RESTART_REQUEST:
 		switch (nb->state) {
+		case X25_LINK_STATE_0:
+			/* This can happen when the x25 module just gets loaded
+			 * and doesn't know layer 2 has already connected
+			 */
+			nb->state = X25_LINK_STATE_3;
+			x25_transmit_restart_confirmation(nb);
+			break;
 		case X25_LINK_STATE_2:
-			confirm = !x25_t20timer_pending(nb);
 			x25_stop_t20timer(nb);
 			nb->state = X25_LINK_STATE_3;
-			if (confirm)
-				x25_transmit_restart_confirmation(nb);
 			break;
 		case X25_LINK_STATE_3:
 			/* clear existing virtual calls */
@@ -94,13 +92,8 @@ void x25_link_control(struct sk_buff *skb, struct x25_neigh *nb,
 	case X25_RESTART_CONFIRMATION:
 		switch (nb->state) {
 		case X25_LINK_STATE_2:
-			if (x25_t20timer_pending(nb)) {
-				x25_stop_t20timer(nb);
-				nb->state = X25_LINK_STATE_3;
-			} else {
-				x25_transmit_restart_request(nb);
-				x25_start_t20timer(nb);
-			}
+			x25_stop_t20timer(nb);
+			nb->state = X25_LINK_STATE_3;
 			break;
 		case X25_LINK_STATE_3:
 			/* clear existing virtual calls */
