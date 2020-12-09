@@ -1382,16 +1382,14 @@ static int amdgpu_pmops_runtime_resume(struct device *dev)
 		/* Only need to handle PCI state in the driver for ATPX
 		 * PCI core handles it for _PR3.
 		 */
-		if (amdgpu_is_atpx_hybrid()) {
-			pci_set_master(pdev);
-		} else {
+		if (!amdgpu_is_atpx_hybrid()) {
 			pci_set_power_state(pdev, PCI_D0);
 			amdgpu_device_load_pci_state(pdev);
 			ret = pci_enable_device(pdev);
 			if (ret)
 				return ret;
-			pci_set_master(pdev);
 		}
+		pci_set_master(pdev);
 	} else if (amdgpu_device_supports_boco(drm_dev)) {
 		/* Only need to handle PCI state in the driver for ATPX
 		 * PCI core handles it for _PR3.
