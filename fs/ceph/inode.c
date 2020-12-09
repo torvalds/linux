@@ -1594,8 +1594,7 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 	struct dentry *dn;
 	struct inode *in;
 	int err = 0, skipped = 0, ret, i;
-	struct ceph_mds_request_head *rhead = req->r_request->front.iov_base;
-	u32 frag = le32_to_cpu(rhead->args.readdir.frag);
+	u32 frag = le32_to_cpu(req->r_args.readdir.frag);
 	u32 last_hash = 0;
 	u32 fpos_offset;
 	struct ceph_readdir_cache_control cache_ctl = {};
@@ -1612,7 +1611,7 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 		} else if (rinfo->offset_hash) {
 			/* mds understands offset_hash */
 			WARN_ON_ONCE(req->r_readdir_offset != 2);
-			last_hash = le32_to_cpu(rhead->args.readdir.offset_hash);
+			last_hash = le32_to_cpu(req->r_args.readdir.offset_hash);
 		}
 	}
 
