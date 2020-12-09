@@ -492,7 +492,7 @@ int nfp_net_tls_rx_resync_req(struct net_device *netdev,
 		goto err_cnt_ign;
 	}
 
-	switch (iph->version) {
+	switch (ipv6h->version) {
 	case 4:
 		sk = inet_lookup_established(dev_net(netdev), &tcp_hashinfo,
 					     iph->saddr, th->source, iph->daddr,
