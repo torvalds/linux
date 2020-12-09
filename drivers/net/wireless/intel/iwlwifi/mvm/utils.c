@@ -422,7 +422,7 @@ struct iwl_umac_error_event_table {
 static void iwl_mvm_dump_umac_error_log(struct iwl_mvm *mvm)
 {
 	struct iwl_trans *trans = mvm->trans;
-	struct iwl_umac_error_event_table table;
+	struct iwl_umac_error_event_table table = {};
 	u32 base = mvm->trans->dbg.umac_error_event_table;
 
 	if (!base &&
@@ -461,7 +461,7 @@ static void iwl_mvm_dump_umac_error_log(struct iwl_mvm *mvm)
 static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u8 lmac_num)
 {
 	struct iwl_trans *trans = mvm->trans;
-	struct iwl_error_event_table table;
+	struct iwl_error_event_table table = {};
 	u32 val, base = mvm->trans->dbg.lmac_error_event_table[lmac_num];
 
 	if (mvm->fwrt.cur_fw_img == IWL_UCODE_INIT) {
