@@ -376,7 +376,7 @@ struct iwl_fw_mon_regs {
  *	mode set
  * @nvm_hw_section_num: the ID of the HW NVM section
  * @mac_addr_from_csr: read HW address from CSR registers
- * @features: hw features, any combination of feature_whitelist
+ * @features: hw features, any combination of feature_passlist
  * @pwr_tx_backoffs: translation table between power limits and backoffs
  * @max_tx_agg_size: max TX aggregation size of the ADDBA request/response
  * @max_ht_ampdu_factor: the exponent of the max length of A-MPDU that the

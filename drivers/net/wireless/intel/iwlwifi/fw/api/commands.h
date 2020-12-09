@@ -323,7 +323,7 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @SCAN_OFFLOAD_UPDATE_PROFILES_CMD:
-	 * update scan offload (scheduled scan) profiles/blacklist/etc.
+	 * update scan offload (scheduled scan) profiles/blocklist/etc.
 	 */
 	SCAN_OFFLOAD_UPDATE_PROFILES_CMD = 0x6E,
 
