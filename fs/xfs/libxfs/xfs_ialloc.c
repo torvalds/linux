@@ -1682,6 +1682,41 @@ error_cur:
 	return error;
 }
 
+int
+xfs_dialloc_roll(
+	struct xfs_trans	**tpp,
+	struct xfs_buf		*agibp)
+{
+	struct xfs_trans	*tp = *tpp;
+	struct xfs_dquot_acct	*dqinfo;
+	int			error;
+
+	/*
+	 * Hold to on to the agibp across the commit so no other allocation can
+	 * come in and take the free inodes we just allocated for our caller.
+	 */
+	xfs_trans_bhold(tp, agibp);
+
+	/*
+	 * We want the quota changes to be associated with the next transaction,
+	 * NOT this one. So, detach the dqinfo from this and attach it to the
+	 * next transaction.
+	 */
+	dqinfo = tp->t_dqinfo;
+	tp->t_dqinfo = NULL;
+
+	error = xfs_trans_roll(&tp);
+
+	/* Re-attach the quota info that we detached from prev trx. */
+	tp->t_dqinfo = dqinfo;
+
+	*tpp = tp;
+	if (error)
+		return error;
+	xfs_trans_bjoin(tp, agibp);
+	return 0;
+}
+
 /*
  * Allocate an inode on disk.
  *
