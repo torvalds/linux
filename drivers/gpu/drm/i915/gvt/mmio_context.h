@@ -36,6 +36,8 @@
 #ifndef __GVT_RENDER_H__
 #define __GVT_RENDER_H__
 
+#include "gt/intel_lrc_reg.h"
+
 struct engine_mmio {
 	enum intel_engine_id id;
 	i915_reg_t reg;

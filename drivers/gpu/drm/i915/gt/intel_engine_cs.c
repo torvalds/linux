@@ -36,7 +36,7 @@
 #include "intel_gt.h"
 #include "intel_gt_requests.h"
 #include "intel_gt_pm.h"
-#include "intel_lrc.h"
+#include "intel_lrc_reg.h"
 #include "intel_reset.h"
 #include "intel_ring.h"
 
