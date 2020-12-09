@@ -323,10 +323,11 @@ static void navi10_ih_reroute_ih(struct amdgpu_device *adev)
  */
 static int navi10_ih_irq_init(struct amdgpu_device *adev)
 {
-	struct amdgpu_ih_ring *ih = &adev->irq.ih;
-	u32 ih_rb_cntl, ih_chicken;
+	struct amdgpu_ih_ring *ih[] = {&adev->irq.ih, &adev->irq.ih1, &adev->irq.ih2};
+	u32 ih_chicken;
 	u32 tmp;
 	int ret;
+	int i;
 
 	/* disable irqs */
 	ret = navi10_ih_toggle_interrupts(adev, false);
@@ -335,27 +336,8 @@ static int navi10_ih_irq_init(struct amdgpu_device *adev)
 
 	adev->nbio.funcs->ih_control(adev);
 
-	/* Ring Buffer base. [39:8] of 40-bit address of the beginning of the ring buffer*/
-	WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE, ih->gpu_addr >> 8);
-	WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE_HI, (ih->gpu_addr >> 40) & 0xff);
-
-	ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL);
-	ih_rb_cntl = navi10_ih_rb_cntl(ih, ih_rb_cntl);
-	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, RPTR_REARM,
-				   !!adev->irq.msi_enabled);
-	if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
-		if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL, ih_rb_cntl)) {
-			DRM_ERROR("PSP program IH_RB_CNTL failed!\n");
-			return -ETIMEDOUT;
-		}
-	} else {
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL, ih_rb_cntl);
-	}
-	if (adev->irq.ih1.ring_size)
-		navi10_ih_reroute_ih(adev);
-
 	if (unlikely(adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT)) {
-		if (ih->use_bus_addr) {
+		if (ih[0]->use_bus_addr) {
 			switch (adev->asic_type) {
 			case CHIP_SIENNA_CICHLID:
 			case CHIP_NAVY_FLOUNDER:
@@ -376,77 +358,17 @@ static int navi10_ih_irq_init(struct amdgpu_device *adev)
 		}
 	}
 
-	/* set the writeback address whether it's enabled or not */
-	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_ADDR_LO,
-		     lower_32_bits(ih->wptr_addr));
-	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_ADDR_HI,
-		     upper_32_bits(ih->wptr_addr) & 0xFFFF);
-
-	/* set rptr, wptr to 0 */
-	WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR, 0);
-	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR, 0);
-
-	WREG32_SOC15(OSSSYS, 0, mmIH_DOORBELL_RPTR,
-			navi10_ih_doorbell_rptr(ih));
-
-	adev->nbio.funcs->ih_doorbell_range(adev, ih->use_doorbell,
-					    ih->doorbell_index);
-
-	ih = &adev->irq.ih1;
-	if (ih->ring_size) {
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE_RING1, ih->gpu_addr >> 8);
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE_HI_RING1,
-			     (ih->gpu_addr >> 40) & 0xff);
-
-		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING1);
-		ih_rb_cntl = navi10_ih_rb_cntl(ih, ih_rb_cntl);
-		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL,
-					   WPTR_OVERFLOW_ENABLE, 0);
-		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL,
-					   RB_FULL_DRAIN_ENABLE, 1);
-		if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
-			if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL_RING1,
-						ih_rb_cntl)) {
-				DRM_ERROR("program IH_RB_CNTL_RING1 failed!\n");
-				return -ETIMEDOUT;
-			}
-		} else {
-			WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING1, ih_rb_cntl);
+	for (i = 0; i < ARRAY_SIZE(ih); i++) {
+		if (ih[i]->ring_size) {
+			ret = navi10_ih_enable_ring(adev, ih[i]);
+			if (ret)
+				return ret;
 		}
-		/* set rptr, wptr to 0 */
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_RING1, 0);
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR_RING1, 0);
-
-		WREG32_SOC15(OSSSYS, 0, mmIH_DOORBELL_RPTR_RING1,
-				navi10_ih_doorbell_rptr(ih));
 	}
 
-	ih = &adev->irq.ih2;
-	if (ih->ring_size) {
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE_RING2, ih->gpu_addr >> 8);
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE_HI_RING2,
-			     (ih->gpu_addr >> 40) & 0xff);
-
-		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING2);
-		ih_rb_cntl = navi10_ih_rb_cntl(ih, ih_rb_cntl);
-
-		if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
-			if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL_RING2,
-						ih_rb_cntl)) {
-				DRM_ERROR("program IH_RB_CNTL_RING2 failed!\n");
-				return -ETIMEDOUT;
-			}
-		} else {
-			WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING2, ih_rb_cntl);
-		}
-		/* set rptr, wptr to 0 */
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_RING2, 0);
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR_RING2, 0);
-
-		WREG32_SOC15(OSSSYS, 0, mmIH_DOORBELL_RPTR_RING2,
-			     navi10_ih_doorbell_rptr(ih));
-	}
-
+	/* update doorbell range for ih ring 0*/
+	adev->nbio.funcs->ih_doorbell_range(adev, ih[0]->use_doorbell,
+					    ih[0]->doorbell_index);
 
 	tmp = RREG32_SOC15(OSSSYS, 0, mmIH_STORM_CLIENT_LIST_CNTL);
 	tmp = REG_SET_FIELD(tmp, IH_STORM_CLIENT_LIST_CNTL,
