@@ -451,7 +451,7 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 	/* Enable LTSSM */
 	rk_pcie_enable_ltssm(rk_pcie);
 
-	for (retries = 0; retries < 1000000; retries++) {
+	for (retries = 0; retries < 10; retries++) {
 		if (dw_pcie_link_up(pci)) {
 			dev_info(pci->dev, "PCIe Link up, LTSSM is 0x%x\n",
 				 rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS));
@@ -462,7 +462,7 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 		dev_info_ratelimited(pci->dev, "PCIe Linking... LTSSM is 0x%x\n",
 				     rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS));
 		rk_pcie_debug_dump(rk_pcie);
-		mdelay(1000);
+		msleep(1000);
 	}
 
 	dev_err(pci->dev, "PCIe Link Fail\n");
