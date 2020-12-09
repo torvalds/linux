@@ -707,7 +707,8 @@ iwl_mvm_handle_rx_statistics_tlv(struct iwl_mvm *mvm,
 	stats = (void *)&pkt->data;
 
 	if (WARN_ONCE(stats->hdr.type != FW_STATISTICS_OPERATIONAL ||
-		      stats->hdr.version != 1,
+		      stats->hdr.version !=
+		      iwl_fw_lookup_notif_ver(mvm->fw, LONG_GROUP, STATISTICS_CMD, 0),
 		      "received unsupported hdr type %d, version %d\n",
 		      stats->hdr.type, stats->hdr.version))
 		return;
