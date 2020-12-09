@@ -3133,6 +3133,8 @@ iwl_trans_pcie_dump_pointers(struct iwl_trans *trans,
 		fw_mon_data->fw_mon_base_high_ptr =
 			cpu_to_le32(iwl_read_prph(trans, base_high));
 		write_ptr_val &= DBGC_CUR_DBGBUF_STATUS_OFFSET_MSK;
+		/* convert wrtPtr to DWs, to align with all HWs */
+		write_ptr_val >>= 2;
 	}
 	fw_mon_data->fw_mon_wr_ptr = cpu_to_le32(write_ptr_val);
 }

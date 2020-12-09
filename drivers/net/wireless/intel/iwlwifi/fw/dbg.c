@@ -1662,6 +1662,11 @@ iwl_dump_ini_mon_fill_header(struct iwl_fw_runtime *fwrt,
 
 	data->write_ptr = iwl_get_mon_reg(fwrt, alloc_id,
 					  &addrs->write_ptr);
+	if (fwrt->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+		u32 wrt_ptr = le32_to_cpu(data->write_ptr);
+
+		data->write_ptr = cpu_to_le32(wrt_ptr >> 2);
+	}
 	data->cycle_cnt = iwl_get_mon_reg(fwrt, alloc_id,
 					  &addrs->cycle_cnt);
 	data->cur_frag = iwl_get_mon_reg(fwrt, alloc_id,
