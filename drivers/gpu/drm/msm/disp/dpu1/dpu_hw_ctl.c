@@ -22,7 +22,9 @@
 #define   CTL_PREPARE                   0x0d0
 #define   CTL_SW_RESET                  0x030
 #define   CTL_LAYER_EXTN_OFFSET         0x40
+#define   CTL_MERGE_3D_ACTIVE           0x0E4
 #define   CTL_INTF_ACTIVE               0x0F4
+#define   CTL_MERGE_3D_FLUSH            0x100
 #define   CTL_INTF_FLUSH                0x110
 #define   CTL_INTF_MASTER               0x134
 
@@ -30,6 +32,7 @@
 #define CTL_FLUSH_MASK_CTL              BIT(17)
 
 #define DPU_REG_RESET_TIMEOUT_US        2000
+#define  MERGE_3D_IDX   23
 #define  INTF_IDX       31
 
 static const struct dpu_ctl_cfg *_ctl_offset(enum dpu_ctl ctl,
@@ -104,12 +107,6 @@ static inline void dpu_hw_ctl_update_pending_flush(struct dpu_hw_ctl *ctx,
 	ctx->pending_flush_mask |= flushbits;
 }
 
-static inline void dpu_hw_ctl_update_pending_intf_flush(struct dpu_hw_ctl *ctx,
-		u32 flushbits)
-{
-	ctx->pending_intf_flush_mask |= flushbits;
-}
-
 static u32 dpu_hw_ctl_get_pending_flush(struct dpu_hw_ctl *ctx)
 {
 	return ctx->pending_flush_mask;
@@ -118,6 +115,9 @@ static u32 dpu_hw_ctl_get_pending_flush(struct dpu_hw_ctl *ctx)
 static inline void dpu_hw_ctl_trigger_flush_v1(struct dpu_hw_ctl *ctx)
 {
 
+	if (ctx->pending_flush_mask & BIT(MERGE_3D_IDX))
+		DPU_REG_WRITE(&ctx->hw, CTL_MERGE_3D_FLUSH,
+				ctx->pending_merge_3d_flush_mask);
 	if (ctx->pending_flush_mask & BIT(INTF_IDX))
 		DPU_REG_WRITE(&ctx->hw, CTL_INTF_FLUSH,
 				ctx->pending_intf_flush_mask);
@@ -220,40 +220,39 @@ static uint32_t dpu_hw_ctl_get_bitmask_mixer(struct dpu_hw_ctl *ctx,
 	return flushbits;
 }
 
-static int dpu_hw_ctl_get_bitmask_intf(struct dpu_hw_ctl *ctx,
-		u32 *flushbits, enum dpu_intf intf)
+static void dpu_hw_ctl_update_pending_flush_intf(struct dpu_hw_ctl *ctx,
+		enum dpu_intf intf)
 {
 	switch (intf) {
 	case INTF_0:
-		*flushbits |= BIT(31);
+		ctx->pending_flush_mask |= BIT(31);
 		break;
 	case INTF_1:
-		*flushbits |= BIT(30);
+		ctx->pending_flush_mask |= BIT(30);
 		break;
 	case INTF_2:
-		*flushbits |= BIT(29);
+		ctx->pending_flush_mask |= BIT(29);
 		break;
 	case INTF_3:
-		*flushbits |= BIT(28);
+		ctx->pending_flush_mask |= BIT(28);
 		break;
 	default:
-		return -EINVAL;
+		break;
 	}
-	return 0;
 }
 
-static int dpu_hw_ctl_get_bitmask_intf_v1(struct dpu_hw_ctl *ctx,
-		u32 *flushbits, enum dpu_intf intf)
+static void dpu_hw_ctl_update_pending_flush_intf_v1(struct dpu_hw_ctl *ctx,
+		enum dpu_intf intf)
 {
-	*flushbits |= BIT(31);
-	return 0;
+	ctx->pending_intf_flush_mask |= BIT(intf - INTF_0);
+	ctx->pending_flush_mask |= BIT(INTF_IDX);
 }
 
-static int dpu_hw_ctl_active_get_bitmask_intf(struct dpu_hw_ctl *ctx,
-		u32 *flushbits, enum dpu_intf intf)
+static void dpu_hw_ctl_update_pending_flush_merge_3d_v1(struct dpu_hw_ctl *ctx,
+		enum dpu_merge_3d merge_3d)
 {
-	*flushbits |= BIT(intf - INTF_0);
-	return 0;
+	ctx->pending_merge_3d_flush_mask |= BIT(merge_3d - MERGE_3D_0);
+	ctx->pending_flush_mask |= BIT(MERGE_3D_IDX);
 }
 
 static uint32_t dpu_hw_ctl_get_bitmask_dspp(struct dpu_hw_ctl *ctx,
@@ -497,6 +496,7 @@ static void dpu_hw_ctl_intf_cfg_v1(struct dpu_hw_ctl *ctx,
 
 	DPU_REG_WRITE(c, CTL_TOP, mode_sel);
 	DPU_REG_WRITE(c, CTL_INTF_ACTIVE, intf_active);
+	DPU_REG_WRITE(c, CTL_MERGE_3D_ACTIVE, BIT(cfg->merge_3d - MERGE_3D_0));
 }
 
 static void dpu_hw_ctl_intf_cfg(struct dpu_hw_ctl *ctx,
@@ -535,15 +535,15 @@ static void _setup_ctl_ops(struct dpu_hw_ctl_ops *ops,
 	if (cap & BIT(DPU_CTL_ACTIVE_CFG)) {
 		ops->trigger_flush = dpu_hw_ctl_trigger_flush_v1;
 		ops->setup_intf_cfg = dpu_hw_ctl_intf_cfg_v1;
-		ops->get_bitmask_intf = dpu_hw_ctl_get_bitmask_intf_v1;
-		ops->get_bitmask_active_intf =
-			dpu_hw_ctl_active_get_bitmask_intf;
-		ops->update_pending_intf_flush =
-			dpu_hw_ctl_update_pending_intf_flush;
+		ops->update_pending_flush_intf =
+			dpu_hw_ctl_update_pending_flush_intf_v1;
+		ops->update_pending_flush_merge_3d =
+			dpu_hw_ctl_update_pending_flush_merge_3d_v1;
 	} else {
 		ops->trigger_flush = dpu_hw_ctl_trigger_flush;
 		ops->setup_intf_cfg = dpu_hw_ctl_intf_cfg;
-		ops->get_bitmask_intf = dpu_hw_ctl_get_bitmask_intf;
+		ops->update_pending_flush_intf =
+			dpu_hw_ctl_update_pending_flush_intf;
 	}
 	ops->clear_pending_flush = dpu_hw_ctl_clear_pending_flush;
 	ops->update_pending_flush = dpu_hw_ctl_update_pending_flush;
