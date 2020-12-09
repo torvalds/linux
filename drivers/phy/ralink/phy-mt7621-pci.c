@@ -5,6 +5,7 @@
  */
 
 #include <dt-bindings/phy/phy.h>
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -23,12 +24,10 @@
 #define RG_P0_TO_P1_WIDTH			0x100
 #define RG_PE1_H_LCDDS_REG			0x49c
 #define RG_PE1_H_LCDDS_PCW			GENMASK(30, 0)
-#define RG_PE1_H_LCDDS_PCW_VAL(x)		((0x7fffffff & (x)) << 0)
 
 #define RG_PE1_FRC_H_XTAL_REG			0x400
 #define RG_PE1_FRC_H_XTAL_TYPE			BIT(8)
 #define RG_PE1_H_XTAL_TYPE			GENMASK(10, 9)
-#define RG_PE1_H_XTAL_TYPE_VAL(x)		((0x3 & (x)) << 9)
 
 #define RG_PE1_FRC_PHY_REG			0x000
 #define RG_PE1_FRC_PHY_EN			BIT(4)
@@ -36,47 +35,34 @@
 
 #define RG_PE1_H_PLL_REG			0x490
 #define RG_PE1_H_PLL_BC				GENMASK(23, 22)
-#define RG_PE1_H_PLL_BC_VAL(x)			((0x3 & (x)) << 22)
 #define RG_PE1_H_PLL_BP				GENMASK(21, 18)
-#define RG_PE1_H_PLL_BP_VAL(x)			((0xf & (x)) << 18)
 #define RG_PE1_H_PLL_IR				GENMASK(15, 12)
-#define RG_PE1_H_PLL_IR_VAL(x)			((0xf & (x)) << 12)
 #define RG_PE1_H_PLL_IC				GENMASK(11, 8)
-#define RG_PE1_H_PLL_IC_VAL(x)			((0xf & (x)) << 8)
 #define RG_PE1_H_PLL_PREDIV			GENMASK(7, 6)
-#define RG_PE1_H_PLL_PREDIV_VAL(x)		((0x3 & (x)) << 6)
 #define RG_PE1_PLL_DIVEN			GENMASK(3, 1)
-#define RG_PE1_PLL_DIVEN_VAL(x)			((0x7 & (x)) << 1)
 
 #define RG_PE1_H_PLL_FBKSEL_REG			0x4bc
 #define RG_PE1_H_PLL_FBKSEL			GENMASK(5, 4)
-#define RG_PE1_H_PLL_FBKSEL_VAL(x)		((0x3 & (x)) << 4)
 
 #define	RG_PE1_H_LCDDS_SSC_PRD_REG		0x4a4
 #define RG_PE1_H_LCDDS_SSC_PRD			GENMASK(15, 0)
-#define RG_PE1_H_LCDDS_SSC_PRD_VAL(x)		((0xffff & (x)) << 0)
 
 #define RG_PE1_H_LCDDS_SSC_DELTA_REG		0x4a8
 #define RG_PE1_H_LCDDS_SSC_DELTA		GENMASK(11, 0)
-#define RG_PE1_H_LCDDS_SSC_DELTA_VAL(x)		((0xfff & (x)) << 0)
 #define RG_PE1_H_LCDDS_SSC_DELTA1		GENMASK(27, 16)
-#define RG_PE1_H_LCDDS_SSC_DELTA1_VAL(x)	((0xff & (x)) << 16)
 
 #define RG_PE1_LCDDS_CLK_PH_INV_REG		0x4a0
 #define RG_PE1_LCDDS_CLK_PH_INV			BIT(5)
 
 #define RG_PE1_H_PLL_BR_REG			0x4ac
 #define RG_PE1_H_PLL_BR				GENMASK(18, 16)
-#define RG_PE1_H_PLL_BR_VAL(x)			((0x7 & (x)) << 16)
 
 #define	RG_PE1_MSTCKDIV_REG			0x414
 #define RG_PE1_MSTCKDIV				GENMASK(7, 6)
-#define RG_PE1_MSTCKDIV_VAL(x)			((0x3 & (x)) << 6)
 
 #define RG_PE1_FRC_MSTCKDIV			BIT(5)
 
-#define XTAL_MODE_SEL_SHIFT			6
-#define XTAL_MODE_SEL_MASK			0x7
+#define XTAL_MASK				GENMASK(7, 6)
 
 #define MAX_PHYS	2
 
@@ -99,28 +85,22 @@ struct mt7621_pci_phy {
 	bool bypass_pipe_rst;
 };
 
-static inline u32 phy_read(struct mt7621_pci_phy *phy, u32 reg)
-{
-	u32 val;
-
-	regmap_read(phy->regmap, reg, &val);
-
-	return val;
-}
-
-static inline void phy_write(struct mt7621_pci_phy *phy, u32 val, u32 reg)
-{
-	regmap_write(phy->regmap, reg, val);
-}
-
 static inline void mt7621_phy_rmw(struct mt7621_pci_phy *phy,
 				  u32 reg, u32 clr, u32 set)
 {
-	u32 val = phy_read(phy, reg);
+	u32 val;
 
+	/*
+	 * We cannot use 'regmap_write_bits' here because internally
+	 * 'set' is masked before is set to the value that will be
+	 * written to the register. That way results in no reliable
+	 * pci setup. Avoid to mask 'set' before set value to 'val'
+	 * completely avoid the problem.
+	 */
+	regmap_read(phy->regmap, reg, &val);
 	val &= ~clr;
 	val |= set;
-	phy_write(phy, val, reg);
+	regmap_write(phy->regmap, reg, val);
 }
 
 static void mt7621_bypass_pipe_rst(struct mt7621_pci_phy *phy)
@@ -141,18 +121,18 @@ static void mt7621_set_phy_for_ssc(struct mt7621_pci_phy *phy)
 	struct device *dev = phy->dev;
 	u32 xtal_mode;
 
-	xtal_mode = (rt_sysc_r32(SYSC_REG_SYSTEM_CONFIG0)
-		     >> XTAL_MODE_SEL_SHIFT) & XTAL_MODE_SEL_MASK;
+	xtal_mode = FIELD_GET(XTAL_MASK, rt_sysc_r32(SYSC_REG_SYSTEM_CONFIG0));
 
 	/* Set PCIe Port PHY to disable SSC */
 	/* Debug Xtal Type */
 	mt7621_phy_rmw(phy, RG_PE1_FRC_H_XTAL_REG,
 		       RG_PE1_FRC_H_XTAL_TYPE | RG_PE1_H_XTAL_TYPE,
-		       RG_PE1_FRC_H_XTAL_TYPE | RG_PE1_H_XTAL_TYPE_VAL(0x00));
+		       RG_PE1_FRC_H_XTAL_TYPE |
+		       FIELD_PREP(RG_PE1_H_XTAL_TYPE, 0x00));
 
 	/* disable port */
-	mt7621_phy_rmw(phy, RG_PE1_FRC_PHY_REG,
-		       RG_PE1_PHY_EN, RG_PE1_FRC_PHY_EN);
+	mt7621_phy_rmw(phy, RG_PE1_FRC_PHY_REG, RG_PE1_PHY_EN,
+		       RG_PE1_FRC_PHY_EN);
 
 	if (phy->has_dual_port) {
 		mt7621_phy_rmw(phy, RG_PE1_FRC_PHY_REG + RG_P0_TO_P1_WIDTH,
@@ -161,39 +141,42 @@ static void mt7621_set_phy_for_ssc(struct mt7621_pci_phy *phy)
 
 	if (xtal_mode <= 5 && xtal_mode >= 3) { /* 40MHz Xtal */
 		/* Set Pre-divider ratio (for host mode) */
-		mt7621_phy_rmw(phy, RG_PE1_H_PLL_REG,
-			       RG_PE1_H_PLL_PREDIV,
-			       RG_PE1_H_PLL_PREDIV_VAL(0x01));
-		dev_info(dev, "Xtal is 40MHz\n");
+		mt7621_phy_rmw(phy, RG_PE1_H_PLL_REG, RG_PE1_H_PLL_PREDIV,
+			       FIELD_PREP(RG_PE1_H_PLL_PREDIV, 0x01));
+
+		dev_dbg(dev, "Xtal is 40MHz\n");
 	} else if (xtal_mode >= 6) { /* 25MHz Xal */
-		mt7621_phy_rmw(phy, RG_PE1_H_PLL_REG,
-			       RG_PE1_H_PLL_PREDIV,
-			       RG_PE1_H_PLL_PREDIV_VAL(0x00));
+		mt7621_phy_rmw(phy, RG_PE1_H_PLL_REG, RG_PE1_H_PLL_PREDIV,
+			       FIELD_PREP(RG_PE1_H_PLL_PREDIV, 0x00));
+
 		/* Select feedback clock */
 		mt7621_phy_rmw(phy, RG_PE1_H_PLL_FBKSEL_REG,
 			       RG_PE1_H_PLL_FBKSEL,
-			       RG_PE1_H_PLL_FBKSEL_VAL(0x01));
+			       FIELD_PREP(RG_PE1_H_PLL_FBKSEL, 0x01));
+
 		/* DDS NCPO PCW (for host mode) */
 		mt7621_phy_rmw(phy, RG_PE1_H_LCDDS_SSC_PRD_REG,
 			       RG_PE1_H_LCDDS_SSC_PRD,
-			       RG_PE1_H_LCDDS_SSC_PRD_VAL(0x18000000));
+			       FIELD_PREP(RG_PE1_H_LCDDS_SSC_PRD, 0x00));
+
 		/* DDS SSC dither period control */
 		mt7621_phy_rmw(phy, RG_PE1_H_LCDDS_SSC_PRD_REG,
 			       RG_PE1_H_LCDDS_SSC_PRD,
-			       RG_PE1_H_LCDDS_SSC_PRD_VAL(0x18d));
+			       FIELD_PREP(RG_PE1_H_LCDDS_SSC_PRD, 0x18d));
+
 		/* DDS SSC dither amplitude control */
 		mt7621_phy_rmw(phy, RG_PE1_H_LCDDS_SSC_DELTA_REG,
 			       RG_PE1_H_LCDDS_SSC_DELTA |
 			       RG_PE1_H_LCDDS_SSC_DELTA1,
-			       RG_PE1_H_LCDDS_SSC_DELTA_VAL(0x4a) |
-			       RG_PE1_H_LCDDS_SSC_DELTA1_VAL(0x4a));
-		dev_info(dev, "Xtal is 25MHz\n");
-	} else { /* 20MHz Xtal */
-		mt7621_phy_rmw(phy, RG_PE1_H_PLL_REG,
-			       RG_PE1_H_PLL_PREDIV,
-			       RG_PE1_H_PLL_PREDIV_VAL(0x00));
+			       FIELD_PREP(RG_PE1_H_LCDDS_SSC_DELTA, 0x4a) |
+			       FIELD_PREP(RG_PE1_H_LCDDS_SSC_DELTA1, 0x4a));
 
-		dev_info(dev, "Xtal is 20MHz\n");
+		dev_dbg(dev, "Xtal is 25MHz\n");
+	} else { /* 20MHz Xtal */
+		mt7621_phy_rmw(phy, RG_PE1_H_PLL_REG, RG_PE1_H_PLL_PREDIV,
+			       FIELD_PREP(RG_PE1_H_PLL_PREDIV, 0x00));
+
+		dev_dbg(dev, "Xtal is 20MHz\n");
 	}
 
 	/* DDS clock inversion */
@@ -204,18 +187,21 @@ static void mt7621_set_phy_for_ssc(struct mt7621_pci_phy *phy)
 	mt7621_phy_rmw(phy, RG_PE1_H_PLL_REG,
 		       RG_PE1_H_PLL_BC | RG_PE1_H_PLL_BP | RG_PE1_H_PLL_IR |
 		       RG_PE1_H_PLL_IC | RG_PE1_PLL_DIVEN,
-		       RG_PE1_H_PLL_BC_VAL(0x02) | RG_PE1_H_PLL_BP_VAL(0x06) |
-		       RG_PE1_H_PLL_IR_VAL(0x02) | RG_PE1_H_PLL_IC_VAL(0x01) |
-		       RG_PE1_PLL_DIVEN_VAL(0x02));
+		       FIELD_PREP(RG_PE1_H_PLL_BC, 0x02) |
+		       FIELD_PREP(RG_PE1_H_PLL_BP, 0x06) |
+		       FIELD_PREP(RG_PE1_H_PLL_IR, 0x02) |
+		       FIELD_PREP(RG_PE1_H_PLL_IC, 0x01) |
+		       FIELD_PREP(RG_PE1_PLL_DIVEN, 0x02));
 
-	mt7621_phy_rmw(phy, RG_PE1_H_PLL_BR_REG,
-		       RG_PE1_H_PLL_BR, RG_PE1_H_PLL_BR_VAL(0x00));
+	mt7621_phy_rmw(phy, RG_PE1_H_PLL_BR_REG, RG_PE1_H_PLL_BR,
+		       FIELD_PREP(RG_PE1_H_PLL_BR, 0x00));
 
 	if (xtal_mode <= 5 && xtal_mode >= 3) { /* 40MHz Xtal */
 		/* set force mode enable of da_pe1_mstckdiv */
 		mt7621_phy_rmw(phy, RG_PE1_MSTCKDIV_REG,
 			       RG_PE1_MSTCKDIV | RG_PE1_FRC_MSTCKDIV,
-			       RG_PE1_MSTCKDIV_VAL(0x01) | RG_PE1_FRC_MSTCKDIV);
+			       FIELD_PREP(RG_PE1_MSTCKDIV, 0x01) |
+			       RG_PE1_FRC_MSTCKDIV);
 	}
 }
 
@@ -309,7 +295,6 @@ static int mt7621_pci_phy_probe(struct platform_device *pdev)
 	const struct soc_device_attribute *attr;
 	struct phy_provider *provider;
 	struct mt7621_pci_phy *phy;
-	struct resource *res;
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
@@ -322,13 +307,7 @@ static int mt7621_pci_phy_probe(struct platform_device *pdev)
 	phy->dev = dev;
 	platform_set_drvdata(pdev, phy);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "failed to get address resource\n");
-		return -ENXIO;
-	}
-
-	phy->port_base = devm_ioremap_resource(dev, res);
+	phy->port_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(phy->port_base)) {
 		dev_err(dev, "failed to remap phy regs\n");
 		return PTR_ERR(phy->port_base);
@@ -356,7 +335,7 @@ static const struct of_device_id mt7621_pci_phy_ids[] = {
 	{ .compatible = "mediatek,mt7621-pci-phy" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, mt7621_pci_ids);
+MODULE_DEVICE_TABLE(of, mt7621_pci_phy_ids);
 
 static struct platform_driver mt7621_pci_phy_driver = {
 	.probe = mt7621_pci_phy_probe,
