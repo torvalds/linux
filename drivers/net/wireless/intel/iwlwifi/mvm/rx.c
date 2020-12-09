@@ -689,30 +689,20 @@ iwl_mvm_rx_stats_check_trigger(struct iwl_mvm *mvm, struct iwl_rx_packet *pkt)
 	iwl_fw_dbg_collect_trig(&mvm->fwrt, trig, NULL);
 }
 
-static void iwl_mvm_update_avg_energy(struct iwl_mvm *mvm,
-				      u8 energy[IWL_MVM_STATION_COUNT_MAX])
+static void iwl_mvm_stats_energy_iter(void *_data,
+				      struct ieee80211_sta *sta)
 {
-	int i;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	u8 *energy = _data;
+	u32 sta_id = mvmsta->sta_id;
 
-	if (WARN_ONCE(mvm->fw->ucode_capa.num_stations >
-		      IWL_MVM_STATION_COUNT_MAX,
-		      "Driver and FW station count mismatch %d\n",
-		      mvm->fw->ucode_capa.num_stations))
+	if (WARN_ONCE(sta_id >= IWL_MVM_STATION_COUNT_MAX, "sta_id %d >= %d",
+		      sta_id, IWL_MVM_STATION_COUNT_MAX))
 		return;
 
-	rcu_read_lock();
-	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
-		struct iwl_mvm_sta *sta;
+	if (energy[sta_id])
+		mvmsta->avg_energy = energy[sta_id];
 
-		if (!energy[i])
-			continue;
-
-		sta = iwl_mvm_sta_from_staid_rcu(mvm, i);
-		if (!sta)
-			continue;
-		sta->avg_energy = energy[i];
-	}
-	rcu_read_unlock();
 }
 
 static void
@@ -793,8 +783,8 @@ iwl_mvm_handle_rx_statistics_tlv(struct iwl_mvm *mvm,
 
 	for (i = 0; i < ARRAY_SIZE(average_energy); i++)
 		average_energy[i] = le32_to_cpu(stats->average_energy[i]);
-	iwl_mvm_update_avg_energy(mvm, average_energy);
-
+	ieee80211_iterate_stations_atomic(mvm->hw, iwl_mvm_stats_energy_iter,
+					  average_energy);
 	/*
 	 * Don't update in case the statistics are not cleared, since
 	 * we will end up counting twice the same airtime, once in TCM
@@ -904,8 +894,8 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 		bytes = (void *)&stats->load_stats.byte_count;
 		air_time = (void *)&stats->load_stats.air_time;
 	}
-
-	iwl_mvm_update_avg_energy(mvm, energy);
+	ieee80211_iterate_stations_atomic(mvm->hw, iwl_mvm_stats_energy_iter,
+					  energy);
 
 	/*
 	 * Don't update in case the statistics are not cleared, since
