@@ -1263,8 +1263,6 @@ struct macb {
 
 	/* AT91RM9200 transmit queue (1 on wire + 1 queued) */
 	struct macb_tx_skb	rm9200_txq[2];
-	unsigned int		rm9200_tx_tail;
-	unsigned int		rm9200_tx_len;
 	unsigned int		max_tx_length;
 
 	u64			ethtool_stats[GEM_STATS_LEN + QUEUE_STATS_LEN * MACB_MAX_QUEUES];
