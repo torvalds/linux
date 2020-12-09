@@ -373,7 +373,7 @@ iwl_trans_get_rb_size_order(enum iwl_amsdu_size rb_size)
 	case IWL_AMSDU_8K:
 		return get_order(8 * 1024);
 	case IWL_AMSDU_12K:
-		return get_order(12 * 1024);
+		return get_order(16 * 1024);
 	default:
 		WARN_ON(1);
 		return -1;
@@ -391,7 +391,7 @@ iwl_trans_get_rb_size(enum iwl_amsdu_size rb_size)
 	case IWL_AMSDU_8K:
 		return 8 * 1024;
 	case IWL_AMSDU_12K:
-		return 12 * 1024;
+		return 16 * 1024;
 	default:
 		WARN_ON(1);
 		return 0;

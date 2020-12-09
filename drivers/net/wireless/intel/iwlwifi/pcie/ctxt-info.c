@@ -243,7 +243,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 		rb_size = IWL_CTXT_INFO_RB_SIZE_8K;
 		break;
 	case IWL_AMSDU_12K:
-		rb_size = IWL_CTXT_INFO_RB_SIZE_12K;
+		rb_size = IWL_CTXT_INFO_RB_SIZE_16K;
 		break;
 	default:
 		WARN_ON(1);

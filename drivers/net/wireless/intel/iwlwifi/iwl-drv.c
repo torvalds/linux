@@ -1835,7 +1835,7 @@ MODULE_PARM_DESC(11n_disable,
 module_param_named(amsdu_size, iwlwifi_mod_params.amsdu_size, int, 0444);
 MODULE_PARM_DESC(amsdu_size,
 		 "amsdu size 0: 12K for multi Rx queue devices, 2K for AX210 devices, "
-		 "4K for other devices 1:4K 2:8K 3:12K 4: 2K (default 0)");
+		 "4K for other devices 1:4K 2:8K 3:12K (16K buffers) 4: 2K (default 0)");
 module_param_named(fw_restart, iwlwifi_mod_params.fw_restart, bool, 0444);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error (default true)");
 
