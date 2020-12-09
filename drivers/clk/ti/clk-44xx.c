@@ -255,7 +255,7 @@ static const struct omap_clkctrl_reg_data omap4_l3_instr_clkctrl_regs[] __initco
 };
 
 static const struct omap_clkctrl_reg_data omap4_ivahd_clkctrl_regs[] __initconst = {
-	{ OMAP4_IVA_CLKCTRL, NULL, CLKF_HW_SUP, "dpll_iva_m5x2_ck" },
+	{ OMAP4_IVA_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "dpll_iva_m5x2_ck" },
 	{ OMAP4_SL2IF_CLKCTRL, NULL, CLKF_HW_SUP, "dpll_iva_m5x2_ck" },
 	{ 0 },
 };

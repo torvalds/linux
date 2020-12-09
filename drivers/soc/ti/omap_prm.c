@@ -128,6 +128,12 @@ static const struct omap_prm_domain_map omap_prm_alwon = {
 	.usable_modes = BIT(OMAP_PRMD_ON_ACTIVE),
 };
 
+static const struct omap_prm_domain_map omap_prm_reton = {
+	.usable_modes = BIT(OMAP_PRMD_ON_ACTIVE) | BIT(OMAP_PRMD_RETENTION),
+	.statechange = 1,
+	.logicretstate = 1,
+};
+
 static const struct omap_rst_map rst_map_0[] = {
 	{ .rst = 0, .st = 0 },
 	{ .rst = -1 },
@@ -147,39 +153,237 @@ static const struct omap_rst_map rst_map_012[] = {
 };
 
 static const struct omap_prm_data omap4_prm_data[] = {
-	{ .name = "tesla", .base = 0x4a306400, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01 },
+	{
+		.name = "mpu", .base = 0x4a306300,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton,
+	},
+	{
+		.name = "tesla", .base = 0x4a306400,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
+	},
 	{
 		.name = "abe", .base = 0x4a306500,
 		.pwrstctrl = 0, .pwrstst = 0x4, .dmap = &omap_prm_all,
 	},
-	{ .name = "core", .base = 0x4a306700, .rstctrl = 0x210, .rstst = 0x214, .clkdm_name = "ducati", .rstmap = rst_map_012 },
-	{ .name = "ivahd", .base = 0x4a306f00, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012 },
-	{ .name = "device", .base = 0x4a307b00, .rstctrl = 0x0, .rstst = 0x4, .rstmap = rst_map_01, .flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM },
+	{
+		.name = "always_on_core", .base = 0x4a306600,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+	},
+	{
+		.name = "core", .base = 0x4a306700,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton,
+		.rstctrl = 0x210, .rstst = 0x214, .clkdm_name = "ducati",
+		.rstmap = rst_map_012
+	},
+	{
+		.name = "ivahd", .base = 0x4a306f00,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012
+	},
+	{
+		.name = "cam", .base = 0x4a307000,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+	},
+	{
+		.name = "dss", .base = 0x4a307100,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact
+	},
+	{
+		.name = "gfx", .base = 0x4a307200,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+	},
+	{
+		.name = "l3init", .base = 0x4a307300,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton
+	},
+	{
+		.name = "l4per", .base = 0x4a307400,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton
+	},
+	{
+		.name = "cefuse", .base = 0x4a307600,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+	},
+	{
+		.name = "wkup", .base = 0x4a307700,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon
+	},
+	{
+		.name = "emu", .base = 0x4a307900,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+	},
+	{
+		.name = "device", .base = 0x4a307b00,
+		.rstctrl = 0x0, .rstst = 0x4, .rstmap = rst_map_01,
+		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM
+	},
 	{ },
 };
 
 static const struct omap_prm_data omap5_prm_data[] = {
-	{ .name = "dsp", .base = 0x4ae06400, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01 },
+	{
+		.name = "mpu", .base = 0x4ae06300,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton,
+	},
+	{
+		.name = "dsp", .base = 0x4ae06400,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
+	},
 	{
 		.name = "abe", .base = 0x4ae06500,
 		.pwrstctrl = 0, .pwrstst = 0x4, .dmap = &omap_prm_nooff,
 	},
-	{ .name = "core", .base = 0x4ae06700, .rstctrl = 0x210, .rstst = 0x214, .clkdm_name = "ipu", .rstmap = rst_map_012 },
-	{ .name = "iva", .base = 0x4ae07200, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012 },
-	{ .name = "device", .base = 0x4ae07c00, .rstctrl = 0x0, .rstst = 0x4, .rstmap = rst_map_01, .flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM },
+	{
+		.name = "coreaon", .base = 0x4ae06600,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon
+	},
+	{
+		.name = "core", .base = 0x4ae06700,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton,
+		.rstctrl = 0x210, .rstst = 0x214, .clkdm_name = "ipu",
+		.rstmap = rst_map_012
+	},
+	{
+		.name = "iva", .base = 0x4ae07200,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012
+	},
+	{
+		.name = "cam", .base = 0x4ae07300,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+	},
+	{
+		.name = "dss", .base = 0x4ae07400,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact
+	},
+	{
+		.name = "gpu", .base = 0x4ae07500,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+	},
+	{
+		.name = "l3init", .base = 0x4ae07600,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton
+	},
+	{
+		.name = "custefuse", .base = 0x4ae07700,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+	},
+	{
+		.name = "wkupaon", .base = 0x4ae07800,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon
+	},
+	{
+		.name = "emu", .base = 0x4ae07a00,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+	},
+	{
+		.name = "device", .base = 0x4ae07c00,
+		.rstctrl = 0x0, .rstst = 0x4, .rstmap = rst_map_01,
+		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM
+	},
 	{ },
 };
 
 static const struct omap_prm_data dra7_prm_data[] = {
-	{ .name = "dsp1", .base = 0x4ae06400, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01 },
-	{ .name = "ipu", .base = 0x4ae06500, .rstctrl = 0x10, .rstst = 0x14, .clkdm_name = "ipu1", .rstmap = rst_map_012 },
-	{ .name = "core", .base = 0x4ae06700, .rstctrl = 0x210, .rstst = 0x214, .clkdm_name = "ipu2", .rstmap = rst_map_012 },
-	{ .name = "iva", .base = 0x4ae06f00, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012 },
-	{ .name = "dsp2", .base = 0x4ae07b00, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01 },
-	{ .name = "eve1", .base = 0x4ae07b40, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01 },
-	{ .name = "eve2", .base = 0x4ae07b80, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01 },
-	{ .name = "eve3", .base = 0x4ae07bc0, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01 },
-	{ .name = "eve4", .base = 0x4ae07c00, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01 },
+	{
+		.name = "mpu", .base = 0x4ae06300,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton,
+	},
+	{
+		.name = "dsp1", .base = 0x4ae06400,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01,
+	},
+	{
+		.name = "ipu", .base = 0x4ae06500,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012,
+		.clkdm_name = "ipu1"
+	},
+	{
+		.name = "coreaon", .base = 0x4ae06628,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+	},
+	{
+		.name = "core", .base = 0x4ae06700,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+		.rstctrl = 0x210, .rstst = 0x214, .rstmap = rst_map_012,
+		.clkdm_name = "ipu2"
+	},
+	{
+		.name = "iva", .base = 0x4ae06f00,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012,
+	},
+	{
+		.name = "cam", .base = 0x4ae07000,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+	},
+	{
+		.name = "dss", .base = 0x4ae07100,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+	},
+	{
+		.name = "gpu", .base = 0x4ae07200,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+	},
+	{
+		.name = "l3init", .base = 0x4ae07300,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012,
+		.clkdm_name = "pcie"
+	},
+	{
+		.name = "l4per", .base = 0x4ae07400,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+	},
+	{
+		.name = "custefuse", .base = 0x4ae07600,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+	},
+	{
+		.name = "wkupaon", .base = 0x4ae07724,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+	},
+	{
+		.name = "emu", .base = 0x4ae07900,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+	},
+	{
+		.name = "dsp2", .base = 0x4ae07b00,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
+	},
+	{
+		.name = "eve1", .base = 0x4ae07b40,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
+	},
+	{
+		.name = "eve2", .base = 0x4ae07b80,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
+	},
+	{
+		.name = "eve3", .base = 0x4ae07bc0,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
+	},
+	{
+		.name = "eve4", .base = 0x4ae07c00,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
+	},
+	{
+		.name = "rtc", .base = 0x4ae07c60,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+	},
+	{
+		.name = "vpe", .base = 0x4ae07c80,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+	},
 	{ },
 };
 
