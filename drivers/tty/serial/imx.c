@@ -2163,44 +2163,6 @@ static struct uart_driver imx_uart_uart_driver = {
 	.cons           = IMX_CONSOLE,
 };
 
-/*
- * This function returns 0 iff it could successfully get all information
- * from dt or a negative errno.
- */
-static int imx_uart_probe_dt(struct imx_port *sport,
-			     struct platform_device *pdev)
-{
-	struct device_node *np = pdev->dev.of_node;
-	int ret;
-
-	sport->devdata = of_device_get_match_data(&pdev->dev);
-
-	ret = of_alias_get_id(np, "serial");
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to get alias id, errno %d\n", ret);
-		return ret;
-	}
-	sport->port.line = ret;
-
-	if (of_get_property(np, "uart-has-rtscts", NULL) ||
-	    of_get_property(np, "fsl,uart-has-rtscts", NULL) /* deprecated */)
-		sport->have_rtscts = 1;
-
-	if (of_get_property(np, "fsl,dte-mode", NULL))
-		sport->dte_mode = 1;
-
-	if (of_get_property(np, "rts-gpios", NULL))
-		sport->have_rtsgpio = 1;
-
-	if (of_get_property(np, "fsl,inverted-tx", NULL))
-		sport->inverted_tx = 1;
-
-	if (of_get_property(np, "fsl,inverted-rx", NULL))
-		sport->inverted_rx = 1;
-
-	return 0;
-}
-
 static enum hrtimer_restart imx_trigger_start_tx(struct hrtimer *t)
 {
 	struct imx_port *sport = container_of(t, struct imx_port, trigger_start_tx);
@@ -2229,6 +2191,7 @@ static enum hrtimer_restart imx_trigger_stop_tx(struct hrtimer *t)
 
 static int imx_uart_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct imx_port *sport;
 	void __iomem *base;
 	int ret = 0;
@@ -2240,9 +2203,30 @@ static int imx_uart_probe(struct platform_device *pdev)
 	if (!sport)
 		return -ENOMEM;
 
-	ret = imx_uart_probe_dt(sport, pdev);
-	if (ret < 0)
+	sport->devdata = of_device_get_match_data(&pdev->dev);
+
+	ret = of_alias_get_id(np, "serial");
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to get alias id, errno %d\n", ret);
 		return ret;
+	}
+	sport->port.line = ret;
+
+	if (of_get_property(np, "uart-has-rtscts", NULL) ||
+	    of_get_property(np, "fsl,uart-has-rtscts", NULL) /* deprecated */)
+		sport->have_rtscts = 1;
+
+	if (of_get_property(np, "fsl,dte-mode", NULL))
+		sport->dte_mode = 1;
+
+	if (of_get_property(np, "rts-gpios", NULL))
+		sport->have_rtsgpio = 1;
+
+	if (of_get_property(np, "fsl,inverted-tx", NULL))
+		sport->inverted_tx = 1;
+
+	if (of_get_property(np, "fsl,inverted-rx", NULL))
+		sport->inverted_rx = 1;
 
 	if (sport->port.line >= ARRAY_SIZE(imx_uart_ports)) {
 		dev_err(&pdev->dev, "serial%d out of range\n",
