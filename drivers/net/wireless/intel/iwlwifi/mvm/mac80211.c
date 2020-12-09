@@ -1300,12 +1300,6 @@ static int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	if (mvmvif->csa_failed) {
-		mvmvif->csa_failed = false;
-		ret = -EIO;
-		goto out_unlock;
-	}
-
 	if (vif->type == NL80211_IFTYPE_STATION) {
 		struct iwl_mvm_sta *mvmsta;
 
@@ -1337,6 +1331,8 @@ static int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
 	ret = iwl_mvm_power_update_ps(mvm);
 
 out_unlock:
+	if (mvmvif->csa_failed)
+		ret = -EIO;
 	mutex_unlock(&mvm->mutex);
 
 	return ret;
@@ -1364,9 +1360,10 @@ static void iwl_mvm_abort_channel_switch(struct ieee80211_hw *hw,
 					     WIDE_ID(MAC_CONF_GROUP,
 						     CHANNEL_SWITCH_TIME_EVENT_CMD),
 					     0, sizeof(cmd), &cmd));
+	mvmvif->csa_failed = true;
 	mutex_unlock(&mvm->mutex);
 
-	WARN_ON(iwl_mvm_post_channel_switch(hw, vif));
+	iwl_mvm_post_channel_switch(hw, vif);
 }
 
 static void iwl_mvm_channel_switch_disconnect_wk(struct work_struct *wk)
@@ -4624,12 +4621,17 @@ static void iwl_mvm_channel_switch_rx_beacon(struct ieee80211_hw *hw,
 	}
 	mvmvif->csa_count = chsw->count;
 
-	IWL_DEBUG_MAC80211(mvm, "Modify CSA on mac %d\n", mvmvif->id);
+	mutex_lock(&mvm->mutex);
+	if (mvmvif->csa_failed)
+		goto out_unlock;
 
+	IWL_DEBUG_MAC80211(mvm, "Modify CSA on mac %d\n", mvmvif->id);
 	WARN_ON(iwl_mvm_send_cmd_pdu(mvm,
 				     WIDE_ID(MAC_CONF_GROUP,
 					     CHANNEL_SWITCH_TIME_EVENT_CMD),
-				     CMD_ASYNC, sizeof(cmd), &cmd));
+				     0, sizeof(cmd), &cmd));
+out_unlock:
+	mutex_unlock(&mvm->mutex);
 }
 
 static void iwl_mvm_flush_no_vif(struct iwl_mvm *mvm, u32 queues, bool drop)
