@@ -349,7 +349,7 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct iwl_rx_mpdu_res_start *rx_res;
 	struct ieee80211_sta *sta = NULL;
 	struct sk_buff *skb;
-	u32 len;
+	u32 len, pkt_len = iwl_rx_packet_payload_len(pkt);
 	u32 rate_n_flags;
 	u32 rx_pkt_status;
 	u8 crypt_len = 0;
@@ -358,6 +358,12 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 	rx_res = (struct iwl_rx_mpdu_res_start *)pkt->data;
 	hdr = (struct ieee80211_hdr *)(pkt->data + sizeof(*rx_res));
 	len = le16_to_cpu(rx_res->byte_count);
+
+	if (unlikely(len + sizeof(*rx_res) + sizeof(__le32) > pkt_len)) {
+		IWL_DEBUG_DROP(mvm, "FW lied about packet len\n");
+		return;
+	}
+
 	rx_pkt_status = get_unaligned_le32((__le32 *)
 		(pkt->data + sizeof(*rx_res) + len));
 

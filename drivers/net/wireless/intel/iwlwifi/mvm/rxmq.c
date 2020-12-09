@@ -1607,6 +1607,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct iwl_rx_mpdu_desc *desc = (void *)pkt->data;
 	struct ieee80211_hdr *hdr;
 	u32 len = le16_to_cpu(desc->mpdu_len);
+	u32 pkt_len = iwl_rx_packet_payload_len(pkt);
 	u32 rate_n_flags, gp2_on_air_rise;
 	u16 phy_info = le16_to_cpu(desc->phy_info);
 	struct ieee80211_sta *sta = NULL;
@@ -1652,6 +1653,11 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		phy_data.info_type =
 			le32_get_bits(phy_data.d1,
 				      IWL_RX_PHY_DATA1_INFO_TYPE_MASK);
+
+	if (len + desc_size > pkt_len) {
+		IWL_DEBUG_DROP(mvm, "FW lied about packet len\n");
+		return;
+	}
 
 	hdr = (void *)(pkt->data + desc_size);
 	/* Dont use dev_alloc_skb(), we'll have enough headroom once

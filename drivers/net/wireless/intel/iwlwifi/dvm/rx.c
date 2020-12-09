@@ -3,7 +3,7 @@
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018, 2020 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portionhelp of the ieee80211 subsystem header files.
@@ -786,7 +786,7 @@ static void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 	struct iwl_rx_phy_res *phy_res;
 	__le32 rx_pkt_status;
 	struct iwl_rx_mpdu_res_start *amsdu;
-	u32 len;
+	u32 len, pkt_len = iwl_rx_packet_len(pkt);
 	u32 ampdu_status;
 	u32 rate_n_flags;
 
@@ -798,6 +798,12 @@ static void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 	amsdu = (struct iwl_rx_mpdu_res_start *)pkt->data;
 	header = (struct ieee80211_hdr *)(pkt->data + sizeof(*amsdu));
 	len = le16_to_cpu(amsdu->byte_count);
+
+	if (unlikely(len + sizeof(*amsdu) + sizeof(__le32) > pkt_len)) {
+		IWL_DEBUG_DROP(priv, "FW lied about packet len\n");
+		return;
+	}
+
 	rx_pkt_status = *(__le32 *)(pkt->data + sizeof(*amsdu) + len);
 	ampdu_status = iwlagn_translate_rx_status(priv,
 						  le32_to_cpu(rx_pkt_status));
