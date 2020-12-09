@@ -327,6 +327,11 @@ pmc_usb_mux_usb4(struct pmc_usb_port *port, struct typec_mux_state *state)
 		fallthrough;
 	default:
 		req.mode_data |= PMC_USB_ALTMODE_ACTIVE_CABLE;
+
+		/* Configure data rate to rounded in the case of Active TBT3
+		 * and USB4 cables.
+		 */
+		req.mode_data |= PMC_USB_ALTMODE_TBT_GEN(1);
 		break;
 	}
 
