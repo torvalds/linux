@@ -390,7 +390,7 @@
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x10010000 0x1000>;
 			clocks = <&wdogclk>, <&pclk>;
-			clock-names = "wdogclk", "apb_pclk";
+			clock-names = "wdog_clk", "apb_pclk";
 			status = "disabled";
 		};
 

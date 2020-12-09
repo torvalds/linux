@@ -531,8 +531,7 @@ static int ina209_init_client(struct i2c_client *client,
 	return 0;
 }
 
-static int ina209_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ina209_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct ina209_data *data;
@@ -597,7 +596,7 @@ static struct i2c_driver ina209_driver = {
 		.name	= "ina209",
 		.of_match_table = of_match_ptr(ina209_of_match),
 	},
-	.probe		= ina209_probe,
+	.probe_new	= ina209_probe,
 	.remove		= ina209_remove,
 	.id_table	= ina209_id,
 };

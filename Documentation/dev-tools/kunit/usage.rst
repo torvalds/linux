@@ -211,6 +211,11 @@ KUnit test framework.
 .. note::
    A test case will only be run if it is associated with a test suite.
 
+``kunit_test_suite(...)`` is a macro which tells the linker to put the specified
+test suite in a special linker section so that it can be run by KUnit either
+after late_init, or when the test module is loaded (depending on whether the
+test was built in or not).
+
 For more information on these types of things see the :doc:`api/test`.
 
 Isolating Behavior
@@ -555,6 +560,11 @@ Once the kernel is built and installed, a simple
 	modprobe example-test
 
 ...will run the tests.
+
+.. note::
+   Note that you should make sure your test depends on ``KUNIT=y`` in Kconfig
+   if the test does not support module build.  Otherwise, it will trigger
+   compile errors if ``CONFIG_KUNIT`` is ``m``.
 
 Writing new tests for other architectures
 -----------------------------------------

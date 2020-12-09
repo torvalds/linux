@@ -519,10 +519,9 @@ EXPORT_SYMBOL(snd_card_free_when_closed);
  */
 int snd_card_free(struct snd_card *card)
 {
-	struct completion released;
+	DECLARE_COMPLETION_ONSTACK(released);
 	int ret;
 
-	init_completion(&released);
 	card->release_completion = &released;
 	ret = snd_card_free_when_closed(card);
 	if (ret)

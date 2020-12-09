@@ -39,6 +39,7 @@ properties:
               - amlogic,meson-g12a-usb
           - const: snps,dwc2
       - const: amcc,dwc-otg
+      - const: apm,apm82181-dwc-otg
       - const: snps,dwc2
       - const: st,stm32f4x9-fsotg
       - const: st,stm32f4x9-hsotg
@@ -101,6 +102,10 @@ properties:
 
   dr_mode:
     enum: [host, peripheral, otg]
+
+  usb-role-switch:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: Support role switch.
 
   g-rx-fifo-size:
     $ref: /schemas/types.yaml#/definitions/uint32

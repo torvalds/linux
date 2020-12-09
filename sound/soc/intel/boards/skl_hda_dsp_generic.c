@@ -181,7 +181,7 @@ static void skl_set_hda_codec_autosuspend_delay(struct snd_soc_card *card)
 	struct snd_soc_dai *dai;
 
 	for_each_card_rtds(card, rtd) {
-		if (!strstr(rtd->dai_link->codecs->name, "ehdaudio"))
+		if (!strstr(rtd->dai_link->codecs->name, "ehdaudio0D0"))
 			continue;
 		dai = asoc_rtd_to_codec(rtd, 0);
 		hda_pvt = snd_soc_component_get_drvdata(dai->component);

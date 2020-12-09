@@ -891,10 +891,8 @@ static void check_pci_device_reg(struct check *c, struct dt_info *dti, struct no
 		return;
 
 	prop = get_property(node, "reg");
-	if (!prop) {
-		FAIL(c, dti, node, "missing PCI reg property");
+	if (!prop)
 		return;
-	}
 
 	cells = (cell_t *)prop->val.val;
 	if (cells[1] || cells[2])

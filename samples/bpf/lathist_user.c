@@ -6,9 +6,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
-#include <linux/bpf.h>
+#include <bpf/libbpf.h>
 #include <bpf/bpf.h>
-#include "bpf_load.h"
 
 #define MAX_ENTRIES	20
 #define MAX_CPU		4
@@ -81,20 +80,51 @@ static void get_data(int fd)
 
 int main(int argc, char **argv)
 {
+	struct bpf_link *links[2];
+	struct bpf_program *prog;
+	struct bpf_object *obj;
 	char filename[256];
+	int map_fd, i = 0;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+	obj = bpf_object__open_file(filename, NULL);
+	if (libbpf_get_error(obj)) {
+		fprintf(stderr, "ERROR: opening BPF object file failed\n");
+		return 0;
+	}
 
-	if (load_bpf_file(filename)) {
-		printf("%s", bpf_log_buf);
-		return 1;
+	/* load BPF program */
+	if (bpf_object__load(obj)) {
+		fprintf(stderr, "ERROR: loading BPF object file failed\n");
+		goto cleanup;
+	}
+
+	map_fd = bpf_object__find_map_fd_by_name(obj, "my_lat");
+	if (map_fd < 0) {
+		fprintf(stderr, "ERROR: finding a map in obj file failed\n");
+		goto cleanup;
+	}
+
+	bpf_object__for_each_program(prog, obj) {
+		links[i] = bpf_program__attach(prog);
+		if (libbpf_get_error(links[i])) {
+			fprintf(stderr, "ERROR: bpf_program__attach failed\n");
+			links[i] = NULL;
+			goto cleanup;
+		}
+		i++;
 	}
 
 	while (1) {
-		get_data(map_fd[1]);
+		get_data(map_fd);
 		print_hist();
 		sleep(5);
 	}
 
+cleanup:
+	for (i--; i >= 0; i--)
+		bpf_link__destroy(links[i]);
+
+	bpf_object__close(obj);
 	return 0;
 }

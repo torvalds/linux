@@ -30,6 +30,7 @@ Hardware Monitoring Kernel Drivers
    adm1026
    adm1031
    adm1177
+   adm1266
    adm1275
    adm9240
    ads7828
@@ -73,6 +74,7 @@ Hardware Monitoring Kernel Drivers
    ina209
    ina2xx
    ina3221
+   intel-m10-bmc-hwmon
    ir35221
    ir38064
    isl68137
@@ -130,6 +132,7 @@ Hardware Monitoring Kernel Drivers
    mcp3021
    menf21bmc
    mlxreg-fan
+   mp2975
    nct6683
    nct6775
    nct7802
@@ -154,10 +157,12 @@ Hardware Monitoring Kernel Drivers
    sht3x
    shtc1
    sis5595
+   sl28cpld
    smm665
    smsc47b397
    smsc47m192
    smsc47m1
+   sparx5-temp
    tc654
    tc74
    thmc50

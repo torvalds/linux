@@ -422,7 +422,7 @@ struct sst_dsp *skl_dsp_ctx_init(struct device *dev,
 
 	/* Initialise SST Audio DSP */
 	if (sst->ops->init) {
-		ret = sst->ops->init(sst, NULL);
+		ret = sst->ops->init(sst);
 		if (ret < 0)
 			return NULL;
 	}

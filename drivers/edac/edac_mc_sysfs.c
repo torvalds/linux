@@ -474,8 +474,12 @@ static ssize_t dimmdev_location_show(struct device *dev,
 				     struct device_attribute *mattr, char *data)
 {
 	struct dimm_info *dimm = to_dimm(dev);
+	ssize_t count;
 
-	return edac_dimm_info_location(dimm, data, PAGE_SIZE);
+	count = edac_dimm_info_location(dimm, data, PAGE_SIZE);
+	count += scnprintf(data + count, PAGE_SIZE - count, "\n");
+
+	return count;
 }
 
 static ssize_t dimmdev_label_show(struct device *dev,
@@ -813,15 +817,23 @@ static ssize_t mci_max_location_show(struct device *dev,
 				     char *data)
 {
 	struct mem_ctl_info *mci = to_mci(dev);
-	int i;
+	int len = PAGE_SIZE;
 	char *p = data;
+	int i, n;
 
 	for (i = 0; i < mci->n_layers; i++) {
-		p += sprintf(p, "%s %d ",
-			     edac_layer_name[mci->layers[i].type],
-			     mci->layers[i].size - 1);
+		n = scnprintf(p, len, "%s %d ",
+			      edac_layer_name[mci->layers[i].type],
+			      mci->layers[i].size - 1);
+		len -= n;
+		if (len <= 0)
+			goto out;
+
+		p += n;
 	}
 
+	p += scnprintf(p, len, "\n");
+out:
 	return p - data;
 }
 

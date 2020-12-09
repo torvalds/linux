@@ -62,6 +62,15 @@ config PINCTRL_IPQ6018
 	  Qualcomm Technologies Inc. IPQ6018 platform. Select this for
 	  IPQ6018.
 
+config PINCTRL_MSM8226
+	tristate "Qualcomm 8226 pin controller driver"
+	depends on GPIOLIB && OF
+	select PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
+	  Technologies Inc MSM8226 platform.
+
 config PINCTRL_MSM8660
 	tristate "Qualcomm 8660 pin controller driver"
 	depends on GPIOLIB && OF

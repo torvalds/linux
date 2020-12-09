@@ -302,8 +302,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static const struct nla_policy bitset_policy[ETHTOOL_A_BITSET_MAX + 1] = {
-	[ETHTOOL_A_BITSET_UNSPEC]	= { .type = NLA_REJECT },
+static const struct nla_policy bitset_policy[] = {
 	[ETHTOOL_A_BITSET_NOMASK]	= { .type = NLA_FLAG },
 	[ETHTOOL_A_BITSET_SIZE]		= NLA_POLICY_MAX(NLA_U32,
 							 ETHNL_MAX_BITSET_SIZE),
@@ -312,8 +311,7 @@ static const struct nla_policy bitset_policy[ETHTOOL_A_BITSET_MAX + 1] = {
 	[ETHTOOL_A_BITSET_MASK]		= { .type = NLA_BINARY },
 };
 
-static const struct nla_policy bit_policy[ETHTOOL_A_BITSET_BIT_MAX + 1] = {
-	[ETHTOOL_A_BITSET_BIT_UNSPEC]	= { .type = NLA_REJECT },
+static const struct nla_policy bit_policy[] = {
 	[ETHTOOL_A_BITSET_BIT_INDEX]	= { .type = NLA_U32 },
 	[ETHTOOL_A_BITSET_BIT_NAME]	= { .type = NLA_NUL_STRING },
 	[ETHTOOL_A_BITSET_BIT_VALUE]	= { .type = NLA_FLAG },
@@ -329,10 +327,10 @@ static const struct nla_policy bit_policy[ETHTOOL_A_BITSET_BIT_MAX + 1] = {
  */
 int ethnl_bitset_is_compact(const struct nlattr *bitset, bool *compact)
 {
-	struct nlattr *tb[ETHTOOL_A_BITSET_MAX + 1];
+	struct nlattr *tb[ARRAY_SIZE(bitset_policy)];
 	int ret;
 
-	ret = nla_parse_nested(tb, ETHTOOL_A_BITSET_MAX, bitset,
+	ret = nla_parse_nested(tb, ARRAY_SIZE(bitset_policy) - 1, bitset,
 			       bitset_policy, NULL);
 	if (ret < 0)
 		return ret;
@@ -381,10 +379,10 @@ static int ethnl_parse_bit(unsigned int *index, bool *val, unsigned int nbits,
 			   ethnl_string_array_t names,
 			   struct netlink_ext_ack *extack)
 {
-	struct nlattr *tb[ETHTOOL_A_BITSET_BIT_MAX + 1];
+	struct nlattr *tb[ARRAY_SIZE(bit_policy)];
 	int ret, idx;
 
-	ret = nla_parse_nested(tb, ETHTOOL_A_BITSET_BIT_MAX, bit_attr,
+	ret = nla_parse_nested(tb, ARRAY_SIZE(bit_policy) - 1, bit_attr,
 			       bit_policy, extack);
 	if (ret < 0)
 		return ret;
@@ -555,15 +553,15 @@ int ethnl_update_bitset32(u32 *bitmap, unsigned int nbits,
 			  const struct nlattr *attr, ethnl_string_array_t names,
 			  struct netlink_ext_ack *extack, bool *mod)
 {
-	struct nlattr *tb[ETHTOOL_A_BITSET_MAX + 1];
+	struct nlattr *tb[ARRAY_SIZE(bitset_policy)];
 	unsigned int change_bits;
 	bool no_mask;
 	int ret;
 
 	if (!attr)
 		return 0;
-	ret = nla_parse_nested(tb, ETHTOOL_A_BITSET_MAX, attr, bitset_policy,
-			       extack);
+	ret = nla_parse_nested(tb, ARRAY_SIZE(bitset_policy) - 1, attr,
+			       bitset_policy, extack);
 	if (ret < 0)
 		return ret;
 
@@ -608,7 +606,7 @@ int ethnl_parse_bitset(unsigned long *val, unsigned long *mask,
 		       ethnl_string_array_t names,
 		       struct netlink_ext_ack *extack)
 {
-	struct nlattr *tb[ETHTOOL_A_BITSET_MAX + 1];
+	struct nlattr *tb[ARRAY_SIZE(bitset_policy)];
 	const struct nlattr *bit_attr;
 	bool no_mask;
 	int rem;
@@ -616,8 +614,8 @@ int ethnl_parse_bitset(unsigned long *val, unsigned long *mask,
 
 	if (!attr)
 		return 0;
-	ret = nla_parse_nested(tb, ETHTOOL_A_BITSET_MAX, attr, bitset_policy,
-			       extack);
+	ret = nla_parse_nested(tb, ARRAY_SIZE(bitset_policy) - 1, attr,
+			       bitset_policy, extack);
 	if (ret < 0)
 		return ret;
 	no_mask = tb[ETHTOOL_A_BITSET_NOMASK];

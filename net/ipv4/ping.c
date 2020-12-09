@@ -293,7 +293,8 @@ EXPORT_SYMBOL_GPL(ping_close);
 
 /* Checks the bind address and possibly modifies sk->sk_bound_dev_if. */
 static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
-				struct sockaddr *uaddr, int addr_len) {
+				struct sockaddr *uaddr, int addr_len)
+{
 	struct net *net = sock_net(sk);
 	if (sk->sk_family == AF_INET) {
 		struct sockaddr_in *addr = (struct sockaddr_in *) uaddr;
@@ -310,10 +311,10 @@ static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
 		pr_debug("ping_check_bind_addr(sk=%p,addr=%pI4,port=%d)\n",
 			 sk, &addr->sin_addr.s_addr, ntohs(addr->sin_port));
 
-		chk_addr_ret = inet_addr_type(net, addr->sin_addr.s_addr);
-
 		if (addr->sin_addr.s_addr == htonl(INADDR_ANY))
 			chk_addr_ret = RTN_LOCAL;
+		else
+			chk_addr_ret = inet_addr_type(net, addr->sin_addr.s_addr);
 
 		if ((!inet_can_nonlocal_bind(net, isk) &&
 		     chk_addr_ret != RTN_LOCAL) ||
@@ -383,20 +384,6 @@ static void ping_set_saddr(struct sock *sk, struct sockaddr *saddr)
 	}
 }
 
-static void ping_clear_saddr(struct sock *sk, int dif)
-{
-	sk->sk_bound_dev_if = dif;
-	if (sk->sk_family == AF_INET) {
-		struct inet_sock *isk = inet_sk(sk);
-		isk->inet_rcv_saddr = isk->inet_saddr = 0;
-#if IS_ENABLED(CONFIG_IPV6)
-	} else if (sk->sk_family == AF_INET6) {
-		struct ipv6_pinfo *np = inet6_sk(sk);
-		memset(&sk->sk_v6_rcv_saddr, 0, sizeof(sk->sk_v6_rcv_saddr));
-		memset(&np->saddr, 0, sizeof(np->saddr));
-#endif
-	}
-}
 /*
  * We need our own bind because there are no privileged id's == local ports.
  * Moreover, we don't allow binding to multi- and broadcast addresses.
@@ -420,12 +407,13 @@ int ping_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		goto out;
 
 	err = -EADDRINUSE;
-	ping_set_saddr(sk, uaddr);
 	snum = ntohs(((struct sockaddr_in *)uaddr)->sin_port);
 	if (ping_get_port(sk, snum) != 0) {
-		ping_clear_saddr(sk, dif);
+		/* Restore possibly modified sk->sk_bound_dev_if by ping_check_bind_addr(). */
+		sk->sk_bound_dev_if = dif;
 		goto out;
 	}
+	ping_set_saddr(sk, uaddr);
 
 	pr_debug("after bind(): num = %hu, dif = %d\n",
 		 isk->inet_num,
@@ -647,7 +635,8 @@ static int ping_v4_push_pending_frames(struct sock *sk, struct pingfakehdr *pfh,
 }
 
 int ping_common_sendmsg(int family, struct msghdr *msg, size_t len,
-			void *user_icmph, size_t icmph_len) {
+			void *user_icmph, size_t icmph_len)
+{
 	u8 type, code;
 
 	if (len > 0xFFFF)

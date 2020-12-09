@@ -39,8 +39,8 @@ int main(int ac, char **argv)
 	struct bpf_program *prog;
 	struct bpf_object *obj;
 	int key, fd, progs_fd;
+	const char *section;
 	char filename[256];
-	const char *title;
 	FILE *f;
 
 	setrlimit(RLIMIT_MEMLOCK, &r);
@@ -78,9 +78,9 @@ int main(int ac, char **argv)
 	}
 
 	bpf_object__for_each_program(prog, obj) {
-		title = bpf_program__title(prog, false);
+		section = bpf_program__section_name(prog);
 		/* register only syscalls to PROG_ARRAY */
-		if (sscanf(title, "kprobe/%d", &key) != 1)
+		if (sscanf(section, "kprobe/%d", &key) != 1)
 			continue;
 
 		fd = bpf_program__fd(prog);

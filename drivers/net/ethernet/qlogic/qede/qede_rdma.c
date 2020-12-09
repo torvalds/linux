@@ -234,6 +234,15 @@ static void qede_rdma_changeaddr(struct qede_dev *edev)
 		qedr_drv->notify(edev->rdma_info.qedr_dev, QEDE_CHANGE_ADDR);
 }
 
+static void qede_rdma_change_mtu(struct qede_dev *edev)
+{
+	if (qede_rdma_supported(edev)) {
+		if (qedr_drv && edev->rdma_info.qedr_dev && qedr_drv->notify)
+			qedr_drv->notify(edev->rdma_info.qedr_dev,
+					 QEDE_CHANGE_MTU);
+	}
+}
+
 static struct qede_rdma_event_work *
 qede_rdma_get_free_event_node(struct qede_dev *edev)
 {
@@ -287,6 +296,9 @@ static void qede_rdma_handle_event(struct work_struct *work)
 	case QEDE_CHANGE_ADDR:
 		qede_rdma_changeaddr(edev);
 		break;
+	case QEDE_CHANGE_MTU:
+		qede_rdma_change_mtu(edev);
+		break;
 	default:
 		DP_NOTICE(edev, "Invalid rdma event %d", event);
 	}
@@ -337,4 +349,9 @@ void qede_rdma_dev_event_close(struct qede_dev *edev)
 void qede_rdma_event_changeaddr(struct qede_dev *edev)
 {
 	qede_rdma_add_event(edev, QEDE_CHANGE_ADDR);
+}
+
+void qede_rdma_event_change_mtu(struct qede_dev *edev)
+{
+	qede_rdma_add_event(edev, QEDE_CHANGE_MTU);
 }

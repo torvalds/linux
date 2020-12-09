@@ -71,7 +71,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi3>;
 	status = "okay";
-	cs-gpios = <&gpio4 24 0>;
+	cs-gpios = <&gpio4 24 GPIO_ACTIVE_LOW>;
 
 	som_flash: flash@0 {
 		compatible = "m25p80", "jedec,spi-nor";

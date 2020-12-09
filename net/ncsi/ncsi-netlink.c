@@ -716,7 +716,7 @@ static int ncsi_set_channel_mask_nl(struct sk_buff *msg,
 	return 0;
 }
 
-static const struct genl_ops ncsi_ops[] = {
+static const struct genl_small_ops ncsi_ops[] = {
 	{
 		.cmd = NCSI_CMD_PKG_INFO,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -762,8 +762,8 @@ static struct genl_family ncsi_genl_family __ro_after_init = {
 	.maxattr = NCSI_ATTR_MAX,
 	.policy = ncsi_genl_policy,
 	.module = THIS_MODULE,
-	.ops = ncsi_ops,
-	.n_ops = ARRAY_SIZE(ncsi_ops),
+	.small_ops = ncsi_ops,
+	.n_small_ops = ARRAY_SIZE(ncsi_ops),
 };
 
 int ncsi_init_netlink(struct net_device *dev)

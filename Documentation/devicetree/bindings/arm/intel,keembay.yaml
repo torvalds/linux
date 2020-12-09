@@ -16,4 +16,7 @@ properties:
       - enum:
           - intel,keembay-evm
       - const: intel,keembay
+
+additionalProperties: true
+
 ...

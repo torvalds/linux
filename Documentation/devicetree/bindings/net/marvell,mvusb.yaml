@@ -35,6 +35,8 @@ required:
   - "#address-cells"
   - "#size-cells"
 
+unevaluatedProperties: false
+
 examples:
   - |
     /* USB host controller */

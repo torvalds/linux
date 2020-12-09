@@ -17,7 +17,6 @@
 
 struct regmap_debugfs_node {
 	struct regmap *map;
-	const char *name;
 	struct list_head link;
 };
 
@@ -184,7 +183,7 @@ static inline void regmap_calc_tot_len(struct regmap *map,
 {
 	/* Calculate the length of a fixed format  */
 	if (!map->debugfs_tot_len) {
-		map->debugfs_reg_len = regmap_calc_reg_len(map->max_register),
+		map->debugfs_reg_len = regmap_calc_reg_len(map->max_register);
 		map->debugfs_val_len = 2 * map->format.val_bytes;
 		map->debugfs_tot_len = map->debugfs_reg_len +
 			map->debugfs_val_len + 3;      /* : \n */
@@ -544,11 +543,12 @@ static const struct file_operations regmap_cache_bypass_fops = {
 	.write = regmap_cache_bypass_write_file,
 };
 
-void regmap_debugfs_init(struct regmap *map, const char *name)
+void regmap_debugfs_init(struct regmap *map)
 {
 	struct rb_node *next;
 	struct regmap_range_node *range_node;
 	const char *devname = "dummy";
+	const char *name = map->name;
 
 	/*
 	 * Userspace can initiate reads from the hardware over debugfs.
@@ -569,7 +569,6 @@ void regmap_debugfs_init(struct regmap *map, const char *name)
 		if (!node)
 			return;
 		node->map = map;
-		node->name = name;
 		mutex_lock(&regmap_debugfs_early_lock);
 		list_add(&node->link, &regmap_debugfs_early_list);
 		mutex_unlock(&regmap_debugfs_early_lock);
@@ -679,7 +678,7 @@ void regmap_debugfs_initcall(void)
 
 	mutex_lock(&regmap_debugfs_early_lock);
 	list_for_each_entry_safe(node, tmp, &regmap_debugfs_early_list, link) {
-		regmap_debugfs_init(node->map, node->name);
+		regmap_debugfs_init(node->map);
 		list_del(&node->link);
 		kfree(node);
 	}

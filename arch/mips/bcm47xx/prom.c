@@ -27,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/memblock.h>
 #include <linux/spinlock.h>
 #include <linux/ssb/ssb_driver_chipcommon.h>
 #include <linux/ssb/ssb_regs.h>
@@ -97,7 +98,7 @@ static __init void prom_init_mem(void)
 	 */
 	if (c->cputype == CPU_74K && (mem == (128  << 20)))
 		mem -= 0x1000;
-	add_memory_region(0, mem, BOOT_MEM_RAM);
+	memblock_add(0, mem);
 }
 
 /*

@@ -434,7 +434,7 @@ static int __init test_rhltable(unsigned int entries)
 		} else {
 			if (WARN(err != -ENOENT, "removed non-existent element, error %d not %d",
 				 err, -ENOENT))
-			continue;
+				continue;
 		}
 	}
 

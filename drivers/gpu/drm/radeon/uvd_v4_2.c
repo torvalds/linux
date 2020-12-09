@@ -40,7 +40,7 @@ int uvd_v4_2_resume(struct radeon_device *rdev)
 	uint64_t addr;
 	uint32_t size;
 
-	/* programm the VCPU memory controller bits 0-27 */
+	/* program the VCPU memory controller bits 0-27 */
 
 	/* skip over the header of the new firmware format */
 	if (rdev->uvd.fw_header_present)

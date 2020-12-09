@@ -25,8 +25,6 @@ extern void add_virt_timer_periodic(struct vtimer_list *timer);
 extern int mod_virt_timer(struct vtimer_list *timer, u64 expires);
 extern int mod_virt_timer_periodic(struct vtimer_list *timer, u64 expires);
 extern int del_virt_timer(struct vtimer_list *timer);
-
-extern void init_cpu_vtimer(void);
 extern void vtime_init(void);
 
 #endif /* _ASM_S390_TIMER_H */

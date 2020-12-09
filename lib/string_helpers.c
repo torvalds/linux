@@ -649,3 +649,26 @@ char *kstrdup_quotable_file(struct file *file, gfp_t gfp)
 	return pathname;
 }
 EXPORT_SYMBOL_GPL(kstrdup_quotable_file);
+
+/**
+ * kfree_strarray - free a number of dynamically allocated strings contained
+ *                  in an array and the array itself
+ *
+ * @array: Dynamically allocated array of strings to free.
+ * @n: Number of strings (starting from the beginning of the array) to free.
+ *
+ * Passing a non-NULL @array and @n == 0 as well as NULL @array are valid
+ * use-cases. If @array is NULL, the function does nothing.
+ */
+void kfree_strarray(char **array, size_t n)
+{
+	unsigned int i;
+
+	if (!array)
+		return;
+
+	for (i = 0; i < n; i++)
+		kfree(array[i]);
+	kfree(array);
+}
+EXPORT_SYMBOL_GPL(kfree_strarray);

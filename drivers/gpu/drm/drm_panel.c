@@ -70,16 +70,12 @@ EXPORT_SYMBOL(drm_panel_init);
  *
  * Add a panel to the global registry so that it can be looked up by display
  * drivers.
- *
- * Return: 0 on success or a negative error code on failure.
  */
-int drm_panel_add(struct drm_panel *panel)
+void drm_panel_add(struct drm_panel *panel)
 {
 	mutex_lock(&panel_lock);
 	list_add_tail(&panel->list, &panel_list);
 	mutex_unlock(&panel_lock);
-
-	return 0;
 }
 EXPORT_SYMBOL(drm_panel_add);
 
@@ -96,42 +92,6 @@ void drm_panel_remove(struct drm_panel *panel)
 	mutex_unlock(&panel_lock);
 }
 EXPORT_SYMBOL(drm_panel_remove);
-
-/**
- * drm_panel_attach - attach a panel to a connector
- * @panel: DRM panel
- * @connector: DRM connector
- *
- * After obtaining a pointer to a DRM panel a display driver calls this
- * function to attach a panel to a connector.
- *
- * An error is returned if the panel is already attached to another connector.
- *
- * When unloading, the driver should detach from the panel by calling
- * drm_panel_detach().
- *
- * Return: 0 on success or a negative error code on failure.
- */
-int drm_panel_attach(struct drm_panel *panel, struct drm_connector *connector)
-{
-	return 0;
-}
-EXPORT_SYMBOL(drm_panel_attach);
-
-/**
- * drm_panel_detach - detach a panel from a connector
- * @panel: DRM panel
- *
- * Detaches a panel from the connector it is attached to. If a panel is not
- * attached to any connector this is effectively a no-op.
- *
- * This function should not be called by the panel device itself. It
- * is only for the drm device that called drm_panel_attach().
- */
-void drm_panel_detach(struct drm_panel *panel)
-{
-}
-EXPORT_SYMBOL(drm_panel_detach);
 
 /**
  * drm_panel_prepare - power on a panel
@@ -300,6 +260,49 @@ struct drm_panel *of_drm_find_panel(const struct device_node *np)
 	return ERR_PTR(-EPROBE_DEFER);
 }
 EXPORT_SYMBOL(of_drm_find_panel);
+
+/**
+ * of_drm_get_panel_orientation - look up the orientation of the panel through
+ * the "rotation" binding from a device tree node
+ * @np: device tree node of the panel
+ * @orientation: orientation enum to be filled in
+ *
+ * Looks up the rotation of a panel in the device tree. The orientation of the
+ * panel is expressed as a property name "rotation" in the device tree. The
+ * rotation in the device tree is counter clockwise.
+ *
+ * Return: 0 when a valid rotation value (0, 90, 180, or 270) is read or the
+ * rotation property doesn't exist. Return a negative error code on failure.
+ */
+int of_drm_get_panel_orientation(const struct device_node *np,
+				 enum drm_panel_orientation *orientation)
+{
+	int rotation, ret;
+
+	ret = of_property_read_u32(np, "rotation", &rotation);
+	if (ret == -EINVAL) {
+		/* Don't return an error if there's no rotation property. */
+		*orientation = DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
+		return 0;
+	}
+
+	if (ret < 0)
+		return ret;
+
+	if (rotation == 0)
+		*orientation = DRM_MODE_PANEL_ORIENTATION_NORMAL;
+	else if (rotation == 90)
+		*orientation = DRM_MODE_PANEL_ORIENTATION_RIGHT_UP;
+	else if (rotation == 180)
+		*orientation = DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP;
+	else if (rotation == 270)
+		*orientation = DRM_MODE_PANEL_ORIENTATION_LEFT_UP;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL(of_drm_get_panel_orientation);
 #endif
 
 #if IS_REACHABLE(CONFIG_BACKLIGHT_CLASS_DEVICE)

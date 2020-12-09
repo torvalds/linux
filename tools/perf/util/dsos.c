@@ -73,8 +73,7 @@ bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 			continue;
 		}
 		nsinfo__mountns_enter(pos->nsinfo, &nsc);
-		if (filename__read_build_id(pos->long_name, pos->build_id,
-					    sizeof(pos->build_id)) > 0) {
+		if (filename__read_build_id(pos->long_name, &pos->bid) > 0) {
 			have_build_id	  = true;
 			pos->has_build_id = true;
 		}
@@ -288,10 +287,12 @@ size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,
 	size_t ret = 0;
 
 	list_for_each_entry(pos, head, node) {
+		char sbuild_id[SBUILD_ID_SIZE];
+
 		if (skip && skip(pos, parm))
 			continue;
-		ret += dso__fprintf_buildid(pos, fp);
-		ret += fprintf(fp, " %s\n", pos->long_name);
+		build_id__sprintf(&pos->bid, sbuild_id);
+		ret += fprintf(fp, "%-40s %s\n", sbuild_id, pos->long_name);
 	}
 	return ret;
 }

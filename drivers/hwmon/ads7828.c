@@ -99,8 +99,9 @@ static const struct regmap_config ads2830_regmap_config = {
 	.val_bits = 8,
 };
 
-static int ads7828_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static const struct i2c_device_id ads7828_device_ids[];
+
+static int ads7828_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ads7828_platform_data *pdata = dev_get_platdata(dev);
@@ -141,7 +142,7 @@ static int ads7828_probe(struct i2c_client *client,
 		chip = (enum ads7828_chips)
 			of_device_get_match_data(&client->dev);
 	else
-		chip = id->driver_data;
+		chip = i2c_match_id(ads7828_device_ids, client)->driver_data;
 
 	/* Bound Vref with min/max values */
 	vref_mv = clamp_val(vref_mv, ADS7828_EXT_VREF_MV_MIN,
@@ -207,7 +208,7 @@ static struct i2c_driver ads7828_driver = {
 	},
 
 	.id_table = ads7828_device_ids,
-	.probe = ads7828_probe,
+	.probe_new = ads7828_probe,
 };
 
 module_i2c_driver(ads7828_driver);

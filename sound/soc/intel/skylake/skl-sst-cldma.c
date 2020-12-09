@@ -245,7 +245,7 @@ static int
 skl_cldma_copy_to_buf(struct sst_dsp *ctx, const void *bin,
 			u32 total_size, bool wait)
 {
-	int ret = 0;
+	int ret;
 	bool start = true;
 	unsigned int excess_bytes;
 	u32 size;

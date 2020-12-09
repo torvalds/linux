@@ -25,9 +25,8 @@
 #define PACA_IRQ_DBELL		0x02
 #define PACA_IRQ_EE		0x04
 #define PACA_IRQ_DEC		0x08 /* Or FIT */
-#define PACA_IRQ_EE_EDGE	0x10 /* BookE only */
-#define PACA_IRQ_HMI		0x20
-#define PACA_IRQ_PMI		0x40
+#define PACA_IRQ_HMI		0x10
+#define PACA_IRQ_PMI		0x20
 
 /*
  * Some soft-masked interrupts must be hard masked until they are replayed
@@ -368,12 +367,6 @@ static inline void may_hard_irq_enable(void) { }
 #endif /* CONFIG_PPC64 */
 
 #define ARCH_IRQ_INIT_FLAGS	IRQ_NOREQUEST
-
-/*
- * interrupt-retrigger: should we handle this via lost interrupts and IPIs
- * or should we not care like we do now ? --BenH.
- */
-struct irq_chip;
 
 #endif  /* __ASSEMBLY__ */
 #endif	/* __KERNEL__ */

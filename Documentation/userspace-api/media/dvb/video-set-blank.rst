@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.video
 
 .. _VIDEO_SET_BLANK:
 
@@ -23,9 +17,9 @@ VIDEO_SET_BLANK
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, VIDEO_SET_BLANK, boolean mode)
-    :name: VIDEO_SET_BLANK
+.. c:macro:: VIDEO_SET_BLANK
 
+``int ioctl(fd, VIDEO_SET_BLANK, boolean mode)``
 
 Arguments
 ---------
@@ -33,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -58,12 +51,10 @@ Arguments
        -
        -  FALSE: Show last decoded frame.
 
-
 Description
 -----------
 
 This ioctl call asks the Video Device to blank out the picture.
-
 
 Return Value
 ------------

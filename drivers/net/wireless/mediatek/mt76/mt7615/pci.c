@@ -88,7 +88,7 @@ static int mt7615_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	}
 
 	napi_disable(&mdev->tx_napi);
-	tasklet_kill(&mdev->tx_tasklet);
+	mt76_worker_disable(&mdev->tx_worker);
 
 	mt76_for_each_q_rx(mdev, i) {
 		napi_disable(&mdev->napi[i]);
@@ -118,7 +118,7 @@ static int mt7615_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (err)
 		goto restore;
 
-	err = mt7615_firmware_own(dev);
+	err = mt7615_mcu_set_fw_ctrl(dev);
 	if (err)
 		goto restore;
 
@@ -142,7 +142,7 @@ static int mt7615_pci_resume(struct pci_dev *pdev)
 	bool pdma_reset;
 	int i, err;
 
-	err = mt7615_driver_own(dev);
+	err = mt7615_mcu_set_drv_ctrl(dev);
 	if (err < 0)
 		return err;
 
@@ -162,6 +162,7 @@ static int mt7615_pci_resume(struct pci_dev *pdev)
 	if (pdma_reset)
 		dev_err(mdev->dev, "PDMA engine must be reinitialized\n");
 
+	mt76_worker_enable(&mdev->tx_worker);
 	mt76_for_each_q_rx(mdev, i) {
 		napi_enable(&mdev->napi[i]);
 		napi_schedule(&mdev->napi[i]);

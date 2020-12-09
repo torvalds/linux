@@ -51,6 +51,8 @@
 #define ASM_STREAM_CMD_OPEN_READWRITE_V2        0x00010D8D
 #define ASM_MEDIA_FMT_ALAC			0x00012f31
 #define ASM_MEDIA_FMT_APE			0x00012f32
+#define ASM_DATA_CMD_REMOVE_INITIAL_SILENCE	0x00010D67
+#define ASM_DATA_CMD_REMOVE_TRAILING_SILENCE	0x00010D68
 
 
 #define ASM_LEGACY_STREAM_SESSION	0
@@ -270,7 +272,6 @@ struct audio_client {
 	wait_queue_head_t cmd_wait;
 	struct aprv2_ibasic_rsp_result_t result;
 	int perf_mode;
-	int stream_id;
 	struct q6asm *q6asm;
 	struct device *dev;
 };
@@ -640,6 +641,8 @@ static int32_t q6asm_stream_callback(struct apr_device *adev,
 		case ASM_STREAM_CMD_OPEN_READWRITE_V2:
 		case ASM_STREAM_CMD_SET_ENCDEC_PARAM:
 		case ASM_DATA_CMD_MEDIA_FMT_UPDATE_V2:
+		case ASM_DATA_CMD_REMOVE_INITIAL_SILENCE:
+		case ASM_DATA_CMD_REMOVE_TRAILING_SILENCE:
 			if (result->status != 0) {
 				dev_err(ac->dev,
 					"cmd = 0x%x returned error = 0x%x\n",
@@ -671,6 +674,7 @@ static int32_t q6asm_stream_callback(struct apr_device *adev,
 		if (ac->io_mode & ASM_SYNC_IO_MODE) {
 			phys_addr_t phys;
 			unsigned long flags;
+			int token = hdr->token & ASM_WRITE_TOKEN_MASK;
 
 			spin_lock_irqsave(&ac->lock, flags);
 
@@ -682,12 +686,12 @@ static int32_t q6asm_stream_callback(struct apr_device *adev,
 				goto done;
 			}
 
-			phys = port->buf[hdr->token].phys;
+			phys = port->buf[token].phys;
 
 			if (lower_32_bits(phys) != result->opcode ||
 			    upper_32_bits(phys) != result->status) {
 				dev_err(ac->dev, "Expected addr %pa\n",
-					&port->buf[hdr->token].phys);
+					&port->buf[token].phys);
 				spin_unlock_irqrestore(&ac->lock, flags);
 				ret = -EINVAL;
 				goto done;
@@ -828,21 +832,21 @@ EXPORT_SYMBOL_GPL(q6asm_get_session_id);
  * @dev: Pointer to asm child device.
  * @cb: event callback.
  * @priv: private data associated with this client.
- * @stream_id: stream id
+ * @session_id: session id
  * @perf_mode: performace mode for this client
  *
  * Return: Will be an error pointer on error or a valid audio client
  * on success.
  */
 struct audio_client *q6asm_audio_client_alloc(struct device *dev, q6asm_cb cb,
-					      void *priv, int stream_id,
+					      void *priv, int session_id,
 					      int perf_mode)
 {
 	struct q6asm *a = dev_get_drvdata(dev->parent);
 	struct audio_client *ac;
 	unsigned long flags;
 
-	ac = q6asm_get_audio_client(a, stream_id + 1);
+	ac = q6asm_get_audio_client(a, session_id + 1);
 	if (ac) {
 		dev_err(dev, "Audio Client already active\n");
 		return ac;
@@ -853,17 +857,15 @@ struct audio_client *q6asm_audio_client_alloc(struct device *dev, q6asm_cb cb,
 		return ERR_PTR(-ENOMEM);
 
 	spin_lock_irqsave(&a->slock, flags);
-	a->session[stream_id + 1] = ac;
+	a->session[session_id + 1] = ac;
 	spin_unlock_irqrestore(&a->slock, flags);
-	ac->session = stream_id + 1;
+	ac->session = session_id + 1;
 	ac->cb = cb;
 	ac->dev = dev;
 	ac->q6asm = a;
 	ac->priv = priv;
 	ac->io_mode = ASM_SYNC_IO_MODE;
 	ac->perf_mode = perf_mode;
-	/* DSP expects stream id from 1 */
-	ac->stream_id = 1;
 	ac->adev = a->adev;
 	kref_init(&ac->refcount);
 
@@ -913,14 +915,17 @@ err:
 /**
  * q6asm_open_write() - Open audio client for writing
  * @ac: audio client pointer
+ * @stream_id: stream id of q6asm session
  * @format: audio sample format
  * @codec_profile: compressed format profile
  * @bits_per_sample: bits per sample
+ * @is_gapless: flag to indicate if this is a gapless stream
  *
  * Return: Will be an negative value on error or zero on success
  */
-int q6asm_open_write(struct audio_client *ac, uint32_t format,
-		     u32 codec_profile, uint16_t bits_per_sample)
+int q6asm_open_write(struct audio_client *ac, uint32_t stream_id,
+		     uint32_t format, u32 codec_profile,
+		     uint16_t bits_per_sample, bool is_gapless)
 {
 	struct asm_stream_cmd_open_write_v3 *open;
 	struct apr_pkt *pkt;
@@ -935,11 +940,13 @@ int q6asm_open_write(struct audio_client *ac, uint32_t format,
 
 	pkt = p;
 	open = p + APR_HDR_SIZE;
-	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, ac->stream_id);
+	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, stream_id);
 
 	pkt->hdr.opcode = ASM_STREAM_CMD_OPEN_WRITE_V3;
 	open->mode_flags = 0x00;
 	open->mode_flags |= ASM_LEGACY_STREAM_SESSION;
+	if (is_gapless)
+		open->mode_flags |= BIT(ASM_SHIFT_GAPLESS_MODE_FLAG);
 
 	/* source endpoint : matrix */
 	open->sink_endpointype = ASM_END_POINT_DEVICE_MATRIX;
@@ -998,8 +1005,9 @@ err:
 }
 EXPORT_SYMBOL_GPL(q6asm_open_write);
 
-static int __q6asm_run(struct audio_client *ac, uint32_t flags,
-	      uint32_t msw_ts, uint32_t lsw_ts, bool wait)
+static int __q6asm_run(struct audio_client *ac, uint32_t stream_id,
+		       uint32_t flags, uint32_t msw_ts, uint32_t lsw_ts,
+		       bool wait)
 {
 	struct asm_session_cmd_run_v2 *run;
 	struct apr_pkt *pkt;
@@ -1014,7 +1022,7 @@ static int __q6asm_run(struct audio_client *ac, uint32_t flags,
 	pkt = p;
 	run = p + APR_HDR_SIZE;
 
-	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, ac->stream_id);
+	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, stream_id);
 
 	pkt->hdr.opcode = ASM_SESSION_CMD_RUN_V2;
 	run->flags = flags;
@@ -1036,16 +1044,17 @@ static int __q6asm_run(struct audio_client *ac, uint32_t flags,
  * q6asm_run() - start the audio client
  *
  * @ac: audio client pointer
+ * @stream_id: stream id of q6asm session
  * @flags: flags associated with write
  * @msw_ts: timestamp msw
  * @lsw_ts: timestamp lsw
  *
  * Return: Will be an negative value on error or zero on success
  */
-int q6asm_run(struct audio_client *ac, uint32_t flags,
+int q6asm_run(struct audio_client *ac, uint32_t stream_id, uint32_t flags,
 	      uint32_t msw_ts, uint32_t lsw_ts)
 {
-	return __q6asm_run(ac, flags, msw_ts, lsw_ts, true);
+	return __q6asm_run(ac, stream_id, flags, msw_ts, lsw_ts, true);
 }
 EXPORT_SYMBOL_GPL(q6asm_run);
 
@@ -1053,16 +1062,17 @@ EXPORT_SYMBOL_GPL(q6asm_run);
  * q6asm_run_nowait() - start the audio client withou blocking
  *
  * @ac: audio client pointer
+ * @stream_id: stream id
  * @flags: flags associated with write
  * @msw_ts: timestamp msw
  * @lsw_ts: timestamp lsw
  *
  * Return: Will be an negative value on error or zero on success
  */
-int q6asm_run_nowait(struct audio_client *ac, uint32_t flags,
-	      uint32_t msw_ts, uint32_t lsw_ts)
+int q6asm_run_nowait(struct audio_client *ac, uint32_t stream_id,
+		     uint32_t flags, uint32_t msw_ts, uint32_t lsw_ts)
 {
-	return __q6asm_run(ac, flags, msw_ts, lsw_ts, false);
+	return __q6asm_run(ac, stream_id, flags, msw_ts, lsw_ts, false);
 }
 EXPORT_SYMBOL_GPL(q6asm_run_nowait);
 
@@ -1070,6 +1080,7 @@ EXPORT_SYMBOL_GPL(q6asm_run_nowait);
  * q6asm_media_format_block_multi_ch_pcm() - setup pcm configuration
  *
  * @ac: audio client pointer
+ * @stream_id: stream id
  * @rate: audio sample rate
  * @channels: number of audio channels.
  * @channel_map: channel map pointer
@@ -1078,6 +1089,7 @@ EXPORT_SYMBOL_GPL(q6asm_run_nowait);
  * Return: Will be an negative value on error or zero on success
  */
 int q6asm_media_format_block_multi_ch_pcm(struct audio_client *ac,
+					  uint32_t stream_id,
 					  uint32_t rate, uint32_t channels,
 					  u8 channel_map[PCM_MAX_NUM_CHANNEL],
 					  uint16_t bits_per_sample)
@@ -1096,7 +1108,7 @@ int q6asm_media_format_block_multi_ch_pcm(struct audio_client *ac,
 	pkt = p;
 	fmt = p + APR_HDR_SIZE;
 
-	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, ac->stream_id);
+	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, stream_id);
 
 	pkt->hdr.opcode = ASM_DATA_CMD_MEDIA_FMT_UPDATE_V2;
 	fmt->fmt_blk.fmt_blk_size = sizeof(*fmt) - sizeof(fmt->fmt_blk);
@@ -1125,8 +1137,8 @@ err:
 }
 EXPORT_SYMBOL_GPL(q6asm_media_format_block_multi_ch_pcm);
 
-
 int q6asm_stream_media_format_block_flac(struct audio_client *ac,
+					 uint32_t stream_id,
 					 struct q6asm_flac_cfg *cfg)
 {
 	struct asm_flac_fmt_blk_v2 *fmt;
@@ -1142,7 +1154,7 @@ int q6asm_stream_media_format_block_flac(struct audio_client *ac,
 	pkt = p;
 	fmt = p + APR_HDR_SIZE;
 
-	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, ac->stream_id);
+	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, stream_id);
 
 	pkt->hdr.opcode = ASM_DATA_CMD_MEDIA_FMT_UPDATE_V2;
 	fmt->fmt_blk.fmt_blk_size = sizeof(*fmt) - sizeof(fmt->fmt_blk);
@@ -1163,6 +1175,7 @@ int q6asm_stream_media_format_block_flac(struct audio_client *ac,
 EXPORT_SYMBOL_GPL(q6asm_stream_media_format_block_flac);
 
 int q6asm_stream_media_format_block_wma_v9(struct audio_client *ac,
+					   uint32_t stream_id,
 					   struct q6asm_wma_cfg *cfg)
 {
 	struct asm_wmastdv9_fmt_blk_v2 *fmt;
@@ -1178,7 +1191,7 @@ int q6asm_stream_media_format_block_wma_v9(struct audio_client *ac,
 	pkt = p;
 	fmt = p + APR_HDR_SIZE;
 
-	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, ac->stream_id);
+	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, stream_id);
 
 	pkt->hdr.opcode = ASM_DATA_CMD_MEDIA_FMT_UPDATE_V2;
 	fmt->fmt_blk.fmt_blk_size = sizeof(*fmt) - sizeof(fmt->fmt_blk);
@@ -1200,6 +1213,7 @@ int q6asm_stream_media_format_block_wma_v9(struct audio_client *ac,
 EXPORT_SYMBOL_GPL(q6asm_stream_media_format_block_wma_v9);
 
 int q6asm_stream_media_format_block_wma_v10(struct audio_client *ac,
+					    uint32_t stream_id,
 					    struct q6asm_wma_cfg *cfg)
 {
 	struct asm_wmaprov10_fmt_blk_v2 *fmt;
@@ -1215,7 +1229,7 @@ int q6asm_stream_media_format_block_wma_v10(struct audio_client *ac,
 	pkt = p;
 	fmt = p + APR_HDR_SIZE;
 
-	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, ac->stream_id);
+	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, stream_id);
 
 	pkt->hdr.opcode = ASM_DATA_CMD_MEDIA_FMT_UPDATE_V2;
 	fmt->fmt_blk.fmt_blk_size = sizeof(*fmt) - sizeof(fmt->fmt_blk);
@@ -1238,6 +1252,7 @@ int q6asm_stream_media_format_block_wma_v10(struct audio_client *ac,
 EXPORT_SYMBOL_GPL(q6asm_stream_media_format_block_wma_v10);
 
 int q6asm_stream_media_format_block_alac(struct audio_client *ac,
+					 uint32_t stream_id,
 					 struct q6asm_alac_cfg *cfg)
 {
 	struct asm_alac_fmt_blk_v2 *fmt;
@@ -1253,7 +1268,7 @@ int q6asm_stream_media_format_block_alac(struct audio_client *ac,
 	pkt = p;
 	fmt = p + APR_HDR_SIZE;
 
-	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, ac->stream_id);
+	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, stream_id);
 
 	pkt->hdr.opcode = ASM_DATA_CMD_MEDIA_FMT_UPDATE_V2;
 	fmt->fmt_blk.fmt_blk_size = sizeof(*fmt) - sizeof(fmt->fmt_blk);
@@ -1279,6 +1294,7 @@ int q6asm_stream_media_format_block_alac(struct audio_client *ac,
 EXPORT_SYMBOL_GPL(q6asm_stream_media_format_block_alac);
 
 int q6asm_stream_media_format_block_ape(struct audio_client *ac,
+					uint32_t stream_id,
 					struct q6asm_ape_cfg *cfg)
 {
 	struct asm_ape_fmt_blk_v2 *fmt;
@@ -1294,7 +1310,7 @@ int q6asm_stream_media_format_block_ape(struct audio_client *ac,
 	pkt = p;
 	fmt = p + APR_HDR_SIZE;
 
-	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, ac->stream_id);
+	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, stream_id);
 
 	pkt->hdr.opcode = ASM_DATA_CMD_MEDIA_FMT_UPDATE_V2;
 	fmt->fmt_blk.fmt_blk_size = sizeof(*fmt) - sizeof(fmt->fmt_blk);
@@ -1317,10 +1333,60 @@ int q6asm_stream_media_format_block_ape(struct audio_client *ac,
 }
 EXPORT_SYMBOL_GPL(q6asm_stream_media_format_block_ape);
 
+static int q6asm_stream_remove_silence(struct audio_client *ac, uint32_t stream_id,
+				       uint32_t cmd,
+				       uint32_t num_samples)
+{
+	uint32_t *samples;
+	struct apr_pkt *pkt;
+	void *p;
+	int rc, pkt_size;
+
+	pkt_size = APR_HDR_SIZE + sizeof(uint32_t);
+	p = kzalloc(pkt_size, GFP_ATOMIC);
+	if (!p)
+		return -ENOMEM;
+
+	pkt = p;
+	samples = p + APR_HDR_SIZE;
+
+	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, stream_id);
+
+	pkt->hdr.opcode = cmd;
+	*samples = num_samples;
+	rc = apr_send_pkt(ac->adev, pkt);
+	if (rc == pkt_size)
+		rc = 0;
+
+	kfree(pkt);
+
+	return rc;
+}
+
+int q6asm_stream_remove_initial_silence(struct audio_client *ac,
+					uint32_t stream_id,
+					uint32_t initial_samples)
+{
+	return q6asm_stream_remove_silence(ac, stream_id,
+					   ASM_DATA_CMD_REMOVE_INITIAL_SILENCE,
+					   initial_samples);
+}
+EXPORT_SYMBOL_GPL(q6asm_stream_remove_initial_silence);
+
+int q6asm_stream_remove_trailing_silence(struct audio_client *ac, uint32_t stream_id,
+					 uint32_t trailing_samples)
+{
+	return q6asm_stream_remove_silence(ac, stream_id,
+				   ASM_DATA_CMD_REMOVE_TRAILING_SILENCE,
+				   trailing_samples);
+}
+EXPORT_SYMBOL_GPL(q6asm_stream_remove_trailing_silence);
+
 /**
  * q6asm_enc_cfg_blk_pcm_format_support() - setup pcm configuration for capture
  *
  * @ac: audio client pointer
+ * @stream_id: stream id
  * @rate: audio sample rate
  * @channels: number of audio channels.
  * @bits_per_sample: bits per sample
@@ -1328,7 +1394,9 @@ EXPORT_SYMBOL_GPL(q6asm_stream_media_format_block_ape);
  * Return: Will be an negative value on error or zero on success
  */
 int q6asm_enc_cfg_blk_pcm_format_support(struct audio_client *ac,
-		uint32_t rate, uint32_t channels, uint16_t bits_per_sample)
+					 uint32_t stream_id, uint32_t rate,
+					 uint32_t channels,
+					 uint16_t bits_per_sample)
 {
 	struct asm_multi_channel_pcm_enc_cfg_v2  *enc_cfg;
 	struct apr_pkt *pkt;
@@ -1344,7 +1412,7 @@ int q6asm_enc_cfg_blk_pcm_format_support(struct audio_client *ac,
 
 	pkt = p;
 	enc_cfg = p + APR_HDR_SIZE;
-	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, ac->stream_id);
+	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, stream_id);
 
 	pkt->hdr.opcode = ASM_STREAM_CMD_SET_ENCDEC_PARAM;
 	enc_cfg->encdec.param_id = ASM_PARAM_ID_ENCDEC_ENC_CFG_BLK_V2;
@@ -1376,10 +1444,11 @@ EXPORT_SYMBOL_GPL(q6asm_enc_cfg_blk_pcm_format_support);
  * q6asm_read() - read data of period size from audio client
  *
  * @ac: audio client pointer
+ * @stream_id: stream id
  *
  * Return: Will be an negative value on error or zero on success
  */
-int q6asm_read(struct audio_client *ac)
+int q6asm_read(struct audio_client *ac, uint32_t stream_id)
 {
 	struct asm_data_cmd_read_v2 *read;
 	struct audio_port_data *port;
@@ -1400,7 +1469,7 @@ int q6asm_read(struct audio_client *ac)
 
 	spin_lock_irqsave(&ac->lock, flags);
 	port = &ac->port[SNDRV_PCM_STREAM_CAPTURE];
-	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, false, ac->stream_id);
+	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, false, stream_id);
 	ab = &port->buf[port->dsp_buf];
 	pkt->hdr.opcode = ASM_DATA_CMD_READ_V2;
 	read->buf_addr_lsw = lower_32_bits(ab->phys);
@@ -1428,7 +1497,7 @@ int q6asm_read(struct audio_client *ac)
 }
 EXPORT_SYMBOL_GPL(q6asm_read);
 
-static int __q6asm_open_read(struct audio_client *ac,
+static int __q6asm_open_read(struct audio_client *ac, uint32_t stream_id,
 		uint32_t format, uint16_t bits_per_sample)
 {
 	struct asm_stream_cmd_open_read_v3 *open;
@@ -1444,7 +1513,7 @@ static int __q6asm_open_read(struct audio_client *ac,
 	pkt = p;
 	open = p + APR_HDR_SIZE;
 
-	q6asm_add_hdr(ac, &pkt->hdr,  pkt_size, true, ac->stream_id);
+	q6asm_add_hdr(ac, &pkt->hdr,  pkt_size, true, stream_id);
 	pkt->hdr.opcode = ASM_STREAM_CMD_OPEN_READ_V3;
 	/* Stream prio : High, provide meta info with encoded frames */
 	open->src_endpointype = ASM_END_POINT_DEVICE_MATRIX;
@@ -1475,15 +1544,16 @@ static int __q6asm_open_read(struct audio_client *ac,
  * q6asm_open_read() - Open audio client for reading
  *
  * @ac: audio client pointer
+ * @stream_id: stream id
  * @format: audio sample format
  * @bits_per_sample: bits per sample
  *
  * Return: Will be an negative value on error or zero on success
  */
-int q6asm_open_read(struct audio_client *ac, uint32_t format,
-			uint16_t bits_per_sample)
+int q6asm_open_read(struct audio_client *ac, uint32_t stream_id,
+		    uint32_t format, uint16_t bits_per_sample)
 {
-	return __q6asm_open_read(ac, format, bits_per_sample);
+	return __q6asm_open_read(ac, stream_id, format, bits_per_sample);
 }
 EXPORT_SYMBOL_GPL(q6asm_open_read);
 
@@ -1491,6 +1561,7 @@ EXPORT_SYMBOL_GPL(q6asm_open_read);
  * q6asm_write_async() - non blocking write
  *
  * @ac: audio client pointer
+ * @stream_id: stream id
  * @len: length in bytes
  * @msw_ts: timestamp msw
  * @lsw_ts: timestamp lsw
@@ -1498,8 +1569,8 @@ EXPORT_SYMBOL_GPL(q6asm_open_read);
  *
  * Return: Will be an negative value on error or zero on success
  */
-int q6asm_write_async(struct audio_client *ac, uint32_t len, uint32_t msw_ts,
-		       uint32_t lsw_ts, uint32_t wflags)
+int q6asm_write_async(struct audio_client *ac, uint32_t stream_id, uint32_t len,
+		      uint32_t msw_ts, uint32_t lsw_ts, uint32_t wflags)
 {
 	struct asm_data_cmd_write_v2 *write;
 	struct audio_port_data *port;
@@ -1520,10 +1591,10 @@ int q6asm_write_async(struct audio_client *ac, uint32_t len, uint32_t msw_ts,
 
 	spin_lock_irqsave(&ac->lock, flags);
 	port = &ac->port[SNDRV_PCM_STREAM_PLAYBACK];
-	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, false, ac->stream_id);
+	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, false, stream_id);
 
 	ab = &port->buf[port->dsp_buf];
-	pkt->hdr.token = port->dsp_buf;
+	pkt->hdr.token = port->dsp_buf | (len << ASM_WRITE_TOKEN_LEN_SHIFT);
 	pkt->hdr.opcode = ASM_DATA_CMD_WRITE_V2;
 	write->buf_addr_lsw = lower_32_bits(ab->phys);
 	write->buf_addr_msw = upper_32_bits(ab->phys);
@@ -1534,10 +1605,7 @@ int q6asm_write_async(struct audio_client *ac, uint32_t len, uint32_t msw_ts,
 	write->mem_map_handle =
 	    ac->port[SNDRV_PCM_STREAM_PLAYBACK].mem_map_handle;
 
-	if (wflags == NO_TIMESTAMP)
-		write->flags = (wflags & 0x800000FF);
-	else
-		write->flags = (0x80000000 | wflags);
+	write->flags = wflags;
 
 	port->dsp_buf++;
 
@@ -1567,9 +1635,9 @@ static void q6asm_reset_buf_state(struct audio_client *ac)
 	spin_unlock_irqrestore(&ac->lock, flags);
 }
 
-static int __q6asm_cmd(struct audio_client *ac, int cmd, bool wait)
+static int __q6asm_cmd(struct audio_client *ac, uint32_t stream_id, int cmd,
+		       bool wait)
 {
-	int stream_id = ac->stream_id;
 	struct apr_pkt pkt;
 	int rc;
 
@@ -1616,13 +1684,14 @@ static int __q6asm_cmd(struct audio_client *ac, int cmd, bool wait)
  * q6asm_cmd() - run cmd on audio client
  *
  * @ac: audio client pointer
+ * @stream_id: stream id
  * @cmd: command to run on audio client.
  *
  * Return: Will be an negative value on error or zero on success
  */
-int q6asm_cmd(struct audio_client *ac, int cmd)
+int q6asm_cmd(struct audio_client *ac, uint32_t stream_id, int cmd)
 {
-	return __q6asm_cmd(ac, cmd, true);
+	return __q6asm_cmd(ac, stream_id, cmd, true);
 }
 EXPORT_SYMBOL_GPL(q6asm_cmd);
 
@@ -1630,13 +1699,14 @@ EXPORT_SYMBOL_GPL(q6asm_cmd);
  * q6asm_cmd_nowait() - non blocking, run cmd on audio client
  *
  * @ac: audio client pointer
+ * @stream_id: stream id
  * @cmd: command to run on audio client.
  *
  * Return: Will be an negative value on error or zero on success
  */
-int q6asm_cmd_nowait(struct audio_client *ac, int cmd)
+int q6asm_cmd_nowait(struct audio_client *ac, uint32_t stream_id, int cmd)
 {
-	return __q6asm_cmd(ac, cmd, false);
+	return __q6asm_cmd(ac, stream_id, cmd, false);
 }
 EXPORT_SYMBOL_GPL(q6asm_cmd_nowait);
 
@@ -1666,11 +1736,14 @@ static int q6asm_remove(struct apr_device *adev)
 
 	return 0;
 }
+
+#ifdef CONFIG_OF
 static const struct of_device_id q6asm_device_id[]  = {
 	{ .compatible = "qcom,q6asm" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, q6asm_device_id);
+#endif
 
 static struct apr_driver qcom_q6asm_driver = {
 	.probe = q6asm_probe,

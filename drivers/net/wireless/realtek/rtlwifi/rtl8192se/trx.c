@@ -328,13 +328,13 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 	bool firstseg = (!(hdr->seq_ctrl & cpu_to_le16(IEEE80211_SCTL_FRAG)));
 	bool lastseg = (!(hdr->frame_control &
 			cpu_to_le16(IEEE80211_FCTL_MOREFRAGS)));
-	dma_addr_t mapping = pci_map_single(rtlpci->pdev, skb->data, skb->len,
-		    PCI_DMA_TODEVICE);
+	dma_addr_t mapping = dma_map_single(&rtlpci->pdev->dev, skb->data,
+					    skb->len, DMA_TO_DEVICE);
 	u8 bw_40 = 0;
 
-	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
-		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-			 "DMA mapping error\n");
+	if (dma_mapping_error(&rtlpci->pdev->dev, mapping)) {
+		rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE,
+			"DMA mapping error\n");
 		return;
 	}
 	if (mac->opmode == NL80211_IFTYPE_STATION) {
@@ -488,7 +488,7 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 	/* DOWRD 8 */
 	set_tx_desc_tx_buffer_address(pdesc, mapping);
 
-	RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE, "\n");
+	rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE, "\n");
 }
 
 void rtl92se_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc8,
@@ -500,12 +500,12 @@ void rtl92se_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc8,
 	struct rtl_tcb_desc *tcb_desc = (struct rtl_tcb_desc *)(skb->cb);
 	__le32 *pdesc = (__le32 *)pdesc8;
 
-	dma_addr_t mapping = pci_map_single(rtlpci->pdev, skb->data, skb->len,
-			PCI_DMA_TODEVICE);
+	dma_addr_t mapping = dma_map_single(&rtlpci->pdev->dev, skb->data,
+					    skb->len, DMA_TO_DEVICE);
 
-	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
-		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-			 "DMA mapping error\n");
+	if (dma_mapping_error(&rtlpci->pdev->dev, mapping)) {
+		rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE,
+			"DMA mapping error\n");
 		return;
 	}
 	/* Clear all status	*/

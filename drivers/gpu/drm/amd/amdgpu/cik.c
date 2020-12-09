@@ -1336,10 +1336,12 @@ cik_asic_reset_method(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_BONAIRE:
-	case CHIP_HAWAII:
 		/* disable baco reset until it works */
 		/* smu7_asic_get_baco_capability(adev, &baco_reset); */
 		baco_reset = false;
+		break;
+	case CHIP_HAWAII:
+		baco_reset = cik_asic_supports_baco(adev);
 		break;
 	default:
 		baco_reset = false;
@@ -1366,8 +1368,10 @@ static int cik_asic_reset(struct amdgpu_device *adev)
 	int r;
 
 	if (cik_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) {
+		dev_info(adev->dev, "BACO reset\n");
 		r = amdgpu_dpm_baco_reset(adev);
 	} else {
+		dev_info(adev->dev, "PCI CONFIG reset\n");
 		r = cik_asic_pci_config_reset(adev);
 	}
 
@@ -1919,6 +1923,10 @@ static uint64_t cik_get_pcie_replay_count(struct amdgpu_device *adev)
 	return (nak_r + nak_g);
 }
 
+static void cik_pre_asic_init(struct amdgpu_device *adev)
+{
+}
+
 static const struct amdgpu_asic_funcs cik_asic_funcs =
 {
 	.read_disabled_bios = &cik_read_disabled_bios,
@@ -1939,6 +1947,7 @@ static const struct amdgpu_asic_funcs cik_asic_funcs =
 	.need_reset_on_init = &cik_need_reset_on_init,
 	.get_pcie_replay_count = &cik_get_pcie_replay_count,
 	.supports_baco = &cik_asic_supports_baco,
+	.pre_asic_init = &cik_pre_asic_init,
 };
 
 static int cik_common_early_init(void *handle)

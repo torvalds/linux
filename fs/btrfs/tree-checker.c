@@ -760,16 +760,34 @@ int btrfs_check_chunk_valid(struct extent_buffer *leaf,
 	u64 type;
 	u64 features;
 	bool mixed = false;
+	int raid_index;
+	int nparity;
+	int ncopies;
 
 	length = btrfs_chunk_length(leaf, chunk);
 	stripe_len = btrfs_chunk_stripe_len(leaf, chunk);
 	num_stripes = btrfs_chunk_num_stripes(leaf, chunk);
 	sub_stripes = btrfs_chunk_sub_stripes(leaf, chunk);
 	type = btrfs_chunk_type(leaf, chunk);
+	raid_index = btrfs_bg_flags_to_raid_index(type);
+	ncopies = btrfs_raid_array[raid_index].ncopies;
+	nparity = btrfs_raid_array[raid_index].nparity;
 
 	if (!num_stripes) {
 		chunk_err(leaf, chunk, logical,
 			  "invalid chunk num_stripes, have %u", num_stripes);
+		return -EUCLEAN;
+	}
+	if (num_stripes < ncopies) {
+		chunk_err(leaf, chunk, logical,
+			  "invalid chunk num_stripes < ncopies, have %u < %d",
+			  num_stripes, ncopies);
+		return -EUCLEAN;
+	}
+	if (nparity && num_stripes == nparity) {
+		chunk_err(leaf, chunk, logical,
+			  "invalid chunk num_stripes == nparity, have %u == %d",
+			  num_stripes, nparity);
 		return -EUCLEAN;
 	}
 	if (!IS_ALIGNED(logical, fs_info->sectorsize)) {
@@ -1035,7 +1053,7 @@ static int check_root_item(struct extent_buffer *leaf, struct btrfs_key *key,
 			   int slot)
 {
 	struct btrfs_fs_info *fs_info = leaf->fs_info;
-	struct btrfs_root_item ri;
+	struct btrfs_root_item ri = { 0 };
 	const u64 valid_root_flags = BTRFS_ROOT_SUBVOL_RDONLY |
 				     BTRFS_ROOT_SUBVOL_DEAD;
 	int ret;
@@ -1044,14 +1062,21 @@ static int check_root_item(struct extent_buffer *leaf, struct btrfs_key *key,
 	if (ret < 0)
 		return ret;
 
-	if (btrfs_item_size_nr(leaf, slot) != sizeof(ri)) {
+	if (btrfs_item_size_nr(leaf, slot) != sizeof(ri) &&
+	    btrfs_item_size_nr(leaf, slot) != btrfs_legacy_root_item_size()) {
 		generic_err(leaf, slot,
-			    "invalid root item size, have %u expect %zu",
-			    btrfs_item_size_nr(leaf, slot), sizeof(ri));
+			    "invalid root item size, have %u expect %zu or %u",
+			    btrfs_item_size_nr(leaf, slot), sizeof(ri),
+			    btrfs_legacy_root_item_size());
 	}
 
+	/*
+	 * For legacy root item, the members starting at generation_v2 will be
+	 * all filled with 0.
+	 * And since we allow geneartion_v2 as 0, it will still pass the check.
+	 */
 	read_extent_buffer(leaf, &ri, btrfs_item_ptr_offset(leaf, slot),
-			   sizeof(ri));
+			   btrfs_item_size_nr(leaf, slot));
 
 	/* Generation related */
 	if (btrfs_root_generation(&ri) >

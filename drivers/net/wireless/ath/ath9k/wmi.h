@@ -185,11 +185,11 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 		  u8 *cmd_buf, u32 cmd_len,
 		  u8 *rsp_buf, u32 rsp_len,
 		  u32 timeout);
-void ath9k_wmi_event_tasklet(unsigned long data);
+void ath9k_wmi_event_tasklet(struct tasklet_struct *t);
 void ath9k_fatal_work(struct work_struct *work);
 void ath9k_wmi_event_drain(struct ath9k_htc_priv *priv);
 void ath9k_stop_wmi(struct ath9k_htc_priv *priv);
-void ath9k_destoy_wmi(struct ath9k_htc_priv *priv);
+void ath9k_destroy_wmi(struct ath9k_htc_priv *priv);
 
 #define WMI_CMD(_wmi_cmd)						\
 	do {								\

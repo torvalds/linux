@@ -245,7 +245,7 @@ int can_rx_offload_queue_sorted(struct can_rx_offload *offload,
 
 	if (skb_queue_len(&offload->skb_queue) >
 	    offload->skb_queue_len_max) {
-		kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return -ENOBUFS;
 	}
 
@@ -290,7 +290,7 @@ int can_rx_offload_queue_tail(struct can_rx_offload *offload,
 {
 	if (skb_queue_len(&offload->skb_queue) >
 	    offload->skb_queue_len_max) {
-		kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return -ENOBUFS;
 	}
 
@@ -350,6 +350,17 @@ int can_rx_offload_add_fifo(struct net_device *dev,
 	return can_rx_offload_init_queue(dev, offload, weight);
 }
 EXPORT_SYMBOL_GPL(can_rx_offload_add_fifo);
+
+int can_rx_offload_add_manual(struct net_device *dev,
+			      struct can_rx_offload *offload,
+			      unsigned int weight)
+{
+	if (offload->mailbox_read)
+		return -EINVAL;
+
+	return can_rx_offload_init_queue(dev, offload, weight);
+}
+EXPORT_SYMBOL_GPL(can_rx_offload_add_manual);
 
 void can_rx_offload_enable(struct can_rx_offload *offload)
 {

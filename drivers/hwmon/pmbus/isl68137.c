@@ -72,6 +72,8 @@ enum variants {
 	raa_dmpvr2_hv,
 };
 
+static const struct i2c_device_id raa_dmpvr_id[];
+
 static ssize_t isl68137_avs_enable_show_page(struct i2c_client *client,
 					     int page,
 					     char *buf)
@@ -218,8 +220,7 @@ static struct pmbus_driver_info raa_dmpvr_info = {
 	    | PMBUS_HAVE_STATUS_IOUT | PMBUS_HAVE_POUT,
 };
 
-static int isl68137_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int isl68137_probe(struct i2c_client *client)
 {
 	struct pmbus_driver_info *info;
 
@@ -228,7 +229,7 @@ static int isl68137_probe(struct i2c_client *client,
 		return -ENOMEM;
 	memcpy(info, &raa_dmpvr_info, sizeof(*info));
 
-	switch (id->driver_data) {
+	switch (i2c_match_id(raa_dmpvr_id, client)->driver_data) {
 	case raa_dmpvr1_2rail:
 		info->pages = 2;
 		info->R[PSC_VOLTAGE_IN] = 3;
@@ -267,7 +268,7 @@ static int isl68137_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	return pmbus_do_probe(client, id, info);
+	return pmbus_do_probe(client, info);
 }
 
 static const struct i2c_device_id raa_dmpvr_id[] = {
@@ -322,7 +323,7 @@ static struct i2c_driver isl68137_driver = {
 	.driver = {
 		   .name = "isl68137",
 		   },
-	.probe = isl68137_probe,
+	.probe_new = isl68137_probe,
 	.remove = pmbus_do_remove,
 	.id_table = raa_dmpvr_id,
 };

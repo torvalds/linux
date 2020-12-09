@@ -815,17 +815,12 @@ static const struct cphy_ops ael2020_ops = {
 int t3_ael2020_phy_prep(struct cphy *phy, struct adapter *adapter, int phy_addr,
 			const struct mdio_ops *mdio_ops)
 {
-	int err;
-
 	cphy_init(phy, adapter, phy_addr, &ael2020_ops, mdio_ops,
 		  SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_FIBRE |
 		  SUPPORTED_IRQ, "10GBASE-R");
 	msleep(125);
 
-	err = set_phy_regs(phy, ael2020_reset_regs);
-	if (err)
-		return err;
-	return 0;
+	return set_phy_regs(phy, ael2020_reset_regs);
 }
 
 /*

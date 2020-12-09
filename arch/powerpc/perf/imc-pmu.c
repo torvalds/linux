@@ -1426,8 +1426,6 @@ static void trace_imc_event_del(struct perf_event *event, int flags)
 
 static int trace_imc_event_init(struct perf_event *event)
 {
-	struct task_struct *target;
-
 	if (event->attr.type != event->pmu->type)
 		return -ENOENT;
 
@@ -1458,7 +1456,6 @@ static int trace_imc_event_init(struct perf_event *event)
 	mutex_unlock(&imc_global_refc.lock);
 
 	event->hw.idx = -1;
-	target = event->hw.target;
 
 	event->pmu->task_ctx_nr = perf_hw_context;
 	event->destroy = reset_global_refc;

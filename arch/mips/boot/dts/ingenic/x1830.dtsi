@@ -8,6 +8,20 @@
 	#size-cells = <1>;
 	compatible = "ingenic,x1830";
 
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "ingenic,xburst-fpu2.0-mxu2.0";
+			reg = <0>;
+
+			clocks = <&cgu X1830_CLK_CPU>;
+			clock-names = "cpu";
+		};
+	};
+
 	cpuintc: interrupt-controller {
 		#address-cells = <0>;
 		#interrupt-cells = <1>;

@@ -31,7 +31,7 @@
 #define CGA_PLL4	4	/* only on clockgen-1.0, which lacks CGB */
 #define CGB_PLL1	4
 #define CGB_PLL2	5
-#define MAX_PLL_DIV	16
+#define MAX_PLL_DIV	32
 
 struct clockgen_pll_div {
 	struct clk *clk;

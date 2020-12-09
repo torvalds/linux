@@ -24,6 +24,8 @@ required:
   - compatible
   - reg
 
+unevaluatedProperties: false
+
 examples:
   - |
     spi: spi@1f000000 {

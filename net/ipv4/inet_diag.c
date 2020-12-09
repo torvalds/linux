@@ -125,6 +125,7 @@ int inet_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
 			     bool net_admin)
 {
 	const struct inet_sock *inet = inet_sk(sk);
+	struct inet_diag_sockopt inet_sockopt;
 
 	if (nla_put_u8(skb, INET_DIAG_SHUTDOWN, sk->sk_shutdown))
 		goto errout;
@@ -180,14 +181,30 @@ int inet_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
 	r->idiag_uid = from_kuid_munged(user_ns, sock_i_uid(sk));
 	r->idiag_inode = sock_i_ino(sk);
 
+	memset(&inet_sockopt, 0, sizeof(inet_sockopt));
+	inet_sockopt.recverr	= inet->recverr;
+	inet_sockopt.is_icsk	= inet->is_icsk;
+	inet_sockopt.freebind	= inet->freebind;
+	inet_sockopt.hdrincl	= inet->hdrincl;
+	inet_sockopt.mc_loop	= inet->mc_loop;
+	inet_sockopt.transparent = inet->transparent;
+	inet_sockopt.mc_all	= inet->mc_all;
+	inet_sockopt.nodefrag	= inet->nodefrag;
+	inet_sockopt.bind_address_no_port = inet->bind_address_no_port;
+	inet_sockopt.recverr_rfc4884 = inet->recverr_rfc4884;
+	inet_sockopt.defer_connect = inet->defer_connect;
+	if (nla_put(skb, INET_DIAG_SOCKOPT, sizeof(inet_sockopt),
+		    &inet_sockopt))
+		goto errout;
+
 	return 0;
 errout:
 	return 1;
 }
 EXPORT_SYMBOL_GPL(inet_diag_msg_attrs_fill);
 
-static void inet_diag_parse_attrs(const struct nlmsghdr *nlh, int hdrlen,
-				  struct nlattr **req_nlas)
+static int inet_diag_parse_attrs(const struct nlmsghdr *nlh, int hdrlen,
+				 struct nlattr **req_nlas)
 {
 	struct nlattr *nla;
 	int remaining;
@@ -195,9 +212,13 @@ static void inet_diag_parse_attrs(const struct nlmsghdr *nlh, int hdrlen,
 	nlmsg_for_each_attr(nla, nlh, hdrlen, remaining) {
 		int type = nla_type(nla);
 
+		if (type == INET_DIAG_REQ_PROTOCOL && nla_len(nla) != sizeof(u32))
+			return -EINVAL;
+
 		if (type < __INET_DIAG_REQ_MAX)
 			req_nlas[type] = nla;
 	}
+	return 0;
 }
 
 static int inet_diag_get_protocol(const struct inet_diag_req_v2 *req,
@@ -574,7 +595,10 @@ static int inet_diag_cmd_exact(int cmd, struct sk_buff *in_skb,
 	int err, protocol;
 
 	memset(&dump_data, 0, sizeof(dump_data));
-	inet_diag_parse_attrs(nlh, hdrlen, dump_data.req_nlas);
+	err = inet_diag_parse_attrs(nlh, hdrlen, dump_data.req_nlas);
+	if (err)
+		return err;
+
 	protocol = inet_diag_get_protocol(req, &dump_data);
 
 	handler = inet_diag_lock_handler(protocol);
@@ -1180,8 +1204,11 @@ static int __inet_diag_dump_start(struct netlink_callback *cb, int hdrlen)
 	if (!cb_data)
 		return -ENOMEM;
 
-	inet_diag_parse_attrs(nlh, hdrlen, cb_data->req_nlas);
-
+	err = inet_diag_parse_attrs(nlh, hdrlen, cb_data->req_nlas);
+	if (err) {
+		kfree(cb_data);
+		return err;
+	}
 	nla = cb_data->inet_diag_nla_bc;
 	if (nla) {
 		err = inet_diag_bc_audit(nla, skb);

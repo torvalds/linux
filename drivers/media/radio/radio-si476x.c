@@ -1345,60 +1345,24 @@ static const struct file_operations radio_rsq_primary_fops = {
 };
 
 
-static int si476x_radio_init_debugfs(struct si476x_radio *radio)
+static void si476x_radio_init_debugfs(struct si476x_radio *radio)
 {
-	struct dentry	*dentry;
-	int		ret;
+	radio->debugfs = debugfs_create_dir(dev_name(radio->v4l2dev.dev), NULL);
 
-	dentry = debugfs_create_dir(dev_name(radio->v4l2dev.dev), NULL);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
-		goto exit;
-	}
-	radio->debugfs = dentry;
+	debugfs_create_file("acf", S_IRUGO, radio->debugfs, radio,
+			    &radio_acf_fops);
 
-	dentry = debugfs_create_file("acf", S_IRUGO,
-				     radio->debugfs, radio, &radio_acf_fops);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
-		goto cleanup;
-	}
+	debugfs_create_file("rds_blckcnt", S_IRUGO, radio->debugfs, radio,
+			    &radio_rds_blckcnt_fops);
 
-	dentry = debugfs_create_file("rds_blckcnt", S_IRUGO,
-				     radio->debugfs, radio,
-				     &radio_rds_blckcnt_fops);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
-		goto cleanup;
-	}
+	debugfs_create_file("agc", S_IRUGO, radio->debugfs, radio,
+			    &radio_agc_fops);
 
-	dentry = debugfs_create_file("agc", S_IRUGO,
-				     radio->debugfs, radio, &radio_agc_fops);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
-		goto cleanup;
-	}
+	debugfs_create_file("rsq", S_IRUGO, radio->debugfs, radio,
+			    &radio_rsq_fops);
 
-	dentry = debugfs_create_file("rsq", S_IRUGO,
-				     radio->debugfs, radio, &radio_rsq_fops);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
-		goto cleanup;
-	}
-
-	dentry = debugfs_create_file("rsq_primary", S_IRUGO,
-				     radio->debugfs, radio,
-				     &radio_rsq_primary_fops);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
-		goto cleanup;
-	}
-
-	return 0;
-cleanup:
-	debugfs_remove_recursive(radio->debugfs);
-exit:
-	return ret;
+	debugfs_create_file("rsq_primary", S_IRUGO, radio->debugfs, radio,
+			    &radio_rsq_primary_fops);
 }
 
 
@@ -1535,11 +1499,7 @@ static int si476x_radio_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
-	rval = si476x_radio_init_debugfs(radio);
-	if (rval < 0) {
-		dev_err(&pdev->dev, "Could not create debugfs interface\n");
-		goto exit;
-	}
+	si476x_radio_init_debugfs(radio);
 
 	return 0;
 exit:

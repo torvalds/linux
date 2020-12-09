@@ -307,6 +307,15 @@ static int kdb_bp(int argc, const char **argv)
 		return KDB_BADINT;
 
 	/*
+	 * This check is redundant (since the breakpoint machinery should
+	 * be doing the same check during kdb_bp_install) but gives the
+	 * user immediate feedback.
+	 */
+	diag = kgdb_validate_break_address(template.bp_addr);
+	if (diag)
+		return diag;
+
+	/*
 	 * Find an empty bp structure to allocate
 	 */
 	for (bpno = 0, bp = kdb_breakpoints; bpno < KDB_MAXBPT; bpno++, bp++) {

@@ -747,7 +747,7 @@ void rc_repeat(struct rc_dev *dev)
 	};
 
 	if (dev->allowed_protocols != RC_PROTO_BIT_CEC)
-		ir_lirc_scancode_event(dev, &sc);
+		lirc_scancode_event(dev, &sc);
 
 	spin_lock_irqsave(&dev->keylock, flags);
 
@@ -791,7 +791,7 @@ static void ir_do_keydown(struct rc_dev *dev, enum rc_proto protocol,
 	};
 
 	if (dev->allowed_protocols != RC_PROTO_BIT_CEC)
-		ir_lirc_scancode_event(dev, &sc);
+		lirc_scancode_event(dev, &sc);
 
 	if (new_event && dev->keypressed)
 		ir_do_keyup(dev, false);
@@ -1946,7 +1946,7 @@ int rc_register_device(struct rc_dev *dev)
 	 * keycodes with rc_keydown, so lirc must be registered first.
 	 */
 	if (dev->allowed_protocols != RC_PROTO_BIT_CEC) {
-		rc = ir_lirc_register(dev);
+		rc = lirc_register(dev);
 		if (rc < 0)
 			goto out_dev;
 	}
@@ -1972,7 +1972,7 @@ out_rx:
 	rc_free_rx_device(dev);
 out_lirc:
 	if (dev->allowed_protocols != RC_PROTO_BIT_CEC)
-		ir_lirc_unregister(dev);
+		lirc_unregister(dev);
 out_dev:
 	device_del(&dev->dev);
 out_rx_free:
@@ -2036,7 +2036,7 @@ void rc_unregister_device(struct rc_dev *dev)
 	 * that userspace polling will get notified.
 	 */
 	if (dev->allowed_protocols != RC_PROTO_BIT_CEC)
-		ir_lirc_unregister(dev);
+		lirc_unregister(dev);
 
 	device_del(&dev->dev);
 

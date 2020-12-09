@@ -72,6 +72,10 @@ static void set_fipers(struct ptp_qoriq *ptp_qoriq)
 	set_alarm(ptp_qoriq);
 	ptp_qoriq->write(&regs->fiper_regs->tmr_fiper1, ptp_qoriq->tmr_fiper1);
 	ptp_qoriq->write(&regs->fiper_regs->tmr_fiper2, ptp_qoriq->tmr_fiper2);
+
+	if (ptp_qoriq->fiper3_support)
+		ptp_qoriq->write(&regs->fiper_regs->tmr_fiper3,
+				 ptp_qoriq->tmr_fiper3);
 }
 
 int extts_clean_up(struct ptp_qoriq *ptp_qoriq, int index, bool update_event)
@@ -366,6 +370,7 @@ static u32 ptp_qoriq_nominal_freq(u32 clk_src)
  *   "fsl,tmr-add"
  *   "fsl,tmr-fiper1"
  *   "fsl,tmr-fiper2"
+ *   "fsl,tmr-fiper3" (required only for DPAA2 and ENETC hardware)
  *   "fsl,max-adj"
  *
  * Return 0 if success
@@ -412,6 +417,7 @@ static int ptp_qoriq_auto_config(struct ptp_qoriq *ptp_qoriq,
 	ptp_qoriq->tmr_add = freq_comp;
 	ptp_qoriq->tmr_fiper1 = DEFAULT_FIPER1_PERIOD - ptp_qoriq->tclk_period;
 	ptp_qoriq->tmr_fiper2 = DEFAULT_FIPER2_PERIOD - ptp_qoriq->tclk_period;
+	ptp_qoriq->tmr_fiper3 = DEFAULT_FIPER3_PERIOD - ptp_qoriq->tclk_period;
 
 	/* max_adj = 1000000000 * (freq_ratio - 1.0) - 1
 	 * freq_ratio = reference_clock_freq / nominal_freq
@@ -446,6 +452,10 @@ int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 	else
 		ptp_qoriq->extts_fifo_support = false;
 
+	if (of_device_is_compatible(node, "fsl,dpaa2-ptp") ||
+	    of_device_is_compatible(node, "fsl,enetc-ptp"))
+		ptp_qoriq->fiper3_support = true;
+
 	if (of_property_read_u32(node,
 				 "fsl,tclk-period", &ptp_qoriq->tclk_period) ||
 	    of_property_read_u32(node,
@@ -457,7 +467,10 @@ int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 	    of_property_read_u32(node,
 				 "fsl,tmr-fiper2", &ptp_qoriq->tmr_fiper2) ||
 	    of_property_read_u32(node,
-				 "fsl,max-adj", &ptp_qoriq->caps.max_adj)) {
+				 "fsl,max-adj", &ptp_qoriq->caps.max_adj) ||
+	    (ptp_qoriq->fiper3_support &&
+	     of_property_read_u32(node, "fsl,tmr-fiper3",
+				  &ptp_qoriq->tmr_fiper3))) {
 		pr_warn("device tree node missing required elements, try automatic configuration\n");
 
 		if (ptp_qoriq_auto_config(ptp_qoriq, node))
@@ -502,6 +515,11 @@ int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 	ptp_qoriq->write(&regs->ctrl_regs->tmr_prsc, ptp_qoriq->tmr_prsc);
 	ptp_qoriq->write(&regs->fiper_regs->tmr_fiper1, ptp_qoriq->tmr_fiper1);
 	ptp_qoriq->write(&regs->fiper_regs->tmr_fiper2, ptp_qoriq->tmr_fiper2);
+
+	if (ptp_qoriq->fiper3_support)
+		ptp_qoriq->write(&regs->fiper_regs->tmr_fiper3,
+				 ptp_qoriq->tmr_fiper3);
+
 	set_alarm(ptp_qoriq);
 	ptp_qoriq->write(&regs->ctrl_regs->tmr_ctrl,
 			 tmr_ctrl|FIPERST|RTPE|TE|FRD);

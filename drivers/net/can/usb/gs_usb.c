@@ -828,7 +828,7 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 
 	netdev->flags |= IFF_ECHO; /* we support full roundtrip echo */
 
-	/* dev settup */
+	/* dev setup */
 	strcpy(dev->bt_const.name, "gs_usb");
 	dev->bt_const.tseg1_min = bt_const->tseg1_min;
 	dev->bt_const.tseg1_max = bt_const->tseg1_max;
@@ -852,7 +852,7 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 		dev->tx_context[rc].echo_id = GS_MAX_TX_URBS;
 	}
 
-	/* can settup */
+	/* can setup */
 	dev->can.state = CAN_STATE_STOPPED;
 	dev->can.clock.freq = bt_const->fclk_can;
 	dev->can.bittiming_const = &dev->bt_const;

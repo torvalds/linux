@@ -1696,16 +1696,24 @@ static int stm32_fmc2_nfc_attach_chip(struct nand_chip *chip)
 	int ret;
 
 	/*
-	 * Only NAND_ECC_HW mode is actually supported
+	 * Only NAND_ECC_ENGINE_TYPE_ON_HOST mode is actually supported
 	 * Hamming => ecc.strength = 1
 	 * BCH4 => ecc.strength = 4
 	 * BCH8 => ecc.strength = 8
 	 * ECC sector size = 512
 	 */
-	if (chip->ecc.mode != NAND_ECC_HW) {
-		dev_err(nfc->dev, "nand_ecc_mode is not well defined in the DT\n");
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST) {
+		dev_err(nfc->dev,
+			"nand_ecc_engine_type is not well defined in the DT\n");
 		return -EINVAL;
 	}
+
+	/* Default ECC settings in case they are not set in the device tree */
+	if (!chip->ecc.size)
+		chip->ecc.size = FMC2_ECC_STEP_SIZE;
+
+	if (!chip->ecc.strength)
+		chip->ecc.strength = FMC2_ECC_BCH8;
 
 	ret = nand_ecc_choose_conf(chip, &stm32_fmc2_nfc_ecc_caps,
 				   mtd->oobsize - FMC2_BBM_LEN);
@@ -1726,8 +1734,7 @@ static int stm32_fmc2_nfc_attach_chip(struct nand_chip *chip)
 
 	mtd_set_ooblayout(mtd, &stm32_fmc2_nfc_ooblayout_ops);
 
-	if (chip->options & NAND_BUSWIDTH_16)
-		stm32_fmc2_nfc_set_buswidth_16(nfc, true);
+	stm32_fmc2_nfc_setup(chip);
 
 	return 0;
 }
@@ -1762,7 +1769,7 @@ static int stm32_fmc2_nfc_parse_child(struct stm32_fmc2_nfc *nfc,
 			return ret;
 		}
 
-		if (cs > FMC2_MAX_CE) {
+		if (cs >= FMC2_MAX_CE) {
 			dev_err(nfc->dev, "invalid reg value: %d\n", cs);
 			return -EINVAL;
 		}
@@ -1950,11 +1957,6 @@ static int stm32_fmc2_nfc_probe(struct platform_device *pdev)
 	chip->controller = &nfc->base;
 	chip->options |= NAND_BUSWIDTH_AUTO | NAND_NO_SUBPAGE_WRITE |
 			 NAND_USES_DMA;
-
-	/* Default ECC settings */
-	chip->ecc.mode = NAND_ECC_HW;
-	chip->ecc.size = FMC2_ECC_STEP_SIZE;
-	chip->ecc.strength = FMC2_ECC_BCH8;
 
 	/* Scan to find existence of the device */
 	ret = nand_scan(chip, nand->ncs);

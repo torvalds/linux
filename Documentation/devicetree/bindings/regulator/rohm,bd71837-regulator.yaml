@@ -93,6 +93,17 @@ patternProperties:
         # ----------------------------------------------------------------
         # rest | not supported   | not supported    | not supported
 
+      # BD71837 power outputs can either be controlled by the PMIC internal
+      # hardware state machine or by software. If you need regulators to be
+      # turned ON/OFF for example based on PMIC_STBY_REQ line (which toggles
+      # PMIC HW state machine) - then you should set this property.
+      # Tradeoff is that then SW can't control the ON/OFF state for this
+      # regulator (other than invoking a PMIC state change).
+      rohm,no-regulator-enable-control:
+        description: |
+          Enable/Disable control of this regulator must be left to the
+          PMIC hardware state machine.
+        type: boolean
 
     required:
       - regulator-name

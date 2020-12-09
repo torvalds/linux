@@ -2,7 +2,7 @@
 /*
  * Hardware modules present on the DRA7xx chips
  *
- * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com
  *
  * Paul Walmsley
  * Benoit Cousson
@@ -419,41 +419,6 @@ static struct omap_hwmod dra7xx_qspi_hwmod = {
 };
 
 /*
- * 'rtcss' class
- *
- */
-static struct omap_hwmod_class_sysconfig dra7xx_rtcss_sysc = {
-	.rev_offs	= 0x0074,
-	.sysc_offs	= 0x0078,
-	.sysc_flags	= SYSC_HAS_SIDLEMODE,
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type3,
-};
-
-static struct omap_hwmod_class dra7xx_rtcss_hwmod_class = {
-	.name	= "rtcss",
-	.sysc	= &dra7xx_rtcss_sysc,
-	.unlock	= &omap_hwmod_rtc_unlock,
-	.lock	= &omap_hwmod_rtc_lock,
-};
-
-/* rtcss */
-static struct omap_hwmod dra7xx_rtcss_hwmod = {
-	.name		= "rtcss",
-	.class		= &dra7xx_rtcss_hwmod_class,
-	.clkdm_name	= "rtc_clkdm",
-	.main_clk	= "sys_32k_ck",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_RTC_RTCSS_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_RTC_RTCSS_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/*
  * 'sata' class
  *
  */
@@ -702,14 +667,6 @@ static struct omap_hwmod_ocp_if dra7xx_l3_main_1__qspi = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_per3 -> rtcss */
-static struct omap_hwmod_ocp_if dra7xx_l4_per3__rtcss = {
-	.master		= &dra7xx_l4_per3_hwmod,
-	.slave		= &dra7xx_rtcss_hwmod,
-	.clk		= "l4_root_clk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l4_cfg -> sata */
 static struct omap_hwmod_ocp_if dra7xx_l4_cfg__sata = {
 	.master		= &dra7xx_l4_cfg_hwmod,
@@ -786,7 +743,6 @@ static struct omap_hwmod_ocp_if *dra72x_hwmod_ocp_ifs[] __initdata = {
 };
 
 static struct omap_hwmod_ocp_if *rtc_hwmod_ocp_ifs[] __initdata = {
-	&dra7xx_l4_per3__rtcss,
 	NULL,
 };
 

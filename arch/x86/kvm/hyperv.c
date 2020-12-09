@@ -633,6 +633,11 @@ static int stimer_set_config(struct kvm_vcpu_hv_stimer *stimer, u64 config,
 {
 	union hv_stimer_config new_config = {.as_uint64 = config},
 		old_config = {.as_uint64 = stimer->config.as_uint64};
+	struct kvm_vcpu *vcpu = stimer_to_vcpu(stimer);
+	struct kvm_vcpu_hv_synic *synic = vcpu_to_synic(vcpu);
+
+	if (!synic->active && !host)
+		return 1;
 
 	trace_kvm_hv_stimer_set_config(stimer_to_vcpu(stimer)->vcpu_id,
 				       stimer->index, config, host);
@@ -652,6 +657,12 @@ static int stimer_set_config(struct kvm_vcpu_hv_stimer *stimer, u64 config,
 static int stimer_set_count(struct kvm_vcpu_hv_stimer *stimer, u64 count,
 			    bool host)
 {
+	struct kvm_vcpu *vcpu = stimer_to_vcpu(stimer);
+	struct kvm_vcpu_hv_synic *synic = vcpu_to_synic(vcpu);
+
+	if (!synic->active && !host)
+		return 1;
+
 	trace_kvm_hv_stimer_set_count(stimer_to_vcpu(stimer)->vcpu_id,
 				      stimer->index, count, host);
 
@@ -2000,20 +2011,20 @@ int kvm_vcpu_ioctl_get_hv_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid,
 			break;
 
 		case HYPERV_CPUID_FEATURES:
-			ent->eax |= HV_X64_MSR_VP_RUNTIME_AVAILABLE;
+			ent->eax |= HV_MSR_VP_RUNTIME_AVAILABLE;
 			ent->eax |= HV_MSR_TIME_REF_COUNT_AVAILABLE;
-			ent->eax |= HV_X64_MSR_SYNIC_AVAILABLE;
+			ent->eax |= HV_MSR_SYNIC_AVAILABLE;
 			ent->eax |= HV_MSR_SYNTIMER_AVAILABLE;
-			ent->eax |= HV_X64_MSR_APIC_ACCESS_AVAILABLE;
-			ent->eax |= HV_X64_MSR_HYPERCALL_AVAILABLE;
-			ent->eax |= HV_X64_MSR_VP_INDEX_AVAILABLE;
-			ent->eax |= HV_X64_MSR_RESET_AVAILABLE;
+			ent->eax |= HV_MSR_APIC_ACCESS_AVAILABLE;
+			ent->eax |= HV_MSR_HYPERCALL_AVAILABLE;
+			ent->eax |= HV_MSR_VP_INDEX_AVAILABLE;
+			ent->eax |= HV_MSR_RESET_AVAILABLE;
 			ent->eax |= HV_MSR_REFERENCE_TSC_AVAILABLE;
-			ent->eax |= HV_X64_ACCESS_FREQUENCY_MSRS;
-			ent->eax |= HV_X64_ACCESS_REENLIGHTENMENT;
+			ent->eax |= HV_ACCESS_FREQUENCY_MSRS;
+			ent->eax |= HV_ACCESS_REENLIGHTENMENT;
 
-			ent->ebx |= HV_X64_POST_MESSAGES;
-			ent->ebx |= HV_X64_SIGNAL_EVENTS;
+			ent->ebx |= HV_POST_MESSAGES;
+			ent->ebx |= HV_SIGNAL_EVENTS;
 
 			ent->edx |= HV_FEATURE_FREQUENCY_MSRS_AVAILABLE;
 			ent->edx |= HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE;

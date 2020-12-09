@@ -1278,12 +1278,6 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	}
 	data->channels = prop;
 
-	if (of_property_read_u32(node, "ale_entries", &prop)) {
-		dev_err(&pdev->dev, "Missing ale_entries property in the DT.\n");
-		return -EINVAL;
-	}
-	data->ale_entries = prop;
-
 	if (of_property_read_u32(node, "bd_ram_size", &prop)) {
 		dev_err(&pdev->dev, "Missing bd_ram_size property in the DT.\n");
 		return -EINVAL;
@@ -1297,7 +1291,7 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	data->mac_control = prop;
 
 	if (of_property_read_bool(node, "dual_emac"))
-		data->dual_emac = 1;
+		data->dual_emac = true;
 
 	/*
 	 * Populate all the child nodes here...
@@ -1596,7 +1590,7 @@ static int cpsw_probe(struct platform_device *pdev)
 
 	soc = soc_device_match(cpsw_soc_devices);
 	if (soc)
-		cpsw->quirk_irq = 1;
+		cpsw->quirk_irq = true;
 
 	data = &cpsw->data;
 	cpsw->slaves = devm_kcalloc(dev,

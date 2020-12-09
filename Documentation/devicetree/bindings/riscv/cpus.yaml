@@ -91,6 +91,8 @@ required:
   - riscv,isa
   - interrupt-controller
 
+additionalProperties: true
+
 examples:
   - |
     // Example 1: SiFive Freedom U540G Development Kit

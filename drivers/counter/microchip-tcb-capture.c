@@ -253,7 +253,7 @@ static struct counter_count mchp_tc_counts[] = {
 	},
 };
 
-static struct counter_ops mchp_tc_ops = {
+static const struct counter_ops mchp_tc_ops = {
 	.signal_read  = mchp_tc_count_signal_read,
 	.count_read   = mchp_tc_count_read,
 	.function_get = mchp_tc_count_function_get,
@@ -320,8 +320,8 @@ static int mchp_tc_probe(struct platform_device *pdev)
 	}
 
 	regmap = syscon_node_to_regmap(np->parent);
-	if (IS_ERR(priv->regmap))
-		return PTR_ERR(priv->regmap);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
 
 	/* max. channels number is 2 when in QDEC mode */
 	priv->num_channels = of_property_count_u32_elems(np, "reg");

@@ -60,13 +60,15 @@ static long syscall_trace_enter(struct pt_regs *regs, long syscall,
 			return ret;
 	}
 
+	/* Either of the above might have changed the syscall number */
+	syscall = syscall_get_nr(current, regs);
+
 	if (unlikely(ti_work & _TIF_SYSCALL_TRACEPOINT))
 		trace_sys_enter(regs, syscall);
 
 	syscall_enter_audit(regs, syscall);
 
-	/* The above might have changed the syscall number */
-	return ret ? : syscall_get_nr(current, regs);
+	return ret ? : syscall;
 }
 
 static __always_inline long
@@ -159,7 +161,6 @@ static unsigned long exit_to_user_mode_loop(struct pt_regs *regs,
 			arch_do_signal(regs);
 
 		if (ti_work & _TIF_NOTIFY_RESUME) {
-			clear_thread_flag(TIF_NOTIFY_RESUME);
 			tracehook_notify_resume(regs);
 			rseq_handle_notify_resume(NULL, regs);
 		}
@@ -206,7 +207,7 @@ static inline bool report_single_step(unsigned long ti_work)
 /*
  * If TIF_SYSCALL_EMU is set, then the only reason to report is when
  * TIF_SINGLESTEP is set (i.e. PTRACE_SYSEMU_SINGLESTEP).  This syscall
- * instruction has been already reported in syscall_enter_from_usermode().
+ * instruction has been already reported in syscall_enter_from_user_mode().
  */
 #define SYSEMU_STEP	(_TIF_SINGLESTEP | _TIF_SYSCALL_EMU)
 
@@ -302,7 +303,7 @@ noinstr irqentry_state_t irqentry_enter(struct pt_regs *regs)
 	 * terminate a grace period, if and only if the timer interrupt is
 	 * not nested into another interrupt.
 	 *
-	 * Checking for __rcu_is_watching() here would prevent the nesting
+	 * Checking for rcu_is_watching() here would prevent the nesting
 	 * interrupt to invoke rcu_irq_enter(). If that nested interrupt is
 	 * the tick then rcu_flavor_sched_clock_irq() would wrongfully
 	 * assume that it is the first interupt and eventually claim
@@ -336,10 +337,10 @@ noinstr irqentry_state_t irqentry_enter(struct pt_regs *regs)
 	 * already contains a warning when RCU is not watching, so no point
 	 * in having another one here.
 	 */
+	lockdep_hardirqs_off(CALLER_ADDR0);
 	instrumentation_begin();
 	rcu_irq_enter_check_tick();
-	/* Use the combo lockdep/tracing function */
-	trace_hardirqs_off();
+	trace_hardirqs_off_finish();
 	instrumentation_end();
 
 	return ret;

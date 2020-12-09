@@ -946,18 +946,7 @@ static struct platform_driver sprd_pinctrl_driver = {
 	.remove = sprd_pinctrl_remove,
 	.shutdown = sprd_pinctrl_shutdown,
 };
-
-static int sprd_pinctrl_init(void)
-{
-	return platform_driver_register(&sprd_pinctrl_driver);
-}
-module_init(sprd_pinctrl_init);
-
-static void sprd_pinctrl_exit(void)
-{
-	platform_driver_unregister(&sprd_pinctrl_driver);
-}
-module_exit(sprd_pinctrl_exit);
+module_platform_driver(sprd_pinctrl_driver);
 
 MODULE_DESCRIPTION("SPREADTRUM Pin Controller Driver");
 MODULE_AUTHOR("Baolin Wang <baolin.wang@spreadtrum.com>");

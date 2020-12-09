@@ -69,17 +69,22 @@
 	interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
 };
 
-&mac {
-	slaves = <1>;
+&mac_sw {
 	mode-gpios = <&pcf_gpio_21 4 GPIO_ACTIVE_HIGH>;
+	status = "okay";
 };
 
-&cpsw_emac0 {
+&cpsw_port1 {
 	phy-handle = <&ethphy0>;
 	phy-mode = "rgmii";
+	ti,dual-emac-pvid = <1>;
 };
 
-&davinci_mdio {
+&cpsw_port2 {
+	status = "disabled";
+};
+
+&davinci_mdio_sw {
 	ethphy0: ethernet-phy@3 {
 		reg = <3>;
 	};

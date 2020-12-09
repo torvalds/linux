@@ -50,14 +50,13 @@ static void disk_release_events(struct gendisk *disk);
  * zero and will not be set to zero
  */
 void set_capacity_revalidate_and_notify(struct gendisk *disk, sector_t size,
-					bool revalidate)
+					bool update_bdev)
 {
 	sector_t capacity = get_capacity(disk);
 
 	set_capacity(disk, size);
-
-	if (revalidate)
-		revalidate_disk(disk);
+	if (update_bdev)
+		revalidate_disk_size(disk, true);
 
 	if (capacity != size && capacity != 0 && size != 0) {
 		char *envp[] = { "RESIZE=1", NULL };
@@ -86,7 +85,7 @@ char *disk_name(struct gendisk *hd, int partno, char *buf)
 
 const char *bdevname(struct block_device *bdev, char *buf)
 {
-	return disk_name(bdev->bd_disk, bdev->bd_part->partno, buf);
+	return disk_name(bdev->bd_disk, bdev->bd_partno, buf);
 }
 EXPORT_SYMBOL(bdevname);
 
@@ -110,8 +109,7 @@ static void part_stat_read_all(struct hd_struct *part, struct disk_stats *stat)
 	}
 }
 
-static unsigned int part_in_flight(struct request_queue *q,
-		struct hd_struct *part)
+static unsigned int part_in_flight(struct hd_struct *part)
 {
 	unsigned int inflight = 0;
 	int cpu;
@@ -126,8 +124,7 @@ static unsigned int part_in_flight(struct request_queue *q,
 	return inflight;
 }
 
-static void part_in_flight_rw(struct request_queue *q, struct hd_struct *part,
-		unsigned int inflight[2])
+static void part_in_flight_rw(struct hd_struct *part, unsigned int inflight[2])
 {
 	int cpu;
 
@@ -676,11 +673,23 @@ static int exact_lock(dev_t devt, void *data)
 	return 0;
 }
 
+static void disk_scan_partitions(struct gendisk *disk)
+{
+	struct block_device *bdev;
+
+	if (!get_capacity(disk) || !disk_part_scan_enabled(disk))
+		return;
+
+	set_bit(GD_NEED_PART_SCAN, &disk->state);
+	bdev = blkdev_get_by_dev(disk_devt(disk), FMODE_READ, NULL);
+	if (!IS_ERR(bdev))
+		blkdev_put(bdev, FMODE_READ);
+}
+
 static void register_disk(struct device *parent, struct gendisk *disk,
 			  const struct attribute_group **groups)
 {
 	struct device *ddev = disk_to_dev(disk);
-	struct block_device *bdev;
 	struct disk_part_iter piter;
 	struct hd_struct *part;
 	int err;
@@ -722,25 +731,8 @@ static void register_disk(struct device *parent, struct gendisk *disk,
 		return;
 	}
 
-	/* No minors to use for partitions */
-	if (!disk_part_scan_enabled(disk))
-		goto exit;
+	disk_scan_partitions(disk);
 
-	/* No such device (e.g., media were just removed) */
-	if (!get_capacity(disk))
-		goto exit;
-
-	bdev = bdget_disk(disk, 0);
-	if (!bdev)
-		goto exit;
-
-	bdev->bd_invalidated = 1;
-	err = blkdev_get(bdev, FMODE_READ, NULL);
-	if (err < 0)
-		goto exit;
-	blkdev_put(bdev, FMODE_READ);
-
-exit:
 	/* announce disk after possible partitions are created */
 	dev_set_uevent_suppress(ddev, 0);
 	kobject_uevent(&ddev->kobj, KOBJ_ADD);
@@ -913,7 +905,7 @@ void del_gendisk(struct gendisk *disk)
 			     DISK_PITER_INCL_EMPTY | DISK_PITER_REVERSE);
 	while ((part = disk_part_iter_next(&piter))) {
 		invalidate_partition(disk, part->partno);
-		delete_partition(disk, part);
+		delete_partition(part);
 	}
 	disk_part_iter_exit(&piter);
 
@@ -1056,7 +1048,7 @@ struct block_device *bdget_disk(struct gendisk *disk, int partno)
 
 	part = disk_get_part(disk, partno);
 	if (part)
-		bdev = bdget(part_devt(part));
+		bdev = bdget_part(part);
 	disk_put_part(part);
 
 	return bdev;
@@ -1301,7 +1293,7 @@ ssize_t part_stat_show(struct device *dev,
 	if (queue_is_mq(q))
 		inflight = blk_mq_in_flight(q, p);
 	else
-		inflight = part_in_flight(q, p);
+		inflight = part_in_flight(p);
 
 	return sprintf(buf,
 		"%8lu %8lu %8llu %8u "
@@ -1343,7 +1335,7 @@ ssize_t part_inflight_show(struct device *dev, struct device_attribute *attr,
 	if (queue_is_mq(q))
 		blk_mq_in_flight_rw(q, p, inflight);
 	else
-		part_in_flight_rw(q, p, inflight);
+		part_in_flight_rw(p, inflight);
 
 	return sprintf(buf, "%8u %8u\n", inflight[0], inflight[1]);
 }
@@ -1623,7 +1615,7 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 		if (queue_is_mq(gp->queue))
 			inflight = blk_mq_in_flight(gp->queue, hd);
 		else
-			inflight = part_in_flight(gp->queue, hd);
+			inflight = part_in_flight(hd);
 
 		seq_printf(seqf, "%4d %7d %s "
 			   "%lu %lu %lu %u "
@@ -1729,45 +1721,48 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 	}
 
 	disk = kzalloc_node(sizeof(struct gendisk), GFP_KERNEL, node_id);
-	if (disk) {
-		disk->part0.dkstats = alloc_percpu(struct disk_stats);
-		if (!disk->part0.dkstats) {
-			kfree(disk);
-			return NULL;
-		}
-		init_rwsem(&disk->lookup_sem);
-		disk->node_id = node_id;
-		if (disk_expand_part_tbl(disk, 0)) {
-			free_percpu(disk->part0.dkstats);
-			kfree(disk);
-			return NULL;
-		}
-		ptbl = rcu_dereference_protected(disk->part_tbl, 1);
-		rcu_assign_pointer(ptbl->part[0], &disk->part0);
+	if (!disk)
+		return NULL;
 
-		/*
-		 * set_capacity() and get_capacity() currently don't use
-		 * seqcounter to read/update the part0->nr_sects. Still init
-		 * the counter as we can read the sectors in IO submission
-		 * patch using seqence counters.
-		 *
-		 * TODO: Ideally set_capacity() and get_capacity() should be
-		 * converted to make use of bd_mutex and sequence counters.
-		 */
-		hd_sects_seq_init(&disk->part0);
-		if (hd_ref_init(&disk->part0)) {
-			hd_free_part(&disk->part0);
-			kfree(disk);
-			return NULL;
-		}
+	disk->part0.dkstats = alloc_percpu(struct disk_stats);
+	if (!disk->part0.dkstats)
+		goto out_free_disk;
 
-		disk->minors = minors;
-		rand_initialize_disk(disk);
-		disk_to_dev(disk)->class = &block_class;
-		disk_to_dev(disk)->type = &disk_type;
-		device_initialize(disk_to_dev(disk));
+	init_rwsem(&disk->lookup_sem);
+	disk->node_id = node_id;
+	if (disk_expand_part_tbl(disk, 0)) {
+		free_percpu(disk->part0.dkstats);
+		goto out_free_disk;
 	}
+
+	ptbl = rcu_dereference_protected(disk->part_tbl, 1);
+	rcu_assign_pointer(ptbl->part[0], &disk->part0);
+
+	/*
+	 * set_capacity() and get_capacity() currently don't use
+	 * seqcounter to read/update the part0->nr_sects. Still init
+	 * the counter as we can read the sectors in IO submission
+	 * patch using seqence counters.
+	 *
+	 * TODO: Ideally set_capacity() and get_capacity() should be
+	 * converted to make use of bd_mutex and sequence counters.
+	 */
+	hd_sects_seq_init(&disk->part0);
+	if (hd_ref_init(&disk->part0))
+		goto out_free_part0;
+
+	disk->minors = minors;
+	rand_initialize_disk(disk);
+	disk_to_dev(disk)->class = &block_class;
+	disk_to_dev(disk)->type = &disk_type;
+	device_initialize(disk_to_dev(disk));
 	return disk;
+
+out_free_part0:
+	hd_free_part(&disk->part0);
+out_free_disk:
+	kfree(disk);
+	return NULL;
 }
 EXPORT_SYMBOL(__alloc_disk_node);
 
@@ -2052,7 +2047,7 @@ void disk_flush_events(struct gendisk *disk, unsigned int mask)
  * CONTEXT:
  * Might sleep.
  */
-unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask)
+static unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask)
 {
 	struct disk_events *ev = disk->ev;
 	unsigned int pending;
@@ -2089,6 +2084,33 @@ unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask)
 
 	return pending;
 }
+
+/**
+ * bdev_check_media_change - check if a removable media has been changed
+ * @bdev: block device to check
+ *
+ * Check whether a removable media has been changed, and attempt to free all
+ * dentries and inodes and invalidates all block device page cache entries in
+ * that case.
+ *
+ * Returns %true if the block device changed, or %false if not.
+ */
+bool bdev_check_media_change(struct block_device *bdev)
+{
+	unsigned int events;
+
+	events = disk_clear_events(bdev->bd_disk, DISK_EVENT_MEDIA_CHANGE |
+				   DISK_EVENT_EJECT_REQUEST);
+	if (!(events & DISK_EVENT_MEDIA_CHANGE))
+		return false;
+
+	if (__invalidate_device(bdev, true))
+		pr_warn("VFS: busy inodes on changed media %s\n",
+			bdev->bd_disk->disk_name);
+	set_bit(GD_NEED_PART_SCAN, &bdev->bd_disk->state);
+	return true;
+}
+EXPORT_SYMBOL(bdev_check_media_change);
 
 /*
  * Separate this part out so that a different pointer for clearing_ptr can be

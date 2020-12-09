@@ -57,8 +57,8 @@
  * performance reasons.
  *
  *
- * Lock nesting
- * ------------
+ * Lock recursion
+ * --------------
  *
  * A write operation on a tree might indirectly start a look up on the same
  * tree.  This can happen when btrfs_cow_block locks the tree and needs to
@@ -201,7 +201,7 @@ void btrfs_set_lock_blocking_read(struct extent_buffer *eb)
 	 * lock, but it won't change to or away from us.  If we have the write
 	 * lock, we are the owner and it'll never change.
 	 */
-	if (eb->lock_nested && current->pid == eb->lock_owner)
+	if (eb->lock_recursed && current->pid == eb->lock_owner)
 		return;
 	btrfs_assert_tree_read_locked(eb);
 	atomic_inc(&eb->blocking_readers);
@@ -225,7 +225,7 @@ void btrfs_set_lock_blocking_write(struct extent_buffer *eb)
 	 * lock, but it won't change to or away from us.  If we have the write
 	 * lock, we are the owner and it'll never change.
 	 */
-	if (eb->lock_nested && current->pid == eb->lock_owner)
+	if (eb->lock_recursed && current->pid == eb->lock_owner)
 		return;
 	if (eb->blocking_writers == 0) {
 		btrfs_assert_spinning_writers_put(eb);
@@ -244,7 +244,8 @@ void btrfs_set_lock_blocking_write(struct extent_buffer *eb)
  *
  * The rwlock is held upon exit.
  */
-void btrfs_tree_read_lock(struct extent_buffer *eb)
+void __btrfs_tree_read_lock(struct extent_buffer *eb, enum btrfs_lock_nesting nest,
+			    bool recurse)
 {
 	u64 start_ns = 0;
 
@@ -263,8 +264,9 @@ again:
 			 * depends on this as it may be called on a partly
 			 * (write-)locked tree.
 			 */
-			BUG_ON(eb->lock_nested);
-			eb->lock_nested = true;
+			WARN_ON(!recurse);
+			BUG_ON(eb->lock_recursed);
+			eb->lock_recursed = true;
 			read_unlock(&eb->lock);
 			trace_btrfs_tree_read_lock(eb, start_ns);
 			return;
@@ -277,6 +279,11 @@ again:
 	btrfs_assert_tree_read_locks_get(eb);
 	btrfs_assert_spinning_readers_get(eb);
 	trace_btrfs_tree_read_lock(eb, start_ns);
+}
+
+void btrfs_tree_read_lock(struct extent_buffer *eb)
+{
+	__btrfs_tree_read_lock(eb, BTRFS_NESTING_NORMAL, false);
 }
 
 /*
@@ -362,11 +369,11 @@ void btrfs_tree_read_unlock(struct extent_buffer *eb)
 	/*
 	 * if we're nested, we have the write lock.  No new locking
 	 * is needed as long as we are the lock owner.
-	 * The write unlock will do a barrier for us, and the lock_nested
+	 * The write unlock will do a barrier for us, and the lock_recursed
 	 * field only matters to the lock owner.
 	 */
-	if (eb->lock_nested && current->pid == eb->lock_owner) {
-		eb->lock_nested = false;
+	if (eb->lock_recursed && current->pid == eb->lock_owner) {
+		eb->lock_recursed = false;
 		return;
 	}
 	btrfs_assert_tree_read_locked(eb);
@@ -388,11 +395,11 @@ void btrfs_tree_read_unlock_blocking(struct extent_buffer *eb)
 	/*
 	 * if we're nested, we have the write lock.  No new locking
 	 * is needed as long as we are the lock owner.
-	 * The write unlock will do a barrier for us, and the lock_nested
+	 * The write unlock will do a barrier for us, and the lock_recursed
 	 * field only matters to the lock owner.
 	 */
-	if (eb->lock_nested && current->pid == eb->lock_owner) {
-		eb->lock_nested = false;
+	if (eb->lock_recursed && current->pid == eb->lock_owner) {
+		eb->lock_recursed = false;
 		return;
 	}
 	btrfs_assert_tree_read_locked(eb);
@@ -409,7 +416,7 @@ void btrfs_tree_read_unlock_blocking(struct extent_buffer *eb)
  *
  * The rwlock is held for write upon exit.
  */
-void btrfs_tree_lock(struct extent_buffer *eb)
+void __btrfs_tree_lock(struct extent_buffer *eb, enum btrfs_lock_nesting nest)
 	__acquires(&eb->lock)
 {
 	u64 start_ns = 0;
@@ -432,6 +439,11 @@ again:
 	btrfs_assert_tree_write_locks_get(eb);
 	eb->lock_owner = current->pid;
 	trace_btrfs_tree_lock(eb, start_ns);
+}
+
+void btrfs_tree_lock(struct extent_buffer *eb)
+{
+	__btrfs_tree_lock(eb, BTRFS_NESTING_NORMAL);
 }
 
 /*
@@ -552,13 +564,14 @@ struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root)
  *
  * Return: root extent buffer with read lock held
  */
-struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root)
+struct extent_buffer *__btrfs_read_lock_root_node(struct btrfs_root *root,
+						  bool recurse)
 {
 	struct extent_buffer *eb;
 
 	while (1) {
 		eb = btrfs_root_node(root);
-		btrfs_tree_read_lock(eb);
+		__btrfs_tree_read_lock(eb, BTRFS_NESTING_NORMAL, recurse);
 		if (eb == root->node)
 			break;
 		btrfs_tree_read_unlock(eb);

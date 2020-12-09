@@ -592,9 +592,6 @@ void pp_rv_set_wm_ranges(struct pp_smu *pp,
 	if (pp_funcs && pp_funcs->set_watermarks_for_clocks_ranges)
 		pp_funcs->set_watermarks_for_clocks_ranges(pp_handle,
 							   &wm_with_clock_ranges);
-	else if (adev->smu.ppt_funcs)
-		smu_set_watermarks_for_clock_ranges(&adev->smu,
-				&wm_with_clock_ranges);
 }
 
 void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
@@ -667,49 +664,8 @@ static enum pp_smu_status pp_nv_set_wm_ranges(struct pp_smu *pp,
 {
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
-	struct dm_pp_wm_sets_with_clock_ranges_soc15 wm_with_clock_ranges;
-	struct dm_pp_clock_range_for_dmif_wm_set_soc15 *wm_dce_clocks =
-			wm_with_clock_ranges.wm_dmif_clocks_ranges;
-	struct dm_pp_clock_range_for_mcif_wm_set_soc15 *wm_soc_clocks =
-			wm_with_clock_ranges.wm_mcif_clocks_ranges;
-	int32_t i;
 
-	wm_with_clock_ranges.num_wm_dmif_sets = ranges->num_reader_wm_sets;
-	wm_with_clock_ranges.num_wm_mcif_sets = ranges->num_writer_wm_sets;
-
-	for (i = 0; i < wm_with_clock_ranges.num_wm_dmif_sets; i++) {
-		if (ranges->reader_wm_sets[i].wm_inst > 3)
-			wm_dce_clocks[i].wm_set_id = WM_SET_A;
-		else
-			wm_dce_clocks[i].wm_set_id =
-					ranges->reader_wm_sets[i].wm_inst;
-		wm_dce_clocks[i].wm_max_dcfclk_clk_in_khz =
-			ranges->reader_wm_sets[i].max_drain_clk_mhz * 1000;
-		wm_dce_clocks[i].wm_min_dcfclk_clk_in_khz =
-			ranges->reader_wm_sets[i].min_drain_clk_mhz * 1000;
-		wm_dce_clocks[i].wm_max_mem_clk_in_khz =
-			ranges->reader_wm_sets[i].max_fill_clk_mhz * 1000;
-		wm_dce_clocks[i].wm_min_mem_clk_in_khz =
-			ranges->reader_wm_sets[i].min_fill_clk_mhz * 1000;
-	}
-
-	for (i = 0; i < wm_with_clock_ranges.num_wm_mcif_sets; i++) {
-		if (ranges->writer_wm_sets[i].wm_inst > 3)
-			wm_soc_clocks[i].wm_set_id = WM_SET_A;
-		else
-			wm_soc_clocks[i].wm_set_id =
-					ranges->writer_wm_sets[i].wm_inst;
-		wm_soc_clocks[i].wm_max_socclk_clk_in_khz =
-			ranges->writer_wm_sets[i].max_fill_clk_mhz * 1000;
-		wm_soc_clocks[i].wm_min_socclk_clk_in_khz =
-			ranges->writer_wm_sets[i].min_fill_clk_mhz * 1000;
-		wm_soc_clocks[i].wm_max_mem_clk_in_khz =
-			ranges->writer_wm_sets[i].max_drain_clk_mhz * 1000;
-		wm_soc_clocks[i].wm_min_mem_clk_in_khz =
-			ranges->writer_wm_sets[i].min_drain_clk_mhz * 1000;
-	}
-
-	smu_set_watermarks_for_clock_ranges(&adev->smu,	&wm_with_clock_ranges);
+	smu_set_watermarks_for_clock_ranges(&adev->smu, ranges);
 
 	return PP_SMU_RESULT_OK;
 }
@@ -810,7 +766,7 @@ pp_nv_set_hard_min_uclk_by_freq(struct pp_smu *pp, int mhz)
 }
 
 static enum pp_smu_status pp_nv_set_pstate_handshake_support(
-	struct pp_smu *pp, BOOLEAN pstate_handshake_supported)
+	struct pp_smu *pp, bool pstate_handshake_supported)
 {
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
@@ -920,60 +876,8 @@ static enum pp_smu_status pp_rn_set_wm_ranges(struct pp_smu *pp,
 {
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
-	struct smu_context *smu = &adev->smu;
-	struct dm_pp_wm_sets_with_clock_ranges_soc15 wm_with_clock_ranges;
-	struct dm_pp_clock_range_for_dmif_wm_set_soc15 *wm_dce_clocks =
-			wm_with_clock_ranges.wm_dmif_clocks_ranges;
-	struct dm_pp_clock_range_for_mcif_wm_set_soc15 *wm_soc_clocks =
-			wm_with_clock_ranges.wm_mcif_clocks_ranges;
-	int32_t i;
 
-	if (!smu->ppt_funcs)
-		return PP_SMU_RESULT_UNSUPPORTED;
-
-	wm_with_clock_ranges.num_wm_dmif_sets = ranges->num_reader_wm_sets;
-	wm_with_clock_ranges.num_wm_mcif_sets = ranges->num_writer_wm_sets;
-
-	for (i = 0; i < wm_with_clock_ranges.num_wm_dmif_sets; i++) {
-		if (ranges->reader_wm_sets[i].wm_inst > 3)
-			wm_dce_clocks[i].wm_set_id = WM_SET_A;
-		else
-			wm_dce_clocks[i].wm_set_id =
-					ranges->reader_wm_sets[i].wm_inst;
-
-		wm_dce_clocks[i].wm_min_dcfclk_clk_in_khz =
-			ranges->reader_wm_sets[i].min_drain_clk_mhz;
-
-		wm_dce_clocks[i].wm_max_dcfclk_clk_in_khz =
-			ranges->reader_wm_sets[i].max_drain_clk_mhz;
-
-		wm_dce_clocks[i].wm_min_mem_clk_in_khz =
-			ranges->reader_wm_sets[i].min_fill_clk_mhz;
-
-		wm_dce_clocks[i].wm_max_mem_clk_in_khz =
-			ranges->reader_wm_sets[i].max_fill_clk_mhz;
-	}
-
-	for (i = 0; i < wm_with_clock_ranges.num_wm_mcif_sets; i++) {
-		if (ranges->writer_wm_sets[i].wm_inst > 3)
-			wm_soc_clocks[i].wm_set_id = WM_SET_A;
-		else
-			wm_soc_clocks[i].wm_set_id =
-					ranges->writer_wm_sets[i].wm_inst;
-		wm_soc_clocks[i].wm_min_socclk_clk_in_khz =
-				ranges->writer_wm_sets[i].min_fill_clk_mhz;
-
-		wm_soc_clocks[i].wm_max_socclk_clk_in_khz =
-			ranges->writer_wm_sets[i].max_fill_clk_mhz;
-
-		wm_soc_clocks[i].wm_min_mem_clk_in_khz =
-			ranges->writer_wm_sets[i].min_drain_clk_mhz;
-
-		wm_soc_clocks[i].wm_max_mem_clk_in_khz =
-			ranges->writer_wm_sets[i].max_drain_clk_mhz;
-	}
-
-	smu_set_watermarks_for_clock_ranges(&adev->smu, &wm_with_clock_ranges);
+	smu_set_watermarks_for_clock_ranges(&adev->smu, ranges);
 
 	return PP_SMU_RESULT_OK;
 }

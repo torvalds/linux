@@ -43,6 +43,10 @@ module_param(debug, bool, 0644);
 #define TRANS_ABORT		(1 << 2)
 
 
+/* The job queue is not running new jobs */
+#define QUEUE_PAUSED		(1 << 0)
+
+
 /* Offset base for buffers on the destination queue - used to distinguish
  * between source and destination buffers when mmapping - they receive the same
  * offsets but for different queues */
@@ -84,6 +88,7 @@ static const char * const m2m_entity_name[] = {
  * @job_queue:		instances queued to run
  * @job_spinlock:	protects job_queue
  * @job_work:		worker to run queued jobs.
+ * @job_queue_flags:	flags of the queue status, %QUEUE_PAUSED.
  * @m2m_ops:		driver callbacks
  */
 struct v4l2_m2m_dev {
@@ -101,6 +106,7 @@ struct v4l2_m2m_dev {
 	struct list_head	job_queue;
 	spinlock_t		job_spinlock;
 	struct work_struct	job_work;
+	unsigned long		job_queue_flags;
 
 	const struct v4l2_m2m_ops *m2m_ops;
 };
@@ -260,6 +266,12 @@ static void v4l2_m2m_try_run(struct v4l2_m2m_dev *m2m_dev)
 	if (list_empty(&m2m_dev->job_queue)) {
 		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
 		dprintk("No job pending\n");
+		return;
+	}
+
+	if (m2m_dev->job_queue_flags & QUEUE_PAUSED) {
+		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
+		dprintk("Running new jobs is paused\n");
 		return;
 	}
 
@@ -527,6 +539,34 @@ unlock:
 		v4l2_m2m_schedule_next_job(m2m_dev, m2m_ctx);
 }
 EXPORT_SYMBOL(v4l2_m2m_buf_done_and_job_finish);
+
+void v4l2_m2m_suspend(struct v4l2_m2m_dev *m2m_dev)
+{
+	unsigned long flags;
+	struct v4l2_m2m_ctx *curr_ctx;
+
+	spin_lock_irqsave(&m2m_dev->job_spinlock, flags);
+	m2m_dev->job_queue_flags |= QUEUE_PAUSED;
+	curr_ctx = m2m_dev->curr_ctx;
+	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
+
+	if (curr_ctx)
+		wait_event(curr_ctx->finished,
+			   !(curr_ctx->job_flags & TRANS_RUNNING));
+}
+EXPORT_SYMBOL(v4l2_m2m_suspend);
+
+void v4l2_m2m_resume(struct v4l2_m2m_dev *m2m_dev)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&m2m_dev->job_spinlock, flags);
+	m2m_dev->job_queue_flags &= ~QUEUE_PAUSED;
+	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
+
+	v4l2_m2m_try_run(m2m_dev);
+}
+EXPORT_SYMBOL(v4l2_m2m_resume);
 
 int v4l2_m2m_reqbufs(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 		     struct v4l2_requestbuffers *reqbufs)
@@ -841,7 +881,6 @@ static __poll_t v4l2_m2m_poll_for_data(struct file *file,
 				       struct poll_table_struct *wait)
 {
 	struct vb2_queue *src_q, *dst_q;
-	struct vb2_buffer *src_vb = NULL, *dst_vb = NULL;
 	__poll_t rc = 0;
 	unsigned long flags;
 
@@ -862,34 +901,17 @@ static __poll_t v4l2_m2m_poll_for_data(struct file *file,
 	     list_empty(&dst_q->queued_list)))
 		return EPOLLERR;
 
-	spin_lock_irqsave(&dst_q->done_lock, flags);
-	if (list_empty(&dst_q->done_list)) {
-		/*
-		 * If the last buffer was dequeued from the capture queue,
-		 * return immediately. DQBUF will return -EPIPE.
-		 */
-		if (dst_q->last_buffer_dequeued) {
-			spin_unlock_irqrestore(&dst_q->done_lock, flags);
-			return EPOLLIN | EPOLLRDNORM;
-		}
-	}
-	spin_unlock_irqrestore(&dst_q->done_lock, flags);
-
 	spin_lock_irqsave(&src_q->done_lock, flags);
 	if (!list_empty(&src_q->done_list))
-		src_vb = list_first_entry(&src_q->done_list, struct vb2_buffer,
-						done_entry);
-	if (src_vb && (src_vb->state == VB2_BUF_STATE_DONE
-			|| src_vb->state == VB2_BUF_STATE_ERROR))
 		rc |= EPOLLOUT | EPOLLWRNORM;
 	spin_unlock_irqrestore(&src_q->done_lock, flags);
 
 	spin_lock_irqsave(&dst_q->done_lock, flags);
-	if (!list_empty(&dst_q->done_list))
-		dst_vb = list_first_entry(&dst_q->done_list, struct vb2_buffer,
-						done_entry);
-	if (dst_vb && (dst_vb->state == VB2_BUF_STATE_DONE
-			|| dst_vb->state == VB2_BUF_STATE_ERROR))
+	/*
+	 * If the last buffer was dequeued from the capture queue, signal
+	 * userspace. DQBUF(CAPTURE) will return -EPIPE.
+	 */
+	if (!list_empty(&dst_q->done_list) || dst_q->last_buffer_dequeued)
 		rc |= EPOLLIN | EPOLLRDNORM;
 	spin_unlock_irqrestore(&dst_q->done_lock, flags);
 

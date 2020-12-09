@@ -810,14 +810,32 @@ void afs_evict_inode(struct inode *inode)
 
 static void afs_setattr_success(struct afs_operation *op)
 {
-	struct inode *inode = &op->file[0].vnode->vfs_inode;
+	struct afs_vnode_param *vp = &op->file[0];
+	struct inode *inode = &vp->vnode->vfs_inode;
+	loff_t old_i_size = i_size_read(inode);
 
-	afs_vnode_commit_status(op, &op->file[0]);
+	op->setattr.old_i_size = old_i_size;
+	afs_vnode_commit_status(op, vp);
+	/* inode->i_size has now been changed. */
+
 	if (op->setattr.attr->ia_valid & ATTR_SIZE) {
-		loff_t i_size = inode->i_size, size = op->setattr.attr->ia_size;
-		if (size > i_size)
-			pagecache_isize_extended(inode, i_size, size);
-		truncate_pagecache(inode, size);
+		loff_t size = op->setattr.attr->ia_size;
+		if (size > old_i_size)
+			pagecache_isize_extended(inode, old_i_size, size);
+	}
+}
+
+static void afs_setattr_edit_file(struct afs_operation *op)
+{
+	struct afs_vnode_param *vp = &op->file[0];
+	struct inode *inode = &vp->vnode->vfs_inode;
+
+	if (op->setattr.attr->ia_valid & ATTR_SIZE) {
+		loff_t size = op->setattr.attr->ia_size;
+		loff_t i_size = op->setattr.old_i_size;
+
+		if (size < i_size)
+			truncate_pagecache(inode, size);
 	}
 }
 
@@ -825,6 +843,7 @@ static const struct afs_operation_ops afs_setattr_operation = {
 	.issue_afs_rpc	= afs_fs_setattr,
 	.issue_yfs_rpc	= yfs_fs_setattr,
 	.success	= afs_setattr_success,
+	.edit_dir	= afs_setattr_edit_file,
 };
 
 /*
@@ -863,11 +882,16 @@ int afs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (S_ISREG(vnode->vfs_inode.i_mode))
 		filemap_write_and_wait(vnode->vfs_inode.i_mapping);
 
+	/* Prevent any new writebacks from starting whilst we do this. */
+	down_write(&vnode->validate_lock);
+
 	op = afs_alloc_operation(((attr->ia_valid & ATTR_FILE) ?
 				  afs_file_key(attr->ia_file) : NULL),
 				 vnode->volume);
-	if (IS_ERR(op))
-		return PTR_ERR(op);
+	if (IS_ERR(op)) {
+		ret = PTR_ERR(op);
+		goto out_unlock;
+	}
 
 	afs_op_set_vnode(op, 0, vnode);
 	op->setattr.attr = attr;
@@ -880,5 +904,10 @@ int afs_setattr(struct dentry *dentry, struct iattr *attr)
 	op->file[0].update_ctime = 1;
 
 	op->ops = &afs_setattr_operation;
-	return afs_do_sync_operation(op);
+	ret = afs_do_sync_operation(op);
+
+out_unlock:
+	up_write(&vnode->validate_lock);
+	_leave(" = %d", ret);
+	return ret;
 }

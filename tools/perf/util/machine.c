@@ -786,11 +786,20 @@ static int machine__process_ksymbol_unregister(struct machine *machine,
 					       union perf_event *event,
 					       struct perf_sample *sample __maybe_unused)
 {
+	struct symbol *sym;
 	struct map *map;
 
 	map = maps__find(&machine->kmaps, event->ksymbol.addr);
-	if (map)
+	if (!map)
+		return 0;
+
+	if (map != machine->vmlinux_map)
 		maps__remove(&machine->kmaps, map);
+	else {
+		sym = dso__find_symbol(map->dso, map->map_ip(map, map->start));
+		if (sym)
+			dso__delete_symbol(map->dso, sym);
+	}
 
 	return 0;
 }
@@ -3099,4 +3108,16 @@ char *machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, ch
 	*modp = __map__is_kmodule(map) ? (char *)map->dso->short_name : NULL;
 	*addrp = map->unmap_ip(map, sym->start);
 	return sym->name;
+}
+
+int machine__for_each_dso(struct machine *machine, machine__dso_t fn, void *priv)
+{
+	struct dso *pos;
+	int err = 0;
+
+	list_for_each_entry(pos, &machine->dsos.head, node) {
+		if (fn(pos, machine, priv))
+			err = -1;
+	}
+	return err;
 }

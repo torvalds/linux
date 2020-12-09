@@ -951,10 +951,18 @@ static void tb_usb3_reclaim_available_bandwidth(struct tb_tunnel *tunnel,
 	int ret, max_rate, allocate_up, allocate_down;
 
 	ret = usb4_usb3_port_actual_link_rate(tunnel->src_port);
-	if (ret <= 0) {
-		tb_tunnel_warn(tunnel, "tunnel is not up\n");
+	if (ret < 0) {
+		tb_tunnel_warn(tunnel, "failed to read actual link rate\n");
 		return;
+	} else if (!ret) {
+		/* Use maximum link rate if the link valid is not set */
+		ret = usb4_usb3_port_max_link_rate(tunnel->src_port);
+		if (ret < 0) {
+			tb_tunnel_warn(tunnel, "failed to read maximum link rate\n");
+			return;
+		}
 	}
+
 	/*
 	 * 90% of the max rate can be allocated for isochronous
 	 * transfers.

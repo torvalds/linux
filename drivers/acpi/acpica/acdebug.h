@@ -37,12 +37,14 @@ struct acpi_db_argument_info {
 struct acpi_db_execute_walk {
 	u32 count;
 	u32 max_count;
+	char name_seg[ACPI_NAMESEG_SIZE + 1];
 };
 
 #define PARAM_LIST(pl)                  pl
 
 #define EX_NO_SINGLE_STEP               1
 #define EX_SINGLE_STEP                  2
+#define EX_ALL                          4
 
 /*
  * dbxface - external debugger interfaces
@@ -123,6 +125,8 @@ acpi_status acpi_db_disassemble_method(char *name);
 void acpi_db_disassemble_aml(char *statements, union acpi_parse_object *op);
 
 void acpi_db_evaluate_predefined_names(void);
+
+void acpi_db_evaluate_all(char *name_seg);
 
 /*
  * dbnames - namespace commands

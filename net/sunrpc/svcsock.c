@@ -228,7 +228,7 @@ static int svc_one_sock_name(struct svc_sock *svsk, char *buf, int remaining)
 static void svc_flush_bvec(const struct bio_vec *bvec, size_t size, size_t seek)
 {
 	struct bvec_iter bi = {
-		.bi_size	= size,
+		.bi_size	= size + seek,
 	};
 	struct bio_vec bv;
 

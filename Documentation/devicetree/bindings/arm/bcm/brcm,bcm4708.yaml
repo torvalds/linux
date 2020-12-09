@@ -83,6 +83,11 @@ properties:
               - brcm,bcm953012er
               - brcm,bcm953012hr
               - brcm,bcm953012k
+              - meraki,mr32
           - const: brcm,brcm53012
+          - const: brcm,brcm53016
           - const: brcm,bcm4708
+
+additionalProperties: true
+
 ...

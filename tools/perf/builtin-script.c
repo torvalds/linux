@@ -702,12 +702,14 @@ static int perf_sample__fprintf_start(struct perf_script *script,
 	char tstr[128];
 
 	if (PRINT_FIELD(COMM)) {
+		const char *comm = thread ? thread__comm_str(thread) : ":-1";
+
 		if (latency_format)
-			printed += fprintf(fp, "%8.8s ", thread__comm_str(thread));
+			printed += fprintf(fp, "%8.8s ", comm);
 		else if (PRINT_FIELD(IP) && evsel__has_callchain(evsel) && symbol_conf.use_callchain)
-			printed += fprintf(fp, "%s ", thread__comm_str(thread));
+			printed += fprintf(fp, "%s ", comm);
 		else
-			printed += fprintf(fp, "%16s ", thread__comm_str(thread));
+			printed += fprintf(fp, "%16s ", comm);
 	}
 
 	if (PRINT_FIELD(PID) && PRINT_FIELD(TID))
@@ -2238,7 +2240,7 @@ static int print_event_with_time(struct perf_tool *tool,
 	if (tid != -1)
 		thread = machine__findnew_thread(machine, pid, tid);
 
-	if (thread && evsel) {
+	if (evsel) {
 		perf_sample__fprintf_start(script, sample, thread, evsel,
 					   event->header.type, stdout);
 	}

@@ -82,6 +82,7 @@ static char *sym_name(const struct sym_entry *s)
 
 static bool is_ignored_symbol(const char *name, char type)
 {
+	/* Symbol names that exactly match to the following are ignored.*/
 	static const char * const ignored_symbols[] = {
 		/*
 		 * Symbols which vary between passes. Passes 1 and 2 must have
@@ -104,6 +105,7 @@ static bool is_ignored_symbol(const char *name, char type)
 		NULL
 	};
 
+	/* Symbol names that begin with the following are ignored.*/
 	static const char * const ignored_prefixes[] = {
 		"$",			/* local symbols for ARM, MIPS, etc. */
 		".LASANPC",		/* s390 kasan local symbols */
@@ -113,6 +115,7 @@ static bool is_ignored_symbol(const char *name, char type)
 		NULL
 	};
 
+	/* Symbol names that end with the following are ignored.*/
 	static const char * const ignored_suffixes[] = {
 		"_from_arm",		/* arm */
 		"_from_thumb",		/* arm */
@@ -120,9 +123,15 @@ static bool is_ignored_symbol(const char *name, char type)
 		NULL
 	};
 
+	/* Symbol names that contain the following are ignored.*/
+	static const char * const ignored_matches[] = {
+		".long_branch.",	/* ppc stub */
+		".plt_branch.",		/* ppc stub */
+		NULL
+	};
+
 	const char * const *p;
 
-	/* Exclude symbols which vary between passes. */
 	for (p = ignored_symbols; *p; p++)
 		if (!strcmp(name, *p))
 			return true;
@@ -135,6 +144,11 @@ static bool is_ignored_symbol(const char *name, char type)
 		int l = strlen(name) - strlen(*p);
 
 		if (l >= 0 && !strcmp(name + l, *p))
+			return true;
+	}
+
+	for (p = ignored_matches; *p; p++) {
+		if (strstr(name, *p))
 			return true;
 	}
 

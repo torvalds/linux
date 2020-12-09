@@ -31,6 +31,8 @@ required:
   - reg
   - reg-names
 
+unevaluatedProperties: false
+
 examples:
   - |
     bus {

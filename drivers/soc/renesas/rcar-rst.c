@@ -37,6 +37,10 @@ static const struct rst_config rcar_rst_gen3 __initconst = {
 	.modemr = 0x60,
 };
 
+static const struct rst_config rcar_rst_r8a779a0 __initconst = {
+	.modemr = 0x00,		/* MODEMR0 and it has CPG related bits */
+};
+
 static const struct of_device_id rcar_rst_matches[] __initconst = {
 	/* RZ/G1 is handled like R-Car Gen2 */
 	{ .compatible = "renesas,r8a7742-rst", .data = &rcar_rst_gen2 },
@@ -67,6 +71,8 @@ static const struct of_device_id rcar_rst_matches[] __initconst = {
 	{ .compatible = "renesas,r8a77980-rst", .data = &rcar_rst_gen3 },
 	{ .compatible = "renesas,r8a77990-rst", .data = &rcar_rst_gen3 },
 	{ .compatible = "renesas,r8a77995-rst", .data = &rcar_rst_gen3 },
+	/* R-Car V3U */
+	{ .compatible = "renesas,r8a779a0-rst", .data = &rcar_rst_r8a779a0 },
 	{ /* sentinel */ }
 };
 

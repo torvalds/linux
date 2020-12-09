@@ -95,10 +95,12 @@
 			#clock-cells = <1>;
 		};
 
-		clint0: interrupt-controller@2000000 {
+		clint0: clint@2000000 {
+			#interrupt-cells = <1>;
 			compatible = "riscv,clint0";
 			reg = <0x2000000 0xC000>;
-			interrupts-extended = <&cpu0_intc 3>,  <&cpu1_intc 3>;
+			interrupts-extended =  <&cpu0_intc 3 &cpu0_intc 7
+						&cpu1_intc 3 &cpu1_intc 7>;
 			clocks = <&sysctl K210_CLK_ACLK>;
 		};
 

@@ -74,8 +74,8 @@ struct dsa_device_ops {
 	struct sk_buff *(*xmit)(struct sk_buff *skb, struct net_device *dev);
 	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev,
 			       struct packet_type *pt);
-	int (*flow_dissect)(const struct sk_buff *skb, __be16 *proto,
-			    int *offset);
+	void (*flow_dissect)(const struct sk_buff *skb, __be16 *proto,
+			     int *offset);
 	/* Used to determine which traffic should match the DSA filter in
 	 * eth_type_trans, and which, if any, should bypass it and be processed
 	 * as regular on the master net device.
@@ -84,6 +84,13 @@ struct dsa_device_ops {
 	unsigned int overhead;
 	const char *name;
 	enum dsa_tag_protocol proto;
+	/* Some tagging protocols either mangle or shift the destination MAC
+	 * address, in which case the DSA master would drop packets on ingress
+	 * if what it understands out of the destination MAC address is not in
+	 * its RX filter.
+	 */
+	bool promisc_on_master;
+	bool tail_tag;
 };
 
 /* This structure defines the control interfaces that are overlayed by the
@@ -208,6 +215,7 @@ struct dsa_port {
 	u8			stp_state;
 	struct net_device	*bridge_dev;
 	struct devlink_port	devlink_port;
+	bool			devlink_port_setup;
 	struct phylink		*pl;
 	struct phylink_config	pl_config;
 
@@ -300,6 +308,14 @@ struct dsa_switch {
 	 * would break things or not.
 	 */
 	bool			configure_vlan_while_not_filtering;
+
+	/* If the switch driver always programs the CPU port as egress tagged
+	 * despite the VLAN configuration indicating otherwise, then setting
+	 * @untag_bridge_pvid will force the DSA receive path to pop the bridge's
+	 * default_pvid VLAN tagged frames to offer a consistent behavior
+	 * between a vlan_filtering=0 and vlan_filtering=1 bridge device.
+	 */
+	bool			untag_bridge_pvid;
 
 	/* In case vlan_filtering_is_global is set, the VLAN awareness state
 	 * should be retrieved from here and not from the per-port settings.
@@ -536,7 +552,8 @@ struct dsa_switch_ops {
 	 * VLAN support
 	 */
 	int	(*port_vlan_filtering)(struct dsa_switch *ds, int port,
-				       bool vlan_filtering);
+				       bool vlan_filtering,
+				       struct switchdev_trans *trans);
 	int (*port_vlan_prepare)(struct dsa_switch *ds, int port,
 				 const struct switchdev_obj_port_vlan *vlan);
 	void (*port_vlan_add)(struct dsa_switch *ds, int port,
@@ -612,11 +629,14 @@ struct dsa_switch_ops {
 	bool	(*port_rxtstamp)(struct dsa_switch *ds, int port,
 				 struct sk_buff *skb, unsigned int type);
 
-	/* Devlink parameters */
+	/* Devlink parameters, etc */
 	int	(*devlink_param_get)(struct dsa_switch *ds, u32 id,
 				     struct devlink_param_gset_ctx *ctx);
 	int	(*devlink_param_set)(struct dsa_switch *ds, u32 id,
 				     struct devlink_param_gset_ctx *ctx);
+	int	(*devlink_info_get)(struct dsa_switch *ds,
+				    struct devlink_info_req *req,
+				    struct netlink_ext_ack *extack);
 
 	/*
 	 * MTU change functionality. Switches can also adjust their MRU through
@@ -658,11 +678,43 @@ void dsa_devlink_resource_occ_get_register(struct dsa_switch *ds,
 					   void *occ_get_priv);
 void dsa_devlink_resource_occ_get_unregister(struct dsa_switch *ds,
 					     u64 resource_id);
+struct devlink_region *
+dsa_devlink_region_create(struct dsa_switch *ds,
+			  const struct devlink_region_ops *ops,
+			  u32 region_max_snapshots, u64 region_size);
+struct devlink_region *
+dsa_devlink_port_region_create(struct dsa_switch *ds,
+			       int port,
+			       const struct devlink_port_region_ops *ops,
+			       u32 region_max_snapshots, u64 region_size);
+void dsa_devlink_region_destroy(struct devlink_region *region);
+
 struct dsa_port *dsa_port_from_netdev(struct net_device *netdev);
 
 struct dsa_devlink_priv {
 	struct dsa_switch *ds;
 };
+
+static inline struct dsa_switch *dsa_devlink_to_ds(struct devlink *dl)
+{
+	struct dsa_devlink_priv *dl_priv = devlink_priv(dl);
+
+	return dl_priv->ds;
+}
+
+static inline
+struct dsa_switch *dsa_devlink_port_to_ds(struct devlink_port *port)
+{
+	struct devlink *dl = port->devlink;
+	struct dsa_devlink_priv *dl_priv = devlink_priv(dl);
+
+	return dl_priv->ds;
+}
+
+static inline int dsa_devlink_port_to_port(struct devlink_port *port)
+{
+	return port->index;
+}
 
 struct dsa_switch_driver {
 	struct list_head	list;
@@ -687,6 +739,32 @@ static inline bool dsa_can_decode(const struct sk_buff *skb,
 	return !dev->dsa_ptr->filter || dev->dsa_ptr->filter(skb, dev);
 #endif
 	return false;
+}
+
+/* All DSA tags that push the EtherType to the right (basically all except tail
+ * tags, which don't break dissection) can be treated the same from the
+ * perspective of the flow dissector.
+ *
+ * We need to return:
+ *  - offset: the (B - A) difference between:
+ *    A. the position of the real EtherType and
+ *    B. the current skb->data (aka ETH_HLEN bytes into the frame, aka 2 bytes
+ *       after the normal EtherType was supposed to be)
+ *    The offset in bytes is exactly equal to the tagger overhead (and half of
+ *    that, in __be16 shorts).
+ *
+ *  - proto: the value of the real EtherType.
+ */
+static inline void dsa_tag_generic_flow_dissect(const struct sk_buff *skb,
+						__be16 *proto, int *offset)
+{
+#if IS_ENABLED(CONFIG_NET_DSA)
+	const struct dsa_device_ops *ops = skb->dev->dsa_ptr->tag_ops;
+	int tag_len = ops->overhead;
+
+	*offset = tag_len;
+	*proto = ((__be16 *)skb->data)[(tag_len / 2) - 1];
+#endif
 }
 
 #if IS_ENABLED(CONFIG_NET_DSA)

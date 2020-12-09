@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-/*
- * drivers/net/phy/realtek.c
+/* drivers/net/phy/realtek.c
  *
  * Driver for Realtek PHYs
  *
@@ -27,14 +26,19 @@
 #define RTL821x_EXT_PAGE_SELECT			0x1e
 #define RTL821x_PAGE_SELECT			0x1f
 
+#define RTL8211F_PHYCR1				0x18
 #define RTL8211F_INSR				0x1d
 
 #define RTL8211F_TX_DELAY			BIT(8)
 #define RTL8211F_RX_DELAY			BIT(3)
 
-#define RTL8211E_TX_DELAY			BIT(1)
-#define RTL8211E_RX_DELAY			BIT(2)
-#define RTL8211E_MODE_MII_GMII			BIT(3)
+#define RTL8211F_ALDPS_PLL_OFF			BIT(1)
+#define RTL8211F_ALDPS_ENABLE			BIT(2)
+#define RTL8211F_ALDPS_XTAL_OFF			BIT(12)
+
+#define RTL8211E_CTRL_DELAY			BIT(13)
+#define RTL8211E_TX_DELAY			BIT(12)
+#define RTL8211E_RX_DELAY			BIT(11)
 
 #define RTL8201F_ISR				0x1e
 #define RTL8201F_IER				0x13
@@ -178,7 +182,11 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
 	u16 val_txdly, val_rxdly;
+	u16 val;
 	int ret;
+
+	val = RTL8211F_ALDPS_ENABLE | RTL8211F_ALDPS_PLL_OFF | RTL8211F_ALDPS_XTAL_OFF;
+	phy_modify_paged_changed(phydev, 0xa43, RTL8211F_PHYCR1, val, val);
 
 	switch (phydev->interface) {
 	case PHY_INTERFACE_MODE_RGMII:
@@ -246,16 +254,16 @@ static int rtl8211e_config_init(struct phy_device *phydev)
 	/* enable TX/RX delay for rgmii-* modes, and disable them for rgmii. */
 	switch (phydev->interface) {
 	case PHY_INTERFACE_MODE_RGMII:
-		val = 0;
+		val = RTL8211E_CTRL_DELAY | 0;
 		break;
 	case PHY_INTERFACE_MODE_RGMII_ID:
-		val = RTL8211E_TX_DELAY | RTL8211E_RX_DELAY;
+		val = RTL8211E_CTRL_DELAY | RTL8211E_TX_DELAY | RTL8211E_RX_DELAY;
 		break;
 	case PHY_INTERFACE_MODE_RGMII_RXID:
-		val = RTL8211E_RX_DELAY;
+		val = RTL8211E_CTRL_DELAY | RTL8211E_RX_DELAY;
 		break;
 	case PHY_INTERFACE_MODE_RGMII_TXID:
-		val = RTL8211E_TX_DELAY;
+		val = RTL8211E_CTRL_DELAY | RTL8211E_TX_DELAY;
 		break;
 	default: /* the rest of the modes imply leaving delays as is. */
 		return 0;
@@ -263,11 +271,12 @@ static int rtl8211e_config_init(struct phy_device *phydev)
 
 	/* According to a sample driver there is a 0x1c config register on the
 	 * 0xa4 extension page (0x7) layout. It can be used to disable/enable
-	 * the RX/TX delays otherwise controlled by RXDLY/TXDLY pins. It can
-	 * also be used to customize the whole configuration register:
-	 * 8:6 = PHY Address, 5:4 = Auto-Negotiation, 3 = Interface Mode Select,
-	 * 2 = RX Delay, 1 = TX Delay, 0 = SELRGV (see original PHY datasheet
-	 * for details).
+	 * the RX/TX delays otherwise controlled by RXDLY/TXDLY pins.
+	 * The configuration register definition:
+	 * 14 = reserved
+	 * 13 = Force Tx RX Delay controlled by bit12 bit11,
+	 * 12 = RX Delay, 11 = TX Delay
+	 * 10:0 = Test && debug settings reserved by realtek
 	 */
 	oldpage = phy_select_page(phydev, 0x7);
 	if (oldpage < 0)
@@ -277,7 +286,8 @@ static int rtl8211e_config_init(struct phy_device *phydev)
 	if (ret)
 		goto err_restore_page;
 
-	ret = __phy_modify(phydev, 0x1c, RTL8211E_TX_DELAY | RTL8211E_RX_DELAY,
+	ret = __phy_modify(phydev, 0x1c, RTL8211E_CTRL_DELAY
+			   | RTL8211E_TX_DELAY | RTL8211E_RX_DELAY,
 			   val);
 
 err_restore_page:
@@ -400,7 +410,7 @@ static int rtlgen_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
 	return ret;
 }
 
-static int rtl8125_read_mmd(struct phy_device *phydev, int devnum, u16 regnum)
+static int rtl822x_read_mmd(struct phy_device *phydev, int devnum, u16 regnum)
 {
 	int ret = rtlgen_read_mmd(phydev, devnum, regnum);
 
@@ -424,7 +434,7 @@ static int rtl8125_read_mmd(struct phy_device *phydev, int devnum, u16 regnum)
 	return ret;
 }
 
-static int rtl8125_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
+static int rtl822x_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
 			     u16 val)
 {
 	int ret = rtlgen_write_mmd(phydev, devnum, regnum, val);
@@ -441,7 +451,7 @@ static int rtl8125_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
 	return ret;
 }
 
-static int rtl8125_get_features(struct phy_device *phydev)
+static int rtl822x_get_features(struct phy_device *phydev)
 {
 	int val;
 
@@ -459,7 +469,7 @@ static int rtl8125_get_features(struct phy_device *phydev)
 	return genphy_read_abilities(phydev);
 }
 
-static int rtl8125_config_aneg(struct phy_device *phydev)
+static int rtl822x_config_aneg(struct phy_device *phydev)
 {
 	int ret = 0;
 
@@ -479,7 +489,7 @@ static int rtl8125_config_aneg(struct phy_device *phydev)
 	return __genphy_config_aneg(phydev, ret);
 }
 
-static int rtl8125_read_status(struct phy_device *phydev)
+static int rtl822x_read_status(struct phy_device *phydev)
 {
 	int ret;
 
@@ -521,7 +531,7 @@ static int rtlgen_match_phy_device(struct phy_device *phydev)
 	       !rtlgen_supports_2_5gbps(phydev);
 }
 
-static int rtl8125_match_phy_device(struct phy_device *phydev)
+static int rtl8226_match_phy_device(struct phy_device *phydev)
 {
 	return phydev->phy_id == RTL_GENERIC_PHYID &&
 	       rtlgen_supports_2_5gbps(phydev);
@@ -626,29 +636,29 @@ static struct phy_driver realtek_drvs[] = {
 		.read_mmd	= rtlgen_read_mmd,
 		.write_mmd	= rtlgen_write_mmd,
 	}, {
-		.name		= "RTL8125 2.5Gbps internal",
-		.match_phy_device = rtl8125_match_phy_device,
-		.get_features	= rtl8125_get_features,
-		.config_aneg	= rtl8125_config_aneg,
-		.read_status	= rtl8125_read_status,
+		.name		= "RTL8226 2.5Gbps PHY",
+		.match_phy_device = rtl8226_match_phy_device,
+		.get_features	= rtl822x_get_features,
+		.config_aneg	= rtl822x_config_aneg,
+		.read_status	= rtl822x_read_status,
 		.suspend	= genphy_suspend,
 		.resume		= rtlgen_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
-		.read_mmd	= rtl8125_read_mmd,
-		.write_mmd	= rtl8125_write_mmd,
+		.read_mmd	= rtl822x_read_mmd,
+		.write_mmd	= rtl822x_write_mmd,
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc840),
-		.name		= "RTL8125B 2.5Gbps internal",
-		.get_features	= rtl8125_get_features,
-		.config_aneg	= rtl8125_config_aneg,
-		.read_status	= rtl8125_read_status,
+		.name		= "RTL8226B_RTL8221B 2.5Gbps PHY",
+		.get_features	= rtl822x_get_features,
+		.config_aneg	= rtl822x_config_aneg,
+		.read_status	= rtl822x_read_status,
 		.suspend	= genphy_suspend,
 		.resume		= rtlgen_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
-		.read_mmd	= rtl8125_read_mmd,
-		.write_mmd	= rtl8125_write_mmd,
+		.read_mmd	= rtl822x_read_mmd,
+		.write_mmd	= rtl822x_write_mmd,
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc961),
 		.name		= "RTL8366RB Gigabit Ethernet",

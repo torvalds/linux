@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
  */
+#include <linux/sched.h>
 #include <linux/of.h>
 #include "mt76.h"
 
@@ -304,11 +305,11 @@ mt76_phy_init(struct mt76_dev *dev, struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, SUPPORT_FAST_XMIT);
 	ieee80211_hw_set(hw, SUPPORTS_CLONED_SKBS);
 	ieee80211_hw_set(hw, SUPPORTS_AMSDU_IN_AMPDU);
-	ieee80211_hw_set(hw, TX_AMSDU);
 
-	/* TODO: avoid linearization for SDIO */
-	if (!mt76_is_sdio(dev))
+	if (!(dev->drv->drv_flags & MT_DRV_AMSDU_OFFLOAD)) {
+		ieee80211_hw_set(hw, TX_AMSDU);
 		ieee80211_hw_set(hw, TX_FRAG_LIST);
+	}
 
 	ieee80211_hw_set(hw, MFP_CAPABLE);
 	ieee80211_hw_set(hw, AP_LINK_PS);
@@ -433,13 +434,12 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
 	skb_queue_head_init(&dev->mcu.res_q);
 	init_waitqueue_head(&dev->mcu.wait);
 	mutex_init(&dev->mcu.mutex);
+	dev->tx_worker.fn = mt76_tx_worker;
 
 	INIT_LIST_HEAD(&dev->txwi_cache);
 
 	for (i = 0; i < ARRAY_SIZE(dev->q_rx); i++)
 		skb_queue_head_init(&dev->rx_skb[i]);
-
-	tasklet_init(&dev->tx_tasklet, mt76_tx_tasklet, (unsigned long)dev);
 
 	dev->wq = alloc_ordered_workqueue("mt76", 0);
 	if (!dev->wq) {
@@ -483,7 +483,14 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
 			return ret;
 	}
 
-	return ieee80211_register_hw(hw);
+	ret = ieee80211_register_hw(hw);
+	if (ret)
+		return ret;
+
+	WARN_ON(mt76_worker_setup(hw, &dev->tx_worker, NULL, "tx"));
+	sched_set_fifo_low(dev->tx_worker.task);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76_register_device);
 
@@ -500,12 +507,11 @@ EXPORT_SYMBOL_GPL(mt76_unregister_device);
 
 void mt76_free_device(struct mt76_dev *dev)
 {
+	mt76_worker_teardown(&dev->tx_worker);
 	if (dev->wq) {
 		destroy_workqueue(dev->wq);
 		dev->wq = NULL;
 	}
-	if (mt76_is_mmio(dev))
-		mt76_tx_free(dev);
 	ieee80211_free_hw(dev->hw);
 }
 EXPORT_SYMBOL_GPL(mt76_free_device);
@@ -540,7 +546,7 @@ bool mt76_has_tx_pending(struct mt76_phy *phy)
 	offset = __MT_TXQ_MAX * (phy != &dev->phy);
 
 	for (i = 0; i < __MT_TXQ_MAX; i++) {
-		q = dev->q_tx[offset + i].q;
+		q = dev->q_tx[offset + i];
 		if (q && q->queued)
 			return true;
 	}
@@ -870,7 +876,6 @@ mt76_check_sta(struct mt76_dev *dev, struct sk_buff *skb)
 	struct ieee80211_hw *hw;
 	struct mt76_wcid *wcid = status->wcid;
 	bool ps;
-	int i;
 
 	hw = mt76_phy_hw(dev, status->ext_phy);
 	if (ieee80211_is_pspoll(hdr->frame_control) && !wcid) {
@@ -920,20 +925,6 @@ mt76_check_sta(struct mt76_dev *dev, struct sk_buff *skb)
 
 	dev->drv->sta_ps(dev, sta, ps);
 	ieee80211_sta_ps_transition(sta, ps);
-
-	if (ps)
-		return;
-
-	for (i = 0; i < ARRAY_SIZE(sta->txq); i++) {
-		struct mt76_txq *mtxq;
-
-		if (!sta->txq[i])
-			continue;
-
-		mtxq = (struct mt76_txq *)sta->txq[i]->drv_priv;
-		if (!skb_queue_empty(&mtxq->retry_q))
-			ieee80211_schedule_txq(hw, sta->txq[i]);
-	}
 }
 
 void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
@@ -995,8 +986,6 @@ mt76_sta_add(struct mt76_dev *dev, struct ieee80211_vif *vif,
 
 		mtxq = (struct mt76_txq *)sta->txq[i]->drv_priv;
 		mtxq->wcid = wcid;
-
-		mt76_txq_init(dev, sta->txq[i]);
 	}
 
 	ewma_signal_init(&wcid->rssi);
@@ -1024,8 +1013,6 @@ void __mt76_sta_remove(struct mt76_dev *dev, struct ieee80211_vif *vif,
 		dev->drv->sta_remove(dev, vif, sta);
 
 	mt76_tx_status_check(dev, wcid, true);
-	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
-		mt76_txq_remove(dev, sta->txq[i]);
 	mt76_wcid_mask_clear(dev->wcid_mask, idx);
 	mt76_wcid_mask_clear(dev->wcid_phy_mask, idx);
 }
@@ -1095,7 +1082,7 @@ EXPORT_SYMBOL_GPL(mt76_get_txpower);
 static void
 __mt76_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
-	if (vif->csa_active && ieee80211_csa_is_complete(vif))
+	if (vif->csa_active && ieee80211_beacon_cntdwn_is_complete(vif))
 		ieee80211_csa_finish(vif);
 }
 
@@ -1120,7 +1107,7 @@ __mt76_csa_check(void *priv, u8 *mac, struct ieee80211_vif *vif)
 	if (!vif->csa_active)
 		return;
 
-	dev->csa_complete |= ieee80211_csa_is_complete(vif);
+	dev->csa_complete |= ieee80211_beacon_cntdwn_is_complete(vif);
 }
 
 void mt76_csa_check(struct mt76_dev *dev)

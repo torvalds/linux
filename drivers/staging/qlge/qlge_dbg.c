@@ -1431,7 +1431,7 @@ void ql_dump_routing_entries(struct ql_adapter *qdev)
 		}
 		if (value)
 			netdev_err(qdev->ndev,
-				   "%s: Routing Mask %d = 0x%.08x\n",
+				   "Routing Mask %d = 0x%.08x\n",
 				   i, value);
 	}
 	ql_sem_unlock(qdev, SEM_RT_IDX_MASK);
@@ -1617,6 +1617,9 @@ void ql_dump_qdev(struct ql_adapter *qdev)
 #ifdef QL_CB_DUMP
 void ql_dump_wqicb(struct wqicb *wqicb)
 {
+	struct tx_ring *tx_ring = container_of(wqicb, struct tx_ring, wqicb);
+	struct ql_adapter *qdev = tx_ring->qdev;
+
 	netdev_err(qdev->ndev, "Dumping wqicb stuff...\n");
 	netdev_err(qdev->ndev, "wqicb->len = 0x%x\n", le16_to_cpu(wqicb->len));
 	netdev_err(qdev->ndev, "wqicb->flags = %x\n",
@@ -1632,8 +1635,8 @@ void ql_dump_wqicb(struct wqicb *wqicb)
 
 void ql_dump_tx_ring(struct tx_ring *tx_ring)
 {
-	if (!tx_ring)
-		return;
+	struct ql_adapter *qdev = tx_ring->qdev;
+
 	netdev_err(qdev->ndev, "===================== Dumping tx_ring %d ===============\n",
 		   tx_ring->wq_id);
 	netdev_err(qdev->ndev, "tx_ring->base = %p\n", tx_ring->wq_base);
@@ -1657,6 +1660,8 @@ void ql_dump_tx_ring(struct tx_ring *tx_ring)
 void ql_dump_ricb(struct ricb *ricb)
 {
 	int i;
+	struct ql_adapter *qdev =
+		container_of(ricb, struct ql_adapter, ricb);
 
 	netdev_err(qdev->ndev, "===================== Dumping ricb ===============\n");
 	netdev_err(qdev->ndev, "Dumping ricb stuff...\n");
@@ -1686,6 +1691,9 @@ void ql_dump_ricb(struct ricb *ricb)
 
 void ql_dump_cqicb(struct cqicb *cqicb)
 {
+	struct rx_ring *rx_ring = container_of(cqicb, struct rx_ring, cqicb);
+	struct ql_adapter *qdev = rx_ring->qdev;
+
 	netdev_err(qdev->ndev, "Dumping cqicb stuff...\n");
 
 	netdev_err(qdev->ndev, "cqicb->msix_vect = %d\n", cqicb->msix_vect);
@@ -1725,8 +1733,8 @@ static const char *qlge_rx_ring_type_name(struct rx_ring *rx_ring)
 
 void ql_dump_rx_ring(struct rx_ring *rx_ring)
 {
-	if (!rx_ring)
-		return;
+	struct ql_adapter *qdev = rx_ring->qdev;
+
 	netdev_err(qdev->ndev,
 		   "===================== Dumping rx_ring %d ===============\n",
 		   rx_ring->cq_id);
@@ -1816,7 +1824,7 @@ fail_it:
 #endif
 
 #ifdef QL_OB_DUMP
-void ql_dump_tx_desc(struct tx_buf_desc *tbd)
+void ql_dump_tx_desc(struct ql_adapter *qdev, struct tx_buf_desc *tbd)
 {
 	netdev_err(qdev->ndev, "tbd->addr  = 0x%llx\n",
 		   le64_to_cpu((u64)tbd->addr));
@@ -1843,7 +1851,7 @@ void ql_dump_tx_desc(struct tx_buf_desc *tbd)
 		   tbd->len & TX_DESC_E ? "E" : ".");
 }
 
-void ql_dump_ob_mac_iocb(struct ob_mac_iocb_req *ob_mac_iocb)
+void ql_dump_ob_mac_iocb(struct ql_adapter *qdev, struct ob_mac_iocb_req *ob_mac_iocb)
 {
 	struct ob_mac_tso_iocb_req *ob_mac_tso_iocb =
 	    (struct ob_mac_tso_iocb_req *)ob_mac_iocb;
@@ -1886,10 +1894,10 @@ void ql_dump_ob_mac_iocb(struct ob_mac_iocb_req *ob_mac_iocb)
 		frame_len = le16_to_cpu(ob_mac_iocb->frame_len);
 	}
 	tbd = &ob_mac_iocb->tbd[0];
-	ql_dump_tx_desc(tbd);
+	ql_dump_tx_desc(qdev, tbd);
 }
 
-void ql_dump_ob_mac_rsp(struct ob_mac_iocb_rsp *ob_mac_rsp)
+void ql_dump_ob_mac_rsp(struct ql_adapter *qdev, struct ob_mac_iocb_rsp *ob_mac_rsp)
 {
 	netdev_err(qdev->ndev, "%s\n", __func__);
 	netdev_err(qdev->ndev, "opcode         = %d\n", ob_mac_rsp->opcode);
@@ -1906,7 +1914,7 @@ void ql_dump_ob_mac_rsp(struct ob_mac_iocb_rsp *ob_mac_rsp)
 #endif
 
 #ifdef QL_IB_DUMP
-void ql_dump_ib_mac_rsp(struct ib_mac_iocb_rsp *ib_mac_rsp)
+void ql_dump_ib_mac_rsp(struct ql_adapter *qdev, struct ib_mac_iocb_rsp *ib_mac_rsp)
 {
 	netdev_err(qdev->ndev, "%s\n", __func__);
 	netdev_err(qdev->ndev, "opcode         = 0x%x\n", ib_mac_rsp->opcode);

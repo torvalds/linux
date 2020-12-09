@@ -710,7 +710,7 @@ static void dce110_stream_encoder_lvds_set_stream_attribute(
 	ASSERT(crtc_timing->pixel_encoding == PIXEL_ENCODING_RGB);
 }
 
-static void dce110_stream_encoder_set_mst_bandwidth(
+static void dce110_stream_encoder_set_throttled_vcp_size(
 	struct stream_encoder *enc,
 	struct fixed31_32 avg_time_slots_per_mtp)
 {
@@ -1621,8 +1621,8 @@ static const struct stream_encoder_funcs dce110_str_enc_funcs = {
 		dce110_stream_encoder_dvi_set_stream_attribute,
 	.lvds_set_stream_attribute =
 		dce110_stream_encoder_lvds_set_stream_attribute,
-	.set_mst_bandwidth =
-		dce110_stream_encoder_set_mst_bandwidth,
+	.set_throttled_vcp_size =
+		dce110_stream_encoder_set_throttled_vcp_size,
 	.update_hdmi_info_packets =
 		dce110_stream_encoder_update_hdmi_info_packets,
 	.stop_hdmi_info_packets =

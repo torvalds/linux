@@ -2,15 +2,15 @@
 /*
  * WFx hardware interface definitions
  *
- * Copyright (c) 2018-2019, Silicon Laboratories Inc.
+ * Copyright (c) 2018-2020, Silicon Laboratories Inc.
  */
 
 #ifndef WFX_HIF_API_CMD_H
 #define WFX_HIF_API_CMD_H
 
-#include "hif_api_general.h"
+#include <linux/ieee80211.h>
 
-#define HIF_API_SSID_SIZE                      API_SSID_SIZE
+#include "hif_api_general.h"
 
 enum hif_requests_ids {
 	HIF_REQ_ID_RESET                = 0x0a,
@@ -60,21 +60,15 @@ enum hif_indications_ids {
 	HIF_IND_ID_EVENT                = 0x85
 };
 
-union hif_commands_ids {
-	enum hif_requests_ids request;
-	enum hif_confirmations_ids confirmation;
-	enum hif_indications_ids indication;
-};
-
-struct hif_reset_flags {
+struct hif_req_reset {
 	u8     reset_stat:1;
 	u8     reset_all_int:1;
 	u8     reserved1:6;
 	u8     reserved2[3];
 } __packed;
 
-struct hif_req_reset {
-	struct hif_reset_flags reset_flags;
+struct hif_cnf_reset {
+	__le32 status;
 } __packed;
 
 struct hif_req_read_mib {
@@ -99,52 +93,23 @@ struct hif_cnf_write_mib {
 	__le32 status;
 } __packed;
 
-struct hif_ie_flags {
+struct hif_req_update_ie {
 	u8     beacon:1;
 	u8     probe_resp:1;
 	u8     probe_req:1;
 	u8     reserved1:5;
 	u8     reserved2;
-} __packed;
-
-struct hif_ie_tlv {
-	u8     type;
-	u8     length;
-	u8     data[];
-} __packed;
-
-struct hif_req_update_ie {
-	struct hif_ie_flags ie_flags;
 	__le16 num_ies;
-	struct hif_ie_tlv ie[];
+	struct element ie[];
 } __packed;
 
 struct hif_cnf_update_ie {
 	__le32 status;
 } __packed;
 
-struct hif_scan_type {
-	u8     type:1;
-	u8     mode:1;
-	u8     reserved:6;
-} __packed;
-
-struct hif_scan_flags {
-	u8     fbg:1;
-	u8     reserved1:1;
-	u8     pre:1;
-	u8     reserved2:5;
-} __packed;
-
-struct hif_auto_scan_param {
-	__le16 interval;
-	u8     reserved;
-	s8     rssi_thr;
-} __packed;
-
 struct hif_ssid_def {
 	__le32 ssid_length;
-	u8     ssid[HIF_API_SSID_SIZE];
+	u8     ssid[IEEE80211_MAX_SSID_LEN];
 } __packed;
 
 #define HIF_API_MAX_NB_SSIDS                           2
@@ -152,10 +117,17 @@ struct hif_ssid_def {
 
 struct hif_req_start_scan_alt {
 	u8     band;
-	struct hif_scan_type scan_type;
-	struct hif_scan_flags scan_flags;
+	u8     maintain_current_bss:1;
+	u8     periodic:1;
+	u8     reserved1:6;
+	u8     disallow_ps:1;
+	u8     reserved2:1;
+	u8     short_preamble:1;
+	u8     reserved3:5;
 	u8     max_transmit_rate;
-	struct hif_auto_scan_param auto_scan_param;
+	__le16 periodic_interval;
+	u8     reserved4;
+	s8     periodic_rssi_thr;
 	u8     num_of_probe_requests;
 	u8     probe_delay;
 	u8     num_of_ssids;
@@ -201,53 +173,32 @@ enum hif_frame_format {
 	HIF_FRAME_FORMAT_GF_HT_11N                 = 0x2
 };
 
-enum hif_stbc {
-	HIF_STBC_NOT_ALLOWED                       = 0x0,
-	HIF_STBC_ALLOWED                           = 0x1
-};
-
-struct hif_queue {
-	u8     queue_id:2;
-	u8     peer_sta_id:4;
-	u8     reserved:2;
-} __packed;
-
-struct hif_data_flags {
-	u8     more:1;
-	u8     fc_offset:3;
-	u8     after_dtim:1;
-	u8     reserved:3;
-} __packed;
-
-struct hif_tx_flags {
-	u8     start_exp:1;
-	u8     reserved:3;
-	u8     retry_policy_index:4;
-} __packed;
-
-struct hif_ht_tx_parameters {
-	u8     frame_format:4;
-	u8     fec_coding:1;
-	u8     short_gi:1;
-	u8     reserved1:1;
-	u8     stbc:1;
-	u8     reserved2;
-	u8     aggregation:1;
-	u8     reserved3:7;
-	u8     reserved4;
-} __packed;
-
 struct hif_req_tx {
 	// packet_id is not interpreted by the device, so it is not necessary to
 	// declare it little endian
 	u32    packet_id;
 	u8     max_tx_rate;
-	struct hif_queue queue_id;
-	struct hif_data_flags data_flags;
-	struct hif_tx_flags tx_flags;
-	__le32 reserved;
+	u8     queue_id:2;
+	u8     peer_sta_id:4;
+	u8     reserved1:2;
+	u8     more:1;
+	u8     fc_offset:3;
+	u8     after_dtim:1;
+	u8     reserved2:3;
+	u8     start_exp:1;
+	u8     reserved3:3;
+	u8     retry_policy_index:4;
+	__le32 reserved4;
 	__le32 expire_time;
-	struct hif_ht_tx_parameters ht_tx_parameters;
+	u8     frame_format:4;
+	u8     fec_coding:1;
+	u8     short_gi:1;
+	u8     reserved5:1;
+	u8     stbc:1;
+	u8     reserved6;
+	u8     aggregation:1;
+	u8     reserved7:7;
+	u8     reserved8;
 	u8     frame[];
 } __packed;
 
@@ -258,15 +209,6 @@ enum hif_qos_ackplcy {
 	HIF_QOS_ACKPLCY_BLCKACK                        = 0x3
 };
 
-struct hif_tx_result_flags {
-	u8     aggr:1;
-	u8     requeue:1;
-	u8     ack_policy:2;
-	u8     txop_limit:1;
-	u8     reserved1:3;
-	u8     reserved2;
-} __packed;
-
 struct hif_cnf_tx {
 	__le32 status;
 	// packet_id is copied from struct hif_req_tx without been interpreted
@@ -274,7 +216,12 @@ struct hif_cnf_tx {
 	u32    packet_id;
 	u8     txed_rate;
 	u8     ack_failures;
-	struct hif_tx_result_flags tx_result_flags;
+	u8     aggr:1;
+	u8     requeue:1;
+	u8     ack_policy:2;
+	u8     txop_limit:1;
+	u8     reserved1:3;
+	u8     reserved2;
 	__le32 media_delay;
 	__le32 tx_queue_delay;
 } __packed;
@@ -282,7 +229,7 @@ struct hif_cnf_tx {
 struct hif_cnf_multi_transmit {
 	u8     num_tx_confs;
 	u8     reserved[3];
-	struct hif_cnf_tx   tx_conf_payload[];
+	struct hif_cnf_tx tx_conf_payload[];
 } __packed;
 
 enum hif_ri_flags_encrypt {
@@ -293,7 +240,12 @@ enum hif_ri_flags_encrypt {
 	HIF_RI_FLAGS_WAPI_ENCRYPTED                = 0x4
 };
 
-struct hif_rx_flags {
+struct hif_ind_rx {
+	__le32 status;
+	u8     channel_number;
+	u8     reserved1;
+	u8     rxed_rate;
+	u8     rcpi_rssi;
 	u8     encryp:3;
 	u8     in_aggr:1;
 	u8     first_aggr:1;
@@ -305,7 +257,7 @@ struct hif_rx_flags {
 	u8     match_ssid:1;
 	u8     match_bssid:1;
 	u8     more:1;
-	u8     reserved1:1;
+	u8     reserved2:1;
 	u8     ht:1;
 	u8     stbc:1;
 	u8     match_uc_addr:1;
@@ -313,22 +265,12 @@ struct hif_rx_flags {
 	u8     match_bc_addr:1;
 	u8     key_type:1;
 	u8     key_index:4;
-	u8     reserved2:1;
+	u8     reserved3:1;
 	u8     peer_sta_id:4;
-	u8     reserved3:2;
-	u8     reserved4:1;
-} __packed;
-
-struct hif_ind_rx {
-	__le32 status;
-	u8     channel_number;
-	u8     reserved;
-	u8     rxed_rate;
-	u8     rcpi_rssi;
-	struct hif_rx_flags rx_flags;
+	u8     reserved4:2;
+	u8     reserved5:1;
 	u8     frame[];
 } __packed;
-
 
 struct hif_req_edca_queue_params {
 	u8     queue_id;
@@ -346,28 +288,24 @@ struct hif_cnf_edca_queue_params {
 	__le32 status;
 } __packed;
 
-struct hif_join_flags {
-	u8     reserved1:2;
-	u8     force_no_beacon:1;
-	u8     force_with_ind:1;
-	u8     reserved2:4;
-} __packed;
-
 struct hif_req_join {
 	u8     infrastructure_bss_mode:1;
 	u8     reserved1:7;
 	u8     band;
 	u8     channel_number;
-	u8     reserved;
+	u8     reserved2;
 	u8     bssid[ETH_ALEN];
 	__le16 atim_window;
 	u8     short_preamble:1;
-	u8     reserved2:7;
+	u8     reserved3:7;
 	u8     probe_for_join;
-	u8     reserved3;
-	struct hif_join_flags join_flags;
+	u8     reserved4;
+	u8     reserved5:2;
+	u8     force_no_beacon:1;
+	u8     force_with_ind:1;
+	u8     reserved6:4;
 	__le32 ssid_length;
-	u8     ssid[HIF_API_SSID_SIZE];
+	u8     ssid[IEEE80211_MAX_SSID_LEN];
 	__le32 beacon_interval;
 	__le32 basic_rate_set;
 } __packed;
@@ -380,13 +318,9 @@ struct hif_ind_join_complete {
 	__le32 status;
 } __packed;
 
-struct hif_bss_flags {
+struct hif_req_set_bss_params {
 	u8     lost_count_only:1;
 	u8     reserved:7;
-} __packed;
-
-struct hif_req_set_bss_params {
-	struct hif_bss_flags bss_flags;
 	u8     beacon_lost_count;
 	__le16 aid;
 	__le32 operational_rate_set;
@@ -396,14 +330,10 @@ struct hif_cnf_set_bss_params {
 	__le32 status;
 } __packed;
 
-struct hif_pm_mode {
+struct hif_req_set_pm_mode {
 	u8     enter_psm:1;
 	u8     reserved:6;
 	u8     fast_psm:1;
-} __packed;
-
-struct hif_req_set_pm_mode {
-	struct hif_pm_mode pm_mode;
 	u8     fast_psm_idle_period;
 	u8     ap_psm_change_period;
 	u8     min_auto_ps_poll_period;
@@ -419,7 +349,6 @@ struct hif_ind_set_pm_mode_cmpl {
 	u8     reserved[3];
 } __packed;
 
-
 struct hif_req_start {
 	u8     mode;
 	u8     band;
@@ -432,18 +361,13 @@ struct hif_req_start {
 	u8     reserved3:7;
 	u8     reserved4;
 	u8     ssid_length;
-	u8     ssid[HIF_API_SSID_SIZE];
+	u8     ssid[IEEE80211_MAX_SSID_LEN];
 	__le32 basic_rate_set;
 } __packed;
 
 struct hif_cnf_start {
 	__le32 status;
 } __packed;
-
-enum hif_beacon {
-	HIF_BEACON_STOP                       = 0x0,
-	HIF_BEACON_START                      = 0x1
-};
 
 struct hif_req_beacon_transmit {
 	u8     enable_beaconing;
@@ -457,20 +381,11 @@ struct hif_cnf_beacon_transmit {
 #define HIF_LINK_ID_MAX            14
 #define HIF_LINK_ID_NOT_ASSOCIATED (HIF_LINK_ID_MAX + 1)
 
-enum hif_sta_map_direction {
-	HIF_STA_MAP                       = 0x0,
-	HIF_STA_UNMAP                     = 0x1
-};
-
-struct hif_map_link_flags {
-	u8     map_direction:1;
-	u8     mfpc:1;
-	u8     reserved:6;
-} __packed;
-
 struct hif_req_map_link {
 	u8     mac_addr[ETH_ALEN];
-	struct hif_map_link_flags map_link_flags;
+	u8     unmap:1;
+	u8     mfpc:1;
+	u8     reserved:6;
 	u8     peer_sta_id;
 } __packed;
 
@@ -478,16 +393,12 @@ struct hif_cnf_map_link {
 	__le32 status;
 } __packed;
 
-struct hif_suspend_resume_flags {
+struct hif_ind_suspend_resume_tx {
 	u8     resume:1;
 	u8     reserved1:2;
 	u8     bc_mc_only:1;
 	u8     reserved2:4;
 	u8     reserved3;
-} __packed;
-
-struct hif_ind_suspend_resume_tx {
-	struct hif_suspend_resume_flags suspend_resume_flags;
 	__le16 peer_sta_set;
 } __packed;
 
@@ -582,25 +493,23 @@ struct hif_igtk_group_key {
 	u8     ipn[HIF_API_IPN_SIZE];
 } __packed;
 
-union hif_privacy_key_data {
-	struct hif_wep_pairwise_key  wep_pairwise_key;
-	struct hif_wep_group_key     wep_group_key;
-	struct hif_tkip_pairwise_key tkip_pairwise_key;
-	struct hif_tkip_group_key    tkip_group_key;
-	struct hif_aes_pairwise_key  aes_pairwise_key;
-	struct hif_aes_group_key     aes_group_key;
-	struct hif_wapi_pairwise_key wapi_pairwise_key;
-	struct hif_wapi_group_key    wapi_group_key;
-	struct hif_igtk_group_key    igtk_group_key;
-};
-
 struct hif_req_add_key {
 	u8     type;
 	u8     entry_index;
 	u8     int_id:2;
 	u8     reserved1:6;
 	u8     reserved2;
-	union hif_privacy_key_data key;
+	union {
+		struct hif_wep_pairwise_key  wep_pairwise_key;
+		struct hif_wep_group_key     wep_group_key;
+		struct hif_tkip_pairwise_key tkip_pairwise_key;
+		struct hif_tkip_group_key    tkip_group_key;
+		struct hif_aes_pairwise_key  aes_pairwise_key;
+		struct hif_aes_group_key     aes_group_key;
+		struct hif_wapi_pairwise_key wapi_pairwise_key;
+		struct hif_wapi_group_key    wapi_group_key;
+		struct hif_igtk_group_key    igtk_group_key;
+	} key;
 } __packed;
 
 struct hif_cnf_add_key {
@@ -632,16 +541,13 @@ enum hif_ps_mode_error {
 	HIF_PS_ERROR_AP_NO_DATA_AFTER_TIM          = 4
 };
 
-union hif_event_data {
-	u8     rcpi_rssi;
-	__le32 ps_mode_error;
-	__le32 peer_sta_set;
-};
-
 struct hif_ind_event {
 	__le32 event_id;
-	union hif_event_data event_data;
+	union {
+		u8     rcpi_rssi;
+		__le32 ps_mode_error;
+		__le32 peer_sta_set;
+	} event_data;
 } __packed;
-
 
 #endif

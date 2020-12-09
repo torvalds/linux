@@ -67,7 +67,7 @@ Parameters::
     the value passed in <key_size>.
 
 <key_type>
-    Either 'logon' or 'user' kernel key type.
+    Either 'logon', 'user' or 'encrypted' kernel key type.
 
 <key_description>
     The kernel keyring key description crypt target should look for
@@ -120,6 +120,14 @@ submit_from_crypt_cpus
     significantly.  The default is to offload write bios to the same
     thread because it benefits CFQ to have writes submitted using the
     same context.
+
+no_read_workqueue
+    Bypass dm-crypt internal workqueue and process read requests synchronously.
+
+no_write_workqueue
+    Bypass dm-crypt internal workqueue and process write requests synchronously.
+    This option is automatically enabled for host-managed zoned block devices
+    (e.g. host-managed SMR hard-disks).
 
 integrity:<bytes>:<type>
     The device requires additional <bytes> metadata per-sector stored

@@ -14,9 +14,7 @@ int fixup_exception(struct pt_regs *regs)
 	if (!fixup)
 		return 0;
 
-	if (IS_ENABLED(CONFIG_BPF_JIT) &&
-	    regs->pc >= BPF_JIT_REGION_START &&
-	    regs->pc < BPF_JIT_REGION_END)
+	if (in_bpf_jit(regs))
 		return arm64_bpf_fixup_exception(fixup, regs);
 
 	regs->pc = (unsigned long)&fixup->fixup + fixup->fixup;

@@ -10,6 +10,8 @@ maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
 
 properties:
+  $nodename:
+    const: "/"
   compatible:
     oneOf:
       - items:
@@ -20,3 +22,5 @@ properties:
           - enum:
               - gateworks,gw2358
           - const: intel,ixp43x
+
+additionalProperties: true

@@ -10,7 +10,7 @@
 #include <linux/sched.h>
 #include <linux/tboot.h>
 #include <linux/delay.h>
-#include <linux/frame.h>
+#include <linux/objtool.h>
 #include <linux/pgtable.h>
 #include <acpi/reboot.h>
 #include <asm/io.h>

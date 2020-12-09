@@ -685,7 +685,7 @@ il_eeprom_query16(const struct il_priv *il, size_t offset)
 }
 EXPORT_SYMBOL(il_eeprom_query16);
 
-/**
+/*
  * il_eeprom_init - read EEPROM contents
  *
  * Load the EEPROM contents from adapter into il->eeprom
@@ -836,7 +836,7 @@ il_init_band_reference(const struct il_priv *il, int eep_band,
 
 #define CHECK_AND_PRINT(x) ((eeprom_ch->flags & EEPROM_CHANNEL_##x) \
 			    ? # x " " : "")
-/**
+/*
  * il_mod_ht40_chan_info - Copy ht40 channel info into driver's il.
  *
  * Does not set up a command, or touch hardware.
@@ -877,7 +877,7 @@ il_mod_ht40_chan_info(struct il_priv *il, enum nl80211_band band, u16 channel,
 #define CHECK_AND_PRINT_I(x) ((eeprom_ch_info[ch].flags & EEPROM_CHANNEL_##x) \
 			    ? # x " " : "")
 
-/**
+/*
  * il_init_channel_map - Set up driver's info for all possible channels
  */
 int
@@ -1024,7 +1024,7 @@ il_free_channel_map(struct il_priv *il)
 }
 EXPORT_SYMBOL(il_free_channel_map);
 
-/**
+/*
  * il_get_channel_info - Find driver's ilate channel info
  *
  * Based on band and channel number.
@@ -1343,7 +1343,7 @@ il_do_scan_abort(struct il_priv *il)
 		D_SCAN("Successfully send scan abort\n");
 }
 
-/**
+/*
  * il_scan_cancel - Cancel any currently executing HW scan
  */
 int
@@ -1355,7 +1355,7 @@ il_scan_cancel(struct il_priv *il)
 }
 EXPORT_SYMBOL(il_scan_cancel);
 
-/**
+/*
  * il_scan_cancel_timeout - Cancel any currently executing HW scan
  * @ms: amount of time to wait (in milliseconds) for scan to abort
  *
@@ -1607,10 +1607,9 @@ il_bg_scan_check(struct work_struct *data)
 	mutex_unlock(&il->mutex);
 }
 
-/**
+/*
  * il_fill_probe_req - fill in all required fields and IE for probe request
  */
-
 u16
 il_fill_probe_req(struct il_priv *il, struct ieee80211_mgmt *frame,
 		  const u8 *ta, const u8 *ies, int ie_len, int left)
@@ -1913,7 +1912,7 @@ done:
 	return;
 }
 
-/**
+/*
  * il_prep_station - Prepare station information for addition
  *
  * should be called with sta_lock held
@@ -2000,7 +1999,7 @@ EXPORT_SYMBOL_GPL(il_prep_station);
 
 #define STA_WAIT_TIMEOUT (HZ/2)
 
-/**
+/*
  * il_add_station_common -
  */
 int
@@ -2060,7 +2059,7 @@ il_add_station_common(struct il_priv *il, const u8 *addr, bool is_ap,
 }
 EXPORT_SYMBOL(il_add_station_common);
 
-/**
+/*
  * il_sta_ucode_deactivate - deactivate ucode status for a station
  *
  * il->sta_lock must be held
@@ -2136,7 +2135,7 @@ il_send_remove_station(struct il_priv *il, const u8 * addr, int sta_id,
 	return ret;
 }
 
-/**
+/*
  * il_remove_station - Remove driver's knowledge of station.
  */
 int
@@ -2192,7 +2191,7 @@ out_err:
 }
 EXPORT_SYMBOL_GPL(il_remove_station);
 
-/**
+/*
  * il_clear_ucode_stations - clear ucode station table bits
  *
  * This function clears all the bits in the driver indicating
@@ -2224,7 +2223,7 @@ il_clear_ucode_stations(struct il_priv *il)
 }
 EXPORT_SYMBOL(il_clear_ucode_stations);
 
-/**
+/*
  * il_restore_stations() - Restore driver known stations to device
  *
  * All stations considered active by driver, but not present in ucode, is
@@ -2356,7 +2355,7 @@ il_dump_lq_cmd(struct il_priv *il, struct il_link_quality_cmd *lq)
 }
 #endif
 
-/**
+/*
  * il_is_lq_table_valid() - Test one aspect of LQ cmd for validity
  *
  * It sometimes happens when a HT rate has been in use and we
@@ -2385,7 +2384,7 @@ il_is_lq_table_valid(struct il_priv *il, struct il_link_quality_cmd *lq)
 	return true;
 }
 
-/**
+/*
  * il_send_lq_cmd() - Send link quality command
  * @init: This command is sent as part of station initialization right
  *        after station has been added.
@@ -2531,7 +2530,7 @@ EXPORT_SYMBOL(il_mac_sta_remove);
  *
  */
 
-/**
+/*
  * il_rx_queue_space - Return number of free slots available in queue.
  */
 int
@@ -2548,7 +2547,7 @@ il_rx_queue_space(const struct il_rx_queue *q)
 }
 EXPORT_SYMBOL(il_rx_queue_space);
 
-/**
+/*
  * il_rx_queue_update_write_ptr - Update the write pointer for the RX queue
  */
 void
@@ -2677,7 +2676,7 @@ il_set_decrypted_flag(struct il_priv *il, struct ieee80211_hdr *hdr,
 		if ((decrypt_res & RX_RES_STATUS_DECRYPT_TYPE_MSK) ==
 		    RX_RES_STATUS_BAD_KEY_TTAK)
 			break;
-		/* fall through */
+		fallthrough;
 
 	case RX_RES_STATUS_SEC_TYPE_WEP:
 		if ((decrypt_res & RX_RES_STATUS_DECRYPT_TYPE_MSK) ==
@@ -2687,7 +2686,7 @@ il_set_decrypted_flag(struct il_priv *il, struct ieee80211_hdr *hdr,
 			D_RX("Packet destroyed\n");
 			return -1;
 		}
-		/* fall through */
+		fallthrough;
 	case RX_RES_STATUS_SEC_TYPE_CCMP:
 		if ((decrypt_res & RX_RES_STATUS_DECRYPT_TYPE_MSK) ==
 		    RX_RES_STATUS_DECRYPT_OK) {
@@ -2703,7 +2702,7 @@ il_set_decrypted_flag(struct il_priv *il, struct ieee80211_hdr *hdr,
 }
 EXPORT_SYMBOL(il_set_decrypted_flag);
 
-/**
+/*
  * il_txq_update_write_ptr - Send new write idx to hardware
  */
 void
@@ -2743,7 +2742,7 @@ il_txq_update_write_ptr(struct il_priv *il, struct il_tx_queue *txq)
 }
 EXPORT_SYMBOL(il_txq_update_write_ptr);
 
-/**
+/*
  * il_tx_queue_unmap -  Unmap any remaining DMA mappings and free skb's
  */
 void
@@ -2762,7 +2761,7 @@ il_tx_queue_unmap(struct il_priv *il, int txq_id)
 }
 EXPORT_SYMBOL(il_tx_queue_unmap);
 
-/**
+/*
  * il_tx_queue_free - Deallocate DMA queue.
  * @txq: Transmit queue to deallocate.
  *
@@ -2805,7 +2804,7 @@ il_tx_queue_free(struct il_priv *il, int txq_id)
 }
 EXPORT_SYMBOL(il_tx_queue_free);
 
-/**
+/*
  * il_cmd_queue_unmap - Unmap any remaining DMA mappings from command queue
  */
 void
@@ -2843,9 +2842,8 @@ il_cmd_queue_unmap(struct il_priv *il)
 }
 EXPORT_SYMBOL(il_cmd_queue_unmap);
 
-/**
+/*
  * il_cmd_queue_free - Deallocate DMA queue.
- * @txq: Transmit queue to deallocate.
  *
  * Empty queue by removing and destroying all BD's.
  * Free all buffers.
@@ -2924,7 +2922,7 @@ il_queue_space(const struct il_queue *q)
 EXPORT_SYMBOL(il_queue_space);
 
 
-/**
+/*
  * il_queue_init - Initialize queue's high/low-water and read/write idxes
  */
 static int
@@ -2958,7 +2956,7 @@ il_queue_init(struct il_priv *il, struct il_queue *q, int slots, u32 id)
 	return 0;
 }
 
-/**
+/*
  * il_tx_queue_alloc - Alloc driver data and TFD CB for one Tx/cmd queue
  */
 static int
@@ -2998,7 +2996,7 @@ error:
 	return -ENOMEM;
 }
 
-/**
+/*
  * il_tx_queue_init - Allocate and initialize one tx/cmd queue
  */
 int
@@ -3105,7 +3103,7 @@ EXPORT_SYMBOL(il_tx_queue_reset);
 
 /*************** HOST COMMAND QUEUE FUNCTIONS   *****/
 
-/**
+/*
  * il_enqueue_hcmd - enqueue a uCode command
  * @il: device ilate data point
  * @cmd: a point to the ucode command structure
@@ -3123,7 +3121,6 @@ il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 	struct il_cmd_meta *out_meta;
 	dma_addr_t phys_addr;
 	unsigned long flags;
-	int len;
 	u32 idx;
 	u16 fix_size;
 
@@ -3182,9 +3179,6 @@ il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 	    cpu_to_le16(QUEUE_TO_SEQ(il->cmd_queue) | IDX_TO_SEQ(q->write_ptr));
 	if (cmd->flags & CMD_SIZE_HUGE)
 		out_cmd->hdr.sequence |= SEQ_HUGE_FRAME;
-	len = sizeof(struct il_device_cmd);
-	if (idx == TFD_CMD_SLOTS)
-		len = IL_MAX_CMD_SIZE;
 
 #ifdef CONFIG_IWLEGACY_DEBUG
 	switch (out_cmd->hdr.cmd) {
@@ -3233,7 +3227,7 @@ out:
 	return idx;
 }
 
-/**
+/*
  * il_hcmd_queue_reclaim - Reclaim TX command queue entries already Tx'd
  *
  * When FW advances 'R' idx, all entries between old and new 'R' idx
@@ -3266,7 +3260,7 @@ il_hcmd_queue_reclaim(struct il_priv *il, int txq_id, int idx, int cmd_idx)
 	}
 }
 
-/**
+/*
  * il_tx_cmd_complete - Pull unused buffers off the queue and reclaim them
  * @rxb: Rx buffer to reclaim
  *
@@ -3417,7 +3411,7 @@ il_init_ht_hw_capab(const struct il_priv *il,
 	}
 }
 
-/**
+/*
  * il_init_geos - Initialize mac80211's geo/channel info based from eeprom
  */
 int
@@ -3763,7 +3757,7 @@ il_check_rxon_cmd(struct il_priv *il)
 }
 EXPORT_SYMBOL(il_check_rxon_cmd);
 
-/**
+/*
  * il_full_rxon_required - check if full RXON (vs RXON_ASSOC) cmd is needed
  * @il: staging_rxon is compared to active_rxon
  *
@@ -3943,7 +3937,7 @@ il_get_single_channel_number(struct il_priv *il, enum nl80211_band band)
 }
 EXPORT_SYMBOL(il_get_single_channel_number);
 
-/**
+/*
  * il_set_rxon_channel - Set the band and channel values in staging RXON
  * @ch: requested channel as a pointer to struct ieee80211_channel
 
@@ -4146,7 +4140,7 @@ il_print_rx_config_cmd(struct il_priv *il)
 }
 EXPORT_SYMBOL(il_print_rx_config_cmd);
 #endif
-/**
+/*
  * il_irq_handle_error - called for HW or SW error interrupt from card
  */
 void
@@ -5011,7 +5005,7 @@ il_update_qos(struct il_priv *il)
 			      &il->qos_data.def_qos_parm, NULL);
 }
 
-/**
+/*
  * il_mac_config - mac80211 config callback
  */
 int

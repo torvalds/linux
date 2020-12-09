@@ -9,6 +9,7 @@
 #include <linux/rculist_nulls.h>
 #include <linux/random.h>
 #include <uapi/linux/btf.h>
+#include <linux/rcupdate_trace.h>
 #include "percpu_freelist.h"
 #include "bpf_lru_list.h"
 #include "map_in_map.h"
@@ -577,8 +578,7 @@ static void *__htab_map_lookup_elem(struct bpf_map *map, void *key)
 	struct htab_elem *l;
 	u32 hash, key_size;
 
-	/* Must be called with rcu_read_lock. */
-	WARN_ON_ONCE(!rcu_read_lock_held());
+	WARN_ON_ONCE(!rcu_read_lock_held() && !rcu_read_lock_trace_held());
 
 	key_size = map->key_size;
 
@@ -612,7 +612,7 @@ static void *htab_map_lookup_elem(struct bpf_map *map, void *key)
  * bpf_prog
  *   __htab_map_lookup_elem
  */
-static u32 htab_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
+static int htab_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
 {
 	struct bpf_insn *insn = insn_buf;
 	const int ret = BPF_REG_0;
@@ -651,7 +651,7 @@ static void *htab_lru_map_lookup_elem_sys(struct bpf_map *map, void *key)
 	return __htab_lru_map_lookup_elem(map, key, false);
 }
 
-static u32 htab_lru_map_gen_lookup(struct bpf_map *map,
+static int htab_lru_map_gen_lookup(struct bpf_map *map,
 				   struct bpf_insn *insn_buf)
 {
 	struct bpf_insn *insn = insn_buf;
@@ -941,7 +941,7 @@ static int htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 		/* unknown flags */
 		return -EINVAL;
 
-	WARN_ON_ONCE(!rcu_read_lock_held());
+	WARN_ON_ONCE(!rcu_read_lock_held() && !rcu_read_lock_trace_held());
 
 	key_size = map->key_size;
 
@@ -1032,7 +1032,7 @@ static int htab_lru_map_update_elem(struct bpf_map *map, void *key, void *value,
 		/* unknown flags */
 		return -EINVAL;
 
-	WARN_ON_ONCE(!rcu_read_lock_held());
+	WARN_ON_ONCE(!rcu_read_lock_held() && !rcu_read_lock_trace_held());
 
 	key_size = map->key_size;
 
@@ -1220,7 +1220,7 @@ static int htab_map_delete_elem(struct bpf_map *map, void *key)
 	u32 hash, key_size;
 	int ret = -ENOENT;
 
-	WARN_ON_ONCE(!rcu_read_lock_held());
+	WARN_ON_ONCE(!rcu_read_lock_held() && !rcu_read_lock_trace_held());
 
 	key_size = map->key_size;
 
@@ -1252,7 +1252,7 @@ static int htab_lru_map_delete_elem(struct bpf_map *map, void *key)
 	u32 hash, key_size;
 	int ret = -ENOENT;
 
-	WARN_ON_ONCE(!rcu_read_lock_held());
+	WARN_ON_ONCE(!rcu_read_lock_held() && !rcu_read_lock_trace_held());
 
 	key_size = map->key_size;
 
@@ -1622,7 +1622,6 @@ struct bpf_iter_seq_hash_map_info {
 	struct bpf_map *map;
 	struct bpf_htab *htab;
 	void *percpu_value_buf; // non-zero means percpu hash
-	unsigned long flags;
 	u32 bucket_id;
 	u32 skip_elems;
 };
@@ -1632,7 +1631,6 @@ bpf_hash_map_seq_find_next(struct bpf_iter_seq_hash_map_info *info,
 			   struct htab_elem *prev_elem)
 {
 	const struct bpf_htab *htab = info->htab;
-	unsigned long flags = info->flags;
 	u32 skip_elems = info->skip_elems;
 	u32 bucket_id = info->bucket_id;
 	struct hlist_nulls_head *head;
@@ -1656,19 +1654,18 @@ bpf_hash_map_seq_find_next(struct bpf_iter_seq_hash_map_info *info,
 
 		/* not found, unlock and go to the next bucket */
 		b = &htab->buckets[bucket_id++];
-		htab_unlock_bucket(htab, b, flags);
+		rcu_read_unlock();
 		skip_elems = 0;
 	}
 
 	for (i = bucket_id; i < htab->n_buckets; i++) {
 		b = &htab->buckets[i];
-		flags = htab_lock_bucket(htab, b);
+		rcu_read_lock();
 
 		count = 0;
 		head = &b->head;
 		hlist_nulls_for_each_entry_rcu(elem, n, head, hash_node) {
 			if (count >= skip_elems) {
-				info->flags = flags;
 				info->bucket_id = i;
 				info->skip_elems = count;
 				return elem;
@@ -1676,7 +1673,7 @@ bpf_hash_map_seq_find_next(struct bpf_iter_seq_hash_map_info *info,
 			count++;
 		}
 
-		htab_unlock_bucket(htab, b, flags);
+		rcu_read_unlock();
 		skip_elems = 0;
 	}
 
@@ -1754,14 +1751,10 @@ static int bpf_hash_map_seq_show(struct seq_file *seq, void *v)
 
 static void bpf_hash_map_seq_stop(struct seq_file *seq, void *v)
 {
-	struct bpf_iter_seq_hash_map_info *info = seq->private;
-
 	if (!v)
 		(void)__bpf_hash_map_seq_show(seq, NULL);
 	else
-		htab_unlock_bucket(info->htab,
-				   &info->htab->buckets[info->bucket_id],
-				   info->flags);
+		rcu_read_unlock();
 }
 
 static int bpf_iter_init_hash_map(void *priv_data,
@@ -1810,6 +1803,7 @@ static const struct bpf_iter_seq_info iter_seq_info = {
 
 static int htab_map_btf_id;
 const struct bpf_map_ops htab_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = htab_map_alloc_check,
 	.map_alloc = htab_map_alloc,
 	.map_free = htab_map_free,
@@ -1827,6 +1821,7 @@ const struct bpf_map_ops htab_map_ops = {
 
 static int htab_lru_map_btf_id;
 const struct bpf_map_ops htab_lru_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = htab_map_alloc_check,
 	.map_alloc = htab_map_alloc,
 	.map_free = htab_map_free,
@@ -1947,6 +1942,7 @@ static void htab_percpu_map_seq_show_elem(struct bpf_map *map, void *key,
 
 static int htab_percpu_map_btf_id;
 const struct bpf_map_ops htab_percpu_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = htab_map_alloc_check,
 	.map_alloc = htab_map_alloc,
 	.map_free = htab_map_free,
@@ -1963,6 +1959,7 @@ const struct bpf_map_ops htab_percpu_map_ops = {
 
 static int htab_lru_percpu_map_btf_id;
 const struct bpf_map_ops htab_lru_percpu_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = htab_map_alloc_check,
 	.map_alloc = htab_map_alloc,
 	.map_free = htab_map_free,
@@ -2073,7 +2070,7 @@ static void *htab_of_map_lookup_elem(struct bpf_map *map, void *key)
 	return READ_ONCE(*inner_map);
 }
 
-static u32 htab_of_map_gen_lookup(struct bpf_map *map,
+static int htab_of_map_gen_lookup(struct bpf_map *map,
 				  struct bpf_insn *insn_buf)
 {
 	struct bpf_insn *insn = insn_buf;

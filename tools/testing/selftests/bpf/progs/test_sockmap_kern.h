@@ -131,39 +131,55 @@ int bpf_prog2(struct __sk_buff *skb)
 
 }
 
-SEC("sk_skb3")
-int bpf_prog3(struct __sk_buff *skb)
+static inline void bpf_write_pass(struct __sk_buff *skb, int offset)
 {
-	const int one = 1;
-	int err, *f, ret = SK_PASS;
+	int err = bpf_skb_pull_data(skb, 6 + offset);
 	void *data_end;
 	char *c;
 
-	err = bpf_skb_pull_data(skb, 19);
 	if (err)
-		goto tls_out;
+		return;
 
 	c = (char *)(long)skb->data;
 	data_end = (void *)(long)skb->data_end;
 
-	if (c + 18 < data_end)
-		memcpy(&c[13], "PASS", 4);
+	if (c + 5 + offset < data_end)
+		memcpy(c + offset, "PASS", 4);
+}
+
+SEC("sk_skb3")
+int bpf_prog3(struct __sk_buff *skb)
+{
+	int err, *f, ret = SK_PASS;
+	const int one = 1;
+
 	f = bpf_map_lookup_elem(&sock_skb_opts, &one);
 	if (f && *f) {
 		__u64 flags = 0;
 
 		ret = 0;
 		flags = *f;
+
+		err = bpf_skb_adjust_room(skb, -13, 0, 0);
+		if (err)
+			return SK_DROP;
+		err = bpf_skb_adjust_room(skb, 4, 0, 0);
+		if (err)
+			return SK_DROP;
+		bpf_write_pass(skb, 0);
 #ifdef SOCKMAP
 		return bpf_sk_redirect_map(skb, &tls_sock_map, ret, flags);
 #else
 		return bpf_sk_redirect_hash(skb, &tls_sock_map, &ret, flags);
 #endif
 	}
-
 	f = bpf_map_lookup_elem(&sock_skb_opts, &one);
 	if (f && *f)
 		ret = SK_DROP;
+	err = bpf_skb_adjust_room(skb, 4, 0, 0);
+	if (err)
+		return SK_DROP;
+	bpf_write_pass(skb, 13);
 tls_out:
 	return ret;
 }

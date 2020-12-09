@@ -4,20 +4,15 @@ menu "EFI (Extensible Firmware Interface) Support"
 
 config EFI_VARS
 	tristate "EFI Variable Support via sysfs"
-	depends on EFI
+	depends on EFI && (X86 || IA64)
 	default n
 	help
 	  If you say Y here, you are able to get EFI (Extensible Firmware
 	  Interface) variable information via sysfs.  You may read,
 	  write, create, and destroy EFI variables through this interface.
-
-	  Note that using this driver in concert with efibootmgr requires
-	  at least test release version 0.5.0-test3 or later, which is
-	  available from:
-	  <http://linux.dell.com/efibootmgr/testing/efibootmgr-0.5.0-test3.tar.gz>
-
-	  Subsequent efibootmgr releases may be found at:
-	  <http://github.com/vathpela/efibootmgr>
+	  Note that this driver is only retained for compatibility with
+	  legacy users: new users should use the efivarfs filesystem
+	  instead.
 
 config EFI_ESRT
 	bool
@@ -26,7 +21,7 @@ config EFI_ESRT
 
 config EFI_VARS_PSTORE
 	tristate "Register efivars backend for pstore"
-	depends on EFI_VARS && PSTORE
+	depends on PSTORE
 	default y
 	help
 	  Say Y here to enable use efivars as a backend to pstore. This
@@ -111,7 +106,7 @@ config EFI_GENERIC_STUB
 
 config EFI_ARMSTUB_DTB_LOADER
 	bool "Enable the DTB loader"
-	depends on EFI_GENERIC_STUB
+	depends on EFI_GENERIC_STUB && !RISCV
 	default y
 	help
 	  Select this config option to add support for the dtb= command
@@ -128,6 +123,7 @@ config EFI_GENERIC_STUB_INITRD_CMDLINE_LOADER
 	bool "Enable the command line initrd loader" if !X86
 	depends on EFI_STUB && (EFI_GENERIC_STUB || X86)
 	default y
+	depends on !RISCV
 	help
 	  Select this config option to add support for the initrd= command
 	  line parameter, allowing an initrd that resides on the same volume
@@ -137,7 +133,6 @@ config EFI_GENERIC_STUB_INITRD_CMDLINE_LOADER
 
 config EFI_BOOTLOADER_CONTROL
 	tristate "EFI Bootloader Control"
-	depends on EFI_VARS
 	default n
 	help
 	  This module installs a reboot hook, such that if reboot() is
@@ -281,7 +276,7 @@ config EFI_EARLYCON
 
 config EFI_CUSTOM_SSDT_OVERLAYS
 	bool "Load custom ACPI SSDT overlay from an EFI variable"
-	depends on EFI_VARS && ACPI
+	depends on EFI && ACPI
 	default ACPI_TABLE_UPGRADE
 	help
 	  Allow loading of an ACPI SSDT overlay from an EFI variable specified

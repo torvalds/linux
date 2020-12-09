@@ -114,6 +114,9 @@ struct task_struct init_task
 	.thread		= INIT_THREAD,
 	.fs		= &init_fs,
 	.files		= &init_files,
+#ifdef CONFIG_IO_URING
+	.io_uring	= NULL,
+#endif
 	.signal		= &init_signals,
 	.sighand	= &init_sighand,
 	.nsproxy	= &init_nsproxy,

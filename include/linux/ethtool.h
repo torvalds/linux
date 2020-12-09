@@ -241,6 +241,27 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
 	 ETHTOOL_COALESCE_PKT_RATE_LOW | ETHTOOL_COALESCE_PKT_RATE_HIGH | \
 	 ETHTOOL_COALESCE_RATE_SAMPLE_INTERVAL)
 
+#define ETHTOOL_STAT_NOT_SET	(~0ULL)
+
+/**
+ * struct ethtool_pause_stats - statistics for IEEE 802.3x pause frames
+ * @tx_pause_frames: transmitted pause frame count. Reported to user space
+ *	as %ETHTOOL_A_PAUSE_STAT_TX_FRAMES.
+ *
+ *	Equivalent to `30.3.4.2 aPAUSEMACCtrlFramesTransmitted`
+ *	from the standard.
+ *
+ * @rx_pause_frames: received pause frame count. Reported to user space
+ *	as %ETHTOOL_A_PAUSE_STAT_RX_FRAMES. Equivalent to:
+ *
+ *	Equivalent to `30.3.4.3 aPAUSEMACCtrlFramesReceived`
+ *	from the standard.
+ */
+struct ethtool_pause_stats {
+	u64 tx_pause_frames;
+	u64 rx_pause_frames;
+};
+
 /**
  * struct ethtool_ops - optional netdev operations
  * @supported_coalesce_params: supported types of interrupt coalescing.
@@ -282,6 +303,9 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
  *	Returns a negative error code or zero.
  * @get_ringparam: Report ring sizes
  * @set_ringparam: Set ring sizes.  Returns a negative error code or zero.
+ * @get_pause_stats: Report pause frame statistics. Drivers must not zero
+ *	statistics which they don't report. The stats structure is initialized
+ *	to ETHTOOL_STAT_NOT_SET indicating driver does not report statistics.
  * @get_pauseparam: Report pause parameters
  * @set_pauseparam: Set pause parameters.  Returns a negative error code
  *	or zero.
@@ -418,6 +442,8 @@ struct ethtool_ops {
 				 struct ethtool_ringparam *);
 	int	(*set_ringparam)(struct net_device *,
 				 struct ethtool_ringparam *);
+	void	(*get_pause_stats)(struct net_device *dev,
+				   struct ethtool_pause_stats *pause_stats);
 	void	(*get_pauseparam)(struct net_device *,
 				  struct ethtool_pauseparam*);
 	int	(*set_pauseparam)(struct net_device *,
@@ -479,6 +505,10 @@ struct ethtool_ops {
 				      struct ethtool_fecparam *);
 	void	(*get_ethtool_phy_stats)(struct net_device *,
 					 struct ethtool_stats *, u64 *);
+	int	(*get_phy_tunable)(struct net_device *,
+				   const struct ethtool_tunable *, void *);
+	int	(*set_phy_tunable)(struct net_device *,
+				   const struct ethtool_tunable *, const void *);
 };
 
 int ethtool_check_ops(const struct ethtool_ops *ops);

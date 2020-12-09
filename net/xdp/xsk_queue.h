@@ -15,6 +15,10 @@
 
 struct xdp_ring {
 	u32 producer ____cacheline_aligned_in_smp;
+	/* Hinder the adjacent cache prefetcher to prefetch the consumer
+	 * pointer if the producer pointer is touched and vice versa.
+	 */
+	u32 pad ____cacheline_aligned_in_smp;
 	u32 consumer ____cacheline_aligned_in_smp;
 	u32 flags;
 };
@@ -96,7 +100,7 @@ struct xsk_queue {
  * seen and read by the consumer.
  *
  * The consumer peeks into the ring to see if the producer has written
- * any new entries. If so, the producer can then read these entries
+ * any new entries. If so, the consumer can then read these entries
  * and when it is done reading them release them back to the producer
  * so that the producer can use these slots to fill in new entries.
  *
@@ -166,9 +170,9 @@ static inline bool xp_validate_desc(struct xsk_buff_pool *pool,
 
 static inline bool xskq_cons_is_valid_desc(struct xsk_queue *q,
 					   struct xdp_desc *d,
-					   struct xdp_umem *umem)
+					   struct xsk_buff_pool *pool)
 {
-	if (!xp_validate_desc(umem->pool, d)) {
+	if (!xp_validate_desc(pool, d)) {
 		q->invalid_descs++;
 		return false;
 	}
@@ -177,14 +181,14 @@ static inline bool xskq_cons_is_valid_desc(struct xsk_queue *q,
 
 static inline bool xskq_cons_read_desc(struct xsk_queue *q,
 				       struct xdp_desc *desc,
-				       struct xdp_umem *umem)
+				       struct xsk_buff_pool *pool)
 {
 	while (q->cached_cons != q->cached_prod) {
 		struct xdp_rxtx_ring *ring = (struct xdp_rxtx_ring *)q->ring;
 		u32 idx = q->cached_cons & q->ring_mask;
 
 		*desc = ring->desc[idx];
-		if (xskq_cons_is_valid_desc(q, desc, umem))
+		if (xskq_cons_is_valid_desc(q, desc, pool))
 			return true;
 
 		q->cached_cons++;
@@ -236,11 +240,11 @@ static inline bool xskq_cons_peek_addr_unchecked(struct xsk_queue *q, u64 *addr)
 
 static inline bool xskq_cons_peek_desc(struct xsk_queue *q,
 				       struct xdp_desc *desc,
-				       struct xdp_umem *umem)
+				       struct xsk_buff_pool *pool)
 {
 	if (q->cached_prod == q->cached_cons)
 		xskq_cons_get_entries(q);
-	return xskq_cons_read_desc(q, desc, umem);
+	return xskq_cons_read_desc(q, desc, pool);
 }
 
 static inline void xskq_cons_release(struct xsk_queue *q)

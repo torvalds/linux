@@ -186,7 +186,7 @@ static void unmap_winctx_mmio_bars(struct vas_window *window)
  * OS/User Window Context (UWC) MMIO Base Address Region for the given window.
  * Map these bus addresses and save the mapped kernel addresses in @window.
  */
-int map_winctx_mmio_bars(struct vas_window *window)
+static int map_winctx_mmio_bars(struct vas_window *window)
 {
 	int len;
 	u64 start;
@@ -214,7 +214,7 @@ int map_winctx_mmio_bars(struct vas_window *window)
  *	 registers are not sequential. And, we can only write to offsets
  *	 with valid registers.
  */
-void reset_window_regs(struct vas_window *window)
+static void reset_window_regs(struct vas_window *window)
 {
 	write_hvwc_reg(window, VREG(LPID), 0ULL);
 	write_hvwc_reg(window, VREG(PID), 0ULL);
@@ -357,7 +357,8 @@ static void init_rsvd_tx_buf_count(struct vas_window *txwin,
  *	as a one-time task? That could work for NX but what about other
  *	receivers?  Let the receivers tell us the rx-fifo buffers for now.
  */
-int init_winctx_regs(struct vas_window *window, struct vas_winctx *winctx)
+static void init_winctx_regs(struct vas_window *window,
+			     struct vas_winctx *winctx)
 {
 	u64 val;
 	int fifo_size;
@@ -499,8 +500,6 @@ int init_winctx_regs(struct vas_window *window, struct vas_winctx *winctx)
 	val = SET_FIELD(VAS_WINCTL_NX_WIN, val, winctx->nx_win);
 	val = SET_FIELD(VAS_WINCTL_OPEN, val, 1);
 	write_hvwc_reg(window, VREG(WINCTL), val);
-
-	return 0;
 }
 
 static void vas_release_window_id(struct ida *ida, int winid)

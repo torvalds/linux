@@ -57,7 +57,7 @@ examples:
 
     dma: dma-controller@fd4c0000 {
       compatible = "xlnx,zynqmp-dpdma";
-      reg = <0x0 0xfd4c0000 0x0 0x1000>;
+      reg = <0xfd4c0000 0x1000>;
       interrupts = <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
       interrupt-parent = <&gic>;
       clocks = <&dpdma_clk>;

@@ -410,8 +410,10 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 
 		if (atomisp_subdev_format_conversion(isp_sd,
 						     isp_sd->capture_pad)
-		    && crop[pad]->width && crop[pad]->height)
-			crop[pad]->width -= padding_w, crop[pad]->height -= padding_h;
+		    && crop[pad]->width && crop[pad]->height) {
+			crop[pad]->width -= padding_w;
+			crop[pad]->height -= padding_h;
+		}
 
 		/* if subdev type is SOC camera,we do not need to set DVS */
 		if (isp->inputs[isp_sd->input_curr].type == SOC_CAMERA)

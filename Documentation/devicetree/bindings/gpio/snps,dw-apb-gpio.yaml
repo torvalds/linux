@@ -61,8 +61,14 @@ patternProperties:
       '#gpio-cells':
         const: 2
 
+      ngpios:
+        default: 32
+        minimum: 1
+        maximum: 32
+
       snps,nr-gpios:
         description: The number of GPIO pins exported by the port.
+        deprecated: true
         $ref: /schemas/types.yaml#/definitions/uint32
         default: 32
         minimum: 1

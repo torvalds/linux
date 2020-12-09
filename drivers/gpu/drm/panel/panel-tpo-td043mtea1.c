@@ -460,11 +460,7 @@ static int td043mtea1_probe(struct spi_device *spi)
 	drm_panel_init(&lcd->panel, &lcd->spi->dev, &td043mtea1_funcs,
 		       DRM_MODE_CONNECTOR_DPI);
 
-	ret = drm_panel_add(&lcd->panel);
-	if (ret < 0) {
-		sysfs_remove_group(&spi->dev.kobj, &td043mtea1_attr_group);
-		return ret;
-	}
+	drm_panel_add(&lcd->panel);
 
 	return 0;
 }

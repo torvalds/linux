@@ -48,6 +48,13 @@ struct adf4350_state {
 	unsigned long			regs_hw[6];
 	unsigned long long		freq_req;
 	/*
+	 * Lock to protect the state of the device from potential concurrent
+	 * writes. The device is configured via a sequence of SPI writes,
+	 * and this lock is meant to prevent the start of another sequence
+	 * before another one has finished.
+	 */
+	struct mutex			lock;
+	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
 	 */
@@ -99,7 +106,7 @@ static int adf4350_reg_access(struct iio_dev *indio_dev,
 	if (reg > ADF4350_REG5)
 		return -EINVAL;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 	if (readval == NULL) {
 		st->regs[reg] = writeval & ~(BIT(0) | BIT(1) | BIT(2));
 		ret = adf4350_sync_config(st);
@@ -107,7 +114,7 @@ static int adf4350_reg_access(struct iio_dev *indio_dev,
 		*readval =  st->regs_hw[reg];
 		ret = 0;
 	}
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return ret;
 }
@@ -254,7 +261,7 @@ static ssize_t adf4350_write(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 	switch ((u32)private) {
 	case ADF4350_FREQ:
 		ret = adf4350_set_freq(st, readin);
@@ -295,7 +302,7 @@ static ssize_t adf4350_write(struct iio_dev *indio_dev,
 	default:
 		ret = -EINVAL;
 	}
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return ret ? ret : len;
 }
@@ -309,7 +316,7 @@ static ssize_t adf4350_read(struct iio_dev *indio_dev,
 	unsigned long long val;
 	int ret = 0;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 	switch ((u32)private) {
 	case ADF4350_FREQ:
 		val = (u64)((st->r0_int * st->r1_mod) + st->r0_fract) *
@@ -338,7 +345,7 @@ static ssize_t adf4350_read(struct iio_dev *indio_dev,
 		ret = -EINVAL;
 		val = 0;
 	}
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return ret < 0 ? ret : sprintf(buf, "%llu\n", val);
 }
@@ -538,6 +545,8 @@ static int adf4350_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = &adf4350_chan;
 	indio_dev->num_channels = 1;
+
+	mutex_init(&st->lock);
 
 	st->chspc = pdata->channel_spacing;
 	if (clk) {

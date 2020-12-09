@@ -9,6 +9,9 @@ title: Ingenic SoCs UART controller devicetree bindings
 maintainers:
   - Paul Cercueil <paul@crapouillou.net>
 
+allOf:
+  - $ref: /schemas/serial.yaml#
+
 properties:
   $nodename:
     pattern: "^serial@[0-9a-f]+$"
@@ -63,6 +66,8 @@ required:
   - clock-names
   - dmas
   - dma-names
+
+unevaluatedProperties: false
 
 examples:
   - |

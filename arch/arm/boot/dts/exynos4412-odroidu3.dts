@@ -37,31 +37,6 @@
 		#cooling-cells = <2>;
 		cooling-levels = <0 102 170 230>;
 	};
-
-	thermal-zones {
-		cpu_thermal: cpu-thermal {
-			cooling-maps {
-				map0 {
-				     trip = <&cpu_alert1>;
-				     cooling-device = <&cpu0 9 9>, <&cpu1 9 9>,
-						      <&cpu2 9 9>, <&cpu3 9 9>,
-						      <&fan0 1 2>;
-				};
-				map1 {
-				     trip = <&cpu_alert2>;
-				     cooling-device = <&cpu0 15 15>,
-						      <&cpu1 15 15>,
-						      <&cpu2 15 15>,
-						      <&cpu3 15 15>,
-						      <&fan0 2 3>;
-				};
-				map2 {
-				     trip = <&cpu_alert0>;
-				     cooling-device = <&fan0 0 1>;
-				};
-			};
-		};
-	};
 };
 
 &adc {
@@ -74,6 +49,27 @@
 	regulator-name = "BUCK8_P3V3";
 	regulator-min-microvolt = <3300000>;
 	regulator-max-microvolt = <3300000>;
+};
+
+&cpu_thermal {
+	cooling-maps {
+		map0 {
+			trip = <&cpu_alert1>;
+			cooling-device = <&cpu0 9 9>, <&cpu1 9 9>,
+					 <&cpu2 9 9>, <&cpu3 9 9>,
+					 <&fan0 1 2>;
+		};
+		map1 {
+			trip = <&cpu_alert2>;
+			cooling-device = <&cpu0 15 15>, <&cpu1 15 15>,
+					 <&cpu2 15 15>, <&cpu3 15 15>,
+					 <&fan0 2 3>;
+		};
+		map2 {
+			trip = <&cpu_alert0>;
+			cooling-device = <&fan0 0 1>;
+		};
+	};
 };
 
 &hdmicec {

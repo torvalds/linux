@@ -804,10 +804,9 @@ static irqreturn_t stm32f4_spi_irq_event(int irq, void *dev_id)
 	struct spi_master *master = dev_id;
 	struct stm32_spi *spi = spi_master_get_devdata(master);
 	u32 sr, mask = 0;
-	unsigned long flags;
 	bool end = false;
 
-	spin_lock_irqsave(&spi->lock, flags);
+	spin_lock(&spi->lock);
 
 	sr = readl_relaxed(spi->base + STM32F4_SPI_SR);
 	/*
@@ -833,7 +832,7 @@ static irqreturn_t stm32f4_spi_irq_event(int irq, void *dev_id)
 
 	if (!(sr & mask)) {
 		dev_dbg(spi->dev, "spurious IT (sr=0x%08x)\n", sr);
-		spin_unlock_irqrestore(&spi->lock, flags);
+		spin_unlock(&spi->lock);
 		return IRQ_NONE;
 	}
 
@@ -875,11 +874,11 @@ end_irq:
 					STM32F4_SPI_CR2_TXEIE |
 					STM32F4_SPI_CR2_RXNEIE |
 					STM32F4_SPI_CR2_ERRIE);
-		spin_unlock_irqrestore(&spi->lock, flags);
+		spin_unlock(&spi->lock);
 		return IRQ_WAKE_THREAD;
 	}
 
-	spin_unlock_irqrestore(&spi->lock, flags);
+	spin_unlock(&spi->lock);
 	return IRQ_HANDLED;
 }
 
@@ -936,7 +935,11 @@ static irqreturn_t stm32h7_spi_irq_thread(int irq, void *dev_id)
 	}
 
 	if (sr & STM32H7_SPI_SR_SUSP) {
-		dev_warn(spi->dev, "Communication suspended\n");
+		static DEFINE_RATELIMIT_STATE(rs,
+					      DEFAULT_RATELIMIT_INTERVAL * 10,
+					      1);
+		if (__ratelimit(&rs))
+			dev_dbg_ratelimited(spi->dev, "Communication suspended\n");
 		if (!spi->cur_usedma && (spi->rx_buf && (spi->rx_len > 0)))
 			stm32h7_spi_read_rxfifo(spi, false);
 		/*
@@ -1857,9 +1860,7 @@ static int stm32_spi_probe(struct platform_device *pdev)
 
 	spi->irq = platform_get_irq(pdev, 0);
 	if (spi->irq <= 0) {
-		ret = spi->irq;
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to get irq: %d\n", ret);
+		ret = dev_err_probe(&pdev->dev, spi->irq, "failed to get irq\n");
 		goto err_master_put;
 	}
 	ret = devm_request_threaded_irq(&pdev->dev, spi->irq,
@@ -2060,7 +2061,7 @@ static int stm32_spi_resume(struct device *dev)
 	}
 
 	ret = pm_runtime_get_sync(dev);
-	if (ret) {
+	if (ret < 0) {
 		dev_err(dev, "Unable to power device:%d\n", ret);
 		return ret;
 	}

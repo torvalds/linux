@@ -34,6 +34,13 @@ Required properties:
 			  * DMIC
 			  * Ext Spk
 
+Optional properties:
+
+- aux-devs		: A list of phandles for auxiliary devices (e.g. analog
+			  amplifiers) that do not appear directly within the DAI
+			  links. Should be connected to another audio component
+			  using "qcom,audio-routing".
+
 Dai-link subnode properties and subnodes:
 
 Required dai-link subnodes:

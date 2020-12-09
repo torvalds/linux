@@ -36,14 +36,10 @@
 
 #include "efi-header.S"
 
-#define __PHYS_OFFSET	(KERNEL_START - TEXT_OFFSET)
+#define __PHYS_OFFSET	KERNEL_START
 
-#if (TEXT_OFFSET & 0xfff) != 0
-#error TEXT_OFFSET must be at least 4KB aligned
-#elif (PAGE_OFFSET & 0x1fffff) != 0
+#if (PAGE_OFFSET & 0x1fffff) != 0
 #error PAGE_OFFSET must be at least 2MB aligned
-#elif TEXT_OFFSET > 0x1fffff
-#error TEXT_OFFSET must be less than 2MB
 #endif
 
 /*
@@ -55,43 +51,28 @@
  *   x0 = physical address to the FDT blob.
  *
  * This code is mostly position independent so you call this at
- * __pa(PAGE_OFFSET + TEXT_OFFSET).
+ * __pa(PAGE_OFFSET).
  *
  * Note that the callee-saved registers are used for storing variables
  * that are useful before the MMU is enabled. The allocations are described
  * in the entry routines.
  */
 	__HEAD
-_head:
 	/*
 	 * DO NOT MODIFY. Image header expected by Linux boot-loaders.
 	 */
-#ifdef CONFIG_EFI
-	/*
-	 * This add instruction has no meaningful effect except that
-	 * its opcode forms the magic "MZ" signature required by UEFI.
-	 */
-	add	x13, x18, #0x16
-	b	primary_entry
-#else
+	efi_signature_nop			// special NOP to identity as PE/COFF executable
 	b	primary_entry			// branch to kernel start, magic
-	.long	0				// reserved
-#endif
-	le64sym	_kernel_offset_le		// Image load offset from start of RAM, little-endian
+	.quad	0				// Image load offset from start of RAM, little-endian
 	le64sym	_kernel_size_le			// Effective size of kernel image, little-endian
 	le64sym	_kernel_flags_le		// Informative flags, little-endian
 	.quad	0				// reserved
 	.quad	0				// reserved
 	.quad	0				// reserved
 	.ascii	ARM64_IMAGE_MAGIC		// Magic number
-#ifdef CONFIG_EFI
-	.long	pe_header - _head		// Offset to the PE header.
+	.long	.Lpe_header_offset		// Offset to the PE header.
 
-pe_header:
 	__EFI_PE_HEADER
-#else
-	.long	0				// reserved
-#endif
 
 	__INIT
 
@@ -382,7 +363,7 @@ SYM_FUNC_START_LOCAL(__create_page_tables)
 	 * Map the kernel image (starting with PHYS_OFFSET).
 	 */
 	adrp	x0, init_pg_dir
-	mov_q	x5, KIMAGE_VADDR + TEXT_OFFSET	// compile time __va(_text)
+	mov_q	x5, KIMAGE_VADDR		// compile time __va(_text)
 	add	x5, x5, x23			// add KASLR displacement
 	mov	x4, PTRS_PER_PGD
 	adrp	x6, _end			// runtime __pa(_end)
@@ -474,7 +455,7 @@ SYM_FUNC_END(__primary_switched)
 
 	.pushsection ".rodata", "a"
 SYM_DATA_START(kimage_vaddr)
-	.quad		_text - TEXT_OFFSET
+	.quad		_text
 SYM_DATA_END(kimage_vaddr)
 EXPORT_SYMBOL(kimage_vaddr)
 	.popsection

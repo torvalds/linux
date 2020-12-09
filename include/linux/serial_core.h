@@ -248,6 +248,7 @@ struct uart_port {
 
 	unsigned char		hub6;			/* this should be in the 8250 driver */
 	unsigned char		suspended;
+	unsigned char		console_reinit;
 	const char		*name;			/* port name */
 	struct attribute_group	*attr_group;		/* port specific attributes */
 	const struct attribute_group **tty_groups;	/* all attributes (serial core use only) */
@@ -372,7 +373,7 @@ extern const struct earlycon_id *__earlycon_table_end[];
 		    .compatible = compat,				\
 		    .setup = fn  };					\
 	static const struct earlycon_id EARLYCON_USED_OR_UNUSED		\
-		__section(__earlycon_table)				\
+		__section("__earlycon_table")				\
 		* const __PASTE(__p, unique_id) = &unique_id
 
 #define OF_EARLYCON_DECLARE(_name, compat, fn)				\

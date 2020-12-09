@@ -19,6 +19,10 @@ properties:
   "#sound-dai-cells":
     const: 0
 
+  assigned-clock-parents: true
+  assigned-clock-rates: true
+  assigned-clocks: true
+
   clocks:
     items:
       - description: the clock provider of SYS_MCLK

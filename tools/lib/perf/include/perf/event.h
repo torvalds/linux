@@ -201,10 +201,20 @@ struct perf_record_header_tracing_data {
 	__u32			 size;
 };
 
+#define PERF_RECORD_MISC_BUILD_ID_SIZE (1 << 15)
+
 struct perf_record_header_build_id {
 	struct perf_event_header header;
 	pid_t			 pid;
-	__u8			 build_id[24];
+	union {
+		__u8		 build_id[24];
+		struct {
+			__u8	 data[20];
+			__u8	 size;
+			__u8	 reserved1__;
+			__u16	 reserved2__;
+		};
+	};
 	char			 filename[];
 };
 
@@ -324,6 +334,10 @@ struct perf_record_time_conv {
 	__u64			 time_shift;
 	__u64			 time_mult;
 	__u64			 time_zero;
+	__u64			 time_cycles;
+	__u64			 time_mask;
+	bool			 cap_user_time_zero;
+	bool			 cap_user_time_short;
 };
 
 struct perf_record_header_feature {

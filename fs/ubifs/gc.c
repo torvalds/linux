@@ -57,10 +57,6 @@
 /**
  * switch_gc_head - switch the garbage collection journal head.
  * @c: UBIFS file-system description object
- * @buf: buffer to write
- * @len: length of the buffer to write
- * @lnum: LEB number written is returned here
- * @offs: offset written is returned here
  *
  * This function switch the GC head to the next LEB which is reserved in
  * @c->gc_lnum. Returns %0 in case of success, %-EAGAIN if commit is required,

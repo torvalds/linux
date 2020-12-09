@@ -7,6 +7,7 @@
 
 #include "imx8mn.dtsi"
 #include "imx8mn-evk.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "NXP i.MX8MNano EVK board";
@@ -19,7 +20,7 @@
 		reg = <0x25>;
 		pinctrl-0 = <&pinctrl_pmic>;
 		interrupt-parent = <&gpio1>;
-		interrupts = <3 GPIO_ACTIVE_LOW>;
+		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 
 		regulators {
 			buck1: BUCK1{

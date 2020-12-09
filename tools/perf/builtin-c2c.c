@@ -652,45 +652,6 @@ STAT_FN(ld_l2hit)
 STAT_FN(ld_llchit)
 STAT_FN(rmt_hit)
 
-static uint64_t llc_miss(struct c2c_stats *stats)
-{
-	uint64_t llcmiss;
-
-	llcmiss = stats->lcl_dram +
-		  stats->rmt_dram +
-		  stats->rmt_hitm +
-		  stats->rmt_hit;
-
-	return llcmiss;
-}
-
-static int
-ld_llcmiss_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-		 struct hist_entry *he)
-{
-	struct c2c_hist_entry *c2c_he;
-	int width = c2c_width(fmt, hpp, he->hists);
-
-	c2c_he = container_of(he, struct c2c_hist_entry, he);
-
-	return scnprintf(hpp->buf, hpp->size, "%*lu", width,
-			 llc_miss(&c2c_he->stats));
-}
-
-static int64_t
-ld_llcmiss_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
-	       struct hist_entry *left, struct hist_entry *right)
-{
-	struct c2c_hist_entry *c2c_left;
-	struct c2c_hist_entry *c2c_right;
-
-	c2c_left  = container_of(left, struct c2c_hist_entry, he);
-	c2c_right = container_of(right, struct c2c_hist_entry, he);
-
-	return (uint64_t) llc_miss(&c2c_left->stats) -
-	       (uint64_t) llc_miss(&c2c_right->stats);
-}
-
 static uint64_t total_records(struct c2c_stats *stats)
 {
 	uint64_t lclmiss, ldcnt, total;
@@ -1328,7 +1289,7 @@ static struct c2c_dimension dim_iaddr = {
 };
 
 static struct c2c_dimension dim_tot_hitm = {
-	.header		= HEADER_SPAN("----- LLC Load Hitm -----", "Total", 2),
+	.header		= HEADER_SPAN("------- Load Hitm -------", "Total", 2),
 	.name		= "tot_hitm",
 	.cmp		= tot_hitm_cmp,
 	.entry		= tot_hitm_entry,
@@ -1336,7 +1297,7 @@ static struct c2c_dimension dim_tot_hitm = {
 };
 
 static struct c2c_dimension dim_lcl_hitm = {
-	.header		= HEADER_SPAN_LOW("Lcl"),
+	.header		= HEADER_SPAN_LOW("LclHitm"),
 	.name		= "lcl_hitm",
 	.cmp		= lcl_hitm_cmp,
 	.entry		= lcl_hitm_entry,
@@ -1344,7 +1305,7 @@ static struct c2c_dimension dim_lcl_hitm = {
 };
 
 static struct c2c_dimension dim_rmt_hitm = {
-	.header		= HEADER_SPAN_LOW("Rmt"),
+	.header		= HEADER_SPAN_LOW("RmtHitm"),
 	.name		= "rmt_hitm",
 	.cmp		= rmt_hitm_cmp,
 	.entry		= rmt_hitm_entry,
@@ -1367,16 +1328,16 @@ static struct c2c_dimension dim_cl_lcl_hitm = {
 	.width		= 7,
 };
 
-static struct c2c_dimension dim_stores = {
-	.header		= HEADER_SPAN("---- Store Reference ----", "Total", 2),
-	.name		= "stores",
+static struct c2c_dimension dim_tot_stores = {
+	.header		= HEADER_BOTH("Total", "Stores"),
+	.name		= "tot_stores",
 	.cmp		= store_cmp,
 	.entry		= store_entry,
 	.width		= 7,
 };
 
 static struct c2c_dimension dim_stores_l1hit = {
-	.header		= HEADER_SPAN_LOW("L1Hit"),
+	.header		= HEADER_SPAN("---- Stores ----", "L1Hit", 1),
 	.name		= "stores_l1hit",
 	.cmp		= st_l1hit_cmp,
 	.entry		= st_l1hit_entry,
@@ -1432,7 +1393,7 @@ static struct c2c_dimension dim_ld_l2hit = {
 };
 
 static struct c2c_dimension dim_ld_llchit = {
-	.header		= HEADER_SPAN("-- LLC Load Hit --", "Llc", 1),
+	.header		= HEADER_SPAN("- LLC Load Hit --", "LclHit", 1),
 	.name		= "ld_lclhit",
 	.cmp		= ld_llchit_cmp,
 	.entry		= ld_llchit_entry,
@@ -1440,19 +1401,11 @@ static struct c2c_dimension dim_ld_llchit = {
 };
 
 static struct c2c_dimension dim_ld_rmthit = {
-	.header		= HEADER_SPAN_LOW("Rmt"),
+	.header		= HEADER_SPAN("- RMT Load Hit --", "RmtHit", 1),
 	.name		= "ld_rmthit",
 	.cmp		= rmt_hit_cmp,
 	.entry		= rmt_hit_entry,
 	.width		= 8,
-};
-
-static struct c2c_dimension dim_ld_llcmiss = {
-	.header		= HEADER_BOTH("LLC", "Ld Miss"),
-	.name		= "ld_llcmiss",
-	.cmp		= ld_llcmiss_cmp,
-	.entry		= ld_llcmiss_entry,
-	.width		= 7,
 };
 
 static struct c2c_dimension dim_tot_recs = {
@@ -1486,7 +1439,7 @@ static struct c2c_dimension dim_percent_hitm = {
 };
 
 static struct c2c_dimension dim_percent_rmt_hitm = {
-	.header		= HEADER_SPAN("----- HITM -----", "Rmt", 1),
+	.header		= HEADER_SPAN("----- HITM -----", "RmtHitm", 1),
 	.name		= "percent_rmt_hitm",
 	.cmp		= percent_rmt_hitm_cmp,
 	.entry		= percent_rmt_hitm_entry,
@@ -1495,7 +1448,7 @@ static struct c2c_dimension dim_percent_rmt_hitm = {
 };
 
 static struct c2c_dimension dim_percent_lcl_hitm = {
-	.header		= HEADER_SPAN_LOW("Lcl"),
+	.header		= HEADER_SPAN_LOW("LclHitm"),
 	.name		= "percent_lcl_hitm",
 	.cmp		= percent_lcl_hitm_cmp,
 	.entry		= percent_lcl_hitm_entry,
@@ -1648,7 +1601,7 @@ static struct c2c_dimension *dimensions[] = {
 	&dim_rmt_hitm,
 	&dim_cl_lcl_hitm,
 	&dim_cl_rmt_hitm,
-	&dim_stores,
+	&dim_tot_stores,
 	&dim_stores_l1hit,
 	&dim_stores_l1miss,
 	&dim_cl_stores_l1hit,
@@ -1658,7 +1611,6 @@ static struct c2c_dimension *dimensions[] = {
 	&dim_ld_l2hit,
 	&dim_ld_llchit,
 	&dim_ld_rmthit,
-	&dim_ld_llcmiss,
 	&dim_tot_recs,
 	&dim_tot_loads,
 	&dim_percent_hitm,
@@ -2846,15 +2798,16 @@ static int perf_c2c__report(int argc, const char **argv)
 			"dcacheline,"
 			"dcacheline_node,"
 			"dcacheline_count,"
-			"tot_recs,"
 			"percent_hitm,"
 			"tot_hitm,lcl_hitm,rmt_hitm,"
-			"stores,stores_l1hit,stores_l1miss,"
-			"dram_lcl,dram_rmt,"
-			"ld_llcmiss,"
+			"tot_recs,"
 			"tot_loads,"
+			"tot_stores,"
+			"stores_l1hit,stores_l1miss,"
 			"ld_fbhit,ld_l1hit,ld_l2hit,"
-			"ld_lclhit,ld_rmthit",
+			"ld_lclhit,lcl_hitm,"
+			"ld_rmthit,rmt_hitm,"
+			"dram_lcl,dram_rmt",
 			c2c.display == DISPLAY_TOT ? "tot_hitm" :
 			c2c.display == DISPLAY_LCL ? "lcl_hitm" : "rmt_hitm"
 			);
@@ -2916,7 +2869,7 @@ static int perf_c2c__record(int argc, const char **argv)
 	bool event_set = false;
 	struct option options[] = {
 	OPT_CALLBACK('e', "event", &event_set, "event",
-		     "event selector. Use 'perf mem record -e list' to list available events",
+		     "event selector. Use 'perf c2c record -e list' to list available events",
 		     parse_record_events),
 	OPT_BOOLEAN('u', "all-user", &all_user, "collect only user level data"),
 	OPT_BOOLEAN('k', "all-kernel", &all_kernel, "collect only kernel level data"),

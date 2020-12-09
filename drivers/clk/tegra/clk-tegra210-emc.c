@@ -12,6 +12,8 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 
+#include "clk.h"
+
 #define CLK_SOURCE_EMC 0x19c
 #define  CLK_SOURCE_EMC_2X_CLK_SRC GENMASK(31, 29)
 #define  CLK_SOURCE_EMC_MC_EMC_SAME_FREQ BIT(16)
@@ -126,7 +128,7 @@ static int tegra210_clk_emc_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned int i;
 	int err;
 
-	if (!provider || !provider->configs || provider->num_configs == 0)
+	if (!provider->configs || provider->num_configs == 0)
 		return -EINVAL;
 
 	for (i = 0; i < provider->num_configs; i++) {

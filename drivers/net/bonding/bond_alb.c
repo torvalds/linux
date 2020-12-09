@@ -942,9 +942,10 @@ struct alb_walk_data {
 	bool strict_match;
 };
 
-static int alb_upper_dev_walk(struct net_device *upper, void *_data)
+static int alb_upper_dev_walk(struct net_device *upper,
+			      struct netdev_nested_priv *priv)
 {
-	struct alb_walk_data *data = _data;
+	struct alb_walk_data *data = (struct alb_walk_data *)priv->data;
 	bool strict_match = data->strict_match;
 	struct bonding *bond = data->bond;
 	struct slave *slave = data->slave;
@@ -983,6 +984,7 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[],
 				      bool strict_match)
 {
 	struct bonding *bond = bond_get_bond_by_slave(slave);
+	struct netdev_nested_priv priv;
 	struct alb_walk_data data = {
 		.strict_match = strict_match,
 		.mac_addr = mac_addr,
@@ -990,6 +992,7 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[],
 		.bond = bond,
 	};
 
+	priv.data = (void *)&data;
 	/* send untagged */
 	alb_send_lp_vid(slave, mac_addr, 0, 0);
 
@@ -997,7 +1000,7 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[],
 	 * for that device.
 	 */
 	rcu_read_lock();
-	netdev_walk_all_upper_dev_rcu(bond->dev, alb_upper_dev_walk, &data);
+	netdev_walk_all_upper_dev_rcu(bond->dev, alb_upper_dev_walk, &priv);
 	rcu_read_unlock();
 }
 

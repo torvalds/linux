@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2014 Redpine Signals Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -477,7 +477,6 @@ static int rsi_load_radio_caps(struct rsi_common *common)
  * @common: Pointer to the driver private structure.
  * @msg: Pointer to received packet.
  * @msg_len: Length of the received packet.
- * @type: Type of received packet.
  *
  * Return: 0 on success, -1 on failure.
  */
@@ -528,6 +527,8 @@ static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
  * @bssid: bssid.
  * @qos_enable: Qos is enabled.
  * @aid: Aid (unique for all STA).
+ * @sta_id: station id.
+ * @vif: Pointer to the ieee80211_vif structure.
  *
  * Return: status: 0 on success, corresponding negative error code on failure.
  */
@@ -603,6 +604,7 @@ int rsi_hal_send_sta_notify_frame(struct rsi_common *common, enum opmode opmode,
  * @ssn: ssn.
  * @buf_size: buffer size.
  * @event: notification about station connection.
+ * @sta_id: station id.
  *
  * Return: 0 on success, corresponding negative error code on failure.
  */
@@ -699,7 +701,10 @@ static int rsi_program_bb_rf(struct rsi_common *common)
 /**
  * rsi_set_vap_capabilities() - This function send vap capability to firmware.
  * @common: Pointer to the driver private structure.
- * @opmode: Operating mode of device.
+ * @mode: Operating mode of device.
+ * @mac_addr: MAC address
+ * @vap_id: Rate information - offset and mask
+ * @vap_status: VAP status - ADD, DELETE or UPDATE
  *
  * Return: 0 on success, corresponding negative error code on failure.
  */
@@ -780,6 +785,8 @@ int rsi_set_vap_capabilities(struct rsi_common *common,
  * @key_type: Type of key: GROUP/PAIRWISE.
  * @key_id: Key index.
  * @cipher: Type of cipher used.
+ * @sta_id: Station id.
+ * @vif: Pointer to the ieee80211_vif structure.
  *
  * Return: 0 on success, -1 on failure.
  */
@@ -1045,6 +1052,7 @@ static int rsi_send_reset_mac(struct rsi_common *common)
 /**
  * rsi_band_check() - This function programs the band
  * @common: Pointer to the driver private structure.
+ * @curchan: Pointer to the current channel structure.
  *
  * Return: 0 on success, corresponding error code on failure.
  */
@@ -1165,7 +1173,6 @@ int rsi_set_channel(struct rsi_common *common,
  * rsi_send_radio_params_update() - This function sends the radio
  *				parameters update to device
  * @common: Pointer to the driver private structure.
- * @channel: Channel value to be set.
  *
  * Return: 0 on success, corresponding error code on failure.
  */
@@ -1289,6 +1296,9 @@ static bool rsi_map_rates(u16 rate, int *offset)
  * rsi_send_auto_rate_request() - This function is to set rates for connection
  *				  and send autorate request to firmware.
  * @common: Pointer to the driver private structure.
+ * @sta: mac80211 station.
+ * @sta_id: station id.
+ * @vif: Pointer to the ieee80211_vif structure.
  *
  * Return: 0 on success, corresponding error code on failure.
  */
@@ -1439,10 +1449,15 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
  *			     help of sta notify params by sending an internal
  *			     management frame to firmware.
  * @common: Pointer to the driver private structure.
+ * @opmode: Operating mode of device.
  * @status: Bss status type.
- * @bssid: Bssid.
+ * @addr: Address of the register.
  * @qos_enable: Qos is enabled.
  * @aid: Aid (unique for all STAs).
+ * @sta: mac80211 station.
+ * @sta_id: station id.
+ * @assoc_cap: capabilities.
+ * @vif: Pointer to the ieee80211_vif structure.
  *
  * Return: None.
  */
@@ -1535,9 +1550,9 @@ static int rsi_eeprom_read(struct rsi_common *common)
  * This function sends a frame to block/unblock
  * data queues in the firmware
  *
- * @param common Pointer to the driver private structure.
- * @param block event - block if true, unblock if false
- * @return 0 on success, -1 on failure.
+ * @common: Pointer to the driver private structure.
+ * @block_event: Event block if true, unblock if false
+ * returns 0 on success, -1 on failure.
  */
 int rsi_send_block_unblock_frame(struct rsi_common *common, bool block_event)
 {
@@ -1581,7 +1596,7 @@ int rsi_send_block_unblock_frame(struct rsi_common *common, bool block_event)
  * @common: Pointer to the driver private structure.
  * @rx_filter_word: Flags of filter packets
  *
- * @Return: 0 on success, -1 on failure.
+ * Returns 0 on success, -1 on failure.
  */
 int rsi_send_rx_filter_frame(struct rsi_common *common, u16 rx_filter_word)
 {

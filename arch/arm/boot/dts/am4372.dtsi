@@ -35,8 +35,8 @@
 		serial3 = &uart3;
 		serial4 = &uart4;
 		serial5 = &uart5;
-		ethernet0 = &cpsw_emac0;
-		ethernet1 = &cpsw_emac1;
+		ethernet0 = &cpsw_port1;
+		ethernet1 = &cpsw_port2;
 		spi0 = &qspi;
 	};
 
@@ -517,6 +517,7 @@
 					<SYSC_IDLE_SMART>;
 			clocks = <&gfx_l3_clkctrl AM4_GFX_L3_GFX_CLKCTRL 0>;
 			clock-names = "fck";
+			power-domains = <&prm_gfx>;
 			resets = <&prm_gfx 0>;
 			reset-names = "rstctrl";
 			#address-cells = <1>;
@@ -533,6 +534,7 @@
 	prm_gfx: prm@400 {
 		compatible = "ti,am4-prm-inst", "ti,omap-prm-inst";
 		reg = <0x400 0x100>;
+		#power-domain-cells = <0>;
 		#reset-cells = <1>;
 	};
 

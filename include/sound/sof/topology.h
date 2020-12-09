@@ -57,8 +57,8 @@ struct sof_ipc_comp {
 	uint32_t pipeline_id;
 	uint32_t core;
 
-	/* reserved for future use */
-	uint32_t reserved[1];
+	/* extended data length, 0 if no extended data */
+	uint32_t ext_data_length;
 } __packed;
 
 /*
@@ -86,6 +86,9 @@ struct sof_ipc_comp {
  * underrun will cause readback of 0s, instead of XRUN.
  */
 #define SOF_BUF_UNDERRUN_PERMITTED	BIT(1)
+
+/* the UUID size in bytes, shared between FW and host */
+#define SOF_UUID_SIZE	16
 
 /* create new component buffer - SOF_IPC_TPLG_BUFFER_NEW */
 struct sof_ipc_buffer {
@@ -299,5 +302,10 @@ enum sof_event_types {
 	SOF_EVENT_NONE = 0,
 	SOF_KEYWORD_DETECT_DAPM_EVENT,
 };
+
+/* extended data struct for UUID components */
+struct sof_ipc_comp_ext {
+	uint8_t uuid[SOF_UUID_SIZE];
+}  __packed;
 
 #endif

@@ -35,6 +35,9 @@ Please see:
     mediactl/media-controller
     cec/cec-api
     gen-errors
+
+    glossary
+
     fdl-appendix
 
     drivers/index

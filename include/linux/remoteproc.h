@@ -442,16 +442,16 @@ enum rproc_crash_type {
 
 /**
  * enum rproc_dump_mechanism - Coredump options for core
- * @RPROC_COREDUMP_DEFAULT:	Copy dump to separate buffer and carry on with
+ * @RPROC_COREDUMP_DISABLED:	Don't perform any dump
+ * @RPROC_COREDUMP_ENABLED:	Copy dump to separate buffer and carry on with
 				recovery
  * @RPROC_COREDUMP_INLINE:	Read segments directly from device memory. Stall
 				recovery until all segments are read
- * @RPROC_COREDUMP_DISABLED:	Don't perform any dump
  */
 enum rproc_dump_mechanism {
-	RPROC_COREDUMP_DEFAULT,
-	RPROC_COREDUMP_INLINE,
 	RPROC_COREDUMP_DISABLED,
+	RPROC_COREDUMP_ENABLED,
+	RPROC_COREDUMP_INLINE,
 };
 
 /**

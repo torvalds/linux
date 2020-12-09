@@ -2,7 +2,7 @@
 /*
  * Device Tree Include file for NXP Layerscape-1028A family SoC.
  *
- * Copyright 2018 NXP
+ * Copyright 2018-2020 NXP
  *
  * Harninder Rai <harninder.rai@nxp.com>
  *
@@ -553,7 +553,7 @@
 			status = "disabled";
 		};
 
-		pcie@3400000 {
+		pcie1: pcie@3400000 {
 			compatible = "fsl,ls1028a-pcie";
 			reg = <0x00 0x03400000 0x0 0x00100000   /* controller registers */
 			       0x80 0x00000000 0x0 0x00002000>; /* configuration space */
@@ -580,7 +580,7 @@
 			status = "disabled";
 		};
 
-		pcie@3500000 {
+		pcie2: pcie@3500000 {
 			compatible = "fsl,ls1028a-pcie";
 			reg = <0x00 0x03500000 0x0 0x00100000   /* controller registers */
 			       0x88 0x00000000 0x0 0x00002000>; /* configuration space */
@@ -722,14 +722,14 @@
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x0 0xc000000 0x0 0x1000>;
 			clocks = <&clockgen 4 15>, <&clockgen 4 15>;
-			clock-names = "apb_pclk", "wdog_clk";
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		cluster1_core1_watchdog: watchdog@c010000 {
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x0 0xc010000 0x0 0x1000>;
 			clocks = <&clockgen 4 15>, <&clockgen 4 15>;
-			clock-names = "apb_pclk", "wdog_clk";
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		sai1: audio-controller@f100000 {

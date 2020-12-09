@@ -34,7 +34,7 @@
 /**
  *hns_rcb_wait_fbd_clean - clean fbd
  *@qs: ring struct pointer array
- *@qnum: num of array
+ *@q_num: num of array
  *@flag: tx or rx flag
  */
 void hns_rcb_wait_fbd_clean(struct hnae_queue **qs, int q_num, u32 flag)
@@ -191,7 +191,8 @@ void hns_rcbv2_int_clr_hw(struct hnae_queue *q, u32 flag)
 
 /**
  *hns_rcb_ring_enable_hw - enable ring
- *@ring: rcb ring
+ *@q: rcb ring
+ *@val: value to write
  */
 void hns_rcb_ring_enable_hw(struct hnae_queue *q, u32 val)
 {
@@ -844,7 +845,7 @@ void hns_rcb_update_stats(struct hnae_queue *queue)
 
 /**
  *hns_rcb_get_stats - get rcb statistic
- *@ring: rcb ring
+ *@queue: rcb ring
  *@data:statistic value
  */
 void hns_rcb_get_stats(struct hnae_queue *queue, u64 *data)

@@ -40,7 +40,7 @@ struct dw_edma_v0_ch {
 	struct dw_edma_v0_ch_regs wr;			/* 0x200 */
 	u32 padding_1[55];				/* [0x224..0x2fc] */
 	struct dw_edma_v0_ch_regs rd;			/* 0x300 */
-	u32 padding_2[55];				/* [0x224..0x2fc] */
+	u32 padding_2[55];				/* [0x324..0x3fc] */
 };
 
 struct dw_edma_v0_unroll {

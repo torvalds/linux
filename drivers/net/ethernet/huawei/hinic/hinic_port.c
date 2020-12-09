@@ -58,9 +58,9 @@ static int change_mac(struct hinic_dev *nic_dev, const u8 *addr,
 				 sizeof(port_mac_cmd),
 				 &port_mac_cmd, &out_size);
 	if (err || out_size != sizeof(port_mac_cmd) ||
-	    (port_mac_cmd.status  &&
-	    port_mac_cmd.status != HINIC_PF_SET_VF_ALREADY &&
-	    port_mac_cmd.status != HINIC_MGMT_STATUS_EXIST)) {
+	    (port_mac_cmd.status &&
+	     (port_mac_cmd.status != HINIC_PF_SET_VF_ALREADY || !HINIC_IS_VF(hwif)) &&
+	     port_mac_cmd.status != HINIC_MGMT_STATUS_EXIST)) {
 		dev_err(&pdev->dev, "Failed to change MAC, err: %d, status: 0x%x, out size: 0x%x\n",
 			err, port_mac_cmd.status, out_size);
 		return -EFAULT;

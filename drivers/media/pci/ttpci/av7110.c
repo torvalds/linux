@@ -357,9 +357,9 @@ static inline void start_debi_dma(struct av7110 *av7110, int dir,
 		irdebi(av7110, DEBISWAB, addr, 0, len);
 }
 
-static void debiirq(unsigned long cookie)
+static void debiirq(struct tasklet_struct *t)
 {
-	struct av7110 *av7110 = (struct av7110 *)cookie;
+	struct av7110 *av7110 = from_tasklet(av7110, t, debi_tasklet);
 	int type = av7110->debitype;
 	int handle = (type >> 8) & 0x1f;
 	unsigned int xfer = 0;
@@ -458,9 +458,9 @@ debi_done:
 }
 
 /* irq from av7110 firmware writing the mailbox register in the DPRAM */
-static void gpioirq(unsigned long cookie)
+static void gpioirq(struct tasklet_struct *t)
 {
-	struct av7110 *av7110 = (struct av7110 *)cookie;
+	struct av7110 *av7110 = from_tasklet(av7110, t, gpio_tasklet);
 	u32 rxbuf, txbuf;
 	int len;
 
@@ -1230,9 +1230,9 @@ static int budget_stop_feed(struct dvb_demux_feed *feed)
 	return status;
 }
 
-static void vpeirq(unsigned long cookie)
+static void vpeirq(struct tasklet_struct *t)
 {
-	struct av7110 *budget = (struct av7110 *)cookie;
+	struct av7110 *budget = from_tasklet(budget, t, vpe_tasklet);
 	u8 *mem = (u8 *) (budget->grabbing);
 	u32 olddma = budget->ttbp;
 	u32 newdma = saa7146_read(budget->dev, PCI_VDP3);
@@ -2518,7 +2518,7 @@ static int av7110_attach(struct saa7146_dev* dev,
 		saa7146_write(dev, NUM_LINE_BYTE3, (TS_HEIGHT << 16) | TS_WIDTH);
 		saa7146_write(dev, MC2, MASK_04 | MASK_20);
 
-		tasklet_init(&av7110->vpe_tasklet, vpeirq, (unsigned long) av7110);
+		tasklet_setup(&av7110->vpe_tasklet, vpeirq);
 
 	} else if (budgetpatch) {
 		spin_lock_init(&av7110->feedlock1);
@@ -2599,7 +2599,7 @@ static int av7110_attach(struct saa7146_dev* dev,
 		saa7146_write(dev, MC1, (MASK_13 | MASK_29));
 
 		/* end of budgetpatch register initialization */
-		tasklet_init (&av7110->vpe_tasklet,  vpeirq,  (unsigned long) av7110);
+		tasklet_setup(&av7110->vpe_tasklet,  vpeirq);
 	} else {
 		saa7146_write(dev, PCI_BT_V1, 0x1c00101f);
 		saa7146_write(dev, BCS_CTRL, 0x80400040);
@@ -2614,8 +2614,8 @@ static int av7110_attach(struct saa7146_dev* dev,
 		saa7146_write(dev, GPIO_CTRL, 0x000000);
 	}
 
-	tasklet_init (&av7110->debi_tasklet, debiirq, (unsigned long) av7110);
-	tasklet_init (&av7110->gpio_tasklet, gpioirq, (unsigned long) av7110);
+	tasklet_setup(&av7110->debi_tasklet, debiirq);
+	tasklet_setup(&av7110->gpio_tasklet, gpioirq);
 
 	mutex_init(&av7110->pid_mutex);
 

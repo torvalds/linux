@@ -841,7 +841,6 @@ struct drbd_device {
 
 	sector_t p_size;     /* partner's disk size */
 	struct request_queue *rq_queue;
-	struct block_device *this_bdev;
 	struct gendisk	    *vdisk;
 
 	unsigned long last_reattach_jif;

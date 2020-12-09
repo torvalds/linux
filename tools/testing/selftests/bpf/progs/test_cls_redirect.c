@@ -22,6 +22,12 @@
 
 #include "test_cls_redirect.h"
 
+#ifdef SUBPROGS
+#define INLINING __noinline
+#else
+#define INLINING __always_inline
+#endif
+
 #define offsetofend(TYPE, MEMBER) \
 	(offsetof(TYPE, MEMBER) + sizeof((((TYPE *)0)->MEMBER)))
 
@@ -125,7 +131,7 @@ typedef struct buf {
 	uint8_t *const tail;
 } buf_t;
 
-static size_t buf_off(const buf_t *buf)
+static __always_inline size_t buf_off(const buf_t *buf)
 {
 	/* Clang seems to optimize constructs like
 	 *    a - b + c
@@ -145,7 +151,7 @@ static size_t buf_off(const buf_t *buf)
 	return off;
 }
 
-static bool buf_copy(buf_t *buf, void *dst, size_t len)
+static __always_inline bool buf_copy(buf_t *buf, void *dst, size_t len)
 {
 	if (bpf_skb_load_bytes(buf->skb, buf_off(buf), dst, len)) {
 		return false;
@@ -155,7 +161,7 @@ static bool buf_copy(buf_t *buf, void *dst, size_t len)
 	return true;
 }
 
-static bool buf_skip(buf_t *buf, const size_t len)
+static __always_inline bool buf_skip(buf_t *buf, const size_t len)
 {
 	/* Check whether off + len is valid in the non-linear part. */
 	if (buf_off(buf) + len > buf->skb->len) {
@@ -173,7 +179,7 @@ static bool buf_skip(buf_t *buf, const size_t len)
  * If scratch is not NULL, the function will attempt to load non-linear
  * data via bpf_skb_load_bytes. On success, scratch is returned.
  */
-static void *buf_assign(buf_t *buf, const size_t len, void *scratch)
+static __always_inline void *buf_assign(buf_t *buf, const size_t len, void *scratch)
 {
 	if (buf->head + len > buf->tail) {
 		if (scratch == NULL) {
@@ -188,7 +194,7 @@ static void *buf_assign(buf_t *buf, const size_t len, void *scratch)
 	return ptr;
 }
 
-static bool pkt_skip_ipv4_options(buf_t *buf, const struct iphdr *ipv4)
+static INLINING bool pkt_skip_ipv4_options(buf_t *buf, const struct iphdr *ipv4)
 {
 	if (ipv4->ihl <= 5) {
 		return true;
@@ -197,13 +203,13 @@ static bool pkt_skip_ipv4_options(buf_t *buf, const struct iphdr *ipv4)
 	return buf_skip(buf, (ipv4->ihl - 5) * 4);
 }
 
-static bool ipv4_is_fragment(const struct iphdr *ip)
+static INLINING bool ipv4_is_fragment(const struct iphdr *ip)
 {
 	uint16_t frag_off = ip->frag_off & bpf_htons(IP_OFFSET_MASK);
 	return (ip->frag_off & bpf_htons(IP_MF)) != 0 || frag_off > 0;
 }
 
-static struct iphdr *pkt_parse_ipv4(buf_t *pkt, struct iphdr *scratch)
+static __always_inline struct iphdr *pkt_parse_ipv4(buf_t *pkt, struct iphdr *scratch)
 {
 	struct iphdr *ipv4 = buf_assign(pkt, sizeof(*ipv4), scratch);
 	if (ipv4 == NULL) {
@@ -222,7 +228,7 @@ static struct iphdr *pkt_parse_ipv4(buf_t *pkt, struct iphdr *scratch)
 }
 
 /* Parse the L4 ports from a packet, assuming a layout like TCP or UDP. */
-static bool pkt_parse_icmp_l4_ports(buf_t *pkt, flow_ports_t *ports)
+static INLINING bool pkt_parse_icmp_l4_ports(buf_t *pkt, flow_ports_t *ports)
 {
 	if (!buf_copy(pkt, ports, sizeof(*ports))) {
 		return false;
@@ -237,7 +243,7 @@ static bool pkt_parse_icmp_l4_ports(buf_t *pkt, flow_ports_t *ports)
 	return true;
 }
 
-static uint16_t pkt_checksum_fold(uint32_t csum)
+static INLINING uint16_t pkt_checksum_fold(uint32_t csum)
 {
 	/* The highest reasonable value for an IPv4 header
 	 * checksum requires two folds, so we just do that always.
@@ -247,7 +253,7 @@ static uint16_t pkt_checksum_fold(uint32_t csum)
 	return (uint16_t)~csum;
 }
 
-static void pkt_ipv4_checksum(struct iphdr *iph)
+static INLINING void pkt_ipv4_checksum(struct iphdr *iph)
 {
 	iph->check = 0;
 
@@ -268,10 +274,11 @@ static void pkt_ipv4_checksum(struct iphdr *iph)
 	iph->check = pkt_checksum_fold(acc);
 }
 
-static bool pkt_skip_ipv6_extension_headers(buf_t *pkt,
-					    const struct ipv6hdr *ipv6,
-					    uint8_t *upper_proto,
-					    bool *is_fragment)
+static INLINING
+bool pkt_skip_ipv6_extension_headers(buf_t *pkt,
+				     const struct ipv6hdr *ipv6,
+				     uint8_t *upper_proto,
+				     bool *is_fragment)
 {
 	/* We understand five extension headers.
 	 * https://tools.ietf.org/html/rfc8200#section-4.1 states that all
@@ -336,7 +343,7 @@ static bool pkt_skip_ipv6_extension_headers(buf_t *pkt,
  * scratch is allocated on the stack. However, this usage should be safe since
  * it's the callers stack after all.
  */
-static inline __attribute__((__always_inline__)) struct ipv6hdr *
+static __always_inline struct ipv6hdr *
 pkt_parse_ipv6(buf_t *pkt, struct ipv6hdr *scratch, uint8_t *proto,
 	       bool *is_fragment)
 {
@@ -354,20 +361,20 @@ pkt_parse_ipv6(buf_t *pkt, struct ipv6hdr *scratch, uint8_t *proto,
 
 /* Global metrics, per CPU
  */
-struct bpf_map_def metrics_map SEC("maps") = {
-	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
-	.key_size = sizeof(unsigned int),
-	.value_size = sizeof(metrics_t),
-	.max_entries = 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, unsigned int);
+	__type(value, metrics_t);
+} metrics_map SEC(".maps");
 
-static metrics_t *get_global_metrics(void)
+static INLINING metrics_t *get_global_metrics(void)
 {
 	uint64_t key = 0;
 	return bpf_map_lookup_elem(&metrics_map, &key);
 }
 
-static ret_t accept_locally(struct __sk_buff *skb, encap_headers_t *encap)
+static INLINING ret_t accept_locally(struct __sk_buff *skb, encap_headers_t *encap)
 {
 	const int payload_off =
 		sizeof(*encap) +
@@ -388,8 +395,8 @@ static ret_t accept_locally(struct __sk_buff *skb, encap_headers_t *encap)
 	return bpf_redirect(skb->ifindex, BPF_F_INGRESS);
 }
 
-static ret_t forward_with_gre(struct __sk_buff *skb, encap_headers_t *encap,
-			      struct in_addr *next_hop, metrics_t *metrics)
+static INLINING ret_t forward_with_gre(struct __sk_buff *skb, encap_headers_t *encap,
+				       struct in_addr *next_hop, metrics_t *metrics)
 {
 	metrics->forwarded_packets_total_gre++;
 
@@ -509,8 +516,8 @@ static ret_t forward_with_gre(struct __sk_buff *skb, encap_headers_t *encap,
 	return bpf_redirect(skb->ifindex, 0);
 }
 
-static ret_t forward_to_next_hop(struct __sk_buff *skb, encap_headers_t *encap,
-				 struct in_addr *next_hop, metrics_t *metrics)
+static INLINING ret_t forward_to_next_hop(struct __sk_buff *skb, encap_headers_t *encap,
+					  struct in_addr *next_hop, metrics_t *metrics)
 {
 	/* swap L2 addresses */
 	/* This assumes that packets are received from a router.
@@ -546,7 +553,7 @@ static ret_t forward_to_next_hop(struct __sk_buff *skb, encap_headers_t *encap,
 	return bpf_redirect(skb->ifindex, 0);
 }
 
-static ret_t skip_next_hops(buf_t *pkt, int n)
+static INLINING ret_t skip_next_hops(buf_t *pkt, int n)
 {
 	switch (n) {
 	case 1:
@@ -566,8 +573,8 @@ static ret_t skip_next_hops(buf_t *pkt, int n)
  * pkt is positioned just after the variable length GLB header
  * iff the call is successful.
  */
-static ret_t get_next_hop(buf_t *pkt, encap_headers_t *encap,
-			  struct in_addr *next_hop)
+static INLINING ret_t get_next_hop(buf_t *pkt, encap_headers_t *encap,
+				   struct in_addr *next_hop)
 {
 	if (encap->unigue.next_hop > encap->unigue.hop_count) {
 		return TC_ACT_SHOT;
@@ -601,8 +608,8 @@ static ret_t get_next_hop(buf_t *pkt, encap_headers_t *encap,
  * return value, and calling code works while still being "generic" to
  * IPv4 and IPv6.
  */
-static uint64_t fill_tuple(struct bpf_sock_tuple *tuple, void *iph,
-			   uint64_t iphlen, uint16_t sport, uint16_t dport)
+static INLINING uint64_t fill_tuple(struct bpf_sock_tuple *tuple, void *iph,
+				    uint64_t iphlen, uint16_t sport, uint16_t dport)
 {
 	switch (iphlen) {
 	case sizeof(struct iphdr): {
@@ -630,9 +637,9 @@ static uint64_t fill_tuple(struct bpf_sock_tuple *tuple, void *iph,
 	}
 }
 
-static verdict_t classify_tcp(struct __sk_buff *skb,
-			      struct bpf_sock_tuple *tuple, uint64_t tuplen,
-			      void *iph, struct tcphdr *tcp)
+static INLINING verdict_t classify_tcp(struct __sk_buff *skb,
+				       struct bpf_sock_tuple *tuple, uint64_t tuplen,
+				       void *iph, struct tcphdr *tcp)
 {
 	struct bpf_sock *sk =
 		bpf_skc_lookup_tcp(skb, tuple, tuplen, BPF_F_CURRENT_NETNS, 0);
@@ -663,8 +670,8 @@ static verdict_t classify_tcp(struct __sk_buff *skb,
 	return UNKNOWN;
 }
 
-static verdict_t classify_udp(struct __sk_buff *skb,
-			      struct bpf_sock_tuple *tuple, uint64_t tuplen)
+static INLINING verdict_t classify_udp(struct __sk_buff *skb,
+				       struct bpf_sock_tuple *tuple, uint64_t tuplen)
 {
 	struct bpf_sock *sk =
 		bpf_sk_lookup_udp(skb, tuple, tuplen, BPF_F_CURRENT_NETNS, 0);
@@ -681,9 +688,9 @@ static verdict_t classify_udp(struct __sk_buff *skb,
 	return UNKNOWN;
 }
 
-static verdict_t classify_icmp(struct __sk_buff *skb, uint8_t proto,
-			       struct bpf_sock_tuple *tuple, uint64_t tuplen,
-			       metrics_t *metrics)
+static INLINING verdict_t classify_icmp(struct __sk_buff *skb, uint8_t proto,
+					struct bpf_sock_tuple *tuple, uint64_t tuplen,
+					metrics_t *metrics)
 {
 	switch (proto) {
 	case IPPROTO_TCP:
@@ -698,7 +705,7 @@ static verdict_t classify_icmp(struct __sk_buff *skb, uint8_t proto,
 	}
 }
 
-static verdict_t process_icmpv4(buf_t *pkt, metrics_t *metrics)
+static INLINING verdict_t process_icmpv4(buf_t *pkt, metrics_t *metrics)
 {
 	struct icmphdr icmp;
 	if (!buf_copy(pkt, &icmp, sizeof(icmp))) {
@@ -745,7 +752,7 @@ static verdict_t process_icmpv4(buf_t *pkt, metrics_t *metrics)
 			     sizeof(tuple.ipv4), metrics);
 }
 
-static verdict_t process_icmpv6(buf_t *pkt, metrics_t *metrics)
+static INLINING verdict_t process_icmpv6(buf_t *pkt, metrics_t *metrics)
 {
 	struct icmp6hdr icmp6;
 	if (!buf_copy(pkt, &icmp6, sizeof(icmp6))) {
@@ -797,8 +804,8 @@ static verdict_t process_icmpv6(buf_t *pkt, metrics_t *metrics)
 			     metrics);
 }
 
-static verdict_t process_tcp(buf_t *pkt, void *iph, uint64_t iphlen,
-			     metrics_t *metrics)
+static INLINING verdict_t process_tcp(buf_t *pkt, void *iph, uint64_t iphlen,
+				      metrics_t *metrics)
 {
 	metrics->l4_protocol_packets_total_tcp++;
 
@@ -819,8 +826,8 @@ static verdict_t process_tcp(buf_t *pkt, void *iph, uint64_t iphlen,
 	return classify_tcp(pkt->skb, &tuple, tuplen, iph, tcp);
 }
 
-static verdict_t process_udp(buf_t *pkt, void *iph, uint64_t iphlen,
-			     metrics_t *metrics)
+static INLINING verdict_t process_udp(buf_t *pkt, void *iph, uint64_t iphlen,
+				      metrics_t *metrics)
 {
 	metrics->l4_protocol_packets_total_udp++;
 
@@ -837,7 +844,7 @@ static verdict_t process_udp(buf_t *pkt, void *iph, uint64_t iphlen,
 	return classify_udp(pkt->skb, &tuple, tuplen);
 }
 
-static verdict_t process_ipv4(buf_t *pkt, metrics_t *metrics)
+static INLINING verdict_t process_ipv4(buf_t *pkt, metrics_t *metrics)
 {
 	metrics->l3_protocol_packets_total_ipv4++;
 
@@ -874,7 +881,7 @@ static verdict_t process_ipv4(buf_t *pkt, metrics_t *metrics)
 	}
 }
 
-static verdict_t process_ipv6(buf_t *pkt, metrics_t *metrics)
+static INLINING verdict_t process_ipv6(buf_t *pkt, metrics_t *metrics)
 {
 	metrics->l3_protocol_packets_total_ipv6++;
 

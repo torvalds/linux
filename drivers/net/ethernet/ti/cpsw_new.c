@@ -17,6 +17,7 @@
 #include <linux/phy.h>
 #include <linux/phy/phy.h>
 #include <linux/delay.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of.h>
@@ -1243,7 +1244,6 @@ static int cpsw_probe_dt(struct cpsw_common *cpsw)
 
 	data->active_slave = 0;
 	data->channels = CPSW_MAX_QUEUES;
-	data->ale_entries = CPSW_ALE_NUM_ENTRIES;
 	data->dual_emac = true;
 	data->bd_ram_size = CPSW_BD_RAM_SIZE;
 	data->mac_control = 0;
@@ -1660,12 +1660,10 @@ static int cpsw_dl_switch_mode_set(struct devlink *dl, u32 id,
 		for (i = 0; i < cpsw->data.slaves; i++) {
 			struct cpsw_slave *slave = &cpsw->slaves[i];
 			struct net_device *sl_ndev = slave->ndev;
-			struct cpsw_priv *priv;
 
 			if (!sl_ndev)
 				continue;
 
-			priv = netdev_priv(sl_ndev);
 			if (switch_en)
 				vlan = cpsw->data.default_vlan;
 			else
@@ -2070,9 +2068,61 @@ static int cpsw_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused cpsw_suspend(struct device *dev)
+{
+	struct cpsw_common *cpsw = dev_get_drvdata(dev);
+	int i;
+
+	rtnl_lock();
+
+	for (i = 0; i < cpsw->data.slaves; i++) {
+		struct net_device *ndev = cpsw->slaves[i].ndev;
+
+		if (!(ndev && netif_running(ndev)))
+			continue;
+
+		cpsw_ndo_stop(ndev);
+	}
+
+	rtnl_unlock();
+
+	/* Select sleep pin state */
+	pinctrl_pm_select_sleep_state(dev);
+
+	return 0;
+}
+
+static int __maybe_unused cpsw_resume(struct device *dev)
+{
+	struct cpsw_common *cpsw = dev_get_drvdata(dev);
+	int i;
+
+	/* Select default pin state */
+	pinctrl_pm_select_default_state(dev);
+
+	/* shut up ASSERT_RTNL() warning in netif_set_real_num_tx/rx_queues */
+	rtnl_lock();
+
+	for (i = 0; i < cpsw->data.slaves; i++) {
+		struct net_device *ndev = cpsw->slaves[i].ndev;
+
+		if (!(ndev && netif_running(ndev)))
+			continue;
+
+		cpsw_ndo_open(ndev);
+	}
+
+	rtnl_unlock();
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(cpsw_pm_ops, cpsw_suspend, cpsw_resume);
+
 static struct platform_driver cpsw_driver = {
 	.driver = {
 		.name	 = "cpsw-switch",
+		.pm	 = &cpsw_pm_ops,
 		.of_match_table = cpsw_of_mtable,
 	},
 	.probe = cpsw_probe,

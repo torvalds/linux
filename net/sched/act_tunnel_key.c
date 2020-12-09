@@ -156,6 +156,7 @@ tunnel_key_copy_vxlan_opt(const struct nlattr *nla, void *dst, int dst_len,
 		struct vxlan_metadata *md = dst;
 
 		md->gbp = nla_get_u32(tb[TCA_TUNNEL_KEY_ENC_OPT_VXLAN_GBP]);
+		md->gbp &= VXLAN_GBP_MASK;
 	}
 
 	return sizeof(struct vxlan_metadata);
@@ -458,7 +459,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 
 			metadata = __ipv6_tun_set_dst(&saddr, &daddr, tos, ttl, dst_port,
 						      0, flags,
-						      key_id, 0);
+						      key_id, opts_len);
 		} else {
 			NL_SET_ERR_MSG(extack, "Missing either ipv4 or ipv6 src and dst");
 			ret = -EINVAL;
@@ -535,9 +536,6 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	tunnel_key_release_params(params_new);
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);
-
-	if (ret == ACT_P_CREATED)
-		tcf_idr_insert(tn, *a);
 
 	return ret;
 

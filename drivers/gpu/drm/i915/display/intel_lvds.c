@@ -456,12 +456,6 @@ static int intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	return 0;
 }
 
-static enum drm_connector_status
-intel_lvds_detect(struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 /*
  * Return the list of DDC modes if available, or the BIOS fixed mode otherwise.
  */
@@ -490,7 +484,7 @@ static const struct drm_connector_helper_funcs intel_lvds_connector_helper_funcs
 };
 
 static const struct drm_connector_funcs intel_lvds_connector_funcs = {
-	.detect = intel_lvds_detect,
+	.detect = intel_panel_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.atomic_get_property = intel_digital_connector_atomic_get_property,
 	.atomic_set_property = intel_digital_connector_atomic_set_property,

@@ -6,11 +6,7 @@ if (X86 || COMPILE_TEST)
 config PINCTRL_BAYTRAIL
 	bool "Intel Baytrail GPIO pin control"
 	depends on ACPI
-	select GPIOLIB
-	select GPIOLIB_IRQCHIP
-	select PINMUX
-	select PINCONF
-	select GENERIC_PINCONF
+	select PINCTRL_INTEL
 	help
 	  driver for memory mapped GPIO functionality on Intel Baytrail
 	  platforms. Supports 3 banks with 102, 28 and 44 gpios.
@@ -22,11 +18,7 @@ config PINCTRL_BAYTRAIL
 config PINCTRL_CHERRYVIEW
 	tristate "Intel Cherryview/Braswell pinctrl and GPIO driver"
 	depends on ACPI
-	select PINMUX
-	select PINCONF
-	select GENERIC_PINCONF
-	select GPIOLIB
-	select GPIOLIB_IRQCHIP
+	select PINCTRL_INTEL
 	help
 	  Cherryview/Braswell pinctrl driver provides an interface that
 	  allows configuring of SoC pins and using them as GPIOs.

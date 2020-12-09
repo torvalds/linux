@@ -463,11 +463,10 @@ static int cc_trng_clk_init(struct cctrng_drvdata *drvdata)
 	int rc = 0;
 
 	clk = devm_clk_get_optional(dev, NULL);
-	if (IS_ERR(clk)) {
-		if (PTR_ERR(clk) != -EPROBE_DEFER)
-			dev_err(dev, "Error getting clock: %pe\n", clk);
-		return PTR_ERR(clk);
-	}
+	if (IS_ERR(clk))
+		return dev_err_probe(dev, PTR_ERR(clk),
+				     "Error getting clock\n");
+
 	drvdata->clk = clk;
 
 	rc = clk_prepare_enable(drvdata->clk);

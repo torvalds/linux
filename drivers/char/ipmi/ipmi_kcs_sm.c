@@ -17,6 +17,8 @@
  * that document.
  */
 
+#define DEBUG /* So dev_dbg() is always available. */
+
 #include <linux/kernel.h> /* For printk. */
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -187,8 +189,8 @@ static inline void start_error_recovery(struct si_sm_data *kcs, char *reason)
 	(kcs->error_retries)++;
 	if (kcs->error_retries > MAX_ERROR_RETRIES) {
 		if (kcs_debug & KCS_DEBUG_ENABLE)
-			printk(KERN_DEBUG "ipmi_kcs_sm: kcs hosed: %s\n",
-			       reason);
+			dev_dbg(kcs->io->dev, "ipmi_kcs_sm: kcs hosed: %s\n",
+				reason);
 		kcs->state = KCS_HOSED;
 	} else {
 		kcs->error0_timeout = jiffies + ERROR0_OBF_WAIT_JIFFIES;
@@ -268,11 +270,13 @@ static int start_kcs_transaction(struct si_sm_data *kcs, unsigned char *data,
 	if (size > MAX_KCS_WRITE_SIZE)
 		return IPMI_REQ_LEN_EXCEEDED_ERR;
 
-	if ((kcs->state != KCS_IDLE) && (kcs->state != KCS_HOSED))
+	if ((kcs->state != KCS_IDLE) && (kcs->state != KCS_HOSED)) {
+		dev_warn(kcs->io->dev, "KCS in invalid state %d\n", kcs->state);
 		return IPMI_NOT_IN_MY_STATE_ERR;
+	}
 
 	if (kcs_debug & KCS_DEBUG_MSG) {
-		printk(KERN_DEBUG "start_kcs_transaction -");
+		dev_dbg(kcs->io->dev, "%s -", __func__);
 		for (i = 0; i < size; i++)
 			pr_cont(" %02x", data[i]);
 		pr_cont("\n");
@@ -331,7 +335,8 @@ static enum si_sm_result kcs_event(struct si_sm_data *kcs, long time)
 	status = read_status(kcs);
 
 	if (kcs_debug & KCS_DEBUG_STATES)
-		printk(KERN_DEBUG "KCS: State = %d, %x\n", kcs->state, status);
+		dev_dbg(kcs->io->dev,
+			"KCS: State = %d, %x\n", kcs->state, status);
 
 	/* All states wait for ibf, so just do it here. */
 	if (!check_ibf(kcs, status, time))

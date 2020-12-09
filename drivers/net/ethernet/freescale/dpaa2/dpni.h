@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause) */
 /* Copyright 2013-2016 Freescale Semiconductor Inc.
  * Copyright 2016 NXP
+ * Copyright 2020 NXP
  */
 #ifndef __FSL_DPNI_H
 #define __FSL_DPNI_H
@@ -74,6 +75,10 @@ struct fsl_mc_io;
  * Disables the flow steering table.
  */
 #define DPNI_OPT_NO_FS				0x000020
+/**
+ * Flow steering table is shared between all traffic classes
+ */
+#define DPNI_OPT_SHARED_FS			0x001000
 
 int dpni_open(struct fsl_mc_io	*mc_io,
 	      u32		cmd_flags,
@@ -1078,5 +1083,35 @@ int dpni_set_tx_shaping(struct fsl_mc_io *mc_io,
 			const struct dpni_tx_shaping_cfg *tx_cr_shaper,
 			const struct dpni_tx_shaping_cfg *tx_er_shaper,
 			int coupled);
+
+/**
+ * struct dpni_single_step_cfg - configure single step PTP (IEEE 1588)
+ * @en:		enable single step PTP. When enabled the PTPv1 functionality
+ *		will not work. If the field is zero, offset and ch_update
+ *		parameters will be ignored
+ * @offset:	start offset from the beginning of the frame where
+ *		timestamp field is found. The offset must respect all MAC
+ *		headers, VLAN tags and other protocol headers
+ * @ch_update:	when set UDP checksum will be updated inside packet
+ * @peer_delay:	For peer-to-peer transparent clocks add this value to the
+ *		correction field in addition to the transient time update.
+ *		The value expresses nanoseconds.
+ */
+struct dpni_single_step_cfg {
+	u8	en;
+	u8	ch_update;
+	u16	offset;
+	u32	peer_delay;
+};
+
+int dpni_set_single_step_cfg(struct fsl_mc_io *mc_io,
+			     u32 cmd_flags,
+			     u16 token,
+			     struct dpni_single_step_cfg *ptp_cfg);
+
+int dpni_get_single_step_cfg(struct fsl_mc_io *mc_io,
+			     u32 cmd_flags,
+			     u16 token,
+			     struct dpni_single_step_cfg *ptp_cfg);
 
 #endif /* __FSL_DPNI_H */

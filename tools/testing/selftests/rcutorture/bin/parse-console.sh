@@ -33,8 +33,8 @@ then
 fi
 cat /dev/null > $file.diags
 
-# Check for proper termination, except for rcuperf and refscale.
-if test "$TORTURE_SUITE" != rcuperf && test "$TORTURE_SUITE" != refscale
+# Check for proper termination, except for rcuscale and refscale.
+if test "$TORTURE_SUITE" != rcuscale && test "$TORTURE_SUITE" != refscale
 then
 	# check for abject failure
 
@@ -67,6 +67,7 @@ then
 	grep --binary-files=text 'torture:.*ver:' $file |
 	egrep --binary-files=text -v '\(null\)|rtc: 000000000* ' |
 	sed -e 's/^(initramfs)[^]]*] //' -e 's/^\[[^]]*] //' |
+	sed -e 's/^.*ver: //' |
 	awk '
 	BEGIN	{
 		ver = 0;
@@ -74,13 +75,13 @@ then
 		}
 
 		{
-		if (!badseq && ($5 + 0 != $5 || $5 <= ver)) {
+		if (!badseq && ($1 + 0 != $1 || $1 <= ver)) {
 			badseqno1 = ver;
-			badseqno2 = $5;
+			badseqno2 = $1;
 			badseqnr = NR;
 			badseq = 1;
 		}
-		ver = $5
+		ver = $1
 		}
 
 	END	{

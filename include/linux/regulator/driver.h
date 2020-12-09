@@ -533,9 +533,6 @@ int regulator_set_current_limit_regmap(struct regulator_dev *rdev,
 int regulator_get_current_limit_regmap(struct regulator_dev *rdev);
 void *regulator_get_init_drvdata(struct regulator_init_data *reg_init_data);
 
-void regulator_lock(struct regulator_dev *rdev);
-void regulator_unlock(struct regulator_dev *rdev);
-
 /*
  * Helper functions intended to be used by regulator drivers prior registering
  * their regulators.

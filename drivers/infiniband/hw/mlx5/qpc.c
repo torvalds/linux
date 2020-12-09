@@ -576,11 +576,12 @@ err_destroy_rq:
 	return err;
 }
 
-void mlx5_core_destroy_rq_tracked(struct mlx5_ib_dev *dev,
-				  struct mlx5_core_qp *rq)
+int mlx5_core_destroy_rq_tracked(struct mlx5_ib_dev *dev,
+				 struct mlx5_core_qp *rq)
 {
 	destroy_resource_common(dev, rq);
 	destroy_rq_tracked(dev, rq->qpn, rq->uid);
+	return 0;
 }
 
 static void destroy_sq_tracked(struct mlx5_ib_dev *dev, u32 sqn, u16 uid)

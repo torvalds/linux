@@ -77,8 +77,6 @@ static irqreturn_t da9210_irq_handler(int irq, void *data)
 	if (error < 0)
 		goto error_i2c;
 
-	regulator_lock(chip->rdev);
-
 	if (val & DA9210_E_OVCURR) {
 		regulator_notifier_call_chain(chip->rdev,
 					      REGULATOR_EVENT_OVER_CURRENT,
@@ -103,8 +101,6 @@ static irqreturn_t da9210_irq_handler(int irq, void *data)
 		handled |= DA9210_E_VMAX;
 	}
 
-	regulator_unlock(chip->rdev);
-
 	if (handled) {
 		/* Clear handled events */
 		error = regmap_write(chip->regmap, DA9210_REG_EVENT_B, handled);
@@ -125,7 +121,7 @@ error_i2c:
  * I2C driver interface functions
  */
 
-static const struct of_device_id da9210_dt_ids[] = {
+static const struct of_device_id __maybe_unused da9210_dt_ids[] = {
 	{ .compatible = "dlg,da9210", },
 	{ }
 };

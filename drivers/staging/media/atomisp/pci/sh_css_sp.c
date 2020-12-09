@@ -17,7 +17,7 @@
 
 #include "sh_css_sp.h"
 
-#if !defined(HAS_NO_INPUT_FORMATTER)
+#if !defined(ISP2401)
 #include "input_formatter.h"
 #endif
 
@@ -38,9 +38,7 @@
 #include "sh_css_params.h"
 #include "sh_css_legacy.h"
 #include "ia_css_frame_comm.h"
-#if !defined(HAS_NO_INPUT_SYSTEM)
 #include "ia_css_isys.h"
-#endif
 
 #include "gdc_device.h"				/* HRT_GDC_N */
 
@@ -229,7 +227,7 @@ sh_css_sp_start_binary_copy(unsigned int pipe_num,
 	IA_CSS_LOG("pipe_id %d port_config %08x",
 		   pipe->pipe_id, pipe->inout_port_config);
 
-#if !defined(HAS_NO_INPUT_FORMATTER)
+#if !defined(ISP2401)
 	sh_css_sp_group.config.input_formatter.isp_2ppc = (uint8_t)two_ppc;
 #else
 	(void)two_ppc;
@@ -307,7 +305,7 @@ sh_css_sp_start_raw_copy(struct ia_css_frame *out_frame,
 	IA_CSS_LOG("pipe_id %d port_config %08x",
 		   pipe->pipe_id, pipe->inout_port_config);
 
-#if !defined(HAS_NO_INPUT_FORMATTER)
+#if !defined(ISP2401)
 	sh_css_sp_group.config.input_formatter.isp_2ppc = (uint8_t)two_ppc;
 #else
 	(void)two_ppc;
@@ -638,7 +636,7 @@ set_view_finder_buffer(const struct ia_css_frame *frame) {
 	return 0;
 }
 
-#if !defined(HAS_NO_INPUT_FORMATTER)
+#if !defined(ISP2401)
 void sh_css_sp_set_if_configs(
     const input_formatter_cfg_t	*config_a,
     const input_formatter_cfg_t	*config_b,
@@ -662,7 +660,7 @@ void sh_css_sp_set_if_configs(
 }
 #endif
 
-#if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2)
+#if !defined(ISP2401)
 void
 sh_css_sp_program_input_circuit(int fmt_type,
 				int ch_id,
@@ -681,7 +679,7 @@ sh_css_sp_program_input_circuit(int fmt_type,
 }
 #endif
 
-#if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2)
+#if !defined(ISP2401)
 void
 sh_css_sp_configure_sync_gen(int width, int height,
 			     int hblank_cycles,
@@ -724,11 +722,7 @@ sh_css_sp_configure_enable_raw_pool_locking(bool lock_all)
 void
 sh_css_sp_enable_isys_event_queue(bool enable)
 {
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	sh_css_sp_group.config.enable_isys_event_queue = enable;
-#else
-	(void)enable;
-#endif
 }
 
 void
@@ -766,7 +760,7 @@ sh_css_sp_init_group(bool two_ppc,
 		     bool no_isp_sync,
 		     uint8_t if_config_index)
 {
-#if !defined(HAS_NO_INPUT_FORMATTER)
+#if !defined(ISP2401)
 	sh_css_sp_group.config.input_formatter.isp_2ppc = two_ppc;
 #else
 	(void)two_ppc;
@@ -775,7 +769,7 @@ sh_css_sp_init_group(bool two_ppc,
 	sh_css_sp_group.config.no_isp_sync = (uint8_t)no_isp_sync;
 	/* decide whether the frame is processed online or offline */
 	if (if_config_index == SH_CSS_IF_CONFIG_NOT_NEEDED) return;
-#if !defined(HAS_NO_INPUT_FORMATTER)
+#if !defined(ISP2401)
 	assert(if_config_index < SH_CSS_MAX_IF_CONFIGS);
 	sh_css_sp_group.config.input_formatter.set[if_config_index].stream_format =
 	    input_format;
@@ -940,7 +934,7 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 		return 0;
 	}
 
-#if defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if defined(ISP2401)
 	(void)continuous;
 	sh_css_sp_stage.deinterleaved = 0;
 #else
@@ -1025,7 +1019,7 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 	if (err)
 		return err;
 
-#ifdef USE_INPUT_SYSTEM_VERSION_2401
+#ifdef ISP2401
 	if (stage == 0) {
 		pipe = find_pipe_by_num(sh_css_sp_group.pipe[thread_id].pipe_num);
 		if (!pipe)
@@ -1206,9 +1200,7 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 			enum ia_css_input_mode input_mode,
 			const struct ia_css_metadata_config *md_config,
 			const struct ia_css_metadata_info *md_info,
-#if !defined(HAS_NO_INPUT_SYSTEM)
 			const enum mipi_port_id port_id,
-#endif
 			const struct ia_css_coordinate
 			*internal_frame_origin_bqs_on_sctbl, /* Origin of internal frame
 							positioned on shading table at shading correction in ISP. */
@@ -1226,7 +1218,6 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 
 	assert(me);
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	assert(me->stages);
 
 	first_binary = me->stages->binary;
@@ -1245,10 +1236,6 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	{
 		if_config_index = 0x0;
 	}
-#else
-	(void)input_mode;
-	if_config_index = SH_CSS_IF_CONFIG_NOT_NEEDED;
-#endif
 
 	ia_css_pipeline_get_sp_thread_id(pipe_num, &thread_id);
 	memset(&sh_css_sp_group.pipe[thread_id], 0, sizeof(struct sh_css_sp_pipeline));
@@ -1268,12 +1255,10 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 				     offline, if_config_index);
 	} /* if (first_binary != NULL) */
 
-#if defined(USE_INPUT_SYSTEM_VERSION_2401) || defined(USE_INPUT_SYSTEM_VERSION_2)
 	/* Signal the host immediately after start for SP_ISYS_COPY only */
 	if ((me->num_stages == 1) && me->stages &&
 	    (me->stages->sp_func == IA_CSS_PIPELINE_ISYS_COPY))
 		sh_css_sp_group.config.no_isp_sync = true;
-#endif
 
 	/* Init stage data */
 	sh_css_init_host2sp_frame_data();
@@ -1285,11 +1270,9 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	sh_css_sp_group.pipe[thread_id].num_execs = me->num_execs;
 	sh_css_sp_group.pipe[thread_id].pipe_qos_config = me->pipe_qos_config;
 	sh_css_sp_group.pipe[thread_id].required_bds_factor = required_bds_factor;
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	sh_css_sp_group.pipe[thread_id].input_system_mode
 	= (uint32_t)input_mode;
 	sh_css_sp_group.pipe[thread_id].port_id = port_id;
-#endif
 	sh_css_sp_group.pipe[thread_id].dvs_frame_delay = (uint32_t)me->dvs_frame_delay;
 
 	/* TODO: next indicates from which queues parameters need to be
@@ -1482,7 +1465,6 @@ sh_css_update_host2sp_offline_frame(
 	store_sp_array_uint(host_sp_com, offset, metadata ? metadata->address : 0);
 }
 
-#if defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
 /*
  * @brief Update the mipi frame information in host_sp_communication.
  * Refer to "sh_css_sp.h" for more details.
@@ -1547,7 +1529,6 @@ sh_css_update_host2sp_num_mipi_frames(unsigned int num_frames)
 
 	store_sp_array_uint(host_sp_com, offset, num_frames);
 }
-#endif
 
 void
 sh_css_update_host2sp_cont_num_raw_frames(unsigned int num_frames,

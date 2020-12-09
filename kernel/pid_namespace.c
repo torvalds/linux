@@ -233,7 +233,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	 * to pid_ns->child_reaper.  Thus pidns->child_reaper needs to
 	 * stay valid until they all go away.
 	 *
-	 * The code relies on the the pid_ns->child_reaper ignoring
+	 * The code relies on the pid_ns->child_reaper ignoring
 	 * SIGCHILD to cause those EXIT_ZOMBIE processes to be
 	 * autoreaped if reparented.
 	 *

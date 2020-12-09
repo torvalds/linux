@@ -1,20 +1,3 @@
-What:		/sys/class/leds/<led>/brightness
-Date:		March 2020
-KernelVersion:	5.9
-Contact:	Dan Murphy <dmurphy@ti.com>
-Description:	read/write
-		Writing to this file will update all LEDs within the group to a
-		calculated percentage of what each color LED intensity is set
-		to. The percentage is calculated for each grouped LED via the
-		equation below:
-
-		led_brightness = brightness * multi_intensity/max_brightness
-
-		For additional details please refer to
-		Documentation/leds/leds-class-multicolor.rst.
-
-		The value of the LED is from 0 to
-		/sys/class/leds/<led>/max_brightness.
 
 What:		/sys/class/leds/<led>/multi_index
 Date:		March 2020
@@ -25,6 +8,9 @@ Description:	read
 		as an array of strings as they are indexed in the
 		multi_intensity file.
 
+		For additional details please refer to
+		Documentation/leds/leds-class-multicolor.rst.
+
 What:		/sys/class/leds/<led>/multi_intensity
 Date:		March 2020
 KernelVersion:	5.9
@@ -33,3 +19,6 @@ Description:	read/write
 		This file contains array of integers. Order of components is
 		described by the multi_index array. The maximum intensity should
 		not exceed /sys/class/leds/<led>/max_brightness.
+
+		For additional details please refer to
+		Documentation/leds/leds-class-multicolor.rst.

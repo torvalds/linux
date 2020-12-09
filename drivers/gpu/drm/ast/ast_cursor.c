@@ -47,7 +47,7 @@ static void ast_cursor_fini(struct ast_private *ast)
 
 static void ast_cursor_release(struct drm_device *dev, void *ptr)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 
 	ast_cursor_fini(ast);
 }
@@ -57,7 +57,7 @@ static void ast_cursor_release(struct drm_device *dev, void *ptr)
  */
 int ast_cursor_init(struct ast_private *ast)
 {
-	struct drm_device *dev = ast->dev;
+	struct drm_device *dev = &ast->base;
 	size_t size, i;
 	struct drm_gem_vram_object *gbo;
 	void __iomem *vaddr;
@@ -168,7 +168,7 @@ static void update_cursor_image(u8 __iomem *dst, const u8 *src, int width, int h
 
 int ast_cursor_blit(struct ast_private *ast, struct drm_framebuffer *fb)
 {
-	struct drm_device *dev = ast->dev;
+	struct drm_device *dev = &ast->base;
 	struct drm_gem_vram_object *gbo;
 	int ret;
 	void *src;
@@ -217,7 +217,7 @@ static void ast_cursor_set_base(struct ast_private *ast, u64 address)
 
 void ast_cursor_page_flip(struct ast_private *ast)
 {
-	struct drm_device *dev = ast->dev;
+	struct drm_device *dev = &ast->base;
 	struct drm_gem_vram_object *gbo;
 	s64 off;
 
@@ -253,7 +253,8 @@ void ast_cursor_show(struct ast_private *ast, int x, int y,
 		     unsigned int offset_x, unsigned int offset_y)
 {
 	u8 x_offset, y_offset;
-	u8 __iomem *dst, __iomem *sig;
+	u8 __iomem *dst;
+	u8 __iomem *sig;
 	u8 jreg;
 
 	dst = ast->cursor.vaddr[ast->cursor.next_index];

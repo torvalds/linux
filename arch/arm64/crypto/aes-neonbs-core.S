@@ -788,7 +788,7 @@ SYM_FUNC_START_LOCAL(__xts_crypt8)
 
 0:	mov		bskey, x21
 	mov		rounds, x22
-	br		x7
+	br		x16
 SYM_FUNC_END(__xts_crypt8)
 
 	.macro		__xts_crypt, do8, o0, o1, o2, o3, o4, o5, o6, o7
@@ -806,7 +806,7 @@ SYM_FUNC_END(__xts_crypt8)
 	uzp1		v30.4s, v30.4s, v25.4s
 	ld1		{v25.16b}, [x24]
 
-99:	adr		x7, \do8
+99:	adr		x16, \do8
 	bl		__xts_crypt8
 
 	ldp		q16, q17, [sp, #.Lframe_local_offset]

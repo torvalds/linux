@@ -41,6 +41,7 @@ properties:
               - renesas,msiof-r8a774e1      # RZ/G2H
               - renesas,msiof-r8a7795       # R-Car H3
               - renesas,msiof-r8a7796       # R-Car M3-W
+              - renesas,msiof-r8a77961      # R-Car M3-W+
               - renesas,msiof-r8a77965      # R-Car M3-N
               - renesas,msiof-r8a77970      # R-Car V3M
               - renesas,msiof-r8a77980      # R-Car V3H
@@ -139,6 +140,8 @@ required:
   - interrupts
   - '#address-cells'
   - '#size-cells'
+
+unevaluatedProperties: false
 
 examples:
   - |

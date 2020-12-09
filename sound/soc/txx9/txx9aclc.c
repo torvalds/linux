@@ -102,7 +102,7 @@ static void txx9aclc_dma_complete(void *arg)
 	if (dmadata->frag_count >= 0) {
 		dmadata->dmacount--;
 		if (!WARN_ON(dmadata->dmacount < 0))
-			tasklet_schedule(&dmadata->tasklet);
+			queue_work(system_highpri_wq, &dmadata->work);
 	}
 	spin_unlock_irqrestore(&dmadata->dma_lock, flags);
 }
@@ -134,9 +134,10 @@ txx9aclc_dma_submit(struct txx9aclc_dmadata *dmadata, dma_addr_t buf_dma_addr)
 
 #define NR_DMA_CHAIN		2
 
-static void txx9aclc_dma_tasklet(struct tasklet_struct *t)
+static void txx9aclc_dma_work(struct work_struct *work)
 {
-	struct txx9aclc_dmadata *dmadata = from_tasklet(dmadata, t, tasklet);
+	struct txx9aclc_dmadata *dmadata =
+		container_of(work, struct txx9aclc_dmadata, work);
 	struct dma_chan *chan = dmadata->dma_chan;
 	struct dma_async_tx_descriptor *desc;
 	struct snd_pcm_substream *substream = dmadata->substream;
@@ -208,7 +209,7 @@ static int txx9aclc_pcm_trigger(struct snd_soc_component *component,
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		dmadata->frag_count = -1;
-		tasklet_schedule(&dmadata->tasklet);
+		queue_work(system_highpri_wq, &dmadata->work);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -352,7 +353,7 @@ static int txx9aclc_dma_init(struct txx9aclc_soc_device *dev,
 			"playback" : "capture");
 		return -EBUSY;
 	}
-	tasklet_setup(&dmadata->tasklet, txx9aclc_dma_tasklet);
+	INIT_WORK(&dmadata->work, txx9aclc_dma_work);
 	return 0;
 }
 

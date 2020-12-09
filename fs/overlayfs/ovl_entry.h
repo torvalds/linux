@@ -17,6 +17,7 @@ struct ovl_config {
 	bool nfs_export;
 	int xino;
 	bool metacopy;
+	bool ovl_volatile;
 };
 
 struct ovl_sb {
@@ -88,6 +89,11 @@ static inline struct vfsmount *ovl_upper_mnt(struct ovl_fs *ofs)
 static inline struct ovl_fs *OVL_FS(struct super_block *sb)
 {
 	return (struct ovl_fs *)sb->s_fs_info;
+}
+
+static inline bool ovl_should_sync(struct ovl_fs *ofs)
+{
+	return !ofs->config.ovl_volatile;
 }
 
 /* private information held for every overlayfs dentry */

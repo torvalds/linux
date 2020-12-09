@@ -8,7 +8,7 @@
  */
 
 /*
- * intel_idle is a cpuidle driver that loads on specific Intel processors
+ * intel_idle is a cpuidle driver that loads on all Intel CPUs with MWAIT
  * in lieu of the legacy ACPI processor_idle driver.  The intent is to
  * make Linux more efficient on these processors, as intel_idle knows
  * more than ACPI, as well as make Linux more immune to ACPI BIOS bugs.
@@ -20,7 +20,11 @@
  * All CPUs have same idle states as boot CPU
  *
  * Chipset BM_STS (bus master status) bit is a NOP
- *	for preventing entry into deep C-stats
+ *	for preventing entry into deep C-states
+ *
+ * CPU will flush caches as needed when entering a C-state via MWAIT
+ *	(in contrast to entering ACPI C3, in which case the WBINVD
+ *	instruction needs to be executed to flush the caches)
  */
 
 /*
@@ -1212,14 +1216,13 @@ static bool __init intel_idle_acpi_cst_extract(void)
 		if (!intel_idle_cst_usable())
 			continue;
 
-		if (!acpi_processor_claim_cst_control()) {
-			acpi_state_table.count = 0;
-			return false;
-		}
+		if (!acpi_processor_claim_cst_control())
+			break;
 
 		return true;
 	}
 
+	acpi_state_table.count = 0;
 	pr_debug("ACPI _CST not found or not usable\n");
 	return false;
 }
@@ -1236,7 +1239,7 @@ static void __init intel_idle_init_cstates_acpi(struct cpuidle_driver *drv)
 		struct acpi_processor_cx *cx;
 		struct cpuidle_state *state;
 
-		if (intel_idle_max_cstate_reached(cstate))
+		if (intel_idle_max_cstate_reached(cstate - 1))
 			break;
 
 		cx = &acpi_state_table.states[cstate];

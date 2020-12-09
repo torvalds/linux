@@ -293,14 +293,8 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	mutex_init(&ctx->lock);
 
 	ctx->pwm = devm_of_pwm_get(dev, dev->of_node, NULL);
-	if (IS_ERR(ctx->pwm)) {
-		ret = PTR_ERR(ctx->pwm);
-
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Could not get PWM: %d\n", ret);
-
-		return ret;
-	}
+	if (IS_ERR(ctx->pwm))
+		return dev_err_probe(dev, PTR_ERR(ctx->pwm), "Could not get PWM\n");
 
 	platform_set_drvdata(pdev, ctx);
 

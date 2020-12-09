@@ -20,6 +20,7 @@ properties:
     enum:
       - renesas,r8a774a1-thermal # RZ/G2M
       - renesas,r8a774b1-thermal # RZ/G2N
+      - renesas,r8a774e1-thermal # RZ/G2H
       - renesas,r8a7795-thermal  # R-Car H3
       - renesas,r8a7796-thermal  # R-Car M3-W
       - renesas,r8a77961-thermal # R-Car M3-W+

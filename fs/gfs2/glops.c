@@ -165,6 +165,31 @@ void gfs2_ail_flush(struct gfs2_glock *gl, bool fsync)
 }
 
 /**
+ * gfs2_rgrp_metasync - sync out the metadata of a resource group
+ * @gl: the glock protecting the resource group
+ *
+ */
+
+static int gfs2_rgrp_metasync(struct gfs2_glock *gl)
+{
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+	struct address_space *metamapping = &sdp->sd_aspace;
+	struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(gl);
+	const unsigned bsize = sdp->sd_sb.sb_bsize;
+	loff_t start = (rgd->rd_addr * bsize) & PAGE_MASK;
+	loff_t end = PAGE_ALIGN((rgd->rd_addr + rgd->rd_length) * bsize) - 1;
+	int error;
+
+	filemap_fdatawrite_range(metamapping, start, end);
+	error = filemap_fdatawait_range(metamapping, start, end);
+	WARN_ON_ONCE(error && !gfs2_withdrawn(sdp));
+	mapping_set_error(metamapping, error);
+	if (error)
+		gfs2_io_error(sdp);
+	return error;
+}
+
+/**
  * rgrp_go_sync - sync out the metadata for this glock
  * @gl: the glock
  *
@@ -176,7 +201,6 @@ void gfs2_ail_flush(struct gfs2_glock *gl, bool fsync)
 static int rgrp_go_sync(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-	struct address_space *mapping = &sdp->sd_aspace;
 	struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(gl);
 	int error;
 
@@ -186,18 +210,10 @@ static int rgrp_go_sync(struct gfs2_glock *gl)
 
 	gfs2_log_flush(sdp, gl, GFS2_LOG_HEAD_FLUSH_NORMAL |
 		       GFS2_LFC_RGRP_GO_SYNC);
-	filemap_fdatawrite_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
-	error = filemap_fdatawait_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
-	WARN_ON_ONCE(error);
-	mapping_set_error(mapping, error);
+	error = gfs2_rgrp_metasync(gl);
 	if (!error)
 		error = gfs2_ail_empty_gl(gl);
-
-	spin_lock(&gl->gl_lockref.lock);
-	rgd = gl->gl_object;
-	if (rgd)
-		gfs2_free_clones(rgd);
-	spin_unlock(&gl->gl_lockref.lock);
+	gfs2_free_clones(rgd);
 	return error;
 }
 
@@ -216,15 +232,23 @@ static void rgrp_go_inval(struct gfs2_glock *gl, int flags)
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct address_space *mapping = &sdp->sd_aspace;
 	struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(gl);
+	const unsigned bsize = sdp->sd_sb.sb_bsize;
+	loff_t start = (rgd->rd_addr * bsize) & PAGE_MASK;
+	loff_t end = PAGE_ALIGN((rgd->rd_addr + rgd->rd_length) * bsize) - 1;
 
-	if (rgd)
-		gfs2_rgrp_brelse(rgd);
-
+	gfs2_rgrp_brelse(rgd);
 	WARN_ON_ONCE(!(flags & DIO_METADATA));
-	truncate_inode_pages_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
+	truncate_inode_pages_range(mapping, start, end);
+	rgd->rd_flags &= ~GFS2_RDF_UPTODATE;
+}
+
+static void gfs2_rgrp_go_dump(struct seq_file *seq, struct gfs2_glock *gl,
+			      const char *fs_id_buf)
+{
+	struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(gl);
 
 	if (rgd)
-		rgd->rd_flags &= ~GFS2_RDF_UPTODATE;
+		gfs2_rgrp_dump(seq, rgd, fs_id_buf);
 }
 
 static struct gfs2_inode *gfs2_glock2inode(struct gfs2_glock *gl)
@@ -260,7 +284,24 @@ static void gfs2_clear_glop_pending(struct gfs2_inode *ip)
 }
 
 /**
- * inode_go_sync - Sync the dirty data and/or metadata for an inode glock
+ * gfs2_inode_metasync - sync out the metadata of an inode
+ * @gl: the glock protecting the inode
+ *
+ */
+int gfs2_inode_metasync(struct gfs2_glock *gl)
+{
+	struct address_space *metamapping = gfs2_glock2aspace(gl);
+	int error;
+
+	filemap_fdatawrite(metamapping);
+	error = filemap_fdatawait(metamapping);
+	if (error)
+		gfs2_io_error(gl->gl_name.ln_sbd);
+	return error;
+}
+
+/**
+ * inode_go_sync - Sync the dirty metadata of an inode
  * @gl: the glock protecting the inode
  *
  */
@@ -291,8 +332,7 @@ static int inode_go_sync(struct gfs2_glock *gl)
 		error = filemap_fdatawait(mapping);
 		mapping_set_error(mapping, error);
 	}
-	ret = filemap_fdatawait(metamapping);
-	mapping_set_error(metamapping, ret);
+	ret = gfs2_inode_metasync(gl);
 	if (!error)
 		error = ret;
 	gfs2_ail_empty_gl(gl);
@@ -712,7 +752,7 @@ const struct gfs2_glock_operations gfs2_rgrp_glops = {
 	.go_sync = rgrp_go_sync,
 	.go_inval = rgrp_go_inval,
 	.go_lock = gfs2_rgrp_go_lock,
-	.go_dump = gfs2_rgrp_dump,
+	.go_dump = gfs2_rgrp_go_dump,
 	.go_type = LM_TYPE_RGRP,
 	.go_flags = GLOF_LVB,
 };

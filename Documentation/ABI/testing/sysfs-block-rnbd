@@ -9,9 +9,9 @@ Description:	To unmap a volume, "normal" or "force" has to be written to:
 		is using the device.  When "force" is used, the device is also unmapped
 		when device is in use.  All I/Os that are in progress will fail.
 
-		Example:
+		Example::
 
-		# echo "normal" > /sys/block/rnbd0/rnbd/unmap_device
+		  # echo "normal" > /sys/block/rnbd0/rnbd/unmap_device
 
 What:		/sys/block/rnbd<N>/rnbd/state
 Date:		Feb 2020

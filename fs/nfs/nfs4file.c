@@ -9,6 +9,7 @@
 #include <linux/falloc.h>
 #include <linux/mount.h>
 #include <linux/nfs_fs.h>
+#include <linux/nfs_ssc.h>
 #include "delegation.h"
 #include "internal.h"
 #include "iostat.h"
@@ -145,7 +146,8 @@ static ssize_t __nfs4_copy_file_range(struct file *file_in, loff_t pos_in,
 	/* Only offload copy if superblock is the same */
 	if (file_in->f_op != &nfs4_file_operations)
 		return -EXDEV;
-	if (!nfs_server_capable(file_inode(file_out), NFS_CAP_COPY))
+	if (!nfs_server_capable(file_inode(file_out), NFS_CAP_COPY) ||
+	    !nfs_server_capable(file_inode(file_in), NFS_CAP_COPY))
 		return -EOPNOTSUPP;
 	if (file_inode(file_in) == file_inode(file_out))
 		return -EOPNOTSUPP;
@@ -314,9 +316,8 @@ out:
 static int read_name_gen = 1;
 #define SSC_READ_NAME_BODY "ssc_read_%d"
 
-struct file *
-nfs42_ssc_open(struct vfsmount *ss_mnt, struct nfs_fh *src_fh,
-		nfs4_stateid *stateid)
+static struct file *__nfs42_ssc_open(struct vfsmount *ss_mnt,
+		struct nfs_fh *src_fh, nfs4_stateid *stateid)
 {
 	struct nfs_fattr fattr;
 	struct file *filep, *res;
@@ -398,14 +399,40 @@ out_filep:
 	fput(filep);
 	goto out_free_name;
 }
-EXPORT_SYMBOL_GPL(nfs42_ssc_open);
-void nfs42_ssc_close(struct file *filep)
+
+static void __nfs42_ssc_close(struct file *filep)
 {
 	struct nfs_open_context *ctx = nfs_file_open_context(filep);
 
 	ctx->state->flags = 0;
 }
-EXPORT_SYMBOL_GPL(nfs42_ssc_close);
+
+static const struct nfs4_ssc_client_ops nfs4_ssc_clnt_ops_tbl = {
+	.sco_open = __nfs42_ssc_open,
+	.sco_close = __nfs42_ssc_close,
+};
+
+/**
+ * nfs42_ssc_register_ops - Wrapper to register NFS_V4 ops in nfs_common
+ *
+ * Return values:
+ *   None
+ */
+void nfs42_ssc_register_ops(void)
+{
+	nfs42_ssc_register(&nfs4_ssc_clnt_ops_tbl);
+}
+
+/**
+ * nfs42_ssc_unregister_ops - wrapper to un-register NFS_V4 ops in nfs_common
+ *
+ * Return values:
+ *   None.
+ */
+void nfs42_ssc_unregister_ops(void)
+{
+	nfs42_ssc_unregister(&nfs4_ssc_clnt_ops_tbl);
+}
 #endif /* CONFIG_NFS_V4_2 */
 
 const struct file_operations nfs4_file_operations = {

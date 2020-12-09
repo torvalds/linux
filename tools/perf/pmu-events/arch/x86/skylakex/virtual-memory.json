@@ -1,284 +1,284 @@
 [
     {
-        "EventCode": "0x08",
-        "UMask": "0x1",
-        "BriefDescription": "Load misses in all DTLB levels that cause page walks",
+        "BriefDescription": "Instruction fetch requests that miss the ITLB and hit the STLB.",
         "Counter": "0,1,2,3",
-        "EventName": "DTLB_LOAD_MISSES.MISS_CAUSES_A_WALK",
-        "PublicDescription": "Counts demand data loads that caused a page walk of any page size (4K/2M/4M/1G). This implies it missed in all TLB levels, but the walk need not have completed.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x85",
+        "EventName": "ITLB_MISSES.STLB_HIT",
         "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
+        "UMask": "0x20"
     },
     {
-        "EventCode": "0x08",
-        "UMask": "0x2",
-        "BriefDescription": "Page walk completed due to a demand data load to a 4K page",
-        "Counter": "0,1,2,3",
-        "EventName": "DTLB_LOAD_MISSES.WALK_COMPLETED_4K",
-        "PublicDescription": "Counts page walks completed due to demand data loads whose address translations missed in the TLB and were mapped to 4K pages.  The page walks can end with or without a page fault.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x08",
-        "UMask": "0x4",
-        "BriefDescription": "Page walk completed due to a demand data load to a 2M/4M page",
-        "Counter": "0,1,2,3",
-        "EventName": "DTLB_LOAD_MISSES.WALK_COMPLETED_2M_4M",
-        "PublicDescription": "Counts page walks completed due to demand data loads whose address translations missed in the TLB and were mapped to 2M/4M pages.  The page walks can end with or without a page fault.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x08",
-        "UMask": "0x8",
-        "BriefDescription": "Page walk completed due to a demand data load to a 1G page",
-        "Counter": "0,1,2,3",
-        "EventName": "DTLB_LOAD_MISSES.WALK_COMPLETED_1G",
-        "PublicDescription": "Counts page walks completed due to demand data loads whose address translations missed in the TLB and were mapped to 4K pages.  The page walks can end with or without a page fault.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x08",
-        "UMask": "0xe",
-        "BriefDescription": "Load miss in all TLB levels causes a page walk that completes. (All page sizes)",
-        "Counter": "0,1,2,3",
-        "EventName": "DTLB_LOAD_MISSES.WALK_COMPLETED",
-        "PublicDescription": "Counts demand data loads that caused a completed page walk of any page size (4K/2M/4M/1G). This implies it missed in all TLB levels. The page walk can end with or without a fault.",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x08",
-        "UMask": "0x10",
-        "BriefDescription": "Counts 1 per cycle for each PMH that is busy with a page walk for a load. EPT page walk duration are excluded in Skylake.",
-        "Counter": "0,1,2,3",
-        "EventName": "DTLB_LOAD_MISSES.WALK_PENDING",
-        "PublicDescription": "Counts 1 per cycle for each PMH that is busy with a page walk for a load. EPT page walk duration are excluded in Skylake microarchitecture.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x08",
-        "UMask": "0x10",
-        "BriefDescription": "Cycles when at least one PMH is busy with a page walk for a load. EPT page walk duration are excluded in Skylake.",
-        "Counter": "0,1,2,3",
-        "EventName": "DTLB_LOAD_MISSES.WALK_ACTIVE",
-        "CounterMask": "1",
-        "PublicDescription": "Counts cycles when at least one PMH (Page Miss Handler) is busy with a page walk for a load.",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x08",
-        "UMask": "0x20",
-        "BriefDescription": "Loads that miss the DTLB and hit the STLB.",
-        "Counter": "0,1,2,3",
-        "EventName": "DTLB_LOAD_MISSES.STLB_HIT",
-        "PublicDescription": "Counts loads that miss the DTLB (Data TLB) and hit the STLB (Second level TLB).",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x49",
-        "UMask": "0x1",
         "BriefDescription": "Store misses in all DTLB levels that cause page walks",
         "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x49",
         "EventName": "DTLB_STORE_MISSES.MISS_CAUSES_A_WALK",
         "PublicDescription": "Counts demand data stores that caused a page walk of any page size (4K/2M/4M/1G). This implies it missed in all TLB levels, but the walk need not have completed.",
         "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0x49",
-        "UMask": "0x2",
-        "BriefDescription": "Page walk completed due to a demand data store to a 4K page",
-        "Counter": "0,1,2,3",
-        "EventName": "DTLB_STORE_MISSES.WALK_COMPLETED_4K",
-        "PublicDescription": "Counts page walks completed due to demand data stores whose address translations missed in the TLB and were mapped to 4K pages.  The page walks can end with or without a page fault.",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x49",
-        "UMask": "0x4",
         "BriefDescription": "Page walk completed due to a demand data store to a 2M/4M page",
         "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x49",
         "EventName": "DTLB_STORE_MISSES.WALK_COMPLETED_2M_4M",
         "PublicDescription": "Counts page walks completed due to demand data stores whose address translations missed in the TLB and were mapped to 2M/4M pages.  The page walks can end with or without a page fault.",
         "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
+        "UMask": "0x4"
     },
     {
-        "EventCode": "0x49",
-        "UMask": "0x8",
-        "BriefDescription": "Page walk completed due to a demand data store to a 1G page",
-        "Counter": "0,1,2,3",
-        "EventName": "DTLB_STORE_MISSES.WALK_COMPLETED_1G",
-        "PublicDescription": "Counts page walks completed due to demand data stores whose address translations missed in the TLB and were mapped to 1G pages.  The page walks can end with or without a page fault.",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x49",
-        "UMask": "0xe",
-        "BriefDescription": "Store misses in all TLB levels causes a page walk that completes. (All page sizes)",
-        "Counter": "0,1,2,3",
-        "EventName": "DTLB_STORE_MISSES.WALK_COMPLETED",
-        "PublicDescription": "Counts demand data stores that caused a completed page walk of any page size (4K/2M/4M/1G). This implies it missed in all TLB levels. The page walk can end with or without a fault.",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x49",
-        "UMask": "0x10",
-        "BriefDescription": "Counts 1 per cycle for each PMH that is busy with a page walk for a store. EPT page walk duration are excluded in Skylake.",
-        "Counter": "0,1,2,3",
-        "EventName": "DTLB_STORE_MISSES.WALK_PENDING",
-        "PublicDescription": "Counts 1 per cycle for each PMH that is busy with a page walk for a store. EPT page walk duration are excluded in Skylake microarchitecture.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x49",
-        "UMask": "0x10",
-        "BriefDescription": "Cycles when at least one PMH is busy with a page walk for a store. EPT page walk duration are excluded in Skylake.",
-        "Counter": "0,1,2,3",
-        "EventName": "DTLB_STORE_MISSES.WALK_ACTIVE",
-        "CounterMask": "1",
-        "PublicDescription": "Counts cycles when at least one PMH (Page Miss Handler) is busy with a page walk for a store.",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x49",
-        "UMask": "0x20",
-        "BriefDescription": "Stores that miss the DTLB and hit the STLB.",
-        "Counter": "0,1,2,3",
-        "EventName": "DTLB_STORE_MISSES.STLB_HIT",
-        "PublicDescription": "Stores that miss the DTLB (Data TLB) and hit the STLB (2nd Level TLB).",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x4F",
-        "UMask": "0x10",
-        "BriefDescription": "Counts 1 per cycle for each PMH that is busy with a EPT (Extended Page Table) walk for any request type.",
-        "Counter": "0,1,2,3",
-        "EventName": "EPT.WALK_PENDING",
-        "PublicDescription": "Counts cycles for each PMH (Page Miss Handler) that is busy with an EPT (Extended Page Table) walk for any request type.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x85",
-        "UMask": "0x1",
-        "BriefDescription": "Misses at all ITLB levels that cause page walks",
-        "Counter": "0,1,2,3",
-        "EventName": "ITLB_MISSES.MISS_CAUSES_A_WALK",
-        "PublicDescription": "Counts page walks of any page size (4K/2M/4M/1G) caused by a code fetch. This implies it missed in the ITLB and further levels of TLB, but the walk need not have completed.",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x85",
-        "UMask": "0x2",
-        "BriefDescription": "Code miss in all TLB levels causes a page walk that completes. (4K)",
-        "Counter": "0,1,2,3",
-        "EventName": "ITLB_MISSES.WALK_COMPLETED_4K",
-        "PublicDescription": "Counts completed page walks (4K page size) caused by a code fetch. This implies it missed in the ITLB and further levels of TLB. The page walk can end with or without a fault.",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x85",
-        "UMask": "0x4",
-        "BriefDescription": "Code miss in all TLB levels causes a page walk that completes. (2M/4M)",
-        "Counter": "0,1,2,3",
-        "EventName": "ITLB_MISSES.WALK_COMPLETED_2M_4M",
-        "PublicDescription": "Counts code misses in all ITLB levels that caused a completed page walk (2M and 4M page sizes). The page walk can end with or without a fault.",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x85",
-        "UMask": "0x8",
-        "BriefDescription": "Code miss in all TLB levels causes a page walk that completes. (1G)",
-        "Counter": "0,1,2,3",
-        "EventName": "ITLB_MISSES.WALK_COMPLETED_1G",
-        "PublicDescription": "Counts store misses in all DTLB levels that cause a completed page walk (1G page size). The page walk can end with or without a fault.",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x85",
-        "UMask": "0xe",
-        "BriefDescription": "Code miss in all TLB levels causes a page walk that completes. (All page sizes)",
-        "Counter": "0,1,2,3",
-        "EventName": "ITLB_MISSES.WALK_COMPLETED",
-        "PublicDescription": "Counts completed page walks (2M and 4M page sizes) caused by a code fetch. This implies it missed in the ITLB and further levels of TLB. The page walk can end with or without a fault.",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x85",
-        "UMask": "0x10",
         "BriefDescription": "Counts 1 per cycle for each PMH that is busy with a page walk for an instruction fetch request. EPT page walk duration are excluded in Skylake.",
         "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x85",
         "EventName": "ITLB_MISSES.WALK_PENDING",
         "PublicDescription": "Counts 1 per cycle for each PMH (Page Miss Handler) that is busy with a page walk for an instruction fetch request. EPT page walk duration are excluded in Skylake michroarchitecture.",
         "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
+        "UMask": "0x10"
     },
     {
-        "EventCode": "0x85",
-        "UMask": "0x10",
-        "BriefDescription": "Cycles when at least one PMH is busy with a page walk for code (instruction fetch) request. EPT page walk duration are excluded in Skylake.",
+        "BriefDescription": "Code miss in all TLB levels causes a page walk that completes. (4K)",
         "Counter": "0,1,2,3",
-        "EventName": "ITLB_MISSES.WALK_ACTIVE",
-        "CounterMask": "1",
-        "PublicDescription": "Cycles when at least one PMH is busy with a page walk for code (instruction fetch) request. EPT page walk duration are excluded in Skylake microarchitecture.",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0x85",
-        "UMask": "0x20",
-        "BriefDescription": "Instruction fetch requests that miss the ITLB and hit the STLB.",
-        "Counter": "0,1,2,3",
-        "EventName": "ITLB_MISSES.STLB_HIT",
+        "EventName": "ITLB_MISSES.WALK_COMPLETED_4K",
+        "PublicDescription": "Counts completed page walks (4K page size) caused by a code fetch. This implies it missed in the ITLB and further levels of TLB. The page walk can end with or without a fault.",
         "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
+        "UMask": "0x2"
     },
     {
-        "EventCode": "0xAE",
-        "UMask": "0x1",
         "BriefDescription": "Flushing of the Instruction TLB (ITLB) pages, includes 4k/2M/4M pages.",
         "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xAE",
         "EventName": "ITLB.ITLB_FLUSH",
         "PublicDescription": "Counts the number of flushes of the big or small ITLB pages. Counting include both TLB Flush (covering all sets) and TLB Set Clear (set-specific).",
         "SampleAfterValue": "100007",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0xBD",
-        "UMask": "0x1",
+        "BriefDescription": "Cycles when at least one PMH is busy with a page walk for code (instruction fetch) request. EPT page walk duration are excluded in Skylake.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "CounterMask": "1",
+        "EventCode": "0x85",
+        "EventName": "ITLB_MISSES.WALK_ACTIVE",
+        "PublicDescription": "Cycles when at least one PMH is busy with a page walk for code (instruction fetch) request. EPT page walk duration are excluded in Skylake microarchitecture.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "Loads that miss the DTLB and hit the STLB.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x08",
+        "EventName": "DTLB_LOAD_MISSES.STLB_HIT",
+        "PublicDescription": "Counts loads that miss the DTLB (Data TLB) and hit the STLB (Second level TLB).",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x20"
+    },
+    {
+        "BriefDescription": "Counts 1 per cycle for each PMH that is busy with a page walk for a store. EPT page walk duration are excluded in Skylake.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x49",
+        "EventName": "DTLB_STORE_MISSES.WALK_PENDING",
+        "PublicDescription": "Counts 1 per cycle for each PMH that is busy with a page walk for a store. EPT page walk duration are excluded in Skylake microarchitecture.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x10"
+    },
+    {
         "BriefDescription": "DTLB flush attempts of the thread-specific entries",
         "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xBD",
         "EventName": "TLB_FLUSH.DTLB_THREAD",
         "PublicDescription": "Counts the number of DTLB flush attempts of the thread-specific entries.",
         "SampleAfterValue": "100007",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0xBD",
-        "UMask": "0x20",
+        "BriefDescription": "Counts 1 per cycle for each PMH that is busy with a page walk for a load. EPT page walk duration are excluded in Skylake.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x08",
+        "EventName": "DTLB_LOAD_MISSES.WALK_PENDING",
+        "PublicDescription": "Counts 1 per cycle for each PMH that is busy with a page walk for a load. EPT page walk duration are excluded in Skylake microarchitecture.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "Cycles when at least one PMH is busy with a page walk for a store. EPT page walk duration are excluded in Skylake.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "CounterMask": "1",
+        "EventCode": "0x49",
+        "EventName": "DTLB_STORE_MISSES.WALK_ACTIVE",
+        "PublicDescription": "Counts cycles when at least one PMH (Page Miss Handler) is busy with a page walk for a store.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "Misses at all ITLB levels that cause page walks",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x85",
+        "EventName": "ITLB_MISSES.MISS_CAUSES_A_WALK",
+        "PublicDescription": "Counts page walks of any page size (4K/2M/4M/1G) caused by a code fetch. This implies it missed in the ITLB and further levels of TLB, but the walk need not have completed.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Stores that miss the DTLB and hit the STLB.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x49",
+        "EventName": "DTLB_STORE_MISSES.STLB_HIT",
+        "PublicDescription": "Stores that miss the DTLB (Data TLB) and hit the STLB (2nd Level TLB).",
+        "SampleAfterValue": "100003",
+        "UMask": "0x20"
+    },
+    {
+        "BriefDescription": "Store misses in all TLB levels causes a page walk that completes. (All page sizes)",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x49",
+        "EventName": "DTLB_STORE_MISSES.WALK_COMPLETED",
+        "PublicDescription": "Counts demand data stores that caused a completed page walk of any page size (4K/2M/4M/1G). This implies it missed in all TLB levels. The page walk can end with or without a fault.",
+        "SampleAfterValue": "100003",
+        "UMask": "0xe"
+    },
+    {
+        "BriefDescription": "Load miss in all TLB levels causes a page walk that completes. (All page sizes)",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x08",
+        "EventName": "DTLB_LOAD_MISSES.WALK_COMPLETED",
+        "PublicDescription": "Counts demand data loads that caused a completed page walk of any page size (4K/2M/4M/1G). This implies it missed in all TLB levels. The page walk can end with or without a fault.",
+        "SampleAfterValue": "100003",
+        "UMask": "0xe"
+    },
+    {
+        "BriefDescription": "Page walk completed due to a demand data store to a 4K page",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x49",
+        "EventName": "DTLB_STORE_MISSES.WALK_COMPLETED_4K",
+        "PublicDescription": "Counts page walks completed due to demand data stores whose address translations missed in the TLB and were mapped to 4K pages.  The page walks can end with or without a page fault.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Code miss in all TLB levels causes a page walk that completes. (1G)",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x85",
+        "EventName": "ITLB_MISSES.WALK_COMPLETED_1G",
+        "PublicDescription": "Counts store misses in all DTLB levels that cause a completed page walk (1G page size). The page walk can end with or without a fault.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Code miss in all TLB levels causes a page walk that completes. (All page sizes)",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x85",
+        "EventName": "ITLB_MISSES.WALK_COMPLETED",
+        "PublicDescription": "Counts completed page walks (2M and 4M page sizes) caused by a code fetch. This implies it missed in the ITLB and further levels of TLB. The page walk can end with or without a fault.",
+        "SampleAfterValue": "100003",
+        "UMask": "0xe"
+    },
+    {
+        "BriefDescription": "Page walk completed due to a demand data load to a 4K page",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x08",
+        "EventName": "DTLB_LOAD_MISSES.WALK_COMPLETED_4K",
+        "PublicDescription": "Counts page walks completed due to demand data loads whose address translations missed in the TLB and were mapped to 4K pages.  The page walks can end with or without a page fault.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Page walk completed due to a demand data load to a 2M/4M page",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x08",
+        "EventName": "DTLB_LOAD_MISSES.WALK_COMPLETED_2M_4M",
+        "PublicDescription": "Counts page walks completed due to demand data loads whose address translations missed in the TLB and were mapped to 2M/4M pages.  The page walks can end with or without a page fault.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Load misses in all DTLB levels that cause page walks",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x08",
+        "EventName": "DTLB_LOAD_MISSES.MISS_CAUSES_A_WALK",
+        "PublicDescription": "Counts demand data loads that caused a page walk of any page size (4K/2M/4M/1G). This implies it missed in all TLB levels, but the walk need not have completed.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts 1 per cycle for each PMH that is busy with a EPT (Extended Page Table) walk for any request type.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x4F",
+        "EventName": "EPT.WALK_PENDING",
+        "PublicDescription": "Counts cycles for each PMH (Page Miss Handler) that is busy with an EPT (Extended Page Table) walk for any request type.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x10"
+    },
+    {
         "BriefDescription": "STLB flush attempts",
         "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xBD",
         "EventName": "TLB_FLUSH.STLB_ANY",
         "PublicDescription": "Counts the number of any STLB flush attempts (such as entire, VPID, PCID, InvPage, CR3 write, etc.).",
         "SampleAfterValue": "100007",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
+        "UMask": "0x20"
+    },
+    {
+        "BriefDescription": "Page walk completed due to a demand data load to a 1G page",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x08",
+        "EventName": "DTLB_LOAD_MISSES.WALK_COMPLETED_1G",
+        "PublicDescription": "Counts page walks completed due to demand data loads whose address translations missed in the TLB and were mapped to 4K pages.  The page walks can end with or without a page fault.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Cycles when at least one PMH is busy with a page walk for a load. EPT page walk duration are excluded in Skylake.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "CounterMask": "1",
+        "EventCode": "0x08",
+        "EventName": "DTLB_LOAD_MISSES.WALK_ACTIVE",
+        "PublicDescription": "Counts cycles when at least one PMH (Page Miss Handler) is busy with a page walk for a load.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "Code miss in all TLB levels causes a page walk that completes. (2M/4M)",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x85",
+        "EventName": "ITLB_MISSES.WALK_COMPLETED_2M_4M",
+        "PublicDescription": "Counts code misses in all ITLB levels that caused a completed page walk (2M and 4M page sizes). The page walk can end with or without a fault.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Page walk completed due to a demand data store to a 1G page",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x49",
+        "EventName": "DTLB_STORE_MISSES.WALK_COMPLETED_1G",
+        "PublicDescription": "Counts page walks completed due to demand data stores whose address translations missed in the TLB and were mapped to 1G pages.  The page walks can end with or without a page fault.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x8"
     }
 ]

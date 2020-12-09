@@ -2210,12 +2210,12 @@ static void b44_adjust_link(struct net_device *dev)
 {
 	struct b44 *bp = netdev_priv(dev);
 	struct phy_device *phydev = dev->phydev;
-	bool status_changed = 0;
+	bool status_changed = false;
 
 	BUG_ON(!phydev);
 
 	if (bp->old_link != phydev->link) {
-		status_changed = 1;
+		status_changed = true;
 		bp->old_link = phydev->link;
 	}
 
@@ -2223,11 +2223,11 @@ static void b44_adjust_link(struct net_device *dev)
 	if (phydev->link) {
 		if ((phydev->duplex == DUPLEX_HALF) &&
 		    (bp->flags & B44_FLAG_FULL_DUPLEX)) {
-			status_changed = 1;
+			status_changed = true;
 			bp->flags &= ~B44_FLAG_FULL_DUPLEX;
 		} else if ((phydev->duplex == DUPLEX_FULL) &&
 			   !(bp->flags & B44_FLAG_FULL_DUPLEX)) {
-			status_changed = 1;
+			status_changed = true;
 			bp->flags |= B44_FLAG_FULL_DUPLEX;
 		}
 	}

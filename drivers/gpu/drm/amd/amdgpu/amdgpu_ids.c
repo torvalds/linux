@@ -43,7 +43,7 @@ static DEFINE_IDA(amdgpu_pasid_ida);
 /* Helper to free pasid from a fence callback */
 struct amdgpu_pasid_cb {
 	struct dma_fence_cb cb;
-	unsigned int pasid;
+	u32 pasid;
 };
 
 /**
@@ -79,7 +79,7 @@ int amdgpu_pasid_alloc(unsigned int bits)
  * amdgpu_pasid_free - Free a PASID
  * @pasid: PASID to free
  */
-void amdgpu_pasid_free(unsigned int pasid)
+void amdgpu_pasid_free(u32 pasid)
 {
 	trace_amdgpu_pasid_freed(pasid);
 	ida_simple_remove(&amdgpu_pasid_ida, pasid);
@@ -105,7 +105,7 @@ static void amdgpu_pasid_free_cb(struct dma_fence *fence,
  * Free the pasid only after all the fences in resv are signaled.
  */
 void amdgpu_pasid_free_delayed(struct dma_resv *resv,
-			       unsigned int pasid)
+			       u32 pasid)
 {
 	struct dma_fence *fence, **fences;
 	struct amdgpu_pasid_cb *cb;

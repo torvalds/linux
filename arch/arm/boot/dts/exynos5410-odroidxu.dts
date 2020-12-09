@@ -109,10 +109,10 @@
 	assigned-clock-parents = <&clock CLK_FOUT_EPLL>,
 			<&clock_audss EXYNOS_MOUT_AUDSS>;
 
-	assigned-clock-rates =  <0>,
-				<0>,
-				<96000000>,
-				<19200000>;
+	assigned-clock-rates = <0>,
+			       <0>,
+			       <96000000>,
+			       <19200000>;
 };
 
 &cpu0_thermal {

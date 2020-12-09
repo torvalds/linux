@@ -531,10 +531,11 @@ struct upper_list {
 	struct net_device *upper;
 };
 
-static int netdev_upper_walk(struct net_device *upper, void *data)
+static int netdev_upper_walk(struct net_device *upper,
+			     struct netdev_nested_priv *priv)
 {
 	struct upper_list *entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
-	struct list_head *upper_list = data;
+	struct list_head *upper_list = (struct list_head *)priv->data;
 
 	if (!entry)
 		return 0;
@@ -553,12 +554,14 @@ static void handle_netdev_upper(struct ib_device *ib_dev, u8 port,
 						      struct net_device *ndev))
 {
 	struct net_device *ndev = cookie;
+	struct netdev_nested_priv priv;
 	struct upper_list *upper_iter;
 	struct upper_list *upper_temp;
 	LIST_HEAD(upper_list);
 
+	priv.data = &upper_list;
 	rcu_read_lock();
-	netdev_walk_all_upper_dev_rcu(ndev, netdev_upper_walk, &upper_list);
+	netdev_walk_all_upper_dev_rcu(ndev, netdev_upper_walk, &priv);
 	rcu_read_unlock();
 
 	handle_netdev(ib_dev, port, ndev);

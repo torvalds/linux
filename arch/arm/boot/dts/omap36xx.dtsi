@@ -25,6 +25,7 @@
 
 			vbb-supply = <&abb_mpu_iva>;
 			clock-latency = <300000>; /* From omap-cpufreq driver */
+			#cooling-cells = <2>;
 		};
 	};
 
@@ -234,7 +235,7 @@
 };
 
 &ssi {
-	status = "ok";
+	status = "okay";
 
 	clocks = <&ssi_ssr_fck>,
 		 <&ssi_sst_fck>,

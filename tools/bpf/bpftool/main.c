@@ -70,13 +70,42 @@ static int do_help(int argc, char **argv)
 
 static int do_version(int argc, char **argv)
 {
+#ifdef HAVE_LIBBFD_SUPPORT
+	const bool has_libbfd = true;
+#else
+	const bool has_libbfd = false;
+#endif
+#ifdef BPFTOOL_WITHOUT_SKELETONS
+	const bool has_skeletons = false;
+#else
+	const bool has_skeletons = true;
+#endif
+
 	if (json_output) {
-		jsonw_start_object(json_wtr);
+		jsonw_start_object(json_wtr);	/* root object */
+
 		jsonw_name(json_wtr, "version");
 		jsonw_printf(json_wtr, "\"%s\"", BPFTOOL_VERSION);
-		jsonw_end_object(json_wtr);
+
+		jsonw_name(json_wtr, "features");
+		jsonw_start_object(json_wtr);	/* features */
+		jsonw_bool_field(json_wtr, "libbfd", has_libbfd);
+		jsonw_bool_field(json_wtr, "skeletons", has_skeletons);
+		jsonw_end_object(json_wtr);	/* features */
+
+		jsonw_end_object(json_wtr);	/* root object */
 	} else {
+		unsigned int nb_features = 0;
+
 		printf("%s v%s\n", bin_name, BPFTOOL_VERSION);
+		printf("features:");
+		if (has_libbfd) {
+			printf(" libbfd");
+			nb_features++;
+		}
+		if (has_skeletons)
+			printf("%s skeletons", nb_features++ ? "," : "");
+		printf("\n");
 	}
 	return 0;
 }

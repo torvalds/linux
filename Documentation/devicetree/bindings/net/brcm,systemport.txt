@@ -20,6 +20,11 @@ Optional properties:
 - systemport,num-tier1-arb: number of tier 1 arbiters, an integer
 - systemport,num-txq: number of HW transmit queues, an integer
 - systemport,num-rxq: number of HW receive queues, an integer
+- clocks: When provided, must be two phandles to the functional clocks nodes of
+  the SYSTEMPORT block. The first phandle is the main SYSTEMPORT clock used
+  during normal operation, while the second phandle is the Wake-on-LAN clock.
+- clock-names: When provided, names of the functional clock phandles, first
+  name should be "sw_sysport" and second should be "sw_sysportwol".
 
 Example:
 ethernet@f04a0000 {

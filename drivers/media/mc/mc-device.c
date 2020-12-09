@@ -370,10 +370,11 @@ static long media_device_get_topology(struct media_device *mdev, void *arg)
 	return ret;
 }
 
-static long media_device_request_alloc(struct media_device *mdev,
-				       int *alloc_fd)
+static long media_device_request_alloc(struct media_device *mdev, void *arg)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER_REQUEST_API
+	int *alloc_fd = arg;
+
 	if (!mdev->ops || !mdev->ops->req_validate || !mdev->ops->req_queue)
 		return -ENOTTY;
 
@@ -407,7 +408,7 @@ static long copy_arg_to_user(void __user *uarg, void *karg, unsigned int cmd)
 #define MEDIA_IOC_ARG(__cmd, func, fl, from_user, to_user)		\
 	[_IOC_NR(MEDIA_IOC_##__cmd)] = {				\
 		.cmd = MEDIA_IOC_##__cmd,				\
-		.fn = (long (*)(struct media_device *, void *))func,	\
+		.fn = func,						\
 		.flags = fl,						\
 		.arg_from_user = from_user,				\
 		.arg_to_user = to_user,					\

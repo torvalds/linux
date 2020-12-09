@@ -284,12 +284,12 @@
 #define CCM_REG_GR_ARB_TYPE					 0xd015c
 /* [RW 2] Load (FIC0) channel group priority. The lowest priority is 0; the
    highest priority is 3. It is supposed; that the Store channel priority is
-   the compliment to 4 of the rest priorities - Aggregation channel; Load
+   the complement to 4 of the rest priorities - Aggregation channel; Load
    (FIC0) channel and Load (FIC1). */
 #define CCM_REG_GR_LD0_PR					 0xd0164
 /* [RW 2] Load (FIC1) channel group priority. The lowest priority is 0; the
    highest priority is 3. It is supposed; that the Store channel priority is
-   the compliment to 4 of the rest priorities - Aggregation channel; Load
+   the complement to 4 of the rest priorities - Aggregation channel; Load
    (FIC0) channel and Load (FIC1). */
 #define CCM_REG_GR_LD1_PR					 0xd0168
 /* [RW 2] General flags index. */
@@ -4489,11 +4489,11 @@
 #define TCM_REG_GR_ARB_TYPE					 0x50114
 /* [RW 2] Load (FIC0) channel group priority. The lowest priority is 0; the
    highest priority is 3. It is supposed that the Store channel is the
-   compliment of the other 3 groups. */
+   complement of the other 3 groups. */
 #define TCM_REG_GR_LD0_PR					 0x5011c
 /* [RW 2] Load (FIC1) channel group priority. The lowest priority is 0; the
    highest priority is 3. It is supposed that the Store channel is the
-   compliment of the other 3 groups. */
+   complement of the other 3 groups. */
 #define TCM_REG_GR_LD1_PR					 0x50120
 /* [RW 4] The number of double REG-pairs; loaded from the STORM context and
    sent to STORM; for a specific connection type. The double REG-pairs are
@@ -5020,11 +5020,11 @@
 #define UCM_REG_GR_ARB_TYPE					 0xe0144
 /* [RW 2] Load (FIC0) channel group priority. The lowest priority is 0; the
    highest priority is 3. It is supposed that the Store channel group is
-   compliment to the others. */
+   complement to the others. */
 #define UCM_REG_GR_LD0_PR					 0xe014c
 /* [RW 2] Load (FIC1) channel group priority. The lowest priority is 0; the
    highest priority is 3. It is supposed that the Store channel group is
-   compliment to the others. */
+   complement to the others. */
 #define UCM_REG_GR_LD1_PR					 0xe0150
 /* [RW 2] The queue index for invalidate counter flag decision. */
 #define UCM_REG_INV_CFLG_Q					 0xe00e4
@@ -5523,11 +5523,11 @@
 #define XCM_REG_GR_ARB_TYPE					 0x2020c
 /* [RW 2] Load (FIC0) channel group priority. The lowest priority is 0; the
    highest priority is 3. It is supposed that the Channel group is the
-   compliment of the other 3 groups. */
+   complement of the other 3 groups. */
 #define XCM_REG_GR_LD0_PR					 0x20214
 /* [RW 2] Load (FIC1) channel group priority. The lowest priority is 0; the
    highest priority is 3. It is supposed that the Channel group is the
-   compliment of the other 3 groups. */
+   complement of the other 3 groups. */
 #define XCM_REG_GR_LD1_PR					 0x20218
 /* [RW 1] Input nig0 Interface enable. If 0 - the valid input is
    disregarded; acknowledge output is deasserted; all other signals are

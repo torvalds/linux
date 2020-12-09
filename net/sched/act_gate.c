@@ -159,8 +159,8 @@ static const struct nla_policy entry_policy[TCA_GATE_ENTRY_MAX + 1] = {
 };
 
 static const struct nla_policy gate_policy[TCA_GATE_MAX + 1] = {
-	[TCA_GATE_PARMS]		= { .len = sizeof(struct tc_gate),
-					    .type = NLA_EXACT_LEN },
+	[TCA_GATE_PARMS]		=
+		NLA_POLICY_EXACT_LEN(sizeof(struct tc_gate)),
 	[TCA_GATE_PRIORITY]		= { .type = NLA_S32 },
 	[TCA_GATE_ENTRY_LIST]		= { .type = NLA_NESTED },
 	[TCA_GATE_BASE_TIME]		= { .type = NLA_U64 },
@@ -436,9 +436,6 @@ static int tcf_gate_init(struct net *net, struct nlattr *nla,
 
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);
-
-	if (ret == ACT_P_CREATED)
-		tcf_idr_insert(tn, *a);
 
 	return ret;
 

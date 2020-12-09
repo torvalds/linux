@@ -346,6 +346,8 @@ config USB_NET_SMSC75XX
 config USB_NET_SMSC95XX
 	tristate "SMSC LAN95XX based USB 2.0 10/100 ethernet devices"
 	depends on USB_USBNET
+	select PHYLIB
+	select SMSC_PHY
 	select BITREVERSE
 	select CRC16
 	select CRC32

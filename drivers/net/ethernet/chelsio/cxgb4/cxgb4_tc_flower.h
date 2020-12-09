@@ -108,6 +108,21 @@ struct ch_tc_pedit_fields {
 #define PEDIT_TCP_SPORT_DPORT		0x0
 #define PEDIT_UDP_SPORT_DPORT		0x0
 
+enum cxgb4_action_natmode_flags {
+	CXGB4_ACTION_NATMODE_NONE = 0,
+	CXGB4_ACTION_NATMODE_DIP = (1 << 0),
+	CXGB4_ACTION_NATMODE_SIP = (1 << 1),
+	CXGB4_ACTION_NATMODE_DPORT = (1 << 2),
+	CXGB4_ACTION_NATMODE_SPORT = (1 << 3),
+};
+
+/* TC PEDIT action to NATMODE translation entry */
+struct cxgb4_natmode_config {
+	enum chip_type chip;
+	u8 flags;
+	u8 natmode;
+};
+
 void cxgb4_process_flow_actions(struct net_device *in,
 				struct flow_action *actions,
 				struct ch_filter_specification *fs);

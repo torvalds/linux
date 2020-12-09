@@ -44,6 +44,8 @@ properties:
 required:
   - '#cooling-cells'
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/thermal/thermal.h>

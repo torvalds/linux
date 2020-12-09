@@ -386,7 +386,7 @@
 };
 
 &dss {
-	status = "ok";
+	status = "okay";
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&dss_dpi_pins>;
@@ -400,7 +400,7 @@
 };
 
 &venc {
-	status = "ok";
+	status = "okay";
 
 	vdda-supply = <&vdac>;
 
@@ -413,7 +413,7 @@
 };
 
 &gpmc {
-	status = "ok";
+	status = "okay";
 	ranges = <0 0 0x30000000 0x1000000>;	/* CS0 space, 16MB */
 
 	/* Chip select 0 */

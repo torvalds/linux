@@ -21,7 +21,6 @@ static int mt7915_ser_trigger_set(void *data, u64 val)
 	switch (val) {
 	case SER_SET_RECOVER_L1:
 	case SER_SET_RECOVER_L2:
-		/* fall through */
 		ret = mt7915_mcu_set_ser(dev, SER_ENABLE, BIT(val), 0);
 		if (ret)
 			return ret;
@@ -292,15 +291,15 @@ mt7915_queues_read(struct seq_file *s, void *data)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(queue_map); i++) {
-		struct mt76_sw_queue *q = &dev->mt76.q_tx[queue_map[i].id];
+		struct mt76_queue *q = dev->mt76.q_tx[queue_map[i].id];
 
-		if (!q->q)
+		if (!q)
 			continue;
 
 		seq_printf(s,
 			   "%s:	queued=%d head=%d tail=%d\n",
-			   queue_map[i].queue, q->q->queued, q->q->head,
-			   q->q->tail);
+			   queue_map[i].queue, q->queued, q->head,
+			   q->tail);
 	}
 
 	return 0;
@@ -400,7 +399,7 @@ static int mt7915_sta_fixed_rate_set(void *data, u64 rate)
 	struct ieee80211_sta *sta = data;
 	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
 
-	return mt7915_mcu_set_fixed_rate(msta->vif->dev, sta, rate);
+	return mt7915_mcu_set_fixed_rate(msta->vif->phy->dev, sta, rate);
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(fops_fixed_rate, NULL,

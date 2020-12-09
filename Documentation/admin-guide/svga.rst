@@ -12,7 +12,8 @@ Intro
 This small document describes the "Video Mode Selection" feature which
 allows the use of various special video modes supported by the video BIOS. Due
 to usage of the BIOS, the selection is limited to boot time (before the
-kernel decompression starts) and works only on 80X86 machines.
+kernel decompression starts) and works only on 80X86 machines that are
+booted through BIOS firmware (as opposed to through UEFI, kexec, etc.).
 
 .. note::
 
@@ -23,7 +24,7 @@ kernel decompression starts) and works only on 80X86 machines.
 
 The video mode to be used is selected by a kernel parameter which can be
 specified in the kernel Makefile (the SVGA_MODE=... line) or by the "vga=..."
-option of LILO (or some other boot loader you use) or by the "vidmode" utility
+option of LILO (or some other boot loader you use) or by the "xrandr" utility
 (present in standard Linux utility packages). You can use the following values
 of this parameter::
 
@@ -41,7 +42,7 @@ of this parameter::
       better to use absolute mode numbers instead.
 
    0x.... - Hexadecimal video mode ID (also displayed on the menu, see below
-      for exact meaning of the ID). Warning: rdev and LILO don't support
+      for exact meaning of the ID). Warning: LILO doesn't support
       hexadecimal numbers -- you have to convert it to decimal manually.
 
 Menu

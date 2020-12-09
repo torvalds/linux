@@ -38,7 +38,7 @@ struct adis16080_chip_info {
  * @us:			actual spi_device to write data
  * @info:		chip specific parameters
  * @buf:		transmit or receive buffer
- * @lock		lock to protect buffer during reads
+ * @lock:		lock to protect buffer during reads
  **/
 struct adis16080_state {
 	struct spi_device		*us;

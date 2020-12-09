@@ -24,6 +24,8 @@
 #include <linux/iopoll.h>
 #include <linux/gpio.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_qos.h>
+#include <linux/debugfs.h>
 #include <linux/mmc/slot-gpio.h>
 #include <linux/mmc/sdhci-pci-data.h>
 #include <linux/acpi.h>
@@ -516,6 +518,8 @@ struct intel_host {
 	bool	rpm_retune_ok;
 	u32	glk_rx_ctrl1;
 	u32	glk_tun_val;
+	u32	active_ltr;
+	u32	idle_ltr;
 };
 
 static const guid_t intel_dsm_guid =
@@ -760,6 +764,108 @@ static int intel_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	return 0;
 }
 
+#define INTEL_ACTIVELTR		0x804
+#define INTEL_IDLELTR		0x808
+
+#define INTEL_LTR_REQ		BIT(15)
+#define INTEL_LTR_SCALE_MASK	GENMASK(11, 10)
+#define INTEL_LTR_SCALE_1US	(2 << 10)
+#define INTEL_LTR_SCALE_32US	(3 << 10)
+#define INTEL_LTR_VALUE_MASK	GENMASK(9, 0)
+
+static void intel_cache_ltr(struct sdhci_pci_slot *slot)
+{
+	struct intel_host *intel_host = sdhci_pci_priv(slot);
+	struct sdhci_host *host = slot->host;
+
+	intel_host->active_ltr = readl(host->ioaddr + INTEL_ACTIVELTR);
+	intel_host->idle_ltr = readl(host->ioaddr + INTEL_IDLELTR);
+}
+
+static void intel_ltr_set(struct device *dev, s32 val)
+{
+	struct sdhci_pci_chip *chip = dev_get_drvdata(dev);
+	struct sdhci_pci_slot *slot = chip->slots[0];
+	struct intel_host *intel_host = sdhci_pci_priv(slot);
+	struct sdhci_host *host = slot->host;
+	u32 ltr;
+
+	pm_runtime_get_sync(dev);
+
+	/*
+	 * Program latency tolerance (LTR) accordingly what has been asked
+	 * by the PM QoS layer or disable it in case we were passed
+	 * negative value or PM_QOS_LATENCY_ANY.
+	 */
+	ltr = readl(host->ioaddr + INTEL_ACTIVELTR);
+
+	if (val == PM_QOS_LATENCY_ANY || val < 0) {
+		ltr &= ~INTEL_LTR_REQ;
+	} else {
+		ltr |= INTEL_LTR_REQ;
+		ltr &= ~INTEL_LTR_SCALE_MASK;
+		ltr &= ~INTEL_LTR_VALUE_MASK;
+
+		if (val > INTEL_LTR_VALUE_MASK) {
+			val >>= 5;
+			if (val > INTEL_LTR_VALUE_MASK)
+				val = INTEL_LTR_VALUE_MASK;
+			ltr |= INTEL_LTR_SCALE_32US | val;
+		} else {
+			ltr |= INTEL_LTR_SCALE_1US | val;
+		}
+	}
+
+	if (ltr == intel_host->active_ltr)
+		goto out;
+
+	writel(ltr, host->ioaddr + INTEL_ACTIVELTR);
+	writel(ltr, host->ioaddr + INTEL_IDLELTR);
+
+	/* Cache the values into lpss structure */
+	intel_cache_ltr(slot);
+out:
+	pm_runtime_put_autosuspend(dev);
+}
+
+static bool intel_use_ltr(struct sdhci_pci_chip *chip)
+{
+	switch (chip->pdev->device) {
+	case PCI_DEVICE_ID_INTEL_BYT_EMMC:
+	case PCI_DEVICE_ID_INTEL_BYT_EMMC2:
+	case PCI_DEVICE_ID_INTEL_BYT_SDIO:
+	case PCI_DEVICE_ID_INTEL_BYT_SD:
+	case PCI_DEVICE_ID_INTEL_BSW_EMMC:
+	case PCI_DEVICE_ID_INTEL_BSW_SDIO:
+	case PCI_DEVICE_ID_INTEL_BSW_SD:
+		return false;
+	default:
+		return true;
+	}
+}
+
+static void intel_ltr_expose(struct sdhci_pci_chip *chip)
+{
+	struct device *dev = &chip->pdev->dev;
+
+	if (!intel_use_ltr(chip))
+		return;
+
+	dev->power.set_latency_tolerance = intel_ltr_set;
+	dev_pm_qos_expose_latency_tolerance(dev);
+}
+
+static void intel_ltr_hide(struct sdhci_pci_chip *chip)
+{
+	struct device *dev = &chip->pdev->dev;
+
+	if (!intel_use_ltr(chip))
+		return;
+
+	dev_pm_qos_hide_latency_tolerance(dev);
+	dev->power.set_latency_tolerance = NULL;
+}
+
 static void byt_probe_slot(struct sdhci_pci_slot *slot)
 {
 	struct mmc_host_ops *ops = &slot->host->mmc_host_ops;
@@ -774,6 +880,43 @@ static void byt_probe_slot(struct sdhci_pci_slot *slot)
 	ops->start_signal_voltage_switch = intel_start_signal_voltage_switch;
 
 	device_property_read_u32(dev, "max-frequency", &mmc->f_max);
+
+	if (!mmc->slotno) {
+		slot->chip->slots[mmc->slotno] = slot;
+		intel_ltr_expose(slot->chip);
+	}
+}
+
+static void byt_add_debugfs(struct sdhci_pci_slot *slot)
+{
+	struct intel_host *intel_host = sdhci_pci_priv(slot);
+	struct mmc_host *mmc = slot->host->mmc;
+	struct dentry *dir = mmc->debugfs_root;
+
+	if (!intel_use_ltr(slot->chip))
+		return;
+
+	debugfs_create_x32("active_ltr", 0444, dir, &intel_host->active_ltr);
+	debugfs_create_x32("idle_ltr", 0444, dir, &intel_host->idle_ltr);
+
+	intel_cache_ltr(slot);
+}
+
+static int byt_add_host(struct sdhci_pci_slot *slot)
+{
+	int ret = sdhci_add_host(slot->host);
+
+	if (!ret)
+		byt_add_debugfs(slot);
+	return ret;
+}
+
+static void byt_remove_slot(struct sdhci_pci_slot *slot, int dead)
+{
+	struct mmc_host *mmc = slot->host->mmc;
+
+	if (!mmc->slotno)
+		intel_ltr_hide(slot->chip);
 }
 
 static int byt_emmc_probe_slot(struct sdhci_pci_slot *slot)
@@ -794,7 +937,8 @@ static int byt_emmc_probe_slot(struct sdhci_pci_slot *slot)
 static bool glk_broken_cqhci(struct sdhci_pci_slot *slot)
 {
 	return slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_GLK_EMMC &&
-	       dmi_match(DMI_BIOS_VENDOR, "LENOVO");
+	       (dmi_match(DMI_BIOS_VENDOR, "LENOVO") ||
+		dmi_match(DMI_SYS_VENDOR, "IRBIS"));
 }
 
 static int glk_emmc_probe_slot(struct sdhci_pci_slot *slot)
@@ -853,6 +997,8 @@ static int glk_emmc_add_host(struct sdhci_pci_slot *slot)
 	ret = __sdhci_add_host(host);
 	if (ret)
 		goto cleanup;
+
+	byt_add_debugfs(slot);
 
 	return 0;
 
@@ -1031,6 +1177,8 @@ static const struct sdhci_pci_fixes sdhci_intel_byt_emmc = {
 #endif
 	.allow_runtime_pm = true,
 	.probe_slot	= byt_emmc_probe_slot,
+	.add_host	= byt_add_host,
+	.remove_slot	= byt_remove_slot,
 	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC |
 			  SDHCI_QUIRK_NO_LED,
 	.quirks2	= SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
@@ -1044,6 +1192,7 @@ static const struct sdhci_pci_fixes sdhci_intel_glk_emmc = {
 	.allow_runtime_pm	= true,
 	.probe_slot		= glk_emmc_probe_slot,
 	.add_host		= glk_emmc_add_host,
+	.remove_slot		= byt_remove_slot,
 #ifdef CONFIG_PM_SLEEP
 	.suspend		= sdhci_cqhci_suspend,
 	.resume			= sdhci_cqhci_resume,
@@ -1074,6 +1223,8 @@ static const struct sdhci_pci_fixes sdhci_ni_byt_sdio = {
 			  SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 	.allow_runtime_pm = true,
 	.probe_slot	= ni_byt_sdio_probe_slot,
+	.add_host	= byt_add_host,
+	.remove_slot	= byt_remove_slot,
 	.ops		= &sdhci_intel_byt_ops,
 	.priv_size	= sizeof(struct intel_host),
 };
@@ -1091,6 +1242,8 @@ static const struct sdhci_pci_fixes sdhci_intel_byt_sdio = {
 			SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 	.allow_runtime_pm = true,
 	.probe_slot	= byt_sdio_probe_slot,
+	.add_host	= byt_add_host,
+	.remove_slot	= byt_remove_slot,
 	.ops		= &sdhci_intel_byt_ops,
 	.priv_size	= sizeof(struct intel_host),
 };
@@ -1110,6 +1263,8 @@ static const struct sdhci_pci_fixes sdhci_intel_byt_sd = {
 	.allow_runtime_pm = true,
 	.own_cd_for_runtime_pm = true,
 	.probe_slot	= byt_sd_probe_slot,
+	.add_host	= byt_add_host,
+	.remove_slot	= byt_remove_slot,
 	.ops		= &sdhci_intel_byt_ops,
 	.priv_size	= sizeof(struct intel_host),
 };

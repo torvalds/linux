@@ -13,8 +13,6 @@
 #include <asm/mach/map.h>
 #include <asm/system_misc.h>
 
-#include <plat/map-base.h>
-
 #include "common.h"
 #include "regs-clock.h"
 

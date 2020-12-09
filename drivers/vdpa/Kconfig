@@ -30,9 +30,7 @@ config IFCVF
 	  be called ifcvf.
 
 config MLX5_VDPA
-	bool "MLX5 VDPA support library for ConnectX devices"
-	depends on MLX5_CORE
-	default n
+	bool
 	help
 	  Support library for Mellanox VDPA drivers. Provides code that is
 	  common for all types of VDPA drivers. The following drivers are planned:
@@ -40,7 +38,8 @@ config MLX5_VDPA
 
 config MLX5_VDPA_NET
 	tristate "vDPA driver for ConnectX devices"
-	depends on MLX5_VDPA
+	select MLX5_VDPA
+	depends on MLX5_CORE
 	default n
 	help
 	  VDPA network driver for ConnectX6 and newer. Provides offloading

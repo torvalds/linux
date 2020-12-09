@@ -2205,14 +2205,6 @@ static const struct camss_video_ops camss_vfe_video_ops = {
 	.flush_buffers = vfe_flush_buffers,
 };
 
-void msm_vfe_stop_streaming(struct vfe_device *vfe)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(vfe->line); i++)
-		msm_video_stop_streaming(&vfe->line[i].video_out);
-}
-
 /*
  * msm_vfe_register_entities - Register subdev node for VFE module
  * @vfe: VFE device

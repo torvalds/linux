@@ -1604,10 +1604,13 @@ const char *drm_get_dvi_i_subconnector_name(int val);
 const char *drm_get_dvi_i_select_name(int val);
 const char *drm_get_tv_subconnector_name(int val);
 const char *drm_get_tv_select_name(int val);
+const char *drm_get_dp_subconnector_name(int val);
 const char *drm_get_content_protection_name(int val);
 const char *drm_get_hdcp_content_type_name(int val);
 
 int drm_mode_create_dvi_i_properties(struct drm_device *dev);
+void drm_connector_attach_dp_subconnector_property(struct drm_connector *connector);
+
 int drm_mode_create_tv_margin_properties(struct drm_device *dev);
 int drm_mode_create_tv_properties(struct drm_device *dev,
 				  unsigned int num_modes,

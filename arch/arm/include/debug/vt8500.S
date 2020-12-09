@@ -28,7 +28,10 @@
 	bne	1001b
 	.endm
 
-	.macro	waituart,rd,rx
+	.macro	waituartcts,rd,rx
+	.endm
+
+	.macro	waituarttxrdy,rd,rx
 	.endm
 
 #endif

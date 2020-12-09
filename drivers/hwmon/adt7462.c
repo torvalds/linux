@@ -1787,8 +1787,7 @@ static int adt7462_detect(struct i2c_client *client,
 	return 0;
 }
 
-static int adt7462_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int adt7462_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct adt7462_data *data;
@@ -1820,7 +1819,7 @@ static struct i2c_driver adt7462_driver = {
 	.driver = {
 		.name	= "adt7462",
 	},
-	.probe		= adt7462_probe,
+	.probe_new	= adt7462_probe,
 	.id_table	= adt7462_id,
 	.detect		= adt7462_detect,
 	.address_list	= normal_i2c,

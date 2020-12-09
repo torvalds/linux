@@ -79,7 +79,7 @@
 #define QM_BASE_CE			QM_ECC_1BIT
 
 #define QM_Q_DEPTH			1024
-
+#define QM_MIN_QNUM                     2
 #define HISI_ACC_SGL_SGE_NR_MAX		255
 
 /* page number for queue file region */
@@ -193,6 +193,8 @@ struct hisi_qm_err_ini {
 struct hisi_qm_list {
 	struct mutex lock;
 	struct list_head list;
+	int (*register_to_crypto)(void);
+	void (*unregister_from_crypto)(void);
 };
 
 struct hisi_qm {
@@ -243,6 +245,7 @@ struct hisi_qm {
 
 	const char *algs;
 	bool use_sva;
+	bool is_frozen;
 	resource_size_t phys_base;
 	resource_size_t phys_size;
 	struct uacce_device *uacce;
@@ -306,7 +309,7 @@ static inline int q_num_set(const char *val, const struct kernel_param *kp,
 	}
 
 	ret = kstrtou32(val, 10, &n);
-	if (ret || !n || n > q_num)
+	if (ret || n < QM_MIN_QNUM || n > q_num)
 		return -EINVAL;
 
 	return param_set_int(val, kp);
@@ -336,26 +339,10 @@ static inline void hisi_qm_init_list(struct hisi_qm_list *qm_list)
 	mutex_init(&qm_list->lock);
 }
 
-static inline void hisi_qm_add_to_list(struct hisi_qm *qm,
-				       struct hisi_qm_list *qm_list)
-{
-	mutex_lock(&qm_list->lock);
-	list_add_tail(&qm->list, &qm_list->list);
-	mutex_unlock(&qm_list->lock);
-}
-
-static inline void hisi_qm_del_from_list(struct hisi_qm *qm,
-					 struct hisi_qm_list *qm_list)
-{
-	mutex_lock(&qm_list->lock);
-	list_del(&qm->list);
-	mutex_unlock(&qm_list->lock);
-}
-
 int hisi_qm_init(struct hisi_qm *qm);
 void hisi_qm_uninit(struct hisi_qm *qm);
 int hisi_qm_start(struct hisi_qm *qm);
-int hisi_qm_stop(struct hisi_qm *qm);
+int hisi_qm_stop(struct hisi_qm *qm, enum qm_stop_reason r);
 struct hisi_qp *hisi_qm_create_qp(struct hisi_qm *qm, u8 alg_type);
 int hisi_qm_start_qp(struct hisi_qp *qp, unsigned long arg);
 int hisi_qm_stop_qp(struct hisi_qp *qp);
@@ -367,7 +354,7 @@ int hisi_qm_debug_init(struct hisi_qm *qm);
 enum qm_hw_ver hisi_qm_get_hw_version(struct pci_dev *pdev);
 void hisi_qm_debug_regs_clear(struct hisi_qm *qm);
 int hisi_qm_sriov_enable(struct pci_dev *pdev, int max_vfs);
-int hisi_qm_sriov_disable(struct pci_dev *pdev);
+int hisi_qm_sriov_disable(struct pci_dev *pdev, bool is_frozen);
 int hisi_qm_sriov_configure(struct pci_dev *pdev, int num_vfs);
 void hisi_qm_dev_err_init(struct hisi_qm *qm);
 void hisi_qm_dev_err_uninit(struct hisi_qm *qm);
@@ -390,4 +377,8 @@ void hisi_acc_free_sgl_pool(struct device *dev,
 int hisi_qm_alloc_qps_node(struct hisi_qm_list *qm_list, int qp_num,
 			   u8 alg_type, int node, struct hisi_qp **qps);
 void hisi_qm_free_qps(struct hisi_qp **qps, int qp_num);
+void hisi_qm_dev_shutdown(struct pci_dev *pdev);
+void hisi_qm_wait_task_finish(struct hisi_qm *qm, struct hisi_qm_list *qm_list);
+int hisi_qm_alg_register(struct hisi_qm *qm, struct hisi_qm_list *qm_list);
+void hisi_qm_alg_unregister(struct hisi_qm *qm, struct hisi_qm_list *qm_list);
 #endif

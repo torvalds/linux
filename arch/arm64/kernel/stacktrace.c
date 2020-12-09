@@ -118,12 +118,12 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 NOKPROBE_SYMBOL(unwind_frame);
 
 void notrace walk_stackframe(struct task_struct *tsk, struct stackframe *frame,
-		     int (*fn)(struct stackframe *, void *), void *data)
+			     bool (*fn)(void *, unsigned long), void *data)
 {
 	while (1) {
 		int ret;
 
-		if (fn(frame, data))
+		if (!fn(data, frame->pc))
 			break;
 		ret = unwind_frame(tsk, frame);
 		if (ret < 0)
@@ -132,84 +132,89 @@ void notrace walk_stackframe(struct task_struct *tsk, struct stackframe *frame,
 }
 NOKPROBE_SYMBOL(walk_stackframe);
 
-#ifdef CONFIG_STACKTRACE
-struct stack_trace_data {
-	struct stack_trace *trace;
-	unsigned int no_sched_functions;
-	unsigned int skip;
-};
-
-static int save_trace(struct stackframe *frame, void *d)
+static void dump_backtrace_entry(unsigned long where, const char *loglvl)
 {
-	struct stack_trace_data *data = d;
-	struct stack_trace *trace = data->trace;
-	unsigned long addr = frame->pc;
+	printk("%s %pS\n", loglvl, (void *)where);
+}
 
-	if (data->no_sched_functions && in_sched_functions(addr))
-		return 0;
-	if (data->skip) {
-		data->skip--;
-		return 0;
+void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
+		    const char *loglvl)
+{
+	struct stackframe frame;
+	int skip = 0;
+
+	pr_debug("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
+
+	if (regs) {
+		if (user_mode(regs))
+			return;
+		skip = 1;
 	}
 
-	trace->entries[trace->nr_entries++] = addr;
-
-	return trace->nr_entries >= trace->max_entries;
-}
-
-void save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
-{
-	struct stack_trace_data data;
-	struct stackframe frame;
-
-	data.trace = trace;
-	data.skip = trace->skip;
-	data.no_sched_functions = 0;
-
-	start_backtrace(&frame, regs->regs[29], regs->pc);
-	walk_stackframe(current, &frame, save_trace, &data);
-}
-EXPORT_SYMBOL_GPL(save_stack_trace_regs);
-
-static noinline void __save_stack_trace(struct task_struct *tsk,
-	struct stack_trace *trace, unsigned int nosched)
-{
-	struct stack_trace_data data;
-	struct stackframe frame;
+	if (!tsk)
+		tsk = current;
 
 	if (!try_get_task_stack(tsk))
 		return;
 
-	data.trace = trace;
-	data.skip = trace->skip;
-	data.no_sched_functions = nosched;
-
-	if (tsk != current) {
-		start_backtrace(&frame, thread_saved_fp(tsk),
-				thread_saved_pc(tsk));
-	} else {
-		/* We don't want this function nor the caller */
-		data.skip += 2;
+	if (tsk == current) {
 		start_backtrace(&frame,
 				(unsigned long)__builtin_frame_address(0),
-				(unsigned long)__save_stack_trace);
+				(unsigned long)dump_backtrace);
+	} else {
+		/*
+		 * task blocked in __switch_to
+		 */
+		start_backtrace(&frame,
+				thread_saved_fp(tsk),
+				thread_saved_pc(tsk));
 	}
 
-	walk_stackframe(tsk, &frame, save_trace, &data);
+	printk("%sCall trace:\n", loglvl);
+	do {
+		/* skip until specified stack frame */
+		if (!skip) {
+			dump_backtrace_entry(frame.pc, loglvl);
+		} else if (frame.fp == regs->regs[29]) {
+			skip = 0;
+			/*
+			 * Mostly, this is the case where this function is
+			 * called in panic/abort. As exception handler's
+			 * stack frame does not contain the corresponding pc
+			 * at which an exception has taken place, use regs->pc
+			 * instead.
+			 */
+			dump_backtrace_entry(regs->pc, loglvl);
+		}
+	} while (!unwind_frame(tsk, &frame));
 
 	put_task_stack(tsk);
 }
 
-void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
+void show_stack(struct task_struct *tsk, unsigned long *sp, const char *loglvl)
 {
-	__save_stack_trace(tsk, trace, 1);
-}
-EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
-
-void save_stack_trace(struct stack_trace *trace)
-{
-	__save_stack_trace(current, trace, 0);
+	dump_backtrace(NULL, tsk, loglvl);
+	barrier();
 }
 
-EXPORT_SYMBOL_GPL(save_stack_trace);
+#ifdef CONFIG_STACKTRACE
+
+void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
+		     struct task_struct *task, struct pt_regs *regs)
+{
+	struct stackframe frame;
+
+	if (regs)
+		start_backtrace(&frame, regs->regs[29], regs->pc);
+	else if (task == current)
+		start_backtrace(&frame,
+				(unsigned long)__builtin_frame_address(0),
+				(unsigned long)arch_stack_walk);
+	else
+		start_backtrace(&frame, thread_saved_fp(task),
+				thread_saved_pc(task));
+
+	walk_stackframe(task, &frame, consume_entry, cookie);
+}
+
 #endif

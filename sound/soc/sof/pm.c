@@ -256,6 +256,7 @@ suspend:
 
 	/* reset FW state */
 	sdev->fw_state = SOF_FW_BOOT_NOT_STARTED;
+	sdev->enabled_cores_mask = 0;
 
 	return ret;
 }
@@ -304,15 +305,17 @@ EXPORT_SYMBOL(snd_sof_suspend);
 int snd_sof_prepare(struct device *dev)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
+	const struct sof_dev_desc *desc = sdev->pdata->desc;
+
+	/* will suspend to S3 by default */
+	sdev->system_suspend_target = SOF_SUSPEND_S3;
+
+	if (!desc->use_acpi_target_states)
+		return 0;
 
 #if defined(CONFIG_ACPI)
 	if (acpi_target_system_state() == ACPI_STATE_S0)
 		sdev->system_suspend_target = SOF_SUSPEND_S0IX;
-	else
-		sdev->system_suspend_target = SOF_SUSPEND_S3;
-#else
-	/* will suspend to S3 by default */
-	sdev->system_suspend_target = SOF_SUSPEND_S3;
 #endif
 
 	return 0;

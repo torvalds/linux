@@ -42,24 +42,7 @@ static int dpaa2_dbg_cpu_show(struct seq_file *file, void *offset)
 	return 0;
 }
 
-static int dpaa2_dbg_cpu_open(struct inode *inode, struct file *file)
-{
-	int err;
-	struct dpaa2_eth_priv *priv = (struct dpaa2_eth_priv *)inode->i_private;
-
-	err = single_open(file, dpaa2_dbg_cpu_show, priv);
-	if (err < 0)
-		netdev_err(priv->net_dev, "single_open() failed\n");
-
-	return err;
-}
-
-static const struct file_operations dpaa2_dbg_cpu_ops = {
-	.open = dpaa2_dbg_cpu_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(dpaa2_dbg_cpu);
 
 static char *fq_type_to_str(struct dpaa2_eth_fq *fq)
 {
@@ -106,24 +89,7 @@ static int dpaa2_dbg_fqs_show(struct seq_file *file, void *offset)
 	return 0;
 }
 
-static int dpaa2_dbg_fqs_open(struct inode *inode, struct file *file)
-{
-	int err;
-	struct dpaa2_eth_priv *priv = (struct dpaa2_eth_priv *)inode->i_private;
-
-	err = single_open(file, dpaa2_dbg_fqs_show, priv);
-	if (err < 0)
-		netdev_err(priv->net_dev, "single_open() failed\n");
-
-	return err;
-}
-
-static const struct file_operations dpaa2_dbg_fq_ops = {
-	.open = dpaa2_dbg_fqs_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(dpaa2_dbg_fqs);
 
 static int dpaa2_dbg_ch_show(struct seq_file *file, void *offset)
 {
@@ -151,24 +117,7 @@ static int dpaa2_dbg_ch_show(struct seq_file *file, void *offset)
 	return 0;
 }
 
-static int dpaa2_dbg_ch_open(struct inode *inode, struct file *file)
-{
-	int err;
-	struct dpaa2_eth_priv *priv = (struct dpaa2_eth_priv *)inode->i_private;
-
-	err = single_open(file, dpaa2_dbg_ch_show, priv);
-	if (err < 0)
-		netdev_err(priv->net_dev, "single_open() failed\n");
-
-	return err;
-}
-
-static const struct file_operations dpaa2_dbg_ch_ops = {
-	.open = dpaa2_dbg_ch_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(dpaa2_dbg_ch);
 
 void dpaa2_dbg_add(struct dpaa2_eth_priv *priv)
 {
@@ -179,13 +128,13 @@ void dpaa2_dbg_add(struct dpaa2_eth_priv *priv)
 	priv->dbg.dir = dir;
 
 	/* per-cpu stats file */
-	debugfs_create_file("cpu_stats", 0444, dir, priv, &dpaa2_dbg_cpu_ops);
+	debugfs_create_file("cpu_stats", 0444, dir, priv, &dpaa2_dbg_cpu_fops);
 
 	/* per-fq stats file */
-	debugfs_create_file("fq_stats", 0444, dir, priv, &dpaa2_dbg_fq_ops);
+	debugfs_create_file("fq_stats", 0444, dir, priv, &dpaa2_dbg_fqs_fops);
 
 	/* per-fq stats file */
-	debugfs_create_file("ch_stats", 0444, dir, priv, &dpaa2_dbg_ch_ops);
+	debugfs_create_file("ch_stats", 0444, dir, priv, &dpaa2_dbg_ch_fops);
 }
 
 void dpaa2_dbg_remove(struct dpaa2_eth_priv *priv)

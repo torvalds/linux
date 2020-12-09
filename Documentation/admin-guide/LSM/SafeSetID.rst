@@ -3,9 +3,9 @@ SafeSetID
 =========
 SafeSetID is an LSM module that gates the setid family of syscalls to restrict
 UID/GID transitions from a given UID/GID to only those approved by a
-system-wide whitelist. These restrictions also prohibit the given UIDs/GIDs
+system-wide allowlist. These restrictions also prohibit the given UIDs/GIDs
 from obtaining auxiliary privileges associated with CAP_SET{U/G}ID, such as
-allowing a user to set up user namespace UID mappings.
+allowing a user to set up user namespace UID/GID mappings.
 
 
 Background
@@ -98,10 +98,21 @@ Directions for use
 ==================
 This LSM hooks the setid syscalls to make sure transitions are allowed if an
 applicable restriction policy is in place. Policies are configured through
-securityfs by writing to the safesetid/add_whitelist_policy and
-safesetid/flush_whitelist_policies files at the location where securityfs is
-mounted. The format for adding a policy is '<UID>:<UID>', using literal
-numbers, such as '123:456'. To flush the policies, any write to the file is
-sufficient. Again, configuring a policy for a UID will prevent that UID from
-obtaining auxiliary setid privileges, such as allowing a user to set up user
-namespace UID mappings.
+securityfs by writing to the safesetid/uid_allowlist_policy and
+safesetid/gid_allowlist_policy files at the location where securityfs is
+mounted. The format for adding a policy is '<UID>:<UID>' or '<GID>:<GID>',
+using literal numbers, and ending with a newline character such as '123:456\n'.
+Writing an empty string "" will flush the policy. Again, configuring a policy
+for a UID/GID will prevent that UID/GID from obtaining auxiliary setid
+privileges, such as allowing a user to set up user namespace UID/GID mappings.
+
+Note on GID policies and setgroups()
+====================================
+In v5.9 we are adding support for limiting CAP_SETGID privileges as was done
+previously for CAP_SETUID. However, for compatibility with common sandboxing
+related code conventions in userspace, we currently allow arbitrary
+setgroups() calls for processes with CAP_SETGID restrictions. Until we add
+support in a future release for restricting setgroups() calls, these GID
+policies add no meaningful security. setgroups() restrictions will be enforced
+once we have the policy checking code in place, which will rely on GID policy
+configuration code added in v5.9.

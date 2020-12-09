@@ -115,8 +115,4 @@ struct input_formatter_bin_state_s {
 	u32	en_status_update;
 };
 
-static const unsigned int input_formatter_alignment[N_INPUT_FORMATTER_ID] = {
-	ISP_VEC_ALIGN, ISP_VEC_ALIGN, HIVE_ISP_CTRL_DATA_BYTES
-};
-
 #endif /* __INPUT_FORMATTER_LOCAL_H_INCLUDED__ */

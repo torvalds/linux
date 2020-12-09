@@ -252,13 +252,10 @@ static int vc4_drm_bind(struct device *dev)
 	struct drm_device *drm;
 	struct vc4_dev *vc4;
 	struct device_node *node;
+	struct drm_crtc *crtc;
 	int ret = 0;
 
 	dev->coherent_dma_mask = DMA_BIT_MASK(32);
-
-	vc4 = devm_kzalloc(dev, sizeof(*vc4), GFP_KERNEL);
-	if (!vc4)
-		return -ENOMEM;
 
 	/* If VC4 V3D is missing, don't advertise render nodes. */
 	node = of_find_matching_node_and_match(NULL, vc4_v3d_dt_match, NULL);
@@ -266,27 +263,31 @@ static int vc4_drm_bind(struct device *dev)
 		vc4_drm_driver.driver_features &= ~DRIVER_RENDER;
 	of_node_put(node);
 
-	drm = drm_dev_alloc(&vc4_drm_driver, dev);
-	if (IS_ERR(drm))
-		return PTR_ERR(drm);
+	vc4 = devm_drm_dev_alloc(dev, &vc4_drm_driver, struct vc4_dev, base);
+	if (IS_ERR(vc4))
+		return PTR_ERR(vc4);
+
+	drm = &vc4->base;
 	platform_set_drvdata(pdev, drm);
-	vc4->dev = drm;
-	drm->dev_private = vc4;
 	INIT_LIST_HEAD(&vc4->debugfs_list);
 
 	mutex_init(&vc4->bin_bo_lock);
 
 	ret = vc4_bo_cache_init(drm);
 	if (ret)
-		goto dev_put;
+		return ret;
 
-	drm_mode_config_init(drm);
+	ret = drmm_mode_config_init(drm);
+	if (ret)
+		return ret;
 
-	vc4_gem_init(drm);
+	ret = vc4_gem_init(drm);
+	if (ret)
+		return ret;
 
 	ret = component_bind_all(dev, drm);
 	if (ret)
-		goto gem_destroy;
+		return ret;
 
 	ret = vc4_plane_create_additional_planes(drm);
 	if (ret)
@@ -298,6 +299,9 @@ static int vc4_drm_bind(struct device *dev)
 	if (ret < 0)
 		goto unbind_all;
 
+	drm_for_each_crtc(crtc, drm)
+		vc4_crtc_disable_at_boot(crtc);
+
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
 		goto unbind_all;
@@ -308,29 +312,17 @@ static int vc4_drm_bind(struct device *dev)
 
 unbind_all:
 	component_unbind_all(dev, drm);
-gem_destroy:
-	vc4_gem_destroy(drm);
-	vc4_bo_cache_destroy(drm);
-dev_put:
-	drm_dev_put(drm);
+
 	return ret;
 }
 
 static void vc4_drm_unbind(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
-	struct vc4_dev *vc4 = to_vc4_dev(drm);
 
 	drm_dev_unregister(drm);
 
 	drm_atomic_helper_shutdown(drm);
-
-	drm_mode_config_cleanup(drm);
-
-	drm_atomic_private_obj_fini(&vc4->load_tracker);
-	drm_atomic_private_obj_fini(&vc4->ctm_manager);
-
-	drm_dev_put(drm);
 }
 
 static const struct component_master_ops vc4_drm_ops = {
@@ -368,6 +360,7 @@ static int vc4_platform_drm_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id vc4_of_match[] = {
+	{ .compatible = "brcm,bcm2711-vc5", },
 	{ .compatible = "brcm,bcm2835-vc4", },
 	{ .compatible = "brcm,cygnus-vc4", },
 	{},

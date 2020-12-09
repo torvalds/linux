@@ -22,6 +22,7 @@
 #include <linux/bitops.h>
 #include <linux/time.h>
 #include <linux/ktime.h>
+#include <linux/swiotlb.h>
 #include <xen/platform_pci.h>
 
 #include <asm/xen/swiotlb-xen.h>

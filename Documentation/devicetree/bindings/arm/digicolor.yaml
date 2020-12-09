@@ -10,7 +10,11 @@ maintainers:
   - Baruch Siach <baruch@tkos.co.il>
 
 properties:
+  $nodename:
+    const: "/"
   compatible:
     const: cnxt,cx92755
+
+additionalProperties: true
 
 ...

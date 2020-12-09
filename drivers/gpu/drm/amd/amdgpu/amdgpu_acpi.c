@@ -463,11 +463,11 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 
 		if (req.pending & ATIF_DGPU_DISPLAY_EVENT) {
 			if (adev->flags & AMD_IS_PX) {
-				pm_runtime_get_sync(adev->ddev->dev);
+				pm_runtime_get_sync(adev_to_drm(adev)->dev);
 				/* Just fire off a uevent and let userspace tell us what to do */
-				drm_helper_hpd_irq_event(adev->ddev);
-				pm_runtime_mark_last_busy(adev->ddev->dev);
-				pm_runtime_put_autosuspend(adev->ddev->dev);
+				drm_helper_hpd_irq_event(adev_to_drm(adev));
+				pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
+				pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 			}
 		}
 		/* TODO: check other events */
@@ -806,8 +806,8 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 	}
 	adev->atif = atif;
 
-	if (atif->notifications.brightness_change) {
 #if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
+	if (atif->notifications.brightness_change) {
 		if (amdgpu_device_has_dc_support(adev)) {
 #if defined(CONFIG_DRM_AMD_DC)
 			struct amdgpu_display_manager *dm = &adev->dm;
@@ -817,7 +817,7 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 			struct drm_encoder *tmp;
 
 			/* Find the encoder controlling the brightness */
-			list_for_each_entry(tmp, &adev->ddev->mode_config.encoder_list,
+			list_for_each_entry(tmp, &adev_to_drm(adev)->mode_config.encoder_list,
 					    head) {
 				struct amdgpu_encoder *enc = to_amdgpu_encoder(tmp);
 

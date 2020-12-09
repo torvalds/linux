@@ -637,35 +637,18 @@ DEFINE_SHOW_ATTRIBUTE(last_nodes_raw);
 DEFINE_SHOW_ATTRIBUTE(last_request);
 DEFINE_SHOW_ATTRIBUTE(perf);
 
-int bdisp_debugfs_create(struct bdisp_dev *bdisp)
+void bdisp_debugfs_create(struct bdisp_dev *bdisp)
 {
 	char dirname[16];
 
 	snprintf(dirname, sizeof(dirname), "%s%d", BDISP_NAME, bdisp->id);
 	bdisp->dbg.debugfs_entry = debugfs_create_dir(dirname, NULL);
-	if (!bdisp->dbg.debugfs_entry)
-		goto err;
 
-	if (!bdisp_dbg_create_entry(regs))
-		goto err;
-
-	if (!bdisp_dbg_create_entry(last_nodes))
-		goto err;
-
-	if (!bdisp_dbg_create_entry(last_nodes_raw))
-		goto err;
-
-	if (!bdisp_dbg_create_entry(last_request))
-		goto err;
-
-	if (!bdisp_dbg_create_entry(perf))
-		goto err;
-
-	return 0;
-
-err:
-	bdisp_debugfs_remove(bdisp);
-	return -ENOMEM;
+	bdisp_dbg_create_entry(regs);
+	bdisp_dbg_create_entry(last_nodes);
+	bdisp_dbg_create_entry(last_nodes_raw);
+	bdisp_dbg_create_entry(last_request);
+	bdisp_dbg_create_entry(perf);
 }
 
 void bdisp_debugfs_remove(struct bdisp_dev *bdisp)

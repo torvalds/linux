@@ -15,7 +15,7 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
  * NONINFRINGEMENT.  See the GNU General Public License for more details.
  ***********************************************************************/
-/**
+/*
  * @file octeon_console.c
  */
 #include <linux/moduleparam.h>
@@ -131,7 +131,7 @@ struct octeon_pci_console_desc {
 	/* Implicit storage for console_addr_array */
 };
 
-/**
+/*
  * This function is the implementation of the get macros defined
  * for individual structure members. The argument are generated
  * by the macros inorder to read only the needed memory.
@@ -160,7 +160,7 @@ static inline u64 __cvmx_bootmem_desc_get(struct octeon_device *oct,
 	}
 }
 
-/**
+/*
  * This function retrieves the string name of a named block. It is
  * more complicated than a simple memcpy() since the named block
  * descriptor may not be directly accessible.
@@ -182,7 +182,7 @@ static void CVMX_BOOTMEM_NAMED_GET_NAME(struct octeon_device *oct,
 
 /* See header file for descriptions of functions */
 
-/**
+/*
  * Check the version information on the bootmem descriptor
  *
  * @param exact_match
@@ -323,7 +323,7 @@ static u64 cvmx_bootmem_phy_named_block_find(struct octeon_device *oct,
 	return result;
 }
 
-/**
+/*
  * Find a named block on the remote Octeon
  *
  * @param name      Name of block to find
@@ -707,7 +707,7 @@ int octeon_add_console(struct octeon_device *oct, u32 console_num,
 	return ret;
 }
 
-/**
+/*
  * Removes all consoles
  *
  * @param oct         octeon device

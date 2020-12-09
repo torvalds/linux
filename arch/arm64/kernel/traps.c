@@ -34,6 +34,7 @@
 #include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
 #include <asm/esr.h>
+#include <asm/extable.h>
 #include <asm/insn.h>
 #include <asm/kprobes.h>
 #include <asm/traps.h>
@@ -52,11 +53,6 @@ static const char *handler[]= {
 };
 
 int show_unhandled_signals = 0;
-
-static void dump_backtrace_entry(unsigned long where, const char *loglvl)
-{
-	printk("%s %pS\n", loglvl, (void *)where);
-}
 
 static void dump_kernel_instr(const char *lvl, struct pt_regs *regs)
 {
@@ -81,66 +77,6 @@ static void dump_kernel_instr(const char *lvl, struct pt_regs *regs)
 	}
 
 	printk("%sCode: %s\n", lvl, str);
-}
-
-void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
-		    const char *loglvl)
-{
-	struct stackframe frame;
-	int skip = 0;
-
-	pr_debug("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
-
-	if (regs) {
-		if (user_mode(regs))
-			return;
-		skip = 1;
-	}
-
-	if (!tsk)
-		tsk = current;
-
-	if (!try_get_task_stack(tsk))
-		return;
-
-	if (tsk == current) {
-		start_backtrace(&frame,
-				(unsigned long)__builtin_frame_address(0),
-				(unsigned long)dump_backtrace);
-	} else {
-		/*
-		 * task blocked in __switch_to
-		 */
-		start_backtrace(&frame,
-				thread_saved_fp(tsk),
-				thread_saved_pc(tsk));
-	}
-
-	printk("%sCall trace:\n", loglvl);
-	do {
-		/* skip until specified stack frame */
-		if (!skip) {
-			dump_backtrace_entry(frame.pc, loglvl);
-		} else if (frame.fp == regs->regs[29]) {
-			skip = 0;
-			/*
-			 * Mostly, this is the case where this function is
-			 * called in panic/abort. As exception handler's
-			 * stack frame does not contain the corresponding pc
-			 * at which an exception has taken place, use regs->pc
-			 * instead.
-			 */
-			dump_backtrace_entry(regs->pc, loglvl);
-		}
-	} while (!unwind_frame(tsk, &frame));
-
-	put_task_stack(tsk);
-}
-
-void show_stack(struct task_struct *tsk, unsigned long *sp, const char *loglvl)
-{
-	dump_backtrace(NULL, tsk, loglvl);
-	barrier();
 }
 
 #ifdef CONFIG_PREEMPT
@@ -200,9 +136,9 @@ void die(const char *str, struct pt_regs *regs, int err)
 	oops_exit();
 
 	if (in_interrupt())
-		panic("Fatal exception in interrupt");
+		panic("%s: Fatal exception in interrupt", str);
 	if (panic_on_oops)
-		panic("Fatal exception");
+		panic("%s: Fatal exception", str);
 
 	raw_spin_unlock_irqrestore(&die_lock, flags);
 
@@ -234,32 +170,32 @@ static void arm64_show_signal(int signo, const char *str)
 	__show_regs(regs);
 }
 
-void arm64_force_sig_fault(int signo, int code, void __user *addr,
+void arm64_force_sig_fault(int signo, int code, unsigned long far,
 			   const char *str)
 {
 	arm64_show_signal(signo, str);
 	if (signo == SIGKILL)
 		force_sig(SIGKILL);
 	else
-		force_sig_fault(signo, code, addr);
+		force_sig_fault(signo, code, (void __user *)far);
 }
 
-void arm64_force_sig_mceerr(int code, void __user *addr, short lsb,
+void arm64_force_sig_mceerr(int code, unsigned long far, short lsb,
 			    const char *str)
 {
 	arm64_show_signal(SIGBUS, str);
-	force_sig_mceerr(code, addr, lsb);
+	force_sig_mceerr(code, (void __user *)far, lsb);
 }
 
-void arm64_force_sig_ptrace_errno_trap(int errno, void __user *addr,
+void arm64_force_sig_ptrace_errno_trap(int errno, unsigned long far,
 				       const char *str)
 {
 	arm64_show_signal(SIGTRAP, str);
-	force_sig_ptrace_errno_trap(errno, addr);
+	force_sig_ptrace_errno_trap(errno, (void __user *)far);
 }
 
 void arm64_notify_die(const char *str, struct pt_regs *regs,
-		      int signo, int sicode, void __user *addr,
+		      int signo, int sicode, unsigned long far,
 		      int err)
 {
 	if (user_mode(regs)) {
@@ -267,7 +203,7 @@ void arm64_notify_die(const char *str, struct pt_regs *regs,
 		current->thread.fault_address = 0;
 		current->thread.fault_code = err;
 
-		arm64_force_sig_fault(signo, sicode, addr, str);
+		arm64_force_sig_fault(signo, sicode, far, str);
 	} else {
 		die(str, regs, err);
 	}
@@ -412,7 +348,7 @@ exit:
 	return fn ? fn(regs, instr) : 1;
 }
 
-void force_signal_inject(int signal, int code, unsigned long address)
+void force_signal_inject(int signal, int code, unsigned long address, unsigned int err)
 {
 	const char *desc;
 	struct pt_regs *regs = current_pt_regs();
@@ -438,7 +374,7 @@ void force_signal_inject(int signal, int code, unsigned long address)
 		signal = SIGKILL;
 	}
 
-	arm64_notify_die(desc, regs, signal, code, (void __user *)address, 0);
+	arm64_notify_die(desc, regs, signal, code, address, err);
 }
 
 /*
@@ -449,13 +385,13 @@ void arm64_notify_segfault(unsigned long addr)
 	int code;
 
 	mmap_read_lock(current->mm);
-	if (find_vma(current->mm, addr) == NULL)
+	if (find_vma(current->mm, untagged_addr(addr)) == NULL)
 		code = SEGV_MAPERR;
 	else
 		code = SEGV_ACCERR;
 	mmap_read_unlock(current->mm);
 
-	force_signal_inject(SIGSEGV, code, addr);
+	force_signal_inject(SIGSEGV, code, addr, 0);
 }
 
 void do_undefinstr(struct pt_regs *regs)
@@ -468,16 +404,27 @@ void do_undefinstr(struct pt_regs *regs)
 		return;
 
 	BUG_ON(!user_mode(regs));
-	force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc);
+	force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc, 0);
 }
 NOKPROBE_SYMBOL(do_undefinstr);
 
 void do_bti(struct pt_regs *regs)
 {
 	BUG_ON(!user_mode(regs));
-	force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc);
+	force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc, 0);
 }
 NOKPROBE_SYMBOL(do_bti);
+
+void do_ptrauth_fault(struct pt_regs *regs, unsigned int esr)
+{
+	/*
+	 * Unexpected FPAC exception or pointer authentication failure in
+	 * the kernel: kill the task before it does any more harm.
+	 */
+	BUG_ON(!user_mode(regs));
+	force_signal_inject(SIGILL, ILL_ILLOPN, regs->pc, esr);
+}
+NOKPROBE_SYMBOL(do_ptrauth_fault);
 
 #define __user_cache_maint(insn, address, res)			\
 	if (address >= user_addr_max()) {			\
@@ -501,12 +448,13 @@ NOKPROBE_SYMBOL(do_bti);
 
 static void user_cache_maint_handler(unsigned int esr, struct pt_regs *regs)
 {
-	unsigned long address;
+	unsigned long tagged_address, address;
 	int rt = ESR_ELx_SYS64_ISS_RT(esr);
 	int crm = (esr & ESR_ELx_SYS64_ISS_CRM_MASK) >> ESR_ELx_SYS64_ISS_CRM_SHIFT;
 	int ret = 0;
 
-	address = untagged_addr(pt_regs_read_reg(regs, rt));
+	tagged_address = pt_regs_read_reg(regs, rt);
+	address = untagged_addr(tagged_address);
 
 	switch (crm) {
 	case ESR_ELx_SYS64_ISS_CRM_DC_CVAU:	/* DC CVAU, gets promoted */
@@ -528,12 +476,12 @@ static void user_cache_maint_handler(unsigned int esr, struct pt_regs *regs)
 		__user_cache_maint("ic ivau", address, ret);
 		break;
 	default:
-		force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc);
+		force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc, 0);
 		return;
 	}
 
 	if (ret)
-		arm64_notify_segfault(address);
+		arm64_notify_segfault(tagged_address);
 	else
 		arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
 }
@@ -581,7 +529,7 @@ static void mrs_handler(unsigned int esr, struct pt_regs *regs)
 	sysreg = esr_sys64_to_sysreg(esr);
 
 	if (do_emulate_mrs(regs, sysreg, rt) != 0)
-		force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc);
+		force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc, 0);
 }
 
 static void wfi_handler(unsigned int esr, struct pt_regs *regs)
@@ -775,6 +723,7 @@ static const char *esr_class_str[] = {
 	[ESR_ELx_EC_SYS64]		= "MSR/MRS (AArch64)",
 	[ESR_ELx_EC_SVE]		= "SVE",
 	[ESR_ELx_EC_ERET]		= "ERET/ERETAA/ERETAB",
+	[ESR_ELx_EC_FPAC]		= "FPAC",
 	[ESR_ELx_EC_IMP_DEF]		= "EL3 IMP DEF",
 	[ESR_ELx_EC_IABT_LOW]		= "IABT (lower EL)",
 	[ESR_ELx_EC_IABT_CUR]		= "IABT (current EL)",
@@ -824,7 +773,7 @@ asmlinkage void bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
  */
 void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 {
-	void __user *pc = (void __user *)instruction_pointer(regs);
+	unsigned long pc = instruction_pointer(regs);
 
 	current->thread.fault_address = 0;
 	current->thread.fault_code = esr;
@@ -935,26 +884,6 @@ asmlinkage void enter_from_user_mode(void)
 }
 NOKPROBE_SYMBOL(enter_from_user_mode);
 
-void __pte_error(const char *file, int line, unsigned long val)
-{
-	pr_err("%s:%d: bad pte %016lx.\n", file, line, val);
-}
-
-void __pmd_error(const char *file, int line, unsigned long val)
-{
-	pr_err("%s:%d: bad pmd %016lx.\n", file, line, val);
-}
-
-void __pud_error(const char *file, int line, unsigned long val)
-{
-	pr_err("%s:%d: bad pud %016lx.\n", file, line, val);
-}
-
-void __pgd_error(const char *file, int line, unsigned long val)
-{
-	pr_err("%s:%d: bad pgd %016lx.\n", file, line, val);
-}
-
 /* GENERIC_BUG traps */
 
 int is_valid_bugaddr(unsigned long addr)
@@ -992,6 +921,21 @@ static int bug_handler(struct pt_regs *regs, unsigned int esr)
 static struct break_hook bug_break_hook = {
 	.fn = bug_handler,
 	.imm = BUG_BRK_IMM,
+};
+
+static int reserved_fault_handler(struct pt_regs *regs, unsigned int esr)
+{
+	pr_err("%s generated an invalid instruction at %pS!\n",
+		in_bpf_jit(regs) ? "BPF JIT" : "Kernel text patching",
+		(void *)instruction_pointer(regs));
+
+	/* We cannot handle this */
+	return DBG_HOOK_ERROR;
+}
+
+static struct break_hook fault_break_hook = {
+	.fn = reserved_fault_handler,
+	.imm = FAULT_BRK_IMM,
 };
 
 #ifdef CONFIG_KASAN_SW_TAGS
@@ -1059,6 +1003,7 @@ int __init early_brk64(unsigned long addr, unsigned int esr,
 void __init trap_init(void)
 {
 	register_kernel_break_hook(&bug_break_hook);
+	register_kernel_break_hook(&fault_break_hook);
 #ifdef CONFIG_KASAN_SW_TAGS
 	register_kernel_break_hook(&kasan_break_hook);
 #endif

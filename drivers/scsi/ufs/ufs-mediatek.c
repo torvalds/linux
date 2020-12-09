@@ -10,9 +10,11 @@
 #include <linux/bitfield.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
+#include <linux/reset.h>
 #include <linux/soc/mediatek/mtk_sip_svc.h>
 
 #include "ufshcd.h"
@@ -42,6 +44,28 @@ static struct ufs_dev_fix ufs_mtk_dev_fixups[] = {
 		UFS_DEVICE_QUIRK_SUPPORT_EXTENDED_FEATURES),
 	END_FIX
 };
+
+static const struct ufs_mtk_host_cfg ufs_mtk_mt8192_cfg = {
+	.caps = UFS_MTK_CAP_BOOST_CRYPT_ENGINE,
+};
+
+static const struct of_device_id ufs_mtk_of_match[] = {
+	{
+		.compatible = "mediatek,mt8183-ufshci",
+	},
+	{
+		.compatible = "mediatek,mt8192-ufshci",
+		.data = &ufs_mtk_mt8192_cfg
+	},
+	{},
+};
+
+static bool ufs_mtk_is_boost_crypt_enabled(struct ufs_hba *hba)
+{
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+
+	return (host->caps & UFS_MTK_CAP_BOOST_CRYPT_ENGINE);
+}
 
 static void ufs_mtk_cfg_unipro_cg(struct ufs_hba *hba, bool enable)
 {
@@ -91,16 +115,57 @@ static void ufs_mtk_crypto_enable(struct ufs_hba *hba)
 	}
 }
 
+static void ufs_mtk_host_reset(struct ufs_hba *hba)
+{
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+
+	reset_control_assert(host->hci_reset);
+	reset_control_assert(host->crypto_reset);
+	reset_control_assert(host->unipro_reset);
+
+	usleep_range(100, 110);
+
+	reset_control_deassert(host->unipro_reset);
+	reset_control_deassert(host->crypto_reset);
+	reset_control_deassert(host->hci_reset);
+}
+
+static void ufs_mtk_init_reset_control(struct ufs_hba *hba,
+				       struct reset_control **rc,
+				       char *str)
+{
+	*rc = devm_reset_control_get(hba->dev, str);
+	if (IS_ERR(*rc)) {
+		dev_info(hba->dev, "Failed to get reset control %s: %ld\n",
+			 str, PTR_ERR(*rc));
+		*rc = NULL;
+	}
+}
+
+static void ufs_mtk_init_reset(struct ufs_hba *hba)
+{
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+
+	ufs_mtk_init_reset_control(hba, &host->hci_reset,
+				   "hci_rst");
+	ufs_mtk_init_reset_control(hba, &host->unipro_reset,
+				   "unipro_rst");
+	ufs_mtk_init_reset_control(hba, &host->crypto_reset,
+				   "crypto_rst");
+}
+
 static int ufs_mtk_hce_enable_notify(struct ufs_hba *hba,
 				     enum ufs_notify_change_status status)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 
 	if (status == PRE_CHANGE) {
-		if (host->unipro_lpm)
+		if (host->unipro_lpm) {
 			hba->vps->hba_enable_delay_us = 0;
-		else
+		} else {
 			hba->vps->hba_enable_delay_us = 600;
+			ufs_mtk_host_reset(hba);
+		}
 
 		if (hba->caps & UFSHCD_CAP_CRYPTO)
 			ufs_mtk_crypto_enable(hba);
@@ -129,7 +194,10 @@ static int ufs_mtk_bind_mphy(struct ufs_hba *hba)
 			__func__, err);
 	} else if (IS_ERR(host->mphy)) {
 		err = PTR_ERR(host->mphy);
-		dev_info(dev, "%s: PHY get failed %d\n", __func__, err);
+		if (err != -ENODEV) {
+			dev_info(dev, "%s: PHY get failed %d\n", __func__,
+				 err);
+		}
 	}
 
 	if (err)
@@ -249,6 +317,144 @@ static void ufs_mtk_mphy_power_on(struct ufs_hba *hba, bool on)
 	host->mphy_powered_on = on;
 }
 
+static int ufs_mtk_get_host_clk(struct device *dev, const char *name,
+				struct clk **clk_out)
+{
+	struct clk *clk;
+	int err = 0;
+
+	clk = devm_clk_get(dev, name);
+	if (IS_ERR(clk))
+		err = PTR_ERR(clk);
+	else
+		*clk_out = clk;
+
+	return err;
+}
+
+static void ufs_mtk_boost_crypt(struct ufs_hba *hba, bool boost)
+{
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+	struct ufs_mtk_crypt_cfg *cfg;
+	struct regulator *reg;
+	int volt, ret;
+
+	if (!ufs_mtk_is_boost_crypt_enabled(hba))
+		return;
+
+	cfg = host->crypt;
+	volt = cfg->vcore_volt;
+	reg = cfg->reg_vcore;
+
+	ret = clk_prepare_enable(cfg->clk_crypt_mux);
+	if (ret) {
+		dev_info(hba->dev, "clk_prepare_enable(): %d\n",
+			 ret);
+		return;
+	}
+
+	if (boost) {
+		ret = regulator_set_voltage(reg, volt, INT_MAX);
+		if (ret) {
+			dev_info(hba->dev,
+				 "failed to set vcore to %d\n", volt);
+			goto out;
+		}
+
+		ret = clk_set_parent(cfg->clk_crypt_mux,
+				     cfg->clk_crypt_perf);
+		if (ret) {
+			dev_info(hba->dev,
+				 "failed to set clk_crypt_perf\n");
+			regulator_set_voltage(reg, 0, INT_MAX);
+			goto out;
+		}
+	} else {
+		ret = clk_set_parent(cfg->clk_crypt_mux,
+				     cfg->clk_crypt_lp);
+		if (ret) {
+			dev_info(hba->dev,
+				 "failed to set clk_crypt_lp\n");
+			goto out;
+		}
+
+		ret = regulator_set_voltage(reg, 0, INT_MAX);
+		if (ret) {
+			dev_info(hba->dev,
+				 "failed to set vcore to MIN\n");
+		}
+	}
+out:
+	clk_disable_unprepare(cfg->clk_crypt_mux);
+}
+
+static int ufs_mtk_init_host_clk(struct ufs_hba *hba, const char *name,
+				 struct clk **clk)
+{
+	int ret;
+
+	ret = ufs_mtk_get_host_clk(hba->dev, name, clk);
+	if (ret) {
+		dev_info(hba->dev, "%s: failed to get %s: %d", __func__,
+			 name, ret);
+	}
+
+	return ret;
+}
+
+static void ufs_mtk_init_host_caps(struct ufs_hba *hba)
+{
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+	struct ufs_mtk_crypt_cfg *cfg;
+	struct device *dev = hba->dev;
+	struct regulator *reg;
+	u32 volt;
+
+	host->caps = host->cfg->caps;
+
+	if (!ufs_mtk_is_boost_crypt_enabled(hba))
+		return;
+
+	host->crypt = devm_kzalloc(dev, sizeof(*(host->crypt)),
+				   GFP_KERNEL);
+	if (!host->crypt)
+		goto disable_caps;
+
+	reg = devm_regulator_get_optional(dev, "dvfsrc-vcore");
+	if (IS_ERR(reg)) {
+		dev_info(dev, "failed to get dvfsrc-vcore: %ld",
+			 PTR_ERR(reg));
+		goto disable_caps;
+	}
+
+	if (of_property_read_u32(dev->of_node, "boost-crypt-vcore-min",
+				 &volt)) {
+		dev_info(dev, "failed to get boost-crypt-vcore-min");
+		goto disable_caps;
+	}
+
+	cfg = host->crypt;
+	if (ufs_mtk_init_host_clk(hba, "crypt_mux",
+				  &cfg->clk_crypt_mux))
+		goto disable_caps;
+
+	if (ufs_mtk_init_host_clk(hba, "crypt_lp",
+				  &cfg->clk_crypt_lp))
+		goto disable_caps;
+
+	if (ufs_mtk_init_host_clk(hba, "crypt_perf",
+				  &cfg->clk_crypt_perf))
+		goto disable_caps;
+
+	cfg->reg_vcore = reg;
+	cfg->vcore_volt = volt;
+	dev_info(dev, "caps: boost-crypt");
+	return;
+
+disable_caps:
+	host->caps &= ~UFS_MTK_CAP_BOOST_CRYPT_ENGINE;
+}
+
 /**
  * ufs_mtk_setup_clocks - enables/disable clocks
  * @hba: host controller instance
@@ -291,12 +497,14 @@ static int ufs_mtk_setup_clocks(struct ufs_hba *hba, bool on,
 		}
 
 		if (clk_pwr_off) {
+			ufs_mtk_boost_crypt(hba, on);
 			ufs_mtk_setup_ref_clk(hba, on);
 			ufs_mtk_mphy_power_on(hba, on);
 		}
 	} else if (on && status == POST_CHANGE) {
 		ufs_mtk_mphy_power_on(hba, on);
 		ufs_mtk_setup_ref_clk(hba, on);
+		ufs_mtk_boost_crypt(hba, on);
 	}
 
 	return ret;
@@ -314,8 +522,9 @@ static int ufs_mtk_setup_clocks(struct ufs_hba *hba, bool on,
  */
 static int ufs_mtk_init(struct ufs_hba *hba)
 {
-	struct ufs_mtk_host *host;
+	const struct of_device_id *id;
 	struct device *dev = hba->dev;
+	struct ufs_mtk_host *host;
 	int err = 0;
 
 	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
@@ -328,9 +537,23 @@ static int ufs_mtk_init(struct ufs_hba *hba)
 	host->hba = hba;
 	ufshcd_set_variant(hba, host);
 
+	/* Get host capability and platform data */
+	id = of_match_device(ufs_mtk_of_match, dev);
+	if (!id) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	if (id->data) {
+		host->cfg = (struct ufs_mtk_host_cfg *)id->data;
+		ufs_mtk_init_host_caps(hba);
+	}
+
 	err = ufs_mtk_bind_mphy(hba);
 	if (err)
 		goto out_variant_clear;
+
+	ufs_mtk_init_reset(hba);
 
 	/* Enable runtime autosuspend */
 	hba->caps |= UFSHCD_CAP_RPM_AUTOSUSPEND;
@@ -416,7 +639,7 @@ static int ufs_mtk_pwr_change_notify(struct ufs_hba *hba,
 	return ret;
 }
 
-static int ufs_mtk_unipro_set_pm(struct ufs_hba *hba, u32 lpm)
+static int ufs_mtk_unipro_set_pm(struct ufs_hba *hba, bool lpm)
 {
 	int ret;
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
@@ -424,8 +647,14 @@ static int ufs_mtk_unipro_set_pm(struct ufs_hba *hba, u32 lpm)
 	ret = ufshcd_dme_set(hba,
 			     UIC_ARG_MIB_SEL(VS_UNIPROPOWERDOWNCONTROL, 0),
 			     lpm);
-	if (!ret)
+	if (!ret || !lpm) {
+		/*
+		 * Forcibly set as non-LPM mode if UIC commands is failed
+		 * to use default hba_enable_delay_us value for re-enabling
+		 * the host.
+		 */
 		host->unipro_lpm = lpm;
+	}
 
 	return ret;
 }
@@ -435,7 +664,9 @@ static int ufs_mtk_pre_link(struct ufs_hba *hba)
 	int ret;
 	u32 tmp;
 
-	ufs_mtk_unipro_set_pm(hba, 0);
+	ret = ufs_mtk_unipro_set_pm(hba, false);
+	if (ret)
+		return ret;
 
 	/*
 	 * Setting PA_Local_TX_LCC_Enable to 0 before link startup
@@ -543,7 +774,7 @@ static int ufs_mtk_link_set_hpm(struct ufs_hba *hba)
 	if (err)
 		return err;
 
-	err = ufs_mtk_unipro_set_pm(hba, 0);
+	err = ufs_mtk_unipro_set_pm(hba, false);
 	if (err)
 		return err;
 
@@ -564,10 +795,10 @@ static int ufs_mtk_link_set_lpm(struct ufs_hba *hba)
 {
 	int err;
 
-	err = ufs_mtk_unipro_set_pm(hba, 1);
+	err = ufs_mtk_unipro_set_pm(hba, true);
 	if (err) {
 		/* Resume UniPro state for following error recovery */
-		ufs_mtk_unipro_set_pm(hba, 0);
+		ufs_mtk_unipro_set_pm(hba, false);
 		return err;
 	}
 
@@ -669,22 +900,16 @@ static int ufs_mtk_apply_dev_quirks(struct ufs_hba *hba)
 
 static void ufs_mtk_fixup_dev_quirks(struct ufs_hba *hba)
 {
-	struct ufs_dev_info *dev_info = &hba->dev_info;
-	u16 mid = dev_info->wmanufacturerid;
-
 	ufshcd_fixup_dev_quirks(hba, ufs_mtk_dev_fixups);
-
-	if (mid == UFS_VENDOR_SAMSUNG)
-		hba->dev_quirks &= ~UFS_DEVICE_QUIRK_HOST_PA_TACTIVATE;
 }
 
-/**
+/*
  * struct ufs_hba_mtk_vops - UFS MTK specific variant operations
  *
  * The variant operations configure the necessary controller and PHY
  * handshake during initialization.
  */
-static struct ufs_hba_variant_ops ufs_hba_mtk_vops = {
+static const struct ufs_hba_variant_ops ufs_hba_mtk_vops = {
 	.name                = "mediatek.ufshci",
 	.init                = ufs_mtk_init,
 	.setup_clocks        = ufs_mtk_setup_clocks,
@@ -732,11 +957,6 @@ static int ufs_mtk_remove(struct platform_device *pdev)
 	ufshcd_remove(hba);
 	return 0;
 }
-
-static const struct of_device_id ufs_mtk_of_match[] = {
-	{ .compatible = "mediatek,mt8183-ufshci"},
-	{},
-};
 
 static const struct dev_pm_ops ufs_mtk_pm_ops = {
 	.suspend         = ufshcd_pltfrm_suspend,

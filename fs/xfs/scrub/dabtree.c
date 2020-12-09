@@ -441,6 +441,20 @@ xchk_da_btree_block(
 		goto out_freebp;
 	}
 
+	/*
+	 * If we've been handed a block that is below the dabtree root, does
+	 * its hashval match what the parent block expected to see?
+	 */
+	if (level > 0) {
+		struct xfs_da_node_entry	*key;
+
+		key = xchk_da_btree_node_entry(ds, level - 1);
+		if (be32_to_cpu(key->hashval) != blk->hashval) {
+			xchk_da_set_corrupt(ds, level);
+			goto out_freebp;
+		}
+	}
+
 out:
 	return error;
 out_freebp:

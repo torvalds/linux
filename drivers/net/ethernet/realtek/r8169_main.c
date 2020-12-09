@@ -617,7 +617,6 @@ struct rtl8169_private {
 		struct work_struct work;
 	} wk;
 
-	unsigned irq_enabled:1;
 	unsigned supports_gmii:1;
 	unsigned aspm_manageable:1;
 	dma_addr_t counters_phys_addr;
@@ -699,6 +698,27 @@ static bool rtl_supports_eee(struct rtl8169_private *tp)
 	return tp->mac_version >= RTL_GIGA_MAC_VER_34 &&
 	       tp->mac_version != RTL_GIGA_MAC_VER_37 &&
 	       tp->mac_version != RTL_GIGA_MAC_VER_39;
+}
+
+static void rtl_get_priv_stats(struct rtl8169_stats *stats,
+			       u64 *pkts, u64 *bytes)
+{
+	unsigned int start;
+
+	do {
+		start = u64_stats_fetch_begin_irq(&stats->syncp);
+		*pkts = stats->packets;
+		*bytes = stats->bytes;
+	} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
+}
+
+static void rtl_inc_priv_stats(struct rtl8169_stats *stats,
+			       u64 pkts, u64 bytes)
+{
+	u64_stats_update_begin(&stats->syncp);
+	stats->packets += pkts;
+	stats->bytes += bytes;
+	u64_stats_update_end(&stats->syncp);
 }
 
 static void rtl_read_mac_from_reg(struct rtl8169_private *tp, u8 *mac, int reg)
@@ -1280,12 +1300,10 @@ static void rtl_irq_disable(struct rtl8169_private *tp)
 		RTL_W32(tp, IntrMask_8125, 0);
 	else
 		RTL_W16(tp, IntrMask, 0);
-	tp->irq_enabled = 0;
 }
 
 static void rtl_irq_enable(struct rtl8169_private *tp)
 {
-	tp->irq_enabled = 1;
 	if (rtl_is_8125(tp))
 		RTL_W32(tp, IntrMask_8125, tp->irq_mask);
 	else
@@ -2058,11 +2076,18 @@ static void rtl_release_firmware(struct rtl8169_private *tp)
 
 void r8169_apply_firmware(struct rtl8169_private *tp)
 {
+	int val;
+
 	/* TODO: release firmware if rtl_fw_write_firmware signals failure. */
 	if (tp->rtl_fw) {
 		rtl_fw_write_firmware(tp, tp->rtl_fw);
 		/* At least one firmware doesn't reset tp->ocp_base. */
 		tp->ocp_base = OCP_STD_PHY_BASE;
+
+		/* PHY soft reset may still be in progress */
+		phy_read_poll_timeout(tp->phydev, MII_BMCR, val,
+				      !(val & BMCR_RESET),
+				      50000, 600000, true);
 	}
 }
 
@@ -2239,14 +2264,10 @@ static void rtl_pll_power_down(struct rtl8169_private *tp)
 	default:
 		break;
 	}
-
-	clk_disable_unprepare(tp->clk);
 }
 
 static void rtl_pll_power_up(struct rtl8169_private *tp)
 {
-	clk_prepare_enable(tp->clk);
-
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_25 ... RTL_GIGA_MAC_VER_33:
 	case RTL_GIGA_MAC_VER_37:
@@ -2904,7 +2925,7 @@ static void rtl_hw_start_8168f_1(struct rtl8169_private *tp)
 		{ 0x08, 0x0001,	0x0002 },
 		{ 0x09, 0x0000,	0x0080 },
 		{ 0x19, 0x0000,	0x0224 },
-		{ 0x00, 0x0000,	0x0004 },
+		{ 0x00, 0x0000,	0x0008 },
 		{ 0x0c, 0x3df0,	0x0200 },
 	};
 
@@ -2921,7 +2942,7 @@ static void rtl_hw_start_8411(struct rtl8169_private *tp)
 		{ 0x06, 0x00c0,	0x0020 },
 		{ 0x0f, 0xffff,	0x5200 },
 		{ 0x19, 0x0000,	0x0224 },
-		{ 0x00, 0x0000,	0x0004 },
+		{ 0x00, 0x0000,	0x0008 },
 		{ 0x0c, 0x3df0,	0x0200 },
 	};
 
@@ -4059,9 +4080,17 @@ err_out:
 	return -EIO;
 }
 
-static bool rtl_test_hw_pad_bug(struct rtl8169_private *tp, struct sk_buff *skb)
+static bool rtl_test_hw_pad_bug(struct rtl8169_private *tp)
 {
-	return skb->len < ETH_ZLEN && tp->mac_version == RTL_GIGA_MAC_VER_34;
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_34:
+	case RTL_GIGA_MAC_VER_60:
+	case RTL_GIGA_MAC_VER_61:
+	case RTL_GIGA_MAC_VER_63:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static void rtl8169_tso_csum_v1(struct sk_buff *skb, u32 *opts)
@@ -4133,7 +4162,7 @@ static bool rtl8169_tso_csum_v2(struct rtl8169_private *tp,
 
 		opts[1] |= transport_offset << TCPHO_SHIFT;
 	} else {
-		if (unlikely(rtl_test_hw_pad_bug(tp, skb)))
+		if (unlikely(skb->len < ETH_ZLEN && rtl_test_hw_pad_bug(tp)))
 			return !eth_skb_pad(skb);
 	}
 
@@ -4396,10 +4425,7 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
 	if (tp->dirty_tx != dirty_tx) {
 		netdev_completed_queue(dev, pkts_compl, bytes_compl);
 
-		u64_stats_update_begin(&tp->tx_stats.syncp);
-		tp->tx_stats.packets += pkts_compl;
-		tp->tx_stats.bytes += bytes_compl;
-		u64_stats_update_end(&tp->tx_stats.syncp);
+		rtl_inc_priv_stats(&tp->tx_stats, pkts_compl, bytes_compl);
 
 		tp->dirty_tx = dirty_tx;
 		/* Sync with rtl8169_start_xmit:
@@ -4521,11 +4547,7 @@ static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, u32 budget
 
 		napi_gro_receive(&tp->napi, skb);
 
-		u64_stats_update_begin(&tp->rx_stats.syncp);
-		tp->rx_stats.packets++;
-		tp->rx_stats.bytes += pkt_size;
-		u64_stats_update_end(&tp->rx_stats.syncp);
-
+		rtl_inc_priv_stats(&tp->rx_stats, 1, pkt_size);
 release_descriptor:
 		rtl8169_mark_to_asic(desc);
 	}
@@ -4541,8 +4563,7 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 	struct rtl8169_private *tp = dev_instance;
 	u32 status = rtl_get_events(tp);
 
-	if (!tp->irq_enabled || (status & 0xffff) == 0xffff ||
-	    !(status & tp->irq_mask))
+	if ((status & 0xffff) == 0xffff || !(status & tp->irq_mask))
 		return IRQ_NONE;
 
 	if (unlikely(status & SYSErr)) {
@@ -4560,7 +4581,7 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 	}
 
 	rtl_irq_disable(tp);
-	napi_schedule_irqoff(&tp->napi);
+	napi_schedule(&tp->napi);
 out:
 	rtl_ack_events(tp, status);
 
@@ -4596,10 +4617,8 @@ static int rtl8169_poll(struct napi_struct *napi, int budget)
 
 	rtl_tx(dev, tp, budget);
 
-	if (work_done < budget) {
-		napi_complete_done(napi, work_done);
+	if (work_done < budget && napi_complete_done(napi, work_done))
 		rtl_irq_enable(tp);
-	}
 
 	return work_done;
 }
@@ -4683,7 +4702,7 @@ static int rtl8169_close(struct net_device *dev)
 
 	phy_disconnect(tp->phydev);
 
-	pci_free_irq(pdev, 0, tp);
+	free_irq(pci_irq_vector(pdev, 0), tp);
 
 	dma_free_coherent(&pdev->dev, R8169_RX_RING_BYTES, tp->RxDescArray,
 			  tp->RxPhyAddr);
@@ -4734,8 +4753,8 @@ static int rtl_open(struct net_device *dev)
 
 	rtl_request_firmware(tp);
 
-	retval = pci_request_irq(pdev, 0, rtl8169_interrupt, NULL, tp,
-				 dev->name);
+	retval = request_irq(pci_irq_vector(pdev, 0), rtl8169_interrupt,
+			     IRQF_SHARED, dev->name, tp);
 	if (retval < 0)
 		goto err_release_fw_2;
 
@@ -4752,7 +4771,7 @@ out:
 	return retval;
 
 err_free_irq:
-	pci_free_irq(pdev, 0, tp);
+	free_irq(pci_irq_vector(pdev, 0), tp);
 err_release_fw_2:
 	rtl_release_firmware(tp);
 	rtl8169_rx_clear(tp);
@@ -4775,23 +4794,13 @@ rtl8169_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	struct rtl8169_private *tp = netdev_priv(dev);
 	struct pci_dev *pdev = tp->pci_dev;
 	struct rtl8169_counters *counters = tp->counters;
-	unsigned int start;
 
 	pm_runtime_get_noresume(&pdev->dev);
 
 	netdev_stats_to_stats64(stats, &dev->stats);
 
-	do {
-		start = u64_stats_fetch_begin_irq(&tp->rx_stats.syncp);
-		stats->rx_packets = tp->rx_stats.packets;
-		stats->rx_bytes	= tp->rx_stats.bytes;
-	} while (u64_stats_fetch_retry_irq(&tp->rx_stats.syncp, start));
-
-	do {
-		start = u64_stats_fetch_begin_irq(&tp->tx_stats.syncp);
-		stats->tx_packets = tp->tx_stats.packets;
-		stats->tx_bytes	= tp->tx_stats.bytes;
-	} while (u64_stats_fetch_retry_irq(&tp->tx_stats.syncp, start));
+	rtl_get_priv_stats(&tp->rx_stats, &stats->rx_packets, &stats->rx_bytes);
+	rtl_get_priv_stats(&tp->tx_stats, &stats->tx_packets, &stats->tx_bytes);
 
 	/*
 	 * Fetch additional counter values missing in stats collected by driver
@@ -4826,21 +4835,8 @@ static void rtl8169_net_suspend(struct rtl8169_private *tp)
 
 #ifdef CONFIG_PM
 
-static int __maybe_unused rtl8169_suspend(struct device *device)
+static int rtl8169_net_resume(struct rtl8169_private *tp)
 {
-	struct rtl8169_private *tp = dev_get_drvdata(device);
-
-	rtnl_lock();
-	rtl8169_net_suspend(tp);
-	rtnl_unlock();
-
-	return 0;
-}
-
-static int rtl8169_resume(struct device *device)
-{
-	struct rtl8169_private *tp = dev_get_drvdata(device);
-
 	rtl_rar_set(tp, tp->dev->dev_addr);
 
 	if (tp->TxDescArray)
@@ -4849,6 +4845,33 @@ static int rtl8169_resume(struct device *device)
 	netif_device_attach(tp->dev);
 
 	return 0;
+}
+
+static int __maybe_unused rtl8169_suspend(struct device *device)
+{
+	struct rtl8169_private *tp = dev_get_drvdata(device);
+
+	rtnl_lock();
+	rtl8169_net_suspend(tp);
+	if (!device_may_wakeup(tp_to_dev(tp)))
+		clk_disable_unprepare(tp->clk);
+	rtnl_unlock();
+
+	return 0;
+}
+
+static int __maybe_unused rtl8169_resume(struct device *device)
+{
+	struct rtl8169_private *tp = dev_get_drvdata(device);
+
+	if (!device_may_wakeup(tp_to_dev(tp)))
+		clk_prepare_enable(tp->clk);
+
+	/* Reportedly at least Asus X453MA truncates packets otherwise */
+	if (tp->mac_version == RTL_GIGA_MAC_VER_37)
+		rtl_init_rxcfg(tp);
+
+	return rtl8169_net_resume(tp);
 }
 
 static int rtl8169_runtime_suspend(struct device *device)
@@ -4874,7 +4897,7 @@ static int rtl8169_runtime_resume(struct device *device)
 
 	__rtl8169_set_wol(tp, tp->saved_wolopts);
 
-	return rtl8169_resume(device);
+	return rtl8169_net_resume(tp);
 }
 
 static int rtl8169_runtime_idle(struct device *device)

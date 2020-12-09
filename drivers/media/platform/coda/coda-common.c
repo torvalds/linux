@@ -808,7 +808,7 @@ static int coda_s_fmt(struct coda_ctx *ctx, struct v4l2_format *f,
 			ctx->tiled_map_type = GDI_TILED_FRAME_MB_RASTER_MAP;
 			break;
 		}
-		/* else fall through */
+		fallthrough;
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YVU420:
 	case V4L2_PIX_FMT_YUV422P:
@@ -1015,7 +1015,7 @@ static int coda_g_selection(struct file *file, void *fh,
 	case V4L2_SEL_TGT_CROP_DEFAULT:
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 		rsel = &r;
-		/* fallthrough */
+		fallthrough;
 	case V4L2_SEL_TGT_CROP:
 		if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT ||
 		    ctx->inst_type == CODA_INST_DECODER)
@@ -1024,7 +1024,7 @@ static int coda_g_selection(struct file *file, void *fh,
 	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
 	case V4L2_SEL_TGT_COMPOSE_PADDED:
 		rsel = &r;
-		/* fallthrough */
+		fallthrough;
 	case V4L2_SEL_TGT_COMPOSE:
 	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
 		if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
@@ -1074,7 +1074,7 @@ static int coda_s_selection(struct file *file, void *fh,
 
 			return 0;
 		}
-		/* else fall through */
+		fallthrough;
 	case V4L2_SEL_TGT_NATIVE_SIZE:
 	case V4L2_SEL_TGT_COMPOSE:
 		return coda_g_selection(file, fh, s);
@@ -1937,9 +1937,6 @@ int coda_alloc_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf,
 		buf->blob.size = size;
 		buf->dentry = debugfs_create_blob(name, 0644, parent,
 						  &buf->blob);
-		if (!buf->dentry)
-			dev_warn(dev->dev,
-				 "failed to create debugfs entry %s\n", name);
 	}
 
 	return 0;
@@ -2628,7 +2625,7 @@ static int coda_open(struct file *file)
 		 */
 		if (enable_bwb || ctx->inst_type == CODA_INST_ENCODER)
 			ctx->frame_mem_ctrl = CODA9_FRAME_ENABLE_BWB;
-		/* fallthrough */
+		fallthrough;
 	case CODA_HX4:
 	case CODA_7541:
 		ctx->reg_idx = 0;
@@ -3211,8 +3208,6 @@ static int coda_probe(struct platform_device *pdev)
 	ida_init(&dev->ida);
 
 	dev->debugfs_root = debugfs_create_dir("coda", NULL);
-	if (!dev->debugfs_root)
-		dev_warn(&pdev->dev, "failed to create debugfs root\n");
 
 	/* allocate auxiliary per-device buffers for the BIT processor */
 	if (dev->devtype->product == CODA_DX6) {
@@ -3269,6 +3264,8 @@ static int coda_probe(struct platform_device *pdev)
 	return 0;
 
 err_alloc_workqueue:
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_put_noidle(&pdev->dev);
 	destroy_workqueue(dev->workqueue);
 err_v4l2_register:
 	v4l2_device_unregister(&dev->v4l2_dev);

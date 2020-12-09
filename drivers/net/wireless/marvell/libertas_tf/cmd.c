@@ -32,10 +32,10 @@ static struct cmd_ctrl_node *lbtf_get_cmd_ctrl_node(struct lbtf_private *priv);
 /**
  *  lbtf_cmd_copyback - Simple callback that copies response back into command
  *
- *  @priv	A pointer to struct lbtf_private structure
- *  @extra	A pointer to the original command structure for which
+ *  @priv:	A pointer to struct lbtf_private structure
+ *  @extra:	A pointer to the original command structure for which
  *		'resp' is a response
- *  @resp	A pointer to the command response
+ *  @resp:	A pointer to the command response
  *
  *  Returns: 0 on success, error on failure
  */
@@ -72,7 +72,7 @@ static void lbtf_geo_init(struct lbtf_private *priv)
 /**
  *  lbtf_update_hw_spec: Updates the hardware details.
  *
- *  @priv    	A pointer to struct lbtf_private structure
+ *  @priv:    	A pointer to struct lbtf_private structure
  *
  *  Returns: 0 on success, error on failure
  */
@@ -141,8 +141,8 @@ out:
 /**
  *  lbtf_set_channel: Set the radio channel
  *
- *  @priv	A pointer to struct lbtf_private structure
- *  @channel	The desired channel, or 0 to clear a locked channel
+ *  @priv:	A pointer to struct lbtf_private structure
+ *  @channel:	The desired channel, or 0 to clear a locked channel
  *
  *  Returns: 0 on success, error on failure
  */
@@ -268,7 +268,7 @@ static void lbtf_submit_command(struct lbtf_private *priv,
 	lbtf_deb_leave(LBTF_DEB_HOST);
 }
 
-/**
+/*
  *  This function inserts command node to cmdfreeq
  *  after cleans it. Requires priv->driver_lock held.
  */
@@ -434,7 +434,7 @@ void lbtf_set_mac_control(struct lbtf_private *priv)
 /**
  *  lbtf_allocate_cmd_buffer - Allocates cmd buffer, links it to free cmd queue
  *
- *  @priv	A pointer to struct lbtf_private structure
+ *  @priv:	A pointer to struct lbtf_private structure
  *
  *  Returns: 0 on success.
  */
@@ -482,7 +482,7 @@ done:
 /**
  *  lbtf_free_cmd_buffer - Frees the cmd buffer.
  *
- *  @priv	A pointer to struct lbtf_private structure
+ *  @priv:	A pointer to struct lbtf_private structure
  *
  *  Returns: 0
  */
@@ -519,7 +519,7 @@ done:
 /**
  *  lbtf_get_cmd_ctrl_node - Gets free cmd node from free cmd queue.
  *
- *  @priv		A pointer to struct lbtf_private structure
+ *  @priv:		A pointer to struct lbtf_private structure
  *
  *  Returns: pointer to a struct cmd_ctrl_node or NULL if none available.
  */
@@ -553,7 +553,7 @@ static struct cmd_ctrl_node *lbtf_get_cmd_ctrl_node(struct lbtf_private *priv)
 /**
  *  lbtf_execute_next_command: execute next command in cmd pending queue.
  *
- *  @priv     A pointer to struct lbtf_private structure
+ *  @priv:     A pointer to struct lbtf_private structure
  *
  *  Returns: 0 on success.
  */

@@ -23,10 +23,19 @@ extern struct nft_object_type nft_secmark_obj_type;
 int nf_tables_core_module_init(void);
 void nf_tables_core_module_exit(void);
 
+struct nft_bitwise_fast_expr {
+	u32			mask;
+	u32			xor;
+	enum nft_registers	sreg:8;
+	enum nft_registers	dreg:8;
+};
+
 struct nft_cmp_fast_expr {
 	u32			data;
+	u32			mask;
 	enum nft_registers	sreg:8;
 	u8			len;
+	bool			inv;
 };
 
 struct nft_immediate_expr {
@@ -65,6 +74,8 @@ struct nft_payload_set {
 };
 
 extern const struct nft_expr_ops nft_payload_fast_ops;
+
+extern const struct nft_expr_ops nft_bitwise_fast_ops;
 
 extern struct static_key_false nft_counters_enabled;
 extern struct static_key_false nft_trace_enabled;

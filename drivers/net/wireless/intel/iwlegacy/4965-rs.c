@@ -142,7 +142,7 @@ il4965_rs_dbgfs_set_mcs(struct il_lq_sta *lq_sta, u32 * rate_n_flags, int idx)
 }
 #endif
 
-/**
+/*
  * The following tables contain the expected throughput metrics for all rates
  *
  *	1, 2, 5.5, 11, 6, 9, 12, 18, 24, 36, 48, 54, 60 MBits
@@ -393,7 +393,7 @@ il4965_get_expected_tpt(struct il_scale_tbl_info *tbl, int rs_idx)
 	return 0;
 }
 
-/**
+/*
  * il4965_rs_collect_tx_data - Update the success/failure sliding win
  *
  * We keep a sliding win of the last 62 packets transmitted
@@ -620,7 +620,7 @@ il4965_rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
 	return 1;
 }
 
-/**
+/*
  * Green-field mode is valid if the station supports it and
  * there are no non-GF stations present in the BSS.
  */
@@ -631,7 +631,7 @@ il4965_rs_use_green(struct il_priv *il, struct ieee80211_sta *sta)
 	       !il->ht.non_gf_sta_present;
 }
 
-/**
+/*
  * il4965_rs_get_supported_rates - get the available rates
  *
  * if management frame or broadcast frame only return
@@ -2114,7 +2114,7 @@ out:
 	lq_sta->last_txrate_idx = i;
 }
 
-/**
+/*
  * il4965_rs_initialize_lq - Initialize a station's hardware rate table
  *
  * The uCode's station table contains a table of fallback rates

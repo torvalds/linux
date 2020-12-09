@@ -143,10 +143,9 @@ Emerson DS1200 power modules might look as follows::
 		   | PMBUS_HAVE_FAN12 | PMBUS_HAVE_STATUS_FAN12,
   };
 
-  static int ds1200_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+  static int ds1200_probe(struct i2c_client *client)
   {
-	return pmbus_do_probe(client, id, &ds1200_info);
+	return pmbus_do_probe(client, &ds1200_info);
   }
 
   static int ds1200_remove(struct i2c_client *client)
@@ -166,7 +165,7 @@ Emerson DS1200 power modules might look as follows::
 	.driver = {
 		   .name = "ds1200",
 		   },
-	.probe = ds1200_probe,
+	.probe_new = ds1200_probe,
 	.remove = ds1200_remove,
 	.id_table = ds1200_id,
   };
@@ -211,6 +210,10 @@ inX_lcrit_alarm		Voltage critical low alarm.
 inX_crit_alarm		Voltage critical high alarm.
 			From VOLTAGE_OV_FAULT status.
 inX_label		"vin", "vcap", or "voutY"
+inX_rated_min		Minimum rated voltage.
+			From MFR_VIN_MIN or MFR_VOUT_MIN register.
+inX_rated_max		Maximum rated voltage.
+			From MFR_VIN_MAX or MFR_VOUT_MAX register.
 
 currX_input		Measured current. From READ_IIN or READ_IOUT register.
 currX_max		Maximum current.
@@ -230,6 +233,8 @@ currX_crit_alarm	Current critical high alarm.
 currX_label		"iin", "iinY", "iinY.Z", "ioutY", or "ioutY.Z",
 			where Y reflects the page number and Z reflects the
 			phase.
+currX_rated_max		Maximum rated current.
+			From MFR_IIN_MAX or MFR_IOUT_MAX register.
 
 powerX_input		Measured power. From READ_PIN or READ_POUT register.
 powerX_cap		Output power cap. From POUT_MAX register.
@@ -244,10 +249,12 @@ powerX_crit_alarm	Output power critical high alarm.
 powerX_label		"pin", "pinY", "pinY.Z", "poutY", or "poutY.Z",
 			where Y reflects the page number and Z reflects the
 			phase.
+powerX_rated_max	Maximum rated power.
+			From MFR_PIN_MAX or MFR_POUT_MAX register.
 
 tempX_input		Measured temperature.
 			From READ_TEMPERATURE_X register.
-tempX_min		Mimimum temperature. From UT_WARN_LIMIT register.
+tempX_min		Minimum temperature. From UT_WARN_LIMIT register.
 tempX_max		Maximum temperature. From OT_WARN_LIMIT register.
 tempX_lcrit		Critical low temperature.
 			From UT_FAULT_LIMIT register.
@@ -265,4 +272,9 @@ tempX_lcrit_alarm	Chip temperature critical low alarm. Set by comparing
 tempX_crit_alarm	Chip temperature critical high alarm. Set by comparing
 			READ_TEMPERATURE_X with OT_FAULT_LIMIT if
 			TEMP_OT_FAULT status is set.
+tempX_rated_min		Minimum rated temperature.
+			From MFR_TAMBIENT_MIN register.
+tempX_rated_max		Maximum rated temperature.
+			From MFR_TAMBIENT_MAX, MFR_MAX_TEMP_1, MFR_MAX_TEMP_2 or
+			MFR_MAX_TEMP_3 register.
 ======================= ========================================================

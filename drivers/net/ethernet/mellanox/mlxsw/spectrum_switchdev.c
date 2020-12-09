@@ -136,9 +136,9 @@ bool mlxsw_sp_bridge_device_is_offloaded(const struct mlxsw_sp *mlxsw_sp,
 }
 
 static int mlxsw_sp_bridge_device_upper_rif_destroy(struct net_device *dev,
-						    void *data)
+						    struct netdev_nested_priv *priv)
 {
-	struct mlxsw_sp *mlxsw_sp = data;
+	struct mlxsw_sp *mlxsw_sp = priv->data;
 
 	mlxsw_sp_rif_destroy_by_dev(mlxsw_sp, dev);
 	return 0;
@@ -147,10 +147,14 @@ static int mlxsw_sp_bridge_device_upper_rif_destroy(struct net_device *dev,
 static void mlxsw_sp_bridge_device_rifs_destroy(struct mlxsw_sp *mlxsw_sp,
 						struct net_device *dev)
 {
+	struct netdev_nested_priv priv = {
+		.data = (void *)mlxsw_sp,
+	};
+
 	mlxsw_sp_rif_destroy_by_dev(mlxsw_sp, dev);
 	netdev_walk_all_upper_dev_rcu(dev,
 				      mlxsw_sp_bridge_device_upper_rif_destroy,
-				      mlxsw_sp);
+				      &priv);
 }
 
 static int mlxsw_sp_bridge_device_vxlan_init(struct mlxsw_sp_bridge *bridge,

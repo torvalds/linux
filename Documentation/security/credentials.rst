@@ -323,7 +323,6 @@ credentials (the value is simply returned in each case)::
 	uid_t current_fsuid(void)	Current's file access UID
 	gid_t current_fsgid(void)	Current's file access GID
 	kernel_cap_t current_cap(void)	Current's effective capabilities
-	void *current_security(void)	Current's LSM security pointer
 	struct user_struct *current_user(void)  Current's user account
 
 There are also convenience wrappers for retrieving specific associated pairs of

@@ -117,7 +117,6 @@ int ql_own_firmware(struct ql_adapter *qdev)
 		return 1;
 
 	return 0;
-
 }
 
 static int ql_get_mb_sts(struct ql_adapter *qdev, struct mbox_params *mbcp)
@@ -240,12 +239,12 @@ static int ql_idc_cmplt_aen(struct ql_adapter *qdev)
 		netif_err(qdev, drv, qdev->ndev,
 			  "Could not read MPI, resetting RISC!\n");
 		ql_queue_fw_error(qdev);
-	} else
+	} else {
 		/* Wake up the sleeping mpi_idc_work thread that is
 		 * waiting for this event.
 		 */
 		complete(&qdev->ide_completion);
-
+	}
 	return status;
 }
 
@@ -347,16 +346,15 @@ static int ql_aen_lost(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	mbcp->out_count = 6;
 
 	status = ql_get_mb_sts(qdev, mbcp);
-	if (status)
+	if (status) {
 		netif_err(qdev, drv, qdev->ndev, "Lost AEN broken!\n");
-	else {
+	} else {
 		int i;
 
 		netif_err(qdev, drv, qdev->ndev, "Lost AEN detected.\n");
 		for (i = 0; i < mbcp->out_count; i++)
 			netif_err(qdev, drv, qdev->ndev, "mbox_out[%d] = 0x%.08x.\n",
 				  i, mbcp->mbox_out[i]);
-
 	}
 
 	return status;
@@ -405,7 +403,6 @@ static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	}
 
 	switch (mbcp->mbox_out[0]) {
-
 	/* This case is only active when we arrive here
 	 * as a result of issuing a mailbox command to
 	 * the firmware.
@@ -998,9 +995,9 @@ int ql_mb_get_led_cfg(struct ql_adapter *qdev)
 		netif_err(qdev, drv, qdev->ndev,
 			  "Failed to get LED Configuration.\n");
 		status = -EIO;
-	} else
+	} else {
 		qdev->led_config = mbcp->mbox_out[1];
-
+	}
 	return status;
 }
 

@@ -42,7 +42,7 @@ do {									\
 
 #define xfs_printk_once(func, dev, fmt, ...)			\
 ({								\
-	static bool __section(.data.once) __print_once;		\
+	static bool __section(".data.once") __print_once;	\
 	bool __ret_print_once = !__print_once; 			\
 								\
 	if (!__print_once) {					\

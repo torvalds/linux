@@ -405,7 +405,7 @@ static int ceu_hw_config(struct ceu_device *ceudev)
 	/* Non-swapped planar image capture mode. */
 	case V4L2_PIX_FMT_NV16:
 		cdocr	|= CEU_CDOCR_NO_DOWSAMPLE;
-		/* fall-through */
+		fallthrough;
 	case V4L2_PIX_FMT_NV12:
 		if (mbus_fmt->swapped)
 			camcr = mbus_fmt->fmt_order_swap;
@@ -419,7 +419,7 @@ static int ceu_hw_config(struct ceu_device *ceudev)
 	/* Swapped planar image capture mode. */
 	case V4L2_PIX_FMT_NV61:
 		cdocr	|= CEU_CDOCR_NO_DOWSAMPLE;
-		/* fall-through */
+		fallthrough;
 	case V4L2_PIX_FMT_NV21:
 		if (mbus_fmt->swapped)
 			camcr = mbus_fmt->fmt_order;

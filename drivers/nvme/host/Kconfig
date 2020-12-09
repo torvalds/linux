@@ -73,6 +73,7 @@ config NVME_TCP
 	depends on INET
 	depends on BLK_DEV_NVME
 	select NVME_FABRICS
+	select CRYPTO
 	select CRYPTO_CRC32C
 	help
 	  This provides support for the NVMe over Fabrics protocol using

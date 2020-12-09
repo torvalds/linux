@@ -709,7 +709,7 @@ do {									\
 	tracing_record_cmdline(current);				\
 	if (__builtin_constant_p(fmt)) {				\
 		static const char *trace_printk_fmt			\
-		  __attribute__((section("__trace_printk_fmt"))) =	\
+		  __section("__trace_printk_fmt") =			\
 			__builtin_constant_p(fmt) ? fmt : NULL;		\
 									\
 		__trace_bprintk(ip, trace_printk_fmt, ##args);		\

@@ -27,7 +27,7 @@ static const struct tb_quirk tb_quirks[] = {
  * tb_check_quirks() - Check for quirks to apply
  * @sw: Thunderbolt switch
  *
- *  Apply any quirks for the Thunderbolt controller
+ * Apply any quirks for the Thunderbolt controller.
  */
 void tb_check_quirks(struct tb_switch *sw)
 {

@@ -212,8 +212,8 @@ void __init kasan_init(void)
 {
 	u64 kimg_shadow_start, kimg_shadow_end;
 	u64 mod_shadow_start, mod_shadow_end;
-	struct memblock_region *reg;
-	int i;
+	phys_addr_t pa_start, pa_end;
+	u64 i;
 
 	kimg_shadow_start = (u64)kasan_mem_to_shadow(_text) & PAGE_MASK;
 	kimg_shadow_end = PAGE_ALIGN((u64)kasan_mem_to_shadow(_end));
@@ -246,9 +246,9 @@ void __init kasan_init(void)
 		kasan_populate_early_shadow((void *)mod_shadow_end,
 					    (void *)kimg_shadow_start);
 
-	for_each_memblock(memory, reg) {
-		void *start = (void *)__phys_to_virt(reg->base);
-		void *end = (void *)__phys_to_virt(reg->base + reg->size);
+	for_each_mem_range(i, &pa_start, &pa_end) {
+		void *start = (void *)__phys_to_virt(pa_start);
+		void *end = (void *)__phys_to_virt(pa_end);
 
 		if (start >= end)
 			break;

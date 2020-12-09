@@ -894,7 +894,7 @@ int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev,
 	unsigned i;
 	int ret;
 
-	if (ttm->state != tt_unpopulated)
+	if (ttm_tt_is_populated(ttm))
 		return 0;
 
 	if (ttm_check_under_lowerlimit(mem_glob, num_pages, ctx))
@@ -982,7 +982,7 @@ skip_huge:
 		}
 	}
 
-	ttm->state = tt_unbound;
+	ttm_tt_set_populated(ttm);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ttm_dma_populate);
@@ -1076,7 +1076,7 @@ void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 	/* shrink pool if necessary (only on !is_cached pools)*/
 	if (npages)
 		ttm_dma_page_pool_free(pool, npages, false);
-	ttm->state = tt_unpopulated;
+	ttm_tt_set_unpopulated(ttm);
 }
 EXPORT_SYMBOL_GPL(ttm_dma_unpopulate);
 

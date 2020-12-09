@@ -1,5 +1,6 @@
 /*
  *    Disk Array driver for HP Smart Array SAS controllers
+ *    Copyright (c) 2019-2020 Microchip Technology Inc. and its subsidiaries
  *    Copyright 2016 Microsemi Corporation
  *    Copyright 2014-2015 PMC-Sierra, Inc.
  *    Copyright 2000,2009-2015 Hewlett-Packard Development Company, L.P.
@@ -8854,7 +8855,7 @@ reinit_after_soft_reset:
 	/* hook into SCSI subsystem */
 	rc = hpsa_scsi_add_host(h);
 	if (rc)
-		goto clean7; /* perf, sg, cmd, irq, shost, pci, lu, aer/h */
+		goto clean8; /* lastlogicals, perf, sg, cmd, irq, shost, pci, lu, aer/h */
 
 	/* Monitor the controller for firmware lockups */
 	h->heartbeat_sample_interval = HEARTBEAT_SAMPLE_INTERVAL;
@@ -8869,6 +8870,8 @@ reinit_after_soft_reset:
 				HPSA_EVENT_MONITOR_INTERVAL);
 	return 0;
 
+clean8: /* lastlogicals, perf, sg, cmd, irq, shost, pci, lu, aer/h */
+	kfree(h->lastlogicals);
 clean7: /* perf, sg, cmd, irq, shost, pci, lu, aer/h */
 	hpsa_free_performant_mode(h);
 	h->access.set_intr_mask(h, HPSA_INTR_OFF);
@@ -9329,10 +9332,10 @@ static int hpsa_enter_performant_mode(struct ctlr_info *h, u32 trans_support)
 static void hpsa_free_ioaccel1_cmd_and_bft(struct ctlr_info *h)
 {
 	if (h->ioaccel_cmd_pool) {
-		pci_free_consistent(h->pdev,
-			h->nr_cmds * sizeof(*h->ioaccel_cmd_pool),
-			h->ioaccel_cmd_pool,
-			h->ioaccel_cmd_pool_dhandle);
+		dma_free_coherent(&h->pdev->dev,
+				  h->nr_cmds * sizeof(*h->ioaccel_cmd_pool),
+				  h->ioaccel_cmd_pool,
+				  h->ioaccel_cmd_pool_dhandle);
 		h->ioaccel_cmd_pool = NULL;
 		h->ioaccel_cmd_pool_dhandle = 0;
 	}
@@ -9382,10 +9385,10 @@ static void hpsa_free_ioaccel2_cmd_and_bft(struct ctlr_info *h)
 	hpsa_free_ioaccel2_sg_chain_blocks(h);
 
 	if (h->ioaccel2_cmd_pool) {
-		pci_free_consistent(h->pdev,
-			h->nr_cmds * sizeof(*h->ioaccel2_cmd_pool),
-			h->ioaccel2_cmd_pool,
-			h->ioaccel2_cmd_pool_dhandle);
+		dma_free_coherent(&h->pdev->dev,
+				  h->nr_cmds * sizeof(*h->ioaccel2_cmd_pool),
+				  h->ioaccel2_cmd_pool,
+				  h->ioaccel2_cmd_pool_dhandle);
 		h->ioaccel2_cmd_pool = NULL;
 		h->ioaccel2_cmd_pool_dhandle = 0;
 	}

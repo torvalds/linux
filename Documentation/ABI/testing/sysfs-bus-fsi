@@ -36,3 +36,11 @@ Contact:        linux-fsi@lists.ozlabs.org
 Description:
 		Provides a means of reading/writing a 32 bit value from/to a
 		specified FSI bus address.
+
+What:           /sys/bus/platform/devices/../cfam_reset
+Date:		Sept 2020
+KernelVersion:  5.10
+Contact:        linux-fsi@lists.ozlabs.org
+Description:
+		Provides a means of resetting the cfam that is attached to the
+		FSI device.

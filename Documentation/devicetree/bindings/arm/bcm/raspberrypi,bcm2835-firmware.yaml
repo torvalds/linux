@@ -23,7 +23,7 @@ properties:
   compatible:
     items:
       - const: raspberrypi,bcm2835-firmware
-      - const: simple-bus
+      - const: simple-mfd
 
   mboxes:
     $ref: '/schemas/types.yaml#/definitions/phandle'
@@ -48,21 +48,44 @@ properties:
       - compatible
       - "#clock-cells"
 
+  reset:
+    type: object
+
+    properties:
+      compatible:
+        const: raspberrypi,firmware-reset
+
+      "#reset-cells":
+        const: 1
+        description: >
+          The argument is the ID of the firmware reset line to affect.
+
+    required:
+      - compatible
+      - "#reset-cells"
+
     additionalProperties: false
 
 required:
   - compatible
   - mboxes
 
+additionalProperties: false
+
 examples:
   - |
     firmware {
-        compatible = "raspberrypi,bcm2835-firmware", "simple-bus";
+        compatible = "raspberrypi,bcm2835-firmware", "simple-mfd";
         mboxes = <&mailbox>;
 
         firmware_clocks: clocks {
             compatible = "raspberrypi,firmware-clocks";
             #clock-cells = <1>;
+        };
+
+        reset: reset {
+            compatible = "raspberrypi,firmware-reset";
+            #reset-cells = <1>;
         };
     };
 ...

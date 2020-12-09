@@ -54,11 +54,10 @@ extern u64 pm_runtime_autosuspend_expiration(struct device *dev);
 extern void pm_runtime_update_max_time_suspended(struct device *dev,
 						 s64 delta_ns);
 extern void pm_runtime_set_memalloc_noio(struct device *dev, bool enable);
-extern void pm_runtime_clean_up_links(struct device *dev);
 extern void pm_runtime_get_suppliers(struct device *dev);
 extern void pm_runtime_put_suppliers(struct device *dev);
 extern void pm_runtime_new_link(struct device *dev);
-extern void pm_runtime_drop_link(struct device *dev);
+extern void pm_runtime_drop_link(struct device_link *link);
 
 /**
  * pm_runtime_get_if_in_use - Conditionally bump up runtime PM usage counter.
@@ -276,11 +275,10 @@ static inline u64 pm_runtime_autosuspend_expiration(
 				struct device *dev) { return 0; }
 static inline void pm_runtime_set_memalloc_noio(struct device *dev,
 						bool enable){}
-static inline void pm_runtime_clean_up_links(struct device *dev) {}
 static inline void pm_runtime_get_suppliers(struct device *dev) {}
 static inline void pm_runtime_put_suppliers(struct device *dev) {}
 static inline void pm_runtime_new_link(struct device *dev) {}
-static inline void pm_runtime_drop_link(struct device *dev) {}
+static inline void pm_runtime_drop_link(struct device_link *link) {}
 
 #endif /* !CONFIG_PM */
 
@@ -479,7 +477,7 @@ static inline int pm_runtime_set_active(struct device *dev)
 }
 
 /**
- * pm_runtime_set_suspended - Set runtime PM status to "active".
+ * pm_runtime_set_suspended - Set runtime PM status to "suspended".
  * @dev: Target device.
  *
  * Set the runtime PM status of @dev to %RPM_SUSPENDED and ensure that

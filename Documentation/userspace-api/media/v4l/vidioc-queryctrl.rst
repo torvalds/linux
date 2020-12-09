@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_QUERYCTRL:
 
@@ -18,30 +12,28 @@ Name
 
 VIDIOC_QUERYCTRL - VIDIOC_QUERY_EXT_CTRL - VIDIOC_QUERYMENU - Enumerate controls and menu control items
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int VIDIOC_QUERYCTRL, struct v4l2_queryctrl *argp )
-    :name: VIDIOC_QUERYCTRL
+``int ioctl(int fd, int VIDIOC_QUERYCTRL, struct v4l2_queryctrl *argp)``
 
-.. c:function:: int ioctl( int fd, VIDIOC_QUERY_EXT_CTRL, struct v4l2_query_ext_ctrl *argp )
-    :name: VIDIOC_QUERY_EXT_CTRL
+.. c:macro:: VIDIOC_QUERY_EXT_CTRL
 
-.. c:function:: int ioctl( int fd, VIDIOC_QUERYMENU, struct v4l2_querymenu *argp )
-    :name: VIDIOC_QUERYMENU
+``int ioctl(int fd, VIDIOC_QUERY_EXT_CTRL, struct v4l2_query_ext_ctrl *argp)``
 
+.. c:macro:: VIDIOC_QUERYMENU
+
+``int ioctl(int fd, VIDIOC_QUERYMENU, struct v4l2_querymenu *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_queryctrl`, :c:type:`v4l2_query_ext_ctrl`
     or :c:type:`v4l2_querymenu` (depending on the ioctl).
-
 
 Description
 ===========
@@ -101,7 +93,6 @@ inclusive.
    this driver. Also note that the ``minimum`` value is not necessarily 0.
 
 See also the examples in :ref:`control`.
-
 
 .. tabularcolumns:: |p{1.2cm}|p{3.6cm}|p{12.7cm}|
 
@@ -179,7 +170,6 @@ See also the examples in :ref:`control`.
       - ``reserved``\ [2]
       - Reserved for future extensions. Drivers must set the array to
 	zero.
-
 
 
 .. tabularcolumns:: |p{1.2cm}|p{5.0cm}|p{11.3cm}|
@@ -282,7 +272,6 @@ See also the examples in :ref:`control`.
 	the array to zero.
 
 
-
 .. tabularcolumns:: |p{1.2cm}|p{1.0cm}|p{1.7cm}|p{13.0cm}|
 
 .. _v4l2-querymenu:
@@ -316,7 +305,6 @@ See also the examples in :ref:`control`.
       - ``reserved``
       - Reserved for future extensions. Drivers must set the array to
 	zero.
-
 
 
 .. tabularcolumns:: |p{5.8cm}|p{1.4cm}|p{1.0cm}|p{1.4cm}|p{6.9cm}|
@@ -588,7 +576,6 @@ See also the examples in :ref:`control`.
 	``V4L2_CTRL_FLAG_GRABBED`` flag when buffers are allocated or
 	streaming is in progress since most drivers do not support changing
 	the format in that case.
-
 
 Return Value
 ============

@@ -37,6 +37,7 @@ properties:
               - renesas,gpio-r8a774a1     # RZ/G2M
               - renesas,gpio-r8a774b1     # RZ/G2N
               - renesas,gpio-r8a774c0     # RZ/G2E
+              - renesas,gpio-r8a774e1     # RZ/G2H
               - renesas,gpio-r8a7795      # R-Car H3
               - renesas,gpio-r8a7796      # R-Car M3-W
               - renesas,gpio-r8a77961     # R-Car M3-W+

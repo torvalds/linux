@@ -48,5 +48,7 @@ void intel_read_infoframe(struct intel_encoder *encoder,
 			  union hdmi_infoframe *frame);
 bool intel_hdmi_limited_color_range(const struct intel_crtc_state *crtc_state,
 				    const struct drm_connector_state *conn_state);
+bool intel_hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state, int bpc,
+				    bool has_hdmi_sink, bool ycbcr420_output);
 
 #endif /* __INTEL_HDMI_H__ */

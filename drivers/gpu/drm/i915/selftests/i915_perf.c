@@ -307,7 +307,7 @@ static int live_noa_gpr(void *arg)
 	}
 
 	/* Poison the ce->vm so we detect writes not to the GGTT gt->scratch */
-	scratch = kmap(ce->vm->scratch[0].base.page);
+	scratch = kmap(__px_page(ce->vm->scratch[0]));
 	memset(scratch, POISON_FREE, PAGE_SIZE);
 
 	rq = intel_context_create_request(ce);
@@ -405,7 +405,7 @@ static int live_noa_gpr(void *arg)
 out_rq:
 	i915_request_put(rq);
 out_ce:
-	kunmap(ce->vm->scratch[0].base.page);
+	kunmap(__px_page(ce->vm->scratch[0]));
 	intel_context_put(ce);
 out:
 	stream_destroy(stream);

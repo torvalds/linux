@@ -584,7 +584,7 @@ u32 r8712_tkip_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 		else
 			stainfo = r8712_get_stainfo(&padapter->stapriv,
 				  &pattrib->ra[0]);
-		if (stainfo != NULL) {
+		if (stainfo) {
 			prwskey = &stainfo->x_UncstKey.skey[0];
 			for (curfragnum = 0; curfragnum < pattrib->nr_frags;
 			     curfragnum++) {
@@ -658,7 +658,7 @@ void r8712_tkip_decrypt(struct _adapter *padapter, u8 *precvframe)
 	if (prxattrib->encrypt == _TKIP_) {
 		stainfo = r8712_get_stainfo(&padapter->stapriv,
 					    &prxattrib->ta[0]);
-		if (stainfo != NULL) {
+		if (stainfo) {
 			iv = pframe + prxattrib->hdrlen;
 			payload = pframe + prxattrib->iv_len +
 				  prxattrib->hdrlen;
@@ -1155,7 +1155,7 @@ u32 r8712_aes_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 		else
 			stainfo = r8712_get_stainfo(&padapter->stapriv,
 				  &pattrib->ra[0]);
-		if (stainfo != NULL) {
+		if (stainfo) {
 			prwskey = &stainfo->x_UncstKey.skey[0];
 			for (curfragnum = 0; curfragnum < pattrib->nr_frags;
 			     curfragnum++) {
@@ -1357,7 +1357,7 @@ void r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
 	if (prxattrib->encrypt == _AES_) {
 		stainfo = r8712_get_stainfo(&padapter->stapriv,
 					    &prxattrib->ta[0]);
-		if (stainfo != NULL) {
+		if (stainfo) {
 			if (is_multicast_ether_addr(prxattrib->ra)) {
 				iv = pframe + prxattrib->hdrlen;
 				idx = iv[3];

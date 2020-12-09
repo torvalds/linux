@@ -70,7 +70,7 @@ static size_t xdr_skb_read_and_csum_bits(struct xdr_skb_reader *desc, void *to, 
 	if (len > desc->count)
 		len = desc->count;
 	pos = desc->offset;
-	csum2 = skb_copy_and_csum_bits(desc->skb, pos, to, len, 0);
+	csum2 = skb_copy_and_csum_bits(desc->skb, pos, to, len);
 	desc->csum = csum_block_add(desc->csum, csum2, pos);
 	desc->count -= len;
 	desc->offset += len;

@@ -126,7 +126,7 @@ struct mtk_aes_ctx {
 struct mtk_aes_ctr_ctx {
 	struct mtk_aes_base_ctx base;
 
-	u32	iv[AES_BLOCK_SIZE / sizeof(u32)];
+	__be32	iv[AES_BLOCK_SIZE / sizeof(u32)];
 	size_t offset;
 	struct scatterlist src[2];
 	struct scatterlist dst[2];
@@ -242,22 +242,6 @@ static inline void mtk_aes_restore_sg(const struct mtk_aes_dma *dma)
 	sg->length += dma->remainder;
 }
 
-static inline void mtk_aes_write_state_le(__le32 *dst, const u32 *src, u32 size)
-{
-	int i;
-
-	for (i = 0; i < SIZE_IN_WORDS(size); i++)
-		dst[i] = cpu_to_le32(src[i]);
-}
-
-static inline void mtk_aes_write_state_be(__be32 *dst, const u32 *src, u32 size)
-{
-	int i;
-
-	for (i = 0; i < SIZE_IN_WORDS(size); i++)
-		dst[i] = cpu_to_be32(src[i]);
-}
-
 static inline int mtk_aes_complete(struct mtk_cryp *cryp,
 				   struct mtk_aes_rec *aes,
 				   int err)
@@ -321,7 +305,7 @@ static int mtk_aes_xmit(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 
 	/* Prepare enough space for authenticated tag */
 	if (aes->flags & AES_FLAGS_GCM)
-		res->hdr += AES_BLOCK_SIZE;
+		le32_add_cpu(&res->hdr, AES_BLOCK_SIZE);
 
 	/*
 	 * Make sure that all changes to the DMA ring are done before we
@@ -449,10 +433,10 @@ static void mtk_aes_info_init(struct mtk_cryp *cryp, struct mtk_aes_rec *aes,
 		return;
 	}
 
-	mtk_aes_write_state_le(info->state + ctx->keylen, (void *)req->iv,
-			       AES_BLOCK_SIZE);
+	memcpy(info->state + ctx->keylen, req->iv, AES_BLOCK_SIZE);
 ctr:
-	info->tfm[0] += AES_TFM_SIZE(SIZE_IN_WORDS(AES_BLOCK_SIZE));
+	le32_add_cpu(&info->tfm[0],
+		     le32_to_cpu(AES_TFM_SIZE(SIZE_IN_WORDS(AES_BLOCK_SIZE))));
 	info->tfm[1] |= AES_TFM_FULL_IV;
 	info->cmd[cnt++] = AES_CMD2;
 ecb:
@@ -601,8 +585,7 @@ static int mtk_aes_ctr_transfer(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 	       scatterwalk_ffwd(cctx->dst, req->dst, cctx->offset));
 
 	/* Write IVs into transform state buffer. */
-	mtk_aes_write_state_le(ctx->info.state + ctx->keylen, cctx->iv,
-			       AES_BLOCK_SIZE);
+	memcpy(ctx->info.state + ctx->keylen, cctx->iv, AES_BLOCK_SIZE);
 
 	if (unlikely(fragmented)) {
 	/*
@@ -654,7 +637,7 @@ static int mtk_aes_setkey(struct crypto_skcipher *tfm,
 	}
 
 	ctx->keylen = SIZE_IN_WORDS(keylen);
-	mtk_aes_write_state_le(ctx->key, (const u32 *)key, keylen);
+	memcpy(ctx->key, key, keylen);
 
 	return 0;
 }
@@ -848,7 +831,7 @@ mtk_aes_gcm_ctx_cast(struct mtk_aes_base_ctx *ctx)
 static int mtk_aes_gcm_tag_verify(struct mtk_cryp *cryp,
 				  struct mtk_aes_rec *aes)
 {
-	u32 status = cryp->ring[aes->id]->res_prev->ct;
+	__le32 status = cryp->ring[aes->id]->res_prev->ct;
 
 	return mtk_aes_complete(cryp, aes, (status & AES_AUTH_TAG_ERR) ?
 				-EBADMSG : 0);
@@ -866,7 +849,7 @@ static void mtk_aes_gcm_info_init(struct mtk_cryp *cryp,
 	u32 ivsize = crypto_aead_ivsize(crypto_aead_reqtfm(req));
 	u32 cnt = 0;
 
-	ctx->ct_hdr = AES_CT_CTRL_HDR | len;
+	ctx->ct_hdr = AES_CT_CTRL_HDR | cpu_to_le32(len);
 
 	info->cmd[cnt++] = AES_GCM_CMD0 | cpu_to_le32(req->assoclen);
 	info->cmd[cnt++] = AES_GCM_CMD1 | cpu_to_le32(req->assoclen);
@@ -889,8 +872,8 @@ static void mtk_aes_gcm_info_init(struct mtk_cryp *cryp,
 	info->tfm[1] = AES_TFM_CTR_INIT | AES_TFM_IV_CTR_MODE | AES_TFM_3IV |
 		       AES_TFM_ENC_HASH;
 
-	mtk_aes_write_state_le(info->state + ctx->keylen + SIZE_IN_WORDS(
-			       AES_BLOCK_SIZE), (const u32 *)req->iv, ivsize);
+	memcpy(info->state + ctx->keylen + SIZE_IN_WORDS(AES_BLOCK_SIZE),
+	       req->iv, ivsize);
 }
 
 static int mtk_aes_gcm_dma(struct mtk_cryp *cryp, struct mtk_aes_rec *aes,
@@ -994,9 +977,13 @@ static int mtk_aes_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 			      u32 keylen)
 {
 	struct mtk_aes_base_ctx *ctx = crypto_aead_ctx(aead);
-	u8 hash[AES_BLOCK_SIZE] __aligned(4) = {};
+	union {
+		u32 x32[SIZE_IN_WORDS(AES_BLOCK_SIZE)];
+		u8 x8[AES_BLOCK_SIZE];
+	} hash = {};
 	struct crypto_aes_ctx aes_ctx;
 	int err;
+	int i;
 
 	switch (keylen) {
 	case AES_KEYSIZE_128:
@@ -1019,12 +1006,16 @@ static int mtk_aes_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 	if (err)
 		return err;
 
-	aes_encrypt(&aes_ctx, hash, hash);
+	aes_encrypt(&aes_ctx, hash.x8, hash.x8);
 	memzero_explicit(&aes_ctx, sizeof(aes_ctx));
 
-	mtk_aes_write_state_le(ctx->key, (const u32 *)key, keylen);
-	mtk_aes_write_state_be(ctx->key + ctx->keylen, (const u32 *)hash,
-			       AES_BLOCK_SIZE);
+	memcpy(ctx->key, key, keylen);
+
+	/* Why do we need to do this? */
+	for (i = 0; i < SIZE_IN_WORDS(AES_BLOCK_SIZE); i++)
+		hash.x32[i] = swab32(hash.x32[i]);
+
+	memcpy(ctx->key + ctx->keylen, &hash, AES_BLOCK_SIZE);
 
 	return 0;
 }

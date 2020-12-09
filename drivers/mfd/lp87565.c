@@ -27,6 +27,10 @@ static const struct mfd_cell lp87565_cells[] = {
 static const struct of_device_id of_lp87565_match_table[] = {
 	{ .compatible = "ti,lp87565", },
 	{
+		.compatible = "ti,lp87524-q1",
+		.data = (void *)LP87565_DEVICE_TYPE_LP87524_Q1,
+	},
+	{
 		.compatible = "ti,lp87565-q1",
 		.data = (void *)LP87565_DEVICE_TYPE_LP87565_Q1,
 	},

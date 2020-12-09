@@ -124,7 +124,7 @@ static int qedf_initiate_els(struct qedf_rport *fcport, unsigned int op,
 	task = qedf_get_task_mem(&qedf->tasks, xid);
 	qedf_init_mp_task(els_req, task, sqe);
 
-	/* Put timer on original I/O request */
+	/* Put timer on els request */
 	if (timer_msec)
 		qedf_cmd_timer_set(qedf, els_req, timer_msec);
 
@@ -143,9 +143,32 @@ void qedf_process_els_compl(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 	struct qedf_ioreq *els_req)
 {
 	struct fcoe_cqe_midpath_info *mp_info;
+	struct qedf_rport *fcport;
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "Entered with xid = 0x%x"
 		   " cmd_type = %d.\n", els_req->xid, els_req->cmd_type);
+
+	if ((els_req->event == QEDF_IOREQ_EV_ELS_FLUSH)
+		|| (els_req->event == QEDF_IOREQ_EV_CLEANUP_SUCCESS)
+		|| (els_req->event == QEDF_IOREQ_EV_CLEANUP_FAILED)) {
+		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_IO,
+			"ELS completion xid=0x%x after flush event=0x%x",
+			els_req->xid, els_req->event);
+		return;
+	}
+
+	fcport = els_req->fcport;
+
+	/* When flush is active,
+	 * let the cmds be completed from the cleanup context
+	 */
+	if (test_bit(QEDF_RPORT_IN_TARGET_RESET, &fcport->flags) ||
+		test_bit(QEDF_RPORT_IN_LUN_RESET, &fcport->flags)) {
+		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_IO,
+			"Dropping ELS completion xid=0x%x as fcport is flushing",
+			els_req->xid);
+		return;
+	}
 
 	clear_bit(QEDF_CMD_OUTSTANDING, &els_req->flags);
 
@@ -184,10 +207,6 @@ static void qedf_rrq_compl(struct qedf_els_cb_arg *cb_arg)
 			 "Original io_req is NULL, rrq_req = %p.\n", rrq_req);
 		goto out_free;
 	}
-
-	if (rrq_req->event != QEDF_IOREQ_EV_ELS_TMO &&
-	    rrq_req->event != QEDF_IOREQ_EV_ELS_ERR_DETECT)
-		cancel_delayed_work_sync(&orig_io_req->timeout_work);
 
 	refcount = kref_read(&orig_io_req->refcount);
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "rrq_compl: orig io = %p,"
@@ -883,6 +902,11 @@ static void qedf_rec_compl(struct qedf_els_cb_arg *cb_arg)
 	opcode = fc_frame_payload_op(fp);
 	if (opcode == ELS_LS_RJT) {
 		rjt = fc_frame_payload_get(fp, sizeof(*rjt));
+		if (!rjt) {
+			QEDF_ERR(&qedf->dbg_ctx, "payload get failed");
+			goto out_free_frame;
+		}
+
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS,
 		    "Received LS_RJT for REC: er_reason=0x%x, "
 		    "er_explan=0x%x.\n", rjt->er_reason, rjt->er_explan);

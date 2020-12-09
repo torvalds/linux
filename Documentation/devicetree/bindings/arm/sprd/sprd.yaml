@@ -30,4 +30,6 @@ properties:
               - sprd,sp9863a-1h10
           - const: sprd,sc9863a
 
+additionalProperties: true
+
 ...

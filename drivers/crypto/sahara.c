@@ -18,7 +18,7 @@
 #include <crypto/sha.h>
 
 #include <linux/clk.h>
-#include <linux/crypto.h>
+#include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>

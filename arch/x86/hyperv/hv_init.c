@@ -148,9 +148,9 @@ static inline bool hv_reenlightenment_available(void)
 	 * Check for required features and priviliges to make TSC frequency
 	 * change notifications work.
 	 */
-	return ms_hyperv.features & HV_X64_ACCESS_FREQUENCY_MSRS &&
+	return ms_hyperv.features & HV_ACCESS_FREQUENCY_MSRS &&
 		ms_hyperv.misc_features & HV_FEATURE_FREQUENCY_MSRS_AVAILABLE &&
-		ms_hyperv.features & HV_X64_ACCESS_REENLIGHTENMENT;
+		ms_hyperv.features & HV_ACCESS_REENLIGHTENMENT;
 }
 
 DEFINE_IDTENTRY_SYSVEC(sysvec_hyperv_reenlightenment)
@@ -330,8 +330,8 @@ void __init hyperv_init(void)
 		return;
 
 	/* Absolutely required MSRs */
-	required_msrs = HV_X64_MSR_HYPERCALL_AVAILABLE |
-		HV_X64_MSR_VP_INDEX_AVAILABLE;
+	required_msrs = HV_MSR_HYPERCALL_AVAILABLE |
+		HV_MSR_VP_INDEX_AVAILABLE;
 
 	if ((ms_hyperv.features & required_msrs) != required_msrs)
 		return;

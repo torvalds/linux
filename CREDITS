@@ -191,6 +191,10 @@ N: Krishna Balasubramanian
 E: balasub@cis.ohio-state.edu
 D: Wrote SYS V IPC (part of standard kernel since 0.99.10)
 
+B: Robert Baldyga
+E: r.baldyga@hackerion.com
+D: Samsung S3FWRN5 NCI NFC Controller
+
 N: Chris Ball
 E: chris@printf.net
 D: Former maintainer of the MMC/SD/SDIO subsystem.
@@ -1906,6 +1910,15 @@ S: 660 Harvard Ave. #7
 S: Santa Clara, CA 95051
 S: USA
 
+N: Kukjin Kim
+E: kgene@kernel.org
+D: Samsung S3C, S5P and Exynos ARM architectures
+
+N: Sangbeom Kim
+E: sbkim73@samsung.com
+D: Samsung SoC Audio (ASoC) drivers
+D: Samsung PMIC (RTC, regulators, MFD) drivers
+
 N: Russell King
 E: rmk@arm.linux.org.uk
 D: Linux/arm integrator, maintainer & hacker
@@ -1941,6 +1954,10 @@ D: Slackware and Debian, vote-taker for 2nd comp.os.linux reorganization
 S: Post Office Box 611311
 S: San Jose, California 95161-1311
 S: USA
+
+N: Hartmut Knaack
+E: knaack.h@gmx.de
+D: IIO subsystem and drivers
 
 N: Thorsten Knabe
 E: Thorsten Knabe <tek@rbg.informatik.tu-darmstadt.de>

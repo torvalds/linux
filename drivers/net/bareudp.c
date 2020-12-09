@@ -54,7 +54,6 @@ struct bareudp_dev {
 static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct metadata_dst *tun_dst = NULL;
-	struct pcpu_sw_netstats *stats;
 	struct bareudp_dev *bareudp;
 	unsigned short family;
 	unsigned int len;
@@ -160,13 +159,9 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	len = skb->len;
 	err = gro_cells_receive(&bareudp->gro_cells, skb);
-	if (likely(err == NET_RX_SUCCESS)) {
-		stats = this_cpu_ptr(bareudp->dev->tstats);
-		u64_stats_update_begin(&stats->syncp);
-		stats->rx_packets++;
-		stats->rx_bytes += len;
-		u64_stats_update_end(&stats->syncp);
-	}
+	if (likely(err == NET_RX_SUCCESS))
+		dev_sw_netstats_rx_add(bareudp->dev, len);
+
 	return 0;
 drop:
 	/* Consume bad packet */

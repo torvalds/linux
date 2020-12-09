@@ -68,7 +68,7 @@
 
 /* Colibri SPI */
 &ecspi1 {
-	cs-gpios = <&gpio3 26 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio3 26 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1 &pinctrl_ecspi1_cs>;
 };

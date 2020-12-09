@@ -1,12 +1,18 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config SND_SOC_QCOM
+menuconfig SND_SOC_QCOM
 	tristate "ASoC support for QCOM platforms"
 	depends on ARCH_QCOM || COMPILE_TEST
 	help
 	  Say Y or M if you want to add support to use audio devices
 	  in Qualcomm Technologies SOC-based platforms.
 
+if SND_SOC_QCOM
+
 config SND_SOC_LPASS_CPU
+	tristate
+	select REGMAP_MMIO
+
+config SND_SOC_LPASS_HDMI
 	tristate
 	select REGMAP_MMIO
 
@@ -24,9 +30,14 @@ config SND_SOC_LPASS_APQ8016
 	select SND_SOC_LPASS_CPU
 	select SND_SOC_LPASS_PLATFORM
 
+config SND_SOC_LPASS_SC7180
+	tristate
+	select SND_SOC_LPASS_CPU
+	select SND_SOC_LPASS_PLATFORM
+	select SND_SOC_LPASS_HDMI
+
 config SND_SOC_STORM
 	tristate "ASoC I2S support for Storm boards"
-	depends on SND_SOC_QCOM
 	select SND_SOC_LPASS_IPQ806X
 	select SND_SOC_MAX98357A
 	help
@@ -35,7 +46,6 @@ config SND_SOC_STORM
 
 config SND_SOC_APQ8016_SBC
 	tristate "SoC Audio support for APQ8016 SBC platforms"
-	depends on SND_SOC_QCOM
 	select SND_SOC_LPASS_APQ8016
 	select SND_SOC_QCOM_COMMON
 	help
@@ -58,6 +68,9 @@ config SND_SOC_QDSP6_AFE
 config SND_SOC_QDSP6_AFE_DAI
 	tristate
 
+config SND_SOC_QDSP6_AFE_CLOCKS
+	tristate
+
 config SND_SOC_QDSP6_ADM
 	tristate
 
@@ -74,10 +87,12 @@ config SND_SOC_QDSP6_ASM_DAI
 config SND_SOC_QDSP6
 	tristate "SoC ALSA audio driver for QDSP6"
 	depends on QCOM_APR
+	depends on COMMON_CLK
 	select SND_SOC_QDSP6_COMMON
 	select SND_SOC_QDSP6_CORE
 	select SND_SOC_QDSP6_AFE
 	select SND_SOC_QDSP6_AFE_DAI
+	select SND_SOC_QDSP6_AFE_CLOCKS
 	select SND_SOC_QDSP6_ADM
 	select SND_SOC_QDSP6_ROUTING
 	select SND_SOC_QDSP6_ASM
@@ -101,6 +116,7 @@ config SND_SOC_MSM8996
 config SND_SOC_SDM845
 	tristate "SoC Machine driver for SDM845 boards"
 	depends on QCOM_APR && I2C && SOUNDWIRE
+	depends on COMMON_CLK
 	select SND_SOC_QDSP6
 	select SND_SOC_QCOM_COMMON
 	select SND_SOC_RT5663
@@ -110,3 +126,5 @@ config SND_SOC_SDM845
 	  To add support for audio on Qualcomm Technologies Inc.
 	  SDM845 SoC-based systems.
 	  Say Y if you want to use audio device on this SoCs.
+
+endif #SND_SOC_QCOM

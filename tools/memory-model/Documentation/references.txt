@@ -120,7 +120,7 @@ o	Jade Alglave, Luc Maranget, and Michael Tautschnig. 2014. "Herding
 
 o	Jade Alglave, Patrick Cousot, and Luc Maranget. 2016. "Syntax and
 	semantics of the weak consistency model specification language
-	cat". CoRR abs/1608.07531 (2016). http://arxiv.org/abs/1608.07531
+	cat". CoRR abs/1608.07531 (2016). https://arxiv.org/abs/1608.07531
 
 
 Memory-model comparisons

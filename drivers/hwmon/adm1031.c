@@ -1022,8 +1022,9 @@ static void adm1031_init_client(struct i2c_client *client)
 	data->update_interval = update_intervals[i];
 }
 
-static int adm1031_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static const struct i2c_device_id adm1031_id[];
+
+static int adm1031_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -1035,7 +1036,7 @@ static int adm1031_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, data);
 	data->client = client;
-	data->chip_type = id->driver_data;
+	data->chip_type = i2c_match_id(adm1031_id, client)->driver_data;
 	mutex_init(&data->update_lock);
 
 	if (data->chip_type == adm1030)
@@ -1068,7 +1069,7 @@ static struct i2c_driver adm1031_driver = {
 	.driver = {
 		.name = "adm1031",
 	},
-	.probe		= adm1031_probe,
+	.probe_new	= adm1031_probe,
 	.id_table	= adm1031_id,
 	.detect		= adm1031_detect,
 	.address_list	= normal_i2c,

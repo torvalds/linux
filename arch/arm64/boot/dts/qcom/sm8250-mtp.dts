@@ -17,7 +17,7 @@
 	compatible = "qcom,sm8250-mtp";
 
 	aliases {
-		serial0 = &uart2;
+		serial0 = &uart12;
 	};
 
 	chosen {
@@ -358,7 +358,35 @@
 	firmware-name = "qcom/sm8250/cdsp.mbn";
 };
 
+&i2c1 {
+	status = "okay";
+	clock-frequency = <1000000>;
+
+	/* NQ NFC chip @28 */
+};
+
+&i2c13 {
+	status = "okay";
+
+	/* st,stmfts @ 49 */
+};
+
+&i2c15 {
+	status = "okay";
+
+	/* smb1390 @ 10 */
+	/* rtc6226 @ 64 */
+};
+
+&qupv3_id_0 {
+	status = "okay";
+};
+
 &qupv3_id_1 {
+	status = "okay";
+};
+
+&qupv3_id_2 {
 	status = "okay";
 };
 
@@ -371,7 +399,7 @@
 	gpio-reserved-ranges = <28 4>, <40 4>;
 };
 
-&uart2 {
+&uart12 {
 	status = "okay";
 };
 

@@ -299,8 +299,8 @@ static void fintek_process_rx_ir_data(struct fintek_dev *fintek)
 		case PARSE_IRDATA:
 			fintek->rem--;
 			rawir.pulse = ((sample & BUF_PULSE_BIT) != 0);
-			rawir.duration = US_TO_NS((sample & BUF_SAMPLE_MASK)
-					  * CIR_SAMPLE_PERIOD);
+			rawir.duration = (sample & BUF_SAMPLE_MASK)
+					  * CIR_SAMPLE_PERIOD;
 
 			fit_dbg("Storing %s with duration %d",
 				rawir.pulse ? "pulse" : "space",
@@ -524,9 +524,9 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 	rdev->dev.parent = &pdev->dev;
 	rdev->driver_name = FINTEK_DRIVER_NAME;
 	rdev->map_name = RC_MAP_RC6_MCE;
-	rdev->timeout = US_TO_NS(1000);
+	rdev->timeout = 1000;
 	/* rx resolution is hardwired to 50us atm, 1, 25, 100 also possible */
-	rdev->rx_resolution = US_TO_NS(CIR_SAMPLE_PERIOD);
+	rdev->rx_resolution = CIR_SAMPLE_PERIOD;
 
 	fintek->rdev = rdev;
 

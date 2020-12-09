@@ -324,7 +324,7 @@ EXPORT_SYMBOL(caam_jr_alloc);
 
 /**
  * caam_jr_free() - Free the Job Ring
- * @rdev     - points to the dev that identifies the Job ring to
+ * @rdev:      points to the dev that identifies the Job ring to
  *             be released.
  **/
 void caam_jr_free(struct device *rdev)
@@ -349,15 +349,15 @@ EXPORT_SYMBOL(caam_jr_free);
  *        of this request. This has the form:
  *        callback(struct device *dev, u32 *desc, u32 stat, void *arg)
  *        where:
- *        @dev:    contains the job ring device that processed this
+ *        dev:     contains the job ring device that processed this
  *                 response.
- *        @desc:   descriptor that initiated the request, same as
+ *        desc:    descriptor that initiated the request, same as
  *                 "desc" being argued to caam_jr_enqueue().
- *        @status: untranslated status received from CAAM. See the
+ *        status:  untranslated status received from CAAM. See the
  *                 reference manual for a detailed description of
  *                 error meaning, or see the JRSTA definitions in the
  *                 register header file
- *        @areq:   optional pointer to an argument passed with the
+ *        areq:    optional pointer to an argument passed with the
  *                 original request
  * @areq: optional pointer to a user argument for use at callback
  *        time.

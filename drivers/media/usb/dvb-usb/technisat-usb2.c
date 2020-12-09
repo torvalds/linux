@@ -656,14 +656,14 @@ unlock:
 	for (i = 1; i < ARRAY_SIZE(state->buf); i++) {
 		if (buf[i] == 0xff) {
 			ev.pulse = 0;
-			ev.duration = 888888*2;
+			ev.duration = 889 * 2;
 			ir_raw_event_store(d->rc_dev, &ev);
 			break;
 		}
 
 		ev.pulse = !ev.pulse;
 		ev.duration = (buf[i] * FIRMWARE_CLOCK_DIVISOR *
-			       FIRMWARE_CLOCK_TICK) / 1000;
+			       FIRMWARE_CLOCK_TICK) / (1000 * 1000);
 		ir_raw_event_store(d->rc_dev, &ev);
 	}
 

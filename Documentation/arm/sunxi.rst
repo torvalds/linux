@@ -108,7 +108,7 @@ SunXi family
 
         * Datasheet
 
-          http://dl.linux-sunxi.org/H3/Allwinner_H3_Datasheet_V1.0.pdf
+          https://linux-sunxi.org/images/4/4b/Allwinner_H3_Datasheet_V1.2.pdf
 
       - Allwinner R40 (sun8i)
 
@@ -148,3 +148,13 @@ SunXi family
         * User Manual
 
           http://dl.linux-sunxi.org/A64/Allwinner%20A64%20User%20Manual%20v1.0.pdf
+
+      - Allwinner H6
+
+	* Datasheet
+
+	  https://linux-sunxi.org/images/5/5c/Allwinner_H6_V200_Datasheet_V1.1.pdf
+
+	* User Manual
+
+	  https://linux-sunxi.org/images/4/46/Allwinner_H6_V200_User_Manual_V1.1.pdf

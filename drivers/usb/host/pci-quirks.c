@@ -16,8 +16,8 @@
 #include <linux/export.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
-
-#include <soc/bcm2835/raspberrypi-firmware.h>
+#include <linux/of.h>
+#include <linux/iopoll.h>
 
 #include "pci-quirks.h"
 #include "xhci-ext-caps.h"
@@ -1013,15 +1013,9 @@ static int handshake(void __iomem *ptr, u32 mask, u32 done,
 {
 	u32	result;
 
-	do {
-		result = readl(ptr);
-		result &= mask;
-		if (result == done)
-			return 0;
-		udelay(delay_usec);
-		wait_usec -= delay_usec;
-	} while (wait_usec > 0);
-	return -ETIMEDOUT;
+	return readl_poll_timeout_atomic(ptr, result,
+					 ((result & mask) == done),
+					 delay_usec, wait_usec);
 }
 
 /*
@@ -1247,7 +1241,8 @@ iounmap:
 
 static void quirk_usb_early_handoff(struct pci_dev *pdev)
 {
-	int ret;
+	struct device_node *parent;
+	bool is_rpi;
 
 	/* Skip Netlogic mips SoC's internal PCI USB controller.
 	 * This device does not need/support EHCI/OHCI handoff
@@ -1255,14 +1250,16 @@ static void quirk_usb_early_handoff(struct pci_dev *pdev)
 	if (pdev->vendor == 0x184e)	/* vendor Netlogic */
 		return;
 
+	/*
+	 * Bypass the Raspberry Pi 4 controller xHCI controller, things are
+	 * taken care of by the board's co-processor.
+	 */
 	if (pdev->vendor == PCI_VENDOR_ID_VIA && pdev->device == 0x3483) {
-		ret = rpi_firmware_init_vl805(pdev);
-		if (ret) {
-			/* Firmware might be outdated, or something failed */
-			dev_warn(&pdev->dev,
-				 "Failed to load VL805's firmware: %d. Will continue to attempt to work, but bad things might happen. You should fix this...\n",
-				 ret);
-		}
+		parent = of_get_parent(pdev->bus->dev.of_node);
+		is_rpi = of_device_is_compatible(parent, "brcm,bcm2711-pcie");
+		of_node_put(parent);
+		if (is_rpi)
+			return;
 	}
 
 	if (pdev->class != PCI_CLASS_SERIAL_USB_UHCI &&

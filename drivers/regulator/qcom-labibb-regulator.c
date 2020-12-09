@@ -44,16 +44,16 @@ struct labibb_regulator_data {
 	const char			*name;
 	u8				type;
 	u16				base;
-	struct regulator_desc		*desc;
+	const struct regulator_desc	*desc;
 };
 
-static struct regulator_ops qcom_labibb_ops = {
+static const struct regulator_ops qcom_labibb_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
 };
 
-static struct regulator_desc pmi8998_lab_desc = {
+static const struct regulator_desc pmi8998_lab_desc = {
 	.enable_mask		= LAB_ENABLE_CTL_MASK,
 	.enable_reg		= (PMI8998_LAB_REG_BASE + REG_LABIBB_ENABLE_CTL),
 	.enable_val		= LABIBB_CONTROL_ENABLE,
@@ -65,7 +65,7 @@ static struct regulator_desc pmi8998_lab_desc = {
 	.ops			= &qcom_labibb_ops,
 };
 
-static struct regulator_desc pmi8998_ibb_desc = {
+static const struct regulator_desc pmi8998_ibb_desc = {
 	.enable_mask		= IBB_ENABLE_CTL_MASK,
 	.enable_reg		= (PMI8998_IBB_REG_BASE + REG_LABIBB_ENABLE_CTL),
 	.enable_val		= LABIBB_CONTROL_ENABLE,

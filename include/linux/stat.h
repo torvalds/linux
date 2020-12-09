@@ -19,8 +19,6 @@
 #include <linux/time.h>
 #include <linux/uidgid.h>
 
-#define KSTAT_QUERY_FLAGS (AT_STATX_SYNC_TYPE)
-
 struct kstat {
 	u32		result_mask;	/* What fields the user got */
 	umode_t		mode;

@@ -182,9 +182,6 @@ in the order of reservations, but only after all previous records where
 already committed. It is thus possible for slow producers to temporarily hold
 off submitted records, that were reserved later.
 
-Reservation/commit/consumer protocol is verified by litmus tests in
-Documentation/litmus_tests/bpf-rb/_.
-
 One interesting implementation bit, that significantly simplifies (and thus
 speeds up as well) implementation of both producers and consumers is how data
 area is mapped twice contiguously back-to-back in the virtual memory. This
@@ -200,7 +197,7 @@ a self-pacing notifications of new data being availability.
 being available after commit only if consumer has already caught up right up to
 the record being committed. If not, consumer still has to catch up and thus
 will see new data anyways without needing an extra poll notification.
-Benchmarks (see tools/testing/selftests/bpf/benchs/bench_ringbuf.c_) show that
+Benchmarks (see tools/testing/selftests/bpf/benchs/bench_ringbufs.c) show that
 this allows to achieve a very high throughput without having to resort to
 tricks like "notify only every Nth sample", which are necessary with perf
 buffer. For extreme cases, when BPF program wants more manual control of

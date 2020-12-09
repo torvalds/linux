@@ -49,6 +49,8 @@ required:
   - "#interrupt-cells"
   - interrupt-controller
 
+additionalProperties: false
+
 examples:
   - |
     intc: interrupt-controller@10001000 {

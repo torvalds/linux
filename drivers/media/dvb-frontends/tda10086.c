@@ -17,7 +17,7 @@
 #include <media/dvb_frontend.h>
 #include "tda10086.h"
 
-#define SACLK 96000000
+#define SACLK 96000000U
 
 struct tda10086_state {
 	struct i2c_adapter* i2c;
@@ -297,34 +297,34 @@ static int tda10086_set_symbol_rate(struct tda10086_state *state,
 	dprintk ("%s %i\n", __func__, symbol_rate);
 
 	/* setup the decimation and anti-aliasing filters.. */
-	if (symbol_rate < (u32) (SACLK * 0.0137)) {
+	if (symbol_rate < SACLK / 10000 * 137) {
 		dfn=4;
 		afs=1;
-	} else if (symbol_rate < (u32) (SACLK * 0.0208)) {
+	} else if (symbol_rate < SACLK / 10000 * 208) {
 		dfn=4;
 		afs=0;
-	} else if (symbol_rate < (u32) (SACLK * 0.0270)) {
+	} else if (symbol_rate < SACLK / 10000 * 270) {
 		dfn=3;
 		afs=1;
-	} else if (symbol_rate < (u32) (SACLK * 0.0416)) {
+	} else if (symbol_rate < SACLK / 10000 * 416) {
 		dfn=3;
 		afs=0;
-	} else if (symbol_rate < (u32) (SACLK * 0.0550)) {
+	} else if (symbol_rate < SACLK / 10000 * 550) {
 		dfn=2;
 		afs=1;
-	} else if (symbol_rate < (u32) (SACLK * 0.0833)) {
+	} else if (symbol_rate < SACLK / 10000 * 833) {
 		dfn=2;
 		afs=0;
-	} else if (symbol_rate < (u32) (SACLK * 0.1100)) {
+	} else if (symbol_rate < SACLK / 10000 * 1100) {
 		dfn=1;
 		afs=1;
-	} else if (symbol_rate < (u32) (SACLK * 0.1666)) {
+	} else if (symbol_rate < SACLK / 10000 * 1666) {
 		dfn=1;
 		afs=0;
-	} else if (symbol_rate < (u32) (SACLK * 0.2200)) {
+	} else if (symbol_rate < SACLK / 10000 * 2200) {
 		dfn=0;
 		afs=1;
-	} else if (symbol_rate < (u32) (SACLK * 0.3333)) {
+	} else if (symbol_rate < SACLK / 10000 * 3333) {
 		dfn=0;
 		afs=0;
 	} else {

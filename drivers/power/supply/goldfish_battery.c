@@ -266,11 +266,13 @@ static const struct of_device_id goldfish_battery_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, goldfish_battery_of_match);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id goldfish_battery_acpi_match[] = {
 	{ "GFSH0001", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, goldfish_battery_acpi_match);
+#endif
 
 static struct platform_driver goldfish_battery_device = {
 	.probe		= goldfish_battery_probe,

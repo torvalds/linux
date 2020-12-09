@@ -65,7 +65,6 @@
 #include <linux/gfp.h>
 #include <linux/migrate.h>
 #include <linux/string.h>
-#include <linux/dma-debug.h>
 #include <linux/debugfs.h>
 #include <linux/userfaultfd_k.h>
 #include <linux/dax.h>
@@ -695,84 +694,181 @@ out:
  * covered by this vma.
  */
 
-static inline unsigned long
-copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+static unsigned long
+copy_nonpresent_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		pte_t *dst_pte, pte_t *src_pte, struct vm_area_struct *vma,
 		unsigned long addr, int *rss)
 {
 	unsigned long vm_flags = vma->vm_flags;
 	pte_t pte = *src_pte;
 	struct page *page;
+	swp_entry_t entry = pte_to_swp_entry(pte);
 
-	/* pte contains position in swap or file, so copy. */
-	if (unlikely(!pte_present(pte))) {
-		swp_entry_t entry = pte_to_swp_entry(pte);
+	if (likely(!non_swap_entry(entry))) {
+		if (swap_duplicate(entry) < 0)
+			return entry.val;
 
-		if (likely(!non_swap_entry(entry))) {
-			if (swap_duplicate(entry) < 0)
-				return entry.val;
-
-			/* make sure dst_mm is on swapoff's mmlist. */
-			if (unlikely(list_empty(&dst_mm->mmlist))) {
-				spin_lock(&mmlist_lock);
-				if (list_empty(&dst_mm->mmlist))
-					list_add(&dst_mm->mmlist,
-							&src_mm->mmlist);
-				spin_unlock(&mmlist_lock);
-			}
-			rss[MM_SWAPENTS]++;
-		} else if (is_migration_entry(entry)) {
-			page = migration_entry_to_page(entry);
-
-			rss[mm_counter(page)]++;
-
-			if (is_write_migration_entry(entry) &&
-					is_cow_mapping(vm_flags)) {
-				/*
-				 * COW mappings require pages in both
-				 * parent and child to be set to read.
-				 */
-				make_migration_entry_read(&entry);
-				pte = swp_entry_to_pte(entry);
-				if (pte_swp_soft_dirty(*src_pte))
-					pte = pte_swp_mksoft_dirty(pte);
-				if (pte_swp_uffd_wp(*src_pte))
-					pte = pte_swp_mkuffd_wp(pte);
-				set_pte_at(src_mm, addr, src_pte, pte);
-			}
-		} else if (is_device_private_entry(entry)) {
-			page = device_private_entry_to_page(entry);
-
-			/*
-			 * Update rss count even for unaddressable pages, as
-			 * they should treated just like normal pages in this
-			 * respect.
-			 *
-			 * We will likely want to have some new rss counters
-			 * for unaddressable pages, at some point. But for now
-			 * keep things as they are.
-			 */
-			get_page(page);
-			rss[mm_counter(page)]++;
-			page_dup_rmap(page, false);
-
-			/*
-			 * We do not preserve soft-dirty information, because so
-			 * far, checkpoint/restore is the only feature that
-			 * requires that. And checkpoint/restore does not work
-			 * when a device driver is involved (you cannot easily
-			 * save and restore device driver state).
-			 */
-			if (is_write_device_private_entry(entry) &&
-			    is_cow_mapping(vm_flags)) {
-				make_device_private_entry_read(&entry);
-				pte = swp_entry_to_pte(entry);
-				if (pte_swp_uffd_wp(*src_pte))
-					pte = pte_swp_mkuffd_wp(pte);
-				set_pte_at(src_mm, addr, src_pte, pte);
-			}
+		/* make sure dst_mm is on swapoff's mmlist. */
+		if (unlikely(list_empty(&dst_mm->mmlist))) {
+			spin_lock(&mmlist_lock);
+			if (list_empty(&dst_mm->mmlist))
+				list_add(&dst_mm->mmlist,
+						&src_mm->mmlist);
+			spin_unlock(&mmlist_lock);
 		}
-		goto out_set_pte;
+		rss[MM_SWAPENTS]++;
+	} else if (is_migration_entry(entry)) {
+		page = migration_entry_to_page(entry);
+
+		rss[mm_counter(page)]++;
+
+		if (is_write_migration_entry(entry) &&
+				is_cow_mapping(vm_flags)) {
+			/*
+			 * COW mappings require pages in both
+			 * parent and child to be set to read.
+			 */
+			make_migration_entry_read(&entry);
+			pte = swp_entry_to_pte(entry);
+			if (pte_swp_soft_dirty(*src_pte))
+				pte = pte_swp_mksoft_dirty(pte);
+			if (pte_swp_uffd_wp(*src_pte))
+				pte = pte_swp_mkuffd_wp(pte);
+			set_pte_at(src_mm, addr, src_pte, pte);
+		}
+	} else if (is_device_private_entry(entry)) {
+		page = device_private_entry_to_page(entry);
+
+		/*
+		 * Update rss count even for unaddressable pages, as
+		 * they should treated just like normal pages in this
+		 * respect.
+		 *
+		 * We will likely want to have some new rss counters
+		 * for unaddressable pages, at some point. But for now
+		 * keep things as they are.
+		 */
+		get_page(page);
+		rss[mm_counter(page)]++;
+		page_dup_rmap(page, false);
+
+		/*
+		 * We do not preserve soft-dirty information, because so
+		 * far, checkpoint/restore is the only feature that
+		 * requires that. And checkpoint/restore does not work
+		 * when a device driver is involved (you cannot easily
+		 * save and restore device driver state).
+		 */
+		if (is_write_device_private_entry(entry) &&
+		    is_cow_mapping(vm_flags)) {
+			make_device_private_entry_read(&entry);
+			pte = swp_entry_to_pte(entry);
+			if (pte_swp_uffd_wp(*src_pte))
+				pte = pte_swp_mkuffd_wp(pte);
+			set_pte_at(src_mm, addr, src_pte, pte);
+		}
+	}
+	set_pte_at(dst_mm, addr, dst_pte, pte);
+	return 0;
+}
+
+/*
+ * Copy a present and normal page if necessary.
+ *
+ * NOTE! The usual case is that this doesn't need to do
+ * anything, and can just return a positive value. That
+ * will let the caller know that it can just increase
+ * the page refcount and re-use the pte the traditional
+ * way.
+ *
+ * But _if_ we need to copy it because it needs to be
+ * pinned in the parent (and the child should get its own
+ * copy rather than just a reference to the same page),
+ * we'll do that here and return zero to let the caller
+ * know we're done.
+ *
+ * And if we need a pre-allocated page but don't yet have
+ * one, return a negative error to let the preallocation
+ * code know so that it can do so outside the page table
+ * lock.
+ */
+static inline int
+copy_present_page(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma,
+		  pte_t *dst_pte, pte_t *src_pte, unsigned long addr, int *rss,
+		  struct page **prealloc, pte_t pte, struct page *page)
+{
+	struct mm_struct *src_mm = src_vma->vm_mm;
+	struct page *new_page;
+
+	if (!is_cow_mapping(src_vma->vm_flags))
+		return 1;
+
+	/*
+	 * What we want to do is to check whether this page may
+	 * have been pinned by the parent process.  If so,
+	 * instead of wrprotect the pte on both sides, we copy
+	 * the page immediately so that we'll always guarantee
+	 * the pinned page won't be randomly replaced in the
+	 * future.
+	 *
+	 * The page pinning checks are just "has this mm ever
+	 * seen pinning", along with the (inexact) check of
+	 * the page count. That might give false positives for
+	 * for pinning, but it will work correctly.
+	 */
+	if (likely(!atomic_read(&src_mm->has_pinned)))
+		return 1;
+	if (likely(!page_maybe_dma_pinned(page)))
+		return 1;
+
+	new_page = *prealloc;
+	if (!new_page)
+		return -EAGAIN;
+
+	/*
+	 * We have a prealloc page, all good!  Take it
+	 * over and copy the page & arm it.
+	 */
+	*prealloc = NULL;
+	copy_user_highpage(new_page, page, addr, src_vma);
+	__SetPageUptodate(new_page);
+	page_add_new_anon_rmap(new_page, dst_vma, addr, false);
+	lru_cache_add_inactive_or_unevictable(new_page, dst_vma);
+	rss[mm_counter(new_page)]++;
+
+	/* All done, just insert the new page copy in the child */
+	pte = mk_pte(new_page, dst_vma->vm_page_prot);
+	pte = maybe_mkwrite(pte_mkdirty(pte), dst_vma);
+	set_pte_at(dst_vma->vm_mm, addr, dst_pte, pte);
+	return 0;
+}
+
+/*
+ * Copy one pte.  Returns 0 if succeeded, or -EAGAIN if one preallocated page
+ * is required to copy this pte.
+ */
+static inline int
+copy_present_pte(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma,
+		 pte_t *dst_pte, pte_t *src_pte, unsigned long addr, int *rss,
+		 struct page **prealloc)
+{
+	struct mm_struct *src_mm = src_vma->vm_mm;
+	unsigned long vm_flags = src_vma->vm_flags;
+	pte_t pte = *src_pte;
+	struct page *page;
+
+	page = vm_normal_page(src_vma, addr, pte);
+	if (page) {
+		int retval;
+
+		retval = copy_present_page(dst_vma, src_vma, dst_pte, src_pte,
+					   addr, rss, prealloc, pte, page);
+		if (retval <= 0)
+			return retval;
+
+		get_page(page);
+		page_dup_rmap(page, false);
+		rss[mm_counter(page)]++;
 	}
 
 	/*
@@ -800,35 +896,53 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	if (!(vm_flags & VM_UFFD_WP))
 		pte = pte_clear_uffd_wp(pte);
 
-	page = vm_normal_page(vma, addr, pte);
-	if (page) {
-		get_page(page);
-		page_dup_rmap(page, false);
-		rss[mm_counter(page)]++;
-	}
-
-out_set_pte:
-	set_pte_at(dst_mm, addr, dst_pte, pte);
+	set_pte_at(dst_vma->vm_mm, addr, dst_pte, pte);
 	return 0;
 }
 
-static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-		   pmd_t *dst_pmd, pmd_t *src_pmd, struct vm_area_struct *vma,
-		   unsigned long addr, unsigned long end)
+static inline struct page *
+page_copy_prealloc(struct mm_struct *src_mm, struct vm_area_struct *vma,
+		   unsigned long addr)
 {
+	struct page *new_page;
+
+	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, addr);
+	if (!new_page)
+		return NULL;
+
+	if (mem_cgroup_charge(new_page, src_mm, GFP_KERNEL)) {
+		put_page(new_page);
+		return NULL;
+	}
+	cgroup_throttle_swaprate(new_page, GFP_KERNEL);
+
+	return new_page;
+}
+
+static int
+copy_pte_range(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma,
+	       pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long addr,
+	       unsigned long end)
+{
+	struct mm_struct *dst_mm = dst_vma->vm_mm;
+	struct mm_struct *src_mm = src_vma->vm_mm;
 	pte_t *orig_src_pte, *orig_dst_pte;
 	pte_t *src_pte, *dst_pte;
 	spinlock_t *src_ptl, *dst_ptl;
-	int progress = 0;
+	int progress, ret = 0;
 	int rss[NR_MM_COUNTERS];
 	swp_entry_t entry = (swp_entry_t){0};
+	struct page *prealloc = NULL;
 
 again:
+	progress = 0;
 	init_rss_vec(rss);
 
 	dst_pte = pte_alloc_map_lock(dst_mm, dst_pmd, addr, &dst_ptl);
-	if (!dst_pte)
-		return -ENOMEM;
+	if (!dst_pte) {
+		ret = -ENOMEM;
+		goto out;
+	}
 	src_pte = pte_offset_map(src_pmd, addr);
 	src_ptl = pte_lockptr(src_mm, src_pmd);
 	spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
@@ -851,10 +965,34 @@ again:
 			progress++;
 			continue;
 		}
-		entry.val = copy_one_pte(dst_mm, src_mm, dst_pte, src_pte,
-							vma, addr, rss);
-		if (entry.val)
+		if (unlikely(!pte_present(*src_pte))) {
+			entry.val = copy_nonpresent_pte(dst_mm, src_mm,
+							dst_pte, src_pte,
+							src_vma, addr, rss);
+			if (entry.val)
+				break;
+			progress += 8;
+			continue;
+		}
+		/* copy_present_pte() will clear `*prealloc' if consumed */
+		ret = copy_present_pte(dst_vma, src_vma, dst_pte, src_pte,
+				       addr, rss, &prealloc);
+		/*
+		 * If we need a pre-allocated page for this pte, drop the
+		 * locks, allocate, and try again.
+		 */
+		if (unlikely(ret == -EAGAIN))
 			break;
+		if (unlikely(prealloc)) {
+			/*
+			 * pre-alloc page cannot be reused by next time so as
+			 * to strictly follow mempolicy (e.g., alloc_page_vma()
+			 * will allocate page according to address).  This
+			 * could only happen if one pinned pte changed.
+			 */
+			put_page(prealloc);
+			prealloc = NULL;
+		}
 		progress += 8;
 	} while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
 
@@ -866,19 +1004,34 @@ again:
 	cond_resched();
 
 	if (entry.val) {
-		if (add_swap_count_continuation(entry, GFP_KERNEL) < 0)
+		if (add_swap_count_continuation(entry, GFP_KERNEL) < 0) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		entry.val = 0;
+	} else if (ret) {
+		WARN_ON_ONCE(ret != -EAGAIN);
+		prealloc = page_copy_prealloc(src_mm, src_vma, addr);
+		if (!prealloc)
 			return -ENOMEM;
-		progress = 0;
+		/* We've captured and resolved the error. Reset, try again. */
+		ret = 0;
 	}
 	if (addr != end)
 		goto again;
-	return 0;
+out:
+	if (unlikely(prealloc))
+		put_page(prealloc);
+	return ret;
 }
 
-static inline int copy_pmd_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-		pud_t *dst_pud, pud_t *src_pud, struct vm_area_struct *vma,
-		unsigned long addr, unsigned long end)
+static inline int
+copy_pmd_range(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma,
+	       pud_t *dst_pud, pud_t *src_pud, unsigned long addr,
+	       unsigned long end)
 {
+	struct mm_struct *dst_mm = dst_vma->vm_mm;
+	struct mm_struct *src_mm = src_vma->vm_mm;
 	pmd_t *src_pmd, *dst_pmd;
 	unsigned long next;
 
@@ -891,9 +1044,9 @@ static inline int copy_pmd_range(struct mm_struct *dst_mm, struct mm_struct *src
 		if (is_swap_pmd(*src_pmd) || pmd_trans_huge(*src_pmd)
 			|| pmd_devmap(*src_pmd)) {
 			int err;
-			VM_BUG_ON_VMA(next-addr != HPAGE_PMD_SIZE, vma);
+			VM_BUG_ON_VMA(next-addr != HPAGE_PMD_SIZE, src_vma);
 			err = copy_huge_pmd(dst_mm, src_mm,
-					    dst_pmd, src_pmd, addr, vma);
+					    dst_pmd, src_pmd, addr, src_vma);
 			if (err == -ENOMEM)
 				return -ENOMEM;
 			if (!err)
@@ -902,17 +1055,20 @@ static inline int copy_pmd_range(struct mm_struct *dst_mm, struct mm_struct *src
 		}
 		if (pmd_none_or_clear_bad(src_pmd))
 			continue;
-		if (copy_pte_range(dst_mm, src_mm, dst_pmd, src_pmd,
-						vma, addr, next))
+		if (copy_pte_range(dst_vma, src_vma, dst_pmd, src_pmd,
+				   addr, next))
 			return -ENOMEM;
 	} while (dst_pmd++, src_pmd++, addr = next, addr != end);
 	return 0;
 }
 
-static inline int copy_pud_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-		p4d_t *dst_p4d, p4d_t *src_p4d, struct vm_area_struct *vma,
-		unsigned long addr, unsigned long end)
+static inline int
+copy_pud_range(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma,
+	       p4d_t *dst_p4d, p4d_t *src_p4d, unsigned long addr,
+	       unsigned long end)
 {
+	struct mm_struct *dst_mm = dst_vma->vm_mm;
+	struct mm_struct *src_mm = src_vma->vm_mm;
 	pud_t *src_pud, *dst_pud;
 	unsigned long next;
 
@@ -925,9 +1081,9 @@ static inline int copy_pud_range(struct mm_struct *dst_mm, struct mm_struct *src
 		if (pud_trans_huge(*src_pud) || pud_devmap(*src_pud)) {
 			int err;
 
-			VM_BUG_ON_VMA(next-addr != HPAGE_PUD_SIZE, vma);
+			VM_BUG_ON_VMA(next-addr != HPAGE_PUD_SIZE, src_vma);
 			err = copy_huge_pud(dst_mm, src_mm,
-					    dst_pud, src_pud, addr, vma);
+					    dst_pud, src_pud, addr, src_vma);
 			if (err == -ENOMEM)
 				return -ENOMEM;
 			if (!err)
@@ -936,17 +1092,19 @@ static inline int copy_pud_range(struct mm_struct *dst_mm, struct mm_struct *src
 		}
 		if (pud_none_or_clear_bad(src_pud))
 			continue;
-		if (copy_pmd_range(dst_mm, src_mm, dst_pud, src_pud,
-						vma, addr, next))
+		if (copy_pmd_range(dst_vma, src_vma, dst_pud, src_pud,
+				   addr, next))
 			return -ENOMEM;
 	} while (dst_pud++, src_pud++, addr = next, addr != end);
 	return 0;
 }
 
-static inline int copy_p4d_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-		pgd_t *dst_pgd, pgd_t *src_pgd, struct vm_area_struct *vma,
-		unsigned long addr, unsigned long end)
+static inline int
+copy_p4d_range(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma,
+	       pgd_t *dst_pgd, pgd_t *src_pgd, unsigned long addr,
+	       unsigned long end)
 {
+	struct mm_struct *dst_mm = dst_vma->vm_mm;
 	p4d_t *src_p4d, *dst_p4d;
 	unsigned long next;
 
@@ -958,20 +1116,22 @@ static inline int copy_p4d_range(struct mm_struct *dst_mm, struct mm_struct *src
 		next = p4d_addr_end(addr, end);
 		if (p4d_none_or_clear_bad(src_p4d))
 			continue;
-		if (copy_pud_range(dst_mm, src_mm, dst_p4d, src_p4d,
-						vma, addr, next))
+		if (copy_pud_range(dst_vma, src_vma, dst_p4d, src_p4d,
+				   addr, next))
 			return -ENOMEM;
 	} while (dst_p4d++, src_p4d++, addr = next, addr != end);
 	return 0;
 }
 
-int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-		struct vm_area_struct *vma)
+int
+copy_page_range(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma)
 {
 	pgd_t *src_pgd, *dst_pgd;
 	unsigned long next;
-	unsigned long addr = vma->vm_start;
-	unsigned long end = vma->vm_end;
+	unsigned long addr = src_vma->vm_start;
+	unsigned long end = src_vma->vm_end;
+	struct mm_struct *dst_mm = dst_vma->vm_mm;
+	struct mm_struct *src_mm = src_vma->vm_mm;
 	struct mmu_notifier_range range;
 	bool is_cow;
 	int ret;
@@ -982,19 +1142,19 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	 * readonly mappings. The tradeoff is that copy_page_range is more
 	 * efficient than faulting.
 	 */
-	if (!(vma->vm_flags & (VM_HUGETLB | VM_PFNMAP | VM_MIXEDMAP)) &&
-			!vma->anon_vma)
+	if (!(src_vma->vm_flags & (VM_HUGETLB | VM_PFNMAP | VM_MIXEDMAP)) &&
+	    !src_vma->anon_vma)
 		return 0;
 
-	if (is_vm_hugetlb_page(vma))
-		return copy_hugetlb_page_range(dst_mm, src_mm, vma);
+	if (is_vm_hugetlb_page(src_vma))
+		return copy_hugetlb_page_range(dst_mm, src_mm, src_vma);
 
-	if (unlikely(vma->vm_flags & VM_PFNMAP)) {
+	if (unlikely(src_vma->vm_flags & VM_PFNMAP)) {
 		/*
 		 * We do not free on error cases below as remove_vma
 		 * gets called on error from higher level routine
 		 */
-		ret = track_pfn_copy(vma);
+		ret = track_pfn_copy(src_vma);
 		if (ret)
 			return ret;
 	}
@@ -1005,11 +1165,11 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	 * parent mm. And a permission downgrade will only happen if
 	 * is_cow_mapping() returns true.
 	 */
-	is_cow = is_cow_mapping(vma->vm_flags);
+	is_cow = is_cow_mapping(src_vma->vm_flags);
 
 	if (is_cow) {
 		mmu_notifier_range_init(&range, MMU_NOTIFY_PROTECTION_PAGE,
-					0, vma, src_mm, addr, end);
+					0, src_vma, src_mm, addr, end);
 		mmu_notifier_invalidate_range_start(&range);
 	}
 
@@ -1020,8 +1180,8 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad(src_pgd))
 			continue;
-		if (unlikely(copy_p4d_range(dst_mm, src_mm, dst_pgd, src_pgd,
-					    vma, addr, next))) {
+		if (unlikely(copy_p4d_range(dst_vma, src_vma, dst_pgd, src_pgd,
+					    addr, next))) {
 			ret = -ENOMEM;
 			break;
 		}
@@ -2231,13 +2391,15 @@ static int apply_to_pte_range(struct mm_struct *mm, pmd_t *pmd,
 
 	arch_enter_lazy_mmu_mode();
 
-	do {
-		if (create || !pte_none(*pte)) {
-			err = fn(pte++, addr, data);
-			if (err)
-				break;
-		}
-	} while (addr += PAGE_SIZE, addr != end);
+	if (fn) {
+		do {
+			if (create || !pte_none(*pte)) {
+				err = fn(pte++, addr, data);
+				if (err)
+					break;
+			}
+		} while (addr += PAGE_SIZE, addr != end);
+	}
 	*mask |= PGTBL_PTE_MODIFIED;
 
 	arch_leave_lazy_mmu_mode();
@@ -2955,8 +3117,8 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 		 * page count reference, and the page is locked,
 		 * it's dark out, and we're wearing sunglasses. Hit it.
 		 */
-		wp_page_reuse(vmf);
 		unlock_page(page);
+		wp_page_reuse(vmf);
 		return VM_FAULT_WRITE;
 	} else if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
 					(VM_WRITE|VM_SHARED))) {
@@ -3433,7 +3595,7 @@ static vm_fault_t __do_fault(struct vm_fault *vmf)
 	 *				unlock_page(A)
 	 * lock_page(B)
 	 *				lock_page(B)
-	 * pte_alloc_pne
+	 * pte_alloc_one
 	 *   shrink_page_list
 	 *     wait_on_page_writeback(A)
 	 *				SetPageWriteback(B)
@@ -3441,7 +3603,7 @@ static vm_fault_t __do_fault(struct vm_fault *vmf)
 	 *				# flush A, B to clear the writeback
 	 */
 	if (pmd_none(*vmf->pmd) && !vmf->prealloc_pte) {
-		vmf->prealloc_pte = pte_alloc_one(vmf->vma->vm_mm);
+		vmf->prealloc_pte = pte_alloc_one(vma->vm_mm);
 		if (!vmf->prealloc_pte)
 			return VM_FAULT_OOM;
 		smp_wmb(); /* See comment in __pte_alloc() */
@@ -3549,13 +3711,14 @@ static vm_fault_t do_set_pmd(struct vm_fault *vmf, struct page *page)
 	unsigned long haddr = vmf->address & HPAGE_PMD_MASK;
 	pmd_t entry;
 	int i;
-	vm_fault_t ret;
+	vm_fault_t ret = VM_FAULT_FALLBACK;
 
 	if (!transhuge_vma_suitable(vma, haddr))
-		return VM_FAULT_FALLBACK;
+		return ret;
 
-	ret = VM_FAULT_FALLBACK;
 	page = compound_head(page);
+	if (compound_order(page) != HPAGE_PMD_ORDER)
+		return ret;
 
 	/*
 	 * Archs like ppc64 need additonal space to store information
@@ -3608,7 +3771,7 @@ static vm_fault_t do_set_pmd(struct vm_fault *vmf, struct page *page)
 
 /**
  * alloc_set_pte - setup new PTE entry for given page and add reverse page
- * mapping. If needed, the fucntion allocates page table or use pre-allocated.
+ * mapping. If needed, the function allocates page table or use pre-allocated.
  *
  * @vmf: fault environment
  * @page: page to map

@@ -12,6 +12,13 @@ Required properties:
  - pinctrl-0: phandle to pinctrl node
  - pinctrl-names: pinctrl state
 
+Optional properties:
+ - cfam-reset-gpios: GPIO for CFAM reset
+
+ - fsi-routing-gpios: GPIO for setting the FSI mux (internal or cabled)
+ - fsi-mux-gpios: GPIO for detecting the desired FSI mux state
+
+
 Examples:
 
     fsi-master {
@@ -21,4 +28,9 @@ Examples:
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fsi1_default>;
 	clocks = <&syscon ASPEED_CLK_GATE_FSICLK>;
+
+	fsi-routing-gpios = <&gpio0 ASPEED_GPIO(Q, 7) GPIO_ACTIVE_HIGH>;
+	fsi-mux-gpios = <&gpio0 ASPEED_GPIO(B, 0) GPIO_ACTIVE_HIGH>;
+
+	cfam-reset-gpios = <&gpio0 ASPEED_GPIO(Q, 0) GPIO_ACTIVE_LOW>;
     };

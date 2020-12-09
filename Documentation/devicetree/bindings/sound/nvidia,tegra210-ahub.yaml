@@ -67,6 +67,9 @@ required:
   - "#size-cells"
   - ranges
 
+additionalProperties:
+  type: object
+
 examples:
   - |
     #include<dt-bindings/clock/tegra210-car.h>

@@ -98,9 +98,25 @@ enum ast_tx_chip {
 #define AST_HWC_SIGNATURE_HOTSPOTX	0x14
 #define AST_HWC_SIGNATURE_HOTSPOTY	0x18
 
+struct ast_i2c_chan {
+	struct i2c_adapter adapter;
+	struct drm_device *dev;
+	struct i2c_algo_bit_data bit;
+};
+
+struct ast_connector {
+	struct drm_connector base;
+	struct ast_i2c_chan *i2c;
+};
+
+static inline struct ast_connector *
+to_ast_connector(struct drm_connector *connector)
+{
+	return container_of(connector, struct ast_connector, base);
+}
 
 struct ast_private {
-	struct drm_device *dev;
+	struct drm_device base;
 
 	void __iomem *regs;
 	void __iomem *ioregs;
@@ -119,9 +135,11 @@ struct ast_private {
 		unsigned int next_index;
 	} cursor;
 
-	struct drm_encoder encoder;
 	struct drm_plane primary_plane;
 	struct drm_plane cursor_plane;
+	struct drm_crtc crtc;
+	struct drm_encoder encoder;
+	struct ast_connector connector;
 
 	bool support_wide_screen;
 	enum {
@@ -138,11 +156,12 @@ struct ast_private {
 
 static inline struct ast_private *to_ast_private(struct drm_device *dev)
 {
-	return dev->dev_private;
+	return container_of(dev, struct ast_private, base);
 }
 
-int ast_driver_load(struct drm_device *dev, unsigned long flags);
-void ast_driver_unload(struct drm_device *dev);
+struct ast_private *ast_device_create(struct drm_driver *drv,
+				      struct pci_dev *pdev,
+				      unsigned long flags);
 
 #define AST_IO_AR_PORT_WRITE		(0x40)
 #define AST_IO_MISC_PORT_WRITE		(0x42)
@@ -157,6 +176,8 @@ void ast_driver_unload(struct drm_device *dev);
 #define AST_IO_MISC_PORT_READ		(0x4C)
 
 #define AST_IO_MM_OFFSET		(0x380)
+
+#define AST_IO_VGAIR1_VREFRESH		BIT(3)
 
 #define __ast_read(x) \
 static inline u##x ast_read##x(struct ast_private *ast, u32 reg) { \
@@ -226,19 +247,6 @@ static inline void ast_open_key(struct ast_private *ast)
 
 #define AST_VIDMEM_DEFAULT_SIZE AST_VIDMEM_SIZE_8M
 
-struct ast_i2c_chan {
-	struct i2c_adapter adapter;
-	struct drm_device *dev;
-	struct i2c_algo_bit_data bit;
-};
-
-struct ast_connector {
-	struct drm_connector base;
-	struct ast_i2c_chan *i2c;
-};
-
-#define to_ast_connector(x) container_of(x, struct ast_connector, base)
-
 struct ast_vbios_stdtable {
 	u8 misc;
 	u8 seq[4];
@@ -305,7 +313,6 @@ bool ast_backup_fw(struct drm_device *dev, u8 *addr, u32 size);
 bool ast_dp501_read_edid(struct drm_device *dev, u8 *ediddata);
 u8 ast_get_dp501_max_clk(struct drm_device *dev);
 void ast_init_3rdtx(struct drm_device *dev);
-void ast_release_firmware(struct drm_device *dev);
 
 /* ast_cursor.c */
 int ast_cursor_init(struct ast_private *ast);

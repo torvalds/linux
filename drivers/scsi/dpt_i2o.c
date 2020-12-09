@@ -408,9 +408,6 @@ static void adpt_inquiry(adpt_hba* pHba)
 static int adpt_slave_configure(struct scsi_device * device)
 {
 	struct Scsi_Host *host = device->host;
-	adpt_hba* pHba;
-
-	pHba = (adpt_hba *) host->hostdata[0];
 
 	if (host->can_queue && device->tagged_supported) {
 		scsi_change_queue_depth(device,

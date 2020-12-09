@@ -117,7 +117,6 @@ struct snd_card_asihpi {
 	 * snd_card_asihpi_timer_function().
 	 */
 	struct snd_card_asihpi_pcm *llmode_streampriv;
-	struct tasklet_struct t;
 	void (*pcm_start)(struct snd_pcm_substream *substream);
 	void (*pcm_stop)(struct snd_pcm_substream *substream);
 
@@ -256,15 +255,6 @@ static inline u16 hpi_stream_group_reset(u32 h_stream)
 		return hpi_outstream_group_reset(h_stream);
 	else
 		return hpi_instream_group_reset(h_stream);
-}
-
-static inline u16 hpi_stream_group_get_map(
-				u32 h_stream, u32 *mo, u32 *mi)
-{
-	if (hpi_handle_object(h_stream) ==  HPI_OBJ_OSTREAM)
-		return hpi_outstream_group_get_map(h_stream, mo, mi);
-	else
-		return hpi_instream_group_get_map(h_stream, mo, mi);
 }
 
 static u16 handle_error(u16 err, int line, char *filename)
@@ -547,9 +537,7 @@ static void snd_card_asihpi_pcm_int_start(struct snd_pcm_substream *substream)
 	card = snd_pcm_substream_chip(substream);
 
 	WARN_ON(in_interrupt());
-	tasklet_disable(&card->t);
 	card->llmode_streampriv = dpcm;
-	tasklet_enable(&card->t);
 
 	hpi_handle_error(hpi_adapter_set_property(card->hpi->adapter->index,
 		HPI_ADAPTER_PROPERTY_IRQ_RATE,
@@ -565,13 +553,7 @@ static void snd_card_asihpi_pcm_int_stop(struct snd_pcm_substream *substream)
 	hpi_handle_error(hpi_adapter_set_property(card->hpi->adapter->index,
 		HPI_ADAPTER_PROPERTY_IRQ_RATE, 0, 0));
 
-	if (in_interrupt())
-		card->llmode_streampriv = NULL;
-	else {
-		tasklet_disable(&card->t);
-		card->llmode_streampriv = NULL;
-		tasklet_enable(&card->t);
-	}
+	card->llmode_streampriv = NULL;
 }
 
 static int snd_card_asihpi_trigger(struct snd_pcm_substream *substream,
@@ -921,25 +903,15 @@ static void snd_card_asihpi_timer_function(struct timer_list *t)
 		add_timer(&dpcm->timer);
 }
 
-static void snd_card_asihpi_int_task(struct tasklet_struct *t)
-{
-	struct snd_card_asihpi *asihpi = from_tasklet(asihpi, t, t);
-	struct hpi_adapter *a = asihpi->hpi;
-
-	WARN_ON(!a || !a->snd_card || !a->snd_card->private_data);
-	asihpi = (struct snd_card_asihpi *)a->snd_card->private_data;
-	if (asihpi->llmode_streampriv)
-		snd_card_asihpi_timer_function(
-			&asihpi->llmode_streampriv->timer);
-}
-
 static void snd_card_asihpi_isr(struct hpi_adapter *a)
 {
 	struct snd_card_asihpi *asihpi;
 
 	WARN_ON(!a || !a->snd_card || !a->snd_card->private_data);
 	asihpi = (struct snd_card_asihpi *)a->snd_card->private_data;
-	tasklet_schedule(&asihpi->t);
+	if (asihpi->llmode_streampriv)
+		snd_card_asihpi_timer_function(
+			&asihpi->llmode_streampriv->timer);
 }
 
 /***************************** PLAYBACK OPS ****************/
@@ -2871,7 +2843,6 @@ static int snd_asihpi_probe(struct pci_dev *pci_dev,
 	if (hpi->interrupt_mode) {
 		asihpi->pcm_start = snd_card_asihpi_pcm_int_start;
 		asihpi->pcm_stop = snd_card_asihpi_pcm_int_stop;
-		tasklet_setup(&asihpi->t, snd_card_asihpi_int_task);
 		hpi->interrupt_callback = snd_card_asihpi_isr;
 	} else {
 		asihpi->pcm_start = snd_card_asihpi_pcm_timer_start;
@@ -2960,14 +2931,12 @@ __nodev:
 static void snd_asihpi_remove(struct pci_dev *pci_dev)
 {
 	struct hpi_adapter *hpi = pci_get_drvdata(pci_dev);
-	struct snd_card_asihpi *asihpi = hpi->snd_card->private_data;
 
 	/* Stop interrupts */
 	if (hpi->interrupt_mode) {
 		hpi->interrupt_callback = NULL;
 		hpi_handle_error(hpi_adapter_set_property(hpi->adapter->index,
 			HPI_ADAPTER_PROPERTY_IRQ_RATE, 0, 0));
-		tasklet_kill(&asihpi->t);
 	}
 
 	snd_card_free(hpi->snd_card);

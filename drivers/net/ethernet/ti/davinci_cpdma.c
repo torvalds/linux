@@ -718,7 +718,7 @@ static void cpdma_chan_set_descs(struct cpdma_ctlr *ctlr,
 		most_chan->desc_num += desc_cnt;
 }
 
-/**
+/*
  * cpdma_chan_split_pool - Splits ctrl pool between all channels.
  * Has to be called under ctlr lock
  */

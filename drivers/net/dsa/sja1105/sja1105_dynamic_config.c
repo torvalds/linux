@@ -97,10 +97,10 @@
 
 #define SJA1105_SIZE_DYN_CMD					4
 
-#define SJA1105ET_SJA1105_SIZE_VL_LOOKUP_DYN_CMD		\
+#define SJA1105ET_SIZE_VL_LOOKUP_DYN_CMD			\
 	SJA1105_SIZE_DYN_CMD
 
-#define SJA1105PQRS_SJA1105_SIZE_VL_LOOKUP_DYN_CMD		\
+#define SJA1105PQRS_SIZE_VL_LOOKUP_DYN_CMD			\
 	(SJA1105_SIZE_DYN_CMD + SJA1105_SIZE_VL_LOOKUP_ENTRY)
 
 #define SJA1105ET_SIZE_MAC_CONFIG_DYN_ENTRY			\
@@ -183,7 +183,7 @@ static size_t sja1105et_vl_lookup_entry_packing(void *buf, void *entry_ptr,
 						enum packing_op op)
 {
 	struct sja1105_vl_lookup_entry *entry = entry_ptr;
-	const int size = SJA1105ET_SJA1105_SIZE_VL_LOOKUP_DYN_CMD;
+	const int size = SJA1105ET_SIZE_VL_LOOKUP_DYN_CMD;
 
 	sja1105_packing(buf, &entry->egrmirr,  21, 17, size, op);
 	sja1105_packing(buf, &entry->ingrmirr, 16, 16, size, op);
@@ -644,7 +644,7 @@ const struct sja1105_dynamic_table_ops sja1105et_dyn_ops[BLK_IDX_MAX_DYN] = {
 		.cmd_packing = sja1105_vl_lookup_cmd_packing,
 		.access = OP_WRITE,
 		.max_entry_count = SJA1105_MAX_VL_LOOKUP_COUNT,
-		.packed_size = SJA1105ET_SJA1105_SIZE_VL_LOOKUP_DYN_CMD,
+		.packed_size = SJA1105ET_SIZE_VL_LOOKUP_DYN_CMD,
 		.addr = 0x35,
 	},
 	[BLK_IDX_L2_LOOKUP] = {
@@ -728,7 +728,7 @@ const struct sja1105_dynamic_table_ops sja1105pqrs_dyn_ops[BLK_IDX_MAX_DYN] = {
 		.cmd_packing = sja1105_vl_lookup_cmd_packing,
 		.access = (OP_READ | OP_WRITE),
 		.max_entry_count = SJA1105_MAX_VL_LOOKUP_COUNT,
-		.packed_size = SJA1105PQRS_SJA1105_SIZE_VL_LOOKUP_DYN_CMD,
+		.packed_size = SJA1105PQRS_SIZE_VL_LOOKUP_DYN_CMD,
 		.addr = 0x47,
 	},
 	[BLK_IDX_L2_LOOKUP] = {

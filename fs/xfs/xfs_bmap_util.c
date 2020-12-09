@@ -946,6 +946,14 @@ xfs_free_file_space(
 	startoffset_fsb = XFS_B_TO_FSB(mp, offset);
 	endoffset_fsb = XFS_B_TO_FSBT(mp, offset + len);
 
+	/* We can only free complete realtime extents. */
+	if (XFS_IS_REALTIME_INODE(ip) && mp->m_sb.sb_rextsize > 1) {
+		startoffset_fsb = roundup_64(startoffset_fsb,
+					     mp->m_sb.sb_rextsize);
+		endoffset_fsb = rounddown_64(endoffset_fsb,
+					     mp->m_sb.sb_rextsize);
+	}
+
 	/*
 	 * Need to zero the stuff we're not freeing, on disk.
 	 */

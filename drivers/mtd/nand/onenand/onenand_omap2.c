@@ -494,11 +494,8 @@ static int omap2_onenand_probe(struct platform_device *pdev)
 
 	c->int_gpiod = devm_gpiod_get_optional(dev, "int", GPIOD_IN);
 	if (IS_ERR(c->int_gpiod)) {
-		r = PTR_ERR(c->int_gpiod);
 		/* Just try again if this happens */
-		if (r != -EPROBE_DEFER)
-			dev_err(dev, "error getting gpio: %d\n", r);
-		return r;
+		return dev_err_probe(dev, PTR_ERR(c->int_gpiod), "error getting gpio\n");
 	}
 
 	if (c->int_gpiod) {
