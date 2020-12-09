@@ -794,6 +794,12 @@ static void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 		IWL_ERR(priv, "MPDU frame without cached PHY data\n");
 		return;
 	}
+
+	if (unlikely(pkt_len < sizeof(*amsdu))) {
+		IWL_DEBUG_DROP(priv, "Bad REPLY_RX_MPDU_CMD size\n");
+		return;
+	}
+
 	phy_res = &priv->last_phy_res;
 	amsdu = (struct iwl_rx_mpdu_res_start *)pkt->data;
 	header = (struct ieee80211_hdr *)(pkt->data + sizeof(*amsdu));

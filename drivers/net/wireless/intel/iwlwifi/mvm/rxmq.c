@@ -1574,16 +1574,15 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_rx_mpdu_desc *desc = (void *)pkt->data;
 	struct ieee80211_hdr *hdr;
-	u32 len = le16_to_cpu(desc->mpdu_len);
+	u32 len;
 	u32 pkt_len = iwl_rx_packet_payload_len(pkt);
 	u32 rate_n_flags, gp2_on_air_rise;
-	u16 phy_info = le16_to_cpu(desc->phy_info);
+	u16 phy_info;
 	struct ieee80211_sta *sta = NULL;
 	struct sk_buff *skb;
 	u8 crypt_len = 0, channel, energy_a, energy_b;
 	size_t desc_size;
 	struct iwl_mvm_rx_phy_data phy_data = {
-		.d4 = desc->phy_data4,
 		.info_type = IWL_RX_PHY_INFO_TYPE_NONE,
 	};
 	bool csi = false;
@@ -1591,13 +1590,22 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	if (unlikely(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)))
 		return;
 
+	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+		desc_size = sizeof(*desc);
+	else
+		desc_size = IWL_RX_DESC_SIZE_V1;
+
+	if (unlikely(pkt_len < desc_size)) {
+		IWL_DEBUG_DROP(mvm, "Bad REPLY_RX_MPDU_CMD size\n");
+		return;
+	}
+
 	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		rate_n_flags = le32_to_cpu(desc->v3.rate_n_flags);
 		channel = desc->v3.channel;
 		gp2_on_air_rise = le32_to_cpu(desc->v3.gp2_on_air_rise);
 		energy_a = desc->v3.energy_a;
 		energy_b = desc->v3.energy_b;
-		desc_size = sizeof(*desc);
 
 		phy_data.d0 = desc->v3.phy_data0;
 		phy_data.d1 = desc->v3.phy_data1;
@@ -1609,7 +1617,6 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		gp2_on_air_rise = le32_to_cpu(desc->v1.gp2_on_air_rise);
 		energy_a = desc->v1.energy_a;
 		energy_b = desc->v1.energy_b;
-		desc_size = IWL_RX_DESC_SIZE_V1;
 
 		phy_data.d0 = desc->v1.phy_data0;
 		phy_data.d1 = desc->v1.phy_data1;
@@ -1617,15 +1624,20 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		phy_data.d3 = desc->v1.phy_data3;
 	}
 
+	len = le16_to_cpu(desc->mpdu_len);
+
+	if (unlikely(len + desc_size > pkt_len)) {
+		IWL_DEBUG_DROP(mvm, "FW lied about packet len\n");
+		return;
+	}
+
+	phy_info = le16_to_cpu(desc->phy_info);
+	phy_data.d4 = desc->phy_data4;
+
 	if (phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD)
 		phy_data.info_type =
 			le32_get_bits(phy_data.d1,
 				      IWL_RX_PHY_DATA1_INFO_TYPE_MASK);
-
-	if (len + desc_size > pkt_len) {
-		IWL_DEBUG_DROP(mvm, "FW lied about packet len\n");
-		return;
-	}
 
 	hdr = (void *)(pkt->data + desc_size);
 	/* Dont use dev_alloc_skb(), we'll have enough headroom once
