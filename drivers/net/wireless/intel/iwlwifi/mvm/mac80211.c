@@ -5104,8 +5104,7 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 			   mvm->trans->num_rx_queues);
 	}
 
-	ret = iwl_mvm_notify_rx_queue(mvm, qmask, (u8 *)notif,
-				      size, !notif->sync);
+	ret = iwl_mvm_notify_rx_queue(mvm, qmask, notif, size, !notif->sync);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to trigger RX queues sync (%d)\n", ret);
 		goto out;

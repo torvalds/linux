@@ -510,26 +510,27 @@ static bool iwl_mvm_is_dup(struct ieee80211_sta *sta, int queue,
 }
 
 int iwl_mvm_notify_rx_queue(struct iwl_mvm *mvm, u32 rxq_mask,
-			    const u8 *data, u32 count, bool async)
+			    const struct iwl_mvm_internal_rxq_notif *notif,
+			    u32 notif_size, bool async)
 {
 	u8 buf[sizeof(struct iwl_rxq_sync_cmd) +
 	       sizeof(struct iwl_mvm_rss_sync_notif)];
 	struct iwl_rxq_sync_cmd *cmd = (void *)buf;
-	u32 data_size = sizeof(*cmd) + count;
+	u32 data_size = sizeof(*cmd) + notif_size;
 	int ret;
 
 	/*
 	 * size must be a multiple of DWORD
 	 * Ensure we don't overflow buf
 	 */
-	if (WARN_ON(count & 3 ||
-		    count > sizeof(struct iwl_mvm_rss_sync_notif)))
+	if (WARN_ON(notif_size & 3 ||
+		    notif_size > sizeof(struct iwl_mvm_rss_sync_notif)))
 		return -EINVAL;
 
 	cmd->rxq_mask = cpu_to_le32(rxq_mask);
-	cmd->count =  cpu_to_le32(count);
+	cmd->count =  cpu_to_le32(notif_size);
 	cmd->flags = 0;
-	memcpy(cmd->payload, data, count);
+	memcpy(cmd->payload, notif, notif_size);
 
 	ret = iwl_mvm_send_cmd_pdu(mvm,
 				   WIDE_ID(DATA_PATH_GROUP,
