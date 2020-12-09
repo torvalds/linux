@@ -217,6 +217,17 @@ wa_write_clr(struct i915_wa_list *wal, i915_reg_t reg, u32 clr)
 	wa_write_clr_set(wal, reg, clr, 0);
 }
 
+/*
+ * WA operations on "masked register". A masked register has the upper 16 bits
+ * documented as "masked" in b-spec. Its purpose is to allow writing to just a
+ * portion of the register without a rmw: you simply write in the upper 16 bits
+ * the mask of bits you are going to modify.
+ *
+ * The wa_masked_* family of functions already does the necessary operations to
+ * calculate the mask based on the parameters passed, so user only has to
+ * provide the lower 16 bits of that register.
+ */
+
 static void
 wa_masked_en(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
 {
