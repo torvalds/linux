@@ -95,6 +95,7 @@
   contig_page_data
   _copy_from_iter_full
   cpu_bit_bitmap
+  __cpuhp_remove_state
   __cpuhp_setup_state
   cpu_hwcap_keys
   cpu_hwcaps
@@ -102,6 +103,7 @@
   cpumask_next
   cpu_number
   __cpu_online_mask
+  cpu_pm_register_notifier
   __cpu_possible_mask
   cpus_read_lock
   cpus_read_unlock
@@ -2134,6 +2136,7 @@
 # required by qrtr.ko
   alloc_skb_with_frags
   datagram_poll
+  idr_alloc_u32
   in_egroup_p
   netlink_capable
   __radix_tree_insert
@@ -2300,6 +2303,8 @@
   ipv6_getsockopt
   ipv6_setsockopt
   kfree_call_rcu
+  memcg_sockets_enabled_key
+  memory_cgrp_subsys_on_dfl_key
   napi_busy_loop
   net_enable_timestamp
   nf_conntrack_destroy
@@ -2587,7 +2592,6 @@
   i2c_smbus_write_byte_data
 
 # required by watchdog_v2.ko
-  cpu_pm_register_notifier
   cpu_pm_unregister_notifier
   __cpu_present_mask
   disable_percpu_irq
@@ -2639,7 +2643,6 @@
   cfg80211_vendor_cmd_reply
   complete_and_exit
   cpufreq_quick_get_max
-  __cpuhp_remove_state
   cpu_topology
   crypto_aead_setauthsize
   crypto_aead_setkey
@@ -2717,7 +2720,6 @@
 
 # preserved by --additions-only
   crc32_le
-  get_next_event_cpu
   simple_strtoull
   vm_map_ram
   vm_unmap_ram
