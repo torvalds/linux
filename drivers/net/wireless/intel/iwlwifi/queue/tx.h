@@ -227,4 +227,11 @@ void iwl_txq_gen1_inval_byte_cnt_tbl(struct iwl_trans *trans,
 void iwl_txq_gen1_update_byte_cnt_tbl(struct iwl_trans *trans,
 				      struct iwl_txq *txq, u16 byte_cnt,
 				      int num_tbs);
+void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
+		     struct sk_buff_head *skbs);
+void iwl_txq_set_q_ptrs(struct iwl_trans *trans, int txq_id, int ptr);
+void iwl_trans_txq_freeze_timer(struct iwl_trans *trans, unsigned long txqs,
+				bool freeze);
+void iwl_txq_progress(struct iwl_txq *txq);
+void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq);
 #endif /* __iwl_trans_queue_tx_h__ */

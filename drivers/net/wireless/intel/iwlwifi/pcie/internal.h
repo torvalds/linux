@@ -551,9 +551,6 @@ void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans);
 int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 			    struct iwl_rx_cmd_buffer *rxb);
-void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
-			    struct sk_buff_head *skbs);
-void iwl_trans_pcie_set_q_ptrs(struct iwl_trans *trans, int txq_id, int ptr);
 void iwl_trans_pcie_tx_reset(struct iwl_trans *trans);
 
 /*****************************************************
@@ -839,7 +836,6 @@ void iwl_pcie_synchronize_irqs(struct iwl_trans *trans);
 bool iwl_pcie_check_hw_rf_kill(struct iwl_trans *trans);
 void iwl_trans_pcie_handle_stop_rfkill(struct iwl_trans *trans,
 				       bool was_in_rfkill);
-void iwl_pcie_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq);
 void iwl_pcie_apm_stop_master(struct iwl_trans *trans);
 void iwl_pcie_conf_msix_hw(struct iwl_trans_pcie *trans_pcie);
 int iwl_pcie_alloc_dma_ptr(struct iwl_trans *trans,

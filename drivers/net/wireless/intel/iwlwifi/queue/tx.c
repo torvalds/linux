@@ -1523,3 +1523,251 @@ void iwl_txq_gen1_inval_byte_cnt_tbl(struct iwl_trans *trans,
 		scd_bc_tbl[txq_id].tfd_offset[TFD_QUEUE_SIZE_MAX + read_ptr] =
 			bc_ent;
 }
+
+/*
+ * iwl_txq_free_tfd - Free all chunks referenced by TFD [txq->q.read_ptr]
+ * @trans - transport private data
+ * @txq - tx queue
+ * @dma_dir - the direction of the DMA mapping
+ *
+ * Does NOT advance any TFD circular buffer read/write indexes
+ * Does NOT free the TFD itself (which is within circular buffer)
+ */
+void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
+{
+	/* rd_ptr is bounded by TFD_QUEUE_SIZE_MAX and
+	 * idx is bounded by n_window
+	 */
+	int rd_ptr = txq->read_ptr;
+	int idx = iwl_txq_get_cmd_index(txq, rd_ptr);
+
+	lockdep_assert_held(&txq->lock);
+
+	/* We have only q->n_window txq->entries, but we use
+	 * TFD_QUEUE_SIZE_MAX tfds
+	 */
+	iwl_txq_gen1_tfd_unmap(trans, &txq->entries[idx].meta, txq, rd_ptr);
+
+	/* free SKB */
+	if (txq->entries) {
+		struct sk_buff *skb;
+
+		skb = txq->entries[idx].skb;
+
+		/* Can be called from irqs-disabled context
+		 * If skb is not NULL, it means that the whole queue is being
+		 * freed and that the queue is not empty - free the skb
+		 */
+		if (skb) {
+			iwl_op_mode_free_skb(trans->op_mode, skb);
+			txq->entries[idx].skb = NULL;
+		}
+	}
+}
+
+void iwl_txq_progress(struct iwl_txq *txq)
+{
+	lockdep_assert_held(&txq->lock);
+
+	if (!txq->wd_timeout)
+		return;
+
+	/*
+	 * station is asleep and we send data - that must
+	 * be uAPSD or PS-Poll. Don't rearm the timer.
+	 */
+	if (txq->frozen)
+		return;
+
+	/*
+	 * if empty delete timer, otherwise move timer forward
+	 * since we're making progress on this queue
+	 */
+	if (txq->read_ptr == txq->write_ptr)
+		del_timer(&txq->stuck_timer);
+	else
+		mod_timer(&txq->stuck_timer, jiffies + txq->wd_timeout);
+}
+
+/* Frees buffers until index _not_ inclusive */
+void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
+		     struct sk_buff_head *skbs)
+{
+	struct iwl_txq *txq = trans->txqs.txq[txq_id];
+	int tfd_num = iwl_txq_get_cmd_index(txq, ssn);
+	int read_ptr = iwl_txq_get_cmd_index(txq, txq->read_ptr);
+	int last_to_free;
+
+	/* This function is not meant to release cmd queue*/
+	if (WARN_ON(txq_id == trans->txqs.cmd.q_id))
+		return;
+
+	spin_lock_bh(&txq->lock);
+
+	if (!test_bit(txq_id, trans->txqs.queue_used)) {
+		IWL_DEBUG_TX_QUEUES(trans, "Q %d inactive - ignoring idx %d\n",
+				    txq_id, ssn);
+		goto out;
+	}
+
+	if (read_ptr == tfd_num)
+		goto out;
+
+	IWL_DEBUG_TX_REPLY(trans, "[Q %d] %d -> %d (%d)\n",
+			   txq_id, txq->read_ptr, tfd_num, ssn);
+
+	/*Since we free until index _not_ inclusive, the one before index is
+	 * the last we will free. This one must be used */
+	last_to_free = iwl_txq_dec_wrap(trans, tfd_num);
+
+	if (!iwl_txq_used(txq, last_to_free)) {
+		IWL_ERR(trans,
+			"%s: Read index for txq id (%d), last_to_free %d is out of range [0-%d] %d %d.\n",
+			__func__, txq_id, last_to_free,
+			trans->trans_cfg->base_params->max_tfd_queue_size,
+			txq->write_ptr, txq->read_ptr);
+		goto out;
+	}
+
+	if (WARN_ON(!skb_queue_empty(skbs)))
+		goto out;
+
+	for (;
+	     read_ptr != tfd_num;
+	     txq->read_ptr = iwl_txq_inc_wrap(trans, txq->read_ptr),
+	     read_ptr = iwl_txq_get_cmd_index(txq, txq->read_ptr)) {
+		struct sk_buff *skb = txq->entries[read_ptr].skb;
+
+		if (WARN_ON_ONCE(!skb))
+			continue;
+
+		iwl_txq_free_tso_page(trans, skb);
+
+		__skb_queue_tail(skbs, skb);
+
+		txq->entries[read_ptr].skb = NULL;
+
+		if (!trans->trans_cfg->use_tfh)
+			iwl_txq_gen1_inval_byte_cnt_tbl(trans, txq);
+
+		iwl_txq_free_tfd(trans, txq);
+	}
+
+	iwl_txq_progress(txq);
+
+	if (iwl_txq_space(trans, txq) > txq->low_mark &&
+	    test_bit(txq_id, trans->txqs.queue_stopped)) {
+		struct sk_buff_head overflow_skbs;
+
+		__skb_queue_head_init(&overflow_skbs);
+		skb_queue_splice_init(&txq->overflow_q, &overflow_skbs);
+
+		/*
+		 * We are going to transmit from the overflow queue.
+		 * Remember this state so that wait_for_txq_empty will know we
+		 * are adding more packets to the TFD queue. It cannot rely on
+		 * the state of &txq->overflow_q, as we just emptied it, but
+		 * haven't TXed the content yet.
+		 */
+		txq->overflow_tx = true;
+
+		/*
+		 * This is tricky: we are in reclaim path which is non
+		 * re-entrant, so noone will try to take the access the
+		 * txq data from that path. We stopped tx, so we can't
+		 * have tx as well. Bottom line, we can unlock and re-lock
+		 * later.
+		 */
+		spin_unlock_bh(&txq->lock);
+
+		while (!skb_queue_empty(&overflow_skbs)) {
+			struct sk_buff *skb = __skb_dequeue(&overflow_skbs);
+			struct iwl_device_tx_cmd *dev_cmd_ptr;
+
+			dev_cmd_ptr = *(void **)((u8 *)skb->cb +
+						 trans->txqs.dev_cmd_offs);
+
+			/*
+			 * Note that we can very well be overflowing again.
+			 * In that case, iwl_txq_space will be small again
+			 * and we won't wake mac80211's queue.
+			 */
+			iwl_trans_tx(trans, skb, dev_cmd_ptr, txq_id);
+		}
+
+		if (iwl_txq_space(trans, txq) > txq->low_mark)
+			iwl_wake_queue(trans, txq);
+
+		spin_lock_bh(&txq->lock);
+		txq->overflow_tx = false;
+	}
+
+out:
+	spin_unlock_bh(&txq->lock);
+}
+
+/* Set wr_ptr of specific device and txq  */
+void iwl_txq_set_q_ptrs(struct iwl_trans *trans, int txq_id, int ptr)
+{
+	struct iwl_txq *txq = trans->txqs.txq[txq_id];
+
+	spin_lock_bh(&txq->lock);
+
+	txq->write_ptr = ptr;
+	txq->read_ptr = txq->write_ptr;
+
+	spin_unlock_bh(&txq->lock);
+}
+
+void iwl_trans_txq_freeze_timer(struct iwl_trans *trans, unsigned long txqs,
+				bool freeze)
+{
+	int queue;
+
+	for_each_set_bit(queue, &txqs, BITS_PER_LONG) {
+		struct iwl_txq *txq = trans->txqs.txq[queue];
+		unsigned long now;
+
+		spin_lock_bh(&txq->lock);
+
+		now = jiffies;
+
+		if (txq->frozen == freeze)
+			goto next_queue;
+
+		IWL_DEBUG_TX_QUEUES(trans, "%s TXQ %d\n",
+				    freeze ? "Freezing" : "Waking", queue);
+
+		txq->frozen = freeze;
+
+		if (txq->read_ptr == txq->write_ptr)
+			goto next_queue;
+
+		if (freeze) {
+			if (unlikely(time_after(now,
+						txq->stuck_timer.expires))) {
+				/*
+				 * The timer should have fired, maybe it is
+				 * spinning right now on the lock.
+				 */
+				goto next_queue;
+			}
+			/* remember how long until the timer fires */
+			txq->frozen_expiry_remainder =
+				txq->stuck_timer.expires - now;
+			del_timer(&txq->stuck_timer);
+			goto next_queue;
+		}
+
+		/*
+		 * Wake a non-empty queue -> arm timer with the
+		 * remainder before it froze
+		 */
+		mod_timer(&txq->stuck_timer,
+			  now + txq->frozen_expiry_remainder);
+
+next_queue:
+		spin_unlock_bh(&txq->lock);
+	}
+}
+
