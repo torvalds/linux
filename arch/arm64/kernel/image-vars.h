@@ -77,9 +77,6 @@ KVM_NVHE_ALIAS(panic);
 /* Vectors installed by hyp-init on reset HVC. */
 KVM_NVHE_ALIAS(__hyp_stub_vectors);
 
-/* IDMAP TCR_EL1.T0SZ as computed by the EL1 init code */
-KVM_NVHE_ALIAS(idmap_t0sz);
-
 /* Kernel symbol used by icache_is_vpipt(). */
 KVM_NVHE_ALIAS(__icache_flags);
 
@@ -101,6 +98,9 @@ KVM_NVHE_ALIAS(gic_nonsecure_priorities);
 /* EL2 exception handling */
 KVM_NVHE_ALIAS(__start___kvm_ex_table);
 KVM_NVHE_ALIAS(__stop___kvm_ex_table);
+
+/* Array containing bases of nVHE per-CPU memory regions. */
+KVM_NVHE_ALIAS(kvm_arm_hyp_percpu_base);
 
 #endif /* CONFIG_KVM */
 
