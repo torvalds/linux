@@ -371,11 +371,9 @@ static inline bool bad_kuap_fault(struct pt_regs *regs, unsigned long address,
 	 * the AMR. Hence check for BLOCK_WRITE/READ against AMR.
 	 */
 	if (is_write) {
-		return WARN(((regs->amr & AMR_KUAP_BLOCK_WRITE) == AMR_KUAP_BLOCK_WRITE),
-			    "Bug: Write fault blocked by AMR!");
+		return (regs->amr & AMR_KUAP_BLOCK_WRITE) == AMR_KUAP_BLOCK_WRITE;
 	}
-	return WARN(((regs->amr & AMR_KUAP_BLOCK_READ) == AMR_KUAP_BLOCK_READ),
-		    "Bug: Read fault blocked by AMR!");
+	return (regs->amr & AMR_KUAP_BLOCK_READ) == AMR_KUAP_BLOCK_READ;
 }
 
 static __always_inline void allow_user_access(void __user *to, const void __user *from,
