@@ -15,6 +15,7 @@
 #include <linux/irq.h>
 #include <linux/irq_sim.h>
 #include <linux/irqdomain.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
@@ -460,9 +461,16 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id gpio_mockup_of_match[] = {
+	{ .compatible = "gpio-mockup", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, gpio_mockup_of_match);
+
 static struct platform_driver gpio_mockup_driver = {
 	.driver = {
 		.name = "gpio-mockup",
+		.of_match_table = gpio_mockup_of_match,
 	},
 	.probe = gpio_mockup_probe,
 };
@@ -556,8 +564,7 @@ static int __init gpio_mockup_init(void)
 {
 	int i, num_chips, err;
 
-	if ((gpio_mockup_num_ranges < 2) ||
-	    (gpio_mockup_num_ranges % 2) ||
+	if ((gpio_mockup_num_ranges % 2) ||
 	    (gpio_mockup_num_ranges > GPIO_MOCKUP_MAX_RANGES))
 		return -EINVAL;
 

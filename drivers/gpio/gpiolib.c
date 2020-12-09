@@ -772,9 +772,11 @@ err_free_ida:
 	ida_free(&gpio_ida, gdev->id);
 err_free_gdev:
 	/* failures here can mean systems won't boot... */
-	pr_err("%s: GPIOs %d..%d (%s) failed to register, %d\n", __func__,
-	       gdev->base, gdev->base + gdev->ngpio - 1,
-	       gc->label ? : "generic", ret);
+	if (ret != -EPROBE_DEFER) {
+		pr_err("%s: GPIOs %d..%d (%s) failed to register, %d\n", __func__,
+		       gdev->base, gdev->base + gdev->ngpio - 1,
+		       gc->label ? : "generic", ret);
+	}
 	kfree(gdev);
 	return ret;
 }
@@ -1828,11 +1830,9 @@ static int gpiod_request_commit(struct gpio_desc *desc, const char *label)
 
 	if (test_and_set_bit(FLAG_REQUESTED, &desc->flags) == 0) {
 		desc_set_label(desc, label ? : "?");
-		ret = 0;
 	} else {
-		kfree_const(label);
 		ret = -EBUSY;
-		goto done;
+		goto out_free_unlock;
 	}
 
 	if (gc->request) {
@@ -1845,11 +1845,10 @@ static int gpiod_request_commit(struct gpio_desc *desc, const char *label)
 			ret = -EINVAL;
 		spin_lock_irqsave(&gpio_lock, flags);
 
-		if (ret < 0) {
+		if (ret) {
 			desc_set_label(desc, NULL);
-			kfree_const(label);
 			clear_bit(FLAG_REQUESTED, &desc->flags);
-			goto done;
+			goto out_free_unlock;
 		}
 	}
 	if (gc->get_direction) {
@@ -1858,8 +1857,12 @@ static int gpiod_request_commit(struct gpio_desc *desc, const char *label)
 		gpiod_get_direction(desc);
 		spin_lock_irqsave(&gpio_lock, flags);
 	}
-done:
 	spin_unlock_irqrestore(&gpio_lock, flags);
+	return 0;
+
+out_free_unlock:
+	spin_unlock_irqrestore(&gpio_lock, flags);
+	kfree_const(label);
 	return ret;
 }
 
@@ -1911,7 +1914,7 @@ int gpiod_request(struct gpio_desc *desc, const char *label)
 
 	if (try_module_get(gdev->owner)) {
 		ret = gpiod_request_commit(desc, label);
-		if (ret < 0)
+		if (ret)
 			module_put(gdev->owner);
 		else
 			get_device(&gdev->dev);
@@ -3644,7 +3647,7 @@ struct gpio_desc *fwnode_gpiod_get_index(struct fwnode_handle *fwnode,
 
 		desc = fwnode_get_named_gpiod(fwnode, prop_name, index, flags,
 					      label);
-		if (!IS_ERR(desc) || (PTR_ERR(desc) != -ENOENT))
+		if (!gpiod_not_found(desc))
 			break;
 	}
 
@@ -3820,7 +3823,7 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 	 * Either we are not using DT or ACPI, or their lookup did not return
 	 * a result. In that case, use platform lookup as a fallback.
 	 */
-	if (!desc || desc == ERR_PTR(-ENOENT)) {
+	if (!desc || gpiod_not_found(desc)) {
 		dev_dbg(dev, "using lookup tables for GPIO lookup\n");
 		desc = gpiod_find(dev, con_id, idx, &lookupflags);
 	}
@@ -3835,7 +3838,7 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 	 * the device name as label
 	 */
 	ret = gpiod_request(desc, con_id ? con_id : devname);
-	if (ret < 0) {
+	if (ret) {
 		if (ret == -EBUSY && flags & GPIOD_FLAGS_BIT_NONEXCLUSIVE) {
 			/*
 			 * This happens when there are several consumers for
@@ -3955,10 +3958,8 @@ struct gpio_desc *__must_check gpiod_get_index_optional(struct device *dev,
 	struct gpio_desc *desc;
 
 	desc = gpiod_get_index(dev, con_id, index, flags);
-	if (IS_ERR(desc)) {
-		if (PTR_ERR(desc) == -ENOENT)
-			return NULL;
-	}
+	if (gpiod_not_found(desc))
+		return NULL;
 
 	return desc;
 }
@@ -4160,7 +4161,7 @@ struct gpio_descs *__must_check gpiod_get_array_optional(struct device *dev,
 	struct gpio_descs *descs;
 
 	descs = gpiod_get_array(dev, con_id, flags);
-	if (PTR_ERR(descs) == -ENOENT)
+	if (gpiod_not_found(descs))
 		return NULL;
 
 	return descs;

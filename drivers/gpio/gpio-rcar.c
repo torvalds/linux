@@ -32,6 +32,11 @@ struct gpio_rcar_bank_info {
 	u32 intmsk;
 };
 
+struct gpio_rcar_info {
+	bool has_outdtsel;
+	bool has_both_edge_trigger;
+};
+
 struct gpio_rcar_priv {
 	void __iomem *base;
 	spinlock_t lock;
@@ -40,24 +45,23 @@ struct gpio_rcar_priv {
 	struct irq_chip irq_chip;
 	unsigned int irq_parent;
 	atomic_t wakeup_path;
-	bool has_outdtsel;
-	bool has_both_edge_trigger;
+	struct gpio_rcar_info info;
 	struct gpio_rcar_bank_info bank_info;
 };
 
-#define IOINTSEL 0x00	/* General IO/Interrupt Switching Register */
-#define INOUTSEL 0x04	/* General Input/Output Switching Register */
-#define OUTDT 0x08	/* General Output Register */
-#define INDT 0x0c	/* General Input Register */
-#define INTDT 0x10	/* Interrupt Display Register */
-#define INTCLR 0x14	/* Interrupt Clear Register */
-#define INTMSK 0x18	/* Interrupt Mask Register */
-#define MSKCLR 0x1c	/* Interrupt Mask Clear Register */
-#define POSNEG 0x20	/* Positive/Negative Logic Select Register */
-#define EDGLEVEL 0x24	/* Edge/level Select Register */
-#define FILONOFF 0x28	/* Chattering Prevention On/Off Register */
-#define OUTDTSEL 0x40	/* Output Data Select Register */
-#define BOTHEDGE 0x4c	/* One Edge/Both Edge Select Register */
+#define IOINTSEL	0x00	/* General IO/Interrupt Switching Register */
+#define INOUTSEL	0x04	/* General Input/Output Switching Register */
+#define OUTDT		0x08	/* General Output Register */
+#define INDT		0x0c	/* General Input Register */
+#define INTDT		0x10	/* Interrupt Display Register */
+#define INTCLR		0x14	/* Interrupt Clear Register */
+#define INTMSK		0x18	/* Interrupt Mask Register */
+#define MSKCLR		0x1c	/* Interrupt Mask Clear Register */
+#define POSNEG		0x20	/* Positive/Negative Logic Select Register */
+#define EDGLEVEL	0x24	/* Edge/level Select Register */
+#define FILONOFF	0x28	/* Chattering Prevention On/Off Register */
+#define OUTDTSEL	0x40	/* Output Data Select Register */
+#define BOTHEDGE	0x4c	/* One Edge/Both Edge Select Register */
 
 #define RCAR_MAX_GPIO_PER_BANK		32
 
@@ -123,7 +127,7 @@ static void gpio_rcar_config_interrupt_input_mode(struct gpio_rcar_priv *p,
 	gpio_rcar_modify_bit(p, EDGLEVEL, hwirq, !level_trigger);
 
 	/* Select one edge or both edges in BOTHEDGE */
-	if (p->has_both_edge_trigger)
+	if (p->info.has_both_edge_trigger)
 		gpio_rcar_modify_bit(p, BOTHEDGE, hwirq, both);
 
 	/* Select "Interrupt Input Mode" in IOINTSEL */
@@ -162,7 +166,7 @@ static int gpio_rcar_irq_set_type(struct irq_data *d, unsigned int type)
 						      false);
 		break;
 	case IRQ_TYPE_EDGE_BOTH:
-		if (!p->has_both_edge_trigger)
+		if (!p->info.has_both_edge_trigger)
 			return -EINVAL;
 		gpio_rcar_config_interrupt_input_mode(p, hwirq, true, false,
 						      true);
@@ -238,7 +242,7 @@ static void gpio_rcar_config_general_input_output_mode(struct gpio_chip *chip,
 	gpio_rcar_modify_bit(p, INOUTSEL, gpio, output);
 
 	/* Select General Output Register to output data in OUTDTSEL */
-	if (p->has_outdtsel && output)
+	if (p->info.has_outdtsel && output)
 		gpio_rcar_modify_bit(p, OUTDTSEL, gpio, false);
 
 	spin_unlock_irqrestore(&p->lock, flags);
@@ -295,14 +299,44 @@ static int gpio_rcar_direction_input(struct gpio_chip *chip, unsigned offset)
 
 static int gpio_rcar_get(struct gpio_chip *chip, unsigned offset)
 {
+	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
 	u32 bit = BIT(offset);
 
 	/* testing on r8a7790 shows that INDT does not show correct pin state
 	 * when configured as output, so use OUTDT in case of output pins */
-	if (gpio_rcar_read(gpiochip_get_data(chip), INOUTSEL) & bit)
-		return !!(gpio_rcar_read(gpiochip_get_data(chip), OUTDT) & bit);
+	if (gpio_rcar_read(p, INOUTSEL) & bit)
+		return !!(gpio_rcar_read(p, OUTDT) & bit);
 	else
-		return !!(gpio_rcar_read(gpiochip_get_data(chip), INDT) & bit);
+		return !!(gpio_rcar_read(p, INDT) & bit);
+}
+
+static int gpio_rcar_get_multiple(struct gpio_chip *chip, unsigned long *mask,
+				  unsigned long *bits)
+{
+	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
+	u32 bankmask, outputs, m, val = 0;
+	unsigned long flags;
+
+	bankmask = mask[0] & GENMASK(chip->ngpio - 1, 0);
+	if (chip->valid_mask)
+		bankmask &= chip->valid_mask[0];
+
+	if (!bankmask)
+		return 0;
+
+	spin_lock_irqsave(&p->lock, flags);
+	outputs = gpio_rcar_read(p, INOUTSEL);
+	m = outputs & bankmask;
+	if (m)
+		val |= gpio_rcar_read(p, OUTDT) & m;
+
+	m = ~outputs & bankmask;
+	if (m)
+		val |= gpio_rcar_read(p, INDT) & m;
+	spin_unlock_irqrestore(&p->lock, flags);
+
+	bits[0] = val;
+	return 0;
 }
 
 static void gpio_rcar_set(struct gpio_chip *chip, unsigned offset, int value)
@@ -345,11 +379,6 @@ static int gpio_rcar_direction_output(struct gpio_chip *chip, unsigned offset,
 	gpio_rcar_config_general_input_output_mode(chip, offset, true);
 	return 0;
 }
-
-struct gpio_rcar_info {
-	bool has_outdtsel;
-	bool has_both_edge_trigger;
-};
 
 static const struct gpio_rcar_info gpio_rcar_info_gen1 = {
 	.has_outdtsel = false,
@@ -417,8 +446,7 @@ static int gpio_rcar_parse_dt(struct gpio_rcar_priv *p, unsigned int *npins)
 	int ret;
 
 	info = of_device_get_match_data(p->dev);
-	p->has_outdtsel = info->has_outdtsel;
-	p->has_both_edge_trigger = info->has_both_edge_trigger;
+	p->info = *info;
 
 	ret = of_parse_phandle_with_fixed_args(np, "gpio-ranges", 3, 0, &args);
 	*npins = ret == 0 ? args.args[2] : RCAR_MAX_GPIO_PER_BANK;
@@ -479,6 +507,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	gpio_chip->get_direction = gpio_rcar_get_direction;
 	gpio_chip->direction_input = gpio_rcar_direction_input;
 	gpio_chip->get = gpio_rcar_get;
+	gpio_chip->get_multiple = gpio_rcar_get_multiple;
 	gpio_chip->direction_output = gpio_rcar_direction_output;
 	gpio_chip->set = gpio_rcar_set;
 	gpio_chip->set_multiple = gpio_rcar_set_multiple;
@@ -552,7 +581,7 @@ static int gpio_rcar_suspend(struct device *dev)
 	p->bank_info.intmsk = gpio_rcar_read(p, INTMSK);
 	p->bank_info.posneg = gpio_rcar_read(p, POSNEG);
 	p->bank_info.edglevel = gpio_rcar_read(p, EDGLEVEL);
-	if (p->has_both_edge_trigger)
+	if (p->info.has_both_edge_trigger)
 		p->bank_info.bothedge = gpio_rcar_read(p, BOTHEDGE);
 
 	if (atomic_read(&p->wakeup_path))

@@ -256,6 +256,7 @@ config GPIO_EP93XX
 config GPIO_EXAR
 	tristate "Support for GPIO pins on XR17V352/354/358"
 	depends on SERIAL_8250_EXAR
+	select REGMAP_MMIO
 	help
 	  Selecting this option will enable handling of GPIO pins present
 	  on Exar XR17V352/354/358 chips.
@@ -1602,6 +1603,8 @@ config GPIO_VIPERBOARD
 
 endmenu
 
+menu "Virtual GPIO drivers"
+
 config GPIO_AGGREGATOR
 	tristate "GPIO Aggregator"
 	help
@@ -1624,5 +1627,7 @@ config GPIO_MOCKUP
 	  User could use it through the script in
 	  tools/testing/selftests/gpio/gpio-mockup.sh. Reference the usage in
 	  it.
+
+endmenu
 
 endif
