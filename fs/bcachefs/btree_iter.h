@@ -51,11 +51,17 @@ static inline int btree_iter_err(const struct btree_iter *iter)
 static inline struct btree_iter *
 __trans_next_iter(struct btree_trans *trans, unsigned idx)
 {
-	u64 l = trans->iters_linked >> idx;
+	u64 l;
+
+	if (idx == BTREE_ITER_MAX)
+		return NULL;
+
+	l = trans->iters_linked >> idx;
 	if (!l)
 		return NULL;
 
 	idx += __ffs64(l);
+	EBUG_ON(idx >= BTREE_ITER_MAX);
 	EBUG_ON(trans->iters[idx].idx != idx);
 	return &trans->iters[idx];
 }

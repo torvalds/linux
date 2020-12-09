@@ -2017,9 +2017,10 @@ static void btree_trans_iter_alloc_fail(struct btree_trans *trans)
 {
 
 	struct btree_iter *iter;
+	struct btree_insert_entry *i;
 
 	trans_for_each_iter(trans, iter)
-		pr_err("iter: btree %s pos %llu:%llu%s%s%s %ps",
+		printk(KERN_ERR "iter: btree %s pos %llu:%llu%s%s%s %ps\n",
 		       bch2_btree_ids[iter->btree_id],
 		       iter->pos.inode,
 		       iter->pos.offset,
@@ -2027,6 +2028,14 @@ static void btree_trans_iter_alloc_fail(struct btree_trans *trans)
 		       (trans->iters_touched & (1ULL << iter->idx)) ? " touched" : "",
 		       iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT ? " keep" : "",
 		       (void *) iter->ip_allocated);
+
+	trans_for_each_update(trans, i) {
+		char buf[300];
+
+		bch2_bkey_val_to_text(&PBUF(buf), trans->c, bkey_i_to_s_c(i->k));
+		printk(KERN_ERR "update: btree %s %s\n",
+		       bch2_btree_ids[i->iter->btree_id], buf);
+	}
 	panic("trans iter oveflow\n");
 }
 
