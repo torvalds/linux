@@ -5010,7 +5010,7 @@ static int hclge_init_fd_config(struct hclge_dev *hdev)
 	}
 
 	key_cfg = &hdev->fd_cfg.key_cfg[HCLGE_FD_STAGE_1];
-	key_cfg->key_sel = HCLGE_FD_KEY_BASE_ON_TUPLE,
+	key_cfg->key_sel = HCLGE_FD_KEY_BASE_ON_TUPLE;
 	key_cfg->inner_sipv6_word_en = LOW_2_WORDS;
 	key_cfg->inner_dipv6_word_en = LOW_2_WORDS;
 	key_cfg->outer_sipv6_word_en = 0;
