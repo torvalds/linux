@@ -4,12 +4,12 @@
 /include/ "zynq-zturn-common.dtsi"
 
 / {
-	model = "Zynq Z-Turn MYIR Board";
-	compatible = "myir,zynq-zturn", "xlnx,zynq-7000";
+	model = "Zynq Z-Turn MYIR Board V5";
+	compatible = "myir,zynq-zturn-v5", "xlnx,zynq-7000";
 };
 
 &gem0 {
 	ethernet_phy: ethernet-phy@0 {
-		reg = <0x0>;
+		reg = <0x3>;
 	};
 };
