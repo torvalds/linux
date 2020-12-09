@@ -1022,6 +1022,7 @@ static int ceph_sync_setxattr(struct inode *inode, const char *name,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_mds_request *req;
 	struct ceph_mds_client *mdsc = fsc->mdsc;
+	struct ceph_osd_client *osdc = &fsc->client->osdc;
 	struct ceph_pagelist *pagelist = NULL;
 	int op = CEPH_MDS_OP_SETXATTR;
 	int err;
@@ -1060,6 +1061,8 @@ static int ceph_sync_setxattr(struct inode *inode, const char *name,
 
 	if (op == CEPH_MDS_OP_SETXATTR) {
 		req->r_args.setxattr.flags = cpu_to_le32(flags);
+		req->r_args.setxattr.osdmap_epoch =
+			cpu_to_le32(osdc->osdmap->epoch);
 		req->r_pagelist = pagelist;
 		pagelist = NULL;
 	}
