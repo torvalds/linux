@@ -491,52 +491,6 @@ static void truncate_msg(u16 *text_len, u16 *trunc_msg_len)
 		*trunc_msg_len = 0;
 }
 
-/* insert record into the buffer, discard old ones, update heads */
-static int log_store(u32 caller_id, int facility, int level,
-		     enum log_flags flags, u64 ts_nsec,
-		     const struct dev_printk_info *dev_info,
-		     const char *text, u16 text_len)
-{
-	struct prb_reserved_entry e;
-	struct printk_record r;
-	u16 trunc_msg_len = 0;
-
-	prb_rec_init_wr(&r, text_len);
-
-	if (!prb_reserve(&e, prb, &r)) {
-		/* truncate the message if it is too long for empty buffer */
-		truncate_msg(&text_len, &trunc_msg_len);
-		prb_rec_init_wr(&r, text_len + trunc_msg_len);
-		/* survive when the log buffer is too small for trunc_msg */
-		if (!prb_reserve(&e, prb, &r))
-			return 0;
-	}
-
-	/* fill message */
-	memcpy(&r.text_buf[0], text, text_len);
-	if (trunc_msg_len)
-		memcpy(&r.text_buf[text_len], trunc_msg, trunc_msg_len);
-	r.info->text_len = text_len + trunc_msg_len;
-	r.info->facility = facility;
-	r.info->level = level & 7;
-	r.info->flags = flags & 0x1f;
-	if (ts_nsec > 0)
-		r.info->ts_nsec = ts_nsec;
-	else
-		r.info->ts_nsec = local_clock();
-	r.info->caller_id = caller_id;
-	if (dev_info)
-		memcpy(&r.info->dev_info, dev_info, sizeof(r.info->dev_info));
-
-	/* A message without a trailing newline can be continued. */
-	if (!(flags & LOG_NEWLINE))
-		prb_commit(&e);
-	else
-		prb_final_commit(&e);
-
-	return (text_len + trunc_msg_len);
-}
-
 int dmesg_restrict = IS_ENABLED(CONFIG_SECURITY_DMESG_RESTRICT);
 
 static int syslog_action_restricted(int type)
@@ -1907,44 +1861,28 @@ static inline u32 printk_caller_id(void)
 		0x80000000 + raw_smp_processor_id();
 }
 
-static size_t log_output(int facility, int level, enum log_flags lflags,
-			 const struct dev_printk_info *dev_info,
-			 char *text, size_t text_len)
-{
-	const u32 caller_id = printk_caller_id();
-
-	if (lflags & LOG_CONT) {
-		struct prb_reserved_entry e;
-		struct printk_record r;
-
-		prb_rec_init_wr(&r, text_len);
-		if (prb_reserve_in_last(&e, prb, &r, caller_id, LOG_LINE_MAX)) {
-			memcpy(&r.text_buf[r.info->text_len], text, text_len);
-			r.info->text_len += text_len;
-			if (lflags & LOG_NEWLINE) {
-				r.info->flags |= LOG_NEWLINE;
-				prb_final_commit(&e);
-			} else {
-				prb_commit(&e);
-			}
-			return text_len;
-		}
-	}
-
-	/* Store it in the record log */
-	return log_store(caller_id, facility, level, lflags, 0,
-			 dev_info, text, text_len);
-}
-
 /* Must be called under logbuf_lock. */
 int vprintk_store(int facility, int level,
 		  const struct dev_printk_info *dev_info,
 		  const char *fmt, va_list args)
 {
+	const u32 caller_id = printk_caller_id();
 	static char textbuf[LOG_LINE_MAX];
-	char *text = textbuf;
-	size_t text_len;
+	struct prb_reserved_entry e;
 	enum log_flags lflags = 0;
+	struct printk_record r;
+	u16 trunc_msg_len = 0;
+	char *text = textbuf;
+	u16 text_len;
+	u64 ts_nsec;
+
+	/*
+	 * Since the duration of printk() can vary depending on the message
+	 * and state of the ringbuffer, grab the timestamp now so that it is
+	 * close to the call of printk(). This provides a more deterministic
+	 * timestamp with respect to the caller.
+	 */
+	ts_nsec = local_clock();
 
 	/*
 	 * The printf needs to come first; we need the syslog
@@ -1983,7 +1921,58 @@ int vprintk_store(int facility, int level,
 	if (dev_info)
 		lflags |= LOG_NEWLINE;
 
-	return log_output(facility, level, lflags, dev_info, text, text_len);
+	if (lflags & LOG_CONT) {
+		prb_rec_init_wr(&r, text_len);
+		if (prb_reserve_in_last(&e, prb, &r, caller_id, LOG_LINE_MAX)) {
+			memcpy(&r.text_buf[r.info->text_len], text, text_len);
+			r.info->text_len += text_len;
+
+			if (lflags & LOG_NEWLINE) {
+				r.info->flags |= LOG_NEWLINE;
+				prb_final_commit(&e);
+			} else {
+				prb_commit(&e);
+			}
+
+			return text_len;
+		}
+	}
+
+	/*
+	 * Explicitly initialize the record before every prb_reserve() call.
+	 * prb_reserve_in_last() and prb_reserve() purposely invalidate the
+	 * structure when they fail.
+	 */
+	prb_rec_init_wr(&r, text_len);
+	if (!prb_reserve(&e, prb, &r)) {
+		/* truncate the message if it is too long for empty buffer */
+		truncate_msg(&text_len, &trunc_msg_len);
+
+		prb_rec_init_wr(&r, text_len + trunc_msg_len);
+		if (!prb_reserve(&e, prb, &r))
+			return 0;
+	}
+
+	/* fill message */
+	memcpy(&r.text_buf[0], text, text_len);
+	if (trunc_msg_len)
+		memcpy(&r.text_buf[text_len], trunc_msg, trunc_msg_len);
+	r.info->text_len = text_len + trunc_msg_len;
+	r.info->facility = facility;
+	r.info->level = level & 7;
+	r.info->flags = lflags & 0x1f;
+	r.info->ts_nsec = ts_nsec;
+	r.info->caller_id = caller_id;
+	if (dev_info)
+		memcpy(&r.info->dev_info, dev_info, sizeof(r.info->dev_info));
+
+	/* A message without a trailing newline can be continued. */
+	if (!(lflags & LOG_NEWLINE))
+		prb_commit(&e);
+	else
+		prb_final_commit(&e);
+
+	return (text_len + trunc_msg_len);
 }
 
 asmlinkage int vprintk_emit(int facility, int level,
