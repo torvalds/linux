@@ -2,11 +2,15 @@
 menu "TI OMAP/AM/DM/DRA Family"
 	depends on ARCH_MULTI_V6 || ARCH_MULTI_V7
 
+config OMAP_HWMOD
+	bool
+
 config ARCH_OMAP2
 	bool "TI OMAP2"
 	depends on ARCH_MULTI_V6
 	select ARCH_OMAP2PLUS
 	select CPU_V6
+	select OMAP_HWMOD
 	select SOC_HAS_OMAP2_SDRC
 
 config ARCH_OMAP3
@@ -14,6 +18,7 @@ config ARCH_OMAP3
 	depends on ARCH_MULTI_V7
 	select ARCH_OMAP2PLUS
 	select ARM_CPU_SUSPEND if PM
+	select OMAP_HWMOD
 	select OMAP_INTERCONNECT
 	select PM_OPP if PM
 	select PM if CPU_IDLE
@@ -30,6 +35,7 @@ config ARCH_OMAP4
 	select ARM_GIC
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
+	select OMAP_HWMOD
 	select OMAP_INTERCONNECT
 	select OMAP_INTERCONNECT_BARRIER
 	select PL310_ERRATA_588369 if CACHE_L2X0
@@ -49,6 +55,7 @@ config SOC_OMAP5
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_ARCH_TIMER
 	select ARM_ERRATA_798181 if SMP
+	select OMAP_HWMOD
 	select OMAP_INTERCONNECT
 	select OMAP_INTERCONNECT_BARRIER
 	select PM_OPP if PM
@@ -71,6 +78,7 @@ config SOC_AM43XX
 	select HAVE_ARM_TWD
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
+	select OMAP_HWMOD
 	select OMAP_INTERCONNECT
 	select ARM_CPU_SUSPEND if PM
 
@@ -84,6 +92,7 @@ config SOC_DRA7XX
 	select HAVE_ARM_ARCH_TIMER
 	select IRQ_CROSSBAR
 	select ARM_ERRATA_798181 if SMP
+	select OMAP_HWMOD
 	select OMAP_INTERCONNECT
 	select OMAP_INTERCONNECT_BARRIER
 	select PM_OPP if PM
