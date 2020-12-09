@@ -37,6 +37,7 @@
 
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_context.h"
+#include "gt/intel_execlists_submission.h"
 #include "gt/intel_ring.h"
 
 #include "i915_drv.h"

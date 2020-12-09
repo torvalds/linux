@@ -198,6 +198,7 @@
 #include "gem/i915_gem_context.h"
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_engine_user.h"
+#include "gt/intel_execlists_submission.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_lrc_reg.h"
 #include "gt/intel_ring.h"

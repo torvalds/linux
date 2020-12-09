@@ -79,7 +79,6 @@
 #include "gem/i915_gem_shrinker.h"
 #include "gem/i915_gem_stolen.h"
 
-#include "gt/intel_lrc.h"
 #include "gt/intel_engine.h"
 #include "gt/intel_gt_types.h"
 #include "gt/intel_workarounds.h"
