@@ -728,6 +728,9 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		 sizeof(mvm->hw->wiphy->fw_version),
 		 "%s", fw->fw_version);
 
+	trans_cfg.fw_reset_handshake = fw_has_capa(&mvm->fw->ucode_capa,
+						   IWL_UCODE_TLV_CAPA_FW_RESET_HANDSHAKE);
+
 	/* Configure transport layer */
 	iwl_trans_configure(mvm->trans, &trans_cfg);
 

@@ -406,6 +406,10 @@ struct iwl_trans_pcie {
 
 	void *base_rb_stts;
 	dma_addr_t base_rb_stts_dma;
+
+	bool fw_reset_handshake;
+	bool fw_reset_done;
+	wait_queue_head_t fw_reset_waitq;
 };
 
 static inline struct iwl_trans_pcie *

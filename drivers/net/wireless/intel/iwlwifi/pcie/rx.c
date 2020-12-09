@@ -2242,6 +2242,12 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 		iwl_pcie_irq_handle_error(trans);
 	}
 
+	if (inta_hw & MSIX_HW_INT_CAUSES_REG_RESET_DONE) {
+		IWL_DEBUG_ISR(trans, "Reset flow completed\n");
+		trans_pcie->fw_reset_done = true;
+		wake_up(&trans_pcie->fw_reset_waitq);
+	}
+
 	iwl_pcie_clear_irq(trans, entry);
 
 	lock_map_release(&trans->sync_cmd_lockdep_map);

@@ -380,6 +380,7 @@ struct iwl_hcmd_arr {
  * @command_groups_size: number of command groups, to avoid illegal access
  * @cb_data_offs: offset inside skb->cb to store transport data at, must have
  *	space for at least two pointers
+ * @fw_reset_handshake: firmware supports reset flow handshake
  */
 struct iwl_trans_config {
 	struct iwl_op_mode *op_mode;
@@ -397,6 +398,7 @@ struct iwl_trans_config {
 	int command_groups_size;
 
 	u8 cb_data_offs;
+	bool fw_reset_handshake;
 };
 
 struct iwl_trans_dump_data {

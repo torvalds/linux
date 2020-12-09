@@ -55,6 +55,7 @@
 /* Device NMI register and value for 9000 family and above hw's */
 #define UREG_NIC_SET_NMI_DRIVER 0x00a05c10
 #define UREG_NIC_SET_NMI_DRIVER_NMI_FROM_DRIVER BIT(24)
+#define UREG_NIC_SET_NMI_DRIVER_RESET_HANDSHAKE (BIT(24) | BIT(25))
 
 /* Shared registers (0x0..0x3ff, via target indirect or periphery */
 #define SHR_BASE	0x00a10000
@@ -399,6 +400,7 @@ enum {
 
 #define UREG_DOORBELL_TO_ISR6		0xA05C04
 #define UREG_DOORBELL_TO_ISR6_NMI_BIT	BIT(0)
+#define UREG_DOORBELL_TO_ISR6_RESET_HANDSHAKE (BIT(0) | BIT(1))
 #define UREG_DOORBELL_TO_ISR6_SUSPEND	BIT(18)
 #define UREG_DOORBELL_TO_ISR6_RESUME	BIT(19)
 #define UREG_DOORBELL_TO_ISR6_PNVM	BIT(20)
