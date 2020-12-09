@@ -196,7 +196,16 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		mpdu_dens = sta->ht_cap.ampdu_density;
 	}
 
+	if (mvm_sta->vif->bss_conf.chandef.chan->band == NL80211_BAND_6GHZ) {
+		add_sta_cmd.station_flags_msk |=
+			cpu_to_le32(STA_FLG_MAX_AGG_SIZE_MSK |
+				    STA_FLG_AGG_MPDU_DENS_MSK);
 
+		mpdu_dens = le16_get_bits(sta->he_6ghz_capa.capa,
+					  IEEE80211_HE_6GHZ_CAP_MIN_MPDU_START);
+		agg_size = le16_get_bits(sta->he_6ghz_capa.capa,
+				IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP);
+	} else
 	if (sta->vht_cap.vht_supported) {
 		agg_size = sta->vht_cap.cap &
 			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK;

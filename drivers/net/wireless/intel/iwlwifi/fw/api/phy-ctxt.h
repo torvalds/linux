@@ -66,6 +66,7 @@
 /* Supported bands */
 #define PHY_BAND_5  (0)
 #define PHY_BAND_24 (1)
+#define PHY_BAND_6 (2)
 
 /* Supported channel width, vary if there is VHT support */
 #define PHY_VHT_CHANNEL_MODE20	(0x0)

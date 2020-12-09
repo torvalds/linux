@@ -420,9 +420,21 @@ out:
 
 u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta)
 {
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	const struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
 	const struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 
+	if (mvmsta->vif->bss_conf.chandef.chan->band == NL80211_BAND_6GHZ) {
+		switch (le16_get_bits(sta->he_6ghz_capa.capa,
+				      IEEE80211_HE_6GHZ_CAP_MAX_MPDU_LEN)) {
+		case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454:
+			return IEEE80211_MAX_MPDU_LEN_VHT_11454;
+		case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991:
+			return IEEE80211_MAX_MPDU_LEN_VHT_7991;
+		default:
+			return IEEE80211_MAX_MPDU_LEN_VHT_3895;
+		}
+	} else
 	if (vht_cap->vht_supported) {
 		switch (vht_cap->cap & IEEE80211_VHT_CAP_MAX_MPDU_MASK) {
 		case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454:

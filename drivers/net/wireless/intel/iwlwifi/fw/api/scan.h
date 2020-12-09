@@ -530,6 +530,11 @@ enum iwl_channel_flags {
 	IWL_CHANNEL_FLAG_PRE_SCAN_PASSIVE2ACTIVE	= BIT(3),
 };
 
+enum iwl_uhb_chan_cfg_flags {
+	IWL_UHB_CHAN_CFG_FLAG_UNSOLICITED_PROBE_RES = BIT(24),
+	IWL_UHB_CHAN_CFG_FLAG_PSC_CHAN_NO_LISTEN    = BIT(25),
+	IWL_UHB_CHAN_CFG_FLAG_FORCE_PASSIVE         = BIT(26),
+};
 /**
  * struct iwl_scan_dwell
  * @active:		default dwell time for active scan

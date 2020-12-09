@@ -566,6 +566,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
 	hw->wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+	hw->wiphy->flags |= WIPHY_FLAG_SPLIT_SCAN_6GHZ;
 
 	hw->wiphy->iface_combinations = iwl_mvm_iface_combinations;
 	hw->wiphy->n_iface_combinations =
@@ -619,6 +620,11 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 			hw->wiphy->bands[NL80211_BAND_5GHZ]->vht_cap.cap |=
 				IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE;
 	}
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_PSC_CHAN_SUPPORT) &&
+	    mvm->nvm_data->bands[NL80211_BAND_6GHZ].n_channels)
+		hw->wiphy->bands[NL80211_BAND_6GHZ] =
+			&mvm->nvm_data->bands[NL80211_BAND_6GHZ];
 
 	hw->wiphy->hw_version = mvm->trans->hw_id;
 
