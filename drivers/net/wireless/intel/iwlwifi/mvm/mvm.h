@@ -1481,7 +1481,7 @@ int __iwl_mvm_mac_start(struct iwl_mvm *mvm);
  * MVM Methods
  ******************/
 /* uCode */
-int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm);
+int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm);
 
 /* Utils */
 int iwl_mvm_legacy_rate_to_mac80211_idx(u32 rate_n_flags,

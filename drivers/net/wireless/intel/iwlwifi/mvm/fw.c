@@ -647,7 +647,7 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 				    cmd_size, &phy_cfg_cmd);
 }
 
-int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
+int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm)
 {
 	struct iwl_notification_wait calib_wait;
 	static const u16 init_complete[] = {
@@ -684,7 +684,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	}
 
 	/* Read the NVM only at driver load time, no need to do this twice */
-	if (read_nvm) {
+	if (!mvm->nvm_data) {
 		ret = iwl_nvm_init(mvm);
 		if (ret) {
 			IWL_ERR(mvm, "Failed to read NVM: %d\n", ret);
@@ -1332,7 +1332,8 @@ static int iwl_mvm_load_rt_fw(struct iwl_mvm *mvm)
 	if (iwl_mvm_has_unified_ucode(mvm))
 		return iwl_run_unified_mvm_ucode(mvm, false);
 
-	ret = iwl_run_init_mvm_ucode(mvm, false);
+	WARN_ON(!mvm->nvm_data);
+	ret = iwl_run_init_mvm_ucode(mvm);
 
 	if (ret) {
 		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);

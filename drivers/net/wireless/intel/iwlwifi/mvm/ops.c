@@ -822,7 +822,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		goto out_free;
 
 	mutex_lock(&mvm->mutex);
-	err = iwl_run_init_mvm_ucode(mvm, true);
+	err = iwl_run_init_mvm_ucode(mvm);
 	if (err && err != -ERFKILL)
 		iwl_fw_dbg_error_collect(&mvm->fwrt, FW_DBG_TRIGGER_DRIVER);
 	if (!iwlmvm_mod_params.init_dbg || !err)
