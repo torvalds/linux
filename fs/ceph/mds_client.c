@@ -2636,10 +2636,12 @@ static void complete_request(struct ceph_mds_client *mdsc,
 /*
  * called under mdsc->mutex
  */
-static int __prepare_send_request(struct ceph_mds_client *mdsc,
+static int __prepare_send_request(struct ceph_mds_session *session,
 				  struct ceph_mds_request *req,
-				  int mds, bool drop_cap_releases)
+				  bool drop_cap_releases)
 {
+	int mds = session->s_mds;
+	struct ceph_mds_client *mdsc = session->s_mdsc;
 	struct ceph_mds_request_head *rhead;
 	struct ceph_msg *msg;
 	int flags = 0;
@@ -2723,15 +2725,13 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 /*
  * called under mdsc->mutex
  */
-static int __send_request(struct ceph_mds_client *mdsc,
-			  struct ceph_mds_session *session,
+static int __send_request(struct ceph_mds_session *session,
 			  struct ceph_mds_request *req,
 			  bool drop_cap_releases)
 {
 	int err;
 
-	err = __prepare_send_request(mdsc, req, session->s_mds,
-				     drop_cap_releases);
+	err = __prepare_send_request(session, req, drop_cap_releases);
 	if (!err) {
 		ceph_msg_get(req->r_request);
 		ceph_con_send(&session->s_con, req->r_request);
@@ -2858,7 +2858,7 @@ static void __do_request(struct ceph_mds_client *mdsc,
 	if (req->r_request_started == 0)   /* note request start time */
 		req->r_request_started = jiffies;
 
-	err = __send_request(mdsc, session, req, false);
+	err = __send_request(session, req, false);
 
 out_session:
 	ceph_put_mds_session(session);
@@ -3539,7 +3539,7 @@ static void replay_unsafe_requests(struct ceph_mds_client *mdsc,
 
 	mutex_lock(&mdsc->mutex);
 	list_for_each_entry_safe(req, nreq, &session->s_unsafe, r_unsafe_item)
-		__send_request(mdsc, session, req, true);
+		__send_request(session, req, true);
 
 	/*
 	 * also re-send old requests when MDS enters reconnect stage. So that MDS
@@ -3560,7 +3560,7 @@ static void replay_unsafe_requests(struct ceph_mds_client *mdsc,
 
 		ceph_mdsc_release_dir_caps_no_check(req);
 
-		__send_request(mdsc, session, req, true);
+		__send_request(session, req, true);
 	}
 	mutex_unlock(&mdsc->mutex);
 }
