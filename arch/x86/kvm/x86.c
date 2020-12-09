@@ -8987,7 +8987,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			static_call(kvm_x86_msr_filter_changed)(vcpu);
 	}
 
-	if (kvm_check_request(KVM_REQ_EVENT, vcpu) || req_int_win) {
+	if (kvm_check_request(KVM_REQ_EVENT, vcpu) || req_int_win ||
+	    kvm_xen_has_interrupt(vcpu)) {
 		++vcpu->stat.req_event;
 		kvm_apic_accept_events(vcpu);
 		if (vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED) {

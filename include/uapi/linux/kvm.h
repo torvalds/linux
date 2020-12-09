@@ -1596,6 +1596,7 @@ struct kvm_xen_hvm_attr {
 	__u16 pad[3];
 	union {
 		__u8 long_mode;
+		__u8 vector;
 		struct {
 			__u64 gfn;
 		} shared_info;
@@ -1605,6 +1606,7 @@ struct kvm_xen_hvm_attr {
 
 #define KVM_XEN_ATTR_TYPE_LONG_MODE		0x0
 #define KVM_XEN_ATTR_TYPE_SHARED_INFO		0x1
+#define KVM_XEN_ATTR_TYPE_UPCALL_VECTOR		0x2
 
 /* Per-vCPU Xen attributes */
 #define KVM_XEN_VCPU_GET_ATTR	_IOWR(KVMIO, 0xca, struct kvm_xen_vcpu_attr)

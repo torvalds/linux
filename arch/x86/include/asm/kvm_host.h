@@ -913,6 +913,7 @@ struct msr_bitmap_range {
 struct kvm_xen {
 	bool long_mode;
 	bool shinfo_set;
+	u8 upcall_vector;
 	struct gfn_to_hva_cache shinfo_cache;
 };
 

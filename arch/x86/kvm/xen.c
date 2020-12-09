@@ -61,6 +61,44 @@ out:
 	return ret;
 }
 
+int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
+{
+	u8 rc = 0;
+
+	/*
+	 * If the global upcall vector (HVMIRQ_callback_vector) is set and
+	 * the vCPU's evtchn_upcall_pending flag is set, the IRQ is pending.
+	 */
+	struct gfn_to_hva_cache *ghc = &v->arch.xen.vcpu_info_cache;
+	struct kvm_memslots *slots = kvm_memslots(v->kvm);
+	unsigned int offset = offsetof(struct vcpu_info, evtchn_upcall_pending);
+
+	/* No need for compat handling here */
+	BUILD_BUG_ON(offsetof(struct vcpu_info, evtchn_upcall_pending) !=
+		     offsetof(struct compat_vcpu_info, evtchn_upcall_pending));
+	BUILD_BUG_ON(sizeof(rc) !=
+		     sizeof(((struct vcpu_info *)0)->evtchn_upcall_pending));
+	BUILD_BUG_ON(sizeof(rc) !=
+		     sizeof(((struct compat_vcpu_info *)0)->evtchn_upcall_pending));
+
+	/*
+	 * For efficiency, this mirrors the checks for using the valid
+	 * cache in kvm_read_guest_offset_cached(), but just uses
+	 * __get_user() instead. And falls back to the slow path.
+	 */
+	if (likely(slots->generation == ghc->generation &&
+		   !kvm_is_error_hva(ghc->hva) && ghc->memslot)) {
+		/* Fast path */
+		__get_user(rc, (u8 __user *)ghc->hva + offset);
+	} else {
+		/* Slow path */
+		kvm_read_guest_offset_cached(v->kvm, ghc, &rc, offset,
+					     sizeof(rc));
+	}
+
+	return rc;
+}
+
 int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 {
 	int r = -ENOENT;
@@ -81,6 +119,16 @@ int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 
 	case KVM_XEN_ATTR_TYPE_SHARED_INFO:
 		r = kvm_xen_shared_info_init(kvm, data->u.shared_info.gfn);
+		break;
+
+
+	case KVM_XEN_ATTR_TYPE_UPCALL_VECTOR:
+		if (data->u.vector < 0x10)
+			r = -EINVAL;
+		else {
+			kvm->arch.xen.upcall_vector = data->u.vector;
+			r = 0;
+		}
 		break;
 
 	default:
@@ -108,6 +156,11 @@ int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 			data->u.shared_info.gfn = gpa_to_gfn(kvm->arch.xen.shinfo_cache.gpa);
 			r = 0;
 		}
+		break;
+
+	case KVM_XEN_ATTR_TYPE_UPCALL_VECTOR:
+		data->u.vector = kvm->arch.xen.upcall_vector;
+		r = 0;
 		break;
 
 	default:

@@ -13,6 +13,7 @@
 
 extern struct static_key_false_deferred kvm_xen_enabled;
 
+int __kvm_xen_has_interrupt(struct kvm_vcpu *vcpu);
 int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data);
 int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data);
 int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data);
@@ -29,6 +30,14 @@ static inline bool kvm_xen_hypercall_enabled(struct kvm *kvm)
 		 KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL);
 }
 
+static inline int kvm_xen_has_interrupt(struct kvm_vcpu *vcpu)
+{
+	if (static_branch_unlikely(&kvm_xen_enabled.key) &&
+	    vcpu->arch.xen.vcpu_info_set && vcpu->kvm->arch.xen.upcall_vector)
+		return __kvm_xen_has_interrupt(vcpu);
+
+	return 0;
+}
 
 /* 32-bit compatibility definitions, also used natively in 32-bit build */
 #include <asm/pvclock-abi.h>
