@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014 Intel Corporation
+ * Copyright (C) 2005-2014, 2020 Intel Corporation
  * Copyright (C) 2016 Intel Deutschland GmbH
  */
 #include <linux/slab.h>
@@ -147,12 +147,22 @@ IWL_EXPORT_SYMBOL(iwl_phy_db_free);
 int iwl_phy_db_set_section(struct iwl_phy_db *phy_db,
 			   struct iwl_rx_packet *pkt)
 {
+	unsigned int pkt_len = iwl_rx_packet_payload_len(pkt);
 	struct iwl_calib_res_notif_phy_db *phy_db_notif =
 			(struct iwl_calib_res_notif_phy_db *)pkt->data;
-	enum iwl_phy_db_section_type type = le16_to_cpu(phy_db_notif->type);
-	u16 size  = le16_to_cpu(phy_db_notif->length);
+	enum iwl_phy_db_section_type type;
+	u16 size;
 	struct iwl_phy_db_entry *entry;
 	u16 chg_id = 0;
+
+	if (pkt_len < sizeof(*phy_db_notif))
+		return -EINVAL;
+
+	type = le16_to_cpu(phy_db_notif->type);
+	size = le16_to_cpu(phy_db_notif->length);
+
+	if (pkt_len < sizeof(*phy_db_notif) + size)
+		return -EINVAL;
 
 	if (!phy_db)
 		return -EINVAL;

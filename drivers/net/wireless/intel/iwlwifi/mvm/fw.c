@@ -160,6 +160,7 @@ void iwl_mvm_mfu_assert_dump_notif(struct iwl_mvm *mvm,
 static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 			 struct iwl_rx_packet *pkt, void *data)
 {
+	unsigned int pkt_len = iwl_rx_packet_payload_len(pkt);
 	struct iwl_mvm *mvm =
 		container_of(notif_wait, struct iwl_mvm, notif_wait);
 	struct iwl_mvm_alive_data *alive_data = data;
@@ -176,6 +177,9 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	if (iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
 				    UCODE_ALIVE_NTFY, 0) == 5) {
 		struct iwl_alive_ntf_v5 *palive;
+
+		if (pkt_len < sizeof(*palive))
+			return false;
 
 		palive = (void *)pkt->data;
 		umac = &palive->umac_data;
@@ -194,6 +198,9 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	} else if (iwl_rx_packet_payload_len(pkt) == sizeof(struct iwl_alive_ntf_v4)) {
 		struct iwl_alive_ntf_v4 *palive;
 
+		if (pkt_len < sizeof(*palive))
+			return false;
+
 		palive = (void *)pkt->data;
 		umac = &palive->umac_data;
 		lmac1 = &palive->lmac_data[0];
@@ -202,6 +209,9 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	} else if (iwl_rx_packet_payload_len(pkt) ==
 		   sizeof(struct iwl_alive_ntf_v3)) {
 		struct iwl_alive_ntf_v3 *palive3;
+
+		if (pkt_len < sizeof(*palive3))
+			return false;
 
 		palive3 = (void *)pkt->data;
 		umac = &palive3->umac_data;
