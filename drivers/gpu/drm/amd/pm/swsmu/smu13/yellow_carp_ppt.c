@@ -149,9 +149,8 @@ static const struct pptable_funcs yellow_carp_ppt_funcs = {
 	.send_smc_msg = smu_cmn_send_smc_msg,
 	.set_default_dpm_table = smu_v13_0_1_set_default_dpm_tables,
 	.is_dpm_running = yellow_carp_is_dpm_running,
+	.get_enabled_mask = smu_cmn_get_enabled_32_bits_mask,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
-	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,
-	.disable_all_features_with_exception = smu_cmn_disable_all_features_with_exception,
 };
 
 void yellow_carp_set_ppt_funcs(struct smu_context *smu)
