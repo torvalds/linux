@@ -279,7 +279,7 @@ void iwl_force_nmi(struct iwl_trans *trans)
 			       DEVICE_SET_NMI_VAL_DRV);
 	else if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		iwl_write_umac_prph(trans, UREG_NIC_SET_NMI_DRIVER,
-				UREG_NIC_SET_NMI_DRIVER_NMI_FROM_DRIVER_MSK);
+				UREG_NIC_SET_NMI_DRIVER_NMI_FROM_DRIVER);
 	else
 		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
 				    UREG_DOORBELL_TO_ISR6_NMI_BIT);
