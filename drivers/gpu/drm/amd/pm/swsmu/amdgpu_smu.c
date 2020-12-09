@@ -1028,6 +1028,10 @@ static int smu_sw_init(void *handle)
 		return ret;
 	}
 
+	/* If there is no way to query fan control mode, fan control is not supported */
+	if (!smu->ppt_funcs->get_fan_control_mode)
+		smu->adev->pm.no_fan = true;
+
 	return 0;
 }
 
