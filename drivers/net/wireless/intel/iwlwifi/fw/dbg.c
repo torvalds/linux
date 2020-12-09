@@ -3067,7 +3067,7 @@ int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 			    struct iwl_fw_dbg_trigger_tlv *trigger,
 			    const char *fmt, ...)
 {
-	int ret, len = 0;
+	int len = 0;
 	char buf[64];
 
 	if (iwl_trans_dbg_ini_valid(fwrt->trans))
@@ -3089,13 +3089,8 @@ int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 		len = strlen(buf) + 1;
 	}
 
-	ret = iwl_fw_dbg_collect(fwrt, le32_to_cpu(trigger->id), buf, len,
-				 trigger);
-
-	if (ret)
-		return ret;
-
-	return 0;
+	return iwl_fw_dbg_collect(fwrt, le32_to_cpu(trigger->id), buf, len,
+				  trigger);
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect_trig);
 
