@@ -161,7 +161,10 @@ int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 	}
 
 	if (amdgpu_device_supports_atpx(dev) &&
-	    (amdgpu_runtime_pm != 0)) { /* enable runpm by default for boco */
+	    (amdgpu_runtime_pm != 0)) { /* enable runpm by default for atpx */
+		adev->runpm = true;
+	} else if (amdgpu_device_supports_boco(dev) &&
+		   (amdgpu_runtime_pm != 0)) { /* enable runpm by default for boco */
 		adev->runpm = true;
 	} else if (amdgpu_device_supports_baco(dev) &&
 		   (amdgpu_runtime_pm != 0)) {
