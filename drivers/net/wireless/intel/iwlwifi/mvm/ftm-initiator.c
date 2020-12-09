@@ -977,9 +977,44 @@ iwl_mvm_ftm_pasn_update_pn(struct iwl_mvm *mvm,
 	}
 }
 
+static u8 iwl_mvm_ftm_get_range_resp_ver(struct iwl_mvm *mvm)
+{
+	if (!fw_has_api(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_API_FTM_NEW_RANGE_REQ))
+		return 5;
+
+	/* Starting from version 8, the FW advertises the version */
+	if (mvm->cmd_ver.range_resp >= 8)
+		return mvm->cmd_ver.range_resp;
+	else if (fw_has_api(&mvm->fw->ucode_capa,
+			    IWL_UCODE_TLV_API_FTM_RTT_ACCURACY))
+		return 7;
+
+	/* The first version of the new range request API */
+	return 6;
+}
+
+static bool iwl_mvm_ftm_resp_size_validation(u8 ver, unsigned int pkt_len)
+{
+	switch (ver) {
+	case 8:
+		return pkt_len == sizeof(struct iwl_tof_range_rsp_ntfy_v8);
+	case 7:
+		return pkt_len == sizeof(struct iwl_tof_range_rsp_ntfy_v7);
+	case 6:
+		return pkt_len == sizeof(struct iwl_tof_range_rsp_ntfy_v6);
+	case 5:
+		return pkt_len == sizeof(struct iwl_tof_range_rsp_ntfy_v5);
+	default:
+		WARN_ONCE(1, "FTM: unsupported range response version %u", ver);
+		return false;
+	}
+}
+
 void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	unsigned int pkt_len = iwl_rx_packet_payload_len(pkt);
 	struct iwl_tof_range_rsp_ntfy_v5 *fw_resp_v5 = (void *)pkt->data;
 	struct iwl_tof_range_rsp_ntfy_v6 *fw_resp_v6 = (void *)pkt->data;
 	struct iwl_tof_range_rsp_ntfy_v7 *fw_resp_v7 = (void *)pkt->data;
@@ -988,12 +1023,16 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	bool new_api = fw_has_api(&mvm->fw->ucode_capa,
 				  IWL_UCODE_TLV_API_FTM_NEW_RANGE_REQ);
 	u8 num_of_aps, last_in_batch;
+	u8 notif_ver = iwl_mvm_ftm_get_range_resp_ver(mvm);
 
 	lockdep_assert_held(&mvm->mutex);
 
 	if (!mvm->ftm_initiator.req) {
 		return;
 	}
+
+	if (unlikely(!iwl_mvm_ftm_resp_size_validation(notif_ver, pkt_len)))
+		return;
 
 	if (new_api) {
 		if (iwl_mvm_ftm_range_resp_valid(mvm, fw_resp_v8->request_id,
@@ -1021,11 +1060,10 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		int peer_idx;
 
 		if (new_api) {
-			if (mvm->cmd_ver.range_resp == 8) {
+			if (notif_ver == 8) {
 				fw_ap = &fw_resp_v8->ap[i];
 				iwl_mvm_ftm_pasn_update_pn(mvm, fw_ap);
-			} else if (fw_has_api(&mvm->fw->ucode_capa,
-					      IWL_UCODE_TLV_API_FTM_RTT_ACCURACY)) {
+			} else if (notif_ver == 7) {
 				fw_ap = (void *)&fw_resp_v7->ap[i];
 			} else {
 				fw_ap = (void *)&fw_resp_v6->ap[i];
