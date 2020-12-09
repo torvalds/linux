@@ -1808,8 +1808,7 @@ static int bprm_execve(struct linux_binprm *bprm,
 	 * inaccessible after exec. Relies on having exclusive access to
 	 * current->files (due to unshare_files above).
 	 */
-	if (bprm->fdpath &&
-	    close_on_exec(fd, rcu_dereference_raw(current->files->fdt)))
+	if (bprm->fdpath && get_close_on_exec(fd))
 		bprm->interp_flags |= BINPRM_FLAGS_PATH_INACCESSIBLE;
 
 	/* Set the unchanging part of bprm->cred */
