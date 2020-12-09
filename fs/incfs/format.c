@@ -15,7 +15,8 @@
 #include "format.h"
 #include "data_mgmt.h"
 
-struct backing_file_context *incfs_alloc_bfc(struct file *backing_file)
+struct backing_file_context *incfs_alloc_bfc(struct mount_info *mi,
+					     struct file *backing_file)
 {
 	struct backing_file_context *result = NULL;
 
@@ -24,6 +25,7 @@ struct backing_file_context *incfs_alloc_bfc(struct file *backing_file)
 		return ERR_PTR(-ENOMEM);
 
 	result->bc_file = get_file(backing_file);
+	result->bc_cred = mi->mi_owner;
 	mutex_init(&result->bc_mutex);
 	return result;
 }
@@ -92,7 +94,7 @@ static int truncate_backing_file(struct backing_file_context *bfc,
 static int write_to_bf(struct backing_file_context *bfc, const void *buf,
 			size_t count, loff_t pos)
 {
-	ssize_t res = incfs_kwrite(bfc->bc_file, buf, count, pos);
+	ssize_t res = incfs_kwrite(bfc, buf, count, pos);
 
 	if (res < 0)
 		return res;
@@ -346,13 +348,13 @@ int incfs_write_status_to_backing_file(struct backing_file_context *bfc,
 		return write_new_status_to_backing_file(bfc,
 				data_blocks_written, hash_blocks_written);
 
-	result = incfs_kread(bfc->bc_file, &is, sizeof(is), status_offset);
+	result = incfs_kread(bfc, &is, sizeof(is), status_offset);
 	if (result != sizeof(is))
 		return -EIO;
 
 	is.is_data_blocks_written = cpu_to_le32(data_blocks_written);
 	is.is_hash_blocks_written = cpu_to_le32(hash_blocks_written);
-	result = incfs_kwrite(bfc->bc_file, &is, sizeof(is), status_offset);
+	result = incfs_kwrite(bfc, &is, sizeof(is), status_offset);
 	if (result != sizeof(is))
 		return -EIO;
 
@@ -539,8 +541,7 @@ int incfs_read_blockmap_entries(struct backing_file_context *bfc,
 	if (start_index < 0 || bm_base_off <= 0)
 		return -ENODATA;
 
-	result = incfs_kread(bfc->bc_file, entries, bytes_to_read,
-			     bm_entry_off);
+	result = incfs_kread(bfc, entries, bytes_to_read, bm_entry_off);
 	if (result < 0)
 		return result;
 	return result / sizeof(*entries);
@@ -556,7 +557,7 @@ int incfs_read_file_header(struct backing_file_context *bfc,
 	if (!bfc || !first_md_off)
 		return -EFAULT;
 
-	bytes_read = incfs_kread(bfc->bc_file, &fh, sizeof(fh), 0);
+	bytes_read = incfs_kread(bfc, &fh, sizeof(fh), 0);
 	if (bytes_read < 0)
 		return bytes_read;
 
@@ -607,8 +608,8 @@ int incfs_read_next_metadata_record(struct backing_file_context *bfc,
 		return -EPERM;
 
 	memset(&handler->md_buffer, 0, max_md_size);
-	bytes_read = incfs_kread(bfc->bc_file, &handler->md_buffer,
-				 max_md_size, handler->md_record_offset);
+	bytes_read = incfs_kread(bfc, &handler->md_buffer, max_md_size,
+				 handler->md_record_offset);
 	if (bytes_read < 0)
 		return bytes_read;
 	if (bytes_read < sizeof(*md_hdr))
@@ -679,12 +680,22 @@ int incfs_read_next_metadata_record(struct backing_file_context *bfc,
 	return res;
 }
 
-ssize_t incfs_kread(struct file *f, void *buf, size_t size, loff_t pos)
+ssize_t incfs_kread(struct backing_file_context *bfc, void *buf, size_t size,
+		    loff_t pos)
 {
-	return kernel_read(f, buf, size, &pos);
+	const struct cred *old_cred = override_creds(bfc->bc_cred);
+	int ret = kernel_read(bfc->bc_file, buf, size, &pos);
+
+	revert_creds(old_cred);
+	return ret;
 }
 
-ssize_t incfs_kwrite(struct file *f, const void *buf, size_t size, loff_t pos)
+ssize_t incfs_kwrite(struct backing_file_context *bfc, const void *buf,
+		     size_t size, loff_t pos)
 {
-	return kernel_write(f, buf, size, &pos);
+	const struct cred *old_cred = override_creds(bfc->bc_cred);
+	int ret = kernel_write(bfc->bc_file, buf, size, &pos);
+
+	revert_creds(old_cred);
+	return ret;
 }
