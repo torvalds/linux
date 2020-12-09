@@ -955,7 +955,6 @@ iwl_mvm_netdetect_config(struct iwl_mvm *mvm,
 			 struct cfg80211_sched_scan_request *nd_config,
 			 struct ieee80211_vif *vif)
 {
-	struct iwl_wowlan_config_cmd wowlan_config_cmd = {};
 	int ret;
 	bool unified_image = fw_has_capa(&mvm->fw->ucode_capa,
 					 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
@@ -974,19 +973,6 @@ iwl_mvm_netdetect_config(struct iwl_mvm *mvm,
 		if (ret)
 			return ret;
 	}
-
-	/* rfkill release can be either for wowlan or netdetect */
-	if (wowlan->rfkill_release)
-		wowlan_config_cmd.wakeup_filter |=
-			cpu_to_le32(IWL_WOWLAN_WAKEUP_RF_KILL_DEASSERT);
-
-	wowlan_config_cmd.sta_id = mvm->aux_sta.sta_id;
-
-	ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_CONFIGURATION, 0,
-				   sizeof(wowlan_config_cmd),
-				   &wowlan_config_cmd);
-	if (ret)
-		return ret;
 
 	ret = iwl_mvm_sched_scan_start(mvm, vif, nd_config, &mvm->nd_ies,
 				       IWL_MVM_SCAN_NETDETECT);
