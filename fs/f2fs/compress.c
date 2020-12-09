@@ -796,7 +796,7 @@ void f2fs_decompress_pages(struct bio *bio, struct page *page, bool verity)
 
 	ret = cops->decompress_pages(dic);
 
-	if (!ret && fi->i_compress_flag & 1 << COMPRESS_CHKSUM) {
+	if (!ret && (fi->i_compress_flag & 1 << COMPRESS_CHKSUM)) {
 		u32 provided = le32_to_cpu(dic->cbuf->chksum);
 		u32 calculated = f2fs_crc32(sbi, dic->cbuf->cdata, dic->clen);
 
@@ -809,7 +809,6 @@ void f2fs_decompress_pages(struct bio *bio, struct page *page, bool verity)
 					provided, calculated);
 			}
 			set_sbi_flag(sbi, SBI_NEED_FSCK);
-			WARN_ON_ONCE(1);
 		}
 	}
 
