@@ -119,6 +119,16 @@ int hisi_uncore_pmu_get_event_idx(struct perf_event *event)
 }
 EXPORT_SYMBOL_GPL(hisi_uncore_pmu_get_event_idx);
 
+ssize_t hisi_uncore_pmu_identifier_attr_show(struct device *dev,
+					     struct device_attribute *attr,
+					     char *page)
+{
+	struct hisi_pmu *hisi_pmu = to_hisi_pmu(dev_get_drvdata(dev));
+
+	return snprintf(page, PAGE_SIZE, "0x%08x\n", hisi_pmu->identifier);
+}
+EXPORT_SYMBOL_GPL(hisi_uncore_pmu_identifier_attr_show);
+
 static void hisi_uncore_pmu_clear_event_idx(struct hisi_pmu *hisi_pmu, int idx)
 {
 	if (!hisi_uncore_pmu_counter_valid(hisi_pmu, idx)) {
