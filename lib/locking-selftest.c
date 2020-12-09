@@ -1390,6 +1390,8 @@ static void dotest(void (*testcase_fn)(void), int expected, int lockclass_mask)
 
 	WARN_ON(irqs_disabled());
 
+	debug_locks_silent = !(debug_locks_verbose & lockclass_mask);
+
 	testcase_fn();
 	/*
 	 * Filter out expected failures:
@@ -1410,7 +1412,7 @@ static void dotest(void (*testcase_fn)(void), int expected, int lockclass_mask)
 	}
 	testcase_total++;
 
-	if (debug_locks_verbose)
+	if (debug_locks_verbose & lockclass_mask)
 		pr_cont(" lockclass mask: %x, debug_locks: %d, expected: %d\n",
 			lockclass_mask, debug_locks, expected);
 	/*
@@ -2674,7 +2676,6 @@ void locking_selftest(void)
 	printk("  --------------------------------------------------------------------------\n");
 
 	init_shared_classes();
-	debug_locks_silent = !debug_locks_verbose;
 	lockdep_set_selftest_task(current);
 
 	DO_TESTCASE_6R("A-A deadlock", AA);
