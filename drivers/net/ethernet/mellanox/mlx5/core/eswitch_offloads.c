@@ -484,7 +484,7 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 		}
 	}
 	dest[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-	dest[i].ft = fwd_fdb,
+	dest[i].ft = fwd_fdb;
 	i++;
 
 	mlx5_eswitch_set_rule_source_port(esw, spec, esw_attr);
