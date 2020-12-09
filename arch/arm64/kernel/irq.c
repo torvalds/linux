@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/irqchip.h>
 #include <linux/kprobes.h>
+#include <linux/scs.h>
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
 #include <asm/daifflags.h>
@@ -26,6 +27,25 @@
 DEFINE_PER_CPU(struct nmi_ctx, nmi_contexts);
 
 DEFINE_PER_CPU(unsigned long *, irq_stack_ptr);
+
+
+DECLARE_PER_CPU(unsigned long *, irq_shadow_call_stack_ptr);
+
+#ifdef CONFIG_SHADOW_CALL_STACK
+DEFINE_PER_CPU(unsigned long *, irq_shadow_call_stack_ptr);
+#endif
+
+static void init_irq_scs(void)
+{
+	int cpu;
+
+	if (!IS_ENABLED(CONFIG_SHADOW_CALL_STACK))
+		return;
+
+	for_each_possible_cpu(cpu)
+		per_cpu(irq_shadow_call_stack_ptr, cpu) =
+			scs_alloc(cpu_to_node(cpu));
+}
 
 #ifdef CONFIG_VMAP_STACK
 static void init_irq_stacks(void)
@@ -54,6 +74,7 @@ static void init_irq_stacks(void)
 void __init init_IRQ(void)
 {
 	init_irq_stacks();
+	init_irq_scs();
 	irqchip_init();
 	if (!handle_arch_irq)
 		panic("No interrupt controller found.");
