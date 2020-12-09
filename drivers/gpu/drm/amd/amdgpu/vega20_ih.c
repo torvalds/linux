@@ -249,6 +249,38 @@ static int vega20_ih_enable_ring(struct amdgpu_device *adev,
 }
 
 /**
+ * vega20_ih_reroute_ih - reroute VMC/UTCL2 ih to an ih ring
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Reroute VMC and UMC interrupts on primary ih ring to
+ * ih ring 1 so they won't lose when bunches of page faults
+ * interrupts overwhelms the interrupt handler(VEGA20)
+ */
+static void vega20_ih_reroute_ih(struct amdgpu_device *adev)
+{
+	uint32_t tmp;
+
+	/* vega20 ih reroute will go through psp
+	 * this function is only used for arcturus
+	 */
+	if (adev->asic_type == CHIP_ARCTURUS) {
+		/* Reroute to IH ring 1 for VMC */
+		WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_INDEX, 0x12);
+		tmp = RREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA);
+		tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, CLIENT_TYPE, 1);
+		tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, RING_ID, 1);
+		WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA, tmp);
+
+		/* Reroute IH ring 1 for UTCL2 */
+		WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_INDEX, 0x1B);
+		tmp = RREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA);
+		tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, RING_ID, 1);
+		WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA, tmp);
+	}
+}
+
+/**
  * vega20_ih_irq_init - init and enable the interrupt ring
  *
  * @adev: amdgpu_device pointer
@@ -289,6 +321,8 @@ static int vega20_ih_irq_init(struct amdgpu_device *adev)
 
 	for (i = 0; i < ARRAY_SIZE(ih); i++) {
 		if (ih[i]->ring_size) {
+			if (i == 1)
+				vega20_ih_reroute_ih(adev);
 			ret = vega20_ih_enable_ring(adev, ih[i]);
 			if (ret)
 				return ret;
