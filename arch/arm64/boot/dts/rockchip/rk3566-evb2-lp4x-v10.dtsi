@@ -50,7 +50,7 @@
 };
 
 &combphy2_psq {
-	status = "disabled";
+	status = "okay";
 };
 
 &csi_dphy {
@@ -280,7 +280,7 @@
 &pcie2x1 {
 	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&pcie20_3v3>;
-	status = "disabled";
+	status = "okay";
 };
 
 &pinctrl {

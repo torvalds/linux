@@ -259,10 +259,6 @@
 	status = "disabled";
 };
 
-&pcie2x1 {
-	status = "disabled";
-};
-
 &pdm {
 	status = "disabled";
 	pinctrl-names = "default";

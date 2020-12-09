@@ -358,13 +358,13 @@
 };
 
 &pcie30phy {
-	status = "disabled";
+	status = "okay";
 };
 
 &pcie3x2 {
 	reset-gpios = <&gpio2 RK_PD6 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&pcie30_3v3>;
-	status = "disabled";
+	status = "okay";
 };
 
 &pinctrl {

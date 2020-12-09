@@ -73,7 +73,7 @@
 };
 
 &combphy2_psq {
-	status = "disabled";
+	status = "okay";
 };
 
 &dmc_opp_table {
@@ -180,27 +180,27 @@
 };
 
 &pcie30phy {
-	status = "disabled";
+	status = "okay";
 };
 
 &pcie2x1 {
 	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&pcie20_3v3>;
-	status = "disabled";
+	status = "okay";
 };
 
 &pcie3x1 {
 	rockchip,bifurcation;
 	reset-gpios = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&pcie30_3v3>;
-	status = "disabled";
+	status = "okay";
 };
 
 &pcie3x2 {
 	rockchip,bifurcation;
 	reset-gpios = <&gpio2 RK_PD6 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&pcie30_3v3>;
-	status = "disabled";
+	status = "okay";
 };
 
 &pinctrl {
