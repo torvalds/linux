@@ -282,6 +282,7 @@ config SND_SOC_SOF_ALDERLAKE_SUPPORT
 config SND_SOC_SOF_ALDERLAKE
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
+	select SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
 	help
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level
