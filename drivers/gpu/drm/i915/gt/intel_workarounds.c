@@ -233,7 +233,7 @@ static void
 wa_masked_field_set(struct i915_wa_list *wal, i915_reg_t reg,
 		    u32 mask, u32 val)
 {
-	wa_write_masked_or(wal, reg, 0, _MASKED_FIELD(mask, val));
+	wa_add(wal, reg, 0, _MASKED_FIELD(mask, val), mask);
 }
 
 static void gen6_ctx_workarounds_init(struct intel_engine_cs *engine,
