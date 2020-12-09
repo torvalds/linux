@@ -1083,6 +1083,9 @@ mp_capable_done:
 			len = TCPOLEN_MPTCP_ADD_ADDR6_BASE;
 #endif
 
+		if (opts->port)
+			len += TCPOLEN_MPTCP_PORT_LEN;
+
 		if (opts->ahmac) {
 			len += sizeof(opts->ahmac);
 			echo = 0;
@@ -1100,9 +1103,30 @@ mp_capable_done:
 			ptr += 4;
 		}
 #endif
-		if (opts->ahmac) {
-			put_unaligned_be64(opts->ahmac, ptr);
-			ptr += 2;
+
+		if (!opts->port) {
+			if (opts->ahmac) {
+				put_unaligned_be64(opts->ahmac, ptr);
+				ptr += 2;
+			}
+		} else {
+			if (opts->ahmac) {
+				u8 *bptr = (u8 *)ptr;
+
+				put_unaligned_be16(opts->port, bptr);
+				bptr += 2;
+				put_unaligned_be64(opts->ahmac, bptr);
+				bptr += 8;
+				put_unaligned_be16(TCPOPT_NOP << 8 |
+						   TCPOPT_NOP, bptr);
+
+				ptr += 3;
+			} else {
+				put_unaligned_be32(opts->port << 16 |
+						   TCPOPT_NOP << 8 |
+						   TCPOPT_NOP, ptr);
+				ptr += 1;
+			}
 		}
 	}
 
