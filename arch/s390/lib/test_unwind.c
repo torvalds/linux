@@ -9,12 +9,12 @@
 #include <linux/kallsyms.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
+#include <linux/timer.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/kprobes.h>
 #include <linux/wait.h>
 #include <asm/irq.h>
-#include <asm/delay.h>
 
 #define BT_BUF_SIZE (PAGE_SIZE * 4)
 
@@ -226,31 +226,27 @@ static noinline int unwindme_func1(void *u)
 	return unwindme_func2((struct unwindme *)u);
 }
 
-static void unwindme_irq_handler(struct ext_code ext_code,
-				       unsigned int param32,
-				       unsigned long param64)
+static void unwindme_timer_fn(struct timer_list *unused)
 {
 	struct unwindme *u = READ_ONCE(unwindme);
 
-	if (u && u->task == current) {
+	if (u) {
 		unwindme = NULL;
 		u->task = NULL;
 		u->ret = unwindme_func1(u);
+		complete(&u->task_ready);
 	}
 }
 
+static struct timer_list unwind_timer;
+
 static int test_unwind_irq(struct unwindme *u)
 {
-	preempt_disable();
-	if (register_external_irq(EXT_IRQ_CLK_COMP, unwindme_irq_handler)) {
-		pr_info("Couldn't register external interrupt handler");
-		return -1;
-	}
-	u->task = current;
 	unwindme = u;
-	udelay(1);
-	unregister_external_irq(EXT_IRQ_CLK_COMP, unwindme_irq_handler);
-	preempt_enable();
+	init_completion(&u->task_ready);
+	timer_setup(&unwind_timer, unwindme_timer_fn, 0);
+	mod_timer(&unwind_timer, jiffies + 1);
+	wait_for_completion(&u->task_ready);
 	return u->ret;
 }
 
