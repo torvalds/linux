@@ -1207,8 +1207,13 @@ static int rt1015_i2c_probe(struct i2c_client *i2c,
 
 	rt1015->hw_config = (i2c->addr == 0x29) ? RT1015_HW_29 : RT1015_HW_28;
 
-	regmap_read(rt1015->regmap, RT1015_DEVICE_ID, &val);
-	if ((val != RT1015_DEVICE_ID_VAL) && (val != RT1015_DEVICE_ID_VAL2)) {
+	ret = regmap_read(rt1015->regmap, RT1015_DEVICE_ID, &val);
+	if (ret) {
+		dev_err(&i2c->dev,
+			"Failed to read device register: %d\n", ret);
+		return ret;
+	} else if ((val != RT1015_DEVICE_ID_VAL) &&
+			(val != RT1015_DEVICE_ID_VAL2)) {
 		dev_err(&i2c->dev,
 			"Device with ID register %x is not rt1015\n", val);
 		return -ENODEV;
