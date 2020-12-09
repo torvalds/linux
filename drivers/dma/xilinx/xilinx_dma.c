@@ -517,8 +517,8 @@ struct xilinx_dma_device {
 #define to_dma_tx_descriptor(tx) \
 	container_of(tx, struct xilinx_dma_tx_descriptor, async_tx)
 #define xilinx_dma_poll_timeout(chan, reg, val, cond, delay_us, timeout_us) \
-	readl_poll_timeout(chan->xdev->regs + chan->ctrl_offset + reg, val, \
-			   cond, delay_us, timeout_us)
+	readl_poll_timeout_atomic(chan->xdev->regs + chan->ctrl_offset + reg, \
+				  val, cond, delay_us, timeout_us)
 
 /* IO accessors */
 static inline u32 dma_read(struct xilinx_dma_chan *chan, u32 reg)
@@ -948,8 +948,10 @@ static u32 xilinx_dma_get_residue(struct xilinx_dma_chan *chan,
 {
 	struct xilinx_cdma_tx_segment *cdma_seg;
 	struct xilinx_axidma_tx_segment *axidma_seg;
+	struct xilinx_aximcdma_tx_segment *aximcdma_seg;
 	struct xilinx_cdma_desc_hw *cdma_hw;
 	struct xilinx_axidma_desc_hw *axidma_hw;
+	struct xilinx_aximcdma_desc_hw *aximcdma_hw;
 	struct list_head *entry;
 	u32 residue = 0;
 
@@ -961,13 +963,23 @@ static u32 xilinx_dma_get_residue(struct xilinx_dma_chan *chan,
 			cdma_hw = &cdma_seg->hw;
 			residue += (cdma_hw->control - cdma_hw->status) &
 				   chan->xdev->max_buffer_len;
-		} else {
+		} else if (chan->xdev->dma_config->dmatype ==
+			   XDMA_TYPE_AXIDMA) {
 			axidma_seg = list_entry(entry,
 						struct xilinx_axidma_tx_segment,
 						node);
 			axidma_hw = &axidma_seg->hw;
 			residue += (axidma_hw->control - axidma_hw->status) &
 				   chan->xdev->max_buffer_len;
+		} else {
+			aximcdma_seg =
+				list_entry(entry,
+					   struct xilinx_aximcdma_tx_segment,
+					   node);
+			aximcdma_hw = &aximcdma_seg->hw;
+			residue +=
+				(aximcdma_hw->control - aximcdma_hw->status) &
+				chan->xdev->max_buffer_len;
 		}
 	}
 
@@ -1135,7 +1147,7 @@ static int xilinx_dma_alloc_chan_resources(struct dma_chan *dchan)
 			upper_32_bits(chan->seg_p + sizeof(*chan->seg_mv) *
 				((i + 1) % XILINX_DMA_NUM_DESCS));
 			chan->seg_mv[i].phys = chan->seg_p +
-				sizeof(*chan->seg_v) * i;
+				sizeof(*chan->seg_mv) * i;
 			list_add_tail(&chan->seg_mv[i].node,
 				      &chan->free_seg_list);
 		}
@@ -1560,7 +1572,7 @@ static void xilinx_dma_start_transfer(struct xilinx_dma_chan *chan)
 static void xilinx_mcdma_start_transfer(struct xilinx_dma_chan *chan)
 {
 	struct xilinx_dma_tx_descriptor *head_desc, *tail_desc;
-	struct xilinx_axidma_tx_segment *tail_segment;
+	struct xilinx_aximcdma_tx_segment *tail_segment;
 	u32 reg;
 
 	/*
@@ -1582,7 +1594,7 @@ static void xilinx_mcdma_start_transfer(struct xilinx_dma_chan *chan)
 	tail_desc = list_last_entry(&chan->pending_list,
 				    struct xilinx_dma_tx_descriptor, node);
 	tail_segment = list_last_entry(&tail_desc->segments,
-				       struct xilinx_axidma_tx_segment, node);
+				       struct xilinx_aximcdma_tx_segment, node);
 
 	reg = dma_ctrl_read(chan, XILINX_MCDMA_CHAN_CR_OFFSET(chan->tdest));
 
@@ -1864,6 +1876,7 @@ static void append_desc_queue(struct xilinx_dma_chan *chan,
 	struct xilinx_vdma_tx_segment *tail_segment;
 	struct xilinx_dma_tx_descriptor *tail_desc;
 	struct xilinx_axidma_tx_segment *axidma_tail_segment;
+	struct xilinx_aximcdma_tx_segment *aximcdma_tail_segment;
 	struct xilinx_cdma_tx_segment *cdma_tail_segment;
 
 	if (list_empty(&chan->pending_list))
@@ -1885,11 +1898,17 @@ static void append_desc_queue(struct xilinx_dma_chan *chan,
 						struct xilinx_cdma_tx_segment,
 						node);
 		cdma_tail_segment->hw.next_desc = (u32)desc->async_tx.phys;
-	} else {
+	} else if (chan->xdev->dma_config->dmatype == XDMA_TYPE_AXIDMA) {
 		axidma_tail_segment = list_last_entry(&tail_desc->segments,
 					       struct xilinx_axidma_tx_segment,
 					       node);
 		axidma_tail_segment->hw.next_desc = (u32)desc->async_tx.phys;
+	} else {
+		aximcdma_tail_segment =
+			list_last_entry(&tail_desc->segments,
+					struct xilinx_aximcdma_tx_segment,
+					node);
+		aximcdma_tail_segment->hw.next_desc = (u32)desc->async_tx.phys;
 	}
 
 	/*
@@ -2836,10 +2855,11 @@ static int xilinx_dma_chan_probe(struct xilinx_dma_device *xdev,
 		chan->stop_transfer = xilinx_dma_stop_transfer;
 	}
 
-	/* check if SG is enabled (only for AXIDMA and CDMA) */
+	/* check if SG is enabled (only for AXIDMA, AXIMCDMA, and CDMA) */
 	if (xdev->dma_config->dmatype != XDMA_TYPE_VDMA) {
-		if (dma_ctrl_read(chan, XILINX_DMA_REG_DMASR) &
-		    XILINX_DMA_DMASR_SG_MASK)
+		if (xdev->dma_config->dmatype == XDMA_TYPE_AXIMCDMA ||
+		    dma_ctrl_read(chan, XILINX_DMA_REG_DMASR) &
+			    XILINX_DMA_DMASR_SG_MASK)
 			chan->has_sg = true;
 		dev_dbg(chan->dev, "ch %d: SG %s\n", chan->id,
 			chan->has_sg ? "enabled" : "disabled");

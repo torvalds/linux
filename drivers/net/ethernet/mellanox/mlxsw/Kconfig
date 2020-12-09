@@ -6,6 +6,7 @@
 config MLXSW_CORE
 	tristate "Mellanox Technologies Switch ASICs support"
 	select NET_DEVLINK
+	select MLXFW
 	help
 	  This driver supports Mellanox Technologies Switch ASICs family.
 
@@ -82,7 +83,6 @@ config MLXSW_SPECTRUM
 	select GENERIC_ALLOCATOR
 	select PARMAN
 	select OBJAGG
-	select MLXFW
 	imply PTP_1588_CLOCK
 	select NET_PTP_CLASSIFY if PTP_1588_CLOCK
 	default m

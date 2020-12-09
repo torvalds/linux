@@ -40,6 +40,7 @@
 MODULE_FIRMWARE("amdgpu/renoir_asd.bin");
 MODULE_FIRMWARE("amdgpu/renoir_ta.bin");
 MODULE_FIRMWARE("amdgpu/green_sardine_asd.bin");
+MODULE_FIRMWARE("amdgpu/green_sardine_ta.bin");
 
 /* address block */
 #define smnMP1_FIRMWARE_FLAGS		0x3010024

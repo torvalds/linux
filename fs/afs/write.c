@@ -169,10 +169,13 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 	unsigned int f, from = pos & (PAGE_SIZE - 1);
 	unsigned int t, to = from + copied;
 	loff_t i_size, maybe_i_size;
-	int ret;
+	int ret = 0;
 
 	_enter("{%llx:%llu},{%lx}",
 	       vnode->fid.vid, vnode->fid.vnode, page->index);
+
+	if (copied == 0)
+		goto out;
 
 	maybe_i_size = pos + copied;
 

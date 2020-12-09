@@ -3234,14 +3234,12 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 
 	/* See if we shot pass the end of this buffer page */
 	if (unlikely(write > BUF_PAGE_SIZE)) {
-		if (tail != w) {
-			/* before and after may now different, fix it up*/
-			b_ok = rb_time_read(&cpu_buffer->before_stamp, &info->before);
-			a_ok = rb_time_read(&cpu_buffer->write_stamp, &info->after);
-			if (a_ok && b_ok && info->before != info->after)
-				(void)rb_time_cmpxchg(&cpu_buffer->before_stamp,
-						      info->before, info->after);
-		}
+		/* before and after may now different, fix it up*/
+		b_ok = rb_time_read(&cpu_buffer->before_stamp, &info->before);
+		a_ok = rb_time_read(&cpu_buffer->write_stamp, &info->after);
+		if (a_ok && b_ok && info->before != info->after)
+			(void)rb_time_cmpxchg(&cpu_buffer->before_stamp,
+					      info->before, info->after);
 		return rb_move_tail(cpu_buffer, tail, info);
 	}
 
@@ -3287,11 +3285,11 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		ts = rb_time_stamp(cpu_buffer->buffer);
 		barrier();
  /*E*/		if (write == (local_read(&tail_page->write) & RB_WRITE_MASK) &&
-		    info->after < ts) {
+		    info->after < ts &&
+		    rb_time_cmpxchg(&cpu_buffer->write_stamp,
+				    info->after, ts)) {
 			/* Nothing came after this event between C and E */
 			info->delta = ts - info->after;
-			(void)rb_time_cmpxchg(&cpu_buffer->write_stamp,
-					      info->after, info->ts);
 			info->ts = ts;
 		} else {
 			/*

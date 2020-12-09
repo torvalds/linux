@@ -8,7 +8,9 @@
 		     + __clang_patchlevel__)
 
 #if CLANG_VERSION < 100001
+#ifndef __BPF_TRACING__
 # error Sorry, your version of Clang is too old - please use 10.0.1 or newer.
+#endif
 #endif
 
 /* Compiler specific definitions for Clang compiler */
@@ -59,12 +61,6 @@
     __has_builtin(__builtin_sub_overflow)
 #define COMPILER_HAS_GENERIC_BUILTIN_OVERFLOW 1
 #endif
-
-/* The following are for compatibility with GCC, from compiler-gcc.h,
- * and may be redefined here because they should not be shared with other
- * compilers, like ICC.
- */
-#define barrier() __asm__ __volatile__("" : : : "memory")
 
 #if __has_feature(shadow_call_stack)
 # define __noscs	__attribute__((__no_sanitize__("shadow-call-stack")))

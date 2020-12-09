@@ -1522,29 +1522,38 @@ static void omap_dma_free(struct omap_dmadev *od)
 	}
 }
 
+/* Currently used by omap2 & 3 to block deeper SoC idle states */
+static bool omap_dma_busy(struct omap_dmadev *od)
+{
+	struct omap_chan *c;
+	int lch = -1;
+
+	while (1) {
+		lch = find_next_bit(od->lch_bitmap, od->lch_count, lch + 1);
+		if (lch >= od->lch_count)
+			break;
+		c = od->lch_map[lch];
+		if (!c)
+			continue;
+		if (omap_dma_chan_read(c, CCR) & CCR_ENABLE)
+			return true;
+	}
+
+	return false;
+}
+
 /* Currently only used for omap2. For omap1, also a check for lcd_dma is needed */
 static int omap_dma_busy_notifier(struct notifier_block *nb,
 				  unsigned long cmd, void *v)
 {
 	struct omap_dmadev *od;
-	struct omap_chan *c;
-	int lch = -1;
 
 	od = container_of(nb, struct omap_dmadev, nb);
 
 	switch (cmd) {
 	case CPU_CLUSTER_PM_ENTER:
-		while (1) {
-			lch = find_next_bit(od->lch_bitmap, od->lch_count,
-					    lch + 1);
-			if (lch >= od->lch_count)
-				break;
-			c = od->lch_map[lch];
-			if (!c)
-				continue;
-			if (omap_dma_chan_read(c, CCR) & CCR_ENABLE)
-				return NOTIFY_BAD;
-		}
+		if (omap_dma_busy(od))
+			return NOTIFY_BAD;
 		break;
 	case CPU_CLUSTER_PM_ENTER_FAILED:
 	case CPU_CLUSTER_PM_EXIT:
@@ -1595,6 +1604,8 @@ static int omap_dma_context_notifier(struct notifier_block *nb,
 
 	switch (cmd) {
 	case CPU_CLUSTER_PM_ENTER:
+		if (omap_dma_busy(od))
+			return NOTIFY_BAD;
 		omap_dma_context_save(od);
 		break;
 	case CPU_CLUSTER_PM_ENTER_FAILED:

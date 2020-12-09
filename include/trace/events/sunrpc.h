@@ -68,7 +68,8 @@ DECLARE_EVENT_CLASS(rpc_xdr_buf_class,
 
 	TP_fast_assign(
 		__entry->task_id = task->tk_pid;
-		__entry->client_id = task->tk_client->cl_clid;
+		__entry->client_id = task->tk_client ?
+				     task->tk_client->cl_clid : -1;
 		__entry->head_base = xdr->head[0].iov_base;
 		__entry->head_len = xdr->head[0].iov_len;
 		__entry->tail_base = xdr->tail[0].iov_base;
@@ -655,10 +656,10 @@ TRACE_EVENT(rpc_xdr_overflow,
 		__field(size_t, tail_len)
 		__field(unsigned int, page_len)
 		__field(unsigned int, len)
-		__string(progname,
-			 xdr->rqst->rq_task->tk_client->cl_program->name)
-		__string(procedure,
-			 xdr->rqst->rq_task->tk_msg.rpc_proc->p_name)
+		__string(progname, xdr->rqst ?
+			 xdr->rqst->rq_task->tk_client->cl_program->name : "unknown")
+		__string(procedure, xdr->rqst ?
+			 xdr->rqst->rq_task->tk_msg.rpc_proc->p_name : "unknown")
 	),
 
 	TP_fast_assign(

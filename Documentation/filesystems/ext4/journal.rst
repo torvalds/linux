@@ -256,6 +256,10 @@ which is 1024 bytes long:
      - s\_padding2
      -
    * - 0x54
+     - \_\_be32
+     - s\_num\_fc\_blocks
+     - Number of fast commit blocks in the journal.
+   * - 0x58
      - \_\_u32
      - s\_padding[42]
      -
@@ -310,6 +314,8 @@ The journal incompat features are any combination of the following:
      - This journal uses v3 of the checksum on-disk format. This is the same as
        v2, but the journal block tag size is fixed regardless of the size of
        block numbers. (JBD2\_FEATURE\_INCOMPAT\_CSUM\_V3)
+   * - 0x20
+     - Journal has fast commit blocks. (JBD2\_FEATURE\_INCOMPAT\_FAST\_COMMIT)
 
 .. _jbd2_checksum_type:
 

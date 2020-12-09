@@ -390,10 +390,10 @@ static int __init efisubsys_init(void)
 
 	if (efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE |
 				      EFI_RT_SUPPORTED_GET_NEXT_VARIABLE_NAME)) {
-		efivar_ssdt_load();
 		error = generic_ops_register();
 		if (error)
 			goto err_put;
+		efivar_ssdt_load();
 		platform_device_register_simple("efivars", 0, NULL, 0);
 	}
 

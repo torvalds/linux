@@ -316,10 +316,6 @@ nfsd3_proc_mknod(struct svc_rqst *rqstp)
 	fh_copy(&resp->dirfh, &argp->fh);
 	fh_init(&resp->fh, NFS3_FHSIZE);
 
-	if (argp->ftype == 0 || argp->ftype >= NF3BAD) {
-		resp->status = nfserr_inval;
-		goto out;
-	}
 	if (argp->ftype == NF3CHR || argp->ftype == NF3BLK) {
 		rdev = MKDEV(argp->major, argp->minor);
 		if (MAJOR(rdev) != argp->major ||
@@ -328,7 +324,7 @@ nfsd3_proc_mknod(struct svc_rqst *rqstp)
 			goto out;
 		}
 	} else if (argp->ftype != NF3SOCK && argp->ftype != NF3FIFO) {
-		resp->status = nfserr_inval;
+		resp->status = nfserr_badtype;
 		goto out;
 	}
 

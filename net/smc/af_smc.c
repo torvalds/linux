@@ -979,7 +979,8 @@ static int __smc_connect(struct smc_sock *smc)
 
 	/* check if smc modes and versions of CLC proposal and accept match */
 	rc = smc_connect_check_aclc(ini, aclc);
-	version = aclc->hdr.version == SMC_V1 ? SMC_V1 : version;
+	version = aclc->hdr.version == SMC_V1 ? SMC_V1 : SMC_V2;
+	ini->smcd_version = version;
 	if (rc)
 		goto vlan_cleanup;
 

@@ -72,13 +72,13 @@ EXPORT_SYMBOL_GPL(pm_power_off);
 
 void (*arm_pm_restart)(enum reboot_mode reboot_mode, const char *cmd);
 
-static void __cpu_do_idle(void)
+static void noinstr __cpu_do_idle(void)
 {
 	dsb(sy);
 	wfi();
 }
 
-static void __cpu_do_idle_irqprio(void)
+static void noinstr __cpu_do_idle_irqprio(void)
 {
 	unsigned long pmr;
 	unsigned long daif_bits;
@@ -108,7 +108,7 @@ static void __cpu_do_idle_irqprio(void)
  *	ensure that interrupts are not masked at the PMR (because the core will
  *	not wake up if we block the wake up signal in the interrupt controller).
  */
-void cpu_do_idle(void)
+void noinstr cpu_do_idle(void)
 {
 	if (system_uses_irq_prio_masking())
 		__cpu_do_idle_irqprio();
@@ -119,14 +119,14 @@ void cpu_do_idle(void)
 /*
  * This is our default idle handler.
  */
-void arch_cpu_idle(void)
+void noinstr arch_cpu_idle(void)
 {
 	/*
 	 * This should do all the clock switching and wait for interrupt
 	 * tricks
 	 */
 	cpu_do_idle();
-	local_irq_enable();
+	raw_local_irq_enable();
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -522,14 +522,13 @@ static void erratum_1418040_thread_switch(struct task_struct *prev,
 	bool prev32, next32;
 	u64 val;
 
-	if (!(IS_ENABLED(CONFIG_ARM64_ERRATUM_1418040) &&
-	      cpus_have_const_cap(ARM64_WORKAROUND_1418040)))
+	if (!IS_ENABLED(CONFIG_ARM64_ERRATUM_1418040))
 		return;
 
 	prev32 = is_compat_thread(task_thread_info(prev));
 	next32 = is_compat_thread(task_thread_info(next));
 
-	if (prev32 == next32)
+	if (prev32 == next32 || !this_cpu_has_cap(ARM64_WORKAROUND_1418040))
 		return;
 
 	val = read_sysreg(cntkctl_el1);

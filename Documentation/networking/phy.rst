@@ -247,8 +247,8 @@ Some of the interface modes are described below:
     speeds (see below.)
 
 ``PHY_INTERFACE_MODE_2500BASEX``
-    This defines a variant of 1000BASE-X which is clocked 2.5 times faster,
-    than the 802.3 standard giving a fixed bit rate of 3.125Gbaud.
+    This defines a variant of 1000BASE-X which is clocked 2.5 times as fast
+    as the 802.3 standard, giving a fixed bit rate of 3.125Gbaud.
 
 ``PHY_INTERFACE_MODE_SGMII``
     This is used for Cisco SGMII, which is a modification of 1000BASE-X
