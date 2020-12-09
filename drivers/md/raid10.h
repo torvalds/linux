@@ -179,6 +179,5 @@ enum r10bio_state {
 	R10BIO_Previous,
 /* failfast devices did receive failfast requests. */
 	R10BIO_FailFast,
-	R10BIO_Discard,
 };
 #endif
