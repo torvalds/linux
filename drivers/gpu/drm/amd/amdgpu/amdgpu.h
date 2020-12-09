@@ -1024,6 +1024,7 @@ struct amdgpu_device {
 	/* enable runtime pm on the device */
 	bool                            runpm;
 	bool                            in_runpm;
+	bool                            has_pr3;
 
 	bool                            pm_sysfs_en;
 	bool                            ucode_sysfs_en;

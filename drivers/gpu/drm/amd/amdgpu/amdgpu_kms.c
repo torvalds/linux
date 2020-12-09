@@ -133,6 +133,7 @@ void amdgpu_register_gpu_instance(struct amdgpu_device *adev)
 int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 {
 	struct drm_device *dev;
+	struct pci_dev *parent;
 	int r, acpi_status;
 
 	dev = adev_to_drm(adev);
@@ -143,6 +144,9 @@ int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 	    ((flags & AMD_IS_APU) == 0) &&
 	    !pci_is_thunderbolt_attached(dev->pdev))
 		flags |= AMD_IS_PX;
+
+	parent = pci_upstream_bridge(adev->pdev);
+	adev->has_pr3 = parent ? pci_pr3_present(parent) : false;
 
 	/* amdgpu_device_init should report only fatal error
 	 * like memory allocation failure or iomapping failure,
