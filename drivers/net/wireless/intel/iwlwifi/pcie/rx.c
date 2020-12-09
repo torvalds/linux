@@ -1239,9 +1239,8 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 
 	while (offset + sizeof(u32) + sizeof(struct iwl_cmd_header) < max_len) {
 		struct iwl_rx_packet *pkt;
-		u16 sequence;
 		bool reclaim;
-		int index, cmd_index, len;
+		int len;
 		struct iwl_rx_cmd_buffer rxcb = {
 			._offset = rxb->offset + offset,
 			._rx_page_order = trans_pcie->rx_page_order,
@@ -1307,10 +1306,6 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 			}
 		}
 
-		sequence = le16_to_cpu(pkt->hdr.sequence);
-		index = SEQ_TO_INDEX(sequence);
-		cmd_index = iwl_txq_get_cmd_index(txq, index);
-
 		if (rxq->id == trans_pcie->def_rx_queue)
 			iwl_op_mode_rx(trans->op_mode, &rxq->napi,
 				       &rxcb);
@@ -1318,17 +1313,19 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 			iwl_op_mode_rx_rss(trans->op_mode, &rxq->napi,
 					   &rxcb, rxq->id);
 
-		if (reclaim) {
-			kfree_sensitive(txq->entries[cmd_index].free_buf);
-			txq->entries[cmd_index].free_buf = NULL;
-		}
-
 		/*
 		 * After here, we should always check rxcb._page_stolen,
 		 * if it is true then one of the handlers took the page.
 		 */
 
 		if (reclaim) {
+			u16 sequence = le16_to_cpu(pkt->hdr.sequence);
+			int index = SEQ_TO_INDEX(sequence);
+			int cmd_index = iwl_txq_get_cmd_index(txq, index);
+
+			kfree_sensitive(txq->entries[cmd_index].free_buf);
+			txq->entries[cmd_index].free_buf = NULL;
+
 			/* Invoke any callbacks, transfer the buffer to caller,
 			 * and fire off the (possibly) blocking
 			 * iwl_trans_send_cmd()
