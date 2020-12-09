@@ -10,7 +10,6 @@
 #include <dt-bindings/pinctrl/rockchip.h>
 #include "rk3568.dtsi"
 #include "rk3568-evb.dtsi"
-#include "rk3568-android.dtsi"
 
 / {
 	model = "Rockchip RK3568 EVB1 DDR4 V10 Board";
