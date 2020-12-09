@@ -489,6 +489,6 @@ SYM_FUNC_START(__cpu_setup)
 	/*
 	 * Prepare SCTLR
 	 */
-	mov_q	x0, SCTLR_EL1_SET
+	mov_q	x0, INIT_SCTLR_EL1_MMU_ON
 	ret					// return to head.S
 SYM_FUNC_END(__cpu_setup)
