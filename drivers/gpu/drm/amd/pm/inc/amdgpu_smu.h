@@ -99,7 +99,7 @@ struct smu_state_display_block {
 	bool              enable_vari_bright;
 };
 
-struct smu_state_memroy_block {
+struct smu_state_memory_block {
 	bool              dll_off;
 	uint8_t                 m3arb;
 	uint8_t                 unused[3];
@@ -146,7 +146,7 @@ struct smu_power_state {
 	struct smu_state_validation_block             validation;
 	struct smu_state_pcie_block                   pcie;
 	struct smu_state_display_block                display;
-	struct smu_state_memroy_block                 memory;
+	struct smu_state_memory_block                 memory;
 	struct smu_state_software_algorithm_block     software;
 	struct smu_uvd_clocks                         uvd_clocks;
 	struct smu_hw_power_state                     hardware;
@@ -459,6 +459,11 @@ struct smu_context
 
 	unsigned fan_max_rpm;
 	unsigned manual_fan_speed_rpm;
+
+	uint32_t gfx_default_hard_min_freq;
+	uint32_t gfx_default_soft_max_freq;
+	uint32_t gfx_actual_hard_min_freq;
+	uint32_t gfx_actual_soft_max_freq;
 };
 
 struct i2c_adapter;
@@ -576,6 +581,8 @@ struct pptable_funcs {
 	int (*post_init)(struct smu_context *smu);
 	void (*interrupt_work)(struct smu_context *smu);
 	int (*gpo_control)(struct smu_context *smu, bool enablement);
+	int (*gfx_state_change_set)(struct smu_context *smu, uint32_t state);
+	int (*set_fine_grain_gfx_freq_parameters)(struct smu_context *smu);
 };
 
 typedef enum {
@@ -606,6 +613,8 @@ typedef enum {
 	METRICS_TEMPERATURE_VRMEM,
 	METRICS_THROTTLER_STATUS,
 	METRICS_CURR_FANSPEED,
+	METRICS_VOLTAGE_VDDSOC,
+	METRICS_VOLTAGE_VDDGFX,
 } MetricsMember_t;
 
 enum smu_cmn2asic_mapping_type {
@@ -764,6 +773,7 @@ int smu_get_status_gfxoff(struct amdgpu_device *adev, uint32_t *value);
 ssize_t smu_sys_get_gpu_metrics(struct smu_context *smu, void **table);
 
 int smu_enable_mgpu_fan_boost(struct smu_context *smu);
+int smu_gfx_state_change_set(struct smu_context *smu, uint32_t state);
 
 #endif
 #endif

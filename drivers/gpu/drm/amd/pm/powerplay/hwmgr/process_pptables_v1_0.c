@@ -32,10 +32,10 @@
 #include "pptable_v1_0.h"
 
 /**
- * Private Function used during initialization.
- * @param hwmgr Pointer to the hardware manager.
- * @param setIt A flag indication if the capability should be set (TRUE) or reset (FALSE).
- * @param cap Which capability to set/reset.
+ * set_hw_cap - Private Function used during initialization.
+ * @hwmgr: Pointer to the hardware manager.
+ * @setIt: A flag indication if the capability should be set (TRUE) or reset (FALSE).
+ * @cap: Which capability to set/reset.
  */
 static void set_hw_cap(struct pp_hwmgr *hwmgr, bool setIt, enum phm_platform_caps cap)
 {
@@ -47,10 +47,10 @@ static void set_hw_cap(struct pp_hwmgr *hwmgr, bool setIt, enum phm_platform_cap
 
 
 /**
- * Private Function used during initialization.
- * @param hwmgr Pointer to the hardware manager.
- * @param powerplay_caps the bit array (from BIOS) of capability bits.
- * @exception the current implementation always returns 1.
+ * set_platform_caps - Private Function used during initialization.
+ * @hwmgr: Pointer to the hardware manager.
+ * @powerplay_caps: the bit array (from BIOS) of capability bits.
+ * Exception:  the current implementation always returns 1.
  */
 static int set_platform_caps(struct pp_hwmgr *hwmgr, uint32_t powerplay_caps)
 {
@@ -128,7 +128,7 @@ static int set_platform_caps(struct pp_hwmgr *hwmgr, uint32_t powerplay_caps)
 	return 0;
 }
 
-/**
+/*
  * Private Function to get the PowerPlay Table Address.
  */
 static const void *get_powerplay_table(struct pp_hwmgr *hwmgr)
@@ -191,10 +191,10 @@ static int get_vddc_lookup_table(
 }
 
 /**
- * Private Function used during initialization.
+ * get_platform_power_management_table - Private Function used during initialization.
  * Initialize Platform Power Management Parameter table
- * @param hwmgr Pointer to the hardware manager.
- * @param atom_ppm_table Pointer to PPM table in VBIOS
+ * @hwmgr: Pointer to the hardware manager.
+ * @atom_ppm_table: Pointer to PPM table in VBIOS
  */
 static int get_platform_power_management_table(
 		struct pp_hwmgr *hwmgr,
@@ -234,10 +234,10 @@ static int get_platform_power_management_table(
 }
 
 /**
- * Private Function used during initialization.
+ * init_dpm_2_parameters - Private Function used during initialization.
  * Initialize TDP limits for DPM2
- * @param hwmgr Pointer to the hardware manager.
- * @param powerplay_table Pointer to the PowerPlay Table.
+ * @hwmgr: Pointer to the hardware manager.
+ * @powerplay_table: Pointer to the PowerPlay Table.
  */
 static int init_dpm_2_parameters(
 		struct pp_hwmgr *hwmgr,
@@ -779,10 +779,10 @@ static int get_gpio_table(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 /**
- * Private Function used during initialization.
+ * init_clock_voltage_dependency - Private Function used during initialization.
  * Initialize clock voltage dependency
- * @param hwmgr Pointer to the hardware manager.
- * @param powerplay_table Pointer to the PowerPlay Table.
+ * @hwmgr: Pointer to the hardware manager.
+ * @powerplay_table: Pointer to the PowerPlay Table.
  */
 static int init_clock_voltage_dependency(
 		struct pp_hwmgr *hwmgr,
@@ -871,15 +871,16 @@ static int init_clock_voltage_dependency(
 	return result;
 }
 
-/** Retrieves the (signed) Overdrive limits from VBIOS.
+/**
+ * init_over_drive_limits - Retrieves the (signed) Overdrive limits from VBIOS.
  * The max engine clock, memory clock and max temperature come from the firmware info table.
  *
  * The information is placed into the platform descriptor.
  *
- * @param hwmgr source of the VBIOS table and owner of the platform descriptor to be updated.
- * @param powerplay_table the address of the PowerPlay table.
+ * @hwmgr: source of the VBIOS table and owner of the platform descriptor to be updated.
+ * @powerplay_table: the address of the PowerPlay table.
  *
- * @return 1 as long as the firmware info table was present and of a supported version.
+ * Return: 1 as long as the firmware info table was present and of a supported version.
  */
 static int init_over_drive_limits(
 		struct pp_hwmgr *hwmgr,
@@ -898,11 +899,11 @@ static int init_over_drive_limits(
 }
 
 /**
- * Private Function used during initialization.
+ * init_thermal_controller - Private Function used during initialization.
  * Inspect the PowerPlay table for obvious signs of corruption.
- * @param hwmgr Pointer to the hardware manager.
- * @param powerplay_table Pointer to the PowerPlay Table.
- * @exception This implementation always returns 1.
+ * @hwmgr: Pointer to the hardware manager.
+ * @powerplay_table: Pointer to the PowerPlay Table.
+ * Exception:  This implementation always returns 1.
  */
 static int init_thermal_controller(
 		struct pp_hwmgr *hwmgr,
@@ -1108,11 +1109,11 @@ static int init_thermal_controller(
 }
 
 /**
- * Private Function used during initialization.
+ * check_powerplay_tables - Private Function used during initialization.
  * Inspect the PowerPlay table for obvious signs of corruption.
- * @param hwmgr Pointer to the hardware manager.
- * @param powerplay_table Pointer to the PowerPlay Table.
- * @exception 2 if the powerplay table is incorrect.
+ * @hwmgr: Pointer to the hardware manager.
+ * @powerplay_table: Pointer to the PowerPlay Table.
+ * Exception:  2 if the powerplay table is incorrect.
  */
 static int check_powerplay_tables(
 		struct pp_hwmgr *hwmgr,
@@ -1255,9 +1256,9 @@ int get_number_of_powerplay_table_entries_v1_0(struct pp_hwmgr *hwmgr)
 	return (uint32_t)(state_arrays->ucNumEntries);
 }
 
-/**
-* Private function to convert flags stored in the BIOS to software flags in PowerPlay.
-*/
+/*
+ * Private function to convert flags stored in the BIOS to software flags in PowerPlay.
+ */
 static uint32_t make_classification_flags(struct pp_hwmgr *hwmgr,
 		uint16_t classification, uint16_t classification2)
 {
@@ -1356,13 +1357,13 @@ static int ppt_get_vce_state_table_entry_v1_0(struct pp_hwmgr *hwmgr, uint32_t i
 }
 
 /**
-* Create a Power State out of an entry in the PowerPlay table.
-* This function is called by the hardware back-end.
-* @param hwmgr Pointer to the hardware manager.
-* @param entry_index The index of the entry to be extracted from the table.
-* @param power_state The address of the PowerState instance being created.
-* @return -1 if the entry cannot be retrieved.
-*/
+ * get_powerplay_table_entry_v1_0 - Create a Power State out of an entry in the PowerPlay table.
+ * This function is called by the hardware back-end.
+ * @hwmgr: Pointer to the hardware manager.
+ * @entry_index: The index of the entry to be extracted from the table.
+ * @power_state: The address of the PowerState instance being created.
+ * Return: -1 if the entry cannot be retrieved.
+ */
 int get_powerplay_table_entry_v1_0(struct pp_hwmgr *hwmgr,
 		uint32_t entry_index, struct pp_power_state *power_state,
 		int (*call_back_func)(struct pp_hwmgr *, void *,

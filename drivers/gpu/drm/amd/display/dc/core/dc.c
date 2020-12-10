@@ -149,6 +149,20 @@ static void destroy_links(struct dc *dc)
 	}
 }
 
+static uint32_t get_num_of_internal_disp(struct dc_link **links, uint32_t num_links)
+{
+	int i;
+	uint32_t count = 0;
+
+	for (i = 0; i < num_links; i++) {
+		if (links[i]->connector_signal == SIGNAL_TYPE_EDP ||
+				links[i]->is_internal_display)
+			count++;
+	}
+
+	return count;
+}
+
 static bool create_links(
 		struct dc *dc,
 		uint32_t num_virtual_links)
@@ -249,6 +263,8 @@ static bool create_links(
 		enc_init.encoder.enum_id = ENUM_ID_1;
 		virtual_link_encoder_construct(link->link_enc, &enc_init);
 	}
+
+	dc->caps.num_of_internal_disp = get_num_of_internal_disp(dc->links, dc->link_count);
 
 	return true;
 
@@ -2782,6 +2798,19 @@ struct dc_stream_state *dc_get_stream_at_index(struct dc *dc, uint8_t i)
 	return NULL;
 }
 
+struct dc_stream_state *dc_stream_find_from_link(const struct dc_link *link)
+{
+	uint8_t i;
+	struct dc_context *ctx = link->ctx;
+
+	for (i = 0; i < ctx->dc->current_state->stream_count; i++) {
+		if (ctx->dc->current_state->streams[i]->link == link)
+			return ctx->dc->current_state->streams[i];
+	}
+
+	return NULL;
+}
+
 enum dc_irq_source dc_interrupt_to_irq_source(
 		struct dc *dc,
 		uint32_t src_id,
@@ -3058,9 +3087,9 @@ bool dc_set_psr_allow_active(struct dc *dc, bool enable)
 
 		if (link->psr_settings.psr_feature_enabled) {
 			if (enable && !link->psr_settings.psr_allow_active)
-				return dc_link_set_psr_allow_active(link, true, false);
+				return dc_link_set_psr_allow_active(link, true, false, false);
 			else if (!enable && link->psr_settings.psr_allow_active)
-				return dc_link_set_psr_allow_active(link, false, true);
+				return dc_link_set_psr_allow_active(link, false, true, false);
 		}
 	}
 

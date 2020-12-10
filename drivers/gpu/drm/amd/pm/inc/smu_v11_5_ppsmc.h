@@ -97,9 +97,16 @@
 #define PPSMC_MSG_StopDramLogging                      0x3F
 #define PPSMC_MSG_SetSoftMinCclk                       0x40
 #define PPSMC_MSG_SetSoftMaxCclk                       0x41
-#define PPSMC_Message_Count                            0x42
+#define PPSMC_MSG_SetDfPstateActiveLevel               0x42
+#define PPSMC_MSG_SetDfPstateSoftMinLevel              0x43
+#define PPSMC_MSG_SetCclkPolicy                        0x44
+#define PPSMC_MSG_DramLogSetDramAddrHigh               0x45
+#define PPSMC_MSG_DramLogSetDramBufferSize             0x46
+#define PPSMC_MSG_RequestActiveWgp                     0x47
+#define PPSMC_MSG_QueryActiveWgp                       0x48
+#define PPSMC_Message_Count                            0x49
 
-//Argument for  PPSMC_MSG_GpuChangeState
+//Argument for PPSMC_MSG_GfxDeviceDriverReset
 enum {
   MODE1_RESET = 1,
   MODE2_RESET = 2

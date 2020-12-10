@@ -234,5 +234,10 @@ struct si_power_info {
 #define SISLANDS_CGULVPARAMETER_DFLT                    0x00040035
 #define SISLANDS_CGULVCONTROL_DFLT                      0x1f007550
 
+u8 si_get_ddr3_mclk_frequency_ratio(u32 memory_clock);
+u8 si_get_mclk_frequency_ratio(u32 memory_clock, bool strobe_mode);
+void si_trim_voltage_table_to_fit_state_table(struct radeon_device *rdev,
+					      u32 max_voltage_steps,
+					      struct atom_voltage_table *voltage_table);
 
 #endif

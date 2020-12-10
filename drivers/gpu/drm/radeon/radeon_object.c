@@ -40,9 +40,8 @@
 
 #include "radeon.h"
 #include "radeon_trace.h"
+#include "radeon_ttm.h"
 
-int radeon_ttm_init(struct radeon_device *rdev);
-void radeon_ttm_fini(struct radeon_device *rdev);
 static void radeon_bo_clear_surface_reg(struct radeon_bo *bo);
 
 /*

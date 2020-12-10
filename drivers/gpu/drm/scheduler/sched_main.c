@@ -65,6 +65,7 @@ static void drm_sched_process_job(struct dma_fence *f, struct dma_fence_cb *cb);
 /**
  * drm_sched_rq_init - initialize a given run queue struct
  *
+ * @sched: scheduler instance to associate with this run queue
  * @rq: scheduler run queue
  *
  * Initializes a scheduler runqueue.

@@ -136,6 +136,10 @@ int rn_vbios_smu_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_dis
 		}
 	}
 
+	// pmfw always set clock more than or equal requested clock
+	if (!IS_DIAG_DC(dc->ctx->dce_environment))
+		ASSERT(actual_dispclk_set_mhz >= requested_dispclk_khz / 1000);
+
 	return actual_dispclk_set_mhz * 1000;
 }
 
@@ -194,11 +198,15 @@ void rn_vbios_smu_set_phyclk(struct clk_mgr_internal *clk_mgr, int requested_phy
 int rn_vbios_smu_set_dppclk(struct clk_mgr_internal *clk_mgr, int requested_dpp_khz)
 {
 	int actual_dppclk_set_mhz = -1;
+	struct dc *dc = clk_mgr->base.ctx->dc;
 
 	actual_dppclk_set_mhz = rn_vbios_smu_send_msg_with_param(
 			clk_mgr,
 			VBIOSSMC_MSG_SetDppclkFreq,
 			requested_dpp_khz / 1000);
+
+	if (!IS_DIAG_DC(dc->ctx->dce_environment))
+		ASSERT(actual_dppclk_set_mhz >= requested_dpp_khz / 1000);
 
 	return actual_dppclk_set_mhz * 1000;
 }
@@ -239,5 +247,6 @@ int rn_vbios_smu_is_periodic_retraining_disabled(struct clk_mgr_internal *clk_mg
 	return rn_vbios_smu_send_msg_with_param(
 			clk_mgr,
 			VBIOSSMC_MSG_IsPeriodicRetrainingDisabled,
-			0);
+			1);	// if PMFW doesn't support this message, assume retraining is disabled
+				// so we only use most optimal watermark if we know retraining is enabled.
 }

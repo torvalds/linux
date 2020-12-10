@@ -451,7 +451,7 @@ error:
 	return r;
 }
 
-/**
+/*
  * amdgpu_move_blit - Copy an entire buffer to another buffer
  *
  * This is a helper called by amdgpu_bo_move() and amdgpu_move_vram_ram() to
@@ -512,7 +512,7 @@ error:
 	return r;
 }
 
-/**
+/*
  * amdgpu_mem_visible - Check that memory can be accessed by ttm_bo_move_memcpy
  *
  * Called by amdgpu_bo_move()
@@ -536,7 +536,7 @@ static bool amdgpu_mem_visible(struct amdgpu_device *adev,
 		<= adev->gmc.visible_vram_size;
 }
 
-/**
+/*
  * amdgpu_bo_move - Move a buffer object to a new memory location
  *
  * Called by ttm_bo_handle_move_mem()
@@ -649,7 +649,7 @@ fail:
 	return r;
 }
 
-/**
+/*
  * amdgpu_ttm_io_mem_reserve - Reserve a block of memory during a fault
  *
  * Called by ttm_mem_io_reserve() ultimately via ttm_bo_vm_fault()
@@ -740,7 +740,7 @@ struct amdgpu_ttm_tt {
 };
 
 #ifdef CONFIG_DRM_AMDGPU_USERPTR
-/**
+/*
  * amdgpu_ttm_tt_get_user_pages - get device accessible pages that back user
  * memory and start HMM tracking CPU page table update
  *
@@ -845,7 +845,7 @@ out:
 	return r;
 }
 
-/**
+/*
  * amdgpu_ttm_tt_userptr_range_done - stop HMM track the CPU page table change
  * Check if the pages backing this ttm range have been invalidated
  *
@@ -881,7 +881,7 @@ bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm)
 }
 #endif
 
-/**
+/*
  * amdgpu_ttm_tt_set_user_pages - Copy pages in, putting old pages as necessary.
  *
  * Called by amdgpu_cs_list_validate(). This creates the page list
@@ -896,7 +896,7 @@ void amdgpu_ttm_tt_set_user_pages(struct ttm_tt *ttm, struct page **pages)
 		ttm->pages[i] = pages ? pages[i] : NULL;
 }
 
-/**
+/*
  * amdgpu_ttm_tt_pin_userptr - prepare the sg table with the user pages
  *
  * Called by amdgpu_ttm_backend_bind()
@@ -936,7 +936,7 @@ release_sg:
 	return r;
 }
 
-/**
+/*
  * amdgpu_ttm_tt_unpin_userptr - Unpin and unmap userptr pages
  */
 static void amdgpu_ttm_tt_unpin_userptr(struct ttm_bo_device *bdev,
@@ -1017,7 +1017,7 @@ gart_bind_fail:
 	return r;
 }
 
-/**
+/*
  * amdgpu_ttm_backend_bind - Bind GTT memory
  *
  * Called by ttm_tt_bind() on behalf of ttm_bo_handle_move_mem().
@@ -1075,7 +1075,7 @@ static int amdgpu_ttm_backend_bind(struct ttm_bo_device *bdev,
 	return r;
 }
 
-/**
+/*
  * amdgpu_ttm_alloc_gart - Make sure buffer object is accessible either
  * through AGP or GART aperture.
  *
@@ -1136,7 +1136,7 @@ int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 	return 0;
 }
 
-/**
+/*
  * amdgpu_ttm_recover_gart - Rebind GTT pages
  *
  * Called by amdgpu_gtt_mgr_recover() from amdgpu_device_reset() to
@@ -1157,7 +1157,7 @@ int amdgpu_ttm_recover_gart(struct ttm_buffer_object *tbo)
 	return r;
 }
 
-/**
+/*
  * amdgpu_ttm_backend_unbind - Unbind GTT mapped pages
  *
  * Called by ttm_tt_unbind() on behalf of ttm_bo_move_ttm() and
@@ -1206,6 +1206,7 @@ static void amdgpu_ttm_backend_destroy(struct ttm_bo_device *bdev,
  * amdgpu_ttm_tt_create - Create a ttm_tt object for a given BO
  *
  * @bo: The buffer object to create a GTT ttm_tt object around
+ * @page_flags: Page flags to be added to the ttm_tt object
  *
  * Called by ttm_tt_create().
  */
@@ -1235,7 +1236,7 @@ static struct ttm_tt *amdgpu_ttm_tt_create(struct ttm_buffer_object *bo,
 	return &gtt->ttm;
 }
 
-/**
+/*
  * amdgpu_ttm_tt_populate - Map GTT pages visible to the device
  *
  * Map the pages of a ttm_tt object to an address space visible
@@ -1280,7 +1281,7 @@ static int amdgpu_ttm_tt_populate(struct ttm_bo_device *bdev,
 	return ttm_pool_alloc(&adev->mman.bdev.pool, ttm, ctx);
 }
 
-/**
+/*
  * amdgpu_ttm_tt_unpopulate - unmap GTT pages and unpopulate page arrays
  *
  * Unmaps pages of a ttm_tt object from the device address space and
@@ -1350,7 +1351,7 @@ int amdgpu_ttm_tt_set_userptr(struct ttm_buffer_object *bo,
 	return 0;
 }
 
-/**
+/*
  * amdgpu_ttm_tt_get_usermm - Return memory manager for ttm_tt object
  */
 struct mm_struct *amdgpu_ttm_tt_get_usermm(struct ttm_tt *ttm)
@@ -1366,7 +1367,7 @@ struct mm_struct *amdgpu_ttm_tt_get_usermm(struct ttm_tt *ttm)
 	return gtt->usertask->mm;
 }
 
-/**
+/*
  * amdgpu_ttm_tt_affect_userptr - Determine if a ttm_tt object lays inside an
  * address range for the current task.
  *
@@ -1390,7 +1391,7 @@ bool amdgpu_ttm_tt_affect_userptr(struct ttm_tt *ttm, unsigned long start,
 	return true;
 }
 
-/**
+/*
  * amdgpu_ttm_tt_is_userptr - Have the pages backing by userptr?
  */
 bool amdgpu_ttm_tt_is_userptr(struct ttm_tt *ttm)
@@ -1403,7 +1404,7 @@ bool amdgpu_ttm_tt_is_userptr(struct ttm_tt *ttm)
 	return true;
 }
 
-/**
+/*
  * amdgpu_ttm_tt_is_readonly - Is the ttm_tt object read only?
  */
 bool amdgpu_ttm_tt_is_readonly(struct ttm_tt *ttm)
@@ -1444,9 +1445,10 @@ uint64_t amdgpu_ttm_tt_pde_flags(struct ttm_tt *ttm, struct ttm_resource *mem)
 /**
  * amdgpu_ttm_tt_pte_flags - Compute PTE flags for ttm_tt object
  *
+ * @adev: amdgpu_device pointer
  * @ttm: The ttm_tt object to compute the flags for
  * @mem: The memory registry backing this ttm_tt object
-
+ *
  * Figure out the flags to use for a VM PTE (Page Table Entry).
  */
 uint64_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
@@ -1463,7 +1465,7 @@ uint64_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 	return flags;
 }
 
-/**
+/*
  * amdgpu_ttm_bo_eviction_valuable - Check to see if we can evict a buffer
  * object.
  *
@@ -1774,7 +1776,7 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 	return 0;
 }
 
-/**
+/*
  * amdgpu_ttm_init - Init the memory management (ttm) as well as various
  * gtt/vram related fields.
  *
@@ -1908,18 +1910,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-/**
- * amdgpu_ttm_late_init - Handle any late initialization for amdgpu_ttm
- */
-void amdgpu_ttm_late_init(struct amdgpu_device *adev)
-{
-	/* return the VGA stolen memory (if any) back to VRAM */
-	if (!adev->mman.keep_stolen_vga_memory)
-		amdgpu_bo_free_kernel(&adev->mman.stolen_vga_memory, NULL, NULL);
-	amdgpu_bo_free_kernel(&adev->mman.stolen_extended_memory, NULL, NULL);
-}
-
-/**
+/*
  * amdgpu_ttm_fini - De-initialize the TTM memory pools
  */
 void amdgpu_ttm_fini(struct amdgpu_device *adev)
@@ -1929,8 +1920,8 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 
 	amdgpu_ttm_training_reserve_vram_fini(adev);
 	/* return the stolen vga memory back to VRAM */
-	if (adev->mman.keep_stolen_vga_memory)
-		amdgpu_bo_free_kernel(&adev->mman.stolen_vga_memory, NULL, NULL);
+	amdgpu_bo_free_kernel(&adev->mman.stolen_vga_memory, NULL, NULL);
+	amdgpu_bo_free_kernel(&adev->mman.stolen_extended_memory, NULL, NULL);
 	/* return the IP Discovery TMR memory back to VRAM */
 	amdgpu_bo_free_kernel(&adev->mman.discovery_memory, NULL, NULL);
 	amdgpu_ttm_fw_reserve_vram_fini(adev);
@@ -2240,7 +2231,7 @@ static const struct drm_info_list amdgpu_ttm_debugfs_list[] = {
 	{"ttm_page_pool", amdgpu_ttm_pool_debugfs, 0, NULL},
 };
 
-/**
+/*
  * amdgpu_ttm_vram_read - Linear read access to VRAM
  *
  * Accesses VRAM via MMIO for debugging purposes.
@@ -2275,7 +2266,7 @@ static ssize_t amdgpu_ttm_vram_read(struct file *f, char __user *buf,
 	return result;
 }
 
-/**
+/*
  * amdgpu_ttm_vram_write - Linear write access to VRAM
  *
  * Accesses VRAM via MMIO for debugging purposes.
@@ -2328,7 +2319,7 @@ static const struct file_operations amdgpu_ttm_vram_fops = {
 
 #ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
 
-/**
+/*
  * amdgpu_ttm_gtt_read - Linear read access to GTT memory
  */
 static ssize_t amdgpu_ttm_gtt_read(struct file *f, char __user *buf,
@@ -2378,7 +2369,7 @@ static const struct file_operations amdgpu_ttm_gtt_fops = {
 
 #endif
 
-/**
+/*
  * amdgpu_iomem_read - Virtual read access to GPU mapped memory
  *
  * This function is used to read memory that has been mapped to the
@@ -2434,7 +2425,7 @@ static ssize_t amdgpu_iomem_read(struct file *f, char __user *buf,
 	return result;
 }
 
-/**
+/*
  * amdgpu_iomem_write - Virtual write access to GPU mapped memory
  *
  * This function is used to write memory that has been mapped to the

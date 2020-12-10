@@ -499,7 +499,7 @@ static void dcn3_init_clocks_fpga(struct clk_mgr *clk_mgr)
 /* TODO: Implement the functions and remove the ifndef guard */
 }
 
-static struct clk_mgr_funcs dcn3_fpga_funcs = {
+struct clk_mgr_funcs dcn3_fpga_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.update_clocks = dcn2_update_clocks_fpga,
 	.init_clocks = dcn3_init_clocks_fpga,

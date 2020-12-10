@@ -26,6 +26,7 @@
 #include <linux/dma-mapping.h>
 
 #include "amdgpu.h"
+#include "amdgpu_fw_attestation.h"
 #include "amdgpu_psp.h"
 #include "amdgpu_ucode.h"
 #include "soc15_common.h"
@@ -129,7 +130,6 @@ static int amdgpu_is_fw_attestation_supported(struct amdgpu_device *adev)
 
 void amdgpu_fw_attestation_debugfs_init(struct amdgpu_device *adev)
 {
-#if defined(CONFIG_DEBUG_FS)
 	if (!amdgpu_is_fw_attestation_supported(adev))
 		return;
 
@@ -138,5 +138,4 @@ void amdgpu_fw_attestation_debugfs_init(struct amdgpu_device *adev)
 			    adev_to_drm(adev)->primary->debugfs_root,
 			    adev,
 			    &amdgpu_fw_attestation_debugfs_ops);
-#endif
 }

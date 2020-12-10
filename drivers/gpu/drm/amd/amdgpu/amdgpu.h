@@ -106,6 +106,7 @@
 #include "amdgpu_mmhub.h"
 #include "amdgpu_gfxhub.h"
 #include "amdgpu_df.h"
+#include "amdgpu_smuio.h"
 
 #define MAX_GPU_INSTANCE		16
 
@@ -193,9 +194,9 @@ extern int sched_policy;
 extern bool debug_evictions;
 extern bool no_system_mem_limit;
 #else
-static const int sched_policy = KFD_SCHED_POLICY_HWS;
-static const bool debug_evictions; /* = false */
-static const bool no_system_mem_limit;
+static const int __maybe_unused sched_policy = KFD_SCHED_POLICY_HWS;
+static const bool __maybe_unused debug_evictions; /* = false */
+static const bool __maybe_unused no_system_mem_limit;
 #endif
 
 extern int amdgpu_tmz;
@@ -920,6 +921,9 @@ struct amdgpu_device {
 	/* nbio */
 	struct amdgpu_nbio		nbio;
 
+	/* smuio */
+	struct amdgpu_smuio		smuio;
+
 	/* mmhub */
 	struct amdgpu_mmhub		mmhub;
 
@@ -1307,9 +1311,11 @@ int amdgpu_acpi_pcie_notify_device_ready(struct amdgpu_device *adev);
 
 void amdgpu_acpi_get_backlight_caps(struct amdgpu_device *adev,
 		struct amdgpu_dm_backlight_caps *caps);
+bool amdgpu_acpi_is_s0ix_supported(void);
 #else
 static inline int amdgpu_acpi_init(struct amdgpu_device *adev) { return 0; }
 static inline void amdgpu_acpi_fini(struct amdgpu_device *adev) { }
+static inline bool amdgpu_acpi_is_s0ix_supported(void) { return false; }
 #endif
 
 int amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,

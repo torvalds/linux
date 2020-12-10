@@ -939,12 +939,15 @@ void dce110_edp_backlight_control(
 		return;
 	}
 
-	if (enable && link->panel_cntl &&
-		link->panel_cntl->funcs->is_panel_backlight_on(link->panel_cntl)) {
-		DC_LOG_HW_RESUME_S3(
-				"%s: panel already powered up. Do nothing.\n",
+	if (link->panel_cntl) {
+		bool is_backlight_on = link->panel_cntl->funcs->is_panel_backlight_on(link->panel_cntl);
+
+		if ((enable && is_backlight_on) || (!enable && !is_backlight_on)) {
+			DC_LOG_HW_RESUME_S3(
+				"%s: panel already powered up/off. Do nothing.\n",
 				__func__);
-		return;
+			return;
+		}
 	}
 
 	/* Send VBIOS command to control eDP panel backlight */
@@ -1527,6 +1530,8 @@ static void power_down_encoders(struct dc *dc)
 				dc->links[i]->link_enc, signal);
 
 		dc->links[i]->link_status.link_active = false;
+		memset(&dc->links[i]->cur_link_settings, 0,
+				sizeof(dc->links[i]->cur_link_settings));
 	}
 }
 

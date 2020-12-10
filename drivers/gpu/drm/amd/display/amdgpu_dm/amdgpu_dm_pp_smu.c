@@ -535,7 +535,7 @@ bool dm_pp_get_static_clocks(
 	return true;
 }
 
-void pp_rv_set_wm_ranges(struct pp_smu *pp,
+static void pp_rv_set_wm_ranges(struct pp_smu *pp,
 		struct pp_smu_wm_range_sets *ranges)
 {
 	const struct dc_context *ctx = pp->dm;
@@ -587,7 +587,7 @@ void pp_rv_set_wm_ranges(struct pp_smu *pp,
 							   &wm_with_clock_ranges);
 }
 
-void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
+static void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
 {
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
@@ -598,7 +598,7 @@ void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
 		pp_funcs->notify_smu_enable_pwe(pp_handle);
 }
 
-void pp_rv_set_active_display_count(struct pp_smu *pp, int count)
+static void pp_rv_set_active_display_count(struct pp_smu *pp, int count)
 {
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
@@ -611,7 +611,7 @@ void pp_rv_set_active_display_count(struct pp_smu *pp, int count)
 	pp_funcs->set_active_display_count(pp_handle, count);
 }
 
-void pp_rv_set_min_deep_sleep_dcfclk(struct pp_smu *pp, int clock)
+static void pp_rv_set_min_deep_sleep_dcfclk(struct pp_smu *pp, int clock)
 {
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
@@ -624,7 +624,7 @@ void pp_rv_set_min_deep_sleep_dcfclk(struct pp_smu *pp, int clock)
 	pp_funcs->set_min_deep_sleep_dcefclk(pp_handle, clock);
 }
 
-void pp_rv_set_hard_min_dcefclk_by_freq(struct pp_smu *pp, int clock)
+static void pp_rv_set_hard_min_dcefclk_by_freq(struct pp_smu *pp, int clock)
 {
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
@@ -637,7 +637,7 @@ void pp_rv_set_hard_min_dcefclk_by_freq(struct pp_smu *pp, int clock)
 	pp_funcs->set_hard_min_dcefclk_by_freq(pp_handle, clock);
 }
 
-void pp_rv_set_hard_min_fclk_by_freq(struct pp_smu *pp, int mhz)
+static void pp_rv_set_hard_min_fclk_by_freq(struct pp_smu *pp, int mhz)
 {
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
@@ -657,22 +657,6 @@ static enum pp_smu_status pp_nv_set_wm_ranges(struct pp_smu *pp,
 	struct amdgpu_device *adev = ctx->driver_context;
 
 	smu_set_watermarks_for_clock_ranges(&adev->smu, ranges);
-
-	return PP_SMU_RESULT_OK;
-}
-
-enum pp_smu_status pp_nv_set_pme_wa_enable(struct pp_smu *pp)
-{
-	const struct dc_context *ctx = pp->dm;
-	struct amdgpu_device *adev = ctx->driver_context;
-	struct smu_context *smu = &adev->smu;
-
-	if (!smu->ppt_funcs)
-		return PP_SMU_RESULT_UNSUPPORTED;
-
-	/* 0: successful or smu.ppt_funcs->set_azalia_d3_pme = NULL;  1: fail */
-	if (smu_set_azalia_d3_pme(smu))
-		return PP_SMU_RESULT_FAIL;
 
 	return PP_SMU_RESULT_OK;
 }

@@ -27,9 +27,9 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if 
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x3A
+#define SMU11_DRIVER_IF_VERSION 0x3B
 
-#define PPTABLE_Sienna_Cichlid_SMU_VERSION 6
+#define PPTABLE_Sienna_Cichlid_SMU_VERSION 7
 
 #define NUM_GFXCLK_DPM_LEVELS  16
 #define NUM_SMNCLK_DPM_LEVELS  2
@@ -437,6 +437,7 @@ typedef enum {
   PIECEWISE_LINEAR_FUSED_MODEL = 0,
   PIECEWISE_LINEAR_PP_MODEL,
   QUADRATIC_PP_MODEL,
+  PERPART_PIECEWISE_LINEAR_PP_MODEL,  
 } DfllDroopModelSelect_e;
 
 typedef struct {
@@ -612,7 +613,9 @@ typedef struct {
   uint16_t       SmnclkDpmFreq        [NUM_SMNCLK_DPM_LEVELS];       // in MHz
   uint16_t       SmnclkDpmVoltage     [NUM_SMNCLK_DPM_LEVELS];       // mV(Q2)
 
-  uint32_t     PaddingAPCC[4];
+  uint32_t       PaddingAPCC;
+  uint16_t       PerPartDroopVsetGfxDfll[NUM_PIECE_WISE_LINEAR_DROOP_MODEL_VF_POINTS];  //In mV(Q2)
+  uint16_t       PaddingPerPartDroop;
 
   // SECTION: Throttler settings
   uint32_t ThrottlerControlMask;   // See Throtter masks defines
@@ -667,7 +670,9 @@ typedef struct {
   uint16_t       FreqTablePhyclk   [NUM_PHYCLK_DPM_LEVELS  ];     // In MHz
   uint16_t       FreqTableDtbclk   [NUM_DTBCLK_DPM_LEVELS  ];     // In MHz
   uint16_t       FreqTableFclk     [NUM_FCLK_DPM_LEVELS    ];     // In MHz
-  uint32_t       Paddingclks[16];
+  uint32_t       Paddingclks;
+
+  DroopInt_t     PerPartDroopModelGfxDfll[NUM_PIECE_WISE_LINEAR_DROOP_MODEL_VF_POINTS]; //GHz ->Vstore in IEEE float format
 
   uint32_t       DcModeMaxFreq     [PPCLK_COUNT            ];     // In MHz
   
@@ -1221,7 +1226,8 @@ typedef struct {
 #define WORKLOAD_PPLIB_VR_BIT             4 
 #define WORKLOAD_PPLIB_COMPUTE_BIT        5 
 #define WORKLOAD_PPLIB_CUSTOM_BIT         6 
-#define WORKLOAD_PPLIB_COUNT              7 
+#define WORKLOAD_PPLIB_W3D_BIT            7 
+#define WORKLOAD_PPLIB_COUNT              8 
 
 
 // These defines are used with the following messages:

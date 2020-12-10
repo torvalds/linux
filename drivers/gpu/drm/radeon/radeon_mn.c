@@ -41,6 +41,7 @@
  *
  * @mn: our notifier
  * @range: the VMA under invalidation
+ * @cur_seq: Value to pass to mmu_interval_set_seq()
  *
  * We block for all BOs between start and end to be idle and
  * unmap them by move them into system domain again.

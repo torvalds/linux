@@ -569,6 +569,12 @@ static void build_vrr_infopacket_data_v1(const struct mod_vrr_params *vrr,
 static void build_vrr_infopacket_data_v3(const struct mod_vrr_params *vrr,
 		struct dc_info_packet *infopacket)
 {
+	unsigned int min_refresh;
+	unsigned int max_refresh;
+	unsigned int fixed_refresh;
+	unsigned int min_programmed;
+	unsigned int max_programmed;
+
 	/* PB1 = 0x1A (24bit AMD IEEE OUI (0x00001A) - Byte 0) */
 	infopacket->sb[1] = 0x1A;
 
@@ -598,23 +604,33 @@ static void build_vrr_infopacket_data_v3(const struct mod_vrr_params *vrr,
 			vrr->state == VRR_STATE_ACTIVE_FIXED)
 		infopacket->sb[6] |= 0x04;
 
-	if (vrr->state == VRR_STATE_ACTIVE_FIXED) {
-		/* PB7 = FreeSync Minimum refresh rate (Hz) */
-		infopacket->sb[7] = (unsigned char)((vrr->fixed_refresh_in_uhz + 500000) / 1000000);
-		/* PB8 = FreeSync Maximum refresh rate (Hz) */
-		infopacket->sb[8] = (unsigned char)((vrr->fixed_refresh_in_uhz + 500000) / 1000000);
-	} else if (vrr->state == VRR_STATE_ACTIVE_VARIABLE) {
-		/* PB7 = FreeSync Minimum refresh rate (Hz) */
-		infopacket->sb[7] = (unsigned char)((vrr->min_refresh_in_uhz + 500000) / 1000000);
-		/* PB8 = FreeSync Maximum refresh rate (Hz) */
-		infopacket->sb[8] = (unsigned char)((vrr->max_refresh_in_uhz + 500000) / 1000000);
-	} else {
-		// Non-fs case, program nominal range
-		/* PB7 = FreeSync Minimum refresh rate (Hz) */
-		infopacket->sb[7] = (unsigned char)((vrr->max_refresh_in_uhz + 500000) / 1000000);
-		/* PB8 = FreeSync Maximum refresh rate (Hz) */
-		infopacket->sb[8] = (unsigned char)((vrr->max_refresh_in_uhz + 500000) / 1000000);
-	}
+	min_refresh = (vrr->min_refresh_in_uhz + 500000) / 1000000;
+	max_refresh = (vrr->max_refresh_in_uhz + 500000) / 1000000;
+	fixed_refresh = (vrr->fixed_refresh_in_uhz + 500000) / 1000000;
+
+	min_programmed = (vrr->state == VRR_STATE_ACTIVE_FIXED) ? fixed_refresh :
+			(vrr->state == VRR_STATE_ACTIVE_VARIABLE) ? min_refresh :
+			(vrr->state == VRR_STATE_INACTIVE) ? min_refresh :
+			max_refresh; // Non-fs case, program nominal range
+
+	max_programmed = (vrr->state == VRR_STATE_ACTIVE_FIXED) ? fixed_refresh :
+			(vrr->state == VRR_STATE_ACTIVE_VARIABLE) ? max_refresh :
+			max_refresh;// Non-fs case, program nominal range
+
+	/* PB7 = FreeSync Minimum refresh rate (Hz) */
+	infopacket->sb[7] = min_programmed & 0xFF;
+
+	/* PB8 = FreeSync Maximum refresh rate (Hz) */
+	infopacket->sb[8] = max_programmed & 0xFF;
+
+	/* PB11 : MSB FreeSync Minimum refresh rate [Hz] - bits 9:8 */
+	infopacket->sb[11] = (min_programmed >> 8) & 0x03;
+
+	/* PB12 : MSB FreeSync Maximum refresh rate [Hz] - bits 9:8 */
+	infopacket->sb[12] = (max_programmed >> 8) & 0x03;
+
+	/* PB16 : Reserved bits 7:1, FixedRate bit 0 */
+	infopacket->sb[16] = (vrr->state == VRR_STATE_ACTIVE_FIXED) ? 1 : 0;
 
 	//FreeSync HDR
 	infopacket->sb[9] = 0;
@@ -733,6 +749,58 @@ static void build_vrr_infopacket_header_v2(enum signal_type signal,
 	}
 }
 
+static void build_vrr_infopacket_header_v3(enum signal_type signal,
+		struct dc_info_packet *infopacket,
+		unsigned int *payload_size)
+{
+	unsigned char version;
+
+	version = 3;
+	if (dc_is_hdmi_signal(signal)) {
+
+		/* HEADER */
+
+		/* HB0  = Packet Type = 0x83 (Source Product
+		 *	  Descriptor InfoFrame)
+		 */
+		infopacket->hb0 = DC_HDMI_INFOFRAME_TYPE_SPD;
+
+		/* HB1  = Version = 0x03 */
+		infopacket->hb1 = version;
+
+		/* HB2  = [Bits 7:5 = 0] [Bits 4:0 = Length] */
+		*payload_size = 0x10;
+		infopacket->hb2 = *payload_size - 1; //-1 for checksum
+
+	} else if (dc_is_dp_signal(signal)) {
+
+		/* HEADER */
+
+		/* HB0  = Secondary-data Packet ID = 0 - Only non-zero
+		 *	  when used to associate audio related info packets
+		 */
+		infopacket->hb0 = 0x00;
+
+		/* HB1  = Packet Type = 0x83 (Source Product
+		 *	  Descriptor InfoFrame)
+		 */
+		infopacket->hb1 = DC_HDMI_INFOFRAME_TYPE_SPD;
+
+		/* HB2  = [Bits 7:0 = Least significant eight bits -
+		 *	  For INFOFRAME, the value must be 1Bh]
+		 */
+		infopacket->hb2 = 0x1B;
+
+		/* HB3  = [Bits 7:2 = INFOFRAME SDP Version Number = 0x2]
+		 *	  [Bits 1:0 = Most significant two bits = 0x00]
+		 */
+
+		infopacket->hb3 = (version & 0x3F) << 2;
+
+		*payload_size = 0x1B;
+	}
+}
+
 static void build_vrr_infopacket_checksum(unsigned int *payload_size,
 		struct dc_info_packet *infopacket)
 {
@@ -818,7 +886,7 @@ static void build_vrr_infopacket_v3(enum signal_type signal,
 {
 	unsigned int payload_size = 0;
 
-	build_vrr_infopacket_header_v2(signal, infopacket, &payload_size);
+	build_vrr_infopacket_header_v3(signal, infopacket, &payload_size);
 	build_vrr_infopacket_data_v3(vrr, infopacket);
 
 	build_vrr_infopacket_fs2_data(app_tf, infopacket);

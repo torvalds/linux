@@ -142,6 +142,12 @@ typedef struct {
 
   uint8_t NumDfPstatesEnabled;
   uint8_t NumDpmLevelsEnabled;
+  uint8_t NumDcfclkLevelsEnabled;
+  uint8_t NumDispClkLevelsEnabled;  //applies to both dispclk and dppclk
+  uint8_t NumSocClkLevelsEnabled;
+
+  uint8_t IspClkLevelsEnabled;  //applies to both ispiclk and ispxclk
+  uint8_t VcnClkLevelsEnabled;  //applies to both vclk/dclk
   uint8_t spare[2];
 } DpmClocks_t;
 

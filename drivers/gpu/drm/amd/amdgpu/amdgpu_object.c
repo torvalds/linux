@@ -1075,23 +1075,6 @@ int amdgpu_bo_init(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_bo_late_init - late init
- * @adev: amdgpu device object
- *
- * Calls amdgpu_ttm_late_init() to free resources used earlier during
- * initialization.
- *
- * Returns:
- * 0 for success or a negative error code on failure.
- */
-int amdgpu_bo_late_init(struct amdgpu_device *adev)
-{
-	amdgpu_ttm_late_init(adev);
-
-	return 0;
-}
-
-/**
  * amdgpu_bo_fini - tear down memory manager
  * @adev: amdgpu device object
  *
@@ -1518,7 +1501,7 @@ uint32_t amdgpu_bo_get_preferred_pin_domain(struct amdgpu_device *adev,
 	} while (0)
 
 /**
- * amdgpu_debugfs_print_bo_info - print BO info in debugfs file
+ * amdgpu_bo_print_info - print BO info in debugfs file
  *
  * @id: Index or Id of the BO
  * @bo: Requested BO for printing info

@@ -15,6 +15,11 @@
 #include "dc_dmub_srv.h"
 #include "dce/dmub_hw_lock_mgr.h"
 
+/*Travis*/
+static const uint8_t DP_VGA_LVDS_CONVERTER_ID_2[] = "sivarT";
+/*Nutmeg*/
+static const uint8_t DP_VGA_LVDS_CONVERTER_ID_3[] = "dnomlA";
+
 #define DC_LOGGER \
 	link->ctx->logger
 #define DC_TRACE_LEVEL_MESSAGE(...) /* do nothing */
@@ -1405,14 +1410,23 @@ static void print_status_message(
 	case LINK_RATE_LOW:
 		link_rate = "RBR";
 		break;
+	case LINK_RATE_RATE_2:
+		link_rate = "R2";
+		break;
+	case LINK_RATE_RATE_3:
+		link_rate = "R3";
+		break;
 	case LINK_RATE_HIGH:
 		link_rate = "HBR";
 		break;
-	case LINK_RATE_HIGH2:
-		link_rate = "HBR2";
-		break;
 	case LINK_RATE_RBR2:
 		link_rate = "RBR2";
+		break;
+	case LINK_RATE_RATE_6:
+		link_rate = "R6";
+		break;
+	case LINK_RATE_HIGH2:
+		link_rate = "HBR2";
 		break;
 	case LINK_RATE_HIGH3:
 		link_rate = "HBR3";
@@ -1860,7 +1874,7 @@ static struct dc_link_settings get_max_link_cap(struct dc_link *link)
 	return max_link_cap;
 }
 
-static enum dc_status read_hpd_rx_irq_data(
+enum dc_status read_hpd_rx_irq_data(
 	struct dc_link *link,
 	union hpd_irq_data *irq_data)
 {
@@ -2565,7 +2579,8 @@ static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 		psr_sink_psr_status.raw = dpcdbuf[2];
 
 		if (psr_error_status.bits.LINK_CRC_ERROR ||
-				psr_error_status.bits.RFB_STORAGE_ERROR) {
+				psr_error_status.bits.RFB_STORAGE_ERROR ||
+				psr_error_status.bits.VSC_SDP_ERROR) {
 			/* Acknowledge and clear error bits */
 			dm_helpers_dp_write_dpcd(
 				link->ctx,
@@ -2575,8 +2590,8 @@ static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 				sizeof(psr_error_status.raw));
 
 			/* PSR error, disable and re-enable PSR */
-			dc_link_set_psr_allow_active(link, false, true);
-			dc_link_set_psr_allow_active(link, true, true);
+			dc_link_set_psr_allow_active(link, false, true, false);
+			dc_link_set_psr_allow_active(link, true, true, false);
 
 			return true;
 		} else if (psr_sink_psr_status.bits.SINK_SELF_REFRESH_STATUS ==
@@ -3740,6 +3755,7 @@ void detect_edp_sink_caps(struct dc_link *link)
 	uint32_t entry;
 	uint32_t link_rate_in_khz;
 	enum dc_link_rate link_rate = LINK_RATE_UNKNOWN;
+	uint8_t backlight_adj_cap;
 
 	retrieve_link_cap(link);
 	link->dpcd_caps.edp_supported_link_rates_count = 0;
@@ -3769,6 +3785,12 @@ void detect_edp_sink_caps(struct dc_link *link)
 		}
 	}
 	link->verified_link_cap = link->reported_link_cap;
+
+	core_link_read_dpcd(link, DP_EDP_BACKLIGHT_ADJUSTMENT_CAP,
+						&backlight_adj_cap, sizeof(backlight_adj_cap));
+
+	link->dpcd_caps.dynamic_backlight_capable_edp =
+				(backlight_adj_cap & DP_EDP_DYNAMIC_BACKLIGHT_CAP) ? true:false;
 
 	dc_link_set_default_brightness_aux(link);
 }

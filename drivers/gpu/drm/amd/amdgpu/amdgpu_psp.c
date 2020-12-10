@@ -1925,7 +1925,8 @@ static int psp_load_smu_fw(struct psp_context *psp)
 		return 0;
 
 
-	if (amdgpu_in_reset(adev) && ras && ras->supported) {
+	if (amdgpu_in_reset(adev) && ras && ras->supported &&
+		adev->asic_type == CHIP_ARCTURUS) {
 		ret = amdgpu_dpm_set_mp1_state(adev, PP_MP1_STATE_UNLOAD);
 		if (ret) {
 			DRM_WARN("Failed to set MP1 state prepare for reload\n");
@@ -2573,9 +2574,9 @@ out:
 	return err;
 }
 
-int parse_ta_bin_descriptor(struct psp_context *psp,
-			    const struct ta_fw_bin_desc *desc,
-			    const struct ta_firmware_header_v2_0 *ta_hdr)
+static int parse_ta_bin_descriptor(struct psp_context *psp,
+				   const struct ta_fw_bin_desc *desc,
+				   const struct ta_firmware_header_v2_0 *ta_hdr)
 {
 	uint8_t *ucode_start_addr  = NULL;
 
@@ -2631,7 +2632,7 @@ int psp_init_ta_microcode(struct psp_context *psp,
 			  const char *chip_name)
 {
 	struct amdgpu_device *adev = psp->adev;
-	char fw_name[30];
+	char fw_name[PSP_FW_NAME_LEN];
 	const struct ta_firmware_header_v2_0 *ta_hdr;
 	int err = 0;
 	int ta_index = 0;

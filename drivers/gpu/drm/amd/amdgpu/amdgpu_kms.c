@@ -162,10 +162,6 @@ int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 	} else if (amdgpu_device_supports_baco(dev) &&
 		   (amdgpu_runtime_pm != 0)) {
 		switch (adev->asic_type) {
-#ifdef CONFIG_DRM_AMDGPU_CIK
-		case CHIP_BONAIRE:
-		case CHIP_HAWAII:
-#endif
 		case CHIP_VEGA20:
 		case CHIP_ARCTURUS:
 		case CHIP_SIENNA_CICHLID:
@@ -180,7 +176,7 @@ int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 				adev->runpm = true;
 			break;
 		default:
-			/* enable runpm on VI+ */
+			/* enable runpm on CI+ */
 			adev->runpm = true;
 			break;
 		}
@@ -474,7 +470,7 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 /**
  * amdgpu_info_ioctl - answer a device specific request.
  *
- * @adev: amdgpu device pointer
+ * @dev: drm device pointer
  * @data: request object
  * @filp: drm filp
  *
@@ -720,38 +716,42 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		return n ? -EFAULT : 0;
 	}
 	case AMDGPU_INFO_DEV_INFO: {
-		struct drm_amdgpu_info_device dev_info;
+		struct drm_amdgpu_info_device *dev_info;
 		uint64_t vm_size;
+		int ret;
 
-		memset(&dev_info, 0, sizeof(dev_info));
-		dev_info.device_id = dev->pdev->device;
-		dev_info.chip_rev = adev->rev_id;
-		dev_info.external_rev = adev->external_rev_id;
-		dev_info.pci_rev = dev->pdev->revision;
-		dev_info.family = adev->family;
-		dev_info.num_shader_engines = adev->gfx.config.max_shader_engines;
-		dev_info.num_shader_arrays_per_engine = adev->gfx.config.max_sh_per_se;
+		dev_info = kzalloc(sizeof(*dev_info), GFP_KERNEL);
+		if (!dev_info)
+			return -ENOMEM;
+
+		dev_info->device_id = dev->pdev->device;
+		dev_info->chip_rev = adev->rev_id;
+		dev_info->external_rev = adev->external_rev_id;
+		dev_info->pci_rev = dev->pdev->revision;
+		dev_info->family = adev->family;
+		dev_info->num_shader_engines = adev->gfx.config.max_shader_engines;
+		dev_info->num_shader_arrays_per_engine = adev->gfx.config.max_sh_per_se;
 		/* return all clocks in KHz */
-		dev_info.gpu_counter_freq = amdgpu_asic_get_xclk(adev) * 10;
+		dev_info->gpu_counter_freq = amdgpu_asic_get_xclk(adev) * 10;
 		if (adev->pm.dpm_enabled) {
-			dev_info.max_engine_clock = amdgpu_dpm_get_sclk(adev, false) * 10;
-			dev_info.max_memory_clock = amdgpu_dpm_get_mclk(adev, false) * 10;
+			dev_info->max_engine_clock = amdgpu_dpm_get_sclk(adev, false) * 10;
+			dev_info->max_memory_clock = amdgpu_dpm_get_mclk(adev, false) * 10;
 		} else {
-			dev_info.max_engine_clock = adev->clock.default_sclk * 10;
-			dev_info.max_memory_clock = adev->clock.default_mclk * 10;
+			dev_info->max_engine_clock = adev->clock.default_sclk * 10;
+			dev_info->max_memory_clock = adev->clock.default_mclk * 10;
 		}
-		dev_info.enabled_rb_pipes_mask = adev->gfx.config.backend_enable_mask;
-		dev_info.num_rb_pipes = adev->gfx.config.max_backends_per_se *
+		dev_info->enabled_rb_pipes_mask = adev->gfx.config.backend_enable_mask;
+		dev_info->num_rb_pipes = adev->gfx.config.max_backends_per_se *
 			adev->gfx.config.max_shader_engines;
-		dev_info.num_hw_gfx_contexts = adev->gfx.config.max_hw_contexts;
-		dev_info._pad = 0;
-		dev_info.ids_flags = 0;
+		dev_info->num_hw_gfx_contexts = adev->gfx.config.max_hw_contexts;
+		dev_info->_pad = 0;
+		dev_info->ids_flags = 0;
 		if (adev->flags & AMD_IS_APU)
-			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_FUSION;
+			dev_info->ids_flags |= AMDGPU_IDS_FLAGS_FUSION;
 		if (amdgpu_mcbp || amdgpu_sriov_vf(adev))
-			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_PREEMPTION;
+			dev_info->ids_flags |= AMDGPU_IDS_FLAGS_PREEMPTION;
 		if (amdgpu_is_tmz(adev))
-			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_TMZ;
+			dev_info->ids_flags |= AMDGPU_IDS_FLAGS_TMZ;
 
 		vm_size = adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
 		vm_size -= AMDGPU_VA_RESERVED_SIZE;
@@ -761,45 +761,47 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		    adev->vce.fw_version < AMDGPU_VCE_FW_53_45)
 			vm_size = min(vm_size, 1ULL << 40);
 
-		dev_info.virtual_address_offset = AMDGPU_VA_RESERVED_SIZE;
-		dev_info.virtual_address_max =
+		dev_info->virtual_address_offset = AMDGPU_VA_RESERVED_SIZE;
+		dev_info->virtual_address_max =
 			min(vm_size, AMDGPU_GMC_HOLE_START);
 
 		if (vm_size > AMDGPU_GMC_HOLE_START) {
-			dev_info.high_va_offset = AMDGPU_GMC_HOLE_END;
-			dev_info.high_va_max = AMDGPU_GMC_HOLE_END | vm_size;
+			dev_info->high_va_offset = AMDGPU_GMC_HOLE_END;
+			dev_info->high_va_max = AMDGPU_GMC_HOLE_END | vm_size;
 		}
-		dev_info.virtual_address_alignment = max((int)PAGE_SIZE, AMDGPU_GPU_PAGE_SIZE);
-		dev_info.pte_fragment_size = (1 << adev->vm_manager.fragment_size) * AMDGPU_GPU_PAGE_SIZE;
-		dev_info.gart_page_size = AMDGPU_GPU_PAGE_SIZE;
-		dev_info.cu_active_number = adev->gfx.cu_info.number;
-		dev_info.cu_ao_mask = adev->gfx.cu_info.ao_cu_mask;
-		dev_info.ce_ram_size = adev->gfx.ce_ram_size;
-		memcpy(&dev_info.cu_ao_bitmap[0], &adev->gfx.cu_info.ao_cu_bitmap[0],
+		dev_info->virtual_address_alignment = max((int)PAGE_SIZE, AMDGPU_GPU_PAGE_SIZE);
+		dev_info->pte_fragment_size = (1 << adev->vm_manager.fragment_size) * AMDGPU_GPU_PAGE_SIZE;
+		dev_info->gart_page_size = AMDGPU_GPU_PAGE_SIZE;
+		dev_info->cu_active_number = adev->gfx.cu_info.number;
+		dev_info->cu_ao_mask = adev->gfx.cu_info.ao_cu_mask;
+		dev_info->ce_ram_size = adev->gfx.ce_ram_size;
+		memcpy(&dev_info->cu_ao_bitmap[0], &adev->gfx.cu_info.ao_cu_bitmap[0],
 		       sizeof(adev->gfx.cu_info.ao_cu_bitmap));
-		memcpy(&dev_info.cu_bitmap[0], &adev->gfx.cu_info.bitmap[0],
+		memcpy(&dev_info->cu_bitmap[0], &adev->gfx.cu_info.bitmap[0],
 		       sizeof(adev->gfx.cu_info.bitmap));
-		dev_info.vram_type = adev->gmc.vram_type;
-		dev_info.vram_bit_width = adev->gmc.vram_width;
-		dev_info.vce_harvest_config = adev->vce.harvest_config;
-		dev_info.gc_double_offchip_lds_buf =
+		dev_info->vram_type = adev->gmc.vram_type;
+		dev_info->vram_bit_width = adev->gmc.vram_width;
+		dev_info->vce_harvest_config = adev->vce.harvest_config;
+		dev_info->gc_double_offchip_lds_buf =
 			adev->gfx.config.double_offchip_lds_buf;
-		dev_info.wave_front_size = adev->gfx.cu_info.wave_front_size;
-		dev_info.num_shader_visible_vgprs = adev->gfx.config.max_gprs;
-		dev_info.num_cu_per_sh = adev->gfx.config.max_cu_per_sh;
-		dev_info.num_tcc_blocks = adev->gfx.config.max_texture_channel_caches;
-		dev_info.gs_vgt_table_depth = adev->gfx.config.gs_vgt_table_depth;
-		dev_info.gs_prim_buffer_depth = adev->gfx.config.gs_prim_buffer_depth;
-		dev_info.max_gs_waves_per_vgt = adev->gfx.config.max_gs_threads;
+		dev_info->wave_front_size = adev->gfx.cu_info.wave_front_size;
+		dev_info->num_shader_visible_vgprs = adev->gfx.config.max_gprs;
+		dev_info->num_cu_per_sh = adev->gfx.config.max_cu_per_sh;
+		dev_info->num_tcc_blocks = adev->gfx.config.max_texture_channel_caches;
+		dev_info->gs_vgt_table_depth = adev->gfx.config.gs_vgt_table_depth;
+		dev_info->gs_prim_buffer_depth = adev->gfx.config.gs_prim_buffer_depth;
+		dev_info->max_gs_waves_per_vgt = adev->gfx.config.max_gs_threads;
 
 		if (adev->family >= AMDGPU_FAMILY_NV)
-			dev_info.pa_sc_tile_steering_override =
+			dev_info->pa_sc_tile_steering_override =
 				adev->gfx.config.pa_sc_tile_steering_override;
 
-		dev_info.tcc_disabled_mask = adev->gfx.config.tcc_disabled_mask;
+		dev_info->tcc_disabled_mask = adev->gfx.config.tcc_disabled_mask;
 
-		return copy_to_user(out, &dev_info,
-				    min((size_t)size, sizeof(dev_info))) ? -EFAULT : 0;
+		ret = copy_to_user(out, dev_info,
+				   min((size_t)size, sizeof(*dev_info))) ? -EFAULT : 0;
+		kfree(dev_info);
+		return ret;
 	}
 	case AMDGPU_INFO_VCE_CLOCK_TABLE: {
 		unsigned i;

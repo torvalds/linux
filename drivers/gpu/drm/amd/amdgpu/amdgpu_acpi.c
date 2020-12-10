@@ -27,6 +27,7 @@
 #include <linux/power_supply.h>
 #include <linux/pm_runtime.h>
 #include <acpi/video.h>
+#include <acpi/actbl.h>
 
 #include <drm/drm_crtc_helper.h>
 #include "amdgpu.h"
@@ -893,4 +894,17 @@ void amdgpu_acpi_fini(struct amdgpu_device *adev)
 {
 	unregister_acpi_notifier(&adev->acpi_nb);
 	kfree(adev->atif);
+}
+
+/**
+ * amdgpu_acpi_is_s0ix_supported
+ *
+ * returns true if supported, false if not.
+ */
+bool amdgpu_acpi_is_s0ix_supported(void)
+{
+	if (acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0)
+		return true;
+
+	return false;
 }

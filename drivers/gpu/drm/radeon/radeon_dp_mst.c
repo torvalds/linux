@@ -363,7 +363,7 @@ radeon_mst_encoder_dpms(struct drm_encoder *encoder, int mode)
 	struct radeon_connector *radeon_connector;
 	struct drm_crtc *crtc;
 	struct radeon_crtc *radeon_crtc;
-	int ret, slots;
+	int slots;
 	s64 fixed_pbn, fixed_pbn_per_slot, avg_time_slots_per_mtp;
 	if (!ASIC_IS_DCE5(rdev)) {
 		DRM_ERROR("got mst dpms on non-DCE5\n");
@@ -418,10 +418,10 @@ radeon_mst_encoder_dpms(struct drm_encoder *encoder, int mode)
 
 		slots = drm_dp_find_vcpi_slots(&radeon_connector->mst_port->mst_mgr,
 					       mst_enc->pbn);
-		ret = drm_dp_mst_allocate_vcpi(&radeon_connector->mst_port->mst_mgr,
-					       radeon_connector->port,
-					       mst_enc->pbn, slots);
-		ret = drm_dp_update_payload_part1(&radeon_connector->mst_port->mst_mgr);
+		drm_dp_mst_allocate_vcpi(&radeon_connector->mst_port->mst_mgr,
+					 radeon_connector->port,
+					 mst_enc->pbn, slots);
+		drm_dp_update_payload_part1(&radeon_connector->mst_port->mst_mgr);
 
 		radeon_dp_mst_set_be_cntl(primary, mst_enc,
 					  radeon_connector->mst_port->hpd.hpd, true);
@@ -436,9 +436,9 @@ radeon_mst_encoder_dpms(struct drm_encoder *encoder, int mode)
 
 		atombios_dig_encoder_setup2(&primary->base, ATOM_ENCODER_CMD_DP_VIDEO_ON, 0,
 					    mst_enc->fe);
-		ret = drm_dp_check_act_status(&radeon_connector->mst_port->mst_mgr);
+		drm_dp_check_act_status(&radeon_connector->mst_port->mst_mgr);
 
-		ret = drm_dp_update_payload_part2(&radeon_connector->mst_port->mst_mgr);
+		drm_dp_update_payload_part2(&radeon_connector->mst_port->mst_mgr);
 
 		break;
 	case DRM_MODE_DPMS_STANDBY:
@@ -450,7 +450,7 @@ radeon_mst_encoder_dpms(struct drm_encoder *encoder, int mode)
 			return;
 
 		drm_dp_mst_reset_vcpi_slots(&radeon_connector->mst_port->mst_mgr, mst_enc->port);
-		ret = drm_dp_update_payload_part1(&radeon_connector->mst_port->mst_mgr);
+		drm_dp_update_payload_part1(&radeon_connector->mst_port->mst_mgr);
 
 		drm_dp_check_act_status(&radeon_connector->mst_port->mst_mgr);
 		/* and this can also fail */

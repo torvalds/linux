@@ -149,7 +149,7 @@ static void uvd_v4_2_enable_mgcg(struct amdgpu_device *adev,
 /**
  * uvd_v4_2_hw_init - start and test UVD block
  *
- * @adev: amdgpu_device pointer
+ * @handle: handle used to pass amdgpu_device pointer
  *
  * Initialize the hardware, boot up the VCPU and do some testing
  */
@@ -204,7 +204,7 @@ done:
 /**
  * uvd_v4_2_hw_fini - stop the hardware block
  *
- * @adev: amdgpu_device pointer
+ * @handle: handle used to pass amdgpu_device pointer
  *
  * Stop the UVD block, mark ring as not ready any more
  */
@@ -437,7 +437,9 @@ static void uvd_v4_2_stop(struct amdgpu_device *adev)
  * uvd_v4_2_ring_emit_fence - emit an fence & trap command
  *
  * @ring: amdgpu_ring pointer
- * @fence: fence to emit
+ * @addr: address
+ * @seq: sequence number
+ * @flags: fence related flags
  *
  * Write a fence and a trap command to the ring.
  */
@@ -502,7 +504,9 @@ static int uvd_v4_2_ring_test_ring(struct amdgpu_ring *ring)
  * uvd_v4_2_ring_emit_ib - execute indirect buffer
  *
  * @ring: amdgpu_ring pointer
+ * @job: iob associated with the indirect buffer
  * @ib: indirect buffer to execute
+ * @flags: flags associated with the indirect buffer
  *
  * Write ring commands to execute the indirect buffer
  */

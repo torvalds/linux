@@ -585,6 +585,7 @@ void amdgpu_mm_wdoorbell64(struct amdgpu_device *adev, u32 index, u64 v)
  * @adev: amdgpu_device pointer
  * @pcie_index: mmio register offset
  * @pcie_data: mmio register offset
+ * @reg_addr: indirect register address to read from
  *
  * Returns the value of indirect register @reg_addr
  */
@@ -615,6 +616,7 @@ u32 amdgpu_device_indirect_rreg(struct amdgpu_device *adev,
  * @adev: amdgpu_device pointer
  * @pcie_index: mmio register offset
  * @pcie_data: mmio register offset
+ * @reg_addr: indirect register address to read from
  *
  * Returns the value of indirect register @reg_addr
  */
@@ -2648,8 +2650,10 @@ static int amdgpu_device_ip_suspend_phase1(struct amdgpu_device *adev)
 {
 	int i, r;
 
-	amdgpu_device_set_pg_state(adev, AMD_PG_STATE_UNGATE);
-	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_UNGATE);
+	if (!amdgpu_acpi_is_s0ix_supported() || amdgpu_in_reset(adev)) {
+		amdgpu_device_set_pg_state(adev, AMD_PG_STATE_UNGATE);
+		amdgpu_device_set_cg_state(adev, AMD_CG_STATE_UNGATE);
+	}
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.valid)
@@ -3342,7 +3346,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	/* if we have > 1 VGA cards, then disable the amdgpu VGA resources */
 	/* this will fail for cards that aren't VGA class devices, just
 	 * ignore it */
-	vga_client_register(adev->pdev, adev, NULL, amdgpu_device_vga_set_decode);
+	if ((adev->pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA)
+		vga_client_register(adev->pdev, adev, NULL, amdgpu_device_vga_set_decode);
 
 	if (amdgpu_device_supports_boco(ddev))
 		boco = true;
@@ -3601,7 +3606,8 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 		vga_switcheroo_unregister_client(adev->pdev);
 	if (amdgpu_device_supports_boco(adev_to_drm(adev)))
 		vga_switcheroo_fini_domain_pm_ops(adev->dev);
-	vga_client_register(adev->pdev, NULL, NULL, NULL);
+	if ((adev->pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA)
+		vga_client_register(adev->pdev, NULL, NULL, NULL);
 	if (adev->rio_mem)
 		pci_iounmap(adev->pdev, adev->rio_mem);
 	adev->rio_mem = NULL;
@@ -3704,8 +3710,10 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 
 	amdgpu_fence_driver_suspend(adev);
 
-	r = amdgpu_device_ip_suspend_phase2(adev);
-
+	if (!amdgpu_acpi_is_s0ix_supported() || amdgpu_in_reset(adev))
+		r = amdgpu_device_ip_suspend_phase2(adev);
+	else
+		amdgpu_gfx_state_change_set(adev, sGpuChangeState_D3Entry);
 	/* evict remaining vram memory
 	 * This second call to evict vram is to evict the gart page table
 	 * using the CPU.
@@ -3735,6 +3743,9 @@ int amdgpu_device_resume(struct drm_device *dev, bool fbcon)
 
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
+
+	if (amdgpu_acpi_is_s0ix_supported())
+		amdgpu_gfx_state_change_set(adev, sGpuChangeState_D0Entry);
 
 	/* post card */
 	if (amdgpu_device_need_post(adev)) {
@@ -4857,7 +4868,7 @@ int amdgpu_device_baco_enter(struct drm_device *dev)
 	if (!amdgpu_device_supports_baco(adev_to_drm(adev)))
 		return -ENOTSUPP;
 
-	if (ras && ras->supported)
+	if (ras && ras->supported && adev->nbio.funcs->enable_doorbell_interrupt)
 		adev->nbio.funcs->enable_doorbell_interrupt(adev, false);
 
 	return amdgpu_dpm_baco_enter(adev);
@@ -4876,7 +4887,7 @@ int amdgpu_device_baco_exit(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	if (ras && ras->supported)
+	if (ras && ras->supported && adev->nbio.funcs->enable_doorbell_interrupt)
 		adev->nbio.funcs->enable_doorbell_interrupt(adev, true);
 
 	return 0;

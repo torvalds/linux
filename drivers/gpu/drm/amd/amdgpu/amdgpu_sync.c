@@ -78,7 +78,7 @@ static bool amdgpu_sync_same_dev(struct amdgpu_device *adev,
 /**
  * amdgpu_sync_get_owner - extract the owner of a fence
  *
- * @fence: fence get the owner from
+ * @f: fence get the owner from
  *
  * Extract who originally created the fence.
  */
@@ -172,7 +172,6 @@ int amdgpu_sync_fence(struct amdgpu_sync *sync, struct dma_fence *f)
 /**
  * amdgpu_sync_vm_fence - remember to sync to this VM fence
  *
- * @adev: amdgpu device
  * @sync: sync object to add fence to
  * @fence: the VM fence to add
  *
@@ -190,6 +189,7 @@ int amdgpu_sync_vm_fence(struct amdgpu_sync *sync, struct dma_fence *fence)
 /**
  * amdgpu_sync_resv - sync to a reservation object
  *
+ * @adev: amdgpu device
  * @sync: sync object to add fences from reservation object to
  * @resv: reservation object with embedded fence
  * @mode: how owner affects which fences we sync to

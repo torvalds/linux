@@ -462,6 +462,13 @@ void dcn30_init_hw(struct dc *dc)
 		hws->funcs.disable_vga(dc->hwseq);
 	}
 
+	if (dc->debug.enable_mem_low_power.bits.dmcu) {
+		// Force ERAM to shutdown if DMCU is not enabled
+		if (dc->debug.disable_dmcu || dc->config.disable_dmcu) {
+			REG_UPDATE(DMU_MEM_PWR_CNTL, DMCU_ERAM_MEM_PWR_FORCE, 3);
+		}
+	}
+
 	// Set default OPTC memory power states
 	if (dc->debug.enable_mem_low_power.bits.optc) {
 		// Shutdown when unassigned and light sleep in VBLANK
@@ -825,5 +832,5 @@ void dcn30_set_disp_pattern_generator(const struct dc *dc,
 		int width, int height, int offset)
 {
 	pipe_ctx->stream_res.opp->funcs->opp_set_disp_pattern_generator(pipe_ctx->stream_res.opp, test_pattern,
-			color_space, color_depth, solid_color, width, height, 0);
+			color_space, color_depth, solid_color, width, height, offset);
 }

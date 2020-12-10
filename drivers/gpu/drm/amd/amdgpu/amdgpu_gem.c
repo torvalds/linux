@@ -70,26 +70,12 @@ int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 	bp.type = type;
 	bp.resv = resv;
 	bp.preferred_domain = initial_domain;
-retry:
 	bp.flags = flags;
 	bp.domain = initial_domain;
 	r = amdgpu_bo_create(adev, &bp, &bo);
-	if (r) {
-		if (r != -ERESTARTSYS) {
-			if (flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED) {
-				flags &= ~AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
-				goto retry;
-			}
-
-			if (initial_domain == AMDGPU_GEM_DOMAIN_VRAM) {
-				initial_domain |= AMDGPU_GEM_DOMAIN_GTT;
-				goto retry;
-			}
-			DRM_DEBUG("Failed to allocate GEM object (%ld, %d, %u, %d)\n",
-				  size, initial_domain, alignment, r);
-		}
+	if (r)
 		return r;
-	}
+
 	*obj = &bo->tbo.base;
 	(*obj)->funcs = &amdgpu_gem_object_funcs;
 
@@ -239,7 +225,7 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 	uint64_t size = args->in.bo_size;
 	struct dma_resv *resv = NULL;
 	struct drm_gem_object *gobj;
-	uint32_t handle;
+	uint32_t handle, initial_domain;
 	int r;
 
 	/* reject invalid gem flags */
@@ -283,9 +269,28 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 		resv = vm->root.base.bo->tbo.base.resv;
 	}
 
+retry:
+	initial_domain = (u32)(0xffffffff & args->in.domains);
 	r = amdgpu_gem_object_create(adev, size, args->in.alignment,
-				     (u32)(0xffffffff & args->in.domains),
+				     initial_domain,
 				     flags, ttm_bo_type_device, resv, &gobj);
+	if (r) {
+		if (r != -ERESTARTSYS) {
+			if (flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED) {
+				flags &= ~AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
+				goto retry;
+			}
+
+			if (initial_domain == AMDGPU_GEM_DOMAIN_VRAM) {
+				initial_domain |= AMDGPU_GEM_DOMAIN_GTT;
+				goto retry;
+			}
+			DRM_DEBUG("Failed to allocate GEM object (%llu, %d, %llu, %d)\n",
+				  size, initial_domain, args->in.alignment, r);
+		}
+		return r;
+	}
+
 	if (flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID) {
 		if (!r) {
 			struct amdgpu_bo *abo = gem_to_amdgpu_bo(gobj);
