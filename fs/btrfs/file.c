@@ -1997,9 +1997,7 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 				    struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file_inode(file);
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_inode *inode = BTRFS_I(file_inode(file));
 	ssize_t num_written = 0;
 	const bool sync = iocb->ki_flags & IOCB_DSYNC;
 
@@ -2008,7 +2006,7 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	 * have opened a file as writable, we have to stop this write operation
 	 * to ensure consistency.
 	 */
-	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state))
+	if (test_bit(BTRFS_FS_STATE_ERROR, &inode->root->fs_info->fs_state))
 		return -EROFS;
 
 	if (!(iocb->ki_flags & IOCB_DIRECT) &&
@@ -2016,7 +2014,7 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 		return -EOPNOTSUPP;
 
 	if (sync)
-		atomic_inc(&BTRFS_I(inode)->sync_writers);
+		atomic_inc(&inode->sync_writers);
 
 	if (iocb->ki_flags & IOCB_DIRECT)
 		num_written = btrfs_direct_write(iocb, from);
@@ -2028,14 +2026,14 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	 * otherwise subsequent syncs to a file that's been synced in this
 	 * transaction will appear to have already occurred.
 	 */
-	spin_lock(&BTRFS_I(inode)->lock);
-	BTRFS_I(inode)->last_sub_trans = root->log_transid;
-	spin_unlock(&BTRFS_I(inode)->lock);
+	spin_lock(&inode->lock);
+	inode->last_sub_trans = inode->root->log_transid;
+	spin_unlock(&inode->lock);
 	if (num_written > 0)
 		num_written = generic_write_sync(iocb, num_written);
 
 	if (sync)
-		atomic_dec(&BTRFS_I(inode)->sync_writers);
+		atomic_dec(&inode->sync_writers);
 
 	current->backing_dev_info = NULL;
 	return num_written;
