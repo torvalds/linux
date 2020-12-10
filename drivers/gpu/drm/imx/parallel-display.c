@@ -261,6 +261,10 @@ static int imx_pd_register(struct drm_device *drm,
 	struct drm_bridge *bridge = &imxpd->bridge;
 	int ret;
 
+	memset(connector, 0, sizeof(*connector));
+	memset(encoder, 0, sizeof(*encoder));
+	memset(bridge, 0, sizeof(*bridge));
+
 	ret = imx_drm_encoder_parse_of(drm, encoder, imxpd->dev->of_node);
 	if (ret)
 		return ret;
@@ -301,6 +305,18 @@ static int imx_pd_register(struct drm_device *drm,
 static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 {
 	struct drm_device *drm = data;
+	struct imx_parallel_display *imxpd = dev_get_drvdata(dev);
+
+	return imx_pd_register(drm, imxpd);
+}
+
+static const struct component_ops imx_pd_ops = {
+	.bind	= imx_pd_bind,
+};
+
+static int imx_pd_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	const u8 *edidp;
 	struct imx_parallel_display *imxpd;
@@ -309,8 +325,9 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 	u32 bus_format = 0;
 	const char *fmt;
 
-	imxpd = dev_get_drvdata(dev);
-	memset(imxpd, 0, sizeof(*imxpd));
+	imxpd = devm_kzalloc(dev, sizeof(*imxpd), GFP_KERNEL);
+	if (!imxpd)
+		return -ENOMEM;
 
 	/* port@1 is the output port */
 	ret = drm_of_find_panel_or_bridge(np, 1, 0, &imxpd->panel,
@@ -337,28 +354,9 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 
 	imxpd->dev = dev;
 
-	ret = imx_pd_register(drm, imxpd);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static const struct component_ops imx_pd_ops = {
-	.bind	= imx_pd_bind,
-};
-
-static int imx_pd_probe(struct platform_device *pdev)
-{
-	struct imx_parallel_display *imxpd;
-
-	imxpd = devm_kzalloc(&pdev->dev, sizeof(*imxpd), GFP_KERNEL);
-	if (!imxpd)
-		return -ENOMEM;
-
 	platform_set_drvdata(pdev, imxpd);
 
-	return component_add(&pdev->dev, &imx_pd_ops);
+	return component_add(dev, &imx_pd_ops);
 }
 
 static int imx_pd_remove(struct platform_device *pdev)
