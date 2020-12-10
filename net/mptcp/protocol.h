@@ -119,7 +119,7 @@ struct mptcp_options_received {
 	u32	token;
 	u32	nonce;
 	u64	thmac;
-	u8	hmac[20];
+	u8	hmac[MPTCPOPT_HMAC_LEN];
 	u8	join_id;
 	u8	use_map:1,
 		dsn64:1,
