@@ -382,7 +382,7 @@ static int sienna_cichlid_tables_init(struct smu_context *smu)
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 	SMU_TABLE_INIT(tables, SMU_TABLE_WATERMARKS, sizeof(Watermarks_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
-	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_t),
+	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetricsExternal_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 	SMU_TABLE_INIT(tables, SMU_TABLE_I2C_COMMANDS, sizeof(SwI2cRequest_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
@@ -394,7 +394,7 @@ static int sienna_cichlid_tables_init(struct smu_context *smu)
 		       sizeof(DpmActivityMonitorCoeffIntExternal_t), PAGE_SIZE,
 	               AMDGPU_GEM_DOMAIN_VRAM);
 
-	smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
+	smu_table->metrics_table = kzalloc(sizeof(SmuMetricsExternal_t), GFP_KERNEL);
 	if (!smu_table->metrics_table)
 		goto err0_out;
 	smu_table->metrics_time = 0;
@@ -423,7 +423,8 @@ static int sienna_cichlid_get_smu_metrics_data(struct smu_context *smu,
 					       uint32_t *value)
 {
 	struct smu_table_context *smu_table= &smu->smu_table;
-	SmuMetrics_t *metrics = (SmuMetrics_t *)smu_table->metrics_table;
+	SmuMetrics_t *metrics =
+		&(((SmuMetricsExternal_t *)(smu_table->metrics_table))->SmuMetrics);
 	int ret = 0;
 
 	mutex_lock(&smu->metrics_lock);
@@ -2598,52 +2599,54 @@ static ssize_t sienna_cichlid_get_gpu_metrics(struct smu_context *smu,
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct gpu_metrics_v1_0 *gpu_metrics =
 		(struct gpu_metrics_v1_0 *)smu_table->gpu_metrics_table;
-	SmuMetrics_t metrics;
+	SmuMetricsExternal_t metrics_external;
+	SmuMetrics_t *metrics =
+		&(metrics_external.SmuMetrics);
 	int ret = 0;
 
 	ret = smu_cmn_get_metrics_table(smu,
-					&metrics,
+					&metrics_external,
 					true);
 	if (ret)
 		return ret;
 
 	smu_v11_0_init_gpu_metrics_v1_0(gpu_metrics);
 
-	gpu_metrics->temperature_edge = metrics.TemperatureEdge;
-	gpu_metrics->temperature_hotspot = metrics.TemperatureHotspot;
-	gpu_metrics->temperature_mem = metrics.TemperatureMem;
-	gpu_metrics->temperature_vrgfx = metrics.TemperatureVrGfx;
-	gpu_metrics->temperature_vrsoc = metrics.TemperatureVrSoc;
-	gpu_metrics->temperature_vrmem = metrics.TemperatureVrMem0;
+	gpu_metrics->temperature_edge = metrics->TemperatureEdge;
+	gpu_metrics->temperature_hotspot = metrics->TemperatureHotspot;
+	gpu_metrics->temperature_mem = metrics->TemperatureMem;
+	gpu_metrics->temperature_vrgfx = metrics->TemperatureVrGfx;
+	gpu_metrics->temperature_vrsoc = metrics->TemperatureVrSoc;
+	gpu_metrics->temperature_vrmem = metrics->TemperatureVrMem0;
 
-	gpu_metrics->average_gfx_activity = metrics.AverageGfxActivity;
-	gpu_metrics->average_umc_activity = metrics.AverageUclkActivity;
-	gpu_metrics->average_mm_activity = metrics.VcnActivityPercentage;
+	gpu_metrics->average_gfx_activity = metrics->AverageGfxActivity;
+	gpu_metrics->average_umc_activity = metrics->AverageUclkActivity;
+	gpu_metrics->average_mm_activity = metrics->VcnActivityPercentage;
 
-	gpu_metrics->average_socket_power = metrics.AverageSocketPower;
-	gpu_metrics->energy_accumulator = metrics.EnergyAccumulator;
+	gpu_metrics->average_socket_power = metrics->AverageSocketPower;
+	gpu_metrics->energy_accumulator = metrics->EnergyAccumulator;
 
-	if (metrics.AverageGfxActivity <= SMU_11_0_7_GFX_BUSY_THRESHOLD)
-		gpu_metrics->average_gfxclk_frequency = metrics.AverageGfxclkFrequencyPostDs;
+	if (metrics->AverageGfxActivity <= SMU_11_0_7_GFX_BUSY_THRESHOLD)
+		gpu_metrics->average_gfxclk_frequency = metrics->AverageGfxclkFrequencyPostDs;
 	else
-		gpu_metrics->average_gfxclk_frequency = metrics.AverageGfxclkFrequencyPreDs;
-	gpu_metrics->average_uclk_frequency = metrics.AverageUclkFrequencyPostDs;
-	gpu_metrics->average_vclk0_frequency = metrics.AverageVclk0Frequency;
-	gpu_metrics->average_dclk0_frequency = metrics.AverageDclk0Frequency;
-	gpu_metrics->average_vclk1_frequency = metrics.AverageVclk1Frequency;
-	gpu_metrics->average_dclk1_frequency = metrics.AverageDclk1Frequency;
+		gpu_metrics->average_gfxclk_frequency = metrics->AverageGfxclkFrequencyPreDs;
+	gpu_metrics->average_uclk_frequency = metrics->AverageUclkFrequencyPostDs;
+	gpu_metrics->average_vclk0_frequency = metrics->AverageVclk0Frequency;
+	gpu_metrics->average_dclk0_frequency = metrics->AverageDclk0Frequency;
+	gpu_metrics->average_vclk1_frequency = metrics->AverageVclk1Frequency;
+	gpu_metrics->average_dclk1_frequency = metrics->AverageDclk1Frequency;
 
-	gpu_metrics->current_gfxclk = metrics.CurrClock[PPCLK_GFXCLK];
-	gpu_metrics->current_socclk = metrics.CurrClock[PPCLK_SOCCLK];
-	gpu_metrics->current_uclk = metrics.CurrClock[PPCLK_UCLK];
-	gpu_metrics->current_vclk0 = metrics.CurrClock[PPCLK_VCLK_0];
-	gpu_metrics->current_dclk0 = metrics.CurrClock[PPCLK_DCLK_0];
-	gpu_metrics->current_vclk1 = metrics.CurrClock[PPCLK_VCLK_1];
-	gpu_metrics->current_dclk1 = metrics.CurrClock[PPCLK_DCLK_1];
+	gpu_metrics->current_gfxclk = metrics->CurrClock[PPCLK_GFXCLK];
+	gpu_metrics->current_socclk = metrics->CurrClock[PPCLK_SOCCLK];
+	gpu_metrics->current_uclk = metrics->CurrClock[PPCLK_UCLK];
+	gpu_metrics->current_vclk0 = metrics->CurrClock[PPCLK_VCLK_0];
+	gpu_metrics->current_dclk0 = metrics->CurrClock[PPCLK_DCLK_0];
+	gpu_metrics->current_vclk1 = metrics->CurrClock[PPCLK_VCLK_1];
+	gpu_metrics->current_dclk1 = metrics->CurrClock[PPCLK_DCLK_1];
 
-	gpu_metrics->throttle_status = metrics.ThrottlerStatus;
+	gpu_metrics->throttle_status = metrics->ThrottlerStatus;
 
-	gpu_metrics->current_fan_speed = metrics.CurrFanSpeed;
+	gpu_metrics->current_fan_speed = metrics->CurrFanSpeed;
 
 	gpu_metrics->pcie_link_width =
 			smu_v11_0_get_current_pcie_link_width(smu);
