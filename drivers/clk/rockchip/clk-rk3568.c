@@ -1516,7 +1516,7 @@ static struct rockchip_clk_branch rk3568_clk_pmu_branches[] __initdata = {
 
 	COMPOSITE_FRACMUX(CLK_RTC32K_FRAC, "clk_rtc32k_frac", "xin24m", CLK_IGNORE_UNUSED,
 			RK3568_PMU_CLKSEL_CON(1), 0,
-			RK3568_PMU_CLKGATE_CON(1), 0, GFLAGS,
+			RK3568_PMU_CLKGATE_CON(0), 1, GFLAGS,
 			&rk3568_rtc32k_pmu_fracmux, 0),
 
 	COMPOSITE_NOMUX(XIN_OSC0_DIV, "xin_osc0_div", "xin24m", CLK_IGNORE_UNUSED,
