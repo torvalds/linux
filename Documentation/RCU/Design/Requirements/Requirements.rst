@@ -1668,8 +1668,7 @@ against mishaps and misuse:
    this purpose.
 #. It is not necessary to use rcu_assign_pointer() when creating
    linked structures that are to be published via a single external
-   pointer. The RCU_INIT_POINTER() macro is provided for this task
-   and also for assigning ``NULL`` pointers at runtime.
+   pointer. The RCU_INIT_POINTER() macro is provided for this task.
 
 This not a hard-and-fast list: RCU's diagnostic capabilities will
 continue to be guided by the number and type of usage bugs found in
