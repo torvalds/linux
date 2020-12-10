@@ -462,6 +462,18 @@ config MTD_NAND_ARASAN
 	  Enables the driver for the Arasan NAND flash controller on
 	  Zynq Ultrascale+ MPSoC.
 
+config MTD_NAND_ROCKCHIP
+	tristate "Rockchip NAND controller"
+	depends on ARCH_ROCKCHIP && HAS_IOMEM
+	help
+	  Enables support for NAND controller on Rockchip SoCs.
+	  There are four different versions of NAND FLASH Controllers,
+	  including:
+	    NFC v600: RK2928, RK3066, RK3188
+	    NFC v622: RK3036, RK3128
+	    NFC v800: RK3308, RV1108
+	    NFC v900: PX30, RK3326
+
 comment "Misc"
 
 config MTD_SM_COMMON
