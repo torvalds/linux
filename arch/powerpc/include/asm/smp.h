@@ -201,6 +201,10 @@ static inline const struct cpumask *cpu_smallcore_mask(int cpu)
 	return cpumask_of(cpu);
 }
 
+static inline const struct cpumask *cpu_l2_cache_mask(int cpu)
+{
+	return cpumask_of(cpu);
+}
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_PPC64
