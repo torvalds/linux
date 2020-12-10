@@ -875,6 +875,18 @@ config VIDEO_OV2735
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov2735.
 
+config VIDEO_OV2775
+	tristate "OmniVision OV2775 sensor support"
+	depends on VIDEO_V4L2 && I2C && MEDIA_CONTROLLER
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV2775 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov2775.
+
 config VIDEO_OV4686
 	tristate "OmniVision OV4686 sensor support"
 	depends on VIDEO_V4L2 && I2C && MEDIA_CONTROLLER
