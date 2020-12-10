@@ -186,6 +186,8 @@ size_t evlist__mmap_size(unsigned long pages);
 void evlist__disable(struct evlist *evlist);
 void evlist__enable(struct evlist *evlist);
 void evlist__toggle_enable(struct evlist *evlist);
+void evlist__disable_evsel(struct evlist *evlist, char *evsel_name);
+void evlist__enable_evsel(struct evlist *evlist, char *evsel_name);
 
 int evlist__enable_event_idx(struct evlist *evlist, struct evsel *evsel, int idx);
 

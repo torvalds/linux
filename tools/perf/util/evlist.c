@@ -381,7 +381,30 @@ bool evsel__cpu_iter_skip(struct evsel *ev, int cpu)
 	return true;
 }
 
-void evlist__disable(struct evlist *evlist)
+static int evsel__strcmp(struct evsel *pos, char *evsel_name)
+{
+	if (!evsel_name)
+		return 0;
+	if (evsel__is_dummy_event(pos))
+		return 1;
+	return strcmp(pos->name, evsel_name);
+}
+
+static int evlist__is_enabled(struct evlist *evlist)
+{
+	struct evsel *pos;
+
+	evlist__for_each_entry(evlist, pos) {
+		if (!evsel__is_group_leader(pos) || !pos->core.fd)
+			continue;
+		/* If at least one event is enabled, evlist is enabled. */
+		if (!pos->disabled)
+			return true;
+	}
+	return false;
+}
+
+static void __evlist__disable(struct evlist *evlist, char *evsel_name)
 {
 	struct evsel *pos;
 	struct affinity affinity;
@@ -397,6 +420,8 @@ void evlist__disable(struct evlist *evlist)
 			affinity__set(&affinity, cpu);
 
 			evlist__for_each_entry(evlist, pos) {
+				if (evsel__strcmp(pos, evsel_name))
+					continue;
 				if (evsel__cpu_iter_skip(pos, cpu))
 					continue;
 				if (pos->disabled || !evsel__is_group_leader(pos) || !pos->core.fd)
@@ -414,15 +439,34 @@ void evlist__disable(struct evlist *evlist)
 
 	affinity__cleanup(&affinity);
 	evlist__for_each_entry(evlist, pos) {
+		if (evsel__strcmp(pos, evsel_name))
+			continue;
 		if (!evsel__is_group_leader(pos) || !pos->core.fd)
 			continue;
 		pos->disabled = true;
 	}
 
-	evlist->enabled = false;
+	/*
+	 * If we disabled only single event, we need to check
+	 * the enabled state of the evlist manually.
+	 */
+	if (evsel_name)
+		evlist->enabled = evlist__is_enabled(evlist);
+	else
+		evlist->enabled = false;
 }
 
-void evlist__enable(struct evlist *evlist)
+void evlist__disable(struct evlist *evlist)
+{
+	__evlist__disable(evlist, NULL);
+}
+
+void evlist__disable_evsel(struct evlist *evlist, char *evsel_name)
+{
+	__evlist__disable(evlist, evsel_name);
+}
+
+static void __evlist__enable(struct evlist *evlist, char *evsel_name)
 {
 	struct evsel *pos;
 	struct affinity affinity;
@@ -435,6 +479,8 @@ void evlist__enable(struct evlist *evlist)
 		affinity__set(&affinity, cpu);
 
 		evlist__for_each_entry(evlist, pos) {
+			if (evsel__strcmp(pos, evsel_name))
+				continue;
 			if (evsel__cpu_iter_skip(pos, cpu))
 				continue;
 			if (!evsel__is_group_leader(pos) || !pos->core.fd)
@@ -444,12 +490,29 @@ void evlist__enable(struct evlist *evlist)
 	}
 	affinity__cleanup(&affinity);
 	evlist__for_each_entry(evlist, pos) {
+		if (evsel__strcmp(pos, evsel_name))
+			continue;
 		if (!evsel__is_group_leader(pos) || !pos->core.fd)
 			continue;
 		pos->disabled = false;
 	}
 
+	/*
+	 * Even single event sets the 'enabled' for evlist,
+	 * so the toggle can work properly and toggle to
+	 * 'disabled' state.
+	 */
 	evlist->enabled = true;
+}
+
+void evlist__enable(struct evlist *evlist)
+{
+	__evlist__enable(evlist, NULL);
+}
+
+void evlist__enable_evsel(struct evlist *evlist, char *evsel_name)
+{
+	__evlist__enable(evlist, evsel_name);
 }
 
 void evlist__toggle_enable(struct evlist *evlist)
