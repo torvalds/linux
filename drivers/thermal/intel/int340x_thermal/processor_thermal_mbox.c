@@ -87,7 +87,7 @@ static const char * const workload_types[] = {
 	"none",
 	"idle",
 	"semi_active",
-	"burusty",
+	"bursty",
 	"sustained",
 	"battery_life",
 	NULL
