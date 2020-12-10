@@ -359,6 +359,14 @@ static int spmi_drv_remove(struct device *dev)
 	return 0;
 }
 
+static void spmi_drv_shutdown(struct device *dev)
+{
+	const struct spmi_driver *sdrv = to_spmi_driver(dev->driver);
+
+	if (sdrv && sdrv->shutdown)
+		sdrv->shutdown(to_spmi_device(dev));
+}
+
 static int spmi_drv_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	int ret;
@@ -375,6 +383,7 @@ static struct bus_type spmi_bus_type = {
 	.match		= spmi_device_match,
 	.probe		= spmi_drv_probe,
 	.remove		= spmi_drv_remove,
+	.shutdown	= spmi_drv_shutdown,
 	.uevent		= spmi_drv_uevent,
 };
 
