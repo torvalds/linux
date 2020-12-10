@@ -89,7 +89,7 @@ struct drm_encoder_funcs {
  * @head: list management
  * @base: base KMS object
  * @name: human readable name, can be overwritten by the driver
- * @funcs: control functions
+ * @funcs: control functions, can be NULL for simple managed encoders
  * @helper_private: mid-layer private data
  *
  * CRTCs drive pixels to encoders, which convert them into signals

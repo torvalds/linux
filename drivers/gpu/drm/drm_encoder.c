@@ -72,7 +72,7 @@ int drm_encoder_register_all(struct drm_device *dev)
 	int ret = 0;
 
 	drm_for_each_encoder(encoder, dev) {
-		if (encoder->funcs->late_register)
+		if (encoder->funcs && encoder->funcs->late_register)
 			ret = encoder->funcs->late_register(encoder);
 		if (ret)
 			return ret;
@@ -86,7 +86,7 @@ void drm_encoder_unregister_all(struct drm_device *dev)
 	struct drm_encoder *encoder;
 
 	drm_for_each_encoder(encoder, dev) {
-		if (encoder->funcs->early_unregister)
+		if (encoder->funcs && encoder->funcs->early_unregister)
 			encoder->funcs->early_unregister(encoder);
 	}
 }
