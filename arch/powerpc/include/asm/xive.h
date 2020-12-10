@@ -66,7 +66,7 @@ struct xive_irq_data {
 #define XIVE_IRQ_FLAG_H_INT_ESB	0x20
 
 /* Special flag set by KVM for excalation interrupts */
-#define XIVE_IRQ_NO_EOI		0x80
+#define XIVE_IRQ_FLAG_NO_EOI	0x80
 
 #define XIVE_INVALID_CHIP_ID	-1
 

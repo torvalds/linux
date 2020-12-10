@@ -219,7 +219,7 @@ int kvmppc_xive_attach_escalation(struct kvm_vcpu *vcpu, u8 prio,
 	/* In single escalation mode, we grab the ESB MMIO of the
 	 * interrupt and mask it. Also populate the VCPU v/raddr
 	 * of the ESB page for use by asm entry/exit code. Finally
-	 * set the XIVE_IRQ_NO_EOI flag which will prevent the
+	 * set the XIVE_IRQ_FLAG_NO_EOI flag which will prevent the
 	 * core code from performing an EOI on the escalation
 	 * interrupt, thus leaving it effectively masked after
 	 * it fires once.
@@ -231,7 +231,7 @@ int kvmppc_xive_attach_escalation(struct kvm_vcpu *vcpu, u8 prio,
 		xive_vm_esb_load(xd, XIVE_ESB_SET_PQ_01);
 		vcpu->arch.xive_esc_raddr = xd->eoi_page;
 		vcpu->arch.xive_esc_vaddr = (__force u64)xd->eoi_mmio;
-		xd->flags |= XIVE_IRQ_NO_EOI;
+		xd->flags |= XIVE_IRQ_FLAG_NO_EOI;
 	}
 
 	return 0;
