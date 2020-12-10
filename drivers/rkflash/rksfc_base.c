@@ -7,6 +7,7 @@
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
+#include <linux/iopoll.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -107,6 +108,9 @@ static int rksfc_probe(struct platform_device *pdev)
 	struct resource	*mem;
 	void __iomem	*membase;
 	int dev_result = -1;
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+	u32 status;
+#endif
 
 	g_sfc_dev = &pdev->dev;
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -143,6 +147,12 @@ static int rksfc_probe(struct platform_device *pdev)
 		 __func__,
 		 g_sfc_info.clk_rate);
 	rksfc_irq_init();
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+	if (readl_poll_timeout(membase + SFC_SR, status,
+			       !(status & SFC_BUSY), 10,
+			       500 * USEC_PER_MSEC))
+		dev_err(g_sfc_dev, "Wait for SFC idle timeout!\n");
+#endif
 #ifdef CONFIG_RK_SFC_NOR
 	dev_result = rkflash_dev_init(g_sfc_info.reg_base, FLASH_TYPE_SFC_NOR, &sfc_nor_ops);
 #endif
