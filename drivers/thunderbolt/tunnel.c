@@ -119,7 +119,6 @@ static void tb_pci_init_path(struct tb_path *path)
 	path->priority = 3;
 	path->weight = 1;
 	path->drop_packages = 0;
-	path->nfc_credits = 0;
 	path->hops[0].initial_credits = 7;
 	if (path->path_length > 1)
 		path->hops[1].initial_credits =
@@ -616,7 +615,7 @@ static void tb_dp_init_aux_path(struct tb_path *path)
 
 static void tb_dp_init_video_path(struct tb_path *path, bool discover)
 {
-	u32 nfc_credits = path->hops[0].in_port->config.nfc_credits;
+	int i;
 
 	path->egress_fc_enable = TB_PATH_NONE;
 	path->egress_shared_buffer = TB_PATH_NONE;
@@ -625,15 +624,20 @@ static void tb_dp_init_video_path(struct tb_path *path, bool discover)
 	path->priority = 1;
 	path->weight = 1;
 
-	if (discover) {
-		path->nfc_credits = nfc_credits & ADP_CS_4_NFC_BUFFERS_MASK;
-	} else {
-		u32 max_credits;
+	for (i = 0; i < path->path_length; i++) {
+		u32 nfc_credits = path->hops[i].in_port->config.nfc_credits;
 
-		max_credits = (nfc_credits & ADP_CS_4_TOTAL_BUFFERS_MASK) >>
-			ADP_CS_4_TOTAL_BUFFERS_SHIFT;
-		/* Leave some credits for AUX path */
-		path->nfc_credits = min(max_credits - 2, 12U);
+		if (discover) {
+			path->hops[i].nfc_credits =
+				nfc_credits & ADP_CS_4_NFC_BUFFERS_MASK;
+		} else {
+			u32 max_credits;
+
+			max_credits = (nfc_credits & ADP_CS_4_TOTAL_BUFFERS_MASK) >>
+				ADP_CS_4_TOTAL_BUFFERS_SHIFT;
+			/* Leave some credits for AUX path */
+			path->hops[i].nfc_credits = min(max_credits - 2, 12U);
+		}
 	}
 }
 
@@ -1076,7 +1080,6 @@ static void tb_usb3_init_path(struct tb_path *path)
 	path->priority = 3;
 	path->weight = 3;
 	path->drop_packages = 0;
-	path->nfc_credits = 0;
 	path->hops[0].initial_credits = 7;
 	if (path->path_length > 1)
 		path->hops[1].initial_credits =

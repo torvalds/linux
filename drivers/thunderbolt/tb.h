@@ -256,6 +256,8 @@ struct tb_retimer {
  * @next_hop_index: HopID of the packet when it is routed out from @out_port
  * @initial_credits: Number of initial flow control credits allocated for
  *		     the path
+ * @nfc_credits: Number of non-flow controlled buffers allocated for the
+ *		 @in_port.
  *
  * Hop configuration is always done on the IN port of a switch.
  * in_port and out_port have to be on the same switch. Packets arriving on
@@ -275,6 +277,7 @@ struct tb_path_hop {
 	int in_counter_index;
 	int next_hop_index;
 	unsigned int initial_credits;
+	unsigned int nfc_credits;
 };
 
 /**
@@ -297,7 +300,6 @@ enum tb_path_port {
  * struct tb_path - a unidirectional path between two ports
  * @tb: Pointer to the domain structure
  * @name: Name of the path (used for debugging)
- * @nfc_credits: Number of non flow controlled credits allocated for the path
  * @ingress_shared_buffer: Shared buffering used for ingress ports on the path
  * @egress_shared_buffer: Shared buffering used for egress ports on the path
  * @ingress_fc_enable: Flow control for ingress ports on the path
@@ -318,7 +320,6 @@ enum tb_path_port {
 struct tb_path {
 	struct tb *tb;
 	const char *name;
-	int nfc_credits;
 	enum tb_path_port ingress_shared_buffer;
 	enum tb_path_port egress_shared_buffer;
 	enum tb_path_port ingress_fc_enable;
