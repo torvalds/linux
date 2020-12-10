@@ -346,6 +346,15 @@ static void ath11k_pci_clear_all_intrs(struct ath11k_base *ab)
 	ath11k_pci_write32(ab, PCIE_PCIE_INT_ALL_CLEAR, PCIE_INT_CLEAR_ALL);
 }
 
+static void ath11k_pci_set_wlaon_pwr_ctrl(struct ath11k_base *ab)
+{
+	u32 val;
+
+	val = ath11k_pci_read32(ab, WLAON_QFPROM_PWR_CTRL_REG);
+	val &= ~QFPROM_PWR_CTRL_VDD4BLOW_MASK;
+	ath11k_pci_write32(ab, WLAON_QFPROM_PWR_CTRL_REG, val);
+}
+
 static void ath11k_pci_force_wake(struct ath11k_base *ab)
 {
 	ath11k_pci_write32(ab, PCIE_SOC_WAKE_PCIE_LOCAL_REG, 1);
@@ -357,6 +366,7 @@ static void ath11k_pci_sw_reset(struct ath11k_base *ab, bool power_on)
 	if (power_on) {
 		ath11k_pci_enable_ltssm(ab);
 		ath11k_pci_clear_all_intrs(ab);
+		ath11k_pci_set_wlaon_pwr_ctrl(ab);
 		ath11k_pci_fix_l1ss(ab);
 	}
 

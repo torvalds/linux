@@ -45,6 +45,9 @@
 #define PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG4_VAL	0xff
 #define PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG_MSK	0x000000ff
 
+#define WLAON_QFPROM_PWR_CTRL_REG		0x01f8031c
+#define QFPROM_PWR_CTRL_VDD4BLOW_MASK		0x4
+
 struct ath11k_msi_user {
 	char *name;
 	int num_vectors;
