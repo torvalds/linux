@@ -17,4 +17,7 @@ properties:
       - enum:
           - bitmain,sophon-edge
       - const: bitmain,bm1880
+
+additionalProperties: true
+
 ...

@@ -784,6 +784,8 @@ static inline bool tb_switch_is_tiger_lake(const struct tb_switch *sw)
 		switch (sw->config.device_id) {
 		case PCI_DEVICE_ID_INTEL_TGL_NHI0:
 		case PCI_DEVICE_ID_INTEL_TGL_NHI1:
+		case PCI_DEVICE_ID_INTEL_TGL_H_NHI0:
+		case PCI_DEVICE_ID_INTEL_TGL_H_NHI1:
 			return true;
 		}
 	}

@@ -1,6 +1,7 @@
 #ifndef _HFI1_USER_EXP_RCV_H
 #define _HFI1_USER_EXP_RCV_H
 /*
+ * Copyright(c) 2020 - Cornelis Networks, Inc.
  * Copyright(c) 2015 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
@@ -94,5 +95,10 @@ int hfi1_user_exp_rcv_clear(struct hfi1_filedata *fd,
 			    struct hfi1_tid_info *tinfo);
 int hfi1_user_exp_rcv_invalid(struct hfi1_filedata *fd,
 			      struct hfi1_tid_info *tinfo);
+
+static inline struct mm_struct *mm_from_tid_node(struct tid_rb_node *node)
+{
+	return node->notifier.mm;
+}
 
 #endif /* _HFI1_USER_EXP_RCV_H */

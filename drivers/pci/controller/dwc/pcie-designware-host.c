@@ -586,8 +586,12 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 	 * ATU, so we should not program the ATU here.
 	 */
 	if (pp->bridge->child_ops == &dw_child_pcie_ops) {
-		struct resource_entry *entry =
-			resource_list_first_type(&pp->bridge->windows, IORESOURCE_MEM);
+		struct resource_entry *tmp, *entry = NULL;
+
+		/* Get last memory resource entry */
+		resource_list_for_each_entry(tmp, &pp->bridge->windows)
+			if (resource_type(tmp->res) == IORESOURCE_MEM)
+				entry = tmp;
 
 		dw_pcie_prog_outbound_atu(pci, PCIE_ATU_REGION_INDEX0,
 					  PCIE_ATU_TYPE_MEM, entry->res->start,

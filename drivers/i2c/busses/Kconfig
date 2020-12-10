@@ -733,7 +733,7 @@ config I2C_LPC2K
 
 config I2C_MLXBF
         tristate "Mellanox BlueField I2C controller"
-        depends on ARM64
+        depends on MELLANOX_PLATFORM && ARM64
         help
           Enabling this option will add I2C SMBus support for Mellanox BlueField
           system.

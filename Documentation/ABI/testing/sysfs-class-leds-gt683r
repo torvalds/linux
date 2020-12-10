@@ -7,9 +7,11 @@ Description:
 		of one LED will update the mode of its two sibling devices as
 		well. Possible values are:
 
-		0 - normal
-		1 - audio
-		2 - breathing
+		==  =========
+		0   normal
+		1   audio
+		2   breathing
+		==  =========
 
 		Normal: LEDs are fully on when enabled
 		Audio:  LEDs brightness depends on sound level

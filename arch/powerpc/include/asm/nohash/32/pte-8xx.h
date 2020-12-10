@@ -39,9 +39,9 @@
  * into the TLB.
  */
 #define _PAGE_GUARDED	0x0010	/* Copied to L1 G entry in DTLB */
-#define _PAGE_SPECIAL	0x0020	/* SW entry */
+#define _PAGE_ACCESSED	0x0020	/* Copied to L1 APG 1 entry in I/DTLB */
 #define _PAGE_EXEC	0x0040	/* Copied to PP (bit 21) in ITLB */
-#define _PAGE_ACCESSED	0x0080	/* software: page referenced */
+#define _PAGE_SPECIAL	0x0080	/* SW entry */
 
 #define _PAGE_NA	0x0200	/* Supervisor NA, User no access */
 #define _PAGE_RO	0x0600	/* Supervisor RO, User no access */
@@ -59,11 +59,12 @@
 
 #define _PMD_PRESENT	0x0001
 #define _PMD_PRESENT_MASK	_PMD_PRESENT
-#define _PMD_BAD	0x0fd0
+#define _PMD_BAD	0x0f90
 #define _PMD_PAGE_MASK	0x000c
 #define _PMD_PAGE_8M	0x000c
 #define _PMD_PAGE_512K	0x0004
-#define _PMD_USER	0x0020	/* APG 1 */
+#define _PMD_ACCESSED	0x0020	/* APG 1 */
+#define _PMD_USER	0x0040	/* APG 2 */
 
 #define _PTE_NONE_MASK	0
 

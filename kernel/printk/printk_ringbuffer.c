@@ -345,7 +345,7 @@ DESC_ID((id) - DESCS_COUNT(desc_ring))
  */
 struct prb_data_block {
 	unsigned long	id;
-	char		data[0];
+	char		data[];
 };
 
 /*
@@ -882,8 +882,6 @@ static bool desc_reserve(struct printk_ringbuffer *rb, unsigned long *id_out)
 	head_id = atomic_long_read(&desc_ring->head_id); /* LMM(desc_reserve:A) */
 
 	do {
-		desc = to_desc(desc_ring, head_id);
-
 		id = DESC_ID(head_id + 1);
 		id_prev_wrap = DESC_ID_PREV_WRAP(desc_ring, id);
 

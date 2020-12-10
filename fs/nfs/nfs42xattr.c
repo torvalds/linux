@@ -1047,8 +1047,10 @@ out4:
 
 void nfs4_xattr_cache_exit(void)
 {
+	unregister_shrinker(&nfs4_xattr_large_entry_shrinker);
 	unregister_shrinker(&nfs4_xattr_entry_shrinker);
 	unregister_shrinker(&nfs4_xattr_cache_shrinker);
+	list_lru_destroy(&nfs4_xattr_large_entry_lru);
 	list_lru_destroy(&nfs4_xattr_entry_lru);
 	list_lru_destroy(&nfs4_xattr_cache_lru);
 	kmem_cache_destroy(nfs4_xattr_cache_cachep);

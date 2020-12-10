@@ -194,7 +194,7 @@ struct tcmu_tmr {
 
 	uint8_t tmr_type;
 	uint32_t tmr_cmd_cnt;
-	int16_t tmr_cmd_ids[0];
+	int16_t tmr_cmd_ids[];
 };
 
 /*

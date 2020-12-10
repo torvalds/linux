@@ -91,7 +91,7 @@ static struct generic_pm_domain *ti_sci_pd_xlate(
 	struct genpd_onecell_data *genpd_data = data;
 	unsigned int idx = genpdspec->args[0];
 
-	if (genpdspec->args_count < 2)
+	if (genpdspec->args_count != 1 && genpdspec->args_count != 2)
 		return ERR_PTR(-EINVAL);
 
 	if (idx >= genpd_data->num_domains) {

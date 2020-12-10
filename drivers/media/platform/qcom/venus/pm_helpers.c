@@ -794,7 +794,7 @@ skip_pmdomains:
 	return 0;
 
 opp_dl_add_err:
-	dev_pm_domain_detach(core->opp_pmdomain, true);
+	dev_pm_opp_detach_genpd(core->opp_table);
 opp_attach_err:
 	if (core->pd_dl_venus) {
 		device_link_del(core->pd_dl_venus);
@@ -832,7 +832,7 @@ skip_pmdomains:
 	if (core->opp_dl_venus)
 		device_link_del(core->opp_dl_venus);
 
-	dev_pm_domain_detach(core->opp_pmdomain, true);
+	dev_pm_opp_detach_genpd(core->opp_table);
 }
 
 static int core_get_v4(struct device *dev)

@@ -149,11 +149,11 @@ vidtv_psi.[ch]
 	Because the generator is implemented in a separate file, it can be
 	reused elsewhere in the media subsystem.
 
-	Currently vidtv supports working with 3 PSI tables: PAT, PMT and
-	SDT.
+	Currently vidtv supports working with 5 PSI tables: PAT, PMT,
+	SDT, NIT and EIT.
 
 	The specification for PAT and PMT can be found in *ISO 13818-1:
-	Systems*, while the specification for the SDT can be found in *ETSI
+	Systems*, while the specification for the SDT, NIT, EIT can be found in *ETSI
 	EN 300 468: Specification for Service Information (SI) in DVB
 	systems*.
 
@@ -196,6 +196,8 @@ vidtv_channel.[ch]
 	#. Their services will be concatenated to populate the SDT.
 
 	#. Their programs will be concatenated to populate the PAT
+
+	#. Their events will be concatenated to populate the EIT
 
 	#. For each program in the PAT, a PMT section will be created
 
@@ -256,6 +258,42 @@ Using dvb-fe-tool
 The first step to check whether the demod loaded successfully is to run::
 
 	$ dvb-fe-tool
+	Device Dummy demod for DVB-T/T2/C/S/S2 (/dev/dvb/adapter0/frontend0) capabilities:
+	    CAN_FEC_1_2
+	    CAN_FEC_2_3
+	    CAN_FEC_3_4
+	    CAN_FEC_4_5
+	    CAN_FEC_5_6
+	    CAN_FEC_6_7
+	    CAN_FEC_7_8
+	    CAN_FEC_8_9
+	    CAN_FEC_AUTO
+	    CAN_GUARD_INTERVAL_AUTO
+	    CAN_HIERARCHY_AUTO
+	    CAN_INVERSION_AUTO
+	    CAN_QAM_16
+	    CAN_QAM_32
+	    CAN_QAM_64
+	    CAN_QAM_128
+	    CAN_QAM_256
+	    CAN_QAM_AUTO
+	    CAN_QPSK
+	    CAN_TRANSMISSION_MODE_AUTO
+	DVB API Version 5.11, Current v5 delivery system: DVBC/ANNEX_A
+	Supported delivery systems:
+	    DVBT
+	    DVBT2
+	    [DVBC/ANNEX_A]
+	    DVBS
+	    DVBS2
+	Frequency range for the current standard:
+	From:            51.0 MHz
+	To:              2.15 GHz
+	Step:            62.5 kHz
+	Tolerance:       29.5 MHz
+	Symbol rate ranges for the current standard:
+	From:            1.00 MBauds
+	To:              45.0 MBauds
 
 This should return what is currently set up at the demod struct, i.e.::
 
@@ -314,7 +352,7 @@ For this, one should provide a configuration file known as a 'scan file',
 here's an example::
 
 	[Channel]
-	FREQUENCY = 330000000
+	FREQUENCY = 474000000
 	MODULATION = QAM/AUTO
 	SYMBOL_RATE = 6940000
 	INNER_FEC = AUTO
@@ -335,6 +373,14 @@ You can browse scan tables online here: `dvb-scan-tables
 Assuming this channel is named 'channel.conf', you can then run::
 
 	$ dvbv5-scan channel.conf
+	dvbv5-scan ~/vidtv.conf
+	ERROR    command BANDWIDTH_HZ (5) not found during retrieve
+	Cannot calc frequency shift. Either bandwidth/symbol-rate is unavailable (yet).
+	Scanning frequency #1 330000000
+	    (0x00) Signal= -68.00dBm
+	Scanning frequency #2 474000000
+	Lock   (0x1f) Signal= -34.45dBm C/N= 33.74dB UCB= 0
+	Service Beethoven, provider LinuxTV.org: digital television
 
 For more information on dvb-scan, check its documentation online here:
 `dvb-scan Documentation <https://www.linuxtv.org/wiki/index.php/Dvbscan>`_.
@@ -344,23 +390,38 @@ Using dvb-zap
 
 dvbv5-zap is a command line tool that can be used to record MPEG-TS to disk. The
 typical use is to tune into a channel and put it into record mode. The example
-below - which is taken from the documentation - illustrates that::
+below - which is taken from the documentation - illustrates that\ [1]_::
 
-	$ dvbv5-zap -c dvb_channel.conf "trilhas sonoras" -r
-	using demux '/dev/dvb/adapter0/demux0'
+	$ dvbv5-zap -c dvb_channel.conf "beethoven" -o music.ts -P -t 10
+	using demux 'dvb0.demux0'
 	reading channels from file 'dvb_channel.conf'
-	service has pid type 05:  204
-	tuning to 573000000 Hz
-	audio pid 104
-	  dvb_set_pesfilter 104
-	Lock   (0x1f) Quality= Good Signal= 100.00% C/N= -13.80dB UCB= 70 postBER= 3.14x10^-3 PER= 0
-	DVR interface '/dev/dvb/adapter0/dvr0' can now be opened
+	tuning to 474000000 Hz
+	pass all PID's to TS
+	dvb_set_pesfilter 8192
+	dvb_dev_set_bufsize: buffer set to 6160384
+	Lock   (0x1f) Quality= Good Signal= -34.66dBm C/N= 33.41dB UCB= 0 postBER= 0 preBER= 1.05x10^-3 PER= 0
+	Lock   (0x1f) Quality= Good Signal= -34.57dBm C/N= 33.46dB UCB= 0 postBER= 0 preBER= 1.05x10^-3 PER= 0
+	Record to file 'music.ts' started
+	received 24587768 bytes (2401 Kbytes/sec)
+	Lock   (0x1f) Quality= Good Signal= -34.42dBm C/N= 33.89dB UCB= 0 postBER= 0 preBER= 2.44x10^-3 PER= 0
 
-The channel can be watched by playing the contents of the DVR interface, with
-some player that recognizes the MPEG-TS format, such as *mplayer* or *vlc*.
+.. [1] In this example, it records 10 seconds with all program ID's stored
+       at the music.ts file.
+
+
+The channel can be watched by playing the contents of the stream with some
+player that  recognizes the MPEG-TS format, such as ``mplayer`` or ``vlc``.
 
 By playing the contents of the stream one can visually inspect the workings of
-vidtv, e.g.::
+vidtv, e.g., to play a recorded TS file with::
+
+	$ mplayer music.ts
+
+or, alternatively, running this command on one terminal::
+
+	$ dvbv5-zap -c dvb_channel.conf "beethoven" -P -r &
+
+And, on a second terminal, playing the contents from DVR interface with::
 
 	$ mplayer /dev/dvb/adapter0/dvr0
 
@@ -423,3 +484,30 @@ A nice addition is to simulate some noise when the signal quality is bad by:
 - Updating the error statistics accordingly (e.g. BER, etc).
 
 - Simulating some noise in the encoded data.
+
+Functions and structs used within vidtv
+---------------------------------------
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_bridge.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_channel.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_demod.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_encoder.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_mux.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_pes.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_psi.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_s302m.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_ts.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_tuner.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_common.c
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_tuner.c

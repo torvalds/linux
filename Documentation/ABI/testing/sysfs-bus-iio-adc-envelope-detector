@@ -5,7 +5,8 @@ Contact:	Peter Rosin <peda@axentia.se>
 Description:
 		The DAC is used to find the peak level of an alternating
 		voltage input signal by a binary search using the output
-		of a comparator wired to an interrupt pin. Like so:
+		of a comparator wired to an interrupt pin. Like so::
+
 		                           _
 		                          | \
 		     input +------>-------|+ \
@@ -19,10 +20,12 @@ Description:
 		            |    irq|------<-------'
 		            |       |
 		            '-------'
+
 		The boolean invert attribute (0/1) should be set when the
 		input signal is centered around the maximum value of the
 		dac instead of zero. The envelope detector will search
 		from below in this case and will also invert the result.
+
 		The edge/level of the interrupt is also switched to its
 		opposite value.
 

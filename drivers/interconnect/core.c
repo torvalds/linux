@@ -971,6 +971,9 @@ void icc_node_add(struct icc_node *node, struct icc_provider *provider)
 	}
 	node->avg_bw = node->init_avg;
 	node->peak_bw = node->init_peak;
+	if (provider->aggregate)
+		provider->aggregate(node, 0, node->init_avg, node->init_peak,
+				    &node->avg_bw, &node->peak_bw);
 	provider->set(node, node);
 	node->avg_bw = 0;
 	node->peak_bw = 0;
@@ -1080,7 +1083,6 @@ static int of_count_icc_providers(struct device_node *np)
 			count++;
 		count += of_count_icc_providers(child);
 	}
-	of_node_put(np);
 
 	return count;
 }

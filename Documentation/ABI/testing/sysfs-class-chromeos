@@ -17,13 +17,14 @@ Date:		August 2015
 KernelVersion:	4.2
 Description:
 		Tell the EC to reboot in various ways. Options are:
-		"cancel": Cancel a pending reboot.
-		"ro": Jump to RO without rebooting.
-		"rw": Jump to RW without rebooting.
-		"cold": Cold reboot.
-		"disable-jump": Disable jump until next reboot.
-		"hibernate": Hibernate the EC.
-		"at-shutdown": Reboot after an AP shutdown.
+
+		- "cancel": Cancel a pending reboot.
+		- "ro": Jump to RO without rebooting.
+		- "rw": Jump to RW without rebooting.
+		- "cold": Cold reboot.
+		- "disable-jump": Disable jump until next reboot.
+		- "hibernate": Hibernate the EC.
+		- "at-shutdown": Reboot after an AP shutdown.
 
 What:		/sys/class/chromeos/<ec-device-name>/version
 Date:		August 2015

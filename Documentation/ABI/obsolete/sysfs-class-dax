@@ -8,11 +8,11 @@ Description:	Device DAX is the device-centric analogue of Filesystem
 		system.  Device DAX is strict, precise and predictable.
 		Specifically this interface:
 
-		1/ Guarantees fault granularity with respect to a given
-		page size (pte, pmd, or pud) set at configuration time.
+		1. Guarantees fault granularity with respect to a given
+		   page size (pte, pmd, or pud) set at configuration time.
 
-		2/ Enforces deterministic behavior by being strict about
-		what fault scenarios are supported.
+		2. Enforces deterministic behavior by being strict about
+		   what fault scenarios are supported.
 
 		The /sys/class/dax/ interface enumerates all the
 		device-dax instances in the system. The ABI is
