@@ -418,7 +418,7 @@ static int tve_clk_init(struct imx_tve *tve, void __iomem *base)
 	init.parent_names = (const char **)&tve_di_parent;
 
 	tve->clk_hw_di.init = &init;
-	tve->di_clk = clk_register(tve->dev, &tve->clk_hw_di);
+	tve->di_clk = devm_clk_register(tve->dev, &tve->clk_hw_di);
 	if (IS_ERR(tve->di_clk)) {
 		dev_err(tve->dev, "failed to register TVE output clock: %ld\n",
 			PTR_ERR(tve->di_clk));
