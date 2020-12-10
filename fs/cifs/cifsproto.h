@@ -27,8 +27,8 @@
 #endif
 
 struct statfs;
-struct smb_vol;
 struct smb_rqst;
+struct smb3_fs_context;
 
 /*
  *****************************************************************
@@ -72,7 +72,7 @@ extern void exit_cifs_spnego(void);
 extern char *build_path_from_dentry(struct dentry *);
 extern char *build_path_from_dentry_optional_prefix(struct dentry *direntry,
 						    bool prefix);
-extern char *cifs_build_path_to_root(struct smb_vol *vol,
+extern char *cifs_build_path_to_root(struct smb3_fs_context *ctx,
 				     struct cifs_sb_info *cifs_sb,
 				     struct cifs_tcon *tcon,
 				     int add_treename);
@@ -234,13 +234,13 @@ extern int cifs_read_page_from_socket(struct TCP_Server_Info *server,
 					struct page *page,
 					unsigned int page_offset,
 					unsigned int to_read);
-extern int cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
+extern int cifs_setup_cifs_sb(struct smb3_fs_context *ctx,
 			       struct cifs_sb_info *cifs_sb);
 extern int cifs_match_super(struct super_block *, void *);
-extern void cifs_cleanup_volume_info(struct smb_vol *pvolume_info);
-extern struct smb_vol *cifs_get_volume_info(char *mount_data,
+extern void cifs_cleanup_volume_info(struct smb3_fs_context *ctx);
+extern struct smb3_fs_context *cifs_get_volume_info(char *mount_data,
 					    const char *devname, bool is_smb3);
-extern int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *vol);
+extern int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx);
 extern void cifs_umount(struct cifs_sb_info *);
 extern void cifs_mark_open_files_invalid(struct cifs_tcon *tcon);
 extern void cifs_reopen_persistent_handles(struct cifs_tcon *tcon);
@@ -256,7 +256,7 @@ extern void cifs_add_pending_open_locked(struct cifs_fid *fid,
 					 struct tcon_link *tlink,
 					 struct cifs_pending_open *open);
 extern void cifs_del_pending_open(struct cifs_pending_open *open);
-extern struct TCP_Server_Info *cifs_get_tcp_session(struct smb_vol *vol);
+extern struct TCP_Server_Info *cifs_get_tcp_session(struct smb3_fs_context *ctx);
 extern void cifs_put_tcp_session(struct TCP_Server_Info *server,
 				 int from_reconnect);
 extern void cifs_put_tcon(struct cifs_tcon *tcon);
@@ -332,7 +332,7 @@ extern int parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
 			       const char *searchName, bool is_unicode);
 extern void reset_cifs_unix_caps(unsigned int xid, struct cifs_tcon *tcon,
 				 struct cifs_sb_info *cifs_sb,
-				 struct smb_vol *vol);
+				 struct smb3_fs_context *ctx);
 extern int CIFSSMBQFSInfo(const unsigned int xid, struct cifs_tcon *tcon,
 			struct kstatfs *FSData);
 extern int SMBOldQFSInfo(const unsigned int xid, struct cifs_tcon *tcon,
@@ -553,18 +553,18 @@ extern int SMBencrypt(unsigned char *passwd, const unsigned char *c8,
 			unsigned char *p24);
 
 extern int
-cifs_setup_volume_info(struct smb_vol *volume_info, char *mount_data,
+cifs_setup_volume_info(struct smb3_fs_context *ctx, char *mount_data,
 		       const char *devname, bool is_smb3);
 extern void
-cifs_cleanup_volume_info_contents(struct smb_vol *volume_info);
+cifs_cleanup_volume_info_contents(struct smb3_fs_context *ctx);
 
 extern struct TCP_Server_Info *
-cifs_find_tcp_session(struct smb_vol *vol);
+cifs_find_tcp_session(struct smb3_fs_context *ctx);
 
 extern void cifs_put_smb_ses(struct cifs_ses *ses);
 
 extern struct cifs_ses *
-cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info);
+cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx);
 
 void cifs_readdata_release(struct kref *refcount);
 int cifs_async_readv(struct cifs_readdata *rdata);

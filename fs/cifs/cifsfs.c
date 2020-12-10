@@ -55,6 +55,7 @@
 #ifdef CONFIG_CIFS_DFS_UPCALL
 #include "dfs_cache.h"
 #endif
+#include "fs_context.h"
 
 /*
  * DOS dates from 1980/1/1 through 2107/12/31
@@ -720,7 +721,7 @@ static const struct super_operations cifs_super_ops = {
  * Return dentry with refcount + 1 on success and NULL otherwise.
  */
 static struct dentry *
-cifs_get_root(struct smb_vol *vol, struct super_block *sb)
+cifs_get_root(struct smb3_fs_context *ctx, struct super_block *sb)
 {
 	struct dentry *dentry;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
@@ -731,7 +732,7 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_USE_PREFIX_PATH)
 		return dget(sb->s_root);
 
-	full_path = cifs_build_path_to_root(vol, cifs_sb,
+	full_path = cifs_build_path_to_root(ctx, cifs_sb,
 				cifs_sb_master_tcon(cifs_sb), 0);
 	if (full_path == NULL)
 		return ERR_PTR(-ENOMEM);
@@ -784,7 +785,7 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 	int rc;
 	struct super_block *sb;
 	struct cifs_sb_info *cifs_sb;
-	struct smb_vol *volume_info;
+	struct smb3_fs_context *ctx;
 	struct cifs_mnt_data mnt_data;
 	struct dentry *root;
 
@@ -797,9 +798,9 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 	else
 		cifs_info("Attempting to mount %s\n", dev_name);
 
-	volume_info = cifs_get_volume_info((char *)data, dev_name, is_smb3);
-	if (IS_ERR(volume_info))
-		return ERR_CAST(volume_info);
+	ctx = cifs_get_volume_info((char *)data, dev_name, is_smb3);
+	if (IS_ERR(ctx))
+		return ERR_CAST(ctx);
 
 	cifs_sb = kzalloc(sizeof(struct cifs_sb_info), GFP_KERNEL);
 	if (cifs_sb == NULL) {
@@ -813,13 +814,13 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 		goto out_free;
 	}
 
-	rc = cifs_setup_cifs_sb(volume_info, cifs_sb);
+	rc = cifs_setup_cifs_sb(ctx, cifs_sb);
 	if (rc) {
 		root = ERR_PTR(rc);
 		goto out_free;
 	}
 
-	rc = cifs_mount(cifs_sb, volume_info);
+	rc = cifs_mount(cifs_sb, ctx);
 	if (rc) {
 		if (!(flags & SB_SILENT))
 			cifs_dbg(VFS, "cifs_mount failed w/return code = %d\n",
@@ -828,7 +829,7 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 		goto out_free;
 	}
 
-	mnt_data.vol = volume_info;
+	mnt_data.ctx = ctx;
 	mnt_data.cifs_sb = cifs_sb;
 	mnt_data.flags = flags;
 
@@ -855,7 +856,7 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 		sb->s_flags |= SB_ACTIVE;
 	}
 
-	root = cifs_get_root(volume_info, sb);
+	root = cifs_get_root(ctx, sb);
 	if (IS_ERR(root))
 		goto out_super;
 
@@ -865,7 +866,7 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 out_super:
 	deactivate_locked_super(sb);
 out:
-	cifs_cleanup_volume_info(volume_info);
+	cifs_cleanup_volume_info(ctx);
 	return root;
 
 out_free:
@@ -873,7 +874,7 @@ out_free:
 	kfree(cifs_sb->mountdata);
 	kfree(cifs_sb);
 out_nls:
-	unload_nls(volume_info->local_nls);
+	unload_nls(ctx->local_nls);
 	goto out;
 }
 

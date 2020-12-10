@@ -25,7 +25,7 @@ static const match_table_t cifs_smb_version_tokens = {
 };
 
 int
-cifs_parse_smb_version(char *value, struct smb_vol *vol, bool is_smb3)
+cifs_parse_smb_version(char *value, struct smb3_fs_context *ctx, bool is_smb3)
 {
 	substring_t args[MAX_OPT_ARGS];
 
@@ -41,8 +41,8 @@ cifs_parse_smb_version(char *value, struct smb_vol *vol, bool is_smb3)
 			return 1;
 		}
 		cifs_dbg(VFS, "Use of the less secure dialect vers=1.0 is not recommended unless required for access to very old servers\n");
-		vol->ops = &smb1_operations;
-		vol->vals = &smb1_values;
+		ctx->ops = &smb1_operations;
+		ctx->vals = &smb1_values;
 		break;
 	case Smb_20:
 		if (disable_legacy_dialects) {
@@ -53,8 +53,8 @@ cifs_parse_smb_version(char *value, struct smb_vol *vol, bool is_smb3)
 			cifs_dbg(VFS, "vers=2.0 not permitted when mounting with smb3\n");
 			return 1;
 		}
-		vol->ops = &smb20_operations;
-		vol->vals = &smb20_values;
+		ctx->ops = &smb20_operations;
+		ctx->vals = &smb20_values;
 		break;
 #else
 	case Smb_1:
@@ -65,28 +65,28 @@ cifs_parse_smb_version(char *value, struct smb_vol *vol, bool is_smb3)
 		return 1;
 #endif /* CIFS_ALLOW_INSECURE_LEGACY */
 	case Smb_21:
-		vol->ops = &smb21_operations;
-		vol->vals = &smb21_values;
+		ctx->ops = &smb21_operations;
+		ctx->vals = &smb21_values;
 		break;
 	case Smb_30:
-		vol->ops = &smb30_operations;
-		vol->vals = &smb30_values;
+		ctx->ops = &smb30_operations;
+		ctx->vals = &smb30_values;
 		break;
 	case Smb_302:
-		vol->ops = &smb30_operations; /* currently identical with 3.0 */
-		vol->vals = &smb302_values;
+		ctx->ops = &smb30_operations; /* currently identical with 3.0 */
+		ctx->vals = &smb302_values;
 		break;
 	case Smb_311:
-		vol->ops = &smb311_operations;
-		vol->vals = &smb311_values;
+		ctx->ops = &smb311_operations;
+		ctx->vals = &smb311_values;
 		break;
 	case Smb_3any:
-		vol->ops = &smb30_operations; /* currently identical with 3.0 */
-		vol->vals = &smb3any_values;
+		ctx->ops = &smb30_operations; /* currently identical with 3.0 */
+		ctx->vals = &smb3any_values;
 		break;
 	case Smb_default:
-		vol->ops = &smb30_operations; /* currently identical with 3.0 */
-		vol->vals = &smbdefault_values;
+		ctx->ops = &smb30_operations; /* currently identical with 3.0 */
+		ctx->vals = &smbdefault_values;
 		break;
 	default:
 		cifs_dbg(VFS, "Unknown vers= option specified: %s\n", value);
@@ -112,7 +112,7 @@ static const match_table_t cifs_secflavor_tokens = {
 	{ Opt_sec_err, NULL }
 };
 
-int cifs_parse_security_flavors(char *value, struct smb_vol *vol)
+int cifs_parse_security_flavors(char *value, struct smb3_fs_context *ctx)
 {
 
 	substring_t args[MAX_OPT_ARGS];
@@ -121,44 +121,44 @@ int cifs_parse_security_flavors(char *value, struct smb_vol *vol)
 	 * With mount options, the last one should win. Reset any existing
 	 * settings back to default.
 	 */
-	vol->sectype = Unspecified;
-	vol->sign = false;
+	ctx->sectype = Unspecified;
+	ctx->sign = false;
 
 	switch (match_token(value, cifs_secflavor_tokens, args)) {
 	case Opt_sec_krb5p:
 		cifs_dbg(VFS, "sec=krb5p is not supported!\n");
 		return 1;
 	case Opt_sec_krb5i:
-		vol->sign = true;
+		ctx->sign = true;
 		fallthrough;
 	case Opt_sec_krb5:
-		vol->sectype = Kerberos;
+		ctx->sectype = Kerberos;
 		break;
 	case Opt_sec_ntlmsspi:
-		vol->sign = true;
+		ctx->sign = true;
 		fallthrough;
 	case Opt_sec_ntlmssp:
-		vol->sectype = RawNTLMSSP;
+		ctx->sectype = RawNTLMSSP;
 		break;
 	case Opt_sec_ntlmi:
-		vol->sign = true;
+		ctx->sign = true;
 		fallthrough;
 	case Opt_ntlm:
-		vol->sectype = NTLM;
+		ctx->sectype = NTLM;
 		break;
 	case Opt_sec_ntlmv2i:
-		vol->sign = true;
+		ctx->sign = true;
 		fallthrough;
 	case Opt_sec_ntlmv2:
-		vol->sectype = NTLMv2;
+		ctx->sectype = NTLMv2;
 		break;
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 	case Opt_sec_lanman:
-		vol->sectype = LANMAN;
+		ctx->sectype = LANMAN;
 		break;
 #endif
 	case Opt_sec_none:
-		vol->nullauth = 1;
+		ctx->nullauth = 1;
 		break;
 	default:
 		cifs_dbg(VFS, "bad security option: %s\n", value);
@@ -178,40 +178,40 @@ static const match_table_t cifs_cacheflavor_tokens = {
 };
 
 int
-cifs_parse_cache_flavor(char *value, struct smb_vol *vol)
+cifs_parse_cache_flavor(char *value, struct smb3_fs_context *ctx)
 {
 	substring_t args[MAX_OPT_ARGS];
 
 	switch (match_token(value, cifs_cacheflavor_tokens, args)) {
 	case Opt_cache_loose:
-		vol->direct_io = false;
-		vol->strict_io = false;
-		vol->cache_ro = false;
-		vol->cache_rw = false;
+		ctx->direct_io = false;
+		ctx->strict_io = false;
+		ctx->cache_ro = false;
+		ctx->cache_rw = false;
 		break;
 	case Opt_cache_strict:
-		vol->direct_io = false;
-		vol->strict_io = true;
-		vol->cache_ro = false;
-		vol->cache_rw = false;
+		ctx->direct_io = false;
+		ctx->strict_io = true;
+		ctx->cache_ro = false;
+		ctx->cache_rw = false;
 		break;
 	case Opt_cache_none:
-		vol->direct_io = true;
-		vol->strict_io = false;
-		vol->cache_ro = false;
-		vol->cache_rw = false;
+		ctx->direct_io = true;
+		ctx->strict_io = false;
+		ctx->cache_ro = false;
+		ctx->cache_rw = false;
 		break;
 	case Opt_cache_ro:
-		vol->direct_io = false;
-		vol->strict_io = false;
-		vol->cache_ro = true;
-		vol->cache_rw = false;
+		ctx->direct_io = false;
+		ctx->strict_io = false;
+		ctx->cache_ro = true;
+		ctx->cache_rw = false;
 		break;
 	case Opt_cache_rw:
-		vol->direct_io = false;
-		vol->strict_io = false;
-		vol->cache_ro = false;
-		vol->cache_rw = true;
+		ctx->direct_io = false;
+		ctx->strict_io = false;
+		ctx->cache_ro = false;
+		ctx->cache_rw = true;
 		break;
 	default:
 		cifs_dbg(VFS, "bad cache= option: %s\n", value);
