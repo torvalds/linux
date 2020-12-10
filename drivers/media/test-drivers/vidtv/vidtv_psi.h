@@ -420,7 +420,7 @@ void vidtv_psi_desc_assign(struct vidtv_psi_desc **to,
 			   struct vidtv_psi_desc *desc);
 
 /**
- * vidtv_psi_pmt_desc_assign - Assigns a descriptor loop at some point in a PMT section.
+ * vidtv_pmt_desc_assign - Assigns a descriptor loop at some point in a PMT section.
  * @pmt: The PMT section that will contain the descriptor loop
  * @to: Where in the PMT to assign this descriptor loop to
  * @desc: The descriptor loop that will be assigned.
@@ -434,7 +434,7 @@ void vidtv_pmt_desc_assign(struct vidtv_psi_table_pmt *pmt,
 			   struct vidtv_psi_desc *desc);
 
 /**
- * vidtv_psi_sdt_desc_assign - Assigns a descriptor loop at some point in a SDT.
+ * vidtv_sdt_desc_assign - Assigns a descriptor loop at some point in a SDT.
  * @sdt: The SDT that will contain the descriptor loop
  * @to: Where in the PMT to assign this descriptor loop to
  * @desc: The descriptor loop that will be assigned.
@@ -474,7 +474,7 @@ void vidtv_psi_pmt_stream_assign(struct vidtv_psi_table_pmt *pmt,
 struct vidtv_psi_desc *vidtv_psi_desc_clone(struct vidtv_psi_desc *desc);
 
 /**
- * vidtv_psi_create_sec_for_each_pat_entry - Create a PMT section for each
+ * vidtv_psi_pmt_create_sec_for_each_pat_entry - Create a PMT section for each
  * program found in the PAT
  * @pat: The PAT to look for programs.
  * @pcr_pid: packet ID for the PCR to be used for the program described in this
@@ -743,7 +743,7 @@ struct vidtv_psi_table_eit {
 struct vidtv_psi_table_eit
 *vidtv_psi_eit_table_init(u16 network_id,
 			  u16 transport_stream_id,
-			  u16 service_id);
+			  __be16 service_id);
 
 /**
  * struct vidtv_psi_eit_write_args - Arguments for writing an EIT section
