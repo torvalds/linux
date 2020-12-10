@@ -459,6 +459,12 @@ struct hnae3_ae_dev {
  *   Configure the default MAC for specified VF
  * get_module_eeprom
  *   Get the optical module eeprom info.
+ * add_cls_flower
+ *   Add clsflower rule
+ * del_cls_flower
+ *   Delete clsflower rule
+ * cls_flower_active
+ *   Check if any cls flower rule exist
  */
 struct hnae3_ae_ops {
 	int (*init_ae_dev)(struct hnae3_ae_dev *ae_dev);
@@ -636,6 +642,11 @@ struct hnae3_ae_ops {
 	int (*get_module_eeprom)(struct hnae3_handle *handle, u32 offset,
 				 u32 len, u8 *data);
 	bool (*get_cmdq_stat)(struct hnae3_handle *handle);
+	int (*add_cls_flower)(struct hnae3_handle *handle,
+			      struct flow_cls_offload *cls_flower, int tc);
+	int (*del_cls_flower)(struct hnae3_handle *handle,
+			      struct flow_cls_offload *cls_flower);
+	bool (*cls_flower_active)(struct hnae3_handle *handle);
 };
 
 struct hnae3_dcb_ops {

@@ -564,6 +564,7 @@ enum HCLGE_FD_ACTIVE_RULE_TYPE {
 	HCLGE_FD_RULE_NONE,
 	HCLGE_FD_ARFS_ACTIVE,
 	HCLGE_FD_EP_ACTIVE,
+	HCLGE_FD_TC_FLOWER_ACTIVE,
 };
 
 enum HCLGE_FD_PACKET_TYPE {
@@ -619,13 +620,20 @@ struct hclge_fd_rule {
 	struct hclge_fd_rule_tuples tuples_mask;
 	u32 unused_tuple;
 	u32 flow_type;
-	u8 action;
-	u8 tc;
-	u16 vf_id;
+	union {
+		struct {
+			unsigned long cookie;
+			u8 tc;
+		} cls_flower;
+		struct {
+			u16 flow_id; /* only used for arfs */
+		} arfs;
+	};
 	u16 queue_id;
+	u16 vf_id;
 	u16 location;
-	u16 flow_id;	/* only used for arfs */
 	enum HCLGE_FD_ACTIVE_RULE_TYPE rule_type;
+	u8 action;
 };
 
 struct hclge_fd_ad_data {

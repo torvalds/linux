@@ -1668,6 +1668,13 @@ static int hns3_nic_set_features(struct net_device *netdev,
 		h->ae_algo->ops->enable_fd(h, enable);
 	}
 
+	if ((netdev->features & NETIF_F_HW_TC) > (features & NETIF_F_HW_TC) &&
+	    h->ae_algo->ops->cls_flower_active(h)) {
+		netdev_err(netdev,
+			   "there are offloaded TC filters active, cannot disable HW TC offload");
+		return -EINVAL;
+	}
+
 	netdev->features = features;
 	return 0;
 }
@@ -1818,13 +1825,67 @@ static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 		kinfo->dcb_ops->setup_tc(h, mqprio_qopt) : -EOPNOTSUPP;
 }
 
+static int hns3_setup_tc_cls_flower(struct hns3_nic_priv *priv,
+				    struct flow_cls_offload *flow)
+{
+	int tc = tc_classid_to_hwtc(priv->netdev, flow->classid);
+	struct hnae3_handle *h = hns3_get_handle(priv->netdev);
+
+	switch (flow->command) {
+	case FLOW_CLS_REPLACE:
+		if (h->ae_algo->ops->add_cls_flower)
+			return h->ae_algo->ops->add_cls_flower(h, flow, tc);
+		break;
+	case FLOW_CLS_DESTROY:
+		if (h->ae_algo->ops->del_cls_flower)
+			return h->ae_algo->ops->del_cls_flower(h, flow);
+		break;
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static int hns3_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
+				  void *cb_priv)
+{
+	struct hns3_nic_priv *priv = cb_priv;
+
+	if (!tc_cls_can_offload_and_chain0(priv->netdev, type_data))
+		return -EOPNOTSUPP;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return hns3_setup_tc_cls_flower(priv, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static LIST_HEAD(hns3_block_cb_list);
+
 static int hns3_nic_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			     void *type_data)
 {
-	if (type != TC_SETUP_QDISC_MQPRIO)
-		return -EOPNOTSUPP;
+	struct hns3_nic_priv *priv = netdev_priv(dev);
+	int ret;
 
-	return hns3_setup_tc(dev, type_data);
+	switch (type) {
+	case TC_SETUP_QDISC_MQPRIO:
+		ret = hns3_setup_tc(dev, type_data);
+		break;
+	case TC_SETUP_BLOCK:
+		ret = flow_block_cb_setup_simple(type_data,
+						 &hns3_block_cb_list,
+						 hns3_setup_tc_block_cb,
+						 priv, priv, true);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return ret;
 }
 
 static int hns3_vlan_rx_add_vid(struct net_device *netdev,
@@ -2420,6 +2481,11 @@ static void hns3_set_default_feature(struct net_device *netdev)
 		netdev->features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
 		netdev->vlan_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
 		netdev->hw_enc_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
+	}
+
+	if (test_bit(HNAE3_DEV_SUPPORT_FD_FORWARD_TC_B, ae_dev->caps)) {
+		netdev->hw_features |= NETIF_F_HW_TC;
+		netdev->features |= NETIF_F_HW_TC;
 	}
 }
 
