@@ -45,7 +45,7 @@ with a pointer to this variable.
 
 .. c:type:: v4l2_priority
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. flat-table:: enum v4l2_priority
     :header-rows:  0

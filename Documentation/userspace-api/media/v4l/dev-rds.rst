@@ -91,8 +91,6 @@ RDS datastructures
 
 .. c:type:: v4l2_rds_data
 
-.. tabularcolumns:: |p{2.5cm}|p{2.5cm}|p{12.5cm}|
-
 .. flat-table:: struct v4l2_rds_data
     :header-rows:  0
     :stub-columns: 0
@@ -133,7 +131,7 @@ RDS datastructures
 
 .. _v4l2-rds-block-codes:
 
-.. tabularcolumns:: |p{6.4cm}|p{2.0cm}|p{1.2cm}|p{7.9cm}|
+.. tabularcolumns:: |p{6.4cm}|p{2.0cm}|p{1.2cm}|p{7.0cm}|
 
 .. flat-table:: Block defines
     :header-rows:  0

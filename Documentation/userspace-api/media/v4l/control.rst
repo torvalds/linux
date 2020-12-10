@@ -200,7 +200,7 @@ Control IDs
 
 
 
-.. tabularcolumns:: |p{5.5cm}|p{12cm}|
+.. tabularcolumns:: |p{5.7cm}|p{11.8cm}|
 
 .. flat-table::
     :header-rows:  0

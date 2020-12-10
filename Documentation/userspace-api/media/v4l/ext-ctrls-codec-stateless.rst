@@ -34,7 +34,11 @@ Stateless Codec Control ID
 
 .. c:type:: v4l2_ctrl_h264_sps
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{1.2cm}|p{8.6cm}|p{7.5cm}|
 
 .. flat-table:: struct v4l2_ctrl_h264_sps
     :header-rows:  0
@@ -95,6 +99,10 @@ Stateless Codec Control ID
     * - __u32
       - ``flags``
       - See :ref:`Sequence Parameter Set Flags <h264_sps_flags>`
+
+.. raw:: latex
+
+    \normalsize
 
 .. _h264_sps_constraints_set_flags:
 
@@ -171,7 +179,9 @@ Stateless Codec Control ID
 
 .. c:type:: v4l2_ctrl_h264_pps
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
 
 .. flat-table:: struct v4l2_ctrl_h264_pps
     :header-rows:  0
@@ -273,7 +283,11 @@ Stateless Codec Control ID
 
 .. c:type:: v4l2_ctrl_h264_scaling_matrix
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{0.6cm}|p{4.8cm}|p{11.9cm}|
 
 .. flat-table:: struct v4l2_ctrl_h264_scaling_matrix
     :header-rows:  0
@@ -304,7 +318,11 @@ Stateless Codec Control ID
 
 .. c:type:: v4l2_ctrl_h264_slice_params
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{4.0cm}|p{5.9cm}|p{7.4cm}|
 
 .. flat-table:: struct v4l2_ctrl_h264_slice_params
     :header-rows:  0
@@ -347,11 +365,11 @@ Stateless Codec Control ID
     * - __u8
       - ``num_ref_idx_l0_active_minus1``
       - If num_ref_idx_active_override_flag is not set, this field must be
-        set to the value of num_ref_idx_l0_default_active_minus1.
+        set to the value of num_ref_idx_l0_default_active_minus1
     * - __u8
       - ``num_ref_idx_l1_active_minus1``
       - If num_ref_idx_active_override_flag is not set, this field must be
-        set to the value of num_ref_idx_l1_default_active_minus1.
+        set to the value of num_ref_idx_l1_default_active_minus1
     * - __u8
       - ``reserved``
       - Applications and drivers must set this to zero.
@@ -364,6 +382,10 @@ Stateless Codec Control ID
     * - __u32
       - ``flags``
       - See :ref:`Slice Parameter Flags <h264_slice_flags>`
+
+.. raw:: latex
+
+    \normalsize
 
 .. _h264_slice_flags:
 
@@ -392,7 +414,11 @@ Stateless Codec Control ID
 
 .. c:type:: v4l2_ctrl_h264_pred_weights
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{4.9cm}|p{4.9cm}|p{7.5cm}|
 
 .. flat-table:: struct v4l2_ctrl_h264_pred_weights
     :header-rows:  0
@@ -410,9 +436,17 @@ Stateless Codec Control ID
       - The weight factors at index 0 are the weight factors for the reference
         list 0, the one at index 1 for the reference list 1.
 
+.. raw:: latex
+
+    \normalsize
+
 .. c:type:: v4l2_h264_weight_factors
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{1.0cm}|p{4.5cm}|p{11.8cm}|
 
 .. flat-table:: struct v4l2_h264_weight_factors
     :header-rows:  0
@@ -431,6 +465,10 @@ Stateless Codec Control ID
     * - __s16
       - ``chroma_offset[32][2]``
       -
+
+.. raw:: latex
+
+    \normalsize
 
 ``Picture Reference``
 
@@ -454,7 +492,11 @@ Stateless Codec Control ID
 
 ``Reference Fields``
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{5.4cm}|p{0.8cm}|p{11.1cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -472,6 +514,10 @@ Stateless Codec Control ID
       - The frame (or the top/bottom fields, if it's a field pair)
         is used for short-term reference.
 
+.. raw:: latex
+
+    \normalsize
+
 ``V4L2_CID_STATELESS_H264_DECODE_PARAMS (struct)``
     Specifies the decode parameters (as extracted from the bitstream)
     for the associated H264 slice data. This includes the necessary
@@ -483,7 +529,11 @@ Stateless Codec Control ID
 
 .. c:type:: v4l2_ctrl_h264_decode_params
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{4.0cm}|p{5.9cm}|p{7.4cm}|
 
 .. flat-table:: struct v4l2_ctrl_h264_decode_params
     :header-rows:  0
@@ -538,11 +588,19 @@ Stateless Codec Control ID
       - ``flags``
       - See :ref:`Decode Parameters Flags <h264_decode_params_flags>`
 
+.. raw:: latex
+
+    \normalsize
+
 .. _h264_decode_params_flags:
 
 ``Decode Parameters Flags``
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{8.3cm}|p{2.1cm}|p{6.9cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -559,9 +617,17 @@ Stateless Codec Control ID
       - 0x00000004
       -
 
+.. raw:: latex
+
+    \normalsize
+
 .. c:type:: v4l2_h264_dpb_entry
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{1.0cm}|p{4.9cm}|p{11.4cm}|
 
 .. flat-table:: struct v4l2_h264_dpb_entry
     :header-rows:  0
@@ -597,11 +663,19 @@ Stateless Codec Control ID
       - ``flags``
       - See :ref:`DPB Entry Flags <h264_dpb_flags>`
 
+.. raw:: latex
+
+    \normalsize
+
 .. _h264_dpb_flags:
 
 ``DPB Entries Flags``
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{7.7cm}|p{2.1cm}|p{7.5cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -621,6 +695,10 @@ Stateless Codec Control ID
       - 0x00000008
       - The DPB entry is a single field or a complementary field pair.
 
+.. raw:: latex
+
+    \normalsize
+
 ``V4L2_CID_STATELESS_H264_DECODE_MODE (enum)``
     Specifies the decoding mode to use. Currently exposes slice-based and
     frame-based decoding but new modes might be added later on.
@@ -633,7 +711,11 @@ Stateless Codec Control ID
 
 .. c:type:: v4l2_stateless_h264_decode_mode
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \scriptsize
+
+.. tabularcolumns:: |p{7.4cm}|p{0.3cm}|p{9.6cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -658,6 +740,10 @@ Stateless Codec Control ID
         selected, the ``V4L2_CID_STATELESS_H264_SLICE_PARAMS``
         control shall not be set.
 
+.. raw:: latex
+
+    \normalsize
+
 ``V4L2_CID_STATELESS_H264_START_CODE (enum)``
     Specifies the H264 slice start code expected for each slice.
     This control is used as a modifier for V4L2_PIX_FMT_H264_SLICE
@@ -669,12 +755,16 @@ Stateless Codec Control ID
 
 .. c:type:: v4l2_stateless_h264_start_code
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{7.9cm}|p{0.4cm}|p{9.0cm}|
 
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2
+    :widths:       4 1 4
 
     * - ``V4L2_STATELESS_H264_START_CODE_NONE``
       - 0
@@ -686,6 +776,9 @@ Stateless Codec Control ID
         to be prefixed by Annex B start codes. According to :ref:`h264`
         valid start codes can be 3-bytes 0x000001 or 4-bytes 0x00000001.
 
+.. raw:: latex
+
+    \normalsize
 
 .. _codec-stateless-fwht:
 
@@ -697,9 +790,11 @@ Stateless Codec Control ID
 
 .. c:type:: v4l2_ctrl_fwht_params
 
-.. cssclass:: longtable
+.. raw:: latex
 
-.. tabularcolumns:: |p{1.4cm}|p{4.3cm}|p{11.8cm}|
+    \small
+
+.. tabularcolumns:: |p{1.4cm}|p{3.9cm}|p{12.0cm}|
 
 .. flat-table:: struct v4l2_ctrl_fwht_params
     :header-rows:  0
@@ -738,16 +833,20 @@ Stateless Codec Control ID
       - ``quantization``
       - The quantization range, from enum :c:type:`v4l2_quantization`.
 
+.. raw:: latex
 
+    \normalsize
 
 .. _fwht-flags:
 
 FWHT Flags
 ==========
 
-.. cssclass:: longtable
+.. raw:: latex
 
-.. tabularcolumns:: |p{6.8cm}|p{2.4cm}|p{8.3cm}|
+    \small
+
+.. tabularcolumns:: |p{7.0cm}|p{2.3cm}|p{8.0cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -805,3 +904,7 @@ FWHT Flags
     * - ``V4L2_FWHT_FL_PIXENC_HSV``
       - 0x00180000
       - Set if the pixel encoding is HSV.
+
+.. raw:: latex
+
+    \normalsize

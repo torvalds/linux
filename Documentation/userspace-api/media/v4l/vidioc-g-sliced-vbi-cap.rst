@@ -45,7 +45,7 @@ the sliced VBI API is unsupported or ``type`` is invalid.
 
 .. c:type:: v4l2_sliced_vbi_cap
 
-.. tabularcolumns:: |p{1.2cm}|p{4.2cm}|p{4.1cm}|p{4.0cm}|p{4.0cm}|
+.. tabularcolumns:: |p{1.4cm}|p{4.4cm}|p{4.5cm}|p{3.6cm}|p{3.6cm}|
 
 .. flat-table:: struct v4l2_sliced_vbi_cap
     :header-rows:  0
@@ -122,7 +122,7 @@ the sliced VBI API is unsupported or ``type`` is invalid.
 
     \scriptsize
 
-.. tabularcolumns:: |p{3.5cm}|p{1.0cm}|p{2.0cm}|p{2.0cm}|p{8.0cm}|
+.. tabularcolumns:: |p{3.9cm}|p{1.0cm}|p{2.0cm}|p{3.0cm}|p{7.0cm}|
 
 .. _vbi-services:
 
@@ -169,6 +169,7 @@ the sliced VBI API is unsupported or ``type`` is invalid.
     * - ``V4L2_SLICED_VBI_625``
       - 0x4401
       - :cspan:`2` Set of services applicable to 625 line systems.
+
 
 .. raw:: latex
 

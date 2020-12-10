@@ -47,7 +47,7 @@ or output. [#f1]_
 
 .. c:type:: v4l2_standard
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. flat-table:: struct v4l2_standard
     :header-rows:  0
@@ -86,7 +86,7 @@ or output. [#f1]_
 
 .. c:type:: v4l2_fract
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. flat-table:: struct v4l2_fract
     :header-rows:  0
@@ -100,7 +100,7 @@ or output. [#f1]_
       - ``denominator``
       -
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. _v4l2-std-id:
 

@@ -118,11 +118,15 @@ correct. This prevents the situation where only some of the controls
 were set/get. Only low-level errors (e. g. a failed i2c command) can
 still cause this situation.
 
-.. tabularcolumns:: |p{1.2cm}|p{3.0cm}|p{1.5cm}|p{11.8cm}|
+.. tabularcolumns:: |p{6.8cm}|p{4.0cm}|p{6.5cm}|
 
 .. c:type:: v4l2_ext_control
 
-.. cssclass: longtable
+.. raw:: latex
+
+   \footnotesize
+
+.. cssclass:: longtable
 
 .. flat-table:: struct v4l2_ext_control
     :header-rows:  0
@@ -221,7 +225,11 @@ still cause this situation.
     * - }
       -
 
-.. tabularcolumns:: |p{4.0cm}|p{2.2cm}|p{2.1cm}|p{8.2cm}|
+.. raw:: latex
+
+   \normalsize
+
+.. tabularcolumns:: |p{4.0cm}|p{2.5cm}|p{10.8cm}|
 
 .. c:type:: v4l2_ext_controls
 
@@ -334,9 +342,11 @@ still cause this situation.
 
 	Ignored if ``count`` equals zero.
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
-
 .. _ctrl-class:
+
+.. tabularcolumns:: |p{7.3cm}|p{2.0cm}|p{8.0cm}|
+
+.. cssclass:: longtable
 
 .. flat-table:: Control classes
     :header-rows:  0

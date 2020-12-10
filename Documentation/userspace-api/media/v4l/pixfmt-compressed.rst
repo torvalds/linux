@@ -7,7 +7,13 @@ Compressed Formats
 
 .. _compressed-formats:
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{5.8cm}|p{1.2cm}|p{10.3cm}|
+
+.. cssclass:: longtable
 
 .. flat-table:: Compressed Image Formats
     :header-rows:  1
@@ -220,3 +226,7 @@ Compressed Formats
         Metadata associated with the frame to decode is required to be passed
         through the ``V4L2_CID_STATELESS_FWHT_PARAMS`` control.
 	See the :ref:`associated Codec Control ID <codec-stateless-fwht>`.
+
+.. raw:: latex
+
+    \normalsize
