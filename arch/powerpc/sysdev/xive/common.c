@@ -348,39 +348,40 @@ static void xive_do_queue_eoi(struct xive_cpu *xc)
  * EOI an interrupt at the source. There are several methods
  * to do this depending on the HW version and source type
  */
-static void xive_do_source_eoi(u32 hw_irq, struct xive_irq_data *xd)
+static void xive_do_source_eoi(struct xive_irq_data *xd)
 {
+	u8 eoi_val;
+
 	xd->stale_p = false;
+
 	/* If the XIVE supports the new "store EOI facility, use it */
-	if (xd->flags & XIVE_IRQ_FLAG_STORE_EOI)
+	if (xd->flags & XIVE_IRQ_FLAG_STORE_EOI) {
 		xive_esb_write(xd, XIVE_ESB_STORE_EOI, 0);
-	else {
-		u8 eoi_val;
-
-		/*
-		 * Otherwise for EOI, we use the special MMIO that does
-		 * a clear of both P and Q and returns the old Q,
-		 * except for LSIs where we use the "EOI cycle" special
-		 * load.
-		 *
-		 * This allows us to then do a re-trigger if Q was set
-		 * rather than synthesizing an interrupt in software
-		 *
-		 * For LSIs the HW EOI cycle is used rather than PQ bits,
-		 * as they are automatically re-triggred in HW when still
-		 * pending.
-		 */
-		if (xd->flags & XIVE_IRQ_FLAG_LSI)
-			xive_esb_read(xd, XIVE_ESB_LOAD_EOI);
-		else {
-			eoi_val = xive_esb_read(xd, XIVE_ESB_SET_PQ_00);
-			DBG_VERBOSE("eoi_val=%x\n", eoi_val);
-
-			/* Re-trigger if needed */
-			if ((eoi_val & XIVE_ESB_VAL_Q) && xd->trig_mmio)
-				out_be64(xd->trig_mmio, 0);
-		}
+		return;
 	}
+
+	/*
+	 * For LSIs, we use the "EOI cycle" special load rather than
+	 * PQ bits, as they are automatically re-triggered in HW when
+	 * still pending.
+	 */
+	if (xd->flags & XIVE_IRQ_FLAG_LSI) {
+		xive_esb_read(xd, XIVE_ESB_LOAD_EOI);
+		return;
+	}
+
+	/*
+	 * Otherwise, we use the special MMIO that does a clear of
+	 * both P and Q and returns the old Q. This allows us to then
+	 * do a re-trigger if Q was set rather than synthesizing an
+	 * interrupt in software
+	 */
+	eoi_val = xive_esb_read(xd, XIVE_ESB_SET_PQ_00);
+	DBG_VERBOSE("eoi_val=%x\n", eoi_val);
+
+	/* Re-trigger if needed */
+	if ((eoi_val & XIVE_ESB_VAL_Q) && xd->trig_mmio)
+		out_be64(xd->trig_mmio, 0);
 }
 
 /* irq_chip eoi callback, called with irq descriptor lock held */
@@ -398,7 +399,7 @@ static void xive_irq_eoi(struct irq_data *d)
 	 */
 	if (!irqd_irq_disabled(d) && !irqd_is_forwarded_to_vcpu(d) &&
 	    !(xd->flags & XIVE_IRQ_FLAG_NO_EOI))
-		xive_do_source_eoi(irqd_to_hwirq(d), xd);
+		xive_do_source_eoi(xd);
 	else
 		xd->stale_p = true;
 
@@ -788,14 +789,7 @@ static int xive_irq_retrigger(struct irq_data *d)
 	 * 11, then perform an EOI.
 	 */
 	xive_esb_read(xd, XIVE_ESB_SET_PQ_11);
-
-	/*
-	 * Note: We pass "0" to the hw_irq argument in order to
-	 * avoid calling into the backend EOI code which we don't
-	 * want to do in the case of a re-trigger. Backends typically
-	 * only do EOI for LSIs anyway.
-	 */
-	xive_do_source_eoi(0, xd);
+	xive_do_source_eoi(xd);
 
 	return 1;
 }
@@ -910,7 +904,7 @@ static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 		 * while masked, the generic code will re-mask it anyway.
 		 */
 		if (!xd->saved_p)
-			xive_do_source_eoi(hw_irq, xd);
+			xive_do_source_eoi(xd);
 
 	}
 	return 0;
@@ -1054,7 +1048,7 @@ static void xive_ipi_eoi(struct irq_data *d)
 	DBG_VERBOSE("IPI eoi: irq=%d [0x%lx] (HW IRQ 0x%x) pending=%02x\n",
 		    d->irq, irqd_to_hwirq(d), xc->hw_ipi, xc->pending_prio);
 
-	xive_do_source_eoi(xc->hw_ipi, &xc->ipi_data);
+	xive_do_source_eoi(&xc->ipi_data);
 	xive_do_queue_eoi(xc);
 }
 
@@ -1445,7 +1439,7 @@ static void xive_flush_cpu_queue(unsigned int cpu, struct xive_cpu *xc)
 		 * still asserted. Otherwise do an MSI retrigger.
 		 */
 		if (xd->flags & XIVE_IRQ_FLAG_LSI)
-			xive_do_source_eoi(irqd_to_hwirq(d), xd);
+			xive_do_source_eoi(xd);
 		else
 			xive_irq_retrigger(d);
 
