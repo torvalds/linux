@@ -990,6 +990,8 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 		if (msm_obj->pages)
 			kvfree(msm_obj->pages);
 
+		put_iova_vmas(obj);
+
 		/* dma_buf_detach() grabs resv lock, so we need to unlock
 		 * prior to drm_prime_gem_destroy
 		 */
@@ -999,10 +1001,9 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 	} else {
 		msm_gem_vunmap(obj);
 		put_pages(obj);
+		put_iova_vmas(obj);
 		msm_gem_unlock(obj);
 	}
-
-	put_iova_vmas(obj);
 
 	drm_gem_object_release(obj);
 
