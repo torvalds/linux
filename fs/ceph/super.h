@@ -562,9 +562,11 @@ static inline struct inode *ceph_find_inode(struct super_block *sb,
 /*
  * Masks of ceph inode work.
  */
-#define CEPH_I_WORK_WRITEBACK		0 /* writeback */
-#define CEPH_I_WORK_INVALIDATE_PAGES	1 /* invalidate pages */
-#define CEPH_I_WORK_VMTRUNCATE		2 /* vmtruncate */
+#define CEPH_I_WORK_WRITEBACK		0
+#define CEPH_I_WORK_INVALIDATE_PAGES	1
+#define CEPH_I_WORK_VMTRUNCATE		2
+#define CEPH_I_WORK_CHECK_CAPS		3
+#define CEPH_I_WORK_FLUSH_SNAPS		4
 
 /*
  * We set the ERROR_WRITE bit when we start seeing write errors on an inode
@@ -982,6 +984,16 @@ static inline void ceph_queue_writeback(struct inode *inode)
 	ceph_queue_inode_work(inode, CEPH_I_WORK_WRITEBACK);
 }
 
+static inline void ceph_queue_check_caps(struct inode *inode)
+{
+	ceph_queue_inode_work(inode, CEPH_I_WORK_CHECK_CAPS);
+}
+
+static inline void ceph_queue_flush_snaps(struct inode *inode)
+{
+	ceph_queue_inode_work(inode, CEPH_I_WORK_FLUSH_SNAPS);
+}
+
 extern int __ceph_do_getattr(struct inode *inode, struct page *locked_page,
 			     int mask, bool force);
 static inline int ceph_do_getattr(struct inode *inode, int mask, bool force)
@@ -1120,6 +1132,7 @@ extern void ceph_take_cap_refs(struct ceph_inode_info *ci, int caps,
 				bool snap_rwsem_locked);
 extern void ceph_get_cap_refs(struct ceph_inode_info *ci, int caps);
 extern void ceph_put_cap_refs(struct ceph_inode_info *ci, int had);
+extern void ceph_put_cap_refs_async(struct ceph_inode_info *ci, int had);
 extern void ceph_put_cap_refs_no_check_caps(struct ceph_inode_info *ci,
 					    int had);
 extern void ceph_put_wrbuffer_cap_refs(struct ceph_inode_info *ci, int nr,

@@ -1965,6 +1965,12 @@ static void ceph_inode_work(struct work_struct *work)
 	if (test_and_clear_bit(CEPH_I_WORK_VMTRUNCATE, &ci->i_work_mask))
 		__ceph_do_pending_vmtruncate(inode);
 
+	if (test_and_clear_bit(CEPH_I_WORK_CHECK_CAPS, &ci->i_work_mask))
+		ceph_check_caps(ci, 0, NULL);
+
+	if (test_and_clear_bit(CEPH_I_WORK_FLUSH_SNAPS, &ci->i_work_mask))
+		ceph_flush_snaps(ci, NULL);
+
 	iput(inode);
 }
 
