@@ -65,6 +65,9 @@ struct thermal_cooling_device *
 of_devfreq_cooling_register(struct device_node *np, struct devfreq *df);
 struct thermal_cooling_device *devfreq_cooling_register(struct devfreq *df);
 void devfreq_cooling_unregister(struct thermal_cooling_device *dfc);
+struct thermal_cooling_device *
+devfreq_cooling_em_register(struct devfreq *df,
+			    struct devfreq_cooling_power *dfc_power);
 
 #else /* !CONFIG_DEVFREQ_THERMAL */
 
@@ -83,6 +86,13 @@ of_devfreq_cooling_register(struct device_node *np, struct devfreq *df)
 
 static inline struct thermal_cooling_device *
 devfreq_cooling_register(struct devfreq *df)
+{
+	return ERR_PTR(-EINVAL);
+}
+
+static inline struct thermal_cooling_device *
+devfreq_cooling_em_register(struct devfreq *df,
+			    struct devfreq_cooling_power *dfc_power)
 {
 	return ERR_PTR(-EINVAL);
 }
