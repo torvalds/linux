@@ -31,7 +31,10 @@ allOf:
 properties:
   compatible:
     contains:
-      const: snps,dwc3
+      oneOf:
+        - const: snps,dwc3
+        - const: synopsys,dwc3
+          deprecated: true
 
   interrupts:
     description:
