@@ -115,8 +115,15 @@ static int m_can_plat_probe(struct platform_device *pdev)
 
 	m_can_init_ram(mcan_class);
 
-	return m_can_class_register(mcan_class);
+	pm_runtime_enable(mcan_class->dev);
+	ret = m_can_class_register(mcan_class);
+	if (ret)
+		goto out_runtime_disable;
 
+	return ret;
+
+out_runtime_disable:
+	pm_runtime_disable(mcan_class->dev);
 probe_fail:
 	m_can_class_free_dev(mcan_class->net);
 	return ret;
