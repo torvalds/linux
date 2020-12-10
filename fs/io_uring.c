@@ -489,7 +489,6 @@ struct io_sr_msg {
 struct io_open {
 	struct file			*file;
 	int				dfd;
-	bool				ignore_nonblock;
 	struct filename			*filename;
 	struct open_how			how;
 	unsigned long			nofile;
@@ -4054,7 +4053,6 @@ static int __io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 		return ret;
 	}
 	req->open.nofile = rlimit(RLIMIT_NOFILE);
-	req->open.ignore_nonblock = false;
 	req->flags |= REQ_F_NEED_CLEANUP;
 	return 0;
 }
@@ -4096,39 +4094,48 @@ static int io_openat2(struct io_kiocb *req, bool force_nonblock)
 {
 	struct open_flags op;
 	struct file *file;
+	bool nonblock_set;
+	bool resolve_nonblock;
 	int ret;
-
-	if (force_nonblock && !req->open.ignore_nonblock)
-		return -EAGAIN;
 
 	ret = build_open_flags(&req->open.how, &op);
 	if (ret)
 		goto err;
+	nonblock_set = op.open_flag & O_NONBLOCK;
+	resolve_nonblock = req->open.how.resolve & RESOLVE_CACHED;
+	if (force_nonblock) {
+		/*
+		 * Don't bother trying for O_TRUNC, O_CREAT, or O_TMPFILE open,
+		 * it'll always -EAGAIN
+		 */
+		if (req->open.how.flags & (O_TRUNC | O_CREAT | O_TMPFILE))
+			return -EAGAIN;
+		op.lookup_flags |= LOOKUP_CACHED;
+		op.open_flag |= O_NONBLOCK;
+	}
 
 	ret = __get_unused_fd_flags(req->open.how.flags, req->open.nofile);
 	if (ret < 0)
 		goto err;
 
 	file = do_filp_open(req->open.dfd, req->open.filename, &op);
+	/* only retry if RESOLVE_CACHED wasn't already set by application */
+	if ((!resolve_nonblock && force_nonblock) && file == ERR_PTR(-EAGAIN)) {
+		/*
+		 * We could hang on to this 'fd', but seems like marginal
+		 * gain for something that is now known to be a slower path.
+		 * So just put it, and we'll get a new one when we retry.
+		 */
+		put_unused_fd(ret);
+		return -EAGAIN;
+	}
+
 	if (IS_ERR(file)) {
 		put_unused_fd(ret);
 		ret = PTR_ERR(file);
-		/*
-		 * A work-around to ensure that /proc/self works that way
-		 * that it should - if we get -EOPNOTSUPP back, then assume
-		 * that proc_self_get_link() failed us because we're in async
-		 * context. We should be safe to retry this from the task
-		 * itself with force_nonblock == false set, as it should not
-		 * block on lookup. Would be nice to know this upfront and
-		 * avoid the async dance, but doesn't seem feasible.
-		 */
-		if (ret == -EOPNOTSUPP && io_wq_current_is_worker()) {
-			req->open.ignore_nonblock = true;
-			refcount_inc(&req->refs);
-			io_req_task_queue(req);
-			return 0;
-		}
 	} else {
+		if (force_nonblock && !nonblock_set)
+			file->f_flags &= ~O_NONBLOCK;
 		fsnotify_open(file);
 		fd_install(ret, file);
 	}
