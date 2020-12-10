@@ -234,7 +234,8 @@ struct vmcb_save_area {
 	u8 cpl;
 	u8 reserved_2[4];
 	u64 efer;
-	u8 reserved_3[112];
+	u8 reserved_3[104];
+	u64 xss;		/* Valid for SEV-ES only */
 	u64 cr4;
 	u64 cr3;
 	u64 cr0;
@@ -265,9 +266,12 @@ struct vmcb_save_area {
 
 	/*
 	 * The following part of the save area is valid only for
-	 * SEV-ES guests when referenced through the GHCB.
+	 * SEV-ES guests when referenced through the GHCB or for
+	 * saving to the host save area.
 	 */
-	u8 reserved_7[104];
+	u8 reserved_7[80];
+	u32 pkru;
+	u8 reserved_7a[20];
 	u64 reserved_8;		/* rax already available at 0x01f8 */
 	u64 rcx;
 	u64 rdx;

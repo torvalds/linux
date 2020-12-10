@@ -23,15 +23,23 @@
 
 #define __sme_page_pa(x) __sme_set(page_to_pfn(x) << PAGE_SHIFT)
 
-static const u32 host_save_user_msrs[] = {
+static const struct svm_host_save_msrs {
+	u32 index;		/* Index of the MSR */
+	bool sev_es_restored;	/* True if MSR is restored on SEV-ES VMEXIT */
+} host_save_user_msrs[] = {
 #ifdef CONFIG_X86_64
-	MSR_STAR, MSR_LSTAR, MSR_CSTAR, MSR_SYSCALL_MASK, MSR_KERNEL_GS_BASE,
-	MSR_FS_BASE,
+	{ .index = MSR_STAR,			.sev_es_restored = true },
+	{ .index = MSR_LSTAR,			.sev_es_restored = true },
+	{ .index = MSR_CSTAR,			.sev_es_restored = true },
+	{ .index = MSR_SYSCALL_MASK,		.sev_es_restored = true },
+	{ .index = MSR_KERNEL_GS_BASE,		.sev_es_restored = true },
+	{ .index = MSR_FS_BASE,			.sev_es_restored = true },
 #endif
-	MSR_IA32_SYSENTER_CS, MSR_IA32_SYSENTER_ESP, MSR_IA32_SYSENTER_EIP,
-	MSR_TSC_AUX,
+	{ .index = MSR_IA32_SYSENTER_CS,	.sev_es_restored = true },
+	{ .index = MSR_IA32_SYSENTER_ESP,	.sev_es_restored = true },
+	{ .index = MSR_IA32_SYSENTER_EIP,	.sev_es_restored = true },
+	{ .index = MSR_TSC_AUX,			.sev_es_restored = false },
 };
-
 #define NR_HOST_SAVE_USER_MSRS ARRAY_SIZE(host_save_user_msrs)
 
 #define MAX_DIRECT_ACCESS_MSRS	18
@@ -580,5 +588,7 @@ int sev_handle_vmgexit(struct vcpu_svm *svm);
 int sev_es_string_io(struct vcpu_svm *svm, int size, unsigned int port, int in);
 void sev_es_init_vmcb(struct vcpu_svm *svm);
 void sev_es_create_vcpu(struct vcpu_svm *svm);
+void sev_es_vcpu_load(struct vcpu_svm *svm, int cpu);
+void sev_es_vcpu_put(struct vcpu_svm *svm);
 
 #endif
