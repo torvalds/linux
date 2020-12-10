@@ -424,9 +424,7 @@ static void xive_irq_eoi(struct irq_data *d)
 }
 
 /*
- * Helper used to mask and unmask an interrupt source. This
- * is only called for normal interrupts that do not require
- * masking/unmasking via firmware.
+ * Helper used to mask and unmask an interrupt source.
  */
 static void xive_do_source_set_mask(struct xive_irq_data *xd,
 				    bool mask)
@@ -673,20 +671,6 @@ static void xive_irq_unmask(struct irq_data *d)
 
 	pr_devel("xive_irq_unmask: irq %d data @%p\n", d->irq, xd);
 
-	/*
-	 * This is a workaround for PCI LSI problems on P9, for
-	 * these, we call FW to set the mask. The problems might
-	 * be fixed by P9 DD2.0, if that is the case, firmware
-	 * will no longer set that flag.
-	 */
-	if (xd->flags & XIVE_IRQ_FLAG_MASK_FW) {
-		unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
-		xive_ops->configure_irq(hw_irq,
-					get_hard_smp_processor_id(xd->target),
-					xive_irq_priority, d->irq);
-		return;
-	}
-
 	xive_do_source_set_mask(xd, false);
 }
 
@@ -695,20 +679,6 @@ static void xive_irq_mask(struct irq_data *d)
 	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
 
 	pr_devel("xive_irq_mask: irq %d data @%p\n", d->irq, xd);
-
-	/*
-	 * This is a workaround for PCI LSI problems on P9, for
-	 * these, we call OPAL to set the mask. The problems might
-	 * be fixed by P9 DD2.0, if that is the case, firmware
-	 * will no longer set that flag.
-	 */
-	if (xd->flags & XIVE_IRQ_FLAG_MASK_FW) {
-		unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
-		xive_ops->configure_irq(hw_irq,
-					get_hard_smp_processor_id(xd->target),
-					0xff, d->irq);
-		return;
-	}
 
 	xive_do_source_set_mask(xd, true);
 }
@@ -851,13 +821,6 @@ static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
 	int rc;
 	u8 pq;
-
-	/*
-	 * We only support this on interrupts that do not require
-	 * firmware calls for masking and unmasking
-	 */
-	if (xd->flags & XIVE_IRQ_FLAG_MASK_FW)
-		return -EIO;
 
 	/*
 	 * This is called by KVM with state non-NULL for enabling
@@ -1304,7 +1267,6 @@ static const struct {
 } xive_irq_flags[] = {
 	{ XIVE_IRQ_FLAG_STORE_EOI, "STORE_EOI" },
 	{ XIVE_IRQ_FLAG_LSI,       "LSI"       },
-	{ XIVE_IRQ_FLAG_MASK_FW,   "MASK_FW"   },
 	{ XIVE_IRQ_FLAG_EOI_FW,    "EOI_FW"    },
 	{ XIVE_IRQ_FLAG_H_INT_ESB, "H_INT_ESB" },
 	{ XIVE_IRQ_FLAG_NO_EOI,    "NO_EOI"    },

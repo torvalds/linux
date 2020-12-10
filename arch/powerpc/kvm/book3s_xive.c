@@ -419,37 +419,16 @@ static u8 xive_lock_and_mask(struct kvmppc_xive *xive,
 	/* Get the right irq */
 	kvmppc_xive_select_irq(state, &hw_num, &xd);
 
-	/*
-	 * If the interrupt is marked as needing masking via
-	 * firmware, we do it here. Firmware masking however
-	 * is "lossy", it won't return the old p and q bits
-	 * and won't set the interrupt to a state where it will
-	 * record queued ones. If this is an issue we should do
-	 * lazy masking instead.
-	 *
-	 * For now, we work around this in unmask by forcing
-	 * an interrupt whenever we unmask a non-LSI via FW
-	 * (if ever).
-	 */
-	if (xd->flags & OPAL_XIVE_IRQ_MASK_VIA_FW) {
-		xive_native_configure_irq(hw_num,
-				kvmppc_xive_vp(xive, state->act_server),
-				MASKED, state->number);
-		/* set old_p so we can track if an H_EOI was done */
-		state->old_p = true;
-		state->old_q = false;
-	} else {
-		/* Set PQ to 10, return old P and old Q and remember them */
-		val = xive_vm_esb_load(xd, XIVE_ESB_SET_PQ_10);
-		state->old_p = !!(val & 2);
-		state->old_q = !!(val & 1);
+	/* Set PQ to 10, return old P and old Q and remember them */
+	val = xive_vm_esb_load(xd, XIVE_ESB_SET_PQ_10);
+	state->old_p = !!(val & 2);
+	state->old_q = !!(val & 1);
 
-		/*
-		 * Synchronize hardware to sensure the queues are updated
-		 * when masking
-		 */
-		xive_native_sync_source(hw_num);
-	}
+	/*
+	 * Synchronize hardware to sensure the queues are updated when
+	 * masking
+	 */
+	xive_native_sync_source(hw_num);
 
 	return old_prio;
 }
@@ -482,23 +461,6 @@ static void xive_finish_unmask(struct kvmppc_xive *xive,
 
 	/* Get the right irq */
 	kvmppc_xive_select_irq(state, &hw_num, &xd);
-
-	/*
-	 * See comment in xive_lock_and_mask() concerning masking
-	 * via firmware.
-	 */
-	if (xd->flags & OPAL_XIVE_IRQ_MASK_VIA_FW) {
-		xive_native_configure_irq(hw_num,
-				kvmppc_xive_vp(xive, state->act_server),
-				state->act_priority, state->number);
-		/* If an EOI is needed, do it here */
-		if (!state->old_p)
-			xive_vm_source_eoi(hw_num, xd);
-		/* If this is not an LSI, force a trigger */
-		if (!(xd->flags & OPAL_XIVE_IRQ_LSI))
-			xive_irq_trigger(xd);
-		goto bail;
-	}
 
 	/* Old Q set, set PQ to 11 */
 	if (state->old_q)
