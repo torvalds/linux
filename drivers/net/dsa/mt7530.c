@@ -1657,6 +1657,7 @@ mt7530_setup(struct dsa_switch *ds)
 	 */
 	dn = dsa_to_port(ds, MT7530_CPU_PORT)->master->dev.of_node->parent;
 	ds->configure_vlan_while_not_filtering = true;
+	ds->mtu_enforcement_ingress = true;
 
 	if (priv->id == ID_MT7530) {
 		regulator_set_voltage(priv->core_pwr, 1000000, 1000000);
@@ -1895,6 +1896,7 @@ mt7531_setup(struct dsa_switch *ds)
 	}
 
 	ds->configure_vlan_while_not_filtering = true;
+	ds->mtu_enforcement_ingress = true;
 
 	/* Flush the FDB table */
 	ret = mt7530_fdb_cmd(priv, MT7530_FDB_FLUSH, NULL);
