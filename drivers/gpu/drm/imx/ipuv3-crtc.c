@@ -384,29 +384,14 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 	drm_crtc_init_with_planes(drm, crtc, &ipu_crtc->plane[0]->base, NULL,
 				  &ipu_crtc_funcs, NULL);
 
-	ret = ipu_plane_get_resources(ipu_crtc->plane[0]);
-	if (ret) {
-		dev_err(ipu_crtc->dev, "getting plane 0 resources failed with %d.\n",
-			ret);
-		goto err_put_resources;
-	}
-
 	/* If this crtc is using the DP, add an overlay plane */
 	if (pdata->dp >= 0 && pdata->dma[1] > 0) {
 		ipu_crtc->plane[1] = ipu_plane_init(drm, ipu, pdata->dma[1],
 						IPU_DP_FLOW_SYNC_FG,
 						drm_crtc_mask(&ipu_crtc->base),
 						DRM_PLANE_TYPE_OVERLAY);
-		if (IS_ERR(ipu_crtc->plane[1])) {
+		if (IS_ERR(ipu_crtc->plane[1]))
 			ipu_crtc->plane[1] = NULL;
-		} else {
-			ret = ipu_plane_get_resources(ipu_crtc->plane[1]);
-			if (ret) {
-				dev_err(ipu_crtc->dev, "getting plane 1 "
-					"resources failed with %d.\n", ret);
-				goto err_put_plane0_res;
-			}
-		}
 	}
 
 	ipu_crtc->irq = ipu_plane_irq(ipu_crtc->plane[0]);
@@ -414,18 +399,13 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 			"imx_drm", ipu_crtc);
 	if (ret < 0) {
 		dev_err(ipu_crtc->dev, "irq request failed with %d.\n", ret);
-		goto err_put_plane1_res;
+		goto err_put_resources;
 	}
 	/* Only enable IRQ when we actually need it to trigger work. */
 	disable_irq(ipu_crtc->irq);
 
 	return 0;
 
-err_put_plane1_res:
-	if (ipu_crtc->plane[1])
-		ipu_plane_put_resources(ipu_crtc->plane[1]);
-err_put_plane0_res:
-	ipu_plane_put_resources(ipu_crtc->plane[0]);
 err_put_resources:
 	ipu_put_resources(ipu_crtc);
 
@@ -452,9 +432,6 @@ static void ipu_drm_unbind(struct device *dev, struct device *master,
 	struct ipu_crtc *ipu_crtc = dev_get_drvdata(dev);
 
 	ipu_put_resources(ipu_crtc);
-	if (ipu_crtc->plane[1])
-		ipu_plane_put_resources(ipu_crtc->plane[1]);
-	ipu_plane_put_resources(ipu_crtc->plane[0]);
 }
 
 static const struct component_ops ipu_crtc_ops = {
