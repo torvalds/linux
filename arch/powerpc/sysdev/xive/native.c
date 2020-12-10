@@ -622,7 +622,7 @@ bool __init xive_native_init(void)
 	xive_native_setup_pools();
 
 	/* Initialize XIVE core with our backend */
-	if (!xive_core_init(&xive_native_ops, tima, TM_QW3_HV_PHYS,
+	if (!xive_core_init(np, &xive_native_ops, tima, TM_QW3_HV_PHYS,
 			    max_prio)) {
 		opal_xive_reset(OPAL_XIVE_MODE_EMU);
 		return false;

@@ -857,7 +857,7 @@ bool __init xive_spapr_init(void)
 	}
 
 	/* Initialize XIVE core with our backend */
-	if (!xive_core_init(&xive_spapr_ops, tima, TM_QW1_OS, max_prio))
+	if (!xive_core_init(np, &xive_spapr_ops, tima, TM_QW1_OS, max_prio))
 		return false;
 
 	pr_info("Using %dkB queues\n", 1 << (xive_queue_shift - 10));

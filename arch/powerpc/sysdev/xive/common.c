@@ -1310,9 +1310,9 @@ static const struct irq_domain_ops xive_irq_domain_ops = {
 	.xlate = xive_irq_domain_xlate,
 };
 
-static void __init xive_init_host(void)
+static void __init xive_init_host(struct device_node *np)
 {
-	xive_irq_domain = irq_domain_add_nomap(NULL, XIVE_MAX_IRQ,
+	xive_irq_domain = irq_domain_add_nomap(np, XIVE_MAX_IRQ,
 					       &xive_irq_domain_ops, NULL);
 	if (WARN_ON(xive_irq_domain == NULL))
 		return;
@@ -1513,8 +1513,8 @@ void xive_shutdown(void)
 	xive_ops->shutdown();
 }
 
-bool __init xive_core_init(const struct xive_ops *ops, void __iomem *area, u32 offset,
-			   u8 max_prio)
+bool __init xive_core_init(struct device_node *np, const struct xive_ops *ops,
+			   void __iomem *area, u32 offset, u8 max_prio)
 {
 	xive_tima = area;
 	xive_tima_offset = offset;
@@ -1525,7 +1525,7 @@ bool __init xive_core_init(const struct xive_ops *ops, void __iomem *area, u32 o
 	__xive_enabled = true;
 
 	pr_devel("Initializing host..\n");
-	xive_init_host();
+	xive_init_host(np);
 
 	pr_devel("Initializing boot CPU..\n");
 
