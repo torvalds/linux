@@ -18,6 +18,7 @@
 
 #include "x86.h"
 #include "svm.h"
+#include "cpuid.h"
 
 static int sev_flush_asids(void);
 static DECLARE_RWSEM(sev_deactivate_lock);
@@ -1257,10 +1258,225 @@ void sev_free_vcpu(struct kvm_vcpu *vcpu)
 	__free_page(virt_to_page(svm->vmsa));
 }
 
+static void dump_ghcb(struct vcpu_svm *svm)
+{
+	struct ghcb *ghcb = svm->ghcb;
+	unsigned int nbits;
+
+	/* Re-use the dump_invalid_vmcb module parameter */
+	if (!dump_invalid_vmcb) {
+		pr_warn_ratelimited("set kvm_amd.dump_invalid_vmcb=1 to dump internal KVM state.\n");
+		return;
+	}
+
+	nbits = sizeof(ghcb->save.valid_bitmap) * 8;
+
+	pr_err("GHCB (GPA=%016llx):\n", svm->vmcb->control.ghcb_gpa);
+	pr_err("%-20s%016llx is_valid: %u\n", "sw_exit_code",
+	       ghcb->save.sw_exit_code, ghcb_sw_exit_code_is_valid(ghcb));
+	pr_err("%-20s%016llx is_valid: %u\n", "sw_exit_info_1",
+	       ghcb->save.sw_exit_info_1, ghcb_sw_exit_info_1_is_valid(ghcb));
+	pr_err("%-20s%016llx is_valid: %u\n", "sw_exit_info_2",
+	       ghcb->save.sw_exit_info_2, ghcb_sw_exit_info_2_is_valid(ghcb));
+	pr_err("%-20s%016llx is_valid: %u\n", "sw_scratch",
+	       ghcb->save.sw_scratch, ghcb_sw_scratch_is_valid(ghcb));
+	pr_err("%-20s%*pb\n", "valid_bitmap", nbits, ghcb->save.valid_bitmap);
+}
+
+static void sev_es_sync_to_ghcb(struct vcpu_svm *svm)
+{
+	struct kvm_vcpu *vcpu = &svm->vcpu;
+	struct ghcb *ghcb = svm->ghcb;
+
+	/*
+	 * The GHCB protocol so far allows for the following data
+	 * to be returned:
+	 *   GPRs RAX, RBX, RCX, RDX
+	 *
+	 * Copy their values to the GHCB if they are dirty.
+	 */
+	if (kvm_register_is_dirty(vcpu, VCPU_REGS_RAX))
+		ghcb_set_rax(ghcb, vcpu->arch.regs[VCPU_REGS_RAX]);
+	if (kvm_register_is_dirty(vcpu, VCPU_REGS_RBX))
+		ghcb_set_rbx(ghcb, vcpu->arch.regs[VCPU_REGS_RBX]);
+	if (kvm_register_is_dirty(vcpu, VCPU_REGS_RCX))
+		ghcb_set_rcx(ghcb, vcpu->arch.regs[VCPU_REGS_RCX]);
+	if (kvm_register_is_dirty(vcpu, VCPU_REGS_RDX))
+		ghcb_set_rdx(ghcb, vcpu->arch.regs[VCPU_REGS_RDX]);
+}
+
+static void sev_es_sync_from_ghcb(struct vcpu_svm *svm)
+{
+	struct vmcb_control_area *control = &svm->vmcb->control;
+	struct kvm_vcpu *vcpu = &svm->vcpu;
+	struct ghcb *ghcb = svm->ghcb;
+	u64 exit_code;
+
+	/*
+	 * The GHCB protocol so far allows for the following data
+	 * to be supplied:
+	 *   GPRs RAX, RBX, RCX, RDX
+	 *   XCR0
+	 *   CPL
+	 *
+	 * VMMCALL allows the guest to provide extra registers. KVM also
+	 * expects RSI for hypercalls, so include that, too.
+	 *
+	 * Copy their values to the appropriate location if supplied.
+	 */
+	memset(vcpu->arch.regs, 0, sizeof(vcpu->arch.regs));
+
+	vcpu->arch.regs[VCPU_REGS_RAX] = ghcb_get_rax_if_valid(ghcb);
+	vcpu->arch.regs[VCPU_REGS_RBX] = ghcb_get_rbx_if_valid(ghcb);
+	vcpu->arch.regs[VCPU_REGS_RCX] = ghcb_get_rcx_if_valid(ghcb);
+	vcpu->arch.regs[VCPU_REGS_RDX] = ghcb_get_rdx_if_valid(ghcb);
+	vcpu->arch.regs[VCPU_REGS_RSI] = ghcb_get_rsi_if_valid(ghcb);
+
+	svm->vmcb->save.cpl = ghcb_get_cpl_if_valid(ghcb);
+
+	if (ghcb_xcr0_is_valid(ghcb)) {
+		vcpu->arch.xcr0 = ghcb_get_xcr0(ghcb);
+		kvm_update_cpuid_runtime(vcpu);
+	}
+
+	/* Copy the GHCB exit information into the VMCB fields */
+	exit_code = ghcb_get_sw_exit_code(ghcb);
+	control->exit_code = lower_32_bits(exit_code);
+	control->exit_code_hi = upper_32_bits(exit_code);
+	control->exit_info_1 = ghcb_get_sw_exit_info_1(ghcb);
+	control->exit_info_2 = ghcb_get_sw_exit_info_2(ghcb);
+
+	/* Clear the valid entries fields */
+	memset(ghcb->save.valid_bitmap, 0, sizeof(ghcb->save.valid_bitmap));
+}
+
+static int sev_es_validate_vmgexit(struct vcpu_svm *svm)
+{
+	struct kvm_vcpu *vcpu;
+	struct ghcb *ghcb;
+	u64 exit_code = 0;
+
+	ghcb = svm->ghcb;
+
+	/* Only GHCB Usage code 0 is supported */
+	if (ghcb->ghcb_usage)
+		goto vmgexit_err;
+
+	/*
+	 * Retrieve the exit code now even though is may not be marked valid
+	 * as it could help with debugging.
+	 */
+	exit_code = ghcb_get_sw_exit_code(ghcb);
+
+	if (!ghcb_sw_exit_code_is_valid(ghcb) ||
+	    !ghcb_sw_exit_info_1_is_valid(ghcb) ||
+	    !ghcb_sw_exit_info_2_is_valid(ghcb))
+		goto vmgexit_err;
+
+	switch (ghcb_get_sw_exit_code(ghcb)) {
+	case SVM_EXIT_READ_DR7:
+		break;
+	case SVM_EXIT_WRITE_DR7:
+		if (!ghcb_rax_is_valid(ghcb))
+			goto vmgexit_err;
+		break;
+	case SVM_EXIT_RDTSC:
+		break;
+	case SVM_EXIT_RDPMC:
+		if (!ghcb_rcx_is_valid(ghcb))
+			goto vmgexit_err;
+		break;
+	case SVM_EXIT_CPUID:
+		if (!ghcb_rax_is_valid(ghcb) ||
+		    !ghcb_rcx_is_valid(ghcb))
+			goto vmgexit_err;
+		if (ghcb_get_rax(ghcb) == 0xd)
+			if (!ghcb_xcr0_is_valid(ghcb))
+				goto vmgexit_err;
+		break;
+	case SVM_EXIT_INVD:
+		break;
+	case SVM_EXIT_IOIO:
+		if (!(ghcb_get_sw_exit_info_1(ghcb) & SVM_IOIO_TYPE_MASK))
+			if (!ghcb_rax_is_valid(ghcb))
+				goto vmgexit_err;
+		break;
+	case SVM_EXIT_MSR:
+		if (!ghcb_rcx_is_valid(ghcb))
+			goto vmgexit_err;
+		if (ghcb_get_sw_exit_info_1(ghcb)) {
+			if (!ghcb_rax_is_valid(ghcb) ||
+			    !ghcb_rdx_is_valid(ghcb))
+				goto vmgexit_err;
+		}
+		break;
+	case SVM_EXIT_VMMCALL:
+		if (!ghcb_rax_is_valid(ghcb) ||
+		    !ghcb_cpl_is_valid(ghcb))
+			goto vmgexit_err;
+		break;
+	case SVM_EXIT_RDTSCP:
+		break;
+	case SVM_EXIT_WBINVD:
+		break;
+	case SVM_EXIT_MONITOR:
+		if (!ghcb_rax_is_valid(ghcb) ||
+		    !ghcb_rcx_is_valid(ghcb) ||
+		    !ghcb_rdx_is_valid(ghcb))
+			goto vmgexit_err;
+		break;
+	case SVM_EXIT_MWAIT:
+		if (!ghcb_rax_is_valid(ghcb) ||
+		    !ghcb_rcx_is_valid(ghcb))
+			goto vmgexit_err;
+		break;
+	case SVM_VMGEXIT_UNSUPPORTED_EVENT:
+		break;
+	default:
+		goto vmgexit_err;
+	}
+
+	return 0;
+
+vmgexit_err:
+	vcpu = &svm->vcpu;
+
+	if (ghcb->ghcb_usage) {
+		vcpu_unimpl(vcpu, "vmgexit: ghcb usage %#x is not valid\n",
+			    ghcb->ghcb_usage);
+	} else {
+		vcpu_unimpl(vcpu, "vmgexit: exit reason %#llx is not valid\n",
+			    exit_code);
+		dump_ghcb(svm);
+	}
+
+	vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+	vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_UNEXPECTED_EXIT_REASON;
+	vcpu->run->internal.ndata = 2;
+	vcpu->run->internal.data[0] = exit_code;
+	vcpu->run->internal.data[1] = vcpu->arch.last_vmentry_cpu;
+
+	return -EINVAL;
+}
+
+static void pre_sev_es_run(struct vcpu_svm *svm)
+{
+	if (!svm->ghcb)
+		return;
+
+	sev_es_sync_to_ghcb(svm);
+
+	kvm_vcpu_unmap(&svm->vcpu, &svm->ghcb_map, true);
+	svm->ghcb = NULL;
+}
+
 void pre_sev_run(struct vcpu_svm *svm, int cpu)
 {
 	struct svm_cpu_data *sd = per_cpu(svm_data, cpu);
 	int asid = sev_get_asid(svm->vcpu.kvm);
+
+	/* Perform any SEV-ES pre-run actions */
+	pre_sev_es_run(svm);
 
 	/* Assign the asid allocated with this SEV guest */
 	svm->asid = asid;
@@ -1278,4 +1494,60 @@ void pre_sev_run(struct vcpu_svm *svm, int cpu)
 	sd->sev_vmcbs[asid] = svm->vmcb;
 	svm->vmcb->control.tlb_ctl = TLB_CONTROL_FLUSH_ASID;
 	vmcb_mark_dirty(svm->vmcb, VMCB_ASID);
+}
+
+static int sev_handle_vmgexit_msr_protocol(struct vcpu_svm *svm)
+{
+	return -EINVAL;
+}
+
+int sev_handle_vmgexit(struct vcpu_svm *svm)
+{
+	struct vmcb_control_area *control = &svm->vmcb->control;
+	u64 ghcb_gpa, exit_code;
+	struct ghcb *ghcb;
+	int ret;
+
+	/* Validate the GHCB */
+	ghcb_gpa = control->ghcb_gpa;
+	if (ghcb_gpa & GHCB_MSR_INFO_MASK)
+		return sev_handle_vmgexit_msr_protocol(svm);
+
+	if (!ghcb_gpa) {
+		vcpu_unimpl(&svm->vcpu, "vmgexit: GHCB gpa is not set\n");
+		return -EINVAL;
+	}
+
+	if (kvm_vcpu_map(&svm->vcpu, ghcb_gpa >> PAGE_SHIFT, &svm->ghcb_map)) {
+		/* Unable to map GHCB from guest */
+		vcpu_unimpl(&svm->vcpu, "vmgexit: error mapping GHCB [%#llx] from guest\n",
+			    ghcb_gpa);
+		return -EINVAL;
+	}
+
+	svm->ghcb = svm->ghcb_map.hva;
+	ghcb = svm->ghcb_map.hva;
+
+	exit_code = ghcb_get_sw_exit_code(ghcb);
+
+	ret = sev_es_validate_vmgexit(svm);
+	if (ret)
+		return ret;
+
+	sev_es_sync_from_ghcb(svm);
+	ghcb_set_sw_exit_info_1(ghcb, 0);
+	ghcb_set_sw_exit_info_2(ghcb, 0);
+
+	ret = -EINVAL;
+	switch (exit_code) {
+	case SVM_VMGEXIT_UNSUPPORTED_EVENT:
+		vcpu_unimpl(&svm->vcpu,
+			    "vmgexit: unsupported event - exit_info_1=%#llx, exit_info_2=%#llx\n",
+			    control->exit_info_1, control->exit_info_2);
+		break;
+	default:
+		ret = svm_invoke_exit_handler(svm, exit_code);
+	}
+
+	return ret;
 }
