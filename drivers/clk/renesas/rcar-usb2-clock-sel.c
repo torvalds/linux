@@ -160,7 +160,7 @@ static int rcar_usb2_clock_sel_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	priv->rsts = devm_reset_control_array_get(dev, true, false);
+	priv->rsts = devm_reset_control_array_get_shared(dev);
 	if (IS_ERR(priv->rsts))
 		return PTR_ERR(priv->rsts);
 
