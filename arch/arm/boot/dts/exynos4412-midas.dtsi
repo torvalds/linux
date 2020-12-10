@@ -173,7 +173,7 @@
 		pmic@66 {
 			compatible = "maxim,max77693";
 			interrupt-parent = <&gpx1>;
-			interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
+			interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&max77693_irq>;
 			reg = <0x66>;
