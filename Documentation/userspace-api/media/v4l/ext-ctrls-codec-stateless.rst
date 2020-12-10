@@ -212,42 +212,56 @@ Stateless Codec Control ID
       - ``flags``
       - See :ref:`Picture Parameter Set Flags <h264_pps_flags>`
 
+.. raw:: latex
+
+    \normalsize
+
 .. _h264_pps_flags:
 
 ``Picture Parameter Set Flags``
 
-.. cssclass:: longtable
+.. raw:: latex
+
+    \begingroup
+    \scriptsize
+    \setlength{\tabcolsep}{2pt}
+
+.. tabularcolumns:: |p{9.8cm}|p{1.0cm}|p{6.5cm}|
 
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2
+    :widths:       10 1 4
 
     * - ``V4L2_H264_PPS_FLAG_ENTROPY_CODING_MODE``
-      - 0x00000001
+      - 0x0001
       -
     * - ``V4L2_H264_PPS_FLAG_BOTTOM_FIELD_PIC_ORDER_IN_FRAME_PRESENT``
-      - 0x00000002
+      - 0x0002
       -
     * - ``V4L2_H264_PPS_FLAG_WEIGHTED_PRED``
-      - 0x00000004
+      - 0x0004
       -
     * - ``V4L2_H264_PPS_FLAG_DEBLOCKING_FILTER_CONTROL_PRESENT``
-      - 0x00000008
+      - 0x0008
       -
     * - ``V4L2_H264_PPS_FLAG_CONSTRAINED_INTRA_PRED``
-      - 0x00000010
+      - 0x0010
       -
     * - ``V4L2_H264_PPS_FLAG_REDUNDANT_PIC_CNT_PRESENT``
-      - 0x00000020
+      - 0x0020
       -
     * - ``V4L2_H264_PPS_FLAG_TRANSFORM_8X8_MODE``
-      - 0x00000040
+      - 0x0040
       -
     * - ``V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT``
-      - 0x00000080
-      - Indicates that ``V4L2_CID_STATELESS_H264_SCALING_MATRIX``
+      - 0x0080
+      - ``V4L2_CID_STATELESS_H264_SCALING_MATRIX``
         must be used for this picture.
+
+.. raw:: latex
+
+    \endgroup
 
 ``V4L2_CID_STATELESS_H264_SCALING_MATRIX (struct)``
     Specifies the scaling matrix (as extracted from the bitstream) for
