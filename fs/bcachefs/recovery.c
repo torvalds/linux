@@ -458,7 +458,9 @@ retry:
 		bch2_btree_iter_set_pos(iter, split->k.p);
 
 		if (remark) {
-			ret = bch2_trans_mark_key(&trans, bkey_i_to_s_c(split),
+			ret = bch2_trans_mark_key(&trans,
+						  bkey_s_c_null,
+						  bkey_i_to_s_c(split),
 						  0, split->k.size,
 						  BTREE_TRIGGER_INSERT);
 			if (ret)
@@ -467,7 +469,9 @@ retry:
 	} while (bkey_cmp(iter->pos, k->k.p) < 0);
 
 	if (remark) {
-		ret = bch2_trans_mark_key(&trans, bkey_i_to_s_c(k),
+		ret = bch2_trans_mark_key(&trans,
+					  bkey_i_to_s_c(k),
+					  bkey_s_c_null,
 					  0, -((s64) k->k.size),
 					  BTREE_TRIGGER_OVERWRITE);
 		if (ret)
