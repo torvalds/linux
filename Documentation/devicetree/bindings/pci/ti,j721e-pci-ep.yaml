@@ -15,8 +15,14 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - ti,j721e-pcie-ep
+    oneOf:
+      - description: PCIe EP controller in J7200
+        items:
+          - const: ti,j7200-pcie-ep
+          - const: ti,j721e-pcie-ep
+      - description: PCIe EP controller in J721E
+        items:
+          - const: ti,j721e-pcie-ep
 
   reg:
     maxItems: 4
