@@ -9093,6 +9093,12 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	/* Update audio instances for each connector. */
 	amdgpu_dm_commit_audio(dev, state);
 
+#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) ||		\
+	defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
+	/* restore the backlight level */
+	if (dm->backlight_dev)
+		amdgpu_dm_backlight_set_level(dm, dm->brightness[0]);
+#endif
 	/*
 	 * send vblank event on all events not handled in flip and
 	 * mark consumed event for drm_atomic_helper_commit_hw_done
