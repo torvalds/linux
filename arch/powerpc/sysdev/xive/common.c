@@ -1303,11 +1303,69 @@ static int xive_irq_domain_match(struct irq_domain *h, struct device_node *node,
 	return xive_ops->match(node);
 }
 
+#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
+static const char * const esb_names[] = { "RESET", "OFF", "PENDING", "QUEUED" };
+
+static const struct {
+	u64  mask;
+	char *name;
+} xive_irq_flags[] = {
+	{ XIVE_IRQ_FLAG_STORE_EOI, "STORE_EOI" },
+	{ XIVE_IRQ_FLAG_LSI,       "LSI"       },
+	{ XIVE_IRQ_FLAG_SHIFT_BUG, "SHIFT_BUG" },
+	{ XIVE_IRQ_FLAG_MASK_FW,   "MASK_FW"   },
+	{ XIVE_IRQ_FLAG_EOI_FW,    "EOI_FW"    },
+	{ XIVE_IRQ_FLAG_H_INT_ESB, "H_INT_ESB" },
+	{ XIVE_IRQ_FLAG_NO_EOI,    "NO_EOI"    },
+};
+
+static void xive_irq_domain_debug_show(struct seq_file *m, struct irq_domain *d,
+				       struct irq_data *irqd, int ind)
+{
+	struct xive_irq_data *xd;
+	u64 val;
+	int i;
+
+	/* No IRQ domain level information. To be done */
+	if (!irqd)
+		return;
+
+	if (!is_xive_irq(irq_data_get_irq_chip(irqd)))
+		return;
+
+	seq_printf(m, "%*sXIVE:\n", ind, "");
+	ind++;
+
+	xd = irq_data_get_irq_handler_data(irqd);
+	if (!xd) {
+		seq_printf(m, "%*snot assigned\n", ind, "");
+		return;
+	}
+
+	val = xive_esb_read(xd, XIVE_ESB_GET);
+	seq_printf(m, "%*sESB:      %s\n", ind, "", esb_names[val & 0x3]);
+	seq_printf(m, "%*sPstate:   %s %s\n", ind, "", xd->stale_p ? "stale" : "",
+		   xd->saved_p ? "saved" : "");
+	seq_printf(m, "%*sTarget:   %d\n", ind, "", xd->target);
+	seq_printf(m, "%*sChip:     %d\n", ind, "", xd->src_chip);
+	seq_printf(m, "%*sTrigger:  0x%016llx\n", ind, "", xd->trig_page);
+	seq_printf(m, "%*sEOI:      0x%016llx\n", ind, "", xd->eoi_page);
+	seq_printf(m, "%*sFlags:    0x%llx\n", ind, "", xd->flags);
+	for (i = 0; i < ARRAY_SIZE(xive_irq_flags); i++) {
+		if (xd->flags & xive_irq_flags[i].mask)
+			seq_printf(m, "%*s%s\n", ind + 12, "", xive_irq_flags[i].name);
+	}
+}
+#endif
+
 static const struct irq_domain_ops xive_irq_domain_ops = {
 	.match = xive_irq_domain_match,
 	.map = xive_irq_domain_map,
 	.unmap = xive_irq_domain_unmap,
 	.xlate = xive_irq_domain_xlate,
+#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
+	.debug_show = xive_irq_domain_debug_show,
+#endif
 };
 
 static void __init xive_init_host(struct device_node *np)
