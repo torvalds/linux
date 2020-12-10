@@ -2830,47 +2830,21 @@ enum v4l2_mpeg_video_hevc_profile -
 enum v4l2_mpeg_video_hevc_level -
     Selects the desired level for HEVC encoder.
 
-.. raw:: latex
-
-    \footnotesize
-
-.. tabularcolumns:: |p{9.0cm}|p{8.0cm}|
-
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
-
-    * - ``V4L2_MPEG_VIDEO_HEVC_LEVEL_1``
-      - Level 1.0
-    * - ``V4L2_MPEG_VIDEO_HEVC_LEVEL_2``
-      - Level 2.0
-    * - ``V4L2_MPEG_VIDEO_HEVC_LEVEL_2_1``
-      - Level 2.1
-    * - ``V4L2_MPEG_VIDEO_HEVC_LEVEL_3``
-      - Level 3.0
-    * - ``V4L2_MPEG_VIDEO_HEVC_LEVEL_3_1``
-      - Level 3.1
-    * - ``V4L2_MPEG_VIDEO_HEVC_LEVEL_4``
-      - Level 4.0
-    * - ``V4L2_MPEG_VIDEO_HEVC_LEVEL_4_1``
-      - Level 4.1
-    * - ``V4L2_MPEG_VIDEO_HEVC_LEVEL_5``
-      - Level 5.0
-    * - ``V4L2_MPEG_VIDEO_HEVC_LEVEL_5_1``
-      - Level 5.1
-    * - ``V4L2_MPEG_VIDEO_HEVC_LEVEL_5_2``
-      - Level 5.2
-    * - ``V4L2_MPEG_VIDEO_HEVC_LEVEL_6``
-      - Level 6.0
-    * - ``V4L2_MPEG_VIDEO_HEVC_LEVEL_6_1``
-      - Level 6.1
-    * - ``V4L2_MPEG_VIDEO_HEVC_LEVEL_6_2``
-      - Level 6.2
-
-.. raw:: latex
-
-    \normalsize
-
+==================================	=========
+``V4L2_MPEG_VIDEO_HEVC_LEVEL_1``	Level 1.0
+``V4L2_MPEG_VIDEO_HEVC_LEVEL_2``	Level 2.0
+``V4L2_MPEG_VIDEO_HEVC_LEVEL_2_1``	Level 2.1
+``V4L2_MPEG_VIDEO_HEVC_LEVEL_3``	Level 3.0
+``V4L2_MPEG_VIDEO_HEVC_LEVEL_3_1``	Level 3.1
+``V4L2_MPEG_VIDEO_HEVC_LEVEL_4``	Level 4.0
+``V4L2_MPEG_VIDEO_HEVC_LEVEL_4_1``	Level 4.1
+``V4L2_MPEG_VIDEO_HEVC_LEVEL_5``	Level 5.0
+``V4L2_MPEG_VIDEO_HEVC_LEVEL_5_1``	Level 5.1
+``V4L2_MPEG_VIDEO_HEVC_LEVEL_5_2``	Level 5.2
+``V4L2_MPEG_VIDEO_HEVC_LEVEL_6``	Level 6.0
+``V4L2_MPEG_VIDEO_HEVC_LEVEL_6_1``	Level 6.1
+``V4L2_MPEG_VIDEO_HEVC_LEVEL_6_2``	Level 6.2
+==================================	=========
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_FRAME_RATE_RESOLUTION (integer)``
     Indicates the number of evenly spaced subintervals, called ticks, within
@@ -2889,24 +2863,10 @@ enum v4l2_mpeg_video_hevc_tier -
     this flag to 1 indicates High tier. High tier is for applications requiring
     high bit rates.
 
-.. raw:: latex
-
-    \footnotesize
-
-.. tabularcolumns:: |p{9.0cm}|p{8.0cm}|
-
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
-
-    * - ``V4L2_MPEG_VIDEO_HEVC_TIER_MAIN``
-      - Main tier.
-    * - ``V4L2_MPEG_VIDEO_HEVC_TIER_HIGH``
-      - High tier.
-
-.. raw:: latex
-
-    \normalsize
+==================================	==========
+``V4L2_MPEG_VIDEO_HEVC_TIER_MAIN``	Main tier.
+``V4L2_MPEG_VIDEO_HEVC_TIER_HIGH``	High tier.
+==================================	==========
 
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_MAX_PARTITION_DEPTH (integer)``
