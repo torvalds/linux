@@ -256,7 +256,9 @@ static const struct drm_bridge_funcs imx_pd_bridge_funcs = {
 static int imx_pd_register(struct drm_device *drm,
 	struct imx_parallel_display *imxpd)
 {
+	struct drm_connector *connector = &imxpd->connector;
 	struct drm_encoder *encoder = &imxpd->encoder;
+	struct drm_bridge *bridge = &imxpd->bridge;
 	int ret;
 
 	ret = imx_drm_encoder_parse_of(drm, encoder, imxpd->dev->of_node);
@@ -268,31 +270,29 @@ static int imx_pd_register(struct drm_device *drm,
 	 * immediately since the current state is ON
 	 * at this point.
 	 */
-	imxpd->connector.dpms = DRM_MODE_DPMS_OFF;
+	connector->dpms = DRM_MODE_DPMS_OFF;
 
 	drm_simple_encoder_init(drm, encoder, DRM_MODE_ENCODER_NONE);
 
-	imxpd->bridge.funcs = &imx_pd_bridge_funcs;
-	drm_bridge_attach(encoder, &imxpd->bridge, NULL, 0);
+	bridge->funcs = &imx_pd_bridge_funcs;
+	drm_bridge_attach(encoder, bridge, NULL, 0);
 
 	if (!imxpd->next_bridge) {
-		drm_connector_helper_add(&imxpd->connector,
-				&imx_pd_connector_helper_funcs);
-		drm_connector_init(drm, &imxpd->connector,
-				   &imx_pd_connector_funcs,
+		drm_connector_helper_add(connector,
+					 &imx_pd_connector_helper_funcs);
+		drm_connector_init(drm, connector, &imx_pd_connector_funcs,
 				   DRM_MODE_CONNECTOR_DPI);
 	}
 
 	if (imxpd->next_bridge) {
-		ret = drm_bridge_attach(encoder, imxpd->next_bridge,
-					&imxpd->bridge, 0);
+		ret = drm_bridge_attach(encoder, imxpd->next_bridge, bridge, 0);
 		if (ret < 0) {
 			dev_err(imxpd->dev, "failed to attach bridge: %d\n",
 				ret);
 			return ret;
 		}
 	} else {
-		drm_connector_attach_encoder(&imxpd->connector, encoder);
+		drm_connector_attach_encoder(connector, encoder);
 	}
 
 	return 0;
