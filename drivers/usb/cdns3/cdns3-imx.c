@@ -218,20 +218,11 @@ err:
 	return ret;
 }
 
-static int cdns_imx_remove_core(struct device *dev, void *data)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-
-	platform_device_unregister(pdev);
-
-	return 0;
-}
-
 static int cdns_imx_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
-	device_for_each_child(dev, NULL, cdns_imx_remove_core);
+	of_platform_depopulate(dev);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
