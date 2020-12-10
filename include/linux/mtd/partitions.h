@@ -70,6 +70,7 @@ struct mtd_part_parser_data {
 	unsigned long origin;
 };
 
+void part_fill_badblockstats(struct mtd_info *mtd);
 
 /*
  * Functions dealing with the various ways of partitioning the space

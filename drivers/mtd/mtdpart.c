@@ -32,6 +32,26 @@ static inline void free_partition(struct mtd_info *mtd)
 	kfree(mtd);
 }
 
+void part_fill_badblockstats(struct mtd_info *mtd)
+{
+	uint64_t offs = 0;
+	struct mtd_info *parent = mtd->parent;
+	struct mtd_info *master = mtd_get_master(parent);
+
+	if (master->_block_isbad) {
+		mtd->ecc_stats.badblocks = 0;
+		mtd->ecc_stats.bbtblocks = 0;
+
+		while (offs < mtd->part.size) {
+			if (mtd_block_isreserved(mtd, offs))
+				mtd->ecc_stats.bbtblocks++;
+			else if (mtd_block_isbad(mtd, offs))
+				mtd->ecc_stats.badblocks++;
+			offs += mtd->erasesize;
+		}
+	}
+}
+
 static struct mtd_info *allocate_partition(struct mtd_info *parent,
 					   const struct mtd_partition *part,
 					   int partno, uint64_t cur_offset)
@@ -197,17 +217,9 @@ static struct mtd_info *allocate_partition(struct mtd_info *parent,
 	child->ecc_strength = parent->ecc_strength;
 	child->bitflip_threshold = parent->bitflip_threshold;
 
-	if (master->_block_isbad) {
-		uint64_t offs = 0;
-
-		while (offs < child->part.size) {
-			if (mtd_block_isreserved(child, offs))
-				child->ecc_stats.bbtblocks++;
-			else if (mtd_block_isbad(child, offs))
-				child->ecc_stats.badblocks++;
-			offs += child->erasesize;
-		}
-	}
+#ifndef CONFIG_MTD_LAZYECCSTATS
+	part_fill_badblockstats(child);
+#endif
 
 out_register:
 	return child;
