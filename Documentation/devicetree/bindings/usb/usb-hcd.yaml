@@ -12,6 +12,11 @@ maintainers:
 allOf:
   - $ref: usb.yaml#
 
+properties:
+  companion:
+    description: Phandle of a companion device
+    $ref: /schemas/types.yaml#/definitions/phandle
+
 additionalProperties: true
 
 examples:
