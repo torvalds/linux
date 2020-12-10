@@ -17,6 +17,12 @@ properties:
     description: Phandle of a companion device
     $ref: /schemas/types.yaml#/definitions/phandle
 
+  tpl-support:
+    description:
+      Indicates if the Targeted Peripheral List is supported for given
+      targeted hosts (non-PC hosts).
+    type: boolean
+
 additionalProperties: true
 
 examples:
