@@ -5099,6 +5099,7 @@ static int hclge_fd_tcam_config(struct hclge_dev *hdev, u8 stage, bool sel_x,
 static int hclge_fd_ad_config(struct hclge_dev *hdev, u8 stage, int loc,
 			      struct hclge_fd_ad_data *action)
 {
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 	struct hclge_fd_ad_config_cmd *req;
 	struct hclge_desc desc;
 	u64 ad_data = 0;
@@ -5114,6 +5115,12 @@ static int hclge_fd_ad_config(struct hclge_dev *hdev, u8 stage, int loc,
 		      action->write_rule_id_to_bd);
 	hnae3_set_field(ad_data, HCLGE_FD_AD_RULE_ID_M, HCLGE_FD_AD_RULE_ID_S,
 			action->rule_id);
+	if (test_bit(HNAE3_DEV_SUPPORT_FD_FORWARD_TC_B, ae_dev->caps)) {
+		hnae3_set_bit(ad_data, HCLGE_FD_AD_TC_OVRD_B,
+			      action->override_tc);
+		hnae3_set_field(ad_data, HCLGE_FD_AD_TC_SIZE_M,
+				HCLGE_FD_AD_TC_SIZE_S, (u32)action->tc_size);
+	}
 	ad_data <<= 32;
 	hnae3_set_bit(ad_data, HCLGE_FD_AD_DROP_B, action->drop_packet);
 	hnae3_set_bit(ad_data, HCLGE_FD_AD_DIRECT_QID_B,
@@ -5357,16 +5364,22 @@ static int hclge_config_key(struct hclge_dev *hdev, u8 stage,
 static int hclge_config_action(struct hclge_dev *hdev, u8 stage,
 			       struct hclge_fd_rule *rule)
 {
+	struct hclge_vport *vport = hdev->vport;
+	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
 	struct hclge_fd_ad_data ad_data;
 
+	memset(&ad_data, 0, sizeof(struct hclge_fd_ad_data));
 	ad_data.ad_id = rule->location;
 
 	if (rule->action == HCLGE_FD_ACTION_DROP_PACKET) {
 		ad_data.drop_packet = true;
-		ad_data.forward_to_direct_queue = false;
-		ad_data.queue_id = 0;
+	} else if (rule->action == HCLGE_FD_ACTION_SELECT_TC) {
+		ad_data.override_tc = true;
+		ad_data.queue_id =
+			kinfo->tc_info.tqp_offset[rule->tc];
+		ad_data.tc_size =
+			ilog2(kinfo->tc_info.tqp_count[rule->tc]);
 	} else {
-		ad_data.drop_packet = false;
 		ad_data.forward_to_direct_queue = true;
 		ad_data.queue_id = rule->queue_id;
 	}
@@ -5937,7 +5950,7 @@ static int hclge_add_fd_entry(struct hnae3_handle *handle,
 			return -EINVAL;
 		}
 
-		action = HCLGE_FD_ACTION_ACCEPT_PACKET;
+		action = HCLGE_FD_ACTION_SELECT_QUEUE;
 		q_index = ring;
 	}
 

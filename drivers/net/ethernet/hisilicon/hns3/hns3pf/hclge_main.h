@@ -572,8 +572,9 @@ enum HCLGE_FD_PACKET_TYPE {
 };
 
 enum HCLGE_FD_ACTION {
-	HCLGE_FD_ACTION_ACCEPT_PACKET,
+	HCLGE_FD_ACTION_SELECT_QUEUE,
 	HCLGE_FD_ACTION_DROP_PACKET,
+	HCLGE_FD_ACTION_SELECT_TC,
 };
 
 struct hclge_fd_key_cfg {
@@ -619,6 +620,7 @@ struct hclge_fd_rule {
 	u32 unused_tuple;
 	u32 flow_type;
 	u8 action;
+	u8 tc;
 	u16 vf_id;
 	u16 queue_id;
 	u16 location;
@@ -637,6 +639,8 @@ struct hclge_fd_ad_data {
 	u8 write_rule_id_to_bd;
 	u8 next_input_key;
 	u16 rule_id;
+	u16 tc_size;
+	u8 override_tc;
 };
 
 enum HCLGE_MAC_NODE_STATE {

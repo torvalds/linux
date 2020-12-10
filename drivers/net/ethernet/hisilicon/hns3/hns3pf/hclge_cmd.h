@@ -1051,6 +1051,9 @@ struct hclge_fd_tcam_config_3_cmd {
 #define HCLGE_FD_AD_WR_RULE_ID_B	0
 #define HCLGE_FD_AD_RULE_ID_S		1
 #define HCLGE_FD_AD_RULE_ID_M		GENMASK(13, 1)
+#define HCLGE_FD_AD_TC_OVRD_B		16
+#define HCLGE_FD_AD_TC_SIZE_S		17
+#define HCLGE_FD_AD_TC_SIZE_M		GENMASK(20, 17)
 
 struct hclge_fd_ad_config_cmd {
 	u8 stage;
