@@ -1114,6 +1114,15 @@ config VIDEO_OV9750
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov9750.
 
+config VIDEO_OV12D2Q
+	tristate "OmniVision OV12D2Q sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	---help---
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV12D2Q camera.
+
 config VIDEO_OV13850
 	tristate "OmniVision OV13850 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
