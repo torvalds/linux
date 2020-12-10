@@ -18,6 +18,7 @@ properties:
       features (HNP/SRP/ADP) is enabled. If ADP is required, otg-rev should be
       0x0200 or above.
     $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0x0100, 0x0120, 0x0130, 0x0200]
 
   dr_mode:
     description:
