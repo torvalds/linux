@@ -1142,7 +1142,7 @@ static void __init xive_request_ipi(void)
 		return;
 
 	/* Initialize it */
-	virq = irq_create_mapping(xive_irq_domain, 0);
+	virq = irq_create_mapping(xive_irq_domain, XIVE_IPI_HW_IRQ);
 	xive_ipi_irq = virq;
 
 	WARN_ON(request_irq(virq, xive_muxed_ipi_action,
@@ -1242,7 +1242,7 @@ static int xive_irq_domain_map(struct irq_domain *h, unsigned int virq,
 
 #ifdef CONFIG_SMP
 	/* IPIs are special and come up with HW number 0 */
-	if (hw == 0) {
+	if (hw == XIVE_IPI_HW_IRQ) {
 		/*
 		 * IPIs are marked per-cpu. We use separate HW interrupts under
 		 * the hood but associated with the same "linux" interrupt
@@ -1271,7 +1271,7 @@ static void xive_irq_domain_unmap(struct irq_domain *d, unsigned int virq)
 	if (!data)
 		return;
 	hw_irq = (unsigned int)irqd_to_hwirq(data);
-	if (hw_irq)
+	if (hw_irq != XIVE_IPI_HW_IRQ)
 		xive_irq_free_data(virq);
 }
 
@@ -1421,7 +1421,7 @@ static void xive_flush_cpu_queue(unsigned int cpu, struct xive_cpu *xc)
 		 * Ignore anything that isn't a XIVE irq and ignore
 		 * IPIs, so can just be dropped.
 		 */
-		if (d->domain != xive_irq_domain || hw_irq == 0)
+		if (d->domain != xive_irq_domain || hw_irq == XIVE_IPI_HW_IRQ)
 			continue;
 
 		/*
@@ -1655,7 +1655,7 @@ static int xive_core_debug_show(struct seq_file *m, void *private)
 		hw_irq = (unsigned int)irqd_to_hwirq(d);
 
 		/* IPIs are special (HW number 0) */
-		if (hw_irq)
+		if (hw_irq != XIVE_IPI_HW_IRQ)
 			xive_debug_show_irq(m, hw_irq, d);
 	}
 	return 0;
