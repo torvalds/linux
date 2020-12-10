@@ -856,6 +856,9 @@ static int soc_tplg_denum_create_texts(struct soc_tplg *tplg, struct soc_enum *s
 {
 	int i, ret;
 
+	if (le32_to_cpu(ec->items) > ARRAY_SIZE(ec->texts))
+		return -EINVAL;
+
 	se->dobj.control.dtexts =
 		devm_kcalloc(tplg->dev, le32_to_cpu(ec->items), sizeof(char *), GFP_KERNEL);
 	if (se->dobj.control.dtexts == NULL)
