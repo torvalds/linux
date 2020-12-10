@@ -398,6 +398,8 @@ failure:
 		dev_kfree_skb_any(pool->rx_buff[index].skb);
 		pool->rx_buff[index].skb = NULL;
 	}
+	adapter->replenish_add_buff_failure += ind_bufp->index;
+	atomic_add(buffers_added, &pool->available);
 	ind_bufp->index = 0;
 	if (lpar_rc == H_CLOSED || adapter->failover_pending) {
 		/* Disable buffer pool replenishment and report carrier off if
