@@ -76,6 +76,7 @@ static DEFINE_PER_CPU(int, cpu_state) = { 0 };
 struct task_struct *secondary_current;
 bool has_big_cores;
 bool coregroup_enabled;
+bool thread_group_shares_l2;
 
 DEFINE_PER_CPU(cpumask_var_t, cpu_sibling_map);
 DEFINE_PER_CPU(cpumask_var_t, cpu_smallcore_map);
@@ -99,6 +100,7 @@ enum {
 
 #define MAX_THREAD_LIST_SIZE	8
 #define THREAD_GROUP_SHARE_L1   1
+#define THREAD_GROUP_SHARE_L2   2
 struct thread_groups {
 	unsigned int property;
 	unsigned int nr_groups;
@@ -107,7 +109,7 @@ struct thread_groups {
 };
 
 /* Maximum number of properties that groups of threads within a core can share */
-#define MAX_THREAD_GROUP_PROPERTIES 1
+#define MAX_THREAD_GROUP_PROPERTIES 2
 
 struct thread_groups_list {
 	unsigned int nr_properties;
@@ -120,6 +122,13 @@ static struct thread_groups_list tgl[NR_CPUS] __initdata;
  * the set its siblings that share the L1-cache.
  */
 DEFINE_PER_CPU(cpumask_var_t, thread_group_l1_cache_map);
+
+/*
+ * On some big-cores system, thread_group_l2_cache_map for each CPU
+ * corresponds to the set its siblings within the core that share the
+ * L2-cache.
+ */
+DEFINE_PER_CPU(cpumask_var_t, thread_group_l2_cache_map);
 
 /* SMP operations for this machine */
 struct smp_ops_t *smp_ops;
@@ -718,7 +727,9 @@ static void or_cpumasks_related(int i, int j, struct cpumask *(*srcmask)(int),
  *
  * ibm,thread-groups[i + 0] tells us the property based on which the
  * threads are being grouped together. If this value is 1, it implies
- * that the threads in the same group share L1, translation cache.
+ * that the threads in the same group share L1, translation cache. If
+ * the value is 2, it implies that the threads in the same group share
+ * the same L2 cache.
  *
  * ibm,thread-groups[i+1] tells us how many such thread groups exist for the
  * property ibm,thread-groups[i]
@@ -872,9 +883,10 @@ static int __init init_thread_group_cache_map(int cpu, int cache_property)
 	int first_thread = cpu_first_thread_sibling(cpu);
 	int i, cpu_group_start = -1, err = 0;
 	struct thread_groups *tg = NULL;
-	cpumask_var_t *mask;
+	cpumask_var_t *mask = NULL;
 
-	if (cache_property != THREAD_GROUP_SHARE_L1)
+	if (cache_property != THREAD_GROUP_SHARE_L1 &&
+	    cache_property != THREAD_GROUP_SHARE_L2)
 		return -EINVAL;
 
 	tg = get_thread_groups(cpu, cache_property, &err);
@@ -888,7 +900,11 @@ static int __init init_thread_group_cache_map(int cpu, int cache_property)
 		return -ENODATA;
 	}
 
-	mask = &per_cpu(thread_group_l1_cache_map, cpu);
+	if (cache_property == THREAD_GROUP_SHARE_L1)
+		mask = &per_cpu(thread_group_l1_cache_map, cpu);
+	else if (cache_property == THREAD_GROUP_SHARE_L2)
+		mask = &per_cpu(thread_group_l2_cache_map, cpu);
+
 	zalloc_cpumask_var_node(mask, GFP_KERNEL, cpu_to_node(cpu));
 
 	for (i = first_thread; i < first_thread + threads_per_core; i++) {
@@ -990,6 +1006,16 @@ static int init_big_cores(void)
 	}
 
 	has_big_cores = true;
+
+	for_each_possible_cpu(cpu) {
+		int err = init_thread_group_cache_map(cpu, THREAD_GROUP_SHARE_L2);
+
+		if (err)
+			return err;
+	}
+
+	thread_group_shares_l2 = true;
+	pr_debug("L2 cache only shared by the threads in the small core\n");
 	return 0;
 }
 
@@ -1303,6 +1329,28 @@ static bool update_mask_by_l2(int cpu, cpumask_var_t *mask)
 
 	if (has_big_cores)
 		submask_fn = cpu_smallcore_mask;
+
+	/*
+	 * If the threads in a thread-group share L2 cache, then the
+	 * L2-mask can be obtained from thread_group_l2_cache_map.
+	 */
+	if (thread_group_shares_l2) {
+		cpumask_set_cpu(cpu, cpu_l2_cache_mask(cpu));
+
+		for_each_cpu(i, per_cpu(thread_group_l2_cache_map, cpu)) {
+			if (cpu_online(i))
+				set_cpus_related(i, cpu, cpu_l2_cache_mask);
+		}
+
+		/* Verify that L1-cache siblings are a subset of L2 cache-siblings */
+		if (!cpumask_equal(submask_fn(cpu), cpu_l2_cache_mask(cpu)) &&
+		    !cpumask_subset(submask_fn(cpu), cpu_l2_cache_mask(cpu))) {
+			pr_warn_once("CPU %d : Inconsistent L1 and L2 cache siblings\n",
+				     cpu);
+		}
+
+		return true;
+	}
 
 	l2_cache = cpu_to_l2cache(cpu);
 	if (!l2_cache || !*mask) {
