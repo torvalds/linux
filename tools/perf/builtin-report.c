@@ -226,6 +226,8 @@ static int process_feature_event(struct perf_session *session,
 		pr_err("failed: wrong feature ID: %" PRI_lu64 "\n",
 		       event->feat.feat_id);
 		return -1;
+	} else if (rep->header_only) {
+		session_done = 1;
 	}
 
 	/*
@@ -1512,6 +1514,13 @@ repeat:
 		perf_session__fprintf_info(session, stdout,
 					   report.show_full_info);
 		if (report.header_only) {
+			if (data.is_pipe) {
+				/*
+				 * we need to process first few records
+				 * which contains PERF_RECORD_HEADER_FEATURE.
+				 */
+				perf_session__process_events(session);
+			}
 			ret = 0;
 			goto error;
 		}
