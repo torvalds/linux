@@ -4282,8 +4282,12 @@ static int hclge_set_rss_indir_table(struct hclge_dev *hdev, const u16 *indir)
 {
 	struct hclge_rss_indirection_table_cmd *req;
 	struct hclge_desc desc;
-	int i, j;
+	u8 rss_msb_oft;
+	u8 rss_msb_val;
 	int ret;
+	u16 qid;
+	int i;
+	u32 j;
 
 	req = (struct hclge_rss_indirection_table_cmd *)desc.data;
 
@@ -4294,11 +4298,15 @@ static int hclge_set_rss_indir_table(struct hclge_dev *hdev, const u16 *indir)
 		req->start_table_index =
 			cpu_to_le16(i * HCLGE_RSS_CFG_TBL_SIZE);
 		req->rss_set_bitmap = cpu_to_le16(HCLGE_RSS_SET_BITMAP_MSK);
-
-		for (j = 0; j < HCLGE_RSS_CFG_TBL_SIZE; j++)
-			req->rss_result[j] =
-				indir[i * HCLGE_RSS_CFG_TBL_SIZE + j];
-
+		for (j = 0; j < HCLGE_RSS_CFG_TBL_SIZE; j++) {
+			qid = indir[i * HCLGE_RSS_CFG_TBL_SIZE + j];
+			req->rss_qid_l[j] = qid & 0xff;
+			rss_msb_oft =
+				j * HCLGE_RSS_CFG_TBL_BW_H / BITS_PER_BYTE;
+			rss_msb_val = (qid >> HCLGE_RSS_CFG_TBL_BW_L & 0x1) <<
+				(j * HCLGE_RSS_CFG_TBL_BW_H % BITS_PER_BYTE);
+			req->rss_qid_h[rss_msb_oft] |= rss_msb_val;
+		}
 		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
