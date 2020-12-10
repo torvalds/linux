@@ -5172,6 +5172,59 @@ static void dm_enable_per_frame_crtc_master_sync(struct dc_state *context)
 	set_master_stream(context->streams, context->stream_count);
 }
 
+static struct drm_display_mode *
+get_highest_refresh_rate_mode(struct amdgpu_dm_connector *aconnector,
+			  bool use_probed_modes)
+{
+	struct drm_display_mode *m, *m_pref = NULL;
+	u16 current_refresh, highest_refresh;
+	struct list_head *list_head = use_probed_modes ?
+						    &aconnector->base.probed_modes :
+						    &aconnector->base.modes;
+
+	if (aconnector->freesync_vid_base.clock != 0)
+		return &aconnector->freesync_vid_base;
+
+	/* Find the preferred mode */
+	list_for_each_entry (m, list_head, head) {
+		if (m->type & DRM_MODE_TYPE_PREFERRED) {
+			m_pref = m;
+			break;
+		}
+	}
+
+	if (!m_pref) {
+		/* Probably an EDID with no preferred mode. Fallback to first entry */
+		m_pref = list_first_entry_or_null(
+			&aconnector->base.modes, struct drm_display_mode, head);
+		if (!m_pref) {
+			DRM_DEBUG_DRIVER("No preferred mode found in EDID\n");
+			return NULL;
+		}
+	}
+
+	highest_refresh = drm_mode_vrefresh(m_pref);
+
+	/*
+	 * Find the mode with highest refresh rate with same resolution.
+	 * For some monitors, preferred mode is not the mode with highest
+	 * supported refresh rate.
+	 */
+	list_for_each_entry (m, list_head, head) {
+		current_refresh  = drm_mode_vrefresh(m);
+
+		if (m->hdisplay == m_pref->hdisplay &&
+		    m->vdisplay == m_pref->vdisplay &&
+		    highest_refresh < current_refresh) {
+			highest_refresh = current_refresh;
+			m_pref = m;
+		}
+	}
+
+	aconnector->freesync_vid_base = *m_pref;
+	return m_pref;
+}
+
 static struct dc_stream_state *
 create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		       const struct drm_display_mode *drm_mode,
@@ -6973,6 +7026,107 @@ static void amdgpu_dm_connector_ddc_get_modes(struct drm_connector *connector,
 	}
 }
 
+static bool is_duplicate_mode(struct amdgpu_dm_connector *aconnector,
+			      struct drm_display_mode *mode)
+{
+	struct drm_display_mode *m;
+
+	list_for_each_entry (m, &aconnector->base.probed_modes, head) {
+		if (drm_mode_equal(m, mode))
+			return true;
+	}
+
+	return false;
+}
+
+static uint add_fs_modes(struct amdgpu_dm_connector *aconnector)
+{
+	const struct drm_display_mode *m;
+	struct drm_display_mode *new_mode;
+	uint i;
+	uint32_t new_modes_count = 0;
+
+	/* Standard FPS values
+	 *
+	 * 23.976   - TV/NTSC
+	 * 24 	    - Cinema
+	 * 25 	    - TV/PAL
+	 * 29.97    - TV/NTSC
+	 * 30 	    - TV/NTSC
+	 * 48 	    - Cinema HFR
+	 * 50 	    - TV/PAL
+	 * 60 	    - Commonly used
+	 * 48,72,96 - Multiples of 24
+	 */
+	const uint32_t common_rates[] = { 23976, 24000, 25000, 29970, 30000,
+					 48000, 50000, 60000, 72000, 96000 };
+
+	/*
+	 * Find mode with highest refresh rate with the same resolution
+	 * as the preferred mode. Some monitors report a preferred mode
+	 * with lower resolution than the highest refresh rate supported.
+	 */
+
+	m = get_highest_refresh_rate_mode(aconnector, true);
+	if (!m)
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(common_rates); i++) {
+		uint64_t target_vtotal, target_vtotal_diff;
+		uint64_t num, den;
+
+		if (drm_mode_vrefresh(m) * 1000 < common_rates[i])
+			continue;
+
+		if (common_rates[i] < aconnector->min_vfreq * 1000 ||
+		    common_rates[i] > aconnector->max_vfreq * 1000)
+			continue;
+
+		num = (unsigned long long)m->clock * 1000 * 1000;
+		den = common_rates[i] * (unsigned long long)m->htotal;
+		target_vtotal = div_u64(num, den);
+		target_vtotal_diff = target_vtotal - m->vtotal;
+
+		/* Check for illegal modes */
+		if (m->vsync_start + target_vtotal_diff < m->vdisplay ||
+		    m->vsync_end + target_vtotal_diff < m->vsync_start ||
+		    m->vtotal + target_vtotal_diff < m->vsync_end)
+			continue;
+
+		new_mode = drm_mode_duplicate(aconnector->base.dev, m);
+		if (!new_mode)
+			goto out;
+
+		new_mode->vtotal += (u16)target_vtotal_diff;
+		new_mode->vsync_start += (u16)target_vtotal_diff;
+		new_mode->vsync_end += (u16)target_vtotal_diff;
+		new_mode->type &= ~DRM_MODE_TYPE_PREFERRED;
+		new_mode->type |= DRM_MODE_TYPE_DRIVER;
+
+		if (!is_duplicate_mode(aconnector, new_mode)) {
+			drm_mode_probed_add(&aconnector->base, new_mode);
+			new_modes_count += 1;
+		} else
+			drm_mode_destroy(aconnector->base.dev, new_mode);
+	}
+ out:
+	return new_modes_count;
+}
+
+static void amdgpu_dm_connector_add_freesync_modes(struct drm_connector *connector,
+						   struct edid *edid)
+{
+	struct amdgpu_dm_connector *amdgpu_dm_connector =
+		to_amdgpu_dm_connector(connector);
+
+	if (!(amdgpu_freesync_vid_mode && edid))
+		return;
+	
+	if (amdgpu_dm_connector->max_vfreq - amdgpu_dm_connector->min_vfreq > 10)
+		amdgpu_dm_connector->num_modes +=
+			add_fs_modes(amdgpu_dm_connector);
+}
+
 static int amdgpu_dm_connector_get_modes(struct drm_connector *connector)
 {
 	struct amdgpu_dm_connector *amdgpu_dm_connector =
@@ -6988,6 +7142,7 @@ static int amdgpu_dm_connector_get_modes(struct drm_connector *connector)
 	} else {
 		amdgpu_dm_connector_ddc_get_modes(connector, edid);
 		amdgpu_dm_connector_add_common_modes(encoder, connector);
+		amdgpu_dm_connector_add_freesync_modes(connector, edid);
 	}
 	amdgpu_dm_fbc_init(connector);
 
