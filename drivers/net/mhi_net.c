@@ -173,6 +173,7 @@ static void mhi_net_ul_callback(struct mhi_device *mhi_dev,
 {
 	struct mhi_net_dev *mhi_netdev = dev_get_drvdata(&mhi_dev->dev);
 	struct net_device *ndev = mhi_netdev->ndev;
+	struct mhi_device *mdev = mhi_netdev->mdev;
 	struct sk_buff *skb = mhi_res->buf_addr;
 
 	/* Hardware has consumed the buffer, so free the skb (which is not
@@ -196,7 +197,7 @@ static void mhi_net_ul_callback(struct mhi_device *mhi_dev,
 	}
 	u64_stats_update_end(&mhi_netdev->stats.tx_syncp);
 
-	if (netif_queue_stopped(ndev))
+	if (netif_queue_stopped(ndev) && !mhi_queue_is_full(mdev, DMA_TO_DEVICE))
 		netif_wake_queue(ndev);
 }
 
