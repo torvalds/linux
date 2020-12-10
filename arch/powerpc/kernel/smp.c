@@ -866,15 +866,18 @@ out:
 	return tg;
 }
 
-static int init_thread_group_l1_cache_map(int cpu)
+static int __init init_thread_group_cache_map(int cpu, int cache_property)
 
 {
 	int first_thread = cpu_first_thread_sibling(cpu);
 	int i, cpu_group_start = -1, err = 0;
 	struct thread_groups *tg = NULL;
+	cpumask_var_t *mask;
 
-	tg = get_thread_groups(cpu, THREAD_GROUP_SHARE_L1,
-			       &err);
+	if (cache_property != THREAD_GROUP_SHARE_L1)
+		return -EINVAL;
+
+	tg = get_thread_groups(cpu, cache_property, &err);
 	if (!tg)
 		return err;
 
@@ -885,8 +888,8 @@ static int init_thread_group_l1_cache_map(int cpu)
 		return -ENODATA;
 	}
 
-	zalloc_cpumask_var_node(&per_cpu(thread_group_l1_cache_map, cpu),
-				GFP_KERNEL, cpu_to_node(cpu));
+	mask = &per_cpu(thread_group_l1_cache_map, cpu);
+	zalloc_cpumask_var_node(mask, GFP_KERNEL, cpu_to_node(cpu));
 
 	for (i = first_thread; i < first_thread + threads_per_core; i++) {
 		int i_group_start = get_cpu_thread_group_start(i, tg);
@@ -897,7 +900,7 @@ static int init_thread_group_l1_cache_map(int cpu)
 		}
 
 		if (i_group_start == cpu_group_start)
-			cpumask_set_cpu(i, per_cpu(thread_group_l1_cache_map, cpu));
+			cpumask_set_cpu(i, *mask);
 	}
 
 	return 0;
@@ -976,7 +979,7 @@ static int init_big_cores(void)
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		int err = init_thread_group_l1_cache_map(cpu);
+		int err = init_thread_group_cache_map(cpu, THREAD_GROUP_SHARE_L1);
 
 		if (err)
 			return err;
