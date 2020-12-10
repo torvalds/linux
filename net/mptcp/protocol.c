@@ -701,6 +701,13 @@ void mptcp_data_ready(struct sock *sk, struct sock *ssk)
 	int sk_rbuf, ssk_rbuf;
 	bool wake;
 
+	/* The peer can send data while we are shutting down this
+	 * subflow at msk destruction time, but we must avoid enqueuing
+	 * more data to the msk receive queue
+	 */
+	if (unlikely(subflow->disposable))
+		return;
+
 	/* move_skbs_to_msk below can legitly clear the data_avail flag,
 	 * but we will need later to properly woke the reader, cache its
 	 * value
@@ -2119,6 +2126,8 @@ void __mptcp_close_ssk(struct sock *sk, struct sock *ssk,
 		sock_orphan(ssk);
 	}
 
+	subflow->disposable = 1;
+
 	/* if ssk hit tcp_done(), tcp_cleanup_ulp() cleared the related ops
 	 * the ssk has been already destroyed, we just need to release the
 	 * reference owned by msk;
@@ -2126,8 +2135,7 @@ void __mptcp_close_ssk(struct sock *sk, struct sock *ssk,
 	if (!inet_csk(ssk)->icsk_ulp_ops) {
 		kfree_rcu(subflow, rcu);
 	} else {
-		/* otherwise ask tcp do dispose of ssk and subflow ctx */
-		subflow->disposable = 1;
+		/* otherwise tcp will dispose of the ssk and subflow ctx */
 		__tcp_close(ssk, 0);
 
 		/* close acquired an extra ref */
@@ -3208,6 +3216,17 @@ static int mptcp_stream_accept(struct socket *sock, struct socket *newsock,
 		bool slowpath;
 
 		slowpath = lock_sock_fast(newsk);
+
+		/* PM/worker can now acquire the first subflow socket
+		 * lock without racing with listener queue cleanup,
+		 * we can notify it, if needed.
+		 */
+		subflow = mptcp_subflow_ctx(msk->first);
+		list_add(&subflow->node, &msk->conn_list);
+		sock_hold(msk->first);
+		if (mptcp_is_fully_established(newsk))
+			mptcp_pm_fully_established(msk);
+
 		mptcp_copy_inaddrs(newsk, msk->first);
 		mptcp_rcv_space_init(msk, msk->first);
 
