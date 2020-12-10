@@ -116,10 +116,10 @@ struct thread_groups_list {
 
 static struct thread_groups_list tgl[NR_CPUS] __initdata;
 /*
- * On big-cores system, cpu_l1_cache_map for each CPU corresponds to
+ * On big-cores system, thread_group_l1_cache_map for each CPU corresponds to
  * the set its siblings that share the L1-cache.
  */
-DEFINE_PER_CPU(cpumask_var_t, cpu_l1_cache_map);
+DEFINE_PER_CPU(cpumask_var_t, thread_group_l1_cache_map);
 
 /* SMP operations for this machine */
 struct smp_ops_t *smp_ops;
@@ -866,7 +866,7 @@ out:
 	return tg;
 }
 
-static int init_cpu_l1_cache_map(int cpu)
+static int init_thread_group_l1_cache_map(int cpu)
 
 {
 	int first_thread = cpu_first_thread_sibling(cpu);
@@ -885,7 +885,7 @@ static int init_cpu_l1_cache_map(int cpu)
 		return -ENODATA;
 	}
 
-	zalloc_cpumask_var_node(&per_cpu(cpu_l1_cache_map, cpu),
+	zalloc_cpumask_var_node(&per_cpu(thread_group_l1_cache_map, cpu),
 				GFP_KERNEL, cpu_to_node(cpu));
 
 	for (i = first_thread; i < first_thread + threads_per_core; i++) {
@@ -897,7 +897,7 @@ static int init_cpu_l1_cache_map(int cpu)
 		}
 
 		if (i_group_start == cpu_group_start)
-			cpumask_set_cpu(i, per_cpu(cpu_l1_cache_map, cpu));
+			cpumask_set_cpu(i, per_cpu(thread_group_l1_cache_map, cpu));
 	}
 
 	return 0;
@@ -976,7 +976,7 @@ static int init_big_cores(void)
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		int err = init_cpu_l1_cache_map(cpu);
+		int err = init_thread_group_l1_cache_map(cpu);
 
 		if (err)
 			return err;
@@ -1372,7 +1372,7 @@ static inline void add_cpu_to_smallcore_masks(int cpu)
 
 	cpumask_set_cpu(cpu, cpu_smallcore_mask(cpu));
 
-	for_each_cpu(i, per_cpu(cpu_l1_cache_map, cpu)) {
+	for_each_cpu(i, per_cpu(thread_group_l1_cache_map, cpu)) {
 		if (cpu_online(i))
 			set_cpus_related(i, cpu, cpu_smallcore_mask);
 	}
