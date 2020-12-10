@@ -1089,11 +1089,6 @@ static int analogix_dp_loader_protect(struct drm_connector *connector, bool on)
 		if (ret)
 			return ret;
 
-		/* Check whether panel supports fast training */
-		ret = analogix_dp_fast_link_train_detection(dp);
-		if (ret)
-			dp->psr_enable = false;
-
 		if (dp->psr_enable) {
 			ret = analogix_dp_enable_sink_psr(dp);
 			if (ret)
