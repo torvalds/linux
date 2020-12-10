@@ -122,6 +122,8 @@ static int xive_native_get_irq_config(u32 hw_irq, u32 *target, u8 *prio,
 	return rc == 0 ? 0 : -ENXIO;
 }
 
+#define vp_err(vp, fmt, ...) pr_err("VP[0x%x]: " fmt, vp, ##__VA_ARGS__)
+
 /* This can be called multiple time to change a queue configuration */
 int xive_native_configure_queue(u32 vp_id, struct xive_q *q, u8 prio,
 				__be32 *qpage, u32 order, bool can_escalate)
@@ -149,7 +151,7 @@ int xive_native_configure_queue(u32 vp_id, struct xive_q *q, u8 prio,
 				      &esc_irq_be,
 				      NULL);
 	if (rc) {
-		pr_err("Error %lld getting queue info prio %d\n", rc, prio);
+		vp_err(vp_id, "Failed to get queue %d info : %lld\n", prio, rc);
 		rc = -EIO;
 		goto fail;
 	}
@@ -172,7 +174,7 @@ int xive_native_configure_queue(u32 vp_id, struct xive_q *q, u8 prio,
 		msleep(OPAL_BUSY_DELAY_MS);
 	}
 	if (rc) {
-		pr_err("Error %lld setting queue for prio %d\n", rc, prio);
+		vp_err(vp_id, "Failed to set queue %d info: %lld\n", prio, rc);
 		rc = -EIO;
 	} else {
 		/*
@@ -199,7 +201,7 @@ static void __xive_native_disable_queue(u32 vp_id, struct xive_q *q, u8 prio)
 		msleep(OPAL_BUSY_DELAY_MS);
 	}
 	if (rc)
-		pr_err("Error %lld disabling queue for prio %d\n", rc, prio);
+		vp_err(vp_id, "Failed to disable queue %d : %lld\n", prio, rc);
 }
 
 void xive_native_disable_queue(u32 vp_id, struct xive_q *q, u8 prio)
@@ -698,6 +700,8 @@ int xive_native_enable_vp(u32 vp_id, bool single_escalation)
 			break;
 		msleep(OPAL_BUSY_DELAY_MS);
 	}
+	if (rc)
+		vp_err(vp_id, "Failed to enable VP : %lld\n", rc);
 	return rc ? -EIO : 0;
 }
 EXPORT_SYMBOL_GPL(xive_native_enable_vp);
@@ -712,6 +716,8 @@ int xive_native_disable_vp(u32 vp_id)
 			break;
 		msleep(OPAL_BUSY_DELAY_MS);
 	}
+	if (rc)
+		vp_err(vp_id, "Failed to disable VP : %lld\n", rc);
 	return rc ? -EIO : 0;
 }
 EXPORT_SYMBOL_GPL(xive_native_disable_vp);
@@ -723,8 +729,10 @@ int xive_native_get_vp_info(u32 vp_id, u32 *out_cam_id, u32 *out_chip_id)
 	s64 rc;
 
 	rc = opal_xive_get_vp_info(vp_id, NULL, &vp_cam_be, NULL, &vp_chip_id_be);
-	if (rc)
+	if (rc) {
+		vp_err(vp_id, "Failed to get VP info : %lld\n", rc);
 		return -EIO;
+	}
 	*out_cam_id = be64_to_cpu(vp_cam_be) & 0xffffffffu;
 	*out_chip_id = be32_to_cpu(vp_chip_id_be);
 
@@ -755,8 +763,7 @@ int xive_native_get_queue_info(u32 vp_id, u32 prio,
 	rc = opal_xive_get_queue_info(vp_id, prio, &qpage, &qsize,
 				      &qeoi_page, &escalate_irq, &qflags);
 	if (rc) {
-		pr_err("OPAL failed to get queue info for VCPU %d/%d : %lld\n",
-		       vp_id, prio, rc);
+		vp_err(vp_id, "failed to get queue %d info : %lld\n", prio, rc);
 		return -EIO;
 	}
 
@@ -784,8 +791,7 @@ int xive_native_get_queue_state(u32 vp_id, u32 prio, u32 *qtoggle, u32 *qindex)
 	rc = opal_xive_get_queue_state(vp_id, prio, &opal_qtoggle,
 				       &opal_qindex);
 	if (rc) {
-		pr_err("OPAL failed to get queue state for VCPU %d/%d : %lld\n",
-		       vp_id, prio, rc);
+		vp_err(vp_id, "failed to get queue %d state : %lld\n", prio, rc);
 		return -EIO;
 	}
 
@@ -804,8 +810,7 @@ int xive_native_set_queue_state(u32 vp_id, u32 prio, u32 qtoggle, u32 qindex)
 
 	rc = opal_xive_set_queue_state(vp_id, prio, qtoggle, qindex);
 	if (rc) {
-		pr_err("OPAL failed to set queue state for VCPU %d/%d : %lld\n",
-		       vp_id, prio, rc);
+		vp_err(vp_id, "failed to set queue %d state : %lld\n", prio, rc);
 		return -EIO;
 	}
 
@@ -827,8 +832,7 @@ int xive_native_get_vp_state(u32 vp_id, u64 *out_state)
 
 	rc = opal_xive_get_vp_state(vp_id, &state);
 	if (rc) {
-		pr_err("OPAL failed to get vp state for VCPU %d : %lld\n",
-		       vp_id, rc);
+		vp_err(vp_id, "failed to get vp state : %lld\n", rc);
 		return -EIO;
 	}
 
