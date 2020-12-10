@@ -221,8 +221,13 @@ err:
 static int cdns_imx_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct cdns_imx *data = dev_get_drvdata(dev);
 
+	pm_runtime_get_sync(dev);
 	of_platform_depopulate(dev);
+	clk_bulk_disable_unprepare(data->num_clks, data->clks);
+	pm_runtime_disable(dev);
+	pm_runtime_put_noidle(dev);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
