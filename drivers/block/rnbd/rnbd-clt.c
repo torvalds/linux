@@ -1388,12 +1388,11 @@ static struct rnbd_clt_dev *init_dev(struct rnbd_clt_session *sess,
 		goto out_queues;
 	}
 
-	dev->pathname = kzalloc(strlen(pathname) + 1, GFP_KERNEL);
+	dev->pathname = kstrdup(pathname, GFP_KERNEL);
 	if (!dev->pathname) {
 		ret = -ENOMEM;
 		goto out_queues;
 	}
-	strlcpy(dev->pathname, pathname, strlen(pathname) + 1);
 
 	dev->clt_device_id	= ret;
 	dev->sess		= sess;
