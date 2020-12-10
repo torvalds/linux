@@ -13984,15 +13984,6 @@ L:	linux-input@vger.kernel.org
 S:	Maintained
 F:	drivers/hid/hid-picolcd*
 
-PICOXCELL SUPPORT
-M:	Jamie Iles <jamie@jamieiles.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Supported
-T:	git git://github.com/jamieiles/linux-2.6-ji.git
-F:	arch/arm/boot/dts/picoxcell*
-F:	arch/arm/mach-picoxcell/
-F:	drivers/crypto/picoxcell*
-
 PIDFD API
 M:	Christian Brauner <christian@brauner.io>
 L:	linux-kernel@vger.kernel.org
