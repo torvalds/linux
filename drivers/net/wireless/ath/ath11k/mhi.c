@@ -190,6 +190,15 @@ static void ath11k_mhi_op_runtime_put(struct mhi_controller *mhi_cntrl)
 static void ath11k_mhi_op_status_cb(struct mhi_controller *mhi_cntrl,
 				    enum mhi_callback cb)
 {
+	struct ath11k_base *ab = dev_get_drvdata(mhi_cntrl->cntrl_dev);
+
+	switch (cb) {
+	case MHI_CB_SYS_ERROR:
+		ath11k_warn(ab, "firmware crashed: MHI_CB_SYS_ERROR\n");
+		break;
+	default:
+		break;
+	}
 }
 
 static int ath11k_mhi_op_read_reg(struct mhi_controller *mhi_cntrl,
