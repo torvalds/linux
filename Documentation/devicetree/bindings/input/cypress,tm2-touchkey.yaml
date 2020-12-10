@@ -37,6 +37,11 @@ properties:
   vcc-supply:
     description: Optional regulator for MCU, 1.8V-3.3V (depending on MCU).
 
+  vddio-supply:
+    description: |
+      Optional regulator that provides digital I/O voltage,
+      e.g. for pulling up the interrupt line or the I2C pins.
+
   linux,keycodes:
     minItems: 1
     maxItems: 4
