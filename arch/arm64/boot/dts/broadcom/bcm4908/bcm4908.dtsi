@@ -177,6 +177,21 @@
 			};
 		};
 
+		misc@2600 {
+			compatible = "brcm,misc", "simple-mfd";
+			reg = <0x2600 0xe4>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x00 0x2600 0xe4>;
+
+			reset-controller@2644 {
+				compatible = "brcm,bcm4908-misc-pcie-reset";
+				reg = <0x44 0x04>;
+				#reset-cells = <1>;
+			};
+		};
+
 		reboot {
 			compatible = "syscon-reboot";
 			regmap = <&timer>;
