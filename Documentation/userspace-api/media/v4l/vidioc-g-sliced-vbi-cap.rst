@@ -162,13 +162,7 @@ the sliced VBI API is unsupported or ``type`` is invalid.
 
 	:ref:`itu1119`
       - PAL/SECAM line 23
-      -
-
-	::
-
-	    Byte        0                 1
-		 msb         lsb  msb           lsb
-	    Bit  7 6 5 4 3 2 1 0  x x 13 12 11 10 9
+      - See :ref:`v4l2-sliced-vbi-cap-wss-625-payload` below.
     * - ``V4L2_SLICED_VBI_525``
       - 0x1000
       - :cspan:`2` Set of services applicable to 525 line systems.
@@ -179,6 +173,22 @@ the sliced VBI API is unsupported or ``type`` is invalid.
 .. raw:: latex
 
     \normalsize
+
+.. _v4l2-sliced-vbi-cap-wss-625-payload:
+
+V4L2_SLICED_VBI_CAP WSS_625 payload
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The payload for ``V4L2_SLICED_WSS_625`` is:
+
+	    +-----+------------------+-----------------------+
+	    |Byte |        0         |           1           |
+	    +-----+--------+---------+-----------+-----------+
+	    |     | msb    | lsb     | msb       | lsb       |
+	    |     +-+-+-+--+--+-+-+--+--+-+--+---+---+--+-+--+
+	    | Bit |7|6|5|4 | 3|2|1|0 | x|x|13|12 | 11|10|9|8 |
+	    +-----+-+-+-+--+--+-+-+--+--+-+--+---+---+--+-+--+
+
 
 Return Value
 ============
