@@ -1805,6 +1805,9 @@ static void svm_set_dr6(struct vcpu_svm *svm, unsigned long value)
 {
 	struct vmcb *vmcb = svm->vmcb;
 
+	if (svm->vcpu.arch.guest_state_protected)
+		return;
+
 	if (unlikely(value != vmcb->save.dr6)) {
 		vmcb->save.dr6 = value;
 		vmcb_mark_dirty(vmcb, VMCB_DR);
@@ -1814,6 +1817,9 @@ static void svm_set_dr6(struct vcpu_svm *svm, unsigned long value)
 static void svm_sync_dirty_debug_regs(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (vcpu->arch.guest_state_protected)
+		return;
 
 	get_debugreg(vcpu->arch.db[0], 0);
 	get_debugreg(vcpu->arch.db[1], 1);
@@ -1832,6 +1838,9 @@ static void svm_sync_dirty_debug_regs(struct kvm_vcpu *vcpu)
 static void svm_set_dr7(struct kvm_vcpu *vcpu, unsigned long value)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (vcpu->arch.guest_state_protected)
+		return;
 
 	svm->vmcb->save.dr7 = value;
 	vmcb_mark_dirty(svm->vmcb, VMCB_DR);
