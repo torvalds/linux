@@ -452,16 +452,16 @@ Buffer Flags
 
 .. raw:: latex
 
-    \small
+    \footnotesize
 
-.. tabularcolumns:: |p{7.0cm}|p{2.1cm}|p{8.4cm}|
+.. tabularcolumns:: |p{6.5cm}|p{1.8cm}|p{9.0cm}|
 
 .. cssclass:: longtable
 
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       3 1 4
+    :widths:       65 18 70
 
     * .. _`V4L2-BUF-FLAG-MAPPED`:
 
@@ -585,7 +585,7 @@ Buffer Flags
 
       - ``V4L2_BUF_FLAG_M2M_HOLD_CAPTURE_BUF``
       - 0x00000200
-      - Only valid if ``V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF`` is
+      - Only valid if :c:type:`struct v4l2_requestbuffers` flag ``V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF`` is
 	set. It is typically used with stateless decoders where multiple
 	output buffers each decode to a slice of the decoded frame.
 	Applications can set this flag when queueing the output buffer
