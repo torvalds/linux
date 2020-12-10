@@ -421,10 +421,10 @@ static int hclge_mqprio_qopt_check(struct hclge_dev *hdev,
 			return -EINVAL;
 		}
 
-		if (mqprio_qopt->qopt.count[i] > hdev->rss_size_max) {
+		if (mqprio_qopt->qopt.count[i] > hdev->pf_rss_size_max) {
 			dev_err(&hdev->pdev->dev,
 				"qopt queue count should be no more than %u\n",
-				hdev->rss_size_max);
+				hdev->pf_rss_size_max);
 			return -EINVAL;
 		}
 

@@ -633,6 +633,7 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 {
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
 	struct hclge_dev *hdev = vport->back;
+	u16 vport_max_rss_size;
 	u16 max_rss_size;
 	u8 i;
 
@@ -644,7 +645,9 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 	vport->qs_offset = (vport->vport_id ? HNAE3_MAX_TC : 0) +
 				(vport->vport_id ? (vport->vport_id - 1) : 0);
 
-	max_rss_size = min_t(u16, hdev->rss_size_max,
+	vport_max_rss_size = vport->vport_id ? hdev->vf_rss_size_max :
+				hdev->pf_rss_size_max;
+	max_rss_size = min_t(u16, vport_max_rss_size,
 			     hclge_vport_get_max_rss_size(vport));
 
 	/* Set to user value, no larger than max_rss_size. */

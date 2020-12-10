@@ -1285,9 +1285,9 @@ static void hclge_parse_cfg(struct hclge_cfg *cfg, struct hclge_desc *desc)
 	cfg->default_speed = hnae3_get_field(__le32_to_cpu(req->param[3]),
 					     HCLGE_CFG_DEFAULT_SPEED_M,
 					     HCLGE_CFG_DEFAULT_SPEED_S);
-	cfg->rss_size_max = hnae3_get_field(__le32_to_cpu(req->param[3]),
-					    HCLGE_CFG_RSS_SIZE_M,
-					    HCLGE_CFG_RSS_SIZE_S);
+	cfg->vf_rss_size_max = hnae3_get_field(__le32_to_cpu(req->param[3]),
+					       HCLGE_CFG_RSS_SIZE_M,
+					       HCLGE_CFG_RSS_SIZE_S);
 
 	for (i = 0; i < ETH_ALEN; i++)
 		cfg->mac_addr[i] = (mac_addr_tmp >> (8 * i)) & 0xff;
@@ -1308,6 +1308,21 @@ static void hclge_parse_cfg(struct hclge_cfg *cfg, struct hclge_desc *desc)
 					 HCLGE_CFG_UMV_TBL_SPACE_S);
 	if (!cfg->umv_space)
 		cfg->umv_space = HCLGE_DEFAULT_UMV_SPACE_PER_PF;
+
+	cfg->pf_rss_size_max = hnae3_get_field(__le32_to_cpu(req->param[2]),
+					       HCLGE_CFG_PF_RSS_SIZE_M,
+					       HCLGE_CFG_PF_RSS_SIZE_S);
+
+	/* HCLGE_CFG_PF_RSS_SIZE_M is the PF max rss size, which is a
+	 * power of 2, instead of reading out directly. This would
+	 * be more flexible for future changes and expansions.
+	 * When VF max  rss size field is HCLGE_CFG_RSS_SIZE_S,
+	 * it does not make sense if PF's field is 0. In this case, PF and VF
+	 * has the same max rss size filed: HCLGE_CFG_RSS_SIZE_S.
+	 */
+	cfg->pf_rss_size_max = cfg->pf_rss_size_max ?
+			       1U << cfg->pf_rss_size_max :
+			       cfg->vf_rss_size_max;
 }
 
 /* hclge_get_cfg: query the static parameter from flash
@@ -1469,7 +1484,8 @@ static int hclge_configure(struct hclge_dev *hdev)
 
 	hdev->num_vmdq_vport = cfg.vmdq_vport_num;
 	hdev->base_tqp_pid = 0;
-	hdev->rss_size_max = cfg.rss_size_max;
+	hdev->vf_rss_size_max = cfg.vf_rss_size_max;
+	hdev->pf_rss_size_max = cfg.pf_rss_size_max;
 	hdev->rx_buf_len = cfg.rx_buf_len;
 	ether_addr_copy(hdev->hw.mac.mac_addr, cfg.mac_addr);
 	hdev->hw.mac.media_type = cfg.media_type;
@@ -1652,7 +1668,7 @@ static int  hclge_assign_tqp(struct hclge_vport *vport, u16 num_tqps)
 		}
 	}
 	vport->alloc_tqps = alloced;
-	kinfo->rss_size = min_t(u16, hdev->rss_size_max,
+	kinfo->rss_size = min_t(u16, hdev->pf_rss_size_max,
 				vport->alloc_tqps / hdev->tm_info.num_tc);
 
 	/* ensure one to one mapping between irq and queue at default */
@@ -4262,7 +4278,7 @@ static int hclge_set_rss_algo_key(struct hclge_dev *hdev,
 	return 0;
 }
 
-static int hclge_set_rss_indir_table(struct hclge_dev *hdev, const u8 *indir)
+static int hclge_set_rss_indir_table(struct hclge_dev *hdev, const u16 *indir)
 {
 	struct hclge_rss_indirection_table_cmd *req;
 	struct hclge_desc desc;
@@ -4601,7 +4617,7 @@ static int hclge_get_tc_size(struct hnae3_handle *handle)
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 
-	return hdev->rss_size_max;
+	return hdev->pf_rss_size_max;
 }
 
 static int hclge_init_rss_tc_mode(struct hclge_dev *hdev)
@@ -4650,7 +4666,7 @@ static int hclge_init_rss_tc_mode(struct hclge_dev *hdev)
 int hclge_rss_init_hw(struct hclge_dev *hdev)
 {
 	struct hclge_vport *vport = hdev->vport;
-	u8 *rss_indir = vport[0].rss_indirection_tbl;
+	u16 *rss_indir = vport[0].rss_indirection_tbl;
 	u8 *key = vport[0].rss_hash_key;
 	u8 hfunc = vport[0].rss_algo;
 	int ret;
@@ -11018,7 +11034,7 @@ static u32 hclge_get_max_channels(struct hnae3_handle *handle)
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 
-	return min_t(u32, hdev->rss_size_max, vport->alloc_tqps);
+	return min_t(u32, hdev->pf_rss_size_max, vport->alloc_tqps);
 }
 
 static void hclge_get_channels(struct hnae3_handle *handle,
@@ -11037,7 +11053,7 @@ static void hclge_get_tqps_and_rss_info(struct hnae3_handle *handle,
 	struct hclge_dev *hdev = vport->back;
 
 	*alloc_tqps = vport->alloc_tqps;
-	*max_rss_size = hdev->rss_size_max;
+	*max_rss_size = hdev->pf_rss_size_max;
 }
 
 static int hclge_set_channels(struct hnae3_handle *handle, u32 new_tqps_num,
