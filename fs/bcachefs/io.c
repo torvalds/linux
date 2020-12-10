@@ -195,33 +195,32 @@ void bch2_bio_alloc_pages_pool(struct bch_fs *c, struct bio *bio,
 static int sum_sector_overwrites(struct btree_trans *trans,
 				 struct btree_iter *extent_iter,
 				 struct bkey_i *new,
-				 bool may_allocate,
 				 bool *maybe_extending,
-				 s64 *delta)
+				 s64 *i_sectors_delta,
+				 s64 *disk_sectors_delta)
 {
 	struct btree_iter *iter;
 	struct bkey_s_c old;
 	int ret = 0;
 
-	*maybe_extending = true;
-	*delta = 0;
+	*maybe_extending	= true;
+	*i_sectors_delta	= 0;
+	*disk_sectors_delta	= 0;
 
 	iter = bch2_trans_copy_iter(trans, extent_iter);
 
 	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS, old, ret) {
-		if (!may_allocate &&
-		    bch2_bkey_nr_ptrs_fully_allocated(old) <
-		    bch2_bkey_nr_ptrs_allocated(bkey_i_to_s_c(new))) {
-			ret = -ENOSPC;
-			break;
-		}
+		s64 sectors = min(new->k.p.offset, old.k->p.offset) -
+			max(bkey_start_offset(&new->k),
+			    bkey_start_offset(old.k));
 
-		*delta += (min(new->k.p.offset,
-			      old.k->p.offset) -
-			  max(bkey_start_offset(&new->k),
-			      bkey_start_offset(old.k))) *
+		*i_sectors_delta += sectors *
 			(bkey_extent_is_allocation(&new->k) -
 			 bkey_extent_is_allocation(old.k));
+
+		*disk_sectors_delta += sectors *
+			(int) (bch2_bkey_nr_ptrs_allocated(bkey_i_to_s_c(new)) -
+			       bch2_bkey_nr_ptrs_fully_allocated(old));
 
 		if (bkey_cmp(old.k->p, new->k.p) >= 0) {
 			/*
@@ -256,12 +255,12 @@ int bch2_extent_update(struct btree_trans *trans,
 		       struct disk_reservation *disk_res,
 		       u64 *journal_seq,
 		       u64 new_i_size,
-		       s64 *i_sectors_delta)
+		       s64 *i_sectors_delta_total)
 {
 	/* this must live until after bch2_trans_commit(): */
 	struct bkey_inode_buf inode_p;
 	bool extending = false;
-	s64 delta = 0;
+	s64 i_sectors_delta = 0, disk_sectors_delta = 0;
 	int ret;
 
 	ret = bch2_extent_trim_atomic(k, iter);
@@ -269,16 +268,26 @@ int bch2_extent_update(struct btree_trans *trans,
 		return ret;
 
 	ret = sum_sector_overwrites(trans, iter, k,
-			disk_res && disk_res->sectors != 0,
-			&extending, &delta);
+			&extending,
+			&i_sectors_delta,
+			&disk_sectors_delta);
 	if (ret)
 		return ret;
+
+	if (disk_res &&
+	    disk_sectors_delta > (s64) disk_res->sectors) {
+		ret = bch2_disk_reservation_add(trans->c, disk_res,
+					disk_sectors_delta - disk_res->sectors,
+					0);
+		if (ret)
+			return ret;
+	}
 
 	new_i_size = extending
 		? min(k->k.p.offset << 9, new_i_size)
 		: 0;
 
-	if (delta || new_i_size) {
+	if (i_sectors_delta || new_i_size) {
 		struct btree_iter *inode_iter;
 		struct bch_inode_unpacked inode_u;
 
@@ -305,9 +314,9 @@ int bch2_extent_update(struct btree_trans *trans,
 		else
 			new_i_size = 0;
 
-		inode_u.bi_sectors += delta;
+		inode_u.bi_sectors += i_sectors_delta;
 
-		if (delta || new_i_size) {
+		if (i_sectors_delta || new_i_size) {
 			bch2_inode_pack(trans->c, &inode_p, &inode_u);
 			bch2_trans_update(trans, inode_iter,
 					  &inode_p.inode.k_i, 0);
@@ -322,10 +331,12 @@ int bch2_extent_update(struct btree_trans *trans,
 				BTREE_INSERT_NOCHECK_RW|
 				BTREE_INSERT_NOFAIL|
 				BTREE_INSERT_USE_RESERVE);
-	if (!ret && i_sectors_delta)
-		*i_sectors_delta += delta;
+	if (ret)
+		return ret;
 
-	return ret;
+	if (i_sectors_delta_total)
+		*i_sectors_delta_total += i_sectors_delta;
+	return 0;
 }
 
 int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
