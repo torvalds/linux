@@ -101,3 +101,5 @@ More Memory Management Functions
    :internal:
 .. kernel-doc:: include/linux/page_ref.h
 .. kernel-doc:: include/linux/mmzone.h
+.. kernel-doc:: mm/util.c
+   :functions: folio_mapping
