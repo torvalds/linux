@@ -1406,9 +1406,14 @@ static int sev_es_validate_vmgexit(struct vcpu_svm *svm)
 	case SVM_EXIT_INVD:
 		break;
 	case SVM_EXIT_IOIO:
-		if (!(ghcb_get_sw_exit_info_1(ghcb) & SVM_IOIO_TYPE_MASK))
-			if (!ghcb_rax_is_valid(ghcb))
+		if (ghcb_get_sw_exit_info_1(ghcb) & SVM_IOIO_STR_MASK) {
+			if (!ghcb_sw_scratch_is_valid(ghcb))
 				goto vmgexit_err;
+		} else {
+			if (!(ghcb_get_sw_exit_info_1(ghcb) & SVM_IOIO_TYPE_MASK))
+				if (!ghcb_rax_is_valid(ghcb))
+					goto vmgexit_err;
+		}
 		break;
 	case SVM_EXIT_MSR:
 		if (!ghcb_rcx_is_valid(ghcb))
@@ -1775,4 +1780,13 @@ int sev_handle_vmgexit(struct vcpu_svm *svm)
 	}
 
 	return ret;
+}
+
+int sev_es_string_io(struct vcpu_svm *svm, int size, unsigned int port, int in)
+{
+	if (!setup_vmgexit_scratch(svm, in, svm->vmcb->control.exit_info_2))
+		return -EINVAL;
+
+	return kvm_sev_es_string_io(&svm->vcpu, size, port,
+				    svm->ghcb_sa, svm->ghcb_sa_len, in);
 }
