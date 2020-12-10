@@ -602,6 +602,7 @@ static int ring_context_pin(struct intel_context *ce, void *unused)
 static void ring_context_reset(struct intel_context *ce)
 {
 	intel_ring_reset(ce->ring, ce->ring->emit);
+	clear_bit(CONTEXT_VALID_BIT, &ce->flags);
 }
 
 static const struct intel_context_ops ring_context_ops = {
