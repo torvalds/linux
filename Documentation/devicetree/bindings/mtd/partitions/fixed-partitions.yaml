@@ -1,0 +1,152 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mtd/partitions/fixed-partitions.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Fixed partitions
+
+description: |
+  This binding can be used on platforms which have strong conventions about
+  which portions of a flash are used for what purposes, but which don't use an
+  on-flash partition table such as RedBoot.
+
+  The partition table should be a node named "partitions". Partitions are then
+  defined as subnodes.
+
+maintainers:
+  - Rafał Miłecki <rafal@milecki.pl>
+
+properties:
+  compatible:
+    const: fixed-partitions
+
+  "#address-cells": true
+
+  "#size-cells": true
+
+patternProperties:
+  "@[0-9a-f]+$":
+    description: node describing a single flash partition
+    type: object
+
+    properties:
+      reg:
+        description: partition's offset and size within the flash
+        maxItems: 1
+
+      label:
+        description: The label / name for this partition. If omitted, the label
+          is taken from the node name (excluding the unit address).
+
+      read-only:
+        description: This parameter, if present, is a hint that this partition
+          should only be mounted read-only. This is usually used for flash
+          partitions containing early-boot firmware images or data which should
+          not be clobbered.
+        type: boolean
+
+      lock:
+        description: Do not unlock the partition at initialization time (not
+          supported on all devices)
+        type: boolean
+
+      slc-mode:
+        description: This parameter, if present, allows one to emulate SLC mode
+          on a partition attached to an MLC NAND thus making this partition
+          immune to paired-pages corruptions
+        type: boolean
+
+    required:
+      - reg
+
+required:
+  - "#address-cells"
+  - "#size-cells"
+
+additionalProperties: true
+
+examples:
+  - |
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        partition@0 {
+            label = "u-boot";
+            reg = <0x0000000 0x100000>;
+            read-only;
+        };
+
+        uimage@100000 {
+            reg = <0x0100000 0x200000>;
+        };
+    };
+  - |
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <2>;
+
+        /* a 4 GiB partition */
+        partition@0 {
+            label = "filesystem";
+            reg = <0x00000000 0x1 0x00000000>;
+        };
+    };
+  - |
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        /* an 8 GiB partition */
+        partition@0 {
+            label = "filesystem #1";
+            reg = <0x0 0x00000000 0x2 0x00000000>;
+        };
+
+        /* a 4 GiB partition */
+        partition@200000000 {
+            label = "filesystem #2";
+            reg = <0x2 0x00000000 0x1 0x00000000>;
+        };
+    };
+  - |
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        partition@0 {
+            label = "bootloader";
+            reg = <0x000000 0x100000>;
+            read-only;
+        };
+
+        firmware@100000 {
+            compatible = "brcm,trx";
+            label = "firmware";
+            reg = <0x100000 0xe00000>;
+        };
+
+        calibration@f00000 {
+            compatible = "fixed-partitions";
+            label = "calibration";
+            reg = <0xf00000 0x100000>;
+            ranges = <0 0xf00000 0x100000>;
+            #address-cells = <1>;
+            #size-cells = <1>;
+
+            partition@0 {
+                label = "wifi0";
+                reg = <0x000000 0x080000>;
+            };
+
+            partition@80000 {
+                label = "wifi1";
+                reg = <0x080000 0x080000>;
+            };
+        };
+    };
