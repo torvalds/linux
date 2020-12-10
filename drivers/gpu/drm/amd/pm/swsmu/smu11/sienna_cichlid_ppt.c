@@ -391,7 +391,7 @@ static int sienna_cichlid_tables_init(struct smu_context *smu)
 	SMU_TABLE_INIT(tables, SMU_TABLE_PMSTATUSLOG, SMU11_TOOL_SIZE,
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 	SMU_TABLE_INIT(tables, SMU_TABLE_ACTIVITY_MONITOR_COEFF,
-		       sizeof(DpmActivityMonitorCoeffInt_t), PAGE_SIZE,
+		       sizeof(DpmActivityMonitorCoeffIntExternal_t), PAGE_SIZE,
 	               AMDGPU_GEM_DOMAIN_VRAM);
 
 	smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
@@ -1167,7 +1167,9 @@ static int sienna_cichlid_get_fan_parameters(struct smu_context *smu)
 
 static int sienna_cichlid_get_power_profile_mode(struct smu_context *smu, char *buf)
 {
-	DpmActivityMonitorCoeffInt_t activity_monitor;
+	DpmActivityMonitorCoeffIntExternal_t activity_monitor_external;
+	DpmActivityMonitorCoeffInt_t *activity_monitor =
+		&(activity_monitor_external.DpmActivityMonitorCoeffInt);
 	uint32_t i, size = 0;
 	int16_t workload_type = 0;
 	static const char *profile_name[] = {
@@ -1209,7 +1211,7 @@ static int sienna_cichlid_get_power_profile_mode(struct smu_context *smu, char *
 
 		result = smu_cmn_update_table(smu,
 					  SMU_TABLE_ACTIVITY_MONITOR_COEFF, workload_type,
-					  (void *)(&activity_monitor), false);
+					  (void *)(&activity_monitor_external), false);
 		if (result) {
 			dev_err(smu->adev->dev, "[%s] Failed to get activity monitor!", __func__);
 			return result;
@@ -1222,43 +1224,43 @@ static int sienna_cichlid_get_power_profile_mode(struct smu_context *smu, char *
 			" ",
 			0,
 			"GFXCLK",
-			activity_monitor.Gfx_FPS,
-			activity_monitor.Gfx_MinFreqStep,
-			activity_monitor.Gfx_MinActiveFreqType,
-			activity_monitor.Gfx_MinActiveFreq,
-			activity_monitor.Gfx_BoosterFreqType,
-			activity_monitor.Gfx_BoosterFreq,
-			activity_monitor.Gfx_PD_Data_limit_c,
-			activity_monitor.Gfx_PD_Data_error_coeff,
-			activity_monitor.Gfx_PD_Data_error_rate_coeff);
+			activity_monitor->Gfx_FPS,
+			activity_monitor->Gfx_MinFreqStep,
+			activity_monitor->Gfx_MinActiveFreqType,
+			activity_monitor->Gfx_MinActiveFreq,
+			activity_monitor->Gfx_BoosterFreqType,
+			activity_monitor->Gfx_BoosterFreq,
+			activity_monitor->Gfx_PD_Data_limit_c,
+			activity_monitor->Gfx_PD_Data_error_coeff,
+			activity_monitor->Gfx_PD_Data_error_rate_coeff);
 
 		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
 			" ",
 			1,
 			"SOCCLK",
-			activity_monitor.Fclk_FPS,
-			activity_monitor.Fclk_MinFreqStep,
-			activity_monitor.Fclk_MinActiveFreqType,
-			activity_monitor.Fclk_MinActiveFreq,
-			activity_monitor.Fclk_BoosterFreqType,
-			activity_monitor.Fclk_BoosterFreq,
-			activity_monitor.Fclk_PD_Data_limit_c,
-			activity_monitor.Fclk_PD_Data_error_coeff,
-			activity_monitor.Fclk_PD_Data_error_rate_coeff);
+			activity_monitor->Fclk_FPS,
+			activity_monitor->Fclk_MinFreqStep,
+			activity_monitor->Fclk_MinActiveFreqType,
+			activity_monitor->Fclk_MinActiveFreq,
+			activity_monitor->Fclk_BoosterFreqType,
+			activity_monitor->Fclk_BoosterFreq,
+			activity_monitor->Fclk_PD_Data_limit_c,
+			activity_monitor->Fclk_PD_Data_error_coeff,
+			activity_monitor->Fclk_PD_Data_error_rate_coeff);
 
 		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
 			" ",
 			2,
 			"MEMLK",
-			activity_monitor.Mem_FPS,
-			activity_monitor.Mem_MinFreqStep,
-			activity_monitor.Mem_MinActiveFreqType,
-			activity_monitor.Mem_MinActiveFreq,
-			activity_monitor.Mem_BoosterFreqType,
-			activity_monitor.Mem_BoosterFreq,
-			activity_monitor.Mem_PD_Data_limit_c,
-			activity_monitor.Mem_PD_Data_error_coeff,
-			activity_monitor.Mem_PD_Data_error_rate_coeff);
+			activity_monitor->Mem_FPS,
+			activity_monitor->Mem_MinFreqStep,
+			activity_monitor->Mem_MinActiveFreqType,
+			activity_monitor->Mem_MinActiveFreq,
+			activity_monitor->Mem_BoosterFreqType,
+			activity_monitor->Mem_BoosterFreq,
+			activity_monitor->Mem_PD_Data_limit_c,
+			activity_monitor->Mem_PD_Data_error_coeff,
+			activity_monitor->Mem_PD_Data_error_rate_coeff);
 	}
 
 	return size;
@@ -1266,7 +1268,10 @@ static int sienna_cichlid_get_power_profile_mode(struct smu_context *smu, char *
 
 static int sienna_cichlid_set_power_profile_mode(struct smu_context *smu, long *input, uint32_t size)
 {
-	DpmActivityMonitorCoeffInt_t activity_monitor;
+
+	DpmActivityMonitorCoeffIntExternal_t activity_monitor_external;
+	DpmActivityMonitorCoeffInt_t *activity_monitor =
+		&(activity_monitor_external.DpmActivityMonitorCoeffInt);
 	int workload_type, ret = 0;
 
 	smu->power_profile_mode = input[size];
@@ -1280,7 +1285,7 @@ static int sienna_cichlid_set_power_profile_mode(struct smu_context *smu, long *
 
 		ret = smu_cmn_update_table(smu,
 				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
-				       (void *)(&activity_monitor), false);
+				       (void *)(&activity_monitor_external), false);
 		if (ret) {
 			dev_err(smu->adev->dev, "[%s] Failed to get activity monitor!", __func__);
 			return ret;
@@ -1288,43 +1293,43 @@ static int sienna_cichlid_set_power_profile_mode(struct smu_context *smu, long *
 
 		switch (input[0]) {
 		case 0: /* Gfxclk */
-			activity_monitor.Gfx_FPS = input[1];
-			activity_monitor.Gfx_MinFreqStep = input[2];
-			activity_monitor.Gfx_MinActiveFreqType = input[3];
-			activity_monitor.Gfx_MinActiveFreq = input[4];
-			activity_monitor.Gfx_BoosterFreqType = input[5];
-			activity_monitor.Gfx_BoosterFreq = input[6];
-			activity_monitor.Gfx_PD_Data_limit_c = input[7];
-			activity_monitor.Gfx_PD_Data_error_coeff = input[8];
-			activity_monitor.Gfx_PD_Data_error_rate_coeff = input[9];
+			activity_monitor->Gfx_FPS = input[1];
+			activity_monitor->Gfx_MinFreqStep = input[2];
+			activity_monitor->Gfx_MinActiveFreqType = input[3];
+			activity_monitor->Gfx_MinActiveFreq = input[4];
+			activity_monitor->Gfx_BoosterFreqType = input[5];
+			activity_monitor->Gfx_BoosterFreq = input[6];
+			activity_monitor->Gfx_PD_Data_limit_c = input[7];
+			activity_monitor->Gfx_PD_Data_error_coeff = input[8];
+			activity_monitor->Gfx_PD_Data_error_rate_coeff = input[9];
 			break;
 		case 1: /* Socclk */
-			activity_monitor.Fclk_FPS = input[1];
-			activity_monitor.Fclk_MinFreqStep = input[2];
-			activity_monitor.Fclk_MinActiveFreqType = input[3];
-			activity_monitor.Fclk_MinActiveFreq = input[4];
-			activity_monitor.Fclk_BoosterFreqType = input[5];
-			activity_monitor.Fclk_BoosterFreq = input[6];
-			activity_monitor.Fclk_PD_Data_limit_c = input[7];
-			activity_monitor.Fclk_PD_Data_error_coeff = input[8];
-			activity_monitor.Fclk_PD_Data_error_rate_coeff = input[9];
+			activity_monitor->Fclk_FPS = input[1];
+			activity_monitor->Fclk_MinFreqStep = input[2];
+			activity_monitor->Fclk_MinActiveFreqType = input[3];
+			activity_monitor->Fclk_MinActiveFreq = input[4];
+			activity_monitor->Fclk_BoosterFreqType = input[5];
+			activity_monitor->Fclk_BoosterFreq = input[6];
+			activity_monitor->Fclk_PD_Data_limit_c = input[7];
+			activity_monitor->Fclk_PD_Data_error_coeff = input[8];
+			activity_monitor->Fclk_PD_Data_error_rate_coeff = input[9];
 			break;
 		case 2: /* Memlk */
-			activity_monitor.Mem_FPS = input[1];
-			activity_monitor.Mem_MinFreqStep = input[2];
-			activity_monitor.Mem_MinActiveFreqType = input[3];
-			activity_monitor.Mem_MinActiveFreq = input[4];
-			activity_monitor.Mem_BoosterFreqType = input[5];
-			activity_monitor.Mem_BoosterFreq = input[6];
-			activity_monitor.Mem_PD_Data_limit_c = input[7];
-			activity_monitor.Mem_PD_Data_error_coeff = input[8];
-			activity_monitor.Mem_PD_Data_error_rate_coeff = input[9];
+			activity_monitor->Mem_FPS = input[1];
+			activity_monitor->Mem_MinFreqStep = input[2];
+			activity_monitor->Mem_MinActiveFreqType = input[3];
+			activity_monitor->Mem_MinActiveFreq = input[4];
+			activity_monitor->Mem_BoosterFreqType = input[5];
+			activity_monitor->Mem_BoosterFreq = input[6];
+			activity_monitor->Mem_PD_Data_limit_c = input[7];
+			activity_monitor->Mem_PD_Data_error_coeff = input[8];
+			activity_monitor->Mem_PD_Data_error_rate_coeff = input[9];
 			break;
 		}
 
 		ret = smu_cmn_update_table(smu,
 				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
-				       (void *)(&activity_monitor), true);
+				       (void *)(&activity_monitor_external), true);
 		if (ret) {
 			dev_err(smu->adev->dev, "[%s] Failed to set activity monitor!", __func__);
 			return ret;
