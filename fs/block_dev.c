@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/fs/block_dev.c
- *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 2001  Andrea Arcangeli <andrea@suse.de> SuSE
  */
