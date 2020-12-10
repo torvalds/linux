@@ -892,10 +892,16 @@ static int soc_tplg_denum_create_values(struct soc_tplg *tplg, struct soc_enum *
 {
 	int i;
 
-	if (le32_to_cpu(ec->items) > sizeof(*ec->values))
+	/*
+	 * Following "if" checks if we have at most SND_SOC_TPLG_NUM_TEXTS
+	 * values instead of using ARRAY_SIZE(ec->values) due to the fact that
+	 * it is oversized for its purpose. Additionally it is done so because
+	 * it is defined in UAPI header where it can't be easily changed.
+	 */
+	if (le32_to_cpu(ec->items) > SND_SOC_TPLG_NUM_TEXTS)
 		return -EINVAL;
 
-	se->dobj.control.dvalues = devm_kzalloc(tplg->dev, le32_to_cpu(ec->items) *
+	se->dobj.control.dvalues = devm_kcalloc(tplg->dev, le32_to_cpu(ec->items),
 					   sizeof(u32),
 					   GFP_KERNEL);
 	if (!se->dobj.control.dvalues)
