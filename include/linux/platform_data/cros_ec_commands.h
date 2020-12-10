@@ -1286,6 +1286,16 @@ enum ec_feature_code {
 	EC_FEATURE_ISH = 40,
 	/* New TCPMv2 TYPEC_ prefaced commands supported */
 	EC_FEATURE_TYPEC_CMD = 41,
+	/*
+	 * The EC will wait for direction from the AP to enter Type-C alternate
+	 * modes or USB4.
+	 */
+	EC_FEATURE_TYPEC_REQUIRE_AP_MODE_ENTRY = 42,
+	/*
+	 * The EC will wait for an acknowledge from the AP after setting the
+	 * mux.
+	 */
+	EC_FEATURE_TYPEC_MUX_REQUIRE_AP_ACK = 43,
 };
 
 #define EC_FEATURE_MASK_0(event_code) BIT(event_code % 32)
@@ -6053,6 +6063,13 @@ struct ec_params_charger_control {
 	uint16_t otg_voltage;
 	uint8_t allow_charging;
 } __ec_align_size1;
+
+/* Get ACK from the USB-C SS muxes */
+#define EC_CMD_USB_PD_MUX_ACK 0x0603
+
+struct ec_params_usb_pd_mux_ack {
+	uint8_t port; /* USB-C port number */
+} __ec_align1;
 
 /*****************************************************************************/
 /*

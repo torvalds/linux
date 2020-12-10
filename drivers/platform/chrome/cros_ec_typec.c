@@ -81,6 +81,7 @@ struct cros_typec_data {
 	struct notifier_block nb;
 	struct work_struct port_work;
 	bool typec_cmd_supported;
+	bool needs_mux_ack;
 };
 
 static int cros_typec_parse_port_props(struct typec_capability *cap,
@@ -531,6 +532,7 @@ static int cros_typec_configure_mux(struct cros_typec_data *typec, int port_num,
 				struct ec_response_usb_pd_control_v2 *pd_ctrl)
 {
 	struct cros_typec_port *port = typec->ports[port_num];
+	struct ec_params_usb_pd_mux_ack mux_ack;
 	enum typec_orientation orientation;
 	int ret;
 
@@ -569,6 +571,18 @@ static int cros_typec_configure_mux(struct cros_typec_data *typec, int port_num,
 			"Unrecognized mode requested, mux flags: %x\n",
 			mux_flags);
 	}
+
+	if (!typec->needs_mux_ack)
+		return ret;
+
+	/* Sending Acknowledgment to EC */
+	mux_ack.port = port_num;
+
+	if (cros_typec_ec_command(typec, 0, EC_CMD_USB_PD_MUX_ACK, &mux_ack,
+				  sizeof(mux_ack), NULL, 0) < 0)
+		dev_warn(typec->dev,
+			 "Failed to send Mux ACK to EC for port: %d\n",
+			 port_num);
 
 	return ret;
 }
@@ -1053,6 +1067,8 @@ static int cros_typec_probe(struct platform_device *pdev)
 
 	typec->typec_cmd_supported = !!cros_typec_feature_supported(typec,
 					EC_FEATURE_TYPEC_CMD);
+	typec->needs_mux_ack = !!cros_typec_feature_supported(typec,
+					EC_FEATURE_TYPEC_MUX_REQUIRE_AP_ACK);
 
 	ret = cros_typec_ec_command(typec, 0, EC_CMD_USB_PD_PORTS, NULL, 0,
 				    &resp, sizeof(resp));
