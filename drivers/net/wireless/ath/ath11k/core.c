@@ -51,7 +51,6 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.svc_to_ce_map = ath11k_target_service_to_ce_map_wlan_ipq8074,
 		.svc_to_ce_map_len = 21,
 		.single_pdev_only = false,
-		.needs_band_to_mac = true,
 		.rxdma1_enable = true,
 		.num_rxmda_per_pdev = 1,
 		.rx_mac_buf_ring = false,
@@ -89,7 +88,6 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.svc_to_ce_map = ath11k_target_service_to_ce_map_wlan_ipq6018,
 		.svc_to_ce_map_len = 19,
 		.single_pdev_only = false,
-		.needs_band_to_mac = true,
 		.rxdma1_enable = true,
 		.num_rxmda_per_pdev = 1,
 		.rx_mac_buf_ring = false,
@@ -127,7 +125,6 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.svc_to_ce_map = ath11k_target_service_to_ce_map_wlan_qca6390,
 		.svc_to_ce_map_len = 14,
 		.single_pdev_only = true,
-		.needs_band_to_mac = false,
 		.rxdma1_enable = false,
 		.num_rxmda_per_pdev = 2,
 		.rx_mac_buf_ring = true,
@@ -644,6 +641,15 @@ static int ath11k_core_start(struct ath11k_base *ab,
 		ath11k_err(ab, "failed to receive wmi unified ready event: %d\n",
 			   ret);
 		goto err_reo_cleanup;
+	}
+
+	/* put hardware to DBS mode */
+	if (ab->hw_params.single_pdev_only) {
+		ret = ath11k_wmi_set_hw_mode(ab, WMI_HOST_HW_MODE_DBS);
+		if (ret) {
+			ath11k_err(ab, "failed to send dbs mode: %d\n", ret);
+			goto err_hif_stop;
+		}
 	}
 
 	ret = ath11k_dp_tx_htt_h2t_ver_req_msg(ab);
