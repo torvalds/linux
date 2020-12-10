@@ -589,6 +589,46 @@ int hclge_tm_qs_shaper_cfg(struct hclge_vport *vport, int max_tx_rate)
 	return 0;
 }
 
+static u16 hclge_vport_get_max_rss_size(struct hclge_vport *vport)
+{
+	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
+	struct hnae3_tc_info *tc_info = &kinfo->tc_info;
+	struct hclge_dev *hdev = vport->back;
+	u16 max_rss_size = 0;
+	int i;
+
+	if (!tc_info->mqprio_active)
+		return vport->alloc_tqps / tc_info->num_tc;
+
+	for (i = 0; i < HNAE3_MAX_TC; i++) {
+		if (!(hdev->hw_tc_map & BIT(i)) || i >= tc_info->num_tc)
+			continue;
+		if (max_rss_size < tc_info->tqp_count[i])
+			max_rss_size = tc_info->tqp_count[i];
+	}
+
+	return max_rss_size;
+}
+
+static u16 hclge_vport_get_tqp_num(struct hclge_vport *vport)
+{
+	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
+	struct hnae3_tc_info *tc_info = &kinfo->tc_info;
+	struct hclge_dev *hdev = vport->back;
+	int sum = 0;
+	int i;
+
+	if (!tc_info->mqprio_active)
+		return kinfo->rss_size * tc_info->num_tc;
+
+	for (i = 0; i < HNAE3_MAX_TC; i++) {
+		if (hdev->hw_tc_map & BIT(i) && i < tc_info->num_tc)
+			sum += tc_info->tqp_count[i];
+	}
+
+	return sum;
+}
+
 static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 {
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
@@ -605,7 +645,7 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 				(vport->vport_id ? (vport->vport_id - 1) : 0);
 
 	max_rss_size = min_t(u16, hdev->rss_size_max,
-			     vport->alloc_tqps / kinfo->tc_info.num_tc);
+			     hclge_vport_get_max_rss_size(vport));
 
 	/* Set to user value, no larger than max_rss_size. */
 	if (kinfo->req_rss_size != kinfo->rss_size && kinfo->req_rss_size &&
@@ -628,10 +668,14 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 		kinfo->rss_size = max_rss_size;
 	}
 
-	kinfo->num_tqps = kinfo->tc_info.num_tc * kinfo->rss_size;
+	kinfo->num_tqps = hclge_vport_get_tqp_num(vport);
 	vport->dwrr = 100;  /* 100 percent as init */
 	vport->alloc_rss_size = kinfo->rss_size;
 	vport->bw_limit = hdev->tm_info.pg_info[0].bw_limit;
+
+	/* when enable mqprio, the tc_info has been updated. */
+	if (kinfo->tc_info.mqprio_active)
+		return;
 
 	for (i = 0; i < HNAE3_MAX_TC; i++) {
 		if (hdev->hw_tc_map & BIT(i) && i < kinfo->tc_info.num_tc) {

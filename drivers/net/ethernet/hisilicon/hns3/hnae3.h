@@ -29,7 +29,9 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
+#include <linux/pkt_sched.h>
 #include <linux/types.h>
+#include <net/pkt_cls.h>
 
 #define HNAE3_MOD_VERSION "1.0"
 
@@ -647,7 +649,8 @@ struct hnae3_dcb_ops {
 	u8   (*getdcbx)(struct hnae3_handle *);
 	u8   (*setdcbx)(struct hnae3_handle *, u8);
 
-	int (*setup_tc)(struct hnae3_handle *, u8, u8 *);
+	int (*setup_tc)(struct hnae3_handle *handle,
+			struct tc_mqprio_qopt_offload *mqprio_qopt);
 };
 
 struct hnae3_ae_algo {
@@ -667,6 +670,7 @@ struct hnae3_tc_info {
 	u16 tqp_offset[HNAE3_MAX_TC];
 	unsigned long tc_en; /* bitmap of TC enabled */
 	u8 num_tc; /* Total number of enabled TCs */
+	bool mqprio_active;
 };
 
 struct hnae3_knic_private_info {

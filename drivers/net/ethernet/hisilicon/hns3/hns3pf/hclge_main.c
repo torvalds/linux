@@ -4604,18 +4604,55 @@ static int hclge_get_tc_size(struct hnae3_handle *handle)
 	return hdev->rss_size_max;
 }
 
+static int hclge_init_rss_tc_mode(struct hclge_dev *hdev)
+{
+	struct hnae3_ae_dev *ae_dev = hdev->ae_dev;
+	struct hclge_vport *vport = hdev->vport;
+	u16 tc_offset[HCLGE_MAX_TC_NUM] = {0};
+	u16 tc_valid[HCLGE_MAX_TC_NUM] = {0};
+	u16 tc_size[HCLGE_MAX_TC_NUM] = {0};
+	struct hnae3_tc_info *tc_info;
+	u16 roundup_size;
+	u16 rss_size;
+	int i;
+
+	tc_info = &vport->nic.kinfo.tc_info;
+	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
+		rss_size = tc_info->tqp_count[i];
+		tc_valid[i] = 0;
+
+		if (!(hdev->hw_tc_map & BIT(i)))
+			continue;
+
+		/* tc_size set to hardware is the log2 of roundup power of two
+		 * of rss_size, the acutal queue size is limited by indirection
+		 * table.
+		 */
+		if (rss_size > ae_dev->dev_specs.rss_ind_tbl_size ||
+		    rss_size == 0) {
+			dev_err(&hdev->pdev->dev,
+				"Configure rss tc size failed, invalid TC_SIZE = %u\n",
+				rss_size);
+			return -EINVAL;
+		}
+
+		roundup_size = roundup_pow_of_two(rss_size);
+		roundup_size = ilog2(roundup_size);
+
+		tc_valid[i] = 1;
+		tc_size[i] = roundup_size;
+		tc_offset[i] = tc_info->tqp_offset[i];
+	}
+
+	return hclge_set_rss_tc_mode(hdev, tc_valid, tc_size, tc_offset);
+}
+
 int hclge_rss_init_hw(struct hclge_dev *hdev)
 {
 	struct hclge_vport *vport = hdev->vport;
 	u8 *rss_indir = vport[0].rss_indirection_tbl;
-	u16 rss_size = vport[0].alloc_rss_size;
-	u16 tc_offset[HCLGE_MAX_TC_NUM] = {0};
-	u16 tc_size[HCLGE_MAX_TC_NUM] = {0};
 	u8 *key = vport[0].rss_hash_key;
 	u8 hfunc = vport[0].rss_algo;
-	u16 tc_valid[HCLGE_MAX_TC_NUM];
-	u16 roundup_size;
-	unsigned int i;
 	int ret;
 
 	ret = hclge_set_rss_indir_table(hdev, rss_indir);
@@ -4630,32 +4667,7 @@ int hclge_rss_init_hw(struct hclge_dev *hdev)
 	if (ret)
 		return ret;
 
-	/* Each TC have the same queue size, and tc_size set to hardware is
-	 * the log2 of roundup power of two of rss_size, the acutal queue
-	 * size is limited by indirection table.
-	 */
-	if (rss_size > HCLGE_RSS_TC_SIZE_7 || rss_size == 0) {
-		dev_err(&hdev->pdev->dev,
-			"Configure rss tc size failed, invalid TC_SIZE = %u\n",
-			rss_size);
-		return -EINVAL;
-	}
-
-	roundup_size = roundup_pow_of_two(rss_size);
-	roundup_size = ilog2(roundup_size);
-
-	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
-		tc_valid[i] = 0;
-
-		if (!(hdev->hw_tc_map & BIT(i)))
-			continue;
-
-		tc_valid[i] = 1;
-		tc_size[i] = roundup_size;
-		tc_offset[i] = rss_size * i;
-	}
-
-	return hclge_set_rss_tc_mode(hdev, tc_valid, tc_size, tc_offset);
+	return hclge_init_rss_tc_mode(hdev);
 }
 
 void hclge_rss_indir_init_cfg(struct hclge_dev *hdev)
@@ -10694,12 +10706,10 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 
 static u32 hclge_get_max_channels(struct hnae3_handle *handle)
 {
-	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 
-	return min_t(u32, hdev->rss_size_max,
-		     vport->alloc_tqps / kinfo->tc_info.num_tc);
+	return min_t(u32, hdev->rss_size_max, vport->alloc_tqps);
 }
 
 static void hclge_get_channels(struct hnae3_handle *handle,
