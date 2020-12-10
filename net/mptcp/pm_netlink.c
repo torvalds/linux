@@ -135,7 +135,7 @@ select_local_address(const struct pm_nl_pernet *pernet,
 	struct mptcp_pm_addr_entry *entry, *ret = NULL;
 
 	rcu_read_lock();
-	spin_lock_bh(&msk->join_list_lock);
+	__mptcp_flush_join_list(msk);
 	list_for_each_entry_rcu(entry, &pernet->local_addr_list, list) {
 		if (!(entry->addr.flags & MPTCP_PM_ADDR_FLAG_SUBFLOW))
 			continue;
@@ -144,13 +144,11 @@ select_local_address(const struct pm_nl_pernet *pernet,
 		 * pending join
 		 */
 		if (entry->addr.family == ((struct sock *)msk)->sk_family &&
-		    !lookup_subflow_by_saddr(&msk->conn_list, &entry->addr) &&
-		    !lookup_subflow_by_saddr(&msk->join_list, &entry->addr)) {
+		    !lookup_subflow_by_saddr(&msk->conn_list, &entry->addr)) {
 			ret = entry;
 			break;
 		}
 	}
-	spin_unlock_bh(&msk->join_list_lock);
 	rcu_read_unlock();
 	return ret;
 }
