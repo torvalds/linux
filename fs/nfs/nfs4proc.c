@@ -5320,17 +5320,17 @@ static int nfs4_read_done(struct rpc_task *task, struct nfs_pgio_header *hdr)
 }
 
 #ifdef CONFIG_NFS_V4_2
-static void nfs42_read_plus_support(struct nfs_server *server, struct rpc_message *msg)
+static void nfs42_read_plus_support(struct nfs_pgio_header *hdr,
+				    struct rpc_message *msg)
 {
-	if (server->caps & NFS_CAP_READ_PLUS)
+	/* Note: We don't use READ_PLUS with pNFS yet */
+	if (nfs_server_capable(hdr->inode, NFS_CAP_READ_PLUS) && !hdr->ds_clp)
 		msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READ_PLUS];
-	else
-		msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READ];
 }
 #else
-static void nfs42_read_plus_support(struct nfs_server *server, struct rpc_message *msg)
+static void nfs42_read_plus_support(struct nfs_pgio_header *hdr,
+				    struct rpc_message *msg)
 {
-	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READ];
 }
 #endif /* CONFIG_NFS_V4_2 */
 
@@ -5340,7 +5340,8 @@ static void nfs4_proc_read_setup(struct nfs_pgio_header *hdr,
 	hdr->timestamp   = jiffies;
 	if (!hdr->pgio_done_cb)
 		hdr->pgio_done_cb = nfs4_read_done_cb;
-	nfs42_read_plus_support(NFS_SERVER(hdr->inode), msg);
+	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READ];
+	nfs42_read_plus_support(hdr, msg);
 	nfs4_init_sequence(&hdr->args.seq_args, &hdr->res.seq_res, 0, 0);
 }
 
