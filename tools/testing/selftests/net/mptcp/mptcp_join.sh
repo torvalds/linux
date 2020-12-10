@@ -264,27 +264,37 @@ do_transfer()
 	cpid=$!
 
 	if [ $rm_nr_ns1 -gt 0 ]; then
-		counter=1
-		sleep 1
-
-		while [ $counter -le $rm_nr_ns1 ]
-		do
-			ip netns exec ${listener_ns} ./pm_nl_ctl del $counter
+		if [ $rm_nr_ns1 -lt 8 ]; then
+			counter=1
 			sleep 1
-			let counter+=1
-		done
+
+			while [ $counter -le $rm_nr_ns1 ]
+			do
+				ip netns exec ${listener_ns} ./pm_nl_ctl del $counter
+				sleep 1
+				let counter+=1
+			done
+		else
+			sleep 1
+			ip netns exec ${listener_ns} ./pm_nl_ctl flush
+		fi
 	fi
 
 	if [ $rm_nr_ns2 -gt 0 ]; then
-		counter=1
-		sleep 1
-
-		while [ $counter -le $rm_nr_ns2 ]
-		do
-			ip netns exec ${connector_ns} ./pm_nl_ctl del $counter
+		if [ $rm_nr_ns2 -lt 8 ]; then
+			counter=1
 			sleep 1
-			let counter+=1
-		done
+
+			while [ $counter -le $rm_nr_ns2 ]
+			do
+				ip netns exec ${connector_ns} ./pm_nl_ctl del $counter
+				sleep 1
+				let counter+=1
+			done
+		else
+			sleep 1
+			ip netns exec ${connector_ns} ./pm_nl_ctl flush
+		fi
 	fi
 
 	wait $cpid
@@ -660,6 +670,18 @@ ip netns exec $ns2 ./pm_nl_ctl add 10.0.3.2 flags subflow
 ip netns exec $ns2 ./pm_nl_ctl add 10.0.4.2 flags subflow
 run_tests $ns1 $ns2 10.0.1.1 0 1 2 slow
 chk_join_nr "remove subflows and signal" 3 3 3
+chk_add_nr 1 1
+chk_rm_nr 2 2
+
+# subflows and signal, flush
+reset
+ip netns exec $ns1 ./pm_nl_ctl limits 0 3
+ip netns exec $ns1 ./pm_nl_ctl add 10.0.2.1 flags signal
+ip netns exec $ns2 ./pm_nl_ctl limits 1 3
+ip netns exec $ns2 ./pm_nl_ctl add 10.0.3.2 flags subflow
+ip netns exec $ns2 ./pm_nl_ctl add 10.0.4.2 flags subflow
+run_tests $ns1 $ns2 10.0.1.1 0 8 8 slow
+chk_join_nr "flush subflows and signal" 3 3 3
 chk_add_nr 1 1
 chk_rm_nr 2 2
 
