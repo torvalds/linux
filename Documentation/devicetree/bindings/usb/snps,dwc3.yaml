@@ -34,8 +34,19 @@ properties:
       const: snps,dwc3
 
   interrupts:
+    description:
+      It's either a single common DWC3 interrupt (dwc_usb3) or individual
+      interrupts for the host, gadget and DRD modes.
     minItems: 1
     maxItems: 3
+
+  interrupt-names:
+    minItems: 1
+    maxItems: 3
+    oneOf:
+      - const: dwc_usb3
+      - items:
+          enum: [host, peripheral, otg]
 
   clocks:
     description:
