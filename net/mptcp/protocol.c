@@ -1256,6 +1256,7 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 	struct mptcp_ext *mpext = NULL;
 	struct sk_buff *skb, *tail;
 	bool can_collapse = false;
+	int size_bias = 0;
 	int avail_size;
 	size_t ret = 0;
 
@@ -1277,10 +1278,12 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 		mpext = skb_ext_find(skb, SKB_EXT_MPTCP);
 		can_collapse = (info->size_goal - skb->len > 0) &&
 			 mptcp_skb_can_collapse_to(data_seq, skb, mpext);
-		if (!can_collapse)
+		if (!can_collapse) {
 			TCP_SKB_CB(skb)->eor = 1;
-		else
+		} else {
+			size_bias = skb->len;
 			avail_size = info->size_goal - skb->len;
+		}
 	}
 
 	/* Zero window and all data acked? Probe. */
@@ -1300,8 +1303,8 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 		return 0;
 
 	ret = info->limit - info->sent;
-	tail = tcp_build_frag(ssk, avail_size, info->flags, dfrag->page,
-			      dfrag->offset + info->sent, &ret);
+	tail = tcp_build_frag(ssk, avail_size + size_bias, info->flags,
+			      dfrag->page, dfrag->offset + info->sent, &ret);
 	if (!tail) {
 		tcp_remove_empty_skb(sk, tcp_write_queue_tail(ssk));
 		return -ENOMEM;
@@ -1310,8 +1313,9 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 	/* if the tail skb is still the cached one, collapsing really happened.
 	 */
 	if (skb == tail) {
-		WARN_ON_ONCE(!can_collapse);
+		TCP_SKB_CB(tail)->tcp_flags &= ~TCPHDR_PSH;
 		mpext->data_len += ret;
+		WARN_ON_ONCE(!can_collapse);
 		WARN_ON_ONCE(zero_window_probe);
 		goto out;
 	}
