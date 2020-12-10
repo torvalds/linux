@@ -384,6 +384,7 @@ static void rnbd_softirq_done_fn(struct request *rq)
 	struct rnbd_iu *iu;
 
 	iu = blk_mq_rq_to_pdu(rq);
+	sg_free_table_chained(&iu->sgt, RNBD_INLINE_SG_CNT);
 	rnbd_put_permit(sess, iu->permit);
 	blk_mq_end_request(rq, errno_to_blk_status(iu->errno));
 }
@@ -477,7 +478,7 @@ static int send_msg_close(struct rnbd_clt_dev *dev, u32 device_id, bool wait)
 	iu->buf = NULL;
 	iu->dev = dev;
 
-	sg_mark_end(&iu->sglist[0]);
+	sg_alloc_table(&iu->sgt, 1, GFP_KERNEL);
 
 	msg.hdr.type	= cpu_to_le16(RNBD_MSG_CLOSE);
 	msg.device_id	= cpu_to_le32(device_id);
@@ -492,6 +493,7 @@ static int send_msg_close(struct rnbd_clt_dev *dev, u32 device_id, bool wait)
 		err = errno;
 	}
 
+	sg_free_table(&iu->sgt);
 	rnbd_put_iu(sess, iu);
 	return err;
 }
@@ -564,7 +566,8 @@ static int send_msg_open(struct rnbd_clt_dev *dev, bool wait)
 	iu->buf = rsp;
 	iu->dev = dev;
 
-	sg_init_one(iu->sglist, rsp, sizeof(*rsp));
+	sg_alloc_table(&iu->sgt, 1, GFP_KERNEL);
+	sg_init_one(iu->sgt.sgl, rsp, sizeof(*rsp));
 
 	msg.hdr.type	= cpu_to_le16(RNBD_MSG_OPEN);
 	msg.access_mode	= dev->access_mode;
@@ -572,7 +575,7 @@ static int send_msg_open(struct rnbd_clt_dev *dev, bool wait)
 
 	WARN_ON(!rnbd_clt_get_dev(dev));
 	err = send_usr_msg(sess->rtrs, READ, iu,
-			   &vec, sizeof(*rsp), iu->sglist, 1,
+			   &vec, sizeof(*rsp), iu->sgt.sgl, 1,
 			   msg_open_conf, &errno, wait);
 	if (err) {
 		rnbd_clt_put_dev(dev);
@@ -582,6 +585,7 @@ static int send_msg_open(struct rnbd_clt_dev *dev, bool wait)
 		err = errno;
 	}
 
+	sg_free_table(&iu->sgt);
 	rnbd_put_iu(sess, iu);
 	return err;
 }
@@ -610,7 +614,8 @@ static int send_msg_sess_info(struct rnbd_clt_session *sess, bool wait)
 	iu->buf = rsp;
 	iu->sess = sess;
 
-	sg_init_one(iu->sglist, rsp, sizeof(*rsp));
+	sg_alloc_table(&iu->sgt, 1, GFP_KERNEL);
+	sg_init_one(iu->sgt.sgl, rsp, sizeof(*rsp));
 
 	msg.hdr.type = cpu_to_le16(RNBD_MSG_SESS_INFO);
 	msg.ver      = RNBD_PROTO_VER_MAJOR;
@@ -626,7 +631,7 @@ static int send_msg_sess_info(struct rnbd_clt_session *sess, bool wait)
 		goto put_iu;
 	}
 	err = send_usr_msg(sess->rtrs, READ, iu,
-			   &vec, sizeof(*rsp), iu->sglist, 1,
+			   &vec, sizeof(*rsp), iu->sgt.sgl, 1,
 			   msg_sess_info_conf, &errno, wait);
 	if (err) {
 		rnbd_clt_put_sess(sess);
@@ -636,7 +641,7 @@ put_iu:
 	} else {
 		err = errno;
 	}
-
+	sg_free_table(&iu->sgt);
 	rnbd_put_iu(sess, iu);
 	return err;
 }
@@ -1016,11 +1021,10 @@ static int rnbd_client_xfer_request(struct rnbd_clt_dev *dev,
 	 * See queue limits.
 	 */
 	if (req_op(rq) != REQ_OP_DISCARD)
-		sg_cnt = blk_rq_map_sg(dev->queue, rq, iu->sglist);
+		sg_cnt = blk_rq_map_sg(dev->queue, rq, iu->sgt.sgl);
 
 	if (sg_cnt == 0)
-		/* Do not forget to mark the end */
-		sg_mark_end(&iu->sglist[0]);
+		sg_mark_end(&iu->sgt.sgl[0]);
 
 	msg.hdr.type	= cpu_to_le16(RNBD_MSG_IO);
 	msg.device_id	= cpu_to_le32(dev->device_id);
@@ -1029,13 +1033,13 @@ static int rnbd_client_xfer_request(struct rnbd_clt_dev *dev,
 		.iov_base = &msg,
 		.iov_len  = sizeof(msg)
 	};
-	size = rnbd_clt_get_sg_size(iu->sglist, sg_cnt);
+	size = rnbd_clt_get_sg_size(iu->sgt.sgl, sg_cnt);
 	req_ops = (struct rtrs_clt_req_ops) {
 		.priv = iu,
 		.conf_fn = msg_io_conf,
 	};
 	err = rtrs_clt_request(rq_data_dir(rq), &req_ops, rtrs, permit,
-			       &vec, 1, size, iu->sglist, sg_cnt);
+			       &vec, 1, size, iu->sgt.sgl, sg_cnt);
 	if (unlikely(err)) {
 		rnbd_clt_err_rl(dev, "RTRS failed to transfer IO, err: %d\n",
 				 err);
@@ -1122,6 +1126,7 @@ static blk_status_t rnbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct rnbd_clt_dev *dev = rq->rq_disk->private_data;
 	struct rnbd_iu *iu = blk_mq_rq_to_pdu(rq);
 	int err;
+	blk_status_t ret = BLK_STS_IOERR;
 
 	if (unlikely(dev->dev_state != DEV_STATE_MAPPED))
 		return BLK_STS_IOERR;
@@ -1133,32 +1138,35 @@ static blk_status_t rnbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 		return BLK_STS_RESOURCE;
 	}
 
+	iu->sgt.sgl = iu->first_sgl;
+	err = sg_alloc_table_chained(&iu->sgt,
+				     /* Even-if the request has no segment,
+				      * sglist must have one entry at least */
+				     blk_rq_nr_phys_segments(rq) ? : 1,
+				     iu->sgt.sgl,
+				     RNBD_INLINE_SG_CNT);
+	if (err) {
+		rnbd_clt_err_rl(dev, "sg_alloc_table_chained ret=%d\n", err);
+		rnbd_clt_dev_kick_mq_queue(dev, hctx, 10/*ms*/);
+		rnbd_put_permit(dev->sess, iu->permit);
+		return BLK_STS_RESOURCE;
+	}
+
 	blk_mq_start_request(rq);
 	err = rnbd_client_xfer_request(dev, rq, iu);
 	if (likely(err == 0))
 		return BLK_STS_OK;
 	if (unlikely(err == -EAGAIN || err == -ENOMEM)) {
 		rnbd_clt_dev_kick_mq_queue(dev, hctx, 10/*ms*/);
-		rnbd_put_permit(dev->sess, iu->permit);
-		return BLK_STS_RESOURCE;
+		ret = BLK_STS_RESOURCE;
 	}
-
+	sg_free_table_chained(&iu->sgt, RNBD_INLINE_SG_CNT);
 	rnbd_put_permit(dev->sess, iu->permit);
-	return BLK_STS_IOERR;
-}
-
-static int rnbd_init_request(struct blk_mq_tag_set *set, struct request *rq,
-			      unsigned int hctx_idx, unsigned int numa_node)
-{
-	struct rnbd_iu *iu = blk_mq_rq_to_pdu(rq);
-
-	sg_init_table(iu->sglist, BMAX_SEGMENTS);
-	return 0;
+	return ret;
 }
 
 static struct blk_mq_ops rnbd_mq_ops = {
 	.queue_rq	= rnbd_queue_rq,
-	.init_request	= rnbd_init_request,
 	.complete	= rnbd_softirq_done_fn,
 };
 
@@ -1172,7 +1180,7 @@ static int setup_mq_tags(struct rnbd_clt_session *sess)
 	tag_set->numa_node		= NUMA_NO_NODE;
 	tag_set->flags		= BLK_MQ_F_SHOULD_MERGE |
 				  BLK_MQ_F_TAG_QUEUE_SHARED;
-	tag_set->cmd_size		= sizeof(struct rnbd_iu);
+	tag_set->cmd_size	= sizeof(struct rnbd_iu) + RNBD_RDMA_SGL_SIZE;
 	tag_set->nr_hw_queues	= num_online_cpus();
 
 	return blk_mq_alloc_tag_set(tag_set);
