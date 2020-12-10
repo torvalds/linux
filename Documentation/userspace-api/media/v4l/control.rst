@@ -154,10 +154,13 @@ Control IDs
 ``V4L2_CID_POWER_LINE_FREQUENCY`` ``(enum)``
     Enables a power line frequency filter to avoid flicker. Possible
     values for ``enum v4l2_power_line_frequency`` are:
-    ``V4L2_CID_POWER_LINE_FREQUENCY_DISABLED`` (0),
-    ``V4L2_CID_POWER_LINE_FREQUENCY_50HZ`` (1),
-    ``V4L2_CID_POWER_LINE_FREQUENCY_60HZ`` (2) and
-    ``V4L2_CID_POWER_LINE_FREQUENCY_AUTO`` (3).
+
+    ==========================================  ==
+    ``V4L2_CID_POWER_LINE_FREQUENCY_DISABLED``	 0
+    ``V4L2_CID_POWER_LINE_FREQUENCY_50HZ``	 1
+    ``V4L2_CID_POWER_LINE_FREQUENCY_60HZ``	 2
+    ``V4L2_CID_POWER_LINE_FREQUENCY_AUTO``	 3
+    ==========================================  ==
 
 ``V4L2_CID_HUE_AUTO`` ``(boolean)``
     Enables automatic hue control by the device. The effect of setting
