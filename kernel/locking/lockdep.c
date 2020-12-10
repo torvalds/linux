@@ -2130,46 +2130,6 @@ check_noncircular(struct held_lock *src, struct held_lock *target,
 	return ret;
 }
 
-#ifdef CONFIG_LOCKDEP_SMALL
-/*
- * Check that the dependency graph starting at <src> can lead to
- * <target> or not. If it can, <src> -> <target> dependency is already
- * in the graph.
- *
- * Return BFS_RMATCH if it does, or BFS_RMATCH if it does not, return BFS_E* if
- * any error appears in the bfs search.
- */
-static noinline enum bfs_result
-check_redundant(struct held_lock *src, struct held_lock *target)
-{
-	enum bfs_result ret;
-	struct lock_list *target_entry;
-	struct lock_list src_entry;
-
-	bfs_init_root(&src_entry, src);
-	/*
-	 * Special setup for check_redundant().
-	 *
-	 * To report redundant, we need to find a strong dependency path that
-	 * is equal to or stronger than <src> -> <target>. So if <src> is E,
-	 * we need to let __bfs() only search for a path starting at a -(E*)->,
-	 * we achieve this by setting the initial node's ->only_xr to true in
-	 * that case. And if <prev> is S, we set initial ->only_xr to false
-	 * because both -(S*)-> (equal) and -(E*)-> (stronger) are redundant.
-	 */
-	src_entry.only_xr = src->read == 0;
-
-	debug_atomic_inc(nr_redundant_checks);
-
-	ret = check_path(target, &src_entry, hlock_equal, NULL, &target_entry);
-
-	if (ret == BFS_RMATCH)
-		debug_atomic_inc(nr_redundant);
-
-	return ret;
-}
-#endif
-
 #ifdef CONFIG_TRACE_IRQFLAGS
 
 /*
@@ -2706,6 +2666,55 @@ static inline int check_irq_usage(struct task_struct *curr,
 }
 #endif /* CONFIG_TRACE_IRQFLAGS */
 
+#ifdef CONFIG_LOCKDEP_SMALL
+/*
+ * Check that the dependency graph starting at <src> can lead to
+ * <target> or not. If it can, <src> -> <target> dependency is already
+ * in the graph.
+ *
+ * Return BFS_RMATCH if it does, or BFS_RMATCH if it does not, return BFS_E* if
+ * any error appears in the bfs search.
+ */
+static noinline enum bfs_result
+check_redundant(struct held_lock *src, struct held_lock *target)
+{
+	enum bfs_result ret;
+	struct lock_list *target_entry;
+	struct lock_list src_entry;
+
+	bfs_init_root(&src_entry, src);
+	/*
+	 * Special setup for check_redundant().
+	 *
+	 * To report redundant, we need to find a strong dependency path that
+	 * is equal to or stronger than <src> -> <target>. So if <src> is E,
+	 * we need to let __bfs() only search for a path starting at a -(E*)->,
+	 * we achieve this by setting the initial node's ->only_xr to true in
+	 * that case. And if <prev> is S, we set initial ->only_xr to false
+	 * because both -(S*)-> (equal) and -(E*)-> (stronger) are redundant.
+	 */
+	src_entry.only_xr = src->read == 0;
+
+	debug_atomic_inc(nr_redundant_checks);
+
+	ret = check_path(target, &src_entry, hlock_equal, NULL, &target_entry);
+
+	if (ret == BFS_RMATCH)
+		debug_atomic_inc(nr_redundant);
+
+	return ret;
+}
+
+#else
+
+static inline enum bfs_result
+check_redundant(struct held_lock *src, struct held_lock *target)
+{
+	return BFS_RNOMATCH;
+}
+
+#endif
+
 static void inc_chains(int irq_context)
 {
 	if (irq_context & LOCK_CHAIN_HARDIRQ_CONTEXT)
@@ -2926,7 +2935,6 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 		}
 	}
 
-#ifdef CONFIG_LOCKDEP_SMALL
 	/*
 	 * Is the <prev> -> <next> link redundant?
 	 */
@@ -2935,7 +2943,6 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 		return 0;
 	else if (ret == BFS_RMATCH)
 		return 2;
-#endif
 
 	if (!*trace) {
 		*trace = save_trace();
