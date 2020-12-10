@@ -18,9 +18,9 @@
 #include "cifs_debug.h"
 #include "cifs_unicode.h"
 #include "smb2glob.h"
+#include "fs_context.h"
 
 #include "dfs_cache.h"
-#include "fs_context.h"
 
 #define CACHE_HTABLE_SIZE 32
 #define CACHE_MAX_ENTRIES 64
@@ -1142,14 +1142,14 @@ out_unlock:
 }
 
 /**
- * dfs_cache_add_vol - add a cifs volume during mount() that will be handled by
+ * dfs_cache_add_vol - add a cifs context during mount() that will be handled by
  * DFS cache refresh worker.
  *
  * @mntdata: mount data.
  * @ctx: cifs context.
  * @fullpath: origin full path.
  *
- * Return zero if volume was set up correctly, otherwise non-zero.
+ * Return zero if context was set up correctly, otherwise non-zero.
  */
 int dfs_cache_add_vol(char *mntdata, struct smb3_fs_context *ctx, const char *fullpath)
 {
@@ -1453,7 +1453,7 @@ static struct cifs_ses *find_root_ses(struct vol_info *vi,
 		goto out;
 	}
 
-	rc = cifs_setup_volume_info(&ctx, mdata, devname, false);
+	rc = cifs_setup_volume_info(&ctx);
 	kfree(devname);
 
 	if (rc) {

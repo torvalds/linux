@@ -275,6 +275,10 @@ static struct vfsmount *cifs_dfs_do_mount(struct dentry *mntpt,
 
 	convert_delimiter(devname, '/');
 
+	/* TODO: change to call fs_context_for_mount(), fill in context directly, call fc_mount */
+
+	/* See afs_mntpt_do_automount in fs/afs/mntpt.c for an example */
+
 	/* strip first '\' from fullpath */
 	mountdata = cifs_compose_mount_options(cifs_sb->mountdata,
 					       fullpath + 1, NULL, NULL);

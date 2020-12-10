@@ -195,7 +195,7 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 	 * We need to setup at least the fields used for negprot and
 	 * sesssetup.
 	 *
-	 * We only need the volume here, so we can reuse memory from
+	 * We only need the ctx here, so we can reuse memory from
 	 * the session and server without caring about memory
 	 * management.
 	 */
