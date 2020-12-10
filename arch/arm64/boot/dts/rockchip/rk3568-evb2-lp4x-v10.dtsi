@@ -284,6 +284,10 @@
 	};
 };
 
+&pmu_io_domains {
+	vccio6-supply = <&vcc_3v3>;
+};
+
 &pwm3 {
 	status = "okay";
 
