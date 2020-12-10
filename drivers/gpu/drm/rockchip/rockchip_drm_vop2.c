@@ -507,36 +507,6 @@ static const struct drm_bus_format_enum_list drm_bus_format_enum_list[] = {
 
 static DRM_ENUM_NAME_FN(drm_get_bus_format_name, drm_bus_format_enum_list)
 
-/*
- * VOP2 architecture
- *
- +----------+   +-------------+
- |  Cluster |   | Sel 1 from 6
- |  window0 |   |    Layer0   |              +---------------+    +-------------+    +-----------+
- +----------+   +-------------+              |N from 6 layers|    |             |    | 1 from 3  |
- +----------+   +-------------+              |   Overlay0    |    | Video Port0 |    |    RGB    |
- |  Cluster |   | Sel 1 from 6|              |               |    |             |    +-----------+
- |  window1 |   |    Layer1   |              +---------------+    +-------------+
- +----------+   +-------------+                                                      +-----------+
- +----------+   +-------------+                               +-->                   | 1 from 3  |
- |  Esmart  |   | Sel 1 from 6|              +---------------+    +-------------+    |   LVDS    |
- |  window0 |   |   Layer2    |              |N from 6 Layers     |             |    +-----------+
- +----------+   +-------------+              |   Overlay1    +    | Video Port1 | +--->
- +----------+   +-------------+   -------->  |               |    |             |    +-----------+
- |  Esmart  |   | Sel 1 from 6|   -------->  +---------------+    +-------------+    | 1 from 3  |
- |  Window1 |   |   Layer3    |                               +-->                   |   MIPI    |
- +----------+   +-------------+                                                      +-----------+
- +----------+   +-------------+              +---------------+    +-------------+
- |  Smart   |   | Sel 1 from 6|              |N from 6 Layers|    |             |    +-----------+
- |  Window0 |   |    Layer4   |              |   Overlay2    |    | Video Port2 |    | 1 from 3  |
- +----------+   +-------------+              |               |    |             |    |   HDMI    |
- +----------+   +-------------+              +---------------+    +-------------+    +-----------+
- |  Smart   |   | Sel 1 from 6|                                                      +-----------+
- |  Window1 |   |    Layer5   |                                                      |  1 from 3 |
- +----------+   +-------------+                                                      |    eDP    |
- *                                                                                   +-----------+
- *
- */
 static void vop2_lock(struct vop2 *vop2)
 {
 	mutex_lock(&vop2->vop2_lock);
@@ -1965,16 +1935,79 @@ err:
 	return ret;
 }
 
+/*
+ * VOP2 architecture
+ *
+ +----------+   +-------------+
+ |  Cluster |   | Sel 1 from 6
+ |  window0 |   |    Layer0   |              +---------------+    +-------------+    +-----------+
+ +----------+   +-------------+              |N from 6 layers|    |             |    | 1 from 3  |
+ +----------+   +-------------+              |   Overlay0    |    | Video Port0 |    |    RGB    |
+ |  Cluster |   | Sel 1 from 6|              |               |    |             |    +-----------+
+ |  window1 |   |    Layer1   |              +---------------+    +-------------+
+ +----------+   +-------------+                                                      +-----------+
+ +----------+   +-------------+                               +-->                   | 1 from 3  |
+ |  Esmart  |   | Sel 1 from 6|              +---------------+    +-------------+    |   LVDS    |
+ |  window0 |   |   Layer2    |              |N from 6 Layers     |             |    +-----------+
+ +----------+   +-------------+              |   Overlay1    +    | Video Port1 | +--->
+ +----------+   +-------------+   -------->  |               |    |             |    +-----------+
+ |  Esmart  |   | Sel 1 from 6|   -------->  +---------------+    +-------------+    | 1 from 3  |
+ |  Window1 |   |   Layer3    |                               +-->                   |   MIPI    |
+ +----------+   +-------------+                                                      +-----------+
+ +----------+   +-------------+              +---------------+    +-------------+
+ |  Smart   |   | Sel 1 from 6|              |N from 6 Layers|    |             |    +-----------+
+ |  Window0 |   |    Layer4   |              |   Overlay2    |    | Video Port2 |    | 1 from 3  |
+ +----------+   +-------------+              |               |    |             |    |   HDMI    |
+ +----------+   +-------------+              +---------------+    +-------------+    +-----------+
+ |  Smart   |   | Sel 1 from 6|                                                      +-----------+
+ |  Window1 |   |    Layer5   |                                                      |  1 from 3 |
+ +----------+   +-------------+                                                      |    eDP    |
+ *                                                                                   +-----------+
+ */
 static void vop2_layer_map_initial(struct vop2 *vop2)
 {
 	const struct vop2_data *vop2_data = vop2->data;
 	struct vop2_layer *layer = &vop2->layers[0];
+	struct vop2_video_port *vp = &vop2->vps[0];
 	struct vop2_win *win;
 	const struct vop2_win_data *win_data = NULL;
+	uint32_t used_layers = 0;
 	uint32_t layer_map, sel;
+	uint32_t win_map, vp_id;
+	uint32_t port_mux;
+	uint32_t shift;
 	int i, j;
 
 	layer_map = vop2_readl(vop2, layer->regs->layer_sel.offset);
+	win_map = vop2_readl(vop2, vp->regs->port_mux.offset);
+
+	for (i = 0; i < vop2->data->nr_vps; i++) {
+		vp = &vop2->vps[i];
+		for (j = 0; j < vop2_data->nr_layers; j++) {
+			win = vop2_find_win_by_phys_id(vop2, j);
+			shift = vop2->data->ctrl->win_vp_id[j].shift;
+			vp_id = (win_map >> shift) & 0x3;
+			if (vp_id == i) {
+				vp->win_mask |=  BIT(j);
+				win->vp_mask = BIT(vp_id);
+			}
+		}
+	}
+
+	/*
+	 * The last Video Port(VP2 for RK3568, VP3 for RK3588) is fixed
+	 * at the last level of the all the mixers by hardware design,
+	 * so we just need to handle (nr_vps - 1) vps here.
+	 */
+	for (i = 0; i < vop2->data->nr_vps - 1; i++) {
+		vp = &vop2->vps[i];
+		used_layers += hweight32(vp->win_mask);
+		if (used_layers == 0)
+			port_mux = 8;
+		else
+			port_mux = used_layers - 1;
+		VOP_MODULE_SET(vop2, vp, port_mux, port_mux);
+	}
 
 	for (i = 0; i < vop2->data->nr_layers; i++) {
 		sel = (layer_map >> (4 * i)) & 0xf;
@@ -2004,8 +2037,6 @@ static void vop2_initial(struct drm_crtc *crtc)
 	int ret;
 
 	if (vop2->enable_count == 0) {
-		struct vop2_video_port *port;
-		int i;
 
 		ret = pm_runtime_get_sync(vop2->dev);
 		if (ret < 0) {
@@ -2038,15 +2069,6 @@ static void vop2_initial(struct drm_crtc *crtc)
 		 * immediately.
 		 */
 		VOP_CTRL_SET(vop2, if_ctrl_cfg_done_imd, 1);
-		/*
-		 * Default set all layers to the last Video Port, it will
-		 * make things easier when we do layer/port mux independently
-		 * for each crtc.
-		 */
-		for (i = 0; i < vop2->data->nr_vps - 1; i++) {
-			port = &vop2->vps[i];
-			VOP_MODULE_SET(vop2, port, port_mux, 8);
-		}
 
 		vop2_layer_map_initial(vop2);
 
