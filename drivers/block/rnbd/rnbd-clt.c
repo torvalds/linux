@@ -349,12 +349,19 @@ static struct rnbd_iu *rnbd_get_iu(struct rnbd_clt_session *sess,
 	struct rnbd_iu *iu;
 	struct rtrs_permit *permit;
 
+	iu = kzalloc(sizeof(*iu), GFP_KERNEL);
+	if (!iu) {
+		return NULL;
+	}
+
 	permit = rnbd_get_permit(sess, con_type,
 				  wait ? RTRS_PERMIT_WAIT :
 				  RTRS_PERMIT_NOWAIT);
-	if (unlikely(!permit))
+	if (unlikely(!permit)) {
+		kfree(iu);
 		return NULL;
-	iu = rtrs_permit_to_pdu(permit);
+	}
+
 	iu->permit = permit;
 	/*
 	 * 1st reference is dropped after finishing sending a "user" message,
@@ -373,8 +380,10 @@ static struct rnbd_iu *rnbd_get_iu(struct rnbd_clt_session *sess,
 
 static void rnbd_put_iu(struct rnbd_clt_session *sess, struct rnbd_iu *iu)
 {
-	if (atomic_dec_and_test(&iu->refcount))
+	if (atomic_dec_and_test(&iu->refcount)) {
 		rnbd_put_permit(sess, iu->permit);
+		kfree(iu);
+	}
 }
 
 static void rnbd_softirq_done_fn(struct request *rq)
@@ -1218,7 +1227,7 @@ find_and_get_or_create_sess(const char *sessname,
 	 */
 	sess->rtrs = rtrs_clt_open(&rtrs_ops, sessname,
 				   paths, path_cnt, port_nr,
-				   sizeof(struct rnbd_iu),
+				   0, /* Do not use pdu of rtrs */
 				   RECONNECT_DELAY, BMAX_SEGMENTS,
 				   BLK_MAX_SEGMENT_SIZE,
 				   MAX_RECONNECTS);
