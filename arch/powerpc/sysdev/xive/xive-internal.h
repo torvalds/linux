@@ -52,7 +52,6 @@ struct xive_ops {
 	void	(*shutdown)(void);
 
 	void	(*update_pending)(struct xive_cpu *xc);
-	void	(*eoi)(u32 hw_irq);
 	void	(*sync_source)(u32 hw_irq);
 	u64	(*esb_rw)(u32 hw_irq, u32 offset, u64 data, bool write);
 #ifdef CONFIG_SMP

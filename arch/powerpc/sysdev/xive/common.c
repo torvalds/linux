@@ -354,18 +354,7 @@ static void xive_do_source_eoi(u32 hw_irq, struct xive_irq_data *xd)
 	/* If the XIVE supports the new "store EOI facility, use it */
 	if (xd->flags & XIVE_IRQ_FLAG_STORE_EOI)
 		xive_esb_write(xd, XIVE_ESB_STORE_EOI, 0);
-	else if (hw_irq && xd->flags & XIVE_IRQ_FLAG_EOI_FW) {
-		/*
-		 * The FW told us to call it. This happens for some
-		 * interrupt sources that need additional HW whacking
-		 * beyond the ESB manipulation. For example LPC interrupts
-		 * on P9 DD1.0 needed a latch to be clared in the LPC bridge
-		 * itself. The Firmware will take care of it.
-		 */
-		if (WARN_ON_ONCE(!xive_ops->eoi))
-			return;
-		xive_ops->eoi(hw_irq);
-	} else {
+	else {
 		u8 eoi_val;
 
 		/*
@@ -1267,7 +1256,6 @@ static const struct {
 } xive_irq_flags[] = {
 	{ XIVE_IRQ_FLAG_STORE_EOI, "STORE_EOI" },
 	{ XIVE_IRQ_FLAG_LSI,       "LSI"       },
-	{ XIVE_IRQ_FLAG_EOI_FW,    "EOI_FW"    },
 	{ XIVE_IRQ_FLAG_H_INT_ESB, "H_INT_ESB" },
 	{ XIVE_IRQ_FLAG_NO_EOI,    "NO_EOI"    },
 };

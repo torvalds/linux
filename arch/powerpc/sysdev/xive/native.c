@@ -64,8 +64,6 @@ int xive_native_populate_irq_data(u32 hw_irq, struct xive_irq_data *data)
 		data->flags |= XIVE_IRQ_FLAG_STORE_EOI;
 	if (opal_flags & OPAL_XIVE_IRQ_LSI)
 		data->flags |= XIVE_IRQ_FLAG_LSI;
-	if (opal_flags & OPAL_XIVE_IRQ_EOI_VIA_FW)
-		data->flags |= XIVE_IRQ_FLAG_EOI_FW;
 	data->eoi_page = be64_to_cpu(eoi_page);
 	data->trig_page = be64_to_cpu(trig_page);
 	data->esb_shift = be32_to_cpu(esb_shift);
@@ -380,15 +378,6 @@ static void xive_native_update_pending(struct xive_cpu *xc)
 	}
 }
 
-static void xive_native_eoi(u32 hw_irq)
-{
-	/*
-	 * Not normally used except if specific interrupts need
-	 * a workaround on EOI.
-	 */
-	opal_int_eoi(hw_irq);
-}
-
 static void xive_native_setup_cpu(unsigned int cpu, struct xive_cpu *xc)
 {
 	s64 rc;
@@ -471,7 +460,6 @@ static const struct xive_ops xive_native_ops = {
 	.match			= xive_native_match,
 	.shutdown		= xive_native_shutdown,
 	.update_pending		= xive_native_update_pending,
-	.eoi			= xive_native_eoi,
 	.setup_cpu		= xive_native_setup_cpu,
 	.teardown_cpu		= xive_native_teardown_cpu,
 	.sync_source		= xive_native_sync_source,
