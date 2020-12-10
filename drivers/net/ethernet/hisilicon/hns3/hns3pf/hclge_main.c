@@ -10699,7 +10699,7 @@ static u32 hclge_get_max_channels(struct hnae3_handle *handle)
 	struct hclge_dev *hdev = vport->back;
 
 	return min_t(u32, hdev->rss_size_max,
-		     vport->alloc_tqps / kinfo->num_tc);
+		     vport->alloc_tqps / kinfo->tc_info.num_tc);
 }
 
 static void hclge_get_channels(struct hnae3_handle *handle,
@@ -10786,7 +10786,7 @@ out:
 		dev_info(&hdev->pdev->dev,
 			 "Channels changed, rss_size from %u to %u, tqps from %u to %u",
 			 cur_rss_size, kinfo->rss_size,
-			 cur_tqps, kinfo->rss_size * kinfo->num_tc);
+			 cur_tqps, kinfo->rss_size * kinfo->tc_info.num_tc);
 
 	return ret;
 }
