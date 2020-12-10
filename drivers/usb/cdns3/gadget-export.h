@@ -13,15 +13,12 @@
 #ifdef CONFIG_USB_CDNS3_GADGET
 
 int cdns3_gadget_init(struct cdns3 *cdns);
-void cdns3_gadget_exit(struct cdns3 *cdns);
 #else
 
 static inline int cdns3_gadget_init(struct cdns3 *cdns)
 {
 	return -ENXIO;
 }
-
-static inline void cdns3_gadget_exit(struct cdns3 *cdns) { }
 
 #endif
 
