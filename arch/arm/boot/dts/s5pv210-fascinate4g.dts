@@ -115,7 +115,7 @@
 	compatible = "maxim,max77836-battery";
 
 	interrupt-parent = <&gph3>;
-	interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+	interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&fg_irq>;
