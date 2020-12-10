@@ -414,7 +414,7 @@ static void hclge_get_vf_tcinfo(struct hclge_vport *vport,
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
 	unsigned int i;
 
-	for (i = 0; i < kinfo->num_tc; i++)
+	for (i = 0; i < kinfo->tc_info.num_tc; i++)
 		resp_msg->data[0] |= BIT(i);
 
 	resp_msg->len = sizeof(u8);

@@ -1454,7 +1454,7 @@ static void hclge_dbg_dump_qs_shaper_all(struct hclge_dev *hdev)
 
 		dev_info(&hdev->pdev->dev, "qs cfg of vport%d:\n", vport_id);
 
-		for (i = 0; i < kinfo->num_tc; i++) {
+		for (i = 0; i < kinfo->tc_info.num_tc; i++) {
 			u16 qsid = vport->qs_offset + i;
 
 			hclge_dbg_dump_qs_shaper_single(hdev, qsid);

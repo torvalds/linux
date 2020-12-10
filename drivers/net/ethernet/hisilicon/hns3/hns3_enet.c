@@ -323,13 +323,14 @@ static int hns3_nic_set_real_num_queue(struct net_device *netdev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	struct hnae3_knic_private_info *kinfo = &h->kinfo;
-	unsigned int queue_size = kinfo->rss_size * kinfo->num_tc;
+	struct hnae3_tc_info *tc_info = &kinfo->tc_info;
+	unsigned int queue_size = kinfo->num_tqps;
 	int i, ret;
 
-	if (kinfo->num_tc <= 1) {
+	if (tc_info->num_tc <= 1 && !tc_info->mqprio_active) {
 		netdev_reset_tc(netdev);
 	} else {
-		ret = netdev_set_num_tc(netdev, kinfo->num_tc);
+		ret = netdev_set_num_tc(netdev, tc_info->num_tc);
 		if (ret) {
 			netdev_err(netdev,
 				   "netdev_set_num_tc fail, ret=%d!\n", ret);
@@ -337,13 +338,11 @@ static int hns3_nic_set_real_num_queue(struct net_device *netdev)
 		}
 
 		for (i = 0; i < HNAE3_MAX_TC; i++) {
-			if (!kinfo->tc_info[i].enable)
+			if (!test_bit(i, &tc_info->tc_en))
 				continue;
 
-			netdev_set_tc_queue(netdev,
-					    kinfo->tc_info[i].tc,
-					    kinfo->tc_info[i].tqp_count,
-					    kinfo->tc_info[i].tqp_offset);
+			netdev_set_tc_queue(netdev, i, tc_info->tqp_count[i],
+					    tc_info->tqp_offset[i]);
 		}
 	}
 
@@ -369,7 +368,7 @@ static u16 hns3_get_max_available_channels(struct hnae3_handle *h)
 	u16 alloc_tqps, max_rss_size, rss_size;
 
 	h->ae_algo->ops->get_tqps_and_rss_info(h, &alloc_tqps, &max_rss_size);
-	rss_size = alloc_tqps / h->kinfo.num_tc;
+	rss_size = alloc_tqps / h->kinfo.tc_info.num_tc;
 
 	return min_t(u16, rss_size, max_rss_size);
 }
@@ -508,7 +507,7 @@ static int hns3_nic_net_open(struct net_device *netdev)
 
 	kinfo = &h->kinfo;
 	for (i = 0; i < HNAE3_MAX_USER_PRIO; i++)
-		netdev_set_prio_tc_map(netdev, i, kinfo->prio_tc[i]);
+		netdev_set_prio_tc_map(netdev, i, kinfo->tc_info.prio_tc[i]);
 
 	if (h->ae_algo->ops->set_timer_task)
 		h->ae_algo->ops->set_timer_task(priv->ae_handle, true);
@@ -1669,6 +1668,13 @@ static int hns3_nic_set_features(struct net_device *netdev,
 		h->ae_algo->ops->enable_fd(h, enable);
 	}
 
+	if ((netdev->features & NETIF_F_HW_TC) > (features & NETIF_F_HW_TC) &&
+	    h->ae_algo->ops->cls_flower_active(h)) {
+		netdev_err(netdev,
+			   "there are offloaded TC filters active, cannot disable HW TC offload");
+		return -EINVAL;
+	}
+
 	netdev->features = features;
 	return 0;
 }
@@ -1794,7 +1800,6 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 {
 	struct tc_mqprio_qopt_offload *mqprio_qopt = type_data;
-	u8 *prio_tc = mqprio_qopt->qopt.prio_tc_map;
 	struct hnae3_knic_private_info *kinfo;
 	u8 tc = mqprio_qopt->qopt.num_tc;
 	u16 mode = mqprio_qopt->mode;
@@ -1817,16 +1822,70 @@ static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 	netif_dbg(h, drv, netdev, "setup tc: num_tc=%u\n", tc);
 
 	return (kinfo->dcb_ops && kinfo->dcb_ops->setup_tc) ?
-		kinfo->dcb_ops->setup_tc(h, tc ? tc : 1, prio_tc) : -EOPNOTSUPP;
+		kinfo->dcb_ops->setup_tc(h, mqprio_qopt) : -EOPNOTSUPP;
 }
+
+static int hns3_setup_tc_cls_flower(struct hns3_nic_priv *priv,
+				    struct flow_cls_offload *flow)
+{
+	int tc = tc_classid_to_hwtc(priv->netdev, flow->classid);
+	struct hnae3_handle *h = hns3_get_handle(priv->netdev);
+
+	switch (flow->command) {
+	case FLOW_CLS_REPLACE:
+		if (h->ae_algo->ops->add_cls_flower)
+			return h->ae_algo->ops->add_cls_flower(h, flow, tc);
+		break;
+	case FLOW_CLS_DESTROY:
+		if (h->ae_algo->ops->del_cls_flower)
+			return h->ae_algo->ops->del_cls_flower(h, flow);
+		break;
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static int hns3_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
+				  void *cb_priv)
+{
+	struct hns3_nic_priv *priv = cb_priv;
+
+	if (!tc_cls_can_offload_and_chain0(priv->netdev, type_data))
+		return -EOPNOTSUPP;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return hns3_setup_tc_cls_flower(priv, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static LIST_HEAD(hns3_block_cb_list);
 
 static int hns3_nic_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			     void *type_data)
 {
-	if (type != TC_SETUP_QDISC_MQPRIO)
-		return -EOPNOTSUPP;
+	struct hns3_nic_priv *priv = netdev_priv(dev);
+	int ret;
 
-	return hns3_setup_tc(dev, type_data);
+	switch (type) {
+	case TC_SETUP_QDISC_MQPRIO:
+		ret = hns3_setup_tc(dev, type_data);
+		break;
+	case TC_SETUP_BLOCK:
+		ret = flow_block_cb_setup_simple(type_data,
+						 &hns3_block_cb_list,
+						 hns3_setup_tc_block_cb,
+						 priv, priv, true);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return ret;
 }
 
 static int hns3_vlan_rx_add_vid(struct net_device *netdev,
@@ -2422,6 +2481,11 @@ static void hns3_set_default_feature(struct net_device *netdev)
 		netdev->features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
 		netdev->vlan_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
 		netdev->hw_enc_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
+	}
+
+	if (test_bit(HNAE3_DEV_SUPPORT_FD_FORWARD_TC_B, ae_dev->caps)) {
+		netdev->hw_features |= NETIF_F_HW_TC;
+		netdev->features |= NETIF_F_HW_TC;
 	}
 }
 
@@ -3980,21 +4044,20 @@ static void hns3_init_ring_hw(struct hns3_enet_ring *ring)
 static void hns3_init_tx_ring_tc(struct hns3_nic_priv *priv)
 {
 	struct hnae3_knic_private_info *kinfo = &priv->ae_handle->kinfo;
+	struct hnae3_tc_info *tc_info = &kinfo->tc_info;
 	int i;
 
 	for (i = 0; i < HNAE3_MAX_TC; i++) {
-		struct hnae3_tc_info *tc_info = &kinfo->tc_info[i];
 		int j;
 
-		if (!tc_info->enable)
+		if (!test_bit(i, &tc_info->tc_en))
 			continue;
 
-		for (j = 0; j < tc_info->tqp_count; j++) {
+		for (j = 0; j < tc_info->tqp_count[i]; j++) {
 			struct hnae3_queue *q;
 
-			q = priv->ring[tc_info->tqp_offset + j].tqp;
-			hns3_write_dev(q, HNS3_RING_TX_RING_TC_REG,
-				       tc_info->tc);
+			q = priv->ring[tc_info->tqp_offset[i] + j].tqp;
+			hns3_write_dev(q, HNS3_RING_TX_RING_TC_REG, i);
 		}
 	}
 }
@@ -4121,7 +4184,8 @@ static void hns3_info_show(struct hns3_nic_priv *priv)
 	dev_info(priv->dev, "RX buffer length: %u\n", kinfo->rx_buf_len);
 	dev_info(priv->dev, "Desc num per TX queue: %u\n", kinfo->num_tx_desc);
 	dev_info(priv->dev, "Desc num per RX queue: %u\n", kinfo->num_rx_desc);
-	dev_info(priv->dev, "Total number of enabled TCs: %u\n", kinfo->num_tc);
+	dev_info(priv->dev, "Total number of enabled TCs: %u\n",
+		 kinfo->tc_info.num_tc);
 	dev_info(priv->dev, "Max mtu size: %u\n", priv->netdev->max_mtu);
 }
 
@@ -4691,6 +4755,12 @@ int hns3_set_channels(struct net_device *netdev,
 
 	if (ch->rx_count || ch->tx_count)
 		return -EINVAL;
+
+	if (kinfo->tc_info.mqprio_active) {
+		dev_err(&netdev->dev,
+			"it's not allowed to set channels via ethtool when MQPRIO mode is on\n");
+		return -EINVAL;
+	}
 
 	if (new_tqp_num > hns3_get_max_available_channels(h) ||
 	    new_tqp_num < 1) {

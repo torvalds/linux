@@ -348,7 +348,8 @@ struct hclge_cfg {
 	u8 tc_num;
 	u16 tqp_desc_num;
 	u16 rx_buf_len;
-	u16 rss_size_max;
+	u16 vf_rss_size_max;
+	u16 pf_rss_size_max;
 	u8 phy_addr;
 	u8 media_type;
 	u8 mac_addr[ETH_ALEN];
@@ -564,6 +565,7 @@ enum HCLGE_FD_ACTIVE_RULE_TYPE {
 	HCLGE_FD_RULE_NONE,
 	HCLGE_FD_ARFS_ACTIVE,
 	HCLGE_FD_EP_ACTIVE,
+	HCLGE_FD_TC_FLOWER_ACTIVE,
 };
 
 enum HCLGE_FD_PACKET_TYPE {
@@ -572,8 +574,9 @@ enum HCLGE_FD_PACKET_TYPE {
 };
 
 enum HCLGE_FD_ACTION {
-	HCLGE_FD_ACTION_ACCEPT_PACKET,
+	HCLGE_FD_ACTION_SELECT_QUEUE,
 	HCLGE_FD_ACTION_DROP_PACKET,
+	HCLGE_FD_ACTION_SELECT_TC,
 };
 
 struct hclge_fd_key_cfg {
@@ -618,12 +621,20 @@ struct hclge_fd_rule {
 	struct hclge_fd_rule_tuples tuples_mask;
 	u32 unused_tuple;
 	u32 flow_type;
-	u8 action;
-	u16 vf_id;
+	union {
+		struct {
+			unsigned long cookie;
+			u8 tc;
+		} cls_flower;
+		struct {
+			u16 flow_id; /* only used for arfs */
+		} arfs;
+	};
 	u16 queue_id;
+	u16 vf_id;
 	u16 location;
-	u16 flow_id;	/* only used for arfs */
 	enum HCLGE_FD_ACTIVE_RULE_TYPE rule_type;
+	u8 action;
 };
 
 struct hclge_fd_ad_data {
@@ -637,6 +648,8 @@ struct hclge_fd_ad_data {
 	u8 write_rule_id_to_bd;
 	u8 next_input_key;
 	u16 rule_id;
+	u16 tc_size;
+	u8 override_tc;
 };
 
 enum HCLGE_MAC_NODE_STATE {
@@ -745,7 +758,8 @@ struct hclge_dev {
 
 	u16 base_tqp_pid;	/* Base task tqp physical id of this PF */
 	u16 alloc_rss_size;		/* Allocated RSS task queue */
-	u16 rss_size_max;		/* HW defined max RSS task queue */
+	u16 vf_rss_size_max;		/* HW defined VF max RSS task queue */
+	u16 pf_rss_size_max;		/* HW defined PF max RSS task queue */
 
 	u16 fdir_pf_filter_count; /* Num of guaranteed filters for this PF */
 	u16 num_alloc_vport;		/* Num vports this driver supports */
@@ -906,7 +920,7 @@ struct hclge_vport {
 
 	u8  rss_hash_key[HCLGE_RSS_KEY_SIZE]; /* User configured hash keys */
 	/* User configured lookup table entries */
-	u8  rss_indirection_tbl[HCLGE_RSS_IND_TBL_SIZE];
+	u16 rss_indirection_tbl[HCLGE_RSS_IND_TBL_SIZE];
 	int rss_algo;		/* User configured hash algorithm */
 	/* User configured rss tuple sets */
 	struct hclge_rss_tuple_cfg rss_tuple_sets;

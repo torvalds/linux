@@ -518,6 +518,8 @@ struct hclge_pf_res_cmd {
 #define HCLGE_CFG_SPEED_ABILITY_EXT_M	GENMASK(15, 10)
 #define HCLGE_CFG_UMV_TBL_SPACE_S	16
 #define HCLGE_CFG_UMV_TBL_SPACE_M	GENMASK(31, 16)
+#define HCLGE_CFG_PF_RSS_SIZE_S		0
+#define HCLGE_CFG_PF_RSS_SIZE_M		GENMASK(3, 0)
 
 #define HCLGE_CFG_CMD_CNT		4
 
@@ -558,18 +560,23 @@ struct hclge_rss_input_tuple_cmd {
 };
 
 #define HCLGE_RSS_CFG_TBL_SIZE	16
+#define HCLGE_RSS_CFG_TBL_SIZE_H	4
+#define HCLGE_RSS_CFG_TBL_BW_H		2U
+#define HCLGE_RSS_CFG_TBL_BW_L		8U
 
 struct hclge_rss_indirection_table_cmd {
 	__le16 start_table_index;
 	__le16 rss_set_bitmap;
-	u8 rsv[4];
-	u8 rss_result[HCLGE_RSS_CFG_TBL_SIZE];
+	u8 rss_qid_h[HCLGE_RSS_CFG_TBL_SIZE_H];
+	u8 rss_qid_l[HCLGE_RSS_CFG_TBL_SIZE];
 };
 
 #define HCLGE_RSS_TC_OFFSET_S		0
-#define HCLGE_RSS_TC_OFFSET_M		GENMASK(9, 0)
+#define HCLGE_RSS_TC_OFFSET_M		GENMASK(10, 0)
+#define HCLGE_RSS_TC_SIZE_MSB_B		11
 #define HCLGE_RSS_TC_SIZE_S		12
 #define HCLGE_RSS_TC_SIZE_M		GENMASK(14, 12)
+#define HCLGE_RSS_TC_SIZE_MSB_OFFSET	3
 #define HCLGE_RSS_TC_VALID_B		15
 struct hclge_rss_tc_mode_cmd {
 	__le16 rss_tc_mode[HCLGE_MAX_TC_NUM];
@@ -1051,6 +1058,9 @@ struct hclge_fd_tcam_config_3_cmd {
 #define HCLGE_FD_AD_WR_RULE_ID_B	0
 #define HCLGE_FD_AD_RULE_ID_S		1
 #define HCLGE_FD_AD_RULE_ID_M		GENMASK(13, 1)
+#define HCLGE_FD_AD_TC_OVRD_B		16
+#define HCLGE_FD_AD_TC_SIZE_S		17
+#define HCLGE_FD_AD_TC_SIZE_M		GENMASK(20, 17)
 
 struct hclge_fd_ad_config_cmd {
 	u8 stage;

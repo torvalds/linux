@@ -29,7 +29,9 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
+#include <linux/pkt_sched.h>
 #include <linux/types.h>
+#include <net/pkt_cls.h>
 
 #define HNAE3_MOD_VERSION "1.0"
 
@@ -457,6 +459,12 @@ struct hnae3_ae_dev {
  *   Configure the default MAC for specified VF
  * get_module_eeprom
  *   Get the optical module eeprom info.
+ * add_cls_flower
+ *   Add clsflower rule
+ * del_cls_flower
+ *   Delete clsflower rule
+ * cls_flower_active
+ *   Check if any cls flower rule exist
  */
 struct hnae3_ae_ops {
 	int (*init_ae_dev)(struct hnae3_ae_dev *ae_dev);
@@ -634,6 +642,11 @@ struct hnae3_ae_ops {
 	int (*get_module_eeprom)(struct hnae3_handle *handle, u32 offset,
 				 u32 len, u8 *data);
 	bool (*get_cmdq_stat)(struct hnae3_handle *handle);
+	int (*add_cls_flower)(struct hnae3_handle *handle,
+			      struct flow_cls_offload *cls_flower, int tc);
+	int (*del_cls_flower)(struct hnae3_handle *handle,
+			      struct flow_cls_offload *cls_flower);
+	bool (*cls_flower_active)(struct hnae3_handle *handle);
 };
 
 struct hnae3_dcb_ops {
@@ -647,7 +660,8 @@ struct hnae3_dcb_ops {
 	u8   (*getdcbx)(struct hnae3_handle *);
 	u8   (*setdcbx)(struct hnae3_handle *, u8);
 
-	int (*setup_tc)(struct hnae3_handle *, u8, u8 *);
+	int (*setup_tc)(struct hnae3_handle *handle,
+			struct tc_mqprio_qopt_offload *mqprio_qopt);
 };
 
 struct hnae3_ae_algo {
@@ -659,15 +673,17 @@ struct hnae3_ae_algo {
 #define HNAE3_INT_NAME_LEN        32
 #define HNAE3_ITR_COUNTDOWN_START 100
 
-struct hnae3_tc_info {
-	u16	tqp_offset;	/* TQP offset from base TQP */
-	u16	tqp_count;	/* Total TQPs */
-	u8	tc;		/* TC index */
-	bool	enable;		/* If this TC is enable or not */
-};
-
 #define HNAE3_MAX_TC		8
 #define HNAE3_MAX_USER_PRIO	8
+struct hnae3_tc_info {
+	u8 prio_tc[HNAE3_MAX_USER_PRIO]; /* TC indexed by prio */
+	u16 tqp_count[HNAE3_MAX_TC];
+	u16 tqp_offset[HNAE3_MAX_TC];
+	unsigned long tc_en; /* bitmap of TC enabled */
+	u8 num_tc; /* Total number of enabled TCs */
+	bool mqprio_active;
+};
+
 struct hnae3_knic_private_info {
 	struct net_device *netdev; /* Set by KNIC client when init instance */
 	u16 rss_size;		   /* Allocated RSS queues */
@@ -676,9 +692,7 @@ struct hnae3_knic_private_info {
 	u16 num_tx_desc;
 	u16 num_rx_desc;
 
-	u8 num_tc;		   /* Total number of enabled TCs */
-	u8 prio_tc[HNAE3_MAX_USER_PRIO];  /* TC indexed by prio */
-	struct hnae3_tc_info tc_info[HNAE3_MAX_TC]; /* Idx of array is HW TC */
+	struct hnae3_tc_info tc_info;
 
 	u16 num_tqps;		  /* total number of TQPs in this handle */
 	struct hnae3_queue **tqp;  /* array base of all TQPs in this instance */

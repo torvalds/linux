@@ -359,6 +359,8 @@ static void hclge_parse_capability(struct hclge_dev *hdev,
 		set_bit(HNAE3_DEV_SUPPORT_HW_TX_CSUM_B, ae_dev->caps);
 	if (hnae3_get_bit(caps, HCLGE_CAP_UDP_TUNNEL_CSUM_B))
 		set_bit(HNAE3_DEV_SUPPORT_UDP_TUNNEL_CSUM_B, ae_dev->caps);
+	if (hnae3_get_bit(caps, HCLGE_CAP_FD_FORWARD_TC_B))
+		set_bit(HNAE3_DEV_SUPPORT_FD_FORWARD_TC_B, ae_dev->caps);
 }
 
 static enum hclge_cmd_status
