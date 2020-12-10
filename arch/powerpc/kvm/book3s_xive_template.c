@@ -61,9 +61,6 @@ static u8 GLUE(X_PFX,esb_load)(struct xive_irq_data *xd, u32 offset)
 	if (offset == XIVE_ESB_SET_PQ_10 && xd->flags & XIVE_IRQ_FLAG_STORE_EOI)
 		offset |= XIVE_ESB_LD_ST_MO;
 
-	if (xd->flags & XIVE_IRQ_FLAG_SHIFT_BUG)
-		offset |= offset << 4;
-
 	val =__x_readq(__x_eoi_page(xd) + offset);
 #ifdef __LITTLE_ENDIAN__
 	val >>= 64-8;

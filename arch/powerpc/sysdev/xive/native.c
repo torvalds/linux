@@ -64,8 +64,6 @@ int xive_native_populate_irq_data(u32 hw_irq, struct xive_irq_data *data)
 		data->flags |= XIVE_IRQ_FLAG_STORE_EOI;
 	if (opal_flags & OPAL_XIVE_IRQ_LSI)
 		data->flags |= XIVE_IRQ_FLAG_LSI;
-	if (opal_flags & OPAL_XIVE_IRQ_SHIFT_BUG)
-		data->flags |= XIVE_IRQ_FLAG_SHIFT_BUG;
 	if (opal_flags & OPAL_XIVE_IRQ_MASK_VIA_FW)
 		data->flags |= XIVE_IRQ_FLAG_MASK_FW;
 	if (opal_flags & OPAL_XIVE_IRQ_EOI_VIA_FW)

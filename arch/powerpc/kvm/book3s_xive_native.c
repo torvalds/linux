@@ -37,9 +37,6 @@ static u8 xive_vm_esb_load(struct xive_irq_data *xd, u32 offset)
 	 * ordering.
 	 */
 
-	if (xd->flags & XIVE_IRQ_FLAG_SHIFT_BUG)
-		offset |= offset << 4;
-
 	val = in_be64(xd->eoi_mmio + offset);
 	return (u8)val;
 }

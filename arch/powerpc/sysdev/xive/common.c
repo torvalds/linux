@@ -200,10 +200,6 @@ static notrace u8 xive_esb_read(struct xive_irq_data *xd, u32 offset)
 	if (offset == XIVE_ESB_SET_PQ_10 && xd->flags & XIVE_IRQ_FLAG_STORE_EOI)
 		offset |= XIVE_ESB_LD_ST_MO;
 
-	/* Handle HW errata */
-	if (xd->flags & XIVE_IRQ_FLAG_SHIFT_BUG)
-		offset |= offset << 4;
-
 	if ((xd->flags & XIVE_IRQ_FLAG_H_INT_ESB) && xive_ops->esb_rw)
 		val = xive_ops->esb_rw(xd->hw_irq, offset, 0, 0);
 	else
@@ -214,10 +210,6 @@ static notrace u8 xive_esb_read(struct xive_irq_data *xd, u32 offset)
 
 static void xive_esb_write(struct xive_irq_data *xd, u32 offset, u64 data)
 {
-	/* Handle HW errata */
-	if (xd->flags & XIVE_IRQ_FLAG_SHIFT_BUG)
-		offset |= offset << 4;
-
 	if ((xd->flags & XIVE_IRQ_FLAG_H_INT_ESB) && xive_ops->esb_rw)
 		xive_ops->esb_rw(xd->hw_irq, offset, data, 1);
 	else
@@ -1312,7 +1304,6 @@ static const struct {
 } xive_irq_flags[] = {
 	{ XIVE_IRQ_FLAG_STORE_EOI, "STORE_EOI" },
 	{ XIVE_IRQ_FLAG_LSI,       "LSI"       },
-	{ XIVE_IRQ_FLAG_SHIFT_BUG, "SHIFT_BUG" },
 	{ XIVE_IRQ_FLAG_MASK_FW,   "MASK_FW"   },
 	{ XIVE_IRQ_FLAG_EOI_FW,    "EOI_FW"    },
 	{ XIVE_IRQ_FLAG_H_INT_ESB, "H_INT_ESB" },
