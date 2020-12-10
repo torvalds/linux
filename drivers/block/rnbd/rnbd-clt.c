@@ -359,7 +359,7 @@ static struct rnbd_iu *rnbd_get_iu(struct rnbd_clt_session *sess,
 	 * 2nd reference is dropped after confirmation with the response is
 	 * returned.
 	 * 1st and 2nd can happen in any order, so the rnbd_iu should be
-	 * released (rtrs_permit returned to ibbtrs) only leased after both
+	 * released (rtrs_permit returned to rtrs) only after both
 	 * are finished.
 	 */
 	atomic_set(&iu->refcount, 2);
@@ -803,7 +803,7 @@ static struct rnbd_clt_session *alloc_sess(const char *sessname)
 	rnbd_init_cpu_qlists(sess->cpu_queues);
 
 	/*
-	 * That is simple percpu variable which stores cpu indeces, which are
+	 * That is simple percpu variable which stores cpu indices, which are
 	 * incremented on each access.  We need that for the sake of fairness
 	 * to wake up queues in a round-robin manner.
 	 */
@@ -1666,7 +1666,7 @@ static void rnbd_destroy_sessions(void)
 	/*
 	 * Here at this point there is no any concurrent access to sessions
 	 * list and devices list:
-	 *   1. New session or device can'be be created - session sysfs files
+	 *   1. New session or device can't be created - session sysfs files
 	 *      are removed.
 	 *   2. Device or session can't be removed - module reference is taken
 	 *      into account in unmap device sysfs callback.
