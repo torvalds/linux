@@ -244,11 +244,6 @@ static int post_one_recv(struct rxe_rq *rq, const struct ib_recv_wr *ibwr)
 	recv_wqe->dma.cur_sge		= 0;
 	recv_wqe->dma.sge_offset	= 0;
 
-	/* make sure all changes to the work queue are written before we
-	 * update the producer pointer
-	 */
-	smp_wmb();
-
 	advance_producer(rq->queue);
 	return 0;
 
@@ -632,12 +627,6 @@ static int post_one_send(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
 	err = init_send_wqe(qp, ibwr, mask, length, send_wqe);
 	if (unlikely(err))
 		goto err1;
-
-	/*
-	 * make sure all changes to the work queue are
-	 * written before we update the producer pointer
-	 */
-	smp_wmb();
 
 	advance_producer(sq->queue);
 	spin_unlock_irqrestore(&qp->sq.sq_lock, flags);
