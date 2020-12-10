@@ -2128,9 +2128,8 @@ int kvmppc_xive_debug_show_queues(struct seq_file *m, struct kvm_vcpu *vcpu)
 		if (!q->qpage && !xc->esc_virq[i])
 			continue;
 
-		seq_printf(m, " [q%d]: ", i);
-
 		if (q->qpage) {
+			seq_printf(m, "    q[%d]: ", i);
 			idx = q->idx;
 			i0 = be32_to_cpup(q->qpage + idx);
 			idx = (idx + 1) & q->msk;
@@ -2144,14 +2143,52 @@ int kvmppc_xive_debug_show_queues(struct seq_file *m, struct kvm_vcpu *vcpu)
 				irq_data_get_irq_handler_data(d);
 			u64 pq = xive_vm_esb_load(xd, XIVE_ESB_GET);
 
-			seq_printf(m, "E:%c%c I(%d:%llx:%llx)",
-				   (pq & XIVE_ESB_VAL_P) ? 'P' : 'p',
-				   (pq & XIVE_ESB_VAL_Q) ? 'Q' : 'q',
-				   xc->esc_virq[i], pq, xd->eoi_page);
+			seq_printf(m, "    ESC %d %c%c EOI @%llx",
+				   xc->esc_virq[i],
+				   (pq & XIVE_ESB_VAL_P) ? 'P' : '-',
+				   (pq & XIVE_ESB_VAL_Q) ? 'Q' : '-',
+				   xd->eoi_page);
 			seq_puts(m, "\n");
 		}
 	}
 	return 0;
+}
+
+void kvmppc_xive_debug_show_sources(struct seq_file *m,
+				    struct kvmppc_xive_src_block *sb)
+{
+	int i;
+
+	seq_puts(m, "    LISN      HW/CHIP   TYPE    PQ      EISN    CPU/PRIO\n");
+	for (i = 0; i < KVMPPC_XICS_IRQ_PER_ICS; i++) {
+		struct kvmppc_xive_irq_state *state = &sb->irq_state[i];
+		struct xive_irq_data *xd;
+		u64 pq;
+		u32 hw_num;
+
+		if (!state->valid)
+			continue;
+
+		kvmppc_xive_select_irq(state, &hw_num, &xd);
+
+		pq = xive_vm_esb_load(xd, XIVE_ESB_GET);
+
+		seq_printf(m, "%08x  %08x/%02x", state->number, hw_num,
+			   xd->src_chip);
+		if (state->lsi)
+			seq_printf(m, " %cLSI", state->asserted ? '^' : ' ');
+		else
+			seq_puts(m, "  MSI");
+
+		seq_printf(m, " %s  %c%c  %08x   % 4d/%d",
+			   state->ipi_number == hw_num ? "IPI" : " PT",
+			   pq & XIVE_ESB_VAL_P ? 'P' : '-',
+			   pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
+			   state->eisn, state->act_server,
+			   state->act_priority);
+
+		seq_puts(m, "\n");
+	}
 }
 
 static int xive_debug_show(struct seq_file *m, void *private)
@@ -2174,7 +2211,7 @@ static int xive_debug_show(struct seq_file *m, void *private)
 	if (!kvm)
 		return 0;
 
-	seq_printf(m, "=========\nVCPU state\n=========\n");
+	seq_puts(m, "=========\nVCPU state\n=========\n");
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		struct kvmppc_xive_vcpu *xc = vcpu->arch.xive_vcpu;
@@ -2182,11 +2219,12 @@ static int xive_debug_show(struct seq_file *m, void *private)
 		if (!xc)
 			continue;
 
-		seq_printf(m, "cpu server %#x VP:%#x CPPR:%#x HWCPPR:%#x"
-			   " MFRR:%#x PEND:%#x h_xirr: R=%lld V=%lld\n",
-			   xc->server_num, xc->vp_id, xc->cppr, xc->hw_cppr,
-			   xc->mfrr, xc->pending,
-			   xc->stat_rm_h_xirr, xc->stat_vm_h_xirr);
+		seq_printf(m, "VCPU %d: VP:%#x/%02x\n"
+			 "    CPPR:%#x HWCPPR:%#x MFRR:%#x PEND:%#x h_xirr: R=%lld V=%lld\n",
+			 xc->server_num, xc->vp_id, xc->vp_chip_id,
+			 xc->cppr, xc->hw_cppr,
+			 xc->mfrr, xc->pending,
+			 xc->stat_rm_h_xirr, xc->stat_vm_h_xirr);
 
 		kvmppc_xive_debug_show_queues(m, vcpu);
 
@@ -2202,12 +2240,24 @@ static int xive_debug_show(struct seq_file *m, void *private)
 		t_vm_h_ipi += xc->stat_vm_h_ipi;
 	}
 
-	seq_printf(m, "Hcalls totals\n");
+	seq_puts(m, "Hcalls totals\n");
 	seq_printf(m, " H_XIRR  R=%10lld V=%10lld\n", t_rm_h_xirr, t_vm_h_xirr);
 	seq_printf(m, " H_IPOLL R=%10lld V=%10lld\n", t_rm_h_ipoll, t_vm_h_ipoll);
 	seq_printf(m, " H_CPPR  R=%10lld V=%10lld\n", t_rm_h_cppr, t_vm_h_cppr);
 	seq_printf(m, " H_EOI   R=%10lld V=%10lld\n", t_rm_h_eoi, t_vm_h_eoi);
 	seq_printf(m, " H_IPI   R=%10lld V=%10lld\n", t_rm_h_ipi, t_vm_h_ipi);
+
+	seq_puts(m, "=========\nSources\n=========\n");
+
+	for (i = 0; i <= xive->max_sbid; i++) {
+		struct kvmppc_xive_src_block *sb = xive->src_blocks[i];
+
+		if (sb) {
+			arch_spin_lock(&sb->lock);
+			kvmppc_xive_debug_show_sources(m, sb);
+			arch_spin_unlock(&sb->lock);
+		}
+	}
 
 	return 0;
 }
