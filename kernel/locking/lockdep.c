@@ -1672,6 +1672,7 @@ static inline struct lock_list *__bfs_next(struct lock_list *lock, int offset)
 static enum bfs_result __bfs(struct lock_list *source_entry,
 			     void *data,
 			     bool (*match)(struct lock_list *entry, void *data),
+			     bool (*skip)(struct lock_list *entry, void *data),
 			     struct lock_list **target_entry,
 			     int offset)
 {
@@ -1732,7 +1733,12 @@ static enum bfs_result __bfs(struct lock_list *source_entry,
 		/*
 		 * Step 3: we haven't visited this and there is a strong
 		 *         dependency path to this, so check with @match.
+		 *         If @skip is provide and returns true, we skip this
+		 *         lock (and any path this lock is in).
 		 */
+		if (skip && skip(lock, data))
+			continue;
+
 		if (match(lock, data)) {
 			*target_entry = lock;
 			return BFS_RMATCH;
@@ -1775,9 +1781,10 @@ static inline enum bfs_result
 __bfs_forwards(struct lock_list *src_entry,
 	       void *data,
 	       bool (*match)(struct lock_list *entry, void *data),
+	       bool (*skip)(struct lock_list *entry, void *data),
 	       struct lock_list **target_entry)
 {
-	return __bfs(src_entry, data, match, target_entry,
+	return __bfs(src_entry, data, match, skip, target_entry,
 		     offsetof(struct lock_class, locks_after));
 
 }
@@ -1786,9 +1793,10 @@ static inline enum bfs_result
 __bfs_backwards(struct lock_list *src_entry,
 		void *data,
 		bool (*match)(struct lock_list *entry, void *data),
+	       bool (*skip)(struct lock_list *entry, void *data),
 		struct lock_list **target_entry)
 {
-	return __bfs(src_entry, data, match, target_entry,
+	return __bfs(src_entry, data, match, skip, target_entry,
 		     offsetof(struct lock_class, locks_before));
 
 }
@@ -2019,7 +2027,7 @@ static unsigned long __lockdep_count_forward_deps(struct lock_list *this)
 	unsigned long  count = 0;
 	struct lock_list *target_entry;
 
-	__bfs_forwards(this, (void *)&count, noop_count, &target_entry);
+	__bfs_forwards(this, (void *)&count, noop_count, NULL, &target_entry);
 
 	return count;
 }
@@ -2044,7 +2052,7 @@ static unsigned long __lockdep_count_backward_deps(struct lock_list *this)
 	unsigned long  count = 0;
 	struct lock_list *target_entry;
 
-	__bfs_backwards(this, (void *)&count, noop_count, &target_entry);
+	__bfs_backwards(this, (void *)&count, noop_count, NULL, &target_entry);
 
 	return count;
 }
@@ -2072,11 +2080,12 @@ unsigned long lockdep_count_backward_deps(struct lock_class *class)
 static noinline enum bfs_result
 check_path(struct held_lock *target, struct lock_list *src_entry,
 	   bool (*match)(struct lock_list *entry, void *data),
+	   bool (*skip)(struct lock_list *entry, void *data),
 	   struct lock_list **target_entry)
 {
 	enum bfs_result ret;
 
-	ret = __bfs_forwards(src_entry, target, match, target_entry);
+	ret = __bfs_forwards(src_entry, target, match, skip, target_entry);
 
 	if (unlikely(bfs_error(ret)))
 		print_bfs_bug(ret);
@@ -2103,7 +2112,7 @@ check_noncircular(struct held_lock *src, struct held_lock *target,
 
 	debug_atomic_inc(nr_cyclic_checks);
 
-	ret = check_path(target, &src_entry, hlock_conflict, &target_entry);
+	ret = check_path(target, &src_entry, hlock_conflict, NULL, &target_entry);
 
 	if (unlikely(ret == BFS_RMATCH)) {
 		if (!*trace) {
@@ -2152,7 +2161,7 @@ check_redundant(struct held_lock *src, struct held_lock *target)
 
 	debug_atomic_inc(nr_redundant_checks);
 
-	ret = check_path(target, &src_entry, hlock_equal, &target_entry);
+	ret = check_path(target, &src_entry, hlock_equal, NULL, &target_entry);
 
 	if (ret == BFS_RMATCH)
 		debug_atomic_inc(nr_redundant);
@@ -2246,7 +2255,7 @@ find_usage_forwards(struct lock_list *root, unsigned long usage_mask,
 
 	debug_atomic_inc(nr_find_usage_forwards_checks);
 
-	result = __bfs_forwards(root, &usage_mask, usage_match, target_entry);
+	result = __bfs_forwards(root, &usage_mask, usage_match, NULL, target_entry);
 
 	return result;
 }
@@ -2263,7 +2272,7 @@ find_usage_backwards(struct lock_list *root, unsigned long usage_mask,
 
 	debug_atomic_inc(nr_find_usage_backwards_checks);
 
-	result = __bfs_backwards(root, &usage_mask, usage_match, target_entry);
+	result = __bfs_backwards(root, &usage_mask, usage_match, NULL, target_entry);
 
 	return result;
 }
@@ -2628,7 +2637,7 @@ static int check_irq_usage(struct task_struct *curr, struct held_lock *prev,
 	 */
 	bfs_init_rootb(&this, prev);
 
-	ret = __bfs_backwards(&this, &usage_mask, usage_accumulate, NULL);
+	ret = __bfs_backwards(&this, &usage_mask, usage_accumulate, NULL, NULL);
 	if (bfs_error(ret)) {
 		print_bfs_bug(ret);
 		return 0;
