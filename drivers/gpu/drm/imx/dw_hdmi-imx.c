@@ -18,14 +18,21 @@
 #include <drm/drm_bridge.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_of.h>
 #include <drm/drm_simple_kms_helper.h>
 
 #include "imx-drm.h"
 
+struct imx_hdmi;
+
+struct imx_hdmi_encoder {
+	struct drm_encoder encoder;
+	struct imx_hdmi *hdmi;
+};
+
 struct imx_hdmi {
 	struct device *dev;
-	struct drm_encoder encoder;
 	struct drm_bridge *bridge;
 	struct dw_hdmi *hdmi;
 	struct regmap *regmap;
@@ -33,7 +40,7 @@ struct imx_hdmi {
 
 static inline struct imx_hdmi *enc_to_imx_hdmi(struct drm_encoder *e)
 {
-	return container_of(e, struct imx_hdmi, encoder);
+	return container_of(e, struct imx_hdmi_encoder, encoder)->hdmi;
 }
 
 static const struct dw_hdmi_mpll_config imx_mpll_cfg[] = {
@@ -185,23 +192,25 @@ static int dw_hdmi_imx_bind(struct device *dev, struct device *master,
 			    void *data)
 {
 	struct drm_device *drm = data;
+	struct imx_hdmi_encoder *hdmi_encoder;
 	struct drm_encoder *encoder;
-	struct imx_hdmi *hdmi;
 	int ret;
 
-	hdmi = dev_get_drvdata(dev);
-	memset(&hdmi->encoder, 0, sizeof(hdmi->encoder));
+	hdmi_encoder = drmm_simple_encoder_alloc(drm, struct imx_hdmi_encoder,
+						 encoder, DRM_MODE_ENCODER_TMDS);
+	if (IS_ERR(hdmi_encoder))
+		return PTR_ERR(hdmi_encoder);
 
-	encoder = &hdmi->encoder;
+	hdmi_encoder->hdmi = dev_get_drvdata(dev);
+	encoder = &hdmi_encoder->encoder;
 
 	ret = imx_drm_encoder_parse_of(drm, encoder, dev->of_node);
 	if (ret)
 		return ret;
 
 	drm_encoder_helper_add(encoder, &dw_hdmi_imx_encoder_helper_funcs);
-	drm_simple_encoder_init(drm, encoder, DRM_MODE_ENCODER_TMDS);
 
-	return drm_bridge_attach(encoder, hdmi->bridge, NULL, 0);
+	return drm_bridge_attach(encoder, hdmi_encoder->hdmi->bridge, NULL, 0);
 }
 
 static const struct component_ops dw_hdmi_imx_ops = {
