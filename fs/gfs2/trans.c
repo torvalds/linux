@@ -53,7 +53,7 @@ int __gfs2_trans_begin(struct gfs2_trans *tr, struct gfs2_sbd *sdp,
 	tr->tr_ip = ip;
 	tr->tr_blocks = blocks;
 	tr->tr_revokes = revokes;
-	tr->tr_reserved = 1;
+	tr->tr_reserved = GFS2_LOG_FLUSH_MIN_BLOCKS;
 	if (blocks) {
 		/*
 		 * The reserved blocks are either used for data or metadata.
@@ -63,7 +63,7 @@ int __gfs2_trans_begin(struct gfs2_trans *tr, struct gfs2_sbd *sdp,
 		tr->tr_reserved += blocks + 1 + DIV_ROUND_UP(blocks - 1, databuf_limit(sdp));
 	}
 	if (revokes)
-		tr->tr_reserved += gfs2_struct2blk(sdp, revokes);
+		tr->tr_reserved += gfs2_struct2blk(sdp, revokes) - 1;
 	INIT_LIST_HEAD(&tr->tr_databuf);
 	INIT_LIST_HEAD(&tr->tr_buf);
 	INIT_LIST_HEAD(&tr->tr_list);
