@@ -239,6 +239,75 @@ static void ath11k_pci_clear_dbg_registers(struct ath11k_base *ab)
 	ath11k_dbg(ab, ATH11K_DBG_PCI, "soc reset cause:%d\n", val);
 }
 
+static int ath11k_pci_set_link_reg(struct ath11k_base *ab,
+				   u32 offset, u32 value, u32 mask)
+{
+	u32 v;
+	int i;
+
+	v = ath11k_pci_read32(ab, offset);
+	if ((v & mask) == value)
+		return 0;
+
+	for (i = 0; i < 10; i++) {
+		ath11k_pci_write32(ab, offset, (v & ~mask) | value);
+
+		v = ath11k_pci_read32(ab, offset);
+		if ((v & mask) == value)
+			return 0;
+
+		mdelay(2);
+	}
+
+	ath11k_warn(ab, "failed to set pcie link register 0x%08x: 0x%08x != 0x%08x\n",
+		    offset, v & mask, value);
+
+	return -ETIMEDOUT;
+}
+
+static int ath11k_pci_fix_l1ss(struct ath11k_base *ab)
+{
+	int ret;
+
+	ret = ath11k_pci_set_link_reg(ab,
+				      PCIE_QSERDES_COM_SYSCLK_EN_SEL_REG,
+				      PCIE_QSERDES_COM_SYSCLK_EN_SEL_VAL,
+				      PCIE_QSERDES_COM_SYSCLK_EN_SEL_MSK);
+	if (!ret) {
+		ath11k_warn(ab, "failed to set sysclk: %d\n", ret);
+		return ret;
+	}
+
+	ret = ath11k_pci_set_link_reg(ab,
+				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG1_REG,
+				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG1_VAL,
+				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG_MSK);
+	if (!ret) {
+		ath11k_warn(ab, "failed to set dtct config1 error: %d\n", ret);
+		return ret;
+	}
+
+	ret = ath11k_pci_set_link_reg(ab,
+				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG2_REG,
+				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG2_VAL,
+				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG_MSK);
+	if (!ret) {
+		ath11k_warn(ab, "failed to set dtct config2: %d\n", ret);
+		return ret;
+	}
+
+	ret = ath11k_pci_set_link_reg(ab,
+				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG4_REG,
+				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG4_VAL,
+				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG_MSK);
+	if (!ret) {
+		ath11k_warn(ab, "failed to set dtct config4: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static void ath11k_pci_enable_ltssm(struct ath11k_base *ab)
 {
 	u32 val;
@@ -288,6 +357,7 @@ static void ath11k_pci_sw_reset(struct ath11k_base *ab, bool power_on)
 	if (power_on) {
 		ath11k_pci_enable_ltssm(ab);
 		ath11k_pci_clear_all_intrs(ab);
+		ath11k_pci_fix_l1ss(ab);
 	}
 
 	ath11k_mhi_clear_vector(ab);
