@@ -3169,17 +3169,17 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 {
 	struct cp_psp *cp_psp = &pipe_ctx->stream->ctx->cp_psp;
 	if (cp_psp && cp_psp->funcs.update_stream_config) {
-		struct cp_psp_stream_config config;
-
-		memset(&config, 0, sizeof(config));
+		struct cp_psp_stream_config config = {0};
+		enum dp_panel_mode panel_mode =
+				dp_get_panel_mode(pipe_ctx->stream->link);
 
 		config.otg_inst = (uint8_t) pipe_ctx->stream_res.tg->inst;
-		/*stream_enc_inst*/
-		config.stream_enc_inst = (uint8_t) pipe_ctx->stream_res.stream_enc->stream_enc_inst;
-		config.link_enc_inst = pipe_ctx->stream->link->link_enc_hw_inst;
+		config.dig_fe = (uint8_t) pipe_ctx->stream_res.stream_enc->stream_enc_inst;
+		config.dig_be = pipe_ctx->stream->link->link_enc_hw_inst;
 		config.dpms_off = dpms_off;
 		config.dm_stream_ctx = pipe_ctx->stream->dm_stream_context;
-		config.mst_supported = (pipe_ctx->stream->signal ==
+		config.assr_enabled = (panel_mode == DP_PANEL_MODE_EDP);
+		config.mst_enabled = (pipe_ctx->stream->signal ==
 				SIGNAL_TYPE_DISPLAY_PORT_MST);
 		cp_psp->funcs.update_stream_config(cp_psp->handle, &config);
 	}
