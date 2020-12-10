@@ -3247,7 +3247,7 @@ R:	Martin KaFai Lau <kafai@fb.com>
 R:	Song Liu <songliubraving@fb.com>
 R:	Yonghong Song <yhs@fb.com>
 R:	John Fastabend <john.fastabend@gmail.com>
-R:	KP Singh <kpsingh@chromium.org>
+R:	KP Singh <kpsingh@kernel.org>
 L:	netdev@vger.kernel.org
 L:	bpf@vger.kernel.org
 S:	Supported
@@ -3366,7 +3366,7 @@ F:	arch/x86/net/
 X:	arch/x86/net/bpf_jit_comp32.c
 
 BPF LSM (Security Audit and Enforcement using BPF)
-M:	KP Singh <kpsingh@chromium.org>
+M:	KP Singh <kpsingh@kernel.org>
 R:	Florent Revest <revest@chromium.org>
 R:	Brendan Jackman <jackmanb@chromium.org>
 L:	bpf@vger.kernel.org
@@ -10562,6 +10562,13 @@ L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/device_drivers/ethernet/marvell/octeontx2.rst
 F:	drivers/net/ethernet/marvell/octeontx2/af/
+
+MARVELL PRESTERA ETHERNET SWITCH DRIVER
+M:	Vadym Kochan <vkochan@marvell.com>
+M:	Taras Chornyi <tchornyi@marvell.com>
+S:	Supported
+W:	https://github.com/Marvell-switching/switchdev-prestera
+F:	drivers/net/ethernet/marvell/prestera/
 
 MARVELL SOC MMC/SD/SDIO CONTROLLER DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
