@@ -2217,6 +2217,36 @@ static bool mptcp_check_close_timeout(const struct sock *sk)
 	return true;
 }
 
+static void mptcp_check_fastclose(struct mptcp_sock *msk)
+{
+	struct mptcp_subflow_context *subflow, *tmp;
+	struct sock *sk = &msk->sk.icsk_inet.sk;
+
+	if (likely(!READ_ONCE(msk->rcv_fastclose)))
+		return;
+
+	mptcp_token_destroy(msk);
+
+	list_for_each_entry_safe(subflow, tmp, &msk->conn_list, node) {
+		struct sock *tcp_sk = mptcp_subflow_tcp_sock(subflow);
+
+		lock_sock(tcp_sk);
+		if (tcp_sk->sk_state != TCP_CLOSE) {
+			tcp_send_active_reset(tcp_sk, GFP_ATOMIC);
+			tcp_set_state(tcp_sk, TCP_CLOSE);
+		}
+		release_sock(tcp_sk);
+	}
+
+	inet_sk_state_store(sk, TCP_CLOSE);
+	sk->sk_shutdown = SHUTDOWN_MASK;
+	smp_mb__before_atomic(); /* SHUTDOWN must be visible first */
+	set_bit(MPTCP_DATA_READY, &msk->flags);
+	set_bit(MPTCP_WORK_CLOSE_SUBFLOW, &msk->flags);
+
+	mptcp_close_wake_up(sk);
+}
+
 static void mptcp_worker(struct work_struct *work)
 {
 	struct mptcp_sock *msk = container_of(work, struct mptcp_sock, work);
@@ -2233,6 +2263,9 @@ static void mptcp_worker(struct work_struct *work)
 
 	mptcp_check_data_fin_ack(sk);
 	__mptcp_flush_join_list(msk);
+
+	mptcp_check_fastclose(msk);
+
 	if (test_and_clear_bit(MPTCP_WORK_CLOSE_SUBFLOW, &msk->flags))
 		__mptcp_close_subflow(msk);
 
