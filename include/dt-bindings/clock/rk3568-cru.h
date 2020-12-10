@@ -478,6 +478,7 @@
 #define CPLL_50M		415
 #define CPLL_25M		416
 #define CPLL_100M		417
+#define SCLK_DDRCLK		418
 
 #define PCLK_CORE_PVTM		450
 
