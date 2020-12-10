@@ -75,8 +75,6 @@ TEST_PROGS := test_kmod.sh \
 
 TEST_PROGS_EXTENDED := with_addr.sh \
 	with_tunnels.sh \
-	tcp_client.py \
-	tcp_server.py \
 	test_xdp_vlan.sh
 
 # Compile but not part of 'make run_tests'
