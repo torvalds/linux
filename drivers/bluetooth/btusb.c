@@ -480,7 +480,6 @@ static const struct dmi_system_id btusb_needs_reset_resume_table[] = {
 #define BTUSB_HW_RESET_ACTIVE	12
 #define BTUSB_TX_WAIT_VND_EVT	13
 #define BTUSB_WAKEUP_DISABLE	14
-#define BTUSB_USE_ALT1_FOR_WBS	15
 
 struct btusb_data {
 	struct hci_dev       *hdev;
@@ -1710,15 +1709,12 @@ static void btusb_work(struct work_struct *work)
 				new_alts = data->sco_num;
 			}
 		} else if (data->air_mode == HCI_NOTIFY_ENABLE_SCO_TRANSP) {
-			/* Check if Alt 6 is supported for Transparent audio */
-			if (btusb_find_altsetting(data, 6)) {
-				data->usb_alt6_packet_flow = true;
-				new_alts = 6;
-			} else if (test_bit(BTUSB_USE_ALT1_FOR_WBS, &data->flags)) {
-				new_alts = 1;
-			} else {
-				bt_dev_err(hdev, "Device does not support ALT setting 6");
-			}
+			/* Bluetooth USB spec recommends alt 6 (63 bytes), but
+			 * many adapters do not support it.  Alt 1 appears to
+			 * work for all adapters that do not have alt 6, and
+			 * which work with WBS at all.
+			 */
+			new_alts = btusb_find_altsetting(data, 6) ? 6 : 1;
 		}
 
 		if (btusb_switch_alt_setting(hdev, new_alts) < 0)
@@ -4149,10 +4145,6 @@ static int btusb_probe(struct usb_interface *intf,
 		 * (DEVICE_REMOTE_WAKEUP)
 		 */
 		set_bit(BTUSB_WAKEUP_DISABLE, &data->flags);
-		if (btusb_find_altsetting(data, 1))
-			set_bit(BTUSB_USE_ALT1_FOR_WBS, &data->flags);
-		else
-			bt_dev_err(hdev, "Device does not support ALT setting 1");
 	}
 
 	if (!reset)
