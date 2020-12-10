@@ -201,6 +201,16 @@ e_free:
 	return ret;
 }
 
+static int sev_es_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
+{
+	if (!sev_es)
+		return -ENOTTY;
+
+	to_kvm_svm(kvm)->sev_info.es_active = true;
+
+	return sev_guest_init(kvm, argp);
+}
+
 static int sev_bind_asid(struct kvm *kvm, unsigned int handle, int *error)
 {
 	struct sev_data_activate *data;
@@ -497,6 +507,94 @@ e_unpin:
 	sev_unpin_memory(kvm, inpages, npages);
 e_free:
 	kfree(data);
+	return ret;
+}
+
+static int sev_es_sync_vmsa(struct vcpu_svm *svm)
+{
+	struct vmcb_save_area *save = &svm->vmcb->save;
+
+	/* Check some debug related fields before encrypting the VMSA */
+	if (svm->vcpu.guest_debug || (save->dr7 & ~DR7_FIXED_1))
+		return -EINVAL;
+
+	/* Sync registgers */
+	save->rax = svm->vcpu.arch.regs[VCPU_REGS_RAX];
+	save->rbx = svm->vcpu.arch.regs[VCPU_REGS_RBX];
+	save->rcx = svm->vcpu.arch.regs[VCPU_REGS_RCX];
+	save->rdx = svm->vcpu.arch.regs[VCPU_REGS_RDX];
+	save->rsp = svm->vcpu.arch.regs[VCPU_REGS_RSP];
+	save->rbp = svm->vcpu.arch.regs[VCPU_REGS_RBP];
+	save->rsi = svm->vcpu.arch.regs[VCPU_REGS_RSI];
+	save->rdi = svm->vcpu.arch.regs[VCPU_REGS_RDI];
+	save->r8  = svm->vcpu.arch.regs[VCPU_REGS_R8];
+	save->r9  = svm->vcpu.arch.regs[VCPU_REGS_R9];
+	save->r10 = svm->vcpu.arch.regs[VCPU_REGS_R10];
+	save->r11 = svm->vcpu.arch.regs[VCPU_REGS_R11];
+	save->r12 = svm->vcpu.arch.regs[VCPU_REGS_R12];
+	save->r13 = svm->vcpu.arch.regs[VCPU_REGS_R13];
+	save->r14 = svm->vcpu.arch.regs[VCPU_REGS_R14];
+	save->r15 = svm->vcpu.arch.regs[VCPU_REGS_R15];
+	save->rip = svm->vcpu.arch.regs[VCPU_REGS_RIP];
+
+	/* Sync some non-GPR registers before encrypting */
+	save->xcr0 = svm->vcpu.arch.xcr0;
+	save->pkru = svm->vcpu.arch.pkru;
+	save->xss  = svm->vcpu.arch.ia32_xss;
+
+	/*
+	 * SEV-ES will use a VMSA that is pointed to by the VMCB, not
+	 * the traditional VMSA that is part of the VMCB. Copy the
+	 * traditional VMSA as it has been built so far (in prep
+	 * for LAUNCH_UPDATE_VMSA) to be the initial SEV-ES state.
+	 */
+	memcpy(svm->vmsa, save, sizeof(*save));
+
+	return 0;
+}
+
+static int sev_launch_update_vmsa(struct kvm *kvm, struct kvm_sev_cmd *argp)
+{
+	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
+	struct sev_data_launch_update_vmsa *vmsa;
+	int i, ret;
+
+	if (!sev_es_guest(kvm))
+		return -ENOTTY;
+
+	vmsa = kzalloc(sizeof(*vmsa), GFP_KERNEL);
+	if (!vmsa)
+		return -ENOMEM;
+
+	for (i = 0; i < kvm->created_vcpus; i++) {
+		struct vcpu_svm *svm = to_svm(kvm->vcpus[i]);
+
+		/* Perform some pre-encryption checks against the VMSA */
+		ret = sev_es_sync_vmsa(svm);
+		if (ret)
+			goto e_free;
+
+		/*
+		 * The LAUNCH_UPDATE_VMSA command will perform in-place
+		 * encryption of the VMSA memory content (i.e it will write
+		 * the same memory region with the guest's key), so invalidate
+		 * it first.
+		 */
+		clflush_cache_range(svm->vmsa, PAGE_SIZE);
+
+		vmsa->handle = sev->handle;
+		vmsa->address = __sme_pa(svm->vmsa);
+		vmsa->len = PAGE_SIZE;
+		ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_UPDATE_VMSA, vmsa,
+				    &argp->error);
+		if (ret)
+			goto e_free;
+
+		svm->vcpu.arch.guest_state_protected = true;
+	}
+
+e_free:
+	kfree(vmsa);
 	return ret;
 }
 
@@ -957,11 +1055,17 @@ int svm_mem_enc_op(struct kvm *kvm, void __user *argp)
 	case KVM_SEV_INIT:
 		r = sev_guest_init(kvm, &sev_cmd);
 		break;
+	case KVM_SEV_ES_INIT:
+		r = sev_es_guest_init(kvm, &sev_cmd);
+		break;
 	case KVM_SEV_LAUNCH_START:
 		r = sev_launch_start(kvm, &sev_cmd);
 		break;
 	case KVM_SEV_LAUNCH_UPDATE_DATA:
 		r = sev_launch_update_data(kvm, &sev_cmd);
+		break;
+	case KVM_SEV_LAUNCH_UPDATE_VMSA:
+		r = sev_launch_update_vmsa(kvm, &sev_cmd);
 		break;
 	case KVM_SEV_LAUNCH_MEASURE:
 		r = sev_launch_measure(kvm, &sev_cmd);
