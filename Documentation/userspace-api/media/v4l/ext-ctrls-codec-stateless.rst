@@ -778,7 +778,7 @@ FWHT Flags
       - Set if this is an I-frame.
     * - ``V4L2_FWHT_FL_COMPONENTS_NUM_MSK``
       - 0x00070000
-      - The number of color components - 1.
+      - The number of color components minus one.
     * - ``V4L2_FWHT_FL_PIXENC_MSK``
       - 0x00180000
       - The mask for the pixel encoding.
