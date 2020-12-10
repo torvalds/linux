@@ -167,8 +167,7 @@ read_trips:
 	trip_temp = readw(ptd->hw_base + WPT_CTT);
 	trip_temp &= 0x1FF;
 	if (trip_temp) {
-		/* Resolution of 1/2 degree C and an offset of -50C */
-		ptd->crt_temp = trip_temp * 1000 / 2 - 50000;
+		ptd->crt_temp = GET_WPT_TEMP(trip_temp);
 		ptd->crt_trip_id = 0;
 		++(*nr_trips);
 	}
@@ -177,8 +176,7 @@ read_trips:
 	trip_temp = readw(ptd->hw_base + WPT_PHL);
 	trip_temp &= 0x1FF;
 	if (trip_temp) {
-		/* Resolution of 1/2 degree C and an offset of -50C */
-		ptd->hot_temp = trip_temp * 1000 / 2 - 50000;
+		ptd->hot_temp = GET_WPT_TEMP(trip_temp);
 		ptd->hot_trip_id = *nr_trips;
 		++(*nr_trips);
 	}
@@ -190,12 +188,7 @@ read_trips:
 
 static int pch_wpt_get_temp(struct pch_thermal_device *ptd, int *temp)
 {
-	u16 wpt_temp;
-
-	wpt_temp = WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP);
-
-	/* Resolution of 1/2 degree C and an offset of -50C */
-	*temp = (wpt_temp * 1000 / 2 - 50000);
+	*temp = GET_WPT_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP));
 
 	return 0;
 }
