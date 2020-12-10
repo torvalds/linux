@@ -66,7 +66,7 @@ config NEED_PER_CPU_PAGE_FIRST_CHUNK
 
 config NR_IRQS
 	int "Number of virtual interrupt numbers"
-	range 32 32768
+	range 32 1048576
 	default "512"
 	help
 	  This defines the number of virtual interrupt numbers the kernel
