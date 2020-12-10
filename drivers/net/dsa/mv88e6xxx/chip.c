@@ -1347,9 +1347,16 @@ static int mv88e6xxx_atu_setup(struct mv88e6xxx_chip *chip)
 	if (err)
 		return err;
 
-	err = mv88e6xxx_g1_atu_set_learn2all(chip, true);
-	if (err)
-		return err;
+	/* The chips that have a "learn2all" bit in Global1, ATU
+	 * Control are precisely those whose port registers have a
+	 * Message Port bit in Port Control 1 and hence implement
+	 * ->port_setup_message_port.
+	 */
+	if (chip->info->ops->port_setup_message_port) {
+		err = mv88e6xxx_g1_atu_set_learn2all(chip, true);
+		if (err)
+			return err;
+	}
 
 	return mv88e6xxx_g1_atu_set_age_time(chip, 300000);
 }
