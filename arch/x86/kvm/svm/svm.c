@@ -2011,6 +2011,13 @@ static int shutdown_interception(struct vcpu_svm *svm)
 	struct kvm_run *kvm_run = svm->vcpu.run;
 
 	/*
+	 * The VM save area has already been encrypted so it
+	 * cannot be reinitialized - just terminate.
+	 */
+	if (sev_es_guest(svm->vcpu.kvm))
+		return -EINVAL;
+
+	/*
 	 * VMCB is undefined after a SHUTDOWN intercept
 	 * so reinitialize it.
 	 */
