@@ -26,7 +26,21 @@ struct ath11k_hif_ops {
 				   u32 *base_vector);
 	void (*get_msi_address)(struct ath11k_base *ab, u32 *msi_addr_lo,
 				u32 *msi_addr_hi);
+	void (*ce_irq_enable)(struct ath11k_base *ab);
+	void (*ce_irq_disable)(struct ath11k_base *ab);
 };
+
+static inline void ath11k_hif_ce_irq_enable(struct ath11k_base *ab)
+{
+	if (ab->hif.ops->ce_irq_enable)
+		ab->hif.ops->ce_irq_enable(ab);
+}
+
+static inline void ath11k_hif_ce_irq_disable(struct ath11k_base *ab)
+{
+	if (ab->hif.ops->ce_irq_disable)
+		ab->hif.ops->ce_irq_disable(ab);
+}
 
 static inline int ath11k_hif_start(struct ath11k_base *sc)
 {
