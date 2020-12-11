@@ -1707,7 +1707,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 	ret = spi_bitbang_start(&spi_imx->bitbang);
 	if (ret) {
 		dev_err(&pdev->dev, "bitbang start failed with %d\n", ret);
-		goto out_runtime_pm_put;
+		goto out_bitbang_start;
 	}
 
 	dev_info(&pdev->dev, "probed\n");
@@ -1717,6 +1717,9 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	return ret;
 
+out_bitbang_start:
+	if (spi_imx->devtype_data->has_dmamode)
+		spi_imx_sdma_exit(spi_imx);
 out_runtime_pm_put:
 	pm_runtime_dont_use_autosuspend(spi_imx->dev);
 	pm_runtime_put_sync(spi_imx->dev);
