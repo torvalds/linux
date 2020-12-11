@@ -2123,13 +2123,16 @@ static int __target_intermediate(struct cpufreq_policy *policy,
 static int __target_index(struct cpufreq_policy *policy, int index)
 {
 	struct cpufreq_freqs freqs = {.old = policy->cur, .flags = 0};
-	unsigned int intermediate_freq = 0;
+	unsigned int restore_freq, intermediate_freq = 0;
 	unsigned int newfreq = policy->freq_table[index].frequency;
 	int retval = -EINVAL;
 	bool notify;
 
 	if (newfreq == policy->cur)
 		return 0;
+
+	/* Save last value to restore later on errors */
+	restore_freq = policy->cur;
 
 	notify = !(cpufreq_driver->flags & CPUFREQ_ASYNC_NOTIFICATION);
 	if (notify) {
@@ -2168,7 +2171,7 @@ static int __target_index(struct cpufreq_policy *policy, int index)
 		 */
 		if (unlikely(retval && intermediate_freq)) {
 			freqs.old = intermediate_freq;
-			freqs.new = policy->restore_freq;
+			freqs.new = restore_freq;
 			cpufreq_freq_transition_begin(policy, &freqs);
 			cpufreq_freq_transition_end(policy, &freqs, 0);
 		}
@@ -2202,9 +2205,6 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 	if (target_freq == policy->cur &&
 	    !(cpufreq_driver->flags & CPUFREQ_NEED_UPDATE_LIMITS))
 		return 0;
-
-	/* Save last value to restore later on errors */
-	policy->restore_freq = policy->cur;
 
 	if (cpufreq_driver->target)
 		return cpufreq_driver->target(policy, target_freq, relation);
