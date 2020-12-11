@@ -1228,7 +1228,7 @@ int cdnsp_mem_init(struct cdnsp_device *pdev)
 	pdev->dcbaa = dma_alloc_coherent(dev, sizeof(*pdev->dcbaa),
 					 &dma, GFP_KERNEL);
 	if (!pdev->dcbaa)
-		goto mem_init_fail;
+		return -ENOMEM;
 
 	memset(pdev->dcbaa, 0, sizeof(*pdev->dcbaa));
 	pdev->dcbaa->dma = dma;
@@ -1246,17 +1246,19 @@ int cdnsp_mem_init(struct cdnsp_device *pdev)
 	pdev->segment_pool = dma_pool_create("CDNSP ring segments", dev,
 					     TRB_SEGMENT_SIZE, TRB_SEGMENT_SIZE,
 					     page_size);
+	if (!pdev->segment_pool)
+		goto release_dcbaa;
 
 	pdev->device_pool = dma_pool_create("CDNSP input/output contexts", dev,
 					    CDNSP_CTX_SIZE, 64, page_size);
+	if (!pdev->device_pool)
+		goto destroy_segment_pool;
 
-	if (!pdev->segment_pool || !pdev->device_pool)
-		goto mem_init_fail;
 
 	/* Set up the command ring to have one segments for now. */
 	pdev->cmd_ring = cdnsp_ring_alloc(pdev, 1, TYPE_COMMAND, 0, GFP_KERNEL);
 	if (!pdev->cmd_ring)
-		goto mem_init_fail;
+		goto destroy_device_pool;
 
 	/* Set the address in the Command Ring Control register */
 	val_64 = cdnsp_read_64(&pdev->op_regs->cmd_ring);
@@ -1279,11 +1281,11 @@ int cdnsp_mem_init(struct cdnsp_device *pdev)
 	pdev->event_ring = cdnsp_ring_alloc(pdev, ERST_NUM_SEGS, TYPE_EVENT,
 					    0, GFP_KERNEL);
 	if (!pdev->event_ring)
-		goto mem_init_fail;
+		goto free_cmd_ring;
 
 	ret = cdnsp_alloc_erst(pdev, pdev->event_ring, &pdev->erst);
 	if (ret)
-		goto mem_init_fail;
+		goto free_event_ring;
 
 	/* Set ERST count with the number of entries in the segment table. */
 	val = readl(&pdev->ir_set->erst_size);
@@ -1302,22 +1304,32 @@ int cdnsp_mem_init(struct cdnsp_device *pdev)
 
 	ret = cdnsp_setup_port_arrays(pdev);
 	if (ret)
-		goto mem_init_fail;
+		goto free_erst;
 
 	ret = cdnsp_alloc_priv_device(pdev);
 	if (ret) {
 		dev_err(pdev->dev,
 			"Could not allocate cdnsp_device data structures\n");
-		goto mem_init_fail;
+		goto free_erst;
 	}
 
 	return 0;
 
-mem_init_fail:
-	dev_err(pdev->dev, "Couldn't initialize memory\n");
-	cdnsp_halt(pdev);
+free_erst:
+	cdnsp_free_erst(pdev, &pdev->erst);
+free_event_ring:
+	cdnsp_ring_free(pdev, pdev->event_ring);
+free_cmd_ring:
+	cdnsp_ring_free(pdev, pdev->cmd_ring);
+destroy_device_pool:
+	dma_pool_destroy(pdev->device_pool);
+destroy_segment_pool:
+	dma_pool_destroy(pdev->segment_pool);
+release_dcbaa:
+	dma_free_coherent(dev, sizeof(*pdev->dcbaa), pdev->dcbaa,
+			  pdev->dcbaa->dma);
+
 	cdnsp_reset(pdev);
-	cdnsp_mem_cleanup(pdev);
 
 	return ret;
 }
