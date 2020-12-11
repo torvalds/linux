@@ -5342,7 +5342,7 @@ dm_crtc_duplicate_state(struct drm_crtc *crtc)
 }
 
 #ifdef CONFIG_DEBUG_FS
-int amdgpu_dm_crtc_atomic_set_property(struct drm_crtc *crtc,
+static int amdgpu_dm_crtc_atomic_set_property(struct drm_crtc *crtc,
 					    struct drm_crtc_state *crtc_state,
 					    struct drm_property *property,
 					    uint64_t val)
@@ -5366,7 +5366,7 @@ int amdgpu_dm_crtc_atomic_set_property(struct drm_crtc *crtc,
 	return 0;
 }
 
-int amdgpu_dm_crtc_atomic_get_property(struct drm_crtc *crtc,
+static int amdgpu_dm_crtc_atomic_get_property(struct drm_crtc *crtc,
 					    const struct drm_crtc_state *state,
 					    struct drm_property *property,
 					    uint64_t *val)
