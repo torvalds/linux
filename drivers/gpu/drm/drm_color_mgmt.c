@@ -91,7 +91,7 @@
  *
  * There is also support for a legacy gamma table, which is set up by calling
  * drm_mode_crtc_set_gamma_size(). The DRM core will then alias the legacy gamma
- * ramp with "GAMMA_LUT".
+ * ramp with "GAMMA_LUT" or, if that is unavailable, "DEGAMMA_LUT".
  *
  * Support for different non RGB color encodings is controlled through
  * &drm_plane specific COLOR_ENCODING and COLOR_RANGE properties. They
@@ -238,6 +238,7 @@ EXPORT_SYMBOL(drm_mode_crtc_set_gamma_size);
 static bool drm_crtc_supports_legacy_gamma(struct drm_crtc *crtc)
 {
 	u32 gamma_id = crtc->dev->mode_config.gamma_lut_property->base.id;
+	u32 degamma_id = crtc->dev->mode_config.degamma_lut_property->base.id;
 
 	if (!crtc->gamma_size)
 		return false;
@@ -245,7 +246,8 @@ static bool drm_crtc_supports_legacy_gamma(struct drm_crtc *crtc)
 	if (crtc->funcs->gamma_set)
 		return true;
 
-	return !!drm_mode_obj_find_prop_id(&crtc->base, gamma_id);
+	return !!(drm_mode_obj_find_prop_id(&crtc->base, gamma_id) ||
+		  drm_mode_obj_find_prop_id(&crtc->base, degamma_id));
 }
 
 /**
@@ -276,11 +278,21 @@ static int drm_crtc_legacy_gamma_set(struct drm_crtc *crtc,
 	struct drm_crtc_state *crtc_state;
 	struct drm_property_blob *blob;
 	struct drm_color_lut *blob_data;
+	u32 gamma_id = dev->mode_config.gamma_lut_property->base.id;
+	u32 degamma_id = dev->mode_config.degamma_lut_property->base.id;
+	bool use_gamma_lut;
 	int i, ret = 0;
 	bool replaced;
 
 	if (crtc->funcs->gamma_set)
 		return crtc->funcs->gamma_set(crtc, red, green, blue, size, ctx);
+
+	if (drm_mode_obj_find_prop_id(&crtc->base, gamma_id))
+		use_gamma_lut = true;
+	else if (drm_mode_obj_find_prop_id(&crtc->base, degamma_id))
+		use_gamma_lut = false;
+	else
+		return -ENODEV;
 
 	state = drm_atomic_state_alloc(crtc->dev);
 	if (!state)
@@ -311,9 +323,11 @@ static int drm_crtc_legacy_gamma_set(struct drm_crtc *crtc,
 	}
 
 	/* Set GAMMA_LUT and reset DEGAMMA_LUT and CTM */
-	replaced = drm_property_replace_blob(&crtc_state->degamma_lut, NULL);
+	replaced = drm_property_replace_blob(&crtc_state->degamma_lut,
+					     use_gamma_lut ? NULL : blob);
 	replaced |= drm_property_replace_blob(&crtc_state->ctm, NULL);
-	replaced |= drm_property_replace_blob(&crtc_state->gamma_lut, blob);
+	replaced |= drm_property_replace_blob(&crtc_state->gamma_lut,
+					      use_gamma_lut ? blob : NULL);
 	crtc_state->color_mgmt_changed |= replaced;
 
 	ret = drm_atomic_commit(state);
