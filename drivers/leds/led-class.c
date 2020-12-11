@@ -145,8 +145,7 @@ static void led_remove_brightness_hw_changed(struct led_classdev *led_cdev)
 	device_remove_file(led_cdev->dev, &dev_attr_brightness_hw_changed);
 }
 
-void led_classdev_notify_brightness_hw_changed(struct led_classdev *led_cdev,
-					       enum led_brightness brightness)
+void led_classdev_notify_brightness_hw_changed(struct led_classdev *led_cdev, unsigned int brightness)
 {
 	if (WARN_ON(!led_cdev->brightness_hw_changed_kn))
 		return;
