@@ -209,9 +209,9 @@ int hns_roce_calc_hem_mhop(struct hns_roce_dev *hr_dev,
 {
 	struct device *dev = hr_dev->dev;
 	u32 chunk_ba_num;
+	u32 chunk_size;
 	u32 table_idx;
 	u32 bt_num;
-	u32 chunk_size;
 
 	if (get_hem_table_config(hr_dev, mhop, table->type))
 		return -EINVAL;
@@ -343,15 +343,15 @@ static int hns_roce_set_hem(struct hns_roce_dev *hr_dev,
 {
 	spinlock_t *lock = &hr_dev->bt_cmd_lock;
 	struct device *dev = hr_dev->dev;
-	long end;
-	unsigned long flags;
 	struct hns_roce_hem_iter iter;
 	void __iomem *bt_cmd;
 	__le32 bt_cmd_val[2];
 	__le32 bt_cmd_h = 0;
+	unsigned long flags;
 	__le32 bt_cmd_l;
-	u64 bt_ba;
 	int ret = 0;
+	u64 bt_ba;
+	long end;
 
 	/* Find the HEM(Hardware Entry Memory) entry */
 	unsigned long i = (obj & (table->num_obj - 1)) /
@@ -651,8 +651,8 @@ int hns_roce_table_get(struct hns_roce_dev *hr_dev,
 		       struct hns_roce_hem_table *table, unsigned long obj)
 {
 	struct device *dev = hr_dev->dev;
-	int ret = 0;
 	unsigned long i;
+	int ret = 0;
 
 	if (hns_roce_check_whether_mhop(hr_dev, table->type))
 		return hns_roce_table_mhop_get(hr_dev, table, obj);
@@ -800,14 +800,14 @@ void *hns_roce_table_find(struct hns_roce_dev *hr_dev,
 	struct hns_roce_hem_chunk *chunk;
 	struct hns_roce_hem_mhop mhop;
 	struct hns_roce_hem *hem;
-	void *addr = NULL;
 	unsigned long mhop_obj = obj;
 	unsigned long obj_per_chunk;
 	unsigned long idx_offset;
 	int offset, dma_offset;
+	void *addr = NULL;
+	u32 hem_idx = 0;
 	int length;
 	int i, j;
-	u32 hem_idx = 0;
 
 	if (!table->lowmem)
 		return NULL;
@@ -977,8 +977,8 @@ static void hns_roce_cleanup_mhop_hem_table(struct hns_roce_dev *hr_dev,
 {
 	struct hns_roce_hem_mhop mhop;
 	u32 buf_chunk_size;
-	int i;
 	u64 obj;
+	int i;
 
 	if (hns_roce_calc_hem_mhop(hr_dev, table, NULL, &mhop))
 		return;
@@ -1313,8 +1313,8 @@ static int hem_list_alloc_root_bt(struct hns_roce_dev *hr_dev,
 				  const struct hns_roce_buf_region *regions,
 				  int region_cnt)
 {
-	struct roce_hem_item *hem, *temp_hem, *root_hem;
 	struct list_head temp_list[HNS_ROCE_MAX_BT_REGION];
+	struct roce_hem_item *hem, *temp_hem, *root_hem;
 	const struct hns_roce_buf_region *r;
 	struct list_head temp_root;
 	struct list_head temp_btm;
@@ -1419,8 +1419,8 @@ int hns_roce_hem_list_request(struct hns_roce_dev *hr_dev,
 {
 	const struct hns_roce_buf_region *r;
 	int ofs, end;
-	int ret;
 	int unit;
+	int ret;
 	int i;
 
 	if (region_cnt > HNS_ROCE_MAX_BT_REGION) {

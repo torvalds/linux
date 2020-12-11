@@ -143,8 +143,8 @@ int hns_roce_cmd_mbox(struct hns_roce_dev *hr_dev, u64 in_param, u64 out_param,
 		      unsigned long in_modifier, u8 op_modifier, u16 op,
 		      unsigned long timeout);
 
-struct hns_roce_cmd_mailbox
-	*hns_roce_alloc_cmd_mailbox(struct hns_roce_dev *hr_dev);
+struct hns_roce_cmd_mailbox *
+hns_roce_alloc_cmd_mailbox(struct hns_roce_dev *hr_dev);
 void hns_roce_free_cmd_mailbox(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_cmd_mailbox *mailbox);
 

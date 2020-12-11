@@ -113,8 +113,8 @@ void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type)
 static void hns_roce_ib_qp_event(struct hns_roce_qp *hr_qp,
 				 enum hns_roce_event type)
 {
-	struct ib_event event;
 	struct ib_qp *ibqp = &hr_qp->ibqp;
+	struct ib_event event;
 
 	if (ibqp->event_handler) {
 		event.device = ibqp->device;

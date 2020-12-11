@@ -175,4 +175,4 @@ static inline dma_addr_t hns_roce_hem_addr(struct hns_roce_hem_iter *iter)
 	return sg_dma_address(&iter->chunk->mem[iter->page_idx]);
 }
 
-#endif /*_HNS_ROCE_HEM_H*/
+#endif /* _HNS_ROCE_HEM_H */
