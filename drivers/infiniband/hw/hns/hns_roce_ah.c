@@ -36,9 +36,6 @@
 #include <rdma/ib_cache.h>
 #include "hns_roce_device.h"
 
-#define VLAN_SL_MASK 7
-#define VLAN_SL_SHIFT 13
-
 static inline u16 get_ah_udp_sport(const struct rdma_ah_attr *ah_attr)
 {
 	u32 fl = ah_attr->grh.flow_label;
@@ -81,18 +78,12 @@ int hns_roce_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 
 	/* HIP08 needs to record vlan info in Address Vector */
 	if (hr_dev->pci_dev->revision <= PCI_REVISION_ID_HIP08) {
-		ah->av.vlan_en = 0;
-
 		ret = rdma_read_gid_l2_fields(ah_attr->grh.sgid_attr,
 					      &ah->av.vlan_id, NULL);
 		if (ret)
 			return ret;
 
-		if (ah->av.vlan_id < VLAN_N_VID) {
-			ah->av.vlan_en = 1;
-			ah->av.vlan_id |= (rdma_ah_get_sl(ah_attr) & VLAN_SL_MASK) <<
-					  VLAN_SL_SHIFT;
-		}
+		ah->av.vlan_en = ah->av.vlan_id < VLAN_N_VID;
 	}
 
 	return ret;
