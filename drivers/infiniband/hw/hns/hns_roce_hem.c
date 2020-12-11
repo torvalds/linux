@@ -887,7 +887,7 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 		unsigned long buf_chunk_size;
 		unsigned long bt_chunk_size;
 		unsigned long bt_chunk_num;
-		unsigned long num_bt_l0 = 0;
+		unsigned long num_bt_l0;
 		u32 hop_num;
 
 		if (get_hem_table_config(hr_dev, &mhop, type))
