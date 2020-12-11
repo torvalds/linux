@@ -757,7 +757,7 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 	u64 dblock;
 
 	if (gfs2_withdrawn(sdp))
-		goto out;
+		return;
 
 	page = mempool_alloc(gfs2_page_pool, GFP_NOIO);
 	lh = page_address(page);
@@ -812,8 +812,6 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 
 	gfs2_log_write(sdp, page, sb->s_blocksize, 0, dblock);
 	gfs2_log_submit_bio(&sdp->sd_log_bio, REQ_OP_WRITE | op_flags);
-out:
-	log_flush_wait(sdp);
 }
 
 /**
@@ -842,6 +840,7 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags)
 	gfs2_write_log_header(sdp, sdp->sd_jdesc, sdp->sd_log_sequence++, tail,
 			      sdp->sd_log_flush_head, flags, op_flags);
 	gfs2_log_incr_head(sdp);
+	log_flush_wait(sdp);
 
 	if (sdp->sd_log_tail != tail)
 		log_pull_tail(sdp, tail);
