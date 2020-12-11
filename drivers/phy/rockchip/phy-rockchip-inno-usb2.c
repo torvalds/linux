@@ -131,6 +131,7 @@ struct rockchip_chg_det_reg {
  * @bvalid_det_en: vbus valid rise detection enable register.
  * @bvalid_det_st: vbus valid rise detection status register.
  * @bvalid_det_clr: vbus valid rise detection clear register.
+ * @bvalid_set: bvalid select and set to usb controller.
  * @bypass_dm_en: usb bypass uart DM enable register.
  * @bypass_sel: usb bypass uart select register.
  * @bypass_iomux: usb bypass uart GRF iomux register.
@@ -161,6 +162,7 @@ struct rockchip_usb2phy_port_cfg {
 	struct usb2phy_reg	bvalid_det_en;
 	struct usb2phy_reg	bvalid_det_st;
 	struct usb2phy_reg	bvalid_det_clr;
+	struct usb2phy_reg	bvalid_set;
 	struct usb2phy_reg	bypass_dm_en;
 	struct usb2phy_reg	bypass_sel;
 	struct usb2phy_reg	bypass_iomux;
@@ -1789,6 +1791,10 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 	    rport->mode == USB_DR_MODE_UNKNOWN)
 		goto out;
 
+	/* Select bvalid of usb phy as bvalid of usb controller */
+	if (rport->port_cfg->bvalid_set.enable != 0)
+		property_enable(base, &rport->port_cfg->bvalid_set, false);
+
 	wake_lock_init(&rport->wakelock, WAKE_LOCK_SUSPEND, "rockchip_otg");
 	INIT_DELAYED_WORK(&rport->bypass_uart_work,
 			  rockchip_usb_bypass_uart_work);
@@ -2857,6 +2863,7 @@ static const struct rockchip_usb2phy_cfg rk3568_phy_cfgs[] = {
 				.bvalid_det_en	= { 0x0080, 2, 2, 0, 1 },
 				.bvalid_det_st	= { 0x0084, 2, 2, 0, 1 },
 				.bvalid_det_clr = { 0x0088, 2, 2, 0, 1 },
+				.bvalid_set	= { 0x0008, 15, 14, 0, 3 },
 				.bypass_dm_en	= { 0x0008, 2, 2, 0, 1},
 				.bypass_sel	= { 0x0008, 3, 3, 0, 1},
 				.iddig_output	= { 0x0000, 10, 10, 0, 1 },
