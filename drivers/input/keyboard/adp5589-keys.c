@@ -14,6 +14,7 @@
 #include <linux/workqueue.h>
 #include <linux/errno.h>
 #include <linux/pm.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/i2c.h>
@@ -1017,32 +1018,22 @@ static int adp5589_probe(struct i2c_client *client,
 
 static int __maybe_unused adp5589_suspend(struct device *dev)
 {
-	struct adp5589_kpad *kpad = dev_get_drvdata(dev);
-	struct i2c_client *client = kpad->client;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct adp5589_kpad *kpad = i2c_get_clientdata(client);
 
-	if (!kpad->input)
-		return 0;
-
-	disable_irq(client->irq);
-
-	if (device_may_wakeup(&client->dev))
-		enable_irq_wake(client->irq);
+	if (kpad->input)
+		disable_irq(client->irq);
 
 	return 0;
 }
 
 static int __maybe_unused adp5589_resume(struct device *dev)
 {
-	struct adp5589_kpad *kpad = dev_get_drvdata(dev);
-	struct i2c_client *client = kpad->client;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct adp5589_kpad *kpad = i2c_get_clientdata(client);
 
-	if (!kpad->input)
-		return 0;
-
-	if (device_may_wakeup(&client->dev))
-		disable_irq_wake(client->irq);
-
-	enable_irq(client->irq);
+	if (kpad->input)
+		enable_irq(client->irq);
 
 	return 0;
 }
