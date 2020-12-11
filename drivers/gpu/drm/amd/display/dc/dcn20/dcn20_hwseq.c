@@ -1570,7 +1570,7 @@ static void dcn20_update_dchubp_dpp(
 
 
 
-	if (pipe_ctx->update_flags.bits.enable)
+	if (is_pipe_tree_visible(pipe_ctx))
 		hubp->funcs->set_blank(hubp, false);
 }
 
