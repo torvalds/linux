@@ -90,6 +90,47 @@ static int elantech_ps2_command(struct psmouse *psmouse,
 }
 
 /*
+ * Send an Elantech style special command to read 3 bytes from a register
+ */
+static int elantech_read_reg_params(struct psmouse *psmouse, u8 reg, u8 *param)
+{
+	if (elantech_ps2_command(psmouse, NULL, ETP_PS2_CUSTOM_COMMAND) ||
+	    elantech_ps2_command(psmouse, NULL, ETP_REGISTER_READWRITE) ||
+	    elantech_ps2_command(psmouse, NULL, ETP_PS2_CUSTOM_COMMAND) ||
+	    elantech_ps2_command(psmouse, NULL, reg) ||
+	    elantech_ps2_command(psmouse, param, PSMOUSE_CMD_GETINFO)) {
+		psmouse_err(psmouse,
+			    "failed to read register %#02x\n", reg);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+/*
+ * Send an Elantech style special command to write a register with a parameter
+ */
+static int elantech_write_reg_params(struct psmouse *psmouse, u8 reg, u8 *param)
+{
+	if (elantech_ps2_command(psmouse, NULL, ETP_PS2_CUSTOM_COMMAND) ||
+	    elantech_ps2_command(psmouse, NULL, ETP_REGISTER_READWRITE) ||
+	    elantech_ps2_command(psmouse, NULL, ETP_PS2_CUSTOM_COMMAND) ||
+	    elantech_ps2_command(psmouse, NULL, reg) ||
+	    elantech_ps2_command(psmouse, NULL, ETP_PS2_CUSTOM_COMMAND) ||
+	    elantech_ps2_command(psmouse, NULL, param[0]) ||
+	    elantech_ps2_command(psmouse, NULL, ETP_PS2_CUSTOM_COMMAND) ||
+	    elantech_ps2_command(psmouse, NULL, param[1]) ||
+	    elantech_ps2_command(psmouse, NULL, PSMOUSE_CMD_SETSCALE11)) {
+		psmouse_err(psmouse,
+			    "failed to write register %#02x with value %#02x%#02x\n",
+			    reg, param[0], param[1]);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+/*
  * Send an Elantech style special command to read a value from a register
  */
 static int elantech_read_reg(struct psmouse *psmouse, unsigned char reg,
@@ -1530,18 +1571,34 @@ static const struct dmi_system_id no_hw_res_dmi_table[] = {
 };
 
 /*
+ * Change Report id 0x5E to 0x5F.
+ */
+static int elantech_change_report_id(struct psmouse *psmouse)
+{
+	unsigned char param[2] = { 0x10, 0x03 };
+
+	if (elantech_write_reg_params(psmouse, 0x7, param) ||
+	    elantech_read_reg_params(psmouse, 0x7, param) ||
+	    param[0] != 0x10 || param[1] != 0x03) {
+		psmouse_err(psmouse, "Unable to change report ID to 0x5f.\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+/*
  * determine hardware version and set some properties according to it.
  */
 static int elantech_set_properties(struct elantech_device_info *info)
 {
 	/* This represents the version of IC body. */
-	int ver = (info->fw_version & 0x0f0000) >> 16;
+	info->ic_version = (info->fw_version & 0x0f0000) >> 16;
 
 	/* Early version of Elan touchpads doesn't obey the rule. */
 	if (info->fw_version < 0x020030 || info->fw_version == 0x020600)
 		info->hw_version = 1;
 	else {
-		switch (ver) {
+		switch (info->ic_version) {
 		case 2:
 		case 4:
 			info->hw_version = 2;
@@ -1556,6 +1613,11 @@ static int elantech_set_properties(struct elantech_device_info *info)
 			return -1;
 		}
 	}
+
+	/* Get information pattern for hw_version 4 */
+	info->pattern = 0x00;
+	if (info->ic_version == 0x0f && (info->fw_version & 0xff) <= 0x02)
+		info->pattern = info->fw_version & 0xff;
 
 	/* decide which send_cmd we're gonna use early */
 	info->send_cmd = info->hw_version >= 3 ? elantech_send_cmd :
@@ -1598,6 +1660,7 @@ static int elantech_query_info(struct psmouse *psmouse,
 {
 	unsigned char param[3];
 	unsigned char traces;
+	unsigned char ic_body[3];
 
 	memset(info, 0, sizeof(*info));
 
@@ -1640,6 +1703,21 @@ static int elantech_query_info(struct psmouse *psmouse,
 			     info->samples[2]);
 	}
 
+	if (info->pattern > 0x00 && info->ic_version == 0xf) {
+		if (info->send_cmd(psmouse, ETP_ICBODY_QUERY, ic_body)) {
+			psmouse_err(psmouse, "failed to query ic body\n");
+			return -EINVAL;
+		}
+		info->ic_version = be16_to_cpup((__be16 *)ic_body);
+		psmouse_info(psmouse,
+			     "Elan ic body: %#04x, current fw version: %#02x\n",
+			     info->ic_version, ic_body[2]);
+	}
+
+	info->product_id = be16_to_cpup((__be16 *)info->samples);
+	if (info->pattern == 0x00)
+		info->product_id &= 0xff;
+
 	if (info->samples[1] == 0x74 && info->hw_version == 0x03) {
 		/*
 		 * This module has a bug which makes absolute mode
@@ -1653,6 +1731,23 @@ static int elantech_query_info(struct psmouse *psmouse,
 
 	/* The MSB indicates the presence of the trackpoint */
 	info->has_trackpoint = (info->capabilities[0] & 0x80) == 0x80;
+
+	if (info->has_trackpoint && info->ic_version == 0x0011 &&
+	    (info->product_id == 0x08 || info->product_id == 0x09 ||
+	     info->product_id == 0x0d || info->product_id == 0x0e)) {
+		/*
+		 * This module has a bug which makes trackpoint in SMBus
+		 * mode return invalid data unless trackpoint is switched
+		 * from using 0x5e reports to 0x5f. If we are not able to
+		 * make the switch, let's abort initialization so we'll be
+		 * using standard PS/2 protocol.
+		 */
+		if (elantech_change_report_id(psmouse)) {
+			psmouse_info(psmouse,
+				     "Trackpoint report is broken, forcing standard PS/2 protocol\n");
+			return -ENODEV;
+		}
+	}
 
 	info->x_res = 31;
 	info->y_res = 31;
