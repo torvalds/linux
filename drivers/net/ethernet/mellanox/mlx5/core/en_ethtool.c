@@ -444,12 +444,18 @@ int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 		goto out;
 	}
 
-	new_channels.params = priv->channels.params;
+	new_channels.params = *cur_params;
 	new_channels.params.num_channels = count;
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
+		struct mlx5e_params old_params;
+
+		old_params = *cur_params;
 		*cur_params = new_channels.params;
 		err = mlx5e_num_channels_changed(priv);
+		if (err)
+			*cur_params = old_params;
+
 		goto out;
 	}
 
