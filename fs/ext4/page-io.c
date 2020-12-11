@@ -435,7 +435,6 @@ submit_and_retry:
 int ext4_bio_write_page(struct ext4_io_submit *io,
 			struct page *page,
 			int len,
-			struct writeback_control *wbc,
 			bool keep_towrite)
 {
 	struct page *bounce_page = NULL;
@@ -445,6 +444,7 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	int ret = 0;
 	int nr_submitted = 0;
 	int nr_to_submit = 0;
+	struct writeback_control *wbc = io->io_wbc;
 
 	BUG_ON(!PageLocked(page));
 	BUG_ON(PageWriteback(page));
