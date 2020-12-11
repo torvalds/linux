@@ -33,9 +33,12 @@
 #include <crypto/akcipher.h>
 #include <crypto/kpp.h>
 #include <crypto/acompress.h>
+#include <crypto/internal/cipher.h>
 #include <crypto/internal/simd.h>
 
 #include "internal.h"
+
+MODULE_IMPORT_NS(CRYPTO_INTERNAL);
 
 static bool notests;
 module_param(notests, bool, 0644);
