@@ -165,15 +165,14 @@ mt7615_reset_test_set(void *data, u64 val)
 	if (!mt7615_wait_for_mcu_init(dev))
 		return 0;
 
-	mt7615_mutex_acquire(dev);
-
 	skb = alloc_skb(1, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
 	skb_put(skb, 1);
-	mt76_tx_queue_skb_raw(dev, 0, skb, 0);
 
+	mt7615_mutex_acquire(dev);
+	mt76_tx_queue_skb_raw(dev, 0, skb, 0);
 	mt7615_mutex_release(dev);
 
 	return 0;
@@ -221,7 +220,7 @@ mt7615_ampdu_stat_read_phy(struct mt7615_phy *phy,
 }
 
 static int
-mt7615_ampdu_stat_read(struct seq_file *file, void *data)
+mt7615_ampdu_stat_show(struct seq_file *file, void *data)
 {
 	struct mt7615_dev *dev = file->private;
 
@@ -235,18 +234,7 @@ mt7615_ampdu_stat_read(struct seq_file *file, void *data)
 	return 0;
 }
 
-static int
-mt7615_ampdu_stat_open(struct inode *inode, struct file *f)
-{
-	return single_open(f, mt7615_ampdu_stat_read, inode->i_private);
-}
-
-static const struct file_operations fops_ampdu_stat = {
-	.open = mt7615_ampdu_stat_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(mt7615_ampdu_stat);
 
 static void
 mt7615_radio_read_phy(struct mt7615_phy *phy, struct seq_file *s)
@@ -340,15 +328,15 @@ mt7615_queues_read(struct seq_file *s, void *data)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(queue_map); i++) {
-		struct mt76_sw_queue *q = &dev->mt76.q_tx[queue_map[i].id];
+		struct mt76_queue *q = dev->mt76.q_tx[queue_map[i].id];
 
-		if (!q->q)
+		if (!q)
 			continue;
 
 		seq_printf(s,
 			   "%s:	queued=%d head=%d tail=%d\n",
-			   queue_map[i].queue, q->q->queued, q->q->head,
-			   q->q->tail);
+			   queue_map[i].queue, q->queued, q->head,
+			   q->tail);
 	}
 
 	return 0;
@@ -393,7 +381,7 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 					    mt76_queues_read);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "acq", dir,
 				    mt7615_queues_acq);
-	debugfs_create_file("ampdu_stat", 0400, dir, dev, &fops_ampdu_stat);
+	debugfs_create_file("ampdu_stat", 0400, dir, dev, &mt7615_ampdu_stat_fops);
 	debugfs_create_file("scs", 0600, dir, dev, &fops_scs);
 	debugfs_create_file("dbdc", 0600, dir, dev, &fops_dbdc);
 	debugfs_create_file("fw_debug", 0600, dir, dev, &fops_fw_debug);

@@ -397,6 +397,15 @@ config HID_GOOGLE_HAMMER
 	help
 	Say Y here if you have a Google Hammer device.
 
+config HID_VIVALDI
+	tristate "Vivaldi Keyboard"
+	depends on HID
+	help
+	  Say Y here if you want to enable support for Vivaldi keyboards.
+
+	  Vivaldi keyboards use a vendor-specific (Google) HID usage to report
+	  how the keys in the top row are physically ordered.
+
 config HID_GT683R
 	tristate "MSI GT68xR LED support"
 	depends on LEDS_CLASS && USB_HID

@@ -9,6 +9,7 @@
  *  @msg: The message buffer
  *  @size: Length of buffer
  *  @mbx_id: id of mailbox to read
+ *  @unlock: skip locking or not
  *
  *  returns SUCCESS if it successfully read message from buffer
  **/

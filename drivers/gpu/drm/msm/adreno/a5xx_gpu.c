@@ -18,12 +18,23 @@ static void a5xx_dump(struct msm_gpu *gpu);
 
 #define GPU_PAS_ID 13
 
-static void a5xx_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
+void a5xx_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring,
+		bool sync)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
 	uint32_t wptr;
 	unsigned long flags;
+
+	/*
+	 * Most flush operations need to issue a WHERE_AM_I opcode to sync up
+	 * the rptr shadow
+	 */
+	if (a5xx_gpu->has_whereami && sync) {
+		OUT_PKT7(ring, CP_WHERE_AM_I, 2);
+		OUT_RING(ring, lower_32_bits(shadowptr(a5xx_gpu, ring)));
+		OUT_RING(ring, upper_32_bits(shadowptr(a5xx_gpu, ring)));
+	}
 
 	spin_lock_irqsave(&ring->lock, flags);
 
@@ -43,8 +54,7 @@ static void a5xx_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 		gpu_write(gpu, REG_A5XX_CP_RB_WPTR, wptr);
 }
 
-static void a5xx_submit_in_rb(struct msm_gpu *gpu, struct msm_gem_submit *submit,
-	struct msm_file_private *ctx)
+static void a5xx_submit_in_rb(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 {
 	struct msm_drm_private *priv = gpu->dev->dev_private;
 	struct msm_ringbuffer *ring = submit->ring;
@@ -57,7 +67,7 @@ static void a5xx_submit_in_rb(struct msm_gpu *gpu, struct msm_gem_submit *submit
 		case MSM_SUBMIT_CMD_IB_TARGET_BUF:
 			break;
 		case MSM_SUBMIT_CMD_CTX_RESTORE_BUF:
-			if (priv->lastctx == ctx)
+			if (priv->lastctx == submit->queue->ctx)
 				break;
 			fallthrough;
 		case MSM_SUBMIT_CMD_BUF:
@@ -91,7 +101,7 @@ static void a5xx_submit_in_rb(struct msm_gpu *gpu, struct msm_gem_submit *submit
 		}
 	}
 
-	a5xx_flush(gpu, ring);
+	a5xx_flush(gpu, ring, true);
 	a5xx_preempt_trigger(gpu);
 
 	/* we might not necessarily have a cmd from userspace to
@@ -103,8 +113,7 @@ static void a5xx_submit_in_rb(struct msm_gpu *gpu, struct msm_gem_submit *submit
 	msm_gpu_retire(gpu);
 }
 
-static void a5xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
-	struct msm_file_private *ctx)
+static void a5xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
@@ -114,7 +123,7 @@ static void a5xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 
 	if (IS_ENABLED(CONFIG_DRM_MSM_GPU_SUDO) && submit->in_rb) {
 		priv->lastctx = NULL;
-		a5xx_submit_in_rb(gpu, submit, ctx);
+		a5xx_submit_in_rb(gpu, submit);
 		return;
 	}
 
@@ -148,7 +157,7 @@ static void a5xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		case MSM_SUBMIT_CMD_IB_TARGET_BUF:
 			break;
 		case MSM_SUBMIT_CMD_CTX_RESTORE_BUF:
-			if (priv->lastctx == ctx)
+			if (priv->lastctx == submit->queue->ctx)
 				break;
 			fallthrough;
 		case MSM_SUBMIT_CMD_BUF:
@@ -206,7 +215,8 @@ static void a5xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	/* Set bit 0 to trigger an interrupt on preempt complete */
 	OUT_RING(ring, 0x01);
 
-	a5xx_flush(gpu, ring);
+	/* A WHERE_AM_I packet is not needed after a YIELD */
+	a5xx_flush(gpu, ring, false);
 
 	/* Check to see if we need to start preemption */
 	a5xx_preempt_trigger(gpu);
@@ -365,7 +375,7 @@ static int a5xx_me_init(struct msm_gpu *gpu)
 	OUT_RING(ring, 0x00000000);
 	OUT_RING(ring, 0x00000000);
 
-	gpu->funcs->flush(gpu, ring);
+	a5xx_flush(gpu, ring, true);
 	return a5xx_idle(gpu, ring) ? 0 : -EINVAL;
 }
 
@@ -407,9 +417,29 @@ static int a5xx_preempt_start(struct msm_gpu *gpu)
 	OUT_RING(ring, 0x01);
 	OUT_RING(ring, 0x01);
 
-	gpu->funcs->flush(gpu, ring);
+	/* The WHERE_AMI_I packet is not needed after a YIELD is issued */
+	a5xx_flush(gpu, ring, false);
 
 	return a5xx_idle(gpu, ring) ? 0 : -EINVAL;
+}
+
+static void a5xx_ucode_check_version(struct a5xx_gpu *a5xx_gpu,
+		struct drm_gem_object *obj)
+{
+	u32 *buf = msm_gem_get_vaddr_active(obj);
+
+	if (IS_ERR(buf))
+		return;
+
+	/*
+	 * If the lowest nibble is 0xa that is an indication that this microcode
+	 * has been patched. The actual version is in dword [3] but we only care
+	 * about the patchlevel which is the lowest nibble of dword [3]
+	 */
+	if (((buf[0] & 0xf) == 0xa) && (buf[2] & 0xf) >= 1)
+		a5xx_gpu->has_whereami = true;
+
+	msm_gem_put_vaddr(obj);
 }
 
 static int a5xx_ucode_init(struct msm_gpu *gpu)
@@ -447,6 +477,7 @@ static int a5xx_ucode_init(struct msm_gpu *gpu)
 		}
 
 		msm_gem_object_set_name(a5xx_gpu->pfp_bo, "pfpfw");
+		a5xx_ucode_check_version(a5xx_gpu, a5xx_gpu->pfp_bo);
 	}
 
 	gpu_write64(gpu, REG_A5XX_CP_ME_INSTR_BASE_LO,
@@ -506,6 +537,7 @@ static int a5xx_zap_shader_init(struct msm_gpu *gpu)
 static int a5xx_hw_init(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
 	int ret;
 
 	gpu_write(gpu, REG_A5XX_VBIF_ROUND_ROBIN_QOS_ARB, 0x00000003);
@@ -714,8 +746,35 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	gpu_write64(gpu, REG_A5XX_CP_RB_BASE, REG_A5XX_CP_RB_BASE_HI,
 		gpu->rb[0]->iova);
 
+	/*
+	 * If the microcode supports the WHERE_AM_I opcode then we can use that
+	 * in lieu of the RPTR shadow and enable preemption. Otherwise, we
+	 * can't safely use the RPTR shadow or preemption. In either case, the
+	 * RPTR shadow should be disabled in hardware.
+	 */
 	gpu_write(gpu, REG_A5XX_CP_RB_CNTL,
 		MSM_GPU_RB_CNTL_DEFAULT | AXXX_CP_RB_CNTL_NO_UPDATE);
+
+	/* Disable preemption if WHERE_AM_I isn't available */
+	if (!a5xx_gpu->has_whereami && gpu->nr_rings > 1) {
+		a5xx_preempt_fini(gpu);
+		gpu->nr_rings = 1;
+	} else {
+		/* Create a privileged buffer for the RPTR shadow */
+		if (!a5xx_gpu->shadow_bo) {
+			a5xx_gpu->shadow = msm_gem_kernel_new(gpu->dev,
+				sizeof(u32) * gpu->nr_rings,
+				MSM_BO_UNCACHED | MSM_BO_MAP_PRIV,
+				gpu->aspace, &a5xx_gpu->shadow_bo,
+				&a5xx_gpu->shadow_iova);
+
+			if (IS_ERR(a5xx_gpu->shadow))
+				return PTR_ERR(a5xx_gpu->shadow);
+		}
+
+		gpu_write64(gpu, REG_A5XX_CP_RB_RPTR_ADDR,
+			REG_A5XX_CP_RB_RPTR_ADDR_HI, shadowptr(a5xx_gpu, gpu->rb[0]));
+	}
 
 	a5xx_preempt_hw_init(gpu);
 
@@ -740,7 +799,7 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 		OUT_PKT7(gpu->rb[0], CP_EVENT_WRITE, 1);
 		OUT_RING(gpu->rb[0], CP_EVENT_WRITE_0_EVENT(STAT_EVENT));
 
-		gpu->funcs->flush(gpu, gpu->rb[0]);
+		a5xx_flush(gpu, gpu->rb[0], true);
 		if (!a5xx_idle(gpu, gpu->rb[0]))
 			return -EINVAL;
 	}
@@ -758,7 +817,7 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 		OUT_PKT7(gpu->rb[0], CP_SET_SECURE_MODE, 1);
 		OUT_RING(gpu->rb[0], 0x00000000);
 
-		gpu->funcs->flush(gpu, gpu->rb[0]);
+		a5xx_flush(gpu, gpu->rb[0], true);
 		if (!a5xx_idle(gpu, gpu->rb[0]))
 			return -EINVAL;
 	} else if (ret == -ENODEV) {
@@ -823,6 +882,11 @@ static void a5xx_destroy(struct msm_gpu *gpu)
 	if (a5xx_gpu->gpmu_bo) {
 		msm_gem_unpin_iova(a5xx_gpu->gpmu_bo, gpu->aspace);
 		drm_gem_object_put(a5xx_gpu->gpmu_bo);
+	}
+
+	if (a5xx_gpu->shadow_bo) {
+		msm_gem_unpin_iova(a5xx_gpu->shadow_bo, gpu->aspace);
+		drm_gem_object_put(a5xx_gpu->shadow_bo);
 	}
 
 	adreno_gpu_cleanup(adreno_gpu);
@@ -1056,17 +1120,6 @@ static irqreturn_t a5xx_irq(struct msm_gpu *gpu)
 
 	return IRQ_HANDLED;
 }
-
-static const u32 a5xx_register_offsets[REG_ADRENO_REGISTER_MAX] = {
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_BASE, REG_A5XX_CP_RB_BASE),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_BASE_HI, REG_A5XX_CP_RB_BASE_HI),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_RPTR_ADDR, REG_A5XX_CP_RB_RPTR_ADDR),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_RPTR_ADDR_HI,
-		REG_A5XX_CP_RB_RPTR_ADDR_HI),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_RPTR, REG_A5XX_CP_RB_RPTR),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_WPTR, REG_A5XX_CP_RB_WPTR),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_CNTL, REG_A5XX_CP_RB_CNTL),
-};
 
 static const u32 a5xx_registers[] = {
 	0x0000, 0x0002, 0x0004, 0x0020, 0x0022, 0x0026, 0x0029, 0x002B,
@@ -1432,6 +1485,17 @@ static unsigned long a5xx_gpu_busy(struct msm_gpu *gpu)
 	return (unsigned long)busy_time;
 }
 
+static uint32_t a5xx_get_rptr(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+
+	if (a5xx_gpu->has_whereami)
+		return a5xx_gpu->shadow[ring->id];
+
+	return ring->memptrs->rptr = gpu_read(gpu, REG_A5XX_CP_RB_RPTR);
+}
+
 static const struct adreno_gpu_funcs funcs = {
 	.base = {
 		.get_param = adreno_get_param,
@@ -1440,7 +1504,6 @@ static const struct adreno_gpu_funcs funcs = {
 		.pm_resume = a5xx_pm_resume,
 		.recover = a5xx_recover,
 		.submit = a5xx_submit,
-		.flush = a5xx_flush,
 		.active_ring = a5xx_active_ring,
 		.irq = a5xx_irq,
 		.destroy = a5xx_destroy,
@@ -1454,6 +1517,7 @@ static const struct adreno_gpu_funcs funcs = {
 		.gpu_state_get = a5xx_gpu_state_get,
 		.gpu_state_put = a5xx_gpu_state_put,
 		.create_address_space = adreno_iommu_create_address_space,
+		.get_rptr = a5xx_get_rptr,
 	},
 	.get_timestamp = a5xx_get_timestamp,
 };
@@ -1512,14 +1576,12 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 	gpu = &adreno_gpu->base;
 
 	adreno_gpu->registers = a5xx_registers;
-	adreno_gpu->reg_offsets = a5xx_register_offsets;
 
 	a5xx_gpu->lm_leakage = 0x4E001A;
 
 	check_speed_bin(&pdev->dev);
 
-	/* Restricting nr_rings to 1 to temporarily disable preemption */
-	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, 1);
+	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, 4);
 	if (ret) {
 		a5xx_destroy(&(a5xx_gpu->base.base));
 		return ERR_PTR(ret);

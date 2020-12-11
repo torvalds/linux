@@ -354,50 +354,37 @@ static const struct test_bitmap_parselist parselist_tests[] __initconst = {
 
 };
 
-static void __init __test_bitmap_parselist(int is_user)
+static void __init test_bitmap_parselist(void)
 {
 	int i;
 	int err;
 	ktime_t time;
 	DECLARE_BITMAP(bmap, 2048);
-	char *mode = is_user ? "_user"  : "";
 
 	for (i = 0; i < ARRAY_SIZE(parselist_tests); i++) {
 #define ptest parselist_tests[i]
 
-		if (is_user) {
-			mm_segment_t orig_fs = get_fs();
-			size_t len = strlen(ptest.in);
-
-			set_fs(KERNEL_DS);
-			time = ktime_get();
-			err = bitmap_parselist_user((__force const char __user *)ptest.in, len,
-						    bmap, ptest.nbits);
-			time = ktime_get() - time;
-			set_fs(orig_fs);
-		} else {
-			time = ktime_get();
-			err = bitmap_parselist(ptest.in, bmap, ptest.nbits);
-			time = ktime_get() - time;
-		}
+		time = ktime_get();
+		err = bitmap_parselist(ptest.in, bmap, ptest.nbits);
+		time = ktime_get() - time;
 
 		if (err != ptest.errno) {
-			pr_err("parselist%s: %d: input is %s, errno is %d, expected %d\n",
-					mode, i, ptest.in, err, ptest.errno);
+			pr_err("parselist: %d: input is %s, errno is %d, expected %d\n",
+					i, ptest.in, err, ptest.errno);
 			continue;
 		}
 
 		if (!err && ptest.expected
 			 && !__bitmap_equal(bmap, ptest.expected, ptest.nbits)) {
-			pr_err("parselist%s: %d: input is %s, result is 0x%lx, expected 0x%lx\n",
-					mode, i, ptest.in, bmap[0],
+			pr_err("parselist: %d: input is %s, result is 0x%lx, expected 0x%lx\n",
+					i, ptest.in, bmap[0],
 					*ptest.expected);
 			continue;
 		}
 
 		if (ptest.flags & PARSE_TIME)
-			pr_err("parselist%s: %d: input is '%s' OK, Time: %llu\n",
-					mode, i, ptest.in, time);
+			pr_err("parselist: %d: input is '%s' OK, Time: %llu\n",
+					i, ptest.in, time);
 
 #undef ptest
 	}
@@ -443,73 +430,39 @@ static const struct test_bitmap_parselist parse_tests[] __initconst = {
 #undef step
 };
 
-static void __init __test_bitmap_parse(int is_user)
+static void __init test_bitmap_parse(void)
 {
 	int i;
 	int err;
 	ktime_t time;
 	DECLARE_BITMAP(bmap, 2048);
-	char *mode = is_user ? "_user"  : "";
 
 	for (i = 0; i < ARRAY_SIZE(parse_tests); i++) {
 		struct test_bitmap_parselist test = parse_tests[i];
+		size_t len = test.flags & NO_LEN ? UINT_MAX : strlen(test.in);
 
-		if (is_user) {
-			size_t len = strlen(test.in);
-			mm_segment_t orig_fs = get_fs();
-
-			set_fs(KERNEL_DS);
-			time = ktime_get();
-			err = bitmap_parse_user((__force const char __user *)test.in, len,
-						bmap, test.nbits);
-			time = ktime_get() - time;
-			set_fs(orig_fs);
-		} else {
-			size_t len = test.flags & NO_LEN ?
-				UINT_MAX : strlen(test.in);
-			time = ktime_get();
-			err = bitmap_parse(test.in, len, bmap, test.nbits);
-			time = ktime_get() - time;
-		}
+		time = ktime_get();
+		err = bitmap_parse(test.in, len, bmap, test.nbits);
+		time = ktime_get() - time;
 
 		if (err != test.errno) {
-			pr_err("parse%s: %d: input is %s, errno is %d, expected %d\n",
-					mode, i, test.in, err, test.errno);
+			pr_err("parse: %d: input is %s, errno is %d, expected %d\n",
+					i, test.in, err, test.errno);
 			continue;
 		}
 
 		if (!err && test.expected
 			 && !__bitmap_equal(bmap, test.expected, test.nbits)) {
-			pr_err("parse%s: %d: input is %s, result is 0x%lx, expected 0x%lx\n",
-					mode, i, test.in, bmap[0],
+			pr_err("parse: %d: input is %s, result is 0x%lx, expected 0x%lx\n",
+					i, test.in, bmap[0],
 					*test.expected);
 			continue;
 		}
 
 		if (test.flags & PARSE_TIME)
-			pr_err("parse%s: %d: input is '%s' OK, Time: %llu\n",
-					mode, i, test.in, time);
+			pr_err("parse: %d: input is '%s' OK, Time: %llu\n",
+					i, test.in, time);
 	}
-}
-
-static void __init test_bitmap_parselist(void)
-{
-	__test_bitmap_parselist(0);
-}
-
-static void __init test_bitmap_parselist_user(void)
-{
-	__test_bitmap_parselist(1);
-}
-
-static void __init test_bitmap_parse(void)
-{
-	__test_bitmap_parse(0);
-}
-
-static void __init test_bitmap_parse_user(void)
-{
-	__test_bitmap_parse(1);
 }
 
 #define EXP1_IN_BITS	(sizeof(exp1) * 8)
@@ -675,9 +628,7 @@ static void __init selftest(void)
 	test_replace();
 	test_bitmap_arr32();
 	test_bitmap_parse();
-	test_bitmap_parse_user();
 	test_bitmap_parselist();
-	test_bitmap_parselist_user();
 	test_mem_optimisations();
 	test_for_each_set_clump8();
 	test_bitmap_cut();

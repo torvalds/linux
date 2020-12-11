@@ -229,7 +229,6 @@ static inline unsigned long get_total_power(struct devfreq_cooling_device *dfc,
 
 
 static int devfreq_cooling_get_requested_power(struct thermal_cooling_device *cdev,
-					       struct thermal_zone_device *tz,
 					       u32 *power)
 {
 	struct devfreq_cooling_device *dfc = cdev->devdata;
@@ -289,7 +288,6 @@ fail:
 }
 
 static int devfreq_cooling_state2power(struct thermal_cooling_device *cdev,
-				       struct thermal_zone_device *tz,
 				       unsigned long state,
 				       u32 *power)
 {
@@ -308,7 +306,6 @@ static int devfreq_cooling_state2power(struct thermal_cooling_device *cdev,
 }
 
 static int devfreq_cooling_power2state(struct thermal_cooling_device *cdev,
-				       struct thermal_zone_device *tz,
 				       u32 power, unsigned long *state)
 {
 	struct devfreq_cooling_device *dfc = cdev->devdata;

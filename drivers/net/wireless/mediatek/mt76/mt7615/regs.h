@@ -575,7 +575,7 @@ enum mt7615_reg_base {
 #define MT_MCU_PTA_BASE			0x81060000
 #define MT_MCU_PTA(_n)			(MT_MCU_PTA_BASE + (_n))
 
-#define MT_ANT_SWITCH_CON(n)		MT_MCU_PTA(0x0c8)
+#define MT_ANT_SWITCH_CON(_n)		MT_MCU_PTA(0x0c8 + ((_n) - 1) * 4)
 #define MT_ANT_SWITCH_CON_MODE(_n)	(GENMASK(4, 0) << (_n * 8))
 #define MT_ANT_SWITCH_CON_MODE1(_n)	(GENMASK(3, 0) << (_n * 8))
 

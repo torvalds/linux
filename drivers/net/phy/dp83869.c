@@ -4,12 +4,14 @@
  */
 
 #include <linux/ethtool.h>
+#include <linux/etherdevice.h>
 #include <linux/kernel.h>
 #include <linux/mii.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/phy.h>
 #include <linux/delay.h>
+#include <linux/bitfield.h>
 
 #include <dt-bindings/net/ti-dp83869.h>
 
@@ -19,6 +21,7 @@
 #define MII_DP83869_PHYCTRL	0x10
 #define MII_DP83869_MICR	0x12
 #define MII_DP83869_ISR		0x13
+#define DP83869_CFG2		0x14
 #define DP83869_CTRL		0x1f
 #define DP83869_CFG4		0x1e
 
@@ -27,6 +30,13 @@
 #define DP83869_RGMIICTL	0x0032
 #define DP83869_STRAP_STS1	0x006e
 #define DP83869_RGMIIDCTL	0x0086
+#define DP83869_RXFCFG		0x0134
+#define DP83869_RXFPMD1		0x0136
+#define DP83869_RXFPMD2		0x0137
+#define DP83869_RXFPMD3		0x0138
+#define DP83869_RXFSOP1		0x0139
+#define DP83869_RXFSOP2		0x013A
+#define DP83869_RXFSOP3		0x013B
 #define DP83869_IO_MUX_CFG	0x0170
 #define DP83869_OP_MODE		0x01df
 #define DP83869_FX_CTRL		0x0c00
@@ -51,6 +61,10 @@
 #define MII_DP83869_BMCR_DEFAULT	(BMCR_ANENABLE | \
 					 BMCR_FULLDPLX | \
 					 BMCR_SPEED1000)
+
+#define MII_DP83869_FIBER_ADVERTISE    (ADVERTISED_FIBRE | \
+					ADVERTISED_Pause | \
+					ADVERTISED_Asym_Pause)
 
 /* This is the same bit mask as the BMCR so re-use the BMCR default */
 #define DP83869_FX_CTRL_DEFAULT	MII_DP83869_BMCR_DEFAULT
@@ -100,6 +114,26 @@
 #define DP83869_OP_MODE_MII			BIT(5)
 #define DP83869_SGMII_RGMII_BRIDGE		BIT(6)
 
+/* RXFCFG bits*/
+#define DP83869_WOL_MAGIC_EN		BIT(0)
+#define DP83869_WOL_PATTERN_EN		BIT(1)
+#define DP83869_WOL_BCAST_EN		BIT(2)
+#define DP83869_WOL_UCAST_EN		BIT(4)
+#define DP83869_WOL_SEC_EN		BIT(5)
+#define DP83869_WOL_ENH_MAC		BIT(7)
+
+/* CFG2 bits */
+#define DP83869_DOWNSHIFT_EN		(BIT(8) | BIT(9))
+#define DP83869_DOWNSHIFT_ATTEMPT_MASK	(BIT(10) | BIT(11))
+#define DP83869_DOWNSHIFT_1_COUNT_VAL	0
+#define DP83869_DOWNSHIFT_2_COUNT_VAL	1
+#define DP83869_DOWNSHIFT_4_COUNT_VAL	2
+#define DP83869_DOWNSHIFT_8_COUNT_VAL	3
+#define DP83869_DOWNSHIFT_1_COUNT	1
+#define DP83869_DOWNSHIFT_2_COUNT	2
+#define DP83869_DOWNSHIFT_4_COUNT	4
+#define DP83869_DOWNSHIFT_8_COUNT	8
+
 enum {
 	DP83869_PORT_MIRRORING_KEEP,
 	DP83869_PORT_MIRRORING_EN,
@@ -117,6 +151,28 @@ struct dp83869_private {
 	int clk_output_sel;
 	int mode;
 };
+
+static int dp83869_read_status(struct phy_device *phydev)
+{
+	struct dp83869_private *dp83869 = phydev->priv;
+	int ret;
+
+	ret = genphy_read_status(phydev);
+	if (ret)
+		return ret;
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_FIBRE_BIT, phydev->supported)) {
+		if (phydev->link) {
+			if (dp83869->mode == DP83869_RGMII_100_BASE)
+				phydev->speed = SPEED_100;
+		} else {
+			phydev->speed = SPEED_UNKNOWN;
+			phydev->duplex = DUPLEX_UNKNOWN;
+		}
+	}
+
+	return 0;
+}
 
 static int dp83869_ack_interrupt(struct phy_device *phydev)
 {
@@ -149,6 +205,256 @@ static int dp83869_config_intr(struct phy_device *phydev)
 	}
 
 	return phy_write(phydev, MII_DP83869_MICR, micr_status);
+}
+
+static int dp83869_set_wol(struct phy_device *phydev,
+			   struct ethtool_wolinfo *wol)
+{
+	struct net_device *ndev = phydev->attached_dev;
+	int val_rxcfg, val_micr;
+	u8 *mac;
+	int ret;
+
+	val_rxcfg = phy_read_mmd(phydev, DP83869_DEVADDR, DP83869_RXFCFG);
+	if (val_rxcfg < 0)
+		return val_rxcfg;
+
+	val_micr = phy_read(phydev, MII_DP83869_MICR);
+	if (val_micr < 0)
+		return val_micr;
+
+	if (wol->wolopts & (WAKE_MAGIC | WAKE_MAGICSECURE | WAKE_UCAST |
+			    WAKE_BCAST)) {
+		val_rxcfg |= DP83869_WOL_ENH_MAC;
+		val_micr |= MII_DP83869_MICR_WOL_INT_EN;
+
+		if (wol->wolopts & WAKE_MAGIC ||
+		    wol->wolopts & WAKE_MAGICSECURE) {
+			mac = (u8 *)ndev->dev_addr;
+
+			if (!is_valid_ether_addr(mac))
+				return -EINVAL;
+
+			ret = phy_write_mmd(phydev, DP83869_DEVADDR,
+					    DP83869_RXFPMD1,
+					    mac[1] << 8 | mac[0]);
+			if (ret)
+				return ret;
+
+			ret = phy_write_mmd(phydev, DP83869_DEVADDR,
+					    DP83869_RXFPMD2,
+					    mac[3] << 8 | mac[2]);
+			if (ret)
+				return ret;
+
+			ret = phy_write_mmd(phydev, DP83869_DEVADDR,
+					    DP83869_RXFPMD3,
+					    mac[5] << 8 | mac[4]);
+			if (ret)
+				return ret;
+
+			val_rxcfg |= DP83869_WOL_MAGIC_EN;
+		} else {
+			val_rxcfg &= ~DP83869_WOL_MAGIC_EN;
+		}
+
+		if (wol->wolopts & WAKE_MAGICSECURE) {
+			ret = phy_write_mmd(phydev, DP83869_DEVADDR,
+					    DP83869_RXFSOP1,
+					    (wol->sopass[1] << 8) | wol->sopass[0]);
+			if (ret)
+				return ret;
+
+			ret = phy_write_mmd(phydev, DP83869_DEVADDR,
+					    DP83869_RXFSOP2,
+					    (wol->sopass[3] << 8) | wol->sopass[2]);
+			if (ret)
+				return ret;
+			ret = phy_write_mmd(phydev, DP83869_DEVADDR,
+					    DP83869_RXFSOP3,
+					    (wol->sopass[5] << 8) | wol->sopass[4]);
+			if (ret)
+				return ret;
+
+			val_rxcfg |= DP83869_WOL_SEC_EN;
+		} else {
+			val_rxcfg &= ~DP83869_WOL_SEC_EN;
+		}
+
+		if (wol->wolopts & WAKE_UCAST)
+			val_rxcfg |= DP83869_WOL_UCAST_EN;
+		else
+			val_rxcfg &= ~DP83869_WOL_UCAST_EN;
+
+		if (wol->wolopts & WAKE_BCAST)
+			val_rxcfg |= DP83869_WOL_BCAST_EN;
+		else
+			val_rxcfg &= ~DP83869_WOL_BCAST_EN;
+	} else {
+		val_rxcfg &= ~DP83869_WOL_ENH_MAC;
+		val_micr &= ~MII_DP83869_MICR_WOL_INT_EN;
+	}
+
+	ret = phy_write_mmd(phydev, DP83869_DEVADDR, DP83869_RXFCFG, val_rxcfg);
+	if (ret)
+		return ret;
+
+	return phy_write(phydev, MII_DP83869_MICR, val_micr);
+}
+
+static void dp83869_get_wol(struct phy_device *phydev,
+			    struct ethtool_wolinfo *wol)
+{
+	int value, sopass_val;
+
+	wol->supported = (WAKE_UCAST | WAKE_BCAST | WAKE_MAGIC |
+			WAKE_MAGICSECURE);
+	wol->wolopts = 0;
+
+	value = phy_read_mmd(phydev, DP83869_DEVADDR, DP83869_RXFCFG);
+	if (value < 0) {
+		phydev_err(phydev, "Failed to read RX CFG\n");
+		return;
+	}
+
+	if (value & DP83869_WOL_UCAST_EN)
+		wol->wolopts |= WAKE_UCAST;
+
+	if (value & DP83869_WOL_BCAST_EN)
+		wol->wolopts |= WAKE_BCAST;
+
+	if (value & DP83869_WOL_MAGIC_EN)
+		wol->wolopts |= WAKE_MAGIC;
+
+	if (value & DP83869_WOL_SEC_EN) {
+		sopass_val = phy_read_mmd(phydev, DP83869_DEVADDR,
+					  DP83869_RXFSOP1);
+		if (sopass_val < 0) {
+			phydev_err(phydev, "Failed to read RX SOP 1\n");
+			return;
+		}
+
+		wol->sopass[0] = (sopass_val & 0xff);
+		wol->sopass[1] = (sopass_val >> 8);
+
+		sopass_val = phy_read_mmd(phydev, DP83869_DEVADDR,
+					  DP83869_RXFSOP2);
+		if (sopass_val < 0) {
+			phydev_err(phydev, "Failed to read RX SOP 2\n");
+			return;
+		}
+
+		wol->sopass[2] = (sopass_val & 0xff);
+		wol->sopass[3] = (sopass_val >> 8);
+
+		sopass_val = phy_read_mmd(phydev, DP83869_DEVADDR,
+					  DP83869_RXFSOP3);
+		if (sopass_val < 0) {
+			phydev_err(phydev, "Failed to read RX SOP 3\n");
+			return;
+		}
+
+		wol->sopass[4] = (sopass_val & 0xff);
+		wol->sopass[5] = (sopass_val >> 8);
+
+		wol->wolopts |= WAKE_MAGICSECURE;
+	}
+
+	if (!(value & DP83869_WOL_ENH_MAC))
+		wol->wolopts = 0;
+}
+
+static int dp83869_get_downshift(struct phy_device *phydev, u8 *data)
+{
+	int val, cnt, enable, count;
+
+	val = phy_read(phydev, DP83869_CFG2);
+	if (val < 0)
+		return val;
+
+	enable = FIELD_GET(DP83869_DOWNSHIFT_EN, val);
+	cnt = FIELD_GET(DP83869_DOWNSHIFT_ATTEMPT_MASK, val);
+
+	switch (cnt) {
+	case DP83869_DOWNSHIFT_1_COUNT_VAL:
+		count = DP83869_DOWNSHIFT_1_COUNT;
+		break;
+	case DP83869_DOWNSHIFT_2_COUNT_VAL:
+		count = DP83869_DOWNSHIFT_2_COUNT;
+		break;
+	case DP83869_DOWNSHIFT_4_COUNT_VAL:
+		count = DP83869_DOWNSHIFT_4_COUNT;
+		break;
+	case DP83869_DOWNSHIFT_8_COUNT_VAL:
+		count = DP83869_DOWNSHIFT_8_COUNT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	*data = enable ? count : DOWNSHIFT_DEV_DISABLE;
+
+	return 0;
+}
+
+static int dp83869_set_downshift(struct phy_device *phydev, u8 cnt)
+{
+	int val, count;
+
+	if (cnt > DP83869_DOWNSHIFT_8_COUNT)
+		return -EINVAL;
+
+	if (!cnt)
+		return phy_clear_bits(phydev, DP83869_CFG2,
+				      DP83869_DOWNSHIFT_EN);
+
+	switch (cnt) {
+	case DP83869_DOWNSHIFT_1_COUNT:
+		count = DP83869_DOWNSHIFT_1_COUNT_VAL;
+		break;
+	case DP83869_DOWNSHIFT_2_COUNT:
+		count = DP83869_DOWNSHIFT_2_COUNT_VAL;
+		break;
+	case DP83869_DOWNSHIFT_4_COUNT:
+		count = DP83869_DOWNSHIFT_4_COUNT_VAL;
+		break;
+	case DP83869_DOWNSHIFT_8_COUNT:
+		count = DP83869_DOWNSHIFT_8_COUNT_VAL;
+		break;
+	default:
+		phydev_err(phydev,
+			   "Downshift count must be 1, 2, 4 or 8\n");
+		return -EINVAL;
+	}
+
+	val = DP83869_DOWNSHIFT_EN;
+	val |= FIELD_PREP(DP83869_DOWNSHIFT_ATTEMPT_MASK, count);
+
+	return phy_modify(phydev, DP83869_CFG2,
+			  DP83869_DOWNSHIFT_EN | DP83869_DOWNSHIFT_ATTEMPT_MASK,
+			  val);
+}
+
+static int dp83869_get_tunable(struct phy_device *phydev,
+			       struct ethtool_tunable *tuna, void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		return dp83869_get_downshift(phydev, data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int dp83869_set_tunable(struct phy_device *phydev,
+			       struct ethtool_tunable *tuna, const void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		return dp83869_set_downshift(phydev, *(const u8 *)data);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int dp83869_config_port_mirroring(struct phy_device *phydev)
@@ -295,6 +601,51 @@ static int dp83869_configure_rgmii(struct phy_device *phydev,
 	return ret;
 }
 
+static int dp83869_configure_fiber(struct phy_device *phydev,
+				   struct dp83869_private *dp83869)
+{
+	int bmcr;
+	int ret;
+
+	/* Only allow advertising what this PHY supports */
+	linkmode_and(phydev->advertising, phydev->advertising,
+		     phydev->supported);
+
+	linkmode_set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT, phydev->supported);
+	linkmode_set_bit(ADVERTISED_FIBRE, phydev->advertising);
+
+	if (dp83869->mode == DP83869_RGMII_1000_BASE) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+				 phydev->supported);
+	} else {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseFX_Full_BIT,
+				 phydev->supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseFX_Half_BIT,
+				 phydev->supported);
+
+		/* Auto neg is not supported in 100base FX mode */
+		bmcr = phy_read(phydev, MII_BMCR);
+		if (bmcr < 0)
+			return bmcr;
+
+		phydev->autoneg = AUTONEG_DISABLE;
+		linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, phydev->supported);
+		linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, phydev->advertising);
+
+		if (bmcr & BMCR_ANENABLE) {
+			ret =  phy_modify(phydev, MII_BMCR, BMCR_ANENABLE, 0);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	/* Update advertising from supported */
+	linkmode_or(phydev->advertising, phydev->advertising,
+		    phydev->supported);
+
+	return 0;
+}
+
 static int dp83869_configure_mode(struct phy_device *phydev,
 				  struct dp83869_private *dp83869)
 {
@@ -384,6 +735,7 @@ static int dp83869_configure_mode(struct phy_device *phydev,
 		break;
 	case DP83869_RGMII_1000_BASE:
 	case DP83869_RGMII_100_BASE:
+		ret = dp83869_configure_fiber(phydev, dp83869);
 		break;
 	default:
 		return -EINVAL;
@@ -396,6 +748,12 @@ static int dp83869_config_init(struct phy_device *phydev)
 {
 	struct dp83869_private *dp83869 = phydev->priv;
 	int ret, val;
+
+	/* Force speed optimization for the PHY even if it strapped */
+	ret = phy_modify(phydev, DP83869_CFG2, DP83869_DOWNSHIFT_EN,
+			 DP83869_DOWNSHIFT_EN);
+	if (ret)
+		return ret;
 
 	ret = dp83869_configure_mode(phydev, dp83869);
 	if (ret)
@@ -494,6 +852,13 @@ static struct phy_driver dp83869_driver[] = {
 		/* IRQ related */
 		.ack_interrupt	= dp83869_ack_interrupt,
 		.config_intr	= dp83869_config_intr,
+		.read_status	= dp83869_read_status,
+
+		.get_tunable	= dp83869_get_tunable,
+		.set_tunable	= dp83869_set_tunable,
+
+		.get_wol	= dp83869_get_wol,
+		.set_wol	= dp83869_set_wol,
 
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,

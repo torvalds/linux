@@ -104,8 +104,8 @@ DECLARE_EVENT_CLASS(dwc3_log_request,
 	TP_STRUCT__entry(
 		__string(name, req->dep->name)
 		__field(struct dwc3_request *, req)
-		__field(unsigned, actual)
-		__field(unsigned, length)
+		__field(unsigned int, actual)
+		__field(unsigned int, length)
 		__field(int, status)
 		__field(int, zero)
 		__field(int, short_not_ok)
@@ -246,6 +246,7 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 		__entry->dequeue, __entry->bph, __entry->bpl,
 		({char *s;
 		int pcm = ((__entry->size >> 24) & 3) + 1;
+
 		switch (__entry->type) {
 		case USB_ENDPOINT_XFER_INT:
 		case USB_ENDPOINT_XFER_ISOC:
@@ -291,12 +292,12 @@ DECLARE_EVENT_CLASS(dwc3_log_ep,
 	TP_ARGS(dep),
 	TP_STRUCT__entry(
 		__string(name, dep->name)
-		__field(unsigned, maxpacket)
-		__field(unsigned, maxpacket_limit)
-		__field(unsigned, max_streams)
-		__field(unsigned, maxburst)
-		__field(unsigned, flags)
-		__field(unsigned, direction)
+		__field(unsigned int, maxpacket)
+		__field(unsigned int, maxpacket_limit)
+		__field(unsigned int, max_streams)
+		__field(unsigned int, maxburst)
+		__field(unsigned int, flags)
+		__field(unsigned int, direction)
 		__field(u8, trb_enqueue)
 		__field(u8, trb_dequeue)
 	),

@@ -297,6 +297,10 @@ struct efx_ef10_nic_data {
 	u64 licensed_features;
 };
 
+/* TSOv2 */
+int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
+			 bool *data_mapped);
+
 int efx_init_sriov(void);
 void efx_fini_sriov(void);
 

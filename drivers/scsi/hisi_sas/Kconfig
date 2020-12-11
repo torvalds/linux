@@ -15,5 +15,6 @@ config SCSI_HISI_SAS_PCI
 	tristate "HiSilicon SAS on PCI bus"
 	depends on SCSI_HISI_SAS
 	depends on PCI
+	depends on ACPI
 	help
 		This driver supports HiSilicon's SAS HBA based on PCI device

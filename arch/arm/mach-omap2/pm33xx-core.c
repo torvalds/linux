@@ -2,7 +2,7 @@
 /*
  * AM33XX Arch Power Management Routines
  *
- * Copyright (C) 2016-2018 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2016-2018 Texas Instruments Incorporated - https://www.ti.com/
  *	Dave Gerlach
  */
 
@@ -25,7 +25,6 @@
 #include "control.h"
 #include "clockdomain.h"
 #include "iomap.h"
-#include "omap_hwmod.h"
 #include "pm.h"
 #include "powerdomain.h"
 #include "prm33xx.h"
@@ -36,7 +35,6 @@
 static struct powerdomain *cefuse_pwrdm, *gfx_pwrdm, *per_pwrdm, *mpu_pwrdm;
 static struct clockdomain *gfx_l4ls_clkdm;
 static void __iomem *scu_base;
-static struct omap_hwmod *rtc_oh;
 
 static int (*idle_fn)(u32 wfi_flags);
 
@@ -267,13 +265,6 @@ static struct am33xx_pm_sram_addr *amx3_get_sram_addrs(void)
 		return NULL;
 }
 
-static void __iomem *am43xx_get_rtc_base_addr(void)
-{
-	rtc_oh = omap_hwmod_lookup("rtc");
-
-	return omap_hwmod_get_mpu_rt_va(rtc_oh);
-}
-
 static void am43xx_save_context(void)
 {
 }
@@ -297,16 +288,6 @@ static void am43xx_restore_context(void)
 	writel_relaxed(0x0, AM33XX_L4_WK_IO_ADDRESS(0x44df2e14));
 }
 
-static void am43xx_prepare_rtc_suspend(void)
-{
-	omap_hwmod_enable(rtc_oh);
-}
-
-static void am43xx_prepare_rtc_resume(void)
-{
-	omap_hwmod_idle(rtc_oh);
-}
-
 static struct am33xx_pm_platform_data am33xx_ops = {
 	.init = am33xx_suspend_init,
 	.deinit = amx3_suspend_deinit,
@@ -317,10 +298,7 @@ static struct am33xx_pm_platform_data am33xx_ops = {
 	.get_sram_addrs = amx3_get_sram_addrs,
 	.save_context = am33xx_save_context,
 	.restore_context = am33xx_restore_context,
-	.prepare_rtc_suspend = am43xx_prepare_rtc_suspend,
-	.prepare_rtc_resume = am43xx_prepare_rtc_resume,
 	.check_off_mode_enable = am33xx_check_off_mode_enable,
-	.get_rtc_base_addr = am43xx_get_rtc_base_addr,
 };
 
 static struct am33xx_pm_platform_data am43xx_ops = {
@@ -333,10 +311,7 @@ static struct am33xx_pm_platform_data am43xx_ops = {
 	.get_sram_addrs = amx3_get_sram_addrs,
 	.save_context = am43xx_save_context,
 	.restore_context = am43xx_restore_context,
-	.prepare_rtc_suspend = am43xx_prepare_rtc_suspend,
-	.prepare_rtc_resume = am43xx_prepare_rtc_resume,
 	.check_off_mode_enable = am43xx_check_off_mode_enable,
-	.get_rtc_base_addr = am43xx_get_rtc_base_addr,
 };
 
 static struct am33xx_pm_platform_data *am33xx_pm_get_pdata(void)

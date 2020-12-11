@@ -123,13 +123,13 @@ struct n_hdlc_buf_list {
 
 /**
  * struct n_hdlc - per device instance data structure
- * @magic - magic value for structure
- * @tbusy - reentrancy flag for tx wakeup code
- * @woke_up - tx wakeup needs to be run again as it was called while @tbusy
- * @tx_buf_list - list of pending transmit frame buffers
- * @rx_buf_list - list of received frame buffers
- * @tx_free_buf_list - list unused transmit frame buffers
- * @rx_free_buf_list - list unused received frame buffers
+ * @magic: magic value for structure
+ * @tbusy: reentrancy flag for tx wakeup code
+ * @woke_up: tx wakeup needs to be run again as it was called while @tbusy
+ * @tx_buf_list: list of pending transmit frame buffers
+ * @rx_buf_list: list of received frame buffers
+ * @tx_free_buf_list: list unused transmit frame buffers
+ * @rx_free_buf_list: list unused received frame buffers
  */
 struct n_hdlc {
 	int			magic;
@@ -187,7 +187,7 @@ static void n_hdlc_free_buf_list(struct n_hdlc_buf_list *list)
 
 /**
  * n_hdlc_tty_close - line discipline close
- * @tty - pointer to tty info structure
+ * @tty: pointer to tty info structure
  *
  * Called when the line discipline is changed to something
  * else, the tty is closed, or the tty detects a hangup.
@@ -218,7 +218,7 @@ static void n_hdlc_tty_close(struct tty_struct *tty)
 
 /**
  * n_hdlc_tty_open - called when line discipline changed to n_hdlc
- * @tty - pointer to tty info structure
+ * @tty: pointer to tty info structure
  *
  * Returns 0 if success, otherwise error code
  */
@@ -255,8 +255,8 @@ static int n_hdlc_tty_open(struct tty_struct *tty)
 
 /**
  * n_hdlc_send_frames - send frames on pending send buffer list
- * @n_hdlc - pointer to ldisc instance data
- * @tty - pointer to tty instance data
+ * @n_hdlc: pointer to ldisc instance data
+ * @tty: pointer to tty instance data
  *
  * Send frames on pending send buffer list until the driver does not accept a
  * frame (busy) this function is called after adding a frame to the send buffer
@@ -335,7 +335,7 @@ check_again:
 
 /**
  * n_hdlc_tty_wakeup - Callback for transmit wakeup
- * @tty	- pointer to associated tty instance data
+ * @tty: pointer to associated tty instance data
  *
  * Called when low level device driver can accept more send data.
  */
@@ -348,10 +348,10 @@ static void n_hdlc_tty_wakeup(struct tty_struct *tty)
 
 /**
  * n_hdlc_tty_receive - Called by tty driver when receive data is available
- * @tty	- pointer to tty instance data
- * @data - pointer to received data
- * @flags - pointer to flags for data
- * @count - count of received data in bytes
+ * @tty: pointer to tty instance data
+ * @data: pointer to received data
+ * @flags: pointer to flags for data
+ * @count: count of received data in bytes
  *
  * Called by tty low level driver when receive data is available. Data is
  * interpreted as one HDLC frame.
@@ -408,10 +408,10 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 
 /**
  * n_hdlc_tty_read - Called to retrieve one frame of data (if available)
- * @tty - pointer to tty instance data
- * @file - pointer to open file object
- * @buf - pointer to returned data buffer
- * @nr - size of returned data buffer
+ * @tty: pointer to tty instance data
+ * @file: pointer to open file object
+ * @buf: pointer to returned data buffer
+ * @nr: size of returned data buffer
  *
  * Returns the number of bytes returned or error code.
  */
@@ -479,10 +479,10 @@ static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
 
 /**
  * n_hdlc_tty_write - write a single frame of data to device
- * @tty	- pointer to associated tty device instance data
- * @file - pointer to file object data
- * @data - pointer to transmit data (one frame)
- * @count - size of transmit frame in bytes
+ * @tty: pointer to associated tty device instance data
+ * @file: pointer to file object data
+ * @data: pointer to transmit data (one frame)
+ * @count: size of transmit frame in bytes
  *
  * Returns the number of bytes written (or error code).
  */
@@ -546,10 +546,10 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 
 /**
  * n_hdlc_tty_ioctl - process IOCTL system call for the tty device.
- * @tty - pointer to tty instance data
- * @file - pointer to open file object for device
- * @cmd - IOCTL command code
- * @arg - argument for IOCTL call (cmd dependent)
+ * @tty: pointer to tty instance data
+ * @file: pointer to open file object for device
+ * @cmd: IOCTL command code
+ * @arg: argument for IOCTL call (cmd dependent)
  *
  * Returns command dependent result.
  */
@@ -614,9 +614,9 @@ static int n_hdlc_tty_ioctl(struct tty_struct *tty, struct file *file,
 
 /**
  * n_hdlc_tty_poll - TTY callback for poll system call
- * @tty - pointer to tty instance data
- * @filp - pointer to open file object for device
- * @poll_table - wait queue for operations
+ * @tty: pointer to tty instance data
+ * @filp: pointer to open file object for device
+ * @wait: wait queue for operations
  *
  * Determine which operations (read/write) will not block and return info
  * to caller.
@@ -703,8 +703,8 @@ static struct n_hdlc *n_hdlc_alloc(void)
 
 /**
  * n_hdlc_buf_return - put the HDLC buffer after the head of the specified list
- * @buf_list - pointer to the buffer list
- * @buf - pointer to the buffer
+ * @buf_list: pointer to the buffer list
+ * @buf: pointer to the buffer
  */
 static void n_hdlc_buf_return(struct n_hdlc_buf_list *buf_list,
 						struct n_hdlc_buf *buf)
@@ -721,8 +721,8 @@ static void n_hdlc_buf_return(struct n_hdlc_buf_list *buf_list,
 
 /**
  * n_hdlc_buf_put - add specified HDLC buffer to tail of specified list
- * @buf_list - pointer to buffer list
- * @buf	- pointer to buffer
+ * @buf_list: pointer to buffer list
+ * @buf: pointer to buffer
  */
 static void n_hdlc_buf_put(struct n_hdlc_buf_list *buf_list,
 			   struct n_hdlc_buf *buf)
@@ -739,7 +739,7 @@ static void n_hdlc_buf_put(struct n_hdlc_buf_list *buf_list,
 
 /**
  * n_hdlc_buf_get - remove and return an HDLC buffer from list
- * @buf_list - pointer to HDLC buffer list
+ * @buf_list: pointer to HDLC buffer list
  *
  * Remove and return an HDLC buffer from the head of the specified HDLC buffer
  * list.

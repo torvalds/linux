@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_SUBSCRIBE_EVENT:
 .. _VIDIOC_UNSUBSCRIBE_EVENT:
@@ -19,33 +13,31 @@ Name
 
 VIDIOC_SUBSCRIBE_EVENT - VIDIOC_UNSUBSCRIBE_EVENT - Subscribe or unsubscribe event
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBSCRIBE_EVENT, struct v4l2_event_subscription *argp )
-    :name: VIDIOC_SUBSCRIBE_EVENT
+.. c:macro:: VIDIOC_SUBSCRIBE_EVENT
 
-.. c:function:: int ioctl( int fd, VIDIOC_UNSUBSCRIBE_EVENT, struct v4l2_event_subscription *argp )
-    :name: VIDIOC_UNSUBSCRIBE_EVENT
+``int ioctl(int fd, VIDIOC_SUBSCRIBE_EVENT, struct v4l2_event_subscription *argp)``
 
+.. c:macro:: VIDIOC_UNSUBSCRIBE_EVENT
+
+``int ioctl(int fd, VIDIOC_UNSUBSCRIBE_EVENT, struct v4l2_event_subscription *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_event_subscription`.
-
 
 Description
 ===========
 
 Subscribe or unsubscribe V4L2 event. Subscribed events are dequeued by
 using the :ref:`VIDIOC_DQEVENT` ioctl.
-
 
 .. tabularcolumns:: |p{4.6cm}|p{4.4cm}|p{8.7cm}|
 
@@ -77,7 +69,6 @@ using the :ref:`VIDIOC_DQEVENT` ioctl.
       - ``reserved``\ [5]
       - Reserved for future extensions. Drivers and applications must set
 	the array to zero.
-
 
 
 .. tabularcolumns:: |p{6.8cm}|p{2.2cm}|p{8.5cm}|
@@ -113,7 +104,6 @@ using the :ref:`VIDIOC_DQEVENT` ioctl.
 
 	Think carefully when you set this flag so you won't get into
 	situations like that.
-
 
 Return Value
 ============

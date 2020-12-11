@@ -752,7 +752,7 @@ static int hw_init_v1_hw(struct hisi_hba *hisi_hba)
 
 	rc = reset_hw_v1_hw(hisi_hba);
 	if (rc) {
-		dev_err(dev, "hisi_sas_reset_hw failed, rc=%d", rc);
+		dev_err(dev, "hisi_sas_reset_hw failed, rc=%d\n", rc);
 		return rc;
 	}
 
@@ -1166,7 +1166,7 @@ static void slot_err_v1_hw(struct hisi_hba *hisi_hba,
 	case SAS_PROTOCOL_STP:
 	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
 	{
-		dev_err(dev, "slot err: SATA/STP not supported");
+		dev_err(dev, "slot err: SATA/STP not supported\n");
 	}
 		break;
 	default:
@@ -1218,35 +1218,35 @@ static void slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 		u32 info_reg = hisi_sas_read32(hisi_hba, HGC_INVLD_DQE_INFO);
 
 		if (info_reg & HGC_INVLD_DQE_INFO_DQ_MSK)
-			dev_err(dev, "slot complete: [%d:%d] has dq IPTT err",
+			dev_err(dev, "slot complete: [%d:%d] has dq IPTT err\n",
 				slot->cmplt_queue, slot->cmplt_queue_slot);
 
 		if (info_reg & HGC_INVLD_DQE_INFO_TYPE_MSK)
-			dev_err(dev, "slot complete: [%d:%d] has dq type err",
+			dev_err(dev, "slot complete: [%d:%d] has dq type err\n",
 				slot->cmplt_queue, slot->cmplt_queue_slot);
 
 		if (info_reg & HGC_INVLD_DQE_INFO_FORCE_MSK)
-			dev_err(dev, "slot complete: [%d:%d] has dq force phy err",
+			dev_err(dev, "slot complete: [%d:%d] has dq force phy err\n",
 				slot->cmplt_queue, slot->cmplt_queue_slot);
 
 		if (info_reg & HGC_INVLD_DQE_INFO_PHY_MSK)
-			dev_err(dev, "slot complete: [%d:%d] has dq phy id err",
+			dev_err(dev, "slot complete: [%d:%d] has dq phy id err\n",
 				slot->cmplt_queue, slot->cmplt_queue_slot);
 
 		if (info_reg & HGC_INVLD_DQE_INFO_ABORT_MSK)
-			dev_err(dev, "slot complete: [%d:%d] has dq abort flag err",
+			dev_err(dev, "slot complete: [%d:%d] has dq abort flag err\n",
 				slot->cmplt_queue, slot->cmplt_queue_slot);
 
 		if (info_reg & HGC_INVLD_DQE_INFO_IPTT_OF_MSK)
-			dev_err(dev, "slot complete: [%d:%d] has dq IPTT or ICT err",
+			dev_err(dev, "slot complete: [%d:%d] has dq IPTT or ICT err\n",
 				slot->cmplt_queue, slot->cmplt_queue_slot);
 
 		if (info_reg & HGC_INVLD_DQE_INFO_SSP_ERR_MSK)
-			dev_err(dev, "slot complete: [%d:%d] has dq SSP frame type err",
+			dev_err(dev, "slot complete: [%d:%d] has dq SSP frame type err\n",
 				slot->cmplt_queue, slot->cmplt_queue_slot);
 
 		if (info_reg & HGC_INVLD_DQE_INFO_OFL_MSK)
-			dev_err(dev, "slot complete: [%d:%d] has dq order frame len err",
+			dev_err(dev, "slot complete: [%d:%d] has dq order frame len err\n",
 				slot->cmplt_queue, slot->cmplt_queue_slot);
 
 		ts->stat = SAS_OPEN_REJECT;
@@ -1294,7 +1294,7 @@ static void slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 	case SAS_PROTOCOL_SATA:
 	case SAS_PROTOCOL_STP:
 	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
-		dev_err(dev, "slot complete: SATA/STP not supported");
+		dev_err(dev, "slot complete: SATA/STP not supported\n");
 		break;
 
 	default:
@@ -1417,7 +1417,7 @@ static irqreturn_t int_bcast_v1_hw(int irq, void *p)
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
 
 	if (!(irq_value & CHL_INT2_SL_RX_BC_ACK_MSK)) {
-		dev_err(dev, "bcast: irq_value = %x not set enable bit",
+		dev_err(dev, "bcast: irq_value = %x not set enable bit\n",
 			irq_value);
 		res = IRQ_NONE;
 		goto end;

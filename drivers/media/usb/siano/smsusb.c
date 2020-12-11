@@ -430,7 +430,7 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 		break;
 	case SMS_UNKNOWN_TYPE:
 		pr_err("Unspecified sms device type!\n");
-		/* fall-thru */
+		fallthrough;
 	default:
 		dev->buffer_size = USB2_BUFFER_SIZE;
 		dev->response_alignment = align;

@@ -289,8 +289,8 @@ DEFINE_STATEID_EVENT(layout_recall_done);
 DEFINE_STATEID_EVENT(layout_recall_fail);
 DEFINE_STATEID_EVENT(layout_recall_release);
 
-DEFINE_STATEID_EVENT(deleg_open);
-DEFINE_STATEID_EVENT(deleg_none);
+DEFINE_STATEID_EVENT(open);
+DEFINE_STATEID_EVENT(deleg_read);
 DEFINE_STATEID_EVENT(deleg_break);
 DEFINE_STATEID_EVENT(deleg_recall);
 

@@ -56,7 +56,7 @@
 #include "util/cpumap.h"
 #include "util/thread_map.h"
 #include "util/counts.h"
-#include "util/group.h"
+#include "util/topdown.h"
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/string2.h"
@@ -125,6 +125,15 @@ static const char * topdown_attrs[] = {
 	"topdown-recovery-bubbles",
 	"topdown-fetch-bubbles",
 	"topdown-slots-issued",
+	NULL,
+};
+
+static const char *topdown_metric_attrs[] = {
+	"slots",
+	"topdown-retiring",
+	"topdown-bad-spec",
+	"topdown-fe-bound",
+	"topdown-be-bound",
 	NULL,
 };
 
@@ -578,6 +587,7 @@ static void process_evlist(struct evlist *evlist, unsigned int interval)
 				process_interval();
 			pr_info(EVLIST_DISABLED_MSG);
 			break;
+		case EVLIST_CTL_CMD_SNAPSHOT:
 		case EVLIST_CTL_CMD_ACK:
 		case EVLIST_CTL_CMD_UNSUPPORTED:
 		default:
@@ -1045,27 +1055,20 @@ static int parse_control_option(const struct option *opt,
 				const char *str,
 				int unset __maybe_unused)
 {
-	char *comma = NULL, *endptr = NULL;
-	struct perf_stat_config *config = (struct perf_stat_config *)opt->value;
+	struct perf_stat_config *config = opt->value;
 
-	if (strncmp(str, "fd:", 3))
-		return -EINVAL;
+	return evlist__parse_control(str, &config->ctl_fd, &config->ctl_fd_ack, &config->ctl_fd_close);
+}
 
-	config->ctl_fd = strtoul(&str[3], &endptr, 0);
-	if (endptr == &str[3])
-		return -EINVAL;
-
-	comma = strchr(str, ',');
-	if (comma) {
-		if (endptr != comma)
-			return -EINVAL;
-
-		config->ctl_fd_ack = strtoul(comma + 1, &endptr, 0);
-		if (endptr == comma + 1 || *endptr != '\0')
-			return -EINVAL;
+static int parse_stat_cgroups(const struct option *opt,
+			      const char *str, int unset)
+{
+	if (stat_config.cgroup_list) {
+		pr_err("--cgroup and --for-each-cgroup cannot be used together\n");
+		return -1;
 	}
 
-	return 0;
+	return parse_cgroups(opt, str, unset);
 }
 
 static struct option stat_options[] = {
@@ -1111,7 +1114,9 @@ static struct option stat_options[] = {
 	OPT_STRING('x', "field-separator", &stat_config.csv_sep, "separator",
 		   "print counts with custom separator"),
 	OPT_CALLBACK('G', "cgroup", &evsel_list, "name",
-		     "monitor event in cgroup name only", parse_cgroups),
+		     "monitor event in cgroup name only", parse_stat_cgroups),
+	OPT_STRING(0, "for-each-cgroup", &stat_config.cgroup_list, "name",
+		    "expand events for each cgroup"),
 	OPT_STRING('o', "output", &output_name, "file", "output file name"),
 	OPT_BOOLEAN(0, "append", &append_file, "append to the output file"),
 	OPT_INTEGER(0, "log-fd", &output_fd,
@@ -1171,9 +1176,10 @@ static struct option stat_options[] = {
 		"libpfm4 event selector. use 'perf list' to list available events",
 		parse_libpfm_events_option),
 #endif
-	OPT_CALLBACK(0, "control", &stat_config, "fd:ctl-fd[,ack-fd]",
+	OPT_CALLBACK(0, "control", &stat_config, "fd:ctl-fd[,ack-fd] or fifo:ctl-fifo[,ack-fifo]",
 		     "Listen on ctl-fd descriptor for command to control measurement ('enable': enable events, 'disable': disable events).\n"
-		     "\t\t\t  Optionally send control command completion ('ack\\n') to ack-fd descriptor.",
+		     "\t\t\t  Optionally send control command completion ('ack\\n') to ack-fd descriptor.\n"
+		     "\t\t\t  Alternatively, ctl-fifo / ack-fifo will be opened and used as ctl-fd / ack-fd.",
 		      parse_control_option),
 	OPT_END()
 };
@@ -1497,55 +1503,6 @@ static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
 	return 0;
 }
 
-static int topdown_filter_events(const char **attr, char **str, bool use_group)
-{
-	int off = 0;
-	int i;
-	int len = 0;
-	char *s;
-
-	for (i = 0; attr[i]; i++) {
-		if (pmu_have_event("cpu", attr[i])) {
-			len += strlen(attr[i]) + 1;
-			attr[i - off] = attr[i];
-		} else
-			off++;
-	}
-	attr[i - off] = NULL;
-
-	*str = malloc(len + 1 + 2);
-	if (!*str)
-		return -1;
-	s = *str;
-	if (i - off == 0) {
-		*s = 0;
-		return 0;
-	}
-	if (use_group)
-		*s++ = '{';
-	for (i = 0; attr[i]; i++) {
-		strcpy(s, attr[i]);
-		s += strlen(s);
-		*s++ = ',';
-	}
-	if (use_group) {
-		s[-1] = '}';
-		*s = 0;
-	} else
-		s[-1] = 0;
-	return 0;
-}
-
-__weak bool arch_topdown_check_group(bool *warn)
-{
-	*warn = false;
-	return false;
-}
-
-__weak void arch_topdown_group_warn(void)
-{
-}
-
 /*
  * Add default attributes, if there were no attributes specified or
  * if -d/--detailed, -d -d or -d -d -d is used:
@@ -1742,6 +1699,24 @@ static int add_default_attributes(void)
 		char *str = NULL;
 		bool warn = false;
 
+		if (!force_metric_only)
+			stat_config.metric_only = true;
+
+		if (topdown_filter_events(topdown_metric_attrs, &str, 1) < 0) {
+			pr_err("Out of memory\n");
+			return -1;
+		}
+		if (topdown_metric_attrs[0] && str) {
+			if (!stat_config.interval && !stat_config.metric_only) {
+				fprintf(stat_config.output,
+					"Topdown accuracy may decrease when measuring long periods.\n"
+					"Please print the result regularly, e.g. -I1000\n");
+			}
+			goto setup_metrics;
+		}
+
+		zfree(&str);
+
 		if (stat_config.aggr_mode != AGGR_GLOBAL &&
 		    stat_config.aggr_mode != AGGR_CORE) {
 			pr_err("top down event configuration requires --per-core mode\n");
@@ -1753,8 +1728,6 @@ static int add_default_attributes(void)
 			return -1;
 		}
 
-		if (!force_metric_only)
-			stat_config.metric_only = true;
 		if (topdown_filter_events(topdown_attrs, &str,
 				arch_topdown_check_group(&warn)) < 0) {
 			pr_err("Out of memory\n");
@@ -1763,6 +1736,7 @@ static int add_default_attributes(void)
 		if (topdown_attrs[0] && str) {
 			if (warn)
 				arch_topdown_group_warn();
+setup_metrics:
 			err = parse_events(evsel_list, str, &errinfo);
 			if (err) {
 				fprintf(stderr,
@@ -2063,8 +2037,10 @@ static void setup_system_wide(int forks)
 		struct evsel *counter;
 
 		evlist__for_each_entry(evsel_list, counter) {
-			if (!counter->core.system_wide)
+			if (!counter->core.system_wide &&
+			    strcmp(counter->name, "duration_time")) {
 				return;
+			}
 		}
 
 		if (evsel_list->core.nr_entries)
@@ -2250,6 +2226,19 @@ int cmd_stat(int argc, const char **argv)
 	if (add_default_attributes())
 		goto out;
 
+	if (stat_config.cgroup_list) {
+		if (nr_cgroups > 0) {
+			pr_err("--cgroup and --for-each-cgroup cannot be used together\n");
+			parse_options_usage(stat_usage, stat_options, "G", 1);
+			parse_options_usage(NULL, stat_options, "for-each-cgroup", 0);
+			goto out;
+		}
+
+		if (evlist__expand_cgroup(evsel_list, stat_config.cgroup_list,
+					  &stat_config.metric_events, true) < 0)
+			goto out;
+	}
+
 	target__validate(&target);
 
 	if ((stat_config.aggr_mode == AGGR_THREAD) && (target.system_wide))
@@ -2416,6 +2405,7 @@ out:
 
 	metricgroup__rblist_exit(&stat_config.metric_events);
 	runtime_stat_delete(&stat_config);
+	evlist__close_control(stat_config.ctl_fd, stat_config.ctl_fd_ack, &stat_config.ctl_fd_close);
 
 	return status;
 }

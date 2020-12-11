@@ -51,24 +51,6 @@ to make sure their systems do not continue running in the face of
 "unreachable" conditions. (For example, see commits like `this one
 <https://git.kernel.org/linus/d4689846881d160a4d12a514e991a740bcb5d65a>`_.)
 
-uninitialized_var()
--------------------
-For any compiler warnings about uninitialized variables, just add
-an initializer. Using the uninitialized_var() macro (or similar
-warning-silencing tricks) is dangerous as it papers over `real bugs
-<https://lore.kernel.org/lkml/20200603174714.192027-1-glider@google.com/>`_
-(or can in the future), and suppresses unrelated compiler warnings
-(e.g. "unused variable"). If the compiler thinks it is uninitialized,
-either simply initialize the variable or make compiler changes. Keep in
-mind that in most cases, if an initialization is obviously redundant,
-the compiler's dead-store elimination pass will make sure there are no
-needless variable writes.
-
-As Linus has said, this macro
-`must <https://lore.kernel.org/lkml/CA+55aFw+Vbj0i=1TGqCR5vQkCzWJ0QxK6CernOU6eedsudAixw@mail.gmail.com/>`_
-`be <https://lore.kernel.org/lkml/CA+55aFwgbgqhbp1fkxvRKEpzyR5J8n1vKT1VZdz9knmPuXhOeg@mail.gmail.com/>`_
-`removed <https://lore.kernel.org/lkml/CA+55aFz2500WfbKXAx8s67wrm9=yVJu65TpLgN_ybYNv0VEOKA@mail.gmail.com/>`_.
-
 open-coded arithmetic in allocator arguments
 --------------------------------------------
 Dynamic size calculations (especially multiplication) should not be
@@ -124,23 +106,29 @@ NUL or newline terminated.
 
 strcpy()
 --------
-strcpy() performs no bounds checking on the destination
-buffer. This could result in linear overflows beyond the
-end of the buffer, leading to all kinds of misbehaviors. While
-`CONFIG_FORTIFY_SOURCE=y` and various compiler flags help reduce the
-risk of using this function, there is no good reason to add new uses of
-this function. The safe replacement is strscpy().
+strcpy() performs no bounds checking on the destination buffer. This
+could result in linear overflows beyond the end of the buffer, leading to
+all kinds of misbehaviors. While `CONFIG_FORTIFY_SOURCE=y` and various
+compiler flags help reduce the risk of using this function, there is
+no good reason to add new uses of this function. The safe replacement
+is strscpy(), though care must be given to any cases where the return
+value of strcpy() was used, since strscpy() does not return a pointer to
+the destination, but rather a count of non-NUL bytes copied (or negative
+errno when it truncates).
 
 strncpy() on NUL-terminated strings
 -----------------------------------
-Use of strncpy() does not guarantee that the destination buffer
-will be NUL terminated. This can lead to various linear read overflows
-and other misbehavior due to the missing termination. It also NUL-pads the
-destination buffer if the source contents are shorter than the destination
-buffer size, which may be a needless performance penalty for callers using
-only NUL-terminated strings. The safe replacement is strscpy().
-(Users of strscpy() still needing NUL-padding should instead
-use strscpy_pad().)
+Use of strncpy() does not guarantee that the destination buffer will
+be NUL terminated. This can lead to various linear read overflows and
+other misbehavior due to the missing termination. It also NUL-pads
+the destination buffer if the source contents are shorter than the
+destination buffer size, which may be a needless performance penalty
+for callers using only NUL-terminated strings. The safe replacement is
+strscpy(), though care must be given to any cases where the return value
+of strncpy() was used, since strscpy() does not return a pointer to the
+destination, but rather a count of non-NUL bytes copied (or negative
+errno when it truncates). Any cases still needing NUL-padding should
+instead use strscpy_pad().
 
 If a caller is using non-NUL-terminated strings, strncpy() can
 still be used, but destinations should be marked with the `__nonstring
@@ -149,10 +137,12 @@ attribute to avoid future compiler warnings.
 
 strlcpy()
 ---------
-strlcpy() reads the entire source buffer first, possibly exceeding
-the given limit of bytes to copy. This is inefficient and can lead to
-linear read overflows if a source string is not NUL-terminated. The
-safe replacement is strscpy().
+strlcpy() reads the entire source buffer first (since the return value
+is meant to match that of strlen()). This read may exceed the destination
+size limit. This is both inefficient and can lead to linear read overflows
+if a source string is not NUL-terminated. The safe replacement is strscpy(),
+though care must be given to any cases where the return value of strlcpy()
+is used, since strscpy() will return negative errno values when it truncates.
 
 %p format specifier
 -------------------
@@ -322,7 +312,8 @@ to allocate for a structure containing an array of this kind as a member::
 In the example above, we had to remember to calculate ``count - 1`` when using
 the struct_size() helper, otherwise we would have --unintentionally-- allocated
 memory for one too many ``items`` objects. The cleanest and least error-prone way
-to implement this is through the use of a `flexible array member`::
+to implement this is through the use of a `flexible array member`, together with
+struct_size() and flex_array_size() helpers::
 
         struct something {
                 size_t count;
@@ -334,5 +325,4 @@ to implement this is through the use of a `flexible array member`::
         instance = kmalloc(struct_size(instance, items, count), GFP_KERNEL);
         instance->count = count;
 
-        size = sizeof(instance->items[0]) * instance->count;
-        memcpy(instance->items, source, size);
+        memcpy(instance->items, source, flex_array_size(instance, items, instance->count));

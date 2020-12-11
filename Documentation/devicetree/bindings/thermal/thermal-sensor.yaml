@@ -36,6 +36,8 @@ properties:
       containing several internal sensors.
     enum: [0, 1]
 
+additionalProperties: true
+
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>

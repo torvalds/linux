@@ -79,7 +79,7 @@ properties:
       minimum: 0
       maximum: 7130
 
-unevaluatedProperties: false
+additionalProperties: false
 
 required:
   - compatible
@@ -99,7 +99,7 @@ examples:
 
       interrupts = <GIC_SHARED 31 IRQ_TYPE_LEVEL_HIGH>;
 
-      baikal,pvt-temp-trim-millicelsius = <1000>;
+      baikal,pvt-temp-offset-millicelsius = <1000>;
 
       clocks = <&ccu_sys>, <&ccu_sys>;
       clock-names = "ref", "pclk";

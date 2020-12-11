@@ -52,6 +52,7 @@
 #include "bearer.h"
 #include "netlink.h"
 #include "msg.h"
+#include "udp_media.h"
 
 /* IANA assigned UDP port */
 #define UDP_PORT_DEFAULT	6118

@@ -621,7 +621,7 @@ do {									\
 
 /* set the chip with current BCN length */
 #define MACvSetCurrBCNLength(iobase, wCurrBCNLength)		\
-	VNSvOutPortW(iobase + MAC_REG_BCNDMACTL+2,		\
+	VNSvOutPortW(iobase + MAC_REG_BCNDMACTL + 2,		\
 		     wCurrBCNLength)
 
 #define MACvReadBSSIDAddress(iobase, pbyEtherAddr)		\

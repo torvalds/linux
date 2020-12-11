@@ -849,12 +849,13 @@ smb3_crypto_aead_allocate(struct TCP_Server_Info *server)
 	struct crypto_aead *tfm;
 
 	if (!server->secmech.ccmaesencrypt) {
-		if (server->cipher_type == SMB2_ENCRYPTION_AES128_GCM)
+		if ((server->cipher_type == SMB2_ENCRYPTION_AES128_GCM) ||
+		    (server->cipher_type == SMB2_ENCRYPTION_AES256_GCM))
 			tfm = crypto_alloc_aead("gcm(aes)", 0, 0);
 		else
 			tfm = crypto_alloc_aead("ccm(aes)", 0, 0);
 		if (IS_ERR(tfm)) {
-			cifs_server_dbg(VFS, "%s: Failed to alloc encrypt aead\n",
+			cifs_server_dbg(VFS, "%s: Failed alloc encrypt aead\n",
 				 __func__);
 			return PTR_ERR(tfm);
 		}
@@ -862,7 +863,8 @@ smb3_crypto_aead_allocate(struct TCP_Server_Info *server)
 	}
 
 	if (!server->secmech.ccmaesdecrypt) {
-		if (server->cipher_type == SMB2_ENCRYPTION_AES128_GCM)
+		if ((server->cipher_type == SMB2_ENCRYPTION_AES128_GCM) ||
+		    (server->cipher_type == SMB2_ENCRYPTION_AES256_GCM))
 			tfm = crypto_alloc_aead("gcm(aes)", 0, 0);
 		else
 			tfm = crypto_alloc_aead("ccm(aes)", 0, 0);

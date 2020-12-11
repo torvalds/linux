@@ -5,6 +5,7 @@
 #include "x86.h"
 #include <asm/cpu.h>
 #include <asm/processor.h>
+#include <uapi/asm/kvm_para.h>
 
 extern u32 kvm_cpu_caps[NCAPINTS] __read_mostly;
 void kvm_set_cpu_caps(void);
@@ -32,6 +33,11 @@ int cpuid_query_maxphyaddr(struct kvm_vcpu *vcpu);
 static inline int cpuid_maxphyaddr(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.maxphyaddr;
+}
+
+static inline bool kvm_vcpu_is_illegal_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
+{
+	return (gpa >= BIT_ULL(cpuid_maxphyaddr(vcpu)));
 }
 
 struct cpuid_reg {
@@ -306,6 +312,15 @@ static __always_inline void kvm_cpu_cap_check_and_set(unsigned int x86_feature)
 static inline bool page_address_valid(struct kvm_vcpu *vcpu, gpa_t gpa)
 {
 	return PAGE_ALIGNED(gpa) && !(gpa >> cpuid_maxphyaddr(vcpu));
+}
+
+static __always_inline bool guest_pv_has(struct kvm_vcpu *vcpu,
+					 unsigned int kvm_feature)
+{
+	if (!vcpu->arch.pv_cpuid.enforce)
+		return true;
+
+	return vcpu->arch.pv_cpuid.features & (1u << kvm_feature);
 }
 
 #endif

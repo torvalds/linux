@@ -346,6 +346,13 @@
 &uart3 {
 	status = "okay";
 
+	/delete-property/interrupts;
+	interrupts-extended = <&intc GIC_SPI 604 IRQ_TYPE_LEVEL_HIGH>,
+				<&tlmm 41 IRQ_TYPE_EDGE_FALLING>;
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-1 = <&qup_uart3_sleep>;
+
 	bluetooth: wcn3990-bt {
 		compatible = "qcom,wcn3990-bt";
 		vddio-supply = <&vreg_l10a_1p8>;
@@ -353,7 +360,6 @@
 		vddrf-supply = <&vreg_l2c_1p3>;
 		vddch0-supply = <&vreg_l10c_3p3>;
 		max-speed = <3200000>;
-		clocks = <&rpmhcc RPMH_RF_CLK2>;
 	};
 };
 
@@ -474,32 +480,30 @@
 &qup_uart3_default {
 	pinconf-cts {
 		/*
-		 * Configure a pull-down on 38 (CTS) to match the pull of
+		 * Configure a pull-down on CTS to match the pull of
 		 * the Bluetooth module.
 		 */
 		pins = "gpio38";
 		bias-pull-down;
-		output-high;
 	};
 
 	pinconf-rts {
-		/* We'll drive 39 (RTS), so no pull */
+		/* We'll drive RTS, so no pull */
 		pins = "gpio39";
 		drive-strength = <2>;
 		bias-disable;
 	};
 
 	pinconf-tx {
-		/* We'll drive 40 (TX), so no pull */
+		/* We'll drive TX, so no pull */
 		pins = "gpio40";
 		drive-strength = <2>;
 		bias-disable;
-		output-high;
 	};
 
 	pinconf-rx {
 		/*
-		 * Configure a pull-up on 41 (RX). This is needed to avoid
+		 * Configure a pull-up on RX. This is needed to avoid
 		 * garbage data when the TX pin of the Bluetooth module is
 		 * in tri-state (module powered off or not driving the
 		 * signal yet).
@@ -547,3 +551,51 @@
 	};
 };
 
+&tlmm {
+	qup_uart3_sleep: qup-uart3-sleep {
+		pinmux {
+			pins = "gpio38", "gpio39",
+			       "gpio40", "gpio41";
+			function = "gpio";
+		};
+
+		pinconf-cts {
+			/*
+			 * Configure a pull-down on CTS to match the pull of
+			 * the Bluetooth module.
+			 */
+			pins = "gpio38";
+			bias-pull-down;
+		};
+
+		pinconf-rts {
+			/*
+			 * Configure pull-down on RTS. As RTS is active low
+			 * signal, pull it low to indicate the BT SoC that it
+			 * can wakeup the system anytime from suspend state by
+			 * pulling RX low (by sending wakeup bytes).
+			 */
+			 pins = "gpio39";
+			 bias-pull-down;
+		};
+
+		pinconf-tx {
+			/*
+			 * Configure pull-up on TX when it isn't actively driven
+			 * to prevent BT SoC from receiving garbage during sleep.
+			 */
+			pins = "gpio40";
+			bias-pull-up;
+		};
+
+		pinconf-rx {
+			/*
+			 * Configure a pull-up on RX. This is needed to avoid
+			 * garbage data when the TX pin of the Bluetooth module
+			 * is floating which may cause spurious wakeups.
+			 */
+			pins = "gpio41";
+			bias-pull-up;
+		};
+	};
+};

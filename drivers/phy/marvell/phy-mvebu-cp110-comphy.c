@@ -123,7 +123,6 @@
 
 #define COMPHY_SIP_POWER_ON	0x82000001
 #define COMPHY_SIP_POWER_OFF	0x82000002
-#define COMPHY_FW_NOT_SUPPORTED	(-1)
 
 /*
  * A lane is described by the following bitfields:
@@ -273,10 +272,19 @@ static int mvebu_comphy_smc(unsigned long function, unsigned long phys,
 			    unsigned long lane, unsigned long mode)
 {
 	struct arm_smccc_res res;
+	s32 ret;
 
 	arm_smccc_smc(function, phys, lane, mode, 0, 0, 0, 0, &res);
+	ret = res.a0;
 
-	return res.a0;
+	switch (ret) {
+	case SMCCC_RET_SUCCESS:
+		return 0;
+	case SMCCC_RET_NOT_SUPPORTED:
+		return -EOPNOTSUPP;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int mvebu_comphy_get_mode(bool fw_mode, int lane, int port,
@@ -819,7 +827,7 @@ static int mvebu_comphy_power_on(struct phy *phy)
 	if (!ret)
 		return ret;
 
-	if (ret == COMPHY_FW_NOT_SUPPORTED)
+	if (ret == -EOPNOTSUPP)
 		dev_err(priv->dev,
 			"unsupported SMC call, try updating your firmware\n");
 

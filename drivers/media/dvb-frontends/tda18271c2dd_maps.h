@@ -6,7 +6,7 @@ enum HF_S {
 	HF_DVBC_8MHZ, HF_DVBC
 };
 
-static struct SStandardParam m_StandardTable[] = {
+static const struct SStandardParam m_StandardTable[] = {
 	{       0,        0, 0x00, 0x00 },    /* HF_None */
 	{ 6000000,  7000000, 0x1D, 0x2C },    /* HF_B, */
 	{ 6900000,  8000000, 0x1E, 0x2C },    /* HF_DK, */
@@ -28,7 +28,7 @@ static struct SStandardParam m_StandardTable[] = {
 	{       0,        0, 0x00, 0x00 },    /* HF_DVBC (Unused) */
 };
 
-static struct SMap  m_BP_Filter_Map[] = {
+static const struct SMap  m_BP_Filter_Map[] = {
 	{   62000000,  0x00 },
 	{   84000000,  0x01 },
 	{  100000000,  0x02 },
@@ -39,7 +39,7 @@ static struct SMap  m_BP_Filter_Map[] = {
 	{          0,  0x00 },    /* Table End */
 };
 
-static struct SMapI m_RF_Cal_Map[] = {
+static const struct SMapI m_RF_Cal_Map[] = {
 	{   41000000,  0x0F },
 	{   43000000,  0x1C },
 	{   45000000,  0x2F },
@@ -481,7 +481,7 @@ static struct SMapI m_RF_Cal_Map[] = {
 };
 
 
-static struct SMap2  m_KM_Map[] = {
+static const struct SMap2  m_KM_Map[] = {
 	{   47900000,  3, 2 },
 	{   61100000,  3, 1 },
 	{  350000000,  3, 0 },
@@ -490,7 +490,7 @@ static struct SMap2  m_KM_Map[] = {
 	{          0,  0x00 },    /* Table End */
 };
 
-static struct SMap2 m_Main_PLL_Map[] = {
+static const struct SMap2 m_Main_PLL_Map[] = {
 	{  33125000, 0x57, 0xF0 },
 	{  35500000, 0x56, 0xE0 },
 	{  38188000, 0x55, 0xD0 },
@@ -534,7 +534,7 @@ static struct SMap2 m_Main_PLL_Map[] = {
 	{         0, 0x00, 0x00 },    /* Table End */
 };
 
-static struct SMap2 m_Cal_PLL_Map[] = {
+static const struct SMap2 m_Cal_PLL_Map[] = {
 	{  33813000, 0xDD, 0xD0 },
 	{  36625000, 0xDC, 0xC0 },
 	{  39938000, 0xDB, 0xB0 },
@@ -572,7 +572,7 @@ static struct SMap2 m_Cal_PLL_Map[] = {
 	{         0, 0x00, 0x00 },    /* Table End */
 };
 
-static struct SMap  m_GainTaper_Map[] = {
+static const struct SMap  m_GainTaper_Map[] = {
 	{  45400000, 0x1F },
 	{  45800000, 0x1E },
 	{  46200000, 0x1D },
@@ -661,7 +661,7 @@ static struct SMap  m_GainTaper_Map[] = {
 	{         0, 0x00 },    /* Table End */
 };
 
-static struct SMap m_RF_Cal_DC_Over_DT_Map[] = {
+static const struct SMap m_RF_Cal_DC_Over_DT_Map[] = {
 	{  47900000, 0x00 },
 	{  55000000, 0x00 },
 	{  61100000, 0x0A },
@@ -767,14 +767,14 @@ static struct SMap m_RF_Cal_DC_Over_DT_Map[] = {
 };
 
 
-static struct SMap  m_IR_Meas_Map[] = {
+static const struct SMap  m_IR_Meas_Map[] = {
 	{ 200000000, 0x05 },
 	{ 400000000, 0x06 },
 	{ 865000000, 0x07 },
 	{         0, 0x00 },    /* Table End */
 };
 
-static struct SMap2 m_CID_Target_Map[] = {
+static const struct SMap2 m_CID_Target_Map[] = {
 	{  46000000, 0x04, 18 },
 	{  52200000, 0x0A, 15 },
 	{  70100000, 0x01, 40 },
@@ -790,7 +790,7 @@ static struct SMap2 m_CID_Target_Map[] = {
 	{         0, 0x00,  0 },    /* Table End */
 };
 
-static struct SRFBandMap  m_RF_Band_Map[7] = {
+static const struct SRFBandMap  m_RF_Band_Map[7] = {
 	{   47900000,   46000000,           0,          0},
 	{   61100000,   52200000,           0,          0},
 	{  152600000,   70100000,   136800000,          0},

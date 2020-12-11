@@ -481,6 +481,12 @@ int main(int argc, char *argv[])
 	else
 		printf("futex");
 
+	if (!have_hwcap(PPC_FEATURE_HAS_ALTIVEC))
+		touch_altivec = 0;
+
+	if (!have_hwcap(PPC_FEATURE_HAS_VSX))
+		touch_vector = 0;
+
 	printf(" on cpus %d/%d touching FP:%s altivec:%s vector:%s vdso:%s\n",
 	       cpu1, cpu2, touch_fp ?  "yes" : "no", touch_altivec ? "yes" : "no",
 	       touch_vector ? "yes" : "no", touch_vdso ? "yes" : "no");

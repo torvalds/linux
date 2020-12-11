@@ -243,11 +243,11 @@
 		s5m8767,pmic-buck3-dvs-voltage = <1100000>;
 		s5m8767,pmic-buck4-dvs-voltage = <1200000>;
 		s5m8767,pmic-buck-dvs-gpios = <&gpd1 0 GPIO_ACTIVE_HIGH>,
-		                              <&gpd1 1 GPIO_ACTIVE_HIGH>,
-		                              <&gpd1 2 GPIO_ACTIVE_HIGH>;
+					      <&gpd1 1 GPIO_ACTIVE_HIGH>,
+					      <&gpd1 2 GPIO_ACTIVE_HIGH>;
 		s5m8767,pmic-buck-ds-gpios = <&gpx2 3 GPIO_ACTIVE_HIGH>,
-		                             <&gpx2 4 GPIO_ACTIVE_HIGH>,
-		                             <&gpx2 5 GPIO_ACTIVE_HIGH>;
+					     <&gpx2 4 GPIO_ACTIVE_HIGH>,
+					     <&gpx2 5 GPIO_ACTIVE_HIGH>;
 
 		s5m8767_osc: clocks {
 			compatible = "samsung,s5m8767-clk";
@@ -542,12 +542,6 @@
 	status = "okay";
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <40000>;
-	samsung,i2c-slave-addr = <0x38>;
-
-	sata_phy_i2c:sata-phy@38 {
-		compatible = "samsung,exynos-sataphy-i2c";
-		reg = <0x38>;
-	};
 };
 
 &i2s0 {
@@ -619,12 +613,16 @@
 	samsung,exynos-sataphy-i2c-phandle = <&sata_phy_i2c>;
 };
 
+&sata_phy_i2c {
+	status = "okay";
+};
+
 &soc {
 	/*
 	 * For unknown reasons HDMI-DDC does not work with Exynos I2C
 	 * controllers. Lets use software I2C over GPIO pins as a workaround.
 	 */
-	i2c_ddc: i2c-gpio {
+	i2c_ddc: i2c-10 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c2_gpio_bus>;
 		status = "okay";

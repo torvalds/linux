@@ -523,6 +523,11 @@ static const struct adis16136_chip_info adis16136_chip_info[] = {
 	},
 };
 
+static void adis16136_stop(void *data)
+{
+	adis16136_stop_device(data);
+}
+
 static int adis16136_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
@@ -552,38 +557,23 @@ static int adis16136_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = adis_setup_buffer_and_trigger(&adis16136->adis, indio_dev, NULL);
+	ret = devm_adis_setup_buffer_and_trigger(&adis16136->adis, indio_dev, NULL);
 	if (ret)
 		return ret;
 
 	ret = adis16136_initial_setup(indio_dev);
 	if (ret)
-		goto error_cleanup_buffer;
+		return ret;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_add_action_or_reset(&spi->dev, adis16136_stop, indio_dev);
 	if (ret)
-		goto error_stop_device;
+		return ret;
+
+	ret = devm_iio_device_register(&spi->dev, indio_dev);
+	if (ret)
+		return ret;
 
 	adis16136_debugfs_init(indio_dev);
-
-	return 0;
-
-error_stop_device:
-	adis16136_stop_device(indio_dev);
-error_cleanup_buffer:
-	adis_cleanup_buffer_and_trigger(&adis16136->adis, indio_dev);
-	return ret;
-}
-
-static int adis16136_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct adis16136 *adis16136 = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	adis16136_stop_device(indio_dev);
-
-	adis_cleanup_buffer_and_trigger(&adis16136->adis, indio_dev);
 
 	return 0;
 }
@@ -603,7 +593,6 @@ static struct spi_driver adis16136_driver = {
 	},
 	.id_table = adis16136_ids,
 	.probe = adis16136_probe,
-	.remove = adis16136_remove,
 };
 module_spi_driver(adis16136_driver);
 

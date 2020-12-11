@@ -50,6 +50,7 @@
 
   */
 
+#include <linux/build_bug.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/jiffies.h>
@@ -112,8 +113,10 @@ static void do_set_multicast_list(struct net_device *dev);
 static void __NS8390_init(struct net_device *dev, int startp);
 
 static unsigned version_printed;
-static u32 msg_enable;
-module_param(msg_enable, uint, 0444);
+static int msg_enable;
+static const int default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_RX_ERR |
+				     NETIF_MSG_TX_ERR);
+module_param(msg_enable, int, 0444);
 MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bitmap)");
 
 /*
@@ -597,10 +600,12 @@ static void ei_tx_intr(struct net_device *dev)
 			ei_local->txing = 1;
 			NS8390_trigger_send(dev, ei_local->tx2, ei_local->tx_start_page + 6);
 			netif_trans_update(dev);
-			ei_local->tx2 = -1,
+			ei_local->tx2 = -1;
 			ei_local->lasttx = 2;
-		} else
-			ei_local->lasttx = 20, ei_local->txing = 0;
+		} else {
+			ei_local->lasttx = 20;
+			ei_local->txing = 0;
+		}
 	} else if (ei_local->tx2 < 0) {
 		if (ei_local->lasttx != 2  &&  ei_local->lasttx != -2)
 			pr_err("%s: bogus last_tx_buffer %d, tx2=%d\n",
@@ -612,8 +617,10 @@ static void ei_tx_intr(struct net_device *dev)
 			netif_trans_update(dev);
 			ei_local->tx1 = -1;
 			ei_local->lasttx = 1;
-		} else
-			ei_local->lasttx = 10, ei_local->txing = 0;
+		} else {
+			ei_local->lasttx = 10;
+			ei_local->txing = 0;
+		}
 	} /* else
 		netdev_warn(dev, "unexpected TX-done interrupt, lasttx=%d\n",
 			    ei_local->lasttx);
@@ -969,14 +976,14 @@ static void ethdev_setup(struct net_device *dev)
 {
 	struct ei_device *ei_local = netdev_priv(dev);
 
-	if ((msg_enable & NETIF_MSG_DRV) && (version_printed++ == 0))
-		pr_info("%s", version);
-
 	ether_setup(dev);
 
 	spin_lock_init(&ei_local->page_lock);
 
-	ei_local->msg_enable = msg_enable;
+	ei_local->msg_enable = netif_msg_init(msg_enable, default_msg_level);
+
+	if (netif_msg_drv(ei_local) && (version_printed++ == 0))
+		pr_info("%s", version);
 }
 
 /**
@@ -1014,8 +1021,7 @@ static void __NS8390_init(struct net_device *dev, int startp)
 	    ? (0x48 | ENDCFG_WTS | (ei_local->bigendian ? ENDCFG_BOS : 0))
 	    : 0x48;
 
-	if (sizeof(struct e8390_pkt_hdr) != 4)
-		panic("8390.c: header struct mispacked\n");
+	BUILD_BUG_ON(sizeof(struct e8390_pkt_hdr) != 4);
 	/* Follow National Semi's recommendations for initing the DP83902. */
 	ei_outb_p(E8390_NODMA+E8390_PAGE0+E8390_STOP, e8390_base+E8390_CMD); /* 0x21 */
 	ei_outb_p(endcfg, e8390_base + EN0_DCFG);	/* 0x48 or 0x49 */

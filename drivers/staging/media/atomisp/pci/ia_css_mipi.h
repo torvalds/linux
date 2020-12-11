@@ -42,7 +42,6 @@ int
 ia_css_mipi_frame_specify(const unsigned int	size_mem_words,
 			  const bool contiguous);
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 /* @brief Register size of a CSS MIPI frame for check during capturing.
  *
  * @param[in]	port	CSI-2 port this check is registered.
@@ -58,7 +57,6 @@ ia_css_mipi_frame_specify(const unsigned int	size_mem_words,
 int
 ia_css_mipi_frame_enable_check_on_size(const enum mipi_port_id port,
 				       const unsigned int	size_mem_words);
-#endif
 
 /* @brief Calculate the size of a mipi frame.
  *

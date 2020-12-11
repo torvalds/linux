@@ -13,7 +13,7 @@ description: |
   Google's ChromeOS EC codec is a digital mic codec provided by the
   Embedded Controller (EC) and is controlled via a host-command interface.
   An EC codec node should only be found as a sub-node of the EC node (see
-  Documentation/devicetree/bindings/mfd/cros-ec.txt).
+  Documentation/devicetree/bindings/mfd/google,cros-ec.yaml).
 
 properties:
   compatible:

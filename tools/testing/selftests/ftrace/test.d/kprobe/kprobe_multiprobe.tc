@@ -4,7 +4,7 @@
 # requires: kprobe_events "Create/append/":README
 
 # Choose 2 symbols for target
-SYM1=_do_fork
+SYM1=kernel_clone
 SYM2=do_exit
 EVENT_NAME=kprobes/testevent
 

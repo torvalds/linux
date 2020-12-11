@@ -597,9 +597,9 @@ static void vx_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *b
 	
 	snd_iprintf(buffer, "%s\n", chip->card->longname);
 	snd_iprintf(buffer, "Xilinx Firmware: %s\n",
-		    chip->chip_status & VX_STAT_XILINX_LOADED ? "Loaded" : "No");
+		    (chip->chip_status & VX_STAT_XILINX_LOADED) ? "Loaded" : "No");
 	snd_iprintf(buffer, "Device Initialized: %s\n",
-		    chip->chip_status & VX_STAT_DEVICE_INIT ? "Yes" : "No");
+		    (chip->chip_status & VX_STAT_DEVICE_INIT) ? "Yes" : "No");
 	snd_iprintf(buffer, "DSP audio info:");
 	if (chip->audio_info & VX_AUDIO_INFO_REAL_TIME)
 		snd_iprintf(buffer, " realtime");

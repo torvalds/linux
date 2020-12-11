@@ -2,7 +2,7 @@
 /*
  * Interrupt bottom half (BH).
  *
- * Copyright (c) 2017-2019, Silicon Laboratories, Inc.
+ * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  */
 #include <linux/gpio/consumer.h>
@@ -12,31 +12,45 @@
 #include "wfx.h"
 #include "hwio.h"
 #include "traces.h"
-#include "secure_link.h"
 #include "hif_rx.h"
 #include "hif_api_cmd.h"
 
 static void device_wakeup(struct wfx_dev *wdev)
 {
+	int max_retry = 3;
+
 	if (!wdev->pdata.gpio_wakeup)
 		return;
-	if (gpiod_get_value_cansleep(wdev->pdata.gpio_wakeup))
+	if (gpiod_get_value_cansleep(wdev->pdata.gpio_wakeup) >= 0)
 		return;
 
-	gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 1);
 	if (wfx_api_older_than(wdev, 1, 4)) {
+		gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 1);
 		if (!completion_done(&wdev->hif.ctrl_ready))
 			usleep_range(2000, 2500);
-	} else {
+		return;
+	}
+	for (;;) {
+		gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 1);
 		// completion.h does not provide any function to wait
 		// completion without consume it (a kind of
 		// wait_for_completion_done_timeout()). So we have to emulate
 		// it.
 		if (wait_for_completion_timeout(&wdev->hif.ctrl_ready,
-						msecs_to_jiffies(2) + 1))
+						msecs_to_jiffies(2))) {
 			complete(&wdev->hif.ctrl_ready);
-		else
+			return;
+		} else if (max_retry-- > 0) {
+			// Older firmwares have a race in sleep/wake-up process.
+			// Redo the process is sufficient to unfreeze the
+			// chip.
 			dev_err(wdev->dev, "timeout while wake up chip\n");
+			gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 0);
+			usleep_range(2000, 2500);
+		} else {
+			dev_err(wdev->dev, "max wake-up retries reached\n");
+			return;
+		}
 	}
 }
 
@@ -73,36 +87,17 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	_trace_piggyback(piggyback, false);
 
 	hif = (struct hif_msg *)skb->data;
-	WARN(hif->encrypted & 0x1, "unsupported encryption type");
-	if (hif->encrypted == 0x2) {
-		if (WARN(read_len < sizeof(struct hif_sl_msg), "corrupted read"))
-			goto err;
-		computed_len = le16_to_cpu(((struct hif_sl_msg *)hif)->len);
-		computed_len = round_up(computed_len - sizeof(u16), 16);
-		computed_len += sizeof(struct hif_sl_msg);
-		computed_len += sizeof(struct hif_sl_tag);
-	} else {
-		if (WARN(read_len < sizeof(struct hif_msg), "corrupted read"))
-			goto err;
-		computed_len = le16_to_cpu(hif->len);
-		computed_len = round_up(computed_len, 2);
-	}
+	WARN(hif->encrypted & 0x3, "encryption is unsupported");
+	if (WARN(read_len < sizeof(struct hif_msg), "corrupted read"))
+		goto err;
+	computed_len = le16_to_cpu(hif->len);
+	computed_len = round_up(computed_len, 2);
 	if (computed_len != read_len) {
 		dev_err(wdev->dev, "inconsistent message length: %zu != %zu\n",
 			computed_len, read_len);
 		print_hex_dump(KERN_INFO, "hif: ", DUMP_PREFIX_OFFSET, 16, 1,
 			       hif, read_len, true);
 		goto err;
-	}
-	if (hif->encrypted == 0x2) {
-		if (wfx_sl_decode(wdev, (struct hif_sl_msg *)hif)) {
-			dev_kfree_skb(skb);
-			// If frame was a confirmation, expect trouble in next
-			// exchange. However, it is harmless to fail to decode
-			// an indication frame, so try to continue. Anyway,
-			// piggyback is probably correct.
-			return piggyback;
-		}
 	}
 
 	if (!(hif->id & HIF_ID_IS_INDICATION)) {
@@ -184,23 +179,7 @@ static void tx_helper(struct wfx_dev *wdev, struct hif_msg *hif)
 	hif->seqnum = wdev->hif.tx_seqnum;
 	wdev->hif.tx_seqnum = (wdev->hif.tx_seqnum + 1) % (HIF_COUNTER_MAX + 1);
 
-	if (wfx_is_secure_command(wdev, hif->id)) {
-		len = round_up(len - sizeof(hif->len), 16) + sizeof(hif->len) +
-			sizeof(struct hif_sl_msg_hdr) +
-			sizeof(struct hif_sl_tag);
-		// AES support encryption in-place. However, mac80211 access to
-		// 802.11 header after frame was sent (to get MAC addresses).
-		// So, keep origin buffer clear.
-		data = kmalloc(len, GFP_KERNEL);
-		if (!data)
-			goto end;
-		is_encrypted = true;
-		ret = wfx_sl_encode(wdev, hif, data);
-		if (ret)
-			goto end;
-	} else {
-		data = hif;
-	}
+	data = hif;
 	WARN(len > wdev->hw_caps.size_inp_ch_buf,
 	     "%s: request exceed WFx capability: %zu > %d\n", __func__,
 	     len, wdev->hw_caps.size_inp_ch_buf);

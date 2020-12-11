@@ -76,6 +76,7 @@ struct mlx5e_ipsec_stats {
 };
 
 struct mlx5e_accel_fs_esp;
+struct mlx5e_ipsec_tx;
 
 struct mlx5e_ipsec {
 	struct mlx5e_priv *en_priv;
@@ -87,6 +88,7 @@ struct mlx5e_ipsec {
 	struct mlx5e_ipsec_stats stats;
 	struct workqueue_struct *wq;
 	struct mlx5e_accel_fs_esp *rx_fs;
+	struct mlx5e_ipsec_tx *tx_fs;
 };
 
 struct mlx5e_ipsec_esn_state {

@@ -955,7 +955,7 @@ struct mdfld_dsi_encoder *mdfld_dsi_dpi_init(struct drm_device *dev,
 
 		/* panel hard-reset */
 		if (p_funcs->reset) {
-			ret = p_funcs->reset(pipe);
+			ret = p_funcs->reset(dev, pipe);
 			if (ret) {
 				DRM_ERROR("Panel %d hard-reset failed\n", pipe);
 				return NULL;

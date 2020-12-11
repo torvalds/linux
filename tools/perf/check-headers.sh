@@ -75,6 +75,15 @@ include/uapi/asm-generic/mman-common.h
 include/uapi/asm-generic/unistd.h
 '
 
+# These copies are under tools/perf/trace/beauty/ as they are not used to in
+# building object files only by scripts in tools/perf/trace/beauty/ to generate
+# tables that then gets included in .c files for things like id->string syscall
+# tables (and the reverse lookup as well: string -> id)
+
+BEAUTY_FILES='
+include/linux/socket.h
+'
+
 check_2 () {
   file1=$1
   file2=$2
@@ -98,6 +107,14 @@ check () {
   shift
 
   check_2 tools/$file $file $*
+}
+
+beauty_check () {
+  file=$1
+
+  shift
+
+  check_2 tools/perf/trace/beauty/$file $file $*
 }
 
 # Check if we have the kernel headers (tools/perf/../../include), else
@@ -128,8 +145,9 @@ check arch/x86/lib/insn.c             '-I "^#include [\"<]\(../include/\)*asm/in
 # diff non-symmetric files
 check_2 tools/perf/arch/x86/entry/syscalls/syscall_64.tbl arch/x86/entry/syscalls/syscall_64.tbl
 
-# These will require a beauty_check when we get some more like that
-check_2 tools/perf/trace/beauty/include/linux/socket.h include/linux/socket.h
+for i in $BEAUTY_FILES; do
+  beauty_check $i -B
+done
 
 # check duplicated library files
 check_2 tools/perf/util/hashmap.h tools/lib/bpf/hashmap.h

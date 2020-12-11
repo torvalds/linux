@@ -18,6 +18,8 @@ properties:
   compatible:
     const: microchip,wilc1000
 
+  reg: true
+
   spi-max-frequency: true
 
   interrupts:
@@ -33,6 +35,8 @@ properties:
 required:
   - compatible
   - interrupts
+
+additionalProperties: false
 
 examples:
   - |

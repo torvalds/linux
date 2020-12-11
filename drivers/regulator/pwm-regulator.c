@@ -390,7 +390,7 @@ static int pwm_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id pwm_of_match[] = {
+static const struct of_device_id __maybe_unused pwm_of_match[] = {
 	{ .compatible = "pwm-regulator" },
 	{ },
 };

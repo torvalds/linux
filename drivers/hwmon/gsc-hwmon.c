@@ -17,6 +17,7 @@
 
 #define GSC_HWMON_MAX_TEMP_CH	16
 #define GSC_HWMON_MAX_IN_CH	16
+#define GSC_HWMON_MAX_FAN_CH	16
 
 #define GSC_HWMON_RESOLUTION	12
 #define GSC_HWMON_VREF		2500
@@ -27,11 +28,14 @@ struct gsc_hwmon_data {
 	struct regmap *regmap;
 	const struct gsc_hwmon_channel *temp_ch[GSC_HWMON_MAX_TEMP_CH];
 	const struct gsc_hwmon_channel *in_ch[GSC_HWMON_MAX_IN_CH];
+	const struct gsc_hwmon_channel *fan_ch[GSC_HWMON_MAX_FAN_CH];
 	u32 temp_config[GSC_HWMON_MAX_TEMP_CH + 1];
 	u32 in_config[GSC_HWMON_MAX_IN_CH + 1];
+	u32 fan_config[GSC_HWMON_MAX_FAN_CH + 1];
 	struct hwmon_channel_info temp_info;
 	struct hwmon_channel_info in_info;
-	const struct hwmon_channel_info *info[3];
+	struct hwmon_channel_info fan_info;
+	const struct hwmon_channel_info *info[4];
 	struct hwmon_chip_info chip;
 };
 
@@ -155,6 +159,9 @@ gsc_hwmon_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 	case hwmon_temp:
 		ch = hwmon->temp_ch[channel];
 		break;
+	case hwmon_fan:
+		ch = hwmon->fan_ch[channel];
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -187,6 +194,9 @@ gsc_hwmon_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		/* adjust by uV offset */
 		tmp += ch->mvoffset;
 		break;
+	case mode_fan:
+		tmp *= 30; /* convert to revolutions per minute */
+		break;
 	case mode_voltage_24bit:
 	case mode_voltage_16bit:
 		/* no adjustment needed */
@@ -210,6 +220,9 @@ gsc_hwmon_read_string(struct device *dev, enum hwmon_sensor_types type,
 		break;
 	case hwmon_temp:
 		*buf = hwmon->temp_ch[channel]->name;
+		break;
+	case hwmon_fan:
+		*buf = hwmon->fan_ch[channel]->name;
 		break;
 	default:
 		return -ENOTSUPP;
@@ -304,7 +317,7 @@ static int gsc_hwmon_probe(struct platform_device *pdev)
 	struct gsc_hwmon_platform_data *pdata = dev_get_platdata(dev);
 	struct gsc_hwmon_data *hwmon;
 	const struct attribute_group **groups;
-	int i, i_in, i_temp;
+	int i, i_in, i_temp, i_fan;
 
 	if (!pdata) {
 		pdata = gsc_hwmon_get_devtree_pdata(dev);
@@ -324,7 +337,7 @@ static int gsc_hwmon_probe(struct platform_device *pdev)
 	if (IS_ERR(hwmon->regmap))
 		return PTR_ERR(hwmon->regmap);
 
-	for (i = 0, i_in = 0, i_temp = 0; i < hwmon->pdata->nchannels; i++) {
+	for (i = 0, i_in = 0, i_temp = 0, i_fan = 0; i < hwmon->pdata->nchannels; i++) {
 		const struct gsc_hwmon_channel *ch = &pdata->channels[i];
 
 		switch (ch->mode) {
@@ -337,6 +350,16 @@ static int gsc_hwmon_probe(struct platform_device *pdev)
 			hwmon->temp_config[i_temp] = HWMON_T_INPUT |
 						     HWMON_T_LABEL;
 			i_temp++;
+			break;
+		case mode_fan:
+			if (i_fan == GSC_HWMON_MAX_FAN_CH) {
+				dev_err(gsc->dev, "too many fan channels\n");
+				return -EINVAL;
+			}
+			hwmon->fan_ch[i_fan] = ch;
+			hwmon->fan_config[i_fan] = HWMON_F_INPUT |
+						   HWMON_F_LABEL;
+			i_fan++;
 			break;
 		case mode_voltage_24bit:
 		case mode_voltage_16bit:
@@ -361,10 +384,13 @@ static int gsc_hwmon_probe(struct platform_device *pdev)
 	hwmon->chip.info = hwmon->info;
 	hwmon->info[0] = &hwmon->temp_info;
 	hwmon->info[1] = &hwmon->in_info;
+	hwmon->info[2] = &hwmon->fan_info;
 	hwmon->temp_info.type = hwmon_temp;
 	hwmon->temp_info.config = hwmon->temp_config;
 	hwmon->in_info.type = hwmon_in;
 	hwmon->in_info.config = hwmon->in_config;
+	hwmon->fan_info.type = hwmon_fan;
+	hwmon->fan_info.config = hwmon->fan_config;
 
 	groups = pdata->fan_base ? gsc_hwmon_groups : NULL;
 	hwmon_dev = devm_hwmon_device_register_with_info(dev,

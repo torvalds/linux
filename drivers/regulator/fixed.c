@@ -41,14 +41,6 @@ struct fixed_dev_type {
 	bool has_enable_clock;
 };
 
-static const struct fixed_dev_type fixed_voltage_data = {
-	.has_enable_clock = false,
-};
-
-static const struct fixed_dev_type fixed_clkenable_data = {
-	.has_enable_clock = true,
-};
-
 static int reg_clock_enable(struct regulator_dev *rdev)
 {
 	struct fixed_voltage_data *priv = rdev_get_drvdata(rdev);
@@ -131,10 +123,10 @@ of_get_fixed_voltage_config(struct device *dev,
 	return config;
 }
 
-static struct regulator_ops fixed_voltage_ops = {
+static const struct regulator_ops fixed_voltage_ops = {
 };
 
-static struct regulator_ops fixed_voltage_clkenabled_ops = {
+static const struct regulator_ops fixed_voltage_clkenabled_ops = {
 	.enable = reg_clock_enable,
 	.disable = reg_clock_disable,
 	.is_enabled = reg_clock_is_enabled,
@@ -260,6 +252,14 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 }
 
 #if defined(CONFIG_OF)
+static const struct fixed_dev_type fixed_voltage_data = {
+	.has_enable_clock = false,
+};
+
+static const struct fixed_dev_type fixed_clkenable_data = {
+	.has_enable_clock = true,
+};
+
 static const struct of_device_id fixed_of_match[] = {
 	{
 		.compatible = "regulator-fixed",

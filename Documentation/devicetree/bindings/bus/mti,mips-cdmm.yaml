@@ -26,6 +26,8 @@ required:
   - compatible
   - reg
 
+additionalProperties: false
+
 examples:
   - |
     cdmm@1bde8000 {

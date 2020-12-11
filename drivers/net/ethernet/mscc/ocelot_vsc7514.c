@@ -19,10 +19,6 @@
 #include "ocelot.h"
 
 #define IFH_EXTRACT_BITFIELD64(x, o, w) (((x) >> (o)) & GENMASK_ULL((w) - 1, 0))
-#define VSC7514_VCAP_IS2_CNT 64
-#define VSC7514_VCAP_IS2_ENTRY_WIDTH 376
-#define VSC7514_VCAP_IS2_ACTION_WIDTH 99
-#define VSC7514_VCAP_PORT_CNT 11
 
 static const u32 ocelot_ana_regmap[] = {
 	REG(ANA_ADVLEARN,				0x009000),
@@ -241,14 +237,27 @@ static const u32 ocelot_sys_regmap[] = {
 	REG(SYS_PTP_CFG,				0x0006c4),
 };
 
-static const u32 ocelot_s2_regmap[] = {
-	REG(S2_CORE_UPDATE_CTRL,			0x000000),
-	REG(S2_CORE_MV_CFG,				0x000004),
-	REG(S2_CACHE_ENTRY_DAT,				0x000008),
-	REG(S2_CACHE_MASK_DAT,				0x000108),
-	REG(S2_CACHE_ACTION_DAT,			0x000208),
-	REG(S2_CACHE_CNT_DAT,				0x000308),
-	REG(S2_CACHE_TG_DAT,				0x000388),
+static const u32 ocelot_vcap_regmap[] = {
+	/* VCAP_CORE_CFG */
+	REG(VCAP_CORE_UPDATE_CTRL,			0x000000),
+	REG(VCAP_CORE_MV_CFG,				0x000004),
+	/* VCAP_CORE_CACHE */
+	REG(VCAP_CACHE_ENTRY_DAT,			0x000008),
+	REG(VCAP_CACHE_MASK_DAT,			0x000108),
+	REG(VCAP_CACHE_ACTION_DAT,			0x000208),
+	REG(VCAP_CACHE_CNT_DAT,				0x000308),
+	REG(VCAP_CACHE_TG_DAT,				0x000388),
+	/* VCAP_CONST */
+	REG(VCAP_CONST_VCAP_VER,			0x000398),
+	REG(VCAP_CONST_ENTRY_WIDTH,			0x00039c),
+	REG(VCAP_CONST_ENTRY_CNT,			0x0003a0),
+	REG(VCAP_CONST_ENTRY_SWCNT,			0x0003a4),
+	REG(VCAP_CONST_ENTRY_TG_WIDTH,			0x0003a8),
+	REG(VCAP_CONST_ACTION_DEF_CNT,			0x0003ac),
+	REG(VCAP_CONST_ACTION_WIDTH,			0x0003b0),
+	REG(VCAP_CONST_CNT_WIDTH,			0x0003b4),
+	REG(VCAP_CONST_CORE_CNT,			0x0003b8),
+	REG(VCAP_CONST_IF_CNT,				0x0003bc),
 };
 
 static const u32 ocelot_ptp_regmap[] = {
@@ -311,7 +320,9 @@ static const u32 *ocelot_regmap[TARGET_MAX] = {
 	[QSYS] = ocelot_qsys_regmap,
 	[REW] = ocelot_rew_regmap,
 	[SYS] = ocelot_sys_regmap,
-	[S2] = ocelot_s2_regmap,
+	[S0] = ocelot_vcap_regmap,
+	[S1] = ocelot_vcap_regmap,
+	[S2] = ocelot_vcap_regmap,
 	[PTP] = ocelot_ptp_regmap,
 	[DEV_GMII] = ocelot_dev_gmii_regmap,
 };
@@ -756,6 +767,115 @@ static u16 ocelot_wm_enc(u16 value)
 static const struct ocelot_ops ocelot_ops = {
 	.reset			= ocelot_reset,
 	.wm_enc			= ocelot_wm_enc,
+	.port_to_netdev		= ocelot_port_to_netdev,
+	.netdev_to_port		= ocelot_netdev_to_port,
+};
+
+static const struct vcap_field vsc7514_vcap_es0_keys[] = {
+	[VCAP_ES0_EGR_PORT]			= {  0,  4},
+	[VCAP_ES0_IGR_PORT]			= {  4,  4},
+	[VCAP_ES0_RSV]				= {  8,  2},
+	[VCAP_ES0_L2_MC]			= { 10,  1},
+	[VCAP_ES0_L2_BC]			= { 11,  1},
+	[VCAP_ES0_VID]				= { 12, 12},
+	[VCAP_ES0_DP]				= { 24,  1},
+	[VCAP_ES0_PCP]				= { 25,  3},
+};
+
+static const struct vcap_field vsc7514_vcap_es0_actions[] = {
+	[VCAP_ES0_ACT_PUSH_OUTER_TAG]		= {  0,  2},
+	[VCAP_ES0_ACT_PUSH_INNER_TAG]		= {  2,  1},
+	[VCAP_ES0_ACT_TAG_A_TPID_SEL]		= {  3,  2},
+	[VCAP_ES0_ACT_TAG_A_VID_SEL]		= {  5,  1},
+	[VCAP_ES0_ACT_TAG_A_PCP_SEL]		= {  6,  2},
+	[VCAP_ES0_ACT_TAG_A_DEI_SEL]		= {  8,  2},
+	[VCAP_ES0_ACT_TAG_B_TPID_SEL]		= { 10,  2},
+	[VCAP_ES0_ACT_TAG_B_VID_SEL]		= { 12,  1},
+	[VCAP_ES0_ACT_TAG_B_PCP_SEL]		= { 13,  2},
+	[VCAP_ES0_ACT_TAG_B_DEI_SEL]		= { 15,  2},
+	[VCAP_ES0_ACT_VID_A_VAL]		= { 17, 12},
+	[VCAP_ES0_ACT_PCP_A_VAL]		= { 29,  3},
+	[VCAP_ES0_ACT_DEI_A_VAL]		= { 32,  1},
+	[VCAP_ES0_ACT_VID_B_VAL]		= { 33, 12},
+	[VCAP_ES0_ACT_PCP_B_VAL]		= { 45,  3},
+	[VCAP_ES0_ACT_DEI_B_VAL]		= { 48,  1},
+	[VCAP_ES0_ACT_RSV]			= { 49, 24},
+	[VCAP_ES0_ACT_HIT_STICKY]		= { 73,  1},
+};
+
+static const struct vcap_field vsc7514_vcap_is1_keys[] = {
+	[VCAP_IS1_HK_TYPE]			= {  0,   1},
+	[VCAP_IS1_HK_LOOKUP]			= {  1,   2},
+	[VCAP_IS1_HK_IGR_PORT_MASK]		= {  3,  12},
+	[VCAP_IS1_HK_RSV]			= { 15,   9},
+	[VCAP_IS1_HK_OAM_Y1731]			= { 24,   1},
+	[VCAP_IS1_HK_L2_MC]			= { 25,   1},
+	[VCAP_IS1_HK_L2_BC]			= { 26,   1},
+	[VCAP_IS1_HK_IP_MC]			= { 27,   1},
+	[VCAP_IS1_HK_VLAN_TAGGED]		= { 28,   1},
+	[VCAP_IS1_HK_VLAN_DBL_TAGGED]		= { 29,   1},
+	[VCAP_IS1_HK_TPID]			= { 30,   1},
+	[VCAP_IS1_HK_VID]			= { 31,  12},
+	[VCAP_IS1_HK_DEI]			= { 43,   1},
+	[VCAP_IS1_HK_PCP]			= { 44,   3},
+	/* Specific Fields for IS1 Half Key S1_NORMAL */
+	[VCAP_IS1_HK_L2_SMAC]			= { 47,  48},
+	[VCAP_IS1_HK_ETYPE_LEN]			= { 95,   1},
+	[VCAP_IS1_HK_ETYPE]			= { 96,  16},
+	[VCAP_IS1_HK_IP_SNAP]			= {112,   1},
+	[VCAP_IS1_HK_IP4]			= {113,   1},
+	/* Layer-3 Information */
+	[VCAP_IS1_HK_L3_FRAGMENT]		= {114,   1},
+	[VCAP_IS1_HK_L3_FRAG_OFS_GT0]		= {115,   1},
+	[VCAP_IS1_HK_L3_OPTIONS]		= {116,   1},
+	[VCAP_IS1_HK_L3_DSCP]			= {117,   6},
+	[VCAP_IS1_HK_L3_IP4_SIP]		= {123,  32},
+	/* Layer-4 Information */
+	[VCAP_IS1_HK_TCP_UDP]			= {155,   1},
+	[VCAP_IS1_HK_TCP]			= {156,   1},
+	[VCAP_IS1_HK_L4_SPORT]			= {157,  16},
+	[VCAP_IS1_HK_L4_RNG]			= {173,   8},
+	/* Specific Fields for IS1 Half Key S1_5TUPLE_IP4 */
+	[VCAP_IS1_HK_IP4_INNER_TPID]            = { 47,   1},
+	[VCAP_IS1_HK_IP4_INNER_VID]		= { 48,  12},
+	[VCAP_IS1_HK_IP4_INNER_DEI]		= { 60,   1},
+	[VCAP_IS1_HK_IP4_INNER_PCP]		= { 61,   3},
+	[VCAP_IS1_HK_IP4_IP4]			= { 64,   1},
+	[VCAP_IS1_HK_IP4_L3_FRAGMENT]		= { 65,   1},
+	[VCAP_IS1_HK_IP4_L3_FRAG_OFS_GT0]	= { 66,   1},
+	[VCAP_IS1_HK_IP4_L3_OPTIONS]		= { 67,   1},
+	[VCAP_IS1_HK_IP4_L3_DSCP]		= { 68,   6},
+	[VCAP_IS1_HK_IP4_L3_IP4_DIP]		= { 74,  32},
+	[VCAP_IS1_HK_IP4_L3_IP4_SIP]		= {106,  32},
+	[VCAP_IS1_HK_IP4_L3_PROTO]		= {138,   8},
+	[VCAP_IS1_HK_IP4_TCP_UDP]		= {146,   1},
+	[VCAP_IS1_HK_IP4_TCP]			= {147,   1},
+	[VCAP_IS1_HK_IP4_L4_RNG]		= {148,   8},
+	[VCAP_IS1_HK_IP4_IP_PAYLOAD_S1_5TUPLE]	= {156,  32},
+};
+
+static const struct vcap_field vsc7514_vcap_is1_actions[] = {
+	[VCAP_IS1_ACT_DSCP_ENA]			= {  0,  1},
+	[VCAP_IS1_ACT_DSCP_VAL]			= {  1,  6},
+	[VCAP_IS1_ACT_QOS_ENA]			= {  7,  1},
+	[VCAP_IS1_ACT_QOS_VAL]			= {  8,  3},
+	[VCAP_IS1_ACT_DP_ENA]			= { 11,  1},
+	[VCAP_IS1_ACT_DP_VAL]			= { 12,  1},
+	[VCAP_IS1_ACT_PAG_OVERRIDE_MASK]	= { 13,  8},
+	[VCAP_IS1_ACT_PAG_VAL]			= { 21,  8},
+	[VCAP_IS1_ACT_RSV]			= { 29,  9},
+	/* The fields below are incorrectly shifted by 2 in the manual */
+	[VCAP_IS1_ACT_VID_REPLACE_ENA]		= { 38,  1},
+	[VCAP_IS1_ACT_VID_ADD_VAL]		= { 39, 12},
+	[VCAP_IS1_ACT_FID_SEL]			= { 51,  2},
+	[VCAP_IS1_ACT_FID_VAL]			= { 53, 13},
+	[VCAP_IS1_ACT_PCP_DEI_ENA]		= { 66,  1},
+	[VCAP_IS1_ACT_PCP_VAL]			= { 67,  3},
+	[VCAP_IS1_ACT_DEI_VAL]			= { 70,  1},
+	[VCAP_IS1_ACT_VLAN_POP_CNT_ENA]		= { 71,  1},
+	[VCAP_IS1_ACT_VLAN_POP_CNT]		= { 72,  2},
+	[VCAP_IS1_ACT_CUSTOM_ACE_TYPE_ENA]	= { 74,  4},
+	[VCAP_IS1_ACT_HIT_STICKY]		= { 78,  1},
 };
 
 static const struct vcap_field vsc7514_vcap_is2_keys[] = {
@@ -856,15 +976,32 @@ static const struct vcap_field vsc7514_vcap_is2_actions[] = {
 	[VCAP_IS2_ACT_HIT_CNT]			= { 49, 32},
 };
 
-static const struct vcap_props vsc7514_vcap_props[] = {
+static struct vcap_props vsc7514_vcap_props[] = {
+	[VCAP_ES0] = {
+		.action_type_width = 0,
+		.action_table = {
+			[ES0_ACTION_TYPE_NORMAL] = {
+				.width = 73, /* HIT_STICKY not included */
+				.count = 1,
+			},
+		},
+		.target = S0,
+		.keys = vsc7514_vcap_es0_keys,
+		.actions = vsc7514_vcap_es0_actions,
+	},
+	[VCAP_IS1] = {
+		.action_type_width = 0,
+		.action_table = {
+			[IS1_ACTION_TYPE_NORMAL] = {
+				.width = 78, /* HIT_STICKY not included */
+				.count = 4,
+			},
+		},
+		.target = S1,
+		.keys = vsc7514_vcap_is1_keys,
+		.actions = vsc7514_vcap_is1_actions,
+	},
 	[VCAP_IS2] = {
-		.tg_width = 2,
-		.sw_count = 4,
-		.entry_count = VSC7514_VCAP_IS2_CNT,
-		.entry_width = VSC7514_VCAP_IS2_ENTRY_WIDTH,
-		.action_count = VSC7514_VCAP_IS2_CNT +
-				VSC7514_VCAP_PORT_CNT + 2,
-		.action_width = 99,
 		.action_type_width = 1,
 		.action_table = {
 			[IS2_ACTION_TYPE_NORMAL] = {
@@ -876,8 +1013,9 @@ static const struct vcap_props vsc7514_vcap_props[] = {
 				.count = 4
 			},
 		},
-		.counter_words = 4,
-		.counter_width = 32,
+		.target = S2,
+		.keys = vsc7514_vcap_is2_keys,
+		.actions = vsc7514_vcap_is2_actions,
 	},
 };
 
@@ -931,10 +1069,6 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 				     sizeof(struct ocelot_port *), GFP_KERNEL);
 	if (!ocelot->ports)
 		return -ENOMEM;
-
-	/* No NPI port */
-	ocelot_configure_cpu(ocelot, -1, OCELOT_TAG_PREFIX_NONE,
-			     OCELOT_TAG_PREFIX_NONE);
 
 	for_each_available_child_of_node(ports, portnp) {
 		struct ocelot_port_private *priv;
@@ -1043,6 +1177,8 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 		{ QSYS, "qsys" },
 		{ ANA, "ana" },
 		{ QS, "qs" },
+		{ S0, "s0" },
+		{ S1, "s1" },
 		{ S2, "s2" },
 		{ PTP, "ptp", 1 },
 	};
@@ -1119,9 +1255,10 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 
 	ocelot->num_phys_ports = of_get_child_count(ports);
 
-	ocelot->vcap_is2_keys = vsc7514_vcap_is2_keys;
-	ocelot->vcap_is2_actions = vsc7514_vcap_is2_actions;
 	ocelot->vcap = vsc7514_vcap_props;
+	ocelot->inj_prefix = OCELOT_TAG_PREFIX_NONE;
+	ocelot->xtr_prefix = OCELOT_TAG_PREFIX_NONE;
+	ocelot->npi = -1;
 
 	err = ocelot_init(ocelot);
 	if (err)

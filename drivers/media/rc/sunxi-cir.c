@@ -241,8 +241,8 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	ir->rc->dev.parent = dev;
 	ir->rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	/* Frequency after IR internal divider with sample period in ns */
-	ir->rc->rx_resolution = (1000000000ul / (b_clk_freq / 64));
-	ir->rc->timeout = MS_TO_NS(SUNXI_IR_TIMEOUT);
+	ir->rc->rx_resolution = (USEC_PER_SEC / (b_clk_freq / 64));
+	ir->rc->timeout = MS_TO_US(SUNXI_IR_TIMEOUT);
 	ir->rc->driver_name = SUNXI_IR_DEV;
 
 	ret = rc_register_device(ir->rc);

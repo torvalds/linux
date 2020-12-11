@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_ENUM_FREQ_BANDS:
 
@@ -18,23 +12,21 @@ Name
 
 VIDIOC_ENUM_FREQ_BANDS - Enumerate supported frequency bands
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_ENUM_FREQ_BANDS, struct v4l2_frequency_band *argp )
-    :name: VIDIOC_ENUM_FREQ_BANDS
+.. c:macro:: VIDIOC_ENUM_FREQ_BANDS
 
+``int ioctl(int fd, VIDIOC_ENUM_FREQ_BANDS, struct v4l2_frequency_band *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_frequency_band`.
-
 
 Description
 ===========
@@ -47,7 +39,6 @@ fields, and zero out the ``reserved`` array of a struct
 
 This ioctl is supported if the ``V4L2_TUNER_CAP_FREQ_BANDS`` capability
 of the corresponding tuner/modulator is set.
-
 
 .. tabularcolumns:: |p{2.9cm}|p{2.9cm}|p{5.8cm}|p{2.9cm}|p{3.0cm}|
 
@@ -117,7 +108,6 @@ of the corresponding tuner/modulator is set.
 	Applications and drivers must set the array to zero.
 
 
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _band-modulation:
@@ -136,7 +126,6 @@ of the corresponding tuner/modulator is set.
     * - ``V4L2_BAND_MODULATION_AM``
       - 0x08
       - Amplitude Modulation, commonly used for analog radio.
-
 
 Return Value
 ============

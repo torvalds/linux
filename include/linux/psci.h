@@ -18,7 +18,7 @@ bool psci_tos_resident_on(int cpu);
 
 int psci_cpu_suspend_enter(u32 state);
 bool psci_power_state_is_valid(u32 state);
-int psci_set_osi_mode(void);
+int psci_set_osi_mode(bool enable);
 bool psci_has_osi_support(void);
 
 struct psci_operations {

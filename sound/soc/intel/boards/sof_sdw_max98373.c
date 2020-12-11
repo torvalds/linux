@@ -6,8 +6,10 @@
 
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <sound/control.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
+#include <sound/soc-dapm.h>
 #include "sof_sdw_common.h"
 #include "sof_maxim_common.h"
 
@@ -53,9 +55,43 @@ static int spk_init(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
+static int max98373_sdw_trigger(struct snd_pcm_substream *substream, int cmd)
+{
+	int ret;
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		/* enable max98373 first */
+		ret = max98373_trigger(substream, cmd);
+		if (ret < 0)
+			break;
+
+		ret = sdw_trigger(substream, cmd);
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		ret = sdw_trigger(substream, cmd);
+		if (ret < 0)
+			break;
+
+		ret = max98373_trigger(substream, cmd);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
 static const struct snd_soc_ops max_98373_sdw_ops = {
 	.startup = sdw_startup,
-	.trigger = max98373_trigger,
+	.prepare = sdw_prepare,
+	.trigger = max98373_sdw_trigger,
+	.hw_free = sdw_hw_free,
 	.shutdown = sdw_shutdown,
 };
 

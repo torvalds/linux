@@ -187,6 +187,8 @@ static irqreturn_t otx2vf_vfaf_mbox_intr_handler(int irq, void *vf_irq)
 	mdev = &mbox->dev[0];
 	otx2_sync_mbox_bbuf(mbox, 0);
 
+	trace_otx2_msg_interrupt(mbox->pdev, "PF to VF", BIT_ULL(0));
+
 	hdr = (struct mbox_hdr *)(mdev->mbase + mbox->rx_start);
 	if (hdr->num_msgs) {
 		vf->mbox.num_msgs = hdr->num_msgs;
@@ -553,7 +555,8 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	netdev->hw_features = NETIF_F_RXCSUM | NETIF_F_IP_CSUM |
 			      NETIF_F_IPV6_CSUM | NETIF_F_RXHASH |
-			      NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6;
+			      NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
+			      NETIF_F_GSO_UDP_L4;
 	netdev->features = netdev->hw_features;
 
 	netdev->gso_max_segs = OTX2_MAX_GSO_SEGS;

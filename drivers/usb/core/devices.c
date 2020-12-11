@@ -39,7 +39,6 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/gfp.h>
-#include <linux/poll.h>
 #include <linux/usb.h>
 #include <linux/usbdevice_fs.h>
 #include <linux/usb/hcd.h>
@@ -97,22 +96,6 @@ static const char format_endpt[] =
 /* E:  Ad=xx(s) Atr=xx(ssss) MxPS=dddd Ivl=D?s */
   "E:  Ad=%02x(%c) Atr=%02x(%-4s) MxPS=%4d Ivl=%d%cs\n";
 
-/*
- * Wait for an connect/disconnect event to happen. We initialize
- * the event counter with an odd number, and each event will increment
- * the event counter by two, so it will always _stay_ odd. That means
- * that it will never be zero, so "event 0" will never match a current
- * event, and thus 'poll' will always trigger as readable for the first
- * time it gets called.
- */
-static struct device_connect_event {
-	atomic_t count;
-	wait_queue_head_t wait;
-} device_event = {
-	.count = ATOMIC_INIT(1),
-	.wait = __WAIT_QUEUE_HEAD_INITIALIZER(device_event.wait)
-};
-
 struct class_info {
 	int class;
 	char *class_name;
@@ -145,12 +128,6 @@ static const struct class_info clas_info[] = {
 };
 
 /*****************************************************************/
-
-void usbfs_conn_disc_event(void)
-{
-	atomic_add(2, &device_event.count);
-	wake_up(&device_event.wait);
-}
 
 static const char *class_decode(const int class)
 {
@@ -623,25 +600,7 @@ static ssize_t usb_device_read(struct file *file, char __user *buf,
 	return total_written;
 }
 
-/* Kernel lock for "lastev" protection */
-static __poll_t usb_device_poll(struct file *file,
-				    struct poll_table_struct *wait)
-{
-	unsigned int event_count;
-
-	poll_wait(file, &device_event.wait, wait);
-
-	event_count = atomic_read(&device_event.count);
-	if (file->f_version != event_count) {
-		file->f_version = event_count;
-		return EPOLLIN | EPOLLRDNORM;
-	}
-
-	return 0;
-}
-
 const struct file_operations usbfs_devices_fops = {
 	.llseek =	no_seek_end_llseek,
 	.read =		usb_device_read,
-	.poll =		usb_device_poll,
 };

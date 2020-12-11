@@ -10,6 +10,11 @@ Required properties:
 Optional properties:
 - reset-gpios: A GPIO specifier for the power down & reset pin
 - mute-gpios: A GPIO specifier for the soft mute pin
+- AVDD-supply: Analog power supply
+- DVDD-supply: Digital power supply
+- dsd-path: Select DSD input pins for ak4497
+            0: select #16, #17, #19 pins
+            1: select #3, #4, #5 pins
 
 Example:
 

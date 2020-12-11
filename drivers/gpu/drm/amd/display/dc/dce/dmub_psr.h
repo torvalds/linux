@@ -36,7 +36,7 @@ struct dmub_psr {
 
 struct dmub_psr_funcs {
 	bool (*psr_copy_settings)(struct dmub_psr *dmub, struct dc_link *link, struct psr_context *psr_context);
-	void (*psr_enable)(struct dmub_psr *dmub, bool enable);
+	void (*psr_enable)(struct dmub_psr *dmub, bool enable, bool wait);
 	void (*psr_get_state)(struct dmub_psr *dmub, uint32_t *psr_state);
 	void (*psr_set_level)(struct dmub_psr *dmub, uint16_t psr_level);
 };

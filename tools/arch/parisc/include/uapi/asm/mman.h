@@ -39,6 +39,5 @@
 #define MADV_SOFT_OFFLINE 101
 /* MAP_32BIT is undefined on parisc, fix it for perf */
 #define MAP_32BIT	0
-/* MAP_UNINITIALIZED is undefined on parisc, fix it for perf */
 #define MAP_UNINITIALIZED	0
 #endif

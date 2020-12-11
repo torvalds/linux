@@ -300,7 +300,7 @@ static ssize_t ks8995_registers_read(struct file *filp, struct kobject *kobj,
 	struct device *dev;
 	struct ks8995_switch *ks8995;
 
-	dev = container_of(kobj, struct device, kobj);
+	dev = kobj_to_dev(kobj);
 	ks8995 = dev_get_drvdata(dev);
 
 	return ks8995_read(ks8995, buf, off, count);
@@ -312,7 +312,7 @@ static ssize_t ks8995_registers_write(struct file *filp, struct kobject *kobj,
 	struct device *dev;
 	struct ks8995_switch *ks8995;
 
-	dev = container_of(kobj, struct device, kobj);
+	dev = kobj_to_dev(kobj);
 	ks8995 = dev_get_drvdata(dev);
 
 	return ks8995_write(ks8995, buf, off, count);

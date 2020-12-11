@@ -15,6 +15,7 @@
 
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
 
@@ -417,7 +418,7 @@ MODULE_DEVICE_TABLE(of, hdc100x_dt_ids);
 static struct i2c_driver hdc100x_driver = {
 	.driver = {
 		.name	= "hdc100x",
-		.of_match_table = of_match_ptr(hdc100x_dt_ids),
+		.of_match_table = hdc100x_dt_ids,
 	},
 	.probe = hdc100x_probe,
 	.id_table = hdc100x_id,

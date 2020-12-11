@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _output:
 
@@ -25,7 +19,6 @@ device.
 
 .. note:: The same device file names are used also for video capture devices.
 
-
 Querying Capabilities
 =====================
 
@@ -39,7 +32,6 @@ functions they may also support the :ref:`raw VBI output <raw-vbi>`
 streaming I/O methods must be supported. Modulators and audio outputs
 are optional.
 
-
 Supplemental Functions
 ======================
 
@@ -50,7 +42,6 @@ Video output devices shall support :ref:`audio output <audio>`,
 :ref:`video output <video>` ioctls must be supported by all video
 output devices.
 
-
 Image Format Negotiation
 ========================
 
@@ -60,7 +51,7 @@ the latter how images are stored in memory, i. e. in RGB or YUV format,
 the number of bits per pixel or width and height. Together they also
 define how images are scaled in the process.
 
-As usual these parameters are *not* reset at :ref:`open() <func-open>`
+As usual these parameters are *not* reset at :c:func:`open()`
 time to permit Unix tool chains, programming a device and then writing
 to it as if it was a plain file. Well written V4L2 applications ensure
 they really get what they want, including cropping and scaling.
@@ -98,7 +89,6 @@ details. Video output devices must implement both the :ref:`VIDIOC_G_FMT <VIDIOC
 and :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, even if :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ignores all
 requests and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does.
 :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` is optional.
-
 
 Writing Images
 ==============

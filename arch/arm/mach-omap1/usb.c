@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
 #include <linux/io.h>
 
 #include <asm/irq.h>
@@ -542,6 +543,25 @@ bad:
 /* ULPD_APLL_CTRL */
 #define APLL_NDPLL_SWITCH	(1 << 0)
 
+static int omap_1510_usb_ohci_notifier(struct notifier_block *nb,
+		unsigned long event, void *data)
+{
+	struct device *dev = data;
+
+	if (event != BUS_NOTIFY_ADD_DEVICE)
+		return NOTIFY_DONE;
+
+	if (strncmp(dev_name(dev), "ohci", 4) == 0 &&
+	    dma_direct_set_offset(dev, PHYS_OFFSET, OMAP1510_LB_OFFSET,
+			(u64)-1))
+		WARN_ONCE(1, "failed to set DMA offset\n");
+	return NOTIFY_OK;
+}
+
+static struct notifier_block omap_1510_usb_ohci_nb = {
+	.notifier_call		= omap_1510_usb_ohci_notifier,
+};
+
 static void __init omap_1510_usb_init(struct omap_usb_config *config)
 {
 	unsigned int val;
@@ -600,6 +620,8 @@ static void __init omap_1510_usb_init(struct omap_usb_config *config)
 	if (config->register_host) {
 		int status;
 
+		bus_register_notifier(&platform_bus_type,
+				      &omap_1510_usb_ohci_nb);
 		ohci_device.dev.platform_data = config;
 		status = platform_device_register(&ohci_device);
 		if (status)

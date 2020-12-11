@@ -41,13 +41,22 @@ u8 mcdi_to_ethtool_media(u32 media);
 void efx_mcdi_phy_decode_link(struct efx_nic *efx,
 			      struct efx_link_state *link_state,
 			      u32 speed, u32 flags, u32 fcntl);
-u32 ethtool_fec_caps_to_mcdi(u32 ethtool_cap);
+u32 ethtool_fec_caps_to_mcdi(u32 supported_cap, u32 ethtool_cap);
 u32 mcdi_fec_caps_to_ethtool(u32 caps, bool is_25g);
 void efx_mcdi_phy_check_fcntl(struct efx_nic *efx, u32 lpa);
 bool efx_mcdi_phy_poll(struct efx_nic *efx);
-int efx_mcdi_phy_get_fecparam(struct efx_nic *efx,
-			      struct ethtool_fecparam *fec);
+int efx_mcdi_phy_probe(struct efx_nic *efx);
+void efx_mcdi_phy_remove(struct efx_nic *efx);
+void efx_mcdi_phy_get_link_ksettings(struct efx_nic *efx, struct ethtool_link_ksettings *cmd);
+int efx_mcdi_phy_set_link_ksettings(struct efx_nic *efx, const struct ethtool_link_ksettings *cmd);
+int efx_mcdi_phy_get_fecparam(struct efx_nic *efx, struct ethtool_fecparam *fec);
+int efx_mcdi_phy_set_fecparam(struct efx_nic *efx, const struct ethtool_fecparam *fec);
 int efx_mcdi_phy_test_alive(struct efx_nic *efx);
+int efx_mcdi_port_reconfigure(struct efx_nic *efx);
+int efx_mcdi_phy_run_tests(struct efx_nic *efx, int *results, unsigned int flags);
+const char *efx_mcdi_phy_test_name(struct efx_nic *efx, unsigned int index);
+int efx_mcdi_phy_get_module_eeprom(struct efx_nic *efx, struct ethtool_eeprom *ee, u8 *data);
+int efx_mcdi_phy_get_module_info(struct efx_nic *efx, struct ethtool_modinfo *modinfo);
 int efx_mcdi_set_mac(struct efx_nic *efx);
 int efx_mcdi_set_mtu(struct efx_nic *efx);
 int efx_mcdi_mac_init_stats(struct efx_nic *efx);

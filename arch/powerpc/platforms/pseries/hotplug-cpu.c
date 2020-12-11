@@ -55,7 +55,7 @@ static void rtas_stop_self(void)
 	panic("Alas, I survived.\n");
 }
 
-static void pseries_mach_cpu_die(void)
+static void pseries_cpu_offline_self(void)
 {
 	unsigned int hwcpu = hard_smp_processor_id();
 
@@ -102,7 +102,7 @@ static int pseries_cpu_disable(void)
  * to self-destroy so that the cpu-offline thread can send the CPU_DEAD
  * notifications.
  *
- * OTOH, pseries_mach_cpu_die() is called by the @cpu when it wants to
+ * OTOH, pseries_cpu_offline_self() is called by the @cpu when it wants to
  * self-destruct.
  */
 static void pseries_cpu_die(unsigned int cpu)
@@ -901,7 +901,7 @@ static int __init pseries_cpu_hotplug_init(void)
 		return 0;
 	}
 
-	ppc_md.cpu_die = pseries_mach_cpu_die;
+	smp_ops->cpu_offline_self = pseries_cpu_offline_self;
 	smp_ops->cpu_disable = pseries_cpu_disable;
 	smp_ops->cpu_die = pseries_cpu_die;
 

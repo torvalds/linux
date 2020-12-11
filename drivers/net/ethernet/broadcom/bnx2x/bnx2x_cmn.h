@@ -825,9 +825,9 @@ static inline void bnx2x_del_all_napi_cnic(struct bnx2x *bp)
 	int i;
 
 	for_each_rx_queue_cnic(bp, i) {
-		napi_hash_del(&bnx2x_fp(bp, i, napi));
-		netif_napi_del(&bnx2x_fp(bp, i, napi));
+		__netif_napi_del(&bnx2x_fp(bp, i, napi));
 	}
+	synchronize_net();
 }
 
 static inline void bnx2x_del_all_napi(struct bnx2x *bp)
@@ -835,9 +835,9 @@ static inline void bnx2x_del_all_napi(struct bnx2x *bp)
 	int i;
 
 	for_each_eth_queue(bp, i) {
-		napi_hash_del(&bnx2x_fp(bp, i, napi));
-		netif_napi_del(&bnx2x_fp(bp, i, napi));
+		__netif_napi_del(&bnx2x_fp(bp, i, napi));
 	}
+	synchronize_net();
 }
 
 int bnx2x_set_int_mode(struct bnx2x *bp);

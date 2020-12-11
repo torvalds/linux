@@ -366,15 +366,15 @@ static const struct rtc_class_ops rs5c313_rtc_ops = {
 
 static int rs5c313_rtc_probe(struct platform_device *pdev)
 {
-	struct rtc_device *rtc = devm_rtc_device_register(&pdev->dev, "rs5c313",
-				&rs5c313_rtc_ops, THIS_MODULE);
+	struct rtc_device *rtc;
 
-	if (IS_ERR(rtc))
-		return PTR_ERR(rtc);
+	rs5c313_init_port();
+	rs5c313_check_xstp_bit();
 
-	platform_set_drvdata(pdev, rtc);
+	rtc = devm_rtc_device_register(&pdev->dev, "rs5c313", &rs5c313_rtc_ops,
+				       THIS_MODULE);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(rtc);
 }
 
 static struct platform_driver rs5c313_rtc_platform_driver = {
@@ -384,27 +384,7 @@ static struct platform_driver rs5c313_rtc_platform_driver = {
 	.probe	= rs5c313_rtc_probe,
 };
 
-static int __init rs5c313_rtc_init(void)
-{
-	int err;
-
-	err = platform_driver_register(&rs5c313_rtc_platform_driver);
-	if (err)
-		return err;
-
-	rs5c313_init_port();
-	rs5c313_check_xstp_bit();
-
-	return 0;
-}
-
-static void __exit rs5c313_rtc_exit(void)
-{
-	platform_driver_unregister(&rs5c313_rtc_platform_driver);
-}
-
-module_init(rs5c313_rtc_init);
-module_exit(rs5c313_rtc_exit);
+module_platform_driver(rs5c313_rtc_platform_driver);
 
 MODULE_AUTHOR("kogiidena , Nobuhiro Iwamatsu <iwamatsu@nigauri.org>");
 MODULE_DESCRIPTION("Ricoh RS5C313 RTC device driver");

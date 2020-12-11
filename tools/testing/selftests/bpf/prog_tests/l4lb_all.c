@@ -80,9 +80,8 @@ out:
 
 void test_l4lb_all(void)
 {
-	const char *file1 = "./test_l4lb.o";
-	const char *file2 = "./test_l4lb_noinline.o";
-
-	test_l4lb(file1);
-	test_l4lb(file2);
+	if (test__start_subtest("l4lb_inline"))
+		test_l4lb("test_l4lb.o");
+	if (test__start_subtest("l4lb_noinline"))
+		test_l4lb("test_l4lb_noinline.o");
 }

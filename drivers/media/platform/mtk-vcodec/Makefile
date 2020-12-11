@@ -13,7 +13,6 @@ mtk-vcodec-dec-y := vdec/vdec_h264_if.o \
 		mtk_vcodec_dec.o \
 		mtk_vcodec_dec_pm.o \
 
-
 mtk-vcodec-enc-y := venc/venc_vp8_if.o \
 		venc/venc_h264_if.o \
 		mtk_vcodec_enc.o \
@@ -24,6 +23,5 @@ mtk-vcodec-enc-y := venc/venc_vp8_if.o \
 
 
 mtk-vcodec-common-y := mtk_vcodec_intr.o \
-		mtk_vcodec_util.o\
-
-ccflags-y += -I$(srctree)/drivers/media/platform/mtk-vpu
+		mtk_vcodec_util.o \
+		mtk_vcodec_fw.o

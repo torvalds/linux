@@ -5,7 +5,8 @@
 /* cpu core interrupt numbers */
 #define NR_IRQS_LEGACY		16
 #define NR_MIPS_CPU_IRQS	8
-#define NR_IRQS			(NR_IRQS_LEGACY + NR_MIPS_CPU_IRQS + 256)
+#define NR_MAX_CHAINED_IRQS	40 /* Chained IRQs means those not directly used by devices */
+#define NR_IRQS			(NR_IRQS_LEGACY + NR_MIPS_CPU_IRQS + NR_MAX_CHAINED_IRQS + 256)
 
 #define MIPS_CPU_IRQ_BASE 	NR_IRQS_LEGACY
 

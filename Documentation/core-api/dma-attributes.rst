@@ -25,14 +25,6 @@ Since it is optional for platforms to implement DMA_ATTR_WRITE_COMBINE,
 those that do not will simply ignore the attribute and exhibit default
 behavior.
 
-DMA_ATTR_NON_CONSISTENT
------------------------
-
-DMA_ATTR_NON_CONSISTENT lets the platform to choose to return either
-consistent or non-consistent memory as it sees fit.  By using this API,
-you are guaranteeing to the platform that you have all the correct and
-necessary sync points for this memory in the driver.
-
 DMA_ATTR_NO_KERNEL_MAPPING
 --------------------------
 

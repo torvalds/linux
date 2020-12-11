@@ -104,7 +104,7 @@ typedef int (*ad5686_read_func)(struct ad5686_state *st, u8 addr);
 struct ad5686_chip_info {
 	u16				int_vref_mv;
 	unsigned int			num_channels;
-	struct iio_chan_spec		*channels;
+	const struct iio_chan_spec	*channels;
 	enum ad5686_regmap_type		regmap_type;
 };
 

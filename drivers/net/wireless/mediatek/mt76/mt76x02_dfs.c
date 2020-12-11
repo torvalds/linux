@@ -429,11 +429,11 @@ static int mt76x02_dfs_create_sequence(struct mt76x02_dev *dev,
 {
 	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
 	struct mt76x02_dfs_sw_detector_params *sw_params;
-	u32 width_delta, with_sum, factor, cur_pri;
+	u32 width_delta, with_sum;
 	struct mt76x02_dfs_sequence seq, *seq_p;
 	struct mt76x02_dfs_event_rb *event_rb;
 	struct mt76x02_dfs_event *cur_event;
-	int i, j, end, pri;
+	int i, j, end, pri, factor, cur_pri;
 
 	event_rb = event->engine == 2 ? &dfs_pd->event_rb[1]
 				      : &dfs_pd->event_rb[0];
@@ -517,7 +517,7 @@ static u16 mt76x02_dfs_add_event_to_sequence(struct mt76x02_dev *dev,
 	struct mt76x02_dfs_sw_detector_params *sw_params;
 	struct mt76x02_dfs_sequence *seq, *tmp_seq;
 	u16 max_seq_len = 0;
-	u32 factor, pri;
+	int factor, pri;
 
 	sw_params = &dfs_pd->sw_dpd_params;
 	list_for_each_entry_safe(seq, tmp_seq, &dfs_pd->sequences, head) {

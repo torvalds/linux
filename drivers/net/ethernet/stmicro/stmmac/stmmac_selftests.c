@@ -796,7 +796,7 @@ static int stmmac_test_flowctrl(struct stmmac_priv *priv)
 		u32 tail;
 
 		tail = priv->rx_queue[i].dma_rx_phy +
-			(DMA_RX_SIZE * sizeof(struct dma_desc));
+			(priv->dma_rx_size * sizeof(struct dma_desc));
 
 		stmmac_set_rx_tail_ptr(priv, priv->ioaddr, tail, i);
 		stmmac_start_rx(priv, priv->ioaddr, i);

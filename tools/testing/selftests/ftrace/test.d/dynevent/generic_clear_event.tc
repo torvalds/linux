@@ -6,7 +6,7 @@
 echo 0 > events/enable
 echo > dynamic_events
 
-PLACE=_do_fork
+PLACE=kernel_clone
 
 setup_events() {
 echo "p:myevent1 $PLACE" >> dynamic_events

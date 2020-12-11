@@ -224,9 +224,9 @@ int radeon_gem_info_ioctl(struct drm_device *dev, void *data,
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_radeon_gem_info *args = data;
-	struct ttm_mem_type_manager *man;
+	struct ttm_resource_manager *man;
 
-	man = &rdev->mman.bdev.man[TTM_PL_VRAM];
+	man = ttm_manager_type(&rdev->mman.bdev, TTM_PL_VRAM);
 
 	args->vram_size = (u64)man->size << PAGE_SHIFT;
 	args->vram_visible = rdev->mc.visible_vram_size;
@@ -331,7 +331,7 @@ int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
 		goto handle_lockup;
 
 	bo = gem_to_radeon_bo(gobj);
-	r = radeon_ttm_tt_set_userptr(bo->tbo.ttm, args->addr, args->flags);
+	r = radeon_ttm_tt_set_userptr(rdev, bo->tbo.ttm, args->addr, args->flags);
 	if (r)
 		goto release_object;
 
@@ -420,7 +420,7 @@ int radeon_mode_dumb_mmap(struct drm_file *filp,
 		return -ENOENT;
 	}
 	robj = gem_to_radeon_bo(gobj);
-	if (radeon_ttm_tt_has_userptr(robj->tbo.ttm)) {
+	if (radeon_ttm_tt_has_userptr(robj->rdev, robj->tbo.ttm)) {
 		drm_gem_object_put(gobj);
 		return -EPERM;
 	}
@@ -721,7 +721,7 @@ int radeon_gem_op_ioctl(struct drm_device *dev, void *data,
 	robj = gem_to_radeon_bo(gobj);
 
 	r = -EPERM;
-	if (radeon_ttm_tt_has_userptr(robj->tbo.ttm))
+	if (radeon_ttm_tt_has_userptr(robj->rdev, robj->tbo.ttm))
 		goto out;
 
 	r = radeon_bo_reserve(robj, false);

@@ -70,8 +70,3 @@ config QFMT_V2
 config QUOTACTL
 	bool
 	default n
-
-config QUOTACTL_COMPAT
-	bool
-	depends on QUOTACTL && COMPAT_FOR_U64_ALIGNMENT
-	default y

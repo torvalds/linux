@@ -912,7 +912,7 @@ static int lm87_init_client(struct i2c_client *client)
 	return 0;
 }
 
-static int lm87_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int lm87_probe(struct i2c_client *client)
 {
 	struct lm87_data *data;
 	struct device *hwmon_dev;
@@ -994,7 +994,7 @@ static struct i2c_driver lm87_driver = {
 		.name	= "lm87",
 		.of_match_table = lm87_of_match,
 	},
-	.probe		= lm87_probe,
+	.probe_new	= lm87_probe,
 	.id_table	= lm87_id,
 	.detect		= lm87_detect,
 	.address_list	= normal_i2c,

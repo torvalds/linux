@@ -11,7 +11,7 @@
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/bitops.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 

@@ -119,6 +119,8 @@ static void blkg_async_bio_workfn(struct work_struct *work)
 					     async_bio_work);
 	struct bio_list bios = BIO_EMPTY_LIST;
 	struct bio *bio;
+	struct blk_plug plug;
+	bool need_plug = false;
 
 	/* as long as there are pending bios, @blkg can't go away */
 	spin_lock_bh(&blkg->async_bio_lock);
@@ -126,8 +128,15 @@ static void blkg_async_bio_workfn(struct work_struct *work)
 	bio_list_init(&blkg->async_bios);
 	spin_unlock_bh(&blkg->async_bio_lock);
 
+	/* start plug only when bio_list contains at least 2 bios */
+	if (bios.head && bios.head->bi_next) {
+		need_plug = true;
+		blk_start_plug(&plug);
+	}
 	while ((bio = bio_list_pop(&bios)))
 		submit_bio(bio);
+	if (need_plug)
+		blk_finish_plug(&plug);
 }
 
 /**
@@ -1613,16 +1622,24 @@ static void blkcg_scale_delay(struct blkcg_gq *blkg, u64 now)
 static void blkcg_maybe_throttle_blkg(struct blkcg_gq *blkg, bool use_memdelay)
 {
 	unsigned long pflags;
+	bool clamp;
 	u64 now = ktime_to_ns(ktime_get());
 	u64 exp;
 	u64 delay_nsec = 0;
 	int tok;
 
 	while (blkg->parent) {
-		if (atomic_read(&blkg->use_delay)) {
+		int use_delay = atomic_read(&blkg->use_delay);
+
+		if (use_delay) {
+			u64 this_delay;
+
 			blkcg_scale_delay(blkg, now);
-			delay_nsec = max_t(u64, delay_nsec,
-					   atomic64_read(&blkg->delay_nsec));
+			this_delay = atomic64_read(&blkg->delay_nsec);
+			if (this_delay > delay_nsec) {
+				delay_nsec = this_delay;
+				clamp = use_delay > 0;
+			}
 		}
 		blkg = blkg->parent;
 	}
@@ -1634,10 +1651,13 @@ static void blkcg_maybe_throttle_blkg(struct blkcg_gq *blkg, bool use_memdelay)
 	 * Let's not sleep for all eternity if we've amassed a huge delay.
 	 * Swapping or metadata IO can accumulate 10's of seconds worth of
 	 * delay, and we want userspace to be able to do _something_ so cap the
-	 * delays at 1 second.  If there's 10's of seconds worth of delay then
-	 * the tasks will be delayed for 1 second for every syscall.
+	 * delays at 0.25s. If there's 10's of seconds worth of delay then the
+	 * tasks will be delayed for 0.25 second for every syscall. If
+	 * blkcg_set_delay() was used as indicated by negative use_delay, the
+	 * caller is responsible for regulating the range.
 	 */
-	delay_nsec = min_t(u64, delay_nsec, 250 * NSEC_PER_MSEC);
+	if (clamp)
+		delay_nsec = min_t(u64, delay_nsec, 250 * NSEC_PER_MSEC);
 
 	if (use_memdelay)
 		psi_memstall_enter(&pflags);

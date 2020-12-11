@@ -414,7 +414,7 @@ xlog_recover_validate_buf_type(
 	 *
 	 * Write verifiers update the metadata LSN from log items attached to
 	 * the buffer. Therefore, initialize a bli purely to carry the LSN to
-	 * the verifier. We'll clean it up in our ->iodone() callback.
+	 * the verifier.
 	 */
 	if (bp->b_ops) {
 		struct xfs_buf_log_item	*bip;
@@ -719,6 +719,8 @@ xlog_recover_get_buf_lsn(
 	case XFS_ABTC_MAGIC:
 	case XFS_RMAP_CRC_MAGIC:
 	case XFS_REFC_CRC_MAGIC:
+	case XFS_FIBT_CRC_MAGIC:
+	case XFS_FIBT_MAGIC:
 	case XFS_IBT_CRC_MAGIC:
 	case XFS_IBT_MAGIC: {
 		struct xfs_btree_block *btb = blk;

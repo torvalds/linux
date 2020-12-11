@@ -92,7 +92,7 @@
   {
     "EventCode": "0x4c12e",
     "EventName": "PM_MRK_DATA_FROM_L2MISS_CYC",
-    "BriefDescription": "Duration in cycles to reload from a localtion other than the local core's L2 due to a marked load",
+    "BriefDescription": "Duration in cycles to reload from a location other than the local core's L2 due to a marked load",
     "PublicDescription": ""
   },
   {
@@ -158,13 +158,13 @@
   {
     "EventCode": "0x201e4",
     "EventName": "PM_MRK_DATA_FROM_L3MISS",
-    "BriefDescription": "The processor's data cache was reloaded from a localtion other than the local core's L3 due to a marked load",
+    "BriefDescription": "The processor's data cache was reloaded from a location other than the local core's L3 due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x2d12e",
     "EventName": "PM_MRK_DATA_FROM_L3MISS_CYC",
-    "BriefDescription": "Duration in cycles to reload from a localtion other than the local core's L3 due to a marked load",
+    "BriefDescription": "Duration in cycles to reload from a location other than the local core's L3 due to a marked load",
     "PublicDescription": ""
   },
   {
@@ -392,7 +392,7 @@
   {
     "EventCode": "0x1f14e",
     "EventName": "PM_MRK_DPTEG_FROM_L2MISS",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from a localtion other than the local core's L2 due to a marked data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from a location other than the local core's L2 due to a marked data side request",
     "PublicDescription": ""
   },
   {
@@ -416,7 +416,7 @@
   {
     "EventCode": "0x4f14e",
     "EventName": "PM_MRK_DPTEG_FROM_L3MISS",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from a localtion other than the local core's L3 due to a marked data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from a location other than the local core's L3 due to a marked data side request",
     "PublicDescription": ""
   },
   {

@@ -356,6 +356,8 @@ allOf:
             Enables the TSO feature otherwise it will be managed by
             MAC HW capability register.
 
+additionalProperties: true
+
 examples:
   - |
     stmmac_axi_setup: stmmac-axi-config {

@@ -318,4 +318,10 @@ struct bp_encoder_cap_info {
 	uint32_t RESERVED:27;
 };
 
+struct bp_soc_bb_info {
+	uint32_t dram_clock_change_latency_100ns;
+	uint32_t dram_sr_exit_latency_100ns;
+	uint32_t dram_sr_enter_exit_latency_100ns;
+};
+
 #endif /*__DAL_BIOS_PARSER_TYPES_H__ */

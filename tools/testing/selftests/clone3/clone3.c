@@ -20,13 +20,6 @@
 #include "../kselftest.h"
 #include "clone3_selftests.h"
 
-/*
- * Different sizes of struct clone_args
- */
-#ifndef CLONE3_ARGS_SIZE_V0
-#define CLONE3_ARGS_SIZE_V0 64
-#endif
-
 enum test_mode {
 	CLONE3_ARGS_NO_TEST,
 	CLONE3_ARGS_ALL_0,
@@ -38,13 +31,13 @@ enum test_mode {
 
 static int call_clone3(uint64_t flags, size_t size, enum test_mode test_mode)
 {
-	struct clone_args args = {
+	struct __clone_args args = {
 		.flags = flags,
 		.exit_signal = SIGCHLD,
 	};
 
 	struct clone_args_extended {
-		struct clone_args args;
+		struct __clone_args args;
 		__aligned_u64 excess_space[2];
 	} args_ext;
 
@@ -52,11 +45,11 @@ static int call_clone3(uint64_t flags, size_t size, enum test_mode test_mode)
 	int status;
 
 	memset(&args_ext, 0, sizeof(args_ext));
-	if (size > sizeof(struct clone_args))
+	if (size > sizeof(struct __clone_args))
 		args_ext.excess_space[1] = 1;
 
 	if (size == 0)
-		size = sizeof(struct clone_args);
+		size = sizeof(struct __clone_args);
 
 	switch (test_mode) {
 	case CLONE3_ARGS_ALL_0:
@@ -77,9 +70,9 @@ static int call_clone3(uint64_t flags, size_t size, enum test_mode test_mode)
 		break;
 	}
 
-	memcpy(&args_ext.args, &args, sizeof(struct clone_args));
+	memcpy(&args_ext.args, &args, sizeof(struct __clone_args));
 
-	pid = sys_clone3((struct clone_args *)&args_ext, size);
+	pid = sys_clone3((struct __clone_args *)&args_ext, size);
 	if (pid < 0) {
 		ksft_print_msg("%s - Failed to create new process\n",
 				strerror(errno));
@@ -144,14 +137,14 @@ int main(int argc, char *argv[])
 	else
 		ksft_test_result_skip("Skipping clone3() with CLONE_NEWPID\n");
 
-	/* Do a clone3() with CLONE3_ARGS_SIZE_V0. */
-	test_clone3(0, CLONE3_ARGS_SIZE_V0, 0, CLONE3_ARGS_NO_TEST);
+	/* Do a clone3() with CLONE_ARGS_SIZE_VER0. */
+	test_clone3(0, CLONE_ARGS_SIZE_VER0, 0, CLONE3_ARGS_NO_TEST);
 
-	/* Do a clone3() with CLONE3_ARGS_SIZE_V0 - 8 */
-	test_clone3(0, CLONE3_ARGS_SIZE_V0 - 8, -EINVAL, CLONE3_ARGS_NO_TEST);
+	/* Do a clone3() with CLONE_ARGS_SIZE_VER0 - 8 */
+	test_clone3(0, CLONE_ARGS_SIZE_VER0 - 8, -EINVAL, CLONE3_ARGS_NO_TEST);
 
 	/* Do a clone3() with sizeof(struct clone_args) + 8 */
-	test_clone3(0, sizeof(struct clone_args) + 8, 0, CLONE3_ARGS_NO_TEST);
+	test_clone3(0, sizeof(struct __clone_args) + 8, 0, CLONE3_ARGS_NO_TEST);
 
 	/* Do a clone3() with exit_signal having highest 32 bits non-zero */
 	test_clone3(0, 0, -EINVAL, CLONE3_ARGS_INVAL_EXIT_SIGNAL_BIG);
@@ -165,31 +158,31 @@ int main(int argc, char *argv[])
 	/* Do a clone3() with NSIG < exit_signal < CSIG */
 	test_clone3(0, 0, -EINVAL, CLONE3_ARGS_INVAL_EXIT_SIGNAL_NSIG);
 
-	test_clone3(0, sizeof(struct clone_args) + 8, 0, CLONE3_ARGS_ALL_0);
+	test_clone3(0, sizeof(struct __clone_args) + 8, 0, CLONE3_ARGS_ALL_0);
 
-	test_clone3(0, sizeof(struct clone_args) + 16, -E2BIG,
+	test_clone3(0, sizeof(struct __clone_args) + 16, -E2BIG,
 			CLONE3_ARGS_ALL_0);
 
-	test_clone3(0, sizeof(struct clone_args) * 2, -E2BIG,
+	test_clone3(0, sizeof(struct __clone_args) * 2, -E2BIG,
 			CLONE3_ARGS_ALL_0);
 
 	/* Do a clone3() with > page size */
 	test_clone3(0, getpagesize() + 8, -E2BIG, CLONE3_ARGS_NO_TEST);
 
-	/* Do a clone3() with CLONE3_ARGS_SIZE_V0 in a new PID NS. */
+	/* Do a clone3() with CLONE_ARGS_SIZE_VER0 in a new PID NS. */
 	if (uid == 0)
-		test_clone3(CLONE_NEWPID, CLONE3_ARGS_SIZE_V0, 0,
+		test_clone3(CLONE_NEWPID, CLONE_ARGS_SIZE_VER0, 0,
 				CLONE3_ARGS_NO_TEST);
 	else
 		ksft_test_result_skip("Skipping clone3() with CLONE_NEWPID\n");
 
-	/* Do a clone3() with CLONE3_ARGS_SIZE_V0 - 8 in a new PID NS */
-	test_clone3(CLONE_NEWPID, CLONE3_ARGS_SIZE_V0 - 8, -EINVAL,
+	/* Do a clone3() with CLONE_ARGS_SIZE_VER0 - 8 in a new PID NS */
+	test_clone3(CLONE_NEWPID, CLONE_ARGS_SIZE_VER0 - 8, -EINVAL,
 			CLONE3_ARGS_NO_TEST);
 
 	/* Do a clone3() with sizeof(struct clone_args) + 8 in a new PID NS */
 	if (uid == 0)
-		test_clone3(CLONE_NEWPID, sizeof(struct clone_args) + 8, 0,
+		test_clone3(CLONE_NEWPID, sizeof(struct __clone_args) + 8, 0,
 				CLONE3_ARGS_NO_TEST);
 	else
 		ksft_test_result_skip("Skipping clone3() with CLONE_NEWPID\n");

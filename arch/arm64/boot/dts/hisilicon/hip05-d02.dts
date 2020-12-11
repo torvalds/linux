@@ -42,15 +42,15 @@
 };
 
 &uart0 {
-	status = "ok";
+	status = "okay";
 };
 
 &peri_gpio0 {
-	status = "ok";
+	status = "okay";
 };
 
 &lbc {
-	status = "ok";
+	status = "okay";
 	#address-cells = <2>;
 	#size-cells = <1>;
 	ranges = <0 0 0x0 0x90000000 0x08000000>,

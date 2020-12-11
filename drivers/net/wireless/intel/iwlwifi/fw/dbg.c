@@ -1507,6 +1507,27 @@ iwl_dump_ini_err_table_iter(struct iwl_fw_runtime *fwrt,
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
 }
 
+static int
+iwl_dump_ini_special_mem_iter(struct iwl_fw_runtime *fwrt,
+			      struct iwl_dump_ini_region_data *reg_data,
+			      void *range_ptr, int idx)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	struct iwl_fw_ini_region_special_device_memory *special_mem =
+		&reg->special_mem;
+
+	struct iwl_fw_ini_error_dump_range *range = range_ptr;
+	u32 addr = le32_to_cpu(special_mem->base_addr) +
+		   le32_to_cpu(special_mem->offset);
+
+	range->internal_base_addr = cpu_to_le32(addr);
+	range->range_data_size = special_mem->size;
+	iwl_trans_read_mem_bytes(fwrt->trans, addr, range->data,
+				 le32_to_cpu(special_mem->size));
+
+	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
 static int iwl_dump_ini_fw_pkt_iter(struct iwl_fw_runtime *fwrt,
 				    struct iwl_dump_ini_region_data *reg_data,
 				    void *range_ptr, int idx)
@@ -1632,6 +1653,21 @@ iwl_dump_ini_err_table_fill_header(struct iwl_fw_runtime *fwrt,
 
 	dump->header.version = cpu_to_le32(IWL_INI_DUMP_VER);
 	dump->version = reg->err_table.version;
+
+	return dump->ranges;
+}
+
+static void *
+iwl_dump_ini_special_mem_fill_header(struct iwl_fw_runtime *fwrt,
+				     struct iwl_dump_ini_region_data *reg_data,
+				     void *data)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	struct iwl_fw_ini_special_device_memory *dump = data;
+
+	dump->header.version = cpu_to_le32(IWL_INI_DUMP_VER);
+	dump->type = reg->special_mem.type;
+	dump->version = reg->special_mem.version;
 
 	return dump->ranges;
 }
@@ -1821,6 +1857,20 @@ iwl_dump_ini_err_table_get_size(struct iwl_fw_runtime *fwrt,
 
 	if (size)
 		size += sizeof(struct iwl_fw_ini_err_table_dump) +
+			sizeof(struct iwl_fw_ini_error_dump_range);
+
+	return size;
+}
+
+static u32
+iwl_dump_ini_special_mem_get_size(struct iwl_fw_runtime *fwrt,
+				  struct iwl_dump_ini_region_data *reg_data)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	u32 size = le32_to_cpu(reg->special_mem.size);
+
+	if (size)
+		size += sizeof(struct iwl_fw_ini_special_device_memory) +
 			sizeof(struct iwl_fw_ini_error_dump_range);
 
 	return size;
@@ -2124,6 +2174,12 @@ static const struct iwl_dump_ini_mem_ops iwl_dump_ini_region_ops[] = {
 		.get_size = iwl_dump_ini_mem_get_size,
 		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
 		.fill_range = iwl_dump_ini_config_iter,
+	},
+	[IWL_FW_INI_REGION_SPECIAL_DEVICE_MEMORY] = {
+		.get_num_of_ranges = iwl_dump_ini_single_range,
+		.get_size = iwl_dump_ini_special_mem_get_size,
+		.fill_mem_hdr = iwl_dump_ini_special_mem_fill_header,
+		.fill_range = iwl_dump_ini_special_mem_iter,
 	},
 };
 

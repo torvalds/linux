@@ -217,7 +217,6 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 {
 	struct genevehdr *gnvh = geneve_hdr(skb);
 	struct metadata_dst *tun_dst = NULL;
-	struct pcpu_sw_netstats *stats;
 	unsigned int len;
 	int err = 0;
 	void *oiph;
@@ -296,13 +295,9 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 
 	len = skb->len;
 	err = gro_cells_receive(&geneve->gro_cells, skb);
-	if (likely(err == NET_RX_SUCCESS)) {
-		stats = this_cpu_ptr(geneve->dev->tstats);
-		u64_stats_update_begin(&stats->syncp);
-		stats->rx_packets++;
-		stats->rx_bytes += len;
-		u64_stats_update_end(&stats->syncp);
-	}
+	if (likely(err == NET_RX_SUCCESS))
+		dev_sw_netstats_rx_add(geneve->dev, len);
+
 	return;
 drop:
 	/* Consume bad packet */

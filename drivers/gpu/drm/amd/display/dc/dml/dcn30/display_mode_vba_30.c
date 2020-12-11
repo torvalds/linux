@@ -597,7 +597,8 @@ static void CalculateStutterEfficiency(
 		double meta_row_bw[],
 		double dpte_row_bw[],
 		double *StutterEfficiencyNotIncludingVBlank,
-		double *StutterEfficiency);
+		double *StutterEfficiency,
+		double *StutterPeriodOut);
 
 static void CalculateSwathAndDETConfiguration(
 		bool ForceSingleDPP,
@@ -3134,7 +3135,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 			v->meta_row_bw,
 			v->dpte_row_bw,
 			&v->StutterEfficiencyNotIncludingVBlank,
-			&v->StutterEfficiency);
+			&v->StutterEfficiency,
+			&v->StutterPeriod);
 }
 
 static void DisplayPipeConfiguration(struct display_mode_lib *mode_lib)
@@ -3235,7 +3237,7 @@ static bool CalculateBytePerPixelAnd256BBlockSizes(
 		*BytePerPixelDETC = 0;
 		*BytePerPixelY = 4;
 		*BytePerPixelC = 0;
-	} else if (SourcePixelFormat == dm_444_16 || SourcePixelFormat == dm_444_16) {
+	} else if (SourcePixelFormat == dm_444_16) {
 		*BytePerPixelDETY = 2;
 		*BytePerPixelDETC = 0;
 		*BytePerPixelY = 2;
@@ -5305,7 +5307,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			ViewportExceedsSurface = true;
 
 		if (v->SourcePixelFormat[k] != dm_444_64 && v->SourcePixelFormat[k] != dm_444_32 && v->SourcePixelFormat[k] != dm_444_16
-				&& v->SourcePixelFormat[k] != dm_444_16 && v->SourcePixelFormat[k] != dm_444_8 && v->SourcePixelFormat[k] != dm_rgbe) {
+				&& v->SourcePixelFormat[k] != dm_444_8 && v->SourcePixelFormat[k] != dm_rgbe) {
 			if (v->ViewportWidthChroma[k] > v->SurfaceWidthC[k] || v->ViewportHeightChroma[k] > v->SurfaceHeightC[k]) {
 				ViewportExceedsSurface = true;
 			}
@@ -5515,7 +5517,7 @@ static void CalculateWatermarksAndDRAMSpeedChangeSupport(
 			if (WritebackPixelFormat[k] == dm_444_64) {
 				WritebackDRAMClockChangeLatencyHiding = WritebackDRAMClockChangeLatencyHiding / 2;
 			}
-			if (mode_lib->vba.WritebackConfiguration == dm_whole_buffer_for_single_stream_interleave || mode_lib->vba.WritebackConfiguration == dm_whole_buffer_for_single_stream_interleave) {
+			if (mode_lib->vba.WritebackConfiguration == dm_whole_buffer_for_single_stream_interleave) {
 				WritebackDRAMClockChangeLatencyHiding = WritebackDRAMClockChangeLatencyHiding * 2;
 			}
 			WritebackDRAMClockChangeLatencyMargin = WritebackDRAMClockChangeLatencyHiding - mode_lib->vba.WritebackDRAMClockChangeWatermark;
@@ -5556,7 +5558,7 @@ static void CalculateWatermarksAndDRAMSpeedChangeSupport(
 		}
 	}
 
-	if (mode_lib->vba.MinActiveDRAMClockChangeMargin > 0) {
+	if (mode_lib->vba.MinActiveDRAMClockChangeMargin > 0 && PrefetchMode == 0) {
 		*DRAMClockChangeSupport = dm_dram_clock_change_vactive;
 	} else if (((mode_lib->vba.SynchronizedVBlank == true || mode_lib->vba.TotalNumberOfActiveOTG == 1 || SecondMinActiveDRAMClockChangeMarginOneDisplayInVBLank > 0) && PrefetchMode == 0)) {
 		*DRAMClockChangeSupport = dm_dram_clock_change_vblank;
@@ -6151,7 +6153,8 @@ static void CalculateStutterEfficiency(
 		double meta_row_bw[],
 		double dpte_row_bw[],
 		double *StutterEfficiencyNotIncludingVBlank,
-		double *StutterEfficiency)
+		double *StutterEfficiency,
+		double *StutterPeriodOut)
 {
 	double FullDETBufferingTimeY[DC__NUM_DPP__MAX] = { 0 };
 	double FrameTimeForMinFullDETBufferingTime = 0;
@@ -6262,6 +6265,9 @@ static void CalculateStutterEfficiency(
 	}
 
 	*StutterEfficiency =  (*StutterEfficiencyNotIncludingVBlank / 100.0 * (FrameTimeForMinFullDETBufferingTime - SmallestVBlank) + SmallestVBlank) / FrameTimeForMinFullDETBufferingTime * 100;
+
+	if (StutterPeriodOut)
+		*StutterPeriodOut = StutterPeriod;
 }
 
 static void CalculateSwathAndDETConfiguration(

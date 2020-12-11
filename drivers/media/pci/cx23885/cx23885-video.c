@@ -637,7 +637,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	sprintf(cap->bus_info, "PCIe:%s", pci_name(dev->pci));
 	cap->capabilities = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
 			    V4L2_CAP_AUDIO | V4L2_CAP_VBI_CAPTURE |
-			    V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VBI_CAPTURE |
+			    V4L2_CAP_VIDEO_CAPTURE |
 			    V4L2_CAP_DEVICE_CAPS;
 	switch (dev->board) { /* i2c device tuners */
 	case CX23885_BOARD_HAUPPAUGE_HVR1265_K4:

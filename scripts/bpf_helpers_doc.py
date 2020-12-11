@@ -432,6 +432,8 @@ class PrinterHelpers(Printer):
             'struct __sk_buff',
             'struct sk_msg_md',
             'struct xdp_md',
+            'struct path',
+            'struct btf_ptr',
     ]
     known_types = {
             '...',
@@ -451,6 +453,7 @@ class PrinterHelpers(Printer):
             'struct bpf_perf_event_data',
             'struct bpf_perf_event_value',
             'struct bpf_pidns_info',
+            'struct bpf_redir_neigh',
             'struct bpf_sk_lookup',
             'struct bpf_sock',
             'struct bpf_sock_addr',
@@ -472,6 +475,8 @@ class PrinterHelpers(Printer):
             'struct tcp_request_sock',
             'struct udp6_sock',
             'struct task_struct',
+            'struct path',
+            'struct btf_ptr',
     }
     mapped_types = {
             'u8': '__u8',

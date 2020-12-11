@@ -214,12 +214,12 @@ static irqreturn_t hix5hd2_ir_rx_interrupt(int irq, void *data)
 			data_h =  ((symb_val >> 16) & 0xffff) * 10;
 			symb_time = (data_l + data_h) / 10;
 
-			ev.duration = US_TO_NS(data_l);
+			ev.duration = data_l;
 			ev.pulse = true;
 			ir_raw_event_store(priv->rdev, &ev);
 
 			if (symb_time < IR_CFG_SYMBOL_MAXWIDTH) {
-				ev.duration = US_TO_NS(data_h);
+				ev.duration = data_h;
 				ev.pulse = false;
 				ir_raw_event_store(priv->rdev, &ev);
 			} else {
@@ -311,8 +311,8 @@ static int hix5hd2_ir_probe(struct platform_device *pdev)
 	rdev->input_id.vendor = 0x0001;
 	rdev->input_id.product = 0x0001;
 	rdev->input_id.version = 0x0100;
-	rdev->rx_resolution = US_TO_NS(10);
-	rdev->timeout = US_TO_NS(IR_CFG_SYMBOL_MAXWIDTH * 10);
+	rdev->rx_resolution = 10;
+	rdev->timeout = IR_CFG_SYMBOL_MAXWIDTH * 10;
 
 	ret = rc_register_device(rdev);
 	if (ret < 0)

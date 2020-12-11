@@ -17,7 +17,6 @@
 
 #include "spi-dw.h"
 
-#define WAIT_RETRIES	5
 #define RX_BUSY		0
 #define RX_BURST_LEVEL	16
 #define TX_BUSY		1
@@ -49,6 +48,7 @@ static void dw_spi_dma_maxburst_init(struct dw_spi *dws)
 		max_burst = RX_BURST_LEVEL;
 
 	dws->rxburst = min(max_burst, def_burst);
+	dw_writel(dws, DW_SPI_DMARDLR, dws->rxburst - 1);
 
 	ret = dma_get_slave_caps(dws->txchan, &caps);
 	if (!ret && caps.max_burst)
@@ -56,7 +56,36 @@ static void dw_spi_dma_maxburst_init(struct dw_spi *dws)
 	else
 		max_burst = TX_BURST_LEVEL;
 
+	/*
+	 * Having a Rx DMA channel serviced with higher priority than a Tx DMA
+	 * channel might not be enough to provide a well balanced DMA-based
+	 * SPI transfer interface. There might still be moments when the Tx DMA
+	 * channel is occasionally handled faster than the Rx DMA channel.
+	 * That in its turn will eventually cause the SPI Rx FIFO overflow if
+	 * SPI bus speed is high enough to fill the SPI Rx FIFO in before it's
+	 * cleared by the Rx DMA channel. In order to fix the problem the Tx
+	 * DMA activity is intentionally slowed down by limiting the SPI Tx
+	 * FIFO depth with a value twice bigger than the Tx burst length.
+	 */
 	dws->txburst = min(max_burst, def_burst);
+	dw_writel(dws, DW_SPI_DMATDLR, dws->txburst);
+}
+
+static void dw_spi_dma_sg_burst_init(struct dw_spi *dws)
+{
+	struct dma_slave_caps tx = {0}, rx = {0};
+
+	dma_get_slave_caps(dws->txchan, &tx);
+	dma_get_slave_caps(dws->rxchan, &rx);
+
+	if (tx.max_sg_burst > 0 && rx.max_sg_burst > 0)
+		dws->dma_sg_burst = min(tx.max_sg_burst, rx.max_sg_burst);
+	else if (tx.max_sg_burst > 0)
+		dws->dma_sg_burst = tx.max_sg_burst;
+	else if (rx.max_sg_burst > 0)
+		dws->dma_sg_burst = rx.max_sg_burst;
+	else
+		dws->dma_sg_burst = 0;
 }
 
 static int dw_spi_dma_init_mfld(struct device *dev, struct dw_spi *dws)
@@ -96,6 +125,8 @@ static int dw_spi_dma_init_mfld(struct device *dev, struct dw_spi *dws)
 
 	dw_spi_dma_maxburst_init(dws);
 
+	dw_spi_dma_sg_burst_init(dws);
+
 	return 0;
 
 free_rxchan:
@@ -125,6 +156,8 @@ static int dw_spi_dma_init_generic(struct device *dev, struct dw_spi *dws)
 
 	dw_spi_dma_maxburst_init(dws);
 
+	dw_spi_dma_sg_burst_init(dws);
+
 	return 0;
 }
 
@@ -139,23 +172,14 @@ static void dw_spi_dma_exit(struct dw_spi *dws)
 		dmaengine_terminate_sync(dws->rxchan);
 		dma_release_channel(dws->rxchan);
 	}
-
-	dw_writel(dws, DW_SPI_DMACR, 0);
 }
 
 static irqreturn_t dw_spi_dma_transfer_handler(struct dw_spi *dws)
 {
-	u16 irq_status = dw_readl(dws, DW_SPI_ISR);
+	dw_spi_check_status(dws, false);
 
-	if (!irq_status)
-		return IRQ_NONE;
-
-	dw_readl(dws, DW_SPI_ICR);
-	spi_reset_chip(dws);
-
-	dev_err(&dws->master->dev, "%s: FIFO overrun/underrun\n", __func__);
-	dws->master->cur_msg->status = -EIO;
 	complete(&dws->dma_completion);
+
 	return IRQ_HANDLED;
 }
 
@@ -177,12 +201,12 @@ static enum dma_slave_buswidth dw_spi_dma_convert_width(u8 n_bytes)
 	return DMA_SLAVE_BUSWIDTH_UNDEFINED;
 }
 
-static int dw_spi_dma_wait(struct dw_spi *dws, struct spi_transfer *xfer)
+static int dw_spi_dma_wait(struct dw_spi *dws, unsigned int len, u32 speed)
 {
 	unsigned long long ms;
 
-	ms = xfer->len * MSEC_PER_SEC * BITS_PER_BYTE;
-	do_div(ms, xfer->effective_speed_hz);
+	ms = len * MSEC_PER_SEC * BITS_PER_BYTE;
+	do_div(ms, speed);
 	ms += ms + 200;
 
 	if (ms > UINT_MAX)
@@ -208,7 +232,7 @@ static inline bool dw_spi_dma_tx_busy(struct dw_spi *dws)
 static int dw_spi_dma_wait_tx_done(struct dw_spi *dws,
 				   struct spi_transfer *xfer)
 {
-	int retry = WAIT_RETRIES;
+	int retry = SPI_WAIT_RETRIES;
 	struct spi_delay delay;
 	u32 nents;
 
@@ -239,18 +263,12 @@ static void dw_spi_dma_tx_done(void *arg)
 	if (test_bit(RX_BUSY, &dws->dma_chan_busy))
 		return;
 
-	dw_writel(dws, DW_SPI_DMACR, 0);
 	complete(&dws->dma_completion);
 }
 
-static struct dma_async_tx_descriptor *
-dw_spi_dma_prepare_tx(struct dw_spi *dws, struct spi_transfer *xfer)
+static int dw_spi_dma_config_tx(struct dw_spi *dws)
 {
 	struct dma_slave_config txconf;
-	struct dma_async_tx_descriptor *txdesc;
-
-	if (!xfer->tx_buf)
-		return NULL;
 
 	memset(&txconf, 0, sizeof(txconf));
 	txconf.direction = DMA_MEM_TO_DEV;
@@ -260,20 +278,35 @@ dw_spi_dma_prepare_tx(struct dw_spi *dws, struct spi_transfer *xfer)
 	txconf.dst_addr_width = dw_spi_dma_convert_width(dws->n_bytes);
 	txconf.device_fc = false;
 
-	dmaengine_slave_config(dws->txchan, &txconf);
+	return dmaengine_slave_config(dws->txchan, &txconf);
+}
 
-	txdesc = dmaengine_prep_slave_sg(dws->txchan,
-				xfer->tx_sg.sgl,
-				xfer->tx_sg.nents,
-				DMA_MEM_TO_DEV,
-				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+static int dw_spi_dma_submit_tx(struct dw_spi *dws, struct scatterlist *sgl,
+				unsigned int nents)
+{
+	struct dma_async_tx_descriptor *txdesc;
+	dma_cookie_t cookie;
+	int ret;
+
+	txdesc = dmaengine_prep_slave_sg(dws->txchan, sgl, nents,
+					 DMA_MEM_TO_DEV,
+					 DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!txdesc)
-		return NULL;
+		return -ENOMEM;
 
 	txdesc->callback = dw_spi_dma_tx_done;
 	txdesc->callback_param = dws;
 
-	return txdesc;
+	cookie = dmaengine_submit(txdesc);
+	ret = dma_submit_error(cookie);
+	if (ret) {
+		dmaengine_terminate_sync(dws->txchan);
+		return ret;
+	}
+
+	set_bit(TX_BUSY, &dws->dma_chan_busy);
+
+	return 0;
 }
 
 static inline bool dw_spi_dma_rx_busy(struct dw_spi *dws)
@@ -283,7 +316,7 @@ static inline bool dw_spi_dma_rx_busy(struct dw_spi *dws)
 
 static int dw_spi_dma_wait_rx_done(struct dw_spi *dws)
 {
-	int retry = WAIT_RETRIES;
+	int retry = SPI_WAIT_RETRIES;
 	struct spi_delay delay;
 	unsigned long ns, us;
 	u32 nents;
@@ -331,18 +364,12 @@ static void dw_spi_dma_rx_done(void *arg)
 	if (test_bit(TX_BUSY, &dws->dma_chan_busy))
 		return;
 
-	dw_writel(dws, DW_SPI_DMACR, 0);
 	complete(&dws->dma_completion);
 }
 
-static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
-		struct spi_transfer *xfer)
+static int dw_spi_dma_config_rx(struct dw_spi *dws)
 {
 	struct dma_slave_config rxconf;
-	struct dma_async_tx_descriptor *rxdesc;
-
-	if (!xfer->rx_buf)
-		return NULL;
 
 	memset(&rxconf, 0, sizeof(rxconf));
 	rxconf.direction = DMA_DEV_TO_MEM;
@@ -352,50 +379,64 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
 	rxconf.src_addr_width = dw_spi_dma_convert_width(dws->n_bytes);
 	rxconf.device_fc = false;
 
-	dmaengine_slave_config(dws->rxchan, &rxconf);
+	return dmaengine_slave_config(dws->rxchan, &rxconf);
+}
 
-	rxdesc = dmaengine_prep_slave_sg(dws->rxchan,
-				xfer->rx_sg.sgl,
-				xfer->rx_sg.nents,
-				DMA_DEV_TO_MEM,
-				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+static int dw_spi_dma_submit_rx(struct dw_spi *dws, struct scatterlist *sgl,
+				unsigned int nents)
+{
+	struct dma_async_tx_descriptor *rxdesc;
+	dma_cookie_t cookie;
+	int ret;
+
+	rxdesc = dmaengine_prep_slave_sg(dws->rxchan, sgl, nents,
+					 DMA_DEV_TO_MEM,
+					 DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!rxdesc)
-		return NULL;
+		return -ENOMEM;
 
 	rxdesc->callback = dw_spi_dma_rx_done;
 	rxdesc->callback_param = dws;
 
-	return rxdesc;
+	cookie = dmaengine_submit(rxdesc);
+	ret = dma_submit_error(cookie);
+	if (ret) {
+		dmaengine_terminate_sync(dws->rxchan);
+		return ret;
+	}
+
+	set_bit(RX_BUSY, &dws->dma_chan_busy);
+
+	return 0;
 }
 
 static int dw_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
 {
-	u16 imr = 0, dma_ctrl = 0;
+	u16 imr, dma_ctrl;
+	int ret;
 
-	/*
-	 * Having a Rx DMA channel serviced with higher priority than a Tx DMA
-	 * channel might not be enough to provide a well balanced DMA-based
-	 * SPI transfer interface. There might still be moments when the Tx DMA
-	 * channel is occasionally handled faster than the Rx DMA channel.
-	 * That in its turn will eventually cause the SPI Rx FIFO overflow if
-	 * SPI bus speed is high enough to fill the SPI Rx FIFO in before it's
-	 * cleared by the Rx DMA channel. In order to fix the problem the Tx
-	 * DMA activity is intentionally slowed down by limiting the SPI Tx
-	 * FIFO depth with a value twice bigger than the Tx burst length
-	 * calculated earlier by the dw_spi_dma_maxburst_init() method.
-	 */
-	dw_writel(dws, DW_SPI_DMARDLR, dws->rxburst - 1);
-	dw_writel(dws, DW_SPI_DMATDLR, dws->txburst);
+	if (!xfer->tx_buf)
+		return -EINVAL;
 
-	if (xfer->tx_buf)
-		dma_ctrl |= SPI_DMA_TDMAE;
+	/* Setup DMA channels */
+	ret = dw_spi_dma_config_tx(dws);
+	if (ret)
+		return ret;
+
+	if (xfer->rx_buf) {
+		ret = dw_spi_dma_config_rx(dws);
+		if (ret)
+			return ret;
+	}
+
+	/* Set the DMA handshaking interface */
+	dma_ctrl = SPI_DMA_TDMAE;
 	if (xfer->rx_buf)
 		dma_ctrl |= SPI_DMA_RDMAE;
 	dw_writel(dws, DW_SPI_DMACR, dma_ctrl);
 
 	/* Set the interrupt mask */
-	if (xfer->tx_buf)
-		imr |= SPI_INT_TXOI;
+	imr = SPI_INT_TXOI;
 	if (xfer->rx_buf)
 		imr |= SPI_INT_RXUI | SPI_INT_RXOI;
 	spi_umask_intr(dws, imr);
@@ -407,41 +448,166 @@ static int dw_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
 	return 0;
 }
 
-static int dw_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
+static int dw_spi_dma_transfer_all(struct dw_spi *dws,
+				   struct spi_transfer *xfer)
 {
-	struct dma_async_tx_descriptor *txdesc, *rxdesc;
 	int ret;
 
-	/* Prepare the TX dma transfer */
-	txdesc = dw_spi_dma_prepare_tx(dws, xfer);
+	/* Submit the DMA Tx transfer */
+	ret = dw_spi_dma_submit_tx(dws, xfer->tx_sg.sgl, xfer->tx_sg.nents);
+	if (ret)
+		goto err_clear_dmac;
 
-	/* Prepare the RX dma transfer */
-	rxdesc = dw_spi_dma_prepare_rx(dws, xfer);
+	/* Submit the DMA Rx transfer if required */
+	if (xfer->rx_buf) {
+		ret = dw_spi_dma_submit_rx(dws, xfer->rx_sg.sgl,
+					   xfer->rx_sg.nents);
+		if (ret)
+			goto err_clear_dmac;
 
-	/* rx must be started before tx due to spi instinct */
-	if (rxdesc) {
-		set_bit(RX_BUSY, &dws->dma_chan_busy);
-		dmaengine_submit(rxdesc);
+		/* rx must be started before tx due to spi instinct */
 		dma_async_issue_pending(dws->rxchan);
 	}
 
-	if (txdesc) {
-		set_bit(TX_BUSY, &dws->dma_chan_busy);
-		dmaengine_submit(txdesc);
+	dma_async_issue_pending(dws->txchan);
+
+	ret = dw_spi_dma_wait(dws, xfer->len, xfer->effective_speed_hz);
+
+err_clear_dmac:
+	dw_writel(dws, DW_SPI_DMACR, 0);
+
+	return ret;
+}
+
+/*
+ * In case if at least one of the requested DMA channels doesn't support the
+ * hardware accelerated SG list entries traverse, the DMA driver will most
+ * likely work that around by performing the IRQ-based SG list entries
+ * resubmission. That might and will cause a problem if the DMA Tx channel is
+ * recharged and re-executed before the Rx DMA channel. Due to
+ * non-deterministic IRQ-handler execution latency the DMA Tx channel will
+ * start pushing data to the SPI bus before the Rx DMA channel is even
+ * reinitialized with the next inbound SG list entry. By doing so the DMA Tx
+ * channel will implicitly start filling the DW APB SSI Rx FIFO up, which while
+ * the DMA Rx channel being recharged and re-executed will eventually be
+ * overflown.
+ *
+ * In order to solve the problem we have to feed the DMA engine with SG list
+ * entries one-by-one. It shall keep the DW APB SSI Tx and Rx FIFOs
+ * synchronized and prevent the Rx FIFO overflow. Since in general the tx_sg
+ * and rx_sg lists may have different number of entries of different lengths
+ * (though total length should match) let's virtually split the SG-lists to the
+ * set of DMA transfers, which length is a minimum of the ordered SG-entries
+ * lengths. An ASCII-sketch of the implemented algo is following:
+ *                  xfer->len
+ *                |___________|
+ * tx_sg list:    |___|____|__|
+ * rx_sg list:    |_|____|____|
+ * DMA transfers: |_|_|__|_|__|
+ *
+ * Note in order to have this workaround solving the denoted problem the DMA
+ * engine driver should properly initialize the max_sg_burst capability and set
+ * the DMA device max segment size parameter with maximum data block size the
+ * DMA engine supports.
+ */
+
+static int dw_spi_dma_transfer_one(struct dw_spi *dws,
+				   struct spi_transfer *xfer)
+{
+	struct scatterlist *tx_sg = NULL, *rx_sg = NULL, tx_tmp, rx_tmp;
+	unsigned int tx_len = 0, rx_len = 0;
+	unsigned int base, len;
+	int ret;
+
+	sg_init_table(&tx_tmp, 1);
+	sg_init_table(&rx_tmp, 1);
+
+	for (base = 0, len = 0; base < xfer->len; base += len) {
+		/* Fetch next Tx DMA data chunk */
+		if (!tx_len) {
+			tx_sg = !tx_sg ? &xfer->tx_sg.sgl[0] : sg_next(tx_sg);
+			sg_dma_address(&tx_tmp) = sg_dma_address(tx_sg);
+			tx_len = sg_dma_len(tx_sg);
+		}
+
+		/* Fetch next Rx DMA data chunk */
+		if (!rx_len) {
+			rx_sg = !rx_sg ? &xfer->rx_sg.sgl[0] : sg_next(rx_sg);
+			sg_dma_address(&rx_tmp) = sg_dma_address(rx_sg);
+			rx_len = sg_dma_len(rx_sg);
+		}
+
+		len = min(tx_len, rx_len);
+
+		sg_dma_len(&tx_tmp) = len;
+		sg_dma_len(&rx_tmp) = len;
+
+		/* Submit DMA Tx transfer */
+		ret = dw_spi_dma_submit_tx(dws, &tx_tmp, 1);
+		if (ret)
+			break;
+
+		/* Submit DMA Rx transfer */
+		ret = dw_spi_dma_submit_rx(dws, &rx_tmp, 1);
+		if (ret)
+			break;
+
+		/* Rx must be started before Tx due to SPI instinct */
+		dma_async_issue_pending(dws->rxchan);
+
 		dma_async_issue_pending(dws->txchan);
+
+		/*
+		 * Here we only need to wait for the DMA transfer to be
+		 * finished since SPI controller is kept enabled during the
+		 * procedure this loop implements and there is no risk to lose
+		 * data left in the Tx/Rx FIFOs.
+		 */
+		ret = dw_spi_dma_wait(dws, len, xfer->effective_speed_hz);
+		if (ret)
+			break;
+
+		reinit_completion(&dws->dma_completion);
+
+		sg_dma_address(&tx_tmp) += len;
+		sg_dma_address(&rx_tmp) += len;
+		tx_len -= len;
+		rx_len -= len;
 	}
 
-	ret = dw_spi_dma_wait(dws, xfer);
+	dw_writel(dws, DW_SPI_DMACR, 0);
+
+	return ret;
+}
+
+static int dw_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
+{
+	unsigned int nents;
+	int ret;
+
+	nents = max(xfer->tx_sg.nents, xfer->rx_sg.nents);
+
+	/*
+	 * Execute normal DMA-based transfer (which submits the Rx and Tx SG
+	 * lists directly to the DMA engine at once) if either full hardware
+	 * accelerated SG list traverse is supported by both channels, or the
+	 * Tx-only SPI transfer is requested, or the DMA engine is capable to
+	 * handle both SG lists on hardware accelerated basis.
+	 */
+	if (!dws->dma_sg_burst || !xfer->rx_buf || nents <= dws->dma_sg_burst)
+		ret = dw_spi_dma_transfer_all(dws, xfer);
+	else
+		ret = dw_spi_dma_transfer_one(dws, xfer);
 	if (ret)
 		return ret;
 
-	if (txdesc && dws->master->cur_msg->status == -EINPROGRESS) {
+	if (dws->master->cur_msg->status == -EINPROGRESS) {
 		ret = dw_spi_dma_wait_tx_done(dws, xfer);
 		if (ret)
 			return ret;
 	}
 
-	if (rxdesc && dws->master->cur_msg->status == -EINPROGRESS)
+	if (xfer->rx_buf && dws->master->cur_msg->status == -EINPROGRESS)
 		ret = dw_spi_dma_wait_rx_done(dws);
 
 	return ret;
@@ -457,8 +623,6 @@ static void dw_spi_dma_stop(struct dw_spi *dws)
 		dmaengine_terminate_sync(dws->rxchan);
 		clear_bit(RX_BUSY, &dws->dma_chan_busy);
 	}
-
-	dw_writel(dws, DW_SPI_DMACR, 0);
 }
 
 static const struct dw_spi_dma_ops dw_spi_dma_mfld_ops = {

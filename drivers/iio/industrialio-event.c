@@ -477,6 +477,7 @@ static const char *iio_event_group_name = "events";
 int iio_device_register_eventset(struct iio_dev *indio_dev)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+	struct iio_event_interface *ev_int;
 	struct iio_dev_attr *p;
 	int ret = 0, attrcount_orig = 0, attrcount, attrn;
 	struct attribute **attr;
@@ -485,14 +486,15 @@ int iio_device_register_eventset(struct iio_dev *indio_dev)
 	      iio_check_for_dynamic_events(indio_dev)))
 		return 0;
 
-	iio_dev_opaque->event_interface =
-		kzalloc(sizeof(struct iio_event_interface), GFP_KERNEL);
-	if (iio_dev_opaque->event_interface == NULL)
+	ev_int = kzalloc(sizeof(struct iio_event_interface), GFP_KERNEL);
+	if (ev_int == NULL)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&iio_dev_opaque->event_interface->dev_attr_list);
+	iio_dev_opaque->event_interface = ev_int;
 
-	iio_setup_ev_int(iio_dev_opaque->event_interface);
+	INIT_LIST_HEAD(&ev_int->dev_attr_list);
+
+	iio_setup_ev_int(ev_int);
 	if (indio_dev->info->event_attrs != NULL) {
 		attr = indio_dev->info->event_attrs->attrs;
 		while (*attr++ != NULL)
@@ -506,34 +508,29 @@ int iio_device_register_eventset(struct iio_dev *indio_dev)
 		attrcount += ret;
 	}
 
-	iio_dev_opaque->event_interface->group.name = iio_event_group_name;
-	iio_dev_opaque->event_interface->group.attrs = kcalloc(attrcount + 1,
-							  sizeof(iio_dev_opaque->event_interface->group.attrs[0]),
-							  GFP_KERNEL);
-	if (iio_dev_opaque->event_interface->group.attrs == NULL) {
+	ev_int->group.name = iio_event_group_name;
+	ev_int->group.attrs = kcalloc(attrcount + 1,
+				      sizeof(ev_int->group.attrs[0]),
+				      GFP_KERNEL);
+	if (ev_int->group.attrs == NULL) {
 		ret = -ENOMEM;
 		goto error_free_setup_event_lines;
 	}
 	if (indio_dev->info->event_attrs)
-		memcpy(iio_dev_opaque->event_interface->group.attrs,
+		memcpy(ev_int->group.attrs,
 		       indio_dev->info->event_attrs->attrs,
-		       sizeof(iio_dev_opaque->event_interface->group.attrs[0])
-		       *attrcount_orig);
+		       sizeof(ev_int->group.attrs[0]) * attrcount_orig);
 	attrn = attrcount_orig;
 	/* Add all elements from the list. */
-	list_for_each_entry(p,
-			    &iio_dev_opaque->event_interface->dev_attr_list,
-			    l)
-		iio_dev_opaque->event_interface->group.attrs[attrn++] =
-			&p->dev_attr.attr;
-	indio_dev->groups[indio_dev->groupcounter++] =
-		&iio_dev_opaque->event_interface->group;
+	list_for_each_entry(p, &ev_int->dev_attr_list, l)
+		ev_int->group.attrs[attrn++] = &p->dev_attr.attr;
+	indio_dev->groups[indio_dev->groupcounter++] = &ev_int->group;
 
 	return 0;
 
 error_free_setup_event_lines:
-	iio_free_chan_devattr_list(&iio_dev_opaque->event_interface->dev_attr_list);
-	kfree(iio_dev_opaque->event_interface);
+	iio_free_chan_devattr_list(&ev_int->dev_attr_list);
+	kfree(ev_int);
 	iio_dev_opaque->event_interface = NULL;
 	return ret;
 }
@@ -557,10 +554,12 @@ void iio_device_wakeup_eventset(struct iio_dev *indio_dev)
 void iio_device_unregister_eventset(struct iio_dev *indio_dev)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+	struct iio_event_interface *ev_int = iio_dev_opaque->event_interface;
 
-	if (iio_dev_opaque->event_interface == NULL)
+	if (ev_int == NULL)
 		return;
-	iio_free_chan_devattr_list(&iio_dev_opaque->event_interface->dev_attr_list);
-	kfree(iio_dev_opaque->event_interface->group.attrs);
-	kfree(iio_dev_opaque->event_interface);
+	iio_free_chan_devattr_list(&ev_int->dev_attr_list);
+	kfree(ev_int->group.attrs);
+	kfree(ev_int);
+	iio_dev_opaque->event_interface = NULL;
 }

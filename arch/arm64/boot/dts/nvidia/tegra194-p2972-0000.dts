@@ -23,6 +23,20 @@
 			};
 		};
 
+		i2c@3160000 {
+			eeprom@56 {
+				compatible = "atmel,24c02";
+				reg = <0x56>;
+
+				label = "system";
+				vcc-supply = <&vdd_1v8ls>;
+				address-width = <8>;
+				pagesize = <8>;
+				size = <256>;
+				read-only;
+			};
+		};
+
 		ddc: i2c@31c0000 {
 			status = "okay";
 		};

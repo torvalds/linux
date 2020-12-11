@@ -1421,7 +1421,7 @@ static void scmi_protocols_late_init(struct work_struct *work)
  * notify_ops are attached to the handle so that can be accessed
  * directly from an scmi_driver to register its own notifiers.
  */
-static struct scmi_notify_ops notify_ops = {
+static const struct scmi_notify_ops notify_ops = {
 	.register_event_notifier = scmi_register_notifier,
 	.unregister_event_notifier = scmi_unregister_notifier,
 };

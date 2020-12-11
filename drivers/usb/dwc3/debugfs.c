@@ -397,13 +397,13 @@ static int dwc3_mode_show(struct seq_file *s, void *unused)
 
 	switch (DWC3_GCTL_PRTCAP(reg)) {
 	case DWC3_GCTL_PRTCAP_HOST:
-		seq_printf(s, "host\n");
+		seq_puts(s, "host\n");
 		break;
 	case DWC3_GCTL_PRTCAP_DEVICE:
-		seq_printf(s, "device\n");
+		seq_puts(s, "device\n");
 		break;
 	case DWC3_GCTL_PRTCAP_OTG:
-		seq_printf(s, "otg\n");
+		seq_puts(s, "otg\n");
 		break;
 	default:
 		seq_printf(s, "UNKNOWN %08x\n", DWC3_GCTL_PRTCAP(reg));
@@ -427,6 +427,9 @@ static ssize_t dwc3_mode_write(struct file *file,
 
 	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
 		return -EFAULT;
+
+	if (dwc->dr_mode != USB_DR_MODE_OTG)
+		return count;
 
 	if (!strncmp(buf, "host", 4))
 		mode = DWC3_GCTL_PRTCAP_HOST;
@@ -464,22 +467,22 @@ static int dwc3_testmode_show(struct seq_file *s, void *unused)
 
 	switch (reg) {
 	case 0:
-		seq_printf(s, "no test\n");
+		seq_puts(s, "no test\n");
 		break;
 	case USB_TEST_J:
-		seq_printf(s, "test_j\n");
+		seq_puts(s, "test_j\n");
 		break;
 	case USB_TEST_K:
-		seq_printf(s, "test_k\n");
+		seq_puts(s, "test_k\n");
 		break;
 	case USB_TEST_SE0_NAK:
-		seq_printf(s, "test_se0_nak\n");
+		seq_puts(s, "test_se0_nak\n");
 		break;
 	case USB_TEST_PACKET:
-		seq_printf(s, "test_packet\n");
+		seq_puts(s, "test_packet\n");
 		break;
 	case USB_TEST_FORCE_ENABLE:
-		seq_printf(s, "test_force_enable\n");
+		seq_puts(s, "test_force_enable\n");
 		break;
 	default:
 		seq_printf(s, "UNKNOWN %d\n", reg);
@@ -760,27 +763,26 @@ static int dwc3_transfer_type_show(struct seq_file *s, void *unused)
 	unsigned long		flags;
 
 	spin_lock_irqsave(&dwc->lock, flags);
-	if (!(dep->flags & DWC3_EP_ENABLED) ||
-			!dep->endpoint.desc) {
-		seq_printf(s, "--\n");
+	if (!(dep->flags & DWC3_EP_ENABLED) || !dep->endpoint.desc) {
+		seq_puts(s, "--\n");
 		goto out;
 	}
 
 	switch (usb_endpoint_type(dep->endpoint.desc)) {
 	case USB_ENDPOINT_XFER_CONTROL:
-		seq_printf(s, "control\n");
+		seq_puts(s, "control\n");
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
-		seq_printf(s, "isochronous\n");
+		seq_puts(s, "isochronous\n");
 		break;
 	case USB_ENDPOINT_XFER_BULK:
-		seq_printf(s, "bulk\n");
+		seq_puts(s, "bulk\n");
 		break;
 	case USB_ENDPOINT_XFER_INT:
-		seq_printf(s, "interrupt\n");
+		seq_puts(s, "interrupt\n");
 		break;
 	default:
-		seq_printf(s, "--\n");
+		seq_puts(s, "--\n");
 	}
 
 out:
@@ -798,11 +800,11 @@ static int dwc3_trb_ring_show(struct seq_file *s, void *unused)
 
 	spin_lock_irqsave(&dwc->lock, flags);
 	if (dep->number <= 1) {
-		seq_printf(s, "--\n");
+		seq_puts(s, "--\n");
 		goto out;
 	}
 
-	seq_printf(s, "buffer_addr,size,type,ioc,isp_imi,csp,chn,lst,hwo\n");
+	seq_puts(s, "buffer_addr,size,type,ioc,isp_imi,csp,chn,lst,hwo\n");
 
 	for (i = 0; i < DWC3_TRB_NUM; i++) {
 		struct dwc3_trb *trb = &dep->trb_pool[i];
@@ -884,7 +886,7 @@ static void dwc3_debugfs_create_endpoint_files(struct dwc3_ep *dep,
 		const struct file_operations *fops = dwc3_ep_file_map[i].fops;
 		const char *name = dwc3_ep_file_map[i].name;
 
-		debugfs_create_file(name, S_IRUGO, parent, dep, fops);
+		debugfs_create_file(name, 0444, parent, dep, fops);
 	}
 }
 
@@ -929,21 +931,18 @@ void dwc3_debugfs_init(struct dwc3 *dwc)
 	root = debugfs_create_dir(dev_name(dwc->dev), usb_debug_root);
 	dwc->root = root;
 
-	debugfs_create_regset32("regdump", S_IRUGO, root, dwc->regset);
+	debugfs_create_regset32("regdump", 0444, root, dwc->regset);
+	debugfs_create_file("lsp_dump", 0644, root, dwc, &dwc3_lsp_fops);
 
-	debugfs_create_file("lsp_dump", S_IRUGO | S_IWUSR, root, dwc,
-			    &dwc3_lsp_fops);
-
-	if (IS_ENABLED(CONFIG_USB_DWC3_DUAL_ROLE)) {
-		debugfs_create_file("mode", S_IRUGO | S_IWUSR, root, dwc,
+	if (IS_ENABLED(CONFIG_USB_DWC3_DUAL_ROLE))
+		debugfs_create_file("mode", 0644, root, dwc,
 				    &dwc3_mode_fops);
-	}
 
 	if (IS_ENABLED(CONFIG_USB_DWC3_DUAL_ROLE) ||
 			IS_ENABLED(CONFIG_USB_DWC3_GADGET)) {
-		debugfs_create_file("testmode", S_IRUGO | S_IWUSR, root, dwc,
-				    &dwc3_testmode_fops);
-		debugfs_create_file("link_state", S_IRUGO | S_IWUSR, root, dwc,
+		debugfs_create_file("testmode", 0644, root, dwc,
+				&dwc3_testmode_fops);
+		debugfs_create_file("link_state", 0644, root, dwc,
 				    &dwc3_link_state_fops);
 		dwc3_debugfs_create_endpoint_dirs(dwc, root);
 	}

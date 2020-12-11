@@ -84,7 +84,7 @@ static int pg86x_i2c_probe(struct i2c_client *i2c)
 	return 0;
 }
 
-static const struct of_device_id pg86x_dt_ids [] = {
+static const struct of_device_id __maybe_unused pg86x_dt_ids[] = {
 	{ .compatible = "marvell,88pg867" },
 	{ .compatible = "marvell,88pg868" },
 	{ }

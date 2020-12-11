@@ -20,6 +20,8 @@ properties:
 
   reset-gpios:
     minItems: 1
+    # Put some limit to avoid false warnings
+    maxItems: 32
     description:
       contains a list of GPIO specifiers. The reset GPIOs are asserted
       at initialization and prior we start the power up procedure of the card.
@@ -49,6 +51,8 @@ properties:
 
 required:
   - compatible
+
+additionalProperties: false
 
 examples:
   - |

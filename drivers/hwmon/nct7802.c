@@ -1056,8 +1056,7 @@ static int nct7802_init_chip(struct nct7802_data *data)
 	return regmap_update_bits(data->regmap, REG_VMON_ENABLE, 0x03, 0x03);
 }
 
-static int nct7802_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int nct7802_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct nct7802_data *data;
@@ -1101,7 +1100,7 @@ static struct i2c_driver nct7802_driver = {
 		.name = DRVNAME,
 	},
 	.detect = nct7802_detect,
-	.probe = nct7802_probe,
+	.probe_new = nct7802_probe,
 	.id_table = nct7802_idtable,
 	.address_list = nct7802_address_list,
 };

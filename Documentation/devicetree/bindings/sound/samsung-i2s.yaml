@@ -41,6 +41,12 @@ properties:
       - samsung,exynos7-i2s
       - samsung,exynos7-i2s1
 
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
   reg:
     maxItems: 1
 
@@ -57,6 +63,9 @@ properties:
           - const: tx
           - const: rx
           - const: tx-sec
+
+  assigned-clock-parents: true
+  assigned-clocks: true
 
   clocks:
     minItems: 1
@@ -92,6 +101,9 @@ properties:
           - const: i2s_cdclk2
     description: Names of the CDCLK I2S output clocks.
 
+  interrupts:
+    maxItems: 1
+
   samsung,idma-addr:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
@@ -103,6 +115,9 @@ properties:
 
   pinctrl-names:
     const: default
+
+  power-domains:
+    maxItems: 1
 
   "#sound-dai-cells":
     const: 1

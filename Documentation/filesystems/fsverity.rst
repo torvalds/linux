@@ -84,7 +84,7 @@ FS_IOC_ENABLE_VERITY
 --------------------
 
 The FS_IOC_ENABLE_VERITY ioctl enables fs-verity on a file.  It takes
-in a pointer to a :c:type:`struct fsverity_enable_arg`, defined as
+in a pointer to a struct fsverity_enable_arg, defined as
 follows::
 
     struct fsverity_enable_arg {

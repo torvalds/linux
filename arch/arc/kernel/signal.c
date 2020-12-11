@@ -394,6 +394,6 @@ void do_notify_resume(struct pt_regs *regs)
 	 * ASM glue gaurantees that this is only called when returning to
 	 * user mode
 	 */
-	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME))
+	if (test_thread_flag(TIF_NOTIFY_RESUME))
 		tracehook_notify_resume(regs);
 }

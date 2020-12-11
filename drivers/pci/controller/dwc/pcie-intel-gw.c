@@ -67,14 +67,9 @@ struct intel_pcie_port {
 	void __iomem		*app_base;
 	struct gpio_desc	*reset_gpio;
 	u32			rst_intrvl;
-	u32			max_speed;
-	u32			link_gen;
-	u32			max_width;
-	u32			n_fts;
 	struct clk		*core_clk;
 	struct reset_control	*core_rst;
 	struct phy		*phy;
-	u8			pcie_cap_ofst;
 };
 
 static void pcie_update_bits(void __iomem *base, u32 ofs, u32 mask, u32 val)
@@ -134,11 +129,7 @@ static void intel_pcie_ltssm_disable(struct intel_pcie_port *lpp)
 static void intel_pcie_link_setup(struct intel_pcie_port *lpp)
 {
 	u32 val;
-	u8 offset = lpp->pcie_cap_ofst;
-
-	val = pcie_rc_cfg_rd(lpp, offset + PCI_EXP_LNKCAP);
-	lpp->max_speed = FIELD_GET(PCI_EXP_LNKCAP_SLS, val);
-	lpp->max_width = FIELD_GET(PCI_EXP_LNKCAP_MLW, val);
+	u8 offset = dw_pcie_find_capability(&lpp->pci, PCI_CAP_ID_EXP);
 
 	val = pcie_rc_cfg_rd(lpp, offset + PCI_EXP_LNKCTL);
 
@@ -146,41 +137,29 @@ static void intel_pcie_link_setup(struct intel_pcie_port *lpp)
 	pcie_rc_cfg_wr(lpp, offset + PCI_EXP_LNKCTL, val);
 }
 
-static void intel_pcie_port_logic_setup(struct intel_pcie_port *lpp)
+static void intel_pcie_init_n_fts(struct dw_pcie *pci)
 {
-	u32 val, mask;
-
-	switch (pcie_link_speed[lpp->max_speed]) {
-	case PCIE_SPEED_8_0GT:
-		lpp->n_fts = PORT_AFR_N_FTS_GEN3;
+	switch (pci->link_gen) {
+	case 3:
+		pci->n_fts[1] = PORT_AFR_N_FTS_GEN3;
 		break;
-	case PCIE_SPEED_16_0GT:
-		lpp->n_fts = PORT_AFR_N_FTS_GEN4;
+	case 4:
+		pci->n_fts[1] = PORT_AFR_N_FTS_GEN4;
 		break;
 	default:
-		lpp->n_fts = PORT_AFR_N_FTS_GEN12_DFT;
+		pci->n_fts[1] = PORT_AFR_N_FTS_GEN12_DFT;
 		break;
 	}
-
-	mask = PORT_AFR_N_FTS_MASK | PORT_AFR_CC_N_FTS_MASK;
-	val = FIELD_PREP(PORT_AFR_N_FTS_MASK, lpp->n_fts) |
-	       FIELD_PREP(PORT_AFR_CC_N_FTS_MASK, lpp->n_fts);
-	pcie_rc_cfg_wr_mask(lpp, PCIE_PORT_AFR, mask, val);
-
-	/* Port Link Control Register */
-	pcie_rc_cfg_wr_mask(lpp, PCIE_PORT_LINK_CONTROL, PORT_LINK_DLL_LINK_EN,
-			    PORT_LINK_DLL_LINK_EN);
+	pci->n_fts[0] = PORT_AFR_N_FTS_GEN12_DFT;
 }
 
 static void intel_pcie_rc_setup(struct intel_pcie_port *lpp)
 {
 	intel_pcie_ltssm_disable(lpp);
 	intel_pcie_link_setup(lpp);
+	intel_pcie_init_n_fts(&lpp->pci);
 	dw_pcie_setup_rc(&lpp->pci.pp);
 	dw_pcie_upconfig_setup(&lpp->pci);
-	intel_pcie_port_logic_setup(lpp);
-	dw_pcie_link_set_max_speed(&lpp->pci, lpp->link_gen);
-	dw_pcie_link_set_n_fts(&lpp->pci, lpp->n_fts);
 }
 
 static int intel_pcie_ep_rst_init(struct intel_pcie_port *lpp)
@@ -275,19 +254,10 @@ static int intel_pcie_get_resources(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = device_property_match_string(dev, "device_type", "pci");
-	if (ret) {
-		dev_err(dev, "Failed to find pci device type: %d\n", ret);
-		return ret;
-	}
-
 	ret = device_property_read_u32(dev, "reset-assert-ms",
 				       &lpp->rst_intrvl);
 	if (ret)
 		lpp->rst_intrvl = RESET_INTERVAL_MS;
-
-	ret = of_pci_get_max_link_speed(dev->of_node);
-	lpp->link_gen = ret < 0 ? 0 : ret;
 
 	lpp->app_base = devm_platform_ioremap_resource_byname(pdev, "app");
 	if (IS_ERR(lpp->app_base))
@@ -313,8 +283,9 @@ static int intel_pcie_wait_l2(struct intel_pcie_port *lpp)
 {
 	u32 value;
 	int ret;
+	struct dw_pcie *pci = &lpp->pci;
 
-	if (pcie_link_speed[lpp->max_speed] < PCIE_SPEED_8_0GT)
+	if (pci->link_gen < 3)
 		return 0;
 
 	/* Send PME_TURN_OFF message */
@@ -343,7 +314,6 @@ static void intel_pcie_turn_off(struct intel_pcie_port *lpp)
 
 static int intel_pcie_host_setup(struct intel_pcie_port *lpp)
 {
-	struct device *dev = lpp->pci.dev;
 	int ret;
 
 	intel_pcie_core_rst_assert(lpp);
@@ -359,17 +329,6 @@ static int intel_pcie_host_setup(struct intel_pcie_port *lpp)
 	if (ret) {
 		dev_err(lpp->pci.dev, "Core clock enable failed: %d\n", ret);
 		goto clk_err;
-	}
-
-	if (!lpp->pcie_cap_ofst) {
-		ret = dw_pcie_find_capability(&lpp->pci, PCI_CAP_ID_EXP);
-		if (!ret) {
-			ret = -ENXIO;
-			dev_err(dev, "Invalid PCIe capability offset\n");
-			goto app_init_err;
-		}
-
-		lpp->pcie_cap_ofst = ret;
 	}
 
 	intel_pcie_rc_setup(lpp);

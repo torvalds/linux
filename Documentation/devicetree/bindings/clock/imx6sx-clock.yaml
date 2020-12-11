@@ -53,6 +53,8 @@ required:
   - clocks
   - clock-names
 
+additionalProperties: false
+
 examples:
   # Clock Control Module node:
   - |

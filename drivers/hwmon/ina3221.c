@@ -822,8 +822,7 @@ static int ina3221_probe_from_dt(struct device *dev, struct ina3221_data *ina)
 	return 0;
 }
 
-static int ina3221_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int ina3221_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ina3221_data *ina;
@@ -1016,7 +1015,7 @@ static const struct i2c_device_id ina3221_ids[] = {
 MODULE_DEVICE_TABLE(i2c, ina3221_ids);
 
 static struct i2c_driver ina3221_i2c_driver = {
-	.probe = ina3221_probe,
+	.probe_new = ina3221_probe,
 	.remove = ina3221_remove,
 	.driver = {
 		.name = INA3221_DRIVER_NAME,

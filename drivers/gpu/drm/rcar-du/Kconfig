@@ -22,11 +22,11 @@ config DRM_RCAR_CMM
 	  Enable support for R-Car Color Management Module (CMM).
 
 config DRM_RCAR_DW_HDMI
-	tristate "R-Car DU Gen3 HDMI Encoder Support"
+	tristate "R-Car Gen3 and RZ/G2 DU HDMI Encoder Support"
 	depends on DRM && OF
 	select DRM_DW_HDMI
 	help
-	  Enable support for R-Car Gen3 internal HDMI encoder.
+	  Enable support for R-Car Gen3 or RZ/G2 internal HDMI encoder.
 
 config DRM_RCAR_LVDS
 	tristate "R-Car DU LVDS Encoder Support"
@@ -49,3 +49,4 @@ config DRM_RCAR_VSP
 config DRM_RCAR_WRITEBACK
 	bool
 	default y if ARM64
+	depends on DRM_RCAR_DU

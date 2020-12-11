@@ -46,7 +46,7 @@ struct exynos_cpuclk_cfg_data {
  */
 struct exynos_cpuclk {
 	struct clk_hw				hw;
-	struct clk_hw				*alt_parent;
+	const struct clk_hw			*alt_parent;
 	void __iomem				*ctrl_base;
 	spinlock_t				*lock;
 	const struct exynos_cpuclk_cfg_data	*cfg;
@@ -62,9 +62,9 @@ struct exynos_cpuclk {
 #define CLK_CPU_HAS_E5433_REGS_LAYOUT	(1 << 2)
 };
 
-extern int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
+int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
 			unsigned int lookup_id, const char *name,
-			const char *parent, const char *alt_parent,
+			const struct clk_hw *parent, const struct clk_hw *alt_parent,
 			unsigned long offset,
 			const struct exynos_cpuclk_cfg_data *cfg,
 			unsigned long num_cfgs, unsigned long flags);

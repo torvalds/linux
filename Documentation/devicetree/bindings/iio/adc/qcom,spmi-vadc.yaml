@@ -48,6 +48,8 @@ properties:
     description:
       End of conversion interrupt.
 
+  io-channel-ranges: true
+
 required:
   - compatible
   - reg
@@ -231,6 +233,8 @@ allOf:
             qcom,avg-samples:
               enum: [ 1, 2, 4, 8, 16 ]
               default: 1
+
+additionalProperties: false
 
 examples:
   - |

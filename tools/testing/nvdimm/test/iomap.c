@@ -126,7 +126,7 @@ static void dev_pagemap_percpu_release(struct percpu_ref *ref)
 void *__wrap_devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
 {
 	int error;
-	resource_size_t offset = pgmap->res.start;
+	resource_size_t offset = pgmap->range.start;
 	struct nfit_test_resource *nfit_res = get_nfit_res(offset);
 
 	if (!nfit_res)

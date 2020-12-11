@@ -274,7 +274,7 @@ void dccp_ackvec_input(struct dccp_ackvec *av, struct sk_buff *skb)
 /**
  * dccp_ackvec_clear_state  -  Perform house-keeping / garbage-collection
  * This routine is called when the peer acknowledges the receipt of Ack Vectors
- * up to and including @ackno. While based on on section A.3 of RFC 4340, here
+ * up to and including @ackno. While based on section A.3 of RFC 4340, here
  * are additional precautions to prevent corrupted buffer state. In particular,
  * we use tail_ackno to identify outdated records; it always marks the earliest
  * packet of group (2) in 11.4.2.

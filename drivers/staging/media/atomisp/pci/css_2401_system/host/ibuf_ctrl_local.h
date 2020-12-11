@@ -17,6 +17,7 @@
 #define __IBUF_CTRL_LOCAL_H_INCLUDED__
 
 #include "ibuf_ctrl_global.h"
+#include "ibuf_ctrl_local.h"
 
 typedef struct ibuf_ctrl_proc_state_s	ibuf_ctrl_proc_state_t;
 typedef struct ibuf_ctrl_state_s		ibuf_ctrl_state_t;

@@ -27,6 +27,7 @@ static const struct acpi_device_id int340x_thermal_device_ids[] = {
 	{"INTC1040"},
 	{"INTC1043"},
 	{"INTC1044"},
+	{"INTC1045"},
 	{"INTC1047"},
 	{""},
 };

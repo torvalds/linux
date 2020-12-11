@@ -1009,8 +1009,7 @@ static const struct watchdog_ops nct7904_wdt_ops = {
 	.get_timeleft	= nct7904_wdt_get_timeleft,
 };
 
-static int nct7904_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int nct7904_probe(struct i2c_client *client)
 {
 	struct nct7904_data *data;
 	struct device *hwmon_dev;
@@ -1172,7 +1171,7 @@ static struct i2c_driver nct7904_driver = {
 	.driver = {
 		.name = "nct7904",
 	},
-	.probe = nct7904_probe,
+	.probe_new = nct7904_probe,
 	.id_table = nct7904_id,
 	.detect = nct7904_detect,
 	.address_list = normal_i2c,

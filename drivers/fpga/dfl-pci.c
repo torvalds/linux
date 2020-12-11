@@ -31,12 +31,12 @@ struct cci_drvdata {
 	struct dfl_fpga_cdev *cdev;	/* container device */
 };
 
-static void __iomem *cci_pci_ioremap_bar(struct pci_dev *pcidev, int bar)
+static void __iomem *cci_pci_ioremap_bar0(struct pci_dev *pcidev)
 {
-	if (pcim_iomap_regions(pcidev, BIT(bar), DRV_NAME))
+	if (pcim_iomap_regions(pcidev, BIT(0), DRV_NAME))
 		return NULL;
 
-	return pcim_iomap_table(pcidev)[bar];
+	return pcim_iomap_table(pcidev)[0];
 }
 
 static int cci_pci_alloc_irq(struct pci_dev *pcidev)
@@ -156,8 +156,8 @@ static int cci_enumerate_feature_devs(struct pci_dev *pcidev)
 			goto irq_free_exit;
 	}
 
-	/* start to find Device Feature List from Bar 0 */
-	base = cci_pci_ioremap_bar(pcidev, 0);
+	/* start to find Device Feature List in Bar 0 */
+	base = cci_pci_ioremap_bar0(pcidev);
 	if (!base) {
 		ret = -ENOMEM;
 		goto irq_free_exit;
@@ -172,7 +172,7 @@ static int cci_enumerate_feature_devs(struct pci_dev *pcidev)
 		start = pci_resource_start(pcidev, 0);
 		len = pci_resource_len(pcidev, 0);
 
-		dfl_fpga_enum_info_add_dfl(info, start, len, base);
+		dfl_fpga_enum_info_add_dfl(info, start, len);
 
 		/*
 		 * find more Device Feature Lists (e.g. Ports) per information
@@ -196,25 +196,23 @@ static int cci_enumerate_feature_devs(struct pci_dev *pcidev)
 			 */
 			bar = FIELD_GET(FME_PORT_OFST_BAR_ID, v);
 			offset = FIELD_GET(FME_PORT_OFST_DFH_OFST, v);
-			base = cci_pci_ioremap_bar(pcidev, bar);
-			if (!base)
-				continue;
-
 			start = pci_resource_start(pcidev, bar) + offset;
 			len = pci_resource_len(pcidev, bar) - offset;
 
-			dfl_fpga_enum_info_add_dfl(info, start, len,
-						   base + offset);
+			dfl_fpga_enum_info_add_dfl(info, start, len);
 		}
 	} else if (dfl_feature_is_port(base)) {
 		start = pci_resource_start(pcidev, 0);
 		len = pci_resource_len(pcidev, 0);
 
-		dfl_fpga_enum_info_add_dfl(info, start, len, base);
+		dfl_fpga_enum_info_add_dfl(info, start, len);
 	} else {
 		ret = -ENODEV;
 		goto irq_free_exit;
 	}
+
+	/* release I/O mappings for next step enumeration */
+	pcim_iounmap_regions(pcidev, BIT(0));
 
 	/* start enumeration with prepared enumeration information */
 	cdev = dfl_fpga_feature_devs_enumerate(info);

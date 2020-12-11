@@ -228,11 +228,8 @@ static int sprd_pwm_clk_init(struct sprd_pwm_chip *spc)
 			if (ret == -ENOENT)
 				break;
 
-			if (ret != -EPROBE_DEFER)
-				dev_err(spc->dev,
-					"failed to get channel clocks\n");
-
-			return ret;
+			return dev_err_probe(spc->dev, ret,
+					     "failed to get channel clocks\n");
 		}
 
 		clk_pwm = chn->clks[SPRD_PWM_CHN_OUTPUT_CLK].clk;

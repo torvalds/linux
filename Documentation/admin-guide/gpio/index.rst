@@ -9,6 +9,7 @@ gpio
 
     gpio-aggregator
     sysfs
+    gpio-mockup
 
 .. only::  subproject and html
 

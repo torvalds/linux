@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_G_FMT:
 
@@ -18,28 +12,29 @@ Name
 
 VIDIOC_G_FMT - VIDIOC_S_FMT - VIDIOC_TRY_FMT - Get or set the data format, try a format
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_G_FMT, struct v4l2_format *argp )
-    :name: VIDIOC_G_FMT
+.. c:macro:: VIDIOC_G_FMT
 
-.. c:function:: int ioctl( int fd, VIDIOC_S_FMT, struct v4l2_format *argp )
-    :name: VIDIOC_S_FMT
+``int ioctl(int fd, VIDIOC_G_FMT, struct v4l2_format *argp)``
 
-.. c:function:: int ioctl( int fd, VIDIOC_TRY_FMT, struct v4l2_format *argp )
-    :name: VIDIOC_TRY_FMT
+.. c:macro:: VIDIOC_S_FMT
+
+``int ioctl(int fd, VIDIOC_S_FMT, struct v4l2_format *argp)``
+
+.. c:macro:: VIDIOC_TRY_FMT
+
+``int ioctl(int fd, VIDIOC_TRY_FMT, struct v4l2_format *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_format`.
-
 
 Description
 ===========
@@ -92,7 +87,6 @@ recommended drivers are not required to implement this ioctl.
 The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical to what
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` returns for the same input or output.
 
-
 .. c:type:: v4l2_format
 
 .. tabularcolumns::  |p{1.2cm}|p{4.6cm}|p{3.0cm}|p{8.6cm}|
@@ -141,7 +135,6 @@ The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical
       - Place holder for future extensions.
     * - }
       -
-
 
 Return Value
 ============

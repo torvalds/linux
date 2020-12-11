@@ -27,7 +27,7 @@ V4L2 specification with respect to controls in a central place. And to make
 life as easy as possible for the driver developer.
 
 Note that the control framework relies on the presence of a struct
-:c:type:`v4l2_device` for V4L2 drivers and struct :c:type:`v4l2_subdev` for
+:c:type:`v4l2_device` for V4L2 drivers and struct v4l2_subdev for
 sub-device drivers.
 
 

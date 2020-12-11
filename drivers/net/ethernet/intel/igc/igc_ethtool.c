@@ -321,6 +321,9 @@ static void igc_ethtool_get_regs(struct net_device *netdev,
 
 	for (i = 0; i < 8; i++)
 		regs_buff[205 + i] = rd32(IGC_ETQF(i));
+
+	regs_buff[213] = adapter->stats.tlpic;
+	regs_buff[214] = adapter->stats.rlpic;
 }
 
 static void igc_ethtool_get_wol(struct net_device *netdev,

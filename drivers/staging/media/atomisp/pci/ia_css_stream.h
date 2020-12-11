@@ -18,7 +18,7 @@
 
 #include <type_support.h>
 #include <system_local.h>
-#if !defined(HAS_NO_INPUT_SYSTEM) && !defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if !defined(ISP2401)
 #include <input_system.h>
 #endif
 #include "ia_css_types.h"
@@ -30,7 +30,7 @@
 struct ia_css_stream {
 	struct ia_css_stream_config    config;
 	struct ia_css_stream_info      info;
-#if !defined(HAS_NO_INPUT_SYSTEM) && !defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if !defined(ISP2401)
 	rx_cfg_t                       csi_rx_config;
 #endif
 	bool                           reconfigure_css_rx;

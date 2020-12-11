@@ -116,6 +116,12 @@ Description:    The maximum number of bandwidth tokens that may be in use at
 		one time by operations that access low bandwidth memory in the
 		device.
 
+What:		/sys/bus/dsa/devices/dsa<m>/cmd_status
+Date:		Aug 28, 2020
+KernelVersion:	5.10.0
+Contact:	dmaengine@vger.kernel.org
+Description:	The last executed device administrative command's status/error.
+
 What:           /sys/bus/dsa/devices/wq<m>.<n>/group_id
 Date:           Oct 25, 2019
 KernelVersion:  5.6.0
@@ -169,6 +175,20 @@ KernelVersion:  5.6.0
 Contact:        dmaengine@vger.kernel.org
 Description:    The number of entries in this work queue that may be filled
 		via a limited portal.
+
+What:		/sys/bus/dsa/devices/wq<m>.<n>/max_transfer_size
+Date:		Aug 28, 2020
+KernelVersion:	5.10.0
+Contact:	dmaengine@vger.kernel.org
+Description:	The max transfer sized for this workqueue. Cannot exceed device
+		max transfer size. Configurable parameter.
+
+What:		/sys/bus/dsa/devices/wq<m>.<n>/max_batch_size
+Date:		Aug 28, 2020
+KernelVersion:	5.10.0
+Contact:	dmaengine@vger.kernel.org
+Description:	The max batch size for this workqueue. Cannot exceed device
+		max batch size. Configurable parameter.
 
 What:           /sys/bus/dsa/devices/engine<m>.<n>/group_id
 Date:           Oct 25, 2019

@@ -172,10 +172,10 @@ struct cdns_sierra_data {
 		u32 pcie_ln_regs;
 		u32 usb_cmn_regs;
 		u32 usb_ln_regs;
-		struct cdns_reg_pairs *pcie_cmn_vals;
-		struct cdns_reg_pairs *pcie_ln_vals;
-		struct cdns_reg_pairs *usb_cmn_vals;
-		struct cdns_reg_pairs *usb_ln_vals;
+		const struct cdns_reg_pairs *pcie_cmn_vals;
+		const struct cdns_reg_pairs *pcie_ln_vals;
+		const struct cdns_reg_pairs *usb_cmn_vals;
+		const struct cdns_reg_pairs *usb_ln_vals;
 };
 
 struct cdns_regmap_cdb_context {
@@ -233,7 +233,7 @@ static int cdns_regmap_read(void *context, unsigned int reg, unsigned int *val)
 	.reg_read = cdns_regmap_read, \
 }
 
-static struct regmap_config cdns_sierra_lane_cdb_config[] = {
+static const struct regmap_config cdns_sierra_lane_cdb_config[] = {
 	SIERRA_LANE_CDB_REGMAP_CONF("0"),
 	SIERRA_LANE_CDB_REGMAP_CONF("1"),
 	SIERRA_LANE_CDB_REGMAP_CONF("2"),
@@ -252,7 +252,7 @@ static struct regmap_config cdns_sierra_lane_cdb_config[] = {
 	SIERRA_LANE_CDB_REGMAP_CONF("15"),
 };
 
-static struct regmap_config cdns_sierra_common_cdb_config = {
+static const struct regmap_config cdns_sierra_common_cdb_config = {
 	.name = "sierra_common_cdb",
 	.reg_stride = 1,
 	.fast_io = true,
@@ -260,7 +260,7 @@ static struct regmap_config cdns_sierra_common_cdb_config = {
 	.reg_read = cdns_regmap_read,
 };
 
-static struct regmap_config cdns_sierra_phy_config_ctrl_config = {
+static const struct regmap_config cdns_sierra_phy_config_ctrl_config = {
 	.name = "sierra_phy_config_ctrl",
 	.reg_stride = 1,
 	.fast_io = true,
@@ -274,7 +274,7 @@ static int cdns_sierra_phy_init(struct phy *gphy)
 	struct cdns_sierra_phy *phy = dev_get_drvdata(gphy->dev.parent);
 	struct regmap *regmap;
 	int i, j;
-	struct cdns_reg_pairs *cmn_vals, *ln_vals;
+	const struct cdns_reg_pairs *cmn_vals, *ln_vals;
 	u32 num_cmn_regs, num_ln_regs;
 
 	/* Initialise the PHY registers, unless auto configured */
@@ -654,7 +654,7 @@ static int cdns_sierra_phy_remove(struct platform_device *pdev)
 }
 
 /* refclk100MHz_32b_PCIe_cmn_pll_ext_ssc */
-static struct cdns_reg_pairs cdns_pcie_cmn_regs_ext_ssc[] = {
+static const struct cdns_reg_pairs cdns_pcie_cmn_regs_ext_ssc[] = {
 	{0x2106, SIERRA_CMN_PLLLC_LF_COEFF_MODE1_PREG},
 	{0x2106, SIERRA_CMN_PLLLC_LF_COEFF_MODE0_PREG},
 	{0x8A06, SIERRA_CMN_PLLLC_BWCAL_MODE1_PREG},
@@ -663,7 +663,7 @@ static struct cdns_reg_pairs cdns_pcie_cmn_regs_ext_ssc[] = {
 };
 
 /* refclk100MHz_32b_PCIe_ln_ext_ssc */
-static struct cdns_reg_pairs cdns_pcie_ln_regs_ext_ssc[] = {
+static const struct cdns_reg_pairs cdns_pcie_ln_regs_ext_ssc[] = {
 	{0x813E, SIERRA_CLKPATHCTRL_TMR_PREG},
 	{0x8047, SIERRA_RX_CREQ_FLTR_A_MODE3_PREG},
 	{0x808F, SIERRA_RX_CREQ_FLTR_A_MODE2_PREG},
@@ -674,7 +674,7 @@ static struct cdns_reg_pairs cdns_pcie_ln_regs_ext_ssc[] = {
 };
 
 /* refclk100MHz_20b_USB_cmn_pll_ext_ssc */
-static struct cdns_reg_pairs cdns_usb_cmn_regs_ext_ssc[] = {
+static const struct cdns_reg_pairs cdns_usb_cmn_regs_ext_ssc[] = {
 	{0x2085, SIERRA_CMN_PLLLC_LF_COEFF_MODE1_PREG},
 	{0x2085, SIERRA_CMN_PLLLC_LF_COEFF_MODE0_PREG},
 	{0x0000, SIERRA_CMN_PLLLC_BWCAL_MODE0_PREG},
@@ -682,7 +682,7 @@ static struct cdns_reg_pairs cdns_usb_cmn_regs_ext_ssc[] = {
 };
 
 /* refclk100MHz_20b_USB_ln_ext_ssc */
-static struct cdns_reg_pairs cdns_usb_ln_regs_ext_ssc[] = {
+static const struct cdns_reg_pairs cdns_usb_ln_regs_ext_ssc[] = {
 	{0xFE0A, SIERRA_DET_STANDEC_A_PREG},
 	{0x000F, SIERRA_DET_STANDEC_B_PREG},
 	{0x55A5, SIERRA_DET_STANDEC_C_PREG},

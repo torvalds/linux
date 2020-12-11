@@ -172,14 +172,10 @@ int nfsd_reply_cache_init(struct nfsd_net *nn)
 	if (status)
 		goto out_nomem;
 
-	nn->drc_hashtbl = kcalloc(hashsize,
-				sizeof(*nn->drc_hashtbl), GFP_KERNEL);
-	if (!nn->drc_hashtbl) {
-		nn->drc_hashtbl = vzalloc(array_size(hashsize,
-						 sizeof(*nn->drc_hashtbl)));
-		if (!nn->drc_hashtbl)
-			goto out_shrinker;
-	}
+	nn->drc_hashtbl = kvzalloc(array_size(hashsize,
+				sizeof(*nn->drc_hashtbl)), GFP_KERNEL);
+	if (!nn->drc_hashtbl)
+		goto out_shrinker;
 
 	for (i = 0; i < hashsize; i++) {
 		INIT_LIST_HEAD(&nn->drc_hashtbl[i].lru_head);

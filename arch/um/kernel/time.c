@@ -70,13 +70,17 @@ static void time_travel_handle_message(struct um_timetravel_msg *msg,
 	 * read of the message and write of the ACK.
 	 */
 	if (mode != TTMH_READ) {
+		bool disabled = irqs_disabled();
+
+		BUG_ON(mode == TTMH_IDLE && !disabled);
+
+		if (disabled)
+			local_irq_enable();
 		while (os_poll(1, &time_travel_ext_fd) != 0) {
-			if (mode == TTMH_IDLE) {
-				BUG_ON(!irqs_disabled());
-				local_irq_enable();
-				local_irq_disable();
-			}
+			/* nothing */
 		}
+		if (disabled)
+			local_irq_disable();
 	}
 
 	ret = os_read_file(time_travel_ext_fd, msg, sizeof(*msg));
@@ -102,6 +106,7 @@ static void time_travel_handle_message(struct um_timetravel_msg *msg,
 		break;
 	}
 
+	resp.seq = msg->seq;
 	os_write_file(time_travel_ext_fd, &resp, sizeof(resp));
 }
 

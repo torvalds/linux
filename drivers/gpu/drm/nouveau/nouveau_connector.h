@@ -187,6 +187,7 @@ nouveau_crtc_connector_get(struct nouveau_crtc *nv_crtc)
 
 struct drm_connector *
 nouveau_connector_create(struct drm_device *, const struct dcb_output *);
+void nouveau_connector_hpd(struct drm_connector *connector);
 
 extern int nouveau_tv_disable;
 extern int nouveau_ignorelid;

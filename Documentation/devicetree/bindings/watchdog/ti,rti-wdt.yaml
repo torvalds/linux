@@ -46,6 +46,8 @@ required:
   - clocks
   - power-domains
 
+unevaluatedProperties: false
+
 examples:
   - |
     /*

@@ -787,7 +787,7 @@ static int venc_probe_of(struct platform_device *pdev)
 		venc.type = OMAP_DSS_VENC_TYPE_SVIDEO;
 		break;
 	default:
-		dev_err(&pdev->dev, "bad channel propert '%d'\n", channels);
+		dev_err(&pdev->dev, "bad channel property '%d'\n", channels);
 		r = -EINVAL;
 		goto err;
 	}

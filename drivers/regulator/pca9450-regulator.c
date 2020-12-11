@@ -90,7 +90,7 @@ static int pca9450_dvs_set_ramp_delay(struct regulator_dev *rdev,
 				  BUCK1_RAMP_MASK, ramp_value << 6);
 }
 
-static struct regulator_ops pca9450_dvs_buck_regulator_ops = {
+static const struct regulator_ops pca9450_dvs_buck_regulator_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -101,7 +101,7 @@ static struct regulator_ops pca9450_dvs_buck_regulator_ops = {
 	.set_ramp_delay = pca9450_dvs_set_ramp_delay,
 };
 
-static struct regulator_ops pca9450_buck_regulator_ops = {
+static const struct regulator_ops pca9450_buck_regulator_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -111,7 +111,7 @@ static struct regulator_ops pca9450_buck_regulator_ops = {
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
 };
 
-static struct regulator_ops pca9450_ldo_regulator_ops = {
+static const struct regulator_ops pca9450_ldo_regulator_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,

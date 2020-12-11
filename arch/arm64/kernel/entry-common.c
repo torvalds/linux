@@ -66,6 +66,13 @@ static void notrace el1_dbg(struct pt_regs *regs, unsigned long esr)
 }
 NOKPROBE_SYMBOL(el1_dbg);
 
+static void notrace el1_fpac(struct pt_regs *regs, unsigned long esr)
+{
+	local_daif_inherit(regs);
+	do_ptrauth_fault(regs, esr);
+}
+NOKPROBE_SYMBOL(el1_fpac);
+
 asmlinkage void notrace el1_sync_handler(struct pt_regs *regs)
 {
 	unsigned long esr = read_sysreg(esr_el1);
@@ -91,6 +98,9 @@ asmlinkage void notrace el1_sync_handler(struct pt_regs *regs)
 	case ESR_ELx_EC_WATCHPT_CUR:
 	case ESR_ELx_EC_BRK64:
 		el1_dbg(regs, esr);
+		break;
+	case ESR_ELx_EC_FPAC:
+		el1_fpac(regs, esr);
 		break;
 	default:
 		el1_inv(regs, esr);
@@ -227,6 +237,14 @@ static void notrace el0_svc(struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(el0_svc);
 
+static void notrace el0_fpac(struct pt_regs *regs, unsigned long esr)
+{
+	user_exit_irqoff();
+	local_daif_restore(DAIF_PROCCTX);
+	do_ptrauth_fault(regs, esr);
+}
+NOKPROBE_SYMBOL(el0_fpac);
+
 asmlinkage void notrace el0_sync_handler(struct pt_regs *regs)
 {
 	unsigned long esr = read_sysreg(esr_el1);
@@ -271,6 +289,9 @@ asmlinkage void notrace el0_sync_handler(struct pt_regs *regs)
 	case ESR_ELx_EC_WATCHPT_LOW:
 	case ESR_ELx_EC_BRK64:
 		el0_dbg(regs, esr);
+		break;
+	case ESR_ELx_EC_FPAC:
+		el0_fpac(regs, esr);
 		break;
 	default:
 		el0_inv(regs, esr);

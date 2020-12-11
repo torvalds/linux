@@ -394,7 +394,7 @@ I_u2u1u3(_lddir)
 void uasm_i_pref(u32 **buf, unsigned int a, signed int b,
 			    unsigned int c)
 {
-	if (CAVIUM_OCTEON_DCACHE_PREFETCH_WAR && a <= 24 && a != 5)
+	if (OCTEON_IS_MODEL(OCTEON_CN6XXX) && a <= 24 && a != 5)
 		/*
 		 * As per erratum Core-14449, replace prefetches 0-4,
 		 * 6-24 with 'pref 28'.

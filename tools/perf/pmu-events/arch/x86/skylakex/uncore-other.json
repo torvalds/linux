@@ -119,8 +119,56 @@
         "EventName": "UPI_DATA_BANDWIDTH_TX",
         "PerPkg": "1",
         "ScaleUnit": "7.11E-06Bytes",
-        "UMask": "0x0F",
+        "UMask": "0xf",
         "Unit": "UPI LL"
+    },
+    {
+        "BriefDescription": "PCI Express bandwidth reading at IIO, part 0",
+        "Counter": "0,1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x01",
+        "ScaleUnit": "4Bytes",
+        "UMask": "0x04",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCI Express bandwidth reading at IIO, part 1",
+        "Counter": "0,1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x02",
+        "ScaleUnit": "4Bytes",
+        "UMask": "0x04",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCI Express bandwidth reading at IIO, part 2",
+        "Counter": "0,1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x04",
+        "ScaleUnit": "4Bytes",
+        "UMask": "0x04",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCI Express bandwidth reading at IIO, part 3",
+        "Counter": "0,1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x08",
+        "ScaleUnit": "4Bytes",
+        "UMask": "0x04",
+        "Unit": "IIO"
     },
     {
         "BriefDescription": "PCI Express bandwidth reading at IIO. Derived from unc_iio_data_req_of_cpu.mem_read.part0",
@@ -129,7 +177,7 @@
         "EventName": "LLC_MISSES.PCIE_READ",
         "FCMask": "0x07",
         "Filter": "ch_mask=0x1f",
-        "MetricExpr": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART0 + UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART1 + UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART2 + UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART3",
+        "MetricExpr": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART0 +UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART1 +UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART2 +UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART3",
         "MetricName": "LLC_MISSES.PCIE_READ",
         "PerPkg": "1",
         "PortMask": "0x01",
@@ -138,28 +186,11 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "PCI Express bandwidth writing at IIO. Derived from unc_iio_data_req_of_cpu.mem_write.part0",
-        "Counter": "0,1",
-        "EventCode": "0x83",
-        "EventName": "LLC_MISSES.PCIE_WRITE",
-        "FCMask": "0x07",
-        "Filter": "ch_mask=0x1f",
-        "MetricExpr": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART0 +UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART1 +UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART2 +UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART3",
-        "MetricName": "LLC_MISSES.PCIE_WRITE",
-        "PerPkg": "1",
-        "PortMask": "0x01",
-        "ScaleUnit": "4Bytes",
-        "UMask": "0x01",
-        "Unit": "IIO"
-    },
-    {
         "BriefDescription": "PCI Express bandwidth writing at IIO, part 0",
         "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART0",
         "FCMask": "0x07",
-        "MetricExpr": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART0 +UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART1 +UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART2 +UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART3",
-        "MetricName": "LLC_MISSES.PCIE_WRITE",
         "PerPkg": "1",
         "PortMask": "0x01",
         "ScaleUnit": "4Bytes",
@@ -203,53 +234,18 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "PCI Express bandwidth reading at IIO, part 0",
+        "BriefDescription": "PCI Express bandwidth writing at IIO. Derived from unc_iio_data_req_of_cpu.mem_write.part0",
         "Counter": "0,1",
         "EventCode": "0x83",
-        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART0",
+        "EventName": "LLC_MISSES.PCIE_WRITE",
         "FCMask": "0x07",
-        "MetricExpr": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART0 + UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART1 + UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART2 + UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART3",
-        "MetricName": "LLC_MISSES.PCIE_READ",
+        "Filter": "ch_mask=0x1f",
+        "MetricExpr": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART0 +UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART1 +UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART2 +UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART3",
+        "MetricName": "LLC_MISSES.PCIE_WRITE",
         "PerPkg": "1",
         "PortMask": "0x01",
         "ScaleUnit": "4Bytes",
-        "UMask": "0x04",
-        "Unit": "IIO"
-    },
-    {
-        "BriefDescription": "PCI Express bandwidth reading at IIO, part 1",
-        "Counter": "0,1",
-        "EventCode": "0x83",
-        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART1",
-        "FCMask": "0x07",
-        "PerPkg": "1",
-        "PortMask": "0x02",
-        "ScaleUnit": "4Bytes",
-        "UMask": "0x04",
-        "Unit": "IIO"
-    },
-    {
-        "BriefDescription": "PCI Express bandwidth reading at IIO, part 2",
-        "Counter": "0,1",
-        "EventCode": "0x83",
-        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART2",
-        "FCMask": "0x07",
-        "PerPkg": "1",
-        "PortMask": "0x04",
-        "ScaleUnit": "4Bytes",
-        "UMask": "0x04",
-        "Unit": "IIO"
-    },
-    {
-        "BriefDescription": "PCI Express bandwidth reading at IIO, part 3",
-        "Counter": "0,1",
-        "EventCode": "0x83",
-        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART3",
-        "FCMask": "0x07",
-        "PerPkg": "1",
-        "PortMask": "0x08",
-        "ScaleUnit": "4Bytes",
-        "UMask": "0x04",
+        "UMask": "0x01",
         "Unit": "IIO"
     },
     {
@@ -313,6 +309,16 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "FaST wire asserted; Horizontal",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xA5",
+        "EventName": "UNC_CHA_FAST_ASSERTED.HORZ",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles either the local or incoming distress signals are asserted.  Incoming distress includes up, dn and across.",
+        "UMask": "0x02",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "Read request from a remote socket which hit in the HitMe Cache to a line In the E state",
         "Counter": "0,1,2,3",
         "EventCode": "0x5F",
@@ -343,6 +349,46 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "Lines Victimized; Lines in E state",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x37",
+        "EventName": "UNC_CHA_LLC_VICTIMS.TOTAL_E",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of lines that were victimized on a fill.  This can be filtered by the state that the line was in.",
+        "UMask": "0x02",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Lines Victimized; Lines in F State",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x37",
+        "EventName": "UNC_CHA_LLC_VICTIMS.TOTAL_F",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of lines that were victimized on a fill.  This can be filtered by the state that the line was in.",
+        "UMask": "0x08",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Lines Victimized; Lines in M state",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x37",
+        "EventName": "UNC_CHA_LLC_VICTIMS.TOTAL_M",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of lines that were victimized on a fill.  This can be filtered by the state that the line was in.",
+        "UMask": "0x01",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Lines Victimized; Lines in S State",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x37",
+        "EventName": "UNC_CHA_LLC_VICTIMS.TOTAL_S",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of lines that were victimized on a fill.  This can be filtered by the state that the line was in.",
+        "UMask": "0x04",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "Number of times that an RFO hit in S state.",
         "Counter": "0,1,2,3",
         "EventCode": "0x39",
@@ -370,6 +416,65 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the total number of requests coming from a remote socket for exclusive ownership of a cache line without receiving data (INVITOE) to the CHA.",
         "UMask": "0x20",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Ingress (from CMS) Allocations; IRQ",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "UNC_CHA_RxC_INSERTS.IRQ",
+        "PerPkg": "1",
+        "PublicDescription": "Counts number of allocations per cycle into the specified Ingress queue.",
+        "UMask": "0x01",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Ingress (from CMS) Request Queue Rejects; PhyAddr Match",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x19",
+        "EventName": "UNC_CHA_RxC_IRQ1_REJECT.PA_MATCH",
+        "PerPkg": "1",
+        "PublicDescription": "Ingress (from CMS) Request Queue Rejects; PhyAddr Match",
+        "UMask": "0x80",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Ingress (from CMS) Occupancy; IRQ",
+        "EventCode": "0x11",
+        "EventName": "UNC_CHA_RxC_OCCUPANCY.IRQ",
+        "PerPkg": "1",
+        "PublicDescription": "Counts number of entries in the specified Ingress queue in each cycle.",
+        "UMask": "0x01",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Snoop filter capacity evictions for E-state entries.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3D",
+        "EventName": "UNC_CHA_SF_EVICTION.E_STATE",
+        "PerPkg": "1",
+        "PublicDescription": "Counts snoop filter capacity evictions for entries tracking exclusive lines in the cores cache. Snoop filter capacity evictions occur when the snoop filter is full and evicts an existing entry to track a new entry. Does not count clean evictions such as when a cores cache replaces a tracked cacheline with a new cacheline.",
+        "UMask": "0x02",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Snoop filter capacity evictions for M-state entries.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3D",
+        "EventName": "UNC_CHA_SF_EVICTION.M_STATE",
+        "PerPkg": "1",
+        "PublicDescription": "Counts snoop filter capacity evictions for entries tracking modified lines in the cores cache. Snoop filter capacity evictions occur when the snoop filter is full and evicts an existing entry to track a new entry. Does not count clean evictions such as when a cores cache replaces a tracked cacheline with a new cacheline.",
+        "UMask": "0x01",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Snoop filter capacity evictions for S-state entries.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3D",
+        "EventName": "UNC_CHA_SF_EVICTION.S_STATE",
+        "PerPkg": "1",
+        "PublicDescription": "Counts snoop filter capacity evictions for entries tracking shared lines in the cores cache. Snoop filter capacity evictions occur when the snoop filter is full and evicts an existing entry to track a new entry. Does not count clean evictions such as when a cores cache replaces a tracked cacheline with a new cacheline.",
+        "UMask": "0x04",
         "Unit": "CHA"
     },
     {
@@ -449,7 +554,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Counts every read request for 4 bytes of data made by a unit on the main die (generally a core) to the MMIO space of a card on IIO Part0. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every read request for 4 bytes of data made by a unit on the main die (generally a core) or by another IIO unit to the MMIO space of a card on IIO Part0. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
         "UMask": "0x04",
         "Unit": "IIO"
     },
@@ -461,7 +566,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "PublicDescription": "Counts every read request for 4 bytes of data made by a unit on the main die (generally a core) to the MMIO space of a card on IIO Part1. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every read request for 4 bytes of data made by a unit on the main die (generally a core) or by another IIO unit to the MMIO space of a card on IIO Part1. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
         "UMask": "0x04",
         "Unit": "IIO"
     },
@@ -473,7 +578,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "PublicDescription": "Counts every read request for 4 bytes of data made by a unit on the main die (generally a core) to the MMIO space of a card on IIO Part2. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every read request for 4 bytes of data made by a unit on the main die (generally a core) or by another IIO unit to the MMIO space of a card on IIO Part2. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
         "UMask": "0x04",
         "Unit": "IIO"
     },
@@ -485,7 +590,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "PublicDescription": "Counts every read request for 4 bytes of data made by a unit on the main die (generally a core) to the MMIO space of a card on IIO Part3. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every read request for 4 bytes of data made by a unit on the main die (generally a core) or by another IIO unit to the MMIO space of a card on IIO Part3. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
         "UMask": "0x04",
         "Unit": "IIO"
     },
@@ -497,7 +602,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Counts every write request of 4 bytes of data made to the MMIO space of a card on IIO Part0 by a unit on the main die (generally a core). In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every write request of 4 bytes of data made to the MMIO space of a card on IIO Part0 by a unit on the main die (generally a core) or by another IIO unit. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
         "UMask": "0x01",
         "Unit": "IIO"
     },
@@ -509,32 +614,224 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "PublicDescription": "Counts every write request of 4 bytes of data made to the MMIO space of a card on IIO Part1 by a unit on the main die (generally a core). In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every write request of 4 bytes of data made to the MMIO space of a card on IIO Part1 by a unit on the main die (generally a core) or by another IIO unit. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
         "UMask": "0x01",
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Write request of 4 bytes made to IIO Part2 by the CPU ",
+        "BriefDescription": "Write request of 4 bytes made to IIO Part2 by the CPU",
         "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.PART2",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "PublicDescription": "Counts every write request of 4 bytes of data made to the MMIO space of a card on IIO Part2 by  a unit on the main die (generally a core). In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every write request of 4 bytes of data made to the MMIO space of a card on IIO Part2 by  a unit on the main die (generally a core) or by another IIO unit. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
         "UMask": "0x01",
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Write request of 4 bytes made to IIO Part3 by the CPU ",
+        "BriefDescription": "Write request of 4 bytes made to IIO Part3 by the CPU",
         "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.PART3",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "PublicDescription": "Counts every write request of 4 bytes of data made to the MMIO space of a card on IIO Part3 by  a unit on the main die (generally a core). In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every write request of 4 bytes of data made to the MMIO space of a card on IIO Part3 by  a unit on the main die (generally a core) or by another IIO unit. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
         "UMask": "0x01",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer read request for 4 bytes made by a different IIO unit to IIO Part0",
+        "Counter": "2,3",
+        "EventCode": "0xC0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_READ.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x01",
+        "PublicDescription": "Counts ever peer to peer read request for 4 bytes of data made by a different IIO unit to the MMIO space of a card on IIO Part0. Does not include requests made by the same IIO unit. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "UMask": "0x08",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer read request for 4 bytes made by a different IIO unit to IIO Part1",
+        "Counter": "2,3",
+        "EventCode": "0xC0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_READ.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x02",
+        "PublicDescription": "Counts ever peer to peer read request for 4 bytes of data made by a different IIO unit to the MMIO space of a card on IIO Part1. Does not include requests made by the same IIO unit. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "UMask": "0x08",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer read request for 4 bytes made by a different IIO unit to IIO Part2",
+        "Counter": "2,3",
+        "EventCode": "0xC0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_READ.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x04",
+        "PublicDescription": "Counts ever peer to peer read request for 4 bytes of data made by a different IIO unit to the MMIO space of a card on IIO Part2. Does not include requests made by the same IIO unit. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "UMask": "0x08",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer read request for 4 bytes made by a different IIO unit to IIO Part3",
+        "Counter": "2,3",
+        "EventCode": "0xC0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_READ.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x08",
+        "PublicDescription": "Counts ever peer to peer read request for 4 bytes of data made by a different IIO unit to the MMIO space of a card on IIO Part3. Does not include requests made by the same IIO unit. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "UMask": "0x08",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of 4 bytes made to IIO Part0 by a different IIO unit",
+        "Counter": "2,3",
+        "EventCode": "0xC0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_WRITE.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x01",
+        "PublicDescription": "Counts every peer to peer write request of 4 bytes of data made to the MMIO space of a card on IIO Part0 by a different IIO unit. Does not include requests made by the same IIO unit.  In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "UMask": "0x02",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of 4 bytes made to IIO Part1 by a different IIO unit",
+        "Counter": "2,3",
+        "EventCode": "0xC0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_WRITE.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x02",
+        "PublicDescription": "Counts every peer to peer write request of 4 bytes of data made to the MMIO space of a card on IIO Part1 by a different IIO unit. Does not include requests made by the same IIO unit. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "UMask": "0x02",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of 4 bytes made to IIO Part2 by a different IIO unit",
+        "Counter": "2,3",
+        "EventCode": "0xC0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_WRITE.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x04",
+        "PublicDescription": "Counts every peer to peer write request of 4 bytes of data made to the MMIO space of a card on IIO Part2 by a different IIO unit. Does not include requests made by the same IIO unit. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "UMask": "0x02",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of 4 bytes made to IIO Part3 by a different IIO unit",
+        "Counter": "2,3",
+        "EventCode": "0xC0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_WRITE.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x08",
+        "PublicDescription": "Counts every peer to peer write request of 4 bytes of data made to the MMIO space of a card on IIO Part3 by a different IIO unit. Does not include requests made by the same IIO unit. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "UMask": "0x02",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer read request for 4 bytes made by IIO Part0 to an IIO target",
+        "Counter": "0,1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_READ.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x01",
+        "PublicDescription": "Counts every peer to peer read request for 4 bytes of data made by IIO Part0 to the MMIO space of an IIO target. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "UMask": "0x08",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer read request for 4 bytes made by IIO Part1 to an IIO target",
+        "Counter": "0,1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_READ.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x02",
+        "PublicDescription": "Counts every peer to peer read request for 4 bytes of data made by IIO Part1 to the MMIO space of an IIO target. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "UMask": "0x08",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer read request for 4 bytes made by IIO Part2 to an IIO target",
+        "Counter": "0,1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_READ.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x04",
+        "PublicDescription": "Counts every peer to peer read request for 4 bytes of data made by IIO Part2 to the MMIO space of an IIO target. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "UMask": "0x08",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer read request for 4 bytes made by IIO Part3 to an IIO target",
+        "Counter": "0,1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_READ.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x08",
+        "PublicDescription": "Counts every peer to peer read request for 4 bytes of data made by IIO Part3 to the MMIO space of an IIO target. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "UMask": "0x08",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of 4 bytes made by IIO Part0 to an IIO target",
+        "Counter": "0,1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x01",
+        "PublicDescription": "Counts every peer to peer write request of 4 bytes of data made by IIO Part0 to the MMIO space of an IIO target. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "UMask": "0x02",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of 4 bytes made by IIO Part0 to an IIO target",
+        "Counter": "0,1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x02",
+        "PublicDescription": "Counts every peer to peer write request of 4 bytes of data made by IIO Part1 to the MMIO space of an IIO target. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "UMask": "0x02",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of 4 bytes made by IIO Part0 to an IIO target",
+        "Counter": "0,1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x04",
+        "PublicDescription": "Counts every peer to peer write request of 4 bytes of data made by IIO Part2 to the MMIO space of an IIO target. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "UMask": "0x02",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of 4 bytes made by IIO Part0 to an IIO target",
+        "Counter": "0,1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x08",
+        "PublicDescription": "Counts every peer to peer write request of 4 bytes of data made by IIO Part3 to the MMIO space of an IIO target. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "UMask": "0x02",
         "Unit": "IIO"
     },
     {
@@ -545,7 +842,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Counts every read request for up to a 64 byte transaction of data made by a unit on the main die (generally a core) to the MMIO space of a card on IIO Part0. In the general case, part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every read request for up to a 64 byte transaction of data made by a unit on the main die (generally a core) or by another IIO unit to the MMIO space of a card on IIO Part0. In the general case, part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
         "UMask": "0x04",
         "Unit": "IIO"
     },
@@ -557,7 +854,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "PublicDescription": "Counts every read request for up to a 64 byte transaction of data made by a unit on the main die (generally a core) to the MMIO space of a card on IIO Part1. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every read request for up to a 64 byte transaction of data made by a unit on the main die (generally a core) or by another IIO unit to the MMIO space of a card on IIO Part1. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
         "UMask": "0x04",
         "Unit": "IIO"
     },
@@ -569,7 +866,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "PublicDescription": "Counts every read request for up to a 64 byte transaction of data made by a unit on the main die (generally a core) to the MMIO space of a card on IIO Part2. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every read request for up to a 64 byte transaction of data made by a unit on the main die (generally a core) or by another IIO unit to the MMIO space of a card on IIO Part2. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
         "UMask": "0x04",
         "Unit": "IIO"
     },
@@ -581,7 +878,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "PublicDescription": "Counts every read request for up to a 64 byte transaction of data made by a unit on the main die (generally a core) to the MMIO space of a card on IIO Part3. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every read request for up to a 64 byte transaction of data made by a unit on the main die (generally a core) or by another IIO unit to the MMIO space of a card on IIO Part3. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
         "UMask": "0x04",
         "Unit": "IIO"
     },
@@ -593,7 +890,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Counts every write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part0 by a unit on the main die (generally a core). In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part0 by a unit on the main die (generally a core) or by another IIO unit. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
         "UMask": "0x01",
         "Unit": "IIO"
     },
@@ -605,32 +902,128 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "PublicDescription": "Counts every write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part1 by a unit on the main die (generally a core). In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part1 by a unit on the main die (generally a core) or by another IIO unit. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
         "UMask": "0x01",
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Write request of up to a 64 byte transaction is made to IIO Part2 by the CPU ",
+        "BriefDescription": "Write request of up to a 64 byte transaction is made to IIO Part2 by the CPU",
         "Counter": "0,1,2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_WRITE.PART2",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "PublicDescription": "Counts every write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part2 by a unit on the main die (generally a core). In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part2 by a unit on the main die (generally a core) or by another IIO unit. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
         "UMask": "0x01",
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Write request of up to a 64 byte transaction is made to IIO Part3 by the CPU ",
+        "BriefDescription": "Write request of up to a 64 byte transaction is made to IIO Part3 by the CPU",
         "Counter": "0,1,2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_WRITE.PART3",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "PublicDescription": "Counts every write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part3 by a unit on the main die (generally a core). In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part3 by a unit on the main die (generally a core) or by another IIO unit. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
         "UMask": "0x01",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer read request for up to a 64 byte transaction is made by a different IIO unit to IIO Part0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_READ.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x01",
+        "PublicDescription": "Counts every peer to peer read request for up to a 64 byte transaction of data made by a different IIO unit to the MMIO space of a card on IIO Part0. Does not include requests made by the same IIO unit. In the general case, part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "UMask": "0x08",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer read request for up to a 64 byte transaction is made by a different IIO unit to IIO Part1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_READ.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x02",
+        "PublicDescription": "Counts every peer to peer read request for up to a 64 byte transaction of data made by a different IIO unit to the MMIO space of a card on IIO Part1. Does not include requests made by the same IIO unit. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "UMask": "0x08",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer read request for up to a 64 byte transaction is made by a different IIO unit to IIO Part2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_READ.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x04",
+        "PublicDescription": "Counts every peer to peer read request for up to a 64 byte transaction of data made by a different IIO unit to the MMIO space of a card on IIO Part2. Does not include requests made by the same IIO unit. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "UMask": "0x08",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer read request for up to a 64 byte transaction is made by a different IIO unit to IIO Part3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_READ.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x08",
+        "PublicDescription": "Counts every peer to peer read request for up to a 64 byte transaction of data made by a different IIO unit to the MMIO space of a card on IIO Part3. Does not include requests made by the same IIO unit. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "UMask": "0x08",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of up to a 64 byte transaction is made to IIO Part0 by a different IIO unit",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_WRITE.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x01",
+        "PublicDescription": "Counts every peer to peer write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part0 by a different IIO unit. Does not include requests made by the same IIO unit. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "UMask": "0x02",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of up to a 64 byte transaction is made to IIO Part1 by a different IIO unit",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_WRITE.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x02",
+        "PublicDescription": "Counts every peer to peer write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part1 by a different IIO unit. Does not include requests made by the same IIO unit. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "UMask": "0x02",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of up to a 64 byte transaction is made to IIO Part2 by a different IIO unit",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_WRITE.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x04",
+        "PublicDescription": "Counts every peer to peer write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part2 by a different IIO unit. Does not include requests made by the same IIO unit. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "UMask": "0x02",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of up to a 64 byte transaction is made to IIO Part3 by a different IIO unit",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_WRITE.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x08",
+        "PublicDescription": "Counts every peer to peer write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part3 by a different IIO unit. Does not include requests made by the same IIO unit. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "UMask": "0x02",
         "Unit": "IIO"
     },
     {
@@ -730,6 +1123,102 @@
         "Unit": "IIO"
     },
     {
+        "BriefDescription": "Peer to peer read request of up to a 64 byte transaction is made by IIO Part0 to an IIO target",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_READ.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x01",
+        "PublicDescription": "Counts every peer to peer read request of up to a 64 byte transaction made by IIO Part0 to the MMIO space of an IIO target. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "UMask": "0x08",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer read request of up to a 64 byte transaction is made by IIO Part1 to an IIO target",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_READ.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x02",
+        "PublicDescription": "Counts every peer to peer read request of up to a 64 byte transaction made by IIO Part1 to the MMIO space of an IIO target. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "UMask": "0x08",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer read request of up to a 64 byte transaction is made by IIO Part2 to an IIO target",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_READ.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x04",
+        "PublicDescription": "Counts every peer to peer read request of up to a 64 byte transaction made by IIO Part2 to the MMIO space of an IIO target. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "UMask": "0x08",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer read request of up to a 64 byte transaction is made by IIO Part3 to an IIO target",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_READ.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x08",
+        "PublicDescription": "Counts every peer to peer read request of up to a 64 byte transaction made by IIO Part3 to the MMIO space of an IIO target. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "UMask": "0x08",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of up to a 64 byte transaction is made by IIO Part0 to an IIO target",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x01",
+        "PublicDescription": "Counts every peer to peer write request of up to a 64 byte transaction of data made by IIO Part0 to the MMIO space of an IIO target. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "UMask": "0x02",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of up to a 64 byte transaction is made by IIO Part1 to an IIO target",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x02",
+        "PublicDescription": "Counts every peer to peer write request of up to a 64 byte transaction of data made by IIO Part1 to the MMIO space of an IIO target.In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "UMask": "0x02",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of up to a 64 byte transaction is made by IIO Part2 to an IIO target",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x04",
+        "PublicDescription": "Counts every peer to peer write request of up to a 64 byte transaction of data made by IIO Part2 to the MMIO space of an IIO target. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "UMask": "0x02",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of up to a 64 byte transaction is made by IIO Part3 to an IIO target",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x08",
+        "PublicDescription": "Counts every peer to peer write request of up to a 64 byte transaction of data made by IIO Part3 to the MMIO space of an IIO target. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "UMask": "0x02",
+        "Unit": "IIO"
+    },
+    {
         "BriefDescription": "Traffic in which the M2M to iMC Bypass was not taken",
         "Counter": "0,1,2,3",
         "EventCode": "0x22",
@@ -813,7 +1302,7 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "Multi-socket cacheline Directory lookups (cacheline found in A state) ",
+        "BriefDescription": "Multi-socket cacheline Directory lookups (cacheline found in A state)",
         "Counter": "0,1,2,3",
         "EventCode": "0x2D",
         "EventName": "UNC_M2M_DIRECTORY_LOOKUP.STATE_A",
@@ -823,7 +1312,7 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "Multi-socket cacheline Directory lookup (cacheline found in I state) ",
+        "BriefDescription": "Multi-socket cacheline Directory lookup (cacheline found in I state)",
         "Counter": "0,1,2,3",
         "EventCode": "0x2D",
         "EventName": "UNC_M2M_DIRECTORY_LOOKUP.STATE_I",
@@ -833,7 +1322,7 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "Multi-socket cacheline Directory lookup (cacheline found in S state) ",
+        "BriefDescription": "Multi-socket cacheline Directory lookup (cacheline found in S state)",
         "Counter": "0,1,2,3",
         "EventCode": "0x2D",
         "EventName": "UNC_M2M_DIRECTORY_LOOKUP.STATE_S",
@@ -863,7 +1352,7 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "Multi-socket cacheline Directory update from/to Any state ",
+        "BriefDescription": "Multi-socket cacheline Directory update from/to Any state",
         "Counter": "0,1,2,3",
         "EventCode": "0x2E",
         "EventName": "UNC_M2M_DIRECTORY_UPDATE.ANY",
@@ -918,7 +1407,7 @@
         "EventCode": "0x37",
         "EventName": "UNC_M2M_IMC_READS.ALL",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the M2M (Mesh to Memory) issues reads to the iMC (Memory Controller). ",
+        "PublicDescription": "Counts when the M2M (Mesh to Memory) issues reads to the iMC (Memory Controller).",
         "UMask": "0x4",
         "Unit": "M2M"
     },
@@ -940,6 +1429,16 @@
         "PerPkg": "1",
         "PublicDescription": "Counts when the M2M (Mesh to Memory) issues writes to the iMC (Memory Controller).",
         "UMask": "0x10",
+        "Unit": "M2M"
+    },
+    {
+        "BriefDescription": "M2M Writes Issued to iMC; All, regardless of priority.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x38",
+        "EventName": "UNC_M2M_IMC_WRITES.NI",
+        "PerPkg": "1",
+        "PublicDescription": "M2M Writes Issued to iMC; All, regardless of priority.",
+        "UMask": "0x80",
         "Unit": "M2M"
     },
     {
@@ -976,12 +1475,77 @@
         "EventCode": "0x1",
         "EventName": "UNC_M2M_RxC_AD_INSERTS",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the a new entry is Received(RxC) and then added to the AD (Address Ring) Ingress Queue from the CMS (Common Mesh Stop).  This is generally used for reads, and ",
+        "PublicDescription": "Counts when the a new entry is Received(RxC) and then added to the AD (Address Ring) Ingress Queue from the CMS (Common Mesh Stop).  This is generally used for reads, and",
+        "Unit": "M2M"
+    },
+    {
+        "BriefDescription": "AD Ingress (from CMS) Occupancy",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_M2M_RxC_AD_OCCUPANCY",
+        "PerPkg": "1",
+        "PublicDescription": "AD Ingress (from CMS) Occupancy",
+        "Unit": "M2M"
+    },
+    {
+        "BriefDescription": "BL Ingress (from CMS) Allocations",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x5",
+        "EventName": "UNC_M2M_RxC_BL_INSERTS",
+        "PerPkg": "1",
+        "PublicDescription": "BL Ingress (from CMS) Allocations",
+        "Unit": "M2M"
+    },
+    {
+        "BriefDescription": "BL Ingress (from CMS) Occupancy",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x6",
+        "EventName": "UNC_M2M_RxC_BL_OCCUPANCY",
+        "PerPkg": "1",
+        "PublicDescription": "BL Ingress (from CMS) Occupancy",
+        "Unit": "M2M"
+    },
+    {
+        "BriefDescription": "AD Egress (to CMS) Allocations",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x9",
+        "EventName": "UNC_M2M_TxC_AD_INSERTS",
+        "PerPkg": "1",
+        "PublicDescription": "AD Egress (to CMS) Allocations",
+        "Unit": "M2M"
+    },
+    {
+        "BriefDescription": "AD Egress (to CMS) Occupancy",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xA",
+        "EventName": "UNC_M2M_TxC_AD_OCCUPANCY",
+        "PerPkg": "1",
+        "PublicDescription": "AD Egress (to CMS) Occupancy",
+        "Unit": "M2M"
+    },
+    {
+        "BriefDescription": "BL Egress (to CMS) Allocations; All",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x15",
+        "EventName": "UNC_M2M_TxC_BL_INSERTS.ALL",
+        "PerPkg": "1",
+        "PublicDescription": "BL Egress (to CMS) Allocations; All",
+        "UMask": "0x03",
+        "Unit": "M2M"
+    },
+    {
+        "BriefDescription": "BL Egress (to CMS) Occupancy; All",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x16",
+        "EventName": "UNC_M2M_TxC_BL_OCCUPANCY.ALL",
+        "PerPkg": "1",
+        "PublicDescription": "BL Egress (to CMS) Occupancy; All",
+        "UMask": "0x03",
         "Unit": "M2M"
     },
     {
         "BriefDescription": "Prefetches generated by the flow control queue of the M3UPI unit.",
-        "Counter": "0,1,2,3",
+        "Counter": "0,1,2",
         "EventCode": "0x29",
         "EventName": "UNC_M3UPI_UPI_PREFETCH_SPAWN",
         "PerPkg": "1",
@@ -1114,16 +1678,6 @@
         "Unit": "UPI LL"
     },
     {
-        "BriefDescription": "UPI interconnect send bandwidth for payload. Derived from unc_upi_txl_flits.all_data",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x2",
-        "EventName": "UPI_DATA_BANDWIDTH_TX",
-        "PerPkg": "1",
-        "ScaleUnit": "7.11E-06Bytes",
-        "UMask": "0x0F",
-        "Unit": "UPI LL"
-    },
-    {
         "BriefDescription": "Null FLITs transmitted from any slot",
         "Counter": "0,1,2,3",
         "EventCode": "0x2",
@@ -1131,6 +1685,16 @@
         "PerPkg": "1",
         "PublicDescription": "Counts null FLITs (80 bit FLow control unITs) transmitted via any of the 3 Intel Ulra Path Interconnect (UPI) slots on this UPI unit.",
         "UMask": "0x27",
+        "Unit": "UPI LL"
+    },
+    {
+        "BriefDescription": "Valid Flits Sent; Data",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_UPI_TxL_FLITS.DATA",
+        "PerPkg": "1",
+        "PublicDescription": "Shows legal flit time (hides impact of L0p and L0c).; Count Data Flits (which consume all slots), but how much to count is based on Slot0-2 mask, so count can be 0-3 depending on which slots are enabled for counting..",
+        "UMask": "0x8",
         "Unit": "UPI LL"
     },
     {

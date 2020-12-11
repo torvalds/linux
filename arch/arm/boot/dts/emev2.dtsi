@@ -195,7 +195,7 @@
 		clock-names = "sclk";
 	};
 
-	pfc: pin-controller@e0140200 {
+	pfc: pinctrl@e0140200 {
 		compatible = "renesas,pfc-emev2";
 		reg = <0xe0140200 0x100>;
 	};

@@ -17,6 +17,7 @@ properties:
   compatible:
     enum:
       - intel,keembay-i2s
+      - intel,keembay-tdm
 
   "#sound-dai-cells":
     const: 0
@@ -51,6 +52,8 @@ required:
   - clocks
   - clock-names
   - interrupts
+
+additionalProperties: false
 
 examples:
   - |

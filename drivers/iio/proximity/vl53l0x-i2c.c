@@ -4,18 +4,19 @@
  *
  * Copyright (C) 2016 STMicroelectronics Imaging Division.
  * Copyright (C) 2018 Song Qiang <songqiang1304521@gmail.com>
+ * Copyright (C) 2020 Ivan Drobyshevskyi <drobyshevskyi@gmail.com>
  *
  * Datasheet available at
  * <https://www.st.com/resource/en/datasheet/vl53l0x.pdf>
  *
  * Default 7-bit i2c slave address 0x29.
  *
- * TODO: FIFO buffer, continuous mode, interrupts, range selection,
- * sensor ID check.
+ * TODO: FIFO buffer, continuous mode, range selection, sensor ID check.
  */
 
 #include <linux/delay.h>
 #include <linux/i2c.h>
+#include <linux/interrupt.h>
 #include <linux/module.h>
 
 #include <linux/iio/iio.h>
@@ -29,13 +30,71 @@
 #define VL_REG_SYSRANGE_MODE_TIMED			BIT(2)
 #define VL_REG_SYSRANGE_MODE_HISTOGRAM			BIT(3)
 
+#define VL_REG_SYSTEM_INTERRUPT_CONFIG_GPIO		0x0A
+#define VL_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY	BIT(2)
+
+#define VL_REG_SYSTEM_INTERRUPT_CLEAR			0x0B
+
 #define VL_REG_RESULT_INT_STATUS			0x13
 #define VL_REG_RESULT_RANGE_STATUS			0x14
 #define VL_REG_RESULT_RANGE_STATUS_COMPLETE		BIT(0)
 
 struct vl53l0x_data {
 	struct i2c_client *client;
+	struct completion completion;
 };
+
+static irqreturn_t vl53l0x_handle_irq(int irq, void *priv)
+{
+	struct iio_dev *indio_dev = priv;
+	struct vl53l0x_data *data = iio_priv(indio_dev);
+
+	complete(&data->completion);
+
+	return IRQ_HANDLED;
+}
+
+static int vl53l0x_configure_irq(struct i2c_client *client,
+				 struct iio_dev *indio_dev)
+{
+	struct vl53l0x_data *data = iio_priv(indio_dev);
+	int ret;
+
+	ret = devm_request_irq(&client->dev, client->irq, vl53l0x_handle_irq,
+			IRQF_TRIGGER_FALLING, indio_dev->name, indio_dev);
+	if (ret) {
+		dev_err(&client->dev, "devm_request_irq error: %d\n", ret);
+		return ret;
+	}
+
+	ret = i2c_smbus_write_byte_data(data->client,
+			VL_REG_SYSTEM_INTERRUPT_CONFIG_GPIO,
+			VL_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY);
+	if (ret < 0)
+		dev_err(&client->dev, "failed to configure IRQ: %d\n", ret);
+
+	return ret;
+}
+
+static void vl53l0x_clear_irq(struct vl53l0x_data *data)
+{
+	struct device *dev = &data->client->dev;
+	int ret;
+
+	ret = i2c_smbus_write_byte_data(data->client,
+					VL_REG_SYSTEM_INTERRUPT_CLEAR, 1);
+	if (ret < 0)
+		dev_err(dev, "failed to clear error irq: %d\n", ret);
+
+	ret = i2c_smbus_write_byte_data(data->client,
+					VL_REG_SYSTEM_INTERRUPT_CLEAR, 0);
+	if (ret < 0)
+		dev_err(dev, "failed to clear range irq: %d\n", ret);
+
+	ret = i2c_smbus_read_byte_data(data->client, VL_REG_RESULT_INT_STATUS);
+	if (ret < 0 || ret & 0x07)
+		dev_err(dev, "failed to clear irq: %d\n", ret);
+}
 
 static int vl53l0x_read_proximity(struct vl53l0x_data *data,
 				  const struct iio_chan_spec *chan,
@@ -50,19 +109,31 @@ static int vl53l0x_read_proximity(struct vl53l0x_data *data,
 	if (ret < 0)
 		return ret;
 
-	do {
-		ret = i2c_smbus_read_byte_data(client,
-					       VL_REG_RESULT_RANGE_STATUS);
+	if (data->client->irq) {
+		reinit_completion(&data->completion);
+
+		ret = wait_for_completion_timeout(&data->completion, HZ/10);
 		if (ret < 0)
 			return ret;
+		else if (ret == 0)
+			return -ETIMEDOUT;
 
-		if (ret & VL_REG_RESULT_RANGE_STATUS_COMPLETE)
-			break;
+		vl53l0x_clear_irq(data);
+	} else {
+		do {
+			ret = i2c_smbus_read_byte_data(client,
+					       VL_REG_RESULT_RANGE_STATUS);
+			if (ret < 0)
+				return ret;
 
-		usleep_range(1000, 5000);
-	} while (--tries);
-	if (!tries)
-		return -ETIMEDOUT;
+			if (ret & VL_REG_RESULT_RANGE_STATUS_COMPLETE)
+				break;
+
+			usleep_range(1000, 5000);
+		} while (--tries);
+		if (!tries)
+			return -ETIMEDOUT;
+	}
 
 	ret = i2c_smbus_read_i2c_block_data(client, VL_REG_RESULT_RANGE_STATUS,
 					    12, buffer);
@@ -139,6 +210,17 @@ static int vl53l0x_probe(struct i2c_client *client)
 	indio_dev->channels = vl53l0x_channels;
 	indio_dev->num_channels = ARRAY_SIZE(vl53l0x_channels);
 	indio_dev->modes = INDIO_DIRECT_MODE;
+
+	/* usage of interrupt is optional */
+	if (client->irq) {
+		int ret;
+
+		init_completion(&data->completion);
+
+		ret = vl53l0x_configure_irq(client, indio_dev);
+		if (ret)
+			return ret;
+	}
 
 	return devm_iio_device_register(&client->dev, indio_dev);
 }

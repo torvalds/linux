@@ -92,3 +92,19 @@ Contact:	linux-acpi@vger.kernel.org
 Description:
 		(RO) The battery discharge current capability obtained from battery fuel gauge in
 		milli Amps.
+
+What:		/sys/bus/platform/devices/INTC1045:00/pch_fivr_switch_frequency/freq_mhz_low_clock
+Date:		November, 2020
+KernelVersion:	v5.10
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RW) The PCH FIVR (Fully Integrated Voltage Regulator) switching frequency in MHz,
+		when FIVR clock is 19.2MHz or 24MHz.
+
+What:		/sys/bus/platform/devices/INTC1045:00/pch_fivr_switch_frequency/freq_mhz_high_clock
+Date:		November, 2020
+KernelVersion:	v5.10
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RW) The PCH FIVR (Fully Integrated Voltage Regulator) switching frequency in MHz,
+		when FIVR clock is 38.4MHz.

@@ -70,7 +70,7 @@ mt7615_tm_set_tx_power(struct mt7615_phy *phy)
 	if (dev->mt76.test.state != MT76_TM_STATE_OFF)
 		tx_power = dev->mt76.test.tx_power;
 
-	len = sizeof(req_hdr) + MT7615_EE_MAX - MT_EE_NIC_CONF_0;
+	len = MT7615_EE_MAX - MT_EE_NIC_CONF_0;
 	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL, sizeof(req_hdr) + len);
 	if (!skb)
 		return -ENOMEM;
@@ -80,13 +80,12 @@ mt7615_tm_set_tx_power(struct mt7615_phy *phy)
 
 	target_chains = mt7615_ext_pa_enabled(dev, band) ? 1 : n_chains;
 	for (i = 0; i < target_chains; i++) {
-		int index;
-
 		ret = mt7615_eeprom_get_target_power_index(dev, chandef->chan, i);
-		if (ret < 0)
+		if (ret < 0) {
+			dev_kfree_skb(skb);
 			return -EINVAL;
+		}
 
-		index = ret - MT_EE_NIC_CONF_0;
 		if (tx_power && tx_power[i])
 			data[ret - MT_EE_NIC_CONF_0] = tx_power[i];
 	}
@@ -191,7 +190,7 @@ mt7615_tm_set_tx_antenna(struct mt7615_dev *dev, bool en)
 	for (i = 0; i < 4; i++) {
 		mt76_rmw_field(dev, MT_WF_PHY_RFINTF3_0(i),
 			       MT_WF_PHY_RFINTF3_0_ANT,
-			       td->tx_antenna_mask & BIT(i) ? 0 : 0xa);
+			       (td->tx_antenna_mask & BIT(i)) ? 0 : 0xa);
 
 	}
 

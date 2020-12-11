@@ -64,7 +64,7 @@
 #define IT_PKT_HEADER_SIZE_CIP		8 // For 2 CIP header.
 #define IT_PKT_HEADER_SIZE_NO_CIP	0 // Nothing.
 
-static void pcm_period_tasklet(struct tasklet_struct *t);
+static void pcm_period_work(struct work_struct *work);
 
 /**
  * amdtp_stream_init - initialize an AMDTP stream structure
@@ -94,7 +94,7 @@ int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 	s->flags = flags;
 	s->context = ERR_PTR(-1);
 	mutex_init(&s->mutex);
-	tasklet_setup(&s->period_tasklet, pcm_period_tasklet);
+	INIT_WORK(&s->period_work, pcm_period_work);
 	s->packet_index = 0;
 
 	init_waitqueue_head(&s->callback_wait);
@@ -203,7 +203,7 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 
 	// Linux driver for 1394 OHCI controller voluntarily flushes isoc
 	// context when total size of accumulated context header reaches
-	// PAGE_SIZE. This kicks tasklet for the isoc context and brings
+	// PAGE_SIZE. This kicks work for the isoc context and brings
 	// callback in the middle of scheduled interrupts.
 	// Although AMDTP streams in the same domain use the same events per
 	// IRQ, use the largest size of context header between IT/IR contexts.
@@ -333,7 +333,7 @@ EXPORT_SYMBOL(amdtp_stream_get_max_payload);
  */
 void amdtp_stream_pcm_prepare(struct amdtp_stream *s)
 {
-	tasklet_kill(&s->period_tasklet);
+	cancel_work_sync(&s->period_work);
 	s->pcm_buffer_pointer = 0;
 	s->pcm_period_pointer = 0;
 }
@@ -437,13 +437,14 @@ static void update_pcm_pointers(struct amdtp_stream *s,
 	s->pcm_period_pointer += frames;
 	if (s->pcm_period_pointer >= pcm->runtime->period_size) {
 		s->pcm_period_pointer -= pcm->runtime->period_size;
-		tasklet_hi_schedule(&s->period_tasklet);
+		queue_work(system_highpri_wq, &s->period_work);
 	}
 }
 
-static void pcm_period_tasklet(struct tasklet_struct *t)
+static void pcm_period_work(struct work_struct *work)
 {
-	struct amdtp_stream *s = from_tasklet(s, t, period_tasklet);
+	struct amdtp_stream *s = container_of(work, struct amdtp_stream,
+					      period_work);
 	struct snd_pcm_substream *pcm = READ_ONCE(s->pcm);
 
 	if (pcm)
@@ -794,7 +795,7 @@ static void generate_pkt_descs(struct amdtp_stream *s, struct pkt_desc *descs,
 static inline void cancel_stream(struct amdtp_stream *s)
 {
 	s->packet_index = -1;
-	if (in_interrupt())
+	if (current_work() == &s->period_work)
 		amdtp_stream_pcm_abort(s);
 	WRITE_ONCE(s->pcm_buffer_pointer, SNDRV_PCM_POS_XRUN);
 }
@@ -1184,7 +1185,7 @@ unsigned long amdtp_domain_stream_pcm_pointer(struct amdtp_domain *d,
 
 	if (irq_target && amdtp_stream_running(irq_target)) {
 		// This function is called in software IRQ context of
-		// period_tasklet or process context.
+		// period_work or process context.
 		//
 		// When the software IRQ context was scheduled by software IRQ
 		// context of IT contexts, queued packets were already handled.
@@ -1195,9 +1196,9 @@ unsigned long amdtp_domain_stream_pcm_pointer(struct amdtp_domain *d,
 		// immediately to keep better granularity of PCM pointer.
 		//
 		// Later, the process context will sometimes schedules software
-		// IRQ context of the period_tasklet. Then, no need to flush the
+		// IRQ context of the period_work. Then, no need to flush the
 		// queue by the same reason as described in the above
-		if (!in_interrupt()) {
+		if (current_work() != &s->period_work) {
 			// Queued packet should be processed without any kernel
 			// preemption to keep latency against bus cycle.
 			preempt_disable();
@@ -1263,7 +1264,7 @@ static void amdtp_stream_stop(struct amdtp_stream *s)
 		return;
 	}
 
-	tasklet_kill(&s->period_tasklet);
+	cancel_work_sync(&s->period_work);
 	fw_iso_context_stop(s->context);
 	fw_iso_context_destroy(s->context);
 	s->context = ERR_PTR(-1);

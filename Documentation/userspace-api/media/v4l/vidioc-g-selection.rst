@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_G_SELECTION:
 
@@ -18,23 +12,22 @@ Name
 
 VIDIOC_G_SELECTION - VIDIOC_S_SELECTION - Get or set one of the selection rectangles
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_G_SELECTION, struct v4l2_selection *argp )
-    :name: VIDIOC_G_SELECTION
+.. c:macro:: VIDIOC_G_SELECTION
 
+``int ioctl(int fd, VIDIOC_G_SELECTION, struct v4l2_selection *argp)``
 
-.. c:function:: int ioctl( int fd, VIDIOC_S_SELECTION, struct v4l2_selection *argp )
-    :name: VIDIOC_S_SELECTION
+.. c:macro:: VIDIOC_S_SELECTION
 
+``int ioctl(int fd, VIDIOC_S_SELECTION, struct v4l2_selection *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_selection`.
@@ -122,7 +115,6 @@ constraints.
 Selection targets and flags are documented in
 :ref:`v4l2-selections-common`.
 
-
 .. _sel-const-adjust:
 
 .. kernel-figure::  constraints.svg
@@ -132,7 +124,6 @@ Selection targets and flags are documented in
     Size adjustments with constraint flags.
 
     Behaviour of rectangle adjustment for different constraint flags.
-
 
 
 
@@ -174,7 +165,6 @@ Selection targets and flags are documented in
    ``_MPLANE`` at the end).
 
    Starting with kernel 4.13 both variations are allowed.
-
 
 Return Value
 ============

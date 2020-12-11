@@ -484,7 +484,7 @@ static void bdc_phy_exit(struct bdc *bdc)
 static int bdc_probe(struct platform_device *pdev)
 {
 	struct bdc *bdc;
-	int ret = -ENOMEM;
+	int ret;
 	int irq;
 	u32 temp;
 	struct device *dev = &pdev->dev;
@@ -510,10 +510,9 @@ static int bdc_probe(struct platform_device *pdev)
 	bdc->clk = clk;
 
 	bdc->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(bdc->regs)) {
-		dev_err(dev, "ioremap error\n");
-		return -ENOMEM;
-	}
+	if (IS_ERR(bdc->regs))
+		return PTR_ERR(bdc->regs);
+
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;

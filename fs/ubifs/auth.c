@@ -54,7 +54,7 @@ static int ubifs_hash_calc_hmac(const struct ubifs_info *c, const u8 *hash,
  * ubifs_prepare_auth_node - Prepare an authentication node
  * @c: UBIFS file-system description object
  * @node: the node to calculate a hash for
- * @hash: input hash of previous nodes
+ * @inhash: input hash of previous nodes
  *
  * This function prepares an authentication node for writing onto flash.
  * It creates a HMAC from the given input hash and writes it to the node.

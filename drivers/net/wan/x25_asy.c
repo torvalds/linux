@@ -202,8 +202,7 @@ static void x25_asy_bump(struct x25_asy *sl)
 		return;
 	}
 	skb_put_data(skb, sl->rbuff, count);
-	skb->protocol = x25_type_trans(skb, sl->dev);
-	err = lapb_data_received(skb->dev, skb);
+	err = lapb_data_received(sl->dev, skb);
 	if (err != LAPB_OK) {
 		kfree_skb(skb);
 		printk(KERN_DEBUG "x25_asy: data received err - %d\n", err);
@@ -243,8 +242,6 @@ static void x25_asy_encaps(struct x25_asy *sl, unsigned char *icp, int len)
 	actual = sl->tty->ops->write(sl->tty, sl->xbuff, count);
 	sl->xleft = count - actual;
 	sl->xhead = sl->xbuff + actual;
-	/* VSV */
-	clear_bit(SLF_OUTWAIT, &sl->flags);	/* reset outfill flag */
 }
 
 /*

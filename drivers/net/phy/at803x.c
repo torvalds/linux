@@ -343,7 +343,7 @@ static int at803x_rgmii_reg_get_voltage_sel(struct regulator_dev *rdev)
 	return (val & AT803X_DEBUG_RGMII_1V8) ? 1 : 0;
 }
 
-static struct regulator_ops vddio_regulator_ops = {
+static const struct regulator_ops vddio_regulator_ops = {
 	.list_voltage = regulator_list_voltage_table,
 	.set_voltage_sel = at803x_rgmii_reg_set_voltage_sel,
 	.get_voltage_sel = at803x_rgmii_reg_get_voltage_sel,
@@ -364,7 +364,7 @@ static const struct regulator_desc vddio_desc = {
 	.owner = THIS_MODULE,
 };
 
-static struct regulator_ops vddh_regulator_ops = {
+static const struct regulator_ops vddh_regulator_ops = {
 };
 
 static const struct regulator_desc vddh_desc = {

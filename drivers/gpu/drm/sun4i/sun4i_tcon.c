@@ -474,9 +474,7 @@ static void sun4i_tcon0_mode_set_lvds(struct sun4i_tcon *tcon,
 		     SUN4I_TCON0_BASIC2_V_TOTAL(mode->crtc_vtotal * 2) |
 		     SUN4I_TCON0_BASIC2_V_BACKPORCH(bp));
 
-	reg = SUN4I_TCON0_LVDS_IF_CLK_SEL_TCON0 |
-		SUN4I_TCON0_LVDS_IF_DATA_POL_NORMAL |
-		SUN4I_TCON0_LVDS_IF_CLK_POL_NORMAL;
+	reg = SUN4I_TCON0_LVDS_IF_CLK_SEL_TCON0;
 	if (sun4i_tcon_get_pixel_depth(encoder) == 24)
 		reg |= SUN4I_TCON0_LVDS_IF_BITWIDTH_24BITS;
 	else
@@ -825,7 +823,7 @@ static int sun4i_tcon_init_irq(struct device *dev,
 	return 0;
 }
 
-static struct regmap_config sun4i_tcon_regmap_config = {
+static const struct regmap_config sun4i_tcon_regmap_config = {
 	.reg_bits	= 32,
 	.val_bits	= 32,
 	.reg_stride	= 4,

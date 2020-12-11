@@ -9,7 +9,8 @@
 struct ice_vsi;
 
 #ifdef CONFIG_XDP_SOCKETS
-int ice_xsk_umem_setup(struct ice_vsi *vsi, struct xdp_umem *umem, u16 qid);
+int ice_xsk_pool_setup(struct ice_vsi *vsi, struct xsk_buff_pool *pool,
+		       u16 qid);
 int ice_clean_rx_irq_zc(struct ice_ring *rx_ring, int budget);
 bool ice_clean_tx_irq_zc(struct ice_ring *xdp_ring, int budget);
 int ice_xsk_wakeup(struct net_device *netdev, u32 queue_id, u32 flags);
@@ -19,8 +20,8 @@ void ice_xsk_clean_rx_ring(struct ice_ring *rx_ring);
 void ice_xsk_clean_xdp_ring(struct ice_ring *xdp_ring);
 #else
 static inline int
-ice_xsk_umem_setup(struct ice_vsi __always_unused *vsi,
-		   struct xdp_umem __always_unused *umem,
+ice_xsk_pool_setup(struct ice_vsi __always_unused *vsi,
+		   struct xsk_buff_pool __always_unused *pool,
 		   u16 __always_unused qid)
 {
 	return -EOPNOTSUPP;

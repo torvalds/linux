@@ -2,7 +2,7 @@
 /*
  * Key management related functions.
  *
- * Copyright (c) 2017-2019, Silicon Laboratories, Inc.
+ * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  */
 #include <linux/etherdevice.h>
@@ -171,7 +171,7 @@ static int wfx_add_key(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	k.int_id = wvif->id;
 	k.entry_index = idx;
 	if (key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
-	    key->cipher ==  WLAN_CIPHER_SUITE_WEP104) {
+	    key->cipher == WLAN_CIPHER_SUITE_WEP104) {
 		if (pairwise)
 			k.type = fill_wep_pair(&k.key.wep_pairwise_key, key,
 					       sta->addr);
@@ -191,15 +191,15 @@ static int wfx_add_key(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 		else
 			k.type = fill_ccmp_group(&k.key.aes_group_key, key,
 						 &seq);
-	} else if (key->cipher ==  WLAN_CIPHER_SUITE_SMS4) {
+	} else if (key->cipher == WLAN_CIPHER_SUITE_SMS4) {
 		if (pairwise)
 			k.type = fill_sms4_pair(&k.key.wapi_pairwise_key, key,
 						sta->addr);
 		else
 			k.type = fill_sms4_group(&k.key.wapi_group_key, key);
-	} else if (key->cipher ==  WLAN_CIPHER_SUITE_AES_CMAC) {
-		k.type = fill_aes_cmac_group(&k.key.igtk_group_key, key,
-					     &seq);
+	} else if (key->cipher == WLAN_CIPHER_SUITE_AES_CMAC) {
+		k.type = fill_aes_cmac_group(&k.key.igtk_group_key, key, &seq);
+		key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIE;
 	} else {
 		dev_warn(wdev->dev, "unsupported key type %d\n", key->cipher);
 		wfx_free_key(wdev, idx);

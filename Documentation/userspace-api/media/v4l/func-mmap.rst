@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _func-mmap:
 
@@ -18,7 +12,6 @@ Name
 
 v4l2-mmap - Map device memory into application address space
 
-
 Synopsis
 ========
 
@@ -27,9 +20,7 @@ Synopsis
     #include <unistd.h>
     #include <sys/mman.h>
 
-
 .. c:function:: void *mmap( void *start, size_t length, int prot, int flags, int fd, off_t offset )
-    :name: v4l2-mmap
 
 Arguments
 =========
@@ -61,7 +52,7 @@ Arguments
       #. The Linux ``videobuf`` kernel module, which is used by some
 	 drivers supports only ``PROT_READ`` | ``PROT_WRITE``. When the
 	 driver does not support the desired protection, the
-	 :ref:`mmap() <func-mmap>` function fails.
+	 :c:func:`mmap()` function fails.
 
       #. Device memory accesses (e. g. the memory on a graphics card
 	 with video capturing hardware) may incur a performance penalty
@@ -77,7 +68,7 @@ Arguments
 
     ``MAP_FIXED`` requests that the driver selects no other address than
     the one specified. If the specified address cannot be used,
-    :ref:`mmap() <func-mmap>` will fail. If ``MAP_FIXED`` is specified,
+    :c:func:`mmap()` will fail. If ``MAP_FIXED`` is specified,
     ``start`` must be a multiple of the pagesize. Use of this option is
     discouraged.
 
@@ -94,7 +85,7 @@ Arguments
        flags.
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``offset``
     Offset of the buffer in device memory. This must be the same value
@@ -104,11 +95,10 @@ Arguments
     in the struct :c:type:`v4l2_plane` ``m`` union
     ``mem_offset`` field for the multi-planar API.
 
-
 Description
 ===========
 
-The :ref:`mmap() <func-mmap>` function asks to map ``length`` bytes starting at
+The :c:func:`mmap()` function asks to map ``length`` bytes starting at
 ``offset`` in the memory of the device specified by ``fd`` into the
 application address space, preferably at address ``start``. This latter
 address is a hint only, and is usually specified as 0.
@@ -118,13 +108,12 @@ Suitable length and offset parameters are queried with the
 allocated with the :ref:`VIDIOC_REQBUFS` ioctl
 before they can be queried.
 
-To unmap buffers the :ref:`munmap() <func-munmap>` function is used.
-
+To unmap buffers the :c:func:`munmap()` function is used.
 
 Return Value
 ============
 
-On success :ref:`mmap() <func-mmap>` returns a pointer to the mapped buffer. On
+On success :c:func:`mmap()` returns a pointer to the mapped buffer. On
 error ``MAP_FAILED`` (-1) is returned, and the ``errno`` variable is set
 appropriately. Possible error codes are:
 

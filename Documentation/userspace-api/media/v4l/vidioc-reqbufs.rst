@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_REQBUFS:
 
@@ -18,19 +12,18 @@ Name
 
 VIDIOC_REQBUFS - Initiate Memory Mapping, User Pointer I/O or DMA buffer I/O
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_REQBUFS, struct v4l2_requestbuffers *argp )
-    :name: VIDIOC_REQBUFS
+.. c:macro:: VIDIOC_REQBUFS
 
+``int ioctl(int fd, VIDIOC_REQBUFS, struct v4l2_requestbuffers *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_requestbuffers`.
@@ -75,7 +68,6 @@ orphaned and will be freed when they are unmapped or when the exported DMABUF
 fds are closed. A ``count`` value of zero frees or orphans all buffers, after
 aborting or finishing any DMA in progress, an implicit
 :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`.
-
 
 .. c:type:: v4l2_requestbuffers
 
@@ -164,7 +156,6 @@ aborting or finishing any DMA in progress, an implicit
         queue is used for :ref:`memory mapping <mmap>` streaming I/O. See
         :ref:`V4L2_BUF_FLAG_NO_CACHE_INVALIDATE <V4L2-BUF-FLAG-NO-CACHE-INVALIDATE>` and
         :ref:`V4L2_BUF_FLAG_NO_CACHE_CLEAN <V4L2-BUF-FLAG-NO-CACHE-CLEAN>`.
-
 
 Return Value
 ============

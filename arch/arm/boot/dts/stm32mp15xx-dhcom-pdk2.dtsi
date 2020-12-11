@@ -11,7 +11,6 @@
 		serial0 = &uart4;
 		serial1 = &usart3;
 		serial2 = &uart8;
-		ethernet0 = &ethernet0;
 	};
 
 	chosen {
@@ -26,21 +25,11 @@
 
 	display_bl: display-bl {
 		compatible = "pwm-backlight";
-		pwms = <&pwm2 0 500000 PWM_POLARITY_INVERTED>;
+		pwms = <&pwm2 3 500000 PWM_POLARITY_INVERTED>;
 		brightness-levels = <0 16 22 30 40 55 75 102 138 188 255>;
 		default-brightness-level = <8>;
 		enable-gpios = <&gpioi 0 GPIO_ACTIVE_HIGH>;
 		status = "okay";
-	};
-
-	ethernet_vio: vioregulator {
-		compatible = "regulator-fixed";
-		regulator-name = "vio";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&gpiog 3 GPIO_ACTIVE_LOW>;
-		regulator-always-on;
-		regulator-boot-on;
 	};
 
 	gpio-keys-polled {
@@ -139,28 +128,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&cec_pins_a>;
 	status = "okay";
-};
-
-&ethernet0 {
-	status = "okay";
-	pinctrl-0 = <&ethernet0_rmii_pins_a>;
-	pinctrl-1 = <&ethernet0_rmii_sleep_pins_a>;
-	pinctrl-names = "default", "sleep";
-	phy-mode = "rmii";
-	max-speed = <100>;
-	phy-handle = <&phy0>;
-	st,eth-ref-clk-sel;
-	phy-reset-gpios = <&gpioh 15 GPIO_ACTIVE_LOW>;
-
-	mdio0 {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		compatible = "snps,dwmac-mdio";
-
-		phy0: ethernet-phy@1 {
-			reg = <1>;
-		};
-	};
 };
 
 &i2c2 {	/* Header X22 */
@@ -304,7 +271,8 @@
 
 &uart8 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart8_pins_a>;
+	pinctrl-0 = <&uart8_pins_a &uart8_rtscts_pins_a>;
+	uart-has-rtscts;
 	status = "okay";
 };
 
@@ -314,9 +282,12 @@
 };
 
 &usbotg_hs {
-	dr_mode = "peripheral";
-	phys = <&usbphyc_port1 0>;
+	dr_mode = "otg";
+	pinctrl-0 = <&usbotg_hs_pins_a>;
+	pinctrl-names = "default";
 	phy-names = "usb2-phy";
+	phys = <&usbphyc_port1 0>;
+	vbus-supply = <&vbus_otg>;
 	status = "okay";
 };
 

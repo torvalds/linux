@@ -47,7 +47,6 @@ V_FUNCTION_END(__kernel_get_syscall_map)
  *
  * returns the timebase frequency in HZ
  */
-#ifndef CONFIG_PPC_BOOK3S_601
 V_FUNCTION_BEGIN(__kernel_get_tbfreq)
   .cfi_startproc
 	mflr	r12
@@ -60,4 +59,3 @@ V_FUNCTION_BEGIN(__kernel_get_tbfreq)
 	blr
   .cfi_endproc
 V_FUNCTION_END(__kernel_get_tbfreq)
-#endif

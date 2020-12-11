@@ -35,8 +35,6 @@
 #error "Number of MSI interrupts must be smaller or equal to GAUDI_MSI_ENTRIES"
 #endif
 
-#define QMAN_FENCE_TIMEOUT_USEC		10000		/* 10 ms */
-
 #define CORESIGHT_TIMEOUT_USEC		100000		/* 100 ms */
 
 #define GAUDI_MAX_CLK_FREQ		2200000000ull	/* 2200 MHz */
@@ -44,7 +42,7 @@
 #define MAX_POWER_DEFAULT_PCI		200000		/* 200W */
 #define MAX_POWER_DEFAULT_PMC		350000		/* 350W */
 
-#define GAUDI_CPU_TIMEOUT_USEC		15000000	/* 15s */
+#define GAUDI_CPU_TIMEOUT_USEC		30000000	/* 30s */
 
 #define TPC_ENABLED_MASK		0xFF
 
@@ -85,6 +83,14 @@
 #define TPC_CFG_OFFSET		(mmTPC1_CFG_BASE - mmTPC0_CFG_BASE)
 
 #define DMA_CORE_OFFSET		(mmDMA1_CORE_BASE - mmDMA0_CORE_BASE)
+
+#define QMAN_LDMA_SRC_OFFSET	(mmDMA0_CORE_SRC_BASE_LO - mmDMA0_CORE_CFG_0)
+#define QMAN_LDMA_DST_OFFSET	(mmDMA0_CORE_DST_BASE_LO - mmDMA0_CORE_CFG_0)
+#define QMAN_LDMA_SIZE_OFFSET	(mmDMA0_CORE_DST_TSIZE_0 - mmDMA0_CORE_CFG_0)
+
+#define QMAN_CPDMA_SRC_OFFSET	(mmDMA0_QM_CQ_PTR_LO_4 - mmDMA0_CORE_CFG_0)
+#define QMAN_CPDMA_DST_OFFSET	(mmDMA0_CORE_DST_BASE_LO - mmDMA0_CORE_CFG_0)
+#define QMAN_CPDMA_SIZE_OFFSET	(mmDMA0_QM_CQ_TSIZE_4 - mmDMA0_CORE_CFG_0)
 
 #define SIF_RTR_CTRL_OFFSET	(mmSIF_RTR_CTRL_1_BASE - mmSIF_RTR_CTRL_0_BASE)
 
@@ -142,28 +148,28 @@
 #define VA_HOST_SPACE_SIZE	(VA_HOST_SPACE_END - \
 					VA_HOST_SPACE_START) /* 767TB */
 
-#define HW_CAP_PLL		0x00000001
-#define HW_CAP_HBM		0x00000002
-#define HW_CAP_MMU		0x00000004
-#define HW_CAP_MME		0x00000008
-#define HW_CAP_CPU		0x00000010
-#define HW_CAP_PCI_DMA		0x00000020
-#define HW_CAP_MSI		0x00000040
-#define HW_CAP_CPU_Q		0x00000080
-#define HW_CAP_HBM_DMA		0x00000100
-#define HW_CAP_CLK_GATE		0x00000200
-#define HW_CAP_SRAM_SCRAMBLER	0x00000400
-#define HW_CAP_HBM_SCRAMBLER	0x00000800
+#define HW_CAP_PLL		BIT(0)
+#define HW_CAP_HBM		BIT(1)
+#define HW_CAP_MMU		BIT(2)
+#define HW_CAP_MME		BIT(3)
+#define HW_CAP_CPU		BIT(4)
+#define HW_CAP_PCI_DMA		BIT(5)
+#define HW_CAP_MSI		BIT(6)
+#define HW_CAP_CPU_Q		BIT(7)
+#define HW_CAP_HBM_DMA		BIT(8)
+#define HW_CAP_CLK_GATE		BIT(9)
+#define HW_CAP_SRAM_SCRAMBLER	BIT(10)
+#define HW_CAP_HBM_SCRAMBLER	BIT(11)
 
-#define HW_CAP_TPC0		0x01000000
-#define HW_CAP_TPC1		0x02000000
-#define HW_CAP_TPC2		0x04000000
-#define HW_CAP_TPC3		0x08000000
-#define HW_CAP_TPC4		0x10000000
-#define HW_CAP_TPC5		0x20000000
-#define HW_CAP_TPC6		0x40000000
-#define HW_CAP_TPC7		0x80000000
-#define HW_CAP_TPC_MASK		0xFF000000
+#define HW_CAP_TPC0		BIT(24)
+#define HW_CAP_TPC1		BIT(25)
+#define HW_CAP_TPC2		BIT(26)
+#define HW_CAP_TPC3		BIT(27)
+#define HW_CAP_TPC4		BIT(28)
+#define HW_CAP_TPC5		BIT(29)
+#define HW_CAP_TPC6		BIT(30)
+#define HW_CAP_TPC7		BIT(31)
+#define HW_CAP_TPC_MASK		GENMASK(31, 24)
 #define HW_CAP_TPC_SHIFT	24
 
 #define GAUDI_CPU_PCI_MSB_ADDR(addr)	(((addr) & GENMASK_ULL(49, 39)) >> 39)
@@ -216,7 +222,7 @@ struct gaudi_internal_qman_info {
 
 /**
  * struct gaudi_device - ASIC specific manage structure.
- * @armcp_info_get: get information on device from ArmCP
+ * @cpucp_info_get: get information on device from CPU-CP
  * @hw_queues_lock: protects the H/W queues from concurrent access.
  * @clk_gate_mutex: protects code areas that require clock gating to be disabled
  *                  temporarily
@@ -239,7 +245,7 @@ struct gaudi_internal_qman_info {
  *                    8-bit value so use u8.
  */
 struct gaudi_device {
-	int (*armcp_info_get)(struct hl_device *hdev);
+	int (*cpucp_info_get)(struct hl_device *hdev);
 
 	/* TODO: remove hw_queues_lock after moving to scheduler code */
 	spinlock_t			hw_queues_lock;

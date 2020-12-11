@@ -119,8 +119,21 @@ enum pmbus_regs {
 	PMBUS_MFR_DATE			= 0x9D,
 	PMBUS_MFR_SERIAL		= 0x9E,
 
+	PMBUS_MFR_VIN_MIN		= 0xA0,
+	PMBUS_MFR_VIN_MAX		= 0xA1,
+	PMBUS_MFR_IIN_MAX		= 0xA2,
+	PMBUS_MFR_PIN_MAX		= 0xA3,
+	PMBUS_MFR_VOUT_MIN		= 0xA4,
+	PMBUS_MFR_VOUT_MAX		= 0xA5,
+	PMBUS_MFR_IOUT_MAX		= 0xA6,
+	PMBUS_MFR_POUT_MAX		= 0xA7,
+
 	PMBUS_IC_DEVICE_ID		= 0xAD,
 	PMBUS_IC_DEVICE_REV		= 0xAE,
+
+	PMBUS_MFR_MAX_TEMP_1		= 0xC0,
+	PMBUS_MFR_MAX_TEMP_2		= 0xC1,
+	PMBUS_MFR_MAX_TEMP_3		= 0xC2,
 
 /*
  * Virtual registers.
@@ -476,8 +489,7 @@ int pmbus_update_byte_data(struct i2c_client *client, int page, u8 reg,
 void pmbus_clear_faults(struct i2c_client *client);
 bool pmbus_check_byte_register(struct i2c_client *client, int page, int reg);
 bool pmbus_check_word_register(struct i2c_client *client, int page, int reg);
-int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
-		   struct pmbus_driver_info *info);
+int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info);
 int pmbus_do_remove(struct i2c_client *client);
 const struct pmbus_driver_info *pmbus_get_driver_info(struct i2c_client
 						      *client);

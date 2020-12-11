@@ -470,7 +470,7 @@ static int adv7511_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 			reg->val = adv7511_cec_read(sd, reg->reg & 0xff);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		v4l2_info(sd, "Register %03llx not supported\n", reg->reg);
 		adv7511_inv_register(sd);
@@ -492,7 +492,7 @@ static int adv7511_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_regi
 			adv7511_cec_write(sd, reg->reg & 0xff, reg->val & 0xff);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		v4l2_info(sd, "Register %03llx not supported\n", reg->reg);
 		adv7511_inv_register(sd);

@@ -39,7 +39,7 @@
 
 #define ETHSW_FEATURE_MAC_ADDR	BIT(0)
 
-extern const struct ethtool_ops ethsw_port_ethtool_ops;
+extern const struct ethtool_ops dpaa2_switch_port_ethtool_ops;
 
 struct ethsw_core;
 

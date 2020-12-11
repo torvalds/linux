@@ -28,6 +28,7 @@
 
 #include "i915_drv.h"
 
+#include "intel_breadcrumbs.h"
 #include "intel_context.h"
 #include "intel_engine.h"
 #include "intel_engine_pm.h"
@@ -634,7 +635,7 @@ static int pin_ggtt_status_page(struct intel_engine_cs *engine,
 	else
 		flags = PIN_HIGH;
 
-	return i915_ggtt_pin(vma, 0, flags);
+	return i915_ggtt_pin(vma, NULL, 0, flags);
 }
 
 static int init_status_page(struct intel_engine_cs *engine)
@@ -700,8 +701,13 @@ static int engine_setup_common(struct intel_engine_cs *engine)
 	if (err)
 		return err;
 
+	engine->breadcrumbs = intel_breadcrumbs_create(engine);
+	if (!engine->breadcrumbs) {
+		err = -ENOMEM;
+		goto err_status;
+	}
+
 	intel_engine_init_active(engine, ENGINE_PHYSICAL);
-	intel_engine_init_breadcrumbs(engine);
 	intel_engine_init_execlists(engine);
 	intel_engine_init_cmd_parser(engine);
 	intel_engine_init__pm(engine);
@@ -716,6 +722,10 @@ static int engine_setup_common(struct intel_engine_cs *engine)
 	intel_engine_init_ctx_wa(engine);
 
 	return 0;
+
+err_status:
+	cleanup_status_page(engine);
+	return err;
 }
 
 struct measure_breadcrumb {
@@ -785,9 +795,11 @@ intel_engine_init_active(struct intel_engine_cs *engine, unsigned int subclass)
 }
 
 static struct intel_context *
-create_kernel_context(struct intel_engine_cs *engine)
+create_pinned_context(struct intel_engine_cs *engine,
+		      unsigned int hwsp,
+		      struct lock_class_key *key,
+		      const char *name)
 {
-	static struct lock_class_key kernel;
 	struct intel_context *ce;
 	int err;
 
@@ -796,6 +808,7 @@ create_kernel_context(struct intel_engine_cs *engine)
 		return ce;
 
 	__set_bit(CONTEXT_BARRIER_BIT, &ce->flags);
+	ce->timeline = page_pack_bits(NULL, hwsp);
 
 	err = intel_context_pin(ce); /* perma-pin so it is always available */
 	if (err) {
@@ -809,9 +822,18 @@ create_kernel_context(struct intel_engine_cs *engine)
 	 * should we need to inject GPU operations during their request
 	 * construction.
 	 */
-	lockdep_set_class(&ce->timeline->mutex, &kernel);
+	lockdep_set_class_and_name(&ce->timeline->mutex, key, name);
 
 	return ce;
+}
+
+static struct intel_context *
+create_kernel_context(struct intel_engine_cs *engine)
+{
+	static struct lock_class_key kernel;
+
+	return create_pinned_context(engine, I915_GEM_HWS_SEQNO_ADDR,
+				     &kernel, "kernel_context");
 }
 
 /**
@@ -902,9 +924,9 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	tasklet_kill(&engine->execlists.tasklet); /* flush the callback */
 
 	cleanup_status_page(engine);
+	intel_breadcrumbs_free(engine->breadcrumbs);
 
 	intel_engine_fini_retire(engine);
-	intel_engine_fini_breadcrumbs(engine);
 	intel_engine_cleanup_cmd_parser(engine);
 
 	if (engine->default_state)

@@ -2,21 +2,34 @@
 
 #include <net/xsk_buff_pool.h>
 #include <net/xdp_sock.h>
+#include <net/xdp_sock_drv.h>
 
 #include "xsk_queue.h"
+#include "xdp_umem.h"
+#include "xsk.h"
 
-static void xp_addr_unmap(struct xsk_buff_pool *pool)
+void xp_add_xsk(struct xsk_buff_pool *pool, struct xdp_sock *xs)
 {
-	vunmap(pool->addrs);
+	unsigned long flags;
+
+	if (!xs->tx)
+		return;
+
+	spin_lock_irqsave(&pool->xsk_tx_list_lock, flags);
+	list_add_rcu(&xs->tx_list, &pool->xsk_tx_list);
+	spin_unlock_irqrestore(&pool->xsk_tx_list_lock, flags);
 }
 
-static int xp_addr_map(struct xsk_buff_pool *pool,
-		       struct page **pages, u32 nr_pages)
+void xp_del_xsk(struct xsk_buff_pool *pool, struct xdp_sock *xs)
 {
-	pool->addrs = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
-	if (!pool->addrs)
-		return -ENOMEM;
-	return 0;
+	unsigned long flags;
+
+	if (!xs->tx)
+		return;
+
+	spin_lock_irqsave(&pool->xsk_tx_list_lock, flags);
+	list_del_rcu(&xs->tx_list);
+	spin_unlock_irqrestore(&pool->xsk_tx_list_lock, flags);
 }
 
 void xp_destroy(struct xsk_buff_pool *pool)
@@ -24,57 +37,59 @@ void xp_destroy(struct xsk_buff_pool *pool)
 	if (!pool)
 		return;
 
-	xp_addr_unmap(pool);
 	kvfree(pool->heads);
 	kvfree(pool);
 }
 
-struct xsk_buff_pool *xp_create(struct page **pages, u32 nr_pages, u32 chunks,
-				u32 chunk_size, u32 headroom, u64 size,
-				bool unaligned)
+struct xsk_buff_pool *xp_create_and_assign_umem(struct xdp_sock *xs,
+						struct xdp_umem *umem)
 {
 	struct xsk_buff_pool *pool;
 	struct xdp_buff_xsk *xskb;
-	int err;
 	u32 i;
 
-	pool = kvzalloc(struct_size(pool, free_heads, chunks), GFP_KERNEL);
+	pool = kvzalloc(struct_size(pool, free_heads, umem->chunks),
+			GFP_KERNEL);
 	if (!pool)
 		goto out;
 
-	pool->heads = kvcalloc(chunks, sizeof(*pool->heads), GFP_KERNEL);
+	pool->heads = kvcalloc(umem->chunks, sizeof(*pool->heads), GFP_KERNEL);
 	if (!pool->heads)
 		goto out;
 
-	pool->chunk_mask = ~((u64)chunk_size - 1);
-	pool->addrs_cnt = size;
-	pool->heads_cnt = chunks;
-	pool->free_heads_cnt = chunks;
-	pool->headroom = headroom;
-	pool->chunk_size = chunk_size;
-	pool->unaligned = unaligned;
-	pool->frame_len = chunk_size - headroom - XDP_PACKET_HEADROOM;
+	pool->chunk_mask = ~((u64)umem->chunk_size - 1);
+	pool->addrs_cnt = umem->size;
+	pool->heads_cnt = umem->chunks;
+	pool->free_heads_cnt = umem->chunks;
+	pool->headroom = umem->headroom;
+	pool->chunk_size = umem->chunk_size;
+	pool->unaligned = umem->flags & XDP_UMEM_UNALIGNED_CHUNK_FLAG;
+	pool->frame_len = umem->chunk_size - umem->headroom -
+		XDP_PACKET_HEADROOM;
+	pool->umem = umem;
+	pool->addrs = umem->addrs;
 	INIT_LIST_HEAD(&pool->free_list);
+	INIT_LIST_HEAD(&pool->xsk_tx_list);
+	spin_lock_init(&pool->xsk_tx_list_lock);
+	refcount_set(&pool->users, 1);
+
+	pool->fq = xs->fq_tmp;
+	pool->cq = xs->cq_tmp;
+	xs->fq_tmp = NULL;
+	xs->cq_tmp = NULL;
 
 	for (i = 0; i < pool->free_heads_cnt; i++) {
 		xskb = &pool->heads[i];
 		xskb->pool = pool;
-		xskb->xdp.frame_sz = chunk_size - headroom;
+		xskb->xdp.frame_sz = umem->chunk_size - umem->headroom;
 		pool->free_heads[i] = xskb;
 	}
 
-	err = xp_addr_map(pool, pages, nr_pages);
-	if (!err)
-		return pool;
+	return pool;
 
 out:
 	xp_destroy(pool);
 	return NULL;
-}
-
-void xp_set_fq(struct xsk_buff_pool *pool, struct xsk_queue *fq)
-{
-	pool->fq = fq;
 }
 
 void xp_set_rxq_info(struct xsk_buff_pool *pool, struct xdp_rxq_info *rxq)
@@ -86,70 +101,320 @@ void xp_set_rxq_info(struct xsk_buff_pool *pool, struct xdp_rxq_info *rxq)
 }
 EXPORT_SYMBOL(xp_set_rxq_info);
 
-void xp_dma_unmap(struct xsk_buff_pool *pool, unsigned long attrs)
+static void xp_disable_drv_zc(struct xsk_buff_pool *pool)
+{
+	struct netdev_bpf bpf;
+	int err;
+
+	ASSERT_RTNL();
+
+	if (pool->umem->zc) {
+		bpf.command = XDP_SETUP_XSK_POOL;
+		bpf.xsk.pool = NULL;
+		bpf.xsk.queue_id = pool->queue_id;
+
+		err = pool->netdev->netdev_ops->ndo_bpf(pool->netdev, &bpf);
+
+		if (err)
+			WARN(1, "Failed to disable zero-copy!\n");
+	}
+}
+
+static int __xp_assign_dev(struct xsk_buff_pool *pool,
+			   struct net_device *netdev, u16 queue_id, u16 flags)
+{
+	bool force_zc, force_copy;
+	struct netdev_bpf bpf;
+	int err = 0;
+
+	ASSERT_RTNL();
+
+	force_zc = flags & XDP_ZEROCOPY;
+	force_copy = flags & XDP_COPY;
+
+	if (force_zc && force_copy)
+		return -EINVAL;
+
+	if (xsk_get_pool_from_qid(netdev, queue_id))
+		return -EBUSY;
+
+	pool->netdev = netdev;
+	pool->queue_id = queue_id;
+	err = xsk_reg_pool_at_qid(netdev, pool, queue_id);
+	if (err)
+		return err;
+
+	if (flags & XDP_USE_NEED_WAKEUP) {
+		pool->uses_need_wakeup = true;
+		/* Tx needs to be explicitly woken up the first time.
+		 * Also for supporting drivers that do not implement this
+		 * feature. They will always have to call sendto().
+		 */
+		pool->cached_need_wakeup = XDP_WAKEUP_TX;
+	}
+
+	dev_hold(netdev);
+
+	if (force_copy)
+		/* For copy-mode, we are done. */
+		return 0;
+
+	if (!netdev->netdev_ops->ndo_bpf ||
+	    !netdev->netdev_ops->ndo_xsk_wakeup) {
+		err = -EOPNOTSUPP;
+		goto err_unreg_pool;
+	}
+
+	bpf.command = XDP_SETUP_XSK_POOL;
+	bpf.xsk.pool = pool;
+	bpf.xsk.queue_id = queue_id;
+
+	err = netdev->netdev_ops->ndo_bpf(netdev, &bpf);
+	if (err)
+		goto err_unreg_pool;
+
+	if (!pool->dma_pages) {
+		WARN(1, "Driver did not DMA map zero-copy buffers");
+		goto err_unreg_xsk;
+	}
+	pool->umem->zc = true;
+	return 0;
+
+err_unreg_xsk:
+	xp_disable_drv_zc(pool);
+err_unreg_pool:
+	if (!force_zc)
+		err = 0; /* fallback to copy mode */
+	if (err)
+		xsk_clear_pool_at_qid(netdev, queue_id);
+	return err;
+}
+
+int xp_assign_dev(struct xsk_buff_pool *pool, struct net_device *dev,
+		  u16 queue_id, u16 flags)
+{
+	return __xp_assign_dev(pool, dev, queue_id, flags);
+}
+
+int xp_assign_dev_shared(struct xsk_buff_pool *pool, struct xdp_umem *umem,
+			 struct net_device *dev, u16 queue_id)
+{
+	u16 flags;
+
+	/* One fill and completion ring required for each queue id. */
+	if (!pool->fq || !pool->cq)
+		return -EINVAL;
+
+	flags = umem->zc ? XDP_ZEROCOPY : XDP_COPY;
+	if (pool->uses_need_wakeup)
+		flags |= XDP_USE_NEED_WAKEUP;
+
+	return __xp_assign_dev(pool, dev, queue_id, flags);
+}
+
+void xp_clear_dev(struct xsk_buff_pool *pool)
+{
+	if (!pool->netdev)
+		return;
+
+	xp_disable_drv_zc(pool);
+	xsk_clear_pool_at_qid(pool->netdev, pool->queue_id);
+	dev_put(pool->netdev);
+	pool->netdev = NULL;
+}
+
+static void xp_release_deferred(struct work_struct *work)
+{
+	struct xsk_buff_pool *pool = container_of(work, struct xsk_buff_pool,
+						  work);
+
+	rtnl_lock();
+	xp_clear_dev(pool);
+	rtnl_unlock();
+
+	if (pool->fq) {
+		xskq_destroy(pool->fq);
+		pool->fq = NULL;
+	}
+
+	if (pool->cq) {
+		xskq_destroy(pool->cq);
+		pool->cq = NULL;
+	}
+
+	xdp_put_umem(pool->umem);
+	xp_destroy(pool);
+}
+
+void xp_get_pool(struct xsk_buff_pool *pool)
+{
+	refcount_inc(&pool->users);
+}
+
+void xp_put_pool(struct xsk_buff_pool *pool)
+{
+	if (!pool)
+		return;
+
+	if (refcount_dec_and_test(&pool->users)) {
+		INIT_WORK(&pool->work, xp_release_deferred);
+		schedule_work(&pool->work);
+	}
+}
+
+static struct xsk_dma_map *xp_find_dma_map(struct xsk_buff_pool *pool)
+{
+	struct xsk_dma_map *dma_map;
+
+	list_for_each_entry(dma_map, &pool->umem->xsk_dma_list, list) {
+		if (dma_map->netdev == pool->netdev)
+			return dma_map;
+	}
+
+	return NULL;
+}
+
+static struct xsk_dma_map *xp_create_dma_map(struct device *dev, struct net_device *netdev,
+					     u32 nr_pages, struct xdp_umem *umem)
+{
+	struct xsk_dma_map *dma_map;
+
+	dma_map = kzalloc(sizeof(*dma_map), GFP_KERNEL);
+	if (!dma_map)
+		return NULL;
+
+	dma_map->dma_pages = kvcalloc(nr_pages, sizeof(*dma_map->dma_pages), GFP_KERNEL);
+	if (!dma_map->dma_pages) {
+		kfree(dma_map);
+		return NULL;
+	}
+
+	dma_map->netdev = netdev;
+	dma_map->dev = dev;
+	dma_map->dma_need_sync = false;
+	dma_map->dma_pages_cnt = nr_pages;
+	refcount_set(&dma_map->users, 1);
+	list_add(&dma_map->list, &umem->xsk_dma_list);
+	return dma_map;
+}
+
+static void xp_destroy_dma_map(struct xsk_dma_map *dma_map)
+{
+	list_del(&dma_map->list);
+	kvfree(dma_map->dma_pages);
+	kfree(dma_map);
+}
+
+static void __xp_dma_unmap(struct xsk_dma_map *dma_map, unsigned long attrs)
 {
 	dma_addr_t *dma;
 	u32 i;
 
-	if (pool->dma_pages_cnt == 0)
-		return;
-
-	for (i = 0; i < pool->dma_pages_cnt; i++) {
-		dma = &pool->dma_pages[i];
+	for (i = 0; i < dma_map->dma_pages_cnt; i++) {
+		dma = &dma_map->dma_pages[i];
 		if (*dma) {
-			dma_unmap_page_attrs(pool->dev, *dma, PAGE_SIZE,
+			dma_unmap_page_attrs(dma_map->dev, *dma, PAGE_SIZE,
 					     DMA_BIDIRECTIONAL, attrs);
 			*dma = 0;
 		}
 	}
 
+	xp_destroy_dma_map(dma_map);
+}
+
+void xp_dma_unmap(struct xsk_buff_pool *pool, unsigned long attrs)
+{
+	struct xsk_dma_map *dma_map;
+
+	if (pool->dma_pages_cnt == 0)
+		return;
+
+	dma_map = xp_find_dma_map(pool);
+	if (!dma_map) {
+		WARN(1, "Could not find dma_map for device");
+		return;
+	}
+
+	if (!refcount_dec_and_test(&dma_map->users))
+		return;
+
+	__xp_dma_unmap(dma_map, attrs);
 	kvfree(pool->dma_pages);
 	pool->dma_pages_cnt = 0;
 	pool->dev = NULL;
 }
 EXPORT_SYMBOL(xp_dma_unmap);
 
-static void xp_check_dma_contiguity(struct xsk_buff_pool *pool)
+static void xp_check_dma_contiguity(struct xsk_dma_map *dma_map)
 {
 	u32 i;
 
-	for (i = 0; i < pool->dma_pages_cnt - 1; i++) {
-		if (pool->dma_pages[i] + PAGE_SIZE == pool->dma_pages[i + 1])
-			pool->dma_pages[i] |= XSK_NEXT_PG_CONTIG_MASK;
+	for (i = 0; i < dma_map->dma_pages_cnt - 1; i++) {
+		if (dma_map->dma_pages[i] + PAGE_SIZE == dma_map->dma_pages[i + 1])
+			dma_map->dma_pages[i] |= XSK_NEXT_PG_CONTIG_MASK;
 		else
-			pool->dma_pages[i] &= ~XSK_NEXT_PG_CONTIG_MASK;
+			dma_map->dma_pages[i] &= ~XSK_NEXT_PG_CONTIG_MASK;
 	}
+}
+
+static int xp_init_dma_info(struct xsk_buff_pool *pool, struct xsk_dma_map *dma_map)
+{
+	pool->dma_pages = kvcalloc(dma_map->dma_pages_cnt, sizeof(*pool->dma_pages), GFP_KERNEL);
+	if (!pool->dma_pages)
+		return -ENOMEM;
+
+	pool->dev = dma_map->dev;
+	pool->dma_pages_cnt = dma_map->dma_pages_cnt;
+	pool->dma_need_sync = dma_map->dma_need_sync;
+	memcpy(pool->dma_pages, dma_map->dma_pages,
+	       pool->dma_pages_cnt * sizeof(*pool->dma_pages));
+
+	return 0;
 }
 
 int xp_dma_map(struct xsk_buff_pool *pool, struct device *dev,
 	       unsigned long attrs, struct page **pages, u32 nr_pages)
 {
+	struct xsk_dma_map *dma_map;
 	dma_addr_t dma;
+	int err;
 	u32 i;
 
-	pool->dma_pages = kvcalloc(nr_pages, sizeof(*pool->dma_pages),
-				   GFP_KERNEL);
-	if (!pool->dma_pages)
+	dma_map = xp_find_dma_map(pool);
+	if (dma_map) {
+		err = xp_init_dma_info(pool, dma_map);
+		if (err)
+			return err;
+
+		refcount_inc(&dma_map->users);
+		return 0;
+	}
+
+	dma_map = xp_create_dma_map(dev, pool->netdev, nr_pages, pool->umem);
+	if (!dma_map)
 		return -ENOMEM;
 
-	pool->dev = dev;
-	pool->dma_pages_cnt = nr_pages;
-	pool->dma_need_sync = false;
-
-	for (i = 0; i < pool->dma_pages_cnt; i++) {
+	for (i = 0; i < dma_map->dma_pages_cnt; i++) {
 		dma = dma_map_page_attrs(dev, pages[i], 0, PAGE_SIZE,
 					 DMA_BIDIRECTIONAL, attrs);
 		if (dma_mapping_error(dev, dma)) {
-			xp_dma_unmap(pool, attrs);
+			__xp_dma_unmap(dma_map, attrs);
 			return -ENOMEM;
 		}
 		if (dma_need_sync(dev, dma))
-			pool->dma_need_sync = true;
-		pool->dma_pages[i] = dma;
+			dma_map->dma_need_sync = true;
+		dma_map->dma_pages[i] = dma;
 	}
 
 	if (pool->unaligned)
-		xp_check_dma_contiguity(pool);
+		xp_check_dma_contiguity(dma_map);
+
+	err = xp_init_dma_info(pool, dma_map);
+	if (err) {
+		__xp_dma_unmap(dma_map, attrs);
+		return err;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(xp_dma_map);

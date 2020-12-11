@@ -848,7 +848,6 @@ static int a3700_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 
 	spi = spi_master_get_devdata(master);
-	memset(spi, 0, sizeof(struct a3700_spi));
 
 	spi->master = master;
 

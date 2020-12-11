@@ -313,7 +313,7 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 					    __func__, info->qp_cq_id);
 				continue;
 			}
-			i40iw_add_ref(&iwqp->ibqp);
+			i40iw_qp_add_ref(&iwqp->ibqp);
 			spin_unlock_irqrestore(&iwdev->qptable_lock, flags);
 			qp = &iwqp->sc_qp;
 			spin_lock_irqsave(&iwqp->lock, flags);
@@ -426,7 +426,7 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 			break;
 		}
 		if (info->qp)
-			i40iw_rem_ref(&iwqp->ibqp);
+			i40iw_qp_rem_ref(&iwqp->ibqp);
 	} while (1);
 
 	if (aeqcnt)

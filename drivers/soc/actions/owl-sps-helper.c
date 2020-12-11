@@ -10,6 +10,7 @@
 
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/soc/actions/owl-sps.h>
 
 #define OWL_SPS_PG_CTL	0x0
 

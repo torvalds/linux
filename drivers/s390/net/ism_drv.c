@@ -13,6 +13,8 @@
 #include <linux/device.h>
 #include <linux/pci.h>
 #include <linux/err.h>
+#include <linux/ctype.h>
+#include <linux/processor.h>
 #include <net/smc.h>
 
 #include <asm/debug.h>
@@ -387,6 +389,42 @@ static int ism_move(struct smcd_dev *smcd, u64 dmb_tok, unsigned int idx,
 	return 0;
 }
 
+static struct ism_systemeid SYSTEM_EID = {
+	.seid_string = "IBM-SYSZ-IBMSEID00000000",
+	.serial_number = "0000",
+	.type = "0000",
+};
+
+static void ism_create_system_eid(void)
+{
+	struct cpuid id;
+	u16 ident_tail;
+	char tmp[5];
+
+	get_cpu_id(&id);
+	ident_tail = (u16)(id.ident & ISM_IDENT_MASK);
+	snprintf(tmp, 5, "%04X", ident_tail);
+	memcpy(&SYSTEM_EID.serial_number, tmp, 4);
+	snprintf(tmp, 5, "%04X", id.machine);
+	memcpy(&SYSTEM_EID.type, tmp, 4);
+}
+
+static void ism_get_system_eid(struct smcd_dev *smcd, u8 **eid)
+{
+	*eid = &SYSTEM_EID.seid_string[0];
+}
+
+static u16 ism_get_chid(struct smcd_dev *smcd)
+{
+	struct ism_dev *ismdev;
+
+	ismdev = (struct ism_dev *)smcd->priv;
+	if (!ismdev || !ismdev->pdev)
+		return 0;
+
+	return to_zpci(ismdev->pdev)->pchid;
+}
+
 static void ism_handle_event(struct ism_dev *ism)
 {
 	struct smcd_event *entry;
@@ -443,6 +481,8 @@ static const struct smcd_ops ism_ops = {
 	.reset_vlan_required = ism_reset_vlan_required,
 	.signal_event = ism_signal_ieq,
 	.move_data = ism_move,
+	.get_system_eid = ism_get_system_eid,
+	.get_chid = ism_get_chid,
 };
 
 static int ism_dev_init(struct ism_dev *ism)
@@ -470,6 +510,10 @@ static int ism_dev_init(struct ism_dev *ism)
 	ret = ism_read_local_gid(ism);
 	if (ret)
 		goto unreg_ieq;
+
+	if (!ism_add_vlan_id(ism->smcd, ISM_RESERVED_VLANID))
+		/* hardware is V2 capable */
+		ism_create_system_eid();
 
 	ret = smcd_register_dev(ism->smcd);
 	if (ret)
@@ -550,6 +594,9 @@ static void ism_dev_exit(struct ism_dev *ism)
 	struct pci_dev *pdev = ism->pdev;
 
 	smcd_unregister_dev(ism->smcd);
+	if (SYSTEM_EID.serial_number[0] != '0' ||
+	    SYSTEM_EID.type[0] != '0')
+		ism_del_vlan_id(ism->smcd, ISM_RESERVED_VLANID);
 	unregister_ieq(ism);
 	unregister_sba(ism);
 	free_irq(pci_irq_vector(pdev, 0), ism);

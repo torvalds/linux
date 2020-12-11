@@ -10,13 +10,16 @@
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 
 #include <drm/drm_bridge.h>
 #include <drm/drm_panel.h>
 
 struct lvds_codec {
+	struct device *dev;
 	struct drm_bridge bridge;
 	struct drm_bridge *panel_bridge;
+	struct regulator *vcc;
 	struct gpio_desc *powerdown_gpio;
 	u32 connector_type;
 };
@@ -38,6 +41,14 @@ static int lvds_codec_attach(struct drm_bridge *bridge,
 static void lvds_codec_enable(struct drm_bridge *bridge)
 {
 	struct lvds_codec *lvds_codec = to_lvds_codec(bridge);
+	int ret;
+
+	ret = regulator_enable(lvds_codec->vcc);
+	if (ret) {
+		dev_err(lvds_codec->dev,
+			"Failed to enable regulator \"vcc\": %d\n", ret);
+		return;
+	}
 
 	if (lvds_codec->powerdown_gpio)
 		gpiod_set_value_cansleep(lvds_codec->powerdown_gpio, 0);
@@ -46,9 +57,15 @@ static void lvds_codec_enable(struct drm_bridge *bridge)
 static void lvds_codec_disable(struct drm_bridge *bridge)
 {
 	struct lvds_codec *lvds_codec = to_lvds_codec(bridge);
+	int ret;
 
 	if (lvds_codec->powerdown_gpio)
 		gpiod_set_value_cansleep(lvds_codec->powerdown_gpio, 1);
+
+	ret = regulator_disable(lvds_codec->vcc);
+	if (ret)
+		dev_err(lvds_codec->dev,
+			"Failed to disable regulator \"vcc\": %d\n", ret);
 }
 
 static const struct drm_bridge_funcs funcs = {
@@ -63,12 +80,24 @@ static int lvds_codec_probe(struct platform_device *pdev)
 	struct device_node *panel_node;
 	struct drm_panel *panel;
 	struct lvds_codec *lvds_codec;
+	int ret;
 
 	lvds_codec = devm_kzalloc(dev, sizeof(*lvds_codec), GFP_KERNEL);
 	if (!lvds_codec)
 		return -ENOMEM;
 
+	lvds_codec->dev = &pdev->dev;
 	lvds_codec->connector_type = (uintptr_t)of_device_get_match_data(dev);
+
+	lvds_codec->vcc = devm_regulator_get(lvds_codec->dev, "power");
+	if (IS_ERR(lvds_codec->vcc)) {
+		ret = PTR_ERR(lvds_codec->vcc);
+		if (ret != -EPROBE_DEFER)
+			dev_err(lvds_codec->dev,
+				"Unable to get \"vcc\" supply: %d\n", ret);
+		return ret;
+	}
+
 	lvds_codec->powerdown_gpio = devm_gpiod_get_optional(dev, "powerdown",
 							     GPIOD_OUT_HIGH);
 	if (IS_ERR(lvds_codec->powerdown_gpio))

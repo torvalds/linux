@@ -165,6 +165,7 @@ struct nand_bch_control *nand_bch_init(struct mtd_info *mtd)
 	 */
 	nand->ecc.steps = eccsteps;
 	nand->ecc.total = eccsteps * eccbytes;
+	nand->base.ecc.ctx.total = nand->ecc.total;
 	if (mtd_ooblayout_count_eccbytes(mtd) != (eccsteps*eccbytes)) {
 		pr_warn("invalid ecc layout\n");
 		goto fail;

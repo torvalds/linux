@@ -26,18 +26,18 @@
 &blsp1_uart3 {
 	pinctrl-0 = <&serial_3_pins>;
 	pinctrl-names = "default";
-	status = "ok";
+	status = "okay";
 };
 
 &i2c_1 {
 	pinctrl-0 = <&i2c_1_pins>;
 	pinctrl-names = "default";
-	status = "ok";
+	status = "okay";
 };
 
 &spi_0 {
 	cs-select = <0>;
-	status = "ok";
+	status = "okay";
 
 	m25p80@0 {
 		#address-cells = <1>;

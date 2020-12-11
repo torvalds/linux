@@ -132,4 +132,29 @@ config SND_MCHP_SOC_I2S_MCC
 	  and supports a Time Division Multiplexed (TDM) interface with
 	  external multi-channel audio codecs.
 
+config SND_MCHP_SOC_SPDIFTX
+	tristate "Microchip ASoC driver for boards using S/PDIF TX"
+	depends on OF && (ARCH_AT91 || COMPILE_TEST)
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	help
+	  Say Y or M if you want to add support for Microchip S/PDIF TX ASoc
+	  driver on the following Microchip platforms:
+	  - sama7g5
+
+	  This S/PDIF TX driver is compliant with IEC-60958 standard and
+	  includes programable User Data and Channel Status fields.
+
+config SND_MCHP_SOC_SPDIFRX
+	tristate "Microchip ASoC driver for boards using S/PDIF RX"
+	depends on OF && (ARCH_AT91 || COMPILE_TEST)
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	help
+	  Say Y or M if you want to add support for Microchip S/PDIF RX ASoc
+	  driver on the following Microchip platforms:
+	  - sama7g5
+
+	  This S/PDIF RX driver is compliant with IEC-60958 standard and
+	  includes programable User Data and Channel Status fields.
 endif

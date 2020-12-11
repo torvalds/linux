@@ -21,3 +21,5 @@ properties:
     items:
       - const: pcie-phy
     # FIXME: names when more than 1
+
+additionalProperties: true

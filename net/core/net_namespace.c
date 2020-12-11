@@ -19,6 +19,7 @@
 #include <linux/net_namespace.h>
 #include <linux/sched/task.h>
 #include <linux/uidgid.h>
+#include <linux/cookie.h>
 
 #include <net/sock.h>
 #include <net/netlink.h>
@@ -69,16 +70,16 @@ EXPORT_SYMBOL_GPL(pernet_ops_rwsem);
 
 static unsigned int max_gen_ptrs = INITIAL_NET_GEN_PTRS;
 
-static atomic64_t cookie_gen;
+DEFINE_COOKIE(net_cookie);
 
-u64 net_gen_cookie(struct net *net)
+u64 __net_gen_cookie(struct net *net)
 {
 	while (1) {
 		u64 res = atomic64_read(&net->net_cookie);
 
 		if (res)
 			return res;
-		res = atomic64_inc_return(&cookie_gen);
+		res = gen_cookie_next(&net_cookie);
 		atomic64_cmpxchg(&net->net_cookie, 0, res);
 	}
 }
@@ -1101,7 +1102,10 @@ static int __init net_ns_init(void)
 		panic("Could not allocate generic netns");
 
 	rcu_assign_pointer(init_net.gen, ng);
-	net_gen_cookie(&init_net);
+
+	preempt_disable();
+	__net_gen_cookie(&init_net);
+	preempt_enable();
 
 	down_write(&pernet_ops_rwsem);
 	if (setup_net(&init_net, &init_user_ns))

@@ -12,9 +12,12 @@ enum {
 };
 
 struct mlx5e_tc_table {
-	/* protects flow table */
+	/* Protects the dynamic assignment of the t parameter
+	 * which is the nic tc root table.
+	 */
 	struct mutex			t_lock;
 	struct mlx5_flow_table		*t;
+	struct mlx5_fs_chains           *chains;
 
 	struct rhashtable               ht;
 
@@ -24,6 +27,8 @@ struct mlx5e_tc_table {
 
 	struct notifier_block     netdevice_nb;
 	struct netdev_net_notifier	netdevice_nn;
+
+	struct mlx5_tc_ct_priv         *ct;
 };
 
 struct mlx5e_flow_table {
@@ -231,6 +236,7 @@ struct mlx5e_accel_fs_tcp;
 
 struct mlx5e_flow_steering {
 	struct mlx5_flow_namespace      *ns;
+	struct mlx5_flow_namespace      *egress_ns;
 #ifdef CONFIG_MLX5_EN_RXNFC
 	struct mlx5e_ethtool_steering   ethtool;
 #endif

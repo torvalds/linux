@@ -60,15 +60,17 @@ static int host1x_video_probe(struct host1x_device *dev)
 	if (ret < 0)
 		goto unregister_v4l2;
 
-	/*
-	 * Both vi and csi channels are available now.
-	 * Register v4l2 nodes and create media links for TPG.
-	 */
-	ret = tegra_v4l2_nodes_setup_tpg(vid);
-	if (ret < 0) {
-		dev_err(&dev->dev,
-			"failed to setup tpg graph: %d\n", ret);
-		goto device_exit;
+	if (IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG)) {
+		/*
+		 * Both vi and csi channels are available now.
+		 * Register v4l2 nodes and create media links for TPG.
+		 */
+		ret = tegra_v4l2_nodes_setup_tpg(vid);
+		if (ret < 0) {
+			dev_err(&dev->dev,
+				"failed to setup tpg graph: %d\n", ret);
+			goto device_exit;
+		}
 	}
 
 	return 0;
@@ -91,7 +93,8 @@ static int host1x_video_remove(struct host1x_device *dev)
 {
 	struct tegra_video_device *vid = dev_get_drvdata(&dev->dev);
 
-	tegra_v4l2_nodes_cleanup_tpg(vid);
+	if (IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
+		tegra_v4l2_nodes_cleanup_tpg(vid);
 
 	host1x_device_exit(dev);
 

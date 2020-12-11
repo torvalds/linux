@@ -19,7 +19,7 @@
 #include "isys_irq_global.h"
 #include "isys_irq_local.h"
 
-#if defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if defined(ISP2401)
 
 /* -------------------------------------------------------+
  |             Native command interface (NCI)             |
@@ -29,7 +29,7 @@
 * @brief Get the isys irq status.
 * Refer to "isys_irq.h" for details.
 */
-STORAGE_CLASS_ISYS2401_IRQ_C void isys_irqc_state_get(
+void isys_irqc_state_get(
     const isys_irq_ID_t	isys_irqc_id,
     isys_irqc_state_t *state)
 {
@@ -48,7 +48,7 @@ STORAGE_CLASS_ISYS2401_IRQ_C void isys_irqc_state_get(
 * @brief Dump the isys irq status.
 * Refer to "isys_irq.h" for details.
 */
-STORAGE_CLASS_ISYS2401_IRQ_C void isys_irqc_state_dump(
+void isys_irqc_state_dump(
     const isys_irq_ID_t	isys_irqc_id,
     const isys_irqc_state_t *state)
 {
@@ -65,7 +65,7 @@ STORAGE_CLASS_ISYS2401_IRQ_C void isys_irqc_state_dump(
  + -------------------------------------------------------*/
 
 /* Support functions */
-STORAGE_CLASS_ISYS2401_IRQ_C void isys_irqc_reg_store(
+void isys_irqc_reg_store(
     const isys_irq_ID_t	isys_irqc_id,
     const unsigned int	reg_idx,
     const hrt_data	value)
@@ -82,7 +82,7 @@ STORAGE_CLASS_ISYS2401_IRQ_C void isys_irqc_reg_store(
 	ia_css_device_store_uint32(reg_addr, value);
 }
 
-STORAGE_CLASS_ISYS2401_IRQ_C hrt_data isys_irqc_reg_load(
+hrt_data isys_irqc_reg_load(
     const isys_irq_ID_t	isys_irqc_id,
     const unsigned int	reg_idx)
 {
@@ -102,6 +102,6 @@ STORAGE_CLASS_ISYS2401_IRQ_C hrt_data isys_irqc_reg_load(
 
 /* end of DLI */
 
-#endif /* defined(USE_INPUT_SYSTEM_VERSION_2401) */
+#endif /* defined(ISP2401) */
 
 #endif	/* __ISYS_IRQ_PRIVATE_H__ */

@@ -242,10 +242,8 @@ struct qed_rdma_register_tid_in_params {
 	bool pbl_two_level;
 	u8 pbl_page_size_log;
 	u8 page_size_log;
-	u32 fbo;
 	u64 length;
 	u64 vaddr;
-	bool zbva;
 	bool phy_mr;
 	bool dma_mr;
 

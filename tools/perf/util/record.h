@@ -73,6 +73,7 @@ struct record_opts {
 	unsigned int  nr_threads_synthesize;
 	int	      ctl_fd;
 	int	      ctl_fd_ack;
+	bool	      ctl_fd_close;
 };
 
 extern const char * const *record_usage;

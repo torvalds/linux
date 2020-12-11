@@ -88,7 +88,7 @@ static int afs_mntpt_set_params(struct fs_context *fc, struct dentry *mntpt)
 		ctx->force = true;
 	}
 	if (ctx->cell) {
-		afs_put_cell(ctx->net, ctx->cell);
+		afs_unuse_cell(ctx->net, ctx->cell, afs_cell_trace_unuse_mntpt);
 		ctx->cell = NULL;
 	}
 	if (test_bit(AFS_VNODE_PSEUDODIR, &vnode->flags)) {
@@ -124,7 +124,7 @@ static int afs_mntpt_set_params(struct fs_context *fc, struct dentry *mntpt)
 		char *buf;
 
 		if (src_as->cell)
-			ctx->cell = afs_get_cell(src_as->cell);
+			ctx->cell = afs_use_cell(src_as->cell, afs_cell_trace_use_mntpt);
 
 		if (size < 2 || size > PAGE_SIZE - 1)
 			return -EINVAL;

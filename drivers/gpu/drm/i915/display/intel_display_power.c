@@ -3927,12 +3927,13 @@ tgl_tc_cold_request(struct drm_i915_private *i915, bool block)
 	int ret;
 
 	while (1) {
-		u32 low_val = 0, high_val;
+		u32 low_val;
+		u32 high_val = 0;
 
 		if (block)
-			high_val = TGL_PCODE_EXIT_TCCOLD_DATA_H_BLOCK_REQ;
+			low_val = TGL_PCODE_EXIT_TCCOLD_DATA_L_BLOCK_REQ;
 		else
-			high_val = TGL_PCODE_EXIT_TCCOLD_DATA_H_UNBLOCK_REQ;
+			low_val = TGL_PCODE_EXIT_TCCOLD_DATA_L_UNBLOCK_REQ;
 
 		/*
 		 * Spec states that we should timeout the request after 200us
@@ -3951,8 +3952,7 @@ tgl_tc_cold_request(struct drm_i915_private *i915, bool block)
 		if (++tries == 3)
 			break;
 
-		if (ret == -EAGAIN)
-			msleep(1);
+		msleep(1);
 	}
 
 	if (ret)
@@ -5263,7 +5263,7 @@ static void tgl_bw_buddy_init(struct drm_i915_private *dev_priv)
 	unsigned long abox_mask = INTEL_INFO(dev_priv)->abox_mask;
 	int config, i;
 
-	if (IS_TGL_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_B0))
+	if (IS_TGL_DISP_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_B0))
 		/* Wa_1409767108: tgl */
 		table = wa_1409767108_buddy_page_masks;
 	else
@@ -5301,6 +5301,12 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 	u32 val;
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+
+	/* Wa_14011294188:ehl,jsl,tgl,rkl */
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_JSP &&
+	    INTEL_PCH_TYPE(dev_priv) < PCH_DG1)
+		intel_de_rmw(dev_priv, SOUTH_DSPCLK_GATE_D, 0,
+			     PCH_DPMGUNIT_CLOCK_GATE_DISABLE);
 
 	/* 1. Enable PCH reset handshake. */
 	intel_pch_reset_handshake(dev_priv, !HAS_PCH_NOP(dev_priv));

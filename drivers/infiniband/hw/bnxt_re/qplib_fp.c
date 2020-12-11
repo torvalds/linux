@@ -295,9 +295,9 @@ static void __wait_for_all_nqes(struct bnxt_qplib_cq *cq, u16 cnq_events)
 	}
 }
 
-static void bnxt_qplib_service_nq(unsigned long data)
+static void bnxt_qplib_service_nq(struct tasklet_struct *t)
 {
-	struct bnxt_qplib_nq *nq = (struct bnxt_qplib_nq *)data;
+	struct bnxt_qplib_nq *nq = from_tasklet(nq, t, nq_tasklet);
 	struct bnxt_qplib_hwq *hwq = &nq->hwq;
 	int num_srqne_processed = 0;
 	int num_cqne_processed = 0;
@@ -448,8 +448,7 @@ int bnxt_qplib_nq_start_irq(struct bnxt_qplib_nq *nq, int nq_indx,
 
 	nq->msix_vec = msix_vector;
 	if (need_init)
-		tasklet_init(&nq->nq_tasklet, bnxt_qplib_service_nq,
-			     (unsigned long)nq);
+		tasklet_setup(&nq->nq_tasklet, bnxt_qplib_service_nq);
 	else
 		tasklet_enable(&nq->nq_tasklet);
 

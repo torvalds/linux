@@ -908,6 +908,9 @@ bool hubp2_is_flip_pending(struct hubp *hubp)
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 	struct dc_plane_address earliest_inuse_address;
 
+	if (hubp && hubp->power_gated)
+		return false;
+
 	REG_GET(DCSURF_FLIP_CONTROL,
 			SURFACE_FLIP_PENDING, &flip_pending);
 

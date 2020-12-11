@@ -29,10 +29,27 @@
 
 #include "i915_active.h"
 #include "i915_syncmap.h"
-#include "gt/intel_timeline_types.h"
+#include "intel_timeline_types.h"
 
 struct intel_timeline *
-intel_timeline_create(struct intel_gt *gt, struct i915_vma *global_hwsp);
+__intel_timeline_create(struct intel_gt *gt,
+			struct i915_vma *global_hwsp,
+			unsigned int offset);
+
+static inline struct intel_timeline *
+intel_timeline_create(struct intel_gt *gt)
+{
+	return __intel_timeline_create(gt, NULL, 0);
+}
+
+static inline struct intel_timeline *
+intel_timeline_create_from_engine(struct intel_engine_cs *engine,
+				  unsigned int offset)
+{
+	return __intel_timeline_create(engine->gt,
+				       engine->status_page.vma,
+				       offset);
+}
 
 static inline struct intel_timeline *
 intel_timeline_get(struct intel_timeline *timeline)
@@ -71,7 +88,8 @@ static inline bool intel_timeline_sync_is_later(struct intel_timeline *tl,
 	return __intel_timeline_sync_is_later(tl, fence->context, fence->seqno);
 }
 
-int intel_timeline_pin(struct intel_timeline *tl);
+void __intel_timeline_pin(struct intel_timeline *tl);
+int intel_timeline_pin(struct intel_timeline *tl, struct i915_gem_ww_ctx *ww);
 void intel_timeline_enter(struct intel_timeline *tl);
 int intel_timeline_get_seqno(struct intel_timeline *tl,
 			     struct i915_request *rq,

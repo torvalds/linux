@@ -1087,8 +1087,9 @@ static void lm63_init_client(struct lm63_data *data)
 		(data->config_fan & 0x20) ? "manual" : "auto");
 }
 
-static int lm63_probe(struct i2c_client *client,
-		      const struct i2c_device_id *id)
+static const struct i2c_device_id lm63_id[];
+
+static int lm63_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -1106,7 +1107,7 @@ static int lm63_probe(struct i2c_client *client,
 	if (client->dev.of_node)
 		data->kind = (enum chips)of_device_get_match_data(&client->dev);
 	else
-		data->kind = id->driver_data;
+		data->kind = i2c_match_id(lm63_id, client)->driver_data;
 	if (data->kind == lm64)
 		data->temp2_offset = 16000;
 
@@ -1163,7 +1164,7 @@ static struct i2c_driver lm63_driver = {
 		.name	= "lm63",
 		.of_match_table = of_match_ptr(lm63_of_match),
 	},
-	.probe		= lm63_probe,
+	.probe_new	= lm63_probe,
 	.id_table	= lm63_id,
 	.detect		= lm63_detect,
 	.address_list	= normal_i2c,

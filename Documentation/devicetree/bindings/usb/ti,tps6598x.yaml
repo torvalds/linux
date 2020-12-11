@@ -32,6 +32,8 @@ required:
   - interrupts
   - interrupt-names
 
+additionalProperties: true
+
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>

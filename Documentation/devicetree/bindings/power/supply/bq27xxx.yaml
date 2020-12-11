@@ -51,6 +51,7 @@ properties:
       - ti,bq27621
       - ti,bq27z561
       - ti,bq28z610
+      - ti,bq34z100
 
   reg:
     maxItems: 1

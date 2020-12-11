@@ -279,7 +279,7 @@ static void __init sam9x60_pmc_setup(struct device_node *np)
 	parent_names[3] = "masterck";
 	parent_names[4] = "pllack_divck";
 	parent_names[5] = "upllck_divck";
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < 2; i++) {
 		char name[6];
 
 		snprintf(name, sizeof(name), "prog%d", i);

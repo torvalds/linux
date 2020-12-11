@@ -117,7 +117,7 @@ int uvd_v1_0_resume(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	/* programm the VCPU memory controller bits 0-27 */
+	/* program the VCPU memory controller bits 0-27 */
 	addr = (rdev->uvd.gpu_addr >> 3) + 16;
 	size = RADEON_GPU_PAGE_ALIGN(rdev->uvd_fw->size) >> 3;
 	WREG32(UVD_VCPU_CACHE_OFFSET0, addr);
@@ -360,7 +360,7 @@ int uvd_v1_0_start(struct radeon_device *rdev)
 	/* Set the write pointer delay */
 	WREG32(UVD_RBC_RB_WPTR_CNTL, 0);
 
-	/* programm the 4GB memory segment for rptr and ring buffer */
+	/* program the 4GB memory segment for rptr and ring buffer */
 	WREG32(UVD_LMI_EXT40_ADDR, upper_32_bits(ring->gpu_addr) |
 				   (0x7 << 16) | (0x1 << 31));
 

@@ -84,6 +84,8 @@ required:
   - model
   - dai-link-0
 
+additionalProperties: false
+
 examples:
   - |
     sound {

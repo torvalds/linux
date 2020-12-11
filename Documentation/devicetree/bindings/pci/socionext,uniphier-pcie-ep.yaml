@@ -23,14 +23,22 @@ properties:
     const: socionext,uniphier-pro5-pcie-ep
 
   reg:
-    maxItems: 4
+    minItems: 4
+    maxItems: 5
 
   reg-names:
-    items:
-      - const: dbi
-      - const: dbi2
-      - const: link
-      - const: addr_space
+    oneOf:
+      - items:
+        - const: dbi
+        - const: dbi2
+        - const: link
+        - const: addr_space
+      - items:
+        - const: dbi
+        - const: dbi2
+        - const: link
+        - const: addr_space
+        - const: atu
 
   clocks:
     maxItems: 2

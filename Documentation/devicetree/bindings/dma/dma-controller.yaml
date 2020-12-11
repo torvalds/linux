@@ -17,6 +17,8 @@ properties:
   $nodename:
     pattern: "^dma-controller(@.*)?$"
 
+additionalProperties: true
+
 examples:
   - |
     dma: dma-controller@48000000 {

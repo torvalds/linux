@@ -44,33 +44,14 @@ static int dpseci_dbg_fqs_show(struct seq_file *file, void *offset)
 	return 0;
 }
 
-static int dpseci_dbg_fqs_open(struct inode *inode, struct file *file)
-{
-	int err;
-	struct dpaa2_caam_priv *priv;
-
-	priv = (struct dpaa2_caam_priv *)inode->i_private;
-
-	err = single_open(file, dpseci_dbg_fqs_show, priv);
-	if (err < 0)
-		dev_err(priv->dev, "single_open() failed\n");
-
-	return err;
-}
-
-static const struct file_operations dpseci_dbg_fq_ops = {
-	.open = dpseci_dbg_fqs_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(dpseci_dbg_fqs);
 
 void dpaa2_dpseci_debugfs_init(struct dpaa2_caam_priv *priv)
 {
 	priv->dfs_root = debugfs_create_dir(dev_name(priv->dev), NULL);
 
 	debugfs_create_file("fq_stats", 0444, priv->dfs_root, priv,
-			    &dpseci_dbg_fq_ops);
+			    &dpseci_dbg_fqs_fops);
 }
 
 void dpaa2_dpseci_debugfs_exit(struct dpaa2_caam_priv *priv)

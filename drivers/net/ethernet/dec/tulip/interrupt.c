@@ -74,8 +74,8 @@ int tulip_refill_rx(struct net_device *dev)
 			if (skb == NULL)
 				break;
 
-			mapping = pci_map_single(tp->pdev, skb->data, PKT_BUF_SZ,
-						 PCI_DMA_FROMDEVICE);
+			mapping = dma_map_single(&tp->pdev->dev, skb->data,
+						 PKT_BUF_SZ, DMA_FROM_DEVICE);
 			if (dma_mapping_error(&tp->pdev->dev, mapping)) {
 				dev_kfree_skb(skb);
 				tp->rx_buffers[entry].skb = NULL;
@@ -210,9 +210,10 @@ int tulip_poll(struct napi_struct *napi, int budget)
                                if (pkt_len < tulip_rx_copybreak &&
                                    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
                                        skb_reserve(skb, 2);    /* 16 byte align the IP header */
-                                       pci_dma_sync_single_for_cpu(tp->pdev,
-								   tp->rx_buffers[entry].mapping,
-								   pkt_len, PCI_DMA_FROMDEVICE);
+					dma_sync_single_for_cpu(&tp->pdev->dev,
+								tp->rx_buffers[entry].mapping,
+								pkt_len,
+								DMA_FROM_DEVICE);
 #if ! defined(__alpha__)
                                        skb_copy_to_linear_data(skb, tp->rx_buffers[entry].skb->data,
                                                         pkt_len);
@@ -222,9 +223,10 @@ int tulip_poll(struct napi_struct *napi, int budget)
                                                     tp->rx_buffers[entry].skb->data,
                                                     pkt_len);
 #endif
-                                       pci_dma_sync_single_for_device(tp->pdev,
-								      tp->rx_buffers[entry].mapping,
-								      pkt_len, PCI_DMA_FROMDEVICE);
+					dma_sync_single_for_device(&tp->pdev->dev,
+								   tp->rx_buffers[entry].mapping,
+								   pkt_len,
+								   DMA_FROM_DEVICE);
                                } else {        /* Pass up the skb already on the Rx ring. */
                                        char *temp = skb_put(skb = tp->rx_buffers[entry].skb,
                                                             pkt_len);
@@ -240,8 +242,10 @@ int tulip_poll(struct napi_struct *napi, int budget)
                                        }
 #endif
 
-                                       pci_unmap_single(tp->pdev, tp->rx_buffers[entry].mapping,
-                                                        PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
+					dma_unmap_single(&tp->pdev->dev,
+							 tp->rx_buffers[entry].mapping,
+							 PKT_BUF_SZ,
+							 DMA_FROM_DEVICE);
 
                                        tp->rx_buffers[entry].skb = NULL;
                                        tp->rx_buffers[entry].mapping = 0;
@@ -436,9 +440,10 @@ static int tulip_rx(struct net_device *dev)
 			if (pkt_len < tulip_rx_copybreak &&
 			    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
-				pci_dma_sync_single_for_cpu(tp->pdev,
-							    tp->rx_buffers[entry].mapping,
-							    pkt_len, PCI_DMA_FROMDEVICE);
+				dma_sync_single_for_cpu(&tp->pdev->dev,
+							tp->rx_buffers[entry].mapping,
+							pkt_len,
+							DMA_FROM_DEVICE);
 #if ! defined(__alpha__)
 				skb_copy_to_linear_data(skb, tp->rx_buffers[entry].skb->data,
 						 pkt_len);
@@ -448,9 +453,10 @@ static int tulip_rx(struct net_device *dev)
 					     tp->rx_buffers[entry].skb->data,
 					     pkt_len);
 #endif
-				pci_dma_sync_single_for_device(tp->pdev,
-							       tp->rx_buffers[entry].mapping,
-							       pkt_len, PCI_DMA_FROMDEVICE);
+				dma_sync_single_for_device(&tp->pdev->dev,
+							   tp->rx_buffers[entry].mapping,
+							   pkt_len,
+							   DMA_FROM_DEVICE);
 			} else { 	/* Pass up the skb already on the Rx ring. */
 				char *temp = skb_put(skb = tp->rx_buffers[entry].skb,
 						     pkt_len);
@@ -466,8 +472,9 @@ static int tulip_rx(struct net_device *dev)
 				}
 #endif
 
-				pci_unmap_single(tp->pdev, tp->rx_buffers[entry].mapping,
-						 PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
+				dma_unmap_single(&tp->pdev->dev,
+						 tp->rx_buffers[entry].mapping,
+						 PKT_BUF_SZ, DMA_FROM_DEVICE);
 
 				tp->rx_buffers[entry].skb = NULL;
 				tp->rx_buffers[entry].mapping = 0;
@@ -597,10 +604,10 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 				if (tp->tx_buffers[entry].skb == NULL) {
 					/* test because dummy frames not mapped */
 					if (tp->tx_buffers[entry].mapping)
-						pci_unmap_single(tp->pdev,
-							 tp->tx_buffers[entry].mapping,
-							 sizeof(tp->setup_frame),
-							 PCI_DMA_TODEVICE);
+						dma_unmap_single(&tp->pdev->dev,
+								 tp->tx_buffers[entry].mapping,
+								 sizeof(tp->setup_frame),
+								 DMA_TO_DEVICE);
 					continue;
 				}
 
@@ -629,9 +636,10 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 					dev->stats.tx_packets++;
 				}
 
-				pci_unmap_single(tp->pdev, tp->tx_buffers[entry].mapping,
+				dma_unmap_single(&tp->pdev->dev,
+						 tp->tx_buffers[entry].mapping,
 						 tp->tx_buffers[entry].skb->len,
-						 PCI_DMA_TODEVICE);
+						 DMA_TO_DEVICE);
 
 				/* Free the original skb. */
 				dev_kfree_skb_irq(tp->tx_buffers[entry].skb);

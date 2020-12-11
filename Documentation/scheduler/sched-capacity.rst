@@ -365,7 +365,7 @@ giving it a high uclamp.min value.
 .. note::
 
   Wakeup CPU selection in CFS can be eclipsed by Energy Aware Scheduling
-  (EAS), which is described in Documentation/scheduling/sched-energy.rst.
+  (EAS), which is described in Documentation/scheduler/sched-energy.rst.
 
 5.1.3 Load balancing
 ~~~~~~~~~~~~~~~~~~~~

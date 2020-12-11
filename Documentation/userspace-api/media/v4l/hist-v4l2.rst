@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _hist-v4l2:
 
@@ -21,18 +15,17 @@ not just an extension but a replacement for the V4L API. However it took
 another four years and two stable kernel releases until the new API was
 finally accepted for inclusion into the kernel in its present form.
 
-
 Early Versions
 ==============
 
 1998-08-20: First version.
 
-1998-08-27: The :ref:`select() <func-select>` function was introduced.
+1998-08-27: The :c:func:`select()` function was introduced.
 
 1998-09-10: New video standard interface.
 
 1998-09-18: The ``VIDIOC_NONCAP`` ioctl was replaced by the otherwise
-meaningless ``O_TRUNC`` :ref:`open() <func-open>` flag, and the
+meaningless ``O_TRUNC`` :c:func:`open()` flag, and the
 aliases ``O_NONCAP`` and ``O_NOIO`` were defined. Applications can set
 this flag if they intend to access controls only, as opposed to capture
 applications which need exclusive access. The ``VIDEO_STD_XXX``
@@ -52,7 +45,7 @@ renamed to :ref:`VIDIOC_ENUMSTD`,
 Codec API was released.
 
 1998-11-08: Many minor changes. Most symbols have been renamed. Some
-material changes to struct :c:type:`v4l2_capability`.
+material changes to struct v4l2_capability.
 
 1998-11-12: The read/write directon of some ioctls was misdefined.
 
@@ -72,7 +65,6 @@ output devices were added.
 
 1999-01-19: The ``VIDIOC_NEXTBUF`` ioctl was removed.
 
-
 V4L2 Version 0.16 1999-01-31
 ============================
 
@@ -80,14 +72,12 @@ V4L2 Version 0.16 1999-01-31
 are gone. VIDIOC_QBUF takes a v4l2_buffer as a parameter. Added
 digital zoom (cropping) controls.
 
-
 V4L2 Version 0.18 1999-03-16
 ============================
 
 Added a v4l to V4L2 ioctl compatibility layer to videodev.c. Driver
 writers, this changes how you implement your ioctl handler. See the
 Driver Writer's Guide. Added some more control id codes.
-
 
 V4L2 Version 0.19 1999-06-05
 ============================
@@ -114,7 +104,6 @@ malfunction of this ioctl.
 
 1999-06-05: Changed the value of V4L2_CID_WHITENESS.
 
-
 V4L2 Version 0.20 (1999-09-10)
 ==============================
 
@@ -123,9 +112,8 @@ compatible* with 0.19 and earlier versions. Purpose of these changes was
 to simplify the API, while making it more extensible and following
 common Linux driver API conventions.
 
-1. Some typos in ``V4L2_FMT_FLAG`` symbols were fixed. struct
-   :c:type:`v4l2_clip` was changed for compatibility with
-   v4l. (1999-08-30)
+1. Some typos in ``V4L2_FMT_FLAG`` symbols were fixed. struct v4l2_clip
+   was changed for compatibility with v4l. (1999-08-30)
 
 2. ``V4L2_TUNER_SUB_LANG1`` was added. (1999-09-05)
 
@@ -136,13 +124,11 @@ common Linux driver API conventions.
    VIDIOC_STREAMON, VIDIOC_STREAMOFF, VIDIOC_S_FREQ,
    VIDIOC_S_INPUT, VIDIOC_S_OUTPUT, VIDIOC_S_EFFECT. For example
 
-
    .. code-block:: c
 
        err = ioctl (fd, VIDIOC_XXX, V4L2_XXX);
 
    becomes
-
 
    .. code-block:: c
 
@@ -158,16 +144,14 @@ common Linux driver API conventions.
    This change obsoletes the following ioctls: ``VIDIOC_S_INFMT``,
    ``VIDIOC_G_INFMT``, ``VIDIOC_S_OUTFMT``, ``VIDIOC_G_OUTFMT``,
    ``VIDIOC_S_VBIFMT`` and ``VIDIOC_G_VBIFMT``. The image format
-   structure struct :c:type:`v4l2_format` was renamed to struct
-   :c:type:`v4l2_pix_format`, while struct
-   :c:type:`v4l2_format` is now the envelopping structure
+   struct v4l2_format was renamed to struct v4l2_pix_format, while
+   struct v4l2_format is now the envelopping structure
    for all format negotiations.
 
 5. Similar to the changes above, the ``VIDIOC_G_PARM`` and
    ``VIDIOC_S_PARM`` ioctls were merged with ``VIDIOC_G_OUTPARM`` and
-   ``VIDIOC_S_OUTPARM``. A ``type`` field in the new struct
-   :c:type:`v4l2_streamparm` selects the respective
-   union member.
+   ``VIDIOC_S_OUTPARM``. A ``type`` field in the new struct v4l2_streamparm
+   selects the respective union member.
 
    This change obsoletes the ``VIDIOC_G_OUTPARM`` and
    ``VIDIOC_S_OUTPARM`` ioctls.
@@ -185,7 +169,7 @@ common Linux driver API conventions.
    categories might have a greater separation, or may even appear in
    separate windows.
 
-7. The struct :c:type:`v4l2_buffer` ``timestamp`` was
+7. The struct v4l2_buffer ``timestamp`` was
    changed to a 64 bit integer, containing the sampling or output time
    of the frame in nanoseconds. Additionally timestamps will be in
    absolute system time, not starting from zero at the beginning of a
@@ -208,16 +192,14 @@ common Linux driver API conventions.
    v4l2_masterclock_gettime() function (used only by drivers) to
    return a 64-bit integer.
 
-8. A ``sequence`` field was added to struct
-   :c:type:`v4l2_buffer`. The ``sequence`` field counts
-   captured frames, it is ignored by output devices. When a capture
-   driver drops a frame, the sequence number of that frame is skipped.
-
+8. A ``sequence`` field was added to struct v4l2_buffer. The ``sequence``
+   field counts captured frames, it is ignored by output devices. When a
+   capture driver drops a frame, the sequence number of that frame is skipped.
 
 V4L2 Version 0.20 incremental changes
 =====================================
 
-1999-12-23: In struct :c:type:`v4l2_vbi_format` the
+1999-12-23: In struct v4l2_vbi_format the
 ``reserved1`` field became ``offset``. Previously drivers were required
 to clear the ``reserved1`` field.
 
@@ -262,10 +244,9 @@ multiple tuners into account.)
 compatibility* as the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` and
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctls may fail now if the
 struct ``v4l2_fmt`` ``type`` field does not contain
-``V4L2_BUF_TYPE_VBI``. In the documentation of the struct
-:c:type:`v4l2_vbi_format` ``offset`` field the
-ambiguous phrase "rising edge" was changed to "leading edge".
-
+``V4L2_BUF_TYPE_VBI``. In the documentation of the struct v4l2_vbi_format`,
+the ``offset`` field the ambiguous phrase "rising edge" was changed to
+"leading edge".
 
 V4L2 Version 0.20 2000-11-23
 ============================
@@ -302,12 +283,10 @@ A number of changes were made to the raw VBI interface.
    were added. The former is an alias for the old ``V4L2_TYPE_VBI``, the
    latter was missing in the ``videodev.h`` file.
 
-
 V4L2 Version 0.20 2002-07-25
 ============================
 
 Added sliced VBI interface proposal.
-
 
 V4L2 in Linux 2.5.46, 2002-10
 =============================
@@ -319,7 +298,7 @@ This unnamed version was finally merged into Linux 2.5.46.
 1.  As specified in :ref:`related`, drivers must make related device
     functions available under all minor device numbers.
 
-2.  The :ref:`open() <func-open>` function requires access mode
+2.  The :c:func:`open()` function requires access mode
     ``O_RDWR`` regardless of the device type. All V4L2 drivers
     exchanging data with applications must support the ``O_NONBLOCK``
     flag. The ``O_NOIO`` flag, a V4L2 symbol which aliased the
@@ -328,7 +307,7 @@ This unnamed version was finally merged into Linux 2.5.46.
     until the application attempts to initiate a data exchange, see
     :ref:`open`.
 
-3.  The struct :c:type:`v4l2_capability` changed
+3.  The struct v4l2_capability changed
     dramatically. Note that also the size of the structure changed,
     which is encoded in the ioctl request code, thus older V4L2 devices
     will respond with an ``EINVAL`` error code to the new
@@ -361,7 +340,7 @@ This unnamed version was finally merged into Linux 2.5.46.
     ``V4L2_FLAG_MONOCHROME`` flag was removed, this information is
     available as described in :ref:`format`.
 
-4.  In struct :c:type:`v4l2_input` the ``assoc_audio``
+4.  In struct v4l2_input the ``assoc_audio``
     field and the ``capability`` field and its only flag
     ``V4L2_INPUT_CAP_AUDIO`` was replaced by the new ``audioset`` field.
     Instead of linking one video input to one audio input this field
@@ -370,11 +349,11 @@ This unnamed version was finally merged into Linux 2.5.46.
     New fields are ``tuner`` (reversing the former link from tuners to
     video inputs), ``std`` and ``status``.
 
-    Accordingly struct :c:type:`v4l2_output` lost its
+    Accordingly struct v4l2_output lost its
     ``capability`` and ``assoc_audio`` fields. ``audioset``,
     ``modulator`` and ``std`` where added instead.
 
-5.  The struct :c:type:`v4l2_audio` field ``audio`` was
+5.  The struct v4l2_audio field ``audio`` was
     renamed to ``index``, for consistency with other structures. A new
     capability flag ``V4L2_AUDCAP_STEREO`` was added to indicated if the
     audio input in question supports stereo sound.
@@ -382,21 +361,20 @@ This unnamed version was finally merged into Linux 2.5.46.
     where removed. This can be easily implemented using controls.
     (However the same applies to AVL which is still there.)
 
-    Again for consistency the struct
-    :c:type:`v4l2_audioout` field ``audio`` was renamed
+    Again for consistency the struct v4l2_audioout field ``audio`` was renamed
     to ``index``.
 
-6.  The struct :c:type:`v4l2_tuner` ``input`` field was
+6.  The struct v4l2_tuner ``input`` field was
     replaced by an ``index`` field, permitting devices with multiple
     tuners. The link between video inputs and tuners is now reversed,
     inputs point to their tuner. The ``std`` substructure became a
-    simple set (more about this below) and moved into struct
-    :c:type:`v4l2_input`. A ``type`` field was added.
+    simple set (more about this below) and moved into struct v4l2_input.
+    A ``type`` field was added.
 
-    Accordingly in struct :c:type:`v4l2_modulator` the
+    Accordingly in struct v4l2_modulator the
     ``output`` was replaced by an ``index`` field.
 
-    In struct :c:type:`v4l2_frequency` the ``port``
+    In struct v4l2_frequency the ``port``
     field was replaced by a ``tuner`` field containing the respective
     tuner or modulator index number. A tuner ``type`` field was added
     and the ``reserved`` field became larger for future extensions
@@ -412,7 +390,7 @@ This unnamed version was finally merged into Linux 2.5.46.
     :ref:`VIDIOC_S_STD <VIDIOC_G_STD>` now take a pointer to this
     type as argument. :ref:`VIDIOC_QUERYSTD` was
     added to autodetect the received standard, if the hardware has this
-    capability. In struct :c:type:`v4l2_standard` an
+    capability. In struct v4l2_standard an
     ``index`` field was added for
     :ref:`VIDIOC_ENUMSTD`. A
     :ref:`v4l2_std_id <v4l2-std-id>` field named ``id`` was added as
@@ -424,10 +402,10 @@ This unnamed version was finally merged into Linux 2.5.46.
 
     Struct ``v4l2_enumstd`` ceased to be.
     :ref:`VIDIOC_ENUMSTD` now takes a pointer to a
-    struct :c:type:`v4l2_standard` directly. The
+    struct v4l2_standard directly. The
     information which standards are supported by a particular video
-    input or output moved into struct :c:type:`v4l2_input`
-    and struct :c:type:`v4l2_output` fields named ``std``,
+    input or output moved into struct v4l2_input
+    and struct v4l2_output fields named ``std``,
     respectively.
 
 8.  The struct :ref:`v4l2_queryctrl <v4l2-queryctrl>` fields
@@ -439,15 +417,13 @@ This unnamed version was finally merged into Linux 2.5.46.
     :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`, but without the overhead of
     programming the hardware and regardless of I/O in progress.
 
-    In struct :c:type:`v4l2_format` the ``fmt`` union was
-    extended to contain struct :c:type:`v4l2_window`. All
+    In struct v4l2_format the ``fmt`` union was
+    extended to contain struct v4l2_window. All
     image format negotiations are now possible with ``VIDIOC_G_FMT``,
     ``VIDIOC_S_FMT`` and ``VIDIOC_TRY_FMT``; ioctl. The ``VIDIOC_G_WIN``
     and ``VIDIOC_S_WIN`` ioctls to prepare for a video overlay were
-    removed. The ``type`` field changed to type enum
-    :c:type:`v4l2_buf_type` and the buffer type names
-    changed as follows.
-
+    removed. The ``type`` field changed to type enum v4l2_buf_type and
+    the buffer type names changed as follows.
 
 
     .. flat-table::
@@ -455,7 +431,7 @@ This unnamed version was finally merged into Linux 2.5.46.
 	:stub-columns: 0
 
 	* - Old defines
-	  - enum :c:type:`v4l2_buf_type`
+	  - enum v4l2_buf_type
 	* - ``V4L2_BUF_TYPE_CAPTURE``
 	  - ``V4L2_BUF_TYPE_VIDEO_CAPTURE``
 	* - ``V4L2_BUF_TYPE_CODECIN``
@@ -483,16 +459,12 @@ This unnamed version was finally merged into Linux 2.5.46.
 	* - ``V4L2_BUF_TYPE_PRIVATE_BASE``
 	  - ``V4L2_BUF_TYPE_PRIVATE`` (but this is deprecated)
 
+10. In struct v4l2_fmtdesc a enum v4l2_buf_type field named ``type`` was
+    added as in struct v4l2_format. The ``VIDIOC_ENUM_FBUFFMT`` ioctl is no
+    longer needed and was removed. These calls can be replaced by
+    :ref:`VIDIOC_ENUM_FMT` with type ``V4L2_BUF_TYPE_VIDEO_OVERLAY``.
 
-10. In struct :c:type:`v4l2_fmtdesc` a enum
-    :c:type:`v4l2_buf_type` field named ``type`` was
-    added as in struct :c:type:`v4l2_format`. The
-    ``VIDIOC_ENUM_FBUFFMT`` ioctl is no longer needed and was removed.
-    These calls can be replaced by
-    :ref:`VIDIOC_ENUM_FMT` with type
-    ``V4L2_BUF_TYPE_VIDEO_OVERLAY``.
-
-11. In struct :c:type:`v4l2_pix_format` the ``depth``
+11. In struct v4l2_pix_format the ``depth``
     field was removed, assuming applications which recognize the format
     by its four-character-code already know the color depth, and others
     do not care about it. The same rationale lead to the removal of the
@@ -505,18 +477,15 @@ This unnamed version was finally merged into Linux 2.5.46.
     Since the remaining flags were replaced as well, the ``flags`` field
     itself was removed.
 
-    The interlace flags were replaced by a enum
-    :c:type:`v4l2_field` value in a newly added ``field``
-    field.
-
-
+    The interlace flags were replaced by a enum v4l2_field value in a
+    newly added ``field`` field.
 
     .. flat-table::
 	:header-rows:  1
 	:stub-columns: 0
 
 	* - Old flag
-	  - enum :c:type:`v4l2_field`
+	  - enum v4l2_field
 	* - ``V4L2_FMT_FLAG_NOT_INTERLACED``
 	  - ?
 	* - ``V4L2_FMT_FLAG_INTERLACED`` = ``V4L2_FMT_FLAG_COMBINED``
@@ -532,33 +501,31 @@ This unnamed version was finally merged into Linux 2.5.46.
 	* - ``-``
 	  - ``V4L2_FIELD_ALTERNATE``
 
-
-    The color space flags were replaced by a enum
-    :c:type:`v4l2_colorspace` value in a newly added
-    ``colorspace`` field, where one of ``V4L2_COLORSPACE_SMPTE170M``,
-    ``V4L2_COLORSPACE_BT878``, ``V4L2_COLORSPACE_470_SYSTEM_M`` or
+    The color space flags were replaced by a enum v4l2_colorspace value in
+    a newly added ``colorspace`` field, where one of
+    ``V4L2_COLORSPACE_SMPTE170M``, ``V4L2_COLORSPACE_BT878``,
+    ``V4L2_COLORSPACE_470_SYSTEM_M`` or
     ``V4L2_COLORSPACE_470_SYSTEM_BG`` replaces ``V4L2_FMT_CS_601YUV``.
 
-12. In struct :c:type:`v4l2_requestbuffers` the
-    ``type`` field was properly defined as enum
-    :c:type:`v4l2_buf_type`. Buffer types changed as
-    mentioned above. A new ``memory`` field of type enum
-    :c:type:`v4l2_memory` was added to distinguish between
+12. In struct v4l2_requestbuffers the
+    ``type`` field was properly defined as enum v4l2_buf_type. Buffer types
+    changed as mentioned above. A new ``memory`` field of type
+    enum v4l2_memory was added to distinguish between
     I/O methods using buffers allocated by the driver or the
     application. See :ref:`io` for details.
 
-13. In struct :c:type:`v4l2_buffer` the ``type`` field was
-    properly defined as enum :c:type:`v4l2_buf_type`.
+13. In struct v4l2_buffer the ``type`` field was
+    properly defined as enum v4l2_buf_type.
     Buffer types changed as mentioned above. A ``field`` field of type
-    enum :c:type:`v4l2_field` was added to indicate if a
+    enum v4l2_field was added to indicate if a
     buffer contains a top or bottom field. The old field flags were
     removed. Since no unadjusted system time clock was added to the
     kernel as planned, the ``timestamp`` field changed back from type
     stamp_t, an unsigned 64 bit integer expressing the sample time in
-    nanoseconds, to struct :c:type:`timeval`. With the addition
+    nanoseconds, to struct timeval. With the addition
     of a second memory mapping method the ``offset`` field moved into
-    union ``m``, and a new ``memory`` field of type enum
-    :c:type:`v4l2_memory` was added to distinguish between
+    union ``m``, and a new ``memory`` field of type enum v4l2_memory
+    was added to distinguish between
     I/O methods. See :ref:`io` for details.
 
     The ``V4L2_BUF_REQ_CONTIG`` flag was used by the V4L compatibility
@@ -567,7 +534,7 @@ This unnamed version was finally merged into Linux 2.5.46.
     indeed allocated in device memory rather than DMA-able system
     memory. It was barely useful and so was removed.
 
-14. In struct :c:type:`v4l2_framebuffer` the
+14. In struct v4l2_framebuffer the
     ``base[3]`` array anticipating double- and triple-buffering in
     off-screen video memory, however without defining a synchronization
     mechanism, was replaced by a single pointer. The
@@ -578,40 +545,38 @@ This unnamed version was finally merged into Linux 2.5.46.
     ``V4L2_FBUF_CAP_LIST_CLIPPING`` and
     ``V4L2_FBUF_CAP_BITMAP_CLIPPING``.
 
-15. In struct :c:type:`v4l2_clip` the ``x``, ``y``,
+15. In struct v4l2_clip the ``x``, ``y``,
     ``width`` and ``height`` field moved into a ``c`` substructure of
-    type struct :c:type:`v4l2_rect`. The ``x`` and ``y``
+    type struct v4l2_rect. The ``x`` and ``y``
     fields were renamed to ``left`` and ``top``, i. e. offsets to a
     context dependent origin.
 
-16. In struct :c:type:`v4l2_window` the ``x``, ``y``,
+16. In struct v4l2_window the ``x``, ``y``,
     ``width`` and ``height`` field moved into a ``w`` substructure as
-    above. A ``field`` field of type :c:type:`v4l2_field` was added to
+    above. A ``field`` field of type enum v4l2_field was added to
     distinguish between field and frame (interlaced) overlay.
 
-17. The digital zoom interface, including struct
-    struct ``v4l2_zoomcap``, struct
+17. The digital zoom interface, including struct ``v4l2_zoomcap``,
     struct ``v4l2_zoom``, ``V4L2_ZOOM_NONCAP`` and
     ``V4L2_ZOOM_WHILESTREAMING`` was replaced by a new cropping and
-    scaling interface. The previously unused struct
-    struct :c:type:`v4l2_cropcap` and struct :c:type:`v4l2_crop`
+    scaling interface. The previously unused
+    struct v4l2_cropcap and struct v4l2_crop
     where redefined for this purpose. See :ref:`crop` for details.
 
-18. In struct :c:type:`v4l2_vbi_format` the
+18. In struct v4l2_vbi_format the
     ``SAMPLE_FORMAT`` field now contains a four-character-code as used
     to identify video image formats and ``V4L2_PIX_FMT_GREY`` replaces
     the ``V4L2_VBI_SF_UBYTE`` define. The ``reserved`` field was
     extended.
 
-19. In struct :c:type:`v4l2_captureparm` the type of
-    the ``timeperframe`` field changed from unsigned long to struct
-    :c:type:`v4l2_fract`. This allows the accurate
+19. In struct v4l2_captureparm the type of
+    the ``timeperframe`` field changed from unsigned long to
+    struct v4l2_fract. This allows the accurate
     expression of multiples of the NTSC-M frame rate 30000 / 1001. A new
     field ``readbuffers`` was added to control the driver behaviour in
     read I/O mode.
 
-    Similar changes were made to struct
-    :c:type:`v4l2_outputparm`.
+    Similar changes were made to struct v4l2_outputparm.
 
 20. The struct ``v4l2_performance`` and
     ``VIDIOC_G_PERF`` ioctl were dropped. Except when using the
@@ -621,7 +586,6 @@ This unnamed version was finally merged into Linux 2.5.46.
 21. The example transformation from RGB to YCbCr color space in the old
     V4L2 documentation was inaccurate, this has been corrected in
     :ref:`pixfmt`.
-
 
 V4L2 2003-06-19
 ===============
@@ -673,14 +637,12 @@ V4L2 2003-06-19
    Kernel 2.6.39. Drivers and applications assuming a constant parameter
    need an update.
 
-
 V4L2 2003-11-05
 ===============
 
 1. In :ref:`pixfmt-rgb` the following pixel formats were incorrectly
    transferred from Bill Dirks' V4L2 specification. Descriptions below
    refer to bytes in memory, in ascending address order.
-
 
 
    .. flat-table::
@@ -703,7 +665,6 @@ V4L2 2003-11-05
 	 - R, G, B, X
 	 - B, G, R, X
 
-
    The ``V4L2_PIX_FMT_BGR24`` example was always correct.
 
    In :ref:`v4l-image-properties` the mapping of the V4L
@@ -714,7 +675,6 @@ V4L2 2003-11-05
    RGB pixel formats differently. These issues have yet to be addressed,
    for details see :ref:`pixfmt-rgb`.
 
-
 V4L2 in Linux 2.6.6, 2004-05-09
 ===============================
 
@@ -723,17 +683,15 @@ V4L2 in Linux 2.6.6, 2004-05-09
    ioctl, while the read-only version was renamed to
    ``VIDIOC_CROPCAP_OLD``. The old ioctl was removed on Kernel 2.6.39.
 
-
 V4L2 in Linux 2.6.8
 ===================
 
 1. A new field ``input`` (former ``reserved[0]``) was added to the
-   struct :c:type:`v4l2_buffer` structure. Purpose of this
+   struct v4l2_buffer. Purpose of this
    field is to alternate between video inputs (e. g. cameras) in step
    with the video capturing process. This function must be enabled with
    the new ``V4L2_BUF_FLAG_INPUT`` flag. The ``flags`` field is no
    longer read-only.
-
 
 V4L2 spec erratum 2004-08-01
 ============================
@@ -748,10 +706,9 @@ V4L2 spec erratum 2004-08-01
 
 4. The documentation of the :ref:`VIDIOC_QBUF` and
    :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctls did not mention the
-   struct :c:type:`v4l2_buffer` ``memory`` field. It was
+   struct v4l2_buffer ``memory`` field. It was
    also missing from examples. Also on the ``VIDIOC_DQBUF`` page the ``EIO``
    error code was not documented.
-
 
 V4L2 in Linux 2.6.14
 ====================
@@ -759,7 +716,6 @@ V4L2 in Linux 2.6.14
 1. A new sliced VBI interface was added. It is documented in
    :ref:`sliced` and replaces the interface first proposed in V4L2
    specification 0.8.
-
 
 V4L2 in Linux 2.6.15
 ====================
@@ -780,7 +736,6 @@ V4L2 in Linux 2.6.15
    ``VIDIOC_G_MPEGCOMP`` and ``VIDIOC_S_MPEGCOMP`` ioctls where removed
    in Linux 2.6.25.)
 
-
 V4L2 spec erratum 2005-11-27
 ============================
 
@@ -790,37 +745,31 @@ cropping is supported. In the video standard selection example in
 :ref:`standard` the :ref:`VIDIOC_S_STD <VIDIOC_G_STD>` call used
 the wrong argument type.
 
-
 V4L2 spec erratum 2006-01-10
 ============================
 
-1. The ``V4L2_IN_ST_COLOR_KILL`` flag in struct
-   :c:type:`v4l2_input` not only indicates if the color
-   killer is enabled, but also if it is active. (The color killer
-   disables color decoding when it detects no color in the video signal
-   to improve the image quality.)
+1. The ``V4L2_IN_ST_COLOR_KILL`` flag in struct v4l2_input not only
+   indicates if the color killer is enabled, but also if it is active.
+   (The color killer disables color decoding when it detects no color
+   in the video signal to improve the image quality.)
 
 2. :ref:`VIDIOC_S_PARM <VIDIOC_G_PARM>` is a write-read ioctl, not
    write-only as stated on its reference page. The ioctl changed in 2003
    as noted above.
 
-
 V4L2 spec erratum 2006-02-03
 ============================
 
-1. In struct :c:type:`v4l2_captureparm` and struct
-   :c:type:`v4l2_outputparm` the ``timeperframe``
+1. In struct v4l2_captureparm and struct v4l2_outputparm the ``timeperframe``
    field gives the time in seconds, not microseconds.
-
 
 V4L2 spec erratum 2006-02-04
 ============================
 
-1. The ``clips`` field in struct :c:type:`v4l2_window`
-   must point to an array of struct :c:type:`v4l2_clip`, not
-   a linked list, because drivers ignore the struct
-   struct :c:type:`v4l2_clip`. ``next`` pointer.
-
+1. The ``clips`` field in struct v4l2_window
+   must point to an array of struct v4l2_clip, not
+   a linked list, because drivers ignore the
+   struct v4l2_clip. ``next`` pointer.
 
 V4L2 in Linux 2.6.17
 ====================
@@ -836,7 +785,6 @@ V4L2 in Linux 2.6.17
    ``V4L2_TUNER_MODE_STEREO`` for this purpose is deprecated now. See
    the :ref:`VIDIOC_G_TUNER <VIDIOC_G_TUNER>` section for details.
 
-
 V4L2 spec erratum 2006-09-23 (Draft 0.15)
 =========================================
 
@@ -844,19 +792,18 @@ V4L2 spec erratum 2006-09-23 (Draft 0.15)
    ``V4L2_BUF_TYPE_SLICED_VBI_OUTPUT`` of the sliced VBI interface were
    not mentioned along with other buffer types.
 
-2. In :ref:`VIDIOC_G_AUDIO <VIDIOC_G_AUDIO>` it was clarified that the struct
-   :c:type:`v4l2_audio` ``mode`` field is a flags field.
+2. In :ref:`VIDIOC_G_AUDIO <VIDIOC_G_AUDIO>` it was clarified that the
+   struct v4l2_audio ``mode`` field is a flags field.
 
 3. :ref:`VIDIOC_QUERYCAP` did not mention the sliced VBI and radio
    capability flags.
 
-4. In :ref:`VIDIOC_G_FREQUENCY <VIDIOC_G_FREQUENCY>` it was clarified that applications
-   must initialize the tuner ``type`` field of struct
-   :c:type:`v4l2_frequency` before calling
+4. In :ref:`VIDIOC_G_FREQUENCY <VIDIOC_G_FREQUENCY>` it was clarified that
+   applications must initialize the tuner ``type`` field of
+   struct v4l2_frequency before calling
    :ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>`.
 
-5. The ``reserved`` array in struct
-   :c:type:`v4l2_requestbuffers` has 2 elements,
+5. The ``reserved`` array in struct v4l2_requestbuffers has 2 elements,
    not 32.
 
 6. In :ref:`output` and :ref:`raw-vbi` the device file names
@@ -865,7 +812,6 @@ V4L2 spec erratum 2006-09-23 (Draft 0.15)
 7. With Linux 2.6.15 the possible range for VBI device minor numbers was
    extended from 224-239 to 224-255. Accordingly device file names
    ``/dev/vbi0`` to ``/dev/vbi31`` are possible now.
-
 
 V4L2 in Linux 2.6.18
 ====================
@@ -876,16 +822,15 @@ V4L2 in Linux 2.6.18
    flag to skip unsupported controls with
    :ref:`VIDIOC_QUERYCTRL`, new control types
    ``V4L2_CTRL_TYPE_INTEGER64`` and ``V4L2_CTRL_TYPE_CTRL_CLASS``
-   (:c:type:`v4l2_ctrl_type`), and new control flags
+   (enum v4l2_ctrl_type), and new control flags
    ``V4L2_CTRL_FLAG_READ_ONLY``, ``V4L2_CTRL_FLAG_UPDATE``,
    ``V4L2_CTRL_FLAG_INACTIVE`` and ``V4L2_CTRL_FLAG_SLIDER``
    (:ref:`control-flags`). See :ref:`extended-controls` for details.
 
-
 V4L2 in Linux 2.6.19
 ====================
 
-1. In struct :c:type:`v4l2_sliced_vbi_cap` a
+1. In struct v4l2_sliced_vbi_cap a
    buffer type field was added replacing a reserved field. Note on
    architectures where the size of enum types differs from int types the
    size of the structure changed. The
@@ -903,13 +848,11 @@ V4L2 in Linux 2.6.19
 3. A new pixel format ``V4L2_PIX_FMT_RGB444`` (:ref:`pixfmt-rgb`) was
    added.
 
-
 V4L2 spec erratum 2006-10-12 (Draft 0.17)
 =========================================
 
 1. ``V4L2_PIX_FMT_HM12`` (:ref:`reserved-formats`) is a YUV 4:2:0, not
    4:2:2 format.
-
 
 V4L2 in Linux 2.6.21
 ====================
@@ -918,12 +861,11 @@ V4L2 in Linux 2.6.21
    General Public License version two or later, and under a 3-clause
    BSD-style license.
 
-
 V4L2 in Linux 2.6.22
 ====================
 
 1. Two new field orders ``V4L2_FIELD_INTERLACED_TB`` and
-   ``V4L2_FIELD_INTERLACED_BT`` were added. See :c:type:`v4l2_field` for
+   ``V4L2_FIELD_INTERLACED_BT`` were added. See enum v4l2_field for
    details.
 
 2. Three new clipping/blending methods with a global or straight or
@@ -931,20 +873,17 @@ V4L2 in Linux 2.6.22
    See the description of the :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>`
    and :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` ioctls for details.
 
-   A new ``global_alpha`` field was added to
-   :c:type:`v4l2_window`, extending the structure. This
-   may *break compatibility* with applications using a struct
-   struct :c:type:`v4l2_window` directly. However the
+   A new ``global_alpha`` field was added to struct v4l2_window,
+   extending the structure. This may **break compatibility** with
+   applications using a struct v4l2_window directly. However the
    :ref:`VIDIOC_G/S/TRY_FMT <VIDIOC_G_FMT>` ioctls, which take a
-   pointer to a :c:type:`v4l2_format` parent structure
+   pointer to a struct v4l2_format parent structure
    with padding bytes at the end, are not affected.
 
-3. The format of the ``chromakey`` field in struct
-   :c:type:`v4l2_window` changed from "host order RGB32"
-   to a pixel value in the same format as the framebuffer. This may
-   *break compatibility* with existing applications. Drivers supporting
-   the "host order RGB32" format are not known.
-
+3. The format of the ``chromakey`` field in struct v4l2_window changed from
+   "host order RGB32" to a pixel value in the same format as the framebuffer.
+   This may **break compatibility** with existing applications. Drivers
+   supporting the "host order RGB32" format are not known.
 
 V4L2 in Linux 2.6.24
 ====================
@@ -952,7 +891,6 @@ V4L2 in Linux 2.6.24
 1. The pixel formats ``V4L2_PIX_FMT_PAL8``, ``V4L2_PIX_FMT_YUV444``,
    ``V4L2_PIX_FMT_YUV555``, ``V4L2_PIX_FMT_YUV565`` and
    ``V4L2_PIX_FMT_YUV32`` were added.
-
 
 V4L2 in Linux 2.6.25
 ====================
@@ -980,7 +918,6 @@ V4L2 in Linux 2.6.25
    interface in Linux 2.6.18, where finally removed from the
    ``videodev2.h`` header file.
 
-
 V4L2 in Linux 2.6.26
 ====================
 
@@ -989,7 +926,6 @@ V4L2 in Linux 2.6.26
 
 2. Added user controls ``V4L2_CID_CHROMA_AGC`` and
    ``V4L2_CID_COLOR_KILLER``.
-
 
 V4L2 in Linux 2.6.27
 ====================
@@ -1002,7 +938,6 @@ V4L2 in Linux 2.6.27
    ``V4L2_PIX_FMT_PCA561``, ``V4L2_PIX_FMT_SGBRG8``,
    ``V4L2_PIX_FMT_PAC207`` and ``V4L2_PIX_FMT_PJPG`` were added.
 
-
 V4L2 in Linux 2.6.28
 ====================
 
@@ -1014,14 +949,12 @@ V4L2 in Linux 2.6.28
 3. The pixel formats ``V4L2_PIX_FMT_SGRBG10`` and
    ``V4L2_PIX_FMT_SGRBG10DPCM8`` were added.
 
-
 V4L2 in Linux 2.6.29
 ====================
 
 1. The ``VIDIOC_G_CHIP_IDENT`` ioctl was renamed to
    ``VIDIOC_G_CHIP_IDENT_OLD`` and ``VIDIOC_DBG_G_CHIP_IDENT`` was
-   introduced in its place. The old struct
-   struct ``v4l2_chip_ident`` was renamed to
+   introduced in its place. The old struct ``v4l2_chip_ident`` was renamed to
    struct ``v4l2_chip_ident_old``.
 
 2. The pixel formats ``V4L2_PIX_FMT_VYUY``, ``V4L2_PIX_FMT_NV16`` and
@@ -1031,14 +964,12 @@ V4L2 in Linux 2.6.29
    ``V4L2_CID_ZOOM_RELATIVE``, ``V4L2_CID_ZOOM_CONTINUOUS`` and
    ``V4L2_CID_PRIVACY``.
 
-
 V4L2 in Linux 2.6.30
 ====================
 
 1. New control flag ``V4L2_CTRL_FLAG_WRITE_ONLY`` was added.
 
 2. New control ``V4L2_CID_COLORFX`` was added.
-
 
 V4L2 in Linux 2.6.32
 ====================
@@ -1066,20 +997,17 @@ V4L2 in Linux 2.6.32
 9. Added Remote Controller chapter, describing the default Remote
    Controller mapping for media devices.
 
-
 V4L2 in Linux 2.6.33
 ====================
 
 1. Added support for Digital Video timings in order to support HDTV
    receivers and transmitters.
 
-
 V4L2 in Linux 2.6.34
 ====================
 
 1. Added ``V4L2_CID_IRIS_ABSOLUTE`` and ``V4L2_CID_IRIS_RELATIVE``
    controls to the :ref:`Camera controls class <camera-controls>`.
-
 
 V4L2 in Linux 2.6.37
 ====================
@@ -1089,7 +1017,6 @@ V4L2 in Linux 2.6.37
    applications found that used it. It was originally scheduled for
    removal in 2.6.35.
 
-
 V4L2 in Linux 2.6.39
 ====================
 
@@ -1098,7 +1025,6 @@ V4L2 in Linux 2.6.39
 2. Multi-planar API added. Does not affect the compatibility of current
    drivers and applications. See :ref:`multi-planar API <planar-apis>`
    for details.
-
 
 V4L2 in Linux 3.1
 =================
@@ -1110,7 +1036,6 @@ V4L2 in Linux 3.1
 
    Added V4L2_CTRL_TYPE_BITMASK.
 
-
 V4L2 in Linux 3.2
 =================
 
@@ -1121,7 +1046,6 @@ V4L2 in Linux 3.2
    Does not affect the compatibility of current drivers and
    applications. See :ref:`selection API <selection-api>` for details.
 
-
 V4L2 in Linux 3.3
 =================
 
@@ -1130,7 +1054,6 @@ V4L2 in Linux 3.3
 
 2. Added the device_caps field to struct v4l2_capabilities and added
    the new V4L2_CAP_DEVICE_CAPS capability.
-
 
 V4L2 in Linux 3.4
 =================
@@ -1141,7 +1064,6 @@ V4L2 in Linux 3.4
    :ref:`VIDIOC_ENUM_DV_TIMINGS`,
    :ref:`VIDIOC_QUERY_DV_TIMINGS` and
    :ref:`VIDIOC_DV_TIMINGS_CAP`.
-
 
 V4L2 in Linux 3.5
 =================
@@ -1169,11 +1091,10 @@ V4L2 in Linux 3.5
    ``V4L2_CID_AUTO_FOCUS_START``, ``V4L2_CID_AUTO_FOCUS_STOP``,
    ``V4L2_CID_AUTO_FOCUS_STATUS`` and ``V4L2_CID_AUTO_FOCUS_RANGE``.
 
-
 V4L2 in Linux 3.6
 =================
 
-1. Replaced ``input`` in struct :c:type:`v4l2_buffer` by
+1. Replaced ``input`` in struct v4l2_buffer by
    ``reserved2`` and removed ``V4L2_BUF_FLAG_INPUT``.
 
 2. Added V4L2_CAP_VIDEO_M2M and V4L2_CAP_VIDEO_M2M_MPLANE
@@ -1182,16 +1103,14 @@ V4L2 in Linux 3.6
 3. Added support for frequency band enumerations:
    :ref:`VIDIOC_ENUM_FREQ_BANDS`.
 
-
 V4L2 in Linux 3.9
 =================
 
 1. Added timestamp types to ``flags`` field in
-   struct :c:type:`v4l2_buffer`. See :ref:`buffer-flags`.
+   struct v4l2_buffer. See :ref:`buffer-flags`.
 
 2. Added ``V4L2_EVENT_CTRL_CH_RANGE`` control event changes flag. See
    :ref:`ctrl-changes-flags`.
-
 
 V4L2 in Linux 3.10
 ==================
@@ -1204,41 +1123,35 @@ V4L2 in Linux 3.10
 2. Added new debugging ioctl
    :ref:`VIDIOC_DBG_G_CHIP_INFO`.
 
-
 V4L2 in Linux 3.11
 ==================
 
 1. Remove obsolete ``VIDIOC_DBG_G_CHIP_IDENT`` ioctl.
 
-
 V4L2 in Linux 3.14
 ==================
 
-1. In struct :c:type:`v4l2_rect`, the type of ``width`` and
+1. In struct v4l2_rect, the type of ``width`` and
    ``height`` fields changed from _s32 to _u32.
-
 
 V4L2 in Linux 3.15
 ==================
 
 1. Added Software Defined Radio (SDR) Interface.
 
-
 V4L2 in Linux 3.16
 ==================
 
 1. Added event V4L2_EVENT_SOURCE_CHANGE.
 
-
 V4L2 in Linux 3.17
 ==================
 
-1. Extended struct :c:type:`v4l2_pix_format`. Added
+1. Extended struct v4l2_pix_format. Added
    format flags.
 
 2. Added compound control types and
    :ref:`VIDIOC_QUERY_EXT_CTRL <VIDIOC_QUERYCTRL>`.
-
 
 V4L2 in Linux 3.18
 ==================
@@ -1246,17 +1159,12 @@ V4L2 in Linux 3.18
 1. Added ``V4L2_CID_PAN_SPEED`` and ``V4L2_CID_TILT_SPEED`` camera
    controls.
 
-
 V4L2 in Linux 3.19
 ==================
 
-1. Rewrote Colorspace chapter, added new enum
-   :c:type:`v4l2_ycbcr_encoding` and enum
-   :c:type:`v4l2_quantization` fields to struct
-   :c:type:`v4l2_pix_format`, struct
-   :c:type:`v4l2_pix_format_mplane` and
-   struct :c:type:`v4l2_mbus_framefmt`.
-
+1. Rewrote Colorspace chapter, added new enum v4l2_ycbcr_encoding
+   and enum v4l2_quantization fields to struct v4l2_pix_format,
+   struct v4l2_pix_format_mplane and struct v4l2_mbus_framefmt.
 
 V4L2 in Linux 4.4
 =================
@@ -1268,12 +1176,10 @@ V4L2 in Linux 4.4
 
 3. Added transmitter support for Software Defined Radio (SDR) Interface.
 
-
 .. _other:
 
 Relation of V4L2 to other Linux multimedia APIs
 ===============================================
-
 
 .. _xvideo:
 
@@ -1320,7 +1226,6 @@ YUV to RGB conversion and scaling for faster video playback, and added
 an interface to MPEG-2 decoding hardware. This API is useful to display
 images captured with V4L2 devices.
 
-
 Digital Video
 -------------
 
@@ -1330,12 +1235,10 @@ homepage at `https://linuxtv.org <https://linuxtv.org>`__. The Linux
 DVB API has no connection to the V4L2 API except that drivers for hybrid
 hardware may support both.
 
-
 Audio Interfaces
 ----------------
 
 [to do - OSS/ALSA]
-
 
 .. _experimental:
 
@@ -1349,7 +1252,6 @@ change in the future.
    :ref:`VIDIOC_DBG_S_REGISTER <VIDIOC_DBG_G_REGISTER>` ioctls.
 
 -  :ref:`VIDIOC_DBG_G_CHIP_INFO` ioctl.
-
 
 .. _obsolete:
 

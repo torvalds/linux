@@ -479,7 +479,7 @@ static inline int pm_runtime_set_active(struct device *dev)
 }
 
 /**
- * pm_runtime_set_suspended - Set runtime PM status to "active".
+ * pm_runtime_set_suspended - Set runtime PM status to "suspended".
  * @dev: Target device.
  *
  * Set the runtime PM status of @dev to %RPM_SUSPENDED and ensure that

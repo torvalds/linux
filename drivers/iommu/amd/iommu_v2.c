@@ -40,7 +40,7 @@ struct pasid_state {
 	struct mmu_notifier mn;                 /* mmu_notifier handle */
 	struct pri_queue pri[PRI_QUEUE_SIZE];	/* PRI tag states */
 	struct device_state *device_state;	/* Link to our device_state */
-	int pasid;				/* PASID index */
+	u32 pasid;				/* PASID index */
 	bool invalid;				/* Used during setup and
 						   teardown of the pasid */
 	spinlock_t lock;			/* Protect pri_queues and
@@ -70,7 +70,7 @@ struct fault {
 	struct mm_struct *mm;
 	u64 address;
 	u16 devid;
-	u16 pasid;
+	u32 pasid;
 	u16 tag;
 	u16 finish;
 	u16 flags;
@@ -150,7 +150,7 @@ static void put_device_state(struct device_state *dev_state)
 
 /* Must be called under dev_state->lock */
 static struct pasid_state **__get_pasid_state_ptr(struct device_state *dev_state,
-						  int pasid, bool alloc)
+						  u32 pasid, bool alloc)
 {
 	struct pasid_state **root, **ptr;
 	int level, index;
@@ -184,7 +184,7 @@ static struct pasid_state **__get_pasid_state_ptr(struct device_state *dev_state
 
 static int set_pasid_state(struct device_state *dev_state,
 			   struct pasid_state *pasid_state,
-			   int pasid)
+			   u32 pasid)
 {
 	struct pasid_state **ptr;
 	unsigned long flags;
@@ -211,7 +211,7 @@ out_unlock:
 	return ret;
 }
 
-static void clear_pasid_state(struct device_state *dev_state, int pasid)
+static void clear_pasid_state(struct device_state *dev_state, u32 pasid)
 {
 	struct pasid_state **ptr;
 	unsigned long flags;
@@ -229,7 +229,7 @@ out_unlock:
 }
 
 static struct pasid_state *get_pasid_state(struct device_state *dev_state,
-					   int pasid)
+					   u32 pasid)
 {
 	struct pasid_state **ptr, *ret = NULL;
 	unsigned long flags;
@@ -594,7 +594,7 @@ static struct notifier_block ppr_nb = {
 	.notifier_call = ppr_notifier,
 };
 
-int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
+int amd_iommu_bind_pasid(struct pci_dev *pdev, u32 pasid,
 			 struct task_struct *task)
 {
 	struct pasid_state *pasid_state;
@@ -615,7 +615,7 @@ int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
 		return -EINVAL;
 
 	ret = -EINVAL;
-	if (pasid < 0 || pasid >= dev_state->max_pasids)
+	if (pasid >= dev_state->max_pasids)
 		goto out;
 
 	ret = -ENOMEM;
@@ -679,7 +679,7 @@ out:
 }
 EXPORT_SYMBOL(amd_iommu_bind_pasid);
 
-void amd_iommu_unbind_pasid(struct pci_dev *pdev, int pasid)
+void amd_iommu_unbind_pasid(struct pci_dev *pdev, u32 pasid)
 {
 	struct pasid_state *pasid_state;
 	struct device_state *dev_state;
@@ -695,7 +695,7 @@ void amd_iommu_unbind_pasid(struct pci_dev *pdev, int pasid)
 	if (dev_state == NULL)
 		return;
 
-	if (pasid < 0 || pasid >= dev_state->max_pasids)
+	if (pasid >= dev_state->max_pasids)
 		goto out;
 
 	pasid_state = get_pasid_state(dev_state, pasid);

@@ -123,6 +123,15 @@ struct drm_i915_gem_object {
 	struct list_head lut_list;
 	spinlock_t lut_lock; /* guards lut_list */
 
+	/**
+	 * @obj_link: Link into @i915_gem_ww_ctx.obj_list
+	 *
+	 * When we lock this object through i915_gem_object_lock() with a
+	 * context, we add it to the list to ensure we can unlock everything
+	 * when i915_gem_ww_ctx_backoff() or i915_gem_ww_ctx_fini() are called.
+	 */
+	struct list_head obj_link;
+
 	/** Stolen memory for this object, instead of being backed by shmem. */
 	struct drm_mm_node *stolen;
 	union {
@@ -282,6 +291,7 @@ struct drm_i915_gem_object {
 		} userptr;
 
 		unsigned long scratch;
+		u64 encode;
 
 		void *gvt_info;
 	};

@@ -189,50 +189,123 @@ from this.
 Free areas descriptor. User-space tools use this value to iterate the
 free_area ranges. MAX_ORDER is used by the zone buddy allocator.
 
-log_first_idx
--------------
+prb
+---
 
-Index of the first record stored in the buffer log_buf. Used by
-user-space tools to read the strings in the log_buf.
+A pointer to the printk ringbuffer (struct printk_ringbuffer). This
+may be pointing to the static boot ringbuffer or the dynamically
+allocated ringbuffer, depending on when the the core dump occurred.
+Used by user-space tools to read the active kernel log buffer.
 
-log_buf
--------
+printk_rb_static
+----------------
 
-Console output is written to the ring buffer log_buf at index
-log_first_idx. Used to get the kernel log.
+A pointer to the static boot printk ringbuffer. If @prb has a
+different value, this is useful for viewing the initial boot messages,
+which may have been overwritten in the dynamically allocated
+ringbuffer.
 
-log_buf_len
------------
-
-log_buf's length.
-
-clear_idx
+clear_seq
 ---------
 
-The index that the next printk() record to read after the last clear
-command. It indicates the first record after the last SYSLOG_ACTION
-_CLEAR, like issued by 'dmesg -c'. Used by user-space tools to dump
-the dmesg log.
+The sequence number of the printk() record after the last clear
+command. It indicates the first record after the last
+SYSLOG_ACTION_CLEAR, like issued by 'dmesg -c'. Used by user-space
+tools to dump a subset of the dmesg log.
 
-log_next_idx
-------------
+printk_ringbuffer
+-----------------
 
-The index of the next record to store in the buffer log_buf. Used to
-compute the index of the current buffer position.
+The size of a printk_ringbuffer structure. This structure contains all
+information required for accessing the various components of the
+kernel log buffer.
 
-printk_log
-----------
+(printk_ringbuffer, desc_ring|text_data_ring|dict_data_ring|fail)
+-----------------------------------------------------------------
 
-The size of a structure printk_log. Used to compute the size of
-messages, and extract dmesg log. It encapsulates header information for
-log_buf, such as timestamp, syslog level, etc.
+Offsets for the various components of the printk ringbuffer. Used by
+user-space tools to view the kernel log buffer without requiring the
+declaration of the structure.
 
-(printk_log, ts_nsec|len|text_len|dict_len)
--------------------------------------------
+prb_desc_ring
+-------------
 
-It represents field offsets in struct printk_log. User space tools
-parse it and check whether the values of printk_log's members have been
-changed.
+The size of the prb_desc_ring structure. This structure contains
+information about the set of record descriptors.
+
+(prb_desc_ring, count_bits|descs|head_id|tail_id)
+-------------------------------------------------
+
+Offsets for the fields describing the set of record descriptors. Used
+by user-space tools to be able to traverse the descriptors without
+requiring the declaration of the structure.
+
+prb_desc
+--------
+
+The size of the prb_desc structure. This structure contains
+information about a single record descriptor.
+
+(prb_desc, info|state_var|text_blk_lpos|dict_blk_lpos)
+------------------------------------------------------
+
+Offsets for the fields describing a record descriptors. Used by
+user-space tools to be able to read descriptors without requiring
+the declaration of the structure.
+
+prb_data_blk_lpos
+-----------------
+
+The size of the prb_data_blk_lpos structure. This structure contains
+information about where the text or dictionary data (data block) is
+located within the respective data ring.
+
+(prb_data_blk_lpos, begin|next)
+-------------------------------
+
+Offsets for the fields describing the location of a data block. Used
+by user-space tools to be able to locate data blocks without
+requiring the declaration of the structure.
+
+printk_info
+-----------
+
+The size of the printk_info structure. This structure contains all
+the meta-data for a record.
+
+(printk_info, seq|ts_nsec|text_len|dict_len|caller_id)
+------------------------------------------------------
+
+Offsets for the fields providing the meta-data for a record. Used by
+user-space tools to be able to read the information without requiring
+the declaration of the structure.
+
+prb_data_ring
+-------------
+
+The size of the prb_data_ring structure. This structure contains
+information about a set of data blocks.
+
+(prb_data_ring, size_bits|data|head_lpos|tail_lpos)
+---------------------------------------------------
+
+Offsets for the fields describing a set of data blocks. Used by
+user-space tools to be able to access the data blocks without
+requiring the declaration of the structure.
+
+atomic_long_t
+-------------
+
+The size of the atomic_long_t structure. Used by user-space tools to
+be able to copy the full structure, regardless of its
+architecture-specific implementation.
+
+(atomic_long_t, counter)
+------------------------
+
+Offset for the long value of an atomic_long_t variable. Used by
+user-space tools to access the long value without requiring the
+architecture-specific declaration.
 
 (free_area.free_list, MIGRATE_TYPES)
 ------------------------------------

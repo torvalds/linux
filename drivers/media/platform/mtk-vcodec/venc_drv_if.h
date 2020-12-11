@@ -92,6 +92,19 @@ struct venc_enc_param {
 	unsigned int gop_size;
 };
 
+/**
+ * struct venc_frame_info - per-frame information to pass to the firmware.
+ *
+ * @frm_count:		sequential number for this frame
+ * @skip_frm_count:	number of frames skipped so far while decoding
+ * @frm_type:		type of the frame, from enum venc_h264_frame_type
+ */
+struct venc_frame_info {
+	unsigned int frm_count;		/* per frame update */
+	unsigned int skip_frm_count;	/* per frame update */
+	unsigned int frm_type;		/* per frame update */
+};
+
 /*
  * struct venc_frm_buf - frame buffer information used in venc_if_encode()
  * @fb_addr: plane frame buffer addresses

@@ -372,7 +372,7 @@ static void clear_rx_desc(struct pci_dev *pdev, const struct sge_fl *q,
 /**
  *	free_rx_bufs - free the Rx buffers on an SGE free list
  *	@pdev: the PCI device associated with the adapter
- *	@rxq: the SGE free list to clean up
+ *	@q: the SGE free list to clean up
  *
  *	Release the buffers on an SGE free-buffer Rx queue.  HW fetching from
  *	this queue should be stopped before calling this function.
@@ -493,7 +493,7 @@ static inline void ring_fl_db(struct adapter *adap, struct sge_fl *q)
 
 /**
  *	refill_fl - refill an SGE free-buffer list
- *	@adapter: the adapter
+ *	@adap: the adapter
  *	@q: the free-list to refill
  *	@n: the number of new buffers to allocate
  *	@gfp: the gfp flags for allocating new buffers
@@ -568,7 +568,7 @@ static inline void __refill_fl(struct adapter *adap, struct sge_fl *fl)
 
 /**
  *	recycle_rx_buf - recycle a receive buffer
- *	@adapter: the adapter
+ *	@adap: the adapter
  *	@q: the SGE free list
  *	@idx: index of buffer to recycle
  *
@@ -825,6 +825,7 @@ use_orig_buf:
  *	get_packet_pg - return the next ingress packet buffer from a free list
  *	@adap: the adapter that received the packet
  *	@fl: the SGE free list holding the packet
+ *	@q: the queue
  *	@len: the packet length including any SGE padding
  *	@drop_thres: # of remaining buffers before we start dropping packets
  *
@@ -1173,6 +1174,7 @@ static void write_wr_hdr_sgl(unsigned int ndesc, struct sk_buff *skb,
  *	@q: the Tx queue
  *	@ndesc: number of descriptors the packet will occupy
  *	@compl: the value of the COMPL bit to use
+ *	@addr: address
  *
  *	Generate a TX_PKT work request to send the supplied packet.
  */
@@ -1516,14 +1518,14 @@ static int ctrl_xmit(struct adapter *adap, struct sge_txq *q,
 
 /**
  *	restart_ctrlq - restart a suspended control queue
- *	@qs: the queue set cotaining the control queue
+ *	@t: pointer to the tasklet associated with this handler
  *
  *	Resumes transmission on a suspended Tx control queue.
  */
-static void restart_ctrlq(unsigned long data)
+static void restart_ctrlq(struct tasklet_struct *t)
 {
 	struct sk_buff *skb;
-	struct sge_qset *qs = (struct sge_qset *)data;
+	struct sge_qset *qs = from_tasklet(qs, t, txq[TXQ_CTRL].qresume_tsk);
 	struct sge_txq *q = &qs->txq[TXQ_CTRL];
 
 	spin_lock(&q->lock);
@@ -1622,6 +1624,7 @@ static void setup_deferred_unmapping(struct sk_buff *skb, struct pci_dev *pdev,
  *	@pidx: index of the first Tx descriptor to write
  *	@gen: the generation value to use
  *	@ndesc: number of descriptors the packet will occupy
+ *	@addr: the address
  *
  *	Write an offload work request to send the supplied packet.  The packet
  *	data already carry the work request with most fields populated.
@@ -1733,14 +1736,14 @@ again:	reclaim_completed_tx(adap, q, TX_RECLAIM_CHUNK);
 
 /**
  *	restart_offloadq - restart a suspended offload queue
- *	@qs: the queue set cotaining the offload queue
+ *	@t: pointer to the tasklet associated with this handler
  *
  *	Resumes transmission on a suspended Tx offload queue.
  */
-static void restart_offloadq(unsigned long data)
+static void restart_offloadq(struct tasklet_struct *t)
 {
 	struct sk_buff *skb;
-	struct sge_qset *qs = (struct sge_qset *)data;
+	struct sge_qset *qs = from_tasklet(qs, t, txq[TXQ_OFLD].qresume_tsk);
 	struct sge_txq *q = &qs->txq[TXQ_OFLD];
 	const struct port_info *pi = netdev_priv(qs->netdev);
 	struct adapter *adap = pi->adapter;
@@ -1883,7 +1886,7 @@ static inline void deliver_partial_bundle(struct t3cdev *tdev,
 
 /**
  *	ofld_poll - NAPI handler for offload packets in interrupt mode
- *	@dev: the network device doing the polling
+ *	@napi: the network device doing the polling
  *	@budget: polling budget
  *
  *	The NAPI handler for offload packets when a response queue is serviced
@@ -2007,7 +2010,7 @@ static void restart_tx(struct sge_qset *qs)
 
 /**
  *	cxgb3_arp_process - process an ARP request probing a private IP address
- *	@adapter: the adapter
+ *	@pi: the port info
  *	@skb: the skbuff containing the ARP request
  *
  *	Check if the ARP request is probing the private IP address
@@ -2069,7 +2072,8 @@ static void cxgb3_process_iscsi_prov_pack(struct port_info *pi,
  *	@adap: the adapter
  *	@rq: the response queue that received the packet
  *	@skb: the packet
- *	@pad: amount of padding at the start of the buffer
+ *	@pad: padding
+ *	@lro: large receive offload
  *
  *	Process an ingress ethernet pakcet and deliver it to the stack.
  *	The padding is 2 if the packet was delivered in an Rx buffer and 0
@@ -2239,7 +2243,7 @@ static inline void handle_rsp_cntrl_info(struct sge_qset *qs, u32 flags)
 
 /**
  *	check_ring_db - check if we need to ring any doorbells
- *	@adapter: the adapter
+ *	@adap: the adapter
  *	@qs: the queue set whose Tx queues are to be examined
  *	@sleeping: indicates which Tx queue sent GTS
  *
@@ -2372,10 +2376,7 @@ no_mem:
 			if (fl->use_pages) {
 				void *addr = fl->sdesc[fl->cidx].pg_chunk.va;
 
-				prefetch(addr);
-#if L1_CACHE_BYTES < 128
-				prefetch(addr + L1_CACHE_BYTES);
-#endif
+				net_prefetch(addr);
 				__refill_fl(adap, fl);
 				if (lro > 0) {
 					lro_add_page(adap, qs, fl,
@@ -2902,7 +2903,7 @@ void t3_sge_err_intr_handler(struct adapter *adapter)
 
 /**
  *	sge_timer_tx - perform periodic maintenance of an SGE qset
- *	@data: the SGE queue set to maintain
+ *	@t: a timer list containing the SGE queue set to maintain
  *
  *	Runs periodically from a timer to perform maintenance of an SGE queue
  *	set.  It performs two tasks:
@@ -2946,7 +2947,7 @@ static void sge_timer_tx(struct timer_list *t)
 
 /**
  *	sge_timer_rx - perform periodic maintenance of an SGE qset
- *	@data: the SGE queue set to maintain
+ *	@t: the timer list containing the SGE queue set to maintain
  *
  *	a) Replenishes Rx queues that have run out due to memory shortage.
  *	Normally new Rx buffers are added when existing ones are consumed but
@@ -3024,7 +3025,7 @@ void t3_update_qset_coalesce(struct sge_qset *qs, const struct qset_params *p)
  *	@irq_vec_idx: the IRQ vector index for response queue interrupts
  *	@p: configuration parameters for this queue set
  *	@ntxq: number of Tx queues for the queue set
- *	@netdev: net device associated with this queue set
+ *	@dev: net device associated with this queue set
  *	@netdevq: net device TX queue associated with this queue set
  *
  *	Allocate resources and initialize an SGE queue set.  A queue set
@@ -3084,10 +3085,8 @@ int t3_sge_alloc_qset(struct adapter *adapter, unsigned int id, int nports,
 		skb_queue_head_init(&q->txq[i].sendq);
 	}
 
-	tasklet_init(&q->txq[TXQ_OFLD].qresume_tsk, restart_offloadq,
-		     (unsigned long)q);
-	tasklet_init(&q->txq[TXQ_CTRL].qresume_tsk, restart_ctrlq,
-		     (unsigned long)q);
+	tasklet_setup(&q->txq[TXQ_OFLD].qresume_tsk, restart_offloadq);
+	tasklet_setup(&q->txq[TXQ_CTRL].qresume_tsk, restart_ctrlq);
 
 	q->fl[0].gen = q->fl[1].gen = 1;
 	q->fl[0].size = p->fl_size;
@@ -3271,30 +3270,40 @@ void t3_sge_start(struct adapter *adap)
 }
 
 /**
- *	t3_sge_stop - disable SGE operation
+ *	t3_sge_stop_dma - Disable SGE DMA engine operation
  *	@adap: the adapter
  *
- *	Disables the DMA engine.  This can be called in emeregencies (e.g.,
- *	from error interrupts) or from normal process context.  In the latter
- *	case it also disables any pending queue restart tasklets.  Note that
- *	if it is called in interrupt context it cannot disable the restart
- *	tasklets as it cannot wait, however the tasklets will have no effect
- *	since the doorbells are disabled and the driver will call this again
- *	later from process context, at which time the tasklets will be stopped
- *	if they are still running.
+ *	Can be invoked from interrupt context e.g.  error handler.
+ *
+ *	Note that this function cannot disable the restart of tasklets as
+ *	it cannot wait if called from interrupt context, however the
+ *	tasklets will have no effect since the doorbells are disabled. The
+ *	driver will call tg3_sge_stop() later from process context, at
+ *	which time the tasklets will be stopped if they are still running.
+ */
+void t3_sge_stop_dma(struct adapter *adap)
+{
+	t3_set_reg_field(adap, A_SG_CONTROL, F_GLOBALENABLE, 0);
+}
+
+/**
+ *	t3_sge_stop - disable SGE operation completly
+ *	@adap: the adapter
+ *
+ *	Called from process context. Disables the DMA engine and any
+ *	pending queue restart tasklets.
  */
 void t3_sge_stop(struct adapter *adap)
 {
-	t3_set_reg_field(adap, A_SG_CONTROL, F_GLOBALENABLE, 0);
-	if (!in_interrupt()) {
-		int i;
+	int i;
 
-		for (i = 0; i < SGE_QSETS; ++i) {
-			struct sge_qset *qs = &adap->sge.qs[i];
+	t3_sge_stop_dma(adap);
 
-			tasklet_kill(&qs->txq[TXQ_OFLD].qresume_tsk);
-			tasklet_kill(&qs->txq[TXQ_CTRL].qresume_tsk);
-		}
+	for (i = 0; i < SGE_QSETS; ++i) {
+		struct sge_qset *qs = &adap->sge.qs[i];
+
+		tasklet_kill(&qs->txq[TXQ_OFLD].qresume_tsk);
+		tasklet_kill(&qs->txq[TXQ_CTRL].qresume_tsk);
 	}
 }
 

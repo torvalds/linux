@@ -11,7 +11,7 @@ Supported chips:
 
     Datasheet:
 
-	http://cds.linear.com/docs/en/datasheet/2945fa.pdf
+	https://www.analog.com/media/en/technical-documentation/data-sheets/2945fb.pdf
 
 Author: Guenter Roeck <linux@roeck-us.net>
 

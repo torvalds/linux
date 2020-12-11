@@ -386,11 +386,13 @@ static const struct regmap_config emc1403_regmap_config = {
 	.volatile_reg = emc1403_regmap_is_volatile,
 };
 
-static int emc1403_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static const struct i2c_device_id emc1403_idtable[];
+
+static int emc1403_probe(struct i2c_client *client)
 {
 	struct thermal_data *data;
 	struct device *hwmon_dev;
+	const struct i2c_device_id *id = i2c_match_id(emc1403_idtable, client);
 
 	data = devm_kzalloc(&client->dev, sizeof(struct thermal_data),
 			    GFP_KERNEL);
@@ -452,7 +454,7 @@ static struct i2c_driver sensor_emc1403 = {
 		.name = "emc1403",
 	},
 	.detect = emc1403_detect,
-	.probe = emc1403_probe,
+	.probe_new = emc1403_probe,
 	.id_table = emc1403_idtable,
 	.address_list = emc1403_address_list,
 };

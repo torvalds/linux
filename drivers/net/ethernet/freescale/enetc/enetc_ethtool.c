@@ -686,6 +686,28 @@ static int enetc_set_wol(struct net_device *dev,
 	return ret;
 }
 
+static int enetc_get_link_ksettings(struct net_device *dev,
+				    struct ethtool_link_ksettings *cmd)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(dev);
+
+	if (!priv->phylink)
+		return -EOPNOTSUPP;
+
+	return phylink_ethtool_ksettings_get(priv->phylink, cmd);
+}
+
+static int enetc_set_link_ksettings(struct net_device *dev,
+				    const struct ethtool_link_ksettings *cmd)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(dev);
+
+	if (!priv->phylink)
+		return -EOPNOTSUPP;
+
+	return phylink_ethtool_ksettings_set(priv->phylink, cmd);
+}
+
 static const struct ethtool_ops enetc_pf_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES |
@@ -704,8 +726,8 @@ static const struct ethtool_ops enetc_pf_ethtool_ops = {
 	.get_ringparam = enetc_get_ringparam,
 	.get_coalesce = enetc_get_coalesce,
 	.set_coalesce = enetc_set_coalesce,
-	.get_link_ksettings = phy_ethtool_get_link_ksettings,
-	.set_link_ksettings = phy_ethtool_set_link_ksettings,
+	.get_link_ksettings = enetc_get_link_ksettings,
+	.set_link_ksettings = enetc_set_link_ksettings,
 	.get_link = ethtool_op_get_link,
 	.get_ts_info = enetc_get_ts_info,
 	.get_wol = enetc_get_wol,

@@ -238,6 +238,7 @@ static int send_msg_to_mgmt(struct hinic_pf_to_mgmt *pf_to_mgmt,
  * @out_size: response length
  * @direction: the direction of the original message
  * @resp_msg_id: msg id to response for
+ * @timeout: time-out period of waiting for response
  *
  * Return 0 - Success, negative - Failure
  **/

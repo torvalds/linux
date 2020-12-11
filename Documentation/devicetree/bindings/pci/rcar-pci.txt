@@ -1,7 +1,8 @@
 * Renesas R-Car PCIe interface
 
 Required properties:
-compatible: "renesas,pcie-r8a7743" for the R8A7743 SoC;
+compatible: "renesas,pcie-r8a7742" for the R8A7742 SoC;
+	    "renesas,pcie-r8a7743" for the R8A7743 SoC;
 	    "renesas,pcie-r8a7744" for the R8A7744 SoC;
 	    "renesas,pcie-r8a774a1" for the R8A774A1 SoC;
 	    "renesas,pcie-r8a774b1" for the R8A774B1 SoC;
