@@ -922,6 +922,13 @@
 			status = "disabled";
 		};
 
+		mipi_phy_rx0: mipi-phy-rx0 {
+			compatible = "rockchip,rk3288-mipi-dphy";
+			clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_MIPI_CSI>;
+			clock-names = "dphy-ref", "pclk";
+			status = "disabled";
+		};
+
 		usbphy: usbphy {
 			compatible = "rockchip,rk3288-usb-phy";
 			#address-cells = <1>;
@@ -1206,14 +1213,28 @@
 		};
 	};
 
+	video_phy: video-phy@ff96c000 {
+		compatible = "rockchip,rk3288-video-phy";
+		reg = <0x0 0xff96c000 0x0 0x4000>;
+		clocks = <&cru PCLK_LVDS_PHY>;
+		clock-names = "pclk";
+		resets = <&cru SRST_LVDS_PHY>;
+		reset-names = "rst";
+		power-domains = <&power RK3288_PD_VIO>;
+		#phy-cells = <0>;
+		status = "disabled";
+	};
+
 	edp: dp@ff970000 {
 		compatible = "rockchip,rk3288-dp";
 		reg = <0x0 0xff970000 0x0 0x4000>;
 		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru SCLK_EDP>, <&cru PCLK_EDP_CTRL>;
-		clock-names = "dp", "pclk";
-		phys = <&edp_phy>;
-		phy-names = "dp";
+		clocks = <&cru SCLK_EDP_24M>, <&cru PCLK_EDP_CTRL>,
+			 <&cru SCLK_EDP>;
+		clock-names = "dp", "pclk", "spdif";
+		assigned-clocks = <&cru SCLK_EDP_24M>;
+		assigned-clock-parents = <&xin24m>;
+		power-domains = <&power RK3288_PD_VIO>;
 		resets = <&cru SRST_EDP>;
 		reset-names = "dp";
 		rockchip,grf = <&grf>;
