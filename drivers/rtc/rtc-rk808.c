@@ -37,6 +37,7 @@
 #define YEARS_REG_MSK		0xFF
 #define WEEKS_REG_MSK		0x7
 
+#define RTC_NEED_TRANSITIONS	BIT(0)
 /* REG_SECONDS_REG through REG_YEARS_REG is how many registers? */
 
 #define NUM_TIME_REGS	(RK808_WEEKS_REG - RK808_SECONDS_REG + 1)
@@ -55,6 +56,7 @@ struct rk808_rtc {
 	struct rtc_device *rtc;
 	struct rk_rtc_compat_reg *creg;
 	int irq;
+	unsigned int flag;
 };
 
 /*
@@ -138,8 +140,13 @@ static int rk808_rtc_readtime(struct device *dev, struct rtc_time *tm)
 	tm->tm_mon = (bcd2bin(rtc_data[4] & MONTHS_REG_MSK)) - 1;
 	tm->tm_year = (bcd2bin(rtc_data[5] & YEARS_REG_MSK)) + 100;
 	tm->tm_wday = bcd2bin(rtc_data[6] & WEEKS_REG_MSK);
-	rockchip_to_gregorian(tm);
-	dev_dbg(dev, "RTC date/time %ptRd(%d) %ptRt\n", tm, tm->tm_wday, tm);
+
+	if (rk808_rtc->flag & RTC_NEED_TRANSITIONS)
+		rockchip_to_gregorian(tm);
+
+	dev_dbg(dev, "RTC date/time %4d-%02d-%02d(%d) %02d:%02d:%02d\n",
+		1900 + tm->tm_year, tm->tm_mon + 1, tm->tm_mday,
+		tm->tm_wday, tm->tm_hour, tm->tm_min, tm->tm_sec);
 
 	return ret;
 }
@@ -152,8 +159,13 @@ static int rk808_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	u8 rtc_data[NUM_TIME_REGS];
 	int ret;
 
-	dev_dbg(dev, "set RTC date/time %ptRd(%d) %ptRt\n", tm, tm->tm_wday, tm);
-	gregorian_to_rockchip(tm);
+	dev_dbg(dev, "set RTC date/time %4d-%02d-%02d(%d) %02d:%02d:%02d\n",
+		1900 + tm->tm_year, tm->tm_mon + 1, tm->tm_mday,
+		tm->tm_wday, tm->tm_hour, tm->tm_min, tm->tm_sec);
+
+	if (rk808_rtc->flag & RTC_NEED_TRANSITIONS)
+		gregorian_to_rockchip(tm);
+
 	rtc_data[0] = bin2bcd(tm->tm_sec);
 	rtc_data[1] = bin2bcd(tm->tm_min);
 	rtc_data[2] = bin2bcd(tm->tm_hour);
@@ -210,7 +222,9 @@ static int rk808_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	alrm->time.tm_mday = bcd2bin(alrm_data[3] & DAYS_REG_MSK);
 	alrm->time.tm_mon = (bcd2bin(alrm_data[4] & MONTHS_REG_MSK)) - 1;
 	alrm->time.tm_year = (bcd2bin(alrm_data[5] & YEARS_REG_MSK)) + 100;
-	rockchip_to_gregorian(&alrm->time);
+
+	if (rk808_rtc->flag & RTC_NEED_TRANSITIONS)
+		rockchip_to_gregorian(&alrm->time);
 
 	ret = regmap_read(rk808->regmap, rk808_rtc->creg->int_reg, &int_reg);
 	if (ret) {
@@ -264,7 +278,9 @@ static int rk808_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	dev_dbg(dev, "alrm set RTC date/time %ptRd(%d) %ptRt\n",
 		&alrm->time, alrm->time.tm_wday, &alrm->time);
 
-	gregorian_to_rockchip(&alrm->time);
+	if (rk808_rtc->flag & RTC_NEED_TRANSITIONS)
+		gregorian_to_rockchip(&alrm->time);
+
 	alrm_data[0] = bin2bcd(alrm->time.tm_sec);
 	alrm_data[1] = bin2bcd(alrm->time.tm_min);
 	alrm_data[2] = bin2bcd(alrm->time.tm_hour);
@@ -414,6 +430,7 @@ static int rk808_rtc_probe(struct platform_device *pdev)
 	case RK808_ID:
 	case RK818_ID:
 		rk808_rtc->creg = &rk808_creg;
+		rk808_rtc->flag |= RTC_NEED_TRANSITIONS;
 		break;
 	case RK805_ID:
 	case RK816_ID:
