@@ -9187,6 +9187,44 @@ static void r3di_pre_dsp_setup(struct hda_codec *codec)
 }
 
 /*
+ * The ZxR seems to use alternative DAC's for the surround channels, which
+ * require PLL PMU setup for the clock rate, I'm guessing. Without setting
+ * this up, we get no audio out of the surround jacks.
+ */
+static void zxr_pre_dsp_setup(struct hda_codec *codec)
+{
+	static const unsigned int addr[] = { 0x43, 0x40, 0x41, 0x42, 0x45 };
+	static const unsigned int data[] = { 0x08, 0x0c, 0x0b, 0x07, 0x0d };
+	unsigned int i;
+
+	chipio_write(codec, 0x189000, 0x0001f100);
+	msleep(50);
+	chipio_write(codec, 0x18900c, 0x0001f100);
+	msleep(50);
+
+	/*
+	 * This writes a RET instruction at the entry point of the function at
+	 * 0xfa92 in exram. This function seems to have something to do with
+	 * ASI. Might be some way to prevent the card from reconfiguring the
+	 * ASI stuff itself.
+	 */
+	chipio_8051_write_exram(codec, 0xfa92, 0x22);
+
+	chipio_8051_write_pll_pmu(codec, 0x51, 0x98);
+
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0, 0x725, 0x82);
+	chipio_set_control_param(codec, CONTROL_PARAM_ASI, 3);
+
+	chipio_write(codec, 0x18902c, 0x00000000);
+	msleep(50);
+	chipio_write(codec, 0x18902c, 0x00000003);
+	msleep(50);
+
+	for (i = 0; i < ARRAY_SIZE(addr); i++)
+		chipio_8051_write_pll_pmu(codec, addr[i], data[i]);
+}
+
+/*
  * These are sent before the DSP is downloaded. Not sure
  * what they do, or if they're necessary. Could possibly
  * be removed. Figure they're better to leave in.
@@ -9447,8 +9485,10 @@ static void ca0132_alt_init(struct hda_codec *codec)
 		ca0113_mmio_command_set(codec, 0x30, 0x32, 0x3f);
 		break;
 	case QUIRK_ZXR:
+		chipio_8051_write_pll_pmu(codec, 0x49, 0x88);
 		snd_hda_sequence_write(codec, spec->chip_init_verbs);
 		snd_hda_sequence_write(codec, spec->desktop_init_verbs);
+		zxr_pre_dsp_setup(codec);
 		break;
 	default:
 		break;
