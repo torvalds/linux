@@ -86,13 +86,15 @@ struct dma_buf_ops {
 	 * @pin:
 	 *
 	 * This is called by dma_buf_pin() and lets the exporter know that the
-	 * DMA-buf can't be moved any more.
+	 * DMA-buf can't be moved any more. The exporter should pin the buffer
+	 * into system memory to make sure it is generally accessible by other
+	 * devices.
 	 *
 	 * This is called with the &dmabuf.resv object locked and is mutual
 	 * exclusive with @cache_sgt_mapping.
 	 *
-	 * This callback is optional and should only be used in limited use
-	 * cases like scanout and not for temporary pin operations.
+	 * This is called automatically for non-dynamic importers from
+	 * dma_buf_attach().
 	 *
 	 * Returns:
 	 *

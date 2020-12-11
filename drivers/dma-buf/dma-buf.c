@@ -809,8 +809,14 @@ EXPORT_SYMBOL_GPL(dma_buf_detach);
 
 /**
  * dma_buf_pin - Lock down the DMA-buf
- *
  * @attach:	[in]	attachment which should be pinned
+ *
+ * Only dynamic importers (who set up @attach with dma_buf_dynamic_attach()) may
+ * call this, and only for limited use cases like scanout and not for temporary
+ * pin operations. It is not permitted to allow userspace to pin arbitrary
+ * amounts of buffers through this interface.
+ *
+ * Buffers must be unpinned by calling dma_buf_unpin().
  *
  * Returns:
  * 0 on success, negative error code on failure.
@@ -819,6 +825,8 @@ int dma_buf_pin(struct dma_buf_attachment *attach)
 {
 	struct dma_buf *dmabuf = attach->dmabuf;
 	int ret = 0;
+
+	WARN_ON(!dma_buf_attachment_is_dynamic(attach));
 
 	dma_resv_assert_held(dmabuf->resv);
 
@@ -830,13 +838,18 @@ int dma_buf_pin(struct dma_buf_attachment *attach)
 EXPORT_SYMBOL_GPL(dma_buf_pin);
 
 /**
- * dma_buf_unpin - Remove lock from DMA-buf
- *
+ * dma_buf_unpin - Unpin a DMA-buf
  * @attach:	[in]	attachment which should be unpinned
+ *
+ * This unpins a buffer pinned by dma_buf_pin() and allows the exporter to move
+ * any mapping of @attach again and inform the importer through
+ * &dma_buf_attach_ops.move_notify.
  */
 void dma_buf_unpin(struct dma_buf_attachment *attach)
 {
 	struct dma_buf *dmabuf = attach->dmabuf;
+
+	WARN_ON(!dma_buf_attachment_is_dynamic(attach));
 
 	dma_resv_assert_held(dmabuf->resv);
 
