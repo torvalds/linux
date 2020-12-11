@@ -288,7 +288,7 @@ static int hns_roce_v1_post_send(struct ib_qp *ibqp,
 					ret = -EINVAL;
 					*bad_wr = wr;
 					dev_err(dev, "inline len(1-%d)=%d, illegal",
-						ctrl->msg_length,
+						le32_to_cpu(ctrl->msg_length),
 						hr_dev->caps.max_sq_inline);
 					goto out;
 				}
@@ -1639,7 +1639,7 @@ static int hns_roce_v1_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
 }
 
 static int hns_roce_v1_chk_mbox(struct hns_roce_dev *hr_dev,
-				unsigned long timeout)
+				unsigned int timeout)
 {
 	u8 __iomem *hcr = hr_dev->reg_base + ROCEE_MB1_REG;
 	unsigned long end;
@@ -3600,10 +3600,10 @@ static int hns_roce_v1_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 	return 0;
 }
 
-static void set_eq_cons_index_v1(struct hns_roce_eq *eq, int req_not)
+static void set_eq_cons_index_v1(struct hns_roce_eq *eq, u32 req_not)
 {
 	roce_raw_write((eq->cons_index & HNS_ROCE_V1_CONS_IDX_M) |
-		      (req_not << eq->log_entries), eq->doorbell);
+		       (req_not << eq->log_entries), eq->doorbell);
 }
 
 static void hns_roce_v1_wq_catas_err_handle(struct hns_roce_dev *hr_dev,

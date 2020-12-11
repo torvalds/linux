@@ -510,7 +510,7 @@ int hns_roce_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		ibdev_err(ibdev, "failed to map sg mtr, ret = %d.\n", ret);
 		ret = 0;
 	} else {
-		mr->pbl_mtr.hem_cfg.buf_pg_shift = ilog2(ibmr->page_size);
+		mr->pbl_mtr.hem_cfg.buf_pg_shift = (u32)ilog2(ibmr->page_size);
 		ret = mr->npages;
 	}
 
@@ -829,12 +829,12 @@ static int mtr_get_pages(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 }
 
 int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
-		     dma_addr_t *pages, int page_cnt)
+		     dma_addr_t *pages, unsigned int page_cnt)
 {
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	struct hns_roce_buf_region *r;
+	unsigned int i;
 	int err;
-	int i;
 
 	/*
 	 * Only use the first page address as root ba when hopnum is 0, this
@@ -871,13 +871,12 @@ int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		      int offset, u64 *mtt_buf, int mtt_max, u64 *base_addr)
 {
 	struct hns_roce_hem_cfg *cfg = &mtr->hem_cfg;
+	int mtt_count, left;
 	int start_index;
-	int mtt_count;
 	int total = 0;
 	__le64 *mtts;
-	int npage;
+	u32 npage;
 	u64 addr;
-	int left;
 
 	if (!mtt_buf || mtt_max < 1)
 		goto done;
