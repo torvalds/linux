@@ -817,7 +817,7 @@ void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev)
 	}
 
 	/* dump vital information to the logs */
-	snd_sof_dsp_dbg_dump(sdev, SOF_DBG_REGS | SOF_DBG_MBOX);
+	snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
 	snd_sof_ipc_dump(sdev);
 	snd_sof_trace_notify_for_error(sdev);
 }
