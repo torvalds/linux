@@ -92,36 +92,6 @@ out:
 	return ret;
 }
 
-static int update_devfreq_passive(struct devfreq *devfreq, unsigned long freq)
-{
-	int ret;
-
-	if (!devfreq->governor)
-		return -EINVAL;
-
-	mutex_lock_nested(&devfreq->lock, SINGLE_DEPTH_NESTING);
-
-	ret = devfreq->governor->get_target_freq(devfreq, &freq);
-	if (ret < 0)
-		goto out;
-
-	ret = devfreq->profile->target(devfreq->dev.parent, &freq, 0);
-	if (ret < 0)
-		goto out;
-
-	if (devfreq->profile->freq_table
-		&& (devfreq_update_status(devfreq, freq)))
-		dev_err(&devfreq->dev,
-			"Couldn't update frequency transition information.\n");
-
-	devfreq->previous_freq = freq;
-
-out:
-	mutex_unlock(&devfreq->lock);
-
-	return 0;
-}
-
 static int devfreq_passive_notifier_call(struct notifier_block *nb,
 				unsigned long event, void *ptr)
 {
@@ -131,17 +101,25 @@ static int devfreq_passive_notifier_call(struct notifier_block *nb,
 	struct devfreq *parent = (struct devfreq *)data->parent;
 	struct devfreq_freqs *freqs = (struct devfreq_freqs *)ptr;
 	unsigned long freq = freqs->new;
+	int ret = 0;
 
+	mutex_lock_nested(&devfreq->lock, SINGLE_DEPTH_NESTING);
 	switch (event) {
 	case DEVFREQ_PRECHANGE:
 		if (parent->previous_freq > freq)
-			update_devfreq_passive(devfreq, freq);
+			ret = devfreq_update_target(devfreq, freq);
+
 		break;
 	case DEVFREQ_POSTCHANGE:
 		if (parent->previous_freq < freq)
-			update_devfreq_passive(devfreq, freq);
+			ret = devfreq_update_target(devfreq, freq);
 		break;
 	}
+	mutex_unlock(&devfreq->lock);
+
+	if (ret < 0)
+		dev_warn(&devfreq->dev,
+			"failed to update devfreq using passive governor\n");
 
 	return NOTIFY_DONE;
 }
@@ -180,7 +158,7 @@ static int devfreq_passive_event_handler(struct devfreq *devfreq,
 
 static struct devfreq_governor devfreq_passive = {
 	.name = DEVFREQ_GOV_PASSIVE,
-	.immutable = 1,
+	.flags = DEVFREQ_GOV_FLAG_IMMUTABLE,
 	.get_target_freq = devfreq_passive_get_target_freq,
 	.event_handler = devfreq_passive_event_handler,
 };
