@@ -823,7 +823,7 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, u32 start,
  *
  */
 
-static void gfs2_meta_sync(struct gfs2_glock *gl)
+void gfs2_meta_sync(struct gfs2_glock *gl)
 {
 	struct address_space *mapping = gfs2_glock2aspace(gl);
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;

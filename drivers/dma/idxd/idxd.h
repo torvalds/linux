@@ -114,6 +114,8 @@ struct idxd_wq {
 	struct sbitmap_queue sbq;
 	struct dma_chan dma_chan;
 	char name[WQ_NAME_SIZE + 1];
+	u64 max_xfer_bytes;
+	u32 max_batch_size;
 };
 
 struct idxd_engine {
@@ -154,6 +156,7 @@ struct idxd_device {
 	unsigned long flags;
 	int id;
 	int major;
+	u8 cmd_status;
 
 	struct pci_dev *pdev;
 	void __iomem *reg_base;

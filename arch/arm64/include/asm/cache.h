@@ -79,7 +79,7 @@ static inline u32 cache_type_cwg(void)
 	return (read_cpuid_cachetype() >> CTR_CWG_SHIFT) & CTR_CWG_MASK;
 }
 
-#define __read_mostly __section(.data..read_mostly)
+#define __read_mostly __section(".data..read_mostly")
 
 static inline int cache_line_size_of_cpu(void)
 {

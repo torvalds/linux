@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _raw-vbi:
 
@@ -39,7 +33,6 @@ applications must call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl.
 Accessed as ``/dev/vbi``, raw VBI capturing or output is the default
 device function.
 
-
 Querying Capabilities
 =====================
 
@@ -51,7 +44,6 @@ in the ``capabilities`` field of struct
 read/write, streaming or asynchronous I/O methods must be supported. VBI
 devices may or may not have a tuner or modulator.
 
-
 Supplemental Functions
 ======================
 
@@ -59,7 +51,6 @@ VBI devices shall support :ref:`video input or output <video>`,
 :ref:`tuner or modulator <tuner>`, and :ref:`controls <control>`
 ioctls as needed. The :ref:`video standard <standard>` ioctls provide
 information vital to program a VBI device, therefore must be supported.
-
 
 Raw VBI Format Negotiation
 ==========================
@@ -69,7 +60,7 @@ frequency. To properly interpret the data V4L2 specifies an ioctl to
 query the sampling parameters. Moreover, to allow for some flexibility
 applications can also suggest different parameters.
 
-As usual these parameters are *not* reset at :ref:`open() <func-open>`
+As usual these parameters are *not* reset at :c:func:`open()`
 time to permit Unix tool chains, programming a device and then reading
 from it as if it was a plain file. Well written V4L2 applications should
 always ensure they really get what they want, requesting reasonable
@@ -98,8 +89,8 @@ happen for instance when the video and VBI areas to capture would
 overlap, or when the driver supports multiple opens and another process
 already requested VBI capturing or output. Anyway, applications must
 expect other resource allocation points which may return ``EBUSY``, at the
-:ref:`VIDIOC_STREAMON` ioctl and the first :ref:`read() <func-read>`
-, :ref:`write() <func-write>` and :ref:`select() <func-select>` calls.
+:ref:`VIDIOC_STREAMON` ioctl and the first :c:func:`read()`
+, :c:func:`write()` and :c:func:`select()` calls.
 
 VBI devices must implement both the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` and
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, even if :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ignores all requests
@@ -189,7 +180,6 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
       - This array is reserved for future extensions. Drivers and
 	applications must set it to zero.
 
-
 .. tabularcolumns:: |p{4.4cm}|p{1.5cm}|p{11.6cm}|
 
 .. _vbifmt-flags:
@@ -225,7 +215,6 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
 	non-zero.
 
 
-
 .. _vbi-hsync:
 
 .. kernel-figure:: vbi_hsync.svg
@@ -233,7 +222,6 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
     :align: center
 
     **Figure 4.1. Line synchronization**
-
 
 .. _vbi-525:
 
@@ -258,7 +246,6 @@ negotiation, or after switching the video standard which may invalidate
 the negotiated VBI parameters, should be refused by the driver. A format
 change during active I/O is not permitted.
 
-
 Reading and writing VBI images
 ==============================
 
@@ -267,7 +254,6 @@ implementation, the smallest unit of data passed at a time is one frame,
 consisting of two fields of VBI images immediately following in memory.
 
 The total size of a frame computes as follows:
-
 
 .. code-block:: c
 
@@ -283,8 +269,8 @@ The latter bears the possibility of synchronizing video and VBI data by
 using buffer timestamps.
 
 Remember the :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` ioctl and the
-first :ref:`read() <func-read>`, :ref:`write() <func-write>` and
-:ref:`select() <func-select>` call can be resource allocation
+first :c:func:`read()`, :c:func:`write()` and
+:c:func:`select()` call can be resource allocation
 points returning an ``EBUSY`` error code if the required hardware resources
 are temporarily unavailable, for example the device is already in use by
 another process.

@@ -222,10 +222,6 @@ void spum_dump_msg_hdr(u8 *buf, unsigned int buf_len)
 				cipher_key_len = 24;
 				name = "3DES";
 				break;
-			case CIPHER_ALG_RC4:
-				cipher_key_len = 260;
-				name = "ARC4";
-				break;
 			case CIPHER_ALG_AES:
 				switch (cipher_type) {
 				case CIPHER_TYPE_AES128:
@@ -919,21 +915,16 @@ u16 spum_cipher_req_init(u8 *spu_hdr, struct spu_cipher_parms *cipher_parms)
  * @spu_req_hdr_len: Length in bytes of the SPU request header
  * @isInbound:       0 encrypt, 1 decrypt
  * @cipher_parms:    Parameters describing cipher operation to be performed
- * @update_key:      If true, rewrite the cipher key in SCTX
  * @data_size:       Length of the data in the BD field
  *
  * Assumes much of the header was already filled in at setkey() time in
  * spum_cipher_req_init().
- * spum_cipher_req_init() fills in the encryption key. For RC4, when submitting
- * a request for a non-first chunk, we use the 260-byte SUPDT field from the
- * previous response as the key. update_key is true for this case. Unused in all
- * other cases.
+ * spum_cipher_req_init() fills in the encryption key.
  */
 void spum_cipher_req_finish(u8 *spu_hdr,
 			    u16 spu_req_hdr_len,
 			    unsigned int is_inbound,
 			    struct spu_cipher_parms *cipher_parms,
-			    bool update_key,
 			    unsigned int data_size)
 {
 	struct SPUHEADER *spuh;
@@ -948,11 +939,6 @@ void spum_cipher_req_finish(u8 *spu_hdr,
 	flow_log(" in: %u\n", is_inbound);
 	flow_log(" cipher alg: %u, cipher_type: %u\n", cipher_parms->alg,
 		 cipher_parms->type);
-	if (update_key) {
-		flow_log(" cipher key len: %u\n", cipher_parms->key_len);
-		flow_dump("  key: ", cipher_parms->key_buf,
-			  cipher_parms->key_len);
-	}
 
 	/*
 	 * In XTS mode, API puts "i" parameter (block tweak) in IV.  For
@@ -980,13 +966,6 @@ void spum_cipher_req_finish(u8 *spu_hdr,
 		cipher_bits |= CIPHER_INBOUND;
 	else
 		cipher_bits &= ~CIPHER_INBOUND;
-
-	/* update encryption key for RC4 on non-first chunk */
-	if (update_key) {
-		spuh->sa.cipher_flags |=
-			cipher_parms->type << CIPHER_TYPE_SHIFT;
-		memcpy(spuh + 1, cipher_parms->key_buf, cipher_parms->key_len);
-	}
 
 	if (cipher_parms->alg && cipher_parms->iv_buf && cipher_parms->iv_len)
 		/* cipher iv provided so put it in here */

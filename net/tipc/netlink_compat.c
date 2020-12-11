@@ -1337,7 +1337,7 @@ send:
 	return err;
 }
 
-static const struct genl_ops tipc_genl_compat_ops[] = {
+static const struct genl_small_ops tipc_genl_compat_ops[] = {
 	{
 		.cmd		= TIPC_GENL_CMD,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -1352,8 +1352,8 @@ static struct genl_family tipc_genl_compat_family __ro_after_init = {
 	.maxattr	= 0,
 	.netnsok	= true,
 	.module		= THIS_MODULE,
-	.ops		= tipc_genl_compat_ops,
-	.n_ops		= ARRAY_SIZE(tipc_genl_compat_ops),
+	.small_ops	= tipc_genl_compat_ops,
+	.n_small_ops	= ARRAY_SIZE(tipc_genl_compat_ops),
 };
 
 int __init tipc_netlink_compat_start(void)

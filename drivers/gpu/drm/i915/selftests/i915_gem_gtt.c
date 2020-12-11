@@ -172,35 +172,45 @@ static int igt_ppgtt_alloc(void *arg)
 
 	/* Check we can allocate the entire range */
 	for (size = 4096; size <= limit; size <<= 2) {
-		err = ppgtt->vm.allocate_va_range(&ppgtt->vm, 0, size);
+		struct i915_vm_pt_stash stash = {};
+
+		err = i915_vm_alloc_pt_stash(&ppgtt->vm, &stash, size);
+		if (err)
+			goto err_ppgtt_cleanup;
+
+		err = i915_vm_pin_pt_stash(&ppgtt->vm, &stash);
 		if (err) {
-			if (err == -ENOMEM) {
-				pr_info("[1] Ran out of memory for va_range [0 + %llx] [bit %d]\n",
-					size, ilog2(size));
-				err = 0; /* virtual space too large! */
-			}
+			i915_vm_free_pt_stash(&ppgtt->vm, &stash);
 			goto err_ppgtt_cleanup;
 		}
 
+		ppgtt->vm.allocate_va_range(&ppgtt->vm, &stash, 0, size);
 		cond_resched();
 
 		ppgtt->vm.clear_range(&ppgtt->vm, 0, size);
+
+		i915_vm_free_pt_stash(&ppgtt->vm, &stash);
 	}
 
 	/* Check we can incrementally allocate the entire range */
 	for (last = 0, size = 4096; size <= limit; last = size, size <<= 2) {
-		err = ppgtt->vm.allocate_va_range(&ppgtt->vm,
-						  last, size - last);
+		struct i915_vm_pt_stash stash = {};
+
+		err = i915_vm_alloc_pt_stash(&ppgtt->vm, &stash, size - last);
+		if (err)
+			goto err_ppgtt_cleanup;
+
+		err = i915_vm_pin_pt_stash(&ppgtt->vm, &stash);
 		if (err) {
-			if (err == -ENOMEM) {
-				pr_info("[2] Ran out of memory for va_range [%llx + %llx] [bit %d]\n",
-					last, size - last, ilog2(size));
-				err = 0; /* virtual space too large! */
-			}
+			i915_vm_free_pt_stash(&ppgtt->vm, &stash);
 			goto err_ppgtt_cleanup;
 		}
 
+		ppgtt->vm.allocate_va_range(&ppgtt->vm, &stash,
+					    last, size - last);
 		cond_resched();
+
+		i915_vm_free_pt_stash(&ppgtt->vm, &stash);
 	}
 
 err_ppgtt_cleanup:
@@ -284,9 +294,23 @@ static int lowlevel_hole(struct i915_address_space *vm,
 				break;
 			}
 
-			if (vm->allocate_va_range &&
-			    vm->allocate_va_range(vm, addr, BIT_ULL(size)))
-				break;
+			if (vm->allocate_va_range) {
+				struct i915_vm_pt_stash stash = {};
+
+				if (i915_vm_alloc_pt_stash(vm, &stash,
+							   BIT_ULL(size)))
+					break;
+
+				if (i915_vm_pin_pt_stash(vm, &stash)) {
+					i915_vm_free_pt_stash(vm, &stash);
+					break;
+				}
+
+				vm->allocate_va_range(vm, &stash,
+						      addr, BIT_ULL(size));
+
+				i915_vm_free_pt_stash(vm, &stash);
+			}
 
 			mock_vma->pages = obj->mm.pages;
 			mock_vma->node.size = BIT_ULL(size);
@@ -1703,7 +1727,7 @@ int i915_gem_gtt_mock_selftests(void)
 	mock_fini_ggtt(ggtt);
 	kfree(ggtt);
 out_put:
-	drm_dev_put(&i915->drm);
+	mock_destroy_device(i915);
 	return err;
 }
 
@@ -1881,16 +1905,13 @@ static int igt_cs_tlb(void *arg)
 			continue;
 
 		while (!__igt_timeout(end_time, NULL)) {
+			struct i915_vm_pt_stash stash = {};
 			struct i915_request *rq;
 			u64 offset;
 
 			offset = igt_random_offset(&prng,
 						   0, vm->total - PAGE_SIZE,
 						   chunk_size, PAGE_SIZE);
-
-			err = vm->allocate_va_range(vm, offset, chunk_size);
-			if (err)
-				goto end;
 
 			memset32(result, STACK_MAGIC, PAGE_SIZE / sizeof(u32));
 
@@ -1903,6 +1924,20 @@ static int igt_cs_tlb(void *arg)
 			err = vma->ops->set_pages(vma);
 			if (err)
 				goto end;
+
+			err = i915_vm_alloc_pt_stash(vm, &stash, chunk_size);
+			if (err)
+				goto end;
+
+			err = i915_vm_pin_pt_stash(vm, &stash);
+			if (err) {
+				i915_vm_free_pt_stash(vm, &stash);
+				goto end;
+			}
+
+			vm->allocate_va_range(vm, &stash, offset, chunk_size);
+
+			i915_vm_free_pt_stash(vm, &stash);
 
 			/* Prime the TLB with the dummy pages */
 			for (i = 0; i < count; i++) {

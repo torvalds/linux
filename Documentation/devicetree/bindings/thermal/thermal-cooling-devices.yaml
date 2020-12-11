@@ -49,6 +49,8 @@ properties:
       and the second cell is the maximum cooling state requested.
     const: 2
 
+additionalProperties: true
+
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>

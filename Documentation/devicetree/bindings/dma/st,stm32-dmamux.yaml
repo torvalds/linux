@@ -33,6 +33,8 @@ required:
   - reg
   - dma-masters
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>

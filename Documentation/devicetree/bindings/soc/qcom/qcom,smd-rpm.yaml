@@ -20,7 +20,7 @@ description: |
   present and this subnode may contain children that designate regulator
   resources.
 
-  Refer to Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.txt
+  Refer to Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml
   for information on the regulator subnodes that can exist under the
   rpm_requests.
 

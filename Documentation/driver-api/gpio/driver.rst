@@ -342,12 +342,12 @@ Cascaded GPIO irqchips usually fall in one of three categories:
   forced to a thread. The "fake?" raw lock can be used to work around this
   problem::
 
-	raw_spinlock_t wa_lock;
-	static irqreturn_t omap_gpio_irq_handler(int irq, void *gpiobank)
-		unsigned long wa_lock_flags;
-		raw_spin_lock_irqsave(&bank->wa_lock, wa_lock_flags);
-		generic_handle_irq(irq_find_mapping(bank->chip.irq.domain, bit));
-		raw_spin_unlock_irqrestore(&bank->wa_lock, wa_lock_flags);
+    raw_spinlock_t wa_lock;
+    static irqreturn_t omap_gpio_irq_handler(int irq, void *gpiobank)
+        unsigned long wa_lock_flags;
+        raw_spin_lock_irqsave(&bank->wa_lock, wa_lock_flags);
+        generic_handle_irq(irq_find_mapping(bank->chip.irq.domain, bit));
+        raw_spin_unlock_irqrestore(&bank->wa_lock, wa_lock_flags);
 
 - GENERIC CHAINED GPIO IRQCHIPS: these are the same as "CHAINED GPIO irqchips",
   but chained IRQ handlers are not used. Instead GPIO IRQs dispatching is

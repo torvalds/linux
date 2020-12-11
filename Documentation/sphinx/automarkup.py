@@ -13,6 +13,7 @@ if sphinx.version_info[0] < 2 or \
 else:
     from sphinx.errors import NoUri
 import re
+from itertools import chain
 
 #
 # Regex nastiness.  Of course.
@@ -21,7 +22,34 @@ import re
 # :c:func: block (i.e. ":c:func:`mmap()`s" flakes out), so the last
 # bit tries to restrict matches to things that won't create trouble.
 #
-RE_function = re.compile(r'([\w_][\w\d_]+\(\))')
+RE_function = re.compile(r'\b(([a-zA-Z_]\w+)\(\))', flags=re.ASCII)
+
+#
+# Sphinx 2 uses the same :c:type role for struct, union, enum and typedef
+#
+RE_generic_type = re.compile(r'\b(struct|union|enum|typedef)\s+([a-zA-Z_]\w+)',
+                             flags=re.ASCII)
+
+#
+# Sphinx 3 uses a different C role for each one of struct, union, enum and
+# typedef
+#
+RE_struct = re.compile(r'\b(struct)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
+RE_union = re.compile(r'\b(union)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
+RE_enum = re.compile(r'\b(enum)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
+RE_typedef = re.compile(r'\b(typedef)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
+
+#
+# Detects a reference to a documentation page of the form Documentation/... with
+# an optional extension
+#
+RE_doc = re.compile(r'\bDocumentation(/[\w\-_/]+)(\.\w+)*')
+
+#
+# Reserved C words that we should skip when cross-referencing
+#
+Skipnames = [ 'for', 'if', 'register', 'sizeof', 'struct', 'unsigned' ]
+
 
 #
 # Many places in the docs refer to common system calls.  It is
@@ -34,32 +62,73 @@ Skipfuncs = [ 'open', 'close', 'read', 'write', 'fcntl', 'mmap',
               'select', 'poll', 'fork', 'execve', 'clone', 'ioctl',
               'socket' ]
 
-#
-# Find all occurrences of function() and try to replace them with
-# appropriate cross references.
-#
-def markup_funcs(docname, app, node):
-    cdom = app.env.domains['c']
+def markup_refs(docname, app, node):
     t = node.astext()
     done = 0
     repl = [ ]
-    for m in RE_function.finditer(t):
+    #
+    # Associate each regex with the function that will markup its matches
+    #
+    markup_func_sphinx2 = {RE_doc: markup_doc_ref,
+                           RE_function: markup_c_ref,
+                           RE_generic_type: markup_c_ref}
+
+    markup_func_sphinx3 = {RE_doc: markup_doc_ref,
+                           RE_function: markup_func_ref_sphinx3,
+                           RE_struct: markup_c_ref,
+                           RE_union: markup_c_ref,
+                           RE_enum: markup_c_ref,
+                           RE_typedef: markup_c_ref}
+
+    if sphinx.version_info[0] >= 3:
+        markup_func = markup_func_sphinx3
+    else:
+        markup_func = markup_func_sphinx2
+
+    match_iterators = [regex.finditer(t) for regex in markup_func]
+    #
+    # Sort all references by the starting position in text
+    #
+    sorted_matches = sorted(chain(*match_iterators), key=lambda m: m.start())
+    for m in sorted_matches:
         #
-        # Include any text prior to function() as a normal text node.
+        # Include any text prior to match as a normal text node.
         #
         if m.start() > done:
             repl.append(nodes.Text(t[done:m.start()]))
+
         #
-        # Go through the dance of getting an xref out of the C domain
+        # Call the function associated with the regex that matched this text and
+        # append its return to the text
         #
-        target = m.group(1)[:-2]
-        target_text = nodes.Text(target + '()')
-        xref = None
-        if target not in Skipfuncs:
-            lit_text = nodes.literal(classes=['xref', 'c', 'c-func'])
+        repl.append(markup_func[m.re](docname, app, m))
+
+        done = m.end()
+    if done < len(t):
+        repl.append(nodes.Text(t[done:]))
+    return repl
+
+#
+# In sphinx3 we can cross-reference to C macro and function, each one with its
+# own C role, but both match the same regex, so we try both.
+#
+def markup_func_ref_sphinx3(docname, app, match):
+    class_str = ['c-func', 'c-macro']
+    reftype_str = ['function', 'macro']
+
+    cdom = app.env.domains['c']
+    #
+    # Go through the dance of getting an xref out of the C domain
+    #
+    target = match.group(2)
+    target_text = nodes.Text(match.group(0))
+    xref = None
+    if not (target in Skipfuncs or target in Skipnames):
+        for class_s, reftype_s in zip(class_str, reftype_str):
+            lit_text = nodes.literal(classes=['xref', 'c', class_s])
             lit_text += target_text
             pxref = addnodes.pending_xref('', refdomain = 'c',
-                                          reftype = 'function',
+                                          reftype = reftype_s,
                                           reftarget = target, modname = None,
                                           classname = None)
             #
@@ -68,21 +137,99 @@ def markup_funcs(docname, app, node):
             #
             try:
                 xref = cdom.resolve_xref(app.env, docname, app.builder,
-                                         'function', target, pxref, lit_text)
+                                         reftype_s, target, pxref,
+                                         lit_text)
             except NoUri:
                 xref = None
+
+            if xref:
+                return xref
+
+    return target_text
+
+def markup_c_ref(docname, app, match):
+    class_str = {# Sphinx 2 only
+                 RE_function: 'c-func',
+                 RE_generic_type: 'c-type',
+                 # Sphinx 3+ only
+                 RE_struct: 'c-struct',
+                 RE_union: 'c-union',
+                 RE_enum: 'c-enum',
+                 RE_typedef: 'c-type',
+                 }
+    reftype_str = {# Sphinx 2 only
+                   RE_function: 'function',
+                   RE_generic_type: 'type',
+                   # Sphinx 3+ only
+                   RE_struct: 'struct',
+                   RE_union: 'union',
+                   RE_enum: 'enum',
+                   RE_typedef: 'type',
+                   }
+
+    cdom = app.env.domains['c']
+    #
+    # Go through the dance of getting an xref out of the C domain
+    #
+    target = match.group(2)
+    target_text = nodes.Text(match.group(0))
+    xref = None
+    if not ((match.re == RE_function and target in Skipfuncs)
+            or (target in Skipnames)):
+        lit_text = nodes.literal(classes=['xref', 'c', class_str[match.re]])
+        lit_text += target_text
+        pxref = addnodes.pending_xref('', refdomain = 'c',
+                                      reftype = reftype_str[match.re],
+                                      reftarget = target, modname = None,
+                                      classname = None)
         #
-        # Toss the xref into the list if we got it; otherwise just put
-        # the function text.
+        # XXX The Latex builder will throw NoUri exceptions here,
+        # work around that by ignoring them.
         #
-        if xref:
-            repl.append(xref)
-        else:
-            repl.append(target_text)
-        done = m.end()
-    if done < len(t):
-        repl.append(nodes.Text(t[done:]))
-    return repl
+        try:
+            xref = cdom.resolve_xref(app.env, docname, app.builder,
+                                     reftype_str[match.re], target, pxref,
+                                     lit_text)
+        except NoUri:
+            xref = None
+    #
+    # Return the xref if we got it; otherwise just return the plain text.
+    #
+    if xref:
+        return xref
+    else:
+        return target_text
+
+#
+# Try to replace a documentation reference of the form Documentation/... with a
+# cross reference to that page
+#
+def markup_doc_ref(docname, app, match):
+    stddom = app.env.domains['std']
+    #
+    # Go through the dance of getting an xref out of the std domain
+    #
+    target = match.group(1)
+    xref = None
+    pxref = addnodes.pending_xref('', refdomain = 'std', reftype = 'doc',
+                                  reftarget = target, modname = None,
+                                  classname = None, refexplicit = False)
+    #
+    # XXX The Latex builder will throw NoUri exceptions here,
+    # work around that by ignoring them.
+    #
+    try:
+        xref = stddom.resolve_xref(app.env, docname, app.builder, 'doc',
+                                   target, pxref, None)
+    except NoUri:
+        xref = None
+    #
+    # Return the xref if we got it; otherwise just return the plain text.
+    #
+    if xref:
+        return xref
+    else:
+        return nodes.Text(match.group(0))
 
 def auto_markup(app, doctree, name):
     #
@@ -97,7 +244,7 @@ def auto_markup(app, doctree, name):
     for para in doctree.traverse(nodes.paragraph):
         for node in para.traverse(nodes.Text):
             if not isinstance(node.parent, nodes.literal):
-                node.parent.replace(node, markup_funcs(name, app, node))
+                node.parent.replace(node, markup_refs(name, app, node))
 
 def setup(app):
     app.connect('doctree-resolved', auto_markup)

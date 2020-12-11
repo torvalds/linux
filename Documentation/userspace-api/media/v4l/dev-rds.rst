@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _rds:
 
@@ -34,7 +28,6 @@ The RDS interface does not support this format. Should support for MMBS
 (or the so-called 'E blocks' in general) be needed, then please contact
 the linux-media mailing list:
 `https://linuxtv.org/lists.php <https://linuxtv.org/lists.php>`__.
-
 
 Querying Capabilities
 =====================
@@ -75,16 +68,14 @@ like program identification codes and radio text, the flag
 :ref:`Writing RDS data <writing-rds-data>` and
 :ref:`FM Transmitter Control Reference <fm-tx-controls>`.
 
-
 .. _reading-rds-data:
 
 Reading RDS data
 ================
 
 RDS data can be read from the radio device with the
-:ref:`read() <func-read>` function. The data is packed in groups of
+:c:func:`read()` function. The data is packed in groups of
 three bytes.
-
 
 .. _writing-rds-data:
 
@@ -92,13 +83,11 @@ Writing RDS data
 ================
 
 RDS data can be written to the radio device with the
-:ref:`write() <func-write>` function. The data is packed in groups of
+:c:func:`write()` function. The data is packed in groups of
 three bytes, as follows:
-
 
 RDS datastructures
 ==================
-
 
 .. c:type:: v4l2_rds_data
 
@@ -118,7 +107,6 @@ RDS datastructures
     * - __u8
       - ``block``
       - Block description
-
 
 
 .. _v4l2-rds-block:
@@ -141,7 +129,6 @@ RDS datastructures
     * - Bit 7
       - Error bit. Indicates that an uncorrectable error occurred during
 	reception of this block.
-
 
 
 .. _v4l2-rds-block-codes:

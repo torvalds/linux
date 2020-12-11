@@ -4,10 +4,9 @@
 
 #define _GNU_SOURCE
 #include <stdio.h>
-#include <linux/bpf.h>
 #include <unistd.h>
 #include <bpf/bpf.h>
-#include "bpf_load.h"
+#include <bpf/libbpf.h>
 #include "cgroup_helpers.h"
 
 #define CGROUP_PATH		"/my-cgroup"
@@ -15,13 +14,44 @@
 int main(int argc, char **argv)
 {
 	pid_t remote_pid, local_pid = getpid();
-	int cg2, idx = 0, rc = 0;
+	struct bpf_link *link = NULL;
+	struct bpf_program *prog;
+	int cg2, idx = 0, rc = 1;
+	struct bpf_object *obj;
 	char filename[256];
+	int map_fd[2];
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-	if (load_bpf_file(filename)) {
-		printf("%s", bpf_log_buf);
-		return 1;
+	obj = bpf_object__open_file(filename, NULL);
+	if (libbpf_get_error(obj)) {
+		fprintf(stderr, "ERROR: opening BPF object file failed\n");
+		return 0;
+	}
+
+	prog = bpf_object__find_program_by_name(obj, "bpf_prog1");
+	if (!prog) {
+		printf("finding a prog in obj file failed\n");
+		goto cleanup;
+	}
+
+	/* load BPF program */
+	if (bpf_object__load(obj)) {
+		fprintf(stderr, "ERROR: loading BPF object file failed\n");
+		goto cleanup;
+	}
+
+	map_fd[0] = bpf_object__find_map_fd_by_name(obj, "cgroup_map");
+	map_fd[1] = bpf_object__find_map_fd_by_name(obj, "perf_map");
+	if (map_fd[0] < 0 || map_fd[1] < 0) {
+		fprintf(stderr, "ERROR: finding a map in obj file failed\n");
+		goto cleanup;
+	}
+
+	link = bpf_program__attach(prog);
+	if (libbpf_get_error(link)) {
+		fprintf(stderr, "ERROR: bpf_program__attach failed\n");
+		link = NULL;
+		goto cleanup;
 	}
 
 	if (setup_cgroup_environment())
@@ -70,12 +100,14 @@ int main(int argc, char **argv)
 		goto err;
 	}
 
-	goto out;
-err:
-	rc = 1;
+	rc = 0;
 
-out:
+err:
 	close(cg2);
 	cleanup_cgroup_environment();
+
+cleanup:
+	bpf_link__destroy(link);
+	bpf_object__close(obj);
 	return rc;
 }

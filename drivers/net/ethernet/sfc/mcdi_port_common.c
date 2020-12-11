@@ -308,7 +308,7 @@ void efx_mcdi_phy_decode_link(struct efx_nic *efx,
  * Both RS and BASER (whether AUTO or not) means use FEC if cable and link
  * partner support it, preferring RS to BASER.
  */
-u32 ethtool_fec_caps_to_mcdi(u32 ethtool_cap)
+u32 ethtool_fec_caps_to_mcdi(u32 supported_cap, u32 ethtool_cap)
 {
 	u32 ret = 0;
 
@@ -316,17 +316,21 @@ u32 ethtool_fec_caps_to_mcdi(u32 ethtool_cap)
 		return 0;
 
 	if (ethtool_cap & ETHTOOL_FEC_AUTO)
-		ret |= (1 << MC_CMD_PHY_CAP_BASER_FEC_LBN) |
-		       (1 << MC_CMD_PHY_CAP_25G_BASER_FEC_LBN) |
-		       (1 << MC_CMD_PHY_CAP_RS_FEC_LBN);
-	if (ethtool_cap & ETHTOOL_FEC_RS)
+		ret |= ((1 << MC_CMD_PHY_CAP_BASER_FEC_LBN) |
+			(1 << MC_CMD_PHY_CAP_25G_BASER_FEC_LBN) |
+			(1 << MC_CMD_PHY_CAP_RS_FEC_LBN)) & supported_cap;
+	if (ethtool_cap & ETHTOOL_FEC_RS &&
+	    supported_cap & (1 << MC_CMD_PHY_CAP_RS_FEC_LBN))
 		ret |= (1 << MC_CMD_PHY_CAP_RS_FEC_LBN) |
 		       (1 << MC_CMD_PHY_CAP_RS_FEC_REQUESTED_LBN);
-	if (ethtool_cap & ETHTOOL_FEC_BASER)
-		ret |= (1 << MC_CMD_PHY_CAP_BASER_FEC_LBN) |
-		       (1 << MC_CMD_PHY_CAP_25G_BASER_FEC_LBN) |
-		       (1 << MC_CMD_PHY_CAP_BASER_FEC_REQUESTED_LBN) |
-		       (1 << MC_CMD_PHY_CAP_25G_BASER_FEC_REQUESTED_LBN);
+	if (ethtool_cap & ETHTOOL_FEC_BASER) {
+		if (supported_cap & (1 << MC_CMD_PHY_CAP_BASER_FEC_LBN))
+			ret |= (1 << MC_CMD_PHY_CAP_BASER_FEC_LBN) |
+			       (1 << MC_CMD_PHY_CAP_BASER_FEC_REQUESTED_LBN);
+		if (supported_cap & (1 << MC_CMD_PHY_CAP_25G_BASER_FEC_LBN))
+			ret |= (1 << MC_CMD_PHY_CAP_25G_BASER_FEC_LBN) |
+			       (1 << MC_CMD_PHY_CAP_25G_BASER_FEC_REQUESTED_LBN);
+	}
 	return ret;
 }
 
@@ -404,6 +408,196 @@ bool efx_mcdi_phy_poll(struct efx_nic *efx)
 	return !efx_link_state_equal(&efx->link_state, &old_state);
 }
 
+int efx_mcdi_phy_probe(struct efx_nic *efx)
+{
+	struct efx_mcdi_phy_data *phy_data;
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_LINK_OUT_LEN);
+	u32 caps;
+	int rc;
+
+	/* Initialise and populate phy_data */
+	phy_data = kzalloc(sizeof(*phy_data), GFP_KERNEL);
+	if (phy_data == NULL)
+		return -ENOMEM;
+
+	rc = efx_mcdi_get_phy_cfg(efx, phy_data);
+	if (rc != 0)
+		goto fail;
+
+	/* Read initial link advertisement */
+	BUILD_BUG_ON(MC_CMD_GET_LINK_IN_LEN != 0);
+	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
+			  outbuf, sizeof(outbuf), NULL);
+	if (rc)
+		goto fail;
+
+	/* Fill out nic state */
+	efx->phy_data = phy_data;
+	efx->phy_type = phy_data->type;
+
+	efx->mdio_bus = phy_data->channel;
+	efx->mdio.prtad = phy_data->port;
+	efx->mdio.mmds = phy_data->mmd_mask & ~(1 << MC_CMD_MMD_CLAUSE22);
+	efx->mdio.mode_support = 0;
+	if (phy_data->mmd_mask & (1 << MC_CMD_MMD_CLAUSE22))
+		efx->mdio.mode_support |= MDIO_SUPPORTS_C22;
+	if (phy_data->mmd_mask & ~(1 << MC_CMD_MMD_CLAUSE22))
+		efx->mdio.mode_support |= MDIO_SUPPORTS_C45 | MDIO_EMULATE_C22;
+
+	caps = MCDI_DWORD(outbuf, GET_LINK_OUT_CAP);
+	if (caps & (1 << MC_CMD_PHY_CAP_AN_LBN))
+		mcdi_to_ethtool_linkset(phy_data->media, caps,
+					efx->link_advertising);
+	else
+		phy_data->forced_cap = caps;
+
+	/* Assert that we can map efx -> mcdi loopback modes */
+	BUILD_BUG_ON(LOOPBACK_NONE != MC_CMD_LOOPBACK_NONE);
+	BUILD_BUG_ON(LOOPBACK_DATA != MC_CMD_LOOPBACK_DATA);
+	BUILD_BUG_ON(LOOPBACK_GMAC != MC_CMD_LOOPBACK_GMAC);
+	BUILD_BUG_ON(LOOPBACK_XGMII != MC_CMD_LOOPBACK_XGMII);
+	BUILD_BUG_ON(LOOPBACK_XGXS != MC_CMD_LOOPBACK_XGXS);
+	BUILD_BUG_ON(LOOPBACK_XAUI != MC_CMD_LOOPBACK_XAUI);
+	BUILD_BUG_ON(LOOPBACK_GMII != MC_CMD_LOOPBACK_GMII);
+	BUILD_BUG_ON(LOOPBACK_SGMII != MC_CMD_LOOPBACK_SGMII);
+	BUILD_BUG_ON(LOOPBACK_XGBR != MC_CMD_LOOPBACK_XGBR);
+	BUILD_BUG_ON(LOOPBACK_XFI != MC_CMD_LOOPBACK_XFI);
+	BUILD_BUG_ON(LOOPBACK_XAUI_FAR != MC_CMD_LOOPBACK_XAUI_FAR);
+	BUILD_BUG_ON(LOOPBACK_GMII_FAR != MC_CMD_LOOPBACK_GMII_FAR);
+	BUILD_BUG_ON(LOOPBACK_SGMII_FAR != MC_CMD_LOOPBACK_SGMII_FAR);
+	BUILD_BUG_ON(LOOPBACK_XFI_FAR != MC_CMD_LOOPBACK_XFI_FAR);
+	BUILD_BUG_ON(LOOPBACK_GPHY != MC_CMD_LOOPBACK_GPHY);
+	BUILD_BUG_ON(LOOPBACK_PHYXS != MC_CMD_LOOPBACK_PHYXS);
+	BUILD_BUG_ON(LOOPBACK_PCS != MC_CMD_LOOPBACK_PCS);
+	BUILD_BUG_ON(LOOPBACK_PMAPMD != MC_CMD_LOOPBACK_PMAPMD);
+	BUILD_BUG_ON(LOOPBACK_XPORT != MC_CMD_LOOPBACK_XPORT);
+	BUILD_BUG_ON(LOOPBACK_XGMII_WS != MC_CMD_LOOPBACK_XGMII_WS);
+	BUILD_BUG_ON(LOOPBACK_XAUI_WS != MC_CMD_LOOPBACK_XAUI_WS);
+	BUILD_BUG_ON(LOOPBACK_XAUI_WS_FAR != MC_CMD_LOOPBACK_XAUI_WS_FAR);
+	BUILD_BUG_ON(LOOPBACK_XAUI_WS_NEAR != MC_CMD_LOOPBACK_XAUI_WS_NEAR);
+	BUILD_BUG_ON(LOOPBACK_GMII_WS != MC_CMD_LOOPBACK_GMII_WS);
+	BUILD_BUG_ON(LOOPBACK_XFI_WS != MC_CMD_LOOPBACK_XFI_WS);
+	BUILD_BUG_ON(LOOPBACK_XFI_WS_FAR != MC_CMD_LOOPBACK_XFI_WS_FAR);
+	BUILD_BUG_ON(LOOPBACK_PHYXS_WS != MC_CMD_LOOPBACK_PHYXS_WS);
+
+	rc = efx_mcdi_loopback_modes(efx, &efx->loopback_modes);
+	if (rc != 0)
+		goto fail;
+	/* The MC indicates that LOOPBACK_NONE is a valid loopback mode,
+	 * but by convention we don't
+	 */
+	efx->loopback_modes &= ~(1 << LOOPBACK_NONE);
+
+	/* Set the initial link mode */
+	efx_mcdi_phy_decode_link(efx, &efx->link_state,
+				 MCDI_DWORD(outbuf, GET_LINK_OUT_LINK_SPEED),
+				 MCDI_DWORD(outbuf, GET_LINK_OUT_FLAGS),
+				 MCDI_DWORD(outbuf, GET_LINK_OUT_FCNTL));
+
+	/* Record the initial FEC configuration (or nearest approximation
+	 * representable in the ethtool configuration space)
+	 */
+	efx->fec_config = mcdi_fec_caps_to_ethtool(caps,
+						   efx->link_state.speed == 25000 ||
+						   efx->link_state.speed == 50000);
+
+	/* Default to Autonegotiated flow control if the PHY supports it */
+	efx->wanted_fc = EFX_FC_RX | EFX_FC_TX;
+	if (phy_data->supported_cap & (1 << MC_CMD_PHY_CAP_AN_LBN))
+		efx->wanted_fc |= EFX_FC_AUTO;
+	efx_link_set_wanted_fc(efx, efx->wanted_fc);
+
+	return 0;
+
+fail:
+	kfree(phy_data);
+	return rc;
+}
+
+void efx_mcdi_phy_remove(struct efx_nic *efx)
+{
+	struct efx_mcdi_phy_data *phy_data = efx->phy_data;
+
+	efx->phy_data = NULL;
+	kfree(phy_data);
+}
+
+void efx_mcdi_phy_get_link_ksettings(struct efx_nic *efx, struct ethtool_link_ksettings *cmd)
+{
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_LINK_OUT_LEN);
+	int rc;
+
+	cmd->base.speed = efx->link_state.speed;
+	cmd->base.duplex = efx->link_state.fd;
+	cmd->base.port = mcdi_to_ethtool_media(phy_cfg->media);
+	cmd->base.phy_address = phy_cfg->port;
+	cmd->base.autoneg = !!(efx->link_advertising[0] & ADVERTISED_Autoneg);
+	cmd->base.mdio_support = (efx->mdio.mode_support &
+			      (MDIO_SUPPORTS_C45 | MDIO_SUPPORTS_C22));
+
+	mcdi_to_ethtool_linkset(phy_cfg->media, phy_cfg->supported_cap,
+				cmd->link_modes.supported);
+	memcpy(cmd->link_modes.advertising, efx->link_advertising,
+	       sizeof(__ETHTOOL_DECLARE_LINK_MODE_MASK()));
+
+	BUILD_BUG_ON(MC_CMD_GET_LINK_IN_LEN != 0);
+	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
+			  outbuf, sizeof(outbuf), NULL);
+	if (rc)
+		return;
+	mcdi_to_ethtool_linkset(phy_cfg->media,
+				MCDI_DWORD(outbuf, GET_LINK_OUT_LP_CAP),
+				cmd->link_modes.lp_advertising);
+}
+
+int efx_mcdi_phy_set_link_ksettings(struct efx_nic *efx, const struct ethtool_link_ksettings *cmd)
+{
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
+	u32 caps;
+	int rc;
+
+	if (cmd->base.autoneg) {
+		caps = (ethtool_linkset_to_mcdi_cap(cmd->link_modes.advertising) |
+			1 << MC_CMD_PHY_CAP_AN_LBN);
+	} else if (cmd->base.duplex) {
+		switch (cmd->base.speed) {
+		case 10:     caps = 1 << MC_CMD_PHY_CAP_10FDX_LBN;     break;
+		case 100:    caps = 1 << MC_CMD_PHY_CAP_100FDX_LBN;    break;
+		case 1000:   caps = 1 << MC_CMD_PHY_CAP_1000FDX_LBN;   break;
+		case 10000:  caps = 1 << MC_CMD_PHY_CAP_10000FDX_LBN;  break;
+		case 40000:  caps = 1 << MC_CMD_PHY_CAP_40000FDX_LBN;  break;
+		case 100000: caps = 1 << MC_CMD_PHY_CAP_100000FDX_LBN; break;
+		case 25000:  caps = 1 << MC_CMD_PHY_CAP_25000FDX_LBN;  break;
+		case 50000:  caps = 1 << MC_CMD_PHY_CAP_50000FDX_LBN;  break;
+		default:     return -EINVAL;
+		}
+	} else {
+		switch (cmd->base.speed) {
+		case 10:     caps = 1 << MC_CMD_PHY_CAP_10HDX_LBN;     break;
+		case 100:    caps = 1 << MC_CMD_PHY_CAP_100HDX_LBN;    break;
+		case 1000:   caps = 1 << MC_CMD_PHY_CAP_1000HDX_LBN;   break;
+		default:     return -EINVAL;
+		}
+	}
+
+	caps |= ethtool_fec_caps_to_mcdi(phy_cfg->supported_cap, efx->fec_config);
+
+	rc = efx_mcdi_set_link(efx, caps, efx_get_mcdi_phy_flags(efx),
+			       efx->loopback_mode, 0);
+	if (rc)
+		return rc;
+
+	if (cmd->base.autoneg) {
+		efx_link_set_advertising(efx, cmd->link_modes.advertising);
+		phy_cfg->forced_cap = 0;
+	} else {
+		efx_link_clear_advertising(efx);
+		phy_cfg->forced_cap = caps;
+	}
+	return 0;
+}
+
 int efx_mcdi_phy_get_fecparam(struct efx_nic *efx, struct ethtool_fecparam *fec)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_LINK_OUT_V2_LEN);
@@ -455,6 +649,50 @@ int efx_mcdi_phy_get_fecparam(struct efx_nic *efx, struct ethtool_fecparam *fec)
 	return 0;
 }
 
+/* Basic validation to ensure that the caps we are going to attempt to set are
+ * in fact supported by the adapter.  Note that 'no FEC' is always supported.
+ */
+static int ethtool_fec_supported(u32 supported_cap, u32 ethtool_cap)
+{
+	if (ethtool_cap & ETHTOOL_FEC_OFF)
+		return 0;
+
+	if (ethtool_cap &&
+	    !ethtool_fec_caps_to_mcdi(supported_cap, ethtool_cap))
+		return -EINVAL;
+	return 0;
+}
+
+int efx_mcdi_phy_set_fecparam(struct efx_nic *efx, const struct ethtool_fecparam *fec)
+{
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
+	u32 caps;
+	int rc;
+
+	rc = ethtool_fec_supported(phy_cfg->supported_cap, fec->fec);
+	if (rc)
+		return rc;
+
+	/* Work out what efx_mcdi_phy_set_link_ksettings() would produce from
+	 * saved advertising bits
+	 */
+	if (test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, efx->link_advertising))
+		caps = (ethtool_linkset_to_mcdi_cap(efx->link_advertising) |
+			1 << MC_CMD_PHY_CAP_AN_LBN);
+	else
+		caps = phy_cfg->forced_cap;
+
+	caps |= ethtool_fec_caps_to_mcdi(phy_cfg->supported_cap, fec->fec);
+	rc = efx_mcdi_set_link(efx, caps, efx_get_mcdi_phy_flags(efx),
+			       efx->loopback_mode, 0);
+	if (rc)
+		return rc;
+
+	/* Record the new FEC setting for subsequent set_link calls */
+	efx->fec_config = fec->fec;
+	return 0;
+}
+
 int efx_mcdi_phy_test_alive(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_PHY_STATE_OUT_LEN);
@@ -483,10 +721,355 @@ int efx_mcdi_port_reconfigure(struct efx_nic *efx)
 		    ethtool_linkset_to_mcdi_cap(efx->link_advertising) :
 		    phy_cfg->forced_cap);
 
-	caps |= ethtool_fec_caps_to_mcdi(efx->fec_config);
+	caps |= ethtool_fec_caps_to_mcdi(phy_cfg->supported_cap, efx->fec_config);
 
 	return efx_mcdi_set_link(efx, caps, efx_get_mcdi_phy_flags(efx),
 				 efx->loopback_mode, 0);
+}
+
+static const char *const mcdi_sft9001_cable_diag_names[] = {
+	"cable.pairA.length",
+	"cable.pairB.length",
+	"cable.pairC.length",
+	"cable.pairD.length",
+	"cable.pairA.status",
+	"cable.pairB.status",
+	"cable.pairC.status",
+	"cable.pairD.status",
+};
+
+static int efx_mcdi_bist(struct efx_nic *efx, unsigned int bist_mode,
+			 int *results)
+{
+	unsigned int retry, i, count = 0;
+	size_t outlen;
+	u32 status;
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_START_BIST_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_POLL_BIST_OUT_SFT9001_LEN);
+	u8 *ptr;
+	int rc;
+
+	BUILD_BUG_ON(MC_CMD_START_BIST_OUT_LEN != 0);
+	MCDI_SET_DWORD(inbuf, START_BIST_IN_TYPE, bist_mode);
+	rc = efx_mcdi_rpc(efx, MC_CMD_START_BIST,
+			  inbuf, MC_CMD_START_BIST_IN_LEN, NULL, 0, NULL);
+	if (rc)
+		goto out;
+
+	/* Wait up to 10s for BIST to finish */
+	for (retry = 0; retry < 100; ++retry) {
+		BUILD_BUG_ON(MC_CMD_POLL_BIST_IN_LEN != 0);
+		rc = efx_mcdi_rpc(efx, MC_CMD_POLL_BIST, NULL, 0,
+				  outbuf, sizeof(outbuf), &outlen);
+		if (rc)
+			goto out;
+
+		status = MCDI_DWORD(outbuf, POLL_BIST_OUT_RESULT);
+		if (status != MC_CMD_POLL_BIST_RUNNING)
+			goto finished;
+
+		msleep(100);
+	}
+
+	rc = -ETIMEDOUT;
+	goto out;
+
+finished:
+	results[count++] = (status == MC_CMD_POLL_BIST_PASSED) ? 1 : -1;
+
+	/* SFT9001 specific cable diagnostics output */
+	if (efx->phy_type == PHY_TYPE_SFT9001B &&
+	    (bist_mode == MC_CMD_PHY_BIST_CABLE_SHORT ||
+	     bist_mode == MC_CMD_PHY_BIST_CABLE_LONG)) {
+		ptr = MCDI_PTR(outbuf, POLL_BIST_OUT_SFT9001_CABLE_LENGTH_A);
+		if (status == MC_CMD_POLL_BIST_PASSED &&
+		    outlen >= MC_CMD_POLL_BIST_OUT_SFT9001_LEN) {
+			for (i = 0; i < 8; i++) {
+				results[count + i] =
+					EFX_DWORD_FIELD(((efx_dword_t *)ptr)[i],
+							EFX_DWORD_0);
+			}
+		}
+		count += 8;
+	}
+	rc = count;
+
+out:
+	return rc;
+}
+
+int efx_mcdi_phy_run_tests(struct efx_nic *efx, int *results, unsigned int flags)
+{
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
+	u32 mode;
+	int rc;
+
+	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_OUT_BIST_LBN)) {
+		rc = efx_mcdi_bist(efx, MC_CMD_PHY_BIST, results);
+		if (rc < 0)
+			return rc;
+
+		results += rc;
+	}
+
+	/* If we support both LONG and SHORT, then run each in response to
+	 * break or not. Otherwise, run the one we support
+	 */
+	mode = 0;
+	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_OUT_BIST_CABLE_SHORT_LBN)) {
+		if ((flags & ETH_TEST_FL_OFFLINE) &&
+		    (phy_cfg->flags &
+		     (1 << MC_CMD_GET_PHY_CFG_OUT_BIST_CABLE_LONG_LBN)))
+			mode = MC_CMD_PHY_BIST_CABLE_LONG;
+		else
+			mode = MC_CMD_PHY_BIST_CABLE_SHORT;
+	} else if (phy_cfg->flags &
+		   (1 << MC_CMD_GET_PHY_CFG_OUT_BIST_CABLE_LONG_LBN))
+		mode = MC_CMD_PHY_BIST_CABLE_LONG;
+
+	if (mode != 0) {
+		rc = efx_mcdi_bist(efx, mode, results);
+		if (rc < 0)
+			return rc;
+		results += rc;
+	}
+
+	return 0;
+}
+
+const char *efx_mcdi_phy_test_name(struct efx_nic *efx, unsigned int index)
+{
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
+
+	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_OUT_BIST_LBN)) {
+		if (index == 0)
+			return "bist";
+		--index;
+	}
+
+	if (phy_cfg->flags & ((1 << MC_CMD_GET_PHY_CFG_OUT_BIST_CABLE_SHORT_LBN) |
+			      (1 << MC_CMD_GET_PHY_CFG_OUT_BIST_CABLE_LONG_LBN))) {
+		if (index == 0)
+			return "cable";
+		--index;
+
+		if (efx->phy_type == PHY_TYPE_SFT9001B) {
+			if (index < ARRAY_SIZE(mcdi_sft9001_cable_diag_names))
+				return mcdi_sft9001_cable_diag_names[index];
+			index -= ARRAY_SIZE(mcdi_sft9001_cable_diag_names);
+		}
+	}
+
+	return NULL;
+}
+
+#define SFP_PAGE_SIZE		128
+#define SFF_DIAG_TYPE_OFFSET	92
+#define SFF_DIAG_ADDR_CHANGE	BIT(2)
+#define SFF_8079_NUM_PAGES	2
+#define SFF_8472_NUM_PAGES	4
+#define SFF_8436_NUM_PAGES	5
+#define SFF_DMT_LEVEL_OFFSET	94
+
+/** efx_mcdi_phy_get_module_eeprom_page() - Get a single page of module eeprom
+ * @efx:	NIC context
+ * @page:	EEPROM page number
+ * @data:	Destination data pointer
+ * @offset:	Offset in page to copy from in to data
+ * @space:	Space available in data
+ *
+ * Return:
+ *   >=0 - amount of data copied
+ *   <0  - error
+ */
+static int efx_mcdi_phy_get_module_eeprom_page(struct efx_nic *efx,
+					       unsigned int page,
+					       u8 *data, ssize_t offset,
+					       ssize_t space)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_PHY_MEDIA_INFO_OUT_LENMAX);
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_GET_PHY_MEDIA_INFO_IN_LEN);
+	unsigned int payload_len;
+	unsigned int to_copy;
+	size_t outlen;
+	int rc;
+
+	if (offset > SFP_PAGE_SIZE)
+		return -EINVAL;
+
+	to_copy = min(space, SFP_PAGE_SIZE - offset);
+
+	MCDI_SET_DWORD(inbuf, GET_PHY_MEDIA_INFO_IN_PAGE, page);
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_GET_PHY_MEDIA_INFO,
+				inbuf, sizeof(inbuf),
+				outbuf, sizeof(outbuf),
+				&outlen);
+
+	if (rc)
+		return rc;
+
+	if (outlen < (MC_CMD_GET_PHY_MEDIA_INFO_OUT_DATA_OFST +
+			SFP_PAGE_SIZE))
+		return -EIO;
+
+	payload_len = MCDI_DWORD(outbuf, GET_PHY_MEDIA_INFO_OUT_DATALEN);
+	if (payload_len != SFP_PAGE_SIZE)
+		return -EIO;
+
+	memcpy(data, MCDI_PTR(outbuf, GET_PHY_MEDIA_INFO_OUT_DATA) + offset,
+	       to_copy);
+
+	return to_copy;
+}
+
+static int efx_mcdi_phy_get_module_eeprom_byte(struct efx_nic *efx,
+					       unsigned int page,
+					       u8 byte)
+{
+	u8 data;
+	int rc;
+
+	rc = efx_mcdi_phy_get_module_eeprom_page(efx, page, &data, byte, 1);
+	if (rc == 1)
+		return data;
+
+	return rc;
+}
+
+static int efx_mcdi_phy_diag_type(struct efx_nic *efx)
+{
+	/* Page zero of the EEPROM includes the diagnostic type at byte 92. */
+	return efx_mcdi_phy_get_module_eeprom_byte(efx, 0,
+						   SFF_DIAG_TYPE_OFFSET);
+}
+
+static int efx_mcdi_phy_sff_8472_level(struct efx_nic *efx)
+{
+	/* Page zero of the EEPROM includes the DMT level at byte 94. */
+	return efx_mcdi_phy_get_module_eeprom_byte(efx, 0,
+						   SFF_DMT_LEVEL_OFFSET);
+}
+
+static u32 efx_mcdi_phy_module_type(struct efx_nic *efx)
+{
+	struct efx_mcdi_phy_data *phy_data = efx->phy_data;
+
+	if (phy_data->media != MC_CMD_MEDIA_QSFP_PLUS)
+		return phy_data->media;
+
+	/* A QSFP+ NIC may actually have an SFP+ module attached.
+	 * The ID is page 0, byte 0.
+	 */
+	switch (efx_mcdi_phy_get_module_eeprom_byte(efx, 0, 0)) {
+	case 0x3:
+		return MC_CMD_MEDIA_SFP_PLUS;
+	case 0xc:
+	case 0xd:
+		return MC_CMD_MEDIA_QSFP_PLUS;
+	default:
+		return 0;
+	}
+}
+
+int efx_mcdi_phy_get_module_eeprom(struct efx_nic *efx, struct ethtool_eeprom *ee, u8 *data)
+{
+	int rc;
+	ssize_t space_remaining = ee->len;
+	unsigned int page_off;
+	bool ignore_missing;
+	int num_pages;
+	int page;
+
+	switch (efx_mcdi_phy_module_type(efx)) {
+	case MC_CMD_MEDIA_SFP_PLUS:
+		num_pages = efx_mcdi_phy_sff_8472_level(efx) > 0 ?
+				SFF_8472_NUM_PAGES : SFF_8079_NUM_PAGES;
+		page = 0;
+		ignore_missing = false;
+		break;
+	case MC_CMD_MEDIA_QSFP_PLUS:
+		num_pages = SFF_8436_NUM_PAGES;
+		page = -1; /* We obtain the lower page by asking for -1. */
+		ignore_missing = true; /* Ignore missing pages after page 0. */
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	page_off = ee->offset % SFP_PAGE_SIZE;
+	page += ee->offset / SFP_PAGE_SIZE;
+
+	while (space_remaining && (page < num_pages)) {
+		rc = efx_mcdi_phy_get_module_eeprom_page(efx, page,
+							 data, page_off,
+							 space_remaining);
+
+		if (rc > 0) {
+			space_remaining -= rc;
+			data += rc;
+			page_off = 0;
+			page++;
+		} else if (rc == 0) {
+			space_remaining = 0;
+		} else if (ignore_missing && (page > 0)) {
+			int intended_size = SFP_PAGE_SIZE - page_off;
+
+			space_remaining -= intended_size;
+			if (space_remaining < 0) {
+				space_remaining = 0;
+			} else {
+				memset(data, 0, intended_size);
+				data += intended_size;
+				page_off = 0;
+				page++;
+				rc = 0;
+			}
+		} else {
+			return rc;
+		}
+	}
+
+	return 0;
+}
+
+int efx_mcdi_phy_get_module_info(struct efx_nic *efx, struct ethtool_modinfo *modinfo)
+{
+	int sff_8472_level;
+	int diag_type;
+
+	switch (efx_mcdi_phy_module_type(efx)) {
+	case MC_CMD_MEDIA_SFP_PLUS:
+		sff_8472_level = efx_mcdi_phy_sff_8472_level(efx);
+
+		/* If we can't read the diagnostics level we have none. */
+		if (sff_8472_level < 0)
+			return -EOPNOTSUPP;
+
+		/* Check if this module requires the (unsupported) address
+		 * change operation.
+		 */
+		diag_type = efx_mcdi_phy_diag_type(efx);
+
+		if (sff_8472_level == 0 ||
+		    (diag_type & SFF_DIAG_ADDR_CHANGE)) {
+			modinfo->type = ETH_MODULE_SFF_8079;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
+		} else {
+			modinfo->type = ETH_MODULE_SFF_8472;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
+		}
+		break;
+
+	case MC_CMD_MEDIA_QSFP_PLUS:
+		modinfo->type = ETH_MODULE_SFF_8436;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+		break;
+
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
 }
 
 static unsigned int efx_calc_mac_mtu(struct efx_nic *efx)

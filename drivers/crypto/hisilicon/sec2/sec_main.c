@@ -99,7 +99,11 @@ struct sec_dfx_item {
 
 static const char sec_name[] = "hisi_sec2";
 static struct dentry *sec_debugfs_root;
-static struct hisi_qm_list sec_devices;
+
+static struct hisi_qm_list sec_devices = {
+	.register_to_crypto	= sec_register_to_crypto,
+	.unregister_from_crypto	= sec_unregister_from_crypto,
+};
 
 static const struct sec_hw_error sec_hw_errors[] = {
 	{.int_msk = BIT(0), .msg = "sec_axi_rresp_err_rint"},
@@ -165,7 +169,7 @@ static const struct kernel_param_ops sec_pf_q_num_ops = {
 
 static u32 pf_q_num = SEC_PF_DEF_Q_NUM;
 module_param_cb(pf_q_num, &sec_pf_q_num_ops, &pf_q_num, 0444);
-MODULE_PARM_DESC(pf_q_num, "Number of queues in PF(v1 0-4096, v2 0-1024)");
+MODULE_PARM_DESC(pf_q_num, "Number of queues in PF(v1 2-4096, v2 2-1024)");
 
 static int sec_ctx_q_num_set(const char *val, const struct kernel_param *kp)
 {
@@ -879,29 +883,26 @@ static int sec_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		pci_warn(pdev, "Failed to init debugfs!\n");
 
-	hisi_qm_add_to_list(qm, &sec_devices);
-
-	ret = sec_register_to_crypto();
+	ret = hisi_qm_alg_register(qm, &sec_devices);
 	if (ret < 0) {
 		pr_err("Failed to register driver to crypto.\n");
-		goto err_remove_from_list;
+		goto err_qm_stop;
 	}
 
 	if (qm->fun_type == QM_HW_PF && vfs_num) {
 		ret = hisi_qm_sriov_enable(pdev, vfs_num);
 		if (ret < 0)
-			goto err_crypto_unregister;
+			goto err_alg_unregister;
 	}
 
 	return 0;
 
-err_crypto_unregister:
-	sec_unregister_from_crypto();
+err_alg_unregister:
+	hisi_qm_alg_unregister(qm, &sec_devices);
 
-err_remove_from_list:
-	hisi_qm_del_from_list(qm, &sec_devices);
+err_qm_stop:
 	sec_debugfs_exit(qm);
-	hisi_qm_stop(qm);
+	hisi_qm_stop(qm, QM_NORMAL);
 
 err_probe_uninit:
 	sec_probe_uninit(qm);
@@ -914,19 +915,16 @@ err_qm_uninit:
 
 static void sec_remove(struct pci_dev *pdev)
 {
-	struct sec_dev *sec = pci_get_drvdata(pdev);
-	struct hisi_qm *qm = &sec->qm;
+	struct hisi_qm *qm = pci_get_drvdata(pdev);
 
-	sec_unregister_from_crypto();
-
-	hisi_qm_del_from_list(qm, &sec_devices);
-
+	hisi_qm_wait_task_finish(qm, &sec_devices);
+	hisi_qm_alg_unregister(qm, &sec_devices);
 	if (qm->fun_type == QM_HW_PF && qm->vfs_num)
-		hisi_qm_sriov_disable(pdev);
+		hisi_qm_sriov_disable(pdev, qm->is_frozen);
 
 	sec_debugfs_exit(qm);
 
-	(void)hisi_qm_stop(qm);
+	(void)hisi_qm_stop(qm, QM_NORMAL);
 
 	if (qm->fun_type == QM_HW_PF)
 		sec_debug_regs_clear(qm);
@@ -950,6 +948,7 @@ static struct pci_driver sec_pci_driver = {
 	.remove = sec_remove,
 	.err_handler = &sec_err_handler,
 	.sriov_configure = hisi_qm_sriov_configure,
+	.shutdown = hisi_qm_dev_shutdown,
 };
 
 static void sec_register_debugfs(void)

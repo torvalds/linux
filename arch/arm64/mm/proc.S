@@ -18,6 +18,7 @@
 #include <asm/cpufeature.h>
 #include <asm/alternative.h>
 #include <asm/smp.h>
+#include <asm/sysreg.h>
 
 #ifdef CONFIG_ARM64_64K_PAGES
 #define TCR_TG_FLAGS	TCR_TG0_64K | TCR_TG1_64K
@@ -44,14 +45,18 @@
 #define TCR_KASAN_FLAGS 0
 #endif
 
-/* Default MAIR_EL1 */
+/*
+ * Default MAIR_EL1. MT_NORMAL_TAGGED is initially mapped as Normal memory and
+ * changed during __cpu_setup to Normal Tagged if the system supports MTE.
+ */
 #define MAIR_EL1_SET							\
 	(MAIR_ATTRIDX(MAIR_ATTR_DEVICE_nGnRnE, MT_DEVICE_nGnRnE) |	\
 	 MAIR_ATTRIDX(MAIR_ATTR_DEVICE_nGnRE, MT_DEVICE_nGnRE) |	\
 	 MAIR_ATTRIDX(MAIR_ATTR_DEVICE_GRE, MT_DEVICE_GRE) |		\
 	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL_NC, MT_NORMAL_NC) |		\
 	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL, MT_NORMAL) |			\
-	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL_WT, MT_NORMAL_WT))
+	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL_WT, MT_NORMAL_WT) |		\
+	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL, MT_NORMAL_TAGGED))
 
 #ifdef CONFIG_CPU_PM
 /**
@@ -421,6 +426,29 @@ SYM_FUNC_START(__cpu_setup)
 	 * Memory region attributes
 	 */
 	mov_q	x5, MAIR_EL1_SET
+#ifdef CONFIG_ARM64_MTE
+	/*
+	 * Update MAIR_EL1, GCR_EL1 and TFSR*_EL1 if MTE is supported
+	 * (ID_AA64PFR1_EL1[11:8] > 1).
+	 */
+	mrs	x10, ID_AA64PFR1_EL1
+	ubfx	x10, x10, #ID_AA64PFR1_MTE_SHIFT, #4
+	cmp	x10, #ID_AA64PFR1_MTE
+	b.lt	1f
+
+	/* Normal Tagged memory type at the corresponding MAIR index */
+	mov	x10, #MAIR_ATTR_NORMAL_TAGGED
+	bfi	x5, x10, #(8 *  MT_NORMAL_TAGGED), #8
+
+	/* initialize GCR_EL1: all non-zero tags excluded by default */
+	mov	x10, #(SYS_GCR_EL1_RRND | SYS_GCR_EL1_EXCL_MASK)
+	msr_s	SYS_GCR_EL1, x10
+
+	/* clear any pending tag check faults in TFSR*_EL1 */
+	msr_s	SYS_TFSR_EL1, xzr
+	msr_s	SYS_TFSRE0_EL1, xzr
+1:
+#endif
 	msr	mair_el1, x5
 	/*
 	 * Set/prepare TCR and TTBR. We use 512GB (39-bit) address range for

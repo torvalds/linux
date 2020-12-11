@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.fe
 
 .. _FE_SET_TONE:
 
@@ -18,23 +12,21 @@ Name
 
 FE_SET_TONE - Sets/resets the generation of the continuous 22kHz tone.
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, FE_SET_TONE, enum fe_sec_tone_mode tone )
-    :name: FE_SET_TONE
+.. c:macro:: FE_SET_TONE
 
+``int ioctl(int fd, FE_SET_TONE, enum fe_sec_tone_mode tone)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <frontend_f_open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``tone``
     an integer enumered value described at :c:type:`fe_sec_tone_mode`
-
 
 Description
 ===========
@@ -51,7 +43,6 @@ this is done using the DiSEqC ioctls.
    setting a tone may interfere on other devices, as they may lose the
    capability of selecting the band. So, it is recommended that applications
    would change to SEC_TONE_OFF when the device is not used.
-
 
 Return Value
 ============

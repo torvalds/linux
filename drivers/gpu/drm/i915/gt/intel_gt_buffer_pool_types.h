@@ -25,7 +25,11 @@ struct intel_gt_buffer_pool_node {
 	struct i915_active active;
 	struct drm_i915_gem_object *obj;
 	struct list_head link;
-	struct intel_gt_buffer_pool *pool;
+	union {
+		struct intel_gt_buffer_pool *pool;
+		struct intel_gt_buffer_pool_node *free;
+		struct rcu_head rcu;
+	};
 	unsigned long age;
 };
 

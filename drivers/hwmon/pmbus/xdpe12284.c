@@ -127,8 +127,7 @@ static struct pmbus_driver_info xdpe122_info = {
 	.read_word_data = xdpe122_read_word_data,
 };
 
-static int xdpe122_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int xdpe122_probe(struct i2c_client *client)
 {
 	struct pmbus_driver_info *info;
 
@@ -137,7 +136,7 @@ static int xdpe122_probe(struct i2c_client *client,
 	if (!info)
 		return -ENOMEM;
 
-	return pmbus_do_probe(client, id, info);
+	return pmbus_do_probe(client, info);
 }
 
 static const struct i2c_device_id xdpe122_id[] = {
@@ -160,7 +159,7 @@ static struct i2c_driver xdpe122_driver = {
 		.name = "xdpe12284",
 		.of_match_table = of_match_ptr(xdpe122_of_match),
 	},
-	.probe = xdpe122_probe,
+	.probe_new = xdpe122_probe,
 	.remove = pmbus_do_remove,
 	.id_table = xdpe122_id,
 };

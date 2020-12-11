@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_DBG_G_REGISTER:
 
@@ -18,26 +12,25 @@ Name
 
 VIDIOC_DBG_G_REGISTER - VIDIOC_DBG_S_REGISTER - Read or write hardware registers
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_DBG_G_REGISTER, struct v4l2_dbg_register *argp )
-    :name: VIDIOC_DBG_G_REGISTER
+.. c:macro:: VIDIOC_DBG_G_REGISTER
 
-.. c:function:: int ioctl( int fd, VIDIOC_DBG_S_REGISTER, const struct v4l2_dbg_register *argp )
-    :name: VIDIOC_DBG_S_REGISTER
+``int ioctl(int fd, VIDIOC_DBG_G_REGISTER, struct v4l2_dbg_register *argp)``
 
+.. c:macro:: VIDIOC_DBG_S_REGISTER
+
+``int ioctl(int fd, VIDIOC_DBG_S_REGISTER, const struct v4l2_dbg_register *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_dbg_register`.
-
 
 Description
 ===========
@@ -92,7 +85,6 @@ It is available from the LinuxTV v4l-dvb repository; see
 `https://linuxtv.org/repo/ <https://linuxtv.org/repo/>`__ for access
 instructions.
 
-
 .. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{3.5cm}|p{7.0cm}|
 
 .. c:type:: v4l2_dbg_match
@@ -119,7 +111,6 @@ instructions.
       -
 
 
-
 .. c:type:: v4l2_dbg_register
 
 .. flat-table:: struct v4l2_dbg_register
@@ -140,7 +131,6 @@ instructions.
       - The value read from, or to be written into the register.
 
 
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _chip-match-types:
@@ -157,7 +147,6 @@ instructions.
     * - ``V4L2_CHIP_MATCH_SUBDEV``
       - 4
       - Match the nth sub-device.
-
 
 Return Value
 ============

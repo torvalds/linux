@@ -38,6 +38,8 @@ required:
   - reg
   - clocks
 
+unevaluatedProperties: false
+
 examples:
   - |
     watchdog@208a038 {

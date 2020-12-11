@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_DQEVENT:
 
@@ -18,23 +12,21 @@ Name
 
 VIDIOC_DQEVENT - Dequeue event
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_DQEVENT, struct v4l2_event *argp )
-    :name: VIDIOC_DQEVENT
+.. c:macro:: VIDIOC_DQEVENT
 
+``int ioctl(int fd, VIDIOC_DQEVENT, struct v4l2_event *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_event`.
-
 
 Description
 ===========
@@ -44,7 +36,6 @@ ioctl. All the fields of the struct :c:type:`v4l2_event`
 structure are filled by the driver. The file handle will also receive
 exceptions which the application may get by e.g. using the select system
 call.
-
 
 .. tabularcolumns:: |p{3.0cm}|p{4.4cm}|p{2.4cm}|p{7.7cm}|
 
@@ -105,7 +96,6 @@ call.
       - ``reserved``\ [8]
       - Reserved for future extensions. Drivers must set the array to
 	zero.
-
 
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
@@ -198,7 +188,6 @@ call.
       - Base event number for driver-private events.
 
 
-
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. c:type:: v4l2_event_vsync
@@ -211,7 +200,6 @@ call.
     * - __u8
       - ``field``
       - The upcoming field. See enum :c:type:`v4l2_field`.
-
 
 
 .. tabularcolumns:: |p{3.5cm}|p{3.0cm}|p{1.8cm}|p{8.5cm}|
@@ -264,7 +252,6 @@ call.
 	:ref:`v4l2_queryctrl <v4l2-queryctrl>`.
 
 
-
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. c:type:: v4l2_event_frame_sync
@@ -277,7 +264,6 @@ call.
     * - __u32
       - ``frame_sequence``
       - The sequence number of the frame being received.
-
 
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
@@ -293,7 +279,6 @@ call.
       - ``changes``
       - A bitmask that tells what has changed. See
 	:ref:`src-changes-flags`.
-
 
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
@@ -325,7 +310,6 @@ call.
 	automatically assigned to the default region 0.
 
 
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _ctrl-changes-flags:
@@ -349,7 +333,6 @@ call.
       - 0x0004
       - This control event was triggered because the minimum, maximum,
 	step or the default value of the control changed.
-
 
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
@@ -381,7 +364,6 @@ call.
 	that many Video Capture devices are not able to recover from a temporary
 	loss of signal and so restarting streaming I/O is required in order for
 	the hardware to synchronize to the video signal.
-
 
 Return Value
 ============

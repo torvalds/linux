@@ -523,6 +523,12 @@
 						  <&clk IMX8MQ_VIDEO_PLL1_OUT>;
 				assigned-clock-rates = <0>, <0>, <0>, <594000000>;
 				status = "disabled";
+
+				port@0 {
+					lcdif_mipi_dsi: endpoint {
+						remote-endpoint = <&mipi_dsi_lcdif_in>;
+					};
+				};
 			};
 
 			iomuxc: pinctrl@30330000 {
@@ -617,6 +623,7 @@
 			gpc: gpc@303a0000 {
 				compatible = "fsl,imx8mq-gpc";
 				reg = <0x303a0000 0x10000>;
+				interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-parent = <&gic>;
 				interrupt-controller;
 				#interrupt-cells = <3>;
@@ -899,6 +906,49 @@
 				};
 			};
 
+			mipi_dsi: mipi-dsi@30a00000 {
+				compatible = "fsl,imx8mq-nwl-dsi";
+				reg = <0x30a00000 0x300>;
+				clocks = <&clk IMX8MQ_CLK_DSI_CORE>,
+					 <&clk IMX8MQ_CLK_DSI_AHB>,
+					 <&clk IMX8MQ_CLK_DSI_IPG_DIV>,
+					 <&clk IMX8MQ_CLK_DSI_PHY_REF>,
+					 <&clk IMX8MQ_CLK_LCDIF_PIXEL>;
+				clock-names = "core", "rx_esc", "tx_esc", "phy_ref", "lcdif";
+				assigned-clocks = <&clk IMX8MQ_CLK_DSI_AHB>,
+						  <&clk IMX8MQ_CLK_DSI_CORE>,
+						  <&clk IMX8MQ_CLK_DSI_IPG_DIV>;
+				assigned-clock-parents = <&clk IMX8MQ_SYS1_PLL_80M>,
+							 <&clk IMX8MQ_SYS1_PLL_266M>;
+				assigned-clock-rates = <80000000>, <266000000>, <20000000>;
+				interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+				mux-controls = <&mux 0>;
+				power-domains = <&pgc_mipi>;
+				phys = <&dphy>;
+				phy-names = "dphy";
+				resets = <&src IMX8MQ_RESET_MIPI_DSI_RESET_BYTE_N>,
+					 <&src IMX8MQ_RESET_MIPI_DSI_DPI_RESET_N>,
+					 <&src IMX8MQ_RESET_MIPI_DSI_ESC_RESET_N>,
+					 <&src IMX8MQ_RESET_MIPI_DSI_PCLK_RESET_N>;
+				reset-names = "byte", "dpi", "esc", "pclk";
+				status = "disabled";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						#address-cells = <1>;
+						#size-cells = <0>;
+						mipi_dsi_lcdif_in: endpoint@0 {
+							reg = <0>;
+							remote-endpoint = <&lcdif_mipi_dsi>;
+						};
+					};
+				};
+			};
+
 			dphy: dphy@30a00300 {
 				compatible = "fsl,imx8mq-mipi-dphy";
 				reg = <0x30a00300 0x100>;
@@ -1031,7 +1081,8 @@
 				reg = <0x30be0000 0x10000>;
 				interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
 				             <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>,
-				             <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
+					     <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MQ_CLK_ENET1_ROOT>,
 				         <&clk IMX8MQ_CLK_ENET1_ROOT>,
 				         <&clk IMX8MQ_CLK_ENET_TIMER>,

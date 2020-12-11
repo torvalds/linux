@@ -106,7 +106,7 @@ struct brcms_timer *brcms_init_timer(struct brcms_info *wl,
 void brcms_free_timer(struct brcms_timer *timer);
 void brcms_add_timer(struct brcms_timer *timer, uint ms, int periodic);
 bool brcms_del_timer(struct brcms_timer *timer);
-void brcms_dpc(unsigned long data);
+void brcms_dpc(struct tasklet_struct *t);
 void brcms_timer(struct brcms_timer *t);
 void brcms_fatal_error(struct brcms_info *wl);
 

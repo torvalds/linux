@@ -174,8 +174,10 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 		 */
 		if (mpuss_can_lose_context) {
 			error = cpu_cluster_pm_enter();
-			if (error)
+			if (error) {
+				omap_set_pwrdm_state(mpu_pd, PWRDM_POWER_ON);
 				goto cpu_cluster_pm_out;
+			}
 		}
 	}
 

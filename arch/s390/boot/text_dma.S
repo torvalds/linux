@@ -97,23 +97,6 @@ ENTRY(_diag0c_dma)
 ENDPROC(_diag0c_dma)
 
 /*
- * void _swsusp_reset_dma(void)
- */
-ENTRY(_swsusp_reset_dma)
-	larl	%r1,restart_entry
-	larl	%r2,.Lrestart_diag308_psw
-	og	%r1,0(%r2)
-	stg	%r1,0(%r0)
-	lghi	%r0,0
-	diag	%r0,%r0,0x308
-restart_entry:
-	lhi	%r1,1
-	sigp	%r1,%r0,SIGP_SET_ARCHITECTURE
-	sam64
-	BR_EX_DMA_r14
-ENDPROC(_swsusp_reset_dma)
-
-/*
  * void _diag308_reset_dma(void)
  *
  * Calls diag 308 subcode 1 and continues execution

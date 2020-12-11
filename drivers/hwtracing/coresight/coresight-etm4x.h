@@ -192,10 +192,16 @@
 #define ETM_EXLEVEL_NS_HYP		BIT(14)
 #define ETM_EXLEVEL_NS_NA		BIT(15)
 
+/* access level control in TRCVICTLR - same bits as TRCACATRn but shifted */
+#define ETM_EXLEVEL_LSHIFT_TRCVICTLR	8
+
 /* secure / non secure masks - TRCVICTLR, IDR3 */
 #define ETM_EXLEVEL_S_VICTLR_MASK	GENMASK(19, 16)
 /* NS MON (EL3) mode never implemented */
 #define ETM_EXLEVEL_NS_VICTLR_MASK	GENMASK(22, 20)
+
+/* Interpretation of resource numbers change at ETM v4.3 architecture */
+#define ETM4X_ARCH_4V3	0x43
 
 /**
  * struct etmv4_config - configuration information related to an ETMv4

@@ -6,7 +6,7 @@
 #ifndef ATH11K_CE_H
 #define ATH11K_CE_H
 
-#define CE_COUNT 12
+#define CE_COUNT_MAX 12
 
 /* Byte swap data words */
 #define CE_ATTR_BYTE_SWAP_DATA 2
@@ -165,10 +165,14 @@ struct ath11k_ce_pipe {
 };
 
 struct ath11k_ce {
-	struct ath11k_ce_pipe ce_pipe[CE_COUNT];
+	struct ath11k_ce_pipe ce_pipe[CE_COUNT_MAX];
 	/* Protects rings of all ce pipes */
 	spinlock_t ce_lock;
+	struct ath11k_hp_update_timer hp_timer[CE_COUNT_MAX];
 };
+
+extern const struct ce_attr ath11k_host_ce_config_ipq8074[];
+extern const struct ce_attr ath11k_host_ce_config_qca6390[];
 
 void ath11k_ce_cleanup_pipes(struct ath11k_base *ab);
 void ath11k_ce_rx_replenish_retry(struct timer_list *t);
@@ -179,6 +183,11 @@ void ath11k_ce_rx_post_buf(struct ath11k_base *ab);
 int ath11k_ce_init_pipes(struct ath11k_base *ab);
 int ath11k_ce_alloc_pipes(struct ath11k_base *ab);
 void ath11k_ce_free_pipes(struct ath11k_base *ab);
-int ath11k_ce_get_attr_flags(int ce_id);
+int ath11k_ce_get_attr_flags(struct ath11k_base *ab, int ce_id);
 void ath11k_ce_poll_send_completed(struct ath11k_base *ab, u8 pipe_id);
+int ath11k_ce_map_service_to_pipe(struct ath11k_base *ab, u16 service_id,
+				  u8 *ul_pipe, u8 *dl_pipe);
+int ath11k_ce_attr_attach(struct ath11k_base *ab);
+void ath11k_ce_get_shadow_config(struct ath11k_base *ab,
+				 u32 **shadow_cfg, u32 *shadow_cfg_len);
 #endif

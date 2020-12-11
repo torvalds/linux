@@ -436,9 +436,9 @@ FS_IOC_SET_ENCRYPTION_POLICY
 
 The FS_IOC_SET_ENCRYPTION_POLICY ioctl sets an encryption policy on an
 empty directory or verifies that a directory or regular file already
-has the specified encryption policy.  It takes in a pointer to a
-:c:type:`struct fscrypt_policy_v1` or a :c:type:`struct
-fscrypt_policy_v2`, defined as follows::
+has the specified encryption policy.  It takes in a pointer to
+struct fscrypt_policy_v1 or struct fscrypt_policy_v2, defined as
+follows::
 
     #define FSCRYPT_POLICY_V1               0
     #define FSCRYPT_KEY_DESCRIPTOR_SIZE     8
@@ -464,11 +464,11 @@ fscrypt_policy_v2`, defined as follows::
 
 This structure must be initialized as follows:
 
-- ``version`` must be FSCRYPT_POLICY_V1 (0) if the struct is
-  :c:type:`fscrypt_policy_v1` or FSCRYPT_POLICY_V2 (2) if the struct
-  is :c:type:`fscrypt_policy_v2`.  (Note: we refer to the original
-  policy version as "v1", though its version code is really 0.)  For
-  new encrypted directories, use v2 policies.
+- ``version`` must be FSCRYPT_POLICY_V1 (0) if
+  struct fscrypt_policy_v1 is used or FSCRYPT_POLICY_V2 (2) if
+  struct fscrypt_policy_v2 is used. (Note: we refer to the original
+  policy version as "v1", though its version code is really 0.)
+  For new encrypted directories, use v2 policies.
 
 - ``contents_encryption_mode`` and ``filenames_encryption_mode`` must
   be set to constants from ``<linux/fscrypt.h>`` which identify the
@@ -508,9 +508,9 @@ This structure must be initialized as follows:
   replaced with ``master_key_identifier``, which is longer and cannot
   be arbitrarily chosen.  Instead, the key must first be added using
   `FS_IOC_ADD_ENCRYPTION_KEY`_.  Then, the ``key_spec.u.identifier``
-  the kernel returned in the :c:type:`struct fscrypt_add_key_arg` must
-  be used as the ``master_key_identifier`` in the :c:type:`struct
-  fscrypt_policy_v2`.
+  the kernel returned in the struct fscrypt_add_key_arg must
+  be used as the ``master_key_identifier`` in
+  struct fscrypt_policy_v2.
 
 If the file is not yet encrypted, then FS_IOC_SET_ENCRYPTION_POLICY
 verifies that the file is an empty directory.  If so, the specified
@@ -590,7 +590,7 @@ FS_IOC_GET_ENCRYPTION_POLICY_EX
 The FS_IOC_GET_ENCRYPTION_POLICY_EX ioctl retrieves the encryption
 policy, if any, for a directory or regular file.  No additional
 permissions are required beyond the ability to open the file.  It
-takes in a pointer to a :c:type:`struct fscrypt_get_policy_ex_arg`,
+takes in a pointer to struct fscrypt_get_policy_ex_arg,
 defined as follows::
 
     struct fscrypt_get_policy_ex_arg {
@@ -637,9 +637,8 @@ The FS_IOC_GET_ENCRYPTION_POLICY ioctl can also retrieve the
 encryption policy, if any, for a directory or regular file.  However,
 unlike `FS_IOC_GET_ENCRYPTION_POLICY_EX`_,
 FS_IOC_GET_ENCRYPTION_POLICY only supports the original policy
-version.  It takes in a pointer directly to a :c:type:`struct
-fscrypt_policy_v1` rather than a :c:type:`struct
-fscrypt_get_policy_ex_arg`.
+version.  It takes in a pointer directly to struct fscrypt_policy_v1
+rather than struct fscrypt_get_policy_ex_arg.
 
 The error codes for FS_IOC_GET_ENCRYPTION_POLICY are the same as those
 for FS_IOC_GET_ENCRYPTION_POLICY_EX, except that
@@ -680,8 +679,7 @@ the filesystem, making all files on the filesystem which were
 encrypted using that key appear "unlocked", i.e. in plaintext form.
 It can be executed on any file or directory on the target filesystem,
 but using the filesystem's root directory is recommended.  It takes in
-a pointer to a :c:type:`struct fscrypt_add_key_arg`, defined as
-follows::
+a pointer to struct fscrypt_add_key_arg, defined as follows::
 
     struct fscrypt_add_key_arg {
             struct fscrypt_key_specifier key_spec;
@@ -710,17 +708,16 @@ follows::
             __u8 raw[];
     };
 
-:c:type:`struct fscrypt_add_key_arg` must be zeroed, then initialized
+struct fscrypt_add_key_arg must be zeroed, then initialized
 as follows:
 
 - If the key is being added for use by v1 encryption policies, then
   ``key_spec.type`` must contain FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR, and
   ``key_spec.u.descriptor`` must contain the descriptor of the key
   being added, corresponding to the value in the
-  ``master_key_descriptor`` field of :c:type:`struct
-  fscrypt_policy_v1`.  To add this type of key, the calling process
-  must have the CAP_SYS_ADMIN capability in the initial user
-  namespace.
+  ``master_key_descriptor`` field of struct fscrypt_policy_v1.
+  To add this type of key, the calling process must have the
+  CAP_SYS_ADMIN capability in the initial user namespace.
 
   Alternatively, if the key is being added for use by v2 encryption
   policies, then ``key_spec.type`` must contain
@@ -737,12 +734,13 @@ as follows:
 
 - ``key_id`` is 0 if the raw key is given directly in the ``raw``
   field.  Otherwise ``key_id`` is the ID of a Linux keyring key of
-  type "fscrypt-provisioning" whose payload is a :c:type:`struct
-  fscrypt_provisioning_key_payload` whose ``raw`` field contains the
-  raw key and whose ``type`` field matches ``key_spec.type``.  Since
-  ``raw`` is variable-length, the total size of this key's payload
-  must be ``sizeof(struct fscrypt_provisioning_key_payload)`` plus the
-  raw key size.  The process must have Search permission on this key.
+  type "fscrypt-provisioning" whose payload is
+  struct fscrypt_provisioning_key_payload whose ``raw`` field contains
+  the raw key and whose ``type`` field matches ``key_spec.type``.
+  Since ``raw`` is variable-length, the total size of this key's
+  payload must be ``sizeof(struct fscrypt_provisioning_key_payload)``
+  plus the raw key size.  The process must have Search permission on
+  this key.
 
   Most users should leave this 0 and specify the raw key directly.
   The support for specifying a Linux keyring key is intended mainly to
@@ -860,8 +858,8 @@ The FS_IOC_REMOVE_ENCRYPTION_KEY ioctl removes a claim to a master
 encryption key from the filesystem, and possibly removes the key
 itself.  It can be executed on any file or directory on the target
 filesystem, but using the filesystem's root directory is recommended.
-It takes in a pointer to a :c:type:`struct fscrypt_remove_key_arg`,
-defined as follows::
+It takes in a pointer to struct fscrypt_remove_key_arg, defined
+as follows::
 
     struct fscrypt_remove_key_arg {
             struct fscrypt_key_specifier key_spec;
@@ -956,8 +954,8 @@ FS_IOC_GET_ENCRYPTION_KEY_STATUS
 The FS_IOC_GET_ENCRYPTION_KEY_STATUS ioctl retrieves the status of a
 master encryption key.  It can be executed on any file or directory on
 the target filesystem, but using the filesystem's root directory is
-recommended.  It takes in a pointer to a :c:type:`struct
-fscrypt_get_key_status_arg`, defined as follows::
+recommended.  It takes in a pointer to
+struct fscrypt_get_key_status_arg, defined as follows::
 
     struct fscrypt_get_key_status_arg {
             /* input */
@@ -1148,10 +1146,10 @@ Implementation details
 Encryption context
 ------------------
 
-An encryption policy is represented on-disk by a :c:type:`struct
-fscrypt_context_v1` or a :c:type:`struct fscrypt_context_v2`.  It is
-up to individual filesystems to decide where to store it, but normally
-it would be stored in a hidden extended attribute.  It should *not* be
+An encryption policy is represented on-disk by
+struct fscrypt_context_v1 or struct fscrypt_context_v2.  It is up to
+individual filesystems to decide where to store it, but normally it
+would be stored in a hidden extended attribute.  It should *not* be
 exposed by the xattr-related system calls such as getxattr() and
 setxattr() because of the special semantics of the encryption xattr.
 (In particular, there would be much confusion if an encryption policy
@@ -1249,8 +1247,8 @@ a strong "hash" of the ciphertext filename, along with the optional
 filesystem-specific hash(es) needed for directory lookups.  This
 allows the filesystem to still, with a high degree of confidence, map
 the filename given in ->lookup() back to a particular directory entry
-that was previously listed by readdir().  See :c:type:`struct
-fscrypt_nokey_name` in the source for more details.
+that was previously listed by readdir().  See
+struct fscrypt_nokey_name in the source for more details.
 
 Note that the precise way that filenames are presented to userspace
 without the key is subject to change in the future.  It is only meant

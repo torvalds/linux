@@ -4,7 +4,7 @@
 # requires: kprobe_events "x8/16/32/64":README
 
 gen_event() { # Bitsize
-  echo "p:testprobe _do_fork \$stack0:s$1 \$stack0:u$1 \$stack0:x$1 \$stack0:b4@4/$1"
+  echo "p:testprobe kernel_clone \$stack0:s$1 \$stack0:u$1 \$stack0:x$1 \$stack0:b4@4/$1"
 }
 
 check_types() { # s-type u-type x-type bf-type width

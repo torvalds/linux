@@ -5,7 +5,7 @@
 
 grep -A1 "fetcharg:" README | grep -q "\$comm" || exit_unsupported # this is too old
 
-echo 'p:testprobe _do_fork comm=$comm ' > kprobe_events
+echo 'p:testprobe kernel_clone comm=$comm ' > kprobe_events
 grep testprobe kprobe_events | grep -q 'comm=$comm'
 test -d events/kprobes/testprobe
 

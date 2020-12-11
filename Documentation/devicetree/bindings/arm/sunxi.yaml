@@ -16,6 +16,11 @@ properties:
   compatible:
     oneOf:
 
+      - description: Allwinner A100 Perf1 Board
+        items:
+          - const: allwinner,a100-perf1
+          - const: allwinner,sun50i-a100
+
       - description: Allwinner A23 Evaluation Board
         items:
           - const: allwinner,sun8i-a23-evb
@@ -625,6 +630,11 @@ properties:
         items:
           - const: pine64,pine64-plus
           - const: allwinner,sun50i-a64
+
+      - description: Pine64 PineCube
+        items:
+          - const: pine64,pinecube
+          - const: allwinner,sun8i-s3
 
       - description: Pine64 PineH64 model A
         items:

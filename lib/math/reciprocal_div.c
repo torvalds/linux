@@ -4,6 +4,7 @@
 #include <asm/div64.h>
 #include <linux/reciprocal_div.h>
 #include <linux/export.h>
+#include <linux/minmax.h>
 
 /*
  * For a description of the algorithm please have a look at

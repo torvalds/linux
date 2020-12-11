@@ -1514,6 +1514,7 @@ static const struct dev_pm_ops sunxi_mmc_pm_ops = {
 static struct platform_driver sunxi_mmc_driver = {
 	.driver = {
 		.name	= "sunxi-mmc",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(sunxi_mmc_of_match),
 		.pm = &sunxi_mmc_pm_ops,
 	},

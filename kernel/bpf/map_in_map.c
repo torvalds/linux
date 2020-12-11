@@ -17,21 +17,15 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 	if (IS_ERR(inner_map))
 		return inner_map;
 
-	/* prog_array->aux->{type,jited} is a runtime binding.
-	 * Doing static check alone in the verifier is not enough.
-	 */
-	if (inner_map->map_type == BPF_MAP_TYPE_PROG_ARRAY ||
-	    inner_map->map_type == BPF_MAP_TYPE_CGROUP_STORAGE ||
-	    inner_map->map_type == BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE ||
-	    inner_map->map_type == BPF_MAP_TYPE_STRUCT_OPS) {
-		fdput(f);
-		return ERR_PTR(-ENOTSUPP);
-	}
-
 	/* Does not support >1 level map-in-map */
 	if (inner_map->inner_map_meta) {
 		fdput(f);
 		return ERR_PTR(-EINVAL);
+	}
+
+	if (!inner_map->ops->map_meta_equal) {
+		fdput(f);
+		return ERR_PTR(-ENOTSUPP);
 	}
 
 	if (map_value_has_spin_lock(inner_map)) {
@@ -81,15 +75,14 @@ bool bpf_map_meta_equal(const struct bpf_map *meta0,
 	return meta0->map_type == meta1->map_type &&
 		meta0->key_size == meta1->key_size &&
 		meta0->value_size == meta1->value_size &&
-		meta0->map_flags == meta1->map_flags &&
-		meta0->max_entries == meta1->max_entries;
+		meta0->map_flags == meta1->map_flags;
 }
 
 void *bpf_map_fd_get_ptr(struct bpf_map *map,
 			 struct file *map_file /* not used */,
 			 int ufd)
 {
-	struct bpf_map *inner_map;
+	struct bpf_map *inner_map, *inner_map_meta;
 	struct fd f;
 
 	f = fdget(ufd);
@@ -97,7 +90,8 @@ void *bpf_map_fd_get_ptr(struct bpf_map *map,
 	if (IS_ERR(inner_map))
 		return inner_map;
 
-	if (bpf_map_meta_equal(map->inner_map_meta, inner_map))
+	inner_map_meta = map->inner_map_meta;
+	if (inner_map_meta->ops->map_meta_equal(inner_map_meta, inner_map))
 		bpf_map_inc(inner_map);
 	else
 		inner_map = ERR_PTR(-EINVAL);

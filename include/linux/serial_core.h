@@ -373,7 +373,7 @@ extern const struct earlycon_id *__earlycon_table_end[];
 		    .compatible = compat,				\
 		    .setup = fn  };					\
 	static const struct earlycon_id EARLYCON_USED_OR_UNUSED		\
-		__section(__earlycon_table)				\
+		__section("__earlycon_table")				\
 		* const __PASTE(__p, unique_id) = &unique_id
 
 #define OF_EARLYCON_DECLARE(_name, compat, fn)				\

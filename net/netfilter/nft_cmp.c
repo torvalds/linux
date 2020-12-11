@@ -167,7 +167,6 @@ static int nft_cmp_fast_init(const struct nft_ctx *ctx,
 	struct nft_cmp_fast_expr *priv = nft_expr_priv(expr);
 	struct nft_data_desc desc;
 	struct nft_data data;
-	u32 mask;
 	int err;
 
 	err = nft_data_init(NULL, &data, sizeof(data), &desc,
@@ -181,10 +180,11 @@ static int nft_cmp_fast_init(const struct nft_ctx *ctx,
 		return err;
 
 	desc.len *= BITS_PER_BYTE;
-	mask = nft_cmp_fast_mask(desc.len);
 
-	priv->data = data.data[0] & mask;
+	priv->mask = nft_cmp_fast_mask(desc.len);
+	priv->data = data.data[0] & priv->mask;
 	priv->len  = desc.len;
+	priv->inv  = ntohl(nla_get_be32(tb[NFTA_CMP_OP])) != NFT_CMP_EQ;
 	return 0;
 }
 
@@ -201,7 +201,7 @@ static int nft_cmp_fast_offload(struct nft_offload_ctx *ctx,
 		},
 		.sreg	= priv->sreg,
 		.len	= priv->len / BITS_PER_BYTE,
-		.op	= NFT_CMP_EQ,
+		.op	= priv->inv ? NFT_CMP_NEQ : NFT_CMP_EQ,
 	};
 
 	return __nft_cmp_offload(ctx, flow, &cmp);
@@ -210,11 +210,12 @@ static int nft_cmp_fast_offload(struct nft_offload_ctx *ctx,
 static int nft_cmp_fast_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	const struct nft_cmp_fast_expr *priv = nft_expr_priv(expr);
+	enum nft_cmp_ops op = priv->inv ? NFT_CMP_NEQ : NFT_CMP_EQ;
 	struct nft_data data;
 
 	if (nft_dump_register(skb, NFTA_CMP_SREG, priv->sreg))
 		goto nla_put_failure;
-	if (nla_put_be32(skb, NFTA_CMP_OP, htonl(NFT_CMP_EQ)))
+	if (nla_put_be32(skb, NFTA_CMP_OP, htonl(op)))
 		goto nla_put_failure;
 
 	data.data[0] = priv->data;
@@ -272,7 +273,7 @@ nft_cmp_select_ops(const struct nft_ctx *ctx, const struct nlattr * const tb[])
 		goto err1;
 	}
 
-	if (desc.len <= sizeof(u32) && op == NFT_CMP_EQ)
+	if (desc.len <= sizeof(u32) && (op == NFT_CMP_EQ || op == NFT_CMP_NEQ))
 		return &nft_cmp_fast_ops;
 
 	return &nft_cmp_ops;

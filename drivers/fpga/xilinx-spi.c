@@ -27,11 +27,22 @@ struct xilinx_spi_conf {
 	struct gpio_desc *done;
 };
 
-static enum fpga_mgr_states xilinx_spi_state(struct fpga_manager *mgr)
+static int get_done_gpio(struct fpga_manager *mgr)
 {
 	struct xilinx_spi_conf *conf = mgr->priv;
+	int ret;
 
-	if (!gpiod_get_value(conf->done))
+	ret = gpiod_get_value(conf->done);
+
+	if (ret < 0)
+		dev_err(&mgr->dev, "Error reading DONE (%d)\n", ret);
+
+	return ret;
+}
+
+static enum fpga_mgr_states xilinx_spi_state(struct fpga_manager *mgr)
+{
+	if (!get_done_gpio(mgr))
 		return FPGA_MGR_STATE_RESET;
 
 	return FPGA_MGR_STATE_UNKNOWN;
@@ -57,11 +68,21 @@ static int wait_for_init_b(struct fpga_manager *mgr, int value,
 
 	if (conf->init_b) {
 		while (time_before(jiffies, timeout)) {
-			/* dump_state(conf, "wait for init_d .."); */
-			if (gpiod_get_value(conf->init_b) == value)
+			int ret = gpiod_get_value(conf->init_b);
+
+			if (ret == value)
 				return 0;
+
+			if (ret < 0) {
+				dev_err(&mgr->dev, "Error reading INIT_B (%d)\n", ret);
+				return ret;
+			}
+
 			usleep_range(100, 400);
 		}
+
+		dev_err(&mgr->dev, "Timeout waiting for INIT_B to %s\n",
+			value ? "assert" : "deassert");
 		return -ETIMEDOUT;
 	}
 
@@ -78,7 +99,7 @@ static int xilinx_spi_write_init(struct fpga_manager *mgr,
 	int err;
 
 	if (info->flags & FPGA_MGR_PARTIAL_RECONFIG) {
-		dev_err(&mgr->dev, "Partial reconfiguration not supported.\n");
+		dev_err(&mgr->dev, "Partial reconfiguration not supported\n");
 		return -EINVAL;
 	}
 
@@ -86,7 +107,6 @@ static int xilinx_spi_write_init(struct fpga_manager *mgr,
 
 	err = wait_for_init_b(mgr, 1, 1); /* min is 500 ns */
 	if (err) {
-		dev_err(&mgr->dev, "INIT_B pin did not go low\n");
 		gpiod_set_value(conf->prog_b, 0);
 		return err;
 	}
@@ -94,12 +114,10 @@ static int xilinx_spi_write_init(struct fpga_manager *mgr,
 	gpiod_set_value(conf->prog_b, 0);
 
 	err = wait_for_init_b(mgr, 0, 0);
-	if (err) {
-		dev_err(&mgr->dev, "INIT_B pin did not go high\n");
+	if (err)
 		return err;
-	}
 
-	if (gpiod_get_value(conf->done)) {
+	if (get_done_gpio(mgr)) {
 		dev_err(&mgr->dev, "Unexpected DONE pin state...\n");
 		return -EIO;
 	}
@@ -152,25 +170,46 @@ static int xilinx_spi_write_complete(struct fpga_manager *mgr,
 				     struct fpga_image_info *info)
 {
 	struct xilinx_spi_conf *conf = mgr->priv;
-	unsigned long timeout;
+	unsigned long timeout = jiffies + usecs_to_jiffies(info->config_complete_timeout_us);
+	bool expired = false;
+	int done;
 	int ret;
 
-	if (gpiod_get_value(conf->done))
-		return xilinx_spi_apply_cclk_cycles(conf);
+	/*
+	 * This loop is carefully written such that if the driver is
+	 * scheduled out for more than 'timeout', we still check for DONE
+	 * before giving up and we apply 8 extra CCLK cycles in all cases.
+	 */
+	while (!expired) {
+		expired = time_after(jiffies, timeout);
 
-	timeout = jiffies + usecs_to_jiffies(info->config_complete_timeout_us);
-
-	while (time_before(jiffies, timeout)) {
+		done = get_done_gpio(mgr);
+		if (done < 0)
+			return done;
 
 		ret = xilinx_spi_apply_cclk_cycles(conf);
 		if (ret)
 			return ret;
 
-		if (gpiod_get_value(conf->done))
-			return xilinx_spi_apply_cclk_cycles(conf);
+		if (done)
+			return 0;
 	}
 
-	dev_err(&mgr->dev, "Timeout after config data transfer.\n");
+	if (conf->init_b) {
+		ret = gpiod_get_value(conf->init_b);
+
+		if (ret < 0) {
+			dev_err(&mgr->dev, "Error reading INIT_B (%d)\n", ret);
+			return ret;
+		}
+
+		dev_err(&mgr->dev,
+			ret ? "CRC error or invalid device\n"
+			: "Missing sync word or incomplete bitstream\n");
+	} else {
+		dev_err(&mgr->dev, "Timeout after config data transfer\n");
+	}
+
 	return -ETIMEDOUT;
 }
 

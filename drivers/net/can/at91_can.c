@@ -643,7 +643,7 @@ static void at91_read_msg(struct net_device *dev, unsigned int mb)
  *
  * The first message goes into mb nr. 1 and issues an interrupt. All
  * rx ints are disabled in the interrupt handler and a napi poll is
- * scheduled. We read the mailbox, but do _not_ reenable the mb (to
+ * scheduled. We read the mailbox, but do _not_ re-enable the mb (to
  * receive another message).
  *
  *    lower mbxs      upper
@@ -661,13 +661,13 @@ static void at91_read_msg(struct net_device *dev, unsigned int mb)
  *
  * The variable priv->rx_next points to the next mailbox to read a
  * message from. As long we're in the lower mailboxes we just read the
- * mailbox but not reenable it.
+ * mailbox but not re-enable it.
  *
- * With completion of the last of the lower mailboxes, we reenable the
+ * With completion of the last of the lower mailboxes, we re-enable the
  * whole first group, but continue to look for filled mailboxes in the
  * upper mailboxes. Imagine the second group like overflow mailboxes,
  * which takes CAN messages if the lower goup is full. While in the
- * upper group we reenable the mailbox right after reading it. Giving
+ * upper group we re-enable the mailbox right after reading it. Giving
  * the chip more room to store messages.
  *
  * After finishing we look again in the lower group if we've still

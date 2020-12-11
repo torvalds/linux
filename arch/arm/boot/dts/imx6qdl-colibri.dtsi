@@ -94,7 +94,7 @@
 
 /* Colibri SSP */
 &ecspi4 {
-	cs-gpios = <&gpio5 2 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio5 2 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi4>;
 	status = "disabled";

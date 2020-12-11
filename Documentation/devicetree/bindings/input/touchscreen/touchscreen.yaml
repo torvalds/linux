@@ -81,3 +81,5 @@ dependencies:
   touchscreen-size-y: [ touchscreen-size-x ]
   touchscreen-x-mm: [ touchscreen-y-mm ]
   touchscreen-y-mm: [ touchscreen-x-mm ]
+
+additionalProperties: true

@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_G_STD:
 
@@ -18,32 +12,33 @@ Name
 
 VIDIOC_G_STD - VIDIOC_S_STD - VIDIOC_SUBDEV_G_STD - VIDIOC_SUBDEV_S_STD - Query or select the video standard of the current input
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_G_STD, v4l2_std_id *argp )
-    :name: VIDIOC_G_STD
+.. c:macro:: VIDIOC_G_STD
 
-.. c:function:: int ioctl( int fd, VIDIOC_S_STD, const v4l2_std_id *argp )
-    :name: VIDIOC_S_STD
+``int ioctl(int fd, VIDIOC_G_STD, v4l2_std_id *argp)``
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_G_STD, v4l2_std_id *argp )
-    :name: VIDIOC_SUBDEV_G_STD
+.. c:macro:: VIDIOC_S_STD
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_S_STD, const v4l2_std_id *argp )
-    :name: VIDIOC_SUBDEV_S_STD
+``int ioctl(int fd, VIDIOC_S_STD, const v4l2_std_id *argp)``
 
+.. c:macro:: VIDIOC_SUBDEV_G_STD
+
+``int ioctl(int fd, VIDIOC_SUBDEV_G_STD, v4l2_std_id *argp)``
+
+.. c:macro:: VIDIOC_SUBDEV_S_STD
+
+``int ioctl(int fd, VIDIOC_SUBDEV_S_STD, const v4l2_std_id *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to :c:type:`v4l2_std_id`.
-
 
 Description
 ===========

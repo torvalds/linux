@@ -243,11 +243,11 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 		/* QDL mode */
 		/* Gobi 2000 has a single altsetting, older ones have two */
 		if (serial->interface->num_altsetting == 2)
-			intf = &serial->interface->altsetting[1];
+			intf = usb_altnum_to_altsetting(serial->interface, 1);
 		else if (serial->interface->num_altsetting > 2)
 			goto done;
 
-		if (intf->desc.bNumEndpoints == 2 &&
+		if (intf && intf->desc.bNumEndpoints == 2 &&
 		    usb_endpoint_is_bulk_in(&intf->endpoint[0].desc) &&
 		    usb_endpoint_is_bulk_out(&intf->endpoint[1].desc)) {
 			dev_dbg(dev, "QDL port found\n");

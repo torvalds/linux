@@ -408,9 +408,10 @@ static ssize_t pm8001_ctl_ib_queue_log_show(struct device *cdev,
 	int offset;
 	char *str = buf;
 	int start = 0;
+	u32 ib_offset = pm8001_ha->ib_offset;
 #define IB_MEMMAP(c)	\
 		(*(u32 *)((u8 *)pm8001_ha->	\
-		memoryMap.region[IB].virt_ptr +	\
+		memoryMap.region[ib_offset].virt_ptr +	\
 		pm8001_ha->evtlog_ib_offset + (c)))
 
 	for (offset = 0; offset < IB_OB_READ_TIMES; offset++) {
@@ -442,9 +443,10 @@ static ssize_t pm8001_ctl_ob_queue_log_show(struct device *cdev,
 	int offset;
 	char *str = buf;
 	int start = 0;
+	u32 ob_offset = pm8001_ha->ob_offset;
 #define OB_MEMMAP(c)	\
 		(*(u32 *)((u8 *)pm8001_ha->	\
-		memoryMap.region[OB].virt_ptr +	\
+		memoryMap.region[ob_offset].virt_ptr +	\
 		pm8001_ha->evtlog_ob_offset + (c)))
 
 	for (offset = 0; offset < IB_OB_READ_TIMES; offset++) {

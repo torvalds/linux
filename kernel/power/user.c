@@ -35,18 +35,18 @@ static struct snapshot_data {
 	bool ready;
 	bool platform_support;
 	bool free_bitmaps;
-	struct inode *bd_inode;
+	dev_t dev;
 } snapshot_state;
 
-int is_hibernate_resume_dev(const struct inode *bd_inode)
+int is_hibernate_resume_dev(dev_t dev)
 {
-	return hibernation_available() && snapshot_state.bd_inode == bd_inode;
+	return hibernation_available() && snapshot_state.dev == dev;
 }
 
 static int snapshot_open(struct inode *inode, struct file *filp)
 {
 	struct snapshot_data *data;
-	int error, nr_calls = 0;
+	int error;
 
 	if (!hibernation_available())
 		return -EPERM;
@@ -69,13 +69,10 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 	memset(&data->handle, 0, sizeof(struct snapshot_handle));
 	if ((filp->f_flags & O_ACCMODE) == O_RDONLY) {
 		/* Hibernating.  The image device should be accessible. */
-		data->swap = swsusp_resume_device ?
-			swap_type_of(swsusp_resume_device, 0, NULL) : -1;
+		data->swap = swap_type_of(swsusp_resume_device, 0);
 		data->mode = O_RDONLY;
 		data->free_bitmaps = false;
-		error = __pm_notifier_call_chain(PM_HIBERNATION_PREPARE, -1, &nr_calls);
-		if (error)
-			__pm_notifier_call_chain(PM_POST_HIBERNATION, --nr_calls, NULL);
+		error = pm_notifier_call_chain_robust(PM_HIBERNATION_PREPARE, PM_POST_HIBERNATION);
 	} else {
 		/*
 		 * Resuming.  We may need to wait for the image device to
@@ -85,15 +82,11 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 
 		data->swap = -1;
 		data->mode = O_WRONLY;
-		error = __pm_notifier_call_chain(PM_RESTORE_PREPARE, -1, &nr_calls);
+		error = pm_notifier_call_chain_robust(PM_RESTORE_PREPARE, PM_POST_RESTORE);
 		if (!error) {
 			error = create_basic_memory_bitmaps();
 			data->free_bitmaps = !error;
-		} else
-			nr_calls--;
-
-		if (error)
-			__pm_notifier_call_chain(PM_POST_RESTORE, nr_calls, NULL);
+		}
 	}
 	if (error)
 		hibernate_release();
@@ -101,7 +94,7 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 	data->frozen = false;
 	data->ready = false;
 	data->platform_support = false;
-	data->bd_inode = NULL;
+	data->dev = 0;
 
  Unlock:
 	unlock_system_sleep();
@@ -117,7 +110,7 @@ static int snapshot_release(struct inode *inode, struct file *filp)
 
 	swsusp_free();
 	data = filp->private_data;
-	data->bd_inode = NULL;
+	data->dev = 0;
 	free_all_swap_pages(data->swap);
 	if (data->frozen) {
 		pm_restore_gfp_mask();
@@ -210,7 +203,6 @@ struct compat_resume_swap_area {
 static int snapshot_set_swap_area(struct snapshot_data *data,
 		void __user *argp)
 {
-	struct block_device *bdev;
 	sector_t offset;
 	dev_t swdev;
 
@@ -237,16 +229,10 @@ static int snapshot_set_swap_area(struct snapshot_data *data,
 	 * User space encodes device types as two-byte values,
 	 * so we need to recode them
 	 */
-	if (!swdev) {
-		data->swap = -1;
-		return -EINVAL;
-	}
-	data->swap = swap_type_of(swdev, offset, &bdev);
+	data->swap = swap_type_of(swdev, offset);
 	if (data->swap < 0)
-		return -ENODEV;
-
-	data->bd_inode = bdev->bd_inode;
-	bdput(bdev);
+		return swdev ? -ENODEV : -EINVAL;
+	data->dev = swdev;
 	return 0;
 }
 

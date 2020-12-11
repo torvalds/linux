@@ -30,31 +30,16 @@ Finally, a discussion of hardware capabilities should be done with
 references to other parts of the book.
 
 .. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_hw
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_hw_flags
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: SET_IEEE80211_DEV
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: SET_IEEE80211_PERM_ADDR
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_ops
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_alloc_hw
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_register_hw
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_unregister_hw
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_free_hw
+   :functions:
+	ieee80211_hw
+	ieee80211_hw_flags
+	SET_IEEE80211_DEV
+	SET_IEEE80211_PERM_ADDR
+	ieee80211_ops
+	ieee80211_alloc_hw
+	ieee80211_register_hw
+	ieee80211_unregister_hw
+	ieee80211_free_hw
 
 PHY configuration
 =================
@@ -65,10 +50,9 @@ This chapter should describe PHY handling including start/stop callbacks
 and the various structures used.
 
 .. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_conf
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_conf_flags
+   :functions:
+	ieee80211_conf
+	ieee80211_conf_flags
 
 Virtual interfaces
 ==================
@@ -123,79 +107,32 @@ functions/definitions
 ---------------------
 
 .. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_rx_status
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: mac80211_rx_encoding_flags
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: mac80211_rx_flags
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: mac80211_tx_info_flags
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: mac80211_tx_control_flags
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: mac80211_rate_control_flags
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_tx_rate
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_tx_info
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_tx_info_clear_status
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_rx
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_rx_ni
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_rx_irqsafe
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_tx_status
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_tx_status_ni
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_tx_status_irqsafe
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_rts_get
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_rts_duration
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_ctstoself_get
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_ctstoself_duration
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_generic_frame_duration
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_wake_queue
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_stop_queue
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_wake_queues
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_stop_queues
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_queue_stopped
+   :functions:
+	ieee80211_rx_status
+	mac80211_rx_encoding_flags
+	mac80211_rx_flags
+	mac80211_tx_info_flags
+	mac80211_tx_control_flags
+	mac80211_rate_control_flags
+	ieee80211_tx_rate
+	ieee80211_tx_info
+	ieee80211_tx_info_clear_status
+	ieee80211_rx
+	ieee80211_rx_ni
+	ieee80211_rx_irqsafe
+	ieee80211_tx_status
+	ieee80211_tx_status_ni
+	ieee80211_tx_status_irqsafe
+	ieee80211_rts_get
+	ieee80211_rts_duration
+	ieee80211_ctstoself_get
+	ieee80211_ctstoself_duration
+	ieee80211_generic_frame_duration
+	ieee80211_wake_queue
+	ieee80211_stop_queue
+	ieee80211_wake_queues
+	ieee80211_stop_queues
+	ieee80211_queue_stopped
 
 Frame filtering
 ===============
@@ -213,7 +150,6 @@ The mac80211 workqueue
    :doc: mac80211 workqueue
 
 .. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_queue_work
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_queue_delayed_work
+   :functions:
+	ieee80211_queue_work
+	ieee80211_queue_delayed_work

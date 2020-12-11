@@ -653,7 +653,7 @@ int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *res)
 
 	/*
 	 * negative value for Discharging
-	 * convert 2's compliment into decimal
+	 * convert 2's complement into decimal
 	 */
 	if (high & 0x10)
 		val = (low | (high << 8) | 0xFFFFE000);
@@ -781,7 +781,7 @@ static void ab8500_fg_acc_cur_work(struct work_struct *work)
 	if (ret < 0)
 		goto exit;
 
-	/* Check for sign bit in case of negative value, 2's compliment */
+	/* Check for sign bit in case of negative value, 2's complement */
 	if (high & 0x10)
 		val = (low | (med << 8) | (high << 16) | 0xFFE00000);
 	else

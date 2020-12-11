@@ -29,19 +29,18 @@
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/io.h>
+#include <linux/platform_data/fb-s3c2410.h>
 
 #include <asm/div64.h>
 
 #include <asm/mach/map.h>
-#include <mach/regs-lcd.h>
-#include <mach/regs-gpio.h>
-#include <mach/fb.h>
 
 #ifdef CONFIG_PM
 #include <linux/pm.h>
 #endif
 
 #include "s3c2410fb.h"
+#include "s3c2410fb-regs-lcd.h"
 
 /* Debugging stuff */
 static int debug = IS_BUILTIN(CONFIG_FB_S3C2410_DEBUG);
@@ -672,6 +671,9 @@ static inline void modify_gpio(void __iomem *reg,
 {
 	unsigned long tmp;
 
+	if (!reg)
+		return;
+
 	tmp = readl(reg) & ~mask;
 	writel(tmp | set, reg);
 }
@@ -702,10 +704,10 @@ static int s3c2410fb_init_registers(struct fb_info *info)
 
 	/* modify the gpio(s) with interrupts set (bjd) */
 
-	modify_gpio(S3C2410_GPCUP,  mach_info->gpcup,  mach_info->gpcup_mask);
-	modify_gpio(S3C2410_GPCCON, mach_info->gpccon, mach_info->gpccon_mask);
-	modify_gpio(S3C2410_GPDUP,  mach_info->gpdup,  mach_info->gpdup_mask);
-	modify_gpio(S3C2410_GPDCON, mach_info->gpdcon, mach_info->gpdcon_mask);
+	modify_gpio(mach_info->gpcup_reg,  mach_info->gpcup,  mach_info->gpcup_mask);
+	modify_gpio(mach_info->gpccon_reg, mach_info->gpccon, mach_info->gpccon_mask);
+	modify_gpio(mach_info->gpdup_reg,  mach_info->gpdup,  mach_info->gpdup_mask);
+	modify_gpio(mach_info->gpdcon_reg, mach_info->gpdcon, mach_info->gpdcon_mask);
 
 	local_irq_restore(flags);
 

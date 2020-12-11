@@ -96,7 +96,7 @@ struct ua101 {
 	u8 rate_feedback[MAX_QUEUE_LENGTH];
 
 	struct list_head ready_playback_urbs;
-	struct tasklet_struct playback_tasklet;
+	struct work_struct playback_work;
 	wait_queue_head_t alsa_capture_wait;
 	wait_queue_head_t rate_feedback_wait;
 	wait_queue_head_t alsa_playback_wait;
@@ -188,7 +188,7 @@ static void playback_urb_complete(struct urb *usb_urb)
 		spin_lock_irqsave(&ua->lock, flags);
 		list_add_tail(&urb->ready_list, &ua->ready_playback_urbs);
 		if (ua->rate_feedback_count > 0)
-			tasklet_schedule(&ua->playback_tasklet);
+			queue_work(system_highpri_wq, &ua->playback_work);
 		ua->playback.substream->runtime->delay -=
 				urb->urb.iso_frame_desc[0].length /
 						ua->playback.frame_bytes;
@@ -247,9 +247,9 @@ static inline void add_with_wraparound(struct ua101 *ua,
 		*value -= ua->playback.queue_length;
 }
 
-static void playback_tasklet(struct tasklet_struct *t)
+static void playback_work(struct work_struct *work)
 {
-	struct ua101 *ua = from_tasklet(ua, t, playback_tasklet);
+	struct ua101 *ua = container_of(work, struct ua101, playback_work);
 	unsigned long flags;
 	unsigned int frames;
 	struct ua101_urb *urb;
@@ -401,7 +401,7 @@ static void capture_urb_complete(struct urb *urb)
 		}
 		if (test_bit(USB_PLAYBACK_RUNNING, &ua->states) &&
 		    !list_empty(&ua->ready_playback_urbs))
-			tasklet_schedule(&ua->playback_tasklet);
+			queue_work(system_highpri_wq, &ua->playback_work);
 	}
 
 	spin_unlock_irqrestore(&ua->lock, flags);
@@ -532,7 +532,7 @@ static void stop_usb_playback(struct ua101 *ua)
 
 	kill_stream_urbs(&ua->playback);
 
-	tasklet_kill(&ua->playback_tasklet);
+	cancel_work_sync(&ua->playback_work);
 
 	disable_iso_interface(ua, INTF_PLAYBACK);
 }
@@ -550,7 +550,7 @@ static int start_usb_playback(struct ua101 *ua)
 		return 0;
 
 	kill_stream_urbs(&ua->playback);
-	tasklet_kill(&ua->playback_tasklet);
+	cancel_work_sync(&ua->playback_work);
 
 	err = enable_iso_interface(ua, INTF_PLAYBACK);
 	if (err < 0)
@@ -1218,7 +1218,7 @@ static int ua101_probe(struct usb_interface *interface,
 	spin_lock_init(&ua->lock);
 	mutex_init(&ua->mutex);
 	INIT_LIST_HEAD(&ua->ready_playback_urbs);
-	tasklet_setup(&ua->playback_tasklet, playback_tasklet);
+	INIT_WORK(&ua->playback_work, playback_work);
 	init_waitqueue_head(&ua->alsa_capture_wait);
 	init_waitqueue_head(&ua->rate_feedback_wait);
 	init_waitqueue_head(&ua->alsa_playback_wait);

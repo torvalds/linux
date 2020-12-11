@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/wait.h>
 
 #include <soc/qcom/cmd-db.h>
 #include <soc/qcom/tcs.h>
@@ -453,6 +454,7 @@ skip:
 		if (!drv->tcs[ACTIVE_TCS].num_tcs)
 			enable_tcs_irq(drv, i, false);
 		spin_unlock(&drv->lock);
+		wake_up(&drv->tcs_wait);
 		if (req)
 			rpmh_tx_done(req, err);
 	}
@@ -571,43 +573,74 @@ static int find_free_tcs(struct tcs_group *tcs)
 }
 
 /**
- * tcs_write() - Store messages into a TCS right now, or return -EBUSY.
+ * claim_tcs_for_req() - Claim a tcs in the given tcs_group; only for active.
  * @drv: The controller.
+ * @tcs: The tcs_group used for ACTIVE_ONLY transfers.
  * @msg: The data to be sent.
  *
- * Grabs a TCS for ACTIVE_ONLY transfers and writes the messages to it.
+ * Claims a tcs in the given tcs_group while making sure that no existing cmd
+ * is in flight that would conflict with the one in @msg.
  *
- * If there are no free TCSes for ACTIVE_ONLY transfers or if a command for
- * the same address is already transferring returns -EBUSY which means the
- * client should retry shortly.
+ * Context: Must be called with the drv->lock held since that protects
+ * tcs_in_use.
  *
- * Return: 0 on success, -EBUSY if client should retry, or an error.
- *         Client should have interrupts enabled for a bit before retrying.
+ * Return: The id of the claimed tcs or -EBUSY if a matching msg is in flight
+ * or the tcs_group is full.
  */
-static int tcs_write(struct rsc_drv *drv, const struct tcs_request *msg)
+static int claim_tcs_for_req(struct rsc_drv *drv, struct tcs_group *tcs,
+			     const struct tcs_request *msg)
 {
-	struct tcs_group *tcs;
-	int tcs_id;
-	unsigned long flags;
 	int ret;
 
-	tcs = get_tcs_for_msg(drv, msg);
-	if (IS_ERR(tcs))
-		return PTR_ERR(tcs);
-
-	spin_lock_irqsave(&drv->lock, flags);
 	/*
 	 * The h/w does not like if we send a request to the same address,
 	 * when one is already in-flight or being processed.
 	 */
 	ret = check_for_req_inflight(drv, tcs, msg);
 	if (ret)
-		goto unlock;
+		return ret;
 
-	ret = find_free_tcs(tcs);
-	if (ret < 0)
-		goto unlock;
-	tcs_id = ret;
+	return find_free_tcs(tcs);
+}
+
+/**
+ * rpmh_rsc_send_data() - Write / trigger active-only message.
+ * @drv: The controller.
+ * @msg: The data to be sent.
+ *
+ * NOTES:
+ * - This is only used for "ACTIVE_ONLY" since the limitations of this
+ *   function don't make sense for sleep/wake cases.
+ * - To do the transfer, we will grab a whole TCS for ourselves--we don't
+ *   try to share. If there are none available we'll wait indefinitely
+ *   for a free one.
+ * - This function will not wait for the commands to be finished, only for
+ *   data to be programmed into the RPMh. See rpmh_tx_done() which will
+ *   be called when the transfer is fully complete.
+ * - This function must be called with interrupts enabled. If the hardware
+ *   is busy doing someone else's transfer we need that transfer to fully
+ *   finish so that we can have the hardware, and to fully finish it needs
+ *   the interrupt handler to run. If the interrupts is set to run on the
+ *   active CPU this can never happen if interrupts are disabled.
+ *
+ * Return: 0 on success, -EINVAL on error.
+ */
+int rpmh_rsc_send_data(struct rsc_drv *drv, const struct tcs_request *msg)
+{
+	struct tcs_group *tcs;
+	int tcs_id;
+	unsigned long flags;
+
+	tcs = get_tcs_for_msg(drv, msg);
+	if (IS_ERR(tcs))
+		return PTR_ERR(tcs);
+
+	spin_lock_irqsave(&drv->lock, flags);
+
+	/* Wait forever for a free tcs. It better be there eventually! */
+	wait_event_lock_irq(drv->tcs_wait,
+			    (tcs_id = claim_tcs_for_req(drv, tcs, msg)) >= 0,
+			    drv->lock);
 
 	tcs->req[tcs_id - tcs->offset] = msg;
 	set_bit(tcs_id, drv->tcs_in_use);
@@ -635,47 +668,6 @@ static int tcs_write(struct rsc_drv *drv, const struct tcs_request *msg)
 	__tcs_set_trigger(drv, tcs_id, true);
 
 	return 0;
-unlock:
-	spin_unlock_irqrestore(&drv->lock, flags);
-	return ret;
-}
-
-/**
- * rpmh_rsc_send_data() - Write / trigger active-only message.
- * @drv: The controller.
- * @msg: The data to be sent.
- *
- * NOTES:
- * - This is only used for "ACTIVE_ONLY" since the limitations of this
- *   function don't make sense for sleep/wake cases.
- * - To do the transfer, we will grab a whole TCS for ourselves--we don't
- *   try to share. If there are none available we'll wait indefinitely
- *   for a free one.
- * - This function will not wait for the commands to be finished, only for
- *   data to be programmed into the RPMh. See rpmh_tx_done() which will
- *   be called when the transfer is fully complete.
- * - This function must be called with interrupts enabled. If the hardware
- *   is busy doing someone else's transfer we need that transfer to fully
- *   finish so that we can have the hardware, and to fully finish it needs
- *   the interrupt handler to run. If the interrupts is set to run on the
- *   active CPU this can never happen if interrupts are disabled.
- *
- * Return: 0 on success, -EINVAL on error.
- */
-int rpmh_rsc_send_data(struct rsc_drv *drv, const struct tcs_request *msg)
-{
-	int ret;
-
-	do {
-		ret = tcs_write(drv, msg);
-		if (ret == -EBUSY) {
-			pr_info_ratelimited("TCS Busy, retrying RPMH message send: addr=%#x\n",
-					    msg->cmds[0].addr);
-			udelay(10);
-		}
-	} while (ret == -EBUSY);
-
-	return ret;
 }
 
 /**
@@ -983,6 +975,7 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 		return ret;
 
 	spin_lock_init(&drv->lock);
+	init_waitqueue_head(&drv->tcs_wait);
 	bitmap_zero(drv->tcs_in_use, MAX_TCS_NR);
 
 	irq = platform_get_irq(pdev, drv->id);

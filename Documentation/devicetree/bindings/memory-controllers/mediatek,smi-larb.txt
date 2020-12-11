@@ -8,6 +8,7 @@ Required properties:
 		"mediatek,mt2712-smi-larb"
 		"mediatek,mt6779-smi-larb"
 		"mediatek,mt7623-smi-larb", "mediatek,mt2701-smi-larb"
+		"mediatek,mt8167-smi-larb"
 		"mediatek,mt8173-smi-larb"
 		"mediatek,mt8183-smi-larb"
 - reg : the register and size of this local arbiter.
@@ -22,7 +23,7 @@ Required properties:
   - "gals": the clock for GALS(Global Async Local Sync).
   Here is the list which has this GALS: mt8183.
 
-Required property for mt2701, mt2712, mt6779 and mt7623:
+Required property for mt2701, mt2712, mt6779, mt7623 and mt8167:
 - mediatek,larb-id :the hardware id of this larb.
 
 Example:

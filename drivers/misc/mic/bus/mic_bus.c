@@ -9,6 +9,7 @@
  * This implementation is very similar to the the virtio bus driver
  * implementation @ drivers/virtio/virtio.c
  */
+#include <linux/dma-map-ops.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/idr.h>

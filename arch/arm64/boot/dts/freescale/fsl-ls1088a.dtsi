@@ -2,7 +2,7 @@
 /*
  * Device Tree Include file for NXP Layerscape-1088A family SoC.
  *
- * Copyright 2017 NXP
+ * Copyright 2017-2020 NXP
  *
  * Harninder Rai <harninder.rai@nxp.com>
  *
@@ -130,19 +130,19 @@
 	};
 
 	thermal-zones {
-		cpu_thermal: cpu-thermal {
+		core-cluster {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 0>;
 
 			trips {
-				cpu_alert: cpu-alert {
+				core_cluster_alert: core-cluster-alert {
 					temperature = <85000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
 
-				cpu_crit: cpu-crit {
+				core-cluster-crit {
 					temperature = <95000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -151,7 +151,7 @@
 
 			cooling-maps {
 				map0 {
-					trip = <&cpu_alert>;
+					trip = <&core_cluster_alert>;
 					cooling-device =
 						<&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 						<&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
@@ -161,6 +161,20 @@
 						<&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 						<&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 						<&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
+
+		soc {
+			polling-delay-passive = <1000>;
+			polling-delay = <5000>;
+			thermal-sensors = <&tmu 1>;
+
+			trips {
+				soc-crit {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "critical";
 				};
 			};
 		};
@@ -210,45 +224,49 @@
 			compatible = "fsl,qoriq-tmu";
 			reg = <0x0 0x1f80000 0x0 0x10000>;
 			interrupts = <0 23 0x4>;
-			fsl,tmu-range = <0xb0000 0x9002a 0x6004c 0x30062>;
+			fsl,tmu-range = <0xb0000 0x9002a 0x6004c 0x70062>;
 			fsl,tmu-calibration =
 				/* Calibration data group 1 */
-				<0x00000000 0x00000026
-				0x00000001 0x0000002d
-				0x00000002 0x00000032
-				0x00000003 0x00000039
-				0x00000004 0x0000003f
-				0x00000005 0x00000046
-				0x00000006 0x0000004d
-				0x00000007 0x00000054
-				0x00000008 0x0000005a
-				0x00000009 0x00000061
-				0x0000000a 0x0000006a
-				0x0000000b 0x00000071
+				<0x00000000 0x00000023
+				0x00000001 0x0000002a
+				0x00000002 0x00000030
+				0x00000003 0x00000037
+				0x00000004 0x0000003d
+				0x00000005 0x00000044
+				0x00000006 0x0000004a
+				0x00000007 0x00000051
+				0x00000008 0x00000057
+				0x00000009 0x0000005e
+				0x0000000a 0x00000064
+				0x0000000b 0x0000006b
 				/* Calibration data group 2 */
-				0x00010000 0x00000025
-				0x00010001 0x0000002c
-				0x00010002 0x00000035
-				0x00010003 0x0000003d
-				0x00010004 0x00000045
-				0x00010005 0x0000004e
-				0x00010006 0x00000057
-				0x00010007 0x00000061
-				0x00010008 0x0000006b
-				0x00010009 0x00000076
+				0x00010000 0x00000022
+				0x00010001 0x0000002a
+				0x00010002 0x00000032
+				0x00010003 0x0000003a
+				0x00010004 0x00000042
+				0x00010005 0x0000004a
+				0x00010006 0x00000052
+				0x00010007 0x0000005a
+				0x00010008 0x00000062
+				0x00010009 0x0000006a
 				/* Calibration data group 3 */
-				0x00020000 0x00000029
-				0x00020001 0x00000033
-				0x00020002 0x0000003d
-				0x00020003 0x00000049
-				0x00020004 0x00000056
-				0x00020005 0x00000061
-				0x00020006 0x0000006d
+				0x00020000 0x00000021
+				0x00020001 0x0000002b
+				0x00020002 0x00000035
+				0x00020003 0x00000040
+				0x00020004 0x0000004a
+				0x00020005 0x00000054
+				0x00020006 0x0000005e
 				/* Calibration data group 4 */
-				0x00030000 0x00000021
-				0x00030001 0x0000002a
-				0x00030002 0x0000003c
-				0x00030003 0x0000004e>;
+				0x00030000 0x00000010
+				0x00030001 0x0000001c
+				0x00030002 0x00000027
+				0x00030003 0x00000032
+				0x00030004 0x0000003e
+				0x00030005 0x00000049
+				0x00030006 0x00000054
+				0x00030007 0x00000060>;
 			little-endian;
 			#thermal-sensor-cells = <1>;
 		};
@@ -473,7 +491,7 @@
 			};
 		};
 
-		pcie@3400000 {
+		pcie1: pcie@3400000 {
 			compatible = "fsl,ls1088a-pcie";
 			reg = <0x00 0x03400000 0x0 0x00100000   /* controller registers */
 			       0x20 0x00000000 0x0 0x00002000>; /* configuration space */
@@ -499,7 +517,7 @@
 			status = "disabled";
 		};
 
-		pcie@3500000 {
+		pcie2: pcie@3500000 {
 			compatible = "fsl,ls1088a-pcie";
 			reg = <0x00 0x03500000 0x0 0x00100000   /* controller registers */
 			       0x28 0x00000000 0x0 0x00002000>; /* configuration space */
@@ -525,7 +543,7 @@
 			status = "disabled";
 		};
 
-		pcie@3600000 {
+		pcie3: pcie@3600000 {
 			compatible = "fsl,ls1088a-pcie";
 			reg = <0x00 0x03600000 0x0 0x00100000   /* controller registers */
 			       0x30 0x00000000 0x0 0x00002000>; /* configuration space */
@@ -657,57 +675,57 @@
 		cluster1_core0_watchdog: wdt@c000000 {
 			compatible = "arm,sp805-wdt", "arm,primecell";
 			reg = <0x0 0xc000000 0x0 0x1000>;
-			clocks = <&clockgen 4 3>, <&clockgen 4 3>;
-			clock-names = "apb_pclk", "wdog_clk";
+			clocks = <&clockgen 4 15>, <&clockgen 4 15>;
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		cluster1_core1_watchdog: wdt@c010000 {
 			compatible = "arm,sp805-wdt", "arm,primecell";
 			reg = <0x0 0xc010000 0x0 0x1000>;
-			clocks = <&clockgen 4 3>, <&clockgen 4 3>;
-			clock-names = "apb_pclk", "wdog_clk";
+			clocks = <&clockgen 4 15>, <&clockgen 4 15>;
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		cluster1_core2_watchdog: wdt@c020000 {
 			compatible = "arm,sp805-wdt", "arm,primecell";
 			reg = <0x0 0xc020000 0x0 0x1000>;
-			clocks = <&clockgen 4 3>, <&clockgen 4 3>;
-			clock-names = "apb_pclk", "wdog_clk";
+			clocks = <&clockgen 4 15>, <&clockgen 4 15>;
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		cluster1_core3_watchdog: wdt@c030000 {
 			compatible = "arm,sp805-wdt", "arm,primecell";
 			reg = <0x0 0xc030000 0x0 0x1000>;
-			clocks = <&clockgen 4 3>, <&clockgen 4 3>;
-			clock-names = "apb_pclk", "wdog_clk";
+			clocks = <&clockgen 4 15>, <&clockgen 4 15>;
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		cluster2_core0_watchdog: wdt@c100000 {
 			compatible = "arm,sp805-wdt", "arm,primecell";
 			reg = <0x0 0xc100000 0x0 0x1000>;
-			clocks = <&clockgen 4 3>, <&clockgen 4 3>;
-			clock-names = "apb_pclk", "wdog_clk";
+			clocks = <&clockgen 4 15>, <&clockgen 4 15>;
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		cluster2_core1_watchdog: wdt@c110000 {
 			compatible = "arm,sp805-wdt", "arm,primecell";
 			reg = <0x0 0xc110000 0x0 0x1000>;
-			clocks = <&clockgen 4 3>, <&clockgen 4 3>;
-			clock-names = "apb_pclk", "wdog_clk";
+			clocks = <&clockgen 4 15>, <&clockgen 4 15>;
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		cluster2_core2_watchdog: wdt@c120000 {
 			compatible = "arm,sp805-wdt", "arm,primecell";
 			reg = <0x0 0xc120000 0x0 0x1000>;
-			clocks = <&clockgen 4 3>, <&clockgen 4 3>;
-			clock-names = "apb_pclk", "wdog_clk";
+			clocks = <&clockgen 4 15>, <&clockgen 4 15>;
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		cluster2_core3_watchdog: wdt@c130000 {
 			compatible = "arm,sp805-wdt", "arm,primecell";
 			reg = <0x0 0xc130000 0x0 0x1000>;
-			clocks = <&clockgen 4 3>, <&clockgen 4 3>;
-			clock-names = "apb_pclk", "wdog_clk";
+			clocks = <&clockgen 4 15>, <&clockgen 4 15>;
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		fsl_mc: fsl-mc@80c000000 {

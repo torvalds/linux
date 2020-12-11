@@ -32,6 +32,14 @@ static inline int _soc_dai_ret(struct snd_soc_dai *dai,
 	return ret;
 }
 
+/*
+ * We might want to check substream by using list.
+ * In such case, we can update these macros.
+ */
+#define soc_dai_mark_push(dai, substream, tgt)	((dai)->mark_##tgt = substream)
+#define soc_dai_mark_pop(dai, substream, tgt)	((dai)->mark_##tgt = NULL)
+#define soc_dai_mark_match(dai, substream, tgt)	((dai)->mark_##tgt == substream)
+
 /**
  * snd_soc_dai_set_sysclk - configure DAI system or master clock.
  * @dai: DAI
@@ -348,15 +356,26 @@ int snd_soc_dai_startup(struct snd_soc_dai *dai,
 	    dai->driver->ops->startup)
 		ret = dai->driver->ops->startup(substream, dai);
 
+	/* mark substream if succeeded */
+	if (ret == 0)
+		soc_dai_mark_push(dai, substream, startup);
+
 	return soc_dai_ret(dai, ret);
 }
 
 void snd_soc_dai_shutdown(struct snd_soc_dai *dai,
-			 struct snd_pcm_substream *substream)
+			  struct snd_pcm_substream *substream,
+			  int rollback)
 {
+	if (rollback && !soc_dai_mark_match(dai, substream, startup))
+		return;
+
 	if (dai->driver->ops &&
 	    dai->driver->ops->shutdown)
 		dai->driver->ops->shutdown(substream, dai);
+
+	/* remove marked substream */
+	soc_dai_mark_pop(dai, substream, startup);
 }
 
 snd_pcm_sframes_t snd_soc_dai_delay(struct snd_soc_dai *dai,

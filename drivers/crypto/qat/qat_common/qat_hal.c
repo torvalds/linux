@@ -2,6 +2,7 @@
 /* Copyright(c) 2014 - 2020 Intel Corporation */
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/pci_ids.h>
 
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
@@ -412,7 +413,7 @@ static int qat_hal_init_esram(struct icp_qat_fw_loader_handle *handle)
 	unsigned int csr_val;
 	int times = 30;
 
-	if (handle->pci_dev->device != ADF_DH895XCC_PCI_DEVICE_ID)
+	if (handle->pci_dev->device != PCI_DEVICE_ID_INTEL_QAT_DH895XCC)
 		return 0;
 
 	csr_val = ADF_CSR_RD(csr_addr, 0);
@@ -672,13 +673,13 @@ int qat_hal_init(struct adf_accel_dev *accel_dev)
 		(void __iomem *)((uintptr_t)handle->hal_cap_ae_xfer_csr_addr_v +
 				 LOCAL_TO_XFER_REG_OFFSET);
 	handle->pci_dev = pci_info->pci_dev;
-	if (handle->pci_dev->device == ADF_DH895XCC_PCI_DEVICE_ID) {
+	if (handle->pci_dev->device == PCI_DEVICE_ID_INTEL_QAT_DH895XCC) {
 		sram_bar =
 			&pci_info->pci_bars[hw_data->get_sram_bar_id(hw_data)];
 		handle->hal_sram_addr_v = sram_bar->virt_addr;
 	}
 	handle->fw_auth = (handle->pci_dev->device ==
-			   ADF_DH895XCC_PCI_DEVICE_ID) ? false : true;
+			   PCI_DEVICE_ID_INTEL_QAT_DH895XCC) ? false : true;
 	handle->hal_handle = kzalloc(sizeof(*handle->hal_handle), GFP_KERNEL);
 	if (!handle->hal_handle)
 		goto out_hal_handle;

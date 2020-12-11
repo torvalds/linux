@@ -403,6 +403,52 @@ Contact: Emil Velikov, respective driver maintainers
 
 Level: Intermediate
 
+Plumb drm_atomic_state all over
+-------------------------------
+
+Currently various atomic functions take just a single or a handful of
+object states (eg. plane state). While that single object state can
+suffice for some simple cases, we often have to dig out additional
+object states for dealing with various dependencies between the individual
+objects or the hardware they represent. The process of digging out the
+additional states is rather non-intuitive and error prone.
+
+To fix that most functions should rather take the overall
+drm_atomic_state as one of their parameters. The other parameters
+would generally be the object(s) we mainly want to interact with.
+
+For example, instead of
+
+.. code-block:: c
+
+   int (*atomic_check)(struct drm_plane *plane, struct drm_plane_state *state);
+
+we would have something like
+
+.. code-block:: c
+
+   int (*atomic_check)(struct drm_plane *plane, struct drm_atomic_state *state);
+
+The implementation can then trivially gain access to any required object
+state(s) via drm_atomic_get_plane_state(), drm_atomic_get_new_plane_state(),
+drm_atomic_get_old_plane_state(), and their equivalents for
+other object types.
+
+Additionally many drivers currently access the object->state pointer
+directly in their commit functions. That is not going to work if we
+eg. want to allow deeper commit pipelines as those pointers could
+then point to the states corresponding to a future commit instead of
+the current commit we're trying to process. Also non-blocking commits
+execute locklessly so there are serious concerns with dereferencing
+the object->state pointers without holding the locks that protect them.
+Use of drm_atomic_get_new_plane_state(), drm_atomic_get_old_plane_state(),
+etc. avoids these problems as well since they relate to a specific
+commit via the passed in drm_atomic_state.
+
+Contact: Ville Syrjälä, Daniel Vetter
+
+Level: Intermediate
+
 
 Core refactorings
 =================

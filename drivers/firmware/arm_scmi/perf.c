@@ -748,7 +748,7 @@ static bool scmi_fast_switch_possible(const struct scmi_handle *handle,
 	return dom->fc_info && dom->fc_info->level_set_addr;
 }
 
-static struct scmi_perf_ops perf_ops = {
+static const struct scmi_perf_ops perf_ops = {
 	.limits_set = scmi_perf_limits_set,
 	.limits_get = scmi_perf_limits_get,
 	.level_set = scmi_perf_level_set,
@@ -890,9 +890,4 @@ static int scmi_perf_protocol_init(struct scmi_handle *handle)
 	return 0;
 }
 
-static int __init scmi_perf_init(void)
-{
-	return scmi_protocol_register(SCMI_PROTOCOL_PERF,
-				      &scmi_perf_protocol_init);
-}
-subsys_initcall(scmi_perf_init);
+DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(SCMI_PROTOCOL_PERF, perf)

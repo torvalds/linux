@@ -1,0 +1,159 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/richtek,rtmv20-regulator.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Richtek RTMV20 laser diode regulator
+
+maintainers:
+  - ChiYuan Huang <cy_huang@richtek.com>
+
+description: |
+  Richtek RTMV20 is a load switch current regulator that can supply up to 6A.
+  It is used to drive laser diode. There're two signals for chip controls
+  (Enable/Fail), Enable pin to turn chip on, and Fail pin as fault indication.
+  There're still four pins for camera control, two inputs (strobe and vsync),
+  the others for outputs (fsin1 and fsin2). Strobe input to start the current
+  supply, vsync input from IR camera, and fsin1/fsin2 output for the optional.
+
+properties:
+  compatible:
+    const: richtek,rtmv20
+
+  reg:
+    maxItems: 1
+
+  wakeup-source: true
+
+  interrupts:
+    maxItems: 1
+
+  enable-gpios:
+    description: A connection of the 'enable' gpio line.
+    maxItems: 1
+
+  richtek,ld-pulse-delay-us:
+    description: |
+      load current pulse delay in microsecond after strobe pin pulse high.
+    minimum: 0
+    maximum: 100000
+    default: 0
+
+  richtek,ld-pulse-width-us:
+    description: |
+      Load current pulse width in microsecond after strobe pin pulse high.
+    minimum: 0
+    maximum: 10000
+    default: 1200
+
+  richtek,fsin1-delay-us:
+    description: |
+      Fsin1 pulse high delay in microsecond after vsync signal pulse high.
+    minimum: 0
+    maximum: 100000
+    default: 23000
+
+  richtek,fsin1-width-us:
+    description: |
+      Fsin1 pulse high width in microsecond after vsync signal pulse high.
+    minimum: 40
+    maximum: 10000
+    default: 160
+
+  richtek,fsin2-delay-us:
+    description: |
+      Fsin2 pulse high delay in microsecond after vsync signal pulse high.
+    minimum: 0
+    maximum: 100000
+    default: 23000
+
+  richtek,fsin2-width-us:
+    description: |
+      Fsin2 pulse high width in microsecond after vsync signal pulse high.
+    minimum: 40
+    maximum: 10000
+    default: 160
+
+  richtek,es-pulse-width-us:
+    description: Eye safety function pulse width limit in microsecond.
+    minimum: 0
+    maximum: 10000
+    default: 1200
+
+  richtek,es-ld-current-microamp:
+    description: Eye safety function load current limit in microamp.
+    minimum: 0
+    maximum: 6000000
+    default: 3000000
+
+  richtek,lbp-level-microvolt:
+    description: Low battery protection level in microvolt.
+    minimum: 2400000
+    maximum: 3700000
+    default: 2700000
+
+  richtek,lbp-enable:
+    description: Low battery protection function enable control.
+    type: boolean
+
+  richtek,strobe-polarity-high:
+    description: Strobe pin active polarity control.
+    type: boolean
+
+  richtek,vsync-polarity-high:
+    description: Vsync pin active polarity control.
+    type: boolean
+
+  richtek,fsin-enable:
+    description: Fsin function enable control.
+    type: boolean
+
+  richtek,fsin-output:
+    description: Fsin function output control.
+    type: boolean
+
+  richtek,es-enable:
+    description: Eye safety function enable control.
+    type: boolean
+
+  lsw:
+    description: load switch current regulator description.
+    type: object
+    $ref: "regulator.yaml#"
+
+required:
+  - compatible
+  - reg
+  - wakeup-source
+  - interrupts
+  - enable-gpios
+  - lsw
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      rtmv20@34 {
+        compatible = "richtek,rtmv20";
+        reg = <0x34>;
+        wakeup-source;
+        interrupts-extended = <&gpio26 2 IRQ_TYPE_LEVEL_LOW>;
+        enable-gpios = <&gpio26 3 0>;
+
+        richtek,strobe-polarity-high;
+        richtek,vsync-polarity-high;
+
+        lsw {
+                regulator-name = "rtmv20,lsw";
+                regulator-min-microamp = <0>;
+                regulator-max-microamp = <6000000>;
+        };
+      };
+    };
+...

@@ -242,9 +242,11 @@ static struct synth_field_desc create_synth_test_fields[] = {
 	{ .type = "pid_t",		.name = "next_pid_field" },
 	{ .type = "char[16]",		.name = "next_comm_field" },
 	{ .type = "u64",		.name = "ts_ns" },
+	{ .type = "char[]",		.name = "dynstring_field_1" },
 	{ .type = "u64",		.name = "ts_ms" },
 	{ .type = "unsigned int",	.name = "cpu" },
 	{ .type = "char[64]",		.name = "my_string_field" },
+	{ .type = "char[]",		.name = "dynstring_field_2" },
 	{ .type = "int",		.name = "my_int_field" },
 };
 
@@ -254,7 +256,7 @@ static struct synth_field_desc create_synth_test_fields[] = {
  */
 static int __init test_create_synth_event(void)
 {
-	u64 vals[7];
+	u64 vals[9];
 	int ret;
 
 	/* Create the create_synth_test event with the fields above */
@@ -292,10 +294,12 @@ static int __init test_create_synth_event(void)
 	vals[0] = 777;			/* next_pid_field */
 	vals[1] = (u64)(long)"tiddlywinks";	/* next_comm_field */
 	vals[2] = 1000000;		/* ts_ns */
-	vals[3] = 1000;			/* ts_ms */
-	vals[4] = raw_smp_processor_id(); /* cpu */
-	vals[5] = (u64)(long)"thneed";	/* my_string_field */
-	vals[6] = 398;			/* my_int_field */
+	vals[3] = (u64)(long)"xrayspecs";	/* dynstring_field_1 */
+	vals[4] = 1000;			/* ts_ms */
+	vals[5] = raw_smp_processor_id(); /* cpu */
+	vals[6] = (u64)(long)"thneed";	/* my_string_field */
+	vals[7] = (u64)(long)"kerplunk";	/* dynstring_field_2 */
+	vals[8] = 398;			/* my_int_field */
 
 	/* Now generate a create_synth_test event */
 	ret = synth_event_trace_array(create_synth_test, vals, ARRAY_SIZE(vals));
@@ -422,13 +426,15 @@ static int __init test_trace_synth_event(void)
 	int ret;
 
 	/* Trace some bogus values just for testing */
-	ret = synth_event_trace(create_synth_test, 7,	/* number of values */
+	ret = synth_event_trace(create_synth_test, 9,	/* number of values */
 				(u64)444,		/* next_pid_field */
 				(u64)(long)"clackers",	/* next_comm_field */
 				(u64)1000000,		/* ts_ns */
+				(u64)(long)"viewmaster",/* dynstring_field_1 */
 				(u64)1000,		/* ts_ms */
 				(u64)raw_smp_processor_id(), /* cpu */
 				(u64)(long)"Thneed",	/* my_string_field */
+				(u64)(long)"yoyos",	/* dynstring_field_2 */
 				(u64)999);		/* my_int_field */
 	return ret;
 }

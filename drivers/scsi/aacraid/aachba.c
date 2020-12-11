@@ -242,7 +242,7 @@ int aac_commit = -1;
 int startup_timeout = 180;
 int aif_timeout = 120;
 int aac_sync_mode;  /* Only Sync. transfer - disabled */
-int aac_convert_sgl = 1;	/* convert non-conformable s/g list - enabled */
+static int aac_convert_sgl = 1;	/* convert non-conformable s/g list - enabled */
 
 module_param(aac_sync_mode, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(aac_sync_mode, "Force sync. transfer mode"
@@ -290,7 +290,7 @@ MODULE_PARM_DESC(numacb, "Request a limit to the number of adapter control"
 	" blocks (FIB) allocated. Valid values are 512 and down. Default is"
 	" to use suggestion from Firmware.");
 
-int acbsize = -1;
+static int acbsize = -1;
 module_param(acbsize, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(acbsize, "Request a specific adapter control block (FIB)"
 	" size. Valid values are 512, 2048, 4096 and 8192. Default is to use"
@@ -321,7 +321,7 @@ int aac_reset_devices;
 module_param_named(reset_devices, aac_reset_devices, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(reset_devices, "Force an adapter reset at initialization.");
 
-int aac_wwn = 1;
+static int aac_wwn = 1;
 module_param_named(wwn, aac_wwn, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(wwn, "Select a WWN type for the arrays:\n"
 	"\t0 - Disable\n"
@@ -2229,10 +2229,10 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	}
 
 	if (dev->dac_support) {
-		if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(64))) {
+		if (!dma_set_mask(&dev->pdev->dev, DMA_BIT_MASK(64))) {
 			if (!dev->in_reset)
 				dev_info(&dev->pdev->dev, "64 Bit DAC enabled\n");
-		} else if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(32))) {
+		} else if (!dma_set_mask(&dev->pdev->dev, DMA_BIT_MASK(32))) {
 			dev_info(&dev->pdev->dev, "DMA mask set failed, 64 Bit DAC disabled\n");
 			dev->dac_support = 0;
 		} else {
@@ -3253,7 +3253,6 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 	case START_STOP:
 		return aac_start_stop(scsicmd);
 
-		fallthrough;
 	default:
 	/*
 	 *	Unhandled commands

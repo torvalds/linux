@@ -35,16 +35,56 @@
 
 #include <net/pkt_cls.h>
 #include "en.h"
+#include "eswitch.h"
+#include "en/tc_ct.h"
 
 #define MLX5E_TC_FLOW_ID_MASK 0x0000ffff
 
 #ifdef CONFIG_MLX5_ESWITCH
+
+#define NIC_FLOW_ATTR_SZ (sizeof(struct mlx5_flow_attr) +\
+			  sizeof(struct mlx5_nic_flow_attr))
+#define ESW_FLOW_ATTR_SZ (sizeof(struct mlx5_flow_attr) +\
+			  sizeof(struct mlx5_esw_flow_attr))
+#define ns_to_attr_sz(ns) (((ns) == MLX5_FLOW_NAMESPACE_FDB) ?\
+			    ESW_FLOW_ATTR_SZ :\
+			    NIC_FLOW_ATTR_SZ)
+
 
 int mlx5e_tc_num_filters(struct mlx5e_priv *priv, unsigned long flags);
 
 struct mlx5e_tc_update_priv {
 	struct net_device *tun_dev;
 };
+
+struct mlx5_nic_flow_attr {
+	u32 flow_tag;
+	u32 hairpin_tirn;
+	struct mlx5_flow_table *hairpin_ft;
+};
+
+struct mlx5_flow_attr {
+	u32 action;
+	struct mlx5_fc *counter;
+	struct mlx5_modify_hdr *modify_hdr;
+	struct mlx5_ct_attr ct_attr;
+	struct mlx5e_tc_flow_parse_attr *parse_attr;
+	u32 chain;
+	u16 prio;
+	u32 dest_chain;
+	struct mlx5_flow_table *ft;
+	struct mlx5_flow_table *dest_ft;
+	u8 inner_match_level;
+	u8 outer_match_level;
+	u32 flags;
+	union {
+		struct mlx5_esw_flow_attr esw_attr[0];
+		struct mlx5_nic_flow_attr nic_attr[0];
+	};
+};
+
+#define MLX5E_TC_TABLE_CHAIN_TAG_BITS 16
+#define MLX5E_TC_TABLE_CHAIN_TAG_MASK GENMASK(MLX5E_TC_TABLE_CHAIN_TAG_BITS - 1, 0)
 
 #if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
 
@@ -90,6 +130,7 @@ enum {
 
 int mlx5e_tc_esw_init(struct rhashtable *tc_ht);
 void mlx5e_tc_esw_cleanup(struct rhashtable *tc_ht);
+bool mlx5e_is_eswitch_flow(struct mlx5e_tc_flow *flow);
 
 int mlx5e_configure_flower(struct net_device *dev, struct mlx5e_priv *priv,
 			   struct flow_cls_offload *f, unsigned long flags);
@@ -133,6 +174,8 @@ enum mlx5e_tc_attr_to_reg {
 	MARK_TO_REG,
 	LABELS_TO_REG,
 	FTEID_TO_REG,
+	NIC_CHAIN_TO_REG,
+	NIC_ZONE_RESTORE_TO_REG,
 };
 
 struct mlx5e_tc_attr_to_reg_mapping {
@@ -150,6 +193,7 @@ bool mlx5e_is_valid_eswitch_fwd_dev(struct mlx5e_priv *priv,
 
 int mlx5e_tc_match_to_reg_set(struct mlx5_core_dev *mdev,
 			      struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts,
+			      enum mlx5_flow_namespace_type ns,
 			      enum mlx5e_tc_attr_to_reg type,
 			      u32 data);
 
@@ -181,13 +225,41 @@ void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv);
 int mlx5e_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 			    void *cb_priv);
 
+struct mlx5_flow_handle *
+mlx5e_add_offloaded_nic_rule(struct mlx5e_priv *priv,
+			     struct mlx5_flow_spec *spec,
+			     struct mlx5_flow_attr *attr);
+void mlx5e_del_offloaded_nic_rule(struct mlx5e_priv *priv,
+				  struct mlx5_flow_handle *rule,
+				  struct mlx5_flow_attr *attr);
+
+struct mlx5_flow_handle *
+mlx5_tc_rule_insert(struct mlx5e_priv *priv,
+		    struct mlx5_flow_spec *spec,
+		    struct mlx5_flow_attr *attr);
+void
+mlx5_tc_rule_delete(struct mlx5e_priv *priv,
+		    struct mlx5_flow_handle *rule,
+		    struct mlx5_flow_attr *attr);
+
 #else /* CONFIG_MLX5_CLS_ACT */
 static inline int  mlx5e_tc_nic_init(struct mlx5e_priv *priv) { return 0; }
 static inline void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv) {}
 static inline int
 mlx5e_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_priv)
 { return -EOPNOTSUPP; }
+
 #endif /* CONFIG_MLX5_CLS_ACT */
+
+struct mlx5_flow_attr *mlx5_alloc_flow_attr(enum mlx5_flow_namespace_type type);
+
+struct mlx5_flow_handle *
+mlx5e_add_offloaded_nic_rule(struct mlx5e_priv *priv,
+			     struct mlx5_flow_spec *spec,
+			     struct mlx5_flow_attr *attr);
+void mlx5e_del_offloaded_nic_rule(struct mlx5e_priv *priv,
+				  struct mlx5_flow_handle *rule,
+				  struct mlx5_flow_attr *attr);
 
 #else /* CONFIG_MLX5_ESWITCH */
 static inline int  mlx5e_tc_nic_init(struct mlx5e_priv *priv) { return 0; }
@@ -201,6 +273,31 @@ static inline int  mlx5e_tc_num_filters(struct mlx5e_priv *priv,
 static inline int
 mlx5e_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_priv)
 { return -EOPNOTSUPP; }
+#endif
+
+#if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
+static inline bool mlx5e_cqe_regb_chain(struct mlx5_cqe64 *cqe)
+{
+#if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
+	u32 chain, reg_b;
+
+	reg_b = be32_to_cpu(cqe->ft_metadata);
+
+	chain = reg_b & MLX5E_TC_TABLE_CHAIN_TAG_MASK;
+	if (chain)
+		return true;
+#endif
+
+	return false;
+}
+
+bool mlx5e_tc_update_skb(struct mlx5_cqe64 *cqe, struct sk_buff *skb);
+#else /* CONFIG_MLX5_CLS_ACT */
+static inline bool mlx5e_cqe_regb_chain(struct mlx5_cqe64 *cqe)
+{ return false; }
+static inline bool
+mlx5e_tc_update_skb(struct mlx5_cqe64 *cqe, struct sk_buff *skb)
+{ return true; }
 #endif
 
 #endif /* __MLX5_EN_TC_H__ */

@@ -364,6 +364,102 @@ int msm_dsi_dphy_timing_calc_v3(struct msm_dsi_dphy_timing *timing,
 	return 0;
 }
 
+int msm_dsi_dphy_timing_calc_v4(struct msm_dsi_dphy_timing *timing,
+	struct msm_dsi_phy_clk_request *clk_req)
+{
+	const unsigned long bit_rate = clk_req->bitclk_rate;
+	const unsigned long esc_rate = clk_req->escclk_rate;
+	s32 ui, ui_x8;
+	s32 tmax, tmin;
+	s32 pcnt_clk_prep = 50;
+	s32 pcnt_clk_zero = 2;
+	s32 pcnt_clk_trail = 30;
+	s32 pcnt_hs_prep = 50;
+	s32 pcnt_hs_zero = 10;
+	s32 pcnt_hs_trail = 30;
+	s32 pcnt_hs_exit = 10;
+	s32 coeff = 1000; /* Precision, should avoid overflow */
+	s32 hb_en;
+	s32 temp;
+
+	if (!bit_rate || !esc_rate)
+		return -EINVAL;
+
+	hb_en = 0;
+
+	ui = mult_frac(NSEC_PER_MSEC, coeff, bit_rate / 1000);
+	ui_x8 = ui << 3;
+
+	/* TODO: verify these calculations against latest downstream driver
+	 * everything except clk_post/clk_pre uses calculations from v3 based
+	 * on the downstream driver having the same calculations for v3 and v4
+	 */
+
+	temp = S_DIV_ROUND_UP(38 * coeff, ui_x8);
+	tmin = max_t(s32, temp, 0);
+	temp = (95 * coeff) / ui_x8;
+	tmax = max_t(s32, temp, 0);
+	timing->clk_prepare = linear_inter(tmax, tmin, pcnt_clk_prep, 0, false);
+
+	temp = 300 * coeff - (timing->clk_prepare << 3) * ui;
+	tmin = S_DIV_ROUND_UP(temp, ui_x8) - 1;
+	tmax = (tmin > 255) ? 511 : 255;
+	timing->clk_zero = linear_inter(tmax, tmin, pcnt_clk_zero, 0, false);
+
+	tmin = DIV_ROUND_UP(60 * coeff + 3 * ui, ui_x8);
+	temp = 105 * coeff + 12 * ui - 20 * coeff;
+	tmax = (temp + 3 * ui) / ui_x8;
+	timing->clk_trail = linear_inter(tmax, tmin, pcnt_clk_trail, 0, false);
+
+	temp = S_DIV_ROUND_UP(40 * coeff + 4 * ui, ui_x8);
+	tmin = max_t(s32, temp, 0);
+	temp = (85 * coeff + 6 * ui) / ui_x8;
+	tmax = max_t(s32, temp, 0);
+	timing->hs_prepare = linear_inter(tmax, tmin, pcnt_hs_prep, 0, false);
+
+	temp = 145 * coeff + 10 * ui - (timing->hs_prepare << 3) * ui;
+	tmin = S_DIV_ROUND_UP(temp, ui_x8) - 1;
+	tmax = 255;
+	timing->hs_zero = linear_inter(tmax, tmin, pcnt_hs_zero, 0, false);
+
+	tmin = DIV_ROUND_UP(60 * coeff + 4 * ui, ui_x8) - 1;
+	temp = 105 * coeff + 12 * ui - 20 * coeff;
+	tmax = (temp / ui_x8) - 1;
+	timing->hs_trail = linear_inter(tmax, tmin, pcnt_hs_trail, 0, false);
+
+	temp = 50 * coeff + ((hb_en << 2) - 8) * ui;
+	timing->hs_rqst = S_DIV_ROUND_UP(temp, ui_x8);
+
+	tmin = DIV_ROUND_UP(100 * coeff, ui_x8) - 1;
+	tmax = 255;
+	timing->hs_exit = linear_inter(tmax, tmin, pcnt_hs_exit, 0, false);
+
+	/* recommended min
+	 * = roundup((mipi_min_ns + t_hs_trail_ns)/(16*bit_clk_ns), 0) - 1
+	 */
+	temp = 60 * coeff + 52 * ui + + (timing->hs_trail + 1) * ui_x8;
+	tmin = DIV_ROUND_UP(temp, 16 * ui) - 1;
+	tmax = 255;
+	timing->shared_timings.clk_post = linear_inter(tmax, tmin, 5, 0, false);
+
+	/* recommended min
+	 * val1 = (tlpx_ns + clk_prepare_ns + clk_zero_ns + hs_rqst_ns)
+	 * val2 = (16 * bit_clk_ns)
+	 * final = roundup(val1/val2, 0) - 1
+	 */
+	temp = 52 * coeff + (timing->clk_prepare + timing->clk_zero + 1) * ui_x8 + 54 * coeff;
+	tmin = DIV_ROUND_UP(temp, 16 * ui) - 1;
+	tmax = 255;
+	timing->shared_timings.clk_pre = DIV_ROUND_UP((tmax - tmin) * 125, 10000) + tmin;
+
+	DBG("%d, %d, %d, %d, %d, %d, %d, %d, %d, %d",
+		timing->shared_timings.clk_pre, timing->shared_timings.clk_post,
+		timing->clk_zero, timing->clk_trail, timing->clk_prepare, timing->hs_exit,
+		timing->hs_zero, timing->hs_prepare, timing->hs_trail, timing->hs_rqst);
+
+	return 0;
+}
+
 void msm_dsi_phy_set_src_pll(struct msm_dsi_phy *phy, int pll_id, u32 reg,
 				u32 bit_mask)
 {
@@ -507,6 +603,12 @@ static const struct of_device_id dsi_phy_dt_match[] = {
 	  .data = &dsi_phy_10nm_cfgs },
 	{ .compatible = "qcom,dsi-phy-10nm-8998",
 	  .data = &dsi_phy_10nm_8998_cfgs },
+#endif
+#ifdef CONFIG_DRM_MSM_DSI_7NM_PHY
+	{ .compatible = "qcom,dsi-phy-7nm",
+	  .data = &dsi_phy_7nm_cfgs },
+	{ .compatible = "qcom,dsi-phy-7nm-8150",
+	  .data = &dsi_phy_7nm_8150_cfgs },
 #endif
 	{}
 };

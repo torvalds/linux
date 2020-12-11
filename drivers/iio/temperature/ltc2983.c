@@ -1285,18 +1285,20 @@ static int ltc2983_parse_dt(struct ltc2983_data *st)
 		ret = of_property_read_u32(child, "reg", &sensor.chan);
 		if (ret) {
 			dev_err(dev, "reg property must given for child nodes\n");
-			return ret;
+			goto put_child;
 		}
 
 		/* check if we have a valid channel */
 		if (sensor.chan < LTC2983_MIN_CHANNELS_NR ||
 		    sensor.chan > LTC2983_MAX_CHANNELS_NR) {
+			ret = -EINVAL;
 			dev_err(dev,
 				"chan:%d must be from 1 to 20\n", sensor.chan);
-			return -EINVAL;
+			goto put_child;
 		} else if (channel_avail_mask & BIT(sensor.chan)) {
+			ret = -EINVAL;
 			dev_err(dev, "chan:%d already in use\n", sensor.chan);
-			return -EINVAL;
+			goto put_child;
 		}
 
 		ret = of_property_read_u32(child, "adi,sensor-type",
@@ -1304,7 +1306,7 @@ static int ltc2983_parse_dt(struct ltc2983_data *st)
 		if (ret) {
 			dev_err(dev,
 				"adi,sensor-type property must given for child nodes\n");
-			return ret;
+			goto put_child;
 		}
 
 		dev_dbg(dev, "Create new sensor, type %u, chann %u",
@@ -1334,13 +1336,15 @@ static int ltc2983_parse_dt(struct ltc2983_data *st)
 			st->sensors[chan] = ltc2983_adc_new(child, st, &sensor);
 		} else {
 			dev_err(dev, "Unknown sensor type %d\n", sensor.type);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto put_child;
 		}
 
 		if (IS_ERR(st->sensors[chan])) {
 			dev_err(dev, "Failed to create sensor %ld",
 				PTR_ERR(st->sensors[chan]));
-			return PTR_ERR(st->sensors[chan]);
+			ret = PTR_ERR(st->sensors[chan]);
+			goto put_child;
 		}
 		/* set generic sensor parameters */
 		st->sensors[chan]->chan = sensor.chan;
@@ -1351,6 +1355,9 @@ static int ltc2983_parse_dt(struct ltc2983_data *st)
 	}
 
 	return 0;
+put_child:
+	of_node_put(child);
+	return ret;
 }
 
 static int ltc2983_setup(struct ltc2983_data *st, bool assign_iio)

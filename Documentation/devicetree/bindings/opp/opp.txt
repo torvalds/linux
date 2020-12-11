@@ -154,25 +154,27 @@ Optional properties:
 - opp-suspend: Marks the OPP to be used during device suspend. If multiple OPPs
   in the table have this, the OPP with highest opp-hz will be used.
 
-- opp-supported-hw: This enables us to select only a subset of OPPs from the
-  larger OPP table, based on what version of the hardware we are running on. We
-  still can't have multiple nodes with the same opp-hz value in OPP table.
+- opp-supported-hw: This property allows a platform to enable only a subset of
+  the OPPs from the larger set present in the OPP table, based on the current
+  version of the hardware (already known to the operating system).
 
-  It's a user defined array containing a hierarchy of hardware version numbers,
-  supported by the OPP. For example: a platform with hierarchy of three levels
-  of versions (A, B and C), this field should be like <X Y Z>, where X
-  corresponds to Version hierarchy A, Y corresponds to version hierarchy B and Z
-  corresponds to version hierarchy C.
+  Each block present in the array of blocks in this property, represents a
+  sub-group of hardware versions supported by the OPP. i.e. <sub-group A>,
+  <sub-group B>, etc. The OPP will be enabled if _any_ of these sub-groups match
+  the hardware's version.
 
-  Each level of hierarchy is represented by a 32 bit value, and so there can be
-  only 32 different supported version per hierarchy. i.e. 1 bit per version. A
-  value of 0xFFFFFFFF will enable the OPP for all versions for that hierarchy
-  level. And a value of 0x00000000 will disable the OPP completely, and so we
-  never want that to happen.
+  Each sub-group is a platform defined array representing the hierarchy of
+  hardware versions supported by the platform. For a platform with three
+  hierarchical levels of version (X.Y.Z), this field shall look like
 
-  If 32 values aren't sufficient for a version hierarchy, than that version
-  hierarchy can be contained in multiple 32 bit values. i.e. <X Y Z1 Z2> in the
-  above example, Z1 & Z2 refer to the version hierarchy Z.
+  opp-supported-hw = <X1 Y1 Z1>, <X2 Y2 Z2>, <X3 Y3 Z3>.
+
+  Each level (eg. X1) in version hierarchy is represented by a 32 bit value, one
+  bit per version and so there can be maximum 32 versions per level. Logical AND
+  (&) operation is performed for each level with the hardware's level version
+  and a non-zero output for _all_ the levels in a sub-group means the OPP is
+  supported by hardware. A value of 0xFFFFFFFF for each level in the sub-group
+  will enable the OPP for all versions for the hardware.
 
 - status: Marks the node enabled/disabled.
 
@@ -503,7 +505,6 @@ Example 5: opp-supported-hw
 			 */
 			opp-supported-hw = <0xF 0xFFFFFFFF 0xFFFFFFFF>
 			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <915000 900000 925000>;
 			...
 		};
 
@@ -516,7 +517,17 @@ Example 5: opp-supported-hw
 			 */
 			opp-supported-hw = <0x20 0xff0000ff 0x0000f4f0>
 			opp-hz = /bits/ 64 <800000000>;
-			opp-microvolt = <915000 900000 925000>;
+			...
+		};
+
+		opp-900000000 {
+			/*
+			 * Supports:
+			 * - All cuts and substrate where process version is 0x2.
+			 * - All cuts and process where substrate version is 0x2.
+			 */
+			opp-supported-hw = <0xFFFFFFFF 0xFFFFFFFF 0x02>, <0xFFFFFFFF 0x01 0xFFFFFFFF>
+			opp-hz = /bits/ 64 <900000000>;
 			...
 		};
 	};

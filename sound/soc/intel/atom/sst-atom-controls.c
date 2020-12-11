@@ -299,7 +299,7 @@ static int sst_find_and_send_pipe_algo(struct sst_data *drv,
 {
 	int ret = 0;
 	struct sst_algo_control *bc;
-	struct sst_module *algo = NULL;
+	struct sst_module *algo;
 
 	dev_dbg(&drv->pdev->dev, "Enter: widget=%s\n", pipe);
 
@@ -602,7 +602,7 @@ static int sst_set_pipe_gain(struct sst_ids *ids,
 	int ret = 0;
 	struct sst_gain_mixer_control *mc;
 	struct sst_gain_value *gv;
-	struct sst_module *gain = NULL;
+	struct sst_module *gain;
 
 	list_for_each_entry(gain, &ids->gain_list, node) {
 		struct snd_kcontrol *kctl = gain->kctl;

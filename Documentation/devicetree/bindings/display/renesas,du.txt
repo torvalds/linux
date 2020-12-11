@@ -3,6 +3,7 @@
 Required Properties:
 
   - compatible: must be one of the following.
+    - "renesas,du-r8a7742" for R8A7742 (RZ/G1H) compatible DU
     - "renesas,du-r8a7743" for R8A7743 (RZ/G1M) compatible DU
     - "renesas,du-r8a7744" for R8A7744 (RZ/G1N) compatible DU
     - "renesas,du-r8a7745" for R8A7745 (RZ/G1E) compatible DU
@@ -10,6 +11,7 @@ Required Properties:
     - "renesas,du-r8a774a1" for R8A774A1 (RZ/G2M) compatible DU
     - "renesas,du-r8a774b1" for R8A774B1 (RZ/G2N) compatible DU
     - "renesas,du-r8a774c0" for R8A774C0 (RZ/G2E) compatible DU
+    - "renesas,du-r8a774e1" for R8A774E1 (RZ/G2H) compatible DU
     - "renesas,du-r8a7779" for R8A7779 (R-Car H1) compatible DU
     - "renesas,du-r8a7790" for R8A7790 (R-Car H2) compatible DU
     - "renesas,du-r8a7791" for R8A7791 (R-Car M2-W) compatible DU
@@ -18,6 +20,7 @@ Required Properties:
     - "renesas,du-r8a7794" for R8A7794 (R-Car E2) compatible DU
     - "renesas,du-r8a7795" for R8A7795 (R-Car H3) compatible DU
     - "renesas,du-r8a7796" for R8A7796 (R-Car M3-W) compatible DU
+    - "renesas,du-r8a77961" for R8A77961 (R-Car M3-W+) compatible DU
     - "renesas,du-r8a77965" for R8A77965 (R-Car M3-N) compatible DU
     - "renesas,du-r8a77970" for R8A77970 (R-Car V3M) compatible DU
     - "renesas,du-r8a77980" for R8A77980 (R-Car V3H) compatible DU
@@ -68,6 +71,7 @@ corresponding to each DU output.
 
                         Port0          Port1          Port2          Port3
 -----------------------------------------------------------------------------
+ R8A7742 (RZ/G1H)       DPAD 0         LVDS 0         LVDS 1         -
  R8A7743 (RZ/G1M)       DPAD 0         LVDS 0         -              -
  R8A7744 (RZ/G1N)       DPAD 0         LVDS 0         -              -
  R8A7745 (RZ/G1E)       DPAD 0         DPAD 1         -              -
@@ -75,6 +79,7 @@ corresponding to each DU output.
  R8A774A1 (RZ/G2M)      DPAD 0         HDMI 0         LVDS 0         -
  R8A774B1 (RZ/G2N)      DPAD 0         HDMI 0         LVDS 0         -
  R8A774C0 (RZ/G2E)      DPAD 0         LVDS 0         LVDS 1         -
+ R8A774E1 (RZ/G2H)      DPAD 0         HDMI 0         LVDS 0         -
  R8A7779 (R-Car H1)     DPAD 0         DPAD 1         -              -
  R8A7790 (R-Car H2)     DPAD 0         LVDS 0         LVDS 1         -
  R8A7791 (R-Car M2-W)   DPAD 0         LVDS 0         -              -
@@ -83,6 +88,7 @@ corresponding to each DU output.
  R8A7794 (R-Car E2)     DPAD 0         DPAD 1         -              -
  R8A7795 (R-Car H3)     DPAD 0         HDMI 0         HDMI 1         LVDS 0
  R8A7796 (R-Car M3-W)   DPAD 0         HDMI 0         LVDS 0         -
+ R8A77961 (R-Car M3-W+) DPAD 0         HDMI 0         LVDS 0         -
  R8A77965 (R-Car M3-N)  DPAD 0         HDMI 0         LVDS 0         -
  R8A77970 (R-Car V3M)   DPAD 0         LVDS 0         -              -
  R8A77980 (R-Car V3H)   DPAD 0         LVDS 0         -              -

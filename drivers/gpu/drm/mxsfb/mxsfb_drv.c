@@ -9,30 +9,25 @@
  */
 
 #include <linux/clk.h>
-#include <linux/component.h>
 #include <linux/dma-mapping.h>
-#include <linux/list.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
-#include <linux/of_graph.h>
-#include <linux/of_reserved_mem.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/dma-resv.h>
-#include <linux/spinlock.h>
 
-#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_connector.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_irq.h>
+#include <drm/drm_mode_config.h>
 #include <drm/drm_of.h>
-#include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_simple_kms_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "mxsfb_drv.h"
@@ -41,6 +36,11 @@
 enum mxsfb_devtype {
 	MXSFB_V3,
 	MXSFB_V4,
+	/*
+	 * Starting at i.MX6 the hardware version register is gone, use the
+	 * i.MX family number as the version.
+	 */
+	MXSFB_V6,
 };
 
 static const struct mxsfb_devdata mxsfb_devdata[] = {
@@ -48,37 +48,27 @@ static const struct mxsfb_devdata mxsfb_devdata[] = {
 		.transfer_count	= LCDC_V3_TRANSFER_COUNT,
 		.cur_buf	= LCDC_V3_CUR_BUF,
 		.next_buf	= LCDC_V3_NEXT_BUF,
-		.debug0		= LCDC_V3_DEBUG0,
 		.hs_wdth_mask	= 0xff,
 		.hs_wdth_shift	= 24,
-		.ipversion	= 3,
+		.has_overlay	= false,
 	},
 	[MXSFB_V4] = {
 		.transfer_count	= LCDC_V4_TRANSFER_COUNT,
 		.cur_buf	= LCDC_V4_CUR_BUF,
 		.next_buf	= LCDC_V4_NEXT_BUF,
-		.debug0		= LCDC_V4_DEBUG0,
 		.hs_wdth_mask	= 0x3fff,
 		.hs_wdth_shift	= 18,
-		.ipversion	= 4,
+		.has_overlay	= false,
+	},
+	[MXSFB_V6] = {
+		.transfer_count	= LCDC_V4_TRANSFER_COUNT,
+		.cur_buf	= LCDC_V4_CUR_BUF,
+		.next_buf	= LCDC_V4_NEXT_BUF,
+		.hs_wdth_mask	= 0x3fff,
+		.hs_wdth_shift	= 18,
+		.has_overlay	= true,
 	},
 };
-
-static const uint32_t mxsfb_formats[] = {
-	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_RGB565
-};
-
-static const uint64_t mxsfb_modifiers[] = {
-	DRM_FORMAT_MOD_LINEAR,
-	DRM_FORMAT_MOD_INVALID
-};
-
-static struct mxsfb_drm_private *
-drm_pipe_to_mxsfb_drm_private(struct drm_simple_display_pipe *pipe)
-{
-	return container_of(pipe, struct mxsfb_drm_private, pipe);
-}
 
 void mxsfb_enable_axi_clk(struct mxsfb_drm_private *mxsfb)
 {
@@ -92,8 +82,26 @@ void mxsfb_disable_axi_clk(struct mxsfb_drm_private *mxsfb)
 		clk_disable_unprepare(mxsfb->clk_axi);
 }
 
+static struct drm_framebuffer *
+mxsfb_fb_create(struct drm_device *dev, struct drm_file *file_priv,
+		const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	const struct drm_format_info *info;
+
+	info = drm_get_format_info(dev, mode_cmd);
+	if (!info)
+		return ERR_PTR(-EINVAL);
+
+	if (mode_cmd->width * info->cpp[0] != mode_cmd->pitches[0]) {
+		dev_dbg(dev->dev, "Invalid pitch: fb width must match pitch\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	return drm_gem_fb_create(dev, file_priv, mode_cmd);
+}
+
 static const struct drm_mode_config_funcs mxsfb_mode_config_funcs = {
-	.fb_create		= drm_gem_fb_create,
+	.fb_create		= mxsfb_fb_create,
 	.atomic_check		= drm_atomic_helper_check,
 	.atomic_commit		= drm_atomic_helper_commit,
 };
@@ -102,101 +110,51 @@ static const struct drm_mode_config_helper_funcs mxsfb_mode_config_helpers = {
 	.atomic_commit_tail = drm_atomic_helper_commit_tail_rpm,
 };
 
-static void mxsfb_pipe_enable(struct drm_simple_display_pipe *pipe,
-			      struct drm_crtc_state *crtc_state,
-			      struct drm_plane_state *plane_state)
+static int mxsfb_attach_bridge(struct mxsfb_drm_private *mxsfb)
 {
-	struct drm_connector *connector;
-	struct mxsfb_drm_private *mxsfb = drm_pipe_to_mxsfb_drm_private(pipe);
-	struct drm_device *drm = pipe->plane.dev;
+	struct drm_device *drm = mxsfb->drm;
+	struct drm_connector_list_iter iter;
+	struct drm_panel *panel;
+	struct drm_bridge *bridge;
+	int ret;
 
-	if (!mxsfb->connector) {
-		list_for_each_entry(connector,
-				    &drm->mode_config.connector_list,
-				    head)
-			if (connector->encoder == &mxsfb->pipe.encoder) {
-				mxsfb->connector = connector;
-				break;
-			}
+	ret = drm_of_find_panel_or_bridge(drm->dev->of_node, 0, 0, &panel,
+					  &bridge);
+	if (ret)
+		return ret;
+
+	if (panel) {
+		bridge = devm_drm_panel_bridge_add_typed(drm->dev, panel,
+							 DRM_MODE_CONNECTOR_DPI);
+		if (IS_ERR(bridge))
+			return PTR_ERR(bridge);
 	}
 
-	if (!mxsfb->connector) {
-		dev_warn(drm->dev, "No connector attached, using default\n");
-		mxsfb->connector = &mxsfb->panel_connector;
+	if (!bridge)
+		return -ENODEV;
+
+	ret = drm_bridge_attach(&mxsfb->encoder, bridge, NULL, 0);
+	if (ret) {
+		DRM_DEV_ERROR(drm->dev,
+			      "failed to attach bridge: %d\n", ret);
+		return ret;
 	}
 
-	pm_runtime_get_sync(drm->dev);
-	drm_panel_prepare(mxsfb->panel);
-	mxsfb_crtc_enable(mxsfb);
-	drm_panel_enable(mxsfb->panel);
-}
+	mxsfb->bridge = bridge;
 
-static void mxsfb_pipe_disable(struct drm_simple_display_pipe *pipe)
-{
-	struct mxsfb_drm_private *mxsfb = drm_pipe_to_mxsfb_drm_private(pipe);
-	struct drm_device *drm = pipe->plane.dev;
-	struct drm_crtc *crtc = &pipe->crtc;
-	struct drm_pending_vblank_event *event;
-
-	drm_panel_disable(mxsfb->panel);
-	mxsfb_crtc_disable(mxsfb);
-	drm_panel_unprepare(mxsfb->panel);
-	pm_runtime_put_sync(drm->dev);
-
-	spin_lock_irq(&drm->event_lock);
-	event = crtc->state->event;
-	if (event) {
-		crtc->state->event = NULL;
-		drm_crtc_send_vblank_event(crtc, event);
-	}
-	spin_unlock_irq(&drm->event_lock);
-
-	if (mxsfb->connector != &mxsfb->panel_connector)
-		mxsfb->connector = NULL;
-}
-
-static void mxsfb_pipe_update(struct drm_simple_display_pipe *pipe,
-			      struct drm_plane_state *plane_state)
-{
-	struct mxsfb_drm_private *mxsfb = drm_pipe_to_mxsfb_drm_private(pipe);
-
-	mxsfb_plane_atomic_update(mxsfb, plane_state);
-}
-
-static int mxsfb_pipe_enable_vblank(struct drm_simple_display_pipe *pipe)
-{
-	struct mxsfb_drm_private *mxsfb = drm_pipe_to_mxsfb_drm_private(pipe);
-
-	/* Clear and enable VBLANK IRQ */
-	mxsfb_enable_axi_clk(mxsfb);
-	writel(CTRL1_CUR_FRAME_DONE_IRQ, mxsfb->base + LCDC_CTRL1 + REG_CLR);
-	writel(CTRL1_CUR_FRAME_DONE_IRQ_EN, mxsfb->base + LCDC_CTRL1 + REG_SET);
-	mxsfb_disable_axi_clk(mxsfb);
+	/*
+	 * Get hold of the connector. This is a bit of a hack, until the bridge
+	 * API gives us bus flags and formats.
+	 */
+	drm_connector_list_iter_begin(drm, &iter);
+	mxsfb->connector = drm_connector_list_iter_next(&iter);
+	drm_connector_list_iter_end(&iter);
 
 	return 0;
 }
 
-static void mxsfb_pipe_disable_vblank(struct drm_simple_display_pipe *pipe)
-{
-	struct mxsfb_drm_private *mxsfb = drm_pipe_to_mxsfb_drm_private(pipe);
-
-	/* Disable and clear VBLANK IRQ */
-	mxsfb_enable_axi_clk(mxsfb);
-	writel(CTRL1_CUR_FRAME_DONE_IRQ_EN, mxsfb->base + LCDC_CTRL1 + REG_CLR);
-	writel(CTRL1_CUR_FRAME_DONE_IRQ, mxsfb->base + LCDC_CTRL1 + REG_CLR);
-	mxsfb_disable_axi_clk(mxsfb);
-}
-
-static struct drm_simple_display_pipe_funcs mxsfb_funcs = {
-	.enable		= mxsfb_pipe_enable,
-	.disable	= mxsfb_pipe_disable,
-	.update		= mxsfb_pipe_update,
-	.prepare_fb	= drm_gem_fb_simple_display_pipe_prepare_fb,
-	.enable_vblank	= mxsfb_pipe_enable_vblank,
-	.disable_vblank	= mxsfb_pipe_disable_vblank,
-};
-
-static int mxsfb_load(struct drm_device *drm)
+static int mxsfb_load(struct drm_device *drm,
+		      const struct mxsfb_devdata *devdata)
 {
 	struct platform_device *pdev = to_platform_device(drm->dev);
 	struct mxsfb_drm_private *mxsfb;
@@ -207,8 +165,9 @@ static int mxsfb_load(struct drm_device *drm)
 	if (!mxsfb)
 		return -ENOMEM;
 
+	mxsfb->drm = drm;
 	drm->dev_private = mxsfb;
-	mxsfb->devdata = &mxsfb_devdata[pdev->id_entry->driver_data];
+	mxsfb->devdata = devdata;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mxsfb->base = devm_ioremap_resource(drm->dev, res);
@@ -233,50 +192,28 @@ static int mxsfb_load(struct drm_device *drm)
 
 	pm_runtime_enable(drm->dev);
 
+	/* Modeset init */
+	drm_mode_config_init(drm);
+
+	ret = mxsfb_kms_init(mxsfb);
+	if (ret < 0) {
+		dev_err(drm->dev, "Failed to initialize KMS pipeline\n");
+		goto err_vblank;
+	}
+
 	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (ret < 0) {
 		dev_err(drm->dev, "Failed to initialise vblank\n");
 		goto err_vblank;
 	}
 
-	/* Modeset init */
-	drm_mode_config_init(drm);
+	/* Start with vertical blanking interrupt reporting disabled. */
+	drm_crtc_vblank_off(&mxsfb->crtc);
 
-	ret = mxsfb_create_output(drm);
-	if (ret < 0) {
-		dev_err(drm->dev, "Failed to create outputs\n");
+	ret = mxsfb_attach_bridge(mxsfb);
+	if (ret) {
+		dev_err(drm->dev, "Cannot connect bridge: %d\n", ret);
 		goto err_vblank;
-	}
-
-	ret = drm_simple_display_pipe_init(drm, &mxsfb->pipe, &mxsfb_funcs,
-			mxsfb_formats, ARRAY_SIZE(mxsfb_formats),
-			mxsfb_modifiers, mxsfb->connector);
-	if (ret < 0) {
-		dev_err(drm->dev, "Cannot setup simple display pipe\n");
-		goto err_vblank;
-	}
-
-	/*
-	 * Attach panel only if there is one.
-	 * If there is no panel attach, it must be a bridge. In this case, we
-	 * need a reference to its connector for a proper initialization.
-	 * We will do this check in pipe->enable(), since the connector won't
-	 * be attached to an encoder until then.
-	 */
-
-	if (mxsfb->panel) {
-		ret = drm_panel_attach(mxsfb->panel, mxsfb->connector);
-		if (ret) {
-			dev_err(drm->dev, "Cannot connect panel: %d\n", ret);
-			goto err_vblank;
-		}
-	} else if (mxsfb->bridge) {
-		ret = drm_simple_display_pipe_attach_bridge(&mxsfb->pipe,
-							    mxsfb->bridge);
-		if (ret) {
-			dev_err(drm->dev, "Cannot connect bridge: %d\n", ret);
-			goto err_vblank;
-		}
 	}
 
 	drm->mode_config.min_width	= MXSFB_MIN_XRES;
@@ -294,7 +231,7 @@ static int mxsfb_load(struct drm_device *drm)
 
 	if (ret < 0) {
 		dev_err(drm->dev, "Failed to install IRQ handler\n");
-		goto err_irq;
+		goto err_vblank;
 	}
 
 	drm_kms_helper_poll_init(drm);
@@ -305,8 +242,6 @@ static int mxsfb_load(struct drm_device *drm)
 
 	return 0;
 
-err_irq:
-	drm_panel_detach(mxsfb->panel);
 err_vblank:
 	pm_runtime_disable(drm->dev);
 
@@ -327,11 +262,13 @@ static void mxsfb_unload(struct drm_device *drm)
 	pm_runtime_disable(drm->dev);
 }
 
-static void mxsfb_irq_preinstall(struct drm_device *drm)
+static void mxsfb_irq_disable(struct drm_device *drm)
 {
 	struct mxsfb_drm_private *mxsfb = drm->dev_private;
 
-	mxsfb_pipe_disable_vblank(&mxsfb->pipe);
+	mxsfb_enable_axi_clk(mxsfb);
+	mxsfb->crtc.funcs->disable_vblank(&mxsfb->crtc);
+	mxsfb_disable_axi_clk(mxsfb);
 }
 
 static irqreturn_t mxsfb_irq_handler(int irq, void *data)
@@ -340,16 +277,12 @@ static irqreturn_t mxsfb_irq_handler(int irq, void *data)
 	struct mxsfb_drm_private *mxsfb = drm->dev_private;
 	u32 reg;
 
-	mxsfb_enable_axi_clk(mxsfb);
-
 	reg = readl(mxsfb->base + LCDC_CTRL1);
 
 	if (reg & CTRL1_CUR_FRAME_DONE_IRQ)
-		drm_crtc_handle_vblank(&mxsfb->pipe.crtc);
+		drm_crtc_handle_vblank(&mxsfb->crtc);
 
 	writel(CTRL1_CUR_FRAME_DONE_IRQ, mxsfb->base + LCDC_CTRL1 + REG_CLR);
-
-	mxsfb_disable_axi_clk(mxsfb);
 
 	return IRQ_HANDLED;
 }
@@ -359,8 +292,8 @@ DEFINE_DRM_GEM_CMA_FOPS(fops);
 static struct drm_driver mxsfb_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.irq_handler		= mxsfb_irq_handler,
-	.irq_preinstall		= mxsfb_irq_preinstall,
-	.irq_uninstall		= mxsfb_irq_preinstall,
+	.irq_preinstall		= mxsfb_irq_disable,
+	.irq_uninstall		= mxsfb_irq_disable,
 	DRM_GEM_CMA_DRIVER_OPS,
 	.fops	= &fops,
 	.name	= "mxsfb-drm",
@@ -370,18 +303,10 @@ static struct drm_driver mxsfb_driver = {
 	.minor	= 0,
 };
 
-static const struct platform_device_id mxsfb_devtype[] = {
-	{ .name = "imx23-fb", .driver_data = MXSFB_V3, },
-	{ .name = "imx28-fb", .driver_data = MXSFB_V4, },
-	{ .name = "imx6sx-fb", .driver_data = MXSFB_V4, },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(platform, mxsfb_devtype);
-
 static const struct of_device_id mxsfb_dt_ids[] = {
-	{ .compatible = "fsl,imx23-lcdif", .data = &mxsfb_devtype[0], },
-	{ .compatible = "fsl,imx28-lcdif", .data = &mxsfb_devtype[1], },
-	{ .compatible = "fsl,imx6sx-lcdif", .data = &mxsfb_devtype[2], },
+	{ .compatible = "fsl,imx23-lcdif", .data = &mxsfb_devdata[MXSFB_V3], },
+	{ .compatible = "fsl,imx28-lcdif", .data = &mxsfb_devdata[MXSFB_V4], },
+	{ .compatible = "fsl,imx6sx-lcdif", .data = &mxsfb_devdata[MXSFB_V6], },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mxsfb_dt_ids);
@@ -396,14 +321,11 @@ static int mxsfb_probe(struct platform_device *pdev)
 	if (!pdev->dev.of_node)
 		return -ENODEV;
 
-	if (of_id)
-		pdev->id_entry = of_id->data;
-
 	drm = drm_dev_alloc(&mxsfb_driver, &pdev->dev);
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);
 
-	ret = mxsfb_load(drm);
+	ret = mxsfb_load(drm, of_id->data);
 	if (ret)
 		goto err_free;
 
@@ -457,7 +379,6 @@ static const struct dev_pm_ops mxsfb_pm_ops = {
 static struct platform_driver mxsfb_platform_driver = {
 	.probe		= mxsfb_probe,
 	.remove		= mxsfb_remove,
-	.id_table	= mxsfb_devtype,
 	.driver	= {
 		.name		= "mxsfb",
 		.of_match_table	= mxsfb_dt_ids,

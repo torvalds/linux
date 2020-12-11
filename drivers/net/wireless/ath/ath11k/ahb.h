@@ -10,4 +10,12 @@
 #define ATH11K_AHB_RECOVERY_TIMEOUT (3 * HZ)
 struct ath11k_base;
 
+struct ath11k_ahb {
+	struct rproc *tgt_rproc;
+};
+
+static inline struct ath11k_ahb *ath11k_ahb_priv(struct ath11k_base *ab)
+{
+	return (struct ath11k_ahb *)ab->drv_priv;
+}
 #endif

@@ -391,7 +391,7 @@ static bool rtl8821ae_get_rxdesc_is_ht(struct ieee80211_hw *hw, __le32 *pdesc)
 
 	rx_rate = get_rx_desc_rxmcs(pdesc);
 
-	RT_TRACE(rtlpriv, COMP_RXDESC, DBG_LOUD, "rx_rate=0x%02x.\n", rx_rate);
+	rtl_dbg(rtlpriv, COMP_RXDESC, DBG_LOUD, "rx_rate=0x%02x.\n", rx_rate);
 
 	if ((rx_rate >= DESC_RATEMCS0) && (rx_rate <= DESC_RATEMCS15))
 		return true;
@@ -405,7 +405,7 @@ static bool rtl8821ae_get_rxdesc_is_vht(struct ieee80211_hw *hw, __le32 *pdesc)
 
 	rx_rate = get_rx_desc_rxmcs(pdesc);
 
-	RT_TRACE(rtlpriv, COMP_RXDESC, DBG_LOUD, "rx_rate=0x%02x.\n", rx_rate);
+	rtl_dbg(rtlpriv, COMP_RXDESC, DBG_LOUD, "rx_rate=0x%02x.\n", rx_rate);
 
 	if (rx_rate >= DESC_RATEVHT1SS_MCS0)
 		return true;
@@ -461,12 +461,12 @@ bool rtl8821ae_rx_query_desc(struct ieee80211_hw *hw,
 	status->vht_nss = rtl8821ae_get_rx_vht_nss(hw, pdesc);
 	status->is_cck = RTL8821AE_RX_HAL_IS_CCK_RATE(status->rate);
 
-	RT_TRACE(rtlpriv, COMP_RXDESC, DBG_LOUD,
-		 "rx_packet_bw=%s,is_ht %d, is_vht %d, vht_nss=%d,is_short_gi %d.\n",
-		 (status->rx_packet_bw == 2) ? "80M" :
-		 (status->rx_packet_bw == 1) ? "40M" : "20M",
-		 status->is_ht, status->is_vht, status->vht_nss,
-		 status->is_short_gi);
+	rtl_dbg(rtlpriv, COMP_RXDESC, DBG_LOUD,
+		"rx_packet_bw=%s,is_ht %d, is_vht %d, vht_nss=%d,is_short_gi %d.\n",
+		(status->rx_packet_bw == 2) ? "80M" :
+		(status->rx_packet_bw == 1) ? "40M" : "20M",
+		status->is_ht, status->is_vht, status->vht_nss,
+		status->is_short_gi);
 
 	if (get_rx_status_desc_rpt_sel(pdesc))
 		status->packet_report_type = C2H_PACKET;
@@ -483,9 +483,9 @@ bool rtl8821ae_rx_query_desc(struct ieee80211_hw *hw,
 		wake_match = 0;
 
 	if (wake_match)
-		RT_TRACE(rtlpriv, COMP_RXDESC, DBG_LOUD,
-			 "GGGGGGGGGGGGGet Wakeup Packet!! WakeMatch=%d\n",
-			 wake_match);
+		rtl_dbg(rtlpriv, COMP_RXDESC, DBG_LOUD,
+			"GGGGGGGGGGGGGet Wakeup Packet!! WakeMatch=%d\n",
+			wake_match);
 	rx_status->freq = hw->conf.chandef.chan->center_freq;
 	rx_status->band = hw->conf.chandef.chan->band;
 
@@ -558,9 +558,10 @@ static u8 rtl8821ae_bw_mapping(struct ieee80211_hw *hw,
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
 	u8 bw_setting_of_desc = 0;
 
-	RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-		 "rtl8821ae_bw_mapping, current_chan_bw %d, packet_bw %d\n",
-		 rtlphy->current_chan_bw, ptcb_desc->packet_bw);
+	rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE,
+		"%s, current_chan_bw %d, packet_bw %d\n",
+		__func__,
+		rtlphy->current_chan_bw, ptcb_desc->packet_bw);
 
 	if (rtlphy->current_chan_bw == HT_CHANNEL_WIDTH_80) {
 		if (ptcb_desc->packet_bw == HT_CHANNEL_WIDTH_80)
@@ -602,8 +603,9 @@ static u8 rtl8821ae_sc_mapping(struct ieee80211_hw *hw,
 				sc_setting_of_desc =
 					VHT_DATA_SC_40_UPPER_OF_80MHZ;
 			else
-				RT_TRACE(rtlpriv, COMP_SEND, DBG_LOUD,
-					 "rtl8821ae_sc_mapping: Not Correct Primary40MHz Setting\n");
+				rtl_dbg(rtlpriv, COMP_SEND, DBG_LOUD,
+					"%s: Not Correct Primary40MHz Setting\n",
+					__func__);
 		} else {
 			if ((mac->cur_40_prime_sc ==
 			     HAL_PRIME_CHNL_OFFSET_LOWER) &&
@@ -630,8 +632,9 @@ static u8 rtl8821ae_sc_mapping(struct ieee80211_hw *hw,
 				sc_setting_of_desc =
 					VHT_DATA_SC_20_UPPERST_OF_80MHZ;
 			else
-				RT_TRACE(rtlpriv, COMP_SEND, DBG_LOUD,
-					 "rtl8821ae_sc_mapping: Not Correct Primary40MHz Setting\n");
+				rtl_dbg(rtlpriv, COMP_SEND, DBG_LOUD,
+					"%s: Not Correct Primary40MHz Setting\n",
+					__func__);
 		}
 	} else if (rtlphy->current_chan_bw == HT_CHANNEL_WIDTH_20_40) {
 		if (ptcb_desc->packet_bw == HT_CHANNEL_WIDTH_20_40) {
@@ -690,11 +693,11 @@ void rtl8821ae_tx_fill_desc(struct ieee80211_hw *hw,
 		memset(skb->data, 0, EM_HDR_LEN);
 	}
 	buf_len = skb->len;
-	mapping = pci_map_single(rtlpci->pdev, skb->data, skb->len,
-				 PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
-		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-			 "DMA mapping error\n");
+	mapping = dma_map_single(&rtlpci->pdev->dev, skb->data, skb->len,
+				 DMA_TO_DEVICE);
+	if (dma_mapping_error(&rtlpci->pdev->dev, mapping)) {
+		rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE,
+			"DMA mapping error\n");
 		return;
 	}
 	clear_pci_tx_desc_content(pdesc, sizeof(struct tx_desc_8821ae));
@@ -708,9 +711,9 @@ void rtl8821ae_tx_fill_desc(struct ieee80211_hw *hw,
 			set_tx_desc_offset(pdesc, USB_HWDESC_HEADER_LEN +
 					   EM_HDR_LEN);
 			if (ptcb_desc->empkt_num) {
-				RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-					 "Insert 8 byte.pTcb->EMPktNum:%d\n",
-					  ptcb_desc->empkt_num);
+				rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE,
+					"Insert 8 byte.pTcb->EMPktNum:%d\n",
+					ptcb_desc->empkt_num);
 				rtl8821ae_insert_emcontent(ptcb_desc,
 							   (__le32 *)skb->data);
 			}
@@ -789,8 +792,8 @@ void rtl8821ae_tx_fill_desc(struct ieee80211_hw *hw,
 
 		if (ieee80211_is_data_qos(fc)) {
 			if (mac->rdg_en) {
-				RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-					 "Enable RDG function.\n");
+				rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE,
+					"Enable RDG function.\n");
 				set_tx_desc_rdg_enable(pdesc, 1);
 				set_tx_desc_htc(pdesc, 1);
 			}
@@ -822,7 +825,7 @@ void rtl8821ae_tx_fill_desc(struct ieee80211_hw *hw,
 	}
 
 	rtl8821ae_dm_set_tx_ant_by_tx_info(hw, pdesc8, ptcb_desc->mac_id);
-	RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE, "\n");
+	rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE, "\n");
 }
 
 void rtl8821ae_tx_fill_cmddesc(struct ieee80211_hw *hw,
@@ -834,13 +837,12 @@ void rtl8821ae_tx_fill_cmddesc(struct ieee80211_hw *hw,
 	u8 fw_queue = QSLT_BEACON;
 	__le32 *pdesc = (__le32 *)pdesc8;
 
-	dma_addr_t mapping = pci_map_single(rtlpci->pdev,
-					    skb->data, skb->len,
-					    PCI_DMA_TODEVICE);
+	dma_addr_t mapping = dma_map_single(&rtlpci->pdev->dev, skb->data,
+					    skb->len, DMA_TO_DEVICE);
 
-	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
-		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-			 "DMA mapping error\n");
+	if (dma_mapping_error(&rtlpci->pdev->dev, mapping)) {
+		rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE,
+			"DMA mapping error\n");
 		return;
 	}
 	clear_pci_tx_desc_content(pdesc, TX_DESC_SIZE);

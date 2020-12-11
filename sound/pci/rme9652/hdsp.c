@@ -447,8 +447,8 @@ struct hdsp {
 	struct snd_pcm_substream *capture_substream;
 	struct snd_pcm_substream *playback_substream;
         struct hdsp_midi      midi[2];
-	struct tasklet_struct midi_tasklet;
-	int		      use_midi_tasklet;
+	struct work_struct    midi_work;
+	int		      use_midi_work;
 	int                   precise_ptr;
 	u32                   control_register;	     /* cached value */
 	u32                   control2_register;     /* cached value */
@@ -1385,7 +1385,6 @@ static void snd_hdsp_midi_input_trigger(struct snd_rawmidi_substream *substream,
 		}
 	} else {
 		hdsp->control_register &= ~ie;
-		tasklet_kill(&hdsp->midi_tasklet);
 	}
 
 	hdsp_write(hdsp, HDSP_controlRegister, hdsp->control_register);
@@ -2542,37 +2541,37 @@ static int snd_hdsp_put_precise_pointer(struct snd_kcontrol *kcontrol, struct sn
 	return change;
 }
 
-#define HDSP_USE_MIDI_TASKLET(xname, xindex) \
+#define HDSP_USE_MIDI_WORK(xname, xindex) \
 { .iface = SNDRV_CTL_ELEM_IFACE_CARD, \
   .name = xname, \
   .index = xindex, \
-  .info = snd_hdsp_info_use_midi_tasklet, \
-  .get = snd_hdsp_get_use_midi_tasklet, \
-  .put = snd_hdsp_put_use_midi_tasklet \
+  .info = snd_hdsp_info_use_midi_work, \
+  .get = snd_hdsp_get_use_midi_work, \
+  .put = snd_hdsp_put_use_midi_work \
 }
 
-static int hdsp_set_use_midi_tasklet(struct hdsp *hdsp, int use_tasklet)
+static int hdsp_set_use_midi_work(struct hdsp *hdsp, int use_work)
 {
-	if (use_tasklet)
-		hdsp->use_midi_tasklet = 1;
+	if (use_work)
+		hdsp->use_midi_work = 1;
 	else
-		hdsp->use_midi_tasklet = 0;
+		hdsp->use_midi_work = 0;
 	return 0;
 }
 
-#define snd_hdsp_info_use_midi_tasklet		snd_ctl_boolean_mono_info
+#define snd_hdsp_info_use_midi_work		snd_ctl_boolean_mono_info
 
-static int snd_hdsp_get_use_midi_tasklet(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+static int snd_hdsp_get_use_midi_work(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
 
 	spin_lock_irq(&hdsp->lock);
-	ucontrol->value.integer.value[0] = hdsp->use_midi_tasklet;
+	ucontrol->value.integer.value[0] = hdsp->use_midi_work;
 	spin_unlock_irq(&hdsp->lock);
 	return 0;
 }
 
-static int snd_hdsp_put_use_midi_tasklet(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+static int snd_hdsp_put_use_midi_work(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
 	int change;
@@ -2582,8 +2581,8 @@ static int snd_hdsp_put_use_midi_tasklet(struct snd_kcontrol *kcontrol, struct s
 		return -EBUSY;
 	val = ucontrol->value.integer.value[0] & 1;
 	spin_lock_irq(&hdsp->lock);
-	change = (int)val != hdsp->use_midi_tasklet;
-	hdsp_set_use_midi_tasklet(hdsp, val);
+	change = (int)val != hdsp->use_midi_work;
+	hdsp_set_use_midi_work(hdsp, val);
 	spin_unlock_irq(&hdsp->lock);
 	return change;
 }
@@ -2950,7 +2949,7 @@ HDSP_SPDIF_SYNC_CHECK("SPDIF Lock Status", 0),
 HDSP_ADATSYNC_SYNC_CHECK("ADAT Sync Lock Status", 0),
 HDSP_TOGGLE_SETTING("Line Out", HDSP_LineOut),
 HDSP_PRECISE_POINTER("Precise Pointer", 0),
-HDSP_USE_MIDI_TASKLET("Use Midi Tasklet", 0),
+HDSP_USE_MIDI_WORK("Use Midi Tasklet", 0),
 };
 
 
@@ -3370,7 +3369,7 @@ snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 	snd_iprintf(buffer, "MIDI1 Input status: 0x%x\n", hdsp_read(hdsp, HDSP_midiStatusIn0));
 	snd_iprintf(buffer, "MIDI2 Output status: 0x%x\n", hdsp_read(hdsp, HDSP_midiStatusOut1));
 	snd_iprintf(buffer, "MIDI2 Input status: 0x%x\n", hdsp_read(hdsp, HDSP_midiStatusIn1));
-	snd_iprintf(buffer, "Use Midi Tasklet: %s\n", hdsp->use_midi_tasklet ? "on" : "off");
+	snd_iprintf(buffer, "Use Midi Tasklet: %s\n", hdsp->use_midi_work ? "on" : "off");
 
 	snd_iprintf(buffer, "\n");
 
@@ -3791,9 +3790,9 @@ static int snd_hdsp_set_defaults(struct hdsp *hdsp)
 	return 0;
 }
 
-static void hdsp_midi_tasklet(struct tasklet_struct *t)
+static void hdsp_midi_work(struct work_struct *work)
 {
-	struct hdsp *hdsp = from_tasklet(hdsp, t, midi_tasklet);
+	struct hdsp *hdsp = container_of(work, struct hdsp, midi_work);
 
 	if (hdsp->midi[0].pending)
 		snd_hdsp_midi_input_read (&hdsp->midi[0]);
@@ -3838,7 +3837,7 @@ static irqreturn_t snd_hdsp_interrupt(int irq, void *dev_id)
 	}
 
 	if (midi0 && midi0status) {
-		if (hdsp->use_midi_tasklet) {
+		if (hdsp->use_midi_work) {
 			/* we disable interrupts for this input until processing is done */
 			hdsp->control_register &= ~HDSP_Midi0InterruptEnable;
 			hdsp_write(hdsp, HDSP_controlRegister, hdsp->control_register);
@@ -3849,7 +3848,7 @@ static irqreturn_t snd_hdsp_interrupt(int irq, void *dev_id)
 		}
 	}
 	if (hdsp->io_type != Multiface && hdsp->io_type != RPM && hdsp->io_type != H9632 && midi1 && midi1status) {
-		if (hdsp->use_midi_tasklet) {
+		if (hdsp->use_midi_work) {
 			/* we disable interrupts for this input until processing is done */
 			hdsp->control_register &= ~HDSP_Midi1InterruptEnable;
 			hdsp_write(hdsp, HDSP_controlRegister, hdsp->control_register);
@@ -3859,8 +3858,8 @@ static irqreturn_t snd_hdsp_interrupt(int irq, void *dev_id)
 			snd_hdsp_midi_input_read (&hdsp->midi[1]);
 		}
 	}
-	if (hdsp->use_midi_tasklet && schedule)
-		tasklet_schedule(&hdsp->midi_tasklet);
+	if (hdsp->use_midi_work && schedule)
+		queue_work(system_highpri_wq, &hdsp->midi_work);
 	return IRQ_HANDLED;
 }
 
@@ -5182,7 +5181,7 @@ static int snd_hdsp_create(struct snd_card *card,
 
 	spin_lock_init(&hdsp->lock);
 
-	tasklet_setup(&hdsp->midi_tasklet, hdsp_midi_tasklet);
+	INIT_WORK(&hdsp->midi_work, hdsp_midi_work);
 
 	pci_read_config_word(hdsp->pci, PCI_CLASS_REVISION, &hdsp->firmware_rev);
 	hdsp->firmware_rev &= 0xff;
@@ -5235,7 +5234,7 @@ static int snd_hdsp_create(struct snd_card *card,
 	hdsp->irq = pci->irq;
 	card->sync_irq = hdsp->irq;
 	hdsp->precise_ptr = 0;
-	hdsp->use_midi_tasklet = 1;
+	hdsp->use_midi_work = 1;
 	hdsp->dds_value = 0;
 
 	if ((err = snd_hdsp_initialize_memory(hdsp)) < 0)
@@ -5305,7 +5304,7 @@ static int snd_hdsp_free(struct hdsp *hdsp)
 {
 	if (hdsp->port) {
 		/* stop the audio, and cancel all interrupts */
-		tasklet_kill(&hdsp->midi_tasklet);
+		cancel_work_sync(&hdsp->midi_work);
 		hdsp->control_register &= ~(HDSP_Start|HDSP_AudioInterruptEnable|HDSP_Midi0InterruptEnable|HDSP_Midi1InterruptEnable);
 		hdsp_write (hdsp, HDSP_controlRegister, hdsp->control_register);
 	}

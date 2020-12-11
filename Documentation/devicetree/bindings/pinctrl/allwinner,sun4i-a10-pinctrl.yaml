@@ -48,6 +48,8 @@ properties:
       - allwinner,sun9i-a80-r-pinctrl
       - allwinner,sun50i-a64-pinctrl
       - allwinner,sun50i-a64-r-pinctrl
+      - allwinner,sun50i-a100-pinctrl
+      - allwinner,sun50i-a100-r-pinctrl
       - allwinner,sun50i-h5-pinctrl
       - allwinner,sun50i-h6-pinctrl
       - allwinner,sun50i-h6-r-pinctrl
@@ -59,7 +61,7 @@ properties:
 
   interrupts:
     minItems: 1
-    maxItems: 5
+    maxItems: 7
     description:
       One interrupt per external interrupt bank supported on the
       controller, sorted by bank number ascending order.
@@ -147,6 +149,18 @@ allOf:
       properties:
         compatible:
           enum:
+            - allwinner,sun50i-a100-pinctrl
+
+    then:
+      properties:
+        interrupts:
+          minItems: 7
+          maxItems: 7
+
+  - if:
+      properties:
+        compatible:
+          enum:
             - allwinner,sun9i-a80-pinctrl
 
     then:
@@ -155,62 +169,75 @@ allOf:
           minItems: 5
           maxItems: 5
 
-    else:
-      if:
-        properties:
-          compatible:
-            enum:
-              - allwinner,sun6i-a31-pinctrl
-              - allwinner,sun6i-a31s-pinctrl
-              - allwinner,sun50i-h6-pinctrl
+  - if:
+      properties:
+        compatible:
+          enum:
+            - allwinner,sun6i-a31-pinctrl
+            - allwinner,sun6i-a31s-pinctrl
+            - allwinner,sun50i-h6-pinctrl
 
-      then:
-        properties:
-          interrupts:
-            minItems: 4
-            maxItems: 4
+    then:
+      properties:
+        interrupts:
+          minItems: 4
+          maxItems: 4
 
-      else:
-        if:
-          properties:
-            compatible:
-              enum:
-                - allwinner,sun8i-a23-pinctrl
-                - allwinner,sun8i-a83t-pinctrl
-                - allwinner,sun50i-a64-pinctrl
-                - allwinner,sun50i-h5-pinctrl
-                - allwinner,suniv-f1c100s-pinctrl
+  - if:
+      properties:
+        compatible:
+          enum:
+            - allwinner,sun8i-a23-pinctrl
+            - allwinner,sun8i-a83t-pinctrl
+            - allwinner,sun50i-a64-pinctrl
+            - allwinner,sun50i-h5-pinctrl
+            - allwinner,suniv-f1c100s-pinctrl
 
-        then:
-          properties:
-            interrupts:
-              minItems: 3
-              maxItems: 3
+    then:
+      properties:
+        interrupts:
+          minItems: 3
+          maxItems: 3
 
-        else:
-          if:
-            properties:
-              compatible:
-                enum:
-                  - allwinner,sun6i-a31-r-pinctrl
-                  - allwinner,sun8i-a33-pinctrl
-                  - allwinner,sun8i-h3-pinctrl
-                  - allwinner,sun8i-v3-pinctrl
-                  - allwinner,sun8i-v3s-pinctrl
-                  - allwinner,sun9i-a80-r-pinctrl
-                  - allwinner,sun50i-h6-r-pinctrl
+  - if:
+      properties:
+        compatible:
+          enum:
+            - allwinner,sun6i-a31-r-pinctrl
+            - allwinner,sun8i-a33-pinctrl
+            - allwinner,sun8i-h3-pinctrl
+            - allwinner,sun8i-v3-pinctrl
+            - allwinner,sun8i-v3s-pinctrl
+            - allwinner,sun9i-a80-r-pinctrl
+            - allwinner,sun50i-h6-r-pinctrl
 
-          then:
-            properties:
-              interrupts:
-                minItems: 2
-                maxItems: 2
+    then:
+      properties:
+        interrupts:
+          minItems: 2
+          maxItems: 2
 
-          else:
-            properties:
-              interrupts:
-                minItems: 1
-                maxItems: 1
+  - if:
+      properties:
+        compatible:
+          enum:
+            - allwinner,sun4i-a10-pinctrl
+            - allwinner,sun5i-a10s-pinctrl
+            - allwinner,sun5i-a13-pinctrl
+            - allwinner,sun7i-a20-pinctrl
+            - allwinner,sun8i-a23-r-pinctrl
+            - allwinner,sun8i-a83t-r-pinctrl
+            - allwinner,sun8i-h3-r-pinctrl
+            - allwinner,sun8i-r40-pinctrl
+            - allwinner,sun50i-a64-r-pinctrl
+            - allwinner,sun50i-a100-r-pinctrl
+            - nextthing,gr8-pinctrl
+
+    then:
+      properties:
+        interrupts:
+          minItems: 1
+          maxItems: 1
 
 additionalProperties: false
 

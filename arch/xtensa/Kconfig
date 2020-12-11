@@ -41,6 +41,7 @@ config XTENSA
 	select IRQ_DOMAIN
 	select MODULES_USE_ELF_RELA
 	select PERF_USE_VMALLOC
+	select SET_FS
 	select VIRT_TO_BUS
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
@@ -216,20 +217,6 @@ config HOTPLUG_CPU
 	  controlled through /sys/devices/system/cpu.
 
 	  Say N if you want to disable CPU hotplug.
-
-config SECCOMP
-	bool
-	prompt "Enable seccomp to safely compute untrusted bytecode"
-	help
-	  This kernel feature is useful for number crunching applications
-	  that may need to compute untrusted bytecode during their
-	  execution. By using pipes or other transports made available to
-	  the process as file descriptors supporting the read/write
-	  syscalls, it's possible to isolate those applications in
-	  their own address space using seccomp. Once seccomp is
-	  enabled via prctl(PR_SET_SECCOMP), it cannot be disabled
-	  and the task is only allowed to execute a few safe syscalls
-	  defined by each seccomp mode.
 
 config FAST_SYSCALL_XTENSA
 	bool "Enable fast atomic syscalls"
@@ -537,7 +524,7 @@ config MEMMAP_CACHEATTR
 	    2: cache bypass,
 	    4: WB cached,
 	    f: illegal.
-	  For ful MMU:
+	  For full MMU:
 	    bit 0: executable,
 	    bit 1: writable,
 	    bits 2..3:

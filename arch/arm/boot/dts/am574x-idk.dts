@@ -36,11 +36,6 @@
 	pinctrl-2 = <&mmc2_pins_default>;
 };
 
-&mac {
-	status = "okay";
-	dual_emac;
-};
-
 &m_can0 {
 	status = "disabled";
 };

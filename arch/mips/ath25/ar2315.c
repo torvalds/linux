@@ -19,6 +19,7 @@
 #include <linux/bitops.h>
 #include <linux/irqdomain.h>
 #include <linux/interrupt.h>
+#include <linux/memblock.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
 #include <asm/bootinfo.h>
@@ -266,7 +267,7 @@ void __init ar2315_plat_mem_setup(void)
 	memsize <<= 1 + ATH25_REG_MS(memcfg, AR2315_MEM_CFG_COL_WIDTH);
 	memsize <<= 1 + ATH25_REG_MS(memcfg, AR2315_MEM_CFG_ROW_WIDTH);
 	memsize <<= 3;
-	add_memory_region(0, memsize, BOOT_MEM_RAM);
+	memblock_add(0, memsize);
 	iounmap(sdram_base);
 
 	ar2315_rst_base = ioremap(AR2315_RST_BASE, AR2315_RST_SIZE);

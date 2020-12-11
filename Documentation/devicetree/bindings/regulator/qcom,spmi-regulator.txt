@@ -12,6 +12,8 @@ Qualcomm SPMI Regulators
 			"qcom,pm8950-regulators"
 			"qcom,pm8994-regulators"
 			"qcom,pmi8994-regulators"
+			"qcom,pm660-regulators"
+			"qcom,pm660l-regulators"
 			"qcom,pms405-regulators"
 
 - interrupts:
@@ -130,6 +132,35 @@ Qualcomm SPMI Regulators
 - vdd_s3-supply:
 - vdd_l1-supply:
 	Usage: optional (pmi8994 only)
+	Value type: <phandle>
+	Definition: Reference to regulator supplying the input pin, as
+		    described in the data sheet.
+
+- vdd_l1_l6_l7-supply:
+- vdd_l2_l3-supply:
+- vdd_l5-supply:
+- vdd_l8_l9_l10_l11_l12_l13_l14-supply:
+- vdd_l15_l16_l17_l18_l19-supply:
+- vdd_s1-supply:
+- vdd_s2-supply:
+- vdd_s3-supply:
+- vdd_s5-supply:
+- vdd_s6-supply:
+	Usage: optional (pm660 only)
+	Value type: <phandle>
+	Definition: Reference to regulator supplying the input pin, as
+		    described in the data sheet.
+
+- vdd_l1_l9_l10-supply:
+- vdd_l2-supply:
+- vdd_l3_l5_l7_l8-supply:
+- vdd_l4_l6-supply:
+- vdd_s1-supply:
+- vdd_s2-supply:
+- vdd_s3-supply:
+- vdd_s4-supply:
+- vdd_s5-supply:
+	Usage: optional (pm660l only)
 	Value type: <phandle>
 	Definition: Reference to regulator supplying the input pin, as
 		    described in the data sheet.

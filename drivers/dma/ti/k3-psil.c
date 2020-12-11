@@ -9,11 +9,19 @@
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
+#include <linux/sys_soc.h>
 
 #include "k3-psil-priv.h"
 
 static DEFINE_MUTEX(ep_map_mutex);
-static struct psil_ep_map *soc_ep_map;
+static const struct psil_ep_map *soc_ep_map;
+
+static const struct soc_device_attribute k3_soc_devices[] = {
+	{ .family = "AM65X", .data = &am654_ep_map },
+	{ .family = "J721E", .data = &j721e_ep_map },
+	{ .family = "J7200", .data = &j7200_ep_map },
+	{ /* sentinel */ }
+};
 
 struct psil_endpoint_config *psil_get_ep_config(u32 thread_id)
 {
@@ -21,10 +29,11 @@ struct psil_endpoint_config *psil_get_ep_config(u32 thread_id)
 
 	mutex_lock(&ep_map_mutex);
 	if (!soc_ep_map) {
-		if (of_machine_is_compatible("ti,am654")) {
-			soc_ep_map = &am654_ep_map;
-		} else if (of_machine_is_compatible("ti,j721e")) {
-			soc_ep_map = &j721e_ep_map;
+		const struct soc_device_attribute *soc;
+
+		soc = soc_device_match(k3_soc_devices);
+		if (soc) {
+			soc_ep_map = soc->data;
 		} else {
 			pr_err("PSIL: No compatible machine found for map\n");
 			mutex_unlock(&ep_map_mutex);

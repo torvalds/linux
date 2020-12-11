@@ -814,6 +814,9 @@ netxen_get_dump_flag(struct net_device *netdev, struct ethtool_dump *dump)
 	return 0;
 }
 
+/* Fw dump levels */
+static const u32 FW_DUMP_LEVELS[] = { 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f, 0xff };
+
 static int
 netxen_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 {

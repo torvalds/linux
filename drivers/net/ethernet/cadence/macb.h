@@ -7,6 +7,7 @@
 #ifndef _MACB_H
 #define _MACB_H
 
+#include <linux/clk.h>
 #include <linux/phylink.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/net_tstamp.h>
@@ -365,6 +366,8 @@
 #define MACB_ISR_RLE_SIZE	1
 #define MACB_TXERR_OFFSET	6 /* EN TX frame corrupt from error interrupt */
 #define MACB_TXERR_SIZE		1
+#define MACB_RM9200_TBRE_OFFSET	6 /* EN may send new frame interrupt (RM9200) */
+#define MACB_RM9200_TBRE_SIZE	1
 #define MACB_TCOMP_OFFSET	7 /* Enable transmit complete interrupt */
 #define MACB_TCOMP_SIZE		1
 #define MACB_ISR_LINK_OFFSET	9 /* Enable link change interrupt */
@@ -1204,10 +1207,10 @@ struct macb {
 
 	phy_interface_t		phy_interface;
 
-	/* AT91RM9200 transmit */
-	struct sk_buff *skb;			/* holds skb until xmit interrupt completes */
-	dma_addr_t skb_physaddr;		/* phys addr from pci_map_single */
-	int skb_length;				/* saved skb length for pci_unmap_single */
+	/* AT91RM9200 transmit queue (1 on wire + 1 queued) */
+	struct macb_tx_skb	rm9200_txq[2];
+	unsigned int		rm9200_tx_tail;
+	unsigned int		rm9200_tx_len;
 	unsigned int		max_tx_length;
 
 	u64			ethtool_stats[GEM_STATS_LEN + QUEUE_STATS_LEN * MACB_MAX_QUEUES];
@@ -1297,5 +1300,15 @@ static inline bool gem_has_ptp(struct macb *bp)
 {
 	return !!(bp->caps & MACB_CAPS_GEM_HAS_PTP);
 }
+
+/**
+ * struct macb_platform_data - platform data for MACB Ethernet used for PCI registration
+ * @pclk:		platform clock
+ * @hclk:		AHB clock
+ */
+struct macb_platform_data {
+	struct clk	*pclk;
+	struct clk	*hclk;
+};
 
 #endif /* _MACB_H */

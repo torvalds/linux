@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019 Facebook */
 #include <linux/stddef.h>
+#include <linux/if_ether.h>
 #include <linux/ipv6.h>
 #include <linux/bpf.h>
+#include <linux/tcp.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 #include <bpf/bpf_tracing.h>
@@ -151,4 +153,29 @@ int new_get_constant(long val)
 	test_get_constant = 1;
 	return test_get_constant; /* original get_constant() returns val - 122 */
 }
+
+__u64 test_pkt_write_access_subprog = 0;
+SEC("freplace/test_pkt_write_access_subprog")
+int new_test_pkt_write_access_subprog(struct __sk_buff *skb, __u32 off)
+{
+
+	void *data = (void *)(long)skb->data;
+	void *data_end = (void *)(long)skb->data_end;
+	struct tcphdr *tcp;
+
+	if (off > sizeof(struct ethhdr) + sizeof(struct ipv6hdr))
+		return -1;
+
+	tcp = data + off;
+	if (tcp + 1 > data_end)
+		return -1;
+
+	/* make modifications to the packet data */
+	tcp->check++;
+	tcp->syn = 0;
+
+	test_pkt_write_access_subprog = 1;
+	return 0;
+}
+
 char _license[] SEC("license") = "GPL";

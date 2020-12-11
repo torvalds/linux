@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 
@@ -153,7 +154,7 @@ MODULE_DEVICE_TABLE(of, si7020_dt_ids);
 static struct i2c_driver si7020_driver = {
 	.driver = {
 		.name = "si7020",
-		.of_match_table = of_match_ptr(si7020_dt_ids),
+		.of_match_table = si7020_dt_ids,
 	},
 	.probe		= si7020_probe,
 	.id_table	= si7020_id,

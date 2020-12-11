@@ -49,3 +49,5 @@ properties:
 
 required:
   - "#dma-cells"
+
+additionalProperties: true

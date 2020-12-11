@@ -15,6 +15,7 @@
 #include "i915_drv.h"
 #include "i915_gpu_error.h"
 #include "i915_irq.h"
+#include "intel_breadcrumbs.h"
 #include "intel_engine_pm.h"
 #include "intel_gt.h"
 #include "intel_gt_pm.h"

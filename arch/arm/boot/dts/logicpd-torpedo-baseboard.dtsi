@@ -115,7 +115,7 @@
 };
 
 &dss {
-	status = "ok";
+	status = "okay";
 	vdds_dsi-supply = <&vpll2>;
 	vdda_video-supply = <&vpll2>;
 	pinctrl-names = "default";

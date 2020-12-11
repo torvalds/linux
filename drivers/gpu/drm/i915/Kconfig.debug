@@ -153,6 +153,7 @@ config DRM_I915_SELFTEST
 	select DRM_EXPORT_FOR_TESTS if m
 	select FAULT_INJECTION
 	select PRIME_NUMBERS
+	select CRC32
 	help
 	  Choose this option to allow the driver to perform selftests upon
 	  loading; also requires the i915.selftest=1 module parameter. To

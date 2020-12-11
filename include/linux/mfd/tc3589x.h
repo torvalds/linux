@@ -19,6 +19,9 @@ enum tx3589x_block {
 #define TC3589x_RSTCTRL_KBDRST	(1 << 1)
 #define TC3589x_RSTCTRL_GPIRST	(1 << 0)
 
+#define TC3589x_DKBDMSK_ELINT	(1 << 1)
+#define TC3589x_DKBDMSK_EINT	(1 << 0)
+
 /* Keyboard Configuration Registers */
 #define TC3589x_KBDSETTLE_REG   0x01
 #define TC3589x_KBDBOUNCE       0x02
@@ -100,6 +103,9 @@ enum tx3589x_block {
 #define TC3589x_GPIOODE1	0xE3
 #define TC3589x_GPIOODM2	0xE4
 #define TC3589x_GPIOODE2	0xE5
+
+#define TC3589x_DIRECT0		0xEC
+#define TC3589x_DKBDMSK		0xF3
 
 #define TC3589x_INT_GPIIRQ	0
 #define TC3589x_INT_TI0IRQ	1

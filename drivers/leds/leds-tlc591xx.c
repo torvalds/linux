@@ -148,22 +148,17 @@ static int
 tlc591xx_probe(struct i2c_client *client,
 	       const struct i2c_device_id *id)
 {
-	struct device_node *np = client->dev.of_node, *child;
+	struct device_node *np = dev_of_node(&client->dev), *child;
 	struct device *dev = &client->dev;
-	const struct of_device_id *match;
 	const struct tlc591xx *tlc591xx;
 	struct tlc591xx_priv *priv;
 	int err, count, reg;
 
-	match = of_match_device(of_tlc591xx_leds_match, dev);
-	if (!match)
-		return -ENODEV;
-
-	tlc591xx = match->data;
+	tlc591xx = device_get_match_data(dev);
 	if (!np)
 		return -ENODEV;
 
-	count = of_get_child_count(np);
+	count = of_get_available_child_count(np);
 	if (!count || count > tlc591xx->max_leds)
 		return -EINVAL;
 
@@ -185,7 +180,7 @@ tlc591xx_probe(struct i2c_client *client,
 	if (err < 0)
 		return err;
 
-	for_each_child_of_node(np, child) {
+	for_each_available_child_of_node(np, child) {
 		struct tlc591xx_led *led;
 		struct led_init_data init_data = {};
 
@@ -204,9 +199,6 @@ tlc591xx_probe(struct i2c_client *client,
 		led = &priv->leds[reg];
 
 		led->active = true;
-		led->ldev.default_trigger =
-			of_get_property(child, "linux,default-trigger", NULL);
-
 		led->priv = priv;
 		led->led_no = reg;
 		led->ldev.brightness_set_blocking = tlc591xx_brightness_set;
@@ -214,10 +206,10 @@ tlc591xx_probe(struct i2c_client *client,
 		err = devm_led_classdev_register_ext(dev, &led->ldev,
 						     &init_data);
 		if (err < 0) {
-			if (err != -EPROBE_DEFER)
-				dev_err(dev, "couldn't register LED %s\n",
-					led->ldev.name);
-			return err;
+			of_node_put(child);
+			return dev_err_probe(dev, err,
+					     "couldn't register LED %s\n",
+					     led->ldev.name);
 		}
 	}
 	return 0;

@@ -38,7 +38,7 @@ struct iio_poll_func {
 };
 
 
-struct iio_poll_func
+__printf(5, 6) struct iio_poll_func
 *iio_alloc_pollfunc(irqreturn_t (*h)(int irq, void *p),
 		    irqreturn_t (*thread)(int irq, void *p),
 		    int type,

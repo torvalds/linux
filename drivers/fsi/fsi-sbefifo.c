@@ -1028,7 +1028,7 @@ static int sbefifo_remove(struct device *dev)
 	return 0;
 }
 
-static struct fsi_device_id sbefifo_ids[] = {
+static const struct fsi_device_id sbefifo_ids[] = {
 	{
 		.engine_type = FSI_ENGID_SBE,
 		.version = FSI_VERSION_ANY,

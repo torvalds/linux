@@ -84,6 +84,11 @@ struct mlx4_en_flow_stats_rx {
 					 MLX4_NUM_PRIORITIES)
 };
 
+#define FLOW_PRIORITY_STATS_IDX_RX_FRAMES	(NUM_MAIN_STATS +	\
+						 NUM_PORT_STATS +	\
+						 NUM_PF_STATS +		\
+						 NUM_FLOW_PRIORITY_STATS_RX)
+
 struct mlx4_en_flow_stats_tx {
 	u64 tx_pause;
 	u64 tx_pause_duration;
@@ -92,6 +97,13 @@ struct mlx4_en_flow_stats_tx {
 #define NUM_FLOW_PRIORITY_STATS_TX	(NUM_FLOW_STATS_TX * \
 					 MLX4_NUM_PRIORITIES)
 };
+
+#define FLOW_PRIORITY_STATS_IDX_TX_FRAMES	(NUM_MAIN_STATS +	\
+						 NUM_PORT_STATS +	\
+						 NUM_PF_STATS +		\
+						 NUM_FLOW_PRIORITY_STATS_RX + \
+						 NUM_FLOW_STATS_RX +	\
+						 NUM_FLOW_PRIORITY_STATS_TX)
 
 #define NUM_FLOW_STATS (NUM_FLOW_STATS_RX + NUM_FLOW_STATS_TX + \
 			NUM_FLOW_PRIORITY_STATS_TX + \

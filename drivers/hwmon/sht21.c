@@ -250,8 +250,7 @@ static struct attribute *sht21_attrs[] = {
 
 ATTRIBUTE_GROUPS(sht21);
 
-static int sht21_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+static int sht21_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -286,7 +285,7 @@ MODULE_DEVICE_TABLE(i2c, sht21_id);
 
 static struct i2c_driver sht21_driver = {
 	.driver.name = "sht21",
-	.probe       = sht21_probe,
+	.probe_new   = sht21_probe,
 	.id_table    = sht21_id,
 };
 

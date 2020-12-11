@@ -81,7 +81,7 @@ struct uacce_queue {
 	struct list_head list;
 	struct uacce_qfile_region *qfrs[UACCE_MAX_REGION];
 	enum uacce_q_state state;
-	int pasid;
+	u32 pasid;
 	struct iommu_sva *handle;
 };
 

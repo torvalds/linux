@@ -36,6 +36,8 @@ int dscr_user(void)
 {
 	int i;
 
+	SKIP_IF(!have_hwcap2(PPC_FEATURE2_DSCR));
+
 	check_dscr("");
 
 	for (i = 0; i < COUNT; i++) {

@@ -228,6 +228,7 @@ static inline int __init mips_sc_probe(void)
 		 * contradicted by all documentation.
 		 */
 		case MACH_INGENIC_JZ4770:
+		case MACH_INGENIC_JZ4775:
 			c->scache.ways = 4;
 			break;
 
@@ -236,6 +237,7 @@ static inline int __init mips_sc_probe(void)
 		 * but that is contradicted by all documentation.
 		 */
 		case MACH_INGENIC_X1000:
+		case MACH_INGENIC_X1000E:
 			c->scache.sets = 256;
 			c->scache.ways = 4;
 			break;

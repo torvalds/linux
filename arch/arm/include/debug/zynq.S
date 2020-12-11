@@ -33,7 +33,10 @@
 		strb	\rd, [\rx, #UART_FIFO_OFFSET]	@ TXDATA
 		.endm
 
-		.macro	waituart,rd,rx
+		.macro	waituartcts,rd,rx
+		.endm
+
+		.macro	waituarttxrdy,rd,rx
 1001:		ldr	\rd, [\rx, #UART_SR_OFFSET]
 ARM_BE8(	rev	\rd, \rd )
 		tst	\rd, #UART_SR_TXEMPTY

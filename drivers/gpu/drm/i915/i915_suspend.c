@@ -34,17 +34,25 @@
 
 static void i915_save_display(struct drm_i915_private *dev_priv)
 {
+	struct pci_dev *pdev = dev_priv->drm.pdev;
+
 	/* Display arbitration control */
 	if (INTEL_GEN(dev_priv) <= 4)
 		dev_priv->regfile.saveDSPARB = I915_READ(DSPARB);
 
-	/* save FBC interval */
-	if (HAS_FBC(dev_priv) && INTEL_GEN(dev_priv) <= 4 && !IS_G4X(dev_priv))
-		dev_priv->regfile.saveFBC_CONTROL = I915_READ(FBC_CONTROL);
+	if (IS_GEN(dev_priv, 4))
+		pci_read_config_word(pdev, GCDGMBUS,
+				     &dev_priv->regfile.saveGCDGMBUS);
 }
 
 static void i915_restore_display(struct drm_i915_private *dev_priv)
 {
+	struct pci_dev *pdev = dev_priv->drm.pdev;
+
+	if (IS_GEN(dev_priv, 4))
+		pci_write_config_word(pdev, GCDGMBUS,
+				      dev_priv->regfile.saveGCDGMBUS);
+
 	/* Display arbitration */
 	if (INTEL_GEN(dev_priv) <= 4)
 		I915_WRITE(DSPARB, dev_priv->regfile.saveDSPARB);
@@ -52,30 +60,16 @@ static void i915_restore_display(struct drm_i915_private *dev_priv)
 	/* only restore FBC info on the platform that supports FBC*/
 	intel_fbc_global_disable(dev_priv);
 
-	/* restore FBC interval */
-	if (HAS_FBC(dev_priv) && INTEL_GEN(dev_priv) <= 4 && !IS_G4X(dev_priv))
-		I915_WRITE(FBC_CONTROL, dev_priv->regfile.saveFBC_CONTROL);
-
 	intel_vga_redisable(dev_priv);
+
+	intel_gmbus_reset(dev_priv);
 }
 
 int i915_save_state(struct drm_i915_private *dev_priv)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int i;
 
 	i915_save_display(dev_priv);
-
-	if (IS_GEN(dev_priv, 4))
-		pci_read_config_word(pdev, GCDGMBUS,
-				     &dev_priv->regfile.saveGCDGMBUS);
-
-	/* Cache mode state */
-	if (INTEL_GEN(dev_priv) < 7)
-		dev_priv->regfile.saveCACHE_MODE_0 = I915_READ(CACHE_MODE_0);
-
-	/* Memory Arbitration state */
-	dev_priv->regfile.saveMI_ARB_STATE = I915_READ(MI_ARB_STATE);
 
 	/* Scratch space */
 	if (IS_GEN(dev_priv, 2) && IS_MOBILE(dev_priv)) {
@@ -102,21 +96,9 @@ int i915_save_state(struct drm_i915_private *dev_priv)
 
 int i915_restore_state(struct drm_i915_private *dev_priv)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int i;
 
-	if (IS_GEN(dev_priv, 4))
-		pci_write_config_word(pdev, GCDGMBUS,
-				      dev_priv->regfile.saveGCDGMBUS);
 	i915_restore_display(dev_priv);
-
-	/* Cache mode state */
-	if (INTEL_GEN(dev_priv) < 7)
-		I915_WRITE(CACHE_MODE_0, dev_priv->regfile.saveCACHE_MODE_0 |
-			   0xffff0000);
-
-	/* Memory arbitration state */
-	I915_WRITE(MI_ARB_STATE, dev_priv->regfile.saveMI_ARB_STATE | 0xffff0000);
 
 	/* Scratch space */
 	if (IS_GEN(dev_priv, 2) && IS_MOBILE(dev_priv)) {
@@ -137,8 +119,6 @@ int i915_restore_state(struct drm_i915_private *dev_priv)
 		for (i = 0; i < 3; i++)
 			I915_WRITE(SWF3(i), dev_priv->regfile.saveSWF3[i]);
 	}
-
-	intel_gmbus_reset(dev_priv);
 
 	return 0;
 }

@@ -7,6 +7,44 @@
 #include "disk-io.h"
 #include "print-tree.h"
 
+struct root_name_map {
+	u64 id;
+	char name[16];
+};
+
+static const struct root_name_map root_map[] = {
+	{ BTRFS_ROOT_TREE_OBJECTID,		"ROOT_TREE"		},
+	{ BTRFS_EXTENT_TREE_OBJECTID,		"EXTENT_TREE"		},
+	{ BTRFS_CHUNK_TREE_OBJECTID,		"CHUNK_TREE"		},
+	{ BTRFS_DEV_TREE_OBJECTID,		"DEV_TREE"		},
+	{ BTRFS_FS_TREE_OBJECTID,		"FS_TREE"		},
+	{ BTRFS_CSUM_TREE_OBJECTID,		"CSUM_TREE"		},
+	{ BTRFS_TREE_LOG_OBJECTID,		"TREE_LOG"		},
+	{ BTRFS_QUOTA_TREE_OBJECTID,		"QUOTA_TREE"		},
+	{ BTRFS_UUID_TREE_OBJECTID,		"UUID_TREE"		},
+	{ BTRFS_FREE_SPACE_TREE_OBJECTID,	"FREE_SPACE_TREE"	},
+	{ BTRFS_DATA_RELOC_TREE_OBJECTID,	"DATA_RELOC_TREE"	},
+};
+
+const char *btrfs_root_name(u64 objectid, char *buf)
+{
+	int i;
+
+	if (objectid == BTRFS_TREE_RELOC_OBJECTID) {
+		snprintf(buf, BTRFS_ROOT_NAME_BUF_LEN,
+			 "TREE_RELOC offset=%llu", objectid);
+		return buf;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(root_map); i++) {
+		if (root_map[i].id == objectid)
+			return root_map[i].name;
+	}
+
+	snprintf(buf, BTRFS_ROOT_NAME_BUF_LEN, "%llu", objectid);
+	return buf;
+}
+
 static void print_chunk(struct extent_buffer *eb, struct btrfs_chunk *chunk)
 {
 	int num_stripes = btrfs_chunk_num_stripes(eb, chunk);

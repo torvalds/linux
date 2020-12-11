@@ -22,3 +22,5 @@ properties:
 
 required:
   - cdns,max-outbound-regions
+
+additionalProperties: true

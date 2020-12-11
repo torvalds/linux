@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <linux/compat.h>
 #include <linux/errno.h>
 #include <linux/prctl.h>
 #include <linux/random.h>
@@ -15,6 +16,9 @@ int ptrauth_prctl_reset_keys(struct task_struct *tsk, unsigned long arg)
 	unsigned long key_mask = addr_key_mask | PR_PAC_APGAKEY;
 
 	if (!system_supports_address_auth() && !system_supports_generic_auth())
+		return -EINVAL;
+
+	if (is_compat_thread(task_thread_info(tsk)))
 		return -EINVAL;
 
 	if (!arg) {

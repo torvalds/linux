@@ -51,6 +51,7 @@ struct dc_dsc_policy {
 	int min_slice_height; // Must not be less than 8
 	uint32_t max_target_bpp;
 	uint32_t min_target_bpp;
+	bool enable_dsc_when_not_needed;
 };
 
 bool dc_dsc_parse_dsc_dpcd(const struct dc *dc,
@@ -79,5 +80,7 @@ void dc_dsc_get_policy_for_timing(const struct dc_crtc_timing *timing,
 		struct dc_dsc_policy *policy);
 
 void dc_dsc_policy_set_max_target_bpp_limit(uint32_t limit);
+
+void dc_dsc_policy_set_enable_dsc_when_not_needed(bool enable);
 
 #endif

@@ -203,27 +203,34 @@ static int snd_hwdep_dsp_status(struct snd_hwdep *hw,
 }
 
 static int snd_hwdep_dsp_load(struct snd_hwdep *hw,
-			      struct snd_hwdep_dsp_image __user *_info)
+			      struct snd_hwdep_dsp_image *info)
 {
-	struct snd_hwdep_dsp_image info;
 	int err;
 	
 	if (! hw->ops.dsp_load)
 		return -ENXIO;
-	memset(&info, 0, sizeof(info));
-	if (copy_from_user(&info, _info, sizeof(info)))
-		return -EFAULT;
-	if (info.index >= 32)
+	if (info->index >= 32)
 		return -EINVAL;
 	/* check whether the dsp was already loaded */
-	if (hw->dsp_loaded & (1u << info.index))
+	if (hw->dsp_loaded & (1u << info->index))
 		return -EBUSY;
-	err = hw->ops.dsp_load(hw, &info);
+	err = hw->ops.dsp_load(hw, info);
 	if (err < 0)
 		return err;
-	hw->dsp_loaded |= (1u << info.index);
+	hw->dsp_loaded |= (1u << info->index);
 	return 0;
 }
+
+static int snd_hwdep_dsp_load_user(struct snd_hwdep *hw,
+				   struct snd_hwdep_dsp_image __user *_info)
+{
+	struct snd_hwdep_dsp_image info = {};
+
+	if (copy_from_user(&info, _info, sizeof(info)))
+		return -EFAULT;
+	return snd_hwdep_dsp_load(hw, &info);
+}
+
 
 static long snd_hwdep_ioctl(struct file * file, unsigned int cmd,
 			    unsigned long arg)
@@ -238,7 +245,7 @@ static long snd_hwdep_ioctl(struct file * file, unsigned int cmd,
 	case SNDRV_HWDEP_IOCTL_DSP_STATUS:
 		return snd_hwdep_dsp_status(hw, argp);
 	case SNDRV_HWDEP_IOCTL_DSP_LOAD:
-		return snd_hwdep_dsp_load(hw, argp);
+		return snd_hwdep_dsp_load_user(hw, argp);
 	}
 	if (hw->ops.ioctl)
 		return hw->ops.ioctl(hw, file, cmd, arg);

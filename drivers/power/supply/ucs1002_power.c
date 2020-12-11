@@ -38,6 +38,7 @@
 
 /* Interrupt Status */
 #define UCS1002_REG_INTERRUPT_STATUS	0x10
+#  define F_ERR				BIT(7)
 #  define F_DISCHARGE_ERR		BIT(6)
 #  define F_RESET			BIT(5)
 #  define F_MIN_KEEP_OUT		BIT(4)
@@ -103,6 +104,9 @@ struct ucs1002_info {
 	struct regulator_dev *rdev;
 	bool present;
 	bool output_disable;
+	struct delayed_work health_poll;
+	int health;
+
 };
 
 static enum power_supply_property ucs1002_props[] = {
@@ -362,32 +366,6 @@ static int ucs1002_get_usb_type(struct ucs1002_info *info,
 	return 0;
 }
 
-static int ucs1002_get_health(struct ucs1002_info *info,
-			      union power_supply_propval *val)
-{
-	unsigned int reg;
-	int ret, health;
-
-	ret = regmap_read(info->regmap, UCS1002_REG_INTERRUPT_STATUS, &reg);
-	if (ret)
-		return ret;
-
-	if (reg & F_TSD)
-		health = POWER_SUPPLY_HEALTH_OVERHEAT;
-	else if (reg & (F_OVER_VOLT | F_BACK_VOLT))
-		health = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
-	else if (reg & F_OVER_ILIM)
-		health = POWER_SUPPLY_HEALTH_OVERCURRENT;
-	else if (reg & (F_DISCHARGE_ERR | F_MIN_KEEP_OUT))
-		health = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
-	else
-		health = POWER_SUPPLY_HEALTH_GOOD;
-
-	val->intval = health;
-
-	return 0;
-}
-
 static int ucs1002_get_property(struct power_supply *psy,
 				enum power_supply_property psp,
 				union power_supply_propval *val)
@@ -406,7 +384,7 @@ static int ucs1002_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		return ucs1002_get_usb_type(info, val);
 	case POWER_SUPPLY_PROP_HEALTH:
-		return ucs1002_get_health(info, val);
+		return val->intval = info->health;
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = info->present;
 		return 0;
@@ -458,6 +436,38 @@ static const struct power_supply_desc ucs1002_charger_desc = {
 	.num_properties		= ARRAY_SIZE(ucs1002_props),
 };
 
+static void ucs1002_health_poll(struct work_struct *work)
+{
+	struct ucs1002_info *info = container_of(work, struct ucs1002_info,
+						 health_poll.work);
+	int ret;
+	u32 reg;
+
+	ret = regmap_read(info->regmap, UCS1002_REG_INTERRUPT_STATUS, &reg);
+	if (ret)
+		return;
+
+	/* bad health and no status change, just schedule us again in a while */
+	if ((reg & F_ERR) && info->health != POWER_SUPPLY_HEALTH_GOOD) {
+		schedule_delayed_work(&info->health_poll,
+				      msecs_to_jiffies(2000));
+		return;
+	}
+
+	if (reg & F_TSD)
+		info->health = POWER_SUPPLY_HEALTH_OVERHEAT;
+	else if (reg & (F_OVER_VOLT | F_BACK_VOLT))
+		info->health = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+	else if (reg & F_OVER_ILIM)
+		info->health = POWER_SUPPLY_HEALTH_OVERCURRENT;
+	else if (reg & (F_DISCHARGE_ERR | F_MIN_KEEP_OUT))
+		info->health = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
+	else
+		info->health = POWER_SUPPLY_HEALTH_GOOD;
+
+	sysfs_notify(&info->charger->dev.kobj, NULL, "health");
+}
+
 static irqreturn_t ucs1002_charger_irq(int irq, void *data)
 {
 	int ret, regval;
@@ -484,7 +494,7 @@ static irqreturn_t ucs1002_alert_irq(int irq, void *data)
 {
 	struct ucs1002_info *info = data;
 
-	power_supply_changed(info->charger);
+	mod_delayed_work(system_wq, &info->health_poll, 0);
 
 	return IRQ_HANDLED;
 }
@@ -632,6 +642,9 @@ static int ucs1002_probe(struct i2c_client *client,
 		return ret;
 	}
 
+	info->health = POWER_SUPPLY_HEALTH_GOOD;
+	INIT_DELAYED_WORK(&info->health_poll, ucs1002_health_poll);
+
 	if (irq_a_det > 0) {
 		ret = devm_request_threaded_irq(dev, irq_a_det, NULL,
 						ucs1002_charger_irq,
@@ -645,10 +658,8 @@ static int ucs1002_probe(struct i2c_client *client,
 	}
 
 	if (irq_alert > 0) {
-		ret = devm_request_threaded_irq(dev, irq_alert, NULL,
-						ucs1002_alert_irq,
-						IRQF_ONESHOT,
-						"ucs1002-alert", info);
+		ret = devm_request_irq(dev, irq_alert, ucs1002_alert_irq,
+				       0,"ucs1002-alert", info);
 		if (ret) {
 			dev_err(dev, "Failed to request ALERT threaded irq: %d\n",
 				ret);

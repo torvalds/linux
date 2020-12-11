@@ -40,6 +40,7 @@ enum afs_server_trace {
 	afs_server_trace_get_new_cbi,
 	afs_server_trace_get_probe,
 	afs_server_trace_give_up_cb,
+	afs_server_trace_purging,
 	afs_server_trace_put_call,
 	afs_server_trace_put_cbi,
 	afs_server_trace_put_find_rsq,
@@ -49,6 +50,7 @@ enum afs_server_trace {
 	afs_server_trace_put_uuid_rsq,
 	afs_server_trace_update,
 };
+
 
 enum afs_volume_trace {
 	afs_volume_trace_alloc,
@@ -65,6 +67,46 @@ enum afs_volume_trace {
 	afs_volume_trace_put_query_alias,
 	afs_volume_trace_put_validate_fc,
 	afs_volume_trace_remove,
+};
+
+enum afs_cell_trace {
+	afs_cell_trace_alloc,
+	afs_cell_trace_free,
+	afs_cell_trace_get_queue_dns,
+	afs_cell_trace_get_queue_manage,
+	afs_cell_trace_get_queue_new,
+	afs_cell_trace_get_vol,
+	afs_cell_trace_insert,
+	afs_cell_trace_manage,
+	afs_cell_trace_put_candidate,
+	afs_cell_trace_put_destroy,
+	afs_cell_trace_put_queue_fail,
+	afs_cell_trace_put_queue_work,
+	afs_cell_trace_put_vol,
+	afs_cell_trace_see_source,
+	afs_cell_trace_see_ws,
+	afs_cell_trace_unuse_alias,
+	afs_cell_trace_unuse_check_alias,
+	afs_cell_trace_unuse_delete,
+	afs_cell_trace_unuse_fc,
+	afs_cell_trace_unuse_lookup,
+	afs_cell_trace_unuse_mntpt,
+	afs_cell_trace_unuse_no_pin,
+	afs_cell_trace_unuse_parse,
+	afs_cell_trace_unuse_pin,
+	afs_cell_trace_unuse_probe,
+	afs_cell_trace_unuse_sbi,
+	afs_cell_trace_unuse_ws,
+	afs_cell_trace_use_alias,
+	afs_cell_trace_use_check_alias,
+	afs_cell_trace_use_fc,
+	afs_cell_trace_use_fc_alias,
+	afs_cell_trace_use_lookup,
+	afs_cell_trace_use_mntpt,
+	afs_cell_trace_use_pin,
+	afs_cell_trace_use_probe,
+	afs_cell_trace_use_sbi,
+	afs_cell_trace_wait,
 };
 
 enum afs_fs_operation {
@@ -270,6 +312,7 @@ enum afs_cb_break_reason {
 	EM(afs_server_trace_get_new_cbi,	"GET cbi  ") \
 	EM(afs_server_trace_get_probe,		"GET probe") \
 	EM(afs_server_trace_give_up_cb,		"giveup-cb") \
+	EM(afs_server_trace_purging,		"PURGE    ") \
 	EM(afs_server_trace_put_call,		"PUT call ") \
 	EM(afs_server_trace_put_cbi,		"PUT cbi  ") \
 	EM(afs_server_trace_put_find_rsq,	"PUT f-rsq") \
@@ -294,6 +337,44 @@ enum afs_cb_break_reason {
 	EM(afs_volume_trace_put_query_alias,	"PUT cell-alias") \
 	EM(afs_volume_trace_put_validate_fc,	"PUT fc-validat") \
 	E_(afs_volume_trace_remove,		"REMOVE        ")
+
+#define afs_cell_traces \
+	EM(afs_cell_trace_alloc,		"ALLOC     ") \
+	EM(afs_cell_trace_free,			"FREE      ") \
+	EM(afs_cell_trace_get_queue_dns,	"GET q-dns ") \
+	EM(afs_cell_trace_get_queue_manage,	"GET q-mng ") \
+	EM(afs_cell_trace_get_queue_new,	"GET q-new ") \
+	EM(afs_cell_trace_get_vol,		"GET vol   ") \
+	EM(afs_cell_trace_insert,		"INSERT    ") \
+	EM(afs_cell_trace_manage,		"MANAGE    ") \
+	EM(afs_cell_trace_put_candidate,	"PUT candid") \
+	EM(afs_cell_trace_put_destroy,		"PUT destry") \
+	EM(afs_cell_trace_put_queue_work,	"PUT q-work") \
+	EM(afs_cell_trace_put_queue_fail,	"PUT q-fail") \
+	EM(afs_cell_trace_put_vol,		"PUT vol   ") \
+	EM(afs_cell_trace_see_source,		"SEE source") \
+	EM(afs_cell_trace_see_ws,		"SEE ws    ") \
+	EM(afs_cell_trace_unuse_alias,		"UNU alias ") \
+	EM(afs_cell_trace_unuse_check_alias,	"UNU chk-al") \
+	EM(afs_cell_trace_unuse_delete,		"UNU delete") \
+	EM(afs_cell_trace_unuse_fc,		"UNU fc    ") \
+	EM(afs_cell_trace_unuse_lookup,		"UNU lookup") \
+	EM(afs_cell_trace_unuse_mntpt,		"UNU mntpt ") \
+	EM(afs_cell_trace_unuse_parse,		"UNU parse ") \
+	EM(afs_cell_trace_unuse_pin,		"UNU pin   ") \
+	EM(afs_cell_trace_unuse_probe,		"UNU probe ") \
+	EM(afs_cell_trace_unuse_sbi,		"UNU sbi   ") \
+	EM(afs_cell_trace_unuse_ws,		"UNU ws    ") \
+	EM(afs_cell_trace_use_alias,		"USE alias ") \
+	EM(afs_cell_trace_use_check_alias,	"USE chk-al") \
+	EM(afs_cell_trace_use_fc,		"USE fc    ") \
+	EM(afs_cell_trace_use_fc_alias,		"USE fc-al ") \
+	EM(afs_cell_trace_use_lookup,		"USE lookup") \
+	EM(afs_cell_trace_use_mntpt,		"USE mntpt ") \
+	EM(afs_cell_trace_use_pin,		"USE pin   ") \
+	EM(afs_cell_trace_use_probe,		"USE probe ") \
+	EM(afs_cell_trace_use_sbi,		"USE sbi   ") \
+	E_(afs_cell_trace_wait,			"WAIT      ")
 
 #define afs_fs_operations \
 	EM(afs_FS_FetchData,			"FS.FetchData") \
@@ -483,6 +564,7 @@ enum afs_cb_break_reason {
 
 afs_call_traces;
 afs_server_traces;
+afs_cell_traces;
 afs_fs_operations;
 afs_vl_operations;
 afs_edit_dir_ops;
@@ -1356,6 +1438,33 @@ TRACE_EVENT(afs_volume,
 		      __entry->vid,
 		      __print_symbolic(__entry->reason, afs_volume_traces),
 		      __entry->ref)
+	    );
+
+TRACE_EVENT(afs_cell,
+	    TP_PROTO(unsigned int cell_debug_id, int usage, int active,
+		     enum afs_cell_trace reason),
+
+	    TP_ARGS(cell_debug_id, usage, active, reason),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		cell		)
+		    __field(int,			usage		)
+		    __field(int,			active		)
+		    __field(int,			reason		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->cell = cell_debug_id;
+		    __entry->usage = usage;
+		    __entry->active = active;
+		    __entry->reason = reason;
+			   ),
+
+	    TP_printk("L=%08x %s u=%d a=%d",
+		      __entry->cell,
+		      __print_symbolic(__entry->reason, afs_cell_traces),
+		      __entry->usage,
+		      __entry->active)
 	    );
 
 #endif /* _TRACE_AFS_H */

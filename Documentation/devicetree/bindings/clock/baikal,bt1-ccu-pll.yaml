@@ -101,7 +101,7 @@ properties:
   clock-names:
     const: ref_clk
 
-unevaluatedProperties: false
+additionalProperties: false
 
 required:
   - compatible

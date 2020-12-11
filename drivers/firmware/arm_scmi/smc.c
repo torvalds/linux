@@ -137,7 +137,7 @@ smc_poll_done(struct scmi_chan_info *cinfo, struct scmi_xfer *xfer)
 	return shmem_poll_done(scmi_info->shmem, xfer);
 }
 
-static struct scmi_transport_ops scmi_smc_ops = {
+static const struct scmi_transport_ops scmi_smc_ops = {
 	.chan_available = smc_chan_available,
 	.chan_setup = smc_chan_setup,
 	.chan_free = smc_chan_free,

@@ -42,11 +42,6 @@ static inline struct exynos_dpi *encoder_to_dpi(struct drm_encoder *e)
 static enum drm_connector_status
 exynos_dpi_detect(struct drm_connector *connector, bool force)
 {
-	struct exynos_dpi *ctx = connector_to_dpi(connector);
-
-	if (ctx->panel)
-		drm_panel_attach(ctx->panel, &ctx->connector);
-
 	return connector_status_connected;
 }
 
@@ -248,9 +243,6 @@ int exynos_dpi_remove(struct drm_encoder *encoder)
 	struct exynos_dpi *ctx = encoder_to_dpi(encoder);
 
 	exynos_dpi_disable(&ctx->encoder);
-
-	if (ctx->panel)
-		drm_panel_detach(ctx->panel);
 
 	return 0;
 }

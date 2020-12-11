@@ -4,7 +4,7 @@
 # requires: kprobe_events
 
 ! grep -q 'myevent' kprobe_profile
-echo p:myevent _do_fork > kprobe_events
+echo p:myevent kernel_clone > kprobe_events
 grep -q 'myevent[[:space:]]*0[[:space:]]*0$' kprobe_profile
 echo 1 > events/kprobes/myevent/enable
 ( echo "forked" )

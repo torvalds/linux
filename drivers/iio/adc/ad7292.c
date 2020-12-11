@@ -310,8 +310,10 @@ static int ad7292_probe(struct spi_device *spi)
 
 	for_each_available_child_of_node(spi->dev.of_node, child) {
 		diff_channels = of_property_read_bool(child, "diff-channels");
-		if (diff_channels)
+		if (diff_channels) {
+			of_node_put(child);
 			break;
+		}
 	}
 
 	if (diff_channels) {

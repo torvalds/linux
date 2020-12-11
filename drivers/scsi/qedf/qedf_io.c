@@ -85,13 +85,13 @@ static void qedf_cmd_timeout(struct work_struct *work)
 		 */
 		QEDF_ERR(&(qedf->dbg_ctx), "ELS timeout, xid=0x%x.\n",
 			  io_req->xid);
+		qedf_initiate_cleanup(io_req, true);
 		io_req->event = QEDF_IOREQ_EV_ELS_TMO;
 		/* Call callback function to complete command */
 		if (io_req->cb_func && io_req->cb_arg) {
 			io_req->cb_func(io_req->cb_arg);
 			io_req->cb_arg = NULL;
 		}
-		qedf_initiate_cleanup(io_req, true);
 		kref_put(&io_req->refcount, qedf_release_cmd);
 		break;
 	case QEDF_SEQ_CLEANUP:
@@ -1562,6 +1562,8 @@ static void qedf_flush_els_req(struct qedf_ctx *qedf,
 	 */
 	els_req->event = QEDF_IOREQ_EV_ELS_FLUSH;
 
+	clear_bit(QEDF_CMD_OUTSTANDING, &els_req->flags);
+
 	/* Cancel the timer */
 	cancel_delayed_work_sync(&els_req->timeout_work);
 
@@ -1704,8 +1706,10 @@ void qedf_flush_active_ios(struct qedf_rport *fcport, int lun)
 				    io_req, io_req->xid);
 				continue;
 			}
+			qedf_initiate_cleanup(io_req, false);
 			flush_cnt++;
 			qedf_flush_els_req(qedf, io_req);
+
 			/*
 			 * Release the kref and go back to the top of the
 			 * loop.
@@ -2159,7 +2163,6 @@ int qedf_initiate_cleanup(struct qedf_ioreq *io_req,
 	/* Sanity check qedf_rport before dereferencing any pointers */
 	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
 		QEDF_ERR(NULL, "tgt not offloaded\n");
-		rc = 1;
 		return SUCCESS;
 	}
 
@@ -2167,6 +2170,10 @@ int qedf_initiate_cleanup(struct qedf_ioreq *io_req,
 	if (!qedf) {
 		QEDF_ERR(NULL, "qedf is NULL.\n");
 		return SUCCESS;
+	}
+
+	if (io_req->cmd_type == QEDF_ELS) {
+		goto process_els;
 	}
 
 	if (!test_bit(QEDF_CMD_OUTSTANDING, &io_req->flags) ||
@@ -2178,6 +2185,7 @@ int qedf_initiate_cleanup(struct qedf_ioreq *io_req,
 	}
 	set_bit(QEDF_CMD_IN_CLEANUP, &io_req->flags);
 
+process_els:
 	/* Ensure room on SQ */
 	if (!atomic_read(&fcport->free_sqes)) {
 		QEDF_ERR(&(qedf->dbg_ctx), "No SQ entries available\n");

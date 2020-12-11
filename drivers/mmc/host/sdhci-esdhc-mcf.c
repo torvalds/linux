@@ -509,6 +509,7 @@ static int sdhci_esdhc_mcf_remove(struct platform_device *pdev)
 static struct platform_driver sdhci_esdhc_mcf_driver = {
 	.driver	= {
 		.name = "sdhci-esdhc-mcf",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = sdhci_esdhc_mcf_probe,
 	.remove = sdhci_esdhc_mcf_remove,

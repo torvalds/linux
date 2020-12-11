@@ -23,7 +23,7 @@ extern long __mips_machines_end;
 
 #define MIPS_MACHINE(name)						\
 	static const struct mips_machine __mips_mach_##name		\
-		__used __section(.mips.machines.init)
+		__used __section(".mips.machines.init")
 
 #define for_each_mips_machine(mach)					\
 	for ((mach) = (struct mips_machine *)&__mips_machines_start;	\

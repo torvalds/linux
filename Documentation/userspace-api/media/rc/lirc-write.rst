@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: RC
 
 .. _lirc-write:
 
@@ -18,7 +12,6 @@ Name
 
 lirc-write - Write to a LIRC device
 
-
 Synopsis
 ========
 
@@ -26,9 +19,7 @@ Synopsis
 
     #include <unistd.h>
 
-
 .. c:function:: ssize_t write( int fd, void *buf, size_t count )
-    :name: lirc-write
 
 Arguments
 =========
@@ -45,7 +36,7 @@ Arguments
 Description
 ===========
 
-:ref:`write() <lirc-write>` writes up to ``count`` bytes to the device
+:c:func:`write()` writes up to ``count`` bytes to the device
 referenced by the file descriptor ``fd`` from the buffer starting at
 ``buf``.
 
@@ -70,7 +61,6 @@ set to 0, else ``EINVAL`` is returned. If there is no protocol encoder
 for the protocol or the scancode is not valid for the specified protocol,
 ``EINVAL`` is returned. The write function blocks until the scancode
 is transmitted by the hardware.
-
 
 Return Value
 ============

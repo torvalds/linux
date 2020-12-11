@@ -22,10 +22,9 @@ static void udp_bpf_rebuild_protos(struct proto *prot, const struct proto *base)
 	prot->close  = sock_map_close;
 }
 
-static void udp_bpf_check_v6_needs_rebuild(struct sock *sk, struct proto *ops)
+static void udp_bpf_check_v6_needs_rebuild(struct proto *ops)
 {
-	if (sk->sk_family == AF_INET6 &&
-	    unlikely(ops != smp_load_acquire(&udpv6_prot_saved))) {
+	if (unlikely(ops != smp_load_acquire(&udpv6_prot_saved))) {
 		spin_lock_bh(&udpv6_prot_lock);
 		if (likely(ops != udpv6_prot_saved)) {
 			udp_bpf_rebuild_protos(&udp_bpf_prots[UDP_BPF_IPV6], ops);
@@ -46,8 +45,8 @@ struct proto *udp_bpf_get_proto(struct sock *sk, struct sk_psock *psock)
 {
 	int family = sk->sk_family == AF_INET ? UDP_BPF_IPV4 : UDP_BPF_IPV6;
 
-	if (!psock->sk_proto)
-		udp_bpf_check_v6_needs_rebuild(sk, READ_ONCE(sk->sk_prot));
+	if (sk->sk_family == AF_INET6)
+		udp_bpf_check_v6_needs_rebuild(psock->sk_proto);
 
 	return &udp_bpf_prots[family];
 }

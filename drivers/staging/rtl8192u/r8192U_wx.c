@@ -138,7 +138,6 @@ static int r8192_wx_force_reset(struct net_device *dev,
 	priv->force_reset = *extra;
 	mutex_unlock(&priv->wx_mutex);
 	return 0;
-
 }
 
 static int r8192_wx_set_rawtx(struct net_device *dev,
@@ -155,7 +154,6 @@ static int r8192_wx_set_rawtx(struct net_device *dev,
 	mutex_unlock(&priv->wx_mutex);
 
 	return ret;
-
 }
 
 static int r8192_wx_set_crcmon(struct net_device *dev,
@@ -218,6 +216,7 @@ struct  iw_range_with_scan_capa {
 	/* Scan capabilities */
 	__u8            scan_capa;
 };
+
 static int rtl8180_wx_get_range(struct net_device *dev,
 				struct iw_request_info *info,
 				union iwreq_data *wrqu, char *extra)
@@ -251,7 +250,7 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 	/* range->old_num_channels; */
 	/* range->old_num_frequency; */
 	/* range->old_freq[6]; */ /* Filler to keep "version" at the same offset */
-	if (priv->rf_set_sens != NULL)
+	if (priv->rf_set_sens)
 		range->sensitivity = priv->max_sens;	/* signal level threshold range */
 
 	range->max_qual.qual = 100;
@@ -294,7 +293,6 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 	/* range->max_r_time; */	/* Maximal retry lifetime */
 
 	for (i = 0, val = 0; i < 14; i++) {
-
 		/* Include only legal frequencies for some countries */
 		if ((GET_DOT11D_INFO(priv->ieee80211)->channel_map)[i+1]) {
 			range->freq[val].i = i + 1;
@@ -350,11 +348,9 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 	return ret;
 }
 
-
 static int r8192_wx_get_scan(struct net_device *dev, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
 {
-
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -444,7 +440,6 @@ static int r8192_wx_set_frag(struct net_device *dev,
 	return 0;
 }
 
-
 static int r8192_wx_get_frag(struct net_device *dev,
 			     struct iw_request_info *info,
 			     union iwreq_data *wrqu, char *extra)
@@ -458,13 +453,11 @@ static int r8192_wx_get_frag(struct net_device *dev,
 	return 0;
 }
 
-
 static int r8192_wx_set_wap(struct net_device *dev,
 			 struct iw_request_info *info,
 			 union iwreq_data *awrq,
 			 char *extra)
 {
-
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	/* struct sockaddr *temp = (struct sockaddr *)awrq; */
@@ -475,7 +468,6 @@ static int r8192_wx_set_wap(struct net_device *dev,
 	mutex_unlock(&priv->wx_mutex);
 
 	return ret;
-
 }
 
 static int r8192_wx_get_wap(struct net_device *dev,
@@ -522,11 +514,8 @@ static int r8192_wx_set_enc(struct net_device *dev,
 
 	mutex_unlock(&priv->wx_mutex);
 
-
-
 	/* sometimes, the length is zero while we do not type key value */
 	if (wrqu->encoding.length != 0) {
-
 		for (i = 0; i < 4; i++) {
 			hwkey[i] |=  key[4*i+0]&mask;
 			if (i == 1 && (4*i+1) == wrqu->encoding.length)
@@ -572,10 +561,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 				zero_addr[key_idx],
 				0,                      /* DefaultKey */
 				hwkey);                 /* KeyContent */
-
-		}
-
-		else if (wrqu->encoding.length == 0xd) {
+		} else if (wrqu->encoding.length == 0xd) {
 			ieee->pairwise_key_type = KEY_TYPE_WEP104;
 			EnableHWSecurityConfig8192(dev);
 
@@ -586,21 +572,17 @@ static int r8192_wx_set_enc(struct net_device *dev,
 				zero_addr[key_idx],
 				0,                      /* DefaultKey */
 				hwkey);                 /* KeyContent */
-
 		} else {
 			netdev_warn(dev, "wrong type in WEP, not WEP40 and WEP104\n");
 		}
-
 	}
 
 	return ret;
 }
 
-
 static int r8192_wx_set_scan_type(struct net_device *dev, struct iw_request_info *aa,
 					union iwreq_data *wrqu, char *p)
 {
-
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int *parms = (int *)p;
 	int mode = parms[0];
@@ -609,8 +591,6 @@ static int r8192_wx_set_scan_type(struct net_device *dev, struct iw_request_info
 
 	return 1;
 }
-
-
 
 static int r8192_wx_set_retry(struct net_device *dev,
 				struct iw_request_info *info,
@@ -663,7 +643,6 @@ static int r8192_wx_get_retry(struct net_device *dev,
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-
 	wrqu->retry.disabled = 0; /* can't be disabled */
 
 	if ((wrqu->retry.flags & IW_RETRY_TYPE) ==
@@ -687,7 +666,7 @@ static int r8192_wx_get_sens(struct net_device *dev,
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if (priv->rf_set_sens == NULL)
+	if (!priv->rf_set_sens)
 		return -1; /* we have not this support for this radio */
 	wrqu->sens.value = priv->sens;
 	return 0;
@@ -697,12 +676,11 @@ static int r8192_wx_set_sens(struct net_device *dev,
 				struct iw_request_info *info,
 				union iwreq_data *wrqu, char *extra)
 {
-
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	short err = 0;
 
 	mutex_lock(&priv->wx_mutex);
-	if (priv->rf_set_sens == NULL) {
+	if (!priv->rf_set_sens) {
 		err = -1; /* we have not this support for this radio */
 		goto exit;
 	}
@@ -725,7 +703,6 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 	int ret = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device *ieee = priv->ieee80211;
-
 
 	mutex_lock(&priv->wx_mutex);
 	ret = ieee80211_wx_set_encode_ext(priv->ieee80211, info, wrqu, extra);
@@ -758,7 +735,6 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 		memcpy((u8 *)key, ext->key, 16); /* we only get 16 bytes key.why? WB 2008.7.1 */
 
 		if ((alg & KEY_TYPE_WEP40) && (ieee->auth_mode != 2)) {
-
 			setKey(dev,
 					idx,	/* EntryNao */
 					idx,	/* KeyIndex */
@@ -784,16 +760,14 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 					0,			/* DefaultKey */
 					key);			/* KeyContent */
 		}
-
-
 	}
 
 end_hw_sec:
 
 	mutex_unlock(&priv->wx_mutex);
 	return ret;
-
 }
+
 static int r8192_wx_set_auth(struct net_device *dev,
 					struct iw_request_info *info,
 					union iwreq_data *data, char *extra)
@@ -811,7 +785,6 @@ static int r8192_wx_set_mlme(struct net_device *dev,
 					struct iw_request_info *info,
 					union iwreq_data *wrqu, char *extra)
 {
-
 	int ret = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -833,8 +806,6 @@ static int r8192_wx_set_gen_ie(struct net_device *dev,
 	ret = ieee80211_wx_set_gen_ie(priv->ieee80211, extra, data->data.length);
 	mutex_unlock(&priv->wx_mutex);
 	return ret;
-
-
 }
 
 static int dummy(struct net_device *dev, struct iw_request_info *a,

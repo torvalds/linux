@@ -17,6 +17,7 @@ properties:
       - allwinner,sun8i-h3-ths
       - allwinner,sun8i-r40-ths
       - allwinner,sun50i-a64-ths
+      - allwinner,sun50i-a100-ths
       - allwinner,sun50i-h5-ths
       - allwinner,sun50i-h6-ths
 
@@ -61,7 +62,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: allwinner,sun50i-h6-ths
+            enum:
+              - allwinner,sun50i-a100-ths
+              - allwinner,sun50i-h6-ths
 
     then:
       properties:
@@ -103,6 +106,7 @@ allOf:
               - const: allwinner,sun8i-h3-ths
               - const: allwinner,sun8i-r40-ths
               - const: allwinner,sun50i-a64-ths
+              - const: allwinner,sun50i-a100-ths
               - const: allwinner,sun50i-h5-ths
               - const: allwinner,sun50i-h6-ths
 

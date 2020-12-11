@@ -25,7 +25,7 @@
 /*
  * MEI Version
  */
-#define HBM_MINOR_VERSION                   1
+#define HBM_MINOR_VERSION                   2
 #define HBM_MAJOR_VERSION                   2
 
 /*
@@ -76,6 +76,18 @@
 #define HBM_MINOR_VERSION_DR               1
 #define HBM_MAJOR_VERSION_DR               2
 
+/*
+ * MEI version with vm tag support
+ */
+#define HBM_MINOR_VERSION_VT               2
+#define HBM_MAJOR_VERSION_VT               2
+
+/*
+ * MEI version with capabilities message support
+ */
+#define HBM_MINOR_VERSION_CAP              2
+#define HBM_MAJOR_VERSION_CAP              2
+
 /* Host bus message command opcode */
 #define MEI_HBM_CMD_OP_MSK                  0x7f
 /* Host bus message command RESPONSE */
@@ -120,6 +132,9 @@
 
 #define MEI_HBM_DMA_SETUP_REQ_CMD           0x12
 #define MEI_HBM_DMA_SETUP_RES_CMD           0x92
+
+#define MEI_HBM_CAPABILITIES_REQ_CMD        0x13
+#define MEI_HBM_CAPABILITIES_RES_CMD        0x93
 
 /*
  * MEI Stop Reason
@@ -182,9 +197,94 @@ enum mei_cl_connect_status {
 /*
  * Client Disconnect Status
  */
-enum  mei_cl_disconnect_status {
+enum mei_cl_disconnect_status {
 	MEI_CL_DISCONN_SUCCESS = MEI_HBMS_SUCCESS
 };
+
+/**
+ * enum mei_ext_hdr_type - extended header type used in
+ *    extended header TLV
+ *
+ * @MEI_EXT_HDR_NONE: sentinel
+ * @MEI_EXT_HDR_VTAG: vtag header
+ */
+enum mei_ext_hdr_type {
+	MEI_EXT_HDR_NONE = 0,
+	MEI_EXT_HDR_VTAG = 1,
+};
+
+/**
+ * struct mei_ext_hdr - extend header descriptor (TLV)
+ * @type: enum mei_ext_hdr_type
+ * @length: length excluding descriptor
+ * @ext_payload: payload of the specific extended header
+ * @hdr: place holder for actual header
+ */
+struct mei_ext_hdr {
+	u8 type;
+	u8 length;
+	u8 ext_payload[2];
+	u8 hdr[0];
+};
+
+/**
+ * struct mei_ext_meta_hdr - extend header meta data
+ * @count: number of headers
+ * @size: total size of the extended header list excluding meta header
+ * @reserved: reserved
+ * @hdrs: extended headers TLV list
+ */
+struct mei_ext_meta_hdr {
+	u8 count;
+	u8 size;
+	u8 reserved[2];
+	struct mei_ext_hdr hdrs[0];
+};
+
+/*
+ * Extended header iterator functions
+ */
+/**
+ * mei_ext_hdr - extended header iterator begin
+ *
+ * @meta: meta header of the extended header list
+ *
+ * Return:
+ *     The first extended header
+ */
+static inline struct mei_ext_hdr *mei_ext_begin(struct mei_ext_meta_hdr *meta)
+{
+	return meta->hdrs;
+}
+
+/**
+ * mei_ext_last - check if the ext is the last one in the TLV list
+ *
+ * @meta: meta header of the extended header list
+ * @ext: a meta header on the list
+ *
+ * Return: true if ext is the last header on the list
+ */
+static inline bool mei_ext_last(struct mei_ext_meta_hdr *meta,
+				struct mei_ext_hdr *ext)
+{
+	return (u8 *)ext >= (u8 *)meta + sizeof(*meta) + (meta->size * 4);
+}
+
+/**
+ *mei_ext_next - following extended header on the TLV list
+ *
+ * @ext: current extend header
+ *
+ * Context: The function does not check for the overflows,
+ *          one should call mei_ext_last before.
+ *
+ * Return: The following extend header after @ext
+ */
+static inline struct mei_ext_hdr *mei_ext_next(struct mei_ext_hdr *ext)
+{
+	return (struct mei_ext_hdr *)(ext->hdr + (ext->length * 4));
+}
 
 /**
  * struct mei_msg_hdr - MEI BUS Interface Section
@@ -193,6 +293,7 @@ enum  mei_cl_disconnect_status {
  * @host_addr: host address
  * @length: message length
  * @reserved: reserved
+ * @extended: message has extended header
  * @dma_ring: message is on dma ring
  * @internal: message is internal
  * @msg_complete: last packet of the message
@@ -202,7 +303,8 @@ struct mei_msg_hdr {
 	u32 me_addr:8;
 	u32 host_addr:8;
 	u32 length:9;
-	u32 reserved:4;
+	u32 reserved:3;
+	u32 extended:1;
 	u32 dma_ring:1;
 	u32 internal:1;
 	u32 msg_complete:1;
@@ -211,8 +313,6 @@ struct mei_msg_hdr {
 
 /* The length is up to 9 bits */
 #define MEI_MSG_MAX_LEN_MASK GENMASK(9, 0)
-
-#define MEI_MSG_HDR_MAX 2
 
 struct mei_bus_message {
 	u8 hbm_cmd;
@@ -299,13 +399,26 @@ struct hbm_host_enum_response {
 	u8 valid_addresses[32];
 } __packed;
 
+/**
+ * struct mei_client_properties - mei client properties
+ *
+ * @protocol_name: guid of the client
+ * @protocol_version: client protocol version
+ * @max_number_of_connections: number of possible connections.
+ * @fixed_address: fixed me address (0 if the client is dynamic)
+ * @single_recv_buf: 1 if all connections share a single receive buffer.
+ * @vt_supported: the client support vtag
+ * @reserved: reserved
+ * @max_msg_length: MTU of the client
+ */
 struct mei_client_properties {
 	uuid_le protocol_name;
 	u8 protocol_version;
 	u8 max_number_of_connections;
 	u8 fixed_address;
 	u8 single_recv_buf:1;
-	u8 reserved:7;
+	u8 vt_supported:1;
+	u8 reserved:6;
 	u32 max_msg_length;
 } __packed;
 
@@ -531,6 +644,31 @@ struct hbm_dma_ring_ctrl {
 	u32 reserved3;
 	u32 dbuf_rd_idx;
 	u32 reserved4;
+} __packed;
+
+/* virtual tag supported */
+#define HBM_CAP_VT BIT(0)
+
+/**
+ * struct hbm_capability_request - capability request from host to fw
+ *
+ * @hbm_cmd : bus message command header
+ * @capability_requested: bitmask of capabilities requested by host
+ */
+struct hbm_capability_request {
+	u8 hbm_cmd;
+	u8 capability_requested[3];
+} __packed;
+
+/**
+ * struct hbm_capability_response - capability response from fw to host
+ *
+ * @hbm_cmd : bus message command header
+ * @capability_granted: bitmask of capabilities granted by FW
+ */
+struct hbm_capability_response {
+	u8 hbm_cmd;
+	u8 capability_granted[3];
 } __packed;
 
 #endif

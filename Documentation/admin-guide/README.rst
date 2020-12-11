@@ -322,9 +322,9 @@ Compiling the kernel
    reboot, and enjoy!
 
    If you ever need to change the default root device, video mode,
-   ramdisk size, etc.  in the kernel image, use the ``rdev`` program (or
-   alternatively the LILO boot options when appropriate).  No need to
-   recompile the kernel to change these parameters.
+   etc. in the kernel image, use your bootloader's boot options
+   where appropriate.  No need to recompile the kernel to change
+   these parameters.
 
  - Reboot with the new kernel and enjoy.
 

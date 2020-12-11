@@ -55,53 +55,6 @@ static int adis_validate_irq_flag(struct adis *adis)
 
 	return 0;
 }
-/**
- * adis_probe_trigger() - Sets up trigger for a adis device
- * @adis: The adis device
- * @indio_dev: The IIO device
- *
- * Returns 0 on success or a negative error code
- *
- * adis_remove_trigger() should be used to free the trigger.
- */
-int adis_probe_trigger(struct adis *adis, struct iio_dev *indio_dev)
-{
-	int ret;
-
-	adis->trig = iio_trigger_alloc("%s-dev%d", indio_dev->name,
-					indio_dev->id);
-	if (adis->trig == NULL)
-		return -ENOMEM;
-
-	adis_trigger_setup(adis);
-
-	ret = adis_validate_irq_flag(adis);
-	if (ret)
-		return ret;
-
-	ret = request_irq(adis->spi->irq,
-			  &iio_trigger_generic_data_rdy_poll,
-			  adis->irq_flag,
-			  indio_dev->name,
-			  adis->trig);
-	if (ret)
-		goto error_free_trig;
-
-	ret = iio_trigger_register(adis->trig);
-
-	indio_dev->trig = iio_trigger_get(adis->trig);
-	if (ret)
-		goto error_free_irq;
-
-	return 0;
-
-error_free_irq:
-	free_irq(adis->spi->irq, adis->trig);
-error_free_trig:
-	iio_trigger_free(adis->trig);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(adis_probe_trigger);
 
 /**
  * devm_adis_probe_trigger() - Sets up trigger for a managed adis device
@@ -137,16 +90,3 @@ int devm_adis_probe_trigger(struct adis *adis, struct iio_dev *indio_dev)
 }
 EXPORT_SYMBOL_GPL(devm_adis_probe_trigger);
 
-/**
- * adis_remove_trigger() - Remove trigger for a adis devices
- * @adis: The adis device
- *
- * Removes the trigger previously registered with adis_probe_trigger().
- */
-void adis_remove_trigger(struct adis *adis)
-{
-	iio_trigger_unregister(adis->trig);
-	free_irq(adis->spi->irq, adis->trig);
-	iio_trigger_free(adis->trig);
-}
-EXPORT_SYMBOL_GPL(adis_remove_trigger);

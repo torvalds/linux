@@ -1091,8 +1091,8 @@ static const struct nla_policy br_policy[IFLA_BR_MAX + 1] = {
 	[IFLA_BR_MCAST_IGMP_VERSION] = { .type = NLA_U8 },
 	[IFLA_BR_MCAST_MLD_VERSION] = { .type = NLA_U8 },
 	[IFLA_BR_VLAN_STATS_PER_PORT] = { .type = NLA_U8 },
-	[IFLA_BR_MULTI_BOOLOPT] = { .type = NLA_EXACT_LEN,
-				    .len = sizeof(struct br_boolopt_multi) },
+	[IFLA_BR_MULTI_BOOLOPT] =
+		NLA_POLICY_EXACT_LEN(sizeof(struct br_boolopt_multi)),
 };
 
 static int br_changelink(struct net_device *brdev, struct nlattr *tb[],

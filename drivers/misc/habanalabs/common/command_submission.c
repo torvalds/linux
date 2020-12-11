@@ -38,26 +38,10 @@ void hl_sob_reset_error(struct kref *ref)
 			hw_sob->q_idx, hw_sob->sob_id);
 }
 
-static const char *hl_fence_get_driver_name(struct dma_fence *fence)
+static void hl_fence_release(struct kref *kref)
 {
-	return "HabanaLabs";
-}
-
-static const char *hl_fence_get_timeline_name(struct dma_fence *fence)
-{
-	struct hl_cs_compl *hl_cs_compl =
-		container_of(fence, struct hl_cs_compl, base_fence);
-
-	return dev_name(hl_cs_compl->hdev->dev);
-}
-
-static bool hl_fence_enable_signaling(struct dma_fence *fence)
-{
-	return true;
-}
-
-static void hl_fence_release(struct dma_fence *fence)
-{
+	struct hl_fence *fence =
+		container_of(kref, struct hl_fence, refcount);
 	struct hl_cs_compl *hl_cs_cmpl =
 		container_of(fence, struct hl_cs_compl, base_fence);
 	struct hl_device *hdev = hl_cs_cmpl->hdev;
@@ -99,15 +83,27 @@ static void hl_fence_release(struct dma_fence *fence)
 	}
 
 free:
-	kfree_rcu(hl_cs_cmpl, base_fence.rcu);
+	kfree(hl_cs_cmpl);
 }
 
-static const struct dma_fence_ops hl_fence_ops = {
-	.get_driver_name = hl_fence_get_driver_name,
-	.get_timeline_name = hl_fence_get_timeline_name,
-	.enable_signaling = hl_fence_enable_signaling,
-	.release = hl_fence_release
-};
+void hl_fence_put(struct hl_fence *fence)
+{
+	if (fence)
+		kref_put(&fence->refcount, hl_fence_release);
+}
+
+void hl_fence_get(struct hl_fence *fence)
+{
+	if (fence)
+		kref_get(&fence->refcount);
+}
+
+static void hl_fence_init(struct hl_fence *fence)
+{
+	kref_init(&fence->refcount);
+	fence->error = 0;
+	init_completion(&fence->completion);
+}
 
 static void cs_get(struct hl_cs *cs)
 {
@@ -256,6 +252,8 @@ static void cs_counters_aggregate(struct hl_device *hdev, struct hl_ctx *ctx)
 			ctx->cs_counters.parsing_drop_cnt;
 	hdev->aggregated_cs_counters.queue_full_drop_cnt +=
 			ctx->cs_counters.queue_full_drop_cnt;
+	hdev->aggregated_cs_counters.max_cs_in_flight_drop_cnt +=
+			ctx->cs_counters.max_cs_in_flight_drop_cnt;
 }
 
 static void cs_do_release(struct kref *ref)
@@ -336,7 +334,7 @@ static void cs_do_release(struct kref *ref)
 		 * In case the wait for signal CS was submitted, the put occurs
 		 * in init_signal_wait_cs() right before hanging on the PQ.
 		 */
-		dma_fence_put(cs->signal_fence);
+		hl_fence_put(cs->signal_fence);
 	}
 
 	/*
@@ -348,19 +346,18 @@ static void cs_do_release(struct kref *ref)
 	hl_ctx_put(cs->ctx);
 
 	/* We need to mark an error for not submitted because in that case
-	 * the dma fence release flow is different. Mainly, we don't need
+	 * the hl fence release flow is different. Mainly, we don't need
 	 * to handle hw_sob for signal/wait
 	 */
 	if (cs->timedout)
-		dma_fence_set_error(cs->fence, -ETIMEDOUT);
+		cs->fence->error = -ETIMEDOUT;
 	else if (cs->aborted)
-		dma_fence_set_error(cs->fence, -EIO);
+		cs->fence->error = -EIO;
 	else if (!cs->submitted)
-		dma_fence_set_error(cs->fence, -EBUSY);
+		cs->fence->error = -EBUSY;
 
-	dma_fence_signal(cs->fence);
-	dma_fence_put(cs->fence);
-
+	complete_all(&cs->fence->completion);
+	hl_fence_put(cs->fence);
 	cs_counters_aggregate(hdev, cs->ctx);
 
 	kfree(cs->jobs_in_queue_cnt);
@@ -401,7 +398,7 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 			enum hl_cs_type cs_type, struct hl_cs **cs_new)
 {
 	struct hl_cs_compl *cs_cmpl;
-	struct dma_fence *other = NULL;
+	struct hl_fence *other = NULL;
 	struct hl_cs *cs;
 	int rc;
 
@@ -434,9 +431,11 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	cs_cmpl->cs_seq = ctx->cs_sequence;
 	other = ctx->cs_pending[cs_cmpl->cs_seq &
 				(hdev->asic_prop.max_pending_cs - 1)];
-	if ((other) && (!dma_fence_is_signaled(other))) {
-		dev_dbg(hdev->dev,
+
+	if (other && !completion_done(&other->completion)) {
+		dev_dbg_ratelimited(hdev->dev,
 			"Rejecting CS because of too many in-flights CS\n");
+		ctx->cs_counters.max_cs_in_flight_drop_cnt++;
 		rc = -EAGAIN;
 		goto free_fence;
 	}
@@ -448,8 +447,8 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 		goto free_fence;
 	}
 
-	dma_fence_init(&cs_cmpl->base_fence, &hl_fence_ops, &cs_cmpl->lock,
-			ctx->asid, ctx->cs_sequence);
+	/* init hl_fence */
+	hl_fence_init(&cs_cmpl->base_fence);
 
 	cs->sequence = cs_cmpl->cs_seq;
 
@@ -458,9 +457,9 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 							&cs_cmpl->base_fence;
 	ctx->cs_sequence++;
 
-	dma_fence_get(&cs_cmpl->base_fence);
+	hl_fence_get(&cs_cmpl->base_fence);
 
-	dma_fence_put(other);
+	hl_fence_put(other);
 
 	spin_unlock(&ctx->cs_lock);
 
@@ -690,8 +689,8 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 			rc = -ENOMEM;
 			if (is_kernel_allocated_cb)
 				goto release_cb;
-			else
-				goto free_cs_object;
+
+			goto free_cs_object;
 		}
 
 		job->id = i + 1;
@@ -773,7 +772,7 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	struct hl_ctx *ctx = hpriv->ctx;
 	struct hl_cs_chunk *cs_chunk_array, *chunk;
 	struct hw_queue_properties *hw_queue_prop;
-	struct dma_fence *sig_fence = NULL;
+	struct hl_fence *sig_fence = NULL;
 	struct hl_cs_job *job;
 	struct hl_cs *cs;
 	struct hl_cb *cb;
@@ -883,14 +882,14 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 			dev_err(hdev->dev,
 				"CS seq 0x%llx is not of a signal CS\n",
 				signal_seq);
-			dma_fence_put(sig_fence);
+			hl_fence_put(sig_fence);
 			rc = -EINVAL;
 			goto free_signal_seq_array;
 		}
 
-		if (dma_fence_is_signaled(sig_fence)) {
+		if (completion_done(&sig_fence->completion)) {
 			/* signal CS already finished */
-			dma_fence_put(sig_fence);
+			hl_fence_put(sig_fence);
 			rc = 0;
 			goto free_signal_seq_array;
 		}
@@ -902,7 +901,7 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	rc = allocate_cs(hdev, ctx, cs_type, &cs);
 	if (rc) {
 		if (cs_type == CS_TYPE_WAIT)
-			dma_fence_put(sig_fence);
+			hl_fence_put(sig_fence);
 		hl_ctx_put(ctx);
 		goto free_signal_seq_array;
 	}
@@ -1162,7 +1161,7 @@ out:
 static long _hl_cs_wait_ioctl(struct hl_device *hdev,
 		struct hl_ctx *ctx, u64 timeout_us, u64 seq)
 {
-	struct dma_fence *fence;
+	struct hl_fence *fence;
 	unsigned long timeout;
 	long rc;
 
@@ -1181,12 +1180,18 @@ static long _hl_cs_wait_ioctl(struct hl_device *hdev,
 				"Can't wait on CS %llu because current CS is at seq %llu\n",
 				seq, ctx->cs_sequence);
 	} else if (fence) {
-		rc = dma_fence_wait_timeout(fence, true, timeout);
+		if (!timeout_us)
+			rc = completion_done(&fence->completion);
+		else
+			rc = wait_for_completion_interruptible_timeout(
+					&fence->completion, timeout);
+
 		if (fence->error == -ETIMEDOUT)
 			rc = -ETIMEDOUT;
 		else if (fence->error == -EIO)
 			rc = -EIO;
-		dma_fence_put(fence);
+
+		hl_fence_put(fence);
 	} else {
 		dev_dbg(hdev->dev,
 			"Can't wait on seq %llu because current CS is at seq %llu (Fence is gone)\n",

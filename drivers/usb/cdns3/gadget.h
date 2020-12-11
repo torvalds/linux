@@ -966,7 +966,7 @@ struct cdns3_usb_regs {
 /*
  * USBSS-DEV DMA interface.
  */
-#define TRBS_PER_SEGMENT	40
+#define TRBS_PER_SEGMENT	600
 
 #define ISO_MAX_INTERVAL	10
 
@@ -1030,6 +1030,11 @@ struct cdns3_trb {
  * When set to '1', the device will toggle its interpretation of the Cycle bit
  */
 #define TRB_TOGGLE		BIT(1)
+/*
+ * The controller will set it if OUTSMM (OUT size mismatch) is detected,
+ * this bit is for normal TRB
+ */
+#define TRB_SMM			BIT(1)
 
 /*
  * Short Packet (SP). OUT EPs at DMULT=1 only. Indicates if the TRB was
@@ -1215,6 +1220,8 @@ struct cdns3_aligned_buf {
  *               this endpoint
  * @flags: flag specifying special usage of request
  * @list: used by internally allocated request to add to wa2_descmiss_req_list.
+ * @finished_trb: number of trb has already finished per request
+ * @num_of_trb: how many trbs in this request
  */
 struct cdns3_request {
 	struct usb_request		request;
@@ -1230,6 +1237,8 @@ struct cdns3_request {
 #define REQUEST_UNALIGNED		BIT(4)
 	u32				flags;
 	struct list_head		list;
+	int				finished_trb;
+	int				num_of_trb;
 };
 
 #define to_cdns3_request(r) (container_of(r, struct cdns3_request, request))

@@ -28,7 +28,8 @@
 #include <linux/uaccess.h>
 
 struct raw_device_data {
-	struct block_device *binding;
+	dev_t binding;
+	struct block_device *bdev;
 	int inuse;
 };
 
@@ -63,19 +64,25 @@ static int raw_open(struct inode *inode, struct file *filp)
 		return 0;
 	}
 
+	pr_warn_ratelimited(
+		"process %s (pid %d) is using the deprecated raw device\n"
+		"support will be removed in Linux 5.14.\n",
+		current->comm, current->pid);
+
 	mutex_lock(&raw_mutex);
 
 	/*
 	 * All we need to do on open is check that the device is bound.
 	 */
-	bdev = raw_devices[minor].binding;
 	err = -ENODEV;
-	if (!bdev)
+	if (!raw_devices[minor].binding)
 		goto out;
-	bdgrab(bdev);
-	err = blkdev_get(bdev, filp->f_mode | FMODE_EXCL, raw_open);
-	if (err)
+	bdev = blkdev_get_by_dev(raw_devices[minor].binding,
+				 filp->f_mode | FMODE_EXCL, raw_open);
+	if (IS_ERR(bdev)) {
+		err = PTR_ERR(bdev);
 		goto out;
+	}
 	err = set_blocksize(bdev, bdev_logical_block_size(bdev));
 	if (err)
 		goto out1;
@@ -85,6 +92,7 @@ static int raw_open(struct inode *inode, struct file *filp)
 		file_inode(filp)->i_mapping =
 			bdev->bd_inode->i_mapping;
 	filp->private_data = bdev;
+	raw_devices[minor].bdev = bdev;
 	mutex_unlock(&raw_mutex);
 	return 0;
 
@@ -105,7 +113,7 @@ static int raw_release(struct inode *inode, struct file *filp)
 	struct block_device *bdev;
 
 	mutex_lock(&raw_mutex);
-	bdev = raw_devices[minor].binding;
+	bdev = raw_devices[minor].bdev;
 	if (--raw_devices[minor].inuse == 0)
 		/* Here  inode->i_mapping == bdev->bd_inode->i_mapping  */
 		inode->i_mapping = &inode->i_data;
@@ -128,6 +136,7 @@ raw_ioctl(struct file *filp, unsigned int command, unsigned long arg)
 static int bind_set(int number, u64 major, u64 minor)
 {
 	dev_t dev = MKDEV(major, minor);
+	dev_t raw = MKDEV(RAW_MAJOR, number);
 	struct raw_device_data *rawdev;
 	int err = 0;
 
@@ -161,25 +170,17 @@ static int bind_set(int number, u64 major, u64 minor)
 		mutex_unlock(&raw_mutex);
 		return -EBUSY;
 	}
-	if (rawdev->binding) {
-		bdput(rawdev->binding);
+	if (rawdev->binding)
 		module_put(THIS_MODULE);
-	}
+
+	rawdev->binding = dev;
 	if (!dev) {
 		/* unbind */
-		rawdev->binding = NULL;
-		device_destroy(raw_class, MKDEV(RAW_MAJOR, number));
+		device_destroy(raw_class, raw);
 	} else {
-		rawdev->binding = bdget(dev);
-		if (rawdev->binding == NULL) {
-			err = -ENOMEM;
-		} else {
-			dev_t raw = MKDEV(RAW_MAJOR, number);
-			__module_get(THIS_MODULE);
-			device_destroy(raw_class, raw);
-			device_create(raw_class, NULL, raw, NULL,
-				      "raw%d", number);
-		}
+		__module_get(THIS_MODULE);
+		device_destroy(raw_class, raw);
+		device_create(raw_class, NULL, raw, NULL, "raw%d", number);
 	}
 	mutex_unlock(&raw_mutex);
 	return err;
@@ -187,18 +188,9 @@ static int bind_set(int number, u64 major, u64 minor)
 
 static int bind_get(int number, dev_t *dev)
 {
-	struct raw_device_data *rawdev;
-	struct block_device *bdev;
-
 	if (number <= 0 || number >= max_raw_minors)
 		return -EINVAL;
-
-	rawdev = &raw_devices[number];
-
-	mutex_lock(&raw_mutex);
-	bdev = rawdev->binding;
-	*dev = bdev ? bdev->bd_dev : 0;
-	mutex_unlock(&raw_mutex);
+	*dev = raw_devices[number].binding;
 	return 0;
 }
 

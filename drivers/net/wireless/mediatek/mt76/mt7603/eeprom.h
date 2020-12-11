@@ -85,4 +85,7 @@ enum mt7603_eeprom_source {
 	MT_EE_SRC_FLASH,
 };
 
+#define MT_EE_NIC_CONF_0_RX_PATH		GENMASK(3, 0)
+#define MT_EE_NIC_CONF_0_TX_PATH		GENMASK(7, 4)
+
 #endif

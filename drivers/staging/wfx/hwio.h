@@ -2,7 +2,7 @@
 /*
  * Low-level API.
  *
- * Copyright (c) 2017-2018, Silicon Laboratories, Inc.
+ * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  */
 #ifndef WFX_HWIO_H

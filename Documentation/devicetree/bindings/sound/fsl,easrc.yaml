@@ -74,6 +74,8 @@ required:
   - fsl,asrc-rate
   - fsl,asrc-format
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/clock/imx8mn-clock.h>

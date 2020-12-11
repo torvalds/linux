@@ -180,7 +180,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz
 	if (!hpdp)
 		return NULL;
 
-	if (IS_ENABLED(CONFIG_PPC_8xx) && sz == SZ_512K)
+	if (IS_ENABLED(CONFIG_PPC_8xx) && pshift < PMD_SHIFT)
 		return pte_alloc_map(mm, (pmd_t *)hpdp, addr);
 
 	BUG_ON(!hugepd_none(*hpdp) && !hugepd_ok(*hpdp));
@@ -330,9 +330,23 @@ static void free_hugepd_range(struct mmu_gather *tlb, hugepd_t *hpdp, int pdshif
 				 get_hugepd_cache_index(pdshift - shift));
 }
 
-static void hugetlb_free_pte_range(struct mmu_gather *tlb, pmd_t *pmd, unsigned long addr)
+static void hugetlb_free_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
+				   unsigned long addr, unsigned long end,
+				   unsigned long floor, unsigned long ceiling)
 {
+	unsigned long start = addr;
 	pgtable_t token = pmd_pgtable(*pmd);
+
+	start &= PMD_MASK;
+	if (start < floor)
+		return;
+	if (ceiling) {
+		ceiling &= PMD_MASK;
+		if (!ceiling)
+			return;
+	}
+	if (end - 1 > ceiling - 1)
+		return;
 
 	pmd_clear(pmd);
 	pte_free_tlb(tlb, token, addr);
@@ -363,7 +377,7 @@ static void hugetlb_free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
 			 */
 			WARN_ON(!IS_ENABLED(CONFIG_PPC_8xx));
 
-			hugetlb_free_pte_range(tlb, pmd, addr);
+			hugetlb_free_pte_range(tlb, pmd, addr, end, floor, ceiling);
 
 			continue;
 		}

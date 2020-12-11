@@ -15,17 +15,14 @@ static u16 enetc_get_max_gcl_len(struct enetc_hw *hw)
 		& ENETC_QBV_MAX_GCL_LEN_MASK;
 }
 
-void enetc_sched_speed_set(struct net_device *ndev)
+void enetc_sched_speed_set(struct enetc_ndev_priv *priv, int speed)
 {
-	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	struct phy_device *phydev = ndev->phydev;
 	u32 old_speed = priv->speed;
-	u32 speed, pspeed;
+	u32 pspeed;
 
-	if (phydev->speed == old_speed)
+	if (speed == old_speed)
 		return;
 
-	speed = phydev->speed;
 	switch (speed) {
 	case SPEED_1000:
 		pspeed = ENETC_PMR_PSPEED_1000M;

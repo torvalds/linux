@@ -2,6 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <asm/lowcore.h>
+#include <asm/setup.h>
 #include <asm/sclp.h>
 #include "boot.h"
 
@@ -32,7 +33,8 @@ void print_pgm_check_info(void)
 	char *p;
 
 	add_str(buf, "Linux version ");
-	strlcat(buf, kernel_version, sizeof(buf));
+	strlcat(buf, kernel_version, sizeof(buf) - 1);
+	strlcat(buf, "\n", sizeof(buf));
 	sclp_early_printk(buf);
 
 	p = add_str(buf, "Kernel fault: interruption code ");
@@ -41,6 +43,13 @@ void print_pgm_check_info(void)
 	*p++ = hex_asc_lo(ilc);
 	add_str(p, "\n");
 	sclp_early_printk(buf);
+
+	if (kaslr_enabled) {
+		p = add_str(buf, "Kernel random base: ");
+		p = add_val_as_hex(p, __kaslr_offset);
+		add_str(p, "\n");
+		sclp_early_printk(buf);
+	}
 
 	p = add_str(buf, "PSW : ");
 	p = add_val_as_hex(p, S390_lowcore.psw_save_area.mask);

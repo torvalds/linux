@@ -20,6 +20,8 @@ properties:
 required:
   - "#pwm-cells"
 
+additionalProperties: true
+
 examples:
   - |
     pwm: pwm@7000a000 {

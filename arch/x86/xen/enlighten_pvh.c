@@ -21,7 +21,7 @@
  * The variable xen_pvh needs to live in the data segment since it is used
  * after startup_{32|64} is invoked, which will clear the .bss segment.
  */
-bool xen_pvh __attribute__((section(".data"))) = 0;
+bool xen_pvh __section(".data") = 0;
 
 void __init xen_pvh_init(struct boot_params *boot_params)
 {

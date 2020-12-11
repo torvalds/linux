@@ -9184,6 +9184,8 @@
 #define mmRLC_GPM_THREAD_ENABLE_BASE_IDX                                                               1
 #define mmRLC_RLCG_DOORBELL_RANGE                                                                      0x4c47
 #define mmRLC_RLCG_DOORBELL_RANGE_BASE_IDX                                                             1
+#define mmRLC_CGTT_MGCG_OVERRIDE                                                                       0x4c48
+#define mmRLC_CGTT_MGCG_OVERRIDE_BASE_IDX                                                              1
 #define mmRLC_CGCG_CGLS_CTRL                                                                           0x4c49
 #define mmRLC_CGCG_CGLS_CTRL_BASE_IDX                                                                  1
 #define mmRLC_CGCG_RAMP_CTRL                                                                           0x4c4a

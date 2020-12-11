@@ -64,6 +64,8 @@ required:
   - assigned-clock-parents
   - sound-name-prefix
 
+additionalProperties: false
+
 examples:
   - |
     #include<dt-bindings/clock/tegra186-clock.h>

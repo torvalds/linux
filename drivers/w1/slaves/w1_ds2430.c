@@ -279,7 +279,7 @@ static const struct attribute_group *w1_f14_groups[] = {
 	NULL,
 };
 
-static struct w1_family_ops w1_f14_fops = {
+static const struct w1_family_ops w1_f14_fops = {
 	.groups	= w1_f14_groups,
 };
 

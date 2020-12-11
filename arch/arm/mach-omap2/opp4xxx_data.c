@@ -1,7 +1,7 @@
 /*
  * OMAP4 OPP table definitions.
  *
- * Copyright (C) 2010-2012 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2010-2012 Texas Instruments Incorporated - https://www.ti.com/
  *	Nishanth Menon
  *	Kevin Hilman
  *	Thara Gopinath

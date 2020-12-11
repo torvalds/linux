@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/realtek,rt1015p.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Realtek rt1015p codec devicetree bindings
+
+maintainers:
+  - Tzung-Bi Shih <tzungbi@google.com>
+
+description: |
+  Rt1015p is a rt1015 variant which does not support I2C and
+  only supports S24, 48kHz, 64FS.
+
+properties:
+  compatible:
+    const: realtek,rt1015p
+
+  sdb-gpios:
+    description:
+      GPIO used for shutdown control.
+      0 means shut down; 1 means power on.
+    maxItems: 1
+
+required:
+  - compatible
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    rt1015p: rt1015p {
+        compatible = "realtek,rt1015p";
+        sdb-gpios = <&pio 175 GPIO_ACTIVE_HIGH>;
+    };

@@ -84,8 +84,7 @@ void __init plat_mem_setup(void)
 	if (memory_dtb)
 		of_scan_flat_dt(early_init_dt_scan_memory, NULL);
 	else if (soc_info.mem_size)
-		add_memory_region(soc_info.mem_base, soc_info.mem_size * SZ_1M,
-				  BOOT_MEM_RAM);
+		memblock_add(soc_info.mem_base, soc_info.mem_size * SZ_1M);
 	else
 		detect_memory_region(soc_info.mem_base,
 				     soc_info.mem_size_min * SZ_1M,

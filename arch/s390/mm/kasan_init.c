@@ -11,7 +11,9 @@
 #include <asm/facility.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
+#include <asm/uv.h>
 
+unsigned long kasan_vmax;
 static unsigned long segment_pos __initdata;
 static unsigned long segment_low __initdata;
 static unsigned long pgalloc_pos __initdata;
@@ -99,8 +101,12 @@ static void __init kasan_early_vmemmap_populate(unsigned long address,
 	pgt_prot_zero = pgprot_val(PAGE_KERNEL_RO);
 	if (!has_nx)
 		pgt_prot_zero &= ~_PAGE_NOEXEC;
-	pgt_prot = pgprot_val(PAGE_KERNEL_EXEC);
-	sgt_prot = pgprot_val(SEGMENT_KERNEL_EXEC);
+	pgt_prot = pgprot_val(PAGE_KERNEL);
+	sgt_prot = pgprot_val(SEGMENT_KERNEL);
+	if (!has_nx || mode == POPULATE_ONE2ONE) {
+		pgt_prot &= ~_PAGE_NOEXEC;
+		sgt_prot &= ~_SEGMENT_ENTRY_NOEXEC;
+	}
 
 	while (address < end) {
 		pg_dir = pgd_offset_k(address);
@@ -252,14 +258,31 @@ static void __init kasan_early_detect_facilities(void)
 	}
 }
 
+static bool __init has_uv_sec_stor_limit(void)
+{
+	/*
+	 * keep these conditions in line with setup_uv()
+	 */
+	if (!is_prot_virt_host())
+		return false;
+
+	if (is_prot_virt_guest())
+		return false;
+
+	if (!test_facility(158))
+		return false;
+
+	return !!uv_info.max_sec_stor_addr;
+}
+
 void __init kasan_early_init(void)
 {
 	unsigned long untracked_mem_end;
 	unsigned long shadow_alloc_size;
+	unsigned long vmax_unlimited;
 	unsigned long initrd_end;
 	unsigned long asce_type;
 	unsigned long memsize;
-	unsigned long vmax;
 	unsigned long pgt_prot = pgprot_val(PAGE_KERNEL_RO);
 	pte_t pte_z;
 	pmd_t pmd_z = __pmd(__pa(kasan_early_shadow_pte) | _SEGMENT_ENTRY);
@@ -287,7 +310,9 @@ void __init kasan_early_init(void)
 		BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, P4D_SIZE));
 		crst_table_init((unsigned long *)early_pg_dir,
 				_REGION2_ENTRY_EMPTY);
-		untracked_mem_end = vmax = _REGION1_SIZE;
+		untracked_mem_end = kasan_vmax = vmax_unlimited = _REGION1_SIZE;
+		if (has_uv_sec_stor_limit())
+			kasan_vmax = min(vmax_unlimited, uv_info.max_sec_stor_addr);
 		asce_type = _ASCE_TYPE_REGION2;
 	} else {
 		/* 3 level paging */
@@ -295,7 +320,7 @@ void __init kasan_early_init(void)
 		BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PUD_SIZE));
 		crst_table_init((unsigned long *)early_pg_dir,
 				_REGION3_ENTRY_EMPTY);
-		untracked_mem_end = vmax = _REGION2_SIZE;
+		untracked_mem_end = kasan_vmax = vmax_unlimited = _REGION2_SIZE;
 		asce_type = _ASCE_TYPE_REGION3;
 	}
 
@@ -365,16 +390,19 @@ void __init kasan_early_init(void)
 	/* populate kasan shadow (for identity mapping and zero page mapping) */
 	kasan_early_vmemmap_populate(__sha(0), __sha(memsize), POPULATE_MAP);
 	if (IS_ENABLED(CONFIG_MODULES))
-		untracked_mem_end = vmax - MODULES_LEN;
+		untracked_mem_end = kasan_vmax - MODULES_LEN;
 	if (IS_ENABLED(CONFIG_KASAN_VMALLOC)) {
-		untracked_mem_end = vmax - vmalloc_size - MODULES_LEN;
+		untracked_mem_end = kasan_vmax - vmalloc_size - MODULES_LEN;
 		/* shallowly populate kasan shadow for vmalloc and modules */
 		kasan_early_vmemmap_populate(__sha(untracked_mem_end),
-					     __sha(vmax), POPULATE_SHALLOW);
+					     __sha(kasan_vmax), POPULATE_SHALLOW);
 	}
 	/* populate kasan shadow for untracked memory */
 	kasan_early_vmemmap_populate(__sha(max_physmem_end),
 				     __sha(untracked_mem_end),
+				     POPULATE_ZERO_SHADOW);
+	kasan_early_vmemmap_populate(__sha(kasan_vmax),
+				     __sha(vmax_unlimited),
 				     POPULATE_ZERO_SHADOW);
 	/* memory allocated for identity mapping structs will be freed later */
 	pgalloc_freeable = pgalloc_pos;

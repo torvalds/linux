@@ -35,8 +35,4 @@ struct s3c_camif_plat_data {
 	int (*gpio_put)(void);
 };
 
-/* Platform default helper functions */
-int s3c_camif_gpio_get(void);
-int s3c_camif_gpio_put(void);
-
 #endif /* MEDIA_S3C_CAMIF_ */

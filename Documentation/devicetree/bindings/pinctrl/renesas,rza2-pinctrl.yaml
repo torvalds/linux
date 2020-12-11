@@ -84,7 +84,7 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/pinctrl/r7s9210-pinctrl.h>
-    pinctrl: pin-controller@fcffe000 {
+    pinctrl: pinctrl@fcffe000 {
             compatible = "renesas,r7s9210-pinctrl";
             reg = <0xfcffe000 0x1000>;
 

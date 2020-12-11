@@ -162,7 +162,7 @@ static int __init __reserved_mem_alloc_size(unsigned long node,
 }
 
 static const struct of_device_id __rmem_of_table_sentinel
-	__used __section(__reservedmem_of_table_end);
+	__used __section("__reservedmem_of_table_end");
 
 /**
  * __reserved_mem_init_node() - call region specific reserved memory init code

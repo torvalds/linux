@@ -35,7 +35,6 @@
 
 #include <linux/refcount.h>
 #include <asm/io.h>
-#include <asm/war.h>
 
 #include <asm/sibyte/sb1250.h>
 #include <asm/sibyte/sb1250_uart.h>
@@ -157,7 +156,7 @@ static unsigned char read_sbdchn(struct sbd_port *sport, int reg)
 	unsigned char retval;
 
 	retval = __read_sbdchn(sport, reg);
-	if (SIBYTE_1956_WAR)
+	if (IS_ENABLED(CONFIG_SB1_PASS_2_WORKAROUNDS))
 		__war_sbd1956(sport);
 	return retval;
 }
@@ -167,7 +166,7 @@ static unsigned char read_sbdshr(struct sbd_port *sport, int reg)
 	unsigned char retval;
 
 	retval = __read_sbdshr(sport, reg);
-	if (SIBYTE_1956_WAR)
+	if (IS_ENABLED(CONFIG_SB1_PASS_2_WORKAROUNDS))
 		__war_sbd1956(sport);
 	return retval;
 }
@@ -175,14 +174,14 @@ static unsigned char read_sbdshr(struct sbd_port *sport, int reg)
 static void write_sbdchn(struct sbd_port *sport, int reg, unsigned int value)
 {
 	__write_sbdchn(sport, reg, value);
-	if (SIBYTE_1956_WAR)
+	if (IS_ENABLED(CONFIG_SB1_PASS_2_WORKAROUNDS))
 		__war_sbd1956(sport);
 }
 
 static void write_sbdshr(struct sbd_port *sport, int reg, unsigned int value)
 {
 	__write_sbdshr(sport, reg, value);
-	if (SIBYTE_1956_WAR)
+	if (IS_ENABLED(CONFIG_SB1_PASS_2_WORKAROUNDS))
 		__war_sbd1956(sport);
 }
 

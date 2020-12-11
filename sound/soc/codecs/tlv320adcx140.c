@@ -30,7 +30,7 @@ struct adcx140_priv {
 	struct regmap *regmap;
 	struct device *dev;
 
-	int micbias_vg;
+	bool micbias_vg;
 
 	unsigned int dai_fmt;
 	unsigned int tdm_delay;
@@ -161,7 +161,7 @@ static const struct regmap_config adcx140_i2c_regmap = {
 };
 
 /* Digital Volume control. From -100 to 27 dB in 0.5 dB steps */
-static DECLARE_TLV_DB_SCALE(dig_vol_tlv, -10000, 50, 0);
+static DECLARE_TLV_DB_SCALE(dig_vol_tlv, -10050, 50, 0);
 
 /* ADC gain. From 0 to 42 dB in 1 dB steps */
 static DECLARE_TLV_DB_SCALE(adc_tlv, 0, 100, 0);
@@ -412,6 +412,16 @@ static const struct snd_soc_dapm_widget adcx140_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("CH3_ADC", "CH3 Capture", ADCX140_IN_CH_EN, 5, 0),
 	SND_SOC_DAPM_ADC("CH4_ADC", "CH4 Capture", ADCX140_IN_CH_EN, 4, 0),
 
+	SND_SOC_DAPM_ADC("CH1_DIG", "CH1 Capture", ADCX140_IN_CH_EN, 7, 0),
+	SND_SOC_DAPM_ADC("CH2_DIG", "CH2 Capture", ADCX140_IN_CH_EN, 6, 0),
+	SND_SOC_DAPM_ADC("CH3_DIG", "CH3 Capture", ADCX140_IN_CH_EN, 5, 0),
+	SND_SOC_DAPM_ADC("CH4_DIG", "CH4 Capture", ADCX140_IN_CH_EN, 4, 0),
+	SND_SOC_DAPM_ADC("CH5_DIG", "CH5 Capture", ADCX140_IN_CH_EN, 3, 0),
+	SND_SOC_DAPM_ADC("CH6_DIG", "CH6 Capture", ADCX140_IN_CH_EN, 2, 0),
+	SND_SOC_DAPM_ADC("CH7_DIG", "CH7 Capture", ADCX140_IN_CH_EN, 1, 0),
+	SND_SOC_DAPM_ADC("CH8_DIG", "CH8 Capture", ADCX140_IN_CH_EN, 0, 0),
+
+
 	SND_SOC_DAPM_SWITCH("CH1_ASI_EN", SND_SOC_NOPM, 0, 0,
 			    &adcx140_dapm_ch1_en_switch),
 	SND_SOC_DAPM_SWITCH("CH2_ASI_EN", SND_SOC_NOPM, 0, 0,
@@ -469,6 +479,15 @@ static const struct snd_soc_dapm_route adcx140_audio_map[] = {
 	{"CH2_ASI_EN", "Switch", "CH2_ADC"},
 	{"CH3_ASI_EN", "Switch", "CH3_ADC"},
 	{"CH4_ASI_EN", "Switch", "CH4_ADC"},
+
+	{"CH1_ASI_EN", "Switch", "CH1_DIG"},
+	{"CH2_ASI_EN", "Switch", "CH2_DIG"},
+	{"CH3_ASI_EN", "Switch", "CH3_DIG"},
+	{"CH4_ASI_EN", "Switch", "CH4_DIG"},
+	{"CH5_ASI_EN", "Switch", "CH5_DIG"},
+	{"CH6_ASI_EN", "Switch", "CH6_DIG"},
+	{"CH7_ASI_EN", "Switch", "CH7_DIG"},
+	{"CH8_ASI_EN", "Switch", "CH8_DIG"},
 
 	{"CH5_ASI_EN", "Switch", "CH5_OUT"},
 	{"CH6_ASI_EN", "Switch", "CH6_OUT"},
@@ -541,6 +560,15 @@ static const struct snd_soc_dapm_route adcx140_audio_map[] = {
 	{"PDM Clk Div Select", "705.6 kHz", "MIC1P Input Mux"},
 	{"PDM Clk Div Select", "5.6448 MHz", "MIC1P Input Mux"},
 
+	{"MIC1P Input Mux", NULL, "CH1_DIG"},
+	{"MIC1M Input Mux", NULL, "CH2_DIG"},
+	{"MIC2P Input Mux", NULL, "CH3_DIG"},
+	{"MIC2M Input Mux", NULL, "CH4_DIG"},
+	{"MIC3P Input Mux", NULL, "CH5_DIG"},
+	{"MIC3M Input Mux", NULL, "CH6_DIG"},
+	{"MIC4P Input Mux", NULL, "CH7_DIG"},
+	{"MIC4M Input Mux", NULL, "CH8_DIG"},
+
 	{"MIC1 Analog Mux", "Line In", "MIC1P"},
 	{"MIC2 Analog Mux", "Line In", "MIC2P"},
 	{"MIC3 Analog Mux", "Line In", "MIC3P"},
@@ -554,6 +582,15 @@ static const struct snd_soc_dapm_route adcx140_audio_map[] = {
 	{"MIC3M Input Mux", "Analog", "MIC3M"},
 	{"MIC4P Input Mux", "Analog", "MIC4P"},
 	{"MIC4M Input Mux", "Analog", "MIC4M"},
+
+	{"MIC1P Input Mux", "Digital", "MIC1P"},
+	{"MIC1M Input Mux", "Digital", "MIC1M"},
+	{"MIC2P Input Mux", "Digital", "MIC2P"},
+	{"MIC2M Input Mux", "Digital", "MIC2M"},
+	{"MIC3P Input Mux", "Digital", "MIC3P"},
+	{"MIC3M Input Mux", "Digital", "MIC3M"},
+	{"MIC4P Input Mux", "Digital", "MIC4P"},
+	{"MIC4M Input Mux", "Digital", "MIC4M"},
 };
 
 static const struct snd_kcontrol_new adcx140_snd_controls[] = {
@@ -614,11 +651,26 @@ static int adcx140_reset(struct adcx140_priv *adcx140)
 	return ret;
 }
 
+static void adcx140_pwr_ctrl(struct adcx140_priv *adcx140, bool power_state)
+{
+	int pwr_ctrl = 0;
+
+	if (power_state)
+		pwr_ctrl = ADCX140_PWR_CFG_ADC_PDZ | ADCX140_PWR_CFG_PLL_PDZ;
+
+	if (adcx140->micbias_vg && power_state)
+		pwr_ctrl |= ADCX140_PWR_CFG_BIAS_PDZ;
+
+	regmap_update_bits(adcx140->regmap, ADCX140_PWR_CFG,
+			   ADCX140_PWR_CTRL_MSK, pwr_ctrl);
+}
+
 static int adcx140_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
 			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
+	struct adcx140_priv *adcx140 = snd_soc_component_get_drvdata(component);
 	u8 data = 0;
 
 	switch (params_width(params)) {
@@ -640,8 +692,12 @@ static int adcx140_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	adcx140_pwr_ctrl(adcx140, false);
+
 	snd_soc_component_update_bits(component, ADCX140_ASI_CFG0,
 			    ADCX140_WORD_LEN_MSK, data);
+
+	adcx140_pwr_ctrl(adcx140, true);
 
 	return 0;
 }
@@ -654,7 +710,7 @@ static int adcx140_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	u8 iface_reg1 = 0;
 	u8 iface_reg2 = 0;
 	int offset = 0;
-	int width = adcx140->slot_width;
+	bool inverted_bclk = false;
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -670,24 +726,6 @@ static int adcx140_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	/* signal polarity */
-	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
-	case SND_SOC_DAIFMT_NB_IF:
-		iface_reg1 |= ADCX140_FSYNCINV_BIT;
-		break;
-	case SND_SOC_DAIFMT_IB_IF:
-		iface_reg1 |= ADCX140_BCLKINV_BIT | ADCX140_FSYNCINV_BIT;
-		break;
-	case SND_SOC_DAIFMT_IB_NF:
-		iface_reg1 |= ADCX140_BCLKINV_BIT;
-		break;
-	case SND_SOC_DAIFMT_NB_NF:
-		break;
-	default:
-		dev_err(component->dev, "Invalid DAI clock signal polarity\n");
-		return -EINVAL;
-	}
-
 	/* interface format */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
@@ -697,17 +735,39 @@ static int adcx140_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		iface_reg1 |= ADCX140_LEFT_JUST_BIT;
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
-		offset += (adcx140->tdm_delay * width + 1);
+		offset = 1;
+		inverted_bclk = true;
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
-		offset += adcx140->tdm_delay * width;
+		inverted_bclk = true;
 		break;
 	default:
 		dev_err(component->dev, "Invalid DAI interface format\n");
 		return -EINVAL;
 	}
 
+	/* signal polarity */
+	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
+	case SND_SOC_DAIFMT_IB_NF:
+	case SND_SOC_DAIFMT_IB_IF:
+		inverted_bclk = !inverted_bclk;
+		break;
+	case SND_SOC_DAIFMT_NB_IF:
+		iface_reg1 |= ADCX140_FSYNCINV_BIT;
+		break;
+	case SND_SOC_DAIFMT_NB_NF:
+		break;
+	default:
+		dev_err(component->dev, "Invalid DAI clock signal polarity\n");
+		return -EINVAL;
+	}
+
+	if (inverted_bclk)
+		iface_reg1 |= ADCX140_BCLKINV_BIT;
+
 	adcx140->dai_fmt = fmt & SND_SOC_DAIFMT_FORMAT_MASK;
+
+	adcx140_pwr_ctrl(adcx140, false);
 
 	snd_soc_component_update_bits(component, ADCX140_ASI_CFG0,
 				      ADCX140_FSYNCINV_BIT |
@@ -721,6 +781,7 @@ static int adcx140_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	snd_soc_component_update_bits(component, ADCX140_ASI_CFG1,
 				      ADCX140_TX_OFFSET_MASK, offset);
 
+	adcx140_pwr_ctrl(adcx140, true);
 
 	return 0;
 }
@@ -800,6 +861,42 @@ static int adcx140_configure_gpo(struct adcx140_priv *adcx140)
 
 }
 
+static int adcx140_configure_gpio(struct adcx140_priv *adcx140)
+{
+	int gpio_count = 0;
+	u32 gpio_outputs[ADCX140_NUM_GPIO_CFGS];
+	u32 gpio_output_val = 0;
+	int ret;
+
+	gpio_count = device_property_count_u32(adcx140->dev,
+			"ti,gpio-config");
+	if (gpio_count == 0)
+		return 0;
+
+	if (gpio_count != ADCX140_NUM_GPIO_CFGS)
+		return -EINVAL;
+
+	ret = device_property_read_u32_array(adcx140->dev, "ti,gpio-config",
+			gpio_outputs, gpio_count);
+	if (ret)
+		return ret;
+
+	if (gpio_outputs[0] > ADCX140_GPIO_CFG_MAX) {
+		dev_err(adcx140->dev, "GPIO config out of range\n");
+		return -EINVAL;
+	}
+
+	if (gpio_outputs[1] > ADCX140_GPIO_DRV_MAX) {
+		dev_err(adcx140->dev, "GPIO drive out of range\n");
+		return -EINVAL;
+	}
+
+	gpio_output_val = gpio_outputs[0] << ADCX140_GPIO_SHIFT
+		| gpio_outputs[1];
+
+	return regmap_write(adcx140->regmap, ADCX140_GPIO_CFG0, gpio_output_val);
+}
+
 static int adcx140_codec_probe(struct snd_soc_component *component)
 {
 	struct adcx140_priv *adcx140 = snd_soc_component_get_drvdata(component);
@@ -815,15 +912,15 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 	u32 gpi_input_val = 0;
 	int i;
 	int ret;
+	bool tx_high_z;
 
 	ret = device_property_read_u32(adcx140->dev, "ti,mic-bias-source",
 				      &bias_source);
-	if (ret)
+	if (ret || bias_source > ADCX140_MIC_BIAS_VAL_AVDD) {
 		bias_source = ADCX140_MIC_BIAS_VAL_VREF;
-
-	if (bias_source > ADCX140_MIC_BIAS_VAL_AVDD) {
-		dev_err(adcx140->dev, "Mic Bias source value is invalid\n");
-		return -EINVAL;
+		adcx140->micbias_vg = false;
+	} else {
+		adcx140->micbias_vg = true;
 	}
 
 	ret = device_property_read_u32(adcx140->dev, "ti,vref-source",
@@ -897,6 +994,10 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 			return ret;
 	}
 
+	ret = adcx140_configure_gpio(adcx140);
+	if (ret)
+		return ret;
+
 	ret = adcx140_configure_gpo(adcx140);
 	if (ret)
 		goto out;
@@ -906,6 +1007,18 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 				ADCX140_MIC_BIAS_VREF_MSK, bias_cfg);
 	if (ret)
 		dev_err(adcx140->dev, "setting MIC bias failed %d\n", ret);
+
+	tx_high_z = device_property_read_bool(adcx140->dev, "ti,asi-tx-drive");
+	if (tx_high_z) {
+		ret = regmap_update_bits(adcx140->regmap, ADCX140_ASI_CFG0,
+				 ADCX140_TX_FILL, ADCX140_TX_FILL);
+		if (ret) {
+			dev_err(adcx140->dev, "Setting Tx drive failed %d\n", ret);
+			goto out;
+		}
+	}
+
+	adcx140_pwr_ctrl(adcx140, true);
 out:
 	return ret;
 }
@@ -914,21 +1027,19 @@ static int adcx140_set_bias_level(struct snd_soc_component *component,
 				  enum snd_soc_bias_level level)
 {
 	struct adcx140_priv *adcx140 = snd_soc_component_get_drvdata(component);
-	int pwr_cfg = 0;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 	case SND_SOC_BIAS_PREPARE:
 	case SND_SOC_BIAS_STANDBY:
-		pwr_cfg = ADCX140_PWR_CFG_BIAS_PDZ | ADCX140_PWR_CFG_PLL_PDZ |
-			  ADCX140_PWR_CFG_ADC_PDZ;
+		adcx140_pwr_ctrl(adcx140, true);
 		break;
 	case SND_SOC_BIAS_OFF:
-		pwr_cfg = 0x0;
+		adcx140_pwr_ctrl(adcx140, false);
 		break;
 	}
 
-	return regmap_write(adcx140->regmap, ADCX140_PWR_CFG, pwr_cfg);
+	return 0;
 }
 
 static const struct snd_soc_component_driver soc_codec_driver_adcx140 = {

@@ -145,11 +145,11 @@ struct brcmf_p2p_scan_le {
  *
  * @category: P2P_PUB_AF_CATEGORY
  * @action: P2P_PUB_AF_ACTION
- * @oui[3]: P2P_OUI
+ * @oui: P2P_OUI
  * @oui_type: OUI type - P2P_VER
  * @subtype: OUI subtype - P2P_TYPE_*
  * @dialog_token: nonzero, identifies req/rsp transaction
- * @elts[1]: Variable length information elements.
+ * @elts: Variable length information elements.
  */
 struct brcmf_p2p_pub_act_frame {
 	u8	category;
@@ -165,11 +165,11 @@ struct brcmf_p2p_pub_act_frame {
  * struct brcmf_p2p_action_frame - WiFi P2P Action Frame
  *
  * @category: P2P_AF_CATEGORY
- * @OUI[3]: OUI - P2P_OUI
+ * @oui: OUI - P2P_OUI
  * @type: OUI Type - P2P_VER
  * @subtype: OUI Subtype - P2P_AF_*
  * @dialog_token: nonzero, identifies req/resp tranaction
- * @elts[1]: Variable length information elements.
+ * @elts: Variable length information elements.
  */
 struct brcmf_p2p_action_frame {
 	u8	category;
@@ -186,7 +186,7 @@ struct brcmf_p2p_action_frame {
  * @category: 0x04 Public Action Frame
  * @action: 0x6c Advertisement Protocol
  * @dialog_token: nonzero, identifies req/rsp transaction
- * @query_data[1]: Query Data. SD gas ireq SD gas iresp
+ * @query_data: Query Data. SD gas ireq SD gas iresp
  */
 struct brcmf_p2psd_gas_pub_act_frame {
 	u8	category;
@@ -201,7 +201,7 @@ struct brcmf_p2psd_gas_pub_act_frame {
  * @mpc_onoff: To make sure to send successfully action frame, we have to
  *             turn off mpc  0: off, 1: on,  (-1): do nothing
  * @search_channel: 1: search peer's channel to send af
- * extra_listen: keep the dwell time to get af response frame.
+ * @extra_listen: keep the dwell time to get af response frame.
  */
 struct brcmf_config_af_params {
 	s32 mpc_onoff;
@@ -763,9 +763,8 @@ exit:
  * brcmf_p2p_run_escan() - escan callback for peer-to-peer.
  *
  * @cfg: driver private data for cfg80211 interface.
- * @ndev: net device for which scan is requested.
+ * @ifp: interface control.
  * @request: scan request from cfg80211.
- * @action: scan action.
  *
  * Determines the P2P discovery state based to scan request parameters and
  * validates the channels in the request.
@@ -913,8 +912,6 @@ int brcmf_p2p_scan_prep(struct wiphy *wiphy,
 		if (err)
 			return err;
 
-		vif = p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
-
 		/* override .run_escan() callback. */
 		cfg->escan_info.run = brcmf_p2p_run_escan;
 	}
@@ -969,9 +966,10 @@ exit:
  * brcmf_p2p_remain_on_channel() - put device on channel and stay there.
  *
  * @wiphy: wiphy device.
+ * @wdev: wireless device.
  * @channel: channel to stay on.
  * @duration: time in ms to remain on channel.
- *
+ * @cookie: cookie.
  */
 int brcmf_p2p_remain_on_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
 				struct ieee80211_channel *channel,
@@ -1056,7 +1054,7 @@ void brcmf_p2p_cancel_remain_on_channel(struct brcmf_if *ifp)
  * brcmf_p2p_act_frm_search() - search function for action frame.
  *
  * @p2p: p2p device.
- * channel: channel on which action frame is to be trasmitted.
+ * @channel: channel on which action frame is to be trasmitted.
  *
  * search function to reach at common channel to send action frame. When
  * channel is 0 then all social channels will be used to send af
@@ -1331,6 +1329,7 @@ brcmf_p2p_stop_wait_next_action_frame(struct brcmf_cfg80211_info *cfg)
  * brcmf_p2p_gon_req_collision() - Check if go negotiaton collission
  *
  * @p2p: p2p device info struct.
+ * @mac: MAC address.
  *
  * return true if recevied action frame is to be dropped.
  */
@@ -1546,7 +1545,6 @@ static s32 brcmf_p2p_tx_action_frame(struct brcmf_p2p_info *p2p,
 	struct brcmf_cfg80211_vif *vif;
 	struct brcmf_p2p_action_frame *p2p_af;
 	s32 err = 0;
-	s32 timeout = 0;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -1582,8 +1580,7 @@ static s32 brcmf_p2p_tx_action_frame(struct brcmf_p2p_info *p2p,
 		  (p2p->wait_for_offchan_complete) ?
 		   "off-channel" : "on-channel");
 
-	timeout = wait_for_completion_timeout(&p2p->send_af_done,
-					      P2P_AF_MAX_WAIT_TIME);
+	wait_for_completion_timeout(&p2p->send_af_done, P2P_AF_MAX_WAIT_TIME);
 
 	if (test_bit(BRCMF_P2P_STATUS_ACTION_TX_COMPLETED, &p2p->status)) {
 		brcmf_dbg(TRACE, "TX action frame operation is success\n");
@@ -2041,8 +2038,8 @@ static void brcmf_p2p_get_current_chanspec(struct brcmf_p2p_info *p2p,
 
 /**
  * Change a P2P Role.
- * Parameters:
- * @mac: MAC address of the BSS to change a role
+ * @cfg: driver private data for cfg80211 interface.
+ * @if_type: interface type.
  * Returns 0 if success.
  */
 int brcmf_p2p_ifchange(struct brcmf_cfg80211_info *cfg,

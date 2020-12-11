@@ -27,8 +27,6 @@
 #define FIMC_IS_OF_NODE_NAME	"fimc-is"
 #define CSIS_OF_NODE_NAME	"csis"
 
-#define PINCTRL_STATE_IDLE	"idle"
-
 #define FIMC_MAX_SENSORS	4
 #define FIMC_MAX_CAMCLKS	2
 #define DEFAULT_SENSOR_CLK_FREQ	24000000U
@@ -109,9 +107,6 @@ struct cam_clk {
  * @media_dev: top level media device
  * @v4l2_dev: top level v4l2_device holding up the subdevs
  * @pdev: platform device this media device is hooked up into
- * @pinctrl: camera port pinctrl handle
- * @state_default: pinctrl default state handle
- * @state_idle: pinctrl idle state handle
  * @cam_clk_provider: CAMCLK clock provider structure
  * @user_subdev_api: true if subdevs are not configured by the host driver
  * @slock: spinlock protecting @sensor array
@@ -130,12 +125,6 @@ struct fimc_md {
 	struct media_device media_dev;
 	struct v4l2_device v4l2_dev;
 	struct platform_device *pdev;
-
-	struct fimc_pinctrl {
-		struct pinctrl *pinctrl;
-		struct pinctrl_state *state_default;
-		struct pinctrl_state *state_idle;
-	} pinctl;
 
 	struct cam_clk_provider {
 		struct clk *clks[FIMC_MAX_CAMCLKS];

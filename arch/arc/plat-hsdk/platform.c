@@ -13,7 +13,7 @@
 #include <asm/io.h>
 #include <asm/mach_desc.h>
 
-int arc_hsdk_axi_dmac_coherent __section(.data) = 0;
+int arc_hsdk_axi_dmac_coherent __section(".data") = 0;
 
 #define ARC_CCM_UNUSED_ADDR	0x60000000
 

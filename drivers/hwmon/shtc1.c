@@ -14,6 +14,7 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/platform_data/shtc1.h>
+#include <linux/of.h>
 
 /* commands (high precision mode) */
 static const unsigned char shtc1_cmd_measure_blocking_hpm[]    = { 0x7C, 0xA2 };
@@ -185,17 +186,19 @@ static void shtc1_select_command(struct shtc1_data *data)
 	}
 }
 
-static int shtc1_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static const struct i2c_device_id shtc1_id[];
+
+static int shtc1_probe(struct i2c_client *client)
 {
 	int ret;
 	u16 id_reg;
 	char id_reg_buf[2];
 	struct shtc1_data *data;
 	struct device *hwmon_dev;
-	enum shtcx_chips chip = id->driver_data;
+	enum shtcx_chips chip = i2c_match_id(shtc1_id, client)->driver_data;
 	struct i2c_adapter *adap = client->adapter;
 	struct device *dev = &client->dev;
+	struct device_node *np = dev->of_node;
 
 	if (!i2c_check_functionality(adap, I2C_FUNC_I2C)) {
 		dev_err(dev, "plain i2c transactions not supported\n");
@@ -233,8 +236,14 @@ static int shtc1_probe(struct i2c_client *client,
 	data->client = client;
 	data->chip = chip;
 
-	if (client->dev.platform_data)
-		data->setup = *(struct shtc1_platform_data *)dev->platform_data;
+	if (np) {
+		data->setup.blocking_io = of_property_read_bool(np, "sensirion,blocking-io");
+		data->setup.high_precision = !of_property_read_bool(np, "sensicon,low-precision");
+	} else {
+		if (client->dev.platform_data)
+			data->setup = *(struct shtc1_platform_data *)dev->platform_data;
+	}
+
 	shtc1_select_command(data);
 	mutex_init(&data->update_lock);
 
@@ -257,9 +266,20 @@ static const struct i2c_device_id shtc1_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, shtc1_id);
 
+static const struct of_device_id shtc1_of_match[] = {
+	{ .compatible = "sensirion,shtc1" },
+	{ .compatible = "sensirion,shtw1" },
+	{ .compatible = "sensirion,shtc3" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, shtc1_of_match);
+
 static struct i2c_driver shtc1_i2c_driver = {
-	.driver.name  = "shtc1",
-	.probe        = shtc1_probe,
+	.driver = {
+		.name = "shtc1",
+		.of_match_table = shtc1_of_match,
+	},
+	.probe_new    = shtc1_probe,
 	.id_table     = shtc1_id,
 };
 

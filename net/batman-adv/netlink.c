@@ -1350,7 +1350,7 @@ static void batadv_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
 	}
 }
 
-static const struct genl_ops batadv_netlink_ops[] = {
+static const struct genl_small_ops batadv_netlink_ops[] = {
 	{
 		.cmd = BATADV_CMD_GET_MESH,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -1484,8 +1484,8 @@ struct genl_family batadv_netlink_family __ro_after_init = {
 	.pre_doit = batadv_pre_doit,
 	.post_doit = batadv_post_doit,
 	.module = THIS_MODULE,
-	.ops = batadv_netlink_ops,
-	.n_ops = ARRAY_SIZE(batadv_netlink_ops),
+	.small_ops = batadv_netlink_ops,
+	.n_small_ops = ARRAY_SIZE(batadv_netlink_ops),
 	.mcgrps = batadv_netlink_mcgrps,
 	.n_mcgrps = ARRAY_SIZE(batadv_netlink_mcgrps),
 };

@@ -30,7 +30,7 @@ static struct feature feature_list[] = {
 	for (f = &feature_list[0]; f->compat != 0; f++) {		\
 		if (f->compat != BCH_FEATURE_ ## type)			\
 			continue;					\
-		if (BCH_HAS_ ## type ## _FEATURE(&c->sb, f->mask)) {	\
+		if (BCH_HAS_ ## type ## _FEATURE(&c->cache->sb, f->mask)) {	\
 			if (first) {					\
 				out += snprintf(out, buf + size - out,	\
 						"[");	\
@@ -44,7 +44,7 @@ static struct feature feature_list[] = {
 									\
 		out += snprintf(out, buf + size - out, "%s", f->string);\
 									\
-		if (BCH_HAS_ ## type ## _FEATURE(&c->sb, f->mask))	\
+		if (BCH_HAS_ ## type ## _FEATURE(&c->cache->sb, f->mask))	\
 			out += snprintf(out, buf + size - out, "]");	\
 									\
 		first = false;						\

@@ -324,8 +324,7 @@ static int max31785_configure_dual_tach(struct i2c_client *client,
 	return 0;
 }
 
-static int max31785_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int max31785_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct pmbus_driver_info *info;
@@ -354,7 +353,7 @@ static int max31785_probe(struct i2c_client *client,
 	if (ret == MAX31785A) {
 		dual_tach = true;
 	} else if (ret == MAX31785) {
-		if (!strcmp("max31785a", id->name))
+		if (!strcmp("max31785a", client->name))
 			dev_warn(dev, "Expected max3175a, found max31785: cannot provide secondary tachometer readings\n");
 	} else {
 		return -ENODEV;
@@ -366,7 +365,7 @@ static int max31785_probe(struct i2c_client *client,
 			return ret;
 	}
 
-	return pmbus_do_probe(client, id, info);
+	return pmbus_do_probe(client, info);
 }
 
 static const struct i2c_device_id max31785_id[] = {
@@ -390,7 +389,7 @@ static struct i2c_driver max31785_driver = {
 		.name = "max31785",
 		.of_match_table = max31785_of_match,
 	},
-	.probe = max31785_probe,
+	.probe_new = max31785_probe,
 	.remove = pmbus_do_remove,
 	.id_table = max31785_id,
 };

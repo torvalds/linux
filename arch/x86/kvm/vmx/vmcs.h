@@ -138,6 +138,13 @@ static inline bool is_external_intr(u32 intr_info)
 	return is_intr_type(intr_info, INTR_TYPE_EXT_INTR);
 }
 
+static inline bool is_exception_with_error_code(u32 intr_info)
+{
+	const u32 mask = INTR_INFO_VALID_MASK | INTR_INFO_DELIVER_CODE_MASK;
+
+	return (intr_info & mask) == mask;
+}
+
 enum vmcs_field_width {
 	VMCS_FIELD_WIDTH_U16 = 0,
 	VMCS_FIELD_WIDTH_U64 = 1,

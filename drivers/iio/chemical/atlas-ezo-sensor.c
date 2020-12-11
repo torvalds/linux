@@ -16,10 +16,13 @@
 #include <linux/iio/iio.h>
 
 #define ATLAS_EZO_DRV_NAME		"atlas-ezo-sensor"
-#define ATLAS_CO2_INT_TIME_IN_MS	950
+#define ATLAS_INT_TIME_IN_MS		950
+#define ATLAS_INT_HUM_TIME_IN_MS	350
 
 enum {
 	ATLAS_CO2_EZO,
+	ATLAS_O2_EZO,
+	ATLAS_HUM_EZO,
 };
 
 struct atlas_ezo_device {
@@ -38,15 +41,37 @@ struct atlas_ezo_data {
 	u8 buffer[8];
 };
 
+#define ATLAS_CONCENTRATION_CHANNEL(_modifier) \
+	{ \
+		.type = IIO_CONCENTRATION, \
+		.modified = 1,\
+		.channel2 = _modifier, \
+		.info_mask_separate = \
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE), \
+		.scan_index = 0, \
+		.scan_type =  { \
+			.sign = 'u', \
+			.realbits = 32, \
+			.storagebits = 32, \
+			.endianness = IIO_CPU, \
+		}, \
+	}
+
 static const struct iio_chan_spec atlas_co2_ezo_channels[] = {
+	ATLAS_CONCENTRATION_CHANNEL(IIO_MOD_CO2),
+};
+
+static const struct iio_chan_spec atlas_o2_ezo_channels[] = {
+	ATLAS_CONCENTRATION_CHANNEL(IIO_MOD_O2),
+};
+
+static const struct iio_chan_spec atlas_hum_ezo_channels[] = {
 	{
-		.type = IIO_CONCENTRATION,
-		.modified = 1,
-		.channel2 = IIO_MOD_CO2,
+		.type = IIO_HUMIDITYRELATIVE,
 		.info_mask_separate =
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
 		.scan_index = 0,
-		.scan_type = {
+		.scan_type =  {
 			.sign = 'u',
 			.realbits = 32,
 			.storagebits = 32,
@@ -59,9 +84,29 @@ static struct atlas_ezo_device atlas_ezo_devices[] = {
 	[ATLAS_CO2_EZO] = {
 		.channels = atlas_co2_ezo_channels,
 		.num_channels = 1,
-		.delay = ATLAS_CO2_INT_TIME_IN_MS,
+		.delay = ATLAS_INT_TIME_IN_MS,
+	},
+	[ATLAS_O2_EZO] = {
+		.channels = atlas_o2_ezo_channels,
+		.num_channels = 1,
+		.delay = ATLAS_INT_TIME_IN_MS,
+	},
+	[ATLAS_HUM_EZO] = {
+		.channels = atlas_hum_ezo_channels,
+		.num_channels = 1,
+		.delay = ATLAS_INT_HUM_TIME_IN_MS,
 	},
 };
+
+static void atlas_ezo_sanitize(char *buf)
+{
+	char *ptr = strchr(buf, '.');
+
+	if (!ptr)
+		return;
+
+	memmove(ptr, ptr + 1, strlen(ptr));
+}
 
 static int atlas_ezo_read_raw(struct iio_dev *indio_dev,
 			  struct iio_chan_spec const *chan,
@@ -96,6 +141,9 @@ static int atlas_ezo_read_raw(struct iio_dev *indio_dev,
 			return -EBUSY;
 		}
 
+		/* removing floating point for fixed number representation */
+		atlas_ezo_sanitize(data->buffer + 2);
+
 		ret = kstrtol(data->buffer + 1, 10, &tmp);
 
 		*val = tmp;
@@ -105,9 +153,27 @@ static int atlas_ezo_read_raw(struct iio_dev *indio_dev,
 		return ret ? ret : IIO_VAL_INT;
 	}
 	case IIO_CHAN_INFO_SCALE:
-		*val = 0;
-		*val2 = 100; /* 0.0001 */
-		return IIO_VAL_INT_PLUS_MICRO;
+		switch (chan->type) {
+		case IIO_HUMIDITYRELATIVE:
+			*val = 10;
+			return IIO_VAL_INT;
+		case IIO_CONCENTRATION:
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		/* IIO_CONCENTRATION modifiers */
+		switch (chan->channel2) {
+		case IIO_MOD_CO2:
+			*val = 0;
+			*val2 = 100; /* 0.0001 */
+			return IIO_VAL_INT_PLUS_MICRO;
+		case IIO_MOD_O2:
+			*val = 100;
+			return IIO_VAL_INT;
+		}
+		return -EINVAL;
 	}
 
 	return 0;
@@ -119,12 +185,16 @@ static const struct iio_info atlas_info = {
 
 static const struct i2c_device_id atlas_ezo_id[] = {
 	{ "atlas-co2-ezo", ATLAS_CO2_EZO },
+	{ "atlas-o2-ezo", ATLAS_O2_EZO },
+	{ "atlas-hum-ezo", ATLAS_HUM_EZO },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, atlas_ezo_id);
 
 static const struct of_device_id atlas_ezo_dt_ids[] = {
 	{ .compatible = "atlas,co2-ezo", .data = (void *)ATLAS_CO2_EZO, },
+	{ .compatible = "atlas,o2-ezo", .data = (void *)ATLAS_O2_EZO, },
+	{ .compatible = "atlas,hum-ezo", .data = (void *)ATLAS_HUM_EZO, },
 	{}
 };
 MODULE_DEVICE_TABLE(of, atlas_ezo_dt_ids);

@@ -49,6 +49,8 @@ required:
   - reg
   - interrupts
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>

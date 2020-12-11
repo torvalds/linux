@@ -14,6 +14,7 @@ if RTLLIB
 config RTLLIB_CRYPTO_CCMP
 	tristate "Support for rtllib CCMP crypto"
 	depends on RTLLIB
+	select CRYPTO
 	select CRYPTO_AES
 	select CRYPTO_CCM
 	default y
@@ -25,7 +26,7 @@ config RTLLIB_CRYPTO_CCMP
 config RTLLIB_CRYPTO_TKIP
 	tristate "Support for rtllib TKIP crypto"
 	depends on RTLLIB
-	select CRYPTO_ARC4
+	select CRYPTO_LIB_ARC4
 	select CRYPTO_MICHAEL_MIC
 	default y
 	help
@@ -35,7 +36,7 @@ config RTLLIB_CRYPTO_TKIP
 
 config RTLLIB_CRYPTO_WEP
 	tristate "Support for rtllib WEP crypto"
-	select CRYPTO_ARC4
+	select CRYPTO_LIB_ARC4
 	depends on RTLLIB
 	default y
 	help

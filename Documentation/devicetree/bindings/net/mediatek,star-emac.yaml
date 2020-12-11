@@ -61,6 +61,8 @@ required:
   - mediatek,pericfg
   - phy-handle
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>

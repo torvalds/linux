@@ -16,6 +16,8 @@
 #include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 
 /* register numbers */
 #define IS31FL319X_SHUTDOWN		0x00
@@ -61,6 +63,7 @@
 struct is31fl319x_chip {
 	const struct is31fl319x_chipdef *cdef;
 	struct i2c_client               *client;
+	struct gpio_desc		*shutdown_gpio;
 	struct regmap                   *regmap;
 	struct mutex                    lock;
 	u32                             audio_gain_db;
@@ -199,26 +202,27 @@ static int is31fl319x_parse_child_dt(const struct device *dev,
 static int is31fl319x_parse_dt(struct device *dev,
 			       struct is31fl319x_chip *is31)
 {
-	struct device_node *np = dev->of_node, *child;
-	const struct of_device_id *of_dev_id;
+	struct device_node *np = dev_of_node(dev), *child;
 	int count;
 	int ret;
 
 	if (!np)
 		return -ENODEV;
 
-	of_dev_id = of_match_device(of_is31fl319x_match, dev);
-	if (!of_dev_id) {
-		dev_err(dev, "Failed to match device with supported chips\n");
-		return -EINVAL;
+	is31->shutdown_gpio = devm_gpiod_get_optional(dev,
+						"shutdown",
+						GPIOD_OUT_HIGH);
+	if (IS_ERR(is31->shutdown_gpio)) {
+		ret = PTR_ERR(is31->shutdown_gpio);
+		dev_err(dev, "Failed to get shutdown gpio: %d\n", ret);
+		return ret;
 	}
 
-	is31->cdef = of_dev_id->data;
+	is31->cdef = device_get_match_data(dev);
 
-	count = of_get_child_count(np);
+	count = of_get_available_child_count(np);
 
-	dev_dbg(dev, "probe %s with %d leds defined in DT\n",
-		of_dev_id->compatible, count);
+	dev_dbg(dev, "probing with %d leds defined in DT\n", count);
 
 	if (!count || count > is31->cdef->num_leds) {
 		dev_err(dev, "Number of leds defined must be between 1 and %u\n",
@@ -226,7 +230,7 @@ static int is31fl319x_parse_dt(struct device *dev,
 		return -ENODEV;
 	}
 
-	for_each_child_of_node(np, child) {
+	for_each_available_child_of_node(np, child) {
 		struct is31fl319x_led *led;
 		u32 reg;
 
@@ -349,6 +353,12 @@ static int is31fl319x_probe(struct i2c_client *client,
 	err = is31fl319x_parse_dt(&client->dev, is31);
 	if (err)
 		goto free_mutex;
+
+	if (is31->shutdown_gpio) {
+		gpiod_direction_output(is31->shutdown_gpio, 0);
+		mdelay(5);
+		gpiod_direction_output(is31->shutdown_gpio, 1);
+	}
 
 	is31->client = client;
 	is31->regmap = devm_regmap_init_i2c(client, &regmap_config);

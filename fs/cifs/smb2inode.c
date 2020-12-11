@@ -506,17 +506,17 @@ move_smb2_info_to_cifs(FILE_ALL_INFO *dst, struct smb2_file_all_info *src)
 int
 smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 		     struct cifs_sb_info *cifs_sb, const char *full_path,
-		     FILE_ALL_INFO *data, bool *adjust_tz, bool *symlink)
+		     FILE_ALL_INFO *data, bool *adjust_tz, bool *reparse)
 {
 	int rc;
 	struct smb2_file_all_info *smb2_data;
 	__u32 create_options = 0;
-	struct cifs_fid fid;
 	bool no_cached_open = tcon->nohandlecache;
 	struct cifsFileInfo *cfile;
+	struct cached_fid *cfid = NULL;
 
 	*adjust_tz = false;
-	*symlink = false;
+	*reparse = false;
 
 	smb2_data = kzalloc(sizeof(struct smb2_file_all_info) + PATH_MAX * 2,
 			    GFP_KERNEL);
@@ -525,7 +525,7 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 
 	/* If it is a root and its handle is cached then use it */
 	if (!strlen(full_path) && !no_cached_open) {
-		rc = open_shroot(xid, tcon, cifs_sb, &fid);
+		rc = open_shroot(xid, tcon, cifs_sb, &cfid);
 		if (rc)
 			goto out;
 
@@ -533,12 +533,13 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 			move_smb2_info_to_cifs(data,
 					       &tcon->crfid.file_all_info);
 		} else {
-			rc = SMB2_query_info(xid, tcon, fid.persistent_fid,
-					     fid.volatile_fid, smb2_data);
+			rc = SMB2_query_info(xid, tcon,
+					     cfid->fid->persistent_fid,
+					     cfid->fid->volatile_fid, smb2_data);
 			if (!rc)
 				move_smb2_info_to_cifs(data, smb2_data);
 		}
-		close_shroot(&tcon->crfid);
+		close_shroot(cfid);
 		goto out;
 	}
 
@@ -547,7 +548,7 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 			      FILE_READ_ATTRIBUTES, FILE_OPEN, create_options,
 			      ACL_NO_MODE, smb2_data, SMB2_OP_QUERY_INFO, cfile);
 	if (rc == -EOPNOTSUPP) {
-		*symlink = true;
+		*reparse = true;
 		create_options |= OPEN_REPARSE_POINT;
 
 		/* Failed on a symbolic link - query a reparse point info */
@@ -569,7 +570,7 @@ out:
 int
 smb311_posix_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 		     struct cifs_sb_info *cifs_sb, const char *full_path,
-		     struct smb311_posix_qinfo *data, bool *adjust_tz, bool *symlink)
+		     struct smb311_posix_qinfo *data, bool *adjust_tz, bool *reparse)
 {
 	int rc;
 	__u32 create_options = 0;
@@ -577,7 +578,7 @@ smb311_posix_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	struct smb311_posix_qinfo *smb2_data;
 
 	*adjust_tz = false;
-	*symlink = false;
+	*reparse = false;
 
 	/* BB TODO: Make struct larger when add support for parsing owner SIDs */
 	smb2_data = kzalloc(sizeof(struct smb311_posix_qinfo),
@@ -598,7 +599,7 @@ smb311_posix_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 			      ACL_NO_MODE, smb2_data, SMB2_OP_POSIX_QUERY_INFO, cfile);
 	if (rc == -EOPNOTSUPP) {
 		/* BB TODO: When support for special files added to Samba re-verify this path */
-		*symlink = true;
+		*reparse = true;
 		create_options |= OPEN_REPARSE_POINT;
 
 		/* Failed on a symbolic link - query a reparse point info */

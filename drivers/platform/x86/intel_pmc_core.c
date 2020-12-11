@@ -118,6 +118,10 @@ static const struct pmc_bit_map spt_pfear_map[] = {
 };
 
 static const struct pmc_bit_map *ext_spt_pfear_map[] = {
+	/*
+	 * Check intel_pmc_core_ids[] users of spt_reg_map for
+	 * a list of core SoCs using this.
+	 */
 	spt_pfear_map,
 	NULL
 };
@@ -154,6 +158,7 @@ static const struct pmc_reg_map spt_reg_map = {
 	.ltr_show_sts = spt_ltr_show_map,
 	.msr_sts = msr_map,
 	.slp_s0_offset = SPT_PMC_SLP_S0_RES_COUNTER_OFFSET,
+	.slp_s0_res_counter_step = SPT_PMC_SLP_S0_RES_COUNTER_STEP,
 	.ltr_ignore_offset = SPT_PMC_LTR_IGNORE_OFFSET,
 	.regmap_length = SPT_PMC_MMIO_REG_LEN,
 	.ppfear0_offset = SPT_PMC_XRAM_PPFEAR0A,
@@ -166,7 +171,6 @@ static const struct pmc_reg_map spt_reg_map = {
 
 /* Cannon Lake: PGD PFET Enable Ack Status Register(s) bitmap */
 static const struct pmc_bit_map cnp_pfear_map[] = {
-	/* Reserved for Cannon Lake but valid for Comet Lake */
 	{"PMC",                 BIT(0)},
 	{"OPI-DMI",             BIT(1)},
 	{"SPI/eSPI",            BIT(2)},
@@ -192,10 +196,6 @@ static const struct pmc_bit_map cnp_pfear_map[] = {
 	{"SDX",                 BIT(4)},
 	{"SPE",                 BIT(5)},
 	{"Fuse",                BIT(6)},
-	/*
-	 * Reserved for Cannon Lake but valid for Ice Lake, Comet Lake,
-	 * Tiger Lake, Elkhart Lake and Jasper Lake.
-	 */
 	{"SBR8",		BIT(7)},
 
 	{"CSME_FSC",            BIT(0)},
@@ -239,10 +239,6 @@ static const struct pmc_bit_map cnp_pfear_map[] = {
 	{"HDA_PGD4",            BIT(2)},
 	{"HDA_PGD5",            BIT(3)},
 	{"HDA_PGD6",            BIT(4)},
-	/*
-	 * Reserved for Cannon Lake but valid for Ice Lake, Comet Lake,
-	 * Tiger Lake, ELkhart Lake and Jasper Lake.
-	 */
 	{"PSF6",		BIT(5)},
 	{"PSF7",		BIT(6)},
 	{"PSF8",		BIT(7)},
@@ -250,12 +246,15 @@ static const struct pmc_bit_map cnp_pfear_map[] = {
 };
 
 static const struct pmc_bit_map *ext_cnp_pfear_map[] = {
+	/*
+	 * Check intel_pmc_core_ids[] users of cnp_reg_map for
+	 * a list of core SoCs using this.
+	 */
 	cnp_pfear_map,
 	NULL
 };
 
 static const struct pmc_bit_map icl_pfear_map[] = {
-	/* Ice Lake and Jasper Lake generation onwards only */
 	{"RES_65",		BIT(0)},
 	{"RES_66",		BIT(1)},
 	{"RES_67",		BIT(2)},
@@ -268,13 +267,16 @@ static const struct pmc_bit_map icl_pfear_map[] = {
 };
 
 static const struct pmc_bit_map *ext_icl_pfear_map[] = {
+	/*
+	 * Check intel_pmc_core_ids[] users of icl_reg_map for
+	 * a list of core SoCs using this.
+	 */
 	cnp_pfear_map,
 	icl_pfear_map,
 	NULL
 };
 
 static const struct pmc_bit_map tgl_pfear_map[] = {
-	/* Tiger Lake and Elkhart Lake generation onwards only */
 	{"PSF9",		BIT(0)},
 	{"RES_66",		BIT(1)},
 	{"RES_67",		BIT(2)},
@@ -286,6 +288,10 @@ static const struct pmc_bit_map tgl_pfear_map[] = {
 };
 
 static const struct pmc_bit_map *ext_tgl_pfear_map[] = {
+	/*
+	 * Check intel_pmc_core_ids[] users of tgl_reg_map for
+	 * a list of core SoCs using this.
+	 */
 	cnp_pfear_map,
 	tgl_pfear_map,
 	NULL
@@ -369,7 +375,10 @@ static const struct pmc_bit_map cnp_ltr_show_map[] = {
 	{"ISH",			CNP_PMC_LTR_ISH},
 	{"UFSX2",		CNP_PMC_LTR_UFSX2},
 	{"EMMC",		CNP_PMC_LTR_EMMC},
-	/* Reserved for Cannon Lake but valid for Ice Lake */
+	/*
+	 * Check intel_pmc_core_ids[] users of cnp_reg_map for
+	 * a list of core SoCs using this.
+	 */
 	{"WIGIG",		ICL_PMC_LTR_WIGIG},
 	/* Below two cannot be used for LTR_IGNORE */
 	{"CURRENT_PLATFORM",	CNP_PMC_LTR_CUR_PLT},
@@ -380,6 +389,7 @@ static const struct pmc_bit_map cnp_ltr_show_map[] = {
 static const struct pmc_reg_map cnp_reg_map = {
 	.pfear_sts = ext_cnp_pfear_map,
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
+	.slp_s0_res_counter_step = SPT_PMC_SLP_S0_RES_COUNTER_STEP,
 	.slps0_dbg_maps = cnp_slps0_dbg_maps,
 	.ltr_show_sts = cnp_ltr_show_map,
 	.msr_sts = msr_map,
@@ -396,6 +406,7 @@ static const struct pmc_reg_map cnp_reg_map = {
 static const struct pmc_reg_map icl_reg_map = {
 	.pfear_sts = ext_icl_pfear_map,
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
+	.slp_s0_res_counter_step = ICL_PMC_SLP_S0_RES_COUNTER_STEP,
 	.slps0_dbg_maps = cnp_slps0_dbg_maps,
 	.ltr_show_sts = cnp_ltr_show_map,
 	.msr_sts = msr_map,
@@ -409,7 +420,7 @@ static const struct pmc_reg_map icl_reg_map = {
 	.ltr_ignore_max = ICL_NUM_IP_IGN_ALLOWED,
 };
 
-static const struct pmc_bit_map tgl_lpm0_map[] = {
+static const struct pmc_bit_map tgl_clocksource_status_map[] = {
 	{"USB2PLL_OFF_STS",			BIT(18)},
 	{"PCIe/USB3.1_Gen2PLL_OFF_STS",		BIT(19)},
 	{"PCIe_Gen3PLL_OFF_STS",		BIT(20)},
@@ -425,35 +436,35 @@ static const struct pmc_bit_map tgl_lpm0_map[] = {
 	{}
 };
 
-static const struct pmc_bit_map tgl_lpm1_map[] = {
-	{"SPI_PG_STS",				BIT(2)},
-	{"xHCI_PG_STS",				BIT(3)},
-	{"PCIe_Ctrller_A_PG_STS",		BIT(4)},
-	{"PCIe_Ctrller_B_PG_STS",		BIT(5)},
-	{"PCIe_Ctrller_C_PG_STS",		BIT(6)},
-	{"GBE_PG_STS",				BIT(7)},
-	{"SATA_PG_STS",				BIT(8)},
-	{"HDA0_PG_STS",				BIT(9)},
-	{"HDA1_PG_STS",				BIT(10)},
-	{"HDA2_PG_STS",				BIT(11)},
-	{"HDA3_PG_STS",				BIT(12)},
-	{"PCIe_Ctrller_D_PG_STS",		BIT(13)},
-	{"ISIO_PG_STS",				BIT(14)},
-	{"SMB_PG_STS",				BIT(16)},
-	{"ISH_PG_STS",				BIT(17)},
-	{"ITH_PG_STS",				BIT(19)},
-	{"SDX_PG_STS",				BIT(20)},
-	{"xDCI_PG_STS",				BIT(25)},
-	{"DCI_PG_STS",				BIT(26)},
-	{"CSME0_PG_STS",			BIT(27)},
-	{"CSME_KVM_PG_STS",			BIT(28)},
-	{"CSME1_PG_STS",			BIT(29)},
-	{"CSME_CLINK_PG_STS",			BIT(30)},
-	{"CSME2_PG_STS",			BIT(31)},
+static const struct pmc_bit_map tgl_power_gating_status_map[] = {
+	{"CSME_PG_STS",				BIT(0)},
+	{"SATA_PG_STS",				BIT(1)},
+	{"xHCI_PG_STS",				BIT(2)},
+	{"UFSX2_PG_STS",			BIT(3)},
+	{"OTG_PG_STS",				BIT(5)},
+	{"SPA_PG_STS",				BIT(6)},
+	{"SPB_PG_STS",				BIT(7)},
+	{"SPC_PG_STS",				BIT(8)},
+	{"SPD_PG_STS",				BIT(9)},
+	{"SPE_PG_STS",				BIT(10)},
+	{"SPF_PG_STS",				BIT(11)},
+	{"LSX_PG_STS",				BIT(13)},
+	{"P2SB_PG_STS",				BIT(14)},
+	{"PSF_PG_STS",				BIT(15)},
+	{"SBR_PG_STS",				BIT(16)},
+	{"OPIDMI_PG_STS",			BIT(17)},
+	{"THC0_PG_STS",				BIT(18)},
+	{"THC1_PG_STS",				BIT(19)},
+	{"GBETSN_PG_STS",			BIT(20)},
+	{"GBE_PG_STS",				BIT(21)},
+	{"LPSS_PG_STS",				BIT(22)},
+	{"MMP_UFSX2_PG_STS",			BIT(23)},
+	{"MMP_UFSX2B_PG_STS",			BIT(24)},
+	{"FIA_PG_STS",				BIT(25)},
 	{}
 };
 
-static const struct pmc_bit_map tgl_lpm2_map[] = {
+static const struct pmc_bit_map tgl_d3_status_map[] = {
 	{"ADSP_D3_STS",				BIT(0)},
 	{"SATA_D3_STS",				BIT(1)},
 	{"xHCI0_D3_STS",			BIT(2)},
@@ -468,7 +479,7 @@ static const struct pmc_bit_map tgl_lpm2_map[] = {
 	{}
 };
 
-static const struct pmc_bit_map tgl_lpm3_map[] = {
+static const struct pmc_bit_map tgl_vnn_req_status_map[] = {
 	{"GPIO_COM0_VNN_REQ_STS",		BIT(1)},
 	{"GPIO_COM1_VNN_REQ_STS",		BIT(2)},
 	{"GPIO_COM2_VNN_REQ_STS",		BIT(3)},
@@ -493,7 +504,7 @@ static const struct pmc_bit_map tgl_lpm3_map[] = {
 	{}
 };
 
-static const struct pmc_bit_map tgl_lpm4_map[] = {
+static const struct pmc_bit_map tgl_vnn_misc_status_map[] = {
 	{"CPU_C10_REQ_STS_0",			BIT(0)},
 	{"PCIe_LPM_En_REQ_STS_3",		BIT(3)},
 	{"ITH_REQ_STS_5",			BIT(5)},
@@ -509,7 +520,7 @@ static const struct pmc_bit_map tgl_lpm4_map[] = {
 	{}
 };
 
-static const struct pmc_bit_map tgl_lpm5_map[] = {
+static const struct pmc_bit_map tgl_signal_status_map[] = {
 	{"LSX_Wake0_En_STS",			BIT(0)},
 	{"LSX_Wake0_Pol_STS",			BIT(1)},
 	{"LSX_Wake1_En_STS",			BIT(2)},
@@ -546,18 +557,19 @@ static const struct pmc_bit_map tgl_lpm5_map[] = {
 };
 
 static const struct pmc_bit_map *tgl_lpm_maps[] = {
-	tgl_lpm0_map,
-	tgl_lpm1_map,
-	tgl_lpm2_map,
-	tgl_lpm3_map,
-	tgl_lpm4_map,
-	tgl_lpm5_map,
+	tgl_clocksource_status_map,
+	tgl_power_gating_status_map,
+	tgl_d3_status_map,
+	tgl_vnn_req_status_map,
+	tgl_vnn_misc_status_map,
+	tgl_signal_status_map,
 	NULL
 };
 
 static const struct pmc_reg_map tgl_reg_map = {
 	.pfear_sts = ext_tgl_pfear_map,
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
+	.slp_s0_res_counter_step = TGL_PMC_SLP_S0_RES_COUNTER_STEP,
 	.ltr_show_sts = cnp_ltr_show_map,
 	.msr_sts = msr_map,
 	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
@@ -586,9 +598,9 @@ static inline void pmc_core_reg_write(struct pmc_dev *pmcdev, int reg_offset,
 	writel(val, pmcdev->regbase + reg_offset);
 }
 
-static inline u64 pmc_core_adjust_slp_s0_step(u32 value)
+static inline u64 pmc_core_adjust_slp_s0_step(struct pmc_dev *pmcdev, u32 value)
 {
-	return (u64)value * SPT_PMC_SLP_S0_RES_COUNTER_STEP;
+	return (u64)value * pmcdev->map->slp_s0_res_counter_step;
 }
 
 static int pmc_core_dev_state_get(void *data, u64 *val)
@@ -598,7 +610,7 @@ static int pmc_core_dev_state_get(void *data, u64 *val)
 	u32 value;
 
 	value = pmc_core_reg_read(pmcdev, map->slp_s0_offset);
-	*val = pmc_core_adjust_slp_s0_step(value);
+	*val = pmc_core_adjust_slp_s0_step(pmcdev, value);
 
 	return 0;
 }
@@ -628,7 +640,7 @@ static void pmc_core_slps0_display(struct pmc_dev *pmcdev, struct device *dev,
 		offset += 4;
 		while (map->name) {
 			if (dev)
-				dev_dbg(dev, "SLP_S0_DBG: %-32s\tState: %s\n",
+				dev_info(dev, "SLP_S0_DBG: %-32s\tState: %s\n",
 					map->name,
 					data & map->bit_mask ? "Yes" : "No");
 			if (s)
@@ -671,7 +683,7 @@ static void pmc_core_lpm_display(struct pmc_dev *pmcdev, struct device *dev,
 
 	for (idx = 0; idx < arr_size; idx++) {
 		if (dev)
-			dev_dbg(dev, "\nLPM_%s_%d:\t0x%x\n", str, idx,
+			dev_info(dev, "\nLPM_%s_%d:\t0x%x\n", str, idx,
 				lpm_regs[idx]);
 		if (s)
 			seq_printf(s, "\nLPM_%s_%d:\t0x%x\n", str, idx,
@@ -679,7 +691,7 @@ static void pmc_core_lpm_display(struct pmc_dev *pmcdev, struct device *dev,
 		for (index = 0; maps[idx][index].name && index < len; index++) {
 			bit_mask = maps[idx][index].bit_mask;
 			if (dev)
-				dev_dbg(dev, "%-30s %-30d\n",
+				dev_info(dev, "%-30s %-30d\n",
 					maps[idx][index].name,
 					lpm_regs[idx] & bit_mask ? 1 : 0);
 			if (s)
@@ -1147,6 +1159,7 @@ static const struct x86_cpu_id intel_pmc_core_ids[] = {
 	X86_MATCH_INTEL_FAM6_MODEL(TIGERLAKE,		&tgl_reg_map),
 	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT,	&tgl_reg_map),
 	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT_L,	&icl_reg_map),
+	X86_MATCH_INTEL_FAM6_MODEL(ROCKETLAKE,		&tgl_reg_map),
 	{}
 };
 

@@ -62,4 +62,10 @@ char *perf_exe(char *buf, int len);
 #endif
 #endif
 
+extern bool test_attr__enabled;
+void test_attr__ready(void);
+void test_attr__init(void);
+struct perf_event_attr;
+void test_attr__open(struct perf_event_attr *attr, pid_t pid, int cpu,
+		     int fd, int group_fd, unsigned long flags);
 #endif /* GIT_COMPAT_UTIL_H */

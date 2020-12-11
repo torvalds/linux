@@ -824,18 +824,12 @@ static ssize_t eng_grp_info_show(struct device *dev,
 static int create_sysfs_eng_grps_info(struct device *dev,
 				      struct otx_cpt_eng_grp_info *eng_grp)
 {
-	int ret;
-
 	eng_grp->info_attr.show = eng_grp_info_show;
 	eng_grp->info_attr.store = NULL;
 	eng_grp->info_attr.attr.name = eng_grp->sysfs_info_name;
 	eng_grp->info_attr.attr.mode = 0440;
 	sysfs_attr_init(&eng_grp->info_attr.attr);
-	ret = device_create_file(dev, &eng_grp->info_attr);
-	if (ret)
-		return ret;
-
-	return 0;
+	return device_create_file(dev, &eng_grp->info_attr);
 }
 
 static void ucode_unload(struct device *dev, struct otx_cpt_ucode *ucode)

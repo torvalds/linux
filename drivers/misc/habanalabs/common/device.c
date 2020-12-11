@@ -123,9 +123,13 @@ static int hl_device_release_ctrl(struct inode *inode, struct file *filp)
 static int hl_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct hl_fpriv *hpriv = filp->private_data;
+	unsigned long vm_pgoff;
 
-	if ((vma->vm_pgoff & HL_MMAP_CB_MASK) == HL_MMAP_CB_MASK) {
-		vma->vm_pgoff ^= HL_MMAP_CB_MASK;
+	vm_pgoff = vma->vm_pgoff;
+	vma->vm_pgoff = HL_MMAP_OFFSET_VALUE_GET(vm_pgoff);
+
+	switch (vm_pgoff & HL_MMAP_TYPE_MASK) {
+	case HL_MMAP_TYPE_CB:
 		return hl_cb_mmap(hpriv, vma);
 	}
 
@@ -286,7 +290,7 @@ static int device_early_init(struct hl_device *hdev)
 	}
 
 	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++) {
-		snprintf(workq_name, 32, "hl-free-jobs-%u", i);
+		snprintf(workq_name, 32, "hl-free-jobs-%u", (u32) i);
 		hdev->cq_wq[i] = create_singlethread_workqueue(workq_name);
 		if (hdev->cq_wq[i] == NULL) {
 			dev_err(hdev->dev, "Failed to allocate CQ workqueue\n");
@@ -317,6 +321,10 @@ static int device_early_init(struct hl_device *hdev)
 		goto free_chip_info;
 	}
 
+	rc = hl_mmu_if_set_funcs(hdev);
+	if (rc)
+		goto free_idle_busy_ts_arr;
+
 	hl_cb_mgr_init(&hdev->kernel_cb_mgr);
 
 	mutex_init(&hdev->send_cpu_message_lock);
@@ -330,6 +338,8 @@ static int device_early_init(struct hl_device *hdev)
 
 	return 0;
 
+free_idle_busy_ts_arr:
+	kfree(hdev->idle_busy_ts_arr);
 free_chip_info:
 	kfree(hdev->hl_chip_info);
 free_eq_wq:
@@ -871,7 +881,7 @@ int hl_device_reset(struct hl_device *hdev, bool hard_reset,
 			 * so this message won't be sent
 			 */
 			if (hl_fw_send_pci_access_msg(hdev,
-					ARMCP_PACKET_DISABLE_PCI_ACCESS))
+					CPUCP_PACKET_DISABLE_PCI_ACCESS))
 				dev_warn(hdev->dev,
 					"Failed to disable PCI access by F/W\n");
 		}
@@ -957,14 +967,13 @@ again:
 		flush_workqueue(hdev->eq_wq);
 	}
 
-	/* Release kernel context */
-	if ((hard_reset) && (hl_ctx_put(hdev->kernel_ctx) == 1))
-		hdev->kernel_ctx = NULL;
-
 	/* Reset the H/W. It will be in idle state after this returns */
 	hdev->asic_funcs->hw_fini(hdev, hard_reset);
 
 	if (hard_reset) {
+		/* Release kernel context */
+		if (hl_ctx_put(hdev->kernel_ctx) == 1)
+			hdev->kernel_ctx = NULL;
 		hl_vm_fini(hdev);
 		hl_mmu_fini(hdev);
 		hl_eq_reset(hdev, &hdev->event_queue);
@@ -1455,12 +1464,12 @@ void hl_device_fini(struct hl_device *hdev)
 
 	hl_cb_pool_fini(hdev);
 
+	/* Reset the H/W. It will be in idle state after this returns */
+	hdev->asic_funcs->hw_fini(hdev, true);
+
 	/* Release kernel context */
 	if ((hdev->kernel_ctx) && (hl_ctx_put(hdev->kernel_ctx) != 1))
 		dev_err(hdev->dev, "kernel ctx is still alive\n");
-
-	/* Reset the H/W. It will be in idle state after this returns */
-	hdev->asic_funcs->hw_fini(hdev, true);
 
 	hl_vm_fini(hdev);
 

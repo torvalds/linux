@@ -147,6 +147,46 @@
 	IPP_SF(DCP0_DEGAMMA_CONTROL, CURSOR_DEGAMMA_MODE, mask_sh), \
 	IPP_SF(DCP0_DEGAMMA_CONTROL, CURSOR2_DEGAMMA_MODE, mask_sh)
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+#define IPP_DCE60_MASK_SH_LIST_DCE_COMMON_BASE(mask_sh) \
+	IPP_SF(CUR_UPDATE, CURSOR_UPDATE_LOCK, mask_sh), \
+	IPP_SF(CUR_CONTROL, CURSOR_EN, mask_sh), \
+	IPP_SF(CUR_CONTROL, CURSOR_MODE, mask_sh), \
+	IPP_SF(CUR_CONTROL, CURSOR_2X_MAGNIFY, mask_sh), \
+	IPP_SF(CUR_CONTROL, CUR_INV_TRANS_CLAMP, mask_sh), \
+	IPP_SF(CUR_POSITION, CURSOR_X_POSITION, mask_sh), \
+	IPP_SF(CUR_POSITION, CURSOR_Y_POSITION, mask_sh), \
+	IPP_SF(CUR_HOT_SPOT, CURSOR_HOT_SPOT_X, mask_sh), \
+	IPP_SF(CUR_HOT_SPOT, CURSOR_HOT_SPOT_Y, mask_sh), \
+	IPP_SF(CUR_COLOR1, CUR_COLOR1_BLUE, mask_sh), \
+	IPP_SF(CUR_COLOR1, CUR_COLOR1_GREEN, mask_sh), \
+	IPP_SF(CUR_COLOR1, CUR_COLOR1_RED, mask_sh), \
+	IPP_SF(CUR_COLOR2, CUR_COLOR2_BLUE, mask_sh), \
+	IPP_SF(CUR_COLOR2, CUR_COLOR2_GREEN, mask_sh), \
+	IPP_SF(CUR_COLOR2, CUR_COLOR2_RED, mask_sh), \
+	IPP_SF(CUR_SIZE, CURSOR_WIDTH, mask_sh), \
+	IPP_SF(CUR_SIZE, CURSOR_HEIGHT, mask_sh), \
+	IPP_SF(CUR_SURFACE_ADDRESS_HIGH, CURSOR_SURFACE_ADDRESS_HIGH, mask_sh), \
+	IPP_SF(CUR_SURFACE_ADDRESS, CURSOR_SURFACE_ADDRESS, mask_sh), \
+	IPP_SF(PRESCALE_GRPH_CONTROL, GRPH_PRESCALE_BYPASS, mask_sh), \
+	IPP_SF(PRESCALE_VALUES_GRPH_R, GRPH_PRESCALE_SCALE_R, mask_sh), \
+	IPP_SF(PRESCALE_VALUES_GRPH_R, GRPH_PRESCALE_BIAS_R, mask_sh), \
+	IPP_SF(PRESCALE_VALUES_GRPH_G, GRPH_PRESCALE_SCALE_G, mask_sh), \
+	IPP_SF(PRESCALE_VALUES_GRPH_G, GRPH_PRESCALE_BIAS_G, mask_sh), \
+	IPP_SF(PRESCALE_VALUES_GRPH_B, GRPH_PRESCALE_SCALE_B, mask_sh), \
+	IPP_SF(PRESCALE_VALUES_GRPH_B, GRPH_PRESCALE_BIAS_B, mask_sh), \
+	IPP_SF(INPUT_GAMMA_CONTROL, GRPH_INPUT_GAMMA_MODE, mask_sh), \
+	IPP_SF(DC_LUT_WRITE_EN_MASK, DC_LUT_WRITE_EN_MASK, mask_sh), \
+	IPP_SF(DC_LUT_RW_MODE, DC_LUT_RW_MODE, mask_sh), \
+	IPP_SF(DC_LUT_CONTROL, DC_LUT_DATA_R_FORMAT, mask_sh), \
+	IPP_SF(DC_LUT_CONTROL, DC_LUT_DATA_G_FORMAT, mask_sh), \
+	IPP_SF(DC_LUT_CONTROL, DC_LUT_DATA_B_FORMAT, mask_sh), \
+	IPP_SF(DC_LUT_RW_INDEX, DC_LUT_RW_INDEX, mask_sh), \
+	IPP_SF(DC_LUT_SEQ_COLOR, DC_LUT_SEQ_COLOR, mask_sh), \
+	IPP_SF(DEGAMMA_CONTROL, GRPH_DEGAMMA_MODE, mask_sh), \
+	IPP_SF(DEGAMMA_CONTROL, CURSOR_DEGAMMA_MODE, mask_sh)
+#endif
+
 #define IPP_REG_FIELD_LIST(type) \
 	type CURSOR_UPDATE_LOCK; \
 	type CURSOR_EN; \
@@ -232,6 +272,15 @@ void dce_ipp_construct(struct dce_ipp *ipp_dce,
 	const struct dce_ipp_registers *regs,
 	const struct dce_ipp_shift *ipp_shift,
 	const struct dce_ipp_mask *ipp_mask);
+
+#if defined(CONFIG_DRM_AMD_DC_SI)
+void dce60_ipp_construct(struct dce_ipp *ipp_dce,
+	struct dc_context *ctx,
+	int inst,
+	const struct dce_ipp_registers *regs,
+	const struct dce_ipp_shift *ipp_shift,
+	const struct dce_ipp_mask *ipp_mask);
+#endif
 
 void dce_ipp_destroy(struct input_pixel_processor **ipp);
 

@@ -1364,9 +1364,8 @@ il_dbgfs_register(struct il_priv *il, const char *name)
 }
 EXPORT_SYMBOL(il_dbgfs_register);
 
-/**
+/*
  * Remove the debugfs files and directories
- *
  */
 void
 il_dbgfs_unregister(struct il_priv *il)

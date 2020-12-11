@@ -136,12 +136,9 @@ static int check_mpls_supp_fields(u32 field_support, const __be32 *set_mask)
 #define LAST_COUNTERS_FIELD counters
 
 /* Field is the last supported field */
-#define FIELDS_NOT_SUPPORTED(filter, field)\
-	memchr_inv((void *)&filter.field  +\
-		   sizeof(filter.field), 0,\
-		   sizeof(filter) -\
-		   offsetof(typeof(filter), field) -\
-		   sizeof(filter.field))
+#define FIELDS_NOT_SUPPORTED(filter, field)                                    \
+	memchr_inv((void *)&filter.field + sizeof(filter.field), 0,            \
+		   sizeof(filter) - offsetofend(typeof(filter), field))
 
 int parse_flow_flow_action(struct mlx5_ib_flow_action *maction,
 			   bool is_egress,
@@ -767,6 +764,7 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 {
 	bool dont_trap = flow_attr->flags & IB_FLOW_ATTR_FLAGS_DONT_TRAP;
 	struct mlx5_flow_namespace *ns = NULL;
+	enum mlx5_flow_namespace_type fn_type;
 	struct mlx5_ib_flow_prio *prio;
 	struct mlx5_flow_table *ft;
 	int max_table_size;
@@ -780,11 +778,9 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 						       log_max_ft_size));
 	esw_encap = mlx5_eswitch_get_encap_mode(dev->mdev) !=
 		DEVLINK_ESWITCH_ENCAP_MODE_NONE;
-	if (flow_attr->type == IB_FLOW_ATTR_NORMAL) {
-		enum mlx5_flow_namespace_type fn_type;
-
-		if (flow_is_multicast_only(flow_attr) &&
-		    !dont_trap)
+	switch (flow_attr->type) {
+	case IB_FLOW_ATTR_NORMAL:
+		if (flow_is_multicast_only(flow_attr) && !dont_trap)
 			priority = MLX5_IB_FLOW_MCAST_PRIO;
 		else
 			priority = ib_prio_to_core_prio(flow_attr->priority,
@@ -797,12 +793,11 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 				flags |= MLX5_FLOW_TABLE_TUNNEL_EN_DECAP;
 			if (!dev->is_rep && !esw_encap &&
 			    MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev,
-					reformat_l3_tunnel_to_l2))
+						      reformat_l3_tunnel_to_l2))
 				flags |= MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
 		} else {
-			max_table_size =
-				BIT(MLX5_CAP_FLOWTABLE_NIC_TX(dev->mdev,
-							      log_max_ft_size));
+			max_table_size = BIT(MLX5_CAP_FLOWTABLE_NIC_TX(
+				dev->mdev, log_max_ft_size));
 			fn_type = MLX5_FLOW_NAMESPACE_EGRESS;
 			prio = &dev->flow_db->egress_prios[priority];
 			if (!dev->is_rep && !esw_encap &&
@@ -812,27 +807,31 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 		ns = mlx5_get_flow_namespace(dev->mdev, fn_type);
 		num_entries = MLX5_FS_MAX_ENTRIES;
 		num_groups = MLX5_FS_MAX_TYPES;
-	} else if (flow_attr->type == IB_FLOW_ATTR_ALL_DEFAULT ||
-		   flow_attr->type == IB_FLOW_ATTR_MC_DEFAULT) {
+		break;
+	case IB_FLOW_ATTR_ALL_DEFAULT:
+	case IB_FLOW_ATTR_MC_DEFAULT:
 		ns = mlx5_get_flow_namespace(dev->mdev,
 					     MLX5_FLOW_NAMESPACE_LEFTOVERS);
-		build_leftovers_ft_param(&priority,
-					 &num_entries,
-					 &num_groups);
+		build_leftovers_ft_param(&priority, &num_entries, &num_groups);
 		prio = &dev->flow_db->prios[MLX5_IB_FLOW_LEFTOVERS_PRIO];
-	} else if (flow_attr->type == IB_FLOW_ATTR_SNIFFER) {
+		break;
+	case IB_FLOW_ATTR_SNIFFER:
 		if (!MLX5_CAP_FLOWTABLE(dev->mdev,
 					allow_sniffer_and_nic_rx_shared_tir))
 			return ERR_PTR(-EOPNOTSUPP);
 
-		ns = mlx5_get_flow_namespace(dev->mdev, ft_type == MLX5_IB_FT_RX ?
-					     MLX5_FLOW_NAMESPACE_SNIFFER_RX :
-					     MLX5_FLOW_NAMESPACE_SNIFFER_TX);
+		ns = mlx5_get_flow_namespace(
+			dev->mdev, ft_type == MLX5_IB_FT_RX ?
+					   MLX5_FLOW_NAMESPACE_SNIFFER_RX :
+					   MLX5_FLOW_NAMESPACE_SNIFFER_TX);
 
 		prio = &dev->flow_db->sniffer[ft_type];
 		priority = 0;
 		num_entries = 1;
 		num_groups = 1;
+		break;
+	default:
+		break;
 	}
 
 	if (!ns)
@@ -954,7 +953,7 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 	if (!flow_is_multicast_only(flow_attr))
 		set_underlay_qp(dev, spec, underlay_qpn);
 
-	if (dev->is_rep) {
+	if (dev->is_rep && flow_attr->type != IB_FLOW_ATTR_SNIFFER) {
 		struct mlx5_eswitch_rep *rep;
 
 		rep = dev->port[flow_attr->port - 1].rep;
@@ -1116,6 +1115,7 @@ static struct mlx5_ib_flow_handler *create_sniffer_rule(struct mlx5_ib_dev *dev,
 	int err;
 	static const struct ib_flow_attr flow_attr  = {
 		.num_of_specs = 0,
+		.type = IB_FLOW_ATTR_SNIFFER,
 		.size = sizeof(flow_attr)
 	};
 
@@ -1143,10 +1143,8 @@ err:
 	return ERR_PTR(err);
 }
 
-
 static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 					   struct ib_flow_attr *flow_attr,
-					   int domain,
 					   struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(qp->device);
@@ -1162,8 +1160,7 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 	int underlay_qpn;
 
 	if (udata && udata->inlen) {
-		min_ucmd_sz = offsetof(typeof(ucmd_hdr), reserved) +
-				sizeof(ucmd_hdr.reserved);
+		min_ucmd_sz = offsetofend(struct mlx5_ib_create_flow, reserved);
 		if (udata->inlen < min_ucmd_sz)
 			return ERR_PTR(-EOPNOTSUPP);
 
@@ -1197,10 +1194,9 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 		goto free_ucmd;
 	}
 
-	if (domain != IB_FLOW_DOMAIN_USER ||
-	    flow_attr->port > dev->num_ports ||
-	    (flow_attr->flags & ~(IB_FLOW_ATTR_FLAGS_DONT_TRAP |
-				  IB_FLOW_ATTR_FLAGS_EGRESS))) {
+	if (flow_attr->port > dev->num_ports ||
+	    (flow_attr->flags &
+	     ~(IB_FLOW_ATTR_FLAGS_DONT_TRAP | IB_FLOW_ATTR_FLAGS_EGRESS))) {
 		err = -EINVAL;
 		goto free_ucmd;
 	}
@@ -1245,19 +1241,22 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 			dst->tir_num = mqp->raw_packet_qp.rq.tirn;
 	}
 
-	if (flow_attr->type == IB_FLOW_ATTR_NORMAL) {
+	switch (flow_attr->type) {
+	case IB_FLOW_ATTR_NORMAL:
 		underlay_qpn = (mqp->flags & IB_QP_CREATE_SOURCE_QPN) ?
 				       mqp->underlay_qpn :
 				       0;
 		handler = _create_flow_rule(dev, ft_prio, flow_attr, dst,
 					    underlay_qpn, ucmd);
-	} else if (flow_attr->type == IB_FLOW_ATTR_ALL_DEFAULT ||
-		   flow_attr->type == IB_FLOW_ATTR_MC_DEFAULT) {
-		handler = create_leftovers_rule(dev, ft_prio, flow_attr,
-						dst);
-	} else if (flow_attr->type == IB_FLOW_ATTR_SNIFFER) {
+		break;
+	case IB_FLOW_ATTR_ALL_DEFAULT:
+	case IB_FLOW_ATTR_MC_DEFAULT:
+		handler = create_leftovers_rule(dev, ft_prio, flow_attr, dst);
+		break;
+	case IB_FLOW_ATTR_SNIFFER:
 		handler = create_sniffer_rule(dev, ft_prio, ft_prio_tx, dst);
-	} else {
+		break;
+	default:
 		err = -EINVAL;
 		goto destroy_ft;
 	}
@@ -1305,39 +1304,47 @@ _get_flow_table(struct mlx5_ib_dev *dev,
 
 	esw_encap = mlx5_eswitch_get_encap_mode(dev->mdev) !=
 		DEVLINK_ESWITCH_ENCAP_MODE_NONE;
-	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_BYPASS) {
-		max_table_size = BIT(MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev,
-					log_max_ft_size));
+	switch (fs_matcher->ns_type) {
+	case MLX5_FLOW_NAMESPACE_BYPASS:
+		max_table_size = BIT(
+			MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev, log_max_ft_size));
 		if (MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev, decap) && !esw_encap)
 			flags |= MLX5_FLOW_TABLE_TUNNEL_EN_DECAP;
 		if (MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev,
 					      reformat_l3_tunnel_to_l2) &&
 		    !esw_encap)
 			flags |= MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
-	} else if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_EGRESS) {
+		break;
+	case MLX5_FLOW_NAMESPACE_EGRESS:
 		max_table_size = BIT(
 			MLX5_CAP_FLOWTABLE_NIC_TX(dev->mdev, log_max_ft_size));
-		if (MLX5_CAP_FLOWTABLE_NIC_TX(dev->mdev, reformat) && !esw_encap)
+		if (MLX5_CAP_FLOWTABLE_NIC_TX(dev->mdev, reformat) &&
+		    !esw_encap)
 			flags |= MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
-	} else if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB) {
+		break;
+	case MLX5_FLOW_NAMESPACE_FDB:
 		max_table_size = BIT(
 			MLX5_CAP_ESW_FLOWTABLE_FDB(dev->mdev, log_max_ft_size));
 		if (MLX5_CAP_ESW_FLOWTABLE_FDB(dev->mdev, decap) && esw_encap)
 			flags |= MLX5_FLOW_TABLE_TUNNEL_EN_DECAP;
-		if (MLX5_CAP_ESW_FLOWTABLE_FDB(dev->mdev, reformat_l3_tunnel_to_l2) &&
+		if (MLX5_CAP_ESW_FLOWTABLE_FDB(dev->mdev,
+					       reformat_l3_tunnel_to_l2) &&
 		    esw_encap)
 			flags |= MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
 		priority = FDB_BYPASS_PATH;
-	} else if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_RX) {
-		max_table_size =
-			BIT(MLX5_CAP_FLOWTABLE_RDMA_RX(dev->mdev,
-						       log_max_ft_size));
+		break;
+	case MLX5_FLOW_NAMESPACE_RDMA_RX:
+		max_table_size = BIT(
+			MLX5_CAP_FLOWTABLE_RDMA_RX(dev->mdev, log_max_ft_size));
 		priority = fs_matcher->priority;
-	} else if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_TX) {
-		max_table_size =
-			BIT(MLX5_CAP_FLOWTABLE_RDMA_TX(dev->mdev,
-						       log_max_ft_size));
+		break;
+	case MLX5_FLOW_NAMESPACE_RDMA_TX:
+		max_table_size = BIT(
+			MLX5_CAP_FLOWTABLE_RDMA_TX(dev->mdev, log_max_ft_size));
 		priority = fs_matcher->priority;
+		break;
+	default:
+		break;
 	}
 
 	max_table_size = min_t(int, max_table_size, MLX5_FS_MAX_ENTRIES);
@@ -1346,16 +1353,24 @@ _get_flow_table(struct mlx5_ib_dev *dev,
 	if (!ns)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_BYPASS)
+	switch (fs_matcher->ns_type) {
+	case MLX5_FLOW_NAMESPACE_BYPASS:
 		prio = &dev->flow_db->prios[priority];
-	else if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_EGRESS)
+		break;
+	case MLX5_FLOW_NAMESPACE_EGRESS:
 		prio = &dev->flow_db->egress_prios[priority];
-	else if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB)
+		break;
+	case MLX5_FLOW_NAMESPACE_FDB:
 		prio = &dev->flow_db->fdb;
-	else if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_RX)
+		break;
+	case MLX5_FLOW_NAMESPACE_RDMA_RX:
 		prio = &dev->flow_db->rdma_rx[priority];
-	else if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_TX)
+		break;
+	case MLX5_FLOW_NAMESPACE_RDMA_TX:
 		prio = &dev->flow_db->rdma_tx[priority];
+		break;
+	default: return ERR_PTR(-EINVAL);
+	}
 
 	if (!prio)
 		return ERR_PTR(-EINVAL);
@@ -1488,19 +1503,24 @@ static struct mlx5_ib_flow_handler *raw_fs_rule_add(
 		goto unlock;
 	}
 
-	if (dest_type == MLX5_FLOW_DESTINATION_TYPE_TIR) {
+	switch (dest_type) {
+	case MLX5_FLOW_DESTINATION_TYPE_TIR:
 		dst[dst_num].type = dest_type;
 		dst[dst_num++].tir_num = dest_id;
 		flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-	} else if (dest_type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE) {
+		break;
+	case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE:
 		dst[dst_num].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM;
 		dst[dst_num++].ft_num = dest_id;
 		flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-	} else  if (dest_type == MLX5_FLOW_DESTINATION_TYPE_PORT) {
+		break;
+	case MLX5_FLOW_DESTINATION_TYPE_PORT:
 		dst[dst_num++].type = MLX5_FLOW_DESTINATION_TYPE_PORT;
 		flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_ALLOW;
+		break;
+	default:
+		break;
 	}
-
 
 	if (flow_act->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
 		dst[dst_num].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;

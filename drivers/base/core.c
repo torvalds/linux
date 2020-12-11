@@ -26,6 +26,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/netdevice.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
 #include <linux/sysfs.h>
 
 #include "base.h"
@@ -239,27 +240,35 @@ void device_pm_move_to_tail(struct device *dev)
 #define to_devlink(dev)	container_of((dev), struct device_link, link_dev)
 
 static ssize_t status_show(struct device *dev,
-			  struct device_attribute *attr, char *buf)
+			   struct device_attribute *attr, char *buf)
 {
-	char *status;
+	const char *output;
 
 	switch (to_devlink(dev)->status) {
 	case DL_STATE_NONE:
-		status = "not tracked"; break;
+		output = "not tracked";
+		break;
 	case DL_STATE_DORMANT:
-		status = "dormant"; break;
+		output = "dormant";
+		break;
 	case DL_STATE_AVAILABLE:
-		status = "available"; break;
+		output = "available";
+		break;
 	case DL_STATE_CONSUMER_PROBE:
-		status = "consumer probing"; break;
+		output = "consumer probing";
+		break;
 	case DL_STATE_ACTIVE:
-		status = "active"; break;
+		output = "active";
+		break;
 	case DL_STATE_SUPPLIER_UNBIND:
-		status = "supplier unbinding"; break;
+		output = "supplier unbinding";
+		break;
 	default:
-		status = "unknown"; break;
+		output = "unknown";
+		break;
 	}
-	return sprintf(buf, "%s\n", status);
+
+	return sysfs_emit(buf, "%s\n", output);
 }
 static DEVICE_ATTR_RO(status);
 
@@ -267,16 +276,16 @@ static ssize_t auto_remove_on_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct device_link *link = to_devlink(dev);
-	char *str;
+	const char *output;
 
 	if (link->flags & DL_FLAG_AUTOREMOVE_SUPPLIER)
-		str = "supplier unbind";
+		output = "supplier unbind";
 	else if (link->flags & DL_FLAG_AUTOREMOVE_CONSUMER)
-		str = "consumer unbind";
+		output = "consumer unbind";
 	else
-		str = "never";
+		output = "never";
 
-	return sprintf(buf, "%s\n", str);
+	return sysfs_emit(buf, "%s\n", output);
 }
 static DEVICE_ATTR_RO(auto_remove_on);
 
@@ -285,7 +294,7 @@ static ssize_t runtime_pm_show(struct device *dev,
 {
 	struct device_link *link = to_devlink(dev);
 
-	return sprintf(buf, "%d\n", !!(link->flags & DL_FLAG_PM_RUNTIME));
+	return sysfs_emit(buf, "%d\n", !!(link->flags & DL_FLAG_PM_RUNTIME));
 }
 static DEVICE_ATTR_RO(runtime_pm);
 
@@ -294,7 +303,8 @@ static ssize_t sync_state_only_show(struct device *dev,
 {
 	struct device_link *link = to_devlink(dev);
 
-	return sprintf(buf, "%d\n", !!(link->flags & DL_FLAG_SYNC_STATE_ONLY));
+	return sysfs_emit(buf, "%d\n",
+			  !!(link->flags & DL_FLAG_SYNC_STATE_ONLY));
 }
 static DEVICE_ATTR_RO(sync_state_only);
 
@@ -1059,7 +1069,7 @@ static ssize_t waiting_for_supplier_show(struct device *dev,
 	      && dev->links.need_for_probe;
 	mutex_unlock(&wfs_lock);
 	device_unlock(dev);
-	return sprintf(buf, "%u\n", val);
+	return sysfs_emit(buf, "%u\n", val);
 }
 static DEVICE_ATTR_RO(waiting_for_supplier);
 
@@ -1709,7 +1719,7 @@ ssize_t device_show_ulong(struct device *dev,
 			  char *buf)
 {
 	struct dev_ext_attribute *ea = to_ext_attr(attr);
-	return snprintf(buf, PAGE_SIZE, "%lx\n", *(unsigned long *)(ea->var));
+	return sysfs_emit(buf, "%lx\n", *(unsigned long *)(ea->var));
 }
 EXPORT_SYMBOL_GPL(device_show_ulong);
 
@@ -1739,7 +1749,7 @@ ssize_t device_show_int(struct device *dev,
 {
 	struct dev_ext_attribute *ea = to_ext_attr(attr);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", *(int *)(ea->var));
+	return sysfs_emit(buf, "%d\n", *(int *)(ea->var));
 }
 EXPORT_SYMBOL_GPL(device_show_int);
 
@@ -1760,7 +1770,7 @@ ssize_t device_show_bool(struct device *dev, struct device_attribute *attr,
 {
 	struct dev_ext_attribute *ea = to_ext_attr(attr);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", *(bool *)(ea->var));
+	return sysfs_emit(buf, "%d\n", *(bool *)(ea->var));
 }
 EXPORT_SYMBOL_GPL(device_show_bool);
 
@@ -1787,6 +1797,8 @@ static void device_release(struct kobject *kobj)
 	 * possible memory leak.
 	 */
 	devres_release_all(dev);
+
+	kfree(dev->dma_range_map);
 
 	if (dev->release)
 		dev->release(dev);
@@ -1932,7 +1944,7 @@ static ssize_t uevent_show(struct device *dev, struct device_attribute *attr,
 	struct kset *kset;
 	struct kobj_uevent_env *env = NULL;
 	int i;
-	size_t count = 0;
+	int len = 0;
 	int retval;
 
 	/* search the kset, the device belongs to */
@@ -1962,10 +1974,10 @@ static ssize_t uevent_show(struct device *dev, struct device_attribute *attr,
 
 	/* copy keys to file */
 	for (i = 0; i < env->envp_idx; i++)
-		count += sprintf(&buf[count], "%s\n", env->envp[i]);
+		len += sysfs_emit_at(buf, len, "%s\n", env->envp[i]);
 out:
 	kfree(env);
-	return count;
+	return len;
 }
 
 static ssize_t uevent_store(struct device *dev, struct device_attribute *attr,
@@ -1992,7 +2004,7 @@ static ssize_t online_show(struct device *dev, struct device_attribute *attr,
 	device_lock(dev);
 	val = !dev->offline;
 	device_unlock(dev);
-	return sprintf(buf, "%u\n", val);
+	return sysfs_emit(buf, "%u\n", val);
 }
 
 static ssize_t online_store(struct device *dev, struct device_attribute *attr,
@@ -3062,6 +3074,7 @@ void device_del(struct device *dev)
 	struct device *parent = dev->parent;
 	struct kobject *glue_dir = NULL;
 	struct class_interface *class_intf;
+	unsigned int noio_flag;
 
 	device_lock(dev);
 	kill_device(dev);
@@ -3073,6 +3086,7 @@ void device_del(struct device *dev)
 	/* Notify clients of device removal.  This call must come
 	 * before dpm_sysfs_remove().
 	 */
+	noio_flag = memalloc_noio_save();
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_DEL_DEVICE, dev);
@@ -3114,6 +3128,7 @@ void device_del(struct device *dev)
 	glue_dir = get_glue_dir(dev);
 	kobject_del(&dev->kobj);
 	cleanup_glue_dir(dev, glue_dir);
+	memalloc_noio_restore(noio_flag);
 	put_device(parent);
 }
 EXPORT_SYMBOL_GPL(device_del);
@@ -3324,7 +3339,7 @@ struct device *device_find_child_by_name(struct device *parent,
 
 	klist_iter_init(&parent->p->klist_children, &i);
 	while ((child = next_device(&i)))
-		if (!strcmp(dev_name(child), name) && get_device(child))
+		if (sysfs_streq(dev_name(child), name) && get_device(child))
 			break;
 	klist_iter_exit(&i);
 	return child;
@@ -4061,22 +4076,21 @@ void device_shutdown(void)
  */
 
 #ifdef CONFIG_PRINTK
-static int
-create_syslog_header(const struct device *dev, char *hdr, size_t hdrlen)
+static void
+set_dev_info(const struct device *dev, struct dev_printk_info *dev_info)
 {
 	const char *subsys;
-	size_t pos = 0;
+
+	memset(dev_info, 0, sizeof(*dev_info));
 
 	if (dev->class)
 		subsys = dev->class->name;
 	else if (dev->bus)
 		subsys = dev->bus->name;
 	else
-		return 0;
+		return;
 
-	pos += snprintf(hdr + pos, hdrlen - pos, "SUBSYSTEM=%s", subsys);
-	if (pos >= hdrlen)
-		goto overflow;
+	strscpy(dev_info->subsystem, subsys, sizeof(dev_info->subsystem));
 
 	/*
 	 * Add device identifier DEVICE=:
@@ -4092,41 +4106,28 @@ create_syslog_header(const struct device *dev, char *hdr, size_t hdrlen)
 			c = 'b';
 		else
 			c = 'c';
-		pos++;
-		pos += snprintf(hdr + pos, hdrlen - pos,
-				"DEVICE=%c%u:%u",
-				c, MAJOR(dev->devt), MINOR(dev->devt));
+
+		snprintf(dev_info->device, sizeof(dev_info->device),
+			 "%c%u:%u", c, MAJOR(dev->devt), MINOR(dev->devt));
 	} else if (strcmp(subsys, "net") == 0) {
 		struct net_device *net = to_net_dev(dev);
 
-		pos++;
-		pos += snprintf(hdr + pos, hdrlen - pos,
-				"DEVICE=n%u", net->ifindex);
+		snprintf(dev_info->device, sizeof(dev_info->device),
+			 "n%u", net->ifindex);
 	} else {
-		pos++;
-		pos += snprintf(hdr + pos, hdrlen - pos,
-				"DEVICE=+%s:%s", subsys, dev_name(dev));
+		snprintf(dev_info->device, sizeof(dev_info->device),
+			 "+%s:%s", subsys, dev_name(dev));
 	}
-
-	if (pos >= hdrlen)
-		goto overflow;
-
-	return pos;
-
-overflow:
-	dev_WARN(dev, "device/subsystem name too long");
-	return 0;
 }
 
 int dev_vprintk_emit(int level, const struct device *dev,
 		     const char *fmt, va_list args)
 {
-	char hdr[128];
-	size_t hdrlen;
+	struct dev_printk_info dev_info;
 
-	hdrlen = create_syslog_header(dev, hdr, sizeof(hdr));
+	set_dev_info(dev, &dev_info);
 
-	return vprintk_emit(0, level, hdrlen ? hdr : NULL, hdrlen, fmt, args);
+	return vprintk_emit(0, level, &dev_info, fmt, args);
 }
 EXPORT_SYMBOL(dev_vprintk_emit);
 
@@ -4211,13 +4212,16 @@ define_dev_printk_level(_dev_info, KERN_INFO);
  * -EPROBE_DEFER and propagate error upwards.
  * In case of -EPROBE_DEFER it sets also defer probe reason, which can be
  * checked later by reading devices_deferred debugfs attribute.
- * It replaces code sequence:
+ * It replaces code sequence::
+ *
  * 	if (err != -EPROBE_DEFER)
  * 		dev_err(dev, ...);
  * 	else
  * 		dev_dbg(dev, ...);
  * 	return err;
- * with
+ *
+ * with::
+ *
  * 	return dev_err_probe(dev, err, ...);
  *
  * Returns @err.

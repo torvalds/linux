@@ -34,7 +34,7 @@ provides host private data for that purpose that can be accessed with
 From the bridge driver perspective, you load the sub-device module and somehow
 obtain the :c:type:`v4l2_subdev` pointer. For i2c devices this is easy: you call
 ``i2c_get_clientdata()``. For other buses something similar needs to be done.
-Helper functions exists for sub-devices on an I2C bus that do most of this
+Helper functions exist for sub-devices on an I2C bus that do most of this
 tricky work for you.
 
 Each :c:type:`v4l2_subdev` contains function pointers that sub-device drivers
@@ -110,7 +110,7 @@ pads:
 	err = media_entity_pads_init(&sd->entity, npads, pads);
 
 The pads array must have been previously initialized. There is no need to
-manually set the struct :c:type:`media_entity` function and name fields, but the
+manually set the struct media_entity function and name fields, but the
 revision field must be initialized if needed.
 
 A reference to the entity will be automatically acquired/released when the
@@ -138,6 +138,9 @@ ensures that width, height and the media bus pixel code are equal on both source
 and sink of the link. Subdev drivers are also free to use this function to
 perform the checks mentioned above in addition to their own checks.
 
+Subdev registration
+~~~~~~~~~~~~~~~~~~~
+
 There are currently two ways to register subdevices with the V4L2 core. The
 first (traditional) possibility is to have subdevices registered by bridge
 drivers. This can be done when the bridge driver has the complete information
@@ -157,7 +160,7 @@ below.
 Using one or the other registration method only affects the probing process, the
 run-time bridge-subdevice interaction is in both cases the same.
 
-In the synchronous case a device (bridge) driver needs to register the
+In the **synchronous** case a device (bridge) driver needs to register the
 :c:type:`v4l2_subdev` with the v4l2_device:
 
 	:c:func:`v4l2_device_register_subdev <v4l2_device_register_subdev>`
@@ -179,7 +182,51 @@ You can unregister a sub-device using:
 Afterwards the subdev module can be unloaded and
 :c:type:`sd <v4l2_subdev>`->dev == ``NULL``.
 
-You can call an ops function either directly:
+In the **asynchronous** case subdevice probing can be invoked independently of
+the bridge driver availability. The subdevice driver then has to verify whether
+all the requirements for a successful probing are satisfied. This can include a
+check for a master clock availability. If any of the conditions aren't satisfied
+the driver might decide to return ``-EPROBE_DEFER`` to request further reprobing
+attempts. Once all conditions are met the subdevice shall be registered using
+the :c:func:`v4l2_async_register_subdev` function. Unregistration is
+performed using the :c:func:`v4l2_async_unregister_subdev` call. Subdevices
+registered this way are stored in a global list of subdevices, ready to be
+picked up by bridge drivers.
+
+Bridge drivers in turn have to register a notifier object. This is
+performed using the :c:func:`v4l2_async_notifier_register` call. To
+unregister the notifier the driver has to call
+:c:func:`v4l2_async_notifier_unregister`. The former of the two functions
+takes two arguments: a pointer to struct :c:type:`v4l2_device` and a
+pointer to struct :c:type:`v4l2_async_notifier`.
+
+Before registering the notifier, bridge drivers must do two things:
+first, the notifier must be initialized using the
+:c:func:`v4l2_async_notifier_init`. Second, bridge drivers can then
+begin to form a list of subdevice descriptors that the bridge device
+needs for its operation. Subdevice descriptors are added to the notifier
+using the :c:func:`v4l2_async_notifier_add_subdev` call. This function
+takes two arguments: a pointer to struct :c:type:`v4l2_async_notifier`,
+and a pointer to the subdevice descripter, which is of type struct
+:c:type:`v4l2_async_subdev`.
+
+The V4L2 core will then use these descriptors to match asynchronously
+registered subdevices to them. If a match is detected the ``.bound()``
+notifier callback is called. After all subdevices have been located the
+.complete() callback is called. When a subdevice is removed from the
+system the .unbind() method is called. All three callbacks are optional.
+
+Calling subdev operations
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The advantage of using :c:type:`v4l2_subdev` is that it is a generic struct and
+does not contain any knowledge about the underlying hardware. So a driver might
+contain several subdevs that use an I2C bus, but also a subdev that is
+controlled through GPIO pins. This distinction is only relevant when setting
+up the device, but once the subdev is registered it is completely transparent.
+
+Once te subdev has been registered you can call an ops function either
+directly:
 
 .. code-block:: c
 
@@ -191,7 +238,7 @@ but it is better and easier to use this macro:
 
 	err = v4l2_subdev_call(sd, core, g_std, &norm);
 
-The macro will to the right ``NULL`` pointer checks and returns ``-ENODEV``
+The macro will do the right ``NULL`` pointer checks and returns ``-ENODEV``
 if :c:type:`sd <v4l2_subdev>` is ``NULL``, ``-ENOIOCTLCMD`` if either
 :c:type:`sd <v4l2_subdev>`->core or :c:type:`sd <v4l2_subdev>`->core->g_std is ``NULL``, or the actual result of the
 :c:type:`sd <v4l2_subdev>`->ops->core->g_std ops.
@@ -231,46 +278,6 @@ If the sub-device needs to notify its v4l2_device parent of an event, then
 it can call ``v4l2_subdev_notify(sd, notification, arg)``. This macro checks
 whether there is a ``notify()`` callback defined and returns ``-ENODEV`` if not.
 Otherwise the result of the ``notify()`` call is returned.
-
-The advantage of using :c:type:`v4l2_subdev` is that it is a generic struct and
-does not contain any knowledge about the underlying hardware. So a driver might
-contain several subdevs that use an I2C bus, but also a subdev that is
-controlled through GPIO pins. This distinction is only relevant when setting
-up the device, but once the subdev is registered it is completely transparent.
-
-In the asynchronous case subdevice probing can be invoked independently of the
-bridge driver availability. The subdevice driver then has to verify whether all
-the requirements for a successful probing are satisfied. This can include a
-check for a master clock availability. If any of the conditions aren't satisfied
-the driver might decide to return ``-EPROBE_DEFER`` to request further reprobing
-attempts. Once all conditions are met the subdevice shall be registered using
-the :c:func:`v4l2_async_register_subdev` function. Unregistration is
-performed using the :c:func:`v4l2_async_unregister_subdev` call. Subdevices
-registered this way are stored in a global list of subdevices, ready to be
-picked up by bridge drivers.
-
-Bridge drivers in turn have to register a notifier object. This is
-performed using the :c:func:`v4l2_async_notifier_register` call. To
-unregister the notifier the driver has to call
-:c:func:`v4l2_async_notifier_unregister`. The former of the two functions
-takes two arguments: a pointer to struct :c:type:`v4l2_device` and a
-pointer to struct :c:type:`v4l2_async_notifier`.
-
-Before registering the notifier, bridge drivers must do two things:
-first, the notifier must be initialized using the
-:c:func:`v4l2_async_notifier_init`. Second, bridge drivers can then
-begin to form a list of subdevice descriptors that the bridge device
-needs for its operation. Subdevice descriptors are added to the notifier
-using the :c:func:`v4l2_async_notifier_add_subdev` call. This function
-takes two arguments: a pointer to struct :c:type:`v4l2_async_notifier`,
-and a pointer to the subdevice descripter, which is of type struct
-:c:type:`v4l2_async_subdev`.
-
-The V4L2 core will then use these descriptors to match asynchronously
-registered subdevices to them. If a match is detected the ``.bound()``
-notifier callback is called. After all subdevices have been located the
-.complete() callback is called. When a subdevice is removed from the
-system the .unbind() method is called. All three callbacks are optional.
 
 V4L2 sub-device userspace API
 -----------------------------
@@ -488,5 +495,3 @@ V4L2 sub-device functions and data structures
 ---------------------------------------------
 
 .. kernel-doc:: include/media/v4l2-subdev.h
-
-.. kernel-doc:: include/media/v4l2-async.h

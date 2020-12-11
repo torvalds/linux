@@ -47,6 +47,31 @@ u8 tegra_get_minor_rev(void)
 	return (tegra_read_chipid() >> 16) & 0xf;
 }
 
+u8 tegra_get_platform(void)
+{
+	return (tegra_read_chipid() >> 20) & 0xf;
+}
+
+bool tegra_is_silicon(void)
+{
+	switch (tegra_get_chip_id()) {
+	case TEGRA194:
+	case TEGRA234:
+		if (tegra_get_platform() == 0)
+			return true;
+
+		return false;
+	}
+
+	/*
+	 * Chips prior to Tegra194 have a different way of determining whether
+	 * they are silicon or not. Since we never supported simulation on the
+	 * older Tegra chips, don't bother extracting the information and just
+	 * report that we're running on silicon.
+	 */
+	return true;
+}
+
 u32 tegra_read_straps(void)
 {
 	WARN(!chipid, "Tegra ABP MISC not yet available\n");
@@ -70,6 +95,7 @@ static const struct of_device_id apbmisc_match[] __initconst = {
 	{ .compatible = "nvidia,tegra20-apbmisc", },
 	{ .compatible = "nvidia,tegra186-misc", },
 	{ .compatible = "nvidia,tegra194-misc", },
+	{ .compatible = "nvidia,tegra234-misc", },
 	{},
 };
 

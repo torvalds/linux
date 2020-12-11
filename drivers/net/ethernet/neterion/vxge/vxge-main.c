@@ -1275,6 +1275,7 @@ _set_all_mcast:
 /**
  * vxge_set_mac_addr
  * @dev: pointer to the device structure
+ * @p: socket info
  *
  * Update entry "0" (default MAC addr)
  */
@@ -1799,7 +1800,7 @@ static void vxge_reset(struct work_struct *work)
 
 /**
  * vxge_poll - Receive handler when Receive Polling is used.
- * @dev: pointer to the device structure.
+ * @napi: pointer to the napi structure.
  * @budget: Number of packets budgeted to be processed in this iteration.
  *
  * This function comes into picture only if Receive side is being handled
@@ -3096,7 +3097,7 @@ static int vxge_change_mtu(struct net_device *dev, int new_mtu)
 /**
  * vxge_get_stats64
  * @dev: pointer to the device structure
- * @stats: pointer to struct rtnl_link_stats64
+ * @net_stats: pointer to struct rtnl_link_stats64
  *
  */
 static void
@@ -3245,7 +3246,7 @@ static int vxge_hwtstamp_get(struct vxgedev *vdev, void __user *data)
 /**
  * vxge_ioctl
  * @dev: Device pointer.
- * @ifr: An IOCTL specific structure, that can contain a pointer to
+ * @rq: An IOCTL specific structure, that can contain a pointer to
  *       a proprietary structure used to pass information to the driver.
  * @cmd: This is used to distinguish between the different commands that
  *       can be passed to the IOCTL functions.
@@ -3269,6 +3270,7 @@ static int vxge_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 /**
  * vxge_tx_watchdog
  * @dev: pointer to net device structure
+ * @txqueue: index of the hanging queue
  *
  * Watchdog for transmit side.
  * This function is triggered if the Tx Queue is stopped
@@ -4002,6 +4004,7 @@ static void vxge_print_parm(struct vxgedev *vdev, u64 vpath_mask)
 
 /**
  * vxge_pm_suspend - vxge power management suspend entry point
+ * @dev_d: device pointer
  *
  */
 static int __maybe_unused vxge_pm_suspend(struct device *dev_d)
@@ -4010,6 +4013,7 @@ static int __maybe_unused vxge_pm_suspend(struct device *dev_d)
 }
 /**
  * vxge_pm_resume - vxge power management resume entry point
+ * @dev_d: device pointer
  *
  */
 static int __maybe_unused vxge_pm_resume(struct device *dev_d)
@@ -4539,7 +4543,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	 * due to the fact that HWTS is using the FCS as the location of the
 	 * timestamp.  The HW FCS checking will still correctly determine if
 	 * there is a valid checksum, and the FCS is being removed by the driver
-	 * anyway.  So no fucntionality is being lost.  Since it is always
+	 * anyway.  So no functionality is being lost.  Since it is always
 	 * enabled, we now simply use the ioctl call to set whether or not the
 	 * driver should be paying attention to the HWTS.
 	 */

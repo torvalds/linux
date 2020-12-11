@@ -298,7 +298,7 @@ void vivid_vbi_gen_sliced(struct vivid_vbi_gen_data *vbi,
 	switch (frame) {
 	case 0:
 		vivid_vbi_gen_set_time_of_day(vbi->time_of_day_packet);
-		/* fall through */
+		fallthrough;
 	case 1 ... 7:
 		data1->data[0] = vbi->time_of_day_packet[frame * 2];
 		data1->data[1] = vbi->time_of_day_packet[frame * 2 + 1];

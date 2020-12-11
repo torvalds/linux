@@ -4322,7 +4322,7 @@ static const struct freq_tbl ftbl_pcie_rchng_clk_src[] = {
 	{ }
 };
 
-struct clk_rcg2 pcie0_rchng_clk_src = {
+static struct clk_rcg2 pcie0_rchng_clk_src = {
 	.cmd_rcgr = 0x75070,
 	.freq_tbl = ftbl_pcie_rchng_clk_src,
 	.hid_width = 5,

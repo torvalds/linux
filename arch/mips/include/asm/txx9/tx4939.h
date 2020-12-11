@@ -498,7 +498,6 @@ struct tx4939_vpc_desc {
 	((((mst) + 245/2) / 245UL * 429 * 16 + 19) / 19 / 2)
 
 void tx4939_wdt_init(void);
-void tx4939_add_memory_regions(void);
 void tx4939_setup(void);
 void tx4939_time_init(unsigned int tmrnr);
 void tx4939_sio_init(unsigned int sclk, unsigned int cts_mask);

@@ -41,6 +41,9 @@
 #include <linux/gfp.h>
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>
+#include <vdso/vsyscall.h>
+#include <vdso/clocksource.h>
+#include <vdso/helpers.h>
 #include <asm/facility.h>
 #include <asm/delay.h>
 #include <asm/div64.h>
@@ -84,7 +87,7 @@ void __init time_early_init(void)
 
 	/* Initialize TOD steering parameters */
 	tod_steering_end = *(unsigned long long *) &tod_clock_base[1];
-	vdso_data->ts_end = tod_steering_end;
+	vdso_data->arch_data.tod_steering_end = tod_steering_end;
 
 	if (!test_facility(28))
 		return;
@@ -257,61 +260,12 @@ static struct clocksource clocksource_tod = {
 	.mult		= 1000,
 	.shift		= 12,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+	.vdso_clock_mode = VDSO_CLOCKMODE_TOD,
 };
 
 struct clocksource * __init clocksource_default_clock(void)
 {
 	return &clocksource_tod;
-}
-
-void update_vsyscall(struct timekeeper *tk)
-{
-	u64 nsecps;
-
-	if (tk->tkr_mono.clock != &clocksource_tod)
-		return;
-
-	/* Make userspace gettimeofday spin until we're done. */
-	++vdso_data->tb_update_count;
-	smp_wmb();
-	vdso_data->xtime_tod_stamp = tk->tkr_mono.cycle_last;
-	vdso_data->xtime_clock_sec = tk->xtime_sec;
-	vdso_data->xtime_clock_nsec = tk->tkr_mono.xtime_nsec;
-	vdso_data->wtom_clock_sec =
-		tk->xtime_sec + tk->wall_to_monotonic.tv_sec;
-	vdso_data->wtom_clock_nsec = tk->tkr_mono.xtime_nsec +
-		+ ((u64) tk->wall_to_monotonic.tv_nsec << tk->tkr_mono.shift);
-	nsecps = (u64) NSEC_PER_SEC << tk->tkr_mono.shift;
-	while (vdso_data->wtom_clock_nsec >= nsecps) {
-		vdso_data->wtom_clock_nsec -= nsecps;
-		vdso_data->wtom_clock_sec++;
-	}
-
-	vdso_data->xtime_coarse_sec = tk->xtime_sec;
-	vdso_data->xtime_coarse_nsec =
-		(long)(tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift);
-	vdso_data->wtom_coarse_sec =
-		vdso_data->xtime_coarse_sec + tk->wall_to_monotonic.tv_sec;
-	vdso_data->wtom_coarse_nsec =
-		vdso_data->xtime_coarse_nsec + tk->wall_to_monotonic.tv_nsec;
-	while (vdso_data->wtom_coarse_nsec >= NSEC_PER_SEC) {
-		vdso_data->wtom_coarse_nsec -= NSEC_PER_SEC;
-		vdso_data->wtom_coarse_sec++;
-	}
-
-	vdso_data->tk_mult = tk->tkr_mono.mult;
-	vdso_data->tk_shift = tk->tkr_mono.shift;
-	vdso_data->hrtimer_res = hrtimer_resolution;
-	smp_wmb();
-	++vdso_data->tb_update_count;
-}
-
-extern struct timezone sys_tz;
-
-void update_vsyscall_tz(void)
-{
-	vdso_data->tz_minuteswest = sys_tz.tz_minuteswest;
-	vdso_data->tz_dsttime = sys_tz.tz_dsttime;
 }
 
 /*
@@ -342,11 +296,12 @@ void __init time_init(void)
 }
 
 static DEFINE_PER_CPU(atomic_t, clock_sync_word);
-static DEFINE_MUTEX(clock_sync_mutex);
+static DEFINE_MUTEX(stp_mutex);
 static unsigned long clock_sync_flags;
 
-#define CLOCK_SYNC_HAS_STP	0
-#define CLOCK_SYNC_STP		1
+#define CLOCK_SYNC_HAS_STP		0
+#define CLOCK_SYNC_STP			1
+#define CLOCK_SYNC_STPINFO_VALID	2
 
 /*
  * The get_clock function for the physical clock. It will get the current
@@ -431,7 +386,6 @@ static void clock_sync_global(unsigned long long delta)
 		/* Epoch overflow */
 		tod_clock_base[0]++;
 	/* Adjust TOD steering parameters. */
-	vdso_data->tb_update_count++;
 	now = get_tod_clock();
 	adj = tod_steering_end - now;
 	if (unlikely((s64) adj >= 0))
@@ -443,9 +397,8 @@ static void clock_sync_global(unsigned long long delta)
 		panic("TOD clock sync offset %lli is too large to drift\n",
 		      tod_steering_delta);
 	tod_steering_end = now + (abs(tod_steering_delta) << 15);
-	vdso_data->ts_dir = (tod_steering_delta < 0) ? 0 : 1;
-	vdso_data->ts_end = tod_steering_end;
-	vdso_data->tb_update_count++;
+	vdso_data->arch_data.tod_steering_end = tod_steering_end;
+
 	/* Update LPAR offset. */
 	if (ptff_query(PTFF_QTO) && ptff(&qto, sizeof(qto), PTFF_QTO) == 0)
 		lpar_offset = qto.tod_epoch_difference;
@@ -492,7 +445,6 @@ static struct stp_sstpi stp_info;
 static void *stp_page;
 
 static void stp_work_fn(struct work_struct *work);
-static DEFINE_MUTEX(stp_work_mutex);
 static DECLARE_WORK(stp_work, stp_work_fn);
 static struct timer_list stp_timer;
 
@@ -583,10 +535,26 @@ void stp_queue_work(void)
 	queue_work(time_sync_wq, &stp_work);
 }
 
+static int __store_stpinfo(void)
+{
+	int rc = chsc_sstpi(stp_page, &stp_info, sizeof(struct stp_sstpi));
+
+	if (rc)
+		clear_bit(CLOCK_SYNC_STPINFO_VALID, &clock_sync_flags);
+	else
+		set_bit(CLOCK_SYNC_STPINFO_VALID, &clock_sync_flags);
+	return rc;
+}
+
+static int stpinfo_valid(void)
+{
+	return stp_online && test_bit(CLOCK_SYNC_STPINFO_VALID, &clock_sync_flags);
+}
+
 static int stp_sync_clock(void *data)
 {
 	struct clock_sync_data *sync = data;
-	unsigned long long clock_delta;
+	unsigned long long clock_delta, flags;
 	static int first;
 	int rc;
 
@@ -599,16 +567,17 @@ static int stp_sync_clock(void *data)
 		if (stp_info.todoff[0] || stp_info.todoff[1] ||
 		    stp_info.todoff[2] || stp_info.todoff[3] ||
 		    stp_info.tmd != 2) {
+			flags = vdso_update_begin();
 			rc = chsc_sstpc(stp_page, STP_OP_SYNC, 0,
 					&clock_delta);
 			if (rc == 0) {
 				sync->clock_delta = clock_delta;
 				clock_sync_global(clock_delta);
-				rc = chsc_sstpi(stp_page, &stp_info,
-						sizeof(struct stp_sstpi));
+				rc = __store_stpinfo();
 				if (rc == 0 && stp_info.tmd != 2)
 					rc = -EAGAIN;
 			}
+			vdso_update_end(flags);
 		}
 		sync->in_sync = rc ? -EAGAIN : 1;
 		xchg(&first, 0);
@@ -628,6 +597,81 @@ static int stp_sync_clock(void *data)
 	return 0;
 }
 
+static int stp_clear_leap(void)
+{
+	struct __kernel_timex txc;
+	int ret;
+
+	memset(&txc, 0, sizeof(txc));
+
+	ret = do_adjtimex(&txc);
+	if (ret < 0)
+		return ret;
+
+	txc.modes = ADJ_STATUS;
+	txc.status &= ~(STA_INS|STA_DEL);
+	return do_adjtimex(&txc);
+}
+
+static void stp_check_leap(void)
+{
+	struct stp_stzi stzi;
+	struct stp_lsoib *lsoib = &stzi.lsoib;
+	struct __kernel_timex txc;
+	int64_t timediff;
+	int leapdiff, ret;
+
+	if (!stp_info.lu || !check_sync_clock()) {
+		/*
+		 * Either a scheduled leap second was removed by the operator,
+		 * or STP is out of sync. In both cases, clear the leap second
+		 * kernel flags.
+		 */
+		if (stp_clear_leap() < 0)
+			pr_err("failed to clear leap second flags\n");
+		return;
+	}
+
+	if (chsc_stzi(stp_page, &stzi, sizeof(stzi))) {
+		pr_err("stzi failed\n");
+		return;
+	}
+
+	timediff = tod_to_ns(lsoib->nlsout - get_tod_clock()) / NSEC_PER_SEC;
+	leapdiff = lsoib->nlso - lsoib->also;
+
+	if (leapdiff != 1 && leapdiff != -1) {
+		pr_err("Cannot schedule %d leap seconds\n", leapdiff);
+		return;
+	}
+
+	if (timediff < 0) {
+		if (stp_clear_leap() < 0)
+			pr_err("failed to clear leap second flags\n");
+	} else if (timediff < 7200) {
+		memset(&txc, 0, sizeof(txc));
+		ret = do_adjtimex(&txc);
+		if (ret < 0)
+			return;
+
+		txc.modes = ADJ_STATUS;
+		if (leapdiff > 0)
+			txc.status |= STA_INS;
+		else
+			txc.status |= STA_DEL;
+		ret = do_adjtimex(&txc);
+		if (ret < 0)
+			pr_err("failed to set leap second flags\n");
+		/* arm Timer to clear leap second flags */
+		mod_timer(&stp_timer, jiffies + msecs_to_jiffies(14400 * MSEC_PER_SEC));
+	} else {
+		/* The day the leap second is scheduled for hasn't been reached. Retry
+		 * in one hour.
+		 */
+		mod_timer(&stp_timer, jiffies + msecs_to_jiffies(3600 * MSEC_PER_SEC));
+	}
+}
+
 /*
  * STP work. Check for the STP state and take over the clock
  * synchronization if the STP clock source is usable.
@@ -638,7 +682,7 @@ static void stp_work_fn(struct work_struct *work)
 	int rc;
 
 	/* prevent multiple execution. */
-	mutex_lock(&stp_work_mutex);
+	mutex_lock(&stp_mutex);
 
 	if (!stp_online) {
 		chsc_sstpc(stp_page, STP_OP_CTRL, 0x0000, NULL);
@@ -646,23 +690,22 @@ static void stp_work_fn(struct work_struct *work)
 		goto out_unlock;
 	}
 
-	rc = chsc_sstpc(stp_page, STP_OP_CTRL, 0xb0e0, NULL);
+	rc = chsc_sstpc(stp_page, STP_OP_CTRL, 0xf0e0, NULL);
 	if (rc)
 		goto out_unlock;
 
-	rc = chsc_sstpi(stp_page, &stp_info, sizeof(struct stp_sstpi));
+	rc = __store_stpinfo();
 	if (rc || stp_info.c == 0)
 		goto out_unlock;
 
 	/* Skip synchronization if the clock is already in sync. */
-	if (check_sync_clock())
-		goto out_unlock;
-
-	memset(&stp_sync, 0, sizeof(stp_sync));
-	cpus_read_lock();
-	atomic_set(&stp_sync.cpus, num_online_cpus() - 1);
-	stop_machine_cpuslocked(stp_sync_clock, &stp_sync, cpu_online_mask);
-	cpus_read_unlock();
+	if (!check_sync_clock()) {
+		memset(&stp_sync, 0, sizeof(stp_sync));
+		cpus_read_lock();
+		atomic_set(&stp_sync.cpus, num_online_cpus() - 1);
+		stop_machine_cpuslocked(stp_sync_clock, &stp_sync, cpu_online_mask);
+		cpus_read_unlock();
+	}
 
 	if (!check_sync_clock())
 		/*
@@ -670,9 +713,11 @@ static void stp_work_fn(struct work_struct *work)
 		 * Retry after a second.
 		 */
 		mod_timer(&stp_timer, jiffies + msecs_to_jiffies(MSEC_PER_SEC));
+	else if (stp_info.lu)
+		stp_check_leap();
 
 out_unlock:
-	mutex_unlock(&stp_work_mutex);
+	mutex_unlock(&stp_mutex);
 }
 
 /*
@@ -687,10 +732,14 @@ static ssize_t ctn_id_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	if (!stp_online)
-		return -ENODATA;
-	return sprintf(buf, "%016llx\n",
-		       *(unsigned long long *) stp_info.ctnid);
+	ssize_t ret = -ENODATA;
+
+	mutex_lock(&stp_mutex);
+	if (stpinfo_valid())
+		ret = sprintf(buf, "%016llx\n",
+			      *(unsigned long long *) stp_info.ctnid);
+	mutex_unlock(&stp_mutex);
+	return ret;
 }
 
 static DEVICE_ATTR_RO(ctn_id);
@@ -699,9 +748,13 @@ static ssize_t ctn_type_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	if (!stp_online)
-		return -ENODATA;
-	return sprintf(buf, "%i\n", stp_info.ctn);
+	ssize_t ret = -ENODATA;
+
+	mutex_lock(&stp_mutex);
+	if (stpinfo_valid())
+		ret = sprintf(buf, "%i\n", stp_info.ctn);
+	mutex_unlock(&stp_mutex);
+	return ret;
 }
 
 static DEVICE_ATTR_RO(ctn_type);
@@ -710,9 +763,13 @@ static ssize_t dst_offset_show(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf)
 {
-	if (!stp_online || !(stp_info.vbits & 0x2000))
-		return -ENODATA;
-	return sprintf(buf, "%i\n", (int)(s16) stp_info.dsto);
+	ssize_t ret = -ENODATA;
+
+	mutex_lock(&stp_mutex);
+	if (stpinfo_valid() && (stp_info.vbits & 0x2000))
+		ret = sprintf(buf, "%i\n", (int)(s16) stp_info.dsto);
+	mutex_unlock(&stp_mutex);
+	return ret;
 }
 
 static DEVICE_ATTR_RO(dst_offset);
@@ -721,20 +778,56 @@ static ssize_t leap_seconds_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	if (!stp_online || !(stp_info.vbits & 0x8000))
-		return -ENODATA;
-	return sprintf(buf, "%i\n", (int)(s16) stp_info.leaps);
+	ssize_t ret = -ENODATA;
+
+	mutex_lock(&stp_mutex);
+	if (stpinfo_valid() && (stp_info.vbits & 0x8000))
+		ret = sprintf(buf, "%i\n", (int)(s16) stp_info.leaps);
+	mutex_unlock(&stp_mutex);
+	return ret;
 }
 
 static DEVICE_ATTR_RO(leap_seconds);
+
+static ssize_t leap_seconds_scheduled_show(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct stp_stzi stzi;
+	ssize_t ret;
+
+	mutex_lock(&stp_mutex);
+	if (!stpinfo_valid() || !(stp_info.vbits & 0x8000) || !stp_info.lu) {
+		mutex_unlock(&stp_mutex);
+		return -ENODATA;
+	}
+
+	ret = chsc_stzi(stp_page, &stzi, sizeof(stzi));
+	mutex_unlock(&stp_mutex);
+	if (ret < 0)
+		return ret;
+
+	if (!stzi.lsoib.p)
+		return sprintf(buf, "0,0\n");
+
+	return sprintf(buf, "%llu,%d\n",
+		       tod_to_ns(stzi.lsoib.nlsout - TOD_UNIX_EPOCH) / NSEC_PER_SEC,
+		       stzi.lsoib.nlso - stzi.lsoib.also);
+}
+
+static DEVICE_ATTR_RO(leap_seconds_scheduled);
 
 static ssize_t stratum_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	if (!stp_online)
-		return -ENODATA;
-	return sprintf(buf, "%i\n", (int)(s16) stp_info.stratum);
+	ssize_t ret = -ENODATA;
+
+	mutex_lock(&stp_mutex);
+	if (stpinfo_valid())
+		ret = sprintf(buf, "%i\n", (int)(s16) stp_info.stratum);
+	mutex_unlock(&stp_mutex);
+	return ret;
 }
 
 static DEVICE_ATTR_RO(stratum);
@@ -743,9 +836,13 @@ static ssize_t time_offset_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	if (!stp_online || !(stp_info.vbits & 0x0800))
-		return -ENODATA;
-	return sprintf(buf, "%i\n", (int) stp_info.tto);
+	ssize_t ret = -ENODATA;
+
+	mutex_lock(&stp_mutex);
+	if (stpinfo_valid() && (stp_info.vbits & 0x0800))
+		ret = sprintf(buf, "%i\n", (int) stp_info.tto);
+	mutex_unlock(&stp_mutex);
+	return ret;
 }
 
 static DEVICE_ATTR_RO(time_offset);
@@ -754,9 +851,13 @@ static ssize_t time_zone_offset_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	if (!stp_online || !(stp_info.vbits & 0x4000))
-		return -ENODATA;
-	return sprintf(buf, "%i\n", (int)(s16) stp_info.tzo);
+	ssize_t ret = -ENODATA;
+
+	mutex_lock(&stp_mutex);
+	if (stpinfo_valid() && (stp_info.vbits & 0x4000))
+		ret = sprintf(buf, "%i\n", (int)(s16) stp_info.tzo);
+	mutex_unlock(&stp_mutex);
+	return ret;
 }
 
 static DEVICE_ATTR_RO(time_zone_offset);
@@ -765,9 +866,13 @@ static ssize_t timing_mode_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	if (!stp_online)
-		return -ENODATA;
-	return sprintf(buf, "%i\n", stp_info.tmd);
+	ssize_t ret = -ENODATA;
+
+	mutex_lock(&stp_mutex);
+	if (stpinfo_valid())
+		ret = sprintf(buf, "%i\n", stp_info.tmd);
+	mutex_unlock(&stp_mutex);
+	return ret;
 }
 
 static DEVICE_ATTR_RO(timing_mode);
@@ -776,9 +881,13 @@ static ssize_t timing_state_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	if (!stp_online)
-		return -ENODATA;
-	return sprintf(buf, "%i\n", stp_info.tst);
+	ssize_t ret = -ENODATA;
+
+	mutex_lock(&stp_mutex);
+	if (stpinfo_valid())
+		ret = sprintf(buf, "%i\n", stp_info.tst);
+	mutex_unlock(&stp_mutex);
+	return ret;
 }
 
 static DEVICE_ATTR_RO(timing_state);
@@ -801,14 +910,14 @@ static ssize_t online_store(struct device *dev,
 		return -EINVAL;
 	if (!test_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags))
 		return -EOPNOTSUPP;
-	mutex_lock(&clock_sync_mutex);
+	mutex_lock(&stp_mutex);
 	stp_online = value;
 	if (stp_online)
 		set_bit(CLOCK_SYNC_STP, &clock_sync_flags);
 	else
 		clear_bit(CLOCK_SYNC_STP, &clock_sync_flags);
 	queue_work(time_sync_wq, &stp_work);
-	mutex_unlock(&clock_sync_mutex);
+	mutex_unlock(&stp_mutex);
 	return count;
 }
 
@@ -824,6 +933,7 @@ static struct device_attribute *stp_attributes[] = {
 	&dev_attr_dst_offset,
 	&dev_attr_leap_seconds,
 	&dev_attr_online,
+	&dev_attr_leap_seconds_scheduled,
 	&dev_attr_stratum,
 	&dev_attr_time_offset,
 	&dev_attr_time_zone_offset,

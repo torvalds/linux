@@ -125,6 +125,7 @@ struct tb_switch_tmu {
  * @rpm: The switch supports runtime PM
  * @authorized: Whether the switch is authorized by user or policy
  * @security_level: Switch supported security level
+ * @debugfs_dir: Pointer to the debugfs structure
  * @key: Contains the key used to challenge the device or %NULL if not
  *	 supported. Size of the key is %TB_SWITCH_KEY_SIZE.
  * @connection_id: Connection ID used with ICM messaging
@@ -166,6 +167,7 @@ struct tb_switch {
 	bool rpm;
 	unsigned int authorized;
 	enum tb_security_level security_level;
+	struct dentry *debugfs_dir;
 	u8 *key;
 	u8 connection_id;
 	u8 connection_key;
@@ -333,6 +335,13 @@ struct tb_path {
  */
 #define TB_PATH_MAX_HOPS	(7 * 2)
 
+/* Possible wake types */
+#define TB_WAKE_ON_CONNECT	BIT(0)
+#define TB_WAKE_ON_DISCONNECT	BIT(1)
+#define TB_WAKE_ON_USB4		BIT(2)
+#define TB_WAKE_ON_USB3		BIT(3)
+#define TB_WAKE_ON_PCIE		BIT(4)
+
 /**
  * struct tb_cm_ops - Connection manager specific operations vector
  * @driver_ready: Called right after control channel is started. Used by
@@ -342,6 +351,8 @@ struct tb_path {
  * @suspend_noirq: Connection manager specific suspend_noirq
  * @resume_noirq: Connection manager specific resume_noirq
  * @suspend: Connection manager specific suspend
+ * @freeze_noirq: Connection manager specific freeze_noirq
+ * @thaw_noirq: Connection manager specific thaw_noirq
  * @complete: Connection manager specific complete
  * @runtime_suspend: Connection manager specific runtime_suspend
  * @runtime_resume: Connection manager specific runtime_resume
@@ -364,6 +375,8 @@ struct tb_cm_ops {
 	int (*suspend_noirq)(struct tb *tb);
 	int (*resume_noirq)(struct tb *tb);
 	int (*suspend)(struct tb *tb);
+	int (*freeze_noirq)(struct tb *tb);
+	int (*thaw_noirq)(struct tb *tb);
 	void (*complete)(struct tb *tb);
 	int (*runtime_suspend)(struct tb *tb);
 	int (*runtime_resume)(struct tb *tb);
@@ -455,6 +468,11 @@ static inline bool tb_port_has_remote(const struct tb_port *port)
 static inline bool tb_port_is_null(const struct tb_port *port)
 {
 	return port && port->port && port->config.type == TB_TYPE_PORT;
+}
+
+static inline bool tb_port_is_nhi(const struct tb_port *port)
+{
+	return port && port->config.type == TB_TYPE_NHI;
 }
 
 static inline bool tb_port_is_pcie_down(const struct tb_port *port)
@@ -593,6 +611,8 @@ void tb_domain_remove(struct tb *tb);
 int tb_domain_suspend_noirq(struct tb *tb);
 int tb_domain_resume_noirq(struct tb *tb);
 int tb_domain_suspend(struct tb *tb);
+int tb_domain_freeze_noirq(struct tb *tb);
+int tb_domain_thaw_noirq(struct tb *tb);
 void tb_domain_complete(struct tb *tb);
 int tb_domain_runtime_suspend(struct tb *tb);
 int tb_domain_runtime_resume(struct tb *tb);
@@ -632,9 +652,9 @@ struct tb_switch *tb_switch_alloc_safe_mode(struct tb *tb,
 int tb_switch_configure(struct tb_switch *sw);
 int tb_switch_add(struct tb_switch *sw);
 void tb_switch_remove(struct tb_switch *sw);
-void tb_switch_suspend(struct tb_switch *sw);
+void tb_switch_suspend(struct tb_switch *sw, bool runtime);
 int tb_switch_resume(struct tb_switch *sw);
-int tb_switch_reset(struct tb *tb, u64 route);
+int tb_switch_reset(struct tb_switch *sw);
 void tb_sw_set_unplugged(struct tb_switch *sw);
 struct tb_port *tb_switch_find_port(struct tb_switch *sw,
 				    enum tb_port_type type);
@@ -685,59 +705,89 @@ static inline struct tb_switch *tb_switch_parent(struct tb_switch *sw)
 
 static inline bool tb_switch_is_light_ridge(const struct tb_switch *sw)
 {
-	return sw->config.device_id == PCI_DEVICE_ID_INTEL_LIGHT_RIDGE;
+	return sw->config.vendor_id == PCI_VENDOR_ID_INTEL &&
+	       sw->config.device_id == PCI_DEVICE_ID_INTEL_LIGHT_RIDGE;
 }
 
 static inline bool tb_switch_is_eagle_ridge(const struct tb_switch *sw)
 {
-	return sw->config.device_id == PCI_DEVICE_ID_INTEL_EAGLE_RIDGE;
+	return sw->config.vendor_id == PCI_VENDOR_ID_INTEL &&
+	       sw->config.device_id == PCI_DEVICE_ID_INTEL_EAGLE_RIDGE;
 }
 
 static inline bool tb_switch_is_cactus_ridge(const struct tb_switch *sw)
 {
-	switch (sw->config.device_id) {
-	case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_2C:
-	case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C:
-		return true;
-	default:
-		return false;
+	if (sw->config.vendor_id == PCI_VENDOR_ID_INTEL) {
+		switch (sw->config.device_id) {
+		case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_2C:
+		case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C:
+			return true;
+		}
 	}
+	return false;
 }
 
 static inline bool tb_switch_is_falcon_ridge(const struct tb_switch *sw)
 {
-	switch (sw->config.device_id) {
-	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_2C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_BRIDGE:
-		return true;
-	default:
-		return false;
+	if (sw->config.vendor_id == PCI_VENDOR_ID_INTEL) {
+		switch (sw->config.device_id) {
+		case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_2C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_BRIDGE:
+			return true;
+		}
 	}
+	return false;
 }
 
 static inline bool tb_switch_is_alpine_ridge(const struct tb_switch *sw)
 {
-	switch (sw->config.device_id) {
-	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_2C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_LP_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_4C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_BRIDGE:
-		return true;
-	default:
-		return false;
+	if (sw->config.vendor_id == PCI_VENDOR_ID_INTEL) {
+		switch (sw->config.device_id) {
+		case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_2C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_LP_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_4C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_BRIDGE:
+			return true;
+		}
 	}
+	return false;
 }
 
 static inline bool tb_switch_is_titan_ridge(const struct tb_switch *sw)
 {
-	switch (sw->config.device_id) {
-	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_2C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_4C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_DD_BRIDGE:
-		return true;
-	default:
-		return false;
+	if (sw->config.vendor_id == PCI_VENDOR_ID_INTEL) {
+		switch (sw->config.device_id) {
+		case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_2C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_4C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_DD_BRIDGE:
+			return true;
+		}
 	}
+	return false;
+}
+
+static inline bool tb_switch_is_ice_lake(const struct tb_switch *sw)
+{
+	if (sw->config.vendor_id == PCI_VENDOR_ID_INTEL) {
+		switch (sw->config.device_id) {
+		case PCI_DEVICE_ID_INTEL_ICL_NHI0:
+		case PCI_DEVICE_ID_INTEL_ICL_NHI1:
+			return true;
+		}
+	}
+	return false;
+}
+
+static inline bool tb_switch_is_tiger_lake(const struct tb_switch *sw)
+{
+	if (sw->config.vendor_id == PCI_VENDOR_ID_INTEL) {
+		switch (sw->config.device_id) {
+		case PCI_DEVICE_ID_INTEL_TGL_NHI0:
+		case PCI_DEVICE_ID_INTEL_TGL_NHI1:
+			return true;
+		}
+	}
+	return false;
 }
 
 /**
@@ -767,6 +817,8 @@ static inline bool tb_switch_is_icm(const struct tb_switch *sw)
 
 int tb_switch_lane_bonding_enable(struct tb_switch *sw);
 void tb_switch_lane_bonding_disable(struct tb_switch *sw);
+int tb_switch_configure_link(struct tb_switch *sw);
+void tb_switch_unconfigure_link(struct tb_switch *sw);
 
 bool tb_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in);
 int tb_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in);
@@ -788,6 +840,8 @@ int tb_port_add_nfc_credits(struct tb_port *port, int credits);
 int tb_port_set_initial_credits(struct tb_port *port, u32 credits);
 int tb_port_clear_counter(struct tb_port *port, int counter);
 int tb_port_unlock(struct tb_port *port);
+int tb_port_enable(struct tb_port *port);
+int tb_port_disable(struct tb_port *port);
 int tb_port_alloc_in_hopid(struct tb_port *port, int hopid, int max_hopid);
 void tb_port_release_in_hopid(struct tb_port *port, int hopid);
 int tb_port_alloc_out_hopid(struct tb_port *port, int hopid, int max_hopid);
@@ -811,7 +865,9 @@ int tb_port_get_link_speed(struct tb_port *port);
 
 int tb_switch_find_vse_cap(struct tb_switch *sw, enum tb_switch_vse_cap vsec);
 int tb_switch_find_cap(struct tb_switch *sw, enum tb_switch_cap cap);
+int tb_switch_next_cap(struct tb_switch *sw, unsigned int offset);
 int tb_port_find_cap(struct tb_port *port, enum tb_port_cap cap);
+int tb_port_next_cap(struct tb_port *port, unsigned int offset);
 bool tb_port_is_enabled(struct tb_port *port);
 
 bool tb_usb3_port_is_enabled(struct tb_port *port);
@@ -844,8 +900,11 @@ int tb_drom_read(struct tb_switch *sw);
 int tb_drom_read_uid_only(struct tb_switch *sw, u64 *uid);
 
 int tb_lc_read_uuid(struct tb_switch *sw, u32 *uuid);
-int tb_lc_configure_link(struct tb_switch *sw);
-void tb_lc_unconfigure_link(struct tb_switch *sw);
+int tb_lc_configure_port(struct tb_port *port);
+void tb_lc_unconfigure_port(struct tb_port *port);
+int tb_lc_configure_xdomain(struct tb_port *port);
+void tb_lc_unconfigure_xdomain(struct tb_port *port);
+int tb_lc_set_wake(struct tb_switch *sw, unsigned int flags);
 int tb_lc_set_sleep(struct tb_switch *sw);
 bool tb_lc_lane_bonding_possible(struct tb_switch *sw);
 bool tb_lc_dp_sink_query(struct tb_switch *sw, struct tb_port *in);
@@ -900,9 +959,8 @@ int usb4_switch_setup(struct tb_switch *sw);
 int usb4_switch_read_uid(struct tb_switch *sw, u64 *uid);
 int usb4_switch_drom_read(struct tb_switch *sw, unsigned int address, void *buf,
 			  size_t size);
-int usb4_switch_configure_link(struct tb_switch *sw);
-void usb4_switch_unconfigure_link(struct tb_switch *sw);
 bool usb4_switch_lane_bonding_possible(struct tb_switch *sw);
+int usb4_switch_set_wake(struct tb_switch *sw, unsigned int flags);
 int usb4_switch_set_sleep(struct tb_switch *sw);
 int usb4_switch_nvm_sector_size(struct tb_switch *sw);
 int usb4_switch_nvm_read(struct tb_switch *sw, unsigned int address, void *buf,
@@ -919,6 +977,10 @@ struct tb_port *usb4_switch_map_usb3_down(struct tb_switch *sw,
 					  const struct tb_port *port);
 
 int usb4_port_unlock(struct tb_port *port);
+int usb4_port_configure(struct tb_port *port);
+void usb4_port_unconfigure(struct tb_port *port);
+int usb4_port_configure_xdomain(struct tb_port *port);
+void usb4_port_unconfigure_xdomain(struct tb_port *port);
 int usb4_port_enumerate_retimers(struct tb_port *port);
 
 int usb4_port_retimer_read(struct tb_port *port, u8 index, u8 reg, void *buf,
@@ -945,9 +1007,35 @@ int usb4_usb3_port_allocate_bandwidth(struct tb_port *port, int *upstream_bw,
 int usb4_usb3_port_release_bandwidth(struct tb_port *port, int *upstream_bw,
 				     int *downstream_bw);
 
-/* keep link controller awake during update */
+/* Keep link controller awake during update */
 #define QUIRK_FORCE_POWER_LINK_CONTROLLER		BIT(0)
 
 void tb_check_quirks(struct tb_switch *sw);
+
+#ifdef CONFIG_ACPI
+void tb_acpi_add_links(struct tb_nhi *nhi);
+#else
+static inline void tb_acpi_add_links(struct tb_nhi *nhi) { }
+#endif
+
+#ifdef CONFIG_DEBUG_FS
+void tb_debugfs_init(void);
+void tb_debugfs_exit(void);
+void tb_switch_debugfs_init(struct tb_switch *sw);
+void tb_switch_debugfs_remove(struct tb_switch *sw);
+#else
+static inline void tb_debugfs_init(void) { }
+static inline void tb_debugfs_exit(void) { }
+static inline void tb_switch_debugfs_init(struct tb_switch *sw) { }
+static inline void tb_switch_debugfs_remove(struct tb_switch *sw) { }
+#endif
+
+#ifdef CONFIG_USB4_KUNIT_TEST
+int tb_test_init(void);
+void tb_test_exit(void);
+#else
+static inline int tb_test_init(void) { return 0; }
+static inline void tb_test_exit(void) { }
+#endif
 
 #endif

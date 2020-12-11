@@ -1,13 +1,14 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config PINCTRL_IMX
-	bool
+	tristate
+	depends on OF
 	select GENERIC_PINCTRL_GROUPS
 	select GENERIC_PINMUX_FUNCTIONS
 	select GENERIC_PINCONF
 	select REGMAP
 
 config PINCTRL_IMX_SCU
-	bool
+	tristate
 	depends on IMX_SCU
 	select PINCTRL_IMX
 

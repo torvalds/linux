@@ -10,6 +10,7 @@
 #include <linux/completion.h>
 #include <linux/hwmon.h>
 #include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/mutex.h>
 #include <linux/seqlock.h>
 
@@ -201,6 +202,7 @@ struct pvt_cache {
  *	       if alarms are disabled).
  * @sensor: current PVT sensor the data conversion is being performed for.
  * @cache: data cache descriptor.
+ * @timeout: conversion timeout cache.
  */
 struct pvt_hwmon {
 	struct device *dev;
@@ -214,6 +216,7 @@ struct pvt_hwmon {
 	struct mutex iface_mtx;
 	enum pvt_sensor_type sensor;
 	struct pvt_cache cache[PVT_SENSORS_NUM];
+	ktime_t timeout;
 };
 
 /*

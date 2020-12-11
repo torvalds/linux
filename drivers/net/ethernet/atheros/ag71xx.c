@@ -235,6 +235,59 @@
 	| NETIF_MSG_RX_ERR		\
 	| NETIF_MSG_TX_ERR)
 
+struct ag71xx_statistic {
+	unsigned short offset;
+	u32 mask;
+	const char name[ETH_GSTRING_LEN];
+};
+
+static const struct ag71xx_statistic ag71xx_statistics[] = {
+	{ 0x0080, GENMASK(17, 0), "Tx/Rx 64 Byte", },
+	{ 0x0084, GENMASK(17, 0), "Tx/Rx 65-127 Byte", },
+	{ 0x0088, GENMASK(17, 0), "Tx/Rx 128-255 Byte", },
+	{ 0x008C, GENMASK(17, 0), "Tx/Rx 256-511 Byte", },
+	{ 0x0090, GENMASK(17, 0), "Tx/Rx 512-1023 Byte", },
+	{ 0x0094, GENMASK(17, 0), "Tx/Rx 1024-1518 Byte", },
+	{ 0x0098, GENMASK(17, 0), "Tx/Rx 1519-1522 Byte VLAN", },
+	{ 0x009C, GENMASK(23, 0), "Rx Byte", },
+	{ 0x00A0, GENMASK(17, 0), "Rx Packet", },
+	{ 0x00A4, GENMASK(11, 0), "Rx FCS Error", },
+	{ 0x00A8, GENMASK(17, 0), "Rx Multicast Packet", },
+	{ 0x00AC, GENMASK(21, 0), "Rx Broadcast Packet", },
+	{ 0x00B0, GENMASK(17, 0), "Rx Control Frame Packet", },
+	{ 0x00B4, GENMASK(11, 0), "Rx Pause Frame Packet", },
+	{ 0x00B8, GENMASK(11, 0), "Rx Unknown OPCode Packet", },
+	{ 0x00BC, GENMASK(11, 0), "Rx Alignment Error", },
+	{ 0x00C0, GENMASK(15, 0), "Rx Frame Length Error", },
+	{ 0x00C4, GENMASK(11, 0), "Rx Code Error", },
+	{ 0x00C8, GENMASK(11, 0), "Rx Carrier Sense Error", },
+	{ 0x00CC, GENMASK(11, 0), "Rx Undersize Packet", },
+	{ 0x00D0, GENMASK(11, 0), "Rx Oversize Packet", },
+	{ 0x00D4, GENMASK(11, 0), "Rx Fragments", },
+	{ 0x00D8, GENMASK(11, 0), "Rx Jabber", },
+	{ 0x00DC, GENMASK(11, 0), "Rx Dropped Packet", },
+	{ 0x00E0, GENMASK(23, 0), "Tx Byte", },
+	{ 0x00E4, GENMASK(17, 0), "Tx Packet", },
+	{ 0x00E8, GENMASK(17, 0), "Tx Multicast Packet", },
+	{ 0x00EC, GENMASK(17, 0), "Tx Broadcast Packet", },
+	{ 0x00F0, GENMASK(11, 0), "Tx Pause Control Frame", },
+	{ 0x00F4, GENMASK(11, 0), "Tx Deferral Packet", },
+	{ 0x00F8, GENMASK(11, 0), "Tx Excessive Deferral Packet", },
+	{ 0x00FC, GENMASK(11, 0), "Tx Single Collision Packet", },
+	{ 0x0100, GENMASK(11, 0), "Tx Multiple Collision", },
+	{ 0x0104, GENMASK(11, 0), "Tx Late Collision Packet", },
+	{ 0x0108, GENMASK(11, 0), "Tx Excessive Collision Packet", },
+	{ 0x010C, GENMASK(12, 0), "Tx Total Collision", },
+	{ 0x0110, GENMASK(11, 0), "Tx Pause Frames Honored", },
+	{ 0x0114, GENMASK(11, 0), "Tx Drop Frame", },
+	{ 0x0118, GENMASK(11, 0), "Tx Jabber Frame", },
+	{ 0x011C, GENMASK(11, 0), "Tx FCS Error", },
+	{ 0x0120, GENMASK(11, 0), "Tx Control Frame", },
+	{ 0x0124, GENMASK(11, 0), "Tx Oversize Frame", },
+	{ 0x0128, GENMASK(11, 0), "Tx Undersize Frame", },
+	{ 0x012C, GENMASK(11, 0), "Tx Fragment", },
+};
+
 #define DESC_EMPTY		BIT(31)
 #define DESC_MORE		BIT(24)
 #define DESC_PKTLEN_M		0xfff
@@ -393,6 +446,99 @@ static void ag71xx_int_disable(struct ag71xx *ag, u32 ints)
 {
 	ag71xx_cb(ag, AG71XX_REG_INT_ENABLE, ints);
 }
+
+static void ag71xx_get_drvinfo(struct net_device *ndev,
+			       struct ethtool_drvinfo *info)
+{
+	struct ag71xx *ag = netdev_priv(ndev);
+
+	strlcpy(info->driver, "ag71xx", sizeof(info->driver));
+	strlcpy(info->bus_info, of_node_full_name(ag->pdev->dev.of_node),
+		sizeof(info->bus_info));
+}
+
+static int ag71xx_get_link_ksettings(struct net_device *ndev,
+				   struct ethtool_link_ksettings *kset)
+{
+	struct ag71xx *ag = netdev_priv(ndev);
+
+	return phylink_ethtool_ksettings_get(ag->phylink, kset);
+}
+
+static int ag71xx_set_link_ksettings(struct net_device *ndev,
+				   const struct ethtool_link_ksettings *kset)
+{
+	struct ag71xx *ag = netdev_priv(ndev);
+
+	return phylink_ethtool_ksettings_set(ag->phylink, kset);
+}
+
+static int ag71xx_ethtool_nway_reset(struct net_device *ndev)
+{
+	struct ag71xx *ag = netdev_priv(ndev);
+
+	return phylink_ethtool_nway_reset(ag->phylink);
+}
+
+static void ag71xx_ethtool_get_pauseparam(struct net_device *ndev,
+					  struct ethtool_pauseparam *pause)
+{
+	struct ag71xx *ag = netdev_priv(ndev);
+
+	phylink_ethtool_get_pauseparam(ag->phylink, pause);
+}
+
+static int ag71xx_ethtool_set_pauseparam(struct net_device *ndev,
+					 struct ethtool_pauseparam *pause)
+{
+	struct ag71xx *ag = netdev_priv(ndev);
+
+	return phylink_ethtool_set_pauseparam(ag->phylink, pause);
+}
+
+static void ag71xx_ethtool_get_strings(struct net_device *netdev, u32 sset,
+				       u8 *data)
+{
+	if (sset == ETH_SS_STATS) {
+		int i;
+
+		for (i = 0; i < ARRAY_SIZE(ag71xx_statistics); i++)
+			memcpy(data + i * ETH_GSTRING_LEN,
+			       ag71xx_statistics[i].name, ETH_GSTRING_LEN);
+	}
+}
+
+static void ag71xx_ethtool_get_stats(struct net_device *ndev,
+				     struct ethtool_stats *stats, u64 *data)
+{
+	struct ag71xx *ag = netdev_priv(ndev);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ag71xx_statistics); i++)
+		*data++ = ag71xx_rr(ag, ag71xx_statistics[i].offset)
+				& ag71xx_statistics[i].mask;
+}
+
+static int ag71xx_ethtool_get_sset_count(struct net_device *ndev, int sset)
+{
+	if (sset == ETH_SS_STATS)
+		return ARRAY_SIZE(ag71xx_statistics);
+	return -EOPNOTSUPP;
+}
+
+static const struct ethtool_ops ag71xx_ethtool_ops = {
+	.get_drvinfo			= ag71xx_get_drvinfo,
+	.get_link			= ethtool_op_get_link,
+	.get_ts_info			= ethtool_op_get_ts_info,
+	.get_link_ksettings		= ag71xx_get_link_ksettings,
+	.set_link_ksettings		= ag71xx_set_link_ksettings,
+	.nway_reset			= ag71xx_ethtool_nway_reset,
+	.get_pauseparam			= ag71xx_ethtool_get_pauseparam,
+	.set_pauseparam			= ag71xx_ethtool_set_pauseparam,
+	.get_strings			= ag71xx_ethtool_get_strings,
+	.get_ethtool_stats		= ag71xx_ethtool_get_stats,
+	.get_sset_count			= ag71xx_ethtool_get_sset_count,
+};
 
 static int ag71xx_mdio_wait_busy(struct ag71xx *ag)
 {
@@ -910,6 +1056,8 @@ static void ag71xx_mac_validate(struct phylink_config *config,
 
 	phylink_set(mask, MII);
 
+	phylink_set(mask, Pause);
+	phylink_set(mask, Asym_Pause);
 	phylink_set(mask, Autoneg);
 	phylink_set(mask, 10baseT_Half);
 	phylink_set(mask, 10baseT_Full);
@@ -960,7 +1108,7 @@ static void ag71xx_mac_link_up(struct phylink_config *config,
 			       bool tx_pause, bool rx_pause)
 {
 	struct ag71xx *ag = netdev_priv(to_net_dev(config->dev));
-	u32 cfg2;
+	u32 cfg1, cfg2;
 	u32 ifctl;
 	u32 fifo5;
 
@@ -993,6 +1141,15 @@ static void ag71xx_mac_link_up(struct phylink_config *config,
 	ag71xx_wr(ag, AG71XX_REG_MAC_CFG2, cfg2);
 	ag71xx_wr(ag, AG71XX_REG_FIFO_CFG5, fifo5);
 	ag71xx_wr(ag, AG71XX_REG_MAC_IFCTL, ifctl);
+
+	cfg1 = ag71xx_rr(ag, AG71XX_REG_MAC_CFG1);
+	cfg1 &= ~(MAC_CFG1_TFC | MAC_CFG1_RFC);
+	if (tx_pause)
+		cfg1 |= MAC_CFG1_TFC;
+
+	if (rx_pause)
+		cfg1 |= MAC_CFG1_RFC;
+	ag71xx_wr(ag, AG71XX_REG_MAC_CFG1, cfg1);
 
 	ag71xx_hw_start(ag);
 }
@@ -1769,6 +1926,7 @@ static int ag71xx_probe(struct platform_device *pdev)
 	}
 
 	ndev->netdev_ops = &ag71xx_netdev_ops;
+	ndev->ethtool_ops = &ag71xx_ethtool_ops;
 
 	INIT_DELAYED_WORK(&ag->restart_work, ag71xx_restart_work_func);
 	timer_setup(&ag->oom_timer, ag71xx_oom_timer_handler, 0);

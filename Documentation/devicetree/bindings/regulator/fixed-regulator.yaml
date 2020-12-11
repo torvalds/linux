@@ -73,6 +73,8 @@ required:
   - compatible
   - regulator-name
 
+unevaluatedProperties: false
+
 examples:
   - |
     reg_1v8: regulator-1v8 {

@@ -34,15 +34,15 @@ static int switch_fwnode_match(struct device *dev, const void *fwnode)
 	return dev_fwnode(dev) == fwnode && dev_name_ends_with(dev, "-switch");
 }
 
-static void *typec_switch_match(struct device_connection *con, int ep,
+static void *typec_switch_match(struct fwnode_handle *fwnode, const char *id,
 				void *data)
 {
 	struct device *dev;
 
-	if (con->id && !fwnode_property_present(con->fwnode, con->id))
+	if (id && !fwnode_property_present(fwnode, id))
 		return NULL;
 
-	dev = class_find_device(&typec_mux_class, NULL, con->fwnode,
+	dev = class_find_device(&typec_mux_class, NULL, fwnode,
 				switch_fwnode_match);
 
 	return dev ? to_typec_switch(dev) : ERR_PTR(-EPROBE_DEFER);
@@ -183,7 +183,8 @@ static int mux_fwnode_match(struct device *dev, const void *fwnode)
 	return dev_fwnode(dev) == fwnode && dev_name_ends_with(dev, "-mux");
 }
 
-static void *typec_mux_match(struct device_connection *con, int ep, void *data)
+static void *typec_mux_match(struct fwnode_handle *fwnode, const char *id,
+			     void *data)
 {
 	const struct typec_altmode_desc *desc = data;
 	struct device *dev;
@@ -196,20 +197,20 @@ static void *typec_mux_match(struct device_connection *con, int ep, void *data)
 	 * Check has the identifier already been "consumed". If it
 	 * has, no need to do any extra connection identification.
 	 */
-	match = !con->id;
+	match = !id;
 	if (match)
 		goto find_mux;
 
 	/* Accessory Mode muxes */
 	if (!desc) {
-		match = fwnode_property_present(con->fwnode, "accessory");
+		match = fwnode_property_present(fwnode, "accessory");
 		if (match)
 			goto find_mux;
 		return NULL;
 	}
 
 	/* Alternate Mode muxes */
-	nval = fwnode_property_count_u16(con->fwnode, "svid");
+	nval = fwnode_property_count_u16(fwnode, "svid");
 	if (nval <= 0)
 		return NULL;
 
@@ -217,7 +218,7 @@ static void *typec_mux_match(struct device_connection *con, int ep, void *data)
 	if (!val)
 		return ERR_PTR(-ENOMEM);
 
-	nval = fwnode_property_read_u16_array(con->fwnode, "svid", val, nval);
+	nval = fwnode_property_read_u16_array(fwnode, "svid", val, nval);
 	if (nval < 0) {
 		kfree(val);
 		return ERR_PTR(nval);
@@ -234,7 +235,7 @@ static void *typec_mux_match(struct device_connection *con, int ep, void *data)
 	return NULL;
 
 find_mux:
-	dev = class_find_device(&typec_mux_class, NULL, con->fwnode,
+	dev = class_find_device(&typec_mux_class, NULL, fwnode,
 				mux_fwnode_match);
 
 	return dev ? to_typec_switch(dev) : ERR_PTR(-EPROBE_DEFER);

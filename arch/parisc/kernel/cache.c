@@ -383,12 +383,12 @@ EXPORT_SYMBOL(flush_kernel_icache_range_asm);
 static unsigned long parisc_cache_flush_threshold __ro_after_init = FLUSH_THRESHOLD;
 
 #define FLUSH_TLB_THRESHOLD (16*1024) /* 16 KiB minimum TLB threshold */
-static unsigned long parisc_tlb_flush_threshold __ro_after_init = FLUSH_TLB_THRESHOLD;
+static unsigned long parisc_tlb_flush_threshold __ro_after_init = ~0UL;
 
 void __init parisc_setup_cache_timing(void)
 {
 	unsigned long rangetime, alltime;
-	unsigned long size, start;
+	unsigned long size;
 	unsigned long threshold;
 
 	alltime = mfctl(16);
@@ -422,14 +422,9 @@ void __init parisc_setup_cache_timing(void)
 		goto set_tlb_threshold;
 	}
 
-	size = 0;
-	start = (unsigned long) _text;
+	size = (unsigned long)_end - (unsigned long)_text;
 	rangetime = mfctl(16);
-	while (start < (unsigned long) _end) {
-		flush_tlb_kernel_range(start, start + PAGE_SIZE);
-		start += PAGE_SIZE;
-		size += PAGE_SIZE;
-	}
+	flush_tlb_kernel_range((unsigned long)_text, (unsigned long)_end);
 	rangetime = mfctl(16) - rangetime;
 
 	alltime = mfctl(16);
@@ -444,8 +439,11 @@ void __init parisc_setup_cache_timing(void)
 		threshold/1024);
 
 set_tlb_threshold:
-	if (threshold > parisc_tlb_flush_threshold)
+	if (threshold > FLUSH_TLB_THRESHOLD)
 		parisc_tlb_flush_threshold = threshold;
+	else
+		parisc_tlb_flush_threshold = FLUSH_TLB_THRESHOLD;
+
 	printk(KERN_INFO "TLB flush threshold set to %lu KiB\n",
 		parisc_tlb_flush_threshold/1024);
 }

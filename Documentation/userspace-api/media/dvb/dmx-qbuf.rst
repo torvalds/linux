@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.dmx
 
 .. _DMX_QBUF:
 
@@ -20,26 +14,25 @@ DMX_QBUF - DMX_DQBUF - Exchange a buffer with the driver
 
 .. warning:: this API is still experimental
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, DMX_QBUF, struct dmx_buffer *argp )
-    :name: DMX_QBUF
+.. c:macro:: DMX_QBUF
 
-.. c:function:: int ioctl( int fd, DMX_DQBUF, struct dmx_buffer *argp )
-    :name: DMX_DQBUF
+``int ioctl(int fd, DMX_QBUF, struct dmx_buffer *argp)``
 
+.. c:macro:: DMX_DQBUF
+
+``int ioctl(int fd, DMX_DQBUF, struct dmx_buffer *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <dmx_fopen>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`dmx_buffer`.
-
 
 Description
 ===========
@@ -67,12 +60,11 @@ the driver fills the remaining fields or returns an error code.
 
 By default ``DMX_DQBUF`` blocks when no buffer is in the outgoing
 queue. When the ``O_NONBLOCK`` flag was given to the
-:ref:`open() <dmx_fopen>` function, ``DMX_DQBUF`` returns
+:c:func:`open()` function, ``DMX_DQBUF`` returns
 immediately with an ``EAGAIN`` error code when no buffer is available.
 
 The struct :c:type:`dmx_buffer` structure is specified in
 :ref:`buffer`.
-
 
 Return Value
 ============

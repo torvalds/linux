@@ -670,8 +670,8 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 					goto cleanup;
 				}
 			}
-			addr = pci_map_single(dev->pdev, p, sg_count[i],
-						data_dir);
+			addr = dma_map_single(&dev->pdev->dev, p, sg_count[i],
+					      data_dir);
 			hbacmd->sge[i].addr_hi = cpu_to_le32((u32)(addr>>32));
 			hbacmd->sge[i].addr_lo = cpu_to_le32(
 						(u32)(addr & 0xffffffff));
@@ -732,8 +732,8 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 						goto cleanup;
 					}
 				}
-				addr = pci_map_single(dev->pdev, p,
-							sg_count[i], data_dir);
+				addr = dma_map_single(&dev->pdev->dev, p,
+						      sg_count[i], data_dir);
 
 				psg->sg[i].addr[0] = cpu_to_le32(addr & 0xffffffff);
 				psg->sg[i].addr[1] = cpu_to_le32(addr>>32);
@@ -788,8 +788,8 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 						goto cleanup;
 					}
 				}
-				addr = pci_map_single(dev->pdev, p,
-							sg_count[i], data_dir);
+				addr = dma_map_single(&dev->pdev->dev, p,
+						      sg_count[i], data_dir);
 
 				psg->sg[i].addr[0] = cpu_to_le32(addr & 0xffffffff);
 				psg->sg[i].addr[1] = cpu_to_le32(addr>>32);
@@ -844,7 +844,9 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 						goto cleanup;
 					}
 				}
-				addr = pci_map_single(dev->pdev, p, usg->sg[i].count, data_dir);
+				addr = dma_map_single(&dev->pdev->dev, p,
+						      usg->sg[i].count,
+						      data_dir);
 
 				psg->sg[i].addr = cpu_to_le32(addr & 0xffffffff);
 				byte_count += usg->sg[i].count;
@@ -883,8 +885,8 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 						goto cleanup;
 					}
 				}
-				addr = pci_map_single(dev->pdev, p,
-					sg_count[i], data_dir);
+				addr = dma_map_single(&dev->pdev->dev, p,
+						      sg_count[i], data_dir);
 
 				psg->sg[i].addr = cpu_to_le32(addr);
 				byte_count += sg_count[i];

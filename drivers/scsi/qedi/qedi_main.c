@@ -50,6 +50,10 @@ module_param(qedi_ll2_buf_size, uint, 0644);
 MODULE_PARM_DESC(qedi_ll2_buf_size,
 		 "parameter to set ping packet size, default - 0x400, Jumbo packets - 0x2400.");
 
+static uint qedi_flags_override;
+module_param(qedi_flags_override, uint, 0644);
+MODULE_PARM_DESC(qedi_flags_override, "Disable/Enable MFW error flags bits action.");
+
 const struct qed_iscsi_ops *qedi_ops;
 static struct scsi_transport_template *qedi_scsi_transport;
 static struct pci_driver qedi_pci_driver;
@@ -63,6 +67,8 @@ static void qedi_reset_uio_rings(struct qedi_uio_dev *udev);
 static void qedi_ll2_free_skbs(struct qedi_ctx *qedi);
 static struct nvm_iscsi_block *qedi_get_nvram_block(struct qedi_ctx *qedi);
 static void qedi_recovery_handler(struct work_struct *work);
+static void qedi_schedule_hw_err_handler(void *dev,
+					 enum qed_hw_err_type err_type);
 
 static int qedi_iscsi_event_cb(void *context, u8 fw_event_code, void *fw_handle)
 {
@@ -789,8 +795,7 @@ static void qedi_ll2_free_skbs(struct qedi_ctx *qedi)
 	spin_lock_bh(&qedi->ll2_lock);
 	list_for_each_entry_safe(work, work_tmp, &qedi->ll2_skb_list, list) {
 		list_del(&work->list);
-		if (work->skb)
-			kfree_skb(work->skb);
+		kfree_skb(work->skb);
 		kfree(work);
 	}
 	spin_unlock_bh(&qedi->ll2_lock);
@@ -1113,6 +1118,42 @@ exit_get_data:
 	return;
 }
 
+void qedi_schedule_hw_err_handler(void *dev,
+				  enum qed_hw_err_type err_type)
+{
+	struct qedi_ctx *qedi = (struct qedi_ctx *)dev;
+	unsigned long override_flags = qedi_flags_override;
+
+	if (override_flags && test_bit(QEDI_ERR_OVERRIDE_EN, &override_flags))
+		qedi->qedi_err_flags = qedi_flags_override;
+
+	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
+		  "HW error handler scheduled, err=%d err_flags=0x%x\n",
+		  err_type, qedi->qedi_err_flags);
+
+	switch (err_type) {
+	case QED_HW_ERR_FAN_FAIL:
+		schedule_delayed_work(&qedi->board_disable_work, 0);
+		break;
+	case QED_HW_ERR_MFW_RESP_FAIL:
+	case QED_HW_ERR_HW_ATTN:
+	case QED_HW_ERR_DMAE_FAIL:
+	case QED_HW_ERR_RAMROD_FAIL:
+	case QED_HW_ERR_FW_ASSERT:
+		/* Prevent HW attentions from being reasserted */
+		if (test_bit(QEDI_ERR_ATTN_CLR_EN, &qedi->qedi_err_flags))
+			qedi_ops->common->attn_clr_enable(qedi->cdev, true);
+
+		if (err_type == QED_HW_ERR_RAMROD_FAIL &&
+		    test_bit(QEDI_ERR_IS_RECOVERABLE, &qedi->qedi_err_flags))
+			qedi_ops->common->recovery_process(qedi->cdev);
+
+		break;
+	default:
+		break;
+	}
+}
+
 static void qedi_schedule_recovery_handler(void *dev)
 {
 	struct qedi_ctx *qedi = dev;
@@ -1127,6 +1168,15 @@ static void qedi_schedule_recovery_handler(void *dev)
 	schedule_delayed_work(&qedi->recovery_work, 0);
 }
 
+static void qedi_set_conn_recovery(struct iscsi_cls_session *cls_session)
+{
+	struct iscsi_session *session = cls_session->dd_data;
+	struct iscsi_conn *conn = session->leadconn;
+	struct qedi_conn *qedi_conn = conn->dd_data;
+
+	qedi_start_conn_recovery(qedi_conn->qedi, qedi_conn);
+}
+
 static void qedi_link_update(void *dev, struct qed_link_output *link)
 {
 	struct qedi_ctx *qedi = (struct qedi_ctx *)dev;
@@ -1138,6 +1188,7 @@ static void qedi_link_update(void *dev, struct qed_link_output *link)
 		QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
 			  "Link Down event.\n");
 		atomic_set(&qedi->link_state, QEDI_LINK_DOWN);
+		iscsi_host_for_each_session(qedi->shost, qedi_set_conn_recovery);
 	}
 }
 
@@ -1145,6 +1196,7 @@ static struct qed_iscsi_cb_ops qedi_cb_ops = {
 	{
 		.link_update =		qedi_link_update,
 		.schedule_recovery_handler = qedi_schedule_recovery_handler,
+		.schedule_hw_err_handler = qedi_schedule_hw_err_handler,
 		.get_protocol_tlv_data = qedi_get_protocol_tlv_data,
 		.get_generic_tlv_data = qedi_get_generic_tlv_data,
 	}
@@ -1357,7 +1409,7 @@ static int qedi_request_msix_irq(struct qedi_ctx *qedi)
 	u16 idx;
 
 	cpu = cpumask_first(cpu_online_mask);
-	for (i = 0; i < qedi->int_info.msix_cnt; i++) {
+	for (i = 0; i < qedi->msix_count; i++) {
 		idx = i * qedi->dev_info.common.num_hwfns +
 			  qedi_ops->common->get_affin_hwfn_idx(qedi->cdev);
 
@@ -1387,7 +1439,12 @@ static int qedi_setup_int(struct qedi_ctx *qedi)
 {
 	int rc = 0;
 
-	rc = qedi_ops->common->set_fp_int(qedi->cdev, num_online_cpus());
+	rc = qedi_ops->common->set_fp_int(qedi->cdev, qedi->num_queues);
+	if (rc < 0)
+		goto exit_setup_int;
+
+	qedi->msix_count = rc;
+
 	rc = qedi_ops->common->get_fp_int(qedi->cdev, &qedi->int_info);
 	if (rc)
 		goto exit_setup_int;
@@ -2336,10 +2393,30 @@ kset_free:
 	return -ENOMEM;
 }
 
+static pci_ers_result_t qedi_io_error_detected(struct pci_dev *pdev,
+					       pci_channel_state_t state)
+{
+	struct qedi_ctx *qedi = pci_get_drvdata(pdev);
+
+	QEDI_ERR(&qedi->dbg_ctx, "%s: PCI error detected [%d]\n",
+		 __func__, state);
+
+	if (test_and_set_bit(QEDI_IN_RECOVERY, &qedi->flags)) {
+		QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
+			  "Recovery already in progress.\n");
+		return PCI_ERS_RESULT_NONE;
+	}
+
+	qedi_ops->common->recovery_process(qedi->cdev);
+
+	return PCI_ERS_RESULT_CAN_RECOVER;
+}
+
 static void __qedi_remove(struct pci_dev *pdev, int mode)
 {
 	struct qedi_ctx *qedi = pci_get_drvdata(pdev);
 	int rval;
+	u16 retry = 10;
 
 	if (mode == QEDI_MODE_SHUTDOWN)
 		iscsi_host_for_each_session(qedi->shost,
@@ -2368,7 +2445,13 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 	qedi_sync_free_irqs(qedi);
 
 	if (!test_bit(QEDI_IN_OFFLINE, &qedi->flags)) {
-		qedi_ops->stop(qedi->cdev);
+		while (retry--) {
+			rval = qedi_ops->stop(qedi->cdev);
+			if (rval < 0)
+				msleep(1000);
+			else
+				break;
+		}
 		qedi_ops->ll2->stop(qedi->cdev);
 	}
 
@@ -2405,6 +2488,21 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 	}
 }
 
+static void qedi_board_disable_work(struct work_struct *work)
+{
+	struct qedi_ctx *qedi =
+			container_of(work, struct qedi_ctx,
+				     board_disable_work.work);
+
+	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
+		  "Fan failure, Unloading firmware context.\n");
+
+	if (test_and_set_bit(QEDI_IN_SHUTDOWN, &qedi->flags))
+		return;
+
+	__qedi_remove(qedi->pdev, QEDI_MODE_SHUTDOWN);
+}
+
 static void qedi_shutdown(struct pci_dev *pdev)
 {
 	struct qedi_ctx *qedi = pci_get_drvdata(pdev);
@@ -2427,6 +2525,7 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 	struct qed_probe_params qed_params;
 	void *task_start, *task_end;
 	int rc;
+	u16 retry = 10;
 
 	if (mode != QEDI_MODE_RECOVERY) {
 		qedi = qedi_host_alloc(pdev);
@@ -2438,6 +2537,10 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 		qedi = pci_get_drvdata(pdev);
 	}
 
+retry_probe:
+	if (mode == QEDI_MODE_RECOVERY)
+		msleep(2000);
+
 	memset(&qed_params, 0, sizeof(qed_params));
 	qed_params.protocol = QED_PROTOCOL_ISCSI;
 	qed_params.dp_module = qedi_qed_debug;
@@ -2445,11 +2548,20 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 	qed_params.is_vf = is_vf;
 	qedi->cdev = qedi_ops->common->probe(pdev, &qed_params);
 	if (!qedi->cdev) {
+		if (mode == QEDI_MODE_RECOVERY && retry) {
+			QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
+				  "Retry %d initialize hardware\n", retry);
+			retry--;
+			goto retry_probe;
+		}
+
 		rc = -ENODEV;
 		QEDI_ERR(&qedi->dbg_ctx, "Cannot initialize hardware\n");
 		goto free_host;
 	}
 
+	set_bit(QEDI_ERR_ATTN_CLR_EN, &qedi->qedi_err_flags);
+	set_bit(QEDI_ERR_IS_RECOVERABLE, &qedi->qedi_err_flags);
 	atomic_set(&qedi->link_state, QEDI_LINK_DOWN);
 
 	rc = qedi_ops->fill_dev_info(qedi->cdev, &qedi->dev_info);
@@ -2533,7 +2645,7 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_DISC, "MAC address is %pM.\n",
 		  qedi->mac);
 
-	sprintf(host_buf, "host_%d", qedi->shost->host_no);
+	snprintf(host_buf, sizeof(host_buf), "host_%d", qedi->shost->host_no);
 	qedi_ops->common->set_name(qedi->cdev, host_buf);
 
 	qedi_ops->register_ops(qedi->cdev, &qedi_cb_ops, qedi);
@@ -2658,6 +2770,8 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 		}
 
 		INIT_DELAYED_WORK(&qedi->recovery_work, qedi_recovery_handler);
+		INIT_DELAYED_WORK(&qedi->board_disable_work,
+				  qedi_board_disable_work);
 
 		/* F/w needs 1st task context memory entry for performance */
 		set_bit(QEDI_RESERVE_TASK_ID, qedi->task_idx_map);
@@ -2744,12 +2858,17 @@ MODULE_DEVICE_TABLE(pci, qedi_pci_tbl);
 
 static enum cpuhp_state qedi_cpuhp_state;
 
+static struct pci_error_handlers qedi_err_handler = {
+	.error_detected = qedi_io_error_detected,
+};
+
 static struct pci_driver qedi_pci_driver = {
 	.name = QEDI_MODULE_NAME,
 	.id_table = qedi_pci_tbl,
 	.probe = qedi_probe,
 	.remove = qedi_remove,
 	.shutdown = qedi_shutdown,
+	.err_handler = &qedi_err_handler,
 };
 
 static int __init qedi_init(void)

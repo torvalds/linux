@@ -15,9 +15,11 @@
 #include "thread_map.h"
 #include "trace-event.h"
 #include "mmap.h"
+#include "stat.h"
+#include "metricgroup.h"
 #include "util/env.h"
 #include <internal/lib.h>
-#include "../perf-sys.h"
+#include "util.h"
 
 #if PY_MAJOR_VERSION < 3
 #define _PyUnicode_FromString(arg) \
@@ -59,6 +61,23 @@ int parse_callchain_record(const char *arg __maybe_unused,
  * Add this one here not to drag util/env.c
  */
 struct perf_env perf_env;
+
+/*
+ * Add this one here not to drag util/stat-shadow.c
+ */
+void perf_stat__collect_metric_expr(struct evlist *evsel_list)
+{
+}
+
+/*
+ * Add this one here not to drag util/metricgroup.c
+ */
+int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
+				    struct rblist *new_metric_events,
+				    struct rblist *old_metric_events)
+{
+	return 0;
+}
 
 /*
  * Support debug printing even though util/debug.c is not linked.  That means

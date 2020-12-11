@@ -339,7 +339,8 @@ int cpsw_get_regs_len(struct net_device *ndev)
 {
 	struct cpsw_common *cpsw = ndev_to_cpsw(ndev);
 
-	return cpsw->data.ale_entries * ALE_ENTRY_WORDS * sizeof(u32);
+	return cpsw_ale_get_num_entries(cpsw->ale) *
+	       ALE_ENTRY_WORDS * sizeof(u32);
 }
 
 void cpsw_get_regs(struct net_device *ndev, struct ethtool_regs *regs, void *p)

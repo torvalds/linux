@@ -17,12 +17,12 @@ static int dpaa2_eth_dcbnl_ieee_getpfc(struct net_device *net_dev,
 	return 0;
 }
 
-static inline bool is_prio_enabled(u8 pfc_en, u8 tc)
+static inline bool dpaa2_eth_is_prio_enabled(u8 pfc_en, u8 tc)
 {
 	return !!(pfc_en & (1 << tc));
 }
 
-static int set_pfc_cn(struct dpaa2_eth_priv *priv, u8 pfc_en)
+static int dpaa2_eth_set_pfc_cn(struct dpaa2_eth_priv *priv, u8 pfc_en)
 {
 	struct dpni_congestion_notification_cfg cfg = {0};
 	int i, err;
@@ -33,7 +33,7 @@ static int set_pfc_cn(struct dpaa2_eth_priv *priv, u8 pfc_en)
 	cfg.message_ctx = 0ULL;
 
 	for (i = 0; i < dpaa2_eth_tc_count(priv); i++) {
-		if (is_prio_enabled(pfc_en, i)) {
+		if (dpaa2_eth_is_prio_enabled(pfc_en, i)) {
 			cfg.threshold_entry = DPAA2_ETH_CN_THRESH_ENTRY(priv);
 			cfg.threshold_exit = DPAA2_ETH_CN_THRESH_EXIT(priv);
 		} else {
@@ -93,7 +93,7 @@ static int dpaa2_eth_dcbnl_ieee_setpfc(struct net_device *net_dev,
 	}
 
 	/* Configure congestion notifications for the enabled priorities */
-	err = set_pfc_cn(priv, pfc->pfc_en);
+	err = dpaa2_eth_set_pfc_cn(priv, pfc->pfc_en);
 	if (err)
 		return err;
 

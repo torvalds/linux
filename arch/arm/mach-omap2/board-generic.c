@@ -3,7 +3,7 @@
  * Copyright (C) 2005 Nokia Corporation
  * Author: Paul Mundt <paul.mundt@nokia.com>
  *
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011 Texas Instruments Incorporated - https://www.ti.com/
  *
  * Modified from the original mach-omap/omap2/board-generic.c did by Paul
  * to support the OMAP2+ device tree boards with an unique board file.

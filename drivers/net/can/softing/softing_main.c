@@ -170,8 +170,8 @@ static int softing_handle_1(struct softing *card)
 		msg.can_dlc = CAN_ERR_DLC;
 		msg.data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
 		/*
-		 * service to all busses, we don't know which it was applicable
-		 * but only service busses that are online
+		 * service to all buses, we don't know which it was applicable
+		 * but only service buses that are online
 		 */
 		for (j = 0; j < ARRAY_SIZE(card->net); ++j) {
 			netdev = card->net[j];
@@ -339,7 +339,7 @@ static irqreturn_t softing_irq_thread(int irq, void *dev_id)
 			continue;
 		priv = netdev_priv(netdev);
 		if (!canif_is_active(netdev))
-			/* it makes no sense to wake dead busses */
+			/* it makes no sense to wake dead buses */
 			continue;
 		if (priv->tx.pending >= TX_ECHO_SKB_MAX)
 			continue;
@@ -374,7 +374,7 @@ static irqreturn_t softing_irq_v1(int irq, void *dev_id)
 }
 
 /*
- * netdev/candev inter-operability
+ * netdev/candev interoperability
  */
 static int softing_netdev_open(struct net_device *ndev)
 {
@@ -447,8 +447,9 @@ static void softing_card_shutdown(struct softing *card)
 {
 	int fw_up = 0;
 
-	if (mutex_lock_interruptible(&card->fw.lock))
+	if (mutex_lock_interruptible(&card->fw.lock)) {
 		/* return -ERESTARTSYS */;
+	}
 	fw_up = card->fw.up;
 	card->fw.up = 0;
 

@@ -1070,7 +1070,7 @@ module_exit(lane_module_cleanup);
 /*
  * LANE2: 3.1.3, LE_RESOLVE.request
  * Non force allocates memory and fills in *tlvs, fills in *sizeoftlvs.
- * If sizeoftlvs == NULL the default TLVs associated with with this
+ * If sizeoftlvs == NULL the default TLVs associated with this
  * lec will be used.
  * If dst_mac == NULL, targetless LE_ARP will be sent
  */

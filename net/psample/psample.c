@@ -96,7 +96,7 @@ static int psample_nl_cmd_get_group_dumpit(struct sk_buff *msg,
 	return msg->len;
 }
 
-static const struct genl_ops psample_nl_ops[] = {
+static const struct genl_small_ops psample_nl_ops[] = {
 	{
 		.cmd = PSAMPLE_CMD_GET_GROUP,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -112,8 +112,8 @@ static struct genl_family psample_nl_family __ro_after_init = {
 	.netnsok	= true,
 	.module		= THIS_MODULE,
 	.mcgrps		= psample_nl_mcgrps,
-	.ops		= psample_nl_ops,
-	.n_ops		= ARRAY_SIZE(psample_nl_ops),
+	.small_ops	= psample_nl_ops,
+	.n_small_ops	= ARRAY_SIZE(psample_nl_ops),
 	.n_mcgrps	= ARRAY_SIZE(psample_nl_mcgrps),
 };
 

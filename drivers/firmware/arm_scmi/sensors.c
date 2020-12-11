@@ -275,7 +275,7 @@ static int scmi_sensor_count_get(const struct scmi_handle *handle)
 	return si->num_sensors;
 }
 
-static struct scmi_sensor_ops sensor_ops = {
+static const struct scmi_sensor_ops sensor_ops = {
 	.count_get = scmi_sensor_count_get,
 	.info_get = scmi_sensor_info_get,
 	.trip_point_config = scmi_sensor_trip_point_config,
@@ -365,9 +365,4 @@ static int scmi_sensors_protocol_init(struct scmi_handle *handle)
 	return 0;
 }
 
-static int __init scmi_sensors_init(void)
-{
-	return scmi_protocol_register(SCMI_PROTOCOL_SENSOR,
-				      &scmi_sensors_protocol_init);
-}
-subsys_initcall(scmi_sensors_init);
+DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(SCMI_PROTOCOL_SENSOR, sensors)

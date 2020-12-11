@@ -101,7 +101,7 @@ static int stm32_booster_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id stm32_booster_of_match[] = {
+static const struct of_device_id __maybe_unused stm32_booster_of_match[] = {
 	{
 		.compatible = "st,stm32h7-booster",
 		.data = (void *)&stm32h7_booster_desc
