@@ -156,6 +156,7 @@ struct ath11k_hw_params {
 	bool supports_shadow_regs;
 	bool idle_ps;
 	bool cold_boot_calib;
+	bool supports_suspend;
 };
 
 struct ath11k_hw_ops {

@@ -1641,5 +1641,6 @@ void ath11k_dp_shadow_stop_timer(struct ath11k_base *ab,
 void ath11k_dp_shadow_init_timer(struct ath11k_base *ab,
 				 struct ath11k_hp_update_timer *update_timer,
 				 u32 interval, u32 ring_id);
+void ath11k_dp_stop_shadow_timers(struct ath11k_base *ab);
 
 #endif

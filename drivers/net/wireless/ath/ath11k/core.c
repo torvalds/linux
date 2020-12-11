@@ -13,6 +13,7 @@
 #include "dp_rx.h"
 #include "debug.h"
 #include "hif.h"
+#include "wow.h"
 
 unsigned int ath11k_debug_mask;
 EXPORT_SYMBOL(ath11k_debug_mask);
@@ -66,6 +67,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = false,
 		.idle_ps = false,
 		.cold_boot_calib = true,
+		.supports_suspend = false,
 	},
 	{
 		.hw_rev = ATH11K_HW_IPQ6018_HW10,
@@ -103,6 +105,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = false,
 		.idle_ps = false,
 		.cold_boot_calib = true,
+		.supports_suspend = false,
 	},
 	{
 		.name = "qca6390 hw2.0",
@@ -139,8 +142,90 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = true,
 		.idle_ps = true,
 		.cold_boot_calib = false,
+		.supports_suspend = true,
 	},
 };
+
+int ath11k_core_suspend(struct ath11k_base *ab)
+{
+	int ret;
+
+	if (!ab->hw_params.supports_suspend)
+		return -EOPNOTSUPP;
+
+	/* TODO: there can frames in queues so for now add delay as a hack.
+	 * Need to implement to handle and remove this delay.
+	 */
+	msleep(500);
+
+	ret = ath11k_dp_rx_pktlog_stop(ab, true);
+	if (ret) {
+		ath11k_warn(ab, "failed to stop dp rx (and timer) pktlog during suspend: %d\n",
+			    ret);
+		return ret;
+	}
+
+	ret = ath11k_wow_enable(ab);
+	if (ret) {
+		ath11k_warn(ab, "failed to enable wow during suspend: %d\n", ret);
+		return ret;
+	}
+
+	ret = ath11k_dp_rx_pktlog_stop(ab, false);
+	if (ret) {
+		ath11k_warn(ab, "failed to stop dp rx pktlog during suspend: %d\n",
+			    ret);
+		return ret;
+	}
+
+	ath11k_ce_stop_shadow_timers(ab);
+	ath11k_dp_stop_shadow_timers(ab);
+
+	ath11k_hif_irq_disable(ab);
+	ath11k_hif_ce_irq_disable(ab);
+
+	ret = ath11k_hif_suspend(ab);
+	if (!ret) {
+		ath11k_warn(ab, "failed to suspend hif: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(ath11k_core_suspend);
+
+int ath11k_core_resume(struct ath11k_base *ab)
+{
+	int ret;
+
+	if (!ab->hw_params.supports_suspend)
+		return -EOPNOTSUPP;
+
+	ret = ath11k_hif_resume(ab);
+	if (ret) {
+		ath11k_warn(ab, "failed to resume hif during resume: %d\n", ret);
+		return ret;
+	}
+
+	ath11k_hif_ce_irq_enable(ab);
+	ath11k_hif_irq_enable(ab);
+
+	ret = ath11k_dp_rx_pktlog_start(ab);
+	if (ret) {
+		ath11k_warn(ab, "failed to start rx pktlog during resume: %d\n",
+			    ret);
+		return ret;
+	}
+
+	ret = ath11k_wow_wakeup(ab);
+	if (ret) {
+		ath11k_warn(ab, "failed to wakeup wow during resume: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(ath11k_core_resume);
 
 int ath11k_core_check_dt(struct ath11k_base *ab)
 {
