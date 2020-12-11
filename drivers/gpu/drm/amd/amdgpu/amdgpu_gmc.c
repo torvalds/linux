@@ -499,6 +499,9 @@ void amdgpu_gmc_get_vbios_allocations(struct amdgpu_device *adev)
 	else
 		size = amdgpu_gmc_get_vbios_fb_size(adev);
 
+	if (adev->mman.keep_stolen_vga_memory)
+		size = max(size, (unsigned)AMDGPU_VBIOS_VGA_ALLOCATION);
+
 	/* set to 0 if the pre-OS buffer uses up most of vram */
 	if ((adev->gmc.real_vram_size - size) < (8 * 1024 * 1024))
 		size = 0;

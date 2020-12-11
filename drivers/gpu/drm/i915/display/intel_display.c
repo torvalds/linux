@@ -18040,7 +18040,7 @@ int intel_modeset_init(struct drm_i915_private *i915)
 	 */
 	ret = intel_initial_commit(&i915->drm);
 	if (ret)
-		return ret;
+		drm_dbg_kms(&i915->drm, "Initial modeset failed, %d\n", ret);
 
 	intel_overlay_setup(i915);
 

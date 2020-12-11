@@ -1172,7 +1172,7 @@ static void amdgpu_ras_debugfs_create_ctrl_node(struct amdgpu_device *adev)
 			con->dir, &con->disable_ras_err_cnt_harvest);
 }
 
-void amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
+static void amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
 		struct ras_fs_if *head)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
@@ -1194,7 +1194,6 @@ void amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
 
 void amdgpu_ras_debugfs_create_all(struct amdgpu_device *adev)
 {
-#if defined(CONFIG_DEBUG_FS)
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj;
 	struct ras_fs_if fs_info;
@@ -1203,7 +1202,7 @@ void amdgpu_ras_debugfs_create_all(struct amdgpu_device *adev)
 	 * it won't be called in resume path, no need to check
 	 * suspend and gpu reset status
 	 */
-	if (!con)
+	if (!IS_ENABLED(CONFIG_DEBUG_FS) || !con)
 		return;
 
 	amdgpu_ras_debugfs_create_ctrl_node(adev);
@@ -1217,10 +1216,9 @@ void amdgpu_ras_debugfs_create_all(struct amdgpu_device *adev)
 			amdgpu_ras_debugfs_create(adev, &fs_info);
 		}
 	}
-#endif
 }
 
-void amdgpu_ras_debugfs_remove(struct amdgpu_device *adev,
+static void amdgpu_ras_debugfs_remove(struct amdgpu_device *adev,
 		struct ras_common_if *head)
 {
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, head);
@@ -1234,7 +1232,6 @@ void amdgpu_ras_debugfs_remove(struct amdgpu_device *adev,
 
 static void amdgpu_ras_debugfs_remove_all(struct amdgpu_device *adev)
 {
-#if defined(CONFIG_DEBUG_FS)
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj, *tmp;
 
@@ -1243,7 +1240,6 @@ static void amdgpu_ras_debugfs_remove_all(struct amdgpu_device *adev)
 	}
 
 	con->dir = NULL;
-#endif
 }
 /* debugfs end */
 
@@ -1291,7 +1287,8 @@ static int amdgpu_ras_fs_init(struct amdgpu_device *adev)
 
 static int amdgpu_ras_fs_fini(struct amdgpu_device *adev)
 {
-	amdgpu_ras_debugfs_remove_all(adev);
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		amdgpu_ras_debugfs_remove_all(adev);
 	amdgpu_ras_sysfs_remove_all(adev);
 	return 0;
 }
