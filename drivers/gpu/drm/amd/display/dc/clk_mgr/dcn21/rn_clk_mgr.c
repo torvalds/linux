@@ -227,12 +227,11 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 					rn_vbios_smu_set_dppclk(clk_mgr, clk_mgr_base->clks.dppclk_khz);
 
 		// always update dtos unless clock is lowered and not safe to lower
-		if (new_clocks->dppclk_khz >= dc->current_state->bw_ctx.bw.dcn.clk.dppclk_khz)
-			rn_update_clocks_update_dpp_dto(
-					clk_mgr,
-					context,
-					clk_mgr_base->clks.actual_dppclk_khz,
-					safe_to_lower);
+		rn_update_clocks_update_dpp_dto(
+				clk_mgr,
+				context,
+				clk_mgr_base->clks.actual_dppclk_khz,
+				safe_to_lower);
 	}
 
 	if (update_dispclk &&
