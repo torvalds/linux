@@ -169,7 +169,7 @@ static const struct of_device_id iio_hwmon_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, iio_hwmon_of_match);
 
-static struct platform_driver __refdata iio_hwmon_driver = {
+static struct platform_driver iio_hwmon_driver = {
 	.driver = {
 		.name = "iio_hwmon",
 		.of_match_table = iio_hwmon_of_match,
