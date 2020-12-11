@@ -490,6 +490,9 @@ static int __maybe_unused rt700_dev_suspend(struct device *dev)
 	if (!rt700->hw_init)
 		return 0;
 
+	cancel_delayed_work_sync(&rt700->jack_detect_work);
+	cancel_delayed_work_sync(&rt700->jack_btn_check_work);
+
 	regcache_cache_only(rt700->regmap, true);
 
 	return 0;

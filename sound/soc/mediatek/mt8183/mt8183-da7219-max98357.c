@@ -673,7 +673,7 @@ static int mt8183_da7219_max98357_dev_probe(struct platform_device *pdev)
 			if (card == &mt8183_da7219_max98357_card) {
 				dai_link->be_hw_params_fixup =
 					mt8183_i2s_hw_params_fixup;
-				dai_link->ops = &mt8183_mt6358_i2s_ops;
+				dai_link->ops = &mt8183_da7219_i2s_ops;
 				dai_link->cpus = i2s3_max98357a_cpus;
 				dai_link->num_cpus =
 					ARRAY_SIZE(i2s3_max98357a_cpus);
