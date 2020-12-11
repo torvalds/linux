@@ -913,6 +913,24 @@ static void ath11k_pci_power_down(struct ath11k_base *ab)
 	ath11k_pci_sw_reset(ab_pci->ab, false);
 }
 
+static int ath11k_pci_hif_suspend(struct ath11k_base *ab)
+{
+	struct ath11k_pci *ar_pci = ath11k_pci_priv(ab);
+
+	ath11k_mhi_suspend(ar_pci);
+
+	return 0;
+}
+
+static int ath11k_pci_hif_resume(struct ath11k_base *ab)
+{
+	struct ath11k_pci *ar_pci = ath11k_pci_priv(ab);
+
+	ath11k_mhi_resume(ar_pci);
+
+	return 0;
+}
+
 static void ath11k_pci_kill_tasklets(struct ath11k_base *ab)
 {
 	int i;
@@ -997,6 +1015,8 @@ static const struct ath11k_hif_ops ath11k_pci_hif_ops = {
 	.write32 = ath11k_pci_write32,
 	.power_down = ath11k_pci_power_down,
 	.power_up = ath11k_pci_power_up,
+	.suspend = ath11k_pci_hif_suspend,
+	.resume = ath11k_pci_hif_resume,
 	.irq_enable = ath11k_pci_ext_irq_enable,
 	.irq_disable = ath11k_pci_ext_irq_disable,
 	.get_msi_address =  ath11k_pci_get_msi_address,

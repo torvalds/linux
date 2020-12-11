@@ -17,6 +17,8 @@ struct ath11k_hif_ops {
 	void (*stop)(struct ath11k_base *sc);
 	int (*power_up)(struct ath11k_base *sc);
 	void (*power_down)(struct ath11k_base *sc);
+	int (*suspend)(struct ath11k_base *ab);
+	int (*resume)(struct ath11k_base *ab);
 	int (*map_service_to_pipe)(struct ath11k_base *sc, u16 service_id,
 				   u8 *ul_pipe, u8 *dl_pipe);
 	int (*get_user_msi_vector)(struct ath11k_base *ab, char *user_name,
@@ -54,6 +56,22 @@ static inline int ath11k_hif_power_up(struct ath11k_base *sc)
 static inline void ath11k_hif_power_down(struct ath11k_base *sc)
 {
 	sc->hif.ops->power_down(sc);
+}
+
+static inline int ath11k_hif_suspend(struct ath11k_base *ab)
+{
+	if (ab->hif.ops->suspend)
+		return ab->hif.ops->suspend(ab);
+
+	return 0;
+}
+
+static inline int ath11k_hif_resume(struct ath11k_base *ab)
+{
+	if (ab->hif.ops->resume)
+		return ab->hif.ops->resume(ab);
+
+	return 0;
 }
 
 static inline u32 ath11k_hif_read32(struct ath11k_base *sc, u32 address)
