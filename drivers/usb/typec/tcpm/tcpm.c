@@ -4860,6 +4860,24 @@ static void tcpm_init(struct tcpm_port *port)
 	if (port->vbus_present)
 		port->vbus_never_low = true;
 
+	/*
+	 * 1. When vbus_present is true, voltage on VBUS is already at VSAFE5V.
+	 * So implicitly vbus_vsafe0v = false.
+	 *
+	 * 2. When vbus_present is false and TCPC does NOT support querying
+	 * vsafe0v status, then, it's best to assume vbus is at VSAFE0V i.e.
+	 * vbus_vsafe0v is true.
+	 *
+	 * 3. When vbus_present is false and TCPC does support querying vsafe0v,
+	 * then, query tcpc for vsafe0v status.
+	 */
+	if (port->vbus_present)
+		port->vbus_vsafe0v = false;
+	else if (!port->tcpc->is_vbus_vsafe0v)
+		port->vbus_vsafe0v = true;
+	else
+		port->vbus_vsafe0v = port->tcpc->is_vbus_vsafe0v(port->tcpc);
+
 	tcpm_set_state(port, tcpm_default_state(port), 0);
 
 	if (port->tcpc->get_cc(port->tcpc, &cc1, &cc2) == 0)
