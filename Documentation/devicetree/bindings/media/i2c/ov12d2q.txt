@@ -1,0 +1,44 @@
+* Omnivision OV12D2Q MIPI CSI-2 sensor
+
+Required Properties:
+- compatible: should be "ovti,ov12d2q"
+- clocks: reference to the 24M xvclk input clock.
+- clock-names: should be "xvclk".
+- dovdd-supply: Digital I/O voltage supply, 1.8 volts
+- avdd-supply: Analog voltage supply, 2.8 volts
+- dvdd-supply: Digital core voltage supply, 1.2 volts
+- reset-gpios: Low active reset gpio
+- pwdn-gpios: High active pwdn gpio
+
+The device node must contain one 'port' child node for its digital output
+video port, in accordance with the video interface bindings defined in
+Documentation/devicetree/bindings/media/video-interfaces.txt.
+
+Example:
+
+	i2c0@1c22000 {
+		ov12d2q: ov12d2q@36 {
+			compatible = "ovti,ov12d2q";
+			reg = <0x36>;
+			clocks = <&cru CLK_MIPICSI_OUT>;
+			clock-names = "xvclk";
+			power-domains = <&power RV1126_PD_VI>;
+			pinctrl-names = "rockchip,camera_default";
+			pinctrl-0 = <&mipicsi_clk0>;
+			avdd-supply = <&vcc_avdd>;
+			dovdd-supply = <&vcc_dovdd>;
+			dvdd-supply = <&vcc_dvdd>;
+			pwdn-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+			reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+			rockchip,camera-module-index = <1>;
+			rockchip,camera-module-facing = "front";
+			rockchip,camera-module-name = "default";
+			rockchip,camera-module-lens-name = "default";
+			port {
+				ucam_out0: endpoint {
+					remote-endpoint = <&mipi_in_ucam0>;
+					data-lanes = <1 2 3 4>;
+				};
+			};
+		};
+	};
