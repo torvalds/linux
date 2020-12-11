@@ -57,7 +57,7 @@
  * Legacy uAPI doesn't expose the primary and cursor planes directly. DRM core
  * relies on the driver to set the primary and optionally the cursor plane used
  * for legacy IOCTLs. This is done by calling drm_crtc_init_with_planes(). All
- * drivers should provide one primary plane per CRTC to avoid surprising legacy
+ * drivers must provide one primary plane per CRTC to avoid surprising legacy
  * userspace too much.
  */
 

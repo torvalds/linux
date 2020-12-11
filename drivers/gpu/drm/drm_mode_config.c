@@ -639,6 +639,9 @@ void drm_mode_config_validate(struct drm_device *dev)
 	}
 
 	drm_for_each_crtc(crtc, dev) {
+		WARN(!crtc->primary, "Missing primary plane on [CRTC:%d:%s]\n",
+		     crtc->base.id, crtc->name);
+
 		if (crtc->primary) {
 			WARN(!(crtc->primary->possible_crtcs & drm_crtc_mask(crtc)),
 			     "Bogus primary plane possible_crtcs: [PLANE:%d:%s] must be compatible with [CRTC:%d:%s]\n",
