@@ -240,7 +240,7 @@
 			mipi_in_ucam1: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&ov8858_out>;
-				data-lanes = <1 2>;
+				data-lanes = <1 2 3 4>;
 			};
 		};
 		port@1 {
@@ -265,12 +265,12 @@
 		reg = <0>;
 		backlight = <&backlight>;
 		power-supply = <&vcc3v3_lcd0_n>;
-		vsp-supply = <&outp>;
-		vsn-supply = <&outn>;
+		//vsp-supply = <&outp>;
+		//vsn-supply = <&outn>;
 		//enable-gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio0 RK_PC2 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&lcd_enable_gpio>, <&lcd_rst_gpio>;
+		pinctrl-0 = <&lcd_enable_gpio>, <&lcd_rst_gpio>, <&lcd_panel_vsp>, <&lcd_panel_vsn>;
 
 		prepare-delay-ms = <60>;
 		unprepare-delay-ms = <60>;
@@ -384,11 +384,11 @@
 		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 
 		pinctrl-names = "default", "pmic-sleep",
-				"pmic-power-off";
+				"pmic-power-off", "pmic-reset";
 		pinctrl-0 = <&pmic_int>;
 		pinctrl-1 = <&soc_slppin_slp>, <&rk817_slppin_slp>;
 		pinctrl-2 = <&soc_slppin_gpio>, <&rk817_slppin_pwrdn>;
-		pinctrl-3 = <&soc_slppin_rst>, <&rk817_slppin_rst>;
+		pinctrl-3 = <&soc_slppin_gpio>, <&rk817_slppin_rst>;
 		rockchip,system-power-controller;
 		wakeup-source;
 		#clock-cells = <1>;
@@ -447,7 +447,7 @@
 				regulator-initial-mode = <0x2>;
 				regulator-name = "vdd_logic";
 				regulator-state-mem {
-					regulator-on-in-suspend;
+					regulator-off-in-suspend;
 					regulator-suspend-microvolt = <900000>;
 				};
 			};
@@ -461,7 +461,7 @@
 				regulator-ramp-delay = <6001>;
 				regulator-initial-mode = <0x2>;
 				regulator-name = "vdd_gpu";
-					regulator-state-mem {
+				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
 			};
@@ -518,8 +518,8 @@
 				regulator-max-microvolt = <900000>;
 				regulator-name = "vdda0v9_pmu";
 				regulator-state-mem {
-				regulator-on-in-suspend;
-					regulator-suspend-microvolt = <1000000>;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <900000>;
 				};
 			};
 
@@ -541,8 +541,7 @@
 				regulator-max-microvolt = <3300000>;
 				regulator-name = "vccio_sd";
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <3300000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -564,7 +563,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-name = "vcc_1v8";
-					regulator-state-mem {
+				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
 			};
@@ -575,7 +574,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-name = "vcc1v8_dvp";
-					regulator-state-mem {
+				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
 			};
@@ -586,7 +585,7 @@
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
 				regulator-name = "vcc2v8_dvp";
-					regulator-state-mem {
+				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
 			};
@@ -597,10 +596,16 @@
 				regulator-min-microvolt = <4700000>;
 				regulator-max-microvolt = <5400000>;
 				regulator-name = "boost";
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
 			};
 
 			otg_switch: OTG_SWITCH {
 				regulator-name = "otg_switch";
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
 			};
 		};
 
@@ -650,7 +655,7 @@
 			mic-in-differential;
 			use-ext-amplifier;
 			//out-l2spk-r2hp;
-			spk-ctl-gpios = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
+			spk-ctl-gpios = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
 			status = "okay";
 		};
 	};
@@ -662,6 +667,7 @@
 	dio5632@3e {
 		compatible = "DIO5632";
 		reg = <0x3e>;
+		status = "disabled";
 
 		outp: outp@3e {
 			regulator-name = "LCD_VSP";
@@ -708,7 +714,7 @@
 		//0->FRONT camera, 1->REAR camera
 		reset-gpios = <&gpio4 17 GPIO_ACTIVE_LOW>;
 		pwdn-gpios = <&gpio4 10 GPIO_ACTIVE_HIGH>;
-		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "front";
 		rockchip,camera-module-name = "XHG-RKX11F-V5";
 		rockchip,camera-module-lens-name = "HR232H65";
@@ -734,14 +740,14 @@
 		//0->FRONT camera, 1->REAR camera
 		reset-gpios = <&gpio4 17 GPIO_ACTIVE_HIGH>;
 		pwdn-gpios = <&gpio4 11 GPIO_ACTIVE_HIGH>;
-		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "XHG-RKX11B-V10";
 		rockchip,camera-module-lens-name = "default";
 		port {
 			ov8858_out: endpoint {
 				remote-endpoint = <&mipi_in_ucam1>;
-				data-lanes = <1 2>;
+				data-lanes = <1 2 3 4>;
 			};
 		};
 	};
@@ -925,7 +931,7 @@
 
 	headphone {
 		hp_det: hp-det {
-			rockchip,pins = <0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -936,6 +942,14 @@
 
 		lcd_enable_gpio: lcd-enable-gpio {
 			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		lcd_panel_vsp: lcd-panel-vsp {
+			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		lcd_panel_vsn: lcd-panel-vsn {
+			rockchip,pins = <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -1094,6 +1108,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc1_bus4 &sdmmc1_cmd &sdmmc1_clk>;
 	sd-uhs-sdr104;
+	rockchip,default-sample-phase = <90>;
 	status = "okay";
 };
 
