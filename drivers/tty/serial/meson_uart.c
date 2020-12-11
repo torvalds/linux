@@ -604,7 +604,6 @@ static int __init meson_serial_console_init(void)
 	register_console(&meson_serial_console);
 	return 0;
 }
-console_initcall(meson_serial_console_init);
 
 static void meson_serial_early_console_write(struct console *co,
 					     const char *s,
@@ -634,6 +633,9 @@ OF_EARLYCON_DECLARE(meson, "amlogic,meson-ao-uart",
 
 #define MESON_SERIAL_CONSOLE	(&meson_serial_console)
 #else
+static int __init meson_serial_console_init(void) {
+	return 0;
+}
 #define MESON_SERIAL_CONSOLE	NULL
 #endif
 
@@ -824,6 +826,10 @@ static int __init meson_uart_init(void)
 {
 	int ret;
 
+	ret = meson_serial_console_init();
+	if (ret)
+		return ret;
+	
 	ret = uart_register_driver(&meson_uart_driver);
 	if (ret)
 		return ret;
