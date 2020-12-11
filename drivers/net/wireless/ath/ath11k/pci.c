@@ -126,6 +126,7 @@ static inline void ath11k_pci_select_window(struct ath11k_pci *ab_pci, u32 offse
 	if (window != ab_pci->register_window) {
 		iowrite32(WINDOW_ENABLE_BIT | window,
 			  ab->mem + WINDOW_REG_ADDRESS);
+		ioread32(ab->mem + WINDOW_REG_ADDRESS);
 		ab_pci->register_window = window;
 	}
 }
