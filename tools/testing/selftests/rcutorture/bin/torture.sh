@@ -36,7 +36,8 @@ configs_locktorture=
 configs_scftorture=
 kcsan_kmake_args=
 
-# Default duration and apportionment.
+# Default compression, duration, and apportionment.
+compress_kasan_vmlinux="`identify_qemu_vcpus`"
 duration_base=10
 duration_rcutorture_frac=7
 duration_locktorture_frac=1
@@ -65,6 +66,7 @@ function doyesno () {
 
 usage () {
 	echo "Usage: $scriptname optional arguments:"
+	echo "       --compress-kasan-vmlinux concurrency"
 	echo "       --configs-rcutorture \"config-file list w/ repeat factor (3*TINY01)\""
 	echo "       --configs-locktorture \"config-file list w/ repeat factor (10*LOCK01)\""
 	echo "       --configs-scftorture \"config-file list w/ repeat factor (2*CFLIST)\""
@@ -87,6 +89,11 @@ usage () {
 while test $# -gt 0
 do
 	case "$1" in
+	--compress-kasan-vmlinux)
+		checkarg --compress-kasan-vmlinux "(concurrency level)" $# "$2" '^[0-9][0-9]*$' '^error'
+		compress_kasan_vmlinux=$2
+		shift
+		;;
 	--config-rcutorture|--configs-rcutorture)
 		checkarg --configs-rcutorture "(list of config files)" "$#" "$2" '^[^/]\+$' '^--'
 		configs_rcutorture="$configs_rcutorture $2"
@@ -391,8 +398,45 @@ fi
 echo Started at $startdate, ended at `date`, duration `get_starttime_duration $starttime`. | tee -a $T/log
 echo Summary: Successes: $nsuccesses Failures: $nfailures. | tee -a $T/log
 tdir="`cat $T/successes $T/failures | head -1 | awk '{ print $NF }' | sed -e 's,/[^/]\+/*$,,'`"
+if test -n "$tdir" && test $compress_kasan_vmlinux -gt 0
+then
+	# KASAN vmlinux files can approach 1GB in size, so compress them.
+	echo Looking for KASAN files to compress: `date` > "$tdir/log-xz" 2>&1
+	find "$tdir" -type d -name '*-kasan' -print > $T/xz-todo
+	ncompresses=0
+	batchno=1
+	if test -s $T/xz-todo
+	then
+		echo Size before compressing: `du -sh $tdir | awk '{ print $1 }'` `date` 2>&1 | tee -a "$tdir/log-xz" | tee -a $T/log
+		for i in `cat $T/xz-todo`
+		do
+			echo Compressing vmlinux files in ${i}: `date` >> "$tdir/log-xz" 2>&1
+			for j in $i/*/vmlinux
+			do
+				xz "$j" >> "$tdir/log-xz" 2>&1 &
+				ncompresses=$((ncompresses+1))
+				if test $ncompresses -ge $compress_kasan_vmlinux
+				then
+					echo Waiting for batch $batchno of $ncompresses compressions `date` | tee -a "$tdir/log-xz" | tee -a $T/log
+					wait
+					ncompresses=0
+					batchno=$((batchno+1))
+				fi
+			done
+		done
+		if test $ncompresses -gt 0
+		then
+			echo Waiting for final batch $batchno of $ncompresses compressions `date` | tee -a "$tdir/log-xz" | tee -a $T/log
+		fi
+		wait
+		echo Size after compressing: `du -sh $tdir | awk '{ print $1 }'` `date` 2>&1 | tee -a "$tdir/log-xz" | tee -a $T/log
+		echo Total duration `get_starttime_duration $starttime`. | tee -a $T/log
+	else
+		echo No compression needed: `date` >> "$tdir/log-xz" 2>&1
+	fi
+fi
 if test -n "$tdir"
 then
-	cp $T/log $tdir
+	cp $T/log "$tdir"
 fi
 exit $ret
