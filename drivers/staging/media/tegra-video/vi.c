@@ -30,7 +30,6 @@
 #include "vi.h"
 #include "video.h"
 
-#define SURFACE_ALIGN_BYTES		64
 #define MAX_CID_CONTROLS		1
 
 static const struct tegra_video_format tegra_default_format = {
@@ -573,6 +572,14 @@ static int tegra_channel_try_format(struct file *file, void *fh,
 	return __tegra_channel_try_format(chan, &format->fmt.pix);
 }
 
+static void tegra_channel_update_gangports(struct tegra_vi_channel *chan)
+{
+	if (chan->format.width <= 1920)
+		chan->numgangports = 1;
+	else
+		chan->numgangports = chan->totalports;
+}
+
 static int tegra_channel_set_format(struct file *file, void *fh,
 				    struct v4l2_format *format)
 {
@@ -606,6 +613,7 @@ static int tegra_channel_set_format(struct file *file, void *fh,
 
 	chan->format = *pix;
 	chan->fmtinfo = fmtinfo;
+	tegra_channel_update_gangports(chan);
 
 	return 0;
 }
@@ -638,6 +646,7 @@ static int tegra_channel_set_subdev_active_fmt(struct tegra_vi_channel *chan)
 	chan->format.sizeimage = chan->format.bytesperline *
 				 chan->format.height;
 	tegra_channel_fmt_align(chan, &chan->format, chan->fmtinfo->bpp);
+	tegra_channel_update_gangports(chan);
 
 	return 0;
 }
@@ -806,6 +815,7 @@ static int tegra_channel_s_dv_timings(struct file *file, void *fh,
 	chan->format.bytesperline = bt->width * chan->fmtinfo->bpp;
 	chan->format.sizeimage = chan->format.bytesperline * bt->height;
 	tegra_channel_fmt_align(chan, &chan->format, chan->fmtinfo->bpp);
+	tegra_channel_update_gangports(chan);
 
 	return 0;
 }
@@ -1092,12 +1102,21 @@ static int vi_fmts_bitmap_init(struct tegra_vi_channel *chan)
 	return 0;
 }
 
+static void tegra_channel_host1x_syncpts_free(struct tegra_vi_channel *chan)
+{
+	int i;
+
+	for (i = 0; i < chan->numgangports; i++) {
+		host1x_syncpt_free(chan->mw_ack_sp[i]);
+		host1x_syncpt_free(chan->frame_start_sp[i]);
+	}
+}
+
 static void tegra_channel_cleanup(struct tegra_vi_channel *chan)
 {
 	v4l2_ctrl_handler_free(&chan->ctrl_handler);
 	media_entity_cleanup(&chan->video.entity);
-	host1x_syncpt_free(chan->mw_ack_sp);
-	host1x_syncpt_free(chan->frame_start_sp);
+	tegra_channel_host1x_syncpts_free(chan);
 	mutex_destroy(&chan->video_lock);
 }
 
@@ -1115,11 +1134,46 @@ void tegra_channels_cleanup(struct tegra_vi *vi)
 	}
 }
 
+static int tegra_channel_host1x_syncpt_init(struct tegra_vi_channel *chan)
+{
+	struct tegra_vi *vi = chan->vi;
+	unsigned long flags = HOST1X_SYNCPT_CLIENT_MANAGED;
+	struct host1x_syncpt *fs_sp;
+	struct host1x_syncpt *mw_sp;
+	int ret, i;
+
+	for (i = 0; i < chan->numgangports; i++) {
+		fs_sp = host1x_syncpt_request(&vi->client, flags);
+		if (!fs_sp) {
+			dev_err(vi->dev, "failed to request frame start syncpoint\n");
+			ret = -ENOMEM;
+			goto free_syncpts;
+		}
+
+		mw_sp = host1x_syncpt_request(&vi->client, flags);
+		if (!mw_sp) {
+			dev_err(vi->dev, "failed to request memory ack syncpoint\n");
+			host1x_syncpt_free(fs_sp);
+			ret = -ENOMEM;
+			goto free_syncpts;
+		}
+
+		chan->frame_start_sp[i] = fs_sp;
+		chan->mw_ack_sp[i] = mw_sp;
+		spin_lock_init(&chan->sp_incr_lock[i]);
+	}
+
+	return 0;
+
+free_syncpts:
+	tegra_channel_host1x_syncpts_free(chan);
+	return ret;
+}
+
 static int tegra_channel_init(struct tegra_vi_channel *chan)
 {
 	struct tegra_vi *vi = chan->vi;
 	struct tegra_video_device *vid = dev_get_drvdata(vi->client.host);
-	unsigned long flags = HOST1X_SYNCPT_CLIENT_MANAGED;
 	int ret;
 
 	mutex_init(&chan->video_lock);
@@ -1127,7 +1181,6 @@ static int tegra_channel_init(struct tegra_vi_channel *chan)
 	INIT_LIST_HEAD(&chan->done);
 	spin_lock_init(&chan->start_lock);
 	spin_lock_init(&chan->done_lock);
-	spin_lock_init(&chan->sp_incr_lock);
 	init_waitqueue_head(&chan->start_wait);
 	init_waitqueue_head(&chan->done_wait);
 
@@ -1142,18 +1195,9 @@ static int tegra_channel_init(struct tegra_vi_channel *chan)
 	chan->format.sizeimage = chan->format.bytesperline * TEGRA_DEF_HEIGHT;
 	tegra_channel_fmt_align(chan, &chan->format, chan->fmtinfo->bpp);
 
-	chan->frame_start_sp = host1x_syncpt_request(&vi->client, flags);
-	if (!chan->frame_start_sp) {
-		dev_err(vi->dev, "failed to request frame start syncpoint\n");
-		return -ENOMEM;
-	}
-
-	chan->mw_ack_sp = host1x_syncpt_request(&vi->client, flags);
-	if (!chan->mw_ack_sp) {
-		dev_err(vi->dev, "failed to request memory ack syncpoint\n");
-		ret = -ENOMEM;
-		goto free_fs_syncpt;
-	}
+	ret = tegra_channel_host1x_syncpt_init(chan);
+	if (ret)
+		return ret;
 
 	/* initialize the media entity */
 	chan->pad.flags = MEDIA_PAD_FL_SINK;
@@ -1161,7 +1205,7 @@ static int tegra_channel_init(struct tegra_vi_channel *chan)
 	if (ret < 0) {
 		dev_err(vi->dev,
 			"failed to initialize media entity: %d\n", ret);
-		goto free_mw_ack_syncpt;
+		goto free_syncpts;
 	}
 
 	ret = v4l2_ctrl_handler_init(&chan->ctrl_handler, MAX_CID_CONTROLS);
@@ -1177,7 +1221,7 @@ static int tegra_channel_init(struct tegra_vi_channel *chan)
 	chan->video.release = video_device_release_empty;
 	chan->video.queue = &chan->queue;
 	snprintf(chan->video.name, sizeof(chan->video.name), "%s-%s-%u",
-		 dev_name(vi->dev), "output", chan->portno);
+		 dev_name(vi->dev), "output", chan->portnos[0]);
 	chan->video.vfl_type = VFL_TYPE_VIDEO;
 	chan->video.vfl_dir = VFL_DIR_RX;
 	chan->video.ioctl_ops = &tegra_channel_ioctl_ops;
@@ -1213,17 +1257,16 @@ free_v4l2_ctrl_hdl:
 	v4l2_ctrl_handler_free(&chan->ctrl_handler);
 cleanup_media:
 	media_entity_cleanup(&chan->video.entity);
-free_mw_ack_syncpt:
-	host1x_syncpt_free(chan->mw_ack_sp);
-free_fs_syncpt:
-	host1x_syncpt_free(chan->frame_start_sp);
+free_syncpts:
+	tegra_channel_host1x_syncpts_free(chan);
 	return ret;
 }
 
 static int tegra_vi_channel_alloc(struct tegra_vi *vi, unsigned int port_num,
-				  struct device_node *node)
+				  struct device_node *node, unsigned int lanes)
 {
 	struct tegra_vi_channel *chan;
+	unsigned int i;
 
 	/*
 	 * Do not use devm_kzalloc as memory is freed immediately
@@ -1236,7 +1279,20 @@ static int tegra_vi_channel_alloc(struct tegra_vi *vi, unsigned int port_num,
 		return -ENOMEM;
 
 	chan->vi = vi;
-	chan->portno = port_num;
+	chan->portnos[0] = port_num;
+	/*
+	 * For data lanes more than maximum csi lanes per brick, multiple of
+	 * x4 ports are used simultaneously for capture.
+	 */
+	if (lanes <= CSI_LANES_PER_BRICK)
+		chan->totalports = 1;
+	else
+		chan->totalports = lanes / CSI_LANES_PER_BRICK;
+	chan->numgangports = chan->totalports;
+
+	for (i = 1; i < chan->totalports; i++)
+		chan->portnos[i] = chan->portnos[0] + i * CSI_PORTS_PER_BRICK;
+
 	chan->of_node = node;
 	list_add_tail(&chan->list, &vi->vi_chans);
 
@@ -1250,7 +1306,8 @@ static int tegra_vi_tpg_channels_alloc(struct tegra_vi *vi)
 	int ret;
 
 	for (port_num = 0; port_num < nchannels; port_num++) {
-		ret = tegra_vi_channel_alloc(vi, port_num, vi->dev->of_node);
+		ret = tegra_vi_channel_alloc(vi, port_num,
+					     vi->dev->of_node, 2);
 		if (ret < 0)
 			return ret;
 	}
@@ -1265,6 +1322,9 @@ static int tegra_vi_channels_alloc(struct tegra_vi *vi)
 	struct device_node *ports;
 	struct device_node *port;
 	unsigned int port_num;
+	struct device_node *parent;
+	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = 0 };
+	unsigned int lanes;
 	int ret = 0;
 
 	ports = of_get_child_by_name(node, "ports");
@@ -1291,8 +1351,21 @@ static int tegra_vi_channels_alloc(struct tegra_vi *vi)
 		if (!ep)
 			continue;
 
+		parent = of_graph_get_remote_port_parent(ep);
 		of_node_put(ep);
-		ret = tegra_vi_channel_alloc(vi, port_num, port);
+		if (!parent)
+			continue;
+
+		ep = of_graph_get_endpoint_by_regs(parent, 0, 0);
+		of_node_put(parent);
+		ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep),
+						 &v4l2_ep);
+		of_node_put(ep);
+		if (ret)
+			continue;
+
+		lanes = v4l2_ep.bus.mipi_csi2.num_data_lanes;
+		ret = tegra_vi_channel_alloc(vi, port_num, port, lanes);
 		if (ret < 0) {
 			of_node_put(port);
 			goto cleanup;
@@ -1314,7 +1387,7 @@ static int tegra_vi_channels_init(struct tegra_vi *vi)
 		if (ret < 0) {
 			dev_err(vi->dev,
 				"failed to initialize channel-%d: %d\n",
-				chan->portno, ret);
+				chan->portnos[0], ret);
 			goto cleanup;
 		}
 	}
@@ -1761,7 +1834,8 @@ static int tegra_vi_graph_init(struct tegra_vi *vi)
 	 * next channels.
 	 */
 	list_for_each_entry(chan, &vi->vi_chans, list) {
-		remote = fwnode_graph_get_remote_node(fwnode, chan->portno, 0);
+		remote = fwnode_graph_get_remote_node(fwnode, chan->portnos[0],
+						      0);
 		if (!remote)
 			continue;
 
@@ -1776,7 +1850,7 @@ static int tegra_vi_graph_init(struct tegra_vi *vi)
 		if (ret < 0) {
 			dev_err(vi->dev,
 				"failed to register channel %d notifier: %d\n",
-				chan->portno, ret);
+				chan->portnos[0], ret);
 			v4l2_async_notifier_cleanup(&chan->notifier);
 		}
 	}
@@ -1827,11 +1901,14 @@ static int tegra_vi_init(struct host1x_client *client)
 	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG)) {
 		ret = tegra_vi_graph_init(vi);
 		if (ret < 0)
-			goto free_chans;
+			goto cleanup_chans;
 	}
 
 	return 0;
 
+cleanup_chans:
+	list_for_each_entry(chan, &vi->vi_chans, list)
+		tegra_channel_cleanup(chan);
 free_chans:
 	list_for_each_entry_safe(chan, tmp, &vi->vi_chans, list) {
 		list_del(&chan->list);

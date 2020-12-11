@@ -21,6 +21,8 @@
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-v4l2.h>
 
+#include "csi.h"
+
 #define TEGRA_MIN_WIDTH		32U
 #define TEGRA_MAX_WIDTH		32768U
 #define TEGRA_MIN_HEIGHT	32U
@@ -31,6 +33,7 @@
 #define TEGRA_IMAGE_FORMAT_DEF	32
 
 #define MAX_FORMAT_NUM		64
+#define SURFACE_ALIGN_BYTES	64
 
 enum tegra_vi_pg_mode {
 	TEGRA_VI_PG_DISABLED = 0,
@@ -151,7 +154,9 @@ struct tegra_vi_graph_entity {
  * @done: list of capture done queued buffers
  * @done_lock: protects the capture done queue list
  *
- * @portno: VI channel port number
+ * @portnos: VI channel port numbers
+ * @totalports: total number of ports used for this channel
+ * @numgangports: number of ports combined together as a gang for capture
  * @of_node: device node of VI channel
  *
  * @ctrl_handler: V4L2 control handler of this video channel
@@ -168,10 +173,10 @@ struct tegra_vi_channel {
 	struct media_pad pad;
 
 	struct tegra_vi *vi;
-	struct host1x_syncpt *frame_start_sp;
-	struct host1x_syncpt *mw_ack_sp;
+	struct host1x_syncpt *frame_start_sp[GANG_PORTS_MAX];
+	struct host1x_syncpt *mw_ack_sp[GANG_PORTS_MAX];
 	/* protects the cpu syncpoint increment */
-	spinlock_t sp_incr_lock;
+	spinlock_t sp_incr_lock[GANG_PORTS_MAX];
 
 	struct task_struct *kthread_start_capture;
 	wait_queue_head_t start_wait;
@@ -190,7 +195,9 @@ struct tegra_vi_channel {
 	/* protects the capture done queue list */
 	spinlock_t done_lock;
 
-	unsigned char portno;
+	unsigned char portnos[GANG_PORTS_MAX];
+	u8 totalports;
+	u8 numgangports;
 	struct device_node *of_node;
 
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -216,7 +223,7 @@ struct tegra_channel_buffer {
 	struct list_head queue;
 	struct tegra_vi_channel *chan;
 	dma_addr_t addr;
-	u32 mw_ack_sp_thresh;
+	u32 mw_ack_sp_thresh[GANG_PORTS_MAX];
 };
 
 /*

@@ -253,13 +253,14 @@ static unsigned int csi_get_pixel_rate(struct tegra_csi_channel *csi_chan)
 }
 
 void tegra_csi_calc_settle_time(struct tegra_csi_channel *csi_chan,
+				u8 csi_port_num,
 				u8 *clk_settle_time,
 				u8 *ths_settle_time)
 {
 	struct tegra_csi *csi = csi_chan->csi;
 	unsigned int cil_clk_mhz;
 	unsigned int pix_clk_mhz;
-	int clk_idx = (csi_chan->csi_port_num >> 1) + 1;
+	int clk_idx = (csi_port_num >> 1) + 1;
 
 	cil_clk_mhz = clk_get_rate(csi->clks[clk_idx].clk) / MHZ;
 	pix_clk_mhz = csi_get_pixel_rate(csi_chan) / MHZ;
@@ -410,7 +411,7 @@ static int tegra_csi_channel_alloc(struct tegra_csi *csi,
 				   unsigned int num_pads)
 {
 	struct tegra_csi_channel *chan;
-	int ret = 0;
+	int ret = 0, i;
 
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
 	if (!chan)
@@ -418,8 +419,21 @@ static int tegra_csi_channel_alloc(struct tegra_csi *csi,
 
 	list_add_tail(&chan->list, &csi->csi_chans);
 	chan->csi = csi;
-	chan->csi_port_num = port_num;
-	chan->numlanes = lanes;
+	/*
+	 * Each CSI brick has maximum of 4 lanes.
+	 * For lanes more than 4, use multiple of immediate CSI bricks as gang.
+	 */
+	if (lanes <= CSI_LANES_PER_BRICK) {
+		chan->numlanes = lanes;
+		chan->numgangports = 1;
+	} else {
+		chan->numlanes = CSI_LANES_PER_BRICK;
+		chan->numgangports = lanes / CSI_LANES_PER_BRICK;
+	}
+
+	for (i = 0; i < chan->numgangports; i++)
+		chan->csi_port_nums[i] = port_num + i * CSI_PORTS_PER_BRICK;
+
 	chan->of_node = node;
 	chan->numpads = num_pads;
 	if (num_pads & 0x2) {
@@ -500,7 +514,14 @@ static int tegra_csi_channels_alloc(struct tegra_csi *csi)
 		}
 
 		lanes = v4l2_ep.bus.mipi_csi2.num_data_lanes;
-		if (!lanes || ((lanes & (lanes - 1)) != 0)) {
+		/*
+		 * Each CSI brick has maximum 4 data lanes.
+		 * For lanes more than 4, validate lanes to be multiple of 4
+		 * so multiple of consecutive CSI bricks can be ganged up for
+		 * streaming.
+		 */
+		if (!lanes || ((lanes & (lanes - 1)) != 0) ||
+		    (lanes > CSI_LANES_PER_BRICK && ((portno & 1) != 0))) {
 			dev_err(csi->dev, "invalid data-lanes %d for %pOF\n",
 				lanes, channel);
 			ret = -EINVAL;
@@ -544,7 +565,7 @@ static int tegra_csi_channel_init(struct tegra_csi_channel *chan)
 	subdev->dev = csi->dev;
 	if (IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
 		snprintf(subdev->name, V4L2_SUBDEV_NAME_SIZE, "%s-%d", "tpg",
-			 chan->csi_port_num);
+			 chan->csi_port_nums[0]);
 	else
 		snprintf(subdev->name, V4L2_SUBDEV_NAME_SIZE, "%s",
 			 kbasename(chan->of_node->full_name));
@@ -596,7 +617,7 @@ static int tegra_csi_channels_init(struct tegra_csi *csi)
 		if (ret) {
 			dev_err(csi->dev,
 				"failed to initialize channel-%d: %d\n",
-				chan->csi_port_num, ret);
+				chan->csi_port_nums[0], ret);
 			return ret;
 		}
 	}
