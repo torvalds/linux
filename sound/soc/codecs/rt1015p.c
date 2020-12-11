@@ -4,6 +4,7 @@
 //
 // Copyright 2020 The Linux Foundation. All rights reserved.
 
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
@@ -19,6 +20,7 @@
 
 struct rt1015p_priv {
 	struct gpio_desc *sdb;
+	bool calib_done;
 };
 
 static int rt1015p_sdb_event(struct snd_soc_dapm_widget *w,
@@ -36,6 +38,11 @@ static int rt1015p_sdb_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMU:
 		gpiod_set_value_cansleep(rt1015p->sdb, 1);
 		dev_dbg(component->dev, "set sdb to 1");
+
+		if (!rt1015p->calib_done) {
+			msleep(300);
+			rt1015p->calib_done = true;
+		}
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		gpiod_set_value_cansleep(rt1015p->sdb, 0);
@@ -60,7 +67,20 @@ static const struct snd_soc_dapm_route rt1015p_dapm_routes[] = {
 	{"Speaker", NULL, "SDB"},
 };
 
+#ifdef CONFIG_PM
+static int rt1015p_suspend(struct snd_soc_component *component)
+{
+	struct rt1015p_priv *rt1015p = snd_soc_component_get_drvdata(component);
+
+	rt1015p->calib_done = false;
+	return 0;
+}
+#else
+#define rt1015p_suspend NULL
+#endif
+
 static const struct snd_soc_component_driver rt1015p_component_driver = {
+	.suspend		= rt1015p_suspend,
 	.dapm_widgets		= rt1015p_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(rt1015p_dapm_widgets),
 	.dapm_routes		= rt1015p_dapm_routes,
