@@ -186,6 +186,7 @@ enum ath11k_dev_flags {
 	ATH11K_FLAG_UNREGISTERING,
 	ATH11K_FLAG_REGISTERED,
 	ATH11K_FLAG_QMI_FAIL,
+	ATH11K_FLAG_HTC_SUSPEND_COMPLETE,
 };
 
 enum ath11k_monitor_flags {
@@ -732,6 +733,9 @@ struct ath11k_base {
 	u32 num_db_cap;
 
 	struct timer_list mon_reap_timer;
+
+	struct completion htc_suspend;
+
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
 };

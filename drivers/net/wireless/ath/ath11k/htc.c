@@ -231,6 +231,18 @@ static int ath11k_htc_process_trailer(struct ath11k_htc *htc,
 	return status;
 }
 
+static void ath11k_htc_suspend_complete(struct ath11k_base *ab, bool ack)
+{
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot suspend complete %d\n", ack);
+
+	if (ack)
+		set_bit(ATH11K_FLAG_HTC_SUSPEND_COMPLETE, &ab->dev_flags);
+	else
+		clear_bit(ATH11K_FLAG_HTC_SUSPEND_COMPLETE, &ab->dev_flags);
+
+	complete(&ab->htc_suspend);
+}
+
 void ath11k_htc_rx_completion_handler(struct ath11k_base *ab,
 				      struct sk_buff *skb)
 {
@@ -328,8 +340,17 @@ void ath11k_htc_rx_completion_handler(struct ath11k_base *ab,
 
 			complete(&htc->ctl_resp);
 			break;
+		case ATH11K_HTC_MSG_SEND_SUSPEND_COMPLETE:
+			ath11k_htc_suspend_complete(ab, true);
+			break;
+		case ATH11K_HTC_MSG_NACK_SUSPEND:
+			ath11k_htc_suspend_complete(ab, false);
+			break;
+		case ATH11K_HTC_MSG_WAKEUP_FROM_SUSPEND_ID:
+			break;
 		default:
-			ath11k_warn(ab, "ignoring unsolicited htc ep0 event\n");
+			ath11k_warn(ab, "ignoring unsolicited htc ep0 event %ld\n",
+				    FIELD_GET(HTC_MSG_MESSAGEID, msg->msg_svc_id));
 			break;
 		}
 		goto out;
