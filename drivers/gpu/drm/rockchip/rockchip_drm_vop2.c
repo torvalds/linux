@@ -1799,6 +1799,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	struct vop2_win *win = to_vop2_win(plane);
 	struct vop2_plane_state *vpstate = to_vop2_plane_state(pstate);
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	struct vop2 *vop2 = win->vop2;
 	struct drm_framebuffer *fb = pstate->fb;
 	uint32_t bpp = fb->format->bpp[0];
@@ -1858,7 +1859,17 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	actual_w = drm_rect_width(src) >> 16;
 	actual_h = drm_rect_height(src) >> 16;
 	dsp_w = drm_rect_width(dest);
+	if (dest->x1 + dsp_w > adjusted_mode->hdisplay) {
+		DRM_ERROR("%s dest->x1[%d] + dsp_w[%d] exceed mode hdisplay[%d]\n",
+			  win->name, dest->x1, dsp_w, adjusted_mode->hdisplay);
+		dsp_w = adjusted_mode->hdisplay - dest->x1;
+	}
 	dsp_h = drm_rect_height(dest);
+	if (dest->y1 + dsp_h > adjusted_mode->vdisplay) {
+		DRM_ERROR("%s dest->y1[%d] + dsp_h[%d] exceed mode vdisplay[%d]\n",
+			  win->name, dest->y1, dsp_h, adjusted_mode->vdisplay);
+		dsp_h = adjusted_mode->vdisplay - dest->y1;
+	}
 	act_info = (actual_h - 1) << 16 | ((actual_w - 1) & 0xffff);
 	dsp_info = (dsp_h - 1) << 16 | ((dsp_w - 1) & 0xffff);
 	stride = DIV_ROUND_UP(fb->pitches[0], 4);
