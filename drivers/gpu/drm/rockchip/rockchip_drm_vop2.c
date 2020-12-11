@@ -901,7 +901,6 @@ static inline bool rockchip_afbc(u64 modifier)
 	return modifier == ROCKCHIP_AFBC_MOD;
 }
 
-
 static inline bool vop2_cluster_window(struct vop2_win *win)
 {
 	return  (win->feature & (WIN_FEATURE_CLUSTER_MAIN | WIN_FEATURE_CLUSTER_SUB));
@@ -1085,7 +1084,6 @@ static uint16_t vop2_scale_factor(enum scale_mode mode,
 		src = src + 1;
 	}
 
-
 	if ((mode == SCALE_DOWN) && (filter_mode == VOP2_SCALE_DOWN_BIL)) {
 		fac = VOP2_BILI_SCL_DN(src, dst);
 		for (i = 0; i < 100; i++) {
@@ -1127,11 +1125,18 @@ static void vop2_setup_scale(struct vop2 *vop2, const struct vop2_win *win,
 
 	info = drm_format_info(pixel_format);
 
+	if (src_h >= (4 * dst_h))
+		gt4 = 1;
+	else if (src_h >= (2 * dst_h))
+		gt2 = 1;
+
+	if (gt4)
+		src_h >>= 2;
+	else if (gt2)
+		src_h >>= 1;
+
 	yrgb_hor_scl_mode = scl_get_scl_mode(src_w, dst_w);
 	yrgb_ver_scl_mode = scl_get_scl_mode(src_h, dst_h);
-
-	cbcr_hor_scl_mode = scl_get_scl_mode(cbcr_src_w, dst_w);
-	cbcr_ver_scl_mode = scl_get_scl_mode(cbcr_src_h, dst_h);
 
 	if (yrgb_hor_scl_mode == SCALE_UP)
 		hscl_filter_mode = win_data->hsu_filter_mode;
@@ -1142,16 +1147,6 @@ static void vop2_setup_scale(struct vop2 *vop2, const struct vop2_win *win,
 		vscl_filter_mode = win_data->vsu_filter_mode;
 	else
 		vscl_filter_mode = win_data->vsd_filter_mode;
-
-	if (src_h >= (4 * dst_h))
-		gt4 = 1;
-	else if (src_h >= (2 * dst_h))
-		gt2 = 1;
-
-	if (gt4)
-		src_h >>= 2;
-	else if (gt2)
-		src_h >>= 1;
 
 	val = vop2_scale_factor(yrgb_hor_scl_mode, hscl_filter_mode,
 				src_w, dst_w);
@@ -1172,15 +1167,18 @@ static void vop2_setup_scale(struct vop2 *vop2, const struct vop2_win *win,
 	if (info->is_yuv) {
 		gt4 = gt2 = 0;
 
-		if (cbcr_src_h > (4 * dst_h))
+		if (cbcr_src_h >= (4 * dst_h))
 			gt4 = 1;
-		else if (cbcr_src_h > (2 * dst_h))
+		else if (cbcr_src_h >= (2 * dst_h))
 			gt2 = 1;
 
 		if (gt4)
 			cbcr_src_h >>= 2;
 		else if (gt2)
 			cbcr_src_h >>= 1;
+
+		cbcr_hor_scl_mode = scl_get_scl_mode(cbcr_src_w, dst_w);
+		cbcr_ver_scl_mode = scl_get_scl_mode(cbcr_src_h, dst_h);
 
 		val = vop2_scale_factor(cbcr_hor_scl_mode, hscl_filter_mode,
 					cbcr_src_w, dst_w);
