@@ -144,7 +144,9 @@ static inline void mlx5e_insert_vlan(void *start, struct sk_buff *skb, u16 ihs)
 	memcpy(&vhdr->h_vlan_encapsulated_proto, skb->data + cpy1_sz, cpy2_sz);
 }
 
-/* RM 2311217: no L4 inner checksum for IPsec tunnel type packet */
+/* If packet is not IP's CHECKSUM_PARTIAL (e.g. icmd packet),
+ * need to set L3 checksum flag for IPsec
+ */
 static void
 ipsec_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 			    struct mlx5_wqe_eth_seg *eseg)
@@ -154,7 +156,6 @@ ipsec_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		eseg->cs_flags |= MLX5_ETH_WQE_L3_INNER_CSUM;
 		sq->stats->csum_partial_inner++;
 	} else {
-		eseg->cs_flags |= MLX5_ETH_WQE_L4_CSUM;
 		sq->stats->csum_partial++;
 	}
 }
@@ -162,11 +163,6 @@ ipsec_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 static inline void
 mlx5e_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg)
 {
-	if (unlikely(eseg->flow_table_metadata & cpu_to_be32(MLX5_ETH_WQE_FT_META_IPSEC))) {
-		ipsec_txwqe_build_eseg_csum(sq, skb, eseg);
-		return;
-	}
-
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		eseg->cs_flags = MLX5_ETH_WQE_L3_CSUM;
 		if (skb->encapsulation) {
@@ -177,6 +173,9 @@ mlx5e_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb, struct 
 			eseg->cs_flags |= MLX5_ETH_WQE_L4_CSUM;
 			sq->stats->csum_partial++;
 		}
+	} else if (unlikely(eseg->flow_table_metadata & cpu_to_be32(MLX5_ETH_WQE_FT_META_IPSEC))) {
+		ipsec_txwqe_build_eseg_csum(sq, skb, eseg);
+
 	} else
 		sq->stats->csum_none++;
 }

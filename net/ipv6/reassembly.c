@@ -42,6 +42,8 @@
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/tcp.h>
+#include <linux/udp.h>
 
 #include <net/sock.h>
 #include <net/snmp.h>
@@ -322,6 +324,7 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 	struct frag_queue *fq;
 	const struct ipv6hdr *hdr = ipv6_hdr(skb);
 	struct net *net = dev_net(skb_dst(skb)->dev);
+	u8 nexthdr;
 	int iif;
 
 	if (IP6CB(skb)->flags & IP6SKB_FRAGMENTED)
@@ -349,6 +352,20 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 		IP6CB(skb)->nhoff = (u8 *)fhdr - skb_network_header(skb);
 		IP6CB(skb)->flags |= IP6SKB_FRAGMENTED;
 		return 1;
+	}
+
+	/* RFC 8200, Section 4.5 Fragment Header:
+	 * If the first fragment does not include all headers through an
+	 * Upper-Layer header, then that fragment should be discarded and
+	 * an ICMP Parameter Problem, Code 3, message should be sent to
+	 * the source of the fragment, with the Pointer field set to zero.
+	 */
+	nexthdr = hdr->nexthdr;
+	if (ipv6frag_thdr_truncated(skb, skb_transport_offset(skb), &nexthdr)) {
+		__IP6_INC_STATS(net, __in6_dev_get_safely(skb->dev),
+				IPSTATS_MIB_INHDRERRORS);
+		icmpv6_param_prob(skb, ICMPV6_HDR_INCOMP, 0);
+		return -1;
 	}
 
 	iif = skb->dev ? skb->dev->ifindex : 0;

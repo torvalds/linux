@@ -205,6 +205,10 @@ enum {
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 #define ASICREV_IS_SIENNA_CICHLID_P(eChipRev)        ((eChipRev >= NV_SIENNA_CICHLID_P_A0))
 #endif
+#define GREEN_SARDINE_A0 0xA1
+#ifndef ASICREV_IS_GREEN_SARDINE
+#define ASICREV_IS_GREEN_SARDINE(eChipRev) ((eChipRev >= GREEN_SARDINE_A0) && (eChipRev < 0xFF))
+#endif
 
 /*
  * ASIC chip ID

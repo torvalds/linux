@@ -75,6 +75,7 @@
 &enetc_port0 {
 	phy-handle = <&phy0>;
 	phy-connection-type = "sgmii";
+	managed = "in-band-status";
 	status = "okay";
 
 	mdio {

@@ -941,12 +941,16 @@ static ssize_t pmbus_show_sensor(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct pmbus_sensor *sensor = to_pmbus_sensor(devattr);
 	struct pmbus_data *data = i2c_get_clientdata(client);
+	ssize_t ret;
 
+	mutex_lock(&data->update_lock);
 	pmbus_update_sensor_data(client, sensor);
 	if (sensor->data < 0)
-		return sensor->data;
-
-	return snprintf(buf, PAGE_SIZE, "%lld\n", pmbus_reg2data(data, sensor));
+		ret = sensor->data;
+	else
+		ret = snprintf(buf, PAGE_SIZE, "%lld\n", pmbus_reg2data(data, sensor));
+	mutex_unlock(&data->update_lock);
+	return ret;
 }
 
 static ssize_t pmbus_set_sensor(struct device *dev,
@@ -2012,8 +2016,11 @@ static ssize_t pmbus_show_samples(struct device *dev,
 	int val;
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct pmbus_samples_reg *reg = to_samples_reg(devattr);
+	struct pmbus_data *data = i2c_get_clientdata(client);
 
+	mutex_lock(&data->update_lock);
 	val = _pmbus_read_word_data(client, reg->page, 0xff, reg->attr->reg);
+	mutex_unlock(&data->update_lock);
 	if (val < 0)
 		return val;
 

@@ -422,6 +422,7 @@ ENTRY(system_call)
 #endif
 	LOCKDEP_SYS_EXIT
 .Lsysc_tif:
+	DISABLE_INTS
 	TSTMSK	__PT_FLAGS(%r11),_PIF_WORK
 	jnz	.Lsysc_work
 	TSTMSK	__TI_flags(%r12),_TIF_WORK
@@ -444,6 +445,7 @@ ENTRY(system_call)
 # One of the work bits is on. Find out which one.
 #
 .Lsysc_work:
+	ENABLE_INTS
 	TSTMSK	__TI_flags(%r12),_TIF_NEED_RESCHED
 	jo	.Lsysc_reschedule
 	TSTMSK	__PT_FLAGS(%r11),_PIF_SYSCALL_RESTART
@@ -1066,6 +1068,7 @@ EXPORT_SYMBOL(save_fpu_regs)
  *	%r4
  */
 load_fpu_regs:
+	stnsm	__SF_EMPTY(%r15),0xfc
 	lg	%r4,__LC_CURRENT
 	aghi	%r4,__TASK_thread
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
@@ -1097,6 +1100,7 @@ load_fpu_regs:
 .Lload_fpu_regs_done:
 	ni	__LC_CPU_FLAGS+7,255-_CIF_FPU
 .Lload_fpu_regs_exit:
+	ssm	__SF_EMPTY(%r15)
 	BR_EX	%r14
 .Lload_fpu_regs_end:
 ENDPROC(load_fpu_regs)

@@ -53,21 +53,13 @@ int main(void)
 	/* stack_frame offsets */
 	OFFSET(__SF_BACKCHAIN, stack_frame, back_chain);
 	OFFSET(__SF_GPRS, stack_frame, gprs);
-	OFFSET(__SF_EMPTY, stack_frame, empty1);
-	OFFSET(__SF_SIE_CONTROL, stack_frame, empty1[0]);
-	OFFSET(__SF_SIE_SAVEAREA, stack_frame, empty1[1]);
-	OFFSET(__SF_SIE_REASON, stack_frame, empty1[2]);
-	OFFSET(__SF_SIE_FLAGS, stack_frame, empty1[3]);
+	OFFSET(__SF_EMPTY, stack_frame, empty1[0]);
+	OFFSET(__SF_SIE_CONTROL, stack_frame, empty1[1]);
+	OFFSET(__SF_SIE_SAVEAREA, stack_frame, empty1[2]);
+	OFFSET(__SF_SIE_REASON, stack_frame, empty1[3]);
+	OFFSET(__SF_SIE_FLAGS, stack_frame, empty1[4]);
 	BLANK();
 	OFFSET(__VDSO_GETCPU_VAL, vdso_per_cpu_data, getcpu_val);
-	BLANK();
-	/* constants used by the vdso */
-	DEFINE(__CLOCK_REALTIME, CLOCK_REALTIME);
-	DEFINE(__CLOCK_MONOTONIC, CLOCK_MONOTONIC);
-	DEFINE(__CLOCK_REALTIME_COARSE, CLOCK_REALTIME_COARSE);
-	DEFINE(__CLOCK_MONOTONIC_COARSE, CLOCK_MONOTONIC_COARSE);
-	DEFINE(__CLOCK_THREAD_CPUTIME_ID, CLOCK_THREAD_CPUTIME_ID);
-	DEFINE(__CLOCK_COARSE_RES, LOW_RES_NSEC);
 	BLANK();
 	/* idle data offsets */
 	OFFSET(__CLOCK_IDLE_ENTER, s390_idle_data, clock_idle_enter);

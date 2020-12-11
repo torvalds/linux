@@ -3185,7 +3185,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		struct btrfs_tree_block_info *bi;
 		if (item_size < sizeof(*ei) + sizeof(*bi)) {
 			btrfs_crit(info,
-"invalid extent item size for key (%llu, %u, %llu) owner %llu, has %u expect >= %lu",
+"invalid extent item size for key (%llu, %u, %llu) owner %llu, has %u expect >= %zu",
 				   key.objectid, key.type, key.offset,
 				   owner_objectid, item_size,
 				   sizeof(*ei) + sizeof(*bi));

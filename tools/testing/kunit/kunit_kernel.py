@@ -6,10 +6,10 @@
 # Author: Felix Guo <felixguoxiuping@gmail.com>
 # Author: Brendan Higgins <brendanhiggins@google.com>
 
-
 import logging
 import subprocess
 import os
+import shutil
 import signal
 
 from contextlib import ExitStack
@@ -18,8 +18,10 @@ import kunit_config
 import kunit_parser
 
 KCONFIG_PATH = '.config'
-kunitconfig_path = '.kunitconfig'
+KUNITCONFIG_PATH = '.kunitconfig'
+DEFAULT_KUNITCONFIG_PATH = 'arch/um/configs/kunit_defconfig'
 BROKEN_ALLCONFIG_PATH = 'tools/testing/kunit/configs/broken_on_uml.config'
+OUTFILE_PATH = 'test.log'
 
 class ConfigError(Exception):
 	"""Represents an error trying to configure the Linux kernel."""
@@ -82,23 +84,28 @@ class LinuxSourceTreeOperations(object):
 		if build_dir:
 			command += ['O=' + build_dir]
 		try:
-			subprocess.check_output(command, stderr=subprocess.STDOUT)
+			proc = subprocess.Popen(command,
+						stderr=subprocess.PIPE,
+						stdout=subprocess.DEVNULL)
 		except OSError as e:
-			raise BuildError('Could not call execute make: ' + str(e))
-		except subprocess.CalledProcessError as e:
-			raise BuildError(e.output.decode())
+			raise BuildError('Could not call make command: ' + str(e))
+		_, stderr = proc.communicate()
+		if proc.returncode != 0:
+			raise BuildError(stderr.decode())
+		if stderr:  # likely only due to build warnings
+			print(stderr.decode())
 
-	def linux_bin(self, params, timeout, build_dir, outfile):
+	def linux_bin(self, params, timeout, build_dir):
 		"""Runs the Linux UML binary. Must be named 'linux'."""
 		linux_bin = './linux'
 		if build_dir:
 			linux_bin = os.path.join(build_dir, 'linux')
+		outfile = get_outfile_path(build_dir)
 		with open(outfile, 'w') as output:
 			process = subprocess.Popen([linux_bin] + params,
 						   stdout=output,
 						   stderr=subprocess.STDOUT)
 			process.wait(timeout)
-
 
 def get_kconfig_path(build_dir):
 	kconfig_path = KCONFIG_PATH
@@ -106,12 +113,22 @@ def get_kconfig_path(build_dir):
 		kconfig_path = os.path.join(build_dir, KCONFIG_PATH)
 	return kconfig_path
 
+def get_kunitconfig_path(build_dir):
+	kunitconfig_path = KUNITCONFIG_PATH
+	if build_dir:
+		kunitconfig_path = os.path.join(build_dir, KUNITCONFIG_PATH)
+	return kunitconfig_path
+
+def get_outfile_path(build_dir):
+	outfile_path = OUTFILE_PATH
+	if build_dir:
+		outfile_path = os.path.join(build_dir, OUTFILE_PATH)
+	return outfile_path
+
 class LinuxSourceTree(object):
 	"""Represents a Linux kernel source tree with KUnit tests."""
 
 	def __init__(self):
-		self._kconfig = kunit_config.Kconfig()
-		self._kconfig.read_from_file(kunitconfig_path)
 		self._ops = LinuxSourceTreeOperations()
 		signal.signal(signal.SIGINT, self.signal_handler)
 
@@ -122,6 +139,16 @@ class LinuxSourceTree(object):
 			logging.error(e)
 			return False
 		return True
+
+	def create_kunitconfig(self, build_dir, defconfig=DEFAULT_KUNITCONFIG_PATH):
+		kunitconfig_path = get_kunitconfig_path(build_dir)
+		if not os.path.exists(kunitconfig_path):
+			shutil.copyfile(defconfig, kunitconfig_path)
+
+	def read_kunitconfig(self, build_dir):
+		kunitconfig_path = get_kunitconfig_path(build_dir)
+		self._kconfig = kunit_config.Kconfig()
+		self._kconfig.read_from_file(kunitconfig_path)
 
 	def validate_config(self, build_dir):
 		kconfig_path = get_kconfig_path(build_dir)
@@ -178,8 +205,8 @@ class LinuxSourceTree(object):
 
 	def run_kernel(self, args=[], build_dir='', timeout=None):
 		args.extend(['mem=1G'])
-		outfile = 'test.log'
-		self._ops.linux_bin(args, timeout, build_dir, outfile)
+		self._ops.linux_bin(args, timeout, build_dir)
+		outfile = get_outfile_path(build_dir)
 		subprocess.call(['stty', 'sane'])
 		with open(outfile, 'r') as file:
 			for line in file:

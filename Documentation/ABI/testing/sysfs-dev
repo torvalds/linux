@@ -9,9 +9,10 @@ Description:	The /sys/dev tree provides a method to look up the sysfs
 		the form "<major>:<minor>".  These links point to the
 		corresponding sysfs path for the given device.
 
-		Example:
-		$ readlink /sys/dev/block/8:32
-		../../block/sdc
+		Example::
+
+		  $ readlink /sys/dev/block/8:32
+		  ../../block/sdc
 
 		Entries in /sys/dev/char and /sys/dev/block will be
 		dynamically created and destroyed as devices enter and

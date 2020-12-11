@@ -665,6 +665,15 @@ static void sdhci_intel_set_power(struct sdhci_host *host, unsigned char mode,
 	}
 }
 
+static void sdhci_intel_set_uhs_signaling(struct sdhci_host *host,
+					  unsigned int timing)
+{
+	/* Set UHS timing to SDR25 for High Speed mode */
+	if (timing == MMC_TIMING_MMC_HS || timing == MMC_TIMING_SD_HS)
+		timing = MMC_TIMING_UHS_SDR25;
+	sdhci_set_uhs_signaling(host, timing);
+}
+
 #define INTEL_HS400_ES_REG 0x78
 #define INTEL_HS400_ES_BIT BIT(0)
 
@@ -721,7 +730,7 @@ static const struct sdhci_ops sdhci_intel_byt_ops = {
 	.enable_dma		= sdhci_pci_enable_dma,
 	.set_bus_width		= sdhci_set_bus_width,
 	.reset			= sdhci_reset,
-	.set_uhs_signaling	= sdhci_set_uhs_signaling,
+	.set_uhs_signaling	= sdhci_intel_set_uhs_signaling,
 	.hw_reset		= sdhci_pci_hw_reset,
 };
 
@@ -731,7 +740,7 @@ static const struct sdhci_ops sdhci_intel_glk_ops = {
 	.enable_dma		= sdhci_pci_enable_dma,
 	.set_bus_width		= sdhci_set_bus_width,
 	.reset			= sdhci_cqhci_reset,
-	.set_uhs_signaling	= sdhci_set_uhs_signaling,
+	.set_uhs_signaling	= sdhci_intel_set_uhs_signaling,
 	.hw_reset		= sdhci_pci_hw_reset,
 	.irq			= sdhci_cqhci_irq,
 };

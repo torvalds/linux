@@ -55,26 +55,35 @@ Description:	read only
 		Flash faults are re-read after strobing the flash. Possible
 		flash faults:
 
-		* led-over-voltage - flash controller voltage to the flash LED
+		* led-over-voltage
+			flash controller voltage to the flash LED
 			has exceeded the limit specific to the flash controller
-		* flash-timeout-exceeded - the flash strobe was still on when
+		* flash-timeout-exceeded
+			the flash strobe was still on when
 			the timeout set by the user has expired; not all flash
 			controllers may set this in all such conditions
-		* controller-over-temperature - the flash controller has
+		* controller-over-temperature
+			the flash controller has
 			overheated
-		* controller-short-circuit - the short circuit protection
+		* controller-short-circuit
+			the short circuit protection
 			of the flash controller has been triggered
-		* led-power-supply-over-current - current in the LED power
+		* led-power-supply-over-current
+			current in the LED power
 			supply has exceeded the limit specific to the flash
 			controller
-		* indicator-led-fault - the flash controller has detected
+		* indicator-led-fault
+			the flash controller has detected
 			a short or open circuit condition on the indicator LED
-		* led-under-voltage - flash controller voltage to the flash
+		* led-under-voltage
+			flash controller voltage to the flash
 			LED has been below the minimum limit specific to
 			the flash
-		* controller-under-voltage - the input voltage of the flash
+		* controller-under-voltage
+			the input voltage of the flash
 			controller is below the limit under which strobing the
 			flash at full current will not be possible;
 			the condition persists until this flag is no longer set
-		* led-over-temperature - the temperature of the LED has exceeded
+		* led-over-temperature
+			the temperature of the LED has exceeded
 			its allowed upper limit

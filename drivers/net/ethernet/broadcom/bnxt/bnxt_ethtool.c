@@ -2079,6 +2079,9 @@ int bnxt_hwrm_nvm_get_dev_info(struct bnxt *bp,
 	struct hwrm_nvm_get_dev_info_input req = {0};
 	int rc;
 
+	if (BNXT_VF(bp))
+		return -EOPNOTSUPP;
+
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_NVM_GET_DEV_INFO, -1, -1);
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
@@ -2997,7 +3000,7 @@ static int bnxt_get_module_eeprom(struct net_device *dev,
 	/* Read A2 portion of the EEPROM */
 	if (length) {
 		start -= ETH_MODULE_SFF_8436_LEN;
-		rc = bnxt_read_sfp_module_eeprom_info(bp, I2C_DEV_ADDR_A2, 1,
+		rc = bnxt_read_sfp_module_eeprom_info(bp, I2C_DEV_ADDR_A2, 0,
 						      start, length, data);
 	}
 	return rc;

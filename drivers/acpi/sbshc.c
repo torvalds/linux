@@ -176,7 +176,7 @@ int acpi_smbus_write(struct acpi_smb_hc *hc, u8 protocol, u8 address,
 EXPORT_SYMBOL_GPL(acpi_smbus_write);
 
 int acpi_smbus_register_callback(struct acpi_smb_hc *hc,
-			         smbus_alarm_callback callback, void *context)
+				 smbus_alarm_callback callback, void *context)
 {
 	mutex_lock(&hc->lock);
 	hc->callback = callback;

@@ -558,14 +558,27 @@ xchk_directory_leaf1_bestfree(
 	/* Check all the bestfree entries. */
 	for (i = 0; i < bestcount; i++, bestp++) {
 		best = be16_to_cpu(*bestp);
-		if (best == NULLDATAOFF)
-			continue;
 		error = xfs_dir3_data_read(sc->tp, sc->ip,
-				i * args->geo->fsbcount, 0, &dbp);
+				xfs_dir2_db_to_da(args->geo, i),
+				XFS_DABUF_MAP_HOLE_OK,
+				&dbp);
 		if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, lblk,
 				&error))
 			break;
-		xchk_directory_check_freesp(sc, lblk, dbp, best);
+
+		if (!dbp) {
+			if (best != NULLDATAOFF) {
+				xchk_fblock_set_corrupt(sc, XFS_DATA_FORK,
+						lblk);
+				break;
+			}
+			continue;
+		}
+
+		if (best == NULLDATAOFF)
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+		else
+			xchk_directory_check_freesp(sc, lblk, dbp, best);
 		xfs_trans_brelse(sc->tp, dbp);
 		if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 			break;

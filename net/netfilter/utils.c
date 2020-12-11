@@ -191,8 +191,8 @@ static int nf_ip_reroute(struct sk_buff *skb, const struct nf_queue_entry *entry
 		      skb->mark == rt_info->mark &&
 		      iph->daddr == rt_info->daddr &&
 		      iph->saddr == rt_info->saddr))
-			return ip_route_me_harder(entry->state.net, skb,
-						  RTN_UNSPEC);
+			return ip_route_me_harder(entry->state.net, entry->state.sk,
+						  skb, RTN_UNSPEC);
 	}
 #endif
 	return 0;

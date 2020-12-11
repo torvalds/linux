@@ -270,11 +270,6 @@ static void usb_init_common_7211b0(struct brcm_usb_init_params *params)
 	reg |= params->mode << USB_PHY_UTMI_CTL_1_PHY_MODE_SHIFT;
 	brcm_usb_writel(reg, usb_phy + USB_PHY_UTMI_CTL_1);
 
-	/* Fix the incorrect default */
-	reg = brcm_usb_readl(ctrl + USB_CTRL_SETUP);
-	reg &= ~USB_CTRL_SETUP_tca_drv_sel_MASK;
-	brcm_usb_writel(reg, ctrl + USB_CTRL_SETUP);
-
 	usb_init_common(params);
 
 	/*

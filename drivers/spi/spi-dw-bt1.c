@@ -217,7 +217,7 @@ static int dw_spi_bt1_sys_init(struct platform_device *pdev,
 	if (mem) {
 		dwsbt1->map = devm_ioremap_resource(&pdev->dev, mem);
 		if (!IS_ERR(dwsbt1->map)) {
-			dwsbt1->map_len = (mem->end - mem->start + 1);
+			dwsbt1->map_len = resource_size(mem);
 			dws->mem_ops.dirmap_create = dw_spi_bt1_dirmap_create;
 			dws->mem_ops.dirmap_read = dw_spi_bt1_dirmap_read;
 		} else {

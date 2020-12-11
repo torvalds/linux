@@ -445,7 +445,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		}
 	}
 
-	if (scmd) {
+	if (scmd && hisi_hba->shost->nr_hw_queues) {
 		unsigned int dq_index;
 		u32 blk_tag;
 

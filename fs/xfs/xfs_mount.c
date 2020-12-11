@@ -194,20 +194,25 @@ xfs_initialize_perag(
 		}
 
 		pag = kmem_zalloc(sizeof(*pag), KM_MAYFAIL);
-		if (!pag)
+		if (!pag) {
+			error = -ENOMEM;
 			goto out_unwind_new_pags;
+		}
 		pag->pag_agno = index;
 		pag->pag_mount = mp;
 		spin_lock_init(&pag->pag_ici_lock);
 		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
-		if (xfs_buf_hash_init(pag))
+
+		error = xfs_buf_hash_init(pag);
+		if (error)
 			goto out_free_pag;
 		init_waitqueue_head(&pag->pagb_wait);
 		spin_lock_init(&pag->pagb_lock);
 		pag->pagb_count = 0;
 		pag->pagb_tree = RB_ROOT;
 
-		if (radix_tree_preload(GFP_NOFS))
+		error = radix_tree_preload(GFP_NOFS);
+		if (error)
 			goto out_hash_destroy;
 
 		spin_lock(&mp->m_perag_lock);
