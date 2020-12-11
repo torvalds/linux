@@ -2513,7 +2513,7 @@ static int vmw_cmd_dx_set_so_targets(struct vmw_private *dev_priv,
 
 		binding.bi.ctx = ctx_node->ctx;
 		binding.bi.res = res;
-		binding.bi.bt = vmw_ctx_binding_so_target,
+		binding.bi.bt = vmw_ctx_binding_so_target;
 		binding.offset = cmd->targets[i].offset;
 		binding.size = cmd->targets[i].sizeInBytes;
 		binding.slot = i;
