@@ -2720,6 +2720,7 @@
 
 # preserved by --additions-only
   crc32_le
+  get_next_event_cpu
   simple_strtoull
   vm_map_ram
   vm_unmap_ram
