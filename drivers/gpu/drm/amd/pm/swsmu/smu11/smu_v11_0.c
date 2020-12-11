@@ -91,6 +91,11 @@ int smu_v11_0_init_microcode(struct smu_context *smu)
 	const struct common_firmware_header *header;
 	struct amdgpu_firmware_info *ucode = NULL;
 
+	if (amdgpu_sriov_vf(adev) &&
+			((adev->asic_type == CHIP_NAVI12) ||
+			 (adev->asic_type == CHIP_SIENNA_CICHLID)))
+		return 0;
+
 	switch (adev->asic_type) {
 	case CHIP_ARCTURUS:
 		chip_name = "arcturus";
