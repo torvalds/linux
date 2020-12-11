@@ -178,10 +178,23 @@ static int tegra_channel_capture_setup(struct tegra_vi_channel *chan)
 	u32 format = chan->fmtinfo->img_fmt;
 	u32 data_type = chan->fmtinfo->img_dt;
 	u32 word_count = (width * chan->fmtinfo->bit_width) / 8;
+	u32 bypass_pixel_transform = BIT(BYPASS_PXL_TRANSFORM_OFFSET);
+
+	/*
+	 * VI Pixel transformation unit converts source pixels data format
+	 * into selected destination pixel format and aligns properly while
+	 * interfacing with memory packer.
+	 * This pixel transformation should be enabled for YUV and RGB
+	 * formats and should be bypassed for RAW formats as RAW formats
+	 * only support direct to memory.
+	 */
+	if (chan->pg_mode || data_type == TEGRA_IMAGE_DT_YUV422_8 ||
+	    data_type == TEGRA_IMAGE_DT_RGB888)
+		bypass_pixel_transform = 0;
 
 	vi_csi_write(chan, TEGRA_VI_CSI_ERROR_STATUS, 0xffffffff);
 	vi_csi_write(chan, TEGRA_VI_CSI_IMAGE_DEF,
-		     ((chan->pg_mode ? 0 : 1) << BYPASS_PXL_TRANSFORM_OFFSET) |
+		     bypass_pixel_transform |
 		     (format << IMAGE_DEF_FORMAT_OFFSET) |
 		     IMAGE_DEF_DEST_MEM);
 	vi_csi_write(chan, TEGRA_VI_CSI_IMAGE_DT, data_type);
