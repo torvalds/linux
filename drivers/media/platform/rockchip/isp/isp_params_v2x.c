@@ -4333,6 +4333,12 @@ rkisp_params_set_ldchbuf_size_v2x(struct rkisp_isp_params_vdev *params_vdev,
 	rkisp_init_ldch_buf(params_vdev, ldchsize);
 }
 
+static void
+rkisp_params_fop_release_v2x(struct rkisp_isp_params_vdev *params_vdev)
+{
+	rkisp_deinit_ldch_buf(params_vdev);
+}
+
 /* Not called when the camera active, thus not isr protection. */
 static void
 rkisp_params_disable_isp_v2x(struct rkisp_isp_params_vdev *params_vdev)
@@ -4482,6 +4488,7 @@ static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
 	.param_cfgsram = rkisp_params_cfgsram_v2x,
 	.get_ldchbuf_inf = rkisp_params_get_ldchbuf_inf_v2x,
 	.set_ldchbuf_size = rkisp_params_set_ldchbuf_size_v2x,
+	.fop_release = rkisp_params_fop_release_v2x,
 };
 
 int rkisp_init_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev)

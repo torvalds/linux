@@ -30,6 +30,7 @@ struct rkisp_isp_params_ops {
 	void (*set_ldchbuf_size)(struct rkisp_isp_params_vdev *params_vdev,
 				 struct rkisp_ldchbuf_size *ldchsize);
 	void (*stream_stop)(struct rkisp_isp_params_vdev *params_vdev);
+	void (*fop_release)(struct rkisp_isp_params_vdev *params_vdev);
 };
 
 /*

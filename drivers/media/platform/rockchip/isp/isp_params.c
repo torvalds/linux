@@ -232,7 +232,11 @@ static int rkisp_params_fh_open(struct file *filp)
 static int rkisp_params_fop_release(struct file *file)
 {
 	struct rkisp_isp_params_vdev *params = video_drvdata(file);
+	struct video_device *vdev = video_devdata(file);
 	int ret;
+
+	if (file->private_data == vdev->queue->owner && params->ops->fop_release)
+		params->ops->fop_release(params);
 
 	ret = vb2_fop_release(file);
 	if (!ret) {

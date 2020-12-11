@@ -909,8 +909,12 @@ static int
 rkispp_param_fh_release(struct file *filp)
 {
 	struct rkispp_params_vdev *params = video_drvdata(filp);
+	struct video_device *vdev = video_devdata(filp);
 	struct rkispp_device *isppdev = params->dev;
 	int ret;
+
+	if (filp->private_data == vdev->queue->owner)
+		rkispp_param_deinit_fecbuf(params);
 
 	ret = vb2_fop_release(filp);
 	if (!ret) {
@@ -919,7 +923,6 @@ rkispp_param_fh_release(struct file *filp)
 			v4l2_err(&isppdev->v4l2_dev,
 				 "pipeline power off failed %d\n", ret);
 	}
-	rkispp_param_deinit_fecbuf(params);
 	return ret;
 }
 
