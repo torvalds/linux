@@ -1254,9 +1254,9 @@ void vmw_svga_disable(struct vmw_private *dev_priv)
 	vmw_kms_lost_device(&dev_priv->drm);
 	ttm_write_lock(&dev_priv->reservation_sem, false);
 	if (ttm_resource_manager_used(man)) {
-		ttm_resource_manager_set_used(man, false);
 		if (ttm_resource_manager_evict_all(&dev_priv->bdev, man))
 			DRM_ERROR("Failed evicting VRAM buffers.\n");
+		ttm_resource_manager_set_used(man, false);
 		vmw_write(dev_priv, SVGA_REG_ENABLE,
 			  SVGA_REG_ENABLE_HIDE |
 			  SVGA_REG_ENABLE_ENABLE);
