@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -178,6 +179,14 @@ static inline unsigned int get_secindex(const struct elf_info *info,
 	if (sym->st_shndx != SHN_XINDEX)
 		return sym->st_shndx;
 	return info->symtab_shndx_start[sym - info->symtab_start];
+}
+
+static inline bool strends(const char *str, const char *postfix)
+{
+	if (strlen(str) < strlen(postfix))
+		return false;
+
+	return strcmp(str + strlen(str) - strlen(postfix), postfix) == 0;
 }
 
 /* file2alias.c */
