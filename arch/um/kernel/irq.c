@@ -45,6 +45,7 @@ struct irq_entry {
 	int fd;
 	struct irq_reg reg[NUM_IRQ_TYPES];
 	bool suspended;
+	bool sigio_workaround;
 };
 
 static DEFINE_SPINLOCK(irq_lock);
@@ -392,7 +393,14 @@ void um_irqs_suspend(void)
 			if (!entry->reg[t].events)
 				continue;
 
-			if (entry->reg[t].wakeup) {
+			/*
+			 * For the SIGIO_WRITE_IRQ, which is used to handle the
+			 * SIGIO workaround thread, we need special handling:
+			 * enable wake for it itself, but below we tell it about
+			 * any FDs that should be suspended.
+			 */
+			if (entry->reg[t].wakeup ||
+			    entry->reg[t].irq == SIGIO_WRITE_IRQ) {
 				wake = true;
 				break;
 			}
@@ -401,6 +409,8 @@ void um_irqs_suspend(void)
 		if (!wake) {
 			entry->suspended = true;
 			os_clear_fd_async(entry->fd);
+			entry->sigio_workaround =
+				!__ignore_sigio_fd(entry->fd);
 		}
 	}
 	spin_unlock_irqrestore(&irq_lock, flags);
@@ -418,6 +428,11 @@ void um_irqs_resume(void)
 
 			WARN(err < 0, "os_set_fd_async returned %d\n", err);
 			entry->suspended = false;
+
+			if (entry->sigio_workaround) {
+				err = __add_sigio_fd(entry->fd);
+				WARN(err < 0, "add_sigio_returned %d\n", err);
+			}
 		}
 	}
 	spin_unlock_irqrestore(&irq_lock, flags);

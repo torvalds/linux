@@ -316,6 +316,14 @@ extern int add_sigio_fd(int fd);
 extern int ignore_sigio_fd(int fd);
 extern void maybe_sigio_broken(int fd);
 extern void sigio_broken(int fd);
+/*
+ * unlocked versions for IRQ controller code.
+ *
+ * This is safe because it's used at suspend/resume and nothing
+ * else is running.
+ */
+extern int __add_sigio_fd(int fd);
+extern int __ignore_sigio_fd(int fd);
 
 /* prctl.c */
 extern int os_arch_prctl(int pid, int option, unsigned long *arg2);

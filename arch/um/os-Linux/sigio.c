@@ -164,47 +164,55 @@ static void update_thread(void)
 	set_signals_trace(flags);
 }
 
-int add_sigio_fd(int fd)
+int __add_sigio_fd(int fd)
 {
 	struct pollfd *p;
 	int err, i, n;
 
-	sigio_lock();
 	for (i = 0; i < all_sigio_fds.used; i++) {
 		if (all_sigio_fds.poll[i].fd == fd)
 			break;
 	}
-	if (i == all_sigio_fds.used) {
-		err = -ENOSPC;
-		goto out;
-	}
+	if (i == all_sigio_fds.used)
+		return -ENOSPC;
 
 	p = &all_sigio_fds.poll[i];
 
 	for (i = 0; i < current_poll.used; i++) {
 		if (current_poll.poll[i].fd == fd)
-			goto out;
+			return 0;
 	}
 
 	n = current_poll.used;
 	err = need_poll(&next_poll, n + 1);
 	if (err)
-		goto out;
+		return err;
 
 	memcpy(next_poll.poll, current_poll.poll,
 	       current_poll.used * sizeof(struct pollfd));
 	next_poll.poll[n] = *p;
 	next_poll.used = n + 1;
 	update_thread();
- out:
+
+	return 0;
+}
+
+
+int add_sigio_fd(int fd)
+{
+	int err;
+
+	sigio_lock();
+	err = __add_sigio_fd(fd);
 	sigio_unlock();
+
 	return err;
 }
 
-int ignore_sigio_fd(int fd)
+int __ignore_sigio_fd(int fd)
 {
 	struct pollfd *p;
-	int err = 0, i, n = 0;
+	int err, i, n = 0;
 
 	/*
 	 * This is called from exitcalls elsewhere in UML - if
@@ -214,17 +222,16 @@ int ignore_sigio_fd(int fd)
 	if (write_sigio_pid == -1)
 		return -EIO;
 
-	sigio_lock();
 	for (i = 0; i < current_poll.used; i++) {
 		if (current_poll.poll[i].fd == fd)
 			break;
 	}
 	if (i == current_poll.used)
-		goto out;
+		return -ENOENT;
 
 	err = need_poll(&next_poll, current_poll.used - 1);
 	if (err)
-		goto out;
+		return err;
 
 	for (i = 0; i < current_poll.used; i++) {
 		p = &current_poll.poll[i];
@@ -234,8 +241,18 @@ int ignore_sigio_fd(int fd)
 	next_poll.used = current_poll.used - 1;
 
 	update_thread();
- out:
+
+	return 0;
+}
+
+int ignore_sigio_fd(int fd)
+{
+	int err;
+
+	sigio_lock();
+	err = __ignore_sigio_fd(fd);
 	sigio_unlock();
+
 	return err;
 }
 
