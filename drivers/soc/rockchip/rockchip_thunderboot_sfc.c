@@ -21,7 +21,7 @@
 #define SFC_BUSY	BIT(0)
 
 /* SFC_RAWISR Register */
-#define TRANSS_INT	BIT(4)
+#define DMA_INT		BIT(7)
 
 static int rk_tb_sfc_thread(void *p)
 {
@@ -43,20 +43,21 @@ static int rk_tb_sfc_thread(void *p)
 	rds = of_parse_phandle(dev->of_node, "memory-region-src", 0);
 	rdd = of_parse_phandle(dev->of_node, "memory-region-dst", 0);
 
-	if (readl_poll_timeout(regs + SFC_RAWISR, status,
-			       status & TRANSS_INT, 100,
-			       1000 * USEC_PER_MSEC)) {
-		dev_err(dev, "DMA is still running!\n");
+#ifdef SFC_DEBUG
+	print_hex_dump(KERN_WARNING, "tb_sfc", DUMP_PREFIX_OFFSET, 4, 4, regs, 0x60, 0);
+#endif
+
+	ret = readl_poll_timeout(regs + SFC_SR, status,
+				 !(status & SFC_BUSY), 100,
+				 1000 * USEC_PER_MSEC);
+	if (ret) {
+		dev_err(dev, "Wait for SFC idle timeout!\n");
 		goto out;
 	} else {
-		writel_relaxed(0xFFFFFFFF, regs + SFC_ICLR);
-	}
-
-	if (readl_poll_timeout(regs + SFC_SR, status,
-			       !(status & SFC_BUSY), 100,
-			       100 * USEC_PER_MSEC)) {
-		dev_err(dev, "SFC time out!\n");
-		goto out;
+		if (likely(readl(regs + SFC_RAWISR) & DMA_INT))
+			dev_err(dev, "DMA finished!\n");
+		else
+			dev_err(dev, "Last transfer non DMA!\n");
 	}
 
 	/* Parse ramdisk addr and help start decompressing */
