@@ -225,6 +225,12 @@ static void dpcm_set_fe_update_state(struct snd_soc_pcm_runtime *fe,
 	snd_pcm_stream_unlock_irq(substream);
 }
 
+static void dpcm_set_be_update_state(struct snd_soc_pcm_runtime *be,
+				     int stream, enum snd_soc_dpcm_update state)
+{
+	be->dpcm[stream].runtime_update = state;
+}
+
 /**
  * snd_soc_runtime_action() - Increment/Decrement active count for
  * PCM runtime components
@@ -1357,7 +1363,7 @@ static int dpcm_prune_paths(struct snd_soc_pcm_runtime *fe, int stream,
 			stream ? "capture" : "playback",
 			dpcm->be->dai_link->name, fe->dai_link->name);
 		dpcm->state = SND_SOC_DPCM_LINK_STATE_FREE;
-		dpcm->be->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_BE;
+		dpcm_set_be_update_state(dpcm->be, stream, SND_SOC_DPCM_UPDATE_BE);
 		prune++;
 	}
 
@@ -1412,7 +1418,7 @@ static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
 			continue;
 
 		/* new */
-		be->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_BE;
+		dpcm_set_be_update_state(be, stream, SND_SOC_DPCM_UPDATE_BE);
 		new++;
 	}
 
@@ -1440,8 +1446,7 @@ void dpcm_clear_pending_state(struct snd_soc_pcm_runtime *fe, int stream)
 
 	spin_lock_irqsave(&fe->card->dpcm_lock, flags);
 	for_each_dpcm_be(fe, stream, dpcm)
-		dpcm->be->dpcm[stream].runtime_update =
-						SND_SOC_DPCM_UPDATE_NO;
+		dpcm_set_be_update_state(dpcm->be, stream, SND_SOC_DPCM_UPDATE_NO);
 	spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
 }
 
