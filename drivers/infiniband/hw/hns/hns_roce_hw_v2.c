@@ -3975,7 +3975,6 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 
 	roce_set_bit(context->byte_172_sq_psn, V2_QPC_BYTE_172_FRE_S, 1);
 
-	hr_qp->access_flags = attr->qp_access_flags;
 	roce_set_field(context->byte_252_err_txcqn, V2_QPC_BYTE_252_TX_CQN_M,
 		       V2_QPC_BYTE_252_TX_CQN_S, to_hr_cq(ibqp->send_cq)->cqn);
 
@@ -4003,51 +4002,6 @@ static void modify_qp_init_to_init(struct ib_qp *ibqp,
 		       V2_QPC_BYTE_4_TST_S, to_hr_qp_type(hr_qp->ibqp.qp_type));
 	roce_set_field(qpc_mask->byte_4_sqpn_tst, V2_QPC_BYTE_4_TST_M,
 		       V2_QPC_BYTE_4_TST_S, 0);
-
-	if (attr_mask & IB_QP_ACCESS_FLAGS) {
-		roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_RRE_S,
-			     !!(attr->qp_access_flags & IB_ACCESS_REMOTE_READ));
-		roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_RRE_S,
-			     0);
-
-		roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_RWE_S,
-			     !!(attr->qp_access_flags &
-			     IB_ACCESS_REMOTE_WRITE));
-		roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_RWE_S,
-			     0);
-
-		roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_ATE_S,
-			     !!(attr->qp_access_flags &
-			     IB_ACCESS_REMOTE_ATOMIC));
-		roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_ATE_S,
-			     0);
-		roce_set_bit(context->byte_76_srqn_op_en,
-			     V2_QPC_BYTE_76_EXT_ATE_S,
-			     !!(attr->qp_access_flags &
-				IB_ACCESS_REMOTE_ATOMIC));
-		roce_set_bit(qpc_mask->byte_76_srqn_op_en,
-			     V2_QPC_BYTE_76_EXT_ATE_S, 0);
-	} else {
-		roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_RRE_S,
-			     !!(hr_qp->access_flags & IB_ACCESS_REMOTE_READ));
-		roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_RRE_S,
-			     0);
-
-		roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_RWE_S,
-			     !!(hr_qp->access_flags & IB_ACCESS_REMOTE_WRITE));
-		roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_RWE_S,
-			     0);
-
-		roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_ATE_S,
-			     !!(hr_qp->access_flags & IB_ACCESS_REMOTE_ATOMIC));
-		roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_ATE_S,
-			     0);
-		roce_set_bit(context->byte_76_srqn_op_en,
-			     V2_QPC_BYTE_76_EXT_ATE_S,
-			     !!(hr_qp->access_flags & IB_ACCESS_REMOTE_ATOMIC));
-		roce_set_bit(qpc_mask->byte_76_srqn_op_en,
-			     V2_QPC_BYTE_76_EXT_ATE_S, 0);
-	}
 
 	roce_set_field(context->byte_16_buf_ba_pg_sz, V2_QPC_BYTE_16_PD_M,
 		       V2_QPC_BYTE_16_PD_S, to_hr_pd(ibqp->pd)->pdn);
