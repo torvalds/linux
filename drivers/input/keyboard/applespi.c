@@ -554,7 +554,8 @@ static void applespi_setup_read_txfrs(struct applespi_data *applespi)
 	memset(dl_t, 0, sizeof(*dl_t));
 	memset(rd_t, 0, sizeof(*rd_t));
 
-	dl_t->delay_usecs = applespi->spi_settings.spi_cs_delay;
+	dl_t->delay.value = applespi->spi_settings.spi_cs_delay;
+	dl_t->delay.unit = SPI_DELAY_UNIT_USECS;
 
 	rd_t->rx_buf = applespi->rx_buffer;
 	rd_t->len = APPLESPI_PACKET_SIZE;
@@ -583,14 +584,17 @@ static void applespi_setup_write_txfrs(struct applespi_data *applespi)
 	 * end up with an extra unnecessary (but harmless) cs assertion and
 	 * deassertion.
 	 */
-	wt_t->delay_usecs = SPI_RW_CHG_DELAY_US;
+	wt_t->delay.value = SPI_RW_CHG_DELAY_US;
+	wt_t->delay.unit = SPI_DELAY_UNIT_USECS;
 	wt_t->cs_change = 1;
 
-	dl_t->delay_usecs = applespi->spi_settings.spi_cs_delay;
+	dl_t->delay.value = applespi->spi_settings.spi_cs_delay;
+	dl_t->delay.unit = SPI_DELAY_UNIT_USECS;
 
 	wr_t->tx_buf = applespi->tx_buffer;
 	wr_t->len = APPLESPI_PACKET_SIZE;
-	wr_t->delay_usecs = SPI_RW_CHG_DELAY_US;
+	wr_t->delay.value = SPI_RW_CHG_DELAY_US;
+	wr_t->delay.unit = SPI_DELAY_UNIT_USECS;
 
 	st_t->rx_buf = applespi->tx_status;
 	st_t->len = APPLESPI_STATUS_SIZE;
