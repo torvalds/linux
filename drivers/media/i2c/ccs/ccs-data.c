@@ -10,7 +10,6 @@
 #include <linux/limits.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/types.h>
 
 #include "ccs-data-defs.h"
 
