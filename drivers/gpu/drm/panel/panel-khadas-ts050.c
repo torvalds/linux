@@ -786,7 +786,7 @@ static int khadas_ts050_panel_add(struct khadas_ts050_panel *khadas_ts050)
 	khadas_ts050->enable_gpio = devm_gpiod_get(dev, "enable",
 						   GPIOD_OUT_HIGH);
 	if (IS_ERR(khadas_ts050->enable_gpio))
-		return dev_err_probe(dev, PTR_ERR(khadas_ts050->reset_gpio),
+		return dev_err_probe(dev, PTR_ERR(khadas_ts050->enable_gpio),
 				     "failed to get enable gpio");
 
 	drm_panel_init(&khadas_ts050->base, &khadas_ts050->link->dev,
