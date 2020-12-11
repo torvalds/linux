@@ -206,7 +206,7 @@ config SERIAL_MESON
 
 config SERIAL_MESON_CONSOLE
 	bool "Support for console on meson"
-	depends on SERIAL_MESON=y
+	depends on SERIAL_MESON
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
 	help
