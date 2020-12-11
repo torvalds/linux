@@ -54,6 +54,12 @@
  * enum drm_plane_type). A plane can be compatible with multiple CRTCs, see
  * &drm_plane.possible_crtcs.
  *
+ * Each CRTC must have a unique primary plane userspace can attach to enable
+ * the CRTC. In other words, userspace must be able to attach a different
+ * primary plane to each CRTC at the same time. Primary planes can still be
+ * compatible with multiple CRTCs. There must be exactly as many primary planes
+ * as there are CRTCs.
+ *
  * Legacy uAPI doesn't expose the primary and cursor planes directly. DRM core
  * relies on the driver to set the primary and optionally the cursor plane used
  * for legacy IOCTLs. This is done by calling drm_crtc_init_with_planes(). All

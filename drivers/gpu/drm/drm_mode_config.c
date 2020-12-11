@@ -626,6 +626,9 @@ void drm_mode_config_validate(struct drm_device *dev)
 {
 	struct drm_encoder *encoder;
 	struct drm_crtc *crtc;
+	struct drm_plane *plane;
+	u32 primary_with_crtc = 0, cursor_with_crtc = 0;
+	unsigned int num_primary = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
@@ -647,12 +650,29 @@ void drm_mode_config_validate(struct drm_device *dev)
 			     "Bogus primary plane possible_crtcs: [PLANE:%d:%s] must be compatible with [CRTC:%d:%s]\n",
 			     crtc->primary->base.id, crtc->primary->name,
 			     crtc->base.id, crtc->name);
+			WARN(primary_with_crtc & drm_plane_mask(crtc->primary),
+			     "Primary plane [PLANE:%d:%s] used for multiple CRTCs",
+			     crtc->primary->base.id, crtc->primary->name);
+			primary_with_crtc |= drm_plane_mask(crtc->primary);
 		}
 		if (crtc->cursor) {
 			WARN(!(crtc->cursor->possible_crtcs & drm_crtc_mask(crtc)),
 			     "Bogus cursor plane possible_crtcs: [PLANE:%d:%s] must be compatible with [CRTC:%d:%s]\n",
 			     crtc->cursor->base.id, crtc->cursor->name,
 			     crtc->base.id, crtc->name);
+			WARN(cursor_with_crtc & drm_plane_mask(crtc->cursor),
+			     "Cursor plane [PLANE:%d:%s] used for multiple CRTCs",
+			     crtc->cursor->base.id, crtc->cursor->name);
+			cursor_with_crtc |= drm_plane_mask(crtc->cursor);
 		}
 	}
+
+	drm_for_each_plane(plane, dev) {
+		if (plane->type == DRM_PLANE_TYPE_PRIMARY)
+			num_primary++;
+	}
+
+	WARN(num_primary != dev->mode_config.num_crtc,
+	     "Must have as many primary planes as there are CRTCs, but have %u primary planes and %u CRTCs",
+	     num_primary, dev->mode_config.num_crtc);
 }
