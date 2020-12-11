@@ -22,11 +22,12 @@
 
 /* debug flags */
 #define SOF_DBG_ENABLE_TRACE	BIT(0)
-#define SOF_DBG_REGS		BIT(1)
-#define SOF_DBG_MBOX		BIT(2)
-#define SOF_DBG_TEXT		BIT(3)
-#define SOF_DBG_PCI		BIT(4)
-#define SOF_DBG_RETAIN_CTX	BIT(5)	/* prevent DSP D3 on FW exception */
+#define SOF_DBG_RETAIN_CTX	BIT(1)	/* prevent DSP D3 on FW exception */
+
+#define SOF_DBG_DUMP_REGS		BIT(0)
+#define SOF_DBG_DUMP_MBOX		BIT(1)
+#define SOF_DBG_DUMP_TEXT		BIT(2)
+#define SOF_DBG_DUMP_PCI		BIT(3)
 
 /* global debug state set by SOF_DBG_ flags */
 extern int sof_core_debug;
