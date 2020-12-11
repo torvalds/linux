@@ -902,6 +902,13 @@ static inline void __btree_iter_init(struct btree_iter *iter,
 
 	bch2_btree_node_iter_init(&l->iter, l->b, &pos);
 
+	/*
+	 * Iterators to interior nodes should always be pointed at the first non
+	 * whiteout:
+	 */
+	if (level)
+		bch2_btree_node_iter_peek(&l->iter, l->b);
+
 	btree_iter_set_dirty(iter, BTREE_ITER_NEED_PEEK);
 }
 
