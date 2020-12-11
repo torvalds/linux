@@ -1045,14 +1045,6 @@
 		compatible = "rockchip,rk3288-grf", "syscon", "simple-mfd";
 		reg = <0x0 0xff770000 0x0 0x1000>;
 
-		edp_phy: edp-phy {
-			compatible = "rockchip,rk3288-dp-phy";
-			clocks = <&cru SCLK_EDP_24M>;
-			clock-names = "24m";
-			#phy-cells = <0>;
-			status = "disabled";
-		};
-
 		mipi_phy_rx0: mipi-phy-rx0 {
 			compatible = "rockchip,rk3288-mipi-dphy";
 			clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_MIPI_CSI>;
@@ -1612,15 +1604,16 @@
 		status = "disabled";
 	};
 
-	edp: dp@ff970000 {
+	edp: edp@ff970000 {
 		compatible = "rockchip,rk3288-dp";
 		reg = <0x0 0xff970000 0x0 0x4000>;
 		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru SCLK_EDP>, <&cru PCLK_EDP_CTRL>;
-		clock-names = "dp", "pclk";
+		clocks = <&cru SCLK_EDP_24M>, <&cru PCLK_EDP_CTRL>,
+			 <&cru SCLK_EDP>;
+		clock-names = "dp", "pclk", "spdif";
+		assigned-clocks = <&cru SCLK_EDP_24M>;
+		assigned-clock-parents = <&xin24m>;
 		power-domains = <&power RK3288_PD_VIO>;
-		phys = <&edp_phy>;
-		phy-names = "dp";
 		resets = <&cru SRST_EDP>;
 		reset-names = "dp";
 		rockchip,grf = <&grf>;
@@ -1629,14 +1622,17 @@
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			edp_in: port@0 {
+
+			port@0 {
 				reg = <0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
 				edp_in_vopb: endpoint@0 {
 					reg = <0>;
 					remote-endpoint = <&vopb_out_edp>;
 				};
+
 				edp_in_vopl: endpoint@1 {
 					reg = <1>;
 					remote-endpoint = <&vopl_out_edp>;
