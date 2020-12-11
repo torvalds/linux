@@ -62,7 +62,6 @@
  * @bulk_out_endpointAddress: endpoint address for the bulk out pipe for this
  *	port.
  * @flags: usb serial port flags
- * @write_wait: a wait_queue_head_t used by the port.
  * @work: work queue entry for the line discipline waking up.
  * @dev: pointer to the serial device
  *
@@ -108,7 +107,6 @@ struct usb_serial_port {
 	int			tx_bytes;
 
 	unsigned long		flags;
-	wait_queue_head_t	write_wait;
 	struct work_struct	work;
 	unsigned long		sysrq; /* sysrq timeout */
 	struct device		dev;
