@@ -367,29 +367,33 @@ static void gfs2_ail_empty_tr(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
 	}
 }
 
+static void __ail2_empty(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
+{
+	gfs2_ail_empty_tr(sdp, tr, &tr->tr_ail2_list);
+	list_del(&tr->tr_list);
+	gfs2_assert_warn(sdp, list_empty(&tr->tr_ail1_list));
+	gfs2_assert_warn(sdp, list_empty(&tr->tr_ail2_list));
+	gfs2_trans_free(sdp, tr);
+}
+
 static void ail2_empty(struct gfs2_sbd *sdp, unsigned int new_tail)
 {
-	struct gfs2_trans *tr, *safe;
+	struct list_head *ail2_list = &sdp->sd_ail2_list;
 	unsigned int old_tail = sdp->sd_log_tail;
-	int wrap = (new_tail < old_tail);
-	int a, b, rm;
+	struct gfs2_trans *tr, *safe;
 
 	spin_lock(&sdp->sd_ail_lock);
-
-	list_for_each_entry_safe(tr, safe, &sdp->sd_ail2_list, tr_list) {
-		a = (old_tail <= tr->tr_first);
-		b = (tr->tr_first < new_tail);
-		rm = (wrap) ? (a || b) : (a && b);
-		if (!rm)
-			continue;
-
-		gfs2_ail_empty_tr(sdp, tr, &tr->tr_ail2_list);
-		list_del(&tr->tr_list);
-		gfs2_assert_warn(sdp, list_empty(&tr->tr_ail1_list));
-		gfs2_assert_warn(sdp, list_empty(&tr->tr_ail2_list));
-		gfs2_trans_free(sdp, tr);
+	if (old_tail <= new_tail) {
+		list_for_each_entry_safe(tr, safe, ail2_list, tr_list) {
+			if (old_tail <= tr->tr_first && tr->tr_first < new_tail)
+				__ail2_empty(sdp, tr);
+		}
+	} else {
+		list_for_each_entry_safe(tr, safe, ail2_list, tr_list) {
+			if (old_tail <= tr->tr_first || tr->tr_first < new_tail)
+				__ail2_empty(sdp, tr);
+		}
 	}
-
 	spin_unlock(&sdp->sd_ail_lock);
 }
 
