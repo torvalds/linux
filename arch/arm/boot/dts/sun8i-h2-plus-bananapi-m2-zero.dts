@@ -86,6 +86,11 @@
 		vin-supply = <&reg_vcc5v0>;
 	};
 
+	poweroff {
+		compatible = "regulator-poweroff";
+		cpu-supply = <&reg_vcc1v2>;
+	};
+
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
