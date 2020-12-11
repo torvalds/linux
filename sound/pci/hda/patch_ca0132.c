@@ -1949,6 +1949,14 @@ static unsigned int chipio_8051_get_data(struct hda_codec *codec)
 				   VENDOR_CHIPIO_8051_DATA_READ, 0);
 }
 
+/* PLL_PMU writes share the lower address register of the 8051 exram writes. */
+static void chipio_8051_set_data_pll(struct hda_codec *codec, unsigned int data)
+{
+	/* 8-bits of data. */
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_PLL_PMU_WRITE, data & 0xff);
+}
+
 static void chipio_8051_write_exram(struct hda_codec *codec,
 		unsigned int addr, unsigned int data)
 {
@@ -1977,6 +1985,26 @@ static void chipio_8051_read_exram(struct hda_codec *codec,
 	*data = chipio_8051_get_data(codec);
 }
 
+static void chipio_8051_write_pll_pmu(struct hda_codec *codec,
+		unsigned int addr, unsigned int data)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	mutex_lock(&spec->chipio_mutex);
+
+	chipio_8051_set_address(codec, addr & 0xff);
+	chipio_8051_set_data_pll(codec, data);
+
+	mutex_unlock(&spec->chipio_mutex);
+}
+
+static void chipio_8051_write_pll_pmu_no_mutex(struct hda_codec *codec,
+		unsigned int addr, unsigned int data)
+{
+	chipio_8051_set_address(codec, addr & 0xff);
+	chipio_8051_set_data_pll(codec, data);
+}
+
 /*
  * Enable clocks.
  */
@@ -1985,18 +2013,11 @@ static void chipio_enable_clocks(struct hda_codec *codec)
 	struct ca0132_spec *spec = codec->spec;
 
 	mutex_lock(&spec->chipio_mutex);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xff);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 5);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0x0b);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 6);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xff);
+
+	chipio_8051_write_pll_pmu_no_mutex(codec, 0x00, 0xff);
+	chipio_8051_write_pll_pmu_no_mutex(codec, 0x05, 0x0b);
+	chipio_8051_write_pll_pmu_no_mutex(codec, 0x06, 0xff);
+
 	mutex_unlock(&spec->chipio_mutex);
 }
 
@@ -7904,10 +7925,7 @@ static void ae5_post_dsp_register_set(struct hda_codec *codec)
 	struct ca0132_spec *spec = codec->spec;
 
 	chipio_8051_write_direct(codec, 0x93, 0x10);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x44);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc2);
+	chipio_8051_write_pll_pmu(codec, 0x44, 0xc2);
 
 	writeb(0xff, spec->mem_base + 0x304);
 	writeb(0xff, spec->mem_base + 0x304);
@@ -7949,30 +7967,11 @@ static void ae5_post_dsp_param_setup(struct hda_codec *codec)
 
 static void ae5_post_dsp_pll_setup(struct hda_codec *codec)
 {
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x41);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc8);
-
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x45);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xcc);
-
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x40);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xcb);
-
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x43);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc7);
-
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x51);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0x8d);
+	chipio_8051_write_pll_pmu(codec, 0x41, 0xc8);
+	chipio_8051_write_pll_pmu(codec, 0x45, 0xcc);
+	chipio_8051_write_pll_pmu(codec, 0x40, 0xcb);
+	chipio_8051_write_pll_pmu(codec, 0x43, 0xc7);
+	chipio_8051_write_pll_pmu(codec, 0x51, 0x8d);
 }
 
 static void ae5_post_dsp_stream_setup(struct hda_codec *codec)
@@ -7994,10 +7993,7 @@ static void ae5_post_dsp_stream_setup(struct hda_codec *codec)
 
 	chipio_set_control_param_no_mutex(codec, CONTROL_PARAM_ASI, 4);
 
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x43);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc7);
+	chipio_8051_write_pll_pmu_no_mutex(codec, 0x43, 0xc7);
 
 	ca0113_mmio_command_set(codec, 0x48, 0x01, 0x80);
 
@@ -8090,12 +8086,8 @@ static void ae7_post_dsp_pll_setup(struct hda_codec *codec)
 	};
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(addr); i++) {
-		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-				    VENDOR_CHIPIO_8051_ADDRESS_LOW, addr[i]);
-		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-				    VENDOR_CHIPIO_PLL_PMU_WRITE, data[i]);
-	}
+	for (i = 0; i < ARRAY_SIZE(addr); i++)
+		chipio_8051_write_pll_pmu_no_mutex(codec, addr[i], data[i]);
 }
 
 static void ae7_post_dsp_asi_setup_ports(struct hda_codec *codec)
@@ -8111,10 +8103,7 @@ static void ae7_post_dsp_asi_setup_ports(struct hda_codec *codec)
 
 	mutex_lock(&spec->chipio_mutex);
 
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x43);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc7);
+	chipio_8051_write_pll_pmu_no_mutex(codec, 0x43, 0xc7);
 
 	chipio_write_no_mutex(codec, 0x189000, 0x0001f101);
 	chipio_write_no_mutex(codec, 0x189004, 0x0001f101);
@@ -8187,10 +8176,7 @@ static void ae7_post_dsp_asi_setup(struct hda_codec *codec)
 {
 	chipio_8051_write_direct(codec, 0x93, 0x10);
 
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x44);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc2);
+	chipio_8051_write_pll_pmu(codec, 0x44, 0xc2);
 
 	ca0113_mmio_command_set_type2(codec, 0x48, 0x07, 0x83);
 	ca0113_mmio_command_set(codec, 0x30, 0x2e, 0x3f);
@@ -8207,10 +8193,7 @@ static void ae7_post_dsp_asi_setup(struct hda_codec *codec)
 	ae7_post_dsp_pll_setup(codec);
 	ae7_post_dsp_asi_stream_setup(codec);
 
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x43);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc7);
+	chipio_8051_write_pll_pmu(codec, 0x43, 0xc7);
 
 	ae7_post_dsp_asi_setup_ports(codec);
 }
@@ -9367,18 +9350,11 @@ static void ae5_register_set(struct hda_codec *codec)
 	unsigned int i, cur_addr;
 	unsigned char tmp[3];
 
-	if (ca0132_quirk(spec) == QUIRK_AE7) {
-		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-				    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x41);
-		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-				    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc8);
-	}
+	if (ca0132_quirk(spec) == QUIRK_AE7)
+		chipio_8051_write_pll_pmu(codec, 0x41, 0xc8);
 
 	chipio_8051_write_direct(codec, 0x93, 0x10);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x44);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc2);
+	chipio_8051_write_pll_pmu(codec, 0x44, 0xc2);
 
 	if (ca0132_quirk(spec) == QUIRK_AE7) {
 		tmp[0] = 0x03;
@@ -9454,10 +9430,7 @@ static void ca0132_alt_init(struct hda_codec *codec)
 		break;
 	case QUIRK_AE5:
 		ca0132_gpio_init(codec);
-		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-				VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x49);
-		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-				VENDOR_CHIPIO_PLL_PMU_WRITE, 0x88);
+		chipio_8051_write_pll_pmu(codec, 0x49, 0x88);
 		chipio_write(codec, 0x18b030, 0x00000020);
 		snd_hda_sequence_write(codec, spec->chip_init_verbs);
 		snd_hda_sequence_write(codec, spec->desktop_init_verbs);
@@ -9465,10 +9438,7 @@ static void ca0132_alt_init(struct hda_codec *codec)
 		break;
 	case QUIRK_AE7:
 		ca0132_gpio_init(codec);
-		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-				VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x49);
-		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-				VENDOR_CHIPIO_PLL_PMU_WRITE, 0x88);
+		chipio_8051_write_pll_pmu(codec, 0x49, 0x88);
 		snd_hda_sequence_write(codec, spec->chip_init_verbs);
 		snd_hda_sequence_write(codec, spec->desktop_init_verbs);
 		chipio_write(codec, 0x18b008, 0x000000f8);
