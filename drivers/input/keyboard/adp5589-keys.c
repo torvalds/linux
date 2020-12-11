@@ -930,8 +930,6 @@ static int adp5589_keypad_add(struct adp5589_kpad *kpad, unsigned int revid)
 		return error;
 	}
 
-	device_init_wakeup(&client->dev, 1);
-
 	return 0;
 }
 
