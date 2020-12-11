@@ -85,10 +85,10 @@ struct dma_buf_ops {
 	/**
 	 * @pin:
 	 *
-	 * This is called by dma_buf_pin and lets the exporter know that the
+	 * This is called by dma_buf_pin() and lets the exporter know that the
 	 * DMA-buf can't be moved any more.
 	 *
-	 * This is called with the dmabuf->resv object locked and is mutual
+	 * This is called with the &dmabuf.resv object locked and is mutual
 	 * exclusive with @cache_sgt_mapping.
 	 *
 	 * This callback is optional and should only be used in limited use
@@ -103,7 +103,7 @@ struct dma_buf_ops {
 	/**
 	 * @unpin:
 	 *
-	 * This is called by dma_buf_unpin and lets the exporter know that the
+	 * This is called by dma_buf_unpin() and lets the exporter know that the
 	 * DMA-buf can be moved again.
 	 *
 	 * This is called with the dmabuf->resv object locked and is mutual
