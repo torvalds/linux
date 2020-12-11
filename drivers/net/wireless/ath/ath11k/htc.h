@@ -221,10 +221,6 @@ enum ath11k_htc_ep_id {
 	ATH11K_HTC_EP_COUNT,
 };
 
-struct ath11k_htc_ops {
-	void (*target_send_suspend_complete)(struct ath11k_base *ar);
-};
-
 struct ath11k_htc_ep_ops {
 	void (*ep_tx_complete)(struct ath11k_base *, struct sk_buff *);
 	void (*ep_rx_complete)(struct ath11k_base *, struct sk_buff *);
@@ -283,8 +279,6 @@ struct ath11k_htc {
 
 	/* protects endpoints */
 	spinlock_t tx_lock;
-
-	struct ath11k_htc_ops htc_ops;
 
 	u8 control_resp_buffer[ATH11K_HTC_MAX_CTRL_MSG_LEN];
 	int control_resp_len;
