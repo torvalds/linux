@@ -1001,15 +1001,15 @@ EXPORT_SYMBOL_GPL(dma_buf_move_notify);
  *   vmalloc space might be limited and result in vmap calls failing.
  *
  *   Interfaces::
+ *
  *      void \*dma_buf_vmap(struct dma_buf \*dmabuf)
  *      void dma_buf_vunmap(struct dma_buf \*dmabuf, void \*vaddr)
  *
  *   The vmap call can fail if there is no vmap support in the exporter, or if
- *   it runs out of vmalloc space. Fallback to kmap should be implemented. Note
- *   that the dma-buf layer keeps a reference count for all vmap access and
- *   calls down into the exporter's vmap function only when no vmapping exists,
- *   and only unmaps it once. Protection against concurrent vmap/vunmap calls is
- *   provided by taking the dma_buf->lock mutex.
+ *   it runs out of vmalloc space. Note that the dma-buf layer keeps a reference
+ *   count for all vmap access and calls down into the exporter's vmap function
+ *   only when no vmapping exists, and only unmaps it once. Protection against
+ *   concurrent vmap/vunmap calls is provided by taking the &dma_buf.lock mutex.
  *
  * - For full compatibility on the importer side with existing userspace
  *   interfaces, which might already support mmap'ing buffers. This is needed in
@@ -1097,6 +1097,11 @@ static int __dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
  * After the cpu access is complete the caller should call
  * dma_buf_end_cpu_access(). Only when cpu access is braketed by both calls is
  * it guaranteed to be coherent with other DMA access.
+ *
+ * This function will also wait for any DMA transactions tracked through
+ * implicit synchronization in &dma_buf.resv. For DMA transactions with explicit
+ * synchronization this function will only ensure cache coherency, callers must
+ * ensure synchronization with such DMA transactions on their own.
  *
  * Can return negative error values, returns 0 on success.
  */
@@ -1199,7 +1204,10 @@ EXPORT_SYMBOL_GPL(dma_buf_mmap);
  * This call may fail due to lack of virtual mapping address space.
  * These calls are optional in drivers. The intended use for them
  * is for mapping objects linear in kernel space for high use objects.
- * Please attempt to use kmap/kunmap before thinking about these interfaces.
+ *
+ * To ensure coherency users must call dma_buf_begin_cpu_access() and
+ * dma_buf_end_cpu_access() around any cpu access performed through this
+ * mapping.
  *
  * Returns 0 on success, or a negative errno code otherwise.
  */
