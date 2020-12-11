@@ -60,9 +60,11 @@ static void ath11k_htc_prepare_tx_skb(struct ath11k_htc_ep *ep,
 	memset(hdr, 0, sizeof(*hdr));
 	hdr->htc_info = FIELD_PREP(HTC_HDR_ENDPOINTID, ep->eid) |
 			FIELD_PREP(HTC_HDR_PAYLOADLEN,
-				   (skb->len - sizeof(*hdr))) |
-			FIELD_PREP(HTC_HDR_FLAGS,
-				   ATH11K_HTC_FLAG_NEED_CREDIT_UPDATE);
+				   (skb->len - sizeof(*hdr)));
+
+	if (ep->tx_credit_flow_enabled)
+		hdr->htc_info |= FIELD_PREP(HTC_HDR_FLAGS,
+					    ATH11K_HTC_FLAG_NEED_CREDIT_UPDATE);
 
 	spin_lock_bh(&ep->htc->tx_lock);
 	hdr->ctrl_info = FIELD_PREP(HTC_HDR_CONTROLBYTES1, ep->seq_no++);
