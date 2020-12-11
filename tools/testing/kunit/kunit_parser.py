@@ -97,11 +97,11 @@ def print_log(log):
 
 TAP_ENTRIES = re.compile(r'^(TAP|[\s]*ok|[\s]*not ok|[\s]*[0-9]+\.\.[0-9]+|[\s]*#).*$')
 
-def consume_non_diagnositic(lines: List[str]) -> None:
+def consume_non_diagnostic(lines: List[str]) -> None:
 	while lines and not TAP_ENTRIES.match(lines[0]):
 		lines.pop(0)
 
-def save_non_diagnositic(lines: List[str], test_case: TestCase) -> None:
+def save_non_diagnostic(lines: List[str], test_case: TestCase) -> None:
 	while lines and not TAP_ENTRIES.match(lines[0]):
 		test_case.log.append(lines[0])
 		lines.pop(0)
@@ -113,7 +113,7 @@ OK_NOT_OK_SUBTEST = re.compile(r'^[\s]+(ok|not ok) [0-9]+ - (.*)$')
 OK_NOT_OK_MODULE = re.compile(r'^(ok|not ok) ([0-9]+) - (.*)$')
 
 def parse_ok_not_ok_test_case(lines: List[str], test_case: TestCase) -> bool:
-	save_non_diagnositic(lines, test_case)
+	save_non_diagnostic(lines, test_case)
 	if not lines:
 		test_case.status = TestStatus.TEST_CRASHED
 		return True
@@ -139,7 +139,7 @@ SUBTEST_DIAGNOSTIC = re.compile(r'^[\s]+# (.*)$')
 DIAGNOSTIC_CRASH_MESSAGE = re.compile(r'^[\s]+# .*?: kunit test case crashed!$')
 
 def parse_diagnostic(lines: List[str], test_case: TestCase) -> bool:
-	save_non_diagnositic(lines, test_case)
+	save_non_diagnostic(lines, test_case)
 	if not lines:
 		return False
 	line = lines[0]
@@ -155,7 +155,7 @@ def parse_diagnostic(lines: List[str], test_case: TestCase) -> bool:
 
 def parse_test_case(lines: List[str]) -> Optional[TestCase]:
 	test_case = TestCase()
-	save_non_diagnositic(lines, test_case)
+	save_non_diagnostic(lines, test_case)
 	while parse_diagnostic(lines, test_case):
 		pass
 	if parse_ok_not_ok_test_case(lines, test_case):
@@ -166,7 +166,7 @@ def parse_test_case(lines: List[str]) -> Optional[TestCase]:
 SUBTEST_HEADER = re.compile(r'^[\s]+# Subtest: (.*)$')
 
 def parse_subtest_header(lines: List[str]) -> Optional[str]:
-	consume_non_diagnositic(lines)
+	consume_non_diagnostic(lines)
 	if not lines:
 		return None
 	match = SUBTEST_HEADER.match(lines[0])
@@ -179,7 +179,7 @@ def parse_subtest_header(lines: List[str]) -> Optional[str]:
 SUBTEST_PLAN = re.compile(r'[\s]+[0-9]+\.\.([0-9]+)')
 
 def parse_subtest_plan(lines: List[str]) -> Optional[int]:
-	consume_non_diagnositic(lines)
+	consume_non_diagnostic(lines)
 	match = SUBTEST_PLAN.match(lines[0])
 	if match:
 		lines.pop(0)
@@ -202,7 +202,7 @@ def max_status(left: TestStatus, right: TestStatus) -> TestStatus:
 def parse_ok_not_ok_test_suite(lines: List[str],
 			       test_suite: TestSuite,
 			       expected_suite_index: int) -> bool:
-	consume_non_diagnositic(lines)
+	consume_non_diagnostic(lines)
 	if not lines:
 		test_suite.status = TestStatus.TEST_CRASHED
 		return False
@@ -235,7 +235,7 @@ def bubble_up_test_case_errors(test_suite: TestSuite) -> TestStatus:
 def parse_test_suite(lines: List[str], expected_suite_index: int) -> Optional[TestSuite]:
 	if not lines:
 		return None
-	consume_non_diagnositic(lines)
+	consume_non_diagnostic(lines)
 	test_suite = TestSuite()
 	test_suite.status = TestStatus.SUCCESS
 	name = parse_subtest_header(lines)
@@ -264,7 +264,7 @@ def parse_test_suite(lines: List[str], expected_suite_index: int) -> Optional[Te
 TAP_HEADER = re.compile(r'^TAP version 14$')
 
 def parse_tap_header(lines: List[str]) -> bool:
-	consume_non_diagnositic(lines)
+	consume_non_diagnostic(lines)
 	if TAP_HEADER.match(lines[0]):
 		lines.pop(0)
 		return True
@@ -274,7 +274,7 @@ def parse_tap_header(lines: List[str]) -> bool:
 TEST_PLAN = re.compile(r'[0-9]+\.\.([0-9]+)')
 
 def parse_test_plan(lines: List[str]) -> Optional[int]:
-	consume_non_diagnositic(lines)
+	consume_non_diagnostic(lines)
 	match = TEST_PLAN.match(lines[0])
 	if match:
 		lines.pop(0)
@@ -286,7 +286,7 @@ def bubble_up_suite_errors(test_suite_list: List[TestSuite]) -> TestStatus:
 	return bubble_up_errors(lambda x: x.status, test_suite_list)
 
 def parse_test_result(lines: List[str]) -> TestResult:
-	consume_non_diagnositic(lines)
+	consume_non_diagnostic(lines)
 	if not lines or not parse_tap_header(lines):
 		return TestResult(TestStatus.NO_TESTS, [], lines)
 	expected_test_suite_num = parse_test_plan(lines)
