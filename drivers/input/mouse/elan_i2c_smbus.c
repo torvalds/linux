@@ -45,6 +45,7 @@
 #define ETP_SMBUS_CALIBRATE_QUERY	0xC5
 
 #define ETP_SMBUS_REPORT_LEN		32
+#define ETP_SMBUS_REPORT_LEN2		7
 #define ETP_SMBUS_REPORT_OFFSET		2
 #define ETP_SMBUS_HELLOPACKET_LEN	5
 #define ETP_SMBUS_IAP_PASSWORD		0x1234
@@ -497,10 +498,13 @@ static int elan_smbus_get_report(struct i2c_client *client,
 		return len;
 	}
 
-	if (len != ETP_SMBUS_REPORT_LEN) {
+	if (report[ETP_REPORT_ID_OFFSET] == ETP_TP_REPORT_ID2)
+		report_len = ETP_SMBUS_REPORT_LEN2;
+
+	if (len != report_len) {
 		dev_err(&client->dev,
 			"wrong report length (%d vs %d expected)\n",
-			len, ETP_SMBUS_REPORT_LEN);
+			len, report_len);
 		return -EIO;
 	}
 
