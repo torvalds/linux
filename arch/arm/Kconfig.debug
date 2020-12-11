@@ -1942,7 +1942,7 @@ config DEBUG_UNCOMPRESS
 	depends on ARCH_MULTIPLATFORM || PLAT_SAMSUNG || ARM_SINGLE_ARMV7M
 	depends on DEBUG_LL && !DEBUG_OMAP2PLUS_UART && \
 		     (!DEBUG_TEGRA_UART || !ZBOOT_ROM) && \
-		     !DEBUG_BRCMSTB_UART
+		     !DEBUG_BRCMSTB_UART && !DEBUG_SEMIHOSTING
 	help
 	  This option influences the normal decompressor output for
 	  multiplatform kernels.  Normally, multiplatform kernels disable
