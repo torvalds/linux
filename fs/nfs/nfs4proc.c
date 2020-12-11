@@ -5309,7 +5309,7 @@ static int nfs4_read_done(struct rpc_task *task, struct nfs_pgio_header *hdr)
 				    nfs4_read_done_cb(task, hdr);
 }
 
-#ifdef CONFIG_NFS_V4_2
+#if defined CONFIG_NFS_V4_2 && defined CONFIG_NFS_V4_2_READ_PLUS
 static void nfs42_read_plus_support(struct nfs_server *server, struct rpc_message *msg)
 {
 	if (server->caps & NFS_CAP_READ_PLUS)

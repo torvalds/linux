@@ -175,6 +175,7 @@ static int __xp_assign_dev(struct xsk_buff_pool *pool,
 
 	if (!pool->dma_pages) {
 		WARN(1, "Driver did not DMA map zero-copy buffers");
+		err = -EINVAL;
 		goto err_unreg_xsk;
 	}
 	pool->umem->zc = true;

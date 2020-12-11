@@ -467,8 +467,10 @@ struct vidtv_encoder
 	e->is_video_encoder = false;
 
 	ctx = kzalloc(priv_sz, GFP_KERNEL);
-	if (!ctx)
+	if (!ctx) {
+		kfree(e);
 		return NULL;
+	}
 
 	e->ctx = ctx;
 	ctx->last_duration = 0;
