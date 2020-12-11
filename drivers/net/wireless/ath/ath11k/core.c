@@ -969,6 +969,7 @@ struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
 	INIT_WORK(&ab->restart_work, ath11k_core_restart);
 	timer_setup(&ab->rx_replenish_retry, ath11k_ce_rx_replenish_retry, 0);
 	init_completion(&ab->htc_suspend);
+	init_completion(&ab->wow.wakeup_completed);
 
 	ab->dev = dev;
 	ab->bus_params = *bus_params;

@@ -466,6 +466,7 @@ struct ath11k {
 		struct ieee80211_sband_iftype_data
 			iftype[NUM_NL80211_BANDS][NUM_NL80211_IFTYPES];
 	} mac;
+
 	unsigned long dev_flags;
 	unsigned int filter_flags;
 	unsigned long monitor_flags;
@@ -671,6 +672,10 @@ struct ath11k_base {
 		enum ath11k_bus bus;
 		const struct ath11k_hif_ops *ops;
 	} hif;
+
+	struct {
+		struct completion wakeup_completed;
+	} wow;
 
 	struct ath11k_ce ce;
 	struct timer_list rx_replenish_retry;
