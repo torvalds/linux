@@ -587,6 +587,16 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 				return -EINVAL;
 			}
 		}
+
+		if (env->verbosity > VERBOSE_NONE) {
+			if (setenv("SELFTESTS_VERBOSE", "1", 1) == -1) {
+				fprintf(stderr,
+					"Unable to setenv SELFTESTS_VERBOSE=1 (errno=%d)",
+					errno);
+				return -1;
+			}
+		}
+
 		break;
 	case ARG_GET_TEST_CNT:
 		env->get_test_cnt = true;

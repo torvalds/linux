@@ -7,6 +7,8 @@ set -o pipefail
 
 IMA_POLICY_FILE="/sys/kernel/security/ima/policy"
 TEST_BINARY="/bin/true"
+VERBOSE="${SELFTESTS_VERBOSE:=0}"
+LOG_FILE="$(mktemp /tmp/ima_setup.XXXX.log)"
 
 usage()
 {
@@ -75,6 +77,19 @@ run()
 	exec "${copied_bin_path}"
 }
 
+catch()
+{
+	local exit_code="$1"
+	local log_file="$2"
+
+	if [[ "${exit_code}" -ne 0 ]]; then
+		cat "${log_file}" >&3
+	fi
+
+	rm -f "${log_file}"
+	exit ${exit_code}
+}
+
 main()
 {
 	[[ $# -ne 2 ]] && usage
@@ -96,4 +111,13 @@ main()
 	fi
 }
 
+trap 'catch "$?" "${LOG_FILE}"' EXIT
+
+if [[ "${VERBOSE}" -eq 0 ]]; then
+	# Save the stderr to 3 so that we can output back to
+	# it incase of an error.
+	exec 3>&2 1>"${LOG_FILE}" 2>&1
+fi
+
 main "$@"
+rm -f "${LOG_FILE}"
