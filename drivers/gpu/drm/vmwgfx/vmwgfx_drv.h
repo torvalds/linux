@@ -584,7 +584,6 @@ struct vmw_private {
 	struct mutex binding_mutex;
 
 	bool enable_fb;
-	spinlock_t svga_lock;
 
 	/**
 	 * PM management.

@@ -727,7 +727,6 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	spin_lock_init(&dev_priv->hw_lock);
 	spin_lock_init(&dev_priv->waiter_lock);
 	spin_lock_init(&dev_priv->cap_lock);
-	spin_lock_init(&dev_priv->svga_lock);
 	spin_lock_init(&dev_priv->cursor_lock);
 
 	for (i = vmw_res_context; i < vmw_res_max; ++i) {
@@ -1193,12 +1192,10 @@ static void __vmw_svga_enable(struct vmw_private *dev_priv)
 {
 	struct ttm_resource_manager *man = ttm_manager_type(&dev_priv->bdev, TTM_PL_VRAM);
 
-	spin_lock(&dev_priv->svga_lock);
 	if (!ttm_resource_manager_used(man)) {
 		vmw_write(dev_priv, SVGA_REG_ENABLE, SVGA_REG_ENABLE);
 		ttm_resource_manager_set_used(man, true);
 	}
-	spin_unlock(&dev_priv->svga_lock);
 }
 
 /**
@@ -1224,14 +1221,12 @@ static void __vmw_svga_disable(struct vmw_private *dev_priv)
 {
 	struct ttm_resource_manager *man = ttm_manager_type(&dev_priv->bdev, TTM_PL_VRAM);
 
-	spin_lock(&dev_priv->svga_lock);
 	if (ttm_resource_manager_used(man)) {
 		ttm_resource_manager_set_used(man, false);
 		vmw_write(dev_priv, SVGA_REG_ENABLE,
 			  SVGA_REG_ENABLE_HIDE |
 			  SVGA_REG_ENABLE_ENABLE);
 	}
-	spin_unlock(&dev_priv->svga_lock);
 }
 
 /**
@@ -1258,17 +1253,14 @@ void vmw_svga_disable(struct vmw_private *dev_priv)
 	 */
 	vmw_kms_lost_device(&dev_priv->drm);
 	ttm_write_lock(&dev_priv->reservation_sem, false);
-	spin_lock(&dev_priv->svga_lock);
 	if (ttm_resource_manager_used(man)) {
 		ttm_resource_manager_set_used(man, false);
-		spin_unlock(&dev_priv->svga_lock);
 		if (ttm_resource_manager_evict_all(&dev_priv->bdev, man))
 			DRM_ERROR("Failed evicting VRAM buffers.\n");
 		vmw_write(dev_priv, SVGA_REG_ENABLE,
 			  SVGA_REG_ENABLE_HIDE |
 			  SVGA_REG_ENABLE_ENABLE);
-	} else
-		spin_unlock(&dev_priv->svga_lock);
+	}
 	ttm_write_unlock(&dev_priv->reservation_sem);
 }
 
