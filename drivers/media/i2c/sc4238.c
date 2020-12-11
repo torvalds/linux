@@ -6,6 +6,7 @@
  *
  * V0.0X01.0X00 first version.
  * V0.0X01.0X01 add quick stream on/off
+ * V0.0X01.0X02 support digital gain
  */
 //#define DEBUG
 #include <linux/clk.h>
@@ -28,7 +29,7 @@
 #include <linux/rk-preisp.h>
 #include "../platform/rockchip/isp/rkisp_tb_helper.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -63,8 +64,12 @@
 #define SC4238_REG_FINE_AGAIN_L		0x3e09
 #define SC4238_REG_COARSE_AGAIN_S	0x3e12
 #define SC4238_REG_FINE_AGAIN_S		0x3e13
+#define SC4238_REG_COARSE_DGAIN_L	0x3e06
+#define SC4238_REG_FINE_DGAIN_L		0x3e07
+#define SC4238_REG_COARSE_DGAIN_S	0x3e10
+#define SC4238_REG_FINE_DGAIN_S		0x3e11
 #define SC4238_GAIN_MIN			0x40
-#define SC4238_GAIN_MAX			0x3F8
+#define SC4238_GAIN_MAX			0x7D04
 #define SC4238_GAIN_STEP		1
 #define SC4238_GAIN_DEFAULT		0x80
 
@@ -175,6 +180,7 @@ struct sc4238 {
 	bool			is_thunderboot_ng;
 	bool			is_first_streamoff;
 	u8			flip;
+	u32			cur_vts;
 };
 
 #define to_sc4238(sd) container_of(sd, struct sc4238, subdev)
@@ -1414,90 +1420,58 @@ static void sc4238_get_module_inf(struct sc4238 *sc4238,
 	strlcpy(inf->base.lens, sc4238->len_name, sizeof(inf->base.lens));
 }
 
-static int sc4238_set_long_gain(struct sc4238 *sc4238, u32 a_gain)
+static int sc4238_get_gain_reg(struct sc4238 *sc4238, u32 total_gain,
+			       u32 *again_coarse_reg, u32 *again_fine_reg,
+			       u32 *dgain_coarse_reg, u32 *dgain_fine_reg)
 {
-	int ret = 0;
-	u32 coarse_again, fine_again, fine_again_reg, coarse_again_reg;
+	u32 again, dgain;
 
-		if (a_gain < 0x80) { /*1x ~ 2x*/
-			fine_again = a_gain - 64;
-			coarse_again = 0x03;
-			fine_again_reg = ((0x01 << 6) & 0x40) |
-				(fine_again & 0x3f);
-			coarse_again_reg = coarse_again  & 0x1F;
-		} else if (a_gain < 0x100) { /*2x ~ 4x*/
-			fine_again = (a_gain >> 1) - 64;
-			coarse_again = 0x7;
-			fine_again_reg = ((0x01 << 6) & 0x40) |
-				(fine_again & 0x3f);
-			coarse_again_reg = coarse_again  & 0x1F;
-		} else if (a_gain < 0x200) { /*4x ~ 8x*/
-			fine_again = (a_gain >> 2) - 64;
-			coarse_again = 0xf;
-			fine_again_reg = ((0x01 << 6) & 0x40) |
-				(fine_again & 0x3f);
-			coarse_again_reg = coarse_again  & 0x1F;
-		} else { /*8x ~ 16x*/
-			fine_again = (a_gain >> 3) - 64;
-			coarse_again = 0x1f;
-			fine_again_reg = ((0x01 << 6) & 0x40) |
-				(fine_again & 0x3f);
-			coarse_again_reg = coarse_again  & 0x1F;
-		}
+	if (total_gain > 32004) {
+		dev_err(&sc4238->client->dev,
+			"total_gain max is 15.875*31.5*64, current total_gain is %d\n",
+			total_gain);
+		return -EINVAL;
+	}
 
-		ret |= sc4238_write_reg(sc4238->client,
-			SC4238_REG_COARSE_AGAIN_L,
-			SC4238_REG_VALUE_08BIT,
-			coarse_again_reg);
-		ret |= sc4238_write_reg(sc4238->client,
-			SC4238_REG_FINE_AGAIN_L,
-			SC4238_REG_VALUE_08BIT,
-			fine_again_reg);
+	if (total_gain > 1016) {/*15.875*/
+		again = 1016;
+		dgain = total_gain * 128 / 1016;
+	} else {
+		again = total_gain;
+		dgain = 128;
+	}
 
-	return ret;
-}
+	if (again < 0x80) { /*1x ~ 2x*/
+		*again_fine_reg = again & 0x7f;
+		*again_coarse_reg = 0x03;
+	} else if (again < 0x100) { /*2x ~ 4x*/
+		*again_fine_reg = (again >> 1) & 0x7f;
+		*again_coarse_reg = 0x07;
+	} else if (again < 0x200) { /*4x ~ 8x*/
+		*again_fine_reg = (again >> 2) & 0x7f;
+		*again_coarse_reg = 0x0f;
+	} else { /*8x ~ 16x*/
+		*again_fine_reg = (again >> 3) & 0x7f;
+		*again_coarse_reg = 0x1f;
+	}
 
-static int sc4238_set_short_gain(struct sc4238 *sc4238, u32 a_gain)
-{
-	int ret = 0;
-	u32 coarse_again, fine_again, fine_again_reg, coarse_again_reg;
-
-		if (a_gain < 0x80) { /*1x ~ 2x*/
-			fine_again = a_gain - 64;
-			coarse_again = 0x03;
-			fine_again_reg = ((0x01 << 6) & 0x40) |
-				(fine_again & 0x3f);
-			coarse_again_reg = coarse_again  & 0x1F;
-		} else if (a_gain < 0x100) { /*2x ~ 4x*/
-			fine_again = (a_gain >> 1) - 64;
-			coarse_again = 0x7;
-			fine_again_reg = ((0x01 << 6) & 0x40) |
-				(fine_again & 0x3f);
-			coarse_again_reg = coarse_again  & 0x1F;
-		} else if (a_gain < 0x200) { /*4x ~ 8x*/
-			fine_again = (a_gain >> 2) - 64;
-			coarse_again = 0xf;
-			fine_again_reg = ((0x01 << 6) & 0x40) |
-				(fine_again & 0x3f);
-			coarse_again_reg = coarse_again  & 0x1F;
-		} else { /*8x ~ 16x*/
-			fine_again = (a_gain >> 3) - 64;
-			coarse_again = 0x1f;
-			fine_again_reg = ((0x01 << 6) & 0x40) |
-				(fine_again & 0x3f);
-			coarse_again_reg = coarse_again  & 0x1F;
-		}
-
-		ret |= sc4238_write_reg(sc4238->client,
-			SC4238_REG_COARSE_AGAIN_S,
-			SC4238_REG_VALUE_08BIT,
-			coarse_again_reg);
-		ret |= sc4238_write_reg(sc4238->client,
-			SC4238_REG_FINE_AGAIN_S,
-			SC4238_REG_VALUE_08BIT,
-			fine_again_reg);
-
-	return ret;
+	if (dgain < 0x100) { /*1x ~ 2x*/
+		*dgain_fine_reg = dgain & 0xff;
+		*dgain_coarse_reg = 0x00;
+	} else if (dgain < 0x200) { /*2x ~ 4x*/
+		*dgain_fine_reg = (dgain >> 1) & 0xff;
+		*dgain_coarse_reg = 0x01;
+	} else if (dgain < 0x400) { /*4x ~ 8x*/
+		*dgain_fine_reg = (dgain >> 2) & 0xff;
+		*dgain_coarse_reg = 0x03;
+	} else if (dgain < 0x800) { /*8x ~ 16x*/
+		*dgain_fine_reg = (dgain >> 3) & 0xff;
+		*dgain_coarse_reg = 0x07;
+	} else { /*16x ~ 31.5x*/
+		*dgain_fine_reg = (dgain >> 4) & 0xff;
+		*dgain_coarse_reg = 0x0f;
+	}
+	return 0;
 }
 
 static int sc4238_set_hdrae(struct sc4238 *sc4238,
@@ -1505,6 +1479,9 @@ static int sc4238_set_hdrae(struct sc4238 *sc4238,
 {
 	u32 l_exp_time, m_exp_time, s_exp_time;
 	u32 l_a_gain, m_a_gain, s_a_gain;
+	u32 again_coarse_reg, again_fine_reg;
+	u32 dgain_coarse_reg, dgain_fine_reg;
+	u32 max_exp_l, max_exp_s;
 	int ret = 0;
 
 	if (!sc4238->has_init_exp && !sc4238->streaming) {
@@ -1534,24 +1511,79 @@ static int sc4238_set_hdrae(struct sc4238 *sc4238,
 		m_exp_time = s_exp_time;
 	}
 
+	if (l_a_gain != m_a_gain) {
+		dev_err(&sc4238->client->dev,
+			"gain of long frame must same with short frame\n");
+		return -EINVAL;
+	}
+	/* long frame exp max = 2*({320e,320f} -{3e23,3e24} -9) ,unit 1/2 line */
+	/* short frame exp max = 2*({3e23,3e24} - 8) ,unit 1/2 line */
+	max_exp_l = sc4238->cur_vts - 93 - 5;
+	max_exp_s = 89;
+	if (l_exp_time > max_exp_l || m_exp_time > max_exp_s) {
+		dev_err(&sc4238->client->dev,
+			"max_exp_long %d, max_exp_short %d, cur_exp_long %d, cur_exp_short %d\n",
+			max_exp_l, max_exp_s, l_exp_time, m_exp_time);
+		return -EINVAL;
+	}
+
+	ret = sc4238_get_gain_reg(sc4238, l_a_gain,
+				  &again_coarse_reg, &again_fine_reg,
+				  &dgain_coarse_reg, &dgain_fine_reg);
+	if (ret != 0)
+		return -EINVAL;
+
 	ret |= sc4238_write_reg(sc4238->client,
-		SC4238_GROUP_UPDATE_ADDRESS,
-		SC4238_REG_VALUE_08BIT,
-		SC4238_GROUP_UPDATE_START_DATA);
+				SC4238_GROUP_UPDATE_ADDRESS,
+				SC4238_REG_VALUE_08BIT,
+				SC4238_GROUP_UPDATE_START_DATA);
+
 	ret |= sc4238_write_reg(sc4238->client,
-		SC4238_REG_EXP_LONG_H,
-		SC4238_REG_VALUE_24BIT,
-		l_exp_time << 4);
-	ret |= sc4238_set_long_gain(sc4238, l_a_gain);
+				SC4238_REG_EXP_LONG_H,
+				SC4238_REG_VALUE_24BIT,
+				l_exp_time << 4);
 	ret |= sc4238_write_reg(sc4238->client,
-		SC4238_REG_EXP_MID_H,
-		SC4238_REG_VALUE_16BIT,
-		m_exp_time << 4);
-	ret |= sc4238_set_short_gain(sc4238, m_a_gain);
+				SC4238_REG_EXP_MID_H,
+				SC4238_REG_VALUE_16BIT,
+				m_exp_time << 4);
+
 	ret |= sc4238_write_reg(sc4238->client,
-		SC4238_GROUP_UPDATE_ADDRESS,
-		SC4238_REG_VALUE_08BIT,
-		SC4238_GROUP_UPDATE_END_DATA);
+				SC4238_REG_COARSE_AGAIN_L,
+				SC4238_REG_VALUE_08BIT,
+				again_coarse_reg);
+	ret |= sc4238_write_reg(sc4238->client,
+				SC4238_REG_FINE_AGAIN_L,
+				SC4238_REG_VALUE_08BIT,
+				again_fine_reg);
+	ret |= sc4238_write_reg(sc4238->client,
+				SC4238_REG_COARSE_AGAIN_S,
+				SC4238_REG_VALUE_08BIT,
+				again_coarse_reg);
+	ret |= sc4238_write_reg(sc4238->client,
+				SC4238_REG_FINE_AGAIN_S,
+				SC4238_REG_VALUE_08BIT,
+				again_fine_reg);
+	ret |= sc4238_write_reg(sc4238->client,
+				SC4238_REG_COARSE_DGAIN_L,
+				SC4238_REG_VALUE_08BIT,
+				dgain_coarse_reg);
+	ret |= sc4238_write_reg(sc4238->client,
+				SC4238_REG_FINE_DGAIN_L,
+				SC4238_REG_VALUE_08BIT,
+				dgain_fine_reg);
+	ret |= sc4238_write_reg(sc4238->client,
+				SC4238_REG_COARSE_DGAIN_S,
+				SC4238_REG_VALUE_08BIT,
+				dgain_coarse_reg);
+	ret |= sc4238_write_reg(sc4238->client,
+				SC4238_REG_FINE_DGAIN_S,
+				SC4238_REG_VALUE_08BIT,
+				dgain_fine_reg);
+
+	ret |= sc4238_write_reg(sc4238->client,
+				SC4238_GROUP_UPDATE_ADDRESS,
+				SC4238_REG_VALUE_08BIT,
+				SC4238_GROUP_UPDATE_END_DATA);
 
 	return ret;
 }
@@ -2042,6 +2074,10 @@ static int sc4238_set_ctrl(struct v4l2_ctrl *ctrl)
 	s64 max;
 	int ret = 0;
 	u32 val = 0;
+	u32 again_coarse_reg = 0;
+	u32 again_fine_reg = 0;
+	u32 dgain_coarse_reg = 0;
+	u32 dgain_fine_reg = 0;
 
 	dev_dbg(&client->dev, "ctrl->id(0x%x) val 0x%x\n",
 		ctrl->id, ctrl->val);
@@ -2072,7 +2108,25 @@ static int sc4238_set_ctrl(struct v4l2_ctrl *ctrl)
 			ctrl->val);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
-		ret = sc4238_set_long_gain(sc4238, ctrl->val);
+		ret = sc4238_get_gain_reg(sc4238, ctrl->val,
+					  &again_coarse_reg, &again_fine_reg,
+					  &dgain_coarse_reg, &dgain_fine_reg);
+		ret |= sc4238_write_reg(sc4238->client,
+					SC4238_REG_COARSE_AGAIN_L,
+					SC4238_REG_VALUE_08BIT,
+					again_coarse_reg);
+		ret |= sc4238_write_reg(sc4238->client,
+					SC4238_REG_FINE_AGAIN_L,
+					SC4238_REG_VALUE_08BIT,
+					again_fine_reg);
+		ret |= sc4238_write_reg(sc4238->client,
+					SC4238_REG_COARSE_DGAIN_L,
+					SC4238_REG_VALUE_08BIT,
+					dgain_coarse_reg);
+		ret |= sc4238_write_reg(sc4238->client,
+					SC4238_REG_FINE_DGAIN_L,
+					SC4238_REG_VALUE_08BIT,
+					dgain_fine_reg);
 		dev_dbg(&client->dev, "set analog gain 0x%x\n",
 			ctrl->val);
 		break;
@@ -2080,6 +2134,8 @@ static int sc4238_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret = sc4238_write_reg(sc4238->client, SC4238_REG_VTS_H,
 					SC4238_REG_VALUE_16BIT,
 					ctrl->val + sc4238->cur_mode->height);
+		if (ret == 0)
+			sc4238->cur_vts = ctrl->val + sc4238->cur_mode->height;
 		dev_dbg(&client->dev, "set vblank 0x%x\n",
 			ctrl->val);
 		break;
