@@ -824,22 +824,6 @@ out_dqrele:
 	return error;
 }
 
-int
-xfs_vn_setattr_nonsize(
-	struct dentry		*dentry,
-	struct iattr		*iattr)
-{
-	struct xfs_inode	*ip = XFS_I(d_inode(dentry));
-	int error;
-
-	trace_xfs_setattr(ip);
-
-	error = xfs_vn_change_ok(dentry, iattr);
-	if (error)
-		return error;
-	return xfs_setattr_nonsize(ip, iattr, 0);
-}
-
 /*
  * Truncate file.  Must have write permission and not be a directory.
  *
@@ -1067,11 +1051,11 @@ xfs_vn_setattr(
 	struct dentry		*dentry,
 	struct iattr		*iattr)
 {
+	struct inode		*inode = d_inode(dentry);
+	struct xfs_inode	*ip = XFS_I(inode);
 	int			error;
 
 	if (iattr->ia_valid & ATTR_SIZE) {
-		struct inode		*inode = d_inode(dentry);
-		struct xfs_inode	*ip = XFS_I(inode);
 		uint			iolock;
 
 		xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
@@ -1086,7 +1070,11 @@ xfs_vn_setattr(
 		error = xfs_vn_setattr_size(dentry, iattr);
 		xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
 	} else {
-		error = xfs_vn_setattr_nonsize(dentry, iattr);
+		trace_xfs_setattr(ip);
+
+		error = xfs_vn_change_ok(dentry, iattr);
+		if (!error)
+			error = xfs_setattr_nonsize(ip, iattr, 0);
 	}
 
 	return error;
