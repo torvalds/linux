@@ -209,6 +209,8 @@ int cqhci_crypto_init(struct cqhci_host *cq_host)
 	/* Unfortunately, CQHCI crypto only supports 32 DUN bits. */
 	ksm->max_dun_bytes_supported = 4;
 
+	ksm->features = BLK_CRYPTO_FEATURE_STANDARD_KEYS;
+
 	/*
 	 * Cache all the crypto capabilities and advertise the supported crypto
 	 * modes and data unit sizes to the block layer.
