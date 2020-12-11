@@ -686,6 +686,9 @@ config GENERIC_LIB_CMPDI2
 config GENERIC_LIB_UCMPDI2
 	bool
 
+config GENERIC_LIB_DEVMEM_IS_ALLOWED
+	bool
+
 config PLDMFW
 	bool
 	default n
