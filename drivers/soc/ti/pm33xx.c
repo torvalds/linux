@@ -135,13 +135,11 @@ static int am33xx_push_sram_idle(void)
 
 static int am33xx_do_sram_idle(u32 wfi_flags)
 {
-	int ret = 0;
-
 	if (!m3_ipc || !pm_ops)
 		return 0;
 
 	if (wfi_flags & WFI_FLAG_WAKE_M3)
-		ret = m3_ipc->ops->prepare_low_power(m3_ipc, WKUP_M3_IDLE);
+		m3_ipc->ops->prepare_low_power(m3_ipc, WKUP_M3_IDLE);
 
 	return pm_ops->cpu_suspend(am33xx_do_wfi_sram, wfi_flags);
 }
