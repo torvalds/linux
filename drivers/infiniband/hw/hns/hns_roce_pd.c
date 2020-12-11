@@ -64,7 +64,7 @@ int hns_roce_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 
 	ret = hns_roce_pd_alloc(to_hr_dev(ib_dev), &pd->pdn);
 	if (ret) {
-		ibdev_err(ib_dev, "failed to alloc pd, ret = %d\n", ret);
+		ibdev_err(ib_dev, "failed to alloc pd, ret = %d.\n", ret);
 		return ret;
 	}
 
