@@ -267,10 +267,6 @@
 	};
 };
 
-&edp_phy {
-	status = "okay";
-};
-
 &edp_in_vopb {
 	status = "disabled";
 };

@@ -421,10 +421,6 @@
 	};
 };
 
-&edp_phy {
-	status = "okay";
-};
-
 &route_edp {
 	status = "okay";
 	connect = <&vopb_out_edp>;

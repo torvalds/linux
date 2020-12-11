@@ -134,10 +134,6 @@
 	};
 };
 
-&edp_phy {
-	status = "okay";
-};
-
 &route_edp {
 	status = "okay";
 };
