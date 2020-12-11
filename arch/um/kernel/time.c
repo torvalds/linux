@@ -183,6 +183,14 @@ static void time_travel_ext_update_request(unsigned long long time)
 	    time == time_travel_ext_prev_request)
 		return;
 
+	/*
+	 * if we're running and are allowed to run past the request
+	 * then we don't need to update it either
+	 */
+	if (!time_travel_ext_waiting && time_travel_ext_free_until_valid &&
+	    time < time_travel_ext_free_until)
+		return;
+
 	time_travel_ext_prev_request = time;
 	time_travel_ext_prev_request_valid = true;
 	time_travel_ext_req(UM_TIMETRAVEL_REQUEST, time);
@@ -223,6 +231,7 @@ static void time_travel_ext_wait(bool idle)
 	};
 
 	time_travel_ext_prev_request_valid = false;
+	time_travel_ext_free_until_valid = false;
 	time_travel_ext_waiting++;
 
 	time_travel_ext_req(UM_TIMETRAVEL_WAIT, -1);
@@ -492,6 +501,7 @@ invalid_number:
 #define time_travel_start_set 0
 #define time_travel_start 0
 #define time_travel_time 0
+#define time_travel_ext_waiting 0
 
 static inline void time_travel_update_time(unsigned long long ns, bool retearly)
 {
@@ -637,7 +647,8 @@ static u64 timer_read(struct clocksource *cs)
 		 * "what do I do next" and onstack event we use to know when
 		 * to return from time_travel_update_time().
 		 */
-		if (!irqs_disabled() && !in_interrupt() && !in_softirq())
+		if (!irqs_disabled() && !in_interrupt() && !in_softirq() &&
+		    !time_travel_ext_waiting)
 			time_travel_update_time(time_travel_time +
 						TIMER_MULTIPLIER,
 						false);
