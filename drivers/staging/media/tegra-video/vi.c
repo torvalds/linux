@@ -956,7 +956,6 @@ static const struct v4l2_file_operations tegra_channel_fops = {
 /*
  * V4L2 control operations
  */
-#if IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG)
 static int vi_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct tegra_vi_channel *chan = container_of(ctrl->handler,
@@ -967,6 +966,9 @@ static int vi_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_TEST_PATTERN:
 		/* pattern change takes effect on next stream */
 		chan->pg_mode = ctrl->val + 1;
+		break;
+	case V4L2_CID_TEGRA_SYNCPT_TIMEOUT_RETRY:
+		chan->syncpt_timeout_retry = ctrl->val;
 		break;
 	default:
 		return -EINVAL;
@@ -979,9 +981,21 @@ static const struct v4l2_ctrl_ops vi_ctrl_ops = {
 	.s_ctrl	= vi_s_ctrl,
 };
 
+#if IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG)
 static const char *const vi_pattern_strings[] = {
 	"Black/White Direct Mode",
 	"Color Patch Mode",
+};
+#else
+static const struct v4l2_ctrl_config syncpt_timeout_ctrl = {
+	.ops = &vi_ctrl_ops,
+	.id = V4L2_CID_TEGRA_SYNCPT_TIMEOUT_RETRY,
+	.name = "Syncpt timeout retry",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min = 1,
+	.max = 10000,
+	.step = 1,
+	.def = 5,
 };
 #endif
 
@@ -1003,6 +1017,16 @@ static int tegra_channel_setup_ctrl_handler(struct tegra_vi_channel *chan)
 	}
 #else
 	struct v4l2_subdev *subdev;
+
+	/* custom control */
+	v4l2_ctrl_new_custom(&chan->ctrl_handler, &syncpt_timeout_ctrl, NULL);
+	if (chan->ctrl_handler.error) {
+		dev_err(chan->vi->dev, "failed to add %s ctrl handler: %d\n",
+			syncpt_timeout_ctrl.name,
+			chan->ctrl_handler.error);
+		v4l2_ctrl_handler_free(&chan->ctrl_handler);
+		return chan->ctrl_handler.error;
+	}
 
 	subdev = tegra_channel_get_remote_source_subdev(chan);
 	if (!subdev)

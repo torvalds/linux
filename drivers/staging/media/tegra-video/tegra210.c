@@ -454,6 +454,7 @@ static int chan_capture_kthread_start(void *data)
 {
 	struct tegra_vi_channel *chan = data;
 	struct tegra_channel_buffer *buf;
+	unsigned int retries = 0;
 	int err = 0;
 
 	while (1) {
@@ -483,8 +484,15 @@ static int chan_capture_kthread_start(void *data)
 		spin_unlock(&chan->start_lock);
 
 		err = tegra_channel_capture_frame(chan, buf);
-		if (err)
+		if (!err) {
+			retries = 0;
+			continue;
+		}
+
+		if (retries++ > chan->syncpt_timeout_retry)
 			vb2_queue_error(&chan->queue);
+		else
+			err = 0;
 	}
 
 	return 0;
