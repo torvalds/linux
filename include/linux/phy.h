@@ -147,16 +147,8 @@ typedef enum {
 	PHY_INTERFACE_MODE_MAX,
 } phy_interface_t;
 
-/**
+/*
  * phy_supported_speeds - return all speeds currently supported by a PHY device
- * @phy: The PHY device to return supported speeds of.
- * @speeds: buffer to store supported speeds in.
- * @size: size of speeds buffer.
- *
- * Description: Returns the number of supported speeds, and fills
- * the speeds buffer with the supported speeds. If speeds buffer is
- * too small to contain all currently supported speeds, will return as
- * many speeds as can fit.
  */
 unsigned int phy_supported_speeds(struct phy_device *phy,
 				      unsigned int *speeds,
@@ -1022,14 +1014,9 @@ static inline int __phy_modify_changed(struct phy_device *phydev, u32 regnum,
 					regnum, mask, set);
 }
 
-/**
+/*
  * phy_read_mmd - Convenience function for reading a register
  * from an MMD on a given PHY.
- * @phydev: The phy_device struct
- * @devad: The MMD to read from
- * @regnum: The register on the MMD to read
- *
- * Same rules as for phy_read();
  */
 int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum);
 
@@ -1064,38 +1051,21 @@ int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum);
 	__ret; \
 })
 
-/**
+/*
  * __phy_read_mmd - Convenience function for reading a register
  * from an MMD on a given PHY.
- * @phydev: The phy_device struct
- * @devad: The MMD to read from
- * @regnum: The register on the MMD to read
- *
- * Same rules as for __phy_read();
  */
 int __phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum);
 
-/**
+/*
  * phy_write_mmd - Convenience function for writing a register
  * on an MMD on a given PHY.
- * @phydev: The phy_device struct
- * @devad: The MMD to write to
- * @regnum: The register on the MMD to read
- * @val: value to write to @regnum
- *
- * Same rules as for phy_write();
  */
 int phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val);
 
-/**
+/*
  * __phy_write_mmd - Convenience function for writing a register
  * on an MMD on a given PHY.
- * @phydev: The phy_device struct
- * @devad: The MMD to write to
- * @regnum: The register on the MMD to read
- * @val: value to write to @regnum
- *
- * Same rules as for __phy_write();
  */
 int __phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val);
 

@@ -106,7 +106,7 @@ patternProperties:
     required:
       - pinmux
 
-    additionalProperties:  false
+    additionalProperties: false
 
 required:
   - compatible

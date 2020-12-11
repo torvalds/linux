@@ -44,6 +44,8 @@ Optional properties:
 - realtek,dmic-delay-ms : Set the delay time (ms) for the requirement of
   the particular DMIC.
 
+- realtek,dmic-clk-driving-high : Set the high drving of the DMIC clock out.
+
 Pins on the device (for linking into audio routes) for RT5682:
 
   * DMIC L1

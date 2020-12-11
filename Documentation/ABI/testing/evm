@@ -17,26 +17,33 @@ Description:
 		echoing a value to <securityfs>/evm made up of the
 		following bits:
 
+		===	  ==================================================
 		Bit	  Effect
+		===	  ==================================================
 		0	  Enable HMAC validation and creation
 		1	  Enable digital signature validation
 		2	  Permit modification of EVM-protected metadata at
 			  runtime. Not supported if HMAC validation and
 			  creation is enabled.
 		31	  Disable further runtime modification of EVM policy
+		===	  ==================================================
 
-		For example:
+		For example::
 
-		echo 1 ><securityfs>/evm
+		  echo 1 ><securityfs>/evm
 
 		will enable HMAC validation and creation
 
-		echo 0x80000003 ><securityfs>/evm
+		::
+
+		  echo 0x80000003 ><securityfs>/evm
 
 		will enable HMAC and digital signature validation and
 		HMAC creation and disable all further modification of policy.
 
-		echo 0x80000006 ><securityfs>/evm
+		::
+
+		  echo 0x80000006 ><securityfs>/evm
 
 		will enable digital signature validation, permit
 		modification of EVM-protected metadata and
@@ -65,7 +72,7 @@ Description:
 		Shows the set of extended attributes used to calculate or
 		validate the EVM signature, and allows additional attributes
 		to be added at runtime. Any signatures generated after
-		additional attributes are added (and on files posessing those
+		additional attributes are added (and on files possessing those
 		additional attributes) will only be valid if the same
 		additional attributes are configured on system boot. Writing
 		a single period (.) will lock the xattr list from any further

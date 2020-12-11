@@ -1,4 +1,4 @@
-For all of the nmem device attributes under nfit/*, see the 'NVDIMM Firmware
+For all of the nmem device attributes under ``nfit/*``, see the 'NVDIMM Firmware
 Interface Table (NFIT)' section in the ACPI specification
 (http://www.uefi.org/specifications) for more details.
 

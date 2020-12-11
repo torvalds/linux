@@ -32,11 +32,11 @@ allOf:
         clock-output-names:
           oneOf:
             - items:
-              - const: clk_out_sd0
-              - const: clk_in_sd0
+                - const: clk_out_sd0
+                - const: clk_in_sd0
             - items:
-              - const: clk_out_sd1
-              - const: clk_in_sd1
+                - const: clk_out_sd1
+                - const: clk_in_sd1
 
 properties:
   compatible:

@@ -200,7 +200,7 @@ static void ionic_rx_clean(struct ionic_queue *q,
 	if (likely(netdev->features & NETIF_F_RXCSUM)) {
 		if (comp->csum_flags & IONIC_RXQ_COMP_CSUM_F_CALC) {
 			skb->ip_summed = CHECKSUM_COMPLETE;
-			skb->csum = (__wsum)le16_to_cpu(comp->csum);
+			skb->csum = (__force __wsum)le16_to_cpu(comp->csum);
 			stats->csum_complete++;
 		}
 	} else {
@@ -251,19 +251,6 @@ static bool ionic_rx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 	desc_info->cb_arg = NULL;
 
 	return true;
-}
-
-void ionic_rx_flush(struct ionic_cq *cq)
-{
-	struct ionic_dev *idev = &cq->lif->ionic->idev;
-	u32 work_done;
-
-	work_done = ionic_cq_service(cq, cq->num_descs,
-				     ionic_rx_service, NULL, NULL);
-
-	if (work_done)
-		ionic_intr_credits(idev->intr_ctrl, cq->bound_intr->index,
-				   work_done, IONIC_INTR_CRED_RESET_COALESCE);
 }
 
 static int ionic_rx_page_alloc(struct ionic_queue *q,
@@ -413,22 +400,20 @@ static void ionic_rx_fill_cb(void *arg)
 void ionic_rx_empty(struct ionic_queue *q)
 {
 	struct ionic_desc_info *desc_info;
-	struct ionic_rxq_desc *desc;
-	unsigned int i;
-	u16 idx;
+	struct ionic_page_info *page_info;
+	unsigned int i, j;
 
-	idx = q->tail_idx;
-	while (idx != q->head_idx) {
-		desc_info = &q->info[idx];
-		desc = desc_info->desc;
-		desc->addr = 0;
-		desc->len = 0;
+	for (i = 0; i < q->num_descs; i++) {
+		desc_info = &q->info[i];
+		for (j = 0; j < IONIC_RX_MAX_SG_ELEMS + 1; j++) {
+			page_info = &desc_info->pages[j];
+			if (page_info->page)
+				ionic_rx_page_free(q, page_info);
+		}
 
-		for (i = 0; i < desc_info->npages; i++)
-			ionic_rx_page_free(q, &desc_info->pages[i]);
-
+		desc_info->npages = 0;
+		desc_info->cb = NULL;
 		desc_info->cb_arg = NULL;
-		idx = (idx + 1) & (q->num_descs - 1);
 	}
 }
 
@@ -812,6 +797,7 @@ static int ionic_tx_tso(struct ionic_queue *q, struct sk_buff *skb)
 	skb_frag_t *frag;
 	bool start, done;
 	bool outer_csum;
+	dma_addr_t addr;
 	bool has_vlan;
 	u16 desc_len;
 	u8 desc_nsge;
@@ -893,11 +879,10 @@ static int ionic_tx_tso(struct ionic_queue *q, struct sk_buff *skb)
 			if (frag_left > 0) {
 				len = min(frag_left, left);
 				frag_left -= len;
-				elem->addr =
-				    cpu_to_le64(ionic_tx_map_frag(q, frag,
-								  offset, len));
-				if (dma_mapping_error(dev, elem->addr))
+				addr = ionic_tx_map_frag(q, frag, offset, len);
+				if (dma_mapping_error(dev, addr))
 					goto err_out_abort;
+				elem->addr = cpu_to_le64(addr);
 				elem->len = cpu_to_le16(len);
 				elem++;
 				desc_nsge++;

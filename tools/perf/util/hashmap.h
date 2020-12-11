@@ -25,6 +25,18 @@ static inline size_t hash_bits(size_t h, int bits)
 #endif
 }
 
+/* generic C-string hashing function */
+static inline size_t str_hash(const char *s)
+{
+	size_t h = 0;
+
+	while (*s) {
+		h = h * 31 + *s;
+		s++;
+	}
+	return h;
+}
+
 typedef size_t (*hashmap_hash_fn)(const void *key, void *ctx);
 typedef bool (*hashmap_equal_fn)(const void *key1, const void *key2, void *ctx);
 

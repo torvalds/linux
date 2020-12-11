@@ -47,7 +47,7 @@ Example:
 		interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&infracfg CLK_INFRA_GCE>;
 		clock-names = "gce";
-		#mbox-cells = <3>;
+		#mbox-cells = <2>;
 	};
 
 Example for a client device:

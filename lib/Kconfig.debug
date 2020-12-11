@@ -2446,4 +2446,6 @@ config HYPERV_TESTING
 
 endmenu # "Kernel Testing and Coverage"
 
+source "Documentation/Kconfig"
+
 endmenu # Kernel hacking

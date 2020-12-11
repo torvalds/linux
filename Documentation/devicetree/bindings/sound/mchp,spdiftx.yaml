@@ -10,8 +10,8 @@ maintainers:
   - Codrin Ciubotariu <codrin.ciubotariu@microchip.com>
 
 description:
-        The Microchip Sony/Philips Digital Interface Transmitter is a
-        serial port compliant with the IEC-60958 standard.
+  The Microchip Sony/Philips Digital Interface Transmitter is a serial port 
+  compliant with the IEC-60958 standard.
 
 properties:
   "#sound-dai-cells":

@@ -542,3 +542,12 @@ void prepare_eptp(struct vmx_pages *vmx, struct kvm_vm *vm,
 	vmx->eptp_hva = addr_gva2hva(vm, (uintptr_t)vmx->eptp);
 	vmx->eptp_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->eptp);
 }
+
+void prepare_virtualize_apic_accesses(struct vmx_pages *vmx, struct kvm_vm *vm,
+				      uint32_t eptp_memslot)
+{
+	vmx->apic_access = (void *)vm_vaddr_alloc(vm, getpagesize(),
+						  0x10000, 0, 0);
+	vmx->apic_access_hva = addr_gva2hva(vm, (uintptr_t)vmx->apic_access);
+	vmx->apic_access_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->apic_access);
+}

@@ -20,30 +20,30 @@ properties:
       - const: fsl,imx21-uart
       - items:
           - enum:
-            - fsl,imx25-uart
-            - fsl,imx27-uart
-            - fsl,imx31-uart
-            - fsl,imx35-uart
-            - fsl,imx50-uart
-            - fsl,imx51-uart
-            - fsl,imx53-uart
-            - fsl,imx6q-uart
+              - fsl,imx25-uart
+              - fsl,imx27-uart
+              - fsl,imx31-uart
+              - fsl,imx35-uart
+              - fsl,imx50-uart
+              - fsl,imx51-uart
+              - fsl,imx53-uart
+              - fsl,imx6q-uart
           - const: fsl,imx21-uart
       - items:
           - enum:
-            - fsl,imx6sl-uart
-            - fsl,imx6sll-uart
-            - fsl,imx6sx-uart
+              - fsl,imx6sl-uart
+              - fsl,imx6sll-uart
+              - fsl,imx6sx-uart
           - const: fsl,imx6q-uart
           - const: fsl,imx21-uart
       - items:
           - enum:
-            - fsl,imx6ul-uart
-            - fsl,imx7d-uart
-            - fsl,imx8mm-uart
-            - fsl,imx8mn-uart
-            - fsl,imx8mp-uart
-            - fsl,imx8mq-uart
+              - fsl,imx6ul-uart
+              - fsl,imx7d-uart
+              - fsl,imx8mm-uart
+              - fsl,imx8mn-uart
+              - fsl,imx8mp-uart
+              - fsl,imx8mq-uart
           - const: fsl,imx6q-uart
 
   reg:

@@ -633,8 +633,10 @@ static int init_statfs(struct gfs2_sbd *sdp)
 	if (IS_ERR(sdp->sd_statfs_inode)) {
 		error = PTR_ERR(sdp->sd_statfs_inode);
 		fs_err(sdp, "can't read in statfs inode: %d\n", error);
-		goto fail;
+		goto out;
 	}
+	if (sdp->sd_args.ar_spectator)
+		goto out;
 
 	pn = gfs2_lookup_simple(master, "per_node");
 	if (IS_ERR(pn)) {
@@ -682,15 +684,17 @@ free_local:
 	iput(pn);
 put_statfs:
 	iput(sdp->sd_statfs_inode);
-fail:
+out:
 	return error;
 }
 
 /* Uninitialize and free up memory used by the list of statfs inodes */
 static void uninit_statfs(struct gfs2_sbd *sdp)
 {
-	gfs2_glock_dq_uninit(&sdp->sd_sc_gh);
-	free_local_statfs_inodes(sdp);
+	if (!sdp->sd_args.ar_spectator) {
+		gfs2_glock_dq_uninit(&sdp->sd_sc_gh);
+		free_local_statfs_inodes(sdp);
+	}
 	iput(sdp->sd_statfs_inode);
 }
 
@@ -704,7 +708,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 
 	if (undo) {
 		jindex = 0;
-		goto fail_jinode_gh;
+		goto fail_statfs;
 	}
 
 	sdp->sd_jindex = gfs2_lookup_simple(master, "jindex");

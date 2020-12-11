@@ -99,6 +99,7 @@ static inline u32 jhash(const void *key, u32 length, u32 initval)
 	case 2:  a += (u32)k[1]<<8;	fallthrough;
 	case 1:  a += k[0];
 		 __jhash_final(a, b, c);
+		 break;
 	case 0: /* Nothing left to add */
 		break;
 	}
@@ -136,6 +137,7 @@ static inline u32 jhash2(const u32 *k, u32 length, u32 initval)
 	case 2: b += k[1];	fallthrough;
 	case 1: a += k[0];
 		__jhash_final(a, b, c);
+		break;
 	case 0:	/* Nothing left to add */
 		break;
 	}

@@ -131,6 +131,8 @@ int dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map);
 
 void dso__insert_symbol(struct dso *dso,
 			struct symbol *sym);
+void dso__delete_symbol(struct dso *dso,
+			struct symbol *sym);
 
 struct symbol *dso__find_symbol(struct dso *dso, u64 addr);
 struct symbol *dso__find_symbol_by_name(struct dso *dso, const char *name);

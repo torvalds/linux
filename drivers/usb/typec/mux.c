@@ -71,7 +71,7 @@ struct typec_switch *fwnode_typec_switch_get(struct fwnode_handle *fwnode)
 EXPORT_SYMBOL_GPL(fwnode_typec_switch_get);
 
 /**
- * typec_put_switch - Release USB Type-C orientation switch
+ * typec_switch_put - Release USB Type-C orientation switch
  * @sw: USB Type-C orientation switch
  *
  * Decrement reference count for @sw.

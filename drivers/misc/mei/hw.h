@@ -224,7 +224,7 @@ struct mei_ext_hdr {
 	u8 type;
 	u8 length;
 	u8 ext_payload[2];
-	u8 hdr[0];
+	u8 hdr[];
 };
 
 /**
@@ -238,7 +238,7 @@ struct mei_ext_meta_hdr {
 	u8 count;
 	u8 size;
 	u8 reserved[2];
-	struct mei_ext_hdr hdrs[0];
+	struct mei_ext_hdr hdrs[];
 };
 
 /*
@@ -308,7 +308,7 @@ struct mei_msg_hdr {
 	u32 dma_ring:1;
 	u32 internal:1;
 	u32 msg_complete:1;
-	u32 extension[0];
+	u32 extension[];
 } __packed;
 
 /* The length is up to 9 bits */

@@ -922,6 +922,7 @@ static int vc4_hdmi_audio_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_soc_dai *dai)
 {
 	struct vc4_hdmi *vc4_hdmi = dai_to_hdmi(dai);
+	struct drm_encoder *encoder = &vc4_hdmi->encoder.base.base;
 	struct device *dev = &vc4_hdmi->pdev->dev;
 	u32 audio_packet_config, channel_mask;
 	u32 channel_map;
@@ -981,6 +982,8 @@ static int vc4_hdmi_audio_hw_params(struct snd_pcm_substream *substream,
 	HDMI_WRITE(HDMI_AUDIO_PACKET_CONFIG, audio_packet_config);
 	vc4_hdmi_set_n_cts(vc4_hdmi);
 
+	vc4_hdmi_set_audio_infoframe(encoder);
+
 	return 0;
 }
 
@@ -988,11 +991,9 @@ static int vc4_hdmi_audio_trigger(struct snd_pcm_substream *substream, int cmd,
 				  struct snd_soc_dai *dai)
 {
 	struct vc4_hdmi *vc4_hdmi = dai_to_hdmi(dai);
-	struct drm_encoder *encoder = &vc4_hdmi->encoder.base.base;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		vc4_hdmi_set_audio_infoframe(encoder);
 		vc4_hdmi->audio.streaming = true;
 
 		if (vc4_hdmi->variant->phy_rng_enable)
@@ -1076,6 +1077,7 @@ static const struct snd_soc_dapm_route vc4_hdmi_audio_routes[] = {
 };
 
 static const struct snd_soc_component_driver vc4_hdmi_audio_component_drv = {
+	.name			= "vc4-hdmi-codec-dai-component",
 	.controls		= vc4_hdmi_audio_controls,
 	.num_controls		= ARRAY_SIZE(vc4_hdmi_audio_controls),
 	.dapm_widgets		= vc4_hdmi_audio_widgets,

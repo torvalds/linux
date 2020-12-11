@@ -216,4 +216,6 @@ allOf:
       required:
         - arm,hbi
 
+additionalProperties: true
+
 ...

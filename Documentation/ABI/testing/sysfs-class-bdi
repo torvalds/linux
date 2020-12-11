@@ -24,7 +24,6 @@ default
 	filesystems which do not provide their own BDI.
 
 Files under /sys/class/bdi/<bdi>/
----------------------------------
 
 read_ahead_kb (read-write)
 

@@ -4,7 +4,7 @@ KernelVersion:	4.7
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Writing '1' will perform a FOC (Fast Online Calibration). The
-                corresponding calibration offsets can be read from *_calibbias
+                corresponding calibration offsets can be read from `*_calibbias`
                 entries.
 
 What:		/sys/bus/iio/devices/iio:deviceX/location
