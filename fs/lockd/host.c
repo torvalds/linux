@@ -163,7 +163,7 @@ static struct nlm_host *nlm_alloc_host(struct nlm_lookup_host_info *ni,
 	host->h_nsmhandle  = nsm;
 	host->h_addrbuf    = nsm->sm_addrbuf;
 	host->net	   = ni->net;
-	host->h_cred	   = get_cred(ni->cred),
+	host->h_cred	   = get_cred(ni->cred);
 	strlcpy(host->nodename, utsname()->nodename, sizeof(host->nodename));
 
 out:
