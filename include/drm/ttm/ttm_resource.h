@@ -190,6 +190,10 @@ struct ttm_resource {
 static inline void
 ttm_resource_manager_set_used(struct ttm_resource_manager *man, bool used)
 {
+	int i;
+
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; i++)
+		WARN_ON(!list_empty(&man->lru[i]));
 	man->use_type = used;
 }
 
