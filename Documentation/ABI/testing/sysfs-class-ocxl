@@ -11,8 +11,11 @@ Contact:	linuxppc-dev@lists.ozlabs.org
 Description:	read only
 		Number of contexts for the AFU, in the format <n>/<max>
 		where:
-			n:	number of currently active contexts, for debug
-			max:	maximum number of contexts supported by the AFU
+
+			====	===============================================
+			n	number of currently active contexts, for debug
+			max	maximum number of contexts supported by the AFU
+			====	===============================================
 
 What:		/sys/class/ocxl/<afu name>/pp_mmio_size
 Date:		January 2018
@@ -40,7 +43,9 @@ Contact:	linuxppc-dev@lists.ozlabs.org
 Description:	read/write
 		Control whether the FPGA is reloaded on a link reset. Enabled
 		through a vendor-specific logic block on the FPGA.
-			0	Do not reload FPGA image from flash
-			1	Reload FPGA image from flash
-			unavailable
-				The device does not support this capability
+
+			===========  ===========================================
+			0	     Do not reload FPGA image from flash
+			1	     Reload FPGA image from flash
+			unavailable  The device does not support this capability
+			===========  ===========================================

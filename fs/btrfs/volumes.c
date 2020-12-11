@@ -431,7 +431,7 @@ static struct btrfs_device *__alloc_device(struct btrfs_fs_info *fs_info)
 
 	atomic_set(&dev->reada_in_flight, 0);
 	atomic_set(&dev->dev_stats_ccnt, 0);
-	btrfs_device_data_ordered_init(dev);
+	btrfs_device_data_ordered_init(dev, fs_info);
 	INIT_RADIX_TREE(&dev->reada_zones, GFP_NOFS & ~__GFP_DIRECT_RECLAIM);
 	INIT_RADIX_TREE(&dev->reada_extents, GFP_NOFS & ~__GFP_DIRECT_RECLAIM);
 	extent_io_tree_init(fs_info, &dev->alloc_state,
@@ -2099,6 +2099,8 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
 
 	mutex_unlock(&uuid_mutex);
 	ret = btrfs_shrink_device(device, 0);
+	if (!ret)
+		btrfs_reada_remove_dev(device);
 	mutex_lock(&uuid_mutex);
 	if (ret)
 		goto error_undo;
@@ -2179,6 +2181,7 @@ out:
 	return ret;
 
 error_undo:
+	btrfs_reada_undo_remove_dev(device);
 	if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state)) {
 		mutex_lock(&fs_info->chunk_mutex);
 		list_add(&device->dev_alloc_list,

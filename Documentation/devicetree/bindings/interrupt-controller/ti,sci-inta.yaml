@@ -79,6 +79,8 @@ required:
   - ti,sci-dev-id
   - ti,interrupt-ranges
 
+unevaluatedProperties: false
+
 examples:
   - |
     bus {

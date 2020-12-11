@@ -38,7 +38,8 @@ needs_sphinx = '1.3'
 # ones.
 extensions = ['kerneldoc', 'rstFlatTable', 'kernel_include',
               'kfigure', 'sphinx.ext.ifconfig', 'automarkup',
-              'maintainers_include', 'sphinx.ext.autosectionlabel' ]
+              'maintainers_include', 'sphinx.ext.autosectionlabel',
+              'kernel_abi']
 
 #
 # cdomain is badly broken in Sphinx 3+.  Leaving it out generates *most*

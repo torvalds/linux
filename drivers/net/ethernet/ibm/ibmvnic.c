@@ -1815,9 +1815,13 @@ static int ibmvnic_set_mac(struct net_device *netdev, void *p)
 	int rc;
 
 	rc = 0;
-	ether_addr_copy(adapter->mac_addr, addr->sa_data);
-	if (adapter->state != VNIC_PROBED)
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+
+	if (adapter->state != VNIC_PROBED) {
+		ether_addr_copy(adapter->mac_addr, addr->sa_data);
 		rc = __ibmvnic_set_mac(netdev, addr->sa_data);
+	}
 
 	return rc;
 }

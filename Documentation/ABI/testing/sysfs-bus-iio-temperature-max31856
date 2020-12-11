@@ -5,9 +5,12 @@ Description:
 		Open-circuit fault. The detection of open-circuit faults,
 		such as those caused by broken thermocouple wires.
 		Reading returns either '1' or '0'.
-		'1' = An open circuit such as broken thermocouple wires
-		      has been detected.
-		'0' = No open circuit or broken thermocouple wires are detected
+
+		===  =======================================================
+		'1'  An open circuit such as broken thermocouple wires
+		     has been detected.
+		'0'  No open circuit or broken thermocouple wires are detected
+		===  =======================================================
 
 What:		/sys/bus/iio/devices/iio:deviceX/fault_ovuv
 KernelVersion:	5.1
@@ -18,7 +21,11 @@ Description:
 		cables by integrated MOSFETs at the T+ and T- inputs, and the
 		BIAS output. These MOSFETs turn off when the input voltage is
 		negative or greater than VDD.
+
 		Reading returns either '1' or '0'.
-		'1' = The input voltage is negative or greater than VDD.
-		'0' = The input voltage is positive and less than VDD (normal
-		state).
+
+		===  =======================================================
+		'1'  The input voltage is negative or greater than VDD.
+		'0'  The input voltage is positive and less than VDD (normal
+		     state).
+		===  =======================================================

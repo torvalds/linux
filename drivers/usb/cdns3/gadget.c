@@ -296,6 +296,8 @@ static void cdns3_ep_stall_flush(struct cdns3_endpoint *priv_ep)
  */
 void cdns3_hw_reset_eps_config(struct cdns3_device *priv_dev)
 {
+	int i;
+
 	writel(USB_CONF_CFGRST, &priv_dev->regs->usb_conf);
 
 	cdns3_allow_enable_l1(priv_dev, 0);
@@ -304,6 +306,10 @@ void cdns3_hw_reset_eps_config(struct cdns3_device *priv_dev)
 	priv_dev->out_mem_is_allocated = 0;
 	priv_dev->wait_for_setup = 0;
 	priv_dev->using_streams = 0;
+
+	for (i = 0; i < CDNS3_ENDPOINTS_MAX_COUNT; i++)
+		if (priv_dev->eps[i])
+			priv_dev->eps[i]->flags &= ~EP_CONFIGURED;
 }
 
 /**
@@ -506,7 +512,6 @@ static void cdns3_wa2_descmiss_copy_data(struct cdns3_endpoint *priv_ep,
 
 	while (!list_empty(&priv_ep->wa2_descmiss_req_list)) {
 		int chunk_end;
-		int length;
 
 		descmiss_priv_req =
 			cdns3_next_priv_request(&priv_ep->wa2_descmiss_req_list);
@@ -517,7 +522,6 @@ static void cdns3_wa2_descmiss_copy_data(struct cdns3_endpoint *priv_ep,
 			break;
 
 		chunk_end = descmiss_priv_req->flags & REQUEST_INTERNAL_CH;
-		length = request->actual + descmiss_req->actual;
 		request->status = descmiss_req->status;
 		__cdns3_descmiss_copy_data(request, descmiss_req);
 		list_del_init(&descmiss_priv_req->list);
@@ -1746,11 +1750,8 @@ static int cdns3_check_ep_interrupt_proceed(struct cdns3_endpoint *priv_ep)
 
 static void cdns3_disconnect_gadget(struct cdns3_device *priv_dev)
 {
-	if (priv_dev->gadget_driver && priv_dev->gadget_driver->disconnect) {
-		spin_unlock(&priv_dev->lock);
+	if (priv_dev->gadget_driver && priv_dev->gadget_driver->disconnect)
 		priv_dev->gadget_driver->disconnect(&priv_dev->gadget);
-		spin_lock(&priv_dev->lock);
-	}
 }
 
 /**
@@ -1761,6 +1762,7 @@ static void cdns3_disconnect_gadget(struct cdns3_device *priv_dev)
  */
 static void cdns3_check_usb_interrupt_proceed(struct cdns3_device *priv_dev,
 					      u32 usb_ists)
+__must_hold(&priv_dev->lock)
 {
 	int speed = 0;
 
@@ -1785,7 +1787,9 @@ static void cdns3_check_usb_interrupt_proceed(struct cdns3_device *priv_dev,
 
 	/* Disconnection detected */
 	if (usb_ists & (USB_ISTS_DIS2I | USB_ISTS_DISI)) {
+		spin_unlock(&priv_dev->lock);
 		cdns3_disconnect_gadget(priv_dev);
+		spin_lock(&priv_dev->lock);
 		priv_dev->gadget.speed = USB_SPEED_UNKNOWN;
 		usb_gadget_set_state(&priv_dev->gadget, USB_STATE_NOTATTACHED);
 		cdns3_hw_reset_eps_config(priv_dev);
@@ -1979,27 +1983,6 @@ static int cdns3_ep_onchip_buffer_reserve(struct cdns3_device *priv_dev,
 	return 0;
 }
 
-static void cdns3_stream_ep_reconfig(struct cdns3_device *priv_dev,
-				     struct cdns3_endpoint *priv_ep)
-{
-	if (!priv_ep->use_streams || priv_dev->gadget.speed < USB_SPEED_SUPER)
-		return;
-
-	if (priv_dev->dev_ver >= DEV_VER_V3) {
-		u32 mask = BIT(priv_ep->num + (priv_ep->dir ? 16 : 0));
-
-		/*
-		 * Stream capable endpoints are handled by using ep_tdl
-		 * register. Other endpoints use TDL from TRB feature.
-		 */
-		cdns3_clear_register_bit(&priv_dev->regs->tdl_from_trb, mask);
-	}
-
-	/*  Enable Stream Bit TDL chk and SID chk */
-	cdns3_set_register_bit(&priv_dev->regs->ep_cfg, EP_CFG_STREAM_EN |
-			       EP_CFG_TDL_CHK | EP_CFG_SID_CHK);
-}
-
 static void cdns3_configure_dmult(struct cdns3_device *priv_dev,
 				  struct cdns3_endpoint *priv_ep)
 {
@@ -2037,8 +2020,9 @@ static void cdns3_configure_dmult(struct cdns3_device *priv_dev,
 /**
  * cdns3_ep_config Configure hardware endpoint
  * @priv_ep: extended endpoint object
+ * @enable: set EP_CFG_ENABLE bit in ep_cfg register.
  */
-void cdns3_ep_config(struct cdns3_endpoint *priv_ep)
+int cdns3_ep_config(struct cdns3_endpoint *priv_ep, bool enable)
 {
 	bool is_iso_ep = (priv_ep->type == USB_ENDPOINT_XFER_ISOC);
 	struct cdns3_device *priv_dev = priv_ep->cdns3_dev;
@@ -2099,7 +2083,7 @@ void cdns3_ep_config(struct cdns3_endpoint *priv_ep)
 		break;
 	default:
 		/* all other speed are not supported */
-		return;
+		return -EINVAL;
 	}
 
 	if (max_packet_size == 1024)
@@ -2109,11 +2093,33 @@ void cdns3_ep_config(struct cdns3_endpoint *priv_ep)
 	else
 		priv_ep->trb_burst_size = 16;
 
-	ret = cdns3_ep_onchip_buffer_reserve(priv_dev, buffering + 1,
-					     !!priv_ep->dir);
-	if (ret) {
-		dev_err(priv_dev->dev, "onchip mem is full, ep is invalid\n");
-		return;
+	/* onchip buffer is only allocated before configuration */
+	if (!priv_dev->hw_configured_flag) {
+		ret = cdns3_ep_onchip_buffer_reserve(priv_dev, buffering + 1,
+						     !!priv_ep->dir);
+		if (ret) {
+			dev_err(priv_dev->dev, "onchip mem is full, ep is invalid\n");
+			return ret;
+		}
+	}
+
+	if (enable)
+		ep_cfg |= EP_CFG_ENABLE;
+
+	if (priv_ep->use_streams && priv_dev->gadget.speed >= USB_SPEED_SUPER) {
+		if (priv_dev->dev_ver >= DEV_VER_V3) {
+			u32 mask = BIT(priv_ep->num + (priv_ep->dir ? 16 : 0));
+
+			/*
+			 * Stream capable endpoints are handled by using ep_tdl
+			 * register. Other endpoints use TDL from TRB feature.
+			 */
+			cdns3_clear_register_bit(&priv_dev->regs->tdl_from_trb,
+						 mask);
+		}
+
+		/*  Enable Stream Bit TDL chk and SID chk */
+		ep_cfg |=  EP_CFG_STREAM_EN | EP_CFG_TDL_CHK | EP_CFG_SID_CHK;
 	}
 
 	ep_cfg |= EP_CFG_MAXPKTSIZE(max_packet_size) |
@@ -2123,9 +2129,12 @@ void cdns3_ep_config(struct cdns3_endpoint *priv_ep)
 
 	cdns3_select_ep(priv_dev, bEndpointAddress);
 	writel(ep_cfg, &priv_dev->regs->ep_cfg);
+	priv_ep->flags |= EP_CONFIGURED;
 
 	dev_dbg(priv_dev->dev, "Configure %s: with val %08x\n",
 		priv_ep->name, ep_cfg);
+
+	return 0;
 }
 
 /* Find correct direction for HW endpoint according to description */
@@ -2266,7 +2275,7 @@ static int cdns3_gadget_ep_enable(struct usb_ep *ep,
 	u32 bEndpointAddress;
 	unsigned long flags;
 	int enable = 1;
-	int ret;
+	int ret = 0;
 	int val;
 
 	priv_ep = ep_to_cdns3_ep(ep);
@@ -2305,6 +2314,17 @@ static int cdns3_gadget_ep_enable(struct usb_ep *ep,
 	bEndpointAddress = priv_ep->num | priv_ep->dir;
 	cdns3_select_ep(priv_dev, bEndpointAddress);
 
+	/*
+	 * For some versions of controller at some point during ISO OUT traffic
+	 * DMA reads Transfer Ring for the EP which has never got doorbell.
+	 * This issue was detected only on simulation, but to avoid this issue
+	 * driver add protection against it. To fix it driver enable ISO OUT
+	 * endpoint before setting DRBL. This special treatment of ISO OUT
+	 * endpoints are recommended by controller specification.
+	 */
+	if (priv_ep->type == USB_ENDPOINT_XFER_ISOC  && !priv_ep->dir)
+		enable = 0;
+
 	if (usb_ss_max_streams(comp_desc) && usb_endpoint_xfer_bulk(desc)) {
 		/*
 		 * Enable stream support (SS mode) related interrupts
@@ -2315,13 +2335,17 @@ static int cdns3_gadget_ep_enable(struct usb_ep *ep,
 				EP_STS_EN_SIDERREN | EP_STS_EN_MD_EXITEN |
 				EP_STS_EN_STREAMREN;
 			priv_ep->use_streams = true;
-			cdns3_stream_ep_reconfig(priv_dev, priv_ep);
+			ret = cdns3_ep_config(priv_ep, enable);
 			priv_dev->using_streams |= true;
 		}
+	} else {
+		ret = cdns3_ep_config(priv_ep, enable);
 	}
 
-	ret = cdns3_allocate_trb_pool(priv_ep);
+	if (ret)
+		goto exit;
 
+	ret = cdns3_allocate_trb_pool(priv_ep);
 	if (ret)
 		goto exit;
 
@@ -2350,20 +2374,6 @@ static int cdns3_gadget_ep_enable(struct usb_ep *ep,
 		cdns3_wa2_enable_detection(priv_dev, priv_ep, reg);
 
 	writel(reg, &priv_dev->regs->ep_sts_en);
-
-	/*
-	 * For some versions of controller at some point during ISO OUT traffic
-	 * DMA reads Transfer Ring for the EP which has never got doorbell.
-	 * This issue was detected only on simulation, but to avoid this issue
-	 * driver add protection against it. To fix it driver enable ISO OUT
-	 * endpoint before setting DRBL. This special treatment of ISO OUT
-	 * endpoints are recommended by controller specification.
-	 */
-	if (priv_ep->type == USB_ENDPOINT_XFER_ISOC  && !priv_ep->dir)
-		enable = 0;
-
-	if (enable)
-		cdns3_set_register_bit(&priv_dev->regs->ep_cfg, EP_CFG_ENABLE);
 
 	ep->desc = desc;
 	priv_ep->flags &= ~(EP_PENDING_REQUEST | EP_STALLED | EP_STALL_PENDING |
@@ -3265,10 +3275,13 @@ err0:
 }
 
 static int cdns3_gadget_suspend(struct cdns3 *cdns, bool do_wakeup)
+__must_hold(&cdns->lock)
 {
 	struct cdns3_device *priv_dev = cdns->gadget_dev;
 
+	spin_unlock(&cdns->lock);
 	cdns3_disconnect_gadget(priv_dev);
+	spin_lock(&cdns->lock);
 
 	priv_dev->gadget.speed = USB_SPEED_UNKNOWN;
 	usb_gadget_set_state(&priv_dev->gadget, USB_STATE_NOTATTACHED);
