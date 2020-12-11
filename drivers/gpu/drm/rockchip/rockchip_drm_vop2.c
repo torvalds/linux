@@ -1116,9 +1116,9 @@ static void vop2_setup_scale(struct vop2 *vop2, const struct vop2_win *win,
 	else
 		vscl_filter_mode = win_data->vsd_filter_mode;
 
-	if (src_h > (4 * dst_h))
+	if (src_h >= (4 * dst_h))
 		gt4 = 1;
-	else if (src_h > (2 * dst_h))
+	else if (src_h >= (2 * dst_h))
 		gt2 = 1;
 
 	if (gt4)
