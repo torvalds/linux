@@ -419,8 +419,10 @@ static int ath11k_mhi_set_state(struct ath11k_pci *ab_pci,
 		ret = 0;
 		break;
 	case ATH11K_MHI_SUSPEND:
+		ret = mhi_pm_suspend(ab_pci->mhi_ctrl);
 		break;
 	case ATH11K_MHI_RESUME:
+		ret = mhi_pm_resume(ab_pci->mhi_ctrl);
 		break;
 	case ATH11K_MHI_TRIGGER_RDDM:
 		ret = mhi_force_rddm_mode(ab_pci->mhi_ctrl);
@@ -471,3 +473,12 @@ void ath11k_mhi_stop(struct ath11k_pci *ab_pci)
 	ath11k_mhi_set_state(ab_pci, ATH11K_MHI_DEINIT);
 }
 
+void ath11k_mhi_suspend(struct ath11k_pci *ab_pci)
+{
+	ath11k_mhi_set_state(ab_pci, ATH11K_MHI_SUSPEND);
+}
+
+void ath11k_mhi_resume(struct ath11k_pci *ab_pci)
+{
+	ath11k_mhi_set_state(ab_pci, ATH11K_MHI_RESUME);
+}
