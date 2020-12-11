@@ -5450,8 +5450,6 @@ static void hns_roce_irq_work_handle(struct work_struct *work)
 	struct hns_roce_work *irq_work =
 				container_of(work, struct hns_roce_work, work);
 	struct ib_device *ibdev = &irq_work->hr_dev->ib_dev;
-	u32 qpn = irq_work->qpn;
-	u32 cqn = irq_work->cqn;
 
 	switch (irq_work->event_type) {
 	case HNS_ROCE_EVENT_TYPE_PATH_MIG:
@@ -5467,15 +5465,15 @@ static void hns_roce_irq_work_handle(struct work_struct *work)
 		break;
 	case HNS_ROCE_EVENT_TYPE_WQ_CATAS_ERROR:
 		ibdev_err(ibdev, "Local work queue 0x%x catast error, sub_event type is: %d\n",
-			  qpn, irq_work->sub_type);
+			  irq_work->queue_num, irq_work->sub_type);
 		break;
 	case HNS_ROCE_EVENT_TYPE_INV_REQ_LOCAL_WQ_ERROR:
 		ibdev_err(ibdev, "Invalid request local work queue 0x%x error.\n",
-			  qpn);
+			  irq_work->queue_num);
 		break;
 	case HNS_ROCE_EVENT_TYPE_LOCAL_WQ_ACCESS_ERROR:
 		ibdev_err(ibdev, "Local access violation work queue 0x%x error, sub_event type is: %d\n",
-			  qpn, irq_work->sub_type);
+			  irq_work->queue_num, irq_work->sub_type);
 		break;
 	case HNS_ROCE_EVENT_TYPE_SRQ_LIMIT_REACH:
 		ibdev_warn(ibdev, "SRQ limit reach.\n");
@@ -5487,10 +5485,10 @@ static void hns_roce_irq_work_handle(struct work_struct *work)
 		ibdev_err(ibdev, "SRQ catas error.\n");
 		break;
 	case HNS_ROCE_EVENT_TYPE_CQ_ACCESS_ERROR:
-		ibdev_err(ibdev, "CQ 0x%x access err.\n", cqn);
+		ibdev_err(ibdev, "CQ 0x%x access err.\n", irq_work->queue_num);
 		break;
 	case HNS_ROCE_EVENT_TYPE_CQ_OVERFLOW:
-		ibdev_warn(ibdev, "CQ 0x%x overflow\n", cqn);
+		ibdev_warn(ibdev, "CQ 0x%x overflow\n", irq_work->queue_num);
 		break;
 	case HNS_ROCE_EVENT_TYPE_DB_OVERFLOW:
 		ibdev_warn(ibdev, "DB overflow.\n");
@@ -5506,8 +5504,7 @@ static void hns_roce_irq_work_handle(struct work_struct *work)
 }
 
 static void hns_roce_v2_init_irq_work(struct hns_roce_dev *hr_dev,
-				      struct hns_roce_eq *eq,
-				      u32 qpn, u32 cqn)
+				      struct hns_roce_eq *eq, u32 queue_num)
 {
 	struct hns_roce_work *irq_work;
 
@@ -5517,10 +5514,9 @@ static void hns_roce_v2_init_irq_work(struct hns_roce_dev *hr_dev,
 
 	INIT_WORK(&(irq_work->work), hns_roce_irq_work_handle);
 	irq_work->hr_dev = hr_dev;
-	irq_work->qpn = qpn;
-	irq_work->cqn = cqn;
 	irq_work->event_type = eq->event_type;
 	irq_work->sub_type = eq->sub_type;
+	irq_work->queue_num = queue_num;
 	queue_work(hr_dev->irq_workq, &(irq_work->work));
 }
 
@@ -5572,10 +5568,8 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 	struct hns_roce_aeqe *aeqe = next_aeqe_sw_v2(eq);
 	int aeqe_found = 0;
 	int event_type;
+	u32 queue_num;
 	int sub_type;
-	u32 srqn;
-	u32 qpn;
-	u32 cqn;
 
 	while (aeqe) {
 		/* Make sure we read AEQ entry after we have checked the
@@ -5589,15 +5583,9 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 		sub_type = roce_get_field(aeqe->asyn,
 					  HNS_ROCE_V2_AEQE_SUB_TYPE_M,
 					  HNS_ROCE_V2_AEQE_SUB_TYPE_S);
-		qpn = roce_get_field(aeqe->event.qp_event.qp,
-				     HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_M,
-				     HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_S);
-		cqn = roce_get_field(aeqe->event.cq_event.cq,
-				     HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_M,
-				     HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_S);
-		srqn = roce_get_field(aeqe->event.srq_event.srq,
-				     HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_M,
-				     HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_S);
+		queue_num = roce_get_field(aeqe->event.queue_event.num,
+					   HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_M,
+					   HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_S);
 
 		switch (event_type) {
 		case HNS_ROCE_EVENT_TYPE_PATH_MIG:
@@ -5608,15 +5596,15 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 		case HNS_ROCE_EVENT_TYPE_SRQ_LAST_WQE_REACH:
 		case HNS_ROCE_EVENT_TYPE_INV_REQ_LOCAL_WQ_ERROR:
 		case HNS_ROCE_EVENT_TYPE_LOCAL_WQ_ACCESS_ERROR:
-			hns_roce_qp_event(hr_dev, qpn, event_type);
+			hns_roce_qp_event(hr_dev, queue_num, event_type);
 			break;
 		case HNS_ROCE_EVENT_TYPE_SRQ_LIMIT_REACH:
 		case HNS_ROCE_EVENT_TYPE_SRQ_CATAS_ERROR:
-			hns_roce_srq_event(hr_dev, srqn, event_type);
+			hns_roce_srq_event(hr_dev, queue_num, event_type);
 			break;
 		case HNS_ROCE_EVENT_TYPE_CQ_ACCESS_ERROR:
 		case HNS_ROCE_EVENT_TYPE_CQ_OVERFLOW:
-			hns_roce_cq_event(hr_dev, cqn, event_type);
+			hns_roce_cq_event(hr_dev, queue_num, event_type);
 			break;
 		case HNS_ROCE_EVENT_TYPE_MB:
 			hns_roce_cmd_event(hr_dev,
@@ -5625,7 +5613,6 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 					le64_to_cpu(aeqe->event.cmd.out_param));
 			break;
 		case HNS_ROCE_EVENT_TYPE_DB_OVERFLOW:
-		case HNS_ROCE_EVENT_TYPE_CEQ_OVERFLOW:
 		case HNS_ROCE_EVENT_TYPE_FLR:
 			break;
 		default:
@@ -5642,7 +5629,7 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 		if (eq->cons_index > (2 * eq->entries - 1))
 			eq->cons_index = 0;
 
-		hns_roce_v2_init_irq_work(hr_dev, eq, qpn, cqn);
+		hns_roce_v2_init_irq_work(hr_dev, eq, queue_num);
 
 		aeqe = next_aeqe_sw_v2(eq);
 	}

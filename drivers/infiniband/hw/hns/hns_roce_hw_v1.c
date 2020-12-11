@@ -3683,10 +3683,10 @@ static void hns_roce_v1_qp_err_handle(struct hns_roce_dev *hr_dev,
 	int phy_port;
 	int qpn;
 
-	qpn = roce_get_field(aeqe->event.qp_event.qp,
+	qpn = roce_get_field(aeqe->event.queue_event.num,
 			     HNS_ROCE_AEQE_EVENT_QP_EVENT_QP_QPN_M,
 			     HNS_ROCE_AEQE_EVENT_QP_EVENT_QP_QPN_S);
-	phy_port = roce_get_field(aeqe->event.qp_event.qp,
+	phy_port = roce_get_field(aeqe->event.queue_event.num,
 				  HNS_ROCE_AEQE_EVENT_QP_EVENT_PORT_NUM_M,
 				  HNS_ROCE_AEQE_EVENT_QP_EVENT_PORT_NUM_S);
 	if (qpn <= 1)
@@ -3717,9 +3717,9 @@ static void hns_roce_v1_cq_err_handle(struct hns_roce_dev *hr_dev,
 	struct device *dev = &hr_dev->pdev->dev;
 	u32 cqn;
 
-	cqn = roce_get_field(aeqe->event.cq_event.cq,
-			  HNS_ROCE_AEQE_EVENT_CQ_EVENT_CQ_CQN_M,
-			  HNS_ROCE_AEQE_EVENT_CQ_EVENT_CQ_CQN_S);
+	cqn = roce_get_field(aeqe->event.queue_event.num,
+			     HNS_ROCE_AEQE_EVENT_CQ_EVENT_CQ_CQN_M,
+			     HNS_ROCE_AEQE_EVENT_CQ_EVENT_CQ_CQN_S);
 
 	switch (event_type) {
 	case HNS_ROCE_EVENT_TYPE_CQ_ACCESS_ERROR:
@@ -3847,12 +3847,6 @@ static int hns_roce_v1_aeq_int(struct hns_roce_dev *hr_dev,
 			break;
 		case HNS_ROCE_EVENT_TYPE_DB_OVERFLOW:
 			hns_roce_v1_db_overflow_handle(hr_dev, aeqe);
-			break;
-		case HNS_ROCE_EVENT_TYPE_CEQ_OVERFLOW:
-			dev_warn(dev, "CEQ 0x%lx overflow.\n",
-			roce_get_field(aeqe->event.ce_event.ceqe,
-				     HNS_ROCE_AEQE_EVENT_CE_EVENT_CEQE_CEQN_M,
-				     HNS_ROCE_AEQE_EVENT_CE_EVENT_CEQE_CEQN_S));
 			break;
 		default:
 			dev_warn(dev, "Unhandled event %d on EQ %d at idx %u.\n",

@@ -160,7 +160,6 @@ enum hns_roce_event {
 	/* 0x10 and 0x11 is unused in currently application case */
 	HNS_ROCE_EVENT_TYPE_DB_OVERFLOW               = 0x12,
 	HNS_ROCE_EVENT_TYPE_MB                        = 0x13,
-	HNS_ROCE_EVENT_TYPE_CEQ_OVERFLOW              = 0x14,
 	HNS_ROCE_EVENT_TYPE_FLR			      = 0x15,
 };
 
@@ -636,10 +635,9 @@ enum {
 struct hns_roce_work {
 	struct hns_roce_dev *hr_dev;
 	struct work_struct work;
-	u32 qpn;
-	u32 cqn;
 	int event_type;
 	int sub_type;
+	u32 queue_num;
 };
 
 struct hns_roce_qp {
@@ -707,28 +705,10 @@ struct hns_roce_aeqe {
 	__le32 asyn;
 	union {
 		struct {
-			__le32 qp;
+			__le32 num;
 			u32 rsv0;
 			u32 rsv1;
-		} qp_event;
-
-		struct {
-			__le32 srq;
-			u32 rsv0;
-			u32 rsv1;
-		} srq_event;
-
-		struct {
-			__le32 cq;
-			u32 rsv0;
-			u32 rsv1;
-		} cq_event;
-
-		struct {
-			__le32 ceqe;
-			u32 rsv0;
-			u32 rsv1;
-		} ce_event;
+		} queue_event;
 
 		struct {
 			__le64  out_param;
