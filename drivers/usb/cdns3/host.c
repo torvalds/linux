@@ -23,6 +23,8 @@
 #define CFG_RXDET_P3_EN		BIT(15)
 #define LPM_2_STB_SWITCH_EN	BIT(25)
 
+static int xhci_cdns3_suspend_quirk(struct usb_hcd *hcd);
+
 static const struct xhci_plat_priv xhci_plat_cdns3_xhci = {
 	.quirks = XHCI_SKIP_PHY_INIT | XHCI_AVOID_BEI,
 	.suspend_quirk = xhci_cdns3_suspend_quirk,
@@ -87,7 +89,7 @@ err1:
 	return ret;
 }
 
-int xhci_cdns3_suspend_quirk(struct usb_hcd *hcd)
+static int xhci_cdns3_suspend_quirk(struct usb_hcd *hcd)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	u32 value;
