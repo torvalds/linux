@@ -1284,7 +1284,7 @@ static bool io_identity_cow(struct io_kiocb *req)
 	 */
 	io_init_identity(id);
 	if (creds)
-		req->work.identity->creds = creds;
+		id->creds = creds;
 
 	/* add one for this request */
 	refcount_inc(&id->count);
@@ -9183,6 +9183,7 @@ static int io_uring_get_fd(struct io_ring_ctx *ctx)
 {
 	struct file *file;
 	int ret;
+	int fd;
 
 #if defined(CONFIG_UNIX)
 	ret = sock_create_kern(&init_net, PF_UNIX, SOCK_RAW, IPPROTO_IP,
@@ -9194,12 +9195,12 @@ static int io_uring_get_fd(struct io_ring_ctx *ctx)
 	ret = get_unused_fd_flags(O_RDWR | O_CLOEXEC);
 	if (ret < 0)
 		goto err;
+	fd = ret;
 
 	file = anon_inode_getfile("[io_uring]", &io_uring_fops, ctx,
 					O_RDWR | O_CLOEXEC);
 	if (IS_ERR(file)) {
-err_fd:
-		put_unused_fd(ret);
+		put_unused_fd(fd);
 		ret = PTR_ERR(file);
 		goto err;
 	}
@@ -9207,12 +9208,14 @@ err_fd:
 #if defined(CONFIG_UNIX)
 	ctx->ring_sock->file = file;
 #endif
-	if (unlikely(io_uring_add_task_file(ctx, file))) {
-		file = ERR_PTR(-ENOMEM);
-		goto err_fd;
+	ret = io_uring_add_task_file(ctx, file);
+	if (ret) {
+		fput(file);
+		put_unused_fd(fd);
+		goto err;
 	}
-	fd_install(ret, file);
-	return ret;
+	fd_install(fd, file);
+	return fd;
 err:
 #if defined(CONFIG_UNIX)
 	sock_release(ctx->ring_sock);
