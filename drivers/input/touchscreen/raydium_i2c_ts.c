@@ -137,45 +137,25 @@ struct raydium_data {
 	bool wake_irq_enabled;
 };
 
-static int raydium_i2c_xfer(struct i2c_client *client,
-			    u32 addr, void *data, size_t len, bool is_read)
+/*
+ * Header to be sent for RM_CMD_BANK_SWITCH command. This is used by
+ * raydium_i2c_{read|send} below.
+ */
+struct __packed raydium_bank_switch_header {
+	u8 cmd;
+	__be32 be_addr;
+};
+
+static int raydium_i2c_xfer(struct i2c_client *client, u32 addr,
+			    struct i2c_msg *xfer, size_t xfer_count)
 {
-	struct raydium_bank_switch_header {
-		u8 cmd;
-		__be32 be_addr;
-	} __packed header = {
-		.cmd = RM_CMD_BANK_SWITCH,
-		.be_addr = cpu_to_be32(addr),
-	};
-
-	u8 reg_addr = addr & 0xff;
-
-	struct i2c_msg xfer[] = {
-		{
-			.addr = client->addr,
-			.len = sizeof(header),
-			.buf = (u8 *)&header,
-		},
-		{
-			.addr = client->addr,
-			.len = 1,
-			.buf = &reg_addr,
-		},
-		{
-			.addr = client->addr,
-			.len = len,
-			.buf = data,
-			.flags = is_read ? I2C_M_RD : 0,
-		}
-	};
-
+	int ret;
 	/*
 	 * If address is greater than 255, then RM_CMD_BANK_SWITCH needs to be
 	 * sent first. Else, skip the header i.e. xfer[0].
 	 */
 	int xfer_start_idx = (addr > 0xff) ? 0 : 1;
-	size_t xfer_count = ARRAY_SIZE(xfer) - xfer_start_idx;
-	int ret;
+	xfer_count -= xfer_start_idx;
 
 	ret = i2c_transfer(client->adapter, &xfer[xfer_start_idx], xfer_count);
 	if (likely(ret == xfer_count))
@@ -189,10 +169,46 @@ static int raydium_i2c_send(struct i2c_client *client,
 {
 	int tries = 0;
 	int error;
+	u8 *tx_buf;
+	u8 reg_addr = addr & 0xff;
+
+	tx_buf = kmalloc(len + 1, GFP_KERNEL);
+	if (!tx_buf)
+		return -ENOMEM;
+
+	tx_buf[0] = reg_addr;
+	memcpy(tx_buf + 1, data, len);
 
 	do {
-		error = raydium_i2c_xfer(client, addr, (void *)data, len,
-					 false);
+		struct raydium_bank_switch_header header = {
+			.cmd = RM_CMD_BANK_SWITCH,
+			.be_addr = cpu_to_be32(addr),
+		};
+
+		/*
+		 * Perform as a single i2c_transfer transaction to ensure that
+		 * no other I2C transactions are initiated on the bus to any
+		 * other device in between. Initiating transacations to other
+		 * devices after RM_CMD_BANK_SWITCH is sent is known to cause
+		 * issues. This is also why regmap infrastructure cannot be used
+		 * for this driver. Regmap handles page(bank) switch and reads
+		 * as separate i2c_transfer() operations. This can result in
+		 * problems if the Raydium device is on a shared I2C bus.
+		 */
+		struct i2c_msg xfer[] = {
+			{
+				.addr = client->addr,
+				.len = sizeof(header),
+				.buf = (u8 *)&header,
+			},
+			{
+				.addr = client->addr,
+				.len = len + 1,
+				.buf = tx_buf,
+			},
+		};
+
+		error = raydium_i2c_xfer(client, addr, xfer, ARRAY_SIZE(xfer));
 		if (likely(!error))
 			return 0;
 
@@ -206,12 +222,46 @@ static int raydium_i2c_send(struct i2c_client *client,
 static int raydium_i2c_read(struct i2c_client *client,
 			    u32 addr, void *data, size_t len)
 {
-	size_t xfer_len;
 	int error;
 
 	while (len) {
-		xfer_len = min_t(size_t, len, RM_MAX_READ_SIZE);
-		error = raydium_i2c_xfer(client, addr, data, xfer_len, true);
+		u8 reg_addr = addr & 0xff;
+		struct raydium_bank_switch_header header = {
+			.cmd = RM_CMD_BANK_SWITCH,
+			.be_addr = cpu_to_be32(addr),
+		};
+		size_t xfer_len = min_t(size_t, len, RM_MAX_READ_SIZE);
+
+		/*
+		 * Perform as a single i2c_transfer transaction to ensure that
+		 * no other I2C transactions are initiated on the bus to any
+		 * other device in between. Initiating transacations to other
+		 * devices after RM_CMD_BANK_SWITCH is sent is known to cause
+		 * issues. This is also why regmap infrastructure cannot be used
+		 * for this driver. Regmap handles page(bank) switch and writes
+		 * as separate i2c_transfer() operations. This can result in
+		 * problems if the Raydium device is on a shared I2C bus.
+		 */
+		struct i2c_msg xfer[] = {
+			{
+				.addr = client->addr,
+				.len = sizeof(header),
+				.buf = (u8 *)&header,
+			},
+			{
+				.addr = client->addr,
+				.len = 1,
+				.buf = &reg_addr,
+			},
+			{
+				.addr = client->addr,
+				.len = xfer_len,
+				.buf = data,
+				.flags = I2C_M_RD,
+			}
+		};
+
+		error = raydium_i2c_xfer(client, addr, xfer, ARRAY_SIZE(xfer));
 		if (unlikely(error))
 			return error;
 
