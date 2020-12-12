@@ -211,7 +211,7 @@ do
 		if test -n "$TORTURE_KCONFIG_GDB_ARG"
 		then
 			:
-		elif test $kruntime -ge $seconds || test -f "$TORTURE_STOPFILE"
+		elif test $kruntime -ge $seconds || test -f "$resdir/../STOP.1"
 		then
 			break;
 		fi
@@ -254,16 +254,16 @@ then
 fi
 if test $commandcompleted -eq 0 -a -n "$qemu_pid"
 then
-	if ! test -f "$TORTURE_STOPFILE"
+	if ! test -f "$resdir/../STOP.1"
 	then
 		echo Grace period for qemu job at pid $qemu_pid
 	fi
 	oldline="`tail $resdir/console.log`"
 	while :
 	do
-		if test -f "$TORTURE_STOPFILE"
+		if test -f "$resdir/../STOP.1"
 		then
-			echo "PID $qemu_pid killed due to run STOP request" >> $resdir/Warnings 2>&1
+			echo "PID $qemu_pid killed due to run STOP.1 request" >> $resdir/Warnings 2>&1
 			kill -KILL $qemu_pid
 			break
 		fi
