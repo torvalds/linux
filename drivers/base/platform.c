@@ -1351,9 +1351,13 @@ static int platform_remove(struct device *_dev)
 
 static void platform_shutdown(struct device *_dev)
 {
-	struct platform_driver *drv = to_platform_driver(_dev->driver);
 	struct platform_device *dev = to_platform_device(_dev);
+	struct platform_driver *drv;
 
+	if (!_dev->driver)
+		return;
+
+	drv = to_platform_driver(_dev->driver);
 	if (drv->shutdown)
 		drv->shutdown(dev);
 }
