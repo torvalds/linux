@@ -690,6 +690,15 @@ static int devlink_nl_port_attrs_put(struct sk_buff *msg,
 		if (nla_put_u8(msg, DEVLINK_ATTR_PORT_EXTERNAL, attrs->pci_vf.external))
 			return -EMSGSIZE;
 		break;
+	case DEVLINK_PORT_FLAVOUR_PCI_SF:
+		if (nla_put_u32(msg, DEVLINK_ATTR_PORT_CONTROLLER_NUMBER,
+				attrs->pci_sf.controller) ||
+		    nla_put_u16(msg, DEVLINK_ATTR_PORT_PCI_PF_NUMBER,
+				attrs->pci_sf.pf) ||
+		    nla_put_u32(msg, DEVLINK_ATTR_PORT_PCI_SF_NUMBER,
+				attrs->pci_sf.sf))
+			return -EMSGSIZE;
+		break;
 	case DEVLINK_PORT_FLAVOUR_PHYSICAL:
 	case DEVLINK_PORT_FLAVOUR_CPU:
 	case DEVLINK_PORT_FLAVOUR_DSA:
@@ -8374,6 +8383,32 @@ void devlink_port_attrs_pci_vf_set(struct devlink_port *devlink_port, u32 contro
 }
 EXPORT_SYMBOL_GPL(devlink_port_attrs_pci_vf_set);
 
+/**
+ *	devlink_port_attrs_pci_sf_set - Set PCI SF port attributes
+ *
+ *	@devlink_port: devlink port
+ *	@controller: associated controller number for the devlink port instance
+ *	@pf: associated PF for the devlink port instance
+ *	@sf: associated SF of a PF for the devlink port instance
+ */
+void devlink_port_attrs_pci_sf_set(struct devlink_port *devlink_port, u32 controller,
+				   u16 pf, u32 sf)
+{
+	struct devlink_port_attrs *attrs = &devlink_port->attrs;
+	int ret;
+
+	if (WARN_ON(devlink_port->registered))
+		return;
+	ret = __devlink_port_attrs_set(devlink_port,
+				       DEVLINK_PORT_FLAVOUR_PCI_SF);
+	if (ret)
+		return;
+	attrs->pci_sf.controller = controller;
+	attrs->pci_sf.pf = pf;
+	attrs->pci_sf.sf = sf;
+}
+EXPORT_SYMBOL_GPL(devlink_port_attrs_pci_sf_set);
+
 static int __devlink_port_phys_port_name_get(struct devlink_port *devlink_port,
 					     char *name, size_t len)
 {
@@ -8421,6 +8456,10 @@ static int __devlink_port_phys_port_name_get(struct devlink_port *devlink_port,
 		}
 		n = snprintf(name, len, "pf%uvf%u",
 			     attrs->pci_vf.pf, attrs->pci_vf.vf);
+		break;
+	case DEVLINK_PORT_FLAVOUR_PCI_SF:
+		n = snprintf(name, len, "pf%usf%u", attrs->pci_sf.pf,
+			     attrs->pci_sf.sf);
 		break;
 	}
 
