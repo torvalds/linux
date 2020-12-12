@@ -1414,6 +1414,38 @@ struct devlink_ops {
 	 */
 	int (*port_del)(struct devlink *devlink, unsigned int port_index,
 			struct netlink_ext_ack *extack);
+	/**
+	 * port_fn_state_get() - Get the state of a port function
+	 * @devlink: Devlink instance
+	 * @port: The devlink port
+	 * @state: Admin configured state
+	 * @opstate: Current operational state
+	 * @extack: extack for reporting error messages
+	 *
+	 * Reports the admin and operational state of a devlink port function
+	 *
+	 * Return: 0 on success, negative value otherwise.
+	 */
+	int (*port_fn_state_get)(struct devlink *devlink,
+				 struct devlink_port *port,
+				 enum devlink_port_fn_state *state,
+				 enum devlink_port_fn_opstate *opstate,
+				 struct netlink_ext_ack *extack);
+	/**
+	 * port_fn_state_set() - Set the admin state of a port function
+	 * @devlink: Devlink instance
+	 * @port: The devlink port
+	 * @state: Admin state
+	 * @extack: extack for reporting error messages
+	 *
+	 * Set the admin state of a devlink port function
+	 *
+	 * Return: 0 on success, negative value otherwise.
+	 */
+	int (*port_fn_state_set)(struct devlink *devlink,
+				 struct devlink_port *port,
+				 enum devlink_port_fn_state state,
+				 struct netlink_ext_ack *extack);
 };
 
 static inline void *devlink_priv(struct devlink *devlink)
