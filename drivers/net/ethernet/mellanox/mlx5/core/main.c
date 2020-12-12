@@ -75,6 +75,7 @@
 #include "diag/rsc_dump.h"
 #include "sf/vhca_event.h"
 #include "sf/dev/dev.h"
+#include "sf/sf.h"
 
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox 5th generation network adapters (ConnectX series) core driver");
@@ -1161,6 +1162,12 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 
 	mlx5_vhca_event_start(dev);
 
+	err = mlx5_sf_hw_table_create(dev);
+	if (err) {
+		mlx5_core_err(dev, "sf table create failed %d\n", err);
+		goto err_vhca;
+	}
+
 	err = mlx5_ec_init(dev);
 	if (err) {
 		mlx5_core_err(dev, "Failed to init embedded CPU\n");
@@ -1180,6 +1187,8 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 err_sriov:
 	mlx5_ec_cleanup(dev);
 err_ec:
+	mlx5_sf_hw_table_destroy(dev);
+err_vhca:
 	mlx5_vhca_event_stop(dev);
 	mlx5_cleanup_fs(dev);
 err_fs:
@@ -1209,6 +1218,7 @@ static void mlx5_unload(struct mlx5_core_dev *dev)
 	mlx5_sf_dev_table_destroy(dev);
 	mlx5_sriov_detach(dev);
 	mlx5_ec_cleanup(dev);
+	mlx5_sf_hw_table_destroy(dev);
 	mlx5_vhca_event_stop(dev);
 	mlx5_cleanup_fs(dev);
 	mlx5_accel_ipsec_cleanup(dev);
