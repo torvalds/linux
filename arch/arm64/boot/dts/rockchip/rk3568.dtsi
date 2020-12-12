@@ -1297,8 +1297,8 @@
 
 	vop: vop@fe040000 {
 		compatible = "rockchip,rk3568-vop";
-		reg = <0x0 0xfe040000 0x0 0x3000>;
-		reg-names = "regs";
+		reg = <0x0 0xfe040000 0x0 0x3000>, <0x0 0xfe044000 0x0 0x1000>;
+		reg-names = "regs", "gamma_lut";
 		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_VOP>, <&cru HCLK_VOP>, <&cru DCLK_VOP0>, <&cru DCLK_VOP1>, <&cru DCLK_VOP2>;
