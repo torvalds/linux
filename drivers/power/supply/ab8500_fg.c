@@ -3037,26 +3037,25 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct abx500_bm_data *plat = pdev->dev.platform_data;
 	struct power_supply_config psy_cfg = {};
+	struct device *dev = &pdev->dev;
 	struct ab8500_fg *di;
 	int i, irq;
 	int ret = 0;
 
-	di = devm_kzalloc(&pdev->dev, sizeof(*di), GFP_KERNEL);
-	if (!di) {
-		dev_err(&pdev->dev, "%s no mem for ab8500_fg\n", __func__);
+	di = devm_kzalloc(dev, sizeof(*di), GFP_KERNEL);
+	if (!di)
 		return -ENOMEM;
-	}
 
 	if (!plat) {
-		dev_err(&pdev->dev, "no battery management data supplied\n");
+		dev_err(dev, "no battery management data supplied\n");
 		return -EINVAL;
 	}
 	di->bm = plat;
 
 	if (np) {
-		ret = ab8500_bm_of_probe(&pdev->dev, np, di->bm);
+		ret = ab8500_bm_of_probe(dev, np, di->bm);
 		if (ret) {
-			dev_err(&pdev->dev, "failed to get battery information\n");
+			dev_err(dev, "failed to get battery information\n");
 			return ret;
 		}
 	}
@@ -3064,14 +3063,14 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	mutex_init(&di->cc_lock);
 
 	/* get parent data */
-	di->dev = &pdev->dev;
+	di->dev = dev;
 	di->parent = dev_get_drvdata(pdev->dev.parent);
 
-	di->main_bat_v = devm_iio_channel_get(&pdev->dev, "main_bat_v");
+	di->main_bat_v = devm_iio_channel_get(dev, "main_bat_v");
 	if (IS_ERR(di->main_bat_v)) {
 		if (PTR_ERR(di->main_bat_v) == -ENODEV)
 			return -EPROBE_DEFER;
-		dev_err(&pdev->dev, "failed to get main battery ADC channel\n");
+		dev_err(dev, "failed to get main battery ADC channel\n");
 		return PTR_ERR(di->main_bat_v);
 	}
 
@@ -3094,7 +3093,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	/* Create a work queue for running the FG algorithm */
 	di->fg_wq = alloc_ordered_workqueue("ab8500_fg_wq", WQ_MEM_RECLAIM);
 	if (di->fg_wq == NULL) {
-		dev_err(di->dev, "failed to create work queue\n");
+		dev_err(dev, "failed to create work queue\n");
 		return -ENOMEM;
 	}
 
@@ -3129,7 +3128,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	/* Initialize OVV, and other registers */
 	ret = ab8500_fg_init_hw_registers(di);
 	if (ret) {
-		dev_err(di->dev, "failed to initialize registers\n");
+		dev_err(dev, "failed to initialize registers\n");
 		goto free_inst_curr_wq;
 	}
 
@@ -3138,9 +3137,9 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	di->flags.batt_id_received = false;
 
 	/* Register FG power supply class */
-	di->fg_psy = power_supply_register(di->dev, &ab8500_fg_desc, &psy_cfg);
+	di->fg_psy = power_supply_register(dev, &ab8500_fg_desc, &psy_cfg);
 	if (IS_ERR(di->fg_psy)) {
-		dev_err(di->dev, "failed to register FG psy\n");
+		dev_err(dev, "failed to register FG psy\n");
 		ret = PTR_ERR(di->fg_psy);
 		goto free_inst_curr_wq;
 	}
@@ -3168,11 +3167,11 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 				  ab8500_fg_irq_th[i].name, di);
 
 		if (ret != 0) {
-			dev_err(di->dev, "failed to request %s IRQ %d: %d\n",
+			dev_err(dev, "failed to request %s IRQ %d: %d\n",
 				ab8500_fg_irq_th[i].name, irq, ret);
 			goto free_irq_th;
 		}
-		dev_dbg(di->dev, "Requested %s IRQ %d: %d\n",
+		dev_dbg(dev, "Requested %s IRQ %d: %d\n",
 			ab8500_fg_irq_th[i].name, irq, ret);
 	}
 
@@ -3188,11 +3187,11 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 			ab8500_fg_irq_bh[0].name, di);
 
 	if (ret != 0) {
-		dev_err(di->dev, "failed to request %s IRQ %d: %d\n",
+		dev_err(dev, "failed to request %s IRQ %d: %d\n",
 			ab8500_fg_irq_bh[0].name, irq, ret);
 		goto free_irq_th;
 	}
-	dev_dbg(di->dev, "Requested %s IRQ %d: %d\n",
+	dev_dbg(dev, "Requested %s IRQ %d: %d\n",
 		ab8500_fg_irq_bh[0].name, irq, ret);
 
 	di->irq = platform_get_irq_byname(pdev, "CCEOC");
@@ -3203,13 +3202,13 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 
 	ret = ab8500_fg_sysfs_init(di);
 	if (ret) {
-		dev_err(di->dev, "failed to create sysfs entry\n");
+		dev_err(dev, "failed to create sysfs entry\n");
 		goto free_irq;
 	}
 
 	ret = ab8500_fg_sysfs_psy_create_attrs(di);
 	if (ret) {
-		dev_err(di->dev, "failed to create FG psy\n");
+		dev_err(dev, "failed to create FG psy\n");
 		ab8500_fg_sysfs_exit(di);
 		goto free_irq;
 	}
