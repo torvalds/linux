@@ -152,6 +152,17 @@ struct devlink_port {
 	struct mutex reporters_lock; /* Protects reporter_list */
 };
 
+struct devlink_port_new_attrs {
+	enum devlink_port_flavour flavour;
+	unsigned int port_index;
+	u32 controller;
+	u32 sfnum;
+	u16 pfnum;
+	u8 port_index_valid:1,
+	   controller_valid:1,
+	   sfnum_valid:1;
+};
+
 struct devlink_sb_pool_info {
 	enum devlink_sb_pool_type pool_type;
 	u32 size;
@@ -1362,6 +1373,47 @@ struct devlink_ops {
 	int (*port_function_hw_addr_set)(struct devlink *devlink, struct devlink_port *port,
 					 const u8 *hw_addr, int hw_addr_len,
 					 struct netlink_ext_ack *extack);
+	/**
+	 * port_new() - Add a new port function of a specified flavor
+	 * @devlink: Devlink instance
+	 * @attrs: attributes of the new port
+	 * @extack: extack for reporting error messages
+	 * @new_port_index: index of the new port
+	 *
+	 * Devlink core will call this device driver function upon user request
+	 * to create a new port function of a specified flavor and optional
+	 * attributes
+	 *
+	 * Notes:
+	 *	- Called without devlink instance lock being held. Drivers must
+	 *	  implement own means of synchronization
+	 *	- On success, drivers must register a port with devlink core
+	 *
+	 * Return: 0 on success, negative value otherwise.
+	 */
+	int (*port_new)(struct devlink *devlink,
+			const struct devlink_port_new_attrs *attrs,
+			struct netlink_ext_ack *extack,
+			unsigned int *new_port_index);
+	/**
+	 * port_del() - Delete a port function
+	 * @devlink: Devlink instance
+	 * @port_index: port function index to delete
+	 * @extack: extack for reporting error messages
+	 *
+	 * Devlink core will call this device driver function upon user request
+	 * to delete a previously created port function
+	 *
+	 * Notes:
+	 *	- Called without devlink instance lock being held. Drivers must
+	 *	  implement own means of synchronization
+	 *	- On success, drivers must unregister the corresponding devlink
+	 *	  port
+	 *
+	 * Return: 0 on success, negative value otherwise.
+	 */
+	int (*port_del)(struct devlink *devlink, unsigned int port_index,
+			struct netlink_ext_ack *extack);
 };
 
 static inline void *devlink_priv(struct devlink *devlink)
