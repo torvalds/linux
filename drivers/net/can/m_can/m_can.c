@@ -1759,7 +1759,8 @@ int m_can_class_get_clocks(struct m_can_classdev *cdev)
 }
 EXPORT_SYMBOL_GPL(m_can_class_get_clocks);
 
-struct m_can_classdev *m_can_class_allocate_dev(struct device *dev)
+struct m_can_classdev *m_can_class_allocate_dev(struct device *dev,
+						int sizeof_priv)
 {
 	struct m_can_classdev *class_dev = NULL;
 	u32 mram_config_vals[MRAM_CFG_LEN];
@@ -1782,7 +1783,7 @@ struct m_can_classdev *m_can_class_allocate_dev(struct device *dev)
 	tx_fifo_size = mram_config_vals[7];
 
 	/* allocate the m_can device */
-	net_dev = alloc_candev(sizeof(*class_dev), tx_fifo_size);
+	net_dev = alloc_candev(sizeof_priv, tx_fifo_size);
 	if (!net_dev) {
 		dev_err(dev, "Failed to allocate CAN device");
 		goto out;

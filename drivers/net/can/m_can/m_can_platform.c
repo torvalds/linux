@@ -10,27 +10,34 @@
 #include "m_can.h"
 
 struct m_can_plat_priv {
+	struct m_can_classdev cdev;
+
 	void __iomem *base;
 	void __iomem *mram_base;
 };
 
+static inline struct m_can_plat_priv *cdev_to_priv(struct m_can_classdev *cdev)
+{
+	return container_of(cdev, struct m_can_plat_priv, cdev);
+}
+
 static u32 iomap_read_reg(struct m_can_classdev *cdev, int reg)
 {
-	struct m_can_plat_priv *priv = cdev->device_data;
+	struct m_can_plat_priv *priv = cdev_to_priv(cdev);
 
 	return readl(priv->base + reg);
 }
 
 static u32 iomap_read_fifo(struct m_can_classdev *cdev, int offset)
 {
-	struct m_can_plat_priv *priv = cdev->device_data;
+	struct m_can_plat_priv *priv = cdev_to_priv(cdev);
 
 	return readl(priv->mram_base + offset);
 }
 
 static int iomap_write_reg(struct m_can_classdev *cdev, int reg, int val)
 {
-	struct m_can_plat_priv *priv = cdev->device_data;
+	struct m_can_plat_priv *priv = cdev_to_priv(cdev);
 
 	writel(val, priv->base + reg);
 
@@ -39,7 +46,7 @@ static int iomap_write_reg(struct m_can_classdev *cdev, int reg, int val)
 
 static int iomap_write_fifo(struct m_can_classdev *cdev, int offset, int val)
 {
-	struct m_can_plat_priv *priv = cdev->device_data;
+	struct m_can_plat_priv *priv = cdev_to_priv(cdev);
 
 	writel(val, priv->mram_base + offset);
 
@@ -62,17 +69,12 @@ static int m_can_plat_probe(struct platform_device *pdev)
 	void __iomem *mram_addr;
 	int irq, ret = 0;
 
-	mcan_class = m_can_class_allocate_dev(&pdev->dev);
+	mcan_class = m_can_class_allocate_dev(&pdev->dev,
+					      sizeof(struct m_can_plat_priv));
 	if (!mcan_class)
 		return -ENOMEM;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		ret = -ENOMEM;
-		goto probe_fail;
-	}
-
-	mcan_class->device_data = priv;
+	priv = cdev_to_priv(mcan_class);
 
 	ret = m_can_class_get_clocks(mcan_class);
 	if (ret)

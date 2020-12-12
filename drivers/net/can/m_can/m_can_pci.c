@@ -22,26 +22,33 @@
 #define CTL_CSR_INT_CTL_OFFSET		0x508
 
 struct m_can_pci_priv {
+	struct m_can_classdev cdev;
+
 	void __iomem *base;
 };
 
+static inline struct m_can_pci_priv *cdev_to_priv(struct m_can_classdev *cdev)
+{
+	return container_of(cdev, struct m_can_pci_priv, cdev);
+}
+
 static u32 iomap_read_reg(struct m_can_classdev *cdev, int reg)
 {
-	struct m_can_pci_priv *priv = cdev->device_data;
+	struct m_can_pci_priv *priv = cdev_to_priv(cdev);
 
 	return readl(priv->base + reg);
 }
 
 static u32 iomap_read_fifo(struct m_can_classdev *cdev, int offset)
 {
-	struct m_can_pci_priv *priv = cdev->device_data;
+	struct m_can_pci_priv *priv = cdev_to_priv(cdev);
 
 	return readl(priv->base + offset);
 }
 
 static int iomap_write_reg(struct m_can_classdev *cdev, int reg, int val)
 {
-	struct m_can_pci_priv *priv = cdev->device_data;
+	struct m_can_pci_priv *priv = cdev_to_priv(cdev);
 
 	writel(val, priv->base + reg);
 
@@ -50,7 +57,7 @@ static int iomap_write_reg(struct m_can_classdev *cdev, int reg, int val)
 
 static int iomap_write_fifo(struct m_can_classdev *cdev, int offset, int val)
 {
-	struct m_can_pci_priv *priv = cdev->device_data;
+	struct m_can_pci_priv *priv = cdev_to_priv(cdev);
 
 	writel(val, priv->base + offset);
 
@@ -89,13 +96,12 @@ static int m_can_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 		return -ENOMEM;
 	}
 
-	priv = devm_kzalloc(&pci->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	mcan_class = m_can_class_allocate_dev(&pci->dev);
+	mcan_class = m_can_class_allocate_dev(&pci->dev,
+					      sizeof(struct m_can_pci_priv));
 	if (!mcan_class)
 		return -ENOMEM;
+
+	priv = cdev_to_priv(mcan_class);
 
 	priv->base = base;
 
@@ -103,7 +109,6 @@ static int m_can_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	if (ret < 0)
 		return ret;
 
-	mcan_class->device_data = priv;
 	mcan_class->dev = &pci->dev;
 	mcan_class->net->irq = pci_irq_vector(pci, 0);
 	mcan_class->pm_clock_support = 1;
@@ -135,7 +140,7 @@ static void m_can_pci_remove(struct pci_dev *pci)
 {
 	struct net_device *dev = pci_get_drvdata(pci);
 	struct m_can_classdev *mcan_class = netdev_priv(dev);
-	struct m_can_pci_priv *priv = mcan_class->device_data;
+	struct m_can_pci_priv *priv = cdev_to_priv(mcan_class);
 
 	pm_runtime_forbid(&pci->dev);
 	pm_runtime_get_noresume(&pci->dev);
