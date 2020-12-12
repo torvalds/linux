@@ -7065,6 +7065,7 @@ static int airo_set_power(struct net_device *dev,
 			local->config.rmode &= ~RXMODE_MASK;
 			local->config.rmode |= RXMODE_BC_MC_ADDR;
 			set_bit (FLAG_COMMIT, &local->flags);
+			break;
 		case IW_POWER_ON:
 			/* This is broken, fixme ;-) */
 			break;

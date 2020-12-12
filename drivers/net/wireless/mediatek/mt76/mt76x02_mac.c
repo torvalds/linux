@@ -727,24 +727,24 @@ void mt76x02_mac_setaddr(struct mt76x02_dev *dev, const u8 *addr)
 	static const u8 null_addr[ETH_ALEN] = {};
 	int i;
 
-	ether_addr_copy(dev->mt76.macaddr, addr);
+	ether_addr_copy(dev->mphy.macaddr, addr);
 
-	if (!is_valid_ether_addr(dev->mt76.macaddr)) {
-		eth_random_addr(dev->mt76.macaddr);
+	if (!is_valid_ether_addr(dev->mphy.macaddr)) {
+		eth_random_addr(dev->mphy.macaddr);
 		dev_info(dev->mt76.dev,
 			 "Invalid MAC address, using random address %pM\n",
-			 dev->mt76.macaddr);
+			 dev->mphy.macaddr);
 	}
 
-	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(dev->mt76.macaddr));
+	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(dev->mphy.macaddr));
 	mt76_wr(dev, MT_MAC_ADDR_DW1,
-		get_unaligned_le16(dev->mt76.macaddr + 4) |
+		get_unaligned_le16(dev->mphy.macaddr + 4) |
 		FIELD_PREP(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
 
 	mt76_wr(dev, MT_MAC_BSSID_DW0,
-		get_unaligned_le32(dev->mt76.macaddr));
+		get_unaligned_le32(dev->mphy.macaddr));
 	mt76_wr(dev, MT_MAC_BSSID_DW1,
-		get_unaligned_le16(dev->mt76.macaddr + 4) |
+		get_unaligned_le16(dev->mphy.macaddr + 4) |
 		FIELD_PREP(MT_MAC_BSSID_DW1_MBSS_MODE, 3) | /* 8 APs + 8 STAs */
 		MT_MAC_BSSID_DW1_MBSS_LOCAL_BIT);
 	/* enable 7 additional beacon slots and control them with bypass mask */

@@ -13,6 +13,7 @@
 #include "dp_rx.h"
 #include "debug.h"
 #include "hif.h"
+#include "wow.h"
 
 unsigned int ath11k_debug_mask;
 EXPORT_SYMBOL(ath11k_debug_mask);
@@ -51,7 +52,6 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.svc_to_ce_map = ath11k_target_service_to_ce_map_wlan_ipq8074,
 		.svc_to_ce_map_len = 21,
 		.single_pdev_only = false,
-		.needs_band_to_mac = true,
 		.rxdma1_enable = true,
 		.num_rxmda_per_pdev = 1,
 		.rx_mac_buf_ring = false,
@@ -67,6 +67,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = false,
 		.idle_ps = false,
 		.cold_boot_calib = true,
+		.supports_suspend = false,
 	},
 	{
 		.hw_rev = ATH11K_HW_IPQ6018_HW10,
@@ -89,7 +90,6 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.svc_to_ce_map = ath11k_target_service_to_ce_map_wlan_ipq6018,
 		.svc_to_ce_map_len = 19,
 		.single_pdev_only = false,
-		.needs_band_to_mac = true,
 		.rxdma1_enable = true,
 		.num_rxmda_per_pdev = 1,
 		.rx_mac_buf_ring = false,
@@ -105,6 +105,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = false,
 		.idle_ps = false,
 		.cold_boot_calib = true,
+		.supports_suspend = false,
 	},
 	{
 		.name = "qca6390 hw2.0",
@@ -127,7 +128,6 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.svc_to_ce_map = ath11k_target_service_to_ce_map_wlan_qca6390,
 		.svc_to_ce_map_len = 14,
 		.single_pdev_only = true,
-		.needs_band_to_mac = false,
 		.rxdma1_enable = false,
 		.num_rxmda_per_pdev = 2,
 		.rx_mac_buf_ring = true,
@@ -142,8 +142,90 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = true,
 		.idle_ps = true,
 		.cold_boot_calib = false,
+		.supports_suspend = true,
 	},
 };
+
+int ath11k_core_suspend(struct ath11k_base *ab)
+{
+	int ret;
+
+	if (!ab->hw_params.supports_suspend)
+		return -EOPNOTSUPP;
+
+	/* TODO: there can frames in queues so for now add delay as a hack.
+	 * Need to implement to handle and remove this delay.
+	 */
+	msleep(500);
+
+	ret = ath11k_dp_rx_pktlog_stop(ab, true);
+	if (ret) {
+		ath11k_warn(ab, "failed to stop dp rx (and timer) pktlog during suspend: %d\n",
+			    ret);
+		return ret;
+	}
+
+	ret = ath11k_wow_enable(ab);
+	if (ret) {
+		ath11k_warn(ab, "failed to enable wow during suspend: %d\n", ret);
+		return ret;
+	}
+
+	ret = ath11k_dp_rx_pktlog_stop(ab, false);
+	if (ret) {
+		ath11k_warn(ab, "failed to stop dp rx pktlog during suspend: %d\n",
+			    ret);
+		return ret;
+	}
+
+	ath11k_ce_stop_shadow_timers(ab);
+	ath11k_dp_stop_shadow_timers(ab);
+
+	ath11k_hif_irq_disable(ab);
+	ath11k_hif_ce_irq_disable(ab);
+
+	ret = ath11k_hif_suspend(ab);
+	if (!ret) {
+		ath11k_warn(ab, "failed to suspend hif: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(ath11k_core_suspend);
+
+int ath11k_core_resume(struct ath11k_base *ab)
+{
+	int ret;
+
+	if (!ab->hw_params.supports_suspend)
+		return -EOPNOTSUPP;
+
+	ret = ath11k_hif_resume(ab);
+	if (ret) {
+		ath11k_warn(ab, "failed to resume hif during resume: %d\n", ret);
+		return ret;
+	}
+
+	ath11k_hif_ce_irq_enable(ab);
+	ath11k_hif_irq_enable(ab);
+
+	ret = ath11k_dp_rx_pktlog_start(ab);
+	if (ret) {
+		ath11k_warn(ab, "failed to start rx pktlog during resume: %d\n",
+			    ret);
+		return ret;
+	}
+
+	ret = ath11k_wow_wakeup(ab);
+	if (ret) {
+		ath11k_warn(ab, "failed to wakeup wow during resume: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(ath11k_core_resume);
 
 int ath11k_core_check_dt(struct ath11k_base *ab)
 {
@@ -646,6 +728,15 @@ static int ath11k_core_start(struct ath11k_base *ab,
 		goto err_reo_cleanup;
 	}
 
+	/* put hardware to DBS mode */
+	if (ab->hw_params.single_pdev_only) {
+		ret = ath11k_wmi_set_hw_mode(ab, WMI_HOST_HW_MODE_DBS);
+		if (ret) {
+			ath11k_err(ab, "failed to send dbs mode: %d\n", ret);
+			goto err_hif_stop;
+		}
+	}
+
 	ret = ath11k_dp_tx_htt_h2t_ver_req_msg(ab);
 	if (ret) {
 		ath11k_err(ab, "failed to send htt version request message: %d\n",
@@ -962,6 +1053,9 @@ struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
 	init_waitqueue_head(&ab->qmi.cold_boot_waitq);
 	INIT_WORK(&ab->restart_work, ath11k_core_restart);
 	timer_setup(&ab->rx_replenish_retry, ath11k_ce_rx_replenish_retry, 0);
+	init_completion(&ab->htc_suspend);
+	init_completion(&ab->wow.wakeup_completed);
+
 	ab->dev = dev;
 	ab->bus_params = *bus_params;
 	ab->hif.bus = bus;

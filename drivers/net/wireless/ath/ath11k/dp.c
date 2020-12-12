@@ -304,7 +304,7 @@ int ath11k_dp_srng_setup(struct ath11k_base *ab, struct dp_srng *ring,
 	return 0;
 }
 
-static void ath11k_dp_stop_shadow_timers(struct ath11k_base *ab)
+void ath11k_dp_stop_shadow_timers(struct ath11k_base *ab)
 {
 	int i;
 
