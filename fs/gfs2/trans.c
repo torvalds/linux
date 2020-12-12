@@ -41,8 +41,6 @@ int __gfs2_trans_begin(struct gfs2_trans *tr, struct gfs2_sbd *sdp,
 		       unsigned int blocks, unsigned int revokes,
 		       unsigned long ip)
 {
-	int error;
-
 	if (current->journal_info) {
 		gfs2_print_trans(sdp, current->journal_info);
 		BUG();
@@ -66,14 +64,20 @@ int __gfs2_trans_begin(struct gfs2_trans *tr, struct gfs2_sbd *sdp,
 	INIT_LIST_HEAD(&tr->tr_ail1_list);
 	INIT_LIST_HEAD(&tr->tr_ail2_list);
 
+	if (gfs2_assert_warn(sdp, tr->tr_reserved <= sdp->sd_jdesc->jd_blocks))
+		return -EINVAL;
+
 	sb_start_intwrite(sdp->sd_vfs);
 
-	error = gfs2_log_reserve(sdp, tr->tr_reserved);
-	if (error) {
+	gfs2_log_reserve(sdp, tr->tr_reserved);
+
+	down_read(&sdp->sd_log_flush_lock);
+	if (unlikely(!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))) {
+		gfs2_log_release(sdp, tr->tr_reserved);
+		up_read(&sdp->sd_log_flush_lock);
 		sb_end_intwrite(sdp->sd_vfs);
-		if (error == -EROFS)
-			wake_up(&sdp->sd_log_waitq);
-		return error;
+		wake_up(&sdp->sd_log_waitq);
+		return -EROFS;
 	}
 
 	current->journal_info = tr;
@@ -105,6 +109,7 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 
 	if (!test_bit(TR_TOUCHED, &tr->tr_flags)) {
 		gfs2_log_release(sdp, tr->tr_reserved);
+		up_read(&sdp->sd_log_flush_lock);
 		if (!test_bit(TR_ONSTACK, &tr->tr_flags))
 			gfs2_trans_free(sdp, tr);
 		sb_end_intwrite(sdp->sd_vfs);

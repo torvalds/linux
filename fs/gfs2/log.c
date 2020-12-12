@@ -420,7 +420,6 @@ void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks)
 	trace_gfs2_log_blocks(sdp, blks);
 	gfs2_assert_withdraw(sdp, atomic_read(&sdp->sd_log_blks_free) <=
 				  sdp->sd_jdesc->jd_blocks);
-	up_read(&sdp->sd_log_flush_lock);
 }
 
 /**
@@ -439,22 +438,16 @@ void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks)
  * with queued waiters, we use an exclusive wait. This means that when we
  * get woken with enough journal space to get our reservation, we need to
  * wake the next waiter on the list.
- *
- * Returns: errno
  */
 
-int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
+void gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
 {
-	int ret = 0;
 	unsigned reserved_blks = 7 * (4096 / sdp->sd_vfs->s_blocksize);
 	unsigned wanted = blks + reserved_blks;
 	DEFINE_WAIT(wait);
 	int did_wait = 0;
 	unsigned int free_blocks;
 
-	if (gfs2_assert_warn(sdp, blks) ||
-	    gfs2_assert_warn(sdp, blks <= sdp->sd_jdesc->jd_blocks))
-		return -EINVAL;
 	atomic_add(blks, &sdp->sd_log_blks_needed);
 retry:
 	free_blocks = atomic_read(&sdp->sd_log_blks_free);
@@ -482,13 +475,6 @@ retry:
 	 */
 	if (unlikely(did_wait))
 		wake_up(&sdp->sd_log_waitq);
-
-	down_read(&sdp->sd_log_flush_lock);
-	if (unlikely(!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))) {
-		gfs2_log_release(sdp, blks);
-		ret = -EROFS;
-	}
-	return ret;
 }
 
 /**
@@ -585,12 +571,7 @@ static void log_pull_tail(struct gfs2_sbd *sdp, unsigned int new_tail)
 	unsigned int dist = log_distance(sdp, new_tail, sdp->sd_log_tail);
 
 	ail2_empty(sdp, new_tail);
-
-	atomic_add(dist, &sdp->sd_log_blks_free);
-	trace_gfs2_log_blocks(sdp, dist);
-	gfs2_assert_withdraw(sdp, atomic_read(&sdp->sd_log_blks_free) <=
-			     sdp->sd_jdesc->jd_blocks);
-
+	gfs2_log_release(sdp, dist);
 	sdp->sd_log_tail = new_tail;
 }
 
@@ -1127,10 +1108,7 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	maxres = sdp->sd_log_blks_reserved + tr->tr_reserved;
 	gfs2_assert_withdraw(sdp, maxres >= reserved);
 	unused = maxres - reserved;
-	atomic_add(unused, &sdp->sd_log_blks_free);
-	trace_gfs2_log_blocks(sdp, unused);
-	gfs2_assert_withdraw(sdp, atomic_read(&sdp->sd_log_blks_free) <=
-			     sdp->sd_jdesc->jd_blocks);
+	gfs2_log_release(sdp, unused);
 	sdp->sd_log_blks_reserved = reserved;
 
 	gfs2_log_unlock(sdp);
