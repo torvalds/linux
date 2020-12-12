@@ -489,20 +489,21 @@ static int vega10_ih_sw_init(void *handle)
 	adev->irq.ih.use_doorbell = true;
 	adev->irq.ih.doorbell_index = adev->doorbell_index.ih << 1;
 
-	r = amdgpu_ih_ring_init(adev, &adev->irq.ih1, PAGE_SIZE, true);
-	if (r)
-		return r;
+	if (!(adev->flags & AMD_IS_APU)) {
+		r = amdgpu_ih_ring_init(adev, &adev->irq.ih1, PAGE_SIZE, true);
+		if (r)
+			return r;
 
-	adev->irq.ih1.use_doorbell = true;
-	adev->irq.ih1.doorbell_index = (adev->doorbell_index.ih + 1) << 1;
+		adev->irq.ih1.use_doorbell = true;
+		adev->irq.ih1.doorbell_index = (adev->doorbell_index.ih + 1) << 1;
 
-	r = amdgpu_ih_ring_init(adev, &adev->irq.ih2, PAGE_SIZE, true);
-	if (r)
-		return r;
+		r = amdgpu_ih_ring_init(adev, &adev->irq.ih2, PAGE_SIZE, true);
+		if (r)
+			return r;
 
-	adev->irq.ih2.use_doorbell = true;
-	adev->irq.ih2.doorbell_index = (adev->doorbell_index.ih + 2) << 1;
-
+		adev->irq.ih2.use_doorbell = true;
+		adev->irq.ih2.doorbell_index = (adev->doorbell_index.ih + 2) << 1;
+	}
 	/* initialize ih control registers offset */
 	vega10_ih_init_register_offset(adev);
 
