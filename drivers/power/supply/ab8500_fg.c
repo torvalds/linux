@@ -3001,14 +3001,11 @@ static int ab8500_fg_remove(struct platform_device *pdev)
 }
 
 /* ab8500 fg driver interrupts and their respective isr */
-static struct ab8500_fg_interrupts ab8500_fg_irq_th[] = {
+static struct ab8500_fg_interrupts ab8500_fg_irq[] = {
 	{"NCONV_ACCU", ab8500_fg_cc_convend_handler},
 	{"BATT_OVV", ab8500_fg_batt_ovv_handler},
 	{"LOW_BAT_F", ab8500_fg_lowbatf_handler},
 	{"CC_INT_CALIB", ab8500_fg_cc_int_calib_handler},
-};
-
-static struct ab8500_fg_interrupts ab8500_fg_irq_bh[] = {
 	{"CCEOC", ab8500_fg_cc_data_end_handler},
 };
 
@@ -3149,44 +3146,25 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	init_completion(&di->ab8500_fg_complete);
 
 	/* Register primary interrupt handlers */
-	for (i = 0; i < ARRAY_SIZE(ab8500_fg_irq_th); i++) {
-		irq = platform_get_irq_byname(pdev, ab8500_fg_irq_th[i].name);
+	for (i = 0; i < ARRAY_SIZE(ab8500_fg_irq); i++) {
+		irq = platform_get_irq_byname(pdev, ab8500_fg_irq[i].name);
 		if (irq < 0) {
 			ret = irq;
-			goto free_irq_th;
+			goto free_irq;
 		}
 
-		ret = request_irq(irq, ab8500_fg_irq_th[i].isr,
-				  IRQF_SHARED | IRQF_NO_SUSPEND,
-				  ab8500_fg_irq_th[i].name, di);
+		ret = request_threaded_irq(irq, NULL, ab8500_fg_irq[i].isr,
+				  IRQF_SHARED | IRQF_NO_SUSPEND | IRQF_ONESHOT,
+				  ab8500_fg_irq[i].name, di);
 
 		if (ret != 0) {
 			dev_err(dev, "failed to request %s IRQ %d: %d\n",
-				ab8500_fg_irq_th[i].name, irq, ret);
-			goto free_irq_th;
+				ab8500_fg_irq[i].name, irq, ret);
+			goto free_irq;
 		}
 		dev_dbg(dev, "Requested %s IRQ %d: %d\n",
-			ab8500_fg_irq_th[i].name, irq, ret);
+			ab8500_fg_irq[i].name, irq, ret);
 	}
-
-	/* Register threaded interrupt handler */
-	irq = platform_get_irq_byname(pdev, ab8500_fg_irq_bh[0].name);
-	if (irq < 0) {
-		ret = irq;
-		goto free_irq_th;
-	}
-
-	ret = request_threaded_irq(irq, NULL, ab8500_fg_irq_bh[0].isr,
-				IRQF_SHARED | IRQF_NO_SUSPEND | IRQF_ONESHOT,
-			ab8500_fg_irq_bh[0].name, di);
-
-	if (ret != 0) {
-		dev_err(dev, "failed to request %s IRQ %d: %d\n",
-			ab8500_fg_irq_bh[0].name, irq, ret);
-		goto free_irq_th;
-	}
-	dev_dbg(dev, "Requested %s IRQ %d: %d\n",
-		ab8500_fg_irq_bh[0].name, irq, ret);
 
 	di->irq = platform_get_irq_byname(pdev, "CCEOC");
 	disable_irq(di->irq);
@@ -3223,12 +3201,9 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 
 free_irq:
 	/* We also have to free all registered irqs */
-	irq = platform_get_irq_byname(pdev, ab8500_fg_irq_bh[0].name);
-	free_irq(irq, di);
-free_irq_th:
 	while (--i >= 0) {
 		/* Last assignment of i from primary interrupt handlers */
-		irq = platform_get_irq_byname(pdev, ab8500_fg_irq_th[i].name);
+		irq = platform_get_irq_byname(pdev, ab8500_fg_irq[i].name);
 		free_irq(irq, di);
 	}
 
