@@ -2240,11 +2240,12 @@ compare_mount_options(struct super_block *sb, struct cifs_mnt_data *mnt_data)
 	if (new->rsize && new->rsize < old->rsize)
 		return 0;
 
-	if (!uid_eq(old->mnt_uid, new->mnt_uid) || !gid_eq(old->mnt_gid, new->mnt_gid))
+	if (!uid_eq(old->ctx->linux_uid, new->ctx->linux_uid) ||
+	    !gid_eq(old->ctx->linux_gid, new->ctx->linux_gid))
 		return 0;
 
-	if (old->mnt_file_mode != new->mnt_file_mode ||
-	    old->mnt_dir_mode != new->mnt_dir_mode)
+	if (old->ctx->file_mode != new->ctx->file_mode ||
+	    old->ctx->dir_mode != new->ctx->dir_mode)
 		return 0;
 
 	if (strcmp(old->local_nls->charset, new->local_nls->charset))
@@ -2707,12 +2708,8 @@ int cifs_setup_cifs_sb(struct smb3_fs_context *ctx,
 	cifs_sb->rsize = ctx->rsize;
 	cifs_sb->wsize = ctx->wsize;
 
-	cifs_sb->mnt_uid = ctx->linux_uid;
-	cifs_sb->mnt_gid = ctx->linux_gid;
-	cifs_sb->mnt_file_mode = ctx->file_mode;
-	cifs_sb->mnt_dir_mode = ctx->dir_mode;
 	cifs_dbg(FYI, "file mode: %04ho  dir mode: %04ho\n",
-		 cifs_sb->mnt_file_mode, cifs_sb->mnt_dir_mode);
+		 cifs_sb->ctx->file_mode, cifs_sb->ctx->dir_mode);
 
 	cifs_sb->actimeo = ctx->actimeo;
 	cifs_sb->local_nls = ctx->local_nls;
@@ -2751,11 +2748,9 @@ int cifs_setup_cifs_sb(struct smb3_fs_context *ctx,
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_ACL;
 	if (ctx->backupuid_specified) {
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_BACKUPUID;
-		cifs_sb->mnt_backupuid = ctx->backupuid;
 	}
 	if (ctx->backupgid_specified) {
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_BACKUPGID;
-		cifs_sb->mnt_backupgid = ctx->backupgid;
 	}
 	if (ctx->override_uid)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_OVERR_UID;

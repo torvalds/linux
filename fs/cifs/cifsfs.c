@@ -518,14 +518,14 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 	}
 
 	seq_printf(s, ",uid=%u",
-		   from_kuid_munged(&init_user_ns, cifs_sb->mnt_uid));
+		   from_kuid_munged(&init_user_ns, cifs_sb->ctx->linux_uid));
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID)
 		seq_puts(s, ",forceuid");
 	else
 		seq_puts(s, ",noforceuid");
 
 	seq_printf(s, ",gid=%u",
-		   from_kgid_munged(&init_user_ns, cifs_sb->mnt_gid));
+		   from_kgid_munged(&init_user_ns, cifs_sb->ctx->linux_gid));
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID)
 		seq_puts(s, ",forcegid");
 	else
@@ -535,8 +535,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 
 	if (!tcon->unix_ext)
 		seq_printf(s, ",file_mode=0%ho,dir_mode=0%ho",
-					   cifs_sb->mnt_file_mode,
-					   cifs_sb->mnt_dir_mode);
+					   cifs_sb->ctx->file_mode,
+					   cifs_sb->ctx->dir_mode);
 
 	cifs_show_nls(s, cifs_sb->local_nls);
 
@@ -609,11 +609,11 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_BACKUPUID)
 		seq_printf(s, ",backupuid=%u",
 			   from_kuid_munged(&init_user_ns,
-					    cifs_sb->mnt_backupuid));
+					    cifs_sb->ctx->backupuid));
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_BACKUPGID)
 		seq_printf(s, ",backupgid=%u",
 			   from_kgid_munged(&init_user_ns,
-					    cifs_sb->mnt_backupgid));
+					    cifs_sb->ctx->backupgid));
 
 	seq_printf(s, ",rsize=%u", cifs_sb->rsize);
 	seq_printf(s, ",wsize=%u", cifs_sb->wsize);

@@ -32,6 +32,7 @@
 #include "cifsacl.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
+#include "fs_context.h"
 
 /* security id for everyone/world system group */
 static const struct cifs_sid sid_everyone = {
@@ -346,8 +347,8 @@ sid_to_id(struct cifs_sb_info *cifs_sb, struct cifs_sid *psid,
 	struct key *sidkey;
 	char *sidstr;
 	const struct cred *saved_cred;
-	kuid_t fuid = cifs_sb->mnt_uid;
-	kgid_t fgid = cifs_sb->mnt_gid;
+	kuid_t fuid = cifs_sb->ctx->linux_uid;
+	kgid_t fgid = cifs_sb->ctx->linux_gid;
 
 	/*
 	 * If we have too many subauthorities, then something is really wrong.
@@ -448,7 +449,7 @@ out_revert_creds:
 
 	/*
 	 * Note that we return 0 here unconditionally. If the mapping
-	 * fails then we just fall back to using the mnt_uid/mnt_gid.
+	 * fails then we just fall back to using the ctx->linux_uid/linux_gid.
 	 */
 got_valid_id:
 	rc = 0;
