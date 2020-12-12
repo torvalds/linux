@@ -12,11 +12,9 @@ if [ ! -x "$SPATCH" ]; then
 	exit 1
 fi
 
-SPATCH_REQ_VERSION_NUM=$(echo $SPATCH_REQ_VERSION | ${DIR}/scripts/ld-version.sh)
 SPATCH_VERSION=$($SPATCH --version | head -1 | awk '{print $3}')
-SPATCH_VERSION_NUM=$(echo $SPATCH_VERSION | ${DIR}/scripts/ld-version.sh)
 
-if [ "$SPATCH_VERSION_NUM" -lt "$SPATCH_REQ_VERSION_NUM" ] ; then
+if ! { echo "$SPATCH_REQ_VERSION"; echo "$SPATCH_VERSION"; } | sort -CV ; then
 	echo "spatch needs to be version $SPATCH_REQ_VERSION or higher"
 	exit 1
 fi

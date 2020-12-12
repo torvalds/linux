@@ -16,7 +16,6 @@ if [ ! -x "$SPATCH" ]; then
 fi
 
 SPATCH_VERSION=$($SPATCH --version | head -1 | awk '{print $3}')
-SPATCH_VERSION_NUM=$(echo $SPATCH_VERSION | ${DIR}/scripts/ld-version.sh)
 
 USE_JOBS="no"
 $SPATCH --help | grep "\-\-jobs" > /dev/null && USE_JOBS="yes"
@@ -186,14 +185,11 @@ coccinelle () {
 
     OPT=`grep "Options:" $COCCI | cut -d':' -f2`
     REQ=`grep "Requires:" $COCCI | cut -d':' -f2 | sed "s| ||"`
-    REQ_NUM=$(echo $REQ | ${DIR}/scripts/ld-version.sh)
-    if [ "$REQ_NUM" != "0" ] ; then
-	    if [ "$SPATCH_VERSION_NUM" -lt "$REQ_NUM" ] ; then
-		    echo "Skipping coccinelle SmPL patch: $COCCI"
-		    echo "You have coccinelle:           $SPATCH_VERSION"
-		    echo "This SmPL patch requires:      $REQ"
-		    return
-	    fi
+    if [ -n "$REQ" ] && ! { echo "$REQ"; echo "$SPATCH_VERSION"; } | sort -CV ; then
+	    echo "Skipping coccinelle SmPL patch: $COCCI"
+	    echo "You have coccinelle:           $SPATCH_VERSION"
+	    echo "This SmPL patch requires:      $REQ"
+	    return
     fi
 
 #   The option '--parse-cocci' can be used to syntactically check the SmPL files.
