@@ -43,6 +43,7 @@
 #include <linux/mlx5/fs.h>
 #include "lib/mpfs.h"
 #include "lib/fs_chains.h"
+#include "sf/sf.h"
 #include "en/tc_ct.h"
 
 #ifdef CONFIG_MLX5_ESWITCH
@@ -499,6 +500,40 @@ static inline u16 mlx5_eswitch_first_host_vport_num(struct mlx5_core_dev *dev)
 		MLX5_VPORT_PF : MLX5_VPORT_FIRST_VF;
 }
 
+static inline int mlx5_esw_sf_start_idx(const struct mlx5_eswitch *esw)
+{
+	/* PF and VF vports indices start from 0 to max_vfs */
+	return MLX5_VPORT_PF_PLACEHOLDER + mlx5_core_max_vfs(esw->dev);
+}
+
+static inline int mlx5_esw_sf_end_idx(const struct mlx5_eswitch *esw)
+{
+	return mlx5_esw_sf_start_idx(esw) + mlx5_sf_max_functions(esw->dev);
+}
+
+static inline int
+mlx5_esw_sf_vport_num_to_index(const struct mlx5_eswitch *esw, u16 vport_num)
+{
+	return vport_num - mlx5_sf_start_function_id(esw->dev) +
+	       MLX5_VPORT_PF_PLACEHOLDER + mlx5_core_max_vfs(esw->dev);
+}
+
+static inline u16
+mlx5_esw_sf_vport_index_to_num(const struct mlx5_eswitch *esw, int idx)
+{
+	return mlx5_sf_start_function_id(esw->dev) + idx -
+	       (MLX5_VPORT_PF_PLACEHOLDER + mlx5_core_max_vfs(esw->dev));
+}
+
+static inline bool
+mlx5_esw_is_sf_vport(const struct mlx5_eswitch *esw, u16 vport_num)
+{
+	return mlx5_sf_supported(esw->dev) &&
+	       vport_num >= mlx5_sf_start_function_id(esw->dev) &&
+	       (vport_num < (mlx5_sf_start_function_id(esw->dev) +
+			     mlx5_sf_max_functions(esw->dev)));
+}
+
 static inline bool mlx5_eswitch_is_funcs_handler(const struct mlx5_core_dev *dev)
 {
 	return mlx5_core_is_ecpf_esw_manager(dev);
@@ -527,6 +562,10 @@ static inline int mlx5_eswitch_vport_num_to_index(struct mlx5_eswitch *esw,
 	if (vport_num == MLX5_VPORT_UPLINK)
 		return mlx5_eswitch_uplink_idx(esw);
 
+	if (mlx5_esw_is_sf_vport(esw, vport_num))
+		return mlx5_esw_sf_vport_num_to_index(esw, vport_num);
+
+	/* PF and VF vports start from 0 to max_vfs */
 	return vport_num;
 }
 
@@ -540,6 +579,12 @@ static inline u16 mlx5_eswitch_index_to_vport_num(struct mlx5_eswitch *esw,
 	if (index == mlx5_eswitch_uplink_idx(esw))
 		return MLX5_VPORT_UPLINK;
 
+	/* SF vports indices are after VFs and before ECPF */
+	if (mlx5_sf_supported(esw->dev) &&
+	    index > mlx5_core_max_vfs(esw->dev))
+		return mlx5_esw_sf_vport_index_to_num(esw, index);
+
+	/* PF and VF vports start from 0 to max_vfs */
 	return index;
 }
 
@@ -624,6 +669,11 @@ void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw);
 #define mlx5_esw_for_each_host_func_vport_reverse(esw, vport, nvfs)	\
 	for ((vport) = (nvfs);						\
 	     (vport) >= (esw)->first_host_vport; (vport)--)
+
+#define mlx5_esw_for_each_sf_rep(esw, i, rep)		\
+	for ((i) = mlx5_esw_sf_start_idx(esw);		\
+	     (rep) = &(esw)->offloads.vport_reps[(i)],	\
+	     (i) < mlx5_esw_sf_end_idx(esw); (i++))
 
 struct mlx5_eswitch *mlx5_devlink_eswitch_get(struct devlink *devlink);
 struct mlx5_vport *__must_check

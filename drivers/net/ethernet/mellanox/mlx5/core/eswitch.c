@@ -1365,8 +1365,14 @@ const u32 *mlx5_esw_query_functions(struct mlx5_core_dev *dev)
 {
 	int outlen = MLX5_ST_SZ_BYTES(query_esw_functions_out);
 	u32 in[MLX5_ST_SZ_DW(query_esw_functions_in)] = {};
+	u16 max_sf_vports;
 	u32 *out;
 	int err;
+
+	max_sf_vports = mlx5_sf_max_functions(dev);
+	/* Device interface is array of 64-bits */
+	if (max_sf_vports)
+		outlen += DIV_ROUND_UP(max_sf_vports, BITS_PER_TYPE(__be64)) * sizeof(__be64);
 
 	out = kvzalloc(outlen, GFP_KERNEL);
 	if (!out)
@@ -1375,7 +1381,7 @@ const u32 *mlx5_esw_query_functions(struct mlx5_core_dev *dev)
 	MLX5_SET(query_esw_functions_in, in, opcode,
 		 MLX5_CMD_OP_QUERY_ESW_FUNCTIONS);
 
-	err = mlx5_cmd_exec_inout(dev, query_esw_functions, in, out);
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
 	if (!err)
 		return out;
 
@@ -1898,7 +1904,8 @@ static bool
 is_port_function_supported(const struct mlx5_eswitch *esw, u16 vport_num)
 {
 	return vport_num == MLX5_VPORT_PF ||
-	       mlx5_eswitch_is_vf_vport(esw, vport_num);
+	       mlx5_eswitch_is_vf_vport(esw, vport_num) ||
+	       mlx5_esw_is_sf_vport(esw, vport_num);
 }
 
 int mlx5_devlink_port_function_hw_addr_get(struct devlink *devlink,
