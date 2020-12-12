@@ -508,6 +508,7 @@ struct mlx5_fw_reset;
 struct mlx5_eq_table;
 struct mlx5_irq_table;
 struct mlx5_vhca_state_notifier;
+struct mlx5_sf_dev_table;
 
 struct mlx5_rate_limit {
 	u32			rate;
@@ -606,6 +607,7 @@ struct mlx5_priv {
 	struct mlx5_uars_page	       *uar;
 #ifdef CONFIG_MLX5_SF
 	struct mlx5_vhca_state_notifier *vhca_state_notifier;
+	struct mlx5_sf_dev_table *sf_dev_table;
 #endif
 };
 

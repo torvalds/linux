@@ -97,6 +97,11 @@ Enabling the driver and kconfig options
 
 |   Provides low-level InfiniBand/RDMA and `RoCE <https://community.mellanox.com/s/article/recommended-network-configuration-examples-for-roce-deployment>`_ support.
 
+**CONFIG_MLX5_SF=(y/n)**
+
+|   Build support for subfunction.
+|   Subfunctons are more light weight than PCI SRIOV VFs. Choosing this option
+|   will enable support for creating subfunction devices.
 
 **External options** ( Choose if the corresponding mlx5 feature is required )
 
