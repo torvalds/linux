@@ -2570,7 +2570,7 @@ static int wcn36xx_smd_hw_scan_ind(struct wcn36xx *wcn, void *buf, size_t len)
 	case WCN36XX_HAL_SCAN_IND_FAILED:
 	case WCN36XX_HAL_SCAN_IND_DEQUEUED:
 		scan_info.aborted = true;
-		/* fall through */
+		fallthrough;
 	case WCN36XX_HAL_SCAN_IND_COMPLETED:
 		mutex_lock(&wcn->scan_lock);
 		wcn->scan_req = NULL;

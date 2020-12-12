@@ -185,6 +185,8 @@ enum ath11k_dev_flags {
 	ATH11K_FLAG_RECOVERY,
 	ATH11K_FLAG_UNREGISTERING,
 	ATH11K_FLAG_REGISTERED,
+	ATH11K_FLAG_QMI_FAIL,
+	ATH11K_FLAG_HTC_SUSPEND_COMPLETE,
 };
 
 enum ath11k_monitor_flags {
@@ -464,6 +466,7 @@ struct ath11k {
 		struct ieee80211_sband_iftype_data
 			iftype[NUM_NL80211_BANDS][NUM_NL80211_IFTYPES];
 	} mac;
+
 	unsigned long dev_flags;
 	unsigned int filter_flags;
 	unsigned long monitor_flags;
@@ -670,6 +673,10 @@ struct ath11k_base {
 		const struct ath11k_hif_ops *ops;
 	} hif;
 
+	struct {
+		struct completion wakeup_completed;
+	} wow;
+
 	struct ath11k_ce ce;
 	struct timer_list rx_replenish_retry;
 	struct ath11k_hal hal;
@@ -731,6 +738,9 @@ struct ath11k_base {
 	u32 num_db_cap;
 
 	struct timer_list mon_reap_timer;
+
+	struct completion htc_suspend;
+
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
 };
@@ -887,6 +897,8 @@ void ath11k_core_free_bdf(struct ath11k_base *ab, struct ath11k_board_data *bd);
 int ath11k_core_check_dt(struct ath11k_base *ath11k);
 
 void ath11k_core_halt(struct ath11k *ar);
+int ath11k_core_resume(struct ath11k_base *ab);
+int ath11k_core_suspend(struct ath11k_base *ab);
 
 const struct firmware *ath11k_core_firmware_request(struct ath11k_base *ab,
 						    const char *filename);
