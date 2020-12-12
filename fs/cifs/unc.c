@@ -7,7 +7,11 @@
  *              Jeff Layton <jlayton@kernel.org>
  */
 
+#include <linux/fs.h>
 #include <linux/slab.h>
+#include <linux/inet.h>
+#include <linux/ctype.h>
+#include "cifsglob.h"
 #include "cifsproto.h"
 
 /* extract the host portion of the UNC string */
