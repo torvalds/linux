@@ -336,11 +336,10 @@ EXPORT_SYMBOL_GPL(xdp_rxq_info_reg_mem_model);
  * scenarios (e.g. queue full), it is possible to return the xdp_frame
  * while still leveraging this protection.  The @napi_direct boolean
  * is used for those calls sites.  Thus, allowing for faster recycling
- * of xdp_frames/pages in those cases. This path is never used by the
- * MEM_TYPE_XSK_BUFF_POOL memory type, so it's explicitly not part of
- * the switch-statement.
+ * of xdp_frames/pages in those cases.
  */
-static void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct)
+static void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct,
+			 struct xdp_buff *xdp)
 {
 	struct xdp_mem_allocator *xa;
 	struct page *page;
@@ -362,6 +361,10 @@ static void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct)
 		page = virt_to_page(data); /* Assumes order0 page*/
 		put_page(page);
 		break;
+	case MEM_TYPE_XSK_BUFF_POOL:
+		/* NB! Only valid from an xdp_buff! */
+		xsk_buff_free(xdp);
+		break;
 	default:
 		/* Not possible, checked in xdp_rxq_info_reg_mem_model() */
 		WARN(1, "Incorrect XDP memory type (%d) usage", mem->type);
@@ -371,13 +374,13 @@ static void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct)
 
 void xdp_return_frame(struct xdp_frame *xdpf)
 {
-	__xdp_return(xdpf->data, &xdpf->mem, false);
+	__xdp_return(xdpf->data, &xdpf->mem, false, NULL);
 }
 EXPORT_SYMBOL_GPL(xdp_return_frame);
 
 void xdp_return_frame_rx_napi(struct xdp_frame *xdpf)
 {
-	__xdp_return(xdpf->data, &xdpf->mem, true);
+	__xdp_return(xdpf->data, &xdpf->mem, true, NULL);
 }
 EXPORT_SYMBOL_GPL(xdp_return_frame_rx_napi);
 
@@ -412,7 +415,7 @@ void xdp_return_frame_bulk(struct xdp_frame *xdpf,
 	struct xdp_mem_allocator *xa;
 
 	if (mem->type != MEM_TYPE_PAGE_POOL) {
-		__xdp_return(xdpf->data, &xdpf->mem, false);
+		__xdp_return(xdpf->data, &xdpf->mem, false, NULL);
 		return;
 	}
 
@@ -437,7 +440,7 @@ EXPORT_SYMBOL_GPL(xdp_return_frame_bulk);
 
 void xdp_return_buff(struct xdp_buff *xdp)
 {
-	__xdp_return(xdp->data, &xdp->rxq->mem, true);
+	__xdp_return(xdp->data, &xdp->rxq->mem, true, xdp);
 }
 
 /* Only called for MEM_TYPE_PAGE_POOL see xdp.h */
@@ -454,18 +457,6 @@ void __xdp_release_frame(void *data, struct xdp_mem_info *mem)
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(__xdp_release_frame);
-
-bool xdp_attachment_flags_ok(struct xdp_attachment_info *info,
-			     struct netdev_bpf *bpf)
-{
-	if (info->prog && (bpf->flags ^ info->flags) & XDP_FLAGS_MODES) {
-		NL_SET_ERR_MSG(bpf->extack,
-			       "program loaded with different flags");
-		return false;
-	}
-	return true;
-}
-EXPORT_SYMBOL_GPL(xdp_attachment_flags_ok);
 
 void xdp_attachment_setup(struct xdp_attachment_info *info,
 			  struct netdev_bpf *bpf)

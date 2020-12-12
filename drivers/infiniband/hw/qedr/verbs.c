@@ -1936,6 +1936,15 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 	}
 
 	if (rdma_protocol_iwarp(&dev->ibdev, 1)) {
+		qp->urq.db_rec_db2_addr = ctx->dpi_addr + uresp.rq_db2_offset;
+
+		/* calculate the db_rec_db2 data since it is constant so no
+		 * need to reflect from user
+		 */
+		qp->urq.db_rec_db2_data.data.icid = cpu_to_le16(qp->icid);
+		qp->urq.db_rec_db2_data.data.value =
+			cpu_to_le16(DQ_TCM_IWARP_POST_RQ_CF_CMD);
+
 		rc = qedr_db_recovery_add(dev, qp->urq.db_rec_db2_addr,
 					  &qp->urq.db_rec_db2_data,
 					  DB_REC_WIDTH_32B,

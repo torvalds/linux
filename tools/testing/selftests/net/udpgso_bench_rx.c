@@ -113,6 +113,9 @@ static void do_poll(int fd, int timeout_ms)
 				interrupted = true;
 				break;
 			}
+
+			/* no events and more time to wait, do poll again */
+			continue;
 		}
 		if (pfd.revents != POLLIN)
 			error(1, errno, "poll: 0x%x expected 0x%x\n",

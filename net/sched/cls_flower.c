@@ -2424,8 +2424,8 @@ static int fl_dump_key_mpls_opt_lse(struct sk_buff *skb,
 			return err;
 	}
 	if (lse_mask->mpls_label) {
-		err = nla_put_u8(skb, TCA_FLOWER_KEY_MPLS_OPT_LSE_LABEL,
-				 lse_key->mpls_label);
+		err = nla_put_u32(skb, TCA_FLOWER_KEY_MPLS_OPT_LSE_LABEL,
+				  lse_key->mpls_label);
 		if (err)
 			return err;
 	}

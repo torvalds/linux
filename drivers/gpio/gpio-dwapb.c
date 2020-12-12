@@ -724,6 +724,8 @@ static int dwapb_gpio_probe(struct platform_device *pdev)
 			return err;
 	}
 
+	platform_set_drvdata(pdev, gpio);
+
 	return 0;
 }
 

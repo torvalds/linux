@@ -163,8 +163,17 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 			new_clocks->dppclk_khz = 100000;
 	}
 
-	if (should_set_clock(safe_to_lower, new_clocks->dppclk_khz, clk_mgr->base.clks.dppclk_khz)) {
-		if (clk_mgr->base.clks.dppclk_khz > new_clocks->dppclk_khz)
+	/*
+	 * Temporally ignore thew 0 cases for disp and dpp clks.
+	 * We may have a new feature that requires 0 clks in the future.
+	 */
+	if (new_clocks->dppclk_khz == 0 || new_clocks->dispclk_khz == 0) {
+		new_clocks->dppclk_khz = clk_mgr_base->clks.dppclk_khz;
+		new_clocks->dispclk_khz = clk_mgr_base->clks.dispclk_khz;
+	}
+
+	if (should_set_clock(safe_to_lower, new_clocks->dppclk_khz, clk_mgr_base->clks.dppclk_khz)) {
+		if (clk_mgr_base->clks.dppclk_khz > new_clocks->dppclk_khz)
 			dpp_clock_lowered = true;
 		clk_mgr_base->clks.dppclk_khz = new_clocks->dppclk_khz;
 		update_dppclk = true;
@@ -570,7 +579,7 @@ static struct clk_bw_params rn_bw_params = {
 
 };
 
-static struct wm_table ddr4_wm_table = {
+static struct wm_table ddr4_wm_table_gs = {
 	.entries = {
 		{
 			.wm_inst = WM_A,
@@ -607,7 +616,7 @@ static struct wm_table ddr4_wm_table = {
 	}
 };
 
-static struct wm_table lpddr4_wm_table = {
+static struct wm_table lpddr4_wm_table_gs = {
 	.entries = {
 		{
 			.wm_inst = WM_A,
@@ -652,6 +661,80 @@ static struct wm_table lpddr4_wm_table_with_disabled_ppt = {
 			.pstate_latency_us = 11.65333,
 			.sr_exit_time_us = 8.32,
 			.sr_enter_plus_exit_time_us = 9.38,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_B,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 9.82,
+			.sr_enter_plus_exit_time_us = 11.196,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_C,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 9.89,
+			.sr_enter_plus_exit_time_us = 11.24,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_D,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 9.748,
+			.sr_enter_plus_exit_time_us = 11.102,
+			.valid = true,
+		},
+	}
+};
+
+static struct wm_table ddr4_wm_table_rn = {
+	.entries = {
+		{
+			.wm_inst = WM_A,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 9.09,
+			.sr_enter_plus_exit_time_us = 10.14,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_B,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 10.12,
+			.sr_enter_plus_exit_time_us = 11.48,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_C,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 10.12,
+			.sr_enter_plus_exit_time_us = 11.48,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_D,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 10.12,
+			.sr_enter_plus_exit_time_us = 11.48,
+			.valid = true,
+		},
+	}
+};
+
+static struct wm_table lpddr4_wm_table_rn = {
+	.entries = {
+		{
+			.wm_inst = WM_A,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 7.32,
+			.sr_enter_plus_exit_time_us = 8.38,
 			.valid = true,
 		},
 		{
@@ -762,6 +845,11 @@ void rn_clk_mgr_construct(
 	struct dc_debug_options *debug = &ctx->dc->debug;
 	struct dpm_clocks clock_table = { 0 };
 	enum pp_smu_status status = 0;
+	int is_green_sardine = 0;
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	is_green_sardine = ASICREV_IS_GREEN_SARDINE(ctx->asic_id.hw_internal_rev);
+#endif
 
 	clk_mgr->base.ctx = ctx;
 	clk_mgr->base.funcs = &dcn21_funcs;
@@ -802,10 +890,16 @@ void rn_clk_mgr_construct(
 			if (clk_mgr->periodic_retraining_disabled) {
 				rn_bw_params.wm_table = lpddr4_wm_table_with_disabled_ppt;
 			} else {
-				rn_bw_params.wm_table = lpddr4_wm_table;
+				if (is_green_sardine)
+					rn_bw_params.wm_table = lpddr4_wm_table_gs;
+				else
+					rn_bw_params.wm_table = lpddr4_wm_table_rn;
 			}
 		} else {
-			rn_bw_params.wm_table = ddr4_wm_table;
+			if (is_green_sardine)
+				rn_bw_params.wm_table = ddr4_wm_table_gs;
+			else
+				rn_bw_params.wm_table = ddr4_wm_table_rn;
 		}
 		/* Saved clocks configured at boot for debug purposes */
 		rn_dump_clk_registers(&clk_mgr->base.boot_snapshot, &clk_mgr->base, &log_info);

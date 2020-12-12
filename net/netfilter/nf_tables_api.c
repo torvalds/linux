@@ -1724,6 +1724,10 @@ static struct nft_hook *nft_netdev_hook_alloc(struct net *net,
 	}
 
 	nla_strscpy(ifname, attr, IFNAMSIZ);
+	/* nf_tables_netdev_event() is called under rtnl_mutex, this is
+	 * indirectly serializing all the other holders of the commit_mutex with
+	 * the rtnl_mutex.
+	 */
 	dev = __dev_get_by_name(net, ifname);
 	if (!dev) {
 		err = -ENOENT;
@@ -3720,7 +3724,7 @@ cont:
 	return 0;
 }
 
-static int nf_msecs_to_jiffies64(const struct nlattr *nla, u64 *result)
+int nf_msecs_to_jiffies64(const struct nlattr *nla, u64 *result)
 {
 	u64 ms = be64_to_cpu(nla_get_be64(nla));
 	u64 max = (u64)(~((u64)0));
@@ -3734,7 +3738,7 @@ static int nf_msecs_to_jiffies64(const struct nlattr *nla, u64 *result)
 	return 0;
 }
 
-static __be64 nf_jiffies64_to_msecs(u64 input)
+__be64 nf_jiffies64_to_msecs(u64 input)
 {
 	return cpu_to_be64(jiffies64_to_msecs(input));
 }
