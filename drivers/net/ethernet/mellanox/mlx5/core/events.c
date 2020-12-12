@@ -110,6 +110,8 @@ static const char *eqe_type_str(u8 type)
 		return "MLX5_EVENT_TYPE_CMD";
 	case MLX5_EVENT_TYPE_ESW_FUNCTIONS_CHANGED:
 		return "MLX5_EVENT_TYPE_ESW_FUNCTIONS_CHANGED";
+	case MLX5_EVENT_TYPE_VHCA_STATE_CHANGE:
+		return "MLX5_EVENT_TYPE_VHCA_STATE_CHANGE";
 	case MLX5_EVENT_TYPE_PAGE_REQUEST:
 		return "MLX5_EVENT_TYPE_PAGE_REQUEST";
 	case MLX5_EVENT_TYPE_PAGE_FAULT:
@@ -402,4 +404,9 @@ EXPORT_SYMBOL(mlx5_notifier_unregister);
 int mlx5_notifier_call_chain(struct mlx5_events *events, unsigned int event, void *data)
 {
 	return atomic_notifier_call_chain(&events->nh, event, data);
+}
+
+void mlx5_events_work_enqueue(struct mlx5_core_dev *dev, struct work_struct *work)
+{
+	queue_work(dev->priv.events->wq, work);
 }

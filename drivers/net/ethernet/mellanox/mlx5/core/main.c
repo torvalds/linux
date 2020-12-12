@@ -73,6 +73,7 @@
 #include "ecpf.h"
 #include "lib/hv_vhca.h"
 #include "diag/rsc_dump.h"
+#include "sf/vhca_event.h"
 
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox 5th generation network adapters (ConnectX series) core driver");
@@ -567,6 +568,8 @@ static int handle_hca_cap(struct mlx5_core_dev *dev, void *set_ctx)
 	if (MLX5_CAP_GEN_MAX(dev, mkey_by_name))
 		MLX5_SET(cmd_hca_cap, set_hca_cap, mkey_by_name, 1);
 
+	mlx5_vhca_state_cap_handle(dev, set_hca_cap);
+
 	return set_caps(dev, set_ctx, MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE);
 }
 
@@ -884,6 +887,12 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 		goto err_eswitch_cleanup;
 	}
 
+	err = mlx5_vhca_event_init(dev);
+	if (err) {
+		mlx5_core_err(dev, "Failed to init vhca event notifier %d\n", err);
+		goto err_fpga_cleanup;
+	}
+
 	dev->dm = mlx5_dm_create(dev);
 	if (IS_ERR(dev->dm))
 		mlx5_core_warn(dev, "Failed to init device memory%d\n", err);
@@ -894,6 +903,8 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 
 	return 0;
 
+err_fpga_cleanup:
+	mlx5_fpga_cleanup(dev);
 err_eswitch_cleanup:
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
 err_sriov_cleanup:
@@ -925,6 +936,7 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 	mlx5_hv_vhca_destroy(dev->hv_vhca);
 	mlx5_fw_tracer_destroy(dev->tracer);
 	mlx5_dm_cleanup(dev);
+	mlx5_vhca_event_cleanup(dev);
 	mlx5_fpga_cleanup(dev);
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
 	mlx5_sriov_cleanup(dev);
@@ -1129,6 +1141,8 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 		goto err_sriov;
 	}
 
+	mlx5_vhca_event_start(dev);
+
 	err = mlx5_ec_init(dev);
 	if (err) {
 		mlx5_core_err(dev, "Failed to init embedded CPU\n");
@@ -1146,6 +1160,7 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 err_sriov:
 	mlx5_ec_cleanup(dev);
 err_ec:
+	mlx5_vhca_event_stop(dev);
 	mlx5_cleanup_fs(dev);
 err_fs:
 	mlx5_accel_tls_cleanup(dev);
@@ -1173,6 +1188,7 @@ static void mlx5_unload(struct mlx5_core_dev *dev)
 {
 	mlx5_sriov_detach(dev);
 	mlx5_ec_cleanup(dev);
+	mlx5_vhca_event_stop(dev);
 	mlx5_cleanup_fs(dev);
 	mlx5_accel_ipsec_cleanup(dev);
 	mlx5_accel_tls_cleanup(dev);
