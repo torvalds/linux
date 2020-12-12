@@ -936,29 +936,23 @@ static struct ab8500_btemp_interrupts ab8500_btemp_irq[] = {
 	{"BTEMP_MEDIUM_HIGH", ab8500_btemp_medhigh_handler},
 };
 
-#if defined(CONFIG_PM)
-static int ab8500_btemp_resume(struct platform_device *pdev)
+static int __maybe_unused ab8500_btemp_resume(struct device *dev)
 {
-	struct ab8500_btemp *di = platform_get_drvdata(pdev);
+	struct ab8500_btemp *di = dev_get_drvdata(dev);
 
 	ab8500_btemp_periodic(di, true);
 
 	return 0;
 }
 
-static int ab8500_btemp_suspend(struct platform_device *pdev,
-	pm_message_t state)
+static int __maybe_unused ab8500_btemp_suspend(struct device *dev)
 {
-	struct ab8500_btemp *di = platform_get_drvdata(pdev);
+	struct ab8500_btemp *di = dev_get_drvdata(dev);
 
 	ab8500_btemp_periodic(di, false);
 
 	return 0;
 }
-#else
-#define ab8500_btemp_suspend      NULL
-#define ab8500_btemp_resume       NULL
-#endif
 
 static int ab8500_btemp_remove(struct platform_device *pdev)
 {
@@ -1137,6 +1131,8 @@ free_btemp_wq:
 	return ret;
 }
 
+static SIMPLE_DEV_PM_OPS(ab8500_btemp_pm_ops, ab8500_btemp_suspend, ab8500_btemp_resume);
+
 static const struct of_device_id ab8500_btemp_match[] = {
 	{ .compatible = "stericsson,ab8500-btemp", },
 	{ },
@@ -1145,11 +1141,10 @@ static const struct of_device_id ab8500_btemp_match[] = {
 static struct platform_driver ab8500_btemp_driver = {
 	.probe = ab8500_btemp_probe,
 	.remove = ab8500_btemp_remove,
-	.suspend = ab8500_btemp_suspend,
-	.resume = ab8500_btemp_resume,
 	.driver = {
 		.name = "ab8500-btemp",
 		.of_match_table = ab8500_btemp_match,
+		.pm = &ab8500_btemp_pm_ops,
 	},
 };
 

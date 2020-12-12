@@ -2942,10 +2942,9 @@ static void ab8500_fg_sysfs_psy_remove_attrs(struct ab8500_fg *di)
 
 /* Exposure to the sysfs interface <<END>> */
 
-#if defined(CONFIG_PM)
-static int ab8500_fg_resume(struct platform_device *pdev)
+static int __maybe_unused ab8500_fg_resume(struct device *dev)
 {
-	struct ab8500_fg *di = platform_get_drvdata(pdev);
+	struct ab8500_fg *di = dev_get_drvdata(dev);
 
 	/*
 	 * Change state if we're not charging. If we're charging we will wake
@@ -2959,10 +2958,9 @@ static int ab8500_fg_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static int ab8500_fg_suspend(struct platform_device *pdev,
-	pm_message_t state)
+static int __maybe_unused ab8500_fg_suspend(struct device *dev)
 {
-	struct ab8500_fg *di = platform_get_drvdata(pdev);
+	struct ab8500_fg *di = dev_get_drvdata(dev);
 
 	flush_delayed_work(&di->fg_periodic_work);
 	flush_work(&di->fg_work);
@@ -2980,10 +2978,6 @@ static int ab8500_fg_suspend(struct platform_device *pdev,
 
 	return 0;
 }
-#else
-#define ab8500_fg_suspend      NULL
-#define ab8500_fg_resume       NULL
-#endif
 
 static int ab8500_fg_remove(struct platform_device *pdev)
 {
@@ -3244,6 +3238,8 @@ free_inst_curr_wq:
 	return ret;
 }
 
+static SIMPLE_DEV_PM_OPS(ab8500_fg_pm_ops, ab8500_fg_suspend, ab8500_fg_resume);
+
 static const struct of_device_id ab8500_fg_match[] = {
 	{ .compatible = "stericsson,ab8500-fg", },
 	{ },
@@ -3252,11 +3248,10 @@ static const struct of_device_id ab8500_fg_match[] = {
 static struct platform_driver ab8500_fg_driver = {
 	.probe = ab8500_fg_probe,
 	.remove = ab8500_fg_remove,
-	.suspend = ab8500_fg_suspend,
-	.resume = ab8500_fg_resume,
 	.driver = {
 		.name = "ab8500-fg",
 		.of_match_table = ab8500_fg_match,
+		.pm = &ab8500_fg_pm_ops,
 	},
 };
 

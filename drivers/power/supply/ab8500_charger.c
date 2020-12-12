@@ -3209,11 +3209,10 @@ static int ab8500_charger_usb_notifier_call(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-#if defined(CONFIG_PM)
-static int ab8500_charger_resume(struct platform_device *pdev)
+static int __maybe_unused ab8500_charger_resume(struct device *dev)
 {
 	int ret;
-	struct ab8500_charger *di = platform_get_drvdata(pdev);
+	struct ab8500_charger *di = dev_get_drvdata(dev);
 
 	/*
 	 * For ABB revision 1.0 and 1.1 there is a bug in the watchdog
@@ -3247,10 +3246,9 @@ static int ab8500_charger_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static int ab8500_charger_suspend(struct platform_device *pdev,
-	pm_message_t state)
+static int __maybe_unused ab8500_charger_suspend(struct device *dev)
 {
-	struct ab8500_charger *di = platform_get_drvdata(pdev);
+	struct ab8500_charger *di = dev_get_drvdata(dev);
 
 	/* Cancel any pending jobs */
 	cancel_delayed_work(&di->check_hw_failure_work);
@@ -3272,10 +3270,6 @@ static int ab8500_charger_suspend(struct platform_device *pdev,
 
 	return 0;
 }
-#else
-#define ab8500_charger_suspend      NULL
-#define ab8500_charger_resume       NULL
-#endif
 
 static struct notifier_block charger_nb = {
 	.notifier_call = ab8500_external_charger_prepare,
@@ -3658,6 +3652,8 @@ free_charger_wq:
 	return ret;
 }
 
+static SIMPLE_DEV_PM_OPS(ab8500_charger_pm_ops, ab8500_charger_suspend, ab8500_charger_resume);
+
 static const struct of_device_id ab8500_charger_match[] = {
 	{ .compatible = "stericsson,ab8500-charger", },
 	{ },
@@ -3666,11 +3662,10 @@ static const struct of_device_id ab8500_charger_match[] = {
 static struct platform_driver ab8500_charger_driver = {
 	.probe = ab8500_charger_probe,
 	.remove = ab8500_charger_remove,
-	.suspend = ab8500_charger_suspend,
-	.resume = ab8500_charger_resume,
 	.driver = {
 		.name = "ab8500-charger",
 		.of_match_table = ab8500_charger_match,
+		.pm = &ab8500_charger_pm_ops,
 	},
 };
 
