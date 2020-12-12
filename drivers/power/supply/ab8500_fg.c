@@ -3059,10 +3059,9 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 
 	di->main_bat_v = devm_iio_channel_get(dev, "main_bat_v");
 	if (IS_ERR(di->main_bat_v)) {
-		if (PTR_ERR(di->main_bat_v) == -ENODEV)
-			return -EPROBE_DEFER;
-		dev_err(dev, "failed to get main battery ADC channel\n");
-		return PTR_ERR(di->main_bat_v);
+		ret = dev_err_probe(dev, PTR_ERR(di->main_bat_v),
+				    "failed to get main battery ADC channel\n");
+		return ret;
 	}
 
 	psy_cfg.supplied_to = supply_interface;

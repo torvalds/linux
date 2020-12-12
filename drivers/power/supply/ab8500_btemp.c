@@ -1023,17 +1023,15 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 	/* Get ADC channels */
 	di->btemp_ball = devm_iio_channel_get(dev, "btemp_ball");
 	if (IS_ERR(di->btemp_ball)) {
-		if (PTR_ERR(di->btemp_ball) == -ENODEV)
-			return -EPROBE_DEFER;
-		dev_err(dev, "failed to get BTEMP BALL ADC channel\n");
-		return PTR_ERR(di->btemp_ball);
+		ret = dev_err_probe(dev, PTR_ERR(di->btemp_ball),
+				    "failed to get BTEMP BALL ADC channel\n");
+		return ret;
 	}
 	di->bat_ctrl = devm_iio_channel_get(dev, "bat_ctrl");
 	if (IS_ERR(di->bat_ctrl)) {
-		if (PTR_ERR(di->bat_ctrl) == -ENODEV)
-			return -EPROBE_DEFER;
-		dev_err(dev, "failed to get BAT CTRL ADC channel\n");
-		return PTR_ERR(di->bat_ctrl);
+		ret = dev_err_probe(dev, PTR_ERR(di->bat_ctrl),
+				    "failed to get BAT CTRL ADC channel\n");
+		return ret;
 	}
 
 	di->initialized = false;

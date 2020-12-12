@@ -3375,36 +3375,29 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->parent = dev_get_drvdata(pdev->dev.parent);
 
 	/* Get ADC channels */
-	di->adc_main_charger_v = devm_iio_channel_get(dev,
-						      "main_charger_v");
+	di->adc_main_charger_v = devm_iio_channel_get(dev, "main_charger_v");
 	if (IS_ERR(di->adc_main_charger_v)) {
-		if (PTR_ERR(di->adc_main_charger_v) == -ENODEV)
-			return -EPROBE_DEFER;
-		dev_err(dev, "failed to get ADC main charger voltage\n");
-		return PTR_ERR(di->adc_main_charger_v);
+		ret = dev_err_probe(dev, PTR_ERR(di->adc_main_charger_v),
+				    "failed to get ADC main charger voltage\n");
+		return ret;
 	}
-	di->adc_main_charger_c = devm_iio_channel_get(dev,
-						      "main_charger_c");
+	di->adc_main_charger_c = devm_iio_channel_get(dev, "main_charger_c");
 	if (IS_ERR(di->adc_main_charger_c)) {
-		if (PTR_ERR(di->adc_main_charger_c) == -ENODEV)
-			return -EPROBE_DEFER;
-		dev_err(dev, "failed to get ADC main charger current\n");
-		return PTR_ERR(di->adc_main_charger_c);
+		ret = dev_err_probe(dev, PTR_ERR(di->adc_main_charger_c),
+				    "failed to get ADC main charger current\n");
+		return ret;
 	}
 	di->adc_vbus_v = devm_iio_channel_get(dev, "vbus_v");
 	if (IS_ERR(di->adc_vbus_v)) {
-		if (PTR_ERR(di->adc_vbus_v) == -ENODEV)
-			return -EPROBE_DEFER;
-		dev_err(dev, "failed to get ADC USB charger voltage\n");
-		return PTR_ERR(di->adc_vbus_v);
+		ret = dev_err_probe(dev, PTR_ERR(di->adc_vbus_v),
+				    "failed to get ADC USB charger voltage\n");
+		return ret;
 	}
-	di->adc_usb_charger_c = devm_iio_channel_get(dev,
-						     "usb_charger_c");
+	di->adc_usb_charger_c = devm_iio_channel_get(dev, "usb_charger_c");
 	if (IS_ERR(di->adc_usb_charger_c)) {
-		if (PTR_ERR(di->adc_usb_charger_c) == -ENODEV)
-			return -EPROBE_DEFER;
-		dev_err(dev, "failed to get ADC USB charger current\n");
-		return PTR_ERR(di->adc_usb_charger_c);
+		ret = dev_err_probe(dev, PTR_ERR(di->adc_usb_charger_c),
+				    "failed to get ADC USB charger current\n");
+		return ret;
 	}
 
 	/* initialize lock */
