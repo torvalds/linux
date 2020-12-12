@@ -23,6 +23,7 @@
 #include <linux/sched/clock.h>
 #include <linux/nmi.h>
 #include <linux/sched/debug.h>
+#include <linux/suspend.h>
 
 #include "smpboot.h"
 #include "sched/smp.h"
@@ -953,7 +954,8 @@ void wake_up_all_idle_cpus(void)
 		if (cpu == smp_processor_id())
 			continue;
 
-		wake_up_if_idle(cpu);
+		if (s2idle_state == S2IDLE_STATE_ENTER || cpu_active(cpu))
+			wake_up_if_idle(cpu);
 	}
 	preempt_enable();
 }
