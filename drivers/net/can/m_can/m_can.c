@@ -5,8 +5,7 @@
 // Copyright (C) 2018-19 Texas Instruments Incorporated - http://www.ti.com/
 
 /* Bosch M_CAN user manual can be obtained from:
- * http://www.bosch-semiconductors.de/media/pdf_1/ipmodules_1/m_can/
- * mcan_users_manual_v302.pdf
+ * https://github.com/linux-can/can-doc/tree/master/m_can
  */
 
 #include <linux/interrupt.h>
