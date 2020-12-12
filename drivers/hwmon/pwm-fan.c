@@ -21,15 +21,19 @@
 
 #define MAX_PWM 255
 
+struct pwm_fan_tach {
+	int irq;
+	atomic_t pulses;
+	unsigned int rpm;
+	u8 pulses_per_revolution;
+};
+
 struct pwm_fan_ctx {
 	struct mutex lock;
 	struct pwm_device *pwm;
 	struct regulator *reg_en;
 
-	int irq;
-	atomic_t pulses;
-	unsigned int rpm;
-	u8 pulses_per_revolution;
+	struct pwm_fan_tach *tach;
 	ktime_t sample_start;
 	struct timer_list rpm_timer;
 
@@ -65,9 +69,9 @@ static const struct hwmon_channel_info pwm_fan_channel_fan = {
 /* This handler assumes self resetting edge triggered interrupt. */
 static irqreturn_t pulse_handler(int irq, void *dev_id)
 {
-	struct pwm_fan_ctx *ctx = dev_id;
+	struct pwm_fan_tach *tach = dev_id;
 
-	atomic_inc(&ctx->pulses);
+	atomic_inc(&tach->pulses);
 
 	return IRQ_HANDLED;
 }
@@ -75,14 +79,15 @@ static irqreturn_t pulse_handler(int irq, void *dev_id)
 static void sample_timer(struct timer_list *t)
 {
 	struct pwm_fan_ctx *ctx = from_timer(ctx, t, rpm_timer);
+	struct pwm_fan_tach *tach = ctx->tach;
 	unsigned int delta = ktime_ms_delta(ktime_get(), ctx->sample_start);
 	int pulses;
 
 	if (delta) {
-		pulses = atomic_read(&ctx->pulses);
-		atomic_sub(pulses, &ctx->pulses);
-		ctx->rpm = (unsigned int)(pulses * 1000 * 60) /
-			(ctx->pulses_per_revolution * delta);
+		pulses = atomic_read(&tach->pulses);
+		atomic_sub(pulses, &tach->pulses);
+		tach->rpm = (unsigned int)(pulses * 1000 * 60) /
+			(tach->pulses_per_revolution * delta);
 
 		ctx->sample_start = ktime_get();
 	}
@@ -152,7 +157,7 @@ static int pwm_fan_read(struct device *dev, enum hwmon_sensor_types type,
 		return 0;
 
 	case hwmon_fan:
-		*val = ctx->rpm;
+		*val = ctx->tach->rpm;
 		return 0;
 
 	default:
@@ -372,14 +377,21 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	channels[0] = &pwm_fan_channel_pwm;
 
 	if (tach_count > 0) {
+		struct pwm_fan_tach *tach;
 		u32 ppr = 2;
 
-		ctx->irq = platform_get_irq(pdev, 0);
-		if (ctx->irq == -EPROBE_DEFER)
-			return ctx->irq;
-		if (ctx->irq > 0) {
-			ret = devm_request_irq(dev, ctx->irq, pulse_handler, 0,
-					       pdev->name, ctx);
+		tach = devm_kzalloc(dev, sizeof(struct pwm_fan_tach),
+					 GFP_KERNEL);
+		if (!tach)
+			return -ENOMEM;
+		ctx->tach = tach;
+
+		tach->irq = platform_get_irq(pdev, 0);
+		if (tach->irq == -EPROBE_DEFER)
+			return tach->irq;
+		if (tach->irq > 0) {
+			ret = devm_request_irq(dev, tach->irq, pulse_handler, 0,
+					       pdev->name, tach);
 			if (ret) {
 				dev_err(dev,
 					"Failed to request interrupt: %d\n",
@@ -391,14 +403,14 @@ static int pwm_fan_probe(struct platform_device *pdev)
 		of_property_read_u32(dev->of_node,
 				     "pulses-per-revolution",
 				     &ppr);
-		ctx->pulses_per_revolution = ppr;
-		if (!ctx->pulses_per_revolution) {
+		tach->pulses_per_revolution = ppr;
+		if (!tach->pulses_per_revolution) {
 			dev_err(dev, "pulses-per-revolution can't be zero.\n");
 			return -EINVAL;
 		}
 
 		dev_dbg(dev, "tach: irq=%d, pulses_per_revolution=%d\n",
-			ctx->irq, ctx->pulses_per_revolution);
+			tach->irq, tach->pulses_per_revolution);
 
 		ctx->sample_start = ktime_get();
 		mod_timer(&ctx->rpm_timer, jiffies + HZ);
