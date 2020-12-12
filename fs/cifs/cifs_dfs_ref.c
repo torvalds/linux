@@ -254,6 +254,7 @@ compose_mount_options_err:
  * to perform failover in case we failed to connect to the first target in the
  * referral.
  *
+ * @mntpt:		directory entry for the path we are trying to automount
  * @cifs_sb:		parent/root superblock
  * @fullpath:		full path in UNC format
  */

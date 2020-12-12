@@ -876,6 +876,10 @@ smb2_handle_cancelled_mid(char *buffer, struct TCP_Server_Info *server)
  *
  * Assumes @iov does not contain the rfc1002 length and iov[0] has the
  * SMB2 header.
+ *
+ * @ses:	server session structure
+ * @iov:	array containing the SMB request we will send to the server
+ * @nvec:	number of array entries for the iov
  */
 int
 smb311_update_preauth_hash(struct cifs_ses *ses, struct kvec *iov, int nvec)
