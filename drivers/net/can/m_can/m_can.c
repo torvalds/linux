@@ -612,18 +612,10 @@ static int __m_can_get_berr_counter(const struct net_device *dev,
 
 static int m_can_clk_start(struct m_can_classdev *cdev)
 {
-	int err;
-
 	if (cdev->pm_clock_support == 0)
 		return 0;
 
-	err = pm_runtime_get_sync(cdev->dev);
-	if (err < 0) {
-		pm_runtime_put_noidle(cdev->dev);
-		return err;
-	}
-
-	return 0;
+	return pm_runtime_resume_and_get(cdev->dev);
 }
 
 static void m_can_clk_stop(struct m_can_classdev *cdev)
