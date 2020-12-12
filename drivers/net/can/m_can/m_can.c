@@ -1859,8 +1859,8 @@ EXPORT_SYMBOL_GPL(m_can_class_unregister);
 
 int m_can_class_suspend(struct device *dev)
 {
-	struct net_device *ndev = dev_get_drvdata(dev);
-	struct m_can_classdev *cdev = netdev_priv(ndev);
+	struct m_can_classdev *cdev = dev_get_drvdata(dev);
+	struct net_device *ndev = cdev->net;
 
 	if (netif_running(ndev)) {
 		netif_stop_queue(ndev);
@@ -1879,8 +1879,8 @@ EXPORT_SYMBOL_GPL(m_can_class_suspend);
 
 int m_can_class_resume(struct device *dev)
 {
-	struct net_device *ndev = dev_get_drvdata(dev);
-	struct m_can_classdev *cdev = netdev_priv(ndev);
+	struct m_can_classdev *cdev = dev_get_drvdata(dev);
+	struct net_device *ndev = cdev->net;
 
 	pinctrl_pm_select_default_state(dev);
 

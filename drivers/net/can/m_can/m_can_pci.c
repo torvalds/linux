@@ -115,7 +115,7 @@ static int m_can_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	mcan_class->can.clock.freq = id->driver_data;
 	mcan_class->ops = &m_can_pci_ops;
 
-	pci_set_drvdata(pci, mcan_class->net);
+	pci_set_drvdata(pci, mcan_class);
 
 	ret = m_can_class_register(mcan_class);
 	if (ret)
@@ -138,8 +138,7 @@ err:
 
 static void m_can_pci_remove(struct pci_dev *pci)
 {
-	struct net_device *dev = pci_get_drvdata(pci);
-	struct m_can_classdev *mcan_class = netdev_priv(dev);
+	struct m_can_classdev *mcan_class = pci_get_drvdata(pci);
 	struct m_can_pci_priv *priv = cdev_to_priv(mcan_class);
 
 	pm_runtime_forbid(&pci->dev);

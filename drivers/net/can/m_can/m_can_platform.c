@@ -113,7 +113,7 @@ static int m_can_plat_probe(struct platform_device *pdev)
 
 	mcan_class->is_peripheral = false;
 
-	platform_set_drvdata(pdev, mcan_class->net);
+	platform_set_drvdata(pdev, mcan_class);
 
 	m_can_init_ram(mcan_class);
 
@@ -143,8 +143,8 @@ static __maybe_unused int m_can_resume(struct device *dev)
 
 static int m_can_plat_remove(struct platform_device *pdev)
 {
-	struct net_device *dev = platform_get_drvdata(pdev);
-	struct m_can_classdev *mcan_class = netdev_priv(dev);
+	struct m_can_plat_priv *priv = platform_get_drvdata(pdev);
+	struct m_can_classdev *mcan_class = &priv->cdev;
 
 	m_can_class_unregister(mcan_class);
 
@@ -155,8 +155,8 @@ static int m_can_plat_remove(struct platform_device *pdev)
 
 static int __maybe_unused m_can_runtime_suspend(struct device *dev)
 {
-	struct net_device *ndev = dev_get_drvdata(dev);
-	struct m_can_classdev *mcan_class = netdev_priv(ndev);
+	struct m_can_plat_priv *priv = dev_get_drvdata(dev);
+	struct m_can_classdev *mcan_class = &priv->cdev;
 
 	clk_disable_unprepare(mcan_class->cclk);
 	clk_disable_unprepare(mcan_class->hclk);
@@ -166,8 +166,8 @@ static int __maybe_unused m_can_runtime_suspend(struct device *dev)
 
 static int __maybe_unused m_can_runtime_resume(struct device *dev)
 {
-	struct net_device *ndev = dev_get_drvdata(dev);
-	struct m_can_classdev *mcan_class = netdev_priv(ndev);
+	struct m_can_plat_priv *priv = dev_get_drvdata(dev);
+	struct m_can_classdev *mcan_class = &priv->cdev;
 	int err;
 
 	err = clk_prepare_enable(mcan_class->hclk);
