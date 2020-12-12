@@ -53,7 +53,7 @@ static const struct file_operations name## _ops = {			\
 	DEBUGFS_READONLY_FILE_OPS(name)
 
 #define DEBUGFS_ADD(name)						\
-	debugfs_create_file(#name, 0400, phyd, local, &name## _ops);
+	debugfs_create_file(#name, 0400, phyd, local, &name## _ops)
 
 #define DEBUGFS_ADD_MODE(name, mode)					\
 	debugfs_create_file(#name, mode, phyd, local, &name## _ops);

@@ -1261,6 +1261,7 @@ struct ieee80211_mgmt {
 #define BSS_MEMBERSHIP_SELECTOR_HT_PHY	127
 #define BSS_MEMBERSHIP_SELECTOR_VHT_PHY	126
 #define BSS_MEMBERSHIP_SELECTOR_HE_PHY	122
+#define BSS_MEMBERSHIP_SELECTOR_SAE_H2E 123
 
 /* mgmt header + 1 byte category code */
 #define IEEE80211_MIN_ACTION_SIZE offsetof(struct ieee80211_mgmt, u.action.u)
@@ -3835,15 +3836,15 @@ static inline bool for_each_element_completed(const struct element *element,
 #define WLAN_RSNX_CAPA_SAE_H2E BIT(5)
 
 /*
- * reduced neighbor report, based on Draft P802.11ax_D5.0,
- * section 9.4.2.170
+ * reduced neighbor report, based on Draft P802.11ax_D6.1,
+ * section 9.4.2.170 and accepted contributions.
  */
 #define IEEE80211_AP_INFO_TBTT_HDR_TYPE				0x03
 #define IEEE80211_AP_INFO_TBTT_HDR_FILTERED			0x04
 #define IEEE80211_AP_INFO_TBTT_HDR_COLOC			0x08
 #define IEEE80211_AP_INFO_TBTT_HDR_COUNT			0xF0
-#define IEEE80211_TBTT_INFO_OFFSET_BSSID_BSS_PARAM		8
-#define IEEE80211_TBTT_INFO_OFFSET_BSSID_SSSID_BSS_PARAM	12
+#define IEEE80211_TBTT_INFO_OFFSET_BSSID_BSS_PARAM		9
+#define IEEE80211_TBTT_INFO_OFFSET_BSSID_SSSID_BSS_PARAM	13
 
 #define IEEE80211_RNR_TBTT_PARAMS_OCT_RECOMMENDED		0x01
 #define IEEE80211_RNR_TBTT_PARAMS_SAME_SSID			0x02

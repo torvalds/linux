@@ -399,6 +399,18 @@ nl80211_unsol_bcast_probe_resp_policy[NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_MAX + 
 						       .len = IEEE80211_MAX_DATA_LEN }
 };
 
+static const struct nla_policy
+sar_specs_policy[NL80211_SAR_ATTR_SPECS_MAX + 1] = {
+	[NL80211_SAR_ATTR_SPECS_POWER] = { .type = NLA_S32 },
+	[NL80211_SAR_ATTR_SPECS_RANGE_INDEX] = {.type = NLA_U32 },
+};
+
+static const struct nla_policy
+sar_policy[NL80211_SAR_ATTR_MAX + 1] = {
+	[NL80211_SAR_ATTR_TYPE] = NLA_POLICY_MAX(NLA_U32, NUM_NL80211_SAR_TYPE),
+	[NL80211_SAR_ATTR_SPECS] = NLA_POLICY_NESTED_ARRAY(sar_specs_policy),
+};
+
 static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[0] = { .strict_start_type = NL80211_ATTR_HE_OBSS_PD },
 	[NL80211_ATTR_WIPHY] = { .type = NLA_U32 },
@@ -718,6 +730,8 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_SAE_PWE] =
 		NLA_POLICY_RANGE(NLA_U8, NL80211_SAE_PWE_HUNT_AND_PECK,
 				 NL80211_SAE_PWE_BOTH),
+	[NL80211_ATTR_RECONNECT_REQUESTED] = { .type = NLA_REJECT },
+	[NL80211_ATTR_SAR_SPEC] = NLA_POLICY_NESTED(sar_policy),
 };
 
 /* policy for the key attributes */
@@ -2094,6 +2108,56 @@ fail:
 	return -ENOBUFS;
 }
 
+static int
+nl80211_put_sar_specs(struct cfg80211_registered_device *rdev,
+		      struct sk_buff *msg)
+{
+	struct nlattr *sar_capa, *specs, *sub_freq_range;
+	u8 num_freq_ranges;
+	int i;
+
+	if (!rdev->wiphy.sar_capa)
+		return 0;
+
+	num_freq_ranges = rdev->wiphy.sar_capa->num_freq_ranges;
+
+	sar_capa = nla_nest_start(msg, NL80211_ATTR_SAR_SPEC);
+	if (!sar_capa)
+		return -ENOSPC;
+
+	if (nla_put_u32(msg, NL80211_SAR_ATTR_TYPE, rdev->wiphy.sar_capa->type))
+		goto fail;
+
+	specs = nla_nest_start(msg, NL80211_SAR_ATTR_SPECS);
+	if (!specs)
+		goto fail;
+
+	/* report supported freq_ranges */
+	for (i = 0; i < num_freq_ranges; i++) {
+		sub_freq_range = nla_nest_start(msg, i + 1);
+		if (!sub_freq_range)
+			goto fail;
+
+		if (nla_put_u32(msg, NL80211_SAR_ATTR_SPECS_START_FREQ,
+				rdev->wiphy.sar_capa->freq_ranges[i].start_freq))
+			goto fail;
+
+		if (nla_put_u32(msg, NL80211_SAR_ATTR_SPECS_END_FREQ,
+				rdev->wiphy.sar_capa->freq_ranges[i].end_freq))
+			goto fail;
+
+		nla_nest_end(msg, sub_freq_range);
+	}
+
+	nla_nest_end(msg, specs);
+	nla_nest_end(msg, sar_capa);
+
+	return 0;
+fail:
+	nla_nest_cancel(msg, sar_capa);
+	return -ENOBUFS;
+}
+
 struct nl80211_dump_wiphy_state {
 	s64 filter_wiphy;
 	long start;
@@ -2343,6 +2407,8 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 			CMD(set_multicast_to_unicast, SET_MULTICAST_TO_UNICAST);
 			CMD(update_connect_params, UPDATE_CONNECT_PARAMS);
 			CMD(update_ft_ies, UPDATE_FT_IES);
+			if (rdev->wiphy.sar_capa)
+				CMD(set_sar_specs, SET_SAR_SPECS);
 		}
 #undef CMD
 
@@ -2667,6 +2733,11 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 			goto nla_put_failure;
 
 		if (nl80211_put_tid_config_support(rdev, msg))
+			goto nla_put_failure;
+		state->split_start++;
+		break;
+	case 16:
+		if (nl80211_put_sar_specs(rdev, msg))
 			goto nla_put_failure;
 
 		/* done */
@@ -4239,9 +4310,6 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		return err;
 
-	if (key.idx < 0)
-		return -EINVAL;
-
 	if (info->attrs[NL80211_ATTR_MAC])
 		mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
@@ -4255,6 +4323,10 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 	/* for now */
 	if (key.type != NL80211_KEYTYPE_PAIRWISE &&
 	    key.type != NL80211_KEYTYPE_GROUP)
+		return -EINVAL;
+
+	if (!cfg80211_valid_key_idx(rdev, key.idx,
+				    key.type == NL80211_KEYTYPE_PAIRWISE))
 		return -EINVAL;
 
 	if (!rdev->ops->del_key)
@@ -5017,6 +5089,8 @@ static void nl80211_check_ap_rate_selectors(struct cfg80211_ap_settings *params,
 			params->vht_required = true;
 		if (rates[2 + i] == BSS_MEMBERSHIP_SELECTOR_HE_PHY)
 			params->he_required = true;
+		if (rates[2 + i] == BSS_MEMBERSHIP_SELECTOR_SAE_H2E)
+			params->sae_h2e_required = true;
 	}
 }
 
@@ -8241,12 +8315,6 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (info->attrs[NL80211_ATTR_MEASUREMENT_DURATION]) {
-		if (!wiphy_ext_feature_isset(wiphy,
-					NL80211_EXT_FEATURE_SET_SCAN_DWELL)) {
-			err = -EOPNOTSUPP;
-			goto out_free;
-		}
-
 		request->duration =
 			nla_get_u16(info->attrs[NL80211_ATTR_MEASUREMENT_DURATION]);
 		request->duration_mandatory =
@@ -11175,6 +11243,7 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 	case NL80211_IFTYPE_P2P_DEVICE:
 		if (!info->attrs[NL80211_ATTR_WIPHY_FREQ])
 			return -EINVAL;
+		break;
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_P2P_CLIENT:
@@ -14669,6 +14738,111 @@ static void nl80211_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
 	}
 }
 
+static int nl80211_set_sar_sub_specs(struct cfg80211_registered_device *rdev,
+				     struct cfg80211_sar_specs *sar_specs,
+				     struct nlattr *spec[], int index)
+{
+	u32 range_index, i;
+
+	if (!sar_specs || !spec)
+		return -EINVAL;
+
+	if (!spec[NL80211_SAR_ATTR_SPECS_POWER] ||
+	    !spec[NL80211_SAR_ATTR_SPECS_RANGE_INDEX])
+		return -EINVAL;
+
+	range_index = nla_get_u32(spec[NL80211_SAR_ATTR_SPECS_RANGE_INDEX]);
+
+	/* check if range_index exceeds num_freq_ranges */
+	if (range_index >= rdev->wiphy.sar_capa->num_freq_ranges)
+		return -EINVAL;
+
+	/* check if range_index duplicates */
+	for (i = 0; i < index; i++) {
+		if (sar_specs->sub_specs[i].freq_range_index == range_index)
+			return -EINVAL;
+	}
+
+	sar_specs->sub_specs[index].power =
+		nla_get_s32(spec[NL80211_SAR_ATTR_SPECS_POWER]);
+
+	sar_specs->sub_specs[index].freq_range_index = range_index;
+
+	return 0;
+}
+
+static int nl80211_set_sar_specs(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct nlattr *spec[NL80211_SAR_ATTR_SPECS_MAX + 1];
+	struct nlattr *tb[NL80211_SAR_ATTR_MAX + 1];
+	struct cfg80211_sar_specs *sar_spec;
+	enum nl80211_sar_type type;
+	struct nlattr *spec_list;
+	u32 specs;
+	int rem, err;
+
+	if (!rdev->wiphy.sar_capa || !rdev->ops->set_sar_specs)
+		return -EOPNOTSUPP;
+
+	if (!info->attrs[NL80211_ATTR_SAR_SPEC])
+		return -EINVAL;
+
+	nla_parse_nested(tb, NL80211_SAR_ATTR_MAX,
+			 info->attrs[NL80211_ATTR_SAR_SPEC],
+			 NULL, NULL);
+
+	if (!tb[NL80211_SAR_ATTR_TYPE] || !tb[NL80211_SAR_ATTR_SPECS])
+		return -EINVAL;
+
+	type = nla_get_u32(tb[NL80211_SAR_ATTR_TYPE]);
+	if (type != rdev->wiphy.sar_capa->type)
+		return -EINVAL;
+
+	specs = 0;
+	nla_for_each_nested(spec_list, tb[NL80211_SAR_ATTR_SPECS], rem)
+		specs++;
+
+	if (specs > rdev->wiphy.sar_capa->num_freq_ranges)
+		return -EINVAL;
+
+	sar_spec = kzalloc(sizeof(*sar_spec) +
+			   specs * sizeof(struct cfg80211_sar_sub_specs),
+			   GFP_KERNEL);
+	if (!sar_spec)
+		return -ENOMEM;
+
+	sar_spec->type = type;
+	specs = 0;
+	nla_for_each_nested(spec_list, tb[NL80211_SAR_ATTR_SPECS], rem) {
+		nla_parse_nested(spec, NL80211_SAR_ATTR_SPECS_MAX,
+				 spec_list, NULL, NULL);
+
+		switch (type) {
+		case NL80211_SAR_TYPE_POWER:
+			if (nl80211_set_sar_sub_specs(rdev, sar_spec,
+						      spec, specs)) {
+				err = -EINVAL;
+				goto error;
+			}
+			break;
+		default:
+			err = -EINVAL;
+			goto error;
+		}
+		specs++;
+	}
+
+	sar_spec->num_sub_specs = specs;
+
+	rdev->cur_cmd_info = info;
+	err = rdev_set_sar_specs(rdev, sar_spec);
+	rdev->cur_cmd_info = NULL;
+error:
+	kfree(sar_spec);
+	return err;
+}
+
 static const struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_GET_WIPHY,
@@ -15522,6 +15696,14 @@ static const struct genl_small_ops nl80211_small_ops[] = {
 		.internal_flags = NL80211_FLAG_NEED_NETDEV |
 				  NL80211_FLAG_NEED_RTNL,
 	},
+	{
+		.cmd = NL80211_CMD_SET_SAR_SPECS,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
+		.doit = nl80211_set_sar_specs,
+		.flags = GENL_UNS_ADMIN_PERM,
+		.internal_flags = NL80211_FLAG_NEED_WIPHY |
+				  NL80211_FLAG_NEED_RTNL,
+	},
 };
 
 static struct genl_family nl80211_fam __ro_after_init = {
@@ -15857,7 +16039,7 @@ static void nl80211_send_mlme_event(struct cfg80211_registered_device *rdev,
 				    const u8 *buf, size_t len,
 				    enum nl80211_commands cmd, gfp_t gfp,
 				    int uapsd_queues, const u8 *req_ies,
-				    size_t req_ies_len)
+				    size_t req_ies_len, bool reconnect)
 {
 	struct sk_buff *msg;
 	void *hdr;
@@ -15877,6 +16059,9 @@ static void nl80211_send_mlme_event(struct cfg80211_registered_device *rdev,
 	    nla_put(msg, NL80211_ATTR_FRAME, len, buf) ||
 	    (req_ies &&
 	     nla_put(msg, NL80211_ATTR_REQ_IE, req_ies_len, req_ies)))
+		goto nla_put_failure;
+
+	if (reconnect && nla_put_flag(msg, NL80211_ATTR_RECONNECT_REQUESTED))
 		goto nla_put_failure;
 
 	if (uapsd_queues >= 0) {
@@ -15907,7 +16092,8 @@ void nl80211_send_rx_auth(struct cfg80211_registered_device *rdev,
 			  size_t len, gfp_t gfp)
 {
 	nl80211_send_mlme_event(rdev, netdev, buf, len,
-				NL80211_CMD_AUTHENTICATE, gfp, -1, NULL, 0);
+				NL80211_CMD_AUTHENTICATE, gfp, -1, NULL, 0,
+				false);
 }
 
 void nl80211_send_rx_assoc(struct cfg80211_registered_device *rdev,
@@ -15917,23 +16103,25 @@ void nl80211_send_rx_assoc(struct cfg80211_registered_device *rdev,
 {
 	nl80211_send_mlme_event(rdev, netdev, buf, len,
 				NL80211_CMD_ASSOCIATE, gfp, uapsd_queues,
-				req_ies, req_ies_len);
+				req_ies, req_ies_len, false);
 }
 
 void nl80211_send_deauth(struct cfg80211_registered_device *rdev,
 			 struct net_device *netdev, const u8 *buf,
-			 size_t len, gfp_t gfp)
+			 size_t len, bool reconnect, gfp_t gfp)
 {
 	nl80211_send_mlme_event(rdev, netdev, buf, len,
-				NL80211_CMD_DEAUTHENTICATE, gfp, -1, NULL, 0);
+				NL80211_CMD_DEAUTHENTICATE, gfp, -1, NULL, 0,
+				reconnect);
 }
 
 void nl80211_send_disassoc(struct cfg80211_registered_device *rdev,
 			   struct net_device *netdev, const u8 *buf,
-			   size_t len, gfp_t gfp)
+			   size_t len, bool reconnect, gfp_t gfp)
 {
 	nl80211_send_mlme_event(rdev, netdev, buf, len,
-				NL80211_CMD_DISASSOCIATE, gfp, -1, NULL, 0);
+				NL80211_CMD_DISASSOCIATE, gfp, -1, NULL, 0,
+				reconnect);
 }
 
 void cfg80211_rx_unprot_mlme_mgmt(struct net_device *dev, const u8 *buf,
@@ -15964,7 +16152,7 @@ void cfg80211_rx_unprot_mlme_mgmt(struct net_device *dev, const u8 *buf,
 
 	trace_cfg80211_rx_unprot_mlme_mgmt(dev, buf, len);
 	nl80211_send_mlme_event(rdev, dev, buf, len, cmd, GFP_ATOMIC, -1,
-				NULL, 0);
+				NULL, 0, false);
 }
 EXPORT_SYMBOL(cfg80211_rx_unprot_mlme_mgmt);
 
@@ -17065,7 +17253,7 @@ static void nl80211_ch_switch_notify(struct cfg80211_registered_device *rdev,
 				     struct cfg80211_chan_def *chandef,
 				     gfp_t gfp,
 				     enum nl80211_commands notif,
-				     u8 count)
+				     u8 count, bool quiet)
 {
 	struct sk_buff *msg;
 	void *hdr;
@@ -17086,9 +17274,13 @@ static void nl80211_ch_switch_notify(struct cfg80211_registered_device *rdev,
 	if (nl80211_send_chandef(msg, chandef))
 		goto nla_put_failure;
 
-	if ((notif == NL80211_CMD_CH_SWITCH_STARTED_NOTIFY) &&
-	    (nla_put_u32(msg, NL80211_ATTR_CH_SWITCH_COUNT, count)))
+	if (notif == NL80211_CMD_CH_SWITCH_STARTED_NOTIFY) {
+		if (nla_put_u32(msg, NL80211_ATTR_CH_SWITCH_COUNT, count))
 			goto nla_put_failure;
+		if (quiet &&
+		    nla_put_flag(msg, NL80211_ATTR_CH_SWITCH_BLOCK_TX))
+			goto nla_put_failure;
+	}
 
 	genlmsg_end(msg, hdr);
 
@@ -17121,13 +17313,13 @@ void cfg80211_ch_switch_notify(struct net_device *dev,
 	cfg80211_sched_dfs_chan_update(rdev);
 
 	nl80211_ch_switch_notify(rdev, dev, chandef, GFP_KERNEL,
-				 NL80211_CMD_CH_SWITCH_NOTIFY, 0);
+				 NL80211_CMD_CH_SWITCH_NOTIFY, 0, false);
 }
 EXPORT_SYMBOL(cfg80211_ch_switch_notify);
 
 void cfg80211_ch_switch_started_notify(struct net_device *dev,
 				       struct cfg80211_chan_def *chandef,
-				       u8 count)
+				       u8 count, bool quiet)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct wiphy *wiphy = wdev->wiphy;
@@ -17136,7 +17328,8 @@ void cfg80211_ch_switch_started_notify(struct net_device *dev,
 	trace_cfg80211_ch_switch_started_notify(dev, chandef);
 
 	nl80211_ch_switch_notify(rdev, dev, chandef, GFP_KERNEL,
-				 NL80211_CMD_CH_SWITCH_STARTED_NOTIFY, count);
+				 NL80211_CMD_CH_SWITCH_STARTED_NOTIFY,
+				 count, quiet);
 }
 EXPORT_SYMBOL(cfg80211_ch_switch_started_notify);
 
