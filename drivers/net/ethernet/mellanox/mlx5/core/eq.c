@@ -467,7 +467,7 @@ int mlx5_eq_table_init(struct mlx5_core_dev *dev)
 	for (i = 0; i < MLX5_EVENT_TYPE_MAX; i++)
 		ATOMIC_INIT_NOTIFIER_HEAD(&eq_table->nh[i]);
 
-	eq_table->irq_table = dev->priv.irq_table;
+	eq_table->irq_table = mlx5_irq_table_get(dev);
 	return 0;
 }
 
