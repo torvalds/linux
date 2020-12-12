@@ -119,6 +119,7 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_flag("modesid", Opt_modesid),
 	fsparam_flag("rootfs", Opt_rootfs),
 	fsparam_flag("compress", Opt_compress),
+	fsparam_flag("witness", Opt_witness),
 
 	/* Mount options which take numeric value */
 	fsparam_u32("backupuid", Opt_backupuid),
@@ -1003,6 +1004,13 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 	case Opt_cache:
 		if (cifs_parse_cache_flavor(param->string, ctx) != 0)
 			goto cifs_parse_mount_err;
+		break;
+	case Opt_witness:
+#ifndef CONFIG_CIFS_SWN_UPCALL
+		cifs_dbg(VFS, "Witness support needs CONFIG_CIFS_SWN_UPCALL config option\n");
+			goto cifs_parse_mount_err;
+#endif
+		ctx->witness = true;
 		break;
 	case Opt_rootfs:
 #ifdef CONFIG_CIFS_ROOT

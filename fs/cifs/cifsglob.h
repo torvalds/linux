@@ -1086,6 +1086,9 @@ struct cifs_tcon {
 	int remap:2;
 	struct list_head ulist; /* cache update list */
 #endif
+#ifdef CONFIG_CIFS_SWN_UPCALL
+	bool use_witness:1; /* use witness protocol */
+#endif
 };
 
 /*

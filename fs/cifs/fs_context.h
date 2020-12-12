@@ -102,6 +102,7 @@ enum cifs_param {
 	Opt_rootfs,
 	Opt_multichannel,
 	Opt_compress,
+	Opt_witness,
 
 	/* Mount options which take numeric value */
 	Opt_backupuid,
@@ -241,6 +242,7 @@ struct smb3_fs_context {
 	unsigned int max_channels;
 	__u16 compression; /* compression algorithm 0xFFFF default 0=disabled */
 	bool rootfs:1; /* if it's a SMB root file system */
+	bool witness:1; /* use witness protocol */
 
 	char *mount_options;
 };

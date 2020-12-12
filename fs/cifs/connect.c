@@ -1944,6 +1944,8 @@ cifs_put_tcon(struct cifs_tcon *tcon)
 		return;
 	}
 
+	/* TODO witness unregister */
+
 	list_del_init(&tcon->tcon_list);
 	spin_unlock(&cifs_tcp_ses_lock);
 
@@ -2104,6 +2106,26 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 		}
 		tcon->use_resilient = true;
 	}
+#ifdef CONFIG_CIFS_SWN_UPCALL
+	tcon->use_witness = false;
+	if (ctx->witness) {
+		if (ses->server->vals->protocol_id >= SMB30_PROT_ID) {
+			if (tcon->capabilities & SMB2_SHARE_CAP_CLUSTER) {
+				/* TODO witness register */
+				tcon->use_witness = true;
+			} else {
+				/* TODO: try to extend for non-cluster uses (eg multichannel) */
+				cifs_dbg(VFS, "witness requested on mount but no CLUSTER capability on share\n");
+				rc = -EOPNOTSUPP;
+				goto out_fail;
+			}
+		} else {
+			cifs_dbg(VFS, "SMB3 or later required for witness option\n");
+			rc = -EOPNOTSUPP;
+			goto out_fail;
+		}
+	}
+#endif
 
 	/* If the user really knows what they are doing they can override */
 	if (tcon->share_flags & SMB2_SHAREFLAG_NO_CACHING) {
@@ -3856,6 +3878,9 @@ cifs_construct_tcon(struct cifs_sb_info *cifs_sb, kuid_t fsuid)
 	ctx->sectype = master_tcon->ses->sectype;
 	ctx->sign = master_tcon->ses->sign;
 	ctx->seal = master_tcon->seal;
+#ifdef CONFIG_CIFS_SWN_UPCALL
+	ctx->witness = master_tcon->use_witness;
+#endif
 
 	rc = cifs_set_vol_auth(ctx, master_tcon->ses);
 	if (rc) {
