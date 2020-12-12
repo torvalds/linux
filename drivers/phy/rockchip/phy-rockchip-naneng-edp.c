@@ -275,6 +275,7 @@ static int rockchip_edp_phy_power_on(struct phy *phy)
 	usleep_range(100, 101);
 
 	writel(EDP_PHY_AUX_IDLE(0x0), edpphy->regs + EDP_PHY_GRF_CON10);
+	usleep_range(10000, 11000);
 
 	return 0;
 }
