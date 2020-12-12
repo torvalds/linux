@@ -60,7 +60,7 @@ usage () {
 	echo "       --cpus N"
 	echo "       --datestamp string"
 	echo "       --defconfig string"
-	echo "       --dryrun sched|script"
+	echo "       --dryrun batches|sched|script"
 	echo "       --duration minutes | <seconds>s | <hours>h | <days>d"
 	echo "       --gdb"
 	echo "       --help"
@@ -126,7 +126,7 @@ do
 		shift
 		;;
 	--dryrun)
-		checkarg --dryrun "sched|script" $# "$2" 'sched\|script' '^--'
+		checkarg --dryrun "batches|sched|script" $# "$2" 'batches\|sched\|script' '^--'
 		dryrun=$2
 		shift
 		;;
@@ -235,7 +235,7 @@ do
 	shift
 done
 
-if test -z "$TORTURE_INITRD" || tools/testing/selftests/rcutorture/bin/mkinitrd.sh
+if test -n "$dryrun" || test -z "$TORTURE_INITRD" || tools/testing/selftests/rcutorture/bin/mkinitrd.sh
 then
 	:
 else
@@ -547,8 +547,7 @@ then
 elif test "$dryrun" = sched
 then
 	# Extract the test run schedule from the script.
-	egrep 'Start batch|Starting build\.' $T/script |
-		grep -v ">>" |
+	egrep 'Start batch|Starting build\.' $T/script | grep -v ">>" |
 		sed -e 's/:.*$//' -e 's/^echo //'
 	nbuilds="`grep 'Starting build\.' $T/script |
 		  grep -v ">>" | sed -e 's/:.*$//' -e 's/^echo //' |
@@ -557,6 +556,19 @@ then
 	nbatches="`grep 'Start batch' $T/script | grep -v ">>" | wc -l`"
 	echo Total number of batches: $nbatches
 	exit 0
+elif test "$dryrun" = batches
+then
+	# Extract the tests and their batches from the script.
+	egrep 'Start batch|Starting build\.' $T/script | grep -v ">>" |
+		sed -e 's/:.*$//' -e 's/^echo //' -e 's/-ovf//' |
+		awk '
+		/^----Start/ {
+			batchno = $3;
+			next;
+		}
+		{
+			print batchno, $1, $2
+		}'
 else
 	# Not a dryrun, so run the script.
 	bash $T/script
