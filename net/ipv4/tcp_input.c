@@ -2689,7 +2689,22 @@ void tcp_simple_retransmit(struct sock *sk)
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
-	unsigned int mss = tcp_current_mss(sk);
+	int mss;
+
+	/* A fastopen SYN request is stored as two separate packets within
+	 * the retransmit queue, this is done by tcp_send_syn_data().
+	 * As a result simply checking the MSS of the frames in the queue
+	 * will not work for the SYN packet.
+	 *
+	 * Us being here is an indication of a path MTU issue so we can
+	 * assume that the fastopen SYN was lost and just mark all the
+	 * frames in the retransmit queue as lost. We will use an MSS of
+	 * -1 to mark all frames as lost, otherwise compute the current MSS.
+	 */
+	if (tp->syn_data && sk->sk_state == TCP_SYN_SENT)
+		mss = -1;
+	else
+		mss = tcp_current_mss(sk);
 
 	skb_rbtree_walk(skb, &sk->tcp_rtx_queue) {
 		if (tcp_skb_seglen(skb) > mss)
