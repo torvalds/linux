@@ -543,6 +543,7 @@ struct vop2_video_port_regs {
 	struct vop_reg p2i_en;
 	struct vop_reg mipi_dual_en;
 	struct vop_reg mipi_dual_channel_swap;
+	struct vop_reg dsp_lut_en;
 
 	struct vop_reg hdr_lut_update_en;
 	struct vop_reg hdr_lut_mode;
@@ -762,6 +763,7 @@ struct vop2_ctrl {
 
 	struct vop_reg bt1120_yc_swap;
 	struct vop_reg bt656_yc_swap;
+	struct vop_reg gamma_port_sel;
 
 	struct vop_reg reg_done_frm;
 	struct vop_reg cfg_done;

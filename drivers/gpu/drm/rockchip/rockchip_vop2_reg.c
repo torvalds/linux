@@ -379,6 +379,7 @@ static const struct vop2_video_port_regs rk3568_vop_vp0_regs = {
 	.dither_down_mode = VOP_REG(RK3568_VP0_DSP_CTRL, 0x1, 20),
 	.mipi_dual_en = VOP_REG(RK3568_VP0_MIPI_CTRL, 0x1, 20),
 	.mipi_dual_channel_swap = VOP_REG(RK3568_VP0_MIPI_CTRL, 0x1, 21),
+	.dsp_lut_en = VOP_REG(RK3568_VP0_DSP_CTRL, 0x1, 28),
 	.hdr_lut_update_en = VOP_REG(RK3568_HDR_LUT_CTRL, 0x1, 0),
 	.hdr_lut_mode = VOP_REG(RK3568_HDR_LUT_CTRL, 0x1, 1),
 	.hdr_lut_mst = VOP_REG(RK3568_HDR_LUT_MST, 0xffffffff, 0),
@@ -462,6 +463,7 @@ static const struct vop2_video_port_regs rk3568_vop_vp1_regs = {
 	.bcsh_y2r_csc_mode = VOP_REG(RK3568_VP1_BCSH_CTRL, 0x3, 2),
 	.bcsh_y2r_en = VOP_REG(RK3568_VP1_BCSH_CTRL, 0x1, 0),
 	.bcsh_en = VOP_REG(RK3568_VP1_BCSH_COLOR_BAR, 0x1, 31),
+	.dsp_lut_en = VOP_REG(RK3568_VP1_DSP_CTRL, 0x1, 28),
 };
 
 static const struct vop2_video_port_regs rk3568_vop_vp2_regs = {
@@ -508,6 +510,7 @@ static const struct vop2_video_port_regs rk3568_vop_vp2_regs = {
 	.bcsh_y2r_csc_mode = VOP_REG(RK3568_VP2_BCSH_CTRL, 0x3, 2),
 	.bcsh_y2r_en = VOP_REG(RK3568_VP2_BCSH_CTRL, 0x1, 0),
 	.bcsh_en = VOP_REG(RK3568_VP2_BCSH_COLOR_BAR, 0x1, 31),
+	.dsp_lut_en = VOP_REG(RK3568_VP2_DSP_CTRL, 0x1, 28),
 };
 
 static const struct vop2_video_port_data rk3568_vop_video_ports[] = {
@@ -1075,6 +1078,7 @@ static const struct vop2_ctrl rk3568_vop_ctrl = {
 	.lvds_dual_channel_swap = VOP_REG(RK3568_DSP_IF_CTRL, 0x1, 2),
 	.bt656_yc_swap = VOP_REG(RK3568_DSP_IF_CTRL, 0x1, 5),
 	.bt1120_yc_swap = VOP_REG(RK3568_DSP_IF_CTRL, 0x1, 9),
+	.gamma_port_sel = VOP_REG(RK3568_LUT_PORT_SEL, 0x3, 0),
 	.lvds_pin_pol = VOP_REG(RK3568_DSP_IF_POL, 0x7, 0),
 	.lvds_dclk_pol = VOP_REG(RK3568_DSP_IF_POL, 0x1, 3),
 	.hdmi_pin_pol = VOP_REG(RK3568_DSP_IF_POL, 0x7, 4),

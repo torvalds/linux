@@ -1412,6 +1412,36 @@ static void vop2_core_clks_disable(struct vop2 *vop2)
 
 static void vop2_crtc_load_lut(struct drm_crtc *crtc)
 {
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	int dle = 0, i = 0;
+
+	if (!vop2->is_enabled || !vop2->lut || !vop2->lut_regs)
+		return;
+
+	if (WARN_ON(!drm_modeset_is_locked(&crtc->mutex)))
+		return;
+
+	spin_lock(&vop2->reg_lock);
+	VOP_MODULE_SET(vop2, vp, dsp_lut_en, 0);
+	vop2_cfg_done(crtc);
+	spin_unlock(&vop2->reg_lock);
+
+#define CTRL_GET(name) VOP_MODULE_GET(vop2, vp, name)
+	readx_poll_timeout(CTRL_GET, dsp_lut_en, dle, !dle, 5, 33333);
+
+	for (i = 0; i < vop2->lut_len; i++)
+		vop2_write_lut(vop2, i << 2, vop2->lut[i]);
+
+	spin_lock(&vop2->reg_lock);
+
+	VOP_MODULE_SET(vop2, vp, dsp_lut_en, 1);
+	VOP_CTRL_SET(vop2, gamma_port_sel, vp->id);
+	vop2_cfg_done(crtc);
+	vop2->lut_active = true;
+
+	spin_unlock(&vop2->reg_lock);
+#undef CTRL_GET
 }
 
 static void rockchip_vop2_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red,
@@ -1430,6 +1460,25 @@ static void rockchip_vop2_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red,
 	g = green * (lut_len - 1) / 0xffff;
 	b = blue * (lut_len - 1) / 0xffff;
 	vop2->lut[regno] = r * lut_len * lut_len + g * lut_len + b;
+}
+
+static void rockchip_vop2_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red,
+				       u16 *green, u16 *blue, int regno)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	u32 lut_len = vop2->lut_len;
+	u32 r, g, b;
+
+	if (regno >= lut_len || !vop2->lut)
+		return;
+
+	r = (vop2->lut[regno] / lut_len / lut_len) & (lut_len - 1);
+	g = (vop2->lut[regno] / lut_len) & (lut_len - 1);
+	b = vop2->lut[regno] & (lut_len - 1);
+	*red = r * 0xffff / (lut_len - 1);
+	*green = g * 0xffff / (lut_len - 1);
+	*blue = b * 0xffff / (lut_len - 1);
 }
 
 static int vop2_core_clks_prepare_enable(struct vop2 *vop2)
@@ -4274,6 +4323,50 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 	return 0;
 }
 
+static int vop2_gamma_init(struct vop2 *vop2)
+{
+	const struct vop2_data *vop2_data = vop2->data;
+	struct vop2_video_port *vp;
+	struct device *dev = vop2->dev;
+	u16 *r_base, *g_base, *b_base;
+	u32 lut_len = vop2->lut_len;
+	struct drm_crtc *crtc;
+	int i = 0, j = 0;
+
+	if (!vop2->lut_regs)
+		return 0;
+
+	vop2->lut = devm_kmalloc_array(dev, lut_len, sizeof(*vop2->lut),
+				       GFP_KERNEL);
+	if (!vop2->lut)
+		return -ENOMEM;
+
+	for (i = 0; i < lut_len; i++) {
+		u32 r = i * lut_len * lut_len;
+		u32 g = i * lut_len;
+		u32 b = i;
+
+		vop2->lut[i] = r | g | b;
+	}
+
+	for (i = 0; i < vop2_data->nr_vps; i++) {
+		vp = &vop2->vps[i];
+		crtc = &vp->crtc;
+
+		drm_mode_crtc_set_gamma_size(crtc, lut_len);
+		r_base = crtc->gamma_store;
+		g_base = r_base + crtc->gamma_size;
+		b_base = g_base + crtc->gamma_size;
+		for (j = 0; j < lut_len; j++) {
+			rockchip_vop2_crtc_fb_gamma_get(crtc, &r_base[j],
+							&g_base[j],
+							&b_base[j], j);
+		}
+	}
+
+	return 0;
+}
+
 static int vop2_create_crtc(struct vop2 *vop2)
 {
 	const struct vop2_data *vop2_data = vop2->data;
@@ -4623,6 +4716,9 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 
 	ret = vop2_create_crtc(vop2);
+	if (ret)
+		return ret;
+	ret = vop2_gamma_init(vop2);
 	if (ret)
 		return ret;
 
