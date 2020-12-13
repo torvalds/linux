@@ -343,10 +343,8 @@ static int rt2880_pinmux_probe(struct platform_device *pdev)
 		return err;
 	}
 	dev = pinctrl_register(p->desc, &pdev->dev, p);
-	if (IS_ERR(dev))
-		return PTR_ERR(dev);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(dev);
 }
 
 static const struct of_device_id rt2880_pinmux_match[] = {
