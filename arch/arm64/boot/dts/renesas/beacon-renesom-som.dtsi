@@ -89,7 +89,6 @@
 	pinctrl-names = "default";
 	uart-has-rtscts;
 	status = "okay";
-	max-speed = <4000000>;
 
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
@@ -98,6 +97,7 @@
 		device-wakeup-gpios = <&pca9654 5 GPIO_ACTIVE_HIGH>;
 		clocks = <&osc_32k>;
 		clock-names = "extclk";
+		max-speed = <4000000>;
 	};
 };
 
