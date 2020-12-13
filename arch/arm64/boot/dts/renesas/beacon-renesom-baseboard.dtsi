@@ -10,8 +10,8 @@
 	backlight_lvds: backlight-lvds {
 		compatible = "pwm-backlight";
 		power-supply = <&reg_lcd>;
-		enable-gpios = <&gpio_exp1 3 GPIO_ACTIVE_LOW>;
-		pwms = <&pwm2 0 50000>;
+		enable-gpios = <&gpio_exp1 3 GPIO_ACTIVE_HIGH>;
+		pwms = <&pwm2 0 25000>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
 	};
@@ -118,9 +118,9 @@
 			hback-porch = <40>;
 			vfront-porch = <13>;
 			vback-porch = <29>;
-			vsync-len = <3>;
+			vsync-len = <1>;
 			hsync-active = <1>;
-			vsync-active = <1>;
+			vsync-active = <3>;
 			de-active = <1>;
 			pixelclk-active = <0>;
 		};
@@ -541,7 +541,7 @@
 
 	pwm2_pins: pwm2 {
 		groups = "pwm2_a";
-		function = "pwm2_a";
+		function = "pwm2";
 	};
 
 	sdhi0_pins: sd0 {
