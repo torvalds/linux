@@ -206,7 +206,7 @@ static int rt2880_pinmux_index(struct rt2880_priv *p)
 	p->group_names = devm_kcalloc(p->dev, p->group_count,
 				      sizeof(char *), GFP_KERNEL);
 	if (!p->group_names)
-		return -1;
+		return -ENOMEM;
 
 	for (i = 0; i < p->group_count; i++) {
 		p->group_names[i] = p->groups[i].name;
