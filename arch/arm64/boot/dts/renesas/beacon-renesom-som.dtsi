@@ -109,7 +109,7 @@
 
 &i2c4 {
 	status = "okay";
-	clock-frequency = <400000>;
+	clock-frequency = <100000>;
 
 	pca9654: gpio@20 {
 		compatible = "onnn,pca9654";
