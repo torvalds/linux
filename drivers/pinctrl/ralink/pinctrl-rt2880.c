@@ -238,6 +238,8 @@ static int rt2880_pinmux_index(struct rt2880_priv *p)
 			p->func[c] = &p->groups[i].func[j];
 			p->func[c]->groups = devm_kzalloc(p->dev, sizeof(int),
 						    GFP_KERNEL);
+			if (!p->func[c]->groups)
+				return -ENOMEM;
 			p->func[c]->groups[0] = i;
 			p->func[c]->group_count = 1;
 			c++;
