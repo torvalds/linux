@@ -38,6 +38,7 @@
  * (default: 6ms * (1 + ilog(ncpus)), units: nanoseconds)
  */
 unsigned int sysctl_sched_latency			= 6000000ULL;
+EXPORT_SYMBOL_GPL(sysctl_sched_latency);
 static unsigned int normalized_sysctl_sched_latency	= 6000000ULL;
 
 /*
