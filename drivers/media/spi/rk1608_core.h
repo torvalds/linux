@@ -6,8 +6,8 @@
  *
  */
 
-#ifndef __RK1608_H__
-#define __RK1608_H__
+#ifndef __RK1608_CORE_H__
+#define __RK1608_CORE_H__
 
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
@@ -635,7 +635,4 @@ void rk1608_set_spi_speed(struct rk1608_state *pdata, u32 hz);
 
 int rk1608_set_log_level(struct rk1608_state *pdata, int level);
 
-int rk1608_dev_register(struct rk1608_state *pdata);
-void rk1608_dev_unregister(struct rk1608_state *pdata);
-void rk1608_dev_receive_msg(struct rk1608_state *pdata, struct msg *msg);
 #endif

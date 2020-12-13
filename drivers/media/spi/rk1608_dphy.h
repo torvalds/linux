@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
+#ifndef __RK1608_DPHY_H__
+#define __RK1608_DPHY_H__
+
 #define RK1608_MAX_FMTINF	4
 
 struct rk1608_chinf {
@@ -58,3 +61,5 @@ struct rk1608_dphy {
 
 	bool first_stream;
 };
+
+#endif

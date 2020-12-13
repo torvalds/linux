@@ -772,7 +772,7 @@ static const struct of_device_id dphy_of_match[] = {
 	{ /* sentinel */ },
 };
 
-MODULE_DEVICE_TABLE(of, rk1608_of_match);
+MODULE_DEVICE_TABLE(of, dphy_of_match);
 
 static struct platform_driver rk1608_dphy_drv = {
 	.driver = {

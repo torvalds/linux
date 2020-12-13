@@ -24,7 +24,8 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 #include <linux/crc32.h>
-#include "rk1608.h"
+#include "rk1608_core.h"
+#include "rk1608_dev.h"
 
 #define REF_DATA_PATH "/data/ref_data.img"
 

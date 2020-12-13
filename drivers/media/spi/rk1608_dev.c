@@ -12,7 +12,7 @@
 #include <media/v4l2-subdev.h>
 #include <linux/compat.h>
 #include <linux/rk-preisp.h>
-#include "rk1608.h"
+#include "rk1608_dev.h"
 
 #define DEBUG_DUMP_ALL_SEND_RECV_MSG 0
 
