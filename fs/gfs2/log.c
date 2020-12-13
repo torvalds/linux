@@ -415,11 +415,12 @@ bool gfs2_log_is_empty(struct gfs2_sbd *sdp) {
 
 void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks)
 {
-
 	atomic_add(blks, &sdp->sd_log_blks_free);
 	trace_gfs2_log_blocks(sdp, blks);
 	gfs2_assert_withdraw(sdp, atomic_read(&sdp->sd_log_blks_free) <=
 				  sdp->sd_jdesc->jd_blocks);
+	if (atomic_read(&sdp->sd_log_blks_needed))
+		wake_up(&sdp->sd_log_waitq);
 }
 
 /**
@@ -444,36 +445,33 @@ void gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
 {
 	unsigned reserved_blks = 7 * (4096 / sdp->sd_vfs->s_blocksize);
 	unsigned wanted = blks + reserved_blks;
-	DEFINE_WAIT(wait);
-	int did_wait = 0;
 	unsigned int free_blocks;
 
-	atomic_add(blks, &sdp->sd_log_blks_needed);
-retry:
 	free_blocks = atomic_read(&sdp->sd_log_blks_free);
-	if (unlikely(free_blocks <= wanted)) {
-		do {
-			prepare_to_wait_exclusive(&sdp->sd_log_waitq, &wait,
-					TASK_UNINTERRUPTIBLE);
-			wake_up(&sdp->sd_logd_waitq);
-			did_wait = 1;
-			if (atomic_read(&sdp->sd_log_blks_free) <= wanted)
-				io_schedule();
-			free_blocks = atomic_read(&sdp->sd_log_blks_free);
-		} while(free_blocks <= wanted);
-		finish_wait(&sdp->sd_log_waitq, &wait);
+	while (free_blocks >= wanted) {
+		if (atomic_try_cmpxchg(&sdp->sd_log_blks_free, &free_blocks,
+				       free_blocks - blks))
+			return;
 	}
-	if (atomic_cmpxchg(&sdp->sd_log_blks_free, free_blocks,
-				free_blocks - blks) != free_blocks)
-		goto retry;
-	atomic_sub(blks, &sdp->sd_log_blks_needed);
-	trace_gfs2_log_blocks(sdp, -blks);
 
-	/*
-	 * If we waited, then so might others, wake them up _after_ we get
-	 * our share of the log.
-	 */
-	if (unlikely(did_wait))
+	atomic_add(blks, &sdp->sd_log_blks_needed);
+	for (;;) {
+		if (current != sdp->sd_logd_process)
+			wake_up(&sdp->sd_logd_waitq);
+		io_wait_event(sdp->sd_log_waitq,
+			(free_blocks = atomic_read(&sdp->sd_log_blks_free),
+			 free_blocks >= wanted));
+		do {
+			if (atomic_try_cmpxchg(&sdp->sd_log_blks_free,
+					       &free_blocks,
+					       free_blocks - blks))
+				goto reserved;
+		} while (free_blocks >= wanted);
+	}
+
+reserved:
+	trace_gfs2_log_blocks(sdp, -blks);
+	if (atomic_sub_return(blks, &sdp->sd_log_blks_needed))
 		wake_up(&sdp->sd_log_waitq);
 }
 
@@ -1107,7 +1105,8 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	maxres = sdp->sd_log_blks_reserved + tr->tr_reserved;
 	gfs2_assert_withdraw(sdp, maxres >= reserved);
 	unused = maxres - reserved;
-	gfs2_log_release(sdp, unused);
+	if (unused)
+		gfs2_log_release(sdp, unused);
 	sdp->sd_log_blks_reserved = reserved;
 
 	gfs2_log_unlock(sdp);
@@ -1192,7 +1191,6 @@ int gfs2_logd(void *data)
 	struct gfs2_sbd *sdp = data;
 	unsigned long t = 1;
 	DEFINE_WAIT(wait);
-	bool did_flush;
 
 	while (!kthread_should_stop()) {
 
@@ -1211,12 +1209,10 @@ int gfs2_logd(void *data)
 			continue;
 		}
 
-		did_flush = false;
 		if (gfs2_jrnl_flush_reqd(sdp) || t == 0) {
 			gfs2_ail1_empty(sdp, 0);
 			gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL |
 				       GFS2_LFC_LOGD_JFLUSH_REQD);
-			did_flush = true;
 		}
 
 		if (gfs2_ail_flush_reqd(sdp)) {
@@ -1225,11 +1221,7 @@ int gfs2_logd(void *data)
 			gfs2_ail1_empty(sdp, 0);
 			gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL |
 				       GFS2_LFC_LOGD_AIL_FLUSH_REQD);
-			did_flush = true;
 		}
-
-		if (!gfs2_ail_flush_reqd(sdp) || did_flush)
-			wake_up(&sdp->sd_log_waitq);
 
 		t = gfs2_tune_get(sdp, gt_logd_secs) * HZ;
 
