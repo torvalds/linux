@@ -524,7 +524,13 @@ on TCP retransmissions to handle corner cases is not acceptable.
 TLS device features
 -------------------
 
-Drivers should ignore the changes to TLS the device feature flags.
+Drivers should ignore the changes to the TLS device feature flags.
 These flags will be acted upon accordingly by the core ``ktls`` code.
 TLS device feature flags only control adding of new TLS connection
 offloads, old connections will remain active after flags are cleared.
+
+TLS encryption cannot be offloaded to devices without checksum calculation
+offload. Hence, TLS TX device feature flag requires NETIF_F_HW_CSUM being set.
+Disabling the latter implies clearing the former. Disabling TX checksum offload
+should not affect old connections, and drivers should make sure checksum
+calculation does not break for them.
