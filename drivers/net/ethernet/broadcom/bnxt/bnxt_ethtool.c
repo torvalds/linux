@@ -2100,19 +2100,16 @@ static int bnxt_find_nvram_item(struct net_device *dev, u16 type, u16 ordinal,
 				u16 ext, u16 *index, u32 *item_length,
 				u32 *data_length);
 
-static int bnxt_flash_nvram(struct net_device *dev,
-			    u16 dir_type,
-			    u16 dir_ordinal,
-			    u16 dir_ext,
-			    u16 dir_attr,
-			    const u8 *data,
-			    size_t data_len)
+static int __bnxt_flash_nvram(struct net_device *dev, u16 dir_type,
+			      u16 dir_ordinal, u16 dir_ext, u16 dir_attr,
+			      u32 dir_item_len, const u8 *data,
+			      size_t data_len)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	int rc;
 	struct hwrm_nvm_write_input req = {0};
 	dma_addr_t dma_handle;
-	u8 *kmem;
+	u8 *kmem = NULL;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_NVM_WRITE, -1, -1);
 
@@ -2120,23 +2117,39 @@ static int bnxt_flash_nvram(struct net_device *dev,
 	req.dir_ordinal = cpu_to_le16(dir_ordinal);
 	req.dir_ext = cpu_to_le16(dir_ext);
 	req.dir_attr = cpu_to_le16(dir_attr);
-	req.dir_data_length = cpu_to_le32(data_len);
+	req.dir_item_length = cpu_to_le32(dir_item_len);
+	if (data_len && data) {
+		req.dir_data_length = cpu_to_le32(data_len);
 
-	kmem = dma_alloc_coherent(&bp->pdev->dev, data_len, &dma_handle,
-				  GFP_KERNEL);
-	if (!kmem) {
-		netdev_err(dev, "dma_alloc_coherent failure, length = %u\n",
-			   (unsigned)data_len);
-		return -ENOMEM;
+		kmem = dma_alloc_coherent(&bp->pdev->dev, data_len, &dma_handle,
+					  GFP_KERNEL);
+		if (!kmem)
+			return -ENOMEM;
+
+		memcpy(kmem, data, data_len);
+		req.host_src_addr = cpu_to_le64(dma_handle);
 	}
-	memcpy(kmem, data, data_len);
-	req.host_src_addr = cpu_to_le64(dma_handle);
 
-	rc = hwrm_send_message(bp, &req, sizeof(req), FLASH_NVRAM_TIMEOUT);
-	dma_free_coherent(&bp->pdev->dev, data_len, kmem, dma_handle);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), FLASH_NVRAM_TIMEOUT);
+	if (kmem)
+		dma_free_coherent(&bp->pdev->dev, data_len, kmem, dma_handle);
 
 	if (rc == -EACCES)
 		bnxt_print_admin_err(bp);
+	return rc;
+}
+
+static int bnxt_flash_nvram(struct net_device *dev, u16 dir_type,
+			    u16 dir_ordinal, u16 dir_ext, u16 dir_attr,
+			    const u8 *data, size_t data_len)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	int rc;
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = __bnxt_flash_nvram(dev, dir_type, dir_ordinal, dir_ext, dir_attr,
+				0, data, data_len);
+	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
 }
 
