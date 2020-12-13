@@ -2435,14 +2435,31 @@ static int bnxt_flash_firmware_from_file(struct net_device *dev,
 int bnxt_flash_package_from_fw_obj(struct net_device *dev, const struct firmware *fw,
 				   u32 install_type)
 {
-	struct bnxt *bp = netdev_priv(dev);
-	struct hwrm_nvm_install_update_output *resp = bp->hwrm_cmd_resp_addr;
 	struct hwrm_nvm_install_update_input install = {0};
+	struct hwrm_nvm_install_update_output resp = {0};
+	struct hwrm_nvm_modify_input modify = {0};
+	struct bnxt *bp = netdev_priv(dev);
+	dma_addr_t dma_handle;
+	u8 *kmem = NULL;
 	u32 item_len;
 	int rc = 0;
 	u16 index;
 
 	bnxt_hwrm_fw_set_time(bp);
+
+	bnxt_hwrm_cmd_hdr_init(bp, &modify, HWRM_NVM_MODIFY, -1, -1);
+
+	kmem = dma_alloc_coherent(&bp->pdev->dev, fw->size, &dma_handle,
+				  GFP_KERNEL);
+	if (!kmem)
+		return -ENOMEM;
+
+	modify.host_src_addr = cpu_to_le64(dma_handle);
+
+	bnxt_hwrm_cmd_hdr_init(bp, &install, HWRM_NVM_INSTALL_UPDATE, -1, -1);
+	if ((install_type & 0xffff) == 0)
+		install_type >>= 16;
+	install.install_type = cpu_to_le32(install_type);
 
 	rc = bnxt_find_nvram_item(dev, BNX_DIR_TYPE_UPDATE,
 				  BNX_DIR_ORDINAL_FIRST, BNX_DIR_EXT_NONE,
@@ -2457,65 +2474,45 @@ int bnxt_flash_package_from_fw_obj(struct net_device *dev, const struct firmware
 			   (unsigned long)fw->size);
 		rc = -EFBIG;
 	} else {
-		dma_addr_t dma_handle;
-		u8 *kmem;
-		struct hwrm_nvm_modify_input modify = {0};
-
-		bnxt_hwrm_cmd_hdr_init(bp, &modify, HWRM_NVM_MODIFY, -1, -1);
-
 		modify.dir_idx = cpu_to_le16(index);
 		modify.len = cpu_to_le32(fw->size);
 
-		kmem = dma_alloc_coherent(&bp->pdev->dev, fw->size,
-					  &dma_handle, GFP_KERNEL);
-		if (!kmem) {
-			netdev_err(dev,
-				   "dma_alloc_coherent failure, length = %u\n",
-				   (unsigned int)fw->size);
-			rc = -ENOMEM;
-		} else {
-			memcpy(kmem, fw->data, fw->size);
-			modify.host_src_addr = cpu_to_le64(dma_handle);
-
-			rc = hwrm_send_message(bp, &modify, sizeof(modify),
-					       FLASH_PACKAGE_TIMEOUT);
-			dma_free_coherent(&bp->pdev->dev, fw->size, kmem,
-					  dma_handle);
-		}
+		memcpy(kmem, fw->data, fw->size);
+		rc = hwrm_send_message(bp, &modify, sizeof(modify),
+				       FLASH_PACKAGE_TIMEOUT);
 	}
 	if (rc)
 		goto err_exit;
 
-	if ((install_type & 0xffff) == 0)
-		install_type >>= 16;
-	bnxt_hwrm_cmd_hdr_init(bp, &install, HWRM_NVM_INSTALL_UPDATE, -1, -1);
-	install.install_type = cpu_to_le32(install_type);
-
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &install, sizeof(install),
 				INSTALL_PACKAGE_TIMEOUT);
-	if (rc) {
-		u8 error_code = ((struct hwrm_err_output *)resp)->cmd_err;
+	memcpy(&resp, bp->hwrm_cmd_resp_addr, sizeof(resp));
 
-		if (resp->error_code && error_code ==
+	if (rc) {
+		u8 error_code = ((struct hwrm_err_output *)&resp)->cmd_err;
+
+		if (resp.error_code && error_code ==
 		    NVM_INSTALL_UPDATE_CMD_ERR_CODE_FRAG_ERR) {
 			install.flags |= cpu_to_le16(
 			       NVM_INSTALL_UPDATE_REQ_FLAGS_ALLOWED_TO_DEFRAG);
 			rc = _hwrm_send_message(bp, &install, sizeof(install),
 						INSTALL_PACKAGE_TIMEOUT);
+			memcpy(&resp, bp->hwrm_cmd_resp_addr, sizeof(resp));
 		}
 		if (rc)
 			goto flash_pkg_exit;
 	}
 
-	if (resp->result) {
+	if (resp.result) {
 		netdev_err(dev, "PKG install error = %d, problem_item = %d\n",
-			   (s8)resp->result, (int)resp->problem_item);
+			   (s8)resp.result, (int)resp.problem_item);
 		rc = -ENOPKG;
 	}
 flash_pkg_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
 err_exit:
+	dma_free_coherent(&bp->pdev->dev, fw->size, kmem, dma_handle);
 	if (rc == -EACCES)
 		bnxt_print_admin_err(bp);
 	return rc;
