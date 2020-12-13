@@ -205,12 +205,15 @@ static noinline int unwindme_func3(struct unwindme *u)
 /* This function must appear in the backtrace. */
 static noinline int unwindme_func2(struct unwindme *u)
 {
+	unsigned long flags;
 	int rc;
 
 	if (u->flags & UWM_SWITCH_STACK) {
-		preempt_disable();
+		local_irq_save(flags);
+		local_mcck_disable();
 		rc = CALL_ON_STACK(unwindme_func3, S390_lowcore.nodat_stack, 1, u);
-		preempt_enable();
+		local_mcck_enable();
+		local_irq_restore(flags);
 		return rc;
 	} else {
 		return unwindme_func3(u);
