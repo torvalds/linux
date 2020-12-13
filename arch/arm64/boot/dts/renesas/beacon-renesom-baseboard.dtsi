@@ -16,12 +16,12 @@
 		default-brightness-level = <6>;
 	};
 
-	backlight_rgb: backlight-rgb {
+	backlight_dpi: backlight-dpi {
 		compatible = "pwm-backlight";
 		power-supply = <&reg_lcd>;
 		enable-gpios = <&gpio_exp1 7 GPIO_ACTIVE_LOW>;
-		pwms = <&pwm0 0 50000>;
-		brightness-levels = <0 4 8 16 32 64 128 255>;
+		pwms = <&pwm0 0 25000>;
+		brightness-levels = <0 25 33 50 63 75 88 100>;
 		default-brightness-level = <6>;
 	};
 
@@ -135,7 +135,7 @@
 	rgb {
 		/* Different LCD with compatible timings */
 		compatible = "rocktech,rk070er9427";
-		backlight = <&backlight_rgb>;
+		backlight = <&backlight_dpi>;
 		enable-gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;
 		power-supply = <&reg_lcd>;
 		port {
