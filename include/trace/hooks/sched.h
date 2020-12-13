@@ -174,7 +174,7 @@ DECLARE_RESTRICTED_HOOK(android_rvh_account_irq,
 
 struct sched_entity;
 DECLARE_RESTRICTED_HOOK(android_rvh_place_entity,
-	TP_PROTO(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial, u64 vruntime),
+	TP_PROTO(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial, u64 *vruntime),
 	TP_ARGS(cfs_rq, se, initial, vruntime), 1);
 
 DECLARE_RESTRICTED_HOOK(android_rvh_build_perf_domains,

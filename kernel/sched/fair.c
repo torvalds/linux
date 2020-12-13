@@ -4194,7 +4194,7 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 
 	/* ensure we never gain time by being placed backwards. */
 	se->vruntime = max_vruntime(se->vruntime, vruntime);
-	trace_android_rvh_place_entity(cfs_rq, se, initial, vruntime);
+	trace_android_rvh_place_entity(cfs_rq, se, initial, &vruntime);
 }
 
 static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
