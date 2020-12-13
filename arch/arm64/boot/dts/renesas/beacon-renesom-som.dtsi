@@ -303,11 +303,3 @@
 &usb3s0_clk {
 	clock-frequency = <100000000>;
 };
-
-&vspb {
-	status = "okay";
-};
-
-&vspi0 {
-	status = "okay";
-};
