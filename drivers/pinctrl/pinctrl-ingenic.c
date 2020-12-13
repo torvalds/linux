@@ -2384,6 +2384,12 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 	unsigned int i;
 	int err;
 
+	chip_info = of_device_get_match_data(dev);
+	if (!chip_info) {
+		dev_err(dev, "Unsupported SoC\n");
+		return -EINVAL;
+	}
+
 	jzpc = devm_kzalloc(dev, sizeof(*jzpc), GFP_KERNEL);
 	if (!jzpc)
 		return -ENOMEM;
@@ -2400,7 +2406,7 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	jzpc->dev = dev;
-	jzpc->info = chip_info = of_device_get_match_data(dev);
+	jzpc->info = chip_info;
 
 	pctl_desc = devm_kzalloc(&pdev->dev, sizeof(*pctl_desc), GFP_KERNEL);
 	if (!pctl_desc)
@@ -2470,17 +2476,47 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id ingenic_pinctrl_of_match[] = {
-	{ .compatible = "ingenic,jz4740-pinctrl", .data = &jz4740_chip_info },
-	{ .compatible = "ingenic,jz4725b-pinctrl", .data = &jz4725b_chip_info },
-	{ .compatible = "ingenic,jz4760-pinctrl", .data = &jz4760_chip_info },
-	{ .compatible = "ingenic,jz4760b-pinctrl", .data = &jz4760_chip_info },
-	{ .compatible = "ingenic,jz4770-pinctrl", .data = &jz4770_chip_info },
-	{ .compatible = "ingenic,jz4780-pinctrl", .data = &jz4780_chip_info },
-	{ .compatible = "ingenic,x1000-pinctrl", .data = &x1000_chip_info },
-	{ .compatible = "ingenic,x1000e-pinctrl", .data = &x1000_chip_info },
-	{ .compatible = "ingenic,x1500-pinctrl", .data = &x1500_chip_info },
-	{ .compatible = "ingenic,x1830-pinctrl", .data = &x1830_chip_info },
-	{},
+	{
+		.compatible = "ingenic,jz4740-pinctrl",
+		.data = IF_ENABLED(CONFIG_MACH_JZ4740, &jz4740_chip_info)
+	},
+	{
+		.compatible = "ingenic,jz4725b-pinctrl",
+		.data = IF_ENABLED(CONFIG_MACH_JZ4725B, &jz4725b_chip_info)
+	},
+	{
+		.compatible = "ingenic,jz4760-pinctrl",
+		.data = IF_ENABLED(CONFIG_MACH_JZ4760, &jz4760_chip_info)
+	},
+	{
+		.compatible = "ingenic,jz4760b-pinctrl",
+		.data = IF_ENABLED(CONFIG_MACH_JZ4760, &jz4760_chip_info)
+	},
+	{
+		.compatible = "ingenic,jz4770-pinctrl",
+		.data = IF_ENABLED(CONFIG_MACH_JZ4770, &jz4770_chip_info)
+	},
+	{
+		.compatible = "ingenic,jz4780-pinctrl",
+		.data = IF_ENABLED(CONFIG_MACH_JZ4780, &jz4780_chip_info)
+	},
+	{
+		.compatible = "ingenic,x1000-pinctrl",
+		.data = IF_ENABLED(CONFIG_MACH_X1000, &x1000_chip_info)
+	},
+	{
+		.compatible = "ingenic,x1000e-pinctrl",
+		.data = IF_ENABLED(CONFIG_MACH_X1000, &x1000_chip_info)
+	},
+	{
+		.compatible = "ingenic,x1500-pinctrl",
+		.data = IF_ENABLED(CONFIG_MACH_X1500, &x1500_chip_info)
+	},
+	{
+		.compatible = "ingenic,x1830-pinctrl",
+		.data = IF_ENABLED(CONFIG_MACH_X1830, &x1830_chip_info)
+	},
+	{ /* sentinel */ },
 };
 
 static struct platform_driver ingenic_pinctrl_driver = {
