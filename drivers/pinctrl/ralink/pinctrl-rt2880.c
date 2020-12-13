@@ -193,7 +193,6 @@ static struct rt2880_pmx_func gpio_func = {
 
 static int rt2880_pinmux_index(struct rt2880_priv *p)
 {
-	struct rt2880_pmx_func **f;
 	struct rt2880_pmx_group *mux = p->groups;
 	int i, j, c = 0;
 
@@ -218,31 +217,29 @@ static int rt2880_pinmux_index(struct rt2880_priv *p)
 	p->func_count++;
 
 	/* allocate our function and group mapping index buffers */
-	f = p->func = devm_kcalloc(p->dev,
-				   p->func_count,
-				   sizeof(*p->func),
-				   GFP_KERNEL);
+	p->func = devm_kcalloc(p->dev, p->func_count,
+			       sizeof(*p->func), GFP_KERNEL);
 	gpio_func.groups = devm_kcalloc(p->dev, p->group_count, sizeof(int),
 					GFP_KERNEL);
-	if (!f || !gpio_func.groups)
-		return -1;
+	if (!p->func || !gpio_func.groups)
+		return -ENOMEM;
 
 	/* add a backpointer to the function so it knows its group */
 	gpio_func.group_count = p->group_count;
 	for (i = 0; i < gpio_func.group_count; i++)
 		gpio_func.groups[i] = i;
 
-	f[c] = &gpio_func;
+	p->func[c] = &gpio_func;
 	c++;
 
 	/* add remaining functions */
 	for (i = 0; i < p->group_count; i++) {
 		for (j = 0; j < p->groups[i].func_count; j++) {
-			f[c] = &p->groups[i].func[j];
-			f[c]->groups = devm_kzalloc(p->dev, sizeof(int),
+			p->func[c] = &p->groups[i].func[j];
+			p->func[c]->groups = devm_kzalloc(p->dev, sizeof(int),
 						    GFP_KERNEL);
-			f[c]->groups[0] = i;
-			f[c]->group_count = 1;
+			p->func[c]->groups[0] = i;
+			p->func[c]->group_count = 1;
 			c++;
 		}
 	}
