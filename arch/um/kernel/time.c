@@ -31,6 +31,7 @@ static bool time_travel_start_set;
 static unsigned long long time_travel_start;
 static unsigned long long time_travel_time;
 static LIST_HEAD(time_travel_events);
+static LIST_HEAD(time_travel_irqs);
 static unsigned long long time_travel_timer_interval;
 static unsigned long long time_travel_next_event;
 static struct time_travel_event time_travel_timer_event;
@@ -324,6 +325,35 @@ void time_travel_periodic_timer(struct time_travel_event *e)
 	deliver_alarm();
 }
 
+void deliver_time_travel_irqs(void)
+{
+	struct time_travel_event *e;
+	unsigned long flags;
+
+	/*
+	 * Don't do anything for most cases. Note that because here we have
+	 * to disable IRQs (and re-enable later) we'll actually recurse at
+	 * the end of the function, so this is strictly necessary.
+	 */
+	if (likely(list_empty(&time_travel_irqs)))
+		return;
+
+	local_irq_save(flags);
+	irq_enter();
+	while ((e = list_first_entry_or_null(&time_travel_irqs,
+					     struct time_travel_event,
+					     list))) {
+		WARN(e->time != time_travel_time,
+		     "time moved from %lld to %lld before IRQ delivery\n",
+		     time_travel_time, e->time);
+		list_del(&e->list);
+		e->pending = false;
+		e->fn(e);
+	}
+	irq_exit();
+	local_irq_restore(flags);
+}
+
 static void time_travel_deliver_event(struct time_travel_event *e)
 {
 	if (e == &time_travel_timer_event) {
@@ -332,6 +362,14 @@ static void time_travel_deliver_event(struct time_travel_event *e)
 		 * by itself, so must handle it specially here
 		 */
 		e->fn(e);
+	} else if (irqs_disabled()) {
+		list_add_tail(&e->list, &time_travel_irqs);
+		/*
+		 * set pending again, it was set to false when the
+		 * event was deleted from the original list, but
+		 * now it's still pending until we deliver the IRQ.
+		 */
+		e->pending = true;
 	} else {
 		unsigned long flags;
 

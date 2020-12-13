@@ -271,6 +271,9 @@ void unblock_signals(void)
 		return;
 
 	signals_enabled = 1;
+#ifdef UML_CONFIG_UML_TIME_TRAVEL_SUPPORT
+	deliver_time_travel_irqs();
+#endif
 
 	/*
 	 * We loop because the IRQ handler returns with interrupts off.  So,
