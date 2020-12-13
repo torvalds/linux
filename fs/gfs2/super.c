@@ -645,13 +645,13 @@ int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 
 		gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_SHUTDOWN |
 			       GFS2_LFC_MAKE_FS_RO);
-		wait_event(sdp->sd_reserving_log_wait,
-			   atomic_read(&sdp->sd_reserving_log) == 0);
-		gfs2_assert_warn(sdp, atomic_read(&sdp->sd_log_blks_free) ==
-				 sdp->sd_jdesc->jd_blocks);
+		wait_event_timeout(sdp->sd_log_waitq,
+				   gfs2_log_is_empty(sdp),
+				   HZ * 5);
+		gfs2_assert_warn(sdp, gfs2_log_is_empty(sdp));
 	} else {
-		wait_event_timeout(sdp->sd_reserving_log_wait,
-				   atomic_read(&sdp->sd_reserving_log) == 0,
+		wait_event_timeout(sdp->sd_log_waitq,
+				   gfs2_log_is_empty(sdp),
 				   HZ * 5);
 	}
 	if (gfs2_holder_initialized(&freeze_gh))

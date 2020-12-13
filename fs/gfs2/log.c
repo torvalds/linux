@@ -398,6 +398,15 @@ static void ail2_empty(struct gfs2_sbd *sdp, unsigned int new_tail)
 }
 
 /**
+ * gfs2_log_is_empty - Check if the log is empty
+ * @sdp: The GFS2 superblock
+ */
+
+bool gfs2_log_is_empty(struct gfs2_sbd *sdp) {
+	return atomic_read(&sdp->sd_log_blks_free) == sdp->sd_jdesc->jd_blocks;
+}
+
+/**
  * gfs2_log_release - Release a given number of log blocks
  * @sdp: The GFS2 superblock
  * @blks: The number of blocks
@@ -461,13 +470,9 @@ retry:
 		} while(free_blocks <= wanted);
 		finish_wait(&sdp->sd_log_waitq, &wait);
 	}
-	atomic_inc(&sdp->sd_reserving_log);
 	if (atomic_cmpxchg(&sdp->sd_log_blks_free, free_blocks,
-				free_blocks - blks) != free_blocks) {
-		if (atomic_dec_and_test(&sdp->sd_reserving_log))
-			wake_up(&sdp->sd_reserving_log_wait);
+				free_blocks - blks) != free_blocks)
 		goto retry;
-	}
 	atomic_sub(blks, &sdp->sd_log_blks_needed);
 	trace_gfs2_log_blocks(sdp, -blks);
 
@@ -483,8 +488,6 @@ retry:
 		gfs2_log_release(sdp, blks);
 		ret = -EROFS;
 	}
-	if (atomic_dec_and_test(&sdp->sd_reserving_log))
-		wake_up(&sdp->sd_reserving_log_wait);
 	return ret;
 }
 

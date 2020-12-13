@@ -71,6 +71,8 @@ int __gfs2_trans_begin(struct gfs2_trans *tr, struct gfs2_sbd *sdp,
 	error = gfs2_log_reserve(sdp, tr->tr_reserved);
 	if (error) {
 		sb_end_intwrite(sdp->sd_vfs);
+		if (error == -EROFS)
+			wake_up(&sdp->sd_log_waitq);
 		return error;
 	}
 

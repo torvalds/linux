@@ -849,9 +849,6 @@ struct gfs2_sbd {
 	int sd_log_error; /* First log error */
 	wait_queue_head_t sd_withdraw_wait;
 
-	atomic_t sd_reserving_log;
-	wait_queue_head_t sd_reserving_log_wait;
-
 	unsigned int sd_log_flush_head;
 
 	spinlock_t sd_ail_lock;
