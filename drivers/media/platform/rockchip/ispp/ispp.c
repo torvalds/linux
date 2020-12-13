@@ -416,7 +416,7 @@ static long rkispp_compat_ioctl32(struct v4l2_subdev *sd,
 	case RKISPP_CMD_SET_FECBUF_SIZE:
 		ret = copy_from_user(&fecsize, up, sizeof(fecsize));
 		if (!ret)
-			ret = rkisp_ioctl(sd, cmd, &fecsize);
+			ret = rkispp_ioctl(sd, cmd, &fecsize);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
