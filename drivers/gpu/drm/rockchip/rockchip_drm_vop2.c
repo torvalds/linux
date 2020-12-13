@@ -3977,8 +3977,9 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 
 	VOP_CTRL_SET(vop2, ovl_cfg_done_port, port_id);
 	VOP_CTRL_SET(vop2, ovl_port_mux_cfg_done_imd, 0);
-	for (i = 0; i < port_id; i++) {
-		used_layers += hweight32(vop2->vps[i].win_mask);
+	for (i = 0; i < vop2_data->nr_vps - 1; i++) {
+		prev_vp = &vop2->vps[i];
+		used_layers += hweight32(prev_vp->win_mask);
 		/*
 		 * when a window move from vp0 to vp1, or vp0 to vp2,
 		 * it should flow these steps:
@@ -3991,11 +3992,12 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 		 *  number of VP0 until VP1 take it, so the port_mux of
 		 *  VP0 should change at VP1's commit.
 		 */
-		prev_vp = &vop2->vps[i];
 		if (used_layers == 0)
 			port_mux = 8;
 		else
 			port_mux = used_layers - 1;
+
+		vp->bg_ovl_dly = (vop2_data->nr_mixers - used_layers) << 1;
 		VOP_MODULE_SET(vop2, prev_vp, port_mux, port_mux);
 	}
 
@@ -4006,6 +4008,12 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 	 * old win of the layer to the layer where the new win comes from.
 	 *
 	 */
+	used_layers = 0;
+	for (i = 0; i < port_id; i++) {
+		prev_vp = &vop2->vps[i];
+		used_layers += hweight32(prev_vp->win_mask);
+	}
+
 	for (i = 0; i < nr_layers; i++) {
 		layer = &vop2->layers[used_layers + i];
 		zpos = &vop2_zpos[i];
@@ -4022,22 +4030,6 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 		win->layer_id = layer_id;
 		layer->win_phys_id = win_phys_id;
 	}
-
-	used_layers += hweight32(vp->win_mask);
-
-	if (used_layers > vop2_data->nr_layers) {
-		DRM_DEV_ERROR(vop2->dev, "out of layers: %d\n", used_layers);
-		return;
-	}
-
-	used_layers -= 1;
-
-	if (port_id == (vop2_data->nr_vps - 1))
-		used_layers = vop2_data->nr_mixers;
-
-	vp->bg_ovl_dly = (vop2_data->nr_mixers - used_layers) << 1;
-
-	VOP_MODULE_SET(vop2, vp, port_mux, used_layers);
 }
 
 static void vop2_setup_dly_for_vp(struct vop2_video_port *vp)
