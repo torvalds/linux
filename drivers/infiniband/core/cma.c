@@ -477,6 +477,10 @@ static void cma_release_dev(struct rdma_id_private *id_priv)
 	list_del(&id_priv->list);
 	cma_dev_put(id_priv->cma_dev);
 	id_priv->cma_dev = NULL;
+	if (id_priv->id.route.addr.dev_addr.sgid_attr) {
+		rdma_put_gid_attr(id_priv->id.route.addr.dev_addr.sgid_attr);
+		id_priv->id.route.addr.dev_addr.sgid_attr = NULL;
+	}
 	mutex_unlock(&lock);
 }
 
@@ -1860,9 +1864,6 @@ static void _destroy_id(struct rdma_id_private *id_priv,
 		cma_id_put(id_priv->id.context);
 
 	kfree(id_priv->id.route.path_rec);
-
-	if (id_priv->id.route.addr.dev_addr.sgid_attr)
-		rdma_put_gid_attr(id_priv->id.route.addr.dev_addr.sgid_attr);
 
 	put_net(id_priv->id.route.addr.dev_addr.net);
 	rdma_restrack_del(&id_priv->res);
