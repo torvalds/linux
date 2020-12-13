@@ -2439,6 +2439,7 @@ int bnxt_flash_package_from_fw_obj(struct net_device *dev, const struct firmware
 	struct hwrm_nvm_install_update_output resp = {0};
 	struct hwrm_nvm_modify_input modify = {0};
 	struct bnxt *bp = netdev_priv(dev);
+	bool defrag_attempted = false;
 	dma_addr_t dma_handle;
 	u8 *kmem = NULL;
 	u32 item_len;
@@ -2487,21 +2488,47 @@ int bnxt_flash_package_from_fw_obj(struct net_device *dev, const struct firmware
 			break;
 
 		mutex_lock(&bp->hwrm_cmd_lock);
-		rc = _hwrm_send_message(bp, &install, sizeof(install),
-					INSTALL_PACKAGE_TIMEOUT);
+		rc = _hwrm_send_message_silent(bp, &install, sizeof(install),
+					       INSTALL_PACKAGE_TIMEOUT);
 		memcpy(&resp, bp->hwrm_cmd_resp_addr, sizeof(resp));
+
+		if (defrag_attempted) {
+			/* We have tried to defragment already in the previous
+			 * iteration. Return with the result for INSTALL_UPDATE
+			 */
+			mutex_unlock(&bp->hwrm_cmd_lock);
+			break;
+		}
 
 		if (rc && ((struct hwrm_err_output *)&resp)->cmd_err ==
 		    NVM_INSTALL_UPDATE_CMD_ERR_CODE_FRAG_ERR) {
 			install.flags |=
 				cpu_to_le16(NVM_INSTALL_UPDATE_REQ_FLAGS_ALLOWED_TO_DEFRAG);
 
-			rc = _hwrm_send_message(bp, &install, sizeof(install),
-						INSTALL_PACKAGE_TIMEOUT);
+			rc = _hwrm_send_message_silent(bp, &install,
+						       sizeof(install),
+						       INSTALL_PACKAGE_TIMEOUT);
 			memcpy(&resp, bp->hwrm_cmd_resp_addr, sizeof(resp));
+
+			if (rc && ((struct hwrm_err_output *)&resp)->cmd_err ==
+			    NVM_INSTALL_UPDATE_CMD_ERR_CODE_NO_SPACE) {
+				/* FW has cleared NVM area, driver will create
+				 * UPDATE directory and try the flash again
+				 */
+				defrag_attempted = true;
+				rc = __bnxt_flash_nvram(bp->dev,
+							BNX_DIR_TYPE_UPDATE,
+							BNX_DIR_ORDINAL_FIRST,
+							0, 0, item_len, NULL,
+							0);
+			} else if (rc) {
+				netdev_err(dev, "HWRM_NVM_INSTALL_UPDATE failure rc :%x\n", rc);
+			}
+		} else if (rc) {
+			netdev_err(dev, "HWRM_NVM_INSTALL_UPDATE failure rc :%x\n", rc);
 		}
 		mutex_unlock(&bp->hwrm_cmd_lock);
-	} while (false);
+	} while (defrag_attempted && !rc);
 
 	dma_free_coherent(&bp->pdev->dev, fw->size, kmem, dma_handle);
 	if (resp.result) {
