@@ -26,12 +26,17 @@
 #define RK_VIDIOC_ZOOM_TIMEINFO \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 2, struct rk_cam_vcm_tim)
 
+#define RK_VIDIOC_GET_VCM_CFG \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 3, struct rk_cam_vcm_cfg)
+#define RK_VIDIOC_SET_VCM_CFG \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 4, struct rk_cam_vcm_cfg)
+
 #define RK_VIDIOC_FOCUS_CORRECTION \
-	_IOR('V', BASE_VIDIOC_PRIVATE + 3, unsigned int)
-#define RK_VIDIOC_IRIS_CORRECTION \
-	_IOR('V', BASE_VIDIOC_PRIVATE + 4, unsigned int)
-#define RK_VIDIOC_ZOOM_CORRECTION \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 5, unsigned int)
+#define RK_VIDIOC_IRIS_CORRECTION \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 6, unsigned int)
+#define RK_VIDIOC_ZOOM_CORRECTION \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 7, unsigned int)
 
 #ifdef CONFIG_COMPAT
 #define RK_VIDIOC_COMPAT_VCM_TIMEINFO \
