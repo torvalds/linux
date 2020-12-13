@@ -2461,58 +2461,54 @@ int bnxt_flash_package_from_fw_obj(struct net_device *dev, const struct firmware
 		install_type >>= 16;
 	install.install_type = cpu_to_le32(install_type);
 
-	rc = bnxt_find_nvram_item(dev, BNX_DIR_TYPE_UPDATE,
-				  BNX_DIR_ORDINAL_FIRST, BNX_DIR_EXT_NONE,
-				  &index, &item_len, NULL);
-	if (rc) {
-		netdev_err(dev, "PKG update area not created in nvram\n");
-		return rc;
-	}
+	do {
+		rc = bnxt_find_nvram_item(dev, BNX_DIR_TYPE_UPDATE,
+					  BNX_DIR_ORDINAL_FIRST,
+					  BNX_DIR_EXT_NONE,
+					  &index, &item_len, NULL);
+		if (rc) {
+			netdev_err(dev, "PKG update area not created in nvram\n");
+			break;
+		}
+		if (fw->size > item_len) {
+			netdev_err(dev, "PKG insufficient update area in nvram: %lu\n",
+				   (unsigned long)fw->size);
+			rc = -EFBIG;
+			break;
+		}
 
-	if (fw->size > item_len) {
-		netdev_err(dev, "PKG insufficient update area in nvram: %lu\n",
-			   (unsigned long)fw->size);
-		rc = -EFBIG;
-	} else {
 		modify.dir_idx = cpu_to_le16(index);
 		modify.len = cpu_to_le32(fw->size);
 
 		memcpy(kmem, fw->data, fw->size);
 		rc = hwrm_send_message(bp, &modify, sizeof(modify),
 				       FLASH_PACKAGE_TIMEOUT);
-	}
-	if (rc)
-		goto err_exit;
+		if (rc)
+			break;
 
-	mutex_lock(&bp->hwrm_cmd_lock);
-	rc = _hwrm_send_message(bp, &install, sizeof(install),
-				INSTALL_PACKAGE_TIMEOUT);
-	memcpy(&resp, bp->hwrm_cmd_resp_addr, sizeof(resp));
+		mutex_lock(&bp->hwrm_cmd_lock);
+		rc = _hwrm_send_message(bp, &install, sizeof(install),
+					INSTALL_PACKAGE_TIMEOUT);
+		memcpy(&resp, bp->hwrm_cmd_resp_addr, sizeof(resp));
 
-	if (rc) {
-		u8 error_code = ((struct hwrm_err_output *)&resp)->cmd_err;
-
-		if (resp.error_code && error_code ==
+		if (rc && ((struct hwrm_err_output *)&resp)->cmd_err ==
 		    NVM_INSTALL_UPDATE_CMD_ERR_CODE_FRAG_ERR) {
-			install.flags |= cpu_to_le16(
-			       NVM_INSTALL_UPDATE_REQ_FLAGS_ALLOWED_TO_DEFRAG);
+			install.flags |=
+				cpu_to_le16(NVM_INSTALL_UPDATE_REQ_FLAGS_ALLOWED_TO_DEFRAG);
+
 			rc = _hwrm_send_message(bp, &install, sizeof(install),
 						INSTALL_PACKAGE_TIMEOUT);
 			memcpy(&resp, bp->hwrm_cmd_resp_addr, sizeof(resp));
 		}
-		if (rc)
-			goto flash_pkg_exit;
-	}
+		mutex_unlock(&bp->hwrm_cmd_lock);
+	} while (false);
 
+	dma_free_coherent(&bp->pdev->dev, fw->size, kmem, dma_handle);
 	if (resp.result) {
 		netdev_err(dev, "PKG install error = %d, problem_item = %d\n",
 			   (s8)resp.result, (int)resp.problem_item);
 		rc = -ENOPKG;
 	}
-flash_pkg_exit:
-	mutex_unlock(&bp->hwrm_cmd_lock);
-err_exit:
-	dma_free_coherent(&bp->pdev->dev, fw->size, kmem, dma_handle);
 	if (rc == -EACCES)
 		bnxt_print_admin_err(bp);
 	return rc;
