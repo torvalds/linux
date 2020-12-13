@@ -179,7 +179,7 @@ DECLARE_RESTRICTED_HOOK(android_rvh_account_irq,
 
 struct sched_entity;
 DECLARE_RESTRICTED_HOOK(android_rvh_place_entity,
-	TP_PROTO(struct sched_entity *se, u64 vruntime),
+	TP_PROTO(struct sched_entity *se, u64 *vruntime),
 	TP_ARGS(se, vruntime), 1);
 
 DECLARE_RESTRICTED_HOOK(android_rvh_update_cpu_capacity,
