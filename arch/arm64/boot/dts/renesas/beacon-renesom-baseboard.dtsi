@@ -478,6 +478,13 @@
 	};
 };
 
+&msiof1 {
+	pinctrl-0 = <&msiof1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+	cs-gpios = <&gpio3 10 GPIO_ACTIVE_LOW>;
+};
+
 &ohci0 {
 	dr_mode = "otg";
 	status = "okay";
@@ -529,6 +536,11 @@
 		/* GP_0_4 , AVS1, AVS2, GP_7_3 */
 		pins = "GP_0_4", "GP_7_0", "GP_7_1", "GP_7_3";
 		bias-pull-down;
+	};
+
+	msiof1_pins: msiof1 {
+		groups = "msiof1_clk_g", "msiof1_rxd_g", "msiof1_txd_g";
+		function = "msiof1";
 	};
 
 	pwm0_pins: pwm0 {
