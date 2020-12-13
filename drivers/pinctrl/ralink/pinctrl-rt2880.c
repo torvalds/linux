@@ -315,6 +315,7 @@ static int rt2880_pinmux_probe(struct platform_device *pdev)
 {
 	struct rt2880_priv *p;
 	struct pinctrl_dev *dev;
+	int err;
 
 	if (!rt2880_pinmux_data)
 		return -ENOTSUPP;
@@ -330,13 +331,16 @@ static int rt2880_pinmux_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, p);
 
 	/* init the device */
-	if (rt2880_pinmux_index(p)) {
+	err = rt2880_pinmux_index(p);
+	if (err) {
 		dev_err(&pdev->dev, "failed to load index\n");
-		return -EINVAL;
+		return err;
 	}
-	if (rt2880_pinmux_pins(p)) {
+
+	err = rt2880_pinmux_pins(p);
+	if (err) {
 		dev_err(&pdev->dev, "failed to load pins\n");
-		return -EINVAL;
+		return err;
 	}
 	dev = pinctrl_register(p->desc, &pdev->dev, p);
 	if (IS_ERR(dev))
