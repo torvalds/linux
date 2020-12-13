@@ -279,10 +279,8 @@ static int rt2880_pinmux_pins(struct rt2880_priv *p)
 	/* the pads needed to tell pinctrl about our pins */
 	p->pads = devm_kcalloc(p->dev, p->max_pins,
 			       sizeof(struct pinctrl_pin_desc), GFP_KERNEL);
-	if (!p->pads || !p->gpio) {
-		dev_err(p->dev, "Failed to allocate gpio data\n");
+	if (!p->pads || !p->gpio)
 		return -ENOMEM;
-	}
 
 	memset(p->gpio, 1, sizeof(u8) * p->max_pins);
 	for (i = 0; i < p->func_count; i++) {
