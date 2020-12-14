@@ -254,7 +254,6 @@ static void hisi_gpio_get_pdata(struct device *dev,
 static int hisi_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	void __iomem *dat, *set, *clr;
 	struct hisi_gpio *hisi_gpio;
 	int port_num;
 	int ret;
@@ -278,10 +277,6 @@ static int hisi_gpio_probe(struct platform_device *pdev)
 	hisi_gpio_get_pdata(dev, hisi_gpio);
 
 	hisi_gpio->dev = dev;
-
-	dat = hisi_gpio->reg_base + HISI_GPIO_EXT_PORT_WX;
-	set = hisi_gpio->reg_base + HISI_GPIO_SWPORT_DR_SET_WX;
-	clr = hisi_gpio->reg_base + HISI_GPIO_SWPORT_DR_CLR_WX;
 
 	ret = bgpio_init(&hisi_gpio->chip, hisi_gpio->dev, 0x4,
 			 hisi_gpio->reg_base + HISI_GPIO_EXT_PORT_WX,
