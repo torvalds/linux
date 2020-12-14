@@ -7,6 +7,7 @@ function update_config() {
     ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
          -d TEST_KMOD  \
          -d CPU_BIG_ENDIAN \
+         -d DYNAMIC_FTRACE \
          -e UNWINDER_FRAME_POINTER \
 
     (cd ${OUT_DIR} && \
