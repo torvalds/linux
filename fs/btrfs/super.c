@@ -1978,6 +1978,16 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		wait_on_bit(&fs_info->flags, BTRFS_FS_CLEANER_RUNNING,
 			    TASK_UNINTERRUPTIBLE);
 
+		/*
+		 * We've set the superblock to RO mode, so we might have made
+		 * the cleaner task sleep without running all pending delayed
+		 * iputs. Go through all the delayed iputs here, so that if an
+		 * unmount happens without remounting RW we don't end up at
+		 * finishing close_ctree() with a non-empty list of delayed
+		 * iputs.
+		 */
+		btrfs_run_delayed_iputs(fs_info);
+
 		btrfs_dev_replace_suspend_for_unmount(fs_info);
 		btrfs_scrub_cancel(fs_info);
 		btrfs_pause_balance(fs_info);
