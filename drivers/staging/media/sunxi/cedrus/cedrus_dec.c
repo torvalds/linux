@@ -48,17 +48,17 @@ void cedrus_device_run(void *priv)
 
 	case V4L2_PIX_FMT_H264_SLICE:
 		run.h264.decode_params = cedrus_find_control_data(ctx,
-			V4L2_CID_MPEG_VIDEO_H264_DECODE_PARAMS);
+			V4L2_CID_STATELESS_H264_DECODE_PARAMS);
 		run.h264.pps = cedrus_find_control_data(ctx,
-			V4L2_CID_MPEG_VIDEO_H264_PPS);
+			V4L2_CID_STATELESS_H264_PPS);
 		run.h264.scaling_matrix = cedrus_find_control_data(ctx,
-			V4L2_CID_MPEG_VIDEO_H264_SCALING_MATRIX);
+			V4L2_CID_STATELESS_H264_SCALING_MATRIX);
 		run.h264.slice_params = cedrus_find_control_data(ctx,
-			V4L2_CID_MPEG_VIDEO_H264_SLICE_PARAMS);
+			V4L2_CID_STATELESS_H264_SLICE_PARAMS);
 		run.h264.sps = cedrus_find_control_data(ctx,
-			V4L2_CID_MPEG_VIDEO_H264_SPS);
+			V4L2_CID_STATELESS_H264_SPS);
 		run.h264.pred_weights = cedrus_find_control_data(ctx,
-			V4L2_CID_MPEG_VIDEO_H264_PRED_WEIGHTS);
+			V4L2_CID_STATELESS_H264_PRED_WEIGHTS);
 		break;
 
 	case V4L2_PIX_FMT_HEVC_SLICE:
@@ -68,6 +68,11 @@ void cedrus_device_run(void *priv)
 			V4L2_CID_MPEG_VIDEO_HEVC_PPS);
 		run.h265.slice_params = cedrus_find_control_data(ctx,
 			V4L2_CID_MPEG_VIDEO_HEVC_SLICE_PARAMS);
+		break;
+
+	case V4L2_PIX_FMT_VP8_FRAME:
+		run.vp8.frame_params = cedrus_find_control_data(ctx,
+			V4L2_CID_MPEG_VIDEO_VP8_FRAME_HEADER);
 		break;
 
 	default:

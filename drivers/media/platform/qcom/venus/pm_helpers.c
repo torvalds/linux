@@ -212,6 +212,16 @@ static int load_scale_bw(struct venus_core *core)
 	}
 	mutex_unlock(&core->lock);
 
+	/*
+	 * keep minimum bandwidth vote for "video-mem" path,
+	 * so that clks can be disabled during vdec_session_release().
+	 * Actual bandwidth drop will be done during device supend
+	 * so that device can power down without any warnings.
+	 */
+
+	if (!total_avg && !total_peak)
+		total_avg = kbps_to_icc(1000);
+
 	dev_dbg(core->dev, VDBGL "total: avg_bw: %u, peak_bw: %u\n",
 		total_avg, total_peak);
 
@@ -928,7 +938,7 @@ static unsigned long calculate_inst_freq(struct venus_inst *inst,
 	u32 fps = (u32)inst->fps;
 	u32 mbs_per_sec;
 
-	mbs_per_sec = load_per_instance(inst) / fps;
+	mbs_per_sec = load_per_instance(inst);
 
 	vpp_freq = mbs_per_sec * inst->clk_data.codec_freq_data->vpp_freq;
 	/* 21 / 20 is overhead factor */
