@@ -8543,10 +8543,10 @@ static inline void mlxsw_reg_rxltm_pack(char *payload, u8 m0_val_v4, u8 m0_val_v
 	mlxsw_reg_rxltm_m0_val_v4_set(payload, m0_val_v4);
 }
 
-/* Note that XLTQ, XMDR and XRALXX register positions violate the rule
+/* Note that XLTQ, XMDR, XRMT and XRALXX register positions violate the rule
  * of ordering register definitions by the ID. However, XRALXX pack helpers are
  * using RALXX pack helpers, RALXX registers have higher IDs.
- * Also XMDR is using RALUE enums. XLTQ is just put alongside with the
+ * Also XMDR is using RALUE enums. XLRQ and XRMT are just put alongside with the
  * related registers.
  */
 
@@ -8872,6 +8872,34 @@ static inline void mlxsw_reg_xmdr_c_ltr_act_ip2me_tun_pack(char *xmdr_payload,
 
 	mlxsw_reg_xmdr_c_ltr_action_type_set(payload, MLXSW_REG_XMDR_C_LTR_ACTION_TYPE_IP2ME);
 	mlxsw_reg_xmdr_c_ltr_pointer_to_tunnel_set(payload, pointer_to_tunnel);
+}
+
+/* XRMT - XM Router M Table Register
+ * ---------------------------------
+ * The XRMT configures the M-Table for the XLT-LPM.
+ */
+#define MLXSW_REG_XRMT_ID 0x7810
+#define MLXSW_REG_XRMT_LEN 0x14
+
+MLXSW_REG_DEFINE(xrmt, MLXSW_REG_XRMT_ID, MLXSW_REG_XRMT_LEN);
+
+/* reg_xrmt_index
+ * Index in M-Table.
+ * Range 0..cap_xlt_mtable-1
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, xrmt, index, 0x04, 0, 20);
+
+/* reg_xrmt_l0_val
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, xrmt, l0_val, 0x10, 24, 8);
+
+static inline void mlxsw_reg_xrmt_pack(char *payload, u32 index, u8 l0_val)
+{
+	MLXSW_REG_ZERO(xrmt, payload);
+	mlxsw_reg_xrmt_index_set(payload, index);
+	mlxsw_reg_xrmt_l0_val_set(payload, l0_val);
 }
 
 /* XRALTA - XM Router Algorithmic LPM Tree Allocation Register
@@ -11891,6 +11919,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(rxltm),
 	MLXSW_REG(xltq),
 	MLXSW_REG(xmdr),
+	MLXSW_REG(xrmt),
 	MLXSW_REG(xralta),
 	MLXSW_REG(xralst),
 	MLXSW_REG(xraltb),
