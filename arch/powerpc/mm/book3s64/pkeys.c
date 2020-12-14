@@ -251,7 +251,7 @@ out:
 }
 
 #ifdef CONFIG_PPC_KUEP
-void __init setup_kuep(bool disabled)
+void setup_kuep(bool disabled)
 {
 	if (disabled)
 		return;
@@ -277,7 +277,7 @@ void __init setup_kuep(bool disabled)
 #endif
 
 #ifdef CONFIG_PPC_KUAP
-void __init setup_kuap(bool disabled)
+void setup_kuap(bool disabled)
 {
 	if (disabled)
 		return;
