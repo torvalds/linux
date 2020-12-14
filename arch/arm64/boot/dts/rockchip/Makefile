@@ -77,6 +77,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-evb2-lp4x-v10-i2s-mic-array.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-evb2-lp4x-v10-pdm-mic-array.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-evb3-ddr3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-evb3-ddr3-v10-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-evb5-lp4x-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-rk817-eink.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-rk817-tablet.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-rk817-tablet-k108.dtb

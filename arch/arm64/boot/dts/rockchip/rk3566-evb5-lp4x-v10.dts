@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rk3566-evb5-lp4x-v10.dtsi"
+#include "rk3568-android.dtsi"
