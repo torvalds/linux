@@ -1434,7 +1434,8 @@ static void set_format_emu_quirk(struct snd_usb_substream *subs,
 	 * by playback substream
 	 */
 	if (subs->direction == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (subs->stream->substream[SNDRV_PCM_STREAM_CAPTURE].interface != -1)
+		if (subs->stream->substream[SNDRV_PCM_STREAM_CAPTURE].interface != -1 &&
+		      subs->stream->substream[SNDRV_PCM_STREAM_CAPTURE].running)
 			return;
 	}
 
