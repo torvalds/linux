@@ -1363,3 +1363,158 @@ smb3_cleanup_fs_context(struct smb3_fs_context *ctx)
 	smb3_cleanup_fs_context_contents(ctx);
 	kfree(ctx);
 }
+
+void smb3_update_mnt_flags(struct cifs_sb_info *cifs_sb)
+{
+	struct smb3_fs_context *ctx = cifs_sb->ctx;
+
+	if (ctx->nodfs)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_DFS;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_NO_DFS;
+
+	if (ctx->noperm)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_PERM;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_NO_PERM;
+
+	if (ctx->setuids)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_SET_UID;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_SET_UID;
+
+	if (ctx->setuidfromacl)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_UID_FROM_ACL;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_UID_FROM_ACL;
+
+	if (ctx->server_ino)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_SERVER_INUM;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_SERVER_INUM;
+
+	if (ctx->remap)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MAP_SFM_CHR;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_MAP_SFM_CHR;
+
+	if (ctx->sfu_remap)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MAP_SPECIAL_CHR;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_MAP_SPECIAL_CHR;
+
+	if (ctx->no_xattr)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_XATTR;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_NO_XATTR;
+
+	if (ctx->sfu_emul)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_UNX_EMUL;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_UNX_EMUL;
+
+	if (ctx->nobrl)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_BRL;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_NO_BRL;
+
+	if (ctx->nohandlecache)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_HANDLE_CACHE;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_NO_HANDLE_CACHE;
+
+	if (ctx->nostrictsync)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NOSSYNC;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_NOSSYNC;
+
+	if (ctx->mand_lock)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NOPOSIXBRL;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_NOPOSIXBRL;
+
+	if (ctx->rwpidforward)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_RWPIDFORWARD;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_RWPIDFORWARD;
+
+	if (ctx->mode_ace)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MODE_FROM_SID;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_MODE_FROM_SID;
+
+	if (ctx->cifs_acl)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_ACL;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_CIFS_ACL;
+
+	if (ctx->backupuid_specified)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_BACKUPUID;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_CIFS_BACKUPUID;
+
+	if (ctx->backupgid_specified)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_BACKUPGID;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_CIFS_BACKUPGID;
+
+	if (ctx->override_uid)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_OVERR_UID;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_OVERR_UID;
+
+	if (ctx->override_gid)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_OVERR_GID;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_OVERR_GID;
+
+	if (ctx->dynperm)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DYNPERM;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_DYNPERM;
+
+	if (ctx->fsc)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_FSCACHE;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_FSCACHE;
+
+	if (ctx->multiuser)
+		cifs_sb->mnt_cifs_flags |= (CIFS_MOUNT_MULTIUSER |
+					    CIFS_MOUNT_NO_PERM);
+	else
+		cifs_sb->mnt_cifs_flags &= ~(CIFS_MOUNT_MULTIUSER |
+					     CIFS_MOUNT_NO_PERM);
+
+	if (ctx->strict_io)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_STRICT_IO;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_STRICT_IO;
+
+	if (ctx->direct_io)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DIRECT_IO;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_DIRECT_IO;
+
+	if (ctx->mfsymlinks)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MF_SYMLINKS;
+	else
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_MF_SYMLINKS;
+	if (ctx->mfsymlinks) {
+		if (ctx->sfu_emul) {
+			/*
+			 * Our SFU ("Services for Unix" emulation does not allow
+			 * creating symlinks but does allow reading existing SFU
+			 * symlinks (it does allow both creating and reading SFU
+			 * style mknod and FIFOs though). When "mfsymlinks" and
+			 * "sfu" are both enabled at the same time, it allows
+			 * reading both types of symlinks, but will only create
+			 * them with mfsymlinks format. This allows better
+			 * Apple compatibility (probably better for Samba too)
+			 * while still recognizing old Windows style symlinks.
+			 */
+			cifs_dbg(VFS, "mount options mfsymlinks and sfu both enabled\n");
+		}
+	}
+
+	return;
+}

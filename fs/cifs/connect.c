@@ -2727,61 +2727,10 @@ int cifs_setup_cifs_sb(struct cifs_sb_info *cifs_sb)
 	}
 	ctx->local_nls = cifs_sb->local_nls;
 
-	if (ctx->nodfs)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_DFS;
-	if (ctx->noperm)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_PERM;
-	if (ctx->setuids)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_SET_UID;
-	if (ctx->setuidfromacl)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_UID_FROM_ACL;
-	if (ctx->server_ino)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_SERVER_INUM;
-	if (ctx->remap)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MAP_SFM_CHR;
-	if (ctx->sfu_remap)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MAP_SPECIAL_CHR;
-	if (ctx->no_xattr)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_XATTR;
-	if (ctx->sfu_emul)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_UNX_EMUL;
-	if (ctx->nobrl)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_BRL;
-	if (ctx->nohandlecache)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_HANDLE_CACHE;
-	if (ctx->nostrictsync)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NOSSYNC;
-	if (ctx->mand_lock)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NOPOSIXBRL;
-	if (ctx->rwpidforward)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_RWPIDFORWARD;
-	if (ctx->mode_ace)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MODE_FROM_SID;
-	if (ctx->cifs_acl)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_ACL;
-	if (ctx->backupuid_specified) {
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_BACKUPUID;
-	}
-	if (ctx->backupgid_specified) {
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_BACKUPGID;
-	}
-	if (ctx->override_uid)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_OVERR_UID;
-	if (ctx->override_gid)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_OVERR_GID;
-	if (ctx->dynperm)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DYNPERM;
-	if (ctx->fsc)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_FSCACHE;
-	if (ctx->multiuser)
-		cifs_sb->mnt_cifs_flags |= (CIFS_MOUNT_MULTIUSER |
-					    CIFS_MOUNT_NO_PERM);
-	if (ctx->strict_io)
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_STRICT_IO;
-	if (ctx->direct_io) {
+	smb3_update_mnt_flags(cifs_sb);
+
+	if (ctx->direct_io)
 		cifs_dbg(FYI, "mounting share using direct i/o\n");
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DIRECT_IO;
-	}
 	if (ctx->cache_ro) {
 		cifs_dbg(VFS, "mounting share with read only caching. Ensure that the share will not be modified while in use.\n");
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_RO_CACHE;
@@ -2789,23 +2738,6 @@ int cifs_setup_cifs_sb(struct cifs_sb_info *cifs_sb)
 		cifs_dbg(VFS, "mounting share in single client RW caching mode. Ensure that no other systems will be accessing the share.\n");
 		cifs_sb->mnt_cifs_flags |= (CIFS_MOUNT_RO_CACHE |
 					    CIFS_MOUNT_RW_CACHE);
-	}
-	if (ctx->mfsymlinks) {
-		if (ctx->sfu_emul) {
-			/*
-			 * Our SFU ("Services for Unix" emulation does not allow
-			 * creating symlinks but does allow reading existing SFU
-			 * symlinks (it does allow both creating and reading SFU
-			 * style mknod and FIFOs though). When "mfsymlinks" and
-			 * "sfu" are both enabled at the same time, it allows
-			 * reading both types of symlinks, but will only create
-			 * them with mfsymlinks format. This allows better
-			 * Apple compatibility (probably better for Samba too)
-			 * while still recognizing old Windows style symlinks.
-			 */
-			cifs_dbg(VFS, "mount options mfsymlinks and sfu both enabled\n");
-		}
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MF_SYMLINKS;
 	}
 
 	if ((ctx->cifs_acl) && (ctx->dynperm))
