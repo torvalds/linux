@@ -402,6 +402,19 @@ static int cppc_cpufreq_set_boost(struct cpufreq_policy *policy, int state)
 	return 0;
 }
 
+static ssize_t show_freqdomain_cpus(struct cpufreq_policy *policy, char *buf)
+{
+	unsigned int cpu = policy->cpu;
+
+	return cpufreq_show_cpus(all_cpu_data[cpu]->shared_cpu_map, buf);
+}
+cpufreq_freq_attr_ro(freqdomain_cpus);
+
+static struct freq_attr *cppc_cpufreq_attr[] = {
+	&freqdomain_cpus,
+	NULL,
+};
+
 static struct cpufreq_driver cppc_cpufreq_driver = {
 	.flags = CPUFREQ_CONST_LOOPS,
 	.verify = cppc_verify_policy,
@@ -410,6 +423,7 @@ static struct cpufreq_driver cppc_cpufreq_driver = {
 	.init = cppc_cpufreq_cpu_init,
 	.stop_cpu = cppc_cpufreq_stop_cpu,
 	.set_boost = cppc_cpufreq_set_boost,
+	.attr = cppc_cpufreq_attr,
 	.name = "cppc_cpufreq",
 };
 
