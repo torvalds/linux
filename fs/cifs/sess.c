@@ -34,6 +34,10 @@
 #include "smb2proto.h"
 #include "fs_context.h"
 
+static int
+cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
+		     struct cifs_server_iface *iface);
+
 bool
 is_server_using_iface(struct TCP_Server_Info *server,
 		      struct cifs_server_iface *iface)
@@ -71,7 +75,7 @@ bool is_ses_using_iface(struct cifs_ses *ses, struct cifs_server_iface *iface)
 }
 
 /* returns number of channels added */
-int cifs_try_adding_channels(struct cifs_ses *ses)
+int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 {
 	int old_chan_count = ses->chan_count;
 	int left = ses->chan_max - ses->chan_count;
@@ -134,7 +138,7 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 			continue;
 		}
 
-		rc = cifs_ses_add_channel(ses, iface);
+		rc = cifs_ses_add_channel(cifs_sb, ses, iface);
 		if (rc) {
 			cifs_dbg(FYI, "failed to open extra channel on iface#%d rc=%d\n",
 				 i, rc);
@@ -167,8 +171,9 @@ cifs_ses_find_chan(struct cifs_ses *ses, struct TCP_Server_Info *server)
 	return NULL;
 }
 
-int
-cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
+static int
+cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
+		     struct cifs_server_iface *iface)
 {
 	struct cifs_chan *chan;
 	struct smb3_fs_context ctx = {NULL};
@@ -229,13 +234,8 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 	/*
 	 * This will be used for encoding/decoding user/domain/pw
 	 * during sess setup auth.
-	 *
-	 * XXX: We use the default for simplicity but the proper way
-	 * would be to use the one that ses used, which is not
-	 * stored. This might break when dealing with non-ascii
-	 * strings.
 	 */
-	ctx.local_nls = load_nls_default();
+	ctx.local_nls = cifs_sb->local_nls;
 
 	/* Use RDMA if possible */
 	ctx.rdma = iface->rdma_capable;
@@ -275,7 +275,7 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 	if (rc)
 		goto out;
 
-	rc = cifs_setup_session(xid, ses, ctx.local_nls);
+	rc = cifs_setup_session(xid, ses, cifs_sb->local_nls);
 	if (rc)
 		goto out;
 
@@ -298,7 +298,6 @@ out:
 
 	if (rc && chan->server)
 		cifs_put_tcp_session(chan->server, 0);
-	unload_nls(ctx.local_nls);
 
 	return rc;
 }

@@ -2717,7 +2717,19 @@ int cifs_setup_cifs_sb(struct smb3_fs_context *ctx,
 	cifs_dbg(FYI, "file mode: %04ho  dir mode: %04ho\n",
 		 cifs_sb->ctx->file_mode, cifs_sb->ctx->dir_mode);
 
-	cifs_sb->local_nls = ctx->local_nls;
+	/* this is needed for ASCII cp to Unicode converts */
+	if (ctx->iocharset == NULL) {
+		/* load_nls_default cannot return null */
+		cifs_sb->local_nls = load_nls_default();
+	} else {
+		cifs_sb->local_nls = load_nls(ctx->iocharset);
+		if (cifs_sb->local_nls == NULL) {
+			cifs_dbg(VFS, "CIFS mount error: iocharset %s not found\n",
+				 ctx->iocharset);
+			return -ELIBACC;
+		}
+	}
+	ctx->local_nls = cifs_sb->local_nls;
 
 	if (ctx->nodfs)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_DFS;
@@ -3187,19 +3199,6 @@ cifs_setup_volume_info(struct smb3_fs_context *ctx)
 		return -EINVAL;
 	}
 
-	/* this is needed for ASCII cp to Unicode converts */
-	if (ctx->iocharset == NULL) {
-		/* load_nls_default cannot return null */
-		ctx->local_nls = load_nls_default();
-	} else {
-		ctx->local_nls = load_nls(ctx->iocharset);
-		if (ctx->local_nls == NULL) {
-			cifs_dbg(VFS, "CIFS mount error: iocharset %s not found\n",
-				 ctx->iocharset);
-			return -ELIBACC;
-		}
-	}
-
 	return rc;
 }
 
@@ -3521,7 +3520,7 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 
 out:
 	free_xid(xid);
-	cifs_try_adding_channels(ses);
+	cifs_try_adding_channels(cifs_sb, ses);
 	return mount_setup_tlink(cifs_sb, ses, tcon);
 
 error:

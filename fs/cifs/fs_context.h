@@ -237,7 +237,7 @@ struct smb3_fs_context {
 	char *prepath;
 	struct sockaddr_storage dstaddr; /* destination address */
 	struct sockaddr_storage srcaddr; /* allow binding to a local IP */
-	struct nls_table *local_nls;
+	struct nls_table *local_nls; /* This is a copy of the pointer in cifs_sb */
 	unsigned int echo_interval; /* echo interval in secs */
 	__u64 snapshot_time; /* needed for timewarp tokens */
 	__u32 handle_timeout; /* persistent and durable handle timeout in ms */
