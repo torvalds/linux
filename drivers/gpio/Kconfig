@@ -298,6 +298,17 @@ config GPIO_GRGPIO
 	  Select this to support Aeroflex Gaisler GRGPIO cores from the GRLIB
 	  VHDL IP core library.
 
+config GPIO_HISI
+	tristate "HiSilicon GPIO controller driver"
+	depends on (ARM64 || COMPILE_TEST) && ACPI
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y or M here to build support for the HiSilicon GPIO controller
+	  driver GPIO block.
+	  This GPIO controller support double-edge interrupt and multi-core
+	  concurrent access.
+
 config GPIO_HLWD
 	tristate "Nintendo Wii (Hollywood) GPIO"
 	depends on OF_GPIO
