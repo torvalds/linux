@@ -813,7 +813,8 @@ void mtrr_ap_init(void)
 }
 
 /**
- * Save current fixed-range MTRR state of the first cpu in cpu_online_mask.
+ * mtrr_save_state - Save current fixed-range MTRR state of the first
+ *	cpu in cpu_online_mask.
  */
 void mtrr_save_state(void)
 {
