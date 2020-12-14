@@ -5223,9 +5223,8 @@ static int handle_xsetbv(struct kvm_vcpu *vcpu)
 	u64 new_bv = kvm_read_edx_eax(vcpu);
 	u32 index = kvm_rcx_read(vcpu);
 
-	if (kvm_set_xcr(vcpu, index, new_bv) == 0)
-		return kvm_skip_emulated_instruction(vcpu);
-	return 1;
+	int err = kvm_set_xcr(vcpu, index, new_bv);
+	return kvm_complete_insn_gp(vcpu, err);
 }
 
 static int handle_apic_access(struct kvm_vcpu *vcpu)
