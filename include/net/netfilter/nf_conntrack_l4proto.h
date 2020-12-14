@@ -32,7 +32,7 @@ struct nf_conntrack_l4proto {
 
 	/* convert protoinfo to nfnetink attributes */
 	int (*to_nlattr)(struct sk_buff *skb, struct nlattr *nla,
-			 struct nf_conn *ct);
+			 struct nf_conn *ct, bool destroy);
 
 	/* convert nfnetlink attributes to protoinfo */
 	int (*from_nlattr)(struct nlattr *tb[], struct nf_conn *ct);
