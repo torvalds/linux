@@ -462,18 +462,6 @@ cifs_show_cache_flavor(struct seq_file *s, struct cifs_sb_info *cifs_sb)
 		seq_puts(s, "loose");
 }
 
-static void
-cifs_show_nls(struct seq_file *s, struct nls_table *cur)
-{
-	struct nls_table *def;
-
-	/* Display iocharset= option if it's not default charset */
-	def = load_nls_default();
-	if (def != cur)
-		seq_printf(s, ",iocharset=%s", cur->charset);
-	unload_nls(def);
-}
-
 /*
  * cifs_show_options() is for displaying mount options in /proc/mounts.
  * Not all settable options are displayed but most of the important
@@ -537,9 +525,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_printf(s, ",file_mode=0%ho,dir_mode=0%ho",
 					   cifs_sb->ctx->file_mode,
 					   cifs_sb->ctx->dir_mode);
-
-	cifs_show_nls(s, cifs_sb->local_nls);
-
+	if (cifs_sb->ctx->iocharset)
+		seq_printf(s, ",iocharset=%s", cifs_sb->ctx->iocharset);
 	if (tcon->seal)
 		seq_puts(s, ",seal");
 	else if (tcon->ses->server->ignore_signature)
