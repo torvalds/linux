@@ -37,10 +37,17 @@
 
 #define AMDGPU_POISON	0xd0bed0be
 
+struct amdgpu_vram_reservation {
+	struct list_head node;
+	struct drm_mm_node mm_node;
+};
+
 struct amdgpu_vram_mgr {
 	struct ttm_resource_manager manager;
 	struct drm_mm mm;
 	spinlock_t lock;
+	struct list_head reservations_pending;
+	struct list_head reserved_pages;
 	atomic64_t usage;
 	atomic64_t vis_usage;
 };
@@ -54,7 +61,6 @@ struct amdgpu_gtt_mgr {
 
 struct amdgpu_mman {
 	struct ttm_bo_device		bdev;
-	bool				mem_global_referenced;
 	bool				initialized;
 	void __iomem			*aper_base_kaddr;
 
@@ -119,9 +125,12 @@ void amdgpu_vram_mgr_free_sgt(struct amdgpu_device *adev,
 			      struct sg_table *sgt);
 uint64_t amdgpu_vram_mgr_usage(struct ttm_resource_manager *man);
 uint64_t amdgpu_vram_mgr_vis_usage(struct ttm_resource_manager *man);
+int amdgpu_vram_mgr_reserve_range(struct ttm_resource_manager *man,
+				  uint64_t start, uint64_t size);
+int amdgpu_vram_mgr_query_page_status(struct ttm_resource_manager *man,
+				      uint64_t start);
 
 int amdgpu_ttm_init(struct amdgpu_device *adev);
-void amdgpu_ttm_late_init(struct amdgpu_device *adev);
 void amdgpu_ttm_fini(struct amdgpu_device *adev);
 void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev,
 					bool enable);

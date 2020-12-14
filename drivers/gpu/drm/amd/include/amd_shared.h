@@ -46,6 +46,7 @@ enum amd_apu_flags {
 	AMD_APU_IS_PICASSO = 0x00000004UL,
 	AMD_APU_IS_RENOIR = 0x00000008UL,
 	AMD_APU_IS_GREEN_SARDINE = 0x00000010UL,
+	AMD_APU_IS_VANGOGH = 0x00000020UL,
 };
 
 /**
@@ -143,6 +144,7 @@ enum amd_powergating_state {
 #define AMD_CG_SUPPORT_ATHUB_LS			(1 << 28)
 #define AMD_CG_SUPPORT_ATHUB_MGCG		(1 << 29)
 #define AMD_CG_SUPPORT_JPEG_MGCG		(1 << 30)
+#define AMD_CG_SUPPORT_GFX_FGCG			(1 << 31)
 /* PG flags */
 #define AMD_PG_SUPPORT_GFX_PG			(1 << 0)
 #define AMD_PG_SUPPORT_GFX_SMG			(1 << 1)

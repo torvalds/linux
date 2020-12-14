@@ -41,7 +41,7 @@ static void df_v1_7_sw_fini(struct amdgpu_device *adev)
 }
 
 static void df_v1_7_enable_broadcast_mode(struct amdgpu_device *adev,
-                                          bool enable)
+					  bool enable)
 {
 	u32 tmp;
 

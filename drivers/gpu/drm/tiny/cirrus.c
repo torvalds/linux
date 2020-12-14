@@ -17,6 +17,7 @@
  */
 
 #include <linux/console.h>
+#include <linux/dma-buf-map.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 
@@ -314,6 +315,7 @@ static int cirrus_fb_blit_rect(struct drm_framebuffer *fb,
 			       struct drm_rect *rect)
 {
 	struct cirrus_device *cirrus = to_cirrus(fb->dev);
+	struct dma_buf_map map;
 	void *vmap;
 	int idx, ret;
 
@@ -321,10 +323,10 @@ static int cirrus_fb_blit_rect(struct drm_framebuffer *fb,
 	if (!drm_dev_enter(&cirrus->dev, &idx))
 		goto out;
 
-	ret = -ENOMEM;
-	vmap = drm_gem_shmem_vmap(fb->obj[0]);
-	if (!vmap)
+	ret = drm_gem_shmem_vmap(fb->obj[0], &map);
+	if (ret)
 		goto out_dev_exit;
+	vmap = map.vaddr; /* TODO: Use mapping abstraction properly */
 
 	if (cirrus->cpp == fb->format->cpp[0])
 		drm_fb_memcpy_dstclip(cirrus->vram,
@@ -343,7 +345,7 @@ static int cirrus_fb_blit_rect(struct drm_framebuffer *fb,
 	else
 		WARN_ON_ONCE("cpp mismatch");
 
-	drm_gem_shmem_vunmap(fb->obj[0], vmap);
+	drm_gem_shmem_vunmap(fb->obj[0], &map);
 	ret = 0;
 
 out_dev_exit:
@@ -536,7 +538,7 @@ static int cirrus_mode_config_init(struct cirrus_device *cirrus)
 
 DEFINE_DRM_GEM_FOPS(cirrus_fops);
 
-static struct drm_driver cirrus_driver = {
+static const struct drm_driver cirrus_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 
 	.name		 = DRIVER_NAME,

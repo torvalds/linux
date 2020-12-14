@@ -281,6 +281,10 @@ EXPORT_SYMBOL(__drm_atomic_state_free);
  * needed. It will also grab the relevant CRTC lock to make sure that the state
  * is consistent.
  *
+ * WARNING: Drivers may only add new CRTC states to a @state if
+ * drm_atomic_state.allow_modeset is set, or if it's a driver-internal commit
+ * not created by userspace through an IOCTL call.
+ *
  * Returns:
  *
  * Either the allocated state or the error code encoded into the pointer. When
@@ -1262,9 +1266,14 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 	struct drm_crtc_state *new_crtc_state;
 	struct drm_connector *conn;
 	struct drm_connector_state *conn_state;
+	unsigned requested_crtc = 0;
+	unsigned affected_crtc = 0;
 	int i, ret = 0;
 
 	DRM_DEBUG_ATOMIC("checking %p\n", state);
+
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i)
+		requested_crtc |= drm_crtc_mask(crtc);
 
 	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
 		ret = drm_atomic_plane_check(old_plane_state, new_plane_state);
@@ -1311,6 +1320,26 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 				return -EINVAL;
 			}
 		}
+	}
+
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i)
+		affected_crtc |= drm_crtc_mask(crtc);
+
+	/*
+	 * For commits that allow modesets drivers can add other CRTCs to the
+	 * atomic commit, e.g. when they need to reallocate global resources.
+	 * This can cause spurious EBUSY, which robs compositors of a very
+	 * effective sanity check for their drawing loop. Therefor only allow
+	 * drivers to add unrelated CRTC states for modeset commits.
+	 *
+	 * FIXME: Should add affected_crtc mask to the ATOMIC IOCTL as an output
+	 * so compositors know what's going on.
+	 */
+	if (affected_crtc != requested_crtc) {
+		DRM_DEBUG_ATOMIC("driver added CRTC to commit: requested 0x%x, affected 0x%0x\n",
+				 requested_crtc, affected_crtc);
+		WARN(!state->allow_modeset, "adding CRTC not allowed without modesets: requested 0x%x, affected 0x%0x\n",
+		     requested_crtc, affected_crtc);
 	}
 
 	return 0;
@@ -1613,11 +1642,11 @@ static void __drm_state_dump(struct drm_device *dev, struct drm_printer *p,
  * to dmesg in case of error irq's.  (Hint, you probably want to
  * ratelimit this!)
  *
- * The caller must drm_modeset_lock_all(), or if this is called
- * from error irq handler, it should not be enabled by default.
- * (Ie. if you are debugging errors you might not care that this
- * is racey.  But calling this without all modeset locks held is
- * not inherently safe.)
+ * The caller must wrap this drm_modeset_lock_all_ctx() and
+ * drm_modeset_drop_locks(). If this is called from error irq handler, it should
+ * not be enabled by default - if you are debugging errors you might
+ * not care that this is racey, but calling this without all modeset locks held
+ * is inherently unsafe.
  */
 void drm_state_dump(struct drm_device *dev, struct drm_printer *p)
 {

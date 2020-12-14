@@ -202,12 +202,6 @@ retry:
 	if (unlikely(err))
 		goto out_request;
 
-	if (w->ce->engine->emit_init_breadcrumb) {
-		err = w->ce->engine->emit_init_breadcrumb(rq);
-		if (unlikely(err))
-			goto out_request;
-	}
-
 	/*
 	 * w->dma is already exported via (vma|obj)->resv we need only
 	 * keep track of the GPU activity within this vma/request, and
@@ -217,9 +211,15 @@ retry:
 	if (err)
 		goto out_request;
 
-	err = w->ce->engine->emit_bb_start(rq,
-					   batch->node.start, batch->node.size,
-					   0);
+	if (rq->engine->emit_init_breadcrumb) {
+		err = rq->engine->emit_init_breadcrumb(rq);
+		if (unlikely(err))
+			goto out_request;
+	}
+
+	err = rq->engine->emit_bb_start(rq,
+					batch->node.start, batch->node.size,
+					0);
 out_request:
 	if (unlikely(err)) {
 		i915_request_set_error_once(rq, err);
