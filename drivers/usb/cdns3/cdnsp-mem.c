@@ -759,8 +759,9 @@ int cdnsp_setup_addressable_priv_dev(struct cdnsp_device *pdev)
 
 	port = DEV_PORT(pdev->active_port->port_num);
 	slot_ctx->dev_port |= cpu_to_le32(port);
-	slot_ctx->dev_state = (pdev->device_address & DEV_ADDR_MASK);
-	ep0_ctx->tx_info = EP_AVG_TRB_LENGTH(0x8);
+	slot_ctx->dev_state = cpu_to_le32((pdev->device_address &
+					   DEV_ADDR_MASK));
+	ep0_ctx->tx_info = cpu_to_le32(EP_AVG_TRB_LENGTH(0x8));
 	ep0_ctx->ep_info2 = cpu_to_le32(EP_TYPE(CTRL_EP));
 	ep0_ctx->ep_info2 |= cpu_to_le32(MAX_BURST(0) | ERROR_COUNT(3) |
 					 max_packets);
@@ -925,7 +926,7 @@ static u32 cdnsp_get_max_esit_payload(struct usb_gadget *g,
 	/* SuperSpeedPlus Isoc ep sending over 48k per EIST. */
 	if (g->speed >= USB_SPEED_SUPER_PLUS &&
 	    USB_SS_SSP_ISOC_COMP(pep->endpoint.desc->bmAttributes))
-		return le32_to_cpu(pep->endpoint.comp_desc->wBytesPerInterval);
+		return le16_to_cpu(pep->endpoint.comp_desc->wBytesPerInterval);
 	/* SuperSpeed or SuperSpeedPlus Isoc ep with less than 48k per esit */
 	else if (g->speed >= USB_SPEED_SUPER)
 		return le16_to_cpu(pep->endpoint.comp_desc->wBytesPerInterval);
@@ -1184,11 +1185,11 @@ static int cdnsp_setup_port_arrays(struct cdnsp_device *pdev)
 
 	trace_cdnsp_init("Found USB 2.0 ports and  USB 3.0 ports.");
 
-	pdev->usb2_port.regs = (struct cdnsp_port_regs *)
+	pdev->usb2_port.regs = (struct cdnsp_port_regs __iomem *)
 			       (&pdev->op_regs->port_reg_base + NUM_PORT_REGS *
 				(pdev->usb2_port.port_num - 1));
 
-	pdev->usb3_port.regs = (struct cdnsp_port_regs *)
+	pdev->usb3_port.regs = (struct cdnsp_port_regs __iomem *)
 			       (&pdev->op_regs->port_reg_base + NUM_PORT_REGS *
 				(pdev->usb3_port.port_num - 1));
 

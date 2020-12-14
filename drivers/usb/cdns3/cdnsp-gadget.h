@@ -493,11 +493,12 @@ struct cdnsp_3xport_cap {
 #define CDNSP_VER_1 0x00000000
 #define CDNSP_VER_2 0x10000000
 
-#define CDNSP_IF_EP_EXIST(pdev, ep_num, dir) ((pdev)->rev_cap.ep_supported & \
-			  (BIT(ep_num) << ((dir) ? 0 : 16)))
+#define CDNSP_IF_EP_EXIST(pdev, ep_num, dir) \
+			 (readl(&(pdev)->rev_cap->ep_supported) & \
+			 (BIT(ep_num) << ((dir) ? 0 : 16)))
 
 /**
- * struct cdnsp_rev_cap - controller capabilities .
+ * struct cdnsp_rev_cap - controller capabilities.
  * @ext_cap: Header for RTL Revision Extended Capability.
  * @rtl_revision: RTL revision.
  * @rx_buff_size: Rx buffer sizes.
@@ -594,7 +595,7 @@ struct cdnsp_slot_ctx {
 #define DEV_SPEED		GENMASK(23, 20)
 #define GET_DEV_SPEED(n)	(((n) & DEV_SPEED) >> 20)
 /* Index of the last valid endpoint context in this device context - 27:31. */
-#define LAST_CTX_MASK		GENMASK(31, 27)
+#define LAST_CTX_MASK		((unsigned int)GENMASK(31, 27))
 #define LAST_CTX(p)		((p) << 27)
 #define LAST_CTX_TO_EP_NUM(p)	(((p) >> 27) - 1)
 #define SLOT_FLAG		BIT(0)
@@ -1351,9 +1352,9 @@ struct cdnsp_port {
  * @ir_set: Current interrupter register set.
  * @port20_regs: Port 2.0 Peripheral Configuration Registers.
  * @port3x_regs: USB3.x Port Peripheral Configuration Registers.
+ * @rev_cap: Controller Capabilities Registers.
  * @hcs_params1: Cached register copies of read-only HCSPARAMS1
  * @hcc_params: Cached register copies of read-only HCCPARAMS1
- * @rev_cap: Controller capability.
  * @setup: Temporary buffer for setup packet.
  * @ep0_preq: Internal allocated request used during enumeration.
  * @ep0_stage: ep0 stage during enumeration process.
@@ -1402,12 +1403,12 @@ struct cdnsp_device {
 	struct	cdnsp_intr_reg __iomem *ir_set;
 	struct cdnsp_20port_cap __iomem *port20_regs;
 	struct cdnsp_3xport_cap __iomem *port3x_regs;
+	struct cdnsp_rev_cap __iomem *rev_cap;
 
 	/* Cached register copies of read-only CDNSP data */
 	__u32 hcs_params1;
 	__u32 hcs_params3;
 	__u32 hcc_params;
-	struct cdnsp_rev_cap rev_cap;
 	/* Lock used in interrupt thread context. */
 	spinlock_t lock;
 	struct usb_ctrlrequest setup;

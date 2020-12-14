@@ -620,7 +620,7 @@ DECLARE_EVENT_CLASS(cdnsp_log_slot_ctx,
 	TP_fast_assign(
 		__entry->info = le32_to_cpu(ctx->dev_info);
 		__entry->info2 = le32_to_cpu(ctx->dev_port);
-		__entry->int_target = le64_to_cpu(ctx->int_target);
+		__entry->int_target = le32_to_cpu(ctx->int_target);
 		__entry->state = le32_to_cpu(ctx->dev_state);
 	),
 	TP_printk("%s", cdnsp_decode_slot_context(__entry->info,

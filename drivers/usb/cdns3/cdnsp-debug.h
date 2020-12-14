@@ -414,7 +414,7 @@ static inline const char *cdnsp_decode_slot_context(u32 info, u32 info2,
 		s = "UNKNOWN speed";
 	}
 
-	ret = sprintf(str, "%s Ctx Entries %ld",
+	ret = sprintf(str, "%s Ctx Entries %d",
 		      s, (info & LAST_CTX_MASK) >> 27);
 
 	ret += sprintf(str + ret, " [Intr %ld] Addr %ld State %s",

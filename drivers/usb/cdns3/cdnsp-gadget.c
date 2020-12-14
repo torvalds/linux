@@ -491,7 +491,7 @@ static void cdnsp_invalidate_ep_events(struct cdnsp_device *pdev,
 	struct cdnsp_segment *segment;
 	union cdnsp_trb *event;
 	u32 cycle_state;
-	__le32  data;
+	u32  data;
 
 	event = pdev->event_ring->dequeue;
 	segment = pdev->event_ring->deq_seg;
@@ -527,9 +527,9 @@ int cdnsp_wait_for_cmd_compl(struct cdnsp_device *pdev)
 	dma_addr_t cmd_deq_dma;
 	union cdnsp_trb *event;
 	u32 cycle_state;
-	__le32  flags;
 	int ret, val;
 	u64 cmd_dma;
+	u32  flags;
 
 	cmd_trb = pdev->cmd.command_trb;
 	pdev->cmd.status = 0;
@@ -1568,7 +1568,7 @@ static void cdnsp_get_ep_buffering(struct cdnsp_device *pdev,
 		return;
 	}
 
-	endpoints = HCS_ENDPOINTS(readl(&pdev->hcs_params1)) / 2;
+	endpoints = HCS_ENDPOINTS(pdev->hcs_params1) / 2;
 
 	/* Set to XBUF_TX_TAG_MASK_0 register. */
 	reg += XBUF_TX_CMD_OFFSET + (endpoints * 2 + 2) * sizeof(u32);
@@ -1754,22 +1754,16 @@ void cdnsp_irq_reset(struct cdnsp_device *pdev)
 static void cdnsp_get_rev_cap(struct cdnsp_device *pdev)
 {
 	void __iomem *reg = &pdev->cap_regs->hc_capbase;
-	struct cdnsp_rev_cap *rev_cap;
 
 	reg += cdnsp_find_next_ext_cap(reg, 0, RTL_REV_CAP);
-	rev_cap = reg;
-
-	pdev->rev_cap.ctrl_revision = readl(&rev_cap->ctrl_revision);
-	pdev->rev_cap.rtl_revision = readl(&rev_cap->rtl_revision);
-	pdev->rev_cap.ep_supported = readl(&rev_cap->ep_supported);
-	pdev->rev_cap.ext_cap = readl(&rev_cap->ext_cap);
-	pdev->rev_cap.rx_buff_size = readl(&rev_cap->rx_buff_size);
-	pdev->rev_cap.tx_buff_size = readl(&rev_cap->tx_buff_size);
+	pdev->rev_cap  = reg;
 
 	dev_info(pdev->dev, "Rev: %08x/%08x, eps: %08x, buff: %08x/%08x\n",
-		 pdev->rev_cap.ctrl_revision, pdev->rev_cap.rtl_revision,
-		 pdev->rev_cap.ep_supported, pdev->rev_cap.rx_buff_size,
-		 pdev->rev_cap.tx_buff_size);
+		 readl(&pdev->rev_cap->ctrl_revision),
+		 readl(&pdev->rev_cap->rtl_revision),
+		 readl(&pdev->rev_cap->ep_supported),
+		 readl(&pdev->rev_cap->rx_buff_size),
+		 readl(&pdev->rev_cap->tx_buff_size));
 }
 
 static int cdnsp_gen_setup(struct cdnsp_device *pdev)

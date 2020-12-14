@@ -1432,7 +1432,7 @@ static bool cdnsp_handle_event(struct cdnsp_device *pdev)
 	unsigned int comp_code;
 	union cdnsp_trb *event;
 	bool update_ptrs = true;
-	__le32 cycle_bit;
+	u32 cycle_bit;
 	int ret = 0;
 	u32 flags;
 
@@ -2198,7 +2198,7 @@ static int cdnsp_queue_isoc_tx(struct cdnsp_device *pdev,
 	 * inverted in the first TDs isoc TRB.
 	 */
 	field = TRB_TYPE(TRB_ISOC) | TRB_TLBPC(last_burst_pkt) |
-		!start_cycle | TRB_SIA | TRB_TBC(burst_count);
+		start_cycle ? 0 : 1 | TRB_SIA | TRB_TBC(burst_count);
 
 	/* Fill the rest of the TRB fields, and remaining normal TRBs. */
 	for (i = 0; i < trbs_per_td; i++) {

@@ -137,10 +137,8 @@ int cdnsp_status_stage(struct cdnsp_device *pdev)
 	return cdnsp_ep_enqueue(pdev->ep0_preq.pep, &pdev->ep0_preq);
 }
 
-static int cdnsp_w_index_to_ep_index(__le32  wIndex)
+static int cdnsp_w_index_to_ep_index(u16 wIndex)
 {
-	wIndex = le32_to_cpu(wIndex);
-
 	if (!(wIndex & USB_ENDPOINT_NUMBER_MASK))
 		return 0;
 
@@ -176,7 +174,8 @@ static int cdnsp_ep0_handle_status(struct cdnsp_device *pdev,
 		 */
 		return cdnsp_ep0_delegate_req(pdev, ctrl);
 	case USB_RECIP_ENDPOINT:
-		pep = &pdev->eps[cdnsp_w_index_to_ep_index(ctrl->wIndex)];
+		ep_sts = cdnsp_w_index_to_ep_index(le16_to_cpu(ctrl->wIndex));
+		pep = &pdev->eps[ep_sts];
 		ep_sts = GET_EP_CTX_STATE(pep->out_ctx);
 
 		/* check if endpoint is stalled */
@@ -305,10 +304,10 @@ static int cdnsp_ep0_handle_feature_endpoint(struct cdnsp_device *pdev,
 					     int set)
 {
 	struct cdnsp_ep *pep;
-	u32 wValue;
+	u16 wValue;
 
 	wValue = le16_to_cpu(ctrl->wValue);
-	pep = &pdev->eps[cdnsp_w_index_to_ep_index(ctrl->wIndex)];
+	pep = &pdev->eps[cdnsp_w_index_to_ep_index(le16_to_cpu(ctrl->wIndex))];
 
 	switch (wValue) {
 	case USB_ENDPOINT_HALT:
@@ -435,7 +434,7 @@ void cdnsp_setup_analyze(struct cdnsp_device *pdev)
 {
 	struct usb_ctrlrequest *ctrl = &pdev->setup;
 	int ret = 0;
-	__le16 len;
+	u16 len;
 
 	trace_cdnsp_ctrl_req(ctrl);
 
