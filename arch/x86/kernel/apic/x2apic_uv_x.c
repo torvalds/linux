@@ -502,6 +502,18 @@ enum uv_system_type get_uv_system_type(void)
 	return uv_system_type;
 }
 
+int uv_get_hubless_system(void)
+{
+	return uv_hubless_system;
+}
+EXPORT_SYMBOL_GPL(uv_get_hubless_system);
+
+ssize_t uv_get_archtype(char *buf, int len)
+{
+	return scnprintf(buf, len, "%s/%s", uv_archtype, oem_table_id);
+}
+EXPORT_SYMBOL_GPL(uv_get_archtype);
+
 int is_uv_system(void)
 {
 	return uv_system_type != UV_NONE;
@@ -1603,21 +1615,30 @@ static void check_efi_reboot(void)
 		reboot_type = BOOT_ACPI;
 }
 
-/* Setup user proc fs files */
+/*
+ * User proc fs file handling now deprecated.
+ * Recommend using /sys/firmware/sgi_uv/... instead.
+ */
 static int __maybe_unused proc_hubbed_show(struct seq_file *file, void *data)
 {
+	pr_notice_once("%s: using deprecated /proc/sgi_uv/hubbed, use /sys/firmware/sgi_uv/hub_type\n",
+		       current->comm);
 	seq_printf(file, "0x%x\n", uv_hubbed_system);
 	return 0;
 }
 
 static int __maybe_unused proc_hubless_show(struct seq_file *file, void *data)
 {
+	pr_notice_once("%s: using deprecated /proc/sgi_uv/hubless, use /sys/firmware/sgi_uv/hubless\n",
+		       current->comm);
 	seq_printf(file, "0x%x\n", uv_hubless_system);
 	return 0;
 }
 
 static int __maybe_unused proc_archtype_show(struct seq_file *file, void *data)
 {
+	pr_notice_once("%s: using deprecated /proc/sgi_uv/archtype, use /sys/firmware/sgi_uv/archtype\n",
+		       current->comm);
 	seq_printf(file, "%s/%s\n", uv_archtype, oem_table_id);
 	return 0;
 }
