@@ -8469,6 +8469,49 @@ mlxsw_reg_rmft2_ipv6_pack(char *payload, bool v, u16 offset, u16 virtual_router,
 	mlxsw_reg_rmft2_sip6_mask_memcpy_to(payload, (void *)&sip6_mask);
 }
 
+/* RXLTE - Router XLT Enable Register
+ * ----------------------------------
+ * The RXLTE enables XLT (eXtended Lookup Table) LPM lookups if a capable
+ * XM is present on the system.
+ */
+
+#define MLXSW_REG_RXLTE_ID 0x8050
+#define MLXSW_REG_RXLTE_LEN 0x0C
+
+MLXSW_REG_DEFINE(rxlte, MLXSW_REG_RXLTE_ID, MLXSW_REG_RXLTE_LEN);
+
+/* reg_rxlte_virtual_router
+ * Virtual router ID associated with the router interface.
+ * Range is 0..cap_max_virtual_routers-1
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rxlte, virtual_router, 0x00, 0, 16);
+
+enum mlxsw_reg_rxlte_protocol {
+	MLXSW_REG_RXLTE_PROTOCOL_IPV4,
+	MLXSW_REG_RXLTE_PROTOCOL_IPV6,
+};
+
+/* reg_rxlte_protocol
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rxlte, protocol, 0x04, 0, 4);
+
+/* reg_rxlte_lpm_xlt_en
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, rxlte, lpm_xlt_en, 0x08, 0, 1);
+
+static inline void mlxsw_reg_rxlte_pack(char *payload, u16 virtual_router,
+					enum mlxsw_reg_rxlte_protocol protocol,
+					bool lpm_xlt_en)
+{
+	MLXSW_REG_ZERO(rxlte, payload);
+	mlxsw_reg_rxlte_virtual_router_set(payload, virtual_router);
+	mlxsw_reg_rxlte_protocol_set(payload, protocol);
+	mlxsw_reg_rxlte_lpm_xlt_en_set(payload, lpm_xlt_en);
+}
+
 /* Note that XMDR and XRALXX register positions violate the rule of ordering
  * register definitions by the ID. However, XRALXX pack helpers are
  * using RALXX pack helpers, RALXX registers have higher IDs.
@@ -11754,6 +11797,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(rigr2),
 	MLXSW_REG(recr2),
 	MLXSW_REG(rmft2),
+	MLXSW_REG(rxlte),
 	MLXSW_REG(xmdr),
 	MLXSW_REG(xralta),
 	MLXSW_REG(xralst),
