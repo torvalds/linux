@@ -3683,6 +3683,16 @@ L:	linux-mips@vger.kernel.org
 S:	Maintained
 F:	drivers/firmware/broadcom/*
 
+BROADCOM PMB (POWER MANAGEMENT BUS) DRIVER
+M:	Rafał Miłecki <rafal@milecki.pl>
+M:	Florian Fainelli <f.fainelli@gmail.com>
+M:	bcm-kernel-feedback-list@broadcom.com
+L:	linux-pm@vger.kernel.org
+S:	Maintained
+T:	git git://github.com/broadcom/stblinux.git
+F:	drivers/soc/bcm/bcm-pmb.c
+F:	include/dt-bindings/soc/bcm-pmb.h
+
 BROADCOM SPECIFIC AMBA DRIVER (BCMA)
 M:	Rafał Miłecki <zajec5@gmail.com>
 L:	linux-wireless@vger.kernel.org
