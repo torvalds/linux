@@ -552,11 +552,12 @@ kmem.*::
 
 record.*::
 	record.build-id::
-		This option can be 'cache', 'no-cache' or 'skip'.
+		This option can be 'cache', 'no-cache', 'skip' or 'mmap'.
 		'cache' is to post-process data and save/update the binaries into
 		the build-id cache (in ~/.debug). This is the default.
 		But if this option is 'no-cache', it will not update the build-id cache.
 		'skip' skips post-processing and does not update the cache.
+		'mmap' skips post-processing and reads build-ids from MMAP events.
 
 	record.call-graph::
 		This is identical to 'call-graph.record-mode', except it is

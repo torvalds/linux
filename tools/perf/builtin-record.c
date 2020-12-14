@@ -102,6 +102,7 @@ struct record {
 	bool			no_buildid_cache;
 	bool			no_buildid_cache_set;
 	bool			buildid_all;
+	bool			buildid_mmap;
 	bool			timestamp_filename;
 	bool			timestamp_boundary;
 	struct switch_output	switch_output;
@@ -2135,6 +2136,8 @@ static int perf_record_config(const char *var, const char *value, void *cb)
 			rec->no_buildid_cache = true;
 		else if (!strcmp(value, "skip"))
 			rec->no_buildid = true;
+		else if (!strcmp(value, "mmap"))
+			rec->buildid_mmap = true;
 		else
 			return -1;
 		return 0;
@@ -2552,6 +2555,8 @@ static struct option __record_options[] = {
 		   "file", "vmlinux pathname"),
 	OPT_BOOLEAN(0, "buildid-all", &record.buildid_all,
 		    "Record build-id of all DSOs regardless of hits"),
+	OPT_BOOLEAN(0, "buildid-mmap", &record.buildid_mmap,
+		    "Record build-id in map events"),
 	OPT_BOOLEAN(0, "timestamp-filename", &record.timestamp_filename,
 		    "append timestamp to output filename"),
 	OPT_BOOLEAN(0, "timestamp-boundary", &record.timestamp_boundary,
@@ -2653,6 +2658,21 @@ int cmd_record(int argc, const char **argv)
 		usage_with_options_msg(record_usage, record_options,
 			"cgroup monitoring only available in system-wide mode");
 
+	}
+
+	if (rec->buildid_mmap) {
+		if (!perf_can_record_build_id()) {
+			pr_err("Failed: no support to record build id in mmap events, update your kernel.\n");
+			err = -EINVAL;
+			goto out_opts;
+		}
+		pr_debug("Enabling build id in mmap2 events.\n");
+		/* Enable mmap build id synthesizing. */
+		symbol_conf.buildid_mmap2 = true;
+		/* Enable perf_event_attr::build_id bit. */
+		rec->opts.build_id = true;
+		/* Disable build id cache. */
+		rec->no_buildid = true;
 	}
 
 	if (rec->opts.kcore)

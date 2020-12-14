@@ -1168,10 +1168,12 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 	if (opts->sample_weight)
 		evsel__set_sample_bit(evsel, WEIGHT);
 
-	attr->task  = track;
-	attr->mmap  = track;
-	attr->mmap2 = track && !perf_missing_features.mmap2;
-	attr->comm  = track;
+	attr->task     = track;
+	attr->mmap     = track;
+	attr->mmap2    = track && !perf_missing_features.mmap2;
+	attr->comm     = track;
+	attr->build_id = track && opts->build_id;
+
 	/*
 	 * ksymbol is tracked separately with text poke because it needs to be
 	 * system wide and enabled immediately.
