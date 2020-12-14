@@ -1634,27 +1634,20 @@ int kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data)
 }
 EXPORT_SYMBOL_GPL(kvm_set_msr);
 
-static int complete_emulated_msr(struct kvm_vcpu *vcpu, bool is_read)
+static int complete_emulated_rdmsr(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->run->msr.error) {
-		kvm_inject_gp(vcpu, 0);
-		return 1;
-	} else if (is_read) {
+	int err = vcpu->run->msr.error;
+	if (!err) {
 		kvm_rax_write(vcpu, (u32)vcpu->run->msr.data);
 		kvm_rdx_write(vcpu, vcpu->run->msr.data >> 32);
 	}
 
-	return kvm_skip_emulated_instruction(vcpu);
-}
-
-static int complete_emulated_rdmsr(struct kvm_vcpu *vcpu)
-{
-	return complete_emulated_msr(vcpu, true);
+	return kvm_complete_insn_gp(vcpu, err);
 }
 
 static int complete_emulated_wrmsr(struct kvm_vcpu *vcpu)
 {
-	return complete_emulated_msr(vcpu, false);
+	return kvm_complete_insn_gp(vcpu, vcpu->run->msr.error);
 }
 
 static u64 kvm_msr_reason(int r)
@@ -1717,18 +1710,16 @@ int kvm_emulate_rdmsr(struct kvm_vcpu *vcpu)
 		return 0;
 	}
 
-	/* MSR read failed? Inject a #GP */
-	if (r) {
+	if (!r) {
+		trace_kvm_msr_read(ecx, data);
+
+		kvm_rax_write(vcpu, data & -1u);
+		kvm_rdx_write(vcpu, (data >> 32) & -1u);
+	} else {
 		trace_kvm_msr_read_ex(ecx);
-		kvm_inject_gp(vcpu, 0);
-		return 1;
 	}
 
-	trace_kvm_msr_read(ecx, data);
-
-	kvm_rax_write(vcpu, data & -1u);
-	kvm_rdx_write(vcpu, (data >> 32) & -1u);
-	return kvm_skip_emulated_instruction(vcpu);
+	return kvm_complete_insn_gp(vcpu, r);
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_rdmsr);
 
@@ -1749,15 +1740,12 @@ int kvm_emulate_wrmsr(struct kvm_vcpu *vcpu)
 	if (r < 0)
 		return r;
 
-	/* MSR write failed? Inject a #GP */
-	if (r > 0) {
+	if (!r)
+		trace_kvm_msr_write(ecx, data);
+	else
 		trace_kvm_msr_write_ex(ecx, data);
-		kvm_inject_gp(vcpu, 0);
-		return 1;
-	}
 
-	trace_kvm_msr_write(ecx, data);
-	return kvm_skip_emulated_instruction(vcpu);
+	return kvm_complete_insn_gp(vcpu, r);
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_wrmsr);
 
