@@ -178,8 +178,7 @@ void ia_css_rmgr_uninit_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
 				/* free memory */
 				hmm_free(pool->handles[i]->vptr);
 				/* remove from refcount admin */
-				ia_css_rmgr_refcount_release_vbuf(
-				    &pool->handles[i]);
+				ia_css_rmgr_refcount_release_vbuf(&pool->handles[i]);
 			}
 		}
 		/* now free the pool handles list */
