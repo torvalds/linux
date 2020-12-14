@@ -621,12 +621,42 @@ static void smb3_fs_context_free(struct fs_context *fc)
 	smb3_cleanup_fs_context(ctx);
 }
 
+/*
+ * Compare the old and new proposed context during reconfigure
+ * and check if the changes are compatible.
+ */
+static int smb3_verify_reconfigure_ctx(struct smb3_fs_context *new_ctx,
+				       struct smb3_fs_context *old_ctx)
+{
+	if (new_ctx->sectype != old_ctx->sectype) {
+		cifs_dbg(VFS, "can not change sec during remount\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int smb3_reconfigure(struct fs_context *fc)
 {
-	// TODO:  struct smb3_fs_context *ctx = smb3_fc2context(fc);
+	struct smb3_fs_context *ctx = smb3_fc2context(fc);
+	struct dentry *root = fc->root;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(root->d_sb);
+	int rc;
 
-	/* FIXME : add actual reconfigure */
-	return 0;
+	rc = smb3_verify_reconfigure_ctx(ctx, cifs_sb->ctx);
+	if (rc)
+		return rc;
+
+	/*
+	 * Steal the UNC from the old and to be destroyed context.
+	 */
+	ctx->UNC = cifs_sb->ctx->UNC;
+	cifs_sb->ctx->UNC = NULL;
+
+	smb3_cleanup_fs_context_contents(cifs_sb->ctx);
+	rc = smb3_fs_context_dup(cifs_sb->ctx, ctx);
+
+	return rc;
 }
 
 static int smb3_fs_context_parse_param(struct fs_context *fc,
