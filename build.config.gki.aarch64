@@ -2,4 +2,3 @@
 . ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
 . ${ROOT_DIR}/${KERNEL_DIR}/build.config.gki
 
-GENERATE_VMLINUX_BTF=1
