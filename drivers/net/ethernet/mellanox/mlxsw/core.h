@@ -435,6 +435,8 @@ struct mlxsw_fw_rev {
 	u16 can_reset_minor;
 };
 
+#define MLXSW_BUS_INFO_XM_LOCAL_PORTS_MAX 4
+
 struct mlxsw_bus_info {
 	const char *device_kind;
 	const char *device_name;
@@ -443,7 +445,10 @@ struct mlxsw_bus_info {
 	u8 vsd[MLXSW_CMD_BOARDINFO_VSD_LEN];
 	u8 psid[MLXSW_CMD_BOARDINFO_PSID_LEN];
 	u8 low_frequency:1,
-	   read_frc_capable:1;
+	   read_frc_capable:1,
+	   xm_exists:1;
+	u8 xm_local_ports_count;
+	u8 xm_local_ports[MLXSW_BUS_INFO_XM_LOCAL_PORTS_MAX];
 };
 
 struct mlxsw_hwmon;

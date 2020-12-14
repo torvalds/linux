@@ -343,6 +343,23 @@ static inline int mlxsw_cmd_boardinfo(struct mlxsw_core *mlxsw_core,
 				  0, 0, false, out_mbox, MLXSW_CMD_MBOX_SIZE);
 }
 
+/* cmd_mbox_xm_num_local_ports
+ * Number of local_ports connected to the xm.
+ * Each local port is a 4x
+ * Spectrum-2/3: 25G
+ * Spectrum-4: 50G
+ */
+MLXSW_ITEM32(cmd_mbox, boardinfo, xm_num_local_ports, 0x00, 4, 3);
+
+/* cmd_mbox_xm_exists
+ * An XM (eXtanded Mezanine, e.g. used for the XLT) is connected on the board.
+ */
+MLXSW_ITEM32(cmd_mbox, boardinfo, xm_exists, 0x00, 0, 1);
+
+/* cmd_mbox_xm_local_port_entry
+ */
+MLXSW_ITEM_BIT_ARRAY(cmd_mbox, boardinfo, xm_local_port_entry, 0x04, 4, 8);
+
 /* cmd_mbox_boardinfo_intapin
  * When PCIe interrupt messages are being used, this value is used for clearing
  * an interrupt. When using MSI-X, this register is not used.
