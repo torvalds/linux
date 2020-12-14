@@ -55,10 +55,10 @@ asmlinkage void pmull_ghash_update_p8(int blocks, u64 dg[], const char *src,
 asmlinkage void pmull_gcm_encrypt(int bytes, u8 dst[], const u8 src[],
 				  u64 const h[][2], u64 dg[], u8 ctr[],
 				  u32 const rk[], int rounds, u8 tag[]);
-
-asmlinkage void pmull_gcm_decrypt(int bytes, u8 dst[], const u8 src[],
-				  u64 const h[][2], u64 dg[], u8 ctr[],
-				  u32 const rk[], int rounds, u8 tag[]);
+asmlinkage int pmull_gcm_decrypt(int bytes, u8 dst[], const u8 src[],
+				 u64 const h[][2], u64 dg[], u8 ctr[],
+				 u32 const rk[], int rounds, const u8 l[],
+				 const u8 tag[], u64 authsize);
 
 static int ghash_init(struct shash_desc *desc)
 {
@@ -168,7 +168,7 @@ static int ghash_final(struct shash_desc *desc, u8 *dst)
 	put_unaligned_be64(ctx->digest[1], dst);
 	put_unaligned_be64(ctx->digest[0], dst + 8);
 
-	*ctx = (struct ghash_desc_ctx){};
+	memzero_explicit(ctx, sizeof(*ctx));
 	return 0;
 }
 
@@ -458,6 +458,7 @@ static int gcm_decrypt(struct aead_request *req)
 	unsigned int authsize = crypto_aead_authsize(aead);
 	int nrounds = num_rounds(&ctx->aes_key);
 	struct skcipher_walk walk;
+	u8 otag[AES_BLOCK_SIZE];
 	u8 buf[AES_BLOCK_SIZE];
 	u8 iv[AES_BLOCK_SIZE];
 	u64 dg[2] = {};
@@ -474,9 +475,15 @@ static int gcm_decrypt(struct aead_request *req)
 	memcpy(iv, req->iv, GCM_IV_SIZE);
 	put_unaligned_be32(2, iv + GCM_IV_SIZE);
 
+	scatterwalk_map_and_copy(otag, req->src,
+				 req->assoclen + req->cryptlen - authsize,
+				 authsize, 0);
+
 	err = skcipher_walk_aead_decrypt(&walk, req, false);
 
 	if (likely(crypto_simd_usable())) {
+		int ret;
+
 		do {
 			const u8 *src = walk.src.virt.addr;
 			u8 *dst = walk.dst.virt.addr;
@@ -493,9 +500,10 @@ static int gcm_decrypt(struct aead_request *req)
 			}
 
 			kernel_neon_begin();
-			pmull_gcm_decrypt(nbytes, dst, src, ctx->ghash_key.h,
-					  dg, iv, ctx->aes_key.key_enc, nrounds,
-					  tag);
+			ret = pmull_gcm_decrypt(nbytes, dst, src,
+						ctx->ghash_key.h,
+						dg, iv, ctx->aes_key.key_enc,
+						nrounds, tag, otag, authsize);
 			kernel_neon_end();
 
 			if (unlikely(!nbytes))
@@ -507,6 +515,11 @@ static int gcm_decrypt(struct aead_request *req)
 
 			err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
 		} while (walk.nbytes);
+
+		if (err)
+			return err;
+		if (ret)
+			return -EBADMSG;
 	} else {
 		while (walk.nbytes >= AES_BLOCK_SIZE) {
 			int blocks = walk.nbytes / AES_BLOCK_SIZE;
@@ -548,23 +561,20 @@ static int gcm_decrypt(struct aead_request *req)
 			err = skcipher_walk_done(&walk, 0);
 		}
 
+		if (err)
+			return err;
+
 		put_unaligned_be64(dg[1], tag);
 		put_unaligned_be64(dg[0], tag + 8);
 		put_unaligned_be32(1, iv + GCM_IV_SIZE);
 		aes_encrypt(&ctx->aes_key, iv, iv);
 		crypto_xor(tag, iv, AES_BLOCK_SIZE);
+
+		if (crypto_memneq(tag, otag, authsize)) {
+			memzero_explicit(tag, AES_BLOCK_SIZE);
+			return -EBADMSG;
+		}
 	}
-
-	if (err)
-		return err;
-
-	/* compare calculated auth tag with the stored one */
-	scatterwalk_map_and_copy(buf, req->src,
-				 req->assoclen + req->cryptlen - authsize,
-				 authsize, 0);
-
-	if (crypto_memneq(tag, buf, authsize))
-		return -EBADMSG;
 	return 0;
 }
 
