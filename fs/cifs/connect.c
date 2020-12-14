@@ -2701,16 +2701,17 @@ void reset_cifs_unix_caps(unsigned int xid, struct cifs_tcon *tcon,
 	}
 }
 
-int cifs_setup_cifs_sb(struct smb3_fs_context *ctx,
-			struct cifs_sb_info *cifs_sb)
+int cifs_setup_cifs_sb(struct cifs_sb_info *cifs_sb)
 {
+	struct smb3_fs_context *ctx = cifs_sb->ctx;
+
 	INIT_DELAYED_WORK(&cifs_sb->prune_tlinks, cifs_prune_tlinks);
 
 	spin_lock_init(&cifs_sb->tlink_tree_lock);
 	cifs_sb->tlink_tree = RB_ROOT;
 
 	cifs_dbg(FYI, "file mode: %04ho  dir mode: %04ho\n",
-		 cifs_sb->ctx->file_mode, cifs_sb->ctx->dir_mode);
+		 ctx->file_mode, ctx->dir_mode);
 
 	/* this is needed for ASCII cp to Unicode converts */
 	if (ctx->iocharset == NULL) {
