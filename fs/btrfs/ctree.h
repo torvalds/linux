@@ -132,6 +132,8 @@ enum {
 	 * defrag
 	 */
 	BTRFS_FS_STATE_REMOUNTING,
+	/* Filesystem in RO mode */
+	BTRFS_FS_STATE_RO,
 	/* Track if a transaction abort has been reported on this filesystem */
 	BTRFS_FS_STATE_TRANS_ABORTED,
 	/*
@@ -2892,10 +2894,26 @@ static inline int btrfs_fs_closing(struct btrfs_fs_info *fs_info)
  * If we remount the fs to be R/O or umount the fs, the cleaner needn't do
  * anything except sleeping. This function is used to check the status of
  * the fs.
+ * We check for BTRFS_FS_STATE_RO to avoid races with a concurrent remount,
+ * since setting and checking for SB_RDONLY in the superblock's flags is not
+ * atomic.
  */
 static inline int btrfs_need_cleaner_sleep(struct btrfs_fs_info *fs_info)
 {
-	return fs_info->sb->s_flags & SB_RDONLY || btrfs_fs_closing(fs_info);
+	return test_bit(BTRFS_FS_STATE_RO, &fs_info->fs_state) ||
+		btrfs_fs_closing(fs_info);
+}
+
+static inline void btrfs_set_sb_rdonly(struct super_block *sb)
+{
+	sb->s_flags |= SB_RDONLY;
+	set_bit(BTRFS_FS_STATE_RO, &btrfs_sb(sb)->fs_state);
+}
+
+static inline void btrfs_clear_sb_rdonly(struct super_block *sb)
+{
+	sb->s_flags &= ~SB_RDONLY;
+	clear_bit(BTRFS_FS_STATE_RO, &btrfs_sb(sb)->fs_state);
 }
 
 /* tree mod log functions from ctree.c */
