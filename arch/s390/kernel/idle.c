@@ -21,7 +21,7 @@
 
 static DEFINE_PER_CPU(struct s390_idle_data, s390_idle);
 
-void enabled_wait(void)
+void arch_cpu_idle(void)
 {
 	struct s390_idle_data *idle = this_cpu_ptr(&s390_idle);
 	unsigned long long idle_time;
@@ -46,8 +46,9 @@ void enabled_wait(void)
 	idle->idle_count++;
 	account_idle_time(cputime_to_nsecs(idle_time));
 	raw_write_seqcount_end(&idle->seqcount);
+	raw_local_irq_enable();
 }
-NOKPROBE_SYMBOL(enabled_wait);
+NOKPROBE_SYMBOL(arch_cpu_idle);
 
 static ssize_t show_idle_count(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -118,12 +119,6 @@ u64 arch_cpu_idle_time(int cpu)
 
 void arch_cpu_idle_enter(void)
 {
-}
-
-void arch_cpu_idle(void)
-{
-	enabled_wait();
-	raw_local_irq_enable();
 }
 
 void arch_cpu_idle_exit(void)

@@ -291,11 +291,6 @@ static inline unsigned long __rewind_psw(psw_t psw, unsigned long ilc)
 }
 
 /*
- * Function to stop a processor until the next interrupt occurs
- */
-void enabled_wait(void);
-
-/*
  * Function to drop a processor into disabled wait state
  */
 static __always_inline void __noreturn disabled_wait(void)
