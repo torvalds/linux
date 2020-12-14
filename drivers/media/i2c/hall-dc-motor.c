@@ -92,7 +92,7 @@ static int motor_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_IRIS_ABSOLUTE:
 		motor->pwm_state.enabled = true;
 		motor->pwm_state.duty_cycle =
-			(u64)motor->pwm_state.period * ctrl->val / IRIS_MAX_LOG;
+			div64_u64((u64)motor->pwm_state.period * ctrl->val, IRIS_MAX_LOG);
 		pwm_apply_state(motor->pwm, &motor->pwm_state);
 		dev_dbg(motor->dev, "iris, ctrl->val %d, pwm duty %lld, period %lld, polarity %d\n",
 			ctrl->val,
