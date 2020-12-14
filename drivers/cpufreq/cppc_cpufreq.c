@@ -150,6 +150,7 @@ static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
 				   unsigned int relation)
 {
 	struct cppc_cpudata *cpu_data = all_cpu_data[policy->cpu];
+	unsigned int cpu = policy->cpu;
 	struct cpufreq_freqs freqs;
 	u32 desired_perf;
 	int ret = 0;
@@ -164,12 +165,12 @@ static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
 	freqs.new = target_freq;
 
 	cpufreq_freq_transition_begin(policy, &freqs);
-	ret = cppc_set_perf(cpu_data->cpu, &cpu_data->perf_ctrls);
+	ret = cppc_set_perf(cpu, &cpu_data->perf_ctrls);
 	cpufreq_freq_transition_end(policy, &freqs, ret != 0);
 
 	if (ret)
 		pr_debug("Failed to set target on CPU:%d. ret:%d\n",
-			 cpu_data->cpu, ret);
+			 cpu, ret);
 
 	return ret;
 }
