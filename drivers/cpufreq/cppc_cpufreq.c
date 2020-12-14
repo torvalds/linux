@@ -244,7 +244,7 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	struct cppc_cpudata *cpu_data = all_cpu_data[policy->cpu];
 	struct cppc_perf_caps *caps = &cpu_data->perf_caps;
 	unsigned int cpu = policy->cpu;
-	int ret = 0;
+	int i, ret = 0;
 
 	cpu_data->cpu = cpu;
 	ret = cppc_get_perf_caps(cpu, caps);
@@ -281,9 +281,13 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	policy->transition_delay_us = cppc_cpufreq_get_transition_delay_us(cpu);
 	policy->shared_type = cpu_data->shared_type;
 
-	if (policy->shared_type == CPUFREQ_SHARED_TYPE_ANY) {
-		int i;
-
+	switch (policy->shared_type) {
+	case CPUFREQ_SHARED_TYPE_HW:
+	case CPUFREQ_SHARED_TYPE_NONE:
+		/* Nothing to be done - we'll have a policy for each CPU */
+		break;
+	case CPUFREQ_SHARED_TYPE_ANY:
+		 /* All CPUs in the domain will share a policy */
 		cpumask_copy(policy->cpus, cpu_data->shared_cpu_map);
 
 		for_each_cpu(i, policy->cpus) {
@@ -293,9 +297,10 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 			memcpy(&all_cpu_data[i]->perf_caps, caps,
 			       sizeof(cpu_data->perf_caps));
 		}
-	} else if (policy->shared_type == CPUFREQ_SHARED_TYPE_ALL) {
-		/* Support only SW_ANY for now. */
-		pr_debug("Unsupported CPU co-ord type\n");
+		break;
+	default:
+		pr_debug("Unsupported CPU co-ord type: %d\n",
+			 policy->shared_type);
 		return -EFAULT;
 	}
 
