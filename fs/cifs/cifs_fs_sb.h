@@ -62,9 +62,6 @@ struct cifs_sb_info {
 	struct tcon_link *master_tlink;
 	struct nls_table *local_nls;
 	struct smb3_fs_context *ctx;
-	unsigned int bsize;
-	unsigned int rsize;
-	unsigned int wsize;
 	atomic_t active;
 	unsigned int mnt_cifs_flags;
 	struct delayed_work prune_tlinks;

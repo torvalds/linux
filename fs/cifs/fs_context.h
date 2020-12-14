@@ -152,6 +152,9 @@ struct smb3_fs_context {
 	char *nodename;
 	bool got_ip;
 	bool got_version;
+	bool got_rsize;
+	bool got_wsize;
+	bool got_bsize;
 	unsigned short port;
 
 	char *username;

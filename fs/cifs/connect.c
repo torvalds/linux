@@ -2248,10 +2248,10 @@ compare_mount_options(struct super_block *sb, struct cifs_mnt_data *mnt_data)
 	 * We want to share sb only if we don't specify an r/wsize or
 	 * specified r/wsize is greater than or equal to existing one.
 	 */
-	if (new->wsize && new->wsize < old->wsize)
+	if (new->ctx->wsize && new->ctx->wsize < old->ctx->wsize)
 		return 0;
 
-	if (new->rsize && new->rsize < old->rsize)
+	if (new->ctx->rsize && new->ctx->rsize < old->ctx->rsize)
 		return 0;
 
 	if (!uid_eq(old->ctx->linux_uid, new->ctx->linux_uid) ||
@@ -2714,14 +2714,6 @@ int cifs_setup_cifs_sb(struct smb3_fs_context *ctx,
 	spin_lock_init(&cifs_sb->tlink_tree_lock);
 	cifs_sb->tlink_tree = RB_ROOT;
 
-	cifs_sb->bsize = ctx->bsize;
-	/*
-	 * Temporarily set r/wsize for matching superblock. If we end up using
-	 * new sb then client will later negotiate it downward if needed.
-	 */
-	cifs_sb->rsize = ctx->rsize;
-	cifs_sb->wsize = ctx->wsize;
-
 	cifs_dbg(FYI, "file mode: %04ho  dir mode: %04ho\n",
 		 cifs_sb->ctx->file_mode, cifs_sb->ctx->dir_mode);
 
@@ -2925,8 +2917,13 @@ static int mount_get_conns(struct smb3_fs_context *ctx, struct cifs_sb_info *cif
 		}
 	}
 
-	cifs_sb->wsize = server->ops->negotiate_wsize(tcon, ctx);
-	cifs_sb->rsize = server->ops->negotiate_rsize(tcon, ctx);
+	/*
+	 * Clamp the rsize/wsize mount arguments if they are too big for the server
+	 */
+	if (cifs_sb->ctx->wsize > server->ops->negotiate_wsize(tcon, ctx))
+		cifs_sb->ctx->wsize = server->ops->negotiate_wsize(tcon, ctx);
+	if (cifs_sb->ctx->rsize > server->ops->negotiate_rsize(tcon, ctx))
+		cifs_sb->ctx->rsize = server->ops->negotiate_rsize(tcon, ctx);
 
 	return 0;
 }

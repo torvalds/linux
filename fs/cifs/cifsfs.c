@@ -218,7 +218,7 @@ cifs_read_super(struct super_block *sb)
 	if (rc)
 		goto out_no_root;
 	/* tune readahead according to rsize */
-	sb->s_bdi->ra_pages = cifs_sb->rsize / PAGE_SIZE;
+	sb->s_bdi->ra_pages = cifs_sb->ctx->rsize / PAGE_SIZE;
 
 	sb->s_blocksize = CIFS_MAX_MSGSIZE;
 	sb->s_blocksize_bits = 14;	/* default 2**14 = CIFS_MAX_MSGSIZE */
@@ -615,9 +615,12 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 			   from_kgid_munged(&init_user_ns,
 					    cifs_sb->ctx->backupgid));
 
-	seq_printf(s, ",rsize=%u", cifs_sb->rsize);
-	seq_printf(s, ",wsize=%u", cifs_sb->wsize);
-	seq_printf(s, ",bsize=%u", cifs_sb->bsize);
+	if (cifs_sb->ctx->got_rsize)
+		seq_printf(s, ",rsize=%u", cifs_sb->ctx->rsize);
+	if (cifs_sb->ctx->got_wsize)
+		seq_printf(s, ",wsize=%u", cifs_sb->ctx->wsize);
+	if (cifs_sb->ctx->got_bsize)
+		seq_printf(s, ",bsize=%u", cifs_sb->ctx->bsize);
 	if (tcon->ses->server->min_offload)
 		seq_printf(s, ",esize=%u", tcon->ses->server->min_offload);
 	seq_printf(s, ",echo_interval=%lu",

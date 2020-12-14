@@ -784,12 +784,15 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 			goto cifs_parse_mount_err;
 		}
 		ctx->bsize = result.uint_32;
+		ctx->got_bsize = true;
 		break;
 	case Opt_rsize:
 		ctx->rsize = result.uint_32;
+		ctx->got_rsize = true;
 		break;
 	case Opt_wsize:
 		ctx->wsize = result.uint_32;
+		ctx->got_wsize = true;
 		break;
 	case Opt_actimeo:
 		ctx->actimeo = HZ * result.uint_32;
