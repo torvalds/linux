@@ -8543,11 +8543,70 @@ static inline void mlxsw_reg_rxltm_pack(char *payload, u8 m0_val_v4, u8 m0_val_v
 	mlxsw_reg_rxltm_m0_val_v4_set(payload, m0_val_v4);
 }
 
-/* Note that XMDR and XRALXX register positions violate the rule of ordering
- * register definitions by the ID. However, XRALXX pack helpers are
+/* Note that XLTQ, XMDR and XRALXX register positions violate the rule
+ * of ordering register definitions by the ID. However, XRALXX pack helpers are
  * using RALXX pack helpers, RALXX registers have higher IDs.
- * Also XMDR is using RALUE enums.
+ * Also XMDR is using RALUE enums. XLTQ is just put alongside with the
+ * related registers.
  */
+
+/* XLTQ - XM Lookup Table Query Register
+ * -------------------------------------
+ */
+#define MLXSW_REG_XLTQ_ID 0x7802
+#define MLXSW_REG_XLTQ_LEN 0x2C
+
+MLXSW_REG_DEFINE(xltq, MLXSW_REG_XLTQ_ID, MLXSW_REG_XLTQ_LEN);
+
+enum mlxsw_reg_xltq_xm_device_id {
+	MLXSW_REG_XLTQ_XM_DEVICE_ID_UNKNOWN,
+	MLXSW_REG_XLTQ_XM_DEVICE_ID_XLT = 0xCF71,
+};
+
+/* reg_xltq_xm_device_id
+ * XM device ID.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, xltq, xm_device_id, 0x04, 0, 16);
+
+/* reg_xltq_xlt_cap_ipv4_lpm
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, xltq, xlt_cap_ipv4_lpm, 0x10, 0, 1);
+
+/* reg_xltq_xlt_cap_ipv6_lpm
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, xltq, xlt_cap_ipv6_lpm, 0x10, 1, 1);
+
+/* reg_xltq_cap_xlt_entries
+ * Number of XLT entries
+ * Note: SW must not fill more than 80% in order to avoid overflow
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, xltq, cap_xlt_entries, 0x20, 0, 32);
+
+/* reg_xltq_cap_xlt_mtable
+ * XLT M-Table max size
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, xltq, cap_xlt_mtable, 0x24, 0, 32);
+
+static inline void mlxsw_reg_xltq_pack(char *payload)
+{
+	MLXSW_REG_ZERO(xltq, payload);
+}
+
+static inline void mlxsw_reg_xltq_unpack(char *payload, u16 *xm_device_id, bool *xlt_cap_ipv4_lpm,
+					 bool *xlt_cap_ipv6_lpm, u32 *cap_xlt_entries,
+					 u32 *cap_xlt_mtable)
+{
+	*xm_device_id = mlxsw_reg_xltq_xm_device_id_get(payload);
+	*xlt_cap_ipv4_lpm = mlxsw_reg_xltq_xlt_cap_ipv4_lpm_get(payload);
+	*xlt_cap_ipv6_lpm = mlxsw_reg_xltq_xlt_cap_ipv6_lpm_get(payload);
+	*cap_xlt_entries = mlxsw_reg_xltq_cap_xlt_entries_get(payload);
+	*cap_xlt_mtable = mlxsw_reg_xltq_cap_xlt_mtable_get(payload);
+}
 
 /* XMDR - XM Direct Register
  * -------------------------
@@ -11830,6 +11889,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(rmft2),
 	MLXSW_REG(rxlte),
 	MLXSW_REG(rxltm),
+	MLXSW_REG(xltq),
 	MLXSW_REG(xmdr),
 	MLXSW_REG(xralta),
 	MLXSW_REG(xralst),
