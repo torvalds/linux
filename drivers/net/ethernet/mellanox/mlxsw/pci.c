@@ -1196,6 +1196,12 @@ static int mlxsw_pci_config_profile(struct mlxsw_pci *mlxsw_pci, char *mbox,
 		mlxsw_cmd_mbox_config_profile_kvd_hash_double_size_set(mbox,
 					MLXSW_RES_GET(res, KVD_DOUBLE_SIZE));
 	}
+	if (profile->used_kvh_xlt_cache_mode) {
+		mlxsw_cmd_mbox_config_profile_set_kvh_xlt_cache_mode_set(
+			mbox, 1);
+		mlxsw_cmd_mbox_config_profile_kvh_xlt_cache_mode_set(
+			mbox, profile->kvh_xlt_cache_mode);
+	}
 
 	for (i = 0; i < MLXSW_CONFIG_PROFILE_SWID_COUNT; i++)
 		mlxsw_pci_config_profile_swid_config(mlxsw_pci, mbox, i,

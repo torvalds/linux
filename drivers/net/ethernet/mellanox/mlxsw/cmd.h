@@ -674,6 +674,12 @@ MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_hash_double_size, 0x0C, 26, 1);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_cqe_version, 0x08, 0, 1);
 
+/* cmd_mbox_config_set_kvh_xlt_cache_mode
+ * Capability bit. Setting a bit to 1 configures the profile
+ * according to the mailbox contents.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, set_kvh_xlt_cache_mode, 0x08, 3, 1);
+
 /* cmd_mbox_config_profile_max_vepa_channels
  * Maximum number of VEPA channels per port (0 through 16)
  * 0 - multi-channel VEPA is disabled
@@ -799,6 +805,13 @@ MLXSW_ITEM32(cmd_mbox, config_profile, adaptive_routing_group_cap, 0x4C, 0, 16);
  * Not supported in SwitchX, SwitchX-2
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, arn, 0x50, 31, 1);
+
+/* cmd_mbox_config_profile_kvh_xlt_cache_mode
+ * KVH XLT cache mode:
+ * 0 - XLT can use all KVH as best-effort
+ * 1 - XLT cache uses 1/2 KVH
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, kvh_xlt_cache_mode, 0x50, 8, 4);
 
 /* cmd_mbox_config_kvd_linear_size
  * KVD Linear Size
