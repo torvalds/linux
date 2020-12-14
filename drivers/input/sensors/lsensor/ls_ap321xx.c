@@ -377,27 +377,15 @@ struct sensor_operate light_ap321xx_ops = {
 
 /****************operate according to sensor chip:end************/
 
-//function name should not be changed
-static struct sensor_operate *light_get_ops(void)
-{
-	return &light_ap321xx_ops;
-}
-
 static int light_ap321xx_probe(struct i2c_client *client,
 			       const struct i2c_device_id *devid)
 {
-	struct sensor_operate *ops = light_get_ops();
-	int type = ops->type;
-
-	return sensor_register_device(type, client, NULL, devid, light_get_ops);
+	return sensor_register_device(client, NULL, devid, &light_ap321xx_ops);
 }
 
 static int light_ap321xx_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = light_get_ops();
-	int type = ops->type;
-
-	return sensor_unregister_device(type, client, NULL, light_get_ops);
+	return sensor_unregister_device(client, NULL, &light_ap321xx_ops);
 }
 
 static const struct i2c_device_id light_ap321xx_id[] = {
