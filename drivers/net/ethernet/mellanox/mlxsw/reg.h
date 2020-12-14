@@ -8653,6 +8653,40 @@ static inline void mlxsw_reg_rlcmld_pack6(char *payload,
 	mlxsw_reg_rlcmld_dip_mask6_memcpy_to(payload, dip_mask);
 }
 
+/* RLPMCE - Router LPM Cache Enable Register
+ * -----------------------------------------
+ * Allows disabling the LPM cache. Can be changed on the fly.
+ */
+
+#define MLXSW_REG_RLPMCE_ID 0x8056
+#define MLXSW_REG_RLPMCE_LEN 0x4
+
+MLXSW_REG_DEFINE(rlpmce, MLXSW_REG_RLPMCE_ID, MLXSW_REG_RLPMCE_LEN);
+
+/* reg_rlpmce_flush
+ * Flush:
+ * 0: do not flush the cache (default)
+ * 1: flush (clear) the cache
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, rlpmce, flush, 0x00, 4, 1);
+
+/* reg_rlpmce_disable
+ * LPM cache:
+ * 0: enabled (default)
+ * 1: disabled
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, rlpmce, disable, 0x00, 0, 1);
+
+static inline void mlxsw_reg_rlpmce_pack(char *payload, bool flush,
+					 bool disable)
+{
+	MLXSW_REG_ZERO(rlpmce, payload);
+	mlxsw_reg_rlpmce_flush_set(payload, flush);
+	mlxsw_reg_rlpmce_disable_set(payload, disable);
+}
+
 /* Note that XLTQ, XMDR, XRMT and XRALXX register positions violate the rule
  * of ordering register definitions by the ID. However, XRALXX pack helpers are
  * using RALXX pack helpers, RALXX registers have higher IDs.
@@ -12028,6 +12062,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(rxlte),
 	MLXSW_REG(rxltm),
 	MLXSW_REG(rlcmld),
+	MLXSW_REG(rlpmce),
 	MLXSW_REG(xltq),
 	MLXSW_REG(xmdr),
 	MLXSW_REG(xrmt),
