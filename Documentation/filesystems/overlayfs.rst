@@ -102,8 +102,8 @@ but not all filesystems that are mountable by Linux have the features
 needed for OverlayFS to work.  The lower filesystem does not need to be
 writable.  The lower filesystem can even be another overlayfs.  The upper
 filesystem will normally be writable and if it is it must support the
-creation of trusted.* extended attributes, and must provide valid d_type in
-readdir responses, so NFS is not suitable.
+creation of trusted.* and/or user.* extended attributes, and must provide
+valid d_type in readdir responses, so NFS is not suitable.
 
 A read-only overlay of two read-only filesystems may use any
 filesystem type.
@@ -593,6 +593,15 @@ indicator that user should throw away upper and work directories and create
 fresh one. In very limited cases where the user knows that the system has
 not crashed and contents of upperdir are intact, The "volatile" directory
 can be removed.
+
+
+User xattr
+----------
+
+The the "-o userxattr" mount option forces overlayfs to use the
+"user.overlay." xattr namespace instead of "trusted.overlay.".  This is
+useful for unprivileged mounting of overlayfs.
+
 
 Testsuite
 ---------

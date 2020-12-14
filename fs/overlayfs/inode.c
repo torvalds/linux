@@ -329,8 +329,14 @@ static const char *ovl_get_link(struct dentry *dentry,
 
 bool ovl_is_private_xattr(struct super_block *sb, const char *name)
 {
-	return strncmp(name, OVL_XATTR_PREFIX,
-		       sizeof(OVL_XATTR_PREFIX) - 1) == 0;
+	struct ovl_fs *ofs = sb->s_fs_info;
+
+	if (ofs->config.userxattr)
+		return strncmp(name, OVL_XATTR_USER_PREFIX,
+			       sizeof(OVL_XATTR_USER_PREFIX) - 1) == 0;
+	else
+		return strncmp(name, OVL_XATTR_TRUSTED_PREFIX,
+			       sizeof(OVL_XATTR_TRUSTED_PREFIX) - 1) == 0;
 }
 
 int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char *name,
@@ -690,7 +696,7 @@ static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev)
  * For the first, copy up case, the union nlink does not change, whether the
  * operation succeeds or fails, but the upper inode nlink may change.
  * Therefore, before copy up, we store the union nlink value relative to the
- * lower inode nlink in the index inode xattr trusted.overlay.nlink.
+ * lower inode nlink in the index inode xattr .overlay.nlink.
  *
  * For the second, upper hardlink case, the union nlink should be incremented
  * or decremented IFF the operation succeeds, aligned with nlink change of the
