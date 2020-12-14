@@ -86,7 +86,7 @@ void ia_css_rmgr_refcount_retain_vbuf(struct ia_css_rmgr_vbuf_handle **handle)
 			}
 		}
 		/* if the loop dus not break and *handle == NULL
-		   this is an error handle and report it.
+		 * this is an error handle and report it.
 		 */
 		if (!*handle) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
@@ -241,7 +241,8 @@ void rmgr_pop_handle(struct ia_css_rmgr_vbuf_pool *pool,
 			*handle = pool->handles[i];
 			pool->handles[i] = NULL;
 			/* dont release, we are returning it...
-			   ia_css_rmgr_refcount_release_vbuf(handle); */
+			 * ia_css_rmgr_refcount_release_vbuf(handle);
+			 */
 			return;
 		}
 	}
