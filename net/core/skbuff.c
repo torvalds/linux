@@ -2011,6 +2011,12 @@ int pskb_trim_rcsum_slow(struct sk_buff *skb, unsigned int len)
 		skb->csum = csum_block_sub(skb->csum,
 					   skb_checksum(skb, len, delta, 0),
 					   len);
+	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		int hdlen = (len > skb_headlen(skb)) ? skb_headlen(skb) : len;
+		int offset = skb_checksum_start_offset(skb) + skb->csum_offset;
+
+		if (offset + sizeof(__sum16) > hdlen)
+			return -EINVAL;
 	}
 	return __pskb_trim(skb, len);
 }
