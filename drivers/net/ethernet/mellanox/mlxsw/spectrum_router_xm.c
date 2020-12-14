@@ -803,3 +803,10 @@ void mlxsw_sp_router_xm_fini(struct mlxsw_sp *mlxsw_sp)
 	rhashtable_destroy(&router_xm->ltable_ht);
 	kfree(router_xm);
 }
+
+bool mlxsw_sp_router_xm_ipv4_is_supported(const struct mlxsw_sp *mlxsw_sp)
+{
+	struct mlxsw_sp_router_xm *router_xm = mlxsw_sp->router->xm;
+
+	return router_xm && router_xm->ipv4_supported;
+}

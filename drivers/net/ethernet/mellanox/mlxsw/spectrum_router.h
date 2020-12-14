@@ -227,5 +227,6 @@ extern const struct mlxsw_sp_router_ll_ops mlxsw_sp_router_ll_xm_ops;
 
 int mlxsw_sp_router_xm_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_router_xm_fini(struct mlxsw_sp *mlxsw_sp);
+bool mlxsw_sp_router_xm_ipv4_is_supported(const struct mlxsw_sp *mlxsw_sp);
 
 #endif /* _MLXSW_ROUTER_H_*/
