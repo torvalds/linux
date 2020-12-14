@@ -642,7 +642,7 @@ set_gpix_seq_id:
 					   val);
 		if (error) {
 			dev_err(haptics->dev,
-				"Failed to update GPI sequemce: %d\n", error);
+				"Failed to update GPI sequence: %d\n", error);
 			return error;
 		}
 		break;
