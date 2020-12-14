@@ -94,6 +94,8 @@ enum mlxsw_sp_fib_entry_op {
  * register sets to work with ordinary and XM trees and FIB entries.
  */
 struct mlxsw_sp_router_ll_ops {
+	int (*init)(struct mlxsw_sp *mlxsw_sp, u16 vr_id,
+		    enum mlxsw_sp_l3proto proto);
 	int (*ralta_write)(struct mlxsw_sp *mlxsw_sp, char *xralta_pl);
 	int (*ralst_write)(struct mlxsw_sp *mlxsw_sp, char *xralst_pl);
 	int (*raltb_write)(struct mlxsw_sp *mlxsw_sp, char *xraltb_pl);
@@ -218,5 +220,7 @@ static inline bool mlxsw_sp_l3addr_eq(const union mlxsw_sp_l3addr *addr1,
 
 int mlxsw_sp_ipip_ecn_encap_init(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_ipip_ecn_decap_init(struct mlxsw_sp *mlxsw_sp);
+
+extern const struct mlxsw_sp_router_ll_ops mlxsw_sp_router_ll_xm_ops;
 
 #endif /* _MLXSW_ROUTER_H_*/
