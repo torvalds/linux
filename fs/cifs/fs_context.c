@@ -627,6 +627,10 @@ static void smb3_fs_context_free(struct fs_context *fc)
 static int smb3_verify_reconfigure_ctx(struct smb3_fs_context *new_ctx,
 				       struct smb3_fs_context *old_ctx)
 {
+	if (new_ctx->posix_paths != old_ctx->posix_paths) {
+		cifs_dbg(VFS, "can not change posixpaths during remount\n");
+		return -EINVAL;
+	}
 	if (new_ctx->sectype != old_ctx->sectype) {
 		cifs_dbg(VFS, "can not change sec during remount\n");
 		return -EINVAL;
