@@ -1476,7 +1476,7 @@ struct k3_ringacc *k3_ringacc_dmarings_init(struct platform_device *pdev,
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ringrt");
 	base_rt = devm_ioremap_resource(dev, res);
 	if (IS_ERR(base_rt))
-		return base_rt;
+		return ERR_CAST(base_rt);
 
 	ringacc->rings = devm_kzalloc(dev,
 				      sizeof(*ringacc->rings) *
