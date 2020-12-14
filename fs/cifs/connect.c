@@ -1478,7 +1478,6 @@ cifs_setup_ipc(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 {
 	int rc = 0, xid;
 	struct cifs_tcon *tcon;
-	struct nls_table *nls_codepage;
 	char unc[SERVER_NAME_LENGTH + sizeof("//x/IPC$")] = {0};
 	bool seal = false;
 	struct TCP_Server_Info *server = ses->server;
@@ -1503,14 +1502,11 @@ cifs_setup_ipc(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 
 	scnprintf(unc, sizeof(unc), "\\\\%s\\IPC$", server->hostname);
 
-	/* cannot fail */
-	nls_codepage = load_nls_default();
-
 	xid = get_xid();
 	tcon->ses = ses;
 	tcon->ipc = true;
 	tcon->seal = seal;
-	rc = server->ops->tree_connect(xid, ses, unc, tcon, nls_codepage);
+	rc = server->ops->tree_connect(xid, ses, unc, tcon, ctx->local_nls);
 	free_xid(xid);
 
 	if (rc) {
@@ -1523,7 +1519,6 @@ cifs_setup_ipc(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 
 	ses->tcon_ipc = tcon;
 out:
-	unload_nls(nls_codepage);
 	return rc;
 }
 
