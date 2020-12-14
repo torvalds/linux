@@ -16,9 +16,6 @@
 #include <linux/phy/phy.h>
 #include <linux/mfd/rk628.h>
 
-#define REG(x)					((x) + 0x10000)
-#define COMBRXPHY_MAX_REGISTER			REG(0x6780)
-
 struct rk628_combrxphy {
 	struct device *dev;
 	struct rk628 *parent;
@@ -26,32 +23,41 @@ struct rk628_combrxphy {
 	struct clk *pclk;
 	struct reset_control *rstc;
 	enum phy_mode mode;
+	bool is_cable_mode;
 };
 
-#define MAX_ROUND	12
-#define MAX_DATA_NUM	16
-#define MAX_CHANNEL	3
+#define REG(x)			((x) + 0x10000)
+#define COMBRXPHY_MAX_REGISTER	REG(0x6790)
 
-static void rk628_combrxphy_set_data_of_round(struct rk628_combrxphy
-					      *combrxphy, u32 *data,
-					      u32 *data_in)
+#define MAX_ROUND		6
+#define MAX_DATA_NUM		16
+#define MAX_CHANNEL		3
+#define CLK_DET_TRY_TIMES	10
+
+static int debug;
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "debug level (0-1)");
+
+static void rk628_combrxphy_set_data_of_round(u32 *data, u32 *data_in)
 {
-	data_in[0] = data[0];
-	data_in[1] = data[7];
-	data_in[2] = data[13];
-	data_in[3] = data[14];
-	data_in[4] = data[15];
-	data_in[5] = data[1];
-	data_in[6] = data[2];
-	data_in[7] = data[3];
-	data_in[8] = data[4];
-	data_in[9] = data[5];
-	data_in[10] = data[6];
-	data_in[11] = data[8];
-	data_in[12] = data[9];
-	data_in[13] = data[10];
-	data_in[14] = data[11];
-	data_in[15] = data[12];
+	if ((data != NULL) && (data_in != NULL)) {
+		data_in[0] = data[0];
+		data_in[1] = data[7];
+		data_in[2] = data[13];
+		data_in[3] = data[14];
+		data_in[4] = data[15];
+		data_in[5] = data[1];
+		data_in[6] = data[2];
+		data_in[7] = data[3];
+		data_in[8] = data[4];
+		data_in[9] = data[5];
+		data_in[10] = data[6];
+		data_in[11] = data[8];
+		data_in[12] = data[9];
+		data_in[13] = data[10];
+		data_in[14] = data[11];
+		data_in[15] = data[12];
+	}
 }
 
 static void
@@ -59,17 +65,16 @@ rk628_combrxphy_max_zero_of_round(struct rk628_combrxphy *combrxphy,
 				  u32 *data_in, u32 *max_zero, u32 *max_val,
 				  int n, int ch)
 {
-	int i;
-	int cnt = 0;
-	int max_cnt = 0;
+	u32 i;
+	u32 cnt = 0;
+	u32 max_cnt = 0;
 	u32 max_v = 0;
 
-	dev_dbg(combrxphy->dev, "%s channel:%d, round:%d ==============\n",
-		 __func__, ch, n);
-	for (i = 0; i < MAX_DATA_NUM; i++) {
-		dev_dbg(combrxphy->dev, "0x%02x ", data_in[i]);
-		if ((i + 1) % MAX_ROUND == 0)
-			dev_dbg(combrxphy->dev, "\n");
+	if (debug > 0) {
+		dev_info(combrxphy->dev,
+			"%s channel:%d, round:%d ====\n",  __func__, ch, n);
+		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_NONE, 32, 4,
+				data_in, MAX_DATA_NUM * sizeof(u32), false);
 	}
 
 	for (i = 0; i < MAX_DATA_NUM; i++) {
@@ -80,41 +85,40 @@ rk628_combrxphy_max_zero_of_round(struct rk628_combrxphy *combrxphy,
 	for (i = 0; i < MAX_DATA_NUM; i++) {
 		if (data_in[i] == 0)
 			cnt = cnt + 200;
-		else if (data_in[i] > 0 && data_in[i] < 100)
+		else if ((data_in[i] > 0) && (data_in[i] < 100))
 			cnt = cnt + 100 - data_in[i];
 	}
-	max_cnt = cnt >= 3200 ? 0 : cnt;
+	max_cnt = (cnt >= 3200) ? 0 : cnt;
 
 	max_zero[n] = max_cnt;
 	max_val[n] = max_v;
-	dev_dbg(combrxphy->dev, "channel:%d,round:%d,max_zero_cnt:%d,max_val:%#x",
+	dev_dbg(combrxphy->dev,
+		"channel:%d, round:%d, max_zero_cnt:%d, max_val:%#x",
 		ch, n, max_zero[n], max_val[n]);
 }
 
 static int
 rk628_combrxphy_chose_round_for_ch(struct rk628_combrxphy *combrxphy,
 				   u32 *rd_max_zero,
-				   u32 *rd_max_val, int ch,
-				   int min_round, int max_round)
+				   u32 *rd_max_val, int ch)
 {
 	int i, rd = 0;
 	u32 max = 0;
 	u32 max_v = 0;
 
-	dev_dbg(combrxphy->dev, "%s channel:%d=============\n", __func__, ch);
-	for (i = min_round; i < max_round; i++) {
-		dev_dbg(combrxphy->dev, "0x%02x ", rd_max_zero[i]);
-		if ((i + 1) % max_round == 0)
-			dev_dbg(combrxphy->dev, "\n");
-	}
-	dev_dbg(combrxphy->dev, "\n");
-	for (i = min_round; i < max_round; i++) {
-		dev_dbg(combrxphy->dev, "0x%02x ", rd_max_val[i]);
-		if ((i + 1) % max_round == 0)
-			dev_dbg(combrxphy->dev, "\n");
+	if (debug > 0) {
+		dev_info(combrxphy->dev,
+			"%s max cnt of channel:%d ====\n", __func__, ch);
+		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_NONE, 32, 4,
+				rd_max_zero, MAX_ROUND * sizeof(u32), false);
+
+		dev_info(combrxphy->dev,
+			"%s max value of channel:%d ====\n", __func__, ch);
+		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_NONE, 32, 4,
+				rd_max_val, MAX_ROUND * sizeof(u32), false);
 	}
 
-	for (i = min_round; i < max_round; i++) {
+	for (i = 0; i < MAX_ROUND; i++) {
 		if (rd_max_zero[i] > max) {
 			max = rd_max_zero[i];
 			max_v = rd_max_val[i];
@@ -146,7 +150,8 @@ rk628_combrxphy_set_dc_gain(struct rk628_combrxphy *combrxphy,
 	u32 val;
 	u32 dc_gain_ch0, dc_gain_ch1, dc_gain_ch2;
 
-	dev_dbg(combrxphy->dev, "channel dc gain x:%d, y:%d, z:%d", x, y, z);
+	dev_dbg(combrxphy->dev, "channel dc gain ch0:%d, ch1:%d, ch2:%d\n",
+			x, y, z);
 
 	dc_gain_ch0 = x & 0xf;
 	dc_gain_ch1 = y & 0xf;
@@ -162,21 +167,17 @@ static void rk628_combrxphy_set_sample_edge_round(struct rk628_combrxphy
 		*combrxphy, u32 x, u32 y, u32 z)
 {
 	u32 val;
-	u32 lsb_ch0;
-	u32 lsb_ch1;
-	u32 lsb_ch2;
+	u32 equ_gain_ch0, equ_gain_ch1, equ_gain_ch2;
 
-	dev_dbg(combrxphy->dev, "channel sample edge x:%d, y:%d, z:%d",
-		x, y, z);
+	dev_dbg(combrxphy->dev, "channel equ gain ch0:%d, ch1:%d, ch2:%d\n",
+			x, y, z);
 
-	lsb_ch0 = (x & 0xf);
-	lsb_ch1 = (y & 0xf);
-	lsb_ch2 = (z & 0xf);
-
+	equ_gain_ch0 = (x & 0xf);
+	equ_gain_ch1 = (y & 0xf);
+	equ_gain_ch2 = (z & 0xf);
 	regmap_read(combrxphy->regmap, REG(0x6618), &val);
-
-	val = (val & 0xff00f0ff) | (lsb_ch1 << 20) | (lsb_ch0 << 16) |
-		(lsb_ch2 << 8);
+	val = (val & 0xff00f0ff) | (equ_gain_ch1 << 20) |
+		(equ_gain_ch0 << 16) | (equ_gain_ch2 << 8);
 	regmap_write(combrxphy->regmap, REG(0x6618), val);
 }
 
@@ -198,13 +199,9 @@ rk628_combrxphy_set_sample_edge_mode(struct rk628_combrxphy *combrxphy,
 {
 	u32 val;
 
-	dev_dbg(combrxphy->dev, "%s in!", __func__);
 	regmap_read(combrxphy->regmap, REG(0x6634), &val);
-	dev_dbg(combrxphy->dev, "%s read val:%#x!", __func__, val);
 	val = val & (~(0xf << ((ch + 1) * 4)));
-	dev_dbg(combrxphy->dev, "%s write val:%#x!", __func__, val);
 	regmap_write(combrxphy->regmap, REG(0x6634), val);
-	dev_dbg(combrxphy->dev, "%s out!", __func__);
 }
 
 static void rk628_combrxphy_select_channel(struct rk628_combrxphy *combrxphy,
@@ -226,16 +223,123 @@ static void rk628_combrxphy_cfg_6730(struct rk628_combrxphy *combrxphy)
 	regmap_write(combrxphy->regmap, REG(0x6730), val);
 }
 
-static void
-rk628_combrxphy_sample_edge_procedure(struct rk628_combrxphy *combrxphy,
-				      int f, int min_round,
-				      int max_round)
+static void rk628_combrxphy_sample_edge_procedure_for_cable(
+		struct rk628_combrxphy *combrxphy, u32 cdr_mode)
 {
-	int n, ch;
+	u32 n, ch;
 	u32 data[MAX_DATA_NUM];
 	u32 data_in[MAX_DATA_NUM];
-	u32 round_max_zero[MAX_CHANNEL][max_round];
-	u32 round_max_value[MAX_CHANNEL][max_round];
+	u32 round_max_zero[MAX_CHANNEL][MAX_ROUND];
+	u32 round_max_value[MAX_CHANNEL][MAX_ROUND];
+	u32 ch_round[MAX_CHANNEL];
+	u32 edge, dc_gain;
+	u32 rd_offset;
+
+	/* Step1: set sample edge mode for channel 0~2 */
+	for (ch = 0; ch < MAX_CHANNEL; ch++)
+		rk628_combrxphy_set_sample_edge_mode(combrxphy, ch);
+
+	/* step2: once per round */
+	for (ch = 0; ch < MAX_CHANNEL; ch++) {
+		rk628_combrxphy_select_channel(combrxphy, ch);
+		rk628_combrxphy_cfg_6730(combrxphy);
+	}
+
+	/* step3: config sample edge until the end of one frame
+	 * (for example 1080p:2200*1125=32’h25c3f8)
+	 */
+	if (cdr_mode < 16) {
+		dc_gain = 0;
+		rd_offset = 0;
+	} else if (cdr_mode < 18) {
+		dc_gain = 1;
+		rd_offset = 0;
+	} else {
+		dc_gain = 3;
+		rd_offset = 2;
+	}
+
+	/* When the pix clk is the same, the low frame rate resolution is used
+	 * to calculate the sampling window (the frame rate is not less than
+	 * 30). The sampling delay time is configured as 40ms.
+	 */
+	if (cdr_mode <= 1) { /* 27M vic17 720x576P50 */
+		edge = 864 * 625;
+	} else if (cdr_mode <= 4) { /* 59.4M vic81 1680x720P30 */
+		edge = 2640 * 750;
+	} else if (cdr_mode <= 7) { /* 74.25M vic34 1920x1080P30 */
+		edge = 2200 * 1125;
+	} else if (cdr_mode <= 14) { /* 119M vic88 2560x1180P30 */
+		edge = 3520 * 1125;
+	} else if (cdr_mode <= 16) { /* 148.5M vic31 1920x1080P50 */
+		edge = 2640 * 1125;
+	} else if (cdr_mode <= 17) { /* 162M vic89 2560x1080P50 */
+		edge = 3300 * 1125;
+	} else if (cdr_mode <= 18) { /* 297M vic95 3840x2160P30 */
+		edge = 4400 * 2250;
+	} else {		     /* unkonw vic16 1920x1080P60 */
+		edge = 2200 * 1125;
+	}
+
+	dev_info(combrxphy->dev,
+		"cdr_mode:%d, dc_gain:%d, rd_offset:%d, edge:%#x\n",
+		cdr_mode, dc_gain, rd_offset, edge);
+	for (ch = 0; ch < MAX_CHANNEL; ch++) {
+		rk628_combrxphy_select_channel(combrxphy, ch);
+		regmap_write(combrxphy->regmap, REG(0x6708), edge);
+	}
+
+	rk628_combrxphy_set_dc_gain(combrxphy, dc_gain, dc_gain, dc_gain);
+	for (n = rd_offset; n < (rd_offset + MAX_ROUND); n++) {
+		/* step4:set sample edge round value n,n=0(n=0~31) */
+		rk628_combrxphy_set_sample_edge_round(combrxphy, n, n, n);
+		/* step5:start sample edge */
+		rk628_combrxphy_start_sample_edge(combrxphy);
+		/* step6:waiting more than one frame time */
+		usleep_range(40*1000, 41*1000);
+		for (ch = 0; ch < MAX_CHANNEL; ch++) {
+			/* step7: get data of round n */
+			rk628_combrxphy_select_channel(combrxphy, ch);
+			rk628_combrxphy_get_data_of_round(combrxphy, data);
+			rk628_combrxphy_set_data_of_round(data, data_in);
+			/* step8: get the max constant value of round n */
+			rk628_combrxphy_max_zero_of_round(combrxphy, data_in,
+				round_max_zero[ch], round_max_value[ch],
+				n - rd_offset, ch);
+		}
+	}
+
+	/* step9: after finish round, get the max constant value and
+	 * corresponding value n.
+	 */
+	for (ch = 0; ch < MAX_CHANNEL; ch++) {
+		ch_round[ch] = rk628_combrxphy_chose_round_for_ch(combrxphy,
+				round_max_zero[ch], round_max_value[ch], ch)
+				+ rd_offset;
+	}
+	dev_info(combrxphy->dev, "last equ gain ch0:%d, ch1:%d, ch2:%d\n",
+		ch_round[0], ch_round[1], ch_round[2]);
+
+	 /* step10: write result to sample edge round value  */
+	rk628_combrxphy_set_sample_edge_round(combrxphy, ch_round[0],
+		ch_round[1], ch_round[2]);
+
+	/* do step5, step6 again */
+	/* step5:start sample edge */
+	rk628_combrxphy_start_sample_edge(combrxphy);
+	/* step6:waiting more than one frame time */
+	usleep_range(40*1000, 41*1000);
+}
+
+static void
+rk628_combrxphy_sample_edge_procedure(struct rk628_combrxphy *combrxphy,
+				      int f, u32 rd_offset)
+{
+	u32 n, ch;
+	u32 data[MAX_DATA_NUM];
+	u32 data_in[MAX_DATA_NUM];
+	u32 round_max_zero[MAX_CHANNEL][MAX_ROUND];
+	u32 round_max_value[MAX_CHANNEL][MAX_ROUND];
 	u32 ch_round[MAX_CHANNEL];
 	u32 edge, dc_gain;
 
@@ -296,7 +400,7 @@ rk628_combrxphy_sample_edge_procedure(struct rk628_combrxphy *combrxphy,
 
 	rk628_combrxphy_set_dc_gain(combrxphy, dc_gain, dc_gain, dc_gain);
 
-	for (n = min_round; n < max_round; n++) {
+	for (n = rd_offset; n < (rd_offset + MAX_ROUND); n++) {
 		/* step4:set sample edge round value n,n=0(n=0~31) */
 		rk628_combrxphy_set_sample_edge_round(combrxphy, n, n, n);
 		dev_dbg(combrxphy->dev, "step4 ok!");
@@ -311,13 +415,12 @@ rk628_combrxphy_sample_edge_procedure(struct rk628_combrxphy *combrxphy,
 			dev_dbg(combrxphy->dev, "step7 set ch ok!");
 			rk628_combrxphy_get_data_of_round(combrxphy, data);
 			dev_dbg(combrxphy->dev, "step7 get data ok!");
-			rk628_combrxphy_set_data_of_round(combrxphy, data,
-							  data_in);
+			rk628_combrxphy_set_data_of_round(data, data_in);
 			dev_dbg(combrxphy->dev, "step7 set data ok!");
 			rk628_combrxphy_max_zero_of_round(combrxphy, data_in,
 							  round_max_zero[ch],
 							  round_max_value[ch],
-							  n, ch);
+							  n - rd_offset, ch);
 		}
 	}
 	for (ch = 0; ch < MAX_CHANNEL; ch++)
@@ -325,8 +428,7 @@ rk628_combrxphy_sample_edge_procedure(struct rk628_combrxphy *combrxphy,
 			rk628_combrxphy_chose_round_for_ch(combrxphy,
 							   round_max_zero[ch],
 							   round_max_value[ch],
-							   ch, min_round,
-							   max_round);
+							   ch) + rd_offset;
 
 	/*
 	 * step8:after finish round 31, get the max constant value and
@@ -342,12 +444,226 @@ rk628_combrxphy_sample_edge_procedure(struct rk628_combrxphy *combrxphy,
 	usleep_range(40*1000, 41*1000);
 }
 
+static int rk628_combrxphy_try_clk_detect(struct rk628_combrxphy *combrxphy)
+{
+	u32 val, i;
+	int ret;
+
+	ret = -1;
+	reset_control_assert(combrxphy->rstc);
+	usleep_range(10, 20);
+	reset_control_deassert(combrxphy->rstc);
+	usleep_range(10, 20);
+
+	/* step1: set pin_rst_n to 1’b0.wait 1 period(1us).release reset */
+	/* step2: select pll clock src and enable auto check */
+	regmap_read(combrxphy->regmap, REG(0x6630), &val);
+	/* clear bit0 and bit3 */
+	val = val & 0xfffffff6;
+	regmap_write(combrxphy->regmap, REG(0x6630), val);
+	/* step3: select hdmi mode and enable chip, read reg6654,
+	 * make sure auto setup done.
+	 */
+	/* auto fsm reset related */
+	regmap_read(combrxphy->regmap, REG(0x6630), &val);
+	val = val | BIT(24);
+	regmap_write(combrxphy->regmap, REG(0x6630), val);
+	/* pull down ana rstn */
+	regmap_read(combrxphy->regmap, REG(0x66f0), &val);
+	val = val & 0xfffffeff;
+	regmap_write(combrxphy->regmap, REG(0x66f0), val);
+	/* pull down dig rstn */
+	regmap_read(combrxphy->regmap, REG(0x66f4), &val);
+	val = val & 0xfffffffe;
+	regmap_write(combrxphy->regmap, REG(0x66f4), val);
+	/* pull up ana rstn */
+	regmap_read(combrxphy->regmap, REG(0x66f0), &val);
+	val = val | 0x100;
+	regmap_write(combrxphy->regmap, REG(0x66f0), val);
+	/* pull up dig rstn */
+	regmap_read(combrxphy->regmap, REG(0x66f4), &val);
+	val = val  | 0x1;
+	regmap_write(combrxphy->regmap, REG(0x66f4), val);
+
+	regmap_read(combrxphy->regmap, REG(0x66f0), &val);
+	/* set bit0 and bit2 to 1*/
+	val = (val & 0xfffffff8) | 0x5;
+	regmap_write(combrxphy->regmap, REG(0x66f0), val);
+
+	/* auto fsm en = 0 */
+	regmap_read(combrxphy->regmap, REG(0x66f0), &val);
+	/* set bit0 and bit2 to 1*/
+	val = (val & 0xfffffff8) | 0x4;
+	regmap_write(combrxphy->regmap, REG(0x66f0), val);
+
+	for (i = 0; i < 10; i++) {
+		usleep_range(500, 510);
+		regmap_read(combrxphy->regmap, REG(0x6654), &val);
+		if ((val & 0xf0000000) == 0x80000000) {
+			ret = 0;
+			dev_info(combrxphy->dev, "clock detected!");
+			break;
+		}
+	}
+
+	return ret;
+}
+
+static int
+rk628_combrxphy_set_hdmi_mode_for_cable(struct rk628_combrxphy *combrxphy,
+					  int f)
+{
+	u32 val, data_a, data_b;
+	u32 i, count, ret;
+	u32 cdr_mode, cdr_data, pll_man;
+	u32 tmds_bitrate_per_lane;
+
+	const u32 cdr_mode_to_khz[] = {
+		25170,   27000,  33750,  40000,  59400,  65000,  68250,
+		74250,   83500,  85500,  88750,  92812, 101000, 108000,
+		119000, 135000, 148500, 162000, 297000,
+	};
+
+	const struct {
+		u32 data;
+		u32 mode;
+	} cdr_data_table[] = {
+		{  80, 18}, { 147, 17}, { 160, 16}, { 176, 15}, { 200, 14},
+		{ 220, 13}, { 235, 12}, { 256, 11}, { 268, 10}, { 278,  9},
+		{ 285,  8}, { 320,  7}, { 348,  6}, { 366,  5}, { 400,  4},
+		{ 594,  3}, { 704,  2}, { 880,  1}, { 944,  0},
+	};
+
+	for (i = 0; i < CLK_DET_TRY_TIMES; i++) {
+		if (rk628_combrxphy_try_clk_detect(combrxphy) >= 0)
+			break;
+		usleep_range(100*1000, 100*1000);
+	}
+	regmap_read(combrxphy->regmap, REG(0x6654), &val);
+	dev_info(combrxphy->dev, "clk det over cnt:%d, reg_0x6654:%#x", i, val);
+
+	regmap_read(combrxphy->regmap, REG(0x6620), &val);
+	if ((i == CLK_DET_TRY_TIMES) ||
+		((val & 0x7f000000) == 0) ||
+		((val & 0x007f0000) == 0) ||
+		((val & 0x00007f00) == 0) ||
+		((val & 0x0000007f) == 0)) {
+		dev_info(combrxphy->dev,
+			"clock detected failed, cfg resistance manual!");
+		regmap_write(combrxphy->regmap, REG(0x6620), 0x66666666);
+		regmap_update_bits(combrxphy->regmap, REG(0x6604), BIT(31),
+				BIT(31));
+		usleep_range(1000, 1100);
+	}
+
+	/* step4: get cdr_mode and cdr_data */
+	regmap_read(combrxphy->regmap, REG(0x6654), &val);
+	if ((val & 0x1f0000) == 0x1f0000) {
+		dev_err(combrxphy->dev, "error,clock error!");
+		return -EINVAL;
+	}
+	cdr_mode = (val >> 16) & 0x1f;
+	cdr_data =  val & 0xffff;
+	dev_info(combrxphy->dev, "cdr_mode:%d, cdr_data:%d\n", cdr_mode,
+			cdr_data);
+	if (cdr_mode == 0x1f) {
+		for (i = 0; i < ARRAY_SIZE(cdr_data_table); i++) {
+			if (cdr_data <= cdr_data_table[i].data)
+				break;
+		}
+
+		if (i == ARRAY_SIZE(cdr_data_table))
+			--i;
+		cdr_mode = cdr_data_table[i].mode;
+	}
+
+	/* step5: manually configure PLL
+	 * cfg reg 66a8 tmds clock div2 for rgb/yuv444 as default
+	 * reg 662c[16:8] pll_pre_div
+	 */
+	if (f <= 340000) {
+		regmap_write(combrxphy->regmap, REG(0x662c), 0x01000500);
+		regmap_write(combrxphy->regmap, REG(0x66a8), 0x0000c600);
+	} else {
+		regmap_write(combrxphy->regmap, REG(0x662c), 0x01001400);
+		regmap_write(combrxphy->regmap, REG(0x66a8), 0x0000c600);
+	}
+
+	/* when tmds bitrate/lane <= 340M, bitrate/lane = pix_clk * 10 */
+	tmds_bitrate_per_lane = cdr_mode_to_khz[cdr_mode] * 10;
+	if (tmds_bitrate_per_lane < 400000)
+		pll_man = 0x7960c;
+	else if (tmds_bitrate_per_lane < 600000)
+		pll_man = 0x7750c;
+	else if (tmds_bitrate_per_lane < 800000)
+		pll_man = 0x7964c;
+	else if (tmds_bitrate_per_lane < 1000000)
+		pll_man = 0x7754c;
+	else if (tmds_bitrate_per_lane < 1600000)
+		pll_man = 0x7a108;
+	else if (tmds_bitrate_per_lane < 2400000)
+		pll_man = 0x73588;
+	else if (tmds_bitrate_per_lane < 3400000)
+		pll_man = 0x7a108;
+	else
+		pll_man = 0x7f0c8;
+
+	dev_info(combrxphy->dev, "cdr_mode:%d, pll_man:%#x\n", cdr_mode,
+			pll_man);
+	regmap_write(combrxphy->regmap, REG(0x6630), pll_man);
+
+	/* step6: EQ and SAMPLE cfg */
+	rk628_combrxphy_sample_edge_procedure_for_cable(combrxphy, cdr_mode);
+
+	/* step7: Deassert fifo reset,enable fifo write and read */
+	/* reset rx_infifo */
+	regmap_write(combrxphy->regmap, REG(0x66a0), 0x00000003);
+	/* rx_infofo wr/rd disable */
+	regmap_write(combrxphy->regmap, REG(0x66b0), 0x00080060);
+	/* deassert rx_infifo reset */
+	regmap_write(combrxphy->regmap, REG(0x66a0), 0x00000083);
+	/* enable rx_infofo wr/rd en */
+	regmap_write(combrxphy->regmap, REG(0x66b0), 0x00380060);
+	/* cfg 0x2260 high_8b to 0x66ac high_8b, low_8b to 0x66b0 low_8b */
+	regmap_update_bits(combrxphy->regmap, REG(0x66ac), GENMASK(31, 24),
+			UPDATE(0x22, 31, 24));
+	usleep_range(5*1000, 6*1000);
+
+	/* step8: check all 3 data channels alignment */
+	count = 0;
+	for (i = 0; i < 100; i++) {
+		usleep_range(100, 110);
+		regmap_read(combrxphy->regmap, REG(0x66b4), &data_a);
+		regmap_read(combrxphy->regmap, REG(0x66b8), &data_b);
+		/* ch0 ch1 ch2 lock */
+		if (((data_a & 0x00ff00ff) == 0x00ff00ff) &&
+			((data_b & 0xff) == 0xff)) {
+			count++;
+		}
+	}
+
+	if (count >= 100) {
+		dev_info(combrxphy->dev, "channel alignment done");
+		dev_info(combrxphy->dev, "rx initial done");
+		ret = 0;
+	} else if (count > 0) {
+		dev_err(combrxphy->dev, "link not stable, count:%d of 100",
+				count);
+		ret = 0;
+	} else {
+		dev_err(combrxphy->dev, "channel alignment failed!");
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 static int rk628_combrxphy_set_hdmi_mode(struct rk628_combrxphy *combrxphy,
 					 int bus_width)
 {
 	u32 val, data_a, data_b, f, val2 = 0;
 	int i, ret, count;
-	int pll_man, max_round, min_round;
+	u32 pll_man, rd_offset;
 	bool is_yuv420;
 
 	is_yuv420 = bus_width & BIT(30);
@@ -456,29 +772,24 @@ static int rk628_combrxphy_set_hdmi_mode(struct rk628_combrxphy *combrxphy,
 	case 27000:
 	case 64000:
 	case 74250:
-		max_round = 6;
-		min_round = 0;
+		rd_offset = 0;
 		pll_man = 0x7964c;
 		break;
 	case 148500:
 		pll_man = 0x7a1c8;
-		max_round = 6;
-		min_round = 0;
+		rd_offset = 0;
 		break;
 	case 297000:
 		pll_man = 0x7a108;
-		max_round = 8;
-		min_round = 2;
+		rd_offset = 2;
 		break;
 	case 594000:
 		pll_man = 0x7f0c8;
-		max_round = 4;
-		min_round = 10;
+		rd_offset = 4;
 		break;
 	default:
 		pll_man = 0x7964c;
-		max_round = 1;
-		min_round = 12;
+		rd_offset = 1;
 		break;
 	}
 
@@ -486,8 +797,7 @@ static int rk628_combrxphy_set_hdmi_mode(struct rk628_combrxphy *combrxphy,
 	regmap_write(combrxphy->regmap, REG(0x6630), pll_man);
 
 	/* EQ and SAMPLE cfg */
-	rk628_combrxphy_sample_edge_procedure(combrxphy, f, min_round,
-					      max_round);
+	rk628_combrxphy_sample_edge_procedure(combrxphy, f, rd_offset);
 
 	/* Deassert fifo reset,enable fifo write and read */
 	regmap_write(combrxphy->regmap, REG(0x66a0), 0x00000003);
@@ -528,18 +838,38 @@ static int rk628_combrxphy_power_on(struct phy *phy)
 {
 	struct rk628_combrxphy *combrxphy = phy_get_drvdata(phy);
 	int f = phy_get_bus_width(phy);
+	int ret;
 
+	/* Bit31 is used to distinguish HDMI cable mode and direct
+	 * connection mode.
+	 * Bit31: 0 -direct connection mode;
+	 *        1 -cable mode;
+	 */
+	combrxphy->is_cable_mode = (f & BIT(31)) ? true : false;
+	dev_dbg(combrxphy->dev, "%s\n", __func__);
 	clk_prepare_enable(combrxphy->pclk);
+	reset_control_assert(combrxphy->rstc);
+	udelay(10);
 	reset_control_deassert(combrxphy->rstc);
+	udelay(10);
 
-	return rk628_combrxphy_set_hdmi_mode(combrxphy, f);
+	if (combrxphy->is_cable_mode) {
+		f = f & 0x7fffffff;
+		ret = rk628_combrxphy_set_hdmi_mode_for_cable(combrxphy, f);
+	} else {
+		ret = rk628_combrxphy_set_hdmi_mode(combrxphy, f);
+	}
+
+	return ret;
 }
 
 static int rk628_combrxphy_power_off(struct phy *phy)
 {
 	struct rk628_combrxphy *combrxphy = phy_get_drvdata(phy);
 
+	dev_dbg(combrxphy->dev, "%s\n", __func__);
 	reset_control_assert(combrxphy->rstc);
+	udelay(10);
 	clk_disable_unprepare(combrxphy->pclk);
 
 	return 0;
