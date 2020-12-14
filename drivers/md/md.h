@@ -311,7 +311,7 @@ struct mddev {
 	int				external;	/* metadata is
 							 * managed externally */
 	char				metadata_type[17]; /* externally set*/
-	unsigned int			chunk_sectors;
+	int				chunk_sectors;
 	time64_t			ctime, utime;
 	int				level, layout;
 	char				clevel[16];
@@ -339,7 +339,7 @@ struct mddev {
 	 */
 	sector_t			reshape_position;
 	int				delta_disks, new_level, new_layout;
-	unsigned int			new_chunk_sectors;
+	int				new_chunk_sectors;
 	int				reshape_backwards;
 
 	struct md_thread		*thread;	/* management thread */
