@@ -1842,32 +1842,30 @@ static void acpi_scan_init_hotplug(struct acpi_device *adev)
 	}
 }
 
-static void acpi_device_dep_initialize(struct acpi_device *adev)
+static u32 acpi_scan_check_dep(acpi_handle handle)
 {
-	struct acpi_dep_data *dep;
 	struct acpi_handle_list dep_devices;
 	acpi_status status;
+	u32 count;
 	int i;
 
-	adev->dep_unmet = 0;
+	if (!acpi_has_method(handle, "_DEP"))
+		return 0;
 
-	if (!acpi_has_method(adev->handle, "_DEP"))
-		return;
-
-	status = acpi_evaluate_reference(adev->handle, "_DEP", NULL,
-					&dep_devices);
+	status = acpi_evaluate_reference(handle, "_DEP", NULL, &dep_devices);
 	if (ACPI_FAILURE(status)) {
-		dev_dbg(&adev->dev, "Failed to evaluate _DEP.\n");
-		return;
+		acpi_handle_debug(handle, "Failed to evaluate _DEP.\n");
+		return 0;
 	}
 
-	for (i = 0; i < dep_devices.count; i++) {
+	for (count = 0, i = 0; i < dep_devices.count; i++) {
 		struct acpi_device_info *info;
-		int skip;
+		struct acpi_dep_data *dep;
+		bool skip;
 
 		status = acpi_get_object_info(dep_devices.handles[i], &info);
 		if (ACPI_FAILURE(status)) {
-			dev_dbg(&adev->dev, "Error reading _DEP device info\n");
+			acpi_handle_debug(handle, "Error reading _DEP device info\n");
 			continue;
 		}
 
@@ -1877,26 +1875,30 @@ static void acpi_device_dep_initialize(struct acpi_device *adev)
 		if (skip)
 			continue;
 
-		dep = kzalloc(sizeof(struct acpi_dep_data), GFP_KERNEL);
+		dep = kzalloc(sizeof(*dep), GFP_KERNEL);
 		if (!dep)
-			return;
+			continue;
+
+		count++;
 
 		dep->supplier = dep_devices.handles[i];
-		dep->consumer  = adev->handle;
-		adev->dep_unmet++;
+		dep->consumer = handle;
 
 		mutex_lock(&acpi_dep_list_lock);
 		list_add_tail(&dep->node , &acpi_dep_list);
 		mutex_unlock(&acpi_dep_list_lock);
 	}
+
+	return count;
 }
 
 static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 				      void *not_used, void **return_value)
 {
 	struct acpi_device *device = NULL;
-	int type;
+	u32 dep_count = 0;
 	unsigned long long sta;
+	int type;
 	int result;
 
 	acpi_bus_get_device(handle, &device);
@@ -1912,12 +1914,16 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 		return AE_OK;
 	}
 
+	if (type == ACPI_BUS_TYPE_DEVICE)
+		dep_count = acpi_scan_check_dep(handle);
+
 	acpi_add_single_object(&device, handle, type, sta);
 	if (!device)
 		return AE_CTRL_DEPTH;
 
+	device->dep_unmet = dep_count;
+
 	acpi_scan_init_hotplug(device);
-	acpi_device_dep_initialize(device);
 
  out:
 	if (!*return_value)
