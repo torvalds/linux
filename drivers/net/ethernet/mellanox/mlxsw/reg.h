@@ -8512,6 +8512,37 @@ static inline void mlxsw_reg_rxlte_pack(char *payload, u16 virtual_router,
 	mlxsw_reg_rxlte_lpm_xlt_en_set(payload, lpm_xlt_en);
 }
 
+/* RXLTM - Router XLT M select Register
+ * ------------------------------------
+ * The RXLTM configures and selects the M for the XM lookups.
+ */
+
+#define MLXSW_REG_RXLTM_ID 0x8051
+#define MLXSW_REG_RXLTM_LEN 0x14
+
+MLXSW_REG_DEFINE(rxltm, MLXSW_REG_RXLTM_ID, MLXSW_REG_RXLTM_LEN);
+
+/* reg_rxltm_m0_val_v6
+ * Global M0 value For IPv6.
+ * Range 0..128
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, rxltm, m0_val_v6, 0x10, 16, 8);
+
+/* reg_rxltm_m0_val_v4
+ * Global M0 value For IPv4.
+ * Range 0..32
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, rxltm, m0_val_v4, 0x10, 0, 6);
+
+static inline void mlxsw_reg_rxltm_pack(char *payload, u8 m0_val_v4, u8 m0_val_v6)
+{
+	MLXSW_REG_ZERO(rxltm, payload);
+	mlxsw_reg_rxltm_m0_val_v6_set(payload, m0_val_v6);
+	mlxsw_reg_rxltm_m0_val_v4_set(payload, m0_val_v4);
+}
+
 /* Note that XMDR and XRALXX register positions violate the rule of ordering
  * register definitions by the ID. However, XRALXX pack helpers are
  * using RALXX pack helpers, RALXX registers have higher IDs.
@@ -11798,6 +11829,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(recr2),
 	MLXSW_REG(rmft2),
 	MLXSW_REG(rxlte),
+	MLXSW_REG(rxltm),
 	MLXSW_REG(xmdr),
 	MLXSW_REG(xralta),
 	MLXSW_REG(xralst),
