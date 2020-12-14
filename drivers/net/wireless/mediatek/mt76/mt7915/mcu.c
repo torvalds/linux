@@ -3237,16 +3237,56 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
 	return mt76_mcu_send_msg(&dev->mt76, cmd, &req, sizeof(req), true);
 }
 
+static int mt7915_mcu_set_eeprom_flash(struct mt7915_dev *dev)
+{
+#define TOTAL_PAGE_MASK		GENMASK(7, 5)
+#define PAGE_IDX_MASK		GENMASK(4, 2)
+#define PER_PAGE_SIZE		0x400
+	struct mt7915_mcu_eeprom req = { .buffer_mode = EE_MODE_BUFFER };
+	u8 total = MT7915_EEPROM_SIZE / PER_PAGE_SIZE;
+	u8 *eep = (u8 *)dev->mt76.eeprom.data;
+	int eep_len;
+	int i;
+
+	for (i = 0; i <= total; i++, eep += eep_len) {
+		struct sk_buff *skb;
+		int ret;
+
+		if (i == total)
+			eep_len = MT7915_EEPROM_SIZE % PER_PAGE_SIZE;
+		else
+			eep_len = PER_PAGE_SIZE;
+
+		skb = mt76_mcu_msg_alloc(&dev->mt76, NULL,
+					 sizeof(req) + eep_len);
+		if (!skb)
+			return -ENOMEM;
+
+		req.format = FIELD_PREP(TOTAL_PAGE_MASK, total) |
+			     FIELD_PREP(PAGE_IDX_MASK, i) | EE_FORMAT_WHOLE;
+		req.len = cpu_to_le16(eep_len);
+
+		skb_put_data(skb, &req, sizeof(req));
+		skb_put_data(skb, eep, eep_len);
+
+		ret = mt76_mcu_skb_send_msg(&dev->mt76, skb,
+					    MCU_EXT_CMD_EFUSE_BUFFER_MODE, true);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 int mt7915_mcu_set_eeprom(struct mt7915_dev *dev)
 {
-	struct req_hdr {
-		u8 buffer_mode;
-		u8 format;
-		__le16 len;
-	} __packed req = {
+	struct mt7915_mcu_eeprom req = {
 		.buffer_mode = EE_MODE_EFUSE,
 		.format = EE_FORMAT_WHOLE,
 	};
+
+	if (dev->flash_mode)
+		return mt7915_mcu_set_eeprom_flash(dev);
 
 	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_EFUSE_BUFFER_MODE,
 				 &req, sizeof(req), true);

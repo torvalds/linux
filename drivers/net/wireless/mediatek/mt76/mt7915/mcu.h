@@ -118,6 +118,12 @@ struct mt7915_mcu_rdd_report {
 	} hw_pulse[32];
 } __packed;
 
+struct mt7915_mcu_eeprom {
+	u8 buffer_mode;
+	u8 format;
+	__le16 len;
+} __packed;
+
 struct mt7915_mcu_eeprom_info {
 	__le32 addr;
 	__le32 valid;

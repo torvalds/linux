@@ -22,7 +22,10 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
 	if (ret < 0)
 		return ret;
 
-	memset(dev->mt76.eeprom.data, -1, MT7915_EEPROM_SIZE);
+	if (ret)
+		dev->flash_mode = true;
+	else
+		memset(dev->mt76.eeprom.data, -1, MT7915_EEPROM_SIZE);
 
 	return 0;
 }

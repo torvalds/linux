@@ -175,6 +175,7 @@ struct mt7915_dev {
 	s8 **rate_power; /* TODO: use mt76_rate_power */
 
 	bool dbdc_support;
+	bool flash_mode;
 	bool fw_debug;
 
 #ifdef CONFIG_NL80211_TESTMODE
