@@ -13,10 +13,8 @@
 #ifndef _S390_DELAY_H
 #define _S390_DELAY_H
 
-void udelay_enable(void);
 void __ndelay(unsigned long nsecs);
 void __udelay(unsigned long usecs);
-void udelay_simple(unsigned long usecs);
 void __delay(unsigned long loops);
 
 #define ndelay(n) __ndelay((unsigned long)(n))
