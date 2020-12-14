@@ -1840,6 +1840,9 @@ static int mlxsw_sp_port_module_info_init(struct mlxsw_sp *mlxsw_sp)
 		return -ENOMEM;
 
 	for (i = 1; i < max_ports; i++) {
+		if (mlxsw_core_port_is_xm(mlxsw_sp->core, i))
+			continue;
+
 		err = mlxsw_sp_port_module_info_get(mlxsw_sp, i, &port_mapping);
 		if (err)
 			goto err_port_module_info_get;
