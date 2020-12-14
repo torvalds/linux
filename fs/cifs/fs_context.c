@@ -705,6 +705,7 @@ static int smb3_reconfigure(struct fs_context *fc)
 
 	smb3_cleanup_fs_context_contents(cifs_sb->ctx);
 	rc = smb3_fs_context_dup(cifs_sb->ctx, ctx);
+	smb3_update_mnt_flags(cifs_sb);
 
 	return rc;
 }
