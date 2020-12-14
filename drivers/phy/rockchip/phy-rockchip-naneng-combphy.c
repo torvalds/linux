@@ -74,6 +74,8 @@ struct rockchip_combphy_priv {
 	struct regmap *pipe_grf;
 	struct regmap *phy_grf;
 	struct phy *phy;
+	struct reset_control *apb_rst;
+	struct reset_control *phy_rst;
 	const struct rockchip_combphy_cfg *cfg;
 };
 
@@ -222,12 +224,67 @@ static struct phy *rockchip_combphy_xlate(struct device *dev,
 	return priv->phy;
 }
 
+static int rockchip_combphy_parse_dt(struct device *dev,
+				     struct rockchip_combphy_priv *priv)
+{
+	const struct rockchip_combphy_cfg *phy_cfg = priv->cfg;
+	int ret;
+
+	ret = devm_clk_bulk_get(dev, priv->num_clks, priv->clks);
+	if (ret == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+	if (ret)
+		priv->num_clks = 0;
+
+	priv->pipe_grf = syscon_regmap_lookup_by_phandle(dev->of_node,
+							 "rockchip,pipe-grf");
+	if (IS_ERR(priv->pipe_grf)) {
+		dev_err(dev, "failed to find peri_ctrl pipe-grf regmap\n");
+		return PTR_ERR(priv->pipe_grf);
+	}
+
+	priv->phy_grf = syscon_regmap_lookup_by_phandle(dev->of_node,
+							"rockchip,pipe-phy-grf");
+	if (IS_ERR(priv->phy_grf)) {
+		dev_err(dev, "failed to find peri_ctrl pipe-phy-grf regmap\n");
+		return PTR_ERR(priv->phy_grf);
+	}
+
+	if (device_property_present(dev, "rockchip,dis-u3otg0-port"))
+		param_write(priv->pipe_grf, &phy_cfg->grfcfg->u3otg0_port_en,
+			    false);
+	else if (device_property_present(dev, "rockchip,dis-u3otg1-port"))
+		param_write(priv->pipe_grf, &phy_cfg->grfcfg->u3otg1_port_en,
+			    false);
+
+	priv->apb_rst = devm_reset_control_get_optional(dev, "combphy-apb");
+	if (IS_ERR(priv->apb_rst)) {
+		ret = PTR_ERR(priv->apb_rst);
+
+		if (ret != -EPROBE_DEFER)
+			dev_warn(dev, "failed to get apb reset\n");
+
+		return ret;
+	}
+
+	priv->phy_rst = devm_reset_control_get_optional(dev, "combphy");
+	if (IS_ERR(priv->phy_rst)) {
+		ret = PTR_ERR(priv->phy_rst);
+
+		if (ret != -EPROBE_DEFER)
+			dev_warn(dev, "failed to get phy reset\n");
+
+		return ret;
+	}
+
+	return 0;
+}
+
 static int rockchip_combphy_probe(struct platform_device *pdev)
 {
 	struct phy_provider *phy_provider;
 	struct device *dev = &pdev->dev;
 	struct rockchip_combphy_priv *priv;
-	struct device_node *np = dev->of_node;
 	const struct rockchip_combphy_cfg *phy_cfg;
 	struct resource *res;
 	int ret;
@@ -258,34 +315,14 @@ static int rockchip_combphy_probe(struct platform_device *pdev)
 	if (!priv->clks)
 		return -ENOMEM;
 
-	ret = devm_clk_bulk_get(dev, priv->num_clks, priv->clks);
-	if (ret == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
-	if (ret)
-		priv->num_clks = 0;
-
-	priv->pipe_grf = syscon_regmap_lookup_by_phandle(np, "rockchip,pipe-grf");
-	if (IS_ERR(priv->pipe_grf)) {
-		dev_err(dev, "failed to find peri_ctrl pipe-grf regmap\n");
-		return PTR_ERR(priv->pipe_grf);
-	}
-
-	priv->phy_grf = syscon_regmap_lookup_by_phandle(np, "rockchip,pipe-phy-grf");
-	if (IS_ERR(priv->phy_grf)) {
-		dev_err(dev, "failed to find peri_ctrl pipe-phy-grf regmap\n");
-		return PTR_ERR(priv->phy_grf);
-	}
-
-	if (device_property_present(dev, "rockchip,dis-u3otg0-port"))
-		param_write(priv->pipe_grf, &phy_cfg->grfcfg->u3otg0_port_en,
-			    false);
-	else if (device_property_present(dev, "rockchip,dis-u3otg1-port"))
-		param_write(priv->pipe_grf, &phy_cfg->grfcfg->u3otg1_port_en,
-			    false);
-
 	priv->dev = dev;
 	priv->mode = PHY_NONE;
 	priv->cfg = phy_cfg;
+
+	ret = rockchip_combphy_parse_dt(dev, priv);
+	if (ret)
+		return ret;
+
 	priv->phy = devm_phy_create(dev, NULL, &rochchip_combphy_ops);
 	if (IS_ERR(priv->phy)) {
 		dev_err(dev, "failed to create combphy\n");
