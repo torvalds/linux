@@ -15905,13 +15905,14 @@ F:	include/linux/sfp.h
 K:	phylink\.h|struct\s+phylink|\.phylink|>phylink_|phylink_(autoneg|clear|connect|create|destroy|disconnect|ethtool|helper|mac|mii|of|set|start|stop|test|validate)
 
 SGI GRU DRIVER
-M:	Dimitri Sivanich <sivanich@sgi.com>
+M:	Dimitri Sivanich <dimitri.sivanich@hpe.com>
 S:	Maintained
 F:	drivers/misc/sgi-gru/
 
 SGI XP/XPC/XPNET DRIVER
-M:	Cliff Whickman <cpw@sgi.com>
 M:	Robin Holt <robinmholt@gmail.com>
+M:	Steve Wahl <steve.wahl@hpe.com>
+R:	Mike Travis <mike.travis@hpe.com>
 S:	Maintained
 F:	drivers/misc/sgi-xp/
 
@@ -19166,6 +19167,7 @@ F:	arch/x86/platform
 
 X86 PLATFORM UV HPE SUPERDOME FLEX
 M:	Steve Wahl <steve.wahl@hpe.com>
+R:	Mike Travis <mike.travis@hpe.com>
 R:	Dimitri Sivanich <dimitri.sivanich@hpe.com>
 R:	Russ Anderson <russ.anderson@hpe.com>
 S:	Supported

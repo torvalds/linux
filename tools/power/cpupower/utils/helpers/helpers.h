@@ -105,8 +105,8 @@ extern struct cpupower_cpu_info cpupower_cpu_info;
 extern int read_msr(int cpu, unsigned int idx, unsigned long long *val);
 extern int write_msr(int cpu, unsigned int idx, unsigned long long val);
 
-extern int msr_intel_set_perf_bias(unsigned int cpu, unsigned int val);
-extern int msr_intel_get_perf_bias(unsigned int cpu);
+extern int cpupower_intel_set_perf_bias(unsigned int cpu, unsigned int val);
+extern int cpupower_intel_get_perf_bias(unsigned int cpu);
 extern unsigned long long msr_intel_get_turbo_ratio(unsigned int cpu);
 
 /* Read/Write msr ****************************/
@@ -150,9 +150,9 @@ static inline int read_msr(int cpu, unsigned int idx, unsigned long long *val)
 { return -1; };
 static inline int write_msr(int cpu, unsigned int idx, unsigned long long val)
 { return -1; };
-static inline int msr_intel_set_perf_bias(unsigned int cpu, unsigned int val)
+static inline int cpupower_intel_set_perf_bias(unsigned int cpu, unsigned int val)
 { return -1; };
-static inline int msr_intel_get_perf_bias(unsigned int cpu)
+static inline int cpupower_intel_get_perf_bias(unsigned int cpu)
 { return -1; };
 static inline unsigned long long msr_intel_get_turbo_ratio(unsigned int cpu)
 { return 0; };
