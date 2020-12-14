@@ -89,7 +89,7 @@ static char chip_type;
 	#define SCREEN_MAX_Y		1536
 #endif
 #define REPORT_DATA_ANDROID_4_0
-#define SLEEP_CLEAR_POINT
+//#define SLEEP_CLEAR_POINT
 
 #ifdef FILTER_POINT
 #define FILTER_MAX	9
@@ -1045,7 +1045,9 @@ error_unreg_device:
 static int gsl_ts_suspend(struct device *dev)
 {
 	struct gsl_ts *ts = dev_get_drvdata(dev);
+#ifdef SLEEP_CLEAR_POINT
 	int i;
+#endif
 
 	if (!ts->flag_activated)
 		return 0;
@@ -1081,7 +1083,9 @@ static int gsl_ts_suspend(struct device *dev)
 static int gsl_ts_resume(struct device *dev)
 {
 	struct gsl_ts *ts = dev_get_drvdata(dev);
+#ifdef SLEEP_CLEAR_POINT
 	int i;
+#endif
 	int rc;
 
 	if (ts->flag_activated)
