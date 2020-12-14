@@ -6332,19 +6332,28 @@ static struct io_wq_work *io_wq_submit_work(struct io_wq_work *work)
 	}
 
 	if (ret) {
-		/*
-		 * io_iopoll_complete() does not hold completion_lock to complete
-		 * polled io, so here for polled io, just mark it done and still let
-		 * io_iopoll_complete() complete it.
-		 */
-		if (req->ctx->flags & IORING_SETUP_IOPOLL) {
-			struct kiocb *kiocb = &req->rw.kiocb;
+		struct io_ring_ctx *lock_ctx = NULL;
 
-			kiocb_done(kiocb, ret, NULL);
-		} else {
-			req_set_fail_links(req);
-			io_req_complete(req, ret);
-		}
+		if (req->ctx->flags & IORING_SETUP_IOPOLL)
+			lock_ctx = req->ctx;
+
+		/*
+		 * io_iopoll_complete() does not hold completion_lock to
+		 * complete polled io, so here for polled io, we can not call
+		 * io_req_complete() directly, otherwise there maybe concurrent
+		 * access to cqring, defer_list, etc, which is not safe. Given
+		 * that io_iopoll_complete() is always called under uring_lock,
+		 * so here for polled io, we also get uring_lock to complete
+		 * it.
+		 */
+		if (lock_ctx)
+			mutex_lock(&lock_ctx->uring_lock);
+
+		req_set_fail_links(req);
+		io_req_complete(req, ret);
+
+		if (lock_ctx)
+			mutex_unlock(&lock_ctx->uring_lock);
 	}
 
 	return io_steal_work(req);
