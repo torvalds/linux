@@ -238,6 +238,13 @@ buildid.*::
 		cache location, or to disable it altogether. If you want to disable it,
 		set buildid.dir to /dev/null. The default is $HOME/.debug
 
+buildid-cache.*::
+	buildid-cache.debuginfod=URLs
+		Specify debuginfod URLs to be used when retrieving perf.data binaries,
+		it follows the same syntax as the DEBUGINFOD_URLS variable, like:
+
+		  buildid-cache.debuginfod=http://192.168.122.174:8002
+
 annotate.*::
 	These are in control of addresses, jump function, source code
 	in lines of assembly code from a specific program.
