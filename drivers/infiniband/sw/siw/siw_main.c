@@ -357,7 +357,7 @@ static struct siw_device *siw_device_create(struct net_device *netdev)
 	       sizeof(base_dev->iw_ifname));
 
 	/* Disable TCP port mapping */
-	base_dev->iw_driver_flags = IW_F_NO_PORT_MAP,
+	base_dev->iw_driver_flags = IW_F_NO_PORT_MAP;
 
 	sdev->attrs.max_qp = SIW_MAX_QP;
 	sdev->attrs.max_qp_wr = SIW_MAX_QP_WR;

@@ -275,7 +275,7 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 
 	memset(&av, 0, sizeof(av));
 	av.type = rdma_ah_find_type(priv->ca, priv->port);
-	rdma_ah_set_dlid(&av, be16_to_cpu(mcast->mcmember.mlid)),
+	rdma_ah_set_dlid(&av, be16_to_cpu(mcast->mcmember.mlid));
 	rdma_ah_set_port_num(&av, priv->port);
 	rdma_ah_set_sl(&av, mcast->mcmember.sl);
 	rdma_ah_set_static_rate(&av, mcast->mcmember.rate);
