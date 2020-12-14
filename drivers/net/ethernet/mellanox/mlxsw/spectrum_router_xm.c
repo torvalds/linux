@@ -9,6 +9,19 @@
 #include "reg.h"
 #include "spectrum_router.h"
 
+#define MLXSW_SP_ROUTER_XM_M_VAL 16
+
+static const u8 mlxsw_sp_router_xm_m_val[] = {
+	[MLXSW_SP_L3_PROTO_IPV4] = MLXSW_SP_ROUTER_XM_M_VAL,
+	[MLXSW_SP_L3_PROTO_IPV6] = 0, /* Currently unused. */
+};
+
+struct mlxsw_sp_router_xm {
+	bool ipv4_supported;
+	bool ipv6_supported;
+	unsigned int entries_size;
+};
+
 struct mlxsw_sp_router_xm_fib_entry {
 	bool committed;
 };
@@ -232,3 +245,67 @@ const struct mlxsw_sp_router_ll_ops mlxsw_sp_router_ll_xm_ops = {
 	.fib_entry_commit = mlxsw_sp_router_ll_xm_fib_entry_commit,
 	.fib_entry_is_committed = mlxsw_sp_router_ll_xm_fib_entry_is_committed,
 };
+
+#define MLXSW_SP_ROUTER_XM_MINDEX_SIZE (64 * 1024)
+
+int mlxsw_sp_router_xm_init(struct mlxsw_sp *mlxsw_sp)
+{
+	struct mlxsw_sp_router_xm *router_xm;
+	char rxltm_pl[MLXSW_REG_RXLTM_LEN];
+	char xltq_pl[MLXSW_REG_XLTQ_LEN];
+	u32 mindex_size;
+	u16 device_id;
+	int err;
+
+	if (!mlxsw_sp->bus_info->xm_exists)
+		return 0;
+
+	router_xm = kzalloc(sizeof(*router_xm), GFP_KERNEL);
+	if (!router_xm)
+		return -ENOMEM;
+
+	mlxsw_reg_xltq_pack(xltq_pl);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(xltq), xltq_pl);
+	if (err)
+		goto err_xltq_query;
+	mlxsw_reg_xltq_unpack(xltq_pl, &device_id, &router_xm->ipv4_supported,
+			      &router_xm->ipv6_supported, &router_xm->entries_size, &mindex_size);
+
+	if (device_id != MLXSW_REG_XLTQ_XM_DEVICE_ID_XLT) {
+		dev_err(mlxsw_sp->bus_info->dev, "Invalid XM device id\n");
+		err = -EINVAL;
+		goto err_device_id_check;
+	}
+
+	if (mindex_size != MLXSW_SP_ROUTER_XM_MINDEX_SIZE) {
+		dev_err(mlxsw_sp->bus_info->dev, "Unexpected M-index size\n");
+		err = -EINVAL;
+		goto err_mindex_size_check;
+	}
+
+	mlxsw_reg_rxltm_pack(rxltm_pl, mlxsw_sp_router_xm_m_val[MLXSW_SP_L3_PROTO_IPV4],
+			     mlxsw_sp_router_xm_m_val[MLXSW_SP_L3_PROTO_IPV6]);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rxltm), rxltm_pl);
+	if (err)
+		goto err_rxltm_write;
+
+	mlxsw_sp->router->xm = router_xm;
+	return 0;
+
+err_rxltm_write:
+err_mindex_size_check:
+err_device_id_check:
+err_xltq_query:
+	kfree(router_xm);
+	return err;
+}
+
+void mlxsw_sp_router_xm_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	struct mlxsw_sp_router_xm *router_xm = mlxsw_sp->router->xm;
+
+	if (!mlxsw_sp->bus_info->xm_exists)
+		return;
+
+	kfree(router_xm);
+}

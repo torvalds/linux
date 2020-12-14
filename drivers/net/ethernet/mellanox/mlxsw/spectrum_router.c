@@ -9208,6 +9208,10 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp->router = router;
 	router->mlxsw_sp = mlxsw_sp;
 
+	err = mlxsw_sp_router_xm_init(mlxsw_sp);
+	if (err)
+		goto err_xm_init;
+
 	router->proto_ll_ops[MLXSW_SP_L3_PROTO_IPV4] = &mlxsw_sp_router_ll_basic_ops;
 	router->proto_ll_ops[MLXSW_SP_L3_PROTO_IPV6] = &mlxsw_sp_router_ll_basic_ops;
 
@@ -9340,6 +9344,8 @@ err_rifs_init:
 err_router_init:
 	mlxsw_sp_router_ll_op_ctx_fini(router);
 err_ll_op_ctx_init:
+	mlxsw_sp_router_xm_fini(mlxsw_sp);
+err_xm_init:
 	mutex_destroy(&mlxsw_sp->router->lock);
 	kfree(mlxsw_sp->router);
 	return err;
@@ -9367,6 +9373,7 @@ void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_sp_rifs_fini(mlxsw_sp);
 	__mlxsw_sp_router_fini(mlxsw_sp);
 	mlxsw_sp_router_ll_op_ctx_fini(mlxsw_sp->router);
+	mlxsw_sp_router_xm_fini(mlxsw_sp);
 	mutex_destroy(&mlxsw_sp->router->lock);
 	kfree(mlxsw_sp->router);
 }

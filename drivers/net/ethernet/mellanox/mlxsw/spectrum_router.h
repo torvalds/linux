@@ -76,6 +76,7 @@ struct mlxsw_sp_router {
 	const struct mlxsw_sp_router_ll_ops *proto_ll_ops[MLXSW_SP_L3_PROTO_MAX];
 	struct mlxsw_sp_fib_entry_op_ctx *ll_op_ctx;
 	u16 lb_rif_index;
+	struct mlxsw_sp_router_xm *xm;
 };
 
 struct mlxsw_sp_fib_entry_priv {
@@ -222,5 +223,8 @@ int mlxsw_sp_ipip_ecn_encap_init(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_ipip_ecn_decap_init(struct mlxsw_sp *mlxsw_sp);
 
 extern const struct mlxsw_sp_router_ll_ops mlxsw_sp_router_ll_xm_ops;
+
+int mlxsw_sp_router_xm_init(struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_router_xm_fini(struct mlxsw_sp *mlxsw_sp);
 
 #endif /* _MLXSW_ROUTER_H_*/
