@@ -7098,6 +7098,7 @@ static void mlxsw_sp_router_fib_event_work(struct work_struct *work)
 		op_ctx->bulk_ok = !list_is_last(&fib_event->list, &fib_event_queue) &&
 				  fib_event->family == next_fib_event->family &&
 				  fib_event->event == next_fib_event->event;
+		op_ctx->event = fib_event->event;
 
 		/* In case family of this and the previous entry are different, context
 		 * reinitialization is going to be needed now, indicate that.

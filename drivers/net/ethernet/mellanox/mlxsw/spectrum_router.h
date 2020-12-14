@@ -24,6 +24,7 @@ struct mlxsw_sp_fib_entry_op_ctx {
 			   * the context priv is initialized.
 			   */
 	struct list_head fib_entry_priv_list;
+	unsigned long event;
 	unsigned long ll_priv[];
 };
 

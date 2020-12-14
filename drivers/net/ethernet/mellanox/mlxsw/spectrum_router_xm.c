@@ -3,6 +3,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/rhashtable.h>
 
 #include "spectrum.h"
 #include "core.h"
@@ -16,14 +17,35 @@ static const u8 mlxsw_sp_router_xm_m_val[] = {
 	[MLXSW_SP_L3_PROTO_IPV6] = 0, /* Currently unused. */
 };
 
+#define MLXSW_SP_ROUTER_XM_L_VAL_MAX 16
+
 struct mlxsw_sp_router_xm {
 	bool ipv4_supported;
 	bool ipv6_supported;
 	unsigned int entries_size;
+	struct rhashtable ltable_ht;
+};
+
+struct mlxsw_sp_router_xm_ltable_node {
+	struct rhash_head ht_node; /* Member of router_xm->ltable_ht */
+	u16 mindex;
+	u8 current_lvalue;
+	refcount_t refcnt;
+	unsigned int lvalue_ref[MLXSW_SP_ROUTER_XM_L_VAL_MAX + 1];
+};
+
+static const struct rhashtable_params mlxsw_sp_router_xm_ltable_ht_params = {
+	.key_offset = offsetof(struct mlxsw_sp_router_xm_ltable_node, mindex),
+	.head_offset = offsetof(struct mlxsw_sp_router_xm_ltable_node, ht_node),
+	.key_len = sizeof(u16),
+	.automatic_shrinking = true,
 };
 
 struct mlxsw_sp_router_xm_fib_entry {
 	bool committed;
+	struct mlxsw_sp_router_xm_ltable_node *ltable_node; /* Parent node */
+	u16 mindex; /* Store for processing from commit op */
+	u8 lvalue;
 };
 
 #define MLXSW_SP_ROUTE_LL_XM_ENTRIES_MAX \
@@ -66,6 +88,20 @@ static int mlxsw_sp_router_ll_xm_ralst_write(struct mlxsw_sp *mlxsw_sp, char *xr
 static int mlxsw_sp_router_ll_xm_raltb_write(struct mlxsw_sp *mlxsw_sp, char *xraltb_pl)
 {
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(xraltb), xraltb_pl);
+}
+
+static u16 mlxsw_sp_router_ll_xm_mindex_get4(const u32 addr)
+{
+	/* Currently the M-index is set to linear mode. That means it is defined
+	 * as 16 MSB of IP address.
+	 */
+	return addr >> MLXSW_SP_ROUTER_XM_L_VAL_MAX;
+}
+
+static u16 mlxsw_sp_router_ll_xm_mindex_get6(const unsigned char *addr)
+{
+	WARN_ON_ONCE(1);
+	return 0; /* currently unused */
 }
 
 static void mlxsw_sp_router_ll_xm_op_ctx_check_init(struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
@@ -114,11 +150,13 @@ static void mlxsw_sp_router_ll_xm_fib_entry_pack(struct mlxsw_sp_fib_entry_op_ct
 		len = mlxsw_reg_xmdr_c_ltr_pack4(op_ctx_xm->xmdr_pl, op_ctx_xm->trans_offset,
 						 op_ctx_xm->entries_count, xmdr_c_ltr_op,
 						 virtual_router, prefix_len, (u32 *) addr);
+		fib_entry->mindex = mlxsw_sp_router_ll_xm_mindex_get4(*((u32 *) addr));
 		break;
 	case MLXSW_SP_L3_PROTO_IPV6:
 		len = mlxsw_reg_xmdr_c_ltr_pack6(op_ctx_xm->xmdr_pl, op_ctx_xm->trans_offset,
 						 op_ctx_xm->entries_count, xmdr_c_ltr_op,
 						 virtual_router, prefix_len, addr);
+		fib_entry->mindex = mlxsw_sp_router_ll_xm_mindex_get6(addr);
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -130,6 +168,9 @@ static void mlxsw_sp_router_ll_xm_fib_entry_pack(struct mlxsw_sp_fib_entry_op_ct
 		WARN_ON_ONCE(op_ctx_xm->trans_item_len != len);
 
 	op_ctx_xm->entries[op_ctx_xm->entries_count] = fib_entry;
+
+	fib_entry->lvalue = prefix_len > mlxsw_sp_router_xm_m_val[proto] ?
+			       prefix_len - mlxsw_sp_router_xm_m_val[proto] : 0;
 }
 
 static void
@@ -172,6 +213,147 @@ mlxsw_sp_router_ll_xm_fib_entry_act_ip2me_tun_pack(struct mlxsw_sp_fib_entry_op_
 						tunnel_ptr);
 }
 
+static struct mlxsw_sp_router_xm_ltable_node *
+mlxsw_sp_router_xm_ltable_node_get(struct mlxsw_sp_router_xm *router_xm, u16 mindex)
+{
+	struct mlxsw_sp_router_xm_ltable_node *ltable_node;
+	int err;
+
+	ltable_node = rhashtable_lookup_fast(&router_xm->ltable_ht, &mindex,
+					     mlxsw_sp_router_xm_ltable_ht_params);
+	if (ltable_node) {
+		refcount_inc(&ltable_node->refcnt);
+		return ltable_node;
+	}
+	ltable_node = kzalloc(sizeof(*ltable_node), GFP_KERNEL);
+	if (!ltable_node)
+		return ERR_PTR(-ENOMEM);
+	ltable_node->mindex = mindex;
+	refcount_set(&ltable_node->refcnt, 1);
+
+	err = rhashtable_insert_fast(&router_xm->ltable_ht, &ltable_node->ht_node,
+				     mlxsw_sp_router_xm_ltable_ht_params);
+	if (err)
+		goto err_insert;
+
+	return ltable_node;
+
+err_insert:
+	kfree(ltable_node);
+	return ERR_PTR(err);
+}
+
+static void mlxsw_sp_router_xm_ltable_node_put(struct mlxsw_sp_router_xm *router_xm,
+					       struct mlxsw_sp_router_xm_ltable_node *ltable_node)
+{
+	if (!refcount_dec_and_test(&ltable_node->refcnt))
+		return;
+	rhashtable_remove_fast(&router_xm->ltable_ht, &ltable_node->ht_node,
+			       mlxsw_sp_router_xm_ltable_ht_params);
+	kfree(ltable_node);
+}
+
+static int mlxsw_sp_router_xm_ltable_lvalue_set(struct mlxsw_sp *mlxsw_sp,
+						struct mlxsw_sp_router_xm_ltable_node *ltable_node)
+{
+	char xrmt_pl[MLXSW_REG_XRMT_LEN];
+
+	mlxsw_reg_xrmt_pack(xrmt_pl, ltable_node->mindex, ltable_node->current_lvalue);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(xrmt), xrmt_pl);
+}
+
+static int
+mlxsw_sp_router_xm_ml_entry_add(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_router_xm_fib_entry *fib_entry)
+{
+	struct mlxsw_sp_router_xm *router_xm = mlxsw_sp->router->xm;
+	struct mlxsw_sp_router_xm_ltable_node *ltable_node;
+	u8 lvalue = fib_entry->lvalue;
+	int err;
+
+	ltable_node = mlxsw_sp_router_xm_ltable_node_get(router_xm,
+							 fib_entry->mindex);
+	if (IS_ERR(ltable_node))
+		return PTR_ERR(ltable_node);
+	if (lvalue > ltable_node->current_lvalue) {
+		/* The L-value is bigger then the one currently set, update. */
+		ltable_node->current_lvalue = lvalue;
+		err = mlxsw_sp_router_xm_ltable_lvalue_set(mlxsw_sp,
+							   ltable_node);
+		if (err)
+			goto err_lvalue_set;
+	}
+
+	ltable_node->lvalue_ref[lvalue]++;
+	fib_entry->ltable_node = ltable_node;
+	return 0;
+
+err_lvalue_set:
+	mlxsw_sp_router_xm_ltable_node_put(router_xm, ltable_node);
+	return err;
+}
+
+static void
+mlxsw_sp_router_xm_ml_entry_del(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_router_xm_fib_entry *fib_entry)
+{
+	struct mlxsw_sp_router_xm_ltable_node *ltable_node =
+							fib_entry->ltable_node;
+	struct mlxsw_sp_router_xm *router_xm = mlxsw_sp->router->xm;
+	u8 lvalue = fib_entry->lvalue;
+
+	ltable_node->lvalue_ref[lvalue]--;
+	if (lvalue == ltable_node->current_lvalue && lvalue &&
+	    !ltable_node->lvalue_ref[lvalue]) {
+		u8 new_lvalue = lvalue - 1;
+
+		/* Find the biggest L-value left out there. */
+		while (new_lvalue > 0 && !ltable_node->lvalue_ref[lvalue])
+			new_lvalue--;
+
+		ltable_node->current_lvalue = new_lvalue;
+		mlxsw_sp_router_xm_ltable_lvalue_set(mlxsw_sp, ltable_node);
+	}
+	mlxsw_sp_router_xm_ltable_node_put(router_xm, ltable_node);
+}
+
+static int
+mlxsw_sp_router_xm_ml_entries_add(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_fib_entry_op_ctx_xm *op_ctx_xm)
+{
+	struct mlxsw_sp_router_xm_fib_entry *fib_entry;
+	int err;
+	int i;
+
+	for (i = 0; i < op_ctx_xm->entries_count; i++) {
+		fib_entry = op_ctx_xm->entries[i];
+		err = mlxsw_sp_router_xm_ml_entry_add(mlxsw_sp, fib_entry);
+		if (err)
+			goto rollback;
+	}
+	return 0;
+
+rollback:
+	for (i--; i >= 0; i--) {
+		fib_entry = op_ctx_xm->entries[i];
+		mlxsw_sp_router_xm_ml_entry_del(mlxsw_sp, fib_entry);
+	}
+	return err;
+}
+
+static void
+mlxsw_sp_router_xm_ml_entries_del(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_fib_entry_op_ctx_xm *op_ctx_xm)
+{
+	struct mlxsw_sp_router_xm_fib_entry *fib_entry;
+	int i;
+
+	for (i = 0; i < op_ctx_xm->entries_count; i++) {
+		fib_entry = op_ctx_xm->entries[i];
+		mlxsw_sp_router_xm_ml_entry_del(mlxsw_sp, fib_entry);
+	}
+}
+
 static int mlxsw_sp_router_ll_xm_fib_entry_commit(struct mlxsw_sp *mlxsw_sp,
 						  struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
 						  bool *postponed_for_bulk)
@@ -197,6 +379,15 @@ static int mlxsw_sp_router_ll_xm_fib_entry_commit(struct mlxsw_sp *mlxsw_sp,
 		return 0;
 	}
 
+	if (op_ctx->event == FIB_EVENT_ENTRY_REPLACE) {
+		/* The L-table is updated inside. It has to be done before
+		 * the prefix is inserted.
+		 */
+		err = mlxsw_sp_router_xm_ml_entries_add(mlxsw_sp, op_ctx_xm);
+		if (err)
+			goto out;
+	}
+
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(xmdr), op_ctx_xm->xmdr_pl);
 	if (err)
 		goto out;
@@ -216,6 +407,12 @@ static int mlxsw_sp_router_ll_xm_fib_entry_commit(struct mlxsw_sp *mlxsw_sp,
 			fib_entry->committed = true;
 		}
 	}
+
+	if (op_ctx->event == FIB_EVENT_ENTRY_DEL)
+		/* The L-table is updated inside. It has to be done after
+		 * the prefix was removed.
+		 */
+		mlxsw_sp_router_xm_ml_entries_del(mlxsw_sp, op_ctx_xm);
 
 out:
 	/* Next pack call is going to do reinitialization */
@@ -289,9 +486,14 @@ int mlxsw_sp_router_xm_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_rxltm_write;
 
+	err = rhashtable_init(&router_xm->ltable_ht, &mlxsw_sp_router_xm_ltable_ht_params);
+	if (err)
+		goto err_ltable_ht_init;
+
 	mlxsw_sp->router->xm = router_xm;
 	return 0;
 
+err_ltable_ht_init:
 err_rxltm_write:
 err_mindex_size_check:
 err_device_id_check:
@@ -307,5 +509,6 @@ void mlxsw_sp_router_xm_fini(struct mlxsw_sp *mlxsw_sp)
 	if (!mlxsw_sp->bus_info->xm_exists)
 		return;
 
+	rhashtable_destroy(&router_xm->ltable_ht);
 	kfree(router_xm);
 }
