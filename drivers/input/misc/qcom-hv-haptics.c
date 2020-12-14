@@ -1205,13 +1205,12 @@ static int haptics_enable_hpwr_vreg(struct haptics_chip *chip, bool en)
 
 static int haptics_open_loop_drive_config(struct haptics_chip *chip, bool en)
 {
-	int rc;
+	int rc = 0;
 	u8 val;
 
 	if ((is_boost_vreg_enabled_in_open_loop(chip) ||
 			chip->hpwr_vreg != NULL) && en) {
 		/* Force VREG_RDY */
-		val = FORCE_VREG_RDY_BIT;
 		rc = haptics_masked_write(chip, chip->cfg_addr_base,
 				HAP_CFG_VSET_CFG_REG, FORCE_VREG_RDY_BIT,
 				FORCE_VREG_RDY_BIT);
@@ -1242,11 +1241,10 @@ static int haptics_open_loop_drive_config(struct haptics_chip *chip, bool en)
 
 			dev_dbg(chip->dev, "Toggle CAL_EN in open-loop-VREG playing\n");
 		}
-	} else {
-		val = en ? FORCE_VREG_RDY_BIT : 0;
+	} else if (chip->hpwr_vreg == NULL) {
 		rc = haptics_masked_write(chip, chip->cfg_addr_base,
 				HAP_CFG_VSET_CFG_REG,
-				FORCE_VREG_RDY_BIT, val);
+				FORCE_VREG_RDY_BIT, 0);
 	}
 
 	return rc;
@@ -2334,6 +2332,15 @@ static int haptics_hw_init(struct haptics_chip *chip)
 			| BRAKE_WF_SEL_MASK, val[0]);
 	if (rc < 0)
 		return rc;
+
+	/* Force VREG_RDY if non-HBoost is used for powering haptics */
+	if (chip->hpwr_vreg) {
+		rc = haptics_masked_write(chip, chip->cfg_addr_base,
+				HAP_CFG_VSET_CFG_REG, FORCE_VREG_RDY_BIT,
+				FORCE_VREG_RDY_BIT);
+		if (rc < 0)
+			return rc;
+	}
 
 	if (config->is_erm)
 		return 0;
