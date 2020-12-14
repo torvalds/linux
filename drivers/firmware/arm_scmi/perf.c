@@ -750,6 +750,13 @@ static bool scmi_fast_switch_possible(const struct scmi_handle *handle,
 	return dom->fc_info && dom->fc_info->level_set_addr;
 }
 
+static bool scmi_power_scale_mw_get(const struct scmi_handle *handle)
+{
+	struct scmi_perf_info *pi = handle->perf_priv;
+
+	return pi->power_scale_mw;
+}
+
 static const struct scmi_perf_ops perf_ops = {
 	.limits_set = scmi_perf_limits_set,
 	.limits_get = scmi_perf_limits_get,
@@ -762,6 +769,7 @@ static const struct scmi_perf_ops perf_ops = {
 	.freq_get = scmi_dvfs_freq_get,
 	.est_power_get = scmi_dvfs_est_power_get,
 	.fast_switch_possible = scmi_fast_switch_possible,
+	.power_scale_mw_get = scmi_power_scale_mw_get,
 };
 
 static int scmi_perf_set_notify_enabled(const struct scmi_handle *handle,
