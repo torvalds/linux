@@ -1635,8 +1635,6 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	device_initialize(&device->dev);
 	dev_set_uevent_suppress(&device->dev, true);
 	acpi_init_coherency(device);
-	/* Assume there are unmet deps until acpi_device_dep_initialize() runs */
-	device->dep_unmet = 1;
 }
 
 void acpi_device_add_finalize(struct acpi_device *device)
@@ -1849,7 +1847,13 @@ static u32 acpi_scan_check_dep(acpi_handle handle)
 	u32 count;
 	int i;
 
-	if (!acpi_has_method(handle, "_DEP"))
+	/*
+	 * Check for _HID here to avoid deferring the enumeration of:
+	 * 1. PCI devices.
+	 * 2. ACPI nodes describing USB ports.
+	 * Still, checking for _HID catches more then just these cases ...
+	 */
+	if (!acpi_has_method(handle, "_DEP") || !acpi_has_method(handle, "_HID"))
 		return 0;
 
 	status = acpi_evaluate_reference(handle, "_DEP", NULL, &dep_devices);
@@ -1892,11 +1896,24 @@ static u32 acpi_scan_check_dep(acpi_handle handle)
 	return count;
 }
 
-static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
-				      void *not_used, void **return_value)
+static void acpi_scan_dep_init(struct acpi_device *adev)
+{
+	struct acpi_dep_data *dep;
+
+	mutex_lock(&acpi_dep_list_lock);
+
+	list_for_each_entry(dep, &acpi_dep_list, node) {
+		if (dep->consumer == adev->handle)
+			adev->dep_unmet++;
+	}
+
+	mutex_unlock(&acpi_dep_list_lock);
+}
+
+static acpi_status acpi_bus_check_add(acpi_handle handle, bool check_dep,
+				      struct acpi_device **adev_p)
 {
 	struct acpi_device *device = NULL;
-	u32 dep_count = 0;
 	unsigned long long sta;
 	int type;
 	int result;
@@ -1914,22 +1931,38 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 		return AE_OK;
 	}
 
-	if (type == ACPI_BUS_TYPE_DEVICE)
-		dep_count = acpi_scan_check_dep(handle);
+	if (type == ACPI_BUS_TYPE_DEVICE && check_dep) {
+		u32 count = acpi_scan_check_dep(handle);
+		/* Bail out if the number of recorded dependencies is not 0. */
+		if (count > 0)
+			return AE_CTRL_DEPTH;
+	}
 
 	acpi_add_single_object(&device, handle, type, sta);
 	if (!device)
 		return AE_CTRL_DEPTH;
 
-	device->dep_unmet = dep_count;
-
 	acpi_scan_init_hotplug(device);
+	if (!check_dep)
+		acpi_scan_dep_init(device);
 
- out:
-	if (!*return_value)
-		*return_value = device;
+out:
+	if (!*adev_p)
+		*adev_p = device;
 
 	return AE_OK;
+}
+
+static acpi_status acpi_bus_check_add_1(acpi_handle handle, u32 lvl_not_used,
+					void *not_used, void **ret_p)
+{
+	return acpi_bus_check_add(handle, true, (struct acpi_device **)ret_p);
+}
+
+static acpi_status acpi_bus_check_add_2(acpi_handle handle, u32 lvl_not_used,
+					void *not_used, void **ret_p)
+{
+	return acpi_bus_check_add(handle, false, (struct acpi_device **)ret_p);
 }
 
 static void acpi_default_enumeration(struct acpi_device *device)
@@ -1999,11 +2032,15 @@ static int acpi_scan_attach_handler(struct acpi_device *device)
 	return ret;
 }
 
-static void acpi_bus_attach(struct acpi_device *device)
+static void acpi_bus_attach(struct acpi_device *device, bool first_pass)
 {
 	struct acpi_device *child;
+	bool skip = !first_pass && device->flags.visited;
 	acpi_handle ejd;
 	int ret;
+
+	if (skip)
+		goto ok;
 
 	if (ACPI_SUCCESS(acpi_bus_get_ejd(device->handle, &ejd)))
 		register_dock_dependent_device(device, ejd);
@@ -2051,9 +2088,9 @@ static void acpi_bus_attach(struct acpi_device *device)
 
  ok:
 	list_for_each_entry(child, &device->children, node)
-		acpi_bus_attach(child);
+		acpi_bus_attach(child, first_pass);
 
-	if (device->handler && device->handler->hotplug.notify_online)
+	if (!skip && device->handler && device->handler->hotplug.notify_online)
 		device->handler->hotplug.notify_online(device);
 }
 
@@ -2071,7 +2108,8 @@ void acpi_walk_dep_device_list(acpi_handle handle)
 
 			adev->dep_unmet--;
 			if (!adev->dep_unmet)
-				acpi_bus_attach(adev);
+				acpi_bus_attach(adev, true);
+
 			list_del(&dep->node);
 			kfree(dep);
 		}
@@ -2096,17 +2134,32 @@ EXPORT_SYMBOL_GPL(acpi_walk_dep_device_list);
  */
 int acpi_bus_scan(acpi_handle handle)
 {
-	void *device = NULL;
+	struct acpi_device *device = NULL;
 
-	if (ACPI_SUCCESS(acpi_bus_check_add(handle, 0, NULL, &device)))
+	/* Pass 1: Avoid enumerating devices with missing dependencies. */
+
+	if (ACPI_SUCCESS(acpi_bus_check_add(handle, true, &device)))
 		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
-				    acpi_bus_check_add, NULL, NULL, &device);
+				    acpi_bus_check_add_1, NULL, NULL,
+				    (void **)&device);
 
-	if (device) {
-		acpi_bus_attach(device);
-		return 0;
-	}
-	return -ENODEV;
+	if (!device)
+		return -ENODEV;
+
+	acpi_bus_attach(device, true);
+
+	/* Pass 2: Enumerate all of the remaining devices. */
+
+	device = NULL;
+
+	if (ACPI_SUCCESS(acpi_bus_check_add(handle, false, &device)))
+		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
+				    acpi_bus_check_add_2, NULL, NULL,
+				    (void **)&device);
+
+	acpi_bus_attach(device, false);
+
+	return 0;
 }
 EXPORT_SYMBOL(acpi_bus_scan);
 
