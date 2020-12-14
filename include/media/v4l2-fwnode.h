@@ -453,6 +453,10 @@ typedef int (*parse_endpoint_func)(struct device *dev,
  * @parse_endpoint: Driver's callback function called on each V4L2 fwnode
  *		    endpoint. Optional.
  *
+ * DEPRECATED! This function is deprecated. Don't use it in new drivers.
+ * Instead see an example in cio2_parse_firmware() function in
+ * drivers/media/pci/intel/ipu3/ipu3-cio2.c .
+ *
  * Parse the fwnode endpoints of the @dev device and populate the async sub-
  * devices list in the notifier. The @parse_endpoint callback function is
  * called for each endpoint with the corresponding async sub-device pointer to
