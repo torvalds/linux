@@ -107,8 +107,6 @@
 #define ECS_IOCTL_APP_SET_RATE		_IOW(MMAIO, 0x10, char)
 
  //rate
-#define DMARD10_RANGE						2000000
-
 #define DMARD10_RATE_32         32
 /*
 #define DMARD10_RATE_64         64
