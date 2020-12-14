@@ -8543,6 +8543,116 @@ static inline void mlxsw_reg_rxltm_pack(char *payload, u8 m0_val_v4, u8 m0_val_v
 	mlxsw_reg_rxltm_m0_val_v4_set(payload, m0_val_v4);
 }
 
+/* RLCMLD - Router LPM Cache ML Delete Register
+ * --------------------------------------------
+ * The RLCMLD register is used to bulk delete the XLT-LPM cache ML entries.
+ * This can be used by SW when L is increased or decreased, thus need to
+ * remove entries with old ML values.
+ */
+
+#define MLXSW_REG_RLCMLD_ID 0x8055
+#define MLXSW_REG_RLCMLD_LEN 0x30
+
+MLXSW_REG_DEFINE(rlcmld, MLXSW_REG_RLCMLD_ID, MLXSW_REG_RLCMLD_LEN);
+
+enum mlxsw_reg_rlcmld_select {
+	MLXSW_REG_RLCMLD_SELECT_ML_ENTRIES,
+	MLXSW_REG_RLCMLD_SELECT_M_ENTRIES,
+	MLXSW_REG_RLCMLD_SELECT_M_AND_ML_ENTRIES,
+};
+
+/* reg_rlcmld_select
+ * Which entries to delete.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rlcmld, select, 0x00, 16, 2);
+
+enum mlxsw_reg_rlcmld_filter_fields {
+	MLXSW_REG_RLCMLD_FILTER_FIELDS_BY_PROTOCOL = 0x04,
+	MLXSW_REG_RLCMLD_FILTER_FIELDS_BY_VIRTUAL_ROUTER = 0x08,
+	MLXSW_REG_RLCMLD_FILTER_FIELDS_BY_DIP = 0x10,
+};
+
+/* reg_rlcmld_filter_fields
+ * If a bit is '0' then the relevant field is ignored.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rlcmld, filter_fields, 0x00, 0, 8);
+
+enum mlxsw_reg_rlcmld_protocol {
+	MLXSW_REG_RLCMLD_PROTOCOL_UC_IPV4,
+	MLXSW_REG_RLCMLD_PROTOCOL_UC_IPV6,
+};
+
+/* reg_rlcmld_protocol
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rlcmld, protocol, 0x08, 0, 4);
+
+/* reg_rlcmld_virtual_router
+ * Virtual router ID.
+ * Range is 0..cap_max_virtual_routers-1
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rlcmld, virtual_router, 0x0C, 0, 16);
+
+/* reg_rlcmld_dip
+ * The prefix of the route or of the marker that the object of the LPM
+ * is compared with. The most significant bits of the dip are the prefix.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rlcmld, dip4, 0x1C, 0, 32);
+MLXSW_ITEM_BUF(reg, rlcmld, dip6, 0x10, 16);
+
+/* reg_rlcmld_dip_mask
+ * per bit:
+ * 0: no match
+ * 1: match
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rlcmld, dip_mask4, 0x2C, 0, 32);
+MLXSW_ITEM_BUF(reg, rlcmld, dip_mask6, 0x20, 16);
+
+static inline void __mlxsw_reg_rlcmld_pack(char *payload,
+					   enum mlxsw_reg_rlcmld_select select,
+					   enum mlxsw_reg_rlcmld_protocol protocol,
+					   u16 virtual_router)
+{
+	u8 filter_fields = MLXSW_REG_RLCMLD_FILTER_FIELDS_BY_PROTOCOL |
+			   MLXSW_REG_RLCMLD_FILTER_FIELDS_BY_VIRTUAL_ROUTER |
+			   MLXSW_REG_RLCMLD_FILTER_FIELDS_BY_DIP;
+
+	MLXSW_REG_ZERO(rlcmld, payload);
+	mlxsw_reg_rlcmld_select_set(payload, select);
+	mlxsw_reg_rlcmld_filter_fields_set(payload, filter_fields);
+	mlxsw_reg_rlcmld_protocol_set(payload, protocol);
+	mlxsw_reg_rlcmld_virtual_router_set(payload, virtual_router);
+}
+
+static inline void mlxsw_reg_rlcmld_pack4(char *payload,
+					  enum mlxsw_reg_rlcmld_select select,
+					  u16 virtual_router,
+					  u32 dip, u32 dip_mask)
+{
+	__mlxsw_reg_rlcmld_pack(payload, select,
+				MLXSW_REG_RLCMLD_PROTOCOL_UC_IPV4,
+				virtual_router);
+	mlxsw_reg_rlcmld_dip4_set(payload, dip);
+	mlxsw_reg_rlcmld_dip_mask4_set(payload, dip_mask);
+}
+
+static inline void mlxsw_reg_rlcmld_pack6(char *payload,
+					  enum mlxsw_reg_rlcmld_select select,
+					  u16 virtual_router,
+					  const void *dip, const void *dip_mask)
+{
+	__mlxsw_reg_rlcmld_pack(payload, select,
+				MLXSW_REG_RLCMLD_PROTOCOL_UC_IPV6,
+				virtual_router);
+	mlxsw_reg_rlcmld_dip6_memcpy_to(payload, dip);
+	mlxsw_reg_rlcmld_dip_mask6_memcpy_to(payload, dip_mask);
+}
+
 /* Note that XLTQ, XMDR, XRMT and XRALXX register positions violate the rule
  * of ordering register definitions by the ID. However, XRALXX pack helpers are
  * using RALXX pack helpers, RALXX registers have higher IDs.
@@ -11917,6 +12027,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(rmft2),
 	MLXSW_REG(rxlte),
 	MLXSW_REG(rxltm),
+	MLXSW_REG(rlcmld),
 	MLXSW_REG(xltq),
 	MLXSW_REG(xmdr),
 	MLXSW_REG(xrmt),
