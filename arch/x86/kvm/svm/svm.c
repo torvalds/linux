@@ -4306,6 +4306,7 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.apic_init_signal_blocked = svm_apic_init_signal_blocked,
 
 	.msr_filter_changed = svm_msr_filter_changed,
+	.complete_emulated_msr = kvm_complete_insn_gp,
 };
 
 static struct kvm_x86_init_ops svm_init_ops __initdata = {

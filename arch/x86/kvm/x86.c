@@ -1642,12 +1642,12 @@ static int complete_emulated_rdmsr(struct kvm_vcpu *vcpu)
 		kvm_rdx_write(vcpu, vcpu->run->msr.data >> 32);
 	}
 
-	return kvm_complete_insn_gp(vcpu, err);
+	return kvm_x86_ops.complete_emulated_msr(vcpu, err);
 }
 
 static int complete_emulated_wrmsr(struct kvm_vcpu *vcpu)
 {
-	return kvm_complete_insn_gp(vcpu, vcpu->run->msr.error);
+	return kvm_x86_ops.complete_emulated_msr(vcpu, vcpu->run->msr.error);
 }
 
 static u64 kvm_msr_reason(int r)
@@ -1719,7 +1719,7 @@ int kvm_emulate_rdmsr(struct kvm_vcpu *vcpu)
 		trace_kvm_msr_read_ex(ecx);
 	}
 
-	return kvm_complete_insn_gp(vcpu, r);
+	return kvm_x86_ops.complete_emulated_msr(vcpu, r);
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_rdmsr);
 
@@ -1745,7 +1745,7 @@ int kvm_emulate_wrmsr(struct kvm_vcpu *vcpu)
 	else
 		trace_kvm_msr_write_ex(ecx, data);
 
-	return kvm_complete_insn_gp(vcpu, r);
+	return kvm_x86_ops.complete_emulated_msr(vcpu, r);
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_wrmsr);
 
