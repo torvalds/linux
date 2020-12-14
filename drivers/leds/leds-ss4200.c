@@ -441,8 +441,8 @@ static void set_power_light_amber_noblink(void)
 	nasgpio_led_set_brightness(&amber->led_cdev, LED_FULL);
 }
 
-static ssize_t nas_led_blink_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
+static ssize_t blink_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
 {
 	struct led_classdev *led = dev_get_drvdata(dev);
 	int blinking = 0;
@@ -451,9 +451,9 @@ static ssize_t nas_led_blink_show(struct device *dev,
 	return sprintf(buf, "%u\n", blinking);
 }
 
-static ssize_t nas_led_blink_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t size)
+static ssize_t blink_store(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t size)
 {
 	int ret;
 	struct led_classdev *led = dev_get_drvdata(dev);
@@ -468,7 +468,7 @@ static ssize_t nas_led_blink_store(struct device *dev,
 	return size;
 }
 
-static DEVICE_ATTR(blink, 0644, nas_led_blink_show, nas_led_blink_store);
+static DEVICE_ATTR_RW(blink);
 
 static struct attribute *nasgpio_led_attrs[] = {
 	&dev_attr_blink.attr,
