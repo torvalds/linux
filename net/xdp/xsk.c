@@ -772,6 +772,10 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 		}
 	}
 
+	/* FQ and CQ are now owned by the buffer pool and cleaned up with it. */
+	xs->fq_tmp = NULL;
+	xs->cq_tmp = NULL;
+
 	xs->dev = dev;
 	xs->zc = xs->umem->zc;
 	xs->queue_id = qid;
