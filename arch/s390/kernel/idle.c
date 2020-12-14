@@ -9,7 +9,6 @@
 
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>
-#include <linux/kprobes.h>
 #include <linux/notifier.h>
 #include <linux/init.h>
 #include <linux/cpu.h>
@@ -45,7 +44,6 @@ void arch_cpu_idle(void)
 	raw_write_seqcount_end(&idle->seqcount);
 	raw_local_irq_enable();
 }
-NOKPROBE_SYMBOL(arch_cpu_idle);
 
 static ssize_t show_idle_count(struct device *dev,
 				struct device_attribute *attr, char *buf)
