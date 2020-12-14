@@ -520,19 +520,6 @@ available_policies
 
 	RW, Optional
 
-passive
-	Attribute is only present for zones in which the passive cooling
-	policy is not supported by native thermal driver. Default is zero
-	and can be set to a temperature (in millidegrees) to enable a
-	passive trip point for the zone. Activation is done by polling with
-	an interval of 1 second.
-
-	Unit: millidegrees Celsius
-
-	Valid values: 0 (disabled) or greater than 1000
-
-	RW, Optional
-
 emul_temp
 	Interface to set the emulated temperature method in thermal zone
 	(sensor). After setting this temperature, the thermal zone may pass
