@@ -632,9 +632,50 @@ static int smb3_verify_reconfigure_ctx(struct smb3_fs_context *new_ctx,
 		cifs_dbg(VFS, "can not change sec during remount\n");
 		return -EINVAL;
 	}
+	if (new_ctx->multiuser != old_ctx->multiuser) {
+		cifs_dbg(VFS, "can not change multiuser during remount\n");
+		return -EINVAL;
+	}
+	if (new_ctx->UNC &&
+	    (!old_ctx->UNC || strcmp(new_ctx->UNC, old_ctx->UNC))) {
+		cifs_dbg(VFS, "can not change UNC during remount\n");
+		return -EINVAL;
+	}
+	if (new_ctx->username &&
+	    (!old_ctx->username || strcmp(new_ctx->username, old_ctx->username))) {
+		cifs_dbg(VFS, "can not change username during remount\n");
+		return -EINVAL;
+	}
+	if (new_ctx->password &&
+	    (!old_ctx->password || strcmp(new_ctx->password, old_ctx->password))) {
+		cifs_dbg(VFS, "can not change password during remount\n");
+		return -EINVAL;
+	}
+	if (new_ctx->domainname &&
+	    (!old_ctx->domainname || strcmp(new_ctx->domainname, old_ctx->domainname))) {
+		cifs_dbg(VFS, "can not change domainname during remount\n");
+		return -EINVAL;
+	}
+	if (new_ctx->nodename &&
+	    (!old_ctx->nodename || strcmp(new_ctx->nodename, old_ctx->nodename))) {
+		cifs_dbg(VFS, "can not change nodename during remount\n");
+		return -EINVAL;
+	}
+	if (new_ctx->iocharset &&
+	    (!old_ctx->iocharset || strcmp(new_ctx->iocharset, old_ctx->iocharset))) {
+		cifs_dbg(VFS, "can not change iocharset during remount\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
+
+#define STEAL_STRING(cifs_sb, ctx, field)				\
+do {									\
+	kfree(ctx->field);						\
+	ctx->field = cifs_sb->ctx->field;				\
+	cifs_sb->ctx->field = NULL;					\
+} while (0)
 
 static int smb3_reconfigure(struct fs_context *fc)
 {
@@ -648,10 +689,16 @@ static int smb3_reconfigure(struct fs_context *fc)
 		return rc;
 
 	/*
-	 * Steal the UNC from the old and to be destroyed context.
+	 * We can not change UNC/username/password/domainname/nodename/iocharset
+	 * during reconnect so ignore what we have in the new context and
+	 * just use what we already have in cifs_sb->ctx.
 	 */
-	ctx->UNC = cifs_sb->ctx->UNC;
-	cifs_sb->ctx->UNC = NULL;
+	STEAL_STRING(cifs_sb, ctx, UNC);
+	STEAL_STRING(cifs_sb, ctx, username);
+	STEAL_STRING(cifs_sb, ctx, password);
+	STEAL_STRING(cifs_sb, ctx, domainname);
+	STEAL_STRING(cifs_sb, ctx, nodename);
+	STEAL_STRING(cifs_sb, ctx, iocharset);
 
 	smb3_cleanup_fs_context_contents(cifs_sb->ctx);
 	rc = smb3_fs_context_dup(cifs_sb->ctx, ctx);

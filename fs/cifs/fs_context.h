@@ -149,7 +149,6 @@ struct smb3_fs_context {
 	bool uid_specified;
 	bool gid_specified;
 	bool sloppy;
-	char *nodename;
 	bool got_ip;
 	bool got_version;
 	bool got_rsize;
@@ -161,6 +160,7 @@ struct smb3_fs_context {
 	char *password;
 	char *domainname;
 	char *UNC;
+	char *nodename;
 	char *iocharset;  /* local code page for mapping to and from Unicode */
 	char source_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* clnt nb name */
 	char target_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* srvr nb name */
