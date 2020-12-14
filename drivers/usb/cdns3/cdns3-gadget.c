@@ -1200,7 +1200,7 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 		td_size = DIV_ROUND_UP(request->length,
 				       priv_ep->endpoint.maxpacket);
 		if (priv_dev->gadget.speed == USB_SPEED_SUPER)
-			trb->length = TRB_TDL_SS_SIZE(td_size);
+			trb->length = cpu_to_le32(TRB_TDL_SS_SIZE(td_size));
 		else
 			control |= TRB_TDL_HS_SIZE(td_size);
 	}
@@ -1247,10 +1247,10 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 			priv_req->trb->control = cpu_to_le32(control);
 
 		if (sg_supported) {
-			trb->control |= TRB_ISP;
+			trb->control |= cpu_to_le32(TRB_ISP);
 			/* Don't set chain bit for last TRB */
 			if (sg_iter < num_trb - 1)
-				trb->control |= TRB_CHAIN;
+				trb->control |= cpu_to_le32(TRB_CHAIN);
 
 			s = sg_next(s);
 		}
