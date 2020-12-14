@@ -705,7 +705,10 @@ int xs_watch_msg(struct xs_watch_event *event)
 
 	spin_lock(&watches_lock);
 	event->handle = find_watch(event->token);
-	if (event->handle != NULL) {
+	if (event->handle != NULL &&
+			(!event->handle->will_handle ||
+			 event->handle->will_handle(event->handle,
+				 event->path, event->token))) {
 		spin_lock(&watch_events_lock);
 		list_add_tail(&event->list, &watch_events);
 		wake_up(&watch_events_waitq);
