@@ -178,7 +178,8 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 #define LBR_CTL_ENABLE_MASK BIT_ULL(0)
 #define VIRTUAL_VMLOAD_VMSAVE_ENABLE_MASK BIT_ULL(1)
 
-#define SVM_INTERRUPT_SHADOW_MASK 1
+#define SVM_INTERRUPT_SHADOW_MASK	BIT_ULL(0)
+#define SVM_GUEST_INTERRUPT_MASK	BIT_ULL(1)
 
 #define SVM_IOIO_STR_SHIFT 2
 #define SVM_IOIO_REP_SHIFT 3

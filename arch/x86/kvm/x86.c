@@ -4006,7 +4006,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	int idx;
 
-	if (vcpu->preempted)
+	if (vcpu->preempted && !vcpu->arch.guest_state_protected)
 		vcpu->arch.preempted_in_kernel = !kvm_x86_ops.get_cpl(vcpu);
 
 	/*
@@ -8149,7 +8149,14 @@ static void post_kvm_run_save(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *kvm_run = vcpu->run;
 
-	kvm_run->if_flag = (kvm_get_rflags(vcpu) & X86_EFLAGS_IF) != 0;
+	/*
+	 * if_flag is obsolete and useless, so do not bother
+	 * setting it for SEV-ES guests.  Userspace can just
+	 * use kvm_run->ready_for_interrupt_injection.
+	 */
+	kvm_run->if_flag = !vcpu->arch.guest_state_protected
+		&& (kvm_get_rflags(vcpu) & X86_EFLAGS_IF) != 0;
+
 	kvm_run->flags = is_smm(vcpu) ? KVM_RUN_X86_SMM : 0;
 	kvm_run->cr8 = kvm_get_cr8(vcpu);
 	kvm_run->apic_base = kvm_get_apic_base(vcpu);
