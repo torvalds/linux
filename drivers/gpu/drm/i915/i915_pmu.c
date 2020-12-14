@@ -163,9 +163,9 @@ static u64 __get_rc6(struct intel_gt *gt)
 
 #if IS_ENABLED(CONFIG_PM)
 
-static inline s64 ktime_since(const ktime_t kt)
+static inline s64 ktime_since_raw(const ktime_t kt)
 {
-	return ktime_to_ns(ktime_sub(ktime_get(), kt));
+	return ktime_to_ns(ktime_sub(ktime_get_raw(), kt));
 }
 
 static u64 get_rc6(struct intel_gt *gt)
@@ -194,7 +194,7 @@ static u64 get_rc6(struct intel_gt *gt)
 		 * on top of the last known real value, as the approximated RC6
 		 * counter value.
 		 */
-		val = ktime_since(pmu->sleep_last);
+		val = ktime_since_raw(pmu->sleep_last);
 		val += pmu->sample[__I915_SAMPLE_RC6].cur;
 	}
 
@@ -217,7 +217,7 @@ static void init_rc6(struct i915_pmu *pmu)
 		pmu->sample[__I915_SAMPLE_RC6].cur = __get_rc6(&i915->gt);
 		pmu->sample[__I915_SAMPLE_RC6_LAST_REPORTED].cur =
 					pmu->sample[__I915_SAMPLE_RC6].cur;
-		pmu->sleep_last = ktime_get();
+		pmu->sleep_last = ktime_get_raw();
 	}
 }
 
@@ -226,7 +226,7 @@ static void park_rc6(struct drm_i915_private *i915)
 	struct i915_pmu *pmu = &i915->pmu;
 
 	pmu->sample[__I915_SAMPLE_RC6].cur = __get_rc6(&i915->gt);
-	pmu->sleep_last = ktime_get();
+	pmu->sleep_last = ktime_get_raw();
 }
 
 #else
