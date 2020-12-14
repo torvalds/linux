@@ -25,18 +25,15 @@ void arch_cpu_idle(void)
 {
 	struct s390_idle_data *idle = this_cpu_ptr(&s390_idle);
 	unsigned long long idle_time;
-	unsigned long psw_mask, flags;
-
+	unsigned long psw_mask;
 
 	/* Wait for external, I/O or machine check interrupt. */
 	psw_mask = PSW_KERNEL_BITS | PSW_MASK_WAIT | PSW_MASK_DAT |
 		PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
 	clear_cpu_flag(CIF_NOHZ_DELAY);
 
-	raw_local_irq_save(flags);
-	/* Call the assembler magic in entry.S */
+	/* psw_idle() returns with interrupts disabled. */
 	psw_idle(idle, psw_mask);
-	raw_local_irq_restore(flags);
 
 	/* Account time spent with enabled wait psw loaded as idle time. */
 	raw_write_seqcount_begin(&idle->seqcount);
