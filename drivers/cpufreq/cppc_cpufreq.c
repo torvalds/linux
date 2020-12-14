@@ -30,13 +30,13 @@
 #define DMI_PROCESSOR_MAX_SPEED		0x14
 
 /*
- * These structs contain information parsed from per CPU
- * ACPI _CPC structures.
- * e.g. For each CPU the highest, lowest supported
- * performance capabilities, desired performance level
- * requested etc.
+ * This list contains information parsed from per CPU ACPI _CPC and _PSD
+ * structures: e.g. the highest and lowest supported performance, capabilities,
+ * desired performance, level requested etc. Depending on the share_type, not
+ * all CPUs will have an entry in the list.
  */
-static struct cppc_cpudata **all_cpu_data;
+static LIST_HEAD(cpu_data_list);
+
 static bool boost_supported;
 
 struct cppc_workaround_oem_info {
@@ -148,8 +148,9 @@ static unsigned int cppc_cpufreq_khz_to_perf(struct cppc_cpudata *cpu_data,
 static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
 				   unsigned int target_freq,
 				   unsigned int relation)
+
 {
-	struct cppc_cpudata *cpu_data = all_cpu_data[policy->cpu];
+	struct cppc_cpudata *cpu_data = policy->driver_data;
 	unsigned int cpu = policy->cpu;
 	struct cpufreq_freqs freqs;
 	u32 desired_perf;
@@ -183,7 +184,7 @@ static int cppc_verify_policy(struct cpufreq_policy_data *policy)
 
 static void cppc_cpufreq_stop_cpu(struct cpufreq_policy *policy)
 {
-	struct cppc_cpudata *cpu_data = all_cpu_data[policy->cpu];
+	struct cppc_cpudata *cpu_data = policy->driver_data;
 	struct cppc_perf_caps *caps = &cpu_data->perf_caps;
 	unsigned int cpu = policy->cpu;
 	int ret;
@@ -194,6 +195,12 @@ static void cppc_cpufreq_stop_cpu(struct cpufreq_policy *policy)
 	if (ret)
 		pr_debug("Err setting perf value:%d on CPU:%d. ret:%d\n",
 			 caps->lowest_perf, cpu, ret);
+
+	/* Remove CPU node from list and free driver data for policy */
+	free_cpumask_var(cpu_data->shared_cpu_map);
+	list_del(&cpu_data->node);
+	kfree(policy->driver_data);
+	policy->driver_data = NULL;
 }
 
 /*
@@ -239,25 +246,61 @@ static unsigned int cppc_cpufreq_get_transition_delay_us(unsigned int cpu)
 }
 #endif
 
-static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
+
+static struct cppc_cpudata *cppc_cpufreq_get_cpu_data(unsigned int cpu)
 {
-	struct cppc_cpudata *cpu_data = all_cpu_data[policy->cpu];
-	struct cppc_perf_caps *caps = &cpu_data->perf_caps;
-	unsigned int cpu = policy->cpu;
-	int i, ret = 0;
+	struct cppc_cpudata *cpu_data;
+	int ret;
 
-	cpu_data->cpu = cpu;
-	ret = cppc_get_perf_caps(cpu, caps);
+	cpu_data = kzalloc(sizeof(struct cppc_cpudata), GFP_KERNEL);
+	if (!cpu_data)
+		goto out;
 
+	if (!zalloc_cpumask_var(&cpu_data->shared_cpu_map, GFP_KERNEL))
+		goto free_cpu;
+
+	ret = acpi_get_psd_map(cpu, cpu_data);
 	if (ret) {
-		pr_debug("Err reading CPU%d perf capabilities. ret:%d\n",
-			 cpu, ret);
-		return ret;
+		pr_debug("Err parsing CPU%d PSD data: ret:%d\n", cpu, ret);
+		goto free_mask;
+	}
+
+	ret = cppc_get_perf_caps(cpu, &cpu_data->perf_caps);
+	if (ret) {
+		pr_debug("Err reading CPU%d perf caps: ret:%d\n", cpu, ret);
+		goto free_mask;
 	}
 
 	/* Convert the lowest and nominal freq from MHz to KHz */
-	caps->lowest_freq *= 1000;
-	caps->nominal_freq *= 1000;
+	cpu_data->perf_caps.lowest_freq *= 1000;
+	cpu_data->perf_caps.nominal_freq *= 1000;
+
+	list_add(&cpu_data->node, &cpu_data_list);
+
+	return cpu_data;
+
+free_mask:
+	free_cpumask_var(cpu_data->shared_cpu_map);
+free_cpu:
+	kfree(cpu_data);
+out:
+	return NULL;
+}
+
+static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
+{
+	unsigned int cpu = policy->cpu;
+	struct cppc_cpudata *cpu_data;
+	struct cppc_perf_caps *caps;
+	int ret;
+
+	cpu_data = cppc_cpufreq_get_cpu_data(cpu);
+	if (!cpu_data) {
+		pr_err("Error in acquiring _CPC/_PSD data for CPU%d.\n", cpu);
+		return -ENODEV;
+	}
+	caps = &cpu_data->perf_caps;
+	policy->driver_data = cpu_data;
 
 	/*
 	 * Set min to lowest nonlinear perf to avoid any efficiency penalty (see
@@ -287,24 +330,18 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		/* Nothing to be done - we'll have a policy for each CPU */
 		break;
 	case CPUFREQ_SHARED_TYPE_ANY:
-		 /* All CPUs in the domain will share a policy */
+		/*
+		 * All CPUs in the domain will share a policy and all cpufreq
+		 * operations will use a single cppc_cpudata structure stored
+		 * in policy->driver_data.
+		 */
 		cpumask_copy(policy->cpus, cpu_data->shared_cpu_map);
-
-		for_each_cpu(i, policy->cpus) {
-			if (unlikely(i == cpu))
-				continue;
-
-			memcpy(&all_cpu_data[i]->perf_caps, caps,
-			       sizeof(cpu_data->perf_caps));
-		}
 		break;
 	default:
 		pr_debug("Unsupported CPU co-ord type: %d\n",
 			 policy->shared_type);
 		return -EFAULT;
 	}
-
-	cpu_data->cur_policy = policy;
 
 	/*
 	 * If 'highest_perf' is greater than 'nominal_perf', we assume CPU Boost
@@ -360,8 +397,11 @@ static int cppc_get_rate_from_fbctrs(struct cppc_cpudata *cpu_data,
 static unsigned int cppc_cpufreq_get_rate(unsigned int cpu)
 {
 	struct cppc_perf_fb_ctrs fb_ctrs_t0 = {0}, fb_ctrs_t1 = {0};
-	struct cppc_cpudata *cpu_data = all_cpu_data[cpu];
+	struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
+	struct cppc_cpudata *cpu_data = policy->driver_data;
 	int ret;
+
+	cpufreq_cpu_put(policy);
 
 	ret = cppc_get_perf_ctrs(cpu, &fb_ctrs_t0);
 	if (ret)
@@ -378,7 +418,7 @@ static unsigned int cppc_cpufreq_get_rate(unsigned int cpu)
 
 static int cppc_cpufreq_set_boost(struct cpufreq_policy *policy, int state)
 {
-	struct cppc_cpudata *cpu_data = all_cpu_data[policy->cpu];
+	struct cppc_cpudata *cpu_data = policy->driver_data;
 	struct cppc_perf_caps *caps = &cpu_data->perf_caps;
 	int ret;
 
@@ -404,9 +444,9 @@ static int cppc_cpufreq_set_boost(struct cpufreq_policy *policy, int state)
 
 static ssize_t show_freqdomain_cpus(struct cpufreq_policy *policy, char *buf)
 {
-	unsigned int cpu = policy->cpu;
+	struct cppc_cpudata *cpu_data = policy->driver_data;
 
-	return cpufreq_show_cpus(all_cpu_data[cpu]->shared_cpu_map, buf);
+	return cpufreq_show_cpus(cpu_data->shared_cpu_map, buf);
 }
 cpufreq_freq_attr_ro(freqdomain_cpus);
 
@@ -435,9 +475,12 @@ static struct cpufreq_driver cppc_cpufreq_driver = {
  */
 static unsigned int hisi_cppc_cpufreq_get_rate(unsigned int cpu)
 {
-	struct cppc_cpudata *cpu_data = all_cpu_data[cpu];
+	struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
+	struct cppc_cpudata *cpu_data = policy->driver_data;
 	u64 desired_perf;
 	int ret;
+
+	cpufreq_cpu_put(policy);
 
 	ret = cppc_get_desired_perf(cpu, &desired_perf);
 	if (ret < 0)
@@ -471,68 +514,33 @@ static void cppc_check_hisi_workaround(void)
 
 static int __init cppc_cpufreq_init(void)
 {
-	struct cppc_cpudata *cpu_data;
-	int i, ret = 0;
-
-	if (acpi_disabled)
+	if ((acpi_disabled) || !acpi_cpc_valid())
 		return -ENODEV;
 
-	all_cpu_data = kcalloc(num_possible_cpus(), sizeof(void *),
-			       GFP_KERNEL);
-	if (!all_cpu_data)
-		return -ENOMEM;
-
-	for_each_possible_cpu(i) {
-		all_cpu_data[i] = kzalloc(sizeof(struct cppc_cpudata), GFP_KERNEL);
-		if (!all_cpu_data[i])
-			goto out;
-
-		cpu_data = all_cpu_data[i];
-		if (!zalloc_cpumask_var(&cpu_data->shared_cpu_map, GFP_KERNEL))
-			goto out;
-	}
-
-	ret = acpi_get_psd_map(all_cpu_data);
-	if (ret) {
-		pr_debug("Error parsing PSD data. Aborting cpufreq registration.\n");
-		goto out;
-	}
+	INIT_LIST_HEAD(&cpu_data_list);
 
 	cppc_check_hisi_workaround();
 
-	ret = cpufreq_register_driver(&cppc_cpufreq_driver);
-	if (ret)
-		goto out;
+	return cpufreq_register_driver(&cppc_cpufreq_driver);
+}
 
-	return ret;
+static inline void free_cpu_data(void)
+{
+	struct cppc_cpudata *iter, *tmp;
 
-out:
-	for_each_possible_cpu(i) {
-		cpu_data = all_cpu_data[i];
-		if (!cpu_data)
-			break;
-		free_cpumask_var(cpu_data->shared_cpu_map);
-		kfree(cpu_data);
+	list_for_each_entry_safe(iter, tmp, &cpu_data_list, node) {
+		free_cpumask_var(iter->shared_cpu_map);
+		list_del(&iter->node);
+		kfree(iter);
 	}
 
-	kfree(all_cpu_data);
-	return -ENODEV;
 }
 
 static void __exit cppc_cpufreq_exit(void)
 {
-	struct cppc_cpudata *cpu_data;
-	int i;
-
 	cpufreq_unregister_driver(&cppc_cpufreq_driver);
 
-	for_each_possible_cpu(i) {
-		cpu_data = all_cpu_data[i];
-		free_cpumask_var(cpu_data->shared_cpu_map);
-		kfree(cpu_data);
-	}
-
-	kfree(all_cpu_data);
+	free_cpu_data();
 }
 
 module_exit(cppc_cpufreq_exit);
