@@ -41,6 +41,8 @@
 #define FIFO_REAL_TIME_FILL_STATUS_MASK_V1	GENMASK(6, 0)
 /* STATUS_DATA_MSB definition in V2 while MOD_STATUS_SEL is 5 */
 #define FIFO_REAL_TIME_FILL_STATUS_MSB_MASK_V2	GENMASK(1, 0)
+#define FIFO_EMPTY_FLAG_BIT_V2			BIT(6)
+#define FIFO_FULL_FLAG_BIT_V2			BIT(5)
 
 #define HAP_CFG_STATUS_DATA_LSB_REG		0x0A
 /* STATUS_DATA_MSB definition while MOD_STATUS_SEL is 0 */
@@ -1447,11 +1449,11 @@ static int haptics_update_fifo_sample_v2(struct haptics_chip *chip,
 	return 0;
 }
 
-static int haptics_get_available_fifo_memory(struct haptics_chip *chip)
+static int haptics_get_fifo_fill_status(struct haptics_chip *chip, u32 *fill)
 {
 	int rc;
 	u8 val[2];
-	u32 fill, available;
+	bool empty = false, full = false;
 
 	if (chip->ptn_revision == HAP_PTN_V1) {
 		val[0] = MOD_STATUS_SEL_FIFO_FILL_STATUS_VAL;
@@ -1465,7 +1467,7 @@ static int haptics_get_available_fifo_memory(struct haptics_chip *chip)
 		if (rc < 0)
 			return rc;
 
-		fill = val[0] & FIFO_REAL_TIME_FILL_STATUS_MASK_V1;
+		*fill = val[0] & FIFO_REAL_TIME_FILL_STATUS_MASK_V1;
 	} else {
 		val[0] = MOD_STATUS_XT_V2_FIFO_FILL_STATUS_VAL;
 		rc = haptics_write(chip, chip->cfg_addr_base,
@@ -1484,9 +1486,24 @@ static int haptics_get_available_fifo_memory(struct haptics_chip *chip)
 		if (rc < 0)
 			return rc;
 
-		fill = ((val[0] & FIFO_REAL_TIME_FILL_STATUS_MSB_MASK_V2)
+		*fill = ((val[0] & FIFO_REAL_TIME_FILL_STATUS_MSB_MASK_V2)
 				<< 8) | val[1];
+		empty = !!(val[0] & FIFO_EMPTY_FLAG_BIT_V2);
+		full = !!(val[0] & FIFO_FULL_FLAG_BIT_V2);
 	}
+
+	dev_dbg(chip->dev, "filled=%d, full=%d, empty=%d\n", *fill, full, empty);
+	return 0;
+}
+
+static int haptics_get_available_fifo_memory(struct haptics_chip *chip)
+{
+	int rc;
+	u32 fill, available;
+
+	rc = haptics_get_fifo_fill_status(chip, &fill);
+	if (rc < 0)
+		return rc;
 
 	if (fill > MAX_FIFO_SAMPLES(chip)) {
 		dev_err(chip->dev, "Filled FIFO number %d exceed the max %d\n",
@@ -1597,6 +1614,33 @@ static int haptics_set_fifo_empty_threshold(struct haptics_chip *chip,
 				rc);
 
 	return rc;
+}
+
+static int haptics_module_enable(struct haptics_chip *chip, bool enable)
+{
+	u8 val;
+	int rc;
+
+	val = enable ? HAPTICS_EN_BIT : 0;
+	rc = haptics_write(chip, chip->cfg_addr_base,
+		HAP_CFG_EN_CTL_REG, &val, 1);
+	if (rc < 0)
+		return rc;
+
+	dev_dbg(chip->dev, "haptics module %s\n",
+			enable ? "enabled" : "disabled");
+	return 0;
+}
+
+static int haptics_toggle_module_enable(struct haptics_chip *chip)
+{
+	int rc;
+
+	rc = haptics_module_enable(chip, false);
+	if (rc < 0)
+		return rc;
+
+	return haptics_module_enable(chip, true);
 }
 
 static int haptics_set_fifo(struct haptics_chip *chip, struct fifo_cfg *fifo)
@@ -1732,6 +1776,13 @@ static int haptics_load_predefined_effect(struct haptics_chip *chip,
 		return -EINVAL;
 
 	play->effect = effect;
+	if (play->pattern_src == FIFO) {
+		/* Toggle HAPTICS_EN for a clear start point of FIFO playing */
+		rc = haptics_toggle_module_enable(chip);
+		if (rc < 0)
+			return rc;
+	}
+
 	/* Clamp VMAX for different vibration strength */
 	rc = haptics_set_vmax_mv(chip, play->vmax_mv);
 	if (rc < 0)
@@ -1910,6 +1961,11 @@ static int haptics_load_custom_effect(struct haptics_chip *chip,
 	play->effect = chip->custom_effect;
 	play->brake = NULL;
 	play->vmax_mv = (magnitude * chip->custom_effect->vmax_mv) / 0x7fff;
+	/* Toggle HAPTICS_EN for a clear start point of FIFO playing */
+	rc = haptics_toggle_module_enable(chip);
+	if (rc < 0)
+		goto cleanup;
+
 	rc = haptics_set_vmax_mv(chip, play->vmax_mv);
 	if (rc < 0)
 		goto cleanup;
@@ -2411,11 +2467,8 @@ static irqreturn_t fifo_empty_irq_handler(int irq, void *data)
 	if (rc < 0)
 		return IRQ_HANDLED;
 
-	if (!(val & FIFO_EMPTY_BIT)) {
-		dev_dbg(chip->dev, "Ignore spurious/falling IRQ, INT_RT_STS = %#x\n",
-				val);
+	if (!(val & FIFO_EMPTY_BIT))
 		return IRQ_HANDLED;
-	}
 
 	mutex_lock(&chip->play.lock);
 	if (atomic_read(&chip->play.fifo_status.written_done) == 1) {
@@ -4293,7 +4346,6 @@ static int haptics_suspend(struct device *dev)
 {
 	struct haptics_chip *chip = dev_get_drvdata(dev);
 	struct haptics_play_info *play = &chip->play;
-	u8 val = 0;
 	int rc;
 
 	if (chip->cfg_revision == HAP_CFG_V1)
@@ -4326,20 +4378,17 @@ static int haptics_suspend(struct device *dev)
 	if (rc < 0)
 		return rc;
 
-	return haptics_write(chip, chip->cfg_addr_base,
-		HAP_CFG_EN_CTL_REG, &val, 1);
+	return haptics_module_enable(chip, false);
 }
 
 static int haptics_resume(struct device *dev)
 {
 	struct haptics_chip *chip = dev_get_drvdata(dev);
-	u8 val = HAPTICS_EN_BIT;
 
 	if (chip->cfg_revision == HAP_CFG_V1)
 		return 0;
 
-	return haptics_write(chip, chip->cfg_addr_base,
-		HAP_CFG_EN_CTL_REG, &val, 1);
+	return haptics_module_enable(chip, true);
 }
 #endif
 
