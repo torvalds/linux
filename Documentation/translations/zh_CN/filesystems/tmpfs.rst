@@ -2,7 +2,7 @@
 
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: :ref:`Documentation/filesystems/tmpfs.rst <tmpfs_index>`
+:Original: Documentation/filesystems/tmpfs.rst
 
 translated by Wang Qing<wangqing@vivo.com>
 
