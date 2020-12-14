@@ -2518,7 +2518,7 @@ static int bpf_object__finalize_btf(struct bpf_object *obj)
 	return 0;
 }
 
-static inline bool libbpf_prog_needs_vmlinux_btf(struct bpf_program *prog)
+static bool prog_needs_vmlinux_btf(struct bpf_program *prog)
 {
 	if (prog->type == BPF_PROG_TYPE_STRUCT_OPS ||
 	    prog->type == BPF_PROG_TYPE_LSM)
@@ -2533,37 +2533,43 @@ static inline bool libbpf_prog_needs_vmlinux_btf(struct bpf_program *prog)
 	return false;
 }
 
-static int bpf_object__load_vmlinux_btf(struct bpf_object *obj)
+static bool obj_needs_vmlinux_btf(const struct bpf_object *obj)
 {
-	bool need_vmlinux_btf = false;
 	struct bpf_program *prog;
-	int i, err;
+	int i;
 
 	/* CO-RE relocations need kernel BTF */
 	if (obj->btf_ext && obj->btf_ext->core_relo_info.len)
-		need_vmlinux_btf = true;
+		return true;
 
 	/* Support for typed ksyms needs kernel BTF */
 	for (i = 0; i < obj->nr_extern; i++) {
 		const struct extern_desc *ext;
 
 		ext = &obj->externs[i];
-		if (ext->type == EXT_KSYM && ext->ksym.type_id) {
-			need_vmlinux_btf = true;
-			break;
-		}
+		if (ext->type == EXT_KSYM && ext->ksym.type_id)
+			return true;
 	}
 
 	bpf_object__for_each_program(prog, obj) {
 		if (!prog->load)
 			continue;
-		if (libbpf_prog_needs_vmlinux_btf(prog)) {
-			need_vmlinux_btf = true;
-			break;
-		}
+		if (prog_needs_vmlinux_btf(prog))
+			return true;
 	}
 
-	if (!need_vmlinux_btf)
+	return false;
+}
+
+static int bpf_object__load_vmlinux_btf(struct bpf_object *obj, bool force)
+{
+	int err;
+
+	/* btf_vmlinux could be loaded earlier */
+	if (obj->btf_vmlinux)
+		return 0;
+
+	if (!force && !obj_needs_vmlinux_btf(obj))
 		return 0;
 
 	obj->btf_vmlinux = libbpf_find_kernel_btf();
@@ -7475,7 +7481,7 @@ int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 	}
 
 	err = bpf_object__probe_loading(obj);
-	err = err ? : bpf_object__load_vmlinux_btf(obj);
+	err = err ? : bpf_object__load_vmlinux_btf(obj, false);
 	err = err ? : bpf_object__resolve_externs(obj, obj->kconfig);
 	err = err ? : bpf_object__sanitize_and_load_btf(obj);
 	err = err ? : bpf_object__sanitize_maps(obj);
@@ -10870,23 +10876,33 @@ int bpf_program__set_attach_target(struct bpf_program *prog,
 				   int attach_prog_fd,
 				   const char *attach_func_name)
 {
-	int btf_id;
+	int btf_obj_fd = 0, btf_id = 0, err;
 
 	if (!prog || attach_prog_fd < 0 || !attach_func_name)
 		return -EINVAL;
 
-	if (attach_prog_fd)
+	if (prog->obj->loaded)
+		return -EINVAL;
+
+	if (attach_prog_fd) {
 		btf_id = libbpf_find_prog_btf_id(attach_func_name,
 						 attach_prog_fd);
-	else
-		btf_id = libbpf_find_vmlinux_btf_id(attach_func_name,
-						    prog->expected_attach_type);
-
-	if (btf_id < 0)
-		return btf_id;
+		if (btf_id < 0)
+			return btf_id;
+	} else {
+		/* load btf_vmlinux, if not yet */
+		err = bpf_object__load_vmlinux_btf(prog->obj, true);
+		if (err)
+			return err;
+		err = find_kernel_btf_id(prog->obj, attach_func_name,
+					 prog->expected_attach_type,
+					 &btf_obj_fd, &btf_id);
+		if (err)
+			return err;
+	}
 
 	prog->attach_btf_id = btf_id;
-	prog->attach_btf_obj_fd = 0;
+	prog->attach_btf_obj_fd = btf_obj_fd;
 	prog->attach_prog_fd = attach_prog_fd;
 	return 0;
 }

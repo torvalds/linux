@@ -28,8 +28,16 @@ void test_module_attach(void)
 	struct test_module_attach__bss *bss;
 	int err;
 
-	skel = test_module_attach__open_and_load();
+	skel = test_module_attach__open();
 	if (CHECK(!skel, "skel_open", "failed to open skeleton\n"))
+		return;
+
+	err = bpf_program__set_attach_target(skel->progs.handle_fentry_manual,
+					     0, "bpf_testmod_test_read");
+	ASSERT_OK(err, "set_attach_target");
+
+	err = test_module_attach__load(skel);
+	if (CHECK(err, "skel_load", "failed to load skeleton\n"))
 		return;
 
 	bss = skel->bss;
@@ -44,6 +52,7 @@ void test_module_attach(void)
 	ASSERT_EQ(bss->raw_tp_read_sz, READ_SZ, "raw_tp");
 	ASSERT_EQ(bss->tp_btf_read_sz, READ_SZ, "tp_btf");
 	ASSERT_EQ(bss->fentry_read_sz, READ_SZ, "fentry");
+	ASSERT_EQ(bss->fentry_manual_read_sz, READ_SZ, "fentry_manual");
 	ASSERT_EQ(bss->fexit_read_sz, READ_SZ, "fexit");
 	ASSERT_EQ(bss->fexit_ret, -EIO, "fexit_tet");
 	ASSERT_EQ(bss->fmod_ret_read_sz, READ_SZ, "fmod_ret");

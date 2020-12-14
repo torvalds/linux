@@ -40,6 +40,7 @@ int BPF_PROG(test_core_module_probed,
 	     struct task_struct *task,
 	     struct bpf_testmod_test_read_ctx *read_ctx)
 {
+#if __has_builtin(__builtin_preserve_enum_value)
 	struct core_reloc_module_output *out = (void *)&data.out;
 	__u64 pid_tgid = bpf_get_current_pid_tgid();
 	__u32 real_tgid = (__u32)(pid_tgid >> 32);
@@ -61,6 +62,9 @@ int BPF_PROG(test_core_module_probed,
 	out->len_exists = bpf_core_field_exists(read_ctx->len);
 
 	out->comm_len = BPF_CORE_READ_STR_INTO(&out->comm, task, comm);
+#else
+	data.skip = true;
+#endif
 
 	return 0;
 }
@@ -70,6 +74,7 @@ int BPF_PROG(test_core_module_direct,
 	     struct task_struct *task,
 	     struct bpf_testmod_test_read_ctx *read_ctx)
 {
+#if __has_builtin(__builtin_preserve_enum_value)
 	struct core_reloc_module_output *out = (void *)&data.out;
 	__u64 pid_tgid = bpf_get_current_pid_tgid();
 	__u32 real_tgid = (__u32)(pid_tgid >> 32);
@@ -91,6 +96,9 @@ int BPF_PROG(test_core_module_direct,
 	out->len_exists = bpf_core_field_exists(read_ctx->len);
 
 	out->comm_len = BPF_CORE_READ_STR_INTO(&out->comm, task, comm);
+#else
+	data.skip = true;
+#endif
 
 	return 0;
 }
