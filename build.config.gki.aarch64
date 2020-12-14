@@ -6,8 +6,6 @@ MAKE_GOALS="${MAKE_GOALS}
 Image.lz4
 "
 
-GENERATE_VMLINUX_BTF=1
-
 FILES="${FILES}
 arch/arm64/boot/Image.lz4
 "
