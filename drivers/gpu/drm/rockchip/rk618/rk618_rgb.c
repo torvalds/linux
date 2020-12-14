@@ -252,8 +252,10 @@ static int rk618_rgb_probe(struct platform_device *pdev)
 		}
 
 		rgb->panel = of_drm_find_panel(remote);
-		if (!rgb->panel)
+		if (IS_ERR(rgb->panel)) {
+			rgb->panel = NULL;
 			rgb->bridge = of_drm_find_bridge(remote);
+		}
 		of_node_put(remote);
 		if (!rgb->panel && !rgb->bridge) {
 			dev_err(dev, "Waiting for panel/bridge driver\n");
