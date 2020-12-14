@@ -379,12 +379,12 @@ void text_poke_sync(void)
 {
 }
 
-#ifdef CONFIG_PM_SLEEP
 void uml_pm_wake(void)
 {
 	pm_system_wakeup();
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int um_suspend_valid(suspend_state_t state)
 {
 	return state == PM_SUSPEND_MEM;
