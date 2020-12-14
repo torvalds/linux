@@ -134,7 +134,7 @@ static int a370db_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_card(card->dev, card);
 }
 
-static const struct of_device_id a370db_dt_ids[] = {
+static const struct of_device_id a370db_dt_ids[] __maybe_unused = {
 	{ .compatible = "marvell,a370db-audio" },
 	{ },
 };
