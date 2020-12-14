@@ -161,8 +161,6 @@ static u64 __get_rc6(struct intel_gt *gt)
 	return val;
 }
 
-#if IS_ENABLED(CONFIG_PM)
-
 static inline s64 ktime_since_raw(const ktime_t kt)
 {
 	return ktime_to_ns(ktime_sub(ktime_get_raw(), kt));
@@ -228,18 +226,6 @@ static void park_rc6(struct drm_i915_private *i915)
 	pmu->sample[__I915_SAMPLE_RC6].cur = __get_rc6(&i915->gt);
 	pmu->sleep_last = ktime_get_raw();
 }
-
-#else
-
-static u64 get_rc6(struct intel_gt *gt)
-{
-	return __get_rc6(gt);
-}
-
-static void init_rc6(struct i915_pmu *pmu) { }
-static void park_rc6(struct drm_i915_private *i915) {}
-
-#endif
 
 static void __i915_pmu_maybe_start_timer(struct i915_pmu *pmu)
 {
