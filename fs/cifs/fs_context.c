@@ -726,8 +726,10 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 	 * we will need special handling of them.
 	 */
 	if (param->type == fs_value_is_string && param->string[0] == 0) {
-		if (!strcmp("pass", param->key) || !strcmp("password", param->key))
+		if (!strcmp("pass", param->key) || !strcmp("password", param->key)) {
 			skip_parsing = true;
+			opt = Opt_pass;
+		}
 	}
 
 	if (!skip_parsing) {
