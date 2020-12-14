@@ -2820,45 +2820,6 @@ int cifs_setup_cifs_sb(struct smb3_fs_context *ctx,
 	return 0;
 }
 
-void
-cifs_cleanup_volume_info_contents(struct smb3_fs_context *ctx)
-{
-	if (ctx == NULL)
-		return;
-
-	/*
-	 * Make sure this stays in sync with smb3_fs_context_dup()
-	 */
-	kfree(ctx->mount_options);
-	ctx->mount_options = NULL;
-	kfree(ctx->username);
-	ctx->username = NULL;
-	kfree_sensitive(ctx->password);
-	ctx->password = NULL;
-	kfree(ctx->UNC);
-	ctx->UNC = NULL;
-	kfree(ctx->domainname);
-	ctx->domainname = NULL;
-	kfree(ctx->nodename);
-	ctx->nodename = NULL;
-	kfree(ctx->iocharset);
-	ctx->iocharset = NULL;
-	kfree(ctx->prepath);
-	ctx->prepath = NULL;
-
-	unload_nls(ctx->local_nls);
-	ctx->local_nls = NULL;
-}
-
-void
-cifs_cleanup_volume_info(struct smb3_fs_context *ctx)
-{
-	if (!ctx)
-		return;
-	cifs_cleanup_volume_info_contents(ctx);
-	kfree(ctx);
-}
-
 /* Release all succeed connections */
 static inline void mount_put_conns(struct cifs_sb_info *cifs_sb,
 				   unsigned int xid,
@@ -3069,7 +3030,7 @@ expand_dfs_referral(const unsigned int xid, struct cifs_ses *ses,
 			rc = PTR_ERR(mdata);
 			mdata = NULL;
 		} else {
-			cifs_cleanup_volume_info_contents(ctx);
+			smb3_cleanup_fs_context_contents(ctx);
 			rc = cifs_setup_volume_info(ctx);
 		}
 		kfree(cifs_sb->ctx->mount_options);
@@ -3161,7 +3122,7 @@ static int setup_dfs_tgt_conn(const char *path, const char *full_path,
 			rc = update_vol_info(tgt_it, &fake_ctx, ctx);
 		}
 	}
-	cifs_cleanup_volume_info_contents(&fake_ctx);
+	smb3_cleanup_fs_context_contents(&fake_ctx);
 	return rc;
 }
 
@@ -3409,7 +3370,7 @@ static int check_dfs_prepath(struct cifs_sb_info *cifs_sb, struct smb3_fs_contex
 					break;
 				rc = -EREMOTE;
 				npath = build_unc_path_to_root(&v, cifs_sb, true);
-				cifs_cleanup_volume_info_contents(&v);
+				smb3_cleanup_fs_context_contents(&v);
 			} else {
 				v.UNC = ctx->UNC;
 				v.prepath = path + 1;
@@ -3773,7 +3734,7 @@ static void delayed_free(struct rcu_head *p)
 	struct cifs_sb_info *cifs_sb = container_of(p, struct cifs_sb_info, rcu);
 
 	unload_nls(cifs_sb->local_nls);
-	cifs_cleanup_volume_info(cifs_sb->ctx);
+	smb3_cleanup_fs_context(cifs_sb->ctx);
 	kfree(cifs_sb);
 }
 

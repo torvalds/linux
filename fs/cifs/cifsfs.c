@@ -874,7 +874,7 @@ out_super:
 out:
 	if (cifs_sb) {
 		kfree(cifs_sb->prepath);
-		cifs_cleanup_volume_info(cifs_sb->ctx);
+		smb3_cleanup_fs_context(cifs_sb->ctx);
 		kfree(cifs_sb);
 	}
 	return root;

@@ -254,6 +254,8 @@ extern int cifs_parse_cache_flavor(char *value,
 extern int cifs_parse_security_flavors(char *value,
 				       struct smb3_fs_context *ctx);
 extern int smb3_init_fs_context(struct fs_context *fc);
+extern void smb3_cleanup_fs_context_contents(struct smb3_fs_context *ctx);
+extern void smb3_cleanup_fs_context(struct smb3_fs_context *ctx);
 
 static inline struct smb3_fs_context *smb3_fc2context(const struct fs_context *fc)
 {

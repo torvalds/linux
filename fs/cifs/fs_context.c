@@ -290,7 +290,7 @@ do {									\
 	if (ctx->field) {						\
 		new_ctx->field = kstrdup(ctx->field, GFP_ATOMIC);	\
 		if (new_ctx->field == NULL) {				\
-			cifs_cleanup_volume_info_contents(new_ctx);	\
+			smb3_cleanup_fs_context_contents(new_ctx);	\
 			return -ENOMEM;					\
 		}							\
 	}								\
@@ -313,7 +313,7 @@ smb3_fs_context_dup(struct smb3_fs_context *new_ctx, struct smb3_fs_context *ctx
 	new_ctx->iocharset = NULL;
 
 	/*
-	 * Make sure to stay in sync with cifs_cleanup_volume_info_contents()
+	 * Make sure to stay in sync with smb3_cleanup_fs_context_contents()
 	 */
 	DUP_CTX_STR(prepath);
 	DUP_CTX_STR(mount_options);
@@ -618,7 +618,7 @@ static void smb3_fs_context_free(struct fs_context *fc)
 {
 	struct smb3_fs_context *ctx = smb3_fc2context(fc);
 
-	cifs_cleanup_volume_info(ctx);
+	smb3_cleanup_fs_context(ctx);
 }
 
 static int smb3_reconfigure(struct fs_context *fc)
@@ -1243,4 +1243,43 @@ int smb3_init_fs_context(struct fs_context *fc)
 	fc->fs_private = ctx;
 	fc->ops = &smb3_fs_context_ops;
 	return 0;
+}
+
+void
+smb3_cleanup_fs_context_contents(struct smb3_fs_context *ctx)
+{
+	if (ctx == NULL)
+		return;
+
+	/*
+	 * Make sure this stays in sync with smb3_fs_context_dup()
+	 */
+	kfree(ctx->mount_options);
+	ctx->mount_options = NULL;
+	kfree(ctx->username);
+	ctx->username = NULL;
+	kfree_sensitive(ctx->password);
+	ctx->password = NULL;
+	kfree(ctx->UNC);
+	ctx->UNC = NULL;
+	kfree(ctx->domainname);
+	ctx->domainname = NULL;
+	kfree(ctx->nodename);
+	ctx->nodename = NULL;
+	kfree(ctx->iocharset);
+	ctx->iocharset = NULL;
+	kfree(ctx->prepath);
+	ctx->prepath = NULL;
+
+	unload_nls(ctx->local_nls);
+	ctx->local_nls = NULL;
+}
+
+void
+smb3_cleanup_fs_context(struct smb3_fs_context *ctx)
+{
+	if (!ctx)
+		return;
+	smb3_cleanup_fs_context_contents(ctx);
+	kfree(ctx);
 }

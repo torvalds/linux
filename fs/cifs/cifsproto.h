@@ -237,7 +237,6 @@ extern int cifs_read_page_from_socket(struct TCP_Server_Info *server,
 extern int cifs_setup_cifs_sb(struct smb3_fs_context *ctx,
 			       struct cifs_sb_info *cifs_sb);
 extern int cifs_match_super(struct super_block *, void *);
-extern void cifs_cleanup_volume_info(struct smb3_fs_context *ctx);
 extern int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx);
 extern void cifs_umount(struct cifs_sb_info *);
 extern void cifs_mark_open_files_invalid(struct cifs_tcon *tcon);
@@ -552,8 +551,6 @@ extern int SMBencrypt(unsigned char *passwd, const unsigned char *c8,
 
 extern int
 cifs_setup_volume_info(struct smb3_fs_context *ctx);
-extern void
-cifs_cleanup_volume_info_contents(struct smb3_fs_context *ctx);
 
 extern struct TCP_Server_Info *
 cifs_find_tcp_session(struct smb3_fs_context *ctx);
