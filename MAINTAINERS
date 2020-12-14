@@ -7913,7 +7913,6 @@ M:	Luo Jiaxing <luojiaxing@huawei.com>
 L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	drivers/gpio/gpio-hisi.c
-F:	include/linux/platform_data/gpio-hisi.h
 
 HISILICON HIGH PERFORMANCE RSA ENGINE DRIVER (HPRE)
 M:	Zaibo Xu <xuzaibo@huawei.com>
