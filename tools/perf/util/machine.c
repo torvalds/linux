@@ -1599,7 +1599,8 @@ static int machine__process_extra_kernel_map(struct machine *machine,
 }
 
 static int machine__process_kernel_mmap_event(struct machine *machine,
-					      struct extra_kernel_map *xm)
+					      struct extra_kernel_map *xm,
+					      struct build_id *bid)
 {
 	struct map *map;
 	enum dso_space_type dso_space;
@@ -1624,6 +1625,10 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 			goto out_problem;
 
 		map->end = map->start + xm->end - xm->start;
+
+		if (build_id__is_defined(bid))
+			dso__set_build_id(map->dso, bid);
+
 	} else if (is_kernel_mmap) {
 		const char *symbol_name = (xm->name + strlen(machine->mmap_name));
 		/*
@@ -1681,6 +1686,9 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 
 		machine__update_kernel_mmap(machine, xm->start, xm->end);
 
+		if (build_id__is_defined(bid))
+			dso__set_build_id(kernel, bid);
+
 		/*
 		 * Avoid using a zero address (kptr_restrict) for the ref reloc
 		 * symbol. Effectively having zero here means that at record
@@ -1718,10 +1726,16 @@ int machine__process_mmap2_event(struct machine *machine,
 		.ino = event->mmap2.ino,
 		.ino_generation = event->mmap2.ino_generation,
 	};
+	struct build_id __bid, *bid = NULL;
 	int ret = 0;
 
 	if (dump_trace)
 		perf_event__fprintf_mmap2(event, stdout);
+
+	if (event->header.misc & PERF_RECORD_MISC_MMAP_BUILD_ID) {
+		bid = &__bid;
+		build_id__init(bid, event->mmap2.build_id, event->mmap2.build_id_size);
+	}
 
 	if (sample->cpumode == PERF_RECORD_MISC_GUEST_KERNEL ||
 	    sample->cpumode == PERF_RECORD_MISC_KERNEL) {
@@ -1732,7 +1746,7 @@ int machine__process_mmap2_event(struct machine *machine,
 		};
 
 		strlcpy(xm.name, event->mmap2.filename, KMAP_NAME_LEN);
-		ret = machine__process_kernel_mmap_event(machine, &xm);
+		ret = machine__process_kernel_mmap_event(machine, &xm, bid);
 		if (ret < 0)
 			goto out_problem;
 		return 0;
@@ -1746,7 +1760,7 @@ int machine__process_mmap2_event(struct machine *machine,
 	map = map__new(machine, event->mmap2.start,
 			event->mmap2.len, event->mmap2.pgoff,
 			&dso_id, event->mmap2.prot,
-			event->mmap2.flags,
+			event->mmap2.flags, bid,
 			event->mmap2.filename, thread);
 
 	if (map == NULL)
@@ -1789,7 +1803,7 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 		};
 
 		strlcpy(xm.name, event->mmap.filename, KMAP_NAME_LEN);
-		ret = machine__process_kernel_mmap_event(machine, &xm);
+		ret = machine__process_kernel_mmap_event(machine, &xm, NULL);
 		if (ret < 0)
 			goto out_problem;
 		return 0;
@@ -1805,7 +1819,7 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 
 	map = map__new(machine, event->mmap.start,
 			event->mmap.len, event->mmap.pgoff,
-			NULL, prot, 0, event->mmap.filename, thread);
+			NULL, prot, 0, NULL, event->mmap.filename, thread);
 
 	if (map == NULL)
 		goto out_problem_map;
