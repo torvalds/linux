@@ -23,9 +23,13 @@
 #define QPNP_LCDB_REGULATOR_DRIVER_NAME		"qcom,qpnp-lcdb-regulator"
 #define QPNP_LCDB_REGULATOR_DRIVER_660		"qcom,lcdb-pm660"
 #define QPNP_LCDB_REGULATOR_DRIVER_632	"qcom,lcdb-pmi632"
-#define QPNP_LCDB_REGULATOR_DRIVER_6150l	"qcom,lcdb-pm6150l"
+#define QPNP_LCDB_REGULATOR_DRIVER_6150L	"qcom,lcdb-pm6150l"
+#define QPNP_LCDB_REGULATOR_DRIVER_7325B	"qcom,lcdb-pm7325b"
 
 /* LCDB */
+#define LCDB_REVISION3_REG			0x02
+#define LCDB_REVISION4_REG			0x03
+
 #define LCDB_STS1_REG			0x08
 
 #define INT_RT_STATUS_REG		0x10
@@ -49,6 +53,16 @@
 #define LCDB_BST_OUTPUT_VOLTAGE_REG	0x41
 #define PM660_BST_OUTPUT_VOLTAGE_MASK	GENMASK(4, 0)
 #define BST_OUTPUT_VOLTAGE_MASK		GENMASK(5, 0)
+#define PM7325B_BST_OUTPUT_VOLTAGE_MASK		GENMASK(7, 0)
+
+#define LCDB_STEPPER_VOUT_CTL_REG		0x42
+#define VOUT_STEP_DLY_2US		0x4
+
+#define LCDB_CONFIG_SEL_REG		0x43
+#define EN_FAST_STARTUP_BIT			BIT(7)
+#define PDN_CONFIG_SEL_BIT			BIT(4)
+#define PWRUP_CONFIG_SEL_MASK		GENMASK(2, 0)
+#define PWRUP_CONFIG_MAX		0x4
 
 #define LCDB_MODULE_RDY_REG		0x45
 #define MODULE_RDY_BIT			BIT(7)
@@ -61,12 +75,16 @@
 #define LCDB_BST_PD_CTL_REG		0x47
 #define BOOST_DIS_PULLDOWN_BIT		BIT(1)
 #define BOOST_PD_STRENGTH_BIT		BIT(0)
+#define PM7325B_BOOST_EN_PULLDOWN_BIT		BIT(7)
 
 #define LCDB_BST_ILIM_CTL_REG		0x4B
 #define EN_BST_ILIM_BIT			BIT(7)
 #define SET_BST_ILIM_MASK		GENMASK(2, 0)
 #define MIN_BST_ILIM_MA			200
 #define MAX_BST_ILIM_MA			1600
+#define PM7325B_MIN_BST_ILIM_MA			1130
+#define PM7325B_MAX_BST_ILIM_MA			2250
+#define PM7325B_BST_ILIM_MA_STEP			160
 
 #define LCDB_PS_CTL_REG			0x50
 #define EN_PS_BIT			BIT(7)
@@ -74,6 +92,8 @@
 #define PS_THRESH_MASK			GENMASK(2, 0)
 #define MIN_BST_PS_MA			50
 #define MAX_BST_PS_MA			80
+#define PM7325B_MIN_BST_PS_MV			360
+#define PM7325B_MAX_BST_PS_MV			528
 
 #define LCDB_RDSON_MGMNT_REG		0x53
 #define NFET_SW_SIZE_MASK		GENMASK(3, 2)
@@ -82,6 +102,8 @@
 
 #define LCDB_BST_VREG_OK_CTL_REG	0x55
 #define BST_VREG_OK_DEB_MASK		GENMASK(1, 0)
+
+#define PM7325B_LCDB_BST_VREG_OK_CTL_REG	0x56
 
 #define LCDB_BST_SS_CTL_REG		0x5B
 #define BST_SS_TIME_MASK		GENMASK(1, 0)
@@ -97,6 +119,10 @@
 #define EN_BST_PRECHG_SHORT_ALARM	0
 #define DIS_BST_PRECHG_SHORT_ALARM	1
 
+#define PM7325B_LCDB_WARMUP_DLY_SEL_1_REG		0x5C
+#define PM7325B_LCDB_WARMUP_DLY_SEL_2_REG		0x5D
+#define PM7325B_LCDB_PRECHARGE_CTL_REG		0x5E
+
 #define LCDB_SOFT_START_CTL_REG		0x5F
 
 #define LCDB_MISC_CTL_REG		0x60
@@ -111,14 +137,21 @@
 #define PFM_CURRENT_SHIFT		2
 
 #define LCDB_PWRUP_PWRDN_CTL_REG	0x66
-#define PWRUP_DELAY_MASK		GENAMSK(3, 2)
+#define PWRUP_DELAY_MASK		GENMASK(3, 2)
 #define PWRDN_DELAY_MASK		GENMASK(1, 0)
+#define PWRUP_DELAY_SHIFT				2
 #define PWRDN_DELAY_MIN_MS		0
 #define PWRDN_DELAY_MAX_MS		8
 
 /* LDO */
 #define LCDB_LDO_OUTPUT_VOLTAGE_REG	0x71
 #define SET_OUTPUT_VOLTAGE_MASK		GENMASK(4, 0)
+#define PM7325B_SET_OUTPUT_VOLTAGE_MASK	GENMASK(5, 0)
+
+#define LCDB_LDO_TRAN_CTL_REG	0x72
+#define EN_LDO_TRAN_DET_BIT		BIT(7)
+#define CLR_LDO_UV_TIME_US	0x4
+#define CLR_LDO_UV_TIME_US_SHIFT	4
 
 #define LCDB_LDO_VREG_OK_CTL_REG	0x75
 #define VREG_OK_DEB_MASK		GENMASK(1, 0)
@@ -126,6 +159,7 @@
 #define LCDB_LDO_PD_CTL_REG		0x77
 #define LDO_DIS_PULLDOWN_BIT		BIT(1)
 #define LDO_PD_STRENGTH_BIT		BIT(0)
+#define PM7325B_LDO_EN_PULLDOWN_BIT		BIT(7)
 
 #define LCDB_LDO_FORCE_PD_CTL_REG	0x79
 #define LDO_FORCE_PD_EN_BIT		BIT(0)
@@ -134,8 +168,12 @@
 #define LCDB_LDO_ILIM_CTL1_REG		0x7B
 #define EN_LDO_ILIM_BIT			BIT(7)
 #define SET_LDO_ILIM_MASK		GENMASK(2, 0)
+#define SET_LDO_ILIM_MASK_SD		GENMASK(6, 4)
+#define SET_LDO_ILIM_MASK_SD_SHIFT	4
 #define MIN_LDO_ILIM_MA			110
 #define MAX_LDO_ILIM_MA			460
+#define PM7325B_MIN_LDO_ILIM_MA			35
+#define PM7325B_MAX_LDO_ILIM_MA			840
 #define LDO_ILIM_STEP_MA		50
 
 #define LCDB_LDO_ILIM_CTL2_REG		0x7C
@@ -151,12 +189,17 @@
 #define LCDB_NCP_PD_CTL_REG		0x87
 #define NCP_DIS_PULLDOWN_BIT		BIT(1)
 #define NCP_PD_STRENGTH_BIT		BIT(0)
+#define PM7325B_EN_NCP_PULLDOWN_BIT		BIT(1)
+#define PM7325B_EN_PD_SYMMETRY_BIT			BIT(7)
 
 #define LCDB_NCP_ILIM_CTL1_REG		0x8B
 #define EN_NCP_ILIM_BIT			BIT(7)
 #define SET_NCP_ILIM_MASK		GENMASK(1, 0)
+#define PM7325B_SET_NCP_ILIM_SD_MASK		GENMASK(5, 4)
 #define MIN_NCP_ILIM_MA			260
 #define MAX_NCP_ILIM_MA			810
+#define PM7325B_MIN_NCP_ILIM_MA			700
+#define PM7325B_MAX_NCP_ILIM_MA			1000
 
 #define LCDB_NCP_ILIM_CTL2_REG		0x8C
 
@@ -224,6 +267,7 @@ enum pmic_type {
 	PM660L,
 	PMI632,
 	PM6150L,
+	PM7325B,
 };
 
 struct qpnp_lcdb {
@@ -235,6 +279,10 @@ struct qpnp_lcdb {
 	u32				wa_flags;
 	int				sc_irq;
 	int				pwrdn_delay_ms;
+	int				pwrup_delay_ms;
+	int				min_voltage_mv;
+	int				max_voltage_mv;
+	int				pwrup_config;
 
 	/* TTW params */
 	bool				ttw_enable;
@@ -303,29 +351,36 @@ enum lcdb_settings_index {
 	LCDB_NCP_SOFT_START_CTL,
 	LCDB_BST_SS_CTL,
 	LCDB_LDO_VREG_OK_CTL,
+	LCDB_STEPPER_VOUT_CTL,
+	LCDB_CONFIG_SEL,
+	PM7325B_LCDB_BST_VREG_OK_CTL,
+	PM7325B_LCDB_WARMUP_DLY_SEL_1,
+	PM7325B_LCDB_WARMUP_DLY_SEL_2,
+	PM7325B_LCDB_PRECHARGE_CTL,
 	LCDB_SETTING_MAX,
 };
 
 enum lcdb_wa_flags {
 	NCP_SCP_DISABLE_WA = BIT(0),
 	FORCE_PD_ENABLE_WA = BIT(1),
+	LDO_UNDERSHOOT_WA = BIT(2),
 };
 
-static u32 soft_start_us[] = {
+static const u32 soft_start_us[] = {
 	0,
 	500,
 	1000,
 	2000,
 };
 
-static u32 dbc_us[] = {
+static const u32 dbc_us[] = {
 	2,
 	4,
 	16,
 	32,
 };
 
-static u32 ncp_ilim_ma[] = {
+static const u32 ncp_ilim_ma[] = {
 	260,
 	460,
 	640,
@@ -337,6 +392,38 @@ static const u32 pwrup_pwrdn_ms[] = {
 	1,
 	4,
 	8,
+};
+
+static const u32 ncp_dbc_us[] = {
+	64,
+	128,
+	256,
+	512,
+};
+
+static const u32 bst_dbc_us[] = {
+	4,
+	8,
+	16,
+	32,
+};
+
+static const u32 pm7325b_ncp_ilim_ma[] = {
+	700,
+	800,
+	900,
+	1000,
+};
+
+static const u32 pm7325b_ldo_ilim_ma[] = {
+	35,
+	175,
+	280,
+	420,
+	455,
+	595,
+	700,
+	840,
 };
 
 #define SETTING(_id, _sec_access, _valid)	\
@@ -442,19 +529,22 @@ static bool is_lcdb_enabled(struct qpnp_lcdb *lcdb)
 
 static int dump_status_registers(struct qpnp_lcdb *lcdb)
 {
-	int rc = 0;
+	int rc = 0, len = (lcdb->subtype == PM7325B) ? 5 : 6;
 	u8 sts[6] = {0};
 
-	rc = qpnp_lcdb_write(lcdb, lcdb->base + LCDB_STS1_REG, &sts[0], 6);
+	rc = qpnp_lcdb_write(lcdb, lcdb->base + LCDB_STS1_REG, &sts[0], len);
 	if (rc < 0) {
 		pr_err("Failed to write to STS registers rc=%d\n", rc);
 	} else {
-		rc = qpnp_lcdb_read(lcdb, lcdb->base + LCDB_STS1_REG, sts, 6);
+		rc = qpnp_lcdb_read(lcdb, lcdb->base + LCDB_STS1_REG, sts, len);
 		if (rc < 0)
 			pr_err("Failed to read lcdb status rc=%d\n", rc);
-		else
-			pr_err("STS1=0x%02x STS2=0x%02x STS3=0x%02x STS4=0x%02x STS5=0x%02x, STS6=0x%02x\n",
-				sts[0], sts[1], sts[2], sts[3], sts[4], sts[5]);
+		else {
+			pr_err("STS1=0x%02x STS2=0x%02x STS3=0x%02x STS4=0x%02x STS5=0x%02x\n",
+				sts[0], sts[1], sts[2], sts[3], sts[4]);
+			if (lcdb->subtype != PM7325B)
+				pr_err("STS6=0x%02x\n", sts[5]);
+		}
 	}
 
 	return rc;
@@ -491,17 +581,45 @@ static struct settings lcdb_settings[] = {
 	SETTING(LCDB_LDO_VREG_OK_CTL, false, true),
 };
 
+static struct settings lcdb_settings_pm7325b[] = {
+	SETTING(LCDB_BST_PD_CTL, false, true),
+	SETTING(LCDB_RDSON_MGMNT, false, false),
+	SETTING(LCDB_MISC_CTL, false, false),
+	SETTING(LCDB_SOFT_START_CTL, false, false),
+	SETTING(LCDB_PFM_CTL, false, false),
+	SETTING(LCDB_PWRUP_PWRDN_CTL, false, false),
+	SETTING(LCDB_LDO_PD_CTL, false, true),
+	SETTING(LCDB_LDO_SOFT_START_CTL, false, true),
+	SETTING(LCDB_NCP_PD_CTL, false, true),
+	SETTING(LCDB_NCP_SOFT_START_CTL, false, true),
+	SETTING(LCDB_BST_SS_CTL, false, true),
+	SETTING(LCDB_LDO_VREG_OK_CTL, false, false),
+	SETTING(PM7325B_LCDB_BST_VREG_OK_CTL, false, true),
+	SETTING(LCDB_STEPPER_VOUT_CTL, false, true),
+	SETTING(LCDB_CONFIG_SEL, false, true),
+	SETTING(PM7325B_LCDB_WARMUP_DLY_SEL_1, false, true),
+	SETTING(PM7325B_LCDB_WARMUP_DLY_SEL_2, false, true),
+	SETTING(PM7325B_LCDB_PRECHARGE_CTL, false, true),
+};
+
 static int qpnp_lcdb_save_settings(struct qpnp_lcdb *lcdb)
 {
 	int i, size, rc = 0;
 	struct settings *setting;
 
-	if (lcdb->subtype == PM660L) {
+	switch (lcdb->subtype) {
+	case PM660L:
 		setting = lcdb_settings_pm660l;
 		size = ARRAY_SIZE(lcdb_settings_pm660l);
-	} else {
+		break;
+	case PM7325B:
+		setting = lcdb_settings_pm7325b;
+		size = ARRAY_SIZE(lcdb_settings_pm7325b);
+		break;
+	default:
 		setting = lcdb_settings;
 		size = ARRAY_SIZE(lcdb_settings);
+		break;
 	}
 
 	for (i = 0; i < size; i++) {
@@ -525,12 +643,19 @@ static int qpnp_lcdb_restore_settings(struct qpnp_lcdb *lcdb)
 	int i, size, rc = 0;
 	struct settings *setting;
 
-	if (lcdb->subtype == PM660L) {
+	switch (lcdb->subtype) {
+	case PM660L:
 		setting = lcdb_settings_pm660l;
 		size = ARRAY_SIZE(lcdb_settings_pm660l);
-	} else {
+		break;
+	case PM7325B:
+		setting = lcdb_settings_pm7325b;
+		size = ARRAY_SIZE(lcdb_settings_pm7325b);
+		break;
+	default:
 		setting = lcdb_settings;
 		size = ARRAY_SIZE(lcdb_settings);
+		break;
 	}
 
 	for (i = 0; i < size; i++) {
@@ -737,6 +862,98 @@ static int qpnp_lcdb_ttw_enter_pm660l(struct qpnp_lcdb *lcdb)
 	return rc;
 }
 
+static int qpnp_lcdb_ttw_enter_pm7325b(struct qpnp_lcdb *lcdb)
+{
+	int rc;
+	u8 val;
+
+	if (!lcdb->settings_saved) {
+		rc = qpnp_lcdb_save_settings(lcdb);
+		if (rc < 0) {
+			pr_err("Failed to save LCDB settings rc=%d\n", rc);
+			return rc;
+		}
+		lcdb->settings_saved = true;
+	}
+
+	val = 0;
+	rc = qpnp_lcdb_write(lcdb, lcdb->base + LCDB_BST_PD_CTL_REG,
+			     &val, 1);
+	if (rc < 0)
+		return rc;
+
+	val = 0;
+	rc = qpnp_lcdb_write(lcdb, lcdb->base + PM7325B_LCDB_BST_VREG_OK_CTL_REG,
+			     &val, 1);
+	if (rc < 0)
+		return rc;
+
+	val = 0;
+	rc = qpnp_lcdb_write(lcdb, lcdb->base + PM7325B_LCDB_WARMUP_DLY_SEL_1_REG,
+			     &val, 1);
+	if (rc < 0)
+		return rc;
+
+	val = 0;
+	rc = qpnp_lcdb_write(lcdb, lcdb->base + PM7325B_LCDB_WARMUP_DLY_SEL_2_REG,
+			     &val, 1);
+	if (rc < 0)
+		return rc;
+
+	val = 0;
+	rc = qpnp_lcdb_write(lcdb, lcdb->base + PM7325B_LCDB_PRECHARGE_CTL_REG,
+			     &val, 1);
+	if (rc < 0)
+		return rc;
+
+	val = 0;
+	rc = qpnp_lcdb_write(lcdb, lcdb->base + LCDB_BST_SS_CTL_REG, &val, 1);
+	if (rc < 0)
+		return rc;
+
+	val = 0;
+	rc = qpnp_lcdb_write(lcdb, lcdb->base + LCDB_LDO_PD_CTL_REG,
+							&val, 1);
+	if (rc < 0)
+		return rc;
+
+	val = 0;
+	rc = qpnp_lcdb_write(lcdb, lcdb->base + LCDB_LDO_SOFT_START_CTL_REG,
+			     &val, 1);
+	if (rc < 0)
+		return rc;
+
+	val = 0;
+	rc = qpnp_lcdb_write(lcdb, lcdb->base + LCDB_NCP_PD_CTL_REG,
+			     &val, 1);
+	if (rc < 0)
+		return rc;
+
+	val = 0;
+	rc = qpnp_lcdb_write(lcdb, lcdb->base + LCDB_NCP_SOFT_START_CTL_REG,
+			     &val, 1);
+	if (rc < 0)
+		return rc;
+
+	val = VOUT_STEP_DLY_2US;
+	rc = qpnp_lcdb_write(lcdb, lcdb->base + LCDB_STEPPER_VOUT_CTL_REG,
+			     &val, 1);
+	if (rc < 0)
+		return rc;
+
+	val = EN_FAST_STARTUP_BIT;
+	rc = qpnp_lcdb_write(lcdb, lcdb->base + LCDB_CONFIG_SEL_REG,
+			     &val, 1);
+	if (rc < 0)
+		return rc;
+
+	val = HWEN_RDY_BIT;
+	rc = qpnp_lcdb_write(lcdb, lcdb->base + LCDB_ENABLE_CTL1_REG,
+			     &val, 1);
+
+	return rc;
+}
+
 static int qpnp_lcdb_ttw_exit(struct qpnp_lcdb *lcdb)
 {
 	int rc;
@@ -794,6 +1011,16 @@ static int qpnp_lcdb_enable(struct qpnp_lcdb *lcdb)
 		pr_debug("lcdb_enabled=%d lcdb_sc_disable=%d\n",
 			lcdb->lcdb_enabled, lcdb->lcdb_sc_disable);
 		return 0;
+	}
+
+	if (lcdb->wa_flags & LDO_UNDERSHOOT_WA) {
+		/* Workaround to fix LCDB out of regulation issue */
+		val = CLR_LDO_UV_TIME_US << CLR_LDO_UV_TIME_US_SHIFT;
+		val |= EN_LDO_TRAN_DET_BIT;
+		rc = qpnp_lcdb_write(lcdb, lcdb->base + LCDB_LDO_TRAN_CTL_REG,
+					&val, 1);
+		if (rc < 0)
+			return rc;
 	}
 
 	if (lcdb->ttw_enable) {
@@ -886,16 +1113,32 @@ fail_enable:
 static int qpnp_lcdb_disable(struct qpnp_lcdb *lcdb)
 {
 	int rc = 0;
-	u8 val;
+	u8 val = 0;
 
 	if (!lcdb->lcdb_enabled)
 		return 0;
 
+	if (lcdb->wa_flags & LDO_UNDERSHOOT_WA) {
+		/* Workaround to fix LCDB out of regulation issue */
+		val = CLR_LDO_UV_TIME_US << CLR_LDO_UV_TIME_US_SHIFT;
+		rc = qpnp_lcdb_write(lcdb, lcdb->base + LCDB_LDO_TRAN_CTL_REG,
+					&val, 1);
+		if (rc < 0)
+			return rc;
+	}
+
 	if (lcdb->ttw_enable) {
-		if (lcdb->subtype == PM660L)
+		switch (lcdb->subtype) {
+		case PM660L:
 			rc = qpnp_lcdb_ttw_enter_pm660l(lcdb);
-		else
+			break;
+		case PM7325B:
+			rc = qpnp_lcdb_ttw_enter_pm7325b(lcdb);
+			break;
+		default:
 			rc = qpnp_lcdb_ttw_enter(lcdb);
+			break;
+		}
 
 		if (rc < 0) {
 			pr_err("Failed to enable TTW mode rc=%d\n", rc);
@@ -960,7 +1203,7 @@ static int qpnp_lcdb_handle_sc_event(struct qpnp_lcdb *lcdb)
 	if (elapsed_time_us > LCDB_SC_RESET_CNT_DLY_US) {
 		lcdb->sc_count = 0;
 	} else if (lcdb->sc_count > LCDB_SC_CNT_MAX) {
-		pr_err("SC trigged %d times, disabling LCDB forever!\n",
+		pr_err("SC triggered %d times, disabling LCDB forever!\n",
 						lcdb->sc_count);
 		lcdb->lcdb_sc_disable = true;
 		goto unlock_mutex;
@@ -998,7 +1241,8 @@ static irqreturn_t qpnp_lcdb_sc_irq_handler(int irq, void *data)
 		if (rc < 0)
 			goto irq_handled;
 
-		if (val & EN_TOUCH_WAKE_BIT) {
+		if (lcdb->subtype == PM660L &&
+				(val & EN_TOUCH_WAKE_BIT)) {
 			/* blanking time */
 			usleep_range(300, 310);
 			/*
@@ -1055,10 +1299,14 @@ irq_handled:
 }
 
 #define MIN_BST_VOLTAGE_MV			4700
+#define PM7325B_MIN_BST_VOLTAGE_MV		2000
 #define PM660_MAX_BST_VOLTAGE_MV		6250
 #define MAX_BST_VOLTAGE_MV			6275
+#define PM7325B_MAX_BST_VOLTAGE_MV			6400
 #define MIN_VOLTAGE_MV				4000
 #define MAX_VOLTAGE_MV				6000
+#define PM7325B_MIN_VOLTAGE_MV				4400
+#define PM7325B_MAX_VOLTAGE_MV				6000
 #define VOLTAGE_MIN_STEP_100_MV			4000
 #define VOLTAGE_MIN_STEP_50_MV			4950
 #define VOLTAGE_STEP_100_MV			100
@@ -1070,7 +1318,7 @@ static int qpnp_lcdb_set_bst_voltage(struct qpnp_lcdb *lcdb,
 {
 	int rc = 0;
 	u8 val, voltage_step, mask = 0;
-	int bst_voltage_mv;
+	int bst_voltage_mv, min_bst_voltage;
 	struct ldo_regulator *ldo = &lcdb->ldo;
 	struct ncp_regulator *ncp = &lcdb->ncp;
 	struct bst_params *bst = &lcdb->bst;
@@ -1082,24 +1330,41 @@ static int qpnp_lcdb_set_bst_voltage(struct qpnp_lcdb *lcdb,
 	if (bst_voltage_mv < MIN_BST_VOLTAGE_MV)
 		bst_voltage_mv = MIN_BST_VOLTAGE_MV;
 
-	if (lcdb->subtype == PM660L) {
+	switch (lcdb->subtype) {
+	case PM660L:
 		if (bst_voltage_mv > PM660_MAX_BST_VOLTAGE_MV)
 			bst_voltage_mv = PM660_MAX_BST_VOLTAGE_MV;
-	} else {
+		break;
+	case PM7325B:
+		if (bst_voltage_mv > PM7325B_MAX_BST_VOLTAGE_MV)
+			bst_voltage_mv = PM7325B_MAX_BST_VOLTAGE_MV;
+		break;
+	default:
 		if (bst_voltage_mv > MAX_BST_VOLTAGE_MV)
 			bst_voltage_mv = MAX_BST_VOLTAGE_MV;
+		break;
 	}
 
 	if (bst_voltage_mv != bst->voltage_mv) {
-		if (lcdb->subtype == PM660L) {
+		switch (lcdb->subtype) {
+		case PM660L:
 			mask = PM660_BST_OUTPUT_VOLTAGE_MASK;
 			voltage_step = VOLTAGE_STEP_50_MV;
-		} else {
+			min_bst_voltage = MIN_BST_VOLTAGE_MV;
+			break;
+		case PM7325B:
+			mask =  PM7325B_BST_OUTPUT_VOLTAGE_MASK;
+			voltage_step = VOLTAGE_STEP_25_MV;
+			min_bst_voltage = PM7325B_MIN_BST_VOLTAGE_MV;
+			break;
+		default:
 			mask =  BST_OUTPUT_VOLTAGE_MASK;
 			voltage_step = VOLTAGE_STEP_25_MV;
+			min_bst_voltage = MIN_BST_VOLTAGE_MV;
+			break;
 		}
 
-		val = DIV_ROUND_UP(bst_voltage_mv - MIN_BST_VOLTAGE_MV,
+		val = DIV_ROUND_UP(bst_voltage_mv - min_bst_voltage,
 							voltage_step);
 		rc = qpnp_lcdb_masked_write(lcdb, lcdb->base +
 					LCDB_BST_OUTPUT_VOLTAGE_REG,
@@ -1120,7 +1385,7 @@ static int qpnp_lcdb_set_bst_voltage(struct qpnp_lcdb *lcdb,
 static int qpnp_lcdb_get_bst_voltage(struct qpnp_lcdb *lcdb,
 					int *voltage_mv)
 {
-	int rc;
+	int rc, min_bst_voltage;
 	u8 val, voltage_step, mask = 0;
 
 	rc = qpnp_lcdb_read(lcdb, lcdb->base + LCDB_BST_OUTPUT_VOLTAGE_REG,
@@ -1130,16 +1395,25 @@ static int qpnp_lcdb_get_bst_voltage(struct qpnp_lcdb *lcdb,
 		return rc;
 	}
 
-	if (lcdb->subtype == PM660L) {
+	switch (lcdb->subtype) {
+	case PM660L:
 		mask = PM660_BST_OUTPUT_VOLTAGE_MASK;
 		voltage_step = VOLTAGE_STEP_50_MV;
-	} else {
+		min_bst_voltage = MIN_BST_VOLTAGE_MV;
+		break;
+	case PM7325B:
+		mask =  PM7325B_BST_OUTPUT_VOLTAGE_MASK;
+		voltage_step = VOLTAGE_STEP_25_MV;
+		min_bst_voltage = PM7325B_MIN_BST_VOLTAGE_MV;
+		break;
+	default:
 		mask =  BST_OUTPUT_VOLTAGE_MASK;
 		voltage_step = VOLTAGE_STEP_25_MV;
+		min_bst_voltage = MIN_BST_VOLTAGE_MV;
 	}
 
 	val &= mask;
-	*voltage_mv = (val * voltage_step) + MIN_BST_VOLTAGE_MV;
+	*voltage_mv = (val * voltage_step) + min_bst_voltage;
 
 	return 0;
 }
@@ -1150,10 +1424,12 @@ static int qpnp_lcdb_set_voltage(struct qpnp_lcdb *lcdb,
 	int rc = 0;
 	u16 offset = LCDB_LDO_OUTPUT_VOLTAGE_REG;
 	u8 val = 0;
+	int voltage_mask = (lcdb->subtype == PM7325B) ?
+		PM7325B_SET_OUTPUT_VOLTAGE_MASK : SET_OUTPUT_VOLTAGE_MASK;
 
-	if (!is_between(voltage_mv, MIN_VOLTAGE_MV, MAX_VOLTAGE_MV)) {
+	if (!is_between(voltage_mv, lcdb->min_voltage_mv, lcdb->max_voltage_mv)) {
 		pr_err("Invalid voltage %dmv (min=%d max=%d)\n",
-			voltage_mv, MIN_VOLTAGE_MV, MAX_VOLTAGE_MV);
+			voltage_mv, lcdb->min_voltage_mv, lcdb->max_voltage_mv);
 		return -EINVAL;
 	}
 
@@ -1177,7 +1453,7 @@ static int qpnp_lcdb_set_voltage(struct qpnp_lcdb *lcdb,
 		offset = LCDB_NCP_OUTPUT_VOLTAGE_REG;
 
 	rc = qpnp_lcdb_masked_write(lcdb, lcdb->base + offset,
-				SET_OUTPUT_VOLTAGE_MASK, val);
+				voltage_mask, val);
 	if (rc < 0)
 		pr_err("Failed to set output voltage %d mv for %s rc=%d\n",
 			voltage_mv, (type == LDO) ? "LDO" : "NCP", rc);
@@ -1244,6 +1520,8 @@ static int qpnp_lcdb_get_voltage(struct qpnp_lcdb *lcdb,
 	int rc = 0;
 	u16 offset = LCDB_LDO_OUTPUT_VOLTAGE_REG;
 	u8 val = 0;
+	int voltage_mask = (lcdb->subtype == PM7325B) ?
+		PM7325B_SET_OUTPUT_VOLTAGE_MASK : SET_OUTPUT_VOLTAGE_MASK;
 
 	if (type == BST)
 		return qpnp_lcdb_get_bst_voltage(lcdb, voltage_mv);
@@ -1258,7 +1536,7 @@ static int qpnp_lcdb_get_voltage(struct qpnp_lcdb *lcdb,
 		return rc;
 	}
 
-	val &= SET_OUTPUT_VOLTAGE_MASK;
+	val &= voltage_mask;
 	if (val < VOLTAGE_STEP_50MV_OFFSET) {
 		*voltage_mv = VOLTAGE_MIN_STEP_100_MV +
 				(val * VOLTAGE_STEP_100_MV);
@@ -1292,7 +1570,7 @@ static int qpnp_lcdb_set_soft_start(struct qpnp_lcdb *lcdb,
 	}
 
 	i = 0;
-	while (ss_us > soft_start_us[i])
+	while (ss_us >= soft_start_us[i])
 		i++;
 	val = ((i == 0) ? 0 : i - 1) & SOFT_START_MASK;
 
@@ -1465,7 +1743,7 @@ static const struct regulator_ops qpnp_lcdb_ncp_ops = {
 
 static int qpnp_lcdb_regulator_register(struct qpnp_lcdb *lcdb, u8 type)
 {
-	int rc = 0, off_on_delay = 0;
+	int rc = 0, off_on_delay = 0, voltage_step = VOLTAGE_STEP_50_MV;
 	struct regulator_init_data *init_data;
 	struct regulator_config cfg = {};
 	struct regulator_desc *rdesc;
@@ -1480,12 +1758,16 @@ static int qpnp_lcdb_regulator_register(struct qpnp_lcdb *lcdb, u8 type)
 		rdesc			= &lcdb->ldo.rdesc;
 		rdesc->ops		= &qpnp_lcdb_ldo_ops;
 		rdesc->off_on_delay	= off_on_delay;
+		rdesc->n_voltages = ((lcdb->max_voltage_mv - lcdb->min_voltage_mv)
+					/ voltage_step) + 1;
 		rdev			= lcdb->ldo.rdev;
 	} else if (type == NCP) {
 		node			= lcdb->ncp.node;
 		rdesc			= &lcdb->ncp.rdesc;
 		rdesc->ops		= &qpnp_lcdb_ncp_ops;
 		rdesc->off_on_delay	= off_on_delay;
+		rdesc->n_voltages = ((lcdb->max_voltage_mv - lcdb->min_voltage_mv)
+					/ voltage_step) + 1;
 		rdev			= lcdb->ncp.rdev;
 	} else {
 		pr_err("Invalid regulator type %d\n", type);
@@ -1540,6 +1822,10 @@ static int qpnp_lcdb_parse_ttw(struct qpnp_lcdb *lcdb)
 	u8 val = 0;
 	struct device_node *node = lcdb->dev->of_node;
 
+	/* LCDB_AUTO_TOUCH_WAKE_CTL_REG is removed for PM7325B, but TTW is supported */
+	if (lcdb->subtype == PM7325B)
+		return 0;
+
 	if (of_property_read_bool(node, "qcom,ttw-mode-sw")) {
 		lcdb->ttw_mode_sw = true;
 		rc = of_property_read_u32(node, "qcom,attw-toff-ms", &temp);
@@ -1583,15 +1869,16 @@ static int qpnp_lcdb_ldo_dt_init(struct qpnp_lcdb *lcdb)
 {
 	int rc = 0;
 	struct device_node *node = lcdb->ldo.node;
+	int ilim_min = (lcdb->subtype == PM7325B) ? PM7325B_MIN_LDO_ILIM_MA : MIN_LDO_ILIM_MA;
+	int ilim_max = (lcdb->subtype == PM7325B) ? PM7325B_MAX_LDO_ILIM_MA : MAX_LDO_ILIM_MA;
 
 	/* LDO output voltage */
 	lcdb->ldo.voltage_mv = -EINVAL;
 	rc = of_property_read_u32(node, "qcom,ldo-voltage-mv",
 					&lcdb->ldo.voltage_mv);
-	if (!rc && !is_between(lcdb->ldo.voltage_mv, MIN_VOLTAGE_MV,
-						MAX_VOLTAGE_MV)) {
+	if (!rc && !is_between(lcdb->ldo.voltage_mv, lcdb->min_voltage_mv, lcdb->max_voltage_mv)) {
 		pr_err("Invalid LDO voltage %dmv (min=%d max=%d)\n",
-			lcdb->ldo.voltage_mv, MIN_VOLTAGE_MV, MAX_VOLTAGE_MV);
+			lcdb->ldo.voltage_mv, lcdb->min_voltage_mv, lcdb->max_voltage_mv);
 		return -EINVAL;
 	}
 
@@ -1606,11 +1893,9 @@ static int qpnp_lcdb_ldo_dt_init(struct qpnp_lcdb *lcdb)
 	/* LDO ILIM configuration */
 	lcdb->ldo.ilim_ma = -EINVAL;
 	rc = of_property_read_u32(node, "qcom,ldo-ilim-ma", &lcdb->ldo.ilim_ma);
-	if (!rc && !is_between(lcdb->ldo.ilim_ma, MIN_LDO_ILIM_MA,
-						MAX_LDO_ILIM_MA)) {
+	if (!rc && !is_between(lcdb->ldo.ilim_ma, ilim_min, ilim_max)) {
 		pr_err("Invalid ilim_ma %d (min=%d, max=%d)\n",
-			lcdb->ldo.ilim_ma, MIN_LDO_ILIM_MA,
-					MAX_LDO_ILIM_MA);
+			lcdb->ldo.ilim_ma, ilim_min, ilim_max);
 		return -EINVAL;
 	}
 
@@ -1626,15 +1911,16 @@ static int qpnp_lcdb_ncp_dt_init(struct qpnp_lcdb *lcdb)
 {
 	int rc = 0;
 	struct device_node *node = lcdb->ncp.node;
+	int ilim_min = (lcdb->subtype == PM7325B) ? PM7325B_MIN_NCP_ILIM_MA : MIN_NCP_ILIM_MA;
+	int ilim_max = (lcdb->subtype == PM7325B) ? PM7325B_MAX_NCP_ILIM_MA : MAX_NCP_ILIM_MA;
 
 	/* NCP output voltage */
 	lcdb->ncp.voltage_mv = -EINVAL;
 	rc = of_property_read_u32(node, "qcom,ncp-voltage-mv",
 					&lcdb->ncp.voltage_mv);
-	if (!rc && !is_between(lcdb->ncp.voltage_mv, MIN_VOLTAGE_MV,
-						MAX_VOLTAGE_MV)) {
+	if (!rc && !is_between(lcdb->ncp.voltage_mv, lcdb->min_voltage_mv, lcdb->max_voltage_mv)) {
 		pr_err("Invalid NCP voltage %dmv (min=%d max=%d)\n",
-			lcdb->ldo.voltage_mv, MIN_VOLTAGE_MV, MAX_VOLTAGE_MV);
+			lcdb->ldo.voltage_mv, lcdb->min_voltage_mv, lcdb->max_voltage_mv);
 		return -EINVAL;
 	}
 
@@ -1649,10 +1935,9 @@ static int qpnp_lcdb_ncp_dt_init(struct qpnp_lcdb *lcdb)
 	/* NCP ILIM configuration */
 	lcdb->ncp.ilim_ma = -EINVAL;
 	rc = of_property_read_u32(node, "qcom,ncp-ilim-ma", &lcdb->ncp.ilim_ma);
-	if (!rc && !is_between(lcdb->ncp.ilim_ma, MIN_NCP_ILIM_MA,
-						MAX_NCP_ILIM_MA)) {
+	if (!rc && !is_between(lcdb->ncp.ilim_ma, ilim_min, ilim_max)) {
 		pr_err("Invalid ilim_ma %d (min=%d, max=%d)\n",
-			lcdb->ncp.ilim_ma, MIN_NCP_ILIM_MA, MAX_NCP_ILIM_MA);
+			lcdb->ncp.ilim_ma, ilim_min, ilim_max);
 		return -EINVAL;
 	}
 
@@ -1669,6 +1954,8 @@ static int qpnp_lcdb_bst_dt_init(struct qpnp_lcdb *lcdb)
 	int rc = 0;
 	struct device_node *node = lcdb->bst.node;
 	u16 default_headroom_mv;
+	int ilim_min = (lcdb->subtype == PM7325B) ? PM7325B_MIN_BST_ILIM_MA : MIN_BST_ILIM_MA;
+	int ilim_max = (lcdb->subtype == PM7325B) ? PM7325B_MAX_BST_ILIM_MA : MAX_BST_ILIM_MA;
 
 	/* Boost PD  configuration */
 	lcdb->bst.pd = -EINVAL;
@@ -1681,10 +1968,9 @@ static int qpnp_lcdb_bst_dt_init(struct qpnp_lcdb *lcdb)
 	/* Boost ILIM */
 	lcdb->bst.ilim_ma = -EINVAL;
 	rc = of_property_read_u32(node, "qcom,bst-ilim-ma", &lcdb->bst.ilim_ma);
-	if (!rc && !is_between(lcdb->bst.ilim_ma, MIN_BST_ILIM_MA,
-						MAX_BST_ILIM_MA)) {
+	if (!rc && !is_between(lcdb->bst.ilim_ma, ilim_min, ilim_max)) {
 		pr_err("Invalid ilim_ma %d (min=%d, max=%d)\n",
-			lcdb->bst.ilim_ma, MIN_BST_ILIM_MA, MAX_BST_ILIM_MA);
+			lcdb->bst.ilim_ma, ilim_min, ilim_max);
 			return -EINVAL;
 	}
 
@@ -1693,14 +1979,27 @@ static int qpnp_lcdb_bst_dt_init(struct qpnp_lcdb *lcdb)
 	of_property_read_u32(node, "qcom,bst-ps", &lcdb->bst.ps);
 
 	lcdb->bst.ps_threshold = -EINVAL;
-	rc = of_property_read_u32(node, "qcom,bst-ps-threshold-ma",
-					&lcdb->bst.ps_threshold);
-	if (!rc && !is_between(lcdb->bst.ps_threshold,
-				MIN_BST_PS_MA, MAX_BST_PS_MA)) {
-		pr_err("Invalid bst ps_threshold %d (min=%d, max=%d)\n",
-			lcdb->bst.ps_threshold, MIN_BST_PS_MA, MAX_BST_PS_MA);
-		return -EINVAL;
+	if (lcdb->subtype == PM7325B) {
+		rc = of_property_read_u32(node, "qcom,bst-ps-threshold-mv",
+						&lcdb->bst.ps_threshold);
+		if (!rc && !is_between(lcdb->bst.ps_threshold,
+					PM7325B_MIN_BST_PS_MV, PM7325B_MAX_BST_PS_MV)) {
+			pr_err("Invalid bst ps_threshold %d mV (min=%d, max=%d)\n",
+				lcdb->bst.ps_threshold, PM7325B_MIN_BST_PS_MV,
+				PM7325B_MAX_BST_PS_MV);
+			return -EINVAL;
+		}
+	} else {
+		rc = of_property_read_u32(node, "qcom,bst-ps-threshold-ma",
+						&lcdb->bst.ps_threshold);
+		if (!rc && !is_between(lcdb->bst.ps_threshold,
+					MIN_BST_PS_MA, MAX_BST_PS_MA)) {
+			pr_err("Invalid bst ps_threshold %d mA (min=%d, max=%d)\n",
+				lcdb->bst.ps_threshold, MIN_BST_PS_MA, MAX_BST_PS_MA);
+			return -EINVAL;
+		}
 	}
+
 
 	default_headroom_mv = (lcdb->subtype == PM660L) ?
 			       PM660_BST_HEADROOM_DEFAULT_MV :
@@ -1716,8 +2015,22 @@ static int qpnp_lcdb_bst_dt_init(struct qpnp_lcdb *lcdb)
 
 static int qpnp_lcdb_init_ldo(struct qpnp_lcdb *lcdb)
 {
-	int rc = 0, ilim_ma;
-	u8 val = 0;
+	int rc = 0, ilim_ma, i = 0;
+	u8 val = 0, pd_mask, pd_enable, ilim_ctl_reg, ilim_mask, ilim_sd_shift;
+
+	if (lcdb->subtype == PM7325B) {
+		pd_mask = (u8)PM7325B_LDO_EN_PULLDOWN_BIT;
+		pd_enable = (u8)PM7325B_LDO_EN_PULLDOWN_BIT;
+		ilim_ctl_reg = (u8)LCDB_LDO_ILIM_CTL1_REG;
+		ilim_mask = (u8)SET_LDO_ILIM_MASK_SD;
+		ilim_sd_shift = (u8)SET_LDO_ILIM_MASK_SD_SHIFT;
+	} else {
+		pd_mask = (u8)LDO_DIS_PULLDOWN_BIT;
+		pd_enable = (u8)~LDO_DIS_PULLDOWN_BIT;
+		ilim_ctl_reg = (u8)LCDB_LDO_ILIM_CTL2_REG;
+		ilim_mask = (u8)SET_LDO_ILIM_MASK;
+		ilim_sd_shift = 0;
+	}
 
 	/* configure parameters only if LCDB is disabled */
 	if (!is_lcdb_enabled(lcdb)) {
@@ -1732,8 +2045,8 @@ static int qpnp_lcdb_init_ldo(struct qpnp_lcdb *lcdb)
 
 		if (lcdb->ldo.pd != -EINVAL) {
 			rc = qpnp_lcdb_masked_write(lcdb, lcdb->base +
-				LCDB_LDO_PD_CTL_REG, LDO_DIS_PULLDOWN_BIT,
-				lcdb->ldo.pd ? 0 : LDO_DIS_PULLDOWN_BIT);
+				LCDB_LDO_PD_CTL_REG, pd_mask,
+				lcdb->ldo.pd ? pd_enable : ~pd_enable);
 			if (rc < 0) {
 				pr_err("Failed to configure LDO PD rc=%d\n",
 								rc);
@@ -1755,23 +2068,36 @@ static int qpnp_lcdb_init_ldo(struct qpnp_lcdb *lcdb)
 		}
 
 		if (lcdb->ldo.ilim_ma != -EINVAL) {
-			ilim_ma = lcdb->ldo.ilim_ma - MIN_LDO_ILIM_MA;
-			ilim_ma /= LDO_ILIM_STEP_MA;
-			val = (ilim_ma & SET_LDO_ILIM_MASK) | EN_LDO_ILIM_BIT;
+			if (lcdb->subtype == PM7325B) {
+				ilim_ma = lcdb->ldo.ilim_ma;
+				/*
+				 * Select the highest current available below the specified current
+				 * if there is no exact match.
+				 */
+				for (i = 0; i < ARRAY_SIZE(pm7325b_ldo_ilim_ma); i++)
+					if (ilim_ma < pm7325b_ldo_ilim_ma[i])
+						break;
+				val = (i == 0) ? 0 : i - 1;
+			} else {
+				ilim_ma = lcdb->ldo.ilim_ma - MIN_LDO_ILIM_MA;
+				ilim_ma /= LDO_ILIM_STEP_MA;
+				val = (ilim_ma & SET_LDO_ILIM_MASK);
+			}
+
 			rc = qpnp_lcdb_masked_write(lcdb, lcdb->base +
 					LCDB_LDO_ILIM_CTL1_REG,
 					SET_LDO_ILIM_MASK | EN_LDO_ILIM_BIT,
-					val);
+					(val | EN_LDO_ILIM_BIT));
 			if (rc < 0) {
 				pr_err("Failed to configure LDO ilim_ma (CTL1=%d) rc=%d\n",
 							val, rc);
 				return rc;
 			}
 
-			val = ilim_ma & SET_LDO_ILIM_MASK;
+			val = val << ilim_sd_shift;
 			rc = qpnp_lcdb_masked_write(lcdb,
-					lcdb->base + LCDB_LDO_ILIM_CTL2_REG,
-					SET_LDO_ILIM_MASK, val);
+					lcdb->base + ilim_ctl_reg,
+					ilim_mask, val);
 			if (rc < 0) {
 				pr_err("Failed to configure LDO ilim_ma (CTL2=%d) rc=%d\n",
 							val, rc);
@@ -1824,7 +2150,24 @@ static int qpnp_lcdb_init_ldo(struct qpnp_lcdb *lcdb)
 static int qpnp_lcdb_init_ncp(struct qpnp_lcdb *lcdb)
 {
 	int rc = 0, i = 0;
-	u8 val = 0;
+	const u32 *ncp_ilim, *dbc_ncp;
+	u8 val = 0, pd_enable, ilim_ctl_reg, ilim_mask, ilim_sd_shift;
+
+	if (lcdb->subtype == PM7325B) {
+		pd_enable = (u8)PM7325B_EN_NCP_PULLDOWN_BIT;
+		ilim_ctl_reg = (u8)LCDB_NCP_ILIM_CTL1_REG;
+		ilim_mask = (u8)PM7325B_SET_NCP_ILIM_SD_MASK;
+		ilim_sd_shift = (u8)SET_LDO_ILIM_MASK_SD_SHIFT;
+		ncp_ilim = pm7325b_ncp_ilim_ma;
+		dbc_ncp = ncp_dbc_us;
+	} else {
+		pd_enable = (u8)~NCP_DIS_PULLDOWN_BIT;
+		ilim_ctl_reg = (u8)LCDB_NCP_ILIM_CTL2_REG;
+		ilim_mask = (u8)SET_NCP_ILIM_MASK;
+		ilim_sd_shift = 0;
+		ncp_ilim = ncp_ilim_ma;
+		dbc_ncp = dbc_us;
+	}
 
 	/* configure parameters only if LCDB is disabled */
 	if (!is_lcdb_enabled(lcdb)) {
@@ -1840,7 +2183,7 @@ static int qpnp_lcdb_init_ncp(struct qpnp_lcdb *lcdb)
 		if (lcdb->ncp.pd != -EINVAL) {
 			rc = qpnp_lcdb_masked_write(lcdb, lcdb->base +
 				LCDB_NCP_PD_CTL_REG, NCP_DIS_PULLDOWN_BIT,
-				lcdb->ncp.pd ? 0 : NCP_DIS_PULLDOWN_BIT);
+				lcdb->ncp.pd ? pd_enable : ~pd_enable);
 			if (rc < 0) {
 				pr_err("Failed to configure NCP PD rc=%d\n",
 									rc);
@@ -1862,23 +2205,23 @@ static int qpnp_lcdb_init_ncp(struct qpnp_lcdb *lcdb)
 		}
 
 		if (lcdb->ncp.ilim_ma != -EINVAL) {
-			while (lcdb->ncp.ilim_ma > ncp_ilim_ma[i])
+			while (lcdb->ncp.ilim_ma >= ncp_ilim[i])
 				i++;
 			val = (i == 0) ? 0 : i - 1;
-			val = (lcdb->ncp.ilim_ma & SET_NCP_ILIM_MASK) |
-							EN_NCP_ILIM_BIT;
+			val = (val & SET_NCP_ILIM_MASK);
 			rc = qpnp_lcdb_masked_write(lcdb, lcdb->base +
 						LCDB_NCP_ILIM_CTL1_REG,
-				SET_NCP_ILIM_MASK | EN_NCP_ILIM_BIT, val);
+						SET_NCP_ILIM_MASK | EN_NCP_ILIM_BIT,
+						val | EN_NCP_ILIM_BIT);
 			if (rc < 0) {
 				pr_err("Failed to configure NCP ilim_ma (CTL1=%d) rc=%d\n",
 								val, rc);
 				return rc;
 			}
-			val = lcdb->ncp.ilim_ma & SET_NCP_ILIM_MASK;
+			val = val << ilim_sd_shift;
 			rc = qpnp_lcdb_masked_write(lcdb,
-					lcdb->base + LCDB_NCP_ILIM_CTL2_REG,
-					SET_NCP_ILIM_MASK, val);
+					lcdb->base + ilim_ctl_reg,
+					ilim_mask, val);
 			if (rc < 0) {
 				pr_err("Failed to configure NCP ilim_ma (CTL2=%d) rc=%d\n",
 							val, rc);
@@ -1911,7 +2254,7 @@ static int qpnp_lcdb_init_ncp(struct qpnp_lcdb *lcdb)
 		pr_err("Failed to read ncp_vreg_ok rc=%d\n", rc);
 		return rc;
 	}
-	lcdb->ncp.vreg_ok_dbc_us = dbc_us[val & VREG_OK_DEB_MASK];
+	lcdb->ncp.vreg_ok_dbc_us = dbc_ncp[val & VREG_OK_DEB_MASK];
 
 	rc = qpnp_lcdb_read(lcdb, lcdb->base +
 			LCDB_NCP_SOFT_START_CTL_REG, &val, 1);
@@ -1930,15 +2273,34 @@ static int qpnp_lcdb_init_ncp(struct qpnp_lcdb *lcdb)
 
 static int qpnp_lcdb_init_bst(struct qpnp_lcdb *lcdb)
 {
-	int rc = 0;
-	u8 val, mask = 0;
+	int rc = 0, bst_ps_min, bst_ps_step;
+	const u32 *dbc_bst;
+	u8 val = 0, pd_mask, pd_enable, mask = 0, bst_ilim_en, bst_vreg_ok_reg;
+
+	if (lcdb->subtype == PM7325B) {
+		pd_mask = (u8)PM7325B_BOOST_EN_PULLDOWN_BIT;
+		pd_enable = (u8)PM7325B_BOOST_EN_PULLDOWN_BIT;
+		bst_ilim_en = 0;
+		bst_ps_step = 24;
+		bst_ps_min = PM7325B_MIN_BST_PS_MV;
+		dbc_bst = bst_dbc_us;
+		bst_vreg_ok_reg = (u8)PM7325B_LCDB_BST_VREG_OK_CTL_REG;
+	} else {
+		pd_mask = (u8)BOOST_DIS_PULLDOWN_BIT;
+		pd_enable = (u8)~BOOST_DIS_PULLDOWN_BIT;
+		bst_ilim_en = (u8)EN_BST_ILIM_BIT;
+		bst_ps_step = 10;
+		bst_ps_min = MIN_BST_PS_MA;
+		dbc_bst = dbc_us;
+		bst_vreg_ok_reg = (u8)LCDB_BST_VREG_OK_CTL_REG;
+	}
 
 	/* configure parameters only if LCDB is disabled */
 	if (!is_lcdb_enabled(lcdb)) {
 		if (lcdb->bst.pd != -EINVAL) {
 			rc = qpnp_lcdb_masked_write(lcdb, lcdb->base +
-				LCDB_BST_PD_CTL_REG, BOOST_DIS_PULLDOWN_BIT,
-				lcdb->bst.pd ? 0 : BOOST_DIS_PULLDOWN_BIT);
+				LCDB_BST_PD_CTL_REG, pd_mask,
+				lcdb->bst.pd ? pd_enable : ~pd_enable);
 			if (rc < 0) {
 				pr_err("Failed to configure BST PD rc=%d\n",
 									rc);
@@ -1960,12 +2322,16 @@ static int qpnp_lcdb_init_bst(struct qpnp_lcdb *lcdb)
 		}
 
 		if (lcdb->bst.ilim_ma != -EINVAL) {
-			val = (lcdb->bst.ilim_ma / MIN_BST_ILIM_MA) - 1;
-			val = (lcdb->bst.ilim_ma & SET_BST_ILIM_MASK) |
-							EN_BST_ILIM_BIT;
+			if (lcdb->subtype == PM7325B) {
+				val = (lcdb->bst.ilim_ma - PM7325B_MIN_BST_ILIM_MA)
+					/ PM7325B_BST_ILIM_MA_STEP;
+			} else {
+				val = (lcdb->bst.ilim_ma / MIN_BST_ILIM_MA) - 1;
+			}
+			val = (val & SET_BST_ILIM_MASK) | bst_ilim_en;
 			rc = qpnp_lcdb_masked_write(lcdb, lcdb->base +
 				LCDB_BST_ILIM_CTL_REG,
-				SET_BST_ILIM_MASK | EN_BST_ILIM_BIT, val);
+				SET_BST_ILIM_MASK | bst_ilim_en, val);
 			if (rc < 0) {
 				pr_err("Failed to configure BST ilim_ma rc=%d\n",
 									rc);
@@ -1986,8 +2352,8 @@ static int qpnp_lcdb_init_bst(struct qpnp_lcdb *lcdb)
 		if (lcdb->bst.ps_threshold != -EINVAL) {
 			mask = (lcdb->subtype == PM660L) ?
 					PM660_PS_THRESH_MASK : PS_THRESH_MASK;
-			val = (lcdb->bst.ps_threshold - MIN_BST_PS_MA) / 10;
-			val = (lcdb->bst.ps_threshold & mask) | EN_PS_BIT;
+			val = (lcdb->bst.ps_threshold - bst_ps_min) / bst_ps_step;
+			val = (val & mask) | EN_PS_BIT;
 			rc = qpnp_lcdb_masked_write(lcdb, lcdb->base +
 						LCDB_PS_CTL_REG,
 						mask | EN_PS_BIT, val);
@@ -2001,17 +2367,17 @@ static int qpnp_lcdb_init_bst(struct qpnp_lcdb *lcdb)
 
 	rc = qpnp_lcdb_get_voltage(lcdb, &lcdb->bst.voltage_mv, BST);
 	if (rc < 0) {
-		pr_err("Failed to get BST volatge rc=%d\n", rc);
+		pr_err("Failed to get BST voltage rc=%d\n", rc);
 		return rc;
 	}
 
 	rc = qpnp_lcdb_read(lcdb, lcdb->base +
-			LCDB_BST_VREG_OK_CTL_REG, &val, 1);
+			bst_vreg_ok_reg, &val, 1);
 	if (rc < 0) {
 		pr_err("Failed to read bst_vreg_ok rc=%d\n", rc);
 		return rc;
 	}
-	lcdb->bst.vreg_ok_dbc_us = dbc_us[val & VREG_OK_DEB_MASK];
+	lcdb->bst.vreg_ok_dbc_us = dbc_bst[val & VREG_OK_DEB_MASK];
 
 	if (lcdb->subtype == PM660L) {
 		rc = qpnp_lcdb_read(lcdb, lcdb->base +
@@ -2041,8 +2407,27 @@ static int qpnp_lcdb_init_bst(struct qpnp_lcdb *lcdb)
 
 static void qpnp_lcdb_pmic_config(struct qpnp_lcdb *lcdb)
 {
-	if (lcdb->subtype == PMI632 || lcdb->subtype == PM6150L)
+	int rc;
+	u8 val[2];
+
+	switch (lcdb->subtype) {
+	case PMI632:
+	case PM6150L:
+	case PM7325B:
 		lcdb->wa_flags |= FORCE_PD_ENABLE_WA;
+		break;
+	default:
+		break;
+	}
+
+	if (lcdb->subtype == PM7325B) {
+		rc = qpnp_lcdb_read(lcdb, lcdb->base + LCDB_REVISION3_REG,
+								val, 2);
+
+		/* This SW W/A is applicable for PM7325B 1.0 HW only */
+		if (!rc && val[0] == 0 && val[1] == 1)
+			lcdb->wa_flags |= LDO_UNDERSHOOT_WA;
+	}
 
 	pr_debug("LCDB wa_flags = 0x%2x\n", lcdb->wa_flags);
 }
@@ -2059,6 +2444,24 @@ static int qpnp_lcdb_hw_init(struct qpnp_lcdb *lcdb)
 					    LCDB_PWRUP_PWRDN_CTL_REG,
 					    PWRDN_DELAY_MASK,
 					    lcdb->pwrdn_delay_ms);
+		if (rc < 0)
+			return rc;
+	}
+
+	if (lcdb->pwrup_delay_ms != -EINVAL) {
+		rc = qpnp_lcdb_masked_write(lcdb, lcdb->base +
+					    LCDB_PWRUP_PWRDN_CTL_REG,
+					    PWRUP_DELAY_MASK,
+					    lcdb->pwrup_delay_ms << PWRUP_DELAY_SHIFT);
+		if (rc < 0)
+			return rc;
+	}
+
+	if (lcdb->pwrup_config != -EINVAL) {
+		rc = qpnp_lcdb_masked_write(lcdb, lcdb->base +
+					    LCDB_CONFIG_SEL_REG,
+					    PWRUP_CONFIG_SEL_MASK,
+					    lcdb->pwrup_config);
 		if (rc < 0)
 			return rc;
 	}
@@ -2117,9 +2520,29 @@ static int qpnp_lcdb_hw_init(struct qpnp_lcdb *lcdb)
 	return 0;
 }
 
+static int qpnp_lcdb_pwrup_dn_delay(int val, int *delay)
+{
+	int i;
+
+	if (!is_between(val, PWRDN_DELAY_MIN_MS, PWRDN_DELAY_MAX_MS)) {
+		pr_err("Invalid PWR_UP_DN_DLY val %d (min=%d max=%d)\n",
+			val, PWRDN_DELAY_MIN_MS, PWRDN_DELAY_MAX_MS);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(pwrup_pwrdn_ms); i++) {
+		if (val == pwrup_pwrdn_ms[i]) {
+			*delay = i;
+			break;
+		}
+	}
+
+	return 0;
+}
+
 static int qpnp_lcdb_parse_dt(struct qpnp_lcdb *lcdb)
 {
-	int rc = 0, i = 0;
+	int rc = 0;
 	u32 tmp;
 	const char *label;
 	struct device_node *temp, *node = lcdb->dev->of_node;
@@ -2167,20 +2590,27 @@ static int qpnp_lcdb_parse_dt(struct qpnp_lcdb *lcdb)
 			of_property_read_bool(node, "qcom,voltage-step-ramp");
 
 	lcdb->pwrdn_delay_ms = -EINVAL;
+	lcdb->pwrup_delay_ms = -EINVAL;
+	lcdb->pwrup_config = -EINVAL;
 	rc = of_property_read_u32(node, "qcom,pwrdn-delay-ms", &tmp);
 	if (!rc) {
-		if (!is_between(tmp, PWRDN_DELAY_MIN_MS, PWRDN_DELAY_MAX_MS)) {
-			pr_err("Invalid PWRDN_DLY val %d (min=%d max=%d)\n",
-				tmp, PWRDN_DELAY_MIN_MS, PWRDN_DELAY_MAX_MS);
-			return -EINVAL;
-		}
+		rc = qpnp_lcdb_pwrup_dn_delay(tmp, &lcdb->pwrdn_delay_ms);
+		if (rc < 0)
+			return rc;
+	}
 
-		for (i = 0; i < ARRAY_SIZE(pwrup_pwrdn_ms); i++) {
-			if (tmp == pwrup_pwrdn_ms[i]) {
-				lcdb->pwrdn_delay_ms = i;
-				break;
-			}
-		}
+	rc = of_property_read_u32(node, "qcom,pwrup-delay-ms", &tmp);
+	if (!rc) {
+		rc = qpnp_lcdb_pwrup_dn_delay(tmp, &lcdb->pwrup_delay_ms);
+		if (rc < 0)
+			return rc;
+	}
+
+	rc = of_property_read_u32(node, "qcom,pwrup-config", &lcdb->pwrup_config);
+	if (!rc && lcdb->pwrup_config > PWRUP_CONFIG_MAX) {
+		pr_err("Invalid pwrup config %d, max=%d\n",
+			lcdb->pwrup_config, PWRUP_CONFIG_MAX);
+		return -EINVAL;
 	}
 
 	return 0;
@@ -2191,6 +2621,7 @@ static int qpnp_lcdb_regulator_probe(struct platform_device *pdev)
 	int rc;
 	struct device_node *node;
 	struct qpnp_lcdb *lcdb;
+	const struct of_device_id *dev_id;
 
 	node = pdev->dev.of_node;
 	if (!node) {
@@ -2215,9 +2646,15 @@ static int qpnp_lcdb_regulator_probe(struct platform_device *pdev)
 	}
 
 	lcdb->subtype = (u8)of_device_get_match_data(&pdev->dev);
-
 	lcdb->dev = &pdev->dev;
 	lcdb->pdev = pdev;
+	dev_id = of_match_device(lcdb->dev->driver->of_match_table, lcdb->dev);
+
+	lcdb->min_voltage_mv = (lcdb->subtype == PM7325B) ?
+			       PM7325B_MIN_VOLTAGE_MV : MIN_VOLTAGE_MV;
+	lcdb->max_voltage_mv = (lcdb->subtype == PM7325B) ?
+			       PM7325B_MAX_VOLTAGE_MV : MAX_VOLTAGE_MV;
+
 	mutex_init(&lcdb->lcdb_mutex);
 	mutex_init(&lcdb->read_write_mutex);
 
@@ -2231,8 +2668,8 @@ static int qpnp_lcdb_regulator_probe(struct platform_device *pdev)
 	if (rc < 0)
 		pr_err("Failed to initialize LCDB module rc=%d\n", rc);
 	else
-		pr_info("LCDB module successfully registered! lcdb_en=%d ldo_voltage=%dmV ncp_voltage=%dmV bst_voltage=%dmV\n",
-			lcdb->lcdb_enabled, lcdb->ldo.voltage_mv,
+		pr_info("LCDB module: %s successfully registered! lcdb_en=%d ldo_voltage=%dmV ncp_voltage=%dmV bst_voltage=%dmV\n",
+			dev_id->compatible, lcdb->lcdb_enabled, lcdb->ldo.voltage_mv,
 			lcdb->ncp.voltage_mv, lcdb->bst.voltage_mv);
 
 	return rc;
@@ -2255,8 +2692,10 @@ static const struct of_device_id lcdb_match_table[] = {
 		.data = (void *)PM660L,},
 	{ .compatible = QPNP_LCDB_REGULATOR_DRIVER_632,
 		.data = (void *)PMI632,},
-	{ .compatible = QPNP_LCDB_REGULATOR_DRIVER_6150l,
+	{ .compatible = QPNP_LCDB_REGULATOR_DRIVER_6150L,
 		.data = (void *)PM6150L,},
+	{ .compatible = QPNP_LCDB_REGULATOR_DRIVER_7325B,
+		.data = (void *)PM7325B,},
 	{ },
 };
 
