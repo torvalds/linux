@@ -18,7 +18,6 @@
 #include <asm/irqdomain.h>
 #include <asm/device.h>
 #include <asm/msi.h>
-#include <asm/msidef.h>
 
 #define VMD_CFGBAR	0
 #define VMD_MEMBAR1	2
@@ -131,10 +130,10 @@ static void vmd_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	struct vmd_irq_list *irq = vmdirq->irq;
 	struct vmd_dev *vmd = irq_data_get_irq_handler_data(data);
 
-	msg->address_hi = MSI_ADDR_BASE_HI;
-	msg->address_lo = MSI_ADDR_BASE_LO |
-			  MSI_ADDR_DEST_ID(index_from_irqs(vmd, irq));
-	msg->data = 0;
+	memset(msg, 0, sizeof(*msg));
+	msg->address_hi = X86_MSI_BASE_ADDRESS_HIGH;
+	msg->arch_addr_lo.base_address = X86_MSI_BASE_ADDRESS_LOW;
+	msg->arch_addr_lo.destid_0_7 = index_from_irqs(vmd, irq);
 }
 
 /*

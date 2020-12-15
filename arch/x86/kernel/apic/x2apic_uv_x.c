@@ -728,9 +728,9 @@ static void uv_send_IPI_one(int cpu, int vector)
 	unsigned long dmode, val;
 
 	if (vector == NMI_VECTOR)
-		dmode = dest_NMI;
+		dmode = APIC_DELIVERY_MODE_NMI;
 	else
-		dmode = dest_Fixed;
+		dmode = APIC_DELIVERY_MODE_FIXED;
 
 	val = (1UL << UVH_IPI_INT_SEND_SHFT) |
 		(apicid << UVH_IPI_INT_APIC_ID_SHFT) |
@@ -832,15 +832,13 @@ static struct apic apic_x2apic_uv_x __ro_after_init = {
 	.apic_id_valid			= uv_apic_id_valid,
 	.apic_id_registered		= uv_apic_id_registered,
 
-	.irq_delivery_mode		= dest_Fixed,
-	.irq_dest_mode			= 0, /* Physical */
+	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
+	.dest_mode_logical		= false,
 
 	.disable_esr			= 0,
-	.dest_logical			= APIC_DEST_LOGICAL,
+
 	.check_apicid_used		= NULL,
-
 	.init_apic_ldr			= uv_init_apic_ldr,
-
 	.ioapic_phys_id_map		= NULL,
 	.setup_apic_routing		= NULL,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
