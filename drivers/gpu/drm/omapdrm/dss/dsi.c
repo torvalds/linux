@@ -360,9 +360,10 @@ struct dsi_data {
 	bool vdds_dsi_enabled;
 	struct regulator *vdds_dsi_reg;
 
+	struct mipi_dsi_device *dsidev;
+
 	struct {
 		enum dsi_vc_source source;
-		struct mipi_dsi_device *dest;
 		enum fifo_size tx_fifo_size;
 		enum fifo_size rx_fifo_size;
 	} vc[4];
@@ -451,6 +452,8 @@ struct dsi_packet_sent_handler_data {
 static bool dsi_perf;
 module_param(dsi_perf, bool, 0644);
 #endif
+
+#define VC_DEFAULT 0
 
 #define drm_bridge_to_dsi(bridge) \
 	container_of(bridge, struct dsi_data, bridge)
@@ -3718,16 +3721,11 @@ static void dsi_disable_video_output(struct omap_dss_device *dssdev, int channel
 static void dsi_disable_video_outputs(struct omap_dss_device *dssdev)
 {
 	struct dsi_data *dsi = to_dsi_data(dssdev);
-	unsigned int i;
 
 	dsi_bus_lock(dsi);
 	dsi->video_enabled = false;
 
-	for (i = 0; i < 4; i++) {
-		if (!dsi->vc[i].dest)
-			continue;
-		dsi_disable_video_output(dssdev, i);
-	}
+	dsi_disable_video_output(dssdev, VC_DEFAULT);
 
 	dsi_display_disable(dssdev);
 
@@ -3911,11 +3909,6 @@ static int dsi_update_channel(struct omap_dss_device *dssdev, int channel)
 		goto err;
 	}
 
-	if (!dsi->vc[channel].dest) {
-		r = -ENODEV;
-		goto err;
-	}
-
 	if (dsi->vm.hactive == 0 || dsi->vm.vactive == 0) {
 		r = -EINVAL;
 		goto err;
@@ -3956,16 +3949,7 @@ err:
 
 static int dsi_update_all(struct omap_dss_device *dssdev)
 {
-	unsigned int i;
-	int r;
-
-	for (i = 0; i < 4; i++) {
-		r = dsi_update_channel(dssdev, i);
-		if (r && r != -ENODEV)
-			return r;
-	}
-
-	return r;
+	return dsi_update_channel(dssdev, VC_DEFAULT);
 }
 
 /* Display funcs */
@@ -4193,17 +4177,12 @@ static void dsi_display_enable(struct omap_dss_device *dssdev)
 static void dsi_enable_video_outputs(struct omap_dss_device *dssdev)
 {
 	struct dsi_data *dsi = to_dsi_data(dssdev);
-	unsigned int i;
 
 	dsi_bus_lock(dsi);
 
 	dsi_display_enable(dssdev);
 
-	for (i = 0; i < 4; i++) {
-		if (!dsi->vc[i].dest)
-			continue;
-		dsi_enable_video_output(dssdev, i);
-	}
+	dsi_enable_video_output(dssdev, VC_DEFAULT);
 
 	dsi->video_enabled = true;
 
@@ -5092,8 +5071,8 @@ static int omap_dsi_host_attach(struct mipi_dsi_host *host,
 	if (channel > 3)
 		return -EINVAL;
 
-	if (dsi->vc[channel].dest) {
-		DSSERR("cannot get VC for display %s", dev_name(&client->dev));
+	if (dsi->dsidev) {
+		DSSERR("dsi client already attached\n");
 		return -EBUSY;
 	}
 
@@ -5114,7 +5093,7 @@ static int omap_dsi_host_attach(struct mipi_dsi_host *host,
 		dsi->mode = OMAP_DSS_DSI_CMD_MODE;
 	}
 
-	dsi->vc[channel].dest = client;
+	dsi->dsidev = client;
 	dsi->pix_fmt = client->format;
 
 	INIT_DEFERRABLE_WORK(&dsi->ulps_work,
@@ -5146,11 +5125,11 @@ static int omap_dsi_host_detach(struct mipi_dsi_host *host,
 	if (channel > 3)
 		return -EINVAL;
 
-	if (dsi->vc[channel].dest != client)
+	if (WARN_ON(dsi->dsidev != client))
 		return -EINVAL;
 
 	omap_dsi_unregister_te_irq(dsi);
-	dsi->vc[channel].dest = NULL;
+	dsi->dsidev = NULL;
 	return 0;
 }
 
@@ -5682,10 +5661,8 @@ static int dsi_probe(struct platform_device *pdev)
 	}
 
 	/* DSI VCs initialization */
-	for (i = 0; i < ARRAY_SIZE(dsi->vc); i++) {
+	for (i = 0; i < ARRAY_SIZE(dsi->vc); i++)
 		dsi->vc[i].source = DSI_VC_SOURCE_L4;
-		dsi->vc[i].dest = NULL;
-	}
 
 	r = dsi_get_clocks(dsi);
 	if (r)
