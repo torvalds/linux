@@ -355,10 +355,6 @@ struct dasd_discipline {
 	int (*fill_info) (struct dasd_device *, struct dasd_information2_t *);
 	int (*ioctl) (struct dasd_block *, unsigned int, void __user *);
 
-	/* suspend/resume functions */
-	int (*freeze) (struct dasd_device *);
-	int (*restore) (struct dasd_device *);
-
 	/* reload device after state change */
 	int (*reload) (struct dasd_device *);
 
@@ -520,7 +516,6 @@ struct dasd_device {
 	atomic_t tasklet_scheduled;
         struct tasklet_struct tasklet;
 	struct work_struct kick_work;
-	struct work_struct restore_device;
 	struct work_struct reload_device;
 	struct work_struct kick_validate;
 	struct work_struct suc_work;
@@ -592,8 +587,6 @@ struct dasd_queue {
 #define DASD_STOPPED_PENDING 4         /* long busy */
 #define DASD_STOPPED_DC_WAIT 8         /* disconnected, wait */
 #define DASD_STOPPED_SU      16        /* summary unit check handling */
-#define DASD_STOPPED_PM      32        /* pm state transition */
-#define DASD_UNRESUMED_PM    64        /* pm resume failed state */
 #define DASD_STOPPED_NOSPC   128       /* no space left */
 
 /* per device flags */
@@ -753,7 +746,6 @@ enum blk_eh_timer_return dasd_times_out(struct request *req, bool reserved);
 void dasd_enable_device(struct dasd_device *);
 void dasd_set_target_state(struct dasd_device *, int);
 void dasd_kick_device(struct dasd_device *);
-void dasd_restore_device(struct dasd_device *);
 void dasd_reload_device(struct dasd_device *);
 void dasd_schedule_requeue(struct dasd_device *);
 
@@ -785,8 +777,6 @@ int dasd_generic_path_operational(struct dasd_device *);
 void dasd_generic_shutdown(struct ccw_device *);
 
 void dasd_generic_handle_state_change(struct dasd_device *);
-int dasd_generic_pm_freeze(struct ccw_device *);
-int dasd_generic_restore_device(struct ccw_device *);
 enum uc_todo dasd_generic_uc_handler(struct ccw_device *, struct irb *);
 void dasd_generic_path_event(struct ccw_device *, int *);
 int dasd_generic_verify_path(struct dasd_device *, __u8);
