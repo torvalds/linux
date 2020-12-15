@@ -489,9 +489,6 @@ enum dmub_status dmub_srv_hw_reset(struct dmub_srv *dmub)
 	if (!dmub->sw_init)
 		return DMUB_STATUS_INVALID;
 
-	if (dmub->hw_init == false)
-		return DMUB_STATUS_OK;
-
 	if (dmub->hw_funcs.reset)
 		dmub->hw_funcs.reset(dmub);
 
