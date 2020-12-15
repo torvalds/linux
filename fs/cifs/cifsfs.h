@@ -160,5 +160,5 @@ extern struct dentry *cifs_smb3_do_mount(struct file_system_type *fs_type,
 extern const struct export_operations cifs_export_ops;
 #endif /* CONFIG_CIFS_NFSD_EXPORT */
 
-#define CIFS_VERSION   "2.29"
+#define CIFS_VERSION   "2.30"
 #endif				/* _CIFSFS_H */
