@@ -73,6 +73,7 @@ struct vdpasim;
 struct vdpasim_dev_attr {
 	u64 supported_features;
 	size_t config_size;
+	size_t buffer_size;
 	int nvqs;
 	u32 id;
 
@@ -418,7 +419,7 @@ static struct vdpasim *vdpasim_create(struct vdpasim_dev_attr *dev_attr)
 	if (!vdpasim->iommu)
 		goto err_iommu;
 
-	vdpasim->buffer = kvmalloc(PAGE_SIZE, GFP_KERNEL);
+	vdpasim->buffer = kvmalloc(dev_attr->buffer_size, GFP_KERNEL);
 	if (!vdpasim->buffer)
 		goto err_iommu;
 
@@ -787,6 +788,7 @@ static int __init vdpasim_dev_init(void)
 	dev_attr.config_size = sizeof(struct virtio_net_config);
 	dev_attr.get_config = vdpasim_net_get_config;
 	dev_attr.work_fn = vdpasim_net_work;
+	dev_attr.buffer_size = PAGE_SIZE;
 
 	vdpasim_dev = vdpasim_create(&dev_attr);
 
