@@ -259,24 +259,24 @@ static struct cifs_swn_reg *cifs_find_swn_reg(struct cifs_tcon *tcon)
 	const char *net_name;
 
 	net_name = extract_hostname(tcon->treeName);
-	if (IS_ERR_OR_NULL(net_name)) {
+	if (IS_ERR(net_name)) {
 		int ret;
 
 		ret = PTR_ERR(net_name);
 		cifs_dbg(VFS, "%s: failed to extract host name from target '%s': %d\n",
 				__func__, tcon->treeName, ret);
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	share_name = extract_sharename(tcon->treeName);
-	if (IS_ERR_OR_NULL(share_name)) {
+	if (IS_ERR(share_name)) {
 		int ret;
 
 		ret = PTR_ERR(net_name);
 		cifs_dbg(VFS, "%s: failed to extract share name from target '%s': %d\n",
 				__func__, tcon->treeName, ret);
 		kfree(net_name);
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	idr_for_each_entry(&cifs_swnreg_idr, swnreg, id) {
@@ -299,7 +299,7 @@ static struct cifs_swn_reg *cifs_find_swn_reg(struct cifs_tcon *tcon)
 	kfree(net_name);
 	kfree(share_name);
 
-	return NULL;
+	return ERR_PTR(-EEXIST);
 }
 
 /*
@@ -315,10 +315,11 @@ static struct cifs_swn_reg *cifs_get_swn_reg(struct cifs_tcon *tcon)
 
 	/* Check if we are already registered for this network and share names */
 	reg = cifs_find_swn_reg(tcon);
-	if (IS_ERR(reg)) {
-		return reg;
-	} else if (reg != NULL) {
+	if (!IS_ERR(reg)) {
 		kref_get(&reg->ref_count);
+		mutex_unlock(&cifs_swnreg_idr_mutex);
+		return reg;
+	} else if (PTR_ERR(reg) != -EEXIST) {
 		mutex_unlock(&cifs_swnreg_idr_mutex);
 		return reg;
 	}
@@ -630,9 +631,9 @@ int cifs_swn_unregister(struct cifs_tcon *tcon)
 	mutex_lock(&cifs_swnreg_idr_mutex);
 
 	swnreg = cifs_find_swn_reg(tcon);
-	if (swnreg == NULL) {
+	if (IS_ERR(swnreg)) {
 		mutex_unlock(&cifs_swnreg_idr_mutex);
-		return -EEXIST;
+		return PTR_ERR(swnreg);
 	}
 
 	mutex_unlock(&cifs_swnreg_idr_mutex);
