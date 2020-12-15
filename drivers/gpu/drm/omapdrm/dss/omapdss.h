@@ -391,7 +391,6 @@ struct omap_dss_driver {
 	int (*sync)(struct omap_dss_device *dssdev);
 
 	int (*enable_te)(struct omap_dss_device *dssdev, bool enable);
-	int (*get_te)(struct omap_dss_device *dssdev);
 };
 
 struct dss_device *omapdss_get_dss(void);

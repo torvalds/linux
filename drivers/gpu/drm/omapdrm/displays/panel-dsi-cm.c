@@ -918,18 +918,6 @@ err:
 	return r;
 }
 
-static int dsicm_get_te(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	int r;
-
-	mutex_lock(&ddata->lock);
-	r = ddata->te_enabled;
-	mutex_unlock(&ddata->lock);
-
-	return r;
-}
-
 static void dsicm_ulps_work(struct work_struct *work)
 {
 	struct panel_drv_data *ddata = container_of(work, struct panel_drv_data,
@@ -1001,7 +989,6 @@ static const struct omap_dss_driver dsicm_dss_driver = {
 	.sync		= dsicm_sync,
 
 	.enable_te	= dsicm_enable_te,
-	.get_te		= dsicm_get_te,
 };
 
 static int dsicm_probe_of(struct mipi_dsi_device *dsi)
