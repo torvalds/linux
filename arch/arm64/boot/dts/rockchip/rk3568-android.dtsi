@@ -27,6 +27,14 @@
 		#size-cells = <2>;
 		ranges;
 
+		linux,cma {
+			compatible = "shared-dma-pool";
+			inactive;
+			reusable;
+			size = <0x0 (8 * 0x00100000)>;
+			linux,cma-default;
+		};
+
 		ramoops: ramoops@110000 {
 			compatible = "ramoops";
 			reg = <0x0 0x110000 0x0 0xf0000>;
