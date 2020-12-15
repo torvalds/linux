@@ -212,7 +212,7 @@ over a rather long period of time, but improvements are always welcome!
 	the rest of the system.
 
 7.	As of v4.20, a given kernel implements only one RCU flavor,
-	which is RCU-sched for PREEMPT=n and RCU-preempt for PREEMPT=y.
+	which is RCU-sched for PREEMPTION=n and RCU-preempt for PREEMPTION=y.
 	If the updater uses call_rcu() or synchronize_rcu(),
 	then the corresponding readers may use rcu_read_lock() and
 	rcu_read_unlock(), rcu_read_lock_bh() and rcu_read_unlock_bh(),

@@ -78,7 +78,7 @@ RCU treats a nested set as one big RCU read-side critical section.
 Production-quality implementations of rcu_read_lock() and
 rcu_read_unlock() are extremely lightweight, and in fact have
 exactly zero overhead in Linux kernels built for production use with
-``CONFIG_PREEMPT=n``.
+``CONFIG_PREEMPTION=n``.
 
 This guarantee allows ordering to be enforced with extremely low
 overhead to readers, for example:
@@ -1181,7 +1181,7 @@ and has become decreasingly so as memory sizes have expanded and memory
 costs have plummeted. However, as I learned from Matt Mackall's
 `bloatwatch <http://elinux.org/Linux_Tiny-FAQ>`__ efforts, memory
 footprint is critically important on single-CPU systems with
-non-preemptible (``CONFIG_PREEMPT=n``) kernels, and thus `tiny
+non-preemptible (``CONFIG_PREEMPTION=n``) kernels, and thus `tiny
 RCU <https://lore.kernel.org/r/20090113221724.GA15307@linux.vnet.ibm.com>`__
 was born. Josh Triplett has since taken over the small-memory banner
 with his `Linux kernel tinification <https://tiny.wiki.kernel.org/>`__
@@ -1497,7 +1497,7 @@ limitations.
 
 Implementations of RCU for which rcu_read_lock() and
 rcu_read_unlock() generate no code, such as Linux-kernel RCU when
-``CONFIG_PREEMPT=n``, can be nested arbitrarily deeply. After all, there
+``CONFIG_PREEMPTION=n``, can be nested arbitrarily deeply. After all, there
 is no overhead. Except that if all these instances of
 rcu_read_lock() and rcu_read_unlock() are visible to the
 compiler, compilation will eventually fail due to exhausting memory,
@@ -1769,7 +1769,7 @@ implementation can be a no-op.
 
 However, once the scheduler has spawned its first kthread, this early
 boot trick fails for synchronize_rcu() (as well as for
-synchronize_rcu_expedited()) in ``CONFIG_PREEMPT=y`` kernels. The
+synchronize_rcu_expedited()) in ``CONFIG_PREEMPTION=y`` kernels. The
 reason is that an RCU read-side critical section might be preempted,
 which means that a subsequent synchronize_rcu() really does have to
 wait for something, as opposed to simply returning immediately.
@@ -2038,7 +2038,7 @@ the following:
        5 rcu_read_unlock();
        6 do_something_with(v, user_v);
 
-If the compiler did make this transformation in a ``CONFIG_PREEMPT=n`` kernel
+If the compiler did make this transformation in a ``CONFIG_PREEMPTION=n`` kernel
 build, and if get_user() did page fault, the result would be a quiescent
 state in the middle of an RCU read-side critical section.  This misplaced
 quiescent state could result in line 4 being a use-after-free access,
@@ -2320,7 +2320,7 @@ conjunction with the `-rt
 patchset <https://wiki.linuxfoundation.org/realtime/>`__. The
 real-time-latency response requirements are such that the traditional
 approach of disabling preemption across RCU read-side critical sections
-is inappropriate. Kernels built with ``CONFIG_PREEMPT=y`` therefore use
+is inappropriate. Kernels built with ``CONFIG_PREEMPTION=y`` therefore use
 an RCU implementation that allows RCU read-side critical sections to be
 preempted. This requirement made its presence known after users made it
 clear that an earlier `real-time
@@ -2460,11 +2460,11 @@ not have this property, given that any point in the code outside of an
 RCU read-side critical section can be a quiescent state. Therefore,
 *RCU-sched* was created, which follows “classic” RCU in that an
 RCU-sched grace period waits for pre-existing interrupt and NMI
-handlers. In kernels built with ``CONFIG_PREEMPT=n``, the RCU and
+handlers. In kernels built with ``CONFIG_PREEMPTION=n``, the RCU and
 RCU-sched APIs have identical implementations, while kernels built with
-``CONFIG_PREEMPT=y`` provide a separate implementation for each.
+``CONFIG_PREEMPTION=y`` provide a separate implementation for each.
 
-Note well that in ``CONFIG_PREEMPT=y`` kernels,
+Note well that in ``CONFIG_PREEMPTION=y`` kernels,
 rcu_read_lock_sched() and rcu_read_unlock_sched() disable and
 re-enable preemption, respectively. This means that if there was a
 preemption attempt during the RCU-sched read-side critical section,
@@ -2627,10 +2627,10 @@ userspace execution also delimit tasks-RCU read-side critical sections.
 
 The tasks-RCU API is quite compact, consisting only of
 call_rcu_tasks(), synchronize_rcu_tasks(), and
-rcu_barrier_tasks(). In ``CONFIG_PREEMPT=n`` kernels, trampolines
+rcu_barrier_tasks(). In ``CONFIG_PREEMPTION=n`` kernels, trampolines
 cannot be preempted, so these APIs map to call_rcu(),
 synchronize_rcu(), and rcu_barrier(), respectively. In
-``CONFIG_PREEMPT=y`` kernels, trampolines can be preempted, and these
+``CONFIG_PREEMPTION=y`` kernels, trampolines can be preempted, and these
 three APIs are therefore implemented by separate functions that check
 for voluntary context switches.
 
