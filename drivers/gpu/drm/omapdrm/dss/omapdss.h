@@ -9,6 +9,7 @@
 
 #include <drm/drm_color_mgmt.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_mipi_dsi.h>
 #include <drm/drm_mode.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
@@ -117,13 +118,6 @@ enum omap_dss_venc_type {
 	OMAP_DSS_VENC_TYPE_SVIDEO,
 };
 
-enum omap_dss_dsi_pixel_format {
-	OMAP_DSS_DSI_FMT_RGB888,
-	OMAP_DSS_DSI_FMT_RGB666,
-	OMAP_DSS_DSI_FMT_RGB666_PACKED,
-	OMAP_DSS_DSI_FMT_RGB565,
-};
-
 enum omap_dss_dsi_mode {
 	OMAP_DSS_DSI_CMD_MODE = 0,
 	OMAP_DSS_DSI_VIDEO_MODE,
@@ -211,7 +205,7 @@ struct omap_dss_dsi_videomode_timings {
 
 struct omap_dss_dsi_config {
 	enum omap_dss_dsi_mode mode;
-	enum omap_dss_dsi_pixel_format pixel_format;
+	enum mipi_dsi_pixel_format pixel_format;
 	const struct videomode *vm;
 
 	unsigned long hs_clk_min, hs_clk_max;

@@ -595,7 +595,7 @@ static int dsicm_power_on(struct panel_drv_data *ddata)
 	int r;
 	struct omap_dss_dsi_config dsi_config = {
 		.mode = OMAP_DSS_DSI_CMD_MODE,
-		.pixel_format = OMAP_DSS_DSI_FMT_RGB888,
+		.pixel_format = MIPI_DSI_FMT_RGB888,
 		.vm = &ddata->vm,
 		.hs_clk_min = 150000000,
 		.hs_clk_max = 300000000,
