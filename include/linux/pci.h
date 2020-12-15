@@ -281,6 +281,7 @@ enum pci_bus_speed {
 	PCIE_SPEED_8_0GT		= 0x16,
 	PCIE_SPEED_16_0GT		= 0x17,
 	PCIE_SPEED_32_0GT		= 0x18,
+	PCIE_SPEED_64_0GT		= 0x19,
 	PCI_SPEED_UNKNOWN		= 0xff,
 };
 
@@ -380,7 +381,7 @@ struct pci_dev {
 	struct pcie_link_state	*link_state;	/* ASPM link state */
 	unsigned int	ltr_path:1;	/* Latency Tolerance Reporting
 					   supported from root to here */
-	int		l1ss;		/* L1SS Capability pointer */
+	u16		l1ss;		/* L1SS Capability pointer */
 #endif
 	unsigned int	eetlp_prefix_path:1;	/* End-to-End TLP Prefix */
 
@@ -1063,12 +1064,13 @@ void pci_sort_breadthfirst(void);
 
 /* Generic PCI functions exported to card drivers */
 
-int pci_find_capability(struct pci_dev *dev, int cap);
-int pci_find_next_capability(struct pci_dev *dev, u8 pos, int cap);
-int pci_find_ext_capability(struct pci_dev *dev, int cap);
-int pci_find_next_ext_capability(struct pci_dev *dev, int pos, int cap);
-int pci_find_ht_capability(struct pci_dev *dev, int ht_cap);
-int pci_find_next_ht_capability(struct pci_dev *dev, int pos, int ht_cap);
+u8 pci_bus_find_capability(struct pci_bus *bus, unsigned int devfn, int cap);
+u8 pci_find_capability(struct pci_dev *dev, int cap);
+u8 pci_find_next_capability(struct pci_dev *dev, u8 pos, int cap);
+u8 pci_find_ht_capability(struct pci_dev *dev, int ht_cap);
+u8 pci_find_next_ht_capability(struct pci_dev *dev, u8 pos, int ht_cap);
+u16 pci_find_ext_capability(struct pci_dev *dev, int cap);
+u16 pci_find_next_ext_capability(struct pci_dev *dev, u16 pos, int cap);
 struct pci_bus *pci_find_next_bus(const struct pci_bus *from);
 
 u64 pci_get_dsn(struct pci_dev *dev);
@@ -1279,7 +1281,6 @@ void set_pcie_port_type(struct pci_dev *pdev);
 void set_pcie_hotplug_bridge(struct pci_dev *pdev);
 
 /* Functions for PCI Hotplug drivers to use */
-int pci_bus_find_capability(struct pci_bus *bus, unsigned int devfn, int cap);
 unsigned int pci_rescan_bus_bridge_resize(struct pci_dev *bridge);
 unsigned int pci_rescan_bus(struct pci_bus *bus);
 void pci_lock_rescan_remove(void);
@@ -1719,7 +1720,7 @@ static inline int __pci_register_driver(struct pci_driver *drv,
 static inline int pci_register_driver(struct pci_driver *drv)
 { return 0; }
 static inline void pci_unregister_driver(struct pci_driver *drv) { }
-static inline int pci_find_capability(struct pci_dev *dev, int cap)
+static inline u8 pci_find_capability(struct pci_dev *dev, int cap)
 { return 0; }
 static inline int pci_find_next_capability(struct pci_dev *dev, u8 post,
 					   int cap)

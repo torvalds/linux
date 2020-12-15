@@ -399,8 +399,8 @@ found:
 	return 1;
 }
 
-static int __pci_find_next_cap_ttl(struct pci_bus *bus, unsigned int devfn,
-				   u8 pos, int cap, int *ttl)
+static u8 __pci_find_next_cap_ttl(struct pci_bus *bus, unsigned int devfn,
+				  u8 pos, int cap, int *ttl)
 {
 	u8 id;
 	u16 ent;
@@ -423,22 +423,22 @@ static int __pci_find_next_cap_ttl(struct pci_bus *bus, unsigned int devfn,
 	return 0;
 }
 
-static int __pci_find_next_cap(struct pci_bus *bus, unsigned int devfn,
-			       u8 pos, int cap)
+static u8 __pci_find_next_cap(struct pci_bus *bus, unsigned int devfn,
+			      u8 pos, int cap)
 {
 	int ttl = PCI_FIND_CAP_TTL;
 
 	return __pci_find_next_cap_ttl(bus, devfn, pos, cap, &ttl);
 }
 
-int pci_find_next_capability(struct pci_dev *dev, u8 pos, int cap)
+u8 pci_find_next_capability(struct pci_dev *dev, u8 pos, int cap)
 {
 	return __pci_find_next_cap(dev->bus, dev->devfn,
 				   pos + PCI_CAP_LIST_NEXT, cap);
 }
 EXPORT_SYMBOL_GPL(pci_find_next_capability);
 
-static int __pci_bus_find_cap_start(struct pci_bus *bus,
+static u8 __pci_bus_find_cap_start(struct pci_bus *bus,
 				    unsigned int devfn, u8 hdr_type)
 {
 	u16 status;
@@ -477,9 +477,9 @@ static int __pci_bus_find_cap_start(struct pci_bus *bus,
  *  %PCI_CAP_ID_PCIX         PCI-X
  *  %PCI_CAP_ID_EXP          PCI Express
  */
-int pci_find_capability(struct pci_dev *dev, int cap)
+u8 pci_find_capability(struct pci_dev *dev, int cap)
 {
-	int pos;
+	u8 pos;
 
 	pos = __pci_bus_find_cap_start(dev->bus, dev->devfn, dev->hdr_type);
 	if (pos)
@@ -502,10 +502,9 @@ EXPORT_SYMBOL(pci_find_capability);
  * device's PCI configuration space or 0 in case the device does not
  * support it.
  */
-int pci_bus_find_capability(struct pci_bus *bus, unsigned int devfn, int cap)
+u8 pci_bus_find_capability(struct pci_bus *bus, unsigned int devfn, int cap)
 {
-	int pos;
-	u8 hdr_type;
+	u8 hdr_type, pos;
 
 	pci_bus_read_config_byte(bus, devfn, PCI_HEADER_TYPE, &hdr_type);
 
@@ -528,11 +527,11 @@ EXPORT_SYMBOL(pci_bus_find_capability);
  * not support it.  Some capabilities can occur several times, e.g., the
  * vendor-specific capability, and this provides a way to find them all.
  */
-int pci_find_next_ext_capability(struct pci_dev *dev, int start, int cap)
+u16 pci_find_next_ext_capability(struct pci_dev *dev, u16 start, int cap)
 {
 	u32 header;
 	int ttl;
-	int pos = PCI_CFG_SPACE_SIZE;
+	u16 pos = PCI_CFG_SPACE_SIZE;
 
 	/* minimum 8 bytes per capability */
 	ttl = (PCI_CFG_SPACE_EXP_SIZE - PCI_CFG_SPACE_SIZE) / 8;
@@ -583,7 +582,7 @@ EXPORT_SYMBOL_GPL(pci_find_next_ext_capability);
  *  %PCI_EXT_CAP_ID_DSN		Device Serial Number
  *  %PCI_EXT_CAP_ID_PWR		Power Budgeting
  */
-int pci_find_ext_capability(struct pci_dev *dev, int cap)
+u16 pci_find_ext_capability(struct pci_dev *dev, int cap)
 {
 	return pci_find_next_ext_capability(dev, 0, cap);
 }
@@ -623,7 +622,7 @@ u64 pci_get_dsn(struct pci_dev *dev)
 }
 EXPORT_SYMBOL_GPL(pci_get_dsn);
 
-static int __pci_find_next_ht_cap(struct pci_dev *dev, int pos, int ht_cap)
+static u8 __pci_find_next_ht_cap(struct pci_dev *dev, u8 pos, int ht_cap)
 {
 	int rc, ttl = PCI_FIND_CAP_TTL;
 	u8 cap, mask;
@@ -650,11 +649,12 @@ static int __pci_find_next_ht_cap(struct pci_dev *dev, int pos, int ht_cap)
 
 	return 0;
 }
+
 /**
- * pci_find_next_ht_capability - query a device's Hypertransport capabilities
+ * pci_find_next_ht_capability - query a device's HyperTransport capabilities
  * @dev: PCI device to query
  * @pos: Position from which to continue searching
- * @ht_cap: Hypertransport capability code
+ * @ht_cap: HyperTransport capability code
  *
  * To be used in conjunction with pci_find_ht_capability() to search for
  * all capabilities matching @ht_cap. @pos should always be a value returned
@@ -663,26 +663,26 @@ static int __pci_find_next_ht_cap(struct pci_dev *dev, int pos, int ht_cap)
  * NB. To be 100% safe against broken PCI devices, the caller should take
  * steps to avoid an infinite loop.
  */
-int pci_find_next_ht_capability(struct pci_dev *dev, int pos, int ht_cap)
+u8 pci_find_next_ht_capability(struct pci_dev *dev, u8 pos, int ht_cap)
 {
 	return __pci_find_next_ht_cap(dev, pos + PCI_CAP_LIST_NEXT, ht_cap);
 }
 EXPORT_SYMBOL_GPL(pci_find_next_ht_capability);
 
 /**
- * pci_find_ht_capability - query a device's Hypertransport capabilities
+ * pci_find_ht_capability - query a device's HyperTransport capabilities
  * @dev: PCI device to query
- * @ht_cap: Hypertransport capability code
+ * @ht_cap: HyperTransport capability code
  *
- * Tell if a device supports a given Hypertransport capability.
+ * Tell if a device supports a given HyperTransport capability.
  * Returns an address within the device's PCI configuration space
  * or 0 in case the device does not support the request capability.
  * The address points to the PCI capability, of type PCI_CAP_ID_HT,
- * which has a Hypertransport capability matching @ht_cap.
+ * which has a HyperTransport capability matching @ht_cap.
  */
-int pci_find_ht_capability(struct pci_dev *dev, int ht_cap)
+u8 pci_find_ht_capability(struct pci_dev *dev, int ht_cap)
 {
-	int pos;
+	u8 pos;
 
 	pos = __pci_bus_find_cap_start(dev->bus, dev->devfn, dev->hdr_type);
 	if (pos)
@@ -4195,7 +4195,14 @@ void __iomem *devm_pci_remap_cfg_resource(struct device *dev,
 	}
 
 	size = resource_size(res);
-	name = res->name ?: dev_name(dev);
+
+	if (res->name)
+		name = devm_kasprintf(dev, GFP_KERNEL, "%s %s", dev_name(dev),
+				      res->name);
+	else
+		name = devm_kstrdup(dev, dev_name(dev), GFP_KERNEL);
+	if (!name)
+		return IOMEM_ERR_PTR(-ENOMEM);
 
 	if (!devm_request_mem_region(dev, res->start, size, name)) {
 		dev_err(dev, "can't request region for resource %pR\n", res);
