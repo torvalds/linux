@@ -3500,6 +3500,9 @@ static void dsi_enable(struct dsi_data *dsi)
 
 	WARN_ON(!dsi_bus_is_locked(dsi));
 
+	if (WARN_ON(dsi->iface_enabled))
+		return;
+
 	mutex_lock(&dsi->lock);
 
 	r = dsi_runtime_get(dsi);
@@ -3511,6 +3514,8 @@ static void dsi_enable(struct dsi_data *dsi)
 	r = dsi_init_dsi(dsi);
 	if (r)
 		goto err_init_dsi;
+
+	dsi->iface_enabled = true;
 
 	mutex_unlock(&dsi->lock);
 
@@ -3527,6 +3532,9 @@ static void dsi_disable(struct dsi_data *dsi)
 {
 	WARN_ON(!dsi_bus_is_locked(dsi));
 
+	if (WARN_ON(!dsi->iface_enabled))
+		return;
+
 	mutex_lock(&dsi->lock);
 
 	dsi_sync_vc(dsi, 0);
@@ -3537,6 +3545,8 @@ static void dsi_disable(struct dsi_data *dsi)
 	dsi_uninit_dsi(dsi);
 
 	dsi_runtime_put(dsi);
+
+	dsi->iface_enabled = false;
 
 	mutex_unlock(&dsi->lock);
 }
@@ -4226,10 +4236,12 @@ static ssize_t omap_dsi_host_transfer(struct mipi_dsi_host *host,
 
 	dsi_bus_lock(dsi);
 
-	if (dsi->video_enabled)
-		r = _omap_dsi_host_transfer(dsi, vc, msg);
-	else
-		r = -EIO;
+	if (!dsi->iface_enabled) {
+		dsi_enable(dsi);
+		schedule_delayed_work(&dsi->dsi_disable_work, msecs_to_jiffies(2000));
+	}
+
+	r = _omap_dsi_host_transfer(dsi, vc, msg);
 
 	dsi_bus_unlock(dsi);
 
@@ -4393,6 +4405,15 @@ static int omap_dsi_host_detach(struct mipi_dsi_host *host,
 
 	if (WARN_ON(dsi->dsidev != client))
 		return -EINVAL;
+
+	cancel_delayed_work_sync(&dsi->dsi_disable_work);
+
+	dsi_bus_lock(dsi);
+
+	if (dsi->iface_enabled)
+		dsi_disable(dsi);
+
+	dsi_bus_unlock(dsi);
 
 	omap_dsi_unregister_te_irq(dsi);
 	dsi->dsidev = NULL;
@@ -4629,9 +4650,12 @@ static void dsi_bridge_enable(struct drm_bridge *bridge)
 	struct dsi_data *dsi = drm_bridge_to_dsi(bridge);
 	struct omap_dss_device *dssdev = &dsi->output;
 
+	cancel_delayed_work_sync(&dsi->dsi_disable_work);
+
 	dsi_bus_lock(dsi);
 
-	dsi_enable(dsi);
+	if (!dsi->iface_enabled)
+		dsi_enable(dsi);
 
 	dsi_enable_video_output(dssdev, VC_VIDEO);
 
@@ -4644,6 +4668,8 @@ static void dsi_bridge_disable(struct drm_bridge *bridge)
 {
 	struct dsi_data *dsi = drm_bridge_to_dsi(bridge);
 	struct omap_dss_device *dssdev = &dsi->output;
+
+	cancel_delayed_work_sync(&dsi->dsi_disable_work);
 
 	dsi_bus_lock(dsi);
 
@@ -4837,6 +4863,18 @@ static const struct soc_device_attribute dsi_soc_devices[] = {
 	{ /* sentinel */ }
 };
 
+static void omap_dsi_disable_work_callback(struct work_struct *work)
+{
+	struct dsi_data *dsi = container_of(work, struct dsi_data, dsi_disable_work.work);
+
+	dsi_bus_lock(dsi);
+
+	if (dsi->iface_enabled && !dsi->video_enabled)
+		dsi_disable(dsi);
+
+	dsi_bus_unlock(dsi);
+}
+
 static int dsi_probe(struct platform_device *pdev)
 {
 	const struct soc_device_attribute *soc;
@@ -4869,6 +4907,8 @@ static int dsi_probe(struct platform_device *pdev)
 
 	INIT_DEFERRABLE_WORK(&dsi->framedone_timeout_work,
 			     dsi_framedone_timeout_work_callback);
+
+	INIT_DEFERRABLE_WORK(&dsi->dsi_disable_work, omap_dsi_disable_work_callback);
 
 #ifdef DSI_CATCH_MISSING_TE
 	timer_setup(&dsi->te_timer, dsi_te_timeout, 0);

@@ -394,6 +394,7 @@ struct dsi_data {
 	atomic_t do_ext_te_update;
 
 	bool te_enabled;
+	bool iface_enabled;
 	bool video_enabled;
 
 	struct delayed_work framedone_timeout_work;
@@ -443,6 +444,8 @@ struct dsi_data {
 
 	struct omap_dss_device output;
 	struct drm_bridge bridge;
+
+	struct delayed_work dsi_disable_work;
 };
 
 struct dsi_packet_sent_handler_data {
