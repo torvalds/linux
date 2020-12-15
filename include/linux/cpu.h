@@ -122,8 +122,6 @@ extern void cpu_hotplug_disable(void);
 extern void cpu_hotplug_enable(void);
 void clear_tasks_mm_cpumask(int cpu);
 int remove_cpu(unsigned int cpu);
-int pause_cpus(struct cpumask *cpumask);
-int resume_cpus(struct cpumask *cpumask);
 int cpu_device_down(struct device *dev);
 extern void smp_shutdown_nonboot_cpus(unsigned int primary_cpu);
 
@@ -137,8 +135,6 @@ static inline int  cpus_read_trylock(void) { return true; }
 static inline void lockdep_assert_cpus_held(void) { }
 static inline void cpu_hotplug_disable(void) { }
 static inline void cpu_hotplug_enable(void) { }
-static inline int pause_cpus(struct cpumask *cpumask) { return -ENODEV; }
-static inline int resume_cpus(struct cpumask *cpumask) { return -ENODEV; }
 static inline void smp_shutdown_nonboot_cpus(unsigned int primary_cpu) { }
 #endif	/* !CONFIG_HOTPLUG_CPU */
 

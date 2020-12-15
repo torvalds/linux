@@ -8,9 +8,7 @@
 
 extern int sched_cpu_starting(unsigned int cpu);
 extern int sched_cpu_activate(unsigned int cpu);
-extern int sched_cpus_activate(struct cpumask *cpus);
 extern int sched_cpu_deactivate(unsigned int cpu);
-extern int sched_cpus_deactivate_nosync(struct cpumask *cpus);
 
 #ifdef CONFIG_HOTPLUG_CPU
 extern int sched_cpu_dying(unsigned int cpu);
