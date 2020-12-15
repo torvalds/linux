@@ -174,7 +174,6 @@ static const struct of_device_id omapdss_of_match[] __initconst = {
 };
 
 static const struct of_device_id omapdss_of_fixups_whitelist[] __initconst = {
-	{ .compatible = "panel-dsi-cm" },
 	{},
 };
 

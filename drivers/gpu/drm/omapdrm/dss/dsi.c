@@ -36,6 +36,7 @@
 #include <linux/sys_soc.h>
 
 #include <drm/drm_mipi_dsi.h>
+#include <drm/drm_panel.h>
 #include <video/mipi_display.h>
 
 #include "omapdss.h"
@@ -217,6 +218,8 @@ static int dsi_vc_send_null(struct dsi_data *dsi, int channel);
 static ssize_t _omap_dsi_host_transfer(struct dsi_data *dsi,
 				       const struct mipi_dsi_msg *msg);
 
+static void dsi_display_disable(struct omap_dss_device *dssdev);
+
 /* DSI PLL HSDIV indices */
 #define HSDIV_DISPC	0
 #define HSDIV_DSI	1
@@ -384,6 +387,7 @@ struct dsi_data {
 	bool te_enabled;
 	bool ulps_enabled;
 	bool ulps_auto_idle;
+	bool video_enabled;
 
 	struct delayed_work ulps_work;
 
@@ -423,6 +427,8 @@ struct dsi_data {
 	unsigned int num_lanes_used;
 
 	unsigned int scp_clk_refcount;
+
+	struct omap_dss_dsi_config config;
 
 	struct dss_lcd_mgr_config mgr_config;
 	struct videomode vm;
@@ -3624,7 +3630,7 @@ static int dsi_configure_pins(struct omap_dss_device *dssdev,
 	return 0;
 }
 
-static int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
+static void dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 {
 	struct dsi_data *dsi = to_dsi_data(dssdev);
 	int bpp = mipi_dsi_pixel_format_to_bpp(dsi->pix_fmt);
@@ -3633,8 +3639,10 @@ static int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 	int r;
 
 	r = dsi_display_init_dispc(dsi);
-	if (r)
-		return r;
+	if (r) {
+		dev_err(dsi->dev, "failed to init dispc!\n");
+		return;
+	}
 
 	if (dsi->mode == OMAP_DSS_DSI_VIDEO_MODE) {
 		switch (dsi->pix_fmt) {
@@ -3674,7 +3682,7 @@ static int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 	if (r)
 		goto err_mgr_enable;
 
-	return 0;
+	return;
 
 err_mgr_enable:
 	if (dsi->mode == OMAP_DSS_DSI_VIDEO_MODE) {
@@ -3683,7 +3691,8 @@ err_mgr_enable:
 	}
 err_pix_fmt:
 	dsi_display_uninit_dispc(dsi);
-	return r;
+	dev_err(dsi->dev, "failed to enable DSI encoder!\n");
+	return;
 }
 
 static void dsi_disable_video_output(struct omap_dss_device *dssdev, int channel)
@@ -3704,6 +3713,25 @@ static void dsi_disable_video_output(struct omap_dss_device *dssdev, int channel
 	dss_mgr_disable(&dsi->output);
 
 	dsi_display_uninit_dispc(dsi);
+}
+
+static void dsi_disable_video_outputs(struct omap_dss_device *dssdev)
+{
+	struct dsi_data *dsi = to_dsi_data(dssdev);
+	unsigned int i;
+
+	dsi_bus_lock(dsi);
+	dsi->video_enabled = false;
+
+	for (i = 0; i < 4; i++) {
+		if (!dsi->vc[i].dest)
+			continue;
+		dsi_disable_video_output(dssdev, i);
+	}
+
+	dsi_display_disable(dssdev);
+
+	dsi_bus_unlock(dsi);
 }
 
 static void dsi_update_screen_dispc(struct dsi_data *dsi)
@@ -3893,6 +3921,11 @@ static int dsi_update_channel(struct omap_dss_device *dssdev, int channel)
 		return -EINVAL;
 
 	dsi_bus_lock(dsi);
+
+	if (!dsi->video_enabled) {
+		r = -EIO;
+		goto err;
+	}
 
 	if (!dsi->vc[channel].dest) {
 		r = -ENODEV;
@@ -4164,8 +4197,30 @@ static void dsi_display_enable(struct omap_dss_device *dssdev)
 	struct dsi_data *dsi = to_dsi_data(dssdev);
 	DSSDBG("dsi_display_enable\n");
 
-	dsi_bus_lock(dsi);
+	WARN_ON(!dsi_bus_is_locked(dsi));
+
 	_dsi_display_enable(dsi);
+}
+
+static void dsi_enable_video_outputs(struct omap_dss_device *dssdev)
+{
+	struct dsi_data *dsi = to_dsi_data(dssdev);
+	unsigned int i;
+
+	dsi_bus_lock(dsi);
+
+	dsi_display_enable(dssdev);
+
+	for (i = 0; i < 4; i++) {
+		if (!dsi->vc[i].dest)
+			continue;
+		dsi_enable_video_output(dssdev, i);
+	}
+
+	dsi->video_enabled = true;
+
+	dsi_set_ulps_auto(dsi, true);
+
 	dsi_bus_unlock(dsi);
 }
 
@@ -4192,11 +4247,11 @@ static void dsi_display_disable(struct omap_dss_device *dssdev)
 {
 	struct dsi_data *dsi = to_dsi_data(dssdev);
 
+	WARN_ON(!dsi_bus_is_locked(dsi));
+
 	DSSDBG("dsi_display_disable\n");
 
-	dsi_bus_lock(dsi);
 	_dsi_display_disable(dsi, true, false);
-	dsi_bus_unlock(dsi);
 }
 
 static int dsi_enable_te(struct dsi_data *dsi, bool enable)
@@ -4736,13 +4791,17 @@ static bool dsi_is_video_mode(struct omap_dss_device *dssdev)
 }
 
 static int dsi_set_config(struct omap_dss_device *dssdev,
-		const struct omap_dss_dsi_config *config)
+		const struct drm_display_mode *mode)
 {
 	struct dsi_data *dsi = to_dsi_data(dssdev);
 	struct dsi_clk_calc_ctx ctx;
-	struct omap_dss_dsi_config cfg = *config;
+	struct videomode vm;
+	struct omap_dss_dsi_config cfg = dsi->config;
 	bool ok;
 	int r;
+
+	drm_display_mode_to_videomode(mode, &vm);
+	cfg.vm = &vm;
 
 	mutex_lock(&dsi->lock);
 
@@ -4906,9 +4965,15 @@ static ssize_t omap_dsi_host_transfer(struct mipi_dsi_host *host,
 	int r;
 
 	dsi_bus_lock(dsi);
-	dsi_set_ulps_auto(dsi, false);
-	r = _omap_dsi_host_transfer(dsi, msg);
-	dsi_set_ulps_auto(dsi, true);
+
+	if (dsi->video_enabled) {
+		dsi_set_ulps_auto(dsi, false);
+		r = _omap_dsi_host_transfer(dsi, msg);
+		dsi_set_ulps_auto(dsi, true);
+	} else {
+		r = -EIO;
+	}
+
 	dsi_bus_unlock(dsi);
 
 	return r;
@@ -4929,6 +4994,23 @@ static int dsi_get_clocks(struct dsi_data *dsi)
 	return 0;
 }
 
+static void dsi_set_timings(struct omap_dss_device *dssdev,
+			    const struct drm_display_mode *mode)
+{
+	DSSDBG("dsi_set_timings\n");
+	dsi_set_config(dssdev, mode);
+}
+
+static int dsi_check_timings(struct omap_dss_device *dssdev,
+			     struct drm_display_mode *mode)
+{
+	DSSDBG("dsi_check_timings\n");
+
+	/* TODO */
+
+	return 0;
+}
+
 static int dsi_connect(struct omap_dss_device *src,
 		       struct omap_dss_device *dst)
 {
@@ -4944,15 +5026,13 @@ static void dsi_disconnect(struct omap_dss_device *src,
 static const struct omap_dss_device_ops dsi_ops = {
 	.connect = dsi_connect,
 	.disconnect = dsi_disconnect,
-	.enable = dsi_display_enable,
-	.disable = dsi_display_disable,
+	.enable = dsi_enable_video_outputs,
+	.disable = dsi_disable_video_outputs,
+
+	.check_timings = dsi_check_timings,
+	.set_timings = dsi_set_timings,
 
 	.dsi = {
-		.set_config = dsi_set_config,
-
-		.enable_video_output = dsi_enable_video_output,
-		.disable_video_output = dsi_disable_video_output,
-
 		.update = dsi_update_all,
 		.is_video_mode = dsi_is_video_mode,
 	},
@@ -5080,10 +5160,12 @@ static int omap_dsi_host_attach(struct mipi_dsi_host *host,
 	INIT_DEFERRABLE_WORK(&dsi->ulps_work,
 			     omap_dsi_ulps_work_callback);
 
-	dsi_bus_lock(dsi);
+	dsi->config.hs_clk_min = 150000000; // TODO: get from client?
+	dsi->config.hs_clk_max = client->hs_rate;
+	dsi->config.lp_clk_min = 7000000; // TODO: get from client?
+	dsi->config.lp_clk_max = client->lp_rate;
+
 	dsi->ulps_auto_idle = false;
-	dsi_set_ulps_auto(dsi, true);
-	dsi_bus_unlock(dsi);
 
 	return 0;
 }

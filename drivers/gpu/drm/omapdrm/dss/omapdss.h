@@ -281,14 +281,6 @@ struct omap_dss_writeback_info {
 struct omapdss_dsi_ops {
 	int (*update)(struct omap_dss_device *dssdev);
 	bool (*is_video_mode)(struct omap_dss_device *dssdev);
-
-	/* legacy API used by omapdss panels */
-	int (*set_config)(struct omap_dss_device *dssdev,
-			const struct omap_dss_dsi_config *cfg);
-
-	int (*enable_video_output)(struct omap_dss_device *dssdev, int channel);
-	void (*disable_video_output)(struct omap_dss_device *dssdev,
-			int channel);
 };
 
 struct omap_dss_device_ops {

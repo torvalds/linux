@@ -6,8 +6,6 @@
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  */
 
-/* #define DEBUG */
-
 #include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
@@ -19,11 +17,14 @@
 #include <linux/regulator/consumer.h>
 
 #include <drm/drm_connector.h>
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_panel.h>
 
+#include <video/display_timing.h>
 #include <video/mipi_display.h>
 #include <video/of_display_timing.h>
-
-#include "../dss/omapdss.h"
+#include <video/videomode.h>
 
 #define DCS_READ_NUM_ERRORS	0x05
 #define DCS_GET_ID1		0xda
@@ -34,11 +35,8 @@
 
 struct panel_drv_data {
 	struct mipi_dsi_device *dsi;
-
-	struct omap_dss_device dssdev;
-	struct omap_dss_device *src;
-
-	struct videomode vm;
+	struct drm_panel panel;
+	struct drm_display_mode mode;
 
 	struct mutex lock;
 
@@ -66,7 +64,10 @@ struct panel_drv_data {
 	bool intro_printed;
 };
 
-#define to_panel_data(p) container_of(p, struct panel_drv_data, dssdev)
+static inline struct panel_drv_data *panel_to_ddata(struct drm_panel *panel)
+{
+	return container_of(panel, struct panel_drv_data, panel);
+}
 
 static int _dsicm_enable_te(struct panel_drv_data *ddata, bool enable);
 
@@ -281,7 +282,6 @@ static void dsicm_hw_reset(struct panel_drv_data *ddata)
 
 static int dsicm_power_on(struct panel_drv_data *ddata)
 {
-	struct omap_dss_device *src = ddata->src;
 	u8 id1, id2, id3;
 	int r;
 
@@ -318,10 +318,6 @@ static int dsicm_power_on(struct panel_drv_data *ddata)
 	if (r)
 		goto err;
 
-	r = src->ops->dsi.enable_video_output(src, ddata->dsi->channel);
-	if (r)
-		goto err;
-
 	ddata->enabled = true;
 
 	if (!ddata->intro_printed) {
@@ -341,14 +337,11 @@ err:
 	return r;
 }
 
-static void dsicm_power_off(struct panel_drv_data *ddata)
+static int dsicm_power_off(struct panel_drv_data *ddata)
 {
-	struct omap_dss_device *src = ddata->src;
 	int r;
 
 	ddata->enabled = false;
-
-	src->ops->dsi.disable_video_output(src, ddata->dsi->channel);
 
 	r = mipi_dsi_dcs_set_display_off(ddata->dsi);
 	if (!r)
@@ -359,51 +352,25 @@ static void dsicm_power_off(struct panel_drv_data *ddata)
 				"error disabling panel, issuing HW reset\n");
 		dsicm_hw_reset(ddata);
 	}
+
+	return r;
 }
 
-static int dsicm_connect(struct omap_dss_device *src,
-			 struct omap_dss_device *dst)
+static int dsicm_prepare(struct drm_panel *panel)
 {
-	struct panel_drv_data *ddata = to_panel_data(dst);
-
-	ddata->src = src;
-	return 0;
-}
-
-static void dsicm_disconnect(struct omap_dss_device *src,
-			     struct omap_dss_device *dst)
-{
-	struct panel_drv_data *ddata = to_panel_data(dst);
-
-	ddata->src = NULL;
-}
-
-static void dsicm_pre_enable(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = ddata->src;
+	struct panel_drv_data *ddata = panel_to_ddata(panel);
 	int r;
-	struct omap_dss_dsi_config dsi_config = {
-		.vm = &ddata->vm,
-		.hs_clk_min = 150000000,
-		.hs_clk_max = 300000000,
-		.lp_clk_min = 7000000,
-		.lp_clk_max = 10000000,
-	};
 
 	r = regulator_bulk_enable(ARRAY_SIZE(ddata->supplies), ddata->supplies);
 	if (r)
 		dev_err(&ddata->dsi->dev, "failed to enable supplies: %d\n", r);
 
-	r = src->ops->dsi.set_config(src, &dsi_config);
-	if (r) {
-		dev_err(&ddata->dsi->dev, "failed to configure DSI\n");
-	}
+	return r;
 }
 
-static void dsicm_enable(struct omap_dss_device *dssdev)
+static int dsicm_enable(struct drm_panel *panel)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
+	struct panel_drv_data *ddata = panel_to_ddata(panel);
 	int r;
 
 	mutex_lock(&ddata->lock);
@@ -416,33 +383,39 @@ static void dsicm_enable(struct omap_dss_device *dssdev)
 
 	dsicm_bl_power(ddata, true);
 
-	return;
+	return 0;
 err:
-	dev_dbg(&ddata->dsi->dev, "enable failed (%d)\n", r);
+	dev_err(&ddata->dsi->dev, "enable failed (%d)\n", r);
 	mutex_unlock(&ddata->lock);
+	return r;
 }
 
-static void dsicm_disable(struct omap_dss_device *dssdev)
+static int dsicm_unprepare(struct drm_panel *panel)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-
-	dsicm_bl_power(ddata, false);
-
-	mutex_lock(&ddata->lock);
-
-	dsicm_power_off(ddata);
-
-	mutex_unlock(&ddata->lock);
-}
-
-static void dsicm_post_disable(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
+	struct panel_drv_data *ddata = panel_to_ddata(panel);
 	int r;
 
 	r = regulator_bulk_disable(ARRAY_SIZE(ddata->supplies), ddata->supplies);
 	if (r)
 		dev_err(&ddata->dsi->dev, "failed to disable supplies: %d\n", r);
+
+	return r;
+}
+
+static int dsicm_disable(struct drm_panel *panel)
+{
+	struct panel_drv_data *ddata = panel_to_ddata(panel);
+	int r;
+
+	dsicm_bl_power(ddata, false);
+
+	mutex_lock(&ddata->lock);
+
+	r = dsicm_power_off(ddata);
+
+	mutex_unlock(&ddata->lock);
+
+	return r;
 }
 
 static int _dsicm_enable_te(struct panel_drv_data *ddata, bool enable)
@@ -461,50 +434,37 @@ static int _dsicm_enable_te(struct panel_drv_data *ddata, bool enable)
 	return r;
 }
 
-static int dsicm_get_modes(struct omap_dss_device *dssdev,
+static int dsicm_get_modes(struct drm_panel *panel,
 			   struct drm_connector *connector)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
+	struct panel_drv_data *ddata = panel_to_ddata(panel);
+	struct drm_display_mode *mode;
+
+	mode = drm_mode_duplicate(connector->dev, &ddata->mode);
+	if (!mode) {
+		dev_err(&ddata->dsi->dev, "failed to add mode %ux%ux@%u kHz\n",
+			ddata->mode.hdisplay, ddata->mode.vdisplay,
+			ddata->mode.clock);
+		return -ENOMEM;
+	}
+
+	drm_mode_set_name(mode);
+	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 
 	connector->display_info.width_mm = ddata->width_mm;
 	connector->display_info.height_mm = ddata->height_mm;
 
-	return omapdss_display_get_modes(connector, &ddata->vm);
+	drm_mode_probed_add(connector, mode);
+
+	return 1;
 }
 
-static int dsicm_check_timings(struct omap_dss_device *dssdev,
-			       struct drm_display_mode *mode)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	int ret = 0;
-
-	if (mode->hdisplay != ddata->vm.hactive)
-		ret = -EINVAL;
-
-	if (mode->vdisplay != ddata->vm.vactive)
-		ret = -EINVAL;
-
-	if (ret) {
-		dev_warn(dssdev->dev, "wrong resolution: %d x %d",
-			 mode->hdisplay, mode->vdisplay);
-		dev_warn(dssdev->dev, "panel resolution: %d x %d",
-			 ddata->vm.hactive, ddata->vm.vactive);
-	}
-
-	return ret;
-}
-
-static const struct omap_dss_device_ops dsicm_ops = {
-	.connect	= dsicm_connect,
-	.disconnect	= dsicm_disconnect,
-
-	.pre_enable	= dsicm_pre_enable,
-	.enable		= dsicm_enable,
-	.disable	= dsicm_disable,
-	.post_disable	= dsicm_post_disable,
-
-	.get_modes	= dsicm_get_modes,
-	.check_timings	= dsicm_check_timings,
+static const struct drm_panel_funcs dsicm_panel_funcs = {
+	.unprepare = dsicm_unprepare,
+	.disable = dsicm_disable,
+	.prepare = dsicm_prepare,
+	.enable = dsicm_enable,
+	.get_modes = dsicm_get_modes,
 };
 
 static int dsicm_probe_of(struct mipi_dsi_device *dsi)
@@ -513,6 +473,10 @@ static int dsicm_probe_of(struct mipi_dsi_device *dsi)
 	struct backlight_device *backlight;
 	struct panel_drv_data *ddata = mipi_dsi_get_drvdata(dsi);
 	struct display_timing timing;
+	struct videomode vm = {
+		.hactive = 864,
+		.vactive = 480,
+	};
 	int err;
 
 	ddata->reset_gpio = devm_gpiod_get(&dsi->dev, "reset", GPIOD_OUT_LOW);
@@ -524,14 +488,15 @@ static int dsicm_probe_of(struct mipi_dsi_device *dsi)
 
 	err = of_get_display_timing(node, "panel-timing", &timing);
 	if (!err) {
-		videomode_from_timing(&timing, &ddata->vm);
-		if (!ddata->vm.pixelclock)
-			ddata->vm.pixelclock =
-				ddata->vm.hactive * ddata->vm.vactive * 60;
+		videomode_from_timing(&timing, &vm);
 	} else {
 		dev_warn(&dsi->dev,
 			 "failed to get video timing, using defaults\n");
 	}
+
+	if (!vm.pixelclock)
+		vm.pixelclock = vm.hactive * vm.vactive * 60;
+	drm_display_mode_from_videomode(&vm, &ddata->mode);
 
 	ddata->width_mm = 0;
 	of_property_read_u32(node, "width-mm", &ddata->width_mm);
@@ -564,7 +529,6 @@ static int dsicm_probe(struct mipi_dsi_device *dsi)
 	struct panel_drv_data *ddata;
 	struct backlight_device *bldev = NULL;
 	struct device *dev = &dsi->dev;
-	struct omap_dss_device *dssdev;
 	int r;
 
 	dev_dbg(dev, "probe\n");
@@ -576,29 +540,16 @@ static int dsicm_probe(struct mipi_dsi_device *dsi)
 	mipi_dsi_set_drvdata(dsi, ddata);
 	ddata->dsi = dsi;
 
-	ddata->vm.hactive = 864;
-	ddata->vm.vactive = 480;
-	ddata->vm.pixelclock = 864 * 480 * 60;
-
 	r = dsicm_probe_of(dsi);
 	if (r)
 		return r;
 
-	dssdev = &ddata->dssdev;
-	dssdev->dev = dev;
-	dssdev->ops = &dsicm_ops;
-	dssdev->type = OMAP_DISPLAY_TYPE_DSI;
-	dssdev->display = true;
-	dssdev->owner = THIS_MODULE;
-	dssdev->of_port = 0;
-	dssdev->ops_flags = OMAP_DSS_DEVICE_OP_MODES;
-
-	omapdss_display_init(dssdev);
-	omapdss_device_register(dssdev);
-
 	mutex_init(&ddata->lock);
 
 	dsicm_hw_reset(ddata);
+
+	drm_panel_init(&ddata->panel, dev, &dsicm_panel_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
 
 	if (ddata->use_dsi_backlight) {
 		struct backlight_properties props = { 0 };
@@ -628,6 +579,8 @@ static int dsicm_probe(struct mipi_dsi_device *dsi)
 	dsi->hs_rate = 300000000;
 	dsi->lp_rate = 10000000;
 
+	drm_panel_add(&ddata->panel);
+
 	r = mipi_dsi_attach(dsi);
 	if (r < 0)
 		goto err_dsi_attach;
@@ -635,6 +588,7 @@ static int dsicm_probe(struct mipi_dsi_device *dsi)
 	return 0;
 
 err_dsi_attach:
+	drm_panel_remove(&ddata->panel);
 	sysfs_remove_group(&dsi->dev.kobj, &dsicm_attr_group);
 err_bl:
 	if (ddata->extbldev)
@@ -646,15 +600,12 @@ err_bl:
 static int __exit dsicm_remove(struct mipi_dsi_device *dsi)
 {
 	struct panel_drv_data *ddata = mipi_dsi_get_drvdata(dsi);
-	struct omap_dss_device *dssdev = &ddata->dssdev;
 
 	dev_dbg(&dsi->dev, "remove\n");
 
 	mipi_dsi_detach(dsi);
 
-	omapdss_device_unregister(dssdev);
-
-	omapdss_device_disconnect(ddata->src, dssdev);
+	drm_panel_remove(&ddata->panel);
 
 	sysfs_remove_group(&dsi->dev.kobj, &dsicm_attr_group);
 
@@ -668,7 +619,7 @@ static int __exit dsicm_remove(struct mipi_dsi_device *dsi)
 }
 
 static const struct of_device_id dsicm_of_match[] = {
-	{ .compatible = "omapdss,panel-dsi-cm", },
+	{ .compatible = "panel-dsi-cm", },
 	{},
 };
 
