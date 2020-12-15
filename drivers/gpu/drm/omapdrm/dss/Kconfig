@@ -1,7 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config OMAP2_DSS_INIT
-	bool
-
 config OMAP_DSS_BASE
 	tristate
 
@@ -9,7 +6,6 @@ menuconfig OMAP2_DSS
 	tristate "OMAP2+ Display Subsystem support"
 	select OMAP_DSS_BASE
 	select VIDEOMODE_HELPERS
-	select OMAP2_DSS_INIT
 	select HDMI
 	help
 	  OMAP2+ Display Subsystem support.
