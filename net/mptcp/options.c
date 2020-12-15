@@ -282,6 +282,16 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 		pr_debug("RM_ADDR: id=%d", mp_opt->rm_id);
 		break;
 
+	case MPTCPOPT_MP_FASTCLOSE:
+		if (opsize != TCPOLEN_MPTCP_FASTCLOSE)
+			break;
+
+		ptr += 2;
+		mp_opt->rcvr_key = get_unaligned_be64(ptr);
+		ptr += 8;
+		mp_opt->fastclose = 1;
+		break;
+
 	default:
 		break;
 	}
@@ -299,6 +309,7 @@ void mptcp_get_options(const struct sk_buff *skb,
 	mp_opt->mp_join = 0;
 	mp_opt->add_addr = 0;
 	mp_opt->ahmac = 0;
+	mp_opt->fastclose = 0;
 	mp_opt->port = 0;
 	mp_opt->rm_addr = 0;
 	mp_opt->dss = 0;
@@ -941,6 +952,12 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb)
 	mptcp_get_options(skb, &mp_opt);
 	if (!check_fully_established(msk, sk, subflow, skb, &mp_opt))
 		return;
+
+	if (mp_opt.fastclose &&
+	    msk->local_key == mp_opt.rcvr_key) {
+		WRITE_ONCE(msk->rcv_fastclose, true);
+		mptcp_schedule_work((struct sock *)msk);
+	}
 
 	if (mp_opt.add_addr && add_addr_hmac_valid(msk, &mp_opt)) {
 		struct mptcp_addr_info addr;

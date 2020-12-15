@@ -135,7 +135,7 @@ select_local_address(const struct pm_nl_pernet *pernet,
 	struct mptcp_pm_addr_entry *entry, *ret = NULL;
 
 	rcu_read_lock();
-	spin_lock_bh(&msk->join_list_lock);
+	__mptcp_flush_join_list(msk);
 	list_for_each_entry_rcu(entry, &pernet->local_addr_list, list) {
 		if (!(entry->addr.flags & MPTCP_PM_ADDR_FLAG_SUBFLOW))
 			continue;
@@ -144,13 +144,11 @@ select_local_address(const struct pm_nl_pernet *pernet,
 		 * pending join
 		 */
 		if (entry->addr.family == ((struct sock *)msk)->sk_family &&
-		    !lookup_subflow_by_saddr(&msk->conn_list, &entry->addr) &&
-		    !lookup_subflow_by_saddr(&msk->join_list, &entry->addr)) {
+		    !lookup_subflow_by_saddr(&msk->conn_list, &entry->addr)) {
 			ret = entry;
 			break;
 		}
 	}
-	spin_unlock_bh(&msk->join_list_lock);
 	rcu_read_unlock();
 	return ret;
 }
@@ -867,13 +865,14 @@ static int mptcp_nl_cmd_del_addr(struct sk_buff *skb, struct genl_info *info)
 	return ret;
 }
 
-static void __flush_addrs(struct pm_nl_pernet *pernet)
+static void __flush_addrs(struct net *net, struct list_head *list)
 {
-	while (!list_empty(&pernet->local_addr_list)) {
+	while (!list_empty(list)) {
 		struct mptcp_pm_addr_entry *cur;
 
-		cur = list_entry(pernet->local_addr_list.next,
+		cur = list_entry(list->next,
 				 struct mptcp_pm_addr_entry, list);
+		mptcp_nl_remove_subflow_and_signal_addr(net, &cur->addr);
 		list_del_rcu(&cur->list);
 		kfree_rcu(cur, rcu);
 	}
@@ -890,11 +889,13 @@ static void __reset_counters(struct pm_nl_pernet *pernet)
 static int mptcp_nl_cmd_flush_addrs(struct sk_buff *skb, struct genl_info *info)
 {
 	struct pm_nl_pernet *pernet = genl_info_pm_nl(info);
+	LIST_HEAD(free_list);
 
 	spin_lock_bh(&pernet->lock);
-	__flush_addrs(pernet);
+	list_splice_init(&pernet->local_addr_list, &free_list);
 	__reset_counters(pernet);
 	spin_unlock_bh(&pernet->lock);
+	__flush_addrs(sock_net(skb->sk), &free_list);
 	return 0;
 }
 
@@ -1156,10 +1157,12 @@ static void __net_exit pm_nl_exit_net(struct list_head *net_list)
 	struct net *net;
 
 	list_for_each_entry(net, net_list, exit_list) {
+		struct pm_nl_pernet *pernet = net_generic(net, pm_nl_pernet_id);
+
 		/* net is removed from namespace list, can't race with
 		 * other modifiers
 		 */
-		__flush_addrs(net_generic(net, pm_nl_pernet_id));
+		__flush_addrs(net, &pernet->local_addr_list);
 	}
 }
 
