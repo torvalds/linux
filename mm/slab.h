@@ -204,7 +204,7 @@ ssize_t slabinfo_write(struct file *file, const char __user *buffer,
 void __kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
 int __kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
 
-static inline int cache_vmstat_idx(struct kmem_cache *s)
+static inline enum node_stat_item cache_vmstat_idx(struct kmem_cache *s)
 {
 	return (s->flags & SLAB_RECLAIM_ACCOUNT) ?
 		NR_SLAB_RECLAIMABLE_B : NR_SLAB_UNRECLAIMABLE_B;
@@ -304,7 +304,7 @@ static inline bool memcg_slab_pre_alloc_hook(struct kmem_cache *s,
 
 static inline void mod_objcg_state(struct obj_cgroup *objcg,
 				   struct pglist_data *pgdat,
-				   int idx, int nr)
+				   enum node_stat_item idx, int nr)
 {
 	struct mem_cgroup *memcg;
 	struct lruvec *lruvec;
