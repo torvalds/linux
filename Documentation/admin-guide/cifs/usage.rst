@@ -115,7 +115,7 @@ later source tree in docs/manpages/mount.cifs.8
 Allowing User Unmounts
 ======================
 
-To permit users to ummount directories that they have user mounted (see above),
+To permit users to unmount directories that they have user mounted (see above),
 the utility umount.cifs may be used.  It may be invoked directly, or if
 umount.cifs is placed in /sbin, umount can invoke the cifs umount helper
 (at least for most versions of the umount utility) for umount of cifs
@@ -197,7 +197,7 @@ that is ignored by local server applications and non-cifs clients and that will
 not be traversed by the Samba server).  This is opaque to the Linux client
 application using the cifs vfs. Absolute symlinks will work to Samba 3.0.5 or
 later, but only for remote clients using the CIFS Unix extensions, and will
-be invisbile to Windows clients and typically will not affect local
+be invisible to Windows clients and typically will not affect local
 applications running on the same server as Samba.
 
 Use instructions
@@ -267,7 +267,7 @@ would be forbidden for Windows/CIFS semantics) as long as the server is
 configured for Unix Extensions (and the client has not disabled
 /proc/fs/cifs/LinuxExtensionsEnabled). In addition the mount option
 ``mapposix`` can be used on CIFS (vers=1.0) to force the mapping of
-illegal Windows/NTFS/SMB characters to a remap range (this mount parm
+illegal Windows/NTFS/SMB characters to a remap range (this mount parameter
 is the default for SMB3). This remap (``mapposix``) range is also
 compatible with Mac (and "Services for Mac" on some older Windows).
 

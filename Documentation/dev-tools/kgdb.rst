@@ -63,10 +63,9 @@ will want to turn on ``CONFIG_DEBUG_INFO`` which is called
 It is advised, but not required, that you turn on the
 ``CONFIG_FRAME_POINTER`` kernel option which is called :menuselection:`Compile
 the kernel with frame pointers` in the config menu. This option inserts code
-to into the compiled executable which saves the frame information in
-registers or on the stack at different points which allows a debugger
-such as gdb to more accurately construct stack back traces while
-debugging the kernel.
+into the compiled executable which saves the frame information in registers
+or on the stack at different points which allows a debugger such as gdb to
+more accurately construct stack back traces while debugging the kernel.
 
 If the architecture that you are using supports the kernel option
 ``CONFIG_STRICT_KERNEL_RWX``, you should consider turning it off. This

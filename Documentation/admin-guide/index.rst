@@ -19,6 +19,7 @@ etc.
    sysctl/index
 
    abi
+   features
 
 This section describes CPU vulnerabilities and their mitigations.
 
@@ -33,7 +34,8 @@ problems and bugs in particular.
 .. toctree::
    :maxdepth: 1
 
-   reporting-bugs
+   reporting-issues
+   Reporting bugs (obsolete) <reporting-bugs>
    security-bugs
    bug-hunting
    bug-bisect
