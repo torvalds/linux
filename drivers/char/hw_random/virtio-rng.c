@@ -195,7 +195,7 @@ static int virtrng_restore(struct virtio_device *vdev)
 }
 #endif
 
-static struct virtio_device_id id_table[] = {
+static const struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_RNG, VIRTIO_DEV_ANY_ID },
 	{ 0 },
 };

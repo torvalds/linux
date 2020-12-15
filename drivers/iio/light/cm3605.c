@@ -239,7 +239,6 @@ static int cm3605_probe(struct platform_device *pdev)
 	led_trigger_register_simple("cm3605", &cm3605->led);
 	led_trigger_event(cm3605->led, LED_FULL);
 
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &cm3605_info;
 	indio_dev->name = "cm3605";
 	indio_dev->channels = cm3605_channels;

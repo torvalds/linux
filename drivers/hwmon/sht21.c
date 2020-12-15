@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2010 Urs Fleisch <urs.fleisch@sensirion.com>
  *
- * Data sheet available at http://www.sensirion.com/file/datasheet_sht21
+ * Data sheet available at https://www.sensirion.com/file/datasheet_sht21
  */
 
 #include <linux/module.h>

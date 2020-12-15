@@ -10,7 +10,6 @@
 
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
-#include "dpaa2-eth.h"
 #include <linux/tracepoint.h>
 
 #define TR_FMT "[%s] fd: addr=0x%llx, len=%u, off=%u"

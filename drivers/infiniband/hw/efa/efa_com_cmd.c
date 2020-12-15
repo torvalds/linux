@@ -351,7 +351,7 @@ int efa_com_destroy_ah(struct efa_com_dev *edev,
 	return 0;
 }
 
-static bool
+bool
 efa_com_check_supported_feature_id(struct efa_com_dev *edev,
 				   enum efa_admin_aq_feature_id feature_id)
 {
@@ -388,7 +388,7 @@ static int efa_com_get_feature_ex(struct efa_com_dev *edev,
 
 	if (control_buff_size)
 		EFA_SET(&get_cmd.aq_common_descriptor.flags,
-			EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_INDIRECT, 1);
+			EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA, 1);
 
 	efa_com_set_dma_addr(control_buf_dma_addr,
 			     &get_cmd.control_buffer.address.mem_addr_high,
@@ -480,6 +480,8 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 	result->max_llq_size = resp.u.queue_attr.max_llq_size;
 	result->sub_cqs_per_cq = resp.u.queue_attr.sub_cqs_per_cq;
 	result->max_wr_rdma_sge = resp.u.queue_attr.max_wr_rdma_sges;
+	result->max_tx_batch = resp.u.queue_attr.max_tx_batch;
+	result->min_sq_depth = resp.u.queue_attr.min_sq_depth;
 
 	err = efa_com_get_feature(edev, &resp, EFA_ADMIN_NETWORK_ATTR);
 	if (err) {
@@ -517,12 +519,12 @@ int efa_com_get_hw_hints(struct efa_com_dev *edev,
 	return 0;
 }
 
-static int efa_com_set_feature_ex(struct efa_com_dev *edev,
-				  struct efa_admin_set_feature_resp *set_resp,
-				  struct efa_admin_set_feature_cmd *set_cmd,
-				  enum efa_admin_aq_feature_id feature_id,
-				  dma_addr_t control_buf_dma_addr,
-				  u32 control_buff_size)
+int efa_com_set_feature_ex(struct efa_com_dev *edev,
+			   struct efa_admin_set_feature_resp *set_resp,
+			   struct efa_admin_set_feature_cmd *set_cmd,
+			   enum efa_admin_aq_feature_id feature_id,
+			   dma_addr_t control_buf_dma_addr,
+			   u32 control_buff_size)
 {
 	struct efa_com_admin_queue *aq;
 	int err;
@@ -540,7 +542,7 @@ static int efa_com_set_feature_ex(struct efa_com_dev *edev,
 	if (control_buff_size) {
 		set_cmd->aq_common_descriptor.flags = 0;
 		EFA_SET(&set_cmd->aq_common_descriptor.flags,
-			EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_INDIRECT, 1);
+			EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA, 1);
 		efa_com_set_dma_addr(control_buf_dma_addr,
 				     &set_cmd->control_buffer.address.mem_addr_high,
 				     &set_cmd->control_buffer.address.mem_addr_low);

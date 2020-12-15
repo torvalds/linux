@@ -11,13 +11,13 @@ static const struct regulator_ops pg86x_ops = {
 	.list_voltage = regulator_list_voltage_linear_range,
 };
 
-static const struct regulator_linear_range pg86x_buck1_ranges[] = {
+static const struct linear_range pg86x_buck1_ranges[] = {
 	REGULATOR_LINEAR_RANGE(      0,  0, 10,     0),
 	REGULATOR_LINEAR_RANGE(1000000, 11, 34, 25000),
 	REGULATOR_LINEAR_RANGE(1600000, 35, 47, 50000),
 };
 
-static const struct regulator_linear_range pg86x_buck2_ranges[] = {
+static const struct linear_range pg86x_buck2_ranges[] = {
 	REGULATOR_LINEAR_RANGE(      0,  0, 15,     0),
 	REGULATOR_LINEAR_RANGE(1000000, 16, 39, 25000),
 	REGULATOR_LINEAR_RANGE(1600000, 40, 52, 50000),

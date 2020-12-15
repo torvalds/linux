@@ -20,7 +20,7 @@ a means to export kernel data structures, their attributes, and the
 linkages between them to userspace.
 
 sysfs is tied inherently to the kobject infrastructure. Please read
-Documentation/kobject.txt for more information concerning the kobject
+Documentation/core-api/kobject.rst for more information concerning the kobject
 interface.
 
 

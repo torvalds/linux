@@ -34,6 +34,14 @@
 #define SND_FF_IN_MIDI_PORTS		2
 #define SND_FF_OUT_MIDI_PORTS		2
 
+enum snd_ff_unit_version {
+	SND_FF_UNIT_VERSION_FF800	= 0x000001,
+	SND_FF_UNIT_VERSION_FF400	= 0x000002,
+	SND_FF_UNIT_VERSION_UFX		= 0x000003,
+	SND_FF_UNIT_VERSION_UCX		= 0x000004,
+	SND_FF_UNIT_VERSION_802		= 0x000005,
+};
+
 enum snd_ff_stream_mode {
 	SND_FF_STREAM_MODE_LOW = 0,
 	SND_FF_STREAM_MODE_MID,
@@ -43,8 +51,6 @@ enum snd_ff_stream_mode {
 
 struct snd_ff_protocol;
 struct snd_ff_spec {
-	const char *const name;
-
 	const unsigned int pcm_capture_channels[SND_FF_STREAM_MODE_COUNT];
 	const unsigned int pcm_playback_channels[SND_FF_STREAM_MODE_COUNT];
 
@@ -66,6 +72,7 @@ struct snd_ff {
 	bool registered;
 	struct delayed_work dwork;
 
+	enum snd_ff_unit_version unit_version;
 	const struct snd_ff_spec *spec;
 
 	/* To handle MIDI tx. */

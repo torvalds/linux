@@ -243,7 +243,7 @@ static int qxl_release_validate_bo(struct qxl_bo *bo)
 		return ret;
 
 	/* allocate a surface for reserved + validated buffers */
-	ret = qxl_bo_check_id(bo->tbo.base.dev->dev_private, bo);
+	ret = qxl_bo_check_id(to_qxl(bo->tbo.base.dev), bo);
 	if (ret)
 		return ret;
 	return 0;

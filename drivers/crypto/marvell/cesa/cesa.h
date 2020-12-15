@@ -457,6 +457,7 @@ struct mv_cesa_engine {
 	atomic_t load;
 	struct mv_cesa_tdma_chain chain;
 	struct list_head complete_queue;
+	int irq;
 };
 
 /**

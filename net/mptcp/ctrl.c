@@ -112,6 +112,7 @@ static struct pernet_operations mptcp_pernet_ops = {
 
 void __init mptcp_init(void)
 {
+	mptcp_join_cookie_init();
 	mptcp_proto_init();
 
 	if (register_pernet_subsys(&mptcp_pernet_ops) < 0)

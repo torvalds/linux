@@ -7,6 +7,11 @@
  * KS8851 register definitions
 */
 
+#ifndef __KS8851_H__
+#define __KS8851_H__
+
+#include <linux/eeprom_93cx6.h>
+
 #define KS_CCR					0x08
 #define CCR_LE					(1 << 10)   /* KSZ8851-16MLL */
 #define CCR_EEPROM				(1 << 9)
@@ -19,7 +24,7 @@
 #define CCR_32PIN				(1 << 0)    /* KSZ8851SNL    */
 
 /* MAC address registers */
-#define KS_MAR(_m)				(0x15 - (_m))
+#define KS_MAR(_m)				(0x14 - (_m))
 #define KS_MARL					0x10
 #define KS_MARM					0x12
 #define KS_MARH					0x14
@@ -300,3 +305,147 @@
 #define TXFR_TXIC				(1 << 15)
 #define TXFR_TXFID_MASK				(0x3f << 0)
 #define TXFR_TXFID_SHIFT			(0)
+
+/**
+ * struct ks8851_rxctrl - KS8851 driver rx control
+ * @mchash: Multicast hash-table data.
+ * @rxcr1: KS_RXCR1 register setting
+ * @rxcr2: KS_RXCR2 register setting
+ *
+ * Representation of the settings needs to control the receive filtering
+ * such as the multicast hash-filter and the receive register settings. This
+ * is used to make the job of working out if the receive settings change and
+ * then issuing the new settings to the worker that will send the necessary
+ * commands.
+ */
+struct ks8851_rxctrl {
+	u16	mchash[4];
+	u16	rxcr1;
+	u16	rxcr2;
+};
+
+/**
+ * union ks8851_tx_hdr - tx header data
+ * @txb: The header as bytes
+ * @txw: The header as 16bit, little-endian words
+ *
+ * A dual representation of the tx header data to allow
+ * access to individual bytes, and to allow 16bit accesses
+ * with 16bit alignment.
+ */
+union ks8851_tx_hdr {
+	u8	txb[6];
+	__le16	txw[3];
+};
+
+/**
+ * struct ks8851_net - KS8851 driver private data
+ * @netdev: The network device we're bound to
+ * @statelock: Lock on this structure for tx list.
+ * @mii: The MII state information for the mii calls.
+ * @rxctrl: RX settings for @rxctrl_work.
+ * @rxctrl_work: Work queue for updating RX mode and multicast lists
+ * @txq: Queue of packets for transmission.
+ * @txh: Space for generating packet TX header in DMA-able data
+ * @rxd: Space for receiving SPI data, in DMA-able space.
+ * @txd: Space for transmitting SPI data, in DMA-able space.
+ * @msg_enable: The message flags controlling driver output (see ethtool).
+ * @fid: Incrementing frame id tag.
+ * @rc_ier: Cached copy of KS_IER.
+ * @rc_ccr: Cached copy of KS_CCR.
+ * @rc_rxqcr: Cached copy of KS_RXQCR.
+ * @eeprom: 93CX6 EEPROM state for accessing on-board EEPROM.
+ * @vdd_reg:	Optional regulator supplying the chip
+ * @vdd_io: Optional digital power supply for IO
+ * @gpio: Optional reset_n gpio
+ * @lock: Bus access lock callback
+ * @unlock: Bus access unlock callback
+ * @rdreg16: 16bit register read callback
+ * @wrreg16: 16bit register write callback
+ * @rdfifo: FIFO read callback
+ * @wrfifo: FIFO write callback
+ * @start_xmit: start_xmit() implementation callback
+ * @rx_skb: rx_skb() implementation callback
+ * @flush_tx_work: flush_tx_work() implementation callback
+ *
+ * The @statelock is used to protect information in the structure which may
+ * need to be accessed via several sources, such as the network driver layer
+ * or one of the work queues.
+ *
+ * We align the buffers we may use for rx/tx to ensure that if the SPI driver
+ * wants to DMA map them, it will not have any problems with data the driver
+ * modifies.
+ */
+struct ks8851_net {
+	struct net_device	*netdev;
+	spinlock_t		statelock;
+
+	union ks8851_tx_hdr	txh ____cacheline_aligned;
+	u8			rxd[8];
+	u8			txd[8];
+
+	u32			msg_enable ____cacheline_aligned;
+	u16			tx_space;
+	u8			fid;
+
+	u16			rc_ier;
+	u16			rc_rxqcr;
+	u16			rc_ccr;
+
+	struct mii_if_info	mii;
+	struct ks8851_rxctrl	rxctrl;
+
+	struct work_struct	rxctrl_work;
+
+	struct sk_buff_head	txq;
+
+	struct eeprom_93cx6	eeprom;
+	struct regulator	*vdd_reg;
+	struct regulator	*vdd_io;
+	int			gpio;
+
+	void			(*lock)(struct ks8851_net *ks,
+					unsigned long *flags);
+	void			(*unlock)(struct ks8851_net *ks,
+					  unsigned long *flags);
+	unsigned int		(*rdreg16)(struct ks8851_net *ks,
+					   unsigned int reg);
+	void			(*wrreg16)(struct ks8851_net *ks,
+					   unsigned int reg, unsigned int val);
+	void			(*rdfifo)(struct ks8851_net *ks, u8 *buff,
+					  unsigned int len);
+	void			(*wrfifo)(struct ks8851_net *ks,
+					  struct sk_buff *txp, bool irq);
+	netdev_tx_t		(*start_xmit)(struct sk_buff *skb,
+					      struct net_device *dev);
+	void			(*rx_skb)(struct ks8851_net *ks,
+					  struct sk_buff *skb);
+	void			(*flush_tx_work)(struct ks8851_net *ks);
+};
+
+int ks8851_probe_common(struct net_device *netdev, struct device *dev,
+			int msg_en);
+int ks8851_remove_common(struct device *dev);
+int ks8851_suspend(struct device *dev);
+int ks8851_resume(struct device *dev);
+
+static __maybe_unused SIMPLE_DEV_PM_OPS(ks8851_pm_ops,
+					ks8851_suspend, ks8851_resume);
+
+/**
+ * ks8851_done_tx - update and then free skbuff after transmitting
+ * @ks: The device state
+ * @txb: The buffer transmitted
+ */
+static void __maybe_unused ks8851_done_tx(struct ks8851_net *ks,
+					  struct sk_buff *txb)
+{
+	struct net_device *dev = ks->netdev;
+
+	dev->stats.tx_bytes += txb->len;
+	dev->stats.tx_packets++;
+
+	dev_kfree_skb(txb);
+}
+
+#endif /* __KS8851_H__ */

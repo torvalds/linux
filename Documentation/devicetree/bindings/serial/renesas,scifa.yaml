@@ -24,13 +24,14 @@ properties:
 
       - items:
           - enum:
-              - renesas,scifa-r8a7743      # R8A7743 RZ/G1M
-              - renesas,scifa-r8a7744      # R8A7744 RZ/G1N
-              - renesas,scifa-r8a7745      # R8A7745 RZ/G1E
-              - renesas,scifa-r8a7790      # R8A7790 R-Car H2
-              - renesas,scifa-r8a7791      # R8A7791 R-Car M2-W
-              - renesas,scifa-r8a7793      # R8A7793 R-Car M2-N
-              - renesas,scifa-r8a7794      # R8A7794 R-Car E2
+              - renesas,scifa-r8a7742      # RZ/G1H
+              - renesas,scifa-r8a7743      # RZ/G1M
+              - renesas,scifa-r8a7744      # RZ/G1N
+              - renesas,scifa-r8a7745      # RZ/G1E
+              - renesas,scifa-r8a7790      # R-Car H2
+              - renesas,scifa-r8a7791      # R-Car M2-W
+              - renesas,scifa-r8a7793      # R-Car M2-N
+              - renesas,scifa-r8a7794      # R-Car E2
           - const: renesas,rcar-gen2-scifa # R-Car Gen2 and RZ/G1
           - const: renesas,scifa           # generic SCIFA compatible UART
 

@@ -17,12 +17,7 @@ static inline int ras_add_daemon_trace(void) { return 0; }
 #endif
 
 #ifdef CONFIG_RAS_CEC
-void __init cec_init(void);
 int __init parse_cec_param(char *str);
-int cec_add_elem(u64 pfn);
-#else
-static inline void __init cec_init(void)	{ }
-static inline int cec_add_elem(u64 pfn)		{ return -ENODEV; }
 #endif
 
 #ifdef CONFIG_RAS

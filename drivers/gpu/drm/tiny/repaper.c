@@ -31,6 +31,7 @@
 #include <drm/drm_format_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_probe_helper.h>
@@ -87,7 +88,6 @@ struct repaper_epd {
 	u8 *line_buffer;
 	void *current_frame;
 
-	bool enabled;
 	bool cleared;
 	bool partial;
 };
@@ -537,9 +537,6 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb)
 	int idx, ret = 0;
 	u8 *buf = NULL;
 
-	if (!epd->enabled)
-		return 0;
-
 	if (!drm_dev_enter(fb->dev, &idx))
 		return -ENODEV;
 
@@ -785,7 +782,6 @@ static void repaper_pipe_enable(struct drm_simple_display_pipe *pipe,
 	 */
 	repaper_write_val(spi, 0x02, 0x04);
 
-	epd->enabled = true;
 	epd->partial = false;
 out_exit:
 	drm_dev_exit(idx);
@@ -804,12 +800,7 @@ static void repaper_pipe_disable(struct drm_simple_display_pipe *pipe)
 	 * unplug.
 	 */
 
-	if (!epd->enabled)
-		return;
-
 	DRM_DEBUG_DRIVER("\n");
-
-	epd->enabled = false;
 
 	/* Nothing frame */
 	for (line = 0; line < epd->height; line++)
@@ -857,6 +848,9 @@ static void repaper_pipe_update(struct drm_simple_display_pipe *pipe,
 {
 	struct drm_plane_state *state = pipe->plane.state;
 	struct drm_rect rect;
+
+	if (!pipe->crtc.state->active)
+		return;
 
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
 		repaper_fb_dirty(state->fb);
@@ -908,17 +902,6 @@ static const struct drm_mode_config_funcs repaper_mode_config_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
-static void repaper_release(struct drm_device *drm)
-{
-	struct repaper_epd *epd = drm_to_epd(drm);
-
-	DRM_DEBUG_DRIVER("\n");
-
-	drm_mode_config_cleanup(drm);
-	drm_dev_fini(drm);
-	kfree(epd);
-}
-
 static const uint32_t repaper_formats[] = {
 	DRM_FORMAT_XRGB8888,
 };
@@ -956,8 +939,7 @@ DEFINE_DRM_GEM_CMA_FOPS(repaper_fops);
 static struct drm_driver repaper_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &repaper_fops,
-	.release		= repaper_release,
-	DRM_GEM_CMA_VMAP_DRIVER_OPS,
+	DRM_GEM_CMA_DRIVER_OPS_VMAP,
 	.name			= "repaper",
 	.desc			= "Pervasive Displays RePaper e-ink panels",
 	.date			= "20170405",
@@ -1013,19 +995,16 @@ static int repaper_probe(struct spi_device *spi)
 		}
 	}
 
-	epd = kzalloc(sizeof(*epd), GFP_KERNEL);
-	if (!epd)
-		return -ENOMEM;
+	epd = devm_drm_dev_alloc(dev, &repaper_driver,
+				 struct repaper_epd, drm);
+	if (IS_ERR(epd))
+		return PTR_ERR(epd);
 
 	drm = &epd->drm;
 
-	ret = devm_drm_dev_init(dev, drm, &repaper_driver);
-	if (ret) {
-		kfree(epd);
+	ret = drmm_mode_config_init(drm);
+	if (ret)
 		return ret;
-	}
-
-	drm_mode_config_init(drm);
 	drm->mode_config.funcs = &repaper_mode_config_funcs;
 
 	epd->spi = spi;

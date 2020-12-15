@@ -117,6 +117,7 @@ extern int of_read_drc_info_cell(struct property **prop,
 #define OV1_PPC_2_07		0x01	/* set if we support PowerPC 2.07 */
 
 #define OV1_PPC_3_00		0x80	/* set if we support PowerPC 3.00 */
+#define OV1_PPC_3_1			0x40	/* set if we support PowerPC 3.1 */
 
 /* Option vector 2: Open Firmware options supported */
 #define OV2_REAL_MODE		0x20	/* set if we want OF in real mode */

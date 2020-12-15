@@ -79,39 +79,31 @@ enum kempld_cells {
 	KEMPLD_UART,
 };
 
-static const struct mfd_cell kempld_devs[] = {
-	[KEMPLD_I2C] = {
-		.name = "kempld-i2c",
-	},
-	[KEMPLD_WDT] = {
-		.name = "kempld-wdt",
-	},
-	[KEMPLD_GPIO] = {
-		.name = "kempld-gpio",
-	},
-	[KEMPLD_UART] = {
-		.name = "kempld-uart",
-	},
+static const char *kempld_dev_names[] = {
+	[KEMPLD_I2C] = "kempld-i2c",
+	[KEMPLD_WDT] = "kempld-wdt",
+	[KEMPLD_GPIO] = "kempld-gpio",
+	[KEMPLD_UART] = "kempld-uart",
 };
 
-#define KEMPLD_MAX_DEVS	ARRAY_SIZE(kempld_devs)
+#define KEMPLD_MAX_DEVS	ARRAY_SIZE(kempld_dev_names)
 
 static int kempld_register_cells_generic(struct kempld_device_data *pld)
 {
-	struct mfd_cell devs[KEMPLD_MAX_DEVS];
+	struct mfd_cell devs[KEMPLD_MAX_DEVS] = {};
 	int i = 0;
 
 	if (pld->feature_mask & KEMPLD_FEATURE_BIT_I2C)
-		devs[i++] = kempld_devs[KEMPLD_I2C];
+		devs[i++].name = kempld_dev_names[KEMPLD_I2C];
 
 	if (pld->feature_mask & KEMPLD_FEATURE_BIT_WATCHDOG)
-		devs[i++] = kempld_devs[KEMPLD_WDT];
+		devs[i++].name = kempld_dev_names[KEMPLD_WDT];
 
 	if (pld->feature_mask & KEMPLD_FEATURE_BIT_GPIO)
-		devs[i++] = kempld_devs[KEMPLD_GPIO];
+		devs[i++].name = kempld_dev_names[KEMPLD_GPIO];
 
 	if (pld->feature_mask & KEMPLD_FEATURE_MASK_UART)
-		devs[i++] = kempld_devs[KEMPLD_UART];
+		devs[i++].name = kempld_dev_names[KEMPLD_UART];
 
 	return mfd_add_devices(pld->dev, -1, devs, i, NULL, 0, NULL);
 }

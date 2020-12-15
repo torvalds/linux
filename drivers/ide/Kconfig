@@ -12,7 +12,7 @@ menuconfig IDE
 	depends on HAVE_IDE
 	depends on BLOCK
 	select BLK_SCSI_REQUEST
-	---help---
+	help
 	  If you say Y here, your kernel will be able to manage ATA/(E)IDE and
 	  ATAPI units. The most common cases are IDE hard drives and ATAPI
 	  CD-ROM drives.
@@ -49,7 +49,7 @@ config IDE_LEGACY
 config BLK_DEV_IDE_SATA
 	bool "Support for SATA (deprecated; conflicts with libata SATA driver)"
 	default n
-	---help---
+	help
 	  There are two drivers for Serial ATA controllers.
 
 	  The main driver, "libata", uses the SCSI subsystem
@@ -121,7 +121,7 @@ config BLK_DEV_IDECD
 	depends on BLK_DEV
 	select IDE_ATAPI
 	select CDROM
-	---help---
+	help
 	  If you have a CD-ROM drive using the ATAPI protocol, say Y. ATAPI is
 	  a newer protocol used by IDE CD-ROM and TAPE drives, similar to the
 	  SCSI protocol. Most new CD-ROM drives use ATAPI, including the
@@ -172,7 +172,7 @@ config BLK_DEV_IDETAPE
 config BLK_DEV_IDEACPI
 	bool "IDE ACPI support"
 	depends on ACPI
-	---help---
+	help
 	  Implement ACPI support for generic IDE devices. On modern
 	  machines ACPI support is required to properly handle ACPI S3 states.
 
@@ -232,7 +232,7 @@ config BLK_DEV_CMD640
 	tristate "CMD640 chipset bugfix/support"
 	depends on X86
 	select IDE_TIMINGS
-	---help---
+	help
 	  The CMD-Technologies CMD640 IDE chip is used on many common 486 and
 	  Pentium motherboards, usually in combination with a "Neptune" or
 	  "SiS" chipset. Unfortunately, it has a number of rather nasty

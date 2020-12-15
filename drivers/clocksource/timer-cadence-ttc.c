@@ -309,7 +309,7 @@ static int ttc_rate_change_clocksource_cb(struct notifier_block *nb,
 		/* restore original register value */
 		writel_relaxed(ttccs->scale_clk_ctrl_reg_old,
 			       ttccs->ttc.base_addr + TTC_CLK_CNTRL_OFFSET);
-		/* fall through */
+		fallthrough;
 	default:
 		return NOTIFY_DONE;
 	}
@@ -392,7 +392,7 @@ static int ttc_rate_change_clockevent_cb(struct notifier_block *nb,
 
 		clockevents_update_freq(&ttcce->ce, ndata->new_rate / PRESCALE);
 
-		/* fall through */
+		fallthrough;
 	case PRE_RATE_CHANGE:
 	case ABORT_RATE_CHANGE:
 	default:

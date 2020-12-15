@@ -18,6 +18,8 @@
 #include <linux/bitops.h>
 #include <linux/msi.h>
 #include <linux/dma-mapping.h>
+#include <linux/acpi.h>
+#include <linux/iommu.h>
 
 #include "fsl-mc-private.h"
 
@@ -38,6 +40,7 @@ struct fsl_mc {
 	struct fsl_mc_device *root_mc_bus_dev;
 	u8 num_translation_ranges;
 	struct fsl_mc_addr_translation_range *translation_ranges;
+	void *fsl_mc_regs;
 };
 
 /**
@@ -55,6 +58,10 @@ struct fsl_mc_addr_translation_range {
 	u64 end_mc_offset;
 	phys_addr_t start_phys_addr;
 };
+
+#define FSL_MC_FAPR	0x28
+#define MC_FAPR_PL	BIT(18)
+#define MC_FAPR_BMT	BIT(17)
 
 /**
  * fsl_mc_bus_match - device to driver matching callback
@@ -118,11 +125,16 @@ static int fsl_mc_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 static int fsl_mc_dma_configure(struct device *dev)
 {
 	struct device *dma_dev = dev;
+	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
+	u32 input_id = mc_dev->icid;
 
 	while (dev_is_fsl_mc(dma_dev))
 		dma_dev = dma_dev->parent;
 
-	return of_dma_configure(dev, dma_dev->of_node, 0);
+	if (dev_of_node(dma_dev))
+		return of_dma_configure_id(dev, dma_dev->of_node, 0, &input_id);
+
+	return acpi_dma_configure_id(dev, DEV_DMA_COHERENT, &input_id);
 }
 
 static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
@@ -201,6 +213,31 @@ struct device_type fsl_mc_bus_dpseci_type = {
 };
 EXPORT_SYMBOL_GPL(fsl_mc_bus_dpseci_type);
 
+struct device_type fsl_mc_bus_dpdmux_type = {
+	.name = "fsl_mc_bus_dpdmux"
+};
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpdmux_type);
+
+struct device_type fsl_mc_bus_dpdcei_type = {
+	.name = "fsl_mc_bus_dpdcei"
+};
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpdcei_type);
+
+struct device_type fsl_mc_bus_dpaiop_type = {
+	.name = "fsl_mc_bus_dpaiop"
+};
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpaiop_type);
+
+struct device_type fsl_mc_bus_dpci_type = {
+	.name = "fsl_mc_bus_dpci"
+};
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpci_type);
+
+struct device_type fsl_mc_bus_dpdmai_type = {
+	.name = "fsl_mc_bus_dpdmai"
+};
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpdmai_type);
+
 static struct device_type *fsl_mc_get_device_type(const char *type)
 {
 	static const struct {
@@ -217,6 +254,11 @@ static struct device_type *fsl_mc_get_device_type(const char *type)
 		{ &fsl_mc_bus_dpmac_type, "dpmac" },
 		{ &fsl_mc_bus_dprtc_type, "dprtc" },
 		{ &fsl_mc_bus_dpseci_type, "dpseci" },
+		{ &fsl_mc_bus_dpdmux_type, "dpdmux" },
+		{ &fsl_mc_bus_dpdcei_type, "dpdcei" },
+		{ &fsl_mc_bus_dpaiop_type, "dpaiop" },
+		{ &fsl_mc_bus_dpci_type, "dpci" },
+		{ &fsl_mc_bus_dpdmai_type, "dpdmai" },
 		{ NULL, NULL }
 	};
 	int i;
@@ -368,8 +410,8 @@ EXPORT_SYMBOL_GPL(fsl_mc_get_version);
 /**
  * fsl_mc_get_root_dprc - function to traverse to the root dprc
  */
-static void fsl_mc_get_root_dprc(struct device *dev,
-				 struct device **root_dprc_dev)
+void fsl_mc_get_root_dprc(struct device *dev,
+			 struct device **root_dprc_dev)
 {
 	if (!dev) {
 		*root_dprc_dev = NULL;
@@ -863,8 +905,11 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	struct fsl_mc_io *mc_io = NULL;
 	int container_id;
 	phys_addr_t mc_portal_phys_addr;
-	u32 mc_portal_size;
-	struct resource res;
+	u32 mc_portal_size, mc_stream_id;
+	struct resource *plat_res;
+
+	if (!iommu_present(&fsl_mc_bus_type))
+		return -EPROBE_DEFER;
 
 	mc = devm_kzalloc(&pdev->dev, sizeof(*mc), GFP_KERNEL);
 	if (!mc)
@@ -872,19 +917,33 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mc);
 
+	plat_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	mc->fsl_mc_regs = devm_ioremap_resource(&pdev->dev, plat_res);
+	if (IS_ERR(mc->fsl_mc_regs))
+		return PTR_ERR(mc->fsl_mc_regs);
+
+	if (IS_ENABLED(CONFIG_ACPI) && !dev_of_node(&pdev->dev)) {
+		mc_stream_id = readl(mc->fsl_mc_regs + FSL_MC_FAPR);
+		/*
+		 * HW ORs the PL and BMT bit, places the result in bit 15 of
+		 * the StreamID and ORs in the ICID. Calculate it accordingly.
+		 */
+		mc_stream_id = (mc_stream_id & 0xffff) |
+				((mc_stream_id & (MC_FAPR_PL | MC_FAPR_BMT)) ?
+					0x4000 : 0);
+		error = acpi_dma_configure_id(&pdev->dev, DEV_DMA_COHERENT,
+					      &mc_stream_id);
+		if (error)
+			dev_warn(&pdev->dev, "failed to configure dma: %d.\n",
+				 error);
+	}
+
 	/*
 	 * Get physical address of MC portal for the root DPRC:
 	 */
-	error = of_address_to_resource(pdev->dev.of_node, 0, &res);
-	if (error < 0) {
-		dev_err(&pdev->dev,
-			"of_address_to_resource() failed for %pOF\n",
-			pdev->dev.of_node);
-		return error;
-	}
-
-	mc_portal_phys_addr = res.start;
-	mc_portal_size = resource_size(&res);
+	plat_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	mc_portal_phys_addr = plat_res->start;
+	mc_portal_size = resource_size(plat_res);
 	error = fsl_create_mc_io(&pdev->dev, mc_portal_phys_addr,
 				 mc_portal_size, NULL,
 				 FSL_MC_IO_ATOMIC_CONTEXT_PORTAL, &mc_io);
@@ -901,11 +960,13 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "MC firmware version: %u.%u.%u\n",
 		 mc_version.major, mc_version.minor, mc_version.revision);
 
-	error = get_mc_addr_translation_ranges(&pdev->dev,
-					       &mc->translation_ranges,
-					       &mc->num_translation_ranges);
-	if (error < 0)
-		goto error_cleanup_mc_io;
+	if (dev_of_node(&pdev->dev)) {
+		error = get_mc_addr_translation_ranges(&pdev->dev,
+						&mc->translation_ranges,
+						&mc->num_translation_ranges);
+		if (error < 0)
+			goto error_cleanup_mc_io;
+	}
 
 	error = dprc_get_container_id(mc_io, 0, &container_id);
 	if (error < 0) {
@@ -932,6 +993,7 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 		goto error_cleanup_mc_io;
 
 	mc->root_mc_bus_dev = mc_bus_dev;
+	mc_bus_dev->dev.fwnode = pdev->dev.fwnode;
 	return 0;
 
 error_cleanup_mc_io:
@@ -965,11 +1027,18 @@ static const struct of_device_id fsl_mc_bus_match_table[] = {
 
 MODULE_DEVICE_TABLE(of, fsl_mc_bus_match_table);
 
+static const struct acpi_device_id fsl_mc_bus_acpi_match_table[] = {
+	{"NXP0008", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, fsl_mc_bus_acpi_match_table);
+
 static struct platform_driver fsl_mc_bus_driver = {
 	.driver = {
 		   .name = "fsl_mc_bus",
 		   .pm = NULL,
 		   .of_match_table = fsl_mc_bus_match_table,
+		   .acpi_match_table = fsl_mc_bus_acpi_match_table,
 		   },
 	.probe = fsl_mc_bus_probe,
 	.remove = fsl_mc_bus_remove,

@@ -85,11 +85,76 @@ static int rv1_determine_dppclk_threshold(struct clk_mgr_internal *clk_mgr, stru
 	return disp_clk_threshold;
 }
 
-static void ramp_up_dispclk_with_dpp(struct clk_mgr_internal *clk_mgr, struct dc *dc, struct dc_clocks *new_clocks)
+static void ramp_up_dispclk_with_dpp(
+		struct clk_mgr_internal *clk_mgr,
+		struct dc *dc,
+		struct dc_clocks *new_clocks,
+		bool safe_to_lower)
 {
 	int i;
 	int dispclk_to_dpp_threshold = rv1_determine_dppclk_threshold(clk_mgr, new_clocks);
 	bool request_dpp_div = new_clocks->dispclk_khz > new_clocks->dppclk_khz;
+
+	/* this function is to change dispclk, dppclk and dprefclk according to
+	 * bandwidth requirement. Its call stack is rv1_update_clocks -->
+	 * update_clocks --> dcn10_prepare_bandwidth / dcn10_optimize_bandwidth
+	 * --> prepare_bandwidth / optimize_bandwidth. before change dcn hw,
+	 * prepare_bandwidth will be called first to allow enough clock,
+	 * watermark for change, after end of dcn hw change, optimize_bandwidth
+	 * is executed to lower clock to save power for new dcn hw settings.
+	 *
+	 * below is sequence of commit_planes_for_stream:
+	 *
+	 * step 1: prepare_bandwidth - raise clock to have enough bandwidth
+	 * step 2: lock_doublebuffer_enable
+	 * step 3: pipe_control_lock(true) - make dchubp register change will
+	 * not take effect right way
+	 * step 4: apply_ctx_for_surface - program dchubp
+	 * step 5: pipe_control_lock(false) - dchubp register change take effect
+	 * step 6: optimize_bandwidth --> dc_post_update_surfaces_to_stream
+	 * for full_date, optimize clock to save power
+	 *
+	 * at end of step 1, dcn clocks (dprefclk, dispclk, dppclk) may be
+	 * changed for new dchubp configuration. but real dcn hub dchubps are
+	 * still running with old configuration until end of step 5. this need
+	 * clocks settings at step 1 should not less than that before step 1.
+	 * this is checked by two conditions: 1. if (should_set_clock(safe_to_lower
+	 * , new_clocks->dispclk_khz, clk_mgr_base->clks.dispclk_khz) ||
+	 * new_clocks->dispclk_khz == clk_mgr_base->clks.dispclk_khz)
+	 * 2. request_dpp_div = new_clocks->dispclk_khz > new_clocks->dppclk_khz
+	 *
+	 * the second condition is based on new dchubp configuration. dppclk
+	 * for new dchubp may be different from dppclk before step 1.
+	 * for example, before step 1, dchubps are as below:
+	 * pipe 0: recout=(0,40,1920,980) viewport=(0,0,1920,979)
+	 * pipe 1: recout=(0,0,1920,1080) viewport=(0,0,1920,1080)
+	 * for dppclk for pipe0 need dppclk = dispclk
+	 *
+	 * new dchubp pipe split configuration:
+	 * pipe 0: recout=(0,0,960,1080) viewport=(0,0,960,1080)
+	 * pipe 1: recout=(960,0,960,1080) viewport=(960,0,960,1080)
+	 * dppclk only needs dppclk = dispclk /2.
+	 *
+	 * dispclk, dppclk are not lock by otg master lock. they take effect
+	 * after step 1. during this transition, dispclk are the same, but
+	 * dppclk is changed to half of previous clock for old dchubp
+	 * configuration between step 1 and step 6. This may cause p-state
+	 * warning intermittently.
+	 *
+	 * for new_clocks->dispclk_khz == clk_mgr_base->clks.dispclk_khz, we
+	 * need make sure dppclk are not changed to less between step 1 and 6.
+	 * for new_clocks->dispclk_khz > clk_mgr_base->clks.dispclk_khz,
+	 * new display clock is raised, but we do not know ratio of
+	 * new_clocks->dispclk_khz and clk_mgr_base->clks.dispclk_khz,
+	 * new_clocks->dispclk_khz /2 does not guarantee equal or higher than
+	 * old dppclk. we could ignore power saving different between
+	 * dppclk = displck and dppclk = dispclk / 2 between step 1 and step 6.
+	 * as long as safe_to_lower = false, set dpclk = dispclk to simplify
+	 * condition check.
+	 * todo: review this change for other asic.
+	 **/
+	if (!safe_to_lower)
+		request_dpp_div = false;
 
 	/* set disp clk to dpp clk threshold */
 
@@ -209,7 +274,7 @@ static void rv1_update_clocks(struct clk_mgr *clk_mgr_base,
 	/* program dispclk on = as a w/a for sleep resume clock ramping issues */
 	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, clk_mgr_base->clks.dispclk_khz)
 			|| new_clocks->dispclk_khz == clk_mgr_base->clks.dispclk_khz) {
-		ramp_up_dispclk_with_dpp(clk_mgr, dc, new_clocks);
+		ramp_up_dispclk_with_dpp(clk_mgr, dc, new_clocks, safe_to_lower);
 		clk_mgr_base->clks.dispclk_khz = new_clocks->dispclk_khz;
 		send_request_to_lower = true;
 	}

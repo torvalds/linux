@@ -25,14 +25,15 @@
 
 /* forward references */
 struct file;
+struct poll_table_struct;
+struct v4l2_ctrl;
 struct v4l2_ctrl_handler;
 struct v4l2_ctrl_helper;
-struct v4l2_ctrl;
-struct video_device;
+struct v4l2_fh;
+struct v4l2_fwnode_device_properties;
 struct v4l2_subdev;
 struct v4l2_subscribed_event;
-struct v4l2_fh;
-struct poll_table_struct;
+struct video_device;
 
 /**
  * union v4l2_ctrl_ptr - A pointer to a control value.
@@ -685,7 +686,9 @@ struct v4l2_ctrl *v4l2_ctrl_new_std_menu_items(struct v4l2_ctrl_handler *hdl,
  * @p_def:     The control's default value.
  *
  * Sames as v4l2_ctrl_new_std(), but with support to compound controls, thanks
- * to the @p_def field.
+ * to the @p_def field. Use v4l2_ctrl_ptr_create() to create @p_def from a
+ * pointer. Use v4l2_ctrl_ptr_create(NULL) if the default value of the
+ * compound control should be all zeroes.
  *
  */
 struct v4l2_ctrl *v4l2_ctrl_new_std_compound(struct v4l2_ctrl_handler *hdl,
@@ -1113,44 +1116,53 @@ static inline int v4l2_ctrl_s_ctrl_string(struct v4l2_ctrl *ctrl, const char *s)
 }
 
 /**
- * __v4l2_ctrl_s_ctrl_area() - Unlocked variant of v4l2_ctrl_s_ctrl_area().
+ * __v4l2_ctrl_s_ctrl_compound() - Unlocked variant to set a compound control
  *
- * @ctrl:	The control.
- * @area:	The new area.
+ * @ctrl: The control.
+ * @type: The type of the data.
+ * @p:    The new compound payload.
  *
- * This sets the control's new area safely by going through the control
- * framework. This function assumes the control's handler is already locked,
- * allowing it to be used from within the &v4l2_ctrl_ops functions.
+ * This sets the control's new compound payload safely by going through the
+ * control framework. This function assumes the control's handler is already
+ * locked, allowing it to be used from within the &v4l2_ctrl_ops functions.
  *
- * This function is for area type controls only.
+ * This function is for compound type controls only.
  */
-int __v4l2_ctrl_s_ctrl_area(struct v4l2_ctrl *ctrl,
-			    const struct v4l2_area *area);
+int __v4l2_ctrl_s_ctrl_compound(struct v4l2_ctrl *ctrl,
+				enum v4l2_ctrl_type type, const void *p);
 
 /**
- * v4l2_ctrl_s_ctrl_area() - Helper function to set a control's area value
- *	 from within a driver.
+ * v4l2_ctrl_s_ctrl_compound() - Helper function to set a compound control
+ *	from within a driver.
  *
- * @ctrl:	The control.
- * @area:	The new area.
+ * @ctrl: The control.
+ * @type: The type of the data.
+ * @p:    The new compound payload.
  *
- * This sets the control's new area safely by going through the control
- * framework. This function will lock the control's handler, so it cannot be
- * used from within the &v4l2_ctrl_ops functions.
+ * This sets the control's new compound payload safely by going through the
+ * control framework. This function will lock the control's handler, so it
+ * cannot be used from within the &v4l2_ctrl_ops functions.
  *
- * This function is for area type controls only.
+ * This function is for compound type controls only.
  */
-static inline int v4l2_ctrl_s_ctrl_area(struct v4l2_ctrl *ctrl,
-					const struct v4l2_area *area)
+static inline int v4l2_ctrl_s_ctrl_compound(struct v4l2_ctrl *ctrl,
+					    enum v4l2_ctrl_type type,
+					    const void *p)
 {
 	int rval;
 
 	v4l2_ctrl_lock(ctrl);
-	rval = __v4l2_ctrl_s_ctrl_area(ctrl, area);
+	rval = __v4l2_ctrl_s_ctrl_compound(ctrl, type, p);
 	v4l2_ctrl_unlock(ctrl);
 
 	return rval;
 }
+
+/* Helper defines for area type controls */
+#define __v4l2_ctrl_s_ctrl_area(ctrl, area) \
+	__v4l2_ctrl_s_ctrl_compound((ctrl), V4L2_CTRL_TYPE_AREA, (area))
+#define v4l2_ctrl_s_ctrl_area(ctrl, area) \
+	v4l2_ctrl_s_ctrl_compound((ctrl), V4L2_CTRL_TYPE_AREA, (area))
 
 /* Internal helper functions that deal with control events. */
 extern const struct v4l2_subscribed_event_ops v4l2_ctrl_sub_ev_ops;
@@ -1417,4 +1429,29 @@ int v4l2_ctrl_subdev_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
  */
 int v4l2_ctrl_subdev_log_status(struct v4l2_subdev *sd);
 
+/**
+ * v4l2_ctrl_new_fwnode_properties() - Register controls for the device
+ *				       properties
+ *
+ * @hdl: pointer to &struct v4l2_ctrl_handler to register controls on
+ * @ctrl_ops: pointer to &struct v4l2_ctrl_ops to register controls with
+ * @p: pointer to &struct v4l2_fwnode_device_properties
+ *
+ * This function registers controls associated to device properties, using the
+ * property values contained in @p parameter, if the property has been set to
+ * a value.
+ *
+ * Currently the following v4l2 controls are parsed and registered:
+ * - V4L2_CID_CAMERA_ORIENTATION
+ * - V4L2_CID_CAMERA_SENSOR_ROTATION;
+ *
+ * Controls already registered by the caller with the @hdl control handler are
+ * not overwritten. Callers should register the controls they want to handle
+ * themselves before calling this function.
+ *
+ * Return: 0 on success, a negative error code on failure.
+ */
+int v4l2_ctrl_new_fwnode_properties(struct v4l2_ctrl_handler *hdl,
+				    const struct v4l2_ctrl_ops *ctrl_ops,
+				    const struct v4l2_fwnode_device_properties *p);
 #endif

@@ -95,6 +95,7 @@ enum coex_runreason {
 	COEX_RSN_BTINFO		= 12,
 	COEX_RSN_LPS		= 13,
 	COEX_RSN_WLSTATUS	= 14,
+	COEX_RSN_BTSTATUS	= 15,
 
 	COEX_RSN_MAX
 };
@@ -362,6 +363,8 @@ void rtw_coex_write_scbd(struct rtw_dev *rtwdev, u16 bitpos, bool set);
 void rtw_coex_bt_relink_work(struct work_struct *work);
 void rtw_coex_bt_reenable_work(struct work_struct *work);
 void rtw_coex_defreeze_work(struct work_struct *work);
+void rtw_coex_wl_remain_work(struct work_struct *work);
+void rtw_coex_bt_remain_work(struct work_struct *work);
 
 void rtw_coex_power_on_setting(struct rtw_dev *rtwdev);
 void rtw_coex_init_hw_config(struct rtw_dev *rtwdev, bool wifi_only);

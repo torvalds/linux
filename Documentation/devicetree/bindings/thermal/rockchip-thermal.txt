@@ -24,7 +24,7 @@ Required properties:
 - pinctrl-1 : The "default" pinctrl state, it will be set after reset the
 	      TSADC controller.
 - pinctrl-2 : The "sleep" pinctrl state, it will be in for suspend.
-- #thermal-sensor-cells : Should be 1. See ./thermal.txt for a description.
+- #thermal-sensor-cells : Should be 1. See Documentation/devicetree/bindings/thermal/thermal-sensor.yaml for a description.
 
 Optional properties:
 - rockchip,hw-tshut-temp : The hardware-controlled shutdown temperature value.

@@ -19,6 +19,7 @@
 
 struct sidtab_entry {
 	u32 sid;
+	u32 hash;
 	struct context context;
 #if CONFIG_SECURITY_SELINUX_SID2STR_CACHE_SIZE > 0
 	struct sidtab_str_cache __rcu *cache;

@@ -158,7 +158,7 @@ MODULE_FIRMWARE("orinoco_ezusb_fw");
 
 
 #define EZUSB_REQUEST_FW_TRANS		0xA0
-#define EZUSB_REQUEST_TRIGER		0xAA
+#define EZUSB_REQUEST_TRIGGER		0xAA
 #define EZUSB_REQUEST_TRIG_AC		0xAC
 #define EZUSB_CPUCS_REG			0x7F92
 
@@ -1318,12 +1318,12 @@ static int ezusb_hard_reset(struct orinoco_private *priv)
 	netdev_dbg(upriv->dev, "sending control message\n");
 	retval = usb_control_msg(upriv->udev,
 				 usb_sndctrlpipe(upriv->udev, 0),
-				 EZUSB_REQUEST_TRIGER,
+				 EZUSB_REQUEST_TRIGGER,
 				 USB_TYPE_VENDOR | USB_RECIP_DEVICE |
 				 USB_DIR_OUT, 0x0, 0x0, NULL, 0,
 				 DEF_TIMEOUT);
 	if (retval < 0) {
-		err("EZUSB_REQUEST_TRIGER failed retval %d", retval);
+		err("EZUSB_REQUEST_TRIGGER failed retval %d", retval);
 		return retval;
 	}
 #if 0

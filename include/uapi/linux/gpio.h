@@ -71,8 +71,8 @@ enum {
  * of a GPIO line
  * @info: updated line information
  * @timestamp: estimate of time of status change occurrence, in nanoseconds
- * and GPIOLINE_CHANGED_CONFIG
  * @event_type: one of GPIOLINE_CHANGED_REQUESTED, GPIOLINE_CHANGED_RELEASED
+ * and GPIOLINE_CHANGED_CONFIG
  *
  * Note: struct gpioline_info embedded here has 32-bit alignment on its own,
  * but it works fine with 64-bit alignment too. With its 72 byte size, we can

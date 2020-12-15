@@ -76,7 +76,7 @@ static int nmk_rng_remove(struct amba_device *dev)
 	return 0;
 }
 
-static struct amba_id nmk_rng_ids[] = {
+static const struct amba_id nmk_rng_ids[] = {
 	{
 		.id	= 0x000805e1,
 		.mask	= 0x000fffff, /* top bits are rev and cfg: accept all */

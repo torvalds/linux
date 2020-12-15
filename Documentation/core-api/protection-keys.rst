@@ -5,8 +5,9 @@ Memory Protection Keys
 ======================
 
 Memory Protection Keys for Userspace (PKU aka PKEYs) is a feature
-which is found on Intel's Skylake "Scalable Processor" Server CPUs.
-It will be avalable in future non-server parts.
+which is found on Intel's Skylake (and later) "Scalable Processor"
+Server CPUs. It will be available in future non-server Intel parts
+and future AMD processors.
 
 For anyone wishing to test or use this feature, it is available in
 Amazon's EC2 C5 instances and is known to work there using an Ubuntu

@@ -70,9 +70,7 @@ int ad_sd_write_reg(struct ad_sigma_delta *sigma_delta, unsigned int reg,
 
 	switch (size) {
 	case 3:
-		data[1] = val >> 16;
-		data[2] = val >> 8;
-		data[3] = val;
+		put_unaligned_be24(val, &data[1]);
 		break;
 	case 2:
 		put_unaligned_be16(val, &data[1]);
@@ -157,9 +155,7 @@ int ad_sd_read_reg(struct ad_sigma_delta *sigma_delta,
 		*val = get_unaligned_be32(sigma_delta->data);
 		break;
 	case 3:
-		*val = (sigma_delta->data[0] << 16) |
-			(sigma_delta->data[1] << 8) |
-			sigma_delta->data[2];
+		*val = get_unaligned_be24(&sigma_delta->data[0]);
 		break;
 	case 2:
 		*val = get_unaligned_be16(sigma_delta->data);
@@ -349,10 +345,6 @@ static int ad_sd_buffer_postenable(struct iio_dev *indio_dev)
 	unsigned int channel;
 	int ret;
 
-	ret = iio_triggered_buffer_postenable(indio_dev);
-	if (ret < 0)
-		return ret;
-
 	channel = find_first_bit(indio_dev->active_scan_mask,
 				 indio_dev->masklength);
 	ret = ad_sigma_delta_set_channel(sigma_delta,
@@ -406,7 +398,6 @@ static irqreturn_t ad_sd_trigger_handler(int irq, void *p)
 	unsigned int reg_size;
 	unsigned int data_reg;
 	uint8_t data[16];
-	int ret;
 
 	memset(data, 0x00, 16);
 
@@ -423,14 +414,12 @@ static irqreturn_t ad_sd_trigger_handler(int irq, void *p)
 	case 4:
 	case 2:
 	case 1:
-		ret = ad_sd_read_reg_raw(sigma_delta, data_reg, reg_size,
-			&data[0]);
+		ad_sd_read_reg_raw(sigma_delta, data_reg, reg_size, &data[0]);
 		break;
 	case 3:
 		/* We store 24 bit samples in a 32 bit word. Keep the upper
 		 * byte set to zero. */
-		ret = ad_sd_read_reg_raw(sigma_delta, data_reg, reg_size,
-			&data[1]);
+		ad_sd_read_reg_raw(sigma_delta, data_reg, reg_size, &data[1]);
 		break;
 	}
 
@@ -445,7 +434,6 @@ static irqreturn_t ad_sd_trigger_handler(int irq, void *p)
 
 static const struct iio_buffer_setup_ops ad_sd_buffer_setup_ops = {
 	.postenable = &ad_sd_buffer_postenable,
-	.predisable = &iio_triggered_buffer_predisable,
 	.postdisable = &ad_sd_buffer_postdisable,
 	.validate_scan_mask = &iio_validate_scan_mask_onehot,
 };

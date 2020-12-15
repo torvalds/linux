@@ -64,6 +64,41 @@ enum ib_uverbs_access_flags {
 		~(IB_UVERBS_ACCESS_OPTIONAL_FIRST - 1)
 };
 
+enum ib_uverbs_srq_type {
+	IB_UVERBS_SRQT_BASIC,
+	IB_UVERBS_SRQT_XRC,
+	IB_UVERBS_SRQT_TM,
+};
+
+enum ib_uverbs_wq_type {
+	IB_UVERBS_WQT_RQ,
+};
+
+enum ib_uverbs_wq_flags {
+	IB_UVERBS_WQ_FLAGS_CVLAN_STRIPPING = 1 << 0,
+	IB_UVERBS_WQ_FLAGS_SCATTER_FCS = 1 << 1,
+	IB_UVERBS_WQ_FLAGS_DELAY_DROP = 1 << 2,
+	IB_UVERBS_WQ_FLAGS_PCI_WRITE_END_PADDING = 1 << 3,
+};
+
+enum ib_uverbs_qp_type {
+	IB_UVERBS_QPT_RC = 2,
+	IB_UVERBS_QPT_UC,
+	IB_UVERBS_QPT_UD,
+	IB_UVERBS_QPT_RAW_PACKET = 8,
+	IB_UVERBS_QPT_XRC_INI,
+	IB_UVERBS_QPT_XRC_TGT,
+	IB_UVERBS_QPT_DRIVER = 0xFF,
+};
+
+enum ib_uverbs_qp_create_flags {
+	IB_UVERBS_QP_CREATE_BLOCK_MULTICAST_LOOPBACK = 1 << 1,
+	IB_UVERBS_QP_CREATE_SCATTER_FCS = 1 << 8,
+	IB_UVERBS_QP_CREATE_CVLAN_STRIPPING = 1 << 9,
+	IB_UVERBS_QP_CREATE_PCI_WRITE_END_PADDING = 1 << 11,
+	IB_UVERBS_QP_CREATE_SQ_SIG_ALL = 1 << 12,
+};
+
 enum ib_uverbs_query_port_cap_flags {
 	IB_UVERBS_PCF_SM = 1 << 1,
 	IB_UVERBS_PCF_NOTICE_SUP = 1 << 2,
@@ -183,6 +218,14 @@ struct ib_uverbs_query_port_resp_ex {
 	struct ib_uverbs_query_port_resp legacy_resp;
 	__u16 port_cap_flags2;
 	__u8  reserved[6];
+};
+
+struct ib_uverbs_qp_cap {
+	__u32 max_send_wr;
+	__u32 max_recv_wr;
+	__u32 max_send_sge;
+	__u32 max_recv_sge;
+	__u32 max_inline_data;
 };
 
 enum rdma_driver_id {

@@ -38,6 +38,9 @@
 #include "dcn10/rv2_clk_mgr.h"
 #include "dcn20/dcn20_clk_mgr.h"
 #include "dcn21/rn_clk_mgr.h"
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#include "dcn30/dcn30_clk_mgr.h"
+#endif
 
 
 int clk_mgr_helper_get_active_display_cnt(
@@ -90,7 +93,7 @@ void clk_mgr_exit_optimized_pwr_state(const struct dc *dc, struct clk_mgr *clk_m
 		dc->hwss.exit_optimized_pwr_state(dc, dc->current_state);
 
 	if (edp_link) {
-		clk_mgr->psr_allow_active_cache = edp_link->psr_allow_active;
+		clk_mgr->psr_allow_active_cache = edp_link->psr_settings.psr_allow_active;
 		dc_link_set_psr_allow_active(edp_link, false, false);
 	}
 
@@ -169,6 +172,12 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 		break;
 
 	case FAMILY_NV:
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+		if (ASICREV_IS_SIENNA_CICHLID_P(asic_id.hw_internal_rev)) {
+			dcn3_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
+			break;
+		}
+#endif
 		dcn20_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 		break;
 #endif	/* Family RV and NV*/
@@ -184,6 +193,16 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 void dc_destroy_clk_mgr(struct clk_mgr *clk_mgr_base)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+
+	switch (clk_mgr_base->ctx->asic_id.chip_family) {
+	case FAMILY_NV:
+		if (ASICREV_IS_SIENNA_CICHLID_P(clk_mgr_base->ctx->asic_id.hw_internal_rev)) {
+			dcn3_clk_mgr_destroy(clk_mgr);
+			break;
+		}
+	}
+#endif
 
 	kfree(clk_mgr);
 }

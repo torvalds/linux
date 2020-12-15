@@ -17,7 +17,6 @@
 #include "exfat_raw.h"
 #include "exfat_fs.h"
 
-#define EXFAT_CACHE_VALID	0
 #define EXFAT_MAX_CACHE		16
 
 struct exfat_cache {
@@ -59,16 +58,6 @@ void exfat_cache_shutdown(void)
 	if (!exfat_cachep)
 		return;
 	kmem_cache_destroy(exfat_cachep);
-}
-
-void exfat_cache_init_inode(struct inode *inode)
-{
-	struct exfat_inode_info *ei = EXFAT_I(inode);
-
-	spin_lock_init(&ei->cache_lru_lock);
-	ei->nr_caches = 0;
-	ei->cache_valid_id = EXFAT_CACHE_VALID + 1;
-	INIT_LIST_HEAD(&ei->cache_lru);
 }
 
 static inline struct exfat_cache *exfat_cache_alloc(void)

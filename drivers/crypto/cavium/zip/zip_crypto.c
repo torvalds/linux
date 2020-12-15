@@ -260,7 +260,7 @@ void *zip_alloc_scomp_ctx_deflate(struct crypto_scomp *tfm)
 	ret = zip_ctx_init(zip_ctx, 0);
 
 	if (ret) {
-		kzfree(zip_ctx);
+		kfree_sensitive(zip_ctx);
 		return ERR_PTR(ret);
 	}
 
@@ -279,7 +279,7 @@ void *zip_alloc_scomp_ctx_lzs(struct crypto_scomp *tfm)
 	ret = zip_ctx_init(zip_ctx, 1);
 
 	if (ret) {
-		kzfree(zip_ctx);
+		kfree_sensitive(zip_ctx);
 		return ERR_PTR(ret);
 	}
 
@@ -291,7 +291,7 @@ void zip_free_scomp_ctx(struct crypto_scomp *tfm, void *ctx)
 	struct zip_kernel_ctx *zip_ctx = ctx;
 
 	zip_ctx_exit(zip_ctx);
-	kzfree(zip_ctx);
+	kfree_sensitive(zip_ctx);
 }
 
 int zip_scomp_compress(struct crypto_scomp *tfm,

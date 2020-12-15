@@ -400,7 +400,7 @@ static int snd_ymfpci_playback_trigger(struct snd_pcm_substream *substream,
 			kctl = chip->pcm_mixer[substream->number].ctl;
 			kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
 		}
-		/* fall through */
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		chip->ctrl_playback[ypcm->voices[0]->number + 1] = 0;

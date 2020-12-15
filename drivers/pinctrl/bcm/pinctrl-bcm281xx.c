@@ -59,7 +59,7 @@
 #define BCM281XX_HDMI_PIN_REG_MODE_MASK		0x0010
 #define BCM281XX_HDMI_PIN_REG_MODE_SHIFT	4
 
-/**
+/*
  * bcm281xx_pin_type - types of pin register
  */
 enum bcm281xx_pin_type {
@@ -73,7 +73,7 @@ static enum bcm281xx_pin_type std_pin = BCM281XX_PIN_TYPE_STD;
 static enum bcm281xx_pin_type i2c_pin = BCM281XX_PIN_TYPE_I2C;
 static enum bcm281xx_pin_type hdmi_pin = BCM281XX_PIN_TYPE_HDMI;
 
-/**
+/*
  * bcm281xx_pin_function- define pin function
  */
 struct bcm281xx_pin_function {
@@ -82,7 +82,7 @@ struct bcm281xx_pin_function {
 	const unsigned ngroups;
 };
 
-/**
+/*
  * bcm281xx_pinctrl_data - Broadcom-specific pinctrl data
  * @reg_base - base of pinctrl registers
  */
@@ -1406,7 +1406,7 @@ static int __init bcm281xx_pinctrl_probe(struct platform_device *pdev)
 	pdata->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pdata->reg_base)) {
 		dev_err(&pdev->dev, "Failed to ioremap MEM resource\n");
-		return -ENODEV;
+		return PTR_ERR(pdata->reg_base);
 	}
 
 	/* Initialize the dynamic part of pinctrl_desc */

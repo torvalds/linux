@@ -5,8 +5,11 @@
 
 #ifndef _ZCOMP_H_
 #define _ZCOMP_H_
+#include <linux/local_lock.h>
 
 struct zcomp_strm {
+	/* The members ->buffer and ->tfm are protected by ->lock. */
+	local_lock_t lock;
 	/* compression/decompression buffer */
 	void *buffer;
 	struct crypto_comp *tfm;
@@ -14,7 +17,7 @@ struct zcomp_strm {
 
 /* dynamic per-device compression frontend */
 struct zcomp {
-	struct zcomp_strm * __percpu *stream;
+	struct zcomp_strm __percpu *stream;
 	const char *name;
 	struct hlist_node node;
 };

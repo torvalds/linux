@@ -20,7 +20,7 @@ SYNOPSIS
 PERF COMMANDS
 =============
 
-|	**bpftool** **perf { show | list }**
+|	**bpftool** **perf** { **show** | **list** }
 |	**bpftool** **perf help**
 
 DESCRIPTION
@@ -85,9 +85,13 @@ SEE ALSO
 	**bpf**\ (2),
 	**bpf-helpers**\ (7),
 	**bpftool**\ (8),
-	**bpftool-prog**\ (8),
-	**bpftool-map**\ (8),
+	**bpftool-btf**\ (8),
 	**bpftool-cgroup**\ (8),
 	**bpftool-feature**\ (8),
+	**bpftool-gen**\ (8),
+	**bpftool-iter**\ (8),
+	**bpftool-link**\ (8),
+	**bpftool-map**\ (8),
 	**bpftool-net**\ (8),
-	**bpftool-btf**\ (8)
+	**bpftool-prog**\ (8),
+	**bpftool-struct_ops**\ (8)

@@ -172,6 +172,7 @@ struct imxfb_info {
 	int			num_modes;
 
 	struct regulator	*lcd_pwr;
+	int			lcd_pwr_enabled;
 };
 
 static const struct platform_device_id imxfb_devtype[] = {
@@ -801,16 +802,30 @@ static int imxfb_lcd_get_power(struct lcd_device *lcddev)
 	return FB_BLANK_UNBLANK;
 }
 
+static int imxfb_regulator_set(struct imxfb_info *fbi, int enable)
+{
+	int ret;
+
+	if (enable == fbi->lcd_pwr_enabled)
+		return 0;
+
+	if (enable)
+		ret = regulator_enable(fbi->lcd_pwr);
+	else
+		ret = regulator_disable(fbi->lcd_pwr);
+
+	if (ret == 0)
+		fbi->lcd_pwr_enabled = enable;
+
+	return ret;
+}
+
 static int imxfb_lcd_set_power(struct lcd_device *lcddev, int power)
 {
 	struct imxfb_info *fbi = dev_get_drvdata(&lcddev->dev);
 
-	if (!IS_ERR(fbi->lcd_pwr)) {
-		if (power == FB_BLANK_UNBLANK)
-			return regulator_enable(fbi->lcd_pwr);
-		else
-			return regulator_disable(fbi->lcd_pwr);
-	}
+	if (!IS_ERR(fbi->lcd_pwr))
+		return imxfb_regulator_set(fbi, power == FB_BLANK_UNBLANK);
 
 	return 0;
 }

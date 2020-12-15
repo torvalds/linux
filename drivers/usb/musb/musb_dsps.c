@@ -36,7 +36,7 @@
 
 static const struct of_device_id musb_dsps_of_match[];
 
-/**
+/*
  * DSPS musb wrapper register offset.
  * FIXME: This should be expanded to have all the wrapper registers from TI DSPS
  * musb ips.
@@ -96,7 +96,7 @@ struct dsps_context {
 	u32 rx_mode;
 };
 
-/**
+/*
  * DSPS glue structure.
  */
 struct dsps_glue {
@@ -162,7 +162,7 @@ static void dsps_mod_timer_optional(struct dsps_glue *glue)
 
 #define USBSS_IRQ_PD_COMP	(1 << 2)
 
-/**
+/*
  * dsps_musb_enable - enable interrupts
  */
 static void dsps_musb_enable(struct musb *musb)
@@ -188,7 +188,7 @@ static void dsps_musb_enable(struct musb *musb)
 		dsps_mod_timer(glue, -1);
 }
 
-/**
+/*
  * dsps_musb_disable - disable HDRC and flush interrupts
  */
 static void dsps_musb_disable(struct musb *musb)
@@ -232,7 +232,7 @@ static int dsps_check_status(struct musb *musb, void *unused)
 			dsps_mod_timer_optional(glue);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 
 	case OTG_STATE_A_WAIT_BCON:
 		/* keep VBUS on for host-only mode */
@@ -242,7 +242,7 @@ static int dsps_check_status(struct musb *musb, void *unused)
 		}
 		musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 		skip_session = 1;
-		/* fall through */
+		fallthrough;
 
 	case OTG_STATE_A_IDLE:
 	case OTG_STATE_B_IDLE:
@@ -429,12 +429,10 @@ static int dsps_musb_init(struct musb *musb)
 	struct platform_device *parent = to_platform_device(dev->parent);
 	const struct dsps_musb_wrapper *wrp = glue->wrp;
 	void __iomem *reg_base;
-	struct resource *r;
 	u32 rev, val;
 	int ret;
 
-	r = platform_get_resource_byname(parent, IORESOURCE_MEM, "control");
-	reg_base = devm_ioremap_resource(dev, r);
+	reg_base = devm_platform_ioremap_resource_byname(parent, "control");
 	if (IS_ERR(reg_base))
 		return PTR_ERR(reg_base);
 	musb->ctrl_base = reg_base;
@@ -795,7 +793,7 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	case USB_SPEED_SUPER:
 		dev_warn(dev, "ignore incorrect maximum_speed "
 				"(super-speed) setting in dts");
-		/* fall through */
+		fallthrough;
 	default:
 		config->maximum_speed = USB_SPEED_HIGH;
 	}

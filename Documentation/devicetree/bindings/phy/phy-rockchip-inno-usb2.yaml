@@ -100,9 +100,9 @@ properties:
           - const: linestate
           - const: otg-mux
           - items:
-            - const: otg-bvalid
-            - const: otg-id
-            - const: linestate
+              - const: otg-bvalid
+              - const: otg-id
+              - const: linestate
 
       phy-supply:
         description:

@@ -321,7 +321,6 @@ static int dht11_probe(struct platform_device *pdev)
 	init_completion(&dht11->completion);
 	mutex_init(&dht11->lock);
 	iio->name = pdev->name;
-	iio->dev.parent = &pdev->dev;
 	iio->info = &dht11_iio_info;
 	iio->modes = INDIO_DIRECT_MODE;
 	iio->channels = dht11_chan_spec;

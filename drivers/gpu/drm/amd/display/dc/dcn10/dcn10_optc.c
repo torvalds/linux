@@ -288,8 +288,19 @@ void optc1_program_timing(
 	if (optc1_is_two_pixels_per_containter(&patched_crtc_timing) || optc1->opp_count == 2)
 		h_div = H_TIMING_DIV_BY2;
 
-	REG_UPDATE(OTG_H_TIMING_CNTL,
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	if (optc1->tg_mask->OTG_H_TIMING_DIV_MODE != 0) {
+		if (optc1->opp_count == 4)
+			h_div = H_TIMING_DIV_BY4;
+
+		REG_UPDATE(OTG_H_TIMING_CNTL,
+		OTG_H_TIMING_DIV_MODE, h_div);
+	} else
+#endif
+	{
+		REG_UPDATE(OTG_H_TIMING_CNTL,
 		OTG_H_TIMING_DIV_BY2, h_div);
+	}
 }
 
 void optc1_set_vtg_params(struct timing_generator *optc,
@@ -299,6 +310,7 @@ void optc1_set_vtg_params(struct timing_generator *optc,
 	uint32_t asic_blank_end;
 	uint32_t v_init;
 	uint32_t v_fp2 = 0;
+	int32_t vertical_line_start;
 
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
@@ -315,8 +327,9 @@ void optc1_set_vtg_params(struct timing_generator *optc,
 			patched_crtc_timing.v_border_top;
 
 	/* if VSTARTUP is before VSYNC, FP2 is the offset, otherwise 0 */
-	if (optc1->vstartup_start > asic_blank_end)
-		v_fp2 = optc1->vstartup_start - asic_blank_end;
+	vertical_line_start = asic_blank_end - optc1->vstartup_start + 1;
+	if (vertical_line_start < 0)
+		v_fp2 = -vertical_line_start;
 
 	/* Interlace */
 	if (REG(OTG_INTERLACE_CONTROL)) {

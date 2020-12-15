@@ -100,24 +100,20 @@ nvkm_acr_hsfw_load_image(struct nvkm_acr *acr, const char *name, int ver,
 	hsfw->data_size = lhdr->data_size;
 
 	hsfw->sig.prod.size = fwhdr->sig_prod_size;
-	hsfw->sig.prod.data = kmalloc(hsfw->sig.prod.size, GFP_KERNEL);
+	hsfw->sig.prod.data = kmemdup(fw->data + fwhdr->sig_prod_offset + sig,
+				      hsfw->sig.prod.size, GFP_KERNEL);
 	if (!hsfw->sig.prod.data) {
 		ret = -ENOMEM;
 		goto done;
 	}
 
-	memcpy(hsfw->sig.prod.data, fw->data + fwhdr->sig_prod_offset + sig,
-	       hsfw->sig.prod.size);
-
 	hsfw->sig.dbg.size = fwhdr->sig_dbg_size;
-	hsfw->sig.dbg.data = kmalloc(hsfw->sig.dbg.size, GFP_KERNEL);
+	hsfw->sig.dbg.data = kmemdup(fw->data + fwhdr->sig_dbg_offset + sig,
+				     hsfw->sig.dbg.size, GFP_KERNEL);
 	if (!hsfw->sig.dbg.data) {
 		ret = -ENOMEM;
 		goto done;
 	}
-
-	memcpy(hsfw->sig.dbg.data, fw->data + fwhdr->sig_dbg_offset + sig,
-	       hsfw->sig.dbg.size);
 
 	hsfw->sig.patch_loc = loc;
 done:

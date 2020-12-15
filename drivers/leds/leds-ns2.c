@@ -348,12 +348,6 @@ struct ns2_led_priv {
 	struct ns2_led_data leds_data[];
 };
 
-static inline int sizeof_ns2_led_priv(int num_leds)
-{
-	return sizeof(struct ns2_led_priv) +
-		      (sizeof(struct ns2_led_data) * num_leds);
-}
-
 static int ns2_led_probe(struct platform_device *pdev)
 {
 	struct ns2_led_platform_data *pdata = dev_get_platdata(&pdev->dev);
@@ -378,8 +372,7 @@ static int ns2_led_probe(struct platform_device *pdev)
 		return -EINVAL;
 #endif /* CONFIG_OF_GPIO */
 
-	priv = devm_kzalloc(&pdev->dev,
-			    sizeof_ns2_led_priv(pdata->num_leds), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, struct_size(priv, leds_data, pdata->num_leds), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 	priv->num_leds = pdata->num_leds;

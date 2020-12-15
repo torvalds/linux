@@ -10,7 +10,13 @@ if [ "$(id -u)" != "0" ]; then
 	exit $ksft_skip
 fi
 
-SRC_TREE=../../../../
+if [ "$building_out_of_srctree" ]; then
+	# We are in linux-build/kselftest/bpf
+	OUTPUT=../../
+else
+	# We are in linux/tools/testing/selftests/bpf
+	OUTPUT=../../../../
+fi
 
 test_run()
 {
@@ -19,8 +25,8 @@ test_run()
 
 	echo "[ JIT enabled:$1 hardened:$2 ]"
 	dmesg -C
-	if [ -f ${SRC_TREE}/lib/test_bpf.ko ]; then
-		insmod ${SRC_TREE}/lib/test_bpf.ko 2> /dev/null
+	if [ -f ${OUTPUT}/lib/test_bpf.ko ]; then
+		insmod ${OUTPUT}/lib/test_bpf.ko 2> /dev/null
 		if [ $? -ne 0 ]; then
 			rc=1
 		fi

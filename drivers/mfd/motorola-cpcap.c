@@ -214,6 +214,28 @@ static const struct regmap_config cpcap_regmap_config = {
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
 
+#ifdef CONFIG_PM_SLEEP
+static int cpcap_suspend(struct device *dev)
+{
+	struct spi_device *spi = to_spi_device(dev);
+
+	disable_irq(spi->irq);
+
+	return 0;
+}
+
+static int cpcap_resume(struct device *dev)
+{
+	struct spi_device *spi = to_spi_device(dev);
+
+	enable_irq(spi->irq);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(cpcap_pm, cpcap_suspend, cpcap_resume);
+
 static const struct mfd_cell cpcap_mfd_devices[] = {
 	{
 		.name          = "cpcap_adc",
@@ -313,6 +335,7 @@ static struct spi_driver cpcap_driver = {
 	.driver = {
 		.name = "cpcap-core",
 		.of_match_table = cpcap_of_match,
+		.pm = &cpcap_pm,
 	},
 	.probe = cpcap_probe,
 };

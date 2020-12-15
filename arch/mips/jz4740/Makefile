@@ -4,11 +4,6 @@
 #
 
 # Object file lists.
-
-obj-y += prom.o time.o reset.o setup.o timer.o
+obj-y += setup.o
 
 CFLAGS_setup.o = -I$(src)/../../../scripts/dtc/libfdt
-
-# PM support
-
-obj-$(CONFIG_PM) += pm.o

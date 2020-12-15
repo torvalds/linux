@@ -213,8 +213,6 @@ struct ttm_buffer_object {
 	 * either of these locks held.
 	 */
 
-	uint64_t offset; /* GPU address space is independent of CPU word size */
-
 	struct sg_table *sg;
 };
 
@@ -668,10 +666,6 @@ int ttm_bo_mmap_obj(struct vm_area_struct *vma, struct ttm_buffer_object *bo);
 int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
 		struct ttm_bo_device *bdev);
 
-void *ttm_kmap_atomic_prot(struct page *page, pgprot_t prot);
-
-void ttm_kunmap_atomic_prot(void *addr, pgprot_t prot);
-
 /**
  * ttm_bo_io
  *
@@ -698,7 +692,7 @@ ssize_t ttm_bo_io(struct ttm_bo_device *bdev, struct file *filp,
 
 int ttm_bo_swapout(struct ttm_bo_global *glob,
 			struct ttm_operation_ctx *ctx);
-void ttm_bo_swapout_all(struct ttm_bo_device *bdev);
+void ttm_bo_swapout_all(void);
 
 /**
  * ttm_bo_uses_embedded_gem_object - check if the given bo uses the

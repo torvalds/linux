@@ -12,19 +12,6 @@
 
 #define SYS_COUNT_TX_OCTETS_RSZ                           0x4
 
-#define SYS_PORT_MODE_RSZ                                 0x4
-
-#define SYS_PORT_MODE_DATA_WO_TS(x)                       (((x) << 5) & GENMASK(6, 5))
-#define SYS_PORT_MODE_DATA_WO_TS_M                        GENMASK(6, 5)
-#define SYS_PORT_MODE_DATA_WO_TS_X(x)                     (((x) & GENMASK(6, 5)) >> 5)
-#define SYS_PORT_MODE_INCL_INJ_HDR(x)                     (((x) << 3) & GENMASK(4, 3))
-#define SYS_PORT_MODE_INCL_INJ_HDR_M                      GENMASK(4, 3)
-#define SYS_PORT_MODE_INCL_INJ_HDR_X(x)                   (((x) & GENMASK(4, 3)) >> 3)
-#define SYS_PORT_MODE_INCL_XTR_HDR(x)                     (((x) << 1) & GENMASK(2, 1))
-#define SYS_PORT_MODE_INCL_XTR_HDR_M                      GENMASK(2, 1)
-#define SYS_PORT_MODE_INCL_XTR_HDR_X(x)                   (((x) & GENMASK(2, 1)) >> 1)
-#define SYS_PORT_MODE_INJ_HDR_ERR                         BIT(0)
-
 #define SYS_FRONT_PORT_MODE_RSZ                           0x4
 
 #define SYS_FRONT_PORT_MODE_HDX_MODE                      BIT(0)
@@ -55,16 +42,6 @@
 #define SYS_TIMESTAMP_OFFSET_ETH_TYPE_CFG_X(x)            (((x) & GENMASK(21, 6)) >> 6)
 #define SYS_TIMESTAMP_OFFSET_TIMESTAMP_OFFSET(x)          ((x) & GENMASK(5, 0))
 #define SYS_TIMESTAMP_OFFSET_TIMESTAMP_OFFSET_M           GENMASK(5, 0)
-
-#define SYS_PAUSE_CFG_RSZ                                 0x4
-
-#define SYS_PAUSE_CFG_PAUSE_START(x)                      (((x) << 10) & GENMASK(18, 10))
-#define SYS_PAUSE_CFG_PAUSE_START_M                       GENMASK(18, 10)
-#define SYS_PAUSE_CFG_PAUSE_START_X(x)                    (((x) & GENMASK(18, 10)) >> 10)
-#define SYS_PAUSE_CFG_PAUSE_STOP(x)                       (((x) << 1) & GENMASK(9, 1))
-#define SYS_PAUSE_CFG_PAUSE_STOP_M                        GENMASK(9, 1)
-#define SYS_PAUSE_CFG_PAUSE_STOP_X(x)                     (((x) & GENMASK(9, 1)) >> 1)
-#define SYS_PAUSE_CFG_PAUSE_ENA                           BIT(0)
 
 #define SYS_PAUSE_TOT_CFG_PAUSE_TOT_START(x)              (((x) << 9) & GENMASK(17, 9))
 #define SYS_PAUSE_TOT_CFG_PAUSE_TOT_START_M               GENMASK(17, 9)

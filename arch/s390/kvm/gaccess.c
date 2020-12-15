@@ -9,8 +9,8 @@
 #include <linux/vmalloc.h>
 #include <linux/mm_types.h>
 #include <linux/err.h>
+#include <linux/pgtable.h>
 
-#include <asm/pgtable.h>
 #include <asm/gmap.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
@@ -1173,7 +1173,7 @@ int kvm_s390_shadow_fault(struct kvm_vcpu *vcpu, struct gmap *sg,
 	int dat_protection, fake;
 	int rc;
 
-	down_read(&sg->mm->mmap_sem);
+	mmap_read_lock(sg->mm);
 	/*
 	 * We don't want any guest-2 tables to change - so the parent
 	 * tables/pointers we read stay valid - unshadowing is however
@@ -1202,6 +1202,6 @@ shadow_page:
 	if (!rc)
 		rc = gmap_shadow_page(sg, saddr, __pte(pte.val));
 	ipte_unlock(vcpu);
-	up_read(&sg->mm->mmap_sem);
+	mmap_read_unlock(sg->mm);
 	return rc;
 }

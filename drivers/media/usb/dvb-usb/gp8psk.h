@@ -9,7 +9,7 @@
  *
  * This module is based off the vp7045 and vp702x modules
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #ifndef _DVB_USB_GP8PSK_H_
 #define _DVB_USB_GP8PSK_H_

@@ -82,6 +82,15 @@ static void bnxt_re_remove_device(struct bnxt_re_dev *rdev);
 static void bnxt_re_dealloc_driver(struct ib_device *ib_dev);
 static void bnxt_re_stop_irq(void *handle);
 
+static void bnxt_re_set_drv_mode(struct bnxt_re_dev *rdev, u8 mode)
+{
+	struct bnxt_qplib_chip_ctx *cctx;
+
+	cctx = rdev->chip_ctx;
+	cctx->modes.wqe_mode = bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx) ?
+			       mode : BNXT_QPLIB_WQE_MODE_STATIC;
+}
+
 static void bnxt_re_destroy_chip_ctx(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_qplib_chip_ctx *chip_ctx;
@@ -97,7 +106,7 @@ static void bnxt_re_destroy_chip_ctx(struct bnxt_re_dev *rdev)
 	kfree(chip_ctx);
 }
 
-static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev)
+static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev, u8 wqe_mode)
 {
 	struct bnxt_qplib_chip_ctx *chip_ctx;
 	struct bnxt_en_dev *en_dev;
@@ -117,6 +126,7 @@ static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev)
 	rdev->qplib_res.cctx = rdev->chip_ctx;
 	rdev->rcfw.res = &rdev->qplib_res;
 
+	bnxt_re_set_drv_mode(rdev, wqe_mode);
 	return 0;
 }
 
@@ -811,7 +821,8 @@ static int bnxt_re_handle_qp_async_event(struct creq_qp_event *qp_event,
 	struct ib_event event;
 	unsigned int flags;
 
-	if (qp->qplib_qp.state == CMDQ_MODIFY_QP_NEW_STATE_ERR) {
+	if (qp->qplib_qp.state == CMDQ_MODIFY_QP_NEW_STATE_ERR &&
+	    rdma_is_kernel_res(&qp->ib_qp.res)) {
 		flags = bnxt_re_lock_cqs(qp);
 		bnxt_qplib_add_flush_qp(&qp->qplib_qp);
 		bnxt_re_unlock_cqs(qp, flags);
@@ -998,7 +1009,6 @@ static void bnxt_re_free_res(struct bnxt_re_dev *rdev)
 static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_re_ring_attr rattr = {};
-	struct bnxt_qplib_ctx *qplib_ctx;
 	int num_vec_created = 0;
 	int rc = 0, i;
 	u8 type;
@@ -1021,13 +1031,11 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 	if (rc)
 		goto dealloc_res;
 
-	qplib_ctx = &rdev->qplib_ctx;
 	for (i = 0; i < rdev->num_msix - 1; i++) {
 		struct bnxt_qplib_nq *nq;
 
 		nq = &rdev->nq[i];
-		nq->hwq.max_elements = (qplib_ctx->cq_count +
-					qplib_ctx->srqc_count + 2);
+		nq->hwq.max_elements = BNXT_QPLIB_NQE_MAX_CNT;
 		rc = bnxt_qplib_alloc_nq(&rdev->qplib_res, &rdev->nq[i]);
 		if (rc) {
 			ibdev_err(&rdev->ibdev, "Alloc Failed NQ%d rc:%#x",
@@ -1386,7 +1394,7 @@ static void bnxt_re_worker(struct work_struct *work)
 	schedule_delayed_work(&rdev->worker, msecs_to_jiffies(30000));
 }
 
-static int bnxt_re_dev_init(struct bnxt_re_dev *rdev)
+static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 wqe_mode)
 {
 	struct bnxt_qplib_creq_ctx *creq;
 	struct bnxt_re_ring_attr rattr;
@@ -1406,7 +1414,7 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev)
 	}
 	set_bit(BNXT_RE_FLAG_NETDEV_REGISTERED, &rdev->flags);
 
-	rc = bnxt_re_setup_chip_ctx(rdev);
+	rc = bnxt_re_setup_chip_ctx(rdev, wqe_mode);
 	if (rc) {
 		ibdev_err(&rdev->ibdev, "Failed to get chip context\n");
 		return -EINVAL;
@@ -1585,7 +1593,7 @@ static void bnxt_re_remove_device(struct bnxt_re_dev *rdev)
 }
 
 static int bnxt_re_add_device(struct bnxt_re_dev **rdev,
-			      struct net_device *netdev)
+			      struct net_device *netdev, u8 wqe_mode)
 {
 	int rc;
 
@@ -1599,7 +1607,7 @@ static int bnxt_re_add_device(struct bnxt_re_dev **rdev,
 	}
 
 	pci_dev_get((*rdev)->en_dev->pdev);
-	rc = bnxt_re_dev_init(*rdev);
+	rc = bnxt_re_dev_init(*rdev, wqe_mode);
 	if (rc) {
 		pci_dev_put((*rdev)->en_dev->pdev);
 		bnxt_re_dev_unreg(*rdev);
@@ -1711,7 +1719,8 @@ static int bnxt_re_netdev_event(struct notifier_block *notifier,
 	case NETDEV_REGISTER:
 		if (rdev)
 			break;
-		rc = bnxt_re_add_device(&rdev, real_dev);
+		rc = bnxt_re_add_device(&rdev, real_dev,
+					BNXT_QPLIB_WQE_MODE_STATIC);
 		if (!rc)
 			sch_work = true;
 		release = false;

@@ -439,6 +439,8 @@ static void hfi_session_flush_done(struct venus_core *core,
 
 	inst->error = pkt->error_type;
 	complete(&inst->done);
+	if (inst->ops->flush_done)
+		inst->ops->flush_done(inst);
 }
 
 static void hfi_session_etb_done(struct venus_core *core,

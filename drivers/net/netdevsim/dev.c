@@ -225,6 +225,7 @@ static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
 	debugfs_create_bool("fail_trap_policer_counter_get", 0600,
 			    nsim_dev->ddir,
 			    &nsim_dev->fail_trap_policer_counter_get);
+	nsim_udp_tunnels_debugfs_create(nsim_dev);
 	return 0;
 }
 
@@ -431,6 +432,10 @@ enum {
 	DEVLINK_TRAP_GENERIC(EXCEPTION, TRAP, _id,			      \
 			     DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
 			     NSIM_TRAP_METADATA)
+#define NSIM_TRAP_CONTROL(_id, _group_id, _action)			      \
+	DEVLINK_TRAP_GENERIC(CONTROL, _action, _id,			      \
+			     DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
+			     NSIM_TRAP_METADATA)
 #define NSIM_TRAP_DRIVER_EXCEPTION(_id, _group_id)			      \
 	DEVLINK_TRAP_DRIVER(EXCEPTION, TRAP, NSIM_TRAP_ID_##_id,	      \
 			    NSIM_TRAP_NAME_##_id,			      \
@@ -458,8 +463,10 @@ static const struct devlink_trap_policer nsim_trap_policers_arr[] = {
 static const struct devlink_trap_group nsim_trap_groups_arr[] = {
 	DEVLINK_TRAP_GROUP_GENERIC(L2_DROPS, 0),
 	DEVLINK_TRAP_GROUP_GENERIC(L3_DROPS, 1),
+	DEVLINK_TRAP_GROUP_GENERIC(L3_EXCEPTIONS, 1),
 	DEVLINK_TRAP_GROUP_GENERIC(BUFFER_DROPS, 2),
 	DEVLINK_TRAP_GROUP_GENERIC(ACL_DROPS, 3),
+	DEVLINK_TRAP_GROUP_GENERIC(MC_SNOOPING, 3),
 };
 
 static const struct devlink_trap nsim_traps_arr[] = {
@@ -471,12 +478,14 @@ static const struct devlink_trap nsim_traps_arr[] = {
 	NSIM_TRAP_DROP(PORT_LOOPBACK_FILTER, L2_DROPS),
 	NSIM_TRAP_DRIVER_EXCEPTION(FID_MISS, L2_DROPS),
 	NSIM_TRAP_DROP(BLACKHOLE_ROUTE, L3_DROPS),
-	NSIM_TRAP_EXCEPTION(TTL_ERROR, L3_DROPS),
+	NSIM_TRAP_EXCEPTION(TTL_ERROR, L3_EXCEPTIONS),
 	NSIM_TRAP_DROP(TAIL_DROP, BUFFER_DROPS),
 	NSIM_TRAP_DROP_EXT(INGRESS_FLOW_ACTION_DROP, ACL_DROPS,
 			   DEVLINK_TRAP_METADATA_TYPE_F_FA_COOKIE),
 	NSIM_TRAP_DROP_EXT(EGRESS_FLOW_ACTION_DROP, ACL_DROPS,
 			   DEVLINK_TRAP_METADATA_TYPE_F_FA_COOKIE),
+	NSIM_TRAP_CONTROL(IGMP_QUERY, MC_SNOOPING, MIRROR),
+	NSIM_TRAP_CONTROL(IGMP_V1_REPORT, MC_SNOOPING, TRAP),
 };
 
 #define NSIM_TRAP_L4_DATA_LEN 100
@@ -801,7 +810,8 @@ static int nsim_dev_devlink_trap_init(struct devlink *devlink,
 static int
 nsim_dev_devlink_trap_action_set(struct devlink *devlink,
 				 const struct devlink_trap *trap,
-				 enum devlink_trap_action action)
+				 enum devlink_trap_action action,
+				 struct netlink_ext_ack *extack)
 {
 	struct nsim_dev *nsim_dev = devlink_priv(devlink);
 	struct nsim_trap_item *nsim_trap_item;
@@ -820,7 +830,8 @@ nsim_dev_devlink_trap_action_set(struct devlink *devlink,
 static int
 nsim_dev_devlink_trap_group_set(struct devlink *devlink,
 				const struct devlink_trap_group *group,
-				const struct devlink_trap_policer *policer)
+				const struct devlink_trap_policer *policer,
+				struct netlink_ext_ack *extack)
 {
 	struct nsim_dev *nsim_dev = devlink_priv(devlink);
 
@@ -881,6 +892,7 @@ static const struct devlink_ops nsim_dev_devlink_ops = {
 static int __nsim_dev_port_add(struct nsim_dev *nsim_dev,
 			       unsigned int port_index)
 {
+	struct devlink_port_attrs attrs = {};
 	struct nsim_dev_port *nsim_dev_port;
 	struct devlink_port *devlink_port;
 	int err;
@@ -891,10 +903,11 @@ static int __nsim_dev_port_add(struct nsim_dev *nsim_dev,
 	nsim_dev_port->port_index = port_index;
 
 	devlink_port = &nsim_dev_port->devlink_port;
-	devlink_port_attrs_set(devlink_port, DEVLINK_PORT_FLAVOUR_PHYSICAL,
-			       port_index + 1, 0, 0,
-			       nsim_dev->switch_id.id,
-			       nsim_dev->switch_id.id_len);
+	attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
+	attrs.phys.port_number = port_index + 1;
+	memcpy(attrs.switch_id.id, nsim_dev->switch_id.id, nsim_dev->switch_id.id_len);
+	attrs.switch_id.id_len = nsim_dev->switch_id.id_len;
+	devlink_port_attrs_set(devlink_port, &attrs);
 	err = devlink_port_register(priv_to_devlink(nsim_dev), devlink_port,
 				    port_index);
 	if (err)

@@ -38,12 +38,11 @@ int mlx5e_monitor_counter_supported(struct mlx5e_priv *priv)
 
 void mlx5e_monitor_counter_arm(struct mlx5e_priv *priv)
 {
-	u32  in[MLX5_ST_SZ_DW(arm_monitor_counter_in)]  = {};
-	u32 out[MLX5_ST_SZ_DW(arm_monitor_counter_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(arm_monitor_counter_in)] = {};
 
 	MLX5_SET(arm_monitor_counter_in, in, opcode,
 		 MLX5_CMD_OP_ARM_MONITOR_COUNTER);
-	mlx5_cmd_exec(priv->mdev, in, sizeof(in), out, sizeof(out));
+	mlx5_cmd_exec_in(priv->mdev, arm_monitor_counter, in);
 }
 
 static void mlx5e_monitor_counters_work(struct work_struct *work)
@@ -52,7 +51,7 @@ static void mlx5e_monitor_counters_work(struct work_struct *work)
 					       monitor_counters_work);
 
 	mutex_lock(&priv->state_lock);
-	mlx5e_update_ndo_stats(priv);
+	mlx5e_stats_update_ndo_stats(priv);
 	mutex_unlock(&priv->state_lock);
 	mlx5e_monitor_counter_arm(priv);
 }
@@ -64,19 +63,6 @@ static int mlx5e_monitor_event_handler(struct notifier_block *nb,
 					      monitor_counters_nb);
 	queue_work(priv->wq, &priv->monitor_counters_work);
 	return NOTIFY_OK;
-}
-
-static void mlx5e_monitor_counter_start(struct mlx5e_priv *priv)
-{
-	MLX5_NB_INIT(&priv->monitor_counters_nb, mlx5e_monitor_event_handler,
-		     MONITOR_COUNTER);
-	mlx5_eq_notifier_register(priv->mdev, &priv->monitor_counters_nb);
-}
-
-static void mlx5e_monitor_counter_stop(struct mlx5e_priv *priv)
-{
-	mlx5_eq_notifier_unregister(priv->mdev, &priv->monitor_counters_nb);
-	cancel_work_sync(&priv->monitor_counters_work);
 }
 
 static int fill_monitor_counter_ppcnt_set1(int cnt, u32 *in)
@@ -118,8 +104,7 @@ static void mlx5e_set_monitor_counter(struct mlx5e_priv *priv)
 	int num_q_counters      = MLX5_CAP_GEN(mdev, num_q_monitor_counters);
 	int num_ppcnt_counters  = !MLX5_CAP_PCAM_REG(mdev, ppcnt) ? 0 :
 				  MLX5_CAP_GEN(mdev, num_ppcnt_monitor_counters);
-	u32  in[MLX5_ST_SZ_DW(set_monitor_counter_in)]  = {};
-	u32 out[MLX5_ST_SZ_DW(set_monitor_counter_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(set_monitor_counter_in)] = {};
 	int q_counter = priv->q_counter;
 	int cnt	= 0;
 
@@ -136,34 +121,31 @@ static void mlx5e_set_monitor_counter(struct mlx5e_priv *priv)
 	MLX5_SET(set_monitor_counter_in, in, opcode,
 		 MLX5_CMD_OP_SET_MONITOR_COUNTER);
 
-	mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
+	mlx5_cmd_exec_in(mdev, set_monitor_counter, in);
 }
 
 /* check if mlx5e_monitor_counter_supported before calling this function*/
 void mlx5e_monitor_counter_init(struct mlx5e_priv *priv)
 {
 	INIT_WORK(&priv->monitor_counters_work, mlx5e_monitor_counters_work);
-	mlx5e_monitor_counter_start(priv);
+	MLX5_NB_INIT(&priv->monitor_counters_nb, mlx5e_monitor_event_handler,
+		     MONITOR_COUNTER);
+	mlx5_eq_notifier_register(priv->mdev, &priv->monitor_counters_nb);
+
 	mlx5e_set_monitor_counter(priv);
 	mlx5e_monitor_counter_arm(priv);
 	queue_work(priv->wq, &priv->update_stats_work);
 }
 
-static void mlx5e_monitor_counter_disable(struct mlx5e_priv *priv)
-{
-	u32  in[MLX5_ST_SZ_DW(set_monitor_counter_in)]  = {};
-	u32 out[MLX5_ST_SZ_DW(set_monitor_counter_out)] = {};
-
-	MLX5_SET(set_monitor_counter_in, in, num_of_counters, 0);
-	MLX5_SET(set_monitor_counter_in, in, opcode,
-		 MLX5_CMD_OP_SET_MONITOR_COUNTER);
-
-	mlx5_cmd_exec(priv->mdev, in, sizeof(in), out, sizeof(out));
-}
-
 /* check if mlx5e_monitor_counter_supported before calling this function*/
 void mlx5e_monitor_counter_cleanup(struct mlx5e_priv *priv)
 {
-	mlx5e_monitor_counter_disable(priv);
-	mlx5e_monitor_counter_stop(priv);
+	u32 in[MLX5_ST_SZ_DW(set_monitor_counter_in)] = {};
+
+	MLX5_SET(set_monitor_counter_in, in, opcode,
+		 MLX5_CMD_OP_SET_MONITOR_COUNTER);
+
+	mlx5_cmd_exec_in(priv->mdev, set_monitor_counter, in);
+	mlx5_eq_notifier_unregister(priv->mdev, &priv->monitor_counters_nb);
+	cancel_work_sync(&priv->monitor_counters_work);
 }

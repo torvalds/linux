@@ -5,7 +5,7 @@
 config RTL8XXXU
 	tristate "RTL8723AU/RTL8188[CR]U/RTL819[12]CU (mac80211) support"
 	depends on MAC80211 && USB
-	---help---
+	help
 	  This is an alternative driver for various Realtek RTL8XXX
 	  parts written to utilize the Linux mac80211 stack.
 	  The driver is known to work with a number of RTL8723AU,
@@ -27,7 +27,7 @@ config RTL8XXXU
 config RTL8XXXU_UNTESTED
 	bool "Include support for untested Realtek 8xxx USB devices (EXPERIMENTAL)"
 	depends on RTL8XXXU
-	---help---
+	help
 	  This option enables detection of Realtek 8723/8188/8191/8192 WiFi
 	  USB devices which have not been tested directly by the driver
 	  author or reported to be working by third parties.

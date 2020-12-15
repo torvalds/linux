@@ -46,7 +46,6 @@ int siw_create_cq(struct ib_cq *base_cq, const struct ib_cq_init_attr *attr,
 		  struct ib_udata *udata);
 int siw_query_port(struct ib_device *base_dev, u8 port,
 		   struct ib_port_attr *attr);
-int siw_query_pkey(struct ib_device *base_dev, u8 port, u16 idx, u16 *pkey);
 int siw_query_gid(struct ib_device *base_dev, u8 port, int idx,
 		  union ib_gid *gid);
 int siw_alloc_pd(struct ib_pd *base_pd, struct ib_udata *udata);
@@ -69,7 +68,7 @@ int siw_req_notify_cq(struct ib_cq *base_cq, enum ib_cq_notify_flags flags);
 struct ib_mr *siw_reg_user_mr(struct ib_pd *base_pd, u64 start, u64 len,
 			      u64 rnic_va, int rights, struct ib_udata *udata);
 struct ib_mr *siw_alloc_mr(struct ib_pd *base_pd, enum ib_mr_type mr_type,
-			   u32 max_sge, struct ib_udata *udata);
+			   u32 max_sge);
 struct ib_mr *siw_get_dma_mr(struct ib_pd *base_pd, int rights);
 int siw_map_mr_sg(struct ib_mr *base_mr, struct scatterlist *sl, int num_sle,
 		  unsigned int *sg_off);

@@ -69,7 +69,7 @@ Linux内核源代码都是在GPL（通用公共许可证）的保护下发布的
 邮件组里的人并不是律师，不要期望他们的话有法律效力。
 
 对于GPL的常见问题和解答，请访问以下链接：
-	http://www.gnu.org/licenses/gpl-faq.html
+	https://www.gnu.org/licenses/gpl-faq.html
 
 
 文档
@@ -109,7 +109,7 @@ Linux内核代码中包含有大量的文档。这些文档对于学习如何与
     其他关于如何正确地生成补丁的优秀文档包括：
     "The Perfect Patch"
 
-        http://www.ozlabs.org/~akpm/stuff/tpp.txt
+        https://www.ozlabs.org/~akpm/stuff/tpp.txt
 
     "Linux kernel patch submission format"
 
@@ -163,7 +163,7 @@ ReST格式的文档会生成在 Documentation/output. 目录中。
 ------------------
 如果你对Linux内核开发一无所知，你应该访问“Linux内核新手”计划：
 
-	http://kernelnewbies.org
+	https://kernelnewbies.org
 
 它拥有一个可以问各种最基本的内核开发问题的邮件列表（在提问之前一定要记得
 查找已往的邮件，确认是否有人已经回答过相同的问题）。它还拥有一个可以获得
@@ -176,7 +176,7 @@ ReST格式的文档会生成在 Documentation/output. 目录中。
 如果你想加入内核开发社区并协助完成一些任务，却找不到从哪里开始，可以访问
 “Linux内核房管员”计划：
 
-	http://kernelnewbies.org/KernelJanitors
+	https://kernelnewbies.org/KernelJanitors
 
 这是极佳的起点。它提供一个相对简单的任务列表，列出内核代码中需要被重新
 整理或者改正的地方。通过和负责这个计划的开发者们一同工作，你会学到将补丁
@@ -212,7 +212,7 @@ ReST格式的文档会生成在 Documentation/output. 目录中。
   - 每当一个新版本的内核被发布，为期两周的集成窗口将被打开。在这段时间里
     维护者可以向Linus提交大段的修改，通常这些修改已经被放到-mm内核中几个
     星期了。提交大量修改的首选方式是使用git工具（内核的代码版本管理工具
-    ，更多的信息可以在 http://git-scm.com/ 获取），不过使用普通补丁也是
+    ，更多的信息可以在 https://git-scm.com/ 获取），不过使用普通补丁也是
     可以的。
   - 两个星期以后-rc1版本内核发布。之后只有不包含可能影响整个内核稳定性的
     新功能的补丁才可能被接受。请注意一个全新的驱动程序（或者文件系统）有
@@ -472,7 +472,7 @@ Linux内核社区并不喜欢一下接收大段的代码。修改需要被恰当
 
 想了解它具体应该看起来像什么，请查阅以下文档中的“ChangeLog”章节：
   “The Perfect Patch”
-  	 http://www.ozlabs.org/~akpm/stuff/tpp.txt
+  	 https://www.ozlabs.org/~akpm/stuff/tpp.txt
 
 
 这些事情有时候做起来很难。要在任何方面都做到完美可能需要好几年时间。这是

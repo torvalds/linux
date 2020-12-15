@@ -67,7 +67,6 @@ static void firmware_load(const struct firmware *fw, void *context)
 	struct spi_device *spi = (struct spi_device *)context;
 	struct fpga_data *data = spi_get_drvdata(spi);
 	u8 *buffer;
-	int ret;
 	u8 txbuf[8];
 	u8 rxbuf[8];
 	int rx_len = 8;
@@ -92,7 +91,7 @@ static void firmware_load(const struct firmware *fw, void *context)
 
 	/* Trying to speak with the FPGA via SPI... */
 	txbuf[0] = FPGA_CMD_READ_ID;
-	ret = spi_write_then_read(spi, txbuf, 8, rxbuf, rx_len);
+	spi_write_then_read(spi, txbuf, 8, rxbuf, rx_len);
 	jedec_id = get_unaligned_be32(&rxbuf[4]);
 	dev_dbg(&spi->dev, "FPGA JTAG ID=%08x\n", jedec_id);
 
@@ -110,7 +109,7 @@ static void firmware_load(const struct firmware *fw, void *context)
 	dev_info(&spi->dev, "FPGA %s detected\n", ecp3_dev[i].name);
 
 	txbuf[0] = FPGA_CMD_READ_STATUS;
-	ret = spi_write_then_read(spi, txbuf, 8, rxbuf, rx_len);
+	spi_write_then_read(spi, txbuf, 8, rxbuf, rx_len);
 	status = get_unaligned_be32(&rxbuf[4]);
 	dev_dbg(&spi->dev, "FPGA Status=%08x\n", status);
 
@@ -130,20 +129,20 @@ static void firmware_load(const struct firmware *fw, void *context)
 	memcpy(buffer + 4, fw->data, fw->size);
 
 	txbuf[0] = FPGA_CMD_REFRESH;
-	ret = spi_write(spi, txbuf, 4);
+	spi_write(spi, txbuf, 4);
 
 	txbuf[0] = FPGA_CMD_WRITE_EN;
-	ret = spi_write(spi, txbuf, 4);
+	spi_write(spi, txbuf, 4);
 
 	txbuf[0] = FPGA_CMD_CLEAR;
-	ret = spi_write(spi, txbuf, 4);
+	spi_write(spi, txbuf, 4);
 
 	/*
 	 * Wait for FPGA memory to become cleared
 	 */
 	for (i = 0; i < FPGA_CLEAR_LOOP_COUNT; i++) {
 		txbuf[0] = FPGA_CMD_READ_STATUS;
-		ret = spi_write_then_read(spi, txbuf, 8, rxbuf, rx_len);
+		spi_write_then_read(spi, txbuf, 8, rxbuf, rx_len);
 		status = get_unaligned_be32(&rxbuf[4]);
 		if (status == FPGA_STATUS_CLEARED)
 			break;
@@ -160,13 +159,13 @@ static void firmware_load(const struct firmware *fw, void *context)
 	}
 
 	dev_info(&spi->dev, "Configuring the FPGA...\n");
-	ret = spi_write(spi, buffer, fw->size + 8);
+	spi_write(spi, buffer, fw->size + 8);
 
 	txbuf[0] = FPGA_CMD_WRITE_DIS;
-	ret = spi_write(spi, txbuf, 4);
+	spi_write(spi, txbuf, 4);
 
 	txbuf[0] = FPGA_CMD_READ_STATUS;
-	ret = spi_write_then_read(spi, txbuf, 8, rxbuf, rx_len);
+	spi_write_then_read(spi, txbuf, 8, rxbuf, rx_len);
 	status = get_unaligned_be32(&rxbuf[4]);
 	dev_dbg(&spi->dev, "FPGA Status=%08x\n", status);
 

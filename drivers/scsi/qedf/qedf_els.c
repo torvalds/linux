@@ -388,14 +388,10 @@ void qedf_restart_rport(struct qedf_rport *fcport)
 		mutex_lock(&lport->disc.disc_mutex);
 		/* Recreate the rport and log back in */
 		rdata = fc_rport_create(lport, port_id);
-		if (rdata) {
-			mutex_unlock(&lport->disc.disc_mutex);
+		mutex_unlock(&lport->disc.disc_mutex);
+		if (rdata)
 			fc_rport_login(rdata);
-			fcport->rdata = rdata;
-		} else {
-			mutex_unlock(&lport->disc.disc_mutex);
-			fcport->rdata = NULL;
-		}
+		fcport->rdata = rdata;
 	}
 	clear_bit(QEDF_RPORT_IN_RESET, &fcport->flags);
 }

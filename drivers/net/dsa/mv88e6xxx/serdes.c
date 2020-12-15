@@ -534,21 +534,21 @@ static int mv88e6390_serdes_power_10g(struct mv88e6xxx_chip *chip, u8 lane,
 	int err;
 
 	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
-				    MV88E6390_PCS_CONTROL_1, &val);
+				    MV88E6390_10G_CTRL1, &val);
 
 	if (err)
 		return err;
 
 	if (up)
-		new_val = val & ~(MV88E6390_PCS_CONTROL_1_RESET |
-				  MV88E6390_PCS_CONTROL_1_LOOPBACK |
-				  MV88E6390_PCS_CONTROL_1_PDOWN);
+		new_val = val & ~(MDIO_CTRL1_RESET |
+				  MDIO_PCS_CTRL1_LOOPBACK |
+				  MDIO_CTRL1_LPOWER);
 	else
-		new_val = val | MV88E6390_PCS_CONTROL_1_PDOWN;
+		new_val = val | MDIO_CTRL1_LPOWER;
 
 	if (val != new_val)
 		err = mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
-					     MV88E6390_PCS_CONTROL_1, new_val);
+					     MV88E6390_10G_CTRL1, new_val);
 
 	return err;
 }
@@ -748,8 +748,8 @@ int mv88e6390_serdes_pcs_config(struct mv88e6xxx_chip *chip, int port,
 				      MV88E6390_SGMII_BMCR, bmcr);
 }
 
-int mv88e6390_serdes_pcs_get_state(struct mv88e6xxx_chip *chip, int port,
-				   u8 lane, struct phylink_link_state *state)
+static int mv88e6390_serdes_pcs_get_state_sgmii(struct mv88e6xxx_chip *chip,
+	int port, u8 lane, struct phylink_link_state *state)
 {
 	u16 lpa, status;
 	int err;
@@ -769,6 +769,45 @@ int mv88e6390_serdes_pcs_get_state(struct mv88e6xxx_chip *chip, int port,
 	}
 
 	return mv88e6xxx_serdes_pcs_get_state(chip, status, lpa, state);
+}
+
+static int mv88e6390_serdes_pcs_get_state_10g(struct mv88e6xxx_chip *chip,
+	int port, u8 lane, struct phylink_link_state *state)
+{
+	u16 status;
+	int err;
+
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6390_10G_STAT1, &status);
+	if (err)
+		return err;
+
+	state->link = !!(status & MDIO_STAT1_LSTATUS);
+	if (state->link) {
+		state->speed = SPEED_10000;
+		state->duplex = DUPLEX_FULL;
+	}
+
+	return 0;
+}
+
+int mv88e6390_serdes_pcs_get_state(struct mv88e6xxx_chip *chip, int port,
+				   u8 lane, struct phylink_link_state *state)
+{
+	switch (state->interface) {
+	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_1000BASEX:
+	case PHY_INTERFACE_MODE_2500BASEX:
+		return mv88e6390_serdes_pcs_get_state_sgmii(chip, port, lane,
+							    state);
+	case PHY_INTERFACE_MODE_XAUI:
+	case PHY_INTERFACE_MODE_RXAUI:
+		return mv88e6390_serdes_pcs_get_state_10g(chip, port, lane,
+							  state);
+
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 int mv88e6390_serdes_pcs_an_restart(struct mv88e6xxx_chip *chip, int port,

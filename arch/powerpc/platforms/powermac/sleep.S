@@ -244,7 +244,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPEC7450)
 	mtmsr	r2
 	isync
 	b	1b
-
+_ASM_NOKPROBE_SYMBOL(low_cpu_die)
 /*
  * Here is the resume code.
  */
@@ -282,6 +282,7 @@ _GLOBAL(core99_wake_up)
 	lwz	r1,0(r3)
 
 	/* Pass thru to older resume code ... */
+_ASM_NOKPROBE_SYMBOL(core99_wake_up)
 /*
  * Here is the resume code for older machines.
  * r1 has the physical address of SL_PC(sp).
@@ -429,6 +430,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
 	lwz	r0,4(r1)
 	mtlr	r0
 	blr
+_ASM_NOKPROBE_SYMBOL(grackle_wake_up)
 
 turn_on_mmu:
 	mflr	r4
@@ -438,6 +440,7 @@ turn_on_mmu:
 	sync
 	isync
 	rfi
+_ASM_NOKPROBE_SYMBOL(turn_on_mmu)
 
 #endif /* defined(CONFIG_PM) || defined(CONFIG_CPU_FREQ) */
 

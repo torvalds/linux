@@ -77,7 +77,6 @@ static void omap_aes_gcm_done_task(struct omap_aes_dev *dd)
 		tag = (u8 *)rctx->auth_tag;
 		for (i = 0; i < dd->authsize; i++) {
 			if (tag[i]) {
-				dev_err(dd->dev, "GCM decryption: Tag Message is wrong\n");
 				ret = -EBADMSG;
 			}
 		}

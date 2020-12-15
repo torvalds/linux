@@ -12,7 +12,7 @@ Supported chips:
     Datasheets:
 
 	- http://ww1.microchip.com/downloads/en/DeviceDoc/1412.pdf
-	- http://ww1.microchip.com/downloads/en/DeviceDoc/1402.pdf
+	- https://ww1.microchip.com/downloads/en/DeviceDoc/1402.pdf
 
   * SMSC / Microchip EMC1403, EMC1404, EMC1413, EMC1414
 
@@ -33,7 +33,7 @@ Supported chips:
 
     Datasheet:
 
-	- http://ww1.microchip.com/downloads/en/DeviceDoc/1422.pdf
+	- https://ww1.microchip.com/downloads/en/DeviceDoc/1422.pdf
 
   * SMSC / Microchip EMC1423, EMC1424
 
@@ -43,7 +43,7 @@ Supported chips:
 
     Datasheet:
 
-	- http://ww1.microchip.com/downloads/en/DeviceDoc/1423_1424.pdf
+	- https://ww1.microchip.com/downloads/en/DeviceDoc/1423_1424.pdf
 
 Author:
     Kalhan Trisal <kalhan.trisal@intel.com

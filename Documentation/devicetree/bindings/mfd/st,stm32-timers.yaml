@@ -67,23 +67,22 @@ properties:
         description:
           One or two <index level filter> to describe break input
           configurations.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-matrix
-          - items:
-              items:
-                - description: |
-                    "index" indicates on which break input (0 or 1) the
-                    configuration should be applied.
-                  enum: [ 0 , 1]
-                - description: |
-                    "level" gives the active level (0=low or 1=high) of the
-                    input signal for this configuration
-                  enum: [ 0, 1 ]
-                - description: |
-                    "filter" gives the filtering value (up to 15) to be applied.
-                  maximum: 15
-            minItems: 1
-            maxItems: 2
+        $ref: /schemas/types.yaml#/definitions/uint32-matrix
+        items:
+          items:
+            - description: |
+                "index" indicates on which break input (0 or 1) the
+                configuration should be applied.
+              enum: [0, 1]
+            - description: |
+                "level" gives the active level (0=low or 1=high) of the
+                input signal for this configuration
+              enum: [0, 1]
+            - description: |
+                "filter" gives the filtering value (up to 15) to be applied.
+              maximum: 15
+        minItems: 1
+        maxItems: 2
 
     required:
       - "#pwm-cells"
@@ -102,8 +101,8 @@ patternProperties:
       reg:
         description: Identify trigger hardware block.
         items:
-         minimum: 0
-         maximum: 16
+          minimum: 0
+          maximum: 16
 
     required:
       - compatible

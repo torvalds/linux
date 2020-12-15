@@ -60,8 +60,6 @@ static int __check_free_space_extents(struct btrfs_trans_handle *trans,
 				if (prev_bit == 0 && bit == 1) {
 					extent_start = offset;
 				} else if (prev_bit == 1 && bit == 0) {
-					if (i >= num_extents)
-						goto invalid;
 					if (i >= num_extents ||
 					    extent_start != extents[i].start ||
 					    offset - extent_start != extents[i].length)

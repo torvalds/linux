@@ -87,6 +87,7 @@ EXPORT_SYMBOL_GPL(ovs_vport_ops_unregister);
 /**
  *	ovs_vport_locate - find a port that has already been created
  *
+ * @net: network namespace
  * @name: name of port to find
  *
  * Must be called with ovs or RCU read lock.
@@ -418,7 +419,7 @@ u32 ovs_vport_find_upcall_portid(const struct vport *vport, struct sk_buff *skb)
  *
  * @vport: vport that received the packet
  * @skb: skb that was received
- * @tun_key: tunnel (if any) that carried packet
+ * @tun_info: tunnel (if any) that carried packet
  *
  * Must be called with rcu_read_lock.  The packet cannot be shared and
  * skb->data should point to the Ethernet header.

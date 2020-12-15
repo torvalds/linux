@@ -21,6 +21,7 @@
 #include <linux/mm.h>
 #include <linux/stat.h>
 #include <linux/slab.h>
+#include <linux/xarray.h>
 
 #include <linux/atomic.h>
 #include <linux/uaccess.h>
@@ -49,14 +50,14 @@ int memhp_online_type_from_str(const char *str)
 
 static int sections_per_block;
 
-static inline unsigned long base_memory_block_id(unsigned long section_nr)
+static inline unsigned long memory_block_id(unsigned long section_nr)
 {
 	return section_nr / sections_per_block;
 }
 
 static inline unsigned long pfn_to_block_id(unsigned long pfn)
 {
-	return base_memory_block_id(pfn_to_section_nr(pfn));
+	return memory_block_id(pfn_to_section_nr(pfn));
 }
 
 static inline unsigned long phys_to_block_id(unsigned long phys)
@@ -73,6 +74,13 @@ static struct bus_type memory_subsys = {
 	.online = memory_subsys_online,
 	.offline = memory_subsys_offline,
 };
+
+/*
+ * Memory blocks are cached in a local radix tree to avoid
+ * a costly linear search for the corresponding device on
+ * the subsystem bus.
+ */
+static DEFINE_XARRAY(memory_blocks);
 
 static BLOCKING_NOTIFIER_HEAD(memory_chain);
 
@@ -489,26 +497,27 @@ int __weak arch_get_memory_phys_device(unsigned long start_pfn)
 	return 0;
 }
 
-/* A reference for the returned memory block device is acquired. */
+/*
+ * A reference for the returned memory block device is acquired.
+ *
+ * Called under device_hotplug_lock.
+ */
 static struct memory_block *find_memory_block_by_id(unsigned long block_id)
 {
-	struct device *dev;
+	struct memory_block *mem;
 
-	dev = subsys_find_device_by_id(&memory_subsys, block_id, NULL);
-	return dev ? to_memory_block(dev) : NULL;
+	mem = xa_load(&memory_blocks, block_id);
+	if (mem)
+		get_device(&mem->dev);
+	return mem;
 }
 
 /*
- * For now, we have a linear search to go find the appropriate
- * memory_block corresponding to a particular phys_index. If
- * this gets to be a real problem, we can always use a radix
- * tree or something here.
- *
- * This could be made generic for all device subsystems.
+ * Called under device_hotplug_lock.
  */
 struct memory_block *find_memory_block(struct mem_section *section)
 {
-	unsigned long block_id = base_memory_block_id(__section_nr(section));
+	unsigned long block_id = memory_block_id(__section_nr(section));
 
 	return find_memory_block_by_id(block_id);
 }
@@ -548,14 +557,20 @@ int register_memory(struct memory_block *memory)
 	memory->dev.offline = memory->state == MEM_OFFLINE;
 
 	ret = device_register(&memory->dev);
-	if (ret)
+	if (ret) {
 		put_device(&memory->dev);
-
+		return ret;
+	}
+	ret = xa_err(xa_store(&memory_blocks, memory->dev.id, memory,
+			      GFP_KERNEL));
+	if (ret) {
+		put_device(&memory->dev);
+		device_unregister(&memory->dev);
+	}
 	return ret;
 }
 
-static int init_memory_block(struct memory_block **memory,
-			     unsigned long block_id, unsigned long state)
+static int init_memory_block(unsigned long block_id, unsigned long state)
 {
 	struct memory_block *mem;
 	unsigned long start_pfn;
@@ -578,14 +593,12 @@ static int init_memory_block(struct memory_block **memory,
 
 	ret = register_memory(mem);
 
-	*memory = mem;
 	return ret;
 }
 
 static int add_memory_block(unsigned long base_section_nr)
 {
 	int section_count = 0;
-	struct memory_block *mem;
 	unsigned long nr;
 
 	for (nr = base_section_nr; nr < base_section_nr + sections_per_block;
@@ -595,7 +608,7 @@ static int add_memory_block(unsigned long base_section_nr)
 
 	if (section_count == 0)
 		return 0;
-	return init_memory_block(&mem, base_memory_block_id(base_section_nr),
+	return init_memory_block(memory_block_id(base_section_nr),
 				 MEM_ONLINE);
 }
 
@@ -603,6 +616,8 @@ static void unregister_memory(struct memory_block *memory)
 {
 	if (WARN_ON_ONCE(memory->dev.bus != &memory_subsys))
 		return;
+
+	WARN_ON(xa_erase(&memory_blocks, memory->dev.id) == NULL);
 
 	/* drop the ref. we got via find_memory_block() */
 	put_device(&memory->dev);
@@ -629,7 +644,7 @@ int create_memory_block_devices(unsigned long start, unsigned long size)
 		return -EINVAL;
 
 	for (block_id = start_block_id; block_id != end_block_id; block_id++) {
-		ret = init_memory_block(&mem, block_id, MEM_OFFLINE);
+		ret = init_memory_block(block_id, MEM_OFFLINE);
 		if (ret)
 			break;
 	}
@@ -750,6 +765,8 @@ void __init memory_dev_init(void)
  *
  * In case func() returns an error, walking is aborted and the error is
  * returned.
+ *
+ * Called under device_hotplug_lock.
  */
 int walk_memory_blocks(unsigned long start, unsigned long size,
 		       void *arg, walk_memory_blocks_func_t func)

@@ -1404,7 +1404,6 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	unsigned int iobase = dev->p_dev->resource[0]->start;
 	struct inode *inode = file_inode(filp);
 	struct pcmcia_device *link;
-	int size;
 	int rc;
 	void __user *argp = (void __user *)arg;
 #ifdef CM4000_DEBUG
@@ -1440,19 +1439,6 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	if (_IOC_NR(cmd) > CM_IOC_MAXNR) {
 		DEBUGP(4, dev, "iocnr mismatch\n");
 		goto out;
-	}
-	size = _IOC_SIZE(cmd);
-	rc = -EFAULT;
-	DEBUGP(4, dev, "iocdir=%.4x iocr=%.4x iocw=%.4x iocsize=%d cmd=%.4x\n",
-	      _IOC_DIR(cmd), _IOC_READ, _IOC_WRITE, size, cmd);
-
-	if (_IOC_DIR(cmd) & _IOC_READ) {
-		if (!access_ok(argp, size))
-			goto out;
-	}
-	if (_IOC_DIR(cmd) & _IOC_WRITE) {
-		if (!access_ok(argp, size))
-			goto out;
 	}
 	rc = 0;
 

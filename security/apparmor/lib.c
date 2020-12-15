@@ -292,13 +292,13 @@ void aa_apply_modes_to_perms(struct aa_profile *profile, struct aa_perms *perms)
 	switch (AUDIT_MODE(profile)) {
 	case AUDIT_ALL:
 		perms->audit = ALL_PERMS_MASK;
-		/* fall through */
+		fallthrough;
 	case AUDIT_NOQUIET:
 		perms->quiet = 0;
 		break;
 	case AUDIT_QUIET:
 		perms->audit = 0;
-		/* fall through */
+		fallthrough;
 	case AUDIT_QUIET_DENIED:
 		perms->quiet = ALL_PERMS_MASK;
 		break;

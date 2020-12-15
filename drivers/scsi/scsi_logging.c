@@ -205,13 +205,9 @@ void scsi_print_command(struct scsi_cmnd *cmd)
 		/* Print opcode in one line and use separate lines for CDB */
 		off += scnprintf(logbuf + off, logbuf_len - off, "\n");
 		dev_printk(KERN_INFO, &cmd->device->sdev_gendev, "%s", logbuf);
-		scsi_log_release_buffer(logbuf);
 		for (k = 0; k < cmd->cmd_len; k += 16) {
 			size_t linelen = min(cmd->cmd_len - k, 16);
 
-			logbuf = scsi_log_reserve_buffer(&logbuf_len);
-			if (!logbuf)
-				break;
 			off = sdev_format_header(logbuf, logbuf_len,
 						 scmd_name(cmd),
 						 cmd->request->tag);
@@ -224,9 +220,8 @@ void scsi_print_command(struct scsi_cmnd *cmd)
 			}
 			dev_printk(KERN_INFO, &cmd->device->sdev_gendev, "%s",
 				   logbuf);
-			scsi_log_release_buffer(logbuf);
 		}
-		return;
+		goto out;
 	}
 	if (!WARN_ON(off > logbuf_len - 49)) {
 		off += scnprintf(logbuf + off, logbuf_len - off, " ");
@@ -236,6 +231,7 @@ void scsi_print_command(struct scsi_cmnd *cmd)
 	}
 out_printk:
 	dev_printk(KERN_INFO, &cmd->device->sdev_gendev, "%s", logbuf);
+out:
 	scsi_log_release_buffer(logbuf);
 }
 EXPORT_SYMBOL(scsi_print_command);

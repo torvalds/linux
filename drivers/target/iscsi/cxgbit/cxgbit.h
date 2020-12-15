@@ -207,7 +207,6 @@ struct cxgbit_sock {
 	/* socket lock */
 	spinlock_t lock;
 	wait_queue_head_t waitq;
-	wait_queue_head_t ack_waitq;
 	bool lock_owner;
 	struct kref kref;
 	u32 max_iso_npdu;

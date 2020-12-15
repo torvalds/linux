@@ -143,10 +143,6 @@ static const struct imxi2c_platform_data moboard_i2c1_data __initconst = {
 	.bitrate = 100000,
 };
 
-static const struct spi_imx_master moboard_spi1_pdata __initconst = {
-	.num_chipselect	= 3,
-};
-
 static struct regulator_consumer_supply sdhc_consumers[] = {
 	{
 		.dev_name = "imx31-mmc.0",
@@ -285,10 +281,6 @@ static struct spi_board_info moboard_spi_board_info[] __initdata = {
 		.platform_data = &moboard_pmic,
 		.mode = SPI_CS_HIGH,
 	},
-};
-
-static const struct spi_imx_master moboard_spi2_pdata __initconst = {
-	.num_chipselect	= 2,
 };
 
 #define SDHC1_CD IOMUX_TO_GPIO(MX31_PIN_ATA_CS0)
@@ -514,8 +506,8 @@ static void __init mx31moboard_init(void)
 	imx31_add_imx_i2c0(&moboard_i2c0_data);
 	imx31_add_imx_i2c1(&moboard_i2c1_data);
 
-	imx31_add_spi_imx1(&moboard_spi1_pdata);
-	imx31_add_spi_imx2(&moboard_spi2_pdata);
+	imx31_add_spi_imx1(NULL);
+	imx31_add_spi_imx2(NULL);
 
 	mx31moboard_init_cam();
 

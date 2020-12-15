@@ -38,11 +38,14 @@
 #define HINIC_SQ_WQEBB_SIZE                     64
 #define HINIC_RQ_WQEBB_SIZE                     32
 
-#define HINIC_SQ_PAGE_SIZE                      SZ_4K
-#define HINIC_RQ_PAGE_SIZE                      SZ_4K
+#define HINIC_SQ_PAGE_SIZE                      SZ_256K
+#define HINIC_RQ_PAGE_SIZE                      SZ_256K
 
 #define HINIC_SQ_DEPTH                          SZ_4K
 #define HINIC_RQ_DEPTH                          SZ_4K
+
+#define HINIC_MAX_QUEUE_DEPTH			SZ_4K
+#define HINIC_MIN_QUEUE_DEPTH			128
 
 /* In any change to HINIC_RX_BUF_SZ, HINIC_RX_BUF_SZ_IDX must be changed */
 #define HINIC_RX_BUF_SZ                         2048

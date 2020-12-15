@@ -4,10 +4,15 @@ Microchip Ocelot switch driver family
 Felix
 -----
 
-The VSC9959 core is currently the only switch supported by the driver, and is
-found in the NXP LS1028A. It is a PCI device, part of the larger ENETC root
-complex. As a result, the ethernet-switch node is a sub-node of the PCIe root
-complex node and its "reg" property conforms to the parent node bindings:
+Currently the switches supported by the felix driver are:
+
+- VSC9959 (Felix)
+- VSC9953 (Seville)
+
+The VSC9959 switch is found in the NXP LS1028A. It is a PCI device, part of the
+larger ENETC root complex. As a result, the ethernet-switch node is a sub-node
+of the PCIe root complex node and its "reg" property conforms to the parent
+node bindings:
 
 * reg: Specifies PCIe Device Number and Function Number of the endpoint device,
   in this case for the Ethernet L2Switch it is PF5 (of device 0, bus 0).
@@ -109,6 +114,98 @@ Example:
 						speed = <1000>;
 						full-duplex;
 					};
+				};
+			};
+		};
+	};
+};
+
+The VSC9953 switch is found inside NXP T1040. It is a platform device with the
+following required properties:
+
+- compatible:
+	Must be "mscc,vsc9953-switch".
+
+Supported PHY interface types (appropriate SerDes protocol setting changes are
+needed in the RCW binary):
+
+* phy_mode = "internal": on ports 8 and 9
+* phy_mode = "sgmii": on ports 0, 1, 2, 3, 4, 5, 6, 7
+* phy_mode = "qsgmii": on ports 0, 1, 2, 3, 4, 5, 6, 7
+
+Example:
+
+&soc {
+	ethernet-switch@800000 {
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+		compatible = "mscc,vsc9953-switch";
+		little-endian;
+		reg = <0x800000 0x290000>;
+
+		ports {
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+
+			port@0 {
+				reg = <0x0>;
+				label = "swp0";
+			};
+
+			port@1 {
+				reg = <0x1>;
+				label = "swp1";
+			};
+
+			port@2 {
+				reg = <0x2>;
+				label = "swp2";
+			};
+
+			port@3 {
+				reg = <0x3>;
+				label = "swp3";
+			};
+
+			port@4 {
+				reg = <0x4>;
+				label = "swp4";
+			};
+
+			port@5 {
+				reg = <0x5>;
+				label = "swp5";
+			};
+
+			port@6 {
+				reg = <0x6>;
+				label = "swp6";
+			};
+
+			port@7 {
+				reg = <0x7>;
+				label = "swp7";
+			};
+
+			port@8 {
+				reg = <0x8>;
+				phy-mode = "internal";
+				ethernet = <&enet0>;
+
+				fixed-link {
+					speed = <2500>;
+					full-duplex;
+				};
+			};
+
+			port@9 {
+				reg = <0x9>;
+				phy-mode = "internal";
+				status = "disabled";
+
+				fixed-link {
+					speed = <2500>;
+					full-duplex;
 				};
 			};
 		};

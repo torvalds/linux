@@ -9,20 +9,20 @@
 #ifndef __ASM_ARM_FLOPPY_H
 #define __ASM_ARM_FLOPPY_H
 
-#define fd_outb(val,port)						\
+#define fd_outb(val, base, reg)						\
 	do {								\
 		int new_val = (val);					\
-		if (((port) & 7) == FD_DOR) {				\
+		if ((reg) == FD_DOR) {					\
 			if (new_val & 0xf0)				\
 				new_val = (new_val & 0x0c) |		\
 					  floppy_selects[new_val & 3];	\
 			else						\
 				new_val &= 0x0c;			\
 		}							\
-		outb(new_val, (port));					\
+		outb(new_val, (base) + (reg));				\
 	} while(0)
 
-#define fd_inb(port)		inb((port))
+#define fd_inb(base, reg)	inb((base) + (reg))
 #define fd_request_irq()	request_irq(IRQ_FLOPPYDISK,floppy_interrupt,\
 					    0,"floppy",NULL)
 #define fd_free_irq()		free_irq(IRQ_FLOPPYDISK,NULL)

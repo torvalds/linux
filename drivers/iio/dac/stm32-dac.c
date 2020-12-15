@@ -323,7 +323,6 @@ static int stm32_dac_probe(struct platform_device *pdev)
 	dac = iio_priv(indio_dev);
 	dac->common = dev_get_drvdata(pdev->dev.parent);
 	indio_dev->name = dev_name(&pdev->dev);
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->dev.of_node = pdev->dev.of_node;
 	indio_dev->info = &stm32_dac_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;

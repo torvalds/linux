@@ -66,7 +66,16 @@ static inline struct nf_flowtable *tcf_ct_ft(const struct tc_action *a)
 #endif /* CONFIG_NF_CONNTRACK */
 
 #if IS_ENABLED(CONFIG_NET_ACT_CT)
-void tcf_ct_flow_table_restore_skb(struct sk_buff *skb, unsigned long cookie);
+static inline void
+tcf_ct_flow_table_restore_skb(struct sk_buff *skb, unsigned long cookie)
+{
+	enum ip_conntrack_info ctinfo = cookie & NFCT_INFOMASK;
+	struct nf_conn *ct;
+
+	ct = (struct nf_conn *)(cookie & NFCT_PTRMASK);
+	nf_conntrack_get(&ct->ct_general);
+	nf_ct_set(skb, ct, ctinfo);
+}
 #else
 static inline void
 tcf_ct_flow_table_restore_skb(struct sk_buff *skb, unsigned long cookie) { }

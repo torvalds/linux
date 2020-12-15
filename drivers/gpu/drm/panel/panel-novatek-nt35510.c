@@ -1028,7 +1028,6 @@ static const struct nt35510_config nt35510_hydis_hva40wv1 = {
 		.vsync_start = 800 + 2, /* VFP = 2 */
 		.vsync_end = 800 + 2 + 0, /* VSync = 0 */
 		.vtotal = 800 + 2 + 0 + 5, /* VBP = 5 */
-		.vrefresh = 60, /* Calculated */
 		.flags = 0,
 	},
 	/* 0x09: AVDD = 5.6V */

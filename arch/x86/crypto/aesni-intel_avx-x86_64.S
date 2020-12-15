@@ -120,7 +120,6 @@
 ##
 
 #include <linux/linkage.h>
-#include <asm/inst.h>
 
 # constants in mergeable sections, linker can reorder and merge
 .section	.rodata.cst16.POLY, "aM", @progbits, 16

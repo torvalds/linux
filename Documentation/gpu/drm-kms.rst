@@ -3,7 +3,7 @@ Kernel Mode Setting (KMS)
 =========================
 
 Drivers must initialize the mode setting core by calling
-drm_mode_config_init() on the DRM device. The function
+drmm_mode_config_init() on the DRM device. The function
 initializes the :c:type:`struct drm_device <drm_device>`
 mode_config field and never fails. Once done, mode configuration must
 be setup by initializing the following fields.
@@ -397,6 +397,9 @@ Connector Functions Reference
 Writeback Connectors
 --------------------
 
+.. kernel-doc:: include/drm/drm_writeback.h
+  :internal:
+
 .. kernel-doc:: drivers/gpu/drm/drm_writeback.c
   :doc: overview
 
@@ -456,6 +459,12 @@ HDMI Specific Connector Properties
 
 .. kernel-doc:: drivers/gpu/drm/drm_connector.c
    :doc: HDMI connector properties
+
+Standard CRTC Properties
+------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_crtc.c
+   :doc: standard CRTC properties
 
 Plane Composition Properties
 ----------------------------
@@ -533,4 +542,19 @@ Vertical Blanking and Interrupt Handling Functions Reference
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_vblank.c
+   :export:
+
+Vertical Blank Work
+===================
+
+.. kernel-doc:: drivers/gpu/drm/drm_vblank_work.c
+   :doc: vblank works
+
+Vertical Blank Work Functions Reference
+---------------------------------------
+
+.. kernel-doc:: include/drm/drm_vblank_work.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_vblank_work.c
    :export:

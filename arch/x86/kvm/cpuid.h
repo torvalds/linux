@@ -9,7 +9,7 @@
 extern u32 kvm_cpu_caps[NCAPINTS] __read_mostly;
 void kvm_set_cpu_caps(void);
 
-int kvm_update_cpuid(struct kvm_vcpu *vcpu);
+void kvm_update_cpuid_runtime(struct kvm_vcpu *vcpu);
 struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
 					      u32 function, u32 index);
 int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
@@ -301,6 +301,11 @@ static __always_inline void kvm_cpu_cap_check_and_set(unsigned int x86_feature)
 {
 	if (boot_cpu_has(x86_feature))
 		kvm_cpu_cap_set(x86_feature);
+}
+
+static inline bool page_address_valid(struct kvm_vcpu *vcpu, gpa_t gpa)
+{
+	return PAGE_ALIGNED(gpa) && !(gpa >> cpuid_maxphyaddr(vcpu));
 }
 
 #endif

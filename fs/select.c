@@ -766,22 +766,38 @@ static long do_pselect(int n, fd_set __user *inp, fd_set __user *outp,
  * which has a pointer to the sigset_t itself followed by a size_t containing
  * the sigset size.
  */
+struct sigset_argpack {
+	sigset_t __user *p;
+	size_t size;
+};
+
+static inline int get_sigset_argpack(struct sigset_argpack *to,
+				     struct sigset_argpack __user *from)
+{
+	// the path is hot enough for overhead of copy_from_user() to matter
+	if (from) {
+		if (!user_read_access_begin(from, sizeof(*from)))
+			return -EFAULT;
+		unsafe_get_user(to->p, &from->p, Efault);
+		unsafe_get_user(to->size, &from->size, Efault);
+		user_read_access_end();
+	}
+	return 0;
+Efault:
+	user_access_end();
+	return -EFAULT;
+}
+
 SYSCALL_DEFINE6(pselect6, int, n, fd_set __user *, inp, fd_set __user *, outp,
 		fd_set __user *, exp, struct __kernel_timespec __user *, tsp,
 		void __user *, sig)
 {
-	size_t sigsetsize = 0;
-	sigset_t __user *up = NULL;
+	struct sigset_argpack x = {NULL, 0};
 
-	if (sig) {
-		if (!access_ok(sig, sizeof(void *)+sizeof(size_t))
-		    || __get_user(up, (sigset_t __user * __user *)sig)
-		    || __get_user(sigsetsize,
-				(size_t __user *)(sig+sizeof(void *))))
-			return -EFAULT;
-	}
+	if (get_sigset_argpack(&x, sig))
+		return -EFAULT;
 
-	return do_pselect(n, inp, outp, exp, tsp, up, sigsetsize, PT_TIMESPEC);
+	return do_pselect(n, inp, outp, exp, tsp, x.p, x.size, PT_TIMESPEC);
 }
 
 #if defined(CONFIG_COMPAT_32BIT_TIME) && !defined(CONFIG_64BIT)
@@ -790,18 +806,12 @@ SYSCALL_DEFINE6(pselect6_time32, int, n, fd_set __user *, inp, fd_set __user *, 
 		fd_set __user *, exp, struct old_timespec32 __user *, tsp,
 		void __user *, sig)
 {
-	size_t sigsetsize = 0;
-	sigset_t __user *up = NULL;
+	struct sigset_argpack x = {NULL, 0};
 
-	if (sig) {
-		if (!access_ok(sig, sizeof(void *)+sizeof(size_t))
-		    || __get_user(up, (sigset_t __user * __user *)sig)
-		    || __get_user(sigsetsize,
-				(size_t __user *)(sig+sizeof(void *))))
-			return -EFAULT;
-	}
+	if (get_sigset_argpack(&x, sig))
+		return -EFAULT;
 
-	return do_pselect(n, inp, outp, exp, tsp, up, sigsetsize, PT_OLD_TIMESPEC);
+	return do_pselect(n, inp, outp, exp, tsp, x.p, x.size, PT_OLD_TIMESPEC);
 }
 
 #endif
@@ -1325,24 +1335,37 @@ static long do_compat_pselect(int n, compat_ulong_t __user *inp,
 	return poll_select_finish(&end_time, tsp, type, ret);
 }
 
+struct compat_sigset_argpack {
+	compat_uptr_t p;
+	compat_size_t size;
+};
+static inline int get_compat_sigset_argpack(struct compat_sigset_argpack *to,
+					    struct compat_sigset_argpack __user *from)
+{
+	if (from) {
+		if (!user_read_access_begin(from, sizeof(*from)))
+			return -EFAULT;
+		unsafe_get_user(to->p, &from->p, Efault);
+		unsafe_get_user(to->size, &from->size, Efault);
+		user_read_access_end();
+	}
+	return 0;
+Efault:
+	user_access_end();
+	return -EFAULT;
+}
+
 COMPAT_SYSCALL_DEFINE6(pselect6_time64, int, n, compat_ulong_t __user *, inp,
 	compat_ulong_t __user *, outp, compat_ulong_t __user *, exp,
 	struct __kernel_timespec __user *, tsp, void __user *, sig)
 {
-	compat_size_t sigsetsize = 0;
-	compat_uptr_t up = 0;
+	struct compat_sigset_argpack x = {0, 0};
 
-	if (sig) {
-		if (!access_ok(sig,
-				sizeof(compat_uptr_t)+sizeof(compat_size_t)) ||
-				__get_user(up, (compat_uptr_t __user *)sig) ||
-				__get_user(sigsetsize,
-				(compat_size_t __user *)(sig+sizeof(up))))
-			return -EFAULT;
-	}
+	if (get_compat_sigset_argpack(&x, sig))
+		return -EFAULT;
 
-	return do_compat_pselect(n, inp, outp, exp, tsp, compat_ptr(up),
-				 sigsetsize, PT_TIMESPEC);
+	return do_compat_pselect(n, inp, outp, exp, tsp, compat_ptr(x.p),
+				 x.size, PT_TIMESPEC);
 }
 
 #if defined(CONFIG_COMPAT_32BIT_TIME)
@@ -1351,20 +1374,13 @@ COMPAT_SYSCALL_DEFINE6(pselect6_time32, int, n, compat_ulong_t __user *, inp,
 	compat_ulong_t __user *, outp, compat_ulong_t __user *, exp,
 	struct old_timespec32 __user *, tsp, void __user *, sig)
 {
-	compat_size_t sigsetsize = 0;
-	compat_uptr_t up = 0;
+	struct compat_sigset_argpack x = {0, 0};
 
-	if (sig) {
-		if (!access_ok(sig,
-				sizeof(compat_uptr_t)+sizeof(compat_size_t)) ||
-		    	__get_user(up, (compat_uptr_t __user *)sig) ||
-		    	__get_user(sigsetsize,
-				(compat_size_t __user *)(sig+sizeof(up))))
-			return -EFAULT;
-	}
+	if (get_compat_sigset_argpack(&x, sig))
+		return -EFAULT;
 
-	return do_compat_pselect(n, inp, outp, exp, tsp, compat_ptr(up),
-				 sigsetsize, PT_OLD_TIMESPEC);
+	return do_compat_pselect(n, inp, outp, exp, tsp, compat_ptr(x.p),
+				 x.size, PT_OLD_TIMESPEC);
 }
 
 #endif

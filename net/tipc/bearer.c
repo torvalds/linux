@@ -316,7 +316,6 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 	b->domain = disc_domain;
 	b->net_plane = bearer_id + 'A';
 	b->priority = prio;
-	test_and_set_bit_lock(0, &b->up);
 	refcount_set(&b->refcnt, 1);
 
 	res = tipc_disc_create(net, b, &b->bcast_addr, &skb);
@@ -326,6 +325,7 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 		goto rejected;
 	}
 
+	test_and_set_bit_lock(0, &b->up);
 	rcu_assign_pointer(tn->bearer_list[bearer_id], b);
 	if (skb)
 		tipc_bearer_xmit_skb(net, bearer_id, skb, &b->bcast_addr);
@@ -595,7 +595,7 @@ void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
 
 /**
  * tipc_l2_rcv_msg - handle incoming TIPC message from an interface
- * @buf: the received packet
+ * @skb: the received message
  * @dev: the net device that the packet was received on
  * @pt: the packet_type structure which was used to register this handler
  * @orig_dev: the original receive net device in case the device is a bond
@@ -652,7 +652,7 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 			test_and_set_bit_lock(0, &b->up);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case NETDEV_GOING_DOWN:
 		clear_bit_unlock(0, &b->up);
 		tipc_reset_bearer(net, b);

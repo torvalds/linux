@@ -14,7 +14,7 @@ memory devices like
  * Pseudo-SRAM devices
 
 GPMC is found on Texas Instruments SoC's (OMAP based)
-IP details: http://www.ti.com/lit/pdf/spruh73 section 7.1
+IP details: https://www.ti.com/lit/pdf/spruh73 section 7.1
 
 
 GPMC generic timing calculation:

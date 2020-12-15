@@ -172,7 +172,7 @@ static struct tty_driver *ttyprintk_driver;
 
 static int __init ttyprintk_init(void)
 {
-	int ret = -ENOMEM;
+	int ret;
 
 	spin_lock_init(&tpk_port.spinlock);
 

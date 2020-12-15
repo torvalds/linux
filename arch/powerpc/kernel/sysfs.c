@@ -19,6 +19,7 @@
 #include <asm/smp.h>
 #include <asm/pmc.h>
 #include <asm/firmware.h>
+#include <asm/idle.h>
 #include <asm/svm.h>
 
 #include "cacheinfo.h"
@@ -621,8 +622,10 @@ SYSFS_PMCSETUP(pmc7, SPRN_PMC7);
 SYSFS_PMCSETUP(pmc8, SPRN_PMC8);
 
 SYSFS_PMCSETUP(mmcra, SPRN_MMCRA);
+SYSFS_PMCSETUP(mmcr3, SPRN_MMCR3);
 
 static DEVICE_ATTR(mmcra, 0600, show_mmcra, store_mmcra);
+static DEVICE_ATTR(mmcr3, 0600, show_mmcr3, store_mmcr3);
 #endif /* HAS_PPC_PMC56 */
 
 
@@ -760,6 +763,74 @@ static void create_svm_file(void)
 }
 #endif /* CONFIG_PPC_SVM */
 
+#ifdef CONFIG_PPC_PSERIES
+static void read_idle_purr(void *val)
+{
+	u64 *ret = val;
+
+	*ret = read_this_idle_purr();
+}
+
+static ssize_t idle_purr_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct cpu *cpu = container_of(dev, struct cpu, dev);
+	u64 val;
+
+	smp_call_function_single(cpu->dev.id, read_idle_purr, &val, 1);
+	return sprintf(buf, "%llx\n", val);
+}
+static DEVICE_ATTR(idle_purr, 0400, idle_purr_show, NULL);
+
+static void create_idle_purr_file(struct device *s)
+{
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		device_create_file(s, &dev_attr_idle_purr);
+}
+
+static void remove_idle_purr_file(struct device *s)
+{
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		device_remove_file(s, &dev_attr_idle_purr);
+}
+
+static void read_idle_spurr(void *val)
+{
+	u64 *ret = val;
+
+	*ret = read_this_idle_spurr();
+}
+
+static ssize_t idle_spurr_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct cpu *cpu = container_of(dev, struct cpu, dev);
+	u64 val;
+
+	smp_call_function_single(cpu->dev.id, read_idle_spurr, &val, 1);
+	return sprintf(buf, "%llx\n", val);
+}
+static DEVICE_ATTR(idle_spurr, 0400, idle_spurr_show, NULL);
+
+static void create_idle_spurr_file(struct device *s)
+{
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		device_create_file(s, &dev_attr_idle_spurr);
+}
+
+static void remove_idle_spurr_file(struct device *s)
+{
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		device_remove_file(s, &dev_attr_idle_spurr);
+}
+
+#else /* CONFIG_PPC_PSERIES */
+#define create_idle_purr_file(s)
+#define remove_idle_purr_file(s)
+#define create_idle_spurr_file(s)
+#define remove_idle_spurr_file(s)
+#endif /* CONFIG_PPC_PSERIES */
+
 static int register_cpu_online(unsigned int cpu)
 {
 	struct cpu *c = &per_cpu(cpu_devices, cpu);
@@ -817,16 +888,22 @@ static int register_cpu_online(unsigned int cpu)
 #ifdef	CONFIG_PMU_SYSFS
 	if (cpu_has_feature(CPU_FTR_MMCRA))
 		device_create_file(s, &dev_attr_mmcra);
+
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		device_create_file(s, &dev_attr_mmcr3);
 #endif /* CONFIG_PMU_SYSFS */
 
 	if (cpu_has_feature(CPU_FTR_PURR)) {
 		if (!firmware_has_feature(FW_FEATURE_LPAR))
 			add_write_permission_dev_attr(&dev_attr_purr);
 		device_create_file(s, &dev_attr_purr);
+		create_idle_purr_file(s);
 	}
 
-	if (cpu_has_feature(CPU_FTR_SPURR))
+	if (cpu_has_feature(CPU_FTR_SPURR)) {
 		device_create_file(s, &dev_attr_spurr);
+		create_idle_spurr_file(s);
+	}
 
 	if (cpu_has_feature(CPU_FTR_DSCR))
 		device_create_file(s, &dev_attr_dscr);
@@ -908,13 +985,20 @@ static int unregister_cpu_online(unsigned int cpu)
 #ifdef CONFIG_PMU_SYSFS
 	if (cpu_has_feature(CPU_FTR_MMCRA))
 		device_remove_file(s, &dev_attr_mmcra);
+
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		device_remove_file(s, &dev_attr_mmcr3);
 #endif /* CONFIG_PMU_SYSFS */
 
-	if (cpu_has_feature(CPU_FTR_PURR))
+	if (cpu_has_feature(CPU_FTR_PURR)) {
 		device_remove_file(s, &dev_attr_purr);
+		remove_idle_purr_file(s);
+	}
 
-	if (cpu_has_feature(CPU_FTR_SPURR))
+	if (cpu_has_feature(CPU_FTR_SPURR)) {
 		device_remove_file(s, &dev_attr_spurr);
+		remove_idle_spurr_file(s);
+	}
 
 	if (cpu_has_feature(CPU_FTR_DSCR))
 		device_remove_file(s, &dev_attr_dscr);

@@ -3586,11 +3586,11 @@ static u32 qib_7220_iblink_state(u64 ibcs)
 		state = IB_PORT_ARMED;
 		break;
 	case IB_7220_L_STATE_ACTIVE:
-		/* fall through */
 	case IB_7220_L_STATE_ACT_DEFER:
 		state = IB_PORT_ACTIVE;
 		break;
-	default: /* fall through */
+	default:
+		fallthrough;
 	case IB_7220_L_STATE_DOWN:
 		state = IB_PORT_DOWN;
 		break;

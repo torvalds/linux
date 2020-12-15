@@ -117,7 +117,7 @@ sottomissione delle patch, in particolare
     sorgenti che ne spieghi la logica: cosa fanno e perché.
 
 25) Se la patch aggiunge nuove chiamate ioctl, allora aggiornate
-    ``Documentation/ioctl/ioctl-number.rst``.
+    ``Documentation/userspace-api/ioctl/ioctl-number.rst``.
 
 26) Se il codice che avete modificato dipende o usa una qualsiasi interfaccia o
     funzionalità del kernel che è associata a uno dei seguenti simboli

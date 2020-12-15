@@ -60,6 +60,50 @@ static struct mii_timestamper *of_find_mii_timestamper(struct device_node *node)
 	return register_mii_timestamper(arg.np, arg.args[0]);
 }
 
+int of_mdiobus_phy_device_register(struct mii_bus *mdio, struct phy_device *phy,
+			      struct device_node *child, u32 addr)
+{
+	int rc;
+
+	rc = of_irq_get(child, 0);
+	if (rc == -EPROBE_DEFER)
+		return rc;
+
+	if (rc > 0) {
+		phy->irq = rc;
+		mdio->irq[addr] = rc;
+	} else {
+		phy->irq = mdio->irq[addr];
+	}
+
+	if (of_property_read_bool(child, "broken-turn-around"))
+		mdio->phy_ignore_ta_mask |= 1 << addr;
+
+	of_property_read_u32(child, "reset-assert-us",
+			     &phy->mdio.reset_assert_delay);
+	of_property_read_u32(child, "reset-deassert-us",
+			     &phy->mdio.reset_deassert_delay);
+
+	/* Associate the OF node with the device structure so it
+	 * can be looked up later */
+	of_node_get(child);
+	phy->mdio.dev.of_node = child;
+	phy->mdio.dev.fwnode = of_fwnode_handle(child);
+
+	/* All data is now stored in the phy struct;
+	 * register it */
+	rc = phy_device_register(phy);
+	if (rc) {
+		of_node_put(child);
+		return rc;
+	}
+
+	dev_dbg(&mdio->dev, "registered phy %pOFn at address %i\n",
+		child, addr);
+	return 0;
+}
+EXPORT_SYMBOL(of_mdiobus_phy_device_register);
+
 static int of_mdiobus_register_phy(struct mii_bus *mdio,
 				    struct device_node *child, u32 addr)
 {
@@ -86,42 +130,11 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio,
 		return PTR_ERR(phy);
 	}
 
-	rc = of_irq_get(child, 0);
-	if (rc == -EPROBE_DEFER) {
-		if (mii_ts)
-			unregister_mii_timestamper(mii_ts);
-		phy_device_free(phy);
-		return rc;
-	}
-	if (rc > 0) {
-		phy->irq = rc;
-		mdio->irq[addr] = rc;
-	} else {
-		phy->irq = mdio->irq[addr];
-	}
-
-	if (of_property_read_bool(child, "broken-turn-around"))
-		mdio->phy_ignore_ta_mask |= 1 << addr;
-
-	of_property_read_u32(child, "reset-assert-us",
-			     &phy->mdio.reset_assert_delay);
-	of_property_read_u32(child, "reset-deassert-us",
-			     &phy->mdio.reset_deassert_delay);
-
-	/* Associate the OF node with the device structure so it
-	 * can be looked up later */
-	of_node_get(child);
-	phy->mdio.dev.of_node = child;
-	phy->mdio.dev.fwnode = of_fwnode_handle(child);
-
-	/* All data is now stored in the phy struct;
-	 * register it */
-	rc = phy_device_register(phy);
+	rc = of_mdiobus_phy_device_register(mdio, phy, child, addr);
 	if (rc) {
 		if (mii_ts)
 			unregister_mii_timestamper(mii_ts);
 		phy_device_free(phy);
-		of_node_put(child);
 		return rc;
 	}
 
@@ -132,8 +145,6 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio,
 	if (mii_ts)
 		phy->mii_ts = mii_ts;
 
-	dev_dbg(&mdio->dev, "registered phy %pOFn at address %i\n",
-		child, addr);
 	return 0;
 }
 
@@ -257,6 +268,8 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	/* Get bus level PHY reset GPIO details */
 	mdio->reset_delay_us = DEFAULT_GPIO_RESET_DELAY;
 	of_property_read_u32(np, "reset-delay-us", &mdio->reset_delay_us);
+	mdio->reset_post_delay_us = 0;
+	of_property_read_u32(np, "reset-post-delay-us", &mdio->reset_post_delay_us);
 
 	/* Register the MDIO bus */
 	rc = mdiobus_register(mdio);
@@ -303,10 +316,15 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 				 child, addr);
 
 			if (of_mdiobus_child_is_phy(child)) {
+				/* -ENODEV is the return code that PHYLIB has
+				 * standardized on to indicate that bus
+				 * scanning should continue.
+				 */
 				rc = of_mdiobus_register_phy(mdio, child, addr);
-				if (rc && rc != -ENODEV)
+				if (!rc)
+					break;
+				if (rc != -ENODEV)
 					goto unregister;
-				break;
 			}
 		}
 	}
@@ -369,7 +387,7 @@ struct phy_device *of_phy_connect(struct net_device *dev,
 	if (!phy)
 		return NULL;
 
-	phy->dev_flags = flags;
+	phy->dev_flags |= flags;
 
 	ret = phy_connect_direct(dev, phy, hndlr, iface);
 

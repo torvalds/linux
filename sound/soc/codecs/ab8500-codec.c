@@ -1100,7 +1100,7 @@ static void anc_configure(struct snd_soc_component *component,
 	if (apply_fir)
 		for (bnk = 0; bnk < AB8500_NR_OF_ANC_COEFF_BANKS; bnk++)
 			for (par = 0; par < AB8500_ANC_FIR_COEFFS; par++) {
-				val = snd_soc_component_read32(component,
+				val = snd_soc_component_read(component,
 						drvdata->anc_fir_values[par]);
 				anc_fir(component, bnk, par, val);
 			}
@@ -1108,7 +1108,7 @@ static void anc_configure(struct snd_soc_component *component,
 	if (apply_iir)
 		for (bnk = 0; bnk < AB8500_NR_OF_ANC_COEFF_BANKS; bnk++)
 			for (par = 0; par < AB8500_ANC_IIR_COEFFS; par++) {
-				val = snd_soc_component_read32(component,
+				val = snd_soc_component_read(component,
 						drvdata->anc_iir_values[par]);
 				anc_iir(component, bnk, par, val);
 			}
@@ -1153,7 +1153,7 @@ static int sid_status_control_put(struct snd_kcontrol *kcontrol,
 
 	mutex_lock(&drvdata->ctrl_lock);
 
-	sidconf = snd_soc_component_read32(component, AB8500_SIDFIRCONF);
+	sidconf = snd_soc_component_read(component, AB8500_SIDFIRCONF);
 	if (((sidconf & BIT(AB8500_SIDFIRCONF_FIRSIDBUSY)) != 0)) {
 		if ((sidconf & BIT(AB8500_SIDFIRCONF_ENFIRSIDS)) == 0) {
 			dev_err(component->dev, "%s: Sidetone busy while off!\n",
@@ -1168,7 +1168,7 @@ static int sid_status_control_put(struct snd_kcontrol *kcontrol,
 	snd_soc_component_write(component, AB8500_SIDFIRADR, 0);
 
 	for (param = 0; param < AB8500_SID_FIR_COEFFS; param++) {
-		val = snd_soc_component_read32(component, drvdata->sid_fir_values[param]);
+		val = snd_soc_component_read(component, drvdata->sid_fir_values[param]);
 		snd_soc_component_write(component, AB8500_SIDFIRCOEF1, val >> 8 & 0xff);
 		snd_soc_component_write(component, AB8500_SIDFIRCOEF2, val & 0xff);
 	}
@@ -2126,7 +2126,7 @@ static int ab8500_codec_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		dev_err(dai->component->dev,
 			"%s: ERROR: The device is either a master or a slave.\n",
 			__func__);
-		/* fall through */
+		fallthrough;
 	default:
 		dev_err(dai->component->dev,
 			"%s: ERROR: Unsupporter master mask 0x%x\n",

@@ -148,41 +148,41 @@ static const struct rpm_reg_parts rpm8960_ncp_parts = {
 /*
  * Physically available PMIC regulator voltage ranges
  */
-static const struct regulator_linear_range pldo_ranges[] = {
+static const struct linear_range pldo_ranges[] = {
 	REGULATOR_LINEAR_RANGE( 750000,   0,  59, 12500),
 	REGULATOR_LINEAR_RANGE(1500000,  60, 123, 25000),
 	REGULATOR_LINEAR_RANGE(3100000, 124, 160, 50000),
 };
 
-static const struct regulator_linear_range nldo_ranges[] = {
+static const struct linear_range nldo_ranges[] = {
 	REGULATOR_LINEAR_RANGE( 750000,   0,  63, 12500),
 };
 
-static const struct regulator_linear_range nldo1200_ranges[] = {
+static const struct linear_range nldo1200_ranges[] = {
 	REGULATOR_LINEAR_RANGE( 375000,   0,  59,  6250),
 	REGULATOR_LINEAR_RANGE( 750000,  60, 123, 12500),
 };
 
-static const struct regulator_linear_range smps_ranges[] = {
+static const struct linear_range smps_ranges[] = {
 	REGULATOR_LINEAR_RANGE( 375000,   0,  29, 12500),
 	REGULATOR_LINEAR_RANGE( 750000,  30,  89, 12500),
 	REGULATOR_LINEAR_RANGE(1500000,  90, 153, 25000),
 };
 
-static const struct regulator_linear_range ftsmps_ranges[] = {
+static const struct linear_range ftsmps_ranges[] = {
 	REGULATOR_LINEAR_RANGE( 350000,   0,   6, 50000),
 	REGULATOR_LINEAR_RANGE( 700000,   7,  63, 12500),
 	REGULATOR_LINEAR_RANGE(1500000,  64, 100, 50000),
 };
 
-static const struct regulator_linear_range smb208_ranges[] = {
+static const struct linear_range smb208_ranges[] = {
 	REGULATOR_LINEAR_RANGE( 375000,   0,  29, 12500),
 	REGULATOR_LINEAR_RANGE( 750000,  30,  89, 12500),
 	REGULATOR_LINEAR_RANGE(1500000,  90, 153, 25000),
 	REGULATOR_LINEAR_RANGE(3100000, 154, 234, 25000),
 };
 
-static const struct regulator_linear_range ncp_ranges[] = {
+static const struct linear_range ncp_ranges[] = {
 	REGULATOR_LINEAR_RANGE(1500000,   0,  31, 50000),
 };
 
@@ -407,7 +407,7 @@ static int rpm_reg_set_load(struct regulator_dev *rdev, int load_uA)
 	return ret;
 }
 
-static struct regulator_ops uV_ops = {
+static const struct regulator_ops uV_ops = {
 	.list_voltage = regulator_list_voltage_linear_range,
 
 	.set_voltage_sel = rpm_reg_set_uV_sel,
@@ -420,7 +420,7 @@ static struct regulator_ops uV_ops = {
 	.set_load = rpm_reg_set_load,
 };
 
-static struct regulator_ops mV_ops = {
+static const struct regulator_ops mV_ops = {
 	.list_voltage = regulator_list_voltage_linear_range,
 
 	.set_voltage_sel = rpm_reg_set_mV_sel,
@@ -433,7 +433,7 @@ static struct regulator_ops mV_ops = {
 	.set_load = rpm_reg_set_load,
 };
 
-static struct regulator_ops switch_ops = {
+static const struct regulator_ops switch_ops = {
 	.enable = rpm_reg_switch_enable,
 	.disable = rpm_reg_switch_disable,
 	.is_enabled = rpm_reg_is_enabled,
@@ -598,16 +598,6 @@ static const struct qcom_rpm_reg pm8921_smps = {
 	.desc.linear_ranges = smps_ranges,
 	.desc.n_linear_ranges = ARRAY_SIZE(smps_ranges),
 	.desc.n_voltages = 154,
-	.desc.ops = &uV_ops,
-	.parts = &rpm8960_smps_parts,
-	.supports_force_mode_auto = true,
-	.supports_force_mode_bypass = false,
-};
-
-static const struct qcom_rpm_reg pm8921_ftsmps = {
-	.desc.linear_ranges = ftsmps_ranges,
-	.desc.n_linear_ranges = ARRAY_SIZE(ftsmps_ranges),
-	.desc.n_voltages = 101,
 	.desc.ops = &uV_ops,
 	.parts = &rpm8960_smps_parts,
 	.supports_force_mode_auto = true,

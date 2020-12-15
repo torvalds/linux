@@ -24,8 +24,8 @@ properties:
 
   reg-names:
     items:
-     - const: qspi
-     - const: qspi_mm
+      - const: qspi
+      - const: qspi_mm
 
   clocks:
     maxItems: 1

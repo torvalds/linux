@@ -188,7 +188,8 @@ static int rmi_spi_xfer(struct rmi_spi_xport *rmi_spi,
 			memset(xfer, 0,	sizeof(struct spi_transfer));
 			xfer->tx_buf = &rmi_spi->tx_buf[i];
 			xfer->len = 1;
-			xfer->delay_usecs = spi_data->write_delay_us;
+			xfer->delay.value = spi_data->write_delay_us;
+			xfer->delay.unit = SPI_DELAY_UNIT_USECS;
 			spi_message_add_tail(xfer, &msg);
 		}
 	} else {
@@ -210,7 +211,8 @@ static int rmi_spi_xfer(struct rmi_spi_xport *rmi_spi,
 				memset(xfer, 0, sizeof(struct spi_transfer));
 				xfer->rx_buf = &rmi_spi->rx_buf[i];
 				xfer->len = 1;
-				xfer->delay_usecs = spi_data->read_delay_us;
+				xfer->delay.value = spi_data->read_delay_us;
+				xfer->delay.unit = SPI_DELAY_UNIT_USECS;
 				spi_message_add_tail(xfer, &msg);
 			}
 		} else {

@@ -22,10 +22,10 @@ properties:
       - const: allwinner,sun6i-a31-spi
       - const: allwinner,sun8i-h3-spi
       - items:
-        - enum:
-          - allwinner,sun8i-r40-spi
-          - allwinner,sun50i-h6-spi
-        - const: allwinner,sun8i-h3-spi
+          - enum:
+              - allwinner,sun8i-r40-spi
+              - allwinner,sun50i-h6-spi
+          - const: allwinner,sun8i-h3-spi
 
   reg:
     maxItems: 1

@@ -152,7 +152,6 @@ static int ms5637_probe(struct i2c_client *client,
 
 	indio_dev->info = &ms5637_info;
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ms5637_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ms5637_channels);

@@ -2,7 +2,7 @@
 config CAN_IFI_CANFD
 	depends on HAS_IOMEM
 	tristate "IFI CAN_FD IP"
-	---help---
+	help
 	  This driver adds support for the I/F/I CAN_FD soft IP block
 	  connected to the "platform bus" (Linux abstraction for directly
 	  to the processor attached devices). The CAN_FD is most often

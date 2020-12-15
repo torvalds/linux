@@ -509,9 +509,10 @@ void pvrdma_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
  *
  * @return: 0 on success, otherwise errno.
  */
-int pvrdma_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr,
-		     u32 flags, struct ib_udata *udata)
+int pvrdma_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
+		     struct ib_udata *udata)
 {
+	struct rdma_ah_attr *ah_attr = init_attr->ah_attr;
 	struct pvrdma_dev *dev = to_vdev(ibah->device);
 	struct pvrdma_ah *ah = to_vah(ibah);
 	const struct ib_global_route *grh;

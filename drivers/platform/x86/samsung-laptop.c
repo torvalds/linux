@@ -1138,8 +1138,7 @@ static enum led_brightness kbd_led_get(struct led_classdev *led_cdev)
 
 static void samsung_leds_exit(struct samsung_laptop *samsung)
 {
-	if (!IS_ERR_OR_NULL(samsung->kbd_led.dev))
-		led_classdev_unregister(&samsung->kbd_led);
+	led_classdev_unregister(&samsung->kbd_led);
 	if (samsung->led_workqueue)
 		destroy_workqueue(samsung->led_workqueue);
 }

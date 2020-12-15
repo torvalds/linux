@@ -39,4 +39,10 @@ int BPF_PROG(prog5, struct task_struct *tsk, const char *buf, bool exec)
 	return 0;
 }
 
+SEC("fmod_ret/__set_task_comm")
+int BPF_PROG(prog6, struct task_struct *tsk, const char *buf, bool exec)
+{
+	return !tsk;
+}
+
 char _license[] SEC("license") = "GPL";

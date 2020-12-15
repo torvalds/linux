@@ -45,20 +45,20 @@
 #define VIRTIO_BALLOON_CMD_ID_DONE	1
 struct virtio_balloon_config {
 	/* Number of pages host wants Guest to give up. */
-	__u32 num_pages;
+	__le32 num_pages;
 	/* Number of pages we've actually got in balloon. */
-	__u32 actual;
+	__le32 actual;
 	/*
 	 * Free page hint command id, readonly by guest.
 	 * Was previously named free_page_report_cmd_id so we
 	 * need to carry that name for legacy support.
 	 */
 	union {
-		__u32 free_page_hint_cmd_id;
-		__u32 free_page_report_cmd_id;	/* deprecated */
+		__le32 free_page_hint_cmd_id;
+		__le32 free_page_report_cmd_id;	/* deprecated */
 	};
 	/* Stores PAGE_POISON if page poisoning is in use */
-	__u32 poison_val;
+	__le32 poison_val;
 };
 
 #define VIRTIO_BALLOON_S_SWAP_IN  0   /* Amount of memory swapped in */

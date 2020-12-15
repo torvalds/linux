@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/panel/display-timings.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: display timing bindings
+title: display timings bindings
 
 maintainers:
   - Thierry Reding <thierry.reding@gmail.com>
@@ -14,7 +14,7 @@ maintainers:
 description: |
   A display panel may be able to handle several display timings,
   with different resolutions.
-  The display-timings node makes it possible to specify the timing
+  The display-timings node makes it possible to specify the timings
   and to specify the timing that is native for the display.
 
 properties:
@@ -25,8 +25,8 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: |
       The default display timing is the one specified as native-mode.
-      If no native-mode is specified then the first node is assumed the
-      native mode.
+      If no native-mode is specified then the first node is assumed
+      to be the native mode.
 
 patternProperties:
   "^timing":

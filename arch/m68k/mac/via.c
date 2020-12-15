@@ -294,10 +294,14 @@ void via_debug_dump(void)
  * the system into 24-bit mode for an instant.
  */
 
-void via_flush_cache(void)
+void via_l2_flush(int writeback)
 {
+	unsigned long flags;
+
+	local_irq_save(flags);
 	via2[gBufB] &= ~VIA2B_vMode32;
 	via2[gBufB] |= VIA2B_vMode32;
+	local_irq_restore(flags);
 }
 
 /*
@@ -366,7 +370,7 @@ void via_nubus_irq_startup(int irq)
 			/* Allow NuBus slots 9 through F. */
 			via2[vDirA] &= 0x80 | ~(1 << irq_idx);
 		}
-		/* fall through */
+		fallthrough;
 	case MAC_VIA_IICI:
 		via_irq_enable(irq);
 		break;

@@ -322,8 +322,10 @@ static void sprd_thm_toggle_sensor(struct sprd_thermal_sensor *sen, bool on)
 {
 	struct thermal_zone_device *tzd = sen->tzd;
 
-	tzd->ops->set_mode(tzd,
-		on ? THERMAL_DEVICE_ENABLED : THERMAL_DEVICE_DISABLED);
+	if (on)
+		thermal_zone_device_enable(tzd);
+	else
+		thermal_zone_device_disable(tzd);
 }
 
 static int sprd_thm_probe(struct platform_device *pdev)
@@ -348,8 +350,8 @@ static int sprd_thm_probe(struct platform_device *pdev)
 
 	thm->var_data = pdata;
 	thm->base = devm_platform_ioremap_resource(pdev, 0);
-	if (!thm->base)
-		return -ENOMEM;
+	if (IS_ERR(thm->base))
+		return PTR_ERR(thm->base);
 
 	thm->nr_sensors = of_get_child_count(np);
 	if (thm->nr_sensors == 0 || thm->nr_sensors > SPRD_THM_MAX_SENSOR) {

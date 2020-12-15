@@ -35,8 +35,7 @@ properties:
 
   hdmi-phandle:
     description: phandle to the HDMI controller
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
 
 allOf:
   - if:
@@ -88,7 +87,7 @@ examples:
   - |
     cec_AO: cec@100 {
         compatible = "amlogic,meson-gx-ao-cec";
-        reg = <0x0 0x00100 0x0 0x14>;
+        reg = <0x00100 0x14>;
         interrupts = <199>;
         clocks = <&clkc_cec>;
         clock-names = "core";

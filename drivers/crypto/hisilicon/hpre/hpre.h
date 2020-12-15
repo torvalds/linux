@@ -25,6 +25,17 @@ enum hpre_ctrl_dbgfs_file {
 	HPRE_DEBUG_FILE_NUM,
 };
 
+enum hpre_dfx_dbgfs_file {
+	HPRE_SEND_CNT,
+	HPRE_RECV_CNT,
+	HPRE_SEND_FAIL_CNT,
+	HPRE_SEND_BUSY_CNT,
+	HPRE_OVER_THRHLD_CNT,
+	HPRE_OVERTIME_THRHLD,
+	HPRE_INVALID_REQ_CNT,
+	HPRE_DFX_FILE_NUM
+};
+
 #define HPRE_DEBUGFS_FILE_NUM    (HPRE_DEBUG_FILE_NUM + HPRE_CLUSTERS_NUM - 1)
 
 struct hpre_debugfs_file {
@@ -34,6 +45,11 @@ struct hpre_debugfs_file {
 	struct hpre_debug *debug;
 };
 
+struct hpre_dfx {
+	atomic64_t value;
+	enum hpre_dfx_dbgfs_file type;
+};
+
 /*
  * One HPRE controller has one PF and multiple VFs, some global configurations
  * which PF has need this structure.
@@ -41,13 +57,13 @@ struct hpre_debugfs_file {
  */
 struct hpre_debug {
 	struct dentry *debug_root;
+	struct hpre_dfx dfx[HPRE_DFX_FILE_NUM];
 	struct hpre_debugfs_file files[HPRE_DEBUGFS_FILE_NUM];
 };
 
 struct hpre {
 	struct hisi_qm qm;
 	struct hpre_debug debug;
-	u32 num_vfs;
 	unsigned long status;
 };
 

@@ -27,7 +27,7 @@ extern phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle);
 
 struct pci_ecam_ops;
 extern int pci_mcfg_lookup(struct acpi_pci_root *root, struct resource *cfgres,
-			   struct pci_ecam_ops **ecam_ops);
+			   const struct pci_ecam_ops **ecam_ops);
 
 static inline acpi_handle acpi_find_root_bridge_handle(struct pci_dev *pdev)
 {
@@ -107,10 +107,12 @@ static inline void acpiphp_check_host_bridge(struct acpi_device *adev) { }
 #endif
 
 extern const guid_t pci_acpi_dsm_guid;
-#define IGNORE_PCI_BOOT_CONFIG_DSM	0x05
-#define DEVICE_LABEL_DSM		0x07
-#define RESET_DELAY_DSM			0x08
-#define FUNCTION_DELAY_DSM		0x09
+
+/* _DSM Definitions for PCI */
+#define DSM_PCI_PRESERVE_BOOT_CONFIG		0x05
+#define DSM_PCI_DEVICE_NAME			0x07
+#define DSM_PCI_POWER_ON_RESET_DELAY		0x08
+#define DSM_PCI_DEVICE_READINESS_DURATIONS	0x09
 
 #ifdef CONFIG_PCIE_EDR
 void pci_acpi_add_edr_notifier(struct pci_dev *pdev);
@@ -124,11 +126,5 @@ static inline void pci_acpi_remove_edr_notifier(struct pci_dev *pdev) { }
 static inline void acpi_pci_add_bus(struct pci_bus *bus) { }
 static inline void acpi_pci_remove_bus(struct pci_bus *bus) { }
 #endif	/* CONFIG_ACPI */
-
-#ifdef CONFIG_ACPI_APEI
-extern bool aer_acpi_firmware_first(void);
-#else
-static inline bool aer_acpi_firmware_first(void) { return false; }
-#endif
 
 #endif	/* _PCI_ACPI_H_ */

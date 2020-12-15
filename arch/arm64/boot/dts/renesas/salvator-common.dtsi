@@ -833,6 +833,7 @@
 	mmc-hs400-1_8v;
 	non-removable;
 	fixed-emmc-driver-type = <1>;
+	full-pwr-cycle-in-suspend;
 	status = "okay";
 };
 

@@ -101,8 +101,7 @@ enum DriverInterface {
 	DRIVER_CFG80211 = 2
 };
 
-enum SCAN_RESULT_TYPE
-{
+enum SCAN_RESULT_TYPE {
 	SCAN_RESULT_P2P_ONLY = 0,		/* 	Will return all the P2P devices. */
 	SCAN_RESULT_ALL = 1,			/* 	Will return all the scanned device, include AP. */
 	SCAN_RESULT_WFD_TYPE = 2		/* 	Will just return the correct WFD device. */
@@ -463,8 +462,7 @@ struct mlme_priv {
 
 void rtw_mlme_reset_auto_scan_int(struct adapter *adapter);
 
-struct hostapd_priv
-{
+struct hostapd_priv {
 	struct adapter *padapter;
 };
 

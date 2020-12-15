@@ -28,7 +28,7 @@ extern void * memcpy(void *,const void *,__kernel_size_t);
 extern void * memmove(void *,const void *,__kernel_size_t);
 extern int memcmp(const void *,const void *,__kernel_size_t);
 extern void * memchr(const void *,int,__kernel_size_t);
-extern void * memcpy_flushcache(void *,const void *,__kernel_size_t);
+void memcpy_flushcache(void *dest, const void *src, size_t size);
 
 void *__memset(void *s, int c, __kernel_size_t count);
 void *__memcpy(void *to, const void *from, __kernel_size_t n);

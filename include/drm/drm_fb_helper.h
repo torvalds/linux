@@ -269,7 +269,8 @@ int drm_fb_helper_debug_leave(struct fb_info *info);
 void drm_fb_helper_lastclose(struct drm_device *dev);
 void drm_fb_helper_output_poll_changed(struct drm_device *dev);
 
-int drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp);
+void drm_fbdev_generic_setup(struct drm_device *dev,
+			     unsigned int preferred_bpp);
 #else
 static inline void drm_fb_helper_prepare(struct drm_device *dev,
 					struct drm_fb_helper *helper,
@@ -443,10 +444,9 @@ static inline void drm_fb_helper_output_poll_changed(struct drm_device *dev)
 {
 }
 
-static inline int
+static inline void
 drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
 {
-	return 0;
 }
 
 #endif

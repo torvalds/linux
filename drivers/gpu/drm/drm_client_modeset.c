@@ -186,7 +186,7 @@ again:
 			continue;
 
 		if (cmdline_mode->refresh_specified) {
-			if (mode->vrefresh != cmdline_mode->refresh)
+			if (drm_mode_vrefresh(mode) != cmdline_mode->refresh)
 				continue;
 		}
 
@@ -563,7 +563,7 @@ static bool drm_client_firmware_config(struct drm_client_dev *client,
 				       struct drm_client_offset *offsets,
 				       bool *enabled, int width, int height)
 {
-	unsigned int count = min_t(unsigned int, connector_count, BITS_PER_LONG);
+	const int count = min_t(unsigned int, connector_count, BITS_PER_LONG);
 	unsigned long conn_configured, conn_seq, mask;
 	struct drm_device *dev = client->dev;
 	int i, j;
@@ -575,6 +575,9 @@ static bool drm_client_firmware_config(struct drm_client_dev *client,
 	struct drm_modeset_acquire_ctx ctx;
 
 	if (!drm_drv_uses_atomic_modeset(dev))
+		return false;
+
+	if (WARN_ON(count <= 0))
 		return false;
 
 	save_enabled = kcalloc(count, sizeof(bool), GFP_KERNEL);
@@ -966,7 +969,7 @@ bool drm_client_rotation(struct drm_mode_set *modeset, unsigned int *rotation)
 }
 EXPORT_SYMBOL(drm_client_rotation);
 
-static int drm_client_modeset_commit_atomic(struct drm_client_dev *client, bool active)
+static int drm_client_modeset_commit_atomic(struct drm_client_dev *client, bool active, bool check)
 {
 	struct drm_device *dev = client->dev;
 	struct drm_plane *plane;
@@ -1033,7 +1036,10 @@ retry:
 		}
 	}
 
-	ret = drm_atomic_commit(state);
+	if (check)
+		ret = drm_atomic_check_only(state);
+	else
+		ret = drm_atomic_commit(state);
 
 out_state:
 	if (ret == -EDEADLK)
@@ -1095,6 +1101,30 @@ out:
 }
 
 /**
+ * drm_client_modeset_check() - Check modeset configuration
+ * @client: DRM client
+ *
+ * Check modeset configuration.
+ *
+ * Returns:
+ * Zero on success or negative error code on failure.
+ */
+int drm_client_modeset_check(struct drm_client_dev *client)
+{
+	int ret;
+
+	if (!drm_drv_uses_atomic_modeset(client->dev))
+		return 0;
+
+	mutex_lock(&client->modeset_mutex);
+	ret = drm_client_modeset_commit_atomic(client, true, true);
+	mutex_unlock(&client->modeset_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL(drm_client_modeset_check);
+
+/**
  * drm_client_modeset_commit_locked() - Force commit CRTC configuration
  * @client: DRM client
  *
@@ -1112,7 +1142,7 @@ int drm_client_modeset_commit_locked(struct drm_client_dev *client)
 
 	mutex_lock(&client->modeset_mutex);
 	if (drm_drv_uses_atomic_modeset(dev))
-		ret = drm_client_modeset_commit_atomic(client, true);
+		ret = drm_client_modeset_commit_atomic(client, true, false);
 	else
 		ret = drm_client_modeset_commit_legacy(client);
 	mutex_unlock(&client->modeset_mutex);
@@ -1188,7 +1218,7 @@ int drm_client_modeset_dpms(struct drm_client_dev *client, int mode)
 
 	mutex_lock(&client->modeset_mutex);
 	if (drm_drv_uses_atomic_modeset(dev))
-		ret = drm_client_modeset_commit_atomic(client, mode == DRM_MODE_DPMS_ON);
+		ret = drm_client_modeset_commit_atomic(client, mode == DRM_MODE_DPMS_ON, false);
 	else
 		drm_client_modeset_dpms_legacy(client, mode);
 	mutex_unlock(&client->modeset_mutex);

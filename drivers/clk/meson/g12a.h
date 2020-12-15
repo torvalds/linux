@@ -70,6 +70,7 @@
 #define HHI_MALI_CLK_CNTL		0x1b0
 #define HHI_VPU_CLKC_CNTL		0x1b4
 #define HHI_VPU_CLK_CNTL		0x1bC
+#define HHI_NNA_CLK_CNTL		0x1C8
 #define HHI_HDMI_CLK_CNTL		0x1CC
 #define HHI_VDEC_CLK_CNTL		0x1E0
 #define HHI_VDEC2_CLK_CNTL		0x1E4
@@ -259,8 +260,12 @@
 #define CLKID_SPICC0_SCLK_DIV			257
 #define CLKID_SPICC1_SCLK_SEL			259
 #define CLKID_SPICC1_SCLK_DIV			260
+#define CLKID_NNA_AXI_CLK_SEL			262
+#define CLKID_NNA_AXI_CLK_DIV			263
+#define CLKID_NNA_CORE_CLK_SEL			265
+#define CLKID_NNA_CORE_CLK_DIV			266
 
-#define NR_CLKS					262
+#define NR_CLKS					268
 
 /* include the CLKIDs that have been made part of the DT binding */
 #include <dt-bindings/clock/g12a-clkc.h>

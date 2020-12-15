@@ -807,8 +807,7 @@ static int ahci_avn_hardreset(struct ata_link *link, unsigned int *class,
 				(sstatus & 0xf) != 1)
 			break;
 
-		ata_link_printk(link, KERN_INFO, "avn bounce port%d\n",
-				port);
+		ata_link_info(link,  "avn bounce port%d\n", port);
 
 		pci_read_config_word(pdev, 0x92, &val);
 		val &= ~(1 << port);

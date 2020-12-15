@@ -86,7 +86,7 @@ static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
 		mem->start = node->start;
 	}
 
-	return 0;
+	return ret;
 }
 
 static void ttm_bo_man_put_node(struct ttm_mem_type_manager *man,

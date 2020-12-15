@@ -20,7 +20,6 @@
 
 #include <asm/ptrace.h>
 #include <asm/smp.h>
-#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/vga.h>
 

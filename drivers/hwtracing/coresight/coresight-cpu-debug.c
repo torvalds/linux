@@ -346,10 +346,10 @@ static void debug_init_arch_data(void *info)
 	switch (mode) {
 	case EDDEVID_IMPL_FULL:
 		drvdata->edvidsr_present = true;
-		/* Fall through */
+		fallthrough;
 	case EDDEVID_IMPL_EDPCSR_EDCIDSR:
 		drvdata->edcidsr_present = true;
-		/* Fall through */
+		fallthrough;
 	case EDDEVID_IMPL_EDPCSR:
 		/*
 		 * In ARM DDI 0487A.k, the EDDEVID1.PCSROffset is used to

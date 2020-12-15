@@ -664,11 +664,10 @@ static void keyspan_pda_close(struct usb_serial_port *port)
 /* download the firmware to a "fake" device (pre-renumeration) */
 static int keyspan_pda_fake_startup(struct usb_serial *serial)
 {
-	int response;
 	const char *fw_name;
 
 	/* download the firmware here ... */
-	response = ezusb_fx1_set_reset(serial->dev, 1);
+	ezusb_fx1_set_reset(serial->dev, 1);
 
 	if (0) { ; }
 #ifdef KEYSPAN

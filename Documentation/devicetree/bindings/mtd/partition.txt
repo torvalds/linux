@@ -61,6 +61,9 @@ Optional properties:
   clobbered.
 - lock : Do not unlock the partition at initialization time (not supported on
   all devices)
+- slc-mode: This parameter, if present, allows one to emulate SLC mode on a
+  partition attached to an MLC NAND thus making this partition immune to
+  paired-pages corruptions
 
 Examples:
 

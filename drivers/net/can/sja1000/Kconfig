@@ -9,7 +9,7 @@ if CAN_SJA1000
 config CAN_EMS_PCI
 	tristate "EMS CPC-PCI, CPC-PCIe and CPC-104P Card"
 	depends on PCI
-	---help---
+	help
 	  This driver is for the one, two or four channel CPC-PCI,
 	  CPC-PCIe and CPC-104P cards from EMS Dr. Thomas Wuensche
 	  (http://www.ems-wuensche.de).
@@ -17,7 +17,7 @@ config CAN_EMS_PCI
 config CAN_EMS_PCMCIA
 	tristate "EMS CPC-CARD Card"
 	depends on PCMCIA
-	---help---
+	help
 	  This driver is for the one or two channel CPC-CARD cards from
 	  EMS Dr. Thomas Wuensche (http://www.ems-wuensche.de).
 
@@ -34,14 +34,14 @@ config CAN_F81601
 config CAN_KVASER_PCI
 	tristate "Kvaser PCIcanx and Kvaser PCIcan PCI Cards"
 	depends on PCI
-	---help---
+	help
 	  This driver is for the PCIcanx and PCIcan cards (1, 2 or
 	  4 channel) from Kvaser (http://www.kvaser.com).
 
 config CAN_PEAK_PCI
 	tristate "PEAK PCAN-PCI/PCIe/miniPCI Cards"
 	depends on PCI
-	---help---
+	help
 	  This driver is for the PCAN-PCI/PCIe/miniPCI cards
 	  (1, 2, 3 or 4 channels) from PEAK-System Technik
 	  (http://www.peak-system.com).
@@ -52,7 +52,7 @@ config CAN_PEAK_PCIEC
 	select I2C
 	select I2C_ALGOBIT
 	default y
-	---help---
+	help
 	  Say Y here if you want to use a PCAN-ExpressCard from PEAK-System
 	  Technik. This will also automatically select I2C and I2C_ALGO
 	  configuration options.
@@ -61,7 +61,7 @@ config CAN_PEAK_PCMCIA
 	tristate "PEAK PCAN-PC Card"
 	depends on PCMCIA
 	depends on HAS_IOPORT_MAP
-	---help---
+	help
 	  This driver is for the PCAN-PC Card PCMCIA adapter (1 or 2 channels)
 	  from PEAK-System (http://www.peak-system.com). To compile this
 	  driver as a module, choose M here: the module will be called
@@ -70,7 +70,7 @@ config CAN_PEAK_PCMCIA
 config CAN_PLX_PCI
 	tristate "PLX90xx PCI-bridge based Cards"
 	depends on PCI
-	---help---
+	help
 	  This driver is for CAN interface cards based on
 	  the PLX90xx PCI bridge.
 	  Driver supports now:
@@ -87,13 +87,13 @@ config CAN_PLX_PCI
 
 config CAN_SJA1000_ISA
 	tristate "ISA Bus based legacy SJA1000 driver"
-	---help---
+	help
 	  This driver adds legacy support for SJA1000 chips connected to
 	  the ISA bus using I/O port, memory mapped or indirect access.
 
 config CAN_SJA1000_PLATFORM
 	tristate "Generic Platform Bus based SJA1000 driver"
-	---help---
+	help
 	  This driver adds support for the SJA1000 chips connected to
 	  the "platform bus" (Linux abstraction for directly to the
 	  processor attached devices).  Which can be found on various

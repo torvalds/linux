@@ -79,4 +79,8 @@ static inline u32 intel_guc_log_get_level(struct intel_guc_log *log)
 	return log->level;
 }
 
+void intel_guc_log_info(struct intel_guc_log *log, struct drm_printer *p);
+int intel_guc_log_dump(struct intel_guc_log *log, struct drm_printer *p,
+		       bool dump_load_err);
+
 #endif

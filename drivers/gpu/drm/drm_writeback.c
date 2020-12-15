@@ -108,7 +108,6 @@ static const struct dma_fence_ops drm_writeback_fence_ops = {
 	.get_driver_name = drm_writeback_fence_get_driver_name,
 	.get_timeline_name = drm_writeback_fence_get_timeline_name,
 	.enable_signaling = drm_writeback_fence_enable_signaling,
-	.wait = dma_fence_default_wait,
 };
 
 static int create_writeback_properties(struct drm_device *dev)

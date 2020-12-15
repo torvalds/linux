@@ -759,7 +759,7 @@ static int rtsx_usb_post_reset(struct usb_interface *intf)
 	return 0;
 }
 
-static struct usb_device_id rtsx_usb_usb_ids[] = {
+static const struct usb_device_id rtsx_usb_usb_ids[] = {
 	{ USB_DEVICE(0x0BDA, 0x0129) },
 	{ USB_DEVICE(0x0BDA, 0x0139) },
 	{ USB_DEVICE(0x0BDA, 0x0140) },

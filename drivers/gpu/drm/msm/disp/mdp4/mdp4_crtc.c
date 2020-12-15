@@ -119,7 +119,7 @@ static void unref_cursor_worker(struct drm_flip_work *work, void *val)
 	struct msm_kms *kms = &mdp4_kms->base.base;
 
 	msm_gem_unpin_iova(val, kms->aspace);
-	drm_gem_object_put_unlocked(val);
+	drm_gem_object_put(val);
 }
 
 static void mdp4_crtc_destroy(struct drm_crtc *crtc)
@@ -452,7 +452,7 @@ static int mdp4_crtc_cursor_set(struct drm_crtc *crtc,
 	return 0;
 
 fail:
-	drm_gem_object_put_unlocked(cursor_bo);
+	drm_gem_object_put(cursor_bo);
 	return ret;
 }
 

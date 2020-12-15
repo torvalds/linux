@@ -1122,6 +1122,7 @@ static void __exit nmk_i2c_exit(void)
 subsys_initcall(nmk_i2c_init);
 module_exit(nmk_i2c_exit);
 
-MODULE_AUTHOR("Sachin Verma, Srinidhi KASAGAR");
+MODULE_AUTHOR("Sachin Verma");
+MODULE_AUTHOR("Srinidhi KASAGAR");
 MODULE_DESCRIPTION("Nomadik/Ux500 I2C driver");
 MODULE_LICENSE("GPL");

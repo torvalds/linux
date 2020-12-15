@@ -129,7 +129,7 @@ static int jz4740_i2s_startup(struct snd_pcm_substream *substream,
 	uint32_t conf, ctrl;
 	int ret;
 
-	if (dai->active)
+	if (snd_soc_dai_active(dai))
 		return 0;
 
 	ctrl = jz4740_i2s_read(i2s, JZ_REG_AIC_CTRL);
@@ -153,7 +153,7 @@ static void jz4740_i2s_shutdown(struct snd_pcm_substream *substream,
 	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	uint32_t conf;
 
-	if (dai->active)
+	if (snd_soc_dai_active(dai))
 		return;
 
 	conf = jz4740_i2s_read(i2s, JZ_REG_AIC_CONF);
@@ -332,7 +332,7 @@ static int jz4740_i2s_suspend(struct snd_soc_component *component)
 	struct jz4740_i2s *i2s = snd_soc_component_get_drvdata(component);
 	uint32_t conf;
 
-	if (component->active) {
+	if (snd_soc_component_active(component)) {
 		conf = jz4740_i2s_read(i2s, JZ_REG_AIC_CONF);
 		conf &= ~JZ_AIC_CONF_ENABLE;
 		jz4740_i2s_write(i2s, JZ_REG_AIC_CONF, conf);
@@ -355,7 +355,7 @@ static int jz4740_i2s_resume(struct snd_soc_component *component)
 	if (ret)
 		return ret;
 
-	if (component->active) {
+	if (snd_soc_component_active(component)) {
 		ret = clk_prepare_enable(i2s->clk_i2s);
 		if (ret) {
 			clk_disable_unprepare(i2s->clk_aic);
@@ -504,7 +504,6 @@ static const struct snd_soc_component_driver jz4740_i2s_component = {
 	.resume		= jz4740_i2s_resume,
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id jz4740_of_matches[] = {
 	{ .compatible = "ingenic,jz4740-i2s", .data = &jz4740_i2s_soc_info },
 	{ .compatible = "ingenic,jz4760-i2s", .data = &jz4760_i2s_soc_info },
@@ -513,7 +512,6 @@ static const struct of_device_id jz4740_of_matches[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, jz4740_of_matches);
-#endif
 
 static int jz4740_i2s_dev_probe(struct platform_device *pdev)
 {
@@ -558,7 +556,7 @@ static struct platform_driver jz4740_i2s_driver = {
 	.probe = jz4740_i2s_dev_probe,
 	.driver = {
 		.name = "jz4740-i2s",
-		.of_match_table = of_match_ptr(jz4740_of_matches)
+		.of_match_table = jz4740_of_matches,
 	},
 };
 

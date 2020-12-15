@@ -10,7 +10,7 @@
 #include "fscrypt_private.h"
 
 /**
- * fscrypt_file_open - prepare to open a possibly-encrypted regular file
+ * fscrypt_file_open() - prepare to open a possibly-encrypted regular file
  * @inode: the inode being opened
  * @filp: the struct file being set up
  *
@@ -262,7 +262,7 @@ err_free_sd:
 EXPORT_SYMBOL_GPL(__fscrypt_encrypt_symlink);
 
 /**
- * fscrypt_get_symlink - get the target of an encrypted symlink
+ * fscrypt_get_symlink() - get the target of an encrypted symlink
  * @inode: the symlink inode
  * @caddr: the on-disk contents of the symlink
  * @max_size: size of @caddr buffer

@@ -267,7 +267,7 @@ config MACH_TCT_HAMMER
 	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the TinCanTools Hammer Board
-	  <http://www.tincantools.com>
+	  <https://www.tincantools.com>
 
 config MACH_VR1000
 	bool "Thorcom VR1000"

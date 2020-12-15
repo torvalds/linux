@@ -727,7 +727,7 @@ static int aspeed_smc_chip_setup_finish(struct aspeed_smc_chip *chip)
 
 	/*
 	 * TODO: Adjust clocks if fast read is supported and interpret
-	 * SPI-NOR flags to adjust controller settings.
+	 * SPI NOR flags to adjust controller settings.
 	 */
 	if (chip->nor.read_proto == SNOR_PROTO_1_1_1) {
 		if (chip->nor.read_dummy == 0)

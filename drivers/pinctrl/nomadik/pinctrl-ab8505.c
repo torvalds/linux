@@ -178,6 +178,7 @@ static const struct abx500_pingroup ab8505_groups[] = {
 	AB8505_PIN_GROUP(gpio40_a_1, ABX500_ALT_A),
 	AB8505_PIN_GROUP(gpio41_a_1, ABX500_ALT_A),
 	AB8505_PIN_GROUP(uartrxdata_a_1, ABX500_ALT_A),
+	AB8505_PIN_GROUP(gpio50_a_1, ABX500_ALT_A),
 	AB8505_PIN_GROUP(gpio52_a_1, ABX500_ALT_A),
 	AB8505_PIN_GROUP(gpio53_a_1, ABX500_ALT_A),
 	AB8505_PIN_GROUP(pdmdata_b_1, ABX500_ALT_B),

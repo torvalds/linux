@@ -212,7 +212,7 @@ Next 树
 
 当前-mm 补丁可在“mmotm”（-mm of the moment）目录中找到，地址：
 
-        http://www.ozlabs.org/~akpm/mmotm/
+        https://www.ozlabs.org/~akpm/mmotm/
 
 然而，使用mmotm树可能是一种令人沮丧的体验；它甚至可能无法编译。
 
@@ -220,7 +220,7 @@ Next 树
 linux-next 是下一个合并窗口关闭后主线的快照。linux-next树在Linux-kernel 和
 Linux-next 邮件列表中发布，可从以下位置下载：
 
-        http://www.kernel.org/pub/linux/kernel/next/
+        https://www.kernel.org/pub/linux/kernel/next/
 
 Linux-next 已经成为内核开发过程中不可或缺的一部分；在一个给定的合并窗口中合并
 的所有补丁都应该在合并窗口打开之前的一段时间内找到进入Linux-next 的方法。
@@ -260,7 +260,7 @@ staging驱动程序。因此，在成为一名合适的主线驱动的路上，s
 
 现在几乎所有的Linux发行版都打包了Git。主页位于：
 
-        http://git-scm.com/
+        https://git-scm.com/
 
 那个页面有指向文档和教程的指针。
 
@@ -272,7 +272,7 @@ Mercurial与Git共享许多特性，但它提供了一个界面，许多人觉�
 
 另一个值得了解的工具是quilt:
 
-        http://savannah.nongnu.org/projects/quilt
+        https://savannah.nongnu.org/projects/quilt
 
 Quilt 是一个补丁管理系统，而不是源代码管理系统。它不会随着时间的推移跟踪历史；
 相反，它面向根据不断发展的代码库跟踪一组特定的更改。一些主要的子系统维护人员

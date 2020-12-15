@@ -12,11 +12,11 @@
  */
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/pgtable.h>
 
 #include <asm/numachip/numachip.h>
 #include <asm/numachip/numachip_csr.h>
 
-#include <asm/pgtable.h>
 
 #include "local.h"
 

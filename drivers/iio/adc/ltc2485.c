@@ -108,7 +108,6 @@ static int ltc2485_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = id->name;
 	indio_dev->info = &ltc2485_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;

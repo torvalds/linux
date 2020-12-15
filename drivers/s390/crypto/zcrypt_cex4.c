@@ -250,7 +250,7 @@ static ssize_t ep11_card_op_modes_show(struct device *dev,
 	ep11_get_card_info(ac->id, &ci, zc->online);
 
 	for (i = 0; ep11_op_modes[i].mode_txt; i++) {
-		if (ci.op_mode & (1 << ep11_op_modes[i].mode_bit)) {
+		if (ci.op_mode & (1ULL << ep11_op_modes[i].mode_bit)) {
 			if (n > 0)
 				buf[n++] = ' ';
 			n += scnprintf(buf + n, PAGE_SIZE - n,
@@ -345,7 +345,7 @@ static ssize_t ep11_queue_op_modes_show(struct device *dev,
 				     &di);
 
 	for (i = 0; ep11_op_modes[i].mode_txt; i++) {
-		if (di.op_mode & (1 << ep11_op_modes[i].mode_bit)) {
+		if (di.op_mode & (1ULL << ep11_op_modes[i].mode_bit)) {
 			if (n > 0)
 				buf[n++] = ' ';
 			n += scnprintf(buf + n, PAGE_SIZE - n,
@@ -529,22 +529,27 @@ static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
 	if (rc) {
 		ac->private = NULL;
 		zcrypt_card_free(zc);
-		goto out;
+		return rc;
 	}
 
 	if (ap_test_bit(&ac->functions, AP_FUNC_COPRO)) {
 		rc = sysfs_create_group(&ap_dev->device.kobj,
 					&cca_card_attr_grp);
-		if (rc)
+		if (rc) {
 			zcrypt_card_unregister(zc);
+			ac->private = NULL;
+			zcrypt_card_free(zc);
+		}
 	} else if (ap_test_bit(&ac->functions, AP_FUNC_EP11)) {
 		rc = sysfs_create_group(&ap_dev->device.kobj,
 					&ep11_card_attr_grp);
-		if (rc)
+		if (rc) {
 			zcrypt_card_unregister(zc);
+			ac->private = NULL;
+			zcrypt_card_free(zc);
+		}
 	}
 
-out:
 	return rc;
 }
 
@@ -617,22 +622,27 @@ static int zcrypt_cex4_queue_probe(struct ap_device *ap_dev)
 	if (rc) {
 		aq->private = NULL;
 		zcrypt_queue_free(zq);
-		goto out;
+		return rc;
 	}
 
 	if (ap_test_bit(&aq->card->functions, AP_FUNC_COPRO)) {
 		rc = sysfs_create_group(&ap_dev->device.kobj,
 					&cca_queue_attr_grp);
-		if (rc)
+		if (rc) {
 			zcrypt_queue_unregister(zq);
+			aq->private = NULL;
+			zcrypt_queue_free(zq);
+		}
 	} else if (ap_test_bit(&aq->card->functions, AP_FUNC_EP11)) {
 		rc = sysfs_create_group(&ap_dev->device.kobj,
 					&ep11_queue_attr_grp);
-		if (rc)
+		if (rc) {
 			zcrypt_queue_unregister(zq);
+			aq->private = NULL;
+			zcrypt_queue_free(zq);
+		}
 	}
 
-out:
 	return rc;
 }
 

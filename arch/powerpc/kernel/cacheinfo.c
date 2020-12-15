@@ -7,6 +7,8 @@
  * Author: Nathan Lynch
  */
 
+#define pr_fmt(fmt) "cacheinfo: " fmt
+
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/kernel.h>
@@ -166,7 +168,7 @@ static void release_cache_debugcheck(struct cache *cache)
 
 	list_for_each_entry(iter, &cache_list, list)
 		WARN_ONCE(iter->next_local == cache,
-			  "cache for %pOF(%s) refers to cache for %pOF(%s)\n",
+			  "cache for %pOFP(%s) refers to cache for %pOFP(%s)\n",
 			  iter->ofnode,
 			  cache_type_string(iter),
 			  cache->ofnode,
@@ -178,7 +180,7 @@ static void release_cache(struct cache *cache)
 	if (!cache)
 		return;
 
-	pr_debug("freeing L%d %s cache for %pOF\n", cache->level,
+	pr_debug("freeing L%d %s cache for %pOFP\n", cache->level,
 		 cache_type_string(cache), cache->ofnode);
 
 	release_cache_debugcheck(cache);
@@ -193,7 +195,7 @@ static void cache_cpu_set(struct cache *cache, int cpu)
 
 	while (next) {
 		WARN_ONCE(cpumask_test_cpu(cpu, &next->shared_cpu_map),
-			  "CPU %i already accounted in %pOF(%s)\n",
+			  "CPU %i already accounted in %pOFP(%s)\n",
 			  cpu, next->ofnode,
 			  cache_type_string(next));
 		cpumask_set_cpu(cpu, &next->shared_cpu_map);
@@ -352,7 +354,7 @@ static int cache_is_unified_d(const struct device_node *np)
 
 static struct cache *cache_do_one_devnode_unified(struct device_node *node, int level)
 {
-	pr_debug("creating L%d ucache for %pOF\n", level, node);
+	pr_debug("creating L%d ucache for %pOFP\n", level, node);
 
 	return new_cache(cache_is_unified_d(node), level, node);
 }
@@ -362,7 +364,7 @@ static struct cache *cache_do_one_devnode_split(struct device_node *node,
 {
 	struct cache *dcache, *icache;
 
-	pr_debug("creating L%d dcache and icache for %pOF\n", level,
+	pr_debug("creating L%d dcache and icache for %pOFP\n", level,
 		 node);
 
 	dcache = new_cache(CACHE_TYPE_DATA, level, node);
@@ -418,12 +420,27 @@ static void link_cache_lists(struct cache *smaller, struct cache *bigger)
 	}
 
 	smaller->next_local = bigger;
+
+	/*
+	 * The cache->next_local list sorts by level ascending:
+	 * L1d -> L1i -> L2 -> L3 ...
+	 */
+	WARN_ONCE((smaller->level == 1 && bigger->level > 2) ||
+		  (smaller->level > 1 && bigger->level != smaller->level + 1),
+		  "linking L%i cache %pOFP to L%i cache %pOFP; skipped a level?\n",
+		  smaller->level, smaller->ofnode, bigger->level, bigger->ofnode);
 }
 
 static void do_subsidiary_caches_debugcheck(struct cache *cache)
 {
-	WARN_ON_ONCE(cache->level != 1);
-	WARN_ON_ONCE(!of_node_is_type(cache->ofnode, "cpu"));
+	WARN_ONCE(cache->level != 1,
+		  "instantiating cache chain from L%d %s cache for "
+		  "%pOFP instead of an L1\n", cache->level,
+		  cache_type_string(cache), cache->ofnode);
+	WARN_ONCE(!of_node_is_type(cache->ofnode, "cpu"),
+		  "instantiating cache chain from node %pOFP of type '%s' "
+		  "instead of a cpu node\n", cache->ofnode,
+		  of_node_get_device_type(cache->ofnode));
 }
 
 static void do_subsidiary_caches(struct cache *cache)
@@ -647,12 +664,13 @@ static const struct cpumask *get_big_core_shared_cpu_map(int cpu, struct cache *
 	return &cache->shared_cpu_map;
 }
 
-static ssize_t shared_cpu_map_show(struct kobject *k, struct kobj_attribute *attr, char *buf)
+static ssize_t
+show_shared_cpumap(struct kobject *k, struct kobj_attribute *attr, char *buf, bool list)
 {
 	struct cache_index_dir *index;
 	struct cache *cache;
 	const struct cpumask *mask;
-	int ret, cpu;
+	int cpu;
 
 	index = kobj_to_cache_index_dir(k);
 	cache = index->cache;
@@ -664,15 +682,24 @@ static ssize_t shared_cpu_map_show(struct kobject *k, struct kobj_attribute *att
 		mask  = &cache->shared_cpu_map;
 	}
 
-	ret = scnprintf(buf, PAGE_SIZE - 1, "%*pb\n",
-			cpumask_pr_args(mask));
-	buf[ret++] = '\n';
-	buf[ret] = '\0';
-	return ret;
+	return cpumap_print_to_pagebuf(list, buf, mask);
+}
+
+static ssize_t shared_cpu_map_show(struct kobject *k, struct kobj_attribute *attr, char *buf)
+{
+	return show_shared_cpumap(k, attr, buf, false);
+}
+
+static ssize_t shared_cpu_list_show(struct kobject *k, struct kobj_attribute *attr, char *buf)
+{
+	return show_shared_cpumap(k, attr, buf, true);
 }
 
 static struct kobj_attribute cache_shared_cpu_map_attr =
 	__ATTR(shared_cpu_map, 0444, shared_cpu_map_show, NULL);
+
+static struct kobj_attribute cache_shared_cpu_list_attr =
+	__ATTR(shared_cpu_list, 0444, shared_cpu_list_show, NULL);
 
 /* Attributes which should always be created -- the kobject/sysfs core
  * does this automatically via kobj_type->default_attrs.  This is the
@@ -682,6 +709,7 @@ static struct attribute *cache_index_default_attrs[] = {
 	&cache_type_attr.attr,
 	&cache_level_attr.attr,
 	&cache_shared_cpu_map_attr.attr,
+	&cache_shared_cpu_list_attr.attr,
 	NULL,
 };
 
@@ -733,13 +761,13 @@ static void cacheinfo_create_index_opt_attrs(struct cache_index_dir *dir)
 		rc = attr->show(&dir->kobj, attr, buf);
 		if (rc <= 0) {
 			pr_debug("not creating %s attribute for "
-				 "%pOF(%s) (rc = %zd)\n",
+				 "%pOFP(%s) (rc = %zd)\n",
 				 attr->attr.name, cache->ofnode,
 				 cache_type, rc);
 			continue;
 		}
 		if (sysfs_create_file(&dir->kobj, &attr->attr))
-			pr_debug("could not create %s attribute for %pOF(%s)\n",
+			pr_debug("could not create %s attribute for %pOFP(%s)\n",
 				 attr->attr.name, cache->ofnode, cache_type);
 	}
 
@@ -855,7 +883,7 @@ static void cache_cpu_clear(struct cache *cache, int cpu)
 		struct cache *next = cache->next_local;
 
 		WARN_ONCE(!cpumask_test_cpu(cpu, &cache->shared_cpu_map),
-			  "CPU %i not accounted in %pOF(%s)\n",
+			  "CPU %i not accounted in %pOFP(%s)\n",
 			  cpu, cache->ofnode,
 			  cache_type_string(cache));
 

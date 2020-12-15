@@ -19,7 +19,11 @@
  * but it is not widely used and to prevent kernel crash rather AES is disabled.
  * There is also no runtime detection code if AES is disabled in L3 firewall...
  */
-&aes {
+&aes1_target {
+	status = "disabled";
+};
+
+&aes2_target {
 	status = "disabled";
 };
 

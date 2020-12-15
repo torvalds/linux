@@ -33,6 +33,10 @@ struct max8998_data {
 	unsigned int		buck2_idx;
 };
 
+static const unsigned int charger_current_table[] = {
+	90000, 380000, 475000, 550000, 570000, 600000, 700000, 800000,
+};
+
 static int max8998_get_enable_register(struct regulator_dev *rdev,
 					int *reg, int *shift)
 {
@@ -63,6 +67,10 @@ static int max8998_get_enable_register(struct regulator_dev *rdev,
 		*reg = MAX8998_REG_CHGR2;
 		*shift = 7 - (ldo - MAX8998_ESAFEOUT1);
 		break;
+	case MAX8998_CHARGER:
+		*reg = MAX8998_REG_CHGR2;
+		*shift = 0;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -86,6 +94,11 @@ static int max8998_ldo_is_enabled(struct regulator_dev *rdev)
 		return ret;
 
 	return val & (1 << shift);
+}
+
+static int max8998_ldo_is_enabled_inverted(struct regulator_dev *rdev)
+{
+	return (!max8998_ldo_is_enabled(rdev));
 }
 
 static int max8998_ldo_enable(struct regulator_dev *rdev)
@@ -358,6 +371,74 @@ static int max8998_set_voltage_buck_time_sel(struct regulator_dev *rdev,
 	return 0;
 }
 
+static int max8998_set_current_limit(struct regulator_dev *rdev,
+				     int min_uA, int max_uA)
+{
+	struct max8998_data *max8998 = rdev_get_drvdata(rdev);
+	struct i2c_client *i2c = max8998->iodev->i2c;
+	unsigned int n_currents = rdev->desc->n_current_limits;
+	int i, sel = -1;
+
+	if (n_currents == 0)
+		return -EINVAL;
+
+	if (rdev->desc->curr_table) {
+		const unsigned int *curr_table = rdev->desc->curr_table;
+		bool ascend = curr_table[n_currents - 1] > curr_table[0];
+
+		/* search for closest to maximum */
+		if (ascend) {
+			for (i = n_currents - 1; i >= 0; i--) {
+				if (min_uA <= curr_table[i] &&
+				    curr_table[i] <= max_uA) {
+					sel = i;
+					break;
+				}
+			}
+		} else {
+			for (i = 0; i < n_currents; i++) {
+				if (min_uA <= curr_table[i] &&
+				    curr_table[i] <= max_uA) {
+					sel = i;
+					break;
+				}
+			}
+		}
+	}
+
+	if (sel < 0)
+		return -EINVAL;
+
+	sel <<= ffs(rdev->desc->csel_mask) - 1;
+
+	return max8998_update_reg(i2c, rdev->desc->csel_reg,
+				  sel, rdev->desc->csel_mask);
+}
+
+static int max8998_get_current_limit(struct regulator_dev *rdev)
+{
+	struct max8998_data *max8998 = rdev_get_drvdata(rdev);
+	struct i2c_client *i2c = max8998->iodev->i2c;
+	u8 val;
+	int ret;
+
+	ret = max8998_read_reg(i2c, rdev->desc->csel_reg, &val);
+	if (ret != 0)
+		return ret;
+
+	val &= rdev->desc->csel_mask;
+	val >>= ffs(rdev->desc->csel_mask) - 1;
+
+	if (rdev->desc->curr_table) {
+		if (val >= rdev->desc->n_current_limits)
+			return -EINVAL;
+
+		return rdev->desc->curr_table[val];
+	}
+
+	return -EINVAL;
+}
+
 static const struct regulator_ops max8998_ldo_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
@@ -379,6 +460,15 @@ static const struct regulator_ops max8998_buck_ops = {
 	.set_voltage_time_sel	= max8998_set_voltage_buck_time_sel,
 };
 
+static const struct regulator_ops max8998_charger_ops = {
+	.set_current_limit	= max8998_set_current_limit,
+	.get_current_limit	= max8998_get_current_limit,
+	.is_enabled		= max8998_ldo_is_enabled_inverted,
+	/* Swapped as register is inverted */
+	.enable			= max8998_ldo_disable,
+	.disable		= max8998_ldo_enable,
+};
+
 static const struct regulator_ops max8998_others_ops = {
 	.is_enabled		= max8998_ldo_is_enabled,
 	.enable			= max8998_ldo_enable,
@@ -394,6 +484,19 @@ static const struct regulator_ops max8998_others_ops = {
 		.uV_step = (_step), \
 		.n_voltages = ((_max) - (_min)) / (_step) + 1, \
 		.type = REGULATOR_VOLTAGE, \
+		.owner = THIS_MODULE, \
+	}
+
+#define MAX8998_CURRENT_REG(_name, _ops, _table, _reg, _mask) \
+	{ \
+		.name = #_name, \
+		.id = MAX8998_##_name, \
+		.ops = _ops, \
+		.curr_table = _table, \
+		.n_current_limits = ARRAY_SIZE(_table), \
+		.csel_reg = _reg, \
+		.csel_mask = _mask, \
+		.type = REGULATOR_CURRENT, \
 		.owner = THIS_MODULE, \
 	}
 
@@ -432,6 +535,8 @@ static const struct regulator_desc regulators[] = {
 	MAX8998_OTHERS_REG(ENVICHG, MAX8998_ENVICHG),
 	MAX8998_OTHERS_REG(ESAFEOUT1, MAX8998_ESAFEOUT1),
 	MAX8998_OTHERS_REG(ESAFEOUT2, MAX8998_ESAFEOUT2),
+	MAX8998_CURRENT_REG(CHARGER, &max8998_charger_ops,
+			    charger_current_table, MAX8998_REG_CHGR1, 0x7),
 };
 
 static int max8998_pmic_dt_parse_dvs_gpio(struct max8998_dev *iodev,

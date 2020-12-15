@@ -15,16 +15,16 @@ properties:
     oneOf:
       - const: allwinner,sun4i-a10-crypto
       - items:
-        - const: allwinner,sun5i-a13-crypto
-        - const: allwinner,sun4i-a10-crypto
+          - const: allwinner,sun5i-a13-crypto
+          - const: allwinner,sun4i-a10-crypto
       - items:
-        - const: allwinner,sun6i-a31-crypto
-        - const: allwinner,sun4i-a10-crypto
+          - const: allwinner,sun6i-a31-crypto
+          - const: allwinner,sun4i-a10-crypto
       - items:
-        - const: allwinner,sun7i-a20-crypto
-        - const: allwinner,sun4i-a10-crypto
+          - const: allwinner,sun7i-a20-crypto
+          - const: allwinner,sun4i-a10-crypto
       - items:
-        - const: allwinner,sun8i-a33-crypto
+          - const: allwinner,sun8i-a33-crypto
 
   reg:
     maxItems: 1

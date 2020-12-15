@@ -2,7 +2,7 @@
 /*
  * amd5536udc_pci.c -- AMD 5536 UDC high/full speed USB device controller
  *
- * Copyright (C) 2005-2007 AMD (http://www.amd.com)
+ * Copyright (C) 2005-2007 AMD (https://www.amd.com)
  * Author: Thomas Dahlmann
  */
 
@@ -49,7 +49,6 @@
 static struct udc *udc;
 
 /* description */
-static const char mod_desc[] = UDC_MOD_DESCRIPTION;
 static const char name[] = "amd5536udc-pci";
 
 /* Reset all pci context */

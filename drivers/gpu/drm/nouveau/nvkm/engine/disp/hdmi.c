@@ -23,55 +23,55 @@ void pack_hdmi_infoframe(struct packed_hdmi_infoframe *packed_frame,
 		 */
 	case 17:
 		subpack1_high = (raw_frame[16] << 16);
-		/* fall through */
+		fallthrough;
 	case 16:
 		subpack1_high |= (raw_frame[15] << 8);
-		/* fall through */
+		fallthrough;
 	case 15:
 		subpack1_high |= raw_frame[14];
-		/* fall through */
+		fallthrough;
 	case 14:
 		subpack1_low = (raw_frame[13] << 24);
-		/* fall through */
+		fallthrough;
 	case 13:
 		subpack1_low |= (raw_frame[12] << 16);
-		/* fall through */
+		fallthrough;
 	case 12:
 		subpack1_low |= (raw_frame[11] << 8);
-		/* fall through */
+		fallthrough;
 	case 11:
 		subpack1_low |= raw_frame[10];
-		/* fall through */
+		fallthrough;
 	case 10:
 		subpack0_high = (raw_frame[9] << 16);
-		/* fall through */
+		fallthrough;
 	case 9:
 		subpack0_high |= (raw_frame[8] << 8);
-		/* fall through */
+		fallthrough;
 	case 8:
 		subpack0_high |= raw_frame[7];
-		/* fall through */
+		fallthrough;
 	case 7:
 		subpack0_low = (raw_frame[6] << 24);
-		/* fall through */
+		fallthrough;
 	case 6:
 		subpack0_low |= (raw_frame[5] << 16);
-		/* fall through */
+		fallthrough;
 	case 5:
 		subpack0_low |= (raw_frame[4] << 8);
-		/* fall through */
+		fallthrough;
 	case 4:
 		subpack0_low |= raw_frame[3];
-		/* fall through */
+		fallthrough;
 	case 3:
 		header = (raw_frame[2] << 16);
-		/* fall through */
+		fallthrough;
 	case 2:
 		header |= (raw_frame[1] << 8);
-		/* fall through */
+		fallthrough;
 	case 1:
 		header |= raw_frame[0];
-		/* fall through */
+		fallthrough;
 	case 0:
 		break;
 	}

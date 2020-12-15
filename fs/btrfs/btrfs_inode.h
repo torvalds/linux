@@ -7,6 +7,7 @@
 #define BTRFS_INODE_H
 
 #include <linux/hash.h>
+#include <linux/refcount.h>
 #include "extent_map.h"
 #include "extent_io.h"
 #include "ordered-data.h"
@@ -151,6 +152,17 @@ struct btrfs_inode {
 	u64 last_unlink_trans;
 
 	/*
+	 * The id/generation of the last transaction where this inode was
+	 * either the source or the destination of a clone/dedupe operation.
+	 * Used when logging an inode to know if there are shared extents that
+	 * need special care when logging checksum items, to avoid duplicate
+	 * checksum items in a log (which can lead to a corruption where we end
+	 * up with missing checksum ranges after log replay).
+	 * Protected by the vfs inode lock.
+	 */
+	u64 last_reflink_trans;
+
+	/*
 	 * Number of bytes outstanding that are going to need csums.  This is
 	 * used in ENOSPC accounting.
 	 */
@@ -293,34 +305,23 @@ static inline int btrfs_inode_in_log(struct btrfs_inode *inode, u64 generation)
 	return ret;
 }
 
-#define BTRFS_DIO_ORIG_BIO_SUBMITTED	0x1
-
 struct btrfs_dio_private {
 	struct inode *inode;
-	unsigned long flags;
 	u64 logical_offset;
 	u64 disk_bytenr;
 	u64 bytes;
-	void *private;
 
-	/* number of bios pending for this dio */
-	atomic_t pending_bios;
-
-	/* IO errors */
-	int errors;
-
-	/* orig_bio is our btrfs_io_bio */
-	struct bio *orig_bio;
+	/*
+	 * References to this structure. There is one reference per in-flight
+	 * bio plus one while we're still setting up.
+	 */
+	refcount_t refs;
 
 	/* dio_bio came from fs/direct-io.c */
 	struct bio *dio_bio;
 
-	/*
-	 * The original bio may be split to several sub-bios, this is
-	 * done during endio of sub-bios
-	 */
-	blk_status_t (*subio_endio)(struct inode *, struct btrfs_io_bio *,
-			blk_status_t);
+	/* Array of checksums */
+	u8 csums[];
 };
 
 /*

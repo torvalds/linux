@@ -63,7 +63,7 @@ which can then be compiled to AML binary format::
     ASL Input:     minnomax.asl - 30 lines, 614 bytes, 7 keywords
     AML Output:    minnowmax.aml - 165 bytes, 6 named objects, 1 executable opcodes
 
-[1] http://wiki.minnowboard.org/MinnowBoard_MAX#Low_Speed_Expansion_Connector_.28Top.29
+[1] https://www.elinux.org/Minnowboard:MinnowMax#Low_Speed_Expansion_.28Top.29
 
 The resulting AML code can then be loaded by the kernel using one of the methods
 below.

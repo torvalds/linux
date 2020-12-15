@@ -20,8 +20,8 @@ properties:
     oneOf:
       - const: allwinner,sun8i-a83t-de2-rotate
       - items:
-        - const: allwinner,sun50i-a64-de2-rotate
-        - const: allwinner,sun8i-a83t-de2-rotate
+          - const: allwinner,sun50i-a64-de2-rotate
+          - const: allwinner,sun8i-a83t-de2-rotate
 
   reg:
     maxItems: 1

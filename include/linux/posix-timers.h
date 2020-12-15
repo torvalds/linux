@@ -6,6 +6,7 @@
 #include <linux/list.h>
 #include <linux/alarmtimer.h>
 #include <linux/timerqueue.h>
+#include <linux/task_work.h>
 
 struct kernel_siginfo;
 struct task_struct;
@@ -125,6 +126,16 @@ struct posix_cputimers {
 	unsigned int			expiry_active;
 };
 
+/**
+ * posix_cputimers_work - Container for task work based posix CPU timer expiry
+ * @work:	The task work to be scheduled
+ * @scheduled:  @work has been scheduled already, no further processing
+ */
+struct posix_cputimers_work {
+	struct callback_head	work;
+	unsigned int		scheduled;
+};
+
 static inline void posix_cputimers_init(struct posix_cputimers *pct)
 {
 	memset(pct, 0, sizeof(*pct));
@@ -163,6 +174,12 @@ struct cpu_timer { };
 static inline void posix_cputimers_init(struct posix_cputimers *pct) { }
 static inline void posix_cputimers_group_init(struct posix_cputimers *pct,
 					      u64 cpu_limit) { }
+#endif
+
+#ifdef CONFIG_POSIX_CPU_TIMERS_TASK_WORK
+void posix_cputimers_init_work(void);
+#else
+static inline void posix_cputimers_init_work(void) { }
 #endif
 
 #define REQUEUE_PENDING 1

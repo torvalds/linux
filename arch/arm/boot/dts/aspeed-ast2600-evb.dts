@@ -213,3 +213,7 @@
 &i2c15 {
 	status = "okay";
 };
+
+&fsim0 {
+	status = "okay";
+};

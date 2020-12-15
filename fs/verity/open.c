@@ -221,11 +221,20 @@ out:
 void fsverity_set_info(struct inode *inode, struct fsverity_info *vi)
 {
 	/*
-	 * Multiple processes may race to set ->i_verity_info, so use cmpxchg.
-	 * This pairs with the READ_ONCE() in fsverity_get_info().
+	 * Multiple tasks may race to set ->i_verity_info, so use
+	 * cmpxchg_release().  This pairs with the smp_load_acquire() in
+	 * fsverity_get_info().  I.e., here we publish ->i_verity_info with a
+	 * RELEASE barrier so that other tasks can ACQUIRE it.
 	 */
-	if (cmpxchg(&inode->i_verity_info, NULL, vi) != NULL)
+	if (cmpxchg_release(&inode->i_verity_info, NULL, vi) != NULL) {
+		/* Lost the race, so free the fsverity_info we allocated. */
 		fsverity_free_info(vi);
+		/*
+		 * Afterwards, the caller may access ->i_verity_info directly,
+		 * so make sure to ACQUIRE the winning fsverity_info.
+		 */
+		(void)fsverity_get_info(inode);
+	}
 }
 
 void fsverity_free_info(struct fsverity_info *vi)
@@ -330,6 +339,7 @@ EXPORT_SYMBOL_GPL(fsverity_prepare_setattr);
 
 /**
  * fsverity_cleanup_inode() - free the inode's verity info, if present
+ * @inode: an inode being evicted
  *
  * Filesystems must call this on inode eviction to free ->i_verity_info.
  */

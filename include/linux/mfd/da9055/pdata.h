@@ -35,7 +35,7 @@ struct da9055_pdata {
 	int *gpio_rsel;
 	/*
 	 * Regulator mode control bits value (GPI offset) that
-	 * that controls the regulator state, 0 if not available.
+	 * controls the regulator state, 0 if not available.
 	 */
 	enum gpio_select *reg_ren;
 	/*

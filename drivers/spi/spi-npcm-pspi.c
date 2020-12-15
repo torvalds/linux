@@ -10,8 +10,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
 #include <linux/reset.h>
 
 #include <asm/unaligned.h>
@@ -344,15 +342,8 @@ static int npcm_pspi_probe(struct platform_device *pdev)
 	struct npcm_pspi *priv;
 	struct spi_master *master;
 	unsigned long clk_hz;
-	struct device_node *np = pdev->dev.of_node;
-	int num_cs, i;
-	int csgpio;
 	int irq;
 	int ret;
-
-	num_cs = of_gpio_named_count(np, "cs-gpios");
-	if (num_cs < 0)
-		return num_cs;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*priv));
 	if (!master)
@@ -418,24 +409,7 @@ static int npcm_pspi_probe(struct platform_device *pdev)
 		npcm_pspi_prepare_transfer_hardware;
 	master->unprepare_transfer_hardware =
 		npcm_pspi_unprepare_transfer_hardware;
-	master->num_chipselect = num_cs;
-
-	for (i = 0; i < num_cs; i++) {
-		csgpio = of_get_named_gpio(np, "cs-gpios", i);
-		if (csgpio < 0) {
-			dev_err(&pdev->dev, "failed to get csgpio#%u\n", i);
-			goto out_disable_clk;
-		}
-		dev_dbg(&pdev->dev, "csgpio#%u = %d\n", i, csgpio);
-		ret = devm_gpio_request_one(&pdev->dev, csgpio,
-					    GPIOF_OUT_INIT_HIGH, DRIVER_NAME);
-		if (ret < 0) {
-			dev_err(&pdev->dev,
-				"failed to configure csgpio#%u %d\n"
-				, i, csgpio);
-			goto out_disable_clk;
-		}
-	}
+	master->use_gpio_descriptors = true;
 
 	/* set to default clock rate */
 	npcm_pspi_set_baudrate(priv, NPCM_PSPI_DEFAULT_CLK);

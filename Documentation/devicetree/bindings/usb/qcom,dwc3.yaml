@@ -1,0 +1,174 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/qcom,dwc3.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm SuperSpeed DWC3 USB SoC controller
+
+maintainers:
+  - Manu Gautam <mgautam@codeaurora.org>
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - qcom,msm8996-dwc3
+          - qcom,msm8998-dwc3
+          - qcom,sc7180-dwc3
+          - qcom,sdm845-dwc3
+      - const: qcom,dwc3
+
+  reg:
+    description: Offset and length of register set for QSCRATCH wrapper
+    maxItems: 1
+
+  "#address-cells":
+    enum: [ 1, 2 ]
+
+  "#size-cells":
+    enum: [ 1, 2 ]
+
+  ranges: true
+
+  power-domains:
+    description: specifies a phandle to PM domain provider node
+    maxItems: 1
+
+  clocks:
+    description:
+      A list of phandle and clock-specifier pairs for the clocks
+      listed in clock-names.
+    items:
+      - description: System Config NOC clock.
+      - description: Master/Core clock, has to be >= 125 MHz
+          for SS operation and >= 60MHz for HS operation.
+      - description: System bus AXI clock.
+      - description: Mock utmi clock needed for ITP/SOF generation
+          in host mode. Its frequency should be 19.2MHz.
+      - description: Sleep clock, used for wakeup when
+          USB3 core goes into low power mode (U3).
+
+  clock-names:
+    items:
+      - const: cfg_noc
+      - const: core
+      - const: iface
+      - const: mock_utmi
+      - const: sleep
+
+  assigned-clocks:
+    items:
+      - description: Phandle and clock specifier of MOCK_UTMI_CLK.
+      - description: Phandle and clock specifoer of MASTER_CLK.
+
+  assigned-clock-rates:
+    items:
+      - description: Must be 19.2MHz (19200000).
+      - description: Must be >= 60 MHz in HS mode, >= 125 MHz in SS mode.
+  resets:
+    maxItems: 1
+
+  interconnects:
+    maxItems: 2
+
+  interconnect-names:
+    items:
+      - const: usb-ddr
+      - const: apps-usb
+
+  interrupts:
+    items:
+      - description: The interrupt that is asserted
+          when a wakeup event is received on USB2 bus.
+      - description: The interrupt that is asserted
+          when a wakeup event is received on USB3 bus.
+      - description: Wakeup event on DM line.
+      - description: Wakeup event on DP line.
+
+  interrupt-names:
+    items:
+      - const: hs_phy_irq
+      - const: ss_phy_irq
+      - const: dm_hs_phy_irq
+      - const: dp_hs_phy_irq
+
+  qcom,select-utmi-as-pipe-clk:
+    description:
+      If present, disable USB3 pipe_clk requirement.
+      Used when dwc3 operates without SSPHY and only
+      HS/FS/LS modes are supported.
+    type: boolean
+
+# Required child node:
+
+patternProperties:
+  "^dwc3@[0-9a-f]+$":
+    type: object
+    description:
+      A child node must exist to represent the core DWC3 IP block
+      The content of the node is defined in dwc3.txt.
+
+required:
+  - compatible
+  - reg
+  - "#address-cells"
+  - "#size-cells"
+  - ranges
+  - power-domains
+  - clocks
+  - clock-names
+  - interrupts
+  - interrupt-names
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,gcc-sdm845.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        usb@a6f8800 {
+            compatible = "qcom,sdm845-dwc3", "qcom,dwc3";
+            reg = <0 0x0a6f8800 0 0x400>;
+
+            #address-cells = <2>;
+            #size-cells = <2>;
+            ranges;
+            clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
+                     <&gcc GCC_USB30_PRIM_MASTER_CLK>,
+                     <&gcc GCC_AGGRE_USB3_PRIM_AXI_CLK>,
+                     <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
+                     <&gcc GCC_USB30_PRIM_SLEEP_CLK>;
+            clock-names = "cfg_noc", "core", "iface", "mock_utmi",
+                      "sleep";
+
+            assigned-clocks = <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
+                          <&gcc GCC_USB30_PRIM_MASTER_CLK>;
+            assigned-clock-rates = <19200000>, <150000000>;
+
+            interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 486 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 488 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 489 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-names = "hs_phy_irq", "ss_phy_irq",
+                          "dm_hs_phy_irq", "dp_hs_phy_irq";
+
+            power-domains = <&gcc USB30_PRIM_GDSC>;
+
+            resets = <&gcc GCC_USB30_PRIM_BCR>;
+
+            dwc3@a600000 {
+                compatible = "snps,dwc3";
+                reg = <0 0x0a600000 0 0xcd00>;
+                interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
+                iommus = <&apps_smmu 0x740 0>;
+                snps,dis_u2_susphy_quirk;
+                snps,dis_enblslpm_quirk;
+                phys = <&usb_1_hsphy>, <&usb_1_ssphy>;
+                phy-names = "usb2-phy", "usb3-phy";
+            };
+        };
+    };

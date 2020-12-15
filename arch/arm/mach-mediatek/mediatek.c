@@ -9,7 +9,7 @@
 #include <linux/io.h>
 #include <asm/mach/arch.h>
 #include <linux/of.h>
-#include <linux/clk-provider.h>
+#include <linux/of_clk.h>
 #include <linux/clocksource.h>
 
 

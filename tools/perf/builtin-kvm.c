@@ -69,7 +69,7 @@ void exit_event_get_key(struct evsel *evsel,
 			struct event_key *key)
 {
 	key->info = 0;
-	key->key = perf_evsel__intval(evsel, sample, kvm_exit_reason);
+	key->key  = evsel__intval(evsel, sample, kvm_exit_reason);
 }
 
 bool kvm_exit_event(struct evsel *evsel)
@@ -416,8 +416,7 @@ struct vcpu_event_record *per_vcpu_record(struct thread *thread,
 			return NULL;
 		}
 
-		vcpu_record->vcpu_id = perf_evsel__intval(evsel, sample,
-							  vcpu_id_str);
+		vcpu_record->vcpu_id = evsel__intval(evsel, sample, vcpu_id_str);
 		thread__set_priv(thread, vcpu_record);
 	}
 
@@ -1033,16 +1032,16 @@ static int kvm_live_open_events(struct perf_kvm_stat *kvm)
 		struct perf_event_attr *attr = &pos->core.attr;
 
 		/* make sure these *are* set */
-		perf_evsel__set_sample_bit(pos, TID);
-		perf_evsel__set_sample_bit(pos, TIME);
-		perf_evsel__set_sample_bit(pos, CPU);
-		perf_evsel__set_sample_bit(pos, RAW);
+		evsel__set_sample_bit(pos, TID);
+		evsel__set_sample_bit(pos, TIME);
+		evsel__set_sample_bit(pos, CPU);
+		evsel__set_sample_bit(pos, RAW);
 		/* make sure these are *not*; want as small a sample as possible */
-		perf_evsel__reset_sample_bit(pos, PERIOD);
-		perf_evsel__reset_sample_bit(pos, IP);
-		perf_evsel__reset_sample_bit(pos, CALLCHAIN);
-		perf_evsel__reset_sample_bit(pos, ADDR);
-		perf_evsel__reset_sample_bit(pos, READ);
+		evsel__reset_sample_bit(pos, PERIOD);
+		evsel__reset_sample_bit(pos, IP);
+		evsel__reset_sample_bit(pos, CALLCHAIN);
+		evsel__reset_sample_bit(pos, ADDR);
+		evsel__reset_sample_bit(pos, READ);
 		attr->mmap = 0;
 		attr->comm = 0;
 		attr->task = 0;
@@ -1320,7 +1319,7 @@ static struct evlist *kvm_live_event_list(void)
 		*name = '\0';
 		name++;
 
-		if (perf_evlist__add_newtp(evlist, sys, name, NULL)) {
+		if (evlist__add_newtp(evlist, sys, name, NULL)) {
 			pr_err("Failed to add %s tracepoint to the list\n", *events_tp);
 			free(tp);
 			goto out;

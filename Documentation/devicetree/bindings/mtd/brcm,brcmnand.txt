@@ -20,6 +20,8 @@ Required properties:
                      "brcm,brcmnand" and an appropriate version compatibility
                      string, like "brcm,brcmnand-v7.0"
                      Possible values:
+                         brcm,brcmnand-v2.1
+                         brcm,brcmnand-v2.2
                          brcm,brcmnand-v4.0
                          brcm,brcmnand-v5.0
                          brcm,brcmnand-v6.0

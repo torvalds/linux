@@ -604,9 +604,8 @@ static void encx24j600_set_rxfilter_mode(struct encx24j600_priv *priv)
 	}
 }
 
-static int encx24j600_hw_init(struct encx24j600_priv *priv)
+static void encx24j600_hw_init(struct encx24j600_priv *priv)
 {
-	int ret = 0;
 	u16 macon2;
 
 	priv->hw_enabled = false;
@@ -649,8 +648,6 @@ static int encx24j600_hw_init(struct encx24j600_priv *priv)
 
 	if (netif_msg_hw(priv))
 		encx24j600_dump_config(priv, "Hw is initialized");
-
-	return ret;
 }
 
 static void encx24j600_hw_enable(struct encx24j600_priv *priv)
@@ -1042,12 +1039,7 @@ static int encx24j600_spi_probe(struct spi_device *spi)
 	}
 
 	/* Initialize the device HW to the consistent state */
-	if (encx24j600_hw_init(priv)) {
-		netif_err(priv, probe, ndev,
-			  DRV_NAME ": HW initialization error\n");
-		ret = -EIO;
-		goto out_free;
-	}
+	encx24j600_hw_init(priv);
 
 	kthread_init_worker(&priv->kworker);
 	kthread_init_work(&priv->tx_work, encx24j600_tx_proc);

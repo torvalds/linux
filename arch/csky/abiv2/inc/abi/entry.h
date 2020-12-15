@@ -136,8 +136,6 @@
 
 .macro	RESTORE_REGS_FTRACE
 	ldw	tls, (sp, 0)
-	ldw	a0, (sp, 16)
-	mtcr	a0, ss0
 
 #ifdef CONFIG_CPU_HAS_HILO
 	ldw	a0, (sp, 140)
@@ -158,7 +156,6 @@
 	addi    sp, 40
 	ldm     r16-r30, (sp)
 	addi    sp, 72
-	mfcr	sp, ss0
 .endm
 
 .macro SAVE_SWITCH_STACK

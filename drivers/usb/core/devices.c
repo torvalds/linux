@@ -133,6 +133,10 @@ static const struct class_info clas_info[] = {
 	{USB_CLASS_CSCID,		"scard"},
 	{USB_CLASS_CONTENT_SEC,		"c-sec"},
 	{USB_CLASS_VIDEO,		"video"},
+	{USB_CLASS_PERSONAL_HEALTHCARE,	"perhc"},
+	{USB_CLASS_AUDIO_VIDEO,		"av"},
+	{USB_CLASS_BILLBOARD,		"blbrd"},
+	{USB_CLASS_USB_TYPE_C_BRIDGE,	"bridg"},
 	{USB_CLASS_WIRELESS_CONTROLLER,	"wlcon"},
 	{USB_CLASS_MISC,		"misc"},
 	{USB_CLASS_APP_SPEC,		"app."},
@@ -598,8 +602,6 @@ static ssize_t usb_device_read(struct file *file, char __user *buf,
 		return -EINVAL;
 	if (nbytes <= 0)
 		return 0;
-	if (!access_ok(buf, nbytes))
-		return -EFAULT;
 
 	mutex_lock(&usb_bus_idr_lock);
 	/* print devices for all busses */

@@ -11,7 +11,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Texas Instruments website
 
-	       http://www.ti.com/product/lm73
+	       https://www.ti.com/product/lm73
 
 
 Author: Guillaume Ligneul <guillaume.ligneul@gmail.com>

@@ -357,7 +357,7 @@ snd_pcm_format_t snd_pcm_plug_slave_format(snd_pcm_format_t format,
 				if (snd_mask_test(format_mask, (__force int)format1))
 					return format1;
 			}
-			/* fall through */
+			fallthrough;
 		default:
 			return (__force snd_pcm_format_t)-EINVAL;
 		}

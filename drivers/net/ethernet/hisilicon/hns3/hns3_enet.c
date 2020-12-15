@@ -8,6 +8,7 @@
 #include <linux/cpu_rmap.h>
 #endif
 #include <linux/if_vlan.h>
+#include <linux/irq.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/module.h>
@@ -15,12 +16,12 @@
 #include <linux/aer.h>
 #include <linux/skbuff.h>
 #include <linux/sctp.h>
-#include <linux/vermagic.h>
 #include <net/gre.h>
 #include <net/ip6_checksum.h>
 #include <net/pkt_cls.h>
 #include <net/tcp.h>
 #include <net/vxlan.h>
+#include <net/geneve.h>
 
 #include "hnae3.h"
 #include "hns3_enet.h"
@@ -41,10 +42,8 @@
 	} while (0)
 
 static void hns3_clear_all_ring(struct hnae3_handle *h, bool force);
-static void hns3_remove_hw_addr(struct net_device *netdev);
 
 static const char hns3_driver_name[] = "hns3";
-const char hns3_driver_version[] = VERMAGIC_STRING;
 static const char hns3_driver_string[] =
 			"Hisilicon Ethernet Network Driver for Hip08 Family";
 static const char hns3_copyright[] = "Copyright (c) 2017 Huawei Corporation.";
@@ -157,6 +156,7 @@ static int hns3_nic_init_irq(struct hns3_nic_priv *priv)
 
 		tqp_vectors->name[HNAE3_INT_NAME_LEN - 1] = '\0';
 
+		irq_set_status_flags(tqp_vectors->vector_irq, IRQ_NOAUTOEN);
 		ret = request_irq(tqp_vectors->vector_irq, hns3_irq_handle, 0,
 				  tqp_vectors->name, tqp_vectors);
 		if (ret) {
@@ -165,8 +165,6 @@ static int hns3_nic_init_irq(struct hns3_nic_priv *priv)
 			hns3_nic_uninit_irq(priv);
 			return ret;
 		}
-
-		disable_irq(tqp_vectors->vector_irq);
 
 		irq_set_affinity_hint(tqp_vectors->vector_irq,
 				      &tqp_vectors->affinity_mask);
@@ -550,6 +548,13 @@ static int hns3_nic_uc_unsync(struct net_device *netdev,
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 
+	/* need ignore the request of removing device address, because
+	 * we store the device address and other addresses of uc list
+	 * in the function's mac filter list.
+	 */
+	if (ether_addr_equal(addr, netdev->dev_addr))
+		return 0;
+
 	if (h->ae_algo->ops->rm_uc_addr)
 		return h->ae_algo->ops->rm_uc_addr(h, addr);
 
@@ -597,34 +602,25 @@ static void hns3_nic_set_rx_mode(struct net_device *netdev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	u8 new_flags;
-	int ret;
 
 	new_flags = hns3_get_netdev_flags(netdev);
 
-	ret = __dev_uc_sync(netdev, hns3_nic_uc_sync, hns3_nic_uc_unsync);
-	if (ret) {
-		netdev_err(netdev, "sync uc address fail\n");
-		if (ret == -ENOSPC)
-			new_flags |= HNAE3_OVERFLOW_UPE;
-	}
-
-	if (netdev->flags & IFF_MULTICAST) {
-		ret = __dev_mc_sync(netdev, hns3_nic_mc_sync,
-				    hns3_nic_mc_unsync);
-		if (ret) {
-			netdev_err(netdev, "sync mc address fail\n");
-			if (ret == -ENOSPC)
-				new_flags |= HNAE3_OVERFLOW_MPE;
-		}
-	}
+	__dev_uc_sync(netdev, hns3_nic_uc_sync, hns3_nic_uc_unsync);
+	__dev_mc_sync(netdev, hns3_nic_mc_sync, hns3_nic_mc_unsync);
 
 	/* User mode Promisc mode enable and vlan filtering is disabled to
-	 * let all packets in. MAC-VLAN Table overflow Promisc enabled and
-	 * vlan fitering is enabled
+	 * let all packets in.
 	 */
-	hns3_enable_vlan_filter(netdev, new_flags & HNAE3_VLAN_FLTR);
 	h->netdev_flags = new_flags;
-	hns3_update_promisc_mode(netdev, new_flags);
+	hns3_request_update_promisc_mode(h);
+}
+
+void hns3_request_update_promisc_mode(struct hnae3_handle *handle)
+{
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+
+	if (ops->request_update_promisc_mode)
+		ops->request_update_promisc_mode(handle);
 }
 
 int hns3_update_promisc_mode(struct net_device *netdev, u8 promisc_flags)
@@ -785,7 +781,7 @@ static int hns3_get_l4_protocol(struct sk_buff *skb, u8 *ol4_proto,
  * and it is udp packet, which has a dest port as the IANA assigned.
  * the hardware is expected to do the checksum offload, but the
  * hardware will not do the checksum offload when udp dest port is
- * 4789.
+ * 4789 or 6081.
  */
 static bool hns3_tunnel_csum_bug(struct sk_buff *skb)
 {
@@ -794,7 +790,8 @@ static bool hns3_tunnel_csum_bug(struct sk_buff *skb)
 	l4.hdr = skb_transport_header(skb);
 
 	if (!(!skb->encapsulation &&
-	      l4.udp->dest == htons(IANA_VXLAN_UDP_PORT)))
+	      (l4.udp->dest == htons(IANA_VXLAN_UDP_PORT) ||
+	      l4.udp->dest == htons(GENEVE_UDP_PORT))))
 		return false;
 
 	skb_checksum_help(skb);
@@ -1098,16 +1095,8 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 	int k, sizeoflast;
 	dma_addr_t dma;
 
-	if (type == DESC_TYPE_SKB) {
-		struct sk_buff *skb = (struct sk_buff *)priv;
-		int ret;
-
-		ret = hns3_fill_skb_desc(ring, skb, desc);
-		if (unlikely(ret < 0))
-			return ret;
-
-		dma = dma_map_single(dev, skb->data, size, DMA_TO_DEVICE);
-	} else if (type == DESC_TYPE_FRAGLIST_SKB) {
+	if (type == DESC_TYPE_FRAGLIST_SKB ||
+	    type == DESC_TYPE_SKB) {
 		struct sk_buff *skb = (struct sk_buff *)priv;
 
 		dma = dma_map_single(dev, skb->data, size, DMA_TO_DEVICE);
@@ -1123,12 +1112,12 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 		return -ENOMEM;
 	}
 
+	desc_cb->priv = priv;
 	desc_cb->length = size;
+	desc_cb->dma = dma;
+	desc_cb->type = type;
 
 	if (likely(size <= HNS3_MAX_BD_SIZE)) {
-		desc_cb->priv = priv;
-		desc_cb->dma = dma;
-		desc_cb->type = type;
 		desc->addr = cpu_to_le64(dma);
 		desc->tx.send_size = cpu_to_le16(size);
 		desc->tx.bdtp_fe_sc_vld_ra_ri =
@@ -1140,18 +1129,11 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 	}
 
 	frag_buf_num = hns3_tx_bd_count(size);
-	sizeoflast = size & HNS3_TX_LAST_SIZE_M;
+	sizeoflast = size % HNS3_MAX_BD_SIZE;
 	sizeoflast = sizeoflast ? sizeoflast : HNS3_MAX_BD_SIZE;
 
 	/* When frag size is bigger than hardware limit, split this frag */
 	for (k = 0; k < frag_buf_num; k++) {
-		/* The txbd's baseinfo of DESC_TYPE_PAGE & DESC_TYPE_SKB */
-		desc_cb->priv = priv;
-		desc_cb->dma = dma + HNS3_MAX_BD_SIZE * k;
-		desc_cb->type = ((type == DESC_TYPE_FRAGLIST_SKB ||
-				  type == DESC_TYPE_SKB) && !k) ?
-				type : DESC_TYPE_PAGE;
-
 		/* now, fill the descriptor */
 		desc->addr = cpu_to_le64(dma + HNS3_MAX_BD_SIZE * k);
 		desc->tx.send_size = cpu_to_le16((k == frag_buf_num - 1) ?
@@ -1163,7 +1145,6 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 		/* move ring pointer to next */
 		ring_ptr_move_fw(ring, next_to_use);
 
-		desc_cb = &ring->desc_cb[ring->next_to_use];
 		desc = &ring->desc[ring->next_to_use];
 	}
 
@@ -1351,12 +1332,19 @@ static void hns3_clear_desc(struct hns3_enet_ring *ring, int next_to_use_orig)
 	unsigned int i;
 
 	for (i = 0; i < ring->desc_num; i++) {
+		struct hns3_desc *desc = &ring->desc[ring->next_to_use];
+
+		memset(desc, 0, sizeof(*desc));
+
 		/* check if this is where we started */
 		if (ring->next_to_use == next_to_use_orig)
 			break;
 
 		/* rollback one */
 		ring_ptr_move_bw(ring, next_to_use);
+
+		if (!ring->desc_cb[ring->next_to_use].dma)
+			continue;
 
 		/* unmap the descriptor dma address */
 		if (ring->desc_cb[ring->next_to_use].type == DESC_TYPE_SKB ||
@@ -1374,6 +1362,7 @@ static void hns3_clear_desc(struct hns3_enet_ring *ring, int next_to_use_orig)
 
 		ring->desc_cb[ring->next_to_use].length = 0;
 		ring->desc_cb[ring->next_to_use].dma = 0;
+		ring->desc_cb[ring->next_to_use].type = DESC_TYPE_UNKNOWN;
 	}
 }
 
@@ -1444,14 +1433,15 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	next_to_use_head = ring->next_to_use;
 
+	ret = hns3_fill_skb_desc(ring, skb, &ring->desc[ring->next_to_use]);
+	if (unlikely(ret < 0))
+		goto fill_err;
+
 	ret = hns3_fill_skb_to_desc(ring, skb, DESC_TYPE_SKB);
 	if (unlikely(ret < 0))
 		goto fill_err;
 
 	bd_num += ret;
-
-	if (!skb_has_frag_list(skb))
-		goto out;
 
 	skb_walk_frags(skb, frag_skb) {
 		ret = hns3_fill_skb_to_desc(ring, frag_skb,
@@ -1461,7 +1451,7 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 		bd_num += ret;
 	}
-out:
+
 	pre_ntu = ring->next_to_use ? (ring->next_to_use - 1) :
 					(ring->desc_num - 1);
 	ring->desc[pre_ntu].tx.bdtp_fe_sc_vld_ra_ri |=
@@ -1550,12 +1540,6 @@ static int hns3_nic_set_features(struct net_device *netdev,
 		ret = h->ae_algo->ops->set_gro_en(h, enable);
 		if (ret)
 			return ret;
-	}
-
-	if ((changed & NETIF_F_HW_VLAN_CTAG_FILTER) &&
-	    h->ae_algo->ops->enable_vlan_filter) {
-		enable = !!(features & NETIF_F_HW_VLAN_CTAG_FILTER);
-		h->ae_algo->ops->enable_vlan_filter(h, enable);
 	}
 
 	if ((changed & NETIF_F_HW_VLAN_CTAG_RX) &&
@@ -2107,15 +2091,12 @@ static int hns3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ae_dev->pdev = pdev;
 	ae_dev->flag = ent->driver_data;
-	ae_dev->reset_type = HNAE3_NONE_RESET;
 	hns3_get_dev_capability(pdev, ae_dev);
 	pci_set_drvdata(pdev, ae_dev);
 
 	ret = hnae3_register_ae_dev(ae_dev);
-	if (ret) {
-		devm_kfree(&pdev->dev, ae_dev);
+	if (ret)
 		pci_set_drvdata(pdev, NULL);
-	}
 
 	return ret;
 }
@@ -2172,7 +2153,6 @@ static void hns3_shutdown(struct pci_dev *pdev)
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
 
 	hnae3_unregister_ae_dev(ae_dev);
-	devm_kfree(&pdev->dev, ae_dev);
 	pci_set_drvdata(pdev, NULL);
 
 	if (system_state == SYSTEM_POWER_OFF)
@@ -2423,7 +2403,7 @@ static int hns3_alloc_desc(struct hns3_enet_ring *ring)
 	return 0;
 }
 
-static int hns3_reserve_buffer_map(struct hns3_enet_ring *ring,
+static int hns3_alloc_and_map_buffer(struct hns3_enet_ring *ring,
 				   struct hns3_desc_cb *cb)
 {
 	int ret;
@@ -2444,9 +2424,9 @@ out:
 	return ret;
 }
 
-static int hns3_alloc_buffer_attach(struct hns3_enet_ring *ring, int i)
+static int hns3_alloc_and_attach_buffer(struct hns3_enet_ring *ring, int i)
 {
-	int ret = hns3_reserve_buffer_map(ring, &ring->desc_cb[i]);
+	int ret = hns3_alloc_and_map_buffer(ring, &ring->desc_cb[i]);
 
 	if (ret)
 		return ret;
@@ -2462,7 +2442,7 @@ static int hns3_alloc_ring_buffers(struct hns3_enet_ring *ring)
 	int i, j, ret;
 
 	for (i = 0; i < ring->desc_num; i++) {
-		ret = hns3_alloc_buffer_attach(ring, i);
+		ret = hns3_alloc_and_attach_buffer(ring, i);
 		if (ret)
 			goto out_buffer_fail;
 	}
@@ -2491,6 +2471,11 @@ static void hns3_reuse_buffer(struct hns3_enet_ring *ring, int i)
 	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma +
 					 ring->desc_cb[i].page_offset);
 	ring->desc[i].rx.bd_base_info = 0;
+
+	dma_sync_single_for_device(ring_to_dev(ring),
+			ring->desc_cb[i].dma + ring->desc_cb[i].page_offset,
+			hns3_buf_size(ring),
+			DMA_FROM_DEVICE);
 }
 
 static void hns3_nic_reclaim_desc(struct hns3_enet_ring *ring, int head,
@@ -2608,7 +2593,7 @@ static void hns3_nic_alloc_rx_buffers(struct hns3_enet_ring *ring,
 
 			hns3_reuse_buffer(ring, ring->next_to_use);
 		} else {
-			ret = hns3_reserve_buffer_map(ring, &res_cbs);
+			ret = hns3_alloc_and_map_buffer(ring, &res_cbs);
 			if (ret) {
 				u64_stats_update_begin(&ring->syncp);
 				ring->stats.sw_err_cnt++;
@@ -2763,7 +2748,7 @@ static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 	case HNS3_OL4_TYPE_MAC_IN_UDP:
 	case HNS3_OL4_TYPE_NVGRE:
 		skb->csum_level = 1;
-		/* fall through */
+		fallthrough;
 	case HNS3_OL4_TYPE_NO_TUN:
 		l3_type = hnae3_get_field(l234info, HNS3_RXD_L3ID_M,
 					  HNS3_RXD_L3ID_S);
@@ -2936,6 +2921,11 @@ static int hns3_add_frag(struct hns3_enet_ring *ring)
 			skb = ring->tail_skb;
 		}
 
+		dma_sync_single_for_cpu(ring_to_dev(ring),
+				desc_cb->dma + desc_cb->page_offset,
+				hns3_buf_size(ring),
+				DMA_FROM_DEVICE);
+
 		hns3_nic_reuse_page(skb, ring->frag_num++, ring, 0, desc_cb);
 		trace_hns3_rx_desc(ring);
 		ring_ptr_move_fw(ring, next_to_clean);
@@ -3087,8 +3077,14 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring)
 	if (unlikely(!(bd_base_info & BIT(HNS3_RXD_VLD_B))))
 		return -ENXIO;
 
-	if (!skb)
-		ring->va = (unsigned char *)desc_cb->buf + desc_cb->page_offset;
+	if (!skb) {
+		ring->va = desc_cb->buf + desc_cb->page_offset;
+
+		dma_sync_single_for_cpu(ring_to_dev(ring),
+				desc_cb->dma + desc_cb->page_offset,
+				hns3_buf_size(ring),
+				DMA_FROM_DEVICE);
+	}
 
 	/* Prefetch first cache line of first page
 	 * Idea is to cache few bytes of the header of the packet. Our L1 Cache
@@ -3909,9 +3905,11 @@ static int hns3_init_mac_addr(struct net_device *netdev)
 		eth_hw_addr_random(netdev);
 		dev_warn(priv->dev, "using random MAC address %pM\n",
 			 netdev->dev_addr);
-	} else {
+	} else if (!ether_addr_equal(netdev->dev_addr, mac_addr_temp)) {
 		ether_addr_copy(netdev->dev_addr, mac_addr_temp);
 		ether_addr_copy(netdev->perm_addr, mac_addr_temp);
+	} else {
+		return 0;
 	}
 
 	if (h->ae_algo->ops->set_mac_addr)
@@ -3937,17 +3935,6 @@ static void hns3_uninit_phy(struct net_device *netdev)
 
 	if (h->ae_algo->ops->mac_disconnect_phy)
 		h->ae_algo->ops->mac_disconnect_phy(h);
-}
-
-static int hns3_restore_fd_rules(struct net_device *netdev)
-{
-	struct hnae3_handle *h = hns3_get_handle(netdev);
-	int ret = 0;
-
-	if (h->ae_algo->ops->restore_fd_rules)
-		ret = h->ae_algo->ops->restore_fd_rules(h);
-
-	return ret;
 }
 
 static void hns3_del_all_fd_rules(struct net_device *netdev, bool clear_list)
@@ -4121,8 +4108,6 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret;
 
-	hns3_remove_hw_addr(netdev);
-
 	if (netdev->reg_state != NETREG_UNINITIALIZED)
 		unregister_netdev(netdev);
 
@@ -4153,9 +4138,8 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 
 	hns3_put_ring_config(priv);
 
-	hns3_dbg_uninit(handle);
-
 out_netdev_free:
+	hns3_dbg_uninit(handle);
 	free_netdev(netdev);
 }
 
@@ -4167,8 +4151,8 @@ static void hns3_link_status_change(struct hnae3_handle *handle, bool linkup)
 		return;
 
 	if (linkup) {
-		netif_carrier_on(netdev);
 		netif_tx_wake_all_queues(netdev);
+		netif_carrier_on(netdev);
 		if (netif_msg_link(handle))
 			netdev_info(netdev, "link up\n");
 	} else {
@@ -4193,56 +4177,6 @@ static int hns3_client_setup_tc(struct hnae3_handle *handle, u8 tc)
 	return hns3_nic_set_real_num_queue(ndev);
 }
 
-static int hns3_recover_hw_addr(struct net_device *ndev)
-{
-	struct netdev_hw_addr_list *list;
-	struct netdev_hw_addr *ha, *tmp;
-	int ret = 0;
-
-	netif_addr_lock_bh(ndev);
-	/* go through and sync uc_addr entries to the device */
-	list = &ndev->uc;
-	list_for_each_entry_safe(ha, tmp, &list->list, list) {
-		ret = hns3_nic_uc_sync(ndev, ha->addr);
-		if (ret)
-			goto out;
-	}
-
-	/* go through and sync mc_addr entries to the device */
-	list = &ndev->mc;
-	list_for_each_entry_safe(ha, tmp, &list->list, list) {
-		ret = hns3_nic_mc_sync(ndev, ha->addr);
-		if (ret)
-			goto out;
-	}
-
-out:
-	netif_addr_unlock_bh(ndev);
-	return ret;
-}
-
-static void hns3_remove_hw_addr(struct net_device *netdev)
-{
-	struct netdev_hw_addr_list *list;
-	struct netdev_hw_addr *ha, *tmp;
-
-	hns3_nic_uc_unsync(netdev, netdev->dev_addr);
-
-	netif_addr_lock_bh(netdev);
-	/* go through and unsync uc_addr entries to the device */
-	list = &netdev->uc;
-	list_for_each_entry_safe(ha, tmp, &list->list, list)
-		hns3_nic_uc_unsync(netdev, ha->addr);
-
-	/* go through and unsync mc_addr entries to the device */
-	list = &netdev->mc;
-	list_for_each_entry_safe(ha, tmp, &list->list, list)
-		if (ha->refcount > 1)
-			hns3_nic_mc_unsync(netdev, ha->addr);
-
-	netif_addr_unlock_bh(netdev);
-}
-
 static void hns3_clear_tx_ring(struct hns3_enet_ring *ring)
 {
 	while (ring->next_to_clean != ring->next_to_use) {
@@ -4263,7 +4197,7 @@ static int hns3_clear_rx_ring(struct hns3_enet_ring *ring)
 		 * stack, so we need to replace the buffer here.
 		 */
 		if (!ring->desc_cb[ring->next_to_use].reuse_flag) {
-			ret = hns3_reserve_buffer_map(ring, &res_cbs);
+			ret = hns3_alloc_and_map_buffer(ring, &res_cbs);
 			if (ret) {
 				u64_stats_update_begin(&ring->syncp);
 				ring->stats.sw_err_cnt++;
@@ -4401,22 +4335,12 @@ static void hns3_restore_coal(struct hns3_nic_priv *priv)
 
 static int hns3_reset_notify_down_enet(struct hnae3_handle *handle)
 {
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct net_device *ndev = kinfo->netdev;
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
 
 	if (test_and_set_bit(HNS3_NIC_STATE_RESETTING, &priv->state))
 		return 0;
-
-	/* it is cumbersome for hardware to pick-and-choose entries for deletion
-	 * from table space. Hence, for function reset software intervention is
-	 * required to delete the entries
-	 */
-	if (hns3_dev_ongoing_func_reset(ae_dev)) {
-		hns3_remove_hw_addr(ndev);
-		hns3_del_all_fd_rules(ndev, false);
-	}
 
 	if (!netif_running(ndev))
 		return 0;
@@ -4484,6 +4408,9 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 		goto err_init_irq_fail;
 	}
 
+	if (!hns3_is_phys_func(handle->pdev))
+		hns3_init_mac_addr(netdev);
+
 	ret = hns3_client_start(handle);
 	if (ret) {
 		dev_err(priv->dev, "hns3_client_start fail! ret=%d\n", ret);
@@ -4507,33 +4434,6 @@ err_put_ring:
 	hns3_put_ring_config(priv);
 
 	return ret;
-}
-
-static int hns3_reset_notify_restore_enet(struct hnae3_handle *handle)
-{
-	struct net_device *netdev = handle->kinfo.netdev;
-	bool vlan_filter_enable;
-	int ret;
-
-	ret = hns3_init_mac_addr(netdev);
-	if (ret)
-		return ret;
-
-	ret = hns3_recover_hw_addr(netdev);
-	if (ret)
-		return ret;
-
-	ret = hns3_update_promisc_mode(netdev, handle->netdev_flags);
-	if (ret)
-		return ret;
-
-	vlan_filter_enable = netdev->flags & IFF_PROMISC ? false : true;
-	hns3_enable_vlan_filter(netdev, vlan_filter_enable);
-
-	if (handle->ae_algo->ops->restore_vlan_table)
-		handle->ae_algo->ops->restore_vlan_table(handle);
-
-	return hns3_restore_fd_rules(netdev);
 }
 
 static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
@@ -4584,9 +4484,6 @@ static int hns3_reset_notify(struct hnae3_handle *handle,
 		break;
 	case HNAE3_UNINIT_CLIENT:
 		ret = hns3_reset_notify_uninit_enet(handle);
-		break;
-	case HNAE3_RESTORE_CLIENT:
-		ret = hns3_reset_notify_restore_enet(handle);
 		break;
 	default:
 		break;
@@ -4765,4 +4662,3 @@ MODULE_DESCRIPTION("HNS3: Hisilicon Ethernet Driver");
 MODULE_AUTHOR("Huawei Tech. Co., Ltd.");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("pci:hns-nic");
-MODULE_VERSION(HNS3_MOD_VERSION);

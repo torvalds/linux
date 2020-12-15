@@ -6,9 +6,9 @@
  * Copyright (C) 2016 Intel
  *
  * Datasheets:
- *	http://www.ti.com/lit/ds/symlink/adc081c021.pdf
- *	http://www.ti.com/lit/ds/symlink/adc101c021.pdf
- *	http://www.ti.com/lit/ds/symlink/adc121c021.pdf
+ *	https://www.ti.com/lit/ds/symlink/adc081c021.pdf
+ *	https://www.ti.com/lit/ds/symlink/adc101c021.pdf
+ *	https://www.ti.com/lit/ds/symlink/adc121c021.pdf
  *
  * The devices have a very similar interface and differ mostly in the number of
  * bits handled. For the 8-bit and 10-bit models the least-significant 4 or 2
@@ -18,7 +18,7 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 #include <linux/acpi.h>
 
 #include <linux/iio/iio.h>
@@ -33,6 +33,12 @@ struct adc081c {
 
 	/* 8, 10 or 12 */
 	int bits;
+
+	/* Ensure natural alignment of buffer elements */
+	struct {
+		u16 channel;
+		s64 ts __aligned(8);
+	} scan;
 };
 
 #define REG_CONV_RES 0x00
@@ -128,14 +134,13 @@ static irqreturn_t adc081c_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct adc081c *data = iio_priv(indio_dev);
-	u16 buf[8]; /* 2 bytes data + 6 bytes padding + 8 bytes timestamp */
 	int ret;
 
 	ret = i2c_smbus_read_word_swapped(data->i2c, REG_CONV_RES);
 	if (ret < 0)
 		goto out;
-	buf[0] = ret;
-	iio_push_to_buffers_with_timestamp(indio_dev, buf,
+	data->scan.channel = ret;
+	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
 					   iio_get_time_ns(indio_dev));
 out:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -181,8 +186,6 @@ static int adc081c_probe(struct i2c_client *client,
 	if (err < 0)
 		return err;
 
-	iio->dev.parent = &client->dev;
-	iio->dev.of_node = client->dev.of_node;
 	iio->name = dev_name(&client->dev);
 	iio->modes = INDIO_DIRECT_MODE;
 	iio->info = &adc081c_info;
@@ -232,7 +235,6 @@ static const struct i2c_device_id adc081c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, adc081c_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id adc081c_of_match[] = {
 	{ .compatible = "ti,adc081c" },
 	{ .compatible = "ti,adc101c" },
@@ -240,7 +242,6 @@ static const struct of_device_id adc081c_of_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, adc081c_of_match);
-#endif
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id adc081c_acpi_match[] = {
@@ -255,7 +256,7 @@ MODULE_DEVICE_TABLE(acpi, adc081c_acpi_match);
 static struct i2c_driver adc081c_driver = {
 	.driver = {
 		.name = "adc081c",
-		.of_match_table = of_match_ptr(adc081c_of_match),
+		.of_match_table = adc081c_of_match,
 		.acpi_match_table = ACPI_PTR(adc081c_acpi_match),
 	},
 	.probe = adc081c_probe,

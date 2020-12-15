@@ -123,8 +123,8 @@ The list of watchdog operations is defined as::
 	struct module *owner;
 	/* mandatory operations */
 	int (*start)(struct watchdog_device *);
-	int (*stop)(struct watchdog_device *);
 	/* optional operations */
+	int (*stop)(struct watchdog_device *);
 	int (*ping)(struct watchdog_device *);
 	unsigned int (*status)(struct watchdog_device *);
 	int (*set_timeout)(struct watchdog_device *, unsigned int);
@@ -336,3 +336,15 @@ an action is taken by a preconfigured pretimeout governor preassigned to
 the watchdog device. If watchdog pretimeout governor framework is not
 enabled, watchdog_notify_pretimeout() prints a notification message to
 the kernel log buffer.
+
+To set the last known HW keepalive time for a watchdog, the following function
+should be used::
+
+  int watchdog_set_last_hw_keepalive(struct watchdog_device *wdd,
+                                     unsigned int last_ping_ms)
+
+This function must be called immediately after watchdog registration. It
+sets the last known hardware heartbeat to have happened last_ping_ms before
+current time. Calling this is only needed if the watchdog is already running
+when probe is called, and the watchdog can only be pinged after the
+min_hw_heartbeat_ms time has passed from the last ping.

@@ -245,32 +245,6 @@ enum iwl_sta_sleep_flag {
 #define STA_KEY_LEN_WEP40 (5)
 #define STA_KEY_LEN_WEP104 (13)
 
-/**
- * struct iwl_mvm_keyinfo - key information
- * @key_flags: type &enum iwl_sta_key_flag
- * @tkip_rx_tsc_byte2: TSC[2] for key mix ph1 detection
- * @reserved1: reserved
- * @tkip_rx_ttak: 10-byte unicast TKIP TTAK for Rx
- * @key_offset: key offset in the fw's key table
- * @reserved2: reserved
- * @key: 16-byte unicast decryption key
- * @tx_secur_seq_cnt: initial RSC / PN needed for replay check
- * @hw_tkip_mic_rx_key: byte: MIC Rx Key - used for TKIP only
- * @hw_tkip_mic_tx_key: byte: MIC Tx Key - used for TKIP only
- */
-struct iwl_mvm_keyinfo {
-	__le16 key_flags;
-	u8 tkip_rx_tsc_byte2;
-	u8 reserved1;
-	__le16 tkip_rx_ttak[5];
-	u8 key_offset;
-	u8 reserved2;
-	u8 key[16];
-	__le64 tx_secur_seq_cnt;
-	__le64 hw_tkip_mic_rx_key;
-	__le64 hw_tkip_mic_tx_key;
-} __packed;
-
 #define IWL_ADD_STA_STATUS_MASK		0xFF
 #define IWL_ADD_STA_BAID_VALID_MASK	0x8000
 #define IWL_ADD_STA_BAID_MASK		0x7F00

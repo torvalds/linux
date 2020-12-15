@@ -18,33 +18,31 @@ allOf:
 properties:
   compatible:
     oneOf:
-       - const: ti,davinci_mdio
-       - items:
-         - const: ti,keystone_mdio
-         - const: ti,davinci_mdio
-       - items:
-         - const: ti,cpsw-mdio
-         - const: ti,davinci_mdio
-       - items:
-         - const: ti,am4372-mdio
-         - const: ti,cpsw-mdio
-         - const: ti,davinci_mdio
+      - const: ti,davinci_mdio
+      - items:
+          - const: ti,keystone_mdio
+          - const: ti,davinci_mdio
+      - items:
+          - const: ti,cpsw-mdio
+          - const: ti,davinci_mdio
+      - items:
+          - const: ti,am4372-mdio
+          - const: ti,cpsw-mdio
+          - const: ti,davinci_mdio
 
   reg:
     maxItems: 1
 
   bus_freq:
-      maximum: 2500000
-      description:
-        MDIO Bus frequency
+    maximum: 2500000
+    description: MDIO Bus frequency
 
   ti,hwmods:
     description: TI hwmod name
     deprecated: true
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/string-array
-      - items:
-          const: davinci_mdio
+    $ref: /schemas/types.yaml#/definitions/string-array
+    items:
+      const: davinci_mdio
 
 if:
   properties:

@@ -19,8 +19,8 @@
 =============================
 
 这篇文档将会解释如何向不同的内核源码树提交设备驱动程序。请注意，如果你感
-兴趣的是显卡驱动程序，你也许应该访问 XFree86 项目(http://www.xfree86.org/)
-和／或 X.org 项目 (http://x.org)。
+兴趣的是显卡驱动程序，你也许应该访问 XFree86 项目(https://www.xfree86.org/)
+和／或 X.org 项目 (https://x.org)。
 
 另请参阅 Documentation/translations/zh_CN/process/submitting-patches.rst 文档。
 
@@ -29,7 +29,7 @@
 ----------
 
 块设备和字符设备的主设备号与从设备号是由 Linux 命名编号分配权威 LANANA（
-现在是 Torben Mathiasen）负责分配。申请的网址是 http://www.lanana.org/。
+现在是 Torben Mathiasen）负责分配。申请的网址是 https://www.lanana.org/。
 即使不准备提交到主流内核的设备驱动也需要在这里分配设备号。有关详细信息，
 请参阅 Documentation/admin-guide/devices.rst。
 
@@ -133,22 +133,22 @@ Linux 内核邮件列表：
 	[可通过向majordomo@vger.kernel.org发邮件来订阅]
 
 Linux 设备驱动程序，第三版（探讨 2.6.10 版内核）：
-	http://lwn.net/Kernel/LDD3/ （免费版）
+	https://lwn.net/Kernel/LDD3/ （免费版）
 
 LWN.net:
-	每周内核开发活动摘要 - http://lwn.net/
+	每周内核开发活动摘要 - https://lwn.net/
 
 	2.6 版中 API 的变更：
 
-		http://lwn.net/Articles/2.6-kernel-api/
+		https://lwn.net/Articles/2.6-kernel-api/
 
 	将旧版内核的驱动程序移植到 2.6 版：
 
-		http://lwn.net/Articles/driver-porting/
+		https://lwn.net/Articles/driver-porting/
 
 内核新手(KernelNewbies):
 	为新的内核开发者提供文档和帮助
-	http://kernelnewbies.org/
+	https://kernelnewbies.org/
 
 Linux USB项目：
 	http://www.linux-usb.org/
@@ -157,4 +157,4 @@ Linux USB项目：
 	http://www.fenrus.org/how-to-not-write-a-device-driver-paper.pdf
 
 内核清洁工 (Kernel Janitor):
-	http://kernelnewbies.org/KernelJanitors
+	https://kernelnewbies.org/KernelJanitors

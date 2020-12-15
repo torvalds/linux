@@ -102,6 +102,8 @@ struct intel_context {
 
 	/** sseu: Control eu/slice partitioning */
 	struct intel_sseu sseu;
+
+	u8 wa_bb_page; /* if set, page num reserved for context workarounds */
 };
 
 #endif /* __INTEL_CONTEXT_TYPES__ */

@@ -219,7 +219,7 @@ static int mmc_clock_opt_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(mmc_clock_fops, mmc_clock_opt_get, mmc_clock_opt_set,
+DEFINE_DEBUGFS_ATTRIBUTE(mmc_clock_fops, mmc_clock_opt_get, mmc_clock_opt_set,
 	"%llu\n");
 
 void mmc_add_host_debugfs(struct mmc_host *host)
@@ -232,8 +232,8 @@ void mmc_add_host_debugfs(struct mmc_host *host)
 	debugfs_create_file("ios", S_IRUSR, root, host, &mmc_ios_fops);
 	debugfs_create_x32("caps", S_IRUSR, root, &host->caps);
 	debugfs_create_x32("caps2", S_IRUSR, root, &host->caps2);
-	debugfs_create_file("clock", S_IRUSR | S_IWUSR, root, host,
-			    &mmc_clock_fops);
+	debugfs_create_file_unsafe("clock", S_IRUSR | S_IWUSR, root, host,
+				   &mmc_clock_fops);
 
 #ifdef CONFIG_FAIL_MMC_REQUEST
 	if (fail_request)

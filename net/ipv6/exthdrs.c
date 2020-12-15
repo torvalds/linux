@@ -580,7 +580,7 @@ looped_back:
 	hdr->segments_left--;
 	i = n - hdr->segments_left;
 
-	buf = kzalloc(ipv6_rpl_srh_alloc_size(n + 1) * 2, GFP_ATOMIC);
+	buf = kcalloc(struct_size(hdr, segments.addr, n + 2), 2, GFP_ATOMIC);
 	if (unlikely(!buf)) {
 		kfree_skb(skb);
 		return -1;
@@ -1232,7 +1232,6 @@ static void ipv6_renew_option(int renewtype,
  * @opt: original options
  * @newtype: option type to replace in @opt
  * @newopt: new option of type @newtype to replace (user-mem)
- * @newoptlen: length of @newopt
  *
  * Returns a new set of options which is a copy of @opt with the
  * option type @newtype replaced with @newopt.

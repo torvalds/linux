@@ -53,14 +53,14 @@
 };
 
 &mscc_felix_port0 {
-	label = "gbe0";
+	label = "swp0";
 	phy-handle = <&phy0>;
 	phy-mode = "sgmii";
 	status = "okay";
 };
 
 &mscc_felix_port1 {
-	label = "gbe1";
+	label = "swp1";
 	phy-handle = <&phy1>;
 	phy-mode = "sgmii";
 	status = "okay";

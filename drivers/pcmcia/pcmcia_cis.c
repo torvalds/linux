@@ -78,9 +78,9 @@ done:
  * calls the @loop_tuple function for each entry. If the call to @loop_tuple
  * returns 0, the loop exits. Returns 0 on success or errorcode otherwise.
  */
-int pccard_loop_tuple(struct pcmcia_socket *s, unsigned int function,
-		      cisdata_t code, cisparse_t *parse, void *priv_data,
-		      int (*loop_tuple) (tuple_t *tuple,
+static int pccard_loop_tuple(struct pcmcia_socket *s, unsigned int function,
+			     cisdata_t code, cisparse_t *parse, void *priv_data,
+			     int (*loop_tuple) (tuple_t *tuple,
 					 cisparse_t *parse,
 					 void *priv_data))
 {

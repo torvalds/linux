@@ -19,9 +19,8 @@
  * just a collection of helper routines that implement the
  * generic USB things that the real drivers can use..
  *
- * Think of this as a "USB library" rather than anything else.
- * It should be considered a slave, with no callbacks. Callbacks
- * are evil.
+ * Think of this as a "USB library" rather than anything else,
+ * with no callbacks.  Callbacks are evil.
  */
 
 #include <linux/module.h>

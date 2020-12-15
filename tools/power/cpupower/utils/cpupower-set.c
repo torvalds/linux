@@ -72,7 +72,7 @@ int cmd_set(int argc, char **argv)
 		default:
 			print_wrong_arg_exit();
 		}
-	};
+	}
 
 	if (!params.params)
 		print_wrong_arg_exit();

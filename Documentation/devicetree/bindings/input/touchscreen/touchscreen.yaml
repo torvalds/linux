@@ -33,8 +33,8 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
 
   touchscreen-min-pressure:
-    description: minimum pressure on the touchscreen to be achieved in order for the
-                 touchscreen driver to report a touch event.
+    description: minimum pressure on the touchscreen to be achieved in order
+      for the touchscreen driver to report a touch event.
     $ref: /schemas/types.yaml#/definitions/uint32
 
   touchscreen-fuzz-x:
@@ -46,13 +46,13 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
 
   touchscreen-fuzz-pressure:
-    description: pressure noise value of the absolute input device (arbitrary range
-                 dependent on the controller)
+    description: pressure noise value of the absolute input device (arbitrary
+      range dependent on the controller)
     $ref: /schemas/types.yaml#/definitions/uint32
 
   touchscreen-average-samples:
-    description: Number of data samples which are averaged for each read (valid values
-                 dependent on the controller)
+    description: Number of data samples which are averaged for each read (valid
+      values dependent on the controller)
     $ref: /schemas/types.yaml#/definitions/uint32
 
   touchscreen-inverted-x:

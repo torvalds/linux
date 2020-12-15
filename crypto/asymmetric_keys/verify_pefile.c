@@ -376,7 +376,7 @@ static int pefile_digest_pe(const void *pebuf, unsigned int pelen,
 	}
 
 error:
-	kzfree(desc);
+	kfree_sensitive(desc);
 error_no_desc:
 	crypto_free_shash(tfm);
 	kleave(" = %d", ret);
@@ -447,6 +447,6 @@ int verify_pefile_signature(const void *pebuf, unsigned pelen,
 	ret = pefile_digest_pe(pebuf, pelen, &ctx);
 
 error:
-	kzfree(ctx.digest);
+	kfree_sensitive(ctx.digest);
 	return ret;
 }

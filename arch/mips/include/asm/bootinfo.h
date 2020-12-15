@@ -42,17 +42,6 @@
 #define  MACH_DS5900		10	/* DECsystem 5900		*/
 
 /*
- * Valid machtype for group PMC-MSP
- */
-#define MACH_MSP4200_EVAL	0	/* PMC-Sierra MSP4200 Evaluation */
-#define MACH_MSP4200_GW		1	/* PMC-Sierra MSP4200 Gateway demo */
-#define MACH_MSP4200_FPGA	2	/* PMC-Sierra MSP4200 Emulation */
-#define MACH_MSP7120_EVAL	3	/* PMC-Sierra MSP7120 Evaluation */
-#define MACH_MSP7120_GW		4	/* PMC-Sierra MSP7120 Residential GW */
-#define MACH_MSP7120_FPGA	5	/* PMC-Sierra MSP7120 Emulation */
-#define MACH_MSP_OTHER	      255	/* PMC-Sierra unknown board type */
-
-/*
  * Valid machtype for group Mikrotik
  */
 #define MACH_MIKROTIK_RB532	0	/* Mikrotik RouterBoard 532	*/
@@ -76,12 +65,23 @@ enum loongson2ef_machine_type {
 /*
  * Valid machtype for group INGENIC
  */
-#define  MACH_INGENIC_JZ4730	0	/* JZ4730 SOC		*/
-#define  MACH_INGENIC_JZ4740	1	/* JZ4740 SOC		*/
-#define  MACH_INGENIC_JZ4770	2	/* JZ4770 SOC		*/
-#define  MACH_INGENIC_JZ4780	3	/* JZ4780 SOC		*/
-#define  MACH_INGENIC_X1000		4	/* X1000 SOC		*/
-#define  MACH_INGENIC_X1830		5	/* X1830 SOC		*/
+enum ingenic_machine_type {
+	MACH_INGENIC_UNKNOWN,
+	MACH_INGENIC_JZ4720,
+	MACH_INGENIC_JZ4725,
+	MACH_INGENIC_JZ4725B,
+	MACH_INGENIC_JZ4730,
+	MACH_INGENIC_JZ4740,
+	MACH_INGENIC_JZ4750,
+	MACH_INGENIC_JZ4755,
+	MACH_INGENIC_JZ4760,
+	MACH_INGENIC_JZ4770,
+	MACH_INGENIC_JZ4775,
+	MACH_INGENIC_JZ4780,
+	MACH_INGENIC_X1000,
+	MACH_INGENIC_X1830,
+	MACH_INGENIC_X2000,
+};
 
 extern char *system_type;
 const char *get_system_type(void);
@@ -121,7 +121,7 @@ extern unsigned long fw_passed_dtb;
 #endif
 
 /*
- * Platform memory detection hook called by setup_arch
+ * Platform memory detection hook called by arch_mem_init()
  */
 extern void plat_mem_setup(void);
 

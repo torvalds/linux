@@ -7,7 +7,7 @@ config NET_VENDOR_TUNDRA
 	bool "Tundra devices"
 	default y
 	depends on TSI108_BRIDGE
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -20,7 +20,7 @@ if NET_VENDOR_TUNDRA
 config TSI108_ETH
 	tristate "Tundra TSI108 gigabit Ethernet support"
 	depends on TSI108_BRIDGE
-	---help---
+	help
 	  This driver supports Tundra TSI108 gigabit Ethernet ports.
 	  To compile this driver as a module, choose M here: the module
 	  will be called tsi108_eth.

@@ -21,7 +21,7 @@ Leggete anche :ref:`Documentation/translations/it_IT/process/submit-checklist.rs
 per una lista di punti da verificare prima di inviare del codice.  Se state
 inviando un driver, allora leggete anche :ref:`Documentation/translations/it_IT/process/submitting-drivers.rst <it_submittingdrivers>`;
 per delle patch relative alle associazioni per Device Tree leggete
-Documentation/devicetree/bindings/submitting-patches.txt.
+Documentation/devicetree/bindings/submitting-patches.rst.
 
 Molti di questi passi descrivono il comportamento di base del sistema di
 controllo di versione ``git``; se utilizzate ``git`` per preparare le vostre

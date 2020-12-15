@@ -233,7 +233,6 @@ static int am2315_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &am2315_info;
 	indio_dev->name = AM2315_DRIVER_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;

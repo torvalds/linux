@@ -389,55 +389,57 @@ static int qtnf_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 }
 
 static void
-qtnf_mgmt_frame_register(struct wiphy *wiphy, struct wireless_dev *wdev,
-			 u16 frame_type, bool reg)
+qtnf_update_mgmt_frame_registrations(struct wiphy *wiphy,
+				     struct wireless_dev *wdev,
+				     struct mgmt_frame_regs *upd)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(wdev->netdev);
-	u16 mgmt_type;
-	u16 new_mask;
-	u16 qlink_frame_type = 0;
+	u16 new_mask = upd->interface_stypes;
+	u16 old_mask = vif->mgmt_frames_bitmask;
+	static const struct {
+		u16 mask, qlink_type;
+	} updates[] = {
+		{
+			.mask = BIT(IEEE80211_STYPE_REASSOC_REQ >> 4) |
+				BIT(IEEE80211_STYPE_ASSOC_REQ >> 4),
+			.qlink_type = QLINK_MGMT_FRAME_ASSOC_REQ,
+		},
+		{
+			.mask = BIT(IEEE80211_STYPE_AUTH >> 4),
+			.qlink_type = QLINK_MGMT_FRAME_AUTH,
+		},
+		{
+			.mask = BIT(IEEE80211_STYPE_PROBE_REQ >> 4),
+			.qlink_type = QLINK_MGMT_FRAME_PROBE_REQ,
+		},
+		{
+			.mask = BIT(IEEE80211_STYPE_ACTION >> 4),
+			.qlink_type = QLINK_MGMT_FRAME_ACTION,
+		},
+	};
+	unsigned int i;
 
-	mgmt_type = (frame_type & IEEE80211_FCTL_STYPE) >> 4;
-
-	if (reg)
-		new_mask = vif->mgmt_frames_bitmask | BIT(mgmt_type);
-	else
-		new_mask = vif->mgmt_frames_bitmask & ~BIT(mgmt_type);
-
-	if (new_mask == vif->mgmt_frames_bitmask)
+	if (new_mask == old_mask)
 		return;
 
-	switch (frame_type & IEEE80211_FCTL_STYPE) {
-	case IEEE80211_STYPE_REASSOC_REQ:
-	case IEEE80211_STYPE_ASSOC_REQ:
-		qlink_frame_type = QLINK_MGMT_FRAME_ASSOC_REQ;
-		break;
-	case IEEE80211_STYPE_AUTH:
-		qlink_frame_type = QLINK_MGMT_FRAME_AUTH;
-		break;
-	case IEEE80211_STYPE_PROBE_REQ:
-		qlink_frame_type = QLINK_MGMT_FRAME_PROBE_REQ;
-		break;
-	case IEEE80211_STYPE_ACTION:
-		qlink_frame_type = QLINK_MGMT_FRAME_ACTION;
-		break;
-	default:
-		pr_warn("VIF%u.%u: unsupported frame type: %X\n",
-			vif->mac->macid, vif->vifid,
-			(frame_type & IEEE80211_FCTL_STYPE) >> 4);
-		return;
-	}
+	for (i = 0; i < ARRAY_SIZE(updates); i++) {
+		u16 mask = updates[i].mask;
+		u16 qlink_frame_type = updates[i].qlink_type;
+		bool reg;
 
-	if (qtnf_cmd_send_register_mgmt(vif, qlink_frame_type, reg)) {
-		pr_warn("VIF%u.%u: failed to %sregister mgmt frame type 0x%x\n",
-			vif->mac->macid, vif->vifid, reg ? "" : "un",
-			frame_type);
-		return;
+		/* the ! are here due to the assoc/reassoc merge */
+		if (!(new_mask & mask) == !(old_mask & mask))
+			continue;
+
+		reg = new_mask & mask;
+
+		if (qtnf_cmd_send_register_mgmt(vif, qlink_frame_type, reg))
+			pr_warn("VIF%u.%u: failed to %sregister qlink frame type 0x%x\n",
+				vif->mac->macid, vif->vifid, reg ? "" : "un",
+				qlink_frame_type);
 	}
 
 	vif->mgmt_frames_bitmask = new_mask;
-	pr_debug("VIF%u.%u: %sregistered mgmt frame type 0x%x\n",
-		 vif->mac->macid, vif->vifid, reg ? "" : "un", frame_type);
 }
 
 static int
@@ -1017,7 +1019,8 @@ static struct cfg80211_ops qtn_cfg80211_ops = {
 	.change_beacon		= qtnf_change_beacon,
 	.stop_ap		= qtnf_stop_ap,
 	.set_wiphy_params	= qtnf_set_wiphy_params,
-	.mgmt_frame_register	= qtnf_mgmt_frame_register,
+	.update_mgmt_frame_registrations =
+		qtnf_update_mgmt_frame_registrations,
 	.mgmt_tx		= qtnf_mgmt_tx,
 	.change_station		= qtnf_change_station,
 	.del_station		= qtnf_del_station,

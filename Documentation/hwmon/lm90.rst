@@ -51,7 +51,7 @@ Supported chips:
 
     Datasheet: Publicly available at the ON Semiconductor website
 
-	       http://www.onsemi.com/PowerSolutions/product.do?id=ADM1032
+	       https://www.onsemi.com/PowerSolutions/product.do?id=ADM1032
 
   * Analog Devices ADT7461
 
@@ -61,7 +61,7 @@ Supported chips:
 
     Datasheet: Publicly available at the ON Semiconductor website
 
-	       http://www.onsemi.com/PowerSolutions/product.do?id=ADT7461
+	       https://www.onsemi.com/PowerSolutions/product.do?id=ADT7461
 
   * Analog Devices ADT7461A
 
@@ -71,7 +71,7 @@ Supported chips:
 
     Datasheet: Publicly available at the ON Semiconductor website
 
-	       http://www.onsemi.com/PowerSolutions/product.do?id=ADT7461A
+	       https://www.onsemi.com/PowerSolutions/product.do?id=ADT7461A
 
   * ON Semiconductor NCT1008
 
@@ -81,7 +81,7 @@ Supported chips:
 
     Datasheet: Publicly available at the ON Semiconductor website
 
-	       http://www.onsemi.com/PowerSolutions/product.do?id=NCT1008
+	       https://www.onsemi.com/PowerSolutions/product.do?id=NCT1008
 
   * Maxim MAX6646
 
@@ -122,6 +122,18 @@ Supported chips:
     Datasheet: Publicly available at the Maxim website
 
 	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3497
+
+  * Maxim MAX6654
+
+    Prefix: 'max6654'
+
+    Addresses scanned: I2C 0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b,
+
+			   0x4c, 0x4d and 0x4e
+
+    Datasheet: Publicly available at the Maxim website
+
+	       https://www.maximintegrated.com/en/products/sensors/MAX6654.html
 
   * Maxim MAX6657
 
@@ -251,7 +263,7 @@ Supported chips:
 
     Datasheet: Publicly available at TI website
 
-	       http://www.ti.com/litv/pdf/sbos686
+	       https://www.ti.com/litv/pdf/sbos686
 
 Author: Jean Delvare <jdelvare@suse.de>
 
@@ -301,6 +313,13 @@ ADT7461, ADT7461A, NCT1008:
   * Extended temperature range (breaks compatibility)
   * Lower resolution for remote temperature
 
+MAX6654:
+  * Better local resolution
+  * Selectable address
+  * Remote sensor type selection
+  * Extended temperature range
+  * Extended resolution only available when conversion rate <= 1 Hz
+
 MAX6657 and MAX6658:
   * Better local resolution
   * Remote sensor type selection
@@ -336,8 +355,8 @@ SA56004X:
 
 All temperature values are given in degrees Celsius. Resolution
 is 1.0 degree for the local temperature, 0.125 degree for the remote
-temperature, except for the MAX6657, MAX6658 and MAX6659 which have a
-resolution of 0.125 degree for both temperatures.
+temperature, except for the MAX6654, MAX6657, MAX6658 and MAX6659 which have
+a resolution of 0.125 degree for both temperatures.
 
 Each sensor has its own high and low limits, plus a critical limit.
 Additionally, there is a relative hysteresis value common to both critical

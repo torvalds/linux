@@ -10,8 +10,8 @@ maintainers:
   - Georgi Djakov <georgi.djakov@linaro.org>
 
 description: |
-   The Qualcomm MSM8916 interconnect providers support adjusting the
-   bandwidth requirements between the various NoC fabrics.
+  The Qualcomm MSM8916 interconnect providers support adjusting the
+  bandwidth requirements between the various NoC fabrics.
 
 properties:
   compatible:

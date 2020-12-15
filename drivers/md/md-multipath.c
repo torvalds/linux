@@ -131,7 +131,7 @@ static bool multipath_make_request(struct mddev *mddev, struct bio * bio)
 	mp_bh->bio.bi_private = mp_bh;
 	mddev_check_writesame(mddev, &mp_bh->bio);
 	mddev_check_write_zeroes(mddev, &mp_bh->bio);
-	generic_make_request(&mp_bh->bio);
+	submit_bio_noacct(&mp_bh->bio);
 	return true;
 }
 
@@ -149,28 +149,6 @@ static void multipath_status(struct seq_file *seq, struct mddev *mddev)
 	}
 	rcu_read_unlock();
 	seq_putc(seq, ']');
-}
-
-static int multipath_congested(struct mddev *mddev, int bits)
-{
-	struct mpconf *conf = mddev->private;
-	int i, ret = 0;
-
-	rcu_read_lock();
-	for (i = 0; i < mddev->raid_disks ; i++) {
-		struct md_rdev *rdev = rcu_dereference(conf->multipaths[i].rdev);
-		if (rdev && !test_bit(Faulty, &rdev->flags)) {
-			struct request_queue *q = bdev_get_queue(rdev->bdev);
-
-			ret |= bdi_congested(q->backing_dev_info, bits);
-			/* Just like multipath_map, we just check the
-			 * first available device
-			 */
-			break;
-		}
-	}
-	rcu_read_unlock();
-	return ret;
 }
 
 /*
@@ -348,7 +326,7 @@ static void multipathd(struct md_thread *thread)
 			bio->bi_opf |= REQ_FAILFAST_TRANSPORT;
 			bio->bi_end_io = multipath_end_request;
 			bio->bi_private = mp_bh;
-			generic_make_request(bio);
+			submit_bio_noacct(bio);
 		}
 	}
 	spin_unlock_irqrestore(&conf->device_lock, flags);
@@ -478,7 +456,6 @@ static struct md_personality multipath_personality =
 	.hot_add_disk	= multipath_add_disk,
 	.hot_remove_disk= multipath_remove_disk,
 	.size		= multipath_size,
-	.congested	= multipath_congested,
 };
 
 static int __init multipath_init (void)

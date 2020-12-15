@@ -3,7 +3,7 @@ libtraceevent(3)
 
 NAME
 ----
-tep_load_plugins, tep_unload_plugins - Load / unload traceevent plugins.
+tep_load_plugins, tep_unload_plugins, tep_load_plugins_hook - Load / unload traceevent plugins.
 
 SYNOPSIS
 --------
@@ -13,6 +13,12 @@ SYNOPSIS
 
 struct tep_plugin_list pass:[*]*tep_load_plugins*(struct tep_handle pass:[*]_tep_);
 void *tep_unload_plugins*(struct tep_plugin_list pass:[*]_plugin_list_, struct tep_handle pass:[*]_tep_);
+void *tep_load_plugins_hook*(struct tep_handle pass:[*]_tep_, const char pass:[*]_suffix_,
+			   void (pass:[*]_load_plugin_)(struct tep_handle pass:[*]tep,
+					       const char pass:[*]path,
+					       const char pass:[*]name,
+					       void pass:[*]data),
+			   void pass:[*]_data_);
 --
 
 DESCRIPTION
@@ -22,11 +28,13 @@ directories. The _tep_ argument is trace event parser context.
 The plugin directories are :
 [verse]
 --
+	- Directories, specified in _tep_->plugins_dir with priority TEP_PLUGIN_FIRST
 	- System's plugin directory, defined at the library compile time. It
 	  depends on the library installation prefix and usually is
 	  _(install_preffix)/lib/traceevent/plugins_
 	- Directory, defined by the environment variable _TRACEEVENT_PLUGIN_DIR_
 	- User's plugin directory, located at _~/.local/lib/traceevent/plugins_
+	- Directories, specified in _tep_->plugins_dir with priority TEP_PLUGIN_LAST
 --
 Loading of plugins can be controlled by the _tep_flags_, using the
 _tep_set_flag()_ API:
@@ -43,6 +51,12 @@ The _tep_unload_plugins()_ function unloads the plugins, previously loaded by
 _tep_load_plugins()_. The _tep_ argument is trace event parser context. The
 _plugin_list_ is the list of loaded plugins, returned by
 the _tep_load_plugins()_ function.
+
+The _tep_load_plugins_hook_ function walks through all directories with plugins
+and calls user specified _load_plugin()_ hook for each plugin file. Only files
+with given _suffix_ are considered to be plugins. The _data_ is a user specified
+context, passed to _load_plugin()_. Directories and the walk order are the same
+as in _tep_load_plugins()_ API.
 
 RETURN VALUE
 ------------
@@ -63,6 +77,15 @@ if (plugins == NULL) {
 }
 ...
 tep_unload_plugins(plugins, tep);
+...
+void print_plugin(struct tep_handle *tep, const char *path,
+		  const char *name, void *data)
+{
+	pritnf("Found libtraceevent plugin %s/%s\n", path, name);
+}
+...
+tep_load_plugins_hook(tep, ".so", print_plugin, NULL);
+...
 --
 
 FILES

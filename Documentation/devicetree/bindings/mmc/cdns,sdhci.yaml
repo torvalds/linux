@@ -17,7 +17,7 @@ properties:
   compatible:
     items:
       - enum:
-         - socionext,uniphier-sd4hc
+          - socionext,uniphier-sd4hc
       - const: cdns,sd4hc
 
   reg:
@@ -36,91 +36,80 @@ properties:
 
   cdns,phy-input-delay-sd-highspeed:
     description: Value of the delay in the input path for SD high-speed timing
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - minimum: 0
-      - maximum: 0x1f
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
 
   cdns,phy-input-delay-legacy:
     description: Value of the delay in the input path for legacy timing
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - minimum: 0
-      - maximum: 0x1f
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
 
   cdns,phy-input-delay-sd-uhs-sdr12:
     description: Value of the delay in the input path for SD UHS SDR12 timing
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - minimum: 0
-      - maximum: 0x1f
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
 
   cdns,phy-input-delay-sd-uhs-sdr25:
     description: Value of the delay in the input path for SD UHS SDR25 timing
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - minimum: 0
-      - maximum: 0x1f
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
 
   cdns,phy-input-delay-sd-uhs-sdr50:
     description: Value of the delay in the input path for SD UHS SDR50 timing
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - minimum: 0
-      - maximum: 0x1f
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
 
   cdns,phy-input-delay-sd-uhs-ddr50:
     description: Value of the delay in the input path for SD UHS DDR50 timing
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - minimum: 0
-      - maximum: 0x1f
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
 
   cdns,phy-input-delay-mmc-highspeed:
     description: Value of the delay in the input path for MMC high-speed timing
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - minimum: 0
-      - maximum: 0x1f
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
 
   cdns,phy-input-delay-mmc-ddr:
     description: Value of the delay in the input path for eMMC high-speed DDR timing
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - minimum: 0
-      - maximum: 0x1f
 
   # PHY DLL clock delays:
   # Each delay property represents the fraction of the clock period.
   # The approximate delay value will be
   # (<delay property value>/128)*sdmclk_clock_period.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
 
   cdns,phy-dll-delay-sdclk:
     description: |
       Value of the delay introduced on the sdclk output for all modes except
       HS200, HS400 and HS400_ES.
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - minimum: 0
-      - maximum: 0x7f
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x7f
 
   cdns,phy-dll-delay-sdclk-hsmmc:
     description: |
       Value of the delay introduced on the sdclk output for HS200, HS400 and
       HS400_ES speed modes.
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - minimum: 0
-      - maximum: 0x7f
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x7f
 
   cdns,phy-dll-delay-strobe:
     description: |
       Value of the delay introduced on the dat_strobe input used in
       HS400 / HS400_ES speed modes.
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - minimum: 0
-      - maximum: 0x7f
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x7f
 
 required:
   - compatible

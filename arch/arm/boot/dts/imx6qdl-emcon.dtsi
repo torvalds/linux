@@ -737,14 +737,17 @@
 };
 
 &pwm1 {
+	#pwm-cells = <2>;
 	status = "okay";
 };
 
 &pwm3 {
+	#pwm-cells = <2>;
 	status = "okay";
 };
 
 &pwm4 {
+	#pwm-cells = <2>;
 	status = "okay";
 };
 

@@ -606,13 +606,13 @@ static const struct omap_clkctrl_reg_data omap4_l4_per_clkctrl_regs[] __initcons
 
 static const struct
 omap_clkctrl_reg_data omap4_l4_secure_clkctrl_regs[] __initconst = {
-	{ OMAP4_AES1_CLKCTRL, NULL, CLKF_SW_SUP, "" },
-	{ OMAP4_AES2_CLKCTRL, NULL, CLKF_SW_SUP, "" },
-	{ OMAP4_DES3DES_CLKCTRL, NULL, CLKF_SW_SUP, "" },
-	{ OMAP4_PKA_CLKCTRL, NULL, CLKF_SW_SUP, "" },
-	{ OMAP4_RNG_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_NONSEC, "" },
-	{ OMAP4_SHA2MD5_CLKCTRL, NULL, CLKF_SW_SUP, "" },
-	{ OMAP4_CRYPTODMA_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_NONSEC, "" },
+	{ OMAP4_AES1_CLKCTRL, NULL, CLKF_SW_SUP, "l3_div_ck" },
+	{ OMAP4_AES2_CLKCTRL, NULL, CLKF_SW_SUP, "l3_div_ck" },
+	{ OMAP4_DES3DES_CLKCTRL, NULL, CLKF_SW_SUP, "l4_div_ck" },
+	{ OMAP4_PKA_CLKCTRL, NULL, CLKF_SW_SUP, "l4_div_ck" },
+	{ OMAP4_RNG_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_NONSEC, "l4_div_ck" },
+	{ OMAP4_SHA2MD5_CLKCTRL, NULL, CLKF_SW_SUP, "l3_div_ck" },
+	{ OMAP4_CRYPTODMA_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_NONSEC, "l3_div_ck" },
 	{ 0 },
 };
 

@@ -46,7 +46,7 @@ Optional nodes:
     crossed and LCD_DATA[0:4] is for Red[3:7] and LCD_DATA[11:15] is
     for Blue[3-7]. For more details see section 3.1.1 in AM335x
     Silicon Errata:
-    http://www.ti.com/general/docs/lit/getliterature.tsp?baseLiteratureNumber=sprz360
+    https://www.ti.com/general/docs/lit/getliterature.tsp?baseLiteratureNumber=sprz360
 
 Example:
 

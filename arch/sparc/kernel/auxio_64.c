@@ -87,7 +87,6 @@ void auxio_set_lte(int on)
 		__auxio_sbus_set_lte(on);
 		break;
 	case AUXIO_TYPE_EBUS:
-		/* FALL-THROUGH */
 	default:
 		break;
 	}

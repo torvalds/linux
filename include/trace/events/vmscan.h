@@ -265,7 +265,7 @@ TRACE_EVENT(mm_shrink_slab_end,
 );
 
 TRACE_EVENT(mm_vmscan_lru_isolate,
-	TP_PROTO(int classzone_idx,
+	TP_PROTO(int highest_zoneidx,
 		int order,
 		unsigned long nr_requested,
 		unsigned long nr_scanned,
@@ -274,10 +274,10 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
 		isolate_mode_t isolate_mode,
 		int lru),
 
-	TP_ARGS(classzone_idx, order, nr_requested, nr_scanned, nr_skipped, nr_taken, isolate_mode, lru),
+	TP_ARGS(highest_zoneidx, order, nr_requested, nr_scanned, nr_skipped, nr_taken, isolate_mode, lru),
 
 	TP_STRUCT__entry(
-		__field(int, classzone_idx)
+		__field(int, highest_zoneidx)
 		__field(int, order)
 		__field(unsigned long, nr_requested)
 		__field(unsigned long, nr_scanned)
@@ -288,7 +288,7 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
 	),
 
 	TP_fast_assign(
-		__entry->classzone_idx = classzone_idx;
+		__entry->highest_zoneidx = highest_zoneidx;
 		__entry->order = order;
 		__entry->nr_requested = nr_requested;
 		__entry->nr_scanned = nr_scanned;
@@ -298,9 +298,13 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
 		__entry->lru = lru;
 	),
 
+	/*
+	 * classzone is previous name of the highest_zoneidx.
+	 * Reason not to change it is the ABI requirement of the tracepoint.
+	 */
 	TP_printk("isolate_mode=%d classzone=%d order=%d nr_requested=%lu nr_scanned=%lu nr_skipped=%lu nr_taken=%lu lru=%s",
 		__entry->isolate_mode,
-		__entry->classzone_idx,
+		__entry->highest_zoneidx,
 		__entry->order,
 		__entry->nr_requested,
 		__entry->nr_scanned,

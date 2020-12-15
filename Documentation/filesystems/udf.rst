@@ -72,4 +72,4 @@ For the latest version and toolset see:
 
 Documentation on UDF and ECMA 167 is available FREE from:
 	- http://www.osta.org/
-	- http://www.ecma-international.org/
+	- https://www.ecma-international.org/

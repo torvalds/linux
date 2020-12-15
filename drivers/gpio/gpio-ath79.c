@@ -129,7 +129,7 @@ static int ath79_gpio_irq_set_type(struct irq_data *data,
 
 	case IRQ_TYPE_LEVEL_HIGH:
 		polarity |= mask;
-		/* fall through */
+		fallthrough;
 	case IRQ_TYPE_LEVEL_LOW:
 		type |= mask;
 		break;

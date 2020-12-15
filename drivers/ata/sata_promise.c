@@ -637,7 +637,7 @@ static enum ata_completion_errors pdc_qc_prep(struct ata_queued_cmd *qc)
 	switch (qc->tf.protocol) {
 	case ATA_PROT_DMA:
 		pdc_fill_sg(qc);
-		/*FALLTHROUGH*/
+		fallthrough;
 	case ATA_PROT_NODATA:
 		i = pdc_pkt_header(&qc->tf, qc->ap->bmdma_prd_dma,
 				   qc->dev->devno, pp->pkt);
@@ -652,7 +652,7 @@ static enum ata_completion_errors pdc_qc_prep(struct ata_queued_cmd *qc)
 		break;
 	case ATAPI_PROT_DMA:
 		pdc_fill_sg(qc);
-		/*FALLTHROUGH*/
+		fallthrough;
 	case ATAPI_PROT_NODATA:
 		pdc_atapi_pkt(qc);
 		break;
@@ -1022,11 +1022,11 @@ static unsigned int pdc_qc_issue(struct ata_queued_cmd *qc)
 	case ATAPI_PROT_NODATA:
 		if (qc->dev->flags & ATA_DFLAG_CDB_INTR)
 			break;
-		/*FALLTHROUGH*/
+		fallthrough;
 	case ATA_PROT_NODATA:
 		if (qc->tf.flags & ATA_TFLAG_POLLING)
 			break;
-		/*FALLTHROUGH*/
+		fallthrough;
 	case ATAPI_PROT_DMA:
 	case ATA_PROT_DMA:
 		pdc_packet_start(qc);

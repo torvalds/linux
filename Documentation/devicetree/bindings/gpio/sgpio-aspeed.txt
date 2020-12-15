@@ -20,8 +20,9 @@ Required properties:
 - gpio-controller : Marks the device node as a GPIO controller
 - interrupts : Interrupt specifier, see interrupt-controller/interrupts.txt
 - interrupt-controller : Mark the GPIO controller as an interrupt-controller
-- ngpios : number of GPIO lines, see gpio.txt
-  (should be multiple of 8, up to 80 pins)
+- ngpios : number of *hardware* GPIO lines, see gpio.txt. This will expose
+  2 software GPIOs per hardware GPIO: one for hardware input, one for hardware
+  output. Up to 80 pins, must be a multiple of 8.
 - clocks : A phandle to the APB clock for SGPM clock division
 - bus-frequency : SGPM CLK frequency
 

@@ -558,7 +558,7 @@ static int is_last_bud(struct ubifs_info *c, struct ubifs_bud *bud)
 	return data == 0xFFFFFFFF;
 }
 
-/* authenticate_sleb_hash and authenticate_sleb_hmac are split out for stack usage */
+/* authenticate_sleb_hash is split out for stack usage */
 static int authenticate_sleb_hash(struct ubifs_info *c, struct shash_desc *log_hash, u8 *hash)
 {
 	SHASH_DESC_ON_STACK(hash_desc, c->hash_tfm);
@@ -567,15 +567,6 @@ static int authenticate_sleb_hash(struct ubifs_info *c, struct shash_desc *log_h
 
 	ubifs_shash_copy_state(c, log_hash, hash_desc);
 	return crypto_shash_final(hash_desc, hash);
-}
-
-static int authenticate_sleb_hmac(struct ubifs_info *c, u8 *hash, u8 *hmac)
-{
-	SHASH_DESC_ON_STACK(hmac_desc, c->hmac_tfm);
-
-	hmac_desc->tfm = c->hmac_tfm;
-
-	return crypto_shash_digest(hmac_desc, hash, c->hash_len, hmac);
 }
 
 /**
@@ -618,7 +609,8 @@ static int authenticate_sleb(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 			if (err)
 				goto out;
 
-			err = authenticate_sleb_hmac(c, hash, hmac);
+			err = crypto_shash_tfm_digest(c->hmac_tfm, hash,
+						      c->hash_len, hmac);
 			if (err)
 				goto out;
 

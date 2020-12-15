@@ -64,7 +64,7 @@ config DP83640_PHY
 	depends on NETWORK_PHY_TIMESTAMPING
 	depends on PHYLIB
 	depends on PTP_1588_CLOCK
-	---help---
+	help
 	  Supports the DP83640 PHYTER with IEEE 1588 features.
 
 	  This driver adds support for using the DP83640 as a PTP

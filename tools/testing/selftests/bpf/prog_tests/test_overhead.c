@@ -61,9 +61,10 @@ void test_test_overhead(void)
 	const char *raw_tp_name = "raw_tp/task_rename";
 	const char *fentry_name = "fentry/__set_task_comm";
 	const char *fexit_name = "fexit/__set_task_comm";
+	const char *fmodret_name = "fmod_ret/__set_task_comm";
 	const char *kprobe_func = "__set_task_comm";
 	struct bpf_program *kprobe_prog, *kretprobe_prog, *raw_tp_prog;
-	struct bpf_program *fentry_prog, *fexit_prog;
+	struct bpf_program *fentry_prog, *fexit_prog, *fmodret_prog;
 	struct bpf_object *obj;
 	struct bpf_link *link;
 	int err, duration = 0;
@@ -95,6 +96,10 @@ void test_test_overhead(void)
 	fexit_prog = bpf_object__find_program_by_title(obj, fexit_name);
 	if (CHECK(!fexit_prog, "find_probe",
 		  "prog '%s' not found\n", fexit_name))
+		goto cleanup;
+	fmodret_prog = bpf_object__find_program_by_title(obj, fmodret_name);
+	if (CHECK(!fmodret_prog, "find_probe",
+		  "prog '%s' not found\n", fmodret_name))
 		goto cleanup;
 
 	err = bpf_object__load(obj);
@@ -141,6 +146,13 @@ void test_test_overhead(void)
 	if (CHECK(IS_ERR(link), "attach fexit", "err %ld\n", PTR_ERR(link)))
 		goto cleanup;
 	test_run("fexit");
+	bpf_link__destroy(link);
+
+	/* attach fmod_ret */
+	link = bpf_program__attach_trace(fmodret_prog);
+	if (CHECK(IS_ERR(link), "attach fmod_ret", "err %ld\n", PTR_ERR(link)))
+		goto cleanup;
+	test_run("fmod_ret");
 	bpf_link__destroy(link);
 cleanup:
 	prctl(PR_SET_NAME, comm, 0L, 0L, 0L);

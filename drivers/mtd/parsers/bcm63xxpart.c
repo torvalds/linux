@@ -22,6 +22,11 @@
 #include <linux/mtd/partitions.h>
 #include <linux/of.h>
 
+#ifdef CONFIG_MIPS
+#include <asm/bootinfo.h>
+#include <asm/fw/cfe/cfe_api.h>
+#endif /* CONFIG_MIPS */
+
 #define BCM963XX_CFE_BLOCK_SIZE		SZ_64K	/* always at least 64KiB */
 
 #define BCM963XX_CFE_MAGIC_OFFSET	0x4e0
@@ -32,28 +37,15 @@
 #define STR_NULL_TERMINATE(x) \
 	do { char *_str = (x); _str[sizeof(x) - 1] = 0; } while (0)
 
-static int bcm63xx_detect_cfe(struct mtd_info *master)
+static inline int bcm63xx_detect_cfe(void)
 {
-	char buf[9];
-	int ret;
-	size_t retlen;
+	int ret = 0;
 
-	ret = mtd_read(master, BCM963XX_CFE_VERSION_OFFSET, 5, &retlen,
-		       (void *)buf);
-	buf[retlen] = 0;
+#ifdef CONFIG_MIPS
+	ret = (fw_arg3 == CFE_EPTSEAL);
+#endif /* CONFIG_MIPS */
 
-	if (ret)
-		return ret;
-
-	if (strncmp("cfe-v", buf, 5) == 0)
-		return 0;
-
-	/* very old CFE's do not have the cfe-v string, so check for magic */
-	ret = mtd_read(master, BCM963XX_CFE_MAGIC_OFFSET, 8, &retlen,
-		       (void *)buf);
-	buf[retlen] = 0;
-
-	return strncmp("CFE1CFE1", buf, 8);
+	return ret;
 }
 
 static int bcm63xx_read_nvram(struct mtd_info *master,
@@ -138,7 +130,7 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	struct bcm963xx_nvram *nvram = NULL;
 	int ret;
 
-	if (bcm63xx_detect_cfe(master))
+	if (!bcm63xx_detect_cfe())
 		return -EINVAL;
 
 	nvram = vzalloc(sizeof(*nvram));

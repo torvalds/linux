@@ -235,7 +235,7 @@ There can be multiple sensor clients and clients for calibration function.
 
 To ease in implantation and allow independent driver handle each client
 this transport layer takes advantage of Linux Bus driver model. Each
-client is registered as device on the the transport bus (ishtp bus).
+client is registered as device on the transport bus (ishtp bus).
 
 Enumeration sequence of messages:
 

@@ -26,8 +26,8 @@ properties:
     oneOf:
       - const: faraday,ftide010
       - items:
-        - const: cortina,gemini-pata
-        - const: faraday,ftide010
+          - const: cortina,gemini-pata
+          - const: faraday,ftide010
 
   reg:
     maxItems: 1

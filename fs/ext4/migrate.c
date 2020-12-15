@@ -287,7 +287,7 @@ static int free_ind_block(handle_t *handle, struct inode *inode, __le32 *i_data)
 static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
 						struct inode *tmp_inode)
 {
-	int retval;
+	int retval, retval2 = 0;
 	__le32	i_data[3];
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	struct ext4_inode_info *tmp_ei = EXT4_I(tmp_inode);
@@ -342,7 +342,9 @@ static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
 	 * i_blocks when freeing the indirect meta-data blocks
 	 */
 	retval = free_ind_block(handle, inode, i_data);
-	ext4_mark_inode_dirty(handle, inode);
+	retval2 = ext4_mark_inode_dirty(handle, inode);
+	if (unlikely(retval2 && !retval))
+		retval = retval2;
 
 err_out:
 	return retval;
@@ -601,7 +603,7 @@ int ext4_ind_migrate(struct inode *inode)
 	ext4_lblk_t			start, end;
 	ext4_fsblk_t			blk;
 	handle_t			*handle;
-	int				ret;
+	int				ret, ret2 = 0;
 
 	if (!ext4_has_feature_extents(inode->i_sb) ||
 	    (!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
@@ -655,7 +657,9 @@ int ext4_ind_migrate(struct inode *inode)
 	memset(ei->i_data, 0, sizeof(ei->i_data));
 	for (i = start; i <= end; i++)
 		ei->i_data[i] = cpu_to_le32(blk++);
-	ext4_mark_inode_dirty(handle, inode);
+	ret2 = ext4_mark_inode_dirty(handle, inode);
+	if (unlikely(ret2 && !ret))
+		ret = ret2;
 errout:
 	ext4_journal_stop(handle);
 	up_write(&EXT4_I(inode)->i_data_sem);

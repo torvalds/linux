@@ -1672,7 +1672,6 @@ static ssize_t wiimote_ext_show(struct device *dev,
 	case WIIMOTE_EXT_GUITAR:
 		return sprintf(buf, "guitar\n");
 	case WIIMOTE_EXT_UNKNOWN:
-		/* fallthrough */
 	default:
 		return sprintf(buf, "unknown\n");
 	}
@@ -1722,7 +1721,6 @@ static ssize_t wiimote_dev_show(struct device *dev,
 	case WIIMOTE_DEV_PENDING:
 		return sprintf(buf, "pending\n");
 	case WIIMOTE_DEV_UNKNOWN:
-		/* fallthrough */
 	default:
 		return sprintf(buf, "unknown\n");
 	}
@@ -1870,6 +1868,11 @@ static const struct hid_device_id wiimote_hid_devices[] = {
 				USB_DEVICE_ID_NINTENDO_WIIMOTE2) },
 	{ }
 };
+
+bool wiimote_dpad_as_analog = false;
+module_param_named(dpad_as_analog, wiimote_dpad_as_analog, bool, 0644);
+MODULE_PARM_DESC(dpad_as_analog, "Use D-Pad as main analog input");
+
 MODULE_DEVICE_TABLE(hid, wiimote_hid_devices);
 
 static struct hid_driver wiimote_hid_driver = {

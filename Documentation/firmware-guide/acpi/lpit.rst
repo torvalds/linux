@@ -7,7 +7,7 @@ Low Power Idle Table (LPIT)
 To enumerate platform Low Power Idle states, Intel platforms are using
 “Low Power Idle Table” (LPIT). More details about this table can be
 downloaded from:
-http://www.uefi.org/sites/default/files/resources/Intel_ACPI_Low_Power_S0_Idle.pdf
+https://www.uefi.org/sites/default/files/resources/Intel_ACPI_Low_Power_S0_Idle.pdf
 
 Residencies for each low power state can be read via FFH
 (Function fixed hardware) or a memory mapped interface.

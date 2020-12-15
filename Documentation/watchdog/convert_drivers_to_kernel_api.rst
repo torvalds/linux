@@ -2,7 +2,7 @@
 Converting old watchdog drivers to the watchdog framework
 =========================================================
 
-by Wolfram Sang <w.sang@pengutronix.de>
+by Wolfram Sang <wsa@kernel.org>
 
 Before the watchdog framework came into the kernel, every driver had to
 implement the API on its own. Now, as the framework factored out the common
@@ -115,7 +115,7 @@ Add the watchdog operations
 ---------------------------
 
 All possible callbacks are defined in 'struct watchdog_ops'. You can find it
-explained in 'watchdog-kernel-api.txt' in this directory. start(), stop() and
+explained in 'watchdog-kernel-api.txt' in this directory. start() and
 owner must be set, the rest are optional. You will easily find corresponding
 functions in the old driver. Note that you will now get a pointer to the
 watchdog_device as a parameter to these functions, so you probably have to

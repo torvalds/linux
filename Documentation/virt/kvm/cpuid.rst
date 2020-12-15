@@ -50,8 +50,8 @@ KVM_FEATURE_NOP_IO_DELAY          1           not necessary to perform delays
 KVM_FEATURE_MMU_OP                2           deprecated
 
 KVM_FEATURE_CLOCKSOURCE2          3           kvmclock available at msrs
-
                                               0x4b564d00 and 0x4b564d01
+
 KVM_FEATURE_ASYNC_PF              4           async pf can be enabled by
                                               writing to msr 0x4b564d02
 
@@ -85,6 +85,12 @@ KVM_FEATURE_PV_POLL_CONTROL       12          host-side polling on HLT can
 KVM_FEATURE_PV_SCHED_YIELD        13          guest checks this feature bit
                                               before using paravirtualized
                                               sched yield.
+
+KVM_FEATURE_ASYNC_PF_INT          14          guest checks this feature bit
+                                              before using the second async
+                                              pf control msr 0x4b564d06 and
+                                              async pf acknowledgment msr
+                                              0x4b564d07.
 
 KVM_FEATURE_CLOCSOURCE_STABLE_BIT 24          host will warn if no guest-side
                                               per-cpu warps are expeced in

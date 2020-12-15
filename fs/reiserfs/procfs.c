@@ -15,6 +15,7 @@
 #include "reiserfs.h"
 #include <linux/init.h>
 #include <linux/proc_fs.h>
+#include <linux/blkdev.h>
 
 /*
  * LOCKING:

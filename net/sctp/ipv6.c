@@ -875,7 +875,7 @@ static int sctp_inet6_af_supported(sa_family_t family, struct sctp_sock *sp)
 	case AF_INET:
 		if (!__ipv6_only_sock(sctp_opt2sk(sp)))
 			return 1;
-		/* fallthru */
+		fallthrough;
 	default:
 		return 0;
 	}
@@ -1032,8 +1032,7 @@ static const struct proto_ops inet6_seqpacket_ops = {
 	.recvmsg	   = inet_recvmsg,
 	.mmap		   = sock_no_mmap,
 #ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_sock_common_setsockopt,
-	.compat_getsockopt = compat_sock_common_getsockopt,
+	.compat_ioctl	   = inet6_compat_ioctl,
 #endif
 };
 
@@ -1088,10 +1087,6 @@ static struct sctp_af sctp_af_inet6 = {
 	.net_header_len	   = sizeof(struct ipv6hdr),
 	.sockaddr_len	   = sizeof(struct sockaddr_in6),
 	.ip_options_len	   = sctp_v6_ip_options_len,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_ipv6_setsockopt,
-	.compat_getsockopt = compat_ipv6_getsockopt,
-#endif
 };
 
 static struct sctp_pf sctp_pf_inet6 = {

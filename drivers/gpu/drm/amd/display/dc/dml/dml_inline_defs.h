@@ -86,9 +86,20 @@ static inline double dml_round(double a)
 		return floor;
 }
 
+/* float
+static inline int dml_log2(float x)
+{
+	unsigned int ix = *((unsigned int *)&x);
+
+	return (int)((ix >> 23) & 0xff) - 127;
+}*/
+
+/* double */
 static inline int dml_log2(double x)
 {
-	return dml_round((double)dcn_bw_log(x, 2));
+	unsigned long long ix = *((unsigned long long *)&x);
+
+	return (int)((ix >> 52) & 0x7ff) - 1023;
 }
 
 static inline double dml_pow(double a, int exp)
@@ -114,11 +125,6 @@ static inline double dml_ceil_ex(double x, double granularity)
 static inline double dml_floor_ex(double x, double granularity)
 {
 	return (double) dcn_bw_floor2(x, granularity);
-}
-
-static inline double dml_log(double x, double base)
-{
-	return (double) dcn_bw_log(x, base);
 }
 
 static inline unsigned int dml_round_to_multiple(unsigned int num,

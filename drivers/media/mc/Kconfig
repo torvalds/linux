@@ -1,16 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0
+
 #
 # Media controller
-#	Selectable only for webcam/grabbers, as other drivers don't use it
 #
-
-config MEDIA_CONTROLLER
-	bool "Media Controller API"
-	depends on MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT
-	help
-	  Enable the media controller API used to query media devices internal
-	  topology and configure it dynamically.
-
-	  This API is mostly used by camera interfaces in embedded platforms.
 
 config MEDIA_CONTROLLER_DVB
 	bool "Enable Media controller for DVB (EXPERIMENTAL)"
@@ -21,8 +13,8 @@ config MEDIA_CONTROLLER_DVB
 	  This is currently experimental.
 
 config MEDIA_CONTROLLER_REQUEST_API
-	bool "Enable Media controller Request API (EXPERIMENTAL)"
-	depends on MEDIA_CONTROLLER && STAGING_MEDIA
+	bool
+	depends on MEDIA_CONTROLLER
 	help
 	  DO NOT ENABLE THIS OPTION UNLESS YOU KNOW WHAT YOU'RE DOING.
 
@@ -31,3 +23,6 @@ config MEDIA_CONTROLLER_REQUEST_API
 
 	  There is currently no intention to provide API or ABI stability for
 	  this new API as of yet.
+
+comment "Please notice that the enabled Media controller Request API is EXPERIMENTAL"
+	depends on MEDIA_CONTROLLER_REQUEST_API

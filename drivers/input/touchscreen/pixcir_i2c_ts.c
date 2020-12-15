@@ -415,14 +415,14 @@ static int __maybe_unused pixcir_i2c_ts_suspend(struct device *dev)
 	mutex_lock(&input->mutex);
 
 	if (device_may_wakeup(&client->dev)) {
-		if (!input->users) {
+		if (!input_device_enabled(input)) {
 			ret = pixcir_start(ts);
 			if (ret) {
 				dev_err(dev, "Failed to start\n");
 				goto unlock;
 			}
 		}
-	} else if (input->users) {
+	} else if (input_device_enabled(input)) {
 		ret = pixcir_stop(ts);
 	}
 
@@ -442,14 +442,14 @@ static int __maybe_unused pixcir_i2c_ts_resume(struct device *dev)
 	mutex_lock(&input->mutex);
 
 	if (device_may_wakeup(&client->dev)) {
-		if (!input->users) {
+		if (!input_device_enabled(input)) {
 			ret = pixcir_stop(ts);
 			if (ret) {
 				dev_err(dev, "Failed to stop\n");
 				goto unlock;
 			}
 		}
-	} else if (input->users) {
+	} else if (input_device_enabled(input)) {
 		ret = pixcir_start(ts);
 	}
 

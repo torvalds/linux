@@ -40,7 +40,6 @@
  * New MRs are created on demand.
  */
 
-#include <linux/sunrpc/rpc_rdma.h>
 #include <linux/sunrpc/svc_rdma.h>
 
 #include "xprt_rdma.h"
@@ -367,7 +366,7 @@ static void frwr_wc_fastreg(struct ib_cq *cq, struct ib_wc *wc)
 	trace_xprtrdma_wc_fastreg(wc, frwr);
 	/* The MR will get recycled when the associated req is retransmitted */
 
-	rpcrdma_flush_disconnect(cq, wc);
+	rpcrdma_flush_disconnect(cq->cq_context, wc);
 }
 
 /**
@@ -452,7 +451,7 @@ static void frwr_wc_localinv(struct ib_cq *cq, struct ib_wc *wc)
 	trace_xprtrdma_wc_li(wc, frwr);
 	__frwr_release_mr(wc, mr);
 
-	rpcrdma_flush_disconnect(cq, wc);
+	rpcrdma_flush_disconnect(cq->cq_context, wc);
 }
 
 /**
@@ -474,7 +473,7 @@ static void frwr_wc_localinv_wake(struct ib_cq *cq, struct ib_wc *wc)
 	__frwr_release_mr(wc, mr);
 	complete(&frwr->fr_linv_done);
 
-	rpcrdma_flush_disconnect(cq, wc);
+	rpcrdma_flush_disconnect(cq->cq_context, wc);
 }
 
 /**
@@ -582,7 +581,7 @@ static void frwr_wc_localinv_done(struct ib_cq *cq, struct ib_wc *wc)
 	smp_rmb();
 	rpcrdma_complete_rqst(rep);
 
-	rpcrdma_flush_disconnect(cq, wc);
+	rpcrdma_flush_disconnect(cq->cq_context, wc);
 }
 
 /**

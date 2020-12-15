@@ -5,6 +5,7 @@
 #include "block-rsv.h"
 #include "space-info.h"
 #include "transaction.h"
+#include "block-group.h"
 
 /*
  * HOW DO BLOCK RESERVES WORK
@@ -405,6 +406,8 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 	else
 		block_rsv->full = 0;
 
+	if (block_rsv->size >= sinfo->total_bytes)
+		sinfo->force_alloc = CHUNK_ALLOC_FORCE;
 	spin_unlock(&block_rsv->lock);
 	spin_unlock(&sinfo->lock);
 }
@@ -455,7 +458,7 @@ static struct btrfs_block_rsv *get_block_rsv(
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_block_rsv *block_rsv = NULL;
 
-	if (test_bit(BTRFS_ROOT_REF_COWS, &root->state) ||
+	if (test_bit(BTRFS_ROOT_SHAREABLE, &root->state) ||
 	    (root == fs_info->csum_root && trans->adding_csums) ||
 	    (root == fs_info->uuid_root))
 		block_rsv = trans->block_rsv;

@@ -353,5 +353,5 @@ static struct comedi_driver rti800_driver = {
 module_comedi_driver(rti800_driver);
 
 MODULE_DESCRIPTION("Comedi: RTI-800 Multifunction Analog/Digital board");
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_LICENSE("GPL");

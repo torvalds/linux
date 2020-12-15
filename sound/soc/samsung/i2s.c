@@ -733,7 +733,7 @@ static int i2s_hw_params(struct snd_pcm_substream *substream,
 	switch (params_channels(params)) {
 	case 6:
 		val |= MOD_DC2_EN;
-		/* Fall through */
+		fallthrough;
 	case 4:
 		val |= MOD_DC1_EN;
 		break;
@@ -931,7 +931,7 @@ static int i2s_trigger(struct snd_pcm_substream *substream,
 {
 	struct samsung_i2s_priv *priv = snd_soc_dai_get_drvdata(dai);
 	int capture = (substream->stream == SNDRV_PCM_STREAM_CAPTURE);
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct i2s_dai *i2s = to_info(asoc_rtd_to_cpu(rtd, 0));
 	unsigned long flags;
 

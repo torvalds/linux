@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -72,7 +72,7 @@ struct sof_ipc_dma_trace_posn {
 struct sof_ipc_panic_info {
 	struct sof_ipc_hdr hdr;
 	uint32_t code;			/* SOF_IPC_PANIC_ */
-	char filename[SOF_TRACE_FILENAME_SIZE];
+	uint8_t filename[SOF_TRACE_FILENAME_SIZE];
 	uint32_t linenum;
 }  __packed;
 

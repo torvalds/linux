@@ -2,14 +2,12 @@
 /*
  * Realtek RTD1293/RTD1295/RTD1296 SoC
  *
- * Copyright (c) 2016-2017 Andreas Färber
+ * Copyright (c) 2016-2019 Andreas Färber
  */
 
-/memreserve/	0x0000000000000000 0x0000000000030000;
-/memreserve/	0x000000000001f000 0x0000000000001000;
-/memreserve/	0x0000000000030000 0x00000000000d0000;
+/memreserve/	0x0000000000000000 0x000000000001f000;
+/memreserve/	0x000000000001f000 0x00000000000e1000;
 /memreserve/	0x0000000001b00000 0x00000000004be000;
-/memreserve/	0x0000000001ffe000 0x0000000000004000;
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/reset/realtek,rtd1295.h>
@@ -18,6 +16,25 @@
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
 	#size-cells = <1>;
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		rpc_comm: rpc@1f000 {
+			reg = <0x1f000 0x1000>;
+		};
+
+		rpc_ringbuf: rpc@1ffe000 {
+			reg = <0x1ffe000 0x4000>;
+		};
+
+		tee: tee@10100000 {
+			reg = <0x10100000 0xf00000>;
+			no-map;
+		};
+	};
 
 	arm_pmu: arm-pmu {
 		compatible = "arm,cortex-a53-pmu";
@@ -35,73 +52,61 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		/* Exclude up to 2 GiB of RAM */
-		ranges = <0x80000000 0x80000000 0x80000000>;
+		ranges = <0x00000000 0x00000000 0x0001f000>, /* boot ROM */
+			 /* Exclude up to 2 GiB of RAM */
+			 <0x80000000 0x80000000 0x80000000>;
 
-		reset1: reset-controller@98000000 {
-			compatible = "snps,dw-low-reset";
-			reg = <0x98000000 0x4>;
-			#reset-cells = <1>;
-		};
+		rbus: bus@98000000 {
+			compatible = "simple-bus";
+			reg = <0x98000000 0x200000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x98000000 0x200000>;
 
-		reset2: reset-controller@98000004 {
-			compatible = "snps,dw-low-reset";
-			reg = <0x98000004 0x4>;
-			#reset-cells = <1>;
-		};
+			crt: syscon@0 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x0 0x1800>;
+				reg-io-width = <4>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x0 0x1800>;
+			};
 
-		reset3: reset-controller@98000008 {
-			compatible = "snps,dw-low-reset";
-			reg = <0x98000008 0x4>;
-			#reset-cells = <1>;
-		};
+			iso: syscon@7000 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x7000 0x1000>;
+				reg-io-width = <4>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x7000 0x1000>;
+			};
 
-		reset4: reset-controller@98000050 {
-			compatible = "snps,dw-low-reset";
-			reg = <0x98000050 0x4>;
-			#reset-cells = <1>;
-		};
+			sb2: syscon@1a000 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x1a000 0x1000>;
+				reg-io-width = <4>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x1a000 0x1000>;
+			};
 
-		iso_reset: reset-controller@98007088 {
-			compatible = "snps,dw-low-reset";
-			reg = <0x98007088 0x4>;
-			#reset-cells = <1>;
-		};
+			misc: syscon@1b000 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x1b000 0x1000>;
+				reg-io-width = <4>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x1b000 0x1000>;
+			};
 
-		wdt: watchdog@98007680 {
-			compatible = "realtek,rtd1295-watchdog";
-			reg = <0x98007680 0x100>;
-			clocks = <&osc27M>;
-		};
-
-		uart0: serial@98007800 {
-			compatible = "snps,dw-apb-uart";
-			reg = <0x98007800 0x400>;
-			reg-shift = <2>;
-			reg-io-width = <4>;
-			clock-frequency = <27000000>;
-			resets = <&iso_reset RTD1295_ISO_RSTN_UR0>;
-			status = "disabled";
-		};
-
-		uart1: serial@9801b200 {
-			compatible = "snps,dw-apb-uart";
-			reg = <0x9801b200 0x100>;
-			reg-shift = <2>;
-			reg-io-width = <4>;
-			clock-frequency = <432000000>;
-			resets = <&reset2 RTD1295_RSTN_UR1>;
-			status = "disabled";
-		};
-
-		uart2: serial@9801b400 {
-			compatible = "snps,dw-apb-uart";
-			reg = <0x9801b400 0x100>;
-			reg-shift = <2>;
-			reg-io-width = <4>;
-			clock-frequency = <432000000>;
-			resets = <&reset2 RTD1295_RSTN_UR2>;
-			status = "disabled";
+			scpu_wrapper: syscon@1d000 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x1d000 0x2000>;
+				reg-io-width = <4>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x1d000 0x2000>;
+			};
 		};
 
 		gic: interrupt-controller@ff011000 {
@@ -114,5 +119,77 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 		};
+	};
+};
+
+&crt {
+	reset1: reset-controller@0 {
+		compatible = "snps,dw-low-reset";
+		reg = <0x0 0x4>;
+		#reset-cells = <1>;
+	};
+
+	reset2: reset-controller@4 {
+		compatible = "snps,dw-low-reset";
+		reg = <0x4 0x4>;
+		#reset-cells = <1>;
+	};
+
+	reset3: reset-controller@8 {
+		compatible = "snps,dw-low-reset";
+		reg = <0x8 0x4>;
+		#reset-cells = <1>;
+	};
+
+	reset4: reset-controller@50 {
+		compatible = "snps,dw-low-reset";
+		reg = <0x50 0x4>;
+		#reset-cells = <1>;
+	};
+};
+
+&iso {
+	iso_reset: reset-controller@88 {
+		compatible = "snps,dw-low-reset";
+		reg = <0x88 0x4>;
+		#reset-cells = <1>;
+	};
+
+	wdt: watchdog@680 {
+		compatible = "realtek,rtd1295-watchdog";
+		reg = <0x680 0x100>;
+		clocks = <&osc27M>;
+	};
+
+	uart0: serial@800 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x800 0x400>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		clock-frequency = <27000000>;
+		resets = <&iso_reset RTD1295_ISO_RSTN_UR0>;
+		status = "disabled";
+	};
+};
+
+&misc {
+	uart1: serial@200 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x200 0x100>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		clock-frequency = <432000000>;
+		resets = <&reset2 RTD1295_RSTN_UR1>;
+		status = "disabled";
+	};
+
+	uart2: serial@400 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x400 0x100>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		clock-frequency = <432000000>;
+		resets = <&reset2 RTD1295_RSTN_UR2>;
+		status = "disabled";
 	};
 };

@@ -69,34 +69,30 @@ properties:
     maxItems: 3
 
   reg-names:
-   items:
-     - const: gcfg
-     - const: rchanrt
-     - const: tchanrt
+    items:
+      - const: gcfg
+      - const: rchanrt
+      - const: tchanrt
 
   msi-parent: true
 
   ti,sci:
     description: phandle to TI-SCI compatible System controller node
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   ti,sci-dev-id:
     description: TI-SCI device id of UDMAP
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   ti,ringacc:
     description: phandle to the ring accelerator node
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   ti,sci-rm-range-tchan:
     description: |
       Array of UDMA tchan resource subtypes for resource allocation for this
       host
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
     # Should be enough
     maxItems: 255
@@ -105,8 +101,7 @@ properties:
     description: |
       Array of UDMA rchan resource subtypes for resource allocation for this
       host
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
     # Should be enough
     maxItems: 255
@@ -115,8 +110,7 @@ properties:
     description: |
       Array of UDMA rflow resource subtypes for resource allocation for this
       host
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
     # Should be enough
     maxItems: 255
@@ -142,8 +136,7 @@ then:
   properties:
     ti,udma-atype:
       description: ATYPE value which should be used by non slave channels
-      allOf:
-        - $ref: /schemas/types.yaml#/definitions/uint32
+      $ref: /schemas/types.yaml#/definitions/uint32
 
   required:
     - ti,udma-atype

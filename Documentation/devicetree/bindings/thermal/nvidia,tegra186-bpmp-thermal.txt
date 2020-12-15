@@ -8,7 +8,7 @@ exposed by BPMP.
 The BPMP thermal node must be located directly inside the main BPMP node. See
 ../firmware/nvidia,tegra186-bpmp.txt for details of the BPMP binding.
 
-This node represents a thermal sensor. See thermal.txt for details of the
+This node represents a thermal sensor. See Documentation/devicetree/bindings/thermal/thermal-sensor.yaml for details of the
 core thermal binding.
 
 Required properties:

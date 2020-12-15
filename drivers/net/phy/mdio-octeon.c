@@ -44,8 +44,7 @@ static int octeon_mdiobus_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	bus->register_base =
-		(u64)devm_ioremap(&pdev->dev, mdio_phys, regsize);
+	bus->register_base = devm_ioremap(&pdev->dev, mdio_phys, regsize);
 	if (!bus->register_base) {
 		dev_err(&pdev->dev, "dev_ioremap failed\n");
 		return -ENOMEM;
@@ -56,7 +55,7 @@ static int octeon_mdiobus_probe(struct platform_device *pdev)
 	oct_mdio_writeq(smi_en.u64, bus->register_base + SMI_EN);
 
 	bus->mii_bus->name = KBUILD_MODNAME;
-	snprintf(bus->mii_bus->id, MII_BUS_ID_SIZE, "%llx", bus->register_base);
+	snprintf(bus->mii_bus->id, MII_BUS_ID_SIZE, "%px", bus->register_base);
 	bus->mii_bus->parent = &pdev->dev;
 
 	bus->mii_bus->read = cavium_mdiobus_read;
@@ -108,12 +107,6 @@ static struct platform_driver octeon_mdiobus_driver = {
 	.probe		= octeon_mdiobus_probe,
 	.remove		= octeon_mdiobus_remove,
 };
-
-void octeon_mdiobus_force_mod_depencency(void)
-{
-	/* Let ethernet drivers force us to be loaded.  */
-}
-EXPORT_SYMBOL(octeon_mdiobus_force_mod_depencency);
 
 module_platform_driver(octeon_mdiobus_driver);
 

@@ -954,8 +954,8 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 	btrfs_test_inode_set_ops(inode);
 
 	/* [BTRFS_MAX_EXTENT_SIZE] */
-	ret = btrfs_set_extent_delalloc(inode, 0, BTRFS_MAX_EXTENT_SIZE - 1, 0,
-					NULL);
+	ret = btrfs_set_extent_delalloc(BTRFS_I(inode), 0,
+					BTRFS_MAX_EXTENT_SIZE - 1, 0, NULL);
 	if (ret) {
 		test_err("btrfs_set_extent_delalloc returned %d", ret);
 		goto out;
@@ -968,7 +968,7 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 	}
 
 	/* [BTRFS_MAX_EXTENT_SIZE][sectorsize] */
-	ret = btrfs_set_extent_delalloc(inode, BTRFS_MAX_EXTENT_SIZE,
+	ret = btrfs_set_extent_delalloc(BTRFS_I(inode), BTRFS_MAX_EXTENT_SIZE,
 					BTRFS_MAX_EXTENT_SIZE + sectorsize - 1,
 					0, NULL);
 	if (ret) {
@@ -999,7 +999,7 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 	}
 
 	/* [BTRFS_MAX_EXTENT_SIZE][sectorsize] */
-	ret = btrfs_set_extent_delalloc(inode, BTRFS_MAX_EXTENT_SIZE >> 1,
+	ret = btrfs_set_extent_delalloc(BTRFS_I(inode), BTRFS_MAX_EXTENT_SIZE >> 1,
 					(BTRFS_MAX_EXTENT_SIZE >> 1)
 					+ sectorsize - 1,
 					0, NULL);
@@ -1017,7 +1017,7 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 	/*
 	 * [BTRFS_MAX_EXTENT_SIZE+sectorsize][sectorsize HOLE][BTRFS_MAX_EXTENT_SIZE+sectorsize]
 	 */
-	ret = btrfs_set_extent_delalloc(inode,
+	ret = btrfs_set_extent_delalloc(BTRFS_I(inode),
 			BTRFS_MAX_EXTENT_SIZE + 2 * sectorsize,
 			(BTRFS_MAX_EXTENT_SIZE << 1) + 3 * sectorsize - 1,
 			0, NULL);
@@ -1035,7 +1035,7 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 	/*
 	* [BTRFS_MAX_EXTENT_SIZE+sectorsize][sectorsize][BTRFS_MAX_EXTENT_SIZE+sectorsize]
 	*/
-	ret = btrfs_set_extent_delalloc(inode,
+	ret = btrfs_set_extent_delalloc(BTRFS_I(inode),
 			BTRFS_MAX_EXTENT_SIZE + sectorsize,
 			BTRFS_MAX_EXTENT_SIZE + 2 * sectorsize - 1, 0, NULL);
 	if (ret) {
@@ -1069,7 +1069,7 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 	 * Refill the hole again just for good measure, because I thought it
 	 * might fail and I'd rather satisfy my paranoia at this point.
 	 */
-	ret = btrfs_set_extent_delalloc(inode,
+	ret = btrfs_set_extent_delalloc(BTRFS_I(inode),
 			BTRFS_MAX_EXTENT_SIZE + sectorsize,
 			BTRFS_MAX_EXTENT_SIZE + 2 * sectorsize - 1, 0, NULL);
 	if (ret) {

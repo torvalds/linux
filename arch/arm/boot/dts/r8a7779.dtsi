@@ -385,7 +385,7 @@
 		status = "disabled";
 	};
 
-	sdhi0: sd@ffe4c000 {
+	sdhi0: mmc@ffe4c000 {
 		compatible = "renesas,sdhi-r8a7779",
 			     "renesas,rcar-gen1-sdhi";
 		reg = <0xffe4c000 0x100>;
@@ -395,7 +395,7 @@
 		status = "disabled";
 	};
 
-	sdhi1: sd@ffe4d000 {
+	sdhi1: mmc@ffe4d000 {
 		compatible = "renesas,sdhi-r8a7779",
 			     "renesas,rcar-gen1-sdhi";
 		reg = <0xffe4d000 0x100>;
@@ -405,7 +405,7 @@
 		status = "disabled";
 	};
 
-	sdhi2: sd@ffe4e000 {
+	sdhi2: mmc@ffe4e000 {
 		compatible = "renesas,sdhi-r8a7779",
 			     "renesas,rcar-gen1-sdhi";
 		reg = <0xffe4e000 0x100>;
@@ -415,7 +415,7 @@
 		status = "disabled";
 	};
 
-	sdhi3: sd@ffe4f000 {
+	sdhi3: mmc@ffe4f000 {
 		compatible = "renesas,sdhi-r8a7779",
 			     "renesas,rcar-gen1-sdhi";
 		reg = <0xffe4f000 0x100>;

@@ -31,7 +31,7 @@
 
 union nested_table {
 	union nested_table __rcu *table;
-	struct rhash_lock_head *bucket;
+	struct rhash_lock_head __rcu *bucket;
 };
 
 static u32 head_hashfn(struct rhashtable *ht,
@@ -63,13 +63,22 @@ EXPORT_SYMBOL_GPL(lockdep_rht_bucket_is_held);
 #define ASSERT_RHT_MUTEX(HT)
 #endif
 
+static inline union nested_table *nested_table_top(
+	const struct bucket_table *tbl)
+{
+	/* The top-level bucket entry does not need RCU protection
+	 * because it's set at the same time as tbl->nest.
+	 */
+	return (void *)rcu_dereference_protected(tbl->buckets[0], 1);
+}
+
 static void nested_table_free(union nested_table *ntbl, unsigned int size)
 {
 	const unsigned int shift = PAGE_SHIFT - ilog2(sizeof(void *));
 	const unsigned int len = 1 << shift;
 	unsigned int i;
 
-	ntbl = rcu_dereference_raw(ntbl->table);
+	ntbl = rcu_dereference_protected(ntbl->table, 1);
 	if (!ntbl)
 		return;
 
@@ -89,7 +98,7 @@ static void nested_bucket_table_free(const struct bucket_table *tbl)
 	union nested_table *ntbl;
 	unsigned int i;
 
-	ntbl = (union nested_table *)rcu_dereference_raw(tbl->buckets[0]);
+	ntbl = nested_table_top(tbl);
 
 	for (i = 0; i < len; i++)
 		nested_table_free(ntbl + i, size);
@@ -213,7 +222,7 @@ static struct bucket_table *rhashtable_last_table(struct rhashtable *ht,
 }
 
 static int rhashtable_rehash_one(struct rhashtable *ht,
-				 struct rhash_lock_head **bkt,
+				 struct rhash_lock_head __rcu **bkt,
 				 unsigned int old_hash)
 {
 	struct bucket_table *old_tbl = rht_dereference(ht->tbl, ht);
@@ -266,7 +275,7 @@ static int rhashtable_rehash_chain(struct rhashtable *ht,
 				    unsigned int old_hash)
 {
 	struct bucket_table *old_tbl = rht_dereference(ht->tbl, ht);
-	struct rhash_lock_head **bkt = rht_bucket_var(old_tbl, old_hash);
+	struct rhash_lock_head __rcu **bkt = rht_bucket_var(old_tbl, old_hash);
 	int err;
 
 	if (!bkt)
@@ -476,7 +485,7 @@ fail:
 }
 
 static void *rhashtable_lookup_one(struct rhashtable *ht,
-				   struct rhash_lock_head **bkt,
+				   struct rhash_lock_head __rcu **bkt,
 				   struct bucket_table *tbl, unsigned int hash,
 				   const void *key, struct rhash_head *obj)
 {
@@ -526,12 +535,10 @@ static void *rhashtable_lookup_one(struct rhashtable *ht,
 	return ERR_PTR(-ENOENT);
 }
 
-static struct bucket_table *rhashtable_insert_one(struct rhashtable *ht,
-						  struct rhash_lock_head **bkt,
-						  struct bucket_table *tbl,
-						  unsigned int hash,
-						  struct rhash_head *obj,
-						  void *data)
+static struct bucket_table *rhashtable_insert_one(
+	struct rhashtable *ht, struct rhash_lock_head __rcu **bkt,
+	struct bucket_table *tbl, unsigned int hash, struct rhash_head *obj,
+	void *data)
 {
 	struct bucket_table *new_tbl;
 	struct rhash_head *head;
@@ -582,7 +589,7 @@ static void *rhashtable_try_insert(struct rhashtable *ht, const void *key,
 {
 	struct bucket_table *new_tbl;
 	struct bucket_table *tbl;
-	struct rhash_lock_head **bkt;
+	struct rhash_lock_head __rcu **bkt;
 	unsigned int hash;
 	void *data;
 
@@ -1164,8 +1171,8 @@ void rhashtable_destroy(struct rhashtable *ht)
 }
 EXPORT_SYMBOL_GPL(rhashtable_destroy);
 
-struct rhash_lock_head **__rht_bucket_nested(const struct bucket_table *tbl,
-					     unsigned int hash)
+struct rhash_lock_head __rcu **__rht_bucket_nested(
+	const struct bucket_table *tbl, unsigned int hash)
 {
 	const unsigned int shift = PAGE_SHIFT - ilog2(sizeof(void *));
 	unsigned int index = hash & ((1 << tbl->nest) - 1);
@@ -1173,7 +1180,7 @@ struct rhash_lock_head **__rht_bucket_nested(const struct bucket_table *tbl,
 	unsigned int subhash = hash;
 	union nested_table *ntbl;
 
-	ntbl = (union nested_table *)rcu_dereference_raw(tbl->buckets[0]);
+	ntbl = nested_table_top(tbl);
 	ntbl = rht_dereference_bucket_rcu(ntbl[index].table, tbl, hash);
 	subhash >>= tbl->nest;
 
@@ -1193,10 +1200,10 @@ struct rhash_lock_head **__rht_bucket_nested(const struct bucket_table *tbl,
 }
 EXPORT_SYMBOL_GPL(__rht_bucket_nested);
 
-struct rhash_lock_head **rht_bucket_nested(const struct bucket_table *tbl,
-					   unsigned int hash)
+struct rhash_lock_head __rcu **rht_bucket_nested(
+	const struct bucket_table *tbl, unsigned int hash)
 {
-	static struct rhash_lock_head *rhnull;
+	static struct rhash_lock_head __rcu *rhnull;
 
 	if (!rhnull)
 		INIT_RHT_NULLS_HEAD(rhnull);
@@ -1204,16 +1211,15 @@ struct rhash_lock_head **rht_bucket_nested(const struct bucket_table *tbl,
 }
 EXPORT_SYMBOL_GPL(rht_bucket_nested);
 
-struct rhash_lock_head **rht_bucket_nested_insert(struct rhashtable *ht,
-						  struct bucket_table *tbl,
-						  unsigned int hash)
+struct rhash_lock_head __rcu **rht_bucket_nested_insert(
+	struct rhashtable *ht, struct bucket_table *tbl, unsigned int hash)
 {
 	const unsigned int shift = PAGE_SHIFT - ilog2(sizeof(void *));
 	unsigned int index = hash & ((1 << tbl->nest) - 1);
 	unsigned int size = tbl->size >> tbl->nest;
 	union nested_table *ntbl;
 
-	ntbl = (union nested_table *)rcu_dereference_raw(tbl->buckets[0]);
+	ntbl = nested_table_top(tbl);
 	hash >>= tbl->nest;
 	ntbl = nested_table_alloc(ht, &ntbl[index].table,
 				  size <= (1 << shift));

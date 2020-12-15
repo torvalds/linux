@@ -30,9 +30,9 @@
  *		  unsigned long a6, unsigned long a7, struct arm_smccc_res *res,
  *		  struct arm_smccc_quirk *quirk)
  */
-ENTRY(__arm_smccc_smc)
+SYM_FUNC_START(__arm_smccc_smc)
 	SMCCC	smc
-ENDPROC(__arm_smccc_smc)
+SYM_FUNC_END(__arm_smccc_smc)
 EXPORT_SYMBOL(__arm_smccc_smc)
 
 /*
@@ -41,7 +41,7 @@ EXPORT_SYMBOL(__arm_smccc_smc)
  *		  unsigned long a6, unsigned long a7, struct arm_smccc_res *res,
  *		  struct arm_smccc_quirk *quirk)
  */
-ENTRY(__arm_smccc_hvc)
+SYM_FUNC_START(__arm_smccc_hvc)
 	SMCCC	hvc
-ENDPROC(__arm_smccc_hvc)
+SYM_FUNC_END(__arm_smccc_hvc)
 EXPORT_SYMBOL(__arm_smccc_hvc)

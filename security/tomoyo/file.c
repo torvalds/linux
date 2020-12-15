@@ -927,7 +927,7 @@ int tomoyo_path2_perm(const u8 operation, const struct path *path1,
 	case TOMOYO_TYPE_LINK:
 		if (!d_is_dir(path1->dentry))
 			break;
-		/* fall through */
+		fallthrough;
 	case TOMOYO_TYPE_PIVOT_ROOT:
 		tomoyo_add_slash(&buf1);
 		tomoyo_add_slash(&buf2);

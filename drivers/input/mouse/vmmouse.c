@@ -76,7 +76,7 @@ struct vmmouse_data {
 	char dev_name[128];
 };
 
-/**
+/*
  * Hypervisor-specific bi-directional communication channel
  * implementing the vmmouse protocol. Should never execute on
  * bare metal hardware.

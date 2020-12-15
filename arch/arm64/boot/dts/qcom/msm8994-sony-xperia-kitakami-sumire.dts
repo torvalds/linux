@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2020, Konrad Dybcio
+ */
+
+/dts-v1/;
+
+#include "msm8994-sony-xperia-kitakami.dtsi"
+
+/ {
+	model = "Sony Xperia Z5";
+	compatible = "sony,sumire-row", "qcom,msm8994";
+};

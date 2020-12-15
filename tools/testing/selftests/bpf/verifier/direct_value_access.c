@@ -68,7 +68,7 @@
 	},
 	.fixup_map_array_48b = { 1 },
 	.result = REJECT,
-	.errstr = "R1 min value is outside of the array range",
+	.errstr = "R1 min value is outside of the allowed memory range",
 },
 {
 	"direct map access, write test 7",
@@ -220,7 +220,7 @@
 	},
 	.fixup_map_array_small = { 1 },
 	.result = REJECT,
-	.errstr = "R1 min value is outside of the array range",
+	.errstr = "R1 min value is outside of the allowed memory range",
 },
 {
 	"direct map access, write test 19",

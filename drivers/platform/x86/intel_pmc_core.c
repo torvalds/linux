@@ -415,7 +415,7 @@ static const struct pmc_bit_map tgl_lpm0_map[] = {
 	{"PCIe_Gen3PLL_OFF_STS",		BIT(20)},
 	{"OPIOPLL_OFF_STS",			BIT(21)},
 	{"OCPLL_OFF_STS",			BIT(22)},
-	{"AudioPLL_OFF_STS",			BIT(23)},
+	{"MainPLL_OFF_STS",			BIT(23)},
 	{"MIPIPLL_OFF_STS",			BIT(24)},
 	{"Fast_XTAL_Osc_OFF_STS",		BIT(25)},
 	{"AC_Ring_Osc_OFF_STS",			BIT(26)},
@@ -795,7 +795,7 @@ static int pmc_core_mphy_pg_show(struct seq_file *s, void *unused)
 	msleep(10);
 	val_high = pmc_core_reg_read(pmcdev, SPT_PMC_MFPMC_OFFSET);
 
-	for (index = 0; map[index].name && index < 8; index++) {
+	for (index = 0; index < 8 && map[index].name; index++) {
 		seq_printf(s, "%-32s\tState: %s\n",
 			   map[index].name,
 			   map[index].bit_mask & val_low ? "Not power gated" :

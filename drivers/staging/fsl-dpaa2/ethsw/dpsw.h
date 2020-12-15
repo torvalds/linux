@@ -580,4 +580,13 @@ int dpsw_get_api_version(struct fsl_mc_io *mc_io,
 			 u16 *major_ver,
 			 u16 *minor_ver);
 
+int dpsw_if_get_port_mac_addr(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			      u16 if_id, u8 mac_addr[6]);
+
+int dpsw_if_get_primary_mac_addr(struct fsl_mc_io *mc_io, u32 cmd_flags,
+				 u16 token, u16 if_id, u8 mac_addr[6]);
+
+int dpsw_if_set_primary_mac_addr(struct fsl_mc_io *mc_io, u32 cmd_flags,
+				 u16 token, u16 if_id, u8 mac_addr[6]);
+
 #endif /* __FSL_DPSW_H */

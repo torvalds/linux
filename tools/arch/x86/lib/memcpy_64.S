@@ -8,6 +8,8 @@
 #include <asm/alternative-asm.h>
 #include <asm/export.h>
 
+.pushsection .noinstr.text, "ax"
+
 /*
  * We build a jump to memcpy_orig by default which gets NOPped out on
  * the majority of x86 CPUs which set REP_GOOD. In addition, CPUs which
@@ -183,6 +185,8 @@ SYM_FUNC_START(memcpy_orig)
 .Lend:
 	retq
 SYM_FUNC_END(memcpy_orig)
+
+.popsection
 
 #ifndef CONFIG_UML
 

@@ -63,12 +63,9 @@ config QETH
 	prompt "Gigabit Ethernet device support"
 	depends on CCW && NETDEVICES && IP_MULTICAST && QDIO && ETHERNET
 	help
-	  This driver supports the IBM System z OSA Express adapters
-	  in QDIO mode (all media types), HiperSockets interfaces and z/VM
-	  virtual NICs for Guest LAN and VSWITCH.
-	
-	  For details please refer to the documentation provided by IBM at
-	  <http://www.ibm.com/developerworks/linux/linux390>
+	  This driver supports IBM's OSA Express network adapters in QDIO mode,
+	  HiperSockets interfaces and z/VM virtual NICs for Guest LAN and
+	  VSWITCH.
 
 	  To compile this driver as a module, choose M.
 	  The module name is qeth.

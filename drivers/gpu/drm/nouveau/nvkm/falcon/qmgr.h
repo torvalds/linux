@@ -3,7 +3,7 @@
 #define __NVKM_FALCON_QMGR_H__
 #include <core/falcon.h>
 
-#define HDR_SIZE sizeof(struct nv_falcon_msg)
+#define HDR_SIZE sizeof(struct nvfw_falcon_msg)
 #define QUEUE_ALIGNMENT 4
 /* max size of the messages we can receive */
 #define MSG_BUF_SIZE 128

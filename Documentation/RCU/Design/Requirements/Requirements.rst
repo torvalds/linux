@@ -463,7 +463,7 @@ again without disrupting RCU readers.
 This guarantee was only partially premeditated. DYNIX/ptx used an
 explicit memory barrier for publication, but had nothing resembling
 ``rcu_dereference()`` for subscription, nor did it have anything
-resembling the ``smp_read_barrier_depends()`` that was later subsumed
+resembling the dependency-ordering barrier that was later subsumed
 into ``rcu_dereference()`` and later still into ``READ_ONCE()``. The
 need for these operations made itself known quite suddenly at a
 late-1990s meeting with the DEC Alpha architects, back in the days when
@@ -1943,56 +1943,27 @@ invoked from a CPU-hotplug notifier.
 Scheduler and RCU
 ~~~~~~~~~~~~~~~~~
 
-RCU depends on the scheduler, and the scheduler uses RCU to protect some
-of its data structures. The preemptible-RCU ``rcu_read_unlock()``
-implementation must therefore be written carefully to avoid deadlocks
-involving the scheduler's runqueue and priority-inheritance locks. In
-particular, ``rcu_read_unlock()`` must tolerate an interrupt where the
-interrupt handler invokes both ``rcu_read_lock()`` and
-``rcu_read_unlock()``. This possibility requires ``rcu_read_unlock()``
-to use negative nesting levels to avoid destructive recursion via
-interrupt handler's use of RCU.
-
-This scheduler-RCU requirement came as a `complete
-surprise <https://lwn.net/Articles/453002/>`__.
-
-As noted above, RCU makes use of kthreads, and it is necessary to avoid
-excessive CPU-time accumulation by these kthreads. This requirement was
-no surprise, but RCU's violation of it when running context-switch-heavy
-workloads when built with ``CONFIG_NO_HZ_FULL=y`` `did come as a
-surprise
+RCU makes use of kthreads, and it is necessary to avoid excessive CPU-time
+accumulation by these kthreads. This requirement was no surprise, but
+RCU's violation of it when running context-switch-heavy workloads when
+built with ``CONFIG_NO_HZ_FULL=y`` `did come as a surprise
 [PDF] <http://www.rdrop.com/users/paulmck/scalability/paper/BareMetal.2015.01.15b.pdf>`__.
 RCU has made good progress towards meeting this requirement, even for
 context-switch-heavy ``CONFIG_NO_HZ_FULL=y`` workloads, but there is
 room for further improvement.
 
-It is forbidden to hold any of scheduler's runqueue or
-priority-inheritance spinlocks across an ``rcu_read_unlock()`` unless
-interrupts have been disabled across the entire RCU read-side critical
-section, that is, up to and including the matching ``rcu_read_lock()``.
-Violating this restriction can result in deadlocks involving these
-scheduler spinlocks. There was hope that this restriction might be
-lifted when interrupt-disabled calls to ``rcu_read_unlock()`` started
-deferring the reporting of the resulting RCU-preempt quiescent state
-until the end of the corresponding interrupts-disabled region.
-Unfortunately, timely reporting of the corresponding quiescent state to
-expedited grace periods requires a call to ``raise_softirq()``, which
-can acquire these scheduler spinlocks. In addition, real-time systems
-using RCU priority boosting need this restriction to remain in effect
-because deferred quiescent-state reporting would also defer deboosting,
-which in turn would degrade real-time latencies.
+There is no longer any prohibition against holding any of
+scheduler's runqueue or priority-inheritance spinlocks across an
+``rcu_read_unlock()``, even if interrupts and preemption were enabled
+somewhere within the corresponding RCU read-side critical section.
+Therefore, it is now perfectly legal to execute ``rcu_read_lock()``
+with preemption enabled, acquire one of the scheduler locks, and hold
+that lock across the matching ``rcu_read_unlock()``.
 
-In theory, if a given RCU read-side critical section could be guaranteed
-to be less than one second in duration, holding a scheduler spinlock
-across that critical section's ``rcu_read_unlock()`` would require only
-that preemption be disabled across the entire RCU read-side critical
-section, not interrupts. Unfortunately, given the possibility of vCPU
-preemption, long-running interrupts, and so on, it is not possible in
-practice to guarantee that a given RCU read-side critical section will
-complete in less than one second. Therefore, as noted above, if
-scheduler spinlocks are held across a given call to
-``rcu_read_unlock()``, interrupts must be disabled across the entire RCU
-read-side critical section.
+Similarly, the RCU flavor consolidation has removed the need for negative
+nesting.  The fact that interrupt-disabled regions of code act as RCU
+read-side critical sections implicitly avoids earlier issues that used
+to result in destructive recursion via interrupt handler's use of RCU.
 
 Tracing and RCU
 ~~~~~~~~~~~~~~~
@@ -2612,7 +2583,12 @@ not work to have these markers in the trampoline itself, because there
 would need to be instructions following ``rcu_read_unlock()``. Although
 ``synchronize_rcu()`` would guarantee that execution reached the
 ``rcu_read_unlock()``, it would not be able to guarantee that execution
-had completely left the trampoline.
+had completely left the trampoline. Worse yet, in some situations
+the trampoline's protection must extend a few instructions *prior* to
+execution reaching the trampoline.  For example, these few instructions
+might calculate the address of the trampoline, so that entering the
+trampoline would be pre-ordained a surprisingly long time before execution
+actually reached the trampoline itself.
 
 The solution, in the form of `Tasks
 RCU <https://lwn.net/Articles/607117/>`__, is to have implicit read-side

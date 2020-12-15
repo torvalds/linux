@@ -31,7 +31,7 @@
 #define ODD_DMA_STRIDE	 0x24
 #define EVEN_PIXEL_FMT	 0x30
 #define ODD_PIXEL_FMT	 0x34
-#define FIFO_TRIGER	 0x38
+#define FIFO_TRIGGER	 0x38
 #define XFER_MODE	 0x3C
 #define CSR1		 0x40
 #define RETRY_WAIT_CNT	 0x44

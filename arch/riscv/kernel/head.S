@@ -138,8 +138,22 @@ secondary_start_common:
 	la a0, swapper_pg_dir
 	call relocate
 #endif
+	call setup_trap_vector
 	tail smp_callin
 #endif /* CONFIG_SMP */
+
+.align 2
+setup_trap_vector:
+	/* Set trap vector to exception handler */
+	la a0, handle_exception
+	csrw CSR_TVEC, a0
+
+	/*
+	 * Set sup0 scratch register to 0, indicating to exception vector that
+	 * we are presently executing in kernel.
+	 */
+	csrw CSR_SCRATCH, zero
+	ret
 
 .Lsecondary_park:
 	/* We lack SMP support or have too many harts, so park this hart */
@@ -161,11 +175,20 @@ ENTRY(_start_kernel)
 	/* Reset all registers except ra, a0, a1 */
 	call reset_regs
 
-	/* Setup a PMP to permit access to all of memory. */
+	/*
+	 * Setup a PMP to permit access to all of memory.  Some machines may
+	 * not implement PMPs, so we set up a quick trap handler to just skip
+	 * touching the PMPs on any trap.
+	 */
+	la a0, pmp_done
+	csrw CSR_TVEC, a0
+
 	li a0, -1
 	csrw CSR_PMPADDR0, a0
 	li a0, (PMP_A_NAPOT | PMP_R | PMP_W | PMP_X)
 	csrw CSR_PMPCFG0, a0
+.align 2
+pmp_done:
 
 	/*
 	 * The hartid in a0 is expected later on, and we have no firmware
@@ -225,6 +248,7 @@ clear_bss_done:
 	call relocate
 #endif /* CONFIG_MMU */
 
+	call setup_trap_vector
 	/* Restore C environment */
 	la tp, init_task
 	sw zero, TASK_TI_CPU(tp)

@@ -22,10 +22,12 @@
  * Author: AMD
  */
 
+#include <drm/drm_dsc.h>
 #include "dc_hw_types.h"
 #include "dsc.h"
 #include <drm/drm_dp_helper.h>
 #include "dc.h"
+#include "rc_calc.h"
 
 /* This module's internal functions */
 
@@ -129,7 +131,7 @@ static bool dsc_line_buff_depth_from_dpcd(int dpcd_line_buff_bit_depth, int *lin
 static bool dsc_throughput_from_dpcd(int dpcd_throughput, int *throughput)
 {
 	switch (dpcd_throughput) {
-	case DP_DSC_THROUGHPUT_MODE_0_UPSUPPORTED:
+	case DP_DSC_THROUGHPUT_MODE_0_UNSUPPORTED:
 		*throughput = 0;
 		break;
 	case DP_DSC_THROUGHPUT_MODE_0_170:
@@ -302,22 +304,6 @@ static bool intersect_dsc_caps(
 static inline uint32_t dsc_div_by_10_round_up(uint32_t value)
 {
 	return (value + 9) / 10;
-}
-
-static inline uint32_t calc_dsc_bpp_x16(uint32_t stream_bandwidth_kbps, uint32_t pix_clk_100hz, uint32_t bpp_increment_div)
-{
-	uint32_t dsc_target_bpp_x16;
-	float f_dsc_target_bpp;
-	float f_stream_bandwidth_100bps = stream_bandwidth_kbps * 10.0f;
-	uint32_t precision = bpp_increment_div; // bpp_increment_div is actually precision
-
-	f_dsc_target_bpp = f_stream_bandwidth_100bps / pix_clk_100hz;
-
-	// Round down to the nearest precision stop to bring it into DSC spec range
-	dsc_target_bpp_x16 = (uint32_t)(f_dsc_target_bpp * precision);
-	dsc_target_bpp_x16 = (dsc_target_bpp_x16 * 16) / precision;
-
-	return dsc_target_bpp_x16;
 }
 
 /* Get DSC bandwidth range based on [min_bpp, max_bpp] target bitrate range, and timing's pixel clock
@@ -761,7 +747,7 @@ done:
 	return is_dsc_possible;
 }
 
-bool dc_dsc_parse_dsc_dpcd(const struct dc *dc, const uint8_t *dpcd_dsc_basic_data, const uint8_t *dpcd_dsc_ext_data, struct dsc_dec_dpcd_caps *dsc_sink_caps)
+bool dc_dsc_parse_dsc_dpcd(const struct dc *dc, const uint8_t *dpcd_dsc_basic_data, const uint8_t *dpcd_dsc_branch_decoder_caps, struct dsc_dec_dpcd_caps *dsc_sink_caps)
 {
 	if (!dpcd_dsc_basic_data)
 		return false;
@@ -832,14 +818,14 @@ bool dc_dsc_parse_dsc_dpcd(const struct dc *dc, const uint8_t *dpcd_dsc_basic_da
 	}
 
 	/* Extended caps */
-	if (dpcd_dsc_ext_data == NULL) { // Extended DPCD DSC data can be null, e.g. because it doesn't apply to SST
+	if (dpcd_dsc_branch_decoder_caps == NULL) { // branch decoder DPCD DSC data can be null for non branch device
 		dsc_sink_caps->branch_overall_throughput_0_mps = 0;
 		dsc_sink_caps->branch_overall_throughput_1_mps = 0;
 		dsc_sink_caps->branch_max_line_width = 0;
 		return true;
 	}
 
-	dsc_sink_caps->branch_overall_throughput_0_mps = dpcd_dsc_ext_data[DP_DSC_BRANCH_OVERALL_THROUGHPUT_0 - DP_DSC_BRANCH_OVERALL_THROUGHPUT_0];
+	dsc_sink_caps->branch_overall_throughput_0_mps = dpcd_dsc_branch_decoder_caps[DP_DSC_BRANCH_OVERALL_THROUGHPUT_0 - DP_DSC_BRANCH_OVERALL_THROUGHPUT_0];
 	if (dsc_sink_caps->branch_overall_throughput_0_mps == 0)
 		dsc_sink_caps->branch_overall_throughput_0_mps = 0;
 	else if (dsc_sink_caps->branch_overall_throughput_0_mps == 1)
@@ -849,7 +835,7 @@ bool dc_dsc_parse_dsc_dpcd(const struct dc *dc, const uint8_t *dpcd_dsc_basic_da
 		dsc_sink_caps->branch_overall_throughput_0_mps += 600;
 	}
 
-	dsc_sink_caps->branch_overall_throughput_1_mps = dpcd_dsc_ext_data[DP_DSC_BRANCH_OVERALL_THROUGHPUT_1 - DP_DSC_BRANCH_OVERALL_THROUGHPUT_0];
+	dsc_sink_caps->branch_overall_throughput_1_mps = dpcd_dsc_branch_decoder_caps[DP_DSC_BRANCH_OVERALL_THROUGHPUT_1 - DP_DSC_BRANCH_OVERALL_THROUGHPUT_0];
 	if (dsc_sink_caps->branch_overall_throughput_1_mps == 0)
 		dsc_sink_caps->branch_overall_throughput_1_mps = 0;
 	else if (dsc_sink_caps->branch_overall_throughput_1_mps == 1)
@@ -859,7 +845,7 @@ bool dc_dsc_parse_dsc_dpcd(const struct dc *dc, const uint8_t *dpcd_dsc_basic_da
 		dsc_sink_caps->branch_overall_throughput_1_mps += 600;
 	}
 
-	dsc_sink_caps->branch_max_line_width = dpcd_dsc_ext_data[DP_DSC_BRANCH_MAX_LINE_WIDTH - DP_DSC_BRANCH_OVERALL_THROUGHPUT_0] * 320;
+	dsc_sink_caps->branch_max_line_width = dpcd_dsc_branch_decoder_caps[DP_DSC_BRANCH_MAX_LINE_WIDTH - DP_DSC_BRANCH_OVERALL_THROUGHPUT_0] * 320;
 	ASSERT(dsc_sink_caps->branch_max_line_width == 0 || dsc_sink_caps->branch_max_line_width >= 5120);
 
 	return true;

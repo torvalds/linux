@@ -882,7 +882,7 @@ int omapfb_setup_overlay(struct fb_info *fbi, struct omap_overlay *ovl,
 				/ (var->bits_per_pixel >> 2);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		screen_width = fix->line_length / (var->bits_per_pixel >> 3);
 		break;

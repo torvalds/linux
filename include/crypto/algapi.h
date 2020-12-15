@@ -116,7 +116,7 @@ struct crypto_tfm *crypto_spawn_tfm(struct crypto_spawn *spawn, u32 type,
 void *crypto_spawn_tfm2(struct crypto_spawn *spawn);
 
 struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb);
-int crypto_check_attr_type(struct rtattr **tb, u32 type);
+int crypto_check_attr_type(struct rtattr **tb, u32 type, u32 *mask_ret);
 const char *crypto_attr_alg_name(struct rtattr *rta);
 int crypto_attr_u32(struct rtattr *rta, u32 *num);
 int crypto_inst_setname(struct crypto_instance *inst, const char *name,
@@ -125,6 +125,8 @@ int crypto_inst_setname(struct crypto_instance *inst, const char *name,
 void crypto_init_queue(struct crypto_queue *queue, unsigned int max_qlen);
 int crypto_enqueue_request(struct crypto_queue *queue,
 			   struct crypto_async_request *request);
+void crypto_enqueue_request_head(struct crypto_queue *queue,
+				 struct crypto_async_request *request);
 struct crypto_async_request *crypto_dequeue_request(struct crypto_queue *queue);
 static inline unsigned int crypto_queue_len(struct crypto_queue *queue)
 {
@@ -233,18 +235,29 @@ static inline struct crypto_async_request *crypto_get_backlog(
 	       container_of(queue->backlog, struct crypto_async_request, list);
 }
 
-static inline int crypto_requires_off(u32 type, u32 mask, u32 off)
+static inline u32 crypto_requires_off(struct crypto_attr_type *algt, u32 off)
 {
-	return (type ^ off) & mask & off;
+	return (algt->type ^ off) & algt->mask & off;
 }
 
 /*
- * Returns CRYPTO_ALG_ASYNC if type/mask requires the use of sync algorithms.
- * Otherwise returns zero.
+ * When an algorithm uses another algorithm (e.g., if it's an instance of a
+ * template), these are the flags that should always be set on the "outer"
+ * algorithm if any "inner" algorithm has them set.
  */
-static inline int crypto_requires_sync(u32 type, u32 mask)
+#define CRYPTO_ALG_INHERITED_FLAGS	\
+	(CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK |	\
+	 CRYPTO_ALG_ALLOCATES_MEMORY)
+
+/*
+ * Given the type and mask that specify the flags restrictions on a template
+ * instance being created, return the mask that should be passed to
+ * crypto_grab_*() (along with type=0) to honor any request the user made to
+ * have any of the CRYPTO_ALG_INHERITED_FLAGS clear.
+ */
+static inline u32 crypto_algt_inherited_mask(struct crypto_attr_type *algt)
 {
-	return crypto_requires_off(type, mask, CRYPTO_ALG_ASYNC);
+	return crypto_requires_off(algt, CRYPTO_ALG_INHERITED_FLAGS);
 }
 
 noinline unsigned long __crypto_memneq(const void *a, const void *b, size_t size);

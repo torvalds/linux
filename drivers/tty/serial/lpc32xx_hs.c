@@ -23,7 +23,6 @@
 #include <linux/nmi.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/sizes.h>
 #include <linux/soc/nxp/lpc32xx-misc.h>

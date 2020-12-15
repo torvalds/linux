@@ -207,12 +207,11 @@ static unsigned int ingenic_uart_serial_in(struct uart_port *p, int offset)
 static int ingenic_uart_probe(struct platform_device *pdev)
 {
 	struct uart_8250_port uart = {};
-	struct resource *regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	struct resource *irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	struct ingenic_uart_data *data;
 	const struct ingenic_uart_config *cdata;
 	const struct of_device_id *match;
-	int err, line;
+	struct resource *regs;
+	int irq, err, line;
 
 	match = of_match_device(of_match, &pdev->dev);
 	if (!match) {
@@ -221,8 +220,13 @@ static int ingenic_uart_probe(struct platform_device *pdev)
 	}
 	cdata = match->data;
 
-	if (!regs || !irq) {
-		dev_err(&pdev->dev, "no registers/irq defined\n");
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!regs) {
+		dev_err(&pdev->dev, "no registers defined\n");
 		return -EINVAL;
 	}
 
@@ -238,7 +242,7 @@ static int ingenic_uart_probe(struct platform_device *pdev)
 	uart.port.regshift = 2;
 	uart.port.serial_out = ingenic_uart_serial_out;
 	uart.port.serial_in = ingenic_uart_serial_in;
-	uart.port.irq = irq->start;
+	uart.port.irq = irq;
 	uart.port.dev = &pdev->dev;
 	uart.port.fifosize = cdata->fifosize;
 	uart.tx_loadsz = cdata->tx_loadsz;

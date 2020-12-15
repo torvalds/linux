@@ -19,7 +19,7 @@ static void *get_mq(struct ctl_table *table)
 }
 
 static int proc_mq_dointvec(struct ctl_table *table, int write,
-			    void __user *buffer, size_t *lenp, loff_t *ppos)
+			    void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table mq_table;
 	memcpy(&mq_table, table, sizeof(mq_table));
@@ -29,7 +29,7 @@ static int proc_mq_dointvec(struct ctl_table *table, int write,
 }
 
 static int proc_mq_dointvec_minmax(struct ctl_table *table, int write,
-	void __user *buffer, size_t *lenp, loff_t *ppos)
+		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table mq_table;
 	memcpy(&mq_table, table, sizeof(mq_table));

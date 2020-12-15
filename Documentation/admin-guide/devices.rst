@@ -17,7 +17,7 @@ Specifically explore the sections titled "CHAR and MISC DRIVERS", and
 to involve for character and block devices.
 
 This document is included by reference into the Filesystem Hierarchy
-Standard (FHS).	 The FHS is available from http://www.pathname.com/fhs/.
+Standard (FHS).	 The FHS is available from https://www.pathname.com/fhs/.
 
 Allocations marked (68k/Amiga) apply to Linux/68k on the Amiga
 platform only.	Allocations marked (68k/Atari) apply to Linux/68k on

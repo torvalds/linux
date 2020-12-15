@@ -143,7 +143,7 @@ struct lpfc_dmabuf {
 
 struct lpfc_nvmet_ctxbuf {
 	struct list_head list;
-	struct lpfc_nvmet_rcv_ctx *context;
+	struct lpfc_async_xchg_ctx *context;
 	struct lpfc_iocbq *iocbq;
 	struct lpfc_sglq *sglq;
 	struct work_struct defer_work;
@@ -627,6 +627,27 @@ struct lpfc_ras_fwlog {
 	enum ras_state state;    /* RAS logging running state */
 };
 
+#define DBG_LOG_STR_SZ 256
+#define DBG_LOG_SZ 256
+
+struct dbg_log_ent {
+	char log[DBG_LOG_STR_SZ];
+	u64     t_ns;
+};
+
+enum lpfc_irq_chann_mode {
+	/* Assign IRQs to all possible cpus that have hardware queues */
+	NORMAL_MODE,
+
+	/* Assign IRQs only to cpus on the same numa node as HBA */
+	NUMA_MODE,
+
+	/* Assign IRQs only on non-hyperthreaded CPUs. This is the
+	 * same as normal_mode, but assign IRQS only on physical CPUs.
+	 */
+	NHT_MODE,
+};
+
 struct lpfc_hba {
 	/* SCSI interface function jump table entries */
 	struct lpfc_io_buf * (*lpfc_get_scsi_buf)
@@ -695,6 +716,9 @@ struct lpfc_hba {
 
 	struct workqueue_struct *wq;
 	struct delayed_work     eq_delay_work;
+
+#define LPFC_IDLE_STAT_DELAY 1000
+	struct delayed_work	idle_stat_delay_work;
 
 	struct lpfc_sli sli;
 	uint8_t pci_dev_grp;	/* lpfc PCI dev group: 0x0, 0x1, 0x2,... */
@@ -835,7 +859,6 @@ struct lpfc_hba {
 	uint32_t cfg_fcp_mq_threshold;
 	uint32_t cfg_hdw_queue;
 	uint32_t cfg_irq_chann;
-	uint32_t cfg_irq_numa;
 	uint32_t cfg_suppress_rsp;
 	uint32_t cfg_nvme_oas;
 	uint32_t cfg_nvme_embed_cmd;
@@ -1003,6 +1026,7 @@ struct lpfc_hba {
 	mempool_t *active_rrq_pool;
 
 	struct fc_host_statistics link_stats;
+	enum lpfc_irq_chann_mode irq_chann_mode;
 	enum intr_type_t intr_type;
 	uint32_t intr_mode;
 #define LPFC_INTR_ERROR	0xFFFFFFFF
@@ -1224,6 +1248,10 @@ struct lpfc_hba {
 	struct scsi_host_template port_template;
 	/* SCSI host template information - for all vports */
 	struct scsi_host_template vport_template;
+	atomic_t dbg_log_idx;
+	atomic_t dbg_log_cnt;
+	atomic_t dbg_log_dmping;
+	struct dbg_log_ent dbg_log[DBG_LOG_SZ];
 };
 
 static inline struct Scsi_Host *
@@ -1314,19 +1342,19 @@ lpfc_phba_elsring(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_next_online_numa_cpu - Finds next online CPU on NUMA node
- * @numa_mask: Pointer to phba's numa_mask member.
+ * lpfc_next_online_cpu - Finds next online CPU on cpumask
+ * @mask: Pointer to phba's cpumask member.
  * @start: starting cpu index
  *
  * Note: If no valid cpu found, then nr_cpu_ids is returned.
  *
  **/
 static inline unsigned int
-lpfc_next_online_numa_cpu(const struct cpumask *numa_mask, unsigned int start)
+lpfc_next_online_cpu(const struct cpumask *mask, unsigned int start)
 {
 	unsigned int cpu_it;
 
-	for_each_cpu_wrap(cpu_it, numa_mask, start) {
+	for_each_cpu_wrap(cpu_it, mask, start) {
 		if (cpu_online(cpu_it))
 			break;
 	}

@@ -21,15 +21,15 @@ properties:
   compatible:
     oneOf:
       - items:
-        - enum:
-          - renesas,r8a7795-cmm
-          - renesas,r8a7796-cmm
-          - renesas,r8a77965-cmm
-          - renesas,r8a77990-cmm
-          - renesas,r8a77995-cmm
-        - const: renesas,rcar-gen3-cmm
+          - enum:
+              - renesas,r8a7795-cmm
+              - renesas,r8a7796-cmm
+              - renesas,r8a77965-cmm
+              - renesas,r8a77990-cmm
+              - renesas,r8a77995-cmm
+          - const: renesas,rcar-gen3-cmm
       - items:
-        - const: renesas,rcar-gen2-cmm
+          - const: renesas,rcar-gen2-cmm
 
   reg:
     maxItems: 1
@@ -60,7 +60,7 @@ examples:
     cmm0: cmm@fea40000 {
          compatible = "renesas,r8a7796-cmm",
                       "renesas,rcar-gen3-cmm";
-         reg = <0 0xfea40000 0 0x1000>;
+         reg = <0xfea40000 0x1000>;
          power-domains = <&sysc R8A7796_PD_ALWAYS_ON>;
          clocks = <&cpg CPG_MOD 711>;
          resets = <&cpg 711>;

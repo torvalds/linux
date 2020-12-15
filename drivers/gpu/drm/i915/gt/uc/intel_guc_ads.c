@@ -67,7 +67,7 @@ struct __guc_ads_blob {
 
 static void __guc_ads_init(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_gt(guc)->i915;
+	struct intel_gt *gt = guc_to_gt(guc);
 	struct __guc_ads_blob *blob = guc->ads_blob;
 	const u32 skipped_size = LRC_PPHWSP_SZ * PAGE_SIZE + LR_HW_CONTEXT_SIZE;
 	u32 base;
@@ -99,13 +99,13 @@ static void __guc_ads_init(struct intel_guc *guc)
 	}
 
 	/* System info */
-	blob->system_info.slice_enabled = hweight8(RUNTIME_INFO(dev_priv)->sseu.slice_mask);
+	blob->system_info.slice_enabled = hweight8(gt->info.sseu.slice_mask);
 	blob->system_info.rcs_enabled = 1;
 	blob->system_info.bcs_enabled = 1;
 
-	blob->system_info.vdbox_enable_mask = VDBOX_MASK(dev_priv);
-	blob->system_info.vebox_enable_mask = VEBOX_MASK(dev_priv);
-	blob->system_info.vdbox_sfc_support_mask = RUNTIME_INFO(dev_priv)->vdbox_sfc_access;
+	blob->system_info.vdbox_enable_mask = VDBOX_MASK(gt);
+	blob->system_info.vebox_enable_mask = VEBOX_MASK(gt);
+	blob->system_info.vdbox_sfc_support_mask = gt->info.vdbox_sfc_access;
 
 	base = intel_guc_ggtt_offset(guc, guc->ads_vma);
 

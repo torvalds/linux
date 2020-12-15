@@ -2,7 +2,10 @@ Broadcom Generic Level 2 Interrupt Controller
 
 Required properties:
 
-- compatible: should be "brcm,l2-intc" for latched interrupt controllers
+- compatible: should be one of:
+	      "brcm,hif-spi-l2-intc" or
+	      "brcm,upg-aux-aon-l2-intc" or
+	      "brcm,l2-intc" for latched interrupt controllers
               should be "brcm,bcm7271-l2-intc" for level interrupt controllers
 - reg: specifies the base physical address and size of the registers
 - interrupt-controller: identifies the node as an interrupt controller

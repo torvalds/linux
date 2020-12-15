@@ -17,7 +17,7 @@
 #include "sst-atom-controls.h"
 
 extern struct sst_device *sst;
-extern const struct snd_compr_ops sst_platform_compr_ops;
+extern const struct snd_compress_ops sst_platform_compress_ops;
 
 #define DRV_NAME "sst"
 

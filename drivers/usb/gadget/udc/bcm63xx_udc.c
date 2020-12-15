@@ -266,8 +266,8 @@ struct bcm63xx_req {
  * @pd: Platform data (board/port info).
  * @usbd_clk: Clock descriptor for the USB device block.
  * @usbh_clk: Clock descriptor for the USB host block.
- * @gadget: USB slave device.
- * @driver: Driver for USB slave devices.
+ * @gadget: USB device.
+ * @driver: Driver for USB device.
  * @usbd_regs: Base address of the USBD/USB20D block.
  * @iudma_regs: Base address of the USBD's associated IUDMA block.
  * @bep: Array of endpoints, including ep0.
@@ -1744,7 +1744,7 @@ static void bcm63xx_ep0_process(struct work_struct *w)
 
 /**
  * bcm63xx_udc_get_frame - Read current SOF frame number from the HW.
- * @gadget: USB slave device.
+ * @gadget: USB device.
  */
 static int bcm63xx_udc_get_frame(struct usb_gadget *gadget)
 {
@@ -1756,7 +1756,7 @@ static int bcm63xx_udc_get_frame(struct usb_gadget *gadget)
 
 /**
  * bcm63xx_udc_pullup - Enable/disable pullup on D+ line.
- * @gadget: USB slave device.
+ * @gadget: USB device.
  * @is_on: 0 to disable pullup, 1 to enable.
  *
  * See notes in bcm63xx_select_pullup().
@@ -1805,8 +1805,8 @@ static int bcm63xx_udc_pullup(struct usb_gadget *gadget, int is_on)
 
 /**
  * bcm63xx_udc_start - Start the controller.
- * @gadget: USB slave device.
- * @driver: Driver for USB slave devices.
+ * @gadget: USB device.
+ * @driver: Driver for USB device.
  */
 static int bcm63xx_udc_start(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver)
@@ -1842,8 +1842,8 @@ static int bcm63xx_udc_start(struct usb_gadget *gadget,
 
 /**
  * bcm63xx_udc_stop - Shut down the controller.
- * @gadget: USB slave device.
- * @driver: Driver for USB slave devices.
+ * @gadget: USB device.
+ * @driver: Driver for USB device.
  */
 static int bcm63xx_udc_stop(struct usb_gadget *gadget)
 {

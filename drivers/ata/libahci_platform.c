@@ -326,7 +326,7 @@ static int ahci_platform_get_phy(struct ahci_host_priv *hpriv, u32 port,
 				node);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case -ENODEV:
 		/* continue normally */
 		hpriv->phys[port] = NULL;

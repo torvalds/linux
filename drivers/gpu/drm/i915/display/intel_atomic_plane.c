@@ -125,7 +125,7 @@ intel_plane_destroy_state(struct drm_plane *plane,
 			  struct drm_plane_state *state)
 {
 	struct intel_plane_state *plane_state = to_intel_plane_state(state);
-	WARN_ON(plane_state->vma);
+	drm_WARN_ON(plane->dev, plane_state->vma);
 
 	__drm_atomic_helper_plane_destroy_state(&plane_state->uapi);
 	if (plane_state->hw.fb)
@@ -264,6 +264,20 @@ void intel_plane_copy_uapi_to_hw_state(struct intel_plane_state *plane_state,
 	plane_state->hw.color_range = from_plane_state->uapi.color_range;
 }
 
+void intel_plane_set_invisible(struct intel_crtc_state *crtc_state,
+			       struct intel_plane_state *plane_state)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
+
+	crtc_state->active_planes &= ~BIT(plane->id);
+	crtc_state->nv12_planes &= ~BIT(plane->id);
+	crtc_state->c8_planes &= ~BIT(plane->id);
+	crtc_state->data_rate[plane->id] = 0;
+	crtc_state->min_cdclk[plane->id] = 0;
+
+	plane_state->uapi.visible = false;
+}
+
 int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_state,
 					struct intel_crtc_state *new_crtc_state,
 					const struct intel_plane_state *old_plane_state,
@@ -273,12 +287,7 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 	const struct drm_framebuffer *fb = new_plane_state->hw.fb;
 	int ret;
 
-	new_crtc_state->active_planes &= ~BIT(plane->id);
-	new_crtc_state->nv12_planes &= ~BIT(plane->id);
-	new_crtc_state->c8_planes &= ~BIT(plane->id);
-	new_crtc_state->data_rate[plane->id] = 0;
-	new_crtc_state->min_cdclk[plane->id] = 0;
-	new_plane_state->uapi.visible = false;
+	intel_plane_set_invisible(new_crtc_state, new_plane_state);
 
 	if (!new_plane_state->hw.crtc && !old_plane_state->hw.crtc)
 		return 0;
@@ -387,7 +396,7 @@ skl_next_plane_to_commit(struct intel_atomic_state *state,
 	}
 
 	/* should never happen */
-	WARN_ON(1);
+	drm_WARN_ON(state->base.dev, 1);
 
 	return NULL;
 }

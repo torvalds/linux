@@ -45,7 +45,7 @@ properties:
 
   phy-dsi-supply:
     description:
-        Phandle of the regulator that provides the supply voltage.
+      Phandle of the regulator that provides the supply voltage.
 
   ports:
     type: object
@@ -146,5 +146,4 @@ examples:
     };
 
 ...
-
 

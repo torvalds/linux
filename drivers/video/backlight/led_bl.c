@@ -54,12 +54,7 @@ static void led_bl_power_off(struct led_bl_data *priv)
 static int led_bl_update_status(struct backlight_device *bl)
 {
 	struct led_bl_data *priv = bl_get_data(bl);
-	int brightness = bl->props.brightness;
-
-	if (bl->props.power != FB_BLANK_UNBLANK ||
-	    bl->props.fb_blank != FB_BLANK_UNBLANK ||
-	    bl->props.state & BL_CORE_FBBLANK)
-		brightness = 0;
+	int brightness = backlight_get_brightness(bl);
 
 	if (brightness > 0)
 		led_bl_set_brightness(priv, brightness);

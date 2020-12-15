@@ -148,16 +148,14 @@ DEFINE_DEBUGFS_ATTRIBUTE(adis16136_flash_count_fops,
 static int adis16136_debugfs_init(struct iio_dev *indio_dev)
 {
 	struct adis16136 *adis16136 = iio_priv(indio_dev);
+	struct dentry *d = iio_get_debugfs_dentry(indio_dev);
 
 	debugfs_create_file_unsafe("serial_number", 0400,
-		indio_dev->debugfs_dentry, adis16136,
-		&adis16136_serial_fops);
+		d, adis16136, &adis16136_serial_fops);
 	debugfs_create_file_unsafe("product_id", 0400,
-		indio_dev->debugfs_dentry,
-		adis16136, &adis16136_product_id_fops);
+		d, adis16136, &adis16136_product_id_fops);
 	debugfs_create_file_unsafe("flash_count", 0400,
-		indio_dev->debugfs_dentry,
-		adis16136, &adis16136_flash_count_fops);
+		d, adis16136, &adis16136_flash_count_fops);
 
 	return 0;
 }
@@ -542,7 +540,6 @@ static int adis16136_probe(struct spi_device *spi)
 	adis16136 = iio_priv(indio_dev);
 
 	adis16136->chip_info = &adis16136_chip_info[id->driver_data];
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->channels = adis16136_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adis16136_channels);

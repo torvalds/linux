@@ -217,7 +217,7 @@ enum bpf_field_info_kind {
  */
 #define BPF_CORE_READ_INTO(dst, src, a, ...)				    \
 	({								    \
-		___core_read(bpf_core_read, dst, src, a, ##__VA_ARGS__)	    \
+		___core_read(bpf_core_read, dst, (src), a, ##__VA_ARGS__)   \
 	})
 
 /*
@@ -227,7 +227,7 @@ enum bpf_field_info_kind {
  */
 #define BPF_CORE_READ_STR_INTO(dst, src, a, ...)			    \
 	({								    \
-		___core_read(bpf_core_read_str, dst, src, a, ##__VA_ARGS__) \
+		___core_read(bpf_core_read_str, dst, (src), a, ##__VA_ARGS__)\
 	})
 
 /*
@@ -254,8 +254,8 @@ enum bpf_field_info_kind {
  */
 #define BPF_CORE_READ(src, a, ...)					    \
 	({								    \
-		___type(src, a, ##__VA_ARGS__) __r;			    \
-		BPF_CORE_READ_INTO(&__r, src, a, ##__VA_ARGS__);	    \
+		___type((src), a, ##__VA_ARGS__) __r;			    \
+		BPF_CORE_READ_INTO(&__r, (src), a, ##__VA_ARGS__);	    \
 		__r;							    \
 	})
 

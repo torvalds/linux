@@ -331,6 +331,6 @@ static struct pci_driver icp_multi_pci_driver = {
 };
 module_comedi_pci_driver(icp_multi_driver, icp_multi_pci_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi driver for Inova ICP_MULTI board");
 MODULE_LICENSE("GPL");

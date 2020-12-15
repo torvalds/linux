@@ -42,12 +42,16 @@ properties:
   '#reset-cells':
     const: 1
 
+  '#power-domain-cells':
+    const: 1
+
 required:
   - compatible
   - reg
   - reg-names
   - '#clock-cells'
   - '#reset-cells'
+  - '#power-domain-cells'
 
 additionalProperties: false
 
@@ -61,4 +65,5 @@ examples:
       reg-names = "mpmu", "apmu", "apbc";
       #clock-cells = <1>;
       #reset-cells = <1>;
+      #power-domain-cells = <1>;
     };

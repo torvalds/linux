@@ -44,7 +44,7 @@
 /**
  * struct ipa_clock - IPA clocking information
  * @count:		Clocking reference count
- * @mutex;		Protects clock enable/disable
+ * @mutex:		Protects clock enable/disable
  * @core:		IPA core clock
  * @memory_path:	Memory interconnect
  * @imem_path:		Internal memory interconnect
@@ -66,8 +66,8 @@ ipa_interconnect_init_one(struct device *dev, const char *name)
 
 	path = of_icc_get(dev, name);
 	if (IS_ERR(path))
-		dev_err(dev, "error %ld getting memory interconnect\n",
-			PTR_ERR(path));
+		dev_err(dev, "error %ld getting %s interconnect\n",
+			PTR_ERR(path), name);
 
 	return path;
 }
@@ -254,6 +254,12 @@ void ipa_clock_put(struct ipa *ipa)
 	ipa_clock_disable(ipa);
 
 	mutex_unlock(&clock->mutex);
+}
+
+/* Return the current IPA core clock rate */
+u32 ipa_clock_rate(struct ipa *ipa)
+{
+	return ipa->clock ? (u32)clk_get_rate(ipa->clock->core) : 0;
 }
 
 /* Initialize IPA clocking */

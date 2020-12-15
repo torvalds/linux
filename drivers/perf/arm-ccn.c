@@ -1404,7 +1404,7 @@ static int arm_ccn_init_nodes(struct arm_ccn *ccn, int region,
 		break;
 	case CCN_TYPE_SBAS:
 		ccn->sbas_present = 1;
-		/* Fall-through */
+		fallthrough;
 	default:
 		component = &ccn->node[id];
 		break;
@@ -1545,6 +1545,7 @@ static struct platform_driver arm_ccn_driver = {
 	.driver = {
 		.name = "arm-ccn",
 		.of_match_table = arm_ccn_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = arm_ccn_probe,
 	.remove = arm_ccn_remove,

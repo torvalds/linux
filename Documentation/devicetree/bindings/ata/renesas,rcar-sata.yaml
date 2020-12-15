@@ -17,6 +17,7 @@ properties:
               - renesas,sata-r8a7779      # R-Car H1
       - items:
           - enum:
+              - renesas,sata-r8a7742      # RZ/G1H
               - renesas,sata-r8a7790-es1  # R-Car H2 ES1
               - renesas,sata-r8a7790      # R-Car H2 other than ES1
               - renesas,sata-r8a7791      # R-Car M2-W

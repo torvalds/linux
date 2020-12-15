@@ -54,7 +54,7 @@ struct imx8mm_tmu {
 	void __iomem *base;
 	struct clk *clk;
 	const struct thermal_soc_data *socdata;
-	struct tmu_sensor sensors[0];
+	struct tmu_sensor sensors[];
 };
 
 static int imx8mm_tmu_get_temp(void *data, int *temp)
@@ -220,6 +220,7 @@ static const struct of_device_id imx8mm_tmu_table[] = {
 	{ .compatible = "fsl,imx8mp-tmu", .data = &imx8mp_tmu_data, },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, imx8mm_tmu_table);
 
 static struct platform_driver imx8mm_tmu = {
 	.driver = {

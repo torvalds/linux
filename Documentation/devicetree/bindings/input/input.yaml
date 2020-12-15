@@ -18,11 +18,10 @@ properties:
     description:
       Specifies an array of numeric keycode values to be used for reporting
       button presses.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - items:
-          minimum: 0
-          maximum: 0xff
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    items:
+      minimum: 0
+      maximum: 0xff
 
   poll-interval:
     description: Poll interval time in milliseconds.

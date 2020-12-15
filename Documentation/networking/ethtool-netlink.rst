@@ -204,6 +204,9 @@ Userspace to kernel:
   ``ETHTOOL_MSG_EEE_GET``               get EEE settings
   ``ETHTOOL_MSG_EEE_SET``               set EEE settings
   ``ETHTOOL_MSG_TSINFO_GET``		get timestamping info
+  ``ETHTOOL_MSG_CABLE_TEST_ACT``        action start cable test
+  ``ETHTOOL_MSG_CABLE_TEST_TDR_ACT``    action start raw TDR cable test
+  ``ETHTOOL_MSG_TUNNEL_INFO_GET``       get tunnel offload info
   ===================================== ================================
 
 Kernel to userspace:
@@ -235,6 +238,9 @@ Kernel to userspace:
   ``ETHTOOL_MSG_EEE_GET_REPLY``         EEE settings
   ``ETHTOOL_MSG_EEE_NTF``               EEE settings
   ``ETHTOOL_MSG_TSINFO_GET_REPLY``	timestamping info
+  ``ETHTOOL_MSG_CABLE_TEST_NTF``        Cable test results
+  ``ETHTOOL_MSG_CABLE_TEST_TDR_NTF``    Cable test TDR results
+  ``ETHTOOL_MSG_TUNNEL_INFO_GET_REPLY`` tunnel offload info
   ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -392,14 +398,16 @@ Request contents:
 
 Kernel response contents:
 
-  ====================================  ======  ==========================
-  ``ETHTOOL_A_LINKMODES_HEADER``        nested  reply header
-  ``ETHTOOL_A_LINKMODES_AUTONEG``       u8      autonegotiation status
-  ``ETHTOOL_A_LINKMODES_OURS``          bitset  advertised link modes
-  ``ETHTOOL_A_LINKMODES_PEER``          bitset  partner link modes
-  ``ETHTOOL_A_LINKMODES_SPEED``         u32     link speed (Mb/s)
-  ``ETHTOOL_A_LINKMODES_DUPLEX``        u8      duplex mode
-  ====================================  ======  ==========================
+  ==========================================  ======  ==========================
+  ``ETHTOOL_A_LINKMODES_HEADER``              nested  reply header
+  ``ETHTOOL_A_LINKMODES_AUTONEG``             u8      autonegotiation status
+  ``ETHTOOL_A_LINKMODES_OURS``                bitset  advertised link modes
+  ``ETHTOOL_A_LINKMODES_PEER``                bitset  partner link modes
+  ``ETHTOOL_A_LINKMODES_SPEED``               u32     link speed (Mb/s)
+  ``ETHTOOL_A_LINKMODES_DUPLEX``              u8      duplex mode
+  ``ETHTOOL_A_LINKMODES_MASTER_SLAVE_CFG``    u8      Master/slave port mode
+  ``ETHTOOL_A_LINKMODES_MASTER_SLAVE_STATE``  u8      Master/slave port state
+  ==========================================  ======  ==========================
 
 For ``ETHTOOL_A_LINKMODES_OURS``, value represents advertised modes and mask
 represents supported modes. ``ETHTOOL_A_LINKMODES_PEER`` in the reply is a bit
@@ -414,14 +422,15 @@ LINKMODES_SET
 
 Request contents:
 
-  ====================================  ======  ==========================
-  ``ETHTOOL_A_LINKMODES_HEADER``        nested  request header
-  ``ETHTOOL_A_LINKMODES_AUTONEG``       u8      autonegotiation status
-  ``ETHTOOL_A_LINKMODES_OURS``          bitset  advertised link modes
-  ``ETHTOOL_A_LINKMODES_PEER``          bitset  partner link modes
-  ``ETHTOOL_A_LINKMODES_SPEED``         u32     link speed (Mb/s)
-  ``ETHTOOL_A_LINKMODES_DUPLEX``        u8      duplex mode
-  ====================================  ======  ==========================
+  ==========================================  ======  ==========================
+  ``ETHTOOL_A_LINKMODES_HEADER``              nested  request header
+  ``ETHTOOL_A_LINKMODES_AUTONEG``             u8      autonegotiation status
+  ``ETHTOOL_A_LINKMODES_OURS``                bitset  advertised link modes
+  ``ETHTOOL_A_LINKMODES_PEER``                bitset  partner link modes
+  ``ETHTOOL_A_LINKMODES_SPEED``               u32     link speed (Mb/s)
+  ``ETHTOOL_A_LINKMODES_DUPLEX``              u8      duplex mode
+  ``ETHTOOL_A_LINKMODES_MASTER_SLAVE_CFG``    u8      Master/slave port mode
+  ==========================================  ======  ==========================
 
 ``ETHTOOL_A_LINKMODES_OURS`` bit set allows setting advertised link modes. If
 autonegotiation is on (either set now or kept from before), advertised modes
@@ -436,10 +445,11 @@ supports.
 LINKSTATE_GET
 =============
 
-Requests link state information. At the moment, only link up/down flag (as
-provided by ``ETHTOOL_GLINK`` ioctl command) is provided but some future
-extensions are planned (e.g. link down reason). This request does not have any
-attributes.
+Requests link state information. Link up/down flag (as provided by
+``ETHTOOL_GLINK`` ioctl command) is provided. Optionally, extended state might
+be provided as well. In general, extended state describes reasons for why a port
+is down, or why it operates in some non-obvious mode. This request does not have
+any attributes.
 
 Request contents:
 
@@ -449,18 +459,139 @@ Request contents:
 
 Kernel response contents:
 
-  ====================================  ======  ==========================
+  ====================================  ======  ============================
   ``ETHTOOL_A_LINKSTATE_HEADER``        nested  reply header
   ``ETHTOOL_A_LINKSTATE_LINK``          bool    link state (up/down)
-  ====================================  ======  ==========================
+  ``ETHTOOL_A_LINKSTATE_SQI``           u32     Current Signal Quality Index
+  ``ETHTOOL_A_LINKSTATE_SQI_MAX``       u32     Max support SQI value
+  ``ETHTOOL_A_LINKSTATE_EXT_STATE``     u8      link extended state
+  ``ETHTOOL_A_LINKSTATE_EXT_SUBSTATE``  u8      link extended substate
+  ====================================  ======  ============================
 
 For most NIC drivers, the value of ``ETHTOOL_A_LINKSTATE_LINK`` returns
 carrier flag provided by ``netif_carrier_ok()`` but there are drivers which
 define their own handler.
 
+``ETHTOOL_A_LINKSTATE_EXT_STATE`` and ``ETHTOOL_A_LINKSTATE_EXT_SUBSTATE`` are
+optional values. ethtool core can provide either both
+``ETHTOOL_A_LINKSTATE_EXT_STATE`` and ``ETHTOOL_A_LINKSTATE_EXT_SUBSTATE``,
+or only ``ETHTOOL_A_LINKSTATE_EXT_STATE``, or none of them.
+
 ``LINKSTATE_GET`` allows dump requests (kernel returns reply messages for all
 devices supporting the request).
 
+
+Link extended states:
+
+  ================================================      ============================================
+  ``ETHTOOL_LINK_EXT_STATE_AUTONEG``                    States relating to the autonegotiation or
+                                                        issues therein
+
+  ``ETHTOOL_LINK_EXT_STATE_LINK_TRAINING_FAILURE``      Failure during link training
+
+  ``ETHTOOL_LINK_EXT_STATE_LINK_LOGICAL_MISMATCH``      Logical mismatch in physical coding sublayer
+                                                        or forward error correction sublayer
+
+  ``ETHTOOL_LINK_EXT_STATE_BAD_SIGNAL_INTEGRITY``       Signal integrity issues
+
+  ``ETHTOOL_LINK_EXT_STATE_NO_CABLE``                   No cable connected
+
+  ``ETHTOOL_LINK_EXT_STATE_CABLE_ISSUE``                Failure is related to cable,
+                                                        e.g., unsupported cable
+
+  ``ETHTOOL_LINK_EXT_STATE_EEPROM_ISSUE``               Failure is related to EEPROM, e.g., failure
+                                                        during reading or parsing the data
+
+  ``ETHTOOL_LINK_EXT_STATE_CALIBRATION_FAILURE``        Failure during calibration algorithm
+
+  ``ETHTOOL_LINK_EXT_STATE_POWER_BUDGET_EXCEEDED``      The hardware is not able to provide the
+                                                        power required from cable or module
+
+  ``ETHTOOL_LINK_EXT_STATE_OVERHEAT``                   The module is overheated
+  ================================================      ============================================
+
+Link extended substates:
+
+  Autoneg substates:
+
+  ===============================================================   ================================
+  ``ETHTOOL_LINK_EXT_SUBSTATE_AN_NO_PARTNER_DETECTED``              Peer side is down
+
+  ``ETHTOOL_LINK_EXT_SUBSTATE_AN_ACK_NOT_RECEIVED``                 Ack not received from peer side
+
+  ``ETHTOOL_LINK_EXT_SUBSTATE_AN_NEXT_PAGE_EXCHANGE_FAILED``        Next page exchange failed
+
+  ``ETHTOOL_LINK_EXT_SUBSTATE_AN_NO_PARTNER_DETECTED_FORCE_MODE``   Peer side is down during force
+                                                                    mode or there is no agreement of
+                                                                    speed
+
+  ``ETHTOOL_LINK_EXT_SUBSTATE_AN_FEC_MISMATCH_DURING_OVERRIDE``     Forward error correction modes
+                                                                    in both sides are mismatched
+
+  ``ETHTOOL_LINK_EXT_SUBSTATE_AN_NO_HCD``                           No Highest Common Denominator
+  ===============================================================   ================================
+
+  Link training substates:
+
+  ===========================================================================   ====================
+  ``ETHTOOL_LINK_EXT_SUBSTATE_LT_KR_FRAME_LOCK_NOT_ACQUIRED``                    Frames were not
+                                                                                 recognized, the
+                                                                                 lock failed
+
+  ``ETHTOOL_LINK_EXT_SUBSTATE_LT_KR_LINK_INHIBIT_TIMEOUT``                       The lock did not
+                                                                                 occur before
+                                                                                 timeout
+
+  ``ETHTOOL_LINK_EXT_SUBSTATE_LT_KR_LINK_PARTNER_DID_NOT_SET_RECEIVER_READY``    Peer side did not
+                                                                                 send ready signal
+                                                                                 after training
+                                                                                 process
+
+  ``ETHTOOL_LINK_EXT_SUBSTATE_LT_REMOTE_FAULT``                                  Remote side is not
+                                                                                 ready yet
+  ===========================================================================   ====================
+
+  Link logical mismatch substates:
+
+  ================================================================   ===============================
+  ``ETHTOOL_LINK_EXT_SUBSTATE_LLM_PCS_DID_NOT_ACQUIRE_BLOCK_LOCK``   Physical coding sublayer was
+                                                                     not locked in first phase -
+                                                                     block lock
+
+  ``ETHTOOL_LINK_EXT_SUBSTATE_LLM_PCS_DID_NOT_ACQUIRE_AM_LOCK``      Physical coding sublayer was
+                                                                     not locked in second phase -
+                                                                     alignment markers lock
+
+  ``ETHTOOL_LINK_EXT_SUBSTATE_LLM_PCS_DID_NOT_GET_ALIGN_STATUS``     Physical coding sublayer did
+                                                                     not get align status
+
+  ``ETHTOOL_LINK_EXT_SUBSTATE_LLM_FC_FEC_IS_NOT_LOCKED``             FC forward error correction is
+                                                                     not locked
+
+  ``ETHTOOL_LINK_EXT_SUBSTATE_LLM_RS_FEC_IS_NOT_LOCKED``             RS forward error correction is
+                                                                     not locked
+  ================================================================   ===============================
+
+  Bad signal integrity substates:
+
+  =================================================================    =============================
+  ``ETHTOOL_LINK_EXT_SUBSTATE_BSI_LARGE_NUMBER_OF_PHYSICAL_ERRORS``    Large number of physical
+                                                                       errors
+
+  ``ETHTOOL_LINK_EXT_SUBSTATE_BSI_UNSUPPORTED_RATE``                   The system attempted to
+                                                                       operate the cable at a rate
+                                                                       that is not formally
+                                                                       supported, which led to
+                                                                       signal integrity issues
+  =================================================================    =============================
+
+  Cable issue substates:
+
+  ===================================================   ============================================
+  ``ETHTOOL_LINK_EXT_SUBSTATE_CI_UNSUPPORTED_CABLE``    Unsupported cable
+
+  ``ETHTOOL_LINK_EXT_SUBSTATE_CI_CABLE_TEST_FAILURE``   Cable test failure
+  ===================================================   ============================================
 
 DEBUG_GET
 =========
@@ -955,13 +1086,195 @@ Kernel response contents:
 is no special value for this case). The bitset attributes are omitted if they
 would be empty (no bit set).
 
+CABLE_TEST
+==========
+
+Start a cable test.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_CABLE_TEST_HEADER``       nested  request header
+  ====================================  ======  ==========================
+
+Notification contents:
+
+An Ethernet cable typically contains 1, 2 or 4 pairs. The length of
+the pair can only be measured when there is a fault in the pair and
+hence a reflection. Information about the fault may not be available,
+depending on the specific hardware. Hence the contents of the notify
+message are mostly optional. The attributes can be repeated an
+arbitrary number of times, in an arbitrary order, for an arbitrary
+number of pairs.
+
+The example shows the notification sent when the test is completed for
+a T2 cable, i.e. two pairs. One pair is OK and hence has no length
+information. The second pair has a fault and does have length
+information.
+
+ +---------------------------------------------+--------+---------------------+
+ | ``ETHTOOL_A_CABLE_TEST_HEADER``             | nested | reply header        |
+ +---------------------------------------------+--------+---------------------+
+ | ``ETHTOOL_A_CABLE_TEST_STATUS``             | u8     | completed           |
+ +---------------------------------------------+--------+---------------------+
+ | ``ETHTOOL_A_CABLE_TEST_NTF_NEST``           | nested | all the results     |
+ +-+-------------------------------------------+--------+---------------------+
+ | | ``ETHTOOL_A_CABLE_NEST_RESULT``           | nested | cable test result   |
+ +-+-+-----------------------------------------+--------+---------------------+
+ | | | ``ETHTOOL_A_CABLE_RESULTS_PAIR``        | u8     | pair number         |
+ +-+-+-----------------------------------------+--------+---------------------+
+ | | | ``ETHTOOL_A_CABLE_RESULTS_CODE``        | u8     | result code         |
+ +-+-+-----------------------------------------+--------+---------------------+
+ | | ``ETHTOOL_A_CABLE_NEST_RESULT``           | nested | cable test results  |
+ +-+-+-----------------------------------------+--------+---------------------+
+ | | | ``ETHTOOL_A_CABLE_RESULTS_PAIR``        | u8     | pair number         |
+ +-+-+-----------------------------------------+--------+---------------------+
+ | | | ``ETHTOOL_A_CABLE_RESULTS_CODE``        | u8     | result code         |
+ +-+-+-----------------------------------------+--------+---------------------+
+ | | ``ETHTOOL_A_CABLE_NEST_FAULT_LENGTH``     | nested | cable length        |
+ +-+-+-----------------------------------------+--------+---------------------+
+ | | | ``ETHTOOL_A_CABLE_FAULT_LENGTH_PAIR``   | u8     | pair number         |
+ +-+-+-----------------------------------------+--------+---------------------+
+ | | | ``ETHTOOL_A_CABLE_FAULT_LENGTH_CM``     | u32    | length in cm        |
+ +-+-+-----------------------------------------+--------+---------------------+
+
+CABLE_TEST TDR
+==============
+
+Start a cable test and report raw TDR data
+
+Request contents:
+
+ +--------------------------------------------+--------+-----------------------+
+ | ``ETHTOOL_A_CABLE_TEST_TDR_HEADER``        | nested | reply header          |
+ +--------------------------------------------+--------+-----------------------+
+ | ``ETHTOOL_A_CABLE_TEST_TDR_CFG``           | nested | test configuration    |
+ +-+------------------------------------------+--------+-----------------------+
+ | | ``ETHTOOL_A_CABLE_STEP_FIRST_DISTANCE``  | u32    | first data distance   |
+ +-+-+----------------------------------------+--------+-----------------------+
+ | | ``ETHTOOL_A_CABLE_STEP_LAST_DISTANCE``   | u32    | last data distance    |
+ +-+-+----------------------------------------+--------+-----------------------+
+ | | ``ETHTOOL_A_CABLE_STEP_STEP_DISTANCE``   | u32    | distance of each step |
+ +-+-+----------------------------------------+--------+-----------------------+
+ | | ``ETHTOOL_A_CABLE_TEST_TDR_CFG_PAIR``    | u8     | pair to test          |
+ +-+-+----------------------------------------+--------+-----------------------+
+
+The ETHTOOL_A_CABLE_TEST_TDR_CFG is optional, as well as all members
+of the nest. All distances are expressed in centimeters. The PHY takes
+the distances as a guide, and rounds to the nearest distance it
+actually supports. If a pair is passed, only that one pair will be
+tested. Otherwise all pairs are tested.
+
+Notification contents:
+
+Raw TDR data is gathered by sending a pulse down the cable and
+recording the amplitude of the reflected pulse for a given distance.
+
+It can take a number of seconds to collect TDR data, especial if the
+full 100 meters is probed at 1 meter intervals. When the test is
+started a notification will be sent containing just
+ETHTOOL_A_CABLE_TEST_TDR_STATUS with the value
+ETHTOOL_A_CABLE_TEST_NTF_STATUS_STARTED.
+
+When the test has completed a second notification will be sent
+containing ETHTOOL_A_CABLE_TEST_TDR_STATUS with the value
+ETHTOOL_A_CABLE_TEST_NTF_STATUS_COMPLETED and the TDR data.
+
+The message may optionally contain the amplitude of the pulse send
+down the cable. This is measured in mV. A reflection should not be
+bigger than transmitted pulse.
+
+Before the raw TDR data should be an ETHTOOL_A_CABLE_TDR_NEST_STEP
+nest containing information about the distance along the cable for the
+first reading, the last reading, and the step between each
+reading. Distances are measured in centimeters. These should be the
+exact values the PHY used. These may be different to what the user
+requested, if the native measurement resolution is greater than 1 cm.
+
+For each step along the cable, a ETHTOOL_A_CABLE_TDR_NEST_AMPLITUDE is
+used to report the amplitude of the reflection for a given pair.
+
+ +---------------------------------------------+--------+----------------------+
+ | ``ETHTOOL_A_CABLE_TEST_TDR_HEADER``         | nested | reply header         |
+ +---------------------------------------------+--------+----------------------+
+ | ``ETHTOOL_A_CABLE_TEST_TDR_STATUS``         | u8     | completed            |
+ +---------------------------------------------+--------+----------------------+
+ | ``ETHTOOL_A_CABLE_TEST_TDR_NTF_NEST``       | nested | all the results      |
+ +-+-------------------------------------------+--------+----------------------+
+ | | ``ETHTOOL_A_CABLE_TDR_NEST_PULSE``        | nested | TX Pulse amplitude   |
+ +-+-+-----------------------------------------+--------+----------------------+
+ | | | ``ETHTOOL_A_CABLE_PULSE_mV``            | s16    | Pulse amplitude      |
+ +-+-+-----------------------------------------+--------+----------------------+
+ | | ``ETHTOOL_A_CABLE_NEST_STEP``             | nested | TDR step info        |
+ +-+-+-----------------------------------------+--------+----------------------+
+ | | | ``ETHTOOL_A_CABLE_STEP_FIRST_DISTANCE`` | u32    | First data distance  |
+ +-+-+-----------------------------------------+--------+----------------------+
+ | | | ``ETHTOOL_A_CABLE_STEP_LAST_DISTANCE``  | u32    | Last data distance   |
+ +-+-+-----------------------------------------+--------+----------------------+
+ | | | ``ETHTOOL_A_CABLE_STEP_STEP_DISTANCE``  | u32    | distance of each step|
+ +-+-+-----------------------------------------+--------+----------------------+
+ | | ``ETHTOOL_A_CABLE_TDR_NEST_AMPLITUDE``    | nested | Reflection amplitude |
+ +-+-+-----------------------------------------+--------+----------------------+
+ | | | ``ETHTOOL_A_CABLE_RESULTS_PAIR``        | u8     | pair number          |
+ +-+-+-----------------------------------------+--------+----------------------+
+ | | | ``ETHTOOL_A_CABLE_AMPLITUDE_mV``        | s16    | Reflection amplitude |
+ +-+-+-----------------------------------------+--------+----------------------+
+ | | ``ETHTOOL_A_CABLE_TDR_NEST_AMPLITUDE``    | nested | Reflection amplitude |
+ +-+-+-----------------------------------------+--------+----------------------+
+ | | | ``ETHTOOL_A_CABLE_RESULTS_PAIR``        | u8     | pair number          |
+ +-+-+-----------------------------------------+--------+----------------------+
+ | | | ``ETHTOOL_A_CABLE_AMPLITUDE_mV``        | s16    | Reflection amplitude |
+ +-+-+-----------------------------------------+--------+----------------------+
+ | | ``ETHTOOL_A_CABLE_TDR_NEST_AMPLITUDE``    | nested | Reflection amplitude |
+ +-+-+-----------------------------------------+--------+----------------------+
+ | | | ``ETHTOOL_A_CABLE_RESULTS_PAIR``        | u8     | pair number          |
+ +-+-+-----------------------------------------+--------+----------------------+
+ | | | ``ETHTOOL_A_CABLE_AMPLITUDE_mV``        | s16    | Reflection amplitude |
+ +-+-+-----------------------------------------+--------+----------------------+
+
+TUNNEL_INFO
+===========
+
+Gets information about the tunnel state NIC is aware of.
+
+Request contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_TUNNEL_INFO_HEADER``       nested  request header
+  =====================================  ======  ==========================
+
+Kernel response contents:
+
+ +---------------------------------------------+--------+---------------------+
+ | ``ETHTOOL_A_TUNNEL_INFO_HEADER``            | nested | reply header        |
+ +---------------------------------------------+--------+---------------------+
+ | ``ETHTOOL_A_TUNNEL_INFO_UDP_PORTS``         | nested | all UDP port tables |
+ +-+-------------------------------------------+--------+---------------------+
+ | | ``ETHTOOL_A_TUNNEL_UDP_TABLE``            | nested | one UDP port table  |
+ +-+-+-----------------------------------------+--------+---------------------+
+ | | | ``ETHTOOL_A_TUNNEL_UDP_TABLE_SIZE``     | u32    | max size of the     |
+ | | |                                         |        | table               |
+ +-+-+-----------------------------------------+--------+---------------------+
+ | | | ``ETHTOOL_A_TUNNEL_UDP_TABLE_TYPES``    | bitset | tunnel types which  |
+ | | |                                         |        | table can hold      |
+ +-+-+-----------------------------------------+--------+---------------------+
+ | | | ``ETHTOOL_A_TUNNEL_UDP_TABLE_ENTRY``    | nested | offloaded UDP port  |
+ +-+-+-+---------------------------------------+--------+---------------------+
+ | | | | ``ETHTOOL_A_TUNNEL_UDP_ENTRY_PORT``   | be16   | UDP port            |
+ +-+-+-+---------------------------------------+--------+---------------------+
+ | | | | ``ETHTOOL_A_TUNNEL_UDP_ENTRY_TYPE``   | u32    | tunnel type         |
+ +-+-+-+---------------------------------------+--------+---------------------+
+
+For UDP tunnel table empty ``ETHTOOL_A_TUNNEL_UDP_TABLE_TYPES`` indicates that
+the table contains static entries, hard-coded by the NIC.
 
 Request translation
 ===================
 
 The following table maps ioctl commands to netlink commands providing their
 functionality. Entries with "n/a" in right column are commands which do not
-have their netlink replacement yet.
+have their netlink replacement yet. Entries which "n/a" in the left column
+are netlink only.
 
   =================================== =====================================
   ioctl command                       netlink command
@@ -1050,4 +1363,7 @@ have their netlink replacement yet.
   ``ETHTOOL_PHY_STUNABLE``            n/a
   ``ETHTOOL_GFECPARAM``               n/a
   ``ETHTOOL_SFECPARAM``               n/a
+  n/a                                 ''ETHTOOL_MSG_CABLE_TEST_ACT''
+  n/a                                 ''ETHTOOL_MSG_CABLE_TEST_TDR_ACT''
+  n/a                                 ``ETHTOOL_MSG_TUNNEL_INFO_GET``
   =================================== =====================================

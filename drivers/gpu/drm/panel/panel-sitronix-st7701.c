@@ -272,7 +272,7 @@ static int st7701_get_modes(struct drm_panel *panel,
 		DRM_DEV_ERROR(&st7701->dsi->dev,
 			      "failed to add mode %ux%ux@%u\n",
 			      desc_mode->hdisplay, desc_mode->vdisplay,
-			      desc_mode->vrefresh);
+			      drm_mode_vrefresh(desc_mode));
 		return -ENOMEM;
 	}
 

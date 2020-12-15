@@ -18,12 +18,12 @@
 #include <linux/proc_fs.h>
 #include <asm/fixmap.h>
 #include <asm/page.h>
-#include <asm/pgalloc.h>
 #include <asm/addrspace.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
+#include "ioremap.h"
 
 struct ioremap_map {
 	void __iomem *addr;

@@ -270,7 +270,8 @@ gp102_acr_load(struct nvkm_acr *acr, int ver, const struct nvkm_acr_fwif *fwif)
 
 static const struct nvkm_acr_fwif
 gp102_acr_fwif[] = {
-	{ 0, gp102_acr_load, &gp102_acr },
+	{  0, gp102_acr_load, &gp102_acr },
+	{ -1, gm200_acr_nofw, &gm200_acr },
 	{}
 };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015-2018 Intel Corporation.
+ * Copyright(c) 2015-2020 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -54,6 +54,7 @@
 #include <linux/module.h>
 #include <linux/prefetch.h>
 #include <rdma/ib_verbs.h>
+#include <linux/etherdevice.h>
 
 #include "hfi.h"
 #include "trace.h"
@@ -62,6 +63,9 @@
 #include "debugfs.h"
 #include "vnic.h"
 #include "fault.h"
+
+#include "ipoib.h"
+#include "netdev.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
@@ -748,6 +752,39 @@ static noinline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
 	return ret;
 }
 
+static void process_rcv_packet_napi(struct hfi1_packet *packet)
+{
+	packet->etype = rhf_rcv_type(packet->rhf);
+
+	/* total length */
+	packet->tlen = rhf_pkt_len(packet->rhf); /* in bytes */
+	/* retrieve eager buffer details */
+	packet->etail = rhf_egr_index(packet->rhf);
+	packet->ebuf = get_egrbuf(packet->rcd, packet->rhf,
+				  &packet->updegr);
+	/*
+	 * Prefetch the contents of the eager buffer.  It is
+	 * OK to send a negative length to prefetch_range().
+	 * The +2 is the size of the RHF.
+	 */
+	prefetch_range(packet->ebuf,
+		       packet->tlen - ((packet->rcd->rcvhdrqentsize -
+				       (rhf_hdrq_offset(packet->rhf)
+					+ 2)) * 4));
+
+	packet->rcd->rhf_rcv_function_map[packet->etype](packet);
+	packet->numpkt++;
+
+	/* Set up for the next packet */
+	packet->rhqoff += packet->rsize;
+	if (packet->rhqoff >= packet->maxcnt)
+		packet->rhqoff = 0;
+
+	packet->rhf_addr = (__le32 *)packet->rcd->rcvhdrq + packet->rhqoff +
+				      packet->rcd->rhf_offset;
+	packet->rhf = rhf_to_cpu(packet->rhf_addr);
+}
+
 static inline int process_rcv_packet(struct hfi1_packet *packet, int thread)
 {
 	int ret;
@@ -824,6 +861,36 @@ static inline void finish_packet(struct hfi1_packet *packet)
 	 */
 	update_usrhead(packet->rcd, hfi1_rcd_head(packet->rcd), packet->updegr,
 		       packet->etail, rcv_intr_dynamic, packet->numpkt);
+}
+
+/*
+ * handle_receive_interrupt_napi_fp - receive a packet
+ * @rcd: the context
+ * @budget: polling budget
+ *
+ * Called from interrupt handler for receive interrupt.
+ * This is the fast path interrupt handler
+ * when executing napi soft irq environment.
+ */
+int handle_receive_interrupt_napi_fp(struct hfi1_ctxtdata *rcd, int budget)
+{
+	struct hfi1_packet packet;
+
+	init_packet(rcd, &packet);
+	if (last_rcv_seq(rcd, rhf_rcv_seq(packet.rhf)))
+		goto bail;
+
+	while (packet.numpkt < budget) {
+		process_rcv_packet_napi(&packet);
+		if (hfi1_seq_incr(rcd, rhf_rcv_seq(packet.rhf)))
+			break;
+
+		process_rcv_update(0, &packet);
+	}
+	hfi1_set_rcd_head(rcd, packet.rhqoff);
+bail:
+	finish_packet(&packet);
+	return packet.numpkt;
 }
 
 /*
@@ -1071,6 +1138,63 @@ bail:
 	 */
 	finish_packet(&packet);
 	return last;
+}
+
+/*
+ * handle_receive_interrupt_napi_sp - receive a packet
+ * @rcd: the context
+ * @budget: polling budget
+ *
+ * Called from interrupt handler for errors or receive interrupt.
+ * This is the slow path interrupt handler
+ * when executing napi soft irq environment.
+ */
+int handle_receive_interrupt_napi_sp(struct hfi1_ctxtdata *rcd, int budget)
+{
+	struct hfi1_devdata *dd = rcd->dd;
+	int last = RCV_PKT_OK;
+	bool needset = true;
+	struct hfi1_packet packet;
+
+	init_packet(rcd, &packet);
+	if (last_rcv_seq(rcd, rhf_rcv_seq(packet.rhf)))
+		goto bail;
+
+	while (last != RCV_PKT_DONE && packet.numpkt < budget) {
+		if (hfi1_need_drop(dd)) {
+			/* On to the next packet */
+			packet.rhqoff += packet.rsize;
+			packet.rhf_addr = (__le32 *)rcd->rcvhdrq +
+					  packet.rhqoff +
+					  rcd->rhf_offset;
+			packet.rhf = rhf_to_cpu(packet.rhf_addr);
+
+		} else {
+			if (set_armed_to_active(&packet))
+				goto bail;
+			process_rcv_packet_napi(&packet);
+		}
+
+		if (hfi1_seq_incr(rcd, rhf_rcv_seq(packet.rhf)))
+			last = RCV_PKT_DONE;
+
+		if (needset) {
+			needset = false;
+			set_all_fastpath(dd, rcd);
+		}
+
+		process_rcv_update(last, &packet);
+	}
+
+	hfi1_set_rcd_head(rcd, packet.rhqoff);
+
+bail:
+	/*
+	 * Always write head at end, and setup rcv interrupt, even
+	 * if no packets were processed.
+	 */
+	finish_packet(&packet);
+	return packet.numpkt;
 }
 
 /*
@@ -1550,6 +1674,82 @@ void handle_eflags(struct hfi1_packet *packet)
 		show_eflags_errs(packet);
 }
 
+static void hfi1_ipoib_ib_rcv(struct hfi1_packet *packet)
+{
+	struct hfi1_ibport *ibp;
+	struct net_device *netdev;
+	struct hfi1_ctxtdata *rcd = packet->rcd;
+	struct napi_struct *napi = rcd->napi;
+	struct sk_buff *skb;
+	struct hfi1_netdev_rxq *rxq = container_of(napi,
+			struct hfi1_netdev_rxq, napi);
+	u32 extra_bytes;
+	u32 tlen, qpnum;
+	bool do_work, do_cnp;
+	struct hfi1_ipoib_dev_priv *priv;
+
+	trace_hfi1_rcvhdr(packet);
+
+	hfi1_setup_ib_header(packet);
+
+	packet->ohdr = &((struct ib_header *)packet->hdr)->u.oth;
+	packet->grh = NULL;
+
+	if (unlikely(rhf_err_flags(packet->rhf))) {
+		handle_eflags(packet);
+		return;
+	}
+
+	qpnum = ib_bth_get_qpn(packet->ohdr);
+	netdev = hfi1_netdev_get_data(rcd->dd, qpnum);
+	if (!netdev)
+		goto drop_no_nd;
+
+	trace_input_ibhdr(rcd->dd, packet, !!(rhf_dc_info(packet->rhf)));
+	trace_ctxt_rsm_hist(rcd->ctxt);
+
+	/* handle congestion notifications */
+	do_work = hfi1_may_ecn(packet);
+	if (unlikely(do_work)) {
+		do_cnp = (packet->opcode != IB_OPCODE_CNP);
+		(void)hfi1_process_ecn_slowpath(hfi1_ipoib_priv(netdev)->qp,
+						 packet, do_cnp);
+	}
+
+	/*
+	 * We have split point after last byte of DETH
+	 * lets strip padding and CRC and ICRC.
+	 * tlen is whole packet len so we need to
+	 * subtract header size as well.
+	 */
+	tlen = packet->tlen;
+	extra_bytes = ib_bth_get_pad(packet->ohdr) + (SIZE_OF_CRC << 2) +
+			packet->hlen;
+	if (unlikely(tlen < extra_bytes))
+		goto drop;
+
+	tlen -= extra_bytes;
+
+	skb = hfi1_ipoib_prepare_skb(rxq, tlen, packet->ebuf);
+	if (unlikely(!skb))
+		goto drop;
+
+	priv = hfi1_ipoib_priv(netdev);
+	hfi1_ipoib_update_rx_netstats(priv, 1, skb->len);
+
+	skb->dev = netdev;
+	skb->pkt_type = PACKET_HOST;
+	netif_receive_skb(skb);
+
+	return;
+
+drop:
+	++netdev->stats.rx_dropped;
+drop_no_nd:
+	ibp = rcd_to_iport(packet->rcd);
+	++ibp->rvp.n_pkt_drops;
+}
+
 /*
  * The following functions are called by the interrupt handler. They are type
  * specific handlers for each packet type.
@@ -1572,27 +1772,9 @@ static void process_receive_ib(struct hfi1_packet *packet)
 	hfi1_ib_rcv(packet);
 }
 
-static inline bool hfi1_is_vnic_packet(struct hfi1_packet *packet)
-{
-	/* Packet received in VNIC context via RSM */
-	if (packet->rcd->is_vnic)
-		return true;
-
-	if ((hfi1_16B_get_l2(packet->ebuf) == OPA_16B_L2_TYPE) &&
-	    (hfi1_16B_get_l4(packet->ebuf) == OPA_16B_L4_ETHR))
-		return true;
-
-	return false;
-}
-
 static void process_receive_bypass(struct hfi1_packet *packet)
 {
 	struct hfi1_devdata *dd = packet->rcd->dd;
-
-	if (hfi1_is_vnic_packet(packet)) {
-		hfi1_vnic_bypass_rcv(packet);
-		return;
-	}
 
 	if (hfi1_setup_bypass_packet(packet))
 		return;
@@ -1753,6 +1935,17 @@ const rhf_rcv_function_ptr normal_rhf_rcv_functions[] = {
 	[RHF_RCV_TYPE_IB] = process_receive_ib,
 	[RHF_RCV_TYPE_ERROR] = process_receive_error,
 	[RHF_RCV_TYPE_BYPASS] = process_receive_bypass,
+	[RHF_RCV_TYPE_INVALID5] = process_receive_invalid,
+	[RHF_RCV_TYPE_INVALID6] = process_receive_invalid,
+	[RHF_RCV_TYPE_INVALID7] = process_receive_invalid,
+};
+
+const rhf_rcv_function_ptr netdev_rhf_rcv_functions[] = {
+	[RHF_RCV_TYPE_EXPECTED] = process_receive_invalid,
+	[RHF_RCV_TYPE_EAGER] = process_receive_invalid,
+	[RHF_RCV_TYPE_IB] = hfi1_ipoib_ib_rcv,
+	[RHF_RCV_TYPE_ERROR] = process_receive_error,
+	[RHF_RCV_TYPE_BYPASS] = hfi1_vnic_bypass_rcv,
 	[RHF_RCV_TYPE_INVALID5] = process_receive_invalid,
 	[RHF_RCV_TYPE_INVALID6] = process_receive_invalid,
 	[RHF_RCV_TYPE_INVALID7] = process_receive_invalid,

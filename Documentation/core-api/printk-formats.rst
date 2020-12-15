@@ -2,6 +2,8 @@
 How to get printk format specifiers right
 =========================================
 
+.. _printk-specifiers:
+
 :Author: Randy Dunlap <rdunlap@infradead.org>
 :Author: Andrew Murray <amurray@mpc-data.co.uk>
 
@@ -315,7 +317,7 @@ colon-separators. Leading zeros are always used.
 
 The additional ``c`` specifier can be used with the ``I`` specifier to
 print a compressed IPv6 address as described by
-http://tools.ietf.org/html/rfc5952
+https://tools.ietf.org/html/rfc5952
 
 Passed by reference.
 
@@ -339,7 +341,7 @@ The additional ``p``, ``f``, and ``s`` specifiers are used to specify port
 flowinfo a ``/`` and scope a ``%``, each followed by the actual value.
 
 In case of an IPv6 address the compressed IPv6 address as described by
-http://tools.ietf.org/html/rfc5952 is being used if the additional
+https://tools.ietf.org/html/rfc5952 is being used if the additional
 specifier ``c`` is given. The IPv6 address is surrounded by ``[``, ``]`` in
 case of additional specifiers ``p``, ``f`` or ``s`` as suggested by
 https://tools.ietf.org/html/draft-ietf-6man-text-addr-representation-07
@@ -482,21 +484,25 @@ Examples (OF)::
 	%pfwf	/ocp@68000000/i2c@48072000/camera@10/port/endpoint - Full name
 	%pfwP	endpoint				- Node name
 
-Time and date (struct rtc_time)
--------------------------------
+Time and date
+-------------
 
 ::
 
-	%ptR		YYYY-mm-ddTHH:MM:SS
-	%ptRd		YYYY-mm-dd
-	%ptRt		HH:MM:SS
-	%ptR[dt][r]
+	%pt[RT]			YYYY-mm-ddTHH:MM:SS
+	%pt[RT]d		YYYY-mm-dd
+	%pt[RT]t		HH:MM:SS
+	%pt[RT][dt][r]
 
-For printing date and time as represented by struct rtc_time structure in
-human readable format.
+For printing date and time as represented by::
 
-By default year will be incremented by 1900 and month by 1. Use %ptRr (raw)
-to suppress this behaviour.
+	R  struct rtc_time structure
+	T  time64_t type
+
+in human readable format.
+
+By default year will be incremented by 1900 and month by 1.
+Use %pt[RT]r (raw) to suppress this behaviour.
 
 Passed by reference.
 

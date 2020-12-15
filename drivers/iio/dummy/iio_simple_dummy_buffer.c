@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Copyright (c) 2011 Jonathan Cameron
  *
  * Buffer handling elements of industrial I/O reference driver.
@@ -99,20 +99,6 @@ done:
 }
 
 static const struct iio_buffer_setup_ops iio_simple_dummy_buffer_setup_ops = {
-	/*
-	 * iio_triggered_buffer_postenable:
-	 * Generic function that simply attaches the pollfunc to the trigger.
-	 * Replace this to mess with hardware state before we attach the
-	 * trigger.
-	 */
-	.postenable = &iio_triggered_buffer_postenable,
-	/*
-	 * iio_triggered_buffer_predisable:
-	 * Generic function that simple detaches the pollfunc from the trigger.
-	 * Replace this to put hardware state back again after the trigger is
-	 * detached but before userspace knows we have disabled the ring.
-	 */
-	.predisable = &iio_triggered_buffer_predisable,
 };
 
 int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
@@ -179,7 +165,7 @@ error_ret:
 
 /**
  * iio_simple_dummy_unconfigure_buffer() - release buffer resources
- * @indo_dev: device instance state
+ * @indio_dev: device instance state
  */
 void iio_simple_dummy_unconfigure_buffer(struct iio_dev *indio_dev)
 {

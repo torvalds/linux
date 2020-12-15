@@ -184,11 +184,11 @@ enum hclge_opcode_type {
 	/* TQP commands */
 	HCLGE_OPC_CFG_TX_QUEUE		= 0x0B01,
 	HCLGE_OPC_QUERY_TX_POINTER	= 0x0B02,
-	HCLGE_OPC_QUERY_TX_STATUS	= 0x0B03,
+	HCLGE_OPC_QUERY_TX_STATS	= 0x0B03,
 	HCLGE_OPC_TQP_TX_QUEUE_TC	= 0x0B04,
 	HCLGE_OPC_CFG_RX_QUEUE		= 0x0B11,
 	HCLGE_OPC_QUERY_RX_POINTER	= 0x0B12,
-	HCLGE_OPC_QUERY_RX_STATUS	= 0x0B13,
+	HCLGE_OPC_QUERY_RX_STATS	= 0x0B13,
 	HCLGE_OPC_STASH_RX_QUEUE_LRO	= 0x0B16,
 	HCLGE_OPC_CFG_RX_QUEUE_LRO	= 0x0B17,
 	HCLGE_OPC_CFG_COM_TQP_QUEUE	= 0x0B20,
@@ -270,6 +270,8 @@ enum hclge_opcode_type {
 	HCLGE_OPC_M7_COMPAT_CFG		= 0x701A,
 
 	/* SFP command */
+	HCLGE_OPC_GET_SFP_EEPROM	= 0x7100,
+	HCLGE_OPC_GET_SFP_EXIST		= 0x7101,
 	HCLGE_OPC_GET_SFP_INFO		= 0x7104,
 
 	/* Error INT commands */
@@ -733,31 +735,6 @@ struct hclge_mac_mgr_tbl_entry_cmd {
 	u8      rsv3[2];
 };
 
-struct hclge_mac_vlan_add_cmd {
-	__le16  flags;
-	__le16  mac_addr_hi16;
-	__le32  mac_addr_lo32;
-	__le32  mac_addr_msk_hi32;
-	__le16  mac_addr_msk_lo16;
-	__le16  vlan_tag;
-	__le16  ingress_port;
-	__le16  egress_port;
-	u8      rsv[4];
-};
-
-#define HNS3_MAC_VLAN_CFG_FLAG_BIT 0
-struct hclge_mac_vlan_remove_cmd {
-	__le16  flags;
-	__le16  mac_addr_hi16;
-	__le32  mac_addr_lo32;
-	__le32  mac_addr_msk_hi32;
-	__le16  mac_addr_msk_lo16;
-	__le16  vlan_tag;
-	__le16  ingress_port;
-	__le16  egress_port;
-	u8      rsv[4];
-};
-
 struct hclge_vlan_filter_ctrl_cmd {
 	u8 vlan_type;
 	u8 vlan_fe;
@@ -907,8 +884,8 @@ struct hclge_cfg_tso_status_cmd {
 
 #define HCLGE_GRO_EN_B		0
 struct hclge_cfg_gro_status_cmd {
-	__le16 gro_en;
-	u8 rsv[22];
+	u8 gro_en;
+	u8 rsv[23];
 };
 
 #define HCLGE_TSO_MSS_MIN	256
@@ -1077,6 +1054,19 @@ struct hclge_query_ppu_pf_other_int_dfx_cmd {
 struct hclge_firmware_compat_cmd {
 	__le32 compat;
 	u8 rsv[20];
+};
+
+#define HCLGE_SFP_INFO_CMD_NUM	6
+#define HCLGE_SFP_INFO_BD0_LEN	20
+#define HCLGE_SFP_INFO_BDX_LEN	24
+#define HCLGE_SFP_INFO_MAX_LEN \
+	(HCLGE_SFP_INFO_BD0_LEN + \
+	(HCLGE_SFP_INFO_CMD_NUM - 1) * HCLGE_SFP_INFO_BDX_LEN)
+
+struct hclge_sfp_info_bd0_cmd {
+	__le16 offset;
+	__le16 read_len;
+	u8 data[HCLGE_SFP_INFO_BD0_LEN];
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);

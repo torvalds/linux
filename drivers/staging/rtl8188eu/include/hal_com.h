@@ -81,7 +81,7 @@
 #define	RATE_ALL_OFDM_AG	(RATR_6M | RATR_9M | RATR_12M | RATR_18M | \
 				 RATR_24M | RATR_36M | RATR_48M | RATR_54M)
 #define	RATE_ALL_OFDM_1SS	(RATR_MCS0 | RATR_MCS1 | RATR_MCS2 |	\
-				 RATR_MCS3 | RATR_MCS4 | RATR_MCS5|RATR_MCS6 | \
+				 RATR_MCS3 | RATR_MCS4 | RATR_MCS5 | RATR_MCS6 | \
 				 RATR_MCS7)
 #define	RATE_ALL_OFDM_2SS	(RATR_MCS8 | RATR_MCS9 | RATR_MCS10 | \
 				 RATR_MCS11 | RATR_MCS12 | RATR_MCS13 | \
@@ -136,7 +136,6 @@
 
 #include "HalVerDef.h"
 void dump_chip_info(struct HAL_VERSION	ChipVersion);
-
 
 /* return the final channel plan decision */
 u8 hal_com_get_channel_plan(u8 hw_channel_plan, u8 sw_channel_plan,

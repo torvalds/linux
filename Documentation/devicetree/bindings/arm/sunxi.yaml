@@ -561,6 +561,11 @@ properties:
           - const: olimex,a20-olinuxino-lime
           - const: allwinner,sun7i-a20
 
+      - description: Olimex A20-OlinuXino LIME (with eMMC)
+        items:
+          - const: olimex,a20-olinuxino-lime-emmc
+          - const: allwinner,sun7i-a20
+
       - description: Olimex A20-OlinuXino LIME2
         items:
           - const: olimex,a20-olinuxino-lime2
@@ -650,6 +655,11 @@ properties:
       - description: Pine64 PinePhone Braveheart (1.1)
         items:
           - const: pine64,pinephone-1.1
+          - const: allwinner,sun50i-a64
+
+      - description: Pine64 PinePhone (1.2)
+        items:
+          - const: pine64,pinephone-1.2
           - const: allwinner,sun50i-a64
 
       - description: Pine64 PineTab

@@ -22,8 +22,11 @@ Optional properties:
 - fsl,err006687-workaround-present: If present indicates that the system has
   the hardware workaround for ERR006687 applied and does not need a software
   workaround.
-- gpr: phandle of SoC general purpose register mode. Required for wake on LAN
-  on some SoCs
+- fsl,stop-mode: register bits of stop mode control, the format is
+		 <&gpr req_gpr req_bit>.
+		 gpr is the phandle to general purpose register node.
+		 req_gpr is the gpr register offset for ENET stop request.
+		 req_bit is the gpr bit offset for ENET stop request.
  -interrupt-names:  names of the interrupts listed in interrupts property in
   the same order. The defaults if not specified are
   __Number of interrupts__   __Default__
@@ -82,6 +85,7 @@ ethernet@83fec000 {
 	phy-supply = <&reg_fec_supply>;
 	phy-handle = <&ethphy>;
 	mdio {
+	        clock-frequency = <5000000>;
 		ethphy: ethernet-phy@6 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <6>;

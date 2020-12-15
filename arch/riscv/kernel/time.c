@@ -26,3 +26,12 @@ void __init time_init(void)
 	lpj_fine = riscv_timebase / HZ;
 	timer_probe();
 }
+
+void clocksource_arch_init(struct clocksource *cs)
+{
+#ifdef CONFIG_GENERIC_GETTIMEOFDAY
+	cs->vdso_clock_mode = VDSO_CLOCKMODE_ARCHTIMER;
+#else
+	cs->vdso_clock_mode = VDSO_CLOCKMODE_NONE;
+#endif
+}

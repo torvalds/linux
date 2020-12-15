@@ -4,12 +4,12 @@
  *
  * Copyright (C) 2017 KUNBUS GmbH
  *
- * http://www.ti.com/lit/ds/symlink/dac082s085.pdf
- * http://www.ti.com/lit/ds/symlink/dac102s085.pdf
- * http://www.ti.com/lit/ds/symlink/dac122s085.pdf
- * http://www.ti.com/lit/ds/symlink/dac084s085.pdf
- * http://www.ti.com/lit/ds/symlink/dac104s085.pdf
- * http://www.ti.com/lit/ds/symlink/dac124s085.pdf
+ * https://www.ti.com/lit/ds/symlink/dac082s085.pdf
+ * https://www.ti.com/lit/ds/symlink/dac102s085.pdf
+ * https://www.ti.com/lit/ds/symlink/dac122s085.pdf
+ * https://www.ti.com/lit/ds/symlink/dac084s085.pdf
+ * https://www.ti.com/lit/ds/symlink/dac104s085.pdf
+ * https://www.ti.com/lit/ds/symlink/dac124s085.pdf
  */
 
 #include <linux/iio/iio.h>
@@ -268,7 +268,6 @@ static int ti_dac_probe(struct spi_device *spi)
 	if (!indio_dev)
 		return -ENOMEM;
 
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &ti_dac_info;
 	indio_dev->name = spi->modalias;
 	indio_dev->modes = INDIO_DIRECT_MODE;

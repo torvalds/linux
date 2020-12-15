@@ -104,7 +104,7 @@ int compute_ecdh_secret(struct crypto_kpp *tfm, const u8 public_key[64],
 free_all:
 	kpp_request_free(req);
 free_tmp:
-	kzfree(tmp);
+	kfree_sensitive(tmp);
 	return err;
 }
 
@@ -151,9 +151,9 @@ int set_ecdh_privkey(struct crypto_kpp *tfm, const u8 private_key[32])
 	err = crypto_kpp_set_secret(tfm, buf, buf_len);
 	/* fall through */
 free_all:
-	kzfree(buf);
+	kfree_sensitive(buf);
 free_tmp:
-	kzfree(tmp);
+	kfree_sensitive(tmp);
 	return err;
 }
 

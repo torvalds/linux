@@ -546,7 +546,7 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 		rport->state = OTG_STATE_B_IDLE;
 		if (!vbus_attach)
 			rockchip_usb2phy_power_off(rport->phy);
-		/* fall through */
+		fallthrough;
 	case OTG_STATE_B_IDLE:
 		if (extcon_get_state(rphy->edev, EXTCON_USB_HOST) > 0) {
 			dev_dbg(&rport->phy->dev, "usb otg host connect\n");
@@ -754,11 +754,11 @@ static void rockchip_chg_detect_work(struct work_struct *work)
 			rphy->chg_type = POWER_SUPPLY_TYPE_USB_DCP;
 		else
 			rphy->chg_type = POWER_SUPPLY_TYPE_USB_CDP;
-		/* fall through */
+		fallthrough;
 	case USB_CHG_STATE_SECONDARY_DONE:
 		rphy->chg_state = USB_CHG_STATE_DETECTED;
 		delay = 0;
-		/* fall through */
+		fallthrough;
 	case USB_CHG_STATE_DETECTED:
 		/* put the controller in normal mode */
 		property_enable(base, &rphy->phy_cfg->chg_det.opmode, true);
@@ -835,7 +835,7 @@ static void rockchip_usb2phy_sm_work(struct work_struct *work)
 			dev_dbg(&rport->phy->dev, "FS/LS online\n");
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case PHY_STATE_CONNECT:
 		if (rport->suspended) {
 			dev_dbg(&rport->phy->dev, "Connected\n");

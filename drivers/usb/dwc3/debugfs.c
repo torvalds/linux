@@ -2,7 +2,7 @@
 /**
  * debugfs.c - DesignWare USB3 DRD Controller DebugFS file
  *
- * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2010-2011 Texas Instruments Incorporated - https://www.ti.com
  *
  * Authors: Felipe Balbi <balbi@ti.com>,
  *	    Sebastian Andrzej Siewior <bigeasy@linutronix.de>
@@ -466,19 +466,19 @@ static int dwc3_testmode_show(struct seq_file *s, void *unused)
 	case 0:
 		seq_printf(s, "no test\n");
 		break;
-	case TEST_J:
+	case USB_TEST_J:
 		seq_printf(s, "test_j\n");
 		break;
-	case TEST_K:
+	case USB_TEST_K:
 		seq_printf(s, "test_k\n");
 		break;
-	case TEST_SE0_NAK:
+	case USB_TEST_SE0_NAK:
 		seq_printf(s, "test_se0_nak\n");
 		break;
-	case TEST_PACKET:
+	case USB_TEST_PACKET:
 		seq_printf(s, "test_packet\n");
 		break;
-	case TEST_FORCE_EN:
+	case USB_TEST_FORCE_ENABLE:
 		seq_printf(s, "test_force_enable\n");
 		break;
 	default:
@@ -506,15 +506,15 @@ static ssize_t dwc3_testmode_write(struct file *file,
 		return -EFAULT;
 
 	if (!strncmp(buf, "test_j", 6))
-		testmode = TEST_J;
+		testmode = USB_TEST_J;
 	else if (!strncmp(buf, "test_k", 6))
-		testmode = TEST_K;
+		testmode = USB_TEST_K;
 	else if (!strncmp(buf, "test_se0_nak", 12))
-		testmode = TEST_SE0_NAK;
+		testmode = USB_TEST_SE0_NAK;
 	else if (!strncmp(buf, "test_packet", 11))
-		testmode = TEST_PACKET;
+		testmode = USB_TEST_PACKET;
 	else if (!strncmp(buf, "test_force_enable", 17))
-		testmode = TEST_FORCE_EN;
+		testmode = USB_TEST_FORCE_ENABLE;
 	else
 		testmode = 0;
 
@@ -635,13 +635,18 @@ static int dwc3_tx_fifo_size_show(struct seq_file *s, void *unused)
 	struct dwc3_ep		*dep = s->private;
 	struct dwc3		*dwc = dep->dwc;
 	unsigned long		flags;
+	int			mdwidth;
 	u32			val;
 
 	spin_lock_irqsave(&dwc->lock, flags);
 	val = dwc3_core_fifo_space(dep, DWC3_TXFIFO);
 
 	/* Convert to bytes */
-	val *= DWC3_MDWIDTH(dwc->hwparams.hwparams0);
+	mdwidth = DWC3_MDWIDTH(dwc->hwparams.hwparams0);
+	if (DWC3_IP_IS(DWC32))
+		mdwidth += DWC3_GHWPARAMS6_MDWIDTH(dwc->hwparams.hwparams6);
+
+	val *= mdwidth;
 	val >>= 3;
 	seq_printf(s, "%u\n", val);
 	spin_unlock_irqrestore(&dwc->lock, flags);
@@ -654,13 +659,18 @@ static int dwc3_rx_fifo_size_show(struct seq_file *s, void *unused)
 	struct dwc3_ep		*dep = s->private;
 	struct dwc3		*dwc = dep->dwc;
 	unsigned long		flags;
+	int			mdwidth;
 	u32			val;
 
 	spin_lock_irqsave(&dwc->lock, flags);
 	val = dwc3_core_fifo_space(dep, DWC3_RXFIFO);
 
 	/* Convert to bytes */
-	val *= DWC3_MDWIDTH(dwc->hwparams.hwparams0);
+	mdwidth = DWC3_MDWIDTH(dwc->hwparams.hwparams0);
+	if (DWC3_IP_IS(DWC32))
+		mdwidth += DWC3_GHWPARAMS6_MDWIDTH(dwc->hwparams.hwparams6);
+
+	val *= mdwidth;
 	val >>= 3;
 	seq_printf(s, "%u\n", val);
 	spin_unlock_irqrestore(&dwc->lock, flags);

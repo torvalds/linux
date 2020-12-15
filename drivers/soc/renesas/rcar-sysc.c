@@ -273,6 +273,9 @@ finalize:
 }
 
 static const struct of_device_id rcar_sysc_matches[] __initconst = {
+#ifdef CONFIG_SYSC_R8A7742
+	{ .compatible = "renesas,r8a7742-sysc", .data = &r8a7742_sysc_info },
+#endif
 #ifdef CONFIG_SYSC_R8A7743
 	{ .compatible = "renesas,r8a7743-sysc", .data = &r8a7743_sysc_info },
 	/* RZ/G1N is identical to RZ/G2M w.r.t. power domains. */
@@ -292,6 +295,9 @@ static const struct of_device_id rcar_sysc_matches[] __initconst = {
 #endif
 #ifdef CONFIG_SYSC_R8A774C0
 	{ .compatible = "renesas,r8a774c0-sysc", .data = &r8a774c0_sysc_info },
+#endif
+#ifdef CONFIG_SYSC_R8A774E1
+	{ .compatible = "renesas,r8a774e1-sysc", .data = &r8a774e1_sysc_info },
 #endif
 #ifdef CONFIG_SYSC_R8A7779
 	{ .compatible = "renesas,r8a7779-sysc", .data = &r8a7779_sysc_info },

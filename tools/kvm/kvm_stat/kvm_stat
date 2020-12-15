@@ -32,6 +32,7 @@ import resource
 import struct
 import re
 import subprocess
+import signal
 from collections import defaultdict, namedtuple
 from functools import reduce
 from datetime import datetime
@@ -227,6 +228,8 @@ IOCTL_NUMBERS = {
     'DISABLE':     0x00002401,
     'RESET':       0x00002403,
 }
+
+signal_received = False
 
 ENCODING = locale.getpreferredencoding(False)
 TRACE_FILTER = re.compile(r'^[^\(]*$')
@@ -1500,8 +1503,7 @@ class StdFormat(object):
     def get_banner(self):
         return self._banner
 
-    @staticmethod
-    def get_statline(keys, s):
+    def get_statline(self, keys, s):
         res = ''
         for key in keys:
             res += ' %9d' % s[key].delta
@@ -1517,26 +1519,70 @@ class CSVFormat(object):
     def get_banner(self):
         return self._banner
 
-    @staticmethod
-    def get_statline(keys, s):
+    def get_statline(self, keys, s):
         return reduce(lambda res, key: "{},{!s}".format(res, s[key].delta),
                       keys, '')
 
 
 def log(stats, opts, frmt, keys):
     """Prints statistics as reiterating key block, multiple value blocks."""
+    global signal_received
     line = 0
     banner_repeat = 20
+    f = None
+
+    def do_banner(opts):
+        nonlocal f
+        if opts.log_to_file:
+            if not f:
+                try:
+                     f = open(opts.log_to_file, 'a')
+                except (IOError, OSError):
+                    sys.exit("Error: Could not open file: %s" %
+                             opts.log_to_file)
+                if isinstance(frmt, CSVFormat) and f.tell() != 0:
+                    return
+        print(frmt.get_banner(), file=f or sys.stdout)
+
+    def do_statline(opts, values):
+        statline = datetime.now().strftime("%Y-%m-%d %H:%M:%S") + \
+                   frmt.get_statline(keys, values)
+        print(statline, file=f or sys.stdout)
+
+    do_banner(opts)
+    banner_printed = True
     while True:
         try:
             time.sleep(opts.set_delay)
-            if line % banner_repeat == 0:
-                print(frmt.get_banner())
-            print(datetime.now().strftime("%Y-%m-%d %H:%M:%S") +
-                  frmt.get_statline(keys, stats.get()))
-            line += 1
+            if signal_received:
+                banner_printed = True
+                line = 0
+                f.close()
+                do_banner(opts)
+                signal_received = False
+            if (line % banner_repeat == 0 and not banner_printed and
+                not (opts.log_to_file and isinstance(frmt, CSVFormat))):
+                do_banner(opts)
+                banner_printed = True
+            values = stats.get()
+            if (not opts.skip_zero_records or
+                any(values[k].delta != 0 for k in keys)):
+                do_statline(opts, values)
+                line += 1
+                banner_printed = False
         except KeyboardInterrupt:
             break
+
+    if opts.log_to_file:
+        f.close()
+
+
+def handle_signal(sig, frame):
+    global signal_received
+
+    signal_received = True
+
+    return
 
 
 def is_delay_valid(delay):
@@ -1610,7 +1656,7 @@ Press any other key to refresh statistics immediately.
     argparser.add_argument('-c', '--csv',
                            action='store_true',
                            default=False,
-                           help='log in csv format - requires option -l/--log',
+                           help='log in csv format - requires option -l/-L',
                            )
     argparser.add_argument('-d', '--debugfs',
                            action='store_true',
@@ -1638,6 +1684,11 @@ Press any other key to refresh statistics immediately.
                            default=False,
                            help='run in logging mode (like vmstat)',
                            )
+    argparser.add_argument('-L', '--log-to-file',
+                           type=str,
+                           metavar='FILE',
+                           help="like '--log', but logging to a file"
+                           )
     argparser.add_argument('-p', '--pid',
                            type=int,
                            default=0,
@@ -1655,9 +1706,16 @@ Press any other key to refresh statistics immediately.
                            default=False,
                            help='retrieve statistics from tracepoints',
                            )
+    argparser.add_argument('-z', '--skip-zero-records',
+                           action='store_true',
+                           default=False,
+                           help='omit records with all zeros in logging mode',
+                           )
     options = argparser.parse_args()
-    if options.csv and not options.log:
+    if options.csv and not (options.log or options.log_to_file):
         sys.exit('Error: Option -c/--csv requires -l/--log')
+    if options.skip_zero_records and not (options.log or options.log_to_file):
+        sys.exit('Error: Option -z/--skip-zero-records requires -l/-L')
     try:
         # verify that we were passed a valid regex up front
         re.compile(options.fields)
@@ -1737,7 +1795,9 @@ def main():
         sys.stdout.write('  ' + '\n  '.join(sorted(set(event_list))) + '\n')
         sys.exit(0)
 
-    if options.log:
+    if options.log or options.log_to_file:
+        if options.log_to_file:
+            signal.signal(signal.SIGHUP, handle_signal)
         keys = sorted(stats.get().keys())
         if options.csv:
             frmt = CSVFormat(keys)

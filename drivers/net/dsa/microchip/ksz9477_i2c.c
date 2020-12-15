@@ -79,6 +79,7 @@ MODULE_DEVICE_TABLE(i2c, ksz9477_i2c_id);
 static const struct of_device_id ksz9477_dt_ids[] = {
 	{ .compatible = "microchip,ksz9477" },
 	{ .compatible = "microchip,ksz9897" },
+	{ .compatible = "microchip,ksz9893" },
 	{ .compatible = "microchip,ksz9567" },
 	{},
 };

@@ -108,6 +108,7 @@
 #define	JZ_MMC_LPM_LOW_POWER_MODE_EN BIT(0)
 
 #define JZ_MMC_CLK_RATE 24000000
+#define JZ_MMC_REQ_TIMEOUT_MS 5000
 
 enum jz4740_mmc_version {
 	JZ_MMC_JZ4740,
@@ -440,7 +441,8 @@ static unsigned int jz4740_mmc_poll_irq(struct jz4740_mmc_host *host,
 
 	if (timeout == 0) {
 		set_bit(0, &host->waiting);
-		mod_timer(&host->timeout_timer, jiffies + 5*HZ);
+		mod_timer(&host->timeout_timer,
+			  jiffies + msecs_to_jiffies(JZ_MMC_REQ_TIMEOUT_MS));
 		jz4740_mmc_set_irq_enabled(host, irq, true);
 		return true;
 	}
@@ -737,7 +739,7 @@ static irqreturn_t jz_mmc_irq_worker(int irq, void *devid)
 			break;
 
 		jz_mmc_prepare_data_transfer(host);
-		/* fall through */
+		fallthrough;
 
 	case JZ4740_MMC_STATE_TRANSFER_DATA:
 		if (host->use_dma) {
@@ -772,7 +774,7 @@ static irqreturn_t jz_mmc_irq_worker(int irq, void *devid)
 			break;
 		}
 		jz4740_mmc_write_irq_reg(host, JZ_MMC_IRQ_DATA_TRAN_DONE);
-		/* fall through */
+		fallthrough;
 
 	case JZ4740_MMC_STATE_SEND_STOP:
 		if (!req->stop)
@@ -893,7 +895,8 @@ static void jz4740_mmc_request(struct mmc_host *mmc, struct mmc_request *req)
 
 	host->state = JZ4740_MMC_STATE_READ_RESPONSE;
 	set_bit(0, &host->waiting);
-	mod_timer(&host->timeout_timer, jiffies + 5*HZ);
+	mod_timer(&host->timeout_timer,
+		  jiffies + msecs_to_jiffies(JZ_MMC_REQ_TIMEOUT_MS));
 	jz4740_mmc_send_command(host, req->cmd);
 }
 
@@ -1023,6 +1026,12 @@ static int jz4740_mmc_probe(struct platform_device* pdev)
 	mmc->f_min = mmc->f_max / 128;
 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 
+	/*
+	 * We use a fixed timeout of 5s, hence inform the core about it. A
+	 * future improvement should instead respect the cmd->busy_timeout.
+	 */
+	mmc->max_busy_timeout = JZ_MMC_REQ_TIMEOUT_MS;
+
 	mmc->max_blk_size = (1 << 10) - 1;
 	mmc->max_blk_count = (1 << 15) - 1;
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
@@ -1099,24 +1108,18 @@ static int jz4740_mmc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-
-static int jz4740_mmc_suspend(struct device *dev)
+static int __maybe_unused jz4740_mmc_suspend(struct device *dev)
 {
 	return pinctrl_pm_select_sleep_state(dev);
 }
 
-static int jz4740_mmc_resume(struct device *dev)
+static int __maybe_unused jz4740_mmc_resume(struct device *dev)
 {
 	return pinctrl_select_default_state(dev);
 }
 
 static SIMPLE_DEV_PM_OPS(jz4740_mmc_pm_ops, jz4740_mmc_suspend,
 	jz4740_mmc_resume);
-#define JZ4740_MMC_PM_OPS (&jz4740_mmc_pm_ops)
-#else
-#define JZ4740_MMC_PM_OPS NULL
-#endif
 
 static struct platform_driver jz4740_mmc_driver = {
 	.probe = jz4740_mmc_probe,
@@ -1124,7 +1127,7 @@ static struct platform_driver jz4740_mmc_driver = {
 	.driver = {
 		.name = "jz4740-mmc",
 		.of_match_table = of_match_ptr(jz4740_mmc_of_match),
-		.pm = JZ4740_MMC_PM_OPS,
+		.pm = pm_ptr(&jz4740_mmc_pm_ops),
 	},
 };
 

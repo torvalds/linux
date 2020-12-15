@@ -48,7 +48,7 @@ enum {
  * struct sprd_pmic_eic - PMIC EIC controller
  * @chip: the gpio_chip structure.
  * @intc: the irq_chip structure.
- * @regmap: the regmap from the parent device.
+ * @map:  the regmap from the parent device.
  * @offset: the EIC controller's offset address of the PMIC.
  * @reg: the array to cache the EIC registers.
  * @buslock: for bus lock/sync and unlock.

@@ -734,7 +734,7 @@ sbc_check_prot(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb,
 		}
 		if (!protect)
 			return TCM_NO_SENSE;
-		/* Fallthrough */
+		fallthrough;
 	default:
 		pr_err("Unable to determine pi_prot_type for CDB: 0x%02x "
 		       "PROTECT: 0x%02x\n", cdb[0], protect);

@@ -92,6 +92,8 @@ int test_preempt_vsx(void)
 	int i, rc, threads;
 	pthread_t *tids;
 
+	SKIP_IF(!have_hwcap(PPC_FEATURE_HAS_VSX));
+
 	threads = sysconf(_SC_NPROCESSORS_ONLN) * THREAD_FACTOR;
 	tids = malloc(threads * sizeof(pthread_t));
 	FAIL_IF(!tids);

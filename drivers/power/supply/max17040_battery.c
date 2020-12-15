@@ -69,6 +69,9 @@ static int max17040_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = chip->soc;
 		break;
+	case POWER_SUPPLY_PROP_CAPACITY_ALERT_MIN:
+		val->intval = chip->low_soc_alert;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -126,7 +129,7 @@ static void max17040_get_vcell(struct i2c_client *client)
 
 	vcell = max17040_read_reg(client, MAX17040_VCELL);
 
-	chip->vcell = vcell;
+	chip->vcell = (vcell >> 4) * 1250;
 }
 
 static void max17040_get_soc(struct i2c_client *client)
@@ -256,19 +259,57 @@ static int max17040_enable_alert_irq(struct max17040_chip *chip)
 	return ret;
 }
 
+static int max17040_prop_writeable(struct power_supply *psy,
+				   enum power_supply_property psp)
+{
+	switch (psp) {
+	case POWER_SUPPLY_PROP_CAPACITY_ALERT_MIN:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+static int max17040_set_property(struct power_supply *psy,
+			    enum power_supply_property psp,
+			    const union power_supply_propval *val)
+{
+	struct max17040_chip *chip = power_supply_get_drvdata(psy);
+	int ret;
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_CAPACITY_ALERT_MIN:
+		/* alert threshold can be programmed from 1% up to 32% */
+		if ((val->intval < 1) || (val->intval > 32)) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = max17040_set_low_soc_alert(chip->client, val->intval);
+		chip->low_soc_alert = val->intval;
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 static enum power_supply_property max17040_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CAPACITY_ALERT_MIN,
 };
 
 static const struct power_supply_desc max17040_battery_desc = {
-	.name		= "battery",
-	.type		= POWER_SUPPLY_TYPE_BATTERY,
-	.get_property	= max17040_get_property,
-	.properties	= max17040_battery_props,
-	.num_properties	= ARRAY_SIZE(max17040_battery_props),
+	.name			= "battery",
+	.type			= POWER_SUPPLY_TYPE_BATTERY,
+	.get_property		= max17040_get_property,
+	.set_property		= max17040_set_property,
+	.property_is_writeable  = max17040_prop_writeable,
+	.properties		= max17040_battery_props,
+	.num_properties		= ARRAY_SIZE(max17040_battery_props),
 };
 
 static int max17040_probe(struct i2c_client *client,

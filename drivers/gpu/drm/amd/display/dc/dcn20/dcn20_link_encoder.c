@@ -49,6 +49,12 @@
 #define IND_REG(index) \
 	(enc10->link_regs->index)
 
+#ifndef MAX
+#define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
+#endif
+#ifndef MIN
+#define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
+#endif
 
 static struct mpll_cfg dcn2_mpll_cfg[] = {
 	// RBR
@@ -260,6 +266,38 @@ void dcn20_link_encoder_enable_dp_output(
 
 }
 
+void dcn20_link_encoder_get_max_link_cap(struct link_encoder *enc,
+	struct dc_link_settings *link_settings)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	uint32_t is_in_usb_c_dp4_mode = 0;
+
+	dcn10_link_encoder_get_max_link_cap(enc, link_settings);
+
+	/* in usb c dp2 mode, max lane count is 2 */
+	if (enc->funcs->is_in_alt_mode && enc->funcs->is_in_alt_mode(enc)) {
+		REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DP4, &is_in_usb_c_dp4_mode);
+		if (!is_in_usb_c_dp4_mode)
+			link_settings->lane_count = MIN(LANE_COUNT_TWO, link_settings->lane_count);
+	}
+
+}
+
+bool dcn20_link_encoder_is_in_alt_mode(struct link_encoder *enc)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	uint32_t dp_alt_mode_disable = 0;
+	bool is_usb_c_alt_mode = false;
+
+	if (enc->features.flags.bits.DP_IS_USB_C) {
+		/* if value == 1 alt mode is disabled, otherwise it is enabled */
+		REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE, &dp_alt_mode_disable);
+		is_usb_c_alt_mode = (dp_alt_mode_disable == 0);
+	}
+
+	return is_usb_c_alt_mode;
+}
+
 #define AUX_REG(reg)\
 	(enc10->aux_regs->reg)
 
@@ -271,7 +309,6 @@ void dcn20_link_encoder_enable_dp_output(
 void enc2_hw_init(struct link_encoder *enc)
 {
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
-
 /*
 	00 - DP_AUX_DPHY_RX_DETECTION_THRESHOLD__1to2 : 1/2
 	01 - DP_AUX_DPHY_RX_DETECTION_THRESHOLD__3to4 : 3/4
@@ -295,9 +332,18 @@ void enc2_hw_init(struct link_encoder *enc)
 	AUX_RX_PHASE_DETECT_LEN,  [21,20] = 0x3 default is 3
 	AUX_RX_DETECTION_THRESHOLD [30:28] = 1
 */
-	AUX_REG_WRITE(AUX_DPHY_RX_CONTROL0, 0x103d1110);
+	if (enc->ctx->dc_bios->golden_table.dc_golden_table_ver > 0) {
+		AUX_REG_WRITE(AUX_DPHY_RX_CONTROL0, enc->ctx->dc_bios->golden_table.aux_dphy_rx_control0_val);
 
-	AUX_REG_WRITE(AUX_DPHY_TX_CONTROL, 0x21c7a);
+		AUX_REG_WRITE(AUX_DPHY_TX_CONTROL, enc->ctx->dc_bios->golden_table.aux_dphy_tx_control_val);
+
+		AUX_REG_WRITE(AUX_DPHY_RX_CONTROL1, enc->ctx->dc_bios->golden_table.aux_dphy_rx_control1_val);
+	} else {
+		AUX_REG_WRITE(AUX_DPHY_RX_CONTROL0, 0x103d1110);
+
+		AUX_REG_WRITE(AUX_DPHY_TX_CONTROL, 0x21c4d);
+
+	}
 
 	//AUX_DPHY_TX_REF_CONTROL'AUX_TX_REF_DIV HW default is 0x32;
 	// Set AUX_TX_REF_DIV Divider to generate 2 MHz reference from refclk
@@ -338,6 +384,8 @@ static const struct link_encoder_funcs dcn20_link_enc_funcs = {
 	.fec_is_active = enc2_fec_is_active,
 	.get_dig_mode = dcn10_get_dig_mode,
 	.get_dig_frontend = dcn10_get_dig_frontend,
+	.is_in_alt_mode = dcn20_link_encoder_is_in_alt_mode,
+	.get_max_link_cap = dcn20_link_encoder_get_max_link_cap,
 };
 
 void dcn20_link_encoder_construct(

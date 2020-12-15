@@ -6,7 +6,7 @@
 config NET_TULIP
 	bool "DEC - Tulip devices"
 	depends on (PCI || EISA || CARDBUS)
-	---help---
+	help
 	  This selects the "Tulip" family of EISA/PCI network cards.
 
 if NET_TULIP
@@ -15,7 +15,7 @@ config DE2104X
 	tristate "Early DECchip Tulip (dc2104x) PCI support"
 	depends on PCI
 	select CRC32
-	---help---
+	help
 	  This driver is developed for the SMC EtherPower series Ethernet
 	  cards and also works with cards based on the DECchip
 	  21040 (Tulip series) chips.  Some LinkSys PCI cards are
@@ -32,7 +32,7 @@ config DE2104X_DSL
 	depends on DE2104X
 	range 0 31
 	default 0
-	---help---
+	help
 	  Setting this value allows to align ring buffer descriptors into their
 	  own cache lines. Value of 4 corresponds to the typical 32 byte line
 	  (the descriptor is 16 bytes). This is necessary on systems that lack
@@ -43,7 +43,7 @@ config TULIP
 	tristate "DECchip Tulip (dc2114x) PCI support"
 	depends on PCI
 	select CRC32
-	---help---
+	help
 	  This driver is developed for the SMC EtherPower series Ethernet
 	  cards and also works with cards based on the DECchip 
 	  21140 (Tulip series) chips.  Some LinkSys PCI cards are
@@ -58,7 +58,7 @@ config TULIP
 config TULIP_MWI
 	bool "New bus configuration"
 	depends on TULIP
-	---help---
+	help
 	  This configures your Tulip card specifically for the card and
 	  system cache line size type you are using.
 
@@ -69,7 +69,7 @@ config TULIP_MWI
 config TULIP_MMIO
 	bool "Use PCI shared mem for NIC registers"
 	depends on TULIP
-	---help---
+	help
 	  Use PCI shared memory for the NIC registers, rather than going through
 	  the Tulip's PIO (programmed I/O ports).  Faster, but could produce
 	  obscure bugs if your mainboard has memory controller timing issues.
@@ -78,7 +78,7 @@ config TULIP_MMIO
 config TULIP_NAPI
 	bool "Use RX polling (NAPI)"
 	depends on TULIP
-	---help---
+	help
 	  NAPI is a new driver API designed to reduce CPU and interrupt load
 	  when the driver is receiving lots of packets from the card. It is
 	  still somewhat experimental and thus not yet enabled by default.
@@ -92,7 +92,7 @@ config TULIP_NAPI
 config TULIP_NAPI_HW_MITIGATION
 	bool "Use Interrupt Mitigation"
 	depends on TULIP_NAPI
-	---help---
+	help
 	  Use HW to reduce RX interrupts. Not strictly necessary since NAPI
 	  reduces RX interrupts by itself. Interrupt mitigation reduces RX
 	  interrupts even at low levels of traffic at the cost of a small
@@ -109,12 +109,12 @@ config DE4X5
 	depends on (PCI || EISA)
 	depends on VIRT_TO_BUS || ALPHA || PPC || SPARC
 	select CRC32
-	---help---
+	help
 	  This is support for the DIGITAL series of PCI/EISA Ethernet cards.
 	  These include the DE425, DE434, DE435, DE450 and DE500 models.  If
 	  you have a network card of this type, say Y.  More specific
 	  information is contained in
-	  <file:Documentation/networking/device_drivers/dec/de4x5.txt>.
+	  <file:Documentation/networking/device_drivers/ethernet/dec/de4x5.rst>.
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called de4x5.
@@ -124,7 +124,7 @@ config WINBOND_840
 	depends on PCI
 	select CRC32
 	select MII
-	---help---
+	help
 	  This driver is for the Winbond W89c840 chip.  It also works with 
 	  the TX9882 chip on the Compex RL100-ATX board.
 	  More specific information and updates are available from
@@ -134,11 +134,11 @@ config DM9102
 	tristate "Davicom DM910x/DM980x support"
 	depends on PCI
 	select CRC32
-	---help---
+	help
 	  This driver is for DM9102(A)/DM9132/DM9801 compatible PCI cards from
 	  Davicom (<http://www.davicom.com.tw/>).  If you have such a network
 	  (Ethernet) card, say Y.  Some information is contained in the file
-	  <file:Documentation/networking/device_drivers/dec/dmfe.txt>.
+	  <file:Documentation/networking/device_drivers/ethernet/dec/dmfe.rst>.
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called dmfe.
@@ -147,7 +147,7 @@ config ULI526X
 	tristate "ULi M526x controller support"
 	depends on PCI
 	select CRC32
-	---help---
+	help
 	  This driver is for ULi M5261/M5263 10/100M Ethernet Controller
 	  (<http://www.nvidia.com/page/uli_drivers.html>).
 
@@ -157,7 +157,7 @@ config ULI526X
 config PCMCIA_XIRCOM
 	tristate "Xircom CardBus support"
 	depends on CARDBUS
-	---help---
+	help
 	  This driver is for the Digital "Tulip" Ethernet CardBus adapters.
 	  It should work with most DEC 21*4*-based chips/ethercards, as well
 	  as with work-alike chips from Lite-On (PNIC) and Macronix (MXIC) and

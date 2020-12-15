@@ -10,7 +10,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.onsemi.com/PowerSolutions/product.do?id=ADM1026
+	       https://www.onsemi.com/PowerSolutions/product.do?id=ADM1026
 
 Authors:
 	- Philip Pokorny <ppokorny@penguincomputing.com> for Penguin Computing

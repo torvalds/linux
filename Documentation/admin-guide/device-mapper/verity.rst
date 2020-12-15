@@ -83,6 +83,10 @@ restart_on_corruption
     not compatible with ignore_corruption and requires user space support to
     avoid restart loops.
 
+panic_on_corruption
+    Panic the device when a corrupted block is discovered. This option is
+    not compatible with ignore_corruption and restart_on_corruption.
+
 ignore_zero_blocks
     Do not verify blocks that are expected to contain zeroes and always return
     zeroes instead. This may be useful if the partition contains unused blocks

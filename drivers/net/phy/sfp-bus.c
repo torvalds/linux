@@ -149,7 +149,7 @@ int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 			port = PORT_TP;
 			break;
 		}
-		/* fallthrough */
+		fallthrough;
 	case SFF8024_CONNECTOR_SG: /* guess */
 	case SFF8024_CONNECTOR_HSSDC_II:
 	case SFF8024_CONNECTOR_NOSEPARATE:
@@ -301,7 +301,7 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		break;
 	case SFF8024_ECC_100GBASE_CR4:
 		phylink_set(modes, 100000baseCR4_Full);
-		/* fallthrough */
+		fallthrough;
 	case SFF8024_ECC_25GBASE_CR_S:
 	case SFF8024_ECC_25GBASE_CR_N:
 		phylink_set(modes, 25000baseCR_Full);

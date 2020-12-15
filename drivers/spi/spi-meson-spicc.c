@@ -362,8 +362,6 @@ static void meson_spicc_setup_xfer(struct meson_spicc_device *spicc,
 
 static void meson_spicc_reset_fifo(struct meson_spicc_device *spicc)
 {
-	u32 data;
-
 	if (spicc->data->has_oen)
 		writel_bits_relaxed(SPICC_ENH_MAIN_CLK_AO,
 				    SPICC_ENH_MAIN_CLK_AO,
@@ -373,7 +371,7 @@ static void meson_spicc_reset_fifo(struct meson_spicc_device *spicc)
 			    spicc->base + SPICC_TESTREG);
 
 	while (meson_spicc_rxready(spicc))
-		data = readl_relaxed(spicc->base + SPICC_RXDATA);
+		readl_relaxed(spicc->base + SPICC_RXDATA);
 
 	if (spicc->data->has_oen)
 		writel_bits_relaxed(SPICC_ENH_MAIN_CLK_AO, 0,

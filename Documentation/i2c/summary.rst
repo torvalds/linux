@@ -34,7 +34,7 @@ Terminology
 Using the terminology from the official documentation, the I2C bus connects
 one or more *master* chips and one or more *slave* chips.
 
-.. kernel-figure::  i2c.svg
+.. kernel-figure::  i2c_bus.svg
    :alt:    Simple I2C bus with one master and 3 slaves
 
    Simple I2C bus

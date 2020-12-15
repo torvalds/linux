@@ -46,18 +46,18 @@ API to add a new FPGA region
 ----------------------------
 
 * struct :c:type:`fpga_region` — The FPGA region struct
-* :c:func:`devm_fpga_region_create` — Allocate and init a region struct
-* :c:func:`fpga_region_register` —  Register an FPGA region
-* :c:func:`fpga_region_unregister` —  Unregister an FPGA region
+* devm_fpga_region_create() — Allocate and init a region struct
+* fpga_region_register() —  Register an FPGA region
+* fpga_region_unregister() —  Unregister an FPGA region
 
 The FPGA region's probe function will need to get a reference to the FPGA
 Manager it will be using to do the programming.  This usually would happen
 during the region's probe function.
 
-* :c:func:`fpga_mgr_get` — Get a reference to an FPGA manager, raise ref count
-* :c:func:`of_fpga_mgr_get` —  Get a reference to an FPGA manager, raise ref count,
+* fpga_mgr_get() — Get a reference to an FPGA manager, raise ref count
+* of_fpga_mgr_get() —  Get a reference to an FPGA manager, raise ref count,
   given a device node.
-* :c:func:`fpga_mgr_put` — Put an FPGA manager
+* fpga_mgr_put() — Put an FPGA manager
 
 The FPGA region will need to specify which bridges to control while programming
 the FPGA.  The region driver can build a list of bridges during probe time
@@ -66,11 +66,11 @@ the list of bridges to program just before programming
 (:c:member:`fpga_region->get_bridges`).  The FPGA bridge framework supplies the
 following APIs to handle building or tearing down that list.
 
-* :c:func:`fpga_bridge_get_to_list` — Get a ref of an FPGA bridge, add it to a
+* fpga_bridge_get_to_list() — Get a ref of an FPGA bridge, add it to a
   list
-* :c:func:`of_fpga_bridge_get_to_list` — Get a ref of an FPGA bridge, add it to a
+* of_fpga_bridge_get_to_list() — Get a ref of an FPGA bridge, add it to a
   list, given a device node
-* :c:func:`fpga_bridges_put` — Given a list of bridges, put them
+* fpga_bridges_put() — Given a list of bridges, put them
 
 .. kernel-doc:: include/linux/fpga/fpga-region.h
    :functions: fpga_region

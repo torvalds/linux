@@ -198,12 +198,21 @@ static void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
 	int restart = 1;
 
 	/* syscall ? */
-	if (TRAP(regs) != 0x0C00)
+	if (!trap_is_syscall(regs))
+		return;
+
+	if (trap_norestart(regs))
 		return;
 
 	/* error signalled ? */
-	if (!(regs->ccr & 0x10000000))
+	if (trap_is_scv(regs)) {
+		/* 32-bit compat mode sign extend? */
+		if (!IS_ERR_VALUE(ret))
+			return;
+		ret = -ret;
+	} else if (!(regs->ccr & 0x10000000)) {
 		return;
+	}
 
 	switch (ret) {
 	case ERESTART_RESTARTBLOCK:
@@ -236,9 +245,14 @@ static void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
 		regs->nip -= 4;
 		regs->result = 0;
 	} else {
-		regs->result = -EINTR;
-		regs->gpr[3] = EINTR;
-		regs->ccr |= 0x10000000;
+		if (trap_is_scv(regs)) {
+			regs->result = -EINTR;
+			regs->gpr[3] = -EINTR;
+		} else {
+			regs->result = -EINTR;
+			regs->gpr[3] = EINTR;
+			regs->ccr |= 0x10000000;
+		}
 	}
 }
 
@@ -258,19 +272,24 @@ static void do_signal(struct task_struct *tsk)
 	if (ksig.sig <= 0) {
 		/* No signal to deliver -- put the saved sigmask back */
 		restore_saved_sigmask();
-		tsk->thread.regs->trap = 0;
+		set_trap_norestart(tsk->thread.regs);
 		return;               /* no signals delivered */
 	}
 
-#ifndef CONFIG_PPC_ADV_DEBUG_REGS
         /*
 	 * Reenable the DABR before delivering the signal to
 	 * user space. The DABR will have been cleared if it
 	 * triggered inside the kernel.
 	 */
-	if (tsk->thread.hw_brk.address && tsk->thread.hw_brk.type)
-		__set_breakpoint(&tsk->thread.hw_brk);
-#endif
+	if (!IS_ENABLED(CONFIG_PPC_ADV_DEBUG_REGS)) {
+		int i;
+
+		for (i = 0; i < nr_wp_slots(); i++) {
+			if (tsk->thread.hw_brk[i].address && tsk->thread.hw_brk[i].type)
+				__set_breakpoint(i, &tsk->thread.hw_brk[i]);
+		}
+	}
+
 	/* Re-enable the breakpoints for the signal stack */
 	thread_change_pc(tsk, tsk->thread.regs);
 
@@ -285,7 +304,7 @@ static void do_signal(struct task_struct *tsk)
 		ret = handle_rt_signal64(&ksig, oldset, tsk);
 	}
 
-	tsk->thread.regs->trap = 0;
+	set_trap_norestart(tsk->thread.regs);
 	signal_setup_done(ret, &ksig, test_thread_flag(TIF_SINGLESTEP));
 }
 

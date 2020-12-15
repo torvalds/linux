@@ -5,9 +5,10 @@
  * a module parameter. It must be unique and legal for a C identifier.
  *
  * The function should be of type int function(void). It may be conditionally
- * compiled using #if IS_ENABLED(DRM_I915_SELFTEST).
+ * compiled using #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST).
  *
  * Tests are executed in order by igt/dmabuf_selftest
  */
 selftest(sanitycheck, __sanitycheck__) /* keep first (igt selfcheck) */
 selftest(dma_fence, dma_fence)
+selftest(dma_fence_chain, dma_fence_chain)

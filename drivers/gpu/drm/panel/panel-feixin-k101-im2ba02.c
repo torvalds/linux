@@ -392,7 +392,6 @@ static int k101_im2ba02_unprepare(struct drm_panel *panel)
 
 static const struct drm_display_mode k101_im2ba02_default_mode = {
 	.clock = 70000,
-	.vrefresh = 60,
 
 	.hdisplay = 800,
 	.hsync_start = 800 + 20,
@@ -420,7 +419,7 @@ static int k101_im2ba02_get_modes(struct drm_panel *panel,
 		DRM_DEV_ERROR(&ctx->dsi->dev, "failed to add mode %ux%ux@%u\n",
 			      k101_im2ba02_default_mode.hdisplay,
 			      k101_im2ba02_default_mode.vdisplay,
-			      k101_im2ba02_default_mode.vrefresh);
+			      drm_mode_vrefresh(&k101_im2ba02_default_mode));
 		return -ENOMEM;
 	}
 

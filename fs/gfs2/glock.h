@@ -205,6 +205,15 @@ extern void gfs2_dump_glock(struct seq_file *seq, struct gfs2_glock *gl,
 #define GLOCK_BUG_ON(gl,x) do { if (unlikely(x)) {		\
 			gfs2_dump_glock(NULL, gl, true);	\
 			BUG(); } } while(0)
+#define gfs2_glock_assert_warn(gl, x) do { if (unlikely(!(x))) {	\
+			gfs2_dump_glock(NULL, gl, true);		\
+			gfs2_assert_warn((gl)->gl_name.ln_sbd, (x)); } } \
+	while (0)
+#define gfs2_glock_assert_withdraw(gl, x) do { if (unlikely(!(x))) {	\
+			gfs2_dump_glock(NULL, gl, true);		\
+			gfs2_assert_withdraw((gl)->gl_name.ln_sbd, (x)); } } \
+	while (0)
+
 extern __printf(2, 3)
 void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...);
 
@@ -235,6 +244,10 @@ static inline int gfs2_glock_nq_init(struct gfs2_glock *gl,
 
 extern void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state);
 extern void gfs2_glock_complete(struct gfs2_glock *gl, int ret);
+extern bool gfs2_queue_delete_work(struct gfs2_glock *gl, unsigned long delay);
+extern void gfs2_cancel_delete_work(struct gfs2_glock *gl);
+extern bool gfs2_delete_work_queued(const struct gfs2_glock *gl);
+extern void gfs2_flush_delete_work(struct gfs2_sbd *sdp);
 extern void gfs2_gl_hash_clear(struct gfs2_sbd *sdp);
 extern void gfs2_glock_finish_truncate(struct gfs2_inode *ip);
 extern void gfs2_glock_thaw(struct gfs2_sbd *sdp);
@@ -305,5 +318,8 @@ static inline void glock_clear_object(struct gfs2_glock *gl, void *object)
 		gl->gl_object = NULL;
 	spin_unlock(&gl->gl_lockref.lock);
 }
+
+extern void gfs2_inode_remember_delete(struct gfs2_glock *gl, u64 generation);
+extern bool gfs2_inode_already_deleted(struct gfs2_glock *gl, u64 generation);
 
 #endif /* __GLOCK_DOT_H__ */

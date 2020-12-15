@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 //
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
@@ -12,20 +12,29 @@
 
 #include <linux/firmware.h>
 #include <sound/sof.h>
+#include <sound/sof/ext_manifest.h>
 #include "ops.h"
 
 static int get_ext_windows(struct snd_sof_dev *sdev,
-			   struct sof_ipc_ext_data_hdr *ext_hdr)
+			   const struct sof_ipc_ext_data_hdr *ext_hdr)
 {
-	struct sof_ipc_window *w =
+	const struct sof_ipc_window *w =
 		container_of(ext_hdr, struct sof_ipc_window, ext_hdr);
+	size_t w_size = struct_size(w, window, w->num_windows);
 
 	if (w->num_windows == 0 || w->num_windows > SOF_IPC_MAX_ELEMS)
 		return -EINVAL;
 
+	if (sdev->info_window) {
+		if (memcmp(sdev->info_window, w, w_size)) {
+			dev_err(sdev->dev, "error: mismatch between window descriptor from extended manifest and mailbox");
+			return -EINVAL;
+		}
+		return 0;
+	}
+
 	/* keep a local copy of the data */
-	sdev->info_window = kmemdup(w, struct_size(w, window, w->num_windows),
-				    GFP_KERNEL);
+	sdev->info_window = kmemdup(w, w_size, GFP_KERNEL);
 	if (!sdev->info_window)
 		return -ENOMEM;
 
@@ -33,12 +42,20 @@ static int get_ext_windows(struct snd_sof_dev *sdev,
 }
 
 static int get_cc_info(struct snd_sof_dev *sdev,
-		       struct sof_ipc_ext_data_hdr *ext_hdr)
+		       const struct sof_ipc_ext_data_hdr *ext_hdr)
 {
 	int ret;
 
-	struct sof_ipc_cc_version *cc =
+	const struct sof_ipc_cc_version *cc =
 		container_of(ext_hdr, struct sof_ipc_cc_version, ext_hdr);
+
+	if (sdev->cc_version) {
+		if (memcmp(sdev->cc_version, cc, cc->ext_hdr.hdr.size)) {
+			dev_err(sdev->dev, "error: receive diverged cc_version descriptions");
+			return -EINVAL;
+		}
+		return 0;
+	}
 
 	dev_dbg(sdev->dev, "Firmware info: used compiler %s %d:%d:%d%s used optimization flags %s\n",
 		cc->name, cc->major, cc->minor, cc->micro, cc->desc,
@@ -125,6 +142,142 @@ int snd_sof_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 bar, u32 offset)
 	return ret;
 }
 EXPORT_SYMBOL(snd_sof_fw_parse_ext_data);
+
+static int ext_man_get_fw_version(struct snd_sof_dev *sdev,
+				  const struct sof_ext_man_elem_header *hdr)
+{
+	const struct sof_ext_man_fw_version *v =
+		container_of(hdr, struct sof_ext_man_fw_version, hdr);
+
+	memcpy(&sdev->fw_ready.version, &v->version, sizeof(v->version));
+	sdev->fw_ready.flags = v->flags;
+
+	/* log ABI versions and check FW compatibility */
+	return snd_sof_ipc_valid(sdev);
+}
+
+static int ext_man_get_windows(struct snd_sof_dev *sdev,
+			       const struct sof_ext_man_elem_header *hdr)
+{
+	const struct sof_ext_man_window *w;
+
+	w = container_of(hdr, struct sof_ext_man_window, hdr);
+
+	return get_ext_windows(sdev, &w->ipc_window.ext_hdr);
+}
+
+static int ext_man_get_cc_info(struct snd_sof_dev *sdev,
+			       const struct sof_ext_man_elem_header *hdr)
+{
+	const struct sof_ext_man_cc_version *cc;
+
+	cc = container_of(hdr, struct sof_ext_man_cc_version, hdr);
+
+	return get_cc_info(sdev, &cc->cc_version.ext_hdr);
+}
+
+static ssize_t snd_sof_ext_man_size(const struct firmware *fw)
+{
+	const struct sof_ext_man_header *head;
+
+	head = (struct sof_ext_man_header *)fw->data;
+
+	/*
+	 * assert fw size is big enough to contain extended manifest header,
+	 * it prevents from reading unallocated memory from `head` in following
+	 * step.
+	 */
+	if (fw->size < sizeof(*head))
+		return -EINVAL;
+
+	/*
+	 * When fw points to extended manifest,
+	 * then first u32 must be equal SOF_EXT_MAN_MAGIC_NUMBER.
+	 */
+	if (head->magic == SOF_EXT_MAN_MAGIC_NUMBER)
+		return head->full_size;
+
+	/* otherwise given fw don't have an extended manifest */
+	return 0;
+}
+
+/* parse extended FW manifest data structures */
+static int snd_sof_fw_ext_man_parse(struct snd_sof_dev *sdev,
+				    const struct firmware *fw)
+{
+	const struct sof_ext_man_elem_header *elem_hdr;
+	const struct sof_ext_man_header *head;
+	ssize_t ext_man_size;
+	ssize_t remaining;
+	uintptr_t iptr;
+	int ret = 0;
+
+	head = (struct sof_ext_man_header *)fw->data;
+	remaining = head->full_size - head->header_size;
+	ext_man_size = snd_sof_ext_man_size(fw);
+
+	/* Assert firmware starts with extended manifest */
+	if (ext_man_size <= 0)
+		return ext_man_size;
+
+	/* incompatible version */
+	if (SOF_EXT_MAN_VERSION_INCOMPATIBLE(SOF_EXT_MAN_VERSION,
+					     head->header_version)) {
+		dev_err(sdev->dev, "error: extended manifest version 0x%X differ from used 0x%X\n",
+			head->header_version, SOF_EXT_MAN_VERSION);
+		return -EINVAL;
+	}
+
+	/* get first extended manifest element header */
+	iptr = (uintptr_t)fw->data + head->header_size;
+
+	while (remaining > sizeof(*elem_hdr)) {
+		elem_hdr = (struct sof_ext_man_elem_header *)iptr;
+
+		dev_dbg(sdev->dev, "found sof_ext_man header type %d size 0x%X\n",
+			elem_hdr->type, elem_hdr->size);
+
+		if (elem_hdr->size < sizeof(*elem_hdr) ||
+		    elem_hdr->size > remaining) {
+			dev_err(sdev->dev, "error: invalid sof_ext_man header size, type %d size 0x%X\n",
+				elem_hdr->type, elem_hdr->size);
+			return -EINVAL;
+		}
+
+		/* process structure data */
+		switch (elem_hdr->type) {
+		case SOF_EXT_MAN_ELEM_FW_VERSION:
+			ret = ext_man_get_fw_version(sdev, elem_hdr);
+			break;
+		case SOF_EXT_MAN_ELEM_WINDOW:
+			ret = ext_man_get_windows(sdev, elem_hdr);
+			break;
+		case SOF_EXT_MAN_ELEM_CC_VERSION:
+			ret = ext_man_get_cc_info(sdev, elem_hdr);
+			break;
+		default:
+			dev_warn(sdev->dev, "warning: unknown sof_ext_man header type %d size 0x%X\n",
+				 elem_hdr->type, elem_hdr->size);
+			break;
+		}
+
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: failed to parse sof_ext_man header type %d size 0x%X\n",
+				elem_hdr->type, elem_hdr->size);
+			return ret;
+		}
+
+		remaining -= elem_hdr->size;
+		iptr += elem_hdr->size;
+	}
+
+	if (remaining) {
+		dev_err(sdev->dev, "error: sof_ext_man header is inconsistent\n");
+		return -EINVAL;
+	}
+
+	return ext_man_size;
+}
 
 /*
  * IPC Firmware ready.
@@ -379,12 +532,19 @@ int snd_sof_parse_module_memcpy(struct snd_sof_dev *sdev,
 }
 EXPORT_SYMBOL(snd_sof_parse_module_memcpy);
 
-static int check_header(struct snd_sof_dev *sdev, const struct firmware *fw)
+static int check_header(struct snd_sof_dev *sdev, const struct firmware *fw,
+			size_t fw_offset)
 {
 	struct snd_sof_fw_header *header;
+	size_t fw_size = fw->size - fw_offset;
+
+	if (fw->size <= fw_offset) {
+		dev_err(sdev->dev, "error: firmware size must be greater than firmware offset\n");
+		return -EINVAL;
+	}
 
 	/* Read the header information from the data pointer */
-	header = (struct snd_sof_fw_header *)fw->data;
+	header = (struct snd_sof_fw_header *)(fw->data + fw_offset);
 
 	/* verify FW sig */
 	if (strncmp(header->sig, SND_SOF_FW_SIG, SND_SOF_FW_SIG_SIZE) != 0) {
@@ -393,9 +553,9 @@ static int check_header(struct snd_sof_dev *sdev, const struct firmware *fw)
 	}
 
 	/* check size is valid */
-	if (fw->size != header->file_size + sizeof(*header)) {
+	if (fw_size != header->file_size + sizeof(*header)) {
 		dev_err(sdev->dev, "error: invalid filesize mismatch got 0x%zx expected 0x%zx\n",
-			fw->size, header->file_size + sizeof(*header));
+			fw_size, header->file_size + sizeof(*header));
 		return -EINVAL;
 	}
 
@@ -406,7 +566,8 @@ static int check_header(struct snd_sof_dev *sdev, const struct firmware *fw)
 	return 0;
 }
 
-static int load_modules(struct snd_sof_dev *sdev, const struct firmware *fw)
+static int load_modules(struct snd_sof_dev *sdev, const struct firmware *fw,
+			size_t fw_offset)
 {
 	struct snd_sof_fw_header *header;
 	struct snd_sof_mod_hdr *module;
@@ -415,14 +576,15 @@ static int load_modules(struct snd_sof_dev *sdev, const struct firmware *fw)
 	int ret, count;
 	size_t remaining;
 
-	header = (struct snd_sof_fw_header *)fw->data;
+	header = (struct snd_sof_fw_header *)(fw->data + fw_offset);
 	load_module = sof_ops(sdev)->load_module;
 	if (!load_module)
 		return -EINVAL;
 
 	/* parse each module */
-	module = (struct snd_sof_mod_hdr *)((u8 *)(fw->data) + sizeof(*header));
-	remaining = fw->size - sizeof(*header);
+	module = (struct snd_sof_mod_hdr *)(fw->data + fw_offset +
+					    sizeof(*header));
+	remaining = fw->size - sizeof(*header) - fw_offset;
 	/* check for wrap */
 	if (remaining > fw->size) {
 		dev_err(sdev->dev, "error: fw size smaller than header size\n");
@@ -464,6 +626,7 @@ int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *plat_data = sdev->pdata;
 	const char *fw_filename;
+	ssize_t ext_man_size;
 	int ret;
 
 	/* Don't request firmware again if firmware is already requested */
@@ -481,11 +644,27 @@ int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: request firmware %s failed err: %d\n",
 			fw_filename, ret);
+		goto err;
 	} else {
 		dev_dbg(sdev->dev, "request_firmware %s successful\n",
 			fw_filename);
 	}
 
+	/* check for extended manifest */
+	ext_man_size = snd_sof_fw_ext_man_parse(sdev, plat_data->fw);
+	if (ext_man_size > 0) {
+		/* when no error occurred, drop extended manifest */
+		plat_data->fw_offset = ext_man_size;
+	} else if (!ext_man_size) {
+		/* No extended manifest, so nothing to skip during FW load */
+		dev_dbg(sdev->dev, "firmware doesn't contain extended manifest\n");
+	} else {
+		ret = ext_man_size;
+		dev_err(sdev->dev, "error: firmware %s contains unsupported or invalid extended manifest: %d\n",
+			fw_filename, ret);
+	}
+
+err:
 	kfree(fw_filename);
 
 	return ret;
@@ -502,7 +681,7 @@ int snd_sof_load_firmware_memcpy(struct snd_sof_dev *sdev)
 		return ret;
 
 	/* make sure the FW header and file is valid */
-	ret = check_header(sdev, plat_data->fw);
+	ret = check_header(sdev, plat_data->fw, plat_data->fw_offset);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: invalid FW header\n");
 		goto error;
@@ -516,7 +695,7 @@ int snd_sof_load_firmware_memcpy(struct snd_sof_dev *sdev)
 	}
 
 	/* parse and load firmware modules to DSP */
-	ret = load_modules(sdev, plat_data->fw);
+	ret = load_modules(sdev, plat_data->fw, plat_data->fw_offset);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: invalid FW modules\n");
 		goto error;

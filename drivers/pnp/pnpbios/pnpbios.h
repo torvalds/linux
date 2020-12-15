@@ -107,7 +107,7 @@ struct pnp_bios_node {
 	__u32 eisa_id;
 	__u8 type_code[3];
 	__u16 flags;
-	__u8 data[0];
+	__u8 data[];
 };
 #pragma pack()
 

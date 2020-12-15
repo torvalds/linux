@@ -866,8 +866,8 @@ static int tbnet_open(struct net_device *dev)
 	eof_mask = BIT(TBIP_PDF_FRAME_END);
 
 	ring = tb_ring_alloc_rx(xd->tb->nhi, -1, TBNET_RING_SIZE,
-				RING_FLAG_FRAME | RING_FLAG_E2E, sof_mask,
-				eof_mask, tbnet_start_poll, net);
+				RING_FLAG_FRAME, sof_mask, eof_mask,
+				tbnet_start_poll, net);
 	if (!ring) {
 		netdev_err(dev, "failed to allocate Rx ring\n");
 		tb_ring_free(net->tx_ring.ring);
@@ -1335,6 +1335,10 @@ static int __init tbnet_init(void)
 	tb_property_add_immediate(tbnet_dir, "prtcid", 1);
 	tb_property_add_immediate(tbnet_dir, "prtcvers", 1);
 	tb_property_add_immediate(tbnet_dir, "prtcrevs", 1);
+	/* Currently only announce support for match frags ID (bit 1). Bit 0
+	 * is reserved for full E2E flow control which we do not support at
+	 * the moment.
+	 */
 	tb_property_add_immediate(tbnet_dir, "prtcstns",
 				  TBNET_MATCH_FRAGS_ID);
 

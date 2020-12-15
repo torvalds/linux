@@ -1724,7 +1724,7 @@ static void hns_dsaf_setup_mc_mask(struct dsaf_device *dsaf_dev,
 				   u8 port_num, u8 *mask, u8 *addr)
 {
 	if (MAC_IS_BROADCAST(addr))
-		memset(mask, 0xff, ETH_ALEN);
+		eth_broadcast_addr(mask);
 	else
 		memcpy(mask, dsaf_dev->mac_cb[port_num]->mc_mask, ETH_ALEN);
 }

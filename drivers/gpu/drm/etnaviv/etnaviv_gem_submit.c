@@ -398,7 +398,7 @@ static void submit_cleanup(struct kref *kref)
 
 		/* if the GPU submit failed, objects might still be locked */
 		submit_unlock_object(submit, i);
-		drm_gem_object_put_unlocked(&etnaviv_obj->base);
+		drm_gem_object_put(&etnaviv_obj->base);
 	}
 
 	wake_up_all(&submit->gpu->fence_event);

@@ -18,9 +18,9 @@
 
 unsigned long long timing(clockid_t clk_id, unsigned long long samples)
 {
-	pid_t pid, ret;
-	unsigned long long i;
 	struct timespec start, finish;
+	unsigned long long i;
+	pid_t pid, ret;
 
 	pid = getpid();
 	assert(clock_gettime(clk_id, &start) == 0);
@@ -31,30 +31,43 @@ unsigned long long timing(clockid_t clk_id, unsigned long long samples)
 	assert(clock_gettime(clk_id, &finish) == 0);
 
 	i = finish.tv_sec - start.tv_sec;
-	i *= 1000000000;
+	i *= 1000000000ULL;
 	i += finish.tv_nsec - start.tv_nsec;
 
-	printf("%lu.%09lu - %lu.%09lu = %llu\n",
+	printf("%lu.%09lu - %lu.%09lu = %llu (%.1fs)\n",
 		finish.tv_sec, finish.tv_nsec,
 		start.tv_sec, start.tv_nsec,
-		i);
+		i, (double)i / 1000000000.0);
 
 	return i;
 }
 
 unsigned long long calibrate(void)
 {
-	unsigned long long i;
+	struct timespec start, finish;
+	unsigned long long i, samples, step = 9973;
+	pid_t pid, ret;
+	int seconds = 15;
 
-	printf("Calibrating reasonable sample size...\n");
+	printf("Calibrating sample size for %d seconds worth of syscalls ...\n", seconds);
 
-	for (i = 5; ; i++) {
-		unsigned long long samples = 1 << i;
+	samples = 0;
+	pid = getpid();
+	assert(clock_gettime(CLOCK_MONOTONIC, &start) == 0);
+	do {
+		for (i = 0; i < step; i++) {
+			ret = syscall(__NR_getpid);
+			assert(pid == ret);
+		}
+		assert(clock_gettime(CLOCK_MONOTONIC, &finish) == 0);
 
-		/* Find something that takes more than 5 seconds to run. */
-		if (timing(CLOCK_REALTIME, samples) / 1000000000ULL > 5)
-			return samples;
-	}
+		samples += step;
+		i = finish.tv_sec - start.tv_sec;
+		i *= 1000000000ULL;
+		i += finish.tv_nsec - start.tv_nsec;
+	} while (i < 1000000000ULL);
+
+	return samples * seconds;
 }
 
 int main(int argc, char *argv[])
@@ -68,32 +81,55 @@ int main(int argc, char *argv[])
 	};
 	long ret;
 	unsigned long long samples;
-	unsigned long long native, filtered;
+	unsigned long long native, filter1, filter2;
+
+	printf("Current BPF sysctl settings:\n");
+	system("sysctl net.core.bpf_jit_enable");
+	system("sysctl net.core.bpf_jit_harden");
 
 	if (argc > 1)
 		samples = strtoull(argv[1], NULL, 0);
 	else
 		samples = calibrate();
 
-	printf("Benchmarking %llu samples...\n", samples);
+	printf("Benchmarking %llu syscalls...\n", samples);
 
+	/* Native call */
 	native = timing(CLOCK_PROCESS_CPUTIME_ID, samples) / samples;
 	printf("getpid native: %llu ns\n", native);
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	assert(ret == 0);
 
+	/* One filter */
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog);
 	assert(ret == 0);
 
-	filtered = timing(CLOCK_PROCESS_CPUTIME_ID, samples) / samples;
-	printf("getpid RET_ALLOW: %llu ns\n", filtered);
+	filter1 = timing(CLOCK_PROCESS_CPUTIME_ID, samples) / samples;
+	printf("getpid RET_ALLOW 1 filter: %llu ns\n", filter1);
 
-	printf("Estimated seccomp overhead per syscall: %llu ns\n",
-		filtered - native);
+	if (filter1 == native)
+		printf("No overhead measured!? Try running again with more samples.\n");
 
-	if (filtered == native)
-		printf("Trying running again with more samples.\n");
+	/* Two filters */
+	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog);
+	assert(ret == 0);
+
+	filter2 = timing(CLOCK_PROCESS_CPUTIME_ID, samples) / samples;
+	printf("getpid RET_ALLOW 2 filters: %llu ns\n", filter2);
+
+	/* Calculations */
+	printf("Estimated total seccomp overhead for 1 filter: %llu ns\n",
+		filter1 - native);
+
+	printf("Estimated total seccomp overhead for 2 filters: %llu ns\n",
+		filter2 - native);
+
+	printf("Estimated seccomp per-filter overhead: %llu ns\n",
+		filter2 - filter1);
+
+	printf("Estimated seccomp entry overhead: %llu ns\n",
+		filter1 - native - (filter2 - filter1));
 
 	return 0;
 }

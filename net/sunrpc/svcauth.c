@@ -21,6 +21,8 @@
 
 #include <trace/events/sunrpc.h>
 
+#include "sunrpc.h"
+
 #define RPCDBG_FACILITY	RPCDBG_AUTH
 
 
@@ -205,3 +207,26 @@ struct auth_domain *auth_domain_find(char *name)
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(auth_domain_find);
+
+/**
+ * auth_domain_cleanup - check that the auth_domain table is empty
+ *
+ * On module unload the auth_domain_table must be empty.  To make it
+ * easier to catch bugs which don't clean up domains properly, we
+ * warn if anything remains in the table at cleanup time.
+ *
+ * Note that we cannot proactively remove the domains at this stage.
+ * The ->release() function might be in a module that has already been
+ * unloaded.
+ */
+
+void auth_domain_cleanup(void)
+{
+	int h;
+	struct auth_domain *hp;
+
+	for (h = 0; h < DN_HASHMAX; h++)
+		hlist_for_each_entry(hp, &auth_domain_table[h], hash)
+			pr_warn("svc: domain %s still present at module unload.\n",
+				hp->name);
+}

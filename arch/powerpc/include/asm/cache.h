@@ -6,7 +6,7 @@
 
 
 /* bytes per L1 cache line */
-#if defined(CONFIG_PPC_8xx) || defined(CONFIG_403GCX)
+#if defined(CONFIG_PPC_8xx)
 #define L1_CACHE_SHIFT		4
 #define MAX_COPY_PREFETCH	1
 #define IFETCH_ALIGN_SHIFT	2

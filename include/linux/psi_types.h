@@ -153,9 +153,10 @@ struct psi_group {
 	unsigned long avg[NR_PSI_STATES - 1][3];
 
 	/* Monitor work control */
-	atomic_t poll_scheduled;
-	struct kthread_worker __rcu *poll_kworker;
-	struct kthread_delayed_work poll_work;
+	struct task_struct __rcu *poll_task;
+	struct timer_list poll_timer;
+	wait_queue_head_t poll_wait;
+	atomic_t poll_wakeup;
 
 	/* Protects data used by the monitor */
 	struct mutex trigger_lock;

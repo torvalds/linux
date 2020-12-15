@@ -6,7 +6,7 @@
  *
  * Thanks to Steve Chang from WideView for providing support for the WT-220U.
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "dtt200u.h"
 

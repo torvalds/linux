@@ -45,6 +45,7 @@
 #define SMB2_OP_HARDLINK 8
 #define SMB2_OP_SET_EOF 9
 #define SMB2_OP_RMDIR 10
+#define SMB2_OP_POSIX_QUERY_INFO 11
 
 /* Used when constructing chained read requests. */
 #define CHAINED_REQUEST 1

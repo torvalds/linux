@@ -1051,20 +1051,6 @@ struct iwl_scan_req_params_v12 {
 } __packed; /* SCAN_REQUEST_PARAMS_API_S_VER_12 */
 
 /**
- * struct iwl_scan_req_params_v13
- * @general_params: &struct iwl_scan_general_params_v10
- * @channel_params: &struct iwl_scan_channel_params_v4
- * @periodic_params: &struct iwl_scan_periodic_parms_v1
- * @probe_params: &struct iwl_scan_probe_params_v4
- */
-struct iwl_scan_req_params_v13 {
-	struct iwl_scan_general_params_v10 general_params;
-	struct iwl_scan_channel_params_v4 channel_params;
-	struct iwl_scan_periodic_parms_v1 periodic_params;
-	struct iwl_scan_probe_params_v4 probe_params;
-} __packed; /* SCAN_REQUEST_PARAMS_API_S_VER_13 */
-
-/**
  * struct iwl_scan_req_params_v14
  * @general_params: &struct iwl_scan_general_params_v10
  * @channel_params: &struct iwl_scan_channel_params_v6
@@ -1089,18 +1075,6 @@ struct iwl_scan_req_umac_v12 {
 	__le32 ooc_priority;
 	struct iwl_scan_req_params_v12 scan_params;
 } __packed; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_12 */
-
-/**
- * struct iwl_scan_req_umac_v13
- * @uid: scan id, &enum iwl_umac_scan_uid_offsets
- * @ooc_priority: out of channel priority - &enum iwl_scan_priority
- * @scan_params: scan parameters
- */
-struct iwl_scan_req_umac_v13 {
-	__le32 uid;
-	__le32 ooc_priority;
-	struct iwl_scan_req_params_v13 scan_params;
-} __packed; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_13 */
 
 /**
  * struct iwl_scan_req_umac_v14

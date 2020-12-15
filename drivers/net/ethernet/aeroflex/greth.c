@@ -8,7 +8,7 @@
  * available in the GRLIB VHDL IP core library.
  *
  * Full documentation of both cores can be found here:
- * http://www.gaisler.com/products/grlib/grip.pdf
+ * https://www.gaisler.com/products/grlib/grip.pdf
  *
  * The Gigabit version supports scatter/gather DMA, any alignment of
  * buffers and checksum offloading.

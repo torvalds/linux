@@ -129,6 +129,7 @@ Usage of helpers:
 ::
 
 	bio_for_each_segment_all()
+	bio_for_each_bvec_all()
 	bio_first_bvec_all()
 	bio_first_page_all()
 	bio_last_bvec_all()
@@ -143,4 +144,5 @@ Usage of helpers:
   bio_vec' will contain a multi-page IO vector during the iteration::
 
 	bio_for_each_bvec()
+	bio_for_each_bvec_all()
 	rq_for_each_bvec()

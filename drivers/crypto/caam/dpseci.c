@@ -104,6 +104,24 @@ int dpseci_disable(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token)
 }
 
 /**
+ * dpseci_reset() - Reset the DPSECI, returns the object to initial state
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSECI object
+ *
+ * Return:	'0' on success, error code otherwise
+ */
+int dpseci_reset(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token)
+{
+	struct fsl_mc_command cmd = { 0 };
+
+	cmd.header = mc_encode_cmd_header(DPSECI_CMDID_RESET,
+					  cmd_flags,
+					  token);
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
  * dpseci_is_enabled() - Check if the DPSECI is enabled.
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'

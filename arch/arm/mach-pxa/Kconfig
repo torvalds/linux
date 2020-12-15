@@ -123,23 +123,6 @@ config CSB726_CSB701
 	bool "Enable support for CSB701 baseboard"
 	depends on MACH_CSB726
 
-config MACH_ARMCORE
-	bool "CompuLab CM-X255/CM-X270 modules"
-	select ARCH_HAS_DMA_SET_COHERENT_MASK if PCI
-	select IWMMXT
-	select HAVE_PCI
-	select NEED_MACH_IO_H if PCI
-	select PXA25x
-	select PXA27x
-
-config MACH_EM_X270
-	bool "CompuLab EM-x270 platform"
-	select PXA27x
-
-config MACH_EXEDA
-	bool "CompuLab eXeda platform"
-	select PXA27x
-
 config MACH_CM_X300
 	bool "CompuLab CM-X300 modules"
 	select CPU_PXA300

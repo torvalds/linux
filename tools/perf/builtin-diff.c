@@ -467,7 +467,7 @@ static struct evsel *evsel_match(struct evsel *evsel,
 	struct evsel *e;
 
 	evlist__for_each_entry(evlist, e) {
-		if (perf_evsel__match2(evsel, e))
+		if (evsel__match2(evsel, e))
 			return e;
 	}
 
@@ -981,7 +981,7 @@ static void data_process(void)
 
 		if (!quiet) {
 			fprintf(stdout, "%s# Event '%s'\n#\n", first ? "" : "\n",
-				perf_evsel__name(evsel_base));
+				evsel__name(evsel_base));
 		}
 
 		first = false;
@@ -990,7 +990,7 @@ static void data_process(void)
 			data__fprintf();
 
 		/* Don't sort callchain for perf diff */
-		perf_evsel__reset_sample_bit(evsel_base, CALLCHAIN);
+		evsel__reset_sample_bit(evsel_base, CALLCHAIN);
 
 		hists__process(hists_base);
 	}
@@ -1562,7 +1562,7 @@ hpp__entry_pair(struct hist_entry *he, struct hist_entry *pair,
 
 	default:
 		BUG_ON(1);
-	};
+	}
 }
 
 static void

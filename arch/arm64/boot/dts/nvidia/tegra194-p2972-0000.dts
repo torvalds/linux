@@ -10,7 +10,7 @@
 	model = "NVIDIA Jetson AGX Xavier Developer Kit";
 	compatible = "nvidia,p2972-0000", "nvidia,tegra194";
 
-	cbb@0 {
+	bus@0 {
 		aconnect@2900000 {
 			status = "okay";
 
@@ -28,7 +28,7 @@
 		};
 
 		/* SDMMC1 (SD/MMC) */
-		sdhci@3400000 {
+		mmc@3400000 {
 			status = "okay";
 		};
 
@@ -93,10 +93,10 @@
 		usb@3610000 {
 			status = "okay";
 
-			phys =	<&{/cbb@0/padctl@3520000/pads/usb2/lanes/usb2-1}>,
-				<&{/cbb@0/padctl@3520000/pads/usb2/lanes/usb2-3}>,
-				<&{/cbb@0/padctl@3520000/pads/usb3/lanes/usb3-0}>,
-				<&{/cbb@0/padctl@3520000/pads/usb3/lanes/usb3-3}>;
+			phys =	<&{/bus@0/padctl@3520000/pads/usb2/lanes/usb2-1}>,
+				<&{/bus@0/padctl@3520000/pads/usb2/lanes/usb2-3}>,
+				<&{/bus@0/padctl@3520000/pads/usb3/lanes/usb3-0}>,
+				<&{/bus@0/padctl@3520000/pads/usb3/lanes/usb3-3}>;
 			phy-names = "usb2-1", "usb2-3", "usb3-0", "usb3-3";
 		};
 
@@ -145,8 +145,8 @@
 			sor@15b80000 {
 				status = "okay";
 
-				avdd-io-supply = <&vdd_1v0>;
-				vdd-pll-supply = <&vdd_1v8hs>;
+				avdd-io-hdmi-dp-supply = <&vdd_1v0>;
+				vdd-hdmi-dp-pll-supply = <&vdd_1v8hs>;
 				hdmi-supply = <&vdd_hdmi>;
 
 				nvidia,ddc-i2c-bus = <&ddc>;

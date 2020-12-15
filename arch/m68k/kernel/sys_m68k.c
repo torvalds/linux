@@ -399,7 +399,7 @@ sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
 		 * Verify that the specified address region actually belongs
 		 * to this process.
 		 */
-		down_read(&current->mm->mmap_sem);
+		mmap_read_lock(current->mm);
 		vma = find_vma(current->mm, addr);
 		if (!vma || addr < vma->vm_start || addr + len > vma->vm_end)
 			goto out_unlock;
@@ -450,7 +450,7 @@ sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
 	    }
 	}
 out_unlock:
-	up_read(&current->mm->mmap_sem);
+	mmap_read_unlock(current->mm);
 out:
 	return ret;
 }
@@ -472,7 +472,7 @@ sys_atomic_cmpxchg_32(unsigned long newval, int oldval, int d3, int d4, int d5,
 		spinlock_t *ptl;
 		unsigned long mem_value;
 
-		down_read(&mm->mmap_sem);
+		mmap_read_lock(mm);
 		pgd = pgd_offset(mm, (unsigned long)mem);
 		if (!pgd_present(*pgd))
 			goto bad_access;
@@ -501,11 +501,11 @@ sys_atomic_cmpxchg_32(unsigned long newval, int oldval, int d3, int d4, int d5,
 			__put_user(newval, mem);
 
 		pte_unmap_unlock(pte, ptl);
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 		return mem_value;
 
 	      bad_access:
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 		/* This is not necessarily a bad access, we can get here if
 		   a memory we're trying to write to should be copied-on-write.
 		   Make the kernel do the necessary page stuff, then re-iterate.
@@ -545,13 +545,13 @@ sys_atomic_cmpxchg_32(unsigned long newval, int oldval, int d3, int d4, int d5,
 	struct mm_struct *mm = current->mm;
 	unsigned long mem_value;
 
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 
 	mem_value = *mem;
 	if (mem_value == oldval)
 		*mem = newval;
 
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	return mem_value;
 }
 

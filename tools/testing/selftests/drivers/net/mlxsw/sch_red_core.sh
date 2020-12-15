@@ -121,6 +121,7 @@ h1_destroy()
 h2_create()
 {
 	host_create $h2 2
+	tc qdisc add dev $h2 clsact
 
 	# Some of the tests in this suite use multicast traffic. As this traffic
 	# enters BR2_10 resp. BR2_11, it is flooded to all other ports. Thus
@@ -141,6 +142,7 @@ h2_create()
 h2_destroy()
 {
 	ethtool -s $h2 autoneg on
+	tc qdisc del dev $h2 clsact
 	host_destroy $h2
 }
 
@@ -336,6 +338,17 @@ get_qdisc_npackets()
 		qdisc_stats_get $swp3 $(get_qdisc_handle $vlan) .packets
 }
 
+send_packets()
+{
+	local vlan=$1; shift
+	local proto=$1; shift
+	local pkts=$1; shift
+
+	$MZ $h2.$vlan -p 8000 -a own -b $h3_mac \
+	    -A $(ipaddr 2 $vlan) -B $(ipaddr 3 $vlan) \
+	    -t $proto -q -c $pkts "$@"
+}
+
 # This sends traffic in an attempt to build a backlog of $size. Returns 0 on
 # success. After 10 failed attempts it bails out and returns 1. It dumps the
 # backlog size to stdout.
@@ -364,9 +377,7 @@ build_backlog()
 			return 1
 		fi
 
-		$MZ $h2.$vlan -p 8000 -a own -b $h3_mac \
-		    -A $(ipaddr 2 $vlan) -B $(ipaddr 3 $vlan) \
-		    -t $proto -q -c $pkts "$@"
+		send_packets $vlan $proto $pkts "$@"
 	done
 }
 
@@ -530,4 +541,116 @@ do_mc_backlog_test()
 	stop_traffic
 
 	log_test "TC $((vlan - 10)): Qdisc reports MC backlog"
+}
+
+do_drop_test()
+{
+	local vlan=$1; shift
+	local limit=$1; shift
+	local trigger=$1; shift
+	local subtest=$1; shift
+	local fetch_counter=$1; shift
+	local backlog
+	local base
+	local now
+	local pct
+
+	RET=0
+
+	start_traffic $h1.$vlan $(ipaddr 1 $vlan) $(ipaddr 3 $vlan) $h3_mac
+
+	# Create a bit of a backlog and observe no mirroring due to drops.
+	qevent_rule_install_$subtest
+	base=$($fetch_counter)
+
+	build_backlog $vlan $((2 * limit / 3)) udp >/dev/null
+
+	busywait 1100 until_counter_is ">= $((base + 1))" $fetch_counter >/dev/null
+	check_fail $? "Spurious packets observed without buffer pressure"
+
+	# Push to the queue until it's at the limit. The configured limit is
+	# rounded by the qdisc and then by the driver, so this is the best we
+	# can do to get to the real limit of the system.
+	build_backlog $vlan $((3 * limit / 2)) udp >/dev/null
+
+	base=$($fetch_counter)
+	send_packets $vlan udp 11
+
+	now=$(busywait 1100 until_counter_is ">= $((base + 10))" $fetch_counter)
+	check_err $? "Dropped packets not observed: 11 expected, $((now - base)) seen"
+
+	# When no extra traffic is injected, there should be no mirroring.
+	busywait 1100 until_counter_is ">= $((base + 20))" $fetch_counter >/dev/null
+	check_fail $? "Spurious packets observed"
+
+	# When the rule is uninstalled, there should be no mirroring.
+	qevent_rule_uninstall_$subtest
+	send_packets $vlan udp 11
+	busywait 1100 until_counter_is ">= $((base + 20))" $fetch_counter >/dev/null
+	check_fail $? "Spurious packets observed after uninstall"
+
+	log_test "TC $((vlan - 10)): ${trigger}ped packets $subtest'd"
+
+	stop_traffic
+	sleep 1
+}
+
+qevent_rule_install_mirror()
+{
+	tc filter add block 10 pref 1234 handle 102 matchall skip_sw \
+	   action mirred egress mirror dev $swp2 hw_stats disabled
+}
+
+qevent_rule_uninstall_mirror()
+{
+	tc filter del block 10 pref 1234 handle 102 matchall
+}
+
+qevent_counter_fetch_mirror()
+{
+	tc_rule_handle_stats_get "dev $h2 ingress" 101
+}
+
+do_drop_mirror_test()
+{
+	local vlan=$1; shift
+	local limit=$1; shift
+	local qevent_name=$1; shift
+
+	tc filter add dev $h2 ingress pref 1 handle 101 prot ip \
+	   flower skip_sw ip_proto udp \
+	   action drop
+
+	do_drop_test "$vlan" "$limit" "$qevent_name" mirror \
+		     qevent_counter_fetch_mirror
+
+	tc filter del dev $h2 ingress pref 1 handle 101 flower
+}
+
+qevent_rule_install_trap()
+{
+	tc filter add block 10 pref 1234 handle 102 matchall skip_sw \
+	   action trap hw_stats disabled
+}
+
+qevent_rule_uninstall_trap()
+{
+	tc filter del block 10 pref 1234 handle 102 matchall
+}
+
+qevent_counter_fetch_trap()
+{
+	local trap_name=$1; shift
+
+	devlink_trap_rx_packets_get "$trap_name"
+}
+
+do_drop_trap_test()
+{
+	local vlan=$1; shift
+	local limit=$1; shift
+	local trap_name=$1; shift
+
+	do_drop_test "$vlan" "$limit" "$trap_name" trap \
+		     "qevent_counter_fetch_trap $trap_name"
 }

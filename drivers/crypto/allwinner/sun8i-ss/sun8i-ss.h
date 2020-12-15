@@ -135,17 +135,18 @@ struct sun8i_ss_dev {
 
 /*
  * struct sun8i_cipher_req_ctx - context for a skcipher request
- * @t_src:	list of mapped SGs with their size
- * @t_dst:	list of mapped SGs with their size
- * @p_key:	DMA address of the key
- * @p_iv:	DMA address of the IV
- * @method:	current algorithm for this request
- * @op_mode:	op_mode for this request
- * @op_dir:	direction (encrypt vs decrypt) for this request
- * @flow:	the flow to use for this request
- * @ivlen:	size of biv
- * @keylen:	keylen for this request
- * @biv:	buffer which contain the IV
+ * @t_src:		list of mapped SGs with their size
+ * @t_dst:		list of mapped SGs with their size
+ * @p_key:		DMA address of the key
+ * @p_iv:		DMA address of the IV
+ * @method:		current algorithm for this request
+ * @op_mode:		op_mode for this request
+ * @op_dir:		direction (encrypt vs decrypt) for this request
+ * @flow:		the flow to use for this request
+ * @ivlen:		size of biv
+ * @keylen:		keylen for this request
+ * @biv:		buffer which contain the IV
+ * @fallback_req:	request struct for invoking the fallback skcipher TFM
  */
 struct sun8i_cipher_req_ctx {
 	struct sginfo t_src[MAX_SG];
@@ -159,6 +160,7 @@ struct sun8i_cipher_req_ctx {
 	unsigned int ivlen;
 	unsigned int keylen;
 	void *biv;
+	struct skcipher_request fallback_req;   // keep at the end
 };
 
 /*
@@ -174,7 +176,7 @@ struct sun8i_cipher_tfm_ctx {
 	u32 *key;
 	u32 keylen;
 	struct sun8i_ss_dev *ss;
-	struct crypto_sync_skcipher *fallback_tfm;
+	struct crypto_skcipher *fallback_tfm;
 };
 
 /*

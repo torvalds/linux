@@ -186,7 +186,6 @@ static int ltc1660_probe(struct spi_device *spi)
 
 	priv->spi = spi;
 	spi_set_drvdata(spi, indio_dev);
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &ltc1660_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ltc1660_channels[id->driver_data];

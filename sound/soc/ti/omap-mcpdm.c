@@ -253,7 +253,7 @@ static int omap_mcpdm_dai_startup(struct snd_pcm_substream *substream,
 
 	mutex_lock(&mcpdm->mutex);
 
-	if (!dai->active)
+	if (!snd_soc_dai_active(dai))
 		omap_mcpdm_open_streams(mcpdm);
 
 	mutex_unlock(&mcpdm->mutex);
@@ -271,7 +271,7 @@ static void omap_mcpdm_dai_shutdown(struct snd_pcm_substream *substream,
 
 	mutex_lock(&mcpdm->mutex);
 
-	if (!dai->active) {
+	if (!snd_soc_dai_active(dai)) {
 		if (omap_mcpdm_active(mcpdm)) {
 			omap_mcpdm_stop(mcpdm);
 			omap_mcpdm_close_streams(mcpdm);
@@ -309,19 +309,19 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 			/* up to 3 channels for capture */
 			return -EINVAL;
 		link_mask |= 1 << 4;
-		/* fall through */
+		fallthrough;
 	case 4:
 		if (stream == SNDRV_PCM_STREAM_CAPTURE)
 			/* up to 3 channels for capture */
 			return -EINVAL;
 		link_mask |= 1 << 3;
-		/* fall through */
+		fallthrough;
 	case 3:
 		link_mask |= 1 << 2;
-		/* fall through */
+		fallthrough;
 	case 2:
 		link_mask |= 1 << 1;
-		/* fall through */
+		fallthrough;
 	case 1:
 		link_mask |= 1 << 0;
 		break;
@@ -462,7 +462,7 @@ static int omap_mcpdm_suspend(struct snd_soc_component *component)
 {
 	struct omap_mcpdm *mcpdm = snd_soc_component_get_drvdata(component);
 
-	if (component->active) {
+	if (snd_soc_component_active(component)) {
 		omap_mcpdm_stop(mcpdm);
 		omap_mcpdm_close_streams(mcpdm);
 	}
@@ -484,7 +484,7 @@ static int omap_mcpdm_resume(struct snd_soc_component *component)
 		while (mcpdm->pm_active_count--)
 			pm_runtime_get_sync(mcpdm->dev);
 
-		if (component->active) {
+		if (snd_soc_component_active(component)) {
 			omap_mcpdm_open_streams(mcpdm);
 			omap_mcpdm_start(mcpdm);
 		}

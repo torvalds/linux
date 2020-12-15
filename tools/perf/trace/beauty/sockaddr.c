@@ -7,14 +7,7 @@
 #include <sys/un.h>
 #include <arpa/inet.h>
 
-static const char *socket_families[] = {
-	"UNSPEC", "LOCAL", "INET", "AX25", "IPX", "APPLETALK", "NETROM",
-	"BRIDGE", "ATMPVC", "X25", "INET6", "ROSE", "DECnet", "NETBEUI",
-	"SECURITY", "KEY", "NETLINK", "PACKET", "ASH", "ECONET", "ATMSVC",
-	"RDS", "SNA", "IRDA", "PPPOX", "WANPIPE", "LLC", "IB", "CAN", "TIPC",
-	"BLUETOOTH", "IUCV", "RXRPC", "ISDN", "PHONET", "IEEE802154", "CAIF",
-	"ALG", "NFC", "VSOCK",
-};
+#include "trace/beauty/generated/socket_arrays.c"
 DEFINE_STRARRAY(socket_families, "PF_");
 
 static size_t af_inet__scnprintf(struct sockaddr *sa, char *bf, size_t size)

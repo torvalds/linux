@@ -424,8 +424,6 @@ static int complete_execlist_workload(struct intel_vgpu_workload *workload)
 
 	ret = emulate_execlist_ctx_schedule_out(execlist, &workload->ctx_desc);
 out:
-	intel_vgpu_unpin_mm(workload->shadow_mm);
-	intel_vgpu_destroy_workload(workload);
 	return ret;
 }
 

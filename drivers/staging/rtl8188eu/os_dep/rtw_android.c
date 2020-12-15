@@ -77,7 +77,7 @@ static int rtw_android_get_rssi(struct net_device *net, char *command,
 				int total_len)
 {
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(net);
-	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
+	struct	mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 	struct	wlan_network	*pcur_network = &pmlmepriv->cur_network;
 	int bytes_written = 0;
 

@@ -17,42 +17,43 @@
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&user_led1>, <&user_led2>, <&user_led3>,
-			    <&user_led4>, <&wlan_led>, <&bt_led>;
+		pinctrl-0 = <&user_led1_pin>, <&user_led2_pin>,
+			    <&user_led3_pin>, <&user_led4_pin>,
+			    <&wlan_led_pin>, <&bt_led_pin>;
 
-		user_led1 {
+		user_led1: led-1 {
 			label = "green:user1";
 			gpios = <&gpio4 RK_PC2 0>;
 			linux,default-trigger = "heartbeat";
 		};
 
-		user_led2 {
+		user_led2: led-2 {
 			label = "green:user2";
 			gpios = <&gpio4 RK_PC6 0>;
 			linux,default-trigger = "mmc0";
 		};
 
-		user_led3 {
+		user_led3: led-3 {
 			label = "green:user3";
 			gpios = <&gpio4 RK_PD0 0>;
 			linux,default-trigger = "mmc1";
 		};
 
-		user_led4 {
+		user_led4: led-4 {
 			label = "green:user4";
 			gpios = <&gpio4 RK_PD4 0>;
 			panic-indicator;
 			linux,default-trigger = "none";
 		};
 
-		wlan_active_led {
+		wlan_active_led: led-5 {
 			label = "yellow:wlan";
 			gpios = <&gpio4 RK_PD5 0>;
 			linux,default-trigger = "phy0tx";
 			default-state = "off";
 		};
 
-		bt_active_led {
+		bt_active_led: led-6 {
 			label = "blue:bt";
 			gpios = <&gpio4 RK_PD6 0>;
 			linux,default-trigger = "hci0-power";
@@ -68,32 +69,32 @@
 
 &pinctrl {
 	leds {
-		user_led1: user_led1 {
+		user_led1_pin: user-led1-pin {
 			rockchip,pins =
 				<4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
-		user_led2: user_led2 {
+		user_led2_pin: user-led2-pin {
 			rockchip,pins =
 				<4 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
-		user_led3: user_led3 {
+		user_led3_pin: user-led3-pin {
 			rockchip,pins =
 				<4 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
-		user_led4: user_led4 {
+		user_led4_pin: user-led4-pin {
 			rockchip,pins =
 				<4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
-		wlan_led: wlan_led {
+		wlan_led_pin: wlan-led-pin {
 			rockchip,pins =
 				<4 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
-		bt_led: bt_led {
+		bt_led_pin: bt-led-pin {
 			rockchip,pins =
 				<4 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};

@@ -364,8 +364,8 @@ void gfs2_recover_func(struct work_struct *work)
 		/* Acquire a shared hold on the freeze lock */
 
 		error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED,
-					   LM_FLAG_NOEXP | LM_FLAG_PRIORITY,
-					   &thaw_gh);
+					   LM_FLAG_NOEXP | LM_FLAG_PRIORITY |
+					   GL_EXACT, &thaw_gh);
 		if (error)
 			goto fail_gunlock_ji;
 

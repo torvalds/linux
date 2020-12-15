@@ -21,8 +21,8 @@
 /*
  * Information for this driver was pulled from the following datasheets.
  *
- *  http://www.nxp.com/documents/data_sheet/PCF85063A.pdf
- *  http://www.nxp.com/documents/data_sheet/PCF85063TP.pdf
+ *  https://www.nxp.com/documents/data_sheet/PCF85063A.pdf
+ *  https://www.nxp.com/documents/data_sheet/PCF85063TP.pdf
  *
  *  PCF85063A -- Rev. 6 — 18 November 2015
  *  PCF85063TP -- Rev. 4 — 6 May 2015
@@ -353,7 +353,7 @@ static int pcf85063_load_capacitance(struct pcf85063 *pcf85063,
 	default:
 		dev_warn(&pcf85063->rtc->dev, "Unknown quartz-load-femtofarads value: %d. Assuming 7000",
 			 load);
-		/* fall through */
+		fallthrough;
 	case 7000:
 		break;
 	case 12500:

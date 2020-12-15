@@ -80,8 +80,7 @@ atomic_t rdma_stat_sq_prod;
  * current value.
  */
 static int read_reset_stat(struct ctl_table *table, int write,
-			   void __user *buffer, size_t *lenp,
-			   loff_t *ppos)
+			   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	atomic_t *stat = (atomic_t *)table->data;
 
@@ -103,8 +102,8 @@ static int read_reset_stat(struct ctl_table *table, int write,
 		len -= *ppos;
 		if (len > *lenp)
 			len = *lenp;
-		if (len && copy_to_user(buffer, str_buf, len))
-			return -EFAULT;
+		if (len)
+			memcpy(buffer, str_buf, len);
 		*lenp = len;
 		*ppos += len;
 	}

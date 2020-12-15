@@ -27,7 +27,7 @@
 
 /*
  * Altera JTAG UART register definitions according to the Altera JTAG UART
- * datasheet: http://www.altera.com/literature/hb/nios2/n2cpu_nii51009.pdf
+ * datasheet: https://www.altera.com/literature/hb/nios2/n2cpu_nii51009.pdf
  */
 
 #define ALTERA_JTAGUART_SIZE			8

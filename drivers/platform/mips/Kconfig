@@ -24,4 +24,10 @@ config CPU_HWMON
 	help
 	  Loongson-3A/3B CPU Hwmon (temperature sensor) driver.
 
+config RS780E_ACPI
+	bool "Loongson RS780E ACPI Controller"
+	depends on MACH_LOONGSON64 || COMPILE_TEST
+	help
+	  Loongson RS780E PCH ACPI Controller driver.
+
 endif # MIPS_PLATFORM_DEVICES

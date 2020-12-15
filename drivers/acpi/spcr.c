@@ -111,7 +111,7 @@ int __init acpi_parse_spcr(bool enable_earlycon, bool enable_console)
 			table->serial_port.access_width))) {
 		default:
 			pr_err("Unexpected SPCR Access Width.  Defaulting to byte size\n");
-			/* fall through */
+			fallthrough;
 		case 8:
 			iotype = "mmio";
 			break;
@@ -128,7 +128,7 @@ int __init acpi_parse_spcr(bool enable_earlycon, bool enable_console)
 	switch (table->interface_type) {
 	case ACPI_DBG2_ARM_SBSA_32BIT:
 		iotype = "mmio32";
-		/* fall through */
+		fallthrough;
 	case ACPI_DBG2_ARM_PL011:
 	case ACPI_DBG2_ARM_SBSA_GENERIC:
 	case ACPI_DBG2_BCM2835:

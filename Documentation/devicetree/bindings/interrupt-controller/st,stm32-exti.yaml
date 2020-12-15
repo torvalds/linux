@@ -14,13 +14,13 @@ properties:
   compatible:
     oneOf:
       - items:
-        - enum:
-          - st,stm32-exti
-          - st,stm32h7-exti
+          - enum:
+              - st,stm32-exti
+              - st,stm32h7-exti
       - items:
-        - enum:
-          - st,stm32mp1-exti
-        - const: syscon
+          - enum:
+              - st,stm32mp1-exti
+          - const: syscon
 
   "#interrupt-cells":
     const: 2

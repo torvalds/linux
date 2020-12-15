@@ -859,8 +859,6 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 	sou->base.is_implicit = false;
 
 	/* Initialize primary plane */
-	vmw_du_plane_reset(primary);
-
 	ret = drm_universal_plane_init(dev, &sou->base.primary,
 				       0, &vmw_sou_plane_funcs,
 				       vmw_primary_plane_formats,
@@ -875,8 +873,6 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 	drm_plane_enable_fb_damage_clips(primary);
 
 	/* Initialize cursor plane */
-	vmw_du_plane_reset(cursor);
-
 	ret = drm_universal_plane_init(dev, &sou->base.cursor,
 			0, &vmw_sou_cursor_funcs,
 			vmw_cursor_plane_formats,
@@ -890,7 +886,6 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 
 	drm_plane_helper_add(cursor, &vmw_sou_cursor_plane_helper_funcs);
 
-	vmw_du_connector_reset(connector);
 	ret = drm_connector_init(dev, connector, &vmw_sou_connector_funcs,
 				 DRM_MODE_CONNECTOR_VIRTUAL);
 	if (ret) {
@@ -918,8 +913,6 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 		goto err_free_encoder;
 	}
 
-
-	vmw_du_crtc_reset(crtc);
 	ret = drm_crtc_init_with_planes(dev, crtc, &sou->base.primary,
 					&sou->base.cursor,
 					&vmw_screen_object_crtc_funcs, NULL);
@@ -972,6 +965,8 @@ int vmw_kms_sou_init_display(struct vmw_private *dev_priv)
 		vmw_sou_init(dev_priv, i);
 
 	dev_priv->active_display_unit = vmw_du_screen_object;
+
+	drm_mode_config_reset(dev);
 
 	DRM_INFO("Screen Objects Display Unit initialized\n");
 

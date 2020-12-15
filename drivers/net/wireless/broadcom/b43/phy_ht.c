@@ -1018,7 +1018,7 @@ static void b43_phy_ht_op_free(struct b43_wldev *dev)
 	phy->ht = NULL;
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/Radio/Switch%20Radio */
+/* https://bcm-v4.sipsolutions.net/802.11/Radio/Switch%20Radio */
 static void b43_phy_ht_op_software_rfkill(struct b43_wldev *dev,
 					bool blocked)
 {

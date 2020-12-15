@@ -164,25 +164,22 @@ int efx_mcdi_tx_init(struct efx_tx_queue *tx_queue, bool tso_v2)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_INIT_TXQ_IN_LEN(EFX_MAX_DMAQ_SIZE * 8 /
 						       EFX_BUF_SIZE));
-	bool csum_offload = tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD;
+	bool csum_offload = tx_queue->label & EFX_TXQ_TYPE_OFFLOAD;
 	size_t entries = tx_queue->txd.buf.len / EFX_BUF_SIZE;
 	struct efx_channel *channel = tx_queue->channel;
 	struct efx_nic *efx = tx_queue->efx;
-	struct efx_ef10_nic_data *nic_data;
 	dma_addr_t dma_addr;
 	size_t inlen;
 	int rc, i;
 
 	BUILD_BUG_ON(MC_CMD_INIT_TXQ_OUT_LEN != 0);
 
-	nic_data = efx->nic_data;
-
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_SIZE, tx_queue->ptr_mask + 1);
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_TARGET_EVQ, channel->channel);
-	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_LABEL, tx_queue->queue);
+	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_LABEL, tx_queue->label);
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_INSTANCE, tx_queue->queue);
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_OWNER_ID, 0);
-	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_PORT_ID, nic_data->vport_id);
+	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_PORT_ID, efx->vport_id);
 
 	dma_addr = tx_queue->txd.buf.dma_addr;
 
@@ -270,21 +267,22 @@ int efx_mcdi_rx_probe(struct efx_rx_queue *rx_queue)
 
 void efx_mcdi_rx_init(struct efx_rx_queue *rx_queue)
 {
-	MCDI_DECLARE_BUF(inbuf,
-			 MC_CMD_INIT_RXQ_IN_LEN(EFX_MAX_DMAQ_SIZE * 8 /
-						EFX_BUF_SIZE));
 	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
 	size_t entries = rx_queue->rxd.buf.len / EFX_BUF_SIZE;
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_INIT_RXQ_V4_IN_LEN);
 	struct efx_nic *efx = rx_queue->efx;
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	unsigned int buffer_size;
 	dma_addr_t dma_addr;
-	size_t inlen;
 	int rc;
 	int i;
 	BUILD_BUG_ON(MC_CMD_INIT_RXQ_OUT_LEN != 0);
 
 	rx_queue->scatter_n = 0;
 	rx_queue->scatter_len = 0;
+	if (efx->type->revision == EFX_REV_EF100)
+		buffer_size = efx->rx_page_buf_step;
+	else
+		buffer_size = 0;
 
 	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_SIZE, rx_queue->ptr_mask + 1);
 	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_TARGET_EVQ, channel->channel);
@@ -295,7 +293,8 @@ void efx_mcdi_rx_init(struct efx_rx_queue *rx_queue)
 			      INIT_RXQ_IN_FLAG_PREFIX, 1,
 			      INIT_RXQ_IN_FLAG_TIMESTAMP, 1);
 	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_OWNER_ID, 0);
-	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_PORT_ID, nic_data->vport_id);
+	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_PORT_ID, efx->vport_id);
+	MCDI_SET_DWORD(inbuf, INIT_RXQ_V4_IN_BUFFER_SIZE_BYTES, buffer_size);
 
 	dma_addr = rx_queue->rxd.buf.dma_addr;
 
@@ -307,9 +306,7 @@ void efx_mcdi_rx_init(struct efx_rx_queue *rx_queue)
 		dma_addr += EFX_BUF_SIZE;
 	}
 
-	inlen = MC_CMD_INIT_RXQ_IN_LEN(entries);
-
-	rc = efx_mcdi_rpc(efx, MC_CMD_INIT_RXQ, inbuf, inlen,
+	rc = efx_mcdi_rpc(efx, MC_CMD_INIT_RXQ, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL);
 	if (rc)
 		netdev_WARN(efx->net_dev, "failed to initialise RXQ %d\n",
@@ -343,6 +340,44 @@ void efx_mcdi_rx_fini(struct efx_rx_queue *rx_queue)
 fail:
 	efx_mcdi_display_error(efx, MC_CMD_FINI_RXQ, MC_CMD_FINI_RXQ_IN_LEN,
 			       outbuf, outlen, rc);
+}
+
+int efx_fini_dmaq(struct efx_nic *efx)
+{
+	struct efx_tx_queue *tx_queue;
+	struct efx_rx_queue *rx_queue;
+	struct efx_channel *channel;
+	int pending;
+
+	/* If the MC has just rebooted, the TX/RX queues will have already been
+	 * torn down, but efx->active_queues needs to be set to zero.
+	 */
+	if (efx->must_realloc_vis) {
+		atomic_set(&efx->active_queues, 0);
+		return 0;
+	}
+
+	/* Do not attempt to write to the NIC during EEH recovery */
+	if (efx->state != STATE_RECOVERY) {
+		efx_for_each_channel(channel, efx) {
+			efx_for_each_channel_rx_queue(rx_queue, channel)
+				efx_mcdi_rx_fini(rx_queue);
+			efx_for_each_channel_tx_queue(tx_queue, channel)
+				efx_mcdi_tx_fini(tx_queue);
+		}
+
+		wait_event_timeout(efx->flush_wq,
+				   atomic_read(&efx->active_queues) == 0,
+				   msecs_to_jiffies(EFX_MAX_FLUSH_TIME));
+		pending = atomic_read(&efx->active_queues);
+		if (pending) {
+			netif_err(efx, hw, efx->net_dev, "failed to flush %d queues\n",
+				  pending);
+			return -ETIMEDOUT;
+		}
+	}
+
+	return 0;
 }
 
 int efx_mcdi_window_mode_to_stride(struct efx_nic *efx, u8 vi_window_mode)

@@ -10,6 +10,23 @@ KernelVersion:  5.1
 Contact:        oded.gabbay@gmail.com
 Description:    Version of the application running on the device's CPU
 
+What:           /sys/class/habanalabs/hl<n>/clk_max_freq_mhz
+Date:           Jun 2019
+KernelVersion:  not yet upstreamed
+Contact:        oded.gabbay@gmail.com
+Description:    Allows the user to set the maximum clock frequency, in MHz.
+                The device clock might be set to lower value than the maximum.
+                The user should read the clk_cur_freq_mhz to see the actual
+                frequency value of the device clock. This property is valid
+                only for the Gaudi ASIC family
+
+What:           /sys/class/habanalabs/hl<n>/clk_cur_freq_mhz
+Date:           Jun 2019
+KernelVersion:  not yet upstreamed
+Contact:        oded.gabbay@gmail.com
+Description:    Displays the current frequency, in MHz, of the device clock.
+                This property is valid only for the Gaudi ASIC family
+
 What:           /sys/class/habanalabs/hl<n>/cpld_ver
 Date:           Jan 2019
 KernelVersion:  5.1

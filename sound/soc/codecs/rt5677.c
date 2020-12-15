@@ -4609,7 +4609,7 @@ static int rt5677_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		break;
 	case 25:
 		slot_width_25 = 0x8080;
-		/* fall through */
+		fallthrough;
 	case 24:
 		val |= (2 << 8);
 		break;

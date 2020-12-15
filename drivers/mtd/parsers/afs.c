@@ -126,8 +126,8 @@ static int afs_parse_v1_partition(struct mtd_info *mtd,
 	 * Static checks cannot see that we bail out if we have an error
 	 * reading the footer.
 	 */
-	u_int uninitialized_var(iis_ptr);
-	u_int uninitialized_var(img_ptr);
+	u_int iis_ptr;
+	u_int img_ptr;
 	u_int ptr;
 	size_t sz;
 	int ret;

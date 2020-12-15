@@ -6,7 +6,7 @@
 config NET_VENDOR_ROCKER
 	bool "Rocker devices"
 	default y
-	---help---
+	help
 	  If you have a network device belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -19,7 +19,7 @@ if NET_VENDOR_ROCKER
 config ROCKER
 	tristate "Rocker switch driver (EXPERIMENTAL)"
 	depends on PCI && NET_SWITCHDEV && BRIDGE
-	---help---
+	help
 	  This driver supports Rocker switch device.
 
 	  To compile this driver as a module, choose M here: the

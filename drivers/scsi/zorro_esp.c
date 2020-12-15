@@ -34,9 +34,9 @@
 #include <linux/delay.h>
 #include <linux/zorro.h>
 #include <linux/slab.h>
+#include <linux/pgtable.h>
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/cacheflush.h>
 #include <asm/amigahw.h>
 #include <asm/amigaints.h>

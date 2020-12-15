@@ -104,7 +104,7 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 			if (error)
 				break;
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
-			/* Fall through */
+			fallthrough;
 		case OTG_STATE_A_WAIT_VRISE:
 		case OTG_STATE_A_WAIT_BCON:
 		case OTG_STATE_A_HOST:

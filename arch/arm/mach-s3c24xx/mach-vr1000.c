@@ -13,6 +13,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/dm9000.h>
 #include <linux/i2c.h>
 
@@ -40,6 +41,7 @@
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
+#include <plat/gpio-cfg.h>
 #include <plat/samsung-time.h>
 
 #include "bast.h"
@@ -223,21 +225,42 @@ static struct platform_device vr1000_dm9k1 = {
 
 /* LEDS */
 
+static struct gpiod_lookup_table vr1000_led1_gpio_table = {
+	.dev_id = "s3c24xx_led.1",
+	.table = {
+		GPIO_LOOKUP("GPB", 0, NULL, GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table vr1000_led2_gpio_table = {
+	.dev_id = "s3c24xx_led.2",
+	.table = {
+		GPIO_LOOKUP("GPB", 1, NULL, GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table vr1000_led3_gpio_table = {
+	.dev_id = "s3c24xx_led.3",
+	.table = {
+		GPIO_LOOKUP("GPB", 2, NULL, GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static struct s3c24xx_led_platdata vr1000_led1_pdata = {
 	.name		= "led1",
-	.gpio		= S3C2410_GPB(0),
 	.def_trigger	= "",
 };
 
 static struct s3c24xx_led_platdata vr1000_led2_pdata = {
 	.name		= "led2",
-	.gpio		= S3C2410_GPB(1),
 	.def_trigger	= "",
 };
 
 static struct s3c24xx_led_platdata vr1000_led3_pdata = {
 	.name		= "led3",
-	.gpio		= S3C2410_GPB(2),
 	.def_trigger	= "",
 };
 
@@ -317,6 +340,15 @@ static void __init vr1000_init_time(void)
 static void __init vr1000_init(void)
 {
 	s3c_i2c0_set_platdata(NULL);
+
+	/* Disable pull-up on LED lines and register GPIO lookups */
+	s3c_gpio_setpull(S3C2410_GPB(0), S3C_GPIO_PULL_NONE);
+	s3c_gpio_setpull(S3C2410_GPB(1), S3C_GPIO_PULL_NONE);
+	s3c_gpio_setpull(S3C2410_GPB(2), S3C_GPIO_PULL_NONE);
+	gpiod_add_lookup_table(&vr1000_led1_gpio_table);
+	gpiod_add_lookup_table(&vr1000_led2_gpio_table);
+	gpiod_add_lookup_table(&vr1000_led3_gpio_table);
+
 	platform_add_devices(vr1000_devices, ARRAY_SIZE(vr1000_devices));
 
 	i2c_register_board_info(0, vr1000_i2c_devs,

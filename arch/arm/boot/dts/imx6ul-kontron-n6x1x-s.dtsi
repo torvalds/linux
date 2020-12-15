@@ -153,6 +153,7 @@
 };
 
 &pwm8 {
+	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm8>;
 	status = "okay";
@@ -229,13 +230,6 @@
 	vmmc-supply = <&reg_3v3>;
 	voltage-ranges = <3300 3300>;
 	no-1-8-v;
-	status = "okay";
-};
-
-&wdog1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_wdog>;
-	fsl,ext-reset-output;
 	status = "okay";
 };
 
@@ -407,12 +401,6 @@
 			MX6UL_PAD_NAND_DATA01__USDHC2_DATA1	0x170f9
 			MX6UL_PAD_NAND_DATA02__USDHC2_DATA2	0x170f9
 			MX6UL_PAD_NAND_DATA03__USDHC2_DATA3	0x170f9
-		>;
-	};
-
-	pinctrl_wdog: wdoggrp {
-		fsl,pins = <
-			MX6UL_PAD_GPIO1_IO09__WDOG1_WDOG_ANY	0x30b0
 		>;
 	};
 };

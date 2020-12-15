@@ -68,8 +68,8 @@ static int copy_inline_to_page(struct inode *inode,
 	 * reservation here. Also we must not do the reservation while holding
 	 * a transaction open, otherwise we would deadlock.
 	 */
-	ret = btrfs_delalloc_reserve_space(inode, &data_reserved, file_offset,
-					   block_size);
+	ret = btrfs_delalloc_reserve_space(BTRFS_I(inode), &data_reserved,
+					   file_offset, block_size);
 	if (ret)
 		goto out;
 
@@ -84,7 +84,8 @@ static int copy_inline_to_page(struct inode *inode,
 	clear_extent_bit(&BTRFS_I(inode)->io_tree, file_offset, range_end,
 			 EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG,
 			 0, 0, NULL);
-	ret = btrfs_set_extent_delalloc(inode, file_offset, range_end, 0, NULL);
+	ret = btrfs_set_extent_delalloc(BTRFS_I(inode), file_offset, range_end,
+					0, NULL);
 	if (ret)
 		goto out_unlock;
 
@@ -133,8 +134,8 @@ out_unlock:
 		put_page(page);
 	}
 	if (ret)
-		btrfs_delalloc_release_space(inode, data_reserved, file_offset,
-					     block_size, true);
+		btrfs_delalloc_release_space(BTRFS_I(inode), data_reserved,
+					     file_offset, block_size, true);
 	btrfs_delalloc_release_extents(BTRFS_I(inode), block_size);
 out:
 	extent_changeset_free(data_reserved);
@@ -336,6 +337,7 @@ static int btrfs_clone(struct inode *src, struct inode *inode,
 	while (1) {
 		u64 next_key_min_offset = key.offset + 1;
 		struct btrfs_file_extent_item *extent;
+		u64 extent_gen;
 		int type;
 		u32 size;
 		struct btrfs_key new_key;
@@ -384,6 +386,7 @@ process_slot:
 
 		extent = btrfs_item_ptr(leaf, slot,
 					struct btrfs_file_extent_item);
+		extent_gen = btrfs_file_extent_generation(leaf, extent);
 		comp = btrfs_file_extent_compression(leaf, extent);
 		type = btrfs_file_extent_type(leaf, extent);
 		if (type == BTRFS_FILE_EXTENT_REG ||
@@ -487,6 +490,19 @@ process_slot:
 		}
 
 		btrfs_release_path(path);
+
+		/*
+		 * If this is a new extent update the last_reflink_trans of both
+		 * inodes. This is used by fsync to make sure it does not log
+		 * multiple checksum items with overlapping ranges. For older
+		 * extents we don't need to do it since inode logging skips the
+		 * checksums for older extents. Also ignore holes and inline
+		 * extents because they don't have checksums in the csum tree.
+		 */
+		if (extent_gen == trans->transid && disko > 0) {
+			BTRFS_I(src)->last_reflink_trans = trans->transid;
+			BTRFS_I(inode)->last_reflink_trans = trans->transid;
+		}
 
 		last_dest_end = ALIGN(new_key.offset + datal,
 				      fs_info->sectorsize);

@@ -18,6 +18,7 @@ properties:
   compatible:
     items:
       - enum:
+          - renesas,r8a7742-apmu  # RZ/G1H
           - renesas,r8a7743-apmu  # RZ/G1M
           - renesas,r8a7744-apmu  # RZ/G1N
           - renesas,r8a7745-apmu  # RZ/G1E

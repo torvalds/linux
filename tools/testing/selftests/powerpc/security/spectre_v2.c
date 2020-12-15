@@ -183,6 +183,16 @@ int spectre_v2_test(void)
 		if (miss_percent > 15) {
 			printf("Branch misses > 15%% unexpected in this configuration!\n");
 			printf("Possible mis-match between reported & actual mitigation\n");
+			/*
+			 * Such a mismatch may be caused by a guest system
+			 * reporting as vulnerable when the host is mitigated.
+			 * Return skip code to avoid detecting this as an error.
+			 * We are not vulnerable and reporting otherwise, so
+			 * missing such a mismatch is safe.
+			 */
+			if (state == VULNERABLE)
+				return 4;
+
 			return 1;
 		}
 		break;

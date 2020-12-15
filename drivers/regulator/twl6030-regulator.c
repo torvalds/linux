@@ -312,7 +312,7 @@ static int twl6030smps_list_voltage(struct regulator_dev *rdev, unsigned index)
 	switch (info->flags) {
 	case SMPS_OFFSET_EN:
 		voltage = 100000;
-		/* fall through */
+		fallthrough;
 	case 0:
 		switch (index) {
 		case 0:
@@ -495,7 +495,7 @@ static const struct regulator_ops twlsmps_ops = {
 };
 
 /*----------------------------------------------------------------------*/
-static const struct regulator_linear_range twl6030ldo_linear_range[] = {
+static const struct linear_range twl6030ldo_linear_range[] = {
 	REGULATOR_LINEAR_RANGE(0, 0, 0, 0),
 	REGULATOR_LINEAR_RANGE(1000000, 1, 24, 100000),
 	REGULATOR_LINEAR_RANGE(2750000, 31, 31, 0),

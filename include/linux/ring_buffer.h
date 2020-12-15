@@ -143,6 +143,7 @@ bool ring_buffer_iter_dropped(struct ring_buffer_iter *iter);
 unsigned long ring_buffer_size(struct trace_buffer *buffer, int cpu);
 
 void ring_buffer_reset_cpu(struct trace_buffer *buffer, int cpu);
+void ring_buffer_reset_online_cpus(struct trace_buffer *buffer);
 void ring_buffer_reset(struct trace_buffer *buffer);
 
 #ifdef CONFIG_RING_BUFFER_ALLOW_SWAP

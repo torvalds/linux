@@ -221,3 +221,14 @@ nvkm_subdev_ctor(const struct nvkm_subdev_func *func,
 	__mutex_init(&subdev->mutex, name, &nvkm_subdev_lock_class[index]);
 	subdev->debug = nvkm_dbgopt(device->dbgopt, name);
 }
+
+int
+nvkm_subdev_new_(const struct nvkm_subdev_func *func,
+		 struct nvkm_device *device, int index,
+		 struct nvkm_subdev **psubdev)
+{
+	if (!(*psubdev = kzalloc(sizeof(**psubdev), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_subdev_ctor(func, device, index, *psubdev);
+	return 0;
+}

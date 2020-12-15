@@ -26,7 +26,7 @@ static struct debugfs_reg32 ver_sig_regs[] = {
 	{ .name = "VERSION" }, /* Must be 1st */
 };
 
-static struct debugfs_reg32 pid_cid_regs[] = {
+static const struct debugfs_reg32 pid_cid_regs[] = {
 	CC_DEBUG_REG(PERIPHERAL_ID_0),
 	CC_DEBUG_REG(PERIPHERAL_ID_1),
 	CC_DEBUG_REG(PERIPHERAL_ID_2),
@@ -38,7 +38,7 @@ static struct debugfs_reg32 pid_cid_regs[] = {
 	CC_DEBUG_REG(COMPONENT_ID_3),
 };
 
-static struct debugfs_reg32 debug_regs[] = {
+static const struct debugfs_reg32 debug_regs[] = {
 	CC_DEBUG_REG(HOST_IRR),
 	CC_DEBUG_REG(HOST_POWER_DOWN_EN),
 	CC_DEBUG_REG(AXIM_MON_ERR),

@@ -26,6 +26,7 @@ static atomic_t g_num_dev;
 /**
  * cosm_hw_reset - Issue a HW reset for the MIC device
  * @cdev: pointer to cosm_device instance
+ * @force: force a MIC to reset even if it is already reset and ready
  */
 static void cosm_hw_reset(struct cosm_device *cdev, bool force)
 {

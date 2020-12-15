@@ -19,6 +19,7 @@
 #include "volumes.h"
 #include "space-info.h"
 #include "block-group.h"
+#include "qgroup.h"
 
 struct btrfs_feature_attr {
 	struct kobj_attribute kobj_attr;
@@ -936,7 +937,11 @@ void btrfs_sysfs_remove_fsid(struct btrfs_fs_devices *fs_devs)
 
 void btrfs_sysfs_remove_mounted(struct btrfs_fs_info *fs_info)
 {
+	struct kobject *fsid_kobj = &fs_info->fs_devices->fsid_kobj;
+
 	btrfs_reset_fs_info_ptr(fs_info);
+
+	sysfs_remove_link(fsid_kobj, "bdi");
 
 	if (fs_info->space_info_kobj) {
 		sysfs_remove_files(fs_info->space_info_kobj, allocation_attrs);
@@ -957,8 +962,8 @@ void btrfs_sysfs_remove_mounted(struct btrfs_fs_info *fs_info)
 	}
 #endif
 	addrm_unknown_feature_attrs(fs_info, false);
-	sysfs_remove_group(&fs_info->fs_devices->fsid_kobj, &btrfs_feature_attr_group);
-	sysfs_remove_files(&fs_info->fs_devices->fsid_kobj, btrfs_attrs);
+	sysfs_remove_group(fsid_kobj, &btrfs_feature_attr_group);
+	sysfs_remove_files(fsid_kobj, btrfs_attrs);
 	btrfs_sysfs_remove_devices_dir(fs_info->fs_devices, NULL);
 }
 
@@ -1165,10 +1170,12 @@ int btrfs_sysfs_remove_devices_dir(struct btrfs_fs_devices *fs_devices,
 					  disk_kobj->name);
 		}
 
-		kobject_del(&one_device->devid_kobj);
-		kobject_put(&one_device->devid_kobj);
+		if (one_device->devid_kobj.state_initialized) {
+			kobject_del(&one_device->devid_kobj);
+			kobject_put(&one_device->devid_kobj);
 
-		wait_for_completion(&one_device->kobj_unregister);
+			wait_for_completion(&one_device->kobj_unregister);
+		}
 
 		return 0;
 	}
@@ -1181,10 +1188,12 @@ int btrfs_sysfs_remove_devices_dir(struct btrfs_fs_devices *fs_devices,
 			sysfs_remove_link(fs_devices->devices_kobj,
 					  disk_kobj->name);
 		}
-		kobject_del(&one_device->devid_kobj);
-		kobject_put(&one_device->devid_kobj);
+		if (one_device->devid_kobj.state_initialized) {
+			kobject_del(&one_device->devid_kobj);
+			kobject_put(&one_device->devid_kobj);
 
-		wait_for_completion(&one_device->kobj_unregister);
+			wait_for_completion(&one_device->kobj_unregister);
+		}
 	}
 
 	return 0;
@@ -1273,7 +1282,9 @@ int btrfs_sysfs_add_devices_dir(struct btrfs_fs_devices *fs_devices,
 {
 	int error = 0;
 	struct btrfs_device *dev;
+	unsigned int nofs_flag;
 
+	nofs_flag = memalloc_nofs_save();
 	list_for_each_entry(dev, &fs_devices->devices, dev_list) {
 
 		if (one_device && one_device != dev)
@@ -1301,6 +1312,7 @@ int btrfs_sysfs_add_devices_dir(struct btrfs_fs_devices *fs_devices,
 			break;
 		}
 	}
+	memalloc_nofs_restore(nofs_flag);
 
 	return error;
 }
@@ -1438,6 +1450,10 @@ int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info)
 	if (error)
 		goto failure;
 
+	error = sysfs_create_link(fsid_kobj, &fs_info->sb->s_bdi->dev->kobj, "bdi");
+	if (error)
+		goto failure;
+
 	fs_info->space_info_kobj = kobject_create_and_add("allocation",
 						  fsid_kobj);
 	if (!fs_info->space_info_kobj) {
@@ -1455,6 +1471,155 @@ failure:
 	return error;
 }
 
+static inline struct btrfs_fs_info *qgroup_kobj_to_fs_info(struct kobject *kobj)
+{
+	return to_fs_info(kobj->parent->parent);
+}
+
+#define QGROUP_ATTR(_member, _show_name)					\
+static ssize_t btrfs_qgroup_show_##_member(struct kobject *qgroup_kobj,		\
+					   struct kobj_attribute *a,		\
+					   char *buf)				\
+{										\
+	struct btrfs_fs_info *fs_info = qgroup_kobj_to_fs_info(qgroup_kobj);	\
+	struct btrfs_qgroup *qgroup = container_of(qgroup_kobj,			\
+			struct btrfs_qgroup, kobj);				\
+	return btrfs_show_u64(&qgroup->_member, &fs_info->qgroup_lock, buf);	\
+}										\
+BTRFS_ATTR(qgroup, _show_name, btrfs_qgroup_show_##_member)
+
+#define QGROUP_RSV_ATTR(_name, _type)						\
+static ssize_t btrfs_qgroup_rsv_show_##_name(struct kobject *qgroup_kobj,	\
+					     struct kobj_attribute *a,		\
+					     char *buf)				\
+{										\
+	struct btrfs_fs_info *fs_info = qgroup_kobj_to_fs_info(qgroup_kobj);	\
+	struct btrfs_qgroup *qgroup = container_of(qgroup_kobj,			\
+			struct btrfs_qgroup, kobj);				\
+	return btrfs_show_u64(&qgroup->rsv.values[_type],			\
+			&fs_info->qgroup_lock, buf);				\
+}										\
+BTRFS_ATTR(qgroup, rsv_##_name, btrfs_qgroup_rsv_show_##_name)
+
+QGROUP_ATTR(rfer, referenced);
+QGROUP_ATTR(excl, exclusive);
+QGROUP_ATTR(max_rfer, max_referenced);
+QGROUP_ATTR(max_excl, max_exclusive);
+QGROUP_ATTR(lim_flags, limit_flags);
+QGROUP_RSV_ATTR(data, BTRFS_QGROUP_RSV_DATA);
+QGROUP_RSV_ATTR(meta_pertrans, BTRFS_QGROUP_RSV_META_PERTRANS);
+QGROUP_RSV_ATTR(meta_prealloc, BTRFS_QGROUP_RSV_META_PREALLOC);
+
+static struct attribute *qgroup_attrs[] = {
+	BTRFS_ATTR_PTR(qgroup, referenced),
+	BTRFS_ATTR_PTR(qgroup, exclusive),
+	BTRFS_ATTR_PTR(qgroup, max_referenced),
+	BTRFS_ATTR_PTR(qgroup, max_exclusive),
+	BTRFS_ATTR_PTR(qgroup, limit_flags),
+	BTRFS_ATTR_PTR(qgroup, rsv_data),
+	BTRFS_ATTR_PTR(qgroup, rsv_meta_pertrans),
+	BTRFS_ATTR_PTR(qgroup, rsv_meta_prealloc),
+	NULL
+};
+ATTRIBUTE_GROUPS(qgroup);
+
+static void qgroup_release(struct kobject *kobj)
+{
+	struct btrfs_qgroup *qgroup = container_of(kobj, struct btrfs_qgroup, kobj);
+
+	memset(&qgroup->kobj, 0, sizeof(*kobj));
+}
+
+static struct kobj_type qgroup_ktype = {
+	.sysfs_ops = &kobj_sysfs_ops,
+	.release = qgroup_release,
+	.default_groups = qgroup_groups,
+};
+
+int btrfs_sysfs_add_one_qgroup(struct btrfs_fs_info *fs_info,
+				struct btrfs_qgroup *qgroup)
+{
+	struct kobject *qgroups_kobj = fs_info->qgroups_kobj;
+	int ret;
+
+	if (test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state))
+		return 0;
+	if (qgroup->kobj.state_initialized)
+		return 0;
+	if (!qgroups_kobj)
+		return -EINVAL;
+
+	ret = kobject_init_and_add(&qgroup->kobj, &qgroup_ktype, qgroups_kobj,
+			"%hu_%llu", btrfs_qgroup_level(qgroup->qgroupid),
+			btrfs_qgroup_subvolid(qgroup->qgroupid));
+	if (ret < 0)
+		kobject_put(&qgroup->kobj);
+
+	return ret;
+}
+
+void btrfs_sysfs_del_qgroups(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_qgroup *qgroup;
+	struct btrfs_qgroup *next;
+
+	if (test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state))
+		return;
+
+	rbtree_postorder_for_each_entry_safe(qgroup, next,
+					     &fs_info->qgroup_tree, node)
+		btrfs_sysfs_del_one_qgroup(fs_info, qgroup);
+	if (fs_info->qgroups_kobj) {
+		kobject_del(fs_info->qgroups_kobj);
+		kobject_put(fs_info->qgroups_kobj);
+		fs_info->qgroups_kobj = NULL;
+	}
+}
+
+/* Called when qgroups get initialized, thus there is no need for locking */
+int btrfs_sysfs_add_qgroups(struct btrfs_fs_info *fs_info)
+{
+	struct kobject *fsid_kobj = &fs_info->fs_devices->fsid_kobj;
+	struct btrfs_qgroup *qgroup;
+	struct btrfs_qgroup *next;
+	int ret = 0;
+
+	if (test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state))
+		return 0;
+
+	ASSERT(fsid_kobj);
+	if (fs_info->qgroups_kobj)
+		return 0;
+
+	fs_info->qgroups_kobj = kobject_create_and_add("qgroups", fsid_kobj);
+	if (!fs_info->qgroups_kobj) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	rbtree_postorder_for_each_entry_safe(qgroup, next,
+					     &fs_info->qgroup_tree, node) {
+		ret = btrfs_sysfs_add_one_qgroup(fs_info, qgroup);
+		if (ret < 0)
+			goto out;
+	}
+
+out:
+	if (ret < 0)
+		btrfs_sysfs_del_qgroups(fs_info);
+	return ret;
+}
+
+void btrfs_sysfs_del_one_qgroup(struct btrfs_fs_info *fs_info,
+				struct btrfs_qgroup *qgroup)
+{
+	if (test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state))
+		return;
+
+	if (qgroup->kobj.state_initialized) {
+		kobject_del(&qgroup->kobj);
+		kobject_put(&qgroup->kobj);
+	}
+}
 
 /*
  * Change per-fs features in /sys/fs/btrfs/UUID/features to match current

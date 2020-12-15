@@ -139,6 +139,9 @@ struct dpu_hw_ctl_ops {
 	uint32_t (*get_bitmask_mixer)(struct dpu_hw_ctl *ctx,
 		enum dpu_lm blk);
 
+	uint32_t (*get_bitmask_dspp)(struct dpu_hw_ctl *ctx,
+		enum dpu_dspp blk);
+
 	/**
 	 * Query the value of the intf flush mask
 	 * No effect on hardware

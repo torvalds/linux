@@ -228,7 +228,7 @@ static int tc_setup_cls_u32(struct stmmac_priv *priv,
 	switch (cls->command) {
 	case TC_CLSU32_REPLACE_KNODE:
 		tc_unfill_entry(priv, cls);
-		/* Fall through */
+		fallthrough;
 	case TC_CLSU32_NEW_KNODE:
 		return tc_config_knode(priv, cls);
 	case TC_CLSU32_DELETE_KNODE:

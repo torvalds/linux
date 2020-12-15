@@ -1,6 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: event tracing - restricts events based on pid notrace filtering
+# requires: set_event events/sched set_event_pid set_event_notrace_pid
 # flags: instance
 
 do_reset() {
@@ -55,16 +56,6 @@ enable_events() {
     enable_system thermal
     echo 1 > tracing_on
 }
-
-if [ ! -f set_event -o ! -d events/sched ]; then
-    echo "event tracing is not supported"
-    exit_unsupported
-fi
-
-if [ ! -f set_event_pid -o ! -f set_event_notrace_pid ]; then
-    echo "event pid notrace filtering is not supported"
-    exit_unsupported
-fi
 
 echo 0 > options/event-fork
 

@@ -624,7 +624,7 @@ static void __init dns323_init(void)
 		 dns323ab_leds[0].active_low = 1;
 		 gpio_request(DNS323_GPIO_LED_POWER1, "Power Led Enable");
 		 gpio_direction_output(DNS323_GPIO_LED_POWER1, 0);
-		/* Fall through */
+		fallthrough;
 	case DNS323_REV_B1:
 		i2c_register_board_info(0, dns323ab_i2c_devices,
 				ARRAY_SIZE(dns323ab_i2c_devices));

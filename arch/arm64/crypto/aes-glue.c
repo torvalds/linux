@@ -158,7 +158,6 @@ static int __maybe_unused essiv_cbc_set_key(struct crypto_skcipher *tfm,
 					    unsigned int key_len)
 {
 	struct crypto_aes_essiv_cbc_ctx *ctx = crypto_skcipher_ctx(tfm);
-	SHASH_DESC_ON_STACK(desc, ctx->hash);
 	u8 digest[SHA256_DIGEST_SIZE];
 	int ret;
 
@@ -166,8 +165,7 @@ static int __maybe_unused essiv_cbc_set_key(struct crypto_skcipher *tfm,
 	if (ret)
 		return ret;
 
-	desc->tfm = ctx->hash;
-	crypto_shash_digest(desc, in_key, key_len, digest);
+	crypto_shash_tfm_digest(ctx->hash, in_key, key_len, digest);
 
 	return aes_expandkey(&ctx->key2, digest, sizeof(digest));
 }

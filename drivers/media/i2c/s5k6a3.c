@@ -197,7 +197,7 @@ static int __s5k6a3_power_on(struct s5k6a3 *sensor)
 
 	ret = pm_runtime_get(sensor->dev);
 	if (ret < 0)
-		return ret;
+		goto error_rpm_put;
 
 	ret = regulator_enable(sensor->supplies[i].consumer);
 	if (ret < 0)

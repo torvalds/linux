@@ -239,7 +239,6 @@ struct v3_pci {
 	struct device *dev;
 	void __iomem *base;
 	void __iomem *config_base;
-	struct pci_bus *bus;
 	u32 config_mem;
 	u32 non_pre_mem;
 	u32 pre_mem;
@@ -585,8 +584,6 @@ static int v3_pci_setup_resource(struct v3_pci *v3,
 		}
 		break;
 	case IORESOURCE_BUS:
-		dev_dbg(dev, "BUS %pR\n", win->res);
-		host->busnr = win->res->start;
 		break;
 	default:
 		dev_info(dev, "Unknown resource type %lu\n",
@@ -720,16 +717,11 @@ static int v3_pci_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	host = pci_alloc_host_bridge(sizeof(*v3));
+	host = devm_pci_alloc_host_bridge(dev, sizeof(*v3));
 	if (!host)
 		return -ENOMEM;
 
-	host->dev.parent = dev;
 	host->ops = &v3_pci_ops;
-	host->busnr = 0;
-	host->msi = NULL;
-	host->map_irq = of_irq_parse_and_map_pci;
-	host->swizzle_irq = pci_common_swizzle;
 	v3 = pci_host_bridge_priv(host);
 	host->sysdata = v3;
 	v3->dev = dev;
@@ -770,17 +762,11 @@ static int v3_pci_probe(struct platform_device *pdev)
 	if (IS_ERR(v3->config_base))
 		return PTR_ERR(v3->config_base);
 
-	ret = pci_parse_request_of_pci_ranges(dev, &host->windows,
-					      &host->dma_ranges, NULL);
-	if (ret)
-		return ret;
-
 	/* Get and request error IRQ resource */
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		dev_err(dev, "unable to obtain PCIv3 error IRQ\n");
-		return -ENODEV;
-	}
+	if (irq < 0)
+		return irq;
+
 	ret = devm_request_irq(dev, irq, v3_irq, 0,
 			"PCIv3 error", v3);
 	if (ret < 0) {
@@ -904,17 +890,7 @@ static int v3_pci_probe(struct platform_device *pdev)
 	val |= V3_SYSTEM_M_LOCK;
 	writew(val, v3->base + V3_SYSTEM);
 
-	ret = pci_scan_root_bus_bridge(host);
-	if (ret) {
-		dev_err(dev, "failed to register host: %d\n", ret);
-		return ret;
-	}
-	v3->bus = host->bus;
-
-	pci_bus_assign_resources(v3->bus);
-	pci_bus_add_devices(v3->bus);
-
-	return 0;
+	return pci_host_probe(host);
 }
 
 static const struct of_device_id v3_pci_of_match[] = {

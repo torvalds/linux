@@ -19,13 +19,11 @@ properties:
   compatible:
     oneOf:
       - items:
-        - const:
-            amlogic,g12a-toacodec
+          - const: amlogic,g12a-toacodec
       - items:
-        - enum:
-          - amlogic,sm1-toacodec
-        - const:
-            amlogic,g12a-toacodec
+          - enum:
+              - amlogic,sm1-toacodec
+          - const: amlogic,g12a-toacodec
 
   reg:
     maxItems: 1
@@ -45,7 +43,7 @@ examples:
 
     toacodec: audio-controller@740 {
         compatible = "amlogic,g12a-toacodec";
-        reg = <0x0 0x740 0x0 0x4>;
+        reg = <0x740 0x4>;
         #sound-dai-cells = <1>;
         resets = <&clkc_audio AUD_RESET_TOACODEC>;
     };

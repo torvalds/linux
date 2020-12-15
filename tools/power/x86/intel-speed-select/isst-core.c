@@ -912,16 +912,16 @@ int isst_pm_qos_config(int cpu, int enable_clos, int priority_type)
 			return ret;
 
 		if (ctdp_level.fact_enabled) {
-			debug_printf("Turbo-freq feature must be disabled first\n");
+			isst_display_error_info_message(1, "Ignoring request, turbo-freq feature is still enabled", 0, 0);
 			return -EINVAL;
 		}
 		ret = isst_write_pm_config(cpu, 0);
 		if (ret)
-			isst_display_error_info_message(0, "WRITE_PM_CONFIG command failed, ignoring error\n", 0, 0);
+			isst_display_error_info_message(0, "WRITE_PM_CONFIG command failed, ignoring error", 0, 0);
 	} else {
 		ret = isst_write_pm_config(cpu, 1);
 		if (ret)
-			isst_display_error_info_message(0, "WRITE_PM_CONFIG command failed, ignoring error\n", 0, 0);
+			isst_display_error_info_message(0, "WRITE_PM_CONFIG command failed, ignoring error", 0, 0);
 	}
 
 	ret = isst_send_mbox_command(cpu, CONFIG_CLOS, CLOS_PM_QOS_CONFIG, 0, 0,

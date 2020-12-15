@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* aQuantia Corporation Network Driver
- * Copyright (C) 2018-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2018-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 #ifndef AQ_PHY_H
@@ -28,5 +30,7 @@ void aq_phy_write_reg(struct aq_hw_s *aq_hw, u16 mmd, u16 address, u16 data);
 bool aq_phy_init_phy_id(struct aq_hw_s *aq_hw);
 
 bool aq_phy_init(struct aq_hw_s *aq_hw);
+
+void aq_phy_disable_ptp(struct aq_hw_s *aq_hw);
 
 #endif /* AQ_PHY_H */

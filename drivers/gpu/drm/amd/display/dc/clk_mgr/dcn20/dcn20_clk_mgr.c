@@ -184,13 +184,6 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 			pp_smu->set_display_count(&pp_smu->pp_smu, display_count);
 	}
 
-	if (should_set_clock(safe_to_lower, new_clocks->phyclk_khz, clk_mgr_base->clks.phyclk_khz)) {
-		clk_mgr_base->clks.phyclk_khz = new_clocks->phyclk_khz;
-		if (pp_smu && pp_smu->set_voltage_by_freq)
-			pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_PHYCLK, clk_mgr_base->clks.phyclk_khz / 1000);
-	}
-
-
 	if (dc->debug.force_min_dcfclk_mhz > 0)
 		new_clocks->dcfclk_khz = (new_clocks->dcfclk_khz > (dc->debug.force_min_dcfclk_mhz * 1000)) ?
 				new_clocks->dcfclk_khz : (dc->debug.force_min_dcfclk_mhz * 1000);
@@ -234,18 +227,24 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 			dpp_clock_lowered = true;
 		clk_mgr->base.clks.dppclk_khz = new_clocks->dppclk_khz;
 
-		if (pp_smu && pp_smu->set_voltage_by_freq)
-			pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_PIXELCLK, clk_mgr_base->clks.dppclk_khz / 1000);
-
 		update_dppclk = true;
 	}
 
 	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, clk_mgr_base->clks.dispclk_khz)) {
 		clk_mgr_base->clks.dispclk_khz = new_clocks->dispclk_khz;
-		if (pp_smu && pp_smu->set_voltage_by_freq)
-			pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_DISPCLK, clk_mgr_base->clks.dispclk_khz / 1000);
 
 		update_dispclk = true;
+	}
+
+	if (update_dppclk || update_dispclk) {
+		new_clocks->disp_dpp_voltage_level_khz = new_clocks->dppclk_khz;
+
+		if (update_dispclk)
+			new_clocks->disp_dpp_voltage_level_khz = new_clocks->dispclk_khz > new_clocks->dppclk_khz ? new_clocks->dispclk_khz : new_clocks->dppclk_khz;
+
+		clk_mgr_base->clks.disp_dpp_voltage_level_khz = new_clocks->disp_dpp_voltage_level_khz;
+		if (pp_smu && pp_smu->set_voltage_by_freq)
+			pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_DISPCLK, clk_mgr_base->clks.disp_dpp_voltage_level_khz / 1000);
 	}
 
 	if (dc->config.forced_clocks == false || (force_reset && safe_to_lower)) {
@@ -403,13 +402,13 @@ static bool dcn2_are_clock_states_equal(struct dc_clocks *a,
 		return false;
 	else if (a->dppclk_khz != b->dppclk_khz)
 		return false;
+	else if (a->disp_dpp_voltage_level_khz != b->disp_dpp_voltage_level_khz)
+		return false;
 	else if (a->dcfclk_khz != b->dcfclk_khz)
 		return false;
 	else if (a->socclk_khz != b->socclk_khz)
 		return false;
 	else if (a->dcfclk_deep_sleep_khz != b->dcfclk_deep_sleep_khz)
-		return false;
-	else if (a->phyclk_khz != b->phyclk_khz)
 		return false;
 	else if (a->dramclk_khz != b->dramclk_khz)
 		return false;
@@ -419,6 +418,31 @@ static bool dcn2_are_clock_states_equal(struct dc_clocks *a,
 	return true;
 }
 
+/* Notify clk_mgr of a change in link rate, update phyclk frequency if necessary */
+static void dcn2_notify_link_rate_change(struct clk_mgr *clk_mgr_base, struct dc_link *link)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	unsigned int i, max_phyclk_req = 0;
+	struct pp_smu_funcs_nv *pp_smu = NULL;
+
+	if (!clk_mgr->pp_smu || !clk_mgr->pp_smu->nv_funcs.set_voltage_by_freq)
+		return;
+
+	pp_smu = &clk_mgr->pp_smu->nv_funcs;
+
+	clk_mgr->cur_phyclk_req_table[link->link_index] = link->cur_link_settings.link_rate * LINK_RATE_REF_FREQ_IN_KHZ;
+
+	for (i = 0; i < MAX_PIPES * 2; i++) {
+		if (clk_mgr->cur_phyclk_req_table[i] > max_phyclk_req)
+			max_phyclk_req = clk_mgr->cur_phyclk_req_table[i];
+	}
+
+	if (max_phyclk_req != clk_mgr_base->clks.phyclk_khz) {
+		clk_mgr_base->clks.phyclk_khz = max_phyclk_req;
+		pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_PHYCLK, clk_mgr_base->clks.phyclk_khz / 1000);
+	}
+}
+
 static struct clk_mgr_funcs dcn2_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.update_clocks = dcn2_update_clocks,
@@ -426,6 +450,7 @@ static struct clk_mgr_funcs dcn2_funcs = {
 	.enable_pme_wa = dcn2_enable_pme_wa,
 	.get_clock = dcn2_get_clock,
 	.are_clock_states_equal = dcn2_are_clock_states_equal,
+	.notify_link_rate_change = dcn2_notify_link_rate_change,
 };
 
 

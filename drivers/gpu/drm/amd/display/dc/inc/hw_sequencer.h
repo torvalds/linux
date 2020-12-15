@@ -56,6 +56,7 @@ struct hw_sequencer_funcs {
 
 	/* Pipe Programming Related */
 	void (*init_hw)(struct dc *dc);
+	void (*power_down_on_boot)(struct dc *dc);
 	void (*enable_accelerated_mode)(struct dc *dc,
 			struct dc_state *context);
 	enum dc_status (*apply_ctx_to_hw)(struct dc *dc,
@@ -75,9 +76,13 @@ struct hw_sequencer_funcs {
 	void (*wait_for_mpcc_disconnect)(struct dc *dc,
 			struct resource_pool *res_pool,
 			struct pipe_ctx *pipe_ctx);
+	void (*edp_backlight_control)(
+			struct dc_link *link,
+			bool enable);
 	void (*program_triplebuffer)(const struct dc *dc,
 		struct pipe_ctx *pipe_ctx, bool enableTripleBuffer);
 	void (*update_pending_status)(struct pipe_ctx *pipe_ctx);
+	void (*power_down)(struct dc *dc);
 
 	/* Pipe Lock Related */
 	void (*pipe_control_lock)(struct dc *dc,
@@ -111,6 +116,11 @@ struct hw_sequencer_funcs {
 	void (*set_static_screen_control)(struct pipe_ctx **pipe_ctx,
 			int num_pipes,
 			const struct dc_static_screen_params *events);
+#ifndef TRIM_FSFT
+	bool (*optimize_timing_for_fsft)(struct dc *dc,
+			struct dc_crtc_timing *timing,
+			unsigned int max_input_rate_in_khz);
+#endif
 
 	/* Stream Related */
 	void (*enable_stream)(struct pipe_ctx *pipe_ctx);
@@ -193,6 +203,18 @@ struct hw_sequencer_funcs {
 			unsigned int bufSize, unsigned int mask);
 	void (*clear_status_bits)(struct dc *dc, unsigned int mask);
 
+	bool (*set_backlight_level)(struct pipe_ctx *pipe_ctx,
+			uint32_t backlight_pwm_u16_16,
+			uint32_t frame_ramp);
+
+	void (*set_abm_immediate_disable)(struct pipe_ctx *pipe_ctx);
+
+	void (*set_pipe)(struct pipe_ctx *pipe_ctx);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	/* Idle Optimization Related */
+	bool (*apply_idle_power_optimizations)(struct dc *dc, bool enable);
+#endif
 
 };
 

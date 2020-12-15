@@ -28,6 +28,94 @@
 static struct dentry *rproc_dbg;
 
 /*
+ * A coredump-configuration-to-string lookup table, for exposing a
+ * human readable configuration via debugfs. Always keep in sync with
+ * enum rproc_coredump_mechanism
+ */
+static const char * const rproc_coredump_str[] = {
+	[RPROC_COREDUMP_DEFAULT]	= "default",
+	[RPROC_COREDUMP_INLINE]		= "inline",
+	[RPROC_COREDUMP_DISABLED]	= "disabled",
+};
+
+/* Expose the current coredump configuration via debugfs */
+static ssize_t rproc_coredump_read(struct file *filp, char __user *userbuf,
+				   size_t count, loff_t *ppos)
+{
+	struct rproc *rproc = filp->private_data;
+	char buf[20];
+	int len;
+
+	len = scnprintf(buf, sizeof(buf), "%s\n",
+			rproc_coredump_str[rproc->dump_conf]);
+
+	return simple_read_from_buffer(userbuf, count, ppos, buf, len);
+}
+
+/*
+ * By writing to the 'coredump' debugfs entry, we control the behavior of the
+ * coredump mechanism dynamically. The default value of this entry is "default".
+ *
+ * The 'coredump' debugfs entry supports these commands:
+ *
+ * default:	This is the default coredump mechanism. When the remoteproc
+ *		crashes the entire coredump will be copied to a separate buffer
+ *		and exposed to userspace.
+ *
+ * inline:	The coredump will not be copied to a separate buffer and the
+ *		recovery process will have to wait until data is read by
+ *		userspace. But this avoid usage of extra memory.
+ *
+ * disabled:	This will disable coredump. Recovery will proceed without
+ *		collecting any dump.
+ */
+static ssize_t rproc_coredump_write(struct file *filp,
+				    const char __user *user_buf, size_t count,
+				    loff_t *ppos)
+{
+	struct rproc *rproc = filp->private_data;
+	int ret, err = 0;
+	char buf[20];
+
+	if (count > sizeof(buf))
+		return -EINVAL;
+
+	ret = copy_from_user(buf, user_buf, count);
+	if (ret)
+		return -EFAULT;
+
+	/* remove end of line */
+	if (buf[count - 1] == '\n')
+		buf[count - 1] = '\0';
+
+	if (rproc->state == RPROC_CRASHED) {
+		dev_err(&rproc->dev, "can't change coredump configuration\n");
+		err = -EBUSY;
+		goto out;
+	}
+
+	if (!strncmp(buf, "disable", count)) {
+		rproc->dump_conf = RPROC_COREDUMP_DISABLED;
+	} else if (!strncmp(buf, "inline", count)) {
+		rproc->dump_conf = RPROC_COREDUMP_INLINE;
+	} else if (!strncmp(buf, "default", count)) {
+		rproc->dump_conf = RPROC_COREDUMP_DEFAULT;
+	} else {
+		dev_err(&rproc->dev, "Invalid coredump configuration\n");
+		err = -EINVAL;
+	}
+out:
+	return err ? err : count;
+}
+
+static const struct file_operations rproc_coredump_fops = {
+	.read = rproc_coredump_read,
+	.write = rproc_coredump_write,
+	.open = simple_open,
+	.llseek = generic_file_llseek,
+};
+
+/*
  * Some remote processors may support dumping trace logs into a shared
  * memory buffer. We expose this trace buffer using debugfs, so users
  * can easily tell what's going on remotely.
@@ -269,17 +357,7 @@ static int rproc_rsc_table_show(struct seq_file *seq, void *p)
 	return 0;
 }
 
-static int rproc_rsc_table_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, rproc_rsc_table_show, inode->i_private);
-}
-
-static const struct file_operations rproc_rsc_table_ops = {
-	.open		= rproc_rsc_table_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(rproc_rsc_table);
 
 /* Expose carveout content via debugfs */
 static int rproc_carveouts_show(struct seq_file *seq, void *p)
@@ -299,17 +377,7 @@ static int rproc_carveouts_show(struct seq_file *seq, void *p)
 	return 0;
 }
 
-static int rproc_carveouts_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, rproc_carveouts_show, inode->i_private);
-}
-
-static const struct file_operations rproc_carveouts_ops = {
-	.open		= rproc_carveouts_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(rproc_carveouts);
 
 void rproc_remove_trace_file(struct dentry *tfile)
 {
@@ -354,9 +422,11 @@ void rproc_create_debug_dir(struct rproc *rproc)
 	debugfs_create_file("crash", 0200, rproc->dbg_dir,
 			    rproc, &rproc_crash_ops);
 	debugfs_create_file("resource_table", 0400, rproc->dbg_dir,
-			    rproc, &rproc_rsc_table_ops);
+			    rproc, &rproc_rsc_table_fops);
 	debugfs_create_file("carveout_memories", 0400, rproc->dbg_dir,
-			    rproc, &rproc_carveouts_ops);
+			    rproc, &rproc_carveouts_fops);
+	debugfs_create_file("coredump", 0600, rproc->dbg_dir,
+			    rproc, &rproc_coredump_fops);
 }
 
 void __init rproc_init_debugfs(void)

@@ -95,16 +95,14 @@ patternProperties:
           On stm32h7 and stm32mp1:
           - For st,stm32-dfsdm-adc: up to 8 channels numbered from 0 to 7.
           - For st,stm32-dfsdm-dmic: 1 channel numbered from 0 to 7.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-array
-          - items:
-              minimum: 0
-              maximum: 7
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        items:
+          minimum: 0
+          maximum: 7
 
       st,adc-channel-names:
         description: List of single-ended channel names.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/string-array
+        $ref: /schemas/types.yaml#/definitions/string-array
 
       st,filter-order:
         description: |
@@ -112,11 +110,10 @@ patternProperties:
           - 0: FastSinC
           - [1-5]: order 1 to 5.
           For audio purpose it is recommended to use order 3 to 5.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - items:
-              minimum: 0
-              maximum: 5
+        $ref: /schemas/types.yaml#/definitions/uint32
+        items:
+          minimum: 0
+          maximum: 5
 
       "#io-channel-cells":
         const: 1
@@ -130,8 +127,7 @@ patternProperties:
           - "MANCH_F": manchester codec, rising edge = logic 1, falling edge = logic 0
         items:
           enum: [ SPI_R, SPI_F, MANCH_R, MANCH_F ]
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+        $ref: /schemas/types.yaml#/definitions/non-unique-string-array
 
       st,adc-channel-clk-src:
         description: |
@@ -142,8 +138,7 @@ patternProperties:
           - "CLKOUT_R": internal SPI clock divided by 2 (rising edge).
         items:
           enum: [ CLKIN, CLKOUT, CLKOUT_F, CLKOUT_R ]
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+        $ref: /schemas/types.yaml#/definitions/non-unique-string-array
 
       st,adc-alt-channel:
         description:

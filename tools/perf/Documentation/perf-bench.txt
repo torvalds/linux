@@ -49,6 +49,9 @@ SUBSYSTEM
 'sched'::
 	Scheduler and IPC mechanisms.
 
+'syscall'::
+	System call performance (throughput).
+
 'mem'::
 	Memory access performance.
 
@@ -60,6 +63,9 @@ SUBSYSTEM
 
 'epoll'::
 	Eventpoll (epoll) stressing benchmarks.
+
+'internals'::
+	Benchmark internal perf functionality.
 
 'all'::
 	All benchmark subsystems.
@@ -133,6 +139,14 @@ Example of *pipe*
                 16.948000 usecs/op
                 59004 ops/sec
 ---------------------
+
+SUITES FOR 'syscall'
+~~~~~~~~~~~~~~~~~~
+*basic*::
+Suite for evaluating performance of core system call throughput (both usecs/op and ops/sec metrics).
+This uses a single thread simply doing getppid(2), which is a simple syscall where the result is not
+cached by glibc.
+
 
 SUITES FOR 'mem'
 ~~~~~~~~~~~~~~~~
@@ -213,6 +227,11 @@ Suite for evaluating concurrent epoll_wait calls.
 
 *ctl*::
 Suite for evaluating multiple epoll_ctl calls.
+
+SUITES FOR 'internals'
+~~~~~~~~~~~~~~~~~~~~~~
+*synthesize*::
+Suite for evaluating perf's event synthesis performance.
 
 SEE ALSO
 --------

@@ -201,7 +201,7 @@ static void ccw_clear_margins(struct vc_data *vc, struct fb_info *info,
 	region.color = color;
 	region.rop = ROP_COPY;
 
-	if (rw && !bottom_only) {
+	if ((int) rw > 0 && !bottom_only) {
 		region.dx = 0;
 		region.dy = info->var.yoffset;
 		region.height = rw;
@@ -209,7 +209,7 @@ static void ccw_clear_margins(struct vc_data *vc, struct fb_info *info,
 		info->fbops->fb_fillrect(info, &region);
 	}
 
-	if (bh) {
+	if ((int) bh > 0) {
 		region.dx = info->var.xoffset + bs;
 		region.dy = 0;
                 region.height = info->var.yres_virtual;
@@ -219,14 +219,14 @@ static void ccw_clear_margins(struct vc_data *vc, struct fb_info *info,
 }
 
 static void ccw_cursor(struct vc_data *vc, struct fb_info *info, int mode,
-		       int softback_lines, int fg, int bg)
+		       int fg, int bg)
 {
 	struct fb_cursor cursor;
 	struct fbcon_ops *ops = info->fbcon_par;
 	unsigned short charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
 	int w = (vc->vc_font.height + 7) >> 3, c;
-	int y = real_y(ops->p, vc->vc_y);
-	int attribute, use_sw = (vc->vc_cursor_type & 0x10);
+	int y = real_y(ops->p, vc->state.y);
+	int attribute, use_sw = vc->vc_cursor_type & CUR_SW;
 	int err = 1, dx, dy;
 	char *src;
 	u32 vyres = GETVYRES(ops->p->scrollmode, info);
@@ -235,15 +235,6 @@ static void ccw_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 		return;
 
 	cursor.set = 0;
-
-	if (softback_lines) {
-		if (y + softback_lines >= vc->vc_rows) {
-			mode = CM_ERASE;
-			ops->cursor_flash = 0;
-			return;
-		} else
-			y += softback_lines;
-	}
 
  	c = scr_readw((u16 *) vc->vc_pos);
 	attribute = get_attribute(info, c);
@@ -284,7 +275,7 @@ static void ccw_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 	}
 
 	dx = y * vc->vc_font.height;
-	dy = vyres - ((vc->vc_x + 1) * vc->vc_font.width);
+	dy = vyres - ((vc->state.x + 1) * vc->vc_font.width);
 
 	if (ops->cursor_state.image.dx != dx ||
 	    ops->cursor_state.image.dy != dy ||
@@ -325,7 +316,7 @@ static void ccw_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 		ops->p->cursor_shape = vc->vc_cursor_type;
 		cursor.set |= FB_CUR_SETSHAPE;
 
-		switch (ops->p->cursor_shape & CUR_HWMASK) {
+		switch (CUR_SIZE(ops->p->cursor_shape)) {
 		case CUR_NONE:
 			cur_height = 0;
 			break;

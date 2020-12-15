@@ -10,7 +10,7 @@
 
 #include "i915_reg.h"
 
-struct intel_crtc;
+struct intel_crtc_state;
 struct i915_vma;
 
 enum dsb_id {
@@ -22,7 +22,6 @@ enum dsb_id {
 };
 
 struct intel_dsb {
-	long refcount;
 	enum dsb_id id;
 	u32 *cmd_buf;
 	struct i915_vma *vma;
@@ -41,12 +40,12 @@ struct intel_dsb {
 	u32 ins_start_offset;
 };
 
-struct intel_dsb *
-intel_dsb_get(struct intel_crtc *crtc);
-void intel_dsb_put(struct intel_dsb *dsb);
-void intel_dsb_reg_write(struct intel_dsb *dsb, i915_reg_t reg, u32 val);
-void intel_dsb_indexed_reg_write(struct intel_dsb *dsb, i915_reg_t reg,
-				 u32 val);
-void intel_dsb_commit(struct intel_dsb *dsb);
+void intel_dsb_prepare(struct intel_crtc_state *crtc_state);
+void intel_dsb_cleanup(struct intel_crtc_state *crtc_state);
+void intel_dsb_reg_write(const struct intel_crtc_state *crtc_state,
+			 i915_reg_t reg, u32 val);
+void intel_dsb_indexed_reg_write(const struct intel_crtc_state *crtc_state,
+				 i915_reg_t reg, u32 val);
+void intel_dsb_commit(const struct intel_crtc_state *crtc_state);
 
 #endif

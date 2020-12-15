@@ -24,13 +24,13 @@ properties:
   compatible:
     items:
       - enum:
-        - brcm,bcm58522
-        - brcm,bcm58525
-        - brcm,bcm58535
-        - brcm,bcm58622
-        - brcm,bcm58623
-        - brcm,bcm58625
-        - brcm,bcm88312
+          - brcm,bcm58522
+          - brcm,bcm58525
+          - brcm,bcm58535
+          - brcm,bcm58622
+          - brcm,bcm58623
+          - brcm,bcm58625
+          - brcm,bcm88312
       - const: brcm,nsp
 
 ...

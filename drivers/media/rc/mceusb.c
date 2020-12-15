@@ -1726,7 +1726,7 @@ static int mceusb_dev_probe(struct usb_interface *intf,
 		goto mem_alloc_fail;
 
 	ir->pipe_in = pipe;
-	ir->buf_in = usb_alloc_coherent(dev, maxp, GFP_ATOMIC, &ir->dma_in);
+	ir->buf_in = usb_alloc_coherent(dev, maxp, GFP_KERNEL, &ir->dma_in);
 	if (!ir->buf_in)
 		goto buf_in_alloc_fail;
 

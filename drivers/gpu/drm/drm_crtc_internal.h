@@ -82,6 +82,7 @@ int drm_mode_setcrtc(struct drm_device *dev,
 /* drm_mode_config.c */
 int drm_modeset_register_all(struct drm_device *dev);
 void drm_modeset_unregister_all(struct drm_device *dev);
+void drm_mode_config_validate(struct drm_device *dev);
 
 /* drm_modes.c */
 const char *drm_get_mode_status_name(enum drm_mode_status status);
@@ -224,7 +225,7 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 /* drm_atomic.c */
 #ifdef CONFIG_DEBUG_FS
 struct drm_minor;
-int drm_atomic_debugfs_init(struct drm_minor *minor);
+void drm_atomic_debugfs_init(struct drm_minor *minor);
 #endif
 
 int __drm_atomic_helper_disable_plane(struct drm_plane *plane,
@@ -278,3 +279,4 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 void drm_mode_fixup_1366x768(struct drm_display_mode *mode);
 void drm_reset_display_info(struct drm_connector *connector);
 u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edid);
+void drm_update_tile_info(struct drm_connector *connector, const struct edid *edid);

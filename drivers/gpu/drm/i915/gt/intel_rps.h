@@ -13,6 +13,7 @@ struct i915_request;
 
 void intel_rps_init_early(struct intel_rps *rps);
 void intel_rps_init(struct intel_rps *rps);
+void intel_rps_sanitize(struct intel_rps *rps);
 
 void intel_rps_driver_register(struct intel_rps *rps);
 void intel_rps_driver_unregister(struct intel_rps *rps);
@@ -35,5 +36,65 @@ u32 intel_rps_read_actual_frequency(struct intel_rps *rps);
 void gen5_rps_irq_handler(struct intel_rps *rps);
 void gen6_rps_irq_handler(struct intel_rps *rps, u32 pm_iir);
 void gen11_rps_irq_handler(struct intel_rps *rps, u32 pm_iir);
+
+static inline bool intel_rps_is_enabled(const struct intel_rps *rps)
+{
+	return test_bit(INTEL_RPS_ENABLED, &rps->flags);
+}
+
+static inline void intel_rps_set_enabled(struct intel_rps *rps)
+{
+	set_bit(INTEL_RPS_ENABLED, &rps->flags);
+}
+
+static inline void intel_rps_clear_enabled(struct intel_rps *rps)
+{
+	clear_bit(INTEL_RPS_ENABLED, &rps->flags);
+}
+
+static inline bool intel_rps_is_active(const struct intel_rps *rps)
+{
+	return test_bit(INTEL_RPS_ACTIVE, &rps->flags);
+}
+
+static inline void intel_rps_set_active(struct intel_rps *rps)
+{
+	set_bit(INTEL_RPS_ACTIVE, &rps->flags);
+}
+
+static inline bool intel_rps_clear_active(struct intel_rps *rps)
+{
+	return test_and_clear_bit(INTEL_RPS_ACTIVE, &rps->flags);
+}
+
+static inline bool intel_rps_has_interrupts(const struct intel_rps *rps)
+{
+	return test_bit(INTEL_RPS_INTERRUPTS, &rps->flags);
+}
+
+static inline void intel_rps_set_interrupts(struct intel_rps *rps)
+{
+	set_bit(INTEL_RPS_INTERRUPTS, &rps->flags);
+}
+
+static inline void intel_rps_clear_interrupts(struct intel_rps *rps)
+{
+	clear_bit(INTEL_RPS_INTERRUPTS, &rps->flags);
+}
+
+static inline bool intel_rps_uses_timer(const struct intel_rps *rps)
+{
+	return test_bit(INTEL_RPS_TIMER, &rps->flags);
+}
+
+static inline void intel_rps_set_timer(struct intel_rps *rps)
+{
+	set_bit(INTEL_RPS_TIMER, &rps->flags);
+}
+
+static inline void intel_rps_clear_timer(struct intel_rps *rps)
+{
+	clear_bit(INTEL_RPS_TIMER, &rps->flags);
+}
 
 #endif /* INTEL_RPS_H */

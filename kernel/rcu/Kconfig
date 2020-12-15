@@ -70,13 +70,37 @@ config TREE_SRCU
 	help
 	  This option selects the full-fledged version of SRCU.
 
+config TASKS_RCU_GENERIC
+	def_bool TASKS_RCU || TASKS_RUDE_RCU || TASKS_TRACE_RCU
+	select SRCU
+	help
+	  This option enables generic infrastructure code supporting
+	  task-based RCU implementations.  Not for manual selection.
+
 config TASKS_RCU
 	def_bool PREEMPTION
-	select SRCU
 	help
 	  This option enables a task-based RCU implementation that uses
 	  only voluntary context switch (not preemption!), idle, and
-	  user-mode execution as quiescent states.
+	  user-mode execution as quiescent states.  Not for manual selection.
+
+config TASKS_RUDE_RCU
+	def_bool 0
+	help
+	  This option enables a task-based RCU implementation that uses
+	  only context switch (including preemption) and user-mode
+	  execution as quiescent states.  It forces IPIs and context
+	  switches on all online CPUs, including idle ones, so use
+	  with caution.
+
+config TASKS_TRACE_RCU
+	def_bool 0
+	help
+	  This option enables a task-based RCU implementation that uses
+	  explicit rcu_read_lock_trace() read-side markers, and allows
+	  these readers to appear in the idle loop as well as on the CPU
+	  hotplug code paths.  It can force IPIs on online CPUs, including
+	  idle ones, so use with caution.
 
 config RCU_STALL_COMMON
 	def_bool TREE_RCU
@@ -209,5 +233,23 @@ config RCU_NOCB_CPU
 
 	  Say Y here if you want to help to debug reduced OS jitter.
 	  Say N here if you are unsure.
+
+config TASKS_TRACE_RCU_READ_MB
+	bool "Tasks Trace RCU readers use memory barriers in user and idle"
+	depends on RCU_EXPERT
+	default PREEMPT_RT || NR_CPUS < 8
+	help
+	  Use this option to further reduce the number of IPIs sent
+	  to CPUs executing in userspace or idle during tasks trace
+	  RCU grace periods.  Given that a reasonable setting of
+	  the rcupdate.rcu_task_ipi_delay kernel boot parameter
+	  eliminates such IPIs for many workloads, proper setting
+	  of this Kconfig option is important mostly for aggressive
+	  real-time installations and for battery-powered devices,
+	  hence the default chosen above.
+
+	  Say Y here if you hate IPIs.
+	  Say N here if you hate read-side memory barriers.
+	  Take the default if you are unsure.
 
 endmenu # "RCU Subsystem"

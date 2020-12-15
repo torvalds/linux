@@ -2,7 +2,7 @@
 /*
  * ad1980.c  --  ALSA Soc AD1980 codec support
  *
- * Copyright:	Analog Device Inc.
+ * Copyright:	Analog Devices Inc.
  * Author:	Roy Huang <roy.huang@analog.com>
  * 		Cliff Cai <cliff.cai@analog.com>
  */
@@ -256,7 +256,7 @@ static int ad1980_soc_probe(struct snd_soc_component *component)
 	if (ret < 0)
 		goto reset_err;
 
-	vendor_id2 = snd_soc_component_read32(component, AC97_VENDOR_ID2);
+	vendor_id2 = snd_soc_component_read(component, AC97_VENDOR_ID2);
 	if (vendor_id2 == 0x5374) {
 		dev_warn(component->dev,
 			"Found AD1981 - only 2/2 IN/OUT Channels supported\n");
@@ -270,7 +270,7 @@ static int ad1980_soc_probe(struct snd_soc_component *component)
 	snd_soc_component_write(component, AC97_SURROUND_MASTER, 0x0000);
 
 	/*power on LFE/CENTER/Surround DACs*/
-	ext_status = snd_soc_component_read32(component, AC97_EXTENDED_STATUS);
+	ext_status = snd_soc_component_read(component, AC97_EXTENDED_STATUS);
 	snd_soc_component_write(component, AC97_EXTENDED_STATUS, ext_status&~0x3800);
 
 	return 0;

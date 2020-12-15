@@ -11,7 +11,7 @@
 #include <linux/hugetlb.h>
 #include <linux/syscalls.h>
 
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <linux/uaccess.h>
 
 /*
@@ -54,15 +54,17 @@ static void hpte_flush_range(struct mm_struct *mm, unsigned long addr,
 			     int npages)
 {
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	spinlock_t *ptl;
 
 	pgd = pgd_offset(mm, addr);
-	if (pgd_none(*pgd))
+	p4d = p4d_offset(pgd, addr);
+	if (p4d_none(*p4d))
 		return;
-	pud = pud_offset(pgd, addr);
+	pud = pud_offset(p4d, addr);
 	if (pud_none(*pud))
 		return;
 	pmd = pmd_offset(pud, addr);
@@ -92,7 +94,7 @@ static void subpage_prot_clear(unsigned long addr, unsigned long len)
 	size_t nw;
 	unsigned long next, limit;
 
-	down_write(&mm->mmap_sem);
+	mmap_write_lock(mm);
 
 	spt = mm_ctx_subpage_prot(&mm->context);
 	if (!spt)
@@ -127,7 +129,7 @@ static void subpage_prot_clear(unsigned long addr, unsigned long len)
 	}
 
 err_out:
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -217,13 +219,13 @@ SYSCALL_DEFINE3(subpage_prot, unsigned long, addr,
 	if (!access_ok(map, (len >> PAGE_SHIFT) * sizeof(u32)))
 		return -EFAULT;
 
-	down_write(&mm->mmap_sem);
+	mmap_write_lock(mm);
 
 	spt = mm_ctx_subpage_prot(&mm->context);
 	if (!spt) {
 		/*
 		 * Allocate subpage prot table if not already done.
-		 * Do this with mmap_sem held
+		 * Do this with mmap_lock held
 		 */
 		spt = kzalloc(sizeof(struct subpage_prot_table), GFP_KERNEL);
 		if (!spt) {
@@ -267,11 +269,11 @@ SYSCALL_DEFINE3(subpage_prot, unsigned long, addr,
 		if (addr + (nw << PAGE_SHIFT) > next)
 			nw = (next - addr) >> PAGE_SHIFT;
 
-		up_write(&mm->mmap_sem);
+		mmap_write_unlock(mm);
 		if (__copy_from_user(spp, map, nw * sizeof(u32)))
 			return -EFAULT;
 		map += nw;
-		down_write(&mm->mmap_sem);
+		mmap_write_lock(mm);
 
 		/* now flush any existing HPTEs for the range */
 		hpte_flush_range(mm, addr, nw);
@@ -280,6 +282,6 @@ SYSCALL_DEFINE3(subpage_prot, unsigned long, addr,
 		spt->maxaddr = limit;
 	err = 0;
  out:
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 	return err;
 }

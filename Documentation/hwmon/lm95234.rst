@@ -9,7 +9,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Texas Instruments website
 
-	       http://www.ti.com/product/lm95233
+	       https://www.ti.com/product/lm95233
 
   * National Semiconductor / Texas Instruments LM95234
 
@@ -17,7 +17,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Texas Instruments website
 
-	       http://www.ti.com/product/lm95234
+	       https://www.ti.com/product/lm95234
 
 Author: Guenter Roeck <linux@roeck-us.net>
 

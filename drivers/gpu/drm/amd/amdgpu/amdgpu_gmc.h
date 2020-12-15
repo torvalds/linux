@@ -83,6 +83,15 @@ struct amdgpu_vmhub {
 	uint32_t	vm_context0_cntl;
 	uint32_t	vm_l2_pro_fault_status;
 	uint32_t	vm_l2_pro_fault_cntl;
+
+	/*
+	 * store the register distances between two continuous context domain
+	 * and invalidation engine.
+	 */
+	uint32_t	ctx_distance;
+	uint32_t	ctx_addr_distance; /* include LO32/HI32 */
+	uint32_t	eng_distance;
+	uint32_t	eng_addr_distance; /* include LO32/HI32 */
 };
 
 /*
@@ -213,6 +222,8 @@ struct amdgpu_gmc {
 	} fault_hash[AMDGPU_GMC_FAULT_HASH_SIZE];
 	uint64_t		last_fault:AMDGPU_GMC_FAULT_RING_ORDER;
 
+	bool tmz_enabled;
+
 	const struct amdgpu_gmc_funcs	*gmc_funcs;
 
 	struct amdgpu_xgmi xgmi;
@@ -275,5 +286,7 @@ bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,
 int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev);
 void amdgpu_gmc_ras_fini(struct amdgpu_device *adev);
 int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev);
+
+extern void amdgpu_gmc_tmz_set(struct amdgpu_device *adev);
 
 #endif

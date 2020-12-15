@@ -38,7 +38,7 @@ gp102_disp_dmac_init(struct nv50_disp_chan *chan)
 	nvkm_wr32(device, 0x611498 + (ctrl * 0x0010), 0x00010000);
 	nvkm_wr32(device, 0x61149c + (ctrl * 0x0010), 0x00000001);
 	nvkm_mask(device, 0x610490 + (ctrl * 0x0010), 0x00000010, 0x00000010);
-	nvkm_wr32(device, 0x640000 + (ctrl * 0x1000), 0x00000000);
+	nvkm_wr32(device, 0x640000 + (ctrl * 0x1000), chan->suspend_put);
 	nvkm_wr32(device, 0x610490 + (ctrl * 0x0010), 0x00000013);
 
 	/* wait for it to go inactive */

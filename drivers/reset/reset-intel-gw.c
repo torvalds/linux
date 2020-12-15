@@ -15,9 +15,9 @@
 #define RCU_RST_STAT	0x0024
 #define RCU_RST_REQ	0x0048
 
-#define REG_OFFSET	GENMASK(31, 16)
-#define BIT_OFFSET	GENMASK(15, 8)
-#define STAT_BIT_OFFSET	GENMASK(7, 0)
+#define REG_OFFSET_MASK	GENMASK(31, 16)
+#define BIT_OFFSET_MASK	GENMASK(15, 8)
+#define STAT_BIT_OFFSET_MASK	GENMASK(7, 0)
 
 #define to_reset_data(x)	container_of(x, struct intel_reset_data, rcdev)
 
@@ -51,11 +51,11 @@ static u32 id_to_reg_and_bit_offsets(struct intel_reset_data *data,
 				     unsigned long id, u32 *rst_req,
 				     u32 *req_bit, u32 *stat_bit)
 {
-	*rst_req = FIELD_GET(REG_OFFSET, id);
-	*req_bit = FIELD_GET(BIT_OFFSET, id);
+	*rst_req = FIELD_GET(REG_OFFSET_MASK, id);
+	*req_bit = FIELD_GET(BIT_OFFSET_MASK, id);
 
 	if (data->soc_data->legacy)
-		*stat_bit = FIELD_GET(STAT_BIT_OFFSET, id);
+		*stat_bit = FIELD_GET(STAT_BIT_OFFSET_MASK, id);
 	else
 		*stat_bit = *req_bit;
 
@@ -141,14 +141,14 @@ static int intel_reset_xlate(struct reset_controller_dev *rcdev,
 	if (spec->args[1] > 31)
 		return -EINVAL;
 
-	id = FIELD_PREP(REG_OFFSET, spec->args[0]);
-	id |= FIELD_PREP(BIT_OFFSET, spec->args[1]);
+	id = FIELD_PREP(REG_OFFSET_MASK, spec->args[0]);
+	id |= FIELD_PREP(BIT_OFFSET_MASK, spec->args[1]);
 
 	if (data->soc_data->legacy) {
 		if (spec->args[2] > 31)
 			return -EINVAL;
 
-		id |= FIELD_PREP(STAT_BIT_OFFSET, spec->args[2]);
+		id |= FIELD_PREP(STAT_BIT_OFFSET_MASK, spec->args[2]);
 	}
 
 	return id;
@@ -210,11 +210,11 @@ static int intel_reset_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	data->reboot_id = FIELD_PREP(REG_OFFSET, rb_id[0]);
-	data->reboot_id |= FIELD_PREP(BIT_OFFSET, rb_id[1]);
+	data->reboot_id = FIELD_PREP(REG_OFFSET_MASK, rb_id[0]);
+	data->reboot_id |= FIELD_PREP(BIT_OFFSET_MASK, rb_id[1]);
 
 	if (data->soc_data->legacy)
-		data->reboot_id |= FIELD_PREP(STAT_BIT_OFFSET, rb_id[2]);
+		data->reboot_id |= FIELD_PREP(STAT_BIT_OFFSET_MASK, rb_id[2]);
 
 	data->restart_nb.notifier_call =	intel_reset_restart_handler;
 	data->restart_nb.priority =		128;

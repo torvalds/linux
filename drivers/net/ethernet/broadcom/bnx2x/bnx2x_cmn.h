@@ -541,9 +541,7 @@ int bnx2x_change_mac_addr(struct net_device *dev, void *p);
 /* NAPI poll Tx part */
 int bnx2x_tx_int(struct bnx2x *bp, struct bnx2x_fp_txdata *txdata);
 
-/* suspend/resume callbacks */
-int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state);
-int bnx2x_resume(struct pci_dev *pdev);
+extern const struct dev_pm_ops bnx2x_pm_ops;
 
 /* Release IRQ vectors */
 void bnx2x_free_irq(struct bnx2x *bp);
@@ -962,12 +960,12 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
 		start_params->network_cos_mode = STATIC_COS;
 	else /* CHIP_IS_E1X */
 		start_params->network_cos_mode = FW_WRR;
-	if (bp->udp_tunnel_ports[BNX2X_UDP_PORT_VXLAN].count) {
-		port = bp->udp_tunnel_ports[BNX2X_UDP_PORT_VXLAN].dst_port;
+	if (bp->udp_tunnel_ports[BNX2X_UDP_PORT_VXLAN]) {
+		port = bp->udp_tunnel_ports[BNX2X_UDP_PORT_VXLAN];
 		start_params->vxlan_dst_port = port;
 	}
-	if (bp->udp_tunnel_ports[BNX2X_UDP_PORT_GENEVE].count) {
-		port = bp->udp_tunnel_ports[BNX2X_UDP_PORT_GENEVE].dst_port;
+	if (bp->udp_tunnel_ports[BNX2X_UDP_PORT_GENEVE]) {
+		port = bp->udp_tunnel_ports[BNX2X_UDP_PORT_GENEVE];
 		start_params->geneve_dst_port = port;
 	}
 
