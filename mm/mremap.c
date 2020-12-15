@@ -493,7 +493,7 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 	unsigned long excess = 0;
 	unsigned long hiwater_vm;
 	int split = 0;
-	int err;
+	int err = 0;
 	bool need_rmap_locks;
 
 	/*
@@ -502,6 +502,15 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 	 */
 	if (mm->map_count >= sysctl_max_map_count - 3)
 		return -ENOMEM;
+
+	if (vma->vm_ops && vma->vm_ops->may_split) {
+		if (vma->vm_start != old_addr)
+			err = vma->vm_ops->may_split(vma, old_addr);
+		if (!err && vma->vm_end != old_addr + old_len)
+			err = vma->vm_ops->may_split(vma, old_addr + old_len);
+		if (err)
+			return err;
+	}
 
 	/*
 	 * Advise KSM to break any KSM pages in the area to be moved:
