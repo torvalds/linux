@@ -597,7 +597,7 @@ err_bl:
 	return r;
 }
 
-static int __exit dsicm_remove(struct mipi_dsi_device *dsi)
+static int dsicm_remove(struct mipi_dsi_device *dsi)
 {
 	struct panel_drv_data *ddata = mipi_dsi_get_drvdata(dsi);
 
@@ -627,11 +627,10 @@ MODULE_DEVICE_TABLE(of, dsicm_of_match);
 
 static struct mipi_dsi_driver dsicm_driver = {
 	.probe = dsicm_probe,
-	.remove = __exit_p(dsicm_remove),
+	.remove = dsicm_remove,
 	.driver = {
 		.name = "panel-dsi-cm",
 		.of_match_table = dsicm_of_match,
-		.suppress_bind_attrs = true,
 	},
 };
 module_mipi_dsi_driver(dsicm_driver);
