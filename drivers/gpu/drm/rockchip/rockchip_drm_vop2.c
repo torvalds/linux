@@ -1946,6 +1946,15 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 			  win->name, dest->y1, dsp_h, adjusted_mode->vdisplay);
 		dsp_h = adjusted_mode->vdisplay - dest->y1;
 	}
+
+	/*
+	 * This is workaround solution for IC design:
+	 * esmart can't support scale down when actual_w % 16 == 1.
+	 */
+	if (!(win->feature & WIN_FEATURE_AFBDC) &&
+	    actual_w > dsp_w && actual_w % 16 == 1)
+		actual_w -= 1;
+
 	act_info = (actual_h - 1) << 16 | ((actual_w - 1) & 0xffff);
 	dsp_info = (dsp_h - 1) << 16 | ((dsp_w - 1) & 0xffff);
 	stride = DIV_ROUND_UP(fb->pitches[0], 4);
