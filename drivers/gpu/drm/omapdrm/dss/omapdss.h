@@ -266,8 +266,6 @@ struct omapdss_dsi_ops {
 struct omap_dss_device {
 	struct device *dev;
 
-	struct module *owner;
-
 	struct dss_device *dss;
 	struct drm_bridge *bridge;
 	struct drm_bridge *next_bridge;
