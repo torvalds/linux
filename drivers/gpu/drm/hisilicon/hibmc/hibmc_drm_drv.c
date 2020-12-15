@@ -251,6 +251,10 @@ static int hibmc_hw_init(struct hibmc_drm_private *priv)
 static int hibmc_unload(struct drm_device *dev)
 {
 	drm_atomic_helper_shutdown(dev);
+
+	if (dev->irq_enabled)
+		drm_irq_uninstall(dev);
+
 	pci_disable_msi(dev->pdev);
 
 	return 0;
@@ -286,7 +290,7 @@ static int hibmc_load(struct drm_device *dev)
 	if (ret) {
 		drm_warn(dev, "enabling MSI failed: %d\n", ret);
 	} else {
-		ret = devm_drm_irq_install(dev, dev->pdev->irq);
+		ret = drm_irq_install(dev, dev->pdev->irq);
 		if (ret)
 			drm_warn(dev, "install irq failed: %d\n", ret);
 	}
