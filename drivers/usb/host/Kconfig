@@ -213,13 +213,6 @@ config USB_EHCI_FSL
 	help
 	  Variation of ARC USB block used in some Freescale chips.
 
-config USB_EHCI_MXC
-	tristate "Support for Freescale i.MX on-chip EHCI USB controller"
-	depends on ARCH_MXC || COMPILE_TEST
-	select USB_EHCI_ROOT_HUB_TT
-	help
-	  Variation of ARC USB block used in some Freescale chips.
-
 config USB_EHCI_HCD_NPCM7XX
 	tristate "Support for Nuvoton NPCM7XX on-chip EHCI USB controller"
 	depends on (USB_EHCI_HCD && ARCH_NPCM7XX) || COMPILE_TEST
@@ -740,16 +733,6 @@ config USB_RENESAS_USBHS_HCD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called renesas-usbhs.
-
-config USB_IMX21_HCD
-	tristate "i.MX21 HCD support"
-	depends on ARM && ARCH_MXC
-	help
-	  This driver enables support for the on-chip USB host in the
-	  i.MX21 processor.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called "imx21-hcd".
 
 config USB_HCD_BCMA
 	tristate "BCMA usb host driver"

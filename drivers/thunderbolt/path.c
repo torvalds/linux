@@ -406,10 +406,17 @@ static int __tb_path_deactivate_hop(struct tb_port *port, int hop_index,
 
 		if (!hop.pending) {
 			if (clear_fc) {
-				/* Clear flow control */
-				hop.ingress_fc = 0;
+				/*
+				 * Clear flow control. Protocol adapters
+				 * IFC and ISE bits are vendor defined
+				 * in the USB4 spec so we clear them
+				 * only for pre-USB4 adapters.
+				 */
+				if (!tb_switch_is_usb4(port->sw)) {
+					hop.ingress_fc = 0;
+					hop.ingress_shared_buffer = 0;
+				}
 				hop.egress_fc = 0;
-				hop.ingress_shared_buffer = 0;
 				hop.egress_shared_buffer = 0;
 
 				return tb_port_write(port, &hop, TB_CFG_HOPS,
@@ -447,7 +454,7 @@ void tb_path_deactivate(struct tb_path *path)
 		return;
 	}
 	tb_dbg(path->tb,
-	       "deactivating %s path from %llx:%x to %llx:%x\n",
+	       "deactivating %s path from %llx:%u to %llx:%u\n",
 	       path->name, tb_route(path->hops[0].in_port->sw),
 	       path->hops[0].in_port->port,
 	       tb_route(path->hops[path->path_length - 1].out_port->sw),
@@ -475,7 +482,7 @@ int tb_path_activate(struct tb_path *path)
 	}
 
 	tb_dbg(path->tb,
-	       "activating %s path from %llx:%x to %llx:%x\n",
+	       "activating %s path from %llx:%u to %llx:%u\n",
 	       path->name, tb_route(path->hops[0].in_port->sw),
 	       path->hops[0].in_port->port,
 	       tb_route(path->hops[path->path_length - 1].out_port->sw),
