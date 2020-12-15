@@ -55,8 +55,8 @@
 
 static void dsi_set_ulps_auto(struct dsi_data *dsi, bool enable);
 
-static int dsi_display_init_dispc(struct dsi_data *dsi);
-static void dsi_display_uninit_dispc(struct dsi_data *dsi);
+static int dsi_init_dispc(struct dsi_data *dsi);
+static void dsi_uninit_dispc(struct dsi_data *dsi);
 
 static int dsi_vc_send_null(struct dsi_data *dsi, int vc, int channel);
 
@@ -3259,7 +3259,7 @@ static void dsi_enable_video_output(struct omap_dss_device *dssdev, int vc)
 	u16 word_count;
 	int r;
 
-	r = dsi_display_init_dispc(dsi);
+	r = dsi_init_dispc(dsi);
 	if (r) {
 		dev_err(dsi->dev, "failed to init dispc!\n");
 		return;
@@ -3311,7 +3311,7 @@ err_mgr_enable:
 		dsi_vc_enable(dsi, vc, false);
 	}
 err_pix_fmt:
-	dsi_display_uninit_dispc(dsi);
+	dsi_uninit_dispc(dsi);
 	dev_err(dsi->dev, "failed to enable DSI encoder!\n");
 	return;
 }
@@ -3333,7 +3333,7 @@ static void dsi_disable_video_output(struct omap_dss_device *dssdev, int vc)
 
 	dss_mgr_disable(&dsi->output);
 
-	dsi_display_uninit_dispc(dsi);
+	dsi_uninit_dispc(dsi);
 }
 
 static void dsi_update_screen_dispc(struct dsi_data *dsi)
@@ -3579,7 +3579,7 @@ static int dsi_configure_dispc_clocks(struct dsi_data *dsi)
 	return 0;
 }
 
-static int dsi_display_init_dispc(struct dsi_data *dsi)
+static int dsi_init_dispc(struct dsi_data *dsi)
 {
 	enum omap_channel dispc_channel = dsi->output.dispc_channel;
 	int r;
@@ -3624,7 +3624,7 @@ err:
 	return r;
 }
 
-static void dsi_display_uninit_dispc(struct dsi_data *dsi)
+static void dsi_uninit_dispc(struct dsi_data *dsi)
 {
 	enum omap_channel dispc_channel = dsi->output.dispc_channel;
 
@@ -3651,7 +3651,7 @@ static int dsi_configure_dsi_clocks(struct dsi_data *dsi)
 	return 0;
 }
 
-static int dsi_display_init_dsi(struct dsi_data *dsi)
+static int dsi_init_dsi(struct dsi_data *dsi)
 {
 	int r;
 
@@ -3715,7 +3715,7 @@ err0:
 	return r;
 }
 
-static void dsi_display_uninit_dsi(struct dsi_data *dsi, bool disconnect_lanes,
+static void dsi_uninit_dsi(struct dsi_data *dsi, bool disconnect_lanes,
 				   bool enter_ulps)
 {
 	if (enter_ulps && !dsi->ulps_enabled)
@@ -3738,7 +3738,7 @@ static void dsi_display_uninit_dsi(struct dsi_data *dsi, bool disconnect_lanes,
 	}
 }
 
-static void dsi_display_enable(struct dsi_data *dsi)
+static void dsi_enable(struct dsi_data *dsi)
 {
 	int r;
 
@@ -3752,7 +3752,7 @@ static void dsi_display_enable(struct dsi_data *dsi)
 
 	_dsi_initialize_irq(dsi);
 
-	r = dsi_display_init_dsi(dsi);
+	r = dsi_init_dsi(dsi);
 	if (r)
 		goto err_init_dsi;
 
@@ -3764,10 +3764,10 @@ err_init_dsi:
 	dsi_runtime_put(dsi);
 err_get_dsi:
 	mutex_unlock(&dsi->lock);
-	DSSDBG("dsi_display_ulps_enable FAILED\n");
+	DSSDBG("dsi_enable FAILED\n");
 }
 
-static void dsi_display_disable(struct dsi_data *dsi,
+static void dsi_disable(struct dsi_data *dsi,
 		bool disconnect_lanes, bool enter_ulps)
 {
 	WARN_ON(!dsi_bus_is_locked(dsi));
@@ -3779,7 +3779,7 @@ static void dsi_display_disable(struct dsi_data *dsi,
 	dsi_sync_vc(dsi, 2);
 	dsi_sync_vc(dsi, 3);
 
-	dsi_display_uninit_dsi(dsi, disconnect_lanes, enter_ulps);
+	dsi_uninit_dsi(dsi, disconnect_lanes, enter_ulps);
 
 	dsi_runtime_put(dsi);
 
@@ -3809,7 +3809,7 @@ static void omap_dsi_ulps_work_callback(struct work_struct *work)
 
 	dsi_enable_te(dsi, false);
 
-	dsi_display_disable(dsi, false, true);
+	dsi_disable(dsi, false, true);
 
 	dsi_bus_unlock(dsi);
 }
@@ -3830,7 +3830,7 @@ static void dsi_set_ulps_auto(struct dsi_data *dsi, bool enable)
 			return;
 
 		dsi_bus_lock(dsi);
-		dsi_display_enable(dsi);
+		dsi_enable(dsi);
 		dsi_enable_te(dsi, true);
 		dsi_bus_unlock(dsi);
 	}
@@ -4921,7 +4921,7 @@ static void dsi_bridge_enable(struct drm_bridge *bridge)
 
 	dsi_bus_lock(dsi);
 
-	dsi_display_enable(dsi);
+	dsi_enable(dsi);
 
 	dsi_enable_video_output(dssdev, VC_VIDEO);
 
@@ -4943,7 +4943,7 @@ static void dsi_bridge_disable(struct drm_bridge *bridge)
 
 	dsi_disable_video_output(dssdev, VC_VIDEO);
 
-	dsi_display_disable(dsi, true, false);
+	dsi_disable(dsi, true, false);
 
 	dsi_bus_unlock(dsi);
 }
