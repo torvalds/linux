@@ -36,6 +36,7 @@ extern void amd_iommu_disable(void);
 extern int amd_iommu_reenable(int);
 extern int amd_iommu_enable_faulting(void);
 extern int amd_iommu_guest_ir;
+extern enum io_pgtable_fmt amd_iommu_pgtable;
 
 /* IOMMUv2 specific functions */
 struct iommu_domain;

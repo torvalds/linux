@@ -31,6 +31,7 @@
 #include <linux/irqdomain.h>
 #include <linux/percpu.h>
 #include <linux/iova.h>
+#include <linux/io-pgtable.h>
 #include <asm/irq_remapping.h>
 #include <asm/io_apic.h>
 #include <asm/apic.h>
@@ -1900,7 +1901,7 @@ static void protection_domain_free(struct protection_domain *domain)
 	kfree(domain);
 }
 
-static int protection_domain_init(struct protection_domain *domain, int mode)
+static int protection_domain_init_v1(struct protection_domain *domain, int mode)
 {
 	u64 *pt_root = NULL;
 
@@ -1923,34 +1924,55 @@ static int protection_domain_init(struct protection_domain *domain, int mode)
 	return 0;
 }
 
-static struct protection_domain *protection_domain_alloc(int mode)
+static struct protection_domain *protection_domain_alloc(unsigned int type)
 {
+	struct io_pgtable_ops *pgtbl_ops;
 	struct protection_domain *domain;
+	int pgtable = amd_iommu_pgtable;
+	int mode = DEFAULT_PGTABLE_LEVEL;
+	int ret;
 
 	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
 	if (!domain)
 		return NULL;
 
-	if (protection_domain_init(domain, mode))
+	/*
+	 * Force IOMMU v1 page table when iommu=pt and
+	 * when allocating domain for pass-through devices.
+	 */
+	if (type == IOMMU_DOMAIN_IDENTITY) {
+		pgtable = AMD_IOMMU_V1;
+		mode = PAGE_MODE_NONE;
+	} else if (type == IOMMU_DOMAIN_UNMANAGED) {
+		pgtable = AMD_IOMMU_V1;
+	}
+
+	switch (pgtable) {
+	case AMD_IOMMU_V1:
+		ret = protection_domain_init_v1(domain, mode);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	if (ret)
+		goto out_err;
+
+	pgtbl_ops = alloc_io_pgtable_ops(pgtable, &domain->iop.pgtbl_cfg, domain);
+	if (!pgtbl_ops)
 		goto out_err;
 
 	return domain;
-
 out_err:
 	kfree(domain);
-
 	return NULL;
 }
 
 static struct iommu_domain *amd_iommu_domain_alloc(unsigned type)
 {
 	struct protection_domain *domain;
-	int mode = DEFAULT_PGTABLE_LEVEL;
 
-	if (type == IOMMU_DOMAIN_IDENTITY)
-		mode = PAGE_MODE_NONE;
-
-	domain = protection_domain_alloc(mode);
+	domain = protection_domain_alloc(type);
 	if (!domain)
 		return NULL;
 
@@ -2069,7 +2091,8 @@ static int amd_iommu_map(struct iommu_domain *dom, unsigned long iova,
 	int prot = 0;
 	int ret = -EINVAL;
 
-	if (domain->iop.mode == PAGE_MODE_NONE)
+	if ((amd_iommu_pgtable == AMD_IOMMU_V1) &&
+	    (domain->iop.mode == PAGE_MODE_NONE))
 		return -EINVAL;
 
 	if (iommu_prot & IOMMU_READ)
@@ -2092,7 +2115,8 @@ static size_t amd_iommu_unmap(struct iommu_domain *dom, unsigned long iova,
 	struct protection_domain *domain = to_pdomain(dom);
 	struct io_pgtable_ops *ops = &domain->iop.iop.ops;
 
-	if (domain->iop.mode == PAGE_MODE_NONE)
+	if ((amd_iommu_pgtable == AMD_IOMMU_V1) &&
+	    (domain->iop.mode == PAGE_MODE_NONE))
 		return 0;
 
 	return (ops->unmap) ? ops->unmap(ops, iova, page_size, gather) : 0;
