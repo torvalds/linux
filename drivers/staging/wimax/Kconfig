@@ -5,6 +5,7 @@
 
 menuconfig WIMAX
 	tristate "WiMAX Wireless Broadband support"
+	depends on NET
 	depends on RFKILL || !RFKILL
 	help
 

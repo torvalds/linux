@@ -390,7 +390,11 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 		pr_debug("can't get autopm:\n");
 
 	/*  alloc dev name after read efuse. */
-	rtw_init_netdev_name(pnetdev, padapter->registrypriv.ifname);
+	if (dev_alloc_name(pnetdev, padapter->registrypriv.ifname) < 0)
+		RT_TRACE(_module_os_intfs_c_, _drv_err_, ("dev_alloc_name, fail!\n"));
+
+	netif_carrier_off(pnetdev);
+
 	rtw_macaddr_cfg(padapter->eeprompriv.mac_addr);
 	memcpy(pnetdev->dev_addr, padapter->eeprompriv.mac_addr, ETH_ALEN);
 	pr_debug("MAC Address from pnetdev->dev_addr =  %pM\n",

@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-TARGETS = android
-TARGETS += arm64
+TARGETS = arm64
 TARGETS += bpf
 TARGETS += breakpoints
 TARGETS += capabilities

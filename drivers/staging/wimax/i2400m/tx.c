@@ -681,6 +681,8 @@ out:
 /**
  * i2400m_tx - send the data in a buffer to the device
  *
+ * @i2400m: device descriptor
+ *
  * @buf: pointer to the buffer to transmit
  *
  * @buf_len: buffer size
@@ -955,6 +957,8 @@ EXPORT_SYMBOL_GPL(i2400m_tx_msg_sent);
 /**
  * i2400m_tx_setup - Initialize the TX queue and infrastructure
  *
+ * @i2400m: device descriptor
+ *
  * Make sure we reset the TX sequence to zero, as when this function
  * is called, the firmware has been just restarted. Same rational
  * for tx_in, tx_out, tx_msg_size and tx_msg. We reset them since
@@ -998,7 +1002,7 @@ error_kmalloc:
 }
 
 
-/**
+/*
  * i2400m_tx_release - Tear down the TX queue and infrastructure
  */
 void i2400m_tx_release(struct i2400m *i2400m)
