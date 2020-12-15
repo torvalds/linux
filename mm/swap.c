@@ -909,6 +909,9 @@ void release_pages(struct page **pages, int nr)
 				put_devmap_managed_page(page);
 				continue;
 			}
+			if (put_page_testzero(page))
+				put_dev_pagemap(page->pgmap);
+			continue;
 		}
 
 		if (!put_page_testzero(page))
