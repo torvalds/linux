@@ -26,7 +26,6 @@
 #include <video/of_display_timing.h>
 #include <video/videomode.h>
 
-#define DCS_READ_NUM_ERRORS	0x05
 #define DCS_GET_ID1		0xda
 #define DCS_GET_ID2		0xdb
 #define DCS_GET_ID3		0xdc
@@ -224,7 +223,7 @@ static ssize_t num_dsi_errors_show(struct device *dev,
 	mutex_lock(&ddata->lock);
 
 	if (ddata->enabled)
-		r = dsicm_dcs_read_1(ddata, DCS_READ_NUM_ERRORS, &errors);
+		r = dsicm_dcs_read_1(ddata, MIPI_DCS_GET_ERROR_COUNT_ON_DSI, &errors);
 
 	mutex_unlock(&ddata->lock);
 
