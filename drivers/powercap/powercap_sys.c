@@ -170,9 +170,8 @@ static ssize_t show_constraint_name(struct device *dev,
 	if (pconst && pconst->ops && pconst->ops->get_name) {
 		name = pconst->ops->get_name(power_zone, id);
 		if (name) {
-			snprintf(buf, POWERCAP_CONSTRAINT_NAME_LEN,
-								"%s\n", name);
-			buf[POWERCAP_CONSTRAINT_NAME_LEN] = '\0';
+			sprintf(buf, "%.*s\n", POWERCAP_CONSTRAINT_NAME_LEN - 1,
+				name);
 			len = strlen(buf);
 		}
 	}
