@@ -8,6 +8,7 @@ thuge-gen
 compaction_test
 mlock2-tests
 mremap_dontunmap
+mremap_test
 on-fault-limit
 transhuge-stress
 protection_keys

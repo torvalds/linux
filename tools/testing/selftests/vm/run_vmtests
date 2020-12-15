@@ -253,6 +253,17 @@ else
 	echo "[PASS]"
 fi
 
+echo "-------------------"
+echo "running mremap_test"
+echo "-------------------"
+./mremap_test
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+	exitcode=1
+else
+	echo "[PASS]"
+fi
+
 echo "-----------------"
 echo "running thuge-gen"
 echo "-----------------"
