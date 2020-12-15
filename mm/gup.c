@@ -2684,10 +2684,17 @@ static unsigned long lockless_pages_from_mm(unsigned long start,
 {
 	unsigned long flags;
 	int nr_pinned = 0;
+	unsigned seq;
 
 	if (!IS_ENABLED(CONFIG_HAVE_FAST_GUP) ||
 	    !gup_fast_permitted(start, end))
 		return 0;
+
+	if (gup_flags & FOLL_PIN) {
+		seq = raw_read_seqcount(&current->mm->write_protect_seq);
+		if (seq & 1)
+			return 0;
+	}
 
 	/*
 	 * Disable interrupts. The nested form is used, in order to allow full,
@@ -2703,6 +2710,17 @@ static unsigned long lockless_pages_from_mm(unsigned long start,
 	local_irq_save(flags);
 	gup_pgd_range(start, end, gup_flags, pages, &nr_pinned);
 	local_irq_restore(flags);
+
+	/*
+	 * When pinning pages for DMA there could be a concurrent write protect
+	 * from fork() via copy_page_range(), in this case always fail fast GUP.
+	 */
+	if (gup_flags & FOLL_PIN) {
+		if (read_seqcount_retry(&current->mm->write_protect_seq, seq)) {
+			unpin_user_pages(pages, nr_pinned);
+			return 0;
+		}
+	}
 	return nr_pinned;
 }
 
