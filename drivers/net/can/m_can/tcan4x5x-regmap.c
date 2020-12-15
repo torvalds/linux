@@ -18,8 +18,7 @@ static int tcan4x5x_regmap_gather_write(void *context, const void *reg,
 					size_t reg_len, const void *val,
 					size_t val_len)
 {
-	struct device *dev = context;
-	struct spi_device *spi = to_spi_device(dev);
+	struct spi_device *spi = context;
 	struct spi_message m;
 	u32 addr;
 	struct spi_transfer t[2] = {
@@ -47,8 +46,7 @@ static int tcan4x5x_regmap_read(void *context,
 				const void *reg, size_t reg_size,
 				void *val, size_t val_size)
 {
-	struct device *dev = context;
-	struct spi_device *spi = to_spi_device(dev);
+	struct spi_device *spi = context;
 
 	u32 addr = TCAN4X5X_READ_CMD | (*((u16 *)reg) << 8) | val_size >> 2;
 
@@ -73,6 +71,6 @@ static const struct regmap_bus tcan4x5x_bus = {
 int tcan4x5x_regmap_init(struct tcan4x5x_priv *priv)
 {
 	priv->regmap = devm_regmap_init(&priv->spi->dev, &tcan4x5x_bus,
-					&priv->spi->dev, &tcan4x5x_regmap);
+					priv->spi, &tcan4x5x_regmap);
 	return PTR_ERR_OR_ZERO(priv->regmap);
 }
