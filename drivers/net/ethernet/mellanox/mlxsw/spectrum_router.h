@@ -24,6 +24,7 @@ struct mlxsw_sp_fib_entry_op_ctx {
 			   * the context priv is initialized.
 			   */
 	struct list_head fib_entry_priv_list;
+	unsigned long event;
 	unsigned long ll_priv[];
 };
 
@@ -76,6 +77,7 @@ struct mlxsw_sp_router {
 	const struct mlxsw_sp_router_ll_ops *proto_ll_ops[MLXSW_SP_L3_PROTO_MAX];
 	struct mlxsw_sp_fib_entry_op_ctx *ll_op_ctx;
 	u16 lb_rif_index;
+	struct mlxsw_sp_router_xm *xm;
 };
 
 struct mlxsw_sp_fib_entry_priv {
@@ -94,6 +96,8 @@ enum mlxsw_sp_fib_entry_op {
  * register sets to work with ordinary and XM trees and FIB entries.
  */
 struct mlxsw_sp_router_ll_ops {
+	int (*init)(struct mlxsw_sp *mlxsw_sp, u16 vr_id,
+		    enum mlxsw_sp_l3proto proto);
 	int (*ralta_write)(struct mlxsw_sp *mlxsw_sp, char *xralta_pl);
 	int (*ralst_write)(struct mlxsw_sp *mlxsw_sp, char *xralst_pl);
 	int (*raltb_write)(struct mlxsw_sp *mlxsw_sp, char *xraltb_pl);
@@ -218,5 +222,11 @@ static inline bool mlxsw_sp_l3addr_eq(const union mlxsw_sp_l3addr *addr1,
 
 int mlxsw_sp_ipip_ecn_encap_init(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_ipip_ecn_decap_init(struct mlxsw_sp *mlxsw_sp);
+
+extern const struct mlxsw_sp_router_ll_ops mlxsw_sp_router_ll_xm_ops;
+
+int mlxsw_sp_router_xm_init(struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_router_xm_fini(struct mlxsw_sp *mlxsw_sp);
+bool mlxsw_sp_router_xm_ipv4_is_supported(const struct mlxsw_sp *mlxsw_sp);
 
 #endif /* _MLXSW_ROUTER_H_*/
