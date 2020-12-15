@@ -600,7 +600,8 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 
 	if (do_munmap(mm, old_addr, old_len, uf_unmap) < 0) {
 		/* OOM: unable to split vma, just get accounts right */
-		vm_unacct_memory(excess >> PAGE_SHIFT);
+		if (vm_flags & VM_ACCOUNT)
+			vm_acct_memory(new_len >> PAGE_SHIFT);
 		excess = 0;
 	}
 
