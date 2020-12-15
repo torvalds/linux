@@ -76,17 +76,15 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 		const union bch_extent_entry *entry;
 		struct extent_ptr_decoded p;
 		bool did_work = false;
-		int nr;
+		bool extending = false, should_check_enospc;
+		s64 i_sectors_delta = 0, disk_sectors_delta = 0;
 
 		bch2_trans_reset(&trans, 0);
 
 		k = bch2_btree_iter_peek_slot(iter);
 		ret = bkey_err(k);
-		if (ret) {
-			if (ret == -EINTR)
-				continue;
-			break;
-		}
+		if (ret)
+			goto err;
 
 		new = bkey_i_to_extent(bch2_keylist_front(keys));
 
@@ -143,23 +141,21 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 					       op->opts.background_target,
 					       op->opts.data_replicas);
 
-		/*
-		 * If we're not fully overwriting @k, and it's compressed, we
-		 * need a reservation for all the pointers in @insert
-		 */
-		nr = bch2_bkey_nr_ptrs_allocated(bkey_i_to_s_c(insert)) -
-			 m->nr_ptrs_reserved;
+		ret = bch2_sum_sector_overwrites(&trans, iter, insert,
+						 &extending,
+						 &should_check_enospc,
+						 &i_sectors_delta,
+						 &disk_sectors_delta);
+		if (ret)
+			goto err;
 
-		if (insert->k.size < k.k->size &&
-		    bch2_bkey_sectors_compressed(k) &&
-		    nr > 0) {
+		if (disk_sectors_delta > (s64) op->res.sectors) {
 			ret = bch2_disk_reservation_add(c, &op->res,
-					keylist_sectors(keys) * nr, 0);
+						disk_sectors_delta - op->res.sectors,
+						!should_check_enospc
+						? BCH_DISK_RESERVATION_NOFAIL : 0);
 			if (ret)
 				goto out;
-
-			m->nr_ptrs_reserved += nr;
-			goto next;
 		}
 
 		bch2_trans_update(&trans, iter, insert, 0);
@@ -168,6 +164,7 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 				op_journal_seq(op),
 				BTREE_INSERT_NOFAIL|
 				m->data_opts.btree_insert_flags);
+err:
 		if (!ret)
 			atomic_long_inc(&c->extent_migrate_done);
 		if (ret == -EINTR)

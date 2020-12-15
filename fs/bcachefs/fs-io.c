@@ -1886,7 +1886,9 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 						dio->op.opts.data_replicas, 0);
 		if (unlikely(ret) &&
 		    !bch2_check_range_allocated(c, dio->op.pos,
-				bio_sectors(bio), dio->op.opts.data_replicas))
+				bio_sectors(bio),
+				dio->op.opts.data_replicas,
+				dio->op.opts.compression != 0))
 			goto err;
 
 		task_io_account_write(bio->bi_iter.bi_size);

@@ -193,18 +193,23 @@ void bch2_bio_alloc_pages_pool(struct bch_fs *c, struct bio *bio,
 
 /* Extent update path: */
 
-static int sum_sector_overwrites(struct btree_trans *trans,
-				 struct btree_iter *extent_iter,
-				 struct bkey_i *new,
-				 bool *maybe_extending,
-				 s64 *i_sectors_delta,
-				 s64 *disk_sectors_delta)
+int bch2_sum_sector_overwrites(struct btree_trans *trans,
+			       struct btree_iter *extent_iter,
+			       struct bkey_i *new,
+			       bool *maybe_extending,
+			       bool *should_check_enospc,
+			       s64 *i_sectors_delta,
+			       s64 *disk_sectors_delta)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_iter *iter;
 	struct bkey_s_c old;
+	unsigned new_replicas = bch2_bkey_replicas(c, bkey_i_to_s_c(new));
+	bool new_compressed = bch2_bkey_sectors_compressed(bkey_i_to_s_c(new));
 	int ret = 0;
 
 	*maybe_extending	= true;
+	*should_check_enospc	= false;
 	*i_sectors_delta	= 0;
 	*disk_sectors_delta	= 0;
 
@@ -222,6 +227,11 @@ static int sum_sector_overwrites(struct btree_trans *trans,
 		*disk_sectors_delta += sectors *
 			(int) (bch2_bkey_nr_ptrs_allocated(bkey_i_to_s_c(new)) -
 			       bch2_bkey_nr_ptrs_fully_allocated(old));
+
+		if (!*should_check_enospc &&
+		    (new_replicas > bch2_bkey_replicas(c, old) ||
+		     (!new_compressed && bch2_bkey_sectors_compressed(old))))
+			*should_check_enospc = true;
 
 		if (bkey_cmp(old.k->p, new->k.p) >= 0) {
 			/*
@@ -260,7 +270,7 @@ int bch2_extent_update(struct btree_trans *trans,
 {
 	/* this must live until after bch2_trans_commit(): */
 	struct bkey_inode_buf inode_p;
-	bool extending = false;
+	bool extending = false, should_check_enospc;
 	s64 i_sectors_delta = 0, disk_sectors_delta = 0;
 	int ret;
 
@@ -268,8 +278,9 @@ int bch2_extent_update(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	ret = sum_sector_overwrites(trans, iter, k,
+	ret = bch2_sum_sector_overwrites(trans, iter, k,
 			&extending,
+			&should_check_enospc,
 			&i_sectors_delta,
 			&disk_sectors_delta);
 	if (ret)
@@ -279,7 +290,8 @@ int bch2_extent_update(struct btree_trans *trans,
 	    disk_sectors_delta > (s64) disk_res->sectors) {
 		ret = bch2_disk_reservation_add(trans->c, disk_res,
 					disk_sectors_delta - disk_res->sectors,
-					0);
+					!should_check_enospc
+					? BCH_DISK_RESERVATION_NOFAIL : 0);
 		if (ret)
 			return ret;
 	}
