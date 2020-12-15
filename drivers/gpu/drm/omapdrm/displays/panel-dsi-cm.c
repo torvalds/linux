@@ -612,9 +612,6 @@ static int dsicm_remove(struct mipi_dsi_device *dsi)
 	if (ddata->extbldev)
 		put_device(&ddata->extbldev->dev);
 
-	/* reset, to be sure that the panel is in a valid state */
-	dsicm_hw_reset(ddata);
-
 	return 0;
 }
 
