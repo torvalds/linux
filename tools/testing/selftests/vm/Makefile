@@ -21,14 +21,15 @@ MACHINE ?= $(shell echo $(uname_M) | sed -e 's/aarch64.*/arm64/')
 MAKEFLAGS += --no-builtin-rules
 
 CFLAGS = -Wall -I ../../../../usr/include $(EXTRA_CFLAGS)
-LDLIBS = -lrt
+LDLIBS = -lrt -lpthread
 TEST_GEN_FILES = compaction_test
 TEST_GEN_FILES += gup_test
 TEST_GEN_FILES += hmm-tests
 TEST_GEN_FILES += hugepage-mmap
 TEST_GEN_FILES += hugepage-shm
-TEST_GEN_FILES += map_hugetlb
+TEST_GEN_FILES += khugepaged
 TEST_GEN_FILES += map_fixed_noreplace
+TEST_GEN_FILES += map_hugetlb
 TEST_GEN_FILES += map_populate
 TEST_GEN_FILES += mlock-random-test
 TEST_GEN_FILES += mlock2-tests
@@ -37,7 +38,6 @@ TEST_GEN_FILES += on-fault-limit
 TEST_GEN_FILES += thuge-gen
 TEST_GEN_FILES += transhuge-stress
 TEST_GEN_FILES += userfaultfd
-TEST_GEN_FILES += khugepaged
 
 ifeq ($(ARCH),x86_64)
 CAN_BUILD_I386 := $(shell ./../x86/check_cc.sh $(CC) ../x86/trivial_32bit_program.c -m32)
@@ -80,7 +80,7 @@ TEST_FILES := test_vmalloc.sh
 KSFT_KHDR_INSTALL := 1
 include ../lib.mk
 
-$(OUTPUT)/hmm-tests: LDLIBS += -lhugetlbfs -lpthread
+$(OUTPUT)/hmm-tests: LDLIBS += -lhugetlbfs
 
 ifeq ($(ARCH),x86_64)
 BINARIES_32 := $(patsubst %,$(OUTPUT)/%,$(BINARIES_32))
@@ -130,8 +130,6 @@ warn_32bit_failure:
 	exit 0;
 endif
 endif
-
-$(OUTPUT)/userfaultfd: LDLIBS += -lpthread
 
 $(OUTPUT)/mlock-random-test: LDLIBS += -lcap
 
