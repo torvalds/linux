@@ -122,6 +122,7 @@ struct ec_stripe_head {
 	unsigned		target;
 	unsigned		algo;
 	unsigned		redundancy;
+	bool			copygc;
 
 	struct bch_devs_mask	devs;
 	unsigned		nr_active_devs;
@@ -147,7 +148,7 @@ int bch2_ec_stripe_new_alloc(struct bch_fs *, struct ec_stripe_head *);
 
 void bch2_ec_stripe_head_put(struct bch_fs *, struct ec_stripe_head *);
 struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *,
-			unsigned, unsigned, unsigned, struct closure *);
+			unsigned, unsigned, unsigned, bool, struct closure *);
 
 void bch2_stripes_heap_update(struct bch_fs *, struct stripe *, size_t);
 void bch2_stripes_heap_del(struct bch_fs *, struct stripe *, size_t);

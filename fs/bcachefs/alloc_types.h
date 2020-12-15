@@ -87,7 +87,6 @@ struct write_point {
 	u64			last_used;
 	unsigned long		write_point;
 	enum bch_data_type	type;
-	bool			is_ec;
 
 	/* calculated based on how many pointers we're actually going to use: */
 	unsigned		sectors_free;

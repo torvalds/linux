@@ -474,7 +474,9 @@ bucket_alloc_from_stripe(struct bch_fs *c,
 	if (ec_open_bucket(c, ptrs))
 		return 0;
 
-	h = bch2_ec_stripe_head_get(c, target, 0, nr_replicas - 1, cl);
+	h = bch2_ec_stripe_head_get(c, target, 0, nr_replicas - 1,
+				    wp == &c->copygc_write_point,
+				    cl);
 	if (IS_ERR(h))
 		return -PTR_ERR(h);
 	if (!h)

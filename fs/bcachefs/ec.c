@@ -1157,7 +1157,8 @@ static int ec_new_stripe_alloc(struct bch_fs *c, struct ec_stripe_head *h)
 
 static struct ec_stripe_head *
 ec_new_stripe_head_alloc(struct bch_fs *c, unsigned target,
-			 unsigned algo, unsigned redundancy)
+			 unsigned algo, unsigned redundancy,
+			 bool copygc)
 {
 	struct ec_stripe_head *h;
 	struct bch_dev *ca;
@@ -1173,6 +1174,7 @@ ec_new_stripe_head_alloc(struct bch_fs *c, unsigned target,
 	h->target	= target;
 	h->algo		= algo;
 	h->redundancy	= redundancy;
+	h->copygc	= copygc;
 
 	rcu_read_lock();
 	h->devs = target_rw_devs(c, BCH_DATA_user, target);
@@ -1204,9 +1206,10 @@ void bch2_ec_stripe_head_put(struct bch_fs *c, struct ec_stripe_head *h)
 }
 
 struct ec_stripe_head *__bch2_ec_stripe_head_get(struct bch_fs *c,
-					       unsigned target,
-					       unsigned algo,
-					       unsigned redundancy)
+						 unsigned target,
+						 unsigned algo,
+						 unsigned redundancy,
+						 bool copygc)
 {
 	struct ec_stripe_head *h;
 
@@ -1217,12 +1220,13 @@ struct ec_stripe_head *__bch2_ec_stripe_head_get(struct bch_fs *c,
 	list_for_each_entry(h, &c->ec_stripe_head_list, list)
 		if (h->target		== target &&
 		    h->algo		== algo &&
-		    h->redundancy	== redundancy) {
+		    h->redundancy	== redundancy &&
+		    h->copygc		== copygc) {
 			mutex_lock(&h->lock);
 			goto found;
 		}
 
-	h = ec_new_stripe_head_alloc(c, target, algo, redundancy);
+	h = ec_new_stripe_head_alloc(c, target, algo, redundancy, copygc);
 found:
 	mutex_unlock(&c->ec_stripe_head_lock);
 	return h;
@@ -1267,7 +1271,9 @@ new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h,
 					    h->redundancy,
 					    &nr_have,
 					    &have_cache,
-					    RESERVE_NONE,
+					    h->copygc
+					    ? RESERVE_MOVINGGC
+					    : RESERVE_NONE,
 					    0,
 					    cl);
 		if (ret)
@@ -1283,7 +1289,9 @@ new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h,
 					    nr_data,
 					    &nr_have,
 					    &have_cache,
-					    RESERVE_NONE,
+					    h->copygc
+					    ? RESERVE_MOVINGGC
+					    : RESERVE_NONE,
 					    0,
 					    cl);
 		if (ret)
@@ -1352,6 +1360,7 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
 					       unsigned target,
 					       unsigned algo,
 					       unsigned redundancy,
+					       bool copygc,
 					       struct closure *cl)
 {
 	struct ec_stripe_head *h;
@@ -1360,7 +1369,7 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
 	s64 idx;
 	int ret;
 
-	h = __bch2_ec_stripe_head_get(c, target, algo, redundancy);
+	h = __bch2_ec_stripe_head_get(c, target, algo, redundancy, copygc);
 	if (!h) {
 		bch_err(c, "no stripe head");
 		return NULL;
