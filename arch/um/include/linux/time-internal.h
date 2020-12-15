@@ -7,6 +7,7 @@
 #ifndef __TIMER_INTERNAL_H__
 #define __TIMER_INTERNAL_H__
 #include <linux/list.h>
+#include <asm/bug.h>
 
 #define TIMER_MULTIPLIER 256
 #define TIMER_MIN_DELTA  500
@@ -73,6 +74,11 @@ static inline void time_travel_propagate_time(void)
 
 static inline void time_travel_wait_readable(int fd)
 {
+}
+
+static inline void time_travel_add_irq_event(struct time_travel_event *e)
+{
+	WARN_ON(1);
 }
 #endif /* CONFIG_UML_TIME_TRAVEL_SUPPORT */
 

@@ -278,6 +278,7 @@ static void __time_travel_add_event(struct time_travel_event *e,
 {
 	struct time_travel_event *tmp;
 	bool inserted = false;
+	unsigned long flags;
 
 	if (e->pending)
 		return;
@@ -285,6 +286,7 @@ static void __time_travel_add_event(struct time_travel_event *e,
 	e->pending = true;
 	e->time = time;
 
+	local_irq_save(flags);
 	list_for_each_entry(tmp, &time_travel_events, list) {
 		/*
 		 * Add the new entry before one with higher time,
@@ -307,6 +309,7 @@ static void __time_travel_add_event(struct time_travel_event *e,
 	tmp = time_travel_first_event();
 	time_travel_ext_update_request(tmp->time);
 	time_travel_next_event = tmp->time;
+	local_irq_restore(flags);
 }
 
 static void time_travel_add_event(struct time_travel_event *e,
@@ -383,10 +386,14 @@ static void time_travel_deliver_event(struct time_travel_event *e)
 
 static bool time_travel_del_event(struct time_travel_event *e)
 {
+	unsigned long flags;
+
 	if (!e->pending)
 		return false;
+	local_irq_save(flags);
 	list_del(&e->list);
 	e->pending = false;
+	local_irq_restore(flags);
 	return true;
 }
 
