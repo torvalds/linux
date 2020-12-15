@@ -1098,6 +1098,7 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 			goto cifs_parse_mount_err;
 #endif
 		ctx->witness = true;
+		pr_warn_once("Witness protocol support is experimental\n");
 		break;
 	case Opt_rootfs:
 #ifdef CONFIG_CIFS_ROOT
