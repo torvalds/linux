@@ -139,6 +139,7 @@ config MMU
 config HIGHMEM
 	bool
 	default y if SPARC32
+	select KMAP_LOCAL
 
 config ZONE_DMA
 	bool
