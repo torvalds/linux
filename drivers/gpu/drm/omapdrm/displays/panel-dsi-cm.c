@@ -881,43 +881,6 @@ static int _dsicm_enable_te(struct panel_drv_data *ddata, bool enable)
 	return r;
 }
 
-static int dsicm_enable_te(struct omap_dss_device *dssdev, bool enable)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = ddata->src;
-	int r;
-
-	mutex_lock(&ddata->lock);
-
-	if (ddata->te_enabled == enable)
-		goto end;
-
-	src->ops->dsi.bus_lock(src);
-
-	if (ddata->enabled) {
-		r = dsicm_wake_up(ddata);
-		if (r)
-			goto err;
-
-		r = _dsicm_enable_te(ddata, enable);
-		if (r)
-			goto err;
-	}
-
-	ddata->te_enabled = enable;
-
-	src->ops->dsi.bus_unlock(src);
-end:
-	mutex_unlock(&ddata->lock);
-
-	return 0;
-err:
-	src->ops->dsi.bus_unlock(src);
-	mutex_unlock(&ddata->lock);
-
-	return r;
-}
-
 static void dsicm_ulps_work(struct work_struct *work)
 {
 	struct panel_drv_data *ddata = container_of(work, struct panel_drv_data,
@@ -987,8 +950,6 @@ static const struct omap_dss_device_ops dsicm_ops = {
 static const struct omap_dss_driver dsicm_dss_driver = {
 	.update		= dsicm_update,
 	.sync		= dsicm_sync,
-
-	.enable_te	= dsicm_enable_te,
 };
 
 static int dsicm_probe_of(struct mipi_dsi_device *dsi)
