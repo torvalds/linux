@@ -3881,35 +3881,19 @@ static int _dsi_update(struct dsi_data *dsi)
 	return 0;
 }
 
-static int _dsi_update_window(struct dsi_data *dsi, int channel,
-			      int x, int y, int w, int h)
+static int _dsi_send_nop(struct dsi_data *dsi, int channel)
 {
-	int x1 = x, x2 = (x + w - 1);
-	int y1 = y, y2 = (y + h - 1);
-	u8 payloadX[5] = { MIPI_DCS_SET_COLUMN_ADDRESS,
-			   x1 >> 8, x1 & 0xff, x2 >> 8, x2 & 0xff };
-	u8 payloadY[5] = { MIPI_DCS_SET_PAGE_ADDRESS,
-			   y1 >> 8, y1 & 0xff, y2 >> 8, y2 & 0xff };
-	struct mipi_dsi_msg msgX = { 0 }, msgY = { 0 };
-	int ret;
+	const u8 payload[] = { MIPI_DCS_NOP };
+	const struct mipi_dsi_msg msg = {
+		.channel = channel,
+		.type = MIPI_DSI_DCS_SHORT_WRITE,
+		.tx_len = 1,
+		.tx_buf = payload,
+	};
 
 	WARN_ON(!dsi_bus_is_locked(dsi));
 
-	msgX.type = MIPI_DSI_DCS_LONG_WRITE;
-	msgX.channel = channel;
-	msgX.tx_buf = payloadX;
-	msgX.tx_len = sizeof(payloadX);
-
-	msgY.type = MIPI_DSI_DCS_LONG_WRITE;
-	msgY.channel = channel;
-	msgY.tx_buf = payloadY;
-	msgY.tx_len = sizeof(payloadY);
-
-	ret = _omap_dsi_host_transfer(dsi, &msgX);
-	if (ret != 0)
-		return ret;
-
-	return _omap_dsi_host_transfer(dsi, &msgY);
+	return _omap_dsi_host_transfer(dsi, &msg);
 }
 
 static int dsi_update_channel(struct omap_dss_device *dssdev, int channel)
@@ -3941,10 +3925,14 @@ static int dsi_update_channel(struct omap_dss_device *dssdev, int channel)
 
 	dsi_set_ulps_auto(dsi, false);
 
-	r = _dsi_update_window(dsi, channel, 0, 0, dsi->vm.hactive,
-			       dsi->vm.vactive);
+	/*
+	 * Send NOP between the frames. If we don't send something here, the
+	 * updates stop working. This is probably related to DSI spec stating
+	 * that the DSI host should transition to LP at least once per frame.
+	 */
+	r = _dsi_send_nop(dsi, channel);
 	if (r < 0) {
-		DSSWARN("window update error: %d\n", r);
+		DSSWARN("failed to send nop between frames: %d\n", r);
 		goto err;
 	}
 
