@@ -3035,7 +3035,7 @@ static void drain_local_pages_wq(struct work_struct *work)
  * that need the guarantee that every CPU has drained can disable the
  * optimizing racy check.
  */
-void __drain_all_pages(struct zone *zone, bool force_all_cpus)
+static void __drain_all_pages(struct zone *zone, bool force_all_cpus)
 {
 	int cpu;
 
@@ -6357,7 +6357,7 @@ static void pageset_init(struct per_cpu_pageset *p)
 	pcp->batch = BOOT_PAGESET_BATCH;
 }
 
-void __zone_set_pageset_high_and_batch(struct zone *zone, unsigned long high,
+static void __zone_set_pageset_high_and_batch(struct zone *zone, unsigned long high,
 		unsigned long batch)
 {
 	struct per_cpu_pageset *p;
