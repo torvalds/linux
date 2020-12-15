@@ -55,6 +55,7 @@ struct virtio_uml_device {
 	u64 protocol_features;
 	u8 status;
 	u8 registered:1;
+	u8 suspended:1;
 
 	u8 config_changed_irq:1;
 	uint64_t vq_irq_vq_map;
@@ -390,7 +391,7 @@ static irqreturn_t vu_req_read_message(struct virtio_uml_device *vu_dev,
 		       msg.msg.header.request);
 	}
 
-	if (ev)
+	if (ev && !vu_dev->suspended)
 		time_travel_add_irq_event(ev);
 
 	if (msg.msg.header.flags & VHOST_USER_FLAG_NEED_REPLY)
@@ -1135,6 +1136,8 @@ static int virtio_uml_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, vu_dev);
 
+	device_set_wakeup_capable(&vu_dev->vdev.dev, true);
+
 	rc = register_virtio_device(&vu_dev->vdev);
 	if (rc)
 		put_device(&vu_dev->vdev.dev);
@@ -1308,7 +1311,12 @@ static int virtio_uml_suspend(struct platform_device *pdev, pm_message_t state)
 		vhost_user_set_vring_enable(vu_dev, vq->index, false);
 	}
 
-	return 0;
+	if (!device_may_wakeup(&vu_dev->vdev.dev)) {
+		vu_dev->suspended = true;
+		return 0;
+	}
+
+	return irq_set_irq_wake(vu_dev->irq, 1);
 }
 
 static int virtio_uml_resume(struct platform_device *pdev)
@@ -1323,7 +1331,12 @@ static int virtio_uml_resume(struct platform_device *pdev)
 		vhost_user_set_vring_enable(vu_dev, vq->index, true);
 	}
 
-	return 0;
+	vu_dev->suspended = false;
+
+	if (!device_may_wakeup(&vu_dev->vdev.dev))
+		return 0;
+
+	return irq_set_irq_wake(vu_dev->irq, 0);
 }
 
 static struct platform_driver virtio_uml_driver = {
