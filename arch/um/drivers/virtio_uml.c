@@ -914,8 +914,7 @@ static struct virtqueue *vu_setup_vq(struct virtio_device *vdev,
 #ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
 	/*
 	 * When we get an interrupt, we must bounce it through the simulation
-	 * calendar (the simtime device), except for the simtime device itself
-	 * since that's part of the simulation control.
+	 * calendar (the time-travel=ext:... socket).
 	 */
 	if (time_travel_mode == TT_MODE_EXTERNAL && callback) {
 		info->callback = callback;
