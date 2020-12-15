@@ -10,7 +10,6 @@
 
 #include "m_can.h"
 
-#define DEVICE_NAME "tcan4x5x"
 #define TCAN4X5X_EXT_CLK_DEF 40000000
 
 #define TCAN4X5X_DEV_ID0 0x00
@@ -132,7 +131,7 @@ static inline struct tcan4x5x_priv *cdev_to_priv(struct m_can_classdev *cdev)
 }
 
 static struct can_bittiming_const tcan4x5x_bittiming_const = {
-	.name = DEVICE_NAME,
+	.name = KBUILD_MODNAME,
 	.tseg1_min = 2,
 	.tseg1_max = 31,
 	.tseg2_min = 2,
@@ -144,7 +143,7 @@ static struct can_bittiming_const tcan4x5x_bittiming_const = {
 };
 
 static struct can_bittiming_const tcan4x5x_data_bittiming_const = {
-	.name = DEVICE_NAME,
+	.name = KBUILD_MODNAME,
 	.tseg1_min = 1,
 	.tseg1_max = 32,
 	.tseg2_min = 1,
@@ -544,7 +543,7 @@ MODULE_DEVICE_TABLE(spi, tcan4x5x_id_table);
 
 static struct spi_driver tcan4x5x_can_driver = {
 	.driver = {
-		.name = DEVICE_NAME,
+		.name = KBUILD_MODNAME,
 		.of_match_table = tcan4x5x_of_match,
 		.pm = NULL,
 	},
