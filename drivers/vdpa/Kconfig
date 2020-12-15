@@ -9,15 +9,20 @@ menuconfig VDPA
 if VDPA
 
 config VDPA_SIM
-	tristate "vDPA device simulator"
+	tristate "vDPA device simulator core"
 	depends on RUNTIME_TESTING_MENU && HAS_DMA
 	select DMA_OPS
 	select VHOST_RING
+	help
+	  Enable this module to support vDPA device simulators. These devices
+	  are used for testing, prototyping and development of vDPA.
+
+config VDPA_SIM_NET
+	tristate "vDPA simulator for networking device"
+	depends on VDPA_SIM
 	select GENERIC_NET_UTILS
 	help
-	  vDPA networking device simulator which loop TX traffic back
-	  to RX. This device is used for testing, prototyping and
-	  development of vDPA.
+	  vDPA networking device simulator which loops TX traffic back to RX.
 
 config IFCVF
 	tristate "Intel IFC VF vDPA driver"
