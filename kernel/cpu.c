@@ -39,9 +39,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/cpuhp.h>
 
-#undef CREATE_TRACE_POINTS
-#include <trace/hooks/sched.h>
-
 #include "smpboot.h"
 
 /**
@@ -1263,10 +1260,6 @@ int resume_cpus(struct cpumask *cpus)
 
 	for_each_cpu(cpu, cpus)
 		set_cpu_active(cpu, true);
-
-	trace_android_rvh_resume_cpus(cpus, &err);
-	if (err)
-		goto err_cpu_maps_update;
 
 	/* Lazy Resume.  Build domains immediately instead of scheduling
 	 * a workqueue.  This is so that the cpu can pull load when
