@@ -133,18 +133,9 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 
 8. LRU
 ======
-        Each memcg has its own private LRU. Now, its handling is under global
-	VM's control (means that it's handled under global pgdat->lru_lock).
-	Almost all routines around memcg's LRU is called by global LRU's
-	list management functions under pgdat->lru_lock.
-
-	A special function is mem_cgroup_isolate_pages(). This scans
-	memcg's private LRU and call __isolate_lru_page() to extract a page
-	from LRU.
-
-	(By __isolate_lru_page(), the page is removed from both of global and
-	private LRU.)
-
+	Each memcg has its own vector of LRUs (inactive anon, active anon,
+	inactive file, active file, unevictable) of pages from each node,
+	each LRU handled under a single lru_lock for that memcg and node.
 
 9. Typical Tests.
 =================
