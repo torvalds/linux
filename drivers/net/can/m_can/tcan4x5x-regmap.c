@@ -14,9 +14,9 @@
 
 #define TCAN4X5X_MAX_REGISTER 0x8fff
 
-static int regmap_spi_gather_write(void *context, const void *reg,
-				   size_t reg_len, const void *val,
-				   size_t val_len)
+static int tcan4x5x_regmap_gather_write(void *context, const void *reg,
+					size_t reg_len, const void *val,
+					size_t val_len)
 {
 	struct device *dev = context;
 	struct spi_device *spi = to_spi_device(dev);
@@ -41,7 +41,7 @@ static int tcan4x5x_regmap_write(void *context, const void *data, size_t count)
 	u16 *reg = (u16 *)(data);
 	const u32 *val = data + 4;
 
-	return regmap_spi_gather_write(context, reg, 4, val, count - 4);
+	return tcan4x5x_regmap_gather_write(context, reg, 4, val, count - 4);
 }
 
 static int tcan4x5x_regmap_read(void *context,
@@ -65,7 +65,7 @@ static const struct regmap_config tcan4x5x_regmap = {
 
 static const struct regmap_bus tcan4x5x_bus = {
 	.write = tcan4x5x_regmap_write,
-	.gather_write = regmap_spi_gather_write,
+	.gather_write = tcan4x5x_regmap_gather_write,
 	.read = tcan4x5x_regmap_read,
 	.reg_format_endian_default = REGMAP_ENDIAN_NATIVE,
 	.val_format_endian_default = REGMAP_ENDIAN_NATIVE,
