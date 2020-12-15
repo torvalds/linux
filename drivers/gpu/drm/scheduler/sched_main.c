@@ -63,6 +63,7 @@
 /**
  * drm_sched_rq_init - initialize a given run queue struct
  *
+ * @sched: scheduler instance to associate with this run queue
  * @rq: scheduler run queue
  *
  * Initializes a scheduler runqueue.

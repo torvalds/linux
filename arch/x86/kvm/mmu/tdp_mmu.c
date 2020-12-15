@@ -49,7 +49,14 @@ bool is_tdp_mmu_root(struct kvm *kvm, hpa_t hpa)
 {
 	struct kvm_mmu_page *sp;
 
+	if (!kvm->arch.tdp_mmu_enabled)
+		return false;
+	if (WARN_ON(!VALID_PAGE(hpa)))
+		return false;
+
 	sp = to_shadow_page(hpa);
+	if (WARN_ON(!sp))
+		return false;
 
 	return sp->tdp_mmu_page && sp->root_count;
 }
@@ -59,7 +66,7 @@ static bool zap_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
 
 void kvm_tdp_mmu_free_root(struct kvm *kvm, struct kvm_mmu_page *root)
 {
-	gfn_t max_gfn = 1ULL << (boot_cpu_data.x86_phys_bits - PAGE_SHIFT);
+	gfn_t max_gfn = 1ULL << (shadow_phys_bits - PAGE_SHIFT);
 
 	lockdep_assert_held(&kvm->mmu_lock);
 
@@ -449,7 +456,7 @@ bool kvm_tdp_mmu_zap_gfn_range(struct kvm *kvm, gfn_t start, gfn_t end)
 
 void kvm_tdp_mmu_zap_all(struct kvm *kvm)
 {
-	gfn_t max_gfn = 1ULL << (boot_cpu_data.x86_phys_bits - PAGE_SHIFT);
+	gfn_t max_gfn = 1ULL << (shadow_phys_bits - PAGE_SHIFT);
 	bool flush;
 
 	flush = kvm_tdp_mmu_zap_gfn_range(kvm, 0, max_gfn);

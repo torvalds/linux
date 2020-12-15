@@ -1163,29 +1163,32 @@ void dcn20_pipe_control_lock(
 	if (pipe->plane_state != NULL)
 		flip_immediate = pipe->plane_state->flip_immediate;
 
-	temp_pipe = pipe->bottom_pipe;
-	while (!flip_immediate && temp_pipe) {
-	    if (temp_pipe->plane_state != NULL)
-		flip_immediate = temp_pipe->plane_state->flip_immediate;
-	    temp_pipe = temp_pipe->bottom_pipe;
+	if  (pipe->stream_res.gsl_group > 0) {
+	    temp_pipe = pipe->bottom_pipe;
+	    while (!flip_immediate && temp_pipe) {
+		    if (temp_pipe->plane_state != NULL)
+			    flip_immediate = temp_pipe->plane_state->flip_immediate;
+		    temp_pipe = temp_pipe->bottom_pipe;
+	    }
 	}
 
 	if (flip_immediate && lock) {
 		const int TIMEOUT_FOR_FLIP_PENDING = 100000;
 		int i;
 
-		for (i = 0; i < TIMEOUT_FOR_FLIP_PENDING; ++i) {
-			if (!pipe->plane_res.hubp->funcs->hubp_is_flip_pending(pipe->plane_res.hubp))
-				break;
-			udelay(1);
-		}
+		temp_pipe = pipe;
+		while (temp_pipe) {
+			if (temp_pipe->plane_state && temp_pipe->plane_state->flip_immediate) {
+				for (i = 0; i < TIMEOUT_FOR_FLIP_PENDING; ++i) {
+					if (!temp_pipe->plane_res.hubp->funcs->hubp_is_flip_pending(temp_pipe->plane_res.hubp))
+						break;
+					udelay(1);
+				}
 
-		if (pipe->bottom_pipe != NULL) {
-			for (i = 0; i < TIMEOUT_FOR_FLIP_PENDING; ++i) {
-				if (!pipe->bottom_pipe->plane_res.hubp->funcs->hubp_is_flip_pending(pipe->bottom_pipe->plane_res.hubp))
-					break;
-				udelay(1);
+				/* no reason it should take this long for immediate flips */
+				ASSERT(i != TIMEOUT_FOR_FLIP_PENDING);
 			}
+			temp_pipe = temp_pipe->bottom_pipe;
 		}
 	}
 
@@ -1691,6 +1694,15 @@ void dcn20_program_front_end_for_ctx(
 				&& !context->res_ctx.pipe_ctx[i].prev_odm_pipe
 				&& context->res_ctx.pipe_ctx[i].stream)
 			hws->funcs.blank_pixel_data(dc, &context->res_ctx.pipe_ctx[i], true);
+
+	/* wait for outstanding pending changes before adding or removing planes */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable ||
+				context->res_ctx.pipe_ctx[i].update_flags.bits.enable) {
+			dc->hwss.wait_for_pending_cleared(dc, context);
+			break;
+		}
+	}
 
 	/* Disconnect mpcc */
 	for (i = 0; i < dc->res_pool->pipe_count; i++)

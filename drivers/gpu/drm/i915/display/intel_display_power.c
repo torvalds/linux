@@ -4492,30 +4492,24 @@ static u32 get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 	int requested_dc;
 	int max_dc;
 
-	if (INTEL_GEN(dev_priv) >= 12) {
-		if (IS_DG1(dev_priv))
-			max_dc = 3;
-		else
-			max_dc = 4;
-		/*
-		 * DC9 has a separate HW flow from the rest of the DC states,
-		 * not depending on the DMC firmware. It's needed by system
-		 * suspend/resume, so allow it unconditionally.
-		 */
-		mask = DC_STATE_EN_DC9;
-	} else if (IS_GEN(dev_priv, 11)) {
+	if (IS_DG1(dev_priv))
+		max_dc = 3;
+	else if (INTEL_GEN(dev_priv) >= 12)
+		max_dc = 4;
+	else if (INTEL_GEN(dev_priv) >= 10 || IS_GEN9_BC(dev_priv))
 		max_dc = 2;
-		mask = DC_STATE_EN_DC9;
-	} else if (IS_GEN(dev_priv, 10) || IS_GEN9_BC(dev_priv)) {
-		max_dc = 2;
-		mask = 0;
-	} else if (IS_GEN9_LP(dev_priv)) {
+	else if (IS_GEN9_LP(dev_priv))
 		max_dc = 1;
-		mask = DC_STATE_EN_DC9;
-	} else {
+	else
 		max_dc = 0;
-		mask = 0;
-	}
+
+	/*
+	 * DC9 has a separate HW flow from the rest of the DC states,
+	 * not depending on the DMC firmware. It's needed by system
+	 * suspend/resume, so allow it unconditionally.
+	 */
+	mask = IS_GEN9_LP(dev_priv) || INTEL_GEN(dev_priv) >= 11 ?
+	       DC_STATE_EN_DC9 : 0;
 
 	if (!dev_priv->params.disable_power_well)
 		max_dc = 0;
@@ -5858,10 +5852,15 @@ static void intel_power_domains_verify_state(struct drm_i915_private *i915)
 
 void intel_display_power_suspend_late(struct drm_i915_private *i915)
 {
-	if (INTEL_GEN(i915) >= 11 || IS_GEN9_LP(i915))
+	if (INTEL_GEN(i915) >= 11 || IS_GEN9_LP(i915)) {
 		bxt_enable_dc9(i915);
-	else if (IS_HASWELL(i915) || IS_BROADWELL(i915))
+		/* Tweaked Wa_14010685332:icp,jsp,mcc */
+		if (INTEL_PCH_TYPE(i915) >= PCH_ICP && INTEL_PCH_TYPE(i915) <= PCH_MCC)
+			intel_de_rmw(i915, SOUTH_CHICKEN1,
+				     SBCLK_RUN_REFCLK_DIS, SBCLK_RUN_REFCLK_DIS);
+	} else if (IS_HASWELL(i915) || IS_BROADWELL(i915)) {
 		hsw_enable_pc8(i915);
+	}
 }
 
 void intel_display_power_resume_early(struct drm_i915_private *i915)
@@ -5869,6 +5868,10 @@ void intel_display_power_resume_early(struct drm_i915_private *i915)
 	if (INTEL_GEN(i915) >= 11 || IS_GEN9_LP(i915)) {
 		gen9_sanitize_dc_state(i915);
 		bxt_disable_dc9(i915);
+		/* Tweaked Wa_14010685332:icp,jsp,mcc */
+		if (INTEL_PCH_TYPE(i915) >= PCH_ICP && INTEL_PCH_TYPE(i915) <= PCH_MCC)
+			intel_de_rmw(i915, SOUTH_CHICKEN1, SBCLK_RUN_REFCLK_DIS, 0);
+
 	} else if (IS_HASWELL(i915) || IS_BROADWELL(i915)) {
 		hsw_disable_pc8(i915);
 	}

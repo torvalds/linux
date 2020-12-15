@@ -921,7 +921,6 @@ struct vba_vars_st {
 	bool UseMinimumRequiredDCFCLK;
 	bool ClampMinDCFCLK;
 	bool AllowDramClockChangeOneDisplayVactive;
-	bool SynchronizeTimingsIfSingleRefreshRate;
 
 };
 

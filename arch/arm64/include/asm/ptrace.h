@@ -193,6 +193,10 @@ struct pt_regs {
 	/* Only valid when ARM64_HAS_IRQ_PRIO_MASKING is enabled. */
 	u64 pmr_save;
 	u64 stackframe[2];
+
+	/* Only valid for some EL1 exceptions. */
+	u64 lockdep_hardirqs;
+	u64 exit_rcu;
 };
 
 static inline bool in_syscall(struct pt_regs const *regs)

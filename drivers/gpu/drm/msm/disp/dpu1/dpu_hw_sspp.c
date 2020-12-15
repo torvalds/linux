@@ -231,7 +231,7 @@ static void _sspp_setup_csc10_opmode(struct dpu_hw_pipe *ctx,
 	DPU_REG_WRITE(&ctx->hw, SSPP_VIG_CSC_10_OP_MODE + idx, opmode);
 }
 
-/**
+/*
  * Setup source pixel format, flip,
  */
 static void dpu_hw_sspp_setup_format(struct dpu_hw_pipe *ctx,
@@ -437,7 +437,7 @@ static u32 _dpu_hw_sspp_get_scaler3_ver(struct dpu_hw_pipe *ctx)
 	return dpu_hw_get_scaler3_ver(&ctx->hw, idx);
 }
 
-/**
+/*
  * dpu_hw_sspp_setup_rects()
  */
 static void dpu_hw_sspp_setup_rects(struct dpu_hw_pipe *ctx,

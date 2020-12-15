@@ -200,8 +200,14 @@ static int vangogh_tables_init(struct smu_context *smu)
 	if (!smu_table->watermarks_table)
 		goto err2_out;
 
+	smu_table->clocks_table = kzalloc(sizeof(DpmClocks_t), GFP_KERNEL);
+	if (!smu_table->clocks_table)
+		goto err3_out;
+
 	return 0;
 
+err3_out:
+	kfree(smu_table->clocks_table);
 err2_out:
 	kfree(smu_table->gpu_metrics_table);
 err1_out:
@@ -258,6 +264,12 @@ static int vangogh_get_smu_metrics_data(struct smu_context *smu,
 		break;
 	case METRICS_THROTTLER_STATUS:
 		*value = metrics->ThrottlerStatus;
+		break;
+	case METRICS_VOLTAGE_VDDGFX:
+		*value = metrics->Voltage[2];
+		break;
+	case METRICS_VOLTAGE_VDDSOC:
+		*value = metrics->Voltage[1];
 		break;
 	default:
 		*value = UINT_MAX;
@@ -390,91 +402,33 @@ static bool vangogh_is_dpm_running(struct smu_context *smu)
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
-static int vangogh_get_current_activity_percent(struct smu_context *smu,
-					       enum amd_pp_sensors sensor,
-					       uint32_t *value)
+static int vangogh_print_fine_grain_clk(struct smu_context *smu,
+			enum smu_clk_type clk_type, char *buf)
 {
-	int ret = 0;
-
-	if (!value)
-		return -EINVAL;
-
-	switch (sensor) {
-	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		ret = vangogh_get_smu_metrics_data(smu,
-						  METRICS_AVERAGE_GFXACTIVITY,
-						  value);
-		break;
-	default:
-		dev_err(smu->adev->dev, "Invalid sensor for retrieving clock activity\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int vangogh_get_gpu_power(struct smu_context *smu, uint32_t *value)
-{
-	if (!value)
-		return -EINVAL;
-
-	return vangogh_get_smu_metrics_data(smu,
-					   METRICS_AVERAGE_SOCKETPOWER,
-					   value);
-}
-
-static int vangogh_thermal_get_temperature(struct smu_context *smu,
-					     enum amd_pp_sensors sensor,
-					     uint32_t *value)
-{
-	int ret = 0;
-
-	if (!value)
-		return -EINVAL;
-
-	switch (sensor) {
-	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
-		ret = vangogh_get_smu_metrics_data(smu,
-						  METRICS_TEMPERATURE_HOTSPOT,
-						  value);
-		break;
-	case AMDGPU_PP_SENSOR_EDGE_TEMP:
-		ret = vangogh_get_smu_metrics_data(smu,
-						  METRICS_TEMPERATURE_EDGE,
-						  value);
-		break;
-	default:
-		dev_err(smu->adev->dev, "Invalid sensor for retrieving temp\n");
-		return -EINVAL;
-	}
-
-	return ret;
-}
-
-static int vangogh_get_current_clk_freq_by_table(struct smu_context *smu,
-				       enum smu_clk_type clk_type,
-				       uint32_t *value)
-{
-	MetricsMember_t member_type;
+	int size = 0;
 
 	switch (clk_type) {
-	case SMU_GFXCLK:
-		member_type = METRICS_AVERAGE_GFXCLK;
+	case SMU_OD_SCLK:
+		if (smu->od_enabled) {
+			size = sprintf(buf, "%s:\n", "OD_SCLK");
+			size += sprintf(buf + size, "0: %10uMhz\n",
+			(smu->gfx_actual_hard_min_freq > 0) ? smu->gfx_actual_hard_min_freq : smu->gfx_default_hard_min_freq);
+			size += sprintf(buf + size, "1: %10uMhz\n",
+			(smu->gfx_actual_soft_max_freq > 0) ? smu->gfx_actual_soft_max_freq : smu->gfx_default_soft_max_freq);
+		}
 		break;
-	case SMU_MCLK:
-	case SMU_UCLK:
-		member_type = METRICS_AVERAGE_UCLK;
-		break;
-	case SMU_SOCCLK:
-		member_type = METRICS_AVERAGE_SOCCLK;
+	case SMU_OD_RANGE:
+		if (smu->od_enabled) {
+			size = sprintf(buf, "%s:\n", "OD_RANGE");
+			size += sprintf(buf + size, "SCLK: %7uMhz %10uMhz\n",
+				smu->gfx_default_hard_min_freq, smu->gfx_default_soft_max_freq);
+		}
 		break;
 	default:
-		return -EINVAL;
+		break;
 	}
 
-	return vangogh_get_smu_metrics_data(smu,
-					   member_type,
-					   value);
+	return size;
 }
 
 static int vangogh_read_sensor(struct smu_context *smu,
@@ -489,30 +443,53 @@ static int vangogh_read_sensor(struct smu_context *smu,
 	mutex_lock(&smu->sensor_lock);
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		ret = vangogh_get_current_activity_percent(smu, sensor, (uint32_t *)data);
+		ret = vangogh_get_smu_metrics_data(smu,
+						   METRICS_AVERAGE_GFXACTIVITY,
+						   (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_POWER:
-		ret = vangogh_get_gpu_power(smu, (uint32_t *)data);
+		ret = vangogh_get_smu_metrics_data(smu,
+						   METRICS_AVERAGE_SOCKETPOWER,
+						   (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_EDGE_TEMP:
+		ret = vangogh_get_smu_metrics_data(smu,
+						   METRICS_TEMPERATURE_EDGE,
+						   (uint32_t *)data);
+		*size = 4;
+		break;
 	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
-		ret = vangogh_thermal_get_temperature(smu, sensor, (uint32_t *)data);
+		ret = vangogh_get_smu_metrics_data(smu,
+						   METRICS_TEMPERATURE_HOTSPOT,
+						   (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
-		ret = vangogh_get_current_clk_freq_by_table(smu, SMU_UCLK, (uint32_t *)data);
+		ret = vangogh_get_smu_metrics_data(smu,
+						   METRICS_AVERAGE_UCLK,
+						   (uint32_t *)data);
 		*(uint32_t *)data *= 100;
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
-		ret = vangogh_get_current_clk_freq_by_table(smu, SMU_GFXCLK, (uint32_t *)data);
+		ret = vangogh_get_smu_metrics_data(smu,
+						   METRICS_AVERAGE_GFXCLK,
+						   (uint32_t *)data);
 		*(uint32_t *)data *= 100;
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_VDDGFX:
-		ret = smu_v11_0_get_gfx_vdd(smu, (uint32_t *)data);
+		ret = vangogh_get_smu_metrics_data(smu,
+						   METRICS_VOLTAGE_VDDGFX,
+						   (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_VDDNB:
+		ret = vangogh_get_smu_metrics_data(smu,
+						   METRICS_VOLTAGE_VDDSOC,
+						   (uint32_t *)data);
 		*size = 4;
 		break;
 	default:
@@ -584,6 +561,167 @@ static int vangogh_set_watermarks_table(struct smu_context *smu,
 	return 0;
 }
 
+static ssize_t vangogh_get_gpu_metrics(struct smu_context *smu,
+				      void **table)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct gpu_metrics_v2_0 *gpu_metrics =
+		(struct gpu_metrics_v2_0 *)smu_table->gpu_metrics_table;
+	SmuMetrics_t metrics;
+	int ret = 0;
+
+	ret = smu_cmn_get_metrics_table(smu, &metrics, true);
+	if (ret)
+		return ret;
+
+	smu_v11_0_init_gpu_metrics_v2_0(gpu_metrics);
+
+	gpu_metrics->temperature_gfx = metrics.GfxTemperature;
+	gpu_metrics->temperature_soc = metrics.SocTemperature;
+	memcpy(&gpu_metrics->temperature_core[0],
+		&metrics.CoreTemperature[0],
+		sizeof(uint16_t) * 8);
+	gpu_metrics->temperature_l3[0] = metrics.L3Temperature[0];
+	gpu_metrics->temperature_l3[1] = metrics.L3Temperature[1];
+
+	gpu_metrics->average_gfx_activity = metrics.GfxActivity;
+	gpu_metrics->average_mm_activity = metrics.UvdActivity;
+
+	gpu_metrics->average_socket_power = metrics.CurrentSocketPower;
+	gpu_metrics->average_cpu_power = metrics.Power[0];
+	gpu_metrics->average_soc_power = metrics.Power[1];
+	memcpy(&gpu_metrics->average_core_power[0],
+		&metrics.CorePower[0],
+		sizeof(uint16_t) * 8);
+
+	gpu_metrics->average_gfxclk_frequency = metrics.GfxclkFrequency;
+	gpu_metrics->average_socclk_frequency = metrics.SocclkFrequency;
+	gpu_metrics->average_fclk_frequency = metrics.MemclkFrequency;
+	gpu_metrics->average_vclk_frequency = metrics.VclkFrequency;
+
+	memcpy(&gpu_metrics->current_coreclk[0],
+		&metrics.CoreFrequency[0],
+		sizeof(uint16_t) * 8);
+	gpu_metrics->current_l3clk[0] = metrics.L3Frequency[0];
+	gpu_metrics->current_l3clk[1] = metrics.L3Frequency[1];
+
+	gpu_metrics->throttle_status = metrics.ThrottlerStatus;
+
+	*table = (void *)gpu_metrics;
+
+	return sizeof(struct gpu_metrics_v2_0);
+}
+
+static int vangogh_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABLE_COMMAND type,
+							long input[], uint32_t size)
+{
+	int ret = 0;
+
+	if (!smu->od_enabled) {
+		dev_warn(smu->adev->dev, "Fine grain is not enabled!\n");
+		return -EINVAL;
+	}
+
+	switch (type) {
+	case PP_OD_EDIT_SCLK_VDDC_TABLE:
+		if (size != 2) {
+			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			return -EINVAL;
+		}
+
+		if (input[0] == 0) {
+			if (input[1] < smu->gfx_default_hard_min_freq) {
+				dev_warn(smu->adev->dev, "Fine grain setting minimum sclk (%ld) MHz is less than the minimum allowed (%d) MHz\n",
+					input[1], smu->gfx_default_hard_min_freq);
+				return -EINVAL;
+			}
+			smu->gfx_actual_hard_min_freq = input[1];
+		} else if (input[0] == 1) {
+			if (input[1] > smu->gfx_default_soft_max_freq) {
+				dev_warn(smu->adev->dev, "Fine grain setting maximum sclk (%ld) MHz is greater than the maximum allowed (%d) MHz\n",
+					input[1], smu->gfx_default_soft_max_freq);
+				return -EINVAL;
+			}
+			smu->gfx_actual_soft_max_freq = input[1];
+		} else {
+			return -EINVAL;
+		}
+		break;
+	case PP_OD_RESTORE_DEFAULT_TABLE:
+		if (size != 0) {
+			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			return -EINVAL;
+		} else {
+			smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
+			smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
+
+			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinGfxClk,
+									smu->gfx_actual_hard_min_freq, NULL);
+			if (ret) {
+				dev_err(smu->adev->dev, "Restore the default hard min sclk failed!");
+				return ret;
+			}
+
+			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxGfxClk,
+									smu->gfx_actual_soft_max_freq, NULL);
+			if (ret) {
+				dev_err(smu->adev->dev, "Restore the default soft max sclk failed!");
+				return ret;
+			}
+		}
+		break;
+	case PP_OD_COMMIT_DPM_TABLE:
+		if (size != 0) {
+			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			return -EINVAL;
+		} else {
+			if (smu->gfx_actual_hard_min_freq > smu->gfx_actual_soft_max_freq) {
+				dev_err(smu->adev->dev, "The setting minimun sclk (%d) MHz is greater than the setting maximum sclk (%d) MHz\n",
+				smu->gfx_actual_hard_min_freq, smu->gfx_actual_soft_max_freq);
+				return -EINVAL;
+			}
+
+			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinGfxClk,
+									smu->gfx_actual_hard_min_freq, NULL);
+			if (ret) {
+				dev_err(smu->adev->dev, "Set hard min sclk failed!");
+				return ret;
+			}
+
+			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxGfxClk,
+									smu->gfx_actual_soft_max_freq, NULL);
+			if (ret) {
+				dev_err(smu->adev->dev, "Set soft max sclk failed!");
+				return ret;
+			}
+		}
+		break;
+	default:
+		return -ENOSYS;
+	}
+
+	return ret;
+}
+
+static int vangogh_set_default_dpm_tables(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+
+	return smu_cmn_update_table(smu, SMU_TABLE_DPMCLOCKS, 0, smu_table->clocks_table, false);
+}
+
+static int vangogh_set_fine_grain_gfx_freq_parameters(struct smu_context *smu)
+{
+	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
+
+	smu->gfx_default_hard_min_freq = clk_table->MinGfxClk;
+	smu->gfx_default_soft_max_freq = clk_table->MaxGfxClk;
+	smu->gfx_actual_hard_min_freq = 0;
+	smu->gfx_actual_soft_max_freq = 0;
+
+	return 0;
+}
+
 static const struct pptable_funcs vangogh_ppt_funcs = {
 
 	.check_fw_status = smu_v11_0_check_fw_status,
@@ -605,8 +743,12 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_watermarks_table = vangogh_set_watermarks_table,
 	.set_driver_table_location = smu_v11_0_set_driver_table_location,
-	.disable_all_features_with_exception = smu_cmn_disable_all_features_with_exception,
 	.interrupt_work = smu_v11_0_interrupt_work,
+	.get_gpu_metrics = vangogh_get_gpu_metrics,
+	.od_edit_dpm_table = vangogh_od_edit_dpm_table,
+	.print_clk_levels = vangogh_print_fine_grain_clk,
+	.set_default_dpm_table = vangogh_set_default_dpm_tables,
+	.set_fine_grain_gfx_freq_parameters = vangogh_set_fine_grain_gfx_freq_parameters,
 };
 
 void vangogh_set_ppt_funcs(struct smu_context *smu)

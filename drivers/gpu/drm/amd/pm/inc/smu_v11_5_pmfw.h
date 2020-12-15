@@ -90,14 +90,16 @@
 #define FEATURE_ATHUB_PG_BIT          56
 #define FEATURE_ECO_DEEPCSTATE_BIT    57
 #define FEATURE_CC6_BIT               58
-#define NUM_FEATURES                  59
+#define FEATURE_GFX_EDC_BIT           59
+#define NUM_FEATURES                  60
 
 typedef struct {
   // MP1_EXT_SCRATCH0
   uint32_t DpmHandlerID         : 8;
   uint32_t ActivityMonitorID    : 8;
   uint32_t DpmTimerID           : 8;
-  uint32_t spare0               : 8;
+  uint32_t DpmHubID             : 4;
+  uint32_t DpmHubTask           : 4;
   // MP1_EXT_SCRATCH1
   uint32_t GfxStatus            : 2;
   uint32_t GfxoffStatus         : 8;
@@ -109,9 +111,10 @@ typedef struct {
   uint32_t spare1               : 16;
   // MP1_EXT_SCRATCH2
   uint32_t P2JobHandler			: 32;
-  // MP1_EXT_SCRATCH3
-//  uint32_t spare2               : 32;
+  // MP1_EXT_SCRATCH3: used for postcodes
+
   // MP1_EXT_SCRATCH4:6 are used by Kernel
+  // MP1_EXT_SCRATCH7: used by HW
 } FwStatus_t;
 
 

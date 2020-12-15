@@ -27,9 +27,14 @@
 #include <sound/soc-dapm.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
+#include <sound/rt1015.h>
 
 #include "rl6231.h"
 #include "rt1015.h"
+
+static const struct rt1015_platform_data i2s_default_platform_data = {
+	.power_up_delay_ms = 50,
+};
 
 static const struct reg_default rt1015_reg[] = {
 	{ 0x0000, 0x0000 },
@@ -539,7 +544,7 @@ static void rt1015_flush_work(struct work_struct *work)
 	struct rt1015_priv *rt1015 = container_of(work, struct rt1015_priv,
 						flush_work.work);
 	struct snd_soc_component *component = rt1015->component;
-	unsigned int val, i = 0, count = 20;
+	unsigned int val, i = 0, count = 200;
 
 	while (i < count) {
 		usleep_range(1000, 1500);
@@ -650,6 +655,7 @@ static int rt1015_amp_drv_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		if (rt1015->hw_config == RT1015_HW_28)
 			schedule_delayed_work(&rt1015->flush_work, msecs_to_jiffies(10));
+		msleep(rt1015->pdata.power_up_delay_ms);
 		break;
 	default:
 		break;
@@ -1067,9 +1073,16 @@ static struct acpi_device_id rt1015_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, rt1015_acpi_match);
 #endif
 
+static void rt1015_parse_dt(struct rt1015_priv *rt1015, struct device *dev)
+{
+	device_property_read_u32(dev, "realtek,power-up-delay-ms",
+		&rt1015->pdata.power_up_delay_ms);
+}
+
 static int rt1015_i2c_probe(struct i2c_client *i2c,
 	const struct i2c_device_id *id)
 {
+	struct rt1015_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt1015_priv *rt1015;
 	int ret;
 	unsigned int val;
@@ -1080,6 +1093,13 @@ static int rt1015_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, rt1015);
+
+	rt1015->pdata = i2s_default_platform_data;
+
+	if (pdata)
+		rt1015->pdata = *pdata;
+	else
+		rt1015_parse_dt(rt1015, &i2c->dev);
 
 	rt1015->regmap = devm_regmap_init_i2c(i2c, &rt1015_regmap);
 	if (IS_ERR(rt1015->regmap)) {

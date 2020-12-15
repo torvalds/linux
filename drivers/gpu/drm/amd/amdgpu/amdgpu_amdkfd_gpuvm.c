@@ -2043,6 +2043,8 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence **ef)
 	int ret = 0, i;
 	struct list_head duplicate_save;
 	struct amdgpu_sync sync_obj;
+	unsigned long failed_size = 0;
+	unsigned long total_size = 0;
 
 	INIT_LIST_HEAD(&duplicate_save);
 	INIT_LIST_HEAD(&ctx.list);
@@ -2099,10 +2101,18 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence **ef)
 		uint32_t domain = mem->domain;
 		struct kfd_bo_va_list *bo_va_entry;
 
+		total_size += amdgpu_bo_size(bo);
+
 		ret = amdgpu_amdkfd_bo_validate(bo, domain, false);
 		if (ret) {
-			pr_debug("Memory eviction: Validate BOs failed. Try again\n");
-			goto validate_map_fail;
+			pr_debug("Memory eviction: Validate BOs failed\n");
+			failed_size += amdgpu_bo_size(bo);
+			ret = amdgpu_amdkfd_bo_validate(bo,
+						AMDGPU_GEM_DOMAIN_GTT, false);
+			if (ret) {
+				pr_debug("Memory eviction: Try again\n");
+				goto validate_map_fail;
+			}
 		}
 		ret = amdgpu_sync_fence(&sync_obj, bo->tbo.moving);
 		if (ret) {
@@ -2121,6 +2131,9 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence **ef)
 			}
 		}
 	}
+
+	if (failed_size)
+		pr_debug("0x%lx/0x%lx in system\n", failed_size, total_size);
 
 	/* Update page directories */
 	ret = process_update_pds(process_info, &sync_obj);

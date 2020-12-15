@@ -421,7 +421,11 @@ int usb4_switch_set_wake(struct tb_switch *sw, unsigned int flags)
 	 * upstream USB4 port.
 	 */
 	tb_switch_for_each_port(sw, port) {
+		if (!tb_port_is_null(port))
+			continue;
 		if (!route && tb_is_upstream_port(port))
+			continue;
+		if (!port->cap_usb4)
 			continue;
 
 		ret = tb_port_read(port, &val, TB_CFG_PORT,

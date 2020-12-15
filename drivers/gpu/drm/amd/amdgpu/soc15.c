@@ -42,8 +42,6 @@
 #include "sdma1/sdma1_4_0_offset.h"
 #include "hdp/hdp_4_0_offset.h"
 #include "hdp/hdp_4_0_sh_mask.h"
-#include "smuio/smuio_9_0_offset.h"
-#include "smuio/smuio_9_0_sh_mask.h"
 #include "nbio/nbio_7_0_default.h"
 #include "nbio/nbio_7_0_offset.h"
 #include "nbio/nbio_7_0_sh_mask.h"
@@ -71,6 +69,8 @@
 #include "jpeg_v2_0.h"
 #include "vcn_v2_5.h"
 #include "jpeg_v2_5.h"
+#include "smuio_v9_0.h"
+#include "smuio_v11_0.h"
 #include "dce_virtual.h"
 #include "mxgpu_ai.h"
 #include "amdgpu_smu.h"
@@ -90,12 +90,6 @@
 #define HDP_MEM_POWER_CTRL__RC_MEM_POWER_CTRL_EN_MASK	0x00010000L
 #define HDP_MEM_POWER_CTRL__RC_MEM_POWER_LS_EN_MASK		0x00020000L
 #define mmHDP_MEM_POWER_CTRL_BASE_IDX	0
-
-/* for Vega20/arcturus regiter offset change */
-#define	mmROM_INDEX_VG20				0x00e4
-#define	mmROM_INDEX_VG20_BASE_IDX			0
-#define	mmROM_DATA_VG20					0x00e5
-#define	mmROM_DATA_VG20_BASE_IDX			0
 
 /*
  * Indirect registers accessor
@@ -296,17 +290,10 @@ static bool soc15_read_bios_from_rom(struct amdgpu_device *adev,
 	dw_ptr = (u32 *)bios;
 	length_dw = ALIGN(length_bytes, 4) / 4;
 
-	switch (adev->asic_type) {
-	case CHIP_VEGA20:
-	case CHIP_ARCTURUS:
-		rom_index_offset = SOC15_REG_OFFSET(SMUIO, 0, mmROM_INDEX_VG20);
-		rom_data_offset = SOC15_REG_OFFSET(SMUIO, 0, mmROM_DATA_VG20);
-		break;
-	default:
-		rom_index_offset = SOC15_REG_OFFSET(SMUIO, 0, mmROM_INDEX);
-		rom_data_offset = SOC15_REG_OFFSET(SMUIO, 0, mmROM_DATA);
-		break;
-	}
+	rom_index_offset =
+		adev->smuio.funcs->get_rom_index_offset(adev);
+	rom_data_offset =
+		adev->smuio.funcs->get_rom_data_offset(adev);
 
 	/* set rom index to 0 */
 	WREG32(rom_index_offset, 0);
@@ -717,6 +704,12 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		adev->df.funcs = &df_v3_6_funcs;
 	else
 		adev->df.funcs = &df_v1_7_funcs;
+
+	if (adev->asic_type == CHIP_VEGA20 ||
+	    adev->asic_type == CHIP_ARCTURUS)
+		adev->smuio.funcs = &smuio_v11_0_funcs;
+	else
+		adev->smuio.funcs = &smuio_v9_0_funcs;
 
 	adev->rev_id = soc15_get_rev_id(adev);
 
@@ -1176,7 +1169,6 @@ static int soc15_common_early_init(void *handle)
 				AMD_CG_SUPPORT_GFX_CGLS |
 				AMD_CG_SUPPORT_BIF_LS |
 				AMD_CG_SUPPORT_HDP_LS |
-				AMD_CG_SUPPORT_ROM_MGCG |
 				AMD_CG_SUPPORT_MC_MGCG |
 				AMD_CG_SUPPORT_MC_LS |
 				AMD_CG_SUPPORT_SDMA_MGCG |
@@ -1194,7 +1186,6 @@ static int soc15_common_early_init(void *handle)
 				AMD_CG_SUPPORT_GFX_CGLS |
 				AMD_CG_SUPPORT_BIF_LS |
 				AMD_CG_SUPPORT_HDP_LS |
-				AMD_CG_SUPPORT_ROM_MGCG |
 				AMD_CG_SUPPORT_MC_MGCG |
 				AMD_CG_SUPPORT_MC_LS |
 				AMD_CG_SUPPORT_SDMA_MGCG |
@@ -1218,7 +1209,6 @@ static int soc15_common_early_init(void *handle)
 				AMD_CG_SUPPORT_HDP_LS |
 				AMD_CG_SUPPORT_DRM_MGCG |
 				AMD_CG_SUPPORT_DRM_LS |
-				AMD_CG_SUPPORT_ROM_MGCG |
 				AMD_CG_SUPPORT_MC_MGCG |
 				AMD_CG_SUPPORT_MC_LS |
 				AMD_CG_SUPPORT_SDMA_MGCG |
@@ -1271,7 +1261,6 @@ static int soc15_common_early_init(void *handle)
 				 AMD_CG_SUPPORT_SDMA_LS |
 				 AMD_CG_SUPPORT_BIF_LS |
 				 AMD_CG_SUPPORT_HDP_LS |
-				 AMD_CG_SUPPORT_ROM_MGCG |
 				 AMD_CG_SUPPORT_VCN_MGCG |
 				 AMD_CG_SUPPORT_JPEG_MGCG |
 				 AMD_CG_SUPPORT_IH_CG |
@@ -1511,24 +1500,6 @@ static void soc15_update_drm_light_sleep(struct amdgpu_device *adev, bool enable
 		WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_MISC_LIGHT_SLEEP_CTRL), data);
 }
 
-static void soc15_update_rom_medium_grain_clock_gating(struct amdgpu_device *adev,
-						       bool enable)
-{
-	uint32_t def, data;
-
-	def = data = RREG32(SOC15_REG_OFFSET(SMUIO, 0, mmCGTT_ROM_CLK_CTRL0));
-
-	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_ROM_MGCG))
-		data &= ~(CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE0_MASK |
-			CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE1_MASK);
-	else
-		data |= CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE0_MASK |
-			CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE1_MASK;
-
-	if (def != data)
-		WREG32(SOC15_REG_OFFSET(SMUIO, 0, mmCGTT_ROM_CLK_CTRL0), data);
-}
-
 static int soc15_common_set_clockgating_state(void *handle,
 					    enum amd_clockgating_state state)
 {
@@ -1551,7 +1522,7 @@ static int soc15_common_set_clockgating_state(void *handle,
 				state == AMD_CG_STATE_GATE);
 		soc15_update_drm_light_sleep(adev,
 				state == AMD_CG_STATE_GATE);
-		soc15_update_rom_medium_grain_clock_gating(adev,
+		adev->smuio.funcs->update_rom_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		adev->df.funcs->update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
@@ -1567,8 +1538,6 @@ static int soc15_common_set_clockgating_state(void *handle,
 		soc15_update_drm_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		soc15_update_drm_light_sleep(adev,
-				state == AMD_CG_STATE_GATE);
-		soc15_update_rom_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		break;
 	case CHIP_ARCTURUS:
@@ -1607,9 +1576,7 @@ static void soc15_common_get_clockgating_state(void *handle, u32 *flags)
 		*flags |= AMD_CG_SUPPORT_DRM_LS;
 
 	/* AMD_CG_SUPPORT_ROM_MGCG */
-	data = RREG32(SOC15_REG_OFFSET(SMUIO, 0, mmCGTT_ROM_CLK_CTRL0));
-	if (!(data & CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE0_MASK))
-		*flags |= AMD_CG_SUPPORT_ROM_MGCG;
+	adev->smuio.funcs->get_clock_gating_state(adev, flags);
 
 	adev->df.funcs->get_clockgating_state(adev, flags);
 }

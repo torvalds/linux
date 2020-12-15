@@ -205,16 +205,12 @@ DEFINE_OUTPUT_COPY(__output_copy_user, arch_perf_out_copy_user)
 
 static inline int get_recursion_context(int *recursion)
 {
-	int rctx;
+	unsigned int pc = preempt_count();
+	unsigned char rctx = 0;
 
-	if (unlikely(in_nmi()))
-		rctx = 3;
-	else if (in_irq())
-		rctx = 2;
-	else if (in_softirq())
-		rctx = 1;
-	else
-		rctx = 0;
+	rctx += !!(pc & (NMI_MASK));
+	rctx += !!(pc & (NMI_MASK | HARDIRQ_MASK));
+	rctx += !!(pc & (NMI_MASK | HARDIRQ_MASK | SOFTIRQ_OFFSET));
 
 	if (recursion[rctx])
 		return -1;

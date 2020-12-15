@@ -2142,7 +2142,7 @@ static int polaris10_program_mem_timing_parameters(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int polaris10_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
+static int polaris10_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
@@ -2372,6 +2372,7 @@ static int polaris10_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type)
 		break;
 	case SMU_BIF_TABLE:
 		polaris10_update_bif_smc_table(hwmgr);
+		break;
 	default:
 		break;
 	}

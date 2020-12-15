@@ -933,7 +933,7 @@ static struct dce_aux *dcn30_aux_engine_create(
 	return &aux_engine->base;
 }
 
-#define i2c_inst_regs(id) { I2C_HW_ENGINE_COMMON_REG_LIST(id) }
+#define i2c_inst_regs(id) { I2C_HW_ENGINE_COMMON_REG_LIST_DCN30(id) }
 
 static const struct dce_i2c_registers i2c_hw_regs[] = {
 		i2c_inst_regs(1),
@@ -945,11 +945,11 @@ static const struct dce_i2c_registers i2c_hw_regs[] = {
 };
 
 static const struct dce_i2c_shift i2c_shifts = {
-		I2C_COMMON_MASK_SH_LIST_DCN2(__SHIFT)
+		I2C_COMMON_MASK_SH_LIST_DCN30(__SHIFT)
 };
 
 static const struct dce_i2c_mask i2c_masks = {
-		I2C_COMMON_MASK_SH_LIST_DCN2(_MASK)
+		I2C_COMMON_MASK_SH_LIST_DCN30(_MASK)
 };
 
 static struct dce_i2c_hw *dcn30_i2c_hw_create(
@@ -1451,12 +1451,13 @@ static struct clock_source *dcn30_clock_source_create(
 
 int dcn30_populate_dml_pipes_from_context(
 	struct dc *dc, struct dc_state *context,
-	display_e2e_pipe_params_st *pipes)
+	display_e2e_pipe_params_st *pipes,
+	bool fast_validate)
 {
 	int i, pipe_cnt;
 	struct resource_context *res_ctx = &context->res_ctx;
 
-	dcn20_populate_dml_pipes_from_context(dc, context, pipes);
+	dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
 
 	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
 		if (!res_ctx->pipe_ctx[i].stream)
@@ -1469,20 +1470,8 @@ int dcn30_populate_dml_pipes_from_context(
 	return pipe_cnt;
 }
 
-/*
- * This must be noinline to ensure anything that deals with FP registers
- * is contained within this call; previously our compiling with hard-float
- * would result in fp instructions being emitted outside of the boundaries
- * of the DC_FP_START/END macros, which makes sense as the compiler has no
- * idea about what is wrapped and what is not
- *
- * This is largely just a workaround to avoid breakage introduced with 5.6,
- * ideally all fp-using code should be moved into its own file, only that
- * should be compiled with hard-float, and all code exported from there
- * should be strictly wrapped with DC_FP_START/END
- */
-static noinline void dcn30_populate_dml_writeback_from_context_fp(
-		struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes)
+void dcn30_populate_dml_writeback_from_context(
+	struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes)
 {
 	int pipe_cnt, i, j;
 	double max_calc_writeback_dispclk;
@@ -1568,14 +1557,6 @@ static noinline void dcn30_populate_dml_writeback_from_context_fp(
 		pipe_cnt++;
 	}
 
-}
-
-void dcn30_populate_dml_writeback_from_context(
-		struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes)
-{
-	DC_FP_START();
-	dcn30_populate_dml_writeback_from_context_fp(dc, res_ctx, pipes);
-	DC_FP_END();
 }
 
 unsigned int dcn30_calc_max_scaled_time(
@@ -1976,7 +1957,7 @@ static struct pipe_ctx *dcn30_find_split_pipe(
 	return pipe;
 }
 
-static bool dcn30_internal_validate_bw(
+static noinline bool dcn30_internal_validate_bw(
 		struct dc *dc,
 		struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
@@ -1996,8 +1977,9 @@ static bool dcn30_internal_validate_bw(
 	if (!pipes)
 		return false;
 
-	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes);
+	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, fast_validate);
 
+	DC_FP_START();
 	if (!pipe_cnt) {
 		out = true;
 		goto validate_out;
@@ -2210,7 +2192,7 @@ static bool dcn30_internal_validate_bw(
 	}
 
 	if (repopulate_pipes)
-		pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes);
+		pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, fast_validate);
 	*vlevel_out = vlevel;
 	*pipe_cnt_out = pipe_cnt;
 
@@ -2221,6 +2203,7 @@ validate_fail:
 	out = false;
 
 validate_out:
+	DC_FP_END();
 	return out;
 }
 
@@ -2403,7 +2386,7 @@ void dcn30_calculate_wm_and_dlg(
 	DC_FP_END();
 }
 
-static noinline bool dcn30_validate_bandwidth_fp(struct dc *dc,
+bool dcn30_validate_bandwidth(struct dc *dc,
 		struct dc_state *context,
 		bool fast_validate)
 {
@@ -2450,19 +2433,6 @@ validate_out:
 	kfree(pipes);
 
 	BW_VAL_TRACE_FINISH();
-
-	return out;
-}
-
-bool dcn30_validate_bandwidth(struct dc *dc,
-		struct dc_state *context,
-		bool fast_validate)
-{
-	bool out;
-
-	DC_FP_START();
-	out = dcn30_validate_bandwidth_fp(dc, context, fast_validate);
-	DC_FP_END();
 
 	return out;
 }
@@ -2680,6 +2650,7 @@ static bool dcn30_resource_construct(
 	dc->caps.color.dpp.dgam_rom_caps.hlg = 1;
 	dc->caps.color.dpp.post_csc = 1;
 	dc->caps.color.dpp.gamma_corr = 1;
+	dc->caps.color.dpp.dgam_rom_for_yuv = 0;
 
 	dc->caps.color.dpp.hw_3d_lut = 1;
 	dc->caps.color.dpp.ogam_ram = 1;

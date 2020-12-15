@@ -102,7 +102,7 @@ class KUnitParserTest(unittest.TestCase):
 			'test_data/test_output_isolated_correctly.log')
 		file = open(log_path)
 		result = kunit_parser.isolate_kunit_output(file.readlines())
-		self.assertContains('TAP version 14\n', result)
+		self.assertContains('TAP version 14', result)
 		self.assertContains('	# Subtest: example', result)
 		self.assertContains('	1..2', result)
 		self.assertContains('	ok 1 - example_simple_test', result)
@@ -115,7 +115,7 @@ class KUnitParserTest(unittest.TestCase):
 			'test_data/test_pound_sign.log')
 		with open(log_path) as file:
 			result = kunit_parser.isolate_kunit_output(file.readlines())
-		self.assertContains('TAP version 14\n', result)
+		self.assertContains('TAP version 14', result)
 		self.assertContains('	# Subtest: kunit-resource-test', result)
 		self.assertContains('	1..5', result)
 		self.assertContains('	ok 1 - kunit_resource_test_init_resources', result)

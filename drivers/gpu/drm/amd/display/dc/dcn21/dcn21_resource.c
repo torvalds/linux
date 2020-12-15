@@ -58,6 +58,7 @@
 #include "dce110/dce110_resource.h"
 #include "dml/display_mode_vba.h"
 #include "dcn20/dcn20_dccg.h"
+#include "dcn21/dcn21_dccg.h"
 #include "dcn21_hubbub.h"
 #include "dcn10/dcn10_resource.h"
 #include "dce110/dce110_resource.h"
@@ -301,9 +302,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 	.xfc_bus_transport_time_us = 4,
 	.xfc_xbuf_latency_tolerance_us = 4,
 	.use_urgent_burst_bw = 1,
-	.num_states = 8,
-	.allow_dram_self_refresh_or_dram_clock_change_in_vblank
-			= dm_allow_self_refresh_and_mclk_switch
+	.num_states = 8
 };
 
 #ifndef MAX
@@ -706,7 +705,10 @@ static const struct dcn10_stream_encoder_mask se_mask = {
 static void dcn21_pp_smu_destroy(struct pp_smu_funcs **pp_smu);
 
 static int dcn21_populate_dml_pipes_from_context(
-		struct dc *dc, struct dc_state *context, display_e2e_pipe_params_st *pipes);
+		struct dc *dc,
+		struct dc_state *context,
+		display_e2e_pipe_params_st *pipes,
+		bool fast_validate);
 
 static struct input_pixel_processor *dcn21_ipp_create(
 	struct dc_context *ctx, uint32_t inst)
@@ -1093,7 +1095,8 @@ void dcn21_calculate_wm(
 		display_e2e_pipe_params_st *pipes,
 		int *out_pipe_cnt,
 		int *pipe_split_from,
-		int vlevel_req)
+		int vlevel_req,
+		bool fast_validate)
 {
 	int pipe_cnt, i, pipe_idx;
 	int vlevel, vlevel_max;
@@ -1135,10 +1138,10 @@ void dcn21_calculate_wm(
 	if (pipe_cnt != pipe_idx) {
 		if (dc->res_pool->funcs->populate_dml_pipes)
 			pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc,
-				context, pipes);
+				context, pipes, fast_validate);
 		else
 			pipe_cnt = dcn21_populate_dml_pipes_from_context(dc,
-				context, pipes);
+				context, pipes, fast_validate);
 	}
 
 	*out_pipe_cnt = pipe_cnt;
@@ -1179,7 +1182,8 @@ static bool dcn21_fast_validate_bw(
 		display_e2e_pipe_params_st *pipes,
 		int *pipe_cnt_out,
 		int *pipe_split_from,
-		int *vlevel_out)
+		int *vlevel_out,
+		bool fast_validate)
 {
 	bool out = false;
 	int split[MAX_PIPES] = { 0 };
@@ -1191,7 +1195,7 @@ static bool dcn21_fast_validate_bw(
 
 	dcn20_merge_pipes_for_validate(dc, context);
 
-	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes);
+	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, fast_validate);
 
 	*pipe_cnt_out = pipe_cnt;
 
@@ -1199,11 +1203,29 @@ static bool dcn21_fast_validate_bw(
 		out = true;
 		goto validate_out;
 	}
-
+	/*
+	 * DML favors voltage over p-state, but we're more interested in
+	 * supporting p-state over voltage. We can't support p-state in
+	 * prefetch mode > 0 so try capping the prefetch mode to start.
+	 */
+	context->bw_ctx.dml.soc.allow_dram_self_refresh_or_dram_clock_change_in_vblank =
+				dm_allow_self_refresh_and_mclk_switch;
 	vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
 
-	if (vlevel > context->bw_ctx.dml.soc.num_states)
-		goto validate_fail;
+	if (vlevel > context->bw_ctx.dml.soc.num_states) {
+		/*
+		 * If mode is unsupported or there's still no p-state support then
+		 * fall back to favoring voltage.
+		 *
+		 * We don't actually support prefetch mode 2, so require that we
+		 * at least support prefetch mode 1.
+		 */
+		context->bw_ctx.dml.soc.allow_dram_self_refresh_or_dram_clock_change_in_vblank =
+					dm_allow_self_refresh;
+		vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
+		if (vlevel > context->bw_ctx.dml.soc.num_states)
+			goto validate_fail;
+	}
 
 	vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, vlevel, split, NULL);
 
@@ -1323,7 +1345,7 @@ bool dcn21_validate_bandwidth(struct dc *dc, struct dc_state *context,
 	/*Unsafe due to current pipe merge and split logic*/
 	ASSERT(context != dc->current_state);
 
-	out = dcn21_fast_validate_bw(dc, context, pipes, &pipe_cnt, pipe_split_from, &vlevel);
+	out = dcn21_fast_validate_bw(dc, context, pipes, &pipe_cnt, pipe_split_from, &vlevel, fast_validate);
 
 	if (pipe_cnt == 0)
 		goto validate_out;
@@ -1338,7 +1360,7 @@ bool dcn21_validate_bandwidth(struct dc *dc, struct dc_state *context,
 		goto validate_out;
 	}
 
-	dcn21_calculate_wm(dc, context, pipes, &pipe_cnt, pipe_split_from, vlevel);
+	dcn21_calculate_wm(dc, context, pipes, &pipe_cnt, pipe_split_from, vlevel, fast_validate);
 	dcn20_calculate_dlg_params(dc, context, pipes, pipe_cnt, vlevel);
 
 	BW_VAL_TRACE_END_WATERMARKS();
@@ -1854,14 +1876,17 @@ static uint32_t read_pipe_fuses(struct dc_context *ctx)
 }
 
 static int dcn21_populate_dml_pipes_from_context(
-		struct dc *dc, struct dc_state *context, display_e2e_pipe_params_st *pipes)
+		struct dc *dc,
+		struct dc_state *context,
+		display_e2e_pipe_params_st *pipes,
+		bool fast_validate)
 {
-	uint32_t pipe_cnt = dcn20_populate_dml_pipes_from_context(dc, context, pipes);
+	uint32_t pipe_cnt = dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
 	int i;
 
 	for (i = 0; i < pipe_cnt; i++) {
 
-		pipes[i].pipe.src.hostvm = 1;
+		pipes[i].pipe.src.hostvm = dc->res_pool->hubbub->riommu_active;
 		pipes[i].pipe.src.gpuvm = 1;
 	}
 
@@ -1954,6 +1979,7 @@ static bool dcn21_resource_construct(
 	dc->caps.color.dpp.dgam_rom_caps.hlg = 0;
 	dc->caps.color.dpp.post_csc = 0;
 	dc->caps.color.dpp.gamma_corr = 0;
+	dc->caps.color.dpp.dgam_rom_for_yuv = 1;
 
 	dc->caps.color.dpp.hw_3d_lut = 1;
 	dc->caps.color.dpp.ogam_ram = 1;
@@ -2021,7 +2047,7 @@ static bool dcn21_resource_construct(
 		}
 	}
 
-	pool->base.dccg = dccg2_create(ctx, &dccg_regs, &dccg_shift, &dccg_mask);
+	pool->base.dccg = dccg21_create(ctx, &dccg_regs, &dccg_shift, &dccg_mask);
 	if (pool->base.dccg == NULL) {
 		dm_error("DC: failed to create dccg!\n");
 		BREAK_TO_DEBUGGER();

@@ -379,41 +379,6 @@ static const uint32_t ecc_umc_mcumc_ctrl_mask_addrs[] = {
 	(0x001d43e0 + 0x00001800),
 };
 
-static const uint32_t ecc_umc_mcumc_status_addrs[] = {
-	(0x000143c2 + 0x00000000),
-	(0x000143c2 + 0x00000800),
-	(0x000143c2 + 0x00001000),
-	(0x000143c2 + 0x00001800),
-	(0x000543c2 + 0x00000000),
-	(0x000543c2 + 0x00000800),
-	(0x000543c2 + 0x00001000),
-	(0x000543c2 + 0x00001800),
-	(0x000943c2 + 0x00000000),
-	(0x000943c2 + 0x00000800),
-	(0x000943c2 + 0x00001000),
-	(0x000943c2 + 0x00001800),
-	(0x000d43c2 + 0x00000000),
-	(0x000d43c2 + 0x00000800),
-	(0x000d43c2 + 0x00001000),
-	(0x000d43c2 + 0x00001800),
-	(0x001143c2 + 0x00000000),
-	(0x001143c2 + 0x00000800),
-	(0x001143c2 + 0x00001000),
-	(0x001143c2 + 0x00001800),
-	(0x001543c2 + 0x00000000),
-	(0x001543c2 + 0x00000800),
-	(0x001543c2 + 0x00001000),
-	(0x001543c2 + 0x00001800),
-	(0x001943c2 + 0x00000000),
-	(0x001943c2 + 0x00000800),
-	(0x001943c2 + 0x00001000),
-	(0x001943c2 + 0x00001800),
-	(0x001d43c2 + 0x00000000),
-	(0x001d43c2 + 0x00000800),
-	(0x001d43c2 + 0x00001000),
-	(0x001d43c2 + 0x00001800),
-};
-
 static int gmc_v9_0_ecc_interrupt_state(struct amdgpu_device *adev,
 		struct amdgpu_irq_src *src,
 		unsigned type,
@@ -502,6 +467,7 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 				WREG32(reg, tmp);
 			}
 		}
+		break;
 	default:
 		break;
 	}
@@ -524,14 +490,29 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	addr = (u64)entry->src_data[0] << 12;
 	addr |= ((u64)entry->src_data[1] & 0xf) << 44;
 
-	if (retry_fault && amdgpu_gmc_filter_faults(adev, addr, entry->pasid,
-						    entry->timestamp))
-		return 1; /* This also prevents sending it to KFD */
+	if (retry_fault) {
+		/* Returning 1 here also prevents sending the IV to the KFD */
 
-	/* If it's the first fault for this address, process it normally */
-	if (retry_fault && !in_interrupt() &&
-	    amdgpu_vm_handle_fault(adev, entry->pasid, addr))
-		return 1; /* This also prevents sending it to KFD */
+		/* Process it onyl if it's the first fault for this address */
+		if (entry->ih != &adev->irq.ih_soft &&
+		    amdgpu_gmc_filter_faults(adev, addr, entry->pasid,
+					     entry->timestamp))
+			return 1;
+
+		/* Delegate it to a different ring if the hardware hasn't
+		 * already done it.
+		 */
+		if (in_interrupt()) {
+			amdgpu_irq_delegate(adev, entry, 8);
+			return 1;
+		}
+
+		/* Try to handle the recoverable page faults by filling page
+		 * tables
+		 */
+		if (amdgpu_vm_handle_fault(adev, entry->pasid, addr))
+			return 1;
+	}
 
 	if (!printk_ratelimit())
 		return 0;
@@ -557,7 +538,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 		entry->src_id, entry->ring_id, entry->vmid,
 		entry->pasid, task_info.process_name, task_info.tgid,
 		task_info.task_name, task_info.pid);
-	dev_err(adev->dev, "  in page starting at address 0x%016llx from client %d\n",
+	dev_err(adev->dev, "  in page starting at address 0x%012llx from client %d\n",
 		addr, entry->client_id);
 
 	if (amdgpu_sriov_vf(adev))
@@ -710,6 +691,7 @@ static bool gmc_v9_0_get_atc_vmid_pasid_mapping_info(struct amdgpu_device *adev,
  *
  * @adev: amdgpu_device pointer
  * @vmid: vm instance to flush
+ * @vmhub: which hub to flush
  * @flush_type: the flush type
  *
  * Flush the TLB for the requested page table using certain type.
@@ -826,6 +808,8 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
  *
  * @adev: amdgpu_device pointer
  * @pasid: pasid to be flush
+ * @flush_type: the flush type
+ * @all_hub: flush all hubs
  *
  * Flush the TLB for the requested pasid.
  */
@@ -1192,8 +1176,6 @@ static int gmc_v9_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r;
-
-	amdgpu_bo_late_init(adev);
 
 	r = amdgpu_gmc_allocate_vm_inv_eng(adev);
 	if (r)

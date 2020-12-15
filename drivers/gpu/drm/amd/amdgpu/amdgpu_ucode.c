@@ -68,23 +68,32 @@ void amdgpu_ucode_print_smc_hdr(const struct common_firmware_header *hdr)
 {
 	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
 	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+	const struct smc_firmware_header_v1_0 *v1_0_hdr;
+	const struct smc_firmware_header_v2_0 *v2_0_hdr;
+	const struct smc_firmware_header_v2_1 *v2_1_hdr;
 
 	DRM_DEBUG("SMC\n");
 	amdgpu_ucode_print_common_hdr(hdr);
 
 	if (version_major == 1) {
-		const struct smc_firmware_header_v1_0 *smc_hdr =
-			container_of(hdr, struct smc_firmware_header_v1_0, header);
-
-		DRM_DEBUG("ucode_start_addr: %u\n", le32_to_cpu(smc_hdr->ucode_start_addr));
+		v1_0_hdr = container_of(hdr, struct smc_firmware_header_v1_0, header);
+		DRM_DEBUG("ucode_start_addr: %u\n", le32_to_cpu(v1_0_hdr->ucode_start_addr));
 	} else if (version_major == 2) {
-		const struct smc_firmware_header_v1_0 *v1_hdr =
-			container_of(hdr, struct smc_firmware_header_v1_0, header);
-		const struct smc_firmware_header_v2_0 *v2_hdr =
-			container_of(v1_hdr, struct smc_firmware_header_v2_0, v1_0);
+		switch (version_minor) {
+		case 0:
+			v2_0_hdr = container_of(hdr, struct smc_firmware_header_v2_0, v1_0.header);
+			DRM_DEBUG("ppt_offset_bytes: %u\n", le32_to_cpu(v2_0_hdr->ppt_offset_bytes));
+			DRM_DEBUG("ppt_size_bytes: %u\n", le32_to_cpu(v2_0_hdr->ppt_size_bytes));
+			break;
+		case 1:
+			v2_1_hdr = container_of(hdr, struct smc_firmware_header_v2_1, v1_0.header);
+			DRM_DEBUG("pptable_count: %u\n", le32_to_cpu(v2_1_hdr->pptable_count));
+			DRM_DEBUG("pptable_entry_offset: %u\n", le32_to_cpu(v2_1_hdr->pptable_entry_offset));
+			break;
+		default:
+			break;
+		}
 
-		DRM_DEBUG("ppt_offset_bytes: %u\n", le32_to_cpu(v2_hdr->ppt_offset_bytes));
-		DRM_DEBUG("ppt_size_bytes: %u\n", le32_to_cpu(v2_hdr->ppt_size_bytes));
 	} else {
 		DRM_ERROR("Unknown SMC ucode version: %u.%u\n", version_major, version_minor);
 	}

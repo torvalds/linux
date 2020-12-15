@@ -1626,6 +1626,7 @@ static int vm_ctx_init_with_ranges(struct hl_ctx *ctx,
 			goto host_hpage_range_err;
 		}
 	} else {
+		kfree(ctx->host_huge_va_range);
 		ctx->host_huge_va_range = ctx->host_va_range;
 	}
 

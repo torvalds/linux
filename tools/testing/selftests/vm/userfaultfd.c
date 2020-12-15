@@ -206,19 +206,19 @@ static int hugetlb_release_pages(char *rel_area)
 	return ret;
 }
 
-
 static void hugetlb_allocate_area(void **alloc_area)
 {
 	void *area_alias = NULL;
 	char **alloc_area_alias;
+
 	*alloc_area = mmap(NULL, nr_pages * page_size, PROT_READ | PROT_WRITE,
 			   (map_shared ? MAP_SHARED : MAP_PRIVATE) |
 			   MAP_HUGETLB,
 			   huge_fd, *alloc_area == area_src ? 0 :
 			   nr_pages * page_size);
 	if (*alloc_area == MAP_FAILED) {
-		fprintf(stderr, "mmap of hugetlbfs file failed\n");
-		*alloc_area = NULL;
+		perror("mmap of hugetlbfs file failed");
+		goto fail;
 	}
 
 	if (map_shared) {
@@ -227,14 +227,11 @@ static void hugetlb_allocate_area(void **alloc_area)
 				  huge_fd, *alloc_area == area_src ? 0 :
 				  nr_pages * page_size);
 		if (area_alias == MAP_FAILED) {
-			if (munmap(*alloc_area, nr_pages * page_size) < 0) {
-				perror("hugetlb munmap");
-				exit(1);
-			}
-			*alloc_area = NULL;
-			return;
+			perror("mmap of hugetlb file alias failed");
+			goto fail_munmap;
 		}
 	}
+
 	if (*alloc_area == area_src) {
 		huge_fd_off0 = *alloc_area;
 		alloc_area_alias = &area_src_alias;
@@ -243,6 +240,16 @@ static void hugetlb_allocate_area(void **alloc_area)
 	}
 	if (area_alias)
 		*alloc_area_alias = area_alias;
+
+	return;
+
+fail_munmap:
+	if (munmap(*alloc_area, nr_pages * page_size) < 0) {
+		perror("hugetlb munmap");
+		exit(1);
+	}
+fail:
+	*alloc_area = NULL;
 }
 
 static void hugetlb_alias_mapping(__u64 *start, size_t len, unsigned long offset)

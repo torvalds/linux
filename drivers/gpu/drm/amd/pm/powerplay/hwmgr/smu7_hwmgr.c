@@ -193,10 +193,10 @@ static const struct smu7_power_state *cast_const_phw_smu7_power_state(
 }
 
 /**
- * Find the MC microcode version and store it in the HwMgr struct
+ * smu7_get_mc_microcode_version - Find the MC microcode version and store it in the HwMgr struct
  *
- * @param    hwmgr  the address of the powerplay hardware manager.
- * @return   always 0
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * Return:   always 0
  */
 static int smu7_get_mc_microcode_version(struct pp_hwmgr *hwmgr)
 {
@@ -233,11 +233,11 @@ static int smu7_get_current_pcie_lane_number(struct pp_hwmgr *hwmgr)
 }
 
 /**
-* Enable voltage control
-*
-* @param    pHwMgr  the address of the powerplay hardware manager.
-* @return   always PP_Result_OK
-*/
+ * smu7_enable_smc_voltage_controller - Enable voltage control
+ *
+ * @hwmgr  the address of the powerplay hardware manager.
+ * Return:   always PP_Result_OK
+ */
 static int smu7_enable_smc_voltage_controller(struct pp_hwmgr *hwmgr)
 {
 	if (hwmgr->chip_id >= CHIP_POLARIS10 &&
@@ -255,10 +255,10 @@ static int smu7_enable_smc_voltage_controller(struct pp_hwmgr *hwmgr)
 }
 
 /**
-* Checks if we want to support voltage control
-*
-* @param    hwmgr  the address of the powerplay hardware manager.
-*/
+ * smu7_voltage_control - Checks if we want to support voltage control
+ *
+ * @hwmgr:  the address of the powerplay hardware manager.
+ */
 static bool smu7_voltage_control(const struct pp_hwmgr *hwmgr)
 {
 	const struct smu7_hwmgr *data =
@@ -268,11 +268,11 @@ static bool smu7_voltage_control(const struct pp_hwmgr *hwmgr)
 }
 
 /**
-* Enable voltage control
-*
-* @param    hwmgr  the address of the powerplay hardware manager.
-* @return   always 0
-*/
+ * smu7_enable_voltage_control - Enable voltage control
+ *
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * Return:   always 0
+ */
 static int smu7_enable_voltage_control(struct pp_hwmgr *hwmgr)
 {
 	/* enable voltage control */
@@ -306,11 +306,11 @@ static int phm_get_svi2_voltage_table_v0(pp_atomctrl_voltage_table *voltage_tabl
 
 
 /**
-* Create Voltage Tables.
-*
-* @param    hwmgr  the address of the powerplay hardware manager.
-* @return   always 0
-*/
+ * smu7_construct_voltage_tables - Create Voltage Tables.
+ *
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * Return:   always 0
+ */
 static int smu7_construct_voltage_tables(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
@@ -418,11 +418,11 @@ static int smu7_construct_voltage_tables(struct pp_hwmgr *hwmgr)
 }
 
 /**
-* Programs static screed detection parameters
-*
-* @param    hwmgr  the address of the powerplay hardware manager.
-* @return   always 0
-*/
+ * smu7_program_static_screen_threshold_parameters - Programs static screed detection parameters
+ *
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * Return:   always 0
+ */
 static int smu7_program_static_screen_threshold_parameters(
 							struct pp_hwmgr *hwmgr)
 {
@@ -441,11 +441,11 @@ static int smu7_program_static_screen_threshold_parameters(
 }
 
 /**
-* Setup display gap for glitch free memory clock switching.
-*
-* @param    hwmgr  the address of the powerplay hardware manager.
-* @return   always  0
-*/
+ * smu7_enable_display_gap - Setup display gap for glitch free memory clock switching.
+ *
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * Return:   always  0
+ */
 static int smu7_enable_display_gap(struct pp_hwmgr *hwmgr)
 {
 	uint32_t display_gap =
@@ -465,11 +465,11 @@ static int smu7_enable_display_gap(struct pp_hwmgr *hwmgr)
 }
 
 /**
-* Programs activity state transition voting clients
-*
-* @param    hwmgr  the address of the powerplay hardware manager.
-* @return   always  0
-*/
+ * smu7_program_voting_clients - Programs activity state transition voting clients
+ *
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * Return:   always  0
+ */
 static int smu7_program_voting_clients(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
@@ -560,12 +560,12 @@ static int smu7_reset_to_default(struct pp_hwmgr *hwmgr)
 }
 
 /**
-* Initial switch from ARB F0->F1
-*
-* @param    hwmgr  the address of the powerplay hardware manager.
-* @return   always 0
-* This function is to be called from the SetPowerState table.
-*/
+ * smu7_initial_switch_from_arbf0_to_f1 - Initial switch from ARB F0->F1
+ *
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * Return:   always 0
+ * This function is to be called from the SetPowerState table.
+ */
 static int smu7_initial_switch_from_arbf0_to_f1(struct pp_hwmgr *hwmgr)
 {
 	return smu7_copy_and_switch_arb_sets(hwmgr,
@@ -1917,11 +1917,11 @@ static int smu7_calculate_ro_range(struct pp_hwmgr *hwmgr)
 }
 
 /**
-* Get Leakage VDDC based on leakage ID.
-*
-* @param    hwmgr  the address of the powerplay hardware manager.
-* @return   always 0
-*/
+ * smu7_get_evv_voltages - Get Leakage VDDC based on leakage ID.
+ *
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * Return:   always 0
+ */
 static int smu7_get_evv_voltages(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
@@ -2017,11 +2017,11 @@ static int smu7_get_evv_voltages(struct pp_hwmgr *hwmgr)
 }
 
 /**
- * Change virtual leakage voltage to actual value.
+ * smu7_patch_ppt_v1_with_vdd_leakage - Change virtual leakage voltage to actual value.
  *
- * @param     hwmgr  the address of the powerplay hardware manager.
- * @param     pointer to changing voltage
- * @param     pointer to leakage table
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * @voltage: pointer to changing voltage
+ * @leakage_table: pointer to leakage table
  */
 static void smu7_patch_ppt_v1_with_vdd_leakage(struct pp_hwmgr *hwmgr,
 		uint16_t *voltage, struct smu7_leakage_voltage *leakage_table)
@@ -2043,13 +2043,13 @@ static void smu7_patch_ppt_v1_with_vdd_leakage(struct pp_hwmgr *hwmgr,
 }
 
 /**
-* Patch voltage lookup table by EVV leakages.
-*
-* @param     hwmgr  the address of the powerplay hardware manager.
-* @param     pointer to voltage lookup table
-* @param     pointer to leakage table
-* @return     always 0
-*/
+ * smu7_patch_lookup_table_with_leakage - Patch voltage lookup table by EVV leakages.
+ *
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * @lookup_table: pointer to voltage lookup table
+ * @leakage_table: pointer to leakage table
+ * Return:     always 0
+ */
 static int smu7_patch_lookup_table_with_leakage(struct pp_hwmgr *hwmgr,
 		phm_ppt_v1_voltage_lookup_table *lookup_table,
 		struct smu7_leakage_voltage *leakage_table)
@@ -2500,11 +2500,11 @@ static int smu7_thermal_parameter_init(struct pp_hwmgr *hwmgr)
 }
 
 /**
- * Change virtual leakage voltage to actual value.
+ * smu7_patch_ppt_v0_with_vdd_leakage - Change virtual leakage voltage to actual value.
  *
- * @param     hwmgr  the address of the powerplay hardware manager.
- * @param     pointer to changing voltage
- * @param     pointer to leakage table
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * @voltage: pointer to changing voltage
+ * @leakage_table: pointer to leakage table
  */
 static void smu7_patch_ppt_v0_with_vdd_leakage(struct pp_hwmgr *hwmgr,
 		uint32_t *voltage, struct smu7_leakage_voltage *leakage_table)
@@ -4440,11 +4440,11 @@ smu7_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 }
 
 /**
-* Programs the display gap
-*
-* @param    hwmgr  the address of the powerplay hardware manager.
-* @return   always OK
-*/
+ * smu7_program_display_gap - Programs the display gap
+ *
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * Return:   always OK
+ */
 static int smu7_program_display_gap(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
@@ -4498,12 +4498,12 @@ static int smu7_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 }
 
 /**
-*  Set maximum target operating fan output RPM
-*
-* @param    hwmgr:  the address of the powerplay hardware manager.
-* @param    usMaxFanRpm:  max operating fan RPM value.
-* @return   The response that came from the SMC.
-*/
+ * smu7_set_max_fan_rpm_output - Set maximum target operating fan output RPM
+ *
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * @usMaxFanRpm:  max operating fan RPM value.
+ * Return:   The response that came from the SMC.
+ */
 static int smu7_set_max_fan_rpm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_fan_rpm)
 {
 	hwmgr->thermal_controller.
@@ -4698,10 +4698,10 @@ static int smu7_read_clock_registers(struct pp_hwmgr *hwmgr)
 }
 
 /**
- * Find out if memory is GDDR5.
+ * smu7_get_memory_type - Find out if memory is GDDR5.
  *
- * @param    hwmgr  the address of the powerplay hardware manager.
- * @return   always 0
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * Return:   always 0
  */
 static int smu7_get_memory_type(struct pp_hwmgr *hwmgr)
 {
@@ -4714,10 +4714,10 @@ static int smu7_get_memory_type(struct pp_hwmgr *hwmgr)
 }
 
 /**
- * Enables Dynamic Power Management by SMC
+ * smu7_enable_acpi_power_management - Enables Dynamic Power Management by SMC
  *
- * @param    hwmgr  the address of the powerplay hardware manager.
- * @return   always 0
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * Return:   always 0
  */
 static int smu7_enable_acpi_power_management(struct pp_hwmgr *hwmgr)
 {
@@ -4728,10 +4728,10 @@ static int smu7_enable_acpi_power_management(struct pp_hwmgr *hwmgr)
 }
 
 /**
- * Initialize PowerGating States for different engines
+ * smu7_init_power_gate_state - Initialize PowerGating States for different engines
  *
- * @param    hwmgr  the address of the powerplay hardware manager.
- * @return   always 0
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * Return:   always 0
  */
 static int smu7_init_power_gate_state(struct pp_hwmgr *hwmgr)
 {

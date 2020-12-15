@@ -171,7 +171,6 @@ void amdgpu_atombios_encoder_init_backlight(struct amdgpu_encoder *amdgpu_encode
 	struct backlight_properties props;
 	struct amdgpu_backlight_privdata *pdata;
 	struct amdgpu_encoder_atom_dig *dig;
-	u8 backlight_level;
 	char bl_name[16];
 
 	/* Mac laptops with multiple GPUs use the gmux driver for backlight
@@ -206,8 +205,6 @@ void amdgpu_atombios_encoder_init_backlight(struct amdgpu_encoder *amdgpu_encode
 	}
 
 	pdata->encoder = amdgpu_encoder;
-
-	backlight_level = amdgpu_atombios_encoder_get_backlight_level_from_reg(adev);
 
 	dig = amdgpu_encoder->enc_priv;
 	dig->bl_dev = bd;

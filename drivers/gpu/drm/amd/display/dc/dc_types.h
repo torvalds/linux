@@ -671,6 +671,25 @@ struct dc_plane_flip_time {
 	unsigned int prev_update_time_in_us;
 };
 
+enum dc_psr_state {
+	PSR_STATE0 = 0x0,
+	PSR_STATE1,
+	PSR_STATE1a,
+	PSR_STATE2,
+	PSR_STATE2a,
+	PSR_STATE3,
+	PSR_STATE3Init,
+	PSR_STATE4,
+	PSR_STATE4a,
+	PSR_STATE4b,
+	PSR_STATE4c,
+	PSR_STATE4d,
+	PSR_STATE5,
+	PSR_STATE5a,
+	PSR_STATE5b,
+	PSR_STATE5c
+};
+
 struct psr_config {
 	unsigned char psr_version;
 	unsigned int psr_rfb_setup_time;
@@ -678,6 +697,7 @@ struct psr_config {
 	bool psr_frame_capture_indication_req;
 	unsigned int psr_sdp_transmit_line_num_deadline;
 	bool allow_smu_optimizations;
+	bool allow_multi_disp_optimizations;
 };
 
 union dmcu_psr_level {
@@ -780,6 +800,7 @@ struct psr_context {
 	 */
 	unsigned int frame_delay;
 	bool allow_smu_optimizations;
+	bool allow_multi_disp_optimizations;
 };
 
 struct colorspace_transform {

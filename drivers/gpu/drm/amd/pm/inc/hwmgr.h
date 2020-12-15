@@ -366,6 +366,7 @@ struct pp_hwmgr_func {
 	int (*disable_power_features_for_compute_performance)(struct pp_hwmgr *hwmgr,
 					bool disable);
 	ssize_t (*get_gpu_metrics)(struct pp_hwmgr *hwmgr, void **table);
+	int (*gfx_state_change)(struct pp_hwmgr *hwmgr, uint32_t state);
 };
 
 struct pp_table_func {
@@ -827,5 +828,9 @@ int hwmgr_handle_task(struct pp_hwmgr *hwmgr,
 
 #define PHM_ENTIRE_REGISTER_MASK 0xFFFFFFFFU
 
+int smu7_init_function_pointers(struct pp_hwmgr *hwmgr);
+int smu8_init_function_pointers(struct pp_hwmgr *hwmgr);
+int vega12_hwmgr_init(struct pp_hwmgr *hwmgr);
+int vega20_hwmgr_init(struct pp_hwmgr *hwmgr);
 
 #endif /* _HWMGR_H_ */

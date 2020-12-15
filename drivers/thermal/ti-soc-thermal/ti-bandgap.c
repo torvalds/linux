@@ -20,6 +20,7 @@
 #include <linux/err.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
+#include <linux/sys_soc.h>
 #include <linux/reboot.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
@@ -864,6 +865,17 @@ static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 	return bgp;
 }
 
+/*
+ * List of SoCs on which the CPU PM notifier can cause erros on the DTEMP
+ * readout.
+ * Enabled notifier on these machines results in erroneous, random values which
+ * could trigger unexpected thermal shutdown.
+ */
+static const struct soc_device_attribute soc_no_cpu_notifier[] = {
+	{ .machine = "OMAP4430" },
+	{ /* sentinel */ },
+};
+
 /***   Device driver call backs   ***/
 
 static
@@ -1020,7 +1032,8 @@ int ti_bandgap_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_PM_SLEEP
 	bgp->nb.notifier_call = bandgap_omap_cpu_notifier;
-	cpu_pm_register_notifier(&bgp->nb);
+	if (!soc_device_match(soc_no_cpu_notifier))
+		cpu_pm_register_notifier(&bgp->nb);
 #endif
 
 	return 0;
@@ -1056,7 +1069,8 @@ int ti_bandgap_remove(struct platform_device *pdev)
 	struct ti_bandgap *bgp = platform_get_drvdata(pdev);
 	int i;
 
-	cpu_pm_unregister_notifier(&bgp->nb);
+	if (!soc_device_match(soc_no_cpu_notifier))
+		cpu_pm_unregister_notifier(&bgp->nb);
 
 	/* Remove sensor interfaces */
 	for (i = 0; i < bgp->conf->sensor_count; i++) {

@@ -38,8 +38,33 @@ static void ipi_mb(void *info)
 	smp_mb();	/* IPIs should be serializing but paranoid. */
 }
 
+static void ipi_sync_core(void *info)
+{
+	/*
+	 * The smp_mb() in membarrier after all the IPIs is supposed to
+	 * ensure that memory on remote CPUs that occur before the IPI
+	 * become visible to membarrier()'s caller -- see scenario B in
+	 * the big comment at the top of this file.
+	 *
+	 * A sync_core() would provide this guarantee, but
+	 * sync_core_before_usermode() might end up being deferred until
+	 * after membarrier()'s smp_mb().
+	 */
+	smp_mb();	/* IPIs should be serializing but paranoid. */
+
+	sync_core_before_usermode();
+}
+
 static void ipi_rseq(void *info)
 {
+	/*
+	 * Ensure that all stores done by the calling thread are visible
+	 * to the current task before the current task resumes.  We could
+	 * probably optimize this away on most architectures, but by the
+	 * time we've already sent an IPI, the cost of the extra smp_mb()
+	 * is negligible.
+	 */
+	smp_mb();
 	rseq_preempt(current);
 }
 
@@ -154,6 +179,7 @@ static int membarrier_private_expedited(int flags, int cpu_id)
 		if (!(atomic_read(&mm->membarrier_state) &
 		      MEMBARRIER_STATE_PRIVATE_EXPEDITED_SYNC_CORE_READY))
 			return -EPERM;
+		ipi_func = ipi_sync_core;
 	} else if (flags == MEMBARRIER_FLAG_RSEQ) {
 		if (!IS_ENABLED(CONFIG_RSEQ))
 			return -EINVAL;
@@ -168,7 +194,8 @@ static int membarrier_private_expedited(int flags, int cpu_id)
 			return -EPERM;
 	}
 
-	if (atomic_read(&mm->mm_users) == 1 || num_online_cpus() == 1)
+	if (flags != MEMBARRIER_FLAG_SYNC_CORE &&
+	    (atomic_read(&mm->mm_users) == 1 || num_online_cpus() == 1))
 		return 0;
 
 	/*
@@ -187,8 +214,6 @@ static int membarrier_private_expedited(int flags, int cpu_id)
 
 		if (cpu_id >= nr_cpu_ids || !cpu_online(cpu_id))
 			goto out;
-		if (cpu_id == raw_smp_processor_id())
-			goto out;
 		rcu_read_lock();
 		p = rcu_dereference(cpu_rq(cpu_id)->curr);
 		if (!p || p->mm != mm) {
@@ -203,16 +228,6 @@ static int membarrier_private_expedited(int flags, int cpu_id)
 		for_each_online_cpu(cpu) {
 			struct task_struct *p;
 
-			/*
-			 * Skipping the current CPU is OK even through we can be
-			 * migrated at any point. The current CPU, at the point
-			 * where we read raw_smp_processor_id(), is ensured to
-			 * be in program order with respect to the caller
-			 * thread. Therefore, we can skip this CPU from the
-			 * iteration.
-			 */
-			if (cpu == raw_smp_processor_id())
-				continue;
 			p = rcu_dereference(cpu_rq(cpu)->curr);
 			if (p && p->mm == mm)
 				__cpumask_set_cpu(cpu, tmpmask);
@@ -220,12 +235,38 @@ static int membarrier_private_expedited(int flags, int cpu_id)
 		rcu_read_unlock();
 	}
 
-	preempt_disable();
-	if (cpu_id >= 0)
+	if (cpu_id >= 0) {
+		/*
+		 * smp_call_function_single() will call ipi_func() if cpu_id
+		 * is the calling CPU.
+		 */
 		smp_call_function_single(cpu_id, ipi_func, NULL, 1);
-	else
-		smp_call_function_many(tmpmask, ipi_func, NULL, 1);
-	preempt_enable();
+	} else {
+		/*
+		 * For regular membarrier, we can save a few cycles by
+		 * skipping the current cpu -- we're about to do smp_mb()
+		 * below, and if we migrate to a different cpu, this cpu
+		 * and the new cpu will execute a full barrier in the
+		 * scheduler.
+		 *
+		 * For SYNC_CORE, we do need a barrier on the current cpu --
+		 * otherwise, if we are migrated and replaced by a different
+		 * task in the same mm just before, during, or after
+		 * membarrier, we will end up with some thread in the mm
+		 * running without a core sync.
+		 *
+		 * For RSEQ, don't rseq_preempt() the caller.  User code
+		 * is not supposed to issue syscalls at all from inside an
+		 * rseq critical section.
+		 */
+		if (flags != MEMBARRIER_FLAG_SYNC_CORE) {
+			preempt_disable();
+			smp_call_function_many(tmpmask, ipi_func, NULL, true);
+			preempt_enable();
+		} else {
+			on_each_cpu_mask(tmpmask, ipi_func, NULL, true);
+		}
+	}
 
 out:
 	if (cpu_id < 0)

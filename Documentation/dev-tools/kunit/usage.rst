@@ -92,7 +92,7 @@ behavior of a function called ``add``; the first parameter is always of type
 the second parameter, in this case, is what the value is expected to be; the
 last value is what the value actually is. If ``add`` passes all of these
 expectations, the test case, ``add_test_basic`` will pass; if any one of these
-expectations fail, the test case will fail.
+expectations fails, the test case will fail.
 
 It is important to understand that a test case *fails* when any expectation is
 violated; however, the test will continue running, potentially trying other
@@ -202,7 +202,7 @@ Example:
 	kunit_test_suite(example_test_suite);
 
 In the above example the test suite, ``example_test_suite``, would run the test
-cases ``example_test_foo``, ``example_test_bar``, and ``example_test_baz``,
+cases ``example_test_foo``, ``example_test_bar``, and ``example_test_baz``;
 each would have ``example_test_init`` called immediately before it and would
 have ``example_test_exit`` called immediately after it.
 ``kunit_test_suite(example_test_suite)`` registers the test suite with the
@@ -229,7 +229,7 @@ through some sort of indirection where a function is exposed as part of an API
 such that the definition of that function can be changed without affecting the
 rest of the code base. In the kernel this primarily comes from two constructs,
 classes, structs that contain function pointers that are provided by the
-implementer, and architecture specific functions which have definitions selected
+implementer, and architecture-specific functions which have definitions selected
 at compile time.
 
 Classes
@@ -459,7 +459,7 @@ KUnit on non-UML architectures
 By default KUnit uses UML as a way to provide dependencies for code under test.
 Under most circumstances KUnit's usage of UML should be treated as an
 implementation detail of how KUnit works under the hood. Nevertheless, there
-are instances where being able to run architecture specific code or test
+are instances where being able to run architecture-specific code or test
 against real hardware is desirable. For these reasons KUnit supports running on
 other architectures.
 
@@ -599,7 +599,7 @@ writing normal KUnit tests. One special caveat is that you have to reset
 hardware state in between test cases; if this is not possible, you may only be
 able to run one test case per invocation.
 
-.. TODO(brendanhiggins@google.com): Add an actual example of an architecture
+.. TODO(brendanhiggins@google.com): Add an actual example of an architecture-
    dependent KUnit test.
 
 KUnit debugfs representation

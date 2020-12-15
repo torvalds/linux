@@ -61,9 +61,8 @@ void amdgpu_gmc_get_pde_for_bo(struct amdgpu_bo *bo, int level,
 	amdgpu_gmc_get_vm_pde(adev, level, addr, flags);
 }
 
-/**
+/*
  * amdgpu_gmc_pd_addr - return the address of the root directory
- *
  */
 uint64_t amdgpu_gmc_pd_addr(struct amdgpu_bo *bo)
 {
@@ -112,7 +111,7 @@ int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
 /**
  * amdgpu_gmc_agp_addr - return the address in the AGP address space
  *
- * @tbo: TTM BO which needs the address, must be in GTT domain
+ * @bo: TTM BO which needs the address, must be in GTT domain
  *
  * Tries to figure out how to access the BO through the AGP aperture. Returns
  * AMDGPU_BO_INVALID_OFFSET if that is not possible.
@@ -422,12 +421,8 @@ void amdgpu_gmc_noretry_set(struct amdgpu_device *adev)
 	struct amdgpu_gmc *gmc = &adev->gmc;
 
 	switch (adev->asic_type) {
+	case CHIP_VEGA10:
 	case CHIP_VEGA20:
-	case CHIP_NAVI10:
-	case CHIP_NAVI14:
-	case CHIP_SIENNA_CICHLID:
-	case CHIP_NAVY_FLOUNDER:
-	case CHIP_DIMGREY_CAVEFISH:
 		/*
 		 * noretry = 0 will cause kfd page fault tests fail
 		 * for some ASICs, so set default to 1 for these ASICs.
@@ -505,6 +500,9 @@ void amdgpu_gmc_get_vbios_allocations(struct amdgpu_device *adev)
 		size = 0;
 	else
 		size = amdgpu_gmc_get_vbios_fb_size(adev);
+
+	if (adev->mman.keep_stolen_vga_memory)
+		size = max(size, (unsigned)AMDGPU_VBIOS_VGA_ALLOCATION);
 
 	/* set to 0 if the pre-OS buffer uses up most of vram */
 	if ((adev->gmc.real_vram_size - size) < (8 * 1024 * 1024))

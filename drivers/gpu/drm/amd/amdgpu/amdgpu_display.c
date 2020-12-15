@@ -441,10 +441,6 @@ void amdgpu_display_print_display_setup(struct drm_device *dev)
 	drm_connector_list_iter_end(&iter);
 }
 
-/**
- * amdgpu_display_ddc_probe
- *
- */
 bool amdgpu_display_ddc_probe(struct amdgpu_connector *amdgpu_connector,
 			      bool use_aux)
 {
@@ -509,7 +505,7 @@ uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev,
 	 * to avoid hang caused by placement of scanout BO in GTT on certain
 	 * APUs. So force the BO placement to VRAM in case this architecture
 	 * will not allow USWC mappings.
-	 * Also, don't allow GTT domain if the BO doens't have USWC falg set.
+	 * Also, don't allow GTT domain if the BO doesn't have USWC flag set.
 	 */
 	if ((bo_flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC) &&
 	    amdgpu_bo_support_uswc(bo_flags) &&
@@ -526,6 +522,7 @@ uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev,
 				domain |= AMDGPU_GEM_DOMAIN_GTT;
 			break;
 		case CHIP_RENOIR:
+		case CHIP_VANGOGH:
 			domain |= AMDGPU_GEM_DOMAIN_GTT;
 			break;
 
@@ -536,6 +533,146 @@ uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev,
 #endif
 
 	return domain;
+}
+
+static const struct drm_format_info dcc_formats[] = {
+	{ .format = DRM_FORMAT_XRGB8888, .depth = 24, .num_planes = 2,
+	  .cpp = { 4, 0, }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1, },
+	 { .format = DRM_FORMAT_XBGR8888, .depth = 24, .num_planes = 2,
+	  .cpp = { 4, 0, }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1, },
+	{ .format = DRM_FORMAT_ARGB8888, .depth = 32, .num_planes = 2,
+	  .cpp = { 4, 0, }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1,
+	   .has_alpha = true, },
+	{ .format = DRM_FORMAT_ABGR8888, .depth = 32, .num_planes = 2,
+	  .cpp = { 4, 0, }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1,
+	  .has_alpha = true, },
+	{ .format = DRM_FORMAT_BGRA8888, .depth = 32, .num_planes = 2,
+	  .cpp = { 4, 0, }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1,
+	  .has_alpha = true, },
+	{ .format = DRM_FORMAT_XRGB2101010, .depth = 30, .num_planes = 2,
+	  .cpp = { 4, 0, }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1, },
+	{ .format = DRM_FORMAT_XBGR2101010, .depth = 30, .num_planes = 2,
+	  .cpp = { 4, 0, }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1, },
+	{ .format = DRM_FORMAT_ARGB2101010, .depth = 30, .num_planes = 2,
+	  .cpp = { 4, 0, }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1,
+	  .has_alpha = true, },
+	{ .format = DRM_FORMAT_ABGR2101010, .depth = 30, .num_planes = 2,
+	  .cpp = { 4, 0, }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1,
+	  .has_alpha = true, },
+	{ .format = DRM_FORMAT_RGB565, .depth = 16, .num_planes = 2,
+	  .cpp = { 2, 0, }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1, },
+};
+
+static const struct drm_format_info dcc_retile_formats[] = {
+	{ .format = DRM_FORMAT_XRGB8888, .depth = 24, .num_planes = 3,
+	  .cpp = { 4, 0, 0 }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1, },
+	 { .format = DRM_FORMAT_XBGR8888, .depth = 24, .num_planes = 3,
+	  .cpp = { 4, 0, 0 }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1, },
+	{ .format = DRM_FORMAT_ARGB8888, .depth = 32, .num_planes = 3,
+	  .cpp = { 4, 0, 0 }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1,
+	   .has_alpha = true, },
+	{ .format = DRM_FORMAT_ABGR8888, .depth = 32, .num_planes = 3,
+	  .cpp = { 4, 0, 0 }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1,
+	  .has_alpha = true, },
+	{ .format = DRM_FORMAT_BGRA8888, .depth = 32, .num_planes = 3,
+	  .cpp = { 4, 0, 0 }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1,
+	  .has_alpha = true, },
+	{ .format = DRM_FORMAT_XRGB2101010, .depth = 30, .num_planes = 3,
+	  .cpp = { 4, 0, 0 }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1, },
+	{ .format = DRM_FORMAT_XBGR2101010, .depth = 30, .num_planes = 3,
+	  .cpp = { 4, 0, 0 }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1, },
+	{ .format = DRM_FORMAT_ARGB2101010, .depth = 30, .num_planes = 3,
+	  .cpp = { 4, 0, 0 }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1,
+	  .has_alpha = true, },
+	{ .format = DRM_FORMAT_ABGR2101010, .depth = 30, .num_planes = 3,
+	  .cpp = { 4, 0, 0 }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1,
+	  .has_alpha = true, },
+	{ .format = DRM_FORMAT_RGB565, .depth = 16, .num_planes = 3,
+	  .cpp = { 2, 0, 0 }, .block_w = {1, 1, 1}, .block_h = {1, 1, 1}, .hsub = 1, .vsub = 1, },
+};
+
+static const struct drm_format_info *
+lookup_format_info(const struct drm_format_info formats[],
+		  int num_formats, u32 format)
+{
+	int i;
+
+	for (i = 0; i < num_formats; i++) {
+		if (formats[i].format == format)
+			return &formats[i];
+	}
+
+	return NULL;
+}
+
+const struct drm_format_info *
+amdgpu_lookup_format_info(u32 format, uint64_t modifier)
+{
+	if (!IS_AMD_FMT_MOD(modifier))
+		return NULL;
+
+	if (AMD_FMT_MOD_GET(DCC_RETILE, modifier))
+		return lookup_format_info(dcc_retile_formats,
+					  ARRAY_SIZE(dcc_retile_formats),
+					  format);
+
+	if (AMD_FMT_MOD_GET(DCC, modifier))
+		return lookup_format_info(dcc_formats, ARRAY_SIZE(dcc_formats),
+					  format);
+
+	/* returning NULL will cause the default format structs to be used. */
+	return NULL;
+}
+
+
+/*
+ * Tries to extract the renderable DCC offset from the opaque metadata attached
+ * to the buffer.
+ */
+static int
+extract_render_dcc_offset(struct amdgpu_device *adev,
+			  struct drm_gem_object *obj,
+			  uint64_t *offset)
+{
+	struct amdgpu_bo *rbo;
+	int r = 0;
+	uint32_t metadata[10]; /* Something that fits a descriptor + header. */
+	uint32_t size;
+
+	rbo = gem_to_amdgpu_bo(obj);
+	r = amdgpu_bo_reserve(rbo, false);
+
+	if (unlikely(r)) {
+		/* Don't show error message when returning -ERESTARTSYS */
+		if (r != -ERESTARTSYS)
+			DRM_ERROR("Unable to reserve buffer: %d\n", r);
+		return r;
+	}
+
+	r = amdgpu_bo_get_metadata(rbo, metadata, sizeof(metadata), &size, NULL);
+	amdgpu_bo_unreserve(rbo);
+
+	if (r)
+		return r;
+
+	/*
+	 * The first word is the metadata version, and we need space for at least
+	 * the version + pci vendor+device id + 8 words for a descriptor.
+	 */
+	if (size < 40  || metadata[0] != 1)
+		return -EINVAL;
+
+	if (adev->family >= AMDGPU_FAMILY_NV) {
+		/* resource word 6/7 META_DATA_ADDRESS{_LO} */
+		*offset = ((u64)metadata[9] << 16u) |
+			  ((metadata[8] & 0xFF000000u) >> 16);
+	} else {
+		/* resource word 5/7 META_DATA_ADDRESS */
+		*offset = ((u64)metadata[9] << 8u) |
+			  ((u64)(metadata[7] & 0x1FE0000u) << 23);
+	}
+
+	return 0;
 }
 
 static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
@@ -553,6 +690,8 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 		int pipe_xor_bits = 0;
 		int bank_xor_bits = 0;
 		int packers = 0;
+		int rb = 0;
+		int pipes = ilog2(adev->gfx.config.gb_addr_config_fields.num_pipes);
 		uint32_t dcc_offset = AMDGPU_TILING_GET(afb->tiling_flags, DCC_OFFSET_256B);
 
 		switch (swizzle >> 2) {
@@ -598,18 +737,17 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 		if (has_xor) {
 			switch (version) {
 			case AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS:
-				pipe_xor_bits = min(block_size_bits - 8,
-						    ilog2(adev->gfx.config.gb_addr_config_fields.num_pipes));
+				pipe_xor_bits = min(block_size_bits - 8, pipes);
 				packers = min(block_size_bits - 8 - pipe_xor_bits,
 					      ilog2(adev->gfx.config.gb_addr_config_fields.num_pkrs));
 				break;
 			case AMD_FMT_MOD_TILE_VER_GFX10:
-				pipe_xor_bits = min(block_size_bits - 8,
-						    ilog2(adev->gfx.config.gb_addr_config_fields.num_pipes));
+				pipe_xor_bits = min(block_size_bits - 8, pipes);
 				break;
 			case AMD_FMT_MOD_TILE_VER_GFX9:
-				pipe_xor_bits = min(block_size_bits - 8,
-						    ilog2(adev->gfx.config.gb_addr_config_fields.num_pipes) +
+				rb = ilog2(adev->gfx.config.gb_addr_config_fields.num_se) +
+				     ilog2(adev->gfx.config.gb_addr_config_fields.num_rb_per_se);
+				pipe_xor_bits = min(block_size_bits - 8, pipes +
 						    ilog2(adev->gfx.config.gb_addr_config_fields.num_se));
 				bank_xor_bits = min(block_size_bits - 8 - pipe_xor_bits,
 						    ilog2(adev->gfx.config.gb_addr_config_fields.num_banks));
@@ -627,6 +765,8 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 		if (dcc_offset != 0) {
 			bool dcc_i64b = AMDGPU_TILING_GET(afb->tiling_flags, DCC_INDEPENDENT_64B) != 0;
 			bool dcc_i128b = version >= AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS;
+			const struct drm_format_info *format_info;
+			u64 render_dcc_offset;
 
 			/* Enable constant encode on RAVEN2 and later. */
 			bool dcc_constant_encode = adev->asic_type > CHIP_RAVEN ||
@@ -644,7 +784,51 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 				    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, max_cblock_size);
 
 			afb->base.offsets[1] = dcc_offset * 256 + afb->base.offsets[0];
-			afb->base.pitches[1] = AMDGPU_TILING_GET(afb->tiling_flags, DCC_PITCH_MAX) + 1;
+			afb->base.pitches[1] =
+				AMDGPU_TILING_GET(afb->tiling_flags, DCC_PITCH_MAX) + 1;
+
+			/*
+			 * If the userspace driver uses retiling the tiling flags do not contain
+			 * info on the renderable DCC buffer. Luckily the opaque metadata contains
+			 * the info so we can try to extract it. The kernel does not use this info
+			 * but we should convert it to a modifier plane for getfb2, so the
+			 * userspace driver that gets it doesn't have to juggle around another DCC
+			 * plane internally.
+			 */
+			if (extract_render_dcc_offset(adev, afb->base.obj[0],
+						      &render_dcc_offset) == 0 &&
+			    render_dcc_offset != 0 &&
+			    render_dcc_offset != afb->base.offsets[1] &&
+			    render_dcc_offset < UINT_MAX) {
+				uint32_t dcc_block_bits;  /* of base surface data */
+
+				modifier |= AMD_FMT_MOD_SET(DCC_RETILE, 1);
+				afb->base.offsets[2] = render_dcc_offset;
+
+				if (adev->family >= AMDGPU_FAMILY_NV) {
+					int extra_pipe = 0;
+
+					if (adev->asic_type >= CHIP_SIENNA_CICHLID &&
+					    pipes == packers && pipes > 1)
+						extra_pipe = 1;
+
+					dcc_block_bits = max(20, 16 + pipes + extra_pipe);
+				} else {
+					modifier |= AMD_FMT_MOD_SET(RB, rb) |
+						    AMD_FMT_MOD_SET(PIPE, pipes);
+					dcc_block_bits = max(20, 18 + rb);
+				}
+
+				dcc_block_bits -= ilog2(afb->base.format->cpp[0]);
+				afb->base.pitches[2] = ALIGN(afb->base.width,
+							     1u << ((dcc_block_bits + 1) / 2));
+			}
+			format_info = amdgpu_lookup_format_info(afb->base.format->format,
+								modifier);
+			if (!format_info)
+				return -EINVAL;
+
+			afb->base.format = format_info;
 		}
 	}
 
@@ -691,12 +875,25 @@ int amdgpu_display_framebuffer_init(struct drm_device *dev,
 				    const struct drm_mode_fb_cmd2 *mode_cmd,
 				    struct drm_gem_object *obj)
 {
-	int ret;
+	int ret, i;
 	rfb->base.obj[0] = obj;
 	drm_helper_mode_fill_fb_struct(dev, &rfb->base, mode_cmd);
 	ret = drm_framebuffer_init(dev, &rfb->base, &amdgpu_fb_funcs);
 	if (ret)
 		goto fail;
+
+	/*
+	 * This needs to happen before modifier conversion as that might change
+	 * the number of planes.
+	 */
+	for (i = 1; i < rfb->base.format->num_planes; ++i) {
+		if (mode_cmd->handles[i] != mode_cmd->handles[0]) {
+			drm_dbg_kms(dev, "Plane 0 and %d have different BOs: %u vs. %u\n",
+				    i, mode_cmd->handles[0], mode_cmd->handles[i]);
+			ret = -EINVAL;
+			goto fail;
+		}
+	}
 
 	ret = amdgpu_display_get_fb_info(rfb, &rfb->tiling_flags, &rfb->tmz_surface);
 	if (ret)
@@ -705,8 +902,16 @@ int amdgpu_display_framebuffer_init(struct drm_device *dev,
 	if (dev->mode_config.allow_fb_modifiers &&
 	    !(rfb->base.flags & DRM_MODE_FB_MODIFIERS)) {
 		ret = convert_tiling_flags_to_modifier(rfb);
-		if (ret)
+		if (ret) {
+			drm_dbg_kms(dev, "Failed to convert tiling flags 0x%llX to a modifier",
+				    rfb->tiling_flags);
 			goto fail;
+		}
+	}
+
+	for (i = 1; i < rfb->base.format->num_planes; ++i) {
+		rfb->base.obj[i] = rfb->base.obj[0];
+		drm_gem_object_get(rfb->base.obj[i]);
 	}
 
 	return 0;
@@ -727,14 +932,14 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 
 	obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[0]);
 	if (obj ==  NULL) {
-		dev_err(&dev->pdev->dev, "No GEM object associated to handle 0x%08X, "
-			"can't create framebuffer\n", mode_cmd->handles[0]);
+		drm_dbg_kms(dev, "No GEM object associated to handle 0x%08X, "
+			    "can't create framebuffer\n", mode_cmd->handles[0]);
 		return ERR_PTR(-ENOENT);
 	}
 
 	/* Handle is imported dma-buf, so cannot be migrated to VRAM for scanout */
 	if (obj->import_attach) {
-		DRM_DEBUG_KMS("Cannot create framebuffer from imported dma_buf\n");
+		drm_dbg_kms(dev, "Cannot create framebuffer from imported dma_buf\n");
 		return ERR_PTR(-EINVAL);
 	}
 

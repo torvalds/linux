@@ -366,15 +366,15 @@ TRACE_EVENT(amdgpu_vm_update_ptes,
 
 TRACE_EVENT(amdgpu_vm_set_ptes,
 	    TP_PROTO(uint64_t pe, uint64_t addr, unsigned count,
-		     uint32_t incr, uint64_t flags, bool direct),
-	    TP_ARGS(pe, addr, count, incr, flags, direct),
+		     uint32_t incr, uint64_t flags, bool immediate),
+	    TP_ARGS(pe, addr, count, incr, flags, immediate),
 	    TP_STRUCT__entry(
 			     __field(u64, pe)
 			     __field(u64, addr)
 			     __field(u32, count)
 			     __field(u32, incr)
 			     __field(u64, flags)
-			     __field(bool, direct)
+			     __field(bool, immediate)
 			     ),
 
 	    TP_fast_assign(
@@ -383,32 +383,32 @@ TRACE_EVENT(amdgpu_vm_set_ptes,
 			   __entry->count = count;
 			   __entry->incr = incr;
 			   __entry->flags = flags;
-			   __entry->direct = direct;
+			   __entry->immediate = immediate;
 			   ),
 	    TP_printk("pe=%010Lx, addr=%010Lx, incr=%u, flags=%llx, count=%u, "
-		      "direct=%d", __entry->pe, __entry->addr, __entry->incr,
-		      __entry->flags, __entry->count, __entry->direct)
+		      "immediate=%d", __entry->pe, __entry->addr, __entry->incr,
+		      __entry->flags, __entry->count, __entry->immediate)
 );
 
 TRACE_EVENT(amdgpu_vm_copy_ptes,
-	    TP_PROTO(uint64_t pe, uint64_t src, unsigned count, bool direct),
-	    TP_ARGS(pe, src, count, direct),
+	    TP_PROTO(uint64_t pe, uint64_t src, unsigned count, bool immediate),
+	    TP_ARGS(pe, src, count, immediate),
 	    TP_STRUCT__entry(
 			     __field(u64, pe)
 			     __field(u64, src)
 			     __field(u32, count)
-			     __field(bool, direct)
+			     __field(bool, immediate)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->pe = pe;
 			   __entry->src = src;
 			   __entry->count = count;
-			   __entry->direct = direct;
+			   __entry->immediate = immediate;
 			   ),
-	    TP_printk("pe=%010Lx, src=%010Lx, count=%u, direct=%d",
+	    TP_printk("pe=%010Lx, src=%010Lx, count=%u, immediate=%d",
 		      __entry->pe, __entry->src, __entry->count,
-		      __entry->direct)
+		      __entry->immediate)
 );
 
 TRACE_EVENT(amdgpu_vm_flush,

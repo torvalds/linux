@@ -59,8 +59,7 @@ struct drm_i915_mocs_table {
 #define _L3_CACHEABILITY(value)	((value) << 4)
 
 /* Helper defines */
-#define GEN9_NUM_MOCS_ENTRIES	62  /* 62 out of 64 - 63 & 64 are reserved. */
-#define GEN11_NUM_MOCS_ENTRIES	64  /* 63-64 are reserved, but configured. */
+#define GEN9_NUM_MOCS_ENTRIES	64  /* 63-64 are reserved, but configured. */
 
 /* (e)LLC caching options */
 /*
@@ -124,14 +123,26 @@ struct drm_i915_mocs_table {
 		   LE_1_UC | LE_TC_2_LLC_ELLC, \
 		   L3_1_UC), \
 	MOCS_ENTRY(I915_MOCS_PTE, \
-		   LE_0_PAGETABLE | LE_TC_2_LLC_ELLC | LE_LRUM(3), \
+		   LE_0_PAGETABLE | LE_TC_0_PAGETABLE | LE_LRUM(3), \
 		   L3_3_WB)
 
 static const struct drm_i915_mocs_entry skl_mocs_table[] = {
 	GEN9_MOCS_ENTRIES,
 	MOCS_ENTRY(I915_MOCS_CACHED,
 		   LE_3_WB | LE_TC_2_LLC_ELLC | LE_LRUM(3),
-		   L3_3_WB)
+		   L3_3_WB),
+
+	/*
+	 * mocs:63
+	 * - used by the L3 for all of its evictions.
+	 *   Thus it is expected to allow LLC cacheability to enable coherent
+	 *   flows to be maintained.
+	 * - used to force L3 uncachable cycles.
+	 *   Thus it is expected to make the surface L3 uncacheable.
+	 */
+	MOCS_ENTRY(63,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3),
+		   L3_1_UC)
 };
 
 /* NOTE: the LE_TGT_CACHE is not used on Broxton */
@@ -243,8 +254,9 @@ static const struct drm_i915_mocs_entry tgl_mocs_table[] = {
 	 * only, __init_mocs_table() take care to program unused index with
 	 * this entry.
 	 */
-	MOCS_ENTRY(1, LE_3_WB | LE_TC_1_LLC | LE_LRUM(3),
-		   L3_3_WB),
+	MOCS_ENTRY(I915_MOCS_PTE,
+		   LE_0_PAGETABLE | LE_TC_0_PAGETABLE,
+		   L3_1_UC),
 	GEN11_MOCS_ENTRIES,
 
 	/* Implicitly enable L1 - HDC:L1 + L3 + LLC */
@@ -280,7 +292,7 @@ static const struct drm_i915_mocs_entry icl_mocs_table[] = {
 		   L3_1_UC),
 	/* Base - L3 + LeCC:PAT (Deprecated) */
 	MOCS_ENTRY(I915_MOCS_PTE,
-		   LE_0_PAGETABLE | LE_TC_1_LLC,
+		   LE_0_PAGETABLE | LE_TC_0_PAGETABLE,
 		   L3_3_WB),
 
 	GEN11_MOCS_ENTRIES
@@ -348,15 +360,15 @@ static unsigned int get_mocs_settings(const struct drm_i915_private *i915,
 	if (IS_DG1(i915)) {
 		table->size = ARRAY_SIZE(dg1_mocs_table);
 		table->table = dg1_mocs_table;
-		table->n_entries = GEN11_NUM_MOCS_ENTRIES;
+		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
 	} else if (INTEL_GEN(i915) >= 12) {
 		table->size  = ARRAY_SIZE(tgl_mocs_table);
 		table->table = tgl_mocs_table;
-		table->n_entries = GEN11_NUM_MOCS_ENTRIES;
+		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
 	} else if (IS_GEN(i915, 11)) {
 		table->size  = ARRAY_SIZE(icl_mocs_table);
 		table->table = icl_mocs_table;
-		table->n_entries = GEN11_NUM_MOCS_ENTRIES;
+		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
 	} else if (IS_GEN9_BC(i915) || IS_CANNONLAKE(i915)) {
 		table->size  = ARRAY_SIZE(skl_mocs_table);
 		table->n_entries = GEN9_NUM_MOCS_ENTRIES;

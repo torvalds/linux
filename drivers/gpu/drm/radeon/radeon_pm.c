@@ -33,6 +33,7 @@
 #include "avivod.h"
 #include "r600_dpm.h"
 #include "radeon.h"
+#include "radeon_pm.h"
 
 #define RADEON_IDLE_LOOP_MS 100
 #define RADEON_RECLOCK_DELAY_MS 200

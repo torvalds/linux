@@ -532,11 +532,13 @@ static void
 nouveau_connector_set_edid(struct nouveau_connector *nv_connector,
 			   struct edid *edid)
 {
-	struct edid *old_edid = nv_connector->edid;
+	if (nv_connector->edid != edid) {
+		struct edid *old_edid = nv_connector->edid;
 
-	drm_connector_update_edid_property(&nv_connector->base, edid);
-	kfree(old_edid);
-	nv_connector->edid = edid;
+		drm_connector_update_edid_property(&nv_connector->base, edid);
+		kfree(old_edid);
+		nv_connector->edid = edid;
+	}
 }
 
 static enum drm_connector_status
@@ -669,8 +671,10 @@ nouveau_connector_detect_lvds(struct drm_connector *connector, bool force)
 	/* Try retrieving EDID via DDC */
 	if (!drm->vbios.fp_no_ddc) {
 		status = nouveau_connector_detect(connector, force);
-		if (status == connector_status_connected)
+		if (status == connector_status_connected) {
+			edid = nv_connector->edid;
 			goto out;
+		}
 	}
 
 	/* On some laptops (Sony, i'm looking at you) there appears to

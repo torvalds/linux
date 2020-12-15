@@ -456,7 +456,7 @@ nv50_outp_get_old_connector(struct nouveau_encoder *outp,
  * DAC
  *****************************************************************************/
 static void
-nv50_dac_disable(struct drm_encoder *encoder)
+nv50_dac_disable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
@@ -468,7 +468,7 @@ nv50_dac_disable(struct drm_encoder *encoder)
 }
 
 static void
-nv50_dac_enable(struct drm_encoder *encoder)
+nv50_dac_enable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
@@ -526,8 +526,8 @@ nv50_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 static const struct drm_encoder_helper_funcs
 nv50_dac_help = {
 	.atomic_check = nv50_outp_atomic_check,
-	.enable = nv50_dac_enable,
-	.disable = nv50_dac_disable,
+	.atomic_enable = nv50_dac_enable,
+	.atomic_disable = nv50_dac_disable,
 	.detect = nv50_dac_detect
 };
 
@@ -1056,7 +1056,7 @@ nv50_dp_bpc_to_depth(unsigned int bpc)
 }
 
 static void
-nv50_msto_enable(struct drm_encoder *encoder)
+nv50_msto_enable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
 	struct nv50_head *head = nv50_head(encoder->crtc);
 	struct nv50_head_atom *armh = nv50_head_atom(head->base.base.state);
@@ -1102,7 +1102,7 @@ nv50_msto_enable(struct drm_encoder *encoder)
 }
 
 static void
-nv50_msto_disable(struct drm_encoder *encoder)
+nv50_msto_disable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
 	struct nv50_msto *msto = nv50_msto(encoder);
 	struct nv50_mstc *mstc = msto->mstc;
@@ -1119,8 +1119,8 @@ nv50_msto_disable(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs
 nv50_msto_help = {
-	.disable = nv50_msto_disable,
-	.enable = nv50_msto_enable,
+	.atomic_disable = nv50_msto_disable,
+	.atomic_enable = nv50_msto_enable,
 	.atomic_check = nv50_msto_atomic_check,
 };
 
@@ -1648,8 +1648,7 @@ nv50_sor_disable(struct drm_encoder *encoder,
 }
 
 static void
-nv50_sor_enable(struct drm_encoder *encoder,
-		struct drm_atomic_state *state)
+nv50_sor_enable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
@@ -1876,7 +1875,7 @@ nv50_pior_atomic_check(struct drm_encoder *encoder,
 }
 
 static void
-nv50_pior_disable(struct drm_encoder *encoder)
+nv50_pior_disable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
@@ -1888,7 +1887,7 @@ nv50_pior_disable(struct drm_encoder *encoder)
 }
 
 static void
-nv50_pior_enable(struct drm_encoder *encoder)
+nv50_pior_enable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
@@ -1924,14 +1923,14 @@ nv50_pior_enable(struct drm_encoder *encoder)
 	}
 
 	core->func->pior->ctrl(core, nv_encoder->or, ctrl, asyh);
-	nv_encoder->crtc = encoder->crtc;
+	nv_encoder->crtc = &nv_crtc->base;
 }
 
 static const struct drm_encoder_helper_funcs
 nv50_pior_help = {
 	.atomic_check = nv50_pior_atomic_check,
-	.enable = nv50_pior_enable,
-	.disable = nv50_pior_disable,
+	.atomic_enable = nv50_pior_enable,
+	.atomic_disable = nv50_pior_disable,
 };
 
 static void

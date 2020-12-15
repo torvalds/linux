@@ -1157,6 +1157,9 @@ static int isotp_setsockopt(struct socket *sock, int level, int optname,
 	if (level != SOL_CAN_ISOTP)
 		return -EINVAL;
 
+	if (so->bound)
+		return -EISCONN;
+
 	switch (optname) {
 	case CAN_ISOTP_OPTS:
 		if (optlen != sizeof(struct can_isotp_options))

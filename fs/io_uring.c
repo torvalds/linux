@@ -205,6 +205,7 @@ struct fixed_file_ref_node {
 	struct list_head		file_list;
 	struct fixed_file_data		*file_data;
 	struct llist_node		llist;
+	bool				done;
 };
 
 struct fixed_file_data {
@@ -478,6 +479,7 @@ struct io_sr_msg {
 struct io_open {
 	struct file			*file;
 	int				dfd;
+	bool				ignore_nonblock;
 	struct filename			*filename;
 	struct open_how			how;
 	unsigned long			nofile;
@@ -1282,7 +1284,7 @@ static bool io_identity_cow(struct io_kiocb *req)
 	 */
 	io_init_identity(id);
 	if (creds)
-		req->work.identity->creds = creds;
+		id->creds = creds;
 
 	/* add one for this request */
 	refcount_inc(&id->count);
@@ -1310,22 +1312,6 @@ static bool io_grab_identity(struct io_kiocb *req)
 		if (id->fsize != rlimit(RLIMIT_FSIZE))
 			return false;
 		req->work.flags |= IO_WQ_WORK_FSIZE;
-	}
-
-	if (!(req->work.flags & IO_WQ_WORK_FILES) &&
-	    (def->work_flags & IO_WQ_WORK_FILES) &&
-	    !(req->flags & REQ_F_NO_FILE_TABLE)) {
-		if (id->files != current->files ||
-		    id->nsproxy != current->nsproxy)
-			return false;
-		atomic_inc(&id->files->count);
-		get_nsproxy(id->nsproxy);
-		req->flags |= REQ_F_INFLIGHT;
-
-		spin_lock_irq(&ctx->inflight_lock);
-		list_add(&req->inflight_entry, &ctx->inflight_list);
-		spin_unlock_irq(&ctx->inflight_lock);
-		req->work.flags |= IO_WQ_WORK_FILES;
 	}
 #ifdef CONFIG_BLK_CGROUP
 	if (!(req->work.flags & IO_WQ_WORK_BLKCG) &&
@@ -1367,6 +1353,21 @@ static bool io_grab_identity(struct io_kiocb *req)
 			req->work.flags |= IO_WQ_WORK_CANCEL;
 		}
 		spin_unlock(&current->fs->lock);
+	}
+	if (!(req->work.flags & IO_WQ_WORK_FILES) &&
+	    (def->work_flags & IO_WQ_WORK_FILES) &&
+	    !(req->flags & REQ_F_NO_FILE_TABLE)) {
+		if (id->files != current->files ||
+		    id->nsproxy != current->nsproxy)
+			return false;
+		atomic_inc(&id->files->count);
+		get_nsproxy(id->nsproxy);
+		req->flags |= REQ_F_INFLIGHT;
+
+		spin_lock_irq(&ctx->inflight_lock);
+		list_add(&req->inflight_entry, &ctx->inflight_list);
+		spin_unlock_irq(&ctx->inflight_lock);
+		req->work.flags |= IO_WQ_WORK_FILES;
 	}
 
 	return true;
@@ -2577,7 +2578,6 @@ static bool io_resubmit_prep(struct io_kiocb *req, int error)
 	}
 end_req:
 	req_set_fail_links(req);
-	io_req_complete(req, ret);
 	return false;
 }
 #endif
@@ -3192,7 +3192,7 @@ static void io_req_map_rw(struct io_kiocb *req, const struct iovec *iovec,
 	rw->free_iovec = iovec;
 	rw->bytes_done = 0;
 	/* can only be fixed buffers, no need to do anything */
-	if (iter->type == ITER_BVEC)
+	if (iov_iter_is_bvec(iter))
 		return;
 	if (!iovec) {
 		unsigned iov_off = 0;
@@ -3547,8 +3547,7 @@ static int io_write(struct io_kiocb *req, bool force_nonblock,
 	 * we return to userspace.
 	 */
 	if (req->flags & REQ_F_ISREG) {
-		__sb_start_write(file_inode(req->file)->i_sb,
-					SB_FREEZE_WRITE, true);
+		sb_start_write(file_inode(req->file)->i_sb);
 		__sb_writers_release(file_inode(req->file)->i_sb,
 					SB_FREEZE_WRITE);
 	}
@@ -3796,6 +3795,7 @@ static int __io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 		return ret;
 	}
 	req->open.nofile = rlimit(RLIMIT_NOFILE);
+	req->open.ignore_nonblock = false;
 	req->flags |= REQ_F_NEED_CLEANUP;
 	return 0;
 }
@@ -3839,7 +3839,7 @@ static int io_openat2(struct io_kiocb *req, bool force_nonblock)
 	struct file *file;
 	int ret;
 
-	if (force_nonblock)
+	if (force_nonblock && !req->open.ignore_nonblock)
 		return -EAGAIN;
 
 	ret = build_open_flags(&req->open.how, &op);
@@ -3854,6 +3854,21 @@ static int io_openat2(struct io_kiocb *req, bool force_nonblock)
 	if (IS_ERR(file)) {
 		put_unused_fd(ret);
 		ret = PTR_ERR(file);
+		/*
+		 * A work-around to ensure that /proc/self works that way
+		 * that it should - if we get -EOPNOTSUPP back, then assume
+		 * that proc_self_get_link() failed us because we're in async
+		 * context. We should be safe to retry this from the task
+		 * itself with force_nonblock == false set, as it should not
+		 * block on lookup. Would be nice to know this upfront and
+		 * avoid the async dance, but doesn't seem feasible.
+		 */
+		if (ret == -EOPNOTSUPP && io_wq_current_is_worker()) {
+			req->open.ignore_nonblock = true;
+			refcount_inc(&req->refs);
+			io_req_task_queue(req);
+			return 0;
+		}
 	} else {
 		fsnotify_open(file);
 		fd_install(ret, file);
@@ -4484,7 +4499,8 @@ static int __io_compat_recvmsg_copy_hdr(struct io_kiocb *req,
 			return -EFAULT;
 		if (clen < 0)
 			return -EINVAL;
-		sr->len = iomsg->iov[0].iov_len;
+		sr->len = clen;
+		iomsg->iov[0].iov_len = clen;
 		iomsg->iov = NULL;
 	} else {
 		ret = __import_iovec(READ, (struct iovec __user *)uiov, len,
@@ -6958,9 +6974,7 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 		return -ENXIO;
 
 	spin_lock(&data->lock);
-	if (!list_empty(&data->ref_list))
-		ref_node = list_first_entry(&data->ref_list,
-				struct fixed_file_ref_node, node);
+	ref_node = data->node;
 	spin_unlock(&data->lock);
 	if (ref_node)
 		percpu_ref_kill(&ref_node->refs);
@@ -7309,10 +7323,6 @@ static void __io_file_put_work(struct fixed_file_ref_node *ref_node)
 		kfree(pfile);
 	}
 
-	spin_lock(&file_data->lock);
-	list_del(&ref_node->node);
-	spin_unlock(&file_data->lock);
-
 	percpu_ref_exit(&ref_node->refs);
 	kfree(ref_node);
 	percpu_ref_put(&file_data->refs);
@@ -7339,17 +7349,32 @@ static void io_file_put_work(struct work_struct *work)
 static void io_file_data_ref_zero(struct percpu_ref *ref)
 {
 	struct fixed_file_ref_node *ref_node;
+	struct fixed_file_data *data;
 	struct io_ring_ctx *ctx;
-	bool first_add;
+	bool first_add = false;
 	int delay = HZ;
 
 	ref_node = container_of(ref, struct fixed_file_ref_node, refs);
-	ctx = ref_node->file_data->ctx;
+	data = ref_node->file_data;
+	ctx = data->ctx;
 
-	if (percpu_ref_is_dying(&ctx->file_data->refs))
+	spin_lock(&data->lock);
+	ref_node->done = true;
+
+	while (!list_empty(&data->ref_list)) {
+		ref_node = list_first_entry(&data->ref_list,
+					struct fixed_file_ref_node, node);
+		/* recycle ref nodes in order */
+		if (!ref_node->done)
+			break;
+		list_del(&ref_node->node);
+		first_add |= llist_add(&ref_node->llist, &ctx->file_put_llist);
+	}
+	spin_unlock(&data->lock);
+
+	if (percpu_ref_is_dying(&data->refs))
 		delay = 0;
 
-	first_add = llist_add(&ref_node->llist, &ctx->file_put_llist);
 	if (!delay)
 		mod_delayed_work(system_wq, &ctx->file_put_work, 0);
 	else if (first_add)
@@ -7373,6 +7398,7 @@ static struct fixed_file_ref_node *alloc_fixed_file_ref_node(
 	INIT_LIST_HEAD(&ref_node->node);
 	INIT_LIST_HEAD(&ref_node->file_list);
 	ref_node->file_data = ctx->file_data;
+	ref_node->done = false;
 	return ref_node;
 }
 
@@ -7468,7 +7494,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 
 	file_data->node = ref_node;
 	spin_lock(&file_data->lock);
-	list_add(&ref_node->node, &file_data->ref_list);
+	list_add_tail(&ref_node->node, &file_data->ref_list);
 	spin_unlock(&file_data->lock);
 	percpu_ref_get(&file_data->refs);
 	return ret;
@@ -7627,7 +7653,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 	if (needs_switch) {
 		percpu_ref_kill(&data->node->refs);
 		spin_lock(&data->lock);
-		list_add(&ref_node->node, &data->ref_list);
+		list_add_tail(&ref_node->node, &data->ref_list);
 		data->node = ref_node;
 		spin_unlock(&data->lock);
 		percpu_ref_get(&ctx->file_data->refs);
@@ -9157,6 +9183,7 @@ static int io_uring_get_fd(struct io_ring_ctx *ctx)
 {
 	struct file *file;
 	int ret;
+	int fd;
 
 #if defined(CONFIG_UNIX)
 	ret = sock_create_kern(&init_net, PF_UNIX, SOCK_RAW, IPPROTO_IP,
@@ -9168,12 +9195,12 @@ static int io_uring_get_fd(struct io_ring_ctx *ctx)
 	ret = get_unused_fd_flags(O_RDWR | O_CLOEXEC);
 	if (ret < 0)
 		goto err;
+	fd = ret;
 
 	file = anon_inode_getfile("[io_uring]", &io_uring_fops, ctx,
 					O_RDWR | O_CLOEXEC);
 	if (IS_ERR(file)) {
-err_fd:
-		put_unused_fd(ret);
+		put_unused_fd(fd);
 		ret = PTR_ERR(file);
 		goto err;
 	}
@@ -9181,12 +9208,14 @@ err_fd:
 #if defined(CONFIG_UNIX)
 	ctx->ring_sock->file = file;
 #endif
-	if (unlikely(io_uring_add_task_file(ctx, file))) {
-		file = ERR_PTR(-ENOMEM);
-		goto err_fd;
+	ret = io_uring_add_task_file(ctx, file);
+	if (ret) {
+		fput(file);
+		put_unused_fd(fd);
+		goto err;
 	}
-	fd_install(ret, file);
-	return ret;
+	fd_install(fd, file);
+	return fd;
 err:
 #if defined(CONFIG_UNIX)
 	sock_release(ctx->ring_sock);
@@ -9226,7 +9255,7 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p,
 		 * to a power-of-two, if it isn't already. We do NOT impose
 		 * any cq vs sq ring sizing.
 		 */
-		if (p->cq_entries < p->sq_entries)
+		if (!p->cq_entries)
 			return -EINVAL;
 		if (p->cq_entries > IORING_MAX_CQ_ENTRIES) {
 			if (!(p->flags & IORING_SETUP_CLAMP))
@@ -9234,6 +9263,8 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p,
 			p->cq_entries = IORING_MAX_CQ_ENTRIES;
 		}
 		p->cq_entries = roundup_pow_of_two(p->cq_entries);
+		if (p->cq_entries < p->sq_entries)
+			return -EINVAL;
 	} else {
 		p->cq_entries = 2 * p->sq_entries;
 	}

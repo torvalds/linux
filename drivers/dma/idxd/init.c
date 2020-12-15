@@ -178,6 +178,9 @@ static int idxd_setup_internals(struct idxd_device *idxd)
 		wq->idxd_cdev.minor = -1;
 		wq->max_xfer_bytes = idxd->max_xfer_bytes;
 		wq->max_batch_size = idxd->max_batch_size;
+		wq->wqcfg = devm_kzalloc(dev, idxd->wqcfg_size, GFP_KERNEL);
+		if (!wq->wqcfg)
+			return -ENOMEM;
 	}
 
 	for (i = 0; i < idxd->max_engines; i++) {
@@ -251,6 +254,8 @@ static void idxd_read_caps(struct idxd_device *idxd)
 	dev_dbg(dev, "total workqueue size: %u\n", idxd->max_wq_size);
 	idxd->max_wqs = idxd->hw.wq_cap.num_wqs;
 	dev_dbg(dev, "max workqueues: %u\n", idxd->max_wqs);
+	idxd->wqcfg_size = 1 << (idxd->hw.wq_cap.wqcfg_size + IDXD_WQCFG_MIN);
+	dev_dbg(dev, "wqcfg size: %u\n", idxd->wqcfg_size);
 
 	/* reading operation capabilities */
 	for (i = 0; i < 4; i++) {

@@ -144,7 +144,9 @@ static inline void mlx5e_insert_vlan(void *start, struct sk_buff *skb, u16 ihs)
 	memcpy(&vhdr->h_vlan_encapsulated_proto, skb->data + cpy1_sz, cpy2_sz);
 }
 
-/* RM 2311217: no L4 inner checksum for IPsec tunnel type packet */
+/* If packet is not IP's CHECKSUM_PARTIAL (e.g. icmd packet),
+ * need to set L3 checksum flag for IPsec
+ */
 static void
 ipsec_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 			    struct mlx5_wqe_eth_seg *eseg)
@@ -154,19 +156,15 @@ ipsec_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		eseg->cs_flags |= MLX5_ETH_WQE_L3_INNER_CSUM;
 		sq->stats->csum_partial_inner++;
 	} else {
-		eseg->cs_flags |= MLX5_ETH_WQE_L4_CSUM;
 		sq->stats->csum_partial++;
 	}
 }
 
 static inline void
-mlx5e_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg)
+mlx5e_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb,
+			    struct mlx5e_accel_tx_state *accel,
+			    struct mlx5_wqe_eth_seg *eseg)
 {
-	if (unlikely(eseg->flow_table_metadata & cpu_to_be32(MLX5_ETH_WQE_FT_META_IPSEC))) {
-		ipsec_txwqe_build_eseg_csum(sq, skb, eseg);
-		return;
-	}
-
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		eseg->cs_flags = MLX5_ETH_WQE_L3_CSUM;
 		if (skb->encapsulation) {
@@ -177,6 +175,14 @@ mlx5e_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb, struct 
 			eseg->cs_flags |= MLX5_ETH_WQE_L4_CSUM;
 			sq->stats->csum_partial++;
 		}
+#ifdef CONFIG_MLX5_EN_TLS
+	} else if (unlikely(accel && accel->tls.tls_tisn)) {
+		eseg->cs_flags = MLX5_ETH_WQE_L3_CSUM | MLX5_ETH_WQE_L4_CSUM;
+		sq->stats->csum_partial++;
+#endif
+	} else if (unlikely(eseg->flow_table_metadata & cpu_to_be32(MLX5_ETH_WQE_FT_META_IPSEC))) {
+		ipsec_txwqe_build_eseg_csum(sq, skb, eseg);
+
 	} else
 		sq->stats->csum_none++;
 }
@@ -608,12 +614,13 @@ void mlx5e_tx_mpwqe_ensure_complete(struct mlx5e_txqsq *sq)
 }
 
 static bool mlx5e_txwqe_build_eseg(struct mlx5e_priv *priv, struct mlx5e_txqsq *sq,
-				   struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg)
+				   struct sk_buff *skb, struct mlx5e_accel_tx_state *accel,
+				   struct mlx5_wqe_eth_seg *eseg)
 {
 	if (unlikely(!mlx5e_accel_tx_eseg(priv, skb, eseg)))
 		return false;
 
-	mlx5e_txwqe_build_eseg_csum(sq, skb, eseg);
+	mlx5e_txwqe_build_eseg_csum(sq, skb, accel, eseg);
 
 	return true;
 }
@@ -640,7 +647,7 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (mlx5e_tx_skb_supports_mpwqe(skb, &attr)) {
 			struct mlx5_wqe_eth_seg eseg = {};
 
-			if (unlikely(!mlx5e_txwqe_build_eseg(priv, sq, skb, &eseg)))
+			if (unlikely(!mlx5e_txwqe_build_eseg(priv, sq, skb, &accel, &eseg)))
 				return NETDEV_TX_OK;
 
 			mlx5e_sq_xmit_mpwqe(sq, skb, &eseg, netdev_xmit_more());
@@ -657,7 +664,7 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* May update the WQE, but may not post other WQEs. */
 	mlx5e_accel_tx_finish(sq, wqe, &accel,
 			      (struct mlx5_wqe_inline_seg *)(wqe->data + wqe_attr.ds_cnt_inl));
-	if (unlikely(!mlx5e_txwqe_build_eseg(priv, sq, skb, &wqe->eth)))
+	if (unlikely(!mlx5e_txwqe_build_eseg(priv, sq, skb, &accel, &wqe->eth)))
 		return NETDEV_TX_OK;
 
 	mlx5e_sq_xmit_wqe(sq, skb, &attr, &wqe_attr, wqe, pi, netdev_xmit_more());
@@ -676,7 +683,7 @@ void mlx5e_sq_xmit_simple(struct mlx5e_txqsq *sq, struct sk_buff *skb, bool xmit
 	mlx5e_sq_calc_wqe_attr(skb, &attr, &wqe_attr);
 	pi = mlx5e_txqsq_get_next_pi(sq, wqe_attr.num_wqebbs);
 	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
-	mlx5e_txwqe_build_eseg_csum(sq, skb, &wqe->eth);
+	mlx5e_txwqe_build_eseg_csum(sq, skb, NULL, &wqe->eth);
 	mlx5e_sq_xmit_wqe(sq, skb, &attr, &wqe_attr, wqe, pi, xmit_more);
 }
 
@@ -945,7 +952,7 @@ void mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 
 	mlx5i_txwqe_build_datagram(av, dqpn, dqkey, datagram);
 
-	mlx5e_txwqe_build_eseg_csum(sq, skb, eseg);
+	mlx5e_txwqe_build_eseg_csum(sq, skb, NULL, eseg);
 
 	eseg->mss = attr.mss;
 
