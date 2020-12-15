@@ -620,7 +620,7 @@ static inline int sanity_check(struct slgt_info *info, char *devname, const char
 	return 0;
 }
 
-/**
+/*
  * line discipline callback wrappers
  *
  * The wrappers maintain line discipline references
@@ -1678,6 +1678,7 @@ static int hdlcdev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 /**
  * hdlcdev_tx_timeout - called by network layer when transmit timeout is detected
  * @dev: pointer to network device structure
+ * @txqueue: unused
  */
 static void hdlcdev_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
