@@ -14,7 +14,9 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/semaphore.h>
@@ -367,6 +369,12 @@ struct dsi_data {
 #ifdef DSI_PERF_MEASURE
 	unsigned int update_bytes;
 #endif
+
+	/* external TE GPIO */
+	struct gpio_desc *te_gpio;
+	int te_irq;
+	struct delayed_work te_timeout_work;
+	atomic_t do_ext_te_update;
 
 	bool te_enabled;
 	bool ulps_enabled;
@@ -3828,23 +3836,35 @@ static void dsi_framedone_irq_callback(void *data)
 	dsi_handle_framedone(dsi, 0);
 }
 
-static int dsi_update(struct omap_dss_device *dssdev, int channel,
-		void (*callback)(int, void *), void *data)
+static int _dsi_update(struct dsi_data *dsi)
 {
-	struct dsi_data *dsi = to_dsi_data(dssdev);
-
 	dsi_perf_mark_setup(dsi);
-
-	dsi->update_channel = channel;
-
-	dsi->framedone_callback = callback;
-	dsi->framedone_data = data;
 
 #ifdef DSI_PERF_MEASURE
 	dsi->update_bytes = dsi->vm.hactive * dsi->vm.vactive *
 		mipi_dsi_pixel_format_to_bpp(dsi->pix_fmt) / 8;
 #endif
 	dsi_update_screen_dispc(dsi);
+
+	return 0;
+}
+
+static int dsi_update(struct omap_dss_device *dssdev, int channel,
+		void (*callback)(int, void *), void *data)
+{
+	struct dsi_data *dsi = to_dsi_data(dssdev);
+
+	dsi->update_channel = channel;
+	dsi->framedone_callback = callback;
+	dsi->framedone_data = data;
+
+	if (dsi->te_enabled && dsi->te_gpio) {
+		schedule_delayed_work(&dsi->te_timeout_work,
+				      msecs_to_jiffies(250));
+		atomic_set(&dsi->do_ext_te_update, 1);
+	} else {
+		_dsi_update(dsi);
+	}
 
 	return 0;
 }
@@ -4092,6 +4112,14 @@ static int dsi_enable_te(struct omap_dss_device *dssdev, bool enable)
 	struct dsi_data *dsi = to_dsi_data(dssdev);
 
 	dsi->te_enabled = enable;
+
+	if (dsi->te_gpio) {
+		if (enable)
+			enable_irq(dsi->te_irq);
+		else
+			disable_irq(dsi->te_irq);
+	}
+
 	return 0;
 }
 
@@ -4768,11 +4796,96 @@ static const struct omap_dss_device_ops dsi_ops = {
 	},
 };
 
+static irqreturn_t omap_dsi_te_irq_handler(int irq, void *dev_id)
+{
+	struct dsi_data *dsi = (struct dsi_data *)dev_id;
+	int old;
+
+	old = atomic_cmpxchg(&dsi->do_ext_te_update, 1, 0);
+	if (old) {
+		cancel_delayed_work(&dsi->te_timeout_work);
+		_dsi_update(dsi);
+	}
+
+	return IRQ_HANDLED;
+}
+
+static void omap_dsi_te_timeout_work_callback(struct work_struct *work)
+{
+	struct dsi_data *dsi =
+		container_of(work, struct dsi_data, te_timeout_work.work);
+	int old;
+
+	old = atomic_cmpxchg(&dsi->do_ext_te_update, 1, 0);
+	if (old) {
+		dev_err(dsi->dev, "TE not received for 250ms!\n");
+		_dsi_update(dsi);
+	}
+}
+
+static int omap_dsi_register_te_irq(struct dsi_data *dsi,
+				    struct mipi_dsi_device *client)
+{
+	int err;
+	int te_irq;
+
+	dsi->te_gpio = gpiod_get(&client->dev, "te-gpios", GPIOD_IN);
+	if (IS_ERR(dsi->te_gpio)) {
+		err = PTR_ERR(dsi->te_gpio);
+
+		if (err == -ENOENT) {
+			dsi->te_gpio = NULL;
+			return 0;
+		}
+
+		dev_err(dsi->dev, "Could not get TE gpio: %d\n", err);
+		return err;
+	}
+
+	te_irq = gpiod_to_irq(dsi->te_gpio);
+	if (te_irq < 0) {
+		gpiod_put(dsi->te_gpio);
+		dsi->te_gpio = NULL;
+		return -EINVAL;
+	}
+
+	dsi->te_irq = te_irq;
+
+	irq_set_status_flags(te_irq, IRQ_NOAUTOEN);
+
+	err = request_threaded_irq(te_irq, NULL, omap_dsi_te_irq_handler,
+				   IRQF_TRIGGER_RISING, "TE", dsi);
+	if (err) {
+		dev_err(dsi->dev, "request irq failed with %d\n", err);
+		gpiod_put(dsi->te_gpio);
+		dsi->te_gpio = NULL;
+		return err;
+	}
+
+	INIT_DEFERRABLE_WORK(&dsi->te_timeout_work,
+			     omap_dsi_te_timeout_work_callback);
+
+	dev_dbg(dsi->dev, "Using GPIO TE\n");
+
+	return 0;
+}
+
+static void omap_dsi_unregister_te_irq(struct dsi_data *dsi)
+{
+	if (dsi->te_gpio) {
+		free_irq(dsi->te_irq, dsi);
+		cancel_delayed_work(&dsi->te_timeout_work);
+		gpiod_put(dsi->te_gpio);
+		dsi->te_gpio = NULL;
+	}
+}
+
 static int omap_dsi_host_attach(struct mipi_dsi_host *host,
 				struct mipi_dsi_device *client)
 {
 	struct dsi_data *dsi = host_to_omap(host);
 	unsigned int channel = client->channel;
+	int r;
 
 	if (channel > 3)
 		return -EINVAL;
@@ -4787,13 +4900,20 @@ static int omap_dsi_host_attach(struct mipi_dsi_host *host,
 		return -EINVAL;
 	}
 
-	dsi->vc[channel].dest = client;
+	atomic_set(&dsi->do_ext_te_update, 0);
 
-	dsi->pix_fmt = client->format;
-	if (client->mode_flags & MIPI_DSI_MODE_VIDEO)
+	if (client->mode_flags & MIPI_DSI_MODE_VIDEO) {
 		dsi->mode = OMAP_DSS_DSI_VIDEO_MODE;
-	else
+	} else {
+		r = omap_dsi_register_te_irq(dsi, client);
+		if (r)
+			return r;
+
 		dsi->mode = OMAP_DSS_DSI_CMD_MODE;
+	}
+
+	dsi->vc[channel].dest = client;
+	dsi->pix_fmt = client->format;
 
 	return 0;
 }
@@ -4810,6 +4930,7 @@ static int omap_dsi_host_detach(struct mipi_dsi_host *host,
 	if (dsi->vc[channel].dest != client)
 		return -EINVAL;
 
+	omap_dsi_unregister_te_irq(dsi);
 	dsi->vc[channel].dest = NULL;
 	return 0;
 }

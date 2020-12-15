@@ -11,7 +11,6 @@
 #include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
-#include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/sched/signal.h>
@@ -54,7 +53,6 @@ struct panel_drv_data {
 
 	/* panel HW configuration from DT or platform data */
 	struct gpio_desc *reset_gpio;
-	struct gpio_desc *ext_te_gpio;
 
 	struct regulator_bulk_data supplies[DCS_REGULATOR_SUPPLY_NUM];
 
@@ -65,12 +63,6 @@ struct panel_drv_data {
 
 	/* runtime variables */
 	bool enabled;
-
-	bool te_enabled;
-
-	atomic_t do_update;
-
-	struct delayed_work te_timeout_work;
 
 	bool intro_printed;
 
@@ -83,8 +75,6 @@ struct panel_drv_data {
 
 #define to_panel_data(p) container_of(p, struct panel_drv_data, dssdev)
 
-static irqreturn_t dsicm_te_isr(int irq, void *data);
-static void dsicm_te_timeout_work_callback(struct work_struct *work);
 static int _dsicm_enable_te(struct panel_drv_data *ddata, bool enable);
 
 static int dsicm_panel_reset(struct panel_drv_data *ddata);
@@ -240,9 +230,6 @@ static int dsicm_enter_ulps(struct panel_drv_data *ddata)
 	if (r)
 		goto err;
 
-	if (ddata->ext_te_gpio)
-		disable_irq(gpiod_to_irq(ddata->ext_te_gpio));
-
 	src->ops->dsi.disable(src, false, true);
 
 	ddata->ulps_enabled = true;
@@ -277,9 +264,6 @@ static int dsicm_exit_ulps(struct panel_drv_data *ddata)
 		goto err2;
 	}
 
-	if (ddata->ext_te_gpio)
-		enable_irq(gpiod_to_irq(ddata->ext_te_gpio));
-
 	dsicm_queue_ulps_work(ddata);
 
 	ddata->ulps_enabled = false;
@@ -290,11 +274,8 @@ err2:
 	dev_err(&ddata->dsi->dev, "failed to exit ULPS");
 
 	r = dsicm_panel_reset(ddata);
-	if (!r) {
-		if (ddata->ext_te_gpio)
-			enable_irq(gpiod_to_irq(ddata->ext_te_gpio));
+	if (!r)
 		ddata->ulps_enabled = false;
-	}
 
 	dsicm_queue_ulps_work(ddata);
 
@@ -600,7 +581,7 @@ static int dsicm_power_on(struct panel_drv_data *ddata)
 	if (r)
 		goto err;
 
-	r = _dsicm_enable_te(ddata, ddata->te_enabled);
+	r = _dsicm_enable_te(ddata, true);
 	if (r)
 		goto err;
 
@@ -744,43 +725,6 @@ static void dsicm_framedone_cb(int err, void *data)
 	src->ops->dsi.bus_unlock(src);
 }
 
-static irqreturn_t dsicm_te_isr(int irq, void *data)
-{
-	struct panel_drv_data *ddata = data;
-	struct omap_dss_device *src = ddata->src;
-	int old;
-	int r;
-
-	old = atomic_cmpxchg(&ddata->do_update, 1, 0);
-
-	if (old) {
-		cancel_delayed_work(&ddata->te_timeout_work);
-
-		r = src->ops->dsi.update(src, ddata->dsi->channel, dsicm_framedone_cb,
-				ddata);
-		if (r)
-			goto err;
-	}
-
-	return IRQ_HANDLED;
-err:
-	dev_err(&ddata->dsi->dev, "start update failed\n");
-	src->ops->dsi.bus_unlock(src);
-	return IRQ_HANDLED;
-}
-
-static void dsicm_te_timeout_work_callback(struct work_struct *work)
-{
-	struct panel_drv_data *ddata = container_of(work, struct panel_drv_data,
-					te_timeout_work.work);
-	struct omap_dss_device *src = ddata->src;
-
-	dev_err(&ddata->dsi->dev, "TE not received for 250ms!\n");
-
-	atomic_set(&ddata->do_update, 0);
-	src->ops->dsi.bus_unlock(src);
-}
-
 static int dsicm_update(struct omap_dss_device *dssdev,
 				    u16 x, u16 y, u16 w, u16 h)
 {
@@ -808,16 +752,10 @@ static int dsicm_update(struct omap_dss_device *dssdev,
 	if (r)
 		goto err;
 
-	if (ddata->te_enabled && ddata->ext_te_gpio) {
-		schedule_delayed_work(&ddata->te_timeout_work,
-				msecs_to_jiffies(250));
-		atomic_set(&ddata->do_update, 1);
-	} else {
-		r = src->ops->dsi.update(src, ddata->dsi->channel, dsicm_framedone_cb,
-				ddata);
-		if (r)
-			goto err;
-	}
+	r = src->ops->dsi.update(src, ddata->dsi->channel, dsicm_framedone_cb,
+			ddata);
+	if (r)
+		goto err;
 
 	/* note: no bus_unlock here. unlock is src framedone_cb */
 	mutex_unlock(&ddata->lock);
@@ -839,8 +777,7 @@ static int _dsicm_enable_te(struct panel_drv_data *ddata, bool enable)
 	else
 		r = mipi_dsi_dcs_set_tear_off(dsi);
 
-	if (!ddata->ext_te_gpio)
-		src->ops->dsi.enable_te(src, enable);
+	src->ops->dsi.enable_te(src, enable);
 
 	/* possible panel bug */
 	msleep(100);
@@ -933,14 +870,6 @@ static int dsicm_probe_of(struct mipi_dsi_device *dsi)
 		return err;
 	}
 
-	ddata->ext_te_gpio = devm_gpiod_get_optional(&dsi->dev, "te",
-						     GPIOD_IN);
-	if (IS_ERR(ddata->ext_te_gpio)) {
-		err = PTR_ERR(ddata->ext_te_gpio);
-		dev_err(&dsi->dev, "TE gpio request failed: %d", err);
-		return err;
-	}
-
 	err = of_get_display_timing(node, "panel-timing", &timing);
 	if (!err) {
 		videomode_from_timing(&timing, &ddata->vm);
@@ -1022,25 +951,6 @@ static int dsicm_probe(struct mipi_dsi_device *dsi)
 	omapdss_device_register(dssdev);
 
 	mutex_init(&ddata->lock);
-
-	atomic_set(&ddata->do_update, 0);
-
-	if (ddata->ext_te_gpio) {
-		r = devm_request_irq(dev, gpiod_to_irq(ddata->ext_te_gpio),
-				dsicm_te_isr,
-				IRQF_TRIGGER_RISING,
-				"taal vsync", ddata);
-
-		if (r) {
-			dev_err(dev, "IRQ request failed\n");
-			goto err_reg;
-		}
-
-		INIT_DEFERRABLE_WORK(&ddata->te_timeout_work,
-					dsicm_te_timeout_work_callback);
-
-		dev_dbg(dev, "Using GPIO TE\n");
-	}
 
 	ddata->workqueue = create_singlethread_workqueue("dsicm_wq");
 	if (!ddata->workqueue) {
