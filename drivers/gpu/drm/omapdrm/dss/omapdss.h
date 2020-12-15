@@ -123,11 +123,6 @@ enum omap_dss_dsi_mode {
 	OMAP_DSS_DSI_VIDEO_MODE,
 };
 
-enum omap_dss_display_state {
-	OMAP_DSS_DISPLAY_DISABLED = 0,
-	OMAP_DSS_DISPLAY_ACTIVE,
-};
-
 enum omap_dss_rotation_type {
 	OMAP_DSS_ROT_NONE	= 0,
 	OMAP_DSS_ROT_TILER	= 1 << 0,
@@ -284,24 +279,6 @@ struct omapdss_dsi_ops {
 };
 
 struct omap_dss_device_ops {
-	int (*connect)(struct omap_dss_device *dssdev,
-			struct omap_dss_device *dst);
-	void (*disconnect)(struct omap_dss_device *dssdev,
-			struct omap_dss_device *dst);
-
-	void (*pre_enable)(struct omap_dss_device *dssdev);
-	void (*enable)(struct omap_dss_device *dssdev);
-	void (*disable)(struct omap_dss_device *dssdev);
-	void (*post_disable)(struct omap_dss_device *dssdev);
-
-	int (*check_timings)(struct omap_dss_device *dssdev,
-			     struct drm_display_mode *mode);
-	void (*set_timings)(struct omap_dss_device *dssdev,
-			    const struct drm_display_mode *mode);
-
-	int (*get_modes)(struct omap_dss_device *dssdev,
-			 struct drm_connector *connector);
-
 	const struct omapdss_dsi_ops dsi;
 };
 
@@ -345,8 +322,6 @@ struct omap_dss_device {
 	unsigned long ops_flags;
 	u32 bus_flags;
 
-	enum omap_dss_display_state state;
-
 	/* OMAP DSS output specific fields */
 
 	/* DISPC channel for this output */
@@ -377,10 +352,6 @@ int omapdss_device_connect(struct dss_device *dss,
 			   struct omap_dss_device *dst);
 void omapdss_device_disconnect(struct omap_dss_device *src,
 			       struct omap_dss_device *dst);
-void omapdss_device_pre_enable(struct omap_dss_device *dssdev);
-void omapdss_device_enable(struct omap_dss_device *dssdev);
-void omapdss_device_disable(struct omap_dss_device *dssdev);
-void omapdss_device_post_disable(struct omap_dss_device *dssdev);
 
 int omap_dss_get_num_overlay_managers(void);
 
@@ -399,11 +370,6 @@ int omap_dispc_unregister_isr(omap_dispc_isr_t isr, void *arg, u32 mask);
 
 int omapdss_compat_init(void);
 void omapdss_compat_uninit(void);
-
-static inline bool omapdss_device_is_enabled(struct omap_dss_device *dssdev)
-{
-	return dssdev->state == OMAP_DSS_DISPLAY_ACTIVE;
-}
 
 enum dss_writeback_channel {
 	DSS_WB_LCD1_MGR =	0,

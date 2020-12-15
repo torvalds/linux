@@ -43,23 +43,7 @@ static void omap_connector_destroy(struct drm_connector *connector)
 
 static int omap_connector_get_modes(struct drm_connector *connector)
 {
-	struct omap_connector *omap_connector = to_omap_connector(connector);
-	struct omap_dss_device *dssdev = NULL;
-	struct omap_dss_device *d;
-
 	DBG("%s", connector->name);
-
-	/*
-	 * If the display pipeline reports modes (e.g. with a fixed resolution
-	 * panel or an analog TV output), query it.
-	 */
-	for (d = omap_connector->output; d; d = d->next) {
-		if (d->ops_flags & OMAP_DSS_DEVICE_OP_MODES)
-			dssdev = d;
-	}
-
-	if (dssdev)
-		return dssdev->ops->get_modes(dssdev, connector);
 
 	/* We can't retrieve modes. The KMS core will add the default modes. */
 	return 0;
@@ -69,19 +53,6 @@ enum drm_mode_status omap_connector_mode_fixup(struct omap_dss_device *dssdev,
 					const struct drm_display_mode *mode,
 					struct drm_display_mode *adjusted_mode)
 {
-	int ret;
-
-	drm_mode_copy(adjusted_mode, mode);
-
-	for (; dssdev; dssdev = dssdev->next) {
-		if (!dssdev->ops || !dssdev->ops->check_timings)
-			continue;
-
-		ret = dssdev->ops->check_timings(dssdev, adjusted_mode);
-		if (ret)
-			return MODE_BAD;
-	}
-
 	return MODE_OK;
 }
 
