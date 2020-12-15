@@ -266,6 +266,7 @@ line of text and contains the following stats separated by whitespace:
                   No memory is allocated for such pages.
  pages_compacted  the number of pages freed during compaction
  huge_pages	  the number of incompressible pages
+ huge_pages_since the number of incompressible pages since zram set up
  ================ =============================================================
 
 File /sys/block/zram<id>/bd_stat
