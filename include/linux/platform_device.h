@@ -52,6 +52,9 @@ extern struct device platform_bus;
 
 extern struct resource *platform_get_resource(struct platform_device *,
 					      unsigned int, unsigned int);
+extern struct resource *platform_get_mem_or_io(struct platform_device *,
+					       unsigned int);
+
 extern struct device *
 platform_find_device_by_driver(struct device *start,
 			       const struct device_driver *drv);
