@@ -200,7 +200,7 @@ static int setup_per_mode_enc_key(struct fscrypt_info *ci,
 			err = -EINVAL;
 			goto out_unlock;
 		}
-		for (i = 0; i <= __FSCRYPT_MODE_MAX; i++) {
+		for (i = 0; i <= FSCRYPT_MODE_MAX; i++) {
 			if (fscrypt_is_key_prepared(&keys[i], ci)) {
 				fscrypt_warn(ci->ci_inode,
 					     "Each hardware-wrapped key can only be used with one encryption mode");
