@@ -149,7 +149,34 @@
 
 		.align
 99:		.word	.
+#if defined(ZIMAGE)
+		.word	. + 4
+/*
+ * Storage for the state maintained by the macro.
+ *
+ * In the kernel proper, this data is located in arch/arm/mach-tegra/tegra.c.
+ * That's because this header is included from multiple files, and we only
+ * want a single copy of the data. In particular, the UART probing code above
+ * assumes it's running using physical addresses. This is true when this file
+ * is included from head.o, but not when included from debug.o. So we need
+ * to share the probe results between the two copies, rather than having
+ * to re-run the probing again later.
+ *
+ * In the decompressor, we put the storage right here, since common.c
+ * isn't included in the decompressor build. This storage data gets put in
+ * .text even though it's really data, since .data is discarded from the
+ * decompressor. Luckily, .text is writeable in the decompressor, unless
+ * CONFIG_ZBOOT_ROM. That dependency is handled in arch/arm/Kconfig.debug.
+ */
+		/* Debug UART initialization required */
+		.word	1
+		/* Debug UART physical address */
+		.word	0
+		/* Debug UART virtual address */
+		.word	0
+#else
 		.word	tegra_uart_config
+#endif
 		.ltorg
 
 		/* Load previously selected UART address */
@@ -189,30 +216,3 @@
 
 		.macro	waituarttxrdy,rd,rx
 		.endm
-
-/*
- * Storage for the state maintained by the macros above.
- *
- * In the kernel proper, this data is located in arch/arm/mach-tegra/tegra.c.
- * That's because this header is included from multiple files, and we only
- * want a single copy of the data. In particular, the UART probing code above
- * assumes it's running using physical addresses. This is true when this file
- * is included from head.o, but not when included from debug.o. So we need
- * to share the probe results between the two copies, rather than having
- * to re-run the probing again later.
- *
- * In the decompressor, we put the symbol/storage right here, since common.c
- * isn't included in the decompressor build. This symbol gets put in .text
- * even though it's really data, since .data is discarded from the
- * decompressor. Luckily, .text is writeable in the decompressor, unless
- * CONFIG_ZBOOT_ROM. That dependency is handled in arch/arm/Kconfig.debug.
- */
-#if defined(ZIMAGE)
-tegra_uart_config:
-	/* Debug UART initialization required */
-	.word 1
-	/* Debug UART physical address */
-	.word 0
-	/* Debug UART virtual address */
-	.word 0
-#endif
