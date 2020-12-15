@@ -124,6 +124,12 @@ int __init parse_acpi_topology(void)
 #endif
 
 #ifdef CONFIG_ARM64_AMU_EXTN
+#define read_corecnt()	read_sysreg_s(SYS_AMEVCNTR0_CORE_EL0)
+#define read_constcnt()	read_sysreg_s(SYS_AMEVCNTR0_CONST_EL0)
+#else
+#define read_corecnt()	(0UL)
+#define read_constcnt()	(0UL)
+#endif
 
 #undef pr_fmt
 #define pr_fmt(fmt) "AMU: " fmt
@@ -133,54 +139,58 @@ static DEFINE_PER_CPU(u64, arch_const_cycles_prev);
 static DEFINE_PER_CPU(u64, arch_core_cycles_prev);
 static cpumask_var_t amu_fie_cpus;
 
-/* Initialize counter reference per-cpu variables for the current CPU */
-void init_cpu_freq_invariance_counters(void)
+void update_freq_counters_refs(void)
 {
-	this_cpu_write(arch_core_cycles_prev,
-		       read_sysreg_s(SYS_AMEVCNTR0_CORE_EL0));
-	this_cpu_write(arch_const_cycles_prev,
-		       read_sysreg_s(SYS_AMEVCNTR0_CONST_EL0));
+	this_cpu_write(arch_core_cycles_prev, read_corecnt());
+	this_cpu_write(arch_const_cycles_prev, read_constcnt());
 }
 
-static int validate_cpu_freq_invariance_counters(int cpu)
+static inline bool freq_counters_valid(int cpu)
 {
-	u64 max_freq_hz, ratio;
+	if ((cpu >= nr_cpu_ids) || !cpumask_test_cpu(cpu, cpu_present_mask))
+		return false;
 
 	if (!cpu_has_amu_feat(cpu)) {
 		pr_debug("CPU%d: counters are not supported.\n", cpu);
-		return -EINVAL;
+		return false;
 	}
 
 	if (unlikely(!per_cpu(arch_const_cycles_prev, cpu) ||
 		     !per_cpu(arch_core_cycles_prev, cpu))) {
 		pr_debug("CPU%d: cycle counters are not enabled.\n", cpu);
-		return -EINVAL;
+		return false;
 	}
 
-	/* Convert maximum frequency from KHz to Hz and validate */
-	max_freq_hz = cpufreq_get_hw_max_freq(cpu) * 1000;
-	if (unlikely(!max_freq_hz)) {
-		pr_debug("CPU%d: invalid maximum frequency.\n", cpu);
+	return true;
+}
+
+static int freq_inv_set_max_ratio(int cpu, u64 max_rate, u64 ref_rate)
+{
+	u64 ratio;
+
+	if (unlikely(!max_rate || !ref_rate)) {
+		pr_debug("CPU%d: invalid maximum or reference frequency.\n",
+			 cpu);
 		return -EINVAL;
 	}
 
 	/*
 	 * Pre-compute the fixed ratio between the frequency of the constant
-	 * counter and the maximum frequency of the CPU.
+	 * reference counter and the maximum frequency of the CPU.
 	 *
-	 *			      const_freq
-	 * arch_max_freq_scale =   ---------------- * SCHED_CAPACITY_SCALE²
-	 *			   cpuinfo_max_freq
+	 *			    ref_rate
+	 * arch_max_freq_scale =   ---------- * SCHED_CAPACITY_SCALE²
+	 *			    max_rate
 	 *
 	 * We use a factor of 2 * SCHED_CAPACITY_SHIFT -> SCHED_CAPACITY_SCALE²
 	 * in order to ensure a good resolution for arch_max_freq_scale for
-	 * very low arch timer frequencies (down to the KHz range which should
+	 * very low reference frequencies (down to the KHz range which should
 	 * be unlikely).
 	 */
-	ratio = (u64)arch_timer_get_rate() << (2 * SCHED_CAPACITY_SHIFT);
-	ratio = div64_u64(ratio, max_freq_hz);
+	ratio = ref_rate << (2 * SCHED_CAPACITY_SHIFT);
+	ratio = div64_u64(ratio, max_rate);
 	if (!ratio) {
-		WARN_ONCE(1, "System timer frequency too low.\n");
+		WARN_ONCE(1, "Reference frequency too low.\n");
 		return -EINVAL;
 	}
 
@@ -227,8 +237,12 @@ static int __init init_amu_fie(void)
 	}
 
 	for_each_present_cpu(cpu) {
-		if (validate_cpu_freq_invariance_counters(cpu))
+		if (!freq_counters_valid(cpu) ||
+		    freq_inv_set_max_ratio(cpu,
+					   cpufreq_get_hw_max_freq(cpu) * 1000,
+					   arch_timer_get_rate()))
 			continue;
+
 		cpumask_set_cpu(cpu, valid_cpus);
 		have_policy |= enable_policy_freq_counters(cpu, valid_cpus);
 	}
@@ -280,10 +294,13 @@ void topology_scale_freq_tick(void)
 	if (!cpumask_test_cpu(cpu, amu_fie_cpus))
 		return;
 
-	const_cnt = read_sysreg_s(SYS_AMEVCNTR0_CONST_EL0);
-	core_cnt = read_sysreg_s(SYS_AMEVCNTR0_CORE_EL0);
 	prev_const_cnt = this_cpu_read(arch_const_cycles_prev);
 	prev_core_cnt = this_cpu_read(arch_core_cycles_prev);
+
+	update_freq_counters_refs();
+
+	const_cnt = this_cpu_read(arch_const_cycles_prev);
+	core_cnt = this_cpu_read(arch_core_cycles_prev);
 
 	if (unlikely(core_cnt <= prev_core_cnt ||
 		     const_cnt <= prev_const_cnt))
@@ -309,4 +326,71 @@ store_and_exit:
 	this_cpu_write(arch_core_cycles_prev, core_cnt);
 	this_cpu_write(arch_const_cycles_prev, const_cnt);
 }
-#endif /* CONFIG_ARM64_AMU_EXTN */
+
+#ifdef CONFIG_ACPI_CPPC_LIB
+#include <acpi/cppc_acpi.h>
+
+static void cpu_read_corecnt(void *val)
+{
+	*(u64 *)val = read_corecnt();
+}
+
+static void cpu_read_constcnt(void *val)
+{
+	*(u64 *)val = read_constcnt();
+}
+
+static inline
+int counters_read_on_cpu(int cpu, smp_call_func_t func, u64 *val)
+{
+	/*
+	 * Abort call on counterless CPU or when interrupts are
+	 * disabled - can lead to deadlock in smp sync call.
+	 */
+	if (!cpu_has_amu_feat(cpu))
+		return -EOPNOTSUPP;
+
+	if (WARN_ON_ONCE(irqs_disabled()))
+		return -EPERM;
+
+	smp_call_function_single(cpu, func, val, 1);
+
+	return 0;
+}
+
+/*
+ * Refer to drivers/acpi/cppc_acpi.c for the description of the functions
+ * below.
+ */
+bool cpc_ffh_supported(void)
+{
+	return freq_counters_valid(get_cpu_with_amu_feat());
+}
+
+int cpc_read_ffh(int cpu, struct cpc_reg *reg, u64 *val)
+{
+	int ret = -EOPNOTSUPP;
+
+	switch ((u64)reg->address) {
+	case 0x0:
+		ret = counters_read_on_cpu(cpu, cpu_read_corecnt, val);
+		break;
+	case 0x1:
+		ret = counters_read_on_cpu(cpu, cpu_read_constcnt, val);
+		break;
+	}
+
+	if (!ret) {
+		*val &= GENMASK_ULL(reg->bit_offset + reg->bit_width - 1,
+				    reg->bit_offset);
+		*val >>= reg->bit_offset;
+	}
+
+	return ret;
+}
+
+int cpc_write_ffh(int cpunum, struct cpc_reg *reg, u64 val)
+{
+	return -EOPNOTSUPP;
+}
+#endif /* CONFIG_ACPI_CPPC_LIB */

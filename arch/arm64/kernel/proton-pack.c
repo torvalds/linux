@@ -24,6 +24,7 @@
 #include <linux/prctl.h>
 #include <linux/sched/task_stack.h>
 
+#include <asm/insn.h>
 #include <asm/spectre.h>
 #include <asm/traps.h>
 
@@ -538,12 +539,12 @@ static enum mitigation_state spectre_v4_enable_hw_mitigation(void)
 
 	if (spectre_v4_mitigations_off()) {
 		sysreg_clear_set(sctlr_el1, 0, SCTLR_ELx_DSSBS);
-		asm volatile(SET_PSTATE_SSBS(1));
+		set_pstate_ssbs(1);
 		return SPECTRE_VULNERABLE;
 	}
 
 	/* SCTLR_EL1.DSSBS was initialised to 0 during boot */
-	asm volatile(SET_PSTATE_SSBS(0));
+	set_pstate_ssbs(0);
 	return SPECTRE_MITIGATED;
 }
 

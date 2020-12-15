@@ -75,6 +75,7 @@ struct hisi_pmu {
 	int counter_bits;
 	/* check event code range */
 	int check_event;
+	u32 identifier;
 };
 
 int hisi_uncore_pmu_counter_valid(struct hisi_pmu *hisi_pmu, int idx);
@@ -97,4 +98,10 @@ ssize_t hisi_cpumask_sysfs_show(struct device *dev,
 				struct device_attribute *attr, char *buf);
 int hisi_uncore_pmu_online_cpu(unsigned int cpu, struct hlist_node *node);
 int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node);
+
+ssize_t hisi_uncore_pmu_identifier_attr_show(struct device *dev,
+					     struct device_attribute *attr,
+					     char *page);
+
+
 #endif /* __HISI_UNCORE_PMU_H__ */

@@ -115,7 +115,6 @@ static void noinstr el1_abort(struct pt_regs *regs, unsigned long esr)
 
 	enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
-	far = untagged_addr(far);
 	do_mem_abort(far, esr, regs);
 	local_daif_mask();
 	exit_to_kernel_mode(regs);
@@ -256,7 +255,6 @@ static void noinstr el0_da(struct pt_regs *regs, unsigned long esr)
 
 	enter_from_user_mode();
 	local_daif_restore(DAIF_PROCCTX);
-	far = untagged_addr(far);
 	do_mem_abort(far, esr, regs);
 }
 

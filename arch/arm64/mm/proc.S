@@ -40,7 +40,7 @@
 #define TCR_CACHE_FLAGS	TCR_IRGN_WBWA | TCR_ORGN_WBWA
 
 #ifdef CONFIG_KASAN_SW_TAGS
-#define TCR_KASAN_FLAGS TCR_TBI1
+#define TCR_KASAN_FLAGS TCR_TBI1 | TCR_TBID1
 #else
 #define TCR_KASAN_FLAGS 0
 #endif
@@ -168,7 +168,7 @@ SYM_FUNC_END(cpu_do_resume)
 	.pushsection ".idmap.text", "awx"
 
 .macro	__idmap_cpu_set_reserved_ttbr1, tmp1, tmp2
-	adrp	\tmp1, empty_zero_page
+	adrp	\tmp1, reserved_pg_dir
 	phys_to_ttbr \tmp2, \tmp1
 	offset_ttbr1 \tmp2, \tmp1
 	msr	ttbr1_el1, \tmp2
@@ -489,6 +489,6 @@ SYM_FUNC_START(__cpu_setup)
 	/*
 	 * Prepare SCTLR
 	 */
-	mov_q	x0, SCTLR_EL1_SET
+	mov_q	x0, INIT_SCTLR_EL1_MMU_ON
 	ret					// return to head.S
 SYM_FUNC_END(__cpu_setup)
