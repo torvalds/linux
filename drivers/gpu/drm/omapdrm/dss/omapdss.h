@@ -9,7 +9,6 @@
 
 #include <drm/drm_color_mgmt.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_mipi_dsi.h>
 #include <drm/drm_mode.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
@@ -118,11 +117,6 @@ enum omap_dss_venc_type {
 	OMAP_DSS_VENC_TYPE_SVIDEO,
 };
 
-enum omap_dss_dsi_mode {
-	OMAP_DSS_DSI_CMD_MODE = 0,
-	OMAP_DSS_DSI_VIDEO_MODE,
-};
-
 enum omap_dss_rotation_type {
 	OMAP_DSS_ROT_NONE	= 0,
 	OMAP_DSS_ROT_TILER	= 1 << 0,
@@ -145,64 +139,6 @@ enum omap_dss_output_id {
 	OMAP_DSS_OUTPUT_DSI2	= 1 << 4,
 	OMAP_DSS_OUTPUT_VENC	= 1 << 5,
 	OMAP_DSS_OUTPUT_HDMI	= 1 << 6,
-};
-
-/* DSI */
-
-enum omap_dss_dsi_trans_mode {
-	/* Sync Pulses: both sync start and end packets sent */
-	OMAP_DSS_DSI_PULSE_MODE,
-	/* Sync Events: only sync start packets sent */
-	OMAP_DSS_DSI_EVENT_MODE,
-	/* Burst: only sync start packets sent, pixels are time compressed */
-	OMAP_DSS_DSI_BURST_MODE,
-};
-
-struct omap_dss_dsi_videomode_timings {
-	unsigned long hsclk;
-
-	unsigned int ndl;
-	unsigned int bitspp;
-
-	/* pixels */
-	u16 hact;
-	/* lines */
-	u16 vact;
-
-	/* DSI video mode blanking data */
-	/* Unit: byte clock cycles */
-	u16 hss;
-	u16 hsa;
-	u16 hse;
-	u16 hfp;
-	u16 hbp;
-	/* Unit: line clocks */
-	u16 vsa;
-	u16 vfp;
-	u16 vbp;
-
-	/* DSI blanking modes */
-	int blanking_mode;
-	int hsa_blanking_mode;
-	int hbp_blanking_mode;
-	int hfp_blanking_mode;
-
-	enum omap_dss_dsi_trans_mode trans_mode;
-
-	bool ddr_clk_always_on;
-	int window_sync;
-};
-
-struct omap_dss_dsi_config {
-	enum omap_dss_dsi_mode mode;
-	enum mipi_dsi_pixel_format pixel_format;
-	const struct videomode *vm;
-
-	unsigned long hs_clk_min, hs_clk_max;
-	unsigned long lp_clk_min, lp_clk_max;
-
-	bool ddr_clk_always_on;
-	enum omap_dss_dsi_trans_mode trans_mode;
 };
 
 struct omap_dss_cpr_coefs {
