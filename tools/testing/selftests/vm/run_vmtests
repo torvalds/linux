@@ -124,9 +124,9 @@ else
 fi
 
 echo "--------------------------------------------"
-echo "running 'gup_benchmark -U' (normal/slow gup)"
+echo "running 'gup_test -U' (normal/slow gup)"
 echo "--------------------------------------------"
-./gup_benchmark -U
+./gup_test -U
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
 	exitcode=1
@@ -135,9 +135,9 @@ else
 fi
 
 echo "------------------------------------------"
-echo "running gup_benchmark -b (pin_user_pages)"
+echo "running gup_test -b (pin_user_pages)"
 echo "------------------------------------------"
-./gup_benchmark -b
+./gup_test -b
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
 	exitcode=1

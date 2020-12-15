@@ -14,18 +14,18 @@
 #define MB (1UL << 20)
 #define PAGE_SIZE sysconf(_SC_PAGESIZE)
 
-#define GUP_FAST_BENCHMARK	_IOWR('g', 1, struct gup_benchmark)
-#define GUP_BENCHMARK		_IOWR('g', 2, struct gup_benchmark)
+#define GUP_FAST_BENCHMARK	_IOWR('g', 1, struct gup_test)
+#define GUP_BENCHMARK		_IOWR('g', 2, struct gup_test)
 
 /* Similar to above, but use FOLL_PIN instead of FOLL_GET. */
-#define PIN_FAST_BENCHMARK	_IOWR('g', 3, struct gup_benchmark)
-#define PIN_BENCHMARK		_IOWR('g', 4, struct gup_benchmark)
-#define PIN_LONGTERM_BENCHMARK	_IOWR('g', 5, struct gup_benchmark)
+#define PIN_FAST_BENCHMARK	_IOWR('g', 3, struct gup_test)
+#define PIN_BENCHMARK		_IOWR('g', 4, struct gup_test)
+#define PIN_LONGTERM_BENCHMARK	_IOWR('g', 5, struct gup_test)
 
 /* Just the flags we need, copied from mm.h: */
 #define FOLL_WRITE	0x01	/* check pte is writable */
 
-struct gup_benchmark {
+struct gup_test {
 	__u64 get_delta_usec;
 	__u64 put_delta_usec;
 	__u64 addr;
@@ -37,7 +37,7 @@ struct gup_benchmark {
 
 int main(int argc, char **argv)
 {
-	struct gup_benchmark gup;
+	struct gup_test gup;
 	unsigned long size = 128 * MB;
 	int i, fd, filed, opt, nr_pages = 1, thp = -1, repeats = 1, write = 0;
 	int cmd = GUP_FAST_BENCHMARK, flags = MAP_PRIVATE;
@@ -104,7 +104,7 @@ int main(int argc, char **argv)
 	if (write)
 		gup.flags |= FOLL_WRITE;
 
-	fd = open("/sys/kernel/debug/gup_benchmark", O_RDWR);
+	fd = open("/sys/kernel/debug/gup_test", O_RDWR);
 	if (fd == -1) {
 		perror("open");
 		exit(1);

@@ -5,13 +5,13 @@
 #include <linux/ktime.h>
 #include <linux/debugfs.h>
 
-#define GUP_FAST_BENCHMARK	_IOWR('g', 1, struct gup_benchmark)
-#define GUP_BENCHMARK		_IOWR('g', 2, struct gup_benchmark)
-#define PIN_FAST_BENCHMARK	_IOWR('g', 3, struct gup_benchmark)
-#define PIN_BENCHMARK		_IOWR('g', 4, struct gup_benchmark)
-#define PIN_LONGTERM_BENCHMARK	_IOWR('g', 5, struct gup_benchmark)
+#define GUP_FAST_BENCHMARK	_IOWR('g', 1, struct gup_test)
+#define GUP_BENCHMARK		_IOWR('g', 2, struct gup_test)
+#define PIN_FAST_BENCHMARK	_IOWR('g', 3, struct gup_test)
+#define PIN_BENCHMARK		_IOWR('g', 4, struct gup_test)
+#define PIN_LONGTERM_BENCHMARK	_IOWR('g', 5, struct gup_test)
 
-struct gup_benchmark {
+struct gup_test {
 	__u64 get_delta_usec;
 	__u64 put_delta_usec;
 	__u64 addr;
@@ -56,7 +56,7 @@ static void verify_dma_pinned(unsigned int cmd, struct page **pages,
 			if (WARN(!page_maybe_dma_pinned(page),
 				 "pages[%lu] is NOT dma-pinned\n", i)) {
 
-				dump_page(page, "gup_benchmark failure");
+				dump_page(page, "gup_test failure");
 				break;
 			}
 		}
@@ -64,8 +64,8 @@ static void verify_dma_pinned(unsigned int cmd, struct page **pages,
 	}
 }
 
-static int __gup_benchmark_ioctl(unsigned int cmd,
-		struct gup_benchmark *gup)
+static int __gup_test_ioctl(unsigned int cmd,
+		struct gup_test *gup)
 {
 	ktime_t start_time, end_time;
 	unsigned long i, nr_pages, addr, next;
@@ -164,10 +164,10 @@ free_pages:
 	return ret;
 }
 
-static long gup_benchmark_ioctl(struct file *filep, unsigned int cmd,
+static long gup_test_ioctl(struct file *filep, unsigned int cmd,
 		unsigned long arg)
 {
-	struct gup_benchmark gup;
+	struct gup_test gup;
 	int ret;
 
 	switch (cmd) {
@@ -184,7 +184,7 @@ static long gup_benchmark_ioctl(struct file *filep, unsigned int cmd,
 	if (copy_from_user(&gup, (void __user *)arg, sizeof(gup)))
 		return -EFAULT;
 
-	ret = __gup_benchmark_ioctl(cmd, &gup);
+	ret = __gup_test_ioctl(cmd, &gup);
 	if (ret)
 		return ret;
 
@@ -194,17 +194,17 @@ static long gup_benchmark_ioctl(struct file *filep, unsigned int cmd,
 	return 0;
 }
 
-static const struct file_operations gup_benchmark_fops = {
+static const struct file_operations gup_test_fops = {
 	.open = nonseekable_open,
-	.unlocked_ioctl = gup_benchmark_ioctl,
+	.unlocked_ioctl = gup_test_ioctl,
 };
 
-static int gup_benchmark_init(void)
+static int gup_test_init(void)
 {
-	debugfs_create_file_unsafe("gup_benchmark", 0600, NULL, NULL,
-				   &gup_benchmark_fops);
+	debugfs_create_file_unsafe("gup_test", 0600, NULL, NULL,
+				   &gup_test_fops);
 
 	return 0;
 }
 
-late_initcall(gup_benchmark_init);
+late_initcall(gup_test_init);
