@@ -625,7 +625,6 @@ EXPORT_SYMBOL(iio_read_mount_matrix);
 static ssize_t __iio_format_value(char *buf, size_t len, unsigned int type,
 				  int size, const int *vals)
 {
-	unsigned long long tmp;
 	int tmp0, tmp1;
 	s64 tmp2;
 	bool scale_db = false;
@@ -658,8 +657,8 @@ static ssize_t __iio_format_value(char *buf, size_t len, unsigned int type,
 		else
 			return snprintf(buf, len, "%d.%09u", tmp0, abs(tmp1));
 	case IIO_VAL_FRACTIONAL_LOG2:
-		tmp = shift_right((s64)vals[0] * 1000000000LL, vals[1]);
-		tmp0 = (int)div_s64_rem(tmp, 1000000000LL, &tmp1);
+		tmp2 = shift_right((s64)vals[0] * 1000000000LL, vals[1]);
+		tmp0 = (int)div_s64_rem(tmp2, 1000000000LL, &tmp1);
 		return scnprintf(buf, len, "%d.%09u", tmp0, abs(tmp1));
 	case IIO_VAL_INT_MULTIPLE:
 	{
