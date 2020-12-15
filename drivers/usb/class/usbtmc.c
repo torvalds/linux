@@ -571,6 +571,32 @@ static int usbtmc488_ioctl_read_stb(struct usbtmc_file_data *file_data,
 
 }
 
+static int usbtmc_ioctl_get_srq_stb(struct usbtmc_file_data *file_data,
+				void __user *arg)
+{
+	struct usbtmc_device_data *data = file_data->data;
+	struct device *dev = &data->intf->dev;
+	int srq_asserted = 0;
+	__u8 stb = 0;
+	int rv;
+
+	spin_lock_irq(&data->dev_lock);
+	srq_asserted  = atomic_xchg(&file_data->srq_asserted, srq_asserted);
+
+	if (srq_asserted) {
+		stb = file_data->srq_byte;
+		spin_unlock_irq(&data->dev_lock);
+		rv = put_user(stb, (__u8 __user *)arg);
+	} else {
+		spin_unlock_irq(&data->dev_lock);
+		rv = -ENOMSG;
+	}
+
+	dev_dbg(dev, "stb:0x%02x with srq received %d\n", (unsigned int)stb, rv);
+
+	return rv;
+}
+
 static int usbtmc488_ioctl_wait_srq(struct usbtmc_file_data *file_data,
 				    __u32 __user *arg)
 {
@@ -2153,6 +2179,11 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		retval = usbtmc_get_stb(file_data, &tmp_byte);
 		if (retval > 0)
 			retval = put_user(tmp_byte, (__u8 __user *)arg);
+		break;
+
+	case USBTMC_IOCTL_GET_SRQ_STB:
+		retval = usbtmc_ioctl_get_srq_stb(file_data,
+						  (void __user *)arg);
 		break;
 
 	case USBTMC_IOCTL_CANCEL_IO:

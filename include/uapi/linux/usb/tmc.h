@@ -103,6 +103,7 @@ struct usbtmc_message {
 #define USBTMC_IOCTL_AUTO_ABORT		_IOW(USBTMC_IOC_NR, 25, __u8)
 
 #define USBTMC_IOCTL_GET_STB            _IOR(USBTMC_IOC_NR, 26, __u8)
+#define USBTMC_IOCTL_GET_SRQ_STB        _IOR(USBTMC_IOC_NR, 27, __u8)
 
 /* Cancel and cleanup asynchronous calls */
 #define USBTMC_IOCTL_CANCEL_IO		_IO(USBTMC_IOC_NR, 35)
