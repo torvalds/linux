@@ -382,10 +382,10 @@ static int rockchip_emmc_phy_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(dev->of_node, "drive-impedance-ohm", &val))
 		rk_phy->drive_impedance = convert_drive_impedance_ohm(pdev, val);
 
-	if (of_property_read_bool(dev->of_node, "enable-strobe-pulldown"))
+	if (of_property_read_bool(dev->of_node, "rockchip,enable-strobe-pulldown"))
 		rk_phy->enable_strobe_pulldown = PHYCTRL_REN_STRB_ENABLE;
 
-	if (!of_property_read_u32(dev->of_node, "output-tapdelay-select", &val)) {
+	if (!of_property_read_u32(dev->of_node, "rockchip,output-tapdelay-select", &val)) {
 		if (val <= PHYCTRL_OTAPDLYSEL_MAXVALUE)
 			rk_phy->output_tapdelay_select = val;
 		else
