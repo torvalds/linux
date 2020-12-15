@@ -871,7 +871,7 @@ struct bch_stripe {
 	__u8			csum_type;
 	__u8			pad;
 
-	struct bch_extent_ptr	ptrs[0];
+	struct bch_extent_ptr	ptrs[];
 } __attribute__((packed, aligned(8)));
 
 /* Reflink: */

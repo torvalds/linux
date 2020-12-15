@@ -200,6 +200,36 @@ static bool extent_has_stripe_ptr(struct bkey_s_c k, u64 idx)
 	return false;
 }
 
+/* Stripe bufs: */
+
+static void ec_stripe_buf_free(struct ec_stripe_buf *stripe)
+{
+	unsigned i;
+
+	for (i = 0; i < stripe->key.v.nr_blocks; i++) {
+		kvpfree(stripe->data[i], stripe->size << 9);
+		stripe->data[i] = NULL;
+	}
+}
+
+static int ec_stripe_buf_alloc(struct ec_stripe_buf *stripe)
+{
+	unsigned i;
+
+	memset(stripe->valid, 0xFF, sizeof(stripe->valid));
+
+	for (i = 0; i < stripe->key.v.nr_blocks; i++) {
+		stripe->data[i] = kvpmalloc(stripe->size << 9, GFP_KERNEL);
+		if (!stripe->data[i])
+			goto err;
+	}
+
+	return 0;
+err:
+	ec_stripe_buf_free(stripe);
+	return -ENOMEM;
+}
+
 /* Checksumming: */
 
 static void ec_generate_checksums(struct ec_stripe_buf *buf)
@@ -287,14 +317,10 @@ static void ec_generate_ec(struct ec_stripe_buf *buf)
 	raid_gen(nr_data, v->nr_redundant, bytes, buf->data);
 }
 
-static unsigned __ec_nr_failed(struct ec_stripe_buf *buf, unsigned nr)
-{
-	return nr - bitmap_weight(buf->valid, nr);
-}
-
 static unsigned ec_nr_failed(struct ec_stripe_buf *buf)
 {
-	return __ec_nr_failed(buf, buf->key.v.nr_blocks);
+	return buf->key.v.nr_blocks -
+		bitmap_weight(buf->valid, buf->key.v.nr_blocks);
 }
 
 static int ec_do_recov(struct bch_fs *c, struct ec_stripe_buf *buf)
@@ -822,19 +848,34 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 	struct open_bucket *ob;
 	struct bkey_i *k;
 	struct stripe *m;
-	struct bch_stripe *v = &s->stripe.key.v;
+	struct bch_stripe *v = &s->new_stripe.key.v;
 	unsigned i, nr_data = v->nr_blocks - v->nr_redundant;
-	struct closure cl;
 	int ret;
 
 	BUG_ON(s->h->s == s);
 
-	closure_init_stack(&cl);
+	closure_sync(&s->iodone);
 
 	if (s->err) {
 		if (s->err != -EROFS)
 			bch_err(c, "error creating stripe: error writing data buckets");
 		goto err;
+	}
+
+	if (s->have_existing_stripe) {
+		ec_validate_checksums(c, &s->existing_stripe);
+
+		if (ec_do_recov(c, &s->existing_stripe)) {
+			bch_err(c, "error creating stripe: error reading existing stripe");
+			goto err;
+		}
+
+		for (i = 0; i < nr_data; i++)
+			if (stripe_blockcount_get(&s->existing_stripe.key.v, i))
+				swap(s->new_stripe.data[i],
+				     s->existing_stripe.data[i]);
+
+		ec_stripe_buf_free(&s->existing_stripe);
 	}
 
 	BUG_ON(!s->allocated);
@@ -845,33 +886,31 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 	BUG_ON(bitmap_weight(s->blocks_allocated,
 			     s->blocks.nr) != s->blocks.nr);
 
-	ec_generate_ec(&s->stripe);
+	ec_generate_ec(&s->new_stripe);
 
-	ec_generate_checksums(&s->stripe);
+	ec_generate_checksums(&s->new_stripe);
 
 	/* write p/q: */
 	for (i = nr_data; i < v->nr_blocks; i++)
-		ec_block_io(c, &s->stripe, REQ_OP_WRITE, i, &cl);
+		ec_block_io(c, &s->new_stripe, REQ_OP_WRITE, i, &s->iodone);
+	closure_sync(&s->iodone);
 
-	closure_sync(&cl);
+	if (ec_nr_failed(&s->new_stripe)) {
+		bch_err(c, "error creating stripe: error writing redundancy buckets");
+		goto err_put_writes;
+	}
 
-	for (i = nr_data; i < v->nr_blocks; i++)
-		if (!test_bit(i, s->stripe.valid)) {
-			bch_err(c, "error creating stripe: error writing redundancy buckets");
-			goto err_put_writes;
-		}
-
-	ret = s->existing_stripe
-		? bch2_btree_insert(c, BTREE_ID_EC, &s->stripe.key.k_i,
+	ret = s->have_existing_stripe
+		? bch2_btree_insert(c, BTREE_ID_EC, &s->new_stripe.key.k_i,
 				    &s->res, NULL, BTREE_INSERT_NOFAIL)
-		: ec_stripe_bkey_insert(c, s, &s->stripe.key);
+		: ec_stripe_bkey_insert(c, s, &s->new_stripe.key);
 	if (ret) {
 		bch_err(c, "error creating stripe: error creating stripe key");
 		goto err_put_writes;
 	}
 
 	for_each_keylist_key(&s->keys, k) {
-		ret = ec_stripe_update_ptrs(c, &s->stripe, &k->k);
+		ret = ec_stripe_update_ptrs(c, &s->new_stripe, &k->k);
 		if (ret) {
 			bch_err(c, "error creating stripe: error %i updating pointers", ret);
 			break;
@@ -879,14 +918,14 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 	}
 
 	spin_lock(&c->ec_stripes_heap_lock);
-	m = genradix_ptr(&c->stripes[0], s->stripe.key.k.p.offset);
+	m = genradix_ptr(&c->stripes[0], s->new_stripe.key.k.p.offset);
 #if 0
 	pr_info("created a %s stripe %llu",
-		s->existing_stripe ? "existing" : "new",
+		s->have_existing_stripe ? "existing" : "new",
 		s->stripe.key.k.p.offset);
 #endif
 	BUG_ON(m->on_heap);
-	bch2_stripes_heap_insert(c, m, s->stripe.key.k.p.offset);
+	bch2_stripes_heap_insert(c, m, s->new_stripe.key.k.p.offset);
 	spin_unlock(&c->ec_stripes_heap_lock);
 err_put_writes:
 	percpu_ref_put(&c->writes);
@@ -902,8 +941,9 @@ err:
 
 	bch2_keylist_free(&s->keys, s->inline_keys);
 
-	for (i = 0; i < s->stripe.key.v.nr_blocks; i++)
-		kvpfree(s->stripe.data[i], s->stripe.size << 9);
+	ec_stripe_buf_free(&s->existing_stripe);
+	ec_stripe_buf_free(&s->new_stripe);
+	closure_debug_destroy(&s->iodone);
 	kfree(s);
 }
 
@@ -980,7 +1020,7 @@ void *bch2_writepoint_ec_buf(struct bch_fs *c, struct write_point *wp)
 	ca	= bch_dev_bkey_exists(c, ob->ptr.dev);
 	offset	= ca->mi.bucket_size - ob->sectors_free;
 
-	return ob->ec->stripe.data[ob->ec_idx] + (offset << 9);
+	return ob->ec->new_stripe.data[ob->ec_idx] + (offset << 9);
 }
 
 void bch2_ec_add_backpointer(struct bch_fs *c, struct write_point *wp,
@@ -1087,7 +1127,6 @@ static void ec_stripe_key_init(struct bch_fs *c,
 static int ec_new_stripe_alloc(struct bch_fs *c, struct ec_stripe_head *h)
 {
 	struct ec_stripe_new *s;
-	unsigned i;
 
 	lockdep_assert_held(&h->lock);
 
@@ -1096,6 +1135,7 @@ static int ec_new_stripe_alloc(struct bch_fs *c, struct ec_stripe_head *h)
 		return -ENOMEM;
 
 	mutex_init(&s->lock);
+	closure_init(&s->iodone, NULL);
 	atomic_set(&s->pin, 1);
 	s->c		= c;
 	s->h		= h;
@@ -1105,27 +1145,14 @@ static int ec_new_stripe_alloc(struct bch_fs *c, struct ec_stripe_head *h)
 
 	bch2_keylist_init(&s->keys, s->inline_keys);
 
-	s->stripe.offset	= 0;
-	s->stripe.size		= h->blocksize;
-	memset(s->stripe.valid, 0xFF, sizeof(s->stripe.valid));
+	s->new_stripe.offset	= 0;
+	s->new_stripe.size	= h->blocksize;
 
-	ec_stripe_key_init(c, &s->stripe.key, s->nr_data,
+	ec_stripe_key_init(c, &s->new_stripe.key, s->nr_data,
 			   s->nr_parity, h->blocksize);
 
-	for (i = 0; i < s->stripe.key.v.nr_blocks; i++) {
-		s->stripe.data[i] = kvpmalloc(s->stripe.size << 9, GFP_KERNEL);
-		if (!s->stripe.data[i])
-			goto err;
-	}
-
 	h->s = s;
-
 	return 0;
-err:
-	for (i = 0; i < s->stripe.key.v.nr_blocks; i++)
-		kvpfree(s->stripe.data[i], s->stripe.size << 9);
-	kfree(s);
-	return -ENOMEM;
 }
 
 static struct ec_stripe_head *
@@ -1217,7 +1244,7 @@ static int new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h)
 	devs = h->devs;
 
 	for_each_set_bit(i, h->s->blocks_allocated, BCH_BKEY_PTRS_MAX) {
-		__clear_bit(h->s->stripe.key.v.ptrs[i].dev, devs.d);
+		__clear_bit(h->s->new_stripe.key.v.ptrs[i].dev, devs.d);
 		--nr_data;
 	}
 
@@ -1327,51 +1354,70 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
 					       unsigned algo,
 					       unsigned redundancy)
 {
-	struct closure cl;
 	struct ec_stripe_head *h;
 	struct open_bucket *ob;
 	unsigned i, data_idx = 0;
 	s64 idx;
 	int ret;
 
-	closure_init_stack(&cl);
-
 	h = __bch2_ec_stripe_head_get(c, target, algo, redundancy);
-	if (!h)
+	if (!h) {
+		bch_err(c, "no stripe head");
 		return NULL;
+	}
 
 	if (!h->s) {
 		if (ec_new_stripe_alloc(c, h)) {
 			bch2_ec_stripe_head_put(c, h);
+			bch_err(c, "failed to allocate new stripe");
 			return NULL;
 		}
 
 		idx = get_existing_stripe(c, target, algo, redundancy);
 		if (idx >= 0) {
-			h->s->existing_stripe = true;
-			h->s->existing_stripe_idx = idx;
-			if (get_stripe_key(c, idx, &h->s->stripe)) {
-				/* btree error */
+			h->s->have_existing_stripe = true;
+			ret = get_stripe_key(c, idx, &h->s->existing_stripe);
+			if (ret) {
+				bch2_fs_fatal_error(c, "error reading stripe key: %i", ret);
+				bch2_ec_stripe_head_put(c, h);
+				return NULL;
+			}
+
+			if (ec_stripe_buf_alloc(&h->s->existing_stripe)) {
+				/*
+				 * this is a problem: we have deleted from the
+				 * stripes heap already
+				 */
 				BUG();
 			}
 
-			for (i = 0; i < h->s->stripe.key.v.nr_blocks; i++)
-				if (stripe_blockcount_get(&h->s->stripe.key.v, i)) {
+			for (i = 0; i < h->s->existing_stripe.key.v.nr_blocks; i++) {
+				if (stripe_blockcount_get(&h->s->existing_stripe.key.v, i))
 					__set_bit(i, h->s->blocks_allocated);
-					ec_block_io(c, &h->s->stripe, READ, i, &cl);
-				}
+
+				ec_block_io(c, &h->s->existing_stripe, READ, i, &h->s->iodone);
+			}
+
+			bkey_copy(&h->s->new_stripe.key.k_i,
+				  &h->s->existing_stripe.key.k_i);
+		}
+
+		if (ec_stripe_buf_alloc(&h->s->new_stripe)) {
+			BUG();
 		}
 	}
 
 	if (!h->s->allocated) {
-		if (!h->s->existing_stripe &&
+		if (!h->s->have_existing_stripe &&
 		    !h->s->res.sectors) {
 			ret = bch2_disk_reservation_get(c, &h->s->res,
-							h->blocksize,
-							h->s->nr_parity, 0);
+					h->blocksize,
+					h->s->nr_parity, 0);
 			if (ret) {
-				/* What should we do here? */
-				bch_err(c, "unable to create new stripe: %i", ret);
+				/*
+				 * This means we need to wait for copygc to
+				 * empty out buckets from existing stripes:
+				 */
 				bch2_ec_stripe_head_put(c, h);
 				h = NULL;
 				goto out;
@@ -1391,19 +1437,18 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
 						      h->s->nr_data, data_idx);
 			BUG_ON(data_idx >= h->s->nr_data);
 
-			h->s->stripe.key.v.ptrs[data_idx] = ob->ptr;
+			h->s->new_stripe.key.v.ptrs[data_idx] = ob->ptr;
 			h->s->data_block_idx[i] = data_idx;
 			data_idx++;
 		}
 
 		open_bucket_for_each(c, &h->s->parity, ob, i)
-			h->s->stripe.key.v.ptrs[h->s->nr_data + i] = ob->ptr;
+			h->s->new_stripe.key.v.ptrs[h->s->nr_data + i] = ob->ptr;
 
 		//pr_info("new stripe, blocks_allocated %lx", h->s->blocks_allocated[0]);
 		h->s->allocated = true;
 	}
 out:
-	closure_sync(&cl);
 	return h;
 }
 

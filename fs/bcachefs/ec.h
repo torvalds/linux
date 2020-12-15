@@ -88,6 +88,7 @@ struct ec_stripe_new {
 	struct ec_stripe_head	*h;
 	struct mutex		lock;
 	struct list_head	list;
+	struct closure		iodone;
 
 	/* counts in flight writes, stripe is created when pin == 0 */
 	atomic_t		pin;
@@ -98,8 +99,7 @@ struct ec_stripe_new {
 	u8			nr_parity;
 	bool			allocated;
 	bool			pending;
-	bool			existing_stripe;
-	u64			existing_stripe_idx;
+	bool			have_existing_stripe;
 
 	unsigned long		blocks_allocated[BITS_TO_LONGS(BCH_BKEY_PTRS_MAX)];
 
@@ -111,7 +111,8 @@ struct ec_stripe_new {
 	struct keylist		keys;
 	u64			inline_keys[BKEY_U64s * 8];
 
-	struct ec_stripe_buf	stripe;
+	struct ec_stripe_buf	new_stripe;
+	struct ec_stripe_buf	existing_stripe;
 };
 
 struct ec_stripe_head {
