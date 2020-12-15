@@ -262,8 +262,8 @@ xpc_get_remote_rp(int nasid, unsigned long *discovered_nasids,
  * from us. Though we requested the remote partition to deactivate with regard
  * to us, we really only need to wait for the other side to disengage from us.
  */
-int
-xpc_partition_disengaged(struct xpc_partition *part)
+static int __xpc_partition_disengaged(struct xpc_partition *part,
+				      bool from_timer)
 {
 	short partid = XPC_PARTID(part);
 	int disengaged;
@@ -289,9 +289,9 @@ xpc_partition_disengaged(struct xpc_partition *part)
 		}
 		part->disengage_timeout = 0;
 
-		/* cancel the timer function, provided it's not us */
-		if (!in_interrupt())
-			del_singleshot_timer_sync(&part->disengage_timer);
+		/* Cancel the timer function if not called from it */
+		if (!from_timer)
+			del_timer_sync(&part->disengage_timer);
 
 		DBUG_ON(part->act_state != XPC_P_AS_DEACTIVATING &&
 			part->act_state != XPC_P_AS_INACTIVE);
@@ -301,6 +301,16 @@ xpc_partition_disengaged(struct xpc_partition *part)
 		xpc_arch_ops.cancel_partition_deactivation_request(part);
 	}
 	return disengaged;
+}
+
+int xpc_partition_disengaged(struct xpc_partition *part)
+{
+	return __xpc_partition_disengaged(part, false);
+}
+
+int xpc_partition_disengaged_from_timer(struct xpc_partition *part)
+{
+	return __xpc_partition_disengaged(part, true);
 }
 
 /*

@@ -622,7 +622,6 @@ static int lp_do_ioctl(unsigned int minor, unsigned int cmd,
 			break;
 		case LPSETIRQ:
 			return -EINVAL;
-			break;
 		case LPGETIRQ:
 			if (copy_to_user(argp, &LP_IRQ(minor),
 					sizeof(int)))
