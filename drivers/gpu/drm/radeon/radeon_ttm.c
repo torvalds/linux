@@ -217,27 +217,15 @@ static int radeon_bo_move(struct ttm_buffer_object *bo, bool evict,
 	struct ttm_resource *old_mem = &bo->mem;
 	int r;
 
-	if ((old_mem->mem_type == TTM_PL_SYSTEM &&
-	     new_mem->mem_type == TTM_PL_VRAM) ||
-	    (old_mem->mem_type == TTM_PL_VRAM &&
-	     new_mem->mem_type == TTM_PL_SYSTEM)) {
-		hop->fpfn = 0;
-		hop->lpfn = 0;
-		hop->mem_type = TTM_PL_TT;
-		hop->flags = 0;
-		return -EMULTIHOP;
-	}
-
 	if (new_mem->mem_type == TTM_PL_TT) {
 		r = radeon_ttm_tt_bind(bo->bdev, bo->ttm, new_mem);
 		if (r)
 			return r;
 	}
-	radeon_bo_move_notify(bo, evict, new_mem);
 
 	r = ttm_bo_wait_ctx(bo, ctx);
 	if (r)
-		goto fail;
+		return r;
 
 	/* Can't move a pinned BO */
 	rbo = container_of(bo, struct radeon_bo, tbo);
@@ -247,12 +235,12 @@ static int radeon_bo_move(struct ttm_buffer_object *bo, bool evict,
 	rdev = radeon_get_rdev(bo->bdev);
 	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
 		ttm_bo_move_null(bo, new_mem);
-		return 0;
+		goto out;
 	}
 	if (old_mem->mem_type == TTM_PL_SYSTEM &&
 	    new_mem->mem_type == TTM_PL_TT) {
 		ttm_bo_move_null(bo, new_mem);
-		return 0;
+		goto out;
 	}
 
 	if (old_mem->mem_type == TTM_PL_TT &&
@@ -260,31 +248,37 @@ static int radeon_bo_move(struct ttm_buffer_object *bo, bool evict,
 		radeon_ttm_tt_unbind(bo->bdev, bo->ttm);
 		ttm_resource_free(bo, &bo->mem);
 		ttm_bo_assign_mem(bo, new_mem);
-		return 0;
+		goto out;
 	}
-	if (!rdev->ring[radeon_copy_ring_index(rdev)].ready ||
-	    rdev->asic->copy.copy == NULL) {
-		/* use memcpy */
-		goto memcpy;
-	}
-
-	r = radeon_move_blit(bo, evict, new_mem, old_mem);
-	if (r) {
-memcpy:
-		r = ttm_bo_move_memcpy(bo, ctx, new_mem);
-		if (r) {
-			goto fail;
+	if (rdev->ring[radeon_copy_ring_index(rdev)].ready &&
+	    rdev->asic->copy.copy != NULL) {
+		if ((old_mem->mem_type == TTM_PL_SYSTEM &&
+		     new_mem->mem_type == TTM_PL_VRAM) ||
+		    (old_mem->mem_type == TTM_PL_VRAM &&
+		     new_mem->mem_type == TTM_PL_SYSTEM)) {
+			hop->fpfn = 0;
+			hop->lpfn = 0;
+			hop->mem_type = TTM_PL_TT;
+			hop->flags = 0;
+			return -EMULTIHOP;
 		}
+
+		r = radeon_move_blit(bo, evict, new_mem, old_mem);
+	} else {
+		r = -ENODEV;
 	}
 
+	if (r) {
+		r = ttm_bo_move_memcpy(bo, ctx, new_mem);
+		if (r)
+			return r;
+	}
+
+out:
 	/* update statistics */
 	atomic64_add((u64)bo->num_pages << PAGE_SHIFT, &rdev->num_bytes_moved);
+	radeon_bo_move_notify(bo, evict, new_mem);
 	return 0;
-fail:
-	swap(*new_mem, bo->mem);
-	radeon_bo_move_notify(bo, false, new_mem);
-	swap(*new_mem, bo->mem);
-	return r;
 }
 
 static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resource *mem)
