@@ -11,8 +11,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/jiffies.h>
 #include <linux/module.h>
-#include <linux/sched/signal.h>
-#include <linux/slab.h>
 #include <linux/of_device.h>
 #include <linux/regulator/consumer.h>
 
