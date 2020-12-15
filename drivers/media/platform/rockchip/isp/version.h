@@ -68,6 +68,11 @@
  * 1. fix normal merge enable config
  * 2. fix size no update for multi sensor switch
  * 3. dmatx add yuyv format
+ *
+ * v1.2.2:
+ * 1. isp/ispp add lock for multi dev runtime
+ * 2. support output isp/ispp reg on each frame
+ * 3. fix error detected by depmod
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION

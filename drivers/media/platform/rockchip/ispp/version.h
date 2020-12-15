@@ -63,6 +63,13 @@
  *
  * v1.2.1:
  * 1. fix can't work due to last abnormal exit
+ *
+ * v1.2.2:
+ * 1. isp/ispp add lock for multi dev runtime
+ * 2. fix error state of monitor
+ * 3. fix mmu err due to buf free for multi dev
+ * 4. support output isp/ispp reg on each frame
+ * 5. fix error detected by depmod
  */
 
 #define RKISPP_DRIVER_VERSION ISPP_API_VERSION
