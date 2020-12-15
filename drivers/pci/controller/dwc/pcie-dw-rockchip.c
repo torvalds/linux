@@ -1116,6 +1116,7 @@ static int rk_pcie_probe(struct platform_device *pdev)
 	const struct rk_pcie_of_data *data;
 	enum rk_pcie_device_mode mode;
 	struct device_node *np = pdev->dev.of_node;
+	u32 val;
 
 	match = of_match_device(rk_pcie_of_match, dev);
 	if (!match)
@@ -1198,6 +1199,12 @@ static int rk_pcie_probe(struct platform_device *pdev)
 
 	/* Set PCIe mode */
 	rk_pcie_set_mode(rk_pcie);
+
+	if (device_property_read_bool(dev, "rockchip,lpbk-master")) {
+		val = dw_pcie_readl_dbi(pci, PCIE_PORT_LINK_CONTROL);
+		val |= PORT_LINK_LPBK_ENABLE;
+		dw_pcie_writel_dbi(pci, PCIE_PORT_LINK_CONTROL, val);
+	}
 
 	switch (rk_pcie->mode) {
 	case RK_PCIE_RC_TYPE:
