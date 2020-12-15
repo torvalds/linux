@@ -148,8 +148,11 @@ static int wait_locked_card(struct device_node *np, struct device *dev)
 {
 	char *propname = "rockchip,wait-card-locked";
 	u32 cards[WAIT_CARDS];
-	int num, i;
+	int num;
 	int ret;
+#ifndef MODULE
+	int i;
+#endif
 
 	ret = of_property_count_u32_elems(np, propname);
 	if (ret < 0) {
@@ -186,6 +189,7 @@ static int wait_locked_card(struct device_node *np, struct device *dev)
 	}
 
 	ret = 0;
+#ifndef MODULE
 	for (i = 0; i < num; i++) {
 		if (!snd_card_locked(cards[i])) {
 			dev_warn(dev, "card: %d has not been locked, re-probe again\n",
@@ -194,6 +198,7 @@ static int wait_locked_card(struct device_node *np, struct device *dev)
 			break;
 		}
 	}
+#endif
 
 	return ret;
 }
