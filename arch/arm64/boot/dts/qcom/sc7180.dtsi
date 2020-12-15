@@ -1468,12 +1468,6 @@
 					pins = "gpio117";
 					function = "dp_hot";
 				};
-
-				pinconf {
-					pins = "gpio117";
-					bias-disable;
-					input-enable;
-				};
 			};
 
 			qspi_clk: qspi-clk {
