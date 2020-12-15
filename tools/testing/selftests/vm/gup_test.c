@@ -14,12 +14,30 @@
 /* Just the flags we need, copied from mm.h: */
 #define FOLL_WRITE	0x01	/* check pte is writable */
 
+static char *cmd_to_str(unsigned long cmd)
+{
+	switch (cmd) {
+	case GUP_FAST_BENCHMARK:
+		return "GUP_FAST_BENCHMARK";
+	case PIN_FAST_BENCHMARK:
+		return "PIN_FAST_BENCHMARK";
+	case PIN_LONGTERM_BENCHMARK:
+		return "PIN_LONGTERM_BENCHMARK";
+	case GUP_BASIC_TEST:
+		return "GUP_BASIC_TEST";
+	case PIN_BASIC_TEST:
+		return "PIN_BASIC_TEST";
+	}
+	return "Unknown command";
+}
+
 int main(int argc, char **argv)
 {
 	struct gup_test gup;
 	unsigned long size = 128 * MB;
 	int i, fd, filed, opt, nr_pages = 1, thp = -1, repeats = 1, write = 0;
-	int cmd = GUP_FAST_BENCHMARK, flags = MAP_PRIVATE;
+	unsigned long cmd = GUP_FAST_BENCHMARK;
+	int flags = MAP_PRIVATE;
 	char *file = "/dev/zero";
 	char *p;
 
@@ -29,7 +47,7 @@ int main(int argc, char **argv)
 			cmd = PIN_FAST_BENCHMARK;
 			break;
 		case 'b':
-			cmd = PIN_BENCHMARK;
+			cmd = PIN_BASIC_TEST;
 			break;
 		case 'L':
 			cmd = PIN_LONGTERM_BENCHMARK;
@@ -50,7 +68,7 @@ int main(int argc, char **argv)
 			thp = 0;
 			break;
 		case 'U':
-			cmd = GUP_BENCHMARK;
+			cmd = GUP_BASIC_TEST;
 			break;
 		case 'u':
 			cmd = GUP_FAST_BENCHMARK;
@@ -104,18 +122,31 @@ int main(int argc, char **argv)
 	for (; (unsigned long)p < gup.addr + size; p += PAGE_SIZE)
 		p[0] = 0;
 
-	for (i = 0; i < repeats; i++) {
+	/* Only report timing information on the *_BENCHMARK commands: */
+	if ((cmd == PIN_FAST_BENCHMARK) || (cmd == GUP_FAST_BENCHMARK) ||
+	     (cmd == PIN_LONGTERM_BENCHMARK)) {
+		for (i = 0; i < repeats; i++) {
+			gup.size = size;
+			if (ioctl(fd, cmd, &gup))
+				perror("ioctl"), exit(1);
+
+			printf("%s: Time: get:%lld put:%lld us",
+			       cmd_to_str(cmd), gup.get_delta_usec,
+			       gup.put_delta_usec);
+			if (gup.size != size)
+				printf(", truncated (size: %lld)", gup.size);
+			printf("\n");
+		}
+	} else {
 		gup.size = size;
 		if (ioctl(fd, cmd, &gup)) {
 			perror("ioctl");
 			exit(1);
 		}
 
-		printf("Time: get:%lld put:%lld us", gup.get_delta_usec,
-			gup.put_delta_usec);
+		printf("%s: done\n", cmd_to_str(cmd));
 		if (gup.size != size)
-			printf(", truncated (size: %lld)", gup.size);
-		printf("\n");
+			printf("Truncated (size: %lld)\n", gup.size);
 	}
 
 	return 0;

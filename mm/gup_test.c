@@ -13,13 +13,13 @@ static void put_back_pages(unsigned int cmd, struct page **pages,
 
 	switch (cmd) {
 	case GUP_FAST_BENCHMARK:
-	case GUP_BENCHMARK:
+	case GUP_BASIC_TEST:
 		for (i = 0; i < nr_pages; i++)
 			put_page(pages[i]);
 		break;
 
 	case PIN_FAST_BENCHMARK:
-	case PIN_BENCHMARK:
+	case PIN_BASIC_TEST:
 	case PIN_LONGTERM_BENCHMARK:
 		unpin_user_pages(pages, nr_pages);
 		break;
@@ -34,7 +34,7 @@ static void verify_dma_pinned(unsigned int cmd, struct page **pages,
 
 	switch (cmd) {
 	case PIN_FAST_BENCHMARK:
-	case PIN_BENCHMARK:
+	case PIN_BASIC_TEST:
 	case PIN_LONGTERM_BENCHMARK:
 		for (i = 0; i < nr_pages; i++) {
 			page = pages[i];
@@ -94,7 +94,7 @@ static int __gup_test_ioctl(unsigned int cmd,
 			nr = get_user_pages_fast(addr, nr, gup->flags,
 						 pages + i);
 			break;
-		case GUP_BENCHMARK:
+		case GUP_BASIC_TEST:
 			nr = get_user_pages(addr, nr, gup->flags, pages + i,
 					    NULL);
 			break;
@@ -102,7 +102,7 @@ static int __gup_test_ioctl(unsigned int cmd,
 			nr = pin_user_pages_fast(addr, nr, gup->flags,
 						 pages + i);
 			break;
-		case PIN_BENCHMARK:
+		case PIN_BASIC_TEST:
 			nr = pin_user_pages(addr, nr, gup->flags, pages + i,
 					    NULL);
 			break;
@@ -157,10 +157,10 @@ static long gup_test_ioctl(struct file *filep, unsigned int cmd,
 
 	switch (cmd) {
 	case GUP_FAST_BENCHMARK:
-	case GUP_BENCHMARK:
 	case PIN_FAST_BENCHMARK:
-	case PIN_BENCHMARK:
 	case PIN_LONGTERM_BENCHMARK:
+	case GUP_BASIC_TEST:
+	case PIN_BASIC_TEST:
 		break;
 	default:
 		return -EINVAL;
