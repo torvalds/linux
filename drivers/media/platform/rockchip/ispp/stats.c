@@ -26,7 +26,7 @@ static void update_addr(struct rkispp_stats_vdev *stats_vdev)
 	}
 
 	if (!stats_vdev->next_buf) {
-		dummy_buf = &stats_vdev->dummy_buf;
+		dummy_buf = &stats_vdev->dev->hw_dev->dummy_buf;
 		if (!dummy_buf->mem_priv)
 			return;
 
@@ -255,7 +255,6 @@ static void rkispp_stats_vb2_stop_streaming(struct vb2_queue *vq)
 	stats_vdev->streamon = false;
 	destroy_buf_queue(stats_vdev, VB2_BUF_STATE_ERROR);
 	spin_unlock_irqrestore(&stats_vdev->irq_lock, flags);
-	rkispp_free_buffer(stats_vdev->dev, &stats_vdev->dummy_buf);
 }
 
 static int
@@ -264,15 +263,9 @@ rkispp_stats_vb2_start_streaming(struct vb2_queue *queue,
 {
 	struct rkispp_stats_vdev *stats_vdev = queue->drv_priv;
 	unsigned long flags;
-	int ret;
 
 	if (stats_vdev->streamon)
 		return -EBUSY;
-
-	stats_vdev->dummy_buf.size = sizeof(struct rkispp_stats_buffer);
-	ret = rkispp_allow_buffer(stats_vdev->dev, &stats_vdev->dummy_buf);
-	if (ret < 0)
-		goto free_dummy_buf;
 
 	/* config first buf */
 	rkispp_stats_frame_end(stats_vdev);
@@ -282,10 +275,6 @@ rkispp_stats_vb2_start_streaming(struct vb2_queue *queue,
 	spin_unlock_irqrestore(&stats_vdev->irq_lock, flags);
 
 	return 0;
-
-free_dummy_buf:
-	rkispp_free_buffer(stats_vdev->dev, &stats_vdev->dummy_buf);
-	return ret;
 }
 
 static struct vb2_ops rkispp_stats_vb2_ops = {

@@ -9,8 +9,9 @@
 #include <linux/rkisp1-config.h>
 #include <linux/rkispp-config.h>
 
-#define RKISPP_BUF_MAX 5
-#define RKISP_ISPP_BUF_MAX (RKISPP_BUF_MAX + (2 * (DEV_MAX - 1)))
+#define RKISP_BUF_MAX 3
+#define RKISPP_BUF_MAX 2
+#define RKISP_ISPP_BUF_MAX (RKISP_BUF_MAX + RKISPP_BUF_MAX + (2 * (DEV_MAX - 1)))
 
 #define RKISP_ISPP_REGBUF_NUM		RKISPP_BUF_POOL_MAX
 #define RKISP_ISP_SW_REG_SIZE		0x6000

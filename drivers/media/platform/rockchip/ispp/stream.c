@@ -713,7 +713,8 @@ static int nr_init_buf(struct rkispp_device *dev, u32 size)
 	}
 
 	buf = &vdev->nr.buf.tmp_yuv;
-	buf->size = size >> 2;
+	cnt = DIV_ROUND_UP(dev->ispp_sdev.out_fmt.width, 32);
+	buf->size = PAGE_ALIGN(cnt * 42 * 32);
 	ret = rkispp_allow_buffer(dev, buf);
 	if (ret)
 		goto err;
@@ -1541,11 +1542,9 @@ static int start_isp(struct rkispp_device *dev)
 	mutex_lock(&dev->hw_dev->dev_lock);
 
 	mode.work_mode = dev->isp_mode;
-	mode.buf_num = RKISPP_BUF_MAX;
-	if (dev->isp_mode & ISP_ISPP_QUICK)
-		mode.buf_num = ((vdev->module_ens & ISPP_MODULE_TNR_3TO1) ==
-				ISPP_MODULE_TNR_3TO1) ? 2 : 1;
-	mode.buf_num += 2 * (dev->hw_dev->dev_num - 1);
+	mode.buf_num = ((vdev->module_ens & ISPP_MODULE_TNR_3TO1) ==
+			ISPP_MODULE_TNR_3TO1) ? 2 : 1;
+	mode.buf_num += RKISP_BUF_MAX + 2 * (dev->hw_dev->dev_num - 1);
 	ret = v4l2_subdev_call(ispp_sdev->remote_sd, core, ioctl,
 			       RKISP_ISPP_CMD_SET_MODE, &mode);
 	if (ret)
@@ -2706,6 +2705,15 @@ void rkispp_module_work_event(struct rkispp_device *dev,
 {
 	bool is_fec_en = (dev->stream_vdev.module_ens & ISPP_MODULE_FEC);
 
+	if (dev->ispp_sdev.state != ISPP_STOP) {
+		if (module & ISPP_MODULE_TNR)
+			tnr_work_event(dev, buf_rd, buf_wr, is_isr);
+		else if (module & ISPP_MODULE_NR)
+			nr_work_event(dev, buf_rd, buf_wr, is_isr);
+		else
+			fec_work_event(dev, buf_rd, is_isr);
+	}
+
 	if (is_isr && !buf_rd && !buf_wr &&
 	    ((is_fec_en && module == ISPP_MODULE_FEC) ||
 	     (!is_fec_en && module == ISPP_MODULE_NR))) {
@@ -2723,15 +2731,7 @@ void rkispp_module_work_event(struct rkispp_device *dev,
 		}
 		if (!dev->hw_dev->is_idle)
 			dev->hw_dev->is_idle = true;
-		return;
 	}
-
-	if (module & ISPP_MODULE_TNR)
-		tnr_work_event(dev, buf_rd, buf_wr, is_isr);
-	else if (module & ISPP_MODULE_NR)
-		nr_work_event(dev, buf_rd, buf_wr, is_isr);
-	else
-		fec_work_event(dev, buf_rd, is_isr);
 }
 
 void rkispp_isr(u32 mis_val, struct rkispp_device *dev)

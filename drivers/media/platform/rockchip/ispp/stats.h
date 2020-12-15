@@ -40,7 +40,6 @@ struct rkispp_stats_vdev {
 	struct list_head stat;
 	struct rkispp_buffer *curr_buf;
 	struct rkispp_buffer *next_buf;
-	struct rkispp_dummy_buffer dummy_buf;
 	struct v4l2_format vdev_fmt;
 	bool streamon;
 };
