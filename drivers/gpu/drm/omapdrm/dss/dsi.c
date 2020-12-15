@@ -3975,10 +3975,10 @@ static int dsi_configure_dispc_clocks(struct dsi_data *dsi)
 
 static int dsi_display_init_dispc(struct dsi_data *dsi)
 {
-	enum omap_channel channel = dsi->output.dispc_channel;
+	enum omap_channel dispc_channel = dsi->output.dispc_channel;
 	int r;
 
-	dss_select_lcd_clk_source(dsi->dss, channel, dsi->module_id == 0 ?
+	dss_select_lcd_clk_source(dsi->dss, dispc_channel, dsi->module_id == 0 ?
 			DSS_CLK_SRC_PLL1_1 :
 			DSS_CLK_SRC_PLL2_1);
 
@@ -4014,19 +4014,19 @@ err1:
 		dss_mgr_unregister_framedone_handler(&dsi->output,
 				dsi_framedone_irq_callback, dsi);
 err:
-	dss_select_lcd_clk_source(dsi->dss, channel, DSS_CLK_SRC_FCK);
+	dss_select_lcd_clk_source(dsi->dss, dispc_channel, DSS_CLK_SRC_FCK);
 	return r;
 }
 
 static void dsi_display_uninit_dispc(struct dsi_data *dsi)
 {
-	enum omap_channel channel = dsi->output.dispc_channel;
+	enum omap_channel dispc_channel = dsi->output.dispc_channel;
 
 	if (dsi->mode == OMAP_DSS_DSI_CMD_MODE)
 		dss_mgr_unregister_framedone_handler(&dsi->output,
 				dsi_framedone_irq_callback, dsi);
 
-	dss_select_lcd_clk_source(dsi->dss, channel, DSS_CLK_SRC_FCK);
+	dss_select_lcd_clk_source(dsi->dss, dispc_channel, DSS_CLK_SRC_FCK);
 }
 
 static int dsi_configure_dsi_clocks(struct dsi_data *dsi)
@@ -4843,12 +4843,12 @@ err:
 }
 
 /*
- * Return a hardcoded channel for the DSI output. This should work for
+ * Return a hardcoded dispc channel for the DSI output. This should work for
  * current use cases, but this can be later expanded to either resolve
  * the channel in some more dynamic manner, or get the channel as a user
  * parameter.
  */
-static enum omap_channel dsi_get_channel(struct dsi_data *dsi)
+static enum omap_channel dsi_get_dispc_channel(struct dsi_data *dsi)
 {
 	switch (dsi->data->model) {
 	case DSI_MODEL_OMAP3:
@@ -5400,7 +5400,7 @@ static int dsi_init_output(struct dsi_data *dsi)
 
 	out->type = OMAP_DISPLAY_TYPE_DSI;
 	out->name = dsi->module_id == 0 ? "dsi.0" : "dsi.1";
-	out->dispc_channel = dsi_get_channel(dsi);
+	out->dispc_channel = dsi_get_dispc_channel(dsi);
 	out->dsi_ops = &dsi_ops;
 	out->of_port = 0;
 	out->bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE
