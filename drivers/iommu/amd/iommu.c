@@ -2065,8 +2065,9 @@ static int amd_iommu_map(struct iommu_domain *dom, unsigned long iova,
 			 gfp_t gfp)
 {
 	struct protection_domain *domain = to_pdomain(dom);
+	struct io_pgtable_ops *ops = &domain->iop.iop.ops;
 	int prot = 0;
-	int ret;
+	int ret = -EINVAL;
 
 	if (domain->iop.mode == PAGE_MODE_NONE)
 		return -EINVAL;
@@ -2076,9 +2077,10 @@ static int amd_iommu_map(struct iommu_domain *dom, unsigned long iova,
 	if (iommu_prot & IOMMU_WRITE)
 		prot |= IOMMU_PROT_IW;
 
-	ret = iommu_map_page(domain, iova, paddr, page_size, prot, gfp);
-
-	domain_flush_np_cache(domain, iova, page_size);
+	if (ops->map) {
+		ret = ops->map(ops, iova, paddr, page_size, prot, gfp);
+		domain_flush_np_cache(domain, iova, page_size);
+	}
 
 	return ret;
 }
@@ -2088,11 +2090,12 @@ static size_t amd_iommu_unmap(struct iommu_domain *dom, unsigned long iova,
 			      struct iommu_iotlb_gather *gather)
 {
 	struct protection_domain *domain = to_pdomain(dom);
+	struct io_pgtable_ops *ops = &domain->iop.iop.ops;
 
 	if (domain->iop.mode == PAGE_MODE_NONE)
 		return 0;
 
-	return iommu_unmap_page(domain, iova, page_size);
+	return (ops->unmap) ? ops->unmap(ops, iova, page_size, gather) : 0;
 }
 
 static phys_addr_t amd_iommu_iova_to_phys(struct iommu_domain *dom,

@@ -311,9 +311,9 @@ static u64 *alloc_pte(struct protection_domain *domain,
  * This function checks if there is a PTE for a given dma address. If
  * there is one, it returns the pointer to it.
  */
-u64 *fetch_pte(struct amd_io_pgtable *pgtable,
-	       unsigned long address,
-	       unsigned long *page_size)
+static u64 *fetch_pte(struct amd_io_pgtable *pgtable,
+		      unsigned long address,
+		      unsigned long *page_size)
 {
 	int level;
 	u64 *pte;
@@ -386,13 +386,10 @@ static struct page *free_clear_pte(u64 *pte, u64 pteval, struct page *freelist)
  * supporting all features of AMD IOMMU page tables like level skipping
  * and full 64 bit address spaces.
  */
-int iommu_map_page(struct protection_domain *dom,
-		   unsigned long iova,
-		   unsigned long paddr,
-		   unsigned long size,
-		   int prot,
-		   gfp_t gfp)
+static int iommu_v1_map_page(struct io_pgtable_ops *ops, unsigned long iova,
+			  phys_addr_t paddr, size_t size, int prot, gfp_t gfp)
 {
+	struct protection_domain *dom = io_pgtable_ops_to_domain(ops);
 	struct page *freelist = NULL;
 	bool updated = false;
 	u64 __pte, *pte;
@@ -455,11 +452,11 @@ out:
 	return ret;
 }
 
-unsigned long iommu_unmap_page(struct protection_domain *dom,
-			       unsigned long iova,
-			       unsigned long size)
+static unsigned long iommu_v1_unmap_page(struct io_pgtable_ops *ops,
+				      unsigned long iova,
+				      size_t size,
+				      struct iommu_iotlb_gather *gather)
 {
-	struct io_pgtable_ops *ops = &dom->iop.iop.ops;
 	struct amd_io_pgtable *pgtable = io_pgtable_ops_to_data(ops);
 	unsigned long long unmapped;
 	unsigned long unmap_size;
@@ -548,6 +545,8 @@ static struct io_pgtable *v1_alloc_pgtable(struct io_pgtable_cfg *cfg, void *coo
 	cfg->oas            = IOMMU_OUT_ADDR_BIT_SIZE,
 	cfg->tlb            = &v1_flush_ops;
 
+	pgtable->iop.ops.map          = iommu_v1_map_page;
+	pgtable->iop.ops.unmap        = iommu_v1_unmap_page;
 	pgtable->iop.ops.iova_to_phys = iommu_v1_iova_to_phys;
 
 	return &pgtable->iop;
