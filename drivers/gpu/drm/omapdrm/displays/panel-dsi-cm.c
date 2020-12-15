@@ -68,8 +68,6 @@ struct panel_drv_data {
 	int width_mm;
 	int height_mm;
 
-	struct omap_dsi_pin_config pin_config;
-
 	/* runtime variables */
 	bool enabled;
 
@@ -620,15 +618,6 @@ static int dsicm_power_on(struct panel_drv_data *ddata)
 			dev_err(&ddata->pdev->dev,
 				"failed to enable VDDI: %d\n", r);
 			goto err_vpnl;
-		}
-	}
-
-	if (ddata->pin_config.num_pins > 0) {
-		r = src->ops->dsi.configure_pins(src, &ddata->pin_config);
-		if (r) {
-			dev_err(&ddata->pdev->dev,
-				"failed to configure DSI pins\n");
-			goto err_vddi;
 		}
 	}
 
