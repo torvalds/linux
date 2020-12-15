@@ -143,7 +143,7 @@ void vmw_gmrid_man_fini(struct vmw_private *dev_priv, int type)
 
 	ttm_resource_manager_set_used(man, false);
 
-	ttm_resource_manager_force_list_clean(&dev_priv->bdev, man);
+	ttm_resource_manager_evict_all(&dev_priv->bdev, man);
 
 	ttm_resource_manager_cleanup(man);
 

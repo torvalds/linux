@@ -76,6 +76,9 @@ struct amdgpu_bo_list_entry;
 /* PTE is handled as PDE for VEGA10 (Translate Further) */
 #define AMDGPU_PTE_TF		(1ULL << 56)
 
+/* MALL noalloc for sienna_cichlid, reserved for older ASICs  */
+#define AMDGPU_PTE_NOALLOC	(1ULL << 58)
+
 /* PDE Block Fragment Size for VEGA10 */
 #define AMDGPU_PDE_BFS(a)	((uint64_t)a << 59)
 
@@ -104,7 +107,7 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_VM_FAULT_STOP_ALWAYS	2
 
 /* Reserve 4MB VRAM for page tables */
-#define AMDGPU_VM_RESERVED_VRAM		(4ULL << 20)
+#define AMDGPU_VM_RESERVED_VRAM		(8ULL << 20)
 
 /* max number of VMHUB */
 #define AMDGPU_MAX_VMHUBS			3
@@ -274,6 +277,9 @@ struct amdgpu_vm {
 	/* BO mappings freed, but not yet updated in the PT */
 	struct list_head	freed;
 
+	/* BOs which are invalidated, has been updated in the PTs */
+	struct list_head        done;
+
 	/* contains the page directory */
 	struct amdgpu_vm_pt     root;
 	struct dma_fence	*last_update;
@@ -440,5 +446,9 @@ void amdgpu_vm_set_task_info(struct amdgpu_vm *vm);
 void amdgpu_vm_move_to_lru_tail(struct amdgpu_device *adev,
 				struct amdgpu_vm *vm);
 void amdgpu_vm_del_from_lru_notify(struct ttm_buffer_object *bo);
+
+#if defined(CONFIG_DEBUG_FS)
+void amdgpu_debugfs_vm_bo_info(struct amdgpu_vm *vm, struct seq_file *m);
+#endif
 
 #endif

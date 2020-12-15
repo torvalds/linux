@@ -273,29 +273,30 @@ static int ion_dma_buf_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 	return ret;
 }
 
-static void *ion_dma_buf_vmap(struct dma_buf *dmabuf)
+static int ion_dma_buf_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 {
 	struct ion_buffer *buffer = dmabuf->priv;
 	struct ion_heap *heap = buffer->heap;
 	void *vaddr;
 
 	if (heap->buf_ops.vmap)
-		return heap->buf_ops.vmap(dmabuf);
+		return heap->buf_ops.vmap(dmabuf, map);
 
 	mutex_lock(&buffer->lock);
 	vaddr = ion_buffer_kmap_get(buffer);
 	mutex_unlock(&buffer->lock);
 
-	return vaddr;
+	dma_buf_map_set_vaddr(map, vaddr);
+	return 0;
 }
 
-static void ion_dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
+static void ion_dma_buf_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 {
 	struct ion_buffer *buffer = dmabuf->priv;
 	struct ion_heap *heap = buffer->heap;
 
 	if (heap->buf_ops.vunmap) {
-		heap->buf_ops.vunmap(dmabuf, vaddr);
+		heap->buf_ops.vunmap(dmabuf, map);
 		return;
 	}
 

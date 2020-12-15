@@ -596,6 +596,7 @@ int sumo_dpm_force_performance_level(struct radeon_device *rdev,
 				     enum radeon_dpm_forced_level level);
 u32 sumo_dpm_get_current_sclk(struct radeon_device *rdev);
 u32 sumo_dpm_get_current_mclk(struct radeon_device *rdev);
+u16 sumo_dpm_get_current_vddc(struct radeon_device *rdev);
 
 /*
  * cayman

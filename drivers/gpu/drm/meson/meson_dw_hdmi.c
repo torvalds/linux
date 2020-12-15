@@ -941,6 +941,11 @@ static void meson_dw_hdmi_init(struct meson_dw_hdmi *meson_dw_hdmi)
 
 }
 
+static void meson_disable_regulator(void *data)
+{
+	regulator_disable(data);
+}
+
 static int meson_dw_hdmi_bind(struct device *dev, struct device *master,
 				void *data)
 {
@@ -987,6 +992,10 @@ static int meson_dw_hdmi_bind(struct device *dev, struct device *master,
 		meson_dw_hdmi->hdmi_supply = NULL;
 	} else {
 		ret = regulator_enable(meson_dw_hdmi->hdmi_supply);
+		if (ret)
+			return ret;
+		ret = devm_add_action_or_reset(dev, meson_disable_regulator,
+					       meson_dw_hdmi->hdmi_supply);
 		if (ret)
 			return ret;
 	}
@@ -1064,8 +1073,6 @@ static int meson_dw_hdmi_bind(struct device *dev, struct device *master,
 
 	DRM_DEBUG_DRIVER("encoder initialized\n");
 
-	meson_dw_hdmi_init(meson_dw_hdmi);
-
 	/* Bridge / Connector */
 
 	dw_plat_data->priv_data = meson_dw_hdmi;
@@ -1087,6 +1094,8 @@ static int meson_dw_hdmi_bind(struct device *dev, struct device *master,
 					    &meson_dw_hdmi->dw_plat_data);
 	if (IS_ERR(meson_dw_hdmi->hdmi))
 		return PTR_ERR(meson_dw_hdmi->hdmi);
+
+	meson_dw_hdmi_init(meson_dw_hdmi);
 
 	next_bridge = of_drm_find_bridge(pdev->dev.of_node);
 	if (next_bridge)

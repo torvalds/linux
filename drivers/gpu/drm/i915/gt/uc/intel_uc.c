@@ -231,13 +231,15 @@ static int guc_enable_communication(struct intel_guc *guc)
 	intel_guc_ct_event_handler(&guc->ct);
 	spin_unlock_irq(&i915->irq_lock);
 
-	DRM_INFO("GuC communication enabled\n");
+	drm_dbg(&i915->drm, "GuC communication enabled\n");
 
 	return 0;
 }
 
 static void guc_disable_communication(struct intel_guc *guc)
 {
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
+
 	/*
 	 * Events generated during or after CT disable are logged by guc in
 	 * via mmio. Make sure the register is clear before disabling CT since
@@ -257,7 +259,7 @@ static void guc_disable_communication(struct intel_guc *guc)
 	 */
 	guc_get_mmio_msg(guc);
 
-	DRM_INFO("GuC communication disabled\n");
+	drm_dbg(&i915->drm, "GuC communication disabled\n");
 }
 
 static void __uc_fetch_firmwares(struct intel_uc *uc)

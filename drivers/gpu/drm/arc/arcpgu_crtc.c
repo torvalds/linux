@@ -116,7 +116,7 @@ static void arc_pgu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static void arc_pgu_crtc_atomic_enable(struct drm_crtc *crtc,
-				       struct drm_crtc_state *old_state)
+				       struct drm_atomic_state *state)
 {
 	struct arcpgu_drm_private *arcpgu = crtc_to_arcpgu_priv(crtc);
 
@@ -127,7 +127,7 @@ static void arc_pgu_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void arc_pgu_crtc_atomic_disable(struct drm_crtc *crtc,
-					struct drm_crtc_state *old_state)
+					struct drm_atomic_state *state)
 {
 	struct arcpgu_drm_private *arcpgu = crtc_to_arcpgu_priv(crtc);
 

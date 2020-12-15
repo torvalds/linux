@@ -143,8 +143,16 @@ static void mpc3_power_on_ogam_lut(
 {
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
 
-	REG_SET(MPCC_MEM_PWR_CTRL[mpcc_id], 0,
-			MPCC_OGAM_MEM_PWR_FORCE, power_on == true ? 0:1);
+	if (mpc->ctx->dc->debug.enable_mem_low_power.bits.mpc) {
+		// Force power on
+		REG_UPDATE(MPCC_MEM_PWR_CTRL[mpcc_id], MPCC_OGAM_MEM_PWR_DIS, power_on == true ? 1:0);
+		// Wait for confirmation when powering on
+		if (power_on)
+			REG_WAIT(MPCC_MEM_PWR_CTRL[mpcc_id], MPCC_OGAM_MEM_PWR_STATE, 0, 10, 10);
+	} else {
+		REG_SET(MPCC_MEM_PWR_CTRL[mpcc_id], 0,
+				MPCC_OGAM_MEM_PWR_FORCE, power_on == true ? 0 : 1);
+	}
 }
 
 static void mpc3_configure_ogam_lut(
@@ -360,6 +368,9 @@ void mpc3_set_output_gamma(
 	/*we need to program 2 fields here as apposed to 1*/
 	REG_UPDATE(MPCC_OGAM_CONTROL[mpcc_id],
 			MPCC_OGAM_SELECT, next_mode == LUT_RAM_A ? 0:1);
+
+	if (mpc->ctx->dc->debug.enable_mem_low_power.bits.mpc)
+		mpc3_power_on_ogam_lut(mpc, mpcc_id, false);
 }
 
 void mpc3_set_denorm(
@@ -801,16 +812,28 @@ static void mpc3_power_on_shaper_3dlut(
 	uint32_t power_status_shaper = 2;
 	uint32_t power_status_3dlut  = 2;
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
+	int max_retries = 10;
 
 	if (rmu_idx == 0) {
 		REG_SET(MPC_RMU_MEM_PWR_CTRL, 0,
 			MPC_RMU0_MEM_PWR_DIS, power_on == true ? 1:0);
+		/* wait for memory to fully power up */
+		if (power_on && mpc->ctx->dc->debug.enable_mem_low_power.bits.mpc) {
+			REG_WAIT(MPC_RMU_MEM_PWR_CTRL, MPC_RMU0_SHAPER_MEM_PWR_STATE, 0, 1, max_retries);
+			REG_WAIT(MPC_RMU_MEM_PWR_CTRL, MPC_RMU0_3DLUT_MEM_PWR_STATE, 0, 1, max_retries);
+		}
+
 		/*read status is not mandatory, it is just for debugging*/
 		REG_GET(MPC_RMU_MEM_PWR_CTRL, MPC_RMU0_SHAPER_MEM_PWR_STATE, &power_status_shaper);
 		REG_GET(MPC_RMU_MEM_PWR_CTRL, MPC_RMU0_3DLUT_MEM_PWR_STATE, &power_status_3dlut);
 	} else if (rmu_idx == 1) {
 		REG_SET(MPC_RMU_MEM_PWR_CTRL, 0,
 			MPC_RMU1_MEM_PWR_DIS, power_on == true ? 1:0);
+		if (power_on && mpc->ctx->dc->debug.enable_mem_low_power.bits.mpc) {
+			REG_WAIT(MPC_RMU_MEM_PWR_CTRL, MPC_RMU1_SHAPER_MEM_PWR_STATE, 0, 1, max_retries);
+			REG_WAIT(MPC_RMU_MEM_PWR_CTRL, MPC_RMU1_3DLUT_MEM_PWR_STATE, 0, 1, max_retries);
+		}
+
 		REG_GET(MPC_RMU_MEM_PWR_CTRL, MPC_RMU1_SHAPER_MEM_PWR_STATE, &power_status_shaper);
 		REG_GET(MPC_RMU_MEM_PWR_CTRL, MPC_RMU1_3DLUT_MEM_PWR_STATE, &power_status_3dlut);
 	}
@@ -838,6 +861,10 @@ bool mpc3_program_shaper(
 		REG_SET(SHAPER_CONTROL[rmu_idx], 0, MPC_RMU_SHAPER_LUT_MODE, 0);
 		return false;
 	}
+
+	if (mpc->ctx->dc->debug.enable_mem_low_power.bits.mpc)
+		mpc3_power_on_shaper_3dlut(mpc, rmu_idx, true);
+
 	current_mode = mpc3_get_shaper_current(mpc, rmu_idx);
 
 	if (current_mode == LUT_BYPASS || current_mode == LUT_RAM_A)
@@ -1196,6 +1223,9 @@ bool mpc3_program_3dlut(
 	mpc3_set_3dlut_mode(mpc, mode, is_12bits_color_channel,
 					is_17x17x17, rmu_idx);
 
+	if (mpc->ctx->dc->debug.enable_mem_low_power.bits.mpc)
+		mpc3_power_on_shaper_3dlut(mpc, rmu_idx, false);
+
 	return true;
 }
 
@@ -1349,11 +1379,31 @@ int mpcc3_release_rmu(struct mpc *mpc, int mpcc_id)
 
 }
 
+static void mpc3_mpc_init(struct mpc *mpc)
+{
+	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
+	int mpcc_id;
+
+	mpc1_mpc_init(mpc);
+
+	if (mpc->ctx->dc->debug.enable_mem_low_power.bits.mpc) {
+		if (mpc30->mpc_mask->MPC_RMU0_MEM_LOW_PWR_MODE && mpc30->mpc_mask->MPC_RMU1_MEM_LOW_PWR_MODE) {
+			REG_UPDATE(MPC_RMU_MEM_PWR_CTRL, MPC_RMU0_MEM_LOW_PWR_MODE, 3);
+			REG_UPDATE(MPC_RMU_MEM_PWR_CTRL, MPC_RMU1_MEM_LOW_PWR_MODE, 3);
+		}
+
+		if (mpc30->mpc_mask->MPCC_OGAM_MEM_LOW_PWR_MODE) {
+			for (mpcc_id = 0; mpcc_id < mpc30->num_mpcc; mpcc_id++)
+				REG_UPDATE(MPCC_MEM_PWR_CTRL[mpcc_id], MPCC_OGAM_MEM_LOW_PWR_MODE, 3);
+		}
+	}
+}
+
 const struct mpc_funcs dcn30_mpc_funcs = {
 	.read_mpcc_state = mpc1_read_mpcc_state,
 	.insert_plane = mpc1_insert_plane,
 	.remove_mpcc = mpc1_remove_mpcc,
-	.mpc_init = mpc1_mpc_init,
+	.mpc_init = mpc3_mpc_init,
 	.mpc_init_single_inst = mpc1_mpc_init_single_inst,
 	.update_blending = mpc2_update_blending,
 	.cursor_lock = mpc1_cursor_lock,

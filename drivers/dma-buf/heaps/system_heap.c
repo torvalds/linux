@@ -240,7 +240,7 @@ static void *system_heap_do_vmap(struct system_heap_buffer *buffer)
 	return vaddr;
 }
 
-static void *system_heap_vmap(struct dma_buf *dmabuf)
+static int system_heap_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 {
 	struct system_heap_buffer *buffer = dmabuf->priv;
 	void *vaddr;
@@ -253,18 +253,21 @@ static void *system_heap_vmap(struct dma_buf *dmabuf)
 	}
 
 	vaddr = system_heap_do_vmap(buffer);
-	if (IS_ERR(vaddr))
-		goto out;
+	if (IS_ERR(vaddr)) {
+		mutex_unlock(&buffer->lock);
+		return PTR_ERR(vaddr);
+	}
 
 	buffer->vaddr = vaddr;
 	buffer->vmap_cnt++;
 out:
 	mutex_unlock(&buffer->lock);
 
-	return vaddr;
+	dma_buf_map_set_vaddr(map, vaddr);
+	return 0;
 }
 
-static void system_heap_vunmap(struct dma_buf *dmabuf, void *vaddr)
+static void system_heap_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 {
 	struct system_heap_buffer *buffer = dmabuf->priv;
 

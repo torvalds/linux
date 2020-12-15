@@ -54,7 +54,6 @@ static bool dc_sink_construct(struct dc_sink *sink, const struct dc_sink_init_da
 	sink->ctx = link->ctx;
 	sink->dongle_max_pix_clk = init_params->dongle_max_pix_clk;
 	sink->converter_disable_audio = init_params->converter_disable_audio;
-	sink->is_mst_legacy = init_params->sink_is_legacy;
 	sink->dc_container_id = NULL;
 	sink->sink_id = init_params->link->ctx->dc_sink_id_count;
 	// increment dc_sink_id_count because we don't want two sinks with same ID
