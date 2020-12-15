@@ -360,20 +360,16 @@ static int rk3568_combphy_cfg(struct rockchip_combphy_priv *priv)
 
 	switch (priv->mode) {
 	case PHY_TYPE_PCIE:
+		/* Set SSC downward spread spectrum */
+		val = readl(priv->mmio + (0x1f << 2));
+		val &= ~GENMASK(5, 4);
+		val |= 0x01 << 4;
+		writel(val, priv->mmio + 0x7c);
+
 		param_write(priv->phy_grf, &cfg->con0_for_pcie, true);
 		param_write(priv->phy_grf, &cfg->con1_for_pcie, true);
 		param_write(priv->phy_grf, &cfg->con2_for_pcie, true);
 		param_write(priv->phy_grf, &cfg->con3_for_pcie, true);
-		/* Enable controlling random jitter, aka RMJ */
-		val = readl(priv->mmio + (0xa << 2));
-		val &= ~(0x77);
-		val |= 0x3 << 4;
-		writel(val, priv->mmio + (0xa << 2));
-
-		val = readl(priv->mmio + (0x20 << 2));
-		val &= ~(0x1c);
-		val |= 0x5 << 2;
-		writel(val, priv->mmio + (0x20 << 2));
 		break;
 	case PHY_TYPE_USB3:
 		/* Set SSC downward spread spectrum */
@@ -429,14 +425,46 @@ static int rk3568_combphy_cfg(struct rockchip_combphy_priv *priv)
 		break;
 	case 100000000:
 		param_write(priv->phy_grf, &cfg->pipe_clk_100m, true);
+		if (priv->mode == PHY_TYPE_PCIE) {
+			/* Enable controlling random jitter, aka RMJ */
+			val = readl(priv->mmio + (0xb << 2));
+			val &= ~(0x7);
+			val |= 0x1 << 6 | 0x6;
+			writel(val, priv->mmio + (0xb << 2));
+
+			val = readl(priv->mmio + (0x5 << 2));
+			val &= ~(0x3 << 6);
+			val |= 0x1 << 6;
+			writel(val, priv->mmio + (0x5 << 2));
+
+			val = readl(priv->mmio + (0x11 << 2));
+			val &= ~(0x7f);
+			val |= 0x19;
+			writel(val, priv->mmio + (0x11 << 2));
+
+			val = readl(priv->mmio + (0xa << 2));
+			val &= ~(0xf << 4);
+			val |= 0x7 << 4;
+			writel(val, priv->mmio + (0xa << 2));
+		}
 		break;
 	default:
 		dev_err(priv->dev, "Unsupported rate: %lu\n", rate);
 		return -EINVAL;
 	}
 
-	if (device_property_read_bool(priv->dev, "rockchip,ext-refclk"))
+	if (device_property_read_bool(priv->dev, "rockchip,ext-refclk")) {
 		param_write(priv->phy_grf, &cfg->pipe_clk_ext, true);
+		if (priv->mode == PHY_TYPE_PCIE && rate == 100000000) {
+			val = readl(priv->mmio + (0xc << 2));
+			val |= 0x3 << 4 | 0x1 << 7;
+			writel(val, priv->mmio + (0xc << 2));
+
+			val = readl(priv->mmio + (0xd << 2));
+			val |= 0x1;
+			writel(val, priv->mmio + (0xd << 2));
+		}
+	}
 
 	return 0;
 }
