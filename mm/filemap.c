@@ -1583,19 +1583,20 @@ int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
 		else
 			wait_on_page_locked(page);
 		return 0;
-	} else {
-		if (flags & FAULT_FLAG_KILLABLE) {
-			int ret;
-
-			ret = __lock_page_killable(page);
-			if (ret) {
-				mmap_read_unlock(mm);
-				return 0;
-			}
-		} else
-			__lock_page(page);
-		return 1;
 	}
+	if (flags & FAULT_FLAG_KILLABLE) {
+		int ret;
+
+		ret = __lock_page_killable(page);
+		if (ret) {
+			mmap_read_unlock(mm);
+			return 0;
+		}
+	} else {
+		__lock_page(page);
+	}
+	return 1;
+
 }
 
 /**
