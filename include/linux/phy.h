@@ -743,7 +743,8 @@ struct phy_driver {
 	/** @read_status: Determines the negotiated speed and duplex */
 	int (*read_status)(struct phy_device *phydev);
 
-	/** @config_intr: Enables or disables interrupts.
+	/**
+	 * @config_intr: Enables or disables interrupts.
 	 * It should also clear any pending interrupts prior to enabling the
 	 * IRQs and after disabling them.
 	 */
