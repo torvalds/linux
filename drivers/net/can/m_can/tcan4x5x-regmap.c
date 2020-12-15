@@ -51,7 +51,7 @@ static int tcan4x5x_regmap_read(void *context,
 	struct tcan4x5x_priv *priv = spi_get_drvdata(spi);
 	struct tcan4x5x_map_buf *buf_rx = &priv->map_buf_rx;
 	struct tcan4x5x_map_buf *buf_tx = &priv->map_buf_tx;
-	struct spi_transfer xfer[] = {
+	struct spi_transfer xfer[2] = {
 		{
 			.tx_buf = buf_tx,
 		}
@@ -66,17 +66,26 @@ static int tcan4x5x_regmap_read(void *context,
 	       sizeof(buf_tx->cmd.addr));
 	tcan4x5x_spi_cmd_set_len(&buf_tx->cmd, val_len);
 
-	xfer[0].rx_buf = buf_rx;
-	xfer[0].len = sizeof(buf_tx->cmd) + val_len;
+	if (spi->controller->flags & SPI_CONTROLLER_HALF_DUPLEX) {
+		xfer[0].len = sizeof(buf_tx->cmd);
 
-	if (TCAN4X5X_SANITIZE_SPI)
-		memset(buf_tx->data, 0x0, val_len);
+		xfer[1].rx_buf = val_buf;
+		xfer[1].len = val_len;
+		spi_message_add_tail(&xfer[1], &msg);
+	} else {
+		xfer[0].rx_buf = buf_rx;
+		xfer[0].len = sizeof(buf_tx->cmd) + val_len;
+
+		if (TCAN4X5X_SANITIZE_SPI)
+			memset(buf_tx->data, 0x0, val_len);
+	}
 
 	err = spi_sync(spi, &msg);
 	if (err)
 		return err;
 
-	memcpy(val_buf, buf_rx->data, val_len);
+	if (!(spi->controller->flags & SPI_CONTROLLER_HALF_DUPLEX))
+		memcpy(val_buf, buf_rx->data, val_len);
 
 	return 0;
 }
