@@ -889,13 +889,13 @@ static int acc_release(struct inode *ip, struct file *fp)
 	if (!dev)
 		return -ENOENT;
 
-	WARN_ON(!atomic_xchg(&dev->open_excl, 0));
 	/* indicate that we are disconnected
 	 * still could be online so don't touch online flag
 	 */
 	dev->disconnected = 1;
 
 	fp->private_data = NULL;
+	WARN_ON(!atomic_xchg(&dev->open_excl, 0));
 	put_acc_dev(dev);
 	return 0;
 }
