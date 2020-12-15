@@ -301,12 +301,6 @@ struct omap_dss_device {
 	 */
 	enum omap_display_type type;
 
-	/*
-	 * True if the device is a display (panel or connector) at the end of
-	 * the pipeline, false otherwise.
-	 */
-	bool display;
-
 	const char *name;
 
 	const struct omap_dss_device_ops *ops;
