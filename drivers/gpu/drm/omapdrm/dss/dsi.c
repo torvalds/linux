@@ -2019,40 +2019,6 @@ static void dsi_vc_initial_config(struct dsi_data *dsi, int vc)
 	dsi->vc[vc].source = DSI_VC_SOURCE_L4;
 }
 
-static int dsi_vc_config_source(struct dsi_data *dsi, int vc,
-				enum dsi_vc_source source)
-{
-	if (dsi->vc[vc].source == source)
-		return 0;
-
-	DSSDBG("Source config of VC %d", vc);
-
-	dsi_sync_vc(dsi, vc);
-
-	dsi_vc_enable(dsi, vc, 0);
-
-	/* VC_BUSY */
-	if (!wait_for_bit_change(dsi, DSI_VC_CTRL(vc), 15, 0)) {
-		DSSERR("vc(%d) busy when trying to config for VP\n", vc);
-		return -EIO;
-	}
-
-	/* SOURCE, 0 = L4, 1 = video port */
-	REG_FLD_MOD(dsi, DSI_VC_CTRL(vc), source, 1, 1);
-
-	/* DCS_CMD_ENABLE */
-	if (dsi->data->quirks & DSI_QUIRK_DCS_CMD_CONFIG_VC) {
-		bool enable = source == DSI_VC_SOURCE_VP;
-		REG_FLD_MOD(dsi, DSI_VC_CTRL(vc), enable, 30, 30);
-	}
-
-	dsi_vc_enable(dsi, vc, 1);
-
-	dsi->vc[vc].source = source;
-
-	return 0;
-}
-
 static void dsi_vc_enable_hs(struct omap_dss_device *dssdev, int vc,
 		bool enable)
 {
@@ -2074,10 +2040,6 @@ static void dsi_vc_enable_hs(struct omap_dss_device *dssdev, int vc,
 	dsi_if_enable(dsi, 1);
 
 	dsi_force_tx_stop_mode_io(dsi);
-
-	/* start the DDR clock by sending a NULL packet */
-	if (dsi->vm_timings.ddr_clk_always_on && enable)
-		dsi_vc_send_null(dsi, vc, dsi->dsidev->channel);
 }
 
 static void dsi_vc_flush_long_data(struct dsi_data *dsi, int vc)
@@ -2272,8 +2234,6 @@ static int dsi_vc_send_long(struct dsi_data *dsi, int vc,
 		return -EINVAL;
 	}
 
-	dsi_vc_config_source(dsi, vc, DSI_VC_SOURCE_L4);
-
 	dsi_vc_write_long_header(dsi, vc, msg->channel, msg->type, msg->tx_len, 0);
 
 	p = msg->tx_buf;
@@ -2332,8 +2292,6 @@ static int dsi_vc_send_short(struct dsi_data *dsi, int vc,
 	if (dsi->debug_write)
 		DSSDBG("dsi_vc_send_short(vc%d, dt %#x, b1 %#x, b2 %#x)\n",
 		       vc, msg->type, pkt.header[1], pkt.header[2]);
-
-	dsi_vc_config_source(dsi, vc, DSI_VC_SOURCE_L4);
 
 	if (FLD_GET(dsi_read_reg(dsi, DSI_VC_CTRL(vc)), 16, 16)) {
 		DSSERR("ERROR FIFO FULL, aborting transfer\n");
@@ -3353,8 +3311,6 @@ static void dsi_update_screen_dispc(struct dsi_data *dsi)
 
 	DSSDBG("dsi_update_screen_dispc(%dx%d)\n", w, h);
 
-	dsi_vc_config_source(dsi, vc, DSI_VC_SOURCE_VP);
-
 	bytespp	= mipi_dsi_pixel_format_to_bpp(dsi->pix_fmt) / 8;
 	bytespl = w * bytespp;
 	bytespf = bytespl * h;
@@ -3519,14 +3475,12 @@ static int dsi_update_channel(struct omap_dss_device *dssdev, int vc)
 
 	dsi_set_ulps_auto(dsi, false);
 
-	dsi_vc_enable_hs(dssdev, vc, true);
-
 	/*
 	 * Send NOP between the frames. If we don't send something here, the
 	 * updates stop working. This is probably related to DSI spec stating
 	 * that the DSI host should transition to LP at least once per frame.
 	 */
-	r = _dsi_send_nop(dsi, vc, dsi->dsidev->channel);
+	r = _dsi_send_nop(dsi, VC_CMD, dsi->dsidev->channel);
 	if (r < 0) {
 		DSSWARN("failed to send nop between frames: %d\n", r);
 		goto err;
@@ -3651,6 +3605,35 @@ static int dsi_configure_dsi_clocks(struct dsi_data *dsi)
 	return 0;
 }
 
+static void dsi_setup_dsi_vcs(struct dsi_data *dsi)
+{
+	/* Setup VC_CMD for LP and cpu transfers */
+	REG_FLD_MOD(dsi, DSI_VC_CTRL(VC_CMD), 0, 9, 9); /* LP */
+
+	REG_FLD_MOD(dsi, DSI_VC_CTRL(VC_CMD), 0, 1, 1); /* SOURCE_L4 */
+	dsi->vc[VC_CMD].source = DSI_VC_SOURCE_L4;
+
+	/* Setup VC_VIDEO for HS and dispc transfers */
+	REG_FLD_MOD(dsi, DSI_VC_CTRL(VC_VIDEO), 1, 9, 9); /* HS */
+
+	REG_FLD_MOD(dsi, DSI_VC_CTRL(VC_VIDEO), 1, 1, 1); /* SOURCE_VP */
+	dsi->vc[VC_VIDEO].source = DSI_VC_SOURCE_VP;
+
+	if (dsi->data->quirks & DSI_QUIRK_DCS_CMD_CONFIG_VC)
+		REG_FLD_MOD(dsi, DSI_VC_CTRL(VC_VIDEO), 1, 30, 30); /* DCS_CMD_ENABLE */
+
+	dsi_vc_enable(dsi, VC_CMD, 1);
+	dsi_vc_enable(dsi, VC_VIDEO, 1);
+
+	dsi_if_enable(dsi, 1);
+
+	dsi_force_tx_stop_mode_io(dsi);
+
+	/* start the DDR clock by sending a NULL packet */
+	if (dsi->vm_timings.ddr_clk_always_on)
+		dsi_vc_send_null(dsi, VC_CMD, dsi->dsidev->channel);
+}
+
 static int dsi_init_dsi(struct dsi_data *dsi)
 {
 	int r;
@@ -3693,13 +3676,7 @@ static int dsi_init_dsi(struct dsi_data *dsi)
 	if (r)
 		goto err3;
 
-	/* enable interface */
-	dsi_vc_enable(dsi, 0, 1);
-	dsi_vc_enable(dsi, 1, 1);
-	dsi_vc_enable(dsi, 2, 1);
-	dsi_vc_enable(dsi, 3, 1);
-	dsi_if_enable(dsi, 1);
-	dsi_force_tx_stop_mode_io(dsi);
+	dsi_setup_dsi_vcs(dsi);
 
 	return 0;
 err3:
