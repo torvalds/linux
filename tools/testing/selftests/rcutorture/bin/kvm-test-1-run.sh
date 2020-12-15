@@ -206,7 +206,10 @@ do
 	kruntime=`gawk 'BEGIN { print systime() - '"$kstarttime"' }' < /dev/null`
 	if test -z "$qemu_pid" || kill -0 "$qemu_pid" > /dev/null 2>&1
 	then
-		if test $kruntime -ge $seconds -o -f "$TORTURE_STOPFILE"
+		if test -n "$TORTURE_KCONFIG_GDB_ARG"
+		then
+			:
+		elif test $kruntime -ge $seconds || test -f "$TORTURE_STOPFILE"
 		then
 			break;
 		fi
@@ -222,6 +225,20 @@ do
 			then
 				echo "ps -fp $killpid" >> $resdir/Warnings 2>&1
 				ps -fp $killpid >> $resdir/Warnings 2>&1
+			fi
+			# Reduce probability of PID reuse by allowing a one-minute buffer
+			if test $((kruntime + 60)) -lt $seconds && test -s "$resdir/../jitter_pids"
+			then
+				awk < "$resdir/../jitter_pids" '
+				NF > 0 {
+					pidlist = pidlist " " $1;
+					n++;
+				}
+				END {
+					if (n > 0) {
+						print "kill " pidlist;
+					}
+				}' | sh
 			fi
 		else
 			echo ' ---' `date`: "Kernel done"
