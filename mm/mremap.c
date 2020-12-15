@@ -515,11 +515,19 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 	if (err)
 		return err;
 
+	if (unlikely(flags & MREMAP_DONTUNMAP && vm_flags & VM_ACCOUNT)) {
+		if (security_vm_enough_memory_mm(mm, new_len >> PAGE_SHIFT))
+			return -ENOMEM;
+	}
+
 	new_pgoff = vma->vm_pgoff + ((old_addr - vma->vm_start) >> PAGE_SHIFT);
 	new_vma = copy_vma(&vma, new_addr, new_len, new_pgoff,
 			   &need_rmap_locks);
-	if (!new_vma)
+	if (!new_vma) {
+		if (unlikely(flags & MREMAP_DONTUNMAP && vm_flags & VM_ACCOUNT))
+			vm_unacct_memory(new_len >> PAGE_SHIFT);
 		return -ENOMEM;
+	}
 
 	moved_len = move_page_tables(vma, old_addr, new_vma, new_addr, old_len,
 				     need_rmap_locks);
@@ -548,7 +556,7 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 	}
 
 	/* Conceal VM_ACCOUNT so old reservation is not undone */
-	if (vm_flags & VM_ACCOUNT) {
+	if (vm_flags & VM_ACCOUNT && !(flags & MREMAP_DONTUNMAP)) {
 		vma->vm_flags &= ~VM_ACCOUNT;
 		excess = vma->vm_end - vma->vm_start - old_len;
 		if (old_addr > vma->vm_start &&
@@ -573,34 +581,16 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 		untrack_pfn_moved(vma);
 
 	if (unlikely(!err && (flags & MREMAP_DONTUNMAP))) {
-		if (vm_flags & VM_ACCOUNT) {
-			/* Always put back VM_ACCOUNT since we won't unmap */
-			vma->vm_flags |= VM_ACCOUNT;
-
-			vm_acct_memory(new_len >> PAGE_SHIFT);
-		}
-
-		/*
-		 * VMAs can actually be merged back together in copy_vma
-		 * calling merge_vma. This can happen with anonymous vmas
-		 * which have not yet been faulted, so if we were to consider
-		 * this VMA split we'll end up adding VM_ACCOUNT on the
-		 * next VMA, which is completely unrelated if this VMA
-		 * was re-merged.
-		 */
-		if (split && new_vma == vma)
-			split = 0;
-
 		/* We always clear VM_LOCKED[ONFAULT] on the old vma */
 		vma->vm_flags &= VM_LOCKED_CLEAR_MASK;
 
 		/* Because we won't unmap we don't need to touch locked_vm */
-		goto out;
+		return new_addr;
 	}
 
 	if (do_munmap(mm, old_addr, old_len, uf_unmap) < 0) {
 		/* OOM: unable to split vma, just get accounts right */
-		if (vm_flags & VM_ACCOUNT)
+		if (vm_flags & VM_ACCOUNT && !(flags & MREMAP_DONTUNMAP))
 			vm_acct_memory(new_len >> PAGE_SHIFT);
 		excess = 0;
 	}
@@ -609,7 +599,7 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 		mm->locked_vm += new_len >> PAGE_SHIFT;
 		*locked = true;
 	}
-out:
+
 	mm->hiwater_vm = hiwater_vm;
 
 	/* Restore VM_ACCOUNT if one or two pieces of vma left */
