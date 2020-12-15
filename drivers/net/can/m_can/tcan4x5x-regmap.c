@@ -9,48 +9,76 @@
 
 #include "tcan4x5x.h"
 
-#define TCAN4X5X_WRITE_CMD (0x61 << 24)
-#define TCAN4X5X_READ_CMD (0x41 << 24)
+#define TCAN4X5X_SPI_INSTRUCTION_WRITE (0x61 << 24)
+#define TCAN4X5X_SPI_INSTRUCTION_READ (0x41 << 24)
 
 #define TCAN4X5X_MAX_REGISTER 0x8ffc
 
-static int tcan4x5x_regmap_gather_write(void *context, const void *reg,
-					size_t reg_len, const void *val,
-					size_t val_len)
+static int tcan4x5x_regmap_gather_write(void *context,
+					const void *reg, size_t reg_len,
+					const void *val, size_t val_len)
 {
 	struct spi_device *spi = context;
-	struct spi_message m;
-	u32 addr;
-	struct spi_transfer t[2] = {
-		{ .tx_buf = &addr, .len = reg_len, .cs_change = 0,},
-		{ .tx_buf = val, .len = val_len, },
+	struct tcan4x5x_priv *priv = spi_get_drvdata(spi);
+	struct tcan4x5x_map_buf *buf_tx = &priv->map_buf_tx;
+	struct spi_transfer xfer[] = {
+		{
+			.tx_buf = buf_tx,
+			.len = sizeof(buf_tx->cmd) + val_len,
+		},
 	};
 
-	addr = TCAN4X5X_WRITE_CMD | (*((u16 *)reg) << 8) | val_len >> 2;
+	memcpy(&buf_tx->cmd, reg, sizeof(buf_tx->cmd.cmd) +
+	       sizeof(buf_tx->cmd.addr));
+	tcan4x5x_spi_cmd_set_len(&buf_tx->cmd, val_len);
+	memcpy(buf_tx->data, val, val_len);
 
-	spi_message_init(&m);
-	spi_message_add_tail(&t[0], &m);
-	spi_message_add_tail(&t[1], &m);
-
-	return spi_sync(spi, &m);
+	return spi_sync_transfer(spi, xfer, ARRAY_SIZE(xfer));
 }
 
 static int tcan4x5x_regmap_write(void *context, const void *data, size_t count)
 {
-	return tcan4x5x_regmap_gather_write(context, data, sizeof(u32),
-					    data + sizeof(u32),
-					    count - sizeof(u32));
+	return tcan4x5x_regmap_gather_write(context, data, sizeof(__be32),
+					    data + sizeof(__be32),
+					    count - sizeof(__be32));
 }
 
 static int tcan4x5x_regmap_read(void *context,
-				const void *reg, size_t reg_size,
-				void *val, size_t val_size)
+				const void *reg_buf, size_t reg_len,
+				void *val_buf, size_t val_len)
 {
 	struct spi_device *spi = context;
+	struct tcan4x5x_priv *priv = spi_get_drvdata(spi);
+	struct tcan4x5x_map_buf *buf_rx = &priv->map_buf_rx;
+	struct tcan4x5x_map_buf *buf_tx = &priv->map_buf_tx;
+	struct spi_transfer xfer[] = {
+		{
+			.tx_buf = buf_tx,
+		}
+	};
+	struct spi_message msg;
+	int err;
 
-	u32 addr = TCAN4X5X_READ_CMD | (*((u16 *)reg) << 8) | val_size >> 2;
+	spi_message_init(&msg);
+	spi_message_add_tail(&xfer[0], &msg);
 
-	return spi_write_then_read(spi, &addr, reg_size, (u32 *)val, val_size);
+	memcpy(&buf_tx->cmd, reg_buf, sizeof(buf_tx->cmd.cmd) +
+	       sizeof(buf_tx->cmd.addr));
+	tcan4x5x_spi_cmd_set_len(&buf_tx->cmd, val_len);
+
+	xfer[0].rx_buf = buf_rx;
+	xfer[0].len = sizeof(buf_tx->cmd) + val_len;
+
+	if (TCAN4X5X_SANITIZE_SPI)
+		memset(buf_tx->data, 0x0, val_len);
+
+	err = spi_sync(spi, &msg);
+	if (err)
+		return err;
+
+	memcpy(val_buf, buf_rx->data, val_len);
+
+	return 0;
 }
 
 static const struct regmap_range tcan4x5x_reg_table_yes_range[] = {
@@ -66,21 +94,26 @@ static const struct regmap_access_table tcan4x5x_reg_table = {
 };
 
 static const struct regmap_config tcan4x5x_regmap = {
-	.reg_bits = 32,
+	.reg_bits = 24,
 	.reg_stride = 4,
+	.pad_bits = 8,
 	.val_bits = 32,
 	.wr_table = &tcan4x5x_reg_table,
 	.rd_table = &tcan4x5x_reg_table,
-	.cache_type = REGCACHE_NONE,
 	.max_register = TCAN4X5X_MAX_REGISTER,
+	.cache_type = REGCACHE_NONE,
+	.read_flag_mask = (__force unsigned long)
+		cpu_to_be32(TCAN4X5X_SPI_INSTRUCTION_READ),
+	.write_flag_mask = (__force unsigned long)
+		cpu_to_be32(TCAN4X5X_SPI_INSTRUCTION_WRITE),
 };
 
 static const struct regmap_bus tcan4x5x_bus = {
 	.write = tcan4x5x_regmap_write,
 	.gather_write = tcan4x5x_regmap_gather_write,
 	.read = tcan4x5x_regmap_read,
-	.reg_format_endian_default = REGMAP_ENDIAN_NATIVE,
-	.val_format_endian_default = REGMAP_ENDIAN_NATIVE,
+	.reg_format_endian_default = REGMAP_ENDIAN_BIG,
+	.val_format_endian_default = REGMAP_ENDIAN_BIG,
 	.max_raw_read = 256,
 	.max_raw_write = 256,
 };
