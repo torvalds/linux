@@ -817,12 +817,6 @@ static inline bool efi_enabled(int feature)
 static inline void
 efi_reboot(enum reboot_mode reboot_mode, const char *__unused) {}
 
-static inline bool
-efi_capsule_pending(int *reset_type)
-{
-	return false;
-}
-
 static inline bool efi_soft_reserve_enabled(void)
 {
 	return false;
@@ -1038,6 +1032,7 @@ bool efivar_validate(efi_guid_t vendor, efi_char16_t *var_name, u8 *data,
 bool efivar_variable_is_removable(efi_guid_t vendor, const char *name,
 				  size_t len);
 
+#if IS_ENABLED(CONFIG_EFI_CAPSULE_LOADER)
 extern bool efi_capsule_pending(int *reset_type);
 
 extern int efi_capsule_supported(efi_guid_t guid, u32 flags,
@@ -1045,6 +1040,9 @@ extern int efi_capsule_supported(efi_guid_t guid, u32 flags,
 
 extern int efi_capsule_update(efi_capsule_header_t *capsule,
 			      phys_addr_t *pages);
+#else
+static inline bool efi_capsule_pending(int *reset_type) { return false; }
+#endif
 
 #ifdef CONFIG_EFI_RUNTIME_MAP
 int efi_runtime_map_init(struct kobject *);

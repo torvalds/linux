@@ -147,7 +147,7 @@ config EFI_BOOTLOADER_CONTROL
 
 config EFI_CAPSULE_LOADER
 	tristate "EFI capsule loader"
-	depends on EFI
+	depends on EFI && !IA64
 	help
 	  This option exposes a loader interface "/dev/efi_capsule_loader" for
 	  users to load EFI capsules. This driver requires working runtime
