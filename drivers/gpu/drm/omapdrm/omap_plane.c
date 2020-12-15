@@ -72,17 +72,17 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 			&info.paddr, &info.p_uv_addr);
 
 	/* and finally, update omapdss: */
-	ret = priv->dispc_ops->ovl_setup(priv->dispc, omap_plane->id, &info,
+	ret = dispc_ovl_setup(priv->dispc, omap_plane->id, &info,
 			      omap_crtc_timings(state->crtc), false,
 			      omap_crtc_channel(state->crtc));
 	if (ret) {
 		dev_err(plane->dev->dev, "Failed to setup plane %s\n",
 			omap_plane->name);
-		priv->dispc_ops->ovl_enable(priv->dispc, omap_plane->id, false);
+		dispc_ovl_enable(priv->dispc, omap_plane->id, false);
 		return;
 	}
 
-	priv->dispc_ops->ovl_enable(priv->dispc, omap_plane->id, true);
+	dispc_ovl_enable(priv->dispc, omap_plane->id, true);
 }
 
 static void omap_plane_atomic_disable(struct drm_plane *plane,
@@ -95,7 +95,7 @@ static void omap_plane_atomic_disable(struct drm_plane *plane,
 	plane->state->zpos = plane->type == DRM_PLANE_TYPE_PRIMARY
 			   ? 0 : omap_plane->id;
 
-	priv->dispc_ops->ovl_enable(priv->dispc, omap_plane->id, false);
+	dispc_ovl_enable(priv->dispc, omap_plane->id, false);
 }
 
 static int omap_plane_atomic_check(struct drm_plane *plane,
@@ -240,8 +240,7 @@ static bool omap_plane_supports_yuv(struct drm_plane *plane)
 {
 	struct omap_drm_private *priv = plane->dev->dev_private;
 	struct omap_plane *omap_plane = to_omap_plane(plane);
-	const u32 *formats =
-		priv->dispc_ops->ovl_get_color_modes(priv->dispc, omap_plane->id);
+	const u32 *formats = dispc_ovl_get_color_modes(priv->dispc, omap_plane->id);
 	u32 i;
 
 	for (i = 0; formats[i]; i++)
@@ -273,7 +272,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 		u32 possible_crtcs)
 {
 	struct omap_drm_private *priv = dev->dev_private;
-	unsigned int num_planes = priv->dispc_ops->get_num_ovls(priv->dispc);
+	unsigned int num_planes = dispc_get_num_ovls(priv->dispc);
 	struct drm_plane *plane;
 	struct omap_plane *omap_plane;
 	enum omap_plane_id id;
@@ -292,7 +291,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	if (!omap_plane)
 		return ERR_PTR(-ENOMEM);
 
-	formats = priv->dispc_ops->ovl_get_color_modes(priv->dispc, id);
+	formats = dispc_ovl_get_color_modes(priv->dispc, id);
 	for (nformats = 0; formats[nformats]; ++nformats)
 		;
 	omap_plane->id = id;

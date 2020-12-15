@@ -21,11 +21,6 @@ struct dispc_device *dispc_get_dispc(struct dss_device *dss)
 	return dss->dispc;
 }
 
-const struct dispc_ops *dispc_get_ops(struct dss_device *dss)
-{
-	return dss->dispc_ops;
-}
-
 /* -----------------------------------------------------------------------------
  * OMAP DSS Devices Handling
  */
