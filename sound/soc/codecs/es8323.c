@@ -136,10 +136,6 @@ static const unsigned int es8323_line_values[] = {
 	0, 1, 3
 };
 
-static const char * const es8323_pga_sel[] = {
-	"Line 1", "Line 2", "Differential"
-};
-
 static const char * const stereo_3d_txt[] = {
 	"No 3D  ", "Level 1", "Level 2",
 	"Level 3", "Level 4", "Level 5",
@@ -173,8 +169,8 @@ static const char * const es8323_diff_sel[] = {
 static const struct soc_enum es8323_enum[] = {
 	SOC_VALUE_ENUM_SINGLE(ES8323_DACCONTROL16, 3, 7, ARRAY_SIZE(es8323_line_texts), es8323_line_texts, es8323_line_values),	/* LLINE */
 	SOC_VALUE_ENUM_SINGLE(ES8323_DACCONTROL16, 0, 7, ARRAY_SIZE(es8323_line_texts), es8323_line_texts, es8323_line_values),	/* RLINE */
-	SOC_VALUE_ENUM_SINGLE(ES8323_ADCCONTROL2, 6, 3, ARRAY_SIZE(es8323_pga_sel), es8323_line_texts, es8323_line_values),	/* Left PGA Mux */
-	SOC_VALUE_ENUM_SINGLE(ES8323_ADCCONTROL2, 4, 3, ARRAY_SIZE(es8323_pga_sel), es8323_line_texts, es8323_line_values),	/* Right PGA Mux */
+	SOC_VALUE_ENUM_SINGLE(ES8323_ADCCONTROL2, 6, 3, ARRAY_SIZE(es8323_line_texts), es8323_line_texts, es8323_line_values),	/* Left PGA Mux */
+	SOC_VALUE_ENUM_SINGLE(ES8323_ADCCONTROL2, 4, 3, ARRAY_SIZE(es8323_line_texts), es8323_line_texts, es8323_line_values),	/* Right PGA Mux */
 	SOC_ENUM_SINGLE(ES8323_DACCONTROL7, 2, 8, stereo_3d_txt),	/* stereo-3d */
 	SOC_ENUM_SINGLE(ES8323_ADCCONTROL10, 6, 4, alc_func_txt),	/* alc func */
 	SOC_ENUM_SINGLE(ES8323_ADCCONTROL14, 1, 2, ng_type_txt),	/* noise gate type */
