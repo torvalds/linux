@@ -1174,26 +1174,20 @@ int pci_platform_power_transition(struct pci_dev *dev, pci_power_t state)
 }
 EXPORT_SYMBOL_GPL(pci_platform_power_transition);
 
-/**
- * pci_wakeup - Wake up a PCI device
- * @pci_dev: Device to handle.
- * @ign: ignored parameter
- */
-static int pci_wakeup(struct pci_dev *pci_dev, void *ign)
+static int pci_resume_one(struct pci_dev *pci_dev, void *ign)
 {
-	pci_wakeup_event(pci_dev);
 	pm_request_resume(&pci_dev->dev);
 	return 0;
 }
 
 /**
- * pci_wakeup_bus - Walk given bus and wake up devices on it
+ * pci_resume_bus - Walk given bus and runtime resume devices on it
  * @bus: Top bus of the subtree to walk.
  */
-void pci_wakeup_bus(struct pci_bus *bus)
+void pci_resume_bus(struct pci_bus *bus)
 {
 	if (bus)
-		pci_walk_bus(bus, pci_wakeup, NULL);
+		pci_walk_bus(bus, pci_resume_one, NULL);
 }
 
 static int pci_dev_wait(struct pci_dev *dev, char *reset_type, int timeout)
@@ -1256,7 +1250,7 @@ int pci_power_up(struct pci_dev *dev)
 		 * may be powered on into D0uninitialized state, resume them to
 		 * give them a chance to suspend again
 		 */
-		pci_wakeup_bus(dev->subordinate);
+		pci_resume_bus(dev->subordinate);
 	}
 
 	return pci_raw_set_power_state(dev, PCI_D0);
