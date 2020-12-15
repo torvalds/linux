@@ -509,6 +509,8 @@ config_status(struct drm_i915_private *i915, u64 config)
 		if (!HAS_RC6(i915))
 			return -ENODEV;
 		break;
+	case I915_PMU_SOFTWARE_GT_AWAKE_TIME:
+		break;
 	default:
 		return -ENOENT;
 	}
@@ -615,6 +617,9 @@ static u64 __i915_pmu_event_read(struct perf_event *event)
 			break;
 		case I915_PMU_RC6_RESIDENCY:
 			val = get_rc6(&i915->gt);
+			break;
+		case I915_PMU_SOFTWARE_GT_AWAKE_TIME:
+			val = ktime_to_ns(intel_gt_get_awake_time(&i915->gt));
 			break;
 		}
 	}
@@ -916,6 +921,7 @@ create_event_attributes(struct i915_pmu *pmu)
 		__event(I915_PMU_REQUESTED_FREQUENCY, "requested-frequency", "M"),
 		__event(I915_PMU_INTERRUPTS, "interrupts", NULL),
 		__event(I915_PMU_RC6_RESIDENCY, "rc6-residency", "ns"),
+		__event(I915_PMU_SOFTWARE_GT_AWAKE_TIME, "software-gt-awake-time", "ns"),
 	};
 	static const struct {
 		enum drm_i915_pmu_engine_sample sample;
