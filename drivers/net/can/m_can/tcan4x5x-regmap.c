@@ -82,7 +82,6 @@ static const struct regmap_bus tcan4x5x_bus = {
 	.async_write = regmap_spi_async_write,
 	.async_alloc = regmap_spi_async_alloc,
 	.read = tcan4x5x_regmap_read,
-	.read_flag_mask = 0x00,
 	.reg_format_endian_default = REGMAP_ENDIAN_NATIVE,
 	.val_format_endian_default = REGMAP_ENDIAN_NATIVE,
 };
