@@ -1228,10 +1228,9 @@ found:
 	return h;
 }
 
-/*
- * XXX: use a higher watermark for allocating open buckets here:
- */
-static int new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h)
+static enum bucket_alloc_ret
+new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h,
+			 struct closure *cl)
 {
 	struct bch_devs_mask devs;
 	struct open_bucket *ob;
@@ -1239,7 +1238,7 @@ static int new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h)
 		min_t(unsigned, h->nr_active_devs,
 		      BCH_BKEY_PTRS_MAX) - h->redundancy;
 	bool have_cache = true;
-	int ret = 0;
+	enum bucket_alloc_ret ret = ALLOC_SUCCESS;
 
 	devs = h->devs;
 
@@ -1270,7 +1269,7 @@ static int new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h)
 					    &have_cache,
 					    RESERVE_NONE,
 					    0,
-					    NULL);
+					    cl);
 		if (ret)
 			goto err;
 	}
@@ -1286,7 +1285,7 @@ static int new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h)
 					    &have_cache,
 					    RESERVE_NONE,
 					    0,
-					    NULL);
+					    cl);
 		if (ret)
 			goto err;
 	}
@@ -1352,7 +1351,8 @@ static int get_stripe_key(struct bch_fs *c, u64 idx, struct ec_stripe_buf *strip
 struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
 					       unsigned target,
 					       unsigned algo,
-					       unsigned redundancy)
+					       unsigned redundancy,
+					       struct closure *cl)
 {
 	struct ec_stripe_head *h;
 	struct open_bucket *ob;
@@ -1421,14 +1421,13 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
 				bch2_ec_stripe_head_put(c, h);
 				h = NULL;
 				goto out;
-
 			}
-
 		}
 
-		if (new_stripe_alloc_buckets(c, h)) {
+		ret = new_stripe_alloc_buckets(c, h, cl);
+		if (ret) {
 			bch2_ec_stripe_head_put(c, h);
-			h = NULL;
+			h = ERR_PTR(-ret);
 			goto out;
 		}
 

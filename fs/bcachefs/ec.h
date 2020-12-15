@@ -146,8 +146,8 @@ void bch2_ec_bucket_cancel(struct bch_fs *, struct open_bucket *);
 int bch2_ec_stripe_new_alloc(struct bch_fs *, struct ec_stripe_head *);
 
 void bch2_ec_stripe_head_put(struct bch_fs *, struct ec_stripe_head *);
-struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *, unsigned,
-					       unsigned, unsigned);
+struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *,
+			unsigned, unsigned, unsigned, struct closure *);
 
 void bch2_stripes_heap_update(struct bch_fs *, struct stripe *, size_t);
 void bch2_stripes_heap_del(struct bch_fs *, struct stripe *, size_t);
