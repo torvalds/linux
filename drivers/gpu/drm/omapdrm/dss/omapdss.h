@@ -341,31 +341,23 @@ enum dss_writeback_channel {
 	DSS_WB_LCD3_MGR =	7,
 };
 
-struct dss_mgr_ops {
-	void (*start_update)(struct omap_drm_private *priv,
-			     enum omap_channel channel);
-	int (*enable)(struct omap_drm_private *priv,
-		      enum omap_channel channel);
-	void (*disable)(struct omap_drm_private *priv,
-			enum omap_channel channel);
-	void (*set_timings)(struct omap_drm_private *priv,
-			    enum omap_channel channel,
-			    const struct videomode *vm);
-	void (*set_lcd_config)(struct omap_drm_private *priv,
-			       enum omap_channel channel,
-			       const struct dss_lcd_mgr_config *config);
-	int (*register_framedone_handler)(struct omap_drm_private *priv,
-			enum omap_channel channel,
-			void (*handler)(void *), void *data);
-	void (*unregister_framedone_handler)(struct omap_drm_private *priv,
-			enum omap_channel channel,
-			void (*handler)(void *), void *data);
-};
-
-int dss_install_mgr_ops(struct dss_device *dss,
-			const struct dss_mgr_ops *mgr_ops,
-			struct omap_drm_private *priv);
-void dss_uninstall_mgr_ops(struct dss_device *dss);
+void omap_crtc_dss_start_update(struct omap_drm_private *priv,
+				       enum omap_channel channel);
+void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable);
+int omap_crtc_dss_enable(struct omap_drm_private *priv, enum omap_channel channel);
+void omap_crtc_dss_disable(struct omap_drm_private *priv, enum omap_channel channel);
+void omap_crtc_dss_set_timings(struct omap_drm_private *priv,
+		enum omap_channel channel,
+		const struct videomode *vm);
+void omap_crtc_dss_set_lcd_config(struct omap_drm_private *priv,
+		enum omap_channel channel,
+		const struct dss_lcd_mgr_config *config);
+int omap_crtc_dss_register_framedone(
+		struct omap_drm_private *priv, enum omap_channel channel,
+		void (*handler)(void *), void *data);
+void omap_crtc_dss_unregister_framedone(
+		struct omap_drm_private *priv, enum omap_channel channel,
+		void (*handler)(void *), void *data);
 
 void dss_mgr_set_timings(struct omap_dss_device *dssdev,
 		const struct videomode *vm);

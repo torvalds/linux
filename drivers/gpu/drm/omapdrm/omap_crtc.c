@@ -100,14 +100,14 @@ int omap_crtc_wait_pending(struct drm_crtc *crtc)
  * the upstream part of the video pipe.
  */
 
-static void omap_crtc_dss_start_update(struct omap_drm_private *priv,
+void omap_crtc_dss_start_update(struct omap_drm_private *priv,
 				       enum omap_channel channel)
 {
 	dispc_mgr_enable(priv->dispc, channel, true);
 }
 
 /* Called only from the encoder enable/disable and suspend/resume handlers. */
-static void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
+void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 {
 	struct omap_crtc_state *omap_state = to_omap_crtc_state(crtc->state);
 	struct drm_device *dev = crtc->dev;
@@ -180,8 +180,7 @@ static void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 }
 
 
-static int omap_crtc_dss_enable(struct omap_drm_private *priv,
-				enum omap_channel channel)
+int omap_crtc_dss_enable(struct omap_drm_private *priv, enum omap_channel channel)
 {
 	struct drm_crtc *crtc = priv->channels[channel]->crtc;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
@@ -193,8 +192,7 @@ static int omap_crtc_dss_enable(struct omap_drm_private *priv,
 	return 0;
 }
 
-static void omap_crtc_dss_disable(struct omap_drm_private *priv,
-				  enum omap_channel channel)
+void omap_crtc_dss_disable(struct omap_drm_private *priv, enum omap_channel channel)
 {
 	struct drm_crtc *crtc = priv->channels[channel]->crtc;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
@@ -202,7 +200,7 @@ static void omap_crtc_dss_disable(struct omap_drm_private *priv,
 	omap_crtc_set_enabled(&omap_crtc->base, false);
 }
 
-static void omap_crtc_dss_set_timings(struct omap_drm_private *priv,
+void omap_crtc_dss_set_timings(struct omap_drm_private *priv,
 		enum omap_channel channel,
 		const struct videomode *vm)
 {
@@ -213,7 +211,7 @@ static void omap_crtc_dss_set_timings(struct omap_drm_private *priv,
 	omap_crtc->vm = *vm;
 }
 
-static void omap_crtc_dss_set_lcd_config(struct omap_drm_private *priv,
+void omap_crtc_dss_set_lcd_config(struct omap_drm_private *priv,
 		enum omap_channel channel,
 		const struct dss_lcd_mgr_config *config)
 {
@@ -225,7 +223,7 @@ static void omap_crtc_dss_set_lcd_config(struct omap_drm_private *priv,
 					    config);
 }
 
-static int omap_crtc_dss_register_framedone(
+int omap_crtc_dss_register_framedone(
 		struct omap_drm_private *priv, enum omap_channel channel,
 		void (*handler)(void *), void *data)
 {
@@ -244,7 +242,7 @@ static int omap_crtc_dss_register_framedone(
 	return 0;
 }
 
-static void omap_crtc_dss_unregister_framedone(
+void omap_crtc_dss_unregister_framedone(
 		struct omap_drm_private *priv, enum omap_channel channel,
 		void (*handler)(void *), void *data)
 {
@@ -260,16 +258,6 @@ static void omap_crtc_dss_unregister_framedone(
 	omap_crtc->framedone_handler = NULL;
 	omap_crtc->framedone_handler_data = NULL;
 }
-
-static const struct dss_mgr_ops mgr_ops = {
-	.start_update = omap_crtc_dss_start_update,
-	.enable = omap_crtc_dss_enable,
-	.disable = omap_crtc_dss_disable,
-	.set_timings = omap_crtc_dss_set_timings,
-	.set_lcd_config = omap_crtc_dss_set_lcd_config,
-	.register_framedone_handler = omap_crtc_dss_register_framedone,
-	.unregister_framedone_handler = omap_crtc_dss_unregister_framedone,
-};
 
 /* -----------------------------------------------------------------------------
  * Setup, Flush and Page Flip
@@ -789,16 +777,6 @@ static const char *channel_names[] = {
 	[OMAP_DSS_CHANNEL_LCD2] = "lcd2",
 	[OMAP_DSS_CHANNEL_LCD3] = "lcd3",
 };
-
-void omap_crtc_pre_init(struct omap_drm_private *priv)
-{
-	dss_install_mgr_ops(priv->dss, &mgr_ops, priv);
-}
-
-void omap_crtc_pre_uninit(struct omap_drm_private *priv)
-{
-	dss_uninstall_mgr_ops(priv->dss);
-}
 
 /* initialize crtc */
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,

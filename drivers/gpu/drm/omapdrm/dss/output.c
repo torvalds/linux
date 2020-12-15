@@ -81,54 +81,35 @@ void omapdss_device_cleanup_output(struct omap_dss_device *out)
 					out->next_bridge : out->bridge);
 }
 
-int dss_install_mgr_ops(struct dss_device *dss,
-			const struct dss_mgr_ops *mgr_ops,
-			struct omap_drm_private *priv)
-{
-	if (dss->mgr_ops)
-		return -EBUSY;
-
-	dss->mgr_ops = mgr_ops;
-	dss->mgr_ops_priv = priv;
-
-	return 0;
-}
-
-void dss_uninstall_mgr_ops(struct dss_device *dss)
-{
-	dss->mgr_ops = NULL;
-	dss->mgr_ops_priv = NULL;
-}
-
 void dss_mgr_set_timings(struct omap_dss_device *dssdev,
 			 const struct videomode *vm)
 {
-	dssdev->dss->mgr_ops->set_timings(dssdev->dss->mgr_ops_priv,
+	omap_crtc_dss_set_timings(dssdev->dss->mgr_ops_priv,
 					  dssdev->dispc_channel, vm);
 }
 
 void dss_mgr_set_lcd_config(struct omap_dss_device *dssdev,
 		const struct dss_lcd_mgr_config *config)
 {
-	dssdev->dss->mgr_ops->set_lcd_config(dssdev->dss->mgr_ops_priv,
+	omap_crtc_dss_set_lcd_config(dssdev->dss->mgr_ops_priv,
 					     dssdev->dispc_channel, config);
 }
 
 int dss_mgr_enable(struct omap_dss_device *dssdev)
 {
-	return dssdev->dss->mgr_ops->enable(dssdev->dss->mgr_ops_priv,
+	return omap_crtc_dss_enable(dssdev->dss->mgr_ops_priv,
 					    dssdev->dispc_channel);
 }
 
 void dss_mgr_disable(struct omap_dss_device *dssdev)
 {
-	dssdev->dss->mgr_ops->disable(dssdev->dss->mgr_ops_priv,
+	omap_crtc_dss_disable(dssdev->dss->mgr_ops_priv,
 				      dssdev->dispc_channel);
 }
 
 void dss_mgr_start_update(struct omap_dss_device *dssdev)
 {
-	dssdev->dss->mgr_ops->start_update(dssdev->dss->mgr_ops_priv,
+	omap_crtc_dss_start_update(dssdev->dss->mgr_ops_priv,
 					   dssdev->dispc_channel);
 }
 
@@ -137,7 +118,7 @@ int dss_mgr_register_framedone_handler(struct omap_dss_device *dssdev,
 {
 	struct dss_device *dss = dssdev->dss;
 
-	return dss->mgr_ops->register_framedone_handler(dss->mgr_ops_priv,
+	return omap_crtc_dss_register_framedone(dss->mgr_ops_priv,
 							dssdev->dispc_channel,
 							handler, data);
 }
@@ -147,7 +128,7 @@ void dss_mgr_unregister_framedone_handler(struct omap_dss_device *dssdev,
 {
 	struct dss_device *dss = dssdev->dss;
 
-	dss->mgr_ops->unregister_framedone_handler(dss->mgr_ops_priv,
+	omap_crtc_dss_unregister_framedone(dss->mgr_ops_priv,
 						   dssdev->dispc_channel,
 						   handler, data);
 }
