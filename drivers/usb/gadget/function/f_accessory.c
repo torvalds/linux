@@ -274,7 +274,6 @@ static struct usb_gadget_strings *acc_strings[] = {
 	NULL,
 };
 
-/* temporary variable used between acc_open() and acc_gadget_bind() */
 static struct acc_dev *_acc_dev;
 
 struct acc_instance {
@@ -1307,7 +1306,6 @@ static int acc_setup(void)
 	INIT_WORK(&dev->getprotocol_work, acc_getprotocol_work);
 	INIT_WORK(&dev->sendstring_work, acc_sendstring_work);
 
-	/* _acc_dev must be set before calling usb_gadget_register_driver */
 	_acc_dev = dev;
 
 	ret = misc_register(&acc_device);
