@@ -9066,13 +9066,43 @@ int tracing_init_dentry(void)
 extern struct trace_eval_map *__start_ftrace_eval_maps[];
 extern struct trace_eval_map *__stop_ftrace_eval_maps[];
 
-static void __init trace_eval_init(void)
+static struct workqueue_struct *eval_map_wq __initdata;
+static struct work_struct eval_map_work __initdata;
+
+static void __init eval_map_work_func(struct work_struct *work)
 {
 	int len;
 
 	len = __stop_ftrace_eval_maps - __start_ftrace_eval_maps;
 	trace_insert_eval_map(NULL, __start_ftrace_eval_maps, len);
 }
+
+static int __init trace_eval_init(void)
+{
+	INIT_WORK(&eval_map_work, eval_map_work_func);
+
+	eval_map_wq = alloc_workqueue("eval_map_wq", WQ_UNBOUND, 0);
+	if (!eval_map_wq) {
+		pr_err("Unable to allocate eval_map_wq\n");
+		/* Do work here */
+		eval_map_work_func(&eval_map_work);
+		return -ENOMEM;
+	}
+
+	queue_work(eval_map_wq, &eval_map_work);
+	return 0;
+}
+
+static int __init trace_eval_sync(void)
+{
+	/* Make sure the eval map updates are finished */
+	if (eval_map_wq)
+		destroy_workqueue(eval_map_wq);
+	return 0;
+}
+
+late_initcall_sync(trace_eval_sync);
+
 
 #ifdef CONFIG_MODULES
 static void trace_module_add_evals(struct module *mod)
