@@ -740,7 +740,7 @@ static int cx2072x_config_pll(struct cx2072x_priv *cx2072x)
 	unsigned int pll_output;
 	unsigned int int_div;
 	unsigned int frac_div;
-	unsigned long frac_num = 0;
+	u64 frac_num = 0;
 	unsigned int sample_rate = cx2072x->sample_rate;
 	int pt_sample_per_sync = 2;
 	int pt_clock_per_sample = 96;
@@ -774,9 +774,9 @@ static int cx2072x_config_pll(struct cx2072x_priv *cx2072x)
 	if (frac_div) {
 		frac_div *= 1000;
 		frac_div /= pll_input;
-		frac_num = ((4000 + frac_div) * ((1 << 20) - 4));
-		do_div(frac_num, 7);
-		frac_num = (frac_num + 499) / 1000;
+		frac_num = ((4000ULL + frac_div) * ((1 << 20) - 4));
+		frac_num = div_u64(frac_num, 7);
+		frac_num = div_u64(frac_num + 499, 1000);
 	}
 	pre_div_val = (pre_div - 1) * 2;
 
@@ -833,7 +833,7 @@ static int cx2072x_config_i2spcm(struct cx2072x_priv *cx2072x)
 	int is_big_endian = 1;
 	const int slots_per_channel = cx2072x->tdm_slot_width / BITS_PER_SLOT;
 	const unsigned int fmt = cx2072x->dai_fmt;
-	unsigned long mod, div;
+	u64 mod, div;
 	union REG_I2SPCM_CTRL_REG1 reg1;
 	union REG_I2SPCM_CTRL_REG2 reg2;
 	union REG_I2SPCM_CTRL_REG3 reg3;
