@@ -11313,7 +11313,6 @@ L:	linux-pm@vger.kernel.org
 L:	linux-tegra@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/chanwoo/linux.git
 S:	Maintained
-F:	drivers/devfreq/tegra20-devfreq.c
 F:	drivers/devfreq/tegra30-devfreq.c
 
 MEMORY MANAGEMENT

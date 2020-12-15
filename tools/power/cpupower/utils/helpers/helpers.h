@@ -94,6 +94,8 @@ struct cpupower_cpu_info {
  */
 extern int get_cpu_info(struct cpupower_cpu_info *cpu_info);
 extern struct cpupower_cpu_info cpupower_cpu_info;
+
+
 /* cpuid and cpuinfo helpers  **************************/
 
 /* X86 ONLY ****************************************/
@@ -170,5 +172,15 @@ static inline unsigned int cpuid_ebx(unsigned int op) { return 0; };
 static inline unsigned int cpuid_ecx(unsigned int op) { return 0; };
 static inline unsigned int cpuid_edx(unsigned int op) { return 0; };
 #endif /* defined(__i386__) || defined(__x86_64__) */
+
+/*
+ * CPU State related functions
+ */
+extern struct bitmask *online_cpus;
+extern struct bitmask *offline_cpus;
+
+void get_cpustate(void);
+void print_online_cpus(void);
+void print_offline_cpus(void);
 
 #endif /* __CPUPOWERUTILS_HELPERS__ */
