@@ -1291,6 +1291,8 @@ static int userfaultfd_stress(void)
 			printf(" ver");
 		if (bounces & BOUNCE_POLL)
 			printf(" poll");
+		else
+			printf(" read");
 		printf(", ");
 		fflush(stdout);
 
