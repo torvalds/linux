@@ -2982,6 +2982,8 @@ L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	arch/*/include/asm/atomic*.h
 F:	include/*/atomic*.h
+F:	include/linux/refcount.h
+F:	Documentation/atomic_*.txt
 F:	scripts/atomic/
 
 ATTO EXPRESSSAS SAS/SATA RAID SCSI DRIVER
@@ -7360,6 +7362,17 @@ L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/base/arch_topology.c
 F:	include/linux/arch_topology.h
+
+GENERIC ENTRY CODE
+M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Peter Zijlstra <peterz@infradead.org>
+M:	Andy Lutomirski <luto@kernel.org>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git core/entry
+F:	include/linux/entry-common.h
+F:	include/linux/entry-kvm.h
+F:	kernel/entry/
 
 GENERIC GPIO I2C DRIVER
 M:	Wolfram Sang <wsa+renesas@sang-engineering.com>
@@ -15042,6 +15055,7 @@ M:	Philipp Zabel <p.zabel@pengutronix.de>
 S:	Maintained
 T:	git git://git.pengutronix.de/git/pza/linux
 F:	Documentation/devicetree/bindings/reset/
+F:	Documentation/driver-api/reset.rst
 F:	drivers/reset/
 F:	include/dt-bindings/reset/
 F:	include/linux/reset-controller.h

@@ -1,5 +1,10 @@
 .. _reportingbugs:
 
+.. note::
+
+   This document is obsolete, and will be replaced by
+   'Documentation/admin-guide/reporting-issues.rst' in the near future.
+
 Reporting bugs
 ++++++++++++++
 

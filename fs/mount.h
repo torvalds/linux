@@ -6,7 +6,6 @@
 #include <linux/fs_pin.h>
 
 struct mnt_namespace {
-	atomic_t		count;
 	struct ns_common	ns;
 	struct mount *	root;
 	/*
@@ -120,7 +119,7 @@ static inline void detach_mounts(struct dentry *dentry)
 
 static inline void get_mnt_ns(struct mnt_namespace *ns)
 {
-	atomic_inc(&ns->count);
+	refcount_inc(&ns->ns.count);
 }
 
 extern seqlock_t mount_lock;

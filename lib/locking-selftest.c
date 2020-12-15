@@ -58,10 +58,10 @@ static struct ww_mutex o, o2, o3;
  * Normal standalone locks, for the circular and irq-context
  * dependency tests:
  */
-static DEFINE_RAW_SPINLOCK(lock_A);
-static DEFINE_RAW_SPINLOCK(lock_B);
-static DEFINE_RAW_SPINLOCK(lock_C);
-static DEFINE_RAW_SPINLOCK(lock_D);
+static DEFINE_SPINLOCK(lock_A);
+static DEFINE_SPINLOCK(lock_B);
+static DEFINE_SPINLOCK(lock_C);
+static DEFINE_SPINLOCK(lock_D);
 
 static DEFINE_RWLOCK(rwlock_A);
 static DEFINE_RWLOCK(rwlock_B);
@@ -93,12 +93,12 @@ static DEFINE_RT_MUTEX(rtmutex_D);
  * but X* and Y* are different classes. We do this so that
  * we do not trigger a real lockup:
  */
-static DEFINE_RAW_SPINLOCK(lock_X1);
-static DEFINE_RAW_SPINLOCK(lock_X2);
-static DEFINE_RAW_SPINLOCK(lock_Y1);
-static DEFINE_RAW_SPINLOCK(lock_Y2);
-static DEFINE_RAW_SPINLOCK(lock_Z1);
-static DEFINE_RAW_SPINLOCK(lock_Z2);
+static DEFINE_SPINLOCK(lock_X1);
+static DEFINE_SPINLOCK(lock_X2);
+static DEFINE_SPINLOCK(lock_Y1);
+static DEFINE_SPINLOCK(lock_Y2);
+static DEFINE_SPINLOCK(lock_Z1);
+static DEFINE_SPINLOCK(lock_Z2);
 
 static DEFINE_RWLOCK(rwlock_X1);
 static DEFINE_RWLOCK(rwlock_X2);
@@ -138,10 +138,10 @@ static DEFINE_RT_MUTEX(rtmutex_Z2);
  */
 #define INIT_CLASS_FUNC(class) 				\
 static noinline void					\
-init_class_##class(raw_spinlock_t *lock, rwlock_t *rwlock, \
+init_class_##class(spinlock_t *lock, rwlock_t *rwlock, \
 	struct mutex *mutex, struct rw_semaphore *rwsem)\
 {							\
-	raw_spin_lock_init(lock);			\
+	spin_lock_init(lock);			\
 	rwlock_init(rwlock);				\
 	mutex_init(mutex);				\
 	init_rwsem(rwsem);				\
@@ -210,10 +210,10 @@ static void init_shared_classes(void)
  * Shortcuts for lock/unlock API variants, to keep
  * the testcases compact:
  */
-#define L(x)			raw_spin_lock(&lock_##x)
-#define U(x)			raw_spin_unlock(&lock_##x)
+#define L(x)			spin_lock(&lock_##x)
+#define U(x)			spin_unlock(&lock_##x)
 #define LU(x)			L(x); U(x)
-#define SI(x)			raw_spin_lock_init(&lock_##x)
+#define SI(x)			spin_lock_init(&lock_##x)
 
 #define WL(x)			write_lock(&rwlock_##x)
 #define WU(x)			write_unlock(&rwlock_##x)
@@ -1341,7 +1341,7 @@ GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion3_soft_wlock)
 
 #define I2(x)					\
 	do {					\
-		raw_spin_lock_init(&lock_##x);	\
+		spin_lock_init(&lock_##x);	\
 		rwlock_init(&rwlock_##x);	\
 		mutex_init(&mutex_##x);		\
 		init_rwsem(&rwsem_##x);		\
@@ -2005,8 +2005,21 @@ static void ww_test_edeadlk_acquire_wrong_slow(void)
 
 static void ww_test_spin_nest_unlocked(void)
 {
-	raw_spin_lock_nest_lock(&lock_A, &o.base);
+	spin_lock_nest_lock(&lock_A, &o.base);
 	U(A);
+}
+
+/* This is not a deadlock, because we have X1 to serialize Y1 and Y2 */
+static void ww_test_spin_nest_lock(void)
+{
+	spin_lock(&lock_X1);
+	spin_lock_nest_lock(&lock_Y1, &lock_X1);
+	spin_lock(&lock_A);
+	spin_lock_nest_lock(&lock_Y2, &lock_X1);
+	spin_unlock(&lock_A);
+	spin_unlock(&lock_Y2);
+	spin_unlock(&lock_Y1);
+	spin_unlock(&lock_X1);
 }
 
 static void ww_test_unneeded_slow(void)
@@ -2224,6 +2237,10 @@ static void ww_tests(void)
 
 	print_testname("spinlock nest unlocked");
 	dotest(ww_test_spin_nest_unlocked, FAILURE, LOCKTYPE_WW);
+	pr_cont("\n");
+
+	print_testname("spinlock nest test");
+	dotest(ww_test_spin_nest_lock, SUCCESS, LOCKTYPE_WW);
 	pr_cont("\n");
 
 	printk("  -----------------------------------------------------\n");

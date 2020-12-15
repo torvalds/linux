@@ -388,6 +388,8 @@ extern int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
 	compat_arch_setup_additional_pages(bprm, interpreter,		\
 					   (ex->e_machine == EM_X86_64))
 
+extern bool arch_syscall_is_vdso_sigreturn(struct pt_regs *regs);
+
 /* Do not change the values. See get_align_mask() */
 enum align_flags {
 	ALIGN_VA_32	= BIT(0),

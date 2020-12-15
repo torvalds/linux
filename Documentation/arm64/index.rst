@@ -24,6 +24,8 @@ ARM64 Architecture
     tagged-address-abi
     tagged-pointers
 
+    features
+
 .. only::  subproject and html
 
    Indices
