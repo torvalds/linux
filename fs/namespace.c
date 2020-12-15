@@ -3274,7 +3274,7 @@ static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *user_ns, bool a
 	new_ns->ns.ops = &mntns_operations;
 	if (!anon)
 		new_ns->seq = atomic64_add_return(1, &mnt_ns_seq);
-	atomic_set(&new_ns->count, 1);
+	refcount_set(&new_ns->ns.count, 1);
 	INIT_LIST_HEAD(&new_ns->list);
 	init_waitqueue_head(&new_ns->poll);
 	spin_lock_init(&new_ns->ns_lock);
@@ -3848,7 +3848,7 @@ void __init mnt_init(void)
 
 void put_mnt_ns(struct mnt_namespace *ns)
 {
-	if (!atomic_dec_and_test(&ns->count))
+	if (!refcount_dec_and_test(&ns->ns.count))
 		return;
 	drop_collected_mounts(&ns->root->mnt);
 	free_mnt_ns(ns);
