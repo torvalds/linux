@@ -23,6 +23,7 @@ config SND_SOC_SH4_SSI
 
 config SND_SOC_SH4_FSI
 	tristate "SH4 FSI support"
+	depends on SUPERH || COMMON_CLK
 	select SND_SIMPLE_CARD
 	help
 	  This option enables FSI sound support
