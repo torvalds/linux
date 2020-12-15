@@ -621,12 +621,9 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 			   from_kgid_munged(&init_user_ns,
 					    cifs_sb->ctx->backupgid));
 
-	if (cifs_sb->ctx->got_rsize)
-		seq_printf(s, ",rsize=%u", cifs_sb->ctx->rsize);
-	if (cifs_sb->ctx->got_wsize)
-		seq_printf(s, ",wsize=%u", cifs_sb->ctx->wsize);
-	if (cifs_sb->ctx->got_bsize)
-		seq_printf(s, ",bsize=%u", cifs_sb->ctx->bsize);
+	seq_printf(s, ",rsize=%u", cifs_sb->ctx->rsize);
+	seq_printf(s, ",wsize=%u", cifs_sb->ctx->wsize);
+	seq_printf(s, ",bsize=%u", cifs_sb->ctx->bsize);
 	if (tcon->ses->server->min_offload)
 		seq_printf(s, ",esize=%u", tcon->ses->server->min_offload);
 	seq_printf(s, ",echo_interval=%lu",
