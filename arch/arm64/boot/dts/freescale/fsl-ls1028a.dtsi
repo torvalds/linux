@@ -93,7 +93,7 @@
 	reboot {
 		compatible ="syscon-reboot";
 		regmap = <&rst>;
-		offset = <0xb0>;
+		offset = <0>;
 		mask = <0x02>;
 	};
 
