@@ -22,6 +22,7 @@
 #include <linux/of_pci.h>
 #include <linux/of_platform.h>
 #include <linux/pci.h>
+#include <linux/pci-ecam.h>
 #include <linux/printk.h>
 #include <linux/reset.h>
 #include <linux/sizes.h>
@@ -127,11 +128,7 @@
 #define  MSI_INT_MASK_CLR		0x14
 
 #define PCIE_EXT_CFG_DATA				0x8000
-
 #define PCIE_EXT_CFG_INDEX				0x9000
-#define  PCIE_EXT_BUSNUM_SHIFT				20
-#define  PCIE_EXT_SLOT_SHIFT				15
-#define  PCIE_EXT_FUNC_SHIFT				12
 
 #define  PCIE_RGR1_SW_INIT_1_PERST_MASK			0x1
 #define  PCIE_RGR1_SW_INIT_1_PERST_SHIFT		0x0
@@ -695,15 +692,6 @@ static bool brcm_pcie_link_up(struct brcm_pcie *pcie)
 	return dla && plu;
 }
 
-/* Configuration space read/write support */
-static inline int brcm_pcie_cfg_index(int busnr, int devfn, int reg)
-{
-	return ((PCI_SLOT(devfn) & 0x1f) << PCIE_EXT_SLOT_SHIFT)
-		| ((PCI_FUNC(devfn) & 0x07) << PCIE_EXT_FUNC_SHIFT)
-		| (busnr << PCIE_EXT_BUSNUM_SHIFT)
-		| (reg & ~3);
-}
-
 static void __iomem *brcm_pcie_map_conf(struct pci_bus *bus, unsigned int devfn,
 					int where)
 {
@@ -716,7 +704,7 @@ static void __iomem *brcm_pcie_map_conf(struct pci_bus *bus, unsigned int devfn,
 		return PCI_SLOT(devfn) ? NULL : base + where;
 
 	/* For devices, write to the config space index register */
-	idx = brcm_pcie_cfg_index(bus->number, devfn, 0);
+	idx = PCIE_ECAM_OFFSET(bus->number, devfn, 0);
 	writel(idx, pcie->base + PCIE_EXT_CFG_INDEX);
 	return base + PCIE_EXT_CFG_DATA + where;
 }
