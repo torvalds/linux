@@ -110,6 +110,8 @@ static inline
 void amd_iommu_domain_set_pt_root(struct protection_domain *domain, u64 root)
 {
 	atomic64_set(&domain->iop.pt_root, root);
+	domain->iop.root = (u64 *)(root & PAGE_MASK);
+	domain->iop.mode = root & 7; /* lowest 3 bits encode pgtable mode */
 }
 
 static inline
@@ -144,8 +146,6 @@ extern unsigned long iommu_unmap_page(struct protection_domain *dom,
 extern u64 *fetch_pte(struct protection_domain *domain,
 		      unsigned long address,
 		      unsigned long *page_size);
-extern void amd_iommu_domain_get_pgtable(struct protection_domain *domain,
-					 struct domain_pgtable *pgtable);
 extern void amd_iommu_domain_set_pgtable(struct protection_domain *domain,
 					 u64 *root, int mode);
 #endif

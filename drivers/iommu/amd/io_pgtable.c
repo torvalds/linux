@@ -178,30 +178,27 @@ static bool increase_address_space(struct protection_domain *domain,
 				   unsigned long address,
 				   gfp_t gfp)
 {
-	struct domain_pgtable pgtable;
 	unsigned long flags;
 	bool ret = true;
 	u64 *pte;
 
 	spin_lock_irqsave(&domain->lock, flags);
 
-	amd_iommu_domain_get_pgtable(domain, &pgtable);
-
-	if (address <= PM_LEVEL_SIZE(pgtable.mode))
+	if (address <= PM_LEVEL_SIZE(domain->iop.mode))
 		goto out;
 
 	ret = false;
-	if (WARN_ON_ONCE(pgtable.mode == PAGE_MODE_6_LEVEL))
+	if (WARN_ON_ONCE(domain->iop.mode == PAGE_MODE_6_LEVEL))
 		goto out;
 
 	pte = (void *)get_zeroed_page(gfp);
 	if (!pte)
 		goto out;
 
-	*pte = PM_LEVEL_PDE(pgtable.mode, iommu_virt_to_phys(pgtable.root));
+	*pte = PM_LEVEL_PDE(domain->iop.mode, iommu_virt_to_phys(domain->iop.root));
 
-	pgtable.root  = pte;
-	pgtable.mode += 1;
+	domain->iop.root  = pte;
+	domain->iop.mode += 1;
 	amd_iommu_update_and_flush_device_table(domain);
 	amd_iommu_domain_flush_complete(domain);
 
@@ -209,7 +206,7 @@ static bool increase_address_space(struct protection_domain *domain,
 	 * Device Table needs to be updated and flushed before the new root can
 	 * be published.
 	 */
-	amd_iommu_domain_set_pgtable(domain, pte, pgtable.mode);
+	amd_iommu_domain_set_pgtable(domain, pte, domain->iop.mode);
 
 	ret = true;
 
@@ -226,29 +223,23 @@ static u64 *alloc_pte(struct protection_domain *domain,
 		      gfp_t gfp,
 		      bool *updated)
 {
-	struct domain_pgtable pgtable;
 	int level, end_lvl;
 	u64 *pte, *page;
 
 	BUG_ON(!is_power_of_2(page_size));
 
-	amd_iommu_domain_get_pgtable(domain, &pgtable);
-
-	while (address > PM_LEVEL_SIZE(pgtable.mode)) {
+	while (address > PM_LEVEL_SIZE(domain->iop.mode)) {
 		/*
 		 * Return an error if there is no memory to update the
 		 * page-table.
 		 */
 		if (!increase_address_space(domain, address, gfp))
 			return NULL;
-
-		/* Read new values to check if update was successful */
-		amd_iommu_domain_get_pgtable(domain, &pgtable);
 	}
 
 
-	level   = pgtable.mode - 1;
-	pte     = &pgtable.root[PM_LEVEL_INDEX(level, address)];
+	level   = domain->iop.mode - 1;
+	pte     = &domain->iop.root[PM_LEVEL_INDEX(level, address)];
 	address = PAGE_SIZE_ALIGN(address, page_size);
 	end_lvl = PAGE_SIZE_LEVEL(page_size);
 
@@ -324,19 +315,16 @@ u64 *fetch_pte(struct protection_domain *domain,
 	       unsigned long address,
 	       unsigned long *page_size)
 {
-	struct domain_pgtable pgtable;
 	int level;
 	u64 *pte;
 
 	*page_size = 0;
 
-	amd_iommu_domain_get_pgtable(domain, &pgtable);
-
-	if (address > PM_LEVEL_SIZE(pgtable.mode))
+	if (address > PM_LEVEL_SIZE(domain->iop.mode))
 		return NULL;
 
-	level	   =  pgtable.mode - 1;
-	pte	   = &pgtable.root[PM_LEVEL_INDEX(level, address)];
+	level	   =  domain->iop.mode - 1;
+	pte	   = &domain->iop.root[PM_LEVEL_INDEX(level, address)];
 	*page_size =  PTE_LEVEL_PAGE_SIZE(level);
 
 	while (level > 0) {

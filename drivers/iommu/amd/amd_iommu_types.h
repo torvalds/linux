@@ -519,12 +519,6 @@ struct protection_domain {
 	unsigned dev_iommu[MAX_IOMMUS]; /* per-IOMMU reference count */
 };
 
-/* For decocded pt_root */
-struct domain_pgtable {
-	int mode;
-	u64 *root;
-};
-
 /*
  * Structure where we save information about one hardware AMD IOMMU in the
  * system.
