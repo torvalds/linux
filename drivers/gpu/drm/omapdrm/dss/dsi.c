@@ -280,6 +280,11 @@ struct dsi_isr_tables {
 	struct dsi_isr_data isr_table_cio[DSI_MAX_NR_ISRS];
 };
 
+struct dsi_lp_clock_info {
+	unsigned long lp_clk;
+	u16 lp_clk_div;
+};
+
 struct dsi_clk_calc_ctx {
 	struct dsi_data *dsi;
 	struct dss_pll *pll;
@@ -294,14 +299,10 @@ struct dsi_clk_calc_ctx {
 
 	struct dss_pll_clock_info dsi_cinfo;
 	struct dispc_clock_info dispc_cinfo;
+	struct dsi_lp_clock_info lp_cinfo;
 
 	struct videomode vm;
 	struct omap_dss_dsi_videomode_timings dsi_vm;
-};
-
-struct dsi_lp_clock_info {
-	unsigned long lp_clk;
-	u16 lp_clk_div;
 };
 
 struct dsi_module_id_data {
@@ -4790,44 +4791,55 @@ static bool dsi_is_video_mode(struct omap_dss_device *dssdev)
 	return dsi->mode == OMAP_DSS_DSI_VIDEO_MODE;
 }
 
+static int __dsi_calc_config(struct dsi_data *dsi,
+		const struct drm_display_mode *mode,
+		struct dsi_clk_calc_ctx *ctx)
+{
+	struct omap_dss_dsi_config cfg = dsi->config;
+	struct videomode vm;
+	bool ok;
+	int r;
+
+	drm_display_mode_to_videomode(mode, &vm);
+
+	cfg.vm = &vm;
+	cfg.mode = dsi->mode;
+	cfg.pixel_format = dsi->pix_fmt;
+
+	if (dsi->mode == OMAP_DSS_DSI_VIDEO_MODE)
+		ok = dsi_vm_calc(dsi, &cfg, ctx);
+	else
+		ok = dsi_cm_calc(dsi, &cfg, ctx);
+
+	if (!ok)
+		return -EINVAL;
+
+	dsi_pll_calc_dsi_fck(dsi, &ctx->dsi_cinfo);
+
+	r = dsi_lp_clock_calc(ctx->dsi_cinfo.clkout[HSDIV_DSI],
+		cfg.lp_clk_min, cfg.lp_clk_max, &ctx->lp_cinfo);
+	if (r)
+		return r;
+
+	return 0;
+}
+
 static int dsi_set_config(struct omap_dss_device *dssdev,
 		const struct drm_display_mode *mode)
 {
 	struct dsi_data *dsi = to_dsi_data(dssdev);
 	struct dsi_clk_calc_ctx ctx;
-	struct videomode vm;
-	struct omap_dss_dsi_config cfg = dsi->config;
-	bool ok;
 	int r;
-
-	drm_display_mode_to_videomode(mode, &vm);
-	cfg.vm = &vm;
 
 	mutex_lock(&dsi->lock);
 
-	cfg.mode = dsi->mode;
-	cfg.pixel_format = dsi->pix_fmt;
-
-	if (dsi->mode == OMAP_DSS_DSI_VIDEO_MODE)
-		ok = dsi_vm_calc(dsi, &cfg, &ctx);
-	else
-		ok = dsi_cm_calc(dsi, &cfg, &ctx);
-
-	if (!ok) {
-		DSSERR("failed to find suitable DSI clock settings\n");
-		r = -EINVAL;
-		goto err;
-	}
-
-	dsi_pll_calc_dsi_fck(dsi, &ctx.dsi_cinfo);
-
-	r = dsi_lp_clock_calc(ctx.dsi_cinfo.clkout[HSDIV_DSI],
-		cfg.lp_clk_min, cfg.lp_clk_max, &dsi->user_lp_cinfo);
+	r = __dsi_calc_config(dsi, mode, &ctx);
 	if (r) {
-		DSSERR("failed to find suitable DSI LP clock settings\n");
+		DSSERR("failed to find suitable DSI clock settings\n");
 		goto err;
 	}
 
+	dsi->user_lp_cinfo = ctx.lp_cinfo;
 	dsi->user_dsi_cinfo = ctx.dsi_cinfo;
 	dsi->user_dispc_cinfo = ctx.dispc_cinfo;
 
@@ -5004,11 +5016,17 @@ static void dsi_set_timings(struct omap_dss_device *dssdev,
 static int dsi_check_timings(struct omap_dss_device *dssdev,
 			     struct drm_display_mode *mode)
 {
+	struct dsi_data *dsi = to_dsi_data(dssdev);
+	struct dsi_clk_calc_ctx ctx;
+	int r;
+
 	DSSDBG("dsi_check_timings\n");
 
-	/* TODO */
+	mutex_lock(&dsi->lock);
+	r = __dsi_calc_config(dsi, mode, &ctx);
+	mutex_unlock(&dsi->lock);
 
-	return 0;
+	return r;
 }
 
 static int dsi_connect(struct omap_dss_device *src,
