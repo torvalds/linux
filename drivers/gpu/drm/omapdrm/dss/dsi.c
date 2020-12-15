@@ -2615,7 +2615,7 @@ static inline void dsi_vc_write_long_header(struct dsi_data *dsi, int vc,
 
 	WARN_ON(!dsi_bus_is_locked(dsi));
 
-	data_id = data_type | vc << 6;
+	data_id = data_type | channel << 6;
 
 	val = FLD_VAL(data_id, 7, 0) | FLD_VAL(len, 23, 8) |
 		FLD_VAL(ecc, 31, 24);
@@ -2649,12 +2649,12 @@ static int dsi_vc_send_long(struct dsi_data *dsi, int vc,
 		DSSDBG("dsi_vc_send_long, %d bytes\n", msg->tx_len);
 
 	/* len + header */
-	if (dsi->vc[msg->channel].tx_fifo_size * 32 * 4 < msg->tx_len + 4) {
+	if (dsi->vc[vc].tx_fifo_size * 32 * 4 < msg->tx_len + 4) {
 		DSSERR("unable to send long packet: packet too long.\n");
 		return -EINVAL;
 	}
 
-	dsi_vc_config_source(dsi, msg->channel, DSI_VC_SOURCE_L4);
+	dsi_vc_config_source(dsi, vc, DSI_VC_SOURCE_L4);
 
 	dsi_vc_write_long_header(dsi, vc, msg->channel, msg->type, msg->tx_len, 0);
 
@@ -2668,7 +2668,7 @@ static int dsi_vc_send_long(struct dsi_data *dsi, int vc,
 		b3 = *p++;
 		b4 = *p++;
 
-		dsi_vc_write_long_payload(dsi, msg->channel, b1, b2, b3, b4);
+		dsi_vc_write_long_payload(dsi, vc, b1, b2, b3, b4);
 	}
 
 	i = msg->tx_len % 4;
@@ -2693,7 +2693,7 @@ static int dsi_vc_send_long(struct dsi_data *dsi, int vc,
 			break;
 		}
 
-		dsi_vc_write_long_payload(dsi, msg->channel, b1, b2, b3, 0);
+		dsi_vc_write_long_payload(dsi, vc, b1, b2, b3, 0);
 	}
 
 	return r;
@@ -2712,12 +2712,12 @@ static int dsi_vc_send_short(struct dsi_data *dsi, int vc,
 	WARN_ON(!dsi_bus_is_locked(dsi));
 
 	if (dsi->debug_write)
-		DSSDBG("dsi_vc_send_short(ch%d, dt %#x, b1 %#x, b2 %#x)\n",
-		       msg->channel, msg->type, pkt.header[1], pkt.header[2]);
+		DSSDBG("dsi_vc_send_short(vc%d, dt %#x, b1 %#x, b2 %#x)\n",
+		       vc, msg->type, pkt.header[1], pkt.header[2]);
 
-	dsi_vc_config_source(dsi, msg->channel, DSI_VC_SOURCE_L4);
+	dsi_vc_config_source(dsi, vc, DSI_VC_SOURCE_L4);
 
-	if (FLD_GET(dsi_read_reg(dsi, DSI_VC_CTRL(msg->channel)), 16, 16)) {
+	if (FLD_GET(dsi_read_reg(dsi, DSI_VC_CTRL(vc)), 16, 16)) {
 		DSSERR("ERROR FIFO FULL, aborting transfer\n");
 		return -EINVAL;
 	}
@@ -2725,7 +2725,7 @@ static int dsi_vc_send_short(struct dsi_data *dsi, int vc,
 	r = pkt.header[3] << 24 | pkt.header[2] << 16 | pkt.header[1] << 8 |
 	    pkt.header[0];
 
-	dsi_write_reg(dsi, DSI_VC_SHORT_PACKET_HEADER(msg->channel), r);
+	dsi_write_reg(dsi, DSI_VC_SHORT_PACKET_HEADER(vc), r);
 
 	return 0;
 }
@@ -2733,7 +2733,7 @@ static int dsi_vc_send_short(struct dsi_data *dsi, int vc,
 static int dsi_vc_send_null(struct dsi_data *dsi, int vc, int channel)
 {
 	const struct mipi_dsi_msg msg = {
-		.channel = vc,
+		.channel = channel,
 		.type = MIPI_DSI_NULL_PACKET,
 	};
 
@@ -2761,16 +2761,16 @@ static int dsi_vc_write_common(struct omap_dss_device *dssdev, int vc,
 	 * In that case we can return early.
 	 */
 
-	r = dsi_vc_send_bta_sync(dssdev, msg->channel);
+	r = dsi_vc_send_bta_sync(dssdev, vc);
 	if (r) {
 		DSSERR("bta sync failed\n");
 		return r;
 	}
 
 	/* RX_FIFO_NOT_EMPTY */
-	if (REG_GET(dsi, DSI_VC_CTRL(msg->channel), 20, 20)) {
+	if (REG_GET(dsi, DSI_VC_CTRL(vc), 20, 20)) {
 		DSSERR("rx fifo not empty after write, dumping data:\n");
-		dsi_vc_flush_receive_data(dsi, msg->channel);
+		dsi_vc_flush_receive_data(dsi, vc);
 		return -EIO;
 	}
 
@@ -2890,21 +2890,20 @@ static int dsi_vc_dcs_read(struct omap_dss_device *dssdev, int vc,
 {
 	struct dsi_data *dsi = to_dsi_data(dssdev);
 	u8 cmd = ((u8 *)msg->tx_buf)[0];
-	u8 channel = msg->channel;
 	int r;
 
 	if (dsi->debug_read)
-		DSSDBG("%s(ch %d, cmd %x)\n", __func__, channel, cmd);
+		DSSDBG("%s(vc %d, cmd %x)\n", __func__, vc, cmd);
 
 	r = dsi_vc_send_short(dsi, vc, msg);
 	if (r)
 		goto err;
 
-	r = dsi_vc_send_bta_sync(dssdev, channel);
+	r = dsi_vc_send_bta_sync(dssdev, vc);
 	if (r)
 		goto err;
 
-	r = dsi_vc_read_rx_fifo(dsi, channel, msg->rx_buf, msg->rx_len,
+	r = dsi_vc_read_rx_fifo(dsi, vc, msg->rx_buf, msg->rx_len,
 		DSS_DSI_CONTENT_DCS);
 	if (r < 0)
 		goto err;
@@ -2916,7 +2915,7 @@ static int dsi_vc_dcs_read(struct omap_dss_device *dssdev, int vc,
 
 	return 0;
 err:
-	DSSERR("%s(ch %d, cmd 0x%02x) failed\n", __func__,  msg->channel, cmd);
+	DSSERR("%s(vc %d, cmd 0x%02x) failed\n", __func__,  vc, cmd);
 	return r;
 }
 
@@ -2930,11 +2929,11 @@ static int dsi_vc_generic_read(struct omap_dss_device *dssdev, int vc,
 	if (r)
 		goto err;
 
-	r = dsi_vc_send_bta_sync(dssdev, msg->channel);
+	r = dsi_vc_send_bta_sync(dssdev, vc);
 	if (r)
 		goto err;
 
-	r = dsi_vc_read_rx_fifo(dsi, msg->channel, msg->rx_buf, msg->rx_len,
+	r = dsi_vc_read_rx_fifo(dsi, vc, msg->rx_buf, msg->rx_len,
 		DSS_DSI_CONTENT_GENERIC);
 	if (r < 0)
 		goto err;
@@ -2946,7 +2945,7 @@ static int dsi_vc_generic_read(struct omap_dss_device *dssdev, int vc,
 
 	return 0;
 err:
-	DSSERR("%s(ch %d, reqlen %d) failed\n", __func__,  msg->channel, msg->tx_len);
+	DSSERR("%s(vc %d, reqlen %d) failed\n", __func__,  vc, msg->tx_len);
 	return r;
 }
 
@@ -4890,7 +4889,7 @@ static ssize_t _omap_dsi_host_transfer(struct dsi_data *dsi, int vc,
 	int r;
 
 	if (!!(msg->flags & MIPI_DSI_MSG_USE_LPM) != dsi->in_lp_mode)
-		dsi_vc_enable_hs(dssdev, msg->channel,
+		dsi_vc_enable_hs(dssdev, vc,
 				 !(msg->flags & MIPI_DSI_MSG_USE_LPM));
 
 	switch (msg->type) {
