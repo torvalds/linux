@@ -166,6 +166,7 @@ obj-$(CONFIG_VIDEO_GC5035)	+= gc5035.o
 obj-$(CONFIG_VIDEO_GC8034)	+= gc8034.o
 obj-$(CONFIG_VIDEO_BF3925)	+= bf3925.o
 obj-$(CONFIG_VIDEO_JX_F37)	+= jx_f37.o
+obj-$(CONFIG_VIDEO_JX_H62)	+= jx_h62.o
 obj-$(CONFIG_VIDEO_JX_H65)	+= jx_h65.o
 obj-$(CONFIG_VIDEO_SC031GS)	+= sc031gs.o
 obj-$(CONFIG_VIDEO_SC132GS)	+= sc132gs.o
