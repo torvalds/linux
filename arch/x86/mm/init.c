@@ -157,16 +157,25 @@ __ref void *alloc_low_pages(unsigned int num)
 }
 
 /*
- * By default need 3 4k for initial PMD_SIZE,  3 4k for 0-ISA_END_ADDRESS.
- * With KASLR memory randomization, depending on the machine e820 memory
- * and the PUD alignment. We may need twice more pages when KASLR memory
+ * By default need to be able to allocate page tables below PGD firstly for
+ * the 0-ISA_END_ADDRESS range and secondly for the initial PMD_SIZE mapping.
+ * With KASLR memory randomization, depending on the machine e820 memory and the
+ * PUD alignment, twice that many pages may be needed when KASLR memory
  * randomization is enabled.
  */
-#ifndef CONFIG_RANDOMIZE_MEMORY
-#define INIT_PGD_PAGE_COUNT      6
+
+#ifndef CONFIG_X86_5LEVEL
+#define INIT_PGD_PAGE_TABLES    3
 #else
-#define INIT_PGD_PAGE_COUNT      12
+#define INIT_PGD_PAGE_TABLES    4
 #endif
+
+#ifndef CONFIG_RANDOMIZE_MEMORY
+#define INIT_PGD_PAGE_COUNT      (2 * INIT_PGD_PAGE_TABLES)
+#else
+#define INIT_PGD_PAGE_COUNT      (4 * INIT_PGD_PAGE_TABLES)
+#endif
+
 #define INIT_PGT_BUF_SIZE	(INIT_PGD_PAGE_COUNT * PAGE_SIZE)
 RESERVE_BRK(early_pgt_alloc, INIT_PGT_BUF_SIZE);
 void  __init early_alloc_pgt_buf(void)
