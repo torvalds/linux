@@ -2,7 +2,7 @@
 /*
  * Copyright 2019 Google LLC
  */
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
 #include <crypto/hash.h>
 #include <linux/err.h>
 #include <linux/version.h>
