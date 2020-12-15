@@ -374,16 +374,7 @@ static int spi_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return add_uevent_var(env, "MODALIAS=%s%s", SPI_MODULE_PREFIX, spi->modalias);
 }
 
-struct bus_type spi_bus_type = {
-	.name		= "spi",
-	.dev_groups	= spi_dev_groups,
-	.match		= spi_match_device,
-	.uevent		= spi_uevent,
-};
-EXPORT_SYMBOL_GPL(spi_bus_type);
-
-
-static int spi_drv_probe(struct device *dev)
+static int spi_probe(struct device *dev)
 {
 	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
 	struct spi_device		*spi = to_spi_device(dev);
@@ -405,30 +396,54 @@ static int spi_drv_probe(struct device *dev)
 	if (ret)
 		return ret;
 
-	ret = sdrv->probe(spi);
-	if (ret)
-		dev_pm_domain_detach(dev, true);
+	if (sdrv->probe) {
+		ret = sdrv->probe(spi);
+		if (ret)
+			dev_pm_domain_detach(dev, true);
+	}
 
 	return ret;
 }
 
-static int spi_drv_remove(struct device *dev)
+static int spi_remove(struct device *dev)
 {
 	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
-	int ret;
 
-	ret = sdrv->remove(to_spi_device(dev));
+	if (sdrv->remove) {
+		int ret;
+
+		ret = sdrv->remove(to_spi_device(dev));
+		if (ret)
+			dev_warn(dev,
+				 "Failed to unbind driver (%pe), ignoring\n",
+				 ERR_PTR(ret));
+	}
+
 	dev_pm_domain_detach(dev, true);
 
-	return ret;
+	return 0;
 }
 
-static void spi_drv_shutdown(struct device *dev)
+static void spi_shutdown(struct device *dev)
 {
-	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
+	if (dev->driver) {
+		const struct spi_driver	*sdrv = to_spi_driver(dev->driver);
 
-	sdrv->shutdown(to_spi_device(dev));
+		if (sdrv->shutdown)
+			sdrv->shutdown(to_spi_device(dev));
+	}
 }
+
+struct bus_type spi_bus_type = {
+	.name		= "spi",
+	.dev_groups	= spi_dev_groups,
+	.match		= spi_match_device,
+	.uevent		= spi_uevent,
+	.probe		= spi_probe,
+	.remove		= spi_remove,
+	.shutdown	= spi_shutdown,
+};
+EXPORT_SYMBOL_GPL(spi_bus_type);
 
 /**
  * __spi_register_driver - register a SPI driver
@@ -442,12 +457,6 @@ int __spi_register_driver(struct module *owner, struct spi_driver *sdrv)
 {
 	sdrv->driver.owner = owner;
 	sdrv->driver.bus = &spi_bus_type;
-	if (sdrv->probe)
-		sdrv->driver.probe = spi_drv_probe;
-	if (sdrv->remove)
-		sdrv->driver.remove = spi_drv_remove;
-	if (sdrv->shutdown)
-		sdrv->driver.shutdown = spi_drv_shutdown;
 	return driver_register(&sdrv->driver);
 }
 EXPORT_SYMBOL_GPL(__spi_register_driver);
@@ -3238,9 +3247,9 @@ static int __spi_split_transfer_maxsize(struct spi_controller *ctlr,
 }
 
 /**
- * spi_split_tranfers_maxsize - split spi transfers into multiple transfers
- *                              when an individual transfer exceeds a
- *                              certain size
+ * spi_split_transfers_maxsize - split spi transfers into multiple transfers
+ *                               when an individual transfer exceeds a
+ *                               certain size
  * @ctlr:    the @spi_controller for this transfer
  * @msg:   the @spi_message to transform
  * @maxsize:  the maximum when to apply this
@@ -3369,7 +3378,8 @@ int spi_setup(struct spi_device *spi)
 	if (status)
 		return status;
 
-	if (!spi->max_speed_hz)
+	if (!spi->max_speed_hz ||
+	    spi->max_speed_hz > spi->controller->max_speed_hz)
 		spi->max_speed_hz = spi->controller->max_speed_hz;
 
 	mutex_lock(&spi->controller->io_mutex);
