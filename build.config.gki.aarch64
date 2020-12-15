@@ -2,3 +2,10 @@
 . ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
 . ${ROOT_DIR}/${KERNEL_DIR}/build.config.gki
 
+KMI_SYMBOL_LIST=android/abi_gki_aarch64
+ADDITIONAL_KMI_SYMBOL_LISTS="
+"
+
+TRIM_NONLISTED_KMI=1
+KMI_SYMBOL_LIST_STRICT_MODE=1
+MODULES_ORDER=android/gki_aarch64_modules
