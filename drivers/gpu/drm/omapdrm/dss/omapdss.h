@@ -307,10 +307,6 @@ struct omapdss_dsi_ops {
 
 	int (*request_vc)(struct omap_dss_device *dssdev, int channel);
 	void (*release_vc)(struct omap_dss_device *dssdev, int channel);
-
-	/* data transfer */
-	ssize_t (*transfer)(struct omap_dss_device *dssdev,
-			    const struct mipi_dsi_msg *msg);
 };
 
 struct omap_dss_device_ops {

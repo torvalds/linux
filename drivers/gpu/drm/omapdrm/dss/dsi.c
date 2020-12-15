@@ -334,6 +334,8 @@ struct dsi_data {
 	struct regmap *syscon;
 	struct dss_device *dss;
 
+	struct mipi_dsi_host host;
+
 	struct dispc_clock_info user_dispc_cinfo;
 	struct dss_pll_clock_info user_dsi_cinfo;
 
@@ -430,6 +432,11 @@ module_param(dsi_perf, bool, 0644);
 static inline struct dsi_data *to_dsi_data(struct omap_dss_device *dssdev)
 {
 	return dev_get_drvdata(dssdev->dev);
+}
+
+static inline struct dsi_data *host_to_omap(struct mipi_dsi_host *host)
+{
+	return container_of(host, struct dsi_data, host);
 }
 
 static inline void dsi_write_reg(struct dsi_data *dsi,
@@ -4708,9 +4715,12 @@ static void dsi_release_vc(struct omap_dss_device *dssdev, int channel)
 	}
 }
 
-static ssize_t omap_dsi_transfer(struct omap_dss_device *dssdev,
-				 const struct mipi_dsi_msg *msg)
+static ssize_t omap_dsi_host_transfer(struct mipi_dsi_host *host,
+				      const struct mipi_dsi_msg *msg)
 {
+	struct dsi_data *dsi = host_to_omap(host);
+	struct omap_dss_device *dssdev = &dsi->output;
+
 	switch (msg->type) {
 	case MIPI_DSI_GENERIC_SHORT_WRITE_0_PARAM:
 	case MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM:
@@ -4784,9 +4794,27 @@ static const struct omap_dss_device_ops dsi_ops = {
 
 		.request_vc = dsi_request_vc,
 		.release_vc = dsi_release_vc,
-
-		.transfer = omap_dsi_transfer,
 	},
+};
+
+static int omap_dsi_host_attach(struct mipi_dsi_host *host,
+			 struct mipi_dsi_device *dsi)
+{
+	/* TODO: convert driver from custom binding method to this one */
+	return 0;
+}
+
+static int omap_dsi_host_detach(struct mipi_dsi_host *host,
+			 struct mipi_dsi_device *dsi)
+{
+	/* TODO: convert driver from custom binding method to this one */
+	return 0;
+}
+
+static const struct mipi_dsi_host_ops omap_dsi_host_ops = {
+	.attach = omap_dsi_host_attach,
+	.detach = omap_dsi_host_detach,
+	.transfer = omap_dsi_host_transfer,
 };
 
 /* -----------------------------------------------------------------------------
@@ -5257,15 +5285,18 @@ static int dsi_probe(struct platform_device *pdev)
 		dsi->num_lanes_supported = 3;
 	}
 
-	r = of_platform_populate(dev->of_node, NULL, NULL, dev);
-	if (r) {
-		DSSERR("Failed to populate DSI child devices: %d\n", r);
+	dsi->host.ops = &omap_dsi_host_ops;
+	dsi->host.dev = &pdev->dev;
+
+	r = mipi_dsi_host_register(&dsi->host);
+	if (r < 0) {
+		dev_err(&pdev->dev, "failed to register DSI host: %d\n", r);
 		goto err_pm_disable;
 	}
 
 	r = dsi_init_output(dsi);
 	if (r)
-		goto err_of_depopulate;
+		goto err_dsi_host_unregister;
 
 	r = dsi_probe_of(dsi);
 	if (r) {
@@ -5281,8 +5312,8 @@ static int dsi_probe(struct platform_device *pdev)
 
 err_uninit_output:
 	dsi_uninit_output(dsi);
-err_of_depopulate:
-	of_platform_depopulate(dev);
+err_dsi_host_unregister:
+	mipi_dsi_host_unregister(&dsi->host);
 err_pm_disable:
 	pm_runtime_disable(dev);
 	return r;
@@ -5296,7 +5327,7 @@ static int dsi_remove(struct platform_device *pdev)
 
 	dsi_uninit_output(dsi);
 
-	of_platform_depopulate(&pdev->dev);
+	mipi_dsi_host_unregister(&dsi->host);
 
 	pm_runtime_disable(&pdev->dev);
 
