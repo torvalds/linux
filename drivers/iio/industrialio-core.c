@@ -659,7 +659,10 @@ static ssize_t __iio_format_value(char *buf, size_t len, unsigned int type,
 	case IIO_VAL_FRACTIONAL_LOG2:
 		tmp2 = shift_right((s64)vals[0] * 1000000000LL, vals[1]);
 		tmp0 = (int)div_s64_rem(tmp2, 1000000000LL, &tmp1);
-		return scnprintf(buf, len, "%d.%09u", tmp0, abs(tmp1));
+		if (tmp0 == 0 && tmp2 < 0)
+			return snprintf(buf, len, "-0.%09u", abs(tmp1));
+		else
+			return scnprintf(buf, len, "%d.%09u", tmp0, abs(tmp1));
 	case IIO_VAL_INT_MULTIPLE:
 	{
 		int i;
