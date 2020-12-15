@@ -67,6 +67,8 @@ static const struct regmap_bus tcan4x5x_bus = {
 	.read = tcan4x5x_regmap_read,
 	.reg_format_endian_default = REGMAP_ENDIAN_NATIVE,
 	.val_format_endian_default = REGMAP_ENDIAN_NATIVE,
+	.max_raw_read = 256,
+	.max_raw_write = 256,
 };
 
 int tcan4x5x_regmap_init(struct tcan4x5x_priv *priv)
