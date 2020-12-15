@@ -227,6 +227,10 @@ static void __put_acc_dev(struct kref *kref)
 	struct acc_dev_ref *ref = container_of(kref, struct acc_dev_ref, kref);
 	struct acc_dev *dev = ref->acc_dev;
 
+	/* Cancel any async work */
+	cancel_delayed_work_sync(&dev->start_work);
+	cancel_work_sync(&dev->hid_work);
+
 	ref->acc_dev = NULL;
 	kfree(dev);
 }
