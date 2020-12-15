@@ -1883,7 +1883,7 @@ static void print_iommu_info(void)
 		struct pci_dev *pdev = iommu->dev;
 		int i;
 
-		pci_info(pdev, "Found IOMMU cap 0x%hx\n", iommu->cap_ptr);
+		pci_info(pdev, "Found IOMMU cap 0x%x\n", iommu->cap_ptr);
 
 		if (iommu->cap & (1 << IOMMU_CAP_EFR)) {
 			pci_info(pdev, "Extended features (%#llx):",
