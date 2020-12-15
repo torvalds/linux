@@ -606,6 +606,8 @@ static bool mptcp_established_options_add_addr(struct sock *sk, struct sk_buff *
 	    skb && skb_is_tcp_pure_ack(skb)) {
 		pr_debug("drop other suboptions");
 		opts->suboptions = 0;
+		opts->ext_copy.use_ack = 0;
+		opts->ext_copy.use_map = 0;
 		remaining += opt_size;
 		drop_other_suboptions = true;
 	}
