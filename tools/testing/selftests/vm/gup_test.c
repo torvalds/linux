@@ -27,13 +27,15 @@ static char *cmd_to_str(unsigned long cmd)
 		return "GUP_BASIC_TEST";
 	case PIN_BASIC_TEST:
 		return "PIN_BASIC_TEST";
+	case DUMP_USER_PAGES_TEST:
+		return "DUMP_USER_PAGES_TEST";
 	}
 	return "Unknown command";
 }
 
 int main(int argc, char **argv)
 {
-	struct gup_test gup;
+	struct gup_test gup = { 0 };
 	unsigned long size = 128 * MB;
 	int i, fd, filed, opt, nr_pages = 1, thp = -1, repeats = 1, write = 0;
 	unsigned long cmd = GUP_FAST_BENCHMARK;
@@ -41,7 +43,7 @@ int main(int argc, char **argv)
 	char *file = "/dev/zero";
 	char *p;
 
-	while ((opt = getopt(argc, argv, "m:r:n:f:abtTLUuwSH")) != -1) {
+	while ((opt = getopt(argc, argv, "m:r:n:F:f:abctTLUuwSH")) != -1) {
 		switch (opt) {
 		case 'a':
 			cmd = PIN_FAST_BENCHMARK;
@@ -51,6 +53,21 @@ int main(int argc, char **argv)
 			break;
 		case 'L':
 			cmd = PIN_LONGTERM_BENCHMARK;
+			break;
+		case 'c':
+			cmd = DUMP_USER_PAGES_TEST;
+			/*
+			 * Dump page 0 (index 1). May be overridden later, by
+			 * user's non-option arguments.
+			 *
+			 * .which_pages is zero-based, so that zero can mean "do
+			 * nothing".
+			 */
+			gup.which_pages[0] = 1;
+			break;
+		case 'F':
+			/* strtol, so you can pass flags in hex form */
+			gup.flags = strtol(optarg, 0, 0);
 			break;
 		case 'm':
 			size = atoi(optarg) * MB;
@@ -88,6 +105,30 @@ int main(int argc, char **argv)
 			break;
 		default:
 			return -1;
+		}
+	}
+
+	if (optind < argc) {
+		int extra_arg_count = 0;
+		/*
+		 * For example:
+		 *
+		 *   ./gup_test -c 0 1 0x1001
+		 *
+		 * ...to dump pages 0, 1, and 4097
+		 */
+
+		while ((optind < argc) &&
+		       (extra_arg_count < GUP_TEST_MAX_PAGES_TO_DUMP)) {
+			/*
+			 * Do the 1-based indexing here, so that the user can
+			 * use normal 0-based indexing on the command line.
+			 */
+			long page_index = strtol(argv[optind], 0, 0) + 1;
+
+			gup.which_pages[extra_arg_count] = page_index;
+			extra_arg_count++;
+			optind++;
 		}
 	}
 

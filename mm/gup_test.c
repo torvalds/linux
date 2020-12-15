@@ -7,7 +7,7 @@
 #include "gup_test.h"
 
 static void put_back_pages(unsigned int cmd, struct page **pages,
-			   unsigned long nr_pages)
+			   unsigned long nr_pages, unsigned int gup_test_flags)
 {
 	unsigned long i;
 
@@ -22,6 +22,15 @@ static void put_back_pages(unsigned int cmd, struct page **pages,
 	case PIN_BASIC_TEST:
 	case PIN_LONGTERM_BENCHMARK:
 		unpin_user_pages(pages, nr_pages);
+		break;
+	case DUMP_USER_PAGES_TEST:
+		if (gup_test_flags & GUP_TEST_FLAG_DUMP_PAGES_USE_PIN) {
+			unpin_user_pages(pages, nr_pages);
+		} else {
+			for (i = 0; i < nr_pages; i++)
+				put_page(pages[i]);
+
+		}
 		break;
 	}
 }
@@ -46,6 +55,37 @@ static void verify_dma_pinned(unsigned int cmd, struct page **pages,
 			}
 		}
 		break;
+	}
+}
+
+static void dump_pages_test(struct gup_test *gup, struct page **pages,
+			    unsigned long nr_pages)
+{
+	unsigned int index_to_dump;
+	unsigned int i;
+
+	/*
+	 * Zero out any user-supplied page index that is out of range. Remember:
+	 * .which_pages[] contains a 1-based set of page indices.
+	 */
+	for (i = 0; i < GUP_TEST_MAX_PAGES_TO_DUMP; i++) {
+		if (gup->which_pages[i] > nr_pages) {
+			pr_warn("ZEROING due to out of range: .which_pages[%u]: %u\n",
+				i, gup->which_pages[i]);
+			gup->which_pages[i] = 0;
+		}
+	}
+
+	for (i = 0; i < GUP_TEST_MAX_PAGES_TO_DUMP; i++) {
+		index_to_dump = gup->which_pages[i];
+
+		if (index_to_dump) {
+			index_to_dump--; // Decode from 1-based, to 0-based
+			pr_info("---- page #%u, starting from user virt addr: 0x%llx\n",
+				index_to_dump, gup->addr);
+			dump_page(pages[index_to_dump],
+				  "gup_test: dump_pages() test");
+		}
 	}
 }
 
@@ -111,6 +151,14 @@ static int __gup_test_ioctl(unsigned int cmd,
 					    gup->flags | FOLL_LONGTERM,
 					    pages + i, NULL);
 			break;
+		case DUMP_USER_PAGES_TEST:
+			if (gup->flags & GUP_TEST_FLAG_DUMP_PAGES_USE_PIN)
+				nr = pin_user_pages(addr, nr, gup->flags,
+						    pages + i, NULL);
+			else
+				nr = get_user_pages(addr, nr, gup->flags,
+						    pages + i, NULL);
+			break;
 		default:
 			ret = -EINVAL;
 			goto unlock;
@@ -134,9 +182,12 @@ static int __gup_test_ioctl(unsigned int cmd,
 	 */
 	verify_dma_pinned(cmd, pages, nr_pages);
 
+	if (cmd == DUMP_USER_PAGES_TEST)
+		dump_pages_test(gup, pages, nr_pages);
+
 	start_time = ktime_get();
 
-	put_back_pages(cmd, pages, nr_pages);
+	put_back_pages(cmd, pages, nr_pages, gup->flags);
 
 	end_time = ktime_get();
 	gup->put_delta_usec = ktime_us_delta(end_time, start_time);
@@ -161,6 +212,7 @@ static long gup_test_ioctl(struct file *filep, unsigned int cmd,
 	case PIN_LONGTERM_BENCHMARK:
 	case GUP_BASIC_TEST:
 	case PIN_BASIC_TEST:
+	case DUMP_USER_PAGES_TEST:
 		break;
 	default:
 		return -EINVAL;
