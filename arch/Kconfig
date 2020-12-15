@@ -1047,6 +1047,9 @@ config ARCH_WANT_LD_ORPHAN_WARN
 config HAVE_ARCH_PFN_VALID
 	bool
 
+config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	bool
+
 source "kernel/gcov/Kconfig"
 
 source "scripts/gcc-plugins/Kconfig"
