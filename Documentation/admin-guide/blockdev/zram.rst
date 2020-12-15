@@ -266,6 +266,7 @@ line of text and contains the following stats separated by whitespace:
                   No memory is allocated for such pages.
  pages_compacted  the number of pages freed during compaction
  huge_pages	  the number of incompressible pages
+ huge_pages_since the number of incompressible pages since zram set up
  ================ =============================================================
 
 File /sys/block/zram<id>/bd_stat
@@ -333,6 +334,11 @@ Admin can request writeback of those idle pages at right timing via::
 	echo idle > /sys/block/zramX/writeback
 
 With the command, zram writeback idle pages from memory to the storage.
+
+If admin want to write a specific page in zram device to backing device,
+they could write a page index into the interface.
+
+	echo "page_index=1251" > /sys/block/zramX/writeback
 
 If there are lots of write IO with flash device, potentially, it has
 flash wearout problem so that admin needs to design write limitation

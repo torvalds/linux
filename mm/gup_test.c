@@ -4,39 +4,33 @@
 #include <linux/uaccess.h>
 #include <linux/ktime.h>
 #include <linux/debugfs.h>
-
-#define GUP_FAST_BENCHMARK	_IOWR('g', 1, struct gup_benchmark)
-#define GUP_BENCHMARK		_IOWR('g', 2, struct gup_benchmark)
-#define PIN_FAST_BENCHMARK	_IOWR('g', 3, struct gup_benchmark)
-#define PIN_BENCHMARK		_IOWR('g', 4, struct gup_benchmark)
-#define PIN_LONGTERM_BENCHMARK	_IOWR('g', 5, struct gup_benchmark)
-
-struct gup_benchmark {
-	__u64 get_delta_usec;
-	__u64 put_delta_usec;
-	__u64 addr;
-	__u64 size;
-	__u32 nr_pages_per_call;
-	__u32 flags;
-	__u64 expansion[10];	/* For future use */
-};
+#include "gup_test.h"
 
 static void put_back_pages(unsigned int cmd, struct page **pages,
-			   unsigned long nr_pages)
+			   unsigned long nr_pages, unsigned int gup_test_flags)
 {
 	unsigned long i;
 
 	switch (cmd) {
 	case GUP_FAST_BENCHMARK:
-	case GUP_BENCHMARK:
+	case GUP_BASIC_TEST:
 		for (i = 0; i < nr_pages; i++)
 			put_page(pages[i]);
 		break;
 
 	case PIN_FAST_BENCHMARK:
-	case PIN_BENCHMARK:
+	case PIN_BASIC_TEST:
 	case PIN_LONGTERM_BENCHMARK:
 		unpin_user_pages(pages, nr_pages);
+		break;
+	case DUMP_USER_PAGES_TEST:
+		if (gup_test_flags & GUP_TEST_FLAG_DUMP_PAGES_USE_PIN) {
+			unpin_user_pages(pages, nr_pages);
+		} else {
+			for (i = 0; i < nr_pages; i++)
+				put_page(pages[i]);
+
+		}
 		break;
 	}
 }
@@ -49,14 +43,14 @@ static void verify_dma_pinned(unsigned int cmd, struct page **pages,
 
 	switch (cmd) {
 	case PIN_FAST_BENCHMARK:
-	case PIN_BENCHMARK:
+	case PIN_BASIC_TEST:
 	case PIN_LONGTERM_BENCHMARK:
 		for (i = 0; i < nr_pages; i++) {
 			page = pages[i];
 			if (WARN(!page_maybe_dma_pinned(page),
 				 "pages[%lu] is NOT dma-pinned\n", i)) {
 
-				dump_page(page, "gup_benchmark failure");
+				dump_page(page, "gup_test failure");
 				break;
 			}
 		}
@@ -64,8 +58,39 @@ static void verify_dma_pinned(unsigned int cmd, struct page **pages,
 	}
 }
 
-static int __gup_benchmark_ioctl(unsigned int cmd,
-		struct gup_benchmark *gup)
+static void dump_pages_test(struct gup_test *gup, struct page **pages,
+			    unsigned long nr_pages)
+{
+	unsigned int index_to_dump;
+	unsigned int i;
+
+	/*
+	 * Zero out any user-supplied page index that is out of range. Remember:
+	 * .which_pages[] contains a 1-based set of page indices.
+	 */
+	for (i = 0; i < GUP_TEST_MAX_PAGES_TO_DUMP; i++) {
+		if (gup->which_pages[i] > nr_pages) {
+			pr_warn("ZEROING due to out of range: .which_pages[%u]: %u\n",
+				i, gup->which_pages[i]);
+			gup->which_pages[i] = 0;
+		}
+	}
+
+	for (i = 0; i < GUP_TEST_MAX_PAGES_TO_DUMP; i++) {
+		index_to_dump = gup->which_pages[i];
+
+		if (index_to_dump) {
+			index_to_dump--; // Decode from 1-based, to 0-based
+			pr_info("---- page #%u, starting from user virt addr: 0x%llx\n",
+				index_to_dump, gup->addr);
+			dump_page(pages[index_to_dump],
+				  "gup_test: dump_pages() test");
+		}
+	}
+}
+
+static int __gup_test_ioctl(unsigned int cmd,
+		struct gup_test *gup)
 {
 	ktime_t start_time, end_time;
 	unsigned long i, nr_pages, addr, next;
@@ -109,7 +134,7 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
 			nr = get_user_pages_fast(addr, nr, gup->flags,
 						 pages + i);
 			break;
-		case GUP_BENCHMARK:
+		case GUP_BASIC_TEST:
 			nr = get_user_pages(addr, nr, gup->flags, pages + i,
 					    NULL);
 			break;
@@ -117,7 +142,7 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
 			nr = pin_user_pages_fast(addr, nr, gup->flags,
 						 pages + i);
 			break;
-		case PIN_BENCHMARK:
+		case PIN_BASIC_TEST:
 			nr = pin_user_pages(addr, nr, gup->flags, pages + i,
 					    NULL);
 			break;
@@ -125,6 +150,14 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
 			nr = pin_user_pages(addr, nr,
 					    gup->flags | FOLL_LONGTERM,
 					    pages + i, NULL);
+			break;
+		case DUMP_USER_PAGES_TEST:
+			if (gup->flags & GUP_TEST_FLAG_DUMP_PAGES_USE_PIN)
+				nr = pin_user_pages(addr, nr, gup->flags,
+						    pages + i, NULL);
+			else
+				nr = get_user_pages(addr, nr, gup->flags,
+						    pages + i, NULL);
 			break;
 		default:
 			ret = -EINVAL;
@@ -149,9 +182,12 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
 	 */
 	verify_dma_pinned(cmd, pages, nr_pages);
 
+	if (cmd == DUMP_USER_PAGES_TEST)
+		dump_pages_test(gup, pages, nr_pages);
+
 	start_time = ktime_get();
 
-	put_back_pages(cmd, pages, nr_pages);
+	put_back_pages(cmd, pages, nr_pages, gup->flags);
 
 	end_time = ktime_get();
 	gup->put_delta_usec = ktime_us_delta(end_time, start_time);
@@ -164,18 +200,19 @@ free_pages:
 	return ret;
 }
 
-static long gup_benchmark_ioctl(struct file *filep, unsigned int cmd,
+static long gup_test_ioctl(struct file *filep, unsigned int cmd,
 		unsigned long arg)
 {
-	struct gup_benchmark gup;
+	struct gup_test gup;
 	int ret;
 
 	switch (cmd) {
 	case GUP_FAST_BENCHMARK:
-	case GUP_BENCHMARK:
 	case PIN_FAST_BENCHMARK:
-	case PIN_BENCHMARK:
 	case PIN_LONGTERM_BENCHMARK:
+	case GUP_BASIC_TEST:
+	case PIN_BASIC_TEST:
+	case DUMP_USER_PAGES_TEST:
 		break;
 	default:
 		return -EINVAL;
@@ -184,7 +221,7 @@ static long gup_benchmark_ioctl(struct file *filep, unsigned int cmd,
 	if (copy_from_user(&gup, (void __user *)arg, sizeof(gup)))
 		return -EFAULT;
 
-	ret = __gup_benchmark_ioctl(cmd, &gup);
+	ret = __gup_test_ioctl(cmd, &gup);
 	if (ret)
 		return ret;
 
@@ -194,17 +231,17 @@ static long gup_benchmark_ioctl(struct file *filep, unsigned int cmd,
 	return 0;
 }
 
-static const struct file_operations gup_benchmark_fops = {
+static const struct file_operations gup_test_fops = {
 	.open = nonseekable_open,
-	.unlocked_ioctl = gup_benchmark_ioctl,
+	.unlocked_ioctl = gup_test_ioctl,
 };
 
-static int gup_benchmark_init(void)
+static int __init gup_test_init(void)
 {
-	debugfs_create_file_unsafe("gup_benchmark", 0600, NULL, NULL,
-				   &gup_benchmark_fops);
+	debugfs_create_file_unsafe("gup_test", 0600, NULL, NULL,
+				   &gup_test_fops);
 
 	return 0;
 }
 
-late_initcall(gup_benchmark_init);
+late_initcall(gup_test_init);
