@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <crypto/algapi.h>
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
 #include <net/sock.h>
 #include <net/inet_common.h>
 #include <net/inet_hashtables.h>

@@ -11,7 +11,7 @@
 #include <asm/page.h>
 #include <asm/sections.h>
 
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
 
 /* vmcoreinfo stuff */
 unsigned char *vmcoreinfo_data;

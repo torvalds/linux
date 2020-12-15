@@ -17,8 +17,6 @@
 #include <linux/bug.h>
 #include <asm/unaligned.h>
 
-bool blake2s_selftest(void);
-
 void blake2s_update(struct blake2s_state *state, const u8 *in, size_t inlen)
 {
 	const size_t fill = BLAKE2S_BLOCK_SIZE - state->buflen;

@@ -15,7 +15,7 @@
  */
 
 #include <linux/mm.h>
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/module.h>

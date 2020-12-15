@@ -119,11 +119,6 @@ EXPORT_SYMBOL(boot_cpu_data);
 
 unsigned int def_to_bigsmp;
 
-/* For MCA, but anyone else can use it if they want */
-unsigned int machine_id;
-unsigned int machine_submodel_id;
-unsigned int BIOS_revision;
-
 struct apm_info apm_info;
 EXPORT_SYMBOL(apm_info);
 

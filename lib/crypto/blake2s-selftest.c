@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
-#include <crypto/blake2s.h>
+#include <crypto/internal/blake2s.h>
 #include <linux/string.h>
 
 /*

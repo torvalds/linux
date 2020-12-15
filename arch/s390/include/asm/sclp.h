@@ -12,7 +12,12 @@
 #include <asm/cpu.h>
 
 #define SCLP_CHP_INFO_MASK_SIZE		32
-#define SCLP_MAX_CORES			256
+#define EARLY_SCCB_SIZE		PAGE_SIZE
+#define SCLP_MAX_CORES		512
+/* 144 + 16 * SCLP_MAX_CORES + 2 * (SCLP_MAX_CORES - 1) */
+#define EXT_SCCB_READ_SCP	(3 * PAGE_SIZE)
+/* 24 + 16 * SCLP_MAX_CORES */
+#define EXT_SCCB_READ_CPU	(3 * PAGE_SIZE)
 
 struct sclp_chp_info {
 	u8 recognized[SCLP_CHP_INFO_MASK_SIZE];

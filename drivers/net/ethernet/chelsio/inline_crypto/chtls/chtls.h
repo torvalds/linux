@@ -9,7 +9,8 @@
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
 #include <crypto/hash.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <crypto/authenc.h>
 #include <crypto/ctr.h>
 #include <crypto/gf128mul.h>

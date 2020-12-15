@@ -80,7 +80,6 @@ void __init mvme147_init_IRQ(void)
 
 void __init config_mvme147(void)
 {
-	mach_max_dma_address	= 0x01000000;
 	mach_sched_init		= mvme147_sched_init;
 	mach_init_IRQ		= mvme147_init_IRQ;
 	mach_hwclk		= mvme147_hwclk;
