@@ -21,16 +21,25 @@
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
 
-#include <video/display_timing.h>
 #include <video/mipi_display.h>
-#include <video/of_display_timing.h>
-#include <video/videomode.h>
 
 #define DCS_GET_ID1		0xda
 #define DCS_GET_ID2		0xdb
 #define DCS_GET_ID3		0xdc
 
 #define DCS_REGULATOR_SUPPLY_NUM 2
+
+static const struct of_device_id dsicm_of_match[];
+
+struct dsic_panel_data {
+	u32 xres;
+	u32 yres;
+	u32 refresh;
+	u32 width_mm;
+	u32 height_mm;
+	u32 max_hs_rate;
+	u32 max_lp_rate;
+};
 
 struct panel_drv_data {
 	struct mipi_dsi_device *dsi;
@@ -47,15 +56,13 @@ struct panel_drv_data {
 					 */
 	unsigned long	hw_guard_wait;	/* max guard time in jiffies */
 
-	/* panel HW configuration from DT or platform data */
+	const struct dsic_panel_data *panel_data;
+
 	struct gpio_desc *reset_gpio;
 
 	struct regulator_bulk_data supplies[DCS_REGULATOR_SUPPLY_NUM];
 
 	bool use_dsi_backlight;
-
-	int width_mm;
-	int height_mm;
 
 	/* runtime variables */
 	bool enabled;
@@ -450,11 +457,8 @@ static int dsicm_get_modes(struct drm_panel *panel,
 		return -ENOMEM;
 	}
 
-	drm_mode_set_name(mode);
-	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
-
-	connector->display_info.width_mm = ddata->width_mm;
-	connector->display_info.height_mm = ddata->height_mm;
+	connector->display_info.width_mm = ddata->panel_data->width_mm;
+	connector->display_info.height_mm = ddata->panel_data->height_mm;
 
 	drm_mode_probed_add(connector, mode);
 
@@ -471,15 +475,10 @@ static const struct drm_panel_funcs dsicm_panel_funcs = {
 
 static int dsicm_probe_of(struct mipi_dsi_device *dsi)
 {
-	struct device_node *node = dsi->dev.of_node;
 	struct backlight_device *backlight;
 	struct panel_drv_data *ddata = mipi_dsi_get_drvdata(dsi);
-	struct display_timing timing;
-	struct videomode vm = {
-		.hactive = 864,
-		.vactive = 480,
-	};
 	int err;
+	struct drm_display_mode *mode = &ddata->mode;
 
 	ddata->reset_gpio = devm_gpiod_get(&dsi->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ddata->reset_gpio)) {
@@ -488,23 +487,16 @@ static int dsicm_probe_of(struct mipi_dsi_device *dsi)
 		return err;
 	}
 
-	err = of_get_display_timing(node, "panel-timing", &timing);
-	if (!err) {
-		videomode_from_timing(&timing, &vm);
-	} else {
-		dev_warn(&dsi->dev,
-			 "failed to get video timing, using defaults\n");
-	}
-
-	if (!vm.pixelclock)
-		vm.pixelclock = vm.hactive * vm.vactive * 60;
-	drm_display_mode_from_videomode(&vm, &ddata->mode);
-
-	ddata->width_mm = 0;
-	of_property_read_u32(node, "width-mm", &ddata->width_mm);
-
-	ddata->height_mm = 0;
-	of_property_read_u32(node, "height-mm", &ddata->height_mm);
+	mode->hdisplay = mode->hsync_start = mode->hsync_end = mode->htotal =
+		ddata->panel_data->xres;
+	mode->vdisplay = mode->vsync_start = mode->vsync_end = mode->vtotal =
+		ddata->panel_data->yres;
+	mode->clock = ddata->panel_data->xres * ddata->panel_data->yres *
+		ddata->panel_data->refresh / 1000;
+	mode->width_mm = ddata->panel_data->width_mm;
+	mode->height_mm = ddata->panel_data->height_mm;
+	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
+	drm_mode_set_name(mode);
 
 	ddata->supplies[0].supply = "vpnl";
 	ddata->supplies[1].supply = "vddi";
@@ -542,6 +534,10 @@ static int dsicm_probe(struct mipi_dsi_device *dsi)
 	mipi_dsi_set_drvdata(dsi, ddata);
 	ddata->dsi = dsi;
 
+	ddata->panel_data = of_device_get_match_data(dev);
+	if (!ddata->panel_data)
+		return -ENODEV;
+
 	r = dsicm_probe_of(dsi);
 	if (r)
 		return r;
@@ -578,8 +574,8 @@ static int dsicm_probe(struct mipi_dsi_device *dsi)
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS |
 			  MIPI_DSI_MODE_EOT_PACKET;
-	dsi->hs_rate = 300000000;
-	dsi->lp_rate = 10000000;
+	dsi->hs_rate = ddata->panel_data->max_hs_rate;
+	dsi->lp_rate = ddata->panel_data->max_lp_rate;
 
 	drm_panel_add(&ddata->panel);
 
@@ -617,8 +613,40 @@ static int dsicm_remove(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
+static const struct dsic_panel_data taal_data = {
+	.xres = 864,
+	.yres = 480,
+	.refresh = 60,
+	.width_mm = 0,
+	.height_mm = 0,
+	.max_hs_rate = 300000000,
+	.max_lp_rate = 10000000,
+};
+
+static const struct dsic_panel_data himalaya_data = {
+	.xres = 480,
+	.yres = 864,
+	.refresh = 60,
+	.width_mm = 49,
+	.height_mm = 88,
+	.max_hs_rate = 300000000,
+	.max_lp_rate = 10000000,
+};
+
+static const struct dsic_panel_data droid4_data = {
+	.xres = 540,
+	.yres = 960,
+	.refresh = 60,
+	.width_mm = 50,
+	.height_mm = 89,
+	.max_hs_rate = 300000000,
+	.max_lp_rate = 10000000,
+};
+
 static const struct of_device_id dsicm_of_match[] = {
-	{ .compatible = "panel-dsi-cm", },
+	{ .compatible = "tpo,taal", .data = &taal_data },
+	{ .compatible = "nokia,himalaya", &himalaya_data },
+	{ .compatible = "motorola,droid4-panel", &droid4_data },
 	{},
 };
 
