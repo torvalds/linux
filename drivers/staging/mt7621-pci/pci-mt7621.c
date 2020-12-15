@@ -653,16 +653,11 @@ static int mt7621_pcie_init_virtual_bridges(struct mt7621_pcie *pcie)
 	return 0;
 }
 
-static int mt7621_pcie_request_resources(struct mt7621_pcie *pcie,
-					 struct list_head *res)
+static void mt7621_pcie_add_resources(struct mt7621_pcie *pcie,
+				      struct list_head *res)
 {
-	struct device *dev = pcie->dev;
-
 	pci_add_resource_offset(res, &pcie->io, pcie->offset.io);
 	pci_add_resource_offset(res, &pcie->mem, pcie->offset.mem);
-	pci_add_resource(res, &pcie->busn);
-
-	return devm_request_pci_bus_resources(dev, res);
 }
 
 static int mt7621_pcie_register_host(struct pci_host_bridge *host,
@@ -738,11 +733,7 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 
 	setup_cm_memory_region(pcie);
 
-	err = mt7621_pcie_request_resources(pcie, &res);
-	if (err) {
-		dev_err(dev, "Error requesting resources\n");
-		return err;
-	}
+	mt7621_pcie_add_resources(pcie, &res);
 
 	err = mt7621_pcie_register_host(bridge, &res);
 	if (err) {

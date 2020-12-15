@@ -622,6 +622,57 @@ void cmdline(int argc, char **argv)
 	}
 }
 
+/*
+ * Open a file, and exit on failure
+ */
+FILE *fopen_or_die(const char *path, const char *mode)
+{
+	FILE *filep = fopen(path, "r");
+
+	if (!filep)
+		err(1, "%s: open failed", path);
+	return filep;
+}
+
+void err_on_hypervisor(void)
+{
+	FILE *cpuinfo;
+	char *flags, *hypervisor;
+	char *buffer;
+
+	/* On VMs /proc/cpuinfo contains a "flags" entry for hypervisor */
+	cpuinfo = fopen_or_die("/proc/cpuinfo", "ro");
+
+	buffer = malloc(4096);
+	if (!buffer) {
+		fclose(cpuinfo);
+		err(-ENOMEM, "buffer malloc fail");
+	}
+
+	if (!fread(buffer, 1024, 1, cpuinfo)) {
+		fclose(cpuinfo);
+		free(buffer);
+		err(1, "Reading /proc/cpuinfo failed");
+	}
+
+	flags = strstr(buffer, "flags");
+	rewind(cpuinfo);
+	fseek(cpuinfo, flags - buffer, SEEK_SET);
+	if (!fgets(buffer, 4096, cpuinfo)) {
+		fclose(cpuinfo);
+		free(buffer);
+		err(1, "Reading /proc/cpuinfo failed");
+	}
+	fclose(cpuinfo);
+
+	hypervisor = strstr(buffer, "hypervisor");
+
+	free(buffer);
+
+	if (hypervisor)
+		err(-1,
+		    "not supported on this virtual machine");
+}
 
 int get_msr(int cpu, int offset, unsigned long long *msr)
 {
@@ -635,8 +686,10 @@ int get_msr(int cpu, int offset, unsigned long long *msr)
 		err(-1, "%s open failed, try chown or chmod +r /dev/cpu/*/msr, or run as root", pathname);
 
 	retval = pread(fd, msr, sizeof(*msr), offset);
-	if (retval != sizeof(*msr))
+	if (retval != sizeof(*msr)) {
+		err_on_hypervisor();
 		err(-1, "%s offset 0x%llx read failed", pathname, (unsigned long long)offset);
+	}
 
 	if (debug > 1)
 		fprintf(stderr, "get_msr(cpu%d, 0x%X, 0x%llX)\n", cpu, offset, *msr);
@@ -1084,18 +1137,6 @@ int update_cpu_msrs(int cpu)
 
 	update_hwp_request(cpu);
 	return 0;
-}
-
-/*
- * Open a file, and exit on failure
- */
-FILE *fopen_or_die(const char *path, const char *mode)
-{
-	FILE *filep = fopen(path, "r");
-
-	if (!filep)
-		err(1, "%s: open failed", path);
-	return filep;
 }
 
 unsigned int get_pkg_num(int cpu)

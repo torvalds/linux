@@ -2524,6 +2524,7 @@ int parse_ta_bin_descriptor(struct psp_context *psp,
 		psp->asd_feature_version   = le32_to_cpu(desc->fw_version);
 		psp->asd_ucode_size 	   = le32_to_cpu(desc->size_bytes);
 		psp->asd_start_addr 	   = ucode_start_addr;
+		psp->asd_fw                = psp->ta_fw;
 		break;
 	case TA_FW_TYPE_PSP_XGMI:
 		psp->ta_xgmi_ucode_version = le32_to_cpu(desc->fw_version);

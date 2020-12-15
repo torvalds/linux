@@ -676,7 +676,8 @@ static int prestera_pci_probe(struct pci_dev *pdev,
 	if (err)
 		return err;
 
-	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(30))) {
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(30));
+	if (err) {
 		dev_err(&pdev->dev, "fail to set DMA mask\n");
 		goto err_dma_mask;
 	}
@@ -702,8 +703,10 @@ static int prestera_pci_probe(struct pci_dev *pdev,
 	dev_info(fw->dev.dev, "Prestera FW is ready\n");
 
 	fw->wq = alloc_workqueue("prestera_fw_wq", WQ_HIGHPRI, 1);
-	if (!fw->wq)
+	if (!fw->wq) {
+		err = -ENOMEM;
 		goto err_wq_alloc;
+	}
 
 	INIT_WORK(&fw->evt_work, prestera_fw_evt_work_fn);
 

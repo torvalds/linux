@@ -280,7 +280,7 @@ int ethnl_set_features(struct sk_buff *skb, struct genl_info *info)
 					  active_diff_mask, compact);
 	}
 	if (mod)
-		ethtool_notify(dev, ETHTOOL_MSG_FEATURES_NTF, NULL);
+		netdev_features_change(dev);
 
 out_rtnl:
 	rtnl_unlock();

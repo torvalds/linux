@@ -1301,12 +1301,8 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	trace_gfs2_bmap(ip, bh_map, lblock, create, 1);
 
 	ret = gfs2_iomap_get(inode, pos, length, flags, &iomap, &mp);
-	if (!ret && iomap.type == IOMAP_HOLE) {
-		if (create)
-			ret = gfs2_iomap_alloc(inode, &iomap, &mp);
-		else
-			ret = -ENODATA;
-	}
+	if (create && !ret && iomap.type == IOMAP_HOLE)
+		ret = gfs2_iomap_alloc(inode, &iomap, &mp);
 	release_metapath(&mp);
 	if (ret)
 		goto out;

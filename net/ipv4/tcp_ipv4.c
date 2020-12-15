@@ -980,17 +980,22 @@ static int tcp_v4_send_synack(const struct sock *sk, struct dst_entry *dst,
 
 	skb = tcp_make_synack(sk, dst, req, foc, synack_type, syn_skb);
 
-	tos = sock_net(sk)->ipv4.sysctl_tcp_reflect_tos ?
-			tcp_rsk(req)->syn_tos : inet_sk(sk)->tos;
-
 	if (skb) {
 		__tcp_v4_send_check(skb, ireq->ir_loc_addr, ireq->ir_rmt_addr);
+
+		tos = sock_net(sk)->ipv4.sysctl_tcp_reflect_tos ?
+				tcp_rsk(req)->syn_tos & ~INET_ECN_MASK :
+				inet_sk(sk)->tos;
+
+		if (!INET_ECN_is_capable(tos) &&
+		    tcp_bpf_ca_needs_ecn((struct sock *)req))
+			tos |= INET_ECN_ECT_0;
 
 		rcu_read_lock();
 		err = ip_build_and_send_pkt(skb, sk, ireq->ir_loc_addr,
 					    ireq->ir_rmt_addr,
 					    rcu_dereference(ireq->ireq_opt),
-					    tos & ~INET_ECN_MASK);
+					    tos);
 		rcu_read_unlock();
 		err = net_xmit_eval(err);
 	}
@@ -1498,6 +1503,7 @@ struct sock *tcp_v4_syn_recv_sock(const struct sock *sk, struct sk_buff *skb,
 				  bool *own_req)
 {
 	struct inet_request_sock *ireq;
+	bool found_dup_sk = false;
 	struct inet_sock *newinet;
 	struct tcp_sock *newtp;
 	struct sock *newsk;
@@ -1575,12 +1581,22 @@ struct sock *tcp_v4_syn_recv_sock(const struct sock *sk, struct sk_buff *skb,
 
 	if (__inet_inherit_port(sk, newsk) < 0)
 		goto put_and_exit;
-	*own_req = inet_ehash_nolisten(newsk, req_to_sk(req_unhash));
+	*own_req = inet_ehash_nolisten(newsk, req_to_sk(req_unhash),
+				       &found_dup_sk);
 	if (likely(*own_req)) {
 		tcp_move_syn(newtp, req);
 		ireq->ireq_opt = NULL;
 	} else {
-		newinet->inet_opt = NULL;
+		if (!req_unhash && found_dup_sk) {
+			/* This code path should only be executed in the
+			 * syncookie case only
+			 */
+			bh_unlock_sock(newsk);
+			sock_put(newsk);
+			newsk = NULL;
+		} else {
+			newinet->inet_opt = NULL;
+		}
 	}
 	return newsk;
 

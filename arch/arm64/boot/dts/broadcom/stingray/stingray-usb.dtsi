@@ -5,20 +5,20 @@
 	usb {
 		compatible = "simple-bus";
 		dma-ranges;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges = <0x0 0x0 0x68500000 0x00400000>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges = <0x0 0x0 0x0 0x68500000 0x0 0x00400000>;
 
 		usbphy0: usb-phy@0 {
 			compatible = "brcm,sr-usb-combo-phy";
-			reg = <0x00000000 0x100>;
+			reg = <0x0 0x00000000 0x0 0x100>;
 			#phy-cells = <1>;
 			status = "disabled";
 		};
 
 		xhci0: usb@1000 {
 			compatible = "generic-xhci";
-			reg = <0x00001000 0x1000>;
+			reg = <0x0 0x00001000 0x0 0x1000>;
 			interrupts = <GIC_SPI 256 IRQ_TYPE_LEVEL_HIGH>;
 			phys = <&usbphy0 1>, <&usbphy0 0>;
 			phy-names = "phy0", "phy1";
@@ -28,7 +28,7 @@
 
 		bdc0: usb@2000 {
 			compatible = "brcm,bdc-v0.16";
-			reg = <0x00002000 0x1000>;
+			reg = <0x0 0x00002000 0x0 0x1000>;
 			interrupts = <GIC_SPI 259 IRQ_TYPE_LEVEL_HIGH>;
 			phys = <&usbphy0 0>, <&usbphy0 1>;
 			phy-names = "phy0", "phy1";
@@ -38,21 +38,21 @@
 
 		usbphy1: usb-phy@10000 {
 			compatible = "brcm,sr-usb-combo-phy";
-			reg = <0x00010000 0x100>;
+			reg = <0x0 0x00010000 0x0 0x100>;
 			#phy-cells = <1>;
 			status = "disabled";
 		};
 
 		usbphy2: usb-phy@20000 {
 			compatible = "brcm,sr-usb-hs-phy";
-			reg = <0x00020000 0x100>;
+			reg = <0x0 0x00020000 0x0 0x100>;
 			#phy-cells = <0>;
 			status = "disabled";
 		};
 
 		xhci1: usb@11000 {
 			compatible = "generic-xhci";
-			reg = <0x00011000 0x1000>;
+			reg = <0x0 0x00011000 0x0 0x1000>;
 			interrupts = <GIC_SPI 263 IRQ_TYPE_LEVEL_HIGH>;
 			phys = <&usbphy1 1>, <&usbphy2>, <&usbphy1 0>;
 			phy-names = "phy0", "phy1", "phy2";
@@ -62,7 +62,7 @@
 
 		bdc1: usb@21000 {
 			compatible = "brcm,bdc-v0.16";
-			reg = <0x00021000 0x1000>;
+			reg = <0x0 0x00021000 0x0 0x1000>;
 			interrupts = <GIC_SPI 266 IRQ_TYPE_LEVEL_HIGH>;
 			phys = <&usbphy2>;
 			phy-names = "phy0";
