@@ -2599,6 +2599,7 @@ static const struct of_device_id es7243e_dt_ids[] = {
 #if ES7243E_CHANNELS_MAX > 14
 	{.compatible = "ES7243E_MicArray_7",},	//es7243e_7
 #endif
+	{}
 };
 
 MODULE_DEVICE_TABLE(of, es7243e_dt_ids);
