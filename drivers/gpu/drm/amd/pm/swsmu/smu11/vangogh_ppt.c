@@ -407,10 +407,53 @@ static bool vangogh_is_dpm_running(struct smu_context *smu)
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
+static int vangogh_get_dpm_clk_limited(struct smu_context *smu, enum smu_clk_type clk_type,
+						uint32_t dpm_level, uint32_t *freq)
+{
+	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
+
+	if (!clk_table || clk_type >= SMU_CLK_COUNT)
+		return -EINVAL;
+
+	switch (clk_type) {
+	case SMU_SOCCLK:
+		if (dpm_level >= clk_table->NumSocClkLevelsEnabled)
+			return -EINVAL;
+		*freq = clk_table->SocClocks[dpm_level];
+		break;
+	case SMU_UCLK:
+	case SMU_MCLK:
+		if (dpm_level >= clk_table->NumDfPstatesEnabled)
+			return -EINVAL;
+		*freq = clk_table->DfPstateTable[dpm_level].memclk;
+
+		break;
+	case SMU_FCLK:
+		if (dpm_level >= clk_table->NumDfPstatesEnabled)
+			return -EINVAL;
+		*freq = clk_table->DfPstateTable[dpm_level].fclk;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int vangogh_print_fine_grain_clk(struct smu_context *smu,
 			enum smu_clk_type clk_type, char *buf)
 {
-	int size = 0;
+	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
+	SmuMetrics_t metrics;
+	int i, size = 0, ret = 0;
+	uint32_t cur_value = 0, value = 0, count = 0;
+	bool cur_value_match_level = false;
+
+	memset(&metrics, 0, sizeof(metrics));
+
+	ret = smu_cmn_get_metrics_table(smu, &metrics, false);
+	if (ret)
+		return ret;
 
 	switch (clk_type) {
 	case SMU_OD_SCLK:
@@ -428,6 +471,44 @@ static int vangogh_print_fine_grain_clk(struct smu_context *smu,
 			size += sprintf(buf + size, "SCLK: %7uMhz %10uMhz\n",
 				smu->gfx_default_hard_min_freq, smu->gfx_default_soft_max_freq);
 		}
+		break;
+	case SMU_SOCCLK:
+	/* the level 3 ~ 6 of socclk use the same frequency for vangogh */
+	count = clk_table->NumSocClkLevelsEnabled;
+	cur_value = metrics.SocclkFrequency;
+	break;
+	case SMU_MCLK:
+		count = clk_table->NumDfPstatesEnabled;
+		cur_value = metrics.MemclkFrequency;
+		break;
+	case SMU_FCLK:
+		count = clk_table->NumDfPstatesEnabled;
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetFclkFrequency, 0, &cur_value);
+		if (ret)
+			return ret;
+		break;
+	default:
+		break;
+	}
+
+	switch (clk_type) {
+	case SMU_SOCCLK:
+	case SMU_MCLK:
+	case SMU_FCLK:
+		for (i = 0; i < count; i++) {
+			ret = vangogh_get_dpm_clk_limited(smu, clk_type, i, &value);
+			if (ret)
+				return ret;
+			if (!value)
+				continue;
+			size += sprintf(buf + size, "%d: %uMhz %s\n", i, value,
+					cur_value == value ? "*" : "");
+			if (cur_value == value)
+				cur_value_match_level = true;
+		}
+
+		if (!cur_value_match_level)
+			size += sprintf(buf + size, "   %uMhz *\n", cur_value);
 		break;
 	default:
 		break;
@@ -727,6 +808,33 @@ static int vangogh_set_fine_grain_gfx_freq_parameters(struct smu_context *smu)
 	return 0;
 }
 
+static int vangogh_get_dpm_clock_table(struct smu_context *smu, struct dpm_clocks *clock_table)
+{
+	DpmClocks_t *table = smu->smu_table.clocks_table;
+	int i;
+
+	if (!clock_table || !table)
+		return -EINVAL;
+
+	for (i = 0; i < NUM_SOCCLK_DPM_LEVELS; i++) {
+		clock_table->SocClocks[i].Freq = table->SocClocks[i];
+		clock_table->SocClocks[i].Vol = table->SocVoltage[i];
+	}
+
+	for (i = 0; i < NUM_FCLK_DPM_LEVELS; i++) {
+		clock_table->FClocks[i].Freq = table->DfPstateTable[i].fclk;
+		clock_table->FClocks[i].Vol = table->DfPstateTable[i].voltage;
+	}
+
+	for (i = 0; i < NUM_FCLK_DPM_LEVELS; i++) {
+		clock_table->MemClocks[i].Freq = table->DfPstateTable[i].memclk;
+		clock_table->MemClocks[i].Vol = table->DfPstateTable[i].voltage;
+	}
+
+	return 0;
+}
+
+
 static int vangogh_system_features_control(struct smu_context *smu, bool en)
 {
 	struct amdgpu_device *adev = smu->adev;
@@ -798,6 +906,7 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.set_default_dpm_table = vangogh_set_default_dpm_tables,
 	.set_fine_grain_gfx_freq_parameters = vangogh_set_fine_grain_gfx_freq_parameters,
 	.system_features_control = vangogh_system_features_control,
+	.get_dpm_clock_table = vangogh_get_dpm_clock_table,
 	.post_init = vangogh_post_smu_init,
 };
 
