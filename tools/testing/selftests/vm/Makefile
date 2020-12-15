@@ -134,3 +134,5 @@ endif
 $(OUTPUT)/userfaultfd: LDLIBS += -lpthread
 
 $(OUTPUT)/mlock-random-test: LDLIBS += -lcap
+
+$(OUTPUT)/gup_test: ../../../../mm/gup_test.h
