@@ -295,7 +295,6 @@ static int dsicm_wake_up(struct panel_drv_data *ddata)
 static int dsicm_bl_update_status(struct backlight_device *dev)
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(&dev->dev);
-	struct omap_dss_device *src = ddata->src;
 	int r = 0;
 	int level;
 
@@ -310,14 +309,10 @@ static int dsicm_bl_update_status(struct backlight_device *dev)
 	mutex_lock(&ddata->lock);
 
 	if (ddata->enabled) {
-		src->ops->dsi.bus_lock(src);
-
 		r = dsicm_wake_up(ddata);
 		if (!r)
 			r = dsicm_dcs_write_1(
 				ddata, MIPI_DCS_SET_DISPLAY_BRIGHTNESS, level);
-
-		src->ops->dsi.bus_unlock(src);
 	}
 
 	mutex_unlock(&ddata->lock);
@@ -343,21 +338,16 @@ static ssize_t dsicm_num_errors_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(dev);
-	struct omap_dss_device *src = ddata->src;
 	u8 errors = 0;
 	int r;
 
 	mutex_lock(&ddata->lock);
 
 	if (ddata->enabled) {
-		src->ops->dsi.bus_lock(src);
-
 		r = dsicm_wake_up(ddata);
 		if (!r)
 			r = dsicm_dcs_read_1(ddata, DCS_READ_NUM_ERRORS,
 					&errors);
-
-		src->ops->dsi.bus_unlock(src);
 	} else {
 		r = -ENODEV;
 	}
@@ -374,20 +364,15 @@ static ssize_t dsicm_hw_revision_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(dev);
-	struct omap_dss_device *src = ddata->src;
 	u8 id1, id2, id3;
 	int r;
 
 	mutex_lock(&ddata->lock);
 
 	if (ddata->enabled) {
-		src->ops->dsi.bus_lock(src);
-
 		r = dsicm_wake_up(ddata);
 		if (!r)
 			r = dsicm_get_id(ddata, &id1, &id2, &id3);
-
-		src->ops->dsi.bus_unlock(src);
 	} else {
 		r = -ENODEV;
 	}
@@ -405,7 +390,6 @@ static ssize_t dsicm_store_ulps(struct device *dev,
 		const char *buf, size_t count)
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(dev);
-	struct omap_dss_device *src = ddata->src;
 	unsigned long t;
 	int r;
 
@@ -416,14 +400,10 @@ static ssize_t dsicm_store_ulps(struct device *dev,
 	mutex_lock(&ddata->lock);
 
 	if (ddata->enabled) {
-		src->ops->dsi.bus_lock(src);
-
 		if (t)
 			r = dsicm_enter_ulps(ddata);
 		else
 			r = dsicm_wake_up(ddata);
-
-		src->ops->dsi.bus_unlock(src);
 	}
 
 	mutex_unlock(&ddata->lock);
@@ -453,7 +433,6 @@ static ssize_t dsicm_store_ulps_timeout(struct device *dev,
 		const char *buf, size_t count)
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(dev);
-	struct omap_dss_device *src = ddata->src;
 	unsigned long t;
 	int r;
 
@@ -466,9 +445,7 @@ static ssize_t dsicm_store_ulps_timeout(struct device *dev,
 
 	if (ddata->enabled) {
 		/* dsicm_wake_up will restart the timer */
-		src->ops->dsi.bus_lock(src);
 		r = dsicm_wake_up(ddata);
-		src->ops->dsi.bus_unlock(src);
 	}
 
 	mutex_unlock(&ddata->lock);
@@ -669,17 +646,11 @@ static void dsicm_disconnect(struct omap_dss_device *src,
 static void dsicm_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = ddata->src;
 	int r;
 
 	mutex_lock(&ddata->lock);
 
-	src->ops->dsi.bus_lock(src);
-
 	r = dsicm_power_on(ddata);
-
-	src->ops->dsi.bus_unlock(src);
-
 	if (r)
 		goto err;
 
@@ -696,7 +667,6 @@ err:
 static void dsicm_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = ddata->src;
 	int r;
 
 	dsicm_bl_power(ddata, false);
@@ -705,13 +675,9 @@ static void dsicm_disable(struct omap_dss_device *dssdev)
 
 	dsicm_cancel_ulps_work(ddata);
 
-	src->ops->dsi.bus_lock(src);
-
 	r = dsicm_wake_up(ddata);
 	if (!r)
 		dsicm_power_off(ddata);
-
-	src->ops->dsi.bus_unlock(src);
 
 	mutex_unlock(&ddata->lock);
 }
@@ -719,10 +685,8 @@ static void dsicm_disable(struct omap_dss_device *dssdev)
 static void dsicm_framedone_cb(int err, void *data)
 {
 	struct panel_drv_data *ddata = data;
-	struct omap_dss_device *src = ddata->src;
 
 	dev_dbg(&ddata->dsi->dev, "framedone, err %d\n", err);
-	src->ops->dsi.bus_unlock(src);
 }
 
 static int dsicm_update(struct omap_dss_device *dssdev,
@@ -735,7 +699,6 @@ static int dsicm_update(struct omap_dss_device *dssdev,
 	dev_dbg(&ddata->dsi->dev, "update %d, %d, %d x %d\n", x, y, w, h);
 
 	mutex_lock(&ddata->lock);
-	src->ops->dsi.bus_lock(src);
 
 	r = dsicm_wake_up(ddata);
 	if (r)
@@ -757,11 +720,10 @@ static int dsicm_update(struct omap_dss_device *dssdev,
 	if (r)
 		goto err;
 
-	/* note: no bus_unlock here. unlock is src framedone_cb */
 	mutex_unlock(&ddata->lock);
+
 	return 0;
 err:
-	src->ops->dsi.bus_unlock(src);
 	mutex_unlock(&ddata->lock);
 	return r;
 }
@@ -787,7 +749,6 @@ static void dsicm_ulps_work(struct work_struct *work)
 	struct panel_drv_data *ddata = container_of(work, struct panel_drv_data,
 			ulps_work.work);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
-	struct omap_dss_device *src = ddata->src;
 
 	mutex_lock(&ddata->lock);
 
@@ -796,11 +757,8 @@ static void dsicm_ulps_work(struct work_struct *work)
 		return;
 	}
 
-	src->ops->dsi.bus_lock(src);
-
 	dsicm_enter_ulps(ddata);
 
-	src->ops->dsi.bus_unlock(src);
 	mutex_unlock(&ddata->lock);
 }
 

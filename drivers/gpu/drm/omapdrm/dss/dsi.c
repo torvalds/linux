@@ -477,17 +477,13 @@ static inline u32 dsi_read_reg(struct dsi_data *dsi, const struct dsi_reg idx)
 	return __raw_readl(base + idx.idx);
 }
 
-static void dsi_bus_lock(struct omap_dss_device *dssdev)
+static void dsi_bus_lock(struct dsi_data *dsi)
 {
-	struct dsi_data *dsi = to_dsi_data(dssdev);
-
 	down(&dsi->bus_lock);
 }
 
-static void dsi_bus_unlock(struct omap_dss_device *dssdev)
+static void dsi_bus_unlock(struct dsi_data *dsi)
 {
-	struct dsi_data *dsi = to_dsi_data(dssdev);
-
 	up(&dsi->bus_lock);
 }
 
@@ -3800,6 +3796,8 @@ static void dsi_handle_framedone(struct dsi_data *dsi, int error)
 		REG_FLD_MOD(dsi, DSI_TIMING2, 1, 15, 15); /* LP_RX_TO */
 	}
 
+	dsi_bus_unlock(dsi);
+
 	dsi->framedone_callback(error, dsi->framedone_data);
 
 	if (!error)
@@ -3853,6 +3851,8 @@ static int dsi_update(struct omap_dss_device *dssdev, int channel,
 		void (*callback)(int, void *), void *data)
 {
 	struct dsi_data *dsi = to_dsi_data(dssdev);
+
+	dsi_bus_lock(dsi);
 
 	dsi->update_channel = channel;
 	dsi->framedone_callback = callback;
@@ -4059,7 +4059,7 @@ static void dsi_display_enable(struct omap_dss_device *dssdev)
 
 	DSSDBG("dsi_display_enable\n");
 
-	WARN_ON(!dsi_bus_is_locked(dsi));
+	dsi_bus_lock(dsi);
 
 	mutex_lock(&dsi->lock);
 
@@ -4074,6 +4074,8 @@ static void dsi_display_enable(struct omap_dss_device *dssdev)
 		goto err_init_dsi;
 
 	mutex_unlock(&dsi->lock);
+
+	dsi_bus_unlock(dsi);
 
 	return;
 
@@ -4091,7 +4093,7 @@ static void dsi_display_disable(struct omap_dss_device *dssdev,
 
 	DSSDBG("dsi_display_disable\n");
 
-	WARN_ON(!dsi_bus_is_locked(dsi));
+	dsi_bus_lock(dsi);
 
 	mutex_lock(&dsi->lock);
 
@@ -4105,6 +4107,8 @@ static void dsi_display_disable(struct omap_dss_device *dssdev,
 	dsi_runtime_put(dsi);
 
 	mutex_unlock(&dsi->lock);
+
+	dsi_bus_unlock(dsi);
 }
 
 static int dsi_enable_te(struct dsi_data *dsi, bool enable)
@@ -4713,10 +4717,9 @@ static enum omap_channel dsi_get_channel(struct dsi_data *dsi)
 	}
 }
 
-static ssize_t omap_dsi_host_transfer(struct mipi_dsi_host *host,
-				      const struct mipi_dsi_msg *msg)
+static ssize_t _omap_dsi_host_transfer(struct dsi_data *dsi,
+				       const struct mipi_dsi_msg *msg)
 {
-	struct dsi_data *dsi = host_to_omap(host);
 	struct omap_dss_device *dssdev = &dsi->output;
 	int r;
 
@@ -4765,6 +4768,19 @@ static ssize_t omap_dsi_host_transfer(struct mipi_dsi_host *host,
 	return 0;
 }
 
+static ssize_t omap_dsi_host_transfer(struct mipi_dsi_host *host,
+				      const struct mipi_dsi_msg *msg)
+{
+	struct dsi_data *dsi = host_to_omap(host);
+	int r;
+
+	dsi_bus_lock(dsi);
+	r = _omap_dsi_host_transfer(dsi, msg);
+	dsi_bus_unlock(dsi);
+
+	return r;
+}
+
 static int dsi_get_clocks(struct dsi_data *dsi)
 {
 	struct clk *clk;
@@ -4798,9 +4814,6 @@ static const struct omap_dss_device_ops dsi_ops = {
 	.enable = dsi_display_enable,
 
 	.dsi = {
-		.bus_lock = dsi_bus_lock,
-		.bus_unlock = dsi_bus_unlock,
-
 		.disable = dsi_display_disable,
 
 		.set_config = dsi_set_config,
