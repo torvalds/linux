@@ -394,11 +394,7 @@ struct dsi_data {
 	atomic_t do_ext_te_update;
 
 	bool te_enabled;
-	bool ulps_enabled;
-	bool ulps_auto_idle;
 	bool video_enabled;
-
-	struct delayed_work ulps_work;
 
 	struct delayed_work framedone_timeout_work;
 
