@@ -1390,10 +1390,11 @@ void acc_disconnect(void)
 {
 	struct acc_dev *dev = get_acc_dev();
 
-	/* unregister all HID devices if USB is disconnected */
-	if (dev)
-		kill_all_hid_devices(dev);
+	if (!dev)
+		return;
 
+	/* unregister all HID devices if USB is disconnected */
+	kill_all_hid_devices(dev);
 	put_acc_dev(dev);
 }
 EXPORT_SYMBOL_GPL(acc_disconnect);
