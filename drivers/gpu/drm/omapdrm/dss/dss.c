@@ -1641,21 +1641,14 @@ static struct platform_driver * const omap_dss_drivers[] = {
 #endif
 };
 
-static int __init omap_dss_init(void)
+int __init omap_dss_init(void)
 {
 	return platform_register_drivers(omap_dss_drivers,
 					 ARRAY_SIZE(omap_dss_drivers));
 }
 
-static void __exit omap_dss_exit(void)
+void omap_dss_exit(void)
 {
 	platform_unregister_drivers(omap_dss_drivers,
 				    ARRAY_SIZE(omap_dss_drivers));
 }
-
-module_init(omap_dss_init);
-module_exit(omap_dss_exit);
-
-MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@ti.com>");
-MODULE_DESCRIPTION("OMAP2/3/4/5 Display Subsystem");
-MODULE_LICENSE("GPL v2");

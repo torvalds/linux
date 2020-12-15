@@ -73,7 +73,6 @@ error:
 	omapdss_device_cleanup_output(out);
 	return ret;
 }
-EXPORT_SYMBOL(omapdss_device_init_output);
 
 void omapdss_device_cleanup_output(struct omap_dss_device *out)
 {
@@ -81,7 +80,6 @@ void omapdss_device_cleanup_output(struct omap_dss_device *out)
 		drm_panel_bridge_remove(out->next_bridge ?
 					out->next_bridge : out->bridge);
 }
-EXPORT_SYMBOL(omapdss_device_cleanup_output);
 
 int dss_install_mgr_ops(struct dss_device *dss,
 			const struct dss_mgr_ops *mgr_ops,
@@ -95,14 +93,12 @@ int dss_install_mgr_ops(struct dss_device *dss,
 
 	return 0;
 }
-EXPORT_SYMBOL(dss_install_mgr_ops);
 
 void dss_uninstall_mgr_ops(struct dss_device *dss)
 {
 	dss->mgr_ops = NULL;
 	dss->mgr_ops_priv = NULL;
 }
-EXPORT_SYMBOL(dss_uninstall_mgr_ops);
 
 void dss_mgr_set_timings(struct omap_dss_device *dssdev,
 			 const struct videomode *vm)
@@ -110,7 +106,6 @@ void dss_mgr_set_timings(struct omap_dss_device *dssdev,
 	dssdev->dss->mgr_ops->set_timings(dssdev->dss->mgr_ops_priv,
 					  dssdev->dispc_channel, vm);
 }
-EXPORT_SYMBOL(dss_mgr_set_timings);
 
 void dss_mgr_set_lcd_config(struct omap_dss_device *dssdev,
 		const struct dss_lcd_mgr_config *config)
@@ -118,28 +113,24 @@ void dss_mgr_set_lcd_config(struct omap_dss_device *dssdev,
 	dssdev->dss->mgr_ops->set_lcd_config(dssdev->dss->mgr_ops_priv,
 					     dssdev->dispc_channel, config);
 }
-EXPORT_SYMBOL(dss_mgr_set_lcd_config);
 
 int dss_mgr_enable(struct omap_dss_device *dssdev)
 {
 	return dssdev->dss->mgr_ops->enable(dssdev->dss->mgr_ops_priv,
 					    dssdev->dispc_channel);
 }
-EXPORT_SYMBOL(dss_mgr_enable);
 
 void dss_mgr_disable(struct omap_dss_device *dssdev)
 {
 	dssdev->dss->mgr_ops->disable(dssdev->dss->mgr_ops_priv,
 				      dssdev->dispc_channel);
 }
-EXPORT_SYMBOL(dss_mgr_disable);
 
 void dss_mgr_start_update(struct omap_dss_device *dssdev)
 {
 	dssdev->dss->mgr_ops->start_update(dssdev->dss->mgr_ops_priv,
 					   dssdev->dispc_channel);
 }
-EXPORT_SYMBOL(dss_mgr_start_update);
 
 int dss_mgr_register_framedone_handler(struct omap_dss_device *dssdev,
 		void (*handler)(void *), void *data)
@@ -150,7 +141,6 @@ int dss_mgr_register_framedone_handler(struct omap_dss_device *dssdev,
 							dssdev->dispc_channel,
 							handler, data);
 }
-EXPORT_SYMBOL(dss_mgr_register_framedone_handler);
 
 void dss_mgr_unregister_framedone_handler(struct omap_dss_device *dssdev,
 		void (*handler)(void *), void *data)
@@ -161,4 +151,3 @@ void dss_mgr_unregister_framedone_handler(struct omap_dss_device *dssdev,
 						   dssdev->dispc_channel,
 						   handler, data);
 }
-EXPORT_SYMBOL(dss_mgr_unregister_framedone_handler);

@@ -38,7 +38,6 @@ void omapdss_display_init(struct omap_dss_device *dssdev)
 		dssdev->name = devm_kasprintf(dssdev->dev, GFP_KERNEL,
 					      "display%u", id);
 }
-EXPORT_SYMBOL_GPL(omapdss_display_init);
 
 int omapdss_display_get_modes(struct drm_connector *connector,
 			      const struct videomode *vm)
@@ -57,4 +56,3 @@ int omapdss_display_get_modes(struct drm_connector *connector,
 
 	return 1;
 }
-EXPORT_SYMBOL_GPL(omapdss_display_get_modes);

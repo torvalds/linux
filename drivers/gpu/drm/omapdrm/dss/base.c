@@ -20,14 +20,11 @@ struct dispc_device *dispc_get_dispc(struct dss_device *dss)
 {
 	return dss->dispc;
 }
-EXPORT_SYMBOL(dispc_get_dispc);
 
 const struct dispc_ops *dispc_get_ops(struct dss_device *dss)
 {
 	return dss->dispc_ops;
 }
-EXPORT_SYMBOL(dispc_get_ops);
-
 
 /* -----------------------------------------------------------------------------
  * OMAP DSS Devices Handling
@@ -42,7 +39,6 @@ void omapdss_device_register(struct omap_dss_device *dssdev)
 	list_add_tail(&dssdev->list, &omapdss_devices_list);
 	mutex_unlock(&omapdss_devices_lock);
 }
-EXPORT_SYMBOL_GPL(omapdss_device_register);
 
 void omapdss_device_unregister(struct omap_dss_device *dssdev)
 {
@@ -50,7 +46,6 @@ void omapdss_device_unregister(struct omap_dss_device *dssdev)
 	list_del(&dssdev->list);
 	mutex_unlock(&omapdss_devices_lock);
 }
-EXPORT_SYMBOL_GPL(omapdss_device_unregister);
 
 static bool omapdss_device_is_registered(struct device_node *node)
 {
@@ -72,24 +67,16 @@ static bool omapdss_device_is_registered(struct device_node *node)
 
 struct omap_dss_device *omapdss_device_get(struct omap_dss_device *dssdev)
 {
-	if (!try_module_get(dssdev->owner))
+	if (get_device(dssdev->dev) == NULL)
 		return NULL;
-
-	if (get_device(dssdev->dev) == NULL) {
-		module_put(dssdev->owner);
-		return NULL;
-	}
 
 	return dssdev;
 }
-EXPORT_SYMBOL(omapdss_device_get);
 
 void omapdss_device_put(struct omap_dss_device *dssdev)
 {
 	put_device(dssdev->dev);
-	module_put(dssdev->owner);
 }
-EXPORT_SYMBOL(omapdss_device_put);
 
 struct omap_dss_device *omapdss_find_device_by_node(struct device_node *node)
 {
@@ -150,7 +137,6 @@ done:
 	mutex_unlock(&omapdss_devices_lock);
 	return dssdev;
 }
-EXPORT_SYMBOL(omapdss_device_next_output);
 
 static bool omapdss_device_is_connected(struct omap_dss_device *dssdev)
 {
@@ -181,7 +167,6 @@ int omapdss_device_connect(struct dss_device *dss,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(omapdss_device_connect);
 
 void omapdss_device_disconnect(struct omap_dss_device *src,
 			       struct omap_dss_device *dst)
@@ -204,7 +189,6 @@ void omapdss_device_disconnect(struct omap_dss_device *src,
 
 	dst->dss = NULL;
 }
-EXPORT_SYMBOL_GPL(omapdss_device_disconnect);
 
 /* -----------------------------------------------------------------------------
  * Components Handling
@@ -290,7 +274,6 @@ void omapdss_gather_components(struct device *dev)
 	for_each_available_child_of_node(dev->of_node, child)
 		omapdss_walk_device(dev, child, true);
 }
-EXPORT_SYMBOL(omapdss_gather_components);
 
 static bool omapdss_component_is_loaded(struct omapdss_comp_node *comp)
 {
@@ -315,8 +298,3 @@ bool omapdss_stack_is_ready(void)
 
 	return true;
 }
-EXPORT_SYMBOL(omapdss_stack_is_ready);
-
-MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@ti.com>");
-MODULE_DESCRIPTION("OMAP Display Subsystem Base");
-MODULE_LICENSE("GPL v2");

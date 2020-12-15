@@ -461,4 +461,7 @@ const struct dispc_ops *dispc_get_ops(struct dss_device *dss);
 bool omapdss_stack_is_ready(void);
 void omapdss_gather_components(struct device *dev);
 
+int omap_dss_init(void);
+void omap_dss_exit(void);
+
 #endif /* __OMAP_DRM_DSS_H */
