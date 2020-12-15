@@ -768,7 +768,6 @@ err:
 
 static int _dsicm_enable_te(struct panel_drv_data *ddata, bool enable)
 {
-	struct omap_dss_device *src = ddata->src;
 	struct mipi_dsi_device *dsi = ddata->dsi;
 	int r;
 
@@ -776,8 +775,6 @@ static int _dsicm_enable_te(struct panel_drv_data *ddata, bool enable)
 		r = mipi_dsi_dcs_set_tear_on(dsi, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
 	else
 		r = mipi_dsi_dcs_set_tear_off(dsi);
-
-	src->ops->dsi.enable_te(src, enable);
 
 	/* possible panel bug */
 	msleep(100);
