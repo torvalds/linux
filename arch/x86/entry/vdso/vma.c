@@ -89,26 +89,10 @@ static void vdso_fix_landing(const struct vdso_image *image,
 static int vdso_mremap(const struct vm_special_mapping *sm,
 		struct vm_area_struct *new_vma)
 {
-	unsigned long new_size = new_vma->vm_end - new_vma->vm_start;
 	const struct vdso_image *image = current->mm->context.vdso_image;
-
-	if (image->size != new_size)
-		return -EINVAL;
 
 	vdso_fix_landing(image, new_vma);
 	current->mm->context.vdso = (void __user *)new_vma->vm_start;
-
-	return 0;
-}
-
-static int vvar_mremap(const struct vm_special_mapping *sm,
-		struct vm_area_struct *new_vma)
-{
-	const struct vdso_image *image = new_vma->vm_mm->context.vdso_image;
-	unsigned long new_size = new_vma->vm_end - new_vma->vm_start;
-
-	if (new_size != -image->sym_vvar_start)
-		return -EINVAL;
 
 	return 0;
 }
@@ -252,7 +236,6 @@ static const struct vm_special_mapping vdso_mapping = {
 static const struct vm_special_mapping vvar_mapping = {
 	.name = "[vvar]",
 	.fault = vvar_fault,
-	.mremap = vvar_mremap,
 };
 
 /*
