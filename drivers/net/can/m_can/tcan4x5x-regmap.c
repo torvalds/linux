@@ -38,10 +38,9 @@ static int tcan4x5x_regmap_gather_write(void *context, const void *reg,
 
 static int tcan4x5x_regmap_write(void *context, const void *data, size_t count)
 {
-	u16 *reg = (u16 *)(data);
-	const u32 *val = data + 4;
-
-	return tcan4x5x_regmap_gather_write(context, reg, 4, val, count - 4);
+	return tcan4x5x_regmap_gather_write(context, data, sizeof(u32),
+					    data + sizeof(u32),
+					    count - sizeof(u32));
 }
 
 static int tcan4x5x_regmap_read(void *context,
