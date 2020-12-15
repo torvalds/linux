@@ -48,6 +48,7 @@ static DEFINE_IDA(devfreq_ida);
  * @capped_state:	index to cooling state with in dynamic power budget
  * @req_max_freq:	PM QoS request for limiting the maximum frequency
  *			of the devfreq device.
+ * @em_pd:		Energy Model for the associated Devfreq device
  */
 struct devfreq_cooling_device {
 	int id;
@@ -60,6 +61,7 @@ struct devfreq_cooling_device {
 	u32 res_util;
 	int capped_state;
 	struct dev_pm_qos_request req_max_freq;
+	struct em_perf_domain *em_pd;
 };
 
 static int devfreq_cooling_get_max_state(struct thermal_cooling_device *cdev,
@@ -99,9 +101,9 @@ static int devfreq_cooling_set_cur_state(struct thermal_cooling_device *cdev,
 	if (state > dfc->max_state)
 		return -EINVAL;
 
-	if (dev->em_pd) {
+	if (dfc->em_pd) {
 		perf_idx = dfc->max_state - state;
-		freq = dev->em_pd->table[perf_idx].frequency * 1000;
+		freq = dfc->em_pd->table[perf_idx].frequency * 1000;
 	} else {
 		freq = dfc->freq_table[state];
 	}
@@ -181,7 +183,6 @@ static int devfreq_cooling_get_requested_power(struct thermal_cooling_device *cd
 {
 	struct devfreq_cooling_device *dfc = cdev->devdata;
 	struct devfreq *df = dfc->devfreq;
-	struct device *dev = df->dev.parent;
 	struct devfreq_dev_status status;
 	unsigned long state;
 	unsigned long freq;
@@ -204,7 +205,7 @@ static int devfreq_cooling_get_requested_power(struct thermal_cooling_device *cd
 		res = dfc->power_ops->get_real_power(df, power, freq, voltage);
 		if (!res) {
 			state = dfc->capped_state;
-			dfc->res_util = dev->em_pd->table[state].power;
+			dfc->res_util = dfc->em_pd->table[state].power;
 			dfc->res_util *= SCALE_ERROR_MITIGATION;
 
 			if (*power > 1)
@@ -214,7 +215,7 @@ static int devfreq_cooling_get_requested_power(struct thermal_cooling_device *cd
 		}
 	} else {
 		/* Energy Model frequencies are in kHz */
-		perf_idx = get_perf_idx(dev->em_pd, freq / 1000);
+		perf_idx = get_perf_idx(dfc->em_pd, freq / 1000);
 		if (perf_idx < 0) {
 			res = -EAGAIN;
 			goto fail;
@@ -223,7 +224,7 @@ static int devfreq_cooling_get_requested_power(struct thermal_cooling_device *cd
 		_normalize_load(&status);
 
 		/* Scale power for utilization */
-		*power = dev->em_pd->table[perf_idx].power;
+		*power = dfc->em_pd->table[perf_idx].power;
 		*power *= status.busy_time;
 		*power >>= 10;
 	}
@@ -241,15 +242,13 @@ static int devfreq_cooling_state2power(struct thermal_cooling_device *cdev,
 				       unsigned long state, u32 *power)
 {
 	struct devfreq_cooling_device *dfc = cdev->devdata;
-	struct devfreq *df = dfc->devfreq;
-	struct device *dev = df->dev.parent;
 	int perf_idx;
 
 	if (state > dfc->max_state)
 		return -EINVAL;
 
 	perf_idx = dfc->max_state - state;
-	*power = dev->em_pd->table[perf_idx].power;
+	*power = dfc->em_pd->table[perf_idx].power;
 
 	return 0;
 }
@@ -259,7 +258,6 @@ static int devfreq_cooling_power2state(struct thermal_cooling_device *cdev,
 {
 	struct devfreq_cooling_device *dfc = cdev->devdata;
 	struct devfreq *df = dfc->devfreq;
-	struct device *dev = df->dev.parent;
 	struct devfreq_dev_status status;
 	unsigned long freq;
 	s32 est_power;
@@ -287,7 +285,7 @@ static int devfreq_cooling_power2state(struct thermal_cooling_device *cdev,
 	 * budget. The EM power table is sorted ascending.
 	 */
 	for (i = dfc->max_state; i > 0; i--)
-		if (est_power >= dev->em_pd->table[i].power)
+		if (est_power >= dfc->em_pd->table[i].power)
 			break;
 
 	*state = dfc->max_state - i;
@@ -374,7 +372,8 @@ of_devfreq_cooling_register_power(struct device_node *np, struct devfreq *df,
 
 	dfc->devfreq = df;
 
-	if (dev->em_pd) {
+	dfc->em_pd = em_pd_get(dev);
+	if (dfc->em_pd) {
 		devfreq_cooling_ops.get_requested_power =
 			devfreq_cooling_get_requested_power;
 		devfreq_cooling_ops.state2power = devfreq_cooling_state2power;
@@ -382,7 +381,7 @@ of_devfreq_cooling_register_power(struct device_node *np, struct devfreq *df,
 
 		dfc->power_ops = dfc_power;
 
-		num_opps = em_pd_nr_perf_states(dev->em_pd);
+		num_opps = em_pd_nr_perf_states(dfc->em_pd);
 	} else {
 		/* Backward compatibility for drivers which do not use IPA */
 		dev_dbg(dev, "missing EM for cooling device\n");
