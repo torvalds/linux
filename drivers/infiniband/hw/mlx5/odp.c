@@ -33,6 +33,8 @@
 #include <rdma/ib_umem.h>
 #include <rdma/ib_umem_odp.h>
 #include <linux/kernel.h>
+#include <linux/dma-buf.h>
+#include <linux/dma-resv.h>
 
 #include "mlx5_ib.h"
 #include "cmd.h"
@@ -670,6 +672,37 @@ void mlx5_ib_fence_odp_mr(struct mlx5_ib_mr *mr)
 	dma_fence_odp_mr(mr);
 }
 
+/**
+ * mlx5_ib_fence_dmabuf_mr - Stop all access to the dmabuf MR
+ * @mr: to fence
+ *
+ * On return no parallel threads will be touching this MR and no DMA will be
+ * active.
+ */
+void mlx5_ib_fence_dmabuf_mr(struct mlx5_ib_mr *mr)
+{
+	struct ib_umem_dmabuf *umem_dmabuf = to_ib_umem_dmabuf(mr->umem);
+
+	/* Prevent new page faults and prefetch requests from succeeding */
+	xa_erase(&mr_to_mdev(mr)->odp_mkeys, mlx5_base_mkey(mr->mmkey.key));
+
+	/* Wait for all running page-fault handlers to finish. */
+	synchronize_srcu(&mr_to_mdev(mr)->odp_srcu);
+
+	wait_event(mr->q_deferred_work, !atomic_read(&mr->num_deferred_work));
+
+	dma_resv_lock(umem_dmabuf->attach->dmabuf->resv, NULL);
+	mlx5_mr_cache_invalidate(mr);
+	umem_dmabuf->private = NULL;
+	ib_umem_dmabuf_unmap_pages(umem_dmabuf);
+	dma_resv_unlock(umem_dmabuf->attach->dmabuf->resv);
+
+	if (!mr->cache_ent) {
+		mlx5_core_destroy_mkey(mr_to_mdev(mr)->mdev, &mr->mmkey);
+		WARN_ON(mr->descs);
+	}
+}
+
 #define MLX5_PF_FLAGS_DOWNGRADE BIT(1)
 #define MLX5_PF_FLAGS_SNAPSHOT BIT(2)
 #define MLX5_PF_FLAGS_ENABLE BIT(3)
@@ -803,6 +836,44 @@ out:
 	return ret;
 }
 
+static int pagefault_dmabuf_mr(struct mlx5_ib_mr *mr, size_t bcnt,
+			       u32 *bytes_mapped, u32 flags)
+{
+	struct ib_umem_dmabuf *umem_dmabuf = to_ib_umem_dmabuf(mr->umem);
+	u32 xlt_flags = 0;
+	int err;
+	unsigned int page_size;
+
+	if (flags & MLX5_PF_FLAGS_ENABLE)
+		xlt_flags |= MLX5_IB_UPD_XLT_ENABLE;
+
+	dma_resv_lock(umem_dmabuf->attach->dmabuf->resv, NULL);
+	err = ib_umem_dmabuf_map_pages(umem_dmabuf);
+	if (err) {
+		dma_resv_unlock(umem_dmabuf->attach->dmabuf->resv);
+		return err;
+	}
+
+	page_size = mlx5_umem_find_best_pgsz(&umem_dmabuf->umem, mkc,
+					     log_page_size, 0,
+					     umem_dmabuf->umem.iova);
+	if (unlikely(page_size < PAGE_SIZE)) {
+		ib_umem_dmabuf_unmap_pages(umem_dmabuf);
+		err = -EINVAL;
+	} else {
+		err = mlx5_ib_update_mr_pas(mr, xlt_flags);
+	}
+	dma_resv_unlock(umem_dmabuf->attach->dmabuf->resv);
+
+	if (err)
+		return err;
+
+	if (bytes_mapped)
+		*bytes_mapped += bcnt;
+
+	return ib_umem_num_pages(mr->umem);
+}
+
 /*
  * Returns:
  *  -EFAULT: The io_virt->bcnt is not within the MR, it covers pages that are
@@ -820,6 +891,9 @@ static int pagefault_mr(struct mlx5_ib_mr *mr, u64 io_virt, size_t bcnt,
 	lockdep_assert_held(&mr_to_mdev(mr)->odp_srcu);
 	if (unlikely(io_virt < mr->mmkey.iova))
 		return -EFAULT;
+
+	if (mr->umem->is_dmabuf)
+		return pagefault_dmabuf_mr(mr, bcnt, bytes_mapped, flags);
 
 	if (!odp->is_implicit_odp) {
 		u64 user_va;
@@ -844,6 +918,16 @@ int mlx5_ib_init_odp_mr(struct mlx5_ib_mr *mr)
 	ret = pagefault_real_mr(mr, to_ib_umem_odp(mr->umem), mr->umem->address,
 				mr->umem->length, NULL,
 				MLX5_PF_FLAGS_SNAPSHOT | MLX5_PF_FLAGS_ENABLE);
+	return ret >= 0 ? 0 : ret;
+}
+
+int mlx5_ib_init_dmabuf_mr(struct mlx5_ib_mr *mr)
+{
+	int ret;
+
+	ret = pagefault_dmabuf_mr(mr, mr->umem->length, NULL,
+				  MLX5_PF_FLAGS_ENABLE);
+
 	return ret >= 0 ? 0 : ret;
 }
 
@@ -1749,7 +1833,6 @@ get_prefetchable_mr(struct ib_pd *pd, enum ib_uverbs_advise_mr_advice advice,
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_core_mkey *mmkey;
-	struct ib_umem_odp *odp;
 	struct mlx5_ib_mr *mr;
 
 	lockdep_assert_held(&dev->odp_srcu);
@@ -1763,11 +1846,9 @@ get_prefetchable_mr(struct ib_pd *pd, enum ib_uverbs_advise_mr_advice advice,
 	if (mr->ibmr.pd != pd)
 		return NULL;
 
-	odp = to_ib_umem_odp(mr->umem);
-
 	/* prefetch with write-access must be supported by the MR */
 	if (advice == IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_WRITE &&
-	    !odp->umem.writable)
+	    !mr->umem->writable)
 		return NULL;
 
 	return mr;
