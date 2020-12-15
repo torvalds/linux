@@ -22,7 +22,16 @@
 #include <linux/atomic.h>
 #include <linux/nmi.h>
 #include <linux/sched/wake_q.h>
-#include <linux/slab.h>
+
+/*
+ * Structure to determine completion condition and record errors.  May
+ * be shared by works on different cpus.
+ */
+struct cpu_stop_done {
+	atomic_t		nr_todo;	/* nr left to execute */
+	int			ret;		/* collected return value */
+	struct completion	completion;	/* fired if nr_todo reaches 0 */
+};
 
 /* the actual stopper, one per every possible cpu, enabled on online cpus */
 struct cpu_stopper {
@@ -362,54 +371,6 @@ bool stop_one_cpu_nowait(unsigned int cpu, cpu_stop_fn_t fn, void *arg,
 	return cpu_stop_queue_work(cpu, work_buf);
 }
 EXPORT_SYMBOL_GPL(stop_one_cpu_nowait);
-
-/**
- * stop_one_cpu_async - stop a cpu and wait for completion in a separated
- *			function: stop_wait_work()
- * @cpu: cpu to stop
- * @fn: function to execute
- * @arg: argument to @fn
- * @work_buf: pointer to cpu_stop_work structure
- *
- * CONTEXT:
- * Might sleep.
- *
- * RETURNS:
- * 0 if cpu_stop_work was queued successfully and @fn will be called.
- * ENOENT if @fn(@arg) was not executed because @cpu was offline.
- */
-int stop_one_cpu_async(unsigned int cpu, cpu_stop_fn_t fn, void *arg,
-		       struct cpu_stop_work *work_buf,
-		       struct cpu_stop_done *done)
-{
-	cpu_stop_init_done(done, 1);
-
-	work_buf->done = done;
-	work_buf->fn = fn;
-	work_buf->arg = arg;
-
-	if (cpu_stop_queue_work(cpu, work_buf))
-		return 0;
-
-	work_buf->done = NULL;
-
-	return -ENOENT;
-}
-
-/**
- * cpu_stop_work_wait - wait for a stop initiated by stop_one_cpu_async().
- * @work_buf: pointer to cpu_stop_work structure
- *
- * CONTEXT:
- * Might sleep.
- */
-void cpu_stop_work_wait(struct cpu_stop_work *work_buf)
-{
-	struct cpu_stop_done *done = work_buf->done;
-
-	wait_for_completion(&done->completion);
-	work_buf->done = NULL;
-}
 
 static bool queue_stop_cpus_work(const struct cpumask *cpumask,
 				 cpu_stop_fn_t fn, void *arg,
