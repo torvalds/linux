@@ -13,6 +13,12 @@
 
 #define IONIC_MAX_NUM_NAPI_CNTR		(NAPI_POLL_WEIGHT + 1)
 #define IONIC_MAX_NUM_SG_CNTR		(IONIC_TX_MAX_SG_ELEMS + 1)
+
+#define ADD_ADDR	true
+#define DEL_ADDR	false
+#define CAN_SLEEP	true
+#define CAN_NOT_SLEEP	false
+
 #define IONIC_RX_COPYBREAK_DEFAULT	256
 #define IONIC_TX_BUDGET_DEFAULT		256
 

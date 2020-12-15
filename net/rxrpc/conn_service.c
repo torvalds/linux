@@ -156,7 +156,6 @@ struct rxrpc_connection *rxrpc_prealloc_service_connection(struct rxrpc_net *rxn
 void rxrpc_new_incoming_connection(struct rxrpc_sock *rx,
 				   struct rxrpc_connection *conn,
 				   const struct rxrpc_security *sec,
-				   struct key *key,
 				   struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
@@ -170,7 +169,6 @@ void rxrpc_new_incoming_connection(struct rxrpc_sock *rx,
 	conn->security_ix	= sp->hdr.securityIndex;
 	conn->out_clientflag	= 0;
 	conn->security		= sec;
-	conn->server_key	= key_get(key);
 	if (conn->security_ix)
 		conn->state	= RXRPC_CONN_SERVICE_UNSECURED;
 	else

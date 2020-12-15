@@ -27,16 +27,16 @@ struct gsi_channel;
  * a request is *not* an immediate command.
  */
 enum ipa_cmd_opcode {
-	IPA_CMD_NONE			= 0,
-	IPA_CMD_IP_V4_FILTER_INIT	= 3,
-	IPA_CMD_IP_V6_FILTER_INIT	= 4,
-	IPA_CMD_IP_V4_ROUTING_INIT	= 7,
-	IPA_CMD_IP_V6_ROUTING_INIT	= 8,
-	IPA_CMD_HDR_INIT_LOCAL		= 9,
-	IPA_CMD_REGISTER_WRITE		= 12,
-	IPA_CMD_IP_PACKET_INIT		= 16,
-	IPA_CMD_DMA_SHARED_MEM		= 19,
-	IPA_CMD_IP_PACKET_TAG_STATUS	= 20,
+	IPA_CMD_NONE			= 0x0,
+	IPA_CMD_IP_V4_FILTER_INIT	= 0x3,
+	IPA_CMD_IP_V6_FILTER_INIT	= 0x4,
+	IPA_CMD_IP_V4_ROUTING_INIT	= 0x7,
+	IPA_CMD_IP_V6_ROUTING_INIT	= 0x8,
+	IPA_CMD_HDR_INIT_LOCAL		= 0x9,
+	IPA_CMD_REGISTER_WRITE		= 0xc,
+	IPA_CMD_IP_PACKET_INIT		= 0x10,
+	IPA_CMD_DMA_SHARED_MEM		= 0x13,
+	IPA_CMD_IP_PACKET_TAG_STATUS	= 0x14,
 };
 
 /**
@@ -49,7 +49,6 @@ struct ipa_cmd_info {
 	enum ipa_cmd_opcode opcode;
 	enum dma_data_direction direction;
 };
-
 
 #ifdef IPA_VALIDATE
 

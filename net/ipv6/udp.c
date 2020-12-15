@@ -276,7 +276,7 @@ static struct sock *__udp6_lib_lookup_skb(struct sk_buff *skb,
 				 inet6_sdif(skb), udptable, skb);
 }
 
-struct sock *udp6_lib_lookup_skb(struct sk_buff *skb,
+struct sock *udp6_lib_lookup_skb(const struct sk_buff *skb,
 				 __be16 sport, __be16 dport)
 {
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
@@ -285,7 +285,6 @@ struct sock *udp6_lib_lookup_skb(struct sk_buff *skb,
 				 &iph->daddr, dport, inet6_iif(skb),
 				 inet6_sdif(skb), &udp_table, NULL);
 }
-EXPORT_SYMBOL_GPL(udp6_lib_lookup_skb);
 
 /* Must be called under rcu_read_lock().
  * Does increment socket refcount.
@@ -560,7 +559,7 @@ int __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 	sk = __udp6_lib_lookup(net, daddr, uh->dest, saddr, uh->source,
 			       inet6_iif(skb), inet6_sdif(skb), udptable, NULL);
-	if (!sk) {
+	if (!sk || udp_sk(sk)->encap_type) {
 		/* No socket for error: try tunnels before discarding */
 		sk = ERR_PTR(-ENOENT);
 		if (static_branch_unlikely(&udpv6_encap_needed_key)) {
@@ -637,6 +636,9 @@ static int __udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		if (rc == -ENOMEM)
 			UDP6_INC_STATS(sock_net(sk),
 					 UDP_MIB_RCVBUFERRORS, is_udplite);
+		else
+			UDP6_INC_STATS(sock_net(sk),
+				       UDP_MIB_MEMERRORS, is_udplite);
 		UDP6_INC_STATS(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
 		kfree_skb(skb);
 		return -1;

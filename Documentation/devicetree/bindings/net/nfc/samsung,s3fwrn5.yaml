@@ -12,7 +12,9 @@ maintainers:
 
 properties:
   compatible:
-    const: samsung,s3fwrn5-i2c
+    enum:
+      - samsung,s3fwrn5-i2c
+      - samsung,s3fwrn82
 
   en-gpios:
     maxItems: 1
@@ -47,9 +49,18 @@ additionalProperties: false
 required:
   - compatible
   - en-gpios
-  - interrupts
-  - reg
   - wake-gpios
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,s3fwrn5-i2c
+    then:
+      required:
+        - interrupts
+        - reg
 
 examples:
   - |
@@ -65,9 +76,23 @@ examples:
             reg = <0x27>;
 
             interrupt-parent = <&gpa1>;
-            interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+            interrupts = <3 IRQ_TYPE_EDGE_RISING>;
 
             en-gpios = <&gpf1 4 GPIO_ACTIVE_HIGH>;
             wake-gpios = <&gpj0 2 GPIO_ACTIVE_HIGH>;
+        };
+    };
+  # UART example on Raspberry Pi
+  - |
+    uart0 {
+        status = "okay";
+
+        nfc {
+            compatible = "samsung,s3fwrn82";
+
+            en-gpios = <&gpio 20 GPIO_ACTIVE_HIGH>;
+            wake-gpios = <&gpio 16 GPIO_ACTIVE_HIGH>;
+
+            status = "okay";
         };
     };

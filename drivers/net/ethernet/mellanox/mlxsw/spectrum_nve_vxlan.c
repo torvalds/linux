@@ -22,10 +22,10 @@
 						 VXLAN_F_LEARN)
 
 static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
-					   const struct net_device *dev,
+					   const struct mlxsw_sp_nve_params *params,
 					   struct netlink_ext_ack *extack)
 {
-	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct vxlan_dev *vxlan = netdev_priv(params->dev);
 	struct vxlan_config *cfg = &vxlan->cfg;
 
 	if (cfg->saddr.sa.sa_family != AF_INET) {
@@ -86,11 +86,23 @@ static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 	return true;
 }
 
+static bool mlxsw_sp1_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
+					    const struct mlxsw_sp_nve_params *params,
+					    struct netlink_ext_ack *extack)
+{
+	if (params->ethertype == ETH_P_8021AD) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: 802.1ad bridge is not supported with VxLAN");
+		return false;
+	}
+
+	return mlxsw_sp_nve_vxlan_can_offload(nve, params, extack);
+}
+
 static void mlxsw_sp_nve_vxlan_config(const struct mlxsw_sp_nve *nve,
-				      const struct net_device *dev,
+				      const struct mlxsw_sp_nve_params *params,
 				      struct mlxsw_sp_nve_config *config)
 {
-	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct vxlan_dev *vxlan = netdev_priv(params->dev);
 	struct vxlan_config *cfg = &vxlan->cfg;
 
 	config->type = MLXSW_SP_NVE_TYPE_VXLAN;
@@ -101,6 +113,7 @@ static void mlxsw_sp_nve_vxlan_config(const struct mlxsw_sp_nve *nve,
 	config->ul_proto = MLXSW_SP_L3_PROTO_IPV4;
 	config->ul_sip.addr4 = cfg->saddr.sin.sin_addr.s_addr;
 	config->udp_dport = cfg->dst_port;
+	config->ethertype = params->ethertype;
 }
 
 static int __mlxsw_sp_nve_parsing_set(struct mlxsw_sp *mlxsw_sp,
@@ -286,7 +299,7 @@ mlxsw_sp_nve_vxlan_clear_offload(const struct net_device *nve_dev, __be32 vni)
 
 const struct mlxsw_sp_nve_ops mlxsw_sp1_nve_vxlan_ops = {
 	.type		= MLXSW_SP_NVE_TYPE_VXLAN,
-	.can_offload	= mlxsw_sp_nve_vxlan_can_offload,
+	.can_offload	= mlxsw_sp1_nve_vxlan_can_offload,
 	.nve_config	= mlxsw_sp_nve_vxlan_config,
 	.init		= mlxsw_sp1_nve_vxlan_init,
 	.fini		= mlxsw_sp1_nve_vxlan_fini,
@@ -299,9 +312,27 @@ static bool mlxsw_sp2_nve_vxlan_learning_set(struct mlxsw_sp *mlxsw_sp,
 {
 	char tnpc_pl[MLXSW_REG_TNPC_LEN];
 
-	mlxsw_reg_tnpc_pack(tnpc_pl, MLXSW_REG_TNPC_TUNNEL_PORT_NVE,
+	mlxsw_reg_tnpc_pack(tnpc_pl, MLXSW_REG_TUNNEL_PORT_NVE,
 			    learning_en);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(tnpc), tnpc_pl);
+}
+
+static int
+mlxsw_sp2_nve_decap_ethertype_set(struct mlxsw_sp *mlxsw_sp, u16 ethertype)
+{
+	char spvid_pl[MLXSW_REG_SPVID_LEN] = {};
+	u8 sver_type;
+	int err;
+
+	mlxsw_reg_spvid_tport_set(spvid_pl, true);
+	mlxsw_reg_spvid_local_port_set(spvid_pl,
+				       MLXSW_REG_TUNNEL_PORT_NVE);
+	err = mlxsw_sp_ethtype_to_sver_type(ethertype, &sver_type);
+	if (err)
+		return err;
+
+	mlxsw_reg_spvid_et_vlan_set(spvid_pl, sver_type);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvid), spvid_pl);
 }
 
 static int
@@ -309,6 +340,7 @@ mlxsw_sp2_nve_vxlan_config_set(struct mlxsw_sp *mlxsw_sp,
 			       const struct mlxsw_sp_nve_config *config)
 {
 	char tngcr_pl[MLXSW_REG_TNGCR_LEN];
+	char spvtr_pl[MLXSW_REG_SPVTR_LEN];
 	u16 ul_rif_index;
 	int err;
 
@@ -329,8 +361,25 @@ mlxsw_sp2_nve_vxlan_config_set(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_tngcr_write;
 
+	mlxsw_reg_spvtr_pack(spvtr_pl, true, MLXSW_REG_TUNNEL_PORT_NVE,
+			     MLXSW_REG_SPVTR_IPVID_MODE_ALWAYS_PUSH_VLAN);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvtr), spvtr_pl);
+	if (err)
+		goto err_spvtr_write;
+
+	err = mlxsw_sp2_nve_decap_ethertype_set(mlxsw_sp, config->ethertype);
+	if (err)
+		goto err_decap_ethertype_set;
+
 	return 0;
 
+err_decap_ethertype_set:
+	mlxsw_reg_spvtr_pack(spvtr_pl, true, MLXSW_REG_TUNNEL_PORT_NVE,
+			     MLXSW_REG_SPVTR_IPVID_MODE_IEEE_COMPLIANT_PVID);
+	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvtr), spvtr_pl);
+err_spvtr_write:
+	mlxsw_reg_tngcr_pack(tngcr_pl, MLXSW_REG_TNGCR_TYPE_VXLAN, false, 0);
+	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(tngcr), tngcr_pl);
 err_tngcr_write:
 	mlxsw_sp2_nve_vxlan_learning_set(mlxsw_sp, false);
 err_vxlan_learning_set:
@@ -340,8 +389,14 @@ err_vxlan_learning_set:
 
 static void mlxsw_sp2_nve_vxlan_config_clear(struct mlxsw_sp *mlxsw_sp)
 {
+	char spvtr_pl[MLXSW_REG_SPVTR_LEN];
 	char tngcr_pl[MLXSW_REG_TNGCR_LEN];
 
+	/* Set default EtherType */
+	mlxsw_sp2_nve_decap_ethertype_set(mlxsw_sp, ETH_P_8021Q);
+	mlxsw_reg_spvtr_pack(spvtr_pl, true, MLXSW_REG_TUNNEL_PORT_NVE,
+			     MLXSW_REG_SPVTR_IPVID_MODE_IEEE_COMPLIANT_PVID);
+	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvtr), spvtr_pl);
 	mlxsw_reg_tngcr_pack(tngcr_pl, MLXSW_REG_TNGCR_TYPE_VXLAN, false, 0);
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(tngcr), tngcr_pl);
 	mlxsw_sp2_nve_vxlan_learning_set(mlxsw_sp, false);

@@ -17,7 +17,7 @@
 #include "test_btf_skc_cls_ingress.skel.h"
 
 static struct test_btf_skc_cls_ingress *skel;
-struct sockaddr_in6 srv_sa6;
+static struct sockaddr_in6 srv_sa6;
 static __u32 duration;
 
 #define PROG_PIN_FILE "/sys/fs/bpf/btf_skc_cls_ingress"

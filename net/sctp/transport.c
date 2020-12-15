@@ -8,7 +8,7 @@
  *
  * This file is part of the SCTP kernel implementation
  *
- * This module provides the abstraction for an SCTP tranport representing
+ * This module provides the abstraction for an SCTP transport representing
  * a remote transport address.  For local transport addresses, we just use
  * union sctp_addr.
  *
@@ -123,7 +123,7 @@ void sctp_transport_free(struct sctp_transport *transport)
 	/* Delete the T3_rtx timer if it's active.
 	 * There is no point in not doing this now and letting
 	 * structure hang around in memory since we know
-	 * the tranport is going away.
+	 * the transport is going away.
 	 */
 	if (del_timer(&transport->T3_rtx_timer))
 		sctp_transport_put(transport);

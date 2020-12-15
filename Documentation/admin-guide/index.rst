@@ -120,7 +120,6 @@ configure specific aspects of kernel behavior to your liking.
    unicode
    vga-softcursor
    video-output
-   wimax/index
    xfs
 
 .. only::  subproject and html

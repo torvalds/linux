@@ -5558,6 +5558,10 @@ static int rt6_fill_node(struct net *net, struct sk_buff *skb,
 
 		if (dst->dev && nla_put_u32(skb, RTA_OIF, dst->dev->ifindex))
 			goto nla_put_failure;
+
+		if (dst->lwtstate &&
+		    lwtunnel_fill_encap(skb, dst->lwtstate, RTA_ENCAP, RTA_ENCAP_TYPE) < 0)
+			goto nla_put_failure;
 	} else if (rt->fib6_nsiblings) {
 		struct fib6_info *sibling, *next_sibling;
 		struct nlattr *mp;
@@ -6038,11 +6042,6 @@ void fib6_rt_update(struct net *net, struct fib6_info *rt,
 	u32 seq = info->nlh ? info->nlh->nlmsg_seq : 0;
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
-
-	/* call_fib6_entry_notifiers will be removed when in-kernel notifier
-	 * is implemented and supported for nexthop objects
-	 */
-	call_fib6_entry_notifiers(net, FIB_EVENT_ENTRY_REPLACE, rt, NULL);
 
 	skb = nlmsg_new(rt6_nlmsg_size(rt), gfp_any());
 	if (!skb)

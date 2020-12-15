@@ -148,9 +148,6 @@ struct net {
 #endif
 	struct sock		*nfnl;
 	struct sock		*nfnl_stash;
-#if IS_ENABLED(CONFIG_NETFILTER_NETLINK_ACCT)
-	struct list_head        nfnl_acct_list;
-#endif
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
 	struct list_head	nfct_timeout_list;
 #endif

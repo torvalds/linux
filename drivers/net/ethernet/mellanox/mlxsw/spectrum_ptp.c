@@ -828,10 +828,10 @@ struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)
 		goto err_hashtable_init;
 
 	/* Delive these message types as PTP0. */
-	message_type = BIT(MLXSW_SP_PTP_MESSAGE_TYPE_SYNC) |
-		       BIT(MLXSW_SP_PTP_MESSAGE_TYPE_DELAY_REQ) |
-		       BIT(MLXSW_SP_PTP_MESSAGE_TYPE_PDELAY_REQ) |
-		       BIT(MLXSW_SP_PTP_MESSAGE_TYPE_PDELAY_RESP);
+	message_type = BIT(PTP_MSGTYPE_SYNC) |
+		       BIT(PTP_MSGTYPE_DELAY_REQ) |
+		       BIT(PTP_MSGTYPE_PDELAY_REQ) |
+		       BIT(PTP_MSGTYPE_PDELAY_RESP);
 	err = mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP0,
 				      message_type);
 	if (err)

@@ -38,16 +38,6 @@
 
 /* misc utils */
 
-static inline void ieee80211_tx_stats(struct net_device *dev, u32 len)
-{
-	struct pcpu_sw_netstats *tstats = this_cpu_ptr(dev->tstats);
-
-	u64_stats_update_begin(&tstats->syncp);
-	tstats->tx_packets++;
-	tstats->tx_bytes += len;
-	u64_stats_update_end(&tstats->syncp);
-}
-
 static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 				 struct sk_buff *skb, int group_addr,
 				 int next_frag_len)
@@ -317,9 +307,6 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 		return TX_DROP;
 
 	if (tx->sdata->vif.type == NL80211_IFTYPE_OCB)
-		return TX_CONTINUE;
-
-	if (tx->sdata->vif.type == NL80211_IFTYPE_WDS)
 		return TX_CONTINUE;
 
 	if (tx->flags & IEEE80211_TX_PS_BUFFERED)
@@ -2113,6 +2100,9 @@ bool ieee80211_parse_tx_radiotap(struct sk_buff *skb,
 				info->flags |= IEEE80211_TX_CTL_NO_ACK;
 			if (txflags & IEEE80211_RADIOTAP_F_TX_NOSEQNO)
 				info->control.flags |= IEEE80211_TX_CTRL_NO_SEQNO;
+			if (txflags & IEEE80211_RADIOTAP_F_TX_ORDER)
+				info->control.flags |=
+					IEEE80211_TX_CTRL_DONT_REORDER;
 			break;
 
 		case IEEE80211_RADIOTAP_RATE:
@@ -2279,11 +2269,13 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 						    payload[7]);
 	}
 
-	/*
-	 * Initialize skb->priority for QoS frames. This is put in the TID field
-	 * of the frame before passing it to the driver.
+	/* Initialize skb->priority for QoS frames. If the DONT_REORDER flag
+	 * is set, stick to the default value for skb->priority to assure
+	 * frames injected with this flag are not reordered relative to each
+	 * other.
 	 */
-	if (ieee80211_is_data_qos(hdr->frame_control)) {
+	if (ieee80211_is_data_qos(hdr->frame_control) &&
+	    !(info->control.flags & IEEE80211_TX_CTRL_DONT_REORDER)) {
 		u8 *p = ieee80211_get_qos_ctl(hdr);
 		skb->priority = *p & IEEE80211_QOS_CTL_TAG1D_MASK;
 	}
@@ -2295,8 +2287,7 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 	 * we handle as though they are non-injected frames.
 	 * This code here isn't entirely correct, the local MAC address
 	 * isn't always enough to find the interface to use; for proper
-	 * VLAN/WDS support we will need a different mechanism (which
-	 * likely isn't going to be monitor interfaces).
+	 * VLAN support we have an nl80211-based mechanism.
 	 *
 	 * This is necessary, for example, for old hostapd versions that
 	 * don't use nl80211-based management TX/RX.
@@ -2307,8 +2298,7 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 		if (!ieee80211_sdata_running(tmp_sdata))
 			continue;
 		if (tmp_sdata->vif.type == NL80211_IFTYPE_MONITOR ||
-		    tmp_sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
-		    tmp_sdata->vif.type == NL80211_IFTYPE_WDS)
+		    tmp_sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			continue;
 		if (ether_addr_equal(tmp_sdata->vif.addr, hdr->addr2)) {
 			sdata = tmp_sdata;
@@ -2401,9 +2391,6 @@ int ieee80211_lookup_ra_sta(struct ieee80211_sub_if_data *sdata,
 			return 0;
 		}
 		sta = sta_info_get_bss(sdata, skb->data);
-		break;
-	case NL80211_IFTYPE_WDS:
-		sta = sta_info_get(sdata, sdata->u.wds.remote_addr);
 		break;
 #ifdef CONFIG_MAC80211_MESH
 	case NL80211_IFTYPE_MESH_POINT:
@@ -2579,20 +2566,6 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 		memcpy(hdr.addr3, skb->data + ETH_ALEN, ETH_ALEN);
 		hdrlen = 24;
 		band = chanctx_conf->def.chan->band;
-		break;
-	case NL80211_IFTYPE_WDS:
-		fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
-		/* RA TA DA SA */
-		memcpy(hdr.addr1, sdata->u.wds.remote_addr, ETH_ALEN);
-		memcpy(hdr.addr2, sdata->vif.addr, ETH_ALEN);
-		memcpy(hdr.addr3, skb->data, ETH_ALEN);
-		memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
-		hdrlen = 30;
-		/*
-		 * This is the exception! WDS style interfaces are prohibited
-		 * when channel contexts are in used so this must be valid
-		 */
-		band = local->hw.conf.chandef.chan->band;
 		break;
 #ifdef CONFIG_MAC80211_MESH
 	case NL80211_IFTYPE_MESH_POINT:
@@ -3403,7 +3376,7 @@ static void ieee80211_xmit_fast_finish(struct ieee80211_sub_if_data *sdata,
 	if (key)
 		info->control.hw_key = &key->conf;
 
-	ieee80211_tx_stats(skb->dev, skb->len);
+	dev_sw_netstats_tx_add(skb->dev, 1, skb->len);
 
 	if (hdr->frame_control & cpu_to_le16(IEEE80211_STYPE_QOS_DATA)) {
 		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
@@ -4021,7 +3994,7 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 			goto out;
 		}
 
-		ieee80211_tx_stats(dev, skb->len);
+		dev_sw_netstats_tx_add(dev, 1, skb->len);
 
 		ieee80211_xmit(sdata, sta, skb);
 	}
@@ -4248,7 +4221,7 @@ static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
 
 	info->hw_queue = sdata->vif.hw_queue[skb_get_queue_mapping(skb)];
 
-	ieee80211_tx_stats(dev, skb->len);
+	dev_sw_netstats_tx_add(dev, 1, skb->len);
 
 	sta->tx_stats.bytes[skb_get_queue_mapping(skb)] += skb->len;
 	sta->tx_stats.packets[skb_get_queue_mapping(skb)]++;
@@ -4418,9 +4391,10 @@ static bool ieee80211_tx_pending_skb(struct ieee80211_local *local,
 /*
  * Transmit all pending packets. Called from tasklet.
  */
-void ieee80211_tx_pending(unsigned long data)
+void ieee80211_tx_pending(struct tasklet_struct *t)
 {
-	struct ieee80211_local *local = (struct ieee80211_local *)data;
+	struct ieee80211_local *local = from_tasklet(local, t,
+						     tx_pending_tasklet);
 	unsigned long flags;
 	int i;
 	bool txok;

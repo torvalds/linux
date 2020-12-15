@@ -541,6 +541,12 @@ static void rtw_phy_cck_pd(struct rtw_dev *rtwdev)
 	else
 		dm_info->cck_fa_avg = (dm_info->cck_fa_avg * 3 + cck_fa) >> 2;
 
+	rtw_dbg(rtwdev, RTW_DBG_PHY, "IGI=0x%x, rssi_min=%d, cck_fa=%d\n",
+		dm_info->igi_history[0], dm_info->min_rssi,
+		dm_info->fa_history[0]);
+	rtw_dbg(rtwdev, RTW_DBG_PHY, "cck_fa_avg=%d, cck_pd_default=%d\n",
+		dm_info->cck_fa_avg, dm_info->cck_pd_default);
+
 	level = rtw_phy_cck_pd_lv(rtwdev);
 
 	if (level >= CCK_PD_LV_MAX)

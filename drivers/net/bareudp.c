@@ -510,7 +510,7 @@ static const struct net_device_ops bareudp_netdev_ops = {
 	.ndo_open               = bareudp_open,
 	.ndo_stop               = bareudp_stop,
 	.ndo_start_xmit         = bareudp_xmit,
-	.ndo_get_stats64        = ip_tunnel_get_stats64,
+	.ndo_get_stats64        = dev_get_tstats64,
 	.ndo_fill_metadata_dst  = bareudp_fill_metadata_dst,
 };
 
@@ -522,7 +522,7 @@ static const struct nla_policy bareudp_policy[IFLA_BAREUDP_MAX + 1] = {
 };
 
 /* Info for udev, that this is a virtual tunnel endpoint */
-static struct device_type bareudp_type = {
+static const struct device_type bareudp_type = {
 	.name = "bareudp",
 };
 

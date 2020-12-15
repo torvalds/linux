@@ -634,8 +634,8 @@ int cpsw_ale_add_vlan(struct cpsw_ale *ale, u16 vid, int port_mask, int untag,
 	return 0;
 }
 
-static void cpsw_ale_del_vlan_modify(struct cpsw_ale *ale, u32 *ale_entry,
-				     u16 vid, int port_mask)
+static void cpsw_ale_vlan_del_modify_int(struct cpsw_ale *ale,  u32 *ale_entry,
+					 u16 vid, int port_mask)
 {
 	int reg_mcast, unreg_mcast;
 	int members, untag;
@@ -644,6 +644,7 @@ static void cpsw_ale_del_vlan_modify(struct cpsw_ale *ale, u32 *ale_entry,
 					ALE_ENT_VID_MEMBER_LIST);
 	members &= ~port_mask;
 	if (!members) {
+		cpsw_ale_set_vlan_untag(ale, ale_entry, vid, 0);
 		cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_FREE);
 		return;
 	}
@@ -673,7 +674,7 @@ static void cpsw_ale_del_vlan_modify(struct cpsw_ale *ale, u32 *ale_entry,
 			      ALE_ENT_VID_MEMBER_LIST, members);
 }
 
-int cpsw_ale_del_vlan(struct cpsw_ale *ale, u16 vid, int port_mask)
+int cpsw_ale_vlan_del_modify(struct cpsw_ale *ale, u16 vid, int port_mask)
 {
 	u32 ale_entry[ALE_ENTRY_WORDS] = {0, 0, 0};
 	int idx;
@@ -684,11 +685,39 @@ int cpsw_ale_del_vlan(struct cpsw_ale *ale, u16 vid, int port_mask)
 
 	cpsw_ale_read(ale, idx, ale_entry);
 
-	if (port_mask) {
-		cpsw_ale_del_vlan_modify(ale, ale_entry, vid, port_mask);
-	} else {
+	cpsw_ale_vlan_del_modify_int(ale, ale_entry, vid, port_mask);
+	cpsw_ale_write(ale, idx, ale_entry);
+
+	return 0;
+}
+
+int cpsw_ale_del_vlan(struct cpsw_ale *ale, u16 vid, int port_mask)
+{
+	u32 ale_entry[ALE_ENTRY_WORDS] = {0, 0, 0};
+	int members, idx;
+
+	idx = cpsw_ale_match_vlan(ale, vid);
+	if (idx < 0)
+		return -ENOENT;
+
+	cpsw_ale_read(ale, idx, ale_entry);
+
+	/* if !port_mask - force remove VLAN (legacy).
+	 * Check if there are other VLAN members ports
+	 * if no - remove VLAN.
+	 * if yes it means same VLAN was added to >1 port in multi port mode, so
+	 * remove port_mask ports from VLAN ALE entry excluding Host port.
+	 */
+	members = cpsw_ale_vlan_get_fld(ale, ale_entry, ALE_ENT_VID_MEMBER_LIST);
+	members &= ~port_mask;
+
+	if (!port_mask || !members) {
+		/* last port or force remove - remove VLAN */
 		cpsw_ale_set_vlan_untag(ale, ale_entry, vid, 0);
 		cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_FREE);
+	} else {
+		port_mask &= ~ALE_PORT_HOST;
+		cpsw_ale_vlan_del_modify_int(ale, ale_entry, vid, port_mask);
 	}
 
 	cpsw_ale_write(ale, idx, ale_entry);

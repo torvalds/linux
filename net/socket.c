@@ -52,6 +52,7 @@
  *	Based upon Swansea University Computer Society NET3.039
  */
 
+#include <linux/ethtool.h>
 #include <linux/mm.h>
 #include <linux/socket.h>
 #include <linux/file.h>
@@ -64,7 +65,6 @@
 #include <linux/seq_file.h>
 #include <linux/mutex.h>
 #include <linux/if_bridge.h>
-#include <linux/if_frad.h>
 #include <linux/if_vlan.h>
 #include <linux/ptp_classify.h>
 #include <linux/init.h>
@@ -445,17 +445,15 @@ static int sock_map_fd(struct socket *sock, int flags)
 /**
  *	sock_from_file - Return the &socket bounded to @file.
  *	@file: file
- *	@err: pointer to an error code return
  *
- *	On failure returns %NULL and assigns -ENOTSOCK to @err.
+ *	On failure returns %NULL.
  */
 
-struct socket *sock_from_file(struct file *file, int *err)
+struct socket *sock_from_file(struct file *file)
 {
 	if (file->f_op == &socket_file_ops)
 		return file->private_data;	/* set in sock_map_fd */
 
-	*err = -ENOTSOCK;
 	return NULL;
 }
 EXPORT_SYMBOL(sock_from_file);
@@ -484,9 +482,11 @@ struct socket *sockfd_lookup(int fd, int *err)
 		return NULL;
 	}
 
-	sock = sock_from_file(file, err);
-	if (!sock)
+	sock = sock_from_file(file);
+	if (!sock) {
+		*err = -ENOTSOCK;
 		fput(file);
+	}
 	return sock;
 }
 EXPORT_SYMBOL(sockfd_lookup);
@@ -498,11 +498,12 @@ static struct socket *sockfd_lookup_light(int fd, int *err, int *fput_needed)
 
 	*err = -EBADF;
 	if (f.file) {
-		sock = sock_from_file(f.file, err);
+		sock = sock_from_file(f.file);
 		if (likely(sock)) {
 			*fput_needed = f.flags & FDPUT_FPUT;
 			return sock;
 		}
+		*err = -ENOTSOCK;
 		fdput(f);
 	}
 	return NULL;
@@ -1027,17 +1028,6 @@ void vlan_ioctl_set(int (*hook) (struct net *, void __user *))
 }
 EXPORT_SYMBOL(vlan_ioctl_set);
 
-static DEFINE_MUTEX(dlci_ioctl_mutex);
-static int (*dlci_ioctl_hook) (unsigned int, void __user *);
-
-void dlci_ioctl_set(int (*hook) (unsigned int, void __user *))
-{
-	mutex_lock(&dlci_ioctl_mutex);
-	dlci_ioctl_hook = hook;
-	mutex_unlock(&dlci_ioctl_mutex);
-}
-EXPORT_SYMBOL(dlci_ioctl_set);
-
 static long sock_do_ioctl(struct net *net, struct socket *sock,
 			  unsigned int cmd, unsigned long arg)
 {
@@ -1155,17 +1145,6 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 			if (vlan_ioctl_hook)
 				err = vlan_ioctl_hook(net, argp);
 			mutex_unlock(&vlan_ioctl_mutex);
-			break;
-		case SIOCADDDLCI:
-		case SIOCDELDLCI:
-			err = -ENOPKG;
-			if (!dlci_ioctl_hook)
-				request_module("dlci");
-
-			mutex_lock(&dlci_ioctl_mutex);
-			if (dlci_ioctl_hook)
-				err = dlci_ioctl_hook(cmd, argp);
-			mutex_unlock(&dlci_ioctl_mutex);
 			break;
 		case SIOCGSKNS:
 			err = -EPERM;
@@ -1715,9 +1694,11 @@ int __sys_accept4_file(struct file *file, unsigned file_flags,
 	if (SOCK_NONBLOCK != O_NONBLOCK && (flags & SOCK_NONBLOCK))
 		flags = (flags & ~SOCK_NONBLOCK) | O_NONBLOCK;
 
-	sock = sock_from_file(file, &err);
-	if (!sock)
+	sock = sock_from_file(file);
+	if (!sock) {
+		err = -ENOTSOCK;
 		goto out;
+	}
 
 	err = -ENFILE;
 	newsock = sock_alloc();
@@ -1840,9 +1821,11 @@ int __sys_connect_file(struct file *file, struct sockaddr_storage *address,
 	struct socket *sock;
 	int err;
 
-	sock = sock_from_file(file, &err);
-	if (!sock)
+	sock = sock_from_file(file);
+	if (!sock) {
+		err = -ENOTSOCK;
 		goto out;
+	}
 
 	err =
 	    security_socket_connect(sock, (struct sockaddr *)address, addrlen);
@@ -3427,8 +3410,6 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCBRDELBR:
 	case SIOCGIFVLAN:
 	case SIOCSIFVLAN:
-	case SIOCADDDLCI:
-	case SIOCDELDLCI:
 	case SIOCGSKNS:
 	case SIOCGSTAMP_NEW:
 	case SIOCGSTAMPNS_NEW:

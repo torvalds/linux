@@ -1317,8 +1317,8 @@ extern const struct mmu_interval_notifier_ops mlx5_mn_ops;
 void __mlx5_ib_remove(struct mlx5_ib_dev *dev,
 		      const struct mlx5_ib_profile *profile,
 		      int stage);
-void *__mlx5_ib_add(struct mlx5_ib_dev *dev,
-		    const struct mlx5_ib_profile *profile);
+int __mlx5_ib_add(struct mlx5_ib_dev *dev,
+		  const struct mlx5_ib_profile *profile);
 
 int mlx5_ib_get_vf_config(struct ib_device *device, int vf,
 			  u8 port, struct ifla_vf_info *info);
