@@ -2665,7 +2665,7 @@ reserve_mc_sibling_devs(struct amd64_pvt *pvt, u16 pci_id1, u16 pci_id2)
 	if (pvt->umc) {
 		pvt->F0 = pci_get_related_function(pvt->F3->vendor, pci_id1, pvt->F3);
 		if (!pvt->F0) {
-			amd64_err("F0 not found, device 0x%x (broken BIOS?)\n", pci_id1);
+			edac_dbg(1, "F0 not found, device 0x%x\n", pci_id1);
 			return -ENODEV;
 		}
 
@@ -2674,7 +2674,7 @@ reserve_mc_sibling_devs(struct amd64_pvt *pvt, u16 pci_id1, u16 pci_id2)
 			pci_dev_put(pvt->F0);
 			pvt->F0 = NULL;
 
-			amd64_err("F6 not found: device 0x%x (broken BIOS?)\n", pci_id2);
+			edac_dbg(1, "F6 not found: device 0x%x\n", pci_id2);
 			return -ENODEV;
 		}
 
@@ -2691,7 +2691,7 @@ reserve_mc_sibling_devs(struct amd64_pvt *pvt, u16 pci_id1, u16 pci_id2)
 	/* Reserve the ADDRESS MAP Device */
 	pvt->F1 = pci_get_related_function(pvt->F3->vendor, pci_id1, pvt->F3);
 	if (!pvt->F1) {
-		amd64_err("F1 not found: device 0x%x (broken BIOS?)\n", pci_id1);
+		edac_dbg(1, "F1 not found: device 0x%x\n", pci_id1);
 		return -ENODEV;
 	}
 
@@ -2701,7 +2701,7 @@ reserve_mc_sibling_devs(struct amd64_pvt *pvt, u16 pci_id1, u16 pci_id2)
 		pci_dev_put(pvt->F1);
 		pvt->F1 = NULL;
 
-		amd64_err("F2 not found: device 0x%x (broken BIOS?)\n", pci_id2);
+		edac_dbg(1, "F2 not found: device 0x%x\n", pci_id2);
 		return -ENODEV;
 	}
 
