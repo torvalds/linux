@@ -53,10 +53,24 @@ static int tcan4x5x_regmap_read(void *context,
 	return spi_write_then_read(spi, &addr, reg_size, (u32 *)val, val_size);
 }
 
+static const struct regmap_range tcan4x5x_reg_table_yes_range[] = {
+	regmap_reg_range(0x0000, 0x002c),	/* Device ID and SPI Registers */
+	regmap_reg_range(0x0800, 0x083c),	/* Device configuration registers and Interrupt Flags*/
+	regmap_reg_range(0x1000, 0x10fc),	/* M_CAN */
+	regmap_reg_range(0x8000, 0x87fc),	/* MRAM */
+};
+
+static const struct regmap_access_table tcan4x5x_reg_table = {
+	.yes_ranges = tcan4x5x_reg_table_yes_range,
+	.n_yes_ranges = ARRAY_SIZE(tcan4x5x_reg_table_yes_range),
+};
+
 static const struct regmap_config tcan4x5x_regmap = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
+	.wr_table = &tcan4x5x_reg_table,
+	.rd_table = &tcan4x5x_reg_table,
 	.cache_type = REGCACHE_NONE,
 	.max_register = TCAN4X5X_MAX_REGISTER,
 };
