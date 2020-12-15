@@ -689,9 +689,12 @@ static void pcm_pop_work_events(struct work_struct *work)
         es7210_unmute();
         es7210_init_reg = 1;
 }
-static int es7210_mute(struct snd_soc_dai *dai, int mute)
+static int es7210_mute(struct snd_soc_dai *dai, int mute, int stream)
 {
         printk("enter into %s, mute = %d\n", __func__, mute);
+        if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+                return 0;
+
         if (mute) {
                 es7210_multi_chips_update_bits(ES7210_ADC34_MUTE_REG14, 0x03, 0x03);
                 es7210_multi_chips_update_bits(ES7210_ADC12_MUTE_REG15, 0x03, 0x03);
@@ -767,7 +770,7 @@ static struct snd_soc_dai_ops es7210_ops = {
         .hw_params = es7210_pcm_hw_params,
         .set_fmt = es7210_set_dai_fmt,
         .set_sysclk = es7210_set_dai_sysclk,
-        .digital_mute = es7210_mute,
+        .mute_stream = es7210_mute,
 };
 #if ES7210_CHANNELS_MAX > 0
 static struct snd_soc_dai_driver es7210_dai0 = {

@@ -786,6 +786,10 @@ config SND_SOC_ES7134
 config SND_SOC_ES7202
 	tristate "Everest Semi ES7202 PDM 2CH ADC"
 
+config SND_SOC_ES7210
+	tristate "Everest Semi ES7210 CODEC"
+	depends on I2C
+
 config SND_SOC_ES7241
        tristate "Everest Semi ES7241 CODEC"
 
