@@ -97,6 +97,9 @@ static int full_read(int fd, void *buf, int len, bool abortable)
 {
 	int rc;
 
+	if (!len)
+		return 0;
+
 	do {
 		rc = os_read_file(fd, buf, len);
 		if (rc > 0) {
