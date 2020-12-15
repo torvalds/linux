@@ -915,8 +915,7 @@ static void ath10k_snoc_hif_stop(struct ath10k *ar)
 	if (!test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags))
 		ath10k_snoc_irq_disable(ar);
 
-	napi_synchronize(&ar->napi);
-	napi_disable(&ar->napi);
+	ath10k_core_napi_sync_disable(ar);
 	ath10k_snoc_buffer_cleanup(ar);
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif stop\n");
 }
@@ -926,7 +925,8 @@ static int ath10k_snoc_hif_start(struct ath10k *ar)
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 
 	bitmap_clear(ar_snoc->pending_ce_irqs, 0, CE_COUNT_MAX);
-	napi_enable(&ar->napi);
+
+	ath10k_core_napi_enable(ar);
 	ath10k_snoc_irq_enable(ar);
 	ath10k_snoc_rx_post(ar);
 
