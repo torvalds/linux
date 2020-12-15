@@ -643,9 +643,9 @@ EXPORT_SYMBOL(invalidate_mapping_pages);
  * @end: the offset 'to' which to invalidate (inclusive)
  * @nr_pagevec: invalidate failed page number for caller
  *
- * This helper is similar with invalidate_mapping_pages, except that it accounts
- * for pages that failed to invalidate on a pagevec and count them in
- * @nr_pagevec, which will used by the caller.
+ * This helper is similar to invalidate_mapping_pages(), except that it accounts
+ * for pages that are likely on a pagevec and counts them in @nr_pagevec, which
+ * will be used by the caller.
  */
 void invalidate_mapping_pagevec(struct address_space *mapping,
 		pgoff_t start, pgoff_t end, unsigned long *nr_pagevec)
