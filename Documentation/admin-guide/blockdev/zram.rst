@@ -334,6 +334,11 @@ Admin can request writeback of those idle pages at right timing via::
 
 With the command, zram writeback idle pages from memory to the storage.
 
+If admin want to write a specific page in zram device to backing device,
+they could write a page index into the interface.
+
+	echo "page_index=1251" > /sys/block/zramX/writeback
+
 If there are lots of write IO with flash device, potentially, it has
 flash wearout problem so that admin needs to design write limitation
 to guarantee storage health for entire product life.
