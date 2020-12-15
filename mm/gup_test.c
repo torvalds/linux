@@ -236,7 +236,7 @@ static const struct file_operations gup_test_fops = {
 	.unlocked_ioctl = gup_test_ioctl,
 };
 
-static int gup_test_init(void)
+static int __init gup_test_init(void)
 {
 	debugfs_create_file_unsafe("gup_test", 0600, NULL, NULL,
 				   &gup_test_fops);
