@@ -55,6 +55,7 @@ static int tcan4x5x_regmap_read(void *context,
 
 static const struct regmap_config tcan4x5x_regmap = {
 	.reg_bits = 32,
+	.reg_stride = 4,
 	.val_bits = 32,
 	.cache_type = REGCACHE_NONE,
 	.max_register = TCAN4X5X_MAX_REGISTER,
