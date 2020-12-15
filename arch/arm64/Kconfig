@@ -171,6 +171,8 @@ config ARM64
 	select HAVE_NMI
 	select HAVE_PATA_PLATFORM
 	select HAVE_PERF_EVENTS
+	select HAVE_PERF_EVENTS_NMI if ARM64_PSEUDO_NMI && HW_PERF_EVENTS
+	select HAVE_HARDLOCKUP_DETECTOR_PERF if PERF_EVENTS && HAVE_PERF_EVENTS_NMI
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_REGS_AND_STACK_ACCESS_API
@@ -196,7 +198,6 @@ config ARM64
 	select PCI_SYSCALL if PCI
 	select POWER_RESET
 	select POWER_SUPPLY
-	select SET_FS
 	select SPARSE_IRQ
 	select SWIOTLB
 	select SYSCTL_EXCEPTION_TRACE
@@ -332,16 +333,16 @@ config BROKEN_GAS_INST
 config KASAN_SHADOW_OFFSET
 	hex
 	depends on KASAN
-	default 0xdfffa00000000000 if (ARM64_VA_BITS_48 || ARM64_VA_BITS_52) && !KASAN_SW_TAGS
-	default 0xdfffd00000000000 if ARM64_VA_BITS_47 && !KASAN_SW_TAGS
-	default 0xdffffe8000000000 if ARM64_VA_BITS_42 && !KASAN_SW_TAGS
-	default 0xdfffffd000000000 if ARM64_VA_BITS_39 && !KASAN_SW_TAGS
-	default 0xdffffffa00000000 if ARM64_VA_BITS_36 && !KASAN_SW_TAGS
-	default 0xefff900000000000 if (ARM64_VA_BITS_48 || ARM64_VA_BITS_52) && KASAN_SW_TAGS
-	default 0xefffc80000000000 if ARM64_VA_BITS_47 && KASAN_SW_TAGS
-	default 0xeffffe4000000000 if ARM64_VA_BITS_42 && KASAN_SW_TAGS
-	default 0xefffffc800000000 if ARM64_VA_BITS_39 && KASAN_SW_TAGS
-	default 0xeffffff900000000 if ARM64_VA_BITS_36 && KASAN_SW_TAGS
+	default 0xdfff800000000000 if (ARM64_VA_BITS_48 || ARM64_VA_BITS_52) && !KASAN_SW_TAGS
+	default 0xdfffc00000000000 if ARM64_VA_BITS_47 && !KASAN_SW_TAGS
+	default 0xdffffe0000000000 if ARM64_VA_BITS_42 && !KASAN_SW_TAGS
+	default 0xdfffffc000000000 if ARM64_VA_BITS_39 && !KASAN_SW_TAGS
+	default 0xdffffff800000000 if ARM64_VA_BITS_36 && !KASAN_SW_TAGS
+	default 0xefff800000000000 if (ARM64_VA_BITS_48 || ARM64_VA_BITS_52) && KASAN_SW_TAGS
+	default 0xefffc00000000000 if ARM64_VA_BITS_47 && KASAN_SW_TAGS
+	default 0xeffffe0000000000 if ARM64_VA_BITS_42 && KASAN_SW_TAGS
+	default 0xefffffc000000000 if ARM64_VA_BITS_39 && KASAN_SW_TAGS
+	default 0xeffffff800000000 if ARM64_VA_BITS_36 && KASAN_SW_TAGS
 	default 0xffffffffffffffff
 
 source "arch/arm64/Kconfig.platforms"
@@ -1389,6 +1390,9 @@ config ARM64_PAN
 	 The feature is detected at runtime, and will remain as a 'nop'
 	 instruction if the cpu does not implement the feature.
 
+config AS_HAS_LDAPR
+	def_bool $(as-instr,.arch_extension rcpc)
+
 config ARM64_LSE_ATOMICS
 	bool
 	default ARM64_USE_LSE_ATOMICS
@@ -1425,27 +1429,6 @@ config ARM64_VHE
 endmenu
 
 menu "ARMv8.2 architectural features"
-
-config ARM64_UAO
-	bool "Enable support for User Access Override (UAO)"
-	default y
-	help
-	  User Access Override (UAO; part of the ARMv8.2 Extensions)
-	  causes the 'unprivileged' variant of the load/store instructions to
-	  be overridden to be privileged.
-
-	  This option changes get_user() and friends to use the 'unprivileged'
-	  variant of the load/store instructions. This ensures that user-space
-	  really did have access to the supplied memory. When addr_limit is
-	  set to kernel memory the UAO bit will be set, allowing privileged
-	  access to kernel memory.
-
-	  Choosing this option will cause copy_to_user() et al to use user-space
-	  memory permissions.
-
-	  The feature is detected at runtime, the kernel will use the
-	  regular load/store instructions if the cpu does not implement the
-	  feature.
 
 config ARM64_PMEM
 	bool "Enable support for persistent memory"
@@ -1847,14 +1830,35 @@ config CMDLINE
 	  entering them here. As a minimum, you should specify the the
 	  root device (e.g. root=/dev/nfs).
 
+choice
+	prompt "Kernel command line type" if CMDLINE != ""
+	default CMDLINE_FROM_BOOTLOADER
+	help
+	  Choose how the kernel will handle the provided default kernel
+	  command line string.
+
+config CMDLINE_FROM_BOOTLOADER
+	bool "Use bootloader kernel arguments if available"
+	help
+	  Uses the command-line options passed by the boot loader. If
+	  the boot loader doesn't provide any, the default kernel command
+	  string provided in CMDLINE will be used.
+
+config CMDLINE_EXTEND
+	bool "Extend bootloader kernel arguments"
+	help
+	  The command-line arguments provided by the boot loader will be
+	  appended to the default kernel command string.
+
 config CMDLINE_FORCE
 	bool "Always use the default kernel command string"
-	depends on CMDLINE != ""
 	help
 	  Always use the default kernel command string, even if the boot
 	  loader passes other arguments to the kernel.
 	  This is useful if you cannot or don't want to change the
 	  command-line options your boot loader passes to the kernel.
+
+endchoice
 
 config EFI_STUB
 	bool

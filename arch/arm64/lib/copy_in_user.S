@@ -22,35 +22,35 @@
  *	x0 - bytes not copied
  */
 	.macro ldrb1 reg, ptr, val
-	uao_user_alternative 9998f, ldrb, ldtrb, \reg, \ptr, \val
+	user_ldst 9998f, ldtrb, \reg, \ptr, \val
 	.endm
 
 	.macro strb1 reg, ptr, val
-	uao_user_alternative 9998f, strb, sttrb, \reg, \ptr, \val
+	user_ldst 9998f, sttrb, \reg, \ptr, \val
 	.endm
 
 	.macro ldrh1 reg, ptr, val
-	uao_user_alternative 9998f, ldrh, ldtrh, \reg, \ptr, \val
+	user_ldst 9998f, ldtrh, \reg, \ptr, \val
 	.endm
 
 	.macro strh1 reg, ptr, val
-	uao_user_alternative 9998f, strh, sttrh, \reg, \ptr, \val
+	user_ldst 9998f, sttrh, \reg, \ptr, \val
 	.endm
 
 	.macro ldr1 reg, ptr, val
-	uao_user_alternative 9998f, ldr, ldtr, \reg, \ptr, \val
+	user_ldst 9998f, ldtr, \reg, \ptr, \val
 	.endm
 
 	.macro str1 reg, ptr, val
-	uao_user_alternative 9998f, str, sttr, \reg, \ptr, \val
+	user_ldst 9998f, sttr, \reg, \ptr, \val
 	.endm
 
 	.macro ldp1 reg1, reg2, ptr, val
-	uao_ldp 9998f, \reg1, \reg2, \ptr, \val
+	user_ldp 9998f, \reg1, \reg2, \ptr, \val
 	.endm
 
 	.macro stp1 reg1, reg2, ptr, val
-	uao_stp 9998f, \reg1, \reg2, \ptr, \val
+	user_stp 9998f, \reg1, \reg2, \ptr, \val
 	.endm
 
 end	.req	x5

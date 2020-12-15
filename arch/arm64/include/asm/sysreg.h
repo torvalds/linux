@@ -98,6 +98,10 @@
 #define SET_PSTATE_SSBS(x)		__emit_inst(0xd500401f | PSTATE_SSBS | ((!!x) << PSTATE_Imm_shift))
 #define SET_PSTATE_TCO(x)		__emit_inst(0xd500401f | PSTATE_TCO | ((!!x) << PSTATE_Imm_shift))
 
+#define set_pstate_pan(x)		asm volatile(SET_PSTATE_PAN(x))
+#define set_pstate_uao(x)		asm volatile(SET_PSTATE_UAO(x))
+#define set_pstate_ssbs(x)		asm volatile(SET_PSTATE_SSBS(x))
+
 #define __SYS_BARRIER_INSN(CRm, op2, Rt) \
 	__emit_inst(0xd5000000 | sys_insn(0, 3, 3, (CRm), (op2)) | ((Rt) & 0x1f))
 
@@ -582,6 +586,9 @@
 #define ENDIAN_SET_EL2		0
 #endif
 
+#define INIT_SCTLR_EL2_MMU_OFF \
+	(SCTLR_EL2_RES1 | ENDIAN_SET_EL2)
+
 /* SCTLR_EL1 specific flags. */
 #define SCTLR_EL1_ATA0		(BIT(42))
 
@@ -615,12 +622,15 @@
 #define ENDIAN_SET_EL1		0
 #endif
 
-#define SCTLR_EL1_SET	(SCTLR_ELx_M    | SCTLR_ELx_C    | SCTLR_ELx_SA   |\
-			 SCTLR_EL1_SA0  | SCTLR_EL1_SED  | SCTLR_ELx_I    |\
-			 SCTLR_EL1_DZE  | SCTLR_EL1_UCT                   |\
-			 SCTLR_EL1_NTWE | SCTLR_ELx_IESB | SCTLR_EL1_SPAN |\
-			 SCTLR_ELx_ITFSB| SCTLR_ELx_ATA  | SCTLR_EL1_ATA0 |\
-			 ENDIAN_SET_EL1 | SCTLR_EL1_UCI  | SCTLR_EL1_RES1)
+#define INIT_SCTLR_EL1_MMU_OFF \
+	(ENDIAN_SET_EL1 | SCTLR_EL1_RES1)
+
+#define INIT_SCTLR_EL1_MMU_ON \
+	(SCTLR_ELx_M    | SCTLR_ELx_C    | SCTLR_ELx_SA   | SCTLR_EL1_SA0   | \
+	 SCTLR_EL1_SED  | SCTLR_ELx_I    | SCTLR_EL1_DZE  | SCTLR_EL1_UCT   | \
+	 SCTLR_EL1_NTWE | SCTLR_ELx_IESB | SCTLR_EL1_SPAN | SCTLR_ELx_ITFSB | \
+	 SCTLR_ELx_ATA  | SCTLR_EL1_ATA0 | ENDIAN_SET_EL1 | SCTLR_EL1_UCI   | \
+	 SCTLR_EL1_RES1)
 
 /* MAIR_ELx memory attributes (used by Linux) */
 #define MAIR_ATTR_DEVICE_nGnRnE		UL(0x00)

@@ -58,21 +58,11 @@
  * in the entry routines.
  */
 	__HEAD
-_head:
 	/*
 	 * DO NOT MODIFY. Image header expected by Linux boot-loaders.
 	 */
-#ifdef CONFIG_EFI
-	/*
-	 * This add instruction has no meaningful effect except that
-	 * its opcode forms the magic "MZ" signature required by UEFI.
-	 */
-	add	x13, x18, #0x16
-	b	primary_entry
-#else
+	efi_signature_nop			// special NOP to identity as PE/COFF executable
 	b	primary_entry			// branch to kernel start, magic
-	.long	0				// reserved
-#endif
 	.quad	0				// Image load offset from start of RAM, little-endian
 	le64sym	_kernel_size_le			// Effective size of kernel image, little-endian
 	le64sym	_kernel_flags_le		// Informative flags, little-endian
@@ -80,14 +70,9 @@ _head:
 	.quad	0				// reserved
 	.quad	0				// reserved
 	.ascii	ARM64_IMAGE_MAGIC		// Magic number
-#ifdef CONFIG_EFI
-	.long	pe_header - _head		// Offset to the PE header.
+	.long	.Lpe_header_offset		// Offset to the PE header.
 
-pe_header:
 	__EFI_PE_HEADER
-#else
-	.long	0				// reserved
-#endif
 
 	__INIT
 
@@ -104,7 +89,7 @@ pe_header:
 	 */
 SYM_CODE_START(primary_entry)
 	bl	preserve_boot_args
-	bl	el2_setup			// Drop to EL1, w0=cpu_boot_mode
+	bl	init_kernel_el			// w0=cpu_boot_mode
 	adrp	x23, __PHYS_OFFSET
 	and	x23, x23, MIN_KIMG_ALIGN - 1	// KASLR offset, defaults to 0
 	bl	set_cpu_boot_mode_flag
@@ -482,24 +467,33 @@ EXPORT_SYMBOL(kimage_vaddr)
 	.section ".idmap.text","awx"
 
 /*
- * If we're fortunate enough to boot at EL2, ensure that the world is
- * sane before dropping to EL1.
+ * Starting from EL2 or EL1, configure the CPU to execute at the highest
+ * reachable EL supported by the kernel in a chosen default state. If dropping
+ * from EL2 to EL1, configure EL2 before configuring EL1.
+ *
+ * Since we cannot always rely on ERET synchronizing writes to sysregs (e.g. if
+ * SCTLR_ELx.EOS is clear), we place an ISB prior to ERET.
  *
  * Returns either BOOT_CPU_MODE_EL1 or BOOT_CPU_MODE_EL2 in w0 if
  * booted in EL1 or EL2 respectively.
  */
-SYM_FUNC_START(el2_setup)
-	msr	SPsel, #1			// We want to use SP_EL{1,2}
+SYM_FUNC_START(init_kernel_el)
 	mrs	x0, CurrentEL
 	cmp	x0, #CurrentEL_EL2
-	b.eq	1f
-	mov_q	x0, (SCTLR_EL1_RES1 | ENDIAN_SET_EL1)
-	msr	sctlr_el1, x0
-	mov	w0, #BOOT_CPU_MODE_EL1		// This cpu booted in EL1
-	isb
-	ret
+	b.eq	init_el2
 
-1:	mov_q	x0, (SCTLR_EL2_RES1 | ENDIAN_SET_EL2)
+SYM_INNER_LABEL(init_el1, SYM_L_LOCAL)
+	mov_q	x0, INIT_SCTLR_EL1_MMU_OFF
+	msr	sctlr_el1, x0
+	isb
+	mov_q	x0, INIT_PSTATE_EL1
+	msr	spsr_el1, x0
+	msr	elr_el1, lr
+	mov	w0, #BOOT_CPU_MODE_EL1
+	eret
+
+SYM_INNER_LABEL(init_el2, SYM_L_LOCAL)
+	mov_q	x0, INIT_SCTLR_EL2_MMU_OFF
 	msr	sctlr_el2, x0
 
 #ifdef CONFIG_ARM64_VHE
@@ -608,9 +602,12 @@ set_hcr:
 
 	cbz	x2, install_el2_stub
 
-	mov	w0, #BOOT_CPU_MODE_EL2		// This CPU booted in EL2
 	isb
-	ret
+	mov_q	x0, INIT_PSTATE_EL2
+	msr	spsr_el2, x0
+	msr	elr_el2, lr
+	mov	w0, #BOOT_CPU_MODE_EL2
+	eret
 
 SYM_INNER_LABEL(install_el2_stub, SYM_L_LOCAL)
 	/*
@@ -620,7 +617,7 @@ SYM_INNER_LABEL(install_el2_stub, SYM_L_LOCAL)
 	 * requires no configuration, and all non-hyp-specific EL2 setup
 	 * will be done via the _EL1 system register aliases in __cpu_setup.
 	 */
-	mov_q	x0, (SCTLR_EL1_RES1 | ENDIAN_SET_EL1)
+	mov_q	x0, INIT_SCTLR_EL1_MMU_OFF
 	msr	sctlr_el1, x0
 
 	/* Coprocessor traps. */
@@ -642,14 +639,13 @@ SYM_INNER_LABEL(install_el2_stub, SYM_L_LOCAL)
 7:	adr_l	x0, __hyp_stub_vectors
 	msr	vbar_el2, x0
 
-	/* spsr */
-	mov	x0, #(PSR_F_BIT | PSR_I_BIT | PSR_A_BIT | PSR_D_BIT |\
-		      PSR_MODE_EL1h)
+	isb
+	mov	x0, #INIT_PSTATE_EL1
 	msr	spsr_el2, x0
 	msr	elr_el2, lr
-	mov	w0, #BOOT_CPU_MODE_EL2		// This CPU booted in EL2
+	mov	w0, #BOOT_CPU_MODE_EL2
 	eret
-SYM_FUNC_END(el2_setup)
+SYM_FUNC_END(init_kernel_el)
 
 /*
  * Sets the __boot_cpu_mode flag depending on the CPU boot mode passed
@@ -699,7 +695,7 @@ SYM_DATA_END(__early_cpu_boot_status)
 	 * cores are held until we're ready for them to initialise.
 	 */
 SYM_FUNC_START(secondary_holding_pen)
-	bl	el2_setup			// Drop to EL1, w0=cpu_boot_mode
+	bl	init_kernel_el			// w0=cpu_boot_mode
 	bl	set_cpu_boot_mode_flag
 	mrs	x0, mpidr_el1
 	mov_q	x1, MPIDR_HWID_BITMASK
@@ -717,7 +713,7 @@ SYM_FUNC_END(secondary_holding_pen)
 	 * be used where CPUs are brought online dynamically by the kernel.
 	 */
 SYM_FUNC_START(secondary_entry)
-	bl	el2_setup			// Drop to EL1
+	bl	init_kernel_el			// w0=cpu_boot_mode
 	bl	set_cpu_boot_mode_flag
 	b	secondary_startup
 SYM_FUNC_END(secondary_entry)
