@@ -463,6 +463,25 @@ cifs_show_cache_flavor(struct seq_file *s, struct cifs_sb_info *cifs_sb)
 }
 
 /*
+ * cifs_show_devname() is used so we show the mount device name with correct
+ * format (e.g. forward slashes vs. back slashes) in /proc/mounts
+ */
+static int cifs_show_devname(struct seq_file *m, struct dentry *root)
+{
+	struct cifs_sb_info *cifs_sb = CIFS_SB(root->d_sb);
+	char *devname = kstrdup(cifs_sb->ctx->UNC, GFP_KERNEL);
+
+	if (devname == NULL)
+		seq_puts(m, "none");
+	else {
+		convert_delimiter(devname, '/');
+		seq_puts(m, devname);
+		kfree(devname);
+	}
+	return 0;
+}
+
+/*
  * cifs_show_options() is for displaying mount options in /proc/mounts.
  * Not all settable options are displayed but most of the important
  * ones are.
@@ -695,6 +714,8 @@ static const struct super_operations cifs_super_ops = {
 	.free_inode = cifs_free_inode,
 	.drop_inode	= cifs_drop_inode,
 	.evict_inode	= cifs_evict_inode,
+/*	.show_path	= cifs_show_path, */ /* Would we ever need show path? */
+	.show_devname   = cifs_show_devname,
 /*	.delete_inode	= cifs_delete_inode,  */  /* Do not need above
 	function unless later we add lazy close of inodes or unless the
 	kernel forgets to call us with the same number of releases (closes)
