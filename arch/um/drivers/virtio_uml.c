@@ -65,6 +65,7 @@ struct virtio_uml_vq_info {
 	vq_callback_t *callback;
 	struct time_travel_event defer;
 #endif
+	bool suspended;
 };
 
 extern unsigned long long physmem_size, highmem;
@@ -725,6 +726,9 @@ static bool vu_notify(struct virtqueue *vq)
 	const uint64_t n = 1;
 	int rc;
 
+	if (info->suspended)
+		return true;
+
 	time_travel_propagate_time();
 
 	if (info->kick_fd < 0) {
@@ -1288,6 +1292,36 @@ static const struct of_device_id virtio_uml_match[] = {
 };
 MODULE_DEVICE_TABLE(of, virtio_uml_match);
 
+static int virtio_uml_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct virtio_uml_device *vu_dev = platform_get_drvdata(pdev);
+	struct virtqueue *vq;
+
+	virtio_device_for_each_vq((&vu_dev->vdev), vq) {
+		struct virtio_uml_vq_info *info = vq->priv;
+
+		info->suspended = true;
+		vhost_user_set_vring_enable(vu_dev, vq->index, false);
+	}
+
+	return 0;
+}
+
+static int virtio_uml_resume(struct platform_device *pdev)
+{
+	struct virtio_uml_device *vu_dev = platform_get_drvdata(pdev);
+	struct virtqueue *vq;
+
+	virtio_device_for_each_vq((&vu_dev->vdev), vq) {
+		struct virtio_uml_vq_info *info = vq->priv;
+
+		info->suspended = false;
+		vhost_user_set_vring_enable(vu_dev, vq->index, true);
+	}
+
+	return 0;
+}
+
 static struct platform_driver virtio_uml_driver = {
 	.probe = virtio_uml_probe,
 	.remove = virtio_uml_remove,
@@ -1295,6 +1329,8 @@ static struct platform_driver virtio_uml_driver = {
 		.name = "virtio-uml",
 		.of_match_table = virtio_uml_match,
 	},
+	.suspend = virtio_uml_suspend,
+	.resume = virtio_uml_resume,
 };
 
 static int __init virtio_uml_init(void)
