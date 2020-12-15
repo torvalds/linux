@@ -246,21 +246,6 @@ struct omap_overlay_manager_info {
 	struct omap_dss_cpr_coefs cpr_coefs;
 };
 
-/* 22 pins means 1 clk lane and 10 data lanes */
-#define OMAP_DSS_MAX_DSI_PINS 22
-
-struct omap_dsi_pin_config {
-	int num_pins;
-	/*
-	 * pin numbers in the following order:
-	 * clk+, clk-
-	 * data1+, data1-
-	 * data2+, data2-
-	 * ...
-	 */
-	int pins[OMAP_DSS_MAX_DSI_PINS];
-};
-
 struct omap_dss_writeback_info {
 	u32 paddr;
 	u32 p_uv_addr;

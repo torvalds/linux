@@ -3570,12 +3570,9 @@ static void dsi_proto_timings(struct dsi_data *dsi)
 	}
 }
 
-static int dsi_configure_pins(struct omap_dss_device *dssdev,
-		const struct omap_dsi_pin_config *pin_cfg)
+static int dsi_configure_pins(struct dsi_data *dsi,
+		int num_pins, const u32 *pins)
 {
-	struct dsi_data *dsi = to_dsi_data(dssdev);
-	int num_pins;
-	const int *pins;
 	struct dsi_lane_config lanes[DSI_MAX_NR_LANES];
 	int num_lanes;
 	int i;
@@ -3588,9 +3585,6 @@ static int dsi_configure_pins(struct omap_dss_device *dssdev,
 		DSI_LANE_DATA4,
 	};
 
-	num_pins = pin_cfg->num_pins;
-	pins = pin_cfg->pins;
-
 	if (num_pins < 4 || num_pins > dsi->num_lanes_supported * 2
 			|| num_pins % 2 != 0)
 		return -EINVAL;
@@ -3602,15 +3596,15 @@ static int dsi_configure_pins(struct omap_dss_device *dssdev,
 
 	for (i = 0; i < num_pins; i += 2) {
 		u8 lane, pol;
-		int dx, dy;
+		u32 dx, dy;
 
 		dx = pins[i];
 		dy = pins[i + 1];
 
-		if (dx < 0 || dx >= dsi->num_lanes_supported * 2)
+		if (dx >= dsi->num_lanes_supported * 2)
 			return -EINVAL;
 
-		if (dy < 0 || dy >= dsi->num_lanes_supported * 2)
+		if (dy >= dsi->num_lanes_supported * 2)
 			return -EINVAL;
 
 		if (dx & 1) {
@@ -5477,9 +5471,8 @@ static int dsi_probe_of(struct dsi_data *dsi)
 	struct property *prop;
 	u32 lane_arr[10];
 	int len, num_pins;
-	int r, i;
+	int r;
 	struct device_node *ep;
-	struct omap_dsi_pin_config pin_cfg;
 
 	ep = of_graph_get_endpoint_by_regs(node, 0, 0);
 	if (!ep)
@@ -5507,11 +5500,7 @@ static int dsi_probe_of(struct dsi_data *dsi)
 		goto err;
 	}
 
-	pin_cfg.num_pins = num_pins;
-	for (i = 0; i < num_pins; ++i)
-		pin_cfg.pins[i] = (int)lane_arr[i];
-
-	r = dsi_configure_pins(&dsi->output, &pin_cfg);
+	r = dsi_configure_pins(dsi, num_pins, lane_arr);
 	if (r) {
 		dev_err(dsi->dev, "failed to configure pins");
 		goto err;
@@ -5724,6 +5713,12 @@ static int dsi_probe(struct platform_device *pdev)
 	dsi->host.ops = &omap_dsi_host_ops;
 	dsi->host.dev = &pdev->dev;
 
+	r = dsi_probe_of(dsi);
+	if (r) {
+		DSSERR("Invalid DSI DT data\n");
+		goto err_pm_disable;
+	}
+
 	r = mipi_dsi_host_register(&dsi->host);
 	if (r < 0) {
 		dev_err(&pdev->dev, "failed to register DSI host: %d\n", r);
@@ -5733,12 +5728,6 @@ static int dsi_probe(struct platform_device *pdev)
 	r = dsi_init_output(dsi);
 	if (r)
 		goto err_dsi_host_unregister;
-
-	r = dsi_probe_of(dsi);
-	if (r) {
-		DSSERR("Invalid DSI DT data\n");
-		goto err_uninit_output;
-	}
 
 	r = component_add(&pdev->dev, &dsi_component_ops);
 	if (r)
