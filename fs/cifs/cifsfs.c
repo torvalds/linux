@@ -854,12 +854,14 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 	if (IS_ERR(sb)) {
 		root = ERR_CAST(sb);
 		cifs_umount(cifs_sb);
+		cifs_sb = NULL;
 		goto out;
 	}
 
 	if (sb->s_root) {
 		cifs_dbg(FYI, "Use existing superblock\n");
 		cifs_umount(cifs_sb);
+		cifs_sb = NULL;
 	} else {
 		rc = cifs_read_super(sb);
 		if (rc) {
@@ -870,7 +872,7 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 		sb->s_flags |= SB_ACTIVE;
 	}
 
-	root = cifs_get_root(cifs_sb->ctx, sb);
+	root = cifs_get_root(cifs_sb ? cifs_sb->ctx : old_ctx, sb);
 	if (IS_ERR(root))
 		goto out_super;
 
