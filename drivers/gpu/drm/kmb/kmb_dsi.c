@@ -482,6 +482,10 @@ static u32 mipi_tx_fg_section_cfg(struct kmb_dsi *kmb_dsi,
 	return 0;
 }
 
+#define CLK_DIFF_LOW 50
+#define CLK_DIFF_HI 60
+#define SYSCLK_500  500
+
 static void mipi_tx_fg_cfg_regs(struct kmb_dsi *kmb_dsi, u8 frame_gen,
 				struct mipi_tx_frame_timing_cfg *fg_cfg)
 {
@@ -492,7 +496,12 @@ static void mipi_tx_fg_cfg_regs(struct kmb_dsi *kmb_dsi, u8 frame_gen,
 	/* 500 Mhz system clock minus 50 to account for the difference in
 	 * MIPI clock speed in RTL tests
 	 */
-	sysclk = kmb_dsi->sys_clk_mhz - 50;
+	if (kmb_dsi->sys_clk_mhz == SYSCLK_500) {
+		sysclk = kmb_dsi->sys_clk_mhz - CLK_DIFF_LOW;
+	} else {
+		/* 700 Mhz clk*/
+		sysclk = kmb_dsi->sys_clk_mhz - CLK_DIFF_HI;
+	}
 
 	/* PPL-Pixel Packing Layer, LLP-Low Level Protocol
 	 * Frame genartor timing parameters are clocked on the system clock,
