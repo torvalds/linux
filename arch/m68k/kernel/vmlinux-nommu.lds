@@ -65,7 +65,6 @@ SECTIONS {
 	_edata = .;
 
 	EXCEPTION_TABLE(16)
-	NOTES
 
 	. = ALIGN(PAGE_SIZE);
 	__init_begin = .;
@@ -87,7 +86,7 @@ SECTIONS {
 	_end = .;
 
 	STABS_DEBUG
-	.comment 0 : { *(.comment) }
+	ELF_DETAILS
 
 	/* Sections to be discarded */
 	DISCARDS

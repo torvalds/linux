@@ -101,7 +101,6 @@ void __init config_bvme6000(void)
     bvme6000_set_vectors();
 #endif
 
-    mach_max_dma_address = 0xffffffff;
     mach_sched_init      = bvme6000_sched_init;
     mach_init_IRQ        = bvme6000_init_IRQ;
     mach_hwclk           = bvme6000_hwclk;
