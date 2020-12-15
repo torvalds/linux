@@ -1333,7 +1333,8 @@ static int prepare_auth_signature(struct ceph_connection *con)
 	void *buf;
 	int ret;
 
-	buf = alloc_conn_buf(con, head_onwire_len(SHA256_DIGEST_SIZE, false));
+	buf = alloc_conn_buf(con, head_onwire_len(SHA256_DIGEST_SIZE,
+						  con_secure(con)));
 	if (!buf)
 		return -ENOMEM;
 
