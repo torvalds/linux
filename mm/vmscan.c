@@ -1886,7 +1886,12 @@ static unsigned noinline_for_stack move_pages_to_lru(struct lruvec *lruvec,
 			continue;
 		}
 
-		lruvec = mem_cgroup_page_lruvec(page, pgdat);
+		/*
+		 * All pages were isolated from the same lruvec (and isolation
+		 * inhibits memcg migration).
+		 */
+		VM_BUG_ON_PAGE(mem_cgroup_page_lruvec(page, page_pgdat(page))
+							!= lruvec, page);
 		lru = page_lru(page);
 		nr_pages = thp_nr_pages(page);
 
