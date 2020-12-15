@@ -511,7 +511,7 @@ err_ret:
 		/* Assume no coordination on any error parsing domain info */
 		cpumask_clear(pr->shared_cpu_map);
 		cpumask_set_cpu(i, pr->shared_cpu_map);
-		pr->shared_type = CPUFREQ_SHARED_TYPE_ALL;
+		pr->shared_type = CPUFREQ_SHARED_TYPE_NONE;
 	}
 out:
 	free_cpumask_var(covered_cpus);
