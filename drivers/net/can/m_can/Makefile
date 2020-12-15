@@ -10,3 +10,4 @@ obj-$(CONFIG_CAN_M_CAN_TCAN4X5X) += tcan4x5x.o
 
 tcan4x5x-objs :=
 tcan4x5x-objs += tcan4x5x-core.o
+tcan4x5x-objs += tcan4x5x-regmap.o
