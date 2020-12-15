@@ -2317,7 +2317,7 @@ decides to throw at it.
 
 The Linux kernel is used for real-time workloads, especially in
 conjunction with the `-rt
-patchset <https://rt.wiki.kernel.org/index.php/Main_Page>`__. The
+patchset <https://wiki.linuxfoundation.org/realtime/>`__. The
 real-time-latency response requirements are such that the traditional
 approach of disabling preemption across RCU read-side critical sections
 is inappropriate. Kernels built with ``CONFIG_PREEMPT=y`` therefore use
