@@ -160,7 +160,7 @@ fi
 echo "-------------------"
 echo "running userfaultfd"
 echo "-------------------"
-./userfaultfd anon 128 32
+./userfaultfd anon 20 16
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
 	exitcode=1
@@ -185,7 +185,7 @@ rm -f $mnt/ufd_test_file
 echo "-------------------------"
 echo "running userfaultfd_shmem"
 echo "-------------------------"
-./userfaultfd shmem 128 32
+./userfaultfd shmem 20 16
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
 	exitcode=1
