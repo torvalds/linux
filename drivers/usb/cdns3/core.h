@@ -86,12 +86,12 @@ struct cdns {
 	struct resource			xhci_res[CDNS_XHCI_RESOURCES_NUM];
 	struct cdns3_usb_regs __iomem	*dev_regs;
 
-	struct resource			otg_res;
-	struct cdns3_otg_legacy_regs	*otg_v0_regs;
-	struct cdns3_otg_regs		*otg_v1_regs;
-	struct cdnsp_otg_regs		*otg_cdnsp_regs;
-	struct cdns_otg_common_regs	*otg_regs;
-	struct cdns_otg_irq_regs	*otg_irq_regs;
+	struct resource				otg_res;
+	struct cdns3_otg_legacy_regs __iomem	*otg_v0_regs;
+	struct cdns3_otg_regs __iomem		*otg_v1_regs;
+	struct cdnsp_otg_regs __iomem		*otg_cdnsp_regs;
+	struct cdns_otg_common_regs __iomem	*otg_regs;
+	struct cdns_otg_irq_regs __iomem	*otg_irq_regs;
 #define CDNS3_CONTROLLER_V0	0
 #define CDNS3_CONTROLLER_V1	1
 #define CDNSP_CONTROLLER_V2	2

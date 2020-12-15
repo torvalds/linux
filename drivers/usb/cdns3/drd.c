@@ -27,7 +27,7 @@
  */
 static int cdns_set_mode(struct cdns *cdns, enum usb_dr_mode mode)
 {
-	u32 __iomem *override_reg;
+	void __iomem  *override_reg;
 	u32 reg;
 
 	switch (mode) {
@@ -406,7 +406,7 @@ int cdns_drd_init(struct cdns *cdns)
 		cdns->otg_v1_regs = NULL;
 		cdns->otg_cdnsp_regs = NULL;
 		cdns->otg_regs = regs;
-		cdns->otg_irq_regs = (struct cdns_otg_irq_regs *)
+		cdns->otg_irq_regs = (struct cdns_otg_irq_regs __iomem  *)
 				     &cdns->otg_v0_regs->ien;
 		writel(1, &cdns->otg_v0_regs->simulate);
 		dev_dbg(cdns->dev, "DRD version v0 (%08x)\n",
@@ -416,14 +416,14 @@ int cdns_drd_init(struct cdns *cdns)
 		cdns->otg_v1_regs = regs;
 		cdns->otg_cdnsp_regs = regs;
 
-		cdns->otg_regs = (void *)&cdns->otg_v1_regs->cmd;
+		cdns->otg_regs = (void __iomem *)&cdns->otg_v1_regs->cmd;
 
-		if (cdns->otg_cdnsp_regs->did == OTG_CDNSP_DID) {
-			cdns->otg_irq_regs = (struct cdns_otg_irq_regs *)
+		if (readl(&cdns->otg_cdnsp_regs->did) == OTG_CDNSP_DID) {
+			cdns->otg_irq_regs = (struct cdns_otg_irq_regs __iomem *)
 					      &cdns->otg_cdnsp_regs->ien;
 			cdns->version  = CDNSP_CONTROLLER_V2;
 		} else {
-			cdns->otg_irq_regs = (struct cdns_otg_irq_regs *)
+			cdns->otg_irq_regs = (struct cdns_otg_irq_regs __iomem *)
 					      &cdns->otg_v1_regs->ien;
 			writel(1, &cdns->otg_v1_regs->simulate);
 			cdns->version  = CDNS3_CONTROLLER_V1;
