@@ -334,13 +334,12 @@ static struct i915_gem_engines *default_engines(struct i915_gem_context *ctx)
 	return e;
 }
 
-static void i915_gem_context_free(struct i915_gem_context *ctx)
+void i915_gem_context_release(struct kref *ref)
 {
-	GEM_BUG_ON(!i915_gem_context_is_closed(ctx));
+	struct i915_gem_context *ctx = container_of(ref, typeof(*ctx), ref);
 
-	spin_lock(&ctx->i915->gem.contexts.lock);
-	list_del(&ctx->link);
-	spin_unlock(&ctx->i915->gem.contexts.lock);
+	trace_i915_context_free(ctx);
+	GEM_BUG_ON(!i915_gem_context_is_closed(ctx));
 
 	mutex_destroy(&ctx->engines_mutex);
 	mutex_destroy(&ctx->lut_mutex);
@@ -352,37 +351,6 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 	mutex_destroy(&ctx->mutex);
 
 	kfree_rcu(ctx, rcu);
-}
-
-static void contexts_free_all(struct llist_node *list)
-{
-	struct i915_gem_context *ctx, *cn;
-
-	llist_for_each_entry_safe(ctx, cn, list, free_link)
-		i915_gem_context_free(ctx);
-}
-
-static void contexts_flush_free(struct i915_gem_contexts *gc)
-{
-	contexts_free_all(llist_del_all(&gc->free_list));
-}
-
-static void contexts_free_worker(struct work_struct *work)
-{
-	struct i915_gem_contexts *gc =
-		container_of(work, typeof(*gc), free_work);
-
-	contexts_flush_free(gc);
-}
-
-void i915_gem_context_release(struct kref *ref)
-{
-	struct i915_gem_context *ctx = container_of(ref, typeof(*ctx), ref);
-	struct i915_gem_contexts *gc = &ctx->i915->gem.contexts;
-
-	trace_i915_context_free(ctx);
-	if (llist_add(&ctx->free_link, &gc->free_list))
-		schedule_work(&gc->free_work);
 }
 
 static inline struct i915_gem_engines *
@@ -633,6 +601,10 @@ static void context_close(struct i915_gem_context *ctx)
 	 */
 	lut_close(ctx);
 
+	spin_lock(&ctx->i915->gem.contexts.lock);
+	list_del(&ctx->link);
+	spin_unlock(&ctx->i915->gem.contexts.lock);
+
 	mutex_unlock(&ctx->mutex);
 
 	/*
@@ -850,9 +822,6 @@ i915_gem_create_context(struct drm_i915_private *i915, unsigned int flags)
 	    !HAS_EXECLISTS(i915))
 		return ERR_PTR(-EINVAL);
 
-	/* Reap the stale contexts */
-	contexts_flush_free(&i915->gem.contexts);
-
 	ctx = __create_context(i915);
 	if (IS_ERR(ctx))
 		return ctx;
@@ -897,20 +866,11 @@ static void init_contexts(struct i915_gem_contexts *gc)
 {
 	spin_lock_init(&gc->lock);
 	INIT_LIST_HEAD(&gc->list);
-
-	INIT_WORK(&gc->free_work, contexts_free_worker);
-	init_llist_head(&gc->free_list);
 }
 
 void i915_gem_init__contexts(struct drm_i915_private *i915)
 {
 	init_contexts(&i915->gem.contexts);
-}
-
-void i915_gem_driver_release__contexts(struct drm_i915_private *i915)
-{
-	flush_work(&i915->gem.contexts.free_work);
-	rcu_barrier(); /* and flush the left over RCU frees */
 }
 
 static int gem_context_register(struct i915_gem_context *ctx,
@@ -986,7 +946,6 @@ err:
 void i915_gem_context_close(struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
-	struct drm_i915_private *i915 = file_priv->dev_priv;
 	struct i915_address_space *vm;
 	struct i915_gem_context *ctx;
 	unsigned long idx;
@@ -998,8 +957,6 @@ void i915_gem_context_close(struct drm_file *file)
 	xa_for_each(&file_priv->vm_xa, idx, vm)
 		i915_vm_put(vm);
 	xa_destroy(&file_priv->vm_xa);
-
-	contexts_flush_free(&i915->gem.contexts);
 }
 
 int i915_gem_vm_create_ioctl(struct drm_device *dev, void *data,

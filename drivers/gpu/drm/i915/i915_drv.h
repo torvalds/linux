@@ -1172,9 +1172,6 @@ struct drm_i915_private {
 		struct i915_gem_contexts {
 			spinlock_t lock; /* locks list */
 			struct list_head list;
-
-			struct llist_head free_list;
-			struct work_struct free_work;
 		} contexts;
 
 		/*
