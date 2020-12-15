@@ -76,7 +76,7 @@ static const struct regmap_config tcan4x5x_regmap = {
 	.max_register = TCAN4X5X_MAX_REGISTER,
 };
 
-static struct regmap_bus tcan4x5x_bus = {
+static const struct regmap_bus tcan4x5x_bus = {
 	.write = tcan4x5x_regmap_write,
 	.gather_write = regmap_spi_gather_write,
 	.async_write = regmap_spi_async_write,
