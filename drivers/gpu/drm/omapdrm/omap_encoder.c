@@ -117,27 +117,8 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 	dss_mgr_set_timings(output, &vm);
 }
 
-static int omap_encoder_atomic_check(struct drm_encoder *encoder,
-				     struct drm_crtc_state *crtc_state,
-				     struct drm_connector_state *conn_state)
-{
-	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
-	enum drm_mode_status status;
-
-	status = omap_connector_mode_fixup(omap_encoder->output,
-					   &crtc_state->mode,
-					   &crtc_state->adjusted_mode);
-	if (status != MODE_OK) {
-		dev_err(encoder->dev->dev, "invalid timings: %d\n", status);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static const struct drm_encoder_helper_funcs omap_encoder_helper_funcs = {
 	.mode_set = omap_encoder_mode_set,
-	.atomic_check = omap_encoder_atomic_check,
 };
 
 /* initialize encoder */

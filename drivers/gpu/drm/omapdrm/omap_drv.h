@@ -16,7 +16,6 @@
 #include <drm/drm_gem.h>
 #include <drm/omap_drm.h>
 
-#include "omap_connector.h"
 #include "omap_crtc.h"
 #include "omap_encoder.h"
 #include "omap_fb.h"

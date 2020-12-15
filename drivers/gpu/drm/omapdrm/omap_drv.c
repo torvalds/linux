@@ -332,19 +332,12 @@ static int omap_modeset_init(struct drm_device *dev)
 		struct drm_encoder *encoder = pipe->encoder;
 		struct drm_crtc *crtc;
 
-		if (pipe->output->next) {
-			pipe->connector = omap_connector_init(dev, pipe->output,
-							      encoder);
-			if (!pipe->connector)
-				return -ENOMEM;
-		} else {
-			pipe->connector = drm_bridge_connector_init(dev, encoder);
-			if (IS_ERR(pipe->connector)) {
-				dev_err(priv->dev,
-					"unable to create bridge connector for %s\n",
-					pipe->output->name);
-				return PTR_ERR(pipe->connector);
-			}
+		pipe->connector = drm_bridge_connector_init(dev, encoder);
+		if (IS_ERR(pipe->connector)) {
+			dev_err(priv->dev,
+				"unable to create bridge connector for %s\n",
+				pipe->output->name);
+			return PTR_ERR(pipe->connector);
 		}
 
 		drm_connector_attach_encoder(pipe->connector, encoder);
