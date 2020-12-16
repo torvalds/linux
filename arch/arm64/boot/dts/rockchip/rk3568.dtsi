@@ -589,7 +589,8 @@
 			<&cru CLK_I2S0_8CH_RX_SRC>, <&cru CLK_I2S1_8CH_TX_SRC>,
 			<&cru CLK_I2S1_8CH_RX_SRC>, <&cru CLK_I2S2_2CH_SRC>,
 			<&cru CLK_I2S2_2CH_SRC>, <&cru CLK_I2S3_2CH_RX_SRC>,
-			<&cru CLK_I2S3_2CH_TX_SRC>, <&cru MCLK_SPDIF_8CH_SRC>;
+			<&cru CLK_I2S3_2CH_TX_SRC>, <&cru MCLK_SPDIF_8CH_SRC>,
+			<&cru ACLK_VOP>;
 		assigned-clock-rates =
 			<32768>, <300000000>,
 			<300000000>, <200000000>,
@@ -607,7 +608,8 @@
 			<1188000000>, <1188000000>,
 			<1188000000>, <1188000000>,
 			<1188000000>, <1188000000>,
-			<1188000000>, <1188000000>;
+			<1188000000>, <1188000000>,
+			<500000000>;
 		assigned-clock-parents =
 			<&pmucru CLK_RTC32K_FRAC>, <&cru PLL_GPLL>,
 			<&cru PLL_GPLL>;
