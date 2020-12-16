@@ -95,4 +95,12 @@ int ocs_hcu_hash_final(struct ocs_hcu_dev *hcu_dev,
 		       const struct ocs_hcu_hash_ctx *ctx, u8 *dgst,
 		       size_t dgst_len);
 
+int ocs_hcu_digest(struct ocs_hcu_dev *hcu_dev, enum ocs_hcu_algo algo,
+		   void *data, size_t data_len, u8 *dgst, size_t dgst_len);
+
+int ocs_hcu_hmac(struct ocs_hcu_dev *hcu_dev, enum ocs_hcu_algo algo,
+		 const u8 *key, size_t key_len,
+		 const struct ocs_hcu_dma_list *dma_list,
+		 u8 *dgst, size_t dgst_len);
+
 #endif /* _CRYPTO_OCS_HCU_H */

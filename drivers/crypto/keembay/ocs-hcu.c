@@ -368,6 +368,69 @@ static int ocs_hcu_hw_cfg(struct ocs_hcu_dev *hcu_dev, enum ocs_hcu_algo algo,
 }
 
 /**
+ * ocs_hcu_clear_key() - Clear key stored in OCS HMAC KEY registers.
+ * @hcu_dev:	The OCS HCU device whose key registers should be cleared.
+ */
+static void ocs_hcu_clear_key(struct ocs_hcu_dev *hcu_dev)
+{
+	int reg_off;
+
+	/* Clear OCS_HCU_KEY_[0..15] */
+	for (reg_off = 0; reg_off < OCS_HCU_HW_KEY_LEN; reg_off += sizeof(u32))
+		writel(0, hcu_dev->io_base + OCS_HCU_KEY_0 + reg_off);
+}
+
+/**
+ * ocs_hcu_write_key() - Write key to OCS HMAC KEY registers.
+ * @hcu_dev:	The OCS HCU device the key should be written to.
+ * @key:	The key to be written.
+ * @len:	The size of the key to write. It must be OCS_HCU_HW_KEY_LEN.
+ *
+ * Return:	0 on success, negative error code otherwise.
+ */
+static int ocs_hcu_write_key(struct ocs_hcu_dev *hcu_dev, const u8 *key, size_t len)
+{
+	u32 key_u32[OCS_HCU_HW_KEY_LEN_U32];
+	int i;
+
+	if (len > OCS_HCU_HW_KEY_LEN)
+		return -EINVAL;
+
+	/* Copy key into temporary u32 array. */
+	memcpy(key_u32, key, len);
+
+	/*
+	 * Hardware requires all the bytes of the HW Key vector to be
+	 * written. So pad with zero until we reach OCS_HCU_HW_KEY_LEN.
+	 */
+	memzero_explicit((u8 *)key_u32 + len, OCS_HCU_HW_KEY_LEN - len);
+
+	/*
+	 * OCS hardware expects the MSB of the key to be written at the highest
+	 * address of the HCU Key vector; in other word, the key must be
+	 * written in reverse order.
+	 *
+	 * Therefore, we first enable byte swapping for the HCU key vector;
+	 * so that bytes of 32-bit word written to OCS_HCU_KEY_[0..15] will be
+	 * swapped:
+	 * 3 <---> 0, 2 <---> 1.
+	 */
+	writel(HCU_BYTE_ORDER_SWAP,
+	       hcu_dev->io_base + OCS_HCU_KEY_BYTE_ORDER_CFG);
+	/*
+	 * And then we write the 32-bit words composing the key starting from
+	 * the end of the key.
+	 */
+	for (i = 0; i < OCS_HCU_HW_KEY_LEN_U32; i++)
+		writel(key_u32[OCS_HCU_HW_KEY_LEN_U32 - 1 - i],
+		       hcu_dev->io_base + OCS_HCU_KEY_0 + (sizeof(u32) * i));
+
+	memzero_explicit(key_u32, OCS_HCU_HW_KEY_LEN);
+
+	return 0;
+}
+
+/**
  * ocs_hcu_ll_dma_start() - Start OCS HCU hashing via DMA
  * @hcu_dev:	The OCS HCU device to use.
  * @dma_list:	The OCS DMA list mapping the data to hash.
@@ -647,6 +710,99 @@ int ocs_hcu_hash_final(struct ocs_hcu_dev *hcu_dev,
 
 	/* Get digest and return. */
 	return ocs_hcu_get_digest(hcu_dev, ctx->algo, dgst, dgst_len);
+}
+
+/**
+ * ocs_hcu_digest() - Compute hash digest.
+ * @hcu_dev:		The OCS HCU device to use.
+ * @algo:		The hash algorithm to use.
+ * @data:		The input data to process.
+ * @data_len:		The length of @data.
+ * @dgst:		The buffer where to save the computed digest.
+ * @dgst_len:		The length of @dgst.
+ *
+ * Return: 0 on success; negative error code otherwise.
+ */
+int ocs_hcu_digest(struct ocs_hcu_dev *hcu_dev, enum ocs_hcu_algo algo,
+		   void *data, size_t data_len, u8 *dgst, size_t dgst_len)
+{
+	struct device *dev = hcu_dev->dev;
+	dma_addr_t dma_handle;
+	u32 reg;
+	int rc;
+
+	/* Configure the hardware for the current request. */
+	rc = ocs_hcu_hw_cfg(hcu_dev, algo, false);
+	if (rc)
+		return rc;
+
+	dma_handle = dma_map_single(dev, data, data_len, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, dma_handle))
+		return -EIO;
+
+	reg = HCU_DMA_SNOOP_MASK | HCU_DMA_EN;
+
+	ocs_hcu_done_irq_en(hcu_dev);
+
+	reinit_completion(&hcu_dev->irq_done);
+
+	writel(dma_handle, hcu_dev->io_base + OCS_HCU_DMA_SRC_ADDR);
+	writel(data_len, hcu_dev->io_base + OCS_HCU_DMA_SRC_SIZE);
+	writel(OCS_HCU_START, hcu_dev->io_base + OCS_HCU_OPERATION);
+	writel(reg, hcu_dev->io_base + OCS_HCU_DMA_DMA_MODE);
+
+	writel(OCS_HCU_TERMINATE, hcu_dev->io_base + OCS_HCU_OPERATION);
+
+	rc = ocs_hcu_wait_and_disable_irq(hcu_dev);
+	if (rc)
+		return rc;
+
+	dma_unmap_single(dev, dma_handle, data_len, DMA_TO_DEVICE);
+
+	return ocs_hcu_get_digest(hcu_dev, algo, dgst, dgst_len);
+}
+
+/**
+ * ocs_hcu_hmac() - Compute HMAC.
+ * @hcu_dev:		The OCS HCU device to use.
+ * @algo:		The hash algorithm to use with HMAC.
+ * @key:		The key to use.
+ * @dma_list:	The OCS DMA list mapping the input data to process.
+ * @key_len:		The length of @key.
+ * @dgst:		The buffer where to save the computed HMAC.
+ * @dgst_len:		The length of @dgst.
+ *
+ * Return: 0 on success; negative error code otherwise.
+ */
+int ocs_hcu_hmac(struct ocs_hcu_dev *hcu_dev, enum ocs_hcu_algo algo,
+		 const u8 *key, size_t key_len,
+		 const struct ocs_hcu_dma_list *dma_list,
+		 u8 *dgst, size_t dgst_len)
+{
+	int rc;
+
+	/* Ensure 'key' is not NULL. */
+	if (!key || key_len == 0)
+		return -EINVAL;
+
+	/* Configure the hardware for the current request. */
+	rc = ocs_hcu_hw_cfg(hcu_dev, algo, true);
+	if (rc)
+		return rc;
+
+	rc = ocs_hcu_write_key(hcu_dev, key, key_len);
+	if (rc)
+		return rc;
+
+	rc = ocs_hcu_ll_dma_start(hcu_dev, dma_list, true);
+
+	/* Clear HW key before processing return code. */
+	ocs_hcu_clear_key(hcu_dev);
+
+	if (rc)
+		return rc;
+
+	return ocs_hcu_get_digest(hcu_dev, algo, dgst, dgst_len);
 }
 
 irqreturn_t ocs_hcu_irq_handler(int irq, void *dev_id)

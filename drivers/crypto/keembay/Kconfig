@@ -49,7 +49,7 @@ config CRYPTO_DEV_KEEMBAY_OCS_HCU
 	  Control Unit (HCU) hardware acceleration for use with Crypto API.
 
 	  Provides OCS HCU hardware acceleration of sha256, sha384, sha512, and
-	  sm3.
+	  sm3, as well as the HMAC variant of these algorithms.
 
 	  Say Y or M if you're building for the Intel Keem Bay SoC. If compiled
 	  as a module, the module will be called keembay-ocs-hcu.
