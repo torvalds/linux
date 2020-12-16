@@ -3,6 +3,7 @@
  *
  * Copyright © 2018 Intel Corporation
  */
+#include "gt/intel_gpu_commands.h"
 #include "gt/intel_gt.h"
 
 #include "gem/selftests/igt_gem_utils.h"

@@ -7,6 +7,7 @@
 #include "i915_drv.h"
 #include "intel_context.h"
 #include "intel_engine_pm.h"
+#include "intel_gpu_commands.h"
 #include "intel_gt.h"
 #include "intel_ring.h"
 #include "intel_workarounds.h"

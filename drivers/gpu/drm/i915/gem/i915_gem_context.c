@@ -73,6 +73,7 @@
 #include "gt/intel_engine_heartbeat.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_execlists_submission.h" /* virtual_engine */
+#include "gt/intel_gpu_commands.h"
 #include "gt/intel_ring.h"
 
 #include "i915_gem_context.h"

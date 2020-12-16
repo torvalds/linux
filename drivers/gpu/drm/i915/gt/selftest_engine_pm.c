@@ -4,6 +4,8 @@
  * Copyright © 2018 Intel Corporation
  */
 
+#include "intel_gpu_commands.h"
+
 #include "i915_selftest.h"
 #include "selftest_engine.h"
 #include "selftest_engine_heartbeat.h"

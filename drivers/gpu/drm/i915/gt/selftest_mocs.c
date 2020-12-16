@@ -5,6 +5,7 @@
  */
 
 #include "gt/intel_engine_pm.h"
+#include "gt/intel_gpu_commands.h"
 #include "i915_selftest.h"
 
 #include "gem/selftests/mock_context.h"

@@ -9,6 +9,7 @@
 
 #include "i915_memcpy.h"
 #include "i915_selftest.h"
+#include "intel_gpu_commands.h"
 #include "selftests/igt_reset.h"
 #include "selftests/igt_atomic.h"
 #include "selftests/igt_spinner.h"

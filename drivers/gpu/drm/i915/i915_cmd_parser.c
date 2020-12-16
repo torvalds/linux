@@ -26,6 +26,7 @@
  */
 
 #include "gt/intel_engine.h"
+#include "gt/intel_gpu_commands.h"
 
 #include "i915_drv.h"
 #include "i915_memcpy.h"
