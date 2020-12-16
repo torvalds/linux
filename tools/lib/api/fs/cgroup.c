@@ -8,6 +8,14 @@
 #include <string.h>
 #include "fs.h"
 
+struct cgroupfs_cache_entry {
+	char	subsys[32];
+	char	mountpoint[PATH_MAX];
+};
+
+/* just cache last used one */
+static struct cgroupfs_cache_entry cached;
+
 int cgroupfs_find_mountpoint(char *buf, size_t maxlen, const char *subsys)
 {
 	FILE *fp;
@@ -15,6 +23,14 @@ int cgroupfs_find_mountpoint(char *buf, size_t maxlen, const char *subsys)
 	size_t len = 0;
 	char *p, *path;
 	char mountpoint[PATH_MAX];
+
+	if (!strcmp(cached.subsys, subsys)) {
+		if (strlen(cached.mountpoint) < maxlen) {
+			strcpy(buf, cached.mountpoint);
+			return 0;
+		}
+		return -1;
+	}
 
 	fp = fopen("/proc/mounts", "r");
 	if (!fp)
@@ -74,6 +90,9 @@ int cgroupfs_find_mountpoint(char *buf, size_t maxlen, const char *subsys)
 	}
 	free(line);
 	fclose(fp);
+
+	strncpy(cached.subsys, subsys, sizeof(cached.subsys) - 1);
+	strcpy(cached.mountpoint, mountpoint);
 
 	if (mountpoint[0] && strlen(mountpoint) < maxlen) {
 		strcpy(buf, mountpoint);
