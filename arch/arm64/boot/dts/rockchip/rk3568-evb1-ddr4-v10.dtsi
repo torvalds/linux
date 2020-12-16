@@ -381,13 +381,11 @@
 		};
 	};
 
-	sdio-pwrseq {
-		wifi_enable_h: wifi-enable-h {
+	wireless-wlan {
+		wifi_poweren: wifi-poweren {
 			rockchip,pins = <3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
-	};
 
-	wireless-wlan {
 		wifi_host_wake_irq: wifi-host-wake-irq {
 			rockchip,pins = <3 RK_PD4 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
@@ -426,22 +424,6 @@
 	status = "okay";
 };
 
-&sdio_pwrseq {
-	compatible = "mmc-pwrseq-simple";
-	clocks = <&rk809 1>;
-	clock-names = "ext_clock";
-	pinctrl-names = "default";
-	pinctrl-0 = <&wifi_enable_h>;
-
-	/*
-	 * On the module itself this is one of these (depending
-	 * on the actual card populated):
-	 * - SDIO_RESET_L_WL_REG_ON
-	 * - PDN (power down when low)
-	 */
-	reset-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
-};
-
 &sdmmc2 {
 	max-frequency = <150000000>;
 	supports-sdio;
@@ -450,11 +432,10 @@
 	cap-sd-highspeed;
 	cap-sdio-irq;
 	keep-power-in-suspend;
-	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc2m0_bus4 &sdmmc2m0_cmd &sdmmc2m0_clk>;
 	sd-uhs-sdr104;
+	logic-remove-card;
 	status = "okay";
 };
 
@@ -481,13 +462,10 @@
 };
 
 &wireless_wlan {
-	compatible = "wlan-platdata";
-	rockchip,grf = <&grf>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&wifi_host_wake_irq>;
-	wifi_chip_type = "ap6398s";
+	pinctrl-0 = <&wifi_poweren &wifi_host_wake_irq>;
+	WIFI,poweren_gpio = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
 	WIFI,host_wake_irq = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;
-	status = "okay";
 };
 
 &wireless_bluetooth {
