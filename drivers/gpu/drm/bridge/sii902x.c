@@ -33,8 +33,10 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_modes.h>
 
 #include <sound/hdmi-codec.h>
+#include <video/videomode.h>
 
 #define SII902X_TPI_VIDEO_DATA			0x0
 
@@ -153,6 +155,12 @@
 #define SII902X_HOTPLUG_EVENT			BIT(0)
 #define SII902X_PLUGGED_STATUS			BIT(2)
 
+#define SII902X_TPI_SYNC_GEN_CTRL		0x60
+#define SII902X_TPI_SYNC_POLAR_DETECT		0x61
+#define SII902X_TPI_HBIT_TO_HSYNC		0x62
+#define SII902X_EMBEDDED_SYNC_EXTRACTION_REG	0x63
+#define SII902X_EMBEDDED_SYNC_EXTRACTION	BIT(6)
+
 #define SII902X_REG_TPI_RQB			0xc7
 
 /* Indirect internal register access */
@@ -175,6 +183,7 @@ struct sii902x {
 	struct drm_bridge bridge;
 	struct drm_connector connector;
 	struct gpio_desc *reset_gpio;
+	struct gpio_desc *enable_gpio;
 	struct i2c_mux_core *i2cmux;
 	/*
 	 * Mutex protects audio and video functions from interfering
@@ -186,6 +195,14 @@ struct sii902x {
 		struct clk *mclk;
 		u32 i2s_fifo_sequence[4];
 	} audio;
+	struct drm_display_mode mode;
+	int bus_format;
+};
+
+enum sii902x_bus_format {
+	FORMAT_RGB_INPUT,
+	FORMAT_YCBCR422_INPUT,
+	FORMAT_YCBCR444_INPUT,
 };
 
 static int sii902x_read_unlocked(struct i2c_client *i2c, u8 reg, u8 *val)
@@ -276,13 +293,53 @@ static const struct drm_connector_funcs sii902x_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
+static const struct drm_display_mode sii902x_default_modes[] = {
+	/* 4 - 1280x720@60Hz 16:9 */
+	{ DRM_MODE("1280x720", DRM_MODE_TYPE_DRIVER, 74250, 1280, 1390,
+		   1430, 1650, 0, 720, 725, 730, 750, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
+	  .vrefresh = 60, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9, },
+	/* 16 - 1920x1080@60Hz 16:9 */
+	{ DRM_MODE("1920x1080", DRM_MODE_TYPE_DRIVER, 148500, 1920, 2008,
+		   2052, 2200, 0, 1080, 1084, 1089, 1125, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
+	  .vrefresh = 60, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9, },
+	/* 5 - 1920x1080i@60Hz 16:9 */
+	{ DRM_MODE("1920x1080i", DRM_MODE_TYPE_DRIVER, 74250, 1920, 2008,
+		   2052, 2200, 0, 1080, 1084, 1094, 1125, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC |
+		   DRM_MODE_FLAG_INTERLACE),
+	  .vrefresh = 60, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9, },
+	/* 62 - 1280x720@30Hz 16:9 */
+	{ DRM_MODE("1280x720", DRM_MODE_TYPE_DRIVER, 74250, 1280, 3040,
+		   3080, 3300, 0, 720, 725, 730, 750, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
+	  .vrefresh = 30, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9, },
+	/* 19 - 1280x720@50Hz 16:9 */
+	{ DRM_MODE("1280x720", DRM_MODE_TYPE_DRIVER, 74250, 1280, 1720,
+		   1760, 1980, 0, 720, 725, 730, 750, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
+	  .vrefresh = 50, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9, },
+	/* 17 - 720x576@50Hz 4:3 */
+	{ DRM_MODE("720x576", DRM_MODE_TYPE_DRIVER, 27000, 720, 732,
+		   796, 864, 0, 576, 581, 586, 625, 0,
+		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC),
+	  .vrefresh = 50, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_4_3, },
+	/* 2 - 720x480@60Hz 4:3 */
+	{ DRM_MODE("720x480", DRM_MODE_TYPE_DRIVER, 27000, 720, 736,
+		   798, 858, 0, 480, 489, 495, 525, 0,
+		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC),
+	  .vrefresh = 60, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_4_3, },
+};
+
 static int sii902x_get_modes(struct drm_connector *connector)
 {
 	struct sii902x *sii902x = connector_to_sii902x(connector);
-	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+	u32 bus_format;
 	u8 output_mode = SII902X_SYS_CTRL_OUTPUT_DVI;
 	struct edid *edid;
-	int num = 0, ret;
+	int num = 0, ret = 0, i;
+	struct drm_display_mode *mode;
 
 	mutex_lock(&sii902x->mutex);
 
@@ -294,8 +351,28 @@ static int sii902x_get_modes(struct drm_connector *connector)
 
 		num = drm_add_edid_modes(connector, edid);
 		kfree(edid);
+	} else {
+		for (i = 0; i < ARRAY_SIZE(sii902x_default_modes); i++) {
+			const struct drm_display_mode *ptr =
+				&sii902x_default_modes[i];
+
+			mode = drm_mode_duplicate(connector->dev, ptr);
+			if (mode) {
+				if (!i)
+					mode->type = DRM_MODE_TYPE_PREFERRED;
+				drm_mode_probed_add(connector, mode);
+				ret++;
+			}
+		}
+		output_mode = SII902X_SYS_CTRL_OUTPUT_HDMI;
 	}
 
+	if (sii902x->bus_format == FORMAT_YCBCR422_INPUT)
+		bus_format = MEDIA_BUS_FMT_YUYV8_1X16;
+	else if (sii902x->bus_format == FORMAT_YCBCR444_INPUT)
+		bus_format = MEDIA_BUS_FMT_YUV8_1X24;
+	else
+		bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 	ret = drm_display_info_set_bus_formats(&connector->display_info,
 					       &bus_format, 1);
 	if (ret)
@@ -317,7 +394,10 @@ error_out:
 static enum drm_mode_status sii902x_mode_valid(struct drm_connector *connector,
 					       struct drm_display_mode *mode)
 {
-	/* TODO: check mode */
+	if (mode->hdisplay > 1920 || mode->vdisplay > 1080)
+		return MODE_BAD;
+	if (mode->clock > 165000)
+		return MODE_BAD;
 
 	return MODE_OK;
 }
@@ -355,6 +435,63 @@ static void sii902x_bridge_enable(struct drm_bridge *bridge)
 	mutex_unlock(&sii902x->mutex);
 }
 
+static void sii902x_set_embedded_sync(struct sii902x *sii902x)
+{
+	unsigned char data[8];
+	struct videomode vm;
+
+	if (sii902x->bus_format == FORMAT_RGB_INPUT)
+		return;
+
+	sii902x_update_bits_unlocked(sii902x->i2c, SII902X_TPI_SYNC_GEN_CTRL,
+				     0x80,  0x00);
+	regmap_write(sii902x->regmap,
+		     SII902X_EMBEDDED_SYNC_EXTRACTION_REG, 0x00);
+	sii902x_update_bits_unlocked(sii902x->i2c, SII902X_TPI_SYNC_GEN_CTRL,
+				     0x80,  0x80);
+
+	drm_display_mode_to_videomode(&sii902x->mode, &vm);
+	data[0] = vm.hfront_porch & 0xff;
+	data[1] = (vm.hfront_porch >> 8) & 0x03;
+	data[2] = 0;
+	data[3] = 0;
+	data[4] = vm.hsync_len & 0xff;
+	data[5] = (vm.hsync_len >> 8) & 0x03;
+	data[6] = vm.vfront_porch;
+	data[7] = vm.vsync_len;
+	regmap_bulk_write(sii902x->regmap, SII902X_TPI_HBIT_TO_HSYNC, data, 8);
+
+	sii902x_update_bits_unlocked(sii902x->i2c, SII902X_TPI_SYNC_GEN_CTRL,
+				     0x80, 0x80);
+	sii902x_update_bits_unlocked(sii902x->i2c,
+				     SII902X_EMBEDDED_SYNC_EXTRACTION_REG,
+				     0x40, 0x40);
+
+	regmap_update_bits(sii902x->regmap,
+			   SII902X_EMBEDDED_SYNC_EXTRACTION_REG,
+			   SII902X_EMBEDDED_SYNC_EXTRACTION,
+			   SII902X_EMBEDDED_SYNC_EXTRACTION);
+}
+
+static void sii902x_set_format(struct sii902x *sii902x)
+{
+	u8 val;
+
+	if (sii902x->bus_format == FORMAT_YCBCR422_INPUT)
+		val = SII902X_TPI_AVI_INPUT_COLORSPACE_YUV422;
+	else if (sii902x->bus_format == FORMAT_YCBCR444_INPUT)
+		val = SII902X_TPI_AVI_INPUT_COLORSPACE_YUV444;
+	else
+		val = SII902X_TPI_AVI_INPUT_COLORSPACE_RGB;
+
+	val |= SII902X_TPI_AVI_INPUT_RANGE_AUTO;
+	val &= ~(SII902X_TPI_AVI_INPUT_DITHER |
+		 SII902X_TPI_AVI_INPUT_BITMODE_12BIT);
+	regmap_write(sii902x->regmap, SII902X_TPI_AVI_IN_FORMAT, val);
+
+	sii902x_set_embedded_sync(sii902x);
+}
+
 static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
 				    struct drm_display_mode *mode,
 				    struct drm_display_mode *adj)
@@ -364,20 +501,29 @@ static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
 	u8 buf[HDMI_INFOFRAME_SIZE(AVI)];
 	struct hdmi_avi_infoframe frame;
 	u16 pixel_clock_10kHz = adj->clock / 10;
-	int ret;
+	int ret, vrefresh;
 
+	drm_mode_copy(&sii902x->mode, adj);
+	vrefresh = drm_mode_vrefresh(mode) * 100;
 	buf[0] = pixel_clock_10kHz & 0xff;
 	buf[1] = pixel_clock_10kHz >> 8;
-	buf[2] = adj->vrefresh;
-	buf[3] = 0x00;
-	buf[4] = adj->hdisplay;
-	buf[5] = adj->hdisplay >> 8;
-	buf[6] = adj->vdisplay;
-	buf[7] = adj->vdisplay >> 8;
+	buf[2] = vrefresh & 0xff;
+	buf[3] = vrefresh >> 8;
+	buf[4] = adj->crtc_htotal;
+	buf[5] = adj->crtc_htotal >> 8;
+	buf[6] = adj->crtc_vtotal;
+	buf[7] = adj->crtc_vtotal >> 8;
 	buf[8] = SII902X_TPI_CLK_RATIO_1X | SII902X_TPI_AVI_PIXEL_REP_NONE |
 		 SII902X_TPI_AVI_PIXEL_REP_BUS_24BIT;
-	buf[9] = SII902X_TPI_AVI_INPUT_RANGE_AUTO |
-		 SII902X_TPI_AVI_INPUT_COLORSPACE_RGB;
+	if (sii902x->bus_format == FORMAT_YCBCR422_INPUT)
+		buf[8] |= SII902X_TPI_AVI_PIXEL_REP_RISING_EDGE;
+	buf[9] = SII902X_TPI_AVI_INPUT_RANGE_AUTO;
+	if (sii902x->bus_format == FORMAT_YCBCR422_INPUT)
+		buf[9] |= SII902X_TPI_AVI_INPUT_COLORSPACE_YUV422;
+	else if (sii902x->bus_format == FORMAT_YCBCR444_INPUT)
+		buf[9] |= SII902X_TPI_AVI_INPUT_COLORSPACE_YUV444;
+	else
+		buf[9] |= SII902X_TPI_AVI_INPUT_COLORSPACE_RGB;
 
 	mutex_lock(&sii902x->mutex);
 
@@ -402,6 +548,7 @@ static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
 			  buf + HDMI_INFOFRAME_HEADER_SIZE - 1,
 			  HDMI_AVI_INFOFRAME_SIZE + 1);
 
+	sii902x_set_format(sii902x);
 out:
 	mutex_unlock(&sii902x->mutex);
 }
@@ -412,6 +559,7 @@ static int sii902x_bridge_attach(struct drm_bridge *bridge)
 	struct drm_device *drm = bridge->dev;
 	int ret;
 
+	sii902x->connector.interlace_allowed = true;
 	drm_connector_helper_add(&sii902x->connector,
 				 &sii902x_connector_helper_funcs);
 
@@ -956,6 +1104,7 @@ static int sii902x_probe(struct i2c_client *client,
 	struct sii902x *sii902x;
 	u8 chipid[4];
 	int ret;
+	u32 val;
 
 	ret = i2c_check_functionality(client->adapter,
 				      I2C_FUNC_SMBUS_BYTE_DATA);
@@ -980,6 +1129,25 @@ static int sii902x_probe(struct i2c_client *client,
 			PTR_ERR(sii902x->reset_gpio));
 		return PTR_ERR(sii902x->reset_gpio);
 	}
+
+	sii902x->enable_gpio = devm_gpiod_get_optional(dev, "enable",
+						       GPIOD_OUT_LOW);
+	if (IS_ERR(sii902x->enable_gpio)) {
+		dev_err(dev, "Failed to retrieve/request enable gpio: %ld\n",
+			PTR_ERR(sii902x->enable_gpio));
+		return PTR_ERR(sii902x->enable_gpio);
+	} else if (sii902x->enable_gpio) {
+		gpiod_direction_output(sii902x->enable_gpio, 1);
+		usleep_range(1500, 2000);
+	}
+
+	sii902x->bus_format = FORMAT_RGB_INPUT;
+	/* 0: RGB; 1: YCBCR422; 2: YCBCR444 */
+	ret = of_property_read_u32(dev->of_node, "bus-format", &val);
+	if (ret < 0)
+		sii902x->bus_format = FORMAT_RGB_INPUT;
+	else
+		sii902x->bus_format = val;
 
 	mutex_init(&sii902x->mutex);
 
@@ -1012,6 +1180,7 @@ static int sii902x_probe(struct i2c_client *client,
 
 		ret = devm_request_threaded_irq(dev, client->irq, NULL,
 						sii902x_interrupt,
+						IRQF_TRIGGER_FALLING |
 						IRQF_ONESHOT, dev_name(dev),
 						sii902x);
 		if (ret)
