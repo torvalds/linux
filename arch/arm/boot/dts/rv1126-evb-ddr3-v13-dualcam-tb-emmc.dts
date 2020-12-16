@@ -1,0 +1,241 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+#include "rv1126.dtsi"
+#include "rv1126-evb-v13.dtsi"
+#include "rv1126-thunder-boot-emmc.dtsi"
+#include "rv1126-evb-thunder-boot.dtsi"
+
+/ {
+	model = "Rockchip RV1126 EVB DDR3 V13 with eMMC (Dualcam Thunder Boot)";
+	compatible = "rockchip,rv1126-evb-ddr3-v13-dualcam-tb-emmc", "rockchip,rv1126";
+
+	chosen {
+		bootargs = "loglevel=0 initcall_nr_threads=-1 initcall_debug=0 printk.devkmsg=on root=/dev/rd0 console=ttyFIQ0 snd_aloop.index=7 driver_async_probe=dwmmc_rockchip rk.root2nd=/dev/mmcblk0p7";
+	};
+
+	pwmleds {
+		compatible = "pwm-leds";
+
+		pwmi_ir {
+			label = "PWM-IR";
+			pwms = <&pwm11 0 25000 0>;
+			max-brightness = <255>;
+		};
+	};
+
+	vcc1v2_dvdd: vcc1v2-dvdd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc1v2_dvdd";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+	};
+
+	vcc2v8_avdd: vcc2v8-avdd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc2v8_avdd";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+	};
+};
+
+&csi_dphy0 {
+	status = "okay";
+	ports {
+		port@0 {
+			mipi_in_ucam0: endpoint@1 {
+				remote-endpoint = <&ucam_out0>;
+				data-lanes = <1 2>;
+			};
+		};
+		port@1 {
+			csidphy0_out: endpoint@0 {
+				remote-endpoint = <&mipi_csi2_input>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&csi_dphy1 {
+	status = "okay";
+	ports {
+		port@0 {
+			csi_dphy1_input: endpoint@1 {
+				remote-endpoint = <&ucam_out1>;
+				data-lanes = <1 2>;
+			};
+		};
+		port@1 {
+			csi_dphy1_output: endpoint@0 {
+				remote-endpoint = <&isp_in>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&i2c1 {
+	/delete-node/ ar0230@10;
+	/delete-node/ ov4689@36;
+	/delete-node/ os04a10@36;
+	ov2718: ov2718@10 {
+		compatible = "ovti,ov2718";
+		reg = <0x10>;
+		clocks = <&cru CLK_MIPICSI_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RV1126_PD_VI>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&mipicsi_clk1>;
+		avdd-supply = <&vcc_avdd>;
+		dovdd-supply = <&vcc_dovdd>;
+		dvdd-supply = <&vcc_dvdd>;
+		pwd-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 RK_PA0 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "YT-RV1109-3-V1";
+		rockchip,camera-module-lens-name = "M43-4IR-2MP-F2";
+		ir-cut = <&cam_ircut0>;
+		port {
+			ucam_out1: endpoint {
+				remote-endpoint = <&csi_dphy1_input>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	gc2053: gc2053@37 {
+		compatible = "galaxycore,gc2053";
+		reg = <0x37>;
+
+		clocks = <&cru CLK_MIPICSI_OUT>;
+		clock-names = "xvclk";
+
+		power-domains = <&power RV1126_PD_VI>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&mipicsi_clk0>;
+		power-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+
+		avdd-supply = <&vcc2v8_avdd>;
+		dovdd-supply = <&vcc_dovdd>;
+		dvdd-supply = <&vcc1v2_dvdd>;
+
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "YT-RV1109-2-V1";
+		rockchip,camera-module-lens-name = "40IR-2MP-F20";
+		port {
+			ucam_out0: endpoint {
+				remote-endpoint = <&mipi_in_ucam0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+/* isp cma buffer don't fiddle with it, dual camera(1920 * 1080) need 92M buffer */
+&isp_reserved {
+	size = <0x5c00000>;
+};
+
+&mipi_csi2 {
+	status = "okay";
+	ports {
+		port@0 {
+			mipi_csi2_input: endpoint@1 {
+				remote-endpoint = <&csidphy0_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			mipi_csi2_output: endpoint@0 {
+				remote-endpoint = <&cif_mipi_in>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&pwm11 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm11m1_pins_pull_down>;
+};
+
+&rk809 {
+	regulators {
+		vcc_dvdd: LDO_REG6 {
+			regulator-min-microvolt = <1300000>;
+			regulator-max-microvolt = <1300000>;
+		};
+
+		vcc_avdd: LDO_REG7 {
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+	port {
+		cif_mipi_in: endpoint {
+			remote-endpoint = <&mipi_csi2_output>;
+			data-lanes = <1 2>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds_sditf {
+	status = "okay";
+
+	port {
+		cif_sditf: endpoint {
+			remote-endpoint = <&isp_virt1_in>;
+			data-lanes = <1 2 3 4>;
+		};
+	};
+};
+
+&rkisp_vir0 {
+	ports {
+		port@0 {
+			isp_in: endpoint@0 {
+				remote-endpoint = <&csi_dphy1_output>;
+			};
+		};
+	};
+};
+
+&rkisp_vir1 {
+	status = "okay";
+	ports {
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			isp_virt1_in: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_sditf>;
+			};
+		};
+	};
+};
+
+&rkispp_vir1 {
+	status = "okay";
+};
+
+&rkispp {
+	status = "okay";
+	/* the max input w h and fps of mulit sensor */
+	max-input = <1920 1080 30>;
+};
