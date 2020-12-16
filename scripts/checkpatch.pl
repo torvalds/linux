@@ -6200,6 +6200,7 @@ sub process {
 			$attr =~ s/\s*\(\s*(.*)\)\s*/$1/;
 
 			my %attr_list = (
+				"alias"				=> "__alias",
 				"aligned"			=> "__aligned",
 				"always_inline"			=> "__always_inline",
 				"assume_aligned"		=> "__assume_aligned",
@@ -6220,7 +6221,8 @@ sub process {
 				"packed"			=> "__packed",
 				"pure"				=> "__pure",
 				"section"			=> "__section",
-				"used"				=> "__used"
+				"used"				=> "__used",
+				"weak"				=> "__weak"
 			);
 
 			while ($attr =~ /\s*(\w+)\s*(${balanced_parens})?/g) {
