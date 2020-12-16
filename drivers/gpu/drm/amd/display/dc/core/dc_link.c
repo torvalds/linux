@@ -3701,9 +3701,10 @@ bool dc_link_should_enable_fec(const struct dc_link *link)
 	bool is_fec_disable = false;
 	bool ret = false;
 
-	if (link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT_MST &&
+	if ((link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT_MST &&
 			link->local_sink &&
-			link->local_sink->edid_caps.panel_patch.disable_fec)
+			link->local_sink->edid_caps.panel_patch.disable_fec) ||
+			link->connector_signal == SIGNAL_TYPE_EDP) // Disable FEC for eDP
 		is_fec_disable = true;
 
 	if (dc_link_is_fec_supported(link) && !link->dc->debug.disable_fec && !is_fec_disable)
