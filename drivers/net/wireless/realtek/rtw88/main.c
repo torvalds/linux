@@ -1276,7 +1276,6 @@ static void rtw_set_supported_band(struct ieee80211_hw *hw,
 
 err_out:
 	rtw_err(rtwdev, "failed to set supported band\n");
-	kfree(sband);
 }
 
 static void rtw_unset_supported_band(struct ieee80211_hw *hw,
