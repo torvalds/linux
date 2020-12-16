@@ -433,7 +433,6 @@ static int frame_end(struct rkisp_bridge_device *dev, bool en)
 {
 	struct rkisp_hw_dev *hw = dev->ispdev->hw_dev;
 	struct v4l2_subdev *sd = v4l2_get_subdev_hostdata(&dev->sd);
-	struct rkisp_ispp_reg *reg_buf;
 	unsigned long lock_flags = 0;
 	u64 ns = ktime_get_ns();
 
@@ -452,6 +451,7 @@ static int frame_end(struct rkisp_bridge_device *dev, bool en)
 			spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
 		} else {
 			u64 sof_ns = 0;
+			struct rkisp_ispp_reg *reg_buf = NULL;
 
 			ns = 0;
 			rkisp_dmarx_get_frame(dev->ispdev,
@@ -462,7 +462,8 @@ static int frame_end(struct rkisp_bridge_device *dev, bool en)
 				ns = ktime_get_ns();
 			hw->cur_buf->frame_timestamp = ns;
 			hw->cur_buf->index = dev->ispdev->dev_id;
-			rkispp_request_regbuf(sd, &reg_buf);
+			v4l2_subdev_call(sd, core, ioctl, RKISP_ISPP_CMD_REQUEST_REGBUF,
+					 &reg_buf);
 			if (reg_buf) {
 				reg_buf->stat = ISP_ISPP_INUSE;
 				reg_buf->dev_id = hw->cur_buf->index;

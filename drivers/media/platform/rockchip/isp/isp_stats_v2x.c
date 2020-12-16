@@ -1257,11 +1257,15 @@ rkisp_stats_send_meas_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 	}
 
 	if (cur_buf) {
+		bool reg_withstream = false;
+		struct v4l2_subdev *sd = v4l2_get_subdev_hostdata(&stats_vdev->dev->br_dev.sd);
+
 		vb2_set_plane_payload(&cur_buf->vb.vb2_buf, 0,
 				      sizeof(struct rkisp_isp2x_stat_buffer));
 		cur_buf->vb.sequence = cur_frame_id;
 		cur_buf->vb.vb2_buf.timestamp = meas_work->timestamp;
-		if (rkispp_get_reg_withstream()) {
+		v4l2_subdev_call(sd, core, ioctl, RKISP_ISPP_CMD_GET_REG_WITHSTREAM, &reg_withstream);
+		if (reg_withstream) {
 			struct rkisp_isp2x_stat_buffer *tmp_statsbuf;
 
 			tmp_statsbuf = (struct rkisp_isp2x_stat_buffer *)stats_vdev->tmp_statsbuf.vaddr;
@@ -1462,6 +1466,9 @@ static struct rkisp_isp_stats_ops rkisp_isp_stats_ops_tbl = {
 
 void rkisp_stats_first_ddr_config_v2x(struct rkisp_isp_stats_vdev *stats_vdev)
 {
+	bool reg_withstream = false;
+	struct v4l2_subdev *sd = v4l2_get_subdev_hostdata(&stats_vdev->dev->br_dev.sd);
+
 	if (stats_vdev->rd_stats_from_ddr) {
 		stats_vdev->wr_buf_idx = 0;
 		stats_vdev->rd_buf_idx = 0;
@@ -1474,7 +1481,8 @@ void rkisp_stats_first_ddr_config_v2x(struct rkisp_isp_stats_vdev *stats_vdev)
 			       SW_3A_DDR_WRITE_EN, false);
 	}
 
-	if (rkispp_get_reg_withstream()) {
+	v4l2_subdev_call(sd, core, ioctl, RKISP_ISPP_CMD_GET_REG_WITHSTREAM, &reg_withstream);
+	if (reg_withstream) {
 		stats_vdev->tmp_statsbuf.is_need_vaddr = true;
 		stats_vdev->tmp_statsbuf.size = sizeof(struct rkisp_isp2x_stat_buffer);
 		rkisp_alloc_buffer(stats_vdev->dev, &stats_vdev->tmp_statsbuf);

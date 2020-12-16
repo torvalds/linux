@@ -22,6 +22,10 @@
 	_IOW('V', BASE_VIDIOC_PRIVATE + 0, struct rkisp_ispp_mode)
 #define RKISP_ISPP_CMD_SET_FMT \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 1, struct max_input)
+#define RKISP_ISPP_CMD_REQUEST_REGBUF	\
+	_IOW('V', BASE_VIDIOC_PRIVATE + 2, struct rkisp_ispp_reg *)
+#define RKISP_ISPP_CMD_GET_REG_WITHSTREAM	\
+	_IOW('V', BASE_VIDIOC_PRIVATE + 3, bool)
 
 enum rkisp_ispp_dev {
 	DEV_ID0 = 0,
@@ -110,22 +114,6 @@ static inline void rkisp_get_bridge_sd(struct platform_device *dev,
 				       struct v4l2_subdev **sd)
 {
 	*sd = NULL;
-}
-#endif
-
-#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISPP)
-void rkispp_request_regbuf(struct v4l2_subdev *sd, struct rkisp_ispp_reg **free_buf);
-bool rkispp_get_reg_withstream(void);
-#else
-static inline void rkispp_request_regbuf(struct v4l2_subdev *sd,
-					 struct rkisp_ispp_reg **free_buf)
-{
-	*free_buf = NULL;
-}
-
-static inline bool rkispp_get_reg_withstream(void)
-{
-	return false;
 }
 #endif
 

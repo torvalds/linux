@@ -121,4 +121,6 @@ void rkispp_free_common_dummy_buf(struct rkispp_device *dev);
 int rkispp_find_regbuf_by_id(struct rkispp_device *ispp, struct rkisp_ispp_reg **free_buf,
 			     u32 dev_id, u32 frame_id);
 void rkispp_release_regbuf(struct rkispp_device *ispp, struct rkisp_ispp_reg *freebuf);
+void rkispp_request_regbuf(struct rkispp_device *dev, struct rkisp_ispp_reg **free_buf);
+bool rkispp_get_reg_withstream(void);
 #endif

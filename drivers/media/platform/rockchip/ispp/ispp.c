@@ -374,6 +374,8 @@ static long rkispp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkispp_device *ispp_dev = ispp_sdev->dev;
 	struct rkispp_fecbuf_info *fecbuf;
 	struct rkispp_fecbuf_size *fecsize;
+	struct rkisp_ispp_reg **reg_buf;
+	bool *rkispp_reg_withstream;
 	long ret = 0;
 
 	if (!arg)
@@ -387,6 +389,14 @@ static long rkispp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKISPP_CMD_SET_FECBUF_SIZE:
 		fecsize = (struct rkispp_fecbuf_size *)arg;
 		rkispp_params_set_fecbuf_size(&ispp_dev->params_vdev, fecsize);
+		break;
+	case RKISP_ISPP_CMD_REQUEST_REGBUF:
+		reg_buf = (struct rkisp_ispp_reg **)arg;
+		rkispp_request_regbuf(ispp_dev, reg_buf);
+		break;
+	case RKISP_ISPP_CMD_GET_REG_WITHSTREAM:
+		rkispp_reg_withstream = arg;
+		*rkispp_reg_withstream = rkispp_get_reg_withstream();
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

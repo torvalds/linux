@@ -457,10 +457,8 @@ void rkispp_release_regbuf(struct rkispp_device *ispp, struct rkisp_ispp_reg *fr
 	freebuf->stat = ISP_ISPP_FREE;
 }
 
-void rkispp_request_regbuf(struct v4l2_subdev *sd, struct rkisp_ispp_reg **free_buf)
+void rkispp_request_regbuf(struct rkispp_device *dev, struct rkisp_ispp_reg **free_buf)
 {
-	struct rkispp_subdev *ispp_sdev = v4l2_get_subdevdata(sd);
-	struct rkispp_device *dev = ispp_sdev->dev;
 	struct rkispp_hw_dev *hw = dev->hw_dev;
 	int ret;
 
@@ -474,11 +472,8 @@ void rkispp_request_regbuf(struct v4l2_subdev *sd, struct rkisp_ispp_reg **free_
 		(*free_buf)->stat = ISP_ISPP_INUSE;
 	}
 }
-EXPORT_SYMBOL(rkispp_request_regbuf);
 
 bool rkispp_get_reg_withstream(void)
 {
 	return rkispp_reg_withstream;
 }
-EXPORT_SYMBOL(rkispp_get_reg_withstream);
-
