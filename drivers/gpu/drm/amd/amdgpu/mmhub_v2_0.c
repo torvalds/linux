@@ -93,6 +93,30 @@ static const char *mmhub_client_ids_sienna_cichlid[][2] = {
 	[15][1] = "OSS",
 };
 
+static const char *mmhub_client_ids_beige_goby[][2] = {
+	[3][0] = "DCEDMC",
+	[4][0] = "DCEVGA",
+	[5][0] = "MP0",
+	[6][0] = "MP1",
+	[8][0] = "VMC",
+	[9][0] = "VCNU0",
+	[11][0] = "VCN0",
+	[14][0] = "HDP",
+	[15][0] = "OSS",
+	[0][1] = "DBGU0",
+	[1][1] = "DBGU1",
+	[2][1] = "DCEDWB",
+	[3][1] = "DCEDMC",
+	[4][1] = "DCEVGA",
+	[5][1] = "MP0",
+	[6][1] = "MP1",
+	[7][1] = "XDP",
+	[9][1] = "VCNU0",
+	[11][1] = "VCN0",
+	[14][1] = "HDP",
+	[15][1] = "OSS",
+};
+
 static uint32_t mmhub_v2_0_get_invalidate_req(unsigned int vmid,
 					      uint32_t flush_type)
 {
@@ -138,6 +162,9 @@ mmhub_v2_0_print_l2_protection_fault_status(struct amdgpu_device *adev,
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_DIMGREY_CAVEFISH:
 		mmhub_cid = mmhub_client_ids_sienna_cichlid[cid][rw];
+		break;
+	case CHIP_BEIGE_GOBY:
+		mmhub_cid = mmhub_client_ids_beige_goby[cid][rw];
 		break;
 	default:
 		mmhub_cid = NULL;
