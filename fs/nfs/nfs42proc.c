@@ -1301,6 +1301,7 @@ ssize_t nfs42_proc_getxattr(struct inode *inode, const char *name,
 		pages[i] = alloc_page(GFP_KERNEL);
 		if (!pages[i]) {
 			np = i + 1;
+			err = -ENOMEM;
 			goto out;
 		}
 	}
