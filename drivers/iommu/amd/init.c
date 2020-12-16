@@ -16,6 +16,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/interrupt.h>
 #include <linux/msi.h>
+#include <linux/irq.h>
 #include <linux/amd-iommu.h>
 #include <linux/export.h>
 #include <linux/kmemleak.h>
@@ -23,7 +24,6 @@
 #include <asm/pci-direct.h>
 #include <asm/iommu.h>
 #include <asm/apic.h>
-#include <asm/msidef.h>
 #include <asm/gart.h>
 #include <asm/x86_init.h>
 #include <asm/iommu_table.h>
@@ -1575,14 +1575,7 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 			break;
 		}
 
-		/*
-		 * Note: Since iommu_update_intcapxt() leverages
-		 * the IOMMU MMIO access to MSI capability block registers
-		 * for MSI address lo/hi/data, we need to check both
-		 * EFR[XtSup] and EFR[MsiCapMmioSup] for x2APIC support.
-		 */
-		if ((h->efr_reg & BIT(IOMMU_EFR_XTSUP_SHIFT)) &&
-		    (h->efr_reg & BIT(IOMMU_EFR_MSICAPMMIOSUP_SHIFT)))
+		if (h->efr_reg & BIT(IOMMU_EFR_XTSUP_SHIFT))
 			amd_iommu_xt_mode = IRQ_REMAP_X2APIC_MODE;
 		break;
 	default:
@@ -1619,9 +1612,11 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 	if (ret)
 		return ret;
 
-	ret = amd_iommu_create_irq_domain(iommu);
-	if (ret)
-		return ret;
+	if (amd_iommu_irq_remap) {
+		ret = amd_iommu_create_irq_domain(iommu);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * Make sure IOMMU is not considered to translate itself. The IVRS
@@ -1983,98 +1978,190 @@ static int iommu_setup_msi(struct amd_iommu *iommu)
 	return 0;
 }
 
-#define XT_INT_DEST_MODE(x)	(((x) & 0x1ULL) << 2)
-#define XT_INT_DEST_LO(x)	(((x) & 0xFFFFFFULL) << 8)
-#define XT_INT_VEC(x)		(((x) & 0xFFULL) << 32)
-#define XT_INT_DEST_HI(x)	((((x) >> 24) & 0xFFULL) << 56)
+union intcapxt {
+	u64	capxt;
+	struct {
+		u64	reserved_0		:  2,
+			dest_mode_logical	:  1,
+			reserved_1		:  5,
+			destid_0_23		: 24,
+			vector			:  8,
+			reserved_2		: 16,
+			destid_24_31		:  8;
+	};
+} __attribute__ ((packed));
 
 /*
- * Setup the IntCapXT registers with interrupt routing information
- * based on the PCI MSI capability block registers, accessed via
- * MMIO MSI address low/hi and MSI data registers.
+ * There isn't really any need to mask/unmask at the irqchip level because
+ * the 64-bit INTCAPXT registers can be updated atomically without tearing
+ * when the affinity is being updated.
  */
-static void iommu_update_intcapxt(struct amd_iommu *iommu)
+static void intcapxt_unmask_irq(struct irq_data *data)
 {
-	u64 val;
-	u32 addr_lo = readl(iommu->mmio_base + MMIO_MSI_ADDR_LO_OFFSET);
-	u32 addr_hi = readl(iommu->mmio_base + MMIO_MSI_ADDR_HI_OFFSET);
-	u32 data    = readl(iommu->mmio_base + MMIO_MSI_DATA_OFFSET);
-	bool dm     = (addr_lo >> MSI_ADDR_DEST_MODE_SHIFT) & 0x1;
-	u32 dest    = ((addr_lo >> MSI_ADDR_DEST_ID_SHIFT) & 0xFF);
+}
 
-	if (x2apic_enabled())
-		dest |= MSI_ADDR_EXT_DEST_ID(addr_hi);
+static void intcapxt_mask_irq(struct irq_data *data)
+{
+}
 
-	val = XT_INT_VEC(data & 0xFF) |
-	      XT_INT_DEST_MODE(dm) |
-	      XT_INT_DEST_LO(dest) |
-	      XT_INT_DEST_HI(dest);
+static struct irq_chip intcapxt_controller;
+
+static int intcapxt_irqdomain_activate(struct irq_domain *domain,
+				       struct irq_data *irqd, bool reserve)
+{
+	struct amd_iommu *iommu = irqd->chip_data;
+	struct irq_cfg *cfg = irqd_cfg(irqd);
+	union intcapxt xt;
+
+	xt.capxt = 0ULL;
+	xt.dest_mode_logical = apic->dest_mode_logical;
+	xt.vector = cfg->vector;
+	xt.destid_0_23 = cfg->dest_apicid & GENMASK(23, 0);
+	xt.destid_24_31 = cfg->dest_apicid >> 24;
 
 	/**
 	 * Current IOMMU implemtation uses the same IRQ for all
 	 * 3 IOMMU interrupts.
 	 */
-	writeq(val, iommu->mmio_base + MMIO_INTCAPXT_EVT_OFFSET);
-	writeq(val, iommu->mmio_base + MMIO_INTCAPXT_PPR_OFFSET);
-	writeq(val, iommu->mmio_base + MMIO_INTCAPXT_GALOG_OFFSET);
+	writeq(xt.capxt, iommu->mmio_base + MMIO_INTCAPXT_EVT_OFFSET);
+	writeq(xt.capxt, iommu->mmio_base + MMIO_INTCAPXT_PPR_OFFSET);
+	writeq(xt.capxt, iommu->mmio_base + MMIO_INTCAPXT_GALOG_OFFSET);
+	return 0;
 }
 
-static void _irq_notifier_notify(struct irq_affinity_notify *notify,
-				 const cpumask_t *mask)
+static void intcapxt_irqdomain_deactivate(struct irq_domain *domain,
+					  struct irq_data *irqd)
 {
-	struct amd_iommu *iommu;
-
-	for_each_iommu(iommu) {
-		if (iommu->dev->irq == notify->irq) {
-			iommu_update_intcapxt(iommu);
-			break;
-		}
-	}
+	intcapxt_mask_irq(irqd);
 }
 
-static void _irq_notifier_release(struct kref *ref)
+
+static int intcapxt_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
+				    unsigned int nr_irqs, void *arg)
 {
-}
+	struct irq_alloc_info *info = arg;
+	int i, ret;
 
-static int iommu_init_intcapxt(struct amd_iommu *iommu)
-{
-	int ret;
-	struct irq_affinity_notify *notify = &iommu->intcapxt_notify;
+	if (!info || info->type != X86_IRQ_ALLOC_TYPE_AMDVI)
+		return -EINVAL;
 
-	/**
-	 * IntCapXT requires XTSup=1 and MsiCapMmioSup=1,
-	 * which can be inferred from amd_iommu_xt_mode.
-	 */
-	if (amd_iommu_xt_mode != IRQ_REMAP_X2APIC_MODE)
-		return 0;
-
-	/**
-	 * Also, we need to setup notifier to update the IntCapXT registers
-	 * whenever the irq affinity is changed from user-space.
-	 */
-	notify->irq = iommu->dev->irq;
-	notify->notify = _irq_notifier_notify,
-	notify->release = _irq_notifier_release,
-	ret = irq_set_affinity_notifier(iommu->dev->irq, notify);
-	if (ret) {
-		pr_err("Failed to register irq affinity notifier (devid=%#x, irq %d)\n",
-		       iommu->devid, iommu->dev->irq);
+	ret = irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, arg);
+	if (ret < 0)
 		return ret;
+
+	for (i = virq; i < virq + nr_irqs; i++) {
+		struct irq_data *irqd = irq_domain_get_irq_data(domain, i);
+
+		irqd->chip = &intcapxt_controller;
+		irqd->chip_data = info->data;
+		__irq_set_handler(i, handle_edge_irq, 0, "edge");
 	}
 
-	iommu_update_intcapxt(iommu);
-	iommu_feature_enable(iommu, CONTROL_INTCAPXT_EN);
 	return ret;
 }
 
-static int iommu_init_msi(struct amd_iommu *iommu)
+static void intcapxt_irqdomain_free(struct irq_domain *domain, unsigned int virq,
+				    unsigned int nr_irqs)
+{
+	irq_domain_free_irqs_top(domain, virq, nr_irqs);
+}
+
+static int intcapxt_set_affinity(struct irq_data *irqd,
+				 const struct cpumask *mask, bool force)
+{
+	struct irq_data *parent = irqd->parent_data;
+	int ret;
+
+	ret = parent->chip->irq_set_affinity(parent, mask, force);
+	if (ret < 0 || ret == IRQ_SET_MASK_OK_DONE)
+		return ret;
+
+	return intcapxt_irqdomain_activate(irqd->domain, irqd, false);
+}
+
+static struct irq_chip intcapxt_controller = {
+	.name			= "IOMMU-MSI",
+	.irq_unmask		= intcapxt_unmask_irq,
+	.irq_mask		= intcapxt_mask_irq,
+	.irq_ack		= irq_chip_ack_parent,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
+	.irq_set_affinity       = intcapxt_set_affinity,
+	.flags			= IRQCHIP_SKIP_SET_WAKE,
+};
+
+static const struct irq_domain_ops intcapxt_domain_ops = {
+	.alloc			= intcapxt_irqdomain_alloc,
+	.free			= intcapxt_irqdomain_free,
+	.activate		= intcapxt_irqdomain_activate,
+	.deactivate		= intcapxt_irqdomain_deactivate,
+};
+
+
+static struct irq_domain *iommu_irqdomain;
+
+static struct irq_domain *iommu_get_irqdomain(void)
+{
+	struct fwnode_handle *fn;
+
+	/* No need for locking here (yet) as the init is single-threaded */
+	if (iommu_irqdomain)
+		return iommu_irqdomain;
+
+	fn = irq_domain_alloc_named_fwnode("AMD-Vi-MSI");
+	if (!fn)
+		return NULL;
+
+	iommu_irqdomain = irq_domain_create_hierarchy(x86_vector_domain, 0, 0,
+						      fn, &intcapxt_domain_ops,
+						      NULL);
+	if (!iommu_irqdomain)
+		irq_domain_free_fwnode(fn);
+
+	return iommu_irqdomain;
+}
+
+static int iommu_setup_intcapxt(struct amd_iommu *iommu)
+{
+	struct irq_domain *domain;
+	struct irq_alloc_info info;
+	int irq, ret;
+
+	domain = iommu_get_irqdomain();
+	if (!domain)
+		return -ENXIO;
+
+	init_irq_alloc_info(&info, NULL);
+	info.type = X86_IRQ_ALLOC_TYPE_AMDVI;
+	info.data = iommu;
+
+	irq = irq_domain_alloc_irqs(domain, 1, NUMA_NO_NODE, &info);
+	if (irq < 0) {
+		irq_domain_remove(domain);
+		return irq;
+	}
+
+	ret = request_threaded_irq(irq, amd_iommu_int_handler,
+				   amd_iommu_int_thread, 0, "AMD-Vi", iommu);
+	if (ret) {
+		irq_domain_free_irqs(irq, 1);
+		irq_domain_remove(domain);
+		return ret;
+	}
+
+	iommu_feature_enable(iommu, CONTROL_INTCAPXT_EN);
+	return 0;
+}
+
+static int iommu_init_irq(struct amd_iommu *iommu)
 {
 	int ret;
 
 	if (iommu->int_enabled)
 		goto enable_faults;
 
-	if (iommu->dev->msi_cap)
+	if (amd_iommu_xt_mode == IRQ_REMAP_X2APIC_MODE)
+		ret = iommu_setup_intcapxt(iommu);
+	else if (iommu->dev->msi_cap)
 		ret = iommu_setup_msi(iommu);
 	else
 		ret = -ENODEV;
@@ -2083,10 +2170,6 @@ static int iommu_init_msi(struct amd_iommu *iommu)
 		return ret;
 
 enable_faults:
-	ret = iommu_init_intcapxt(iommu);
-	if (ret)
-		return ret;
-
 	iommu_feature_enable(iommu, CONTROL_EVT_INT_EN);
 
 	if (iommu->ppr_log != NULL)
@@ -2709,7 +2792,7 @@ static int amd_iommu_enable_interrupts(void)
 	int ret = 0;
 
 	for_each_iommu(iommu) {
-		ret = iommu_init_msi(iommu);
+		ret = iommu_init_irq(iommu);
 		if (ret)
 			goto out;
 	}
