@@ -659,6 +659,9 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		prop->fw_security_disabled = true;
 	}
 
+	dev_dbg(hdev->dev, "Firmware preboot security status %#x\n",
+			security_status);
+
 	dev_dbg(hdev->dev, "Firmware preboot hard-reset is %s\n",
 			prop->hard_reset_done_by_fw ? "enabled" : "disabled");
 
@@ -753,6 +756,10 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		if (prop->fw_boot_cpu_security_map &
 				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
 			prop->hard_reset_done_by_fw = true;
+
+		dev_dbg(hdev->dev,
+			"Firmware boot CPU security status %#x\n",
+			prop->fw_boot_cpu_security_map);
 	}
 
 	dev_dbg(hdev->dev, "Firmware boot CPU hard-reset is %s\n",
@@ -837,6 +844,10 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		if (prop->fw_app_security_map &
 				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
 			prop->hard_reset_done_by_fw = true;
+
+		dev_dbg(hdev->dev,
+			"Firmware application CPU security status %#x\n",
+			prop->fw_app_security_map);
 	}
 
 	dev_dbg(hdev->dev, "Firmware application CPU hard-reset is %s\n",
