@@ -62,7 +62,7 @@ struct stack_record {
 	u32 hash;			/* Hash in the hastable */
 	u32 size;			/* Number of frames in the stack */
 	union handle_parts handle;
-	unsigned long entries[1];	/* Variable-sized array of entries. */
+	unsigned long entries[];	/* Variable-sized array of entries. */
 };
 
 static void *stack_slabs[STACK_ALLOC_MAX_SLABS];
@@ -104,9 +104,8 @@ static bool init_stack_slab(void **prealloc)
 static struct stack_record *depot_alloc_stack(unsigned long *entries, int size,
 		u32 hash, void **prealloc, gfp_t alloc_flags)
 {
-	int required_size = offsetof(struct stack_record, entries) +
-		sizeof(unsigned long) * size;
 	struct stack_record *stack;
+	size_t required_size = struct_size(stack, entries, size);
 
 	required_size = ALIGN(required_size, 1 << STACK_ALLOC_ALIGN);
 
