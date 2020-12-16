@@ -678,6 +678,10 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = hv_enabled && kvmppc_hv_ops->enable_svm &&
 			!kvmppc_hv_ops->enable_svm(NULL);
 		break;
+	case KVM_CAP_PPC_DAWR1:
+		r = !!(hv_enabled && kvmppc_hv_ops->enable_dawr1 &&
+		       !kvmppc_hv_ops->enable_dawr1(NULL));
+		break;
 #endif
 	default:
 		r = 0;
@@ -2186,6 +2190,12 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 		if (!is_kvmppc_hv_enabled(kvm) || !kvm->arch.kvm_ops->enable_svm)
 			break;
 		r = kvm->arch.kvm_ops->enable_svm(kvm);
+		break;
+	case KVM_CAP_PPC_DAWR1:
+		r = -EINVAL;
+		if (!is_kvmppc_hv_enabled(kvm) || !kvm->arch.kvm_ops->enable_dawr1)
+			break;
+		r = kvm->arch.kvm_ops->enable_dawr1(kvm);
 		break;
 #endif
 	default:

@@ -5642,6 +5642,17 @@ out:
 	return ret;
 }
 
+static int kvmhv_enable_dawr1(struct kvm *kvm)
+{
+	if (!cpu_has_feature(CPU_FTR_DAWR1))
+		return -ENODEV;
+
+	/* kvm == NULL means the caller is testing if the capability exists */
+	if (kvm)
+		kvm->arch.dawr1_enabled = true;
+	return 0;
+}
+
 static struct kvmppc_ops kvm_ops_hv = {
 	.get_sregs = kvm_arch_vcpu_ioctl_get_sregs_hv,
 	.set_sregs = kvm_arch_vcpu_ioctl_set_sregs_hv,
@@ -5685,6 +5696,7 @@ static struct kvmppc_ops kvm_ops_hv = {
 	.store_to_eaddr = kvmhv_store_to_eaddr,
 	.enable_svm = kvmhv_enable_svm,
 	.svm_off = kvmhv_svm_off,
+	.enable_dawr1 = kvmhv_enable_dawr1,
 };
 
 static int kvm_init_subcore_bitmap(void)

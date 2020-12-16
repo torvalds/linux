@@ -6215,6 +6215,16 @@ the bus lock vm exit can be preempted by a higher priority VM exit, the exit
 notifications to userspace can be KVM_EXIT_BUS_LOCK or other reasons.
 KVM_RUN_BUS_LOCK flag is used to distinguish between them.
 
+7.22 KVM_CAP_PPC_DAWR1
+----------------------
+
+:Architectures: ppc
+:Parameters: none
+:Returns: 0 on success, -EINVAL when CPU doesn't support 2nd DAWR
+
+This capability can be used to check / enable 2nd DAWR feature provided
+by POWER10 processor.
+
 8. Other capabilities.
 ======================
 
