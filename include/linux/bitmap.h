@@ -126,8 +126,6 @@ extern void bitmap_free(const unsigned long *bitmap);
  * lib/bitmap.c provides these functions:
  */
 
-extern int __bitmap_empty(const unsigned long *bitmap, unsigned int nbits);
-extern int __bitmap_full(const unsigned long *bitmap, unsigned int nbits);
 extern int __bitmap_equal(const unsigned long *bitmap1,
 			  const unsigned long *bitmap2, unsigned int nbits);
 extern bool __pure __bitmap_or_equal(const unsigned long *src1,
