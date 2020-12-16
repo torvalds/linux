@@ -35,6 +35,13 @@ config RESET_AXS10X
 	help
 	  This enables the reset controller driver for AXS10x.
 
+config RESET_BCM6345
+	bool "BCM6345 Reset Controller"
+	depends on BMIPS_GENERIC || COMPILE_TEST
+	default BMIPS_GENERIC
+	help
+	  This enables the reset controller driver for BCM6345 SoCs.
+
 config RESET_BERLIN
 	bool "Berlin Reset Driver" if COMPILE_TEST
 	default ARCH_BERLIN
