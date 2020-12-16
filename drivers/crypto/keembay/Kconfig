@@ -55,3 +55,15 @@ config CRYPTO_DEV_KEEMBAY_OCS_HCU
 	  as a module, the module will be called keembay-ocs-hcu.
 
 	  If unsure, say N.
+
+config CRYPTO_DEV_KEEMBAY_OCS_HCU_HMAC_SHA224
+	bool "Enable sha224 and hmac(sha224) support in Intel Keem Bay OCS HCU"
+	depends on CRYPTO_DEV_KEEMBAY_OCS_HCU
+	help
+	  Enables support for sha224 and hmac(sha224) algorithms in the Intel
+	  Keem Bay OCS HCU driver. Intel recommends not to use these
+	  algorithms.
+
+	  Provides OCS HCU hardware acceleration of sha224 and hmac(224).
+
+	  If unsure, say N.

@@ -575,6 +575,12 @@ static int kmb_ocs_hcu_init(struct ahash_request *req)
 	rctx->dig_sz = crypto_ahash_digestsize(tfm);
 
 	switch (rctx->dig_sz) {
+#ifdef CONFIG_CRYPTO_DEV_KEEMBAY_OCS_HCU_HMAC_SHA224
+	case SHA224_DIGEST_SIZE:
+		rctx->blk_sz = SHA224_BLOCK_SIZE;
+		rctx->algo = OCS_HCU_ALGO_SHA224;
+		break;
+#endif /* CONFIG_CRYPTO_DEV_KEEMBAY_OCS_HCU_HMAC_SHA224 */
 	case SHA256_DIGEST_SIZE:
 		rctx->blk_sz = SHA256_BLOCK_SIZE;
 		/*
@@ -765,6 +771,11 @@ static int kmb_ocs_hcu_setkey(struct crypto_ahash *tfm, const u8 *key,
 	}
 
 	switch (digestsize) {
+#ifdef CONFIG_CRYPTO_DEV_KEEMBAY_OCS_HCU_HMAC_SHA224
+	case SHA224_DIGEST_SIZE:
+		alg_name = "sha224-keembay-ocs";
+		break;
+#endif /* CONFIG_CRYPTO_DEV_KEEMBAY_OCS_HCU_HMAC_SHA224 */
 	case SHA256_DIGEST_SIZE:
 		alg_name = ctx->is_sm3_tfm ? "sm3-keembay-ocs" :
 					     "sha256-keembay-ocs";
@@ -873,6 +884,58 @@ static void kmb_ocs_hcu_hmac_cra_exit(struct crypto_tfm *tfm)
 }
 
 static struct ahash_alg ocs_hcu_algs[] = {
+#ifdef CONFIG_CRYPTO_DEV_KEEMBAY_OCS_HCU_HMAC_SHA224
+{
+	.init		= kmb_ocs_hcu_init,
+	.update		= kmb_ocs_hcu_update,
+	.final		= kmb_ocs_hcu_final,
+	.finup		= kmb_ocs_hcu_finup,
+	.digest		= kmb_ocs_hcu_digest,
+	.export		= kmb_ocs_hcu_export,
+	.import		= kmb_ocs_hcu_import,
+	.halg = {
+		.digestsize	= SHA224_DIGEST_SIZE,
+		.statesize	= sizeof(struct ocs_hcu_rctx),
+		.base	= {
+			.cra_name		= "sha224",
+			.cra_driver_name	= "sha224-keembay-ocs",
+			.cra_priority		= 255,
+			.cra_flags		= CRYPTO_ALG_ASYNC,
+			.cra_blocksize		= SHA224_BLOCK_SIZE,
+			.cra_ctxsize		= sizeof(struct ocs_hcu_ctx),
+			.cra_alignmask		= 0,
+			.cra_module		= THIS_MODULE,
+			.cra_init		= kmb_ocs_hcu_sha_cra_init,
+		}
+	}
+},
+{
+	.init		= kmb_ocs_hcu_init,
+	.update		= kmb_ocs_hcu_update,
+	.final		= kmb_ocs_hcu_final,
+	.finup		= kmb_ocs_hcu_finup,
+	.digest		= kmb_ocs_hcu_digest,
+	.export		= kmb_ocs_hcu_export,
+	.import		= kmb_ocs_hcu_import,
+	.setkey		= kmb_ocs_hcu_setkey,
+	.halg = {
+		.digestsize	= SHA224_DIGEST_SIZE,
+		.statesize	= sizeof(struct ocs_hcu_rctx),
+		.base	= {
+			.cra_name		= "hmac(sha224)",
+			.cra_driver_name	= "hmac-sha224-keembay-ocs",
+			.cra_priority		= 255,
+			.cra_flags		= CRYPTO_ALG_ASYNC,
+			.cra_blocksize		= SHA224_BLOCK_SIZE,
+			.cra_ctxsize		= sizeof(struct ocs_hcu_ctx),
+			.cra_alignmask		= 0,
+			.cra_module		= THIS_MODULE,
+			.cra_init		= kmb_ocs_hcu_hmac_cra_init,
+			.cra_exit		= kmb_ocs_hcu_hmac_cra_exit,
+		}
+	}
+},
+#endif /* CONFIG_CRYPTO_DEV_KEEMBAY_OCS_HCU_HMAC_SHA224 */
 {
 	.init		= kmb_ocs_hcu_init,
 	.update		= kmb_ocs_hcu_update,
