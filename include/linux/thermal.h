@@ -117,7 +117,12 @@ struct thermal_cooling_device {
  * @trips_disabled;	bitmap for disabled trips
  * @passive_delay:	number of milliseconds to wait between polls when
  *			performing passive cooling.
+ * @passive_delay_jiffies: number of jiffies to wait between polls when
+ *			performing passive cooling.
  * @polling_delay:	number of milliseconds to wait between polls when
+ *			checking whether trip points have been crossed (0 for
+ *			interrupt driven systems)
+ * @polling_delay_jiffies: number of jiffies to wait between polls when
  *			checking whether trip points have been crossed (0 for
  *			interrupt driven systems)
  * @temperature:	current temperature.  This is only for core code,
@@ -155,6 +160,8 @@ struct thermal_zone_device {
 	void *devdata;
 	int trips;
 	unsigned long trips_disabled;	/* bitmap for disabled trips */
+	unsigned long passive_delay_jiffies;
+	unsigned long polling_delay_jiffies;
 	int passive_delay;
 	int polling_delay;
 	int temperature;

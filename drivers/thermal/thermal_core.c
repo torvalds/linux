@@ -1315,6 +1315,9 @@ thermal_zone_device_register(const char *type, int trips, int mask,
 	tz->passive_delay = passive_delay;
 	tz->polling_delay = polling_delay;
 
+	thermal_set_delay_jiffies(&tz->passive_delay_jiffies, passive_delay);
+	thermal_set_delay_jiffies(&tz->polling_delay_jiffies, polling_delay);
+
 	/* sys I/F */
 	/* Add nodes that are always present via .groups */
 	result = thermal_zone_create_device_groups(tz, mask);
