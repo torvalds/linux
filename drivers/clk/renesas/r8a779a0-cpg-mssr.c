@@ -190,6 +190,8 @@ static const struct mssr_mod_clk r8a779a0_mod_clks[] __initconst = {
 	DEF_MOD("vin35",	827,	R8A779A0_CLK_S1D1),
 	DEF_MOD("vin36",	828,	R8A779A0_CLK_S1D1),
 	DEF_MOD("vin37",	829,	R8A779A0_CLK_S1D1),
+	DEF_MOD("vspd0",	830,	R8A779A0_CLK_S3D1),
+	DEF_MOD("vspd1",	831,	R8A779A0_CLK_S3D1),
 };
 
 static spinlock_t cpg_lock;
