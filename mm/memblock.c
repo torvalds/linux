@@ -871,7 +871,7 @@ int __init_memblock memblock_physmem_add(phys_addr_t base, phys_addr_t size)
  * @base: base address of the region
  * @size: size of the region
  * @set: set or clear the flag
- * @flag: the flag to udpate
+ * @flag: the flag to update
  *
  * This function isolates region [@base, @base + @size), and sets/clears flag
  *
