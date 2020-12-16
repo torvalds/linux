@@ -32,6 +32,12 @@ extern int ima_file_hash(struct file *file, char *buf, size_t buf_size);
 extern int ima_inode_hash(struct inode *inode, char *buf, size_t buf_size);
 extern void ima_kexec_cmdline(int kernel_fd, const void *buf, int size);
 
+#ifdef CONFIG_IMA_APPRAISE_BOOTPARAM
+extern void ima_appraise_parse_cmdline(void);
+#else
+static inline void ima_appraise_parse_cmdline(void) {}
+#endif
+
 #ifdef CONFIG_IMA_KEXEC
 extern void ima_add_kexec_buffer(struct kimage *image);
 #endif

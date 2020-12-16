@@ -413,7 +413,7 @@ int ima_file_mmap(struct file *file, unsigned long prot)
  */
 int ima_file_mprotect(struct vm_area_struct *vma, unsigned long prot)
 {
-	struct ima_template_desc *template;
+	struct ima_template_desc *template = NULL;
 	struct file *file = vma->vm_file;
 	char filename[NAME_MAX];
 	char *pathbuf = NULL;
@@ -832,7 +832,7 @@ void process_buffer_measurement(struct inode *inode, const void *buf, int size,
 					    .filename = eventname,
 					    .buf = buf,
 					    .buf_len = size};
-	struct ima_template_desc *template = NULL;
+	struct ima_template_desc *template;
 	struct {
 		struct ima_digest_data hdr;
 		char digest[IMA_MAX_DIGEST_SIZE];
@@ -843,6 +843,13 @@ void process_buffer_measurement(struct inode *inode, const void *buf, int size,
 
 	if (!ima_policy_flag)
 		return;
+
+	template = ima_template_desc_buf();
+	if (!template) {
+		ret = -EINVAL;
+		audit_cause = "ima_template_desc_buf";
+		goto out;
+	}
 
 	/*
 	 * Both LSM hooks and auxilary based buffer measurements are
@@ -861,19 +868,6 @@ void process_buffer_measurement(struct inode *inode, const void *buf, int size,
 
 	if (!pcr)
 		pcr = CONFIG_IMA_MEASURE_PCR_IDX;
-
-	if (!template) {
-		template = lookup_template_desc("ima-buf");
-		ret = template_desc_init_fields(template->fmt,
-						&(template->fields),
-						&(template->num_fields));
-		if (ret < 0) {
-			pr_err("template %s init failed, result: %d\n",
-			       (strlen(template->name) ?
-				template->name : template->fmt), ret);
-			return;
-		}
-	}
 
 	iint.ima_hash = &hash.hdr;
 	iint.ima_hash->algo = ima_hash_algo;
@@ -934,6 +928,7 @@ static int __init init_ima(void)
 {
 	int error;
 
+	ima_appraise_parse_cmdline();
 	ima_init_template_list();
 	hash_setup(CONFIG_IMA_DEFAULT_HASH);
 	error = ima_init();
