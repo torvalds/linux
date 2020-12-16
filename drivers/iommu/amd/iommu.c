@@ -3190,7 +3190,7 @@ static void set_dte_irq_entry(u16 devid, struct irq_remap_table *table)
 	dte	&= ~DTE_IRQ_PHYS_ADDR_MASK;
 	dte	|= iommu_virt_to_phys(table->table);
 	dte	|= DTE_IRQ_REMAP_INTCTL;
-	dte	|= DTE_IRQ_TABLE_LEN;
+	dte	|= DTE_INTTABLEN;
 	dte	|= DTE_IRQ_REMAP_ENABLE;
 
 	amd_iommu_dev_table[devid].data[2] = dte;

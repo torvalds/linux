@@ -989,10 +989,10 @@ static bool copy_device_table(void)
 
 		irq_v = old_devtb[devid].data[2] & DTE_IRQ_REMAP_ENABLE;
 		int_ctl = old_devtb[devid].data[2] & DTE_IRQ_REMAP_INTCTL_MASK;
-		int_tab_len = old_devtb[devid].data[2] & DTE_IRQ_TABLE_LEN_MASK;
+		int_tab_len = old_devtb[devid].data[2] & DTE_INTTABLEN_MASK;
 		if (irq_v && (int_ctl || int_tab_len)) {
 			if ((int_ctl != DTE_IRQ_REMAP_INTCTL) ||
-			    (int_tab_len != DTE_IRQ_TABLE_LEN)) {
+			    (int_tab_len != DTE_INTTABLEN)) {
 				pr_err("Wrong old irq remapping flag: %#x\n", devid);
 				return false;
 			}
@@ -2757,7 +2757,7 @@ static int __init early_amd_iommu_init(void)
 			remap_cache_sz = MAX_IRQS_PER_TABLE * (sizeof(u64) * 2);
 		amd_iommu_irq_cache = kmem_cache_create("irq_remap_cache",
 							remap_cache_sz,
-							IRQ_TABLE_ALIGNMENT,
+							DTE_INTTAB_ALIGNMENT,
 							0, NULL);
 		if (!amd_iommu_irq_cache)
 			goto out;
