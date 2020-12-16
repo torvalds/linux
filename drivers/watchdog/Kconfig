@@ -2155,4 +2155,17 @@ config USBPCWATCHDOG
 
 	  Most people will say N.
 
+config KEEMBAY_WATCHDOG
+	tristate "Intel Keem Bay SoC non-secure watchdog"
+	depends on ARCH_KEEMBAY || (ARM64 && COMPILE_TEST)
+	select WATCHDOG_CORE
+	help
+	 This option enable support for an In-secure watchdog timer driver for
+	 Intel Keem Bay SoC. This WDT has a 32 bit timer and decrements in every
+	 count unit. An interrupt will be triggered, when the count crosses
+	 the thershold configured in the register.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called keembay_wdt.
+
 endif # WATCHDOG
