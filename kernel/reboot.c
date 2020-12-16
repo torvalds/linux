@@ -662,6 +662,8 @@ static ssize_t mode_store(struct kobject *kobj, struct kobj_attribute *attr,
 	else
 		return -EINVAL;
 
+	reboot_default = 0;
+
 	return count;
 }
 static struct kobj_attribute reboot_mode_attr = __ATTR_RW(mode);
@@ -716,6 +718,8 @@ static ssize_t type_store(struct kobject *kobj, struct kobj_attribute *attr,
 	else
 		return -EINVAL;
 
+	reboot_default = 0;
+
 	return count;
 }
 static struct kobj_attribute reboot_type_attr = __ATTR_RW(type);
@@ -741,6 +745,7 @@ static ssize_t cpu_store(struct kobject *kobj, struct kobj_attribute *attr,
 	if (cpunum >= num_possible_cpus())
 		return -ERANGE;
 
+	reboot_default = 0;
 	reboot_cpu = cpunum;
 
 	return count;
@@ -762,6 +767,7 @@ static ssize_t force_store(struct kobject *kobj, struct kobj_attribute *attr,
 	if (kstrtobool(buf, &res))
 		return -EINVAL;
 
+	reboot_default = 0;
 	reboot_force = res;
 
 	return count;
