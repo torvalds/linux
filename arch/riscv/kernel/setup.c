@@ -75,6 +75,7 @@ void __init setup_arch(char **cmdline_p)
 	*cmdline_p = boot_command_line;
 
 	early_ioremap_setup();
+	jump_label_init();
 	parse_early_param();
 
 	efi_init();

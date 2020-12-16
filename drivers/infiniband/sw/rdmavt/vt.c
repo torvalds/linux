@@ -524,6 +524,7 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 int rvt_register_device(struct rvt_dev_info *rdi)
 {
 	int ret = 0, i;
+	u64 dma_mask;
 
 	if (!rdi)
 		return -EINVAL;
@@ -580,8 +581,10 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 
 	/* DMA Operations */
 	rdi->ibdev.dev.dma_parms = rdi->ibdev.dev.parent->dma_parms;
-	dma_set_coherent_mask(&rdi->ibdev.dev,
-			      rdi->ibdev.dev.parent->coherent_dma_mask);
+	dma_mask = IS_ENABLED(CONFIG_64BIT) ? DMA_BIT_MASK(64) : DMA_BIT_MASK(32);
+	ret = dma_coerce_mask_and_coherent(&rdi->ibdev.dev, dma_mask);
+	if (ret)
+		goto bail_wss;
 
 	/* Protection Domain */
 	spin_lock_init(&rdi->n_pds_lock);

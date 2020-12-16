@@ -17,23 +17,22 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s, %d: " fmt, __func__, __LINE__
 
-#include <linux/types.h>
-#include <linux/slab.h>
+#include <linux/bug.h>
 #include <linux/crc32.h>
-#include <linux/vmalloc.h>
-#include <linux/string.h>
-#include <linux/kernel.h>
+#include <linux/fixp-arith.h>
 #include <linux/jiffies.h>
+#include <linux/kernel.h>
+#include <linux/math64.h>
 #include <linux/printk.h>
 #include <linux/ratelimit.h>
-#include <linux/fixp-arith.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/types.h>
+#include <linux/vmalloc.h>
 
-#include <linux/math64.h>
-#include <asm/byteorder.h>
-
-#include "vidtv_s302m.h"
-#include "vidtv_encoder.h"
 #include "vidtv_common.h"
+#include "vidtv_encoder.h"
+#include "vidtv_s302m.h"
 
 #define S302M_SAMPLING_RATE_HZ 48000
 #define PES_PRIVATE_STREAM_1 0xbd  /* PES: private_stream_1 */
@@ -79,8 +78,9 @@ struct tone_duration {
 	int duration;
 };
 
-#define COMPASS 120		/* beats per minute (Allegro) */
-static const struct tone_duration beethoven_5th_symphony[] = {
+#define COMPASS 100 /* beats per minute */
+static const struct tone_duration beethoven_fur_elise[] = {
+	{ NOTE_SILENT, 512},
 	{ NOTE_E_6, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
 	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_B_5, 128},
 	{ NOTE_D_6, 128},  { NOTE_C_6, 128},  { NOTE_A_3, 128},
@@ -121,31 +121,36 @@ static const struct tone_duration beethoven_5th_symphony[] = {
 	{ NOTE_E_5, 128},  { NOTE_D_5, 128},  { NOTE_A_3, 128},
 	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_E_4, 128},
 	{ NOTE_D_5, 128},  { NOTE_C_5, 128},  { NOTE_E_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_E_5, 255},  { NOTE_E_6, 128},
-	{ NOTE_E_5, 128},  { NOTE_E_6, 128},  { NOTE_E_5, 255},
+	{ NOTE_E_4, 128},  { NOTE_E_5, 128},  { NOTE_E_5, 128},
+	{ NOTE_E_6, 128},  { NOTE_E_5, 128},  { NOTE_E_6, 128},
+	{ NOTE_E_5, 128},  { NOTE_E_5, 128},  { NOTE_DS_5, 128},
+	{ NOTE_E_5, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
 	{ NOTE_DS_5, 128}, { NOTE_E_5, 128},  { NOTE_DS_6, 128},
-	{ NOTE_E_6, 128},  { NOTE_DS_5, 128}, { NOTE_E_5, 128},
-	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_DS_6, 128},
 	{ NOTE_E_6, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
-	{ NOTE_B_5, 128},  { NOTE_D_6, 128},  { NOTE_C_6, 128},
-	{ NOTE_A_3, 128},  { NOTE_E_4, 128},  { NOTE_A_4, 128},
-	{ NOTE_C_5, 128},  { NOTE_E_5, 128},  { NOTE_A_5, 128},
-	{ NOTE_E_3, 128},  { NOTE_E_4, 128},  { NOTE_GS_4, 128},
-	{ NOTE_E_5, 128},  { NOTE_GS_5, 128}, { NOTE_B_5, 128},
-	{ NOTE_A_3, 128},  { NOTE_E_4, 128},  { NOTE_A_4, 128},
-	{ NOTE_E_5, 128},  { NOTE_E_6, 128},  { NOTE_DS_6, 128},
+	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_B_5, 128},
+	{ NOTE_D_6, 128},  { NOTE_C_6, 128},  { NOTE_A_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_C_5, 128},
+	{ NOTE_E_5, 128},  { NOTE_A_5, 128},  { NOTE_E_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_GS_4, 128}, { NOTE_E_5, 128},
+	{ NOTE_GS_5, 128}, { NOTE_B_5, 128},  { NOTE_A_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_E_5, 128},
 	{ NOTE_E_6, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
-	{ NOTE_B_5, 128},  { NOTE_D_6, 128},  { NOTE_C_6, 128},
-	{ NOTE_A_3, 128},  { NOTE_E_4, 128},  { NOTE_A_4, 128},
-	{ NOTE_C_5, 128},  { NOTE_E_5, 128},  { NOTE_A_5, 128},
-	{ NOTE_E_3, 128},  { NOTE_E_4, 128},  { NOTE_GS_4, 128},
-	{ NOTE_E_5, 128},  { NOTE_C_6, 128},  { NOTE_B_5, 128},
-	{ NOTE_C_5, 255},  { NOTE_C_5, 255},  { NOTE_SILENT, 512},
+	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_B_5, 128},
+	{ NOTE_D_6, 128},  { NOTE_C_6, 128},  { NOTE_A_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_C_5, 128},
+	{ NOTE_E_5, 128},  { NOTE_A_5, 128},  { NOTE_E_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_GS_4, 128}, { NOTE_E_5, 128},
+	{ NOTE_C_6, 128},  { NOTE_B_5, 128},  { NOTE_A_5, 512},
+	{ NOTE_SILENT, 256},
 };
 
 static struct vidtv_access_unit *vidtv_s302m_access_unit_init(struct vidtv_access_unit *head)
 {
-	struct vidtv_access_unit *au = kzalloc(sizeof(*au), GFP_KERNEL);
+	struct vidtv_access_unit *au;
+
+	au = kzalloc(sizeof(*au), GFP_KERNEL);
+	if (!au)
+		return NULL;
 
 	if (head) {
 		while (head->next)
@@ -196,10 +201,10 @@ static void vidtv_s302m_alloc_au(struct vidtv_encoder *e)
 static void
 vidtv_s302m_compute_sample_count_from_video(struct vidtv_encoder *e)
 {
-	struct vidtv_access_unit *au = e->access_units;
 	struct vidtv_access_unit *sync_au = e->sync->access_units;
-	u32 vau_duration_usecs;
+	struct vidtv_access_unit *au = e->access_units;
 	u32 sample_duration_usecs;
+	u32 vau_duration_usecs;
 	u32 s;
 
 	vau_duration_usecs    = USEC_PER_SEC / e->sync->sampling_rate_hz;
@@ -230,36 +235,32 @@ static u16 vidtv_s302m_get_sample(struct vidtv_encoder *e)
 {
 	u16 sample;
 	int pos;
+	struct vidtv_s302m_ctx *ctx = e->ctx;
 
 	if (!e->src_buf) {
 		/*
 		 * Simple tone generator: play the tones at the
-		 * beethoven_5th_symphony array.
+		 * beethoven_fur_elise array.
 		 */
-		if (e->last_duration <= 0) {
-			if (e->src_buf_offset >= ARRAY_SIZE(beethoven_5th_symphony))
+		if (ctx->last_duration <= 0) {
+			if (e->src_buf_offset >= ARRAY_SIZE(beethoven_fur_elise))
 				e->src_buf_offset = 0;
 
-			e->last_tone = beethoven_5th_symphony[e->src_buf_offset].note;
-			e->last_duration = beethoven_5th_symphony[e->src_buf_offset].duration * S302M_SAMPLING_RATE_HZ / COMPASS / 5;
+			ctx->last_tone = beethoven_fur_elise[e->src_buf_offset].note;
+			ctx->last_duration = beethoven_fur_elise[e->src_buf_offset].duration *
+					     S302M_SAMPLING_RATE_HZ / COMPASS / 5;
 			e->src_buf_offset++;
-			e->note_offset = 0;
+			ctx->note_offset = 0;
 		} else {
-			e->last_duration--;
+			ctx->last_duration--;
 		}
 
-		/* Handle silent */
-		if (!e->last_tone) {
-			e->src_buf_offset = 0;
+		/* Handle pause notes */
+		if (!ctx->last_tone)
 			return 0x8000;
-		}
 
-		pos = (2 * PI * e->note_offset * e->last_tone / S302M_SAMPLING_RATE_HZ);
-
-		if (pos == 360)
-			e->note_offset = 0;
-		else
-			e->note_offset++;
+		pos = (2 * PI * ctx->note_offset * ctx->last_tone) / S302M_SAMPLING_RATE_HZ;
+		ctx->note_offset++;
 
 		return (fixp_sin32(pos % (2 * PI)) >> 16) + 0x8000;
 	}
@@ -289,9 +290,9 @@ static u16 vidtv_s302m_get_sample(struct vidtv_encoder *e)
 static u32 vidtv_s302m_write_frame(struct vidtv_encoder *e,
 				   u16 sample)
 {
-	u32 nbytes = 0;
-	struct vidtv_s302m_frame_16 f = {};
 	struct vidtv_s302m_ctx *ctx = e->ctx;
+	struct vidtv_s302m_frame_16 f = {};
+	u32 nbytes = 0;
 
 	/* from ffmpeg: see s302enc.c */
 
@@ -388,6 +389,8 @@ static void vidtv_s302m_write_frames(struct vidtv_encoder *e)
 
 static void *vidtv_s302m_encode(struct vidtv_encoder *e)
 {
+	struct vidtv_s302m_ctx *ctx = e->ctx;
+
 	/*
 	 * According to SMPTE 302M, an audio access unit is specified as those
 	 * AES3 words that are associated with a corresponding video frame.
@@ -400,8 +403,6 @@ static void *vidtv_s302m_encode(struct vidtv_encoder *e)
 	 * is created with values for 'num_samples' and 'pts' taken empirically from
 	 * ffmpeg
 	 */
-
-	struct vidtv_s302m_ctx *ctx = e->ctx;
 
 	vidtv_s302m_access_unit_destroy(e);
 	vidtv_s302m_alloc_au(e);
@@ -440,8 +441,13 @@ static u32 vidtv_s302m_clear(struct vidtv_encoder *e)
 struct vidtv_encoder
 *vidtv_s302m_encoder_init(struct vidtv_s302m_encoder_init_args args)
 {
-	struct vidtv_encoder *e = kzalloc(sizeof(*e), GFP_KERNEL);
 	u32 priv_sz = sizeof(struct vidtv_s302m_ctx);
+	struct vidtv_s302m_ctx *ctx;
+	struct vidtv_encoder *e;
+
+	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	if (!e)
+		return NULL;
 
 	e->id = S302M;
 
@@ -453,14 +459,19 @@ struct vidtv_encoder
 	e->encoder_buf_offset = 0;
 
 	e->sample_count = 0;
-	e->last_duration = 0;
 
 	e->src_buf = (args.src_buf) ? args.src_buf : NULL;
 	e->src_buf_sz = (args.src_buf) ? args.src_buf_sz : 0;
 	e->src_buf_offset = 0;
 
 	e->is_video_encoder = false;
-	e->ctx = kzalloc(priv_sz, GFP_KERNEL);
+
+	ctx = kzalloc(priv_sz, GFP_KERNEL);
+	if (!ctx)
+		return NULL;
+
+	e->ctx = ctx;
+	ctx->last_duration = 0;
 
 	e->encode = vidtv_s302m_encode;
 	e->clear = vidtv_s302m_clear;

@@ -478,7 +478,7 @@ order to ask the hardware to enter that state.  Also, for each
 statistics of the given idle state.  That information is exposed by the kernel
 via ``sysfs``.
 
-For each CPU in the system, there is a :file:`/sys/devices/system/cpu<N>/cpuidle/`
+For each CPU in the system, there is a :file:`/sys/devices/system/cpu/cpu<N>/cpuidle/`
 directory in ``sysfs``, where the number ``<N>`` is assigned to the given
 CPU at the initialization time.  That directory contains a set of subdirectories
 called :file:`state0`, :file:`state1` and so on, up to the number of idle state
@@ -494,7 +494,7 @@ object corresponding to it, as follows:
 	residency.
 
 ``below``
-	Total number of times this idle state had been asked for, but cerainly
+	Total number of times this idle state had been asked for, but certainly
 	a deeper idle state would have been a better match for the observed idle
 	duration.
 

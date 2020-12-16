@@ -479,8 +479,8 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	u_phy->otg->host = hcd_to_bus(hcd);
 
 	irq = platform_get_irq(pdev, 0);
-	if (!irq) {
-		err = -ENODEV;
+	if (irq < 0) {
+		err = irq;
 		goto cleanup_phy;
 	}
 

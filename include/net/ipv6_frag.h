@@ -108,5 +108,35 @@ out_rcu_unlock:
 	rcu_read_unlock();
 	inet_frag_put(&fq->q);
 }
+
+/* Check if the upper layer header is truncated in the first fragment. */
+static inline bool
+ipv6frag_thdr_truncated(struct sk_buff *skb, int start, u8 *nexthdrp)
+{
+	u8 nexthdr = *nexthdrp;
+	__be16 frag_off;
+	int offset;
+
+	offset = ipv6_skip_exthdr(skb, start, &nexthdr, &frag_off);
+	if (offset < 0 || (frag_off & htons(IP6_OFFSET)))
+		return false;
+	switch (nexthdr) {
+	case NEXTHDR_TCP:
+		offset += sizeof(struct tcphdr);
+		break;
+	case NEXTHDR_UDP:
+		offset += sizeof(struct udphdr);
+		break;
+	case NEXTHDR_ICMP:
+		offset += sizeof(struct icmp6hdr);
+		break;
+	default:
+		offset += 1;
+	}
+	if (offset > skb->len)
+		return true;
+	return false;
+}
+
 #endif
 #endif

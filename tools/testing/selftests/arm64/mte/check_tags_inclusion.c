@@ -170,6 +170,9 @@ int main(int argc, char *argv[])
 	/* Register SIGSEGV handler */
 	mte_register_signal(SIGSEGV, mte_default_handler);
 
+	/* Set test plan */
+	ksft_set_plan(4);
+
 	evaluate_test(check_single_included_tags(USE_MMAP, MTE_SYNC_ERR),
 		      "Check an included tag value with sync mode\n");
 	evaluate_test(check_multiple_included_tags(USE_MMAP, MTE_SYNC_ERR),

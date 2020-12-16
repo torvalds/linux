@@ -5,6 +5,7 @@ Description:
 	devfs has been unmaintained for a number of years, has unfixable
 	races, contains a naming policy within the kernel that is
 	against the LSB, and can be replaced by using udev.
+
 	The files fs/devfs/*, include/linux/devfs_fs*.h were removed,
 	along with the assorted devfs function calls throughout the
 	kernel tree.

@@ -42,7 +42,7 @@ struct nf_ipv6_ops {
 #if IS_MODULE(CONFIG_IPV6)
 	int (*chk_addr)(struct net *net, const struct in6_addr *addr,
 			const struct net_device *dev, int strict);
-	int (*route_me_harder)(struct net *net, struct sk_buff *skb);
+	int (*route_me_harder)(struct net *net, struct sock *sk, struct sk_buff *skb);
 	int (*dev_get_saddr)(struct net *net, const struct net_device *dev,
 		       const struct in6_addr *daddr, unsigned int srcprefs,
 		       struct in6_addr *saddr);
@@ -143,9 +143,9 @@ static inline int nf_br_ip6_fragment(struct net *net, struct sock *sk,
 #endif
 }
 
-int ip6_route_me_harder(struct net *net, struct sk_buff *skb);
+int ip6_route_me_harder(struct net *net, struct sock *sk, struct sk_buff *skb);
 
-static inline int nf_ip6_route_me_harder(struct net *net, struct sk_buff *skb)
+static inline int nf_ip6_route_me_harder(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 #if IS_MODULE(CONFIG_IPV6)
 	const struct nf_ipv6_ops *v6_ops = nf_get_ipv6_ops();
@@ -153,9 +153,9 @@ static inline int nf_ip6_route_me_harder(struct net *net, struct sk_buff *skb)
 	if (!v6_ops)
 		return -EHOSTUNREACH;
 
-	return v6_ops->route_me_harder(net, skb);
+	return v6_ops->route_me_harder(net, sk, skb);
 #elif IS_BUILTIN(CONFIG_IPV6)
-	return ip6_route_me_harder(net, skb);
+	return ip6_route_me_harder(net, sk, skb);
 #else
 	return -EHOSTUNREACH;
 #endif

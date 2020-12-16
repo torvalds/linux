@@ -1993,6 +1993,7 @@ static void vfio_iommu_iova_insert_copy(struct vfio_iommu *iommu,
 
 	list_splice_tail(iova_copy, iova);
 }
+
 static int vfio_iommu_type1_attach_group(void *iommu_data,
 					 struct iommu_group *iommu_group)
 {
@@ -2009,18 +2010,10 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 
 	mutex_lock(&iommu->lock);
 
-	list_for_each_entry(d, &iommu->domain_list, next) {
-		if (find_iommu_group(d, iommu_group)) {
-			mutex_unlock(&iommu->lock);
-			return -EINVAL;
-		}
-	}
-
-	if (iommu->external_domain) {
-		if (find_iommu_group(iommu->external_domain, iommu_group)) {
-			mutex_unlock(&iommu->lock);
-			return -EINVAL;
-		}
+	/* Check for duplicates */
+	if (vfio_iommu_find_iommu_group(iommu, iommu_group)) {
+		mutex_unlock(&iommu->lock);
+		return -EINVAL;
 	}
 
 	group = kzalloc(sizeof(*group), GFP_KERNEL);

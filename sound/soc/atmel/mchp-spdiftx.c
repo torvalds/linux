@@ -487,7 +487,6 @@ static int mchp_spdiftx_hw_params(struct snd_pcm_substream *substream,
 	}
 	mchp_spdiftx_channel_status_write(dev);
 	spin_unlock_irqrestore(&ctrl->lock, flags);
-	mr |= SPDIFTX_MR_VALID1 | SPDIFTX_MR_VALID2;
 
 	if (dev->gclk_enabled) {
 		clk_disable_unprepare(dev->gclk);

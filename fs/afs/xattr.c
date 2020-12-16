@@ -85,7 +85,7 @@ static int afs_xattr_get_acl(const struct xattr_handler *handler,
 			if (acl->size <= size)
 				memcpy(buffer, acl->data, acl->size);
 			else
-				op->error = -ERANGE;
+				ret = -ERANGE;
 		}
 	}
 
@@ -147,11 +147,6 @@ static const struct xattr_handler afs_xattr_afs_acl_handler = {
 	.get    = afs_xattr_get_acl,
 	.set    = afs_xattr_set_acl,
 };
-
-static void yfs_acl_put(struct afs_operation *op)
-{
-	yfs_free_opaque_acl(op->yacl);
-}
 
 static const struct afs_operation_ops yfs_fetch_opaque_acl_operation = {
 	.issue_yfs_rpc	= yfs_fs_fetch_opaque_acl,
@@ -246,7 +241,7 @@ error:
 static const struct afs_operation_ops yfs_store_opaque_acl2_operation = {
 	.issue_yfs_rpc	= yfs_fs_store_opaque_acl2,
 	.success	= afs_acl_success,
-	.put		= yfs_acl_put,
+	.put		= afs_acl_put,
 };
 
 /*

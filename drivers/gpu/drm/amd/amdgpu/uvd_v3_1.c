@@ -277,15 +277,8 @@ static void uvd_v3_1_mc_resume(struct amdgpu_device *adev)
  */
 static int uvd_v3_1_fw_validate(struct amdgpu_device *adev)
 {
-	void *ptr;
-	uint32_t ucode_len, i;
-	uint32_t keysel;
-
-	ptr = adev->uvd.inst[0].cpu_addr;
-	ptr += 192 + 16;
-	memcpy(&ucode_len, ptr, 4);
-	ptr += ucode_len;
-	memcpy(&keysel, ptr, 4);
+	int i;
+	uint32_t keysel = adev->uvd.keyselect;
 
 	WREG32(mmUVD_FW_START, keysel);
 
@@ -550,6 +543,8 @@ static int uvd_v3_1_sw_init(void *handle)
 	struct amdgpu_ring *ring;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r;
+	void *ptr;
+	uint32_t ucode_len;
 
 	/* UVD TRAP */
 	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 124, &adev->uvd.inst->irq);
@@ -570,6 +565,13 @@ static int uvd_v3_1_sw_init(void *handle)
 	r = amdgpu_uvd_resume(adev);
 	if (r)
 		return r;
+
+	/* Retrieval firmware validate key */
+	ptr = adev->uvd.inst[0].cpu_addr;
+	ptr += 192 + 16;
+	memcpy(&ucode_len, ptr, 4);
+	ptr += ucode_len;
+	memcpy(&adev->uvd.keyselect, ptr, 4);
 
 	r = amdgpu_uvd_entity_init(adev);
 

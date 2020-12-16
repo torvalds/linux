@@ -29,6 +29,7 @@ struct ionic_dev_bar {
 	int res_index;
 };
 
+#ifndef __CHECKER__
 /* Registers */
 static_assert(sizeof(struct ionic_intr) == 32);
 
@@ -119,6 +120,7 @@ static_assert(sizeof(struct ionic_vf_setattr_cmd) == 64);
 static_assert(sizeof(struct ionic_vf_setattr_comp) == 16);
 static_assert(sizeof(struct ionic_vf_getattr_cmd) == 64);
 static_assert(sizeof(struct ionic_vf_getattr_comp) == 16);
+#endif /* __CHECKER__ */
 
 struct ionic_devinfo {
 	u8 asic_type;

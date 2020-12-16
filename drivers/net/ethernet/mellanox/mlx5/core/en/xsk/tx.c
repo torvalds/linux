@@ -36,9 +36,9 @@ int mlx5e_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 		if (test_and_set_bit(MLX5E_SQ_STATE_PENDING_XSK_TX, &c->async_icosq.state))
 			return 0;
 
-		spin_lock(&c->async_icosq_lock);
+		spin_lock_bh(&c->async_icosq_lock);
 		mlx5e_trigger_irq(&c->async_icosq);
-		spin_unlock(&c->async_icosq_lock);
+		spin_unlock_bh(&c->async_icosq_lock);
 	}
 
 	return 0;

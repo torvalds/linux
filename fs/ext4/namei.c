@@ -1285,8 +1285,8 @@ static void dx_insert_block(struct dx_frame *frame, u32 hash, ext4_lblk_t block)
 int ext4_ci_compare(const struct inode *parent, const struct qstr *name,
 		    const struct qstr *entry, bool quick)
 {
-	const struct ext4_sb_info *sbi = EXT4_SB(parent->i_sb);
-	const struct unicode_map *um = sbi->s_encoding;
+	const struct super_block *sb = parent->i_sb;
+	const struct unicode_map *um = sb->s_encoding;
 	int ret;
 
 	if (quick)
@@ -1298,7 +1298,7 @@ int ext4_ci_compare(const struct inode *parent, const struct qstr *name,
 		/* Handle invalid character sequence as either an error
 		 * or as an opaque byte sequence.
 		 */
-		if (ext4_has_strict_mode(sbi))
+		if (sb_has_strict_encoding(sb))
 			return -EINVAL;
 
 		if (name->len != entry->len)
@@ -1315,7 +1315,7 @@ void ext4_fname_setup_ci_filename(struct inode *dir, const struct qstr *iname,
 {
 	int len;
 
-	if (!IS_CASEFOLDED(dir) || !EXT4_SB(dir->i_sb)->s_encoding) {
+	if (!IS_CASEFOLDED(dir) || !dir->i_sb->s_encoding) {
 		cf_name->name = NULL;
 		return;
 	}
@@ -1324,7 +1324,7 @@ void ext4_fname_setup_ci_filename(struct inode *dir, const struct qstr *iname,
 	if (!cf_name->name)
 		return;
 
-	len = utf8_casefold(EXT4_SB(dir->i_sb)->s_encoding,
+	len = utf8_casefold(dir->i_sb->s_encoding,
 			    iname, cf_name->name,
 			    EXT4_NAME_LEN);
 	if (len <= 0) {
@@ -1361,7 +1361,7 @@ static inline bool ext4_match(const struct inode *parent,
 #endif
 
 #ifdef CONFIG_UNICODE
-	if (EXT4_SB(parent->i_sb)->s_encoding && IS_CASEFOLDED(parent)) {
+	if (parent->i_sb->s_encoding && IS_CASEFOLDED(parent)) {
 		if (fname->cf_name.name) {
 			struct qstr cf = {.name = fname->cf_name.name,
 					  .len = fname->cf_name.len};
@@ -2180,9 +2180,6 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 	struct buffer_head *bh = NULL;
 	struct ext4_dir_entry_2 *de;
 	struct super_block *sb;
-#ifdef CONFIG_UNICODE
-	struct ext4_sb_info *sbi;
-#endif
 	struct ext4_filename fname;
 	int	retval;
 	int	dx_fallback=0;
@@ -2199,9 +2196,8 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 		return -EINVAL;
 
 #ifdef CONFIG_UNICODE
-	sbi = EXT4_SB(sb);
-	if (ext4_has_strict_mode(sbi) && IS_CASEFOLDED(dir) &&
-	    sbi->s_encoding && utf8_validate(sbi->s_encoding, &dentry->d_name))
+	if (sb_has_strict_encoding(sb) && IS_CASEFOLDED(dir) &&
+	    sb->s_encoding && utf8_validate(sb->s_encoding, &dentry->d_name))
 		return -EINVAL;
 #endif
 
@@ -2610,7 +2606,7 @@ static int ext4_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		       bool excl)
 {
 	handle_t *handle;
-	struct inode *inode, *inode_save;
+	struct inode *inode;
 	int err, credits, retries = 0;
 
 	err = dquot_initialize(dir);
@@ -2628,11 +2624,9 @@ retry:
 		inode->i_op = &ext4_file_inode_operations;
 		inode->i_fop = &ext4_file_operations;
 		ext4_set_aops(inode);
-		inode_save = inode;
-		ihold(inode_save);
 		err = ext4_add_nondir(handle, dentry, &inode);
-		ext4_fc_track_create(inode_save, dentry);
-		iput(inode_save);
+		if (!err)
+			ext4_fc_track_create(handle, dentry);
 	}
 	if (handle)
 		ext4_journal_stop(handle);
@@ -2647,7 +2641,7 @@ static int ext4_mknod(struct inode *dir, struct dentry *dentry,
 		      umode_t mode, dev_t rdev)
 {
 	handle_t *handle;
-	struct inode *inode, *inode_save;
+	struct inode *inode;
 	int err, credits, retries = 0;
 
 	err = dquot_initialize(dir);
@@ -2664,12 +2658,9 @@ retry:
 	if (!IS_ERR(inode)) {
 		init_special_inode(inode, inode->i_mode, rdev);
 		inode->i_op = &ext4_special_inode_operations;
-		inode_save = inode;
-		ihold(inode_save);
 		err = ext4_add_nondir(handle, dentry, &inode);
 		if (!err)
-			ext4_fc_track_create(inode_save, dentry);
-		iput(inode_save);
+			ext4_fc_track_create(handle, dentry);
 	}
 	if (handle)
 		ext4_journal_stop(handle);
@@ -2833,7 +2824,6 @@ out_clear_inode:
 		iput(inode);
 		goto out_retry;
 	}
-	ext4_fc_track_create(inode, dentry);
 	ext4_inc_count(dir);
 
 	ext4_update_dx_flag(dir);
@@ -2841,6 +2831,7 @@ out_clear_inode:
 	if (err)
 		goto out_clear_inode;
 	d_instantiate_new(dentry, inode);
+	ext4_fc_track_create(handle, dentry);
 	if (IS_DIRSYNC(dir))
 		ext4_handle_sync(handle);
 
@@ -3175,7 +3166,7 @@ static int ext4_rmdir(struct inode *dir, struct dentry *dentry)
 		goto end_rmdir;
 	ext4_dec_count(dir);
 	ext4_update_dx_flag(dir);
-	ext4_fc_track_unlink(inode, dentry);
+	ext4_fc_track_unlink(handle, dentry);
 	retval = ext4_mark_inode_dirty(handle, dir);
 
 #ifdef CONFIG_UNICODE
@@ -3196,13 +3187,12 @@ end_rmdir:
 	return retval;
 }
 
-int __ext4_unlink(struct inode *dir, const struct qstr *d_name,
+int __ext4_unlink(handle_t *handle, struct inode *dir, const struct qstr *d_name,
 		  struct inode *inode)
 {
 	int retval = -ENOENT;
 	struct buffer_head *bh;
 	struct ext4_dir_entry_2 *de;
-	handle_t *handle = NULL;
 	int skip_remove_dentry = 0;
 
 	bh = ext4_find_entry(dir, d_name, &de, NULL);
@@ -3221,14 +3211,7 @@ int __ext4_unlink(struct inode *dir, const struct qstr *d_name,
 		if (EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY)
 			skip_remove_dentry = 1;
 		else
-			goto out_bh;
-	}
-
-	handle = ext4_journal_start(dir, EXT4_HT_DIR,
-				    EXT4_DATA_TRANS_BLOCKS(dir->i_sb));
-	if (IS_ERR(handle)) {
-		retval = PTR_ERR(handle);
-		goto out_bh;
+			goto out;
 	}
 
 	if (IS_DIRSYNC(dir))
@@ -3237,12 +3220,12 @@ int __ext4_unlink(struct inode *dir, const struct qstr *d_name,
 	if (!skip_remove_dentry) {
 		retval = ext4_delete_entry(handle, dir, de, bh);
 		if (retval)
-			goto out_handle;
+			goto out;
 		dir->i_ctime = dir->i_mtime = current_time(dir);
 		ext4_update_dx_flag(dir);
 		retval = ext4_mark_inode_dirty(handle, dir);
 		if (retval)
-			goto out_handle;
+			goto out;
 	} else {
 		retval = 0;
 	}
@@ -3256,15 +3239,14 @@ int __ext4_unlink(struct inode *dir, const struct qstr *d_name,
 	inode->i_ctime = current_time(inode);
 	retval = ext4_mark_inode_dirty(handle, inode);
 
-out_handle:
-	ext4_journal_stop(handle);
-out_bh:
+out:
 	brelse(bh);
 	return retval;
 }
 
 static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 {
+	handle_t *handle;
 	int retval;
 
 	if (unlikely(ext4_forced_shutdown(EXT4_SB(dir->i_sb))))
@@ -3282,9 +3264,16 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 	if (retval)
 		goto out_trace;
 
-	retval = __ext4_unlink(dir, &dentry->d_name, d_inode(dentry));
+	handle = ext4_journal_start(dir, EXT4_HT_DIR,
+				    EXT4_DATA_TRANS_BLOCKS(dir->i_sb));
+	if (IS_ERR(handle)) {
+		retval = PTR_ERR(handle);
+		goto out_trace;
+	}
+
+	retval = __ext4_unlink(handle, dir, &dentry->d_name, d_inode(dentry));
 	if (!retval)
-		ext4_fc_track_unlink(d_inode(dentry), dentry);
+		ext4_fc_track_unlink(handle, dentry);
 #ifdef CONFIG_UNICODE
 	/* VFS negative dentries are incompatible with Encoding and
 	 * Case-insensitiveness. Eventually we'll want avoid
@@ -3295,6 +3284,8 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 	if (IS_CASEFOLDED(dir))
 		d_invalidate(dentry);
 #endif
+	if (handle)
+		ext4_journal_stop(handle);
 
 out_trace:
 	trace_ext4_unlink_exit(dentry, retval);
@@ -3451,7 +3442,6 @@ retry:
 
 	err = ext4_add_entry(handle, dentry, inode);
 	if (!err) {
-		ext4_fc_track_link(inode, dentry);
 		err = ext4_mark_inode_dirty(handle, inode);
 		/* this can happen only for tmpfile being
 		 * linked the first time
@@ -3459,6 +3449,7 @@ retry:
 		if (inode->i_nlink == 1)
 			ext4_orphan_del(handle, inode);
 		d_instantiate(dentry, inode);
+		ext4_fc_track_link(handle, dentry);
 	} else {
 		drop_nlink(inode);
 		iput(inode);
@@ -3919,9 +3910,9 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 			EXT4_FC_REASON_RENAME_DIR);
 	} else {
 		if (new.inode)
-			ext4_fc_track_unlink(new.inode, new.dentry);
-		ext4_fc_track_link(old.inode, new.dentry);
-		ext4_fc_track_unlink(old.inode, old.dentry);
+			ext4_fc_track_unlink(handle, new.dentry);
+		__ext4_fc_track_link(handle, old.inode, new.dentry);
+		__ext4_fc_track_unlink(handle, old.inode, old.dentry);
 	}
 
 	if (new.inode) {
