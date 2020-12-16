@@ -2081,6 +2081,8 @@ struct sock *mptcp_sk_clone(const struct sock *sk,
 	sock_reset_flag(nsk, SOCK_RCU_FREE);
 	/* will be fully established after successful MPC subflow creation */
 	inet_sk_state_store(nsk, TCP_SYN_RECV);
+
+	security_inet_csk_clone(nsk, req);
 	bh_unlock_sock(nsk);
 
 	/* keep a single reference */
