@@ -57,7 +57,7 @@ static unsigned long mac_orig_videoaddr;
 extern int mac_hwclk(int, struct rtc_time *);
 extern void iop_init(void);
 extern void via_init(void);
-extern void via_init_clock(irq_handler_t func);
+extern void via_init_clock(void);
 extern void oss_init(void);
 extern void psc_init(void);
 extern void baboon_init(void);
@@ -68,9 +68,9 @@ static void mac_get_model(char *str);
 static void mac_identify(void);
 static void mac_report_hardware(void);
 
-static void __init mac_sched_init(irq_handler_t vector)
+static void __init mac_sched_init(void)
 {
-	via_init_clock(vector);
+	via_init_clock();
 }
 
 /*

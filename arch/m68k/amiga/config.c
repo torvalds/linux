@@ -92,7 +92,7 @@ static char *amiga_models[] __initdata = {
 
 static char amiga_model_name[13] = "Amiga ";
 
-static void amiga_sched_init(irq_handler_t handler);
+static void amiga_sched_init(void);
 static void amiga_get_model(char *model);
 static void amiga_get_hardware_list(struct seq_file *m);
 extern void amiga_mksound(unsigned int count, unsigned int ticks);
@@ -467,16 +467,15 @@ static u32 clk_total, clk_offset;
 
 static irqreturn_t ciab_timer_handler(int irq, void *dev_id)
 {
-	irq_handler_t timer_routine = dev_id;
-
 	clk_total += jiffy_ticks;
 	clk_offset = 0;
-	timer_routine(0, NULL);
+	legacy_timer_tick(1);
+	timer_heartbeat();
 
 	return IRQ_HANDLED;
 }
 
-static void __init amiga_sched_init(irq_handler_t timer_routine)
+static void __init amiga_sched_init(void)
 {
 	static struct resource sched_res = {
 		.name = "timer", .start = 0x00bfd400, .end = 0x00bfd5ff,
@@ -495,7 +494,7 @@ static void __init amiga_sched_init(irq_handler_t timer_routine)
 	 * SCSI code. We'll have to take a look at this later
 	 */
 	if (request_irq(IRQ_AMIGA_CIAB_TA, ciab_timer_handler, IRQF_TIMER,
-			"timer", timer_routine))
+			"timer", NULL))
 		pr_err("Couldn't register timer interrupt\n");
 	/* start timer */
 	ciab.cra |= 0x11;
