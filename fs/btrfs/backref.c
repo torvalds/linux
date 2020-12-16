@@ -3117,7 +3117,7 @@ void btrfs_backref_error_cleanup(struct btrfs_backref_cache *cache,
 		list_del_init(&lower->list);
 		if (lower == node)
 			node = NULL;
-		btrfs_backref_free_node(cache, lower);
+		btrfs_backref_drop_node(cache, lower);
 	}
 
 	btrfs_backref_cleanup_node(cache, node);
