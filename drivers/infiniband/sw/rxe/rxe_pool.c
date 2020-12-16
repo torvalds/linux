@@ -266,15 +266,29 @@ out:
 	return;
 }
 
+void __rxe_add_key_nl(struct rxe_pool_entry *elem, void *key)
+{
+	struct rxe_pool *pool = elem->pool;
+
+	memcpy((u8 *)elem + pool->key.key_offset, key, pool->key.key_size);
+	insert_key(pool, elem);
+}
+
 void __rxe_add_key(struct rxe_pool_entry *elem, void *key)
 {
 	struct rxe_pool *pool = elem->pool;
 	unsigned long flags;
 
 	write_lock_irqsave(&pool->pool_lock, flags);
-	memcpy((u8 *)elem + pool->key.key_offset, key, pool->key.key_size);
-	insert_key(pool, elem);
+	__rxe_add_key_nl(elem, key);
 	write_unlock_irqrestore(&pool->pool_lock, flags);
+}
+
+void __rxe_drop_key_nl(struct rxe_pool_entry *elem)
+{
+	struct rxe_pool *pool = elem->pool;
+
+	rb_erase(&elem->key_node, &pool->key.tree);
 }
 
 void __rxe_drop_key(struct rxe_pool_entry *elem)
@@ -283,8 +297,16 @@ void __rxe_drop_key(struct rxe_pool_entry *elem)
 	unsigned long flags;
 
 	write_lock_irqsave(&pool->pool_lock, flags);
-	rb_erase(&elem->key_node, &pool->key.tree);
+	__rxe_drop_key_nl(elem);
 	write_unlock_irqrestore(&pool->pool_lock, flags);
+}
+
+void __rxe_add_index_nl(struct rxe_pool_entry *elem)
+{
+	struct rxe_pool *pool = elem->pool;
+
+	elem->index = alloc_index(pool);
+	insert_index(pool, elem);
 }
 
 void __rxe_add_index(struct rxe_pool_entry *elem)
@@ -293,9 +315,16 @@ void __rxe_add_index(struct rxe_pool_entry *elem)
 	unsigned long flags;
 
 	write_lock_irqsave(&pool->pool_lock, flags);
-	elem->index = alloc_index(pool);
-	insert_index(pool, elem);
+	__rxe_add_index_nl(elem);
 	write_unlock_irqrestore(&pool->pool_lock, flags);
+}
+
+void __rxe_drop_index_nl(struct rxe_pool_entry *elem)
+{
+	struct rxe_pool *pool = elem->pool;
+
+	clear_bit(elem->index - pool->index.min_index, pool->index.table);
+	rb_erase(&elem->index_node, &pool->index.tree);
 }
 
 void __rxe_drop_index(struct rxe_pool_entry *elem)
@@ -304,27 +333,22 @@ void __rxe_drop_index(struct rxe_pool_entry *elem)
 	unsigned long flags;
 
 	write_lock_irqsave(&pool->pool_lock, flags);
-	clear_bit(elem->index - pool->index.min_index, pool->index.table);
-	rb_erase(&elem->index_node, &pool->index.tree);
+	__rxe_drop_index_nl(elem);
 	write_unlock_irqrestore(&pool->pool_lock, flags);
 }
 
-void *rxe_alloc(struct rxe_pool *pool)
+void *rxe_alloc_nl(struct rxe_pool *pool)
 {
 	struct rxe_type_info *info = &rxe_type_info[pool->type];
 	struct rxe_pool_entry *elem;
 	u8 *obj;
-	unsigned long flags;
 
 	might_sleep_if(!(pool->flags & RXE_POOL_ATOMIC));
 
-	read_lock_irqsave(&pool->pool_lock, flags);
-	if (pool->state != RXE_POOL_STATE_VALID) {
-		read_unlock_irqrestore(&pool->pool_lock, flags);
+	if (pool->state != RXE_POOL_STATE_VALID)
 		return NULL;
-	}
+
 	kref_get(&pool->ref_cnt);
-	read_unlock_irqrestore(&pool->pool_lock, flags);
 
 	if (!ib_device_try_get(&pool->rxe->ib_dev))
 		goto out_put_pool;
@@ -352,11 +376,21 @@ out_put_pool:
 	return NULL;
 }
 
+void *rxe_alloc(struct rxe_pool *pool)
+{
+	u8 *obj;
+	unsigned long flags;
+
+	read_lock_irqsave(&pool->pool_lock, flags);
+	obj = rxe_alloc_nl(pool);
+	read_unlock_irqrestore(&pool->pool_lock, flags);
+
+	return obj;
+}
+
 int __rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_entry *elem)
 {
 	unsigned long flags;
-
-	might_sleep_if(!(pool->flags & RXE_POOL_ATOMIC));
 
 	read_lock_irqsave(&pool->pool_lock, flags);
 	if (pool->state != RXE_POOL_STATE_VALID) {
@@ -444,16 +478,13 @@ out:
 	return obj;
 }
 
-void *rxe_pool_get_key(struct rxe_pool *pool, void *key)
+void *rxe_pool_get_key_nl(struct rxe_pool *pool, void *key)
 {
 	struct rxe_type_info *info = &rxe_type_info[pool->type];
 	struct rb_node *node;
 	struct rxe_pool_entry *elem;
 	u8 *obj = NULL;
 	int cmp;
-	unsigned long flags;
-
-	read_lock_irqsave(&pool->pool_lock, flags);
 
 	if (pool->state != RXE_POOL_STATE_VALID)
 		goto out;
@@ -482,6 +513,17 @@ void *rxe_pool_get_key(struct rxe_pool *pool, void *key)
 	}
 
 out:
+	return obj;
+}
+
+void *rxe_pool_get_key(struct rxe_pool *pool, void *key)
+{
+	u8 *obj = NULL;
+	unsigned long flags;
+
+	read_lock_irqsave(&pool->pool_lock, flags);
+	obj = rxe_pool_get_key_nl(pool, key);
 	read_unlock_irqrestore(&pool->pool_lock, flags);
+
 	return obj;
 }
