@@ -384,11 +384,21 @@ void bch2_journal_pin_set(struct journal *j, u64 seq,
 	struct journal_entry_pin_list *pin_list;
 
 	spin_lock(&j->lock);
+
+	if (seq < journal_last_seq(j)) {
+		/*
+		 * bch2_journal_pin_copy() raced with bch2_journal_pin_drop() on
+		 * the src pin - with the pin dropped, the entry to pin might no
+		 * longer to exist, but that means there's no longer anything to
+		 * copy and we can bail out here:
+		 */
+		spin_unlock(&j->lock);
+		return;
+	}
+
 	pin_list = journal_seq_pin(j, seq);
 
 	__journal_pin_drop(j, pin);
-
-	BUG_ON(!atomic_read(&pin_list->count) && seq == journal_last_seq(j));
 
 	atomic_inc(&pin_list->count);
 	pin->seq	= seq;

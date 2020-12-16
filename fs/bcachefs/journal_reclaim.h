@@ -53,8 +53,11 @@ static inline void bch2_journal_pin_copy(struct journal *j,
 					 struct journal_entry_pin *src,
 					 journal_pin_flush_fn flush_fn)
 {
-	if (journal_pin_active(src))
-		bch2_journal_pin_add(j, src->seq, dst, flush_fn);
+	/* Guard against racing with journal_pin_drop(src): */
+	u64 seq = READ_ONCE(src->seq);
+
+	if (seq)
+		bch2_journal_pin_add(j, seq, dst, flush_fn);
 }
 
 static inline void bch2_journal_pin_update(struct journal *j, u64 seq,
