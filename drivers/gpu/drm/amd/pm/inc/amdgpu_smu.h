@@ -1162,6 +1162,12 @@ enum smu_cmn2asic_mapping_type {
 #define FEA_MAP(fea) \
 	[SMU_FEATURE_##fea##_BIT] = {1, FEATURE_##fea##_BIT}
 
+#define FEA_MAP_REVERSE(fea) \
+	[SMU_FEATURE_DPM_##fea##_BIT] = {1, FEATURE_##fea##_DPM_BIT}
+
+#define FEA_MAP_HALF_REVERSE(fea) \
+	[SMU_FEATURE_DPM_##fea##CLK_BIT] = {1, FEATURE_##fea##_DPM_BIT}
+
 #define TAB_MAP(tab) \
 	[SMU_TABLE_##tab] = {1, TABLE_##tab}
 

@@ -166,6 +166,9 @@ static struct cmn2asic_mapping vangogh_feature_mask_map[SMU_FEATURE_COUNT] = {
 	FEA_MAP(A55_DPM),
 	FEA_MAP(CVIP_DSP_DPM),
 	FEA_MAP(MSMU_LOW_POWER),
+	FEA_MAP_REVERSE(SOCCLK),
+	FEA_MAP_REVERSE(FCLK),
+	FEA_MAP_HALF_REVERSE(GFX),
 };
 
 static struct cmn2asic_mapping vangogh_table_map[SMU_TABLE_COUNT] = {
@@ -371,6 +374,10 @@ static int vangogh_get_allowed_feature_mask(struct smu_context *smu,
 
 	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_DPM_BIT)
 				| FEATURE_MASK(FEATURE_MP0CLK_DPM_BIT)
+				| FEATURE_MASK(FEATURE_SOCCLK_DPM_BIT)
+				| FEATURE_MASK(FEATURE_VCN_DPM_BIT)
+				| FEATURE_MASK(FEATURE_FCLK_DPM_BIT)
+				| FEATURE_MASK(FEATURE_DCFCLK_DPM_BIT)
 				| FEATURE_MASK(FEATURE_DS_SOCCLK_BIT)
 				| FEATURE_MASK(FEATURE_PPT_BIT)
 				| FEATURE_MASK(FEATURE_TDC_BIT)
@@ -383,6 +390,12 @@ static int vangogh_get_allowed_feature_mask(struct smu_context *smu,
 
 	if (adev->pm.pp_feature & PP_DCEFCLK_DPM_MASK)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DCFCLK_DPM_BIT);
+
+	if (adev->pm.pp_feature & PP_MCLK_DPM_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_FCLK_DPM_BIT);
+
+	if (adev->pm.pp_feature & PP_SCLK_DPM_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_DPM_BIT);
 
 	if (smu->adev->pg_flags & AMD_PG_SUPPORT_ATHUB)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_ATHUB_PG_BIT);
