@@ -11,11 +11,6 @@ static int bch2_cpu_replicas_to_sb_replicas(struct bch_fs *,
 
 /* Replicas tracking - in memory: */
 
-static inline int u8_cmp(u8 l, u8 r)
-{
-	return cmp_int(l, r);
-}
-
 static void verify_replicas_entry(struct bch_replicas_entry *e)
 {
 #ifdef CONFIG_BCACHEFS_DEBUG

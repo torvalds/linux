@@ -1045,11 +1045,13 @@ static const char *extent_ptr_invalid(const struct bch_fs *c,
 const char *bch2_bkey_ptrs_invalid(const struct bch_fs *c, struct bkey_s_c k)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	struct bch_devs_list devs;
 	const union bch_extent_entry *entry;
 	struct bch_extent_crc_unpacked crc;
 	unsigned size_ondisk = k.k->size;
 	const char *reason;
 	unsigned nonce = UINT_MAX;
+	unsigned i;
 
 	if (k.k->type == KEY_TYPE_btree_ptr)
 		size_ondisk = c->opts.btree_node_size;
@@ -1099,6 +1101,12 @@ const char *bch2_bkey_ptrs_invalid(const struct bch_fs *c, struct bkey_s_c k)
 			break;
 		}
 	}
+
+	devs = bch2_bkey_devs(k);
+	bubble_sort(devs.devs, devs.nr, u8_cmp);
+	for (i = 0; i + 1 < devs.nr; i++)
+		if (devs.devs[i] == devs.devs[i + 1])
+			return "multiple ptrs to same device";
 
 	return NULL;
 }
