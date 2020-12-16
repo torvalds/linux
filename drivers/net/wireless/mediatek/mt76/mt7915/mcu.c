@@ -1685,6 +1685,7 @@ mt7915_mcu_wtbl_hdr_trans_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 		return;
 
 	msta = (struct mt7915_sta *)sta->drv_priv;
+	htr->no_rx_trans = !test_bit(MT_WCID_FLAG_HDR_TRANS, &msta->wcid.flags);
 	if (test_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags)) {
 		htr->to_ds = true;
 		htr->from_ds = true;
@@ -2869,6 +2870,27 @@ void mt7915_mcu_exit(struct mt7915_dev *dev)
 	skb_queue_purge(&dev->mt76.mcu.res_q);
 }
 
+static int
+mt7915_mcu_set_rx_hdr_trans_blacklist(struct mt7915_dev *dev, int band)
+{
+	struct {
+		u8 operation;
+		u8 count;
+		u8 _rsv[2];
+		u8 index;
+		u8 enable;
+		__le16 etype;
+	} req = {
+		.operation = 1,
+		.count = 1,
+		.enable = 1,
+		.etype = cpu_to_le16(ETH_P_PAE),
+	};
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(RX_HDR_TRANS),
+				 &req, sizeof(req), false);
+}
+
 int mt7915_mcu_set_mac(struct mt7915_dev *dev, int band,
 		       bool enable, bool hdr_trans)
 {
@@ -2898,6 +2920,9 @@ int mt7915_mcu_set_mac(struct mt7915_dev *dev, int band,
 				&req_trans, sizeof(req_trans), false);
 	if (ret)
 		return ret;
+
+	if (hdr_trans)
+		mt7915_mcu_set_rx_hdr_trans_blacklist(dev, band);
 
 	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(MAC_INIT_CTRL),
 				 &req_mac, sizeof(req_mac), true);

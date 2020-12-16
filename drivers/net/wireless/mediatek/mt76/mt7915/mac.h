@@ -101,6 +101,17 @@ enum rx_pkt_type {
 
 #define MT_RXV_HDR_BAND_IDX		BIT(24)
 
+/* RXD GROUP4 */
+#define MT_RXD6_FRAME_CONTROL		GENMASK(15, 0)
+#define MT_RXD6_TA_LO			GENMASK(31, 16)
+
+#define MT_RXD7_TA_HI			GENMASK(31, 0)
+
+#define MT_RXD8_SEQ_CTRL		GENMASK(15, 0)
+#define MT_RXD8_QOS_CTL			GENMASK(31, 16)
+
+#define MT_RXD9_HT_CONTROL		GENMASK(31, 0)
+
 /* P-RXV */
 #define MT_PRXV_TX_RATE			GENMASK(6, 0)
 #define MT_PRXV_TX_DCM			BIT(4)
