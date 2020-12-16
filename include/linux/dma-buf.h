@@ -415,6 +415,7 @@ typedef int (*dma_buf_destructor)(struct dma_buf *dmabuf, void *dtor_data);
  * @exp_name: name of the exporter; useful for debugging.
  * @name: userspace-provided name; useful for accounting and debugging.
  * @name_lock: lock to protect name.
+ * @ktime: time (in jiffies) at which the buffer was born
  * @owner: pointer to exporter module; used for refcounting when exporter is a
  *         kernel module.
  * @list_node: node for dma_buf accounting and debugging.
@@ -448,6 +449,9 @@ struct dma_buf {
 	const char *exp_name;
 	const char *name;
 	spinlock_t name_lock;
+#if defined(CONFIG_DEBUG_FS)
+	ktime_t ktime;
+#endif
 	struct module *owner;
 	struct list_head list_node;
 	void *priv;

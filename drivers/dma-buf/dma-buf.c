@@ -36,6 +36,7 @@
 #include <linux/mm.h>
 #include <linux/sched/signal.h>
 #include <linux/fdtable.h>
+#include <linux/hashtable.h>
 #include <linux/list_sort.h>
 #include <linux/mount.h>
 
@@ -641,6 +642,9 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	init_waitqueue_head(&dmabuf->poll);
 	dmabuf->cb_excl.poll = dmabuf->cb_shared.poll = &dmabuf->poll;
 	dmabuf->cb_excl.active = dmabuf->cb_shared.active = 0;
+#if defined(CONFIG_DEBUG_FS)
+	dmabuf->ktime = ktime_get();
+#endif
 
 	if (!resv) {
 		resv = (struct reservation_object *)&dmabuf[1];
@@ -1428,6 +1432,146 @@ static const struct file_operations dma_buf_debug_fops = {
 	.release        = single_release,
 };
 
+struct dma_info {
+	struct dma_buf *dmabuf;
+	struct hlist_node head;
+};
+
+struct dma_proc {
+	char name[TASK_COMM_LEN];
+	pid_t pid;
+	size_t size;
+	struct hlist_head dma_bufs[1 << 10];
+	struct list_head head;
+};
+
+static int get_dma_info(const void *data, struct file *file, unsigned int n)
+{
+	struct dma_proc *dma_proc;
+	struct dma_info *dma_info;
+
+	dma_proc = (struct dma_proc *)data;
+	if (!is_dma_buf_file(file))
+		return 0;
+
+	hash_for_each_possible(dma_proc->dma_bufs, dma_info,
+			       head, (unsigned long)file->private_data) {
+		if (file->private_data == dma_info->dmabuf)
+			return 0;
+	}
+
+	dma_info = kzalloc(sizeof(*dma_info), GFP_ATOMIC);
+	if (!dma_info)
+		return -ENOMEM;
+
+	get_file(file);
+	dma_info->dmabuf = file->private_data;
+	dma_proc->size += dma_info->dmabuf->size / SZ_1K;
+	hash_add(dma_proc->dma_bufs, &dma_info->head,
+			(unsigned long)dma_info->dmabuf);
+	return 0;
+}
+
+static void write_proc(struct seq_file *s, struct dma_proc *proc)
+{
+	struct dma_info *tmp;
+	int i;
+
+	seq_printf(s, "\n%s (PID %d) size: %zu\nDMA Buffers:\n",
+		proc->name, proc->pid, proc->size);
+	seq_printf(s, "%-8s\t%-60s\t%-8s\t%-8s\n",
+		"Name", "Exp_name", "Size (KB)", "Time Alive (sec)");
+
+	hash_for_each(proc->dma_bufs, i, tmp, head) {
+		struct dma_buf *dmabuf = tmp->dmabuf;
+		ktime_t elapmstime = ktime_ms_delta(ktime_get(), dmabuf->ktime);
+
+		elapmstime = ktime_divns(elapmstime, MSEC_PER_SEC);
+		seq_printf(s, "%-8s\t%-60s\t%-8zu\t%-8lld\n",
+				dmabuf->name,
+				dmabuf->exp_name,
+				dmabuf->size / SZ_1K,
+				elapmstime);
+	}
+}
+
+static void free_proc(struct dma_proc *proc)
+{
+	struct dma_info *tmp;
+	struct hlist_node *n;
+	int i;
+
+	hash_for_each_safe(proc->dma_bufs, i, n, tmp, head) {
+		fput(tmp->dmabuf->file);
+		hash_del(&tmp->head);
+		kfree(tmp);
+	}
+	kfree(proc);
+}
+
+static int cmp_proc(void *unused, struct list_head *a, struct list_head *b)
+{
+	struct dma_proc *a_proc, *b_proc;
+
+	a_proc = list_entry(a, struct dma_proc, head);
+	b_proc = list_entry(b, struct dma_proc, head);
+	return b_proc->size - a_proc->size;
+}
+
+static int dma_procs_debug_show(struct seq_file *s, void *unused)
+{
+	struct task_struct *task, *thread;
+	struct files_struct *files;
+	int ret = 0;
+	struct dma_proc *tmp, *n;
+	LIST_HEAD(plist);
+
+	rcu_read_lock();
+	for_each_process(task) {
+		struct files_struct *group_leader_files = NULL;
+
+		tmp = kzalloc(sizeof(*tmp), GFP_ATOMIC);
+		if (!tmp) {
+			ret = -ENOMEM;
+			rcu_read_unlock();
+			goto mem_err;
+		}
+		hash_init(tmp->dma_bufs);
+		for_each_thread(task, thread) {
+			task_lock(thread);
+			if (unlikely(!group_leader_files))
+				group_leader_files = task->group_leader->files;
+			files = thread->files;
+			if (files && (group_leader_files != files ||
+				      thread == task->group_leader))
+				ret = iterate_fd(files, 0, get_dma_info, tmp);
+			task_unlock(thread);
+		}
+		if (ret || hash_empty(tmp->dma_bufs))
+			goto skip;
+		get_task_comm(tmp->name, task);
+		tmp->pid = task->tgid;
+		list_add(&tmp->head, &plist);
+		continue;
+skip:
+		free_proc(tmp);
+	}
+	rcu_read_unlock();
+
+	list_sort(NULL, &plist, cmp_proc);
+	list_for_each_entry(tmp, &plist, head)
+		write_proc(s, tmp);
+
+	ret = 0;
+mem_err:
+	list_for_each_entry_safe(tmp, n, &plist, head) {
+		list_del(&tmp->head);
+		free_proc(tmp);
+	}
+	return ret;
+}
+DEFINE_SHOW_ATTRIBUTE(dma_procs_debug);
+
 static struct dentry *dma_buf_debugfs_dir;
 
 static int dma_buf_init_debugfs(void)
@@ -1445,6 +1589,17 @@ static int dma_buf_init_debugfs(void)
 				NULL, &dma_buf_debug_fops);
 	if (IS_ERR(d)) {
 		pr_debug("dma_buf: debugfs: failed to create node bufinfo\n");
+		debugfs_remove_recursive(dma_buf_debugfs_dir);
+		dma_buf_debugfs_dir = NULL;
+		err = PTR_ERR(d);
+		return err;
+	}
+
+	d = debugfs_create_file("bufprocs", 0444, dma_buf_debugfs_dir,
+				NULL, &dma_procs_debug_fops);
+
+	if (IS_ERR(d)) {
+		pr_debug("dma_buf: debugfs: failed to create node dmaprocs\n");
 		debugfs_remove_recursive(dma_buf_debugfs_dir);
 		dma_buf_debugfs_dir = NULL;
 		err = PTR_ERR(d);
