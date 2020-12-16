@@ -35,7 +35,7 @@ struct value_to_name_map {
 };
 
 struct match_chip_info {
-	void *init_func;
+	void (*init_func)(struct brcm_usb_init_params *params);
 	u8 required_regs[BRCM_REGS_MAX + 1];
 	u8 optional_reg;
 };
@@ -428,7 +428,6 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	struct device_node *dn = pdev->dev.of_node;
 	int err;
 	const char *mode;
-	void (*dvr_init)(struct brcm_usb_init_params *params);
 	const struct match_chip_info *info;
 	struct regmap *rmap;
 	int x;
@@ -444,8 +443,8 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	info = of_device_get_match_data(&pdev->dev);
 	if (!info)
 		return -ENOENT;
-	dvr_init = info->init_func;
-	(*dvr_init)(&priv->ini);
+
+	info->init_func(&priv->ini);
 
 	dev_dbg(dev, "Best mapping table is for %s\n",
 		priv->ini.family_name);
