@@ -37,6 +37,8 @@
 #include "dc_link_ddc.h"
 #include "dce/dce_aux.h"
 
+#define DC_LOGGER_INIT(logger)
+
 /*DP to Dual link DVI converter*/
 static const uint8_t DP_DVI_CONVERTER_ID_4[] = "m2DVIa";
 static const uint8_t DP_DVI_CONVERTER_ID_5[] = "3393N2";
@@ -194,6 +196,10 @@ static void ddc_service_construct(
 	if (BP_RESULT_OK != dcb->funcs->get_i2c_info(dcb, init_data->id, &i2c_info)) {
 		ddc_service->ddc_pin = NULL;
 	} else {
+		DC_LOGGER_INIT(ddc_service->ctx->logger);
+		DC_LOG_DC("BIOS object table - i2c_line: %d", i2c_info.i2c_line);
+		DC_LOG_DC("BIOS object table - i2c_engine_id: %d", i2c_info.i2c_engine_id);
+
 		hw_info.ddc_channel = i2c_info.i2c_line;
 		if (ddc_service->link != NULL)
 			hw_info.hw_supported = i2c_info.i2c_hw_assist;
