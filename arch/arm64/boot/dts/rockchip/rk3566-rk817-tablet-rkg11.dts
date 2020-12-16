@@ -87,6 +87,21 @@
 		status = "okay";
 	};
 
+	es7210_sound: es7210-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,es7210";
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s1_8ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&es7210>;
+		};
+	};
+
 	vccsys: vccsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v8_sys";
@@ -660,6 +675,18 @@
 			enable-gpios = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
 		};
 	};
+
+	es7210: es7210@43 {
+		#sound-dai-cells = <0>;
+		compatible = "ES7210_MicArray_0";
+		reg = <0x43>;
+		clocks = <&cru I2S1_MCLKOUT_RX>;
+		clock-names = "mclk";
+		assigned-clocks = <&cru I2S1_MCLKOUT_RX>;
+		assigned-clock-parents = <&cru CLK_I2S1_8CH_RX>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s1m0_mclk>;
+	};
 };
 
 &i2c2 {
@@ -816,16 +843,24 @@
 &i2s1_8ch {
 	status = "okay";
 	#sound-dai-cells = <0>;
+	rockchip,clk-trcm = <2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2s1m0_sclkrx
+		     &i2s1m0_lrckrx
+		     &i2s1m0_sdi0
+		     &i2s1m0_sdi1
+		     &i2s1m0_sdi2
+		     &i2s1m0_sdi3>;
 };
 
 &i2s3_2ch {
 	status = "okay";
-	rockchip,clk-trcm = <2>;
+	rockchip,clk-trcm = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2s3m1_sclk
-			     &i2s3m1_lrck
-			     &i2s3m1_sdi
-			     &i2s3m1_sdo>;
+		     &i2s3m1_lrck
+		     &i2s3m1_sdi
+		     &i2s3m1_sdo>;
 };
 
 &jpegd {
