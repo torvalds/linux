@@ -258,7 +258,7 @@ static u32 pid_controller(struct thermal_zone_device *tz,
 	 * power being applied, slowing down the controller)
 	 */
 	d = mul_frac(tz->tzp->k_d, err - params->prev_err);
-	d = div_frac(d, tz->passive_delay);
+	d = div_frac(d, jiffies_to_msecs(tz->passive_delay_jiffies));
 	params->prev_err = err;
 
 	power_range = p + i + d;
