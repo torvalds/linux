@@ -893,13 +893,13 @@ struct devfreq *devfreq_add_device(struct device *dev,
 		goto err_devfreq;
 
 	devfreq->nb_min.notifier_call = qos_min_notifier_call;
-	err = dev_pm_qos_add_notifier(devfreq->dev.parent, &devfreq->nb_min,
+	err = dev_pm_qos_add_notifier(dev, &devfreq->nb_min,
 				      DEV_PM_QOS_MIN_FREQUENCY);
 	if (err)
 		goto err_devfreq;
 
 	devfreq->nb_max.notifier_call = qos_max_notifier_call;
-	err = dev_pm_qos_add_notifier(devfreq->dev.parent, &devfreq->nb_max,
+	err = dev_pm_qos_add_notifier(dev, &devfreq->nb_max,
 				      DEV_PM_QOS_MAX_FREQUENCY);
 	if (err)
 		goto err_devfreq;
