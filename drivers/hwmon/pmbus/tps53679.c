@@ -251,7 +251,6 @@ static struct i2c_driver tps53679_driver = {
 		.of_match_table = of_match_ptr(tps53679_of_match),
 	},
 	.probe_new = tps53679_probe,
-	.remove = pmbus_do_remove,
 	.id_table = tps53679_id,
 };
 

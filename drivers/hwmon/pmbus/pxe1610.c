@@ -131,7 +131,6 @@ static struct i2c_driver pxe1610_driver = {
 			.name = "pxe1610",
 			},
 	.probe_new = pxe1610_probe,
-	.remove = pmbus_do_remove,
 	.id_table = pxe1610_id,
 };
 
