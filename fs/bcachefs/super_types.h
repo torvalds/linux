@@ -21,7 +21,7 @@ struct bch_devs_mask {
 
 struct bch_devs_list {
 	u8			nr;
-	u8			devs[BCH_REPLICAS_MAX + 1];
+	u8			devs[BCH_BKEY_PTRS_MAX];
 };
 
 struct bch_member_cpu {

@@ -71,9 +71,9 @@ struct ec_stripe_buf {
 	/* might not be buffering the entire stripe: */
 	unsigned		offset;
 	unsigned		size;
-	unsigned long		valid[BITS_TO_LONGS(EC_STRIPE_MAX)];
+	unsigned long		valid[BITS_TO_LONGS(BCH_BKEY_PTRS_MAX)];
 
-	void			*data[EC_STRIPE_MAX];
+	void			*data[BCH_BKEY_PTRS_MAX];
 
 	union {
 		struct bkey_i_stripe	key;
@@ -101,10 +101,10 @@ struct ec_stripe_new {
 	bool			existing_stripe;
 	u64			existing_stripe_idx;
 
-	unsigned long		blocks_allocated[BITS_TO_LONGS(EC_STRIPE_MAX)];
+	unsigned long		blocks_allocated[BITS_TO_LONGS(BCH_BKEY_PTRS_MAX)];
 
 	struct open_buckets	blocks;
-	u8			data_block_idx[EC_STRIPE_MAX];
+	u8			data_block_idx[BCH_BKEY_PTRS_MAX];
 	struct open_buckets	parity;
 	struct disk_reservation	res;
 

@@ -300,7 +300,7 @@ static unsigned ec_nr_failed(struct ec_stripe_buf *buf)
 static int ec_do_recov(struct bch_fs *c, struct ec_stripe_buf *buf)
 {
 	struct bch_stripe *v = &buf->key.v;
-	unsigned i, failed[EC_STRIPE_MAX], nr_failed = 0;
+	unsigned i, failed[BCH_BKEY_PTRS_MAX], nr_failed = 0;
 	unsigned nr_data = v->nr_blocks - v->nr_redundant;
 	unsigned bytes = buf->size << 9;
 
@@ -1101,7 +1101,7 @@ static int ec_new_stripe_alloc(struct bch_fs *c, struct ec_stripe_head *h)
 	s->c		= c;
 	s->h		= h;
 	s->nr_data	= min_t(unsigned, h->nr_active_devs,
-				EC_STRIPE_MAX) - h->redundancy;
+				BCH_BKEY_PTRS_MAX) - h->redundancy;
 	s->nr_parity	= h->redundancy;
 
 	bch2_keylist_init(&s->keys, s->inline_keys);
@@ -1211,13 +1211,13 @@ static int new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h)
 	struct open_bucket *ob;
 	unsigned i, nr_have, nr_data =
 		min_t(unsigned, h->nr_active_devs,
-		      EC_STRIPE_MAX) - h->redundancy;
+		      BCH_BKEY_PTRS_MAX) - h->redundancy;
 	bool have_cache = true;
 	int ret = 0;
 
 	devs = h->devs;
 
-	for_each_set_bit(i, h->s->blocks_allocated, EC_STRIPE_MAX) {
+	for_each_set_bit(i, h->s->blocks_allocated, BCH_BKEY_PTRS_MAX) {
 		__clear_bit(h->s->stripe.key.v.ptrs[i].dev, devs.d);
 		--nr_data;
 	}

@@ -1363,6 +1363,8 @@ enum bch_sb_compat {
 
 #define BCH_REPLICAS_MAX		4U
 
+#define BCH_BKEY_PTRS_MAX		16U
+
 enum bch_error_actions {
 	BCH_ON_ERROR_CONTINUE		= 0,
 	BCH_ON_ERROR_RO			= 1,

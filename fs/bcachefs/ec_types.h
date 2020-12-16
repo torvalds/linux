@@ -4,11 +4,9 @@
 
 #include <linux/llist.h>
 
-#define EC_STRIPE_MAX	16
-
 struct bch_replicas_padded {
 	struct bch_replicas_entry	e;
-	u8				pad[EC_STRIPE_MAX];
+	u8				pad[BCH_BKEY_PTRS_MAX];
 };
 
 struct stripe {
@@ -24,7 +22,7 @@ struct stripe {
 	unsigned		dirty:1;
 	unsigned		on_heap:1;
 	u8			blocks_nonempty;
-	u16			block_sectors[EC_STRIPE_MAX];
+	u16			block_sectors[BCH_BKEY_PTRS_MAX];
 
 	struct bch_replicas_padded r;
 };
