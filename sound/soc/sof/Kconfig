@@ -122,7 +122,7 @@ config SND_SOC_SOF_DEBUG_XRUN_STOP
 	bool "SOF stop on XRUN"
 	help
 	  This option forces PCMs to stop on any XRUN event. This is useful to
-	  preserve any trace data ond pipeline status prior to the XRUN.
+	  preserve any trace data and pipeline status prior to the XRUN.
 	  Say Y if you are debugging SOF FW pipeline XRUNs.
 	  If unsure select "N".
 
