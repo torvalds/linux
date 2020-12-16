@@ -175,6 +175,11 @@ static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 		return;
 	}
 
+	/* Disable cmd conflict check */
+	extra = sdhci_readl(host, DWCMSHC_HOST_CTRL3);
+	extra &= ~BIT(0);
+	sdhci_writel(host, extra, DWCMSHC_HOST_CTRL3);
+
 	if (host->mmc->ios.timing == MMC_TIMING_MMC_HS200 ||
 	    host->mmc->ios.timing == MMC_TIMING_MMC_HS400)
 		txclk_tapnum = priv->txclk_tapnum;
