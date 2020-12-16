@@ -2198,32 +2198,6 @@ int mt7915_mcu_add_rate_ctrl(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 				     MCU_EXT_CMD_STA_REC_UPDATE, true);
 }
 
-static int
-mt7915_mcu_add_group(struct mt7915_dev *dev, struct ieee80211_vif *vif,
-		     struct ieee80211_sta *sta)
-{
-#define MT_STA_BSS_GROUP		1
-	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
-	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
-	struct {
-		__le32 action;
-		u8 wlan_idx_lo;
-		u8 status;
-		u8 wlan_idx_hi;
-		u8 rsv0[5];
-		__le32 val;
-		u8 rsv1[8];
-	} __packed req = {
-		.action = cpu_to_le32(MT_STA_BSS_GROUP),
-		.wlan_idx_lo = to_wcid_lo(msta->wcid.idx),
-		.wlan_idx_hi = to_wcid_hi(msta->wcid.idx),
-		.val = cpu_to_le32(mvif->idx % 16),
-	};
-
-	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_SET_DRR_CTRL, &req,
-				 sizeof(req), true);
-}
-
 int mt7915_mcu_add_sta_adv(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta, bool enable)
 {
@@ -2233,10 +2207,6 @@ int mt7915_mcu_add_sta_adv(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 		return 0;
 
 	/* must keep the order */
-	ret = mt7915_mcu_add_group(dev, vif, sta);
-	if (ret)
-		return ret;
-
 	ret = mt7915_mcu_add_txbf(dev, vif, sta, enable);
 	if (ret)
 		return ret;
