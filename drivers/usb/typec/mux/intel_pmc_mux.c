@@ -207,9 +207,20 @@ static int
 pmc_usb_mux_dp_hpd(struct pmc_usb_port *port, struct typec_displayport_data *dp)
 {
 	u8 msg[2] = { };
+	int ret;
 
 	msg[0] = PMC_USB_DP_HPD;
 	msg[0] |= port->usb3_port << PMC_USB_MSG_USB3_PORT_SHIFT;
+
+	/* Configure HPD first if HPD,IRQ comes together */
+	if (!IOM_PORT_HPD_ASSERTED(port->iom_status) &&
+	    dp->status & DP_STATUS_IRQ_HPD &&
+	    dp->status & DP_STATUS_HPD_STATE) {
+		msg[1] = PMC_USB_DP_HPD_LVL;
+		ret = pmc_usb_command(port, msg, sizeof(msg));
+		if (ret)
+			return ret;
+	}
 
 	if (dp->status & DP_STATUS_IRQ_HPD)
 		msg[1] = PMC_USB_DP_HPD_IRQ;
