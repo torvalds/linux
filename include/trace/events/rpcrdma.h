@@ -1410,101 +1410,112 @@ DEFINE_BADREQ_EVENT(drop);
 DEFINE_BADREQ_EVENT(badproc);
 DEFINE_BADREQ_EVENT(parse);
 
-DECLARE_EVENT_CLASS(svcrdma_segment_event,
+TRACE_EVENT(svcrdma_encode_wseg,
 	TP_PROTO(
+		const struct svc_rdma_send_ctxt *ctxt,
+		u32 segno,
 		u32 handle,
 		u32 length,
 		u64 offset
 	),
 
-	TP_ARGS(handle, length, offset),
+	TP_ARGS(ctxt, segno, handle, length, offset),
 
 	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
+		__field(u32, segno)
 		__field(u32, handle)
 		__field(u32, length)
 		__field(u64, offset)
 	),
 
 	TP_fast_assign(
+		__entry->cq_id = ctxt->sc_cid.ci_queue_id;
+		__entry->completion_id = ctxt->sc_cid.ci_completion_id;
+		__entry->segno = segno;
 		__entry->handle = handle;
 		__entry->length = length;
 		__entry->offset = offset;
 	),
 
-	TP_printk("%u@0x%016llx:0x%08x",
-		__entry->length, (unsigned long long)__entry->offset,
-		__entry->handle
+	TP_printk("cq_id=%u cid=%d segno=%u %u@0x%016llx:0x%08x",
+		__entry->cq_id, __entry->completion_id,
+		__entry->segno, __entry->length,
+		(unsigned long long)__entry->offset, __entry->handle
 	)
 );
 
-#define DEFINE_SEGMENT_EVENT(name)					\
-		DEFINE_EVENT(svcrdma_segment_event, svcrdma_##name,\
-				TP_PROTO(				\
-					u32 handle,			\
-					u32 length,			\
-					u64 offset			\
-				),					\
-				TP_ARGS(handle, length, offset))
-
-DEFINE_SEGMENT_EVENT(decode_wseg);
-DEFINE_SEGMENT_EVENT(encode_rseg);
-DEFINE_SEGMENT_EVENT(send_rseg);
-DEFINE_SEGMENT_EVENT(encode_wseg);
-DEFINE_SEGMENT_EVENT(send_wseg);
-
-DECLARE_EVENT_CLASS(svcrdma_chunk_event,
+TRACE_EVENT(svcrdma_decode_rseg,
 	TP_PROTO(
-		u32 length
+		const struct rpc_rdma_cid *cid,
+		const struct svc_rdma_chunk *chunk,
+		const struct svc_rdma_segment *segment
 	),
 
-	TP_ARGS(length),
+	TP_ARGS(cid, chunk, segment),
 
 	TP_STRUCT__entry(
-		__field(u32, length)
-	),
-
-	TP_fast_assign(
-		__entry->length = length;
-	),
-
-	TP_printk("length=%u",
-		__entry->length
-	)
-);
-
-#define DEFINE_CHUNK_EVENT(name)					\
-		DEFINE_EVENT(svcrdma_chunk_event, svcrdma_##name,	\
-				TP_PROTO(				\
-					u32 length			\
-				),					\
-				TP_ARGS(length))
-
-DEFINE_CHUNK_EVENT(send_pzr);
-DEFINE_CHUNK_EVENT(encode_write_chunk);
-DEFINE_CHUNK_EVENT(send_write_chunk);
-DEFINE_CHUNK_EVENT(encode_read_chunk);
-DEFINE_CHUNK_EVENT(send_reply_chunk);
-
-TRACE_EVENT(svcrdma_send_read_chunk,
-	TP_PROTO(
-		u32 length,
-		u32 position
-	),
-
-	TP_ARGS(length, position),
-
-	TP_STRUCT__entry(
-		__field(u32, length)
+		__field(u32, cq_id)
+		__field(int, completion_id)
+		__field(u32, segno)
 		__field(u32, position)
+		__field(u32, handle)
+		__field(u32, length)
+		__field(u64, offset)
 	),
 
 	TP_fast_assign(
-		__entry->length = length;
-		__entry->position = position;
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
+		__entry->segno = chunk->ch_segcount;
+		__entry->position = chunk->ch_position;
+		__entry->handle = segment->rs_handle;
+		__entry->length = segment->rs_length;
+		__entry->offset = segment->rs_offset;
 	),
 
-	TP_printk("length=%u position=%u",
-		__entry->length, __entry->position
+	TP_printk("cq_id=%u cid=%d segno=%u position=%u %u@0x%016llx:0x%08x",
+		__entry->cq_id, __entry->completion_id,
+		__entry->segno, __entry->position, __entry->length,
+		(unsigned long long)__entry->offset, __entry->handle
+	)
+);
+
+TRACE_EVENT(svcrdma_decode_wseg,
+	TP_PROTO(
+		const struct rpc_rdma_cid *cid,
+		const struct svc_rdma_chunk *chunk,
+		u32 segno
+	),
+
+	TP_ARGS(cid, chunk, segno),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
+		__field(u32, segno)
+		__field(u32, handle)
+		__field(u32, length)
+		__field(u64, offset)
+	),
+
+	TP_fast_assign(
+		const struct svc_rdma_segment *segment =
+			&chunk->ch_segments[segno];
+
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
+		__entry->segno = segno;
+		__entry->handle = segment->rs_handle;
+		__entry->length = segment->rs_length;
+		__entry->offset = segment->rs_offset;
+	),
+
+	TP_printk("cq_id=%u cid=%d segno=%u %u@0x%016llx:0x%08x",
+		__entry->cq_id, __entry->completion_id,
+		__entry->segno, __entry->length,
+		(unsigned long long)__entry->offset, __entry->handle
 	)
 );
 
@@ -1581,6 +1592,7 @@ DECLARE_EVENT_CLASS(svcrdma_dma_map_class,
 				TP_ARGS(rdma, dma_addr, length))
 
 DEFINE_SVC_DMA_EVENT(dma_map_page);
+DEFINE_SVC_DMA_EVENT(dma_map_err);
 DEFINE_SVC_DMA_EVENT(dma_unmap_page);
 
 TRACE_EVENT(svcrdma_dma_map_rw_err,
@@ -1699,20 +1711,30 @@ TRACE_EVENT(svcrdma_small_wrch_err,
 
 TRACE_EVENT(svcrdma_send_pullup,
 	TP_PROTO(
-		unsigned int len
+		const struct svc_rdma_send_ctxt *ctxt,
+		unsigned int msglen
 	),
 
-	TP_ARGS(len),
+	TP_ARGS(ctxt, msglen),
 
 	TP_STRUCT__entry(
-		__field(unsigned int, len)
+		__field(u32, cq_id)
+		__field(int, completion_id)
+		__field(unsigned int, hdrlen)
+		__field(unsigned int, msglen)
 	),
 
 	TP_fast_assign(
-		__entry->len = len;
+		__entry->cq_id = ctxt->sc_cid.ci_queue_id;
+		__entry->completion_id = ctxt->sc_cid.ci_completion_id;
+		__entry->hdrlen = ctxt->sc_hdrbuf.len,
+		__entry->msglen = msglen;
 	),
 
-	TP_printk("len=%u", __entry->len)
+	TP_printk("cq_id=%u cid=%d hdr=%u msg=%u (total %u)",
+		__entry->cq_id, __entry->completion_id,
+		__entry->hdrlen, __entry->msglen,
+		__entry->hdrlen + __entry->msglen)
 );
 
 TRACE_EVENT(svcrdma_send_err,
@@ -1819,7 +1841,7 @@ TRACE_EVENT(svcrdma_rq_post_err,
 	)
 );
 
-TRACE_EVENT(svcrdma_post_chunk,
+DECLARE_EVENT_CLASS(svcrdma_post_chunk_class,
 	TP_PROTO(
 		const struct rpc_rdma_cid *cid,
 		int sqecount
@@ -1844,6 +1866,19 @@ TRACE_EVENT(svcrdma_post_chunk,
 		__entry->sqecount
 	)
 );
+
+#define DEFINE_POST_CHUNK_EVENT(name)					\
+		DEFINE_EVENT(svcrdma_post_chunk_class,			\
+				svcrdma_post_##name##_chunk,		\
+				TP_PROTO(				\
+					const struct rpc_rdma_cid *cid,	\
+					int sqecount			\
+				),					\
+				TP_ARGS(cid, sqecount))
+
+DEFINE_POST_CHUNK_EVENT(read);
+DEFINE_POST_CHUNK_EVENT(write);
+DEFINE_POST_CHUNK_EVENT(reply);
 
 DEFINE_COMPLETION_EVENT(svcrdma_wc_read);
 DEFINE_COMPLETION_EVENT(svcrdma_wc_write);
