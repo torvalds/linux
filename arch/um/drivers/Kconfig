@@ -323,7 +323,7 @@ config UML_NET_SLIRP
 	  frames.  In general, slirp allows the UML the same IP connectivity
 	  to the outside world that the host user is permitted, and unlike
 	  other transports, SLiRP works without the need of root level
-	  privleges, setuid binaries, or SLIP devices on the host.  This
+	  privileges, setuid binaries, or SLIP devices on the host.  This
 	  also means not every type of connection is possible, but most
 	  situations can be accommodated with carefully crafted slirp
 	  commands that can be passed along as part of the network device's
