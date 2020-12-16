@@ -19,6 +19,7 @@ properties:
               - st,stm32mp151-pwr-mcu
               - st,stm32-syscfg
               - st,stm32-power-config
+              - st,stm32-tamp
           - const: syscon
 
   reg:
