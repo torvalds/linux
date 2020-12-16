@@ -409,4 +409,7 @@ extern int sysctl_perf_event_max_stack;
 extern int sysctl_perf_event_max_contexts_per_stack;
 extern unsigned int proc_map_timeout;
 
+#define PAGE_SIZE_NAME_LEN	32
+char *get_page_size_name(u64 size, char *str);
+
 #endif /* __PERF_RECORD_H */
