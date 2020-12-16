@@ -877,6 +877,21 @@ rockchip_gem_prime_import_sg_table(struct drm_device *drm,
 		goto err_free_rk_obj;
 	}
 
+	rk_obj->num_pages = rk_obj->base.size >> PAGE_SHIFT;
+	rk_obj->pages = drm_calloc_large(rk_obj->num_pages, sizeof(*rk_obj->pages));
+	if (!rk_obj->pages) {
+		DRM_ERROR("failed to allocate pages.\n");
+		ret = -ENOMEM;
+		goto err_free_rk_obj;
+	}
+
+	ret = drm_prime_sg_to_page_addr_arrays(sg, rk_obj->pages, NULL, rk_obj->num_pages);
+	if (ret < 0) {
+		DRM_ERROR("invalid sgtable.\n");
+		drm_free_large(rk_obj->pages);
+		goto err_free_rk_obj;
+	}
+
 	return &rk_obj->base;
 
 err_free_rk_obj:
