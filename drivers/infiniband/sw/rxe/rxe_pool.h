@@ -110,23 +110,33 @@ void rxe_pool_cleanup(struct rxe_pool *pool);
 void *rxe_alloc(struct rxe_pool *pool);
 
 /* connect already allocated object to pool */
-int rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_entry *elem);
+int __rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_entry *elem);
+
+#define rxe_add_to_pool(pool, obj) __rxe_add_to_pool(pool, &(obj)->pelem)
 
 /* assign an index to an indexed object and insert object into
  *  pool's rb tree
  */
-void rxe_add_index(void *elem);
+void __rxe_add_index(struct rxe_pool_entry *elem);
+
+#define rxe_add_index(obj) __rxe_add_index(&(obj)->pelem)
 
 /* drop an index and remove object from rb tree */
-void rxe_drop_index(void *elem);
+void __rxe_drop_index(struct rxe_pool_entry *elem);
+
+#define rxe_drop_index(obj) __rxe_drop_index(&(obj)->pelem)
 
 /* assign a key to a keyed object and insert object into
  *  pool's rb tree
  */
-void rxe_add_key(void *elem, void *key);
+void __rxe_add_key(struct rxe_pool_entry *elem, void *key);
+
+#define rxe_add_key(obj, key) __rxe_add_key(&(obj)->pelem, key)
 
 /* remove elem from rb tree */
-void rxe_drop_key(void *elem);
+void __rxe_drop_key(struct rxe_pool_entry *elem);
+
+#define rxe_drop_key(obj) __rxe_drop_key(&(obj)->pelem)
 
 /* lookup an indexed object from index. takes a reference on object */
 void *rxe_pool_get_index(struct rxe_pool *pool, u32 index);
