@@ -84,48 +84,88 @@ config UBSAN_LOCAL_BOUNDS
 	  where an added offset (which may not be known statically) is
 	  out-of-bounds.
 
-config UBSAN_MISC
-	bool "Enable all other Undefined Behavior sanity checks"
-	default UBSAN
-	help
-	  This option enables all sanity checks that don't have their
-	  own Kconfig options. Disable this if you only want to have
-	  individually selected checks.
-
 config UBSAN_SHIFT
-	def_bool UBSAN_MISC
+	bool "Perform checking for bit-shift overflows"
+	default UBSAN
 	depends on $(cc-option,-fsanitize=shift)
+	help
+	  This option enables -fsanitize=shift which checks for bit-shift
+	  operations that overflow to the left or go switch to negative
+	  for signed types.
 
 config UBSAN_DIV_ZERO
-	def_bool UBSAN_MISC
+	bool "Perform checking for integer divide-by-zero"
 	depends on $(cc-option,-fsanitize=integer-divide-by-zero)
+	help
+	  This option enables -fsanitize=integer-divide-by-zero which checks
+	  for integer division by zero. This is effectively redundant with the
+	  kernel's existing exception handling, though it can provide greater
+	  debugging information under CONFIG_UBSAN_REPORT_FULL.
 
 config UBSAN_UNREACHABLE
-	def_bool UBSAN_MISC
+	bool "Perform checking for unreachable code"
+	# objtool already handles unreachable checking and gets angry about
+	# seeing UBSan instrumentation located in unreachable places.
+	depends on !STACK_VALIDATION
 	depends on $(cc-option,-fsanitize=unreachable)
+	help
+	  This option enables -fsanitize=unreachable which checks for control
+	  flow reaching an expected-to-be-unreachable position.
 
 config UBSAN_SIGNED_OVERFLOW
-	def_bool UBSAN_MISC
+	bool "Perform checking for signed arithmetic overflow"
+	default UBSAN
 	depends on $(cc-option,-fsanitize=signed-integer-overflow)
+	help
+	  This option enables -fsanitize=signed-integer-overflow which checks
+	  for overflow of any arithmetic operations with signed integers.
 
 config UBSAN_UNSIGNED_OVERFLOW
-	def_bool UBSAN_MISC
+	bool "Perform checking for unsigned arithmetic overflow"
 	depends on $(cc-option,-fsanitize=unsigned-integer-overflow)
+	help
+	  This option enables -fsanitize=unsigned-integer-overflow which checks
+	  for overflow of any arithmetic operations with unsigned integers. This
+	  currently causes x86 to fail to boot.
 
 config UBSAN_OBJECT_SIZE
-	def_bool UBSAN_MISC
+	bool "Perform checking for accesses beyond the end of objects"
+	default UBSAN
 	# gcc hugely expands stack usage with -fsanitize=object-size
 	# https://lore.kernel.org/lkml/CAHk-=wjPasyJrDuwDnpHJS2TuQfExwe=px-SzLeN8GFMAQJPmQ@mail.gmail.com/
 	depends on !CC_IS_GCC
 	depends on $(cc-option,-fsanitize=object-size)
+	help
+	  This option enables -fsanitize=object-size which checks for accesses
+	  beyond the end of objects where the optimizer can determine both the
+	  object being operated on and its size, usually seen with bad downcasts,
+	  or access to struct members from NULL pointers.
 
 config UBSAN_BOOL
-	def_bool UBSAN_MISC
+	bool "Perform checking for non-boolean values used as boolean"
+	default UBSAN
 	depends on $(cc-option,-fsanitize=bool)
+	help
+	  This option enables -fsanitize=bool which checks for boolean values being
+	  loaded that are neither 0 nor 1.
 
 config UBSAN_ENUM
-	def_bool UBSAN_MISC
+	bool "Perform checking for out of bounds enum values"
+	default UBSAN
 	depends on $(cc-option,-fsanitize=enum)
+	help
+	  This option enables -fsanitize=enum which checks for values being loaded
+	  into an enum that are outside the range of given values for the given enum.
+
+config UBSAN_ALIGNMENT
+	bool "Perform checking for misaligned pointer usage"
+	default !HAVE_EFFICIENT_UNALIGNED_ACCESS
+	depends on !UBSAN_TRAP && !COMPILE_TEST
+	depends on $(cc-option,-fsanitize=alignment)
+	help
+	  This option enables the check of unaligned memory accesses.
+	  Enabling this option on architectures that support unaligned
+	  accesses may produce a lot of false positives.
 
 config UBSAN_SANITIZE_ALL
 	bool "Enable instrumentation for the entire kernel"
@@ -137,16 +177,6 @@ config UBSAN_SANITIZE_ALL
 	  UBSAN_SANITIZE := y for the files/directories you want to check for UB.
 	  Enabling this option will get kernel image size increased
 	  significantly.
-
-config UBSAN_ALIGNMENT
-	bool "Enable checks for pointers alignment"
-	default !HAVE_EFFICIENT_UNALIGNED_ACCESS
-	depends on !UBSAN_TRAP && !COMPILE_TEST
-	depends on $(cc-option,-fsanitize=alignment)
-	help
-	  This option enables the check of unaligned memory accesses.
-	  Enabling this option on architectures that support unaligned
-	  accesses may produce a lot of false positives.
 
 config TEST_UBSAN
 	tristate "Module for testing for undefined behavior detection"
