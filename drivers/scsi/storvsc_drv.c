@@ -399,6 +399,7 @@ static int storvsc_timeout = 180;
 static struct scsi_transport_template *fc_transport_template;
 #endif
 
+static struct scsi_host_template scsi_driver;
 static void storvsc_on_channel_callback(void *context);
 
 #define STORVSC_MAX_LUNS_PER_TARGET			255
@@ -697,6 +698,12 @@ static void handle_sc_creation(struct vmbus_channel *new_sc)
 		return;
 
 	memset(&props, 0, sizeof(struct vmstorage_channel_properties));
+
+	/*
+	 * The size of vmbus_requestor is an upper bound on the number of requests
+	 * that can be in-progress at any one time across all channels.
+	 */
+	new_sc->rqstor_size = scsi_driver.can_queue;
 
 	ret = vmbus_open(new_sc,
 			 storvsc_ringbuffer_size,
@@ -1242,9 +1249,17 @@ static void storvsc_on_channel_callback(void *context)
 	foreach_vmbus_pkt(desc, channel) {
 		void *packet = hv_pkt_data(desc);
 		struct storvsc_cmd_request *request;
+		u64 cmd_rqst;
 
-		request = (struct storvsc_cmd_request *)
-			((unsigned long)desc->trans_id);
+		cmd_rqst = vmbus_request_addr(&channel->requestor,
+					      desc->trans_id);
+		if (cmd_rqst == VMBUS_RQST_ERROR) {
+			dev_err(&device->device,
+				"Incorrect transaction id\n");
+			continue;
+		}
+
+		request = (struct storvsc_cmd_request *)(unsigned long)cmd_rqst;
 
 		if (request == &stor_device->init_request ||
 		    request == &stor_device->reset_request) {
@@ -1264,6 +1279,12 @@ static int storvsc_connect_to_vsp(struct hv_device *device, u32 ring_size,
 	int ret;
 
 	memset(&props, 0, sizeof(struct vmstorage_channel_properties));
+
+	/*
+	 * The size of vmbus_requestor is an upper bound on the number of requests
+	 * that can be in-progress at any one time across all channels.
+	 */
+	device->channel->rqstor_size = scsi_driver.can_queue;
 
 	ret = vmbus_open(device->channel,
 			 ring_size,
@@ -1571,7 +1592,6 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 	struct storvsc_cmd_request *request;
 	struct vstor_packet *vstor_packet;
 	int ret, t;
-
 
 	stor_device = get_out_stor_device(device);
 	if (!stor_device)
