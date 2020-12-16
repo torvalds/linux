@@ -61,6 +61,8 @@ static inline void flush_dcache_page(struct page *page)
 		SetPageDcacheDirty(page);
 }
 
+void flush_dcache_folio(struct folio *folio);
+
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 

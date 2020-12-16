@@ -1076,3 +1076,14 @@ void page_offline_end(void)
 	up_write(&page_offline_rwsem);
 }
 EXPORT_SYMBOL(page_offline_end);
+
+#ifndef ARCH_IMPLEMENTS_FLUSH_DCACHE_FOLIO
+void flush_dcache_folio(struct folio *folio)
+{
+	long i, nr = folio_nr_pages(folio);
+
+	for (i = 0; i < nr; i++)
+		flush_dcache_page(folio_page(folio, i));
+}
+EXPORT_SYMBOL(flush_dcache_folio);
+#endif
