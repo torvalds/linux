@@ -499,7 +499,7 @@ struct mt76_rx_status {
 
 	u8 ext_phy:1;
 	u8 aggr:1;
-	u8 tid;
+	u8 qos_ctl;
 	u16 seqno;
 
 	u16 freq;
