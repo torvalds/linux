@@ -5444,6 +5444,7 @@ static int ext4_commit_super(struct super_block *sb)
 	if (!sbh || block_device_ejected(sb))
 		return error;
 
+	lock_buffer(sbh);
 	/*
 	 * If the file system is mounted read-only, don't update the
 	 * superblock write time.  This avoids updating the superblock
@@ -5515,7 +5516,6 @@ static int ext4_commit_super(struct super_block *sb)
 
 	BUFFER_TRACE(sbh, "marking dirty");
 	ext4_superblock_csum_set(sb);
-	lock_buffer(sbh);
 	if (buffer_write_io_error(sbh) || !buffer_uptodate(sbh)) {
 		/*
 		 * Oh, dear.  A previous attempt to write the
