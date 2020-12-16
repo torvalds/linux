@@ -221,7 +221,7 @@ static int keyscan_suspend(struct device *dev)
 
 	if (device_may_wakeup(dev))
 		enable_irq_wake(keypad->irq);
-	else if (input->users)
+	else if (input_device_enabled(input))
 		keyscan_stop(keypad);
 
 	mutex_unlock(&input->mutex);
@@ -239,7 +239,7 @@ static int keyscan_resume(struct device *dev)
 
 	if (device_may_wakeup(dev))
 		disable_irq_wake(keypad->irq);
-	else if (input->users)
+	else if (input_device_enabled(input))
 		retval = keyscan_start(keypad);
 
 	mutex_unlock(&input->mutex);

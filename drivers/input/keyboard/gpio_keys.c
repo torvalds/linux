@@ -108,7 +108,7 @@ static int get_n_events_by_type(int type)
 
 /**
  * get_bm_events_by_type() - returns bitmap of supported events per @type
- * @input: input device from which bitmap is retrieved
+ * @dev: input device from which bitmap is retrieved
  * @type: type of button (%EV_KEY, %EV_SW)
  *
  * Return value of this function can be used to allocate bitmap
@@ -965,7 +965,7 @@ static int __maybe_unused gpio_keys_suspend(struct device *dev)
 			return error;
 	} else {
 		mutex_lock(&input->mutex);
-		if (input->users)
+		if (input_device_enabled(input))
 			gpio_keys_close(input);
 		mutex_unlock(&input->mutex);
 	}
@@ -983,7 +983,7 @@ static int __maybe_unused gpio_keys_resume(struct device *dev)
 		gpio_keys_disable_wakeup(ddata);
 	} else {
 		mutex_lock(&input->mutex);
-		if (input->users)
+		if (input_device_enabled(input))
 			error = gpio_keys_open(input);
 		mutex_unlock(&input->mutex);
 	}

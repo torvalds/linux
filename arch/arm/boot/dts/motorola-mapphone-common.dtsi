@@ -430,7 +430,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&touchscreen_pins>;
 
-		reset-gpios = <&gpio6 13 GPIO_ACTIVE_HIGH>; /* gpio173 */
+		reset-gpios = <&gpio6 13 GPIO_ACTIVE_LOW>; /* gpio173 */
 
 		/* gpio_183 with sys_nirq2 pad as wakeup */
 		interrupts-extended = <&gpio6 23 IRQ_TYPE_LEVEL_LOW>,
