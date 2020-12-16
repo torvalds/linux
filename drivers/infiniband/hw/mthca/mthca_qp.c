@@ -863,6 +863,9 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 	enum ib_qp_state cur_state, new_state;
 	int err = -EINVAL;
 
+	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
+		return -EOPNOTSUPP;
+
 	mutex_lock(&qp->mutex);
 	if (attr_mask & IB_QP_CUR_STATE) {
 		cur_state = attr->cur_qp_state;
