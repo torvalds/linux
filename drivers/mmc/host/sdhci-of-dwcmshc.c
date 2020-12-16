@@ -61,6 +61,7 @@ struct dwcmshc_priv {
 	/* Rockchip specified optional clocks */
 	struct clk_bulk_data rockchip_clks[ROCKCHIP_MAX_CLKS];
 	int txclk_tapnum;
+	unsigned int actual_clk;
 };
 
 /*
@@ -417,16 +418,11 @@ static int dwcmshc_runtime_suspend(struct device *dev)
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct dwcmshc_priv *priv = sdhci_pltfm_priv(pltfm_host);
-	int ret;
 
-	ret = sdhci_runtime_suspend_host(host);
+	priv->actual_clk = host->mmc->actual_clock;
+	sdhci_set_clock(host, 0);
 
-	clk_disable_unprepare(pltfm_host->clk);
-	if (!IS_ERR(priv->bus_clk))
-		clk_disable_unprepare(priv->bus_clk);
-	clk_bulk_disable_unprepare(ROCKCHIP_MAX_CLKS, priv->rockchip_clks);
-
-	return ret;
+	return 0;
 }
 
 static int dwcmshc_runtime_resume(struct device *dev)
@@ -434,23 +430,10 @@ static int dwcmshc_runtime_resume(struct device *dev)
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct dwcmshc_priv *priv = sdhci_pltfm_priv(pltfm_host);
-	int ret;
 
-	ret = clk_prepare_enable(pltfm_host->clk);
-	if (ret)
-		return ret;
+	sdhci_set_clock(host, priv->actual_clk);
 
-	if (!IS_ERR(priv->bus_clk)) {
-		ret = clk_prepare_enable(priv->bus_clk);
-		if (ret)
-			return ret;
-	}
-
-	ret = clk_bulk_prepare_enable(ROCKCHIP_MAX_CLKS, priv->rockchip_clks);
-	if (ret)
-		return ret;
-
-	return sdhci_runtime_resume_host(host);
+	return 0;
 }
 #endif
 
