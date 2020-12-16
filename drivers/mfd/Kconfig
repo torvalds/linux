@@ -730,33 +730,9 @@ config MFD_KEMPLD
 	select MFD_CORE
 	help
 	  This is the core driver for the PLD (Programmable Logic Device) found
-	  on some Kontron ETX and COMexpress (ETXexpress) modules. The PLD
-	  device may provide functions like watchdog, GPIO, UART and I2C bus.
-
-	  The following modules are supported:
-		* COMe-bBD#
-		* COMe-bBL6
-		* COMe-bHL6
-		* COMe-bSL6
-		* COMe-bIP#
-		* COMe-bKL6
-		* COMe-bPC2 (ETXexpress-PC)
-		* COMe-bSC# (ETXexpress-SC T#)
-		* COMe-cAL6
-		* COMe-cBL6
-		* COMe-cBT6
-		* COMe-cBW6
-		* COMe-cCT6
-		* COMe-cDC2 (microETXexpress-DC)
-		* COMe-cHL6
-		* COMe-cKL6
-		* COMe-cPC2 (microETXexpress-PC)
-		* COMe-cSL6
-		* COMe-mAL10
-		* COMe-mBT10
-		* COMe-mCT10
-		* COMe-mTT10 (nanoETXexpress-TT)
-		* ETX-OH
+	  on some Kontron ETX and nearly all COMexpress (ETXexpress) modules as
+	  well as on some other Kontron products. The PLD device may provide
+	  functions like watchdog, GPIO, UART and I2C bus.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called kempld-core.
@@ -1199,6 +1175,7 @@ config MFD_SIMPLE_MFD_I2C
 config MFD_SL28CPLD
 	tristate "Kontron sl28cpld Board Management Controller"
 	depends on I2C
+	depends on ARCH_LAYERSCAPE || COMPILE_TEST
 	select MFD_SIMPLE_MFD_I2C
 	help
 	  Say yes here to enable support for the Kontron sl28cpld board
@@ -1442,6 +1419,7 @@ config MFD_TI_LMU
 config MFD_OMAP_USB_HOST
 	bool "TI OMAP USBHS core and TLL driver"
 	depends on USB_EHCI_HCD_OMAP || USB_OHCI_HCD_OMAP3
+	depends on COMMON_CLK
 	default y
 	help
 	  This is the core driver for the OAMP EHCI and OHCI drivers.
