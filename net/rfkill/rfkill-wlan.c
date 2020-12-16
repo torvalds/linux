@@ -266,12 +266,12 @@ int rockchip_wifi_power(int on)
 
 		if (on) {
 			if (gpio_is_valid(poweron->io)) {
-				gpio_set_value(poweron->io, poweron->enable);
+				gpio_direction_output(poweron->io, poweron->enable);
 				msleep(100);
 			}
 
 			if (gpio_is_valid(reset->io)) {
-				gpio_set_value(reset->io, reset->enable);
+				gpio_direction_output(reset->io, reset->enable);
 				msleep(100);
 			}
 
@@ -280,12 +280,12 @@ int rockchip_wifi_power(int on)
 		} else {
 			if (gpio_is_valid(poweron->io)) {
 				printk("wifi power off\n");
-				gpio_set_value(poweron->io, !(poweron->enable));
+				gpio_direction_output(poweron->io, !(poweron->enable));
 				msleep(100);
 			}
 
 			if (gpio_is_valid(reset->io)) {
-				gpio_set_value(reset->io, !(reset->enable));
+				gpio_direction_output(reset->io, !(reset->enable));
 			}
 
 			wifi_power_state = 0;
