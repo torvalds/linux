@@ -863,6 +863,7 @@ static void da7280_parse_properties(struct device *dev,
 		gpi_str3[7] = '0' + i;
 		haptics->gpi_ctl[i].polarity = 0;
 		error = device_property_read_string(dev, gpi_str3, &str);
+		if (!error)
 			haptics->gpi_ctl[i].polarity =
 				da7280_haptic_of_gpi_pol_str(dev, str);
 	}
