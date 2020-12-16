@@ -220,6 +220,7 @@ struct amdgpu_vcn {
 	struct amdgpu_vcn_inst	 inst[AMDGPU_MAX_VCN_INSTANCES];
 	struct amdgpu_vcn_reg	 internal;
 	struct mutex		 vcn_pg_lock;
+	struct mutex		vcn1_jpeg1_workaround;
 	atomic_t		 total_submission_cnt;
 
 	unsigned	harvest_config;

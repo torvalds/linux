@@ -19,8 +19,9 @@
 
 #define	AT91_PM_STANDBY		0x00
 #define AT91_PM_ULP0		0x01
-#define AT91_PM_ULP1		0x02
-#define	AT91_PM_BACKUP		0x03
+#define AT91_PM_ULP0_FAST	0x02
+#define AT91_PM_ULP1		0x03
+#define	AT91_PM_BACKUP		0x04
 
 #ifndef __ASSEMBLY__
 struct at91_pm_data {

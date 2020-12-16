@@ -747,11 +747,8 @@ static int cpcap_battery_init_iio(struct cpcap_battery_ddata *ddata)
 	return 0;
 
 out_err:
-	if (error != -EPROBE_DEFER)
-		dev_err(ddata->dev, "could not initialize VBUS or ID IIO: %i\n",
-			error);
-
-	return error;
+	return dev_err_probe(ddata->dev, error,
+			     "could not initialize VBUS or ID IIO\n");
 }
 
 /* Calibrate coulomb counter */

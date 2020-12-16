@@ -732,11 +732,6 @@ static inline void debug_timer_deactivate(struct timer_list *timer)
 	debug_object_deactivate(timer, &timer_debug_descr);
 }
 
-static inline void debug_timer_free(struct timer_list *timer)
-{
-	debug_object_free(timer, &timer_debug_descr);
-}
-
 static inline void debug_timer_assert_init(struct timer_list *timer)
 {
 	debug_object_assert_init(timer, &timer_debug_descr);
@@ -1706,6 +1701,8 @@ void update_process_times(int user_tick)
 {
 	struct task_struct *p = current;
 
+	PRANDOM_ADD_NOISE(jiffies, user_tick, p, 0);
+
 	/* Note: this timer irq context must be accounted for as well. */
 	account_process_tick(p, user_tick);
 	run_local_timers();
@@ -1717,13 +1714,6 @@ void update_process_times(int user_tick)
 	scheduler_tick();
 	if (IS_ENABLED(CONFIG_POSIX_TIMERS))
 		run_posix_cpu_timers();
-
-	/* The current CPU might make use of net randoms without receiving IRQs
-	 * to renew them often enough. Let's update the net_rand_state from a
-	 * non-constant value that's not affine to the number of calls to make
-	 * sure it's updated when there's some activity (we don't care in idle).
-	 */
-	this_cpu_add(net_rand_state.s1, rol32(jiffies, 24) + user_tick);
 }
 
 /**

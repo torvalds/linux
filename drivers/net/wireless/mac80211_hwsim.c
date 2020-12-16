@@ -99,7 +99,7 @@ MODULE_PARM_DESC(support_p2p_device, "Support P2P-Device interface type");
  * 	domain requests. The first radio will adhere to the first custom world
  * 	regulatory domain, the second one to the second custom world regulatory
  * 	domain. All other devices will world roam.
- * @HWSIM_REGTEST_STRICT_FOLLOW_: Used for testing strict regulatory domain
+ * @HWSIM_REGTEST_STRICT_FOLLOW: Used for testing strict regulatory domain
  *	settings, only the first radio will send a regulatory domain request
  *	and use strict settings. The rest of the radios are expected to follow.
  * @HWSIM_REGTEST_STRICT_ALL: Used for testing strict regulatory domain
@@ -377,6 +377,49 @@ static const struct ieee80211_channel hwsim_channels_5ghz[] = {
 	CHAN5G(5925), /* Channel 185 */
 };
 
+#define NUM_S1G_CHANS_US 51
+static struct ieee80211_channel hwsim_channels_s1g[NUM_S1G_CHANS_US];
+
+static const struct ieee80211_sta_s1g_cap hwsim_s1g_cap = {
+	.s1g = true,
+	.cap = { S1G_CAP0_SGI_1MHZ | S1G_CAP0_SGI_2MHZ,
+		 0,
+		 0,
+		 S1G_CAP3_MAX_MPDU_LEN,
+		 0,
+		 S1G_CAP5_AMPDU,
+		 0,
+		 S1G_CAP7_DUP_1MHZ,
+		 S1G_CAP8_TWT_RESPOND | S1G_CAP8_TWT_REQUEST,
+		 0},
+	.nss_mcs = { 0xfc | 1, /* MCS 7 for 1 SS */
+	/* RX Highest Supported Long GI Data Rate 0:7 */
+		     0,
+	/* RX Highest Supported Long GI Data Rate 0:7 */
+	/* TX S1G MCS Map 0:6 */
+		     0xfa,
+	/* TX S1G MCS Map :7 */
+	/* TX Highest Supported Long GI Data Rate 0:6 */
+		     0x80,
+	/* TX Highest Supported Long GI Data Rate 7:8 */
+	/* Rx Single spatial stream and S1G-MCS Map for 1MHz */
+	/* Tx Single spatial stream and S1G-MCS Map for 1MHz */
+		     0 },
+};
+
+static void hwsim_init_s1g_channels(struct ieee80211_channel *channels)
+{
+	int ch, freq;
+
+	for (ch = 0; ch < NUM_S1G_CHANS_US; ch++) {
+		freq = 902000 + (ch + 1) * 500;
+		channels[ch].band = NL80211_BAND_S1GHZ;
+		channels[ch].center_freq = KHZ_TO_MHZ(freq);
+		channels[ch].freq_offset = freq % 1000;
+		channels[ch].hw_value = ch + 1;
+	}
+}
+
 static const struct ieee80211_rate hwsim_rates[] = {
 	{ .bitrate = 10 },
 	{ .bitrate = 20, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
@@ -505,6 +548,7 @@ struct mac80211_hwsim_data {
 	struct ieee80211_supported_band bands[NUM_NL80211_BANDS];
 	struct ieee80211_channel channels_2ghz[ARRAY_SIZE(hwsim_channels_2ghz)];
 	struct ieee80211_channel channels_5ghz[ARRAY_SIZE(hwsim_channels_5ghz)];
+	struct ieee80211_channel channels_s1g[ARRAY_SIZE(hwsim_channels_s1g)];
 	struct ieee80211_rate rates[ARRAY_SIZE(hwsim_rates)];
 	struct ieee80211_iface_combination if_combination;
 	struct ieee80211_iface_limit if_limits[3];
@@ -900,12 +944,14 @@ static void mac80211_hwsim_monitor_rx(struct ieee80211_hw *hw,
 	struct mac80211_hwsim_data *data = hw->priv;
 	struct sk_buff *skb;
 	struct hwsim_radiotap_hdr *hdr;
-	u16 flags;
+	u16 flags, bitrate;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_skb);
 	struct ieee80211_rate *txrate = ieee80211_get_tx_rate(hw, info);
 
-	if (WARN_ON(!txrate))
-		return;
+	if (!txrate)
+		bitrate = 0;
+	else
+		bitrate = txrate->bitrate;
 
 	if (!netif_running(hwsim_mon))
 		return;
@@ -924,10 +970,10 @@ static void mac80211_hwsim_monitor_rx(struct ieee80211_hw *hw,
 					  (1 << IEEE80211_RADIOTAP_CHANNEL));
 	hdr->rt_tsft = __mac80211_hwsim_get_tsf(data);
 	hdr->rt_flags = 0;
-	hdr->rt_rate = txrate->bitrate / 5;
+	hdr->rt_rate = bitrate / 5;
 	hdr->rt_channel = cpu_to_le16(chan->center_freq);
 	flags = IEEE80211_CHAN_2GHZ;
-	if (txrate->flags & IEEE80211_RATE_ERP_G)
+	if (txrate && txrate->flags & IEEE80211_RATE_ERP_G)
 		flags |= IEEE80211_CHAN_OFDM;
 	else
 		flags |= IEEE80211_CHAN_CCK;
@@ -1341,6 +1387,7 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	memset(&rx_status, 0, sizeof(rx_status));
 	rx_status.flag |= RX_FLAG_MACTIME_START;
 	rx_status.freq = chan->center_freq;
+	rx_status.freq_offset = chan->freq_offset ? 1 : 0;
 	rx_status.band = chan->band;
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_VHT_MCS) {
 		rx_status.rate_idx =
@@ -1522,14 +1569,18 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 		/* fake header transmission time */
 		struct ieee80211_mgmt *mgmt;
 		struct ieee80211_rate *txrate;
+		/* TODO: get MCS */
+		int bitrate = 100;
 		u64 ts;
 
 		mgmt = (struct ieee80211_mgmt *)skb->data;
 		txrate = ieee80211_get_tx_rate(hw, txi);
+		if (txrate)
+			bitrate = txrate->bitrate;
 		ts = mac80211_hwsim_get_tsf_raw();
 		mgmt->u.probe_resp.timestamp =
 			cpu_to_le64(ts + data->tsf_offset +
-				    24 * 8 * 10 / txrate->bitrate);
+				    24 * 8 * 10 / bitrate);
 	}
 
 	mac80211_hwsim_monitor_rx(hw, skb, channel);
@@ -1664,6 +1715,8 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 	struct ieee80211_rate *txrate;
 	struct ieee80211_mgmt *mgmt;
 	struct sk_buff *skb;
+	/* TODO: get MCS */
+	int bitrate = 100;
 
 	hwsim_check_magic(vif);
 
@@ -1683,13 +1736,25 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 				       ARRAY_SIZE(info->control.rates));
 
 	txrate = ieee80211_get_tx_rate(hw, info);
+	if (txrate)
+		bitrate = txrate->bitrate;
 
 	mgmt = (struct ieee80211_mgmt *) skb->data;
 	/* fake header transmission time */
 	data->abs_bcn_ts = mac80211_hwsim_get_tsf_raw();
-	mgmt->u.beacon.timestamp = cpu_to_le64(data->abs_bcn_ts +
-					       data->tsf_offset +
-					       24 * 8 * 10 / txrate->bitrate);
+	if (ieee80211_is_s1g_beacon(mgmt->frame_control)) {
+		struct ieee80211_ext *ext = (void *) mgmt;
+
+		ext->u.s1g_beacon.timestamp = cpu_to_le32(data->abs_bcn_ts +
+							  data->tsf_offset +
+							  10 * 8 * 10 /
+							  bitrate);
+	} else {
+		mgmt->u.beacon.timestamp = cpu_to_le64(data->abs_bcn_ts +
+						       data->tsf_offset +
+						       24 * 8 * 10 /
+						       bitrate);
+	}
 
 	mac80211_hwsim_tx_frame(hw, skb,
 				rcu_dereference(vif->chanctx_conf)->def.chan);
@@ -1699,7 +1764,7 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 				rcu_dereference(vif->chanctx_conf)->def.chan);
 	}
 
-	if (vif->csa_active && ieee80211_csa_is_complete(vif))
+	if (vif->csa_active && ieee80211_beacon_cntdwn_is_complete(vif))
 		ieee80211_csa_finish(vif);
 }
 
@@ -1737,6 +1802,11 @@ static const char * const hwsim_chanwidths[] = {
 	[NL80211_CHAN_WIDTH_80] = "vht80",
 	[NL80211_CHAN_WIDTH_80P80] = "vht80p80",
 	[NL80211_CHAN_WIDTH_160] = "vht160",
+	[NL80211_CHAN_WIDTH_1] = "1MHz",
+	[NL80211_CHAN_WIDTH_2] = "2MHz",
+	[NL80211_CHAN_WIDTH_4] = "4MHz",
+	[NL80211_CHAN_WIDTH_8] = "8MHz",
+	[NL80211_CHAN_WIDTH_16] = "16MHz",
 };
 
 static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
@@ -3079,6 +3149,8 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		sizeof(hwsim_channels_2ghz));
 	memcpy(data->channels_5ghz, hwsim_channels_5ghz,
 		sizeof(hwsim_channels_5ghz));
+	memcpy(data->channels_s1g, hwsim_channels_s1g,
+	       sizeof(hwsim_channels_s1g));
 	memcpy(data->rates, hwsim_rates, sizeof(hwsim_rates));
 
 	for (band = NL80211_BAND_2GHZ; band < NUM_NL80211_BANDS; band++) {
@@ -3120,6 +3192,12 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 					    IEEE80211_VHT_MCS_SUPPORT_0_9 << 14);
 			sband->vht_cap.vht_mcs.tx_mcs_map =
 				sband->vht_cap.vht_mcs.rx_mcs_map;
+			break;
+		case NL80211_BAND_S1GHZ:
+			memcpy(&sband->s1g_cap, &hwsim_s1g_cap,
+			       sizeof(sband->s1g_cap));
+			sband->channels = data->channels_s1g;
+			sband->n_channels = ARRAY_SIZE(hwsim_channels_s1g);
 			break;
 		default:
 			continue;
@@ -3886,7 +3964,7 @@ done:
 }
 
 /* Generic Netlink operations array */
-static const struct genl_ops hwsim_ops[] = {
+static const struct genl_small_ops hwsim_ops[] = {
 	{
 		.cmd = HWSIM_CMD_REGISTER,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -3930,8 +4008,8 @@ static struct genl_family hwsim_genl_family __ro_after_init = {
 	.policy = hwsim_genl_policy,
 	.netnsok = true,
 	.module = THIS_MODULE,
-	.ops = hwsim_ops,
-	.n_ops = ARRAY_SIZE(hwsim_ops),
+	.small_ops = hwsim_ops,
+	.n_small_ops = ARRAY_SIZE(hwsim_ops),
 	.mcgrps = hwsim_mcgrps,
 	.n_mcgrps = ARRAY_SIZE(hwsim_mcgrps),
 };
@@ -4317,6 +4395,8 @@ static int __init init_mac80211_hwsim(void)
 		err = PTR_ERR(hwsim_class);
 		goto out_exit_virtio;
 	}
+
+	hwsim_init_s1g_channels(hwsim_channels_s1g);
 
 	for (i = 0; i < radios; i++) {
 		struct hwsim_new_radio_params param = { 0 };

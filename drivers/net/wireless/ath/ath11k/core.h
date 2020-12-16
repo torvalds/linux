@@ -35,6 +35,10 @@
 
 #define ATH11K_INVALID_HW_MAC_ID	0xFF
 
+extern unsigned int ath11k_frame_mode;
+
+#define ATH11K_MON_TIMER_INTERVAL  10
+
 enum ath11k_supported_bw {
 	ATH11K_BW_20	= 0,
 	ATH11K_BW_40	= 1,
@@ -53,6 +57,13 @@ enum wme_ac {
 #define ATH11K_HT_MCS_MAX	7
 #define ATH11K_VHT_MCS_MAX	9
 #define ATH11K_HE_MCS_MAX	11
+
+enum ath11k_crypt_mode {
+	/* Only use hardware crypto engine */
+	ATH11K_CRYPT_MODE_HW,
+	/* Only use software crypto */
+	ATH11K_CRYPT_MODE_SW,
+};
 
 static inline enum wme_ac ath11k_tid_to_ac(u32 tid)
 {
@@ -90,6 +101,8 @@ struct ath11k_skb_rxcb {
 
 enum ath11k_hw_rev {
 	ATH11K_HW_IPQ8074,
+	ATH11K_HW_QCA6390_HW20,
+	ATH11K_HW_IPQ6018_HW10,
 };
 
 enum ath11k_firmware_mode {
@@ -101,17 +114,7 @@ enum ath11k_firmware_mode {
 };
 
 #define ATH11K_IRQ_NUM_MAX 52
-#define ATH11K_EXT_IRQ_GRP_NUM_MAX 11
 #define ATH11K_EXT_IRQ_NUM_MAX	16
-
-extern const u8 ath11k_reo_status_ring_mask[ATH11K_EXT_IRQ_GRP_NUM_MAX];
-extern const u8 ath11k_tx_ring_mask[ATH11K_EXT_IRQ_GRP_NUM_MAX];
-extern const u8 ath11k_rx_ring_mask[ATH11K_EXT_IRQ_GRP_NUM_MAX];
-extern const u8 ath11k_rx_err_ring_mask[ATH11K_EXT_IRQ_GRP_NUM_MAX];
-extern const u8 ath11k_rx_wbm_rel_ring_mask[ATH11K_EXT_IRQ_GRP_NUM_MAX];
-extern const u8 ath11k_rxdma2host_ring_mask[ATH11K_EXT_IRQ_GRP_NUM_MAX];
-extern const u8 ath11k_host2rxdma_ring_mask[ATH11K_EXT_IRQ_GRP_NUM_MAX];
-extern const u8 rx_mon_status_ring_mask[ATH11K_EXT_IRQ_GRP_NUM_MAX];
 
 struct ath11k_ext_irq_grp {
 	struct ath11k_base *ab;
@@ -226,6 +229,7 @@ struct ath11k_vif {
 	int txpower;
 	bool rsnie_present;
 	bool wpaie_present;
+	struct ieee80211_chanctx_conf chanctx;
 };
 
 struct ath11k_vif_iter {
@@ -554,6 +558,7 @@ struct ath11k {
 };
 
 struct ath11k_band_cap {
+	u32 phy_id;
 	u32 max_bw_supported;
 	u32 ht_cap_info;
 	u32 he_cap_info[2];
@@ -587,6 +592,13 @@ struct ath11k_board_data {
 	const struct firmware *fw;
 	const void *data;
 	size_t len;
+};
+
+struct ath11k_bus_params {
+	bool mhi_support;
+	bool m3_fw_support;
+	bool fixed_bdf_addr;
+	bool fixed_mem_region;
 };
 
 /* IPQ8074 HW channel counters frequency value in hertz */
@@ -638,7 +650,6 @@ struct ath11k_base {
 	struct ath11k_qmi qmi;
 	struct ath11k_wmi_base wmi_ab;
 	struct completion fw_ready;
-	struct rproc *tgt_rproc;
 	int num_radios;
 	/* HW channel counters frequency value in hertz common to all MACs */
 	u32 cc_freq_hz;
@@ -651,6 +662,7 @@ struct ath11k_base {
 	unsigned long mem_len;
 
 	struct {
+		enum ath11k_bus bus;
 		const struct ath11k_hif_ops *ops;
 	} hif;
 
@@ -677,7 +689,10 @@ struct ath11k_base {
 	u32 ext_service_bitmap[WMI_SERVICE_EXT_BM_SIZE];
 	bool pdevs_macaddr_valid;
 	int bd_api;
+
 	struct ath11k_hw_params hw_params;
+	struct ath11k_bus_params bus_params;
+
 	const struct firmware *cal_file;
 
 	/* Below regd's are protected by ab->data_lock */
@@ -714,6 +729,7 @@ struct ath11k_base {
 	struct ath11k_dbring_cap *db_caps;
 	u32 num_db_cap;
 
+	struct timer_list mon_reap_timer;
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
 };
@@ -841,6 +857,13 @@ struct ath11k_fw_stats_bcn {
 	u32 tx_bcn_outage_cnt;
 };
 
+extern const struct ce_pipe_config ath11k_target_ce_config_wlan_ipq8074[];
+extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_ipq8074[];
+extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_ipq6018[];
+
+extern const struct ce_pipe_config ath11k_target_ce_config_wlan_qca6390[];
+extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_qca6390[];
+
 void ath11k_peer_unmap_event(struct ath11k_base *ab, u16 peer_id);
 void ath11k_peer_map_event(struct ath11k_base *ab, u8 vdev_id, u16 peer_id,
 			   u8 *mac_addr, u16 ast_hash);
@@ -850,17 +873,21 @@ struct ath11k_peer *ath11k_peer_find_by_addr(struct ath11k_base *ab,
 					     const u8 *addr);
 struct ath11k_peer *ath11k_peer_find_by_id(struct ath11k_base *ab, int peer_id);
 int ath11k_core_qmi_firmware_ready(struct ath11k_base *ab);
+int ath11k_core_pre_init(struct ath11k_base *ab);
 int ath11k_core_init(struct ath11k_base *ath11k);
 void ath11k_core_deinit(struct ath11k_base *ath11k);
 struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
-				      enum ath11k_bus bus);
+				      enum ath11k_bus bus,
+				      const struct ath11k_bus_params *bus_params);
 void ath11k_core_free(struct ath11k_base *ath11k);
 int ath11k_core_fetch_bdf(struct ath11k_base *ath11k,
 			  struct ath11k_board_data *bd);
 void ath11k_core_free_bdf(struct ath11k_base *ab, struct ath11k_board_data *bd);
 
 void ath11k_core_halt(struct ath11k *ar);
-u8 ath11k_core_get_hw_mac_id(struct ath11k_base *ab, int pdev_idx);
+
+const struct firmware *ath11k_core_firmware_request(struct ath11k_base *ab,
+						    const char *filename);
 
 static inline const char *ath11k_scan_state_str(enum ath11k_scan_state state)
 {
@@ -892,6 +919,32 @@ static inline struct ath11k_skb_rxcb *ATH11K_SKB_RXCB(struct sk_buff *skb)
 static inline struct ath11k_vif *ath11k_vif_to_arvif(struct ieee80211_vif *vif)
 {
 	return (struct ath11k_vif *)vif->drv_priv;
+}
+
+static inline struct ath11k *ath11k_ab_to_ar(struct ath11k_base *ab,
+					     int mac_id)
+{
+	return ab->pdevs[ath11k_hw_mac_id_to_pdev_id(&ab->hw_params, mac_id)].ar;
+}
+
+static inline void ath11k_core_create_firmware_path(struct ath11k_base *ab,
+						    const char *filename,
+						    void *buf, size_t buf_len)
+{
+	snprintf(buf, buf_len, "%s/%s/%s", ATH11K_FW_DIR,
+		 ab->hw_params.fw.dir, filename);
+}
+
+static inline const char *ath11k_bus_str(enum ath11k_bus bus)
+{
+	switch (bus) {
+	case ATH11K_BUS_PCI:
+		return "pci";
+	case ATH11K_BUS_AHB:
+		return "ahb";
+	}
+
+	return "unknown";
 }
 
 #endif /* _CORE_H_ */

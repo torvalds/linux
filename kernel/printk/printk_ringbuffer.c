@@ -345,7 +345,7 @@ DESC_ID((id) - DESCS_COUNT(desc_ring))
  */
 struct prb_data_block {
 	unsigned long	id;
-	char		data[0];
+	char		data[];
 };
 
 /*
@@ -1125,7 +1125,10 @@ static char *data_realloc(struct printk_ringbuffer *rb,
 
 	/* If the data block does not increase, there is nothing to do. */
 	if (head_lpos - next_lpos < DATA_SIZE(data_ring)) {
-		blk = to_block(data_ring, blk_lpos->begin);
+		if (wrapped)
+			blk = to_block(data_ring, 0);
+		else
+			blk = to_block(data_ring, blk_lpos->begin);
 		return &blk->data[0];
 	}
 

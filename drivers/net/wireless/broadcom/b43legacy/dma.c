@@ -189,7 +189,7 @@ return dev->dma.tx_ring1;
 	switch (queue_priority) {
 	default:
 		B43legacy_WARN_ON(1);
-		/* fallthrough */
+		fallthrough;
 	case 0:
 		ring = dev->dma.tx_ring3;
 		break;

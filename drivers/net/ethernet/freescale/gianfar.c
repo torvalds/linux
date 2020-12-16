@@ -1829,20 +1829,12 @@ static netdev_tx_t gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		fcb_len = GMAC_FCB_LEN + GMAC_TXPAL_LEN;
 
 	/* make space for additional header when fcb is needed */
-	if (fcb_len && unlikely(skb_headroom(skb) < fcb_len)) {
-		struct sk_buff *skb_new;
-
-		skb_new = skb_realloc_headroom(skb, fcb_len);
-		if (!skb_new) {
+	if (fcb_len) {
+		if (unlikely(skb_cow_head(skb, fcb_len))) {
 			dev->stats.tx_errors++;
 			dev_kfree_skb_any(skb);
 			return NETDEV_TX_OK;
 		}
-
-		if (skb->sk)
-			skb_set_owner_w(skb_new, skb->sk);
-		dev_consume_skb_any(skb);
-		skb = skb_new;
 	}
 
 	/* total number of fragments in the SKB */
@@ -3380,7 +3372,7 @@ static int gfar_probe(struct platform_device *ofdev)
 
 	if (dev->features & NETIF_F_IP_CSUM ||
 	    priv->device_flags & FSL_GIANFAR_DEV_HAS_TIMER)
-		dev->needed_headroom = GMAC_FCB_LEN;
+		dev->needed_headroom = GMAC_FCB_LEN + GMAC_TXPAL_LEN;
 
 	/* Initializing some of the rx/tx queue level parameters */
 	for (i = 0; i < priv->num_tx_queues; i++) {

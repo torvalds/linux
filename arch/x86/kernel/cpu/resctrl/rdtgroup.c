@@ -561,7 +561,7 @@ static int __rdtgroup_move_task(struct task_struct *tsk,
 	 * callback has been invoked.
 	 */
 	atomic_inc(&rdtgrp->waitcount);
-	ret = task_work_add(tsk, &callback->work, true);
+	ret = task_work_add(tsk, &callback->work, TWA_RESUME);
 	if (ret) {
 		/*
 		 * Task is exiting. Drop the refcount and free the callback.

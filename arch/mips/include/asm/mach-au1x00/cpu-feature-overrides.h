@@ -39,7 +39,6 @@
 #define cpu_has_guestctl2		0
 #define cpu_has_guestid			0
 #define cpu_has_drg			0
-#define cpu_has_bp_ghist		0
 #define cpu_has_mips16			0
 #define cpu_has_mips16e2		0
 #define cpu_has_mdmx			0

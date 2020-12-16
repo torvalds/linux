@@ -30,7 +30,6 @@
 #include "sysfs.h"
 
 #define WL1271_BOOT_RETRIES 3
-#define WL1271_SUSPEND_SLEEP 100
 #define WL1271_WAKEUP_TIMEOUT 500
 
 static char *fwlog_param;

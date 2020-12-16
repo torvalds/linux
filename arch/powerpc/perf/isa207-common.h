@@ -13,6 +13,8 @@
 #include <asm/firmware.h>
 #include <asm/cputable.h>
 
+#include "internal.h"
+
 #define EVENT_EBB_MASK		1ull
 #define EVENT_EBB_SHIFT		PERF_EVENT_CONFIG_EBB_SHIFT
 #define EVENT_BHRB_MASK		1ull

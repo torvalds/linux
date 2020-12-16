@@ -1913,7 +1913,7 @@ pick_next_record:
 			 * another message type
 			 */
 			msg->msg_flags |= MSG_EOR;
-			if (ctx->control != TLS_RECORD_TYPE_DATA)
+			if (control != TLS_RECORD_TYPE_DATA)
 				goto recv_end;
 		} else {
 			break;

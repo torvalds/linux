@@ -141,7 +141,7 @@ int copy_oldmem_kernel(void *dst, void *src, size_t count)
 	while (count) {
 		from = __pa(src);
 		if (!OLDMEM_BASE && from < sclp.hsa_size) {
-			/* Copy from zfcpdump HSA area */
+			/* Copy from zfcp/nvme dump HSA area */
 			len = min(count, sclp.hsa_size - from);
 			rc = memcpy_hsa_kernel(dst, from, len);
 			if (rc)
@@ -184,7 +184,7 @@ static int copy_oldmem_user(void __user *dst, void *src, size_t count)
 	while (count) {
 		from = __pa(src);
 		if (!OLDMEM_BASE && from < sclp.hsa_size) {
-			/* Copy from zfcpdump HSA area */
+			/* Copy from zfcp/nvme dump HSA area */
 			len = min(count, sclp.hsa_size - from);
 			rc = memcpy_hsa_user(dst, from, len);
 			if (rc)
@@ -258,7 +258,7 @@ static int remap_oldmem_pfn_range_kdump(struct vm_area_struct *vma,
 }
 
 /*
- * Remap "oldmem" for zfcpdump
+ * Remap "oldmem" for zfcp/nvme dump
  *
  * We only map available memory above HSA size. Memory below HSA size
  * is read on demand using the copy_oldmem_page() function.
@@ -283,7 +283,7 @@ static int remap_oldmem_pfn_range_zfcpdump(struct vm_area_struct *vma,
 }
 
 /*
- * Remap "oldmem" for kdump or zfcpdump
+ * Remap "oldmem" for kdump or zfcp/nvme dump
  */
 int remap_oldmem_pfn_range(struct vm_area_struct *vma, unsigned long from,
 			   unsigned long pfn, unsigned long size, pgprot_t prot)
@@ -632,11 +632,11 @@ int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size)
 	u32 alloc_size;
 	u64 hdr_off;
 
-	/* If we are not in kdump or zfcpdump mode return */
-	if (!OLDMEM_BASE && ipl_info.type != IPL_TYPE_FCP_DUMP)
+	/* If we are not in kdump or zfcp/nvme dump mode return */
+	if (!OLDMEM_BASE && !is_ipl_type_dump())
 		return 0;
-	/* If we cannot get HSA size for zfcpdump return error */
-	if (ipl_info.type == IPL_TYPE_FCP_DUMP && !sclp.hsa_size)
+	/* If we cannot get HSA size for zfcp/nvme dump return error */
+	if (is_ipl_type_dump() && !sclp.hsa_size)
 		return -ENODEV;
 
 	/* For kdump, exclude previous crashkernel memory */

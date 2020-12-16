@@ -2679,7 +2679,7 @@ static int __s390_reset_acc(pte_t *ptep, unsigned long addr,
 	pte_t pte = READ_ONCE(*ptep);
 
 	if (pte_present(pte))
-		WARN_ON_ONCE(uv_convert_from_secure(pte_val(pte) & PAGE_MASK));
+		WARN_ON_ONCE(uv_destroy_page(pte_val(pte) & PAGE_MASK));
 	return 0;
 }
 

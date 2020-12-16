@@ -1223,16 +1223,11 @@ out:
 	 * we want to retry.
 	 */
 	if (rc == MIGRATEPAGE_SUCCESS) {
-		put_page(page);
-		if (reason == MR_MEMORY_FAILURE) {
+		if (reason != MR_MEMORY_FAILURE)
 			/*
-			 * Set PG_HWPoison on just freed page
-			 * intentionally. Although it's rather weird,
-			 * it's how HWPoison flag works at the moment.
+			 * We release the page in page_handle_poison.
 			 */
-			if (set_hwpoison_free_buddy_page(page))
-				num_poisoned_pages_inc();
-		}
+			put_page(page);
 	} else {
 		if (rc != -EAGAIN) {
 			if (likely(!__PageMovable(page))) {
@@ -1333,34 +1328,38 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
 		goto put_anon;
 
 	if (page_mapped(hpage)) {
-		/*
-		 * try_to_unmap could potentially call huge_pmd_unshare.
-		 * Because of this, take semaphore in write mode here and
-		 * set TTU_RMAP_LOCKED to let lower levels know we have
-		 * taken the lock.
-		 */
-		mapping = hugetlb_page_mapping_lock_write(hpage);
-		if (unlikely(!mapping))
-			goto unlock_put_anon;
+		bool mapping_locked = false;
+		enum ttu_flags ttu = TTU_MIGRATION|TTU_IGNORE_MLOCK|
+					TTU_IGNORE_ACCESS;
 
-		try_to_unmap(hpage,
-			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS|
-			TTU_RMAP_LOCKED);
+		if (!PageAnon(hpage)) {
+			/*
+			 * In shared mappings, try_to_unmap could potentially
+			 * call huge_pmd_unshare.  Because of this, take
+			 * semaphore in write mode here and set TTU_RMAP_LOCKED
+			 * to let lower levels know we have taken the lock.
+			 */
+			mapping = hugetlb_page_mapping_lock_write(hpage);
+			if (unlikely(!mapping))
+				goto unlock_put_anon;
+
+			mapping_locked = true;
+			ttu |= TTU_RMAP_LOCKED;
+		}
+
+		try_to_unmap(hpage, ttu);
 		page_was_mapped = 1;
-		/*
-		 * Leave mapping locked until after subsequent call to
-		 * remove_migration_ptes()
-		 */
+
+		if (mapping_locked)
+			i_mmap_unlock_write(mapping);
 	}
 
 	if (!page_mapped(hpage))
 		rc = move_to_new_page(new_hpage, hpage, mode);
 
-	if (page_was_mapped) {
+	if (page_was_mapped)
 		remove_migration_ptes(hpage,
-			rc == MIGRATEPAGE_SUCCESS ? new_hpage : hpage, true);
-		i_mmap_unlock_write(mapping);
-	}
+			rc == MIGRATEPAGE_SUCCESS ? new_hpage : hpage, false);
 
 unlock_put_anon:
 	unlock_page(new_hpage);
@@ -1869,6 +1868,53 @@ static int do_pages_stat(struct mm_struct *mm, unsigned long nr_pages,
 	return nr_pages ? -EFAULT : 0;
 }
 
+static struct mm_struct *find_mm_struct(pid_t pid, nodemask_t *mem_nodes)
+{
+	struct task_struct *task;
+	struct mm_struct *mm;
+
+	/*
+	 * There is no need to check if current process has the right to modify
+	 * the specified process when they are same.
+	 */
+	if (!pid) {
+		mmget(current->mm);
+		*mem_nodes = cpuset_mems_allowed(current);
+		return current->mm;
+	}
+
+	/* Find the mm_struct */
+	rcu_read_lock();
+	task = find_task_by_vpid(pid);
+	if (!task) {
+		rcu_read_unlock();
+		return ERR_PTR(-ESRCH);
+	}
+	get_task_struct(task);
+
+	/*
+	 * Check if this process has the right to modify the specified
+	 * process. Use the regular "ptrace_may_access()" checks.
+	 */
+	if (!ptrace_may_access(task, PTRACE_MODE_READ_REALCREDS)) {
+		rcu_read_unlock();
+		mm = ERR_PTR(-EPERM);
+		goto out;
+	}
+	rcu_read_unlock();
+
+	mm = ERR_PTR(security_task_movememory(task));
+	if (IS_ERR(mm))
+		goto out;
+	*mem_nodes = cpuset_mems_allowed(task);
+	mm = get_task_mm(task);
+out:
+	put_task_struct(task);
+	if (!mm)
+		mm = ERR_PTR(-EINVAL);
+	return mm;
+}
+
 /*
  * Move a list of pages in the address space of the currently executing
  * process.
@@ -1878,7 +1924,6 @@ static int kernel_move_pages(pid_t pid, unsigned long nr_pages,
 			     const int __user *nodes,
 			     int __user *status, int flags)
 {
-	struct task_struct *task;
 	struct mm_struct *mm;
 	int err;
 	nodemask_t task_nodes;
@@ -1890,36 +1935,9 @@ static int kernel_move_pages(pid_t pid, unsigned long nr_pages,
 	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_NICE))
 		return -EPERM;
 
-	/* Find the mm_struct */
-	rcu_read_lock();
-	task = pid ? find_task_by_vpid(pid) : current;
-	if (!task) {
-		rcu_read_unlock();
-		return -ESRCH;
-	}
-	get_task_struct(task);
-
-	/*
-	 * Check if this process has the right to modify the specified
-	 * process. Use the regular "ptrace_may_access()" checks.
-	 */
-	if (!ptrace_may_access(task, PTRACE_MODE_READ_REALCREDS)) {
-		rcu_read_unlock();
-		err = -EPERM;
-		goto out;
-	}
-	rcu_read_unlock();
-
- 	err = security_task_movememory(task);
- 	if (err)
-		goto out;
-
-	task_nodes = cpuset_mems_allowed(task);
-	mm = get_task_mm(task);
-	put_task_struct(task);
-
-	if (!mm)
-		return -EINVAL;
+	mm = find_mm_struct(pid, &task_nodes);
+	if (IS_ERR(mm))
+		return PTR_ERR(mm);
 
 	if (nodes)
 		err = do_pages_move(mm, task_nodes, nr_pages, pages,
@@ -1928,10 +1946,6 @@ static int kernel_move_pages(pid_t pid, unsigned long nr_pages,
 		err = do_pages_stat(mm, nr_pages, pages, status);
 
 	mmput(mm);
-	return err;
-
-out:
-	put_task_struct(task);
 	return err;
 }
 

@@ -100,7 +100,7 @@ static void rtllib_tkip_deinit(void *priv)
 		crypto_free_shash(_priv->tx_tfm_michael);
 		crypto_free_shash(_priv->rx_tfm_michael);
 	}
-	kzfree(priv);
+	kfree_sensitive(priv);
 }
 
 

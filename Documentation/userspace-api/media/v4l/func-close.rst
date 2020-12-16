@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _func-close:
 
@@ -11,7 +12,6 @@ Name
 
 v4l2-close - Close a V4L2 device
 
-
 Synopsis
 ========
 
@@ -19,16 +19,13 @@ Synopsis
 
     #include <unistd.h>
 
-
 .. c:function:: int close( int fd )
-    :name: v4l2-close
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
-
+    File descriptor returned by :c:func:`open()`.
 
 Description
 ===========
@@ -37,7 +34,6 @@ Closes the device. Any I/O in progress is terminated and resources
 associated with the file descriptor are freed. However data format
 parameters, current input or output, control values or other properties
 remain unchanged.
-
 
 Return Value
 ============

@@ -12,6 +12,9 @@
 #include <asm/alternative.h>
 #include <asm/sysreg.h>
 
+DECLARE_PER_CPU(struct kvm_cpu_context, kvm_hyp_ctxt);
+DECLARE_PER_CPU(unsigned long, kvm_hyp_vector);
+
 #define read_sysreg_elx(r,nvh,vh)					\
 	({								\
 		u64 reg;						\
@@ -87,11 +90,11 @@ void activate_traps_vhe_load(struct kvm_vcpu *vcpu);
 void deactivate_traps_vhe_put(void);
 #endif
 
-u64 __guest_enter(struct kvm_vcpu *vcpu, struct kvm_cpu_context *host_ctxt);
+u64 __guest_enter(struct kvm_vcpu *vcpu);
 
-void __noreturn hyp_panic(struct kvm_cpu_context *host_ctxt);
+void __noreturn hyp_panic(void);
 #ifdef __KVM_NVHE_HYPERVISOR__
-void __noreturn __hyp_do_panic(unsigned long, ...);
+void __noreturn __hyp_do_panic(bool restore_host, u64 spsr, u64 elr, u64 par);
 #endif
 
 #endif /* __ARM64_KVM_HYP_H__ */

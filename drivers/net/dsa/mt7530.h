@@ -11,9 +11,10 @@
 #define MT7530_NUM_FDB_RECORDS		2048
 #define MT7530_ALL_MEMBERS		0xff
 
-enum {
+enum mt753x_id {
 	ID_MT7530 = 0,
 	ID_MT7621 = 1,
+	ID_MT7531 = 2,
 };
 
 #define	NUM_TRGMII_CTRL			5
@@ -40,6 +41,33 @@ enum {
 #define  MIRROR_EN			BIT(3)
 #define  MIRROR_PORT(x)			((x) & 0x7)
 #define  MIRROR_MASK			0x7
+
+/* Registers for CPU forward control */
+#define MT7531_CFC			0x4
+#define  MT7531_MIRROR_EN		BIT(19)
+#define  MT7531_MIRROR_MASK		(MIRROR_MASK << 16)
+#define  MT7531_MIRROR_PORT_GET(x)	(((x) >> 16) & MIRROR_MASK)
+#define  MT7531_MIRROR_PORT_SET(x)	(((x) & MIRROR_MASK) << 16)
+#define  MT7531_CPU_PMAP_MASK		GENMASK(7, 0)
+
+#define MT753X_MIRROR_REG(id)		(((id) == ID_MT7531) ? \
+					 MT7531_CFC : MT7530_MFC)
+#define MT753X_MIRROR_EN(id)		(((id) == ID_MT7531) ? \
+					 MT7531_MIRROR_EN : MIRROR_EN)
+#define MT753X_MIRROR_MASK(id)		(((id) == ID_MT7531) ? \
+					 MT7531_MIRROR_MASK : MIRROR_MASK)
+
+/* Registers for BPDU and PAE frame control*/
+#define MT753X_BPC			0x24
+#define  MT753X_BPDU_PORT_FW_MASK	GENMASK(2, 0)
+
+enum mt753x_bpdu_port_fw {
+	MT753X_BPDU_FOLLOW_MFC,
+	MT753X_BPDU_CPU_EXCLUDE = 4,
+	MT753X_BPDU_CPU_INCLUDE = 5,
+	MT753X_BPDU_CPU_ONLY = 6,
+	MT753X_BPDU_DROP = 7,
+};
 
 /* Registers for address table access */
 #define MT7530_ATA1			0x74
@@ -220,9 +248,29 @@ enum mt7530_vlan_port_attr {
 #define  PMCR_FORCE_LNK			BIT(0)
 #define  PMCR_SPEED_MASK		(PMCR_FORCE_SPEED_100 | \
 					 PMCR_FORCE_SPEED_1000)
+#define  MT7531_FORCE_LNK		BIT(31)
+#define  MT7531_FORCE_SPD		BIT(30)
+#define  MT7531_FORCE_DPX		BIT(29)
+#define  MT7531_FORCE_RX_FC		BIT(28)
+#define  MT7531_FORCE_TX_FC		BIT(27)
+#define  MT7531_FORCE_MODE		(MT7531_FORCE_LNK | \
+					 MT7531_FORCE_SPD | \
+					 MT7531_FORCE_DPX | \
+					 MT7531_FORCE_RX_FC | \
+					 MT7531_FORCE_TX_FC)
+#define  PMCR_FORCE_MODE_ID(id)		(((id) == ID_MT7531) ? \
+					 MT7531_FORCE_MODE : \
+					 PMCR_FORCE_MODE)
 #define  PMCR_LINK_SETTINGS_MASK	(PMCR_TX_EN | PMCR_FORCE_SPEED_1000 | \
 					 PMCR_RX_EN | PMCR_FORCE_SPEED_100 | \
 					 PMCR_TX_FC_EN | PMCR_RX_FC_EN | \
+					 PMCR_FORCE_FDX | PMCR_FORCE_LNK)
+#define  PMCR_CPU_PORT_SETTING(id)	(PMCR_FORCE_MODE_ID((id)) | \
+					 PMCR_IFG_XMIT(1) | PMCR_MAC_MODE | \
+					 PMCR_BACKOFF_EN | PMCR_BACKPR_EN | \
+					 PMCR_TX_EN | PMCR_RX_EN | \
+					 PMCR_TX_FC_EN | PMCR_RX_FC_EN | \
+					 PMCR_FORCE_SPEED_1000 | \
 					 PMCR_FORCE_FDX | PMCR_FORCE_LNK)
 
 #define MT7530_PMSR_P(x)		(0x3008 + (x) * 0x100)
@@ -236,6 +284,10 @@ enum mt7530_vlan_port_attr {
 #define  PMSR_SPEED_MASK		(PMSR_SPEED_100 | PMSR_SPEED_1000)
 #define  PMSR_DPX			BIT(1)
 #define  PMSR_LINK			BIT(0)
+
+/* Register for port debug count */
+#define MT7531_DBG_CNT(x)		(0x3018 + (x) * 0x100)
+#define  MT7531_DIS_CLR			BIT(31)
 
 /* Register for MIB */
 #define MT7530_PORT_MIB_COUNTER(x)	(0x4000 + (x) * 0x100)
@@ -254,11 +306,117 @@ enum mt7530_vlan_port_attr {
 					 CCR_RX_OCT_CNT_BAD | \
 					 CCR_TX_OCT_CNT_GOOD | \
 					 CCR_TX_OCT_CNT_BAD)
+
+/* MT7531 SGMII register group */
+#define MT7531_SGMII_REG_BASE		0x5000
+#define MT7531_SGMII_REG(p, r)		(MT7531_SGMII_REG_BASE + \
+					((p) - 5) * 0x1000 + (r))
+
+/* Register forSGMII PCS_CONTROL_1 */
+#define MT7531_PCS_CONTROL_1(p)		MT7531_SGMII_REG(p, 0x00)
+#define  MT7531_SGMII_LINK_STATUS	BIT(18)
+#define  MT7531_SGMII_AN_ENABLE		BIT(12)
+#define  MT7531_SGMII_AN_RESTART	BIT(9)
+
+/* Register for SGMII PCS_SPPED_ABILITY */
+#define MT7531_PCS_SPEED_ABILITY(p)	MT7531_SGMII_REG(p, 0x08)
+#define  MT7531_SGMII_TX_CONFIG_MASK	GENMASK(15, 0)
+#define  MT7531_SGMII_TX_CONFIG		BIT(0)
+
+/* Register for SGMII_MODE */
+#define MT7531_SGMII_MODE(p)		MT7531_SGMII_REG(p, 0x20)
+#define  MT7531_SGMII_REMOTE_FAULT_DIS	BIT(8)
+#define  MT7531_SGMII_IF_MODE_MASK	GENMASK(5, 1)
+#define  MT7531_SGMII_FORCE_DUPLEX	BIT(4)
+#define  MT7531_SGMII_FORCE_SPEED_MASK	GENMASK(3, 2)
+#define  MT7531_SGMII_FORCE_SPEED_1000	BIT(3)
+#define  MT7531_SGMII_FORCE_SPEED_100	BIT(2)
+#define  MT7531_SGMII_FORCE_SPEED_10	0
+#define  MT7531_SGMII_SPEED_DUPLEX_AN	BIT(1)
+
+enum mt7531_sgmii_force_duplex {
+	MT7531_SGMII_FORCE_FULL_DUPLEX = 0,
+	MT7531_SGMII_FORCE_HALF_DUPLEX = 0x10,
+};
+
+/* Fields of QPHY_PWR_STATE_CTRL */
+#define MT7531_QPHY_PWR_STATE_CTRL(p)	MT7531_SGMII_REG(p, 0xe8)
+#define  MT7531_SGMII_PHYA_PWD		BIT(4)
+
+/* Values of SGMII SPEED */
+#define MT7531_PHYA_CTRL_SIGNAL3(p)	MT7531_SGMII_REG(p, 0x128)
+#define  MT7531_RG_TPHY_SPEED_MASK	(BIT(2) | BIT(3))
+#define  MT7531_RG_TPHY_SPEED_1_25G	0x0
+#define  MT7531_RG_TPHY_SPEED_3_125G	BIT(2)
+
 /* Register for system reset */
 #define MT7530_SYS_CTRL			0x7000
 #define  SYS_CTRL_PHY_RST		BIT(2)
 #define  SYS_CTRL_SW_RST		BIT(1)
 #define  SYS_CTRL_REG_RST		BIT(0)
+
+/* Register for PHY Indirect Access Control */
+#define MT7531_PHY_IAC			0x701C
+#define  MT7531_PHY_ACS_ST		BIT(31)
+#define  MT7531_MDIO_REG_ADDR_MASK	(0x1f << 25)
+#define  MT7531_MDIO_PHY_ADDR_MASK	(0x1f << 20)
+#define  MT7531_MDIO_CMD_MASK		(0x3 << 18)
+#define  MT7531_MDIO_ST_MASK		(0x3 << 16)
+#define  MT7531_MDIO_RW_DATA_MASK	(0xffff)
+#define  MT7531_MDIO_REG_ADDR(x)	(((x) & 0x1f) << 25)
+#define  MT7531_MDIO_DEV_ADDR(x)	(((x) & 0x1f) << 25)
+#define  MT7531_MDIO_PHY_ADDR(x)	(((x) & 0x1f) << 20)
+#define  MT7531_MDIO_CMD(x)		(((x) & 0x3) << 18)
+#define  MT7531_MDIO_ST(x)		(((x) & 0x3) << 16)
+
+enum mt7531_phy_iac_cmd {
+	MT7531_MDIO_ADDR = 0,
+	MT7531_MDIO_WRITE = 1,
+	MT7531_MDIO_READ = 2,
+	MT7531_MDIO_READ_CL45 = 3,
+};
+
+/* MDIO_ST: MDIO start field */
+enum mt7531_mdio_st {
+	MT7531_MDIO_ST_CL45 = 0,
+	MT7531_MDIO_ST_CL22 = 1,
+};
+
+#define  MT7531_MDIO_CL22_READ		(MT7531_MDIO_ST(MT7531_MDIO_ST_CL22) | \
+					 MT7531_MDIO_CMD(MT7531_MDIO_READ))
+#define  MT7531_MDIO_CL22_WRITE		(MT7531_MDIO_ST(MT7531_MDIO_ST_CL22) | \
+					 MT7531_MDIO_CMD(MT7531_MDIO_WRITE))
+#define  MT7531_MDIO_CL45_ADDR		(MT7531_MDIO_ST(MT7531_MDIO_ST_CL45) | \
+					 MT7531_MDIO_CMD(MT7531_MDIO_ADDR))
+#define  MT7531_MDIO_CL45_READ		(MT7531_MDIO_ST(MT7531_MDIO_ST_CL45) | \
+					 MT7531_MDIO_CMD(MT7531_MDIO_READ))
+#define  MT7531_MDIO_CL45_WRITE		(MT7531_MDIO_ST(MT7531_MDIO_ST_CL45) | \
+					 MT7531_MDIO_CMD(MT7531_MDIO_WRITE))
+
+/* Register for RGMII clock phase */
+#define MT7531_CLKGEN_CTRL		0x7500
+#define  CLK_SKEW_OUT(x)		(((x) & 0x3) << 8)
+#define  CLK_SKEW_OUT_MASK		GENMASK(9, 8)
+#define  CLK_SKEW_IN(x)			(((x) & 0x3) << 6)
+#define  CLK_SKEW_IN_MASK		GENMASK(7, 6)
+#define  RXCLK_NO_DELAY			BIT(5)
+#define  TXCLK_NO_REVERSE		BIT(4)
+#define  GP_MODE(x)			(((x) & 0x3) << 1)
+#define  GP_MODE_MASK			GENMASK(2, 1)
+#define  GP_CLK_EN			BIT(0)
+
+enum mt7531_gp_mode {
+	MT7531_GP_MODE_RGMII = 0,
+	MT7531_GP_MODE_MII = 1,
+	MT7531_GP_MODE_REV_MII = 2
+};
+
+enum mt7531_clk_skew {
+	MT7531_CLK_SKEW_NO_CHG = 0,
+	MT7531_CLK_SKEW_DLY_100PPS = 1,
+	MT7531_CLK_SKEW_DLY_200PPS = 2,
+	MT7531_CLK_SKEW_REVERSE = 3,
+};
 
 /* Register for hw trap status */
 #define MT7530_HWTRAP			0x7800
@@ -266,6 +424,16 @@ enum mt7530_vlan_port_attr {
 #define  HWTRAP_XTAL_25MHZ		(BIT(10) | BIT(9))
 #define  HWTRAP_XTAL_40MHZ		(BIT(10))
 #define  HWTRAP_XTAL_20MHZ		(BIT(9))
+
+#define MT7531_HWTRAP			0x7800
+#define  HWTRAP_XTAL_FSEL_MASK		BIT(7)
+#define  HWTRAP_XTAL_FSEL_25MHZ		BIT(7)
+#define  HWTRAP_XTAL_FSEL_40MHZ		0
+/* Unique fields of (M)HWSTRAP for MT7531 */
+#define  XTAL_FSEL_S			7
+#define  XTAL_FSEL_M			BIT(7)
+#define  PHY_EN				BIT(6)
+#define  CHG_STRAP			BIT(8)
 
 /* Register for hw trap modification */
 #define MT7530_MHWTRAP			0x7804
@@ -281,13 +449,36 @@ enum mt7530_vlan_port_attr {
 #define MT7530_TOP_SIG_CTRL		0x7808
 #define  TOP_SIG_CTRL_NORMAL		(BIT(17) | BIT(16))
 
+#define MT7531_TOP_SIG_SR		0x780c
+#define  PAD_DUAL_SGMII_EN		BIT(1)
+#define  PAD_MCM_SMI_EN			BIT(0)
+
 #define MT7530_IO_DRV_CR		0x7810
 #define  P5_IO_CLK_DRV(x)		((x) & 0x3)
 #define  P5_IO_DATA_DRV(x)		(((x) & 0x3) << 4)
 
+#define MT7531_CHIP_REV			0x781C
+
+#define MT7531_PLLGP_EN			0x7820
+#define  EN_COREPLL			BIT(2)
+#define  SW_CLKSW			BIT(1)
+#define  SW_PLLGP			BIT(0)
+
 #define MT7530_P6ECR			0x7830
 #define  P6_INTF_MODE_MASK		0x3
 #define  P6_INTF_MODE(x)		((x) & 0x3)
+
+#define MT7531_PLLGP_CR0		0x78a8
+#define  RG_COREPLL_EN			BIT(22)
+#define  RG_COREPLL_POSDIV_S		23
+#define  RG_COREPLL_POSDIV_M		0x3800000
+#define  RG_COREPLL_SDM_PCW_S		1
+#define  RG_COREPLL_SDM_PCW_M		0x3ffffe
+#define  RG_COREPLL_SDM_PCW_CHG		BIT(0)
+
+/* Registers for RGMII and SGMII PLL clock */
+#define MT7531_ANA_PLLGP_CR2		0x78b0
+#define MT7531_ANA_PLLGP_CR5		0x78bc
 
 /* Registers for TRGMII on the both side */
 #define MT7530_TRGMII_RCK_CTRL		0x7a00
@@ -327,9 +518,24 @@ enum mt7530_vlan_port_attr {
 #define MT7530_P5RGMIITXCR		0x7b04
 #define  CSR_RGMII_TXC_CFG(x)		((x) & 0x1f)
 
+/* Registers for GPIO mode */
+#define MT7531_GPIO_MODE0		0x7c0c
+#define  MT7531_GPIO0_MASK		GENMASK(3, 0)
+#define  MT7531_GPIO0_INTERRUPT		1
+
+#define MT7531_GPIO_MODE1		0x7c10
+#define  MT7531_GPIO11_RG_RXD2_MASK	GENMASK(15, 12)
+#define  MT7531_EXT_P_MDC_11		(2 << 12)
+#define  MT7531_GPIO12_RG_RXD3_MASK	GENMASK(19, 16)
+#define  MT7531_EXT_P_MDIO_12		(2 << 16)
+
 #define MT7530_CREV			0x7ffc
 #define  CHIP_NAME_SHIFT		16
 #define  MT7530_ID			0x7530
+
+#define MT7531_CREV			0x781C
+#define  CHIP_REV_M			0x0f
+#define  MT7531_ID			0x7531
 
 /* Registers for core PLL access through mmd indirect */
 #define CORE_PLL_GROUP2			0x401
@@ -347,6 +553,10 @@ enum mt7530_vlan_port_attr {
 #define  RG_SYSPLL_DDSFBK_EN		BIT(12)
 #define  RG_SYSPLL_BIAS_EN		BIT(11)
 #define  RG_SYSPLL_BIAS_LPF_EN		BIT(10)
+#define  MT7531_PHY_PLL_OFF		BIT(5)
+#define  MT7531_PHY_PLL_BYPASS_MODE	BIT(4)
+
+#define MT753X_CTRL_PHY_ADDR		0
 
 #define CORE_PLL_GROUP5			0x404
 #define  RG_LCDDS_PCW_NCPO1(x)		((x) & 0xffff)
@@ -425,6 +635,7 @@ enum p5_interface_select {
 	P5_INTF_SEL_PHY_P0,
 	P5_INTF_SEL_PHY_P4,
 	P5_INTF_SEL_GMAC5,
+	P5_INTF_SEL_GMAC5_SGMII,
 };
 
 static const char *p5_intf_modes(unsigned int p5_interface)
@@ -438,10 +649,55 @@ static const char *p5_intf_modes(unsigned int p5_interface)
 		return "PHY P4";
 	case P5_INTF_SEL_GMAC5:
 		return "GMAC5";
+	case P5_INTF_SEL_GMAC5_SGMII:
+		return "GMAC5_SGMII";
 	default:
 		return "unknown";
 	}
 }
+
+/* struct mt753x_info -	This is the main data structure for holding the specific
+ *			part for each supported device
+ * @sw_setup:		Holding the handler to a device initialization
+ * @phy_read:		Holding the way reading PHY port
+ * @phy_write:		Holding the way writing PHY port
+ * @pad_setup:		Holding the way setting up the bus pad for a certain
+ *			MAC port
+ * @phy_mode_supported:	Check if the PHY type is being supported on a certain
+ *			port
+ * @mac_port_validate:	Holding the way to set addition validate type for a
+ *			certan MAC port
+ * @mac_port_get_state: Holding the way getting the MAC/PCS state for a certain
+ *			MAC port
+ * @mac_port_config:	Holding the way setting up the PHY attribute to a
+ *			certain MAC port
+ * @mac_pcs_an_restart	Holding the way restarting PCS autonegotiation for a
+ *			certain MAC port
+ * @mac_pcs_link_up:	Holding the way setting up the PHY attribute to the pcs
+ *			of the certain MAC port
+ */
+struct mt753x_info {
+	enum mt753x_id id;
+
+	int (*sw_setup)(struct dsa_switch *ds);
+	int (*phy_read)(struct dsa_switch *ds, int port, int regnum);
+	int (*phy_write)(struct dsa_switch *ds, int port, int regnum, u16 val);
+	int (*pad_setup)(struct dsa_switch *ds, phy_interface_t interface);
+	int (*cpu_port_config)(struct dsa_switch *ds, int port);
+	bool (*phy_mode_supported)(struct dsa_switch *ds, int port,
+				   const struct phylink_link_state *state);
+	void (*mac_port_validate)(struct dsa_switch *ds, int port,
+				  unsigned long *supported);
+	int (*mac_port_get_state)(struct dsa_switch *ds, int port,
+				  struct phylink_link_state *state);
+	int (*mac_port_config)(struct dsa_switch *ds, int port,
+			       unsigned int mode,
+			       phy_interface_t interface);
+	void (*mac_pcs_an_restart)(struct dsa_switch *ds, int port);
+	void (*mac_pcs_link_up)(struct dsa_switch *ds, int port,
+				unsigned int mode, phy_interface_t interface,
+				int speed, int duplex);
+};
 
 /* struct mt7530_priv -	This is the main data structure for holding the state
  *			of the driver
@@ -468,6 +724,7 @@ struct mt7530_priv {
 	struct regulator	*core_pwr;
 	struct regulator	*io_pwr;
 	struct gpio_desc	*reset;
+	const struct mt753x_info *info;
 	unsigned int		id;
 	bool			mcm;
 	phy_interface_t		p6_interface;

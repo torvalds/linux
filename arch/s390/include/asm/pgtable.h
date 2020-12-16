@@ -89,6 +89,7 @@ extern unsigned long VMALLOC_START;
 extern unsigned long VMALLOC_END;
 #define VMALLOC_DEFAULT_SIZE	((128UL << 30) - MODULES_LEN)
 extern struct page *vmemmap;
+extern unsigned long vmemmap_size;
 
 #define VMEM_MAX_PHYS ((unsigned long) vmemmap)
 
@@ -691,16 +692,6 @@ static inline int pud_large(pud_t pud)
 	return !!(pud_val(pud) & _REGION3_ENTRY_LARGE);
 }
 
-static inline unsigned long pud_pfn(pud_t pud)
-{
-	unsigned long origin_mask;
-
-	origin_mask = _REGION_ENTRY_ORIGIN;
-	if (pud_large(pud))
-		origin_mask = _REGION3_ENTRY_ORIGIN_LARGE;
-	return (pud_val(pud) & origin_mask) >> PAGE_SHIFT;
-}
-
 #define pmd_leaf	pmd_large
 static inline int pmd_large(pmd_t pmd)
 {
@@ -744,16 +735,6 @@ static inline int pmd_present(pmd_t pmd)
 static inline int pmd_none(pmd_t pmd)
 {
 	return pmd_val(pmd) == _SEGMENT_ENTRY_EMPTY;
-}
-
-static inline unsigned long pmd_pfn(pmd_t pmd)
-{
-	unsigned long origin_mask;
-
-	origin_mask = _SEGMENT_ENTRY_ORIGIN;
-	if (pmd_large(pmd))
-		origin_mask = _SEGMENT_ENTRY_ORIGIN_LARGE;
-	return (pmd_val(pmd) & origin_mask) >> PAGE_SHIFT;
 }
 
 #define pmd_write pmd_write
@@ -1186,6 +1167,12 @@ void gmap_pmdp_invalidate(struct mm_struct *mm, unsigned long vmaddr);
 void gmap_pmdp_idte_local(struct mm_struct *mm, unsigned long vmaddr);
 void gmap_pmdp_idte_global(struct mm_struct *mm, unsigned long vmaddr);
 
+#define pgprot_writecombine	pgprot_writecombine
+pgprot_t pgprot_writecombine(pgprot_t prot);
+
+#define pgprot_writethrough	pgprot_writethrough
+pgprot_t pgprot_writethrough(pgprot_t prot);
+
 /*
  * Certain architectures need to do special things when PTEs
  * within a page table are directly modified.  Thus, the following
@@ -1209,7 +1196,8 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
 {
 	pte_t __pte;
-	pte_val(__pte) = physpage + pgprot_val(pgprot);
+
+	pte_val(__pte) = physpage | pgprot_val(pgprot);
 	if (!MACHINE_HAS_NX)
 		pte_val(__pte) &= ~_PAGE_NOEXEC;
 	return pte_mkyoung(__pte);
@@ -1230,10 +1218,38 @@ static inline pte_t mk_pte(struct page *page, pgprot_t pgprot)
 #define pud_index(address) (((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
 #define pmd_index(address) (((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
 
-#define pmd_deref(pmd) (pmd_val(pmd) & _SEGMENT_ENTRY_ORIGIN)
-#define pud_deref(pud) (pud_val(pud) & _REGION_ENTRY_ORIGIN)
 #define p4d_deref(pud) (p4d_val(pud) & _REGION_ENTRY_ORIGIN)
 #define pgd_deref(pgd) (pgd_val(pgd) & _REGION_ENTRY_ORIGIN)
+
+static inline unsigned long pmd_deref(pmd_t pmd)
+{
+	unsigned long origin_mask;
+
+	origin_mask = _SEGMENT_ENTRY_ORIGIN;
+	if (pmd_large(pmd))
+		origin_mask = _SEGMENT_ENTRY_ORIGIN_LARGE;
+	return pmd_val(pmd) & origin_mask;
+}
+
+static inline unsigned long pmd_pfn(pmd_t pmd)
+{
+	return pmd_deref(pmd) >> PAGE_SHIFT;
+}
+
+static inline unsigned long pud_deref(pud_t pud)
+{
+	unsigned long origin_mask;
+
+	origin_mask = _REGION_ENTRY_ORIGIN;
+	if (pud_large(pud))
+		origin_mask = _REGION3_ENTRY_ORIGIN_LARGE;
+	return pud_val(pud) & origin_mask;
+}
+
+static inline unsigned long pud_pfn(pud_t pud)
+{
+	return pud_deref(pud) >> PAGE_SHIFT;
+}
 
 /*
  * The pgd_offset function *always* adds the index for the top-level

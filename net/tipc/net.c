@@ -105,12 +105,6 @@
  *     - A local spin_lock protecting the queue of subscriber events.
 */
 
-struct tipc_net_work {
-	struct work_struct work;
-	struct net *net;
-	u32 addr;
-};
-
 static void tipc_net_finalize(struct net *net, u32 addr);
 
 int tipc_net_init(struct net *net, u8 *node_id, u32 addr)
@@ -142,25 +136,21 @@ static void tipc_net_finalize(struct net *net, u32 addr)
 			     TIPC_CLUSTER_SCOPE, 0, addr);
 }
 
-static void tipc_net_finalize_work(struct work_struct *work)
+void tipc_net_finalize_work(struct work_struct *work)
 {
 	struct tipc_net_work *fwork;
 
 	fwork = container_of(work, struct tipc_net_work, work);
 	tipc_net_finalize(fwork->net, fwork->addr);
-	kfree(fwork);
 }
 
 void tipc_sched_net_finalize(struct net *net, u32 addr)
 {
-	struct tipc_net_work *fwork = kzalloc(sizeof(*fwork), GFP_ATOMIC);
+	struct tipc_net *tn = tipc_net(net);
 
-	if (!fwork)
-		return;
-	INIT_WORK(&fwork->work, tipc_net_finalize_work);
-	fwork->net = net;
-	fwork->addr = addr;
-	schedule_work(&fwork->work);
+	tn->final_work.net = net;
+	tn->final_work.addr = addr;
+	schedule_work(&tn->final_work.work);
 }
 
 void tipc_net_stop(struct net *net)

@@ -798,10 +798,10 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 	}
 
 	pcrat_image = kvmalloc(crat_table->length, GFP_KERNEL);
-	memcpy(pcrat_image, crat_table, crat_table->length);
 	if (!pcrat_image)
 		return -ENOMEM;
 
+	memcpy(pcrat_image, crat_table, crat_table->length);
 	*crat_image = pcrat_image;
 	*size = crat_table->length;
 
@@ -1426,5 +1426,5 @@ int kfd_create_crat_image_virtual(void **crat_image, size_t *size,
  */
 void kfd_destroy_crat_image(void *crat_image)
 {
-	kfree(crat_image);
+	kvfree(crat_image);
 }

@@ -3628,7 +3628,8 @@ static ssize_t btrfs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 		inode_lock_shared(inode);
 		ret = btrfs_direct_IO(iocb, to);
 		inode_unlock_shared(inode);
-		if (ret < 0)
+		if (ret < 0 || !iov_iter_count(to) ||
+		    iocb->ki_pos >= i_size_read(file_inode(iocb->ki_filp)))
 			return ret;
 	}
 

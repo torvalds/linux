@@ -278,10 +278,10 @@ static void p54p_check_tx_ring(struct ieee80211_hw *dev, u32 *index,
 	}
 }
 
-static void p54p_tasklet(unsigned long dev_id)
+static void p54p_tasklet(struct tasklet_struct *t)
 {
-	struct ieee80211_hw *dev = (struct ieee80211_hw *)dev_id;
-	struct p54p_priv *priv = dev->priv;
+	struct p54p_priv *priv = from_tasklet(priv, t, tasklet);
+	struct ieee80211_hw *dev = pci_get_drvdata(priv->pdev);
 	struct p54p_ring_control *ring_control = priv->ring_control;
 
 	p54p_check_tx_ring(dev, &priv->tx_idx_mgmt, 3, ring_control->tx_mgmt,
@@ -333,10 +333,12 @@ static void p54p_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	struct p54p_desc *desc;
 	dma_addr_t mapping;
 	u32 idx, i;
+	__le32 device_addr;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	idx = le32_to_cpu(ring_control->host_idx[1]);
 	i = idx % ARRAY_SIZE(ring_control->tx_data);
+	device_addr = ((struct p54_hdr *)skb->data)->req_id;
 
 	mapping = dma_map_single(&priv->pdev->dev, skb->data, skb->len,
 				 DMA_TO_DEVICE);
@@ -350,7 +352,7 @@ static void p54p_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 	desc = &ring_control->tx_data[i];
 	desc->host_addr = cpu_to_le32(mapping);
-	desc->device_addr = ((struct p54_hdr *)skb->data)->req_id;
+	desc->device_addr = device_addr;
 	desc->len = cpu_to_le16(skb->len);
 	desc->flags = 0;
 
@@ -620,7 +622,7 @@ static int p54p_probe(struct pci_dev *pdev,
 	priv->common.tx = p54p_tx;
 
 	spin_lock_init(&priv->lock);
-	tasklet_init(&priv->tasklet, p54p_tasklet, (unsigned long)dev);
+	tasklet_setup(&priv->tasklet, p54p_tasklet);
 
 	err = request_firmware_nowait(THIS_MODULE, 1, "isl3886pci",
 				      &priv->pdev->dev, GFP_KERNEL,

@@ -374,12 +374,12 @@ extern struct apic *apic;
 #define apic_driver(sym)					\
 	static const struct apic *__apicdrivers_##sym __used		\
 	__aligned(sizeof(struct apic *))			\
-	__section(.apicdrivers) = { &sym }
+	__section(".apicdrivers") = { &sym }
 
 #define apic_drivers(sym1, sym2)					\
 	static struct apic *__apicdrivers_##sym1##sym2[2] __used	\
 	__aligned(sizeof(struct apic *))				\
-	__section(.apicdrivers) = { &sym1, &sym2 }
+	__section(".apicdrivers") = { &sym1, &sym2 }
 
 extern struct apic *__apicdrivers[], *__apicdrivers_end[];
 

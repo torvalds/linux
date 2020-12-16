@@ -3709,13 +3709,13 @@ static int rtnl_dellinkprop(struct sk_buff *skb, struct nlmsghdr *nlh,
 	return rtnl_linkprop(RTM_DELLINKPROP, skb, nlh, extack);
 }
 
-static u16 rtnl_calcit(struct sk_buff *skb, struct nlmsghdr *nlh)
+static u32 rtnl_calcit(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
-	struct net_device *dev;
+	size_t min_ifinfo_dump_size = 0;
 	struct nlattr *tb[IFLA_MAX+1];
 	u32 ext_filter_mask = 0;
-	u16 min_ifinfo_dump_size = 0;
+	struct net_device *dev;
 	int hdrlen;
 
 	/* Same kernel<->userspace interface hack as in rtnl_dump_ifinfo. */
@@ -3735,9 +3735,8 @@ static u16 rtnl_calcit(struct sk_buff *skb, struct nlmsghdr *nlh)
 	 */
 	rcu_read_lock();
 	for_each_netdev_rcu(net, dev) {
-		min_ifinfo_dump_size = max_t(u16, min_ifinfo_dump_size,
-					     if_nlmsg_size(dev,
-						           ext_filter_mask));
+		min_ifinfo_dump_size = max(min_ifinfo_dump_size,
+					   if_nlmsg_size(dev, ext_filter_mask));
 	}
 	rcu_read_unlock();
 
@@ -5494,7 +5493,7 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (kind == 2 && nlh->nlmsg_flags&NLM_F_DUMP) {
 		struct sock *rtnl;
 		rtnl_dumpit_func dumpit;
-		u16 min_dump_alloc = 0;
+		u32 min_dump_alloc = 0;
 
 		link = rtnl_get_link(family, type);
 		if (!link || !link->dumpit) {

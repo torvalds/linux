@@ -308,9 +308,10 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 		key = NULL; /* a no-security key */
 
 	memset(&p, 0, sizeof(p));
-	p.user_call_ID = user_call_ID;
-	p.tx_total_len = tx_total_len;
-	p.interruptibility = interruptibility;
+	p.user_call_ID		= user_call_ID;
+	p.tx_total_len		= tx_total_len;
+	p.interruptibility	= interruptibility;
+	p.kernel		= true;
 
 	memset(&cp, 0, sizeof(cp));
 	cp.local		= rx->local;

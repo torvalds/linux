@@ -65,7 +65,7 @@ static void tlbiel_all_isa300(unsigned int num_sets, unsigned int is)
 	for (set = 1; set < num_sets; set++)
 		tlbiel_radix_set_isa300(set, is, 0, RIC_FLUSH_TLB, 1);
 
-	asm volatile("ptesync": : :"memory");
+	ppc_after_tlbiel_barrier();
 }
 
 void radix__tlbiel_all(unsigned int action)
@@ -296,7 +296,7 @@ static __always_inline void _tlbiel_pid(unsigned long pid, unsigned long ric)
 
 	/* For PWC, only one flush is needed */
 	if (ric == RIC_FLUSH_PWC) {
-		asm volatile("ptesync": : :"memory");
+		ppc_after_tlbiel_barrier();
 		return;
 	}
 
@@ -304,7 +304,7 @@ static __always_inline void _tlbiel_pid(unsigned long pid, unsigned long ric)
 	for (set = 1; set < POWER9_TLB_SETS_RADIX ; set++)
 		__tlbiel_pid(pid, set, RIC_FLUSH_TLB);
 
-	asm volatile("ptesync": : :"memory");
+	ppc_after_tlbiel_barrier();
 	asm volatile(PPC_RADIX_INVALIDATE_ERAT_USER "; isync" : : :"memory");
 }
 
@@ -431,7 +431,7 @@ static __always_inline void _tlbiel_va(unsigned long va, unsigned long pid,
 
 	asm volatile("ptesync": : :"memory");
 	__tlbiel_va(va, pid, ap, ric);
-	asm volatile("ptesync": : :"memory");
+	ppc_after_tlbiel_barrier();
 }
 
 static inline void _tlbiel_va_range(unsigned long start, unsigned long end,
@@ -442,7 +442,7 @@ static inline void _tlbiel_va_range(unsigned long start, unsigned long end,
 	if (also_pwc)
 		__tlbiel_pid(pid, 0, RIC_FLUSH_PWC);
 	__tlbiel_va_range(start, end, pid, page_size, psize);
-	asm volatile("ptesync": : :"memory");
+	ppc_after_tlbiel_barrier();
 }
 
 static inline void __tlbie_va_range(unsigned long start, unsigned long end,
@@ -645,19 +645,29 @@ static void do_exit_flush_lazy_tlb(void *arg)
 	struct mm_struct *mm = arg;
 	unsigned long pid = mm->context.id;
 
+	/*
+	 * A kthread could have done a mmget_not_zero() after the flushing CPU
+	 * checked mm_is_singlethreaded, and be in the process of
+	 * kthread_use_mm when interrupted here. In that case, current->mm will
+	 * be set to mm, because kthread_use_mm() setting ->mm and switching to
+	 * the mm is done with interrupts off.
+	 */
 	if (current->mm == mm)
-		return; /* Local CPU */
+		goto out_flush;
 
 	if (current->active_mm == mm) {
-		/*
-		 * Must be a kernel thread because sender is single-threaded.
-		 */
-		BUG_ON(current->mm);
+		WARN_ON_ONCE(current->mm != NULL);
+		/* Is a kernel thread and is using mm as the lazy tlb */
 		mmgrab(&init_mm);
-		switch_mm(mm, &init_mm, current);
 		current->active_mm = &init_mm;
+		switch_mm_irqs_off(mm, &init_mm, current);
 		mmdrop(mm);
 	}
+
+	atomic_dec(&mm->context.active_cpus);
+	cpumask_clear_cpu(smp_processor_id(), mm_cpumask(mm));
+
+out_flush:
 	_tlbiel_pid(pid, RIC_FLUSH_ALL);
 }
 
@@ -672,7 +682,6 @@ static void exit_flush_lazy_tlbs(struct mm_struct *mm)
 	 */
 	smp_call_function_many(mm_cpumask(mm), do_exit_flush_lazy_tlb,
 				(void *)mm, 1);
-	mm_reset_thread_local(mm);
 }
 
 void radix__flush_tlb_mm(struct mm_struct *mm)
@@ -940,7 +949,7 @@ is_local:
 			if (hflush)
 				__tlbiel_va_range(hstart, hend, pid,
 						PMD_SIZE, MMU_PAGE_2M);
-			asm volatile("ptesync": : :"memory");
+			ppc_after_tlbiel_barrier();
 		} else if (cputlb_use_tlbie()) {
 			asm volatile("ptesync": : :"memory");
 			__tlbie_va_range(start, end, pid, page_size, mmu_virtual_psize);

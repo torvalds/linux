@@ -32,6 +32,39 @@
 
 static const struct vm_operations_struct xfs_file_vm_ops;
 
+/*
+ * Decide if the given file range is aligned to the size of the fundamental
+ * allocation unit for the file.
+ */
+static bool
+xfs_is_falloc_aligned(
+	struct xfs_inode	*ip,
+	loff_t			pos,
+	long long int		len)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	uint64_t		mask;
+
+	if (XFS_IS_REALTIME_INODE(ip)) {
+		if (!is_power_of_2(mp->m_sb.sb_rextsize)) {
+			u64	rextbytes;
+			u32	mod;
+
+			rextbytes = XFS_FSB_TO_B(mp, mp->m_sb.sb_rextsize);
+			div_u64_rem(pos, rextbytes, &mod);
+			if (mod)
+				return false;
+			div_u64_rem(len, rextbytes, &mod);
+			return mod == 0;
+		}
+		mask = XFS_FSB_TO_B(mp, mp->m_sb.sb_rextsize) - 1;
+	} else {
+		mask = mp->m_sb.sb_blocksize - 1;
+	}
+
+	return !((pos | len) & mask);
+}
+
 int
 xfs_update_prealloc_flags(
 	struct xfs_inode	*ip,
@@ -850,9 +883,7 @@ xfs_file_fallocate(
 		if (error)
 			goto out_unlock;
 	} else if (mode & FALLOC_FL_COLLAPSE_RANGE) {
-		unsigned int blksize_mask = i_blocksize(inode) - 1;
-
-		if (offset & blksize_mask || len & blksize_mask) {
+		if (!xfs_is_falloc_aligned(ip, offset, len)) {
 			error = -EINVAL;
 			goto out_unlock;
 		}
@@ -872,10 +903,9 @@ xfs_file_fallocate(
 		if (error)
 			goto out_unlock;
 	} else if (mode & FALLOC_FL_INSERT_RANGE) {
-		unsigned int	blksize_mask = i_blocksize(inode) - 1;
 		loff_t		isize = i_size_read(inode);
 
-		if (offset & blksize_mask || len & blksize_mask) {
+		if (!xfs_is_falloc_aligned(ip, offset, len)) {
 			error = -EINVAL;
 			goto out_unlock;
 		}

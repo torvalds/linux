@@ -765,8 +765,8 @@ static long slb_allocate_kernel(unsigned long ea, unsigned long id)
 
 	if (id == LINEAR_MAP_REGION_ID) {
 
-		/* We only support upto MAX_PHYSMEM_BITS */
-		if ((ea & EA_MASK) > (1UL << MAX_PHYSMEM_BITS))
+		/* We only support upto H_MAX_PHYSMEM_BITS */
+		if ((ea & EA_MASK) > (1UL << H_MAX_PHYSMEM_BITS))
 			return -EFAULT;
 
 		flags = SLB_VSID_KERNEL | mmu_psize_defs[mmu_linear_psize].sllp;

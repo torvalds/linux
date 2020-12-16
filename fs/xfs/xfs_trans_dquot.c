@@ -221,36 +221,27 @@ xfs_trans_mod_dquot(
 	}
 
 	switch (field) {
-
-		/*
-		 * regular disk blk reservation
-		 */
-	      case XFS_TRANS_DQ_RES_BLKS:
+	/* regular disk blk reservation */
+	case XFS_TRANS_DQ_RES_BLKS:
 		qtrx->qt_blk_res += delta;
 		break;
 
-		/*
-		 * inode reservation
-		 */
-	      case XFS_TRANS_DQ_RES_INOS:
+	/* inode reservation */
+	case XFS_TRANS_DQ_RES_INOS:
 		qtrx->qt_ino_res += delta;
 		break;
 
-		/*
-		 * disk blocks used.
-		 */
-	      case XFS_TRANS_DQ_BCOUNT:
+	/* disk blocks used. */
+	case XFS_TRANS_DQ_BCOUNT:
 		qtrx->qt_bcount_delta += delta;
 		break;
 
-	      case XFS_TRANS_DQ_DELBCOUNT:
+	case XFS_TRANS_DQ_DELBCOUNT:
 		qtrx->qt_delbcnt_delta += delta;
 		break;
 
-		/*
-		 * Inode Count
-		 */
-	      case XFS_TRANS_DQ_ICOUNT:
+	/* Inode Count */
+	case XFS_TRANS_DQ_ICOUNT:
 		if (qtrx->qt_ino_res && delta > 0) {
 			qtrx->qt_ino_res_used += delta;
 			ASSERT(qtrx->qt_ino_res >= qtrx->qt_ino_res_used);
@@ -258,17 +249,13 @@ xfs_trans_mod_dquot(
 		qtrx->qt_icount_delta += delta;
 		break;
 
-		/*
-		 * rtblk reservation
-		 */
-	      case XFS_TRANS_DQ_RES_RTBLKS:
+	/* rtblk reservation */
+	case XFS_TRANS_DQ_RES_RTBLKS:
 		qtrx->qt_rtblk_res += delta;
 		break;
 
-		/*
-		 * rtblk count
-		 */
-	      case XFS_TRANS_DQ_RTBCOUNT:
+	/* rtblk count */
+	case XFS_TRANS_DQ_RTBCOUNT:
 		if (qtrx->qt_rtblk_res && delta > 0) {
 			qtrx->qt_rtblk_res_used += delta;
 			ASSERT(qtrx->qt_rtblk_res >= qtrx->qt_rtblk_res_used);
@@ -276,11 +263,11 @@ xfs_trans_mod_dquot(
 		qtrx->qt_rtbcount_delta += delta;
 		break;
 
-	      case XFS_TRANS_DQ_DELRTBCOUNT:
+	case XFS_TRANS_DQ_DELRTBCOUNT:
 		qtrx->qt_delrtb_delta += delta;
 		break;
 
-	      default:
+	default:
 		ASSERT(0);
 	}
 

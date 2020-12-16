@@ -181,8 +181,6 @@ enum {
 	NLA_S64,
 	NLA_BITFIELD32,
 	NLA_REJECT,
-	NLA_EXACT_LEN,
-	NLA_MIN_LEN,
 	__NLA_TYPE_MAX,
 };
 
@@ -199,11 +197,12 @@ struct netlink_range_validation_signed {
 enum nla_policy_validation {
 	NLA_VALIDATE_NONE,
 	NLA_VALIDATE_RANGE,
+	NLA_VALIDATE_RANGE_WARN_TOO_LONG,
 	NLA_VALIDATE_MIN,
 	NLA_VALIDATE_MAX,
+	NLA_VALIDATE_MASK,
 	NLA_VALIDATE_RANGE_PTR,
 	NLA_VALIDATE_FUNCTION,
-	NLA_VALIDATE_WARN_TOO_LONG,
 };
 
 /**
@@ -222,7 +221,7 @@ enum nla_policy_validation {
  *    NLA_NUL_STRING       Maximum length of string (excluding NUL)
  *    NLA_FLAG             Unused
  *    NLA_BINARY           Maximum length of attribute payload
- *    NLA_MIN_LEN          Minimum length of attribute payload
+ *                         (but see also below with the validation type)
  *    NLA_NESTED,
  *    NLA_NESTED_ARRAY     Length verification is done by checking len of
  *                         nested header (or empty); len field is used if
@@ -237,11 +236,6 @@ enum nla_policy_validation {
  *                         just like "All other"
  *    NLA_BITFIELD32       Unused
  *    NLA_REJECT           Unused
- *    NLA_EXACT_LEN        Attribute should have exactly this length, otherwise
- *                         it is rejected or warned about, the latter happening
- *                         if and only if the `validation_type' is set to
- *                         NLA_VALIDATE_WARN_TOO_LONG.
- *    NLA_MIN_LEN          Minimum length of attribute payload
  *    All other            Minimum length of attribute payload
  *
  * Meaning of validation union:
@@ -296,6 +290,11 @@ enum nla_policy_validation {
  *                         pointer to a struct netlink_range_validation_signed
  *                         that indicates the min/max values.
  *                         Use NLA_POLICY_FULL_RANGE_SIGNED().
+ *
+ *    NLA_BINARY           If the validation type is like the ones for integers
+ *                         above, then the min/max length (not value like for
+ *                         integers) of the attribute is enforced.
+ *
  *    All other            Unused - but note that it's a union
  *
  * Meaning of `validate' field, use via NLA_POLICY_VALIDATE_FN:
@@ -309,7 +308,7 @@ enum nla_policy_validation {
  * static const struct nla_policy my_policy[ATTR_MAX+1] = {
  * 	[ATTR_FOO] = { .type = NLA_U16 },
  *	[ATTR_BAR] = { .type = NLA_STRING, .len = BARSIZ },
- *	[ATTR_BAZ] = { .type = NLA_EXACT_LEN, .len = sizeof(struct mystruct) },
+ *	[ATTR_BAZ] = NLA_POLICY_EXACT_LEN(sizeof(struct mystruct)),
  *	[ATTR_GOO] = NLA_POLICY_BITFIELD32(myvalidflags),
  * };
  */
@@ -319,6 +318,7 @@ struct nla_policy {
 	u16		len;
 	union {
 		const u32 bitfield32_valid;
+		const u32 mask;
 		const char *reject_message;
 		const struct nla_policy *nested_policy;
 		struct netlink_range_validation *range;
@@ -335,9 +335,10 @@ struct nla_policy {
 		 * nesting validation starts here.
 		 *
 		 * Additionally, it means that NLA_UNSPEC is actually NLA_REJECT
-		 * for any types >= this, so need to use NLA_MIN_LEN to get the
-		 * previous pure { .len = xyz } behaviour. The advantage of this
-		 * is that types not specified in the policy will be rejected.
+		 * for any types >= this, so need to use NLA_POLICY_MIN_LEN() to
+		 * get the previous pure { .len = xyz } behaviour. The advantage
+		 * of this is that types not specified in the policy will be
+		 * rejected.
 		 *
 		 * For completely new families it should be set to 1 so that the
 		 * validation is enforced for all attributes. For existing ones
@@ -348,12 +349,6 @@ struct nla_policy {
 		u16 strict_start_type;
 	};
 };
-
-#define NLA_POLICY_EXACT_LEN(_len)	{ .type = NLA_EXACT_LEN, .len = _len }
-#define NLA_POLICY_EXACT_LEN_WARN(_len) \
-	{ .type = NLA_EXACT_LEN, .len = _len, \
-	  .validation_type = NLA_VALIDATE_WARN_TOO_LONG, }
-#define NLA_POLICY_MIN_LEN(_len)	{ .type = NLA_MIN_LEN, .len = _len }
 
 #define NLA_POLICY_ETH_ADDR		NLA_POLICY_EXACT_LEN(ETH_ALEN)
 #define NLA_POLICY_ETH_ADDR_COMPAT	NLA_POLICY_EXACT_LEN_WARN(ETH_ALEN)
@@ -369,20 +364,25 @@ struct nla_policy {
 #define NLA_POLICY_BITFIELD32(valid) \
 	{ .type = NLA_BITFIELD32, .bitfield32_valid = valid }
 
+#define __NLA_IS_UINT_TYPE(tp)						\
+	(tp == NLA_U8 || tp == NLA_U16 || tp == NLA_U32 || tp == NLA_U64)
+#define __NLA_IS_SINT_TYPE(tp)						\
+	(tp == NLA_S8 || tp == NLA_S16 || tp == NLA_S32 || tp == NLA_S64)
+
 #define __NLA_ENSURE(condition) BUILD_BUG_ON_ZERO(!(condition))
 #define NLA_ENSURE_UINT_TYPE(tp)			\
-	(__NLA_ENSURE(tp == NLA_U8 || tp == NLA_U16 ||	\
-		      tp == NLA_U32 || tp == NLA_U64 ||	\
-		      tp == NLA_MSECS) + tp)
+	(__NLA_ENSURE(__NLA_IS_UINT_TYPE(tp)) + tp)
+#define NLA_ENSURE_UINT_OR_BINARY_TYPE(tp)		\
+	(__NLA_ENSURE(__NLA_IS_UINT_TYPE(tp) ||	\
+		      tp == NLA_MSECS ||		\
+		      tp == NLA_BINARY) + tp)
 #define NLA_ENSURE_SINT_TYPE(tp)			\
-	(__NLA_ENSURE(tp == NLA_S8 || tp == NLA_S16  ||	\
-		      tp == NLA_S32 || tp == NLA_S64) + tp)
-#define NLA_ENSURE_INT_TYPE(tp)				\
-	(__NLA_ENSURE(tp == NLA_S8 || tp == NLA_U8 ||	\
-		      tp == NLA_S16 || tp == NLA_U16 ||	\
-		      tp == NLA_S32 || tp == NLA_U32 ||	\
-		      tp == NLA_S64 || tp == NLA_U64 ||	\
-		      tp == NLA_MSECS) + tp)
+	(__NLA_ENSURE(__NLA_IS_SINT_TYPE(tp)) + tp)
+#define NLA_ENSURE_INT_OR_BINARY_TYPE(tp)		\
+	(__NLA_ENSURE(__NLA_IS_UINT_TYPE(tp) ||		\
+		      __NLA_IS_SINT_TYPE(tp) ||		\
+		      tp == NLA_MSECS ||		\
+		      tp == NLA_BINARY) + tp)
 #define NLA_ENSURE_NO_VALIDATION_PTR(tp)		\
 	(__NLA_ENSURE(tp != NLA_BITFIELD32 &&		\
 		      tp != NLA_REJECT &&		\
@@ -390,14 +390,14 @@ struct nla_policy {
 		      tp != NLA_NESTED_ARRAY) + tp)
 
 #define NLA_POLICY_RANGE(tp, _min, _max) {		\
-	.type = NLA_ENSURE_INT_TYPE(tp),		\
+	.type = NLA_ENSURE_INT_OR_BINARY_TYPE(tp),	\
 	.validation_type = NLA_VALIDATE_RANGE,		\
 	.min = _min,					\
 	.max = _max					\
 }
 
 #define NLA_POLICY_FULL_RANGE(tp, _range) {		\
-	.type = NLA_ENSURE_UINT_TYPE(tp),		\
+	.type = NLA_ENSURE_UINT_OR_BINARY_TYPE(tp),	\
 	.validation_type = NLA_VALIDATE_RANGE_PTR,	\
 	.range = _range,				\
 }
@@ -409,15 +409,21 @@ struct nla_policy {
 }
 
 #define NLA_POLICY_MIN(tp, _min) {			\
-	.type = NLA_ENSURE_INT_TYPE(tp),		\
+	.type = NLA_ENSURE_INT_OR_BINARY_TYPE(tp),	\
 	.validation_type = NLA_VALIDATE_MIN,		\
 	.min = _min,					\
 }
 
 #define NLA_POLICY_MAX(tp, _max) {			\
-	.type = NLA_ENSURE_INT_TYPE(tp),		\
+	.type = NLA_ENSURE_INT_OR_BINARY_TYPE(tp),	\
 	.validation_type = NLA_VALIDATE_MAX,		\
 	.max = _max,					\
+}
+
+#define NLA_POLICY_MASK(tp, _mask) {			\
+	.type = NLA_ENSURE_UINT_TYPE(tp),		\
+	.validation_type = NLA_VALIDATE_MASK,		\
+	.mask = _mask,					\
 }
 
 #define NLA_POLICY_VALIDATE_FN(tp, fn, ...) {		\
@@ -426,6 +432,15 @@ struct nla_policy {
 	.validate = fn,					\
 	.len = __VA_ARGS__ + 0,				\
 }
+
+#define NLA_POLICY_EXACT_LEN(_len)	NLA_POLICY_RANGE(NLA_BINARY, _len, _len)
+#define NLA_POLICY_EXACT_LEN_WARN(_len) {			\
+	.type = NLA_BINARY,					\
+	.validation_type = NLA_VALIDATE_RANGE_WARN_TOO_LONG,	\
+	.min = _len,						\
+	.max = _len						\
+}
+#define NLA_POLICY_MIN_LEN(_len)	NLA_POLICY_MIN(NLA_BINARY, _len)
 
 /**
  * struct nl_info - netlink source information
@@ -1931,11 +1946,21 @@ void nla_get_range_unsigned(const struct nla_policy *pt,
 void nla_get_range_signed(const struct nla_policy *pt,
 			  struct netlink_range_validation_signed *range);
 
-int netlink_policy_dump_start(const struct nla_policy *policy,
-			      unsigned int maxtype,
-			      unsigned long *state);
-bool netlink_policy_dump_loop(unsigned long state);
-int netlink_policy_dump_write(struct sk_buff *skb, unsigned long state);
-void netlink_policy_dump_free(unsigned long state);
+struct netlink_policy_dump_state;
+
+int netlink_policy_dump_add_policy(struct netlink_policy_dump_state **pstate,
+				   const struct nla_policy *policy,
+				   unsigned int maxtype);
+int netlink_policy_dump_get_policy_idx(struct netlink_policy_dump_state *state,
+				       const struct nla_policy *policy,
+				       unsigned int maxtype);
+bool netlink_policy_dump_loop(struct netlink_policy_dump_state *state);
+int netlink_policy_dump_write(struct sk_buff *skb,
+			      struct netlink_policy_dump_state *state);
+int netlink_policy_dump_attr_size_estimate(const struct nla_policy *pt);
+int netlink_policy_dump_write_attr(struct sk_buff *skb,
+				   const struct nla_policy *pt,
+				   int nestattr);
+void netlink_policy_dump_free(struct netlink_policy_dump_state *state);
 
 #endif

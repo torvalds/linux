@@ -7,8 +7,7 @@ ksft_skip=4
 sfx=$(mktemp -u "XXXXXXXX")
 ns0="ns0-$sfx"
 
-nft --version > /dev/null 2>&1
-if [ $? -ne 0 ];then
+if ! nft --version > /dev/null 2>&1; then
 	echo "SKIP: Could not run test without nft tool"
 	exit $ksft_skip
 fi
@@ -24,6 +23,8 @@ ip -net "$ns0" addr add 127.0.0.1 dev lo
 
 trap cleanup EXIT
 
+currentyear=$(date +%G)
+lastyear=$((currentyear-1))
 ip netns exec "$ns0" nft -f /dev/stdin <<EOF
 table inet filter {
 	counter iifcount {}
@@ -33,6 +34,9 @@ table inet filter {
 	counter infproto4count {}
 	counter il4protocounter {}
 	counter imarkcounter {}
+	counter icpu0counter {}
+	counter ilastyearcounter {}
+	counter icurrentyearcounter {}
 
 	counter oifcount {}
 	counter oifnamecount {}
@@ -54,6 +58,9 @@ table inet filter {
 		meta nfproto ipv4 counter name "infproto4count"
 		meta l4proto icmp counter name "il4protocounter"
 		meta mark 42 counter name "imarkcounter"
+		meta cpu 0 counter name "icpu0counter"
+		meta time "$lastyear-01-01" - "$lastyear-12-31" counter name ilastyearcounter
+		meta time "$currentyear-01-01" - "$currentyear-12-31" counter name icurrentyearcounter
 	}
 
 	chain output {
@@ -84,11 +91,10 @@ check_one_counter()
 	local want="packets $2"
 	local verbose="$3"
 
-	cnt=$(ip netns exec "$ns0" nft list counter inet filter $cname | grep -q "$want")
-	if [ $? -ne 0 ];then
+	if ! ip netns exec "$ns0" nft list counter inet filter $cname | grep -q "$want"; then
 		echo "FAIL: $cname, want \"$want\", got"
 		ret=1
-		ip netns exec "$ns0" nft list counter inet filter $counter
+		ip netns exec "$ns0" nft list counter inet filter $cname
 	fi
 }
 
@@ -100,8 +106,7 @@ check_lo_counters()
 
 	for counter in iifcount iifnamecount iifgroupcount iiftypecount infproto4count \
 		       oifcount oifnamecount oifgroupcount oiftypecount onfproto4count \
-		       il4protocounter \
-		       ol4protocounter \
+		       il4protocounter icurrentyearcounter ol4protocounter \
 	     ; do
 		check_one_counter "$counter" "$want" "$verbose"
 	done
@@ -116,9 +121,22 @@ check_one_counter oskuidcounter "1" true
 check_one_counter oskgidcounter "1" true
 check_one_counter imarkcounter "1" true
 check_one_counter omarkcounter "1" true
+check_one_counter ilastyearcounter "0" true
 
 if [ $ret -eq 0 ];then
 	echo "OK: nftables meta iif/oif counters at expected values"
+else
+	exit $ret
+fi
+
+#First CPU execution and counter
+taskset -p 01 $$ > /dev/null
+ip netns exec "$ns0" nft reset counters > /dev/null
+ip netns exec "$ns0" ping -q -c 1 127.0.0.1 > /dev/null
+check_one_counter icpu0counter "2" true
+
+if [ $ret -eq 0 ];then
+	echo "OK: nftables meta cpu counter at expected values"
 fi
 
 exit $ret

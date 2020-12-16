@@ -35,7 +35,9 @@ Description:
 		Ethernet driver during bus enumeration, encoded in string.
 		This interface mode is used to configure the Ethernet MAC with the
 		appropriate mode for its data lines to the PHY hardware.
+
 		Possible values are:
+
 		<empty> (not available), mii, gmii, sgmii, tbi, rev-mii,
 		rmii, rgmii, rgmii-id, rgmii-rxid, rgmii-txid, rtbi, smii
 		xgmii, moca, qsgmii, trgmii, 1000base-x, 2500base-x, rxaui,

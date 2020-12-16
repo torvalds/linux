@@ -15,7 +15,6 @@
 #include "rblist.h"
 #include <string.h>
 #include <errno.h>
-#include "pmu-events/pmu-events.h"
 #include "strlist.h"
 #include <assert.h>
 #include <linux/ctype.h>
@@ -25,6 +24,7 @@
 #include <api/fs/fs.h>
 #include "util.h"
 #include <asm/bug.h>
+#include "cgroup.h"
 
 struct metric_event *metricgroup__lookup(struct rblist *metric_events,
 					 struct evsel *evsel,
@@ -150,8 +150,20 @@ static void expr_ids__exit(struct expr_ids *ids)
 		free(ids->id[i].id);
 }
 
+static bool contains_event(struct evsel **metric_events, int num_events,
+			const char *event_name)
+{
+	int i;
+
+	for (i = 0; i < num_events; i++) {
+		if (!strcmp(metric_events[i]->name, event_name))
+			return true;
+	}
+	return false;
+}
+
 /**
- * Find a group of events in perf_evlist that correpond to those from a parsed
+ * Find a group of events in perf_evlist that correspond to those from a parsed
  * metric expression. Note, as find_evsel_group is called in the same order as
  * perf_evlist was constructed, metric_no_merge doesn't need to test for
  * underfilling a group.
@@ -180,7 +192,11 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 	int i = 0, matched_events = 0, events_to_match;
 	const int idnum = (int)hashmap__size(&pctx->ids);
 
-	/* duration_time is grouped separately. */
+	/*
+	 * duration_time is always grouped separately, when events are grouped
+	 * (ie has_constraint is false) then ignore it in the matching loop and
+	 * add it to metric_events at the end.
+	 */
 	if (!has_constraint &&
 	    hashmap__find(&pctx->ids, "duration_time", (void **)&val_ptr))
 		events_to_match = idnum - 1;
@@ -207,23 +223,20 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 				sizeof(struct evsel *) * idnum);
 			current_leader = ev->leader;
 		}
-		if (hashmap__find(&pctx->ids, ev->name, (void **)&val_ptr)) {
-			if (has_constraint) {
-				/*
-				 * Events aren't grouped, ensure the same event
-				 * isn't matched from two groups.
-				 */
-				for (i = 0; i < matched_events; i++) {
-					if (!strcmp(ev->name,
-						    metric_events[i]->name)) {
-						break;
-					}
-				}
-				if (i != matched_events)
-					continue;
-			}
+		/*
+		 * Check for duplicate events with the same name. For example,
+		 * uncore_imc/cas_count_read/ will turn into 6 events per socket
+		 * on skylakex. Only the first such event is placed in
+		 * metric_events. If events aren't grouped then this also
+		 * ensures that the same event in different sibling groups
+		 * aren't both added to metric_events.
+		 */
+		if (contains_event(metric_events, matched_events, ev->name))
+			continue;
+		/* Does this event belong to the parse context? */
+		if (hashmap__find(&pctx->ids, ev->name, (void **)&val_ptr))
 			metric_events[matched_events++] = ev;
-		}
+
 		if (matched_events == events_to_match)
 			break;
 	}
@@ -239,7 +252,7 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 	}
 
 	if (matched_events != idnum) {
-		/* Not whole match */
+		/* Not a whole match */
 		return NULL;
 	}
 
@@ -247,8 +260,32 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 
 	for (i = 0; i < idnum; i++) {
 		ev = metric_events[i];
-		ev->metric_leader = ev;
+		/* Don't free the used events. */
 		set_bit(ev->idx, evlist_used);
+		/*
+		 * The metric leader points to the identically named event in
+		 * metric_events.
+		 */
+		ev->metric_leader = ev;
+		/*
+		 * Mark two events with identical names in the same group (or
+		 * globally) as being in use as uncore events may be duplicated
+		 * for each pmu. Set the metric leader of such events to be the
+		 * event that appears in metric_events.
+		 */
+		evlist__for_each_entry_continue(perf_evlist, ev) {
+			/*
+			 * If events are grouped then the search can terminate
+			 * when then group is left.
+			 */
+			if (!has_constraint &&
+			    ev->leader != metric_events[i]->leader)
+				break;
+			if (!strcmp(metric_events[i]->name, ev->name)) {
+				set_bit(ev->idx, evlist_used);
+				ev->metric_leader = metric_events[i];
+			}
+		}
 	}
 
 	return metric_events[0];
@@ -540,10 +577,12 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 		}
 	}
 
-	if (metricgroups && !raw)
-		printf("\nMetric Groups:\n\n");
-	else if (metrics && !raw)
-		printf("\nMetrics:\n\n");
+	if (!filter || !rblist__empty(&groups)) {
+		if (metricgroups && !raw)
+			printf("\nMetric Groups:\n\n");
+		else if (metrics && !raw)
+			printf("\nMetrics:\n\n");
+	}
 
 	for (node = rb_first_cached(&groups.entries); node; node = next) {
 		struct mep *me = container_of(node, struct mep, nd);
@@ -639,7 +678,7 @@ static bool metricgroup__has_constraint(struct pmu_event *pe)
 	return false;
 }
 
-int __weak arch_get_runtimeparam(void)
+int __weak arch_get_runtimeparam(struct pmu_event *pe __maybe_unused)
 {
 	return 1;
 }
@@ -910,7 +949,7 @@ static int add_metric(struct list_head *metric_list,
 	} else {
 		int j, count;
 
-		count = arch_get_runtimeparam();
+		count = arch_get_runtimeparam(pe);
 
 		/* This loop is added to create multiple
 		 * events depend on count value and add
@@ -1118,4 +1157,88 @@ bool metricgroup__has_metric(const char *metric)
 			return true;
 	}
 	return false;
+}
+
+int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
+				    struct rblist *new_metric_events,
+				    struct rblist *old_metric_events)
+{
+	unsigned i;
+
+	for (i = 0; i < rblist__nr_entries(old_metric_events); i++) {
+		struct rb_node *nd;
+		struct metric_event *old_me, *new_me;
+		struct metric_expr *old_expr, *new_expr;
+		struct evsel *evsel;
+		size_t alloc_size;
+		int idx, nr;
+
+		nd = rblist__entry(old_metric_events, i);
+		old_me = container_of(nd, struct metric_event, nd);
+
+		evsel = evlist__find_evsel(evlist, old_me->evsel->idx);
+		if (!evsel)
+			return -EINVAL;
+		new_me = metricgroup__lookup(new_metric_events, evsel, true);
+		if (!new_me)
+			return -ENOMEM;
+
+		pr_debug("copying metric event for cgroup '%s': %s (idx=%d)\n",
+			 cgrp ? cgrp->name : "root", evsel->name, evsel->idx);
+
+		list_for_each_entry(old_expr, &old_me->head, nd) {
+			new_expr = malloc(sizeof(*new_expr));
+			if (!new_expr)
+				return -ENOMEM;
+
+			new_expr->metric_expr = old_expr->metric_expr;
+			new_expr->metric_name = old_expr->metric_name;
+			new_expr->metric_unit = old_expr->metric_unit;
+			new_expr->runtime = old_expr->runtime;
+
+			if (old_expr->metric_refs) {
+				/* calculate number of metric_events */
+				for (nr = 0; old_expr->metric_refs[nr].metric_name; nr++)
+					continue;
+				alloc_size = sizeof(*new_expr->metric_refs);
+				new_expr->metric_refs = calloc(nr + 1, alloc_size);
+				if (!new_expr->metric_refs) {
+					free(new_expr);
+					return -ENOMEM;
+				}
+
+				memcpy(new_expr->metric_refs, old_expr->metric_refs,
+				       nr * alloc_size);
+			} else {
+				new_expr->metric_refs = NULL;
+			}
+
+			/* calculate number of metric_events */
+			for (nr = 0; old_expr->metric_events[nr]; nr++)
+				continue;
+			alloc_size = sizeof(*new_expr->metric_events);
+			new_expr->metric_events = calloc(nr + 1, alloc_size);
+			if (!new_expr->metric_events) {
+				free(new_expr->metric_refs);
+				free(new_expr);
+				return -ENOMEM;
+			}
+
+			/* copy evsel in the same position */
+			for (idx = 0; idx < nr; idx++) {
+				evsel = old_expr->metric_events[idx];
+				evsel = evlist__find_evsel(evlist, evsel->idx);
+				if (evsel == NULL) {
+					free(new_expr->metric_events);
+					free(new_expr->metric_refs);
+					free(new_expr);
+					return -EINVAL;
+				}
+				new_expr->metric_events[idx] = evsel;
+			}
+
+			list_add(&new_expr->nd, &new_me->head);
+		}
+	}
+	return 0;
 }

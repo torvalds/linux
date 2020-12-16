@@ -11,7 +11,7 @@
 	model = "Atmel AT91SAM9G20 family SoC";
 	compatible = "atmel,at91sam9g20";
 
-	memory {
+	memory@20000000 {
 		reg = <0x20000000 0x08000000>;
 	};
 
@@ -22,6 +22,9 @@
 	sram1: sram@2fc000 {
 		compatible = "mmio-sram";
 		reg = <0x002fc000 0x8000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x002fc000 0x8000>;
 	};
 
 	ahb {

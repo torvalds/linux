@@ -194,6 +194,7 @@ static const struct soc_id soc_id[] = {
 	{ 186, "MSM8674" },
 	{ 194, "MSM8974PRO" },
 	{ 206, "MSM8916" },
+	{ 207, "MSM8994" },
 	{ 208, "APQ8074-AA" },
 	{ 209, "APQ8074-AB" },
 	{ 210, "APQ8074PRO" },
@@ -214,6 +215,8 @@ static const struct soc_id soc_id[] = {
 	{ 248, "MSM8216" },
 	{ 249, "MSM8116" },
 	{ 250, "MSM8616" },
+	{ 251, "MSM8992" },
+	{ 253, "APQ8094" },
 	{ 291, "APQ8096" },
 	{ 305, "MSM8996SG" },
 	{ 310, "MSM8996AU" },
@@ -223,6 +226,8 @@ static const struct soc_id soc_id[] = {
 	{ 321, "SDM845" },
 	{ 341, "SDA845" },
 	{ 356, "SM8250" },
+	{ 402, "IPQ6018" },
+	{ 425, "SC7180" },
 };
 
 static const char *socinfo_machine(struct device *dev, unsigned int id)

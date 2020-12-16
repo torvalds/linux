@@ -12,13 +12,15 @@ Description:
 		resets. Three registers are used by the FSBL and
 		other Xilinx software products: GLOBAL_GEN_STORAGE{4:6}.
 
-		Usage:
-		# cat /sys/devices/platform/firmware\:zynqmp-firmware/ggs0
-		# echo <value> > /sys/devices/platform/firmware\:zynqmp-firmware/ggs0
+		Usage::
 
-		Example:
-		# cat /sys/devices/platform/firmware\:zynqmp-firmware/ggs0
-		# echo 0x1234ABCD > /sys/devices/platform/firmware\:zynqmp-firmware/ggs0
+		    # cat /sys/devices/platform/firmware\:zynqmp-firmware/ggs0
+		    # echo <value> > /sys/devices/platform/firmware\:zynqmp-firmware/ggs0
+
+		Example::
+
+		    # cat /sys/devices/platform/firmware\:zynqmp-firmware/ggs0
+		    # echo 0x1234ABCD > /sys/devices/platform/firmware\:zynqmp-firmware/ggs0
 
 Users:		Xilinx
 
@@ -39,13 +41,15 @@ Description:
 		software products: PERS_GLOB_GEN_STORAGE{4:7}.
 		Register is reset only by a POR reset.
 
-		Usage:
-		# cat /sys/devices/platform/firmware\:zynqmp-firmware/pggs0
-		# echo <value> > /sys/devices/platform/firmware\:zynqmp-firmware/pggs0
+		Usage::
 
-		Example:
-		# cat /sys/devices/platform/firmware\:zynqmp-firmware/pggs0
-		# echo 0x1234ABCD > /sys/devices/platform/firmware\:zynqmp-firmware/pggs0
+		    # cat /sys/devices/platform/firmware\:zynqmp-firmware/pggs0
+		    # echo <value> > /sys/devices/platform/firmware\:zynqmp-firmware/pggs0
+
+		Example::
+
+		    # cat /sys/devices/platform/firmware\:zynqmp-firmware/pggs0
+		    # echo 0x1234ABCD > /sys/devices/platform/firmware\:zynqmp-firmware/pggs0
 
 Users:		Xilinx
 
@@ -61,23 +65,28 @@ Description:
 
 		Following are available shutdown scopes(subtypes):
 
-		subsystem:	Only the APU along with all of its peripherals
+		subsystem:
+				Only the APU along with all of its peripherals
 				not used by other processing units will be
 				shut down. This may result in the FPD power
 				domain being shut down provided that no other
 				processing unit uses FPD peripherals or DRAM.
-		ps_only:	The complete PS will be shut down, including the
+		ps_only:
+				The complete PS will be shut down, including the
 				RPU, PMU, etc.  Only the PL domain (FPGA)
 				remains untouched.
-		system:		The complete system/device is shut down.
+		system:
+				The complete system/device is shut down.
 
-		Usage:
-		# cat /sys/devices/platform/firmware\:zynqmp-firmware/shutdown_scope
-		# echo <scope> > /sys/devices/platform/firmware\:zynqmp-firmware/shutdown_scope
+		Usage::
 
-		Example:
-		# cat /sys/devices/platform/firmware\:zynqmp-firmware/shutdown_scope
-		# echo "subsystem" > /sys/devices/platform/firmware\:zynqmp-firmware/shutdown_scope
+		    # cat /sys/devices/platform/firmware\:zynqmp-firmware/shutdown_scope
+		    # echo <scope> > /sys/devices/platform/firmware\:zynqmp-firmware/shutdown_scope
+
+		Example::
+
+		    # cat /sys/devices/platform/firmware\:zynqmp-firmware/shutdown_scope
+		    # echo "subsystem" > /sys/devices/platform/firmware\:zynqmp-firmware/shutdown_scope
 
 Users:		Xilinx
 
@@ -94,10 +103,13 @@ Description:
 		system restart.
 
 		Usage:
-		Set healthy bit
-		# echo 1 > /sys/devices/platform/firmware\:zynqmp-firmware/health_status
 
-		Unset healthy bit
-		# echo 0 > /sys/devices/platform/firmware\:zynqmp-firmware/health_status
+		Set healthy bit::
+
+		    # echo 1 > /sys/devices/platform/firmware\:zynqmp-firmware/health_status
+
+		Unset healthy bit::
+
+		    # echo 0 > /sys/devices/platform/firmware\:zynqmp-firmware/health_status
 
 Users:		Xilinx

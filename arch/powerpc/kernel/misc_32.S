@@ -215,19 +215,6 @@ _GLOBAL(low_choose_7447a_dfs)
 
 #endif /* CONFIG_CPU_FREQ_PMAC && CONFIG_PPC_BOOK3S_32 */
 
-/*
- * complement mask on the msr then "or" some values on.
- *     _nmask_and_or_msr(nmask, value_to_or)
- */
-_GLOBAL(_nmask_and_or_msr)
-	mfmsr	r0		/* Get current msr */
-	andc	r0,r0,r3	/* And off the bits set in r3 (first parm) */
-	or	r0,r0,r4	/* Or on the bits in r4 (second parm) */
-	SYNC			/* Some chip revs have problems here... */
-	mtmsr	r0		/* Update machine state */
-	isync
-	blr			/* Done */
-
 #ifdef CONFIG_40x
 
 /*
@@ -267,41 +254,6 @@ _GLOBAL(real_writeb)
 _ASM_NOKPROBE_SYMBOL(real_writeb)
 
 #endif /* CONFIG_40x */
-
-
-/*
- * Flush instruction cache.
- * This is a no-op on the 601.
- */
-#ifndef CONFIG_PPC_8xx
-_GLOBAL(flush_instruction_cache)
-#if defined(CONFIG_4xx)
-	lis	r3, KERNELBASE@h
-	iccci	0,r3
-#elif defined(CONFIG_FSL_BOOKE)
-#ifdef CONFIG_E200
-	mfspr   r3,SPRN_L1CSR0
-	ori     r3,r3,L1CSR0_CFI|L1CSR0_CLFC
-	/* msync; isync recommended here */
-	mtspr   SPRN_L1CSR0,r3
-	isync
-	blr
-#endif
-	mfspr	r3,SPRN_L1CSR1
-	ori	r3,r3,L1CSR1_ICFI|L1CSR1_ICLFR
-	mtspr	SPRN_L1CSR1,r3
-#elif defined(CONFIG_PPC_BOOK3S_601)
-	blr			/* for 601, do nothing */
-#else
-	/* 603/604 processor - use invalidate-all bit in HID0 */
-	mfspr	r3,SPRN_HID0
-	ori	r3,r3,HID0_ICFI
-	mtspr	SPRN_HID0,r3
-#endif /* CONFIG_4xx */
-	isync
-	blr
-EXPORT_SYMBOL(flush_instruction_cache)
-#endif /* CONFIG_PPC_8xx */
 
 /*
  * Copy a whole page.  We use the dcbz instruction on the destination

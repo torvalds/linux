@@ -133,7 +133,11 @@ static void dispatch_gid_change_event(struct ib_device *ib_dev, u8 port)
 }
 
 static const char * const gid_type_str[] = {
+	/* IB/RoCE v1 value is set for IB_GID_TYPE_IB and IB_GID_TYPE_ROCE for
+	 * user space compatibility reasons.
+	 */
 	[IB_GID_TYPE_IB]	= "IB/RoCE v1",
+	[IB_GID_TYPE_ROCE]	= "IB/RoCE v1",
 	[IB_GID_TYPE_ROCE_UDP_ENCAP]	= "RoCE v2",
 };
 
@@ -1220,7 +1224,7 @@ EXPORT_SYMBOL(ib_get_cached_port_state);
 const struct ib_gid_attr *
 rdma_get_gid_attr(struct ib_device *device, u8 port_num, int index)
 {
-	const struct ib_gid_attr *attr = ERR_PTR(-EINVAL);
+	const struct ib_gid_attr *attr = ERR_PTR(-ENODATA);
 	struct ib_gid_table *table;
 	unsigned long flags;
 
@@ -1242,6 +1246,67 @@ done:
 	return attr;
 }
 EXPORT_SYMBOL(rdma_get_gid_attr);
+
+/**
+ * rdma_query_gid_table - Reads GID table entries of all the ports of a device up to max_entries.
+ * @device: The device to query.
+ * @entries: Entries where GID entries are returned.
+ * @max_entries: Maximum number of entries that can be returned.
+ * Entries array must be allocated to hold max_entries number of entries.
+ * @num_entries: Updated to the number of entries that were successfully read.
+ *
+ * Returns number of entries on success or appropriate error code.
+ */
+ssize_t rdma_query_gid_table(struct ib_device *device,
+			     struct ib_uverbs_gid_entry *entries,
+			     size_t max_entries)
+{
+	const struct ib_gid_attr *gid_attr;
+	ssize_t num_entries = 0, ret;
+	struct ib_gid_table *table;
+	unsigned int port_num, i;
+	struct net_device *ndev;
+	unsigned long flags;
+
+	rdma_for_each_port(device, port_num) {
+		if (!rdma_ib_or_roce(device, port_num))
+			continue;
+
+		table = rdma_gid_table(device, port_num);
+		read_lock_irqsave(&table->rwlock, flags);
+		for (i = 0; i < table->sz; i++) {
+			if (!is_gid_entry_valid(table->data_vec[i]))
+				continue;
+			if (num_entries >= max_entries) {
+				ret = -EINVAL;
+				goto err;
+			}
+
+			gid_attr = &table->data_vec[i]->attr;
+
+			memcpy(&entries->gid, &gid_attr->gid,
+			       sizeof(gid_attr->gid));
+			entries->gid_index = gid_attr->index;
+			entries->port_num = gid_attr->port_num;
+			entries->gid_type = gid_attr->gid_type;
+			ndev = rcu_dereference_protected(
+				gid_attr->ndev,
+				lockdep_is_held(&table->rwlock));
+			if (ndev)
+				entries->netdev_ifindex = ndev->ifindex;
+
+			num_entries++;
+			entries++;
+		}
+		read_unlock_irqrestore(&table->rwlock, flags);
+	}
+
+	return num_entries;
+err:
+	read_unlock_irqrestore(&table->rwlock, flags);
+	return ret;
+}
+EXPORT_SYMBOL(rdma_query_gid_table);
 
 /**
  * rdma_put_gid_attr - Release reference to the GID attribute
@@ -1299,7 +1364,7 @@ struct net_device *rdma_read_gid_attr_ndev_rcu(const struct ib_gid_attr *attr)
 	struct ib_gid_table_entry *entry =
 			container_of(attr, struct ib_gid_table_entry, attr);
 	struct ib_device *device = entry->attr.device;
-	struct net_device *ndev = ERR_PTR(-ENODEV);
+	struct net_device *ndev = ERR_PTR(-EINVAL);
 	u8 port_num = entry->attr.port_num;
 	struct ib_gid_table *table;
 	unsigned long flags;
@@ -1311,8 +1376,7 @@ struct net_device *rdma_read_gid_attr_ndev_rcu(const struct ib_gid_attr *attr)
 	valid = is_gid_entry_valid(table->data_vec[attr->index]);
 	if (valid) {
 		ndev = rcu_dereference(attr->ndev);
-		if (!ndev ||
-		    (ndev && ((READ_ONCE(ndev->flags) & IFF_UP) == 0)))
+		if (!ndev)
 			ndev = ERR_PTR(-ENODEV);
 	}
 	read_unlock_irqrestore(&table->rwlock, flags);

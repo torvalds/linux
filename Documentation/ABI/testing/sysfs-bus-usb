@@ -9,6 +9,7 @@ Description:
 		by writing INTERFACE to /sys/bus/usb/drivers_probe
 		This allows to avoid side-effects with drivers
 		that need multiple interfaces.
+
 		A deauthorized interface cannot be probed or claimed.
 
 What:		/sys/bus/usb/devices/usbX/interface_authorized_default
@@ -72,24 +73,27 @@ Description:
 		table at compile time. The format for the device ID is:
 		idVendor idProduct bInterfaceClass RefIdVendor RefIdProduct
 		The vendor ID and device ID fields are required, the
-		rest is optional. The Ref* tuple can be used to tell the
+		rest is optional. The `Ref*` tuple can be used to tell the
 		driver to use the same driver_data for the new device as
 		it is used for the reference device.
 		Upon successfully adding an ID, the driver will probe
-		for the device and attempt to bind to it.  For example:
-		# echo "8086 10f5" > /sys/bus/usb/drivers/foo/new_id
+		for the device and attempt to bind to it.  For example::
+
+		  # echo "8086 10f5" > /sys/bus/usb/drivers/foo/new_id
 
 		Here add a new device (0458:7045) using driver_data from
-		an already supported device (0458:704c):
-		# echo "0458 7045 0 0458 704c" > /sys/bus/usb/drivers/foo/new_id
+		an already supported device (0458:704c)::
+
+		  # echo "0458 7045 0 0458 704c" > /sys/bus/usb/drivers/foo/new_id
 
 		Reading from this file will list all dynamically added
 		device IDs in the same format, with one entry per
-		line. For example:
-		# cat /sys/bus/usb/drivers/foo/new_id
-		8086 10f5
-		dead beef 06
-		f00d cafe
+		line. For example::
+
+		  # cat /sys/bus/usb/drivers/foo/new_id
+		  8086 10f5
+		  dead beef 06
+		  f00d cafe
 
 		The list will be truncated at PAGE_SIZE bytes due to
 		sysfs restrictions.
@@ -209,9 +213,11 @@ Description:
 		advance, and behaves well according to the specification.
 		This attribute is a bit-field that controls the behavior of
 		a specific port:
+
 		 - Bit 0 of this field selects the "old" enumeration scheme,
 		   as it is considerably faster (it only causes one USB reset
 		   instead of 2).
+
 		   The old enumeration scheme can also be selected globally
 		   using /sys/module/usbcore/parameters/old_scheme_first, but
 		   it is often not desirable as the new scheme was introduced to
@@ -233,10 +239,10 @@ Description:
 		poll() for monitoring changes to this value in user space.
 
 		Any time this value changes the corresponding hub device will send a
-		udev event with the following attributes:
+		udev event with the following attributes::
 
-		OVER_CURRENT_PORT=/sys/bus/usb/devices/.../(hub interface)/portX
-		OVER_CURRENT_COUNT=[current value of this sysfs attribute]
+		  OVER_CURRENT_PORT=/sys/bus/usb/devices/.../(hub interface)/portX
+		  OVER_CURRENT_COUNT=[current value of this sysfs attribute]
 
 What:		/sys/bus/usb/devices/.../(hub interface)/portX/usb3_lpm_permit
 Date:		November 2015

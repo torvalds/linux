@@ -11,12 +11,12 @@ import argparse
 import sys
 import os
 import time
-import shutil
 
 from collections import namedtuple
 from enum import Enum, auto
 
 import kunit_config
+import kunit_json
 import kunit_kernel
 import kunit_parser
 
@@ -30,9 +30,9 @@ KunitBuildRequest = namedtuple('KunitBuildRequest',
 KunitExecRequest = namedtuple('KunitExecRequest',
 			      ['timeout', 'build_dir', 'alltests'])
 KunitParseRequest = namedtuple('KunitParseRequest',
-			       ['raw_output', 'input_data'])
+			       ['raw_output', 'input_data', 'build_dir', 'json'])
 KunitRequest = namedtuple('KunitRequest', ['raw_output','timeout', 'jobs',
-					   'build_dir', 'alltests',
+					   'build_dir', 'alltests', 'json',
 					   'make_options'])
 
 KernelDirectoryPath = sys.argv[0].split('tools/testing/kunit/')[0]
@@ -42,11 +42,6 @@ class KunitStatus(Enum):
 	CONFIG_FAILURE = auto()
 	BUILD_FAILURE = auto()
 	TEST_FAILURE = auto()
-
-def create_default_kunitconfig():
-	if not os.path.exists(kunit_kernel.kunitconfig_path):
-		shutil.copyfile('arch/um/configs/kunit_defconfig',
-				kunit_kernel.kunitconfig_path)
 
 def get_kernel_root_path():
 	parts = sys.argv[0] if not __file__ else __file__
@@ -60,7 +55,6 @@ def config_tests(linux: kunit_kernel.LinuxSourceTree,
 	kunit_parser.print_with_timestamp('Configuring KUnit Kernel ...')
 
 	config_start = time.time()
-	create_default_kunitconfig()
 	success = linux.build_reconfig(request.build_dir, request.make_options)
 	config_end = time.time()
 	if not success:
@@ -113,11 +107,21 @@ def parse_tests(request: KunitParseRequest) -> KunitResult:
 	test_result = kunit_parser.TestResult(kunit_parser.TestStatus.SUCCESS,
 					      [],
 					      'Tests not Parsed.')
+
 	if request.raw_output:
 		kunit_parser.raw_output(request.input_data)
 	else:
 		test_result = kunit_parser.parse_run_tests(request.input_data)
 	parse_end = time.time()
+
+	if request.json:
+		json_obj = kunit_json.get_json_result(
+					test_result=test_result,
+					def_config='kunit_defconfig',
+					build_dir=request.build_dir,
+					json_path=request.json)
+		if request.json == 'stdout':
+			print(json_obj)
 
 	if test_result.status != kunit_parser.TestStatus.SUCCESS:
 		return KunitResult(KunitStatus.TEST_FAILURE, test_result,
@@ -151,7 +155,9 @@ def run_tests(linux: kunit_kernel.LinuxSourceTree,
 		return exec_result
 
 	parse_request = KunitParseRequest(request.raw_output,
-					  exec_result.result)
+					  exec_result.result,
+					  request.build_dir,
+					  request.json)
 	parse_result = parse_tests(parse_request)
 
 	run_end = time.time()
@@ -195,7 +201,12 @@ def add_exec_opts(parser):
 def add_parse_opts(parser):
 	parser.add_argument('--raw_output', help='don\'t format output from kernel',
 			    action='store_true')
-
+	parser.add_argument('--json',
+			    nargs='?',
+			    help='Stores test results in a JSON, and either '
+			    'prints to stdout or saves to file if a '
+			    'filename is specified',
+			    type=str, const='stdout', default=None)
 
 def main(argv, linux=None):
 	parser = argparse.ArgumentParser(
@@ -237,6 +248,9 @@ def main(argv, linux=None):
 
 	cli_args = parser.parse_args(argv)
 
+	if get_kernel_root_path():
+		os.chdir(get_kernel_root_path())
+
 	if cli_args.subcommand == 'run':
 		if not os.path.exists(cli_args.build_dir):
 			os.mkdir(cli_args.build_dir)
@@ -244,22 +258,29 @@ def main(argv, linux=None):
 		if not linux:
 			linux = kunit_kernel.LinuxSourceTree()
 
+		linux.create_kunitconfig(cli_args.build_dir)
+		linux.read_kunitconfig(cli_args.build_dir)
+
 		request = KunitRequest(cli_args.raw_output,
 				       cli_args.timeout,
 				       cli_args.jobs,
 				       cli_args.build_dir,
 				       cli_args.alltests,
+				       cli_args.json,
 				       cli_args.make_options)
 		result = run_tests(linux, request)
 		if result.status != KunitStatus.SUCCESS:
 			sys.exit(1)
 	elif cli_args.subcommand == 'config':
-		if cli_args.build_dir:
-			if not os.path.exists(cli_args.build_dir):
-				os.mkdir(cli_args.build_dir)
+		if cli_args.build_dir and (
+				not os.path.exists(cli_args.build_dir)):
+			os.mkdir(cli_args.build_dir)
 
 		if not linux:
 			linux = kunit_kernel.LinuxSourceTree()
+
+		linux.create_kunitconfig(cli_args.build_dir)
+		linux.read_kunitconfig(cli_args.build_dir)
 
 		request = KunitConfigRequest(cli_args.build_dir,
 					     cli_args.make_options)
@@ -270,12 +291,11 @@ def main(argv, linux=None):
 		if result.status != KunitStatus.SUCCESS:
 			sys.exit(1)
 	elif cli_args.subcommand == 'build':
-		if cli_args.build_dir:
-			if not os.path.exists(cli_args.build_dir):
-				os.mkdir(cli_args.build_dir)
-
 		if not linux:
 			linux = kunit_kernel.LinuxSourceTree()
+
+		linux.create_kunitconfig(cli_args.build_dir)
+		linux.read_kunitconfig(cli_args.build_dir)
 
 		request = KunitBuildRequest(cli_args.jobs,
 					    cli_args.build_dir,
@@ -288,19 +308,20 @@ def main(argv, linux=None):
 		if result.status != KunitStatus.SUCCESS:
 			sys.exit(1)
 	elif cli_args.subcommand == 'exec':
-		if cli_args.build_dir:
-			if not os.path.exists(cli_args.build_dir):
-				os.mkdir(cli_args.build_dir)
-
 		if not linux:
 			linux = kunit_kernel.LinuxSourceTree()
+
+		linux.create_kunitconfig(cli_args.build_dir)
+		linux.read_kunitconfig(cli_args.build_dir)
 
 		exec_request = KunitExecRequest(cli_args.timeout,
 						cli_args.build_dir,
 						cli_args.alltests)
 		exec_result = exec_tests(linux, exec_request)
 		parse_request = KunitParseRequest(cli_args.raw_output,
-						  exec_result.result)
+						  exec_result.result,
+						  cli_args.build_dir,
+						  cli_args.json)
 		result = parse_tests(parse_request)
 		kunit_parser.print_with_timestamp((
 			'Elapsed time: %.3fs\n') % (
@@ -314,7 +335,9 @@ def main(argv, linux=None):
 			with open(cli_args.file, 'r') as f:
 				kunit_output = f.read().splitlines()
 		request = KunitParseRequest(cli_args.raw_output,
-					    kunit_output)
+					    kunit_output,
+					    None,
+					    cli_args.json)
 		result = parse_tests(request)
 		if result.status != KunitStatus.SUCCESS:
 			sys.exit(1)

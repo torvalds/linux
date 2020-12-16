@@ -417,6 +417,9 @@ static int smu_early_init(void *handle)
 	smu->pm_enabled = !!amdgpu_dpm;
 	smu->is_apu = false;
 	mutex_init(&smu->mutex);
+	mutex_init(&smu->smu_baco.mutex);
+	smu->smu_baco.state = SMU_BACO_STATE_EXIT;
+	smu->smu_baco.platform_support = false;
 
 	return smu_set_funcs(adev);
 }
@@ -795,10 +798,6 @@ static int smu_sw_init(void *handle)
 	bitmap_zero(smu->smu_feature.enabled, SMU_FEATURE_MAX);
 	bitmap_zero(smu->smu_feature.allowed, SMU_FEATURE_MAX);
 
-	mutex_init(&smu->smu_baco.mutex);
-	smu->smu_baco.state = SMU_BACO_STATE_EXIT;
-	smu->smu_baco.platform_support = false;
-
 	mutex_init(&smu->sensor_lock);
 	mutex_init(&smu->metrics_lock);
 	mutex_init(&smu->message_lock);
@@ -1016,17 +1015,6 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 	ret = smu_enable_thermal_alert(smu);
 	if (ret) {
 		dev_err(adev->dev, "Failed to enable thermal alert!\n");
-		return ret;
-	}
-
-	/*
-	 * Set initialized values (get from vbios) to dpm tables context such as
-	 * gfxclk, memclk, dcefclk, and etc. And enable the DPM feature for each
-	 * type of clks.
-	 */
-	ret = smu_set_default_dpm_table(smu);
-	if (ret) {
-		dev_err(adev->dev, "Failed to setup default dpm clock tables!\n");
 		return ret;
 	}
 

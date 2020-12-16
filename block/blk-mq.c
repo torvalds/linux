@@ -1664,7 +1664,7 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 EXPORT_SYMBOL(blk_mq_run_hw_queue);
 
 /**
- * blk_mq_run_hw_queue - Run all hardware queues in a request queue.
+ * blk_mq_run_hw_queues - Run all hardware queues in a request queue.
  * @q: Pointer to the request queue to run.
  * @async: If we want to run the queue asynchronously.
  */
@@ -2743,7 +2743,7 @@ static void blk_mq_init_cpu_queues(struct request_queue *q,
 		for (j = 0; j < set->nr_maps; j++) {
 			hctx = blk_mq_map_queue_type(q, j, i);
 			if (nr_hw_queues > 1 && hctx->numa_node == NUMA_NO_NODE)
-				hctx->numa_node = local_memory_node(cpu_to_node(i));
+				hctx->numa_node = cpu_to_node(i);
 		}
 	}
 }

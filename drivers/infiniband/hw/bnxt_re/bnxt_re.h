@@ -150,7 +150,7 @@ struct bnxt_re_dev {
 
 	struct delayed_work		worker;
 	u8				cur_prio_map;
-	u8				active_speed;
+	u16				active_speed;
 	u8				active_width;
 
 	/* FP Notification Queue (CQ & SRQ) */

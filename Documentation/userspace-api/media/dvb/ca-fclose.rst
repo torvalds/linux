@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.ca
 
 .. _ca_fclose:
 
@@ -11,25 +12,21 @@ Name
 
 Digital TV CA close()
 
-
 Synopsis
 --------
 
 .. c:function:: int close(int fd)
-    :name: dvb-ca-close
-
 
 Arguments
 ---------
 
 ``fd``
-  File descriptor returned by a previous call to :c:func:`open() <dvb-ca-open>`.
+  File descriptor returned by a previous call to :c:func:`open()`.
 
 Description
 -----------
 
 This system call closes a previously opened CA device.
-
 
 Return Value
 ------------

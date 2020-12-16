@@ -732,6 +732,7 @@ static int trie_check_btf(const struct bpf_map *map,
 
 static int trie_map_btf_id;
 const struct bpf_map_ops trie_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc = trie_alloc,
 	.map_free = trie_free,
 	.map_get_next_key = trie_get_next_key,

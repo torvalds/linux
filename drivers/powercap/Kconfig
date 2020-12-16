@@ -30,7 +30,7 @@ config INTEL_RAPL
 
 	  In RAPL, the platform level settings are divided into domains for
 	  fine grained control. These domains include processor package, DRAM
-	  controller, CPU core (Power Plance 0), graphics uncore (Power Plane
+	  controller, CPU core (Power Plane 0), graphics uncore (Power Plane
 	  1), etc.
 
 config IDLE_INJECT

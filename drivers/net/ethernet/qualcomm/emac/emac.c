@@ -292,6 +292,7 @@ static void emac_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 
 /**
  * emac_update_hw_stats - read the EMAC stat registers
+ * @adpt: pointer to adapter struct
  *
  * Reads the stats registers and write the values to adpt->stats.
  *

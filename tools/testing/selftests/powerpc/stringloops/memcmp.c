@@ -4,7 +4,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <time.h>
-#include <asm/cputable.h>
+
 #include "utils.h"
 
 #define SIZE 256

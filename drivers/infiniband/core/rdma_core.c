@@ -130,17 +130,6 @@ static int uverbs_destroy_uobject(struct ib_uobject *uobj,
 	lockdep_assert_held(&ufile->hw_destroy_rwsem);
 	assert_uverbs_usecnt(uobj, UVERBS_LOOKUP_WRITE);
 
-	if (reason == RDMA_REMOVE_ABORT_HWOBJ) {
-		reason = RDMA_REMOVE_ABORT;
-		ret = uobj->uapi_object->type_class->destroy_hw(uobj, reason,
-								attrs);
-		/*
-		 * Drivers are not permitted to ignore RDMA_REMOVE_ABORT, see
-		 * ib_is_destroy_retryable, cleanup_retryable == false here.
-		 */
-		WARN_ON(ret);
-	}
-
 	if (reason == RDMA_REMOVE_ABORT) {
 		WARN_ON(!list_empty(&uobj->list));
 		WARN_ON(!uobj->context);
@@ -674,11 +663,22 @@ void rdma_alloc_abort_uobject(struct ib_uobject *uobj,
 			      bool hw_obj_valid)
 {
 	struct ib_uverbs_file *ufile = uobj->ufile;
+	int ret;
 
-	uverbs_destroy_uobject(uobj,
-			       hw_obj_valid ? RDMA_REMOVE_ABORT_HWOBJ :
-					      RDMA_REMOVE_ABORT,
-			       attrs);
+	if (hw_obj_valid) {
+		ret = uobj->uapi_object->type_class->destroy_hw(
+			uobj, RDMA_REMOVE_ABORT, attrs);
+		/*
+		 * If the driver couldn't destroy the object then go ahead and
+		 * commit it. Leaking objects that can't be destroyed is only
+		 * done during FD close after the driver has a few more tries to
+		 * destroy it.
+		 */
+		if (WARN_ON(ret))
+			return rdma_alloc_commit_uobject(uobj, attrs);
+	}
+
+	uverbs_destroy_uobject(uobj, RDMA_REMOVE_ABORT, attrs);
 
 	/* Matches the down_read in rdma_alloc_begin_uobject */
 	up_read(&ufile->hw_destroy_rwsem);
@@ -889,14 +889,14 @@ void uverbs_destroy_ufile_hw(struct ib_uverbs_file *ufile,
 	if (!ufile->ucontext)
 		goto done;
 
-	ufile->ucontext->closing = true;
 	ufile->ucontext->cleanup_retryable = true;
 	while (!list_empty(&ufile->uobjects))
 		if (__uverbs_cleanup_ufile(ufile, reason)) {
 			/*
 			 * No entry was cleaned-up successfully during this
-			 * iteration
+			 * iteration. It is a driver bug to fail destruction.
 			 */
+			WARN_ON(!list_empty(&ufile->uobjects));
 			break;
 		}
 

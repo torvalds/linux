@@ -147,6 +147,9 @@ static int zynqmp_pm_feature(u32 api_id)
 		return 0;
 
 	/* Return value if feature is already checked */
+	if (api_id > ARRAY_SIZE(zynqmp_pm_features))
+		return PM_FEATURE_INVALID;
+
 	if (zynqmp_pm_features[api_id] != PM_FEATURE_UNCHECKED)
 		return zynqmp_pm_features[api_id];
 

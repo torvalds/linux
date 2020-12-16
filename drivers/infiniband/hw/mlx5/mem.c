@@ -169,8 +169,8 @@ void mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 			  int page_shift, __be64 *pas, int access_flags)
 {
 	return __mlx5_ib_populate_pas(dev, umem, page_shift, 0,
-				      ib_umem_num_pages(umem), pas,
-				      access_flags);
+				      ib_umem_num_dma_blocks(umem, PAGE_SIZE),
+				      pas, access_flags);
 }
 int mlx5_ib_get_buf_offset(u64 addr, int page_shift, u32 *offset)
 {

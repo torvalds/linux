@@ -3,6 +3,7 @@
  * Copyright (c) 2018 The Linux Foundation. All rights reserved.
  */
 
+#include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -45,6 +46,7 @@ static const char * const ath10k_regulators[] = {
 	"vdd-1.8-xo",
 	"vdd-1.3-rfa",
 	"vdd-3.3-ch0",
+	"vdd-3.3-ch1",
 };
 
 static const char * const ath10k_clocks[] = {
@@ -923,6 +925,7 @@ static int ath10k_snoc_hif_start(struct ath10k *ar)
 {
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 
+	bitmap_clear(ar_snoc->pending_ce_irqs, 0, CE_COUNT_MAX);
 	napi_enable(&ar->napi);
 	ath10k_snoc_irq_enable(ar);
 	ath10k_snoc_rx_post(ar);
@@ -1158,7 +1161,9 @@ static irqreturn_t ath10k_snoc_per_engine_handler(int irq, void *arg)
 		return IRQ_HANDLED;
 	}
 
-	ath10k_snoc_irq_disable(ar);
+	ath10k_ce_disable_interrupt(ar, ce_id);
+	set_bit(ce_id, ar_snoc->pending_ce_irqs);
+
 	napi_schedule(&ar->napi);
 
 	return IRQ_HANDLED;
@@ -1167,20 +1172,25 @@ static irqreturn_t ath10k_snoc_per_engine_handler(int irq, void *arg)
 static int ath10k_snoc_napi_poll(struct napi_struct *ctx, int budget)
 {
 	struct ath10k *ar = container_of(ctx, struct ath10k, napi);
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 	int done = 0;
+	int ce_id;
 
 	if (test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags)) {
 		napi_complete(ctx);
 		return done;
 	}
 
-	ath10k_ce_per_engine_service_any(ar);
+	for (ce_id = 0; ce_id < CE_COUNT; ce_id++)
+		if (test_and_clear_bit(ce_id, ar_snoc->pending_ce_irqs)) {
+			ath10k_ce_per_engine_service(ar, ce_id);
+			ath10k_ce_enable_interrupt(ar, ce_id);
+		}
+
 	done = ath10k_htt_txrx_compl_task(ar, budget);
 
-	if (done < budget) {
+	if (done < budget)
 		napi_complete(ctx);
-		ath10k_snoc_irq_enable(ar);
-	}
 
 	return done;
 }
@@ -1772,9 +1782,18 @@ static int ath10k_snoc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void ath10k_snoc_shutdown(struct platform_device *pdev)
+{
+	struct ath10k *ar = platform_get_drvdata(pdev);
+
+	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc shutdown\n");
+	ath10k_snoc_remove(pdev);
+}
+
 static struct platform_driver ath10k_snoc_driver = {
 	.probe  = ath10k_snoc_probe,
 	.remove = ath10k_snoc_remove,
+	.shutdown =  ath10k_snoc_shutdown,
 	.driver = {
 		.name   = "ath10k_snoc",
 		.of_match_table = ath10k_snoc_dt_match,

@@ -873,8 +873,12 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		if (ret < 0)
 			goto err_cleanup;
 
-		if (cpts_register(cpsw->cpts))
-			dev_err(priv->dev, "error registering cpts device\n");
+		if (cpsw->cpts) {
+			if (cpts_register(cpsw->cpts))
+				dev_err(priv->dev, "error registering cpts device\n");
+			else
+				writel(0x10, &cpsw->wr_regs->misc_en);
+		}
 
 		napi_enable(&cpsw->napi_rx);
 		napi_enable(&cpsw->napi_tx);
@@ -1244,7 +1248,6 @@ static int cpsw_probe_dt(struct cpsw_common *cpsw)
 
 	data->active_slave = 0;
 	data->channels = CPSW_MAX_QUEUES;
-	data->ale_entries = CPSW_ALE_NUM_ENTRIES;
 	data->dual_emac = true;
 	data->bd_ram_size = CPSW_BD_RAM_SIZE;
 	data->mac_control = 0;
@@ -1661,12 +1664,10 @@ static int cpsw_dl_switch_mode_set(struct devlink *dl, u32 id,
 		for (i = 0; i < cpsw->data.slaves; i++) {
 			struct cpsw_slave *slave = &cpsw->slaves[i];
 			struct net_device *sl_ndev = slave->ndev;
-			struct cpsw_priv *priv;
 
 			if (!sl_ndev)
 				continue;
 
-			priv = netdev_priv(sl_ndev);
 			if (switch_en)
 				vlan = cpsw->data.default_vlan;
 			else
@@ -2009,7 +2010,6 @@ static int cpsw_probe(struct platform_device *pdev)
 
 	/* Enable misc CPTS evnt_pend IRQ */
 	cpts_set_irqpoll(cpsw->cpts, false);
-	writel(0x10, &cpsw->wr_regs->misc_en);
 
 skip_cpts:
 	ret = cpsw_register_notifiers(cpsw);

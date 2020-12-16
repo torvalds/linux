@@ -711,7 +711,7 @@ static u32 rds_ib_protocol_compatible(struct rdma_cm_event *event, bool isv6)
 	 * original size. The only way to tell the difference is by looking at
 	 * the contents, which are initialized to zero.
 	 * If the protocol version fields aren't set, this is a connection attempt
-	 * from an older version. This could could be 3.0 or 2.0 - we can't tell.
+	 * from an older version. This could be 3.0 or 2.0 - we can't tell.
 	 * We really should have changed this for OFED 1.3 :-(
 	 */
 
@@ -956,9 +956,10 @@ int rds_ib_cm_initiate_connect(struct rdma_cm_id *cm_id, bool isv6)
 	rds_ib_cm_fill_conn_param(conn, &conn_param, &dp,
 				  conn->c_proposed_version,
 				  UINT_MAX, UINT_MAX, isv6);
-	ret = rdma_connect(cm_id, &conn_param);
+	ret = rdma_connect_locked(cm_id, &conn_param);
 	if (ret)
-		rds_ib_conn_error(conn, "rdma_connect failed (%d)\n", ret);
+		rds_ib_conn_error(conn, "rdma_connect_locked failed (%d)\n",
+				  ret);
 
 out:
 	/* Beware - returning non-zero tells the rdma_cm to destroy

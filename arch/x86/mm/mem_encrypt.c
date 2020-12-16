@@ -37,13 +37,14 @@
  * reside in the .data section so as not to be zeroed out when the .bss
  * section is later cleared.
  */
-u64 sme_me_mask __section(.data) = 0;
-u64 sev_status __section(.data) = 0;
+u64 sme_me_mask __section(".data") = 0;
+u64 sev_status __section(".data") = 0;
+u64 sev_check_data __section(".data") = 0;
 EXPORT_SYMBOL(sme_me_mask);
 DEFINE_STATIC_KEY_FALSE(sev_enable_key);
 EXPORT_SYMBOL_GPL(sev_enable_key);
 
-bool sev_enabled __section(.data);
+bool sev_enabled __section(".data");
 
 /* Buffer used for early in-place encryption by BSP, no locking needed */
 static char sme_early_buffer[PAGE_SIZE] __initdata __aligned(PAGE_SIZE);

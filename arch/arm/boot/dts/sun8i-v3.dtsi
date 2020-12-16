@@ -9,6 +9,19 @@
 	compatible = "allwinner,sun8i-v3-ccu";
 };
 
+&emac {
+	/delete-property/ phy-handle;
+	/delete-property/ phy-mode;
+};
+
+&mdio_mux {
+	external_mdio: mdio@2 {
+		reg = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+};
+
 &pio {
 	compatible = "allwinner,sun8i-v3-pinctrl";
 };

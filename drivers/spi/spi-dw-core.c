@@ -357,11 +357,11 @@ static void dw_spi_irq_setup(struct dw_spi *dws)
 	dw_writel(dws, DW_SPI_TXFTLR, level);
 	dw_writel(dws, DW_SPI_RXFTLR, level - 1);
 
+	dws->transfer_handler = dw_spi_transfer_handler;
+
 	imask = SPI_INT_TXEI | SPI_INT_TXOI | SPI_INT_RXUI | SPI_INT_RXOI |
 		SPI_INT_RXFI;
 	spi_umask_intr(dws, imask);
-
-	dws->transfer_handler = dw_spi_transfer_handler;
 }
 
 /*

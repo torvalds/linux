@@ -323,7 +323,7 @@ static int mt7663s_probe(struct sdio_func *func,
 {
 	static const struct mt76_driver_ops drv_ops = {
 		.txwi_size = MT_USB_TXD_SIZE,
-		.drv_flags = MT_DRV_RX_DMA_HDR | MT_DRV_HW_MGMT_TXQ,
+		.drv_flags = MT_DRV_RX_DMA_HDR,
 		.tx_prepare_skb = mt7663_usb_sdio_tx_prepare_skb,
 		.tx_complete_skb = mt7663_usb_sdio_tx_complete_skb,
 		.tx_status_data = mt7663_usb_sdio_tx_status_data,
@@ -346,7 +346,7 @@ static int mt7663s_probe(struct sdio_func *func,
 	struct ieee80211_ops *ops;
 	struct mt7615_dev *dev;
 	struct mt76_dev *mdev;
-	int ret;
+	int i, ret;
 
 	ops = devm_kmemdup(&func->dev, &mt7615_ops, sizeof(mt7615_ops),
 			   GFP_KERNEL);
@@ -364,22 +364,38 @@ static int mt7663s_probe(struct sdio_func *func,
 	dev->ops = ops;
 	sdio_set_drvdata(func, dev);
 
-	mdev->sdio.tx_kthread = kthread_create(mt7663s_kthread_run, dev,
-					       "mt7663s_tx");
-	if (IS_ERR(mdev->sdio.tx_kthread))
-		return PTR_ERR(mdev->sdio.tx_kthread);
-
 	ret = mt76s_init(mdev, func, &mt7663s_ops);
 	if (ret < 0)
 		goto err_free;
 
+	INIT_WORK(&mdev->sdio.tx.xmit_work, mt7663s_tx_work);
+	INIT_WORK(&mdev->sdio.rx.recv_work, mt7663s_rx_work);
+
 	ret = mt7663s_hw_init(dev, func);
 	if (ret)
-		goto err_free;
+		goto err_deinit;
 
 	mdev->rev = (mt76_rr(dev, MT_HW_CHIPID) << 16) |
 		    (mt76_rr(dev, MT_HW_REV) & 0xff);
 	dev_dbg(mdev->dev, "ASIC revision: %04x\n", mdev->rev);
+
+	mdev->sdio.intr_data = devm_kmalloc(mdev->dev,
+					    sizeof(struct mt76s_intr),
+					    GFP_KERNEL);
+	if (!mdev->sdio.intr_data) {
+		ret = -ENOMEM;
+		goto err_deinit;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(mdev->sdio.xmit_buf); i++) {
+		mdev->sdio.xmit_buf[i] = devm_kmalloc(mdev->dev,
+						      MT76S_XMIT_BUF_SZ,
+						      GFP_KERNEL);
+		if (!mdev->sdio.xmit_buf[i]) {
+			ret = -ENOMEM;
+			goto err_deinit;
+		}
+	}
 
 	ret = mt76s_alloc_queues(&dev->mt76);
 	if (ret)
@@ -426,9 +442,11 @@ static int mt7663s_suspend(struct device *dev)
 			return err;
 	}
 
+	sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
+
 	mt76s_stop_txrx(&mdev->mt76);
 
-	return mt7663s_firmware_own(mdev);
+	return mt7615_mcu_set_fw_ctrl(mdev);
 }
 
 static int mt7663s_resume(struct device *dev)
@@ -437,7 +455,7 @@ static int mt7663s_resume(struct device *dev)
 	struct mt7615_dev *mdev = sdio_get_drvdata(func);
 	int err;
 
-	err = mt7663s_driver_own(mdev);
+	err = mt7615_mcu_set_drv_ctrl(mdev);
 	if (err)
 		return err;
 

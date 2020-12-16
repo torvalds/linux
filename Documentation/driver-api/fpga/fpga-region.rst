@@ -45,7 +45,7 @@ An example of usage can be seen in the probe function of [#f2]_.
 API to add a new FPGA region
 ----------------------------
 
-* struct :c:type:`fpga_region` — The FPGA region struct
+* struct fpga_region — The FPGA region struct
 * devm_fpga_region_create() — Allocate and init a region struct
 * fpga_region_register() —  Register an FPGA region
 * fpga_region_unregister() —  Unregister an FPGA region
@@ -61,9 +61,9 @@ during the region's probe function.
 
 The FPGA region will need to specify which bridges to control while programming
 the FPGA.  The region driver can build a list of bridges during probe time
-(:c:member:`fpga_region->bridge_list`) or it can have a function that creates
+(:c:expr:`fpga_region->bridge_list`) or it can have a function that creates
 the list of bridges to program just before programming
-(:c:member:`fpga_region->get_bridges`).  The FPGA bridge framework supplies the
+(:c:expr:`fpga_region->get_bridges`).  The FPGA bridge framework supplies the
 following APIs to handle building or tearing down that list.
 
 * fpga_bridge_get_to_list() — Get a ref of an FPGA bridge, add it to a

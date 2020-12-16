@@ -208,7 +208,8 @@ static int psp_sw_fini(void *handle)
 		adev->psp.ta_fw = NULL;
 	}
 
-	if (adev->asic_type == CHIP_NAVI10)
+	if (adev->asic_type == CHIP_NAVI10 ||
+	    adev->asic_type == CHIP_SIENNA_CICHLID)
 		psp_sysfs_fini(adev);
 
 	return 0;
@@ -1750,6 +1751,12 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 	case AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM:
 		*type = GFX_FW_TYPE_RLC_RESTORE_LIST_SRM_MEM;
 		break;
+	case AMDGPU_UCODE_ID_RLC_IRAM:
+		*type = GFX_FW_TYPE_RLC_IRAM;
+		break;
+	case AMDGPU_UCODE_ID_RLC_DRAM:
+		*type = GFX_FW_TYPE_RLC_DRAM_BOOT;
+		break;
 	case AMDGPU_UCODE_ID_SMC:
 		*type = GFX_FW_TYPE_SMU;
 		break;
@@ -2517,6 +2524,7 @@ int parse_ta_bin_descriptor(struct psp_context *psp,
 		psp->asd_feature_version   = le32_to_cpu(desc->fw_version);
 		psp->asd_ucode_size 	   = le32_to_cpu(desc->size_bytes);
 		psp->asd_start_addr 	   = ucode_start_addr;
+		psp->asd_fw                = psp->ta_fw;
 		break;
 	case TA_FW_TYPE_PSP_XGMI:
 		psp->ta_xgmi_ucode_version = le32_to_cpu(desc->fw_version);

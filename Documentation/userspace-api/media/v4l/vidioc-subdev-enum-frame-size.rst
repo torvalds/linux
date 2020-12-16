@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_SUBDEV_ENUM_FRAME_SIZE:
 
@@ -11,23 +12,21 @@ Name
 
 VIDIOC_SUBDEV_ENUM_FRAME_SIZE - Enumerate media bus frame sizes
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_ENUM_FRAME_SIZE, struct v4l2_subdev_frame_size_enum * argp )
-    :name: VIDIOC_SUBDEV_ENUM_FRAME_SIZE
+.. c:macro:: VIDIOC_SUBDEV_ENUM_FRAME_SIZE
 
+``int ioctl(int fd, VIDIOC_SUBDEV_ENUM_FRAME_SIZE, struct v4l2_subdev_frame_size_enum * argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_subdev_frame_size_enum`.
-
 
 Description
 ===========
@@ -61,7 +60,6 @@ pads of the sub-device, as well as on the current active links and the
 current values of V4L2 controls. See
 :ref:`VIDIOC_SUBDEV_G_FMT` for more
 information about try formats.
-
 
 .. c:type:: v4l2_subdev_frame_size_enum
 
@@ -102,7 +100,6 @@ information about try formats.
       - ``reserved``\ [8]
       - Reserved for future extensions. Applications and drivers must set
 	the array to zero.
-
 
 Return Value
 ============

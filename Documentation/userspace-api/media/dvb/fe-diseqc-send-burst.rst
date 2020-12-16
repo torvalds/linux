@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.fe
 
 .. _FE_DISEQC_SEND_BURST:
 
@@ -11,23 +12,21 @@ Name
 
 FE_DISEQC_SEND_BURST - Sends a 22KHz tone burst for 2x1 mini DiSEqC satellite selection.
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, FE_DISEQC_SEND_BURST, enum fe_sec_mini_cmd tone )
-    :name: FE_DISEQC_SEND_BURST
+.. c:macro:: FE_DISEQC_SEND_BURST
 
+``int ioctl(int fd, FE_DISEQC_SEND_BURST, enum fe_sec_mini_cmd tone)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <frontend_f_open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``tone``
     An integer enumered value described at :c:type:`fe_sec_mini_cmd`.
-
 
 Description
 ===========
@@ -38,7 +37,6 @@ read/write permissions.
 
 It provides support for what's specified at
 `Digital Satellite Equipment Control (DiSEqC) - Simple "ToneBurst" Detection Circuit specification. <http://www.eutelsat.com/files/contributed/satellites/pdf/Diseqc/associated%20docs/simple_tone_burst_detec.pdf>`__
-
 
 Return Value
 ============

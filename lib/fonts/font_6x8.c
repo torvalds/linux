@@ -3,8 +3,8 @@
 
 #define FONTDATAMAX 2048
 
-static const unsigned char fontdata_6x8[FONTDATAMAX] = {
-
+static const struct font_data fontdata_6x8 = {
+	{ 0, 0, FONTDATAMAX, 0 }, {
 	/* 0 0x00 '^@' */
 	0x00, /* 000000 */
 	0x00, /* 000000 */
@@ -2564,13 +2564,13 @@ static const unsigned char fontdata_6x8[FONTDATAMAX] = {
 	0x00, /* 000000 */
 	0x00, /* 000000 */
 	0x00, /* 000000 */
-};
+} };
 
 const struct font_desc font_6x8 = {
 	.idx	= FONT6x8_IDX,
 	.name	= "6x8",
 	.width	= 6,
 	.height	= 8,
-	.data	= fontdata_6x8,
+	.data	= fontdata_6x8.data,
 	.pref	= 0,
 };

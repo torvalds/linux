@@ -423,13 +423,13 @@ static void ezusb_ctx_complete(struct request_context *ctx)
 	}
 }
 
-/**
+/*
  * ezusb_req_queue_run:
  * Description:
  *	Note: Only one active CTX at any one time, because there's no
  *	other (reliable) way to match the response URB to the correct
  *	CTX.
- **/
+ */
 static void ezusb_req_queue_run(struct ezusb_priv *upriv)
 {
 	unsigned long flags;
@@ -535,7 +535,7 @@ static void ezusb_request_out_callback(struct urb *urb)
 						       flags);
 				break;
 			}
-			/* fall through */
+			fallthrough;
 		case EZUSB_CTX_RESP_RECEIVED:
 			/* IN already received before this OUT-ACK */
 			ctx->state = EZUSB_CTX_COMPLETE;
@@ -557,7 +557,7 @@ static void ezusb_request_out_callback(struct urb *urb)
 		case EZUSB_CTX_REQ_SUBMITTED:
 		case EZUSB_CTX_RESP_RECEIVED:
 			ctx->state = EZUSB_CTX_REQ_FAILED;
-			/* fall through */
+			fallthrough;
 
 		case EZUSB_CTX_REQ_FAILED:
 		case EZUSB_CTX_REQ_TIMEOUT:
@@ -704,7 +704,7 @@ static inline u16 build_crc(struct ezusb_packet *data)
 	return crc;
 }
 
-/**
+/*
  * ezusb_fill_req:
  *
  * if data == NULL and length > 0 the data is assumed to be already in
@@ -897,11 +897,11 @@ static int ezusb_access_ltv(struct ezusb_priv *upriv,
 	case EZUSB_CTX_REQ_SUBMITTED:
 		if (!ctx->in_rid)
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		err("%s: Unexpected context state %d", __func__,
 		    state);
-		/* fall through */
+		fallthrough;
 	case EZUSB_CTX_REQ_TIMEOUT:
 	case EZUSB_CTX_REQ_FAILED:
 	case EZUSB_CTX_RESP_TIMEOUT:

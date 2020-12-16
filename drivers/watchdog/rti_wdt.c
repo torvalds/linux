@@ -205,11 +205,8 @@ static int rti_wdt_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	clk = clk_get(dev, NULL);
-	if (IS_ERR(clk)) {
-		if (PTR_ERR(clk) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get clock\n");
-		return PTR_ERR(clk);
-	}
+	if (IS_ERR(clk))
+		return dev_err_probe(dev, PTR_ERR(clk), "failed to get clock\n");
 
 	wdt->freq = clk_get_rate(clk);
 
@@ -230,11 +227,8 @@ static int rti_wdt_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "runtime pm failed\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "runtime pm failed\n");
 
 	platform_set_drvdata(pdev, wdt);
 

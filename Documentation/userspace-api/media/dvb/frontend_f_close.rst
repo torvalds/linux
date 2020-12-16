@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.fe
 
 .. _frontend_f_close:
 
@@ -11,7 +12,6 @@ Name
 
 fe-close - Close a frontend device
 
-
 Synopsis
 ========
 
@@ -19,16 +19,13 @@ Synopsis
 
     #include <unistd.h>
 
-
 .. c:function:: int close( int fd )
-    :name: dvb-fe-close
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :c:func:`open() <dvb-fe-open>`.
-
+    File descriptor returned by :c:func:`open()`.
 
 Description
 ===========
@@ -36,7 +33,6 @@ Description
 This system call closes a previously opened front-end device. After
 closing a front-end device, its corresponding hardware might be powered
 down automatically.
-
 
 Return Value
 ============

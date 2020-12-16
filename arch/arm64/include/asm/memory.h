@@ -169,7 +169,6 @@
 extern u64			vabits_actual;
 #define PAGE_END		(_PAGE_END(vabits_actual))
 
-extern s64			physvirt_offset;
 extern s64			memstart_addr;
 /* PHYS_OFFSET - the physical address of the start of memory. */
 #define PHYS_OFFSET		({ VM_BUG_ON(memstart_addr & 1); memstart_addr; })
@@ -245,7 +244,7 @@ static inline const void *__tag_set(const void *addr, u8 tag)
  */
 #define __is_lm_address(addr)	(!(((u64)addr) & BIT(vabits_actual - 1)))
 
-#define __lm_to_phys(addr)	(((addr) + physvirt_offset))
+#define __lm_to_phys(addr)	(((addr) & ~PAGE_OFFSET) + PHYS_OFFSET)
 #define __kimg_to_phys(addr)	((addr) - kimage_voffset)
 
 #define __virt_to_phys_nodebug(x) ({					\
@@ -263,7 +262,7 @@ extern phys_addr_t __phys_addr_symbol(unsigned long x);
 #define __phys_addr_symbol(x)	__pa_symbol_nodebug(x)
 #endif /* CONFIG_DEBUG_VIRTUAL */
 
-#define __phys_to_virt(x)	((unsigned long)((x) - physvirt_offset))
+#define __phys_to_virt(x)	((unsigned long)((x) - PHYS_OFFSET) | PAGE_OFFSET)
 #define __phys_to_kimg(x)	((unsigned long)((x) + kimage_voffset))
 
 /*

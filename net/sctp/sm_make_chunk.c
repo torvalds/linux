@@ -1235,7 +1235,7 @@ nodata:
 
 /* Create an Operation Error chunk of a fixed size, specifically,
  * min(asoc->pathmtu, SCTP_DEFAULT_MAXSEGMENT) - overheads.
- * This is a helper function to allocate an error chunk for for those
+ * This is a helper function to allocate an error chunk for those
  * invalid parameter codes in which we may not want to report all the
  * errors, if the incoming chunk is large. If it can't fit in a single
  * packet, we ignore it.
@@ -1780,7 +1780,7 @@ no_hmac:
 	 * for init collision case of lost COOKIE ACK.
 	 * If skb has been timestamped, then use the stamp, otherwise
 	 * use current time.  This introduces a small possibility that
-	 * that a cookie may be considered expired, but his would only slow
+	 * a cookie may be considered expired, but this would only slow
 	 * down the new association establishment instead of every packet.
 	 */
 	if (sock_flag(ep->base.sk, SOCK_TIMESTAMP))
@@ -2319,7 +2319,7 @@ int sctp_process_init(struct sctp_association *asoc, struct sctp_chunk *chunk,
 
 	/* This implementation defaults to making the first transport
 	 * added as the primary transport.  The source address seems to
-	 * be a a better choice than any of the embedded addresses.
+	 * be a better choice than any of the embedded addresses.
 	 */
 	if (!sctp_assoc_add_peer(asoc, peer_addr, gfp, SCTP_ACTIVE))
 		goto nomem;

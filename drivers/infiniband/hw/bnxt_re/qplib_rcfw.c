@@ -50,7 +50,7 @@
 #include "qplib_sp.h"
 #include "qplib_fp.h"
 
-static void bnxt_qplib_service_creq(unsigned long data);
+static void bnxt_qplib_service_creq(struct tasklet_struct *t);
 
 /* Hardware communication channel */
 static int __wait_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie)
@@ -79,7 +79,7 @@ static int __block_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie)
 		goto done;
 	do {
 		mdelay(1); /* 1m sec */
-		bnxt_qplib_service_creq((unsigned long)rcfw);
+		bnxt_qplib_service_creq(&rcfw->creq.creq_tasklet);
 	} while (test_bit(cbit, cmdq->cmdq_bitmap) && --count);
 done:
 	return count ? 0 : -ETIMEDOUT;
@@ -370,9 +370,9 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 }
 
 /* SP - CREQ Completion handlers */
-static void bnxt_qplib_service_creq(unsigned long data)
+static void bnxt_qplib_service_creq(struct tasklet_struct *t)
 {
-	struct bnxt_qplib_rcfw *rcfw = (struct bnxt_qplib_rcfw *)data;
+	struct bnxt_qplib_rcfw *rcfw = from_tasklet(rcfw, t, creq.creq_tasklet);
 	struct bnxt_qplib_creq_ctx *creq = &rcfw->creq;
 	u32 type, budget = CREQ_ENTRY_POLL_BUDGET;
 	struct bnxt_qplib_hwq *hwq = &creq->hwq;
@@ -687,8 +687,7 @@ int bnxt_qplib_rcfw_start_irq(struct bnxt_qplib_rcfw *rcfw, int msix_vector,
 
 	creq->msix_vec = msix_vector;
 	if (need_init)
-		tasklet_init(&creq->creq_tasklet,
-			     bnxt_qplib_service_creq, (unsigned long)rcfw);
+		tasklet_setup(&creq->creq_tasklet, bnxt_qplib_service_creq);
 	else
 		tasklet_enable(&creq->creq_tasklet);
 	rc = request_irq(creq->msix_vec, bnxt_qplib_creq_irq, 0,

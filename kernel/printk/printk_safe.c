@@ -22,7 +22,7 @@
  * is later flushed into the main ring buffer via IRQ work.
  *
  * The alternative implementation is chosen transparently
- * by examinig current printk() context mask stored in @printk_context
+ * by examining current printk() context mask stored in @printk_context
  * per-CPU variable.
  *
  * The implementation allows to flush the strings also from another CPU.

@@ -431,10 +431,9 @@ size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 				   char *buf)
 {
 	uint32_t feature_mask[2] = { 0 };
-	int32_t feature_index = 0;
+	int feature_index = 0;
 	uint32_t count = 0;
-	uint32_t sort_feature[SMU_FEATURE_COUNT];
-	uint64_t hw_feature_count = 0;
+	int8_t sort_feature[SMU_FEATURE_COUNT];
 	size_t size = 0;
 	int ret = 0, i;
 
@@ -447,23 +446,31 @@ size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 	size =  sprintf(buf + size, "features high: 0x%08x low: 0x%08x\n",
 			feature_mask[1], feature_mask[0]);
 
+	memset(sort_feature, -1, sizeof(sort_feature));
+
 	for (i = 0; i < SMU_FEATURE_COUNT; i++) {
 		feature_index = smu_cmn_to_asic_specific_index(smu,
 							       CMN2ASIC_MAPPING_FEATURE,
 							       i);
 		if (feature_index < 0)
 			continue;
+
 		sort_feature[feature_index] = i;
-		hw_feature_count++;
 	}
 
-	for (i = 0; i < hw_feature_count; i++) {
+	size += sprintf(buf + size, "%-2s. %-20s  %-3s : %-s\n",
+			"No", "Feature", "Bit", "State");
+
+	for (i = 0; i < SMU_FEATURE_COUNT; i++) {
+		if (sort_feature[i] < 0)
+			continue;
+
 		size += sprintf(buf + size, "%02d. %-20s (%2d) : %s\n",
-			       count++,
-			       smu_get_feature_name(smu, sort_feature[i]),
-			       i,
-			       !!smu_cmn_feature_is_enabled(smu, sort_feature[i]) ?
-			       "enabled" : "disabled");
+				count++,
+				smu_get_feature_name(smu, sort_feature[i]),
+				i,
+				!!smu_cmn_feature_is_enabled(smu, sort_feature[i]) ?
+				"enabled" : "disabled");
 	}
 
 	return size;

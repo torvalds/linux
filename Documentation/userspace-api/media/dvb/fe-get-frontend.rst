@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.fe
 
 .. _FE_GET_FRONTEND:
 
@@ -13,31 +14,27 @@ FE_GET_FRONTEND
 
 .. attention:: This ioctl is deprecated.
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl(int fd, FE_GET_FRONTEND, struct dvb_frontend_parameters *p)
-    :name: FE_GET_FRONTEND
+.. c:macro:: FE_GET_FRONTEND
 
+``int ioctl(int fd, FE_GET_FRONTEND, struct dvb_frontend_parameters *p)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :c:func:`open() <dvb-fe-open>`.
-
+    File descriptor returned by :c:func:`open()`.
 
 ``p``
     Points to parameters for tuning operation.
-
 
 Description
 ===========
 
 This ioctl call queries the currently effective frontend parameters. For
 this command, read-only access to the device is sufficient.
-
 
 Return Value
 ============
@@ -50,7 +47,6 @@ appropriately.
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 

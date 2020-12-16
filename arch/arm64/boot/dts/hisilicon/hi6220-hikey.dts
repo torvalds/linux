@@ -267,7 +267,7 @@
 &uart1 {
 	assigned-clocks = <&sys_ctrl HI6220_UART1_SRC>;
 	assigned-clock-rates = <150000000>;
-	status = "ok";
+	status = "okay";
 
 	bluetooth {
 		compatible = "ti,wl1835-st";
@@ -278,21 +278,21 @@
 };
 
 &uart2 {
-	status = "ok";
+	status = "okay";
 	label = "LS-UART0";
 };
 
 &uart3 {
-	status = "ok";
+	status = "okay";
 	label = "LS-UART1";
 };
 
 &ade {
-	status = "ok";
+	status = "okay";
 };
 
 &dsi {
-	status = "ok";
+	status = "okay";
 
 	ports {
 		/* 1 for output port */
@@ -489,17 +489,17 @@
 
 
 &i2c0 {
-	status = "ok";
+	status = "okay";
 };
 
 &i2c1 {
-	status = "ok";
+	status = "okay";
 };
 
 &i2c2 {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	status = "ok";
+	status = "okay";
 
 	adv7533: adv7533@39 {
 		compatible = "adi,adv7533";
@@ -541,5 +541,5 @@
 };
 
 &spi0 {
-	status = "ok";
+	status = "okay";
 };

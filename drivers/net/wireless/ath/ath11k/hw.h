@@ -6,6 +6,8 @@
 #ifndef ATH11K_HW_H
 #define ATH11K_HW_H
 
+#include "wmi.h"
+
 /* Target configuration defines */
 
 /* Num VDEVS per radio */
@@ -68,15 +70,12 @@
 
 #define ATH11K_FW_DIR			"ath11k"
 
-/* IPQ8074 definitions */
-#define IPQ8074_FW_DIR			"IPQ8074"
-#define IPQ8074_MAX_BOARD_DATA_SZ	(256 * 1024)
-#define IPQ8074_MAX_CAL_DATA_SZ		IPQ8074_MAX_BOARD_DATA_SZ
-
 #define ATH11K_BOARD_MAGIC		"QCA-ATH11K-BOARD"
 #define ATH11K_BOARD_API2_FILE		"board-2.bin"
-#define ATH11K_DEFAULT_BOARD_FILE	"bdwlan.bin"
+#define ATH11K_DEFAULT_BOARD_FILE	"board.bin"
 #define ATH11K_DEFAULT_CAL_FILE		"caldata.bin"
+#define ATH11K_AMSS_FILE		"amss.bin"
+#define ATH11K_M3_FILE			"m3.bin"
 
 enum ath11k_hw_rate_cck {
 	ATH11K_HW_RATE_CCK_LP_11M = 0,
@@ -104,14 +103,108 @@ enum ath11k_bus {
 	ATH11K_BUS_PCI,
 };
 
+#define ATH11K_EXT_IRQ_GRP_NUM_MAX 11
+
+struct ath11k_hw_ring_mask {
+	u8 tx[ATH11K_EXT_IRQ_GRP_NUM_MAX];
+	u8 rx_mon_status[ATH11K_EXT_IRQ_GRP_NUM_MAX];
+	u8 rx[ATH11K_EXT_IRQ_GRP_NUM_MAX];
+	u8 rx_err[ATH11K_EXT_IRQ_GRP_NUM_MAX];
+	u8 rx_wbm_rel[ATH11K_EXT_IRQ_GRP_NUM_MAX];
+	u8 reo_status[ATH11K_EXT_IRQ_GRP_NUM_MAX];
+	u8 rxdma2host[ATH11K_EXT_IRQ_GRP_NUM_MAX];
+	u8 host2rxdma[ATH11K_EXT_IRQ_GRP_NUM_MAX];
+};
+
 struct ath11k_hw_params {
 	const char *name;
+	u16 hw_rev;
+	u8 max_radios;
+	u32 bdf_addr;
+
 	struct {
 		const char *dir;
 		size_t board_size;
 		size_t cal_size;
 	} fw;
+
+	const struct ath11k_hw_ops *hw_ops;
+	const struct ath11k_hw_ring_mask *ring_mask;
+
+	bool internal_sleep_clock;
+
+	const struct ath11k_hw_regs *regs;
+	const struct ce_attr *host_ce_config;
+	u32 ce_count;
+	const struct ce_pipe_config *target_ce_config;
+	u32 target_ce_count;
+	const struct service_to_pipe *svc_to_ce_map;
+	u32 svc_to_ce_map_len;
+
+	bool single_pdev_only;
+
+	/* For example on QCA6390 struct
+	 * wmi_init_cmd_param::band_to_mac_config needs to be false as the
+	 * firmware creates the mapping.
+	 */
+	bool needs_band_to_mac;
+
+	bool rxdma1_enable;
+	int num_rxmda_per_pdev;
+	bool rx_mac_buf_ring;
+	bool vdev_start_delay;
+	bool htt_peer_map_v2;
+	bool tcl_0_only;
+	u8 spectral_fft_sz;
+
+	u16 interface_modes;
+	bool supports_monitor;
+	bool supports_shadow_regs;
+	bool idle_ps;
 };
+
+struct ath11k_hw_ops {
+	u8 (*get_hw_mac_from_pdev_id)(int pdev_id);
+	void (*wmi_init_config)(struct ath11k_base *ab,
+				struct target_resource_config *config);
+	int (*mac_id_to_pdev_id)(struct ath11k_hw_params *hw, int mac_id);
+	int (*mac_id_to_srng_id)(struct ath11k_hw_params *hw, int mac_id);
+};
+
+extern const struct ath11k_hw_ops ipq8074_ops;
+extern const struct ath11k_hw_ops ipq6018_ops;
+extern const struct ath11k_hw_ops qca6390_ops;
+
+extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_ipq8074;
+extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_qca6390;
+
+static inline
+int ath11k_hw_get_mac_from_pdev_id(struct ath11k_hw_params *hw,
+				   int pdev_idx)
+{
+	if (hw->hw_ops->get_hw_mac_from_pdev_id)
+		return hw->hw_ops->get_hw_mac_from_pdev_id(pdev_idx);
+
+	return 0;
+}
+
+static inline int ath11k_hw_mac_id_to_pdev_id(struct ath11k_hw_params *hw,
+					      int mac_id)
+{
+	if (hw->hw_ops->mac_id_to_pdev_id)
+		return hw->hw_ops->mac_id_to_pdev_id(hw, mac_id);
+
+	return 0;
+}
+
+static inline int ath11k_hw_mac_id_to_srng_id(struct ath11k_hw_params *hw,
+					      int mac_id)
+{
+	if (hw->hw_ops->mac_id_to_srng_id)
+		return hw->hw_ops->mac_id_to_srng_id(hw, mac_id);
+
+	return 0;
+}
 
 struct ath11k_fw_ie {
 	__le32 id;
@@ -129,5 +222,52 @@ enum ath11k_bd_ie_type {
 	ATH11K_BD_IE_BOARD = 0,
 	ATH11K_BD_IE_BOARD_EXT = 1,
 };
+
+struct ath11k_hw_regs {
+	u32 hal_tcl1_ring_base_lsb;
+	u32 hal_tcl1_ring_base_msb;
+	u32 hal_tcl1_ring_id;
+	u32 hal_tcl1_ring_misc;
+	u32 hal_tcl1_ring_tp_addr_lsb;
+	u32 hal_tcl1_ring_tp_addr_msb;
+	u32 hal_tcl1_ring_consumer_int_setup_ix0;
+	u32 hal_tcl1_ring_consumer_int_setup_ix1;
+	u32 hal_tcl1_ring_msi1_base_lsb;
+	u32 hal_tcl1_ring_msi1_base_msb;
+	u32 hal_tcl1_ring_msi1_data;
+	u32 hal_tcl2_ring_base_lsb;
+	u32 hal_tcl_ring_base_lsb;
+
+	u32 hal_tcl_status_ring_base_lsb;
+
+	u32 hal_reo1_ring_base_lsb;
+	u32 hal_reo1_ring_base_msb;
+	u32 hal_reo1_ring_id;
+	u32 hal_reo1_ring_misc;
+	u32 hal_reo1_ring_hp_addr_lsb;
+	u32 hal_reo1_ring_hp_addr_msb;
+	u32 hal_reo1_ring_producer_int_setup;
+	u32 hal_reo1_ring_msi1_base_lsb;
+	u32 hal_reo1_ring_msi1_base_msb;
+	u32 hal_reo1_ring_msi1_data;
+	u32 hal_reo2_ring_base_lsb;
+	u32 hal_reo1_aging_thresh_ix_0;
+	u32 hal_reo1_aging_thresh_ix_1;
+	u32 hal_reo1_aging_thresh_ix_2;
+	u32 hal_reo1_aging_thresh_ix_3;
+
+	u32 hal_reo1_ring_hp;
+	u32 hal_reo1_ring_tp;
+	u32 hal_reo2_ring_hp;
+
+	u32 hal_reo_tcl_ring_base_lsb;
+	u32 hal_reo_tcl_ring_hp;
+
+	u32 hal_reo_status_ring_base_lsb;
+	u32 hal_reo_status_hp;
+};
+
+extern const struct ath11k_hw_regs ipq8074_regs;
+extern const struct ath11k_hw_regs qca6390_regs;
 
 #endif

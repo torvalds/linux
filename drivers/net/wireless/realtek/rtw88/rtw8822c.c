@@ -154,25 +154,16 @@ static void rtw8822c_rf_minmax_cmp(struct rtw_dev *rtwdev, u32 value,
 	}
 }
 
-static void swap_u32(u32 *v1, u32 *v2)
-{
-	u32 tmp;
-
-	tmp = *v1;
-	*v1 = *v2;
-	*v2 = tmp;
-}
-
 static void __rtw8822c_dac_iq_sort(struct rtw_dev *rtwdev, u32 *v1, u32 *v2)
 {
 	if (*v1 >= 0x200 && *v2 >= 0x200) {
 		if (*v1 > *v2)
-			swap_u32(v1, v2);
+			swap(*v1, *v2);
 	} else if (*v1 < 0x200 && *v2 < 0x200) {
 		if (*v1 > *v2)
-			swap_u32(v1, v2);
+			swap(*v1, *v2);
 	} else if (*v1 < 0x200 && *v2 >= 0x200) {
-		swap_u32(v1, v2);
+		swap(*v1, *v2);
 	}
 }
 
@@ -2014,7 +2005,7 @@ static int rtw8822c_set_antenna(struct rtw_dev *rtwdev,
 	case BB_PATH_AB:
 		break;
 	default:
-		rtw_info(rtwdev, "unsupport tx path 0x%x\n", antenna_tx);
+		rtw_info(rtwdev, "unsupported tx path 0x%x\n", antenna_tx);
 		return -EINVAL;
 	}
 
@@ -2024,7 +2015,7 @@ static int rtw8822c_set_antenna(struct rtw_dev *rtwdev,
 	case BB_PATH_AB:
 		break;
 	default:
-		rtw_info(rtwdev, "unsupport rx path 0x%x\n", antenna_rx);
+		rtw_info(rtwdev, "unsupported rx path 0x%x\n", antenna_rx);
 		return -EINVAL;
 	}
 
@@ -4303,6 +4294,7 @@ struct rtw_chip_info rtw8822c_hw_spec = {
 	.ptct_efuse_size = 124,
 	.txff_size = 262144,
 	.rxff_size = 24576,
+	.fw_rxff_size = 12288,
 	.txgi_factor = 2,
 	.is_pwr_by_rate_dec = false,
 	.max_power_index = 0x7f,
@@ -4373,6 +4365,8 @@ struct rtw_chip_info rtw8822c_hw_spec = {
 
 	.coex_info_hw_regs_num = ARRAY_SIZE(coex_info_hw_regs_8822c),
 	.coex_info_hw_regs = coex_info_hw_regs_8822c,
+
+	.fw_fifo_addr = {0x780, 0x700, 0x780, 0x660, 0x650, 0x680},
 };
 EXPORT_SYMBOL(rtw8822c_hw_spec);
 

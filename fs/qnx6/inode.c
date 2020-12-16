@@ -166,8 +166,7 @@ static int qnx6_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_ffree   = fs32_to_cpu(sbi, sbi->sb->sb_free_inodes);
 	buf->f_bavail  = buf->f_bfree;
 	buf->f_namelen = QNX6_LONG_NAME_MAX;
-	buf->f_fsid.val[0] = (u32)id;
-	buf->f_fsid.val[1] = (u32)(id >> 32);
+	buf->f_fsid    = u64_to_fsid(id);
 
 	return 0;
 }

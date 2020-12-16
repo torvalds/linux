@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: RC
 
 .. _lirc_get_features:
 
@@ -14,8 +15,9 @@ LIRC_GET_FEATURES - Get the underlying hardware device's features
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, LIRC_GET_FEATURES, __u32 *features)
-    :name: LIRC_GET_FEATURES
+.. c:macro:: LIRC_GET_FEATURES
+
+``int ioctl(int fd, LIRC_GET_FEATURES, __u32 *features)``
 
 Arguments
 =========
@@ -26,10 +28,8 @@ Arguments
 ``features``
     Bitmask with the LIRC features.
 
-
 Description
 ===========
-
 
 Get the underlying hardware device's features. If a driver does not
 announce support of certain features, calling of the corresponding ioctls
@@ -183,7 +183,6 @@ LIRC features
 ``LIRC_CAN_SEND_LIRCCODE``
 
     Unused. Kept just to avoid breaking uAPI.
-
 
 Return Value
 ============

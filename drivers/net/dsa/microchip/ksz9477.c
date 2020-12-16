@@ -493,9 +493,13 @@ static void ksz9477_flush_dyn_mac_table(struct ksz_device *dev, int port)
 }
 
 static int ksz9477_port_vlan_filtering(struct dsa_switch *ds, int port,
-				       bool flag)
+				       bool flag,
+				       struct switchdev_trans *trans)
 {
 	struct ksz_device *dev = ds->priv;
+
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
 
 	if (flag) {
 		ksz_port_cfg(dev, port, REG_PORT_LUE_CTRL,
@@ -1235,6 +1239,9 @@ static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 			if (p->interface == PHY_INTERFACE_MODE_RGMII_ID ||
 			    p->interface == PHY_INTERFACE_MODE_RGMII_TXID)
 				data8 |= PORT_RGMII_ID_EG_ENABLE;
+			/* On KSZ9893, disable RGMII in-band status support */
+			if (dev->features & IS_9893)
+				data8 &= ~PORT_MII_MAC_MODE;
 			p->phydev.speed = SPEED_1000;
 			break;
 		}
@@ -1265,6 +1272,8 @@ static void ksz9477_config_cpu_port(struct dsa_switch *ds)
 	for (i = 0; i < dev->port_cnt; i++) {
 		if (dsa_is_cpu_port(ds, i) && (dev->cpu_ports & (1 << i))) {
 			phy_interface_t interface;
+			const char *prev_msg;
+			const char *prev_mode;
 
 			dev->cpu_port = i;
 			dev->host_mask = (1 << dev->cpu_port);
@@ -1287,11 +1296,19 @@ static void ksz9477_config_cpu_port(struct dsa_switch *ds)
 					p->interface = interface;
 				}
 			}
-			if (interface && interface != p->interface)
-				dev_info(dev->dev,
-					 "use %s instead of %s\n",
-					  phy_modes(p->interface),
-					  phy_modes(interface));
+			if (interface && interface != p->interface) {
+				prev_msg = " instead of ";
+				prev_mode = phy_modes(interface);
+			} else {
+				prev_msg = "";
+				prev_mode = "";
+			}
+			dev_info(dev->dev,
+				 "Port%d: using phy mode %s%s%s\n",
+				 i,
+				 phy_modes(p->interface),
+				 prev_msg,
+				 prev_mode);
 
 			/* enable cpu port */
 			ksz9477_port_setup(dev, i, true);
@@ -1435,10 +1452,12 @@ static int ksz9477_switch_detect(struct ksz_device *dev)
 	/* Default capability is gigabit capable. */
 	dev->features = GBIT_SUPPORT;
 
+	dev_dbg(dev->dev, "Switch detect: ID=%08x%02x\n", id32, data8);
 	id_hi = (u8)(id32 >> 16);
 	id_lo = (u8)(id32 >> 8);
 	if ((id_lo & 0xf) == 3) {
 		/* Chip is from KSZ9893 design. */
+		dev_info(dev->dev, "Found KSZ9893\n");
 		dev->features |= IS_9893;
 
 		/* Chip does not support gigabit. */
@@ -1447,6 +1466,7 @@ static int ksz9477_switch_detect(struct ksz_device *dev)
 		dev->mib_port_cnt = 3;
 		dev->phy_port_cnt = 2;
 	} else {
+		dev_info(dev->dev, "Found KSZ9477 or compatible\n");
 		/* Chip uses new XMII register definitions. */
 		dev->features |= NEW_XMII;
 

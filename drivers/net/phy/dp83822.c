@@ -23,15 +23,30 @@
 
 #define DP83822_DEVADDR		0x1f
 
+#define MII_DP83822_CTRL_2	0x0a
+#define MII_DP83822_PHYSTS	0x10
 #define MII_DP83822_PHYSCR	0x11
 #define MII_DP83822_MISR1	0x12
 #define MII_DP83822_MISR2	0x13
+#define MII_DP83822_FCSCR	0x14
 #define MII_DP83822_RCSR	0x17
 #define MII_DP83822_RESET_CTRL	0x1f
 #define MII_DP83822_GENCFG	0x465
+#define MII_DP83822_SOR1	0x467
+
+/* GENCFG */
+#define DP83822_SIG_DET_LOW	BIT(0)
+
+/* Control Register 2 bits */
+#define DP83822_FX_ENABLE	BIT(14)
 
 #define DP83822_HW_RESET	BIT(15)
 #define DP83822_SW_RESET	BIT(14)
+
+/* PHY STS bits */
+#define DP83822_PHYSTS_DUPLEX			BIT(2)
+#define DP83822_PHYSTS_10			BIT(1)
+#define DP83822_PHYSTS_LINK			BIT(0)
 
 /* PHYSCR Register Fields */
 #define DP83822_PHYSCR_INT_OE		BIT(0) /* Interrupt Output Enable */
@@ -82,6 +97,27 @@
 /* RSCR bits */
 #define DP83822_RX_CLK_SHIFT	BIT(12)
 #define DP83822_TX_CLK_SHIFT	BIT(11)
+
+/* SOR1 mode */
+#define DP83822_STRAP_MODE1	0
+#define DP83822_STRAP_MODE2	BIT(0)
+#define DP83822_STRAP_MODE3	BIT(1)
+#define DP83822_STRAP_MODE4	GENMASK(1, 0)
+
+#define DP83822_COL_STRAP_MASK	GENMASK(11, 10)
+#define DP83822_COL_SHIFT	10
+#define DP83822_RX_ER_STR_MASK	GENMASK(9, 8)
+#define DP83822_RX_ER_SHIFT	8
+
+#define MII_DP83822_FIBER_ADVERTISE    (ADVERTISED_TP | ADVERTISED_MII | \
+					ADVERTISED_FIBRE | \
+					ADVERTISED_Pause | ADVERTISED_Asym_Pause)
+
+struct dp83822_private {
+	bool fx_signal_det_low;
+	int fx_enabled;
+	u16 fx_sd_enable;
+};
 
 static int dp83822_ack_interrupt(struct phy_device *phydev)
 {
@@ -197,6 +233,7 @@ static void dp83822_get_wol(struct phy_device *phydev,
 
 static int dp83822_config_intr(struct phy_device *phydev)
 {
+	struct dp83822_private *dp83822 = phydev->priv;
 	int misr_status;
 	int physcr_status;
 	int err;
@@ -208,12 +245,15 @@ static int dp83822_config_intr(struct phy_device *phydev)
 
 		misr_status |= (DP83822_RX_ERR_HF_INT_EN |
 				DP83822_FALSE_CARRIER_HF_INT_EN |
-				DP83822_ANEG_COMPLETE_INT_EN |
-				DP83822_DUP_MODE_CHANGE_INT_EN |
-				DP83822_SPEED_CHANGED_INT_EN |
 				DP83822_LINK_STAT_INT_EN |
 				DP83822_ENERGY_DET_INT_EN |
 				DP83822_LINK_QUAL_INT_EN);
+
+		if (!dp83822->fx_enabled)
+			misr_status |= DP83822_ANEG_COMPLETE_INT_EN |
+				       DP83822_DUP_MODE_CHANGE_INT_EN |
+				       DP83822_SPEED_CHANGED_INT_EN;
+
 
 		err = phy_write(phydev, MII_DP83822_MISR1, misr_status);
 		if (err < 0)
@@ -224,13 +264,15 @@ static int dp83822_config_intr(struct phy_device *phydev)
 			return misr_status;
 
 		misr_status |= (DP83822_JABBER_DET_INT_EN |
-				DP83822_WOL_PKT_INT_EN |
 				DP83822_SLEEP_MODE_INT_EN |
-				DP83822_MDI_XOVER_INT_EN |
 				DP83822_LB_FIFO_INT_EN |
 				DP83822_PAGE_RX_INT_EN |
-				DP83822_ANEG_ERR_INT_EN |
 				DP83822_EEE_ERROR_CHANGE_INT_EN);
+
+		if (!dp83822->fx_enabled)
+			misr_status |= DP83822_MDI_XOVER_INT_EN |
+				       DP83822_ANEG_ERR_INT_EN |
+				       DP83822_WOL_PKT_INT_EN;
 
 		err = phy_write(phydev, MII_DP83822_MISR2, misr_status);
 		if (err < 0)
@@ -270,13 +312,60 @@ static int dp8382x_disable_wol(struct phy_device *phydev)
 				  MII_DP83822_WOL_CFG, value);
 }
 
+static int dp83822_read_status(struct phy_device *phydev)
+{
+	struct dp83822_private *dp83822 = phydev->priv;
+	int status = phy_read(phydev, MII_DP83822_PHYSTS);
+	int ctrl2;
+	int ret;
+
+	if (dp83822->fx_enabled) {
+		if (status & DP83822_PHYSTS_LINK) {
+			phydev->speed = SPEED_UNKNOWN;
+			phydev->duplex = DUPLEX_UNKNOWN;
+		} else {
+			ctrl2 = phy_read(phydev, MII_DP83822_CTRL_2);
+			if (ctrl2 < 0)
+				return ctrl2;
+
+			if (!(ctrl2 & DP83822_FX_ENABLE)) {
+				ret = phy_write(phydev, MII_DP83822_CTRL_2,
+						DP83822_FX_ENABLE | ctrl2);
+				if (ret < 0)
+					return ret;
+			}
+		}
+	}
+
+	ret = genphy_read_status(phydev);
+	if (ret)
+		return ret;
+
+	if (status < 0)
+		return status;
+
+	if (status & DP83822_PHYSTS_DUPLEX)
+		phydev->duplex = DUPLEX_FULL;
+	else
+		phydev->duplex = DUPLEX_HALF;
+
+	if (status & DP83822_PHYSTS_10)
+		phydev->speed = SPEED_10;
+	else
+		phydev->speed = SPEED_100;
+
+	return 0;
+}
+
 static int dp83822_config_init(struct phy_device *phydev)
 {
+	struct dp83822_private *dp83822 = phydev->priv;
 	struct device *dev = &phydev->mdio.dev;
 	int rgmii_delay;
 	s32 rx_int_delay;
 	s32 tx_int_delay;
 	int err = 0;
+	int bmcr;
 
 	if (phy_interface_is_rgmii(phydev)) {
 		rx_int_delay = phy_get_internal_delay(phydev, dev, NULL, 0,
@@ -302,6 +391,61 @@ static int dp83822_config_init(struct phy_device *phydev)
 		}
 	}
 
+	if (dp83822->fx_enabled) {
+		err = phy_modify(phydev, MII_DP83822_CTRL_2,
+				 DP83822_FX_ENABLE, 1);
+		if (err < 0)
+			return err;
+
+		/* Only allow advertising what this PHY supports */
+		linkmode_and(phydev->advertising, phydev->advertising,
+			     phydev->supported);
+
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT,
+				 phydev->supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT,
+				 phydev->advertising);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseFX_Full_BIT,
+				 phydev->supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseFX_Half_BIT,
+				 phydev->supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseFX_Full_BIT,
+				 phydev->advertising);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseFX_Half_BIT,
+				 phydev->advertising);
+
+		/* Auto neg is not supported in fiber mode */
+		bmcr = phy_read(phydev, MII_BMCR);
+		if (bmcr < 0)
+			return bmcr;
+
+		if (bmcr & BMCR_ANENABLE) {
+			err =  phy_modify(phydev, MII_BMCR, BMCR_ANENABLE, 0);
+			if (err < 0)
+				return err;
+		}
+		phydev->autoneg = AUTONEG_DISABLE;
+		linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+				   phydev->supported);
+		linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+				   phydev->advertising);
+
+		/* Setup fiber advertisement */
+		err = phy_modify_changed(phydev, MII_ADVERTISE,
+					 MII_DP83822_FIBER_ADVERTISE,
+					 MII_DP83822_FIBER_ADVERTISE);
+
+		if (err < 0)
+			return err;
+
+		if (dp83822->fx_signal_det_low) {
+			err = phy_set_bits_mmd(phydev, DP83822_DEVADDR,
+					       MII_DP83822_GENCFG,
+					       DP83822_SIG_DET_LOW);
+			if (err)
+				return err;
+		}
+	}
 	return dp8382x_disable_wol(phydev);
 }
 
@@ -314,11 +458,83 @@ static int dp83822_phy_reset(struct phy_device *phydev)
 {
 	int err;
 
-	err = phy_write(phydev, MII_DP83822_RESET_CTRL, DP83822_HW_RESET);
+	err = phy_write(phydev, MII_DP83822_RESET_CTRL, DP83822_SW_RESET);
 	if (err < 0)
 		return err;
 
 	return phydev->drv->config_init(phydev);
+}
+
+#ifdef CONFIG_OF_MDIO
+static int dp83822_of_init(struct phy_device *phydev)
+{
+	struct dp83822_private *dp83822 = phydev->priv;
+	struct device *dev = &phydev->mdio.dev;
+
+	/* Signal detection for the PHY is only enabled if the FX_EN and the
+	 * SD_EN pins are strapped. Signal detection can only enabled if FX_EN
+	 * is strapped otherwise signal detection is disabled for the PHY.
+	 */
+	if (dp83822->fx_enabled && dp83822->fx_sd_enable)
+		dp83822->fx_signal_det_low = device_property_present(dev,
+								     "ti,link-loss-low");
+	if (!dp83822->fx_enabled)
+		dp83822->fx_enabled = device_property_present(dev,
+							      "ti,fiber-mode");
+
+	return 0;
+}
+#else
+static int dp83822_of_init(struct phy_device *phydev)
+{
+	return 0;
+}
+#endif /* CONFIG_OF_MDIO */
+
+static int dp83822_read_straps(struct phy_device *phydev)
+{
+	struct dp83822_private *dp83822 = phydev->priv;
+	int fx_enabled, fx_sd_enable;
+	int val;
+
+	val = phy_read_mmd(phydev, DP83822_DEVADDR, MII_DP83822_SOR1);
+	if (val < 0)
+		return val;
+
+	fx_enabled = (val & DP83822_COL_STRAP_MASK) >> DP83822_COL_SHIFT;
+	if (fx_enabled == DP83822_STRAP_MODE2 ||
+	    fx_enabled == DP83822_STRAP_MODE3)
+		dp83822->fx_enabled = 1;
+
+	if (dp83822->fx_enabled) {
+		fx_sd_enable = (val & DP83822_RX_ER_STR_MASK) >> DP83822_RX_ER_SHIFT;
+		if (fx_sd_enable == DP83822_STRAP_MODE3 ||
+		    fx_sd_enable == DP83822_STRAP_MODE4)
+			dp83822->fx_sd_enable = 1;
+	}
+
+	return 0;
+}
+
+static int dp83822_probe(struct phy_device *phydev)
+{
+	struct dp83822_private *dp83822;
+	int ret;
+
+	dp83822 = devm_kzalloc(&phydev->mdio.dev, sizeof(*dp83822),
+			       GFP_KERNEL);
+	if (!dp83822)
+		return -ENOMEM;
+
+	phydev->priv = dp83822;
+
+	ret = dp83822_read_straps(phydev);
+	if (ret)
+		return ret;
+
+	dp83822_of_init(phydev);
+
+	return 0;
 }
 
 static int dp83822_suspend(struct phy_device *phydev)
@@ -352,8 +568,10 @@ static int dp83822_resume(struct phy_device *phydev)
 		PHY_ID_MATCH_MODEL(_id),			\
 		.name		= (_name),			\
 		/* PHY_BASIC_FEATURES */			\
+		.probe          = dp83822_probe,		\
 		.soft_reset	= dp83822_phy_reset,		\
 		.config_init	= dp83822_config_init,		\
+		.read_status	= dp83822_read_status,		\
 		.get_wol = dp83822_get_wol,			\
 		.set_wol = dp83822_set_wol,			\
 		.ack_interrupt = dp83822_ack_interrupt,		\

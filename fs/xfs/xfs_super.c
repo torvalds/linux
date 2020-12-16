@@ -794,8 +794,7 @@ xfs_fs_statfs(
 	statp->f_namelen = MAXNAMELEN - 1;
 
 	id = huge_encode_dev(mp->m_ddev_targp->bt_dev);
-	statp->f_fsid.val[0] = (u32)id;
-	statp->f_fsid.val[1] = (u32)(id >> 32);
+	statp->f_fsid = u64_to_fsid(id);
 
 	icount = percpu_counter_sum(&mp->m_icount);
 	ifree = percpu_counter_sum(&mp->m_ifree);
@@ -1234,24 +1233,11 @@ xfs_fc_parse_param(
 	case Opt_nouuid:
 		mp->m_flags |= XFS_MOUNT_NOUUID;
 		return 0;
-	case Opt_ikeep:
-		mp->m_flags |= XFS_MOUNT_IKEEP;
-		return 0;
-	case Opt_noikeep:
-		mp->m_flags &= ~XFS_MOUNT_IKEEP;
-		return 0;
 	case Opt_largeio:
 		mp->m_flags |= XFS_MOUNT_LARGEIO;
 		return 0;
 	case Opt_nolargeio:
 		mp->m_flags &= ~XFS_MOUNT_LARGEIO;
-		return 0;
-	case Opt_attr2:
-		mp->m_flags |= XFS_MOUNT_ATTR2;
-		return 0;
-	case Opt_noattr2:
-		mp->m_flags &= ~XFS_MOUNT_ATTR2;
-		mp->m_flags |= XFS_MOUNT_NOATTR2;
 		return 0;
 	case Opt_filestreams:
 		mp->m_flags |= XFS_MOUNT_FILESTREAMS;
@@ -1304,6 +1290,24 @@ xfs_fc_parse_param(
 		xfs_mount_set_dax_mode(mp, result.uint_32);
 		return 0;
 #endif
+	/* Following mount options will be removed in September 2025 */
+	case Opt_ikeep:
+		xfs_warn(mp, "%s mount option is deprecated.", param->key);
+		mp->m_flags |= XFS_MOUNT_IKEEP;
+		return 0;
+	case Opt_noikeep:
+		xfs_warn(mp, "%s mount option is deprecated.", param->key);
+		mp->m_flags &= ~XFS_MOUNT_IKEEP;
+		return 0;
+	case Opt_attr2:
+		xfs_warn(mp, "%s mount option is deprecated.", param->key);
+		mp->m_flags |= XFS_MOUNT_ATTR2;
+		return 0;
+	case Opt_noattr2:
+		xfs_warn(mp, "%s mount option is deprecated.", param->key);
+		mp->m_flags &= ~XFS_MOUNT_ATTR2;
+		mp->m_flags |= XFS_MOUNT_NOATTR2;
+		return 0;
 	default:
 		xfs_warn(mp, "unknown mount option [%s].", param->key);
 		return -EINVAL;
@@ -1449,6 +1453,19 @@ xfs_fc_fill_super(
 	error = xfs_setup_devices(mp);
 	if (error)
 		goto out_free_sb;
+
+	/* V4 support is undergoing deprecation. */
+	if (!xfs_sb_version_hascrc(&mp->m_sb)) {
+#ifdef CONFIG_XFS_SUPPORT_V4
+		xfs_warn_once(mp,
+	"Deprecated V4 format (crc=0) will not be supported after September 2030.");
+#else
+		xfs_warn(mp,
+	"Deprecated V4 format (crc=0) not supported by kernel.");
+		error = -EINVAL;
+		goto out_free_sb;
+#endif
+	}
 
 	/*
 	 * XFS block mappings use 54 bits to store the logical block offset.

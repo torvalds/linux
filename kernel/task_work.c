@@ -9,23 +9,28 @@ static struct callback_head work_exited; /* all we need is ->next == NULL */
  * task_work_add - ask the @task to execute @work->func()
  * @task: the task which should run the callback
  * @work: the callback to run
- * @notify: send the notification if true
+ * @notify: how to notify the targeted task
  *
- * Queue @work for task_work_run() below and notify the @task if @notify.
- * Fails if the @task is exiting/exited and thus it can't process this @work.
- * Otherwise @work->func() will be called when the @task returns from kernel
- * mode or exits.
+ * Queue @work for task_work_run() below and notify the @task if @notify
+ * is @TWA_RESUME or @TWA_SIGNAL. @TWA_SIGNAL works like signals, in that the
+ * it will interrupt the targeted task and run the task_work. @TWA_RESUME
+ * work is run only when the task exits the kernel and returns to user mode,
+ * or before entering guest mode. Fails if the @task is exiting/exited and thus
+ * it can't process this @work. Otherwise @work->func() will be called when the
+ * @task goes through one of the aforementioned transitions, or exits.
  *
- * This is like the signal handler which runs in kernel mode, but it doesn't
- * try to wake up the @task.
+ * If the targeted task is exiting, then an error is returned and the work item
+ * is not queued. It's up to the caller to arrange for an alternative mechanism
+ * in that case.
  *
- * Note: there is no ordering guarantee on works queued here.
+ * Note: there is no ordering guarantee on works queued here. The task_work
+ * list is LIFO.
  *
  * RETURNS:
  * 0 if succeeds or -ESRCH.
  */
-int
-task_work_add(struct task_struct *task, struct callback_head *work, int notify)
+int task_work_add(struct task_struct *task, struct callback_head *work,
+		  enum task_work_notify_mode notify)
 {
 	struct callback_head *head;
 	unsigned long flags;
@@ -38,6 +43,8 @@ task_work_add(struct task_struct *task, struct callback_head *work, int notify)
 	} while (cmpxchg(&task->task_works, head, work) != head);
 
 	switch (notify) {
+	case TWA_NONE:
+		break;
 	case TWA_RESUME:
 		set_notify_resume(task);
 		break;
@@ -53,6 +60,9 @@ task_work_add(struct task_struct *task, struct callback_head *work, int notify)
 			signal_wake_up(task, 0);
 			unlock_task_sighand(task, &flags);
 		}
+		break;
+	default:
+		WARN_ON_ONCE(1);
 		break;
 	}
 

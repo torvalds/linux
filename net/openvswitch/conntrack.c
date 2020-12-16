@@ -1905,8 +1905,8 @@ static void ovs_ct_limit_exit(struct net *net, struct ovs_net *ovs_net)
 					 lockdep_ovsl_is_held())
 			kfree_rcu(ct_limit, rcu);
 	}
-	kfree(ovs_net->ct_limit_info->limits);
-	kfree(ovs_net->ct_limit_info);
+	kfree(info->limits);
+	kfree(info);
 }
 
 static struct sk_buff *
@@ -2235,7 +2235,7 @@ exit_err:
 	return err;
 }
 
-static struct genl_ops ct_limit_genl_ops[] = {
+static const struct genl_small_ops ct_limit_genl_ops[] = {
 	{ .cmd = OVS_CT_LIMIT_CMD_SET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN
@@ -2267,8 +2267,8 @@ struct genl_family dp_ct_limit_genl_family __ro_after_init = {
 	.policy = ct_limit_policy,
 	.netnsok = true,
 	.parallel_ops = true,
-	.ops = ct_limit_genl_ops,
-	.n_ops = ARRAY_SIZE(ct_limit_genl_ops),
+	.small_ops = ct_limit_genl_ops,
+	.n_small_ops = ARRAY_SIZE(ct_limit_genl_ops),
 	.mcgrps = &ovs_ct_limit_multicast_group,
 	.n_mcgrps = 1,
 	.module = THIS_MODULE,

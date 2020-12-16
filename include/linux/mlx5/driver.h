@@ -501,6 +501,7 @@ struct mlx5_mpfs;
 struct mlx5_eswitch;
 struct mlx5_lag;
 struct mlx5_devcom;
+struct mlx5_fw_reset;
 struct mlx5_eq_table;
 struct mlx5_irq_table;
 
@@ -578,6 +579,7 @@ struct mlx5_priv {
 	struct mlx5_core_sriov	sriov;
 	struct mlx5_lag		*lag;
 	struct mlx5_devcom	*devcom;
+	struct mlx5_fw_reset	*fw_reset;
 	struct mlx5_core_roce	roce;
 	struct mlx5_fc_stats		fc_stats;
 	struct mlx5_rl_table            rl_table;
@@ -643,7 +645,6 @@ struct mlx5_pps {
 };
 
 struct mlx5_clock {
-	struct mlx5_core_dev      *mdev;
 	struct mlx5_nb             pps_nb;
 	seqlock_t                  lock;
 	struct cyclecounter        cycles;
@@ -1210,6 +1211,24 @@ static inline bool mlx5_is_roce_enabled(struct mlx5_core_dev *dev)
 					   DEVLINK_PARAM_GENERIC_ID_ENABLE_ROCE,
 					   &val);
 	return val.vbool;
+}
+
+/**
+ * mlx5_core_net - Provide net namespace of the mlx5_core_dev
+ * @dev: mlx5 core device
+ *
+ * mlx5_core_net() returns the net namespace of mlx5 core device.
+ * This can be called only in below described limited context.
+ * (a) When a devlink instance for mlx5_core is registered and
+ *     when devlink reload operation is disabled.
+ *     or
+ * (b) during devlink reload reload_down() and reload_up callbacks
+ *     where it is ensured that devlink instance's net namespace is
+ *     stable.
+ */
+static inline struct net *mlx5_core_net(struct mlx5_core_dev *dev)
+{
+	return devlink_net(priv_to_devlink(dev));
 }
 
 #endif /* MLX5_DRIVER_H */

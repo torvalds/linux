@@ -137,6 +137,17 @@ int ceph_oid_aprintf(struct ceph_object_id *oid, gfp_t gfp,
 		     const char *fmt, ...);
 void ceph_oid_destroy(struct ceph_object_id *oid);
 
+struct workspace_manager {
+	struct list_head idle_ws;
+	spinlock_t ws_lock;
+	/* Number of free workspaces */
+	int free_ws;
+	/* Total number of allocated workspaces */
+	atomic_t total_ws;
+	/* Waiters for a free workspace */
+	wait_queue_head_t ws_wait;
+};
+
 struct ceph_pg_mapping {
 	struct rb_node node;
 	struct ceph_pg pgid;
@@ -184,8 +195,7 @@ struct ceph_osdmap {
 	 * the list of osds that store+replicate them. */
 	struct crush_map *crush;
 
-	struct mutex crush_workspace_mutex;
-	void *crush_workspace;
+	struct workspace_manager crush_wsm;
 };
 
 static inline bool ceph_osd_exists(struct ceph_osdmap *map, int osd)

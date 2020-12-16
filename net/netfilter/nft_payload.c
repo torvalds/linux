@@ -22,6 +22,7 @@
 #include <linux/icmpv6.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <net/sctp/checksum.h>
 
 static bool nft_payload_rebuild_vlan_hdr(const struct sk_buff *skb, int mac_off,
 					 struct vlan_ethhdr *veth)
@@ -484,6 +485,19 @@ static int nft_payload_l4csum_offset(const struct nft_pktinfo *pkt,
 	return 0;
 }
 
+static int nft_payload_csum_sctp(struct sk_buff *skb, int offset)
+{
+	struct sctphdr *sh;
+
+	if (skb_ensure_writable(skb, offset + sizeof(*sh)))
+		return -1;
+
+	sh = (struct sctphdr *)(skb->data + offset);
+	sh->checksum = sctp_compute_cksum(skb, offset);
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	return 0;
+}
+
 static int nft_payload_l4csum_update(const struct nft_pktinfo *pkt,
 				     struct sk_buff *skb,
 				     __wsum fsum, __wsum tsum)
@@ -587,6 +601,13 @@ static void nft_payload_set_eval(const struct nft_expr *expr,
 	    skb_store_bits(skb, offset, src, priv->len) < 0)
 		goto err;
 
+	if (priv->csum_type == NFT_PAYLOAD_CSUM_SCTP &&
+	    pkt->tprot == IPPROTO_SCTP &&
+	    skb->ip_summed != CHECKSUM_PARTIAL) {
+		if (nft_payload_csum_sctp(skb, pkt->xt.thoff))
+			goto err;
+	}
+
 	return;
 err:
 	regs->verdict.code = NFT_BREAK;
@@ -622,6 +643,13 @@ static int nft_payload_set_init(const struct nft_ctx *ctx,
 	switch (priv->csum_type) {
 	case NFT_PAYLOAD_CSUM_NONE:
 	case NFT_PAYLOAD_CSUM_INET:
+		break;
+	case NFT_PAYLOAD_CSUM_SCTP:
+		if (priv->base != NFT_PAYLOAD_TRANSPORT_HEADER)
+			return -EINVAL;
+
+		if (priv->csum_offset != offsetof(struct sctphdr, checksum))
+			return -EINVAL;
 		break;
 	default:
 		return -EOPNOTSUPP;

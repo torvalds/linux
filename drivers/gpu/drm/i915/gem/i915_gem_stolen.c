@@ -53,8 +53,10 @@ int i915_gem_stolen_insert_node(struct drm_i915_private *i915,
 				struct drm_mm_node *node, u64 size,
 				unsigned alignment)
 {
-	return i915_gem_stolen_insert_node_in_range(i915, node, size,
-						    alignment, 0, U64_MAX);
+	return i915_gem_stolen_insert_node_in_range(i915, node,
+						    size, alignment,
+						    I915_GEM_STOLEN_BIAS,
+						    U64_MAX);
 }
 
 void i915_gem_stolen_remove_node(struct drm_i915_private *i915,

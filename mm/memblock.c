@@ -48,12 +48,12 @@
  *   boot regardless of the possible restrictions and memory hot(un)plug;
  *   the ``physmem`` type is only available on some architectures.
  *
- * Each region is represented by :c:type:`struct memblock_region` that
+ * Each region is represented by struct memblock_region that
  * defines the region extents, its attributes and NUMA node id on NUMA
- * systems. Every memory type is described by the :c:type:`struct
- * memblock_type` which contains an array of memory regions along with
+ * systems. Every memory type is described by the struct memblock_type
+ * which contains an array of memory regions along with
  * the allocator metadata. The "memory" and "reserved" types are nicely
- * wrapped with :c:type:`struct memblock`. This structure is statically
+ * wrapped with struct memblock. This structure is statically
  * initialized at build time. The region arrays are initially sized to
  * %INIT_MEMBLOCK_REGIONS for "memory" and %INIT_MEMBLOCK_RESERVED_REGIONS
  * for "reserved". The region array for "physmem" is initially sized to

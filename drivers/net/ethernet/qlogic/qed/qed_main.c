@@ -39,6 +39,7 @@
 #include "qed_hw.h"
 #include "qed_selftest.h"
 #include "qed_debug.h"
+#include "qed_devlink.h"
 
 #define QED_ROCE_QPS			(8192)
 #define QED_ROCE_DPIS			(8)
@@ -480,6 +481,7 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 	}
 
 	dev_info->mtu = hw_info->mtu;
+	cdev->common_dev_info = *dev_info;
 
 	return 0;
 }
@@ -512,107 +514,6 @@ static int qed_set_power_state(struct qed_dev *cdev, pci_power_t state)
 	return 0;
 }
 
-struct qed_devlink {
-	struct qed_dev *cdev;
-};
-
-enum qed_devlink_param_id {
-	QED_DEVLINK_PARAM_ID_BASE = DEVLINK_PARAM_GENERIC_ID_MAX,
-	QED_DEVLINK_PARAM_ID_IWARP_CMT,
-};
-
-static int qed_dl_param_get(struct devlink *dl, u32 id,
-			    struct devlink_param_gset_ctx *ctx)
-{
-	struct qed_devlink *qed_dl;
-	struct qed_dev *cdev;
-
-	qed_dl = devlink_priv(dl);
-	cdev = qed_dl->cdev;
-	ctx->val.vbool = cdev->iwarp_cmt;
-
-	return 0;
-}
-
-static int qed_dl_param_set(struct devlink *dl, u32 id,
-			    struct devlink_param_gset_ctx *ctx)
-{
-	struct qed_devlink *qed_dl;
-	struct qed_dev *cdev;
-
-	qed_dl = devlink_priv(dl);
-	cdev = qed_dl->cdev;
-	cdev->iwarp_cmt = ctx->val.vbool;
-
-	return 0;
-}
-
-static const struct devlink_param qed_devlink_params[] = {
-	DEVLINK_PARAM_DRIVER(QED_DEVLINK_PARAM_ID_IWARP_CMT,
-			     "iwarp_cmt", DEVLINK_PARAM_TYPE_BOOL,
-			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
-			     qed_dl_param_get, qed_dl_param_set, NULL),
-};
-
-static const struct devlink_ops qed_dl_ops;
-
-static int qed_devlink_register(struct qed_dev *cdev)
-{
-	union devlink_param_value value;
-	struct qed_devlink *qed_dl;
-	struct devlink *dl;
-	int rc;
-
-	dl = devlink_alloc(&qed_dl_ops, sizeof(*qed_dl));
-	if (!dl)
-		return -ENOMEM;
-
-	qed_dl = devlink_priv(dl);
-
-	cdev->dl = dl;
-	qed_dl->cdev = cdev;
-
-	rc = devlink_register(dl, &cdev->pdev->dev);
-	if (rc)
-		goto err_free;
-
-	rc = devlink_params_register(dl, qed_devlink_params,
-				     ARRAY_SIZE(qed_devlink_params));
-	if (rc)
-		goto err_unregister;
-
-	value.vbool = false;
-	devlink_param_driverinit_value_set(dl,
-					   QED_DEVLINK_PARAM_ID_IWARP_CMT,
-					   value);
-
-	devlink_params_publish(dl);
-	cdev->iwarp_cmt = false;
-
-	return 0;
-
-err_unregister:
-	devlink_unregister(dl);
-
-err_free:
-	cdev->dl = NULL;
-	devlink_free(dl);
-
-	return rc;
-}
-
-static void qed_devlink_unregister(struct qed_dev *cdev)
-{
-	if (!cdev->dl)
-		return;
-
-	devlink_params_unregister(cdev->dl, qed_devlink_params,
-				  ARRAY_SIZE(qed_devlink_params));
-
-	devlink_unregister(cdev->dl);
-	devlink_free(cdev->dl);
-}
-
 /* probing */
 static struct qed_dev *qed_probe(struct pci_dev *pdev,
 				 struct qed_probe_params *params)
@@ -640,12 +541,6 @@ static struct qed_dev *qed_probe(struct pci_dev *pdev,
 		goto err1;
 	}
 	DP_INFO(cdev, "PCI init completed successfully\n");
-
-	rc = qed_devlink_register(cdev);
-	if (rc) {
-		DP_INFO(cdev, "Failed to register devlink.\n");
-		goto err2;
-	}
 
 	rc = qed_hw_prepare(cdev, QED_PCI_DEFAULT);
 	if (rc) {
@@ -675,8 +570,6 @@ static void qed_remove(struct qed_dev *cdev)
 	qed_free_pci(cdev);
 
 	qed_set_power_state(cdev, PCI_D3hot);
-
-	qed_devlink_unregister(cdev);
 
 	qed_free_cdev(cdev);
 }
@@ -843,7 +736,7 @@ static irqreturn_t qed_single_int(int irq, void *dev_instance)
 
 		/* Slowpath interrupt */
 		if (unlikely(status & 0x1)) {
-			tasklet_schedule(hwfn->sp_dpc);
+			tasklet_schedule(&hwfn->sp_dpc);
 			status &= ~0x1;
 			rc = IRQ_HANDLED;
 		}
@@ -889,7 +782,7 @@ int qed_slowpath_irq_req(struct qed_hwfn *hwfn)
 			 id, cdev->pdev->bus->number,
 			 PCI_SLOT(cdev->pdev->devfn), hwfn->abs_pf_id);
 		rc = request_irq(cdev->int_params.msix_table[id].vector,
-				 qed_msix_sp_int, 0, hwfn->name, hwfn->sp_dpc);
+				 qed_msix_sp_int, 0, hwfn->name, &hwfn->sp_dpc);
 	} else {
 		unsigned long flags = 0;
 
@@ -921,8 +814,8 @@ static void qed_slowpath_tasklet_flush(struct qed_hwfn *p_hwfn)
 	 * enable function makes this sequence a flush-like operation.
 	 */
 	if (p_hwfn->b_sp_dpc_enabled) {
-		tasklet_disable(p_hwfn->sp_dpc);
-		tasklet_enable(p_hwfn->sp_dpc);
+		tasklet_disable(&p_hwfn->sp_dpc);
+		tasklet_enable(&p_hwfn->sp_dpc);
 	}
 }
 
@@ -951,7 +844,7 @@ static void qed_slowpath_irq_free(struct qed_dev *cdev)
 				break;
 			synchronize_irq(cdev->int_params.msix_table[i].vector);
 			free_irq(cdev->int_params.msix_table[i].vector,
-				 cdev->hwfns[i].sp_dpc);
+				 &cdev->hwfns[i].sp_dpc);
 		}
 	} else {
 		if (QED_LEADING_HWFN(cdev)->b_int_requested)
@@ -970,11 +863,11 @@ static int qed_nic_stop(struct qed_dev *cdev)
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
 		if (p_hwfn->b_sp_dpc_enabled) {
-			tasklet_disable(p_hwfn->sp_dpc);
+			tasklet_disable(&p_hwfn->sp_dpc);
 			p_hwfn->b_sp_dpc_enabled = false;
 			DP_VERBOSE(cdev, NETIF_MSG_IFDOWN,
 				   "Disabled sp tasklet [hwfn %d] at %p\n",
-				   i, p_hwfn->sp_dpc);
+				   i, &p_hwfn->sp_dpc);
 		}
 	}
 
@@ -2926,7 +2819,7 @@ static int qed_set_led(struct qed_dev *cdev, enum qed_led_mode mode)
 	return status;
 }
 
-static int qed_recovery_process(struct qed_dev *cdev)
+int qed_recovery_process(struct qed_dev *cdev)
 {
 	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
 	struct qed_ptt *p_ptt;
@@ -3114,6 +3007,9 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.get_link = &qed_get_current_link,
 	.drain = &qed_drain,
 	.update_msglvl = &qed_init_dp,
+	.devlink_register = qed_devlink_register,
+	.devlink_unregister = qed_devlink_unregister,
+	.report_fatal_error = qed_report_fatal_error,
 	.dbg_all_data = &qed_dbg_all_data,
 	.dbg_all_data_size = &qed_dbg_all_data_size,
 	.chain_alloc = &qed_chain_alloc,

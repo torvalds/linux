@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -20,7 +20,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -180,7 +180,16 @@ const struct iwl_cfg_trans_params iwl9560_trans_cfg = {
 	.mq_rx_supported = true,
 	.rf_id = true,
 	.integrated = true,
-	.xtal_latency = 5000,
+	.xtal_latency = 650,
+};
+
+const struct iwl_cfg_trans_params iwl9560_long_latency_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_9000,
+	.base_params = &iwl9000_base_params,
+	.mq_rx_supported = true,
+	.rf_id = true,
+	.integrated = true,
+	.xtal_latency = 2820,
 };
 
 const struct iwl_cfg_trans_params iwl9560_shared_clk_trans_cfg = {
@@ -189,7 +198,7 @@ const struct iwl_cfg_trans_params iwl9560_shared_clk_trans_cfg = {
 	.mq_rx_supported = true,
 	.rf_id = true,
 	.integrated = true,
-	.xtal_latency = 5000,
+	.xtal_latency = 670,
 	.extra_phy_cfg_flags = FW_PHY_CFG_SHARED_CLK
 };
 

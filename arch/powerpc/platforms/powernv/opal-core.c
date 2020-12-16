@@ -510,7 +510,7 @@ static void __init opalcore_config_init(void)
 	idx = be32_to_cpu(opalc_metadata->region_cnt);
 	if (idx > MAX_PT_LOAD_CNT) {
 		pr_warn("WARNING: OPAL regions count (%d) adjusted to limit (%d)",
-			MAX_PT_LOAD_CNT, idx);
+			idx, MAX_PT_LOAD_CNT);
 		idx = MAX_PT_LOAD_CNT;
 	}
 	for (i = 0; i < idx; i++) {

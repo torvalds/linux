@@ -3766,9 +3766,7 @@ i40e_status i40e_aq_stop_lldp(struct i40e_hw *hw, bool shutdown_agent,
 /**
  * i40e_aq_start_lldp
  * @hw: pointer to the hw struct
- * @buff: buffer for result
  * @persist: True if start of LLDP should be persistent across power cycles
- * @buff_size: buffer size
  * @cmd_details: pointer to command details structure or NULL
  *
  * Start the embedded LLDP Agent on all ports.
@@ -5395,6 +5393,7 @@ static void i40e_mdio_if_number_selection(struct i40e_hw *hw, bool set_mdio,
  * @hw: pointer to the hw struct
  * @phy_select: select which phy should be accessed
  * @dev_addr: PHY device address
+ * @page_change: flag to indicate if phy page should be updated
  * @set_mdio: use MDIO I/F number specified by mdio_num
  * @mdio_num: MDIO I/F number
  * @reg_addr: PHY register address
@@ -5439,6 +5438,7 @@ enum i40e_status_code i40e_aq_set_phy_register_ext(struct i40e_hw *hw,
  * @hw: pointer to the hw struct
  * @phy_select: select which phy should be accessed
  * @dev_addr: PHY device address
+ * @page_change: flag to indicate if phy page should be updated
  * @set_mdio: use MDIO I/F number specified by mdio_num
  * @mdio_num: MDIO I/F number
  * @reg_addr: PHY register address

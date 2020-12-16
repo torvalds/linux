@@ -110,6 +110,7 @@
 			compatible = "st,stm32h7-spi";
 			reg = <0x40003800 0x400>;
 			interrupts = <36>;
+			resets = <&rcc STM32H7_APB1L_RESET(SPI2)>;
 			clocks = <&rcc SPI2_CK>;
 			status = "disabled";
 
@@ -121,12 +122,13 @@
 			compatible = "st,stm32h7-spi";
 			reg = <0x40003c00 0x400>;
 			interrupts = <51>;
+			resets = <&rcc STM32H7_APB1L_RESET(SPI3)>;
 			clocks = <&rcc SPI3_CK>;
 			status = "disabled";
 		};
 
 		usart2: serial@40004400 {
-			compatible = "st,stm32f7-uart";
+			compatible = "st,stm32h7-uart";
 			reg = <0x40004400 0x400>;
 			interrupts = <38>;
 			status = "disabled";
@@ -194,7 +196,7 @@
 		};
 
 		usart1: serial@40011000 {
-			compatible = "st,stm32f7-uart";
+			compatible = "st,stm32h7-uart";
 			reg = <0x40011000 0x400>;
 			interrupts = <37>;
 			status = "disabled";
@@ -207,6 +209,7 @@
 			compatible = "st,stm32h7-spi";
 			reg = <0x40013000 0x400>;
 			interrupts = <35>;
+			resets = <&rcc STM32H7_APB2_RESET(SPI1)>;
 			clocks = <&rcc SPI1_CK>;
 			status = "disabled";
 		};
@@ -217,6 +220,7 @@
 			compatible = "st,stm32h7-spi";
 			reg = <0x40013400 0x400>;
 			interrupts = <84>;
+			resets = <&rcc STM32H7_APB2_RESET(SPI4)>;
 			clocks = <&rcc SPI4_CK>;
 			status = "disabled";
 		};
@@ -227,6 +231,7 @@
 			compatible = "st,stm32h7-spi";
 			reg = <0x40015000 0x400>;
 			interrupts = <85>;
+			resets = <&rcc STM32H7_APB2_RESET(SPI5)>;
 			clocks = <&rcc SPI5_CK>;
 			status = "disabled";
 		};
@@ -329,6 +334,16 @@
 			status = "disabled";
 		};
 
+		ltdc: display-controller@50001000 {
+			compatible = "st,stm32-ltdc";
+			reg = <0x50001000 0x200>;
+			interrupts = <88>, <89>;
+			resets = <&rcc STM32H7_APB3_RESET(LTDC)>;
+			clocks = <&rcc LTDC_CK>;
+			clock-names = "lcd";
+			status = "disabled";
+		};
+
 		mdma1: dma-controller@52000000 {
 			compatible = "st,stm32h7-mdma";
 			reg = <0x52000000 0x1000>;
@@ -372,6 +387,7 @@
 			compatible = "st,stm32h7-spi";
 			reg = <0x58001400 0x400>;
 			interrupts = <86>;
+			resets = <&rcc STM32H7_APB4_RESET(SPI6)>;
 			clocks = <&rcc SPI6_CK>;
 			status = "disabled";
 		};

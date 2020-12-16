@@ -19,32 +19,52 @@ enum bpf_field_info_kind {
 	BPF_FIELD_RSHIFT_U64 = 5,
 };
 
+/* second argument to __builtin_btf_type_id() built-in */
+enum bpf_type_id_kind {
+	BPF_TYPE_ID_LOCAL = 0,		/* BTF type ID in local program */
+	BPF_TYPE_ID_TARGET = 1,		/* BTF type ID in target kernel */
+};
+
+/* second argument to __builtin_preserve_type_info() built-in */
+enum bpf_type_info_kind {
+	BPF_TYPE_EXISTS = 0,		/* type existence in target kernel */
+	BPF_TYPE_SIZE = 1,		/* type size in target kernel */
+};
+
+/* second argument to __builtin_preserve_enum_value() built-in */
+enum bpf_enum_value_kind {
+	BPF_ENUMVAL_EXISTS = 0,		/* enum value existence in kernel */
+	BPF_ENUMVAL_VALUE = 1,		/* enum value value relocation */
+};
+
 #define __CORE_RELO(src, field, info)					      \
 	__builtin_preserve_field_info((src)->field, BPF_FIELD_##info)
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define __CORE_BITFIELD_PROBE_READ(dst, src, fld)			      \
-	bpf_probe_read((void *)dst,					      \
-		       __CORE_RELO(src, fld, BYTE_SIZE),		      \
-		       (const void *)src + __CORE_RELO(src, fld, BYTE_OFFSET))
+	bpf_probe_read_kernel(						      \
+			(void *)dst,				      \
+			__CORE_RELO(src, fld, BYTE_SIZE),		      \
+			(const void *)src + __CORE_RELO(src, fld, BYTE_OFFSET))
 #else
 /* semantics of LSHIFT_64 assumes loading values into low-ordered bytes, so
  * for big-endian we need to adjust destination pointer accordingly, based on
  * field byte size
  */
 #define __CORE_BITFIELD_PROBE_READ(dst, src, fld)			      \
-	bpf_probe_read((void *)dst + (8 - __CORE_RELO(src, fld, BYTE_SIZE)),  \
-		       __CORE_RELO(src, fld, BYTE_SIZE),		      \
-		       (const void *)src + __CORE_RELO(src, fld, BYTE_OFFSET))
+	bpf_probe_read_kernel(						      \
+			(void *)dst + (8 - __CORE_RELO(src, fld, BYTE_SIZE)), \
+			__CORE_RELO(src, fld, BYTE_SIZE),		      \
+			(const void *)src + __CORE_RELO(src, fld, BYTE_OFFSET))
 #endif
 
 /*
  * Extract bitfield, identified by s->field, and return its value as u64.
  * All this is done in relocatable manner, so bitfield changes such as
  * signedness, bit size, offset changes, this will be handled automatically.
- * This version of macro is using bpf_probe_read() to read underlying integer
- * storage. Macro functions as an expression and its return type is
- * bpf_probe_read()'s return value: 0, on success, <0 on error.
+ * This version of macro is using bpf_probe_read_kernel() to read underlying
+ * integer storage. Macro functions as an expression and its return type is
+ * bpf_probe_read_kernel()'s return value: 0, on success, <0 on error.
  */
 #define BPF_CORE_READ_BITFIELD_PROBED(s, field) ({			      \
 	unsigned long long val = 0;					      \
@@ -92,15 +112,75 @@ enum bpf_field_info_kind {
 	__builtin_preserve_field_info(field, BPF_FIELD_EXISTS)
 
 /*
- * Convenience macro to get byte size of a field. Works for integers,
+ * Convenience macro to get the byte size of a field. Works for integers,
  * struct/unions, pointers, arrays, and enums.
  */
 #define bpf_core_field_size(field)					    \
 	__builtin_preserve_field_info(field, BPF_FIELD_BYTE_SIZE)
 
 /*
- * bpf_core_read() abstracts away bpf_probe_read() call and captures offset
- * relocation for source address using __builtin_preserve_access_index()
+ * Convenience macro to get BTF type ID of a specified type, using a local BTF
+ * information. Return 32-bit unsigned integer with type ID from program's own
+ * BTF. Always succeeds.
+ */
+#define bpf_core_type_id_local(type)					    \
+	__builtin_btf_type_id(*(typeof(type) *)0, BPF_TYPE_ID_LOCAL)
+
+/*
+ * Convenience macro to get BTF type ID of a target kernel's type that matches
+ * specified local type.
+ * Returns:
+ *    - valid 32-bit unsigned type ID in kernel BTF;
+ *    - 0, if no matching type was found in a target kernel BTF.
+ */
+#define bpf_core_type_id_kernel(type)					    \
+	__builtin_btf_type_id(*(typeof(type) *)0, BPF_TYPE_ID_TARGET)
+
+/*
+ * Convenience macro to check that provided named type
+ * (struct/union/enum/typedef) exists in a target kernel.
+ * Returns:
+ *    1, if such type is present in target kernel's BTF;
+ *    0, if no matching type is found.
+ */
+#define bpf_core_type_exists(type)					    \
+	__builtin_preserve_type_info(*(typeof(type) *)0, BPF_TYPE_EXISTS)
+
+/*
+ * Convenience macro to get the byte size of a provided named type
+ * (struct/union/enum/typedef) in a target kernel.
+ * Returns:
+ *    >= 0 size (in bytes), if type is present in target kernel's BTF;
+ *    0, if no matching type is found.
+ */
+#define bpf_core_type_size(type)					    \
+	__builtin_preserve_type_info(*(typeof(type) *)0, BPF_TYPE_SIZE)
+
+/*
+ * Convenience macro to check that provided enumerator value is defined in
+ * a target kernel.
+ * Returns:
+ *    1, if specified enum type and its enumerator value are present in target
+ *    kernel's BTF;
+ *    0, if no matching enum and/or enum value within that enum is found.
+ */
+#define bpf_core_enum_value_exists(enum_type, enum_value)		    \
+	__builtin_preserve_enum_value(*(typeof(enum_type) *)enum_value, BPF_ENUMVAL_EXISTS)
+
+/*
+ * Convenience macro to get the integer value of an enumerator value in
+ * a target kernel.
+ * Returns:
+ *    64-bit value, if specified enum type and its enumerator value are
+ *    present in target kernel's BTF;
+ *    0, if no matching enum and/or enum value within that enum is found.
+ */
+#define bpf_core_enum_value(enum_type, enum_value)			    \
+	__builtin_preserve_enum_value(*(typeof(enum_type) *)enum_value, BPF_ENUMVAL_VALUE)
+
+/*
+ * bpf_core_read() abstracts away bpf_probe_read_kernel() call and captures
+ * offset relocation for source address using __builtin_preserve_access_index()
  * built-in, provided by Clang.
  *
  * __builtin_preserve_access_index() takes as an argument an expression of
@@ -115,8 +195,8 @@ enum bpf_field_info_kind {
  * (local) BTF, used to record relocation.
  */
 #define bpf_core_read(dst, sz, src)					    \
-	bpf_probe_read(dst, sz,						    \
-		       (const void *)__builtin_preserve_access_index(src))
+	bpf_probe_read_kernel(dst, sz,					    \
+			      (const void *)__builtin_preserve_access_index(src))
 
 /*
  * bpf_core_read_str() is a thin wrapper around bpf_probe_read_str()
@@ -124,8 +204,8 @@ enum bpf_field_info_kind {
  * argument.
  */
 #define bpf_core_read_str(dst, sz, src)					    \
-	bpf_probe_read_str(dst, sz,					    \
-			   (const void *)__builtin_preserve_access_index(src))
+	bpf_probe_read_kernel_str(dst, sz,				    \
+				  (const void *)__builtin_preserve_access_index(src))
 
 #define ___concat(a, b) a ## b
 #define ___apply(fn, n) ___concat(fn, n)
@@ -239,15 +319,17 @@ enum bpf_field_info_kind {
  *	int x = BPF_CORE_READ(s, a.b.c, d.e, f, g);
  *
  * BPF_CORE_READ will decompose above statement into 4 bpf_core_read (BPF
- * CO-RE relocatable bpf_probe_read() wrapper) calls, logically equivalent to:
+ * CO-RE relocatable bpf_probe_read_kernel() wrapper) calls, logically
+ * equivalent to:
  * 1. const void *__t = s->a.b.c;
  * 2. __t = __t->d.e;
  * 3. __t = __t->f;
  * 4. return __t->g;
  *
  * Equivalence is logical, because there is a heavy type casting/preservation
- * involved, as well as all the reads are happening through bpf_probe_read()
- * calls using __builtin_preserve_access_index() to emit CO-RE relocations.
+ * involved, as well as all the reads are happening through
+ * bpf_probe_read_kernel() calls using __builtin_preserve_access_index() to
+ * emit CO-RE relocations.
  *
  * N.B. Only up to 9 "field accessors" are supported, which should be more
  * than enough for any practical purpose.

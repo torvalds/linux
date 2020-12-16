@@ -43,8 +43,8 @@ properties:
   gpio-controller: true
 
   gpio-line-names:
-      minItems: 1
-      maxItems: 8
+    minItems: 1
+    maxItems: 8
 
 required:
   - compatible

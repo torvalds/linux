@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.video
 
 .. _VIDEO_GET_CAPABILITIES:
 
@@ -16,9 +17,9 @@ VIDEO_GET_CAPABILITIES
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, VIDEO_GET_CAPABILITIES, unsigned int *cap)
-    :name: VIDEO_GET_CAPABILITIES
+.. c:macro:: VIDEO_GET_CAPABILITIES
 
+``int ioctl(fd, VIDEO_GET_CAPABILITIES, unsigned int *cap)``
 
 Arguments
 ---------
@@ -26,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -46,14 +46,12 @@ Arguments
 
        -  Pointer to a location where to store the capability information.
 
-
 Description
 -----------
 
 This ioctl call asks the video device about its decoding capabilities.
 On success it returns and integer which has bits set according to the
 defines in section ??.
-
 
 Return Value
 ------------

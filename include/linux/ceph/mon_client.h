@@ -142,7 +142,7 @@ int ceph_monc_get_version(struct ceph_mon_client *monc, const char *what,
 int ceph_monc_get_version_async(struct ceph_mon_client *monc, const char *what,
 				ceph_monc_callback_t cb, u64 private_data);
 
-int ceph_monc_blacklist_add(struct ceph_mon_client *monc,
+int ceph_monc_blocklist_add(struct ceph_mon_client *monc,
 			    struct ceph_entity_addr *client_addr);
 
 extern int ceph_monc_open_session(struct ceph_mon_client *monc);

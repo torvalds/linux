@@ -7,6 +7,7 @@
 
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/tee_drv.h>
 #include "optee_private.h"
@@ -48,6 +49,97 @@ static void handle_rpc_func_cmd_get_time(struct optee_msg_arg *arg)
 bad:
 	arg->ret = TEEC_ERROR_BAD_PARAMETERS;
 }
+
+#if IS_REACHABLE(CONFIG_I2C)
+static void handle_rpc_func_cmd_i2c_transfer(struct tee_context *ctx,
+					     struct optee_msg_arg *arg)
+{
+	struct i2c_client client = { 0 };
+	struct tee_param *params;
+	size_t i;
+	int ret = -EOPNOTSUPP;
+	u8 attr[] = {
+		TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT,
+		TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT,
+		TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT,
+		TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT,
+	};
+
+	if (arg->num_params != ARRAY_SIZE(attr)) {
+		arg->ret = TEEC_ERROR_BAD_PARAMETERS;
+		return;
+	}
+
+	params = kmalloc_array(arg->num_params, sizeof(struct tee_param),
+			       GFP_KERNEL);
+	if (!params) {
+		arg->ret = TEEC_ERROR_OUT_OF_MEMORY;
+		return;
+	}
+
+	if (optee_from_msg_param(params, arg->num_params, arg->params))
+		goto bad;
+
+	for (i = 0; i < arg->num_params; i++) {
+		if (params[i].attr != attr[i])
+			goto bad;
+	}
+
+	client.adapter = i2c_get_adapter(params[0].u.value.b);
+	if (!client.adapter)
+		goto bad;
+
+	if (params[1].u.value.a & OPTEE_MSG_RPC_CMD_I2C_FLAGS_TEN_BIT) {
+		if (!i2c_check_functionality(client.adapter,
+					     I2C_FUNC_10BIT_ADDR)) {
+			i2c_put_adapter(client.adapter);
+			goto bad;
+		}
+
+		client.flags = I2C_CLIENT_TEN;
+	}
+
+	client.addr = params[0].u.value.c;
+	snprintf(client.name, I2C_NAME_SIZE, "i2c%d", client.adapter->nr);
+
+	switch (params[0].u.value.a) {
+	case OPTEE_MSG_RPC_CMD_I2C_TRANSFER_RD:
+		ret = i2c_master_recv(&client, params[2].u.memref.shm->kaddr,
+				      params[2].u.memref.size);
+		break;
+	case OPTEE_MSG_RPC_CMD_I2C_TRANSFER_WR:
+		ret = i2c_master_send(&client, params[2].u.memref.shm->kaddr,
+				      params[2].u.memref.size);
+		break;
+	default:
+		i2c_put_adapter(client.adapter);
+		goto bad;
+	}
+
+	if (ret < 0) {
+		arg->ret = TEEC_ERROR_COMMUNICATION;
+	} else {
+		params[3].u.value.a = ret;
+		if (optee_to_msg_param(arg->params, arg->num_params, params))
+			arg->ret = TEEC_ERROR_BAD_PARAMETERS;
+		else
+			arg->ret = TEEC_SUCCESS;
+	}
+
+	i2c_put_adapter(client.adapter);
+	kfree(params);
+	return;
+bad:
+	kfree(params);
+	arg->ret = TEEC_ERROR_BAD_PARAMETERS;
+}
+#else
+static void handle_rpc_func_cmd_i2c_transfer(struct tee_context *ctx,
+					     struct optee_msg_arg *arg)
+{
+	arg->ret = TEEC_ERROR_NOT_SUPPORTED;
+}
+#endif
 
 static struct wq_entry *wq_entry_get(struct optee_wait_queue *wq, u32 key)
 {
@@ -381,6 +473,9 @@ static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 		break;
 	case OPTEE_MSG_RPC_CMD_SHM_FREE:
 		handle_rpc_func_cmd_shm_free(ctx, arg);
+		break;
+	case OPTEE_MSG_RPC_CMD_I2C_TRANSFER:
+		handle_rpc_func_cmd_i2c_transfer(ctx, arg);
 		break;
 	default:
 		handle_rpc_supp_cmd(ctx, arg);

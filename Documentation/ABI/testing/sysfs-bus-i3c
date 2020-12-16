@@ -84,6 +84,7 @@ Description:
 		by space. Modes can be "hdr-ddr", "hdr-tsp" and "hdr-tsl".
 		See the I3C specification for more details about these HDR
 		modes.
+
 		This entry describes the HDRCAP of the master controller
 		driving the bus.
 
@@ -135,6 +136,7 @@ Description:
 		Expose the HDR (High Data Rate) capabilities of a device.
 		Returns a list of supported HDR mode, each element is separated
 		by space. Modes can be "hdr-ddr", "hdr-tsp" and "hdr-tsl".
+
 		See the I3C specification for more details about these HDR
 		modes.
 

@@ -223,9 +223,6 @@ int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
 	peer = ath11k_peer_find_by_pdev_idx(ar->ab, ar->pdev_idx, param->peer_addr);
 	if (peer) {
 		spin_unlock_bh(&ar->ab->base_lock);
-		ath11k_info(ar->ab,
-			    "ignoring the peer %pM creation on same pdev idx %d\n",
-			    param->peer_addr, ar->pdev_idx);
 		return -EINVAL;
 	}
 	spin_unlock_bh(&ar->ab->base_lock);

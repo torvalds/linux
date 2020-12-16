@@ -7,8 +7,8 @@
 
 #include <linux/io.h>
 #include <linux/init.h>
+#include <linux/memblock.h>
 #include <linux/serial_reg.h>
-#include <asm/bootinfo.h>
 #include <asm/fw/fw.h>
 
 #include <loongson1.h>
@@ -42,5 +42,5 @@ void __init prom_free_prom_memory(void)
 
 void __init plat_mem_setup(void)
 {
-	add_memory_region(0x0, (memsize << 20), BOOT_MEM_RAM);
+	memblock_add(0x0, (memsize << 20));
 }

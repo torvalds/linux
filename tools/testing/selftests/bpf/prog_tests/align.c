@@ -195,13 +195,13 @@ static struct bpf_align_test tests[] = {
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.matches = {
 			{7, "R3_w=inv(id=0,umax_value=255,var_off=(0x0; 0xff))"},
-			{8, "R4_w=inv(id=0,umax_value=255,var_off=(0x0; 0xff))"},
+			{8, "R4_w=inv(id=1,umax_value=255,var_off=(0x0; 0xff))"},
 			{9, "R4_w=inv(id=0,umax_value=255,var_off=(0x0; 0xff))"},
-			{10, "R4_w=inv(id=0,umax_value=255,var_off=(0x0; 0xff))"},
+			{10, "R4_w=inv(id=1,umax_value=255,var_off=(0x0; 0xff))"},
 			{11, "R4_w=inv(id=0,umax_value=510,var_off=(0x0; 0x1fe))"},
-			{12, "R4_w=inv(id=0,umax_value=255,var_off=(0x0; 0xff))"},
+			{12, "R4_w=inv(id=1,umax_value=255,var_off=(0x0; 0xff))"},
 			{13, "R4_w=inv(id=0,umax_value=1020,var_off=(0x0; 0x3fc))"},
-			{14, "R4_w=inv(id=0,umax_value=255,var_off=(0x0; 0xff))"},
+			{14, "R4_w=inv(id=1,umax_value=255,var_off=(0x0; 0xff))"},
 			{15, "R4_w=inv(id=0,umax_value=2040,var_off=(0x0; 0x7f8))"},
 			{16, "R4_w=inv(id=0,umax_value=4080,var_off=(0x0; 0xff0))"},
 		},
@@ -518,7 +518,7 @@ static struct bpf_align_test tests[] = {
 			 * the total offset is 4-byte aligned and meets the
 			 * load's requirements.
 			 */
-			{20, "R5=pkt(id=1,off=0,r=4,umin_value=2,umax_value=1034,var_off=(0x2; 0x7fc)"},
+			{20, "R5=pkt(id=2,off=0,r=4,umin_value=2,umax_value=1034,var_off=(0x2; 0x7fc)"},
 
 		},
 	},
@@ -561,18 +561,18 @@ static struct bpf_align_test tests[] = {
 			/* Adding 14 makes R6 be (4n+2) */
 			{11, "R6_w=inv(id=0,umin_value=14,umax_value=74,var_off=(0x2; 0x7c))"},
 			/* Subtracting from packet pointer overflows ubounds */
-			{13, "R5_w=pkt(id=1,off=0,r=8,umin_value=18446744073709551542,umax_value=18446744073709551602,var_off=(0xffffffffffffff82; 0x7c)"},
+			{13, "R5_w=pkt(id=2,off=0,r=8,umin_value=18446744073709551542,umax_value=18446744073709551602,var_off=(0xffffffffffffff82; 0x7c)"},
 			/* New unknown value in R7 is (4n), >= 76 */
 			{15, "R7_w=inv(id=0,umin_value=76,umax_value=1096,var_off=(0x0; 0x7fc))"},
 			/* Adding it to packet pointer gives nice bounds again */
-			{16, "R5_w=pkt(id=2,off=0,r=0,umin_value=2,umax_value=1082,var_off=(0x2; 0xfffffffc)"},
+			{16, "R5_w=pkt(id=3,off=0,r=0,umin_value=2,umax_value=1082,var_off=(0x2; 0xfffffffc)"},
 			/* At the time the word size load is performed from R5,
 			 * its total fixed offset is NET_IP_ALIGN + reg->off (0)
 			 * which is 2.  Then the variable offset is (4n+2), so
 			 * the total offset is 4-byte aligned and meets the
 			 * load's requirements.
 			 */
-			{20, "R5=pkt(id=2,off=0,r=4,umin_value=2,umax_value=1082,var_off=(0x2; 0xfffffffc)"},
+			{20, "R5=pkt(id=3,off=0,r=4,umin_value=2,umax_value=1082,var_off=(0x2; 0xfffffffc)"},
 		},
 	},
 };

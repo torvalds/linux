@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _sliced:
 
@@ -27,7 +28,6 @@ however the default function here is video capturing or output.
 Different file descriptors must be used to pass raw and sliced VBI data
 simultaneously, if this is supported by the driver.
 
-
 Querying Capabilities
 =====================
 
@@ -39,7 +39,6 @@ respectively, in the ``capabilities`` field of struct
 read/write, streaming or asynchronous :ref:`I/O methods <io>` must be
 supported. Sliced VBI devices may have a tuner or modulator.
 
-
 Supplemental Functions
 ======================
 
@@ -48,7 +47,6 @@ and :ref:`tuner or modulator <tuner>` ioctls if they have these
 capabilities, and they may support :ref:`control` ioctls.
 The :ref:`video standard <standard>` ioctls provide information vital
 to program a sliced VBI device, therefore must be supported.
-
 
 .. _sliced-vbi-format-negotitation:
 
@@ -96,9 +94,8 @@ at this point, it may return an ``EBUSY`` error code if the required
 resources are temporarily unavailable. Other resource allocation points
 which may return ``EBUSY`` can be the
 :ref:`VIDIOC_STREAMON` ioctl and the first
-:ref:`read() <func-read>`, :ref:`write() <func-write>` and
-:ref:`select() <func-select>` call.
-
+:c:func:`read()`, :c:func:`write()` and
+:c:func:`select()` call.
 
 .. c:type:: v4l2_sliced_vbi_format
 
@@ -191,7 +188,7 @@ struct v4l2_sliced_vbi_format
     * - __u32
       - ``io_size``
       - :cspan:`2` Maximum number of bytes passed by one
-	:ref:`read() <func-read>` or :ref:`write() <func-write>` call,
+	:c:func:`read()` or :c:func:`write()` call,
 	and the buffer size in bytes for the
 	:ref:`VIDIOC_QBUF` and
 	:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. Drivers set this field
@@ -274,7 +271,6 @@ Sliced VBI services
 
     \normalsize
 
-
 Drivers may return an ``EINVAL`` error code when applications attempt to
 read or write data without prior format negotiation, after switching the
 video standard (which may invalidate the negotiated VBI parameters) and
@@ -284,20 +280,18 @@ return an ``EBUSY`` error code when applications attempt to change the
 format while i/o is in progress (between a
 :ref:`VIDIOC_STREAMON` and
 :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` call, and after the first
-:ref:`read() <func-read>` or :ref:`write() <func-write>` call).
-
+:c:func:`read()` or :c:func:`write()` call).
 
 Reading and writing sliced VBI data
 ===================================
 
-A single :ref:`read() <func-read>` or :ref:`write() <func-write>`
+A single :c:func:`read()` or :c:func:`write()`
 call must pass all data belonging to one video frame. That is an array
 of struct :c:type:`v4l2_sliced_vbi_data` structures with one or
 more elements and a total size not exceeding ``io_size`` bytes. Likewise
 in streaming I/O mode one buffer of ``io_size`` bytes must contain data
 of one video frame. The ``id`` of unused
 struct :c:type:`v4l2_sliced_vbi_data` elements must be zero.
-
 
 .. c:type:: v4l2_sliced_vbi_data
 
@@ -344,9 +338,8 @@ struct v4l2_sliced_vbi_data
 	bytes at the end of this array are undefined, drivers and
 	applications shall ignore them.
 
-
 Packets are always passed in ascending line number order, without
-duplicate line numbers. The :ref:`write() <func-write>` function and
+duplicate line numbers. The :c:func:`write()` function and
 the :ref:`VIDIOC_QBUF` ioctl must return an ``EINVAL``
 error code when applications violate this rule. They must also return an
 EINVAL error code when applications pass an incorrect field or line
@@ -369,7 +362,6 @@ A sliced VBI device may support :ref:`read/write <rw>` and/or
 streaming (:ref:`memory mapping <mmap>` and/or
 :ref:`user pointer <userp>`) I/O. The latter bears the possibility of
 synchronizing video and VBI data by using buffer timestamps.
-
 
 Sliced VBI Data in MPEG Streams
 ===============================
@@ -405,7 +397,6 @@ data insertion is not supported by the device.
 The following subsections specify the format of the embedded sliced VBI
 data.
 
-
 MPEG Stream Embedded, Sliced VBI Data Format: NONE
 --------------------------------------------------
 
@@ -416,7 +407,6 @@ to cease embedding sliced VBI data in MPEG streams. Neither the device
 nor driver shall insert "empty" embedded sliced VBI data packets in the
 MPEG stream when this format is set. No MPEG stream data structures are
 specified for this format.
-
 
 MPEG Stream Embedded, Sliced VBI Data Format: IVTV
 --------------------------------------------------
@@ -459,7 +449,6 @@ the end with unspecified fill bytes to align the end of the payload to a
 4-byte boundary. The payload shall never exceed 1552 bytes (2 fields
 with 18 lines/field with 43 bytes of data/line and a 4 byte magic
 number).
-
 
 .. c:type:: v4l2_mpeg_vbi_fmt_ivtv
 
@@ -523,7 +512,6 @@ Magic Constants for struct v4l2_mpeg_vbi_fmt_ivtv magic field
 	valid and that 36 lines of sliced VBI data are present.
 
 
-
 .. c:type:: v4l2_mpeg_vbi_itv0
 
 .. c:type:: v4l2_mpeg_vbi_ITV0
@@ -546,7 +534,6 @@ structs v4l2_mpeg_vbi_itv0 and v4l2_mpeg_vbi_ITV0
 	corresponding VBI line number and video field are given below.
 	b\ :sub:`0` indicates the least significant bit of a ``linemask``
 	value:
-
 
 
 	::
@@ -574,7 +561,6 @@ structs v4l2_mpeg_vbi_itv0 and v4l2_mpeg_vbi_ITV0
 	applications.
 
 
-
 .. _v4l2-mpeg-vbi-itv0-1:
 
 struct v4l2_mpeg_vbi_ITV0
@@ -594,7 +580,6 @@ struct v4l2_mpeg_vbi_ITV0
 	through ``line``\ [17] correspond to lines 6 through 23 of the
 	first field. ``line``\ [18] through ``line``\ [35] corresponds to
 	lines 6 through 23 of the second field.
-
 
 
 .. c:type:: v4l2_mpeg_vbi_itv0_line
@@ -617,7 +602,6 @@ struct v4l2_mpeg_vbi_itv0_line
     * - __u8
       - ``data``\ [42]
       - The sliced VBI data for the line.
-
 
 
 .. _ITV0-Line-Identifier-Constants:
@@ -651,7 +635,6 @@ Line Identifiers for struct v4l2_mpeg_vbi_itv0_line id field
       - 7
       - Refer to :ref:`Sliced VBI services <vbi-services2>` for a
 	description of the line payload.
-
 
 
 .. [#f1]

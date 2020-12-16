@@ -382,7 +382,7 @@ void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 	memset(caps, 0, sizeof(*caps));
 
 	if (!MLX5_CAP_GEN(dev->mdev, pg) ||
-	    !mlx5_ib_can_use_umr(dev, true, 0))
+	    !mlx5_ib_can_load_pas_with_umr(dev, 0))
 		return;
 
 	caps->general_caps = IB_ODP_SUPPORT;
@@ -476,12 +476,12 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 	if (IS_ERR(odp))
 		return ERR_CAST(odp);
 
-	ret = mr = mlx5_mr_cache_alloc(imr->dev, MLX5_IMR_MTT_CACHE_ENTRY);
+	ret = mr = mlx5_mr_cache_alloc(imr->dev, MLX5_IMR_MTT_CACHE_ENTRY,
+				       imr->access_flags);
 	if (IS_ERR(mr))
 		goto out_umem;
 
 	mr->ibmr.pd = imr->ibmr.pd;
-	mr->access_flags = imr->access_flags;
 	mr->umem = &odp->umem;
 	mr->ibmr.lkey = mr->mmkey.key;
 	mr->ibmr.rkey = mr->mmkey.key;
@@ -540,14 +540,13 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	if (IS_ERR(umem_odp))
 		return ERR_CAST(umem_odp);
 
-	imr = mlx5_mr_cache_alloc(dev, MLX5_IMR_KSM_CACHE_ENTRY);
+	imr = mlx5_mr_cache_alloc(dev, MLX5_IMR_KSM_CACHE_ENTRY, access_flags);
 	if (IS_ERR(imr)) {
 		err = PTR_ERR(imr);
 		goto out_umem;
 	}
 
 	imr->ibmr.pd = &pd->ibpd;
-	imr->access_flags = access_flags;
 	imr->mmkey.iova = 0;
 	imr->umem = &umem_odp->umem;
 	imr->ibmr.lkey = imr->mmkey.key;
@@ -666,15 +665,21 @@ void mlx5_ib_fence_odp_mr(struct mlx5_ib_mr *mr)
 }
 
 #define MLX5_PF_FLAGS_DOWNGRADE BIT(1)
+#define MLX5_PF_FLAGS_SNAPSHOT BIT(2)
+#define MLX5_PF_FLAGS_ENABLE BIT(3)
 static int pagefault_real_mr(struct mlx5_ib_mr *mr, struct ib_umem_odp *odp,
 			     u64 user_va, size_t bcnt, u32 *bytes_mapped,
 			     u32 flags)
 {
 	int page_shift, ret, np;
 	bool downgrade = flags & MLX5_PF_FLAGS_DOWNGRADE;
-	unsigned long current_seq;
 	u64 access_mask;
 	u64 start_idx;
+	bool fault = !(flags & MLX5_PF_FLAGS_SNAPSHOT);
+	u32 xlt_flags = MLX5_IB_UPD_XLT_ATOMIC;
+
+	if (flags & MLX5_PF_FLAGS_ENABLE)
+		xlt_flags |= MLX5_IB_UPD_XLT_ENABLE;
 
 	page_shift = odp->page_shift;
 	start_idx = (user_va - ib_umem_start(odp)) >> page_shift;
@@ -683,25 +688,15 @@ static int pagefault_real_mr(struct mlx5_ib_mr *mr, struct ib_umem_odp *odp,
 	if (odp->umem.writable && !downgrade)
 		access_mask |= ODP_WRITE_ALLOWED_BIT;
 
-	current_seq = mmu_interval_read_begin(&odp->notifier);
-
-	np = ib_umem_odp_map_dma_pages(odp, user_va, bcnt, access_mask,
-				       current_seq);
+	np = ib_umem_odp_map_dma_and_lock(odp, user_va, bcnt, access_mask, fault);
 	if (np < 0)
 		return np;
 
-	mutex_lock(&odp->umem_mutex);
-	if (!mmu_interval_read_retry(&odp->notifier, current_seq)) {
-		/*
-		 * No need to check whether the MTTs really belong to
-		 * this MR, since ib_umem_odp_map_dma_pages already
-		 * checks this.
-		 */
-		ret = mlx5_ib_update_xlt(mr, start_idx, np,
-					 page_shift, MLX5_IB_UPD_XLT_ATOMIC);
-	} else {
-		ret = -EAGAIN;
-	}
+	/*
+	 * No need to check whether the MTTs really belong to this MR, since
+	 * ib_umem_odp_map_dma_and_lock already checks this.
+	 */
+	ret = mlx5_ib_update_xlt(mr, start_idx, np, page_shift, xlt_flags);
 	mutex_unlock(&odp->umem_mutex);
 
 	if (ret < 0) {
@@ -834,6 +829,20 @@ static int pagefault_mr(struct mlx5_ib_mr *mr, u64 io_virt, size_t bcnt,
 	}
 	return pagefault_implicit_mr(mr, odp, io_virt, bcnt, bytes_mapped,
 				     flags);
+}
+
+int mlx5_ib_init_odp_mr(struct mlx5_ib_mr *mr, bool enable)
+{
+	u32 flags = MLX5_PF_FLAGS_SNAPSHOT;
+	int ret;
+
+	if (enable)
+		flags |= MLX5_PF_FLAGS_ENABLE;
+
+	ret = pagefault_real_mr(mr, to_ib_umem_odp(mr->umem),
+				mr->umem->address, mr->umem->length, NULL,
+				flags);
+	return ret >= 0 ? 0 : ret;
 }
 
 struct pf_frame {
@@ -1861,6 +1870,9 @@ int mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 
 	if (advice == IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH)
 		pf_flags |= MLX5_PF_FLAGS_DOWNGRADE;
+
+	if (advice == IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_NO_FAULT)
+		pf_flags |= MLX5_PF_FLAGS_SNAPSHOT;
 
 	if (flags & IB_UVERBS_ADVISE_MR_FLAG_FLUSH)
 		return mlx5_ib_prefetch_sg_list(pd, advice, pf_flags, sg_list,

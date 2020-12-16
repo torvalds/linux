@@ -71,10 +71,26 @@ config ZCRYPT
 	help
 	  Select this option if you want to enable support for
 	  s390 cryptographic adapters like:
-	  + PCI-X Cryptographic Coprocessor (PCIXCC)
-	  + Crypto Express 2,3,4 or 5 Coprocessor (CEXxC)
-	  + Crypto Express 2,3,4 or 5 Accelerator (CEXxA)
-	  + Crypto Express 4 or 5 EP11 Coprocessor (CEXxP)
+	  + Crypto Express 2 up to 7 Coprocessor (CEXxC)
+	  + Crypto Express 2 up to 7 Accelerator (CEXxA)
+	  + Crypto Express 4 up to 7 EP11 Coprocessor (CEXxP)
+
+config ZCRYPT_DEBUG
+	bool "Enable debug features for s390 cryptographic adapters"
+	default n
+	depends on DEBUG_KERNEL
+	depends on ZCRYPT
+	help
+	  Say 'Y' here to enable some additional debug features on the
+	  s390 cryptographic adapters driver.
+
+	  There will be some more sysfs attributes displayed for ap cards
+	  and queues and some flags on crypto requests are interpreted as
+	  debugging messages to force error injection.
+
+	  Do not enable on production level kernel build.
+
+	  If unsure, say N.
 
 config ZCRYPT_MULTIDEVNODES
 	bool "Support for multiple zcrypt device nodes"

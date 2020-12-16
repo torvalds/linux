@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: MC
 
 .. _media-func-ioctl:
 
@@ -11,7 +12,6 @@ Name
 
 media-ioctl - Control a media device
 
-
 Synopsis
 ========
 
@@ -19,15 +19,13 @@ Synopsis
 
     #include <sys/ioctl.h>
 
-
-.. c:function:: int ioctl( int fd, int request, void *argp )
-    :name: mc-ioctl
+``int ioctl(int fd, int request, void *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :c:func:`open() <mc-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``request``
     Media ioctl request code as defined in the media.h header file, for
@@ -35,7 +33,6 @@ Arguments
 
 ``argp``
     Pointer to a request-specific structure.
-
 
 Description
 ===========
@@ -51,7 +48,6 @@ Macros and structures definitions specifying media ioctl requests and
 their parameters are located in the media.h header file. All media ioctl
 requests, their respective function and parameters are specified in
 :ref:`media-user-func`.
-
 
 Return Value
 ============

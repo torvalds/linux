@@ -366,6 +366,7 @@ enum {
 enum {
 	MLX5_GENERAL_SUBTYPE_DELAY_DROP_TIMEOUT = 0x1,
 	MLX5_GENERAL_SUBTYPE_PCI_POWER_CHANGE_EVENT = 0x5,
+	MLX5_GENERAL_SUBTYPE_FW_LIVE_PATCH_EVENT = 0x7,
 	MLX5_GENERAL_SUBTYPE_PCI_SYNC_FOR_FW_UPDATE_EVENT = 0x8,
 };
 
@@ -816,7 +817,7 @@ struct mlx5_mini_cqe8 {
 		__be32 rx_hash_result;
 		struct {
 			__be16 checksum;
-			__be16 rsvd;
+			__be16 stridx;
 		};
 		struct {
 			__be16 wqe_counter;
@@ -836,6 +837,7 @@ enum {
 
 enum {
 	MLX5_CQE_FORMAT_CSUM = 0x1,
+	MLX5_CQE_FORMAT_CSUM_STRIDX = 0x3,
 };
 
 #define MLX5_MINI_CQE_ARRAY_SIZE 8

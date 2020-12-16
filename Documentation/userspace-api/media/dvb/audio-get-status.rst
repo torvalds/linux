@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.audio
 
 .. _AUDIO_GET_STATUS:
 
@@ -16,9 +17,9 @@ AUDIO_GET_STATUS
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, AUDIO_GET_STATUS, struct audio_status *status)
-    :name: AUDIO_GET_STATUS
+.. c:macro:: AUDIO_GET_STATUS
 
+``int ioctl(int fd, AUDIO_GET_STATUS, struct audio_status *status)``
 
 Arguments
 ---------
@@ -26,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -
 
@@ -40,13 +40,11 @@ Arguments
 
        -  Returns the current state of Audio Device.
 
-
 Description
 -----------
 
 This ioctl call asks the Audio Device to return the current state of the
 Audio Device.
-
 
 Return Value
 ------------

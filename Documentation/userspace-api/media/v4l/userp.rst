@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _userp:
 
@@ -78,10 +79,10 @@ buffers it must wait until an empty buffer can be dequeued and reused.
 Two methods exist to suspend execution of the application until one or
 more buffers can be dequeued. By default :ref:`VIDIOC_DQBUF
 <VIDIOC_QBUF>` blocks when no buffer is in the outgoing queue. When the
-``O_NONBLOCK`` flag was given to the :ref:`open() <func-open>` function,
+``O_NONBLOCK`` flag was given to the :c:func:`open()` function,
 :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` returns immediately with an ``EAGAIN``
 error code when no buffer is available. The :ref:`select()
-<func-select>` or :ref:`poll() <func-poll>` function are always
+<func-select>` or :c:func:`poll()` function are always
 available.
 
 To start and stop capturing or output applications call the
@@ -101,7 +102,7 @@ Drivers implementing user pointer I/O must support the
 :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>`, :ref:`VIDIOC_QBUF <VIDIOC_QBUF>`,
 :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`, :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>`
 and :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` ioctls, the
-:ref:`select() <func-select>` and :ref:`poll() <func-poll>` function. [#f2]_
+:c:func:`select()` and :c:func:`poll()` function. [#f2]_
 
 .. [#f1]
    We expect that frequently used buffers are typically not swapped out.
@@ -116,6 +117,6 @@ and :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` ioctls, the
    because an application may share them with other processes.
 
 .. [#f2]
-   At the driver level :ref:`select() <func-select>` and :ref:`poll() <func-poll>` are
-   the same, and :ref:`select() <func-select>` is too important to be optional.
+   At the driver level :c:func:`select()` and :c:func:`poll()` are
+   the same, and :c:func:`select()` is too important to be optional.
    The rest should be evident.

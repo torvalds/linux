@@ -25,6 +25,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 #include <linux/omap-gpmc.h>
 
 #include <trace/events/power.h>
@@ -410,7 +411,12 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 	if (!pwrst)
 		return -ENOMEM;
 	pwrst->pwrdm = pwrdm;
-	pwrst->next_state = PWRDM_POWER_RET;
+
+	if (enable_off_mode)
+		pwrst->next_state = PWRDM_POWER_OFF;
+	else
+		pwrst->next_state = PWRDM_POWER_RET;
+
 	list_add(&pwrst->node, &pwrst_list);
 
 	if (pwrdm_has_hdwr_sar(pwrdm))
@@ -441,6 +447,22 @@ static void __init pm_errata_configure(void)
 					  PM_PER_MEMORIES_ERRATUM_i582);
 	} else if (cpu_is_omap34xx()) {
 		pm34xx_errata |= PM_PER_MEMORIES_ERRATUM_i582;
+	}
+}
+
+static void __init omap3_pm_check_pmic(void)
+{
+	struct device_node *np;
+
+	np = of_find_compatible_node(NULL, NULL, "ti,twl4030-power-idle");
+	if (!np)
+		np = of_find_compatible_node(NULL, NULL, "ti,twl4030-power-idle-osc-off");
+
+	if (np) {
+		of_node_put(np);
+		enable_off_mode = 1;
+	} else {
+		enable_off_mode = 0;
 	}
 }
 
@@ -476,6 +498,8 @@ int __init omap3_pm_init(void)
 		pr_err("pm: Failed to request pm_io irq\n");
 		goto err2;
 	}
+
+	omap3_pm_check_pmic();
 
 	ret = pwrdm_for_each(pwrdms_setup, NULL);
 	if (ret) {

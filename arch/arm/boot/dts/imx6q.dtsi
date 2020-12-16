@@ -182,10 +182,6 @@
 					status = "disabled";
 				};
 			};
-
-			iomuxc: pinctrl@20e0000 {
-				compatible = "fsl,imx6q-iomuxc";
-			};
 		};
 
 		sata: sata@2200000 {
@@ -425,6 +421,10 @@
 			remote-endpoint = <&ipu2_di1_hdmi>;
 		};
 	};
+};
+
+&iomuxc {
+	compatible = "fsl,imx6q-iomuxc";
 };
 
 &ipu1_csi1 {

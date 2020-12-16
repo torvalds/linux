@@ -5,14 +5,12 @@
 #include <bpf/bpf_helpers.h>
 
 #define SAMPLE_SIZE 64ul
-#define MAX_CPUS 128
 
-struct bpf_map_def SEC("maps") my_map = {
-	.type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
-	.key_size = sizeof(int),
-	.value_size = sizeof(u32),
-	.max_entries = MAX_CPUS,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+	__uint(key_size, sizeof(int));
+	__uint(value_size, sizeof(u32));
+} my_map SEC(".maps");
 
 SEC("xdp_sample")
 int xdp_sample_prog(struct xdp_md *ctx)

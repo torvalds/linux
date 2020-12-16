@@ -8,6 +8,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/clk-provider.h>
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/cpumask.h>
@@ -29,7 +30,7 @@ static const struct scmi_handle *handle;
 static unsigned int scmi_cpufreq_get_rate(unsigned int cpu)
 {
 	struct cpufreq_policy *policy = cpufreq_cpu_get_raw(cpu);
-	struct scmi_perf_ops *perf_ops = handle->perf_ops;
+	const struct scmi_perf_ops *perf_ops = handle->perf_ops;
 	struct scmi_data *priv = policy->driver_data;
 	unsigned long rate;
 	int ret;
@@ -49,7 +50,7 @@ static int
 scmi_cpufreq_set_target(struct cpufreq_policy *policy, unsigned int index)
 {
 	struct scmi_data *priv = policy->driver_data;
-	struct scmi_perf_ops *perf_ops = handle->perf_ops;
+	const struct scmi_perf_ops *perf_ops = handle->perf_ops;
 	u64 freq = policy->freq_table[index].frequency;
 
 	return perf_ops->freq_set(handle, priv->domain_id, freq * 1000, false);
@@ -59,7 +60,7 @@ static unsigned int scmi_cpufreq_fast_switch(struct cpufreq_policy *policy,
 					     unsigned int target_freq)
 {
 	struct scmi_data *priv = policy->driver_data;
-	struct scmi_perf_ops *perf_ops = handle->perf_ops;
+	const struct scmi_perf_ops *perf_ops = handle->perf_ops;
 
 	if (!perf_ops->freq_set(handle, priv->domain_id,
 				target_freq * 1000, true))
@@ -228,11 +229,16 @@ static struct cpufreq_driver scmi_cpufreq_driver = {
 static int scmi_cpufreq_probe(struct scmi_device *sdev)
 {
 	int ret;
+	struct device *dev = &sdev->dev;
 
 	handle = sdev->handle;
 
 	if (!handle || !handle->perf_ops)
 		return -ENODEV;
+
+	/* dummy clock provider as needed by OPP if clocks property is used */
+	if (of_find_property(dev->of_node, "#clock-cells", NULL))
+		devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get, NULL);
 
 	ret = cpufreq_register_driver(&scmi_cpufreq_driver);
 	if (ret) {

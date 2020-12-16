@@ -331,7 +331,7 @@ static long sam9x60_div_pll_compute_div(struct sam9x60_pll_core *core,
 	struct clk_hw *parent = clk_hw_get_parent(&core->hw);
 	unsigned long tmp_rate, tmp_parent_rate, tmp_diff;
 	long best_diff = -1, best_rate = -EINVAL;
-	u32 divid, best_div;
+	u32 divid;
 
 	if (!rate)
 		return 0;
@@ -352,7 +352,6 @@ static long sam9x60_div_pll_compute_div(struct sam9x60_pll_core *core,
 			*parent_rate = tmp_parent_rate;
 			best_rate = tmp_rate;
 			best_diff = tmp_diff;
-			best_div = divid;
 		}
 
 		if (!best_diff)

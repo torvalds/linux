@@ -291,7 +291,7 @@ static void mlxsw_sp_rx_sample_listener(struct sk_buff *skb, u8 local_port,
 static const struct mlxsw_sp_trap_policer_item
 mlxsw_sp_trap_policer_items_arr[] = {
 	{
-		.policer = MLXSW_SP_TRAP_POLICER(1, 10 * 1024, 128),
+		.policer = MLXSW_SP_TRAP_POLICER(1, 10 * 1024, 4096),
 	},
 	{
 		.policer = MLXSW_SP_TRAP_POLICER(2, 128, 128),
@@ -303,25 +303,25 @@ mlxsw_sp_trap_policer_items_arr[] = {
 		.policer = MLXSW_SP_TRAP_POLICER(4, 128, 128),
 	},
 	{
-		.policer = MLXSW_SP_TRAP_POLICER(5, 16 * 1024, 128),
+		.policer = MLXSW_SP_TRAP_POLICER(5, 16 * 1024, 8192),
 	},
 	{
 		.policer = MLXSW_SP_TRAP_POLICER(6, 128, 128),
 	},
 	{
-		.policer = MLXSW_SP_TRAP_POLICER(7, 1024, 128),
+		.policer = MLXSW_SP_TRAP_POLICER(7, 1024, 512),
 	},
 	{
-		.policer = MLXSW_SP_TRAP_POLICER(8, 20 * 1024, 1024),
+		.policer = MLXSW_SP_TRAP_POLICER(8, 20 * 1024, 8192),
 	},
 	{
 		.policer = MLXSW_SP_TRAP_POLICER(9, 128, 128),
 	},
 	{
-		.policer = MLXSW_SP_TRAP_POLICER(10, 1024, 128),
+		.policer = MLXSW_SP_TRAP_POLICER(10, 1024, 512),
 	},
 	{
-		.policer = MLXSW_SP_TRAP_POLICER(11, 360, 128),
+		.policer = MLXSW_SP_TRAP_POLICER(11, 256, 128),
 	},
 	{
 		.policer = MLXSW_SP_TRAP_POLICER(12, 128, 128),
@@ -330,19 +330,19 @@ mlxsw_sp_trap_policer_items_arr[] = {
 		.policer = MLXSW_SP_TRAP_POLICER(13, 128, 128),
 	},
 	{
-		.policer = MLXSW_SP_TRAP_POLICER(14, 1024, 128),
+		.policer = MLXSW_SP_TRAP_POLICER(14, 1024, 512),
 	},
 	{
-		.policer = MLXSW_SP_TRAP_POLICER(15, 1024, 128),
+		.policer = MLXSW_SP_TRAP_POLICER(15, 1024, 512),
 	},
 	{
-		.policer = MLXSW_SP_TRAP_POLICER(16, 24 * 1024, 4096),
+		.policer = MLXSW_SP_TRAP_POLICER(16, 24 * 1024, 16384),
 	},
 	{
-		.policer = MLXSW_SP_TRAP_POLICER(17, 19 * 1024, 4096),
+		.policer = MLXSW_SP_TRAP_POLICER(17, 19 * 1024, 8192),
 	},
 	{
-		.policer = MLXSW_SP_TRAP_POLICER(18, 1024, 128),
+		.policer = MLXSW_SP_TRAP_POLICER(18, 1024, 512),
 	},
 	{
 		.policer = MLXSW_SP_TRAP_POLICER(19, 1024, 512),

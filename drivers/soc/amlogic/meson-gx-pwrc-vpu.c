@@ -339,8 +339,8 @@ static int meson_gx_pwrc_vpu_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	pm_genpd_init(&vpu_pd->genpd, &pm_domain_always_on_gov,
-		      powered_off);
+	vpu_pd->genpd.flags = GENPD_FLAG_ALWAYS_ON;
+	pm_genpd_init(&vpu_pd->genpd, NULL, powered_off);
 
 	return of_genpd_add_provider_simple(pdev->dev.of_node,
 					    &vpu_pd->genpd);

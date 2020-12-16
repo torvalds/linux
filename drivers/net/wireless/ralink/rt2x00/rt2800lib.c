@@ -928,7 +928,7 @@ static void rt2800_rate_from_status(struct skb_frame_desc *skbdesc,
 	switch (rt2x00_get_field32(status, TX_STA_FIFO_PHYMODE)) {
 	case RATE_MODE_HT_GREENFIELD:
 		flags |= IEEE80211_TX_RC_GREEN_FIELD;
-		/* fall through */
+		fallthrough;
 	case RATE_MODE_HT_MIX:
 		flags |= IEEE80211_TX_RC_MCS;
 		break;
@@ -2567,7 +2567,7 @@ static void rt2800_config_channel_rf3052(struct rt2x00_dev *rt2x00dev,
 		switch (rt2x00dev->default_ant.tx_chain_num) {
 		case 1:
 			rt2x00_set_field8(&rfcsr, RFCSR1_TX1_PD, 1);
-			/* fall through */
+			fallthrough;
 		case 2:
 			rt2x00_set_field8(&rfcsr, RFCSR1_TX2_PD, 1);
 			break;
@@ -2576,7 +2576,7 @@ static void rt2800_config_channel_rf3052(struct rt2x00_dev *rt2x00dev,
 		switch (rt2x00dev->default_ant.rx_chain_num) {
 		case 1:
 			rt2x00_set_field8(&rfcsr, RFCSR1_RX1_PD, 1);
-			/* fall through */
+			fallthrough;
 		case 2:
 			rt2x00_set_field8(&rfcsr, RFCSR1_RX2_PD, 1);
 			break;
@@ -2768,10 +2768,10 @@ static void rt2800_config_channel_rf3053(struct rt2x00_dev *rt2x00dev,
 	switch (rt2x00dev->default_ant.tx_chain_num) {
 	case 3:
 		rt2x00_set_field8(&rfcsr, RFCSR1_TX2_PD, 1);
-		/* fallthrough */
+		fallthrough;
 	case 2:
 		rt2x00_set_field8(&rfcsr, RFCSR1_TX1_PD, 1);
-		/* fallthrough */
+		fallthrough;
 	case 1:
 		rt2x00_set_field8(&rfcsr, RFCSR1_TX0_PD, 1);
 		break;
@@ -2780,10 +2780,10 @@ static void rt2800_config_channel_rf3053(struct rt2x00_dev *rt2x00dev,
 	switch (rt2x00dev->default_ant.rx_chain_num) {
 	case 3:
 		rt2x00_set_field8(&rfcsr, RFCSR1_RX2_PD, 1);
-		/* fallthrough */
+		fallthrough;
 	case 2:
 		rt2x00_set_field8(&rfcsr, RFCSR1_RX1_PD, 1);
-		/* fallthrough */
+		fallthrough;
 	case 1:
 		rt2x00_set_field8(&rfcsr, RFCSR1_RX0_PD, 1);
 		break;
@@ -3005,10 +3005,10 @@ static void rt2800_config_channel_rf3853(struct rt2x00_dev *rt2x00dev,
 	switch (rt2x00dev->default_ant.tx_chain_num) {
 	case 3:
 		rt2x00_set_field8(&rfcsr, RFCSR1_TX2_PD, 1);
-		/* fallthrough */
+		fallthrough;
 	case 2:
 		rt2x00_set_field8(&rfcsr, RFCSR1_TX1_PD, 1);
-		/* fallthrough */
+		fallthrough;
 	case 1:
 		rt2x00_set_field8(&rfcsr, RFCSR1_TX0_PD, 1);
 		break;
@@ -3017,10 +3017,10 @@ static void rt2800_config_channel_rf3853(struct rt2x00_dev *rt2x00dev,
 	switch (rt2x00dev->default_ant.rx_chain_num) {
 	case 3:
 		rt2x00_set_field8(&rfcsr, RFCSR1_RX2_PD, 1);
-		/* fallthrough */
+		fallthrough;
 	case 2:
 		rt2x00_set_field8(&rfcsr, RFCSR1_RX1_PD, 1);
-		/* fallthrough */
+		fallthrough;
 	case 1:
 		rt2x00_set_field8(&rfcsr, RFCSR1_RX0_PD, 1);
 		break;
@@ -4216,14 +4216,14 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 				   rf->channel > 14);
 		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_G2_EN,
 				   rf->channel <= 14);
-		/* fall-through */
+		fallthrough;
 	case 2:
 		/* Turn on secondary PAs */
 		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_A1_EN,
 				   rf->channel > 14);
 		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_G1_EN,
 				   rf->channel <= 14);
-		/* fall-through */
+		fallthrough;
 	case 1:
 		/* Turn on primary PAs */
 		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_A0_EN,
@@ -4241,12 +4241,12 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 		/* Turn on tertiary LNAs */
 		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A2_EN, 1);
 		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_G2_EN, 1);
-		/* fall-through */
+		fallthrough;
 	case 2:
 		/* Turn on secondary LNAs */
 		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A1_EN, 1);
 		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_G1_EN, 1);
-		/* fall-through */
+		fallthrough;
 	case 1:
 		/* Turn on primary LNAs */
 		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A0_EN, 1);
@@ -5438,10 +5438,10 @@ void rt2800_vco_calibration(struct rt2x00_dev *rt2x00dev)
 		switch (rt2x00dev->default_ant.tx_chain_num) {
 		case 3:
 			rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_G2_EN, 1);
-			/* fall through */
+			fallthrough;
 		case 2:
 			rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_G1_EN, 1);
-			/* fall through */
+			fallthrough;
 		case 1:
 		default:
 			rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_G0_EN, 1);
@@ -5451,10 +5451,10 @@ void rt2800_vco_calibration(struct rt2x00_dev *rt2x00dev)
 		switch (rt2x00dev->default_ant.tx_chain_num) {
 		case 3:
 			rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_A2_EN, 1);
-			/* fall through */
+			fallthrough;
 		case 2:
 			rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_A1_EN, 1);
-			/* fall through */
+			fallthrough;
 		case 1:
 		default:
 			rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_A0_EN, 1);
@@ -10100,10 +10100,10 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	switch (rx_chains) {
 	case 3:
 		spec->ht.mcs.rx_mask[2] = 0xff;
-		/* fall through */
+		fallthrough;
 	case 2:
 		spec->ht.mcs.rx_mask[1] = 0xff;
-		/* fall through */
+		fallthrough;
 	case 1:
 		spec->ht.mcs.rx_mask[0] = 0xff;
 		spec->ht.mcs.rx_mask[4] = 0x1; /* MCS32 */

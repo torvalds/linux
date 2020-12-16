@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.net
 
 .. _NET_ADD_IF:
 
@@ -11,23 +12,21 @@ Name
 
 NET_ADD_IF - Creates a new network interface for a given Packet ID.
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, NET_ADD_IF, struct dvb_net_if *net_if )
-    :name: NET_ADD_IF
+.. c:macro:: NET_ADD_IF
 
+``int ioctl(int fd, NET_ADD_IF, struct dvb_net_if *net_if)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <frontend_f_open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``net_if``
     pointer to struct :c:type:`dvb_net_if`
-
 
 Description
 ===========

@@ -238,6 +238,19 @@ struct mv88e6xxx_port {
 	bool mirror_egress;
 	unsigned int serdes_irq;
 	char serdes_irq_name[64];
+	struct devlink_region *region;
+};
+
+enum mv88e6xxx_region_id {
+	MV88E6XXX_REGION_GLOBAL1 = 0,
+	MV88E6XXX_REGION_GLOBAL2,
+	MV88E6XXX_REGION_ATU,
+
+	_MV88E6XXX_REGION_MAX,
+};
+
+struct mv88e6xxx_region_priv {
+	enum mv88e6xxx_region_id id;
 };
 
 struct mv88e6xxx_chip {
@@ -334,6 +347,9 @@ struct mv88e6xxx_chip {
 
 	/* Array of port structures. */
 	struct mv88e6xxx_port ports[DSA_MAX_PORTS];
+
+	/* devlink regions */
+	struct devlink_region *regions[_MV88E6XXX_REGION_MAX];
 };
 
 struct mv88e6xxx_bus_ops {
@@ -688,5 +704,7 @@ static inline void mv88e6xxx_reg_unlock(struct mv88e6xxx_chip *chip)
 {
 	mutex_unlock(&chip->reg_lock);
 }
+
+int mv88e6xxx_fid_map(struct mv88e6xxx_chip *chip, unsigned long *bitmap);
 
 #endif /* _MV88E6XXX_CHIP_H */

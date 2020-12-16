@@ -137,7 +137,7 @@ static int svc_rdma_rw_ctx_init(struct svcxprt_rdma *rdma,
 }
 
 /* A chunk context tracks all I/O for moving one Read or Write
- * chunk. This is a a set of rdma_rw's that handle data movement
+ * chunk. This is a set of rdma_rw's that handle data movement
  * for all segments of one chunk.
  *
  * These are small, acquired with a single allocator call, and

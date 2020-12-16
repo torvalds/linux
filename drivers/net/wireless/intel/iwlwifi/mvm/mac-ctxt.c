@@ -5,10 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,10 +27,9 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -665,7 +663,7 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 		 * allow multicast data frames only as long as the station is
 		 * authorized, i.e., GTK keys are already installed (if needed)
 		 */
-		if (ap_sta_id < IWL_MVM_STATION_COUNT) {
+		if (ap_sta_id < mvm->fw->ucode_capa.num_stations) {
 			struct ieee80211_sta *sta;
 
 			rcu_read_lock();
@@ -704,8 +702,12 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 
 	if (vif->bss_conf.he_support && !iwlwifi_mod_params.disable_11ax) {
 		cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_11AX);
-		if (vif->bss_conf.twt_requester && IWL_MVM_USE_TWT)
+		if (vif->bss_conf.twt_requester && IWL_MVM_USE_TWT) {
 			ctxt_sta->data_policy |= cpu_to_le32(TWT_SUPPORTED);
+			if (vif->bss_conf.twt_protected)
+				ctxt_sta->data_policy |=
+					cpu_to_le32(PROTECTED_TWT_SUPPORTED);
+		}
 	}
 
 
@@ -1300,8 +1302,8 @@ static void iwl_mvm_csa_count_down(struct iwl_mvm *mvm,
 
 	mvmvif->csa_countdown = true;
 
-	if (!ieee80211_csa_is_complete(csa_vif)) {
-		int c = ieee80211_csa_update_counter(csa_vif);
+	if (!ieee80211_beacon_cntdwn_is_complete(csa_vif)) {
+		int c = ieee80211_beacon_update_cntdwn(csa_vif);
 
 		iwl_mvm_mac_ctxt_beacon_changed(mvm, csa_vif);
 		if (csa_vif->p2p &&
@@ -1543,7 +1545,7 @@ void iwl_mvm_probe_resp_data_notif(struct iwl_mvm *mvm,
 
 	if (notif->csa_counter != IWL_PROBE_RESP_DATA_NO_CSA &&
 	    notif->csa_counter >= 1)
-		ieee80211_csa_set_counter(vif, notif->csa_counter);
+		ieee80211_beacon_set_cntdwn(vif, notif->csa_counter);
 }
 
 void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
@@ -1595,9 +1597,7 @@ void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
 		RCU_INIT_POINTER(mvm->csa_vif, NULL);
 		return;
 	case NL80211_IFTYPE_STATION:
-		if (!fw_has_capa(&mvm->fw->ucode_capa,
-				 IWL_UCODE_TLV_CAPA_CHANNEL_SWITCH_CMD))
-			iwl_mvm_csa_client_absent(mvm, vif);
+		iwl_mvm_csa_client_absent(mvm, vif);
 		cancel_delayed_work(&mvmvif->csa_work);
 		ieee80211_chswitch_done(vif, true);
 		break;

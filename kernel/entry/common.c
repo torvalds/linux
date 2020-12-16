@@ -161,7 +161,6 @@ static unsigned long exit_to_user_mode_loop(struct pt_regs *regs,
 			arch_do_signal(regs);
 
 		if (ti_work & _TIF_NOTIFY_RESUME) {
-			clear_thread_flag(TIF_NOTIFY_RESUME);
 			tracehook_notify_resume(regs);
 			rseq_handle_notify_resume(NULL, regs);
 		}
@@ -304,7 +303,7 @@ noinstr irqentry_state_t irqentry_enter(struct pt_regs *regs)
 	 * terminate a grace period, if and only if the timer interrupt is
 	 * not nested into another interrupt.
 	 *
-	 * Checking for __rcu_is_watching() here would prevent the nesting
+	 * Checking for rcu_is_watching() here would prevent the nesting
 	 * interrupt to invoke rcu_irq_enter(). If that nested interrupt is
 	 * the tick then rcu_flavor_sched_clock_irq() would wrongfully
 	 * assume that it is the first interupt and eventually claim
@@ -338,10 +337,10 @@ noinstr irqentry_state_t irqentry_enter(struct pt_regs *regs)
 	 * already contains a warning when RCU is not watching, so no point
 	 * in having another one here.
 	 */
+	lockdep_hardirqs_off(CALLER_ADDR0);
 	instrumentation_begin();
 	rcu_irq_enter_check_tick();
-	/* Use the combo lockdep/tracing function */
-	trace_hardirqs_off();
+	trace_hardirqs_off_finish();
 	instrumentation_end();
 
 	return ret;

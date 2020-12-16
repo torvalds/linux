@@ -10,6 +10,7 @@
 #define TCA_MPLS_ACT_PUSH	2
 #define TCA_MPLS_ACT_MODIFY	3
 #define TCA_MPLS_ACT_DEC_TTL	4
+#define TCA_MPLS_ACT_MAC_PUSH	5
 
 struct tc_mpls {
 	tc_gen;		/* generic TC action fields. */

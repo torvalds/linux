@@ -23,4 +23,6 @@ properties:
               - zte,zx296718-evb
           - const: zte,zx296718
 
+additionalProperties: true
+
 ...

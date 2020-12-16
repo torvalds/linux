@@ -294,8 +294,6 @@ mt76x02_vif_init(struct mt76x02_dev *dev, struct ieee80211_vif *vif,
 	mvif->group_wcid.hw_key_idx = -1;
 	mtxq = (struct mt76_txq *)vif->txq->drv_priv;
 	mtxq->wcid = &mvif->group_wcid;
-
-	mt76_txq_init(&dev->mt76, vif->txq);
 }
 
 int
@@ -347,7 +345,6 @@ void mt76x02_remove_interface(struct ieee80211_hw *hw,
 	struct mt76x02_dev *dev = hw->priv;
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 
-	mt76_txq_remove(&dev->mt76, vif->txq);
 	dev->mphy.vif_mask &= ~BIT(mvif->idx);
 }
 EXPORT_SYMBOL_GPL(mt76x02_remove_interface);
@@ -490,7 +487,7 @@ int mt76x02_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	u8 cw_min = 5, cw_max = 10, qid;
 	u32 val;
 
-	qid = dev->mt76.q_tx[queue].q->hw_idx;
+	qid = dev->mt76.q_tx[queue]->hw_idx;
 
 	if (params->cw_min)
 		cw_min = fls(params->cw_min);

@@ -24,6 +24,11 @@
 #define IGC_DEV_ID_I225_K2			0x3101
 #define IGC_DEV_ID_I225_LMVP			0x5502
 #define IGC_DEV_ID_I225_IT			0x0D9F
+#define IGC_DEV_ID_I226_LM			0x125B
+#define IGC_DEV_ID_I226_V			0x125C
+#define IGC_DEV_ID_I226_IT			0x125D
+#define IGC_DEV_ID_I221_V			0x125E
+#define IGC_DEV_ID_I226_BLANK_NVM		0x125F
 #define IGC_DEV_ID_I225_BLANK_NVM		0x15FD
 
 /* Function pointers for the MAC. */
@@ -125,9 +130,6 @@ struct igc_nvm_info {
 	struct igc_nvm_operations ops;
 	enum igc_nvm_type type;
 
-	u32 flash_bank_size;
-	u32 flash_base_addr;
-
 	u16 word_size;
 	u16 delay_usec;
 	u16 address_bits;
@@ -153,7 +155,6 @@ struct igc_phy_info {
 	u8 mdix;
 
 	bool is_mdix;
-	bool reset_disable;
 	bool speed_downgraded;
 	bool autoneg_wait_to_complete;
 };
@@ -239,6 +240,8 @@ struct igc_hw_stats {
 	u64 prc511;
 	u64 prc1023;
 	u64 prc1522;
+	u64 tlpic;
+	u64 rlpic;
 	u64 gprc;
 	u64 bprc;
 	u64 mprc;

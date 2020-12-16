@@ -1692,6 +1692,7 @@ config BPF_SYSCALL
 	bool "Enable bpf() system call"
 	select BPF
 	select IRQ_WORK
+	select TASKS_TRACE_RCU
 	default n
 	help
 	  Enable the bpf() system call that allows to manipulate eBPF
@@ -1710,6 +1711,8 @@ config BPF_JIT_ALWAYS_ON
 config BPF_JIT_DEFAULT_ON
 	def_bool ARCH_WANT_DEFAULT_BPF_JIT || BPF_JIT_ALWAYS_ON
 	depends on HAVE_EBPF_JIT && BPF_JIT
+
+source "kernel/bpf/preload/Kconfig"
 
 config USERFAULTFD
 	bool "Enable userfaultfd() system call"

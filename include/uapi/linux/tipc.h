@@ -254,6 +254,8 @@ static inline int tipc_aead_key_size(struct tipc_aead_key *key)
 	return sizeof(*key) + key->keylen;
 }
 
+#define TIPC_REKEYING_NOW		(~0U)
+
 /* The macros and functions below are deprecated:
  */
 

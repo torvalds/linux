@@ -165,10 +165,9 @@ static irqreturn_t owl_i2c_interrupt(int irq, void *_dev)
 {
 	struct owl_i2c_dev *i2c_dev = _dev;
 	struct i2c_msg *msg = i2c_dev->msg;
-	unsigned long flags;
 	unsigned int stat, fifostat;
 
-	spin_lock_irqsave(&i2c_dev->lock, flags);
+	spin_lock(&i2c_dev->lock);
 
 	i2c_dev->err = 0;
 
@@ -214,7 +213,7 @@ stop:
 			   OWL_I2C_STAT_IRQP, true);
 
 	complete_all(&i2c_dev->msg_complete);
-	spin_unlock_irqrestore(&i2c_dev->lock, flags);
+	spin_unlock(&i2c_dev->lock);
 
 	return IRQ_HANDLED;
 }

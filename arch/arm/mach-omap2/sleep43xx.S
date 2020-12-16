@@ -2,7 +2,7 @@
 /*
  * Low level suspend code for AM43XX SoCs
  *
- * Copyright (C) 2013-2018 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2013-2018 Texas Instruments Incorporated - https://www.ti.com/
  *	Dave Gerlach, Vaibhav Bedia
  */
 

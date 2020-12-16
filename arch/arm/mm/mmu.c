@@ -17,7 +17,6 @@
 
 #include <asm/cp15.h>
 #include <asm/cputype.h>
-#include <asm/sections.h>
 #include <asm/cachetype.h>
 #include <asm/fixmap.h>
 #include <asm/sections.h>

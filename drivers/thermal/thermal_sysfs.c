@@ -448,7 +448,7 @@ static umode_t thermal_zone_passive_is_visible(struct kobject *kobj,
 					       struct attribute *attr,
 					       int attrno)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct thermal_zone_device *tz;
 	enum thermal_trip_type trip_type;
 	int count, passive = 0;

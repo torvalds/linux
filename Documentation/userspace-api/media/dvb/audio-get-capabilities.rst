@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.audio
 
 .. _AUDIO_GET_CAPABILITIES:
 
@@ -16,9 +17,9 @@ AUDIO_GET_CAPABILITIES
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, AUDIO_GET_CAPABILITIES, unsigned int *cap)
-    :name: AUDIO_GET_CAPABILITIES
+.. c:macro:: AUDIO_GET_CAPABILITIES
 
+``int ioctl(int fd, AUDIO_GET_CAPABILITIES, unsigned int *cap)``
 
 Arguments
 ---------
@@ -26,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -
 
@@ -40,13 +40,11 @@ Arguments
 
        -  Returns a bit array of supported sound formats.
 
-
 Description
 -----------
 
 This ioctl call asks the Audio Device to tell us about the decoding
 capabilities of the audio hardware.
-
 
 Return Value
 ------------

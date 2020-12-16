@@ -55,7 +55,7 @@ EXPORT_SYMBOL_GPL(klp_get_state);
  *
  * The function can be called only during transition when a new
  * livepatch is being enabled or when such a transition is reverted.
- * It is typically called only from from pre/post (un)patch
+ * It is typically called only from pre/post (un)patch
  * callbacks.
  *
  * Return: pointer to the latest struct klp_state from already

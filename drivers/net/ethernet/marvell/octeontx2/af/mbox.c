@@ -14,6 +14,7 @@
 
 #include "rvu_reg.h"
 #include "mbox.h"
+#include "rvu_trace.h"
 
 static const u16 msgs_offset = ALIGN(sizeof(struct mbox_hdr), MBOX_MSG_ALIGN);
 
@@ -207,6 +208,9 @@ void otx2_mbox_msg_send(struct otx2_mbox *mbox, int devid)
 	 */
 	tx_hdr->num_msgs = mdev->num_msgs;
 	rx_hdr->num_msgs = 0;
+
+	trace_otx2_msg_send(mbox->pdev, tx_hdr->num_msgs, tx_hdr->msg_size);
+
 	spin_unlock(&mdev->mbox_lock);
 
 	/* The interrupt should be fired after num_msgs is written
@@ -303,10 +307,15 @@ int otx2_mbox_check_rsp_msgs(struct otx2_mbox *mbox, int devid)
 		struct mbox_msghdr *preq = mdev->mbase + ireq;
 		struct mbox_msghdr *prsp = mdev->mbase + irsp;
 
-		if (preq->id != prsp->id)
+		if (preq->id != prsp->id) {
+			trace_otx2_msg_check(mbox->pdev, preq->id,
+					     prsp->id, prsp->rc);
 			goto exit;
+		}
 		if (prsp->rc) {
 			rc = prsp->rc;
+			trace_otx2_msg_check(mbox->pdev, preq->id,
+					     prsp->id, prsp->rc);
 			goto exit;
 		}
 

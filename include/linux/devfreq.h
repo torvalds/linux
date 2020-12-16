@@ -228,12 +228,7 @@ int devfreq_resume_device(struct devfreq *devfreq);
 void devfreq_suspend(void);
 void devfreq_resume(void);
 
-/**
- * update_devfreq() - Reevaluate the device and configure frequency
- * @devfreq:	the devfreq device
- *
- * Note: devfreq->lock must be held
- */
+/* update_devfreq() - Reevaluate the device and configure frequency */
 int update_devfreq(struct devfreq *devfreq);
 
 /* Helper functions for devfreq user device driver with OPP. */

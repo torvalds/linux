@@ -308,6 +308,13 @@ struct bpf_insn_aux_data {
 			u32 map_index;		/* index into used_maps[] */
 			u32 map_off;		/* offset from value base address */
 		};
+		struct {
+			enum bpf_reg_type reg_type;	/* type of pseudo_btf_id */
+			union {
+				u32 btf_id;	/* btf_id for struct typed var */
+				u32 mem_size;	/* mem_size for non-struct typed var */
+			};
+		} btf_var;
 	};
 	u64 map_key_state; /* constant (32 bit) key tracking for maps */
 	int ctx_field_size; /* the ctx field size for load insn, maybe 0 */
@@ -347,8 +354,9 @@ static inline bool bpf_verifier_log_full(const struct bpf_verifier_log *log)
 
 static inline bool bpf_verifier_log_needed(const struct bpf_verifier_log *log)
 {
-	return (log->level && log->ubuf && !bpf_verifier_log_full(log)) ||
-		log->level == BPF_LOG_KERNEL;
+	return log &&
+		((log->level && log->ubuf && !bpf_verifier_log_full(log)) ||
+		 log->level == BPF_LOG_KERNEL);
 }
 
 #define BPF_MAX_SUBPROGS 256
@@ -358,6 +366,9 @@ struct bpf_subprog_info {
 	u32 start; /* insn idx of function entry point */
 	u32 linfo_idx; /* The idx to the main_prog->aux->linfo */
 	u16 stack_depth; /* max. stack depth used by this function */
+	bool has_tail_call;
+	bool tail_call_reachable;
+	bool has_ld_abs;
 };
 
 /* single container for all structs
@@ -445,5 +456,18 @@ bpf_prog_offload_remove_insns(struct bpf_verifier_env *env, u32 off, u32 cnt);
 
 int check_ctx_reg(struct bpf_verifier_env *env,
 		  const struct bpf_reg_state *reg, int regno);
+
+/* this lives here instead of in bpf.h because it needs to dereference tgt_prog */
+static inline u64 bpf_trampoline_compute_key(const struct bpf_prog *tgt_prog,
+					     u32 btf_id)
+{
+        return tgt_prog ? (((u64)tgt_prog->aux->id) << 32 | btf_id) : btf_id;
+}
+
+int bpf_check_attach_target(struct bpf_verifier_log *log,
+			    const struct bpf_prog *prog,
+			    const struct bpf_prog *tgt_prog,
+			    u32 btf_id,
+			    struct bpf_attach_target_info *tgt_info);
 
 #endif /* _LINUX_BPF_VERIFIER_H */

@@ -374,8 +374,8 @@ fault:
 	return ES_EXCEPTION;
 }
 
-static bool vc_slow_virt_to_phys(struct ghcb *ghcb, struct es_em_ctxt *ctxt,
-				 unsigned long vaddr, phys_addr_t *paddr)
+static enum es_result vc_slow_virt_to_phys(struct ghcb *ghcb, struct es_em_ctxt *ctxt,
+					   unsigned long vaddr, phys_addr_t *paddr)
 {
 	unsigned long va = (unsigned long)vaddr;
 	unsigned int level;
@@ -394,15 +394,19 @@ static bool vc_slow_virt_to_phys(struct ghcb *ghcb, struct es_em_ctxt *ctxt,
 		if (user_mode(ctxt->regs))
 			ctxt->fi.error_code |= X86_PF_USER;
 
-		return false;
+		return ES_EXCEPTION;
 	}
+
+	if (WARN_ON_ONCE(pte_val(*pte) & _PAGE_ENC))
+		/* Emulated MMIO to/from encrypted memory not supported */
+		return ES_UNSUPPORTED;
 
 	pa = (phys_addr_t)pte_pfn(*pte) << PAGE_SHIFT;
 	pa |= va & ~page_level_mask(level);
 
 	*paddr = pa;
 
-	return true;
+	return ES_OK;
 }
 
 /* Include code shared with pre-decompression boot stage */
@@ -731,6 +735,7 @@ static enum es_result vc_do_mmio(struct ghcb *ghcb, struct es_em_ctxt *ctxt,
 {
 	u64 exit_code, exit_info_1, exit_info_2;
 	unsigned long ghcb_pa = __pa(ghcb);
+	enum es_result res;
 	phys_addr_t paddr;
 	void __user *ref;
 
@@ -740,11 +745,12 @@ static enum es_result vc_do_mmio(struct ghcb *ghcb, struct es_em_ctxt *ctxt,
 
 	exit_code = read ? SVM_VMGEXIT_MMIO_READ : SVM_VMGEXIT_MMIO_WRITE;
 
-	if (!vc_slow_virt_to_phys(ghcb, ctxt, (unsigned long)ref, &paddr)) {
-		if (!read)
+	res = vc_slow_virt_to_phys(ghcb, ctxt, (unsigned long)ref, &paddr);
+	if (res != ES_OK) {
+		if (res == ES_EXCEPTION && !read)
 			ctxt->fi.error_code |= X86_PF_WRITE;
 
-		return ES_EXCEPTION;
+		return res;
 	}
 
 	exit_info_1 = paddr;

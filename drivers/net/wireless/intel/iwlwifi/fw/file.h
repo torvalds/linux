@@ -90,6 +90,7 @@ struct iwl_ucode_header {
 };
 
 #define IWL_UCODE_TLV_DEBUG_BASE	0x1000005
+#define IWL_UCODE_TLV_CONST_BASE	0x100
 
 /*
  * new TLV uCode file layout
@@ -145,7 +146,13 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_UMAC_DEBUG_ADDRS	= 54,
 	IWL_UCODE_TLV_LMAC_DEBUG_ADDRS	= 55,
 	IWL_UCODE_TLV_FW_RECOVERY_INFO	= 57,
-	IWL_UCODE_TLV_FW_FSEQ_VERSION	= 60,
+	IWL_UCODE_TLV_HW_TYPE			= 58,
+	IWL_UCODE_TLV_FW_FSEQ_VERSION		= 60,
+
+	IWL_UCODE_TLV_PNVM_VERSION		= 62,
+	IWL_UCODE_TLV_PNVM_SKU			= 64,
+
+	IWL_UCODE_TLV_FW_NUM_STATIONS		= IWL_UCODE_TLV_CONST_BASE + 0,
 
 	IWL_UCODE_TLV_TYPE_DEBUG_INFO		= IWL_UCODE_TLV_DEBUG_BASE + 0,
 	IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION	= IWL_UCODE_TLV_DEBUG_BASE + 1,
@@ -405,8 +412,8 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  *	to report the CSI information with (certain) RX frames
  * @IWL_UCODE_TLV_CAPA_FTM_CALIBRATED: has FTM calibrated and thus supports both
  *	initiator and responder
- *
  * @IWL_UCODE_TLV_CAPA_MLME_OFFLOAD: supports MLME offload
+ * @IWL_UCODE_TLV_CAPA_PROTECTED_TWT: Supports protection of TWT action frames
  *
  * @NUM_IWL_UCODE_TLV_CAPA: number of bits used
  */
@@ -451,6 +458,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_SET_PPAG			= (__force iwl_ucode_tlv_capa_t)52,
 	IWL_UCODE_TLV_CAPA_TAS_CFG			= (__force iwl_ucode_tlv_capa_t)53,
 	IWL_UCODE_TLV_CAPA_SESSION_PROT_CMD		= (__force iwl_ucode_tlv_capa_t)54,
+	IWL_UCODE_TLV_CAPA_PROTECTED_TWT		= (__force iwl_ucode_tlv_capa_t)56,
 
 	/* set 2 */
 	IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE		= (__force iwl_ucode_tlv_capa_t)64,

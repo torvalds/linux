@@ -544,7 +544,14 @@ static void rapl_init_domains(struct rapl_package *rp)
 			continue;
 
 		rd->rp = rp;
-		rd->name = rapl_domain_names[i];
+
+		if (i == RAPL_DOMAIN_PLATFORM && rp->id > 0) {
+			snprintf(rd->name, RAPL_DOMAIN_NAME_LENGTH, "psys-%d",
+				cpu_data(rp->lead_cpu).phys_proc_id);
+		} else
+			snprintf(rd->name, RAPL_DOMAIN_NAME_LENGTH, "%s",
+				rapl_domain_names[i]);
+
 		rd->id = i;
 		rd->rpl[0].prim_id = PL1_ENABLE;
 		rd->rpl[0].name = pl1_name;
@@ -613,7 +620,7 @@ static u64 rapl_unit_xlate(struct rapl_domain *rd, enum unit_type type,
 	case ARBITRARY_UNIT:
 	default:
 		return value;
-	};
+	}
 
 	if (to_raw)
 		return div64_u64(value, units) * scale;
@@ -1112,13 +1119,17 @@ static int rapl_package_register_powercap(struct rapl_package *rp)
 	}
 	/* now register domains as children of the socket/package */
 	for (rd = rp->domains; rd < rp->domains + rp->nr_domains; rd++) {
+		struct powercap_zone *parent = rp->power_zone;
+
 		if (rd->id == RAPL_DOMAIN_PACKAGE)
 			continue;
+		if (rd->id == RAPL_DOMAIN_PLATFORM)
+			parent = NULL;
 		/* number of power limits per domain varies */
 		nr_pl = find_nr_power_limit(rd);
 		power_zone = powercap_register_zone(&rd->power_zone,
 						    rp->priv->control_type,
-						    rd->name, rp->power_zone,
+						    rd->name, parent,
 						    &zone_ops[rd->id], nr_pl,
 						    &constraint_ops);
 
@@ -1145,67 +1156,6 @@ err_cleanup:
 	return ret;
 }
 
-int rapl_add_platform_domain(struct rapl_if_priv *priv)
-{
-	struct rapl_domain *rd;
-	struct powercap_zone *power_zone;
-	struct reg_action ra;
-	int ret;
-
-	ra.reg = priv->regs[RAPL_DOMAIN_PLATFORM][RAPL_DOMAIN_REG_STATUS];
-	ra.mask = ~0;
-	ret = priv->read_raw(0, &ra);
-	if (ret || !ra.value)
-		return -ENODEV;
-
-	ra.reg = priv->regs[RAPL_DOMAIN_PLATFORM][RAPL_DOMAIN_REG_LIMIT];
-	ra.mask = ~0;
-	ret = priv->read_raw(0, &ra);
-	if (ret || !ra.value)
-		return -ENODEV;
-
-	rd = kzalloc(sizeof(*rd), GFP_KERNEL);
-	if (!rd)
-		return -ENOMEM;
-
-	rd->name = rapl_domain_names[RAPL_DOMAIN_PLATFORM];
-	rd->id = RAPL_DOMAIN_PLATFORM;
-	rd->regs[RAPL_DOMAIN_REG_LIMIT] =
-	    priv->regs[RAPL_DOMAIN_PLATFORM][RAPL_DOMAIN_REG_LIMIT];
-	rd->regs[RAPL_DOMAIN_REG_STATUS] =
-	    priv->regs[RAPL_DOMAIN_PLATFORM][RAPL_DOMAIN_REG_STATUS];
-	rd->rpl[0].prim_id = PL1_ENABLE;
-	rd->rpl[0].name = pl1_name;
-	rd->rpl[1].prim_id = PL2_ENABLE;
-	rd->rpl[1].name = pl2_name;
-	rd->rp = rapl_find_package_domain(0, priv);
-
-	power_zone = powercap_register_zone(&rd->power_zone, priv->control_type,
-					    "psys", NULL,
-					    &zone_ops[RAPL_DOMAIN_PLATFORM],
-					    2, &constraint_ops);
-
-	if (IS_ERR(power_zone)) {
-		kfree(rd);
-		return PTR_ERR(power_zone);
-	}
-
-	priv->platform_rapl_domain = rd;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(rapl_add_platform_domain);
-
-void rapl_remove_platform_domain(struct rapl_if_priv *priv)
-{
-	if (priv->platform_rapl_domain) {
-		powercap_unregister_zone(priv->control_type,
-				 &priv->platform_rapl_domain->power_zone);
-		kfree(priv->platform_rapl_domain);
-	}
-}
-EXPORT_SYMBOL_GPL(rapl_remove_platform_domain);
-
 static int rapl_check_domain(int cpu, int domain, struct rapl_package *rp)
 {
 	struct reg_action ra;
@@ -1215,11 +1165,9 @@ static int rapl_check_domain(int cpu, int domain, struct rapl_package *rp)
 	case RAPL_DOMAIN_PP0:
 	case RAPL_DOMAIN_PP1:
 	case RAPL_DOMAIN_DRAM:
+	case RAPL_DOMAIN_PLATFORM:
 		ra.reg = rp->priv->regs[domain][RAPL_DOMAIN_REG_STATUS];
 		break;
-	case RAPL_DOMAIN_PLATFORM:
-		/* PSYS(PLATFORM) is not a CPU domain, so avoid printng error */
-		return -EINVAL;
 	default:
 		pr_err("invalid domain id %d\n", domain);
 		return -EINVAL;
@@ -1228,7 +1176,7 @@ static int rapl_check_domain(int cpu, int domain, struct rapl_package *rp)
 	 * values, otherwise skip it.
 	 */
 
-	ra.mask = ~0;
+	ra.mask = ENERGY_STATUS_MASK;
 	if (rp->priv->read_raw(cpu, &ra) || !ra.value)
 		return -ENODEV;
 

@@ -217,11 +217,11 @@ extern struct ftrace_ops __rcu *ftrace_ops_list;
 extern struct ftrace_ops ftrace_list_end;
 
 /*
- * Traverse the ftrace_global_list, invoking all entries.  The reason that we
+ * Traverse the ftrace_ops_list, invoking all entries.  The reason that we
  * can use rcu_dereference_raw_check() is that elements removed from this list
  * are simply leaked, so there is no need to interact with a grace-period
  * mechanism.  The rcu_dereference_raw_check() calls are needed to handle
- * concurrent insertions into the ftrace_global_list.
+ * concurrent insertions into the ftrace_ops_list.
  *
  * Silly Alpha and silly pointer-speculation compiler optimizations!
  */
@@ -432,7 +432,7 @@ bool is_ftrace_trampoline(unsigned long addr);
  *  DIRECT   - there is a direct function to call
  *
  * When a new ftrace_ops is registered and wants a function to save
- * pt_regs, the rec->flag REGS is set. When the function has been
+ * pt_regs, the rec->flags REGS is set. When the function has been
  * set up to save regs, the REG_EN flag is set. Once a function
  * starts saving regs it will do so until all ftrace_ops are removed
  * from tracing that function.
@@ -450,12 +450,9 @@ enum {
 };
 
 #define FTRACE_REF_MAX_SHIFT	23
-#define FTRACE_FL_BITS		9
-#define FTRACE_FL_MASKED_BITS	((1UL << FTRACE_FL_BITS) - 1)
-#define FTRACE_FL_MASK		(FTRACE_FL_MASKED_BITS << FTRACE_REF_MAX_SHIFT)
 #define FTRACE_REF_MAX		((1UL << FTRACE_REF_MAX_SHIFT) - 1)
 
-#define ftrace_rec_count(rec)	((rec)->flags & ~FTRACE_FL_MASK)
+#define ftrace_rec_count(rec)	((rec)->flags & FTRACE_REF_MAX)
 
 struct dyn_ftrace {
 	unsigned long		ip; /* address of mcount call-site */

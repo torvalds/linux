@@ -315,7 +315,7 @@ bail_wc:
  *
  * Called by ib_destroy_cq() in the generic verbs code.
  */
-void rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
+int rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 {
 	struct rvt_cq *cq = ibcq_to_rvtcq(ibcq);
 	struct rvt_dev_info *rdi = cq->rdi;
@@ -328,6 +328,7 @@ void rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 		kref_put(&cq->ip->ref, rvt_release_mmap_info);
 	else
 		vfree(cq->kqueue);
+	return 0;
 }
 
 /**

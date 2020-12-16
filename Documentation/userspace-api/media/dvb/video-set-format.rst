@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.video
 
 .. _VIDEO_SET_FORMAT:
 
@@ -16,9 +17,9 @@ VIDEO_SET_FORMAT
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, VIDEO_SET_FORMAT, video_format_t format)
-    :name: VIDEO_SET_FORMAT
+.. c:macro:: VIDEO_SET_FORMAT
 
+``int ioctl(fd, VIDEO_SET_FORMAT, video_format_t format)``
 
 Arguments
 ---------
@@ -26,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -45,7 +45,6 @@ Arguments
        -  video_format_t format
 
        -  video format of TV as defined in section ??.
-
 
 Description
 -----------
@@ -72,11 +71,9 @@ appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 
-
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 

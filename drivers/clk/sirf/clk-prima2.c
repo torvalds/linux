@@ -134,7 +134,7 @@ static void __init prima2_clk_init(struct device_node *np)
 
 	for (i = pll1; i < maxclk; i++) {
 		prima2_clks[i] = clk_register(NULL, prima2_clk_hw_array[i]);
-		BUG_ON(!prima2_clks[i]);
+		BUG_ON(IS_ERR(prima2_clks[i]));
 	}
 	clk_register_clkdev(prima2_clks[cpu], NULL, "cpu");
 	clk_register_clkdev(prima2_clks[io],  NULL, "io");

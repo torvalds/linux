@@ -106,6 +106,7 @@ struct am65_cpsw_common {
 
 	u32			nuss_ver;
 	u32			cpsw_ver;
+	unsigned long		bus_freq;
 	bool			pf_p0_rx_ptype_rrobin;
 	struct am65_cpts	*cpts;
 	int			est_enabled;

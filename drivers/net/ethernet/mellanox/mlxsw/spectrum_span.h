@@ -47,7 +47,6 @@ struct mlxsw_sp_span_entry_ops;
 
 struct mlxsw_sp_span_ops {
 	int (*init)(struct mlxsw_sp *mlxsw_sp);
-	u32 (*buffsize_get)(int mtu, u32 speed);
 	int (*policer_id_base_set)(struct mlxsw_sp *mlxsw_sp,
 				   u16 policer_id_base);
 };

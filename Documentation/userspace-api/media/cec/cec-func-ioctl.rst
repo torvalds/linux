@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: CEC
 
 .. _cec-func-ioctl:
 
@@ -18,15 +19,13 @@ Synopsis
 
     #include <sys/ioctl.h>
 
-
-.. c:function:: int ioctl( int fd, int request, void *argp )
-   :name: cec-ioctl
+``int ioctl(int fd, int request, void *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :c:func:`open() <cec-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``request``
     CEC ioctl request code as defined in the cec.h header file, for
@@ -35,11 +34,10 @@ Arguments
 ``argp``
     Pointer to a request-specific structure.
 
-
 Description
 ===========
 
-The :c:func:`ioctl() <cec-ioctl>` function manipulates cec device parameters. The
+The :c:func:`ioctl()` function manipulates cec device parameters. The
 argument ``fd`` must be an open file descriptor.
 
 The ioctl ``request`` code specifies the cec function to be called. It
@@ -50,7 +48,6 @@ Macros and structures definitions specifying cec ioctl requests and
 their parameters are located in the cec.h header file. All cec ioctl
 requests, their respective function and parameters are specified in
 :ref:`cec-user-func`.
-
 
 Return Value
 ============

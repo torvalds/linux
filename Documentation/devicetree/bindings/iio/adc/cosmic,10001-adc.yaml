@@ -22,8 +22,8 @@ properties:
   adc-reserved-channels:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
-       Bitmask of reserved channels, i.e. channels that cannot be
-       used by the OS.
+      Bitmask of reserved channels, i.e. channels that cannot be
+      used by the OS.
 
   clocks:
     maxItems: 1

@@ -68,7 +68,7 @@ static void pasemi_hwcontrol(struct nand_chip *chip, int cmd,
 	inl(lpcctl);
 }
 
-int pasemi_device_ready(struct nand_chip *chip)
+static int pasemi_device_ready(struct nand_chip *chip)
 {
 	return !!(inl(lpcctl) & LBICTRL_LPCCTL_NR);
 }
@@ -132,8 +132,8 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 	chip->legacy.read_buf = pasemi_read_buf;
 	chip->legacy.write_buf = pasemi_write_buf;
 	chip->legacy.chip_delay = 0;
-	chip->ecc.mode = NAND_ECC_SOFT;
-	chip->ecc.algo = NAND_ECC_HAMMING;
+	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
+	chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	/* Enable the following for a flash based bad block table */
 	chip->bbt_options = NAND_BBT_USE_FLASH;

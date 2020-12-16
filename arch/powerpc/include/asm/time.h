@@ -38,44 +38,10 @@ struct div_result {
 	u64 result_low;
 };
 
-/* Accessor functions for the timebase (RTC on 601) registers. */
-#define __USE_RTC()	(IS_ENABLED(CONFIG_PPC_BOOK3S_601))
-
-#ifdef CONFIG_PPC64
-
 /* For compatibility, get_tbl() is defined as get_tb() on ppc64 */
-#define get_tbl		get_tb
-
-#else
-
 static inline unsigned long get_tbl(void)
 {
-	return mftbl();
-}
-
-static inline unsigned int get_tbu(void)
-{
-	return mftbu();
-}
-#endif /* !CONFIG_PPC64 */
-
-static inline unsigned int get_rtcl(void)
-{
-	unsigned int rtcl;
-
-	asm volatile("mfrtcl %0" : "=r" (rtcl));
-	return rtcl;
-}
-
-static inline u64 get_rtc(void)
-{
-	unsigned int hi, lo, hi2;
-
-	do {
-		asm volatile("mfrtcu %0; mfrtcl %1; mfrtcu %2"
-			     : "=r" (hi), "=r" (lo), "=r" (hi2));
-	} while (hi2 != hi);
-	return (u64)hi * 1000000000 + lo;
+	return mftb();
 }
 
 static inline u64 get_vtb(void)
@@ -87,29 +53,20 @@ static inline u64 get_vtb(void)
 	return 0;
 }
 
-#ifdef CONFIG_PPC64
-static inline u64 get_tb(void)
-{
-	return mftb();
-}
-#else /* CONFIG_PPC64 */
 static inline u64 get_tb(void)
 {
 	unsigned int tbhi, tblo, tbhi2;
 
+	if (IS_ENABLED(CONFIG_PPC64))
+		return mftb();
+
 	do {
-		tbhi = get_tbu();
-		tblo = get_tbl();
-		tbhi2 = get_tbu();
+		tbhi = mftbu();
+		tblo = mftb();
+		tbhi2 = mftbu();
 	} while (tbhi != tbhi2);
 
 	return ((u64)tbhi << 32) | tblo;
-}
-#endif /* !CONFIG_PPC64 */
-
-static inline u64 get_tb_or_rtc(void)
-{
-	return __USE_RTC() ? get_rtc() : get_tb();
 }
 
 static inline void set_tb(unsigned int upper, unsigned int lower)
@@ -127,11 +84,10 @@ static inline void set_tb(unsigned int upper, unsigned int lower)
  */
 static inline u64 get_dec(void)
 {
-#if defined(CONFIG_40x)
-	return (mfspr(SPRN_PIT));
-#else
-	return (mfspr(SPRN_DEC));
-#endif
+	if (IS_ENABLED(CONFIG_40x))
+		return mfspr(SPRN_PIT);
+
+	return mfspr(SPRN_DEC);
 }
 
 /*
@@ -141,23 +97,17 @@ static inline u64 get_dec(void)
  */
 static inline void set_dec(u64 val)
 {
-#if defined(CONFIG_40x)
-	mtspr(SPRN_PIT, (u32) val);
-#else
-#ifndef CONFIG_BOOKE
-	--val;
-#endif
-	mtspr(SPRN_DEC, val);
-#endif /* not 40x */
+	if (IS_ENABLED(CONFIG_40x))
+		mtspr(SPRN_PIT, (u32)val);
+	else if (IS_ENABLED(CONFIG_BOOKE))
+		mtspr(SPRN_DEC, val);
+	else
+		mtspr(SPRN_DEC, val - 1);
 }
 
 static inline unsigned long tb_ticks_since(unsigned long tstamp)
 {
-	if (__USE_RTC()) {
-		int delta = get_rtcl() - (unsigned int) tstamp;
-		return delta < 0 ? delta + 1000000000 : delta;
-	}
-	return get_tbl() - tstamp;
+	return mftb() - tstamp;
 }
 
 #define mulhwu(x,y) \

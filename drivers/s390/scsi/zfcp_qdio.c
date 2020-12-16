@@ -380,8 +380,6 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 			  &qdio->adapter->status);
 
 	init_data.q_format = QDIO_ZFCP_QFMT;
-	memcpy(init_data.adapter_name, dev_name(&cdev->dev), 8);
-	ASCEBC(init_data.adapter_name, 8);
 	init_data.qib_rflags = QIB_RFLAGS_ENABLE_DATA_DIV;
 	if (enable_multibuffer)
 		init_data.qdr_ac |= QDR_AC_MULTI_BUFFER_ENABLE;

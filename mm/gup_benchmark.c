@@ -72,6 +72,8 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
 	int nr;
 	struct page **pages;
 	int ret = 0;
+	bool needs_mmap_lock =
+		cmd != GUP_FAST_BENCHMARK && cmd != PIN_FAST_BENCHMARK;
 
 	if (gup->size > ULONG_MAX)
 		return -EINVAL;
@@ -80,6 +82,11 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
 	pages = kvcalloc(nr_pages, sizeof(void *), GFP_KERNEL);
 	if (!pages)
 		return -ENOMEM;
+
+	if (needs_mmap_lock && mmap_read_lock_killable(current->mm)) {
+		ret = -EINTR;
+		goto free_pages;
+	}
 
 	i = 0;
 	nr = gup->nr_pages_per_call;
@@ -120,9 +127,8 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
 					    pages + i, NULL);
 			break;
 		default:
-			kvfree(pages);
 			ret = -EINVAL;
-			goto out;
+			goto unlock;
 		}
 
 		if (nr <= 0)
@@ -150,8 +156,11 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
 	end_time = ktime_get();
 	gup->put_delta_usec = ktime_us_delta(end_time, start_time);
 
+unlock:
+	if (needs_mmap_lock)
+		mmap_read_unlock(current->mm);
+free_pages:
 	kvfree(pages);
-out:
 	return ret;
 }
 

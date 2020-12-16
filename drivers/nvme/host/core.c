@@ -248,6 +248,10 @@ static blk_status_t nvme_error_status(u16 status)
 		return BLK_STS_NEXUS;
 	case NVME_SC_HOST_PATH_ERROR:
 		return BLK_STS_TRANSPORT;
+	case NVME_SC_ZONE_TOO_MANY_ACTIVE:
+		return BLK_STS_ZONE_ACTIVE_RESOURCE;
+	case NVME_SC_ZONE_TOO_MANY_OPEN:
+		return BLK_STS_ZONE_OPEN_RESOURCE;
 	default:
 		return BLK_STS_IOERR;
 	}
@@ -2056,8 +2060,6 @@ static void nvme_update_disk_info(struct gendisk *disk,
 
 	if (id->nsattr & NVME_NS_ATTR_RO)
 		set_disk_ro(disk, true);
-	else
-		set_disk_ro(disk, false);
 }
 
 static inline bool nvme_first_scan(struct gendisk *disk)
@@ -2121,7 +2123,7 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_id_ns *id)
 
 	if (blk_queue_is_zoned(ns->queue)) {
 		ret = nvme_revalidate_zones(ns);
-		if (ret)
+		if (ret && !nvme_first_scan(ns->disk))
 			return ret;
 	}
 
@@ -2927,7 +2929,7 @@ int nvme_get_log(struct nvme_ctrl *ctrl, u32 nsid, u8 log_page, u8 lsp, u8 csi,
 static int nvme_get_effects_log(struct nvme_ctrl *ctrl, u8 csi,
 				struct nvme_effects_log **log)
 {
-	struct nvme_cel *cel = xa_load(&ctrl->cels, csi);
+	struct nvme_effects_log	*cel = xa_load(&ctrl->cels, csi);
 	int ret;
 
 	if (cel)
@@ -2938,16 +2940,15 @@ static int nvme_get_effects_log(struct nvme_ctrl *ctrl, u8 csi,
 		return -ENOMEM;
 
 	ret = nvme_get_log(ctrl, 0x00, NVME_LOG_CMD_EFFECTS, 0, csi,
-			&cel->log, sizeof(cel->log), 0);
+			cel, sizeof(*cel), 0);
 	if (ret) {
 		kfree(cel);
 		return ret;
 	}
 
-	cel->csi = csi;
-	xa_store(&ctrl->cels, cel->csi, cel, GFP_KERNEL);
+	xa_store(&ctrl->cels, csi, cel, GFP_KERNEL);
 out:
-	*log = &cel->log;
+	*log = cel;
 	return 0;
 }
 
@@ -4372,6 +4373,19 @@ void nvme_uninit_ctrl(struct nvme_ctrl *ctrl)
 }
 EXPORT_SYMBOL_GPL(nvme_uninit_ctrl);
 
+static void nvme_free_cels(struct nvme_ctrl *ctrl)
+{
+	struct nvme_effects_log	*cel;
+	unsigned long i;
+
+	xa_for_each (&ctrl->cels, i, cel) {
+		xa_erase(&ctrl->cels, i);
+		kfree(cel);
+	}
+
+	xa_destroy(&ctrl->cels);
+}
+
 static void nvme_free_ctrl(struct device *dev)
 {
 	struct nvme_ctrl *ctrl =
@@ -4381,8 +4395,7 @@ static void nvme_free_ctrl(struct device *dev)
 	if (!subsys || ctrl->instance != subsys->instance)
 		ida_simple_remove(&nvme_instance_ida, ctrl->instance);
 
-	xa_destroy(&ctrl->cels);
-
+	nvme_free_cels(ctrl);
 	nvme_mpath_uninit(ctrl);
 	__free_page(ctrl->discard_page);
 
@@ -4578,8 +4591,7 @@ void nvme_start_queues(struct nvme_ctrl *ctrl)
 }
 EXPORT_SYMBOL_GPL(nvme_start_queues);
 
-
-void nvme_sync_queues(struct nvme_ctrl *ctrl)
+void nvme_sync_io_queues(struct nvme_ctrl *ctrl)
 {
 	struct nvme_ns *ns;
 
@@ -4587,7 +4599,12 @@ void nvme_sync_queues(struct nvme_ctrl *ctrl)
 	list_for_each_entry(ns, &ctrl->namespaces, list)
 		blk_sync_queue(ns->queue);
 	up_read(&ctrl->namespaces_rwsem);
+}
+EXPORT_SYMBOL_GPL(nvme_sync_io_queues);
 
+void nvme_sync_queues(struct nvme_ctrl *ctrl)
+{
+	nvme_sync_io_queues(ctrl);
 	if (ctrl->admin_q)
 		blk_sync_queue(ctrl->admin_q);
 }

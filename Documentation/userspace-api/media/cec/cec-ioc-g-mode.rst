@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: CEC
 
 .. _CEC_MODE:
 .. _CEC_G_MODE:
@@ -13,17 +14,19 @@ CEC_G_MODE, CEC_S_MODE - Get or set exclusive use of the CEC adapter
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, CEC_G_MODE, __u32 *argp )
-   :name: CEC_G_MODE
+.. c:macro:: CEC_G_MODE
 
-.. c:function:: int ioctl( int fd, CEC_S_MODE, __u32 *argp )
-   :name: CEC_S_MODE
+``int ioctl(int fd, CEC_G_MODE, __u32 *argp)``
+
+.. c:macro:: CEC_S_MODE
+
+``int ioctl(int fd, CEC_S_MODE, __u32 *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :c:func:`open() <cec-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to CEC mode.
@@ -100,7 +103,6 @@ Available initiator modes are:
 	CEC adapter. If someone else is already the exclusive initiator
 	then an attempt to become one will return the ``EBUSY`` error code
 	error.
-
 
 Available follower modes are:
 
@@ -193,7 +195,6 @@ Available follower modes are:
 	the process has the ``CAP_NET_ADMIN`` capability. If that is not
 	set, then the ``EPERM`` error code is returned.
 
-
 Core message processing details:
 
 .. tabularcolumns:: |p{6.6cm}|p{10.9cm}|
@@ -270,7 +271,6 @@ Core message processing details:
       - ``CEC_MSG_REPORT_PHYSICAL_ADDR``
       - The CEC framework will make note of the reported physical address
 	and then just pass the message on to the follower(s).
-
 
 
 Return Value

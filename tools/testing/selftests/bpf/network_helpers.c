@@ -104,6 +104,43 @@ error_close:
 	return -1;
 }
 
+int fastopen_connect(int server_fd, const char *data, unsigned int data_len,
+		     int timeout_ms)
+{
+	struct sockaddr_storage addr;
+	socklen_t addrlen = sizeof(addr);
+	struct sockaddr_in *addr_in;
+	int fd, ret;
+
+	if (getsockname(server_fd, (struct sockaddr *)&addr, &addrlen)) {
+		log_err("Failed to get server addr");
+		return -1;
+	}
+
+	addr_in = (struct sockaddr_in *)&addr;
+	fd = socket(addr_in->sin_family, SOCK_STREAM, 0);
+	if (fd < 0) {
+		log_err("Failed to create client socket");
+		return -1;
+	}
+
+	if (settimeo(fd, timeout_ms))
+		goto error_close;
+
+	ret = sendto(fd, data, data_len, MSG_FASTOPEN, (struct sockaddr *)&addr,
+		     addrlen);
+	if (ret != data_len) {
+		log_err("sendto(data, %u) != %d\n", data_len, ret);
+		goto error_close;
+	}
+
+	return fd;
+
+error_close:
+	save_errno_close(fd);
+	return -1;
+}
+
 static int connect_fd_to_addr(int fd,
 			      const struct sockaddr_storage *addr,
 			      socklen_t addrlen)

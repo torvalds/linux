@@ -68,20 +68,24 @@ static char *arc_mtypes[8] = {
 						: arc_mtypes[a.arc]
 #endif
 
+enum {
+	mem_free, mem_prom_used, mem_reserved
+};
+
 static inline int memtype_classify_arcs(union linux_memtypes type)
 {
 	switch (type.arcs) {
 	case arcs_fcontig:
 	case arcs_free:
-		return BOOT_MEM_RAM;
+		return mem_free;
 	case arcs_atmp:
-		return BOOT_MEM_ROM_DATA;
+		return mem_prom_used;
 	case arcs_eblock:
 	case arcs_rvpage:
 	case arcs_bmem:
 	case arcs_prog:
 	case arcs_aperm:
-		return BOOT_MEM_RESERVED;
+		return mem_reserved;
 	default:
 		BUG();
 	}
@@ -93,15 +97,15 @@ static inline int memtype_classify_arc(union linux_memtypes type)
 	switch (type.arc) {
 	case arc_free:
 	case arc_fcontig:
-		return BOOT_MEM_RAM;
+		return mem_free;
 	case arc_atmp:
-		return BOOT_MEM_ROM_DATA;
+		return mem_prom_used;
 	case arc_eblock:
 	case arc_rvpage:
 	case arc_bmem:
 	case arc_prog:
 	case arc_aperm:
-		return BOOT_MEM_RESERVED;
+		return mem_reserved;
 	default:
 		BUG();
 	}
@@ -143,9 +147,17 @@ void __weak __init prom_meminit(void)
 		size = p->pages << ARC_PAGE_SHIFT;
 		type = prom_memtype_classify(p->type);
 
-		add_memory_region(base, size, type);
+		/* ignore mirrored RAM on IP28/IP30 */
+		if (base < PHYS_OFFSET)
+			continue;
 
-		if (type == BOOT_MEM_ROM_DATA) {
+		memblock_add(base, size);
+
+		if (type == mem_reserved)
+			memblock_reserve(base, size);
+
+		if (type == mem_prom_used) {
+			memblock_reserve(base, size);
 			if (nr_prom_mem >= 5) {
 				pr_err("Too many ROM DATA regions");
 				continue;

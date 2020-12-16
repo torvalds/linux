@@ -3434,6 +3434,14 @@ initial_plane_vma(struct drm_i915_private *i915,
 	if (IS_ERR(obj))
 		return NULL;
 
+	/*
+	 * Mark it WT ahead of time to avoid changing the
+	 * cache_level during fbdev initialization. The
+	 * unbind there would get stuck waiting for rcu.
+	 */
+	i915_gem_object_set_cache_coherency(obj, HAS_WT(i915) ?
+					    I915_CACHE_WT : I915_CACHE_NONE);
+
 	switch (plane_config->tiling) {
 	case I915_TILING_NONE:
 		break;
@@ -4093,8 +4101,7 @@ static int skl_check_ccs_aux_surface(struct intel_plane_state *plane_state)
 int skl_check_plane_surface(struct intel_plane_state *plane_state)
 {
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	int ret;
-	bool needs_aux = false;
+	int ret, i;
 
 	ret = intel_plane_compute_gtt(plane_state);
 	if (ret)
@@ -4108,7 +4115,6 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 	 * it.
 	 */
 	if (is_ccs_modifier(fb->modifier)) {
-		needs_aux = true;
 		ret = skl_check_ccs_aux_surface(plane_state);
 		if (ret)
 			return ret;
@@ -4116,20 +4122,15 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 
 	if (intel_format_info_is_yuv_semiplanar(fb->format,
 						fb->modifier)) {
-		needs_aux = true;
 		ret = skl_check_nv12_aux_surface(plane_state);
 		if (ret)
 			return ret;
 	}
 
-	if (!needs_aux) {
-		int i;
-
-		for (i = 1; i < fb->format->num_planes; i++) {
-			plane_state->color_plane[i].offset = ~0xfff;
-			plane_state->color_plane[i].x = 0;
-			plane_state->color_plane[i].y = 0;
-		}
+	for (i = fb->format->num_planes; i < ARRAY_SIZE(plane_state->color_plane); i++) {
+		plane_state->color_plane[i].offset = ~0xfff;
+		plane_state->color_plane[i].x = 0;
+		plane_state->color_plane[i].y = 0;
 	}
 
 	ret = skl_check_main_surface(plane_state);
@@ -10635,6 +10636,10 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 	    val & PLANE_CTL_FLIP_HORIZONTAL)
 		plane_config->rotation |= DRM_MODE_REFLECT_X;
 
+	/* 90/270 degree rotation would require extra work */
+	if (drm_rotation_90_or_270(plane_config->rotation))
+		goto error;
+
 	base = intel_de_read(dev_priv, PLANE_SURF(pipe, plane_id)) & 0xfffff000;
 	plane_config->base = base;
 
@@ -12873,10 +12878,11 @@ compute_sink_pipe_bpp(const struct drm_connector_state *conn_state,
 	case 10 ... 11:
 		bpp = 10 * 3;
 		break;
-	case 12:
+	case 12 ... 16:
 		bpp = 12 * 3;
 		break;
 	default:
+		MISSING_CASE(conn_state->max_bpc);
 		return -EINVAL;
 	}
 

@@ -31,6 +31,10 @@
 #include "probe-file.h"
 #include "string2.h"
 
+#ifdef HAVE_DEBUGINFOD_SUPPORT
+#include <elfutils/debuginfod.h>
+#endif
+
 /* Kprobe tracer basic type is up to u64 */
 #define MAX_BASIC_TYPE_BITS	64
 
@@ -51,6 +55,7 @@ static const Dwfl_Callbacks offline_callbacks = {
 static int debuginfo__init_offline_dwarf(struct debuginfo *dbg,
 					 const char *path)
 {
+	GElf_Addr dummy;
 	int fd;
 
 	fd = open(path, O_RDONLY);
@@ -69,6 +74,8 @@ static int debuginfo__init_offline_dwarf(struct debuginfo *dbg,
 	dbg->dbg = dwfl_module_getdwarf(dbg->mod, &dbg->bias);
 	if (!dbg->dbg)
 		goto error;
+
+	dwfl_module_build_id(dbg->mod, &dbg->build_id, &dummy);
 
 	dwfl_report_end(dbg->dwfl, NULL, NULL);
 
@@ -942,6 +949,8 @@ static int probe_point_lazy_walker(const char *fname, int lineno,
 /* Find probe points from lazy pattern  */
 static int find_probe_point_lazy(Dwarf_Die *sp_die, struct probe_finder *pf)
 {
+	struct build_id bid;
+	char sbuild_id[SBUILD_ID_SIZE] = "";
 	int ret = 0;
 	char *fpath;
 
@@ -949,7 +958,11 @@ static int find_probe_point_lazy(Dwarf_Die *sp_die, struct probe_finder *pf)
 		const char *comp_dir;
 
 		comp_dir = cu_get_comp_dir(&pf->cu_die);
-		ret = get_real_path(pf->fname, comp_dir, &fpath);
+		if (pf->dbg->build_id) {
+			build_id__init(&bid, pf->dbg->build_id, BUILD_ID_SIZE);
+			build_id__sprintf(&bid, sbuild_id);
+		}
+		ret = find_source_path(pf->fname, sbuild_id, comp_dir, &fpath);
 		if (ret < 0) {
 			pr_warning("Failed to find source file path.\n");
 			return ret;
@@ -1448,7 +1461,7 @@ int debuginfo__find_trace_events(struct debuginfo *dbg,
 				 struct probe_trace_event **tevs)
 {
 	struct trace_event_finder tf = {
-			.pf = {.pev = pev, .callback = add_probe_trace_event},
+			.pf = {.pev = pev, .dbg = dbg, .callback = add_probe_trace_event},
 			.max_tevs = probe_conf.max_probes, .mod = dbg->mod};
 	int ret, i;
 
@@ -1618,7 +1631,7 @@ int debuginfo__find_available_vars_at(struct debuginfo *dbg,
 				      struct variable_list **vls)
 {
 	struct available_var_finder af = {
-			.pf = {.pev = pev, .callback = add_available_vars},
+			.pf = {.pev = pev, .dbg = dbg, .callback = add_available_vars},
 			.mod = dbg->mod,
 			.max_vls = probe_conf.max_probes};
 	int ret;
@@ -1973,16 +1986,56 @@ found:
 	return (ret < 0) ? ret : lf.found;
 }
 
+#ifdef HAVE_DEBUGINFOD_SUPPORT
+/* debuginfod doesn't require the comp_dir but buildid is required */
+static int get_source_from_debuginfod(const char *raw_path,
+				const char *sbuild_id, char **new_path)
+{
+	debuginfod_client *c = debuginfod_begin();
+	const char *p = raw_path;
+	int fd;
+
+	if (!c)
+		return -ENOMEM;
+
+	fd = debuginfod_find_source(c, (const unsigned char *)sbuild_id,
+				0, p, new_path);
+	pr_debug("Search %s from debuginfod -> %d\n", p, fd);
+	if (fd >= 0)
+		close(fd);
+	debuginfod_end(c);
+	if (fd < 0) {
+		pr_debug("Failed to find %s in debuginfod (%s)\n",
+			raw_path, sbuild_id);
+		return -ENOENT;
+	}
+	pr_debug("Got a source %s\n", *new_path);
+
+	return 0;
+}
+#else
+static inline int get_source_from_debuginfod(const char *raw_path __maybe_unused,
+				const char *sbuild_id __maybe_unused,
+				char **new_path __maybe_unused)
+{
+	return -ENOTSUP;
+}
+#endif
 /*
  * Find a src file from a DWARF tag path. Prepend optional source path prefix
  * and chop off leading directories that do not exist. Result is passed back as
  * a newly allocated path on success.
  * Return 0 if file was found and readable, -errno otherwise.
  */
-int get_real_path(const char *raw_path, const char *comp_dir,
-			 char **new_path)
+int find_source_path(const char *raw_path, const char *sbuild_id,
+		const char *comp_dir, char **new_path)
 {
 	const char *prefix = symbol_conf.source_prefix;
+
+	if (sbuild_id && !prefix) {
+		if (!get_source_from_debuginfod(raw_path, sbuild_id, new_path))
+			return 0;
+	}
 
 	if (!prefix) {
 		if (raw_path[0] != '/' && comp_dir)

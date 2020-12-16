@@ -131,7 +131,6 @@ static int l2tp_ip6_recv(struct sk_buff *skb)
 	struct l2tp_session *session;
 	struct l2tp_tunnel *tunnel = NULL;
 	struct ipv6hdr *iph;
-	int length;
 
 	if (!pskb_may_pull(skb, 4))
 		goto discard;
@@ -159,20 +158,6 @@ static int l2tp_ip6_recv(struct sk_buff *skb)
 	tunnel = session->tunnel;
 	if (!tunnel)
 		goto discard_sess;
-
-	/* Trace packet contents, if enabled */
-	if (tunnel->debug & L2TP_MSG_DATA) {
-		length = min(32u, skb->len);
-		if (!pskb_may_pull(skb, length))
-			goto discard_sess;
-
-		/* Point to L2TP header */
-		optr = skb->data;
-		ptr = skb->data;
-		ptr += 4;
-		pr_debug("%s: ip recv\n", tunnel->name);
-		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, ptr, length);
-	}
 
 	if (l2tp_v3_ensure_opt_in_linear(session, skb, &ptr, &optr))
 		goto discard_sess;
@@ -262,7 +247,7 @@ static void l2tp_ip6_close(struct sock *sk, long timeout)
 
 static void l2tp_ip6_destroy_sock(struct sock *sk)
 {
-	struct l2tp_tunnel *tunnel = sk->sk_user_data;
+	struct l2tp_tunnel *tunnel = l2tp_sk_to_tunnel(sk);
 
 	lock_sock(sk);
 	ip6_flush_pending_frames(sk);

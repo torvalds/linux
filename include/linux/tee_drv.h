@@ -47,6 +47,8 @@ struct tee_shm_pool;
  *              and just return with an error code. It is needed for requests
  *              that arises from TEE based kernel drivers that should be
  *              non-blocking in nature.
+ * @cap_memref_null: flag indicating if the TEE Client support shared
+ *                   memory buffer with a NULL pointer.
  */
 struct tee_context {
 	struct tee_device *teedev;
@@ -54,6 +56,7 @@ struct tee_context {
 	struct kref refcount;
 	bool releasing;
 	bool supp_nowait;
+	bool cap_memref_null;
 };
 
 struct tee_param_memref {

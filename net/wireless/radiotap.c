@@ -59,6 +59,7 @@ static const struct ieee80211_radiotap_namespace radiotap_ns = {
  * @iterator: radiotap_iterator to initialize
  * @radiotap_header: radiotap header to parse
  * @max_length: total length we can parse into (eg, whole packet length)
+ * @vns: vendor namespaces to parse
  *
  * Returns: 0 or a negative error code if there is a problem.
  *

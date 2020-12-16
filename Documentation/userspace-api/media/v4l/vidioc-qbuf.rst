@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_QBUF:
 
@@ -11,26 +12,25 @@ Name
 
 VIDIOC_QBUF - VIDIOC_DQBUF - Exchange a buffer with the driver
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_QBUF, struct v4l2_buffer *argp )
-    :name: VIDIOC_QBUF
+.. c:macro:: VIDIOC_QBUF
 
-.. c:function:: int ioctl( int fd, VIDIOC_DQBUF, struct v4l2_buffer *argp )
-    :name: VIDIOC_DQBUF
+``int ioctl(int fd, VIDIOC_QBUF, struct v4l2_buffer *argp)``
 
+.. c:macro:: VIDIOC_DQBUF
+
+``int ioctl(int fd, VIDIOC_DQBUF, struct v4l2_buffer *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_buffer`.
-
 
 Description
 ===========
@@ -142,12 +142,11 @@ API is used the ``m.fd`` fields of the passed array of struct
 
 By default ``VIDIOC_DQBUF`` blocks when no buffer is in the outgoing
 queue. When the ``O_NONBLOCK`` flag was given to the
-:ref:`open() <func-open>` function, ``VIDIOC_DQBUF`` returns
+:c:func:`open()` function, ``VIDIOC_DQBUF`` returns
 immediately with an ``EAGAIN`` error code when no buffer is available.
 
 The struct :c:type:`v4l2_buffer` structure is specified in
 :ref:`buffer`.
-
 
 Return Value
 ============

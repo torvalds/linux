@@ -17,13 +17,6 @@
 #include <asm/dsp.h>
 #include <asm/fpu.h>
 
-#ifdef CONFIG_ARC_PLAT_EZNPS
-struct eznps_dp {
-	unsigned int eflags;
-	unsigned int gpa1;
-};
-#endif
-
 /* Arch specific stuff which needs to be saved per task.
  * However these items are not so important so as to earn a place in
  * struct thread_info
@@ -37,9 +30,6 @@ struct thread_struct {
 #endif
 #ifdef CONFIG_ARC_FPU_SAVE_RESTORE
 	struct arc_fpu fpu;
-#endif
-#ifdef CONFIG_ARC_PLAT_EZNPS
-	struct eznps_dp dp;
 #endif
 };
 
@@ -60,16 +50,7 @@ struct task_struct;
  * A lot of busy-wait loops in SMP are based off of non-volatile data otherwise
  * get optimised away by gcc
  */
-#ifndef CONFIG_EZNPS_MTM_EXT
-
 #define cpu_relax()		barrier()
-
-#else
-
-#define cpu_relax()     \
-	__asm__ __volatile__ (".word %0" : : "i"(CTOP_INST_SCHD_RW) : "memory")
-
-#endif
 
 #define KSTK_EIP(tsk)   (task_pt_regs(tsk)->ret)
 #define KSTK_ESP(tsk)   (task_pt_regs(tsk)->sp)
@@ -118,25 +99,7 @@ extern unsigned int get_wchan(struct task_struct *p);
 
 #define USER_KERNEL_GUTTER    (VMALLOC_START - TASK_SIZE)
 
-#ifdef CONFIG_ARC_PLAT_EZNPS
-/* NPS architecture defines special window of 129M in user address space for
- * special memory areas, when accessing this window the MMU do not use TLB.
- * Instead MMU direct the access to:
- * 0x57f00000:0x57ffffff -- 1M of closely coupled memory (aka CMEM)
- * 0x58000000:0x5fffffff -- 16 huge pages, 8M each, with fixed map (aka FMTs)
- *
- * CMEM - is the fastest memory we got and its size is 16K.
- * FMT  - is used to map either to internal/external memory.
- * Internal memory is the second fast memory and its size is 16M
- * External memory is the biggest memory (16G) and also the slowest.
- *
- * STACK_TOP need to be PMD align (21bit) that is why we supply 0x57e00000.
- */
-#define STACK_TOP       0x57e00000
-#else
 #define STACK_TOP       TASK_SIZE
-#endif
-
 #define STACK_TOP_MAX   STACK_TOP
 
 /* This decides where the kernel will search for a free chunk of vm

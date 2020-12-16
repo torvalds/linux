@@ -1026,6 +1026,10 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info)
 		btrfs_item_key_to_cpu(leaf, &found_key, slot);
 
 		if (found_key.type == BTRFS_ROOT_REF_KEY) {
+
+			/* Release locks on tree_root before we access quota_root */
+			btrfs_release_path(path);
+
 			ret = add_qgroup_item(trans, quota_root,
 					      found_key.offset);
 			if (ret) {
@@ -1043,6 +1047,20 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info)
 			if (ret < 0) {
 				btrfs_abort_transaction(trans, ret);
 				goto out_free_path;
+			}
+			ret = btrfs_search_slot_for_read(tree_root, &found_key,
+							 path, 1, 0);
+			if (ret < 0) {
+				btrfs_abort_transaction(trans, ret);
+				goto out_free_path;
+			}
+			if (ret > 0) {
+				/*
+				 * Shouldn't happen, but in case it does we
+				 * don't need to do the btrfs_next_item, just
+				 * continue.
+				 */
+				continue;
 			}
 		}
 		ret = btrfs_next_item(tree_root, path);
@@ -3417,23 +3435,19 @@ static int qgroup_unreserve_range(struct btrfs_inode *inode,
 {
 	struct rb_node *node;
 	struct rb_node *next;
-	struct ulist_node *entry = NULL;
+	struct ulist_node *entry;
 	int ret = 0;
 
 	node = reserved->range_changed.root.rb_node;
+	if (!node)
+		return 0;
 	while (node) {
 		entry = rb_entry(node, struct ulist_node, rb_node);
 		if (entry->val < start)
 			node = node->rb_right;
-		else if (entry)
-			node = node->rb_left;
 		else
-			break;
+			node = node->rb_left;
 	}
-
-	/* Empty changeset */
-	if (!entry)
-		return 0;
 
 	if (entry->val > start && rb_prev(&entry->rb_node))
 		entry = rb_entry(rb_prev(&entry->rb_node), struct ulist_node,

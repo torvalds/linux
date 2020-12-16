@@ -126,11 +126,6 @@ static inline void ___deactivate_traps(struct kvm_vcpu *vcpu)
 	}
 }
 
-static inline void __activate_vm(struct kvm_s2_mmu *mmu)
-{
-	__load_guest_stage2(mmu);
-}
-
 static inline bool __translate_far_to_hpfar(u64 far, u64 *hpfar)
 {
 	u64 par, tmp;
@@ -145,9 +140,9 @@ static inline bool __translate_far_to_hpfar(u64 far, u64 *hpfar)
 	 * We do need to save/restore PAR_EL1 though, as we haven't
 	 * saved the guest context yet, and we may return early...
 	 */
-	par = read_sysreg(par_el1);
+	par = read_sysreg_par();
 	if (!__kvm_at("s1e1r", far))
-		tmp = read_sysreg(par_el1);
+		tmp = read_sysreg_par();
 	else
 		tmp = SYS_PAR_EL1_F; /* back to the guest */
 	write_sysreg(par, par_el1);
@@ -377,6 +372,8 @@ static inline bool esr_is_ptrauth_trap(u32 esr)
 	ctxt_sys_reg(ctxt, key ## KEYHI_EL1) = __val;                   \
 } while(0)
 
+DECLARE_PER_CPU(struct kvm_cpu_context, kvm_hyp_ctxt);
+
 static inline bool __hyp_handle_ptrauth(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpu_context *ctxt;
@@ -386,7 +383,7 @@ static inline bool __hyp_handle_ptrauth(struct kvm_vcpu *vcpu)
 	    !esr_is_ptrauth_trap(kvm_vcpu_get_esr(vcpu)))
 		return false;
 
-	ctxt = &__hyp_this_cpu_ptr(kvm_host_data)->host_ctxt;
+	ctxt = this_cpu_ptr(&kvm_hyp_ctxt);
 	__ptrauth_save_key(ctxt, APIA);
 	__ptrauth_save_key(ctxt, APIB);
 	__ptrauth_save_key(ctxt, APDA);
@@ -424,7 +421,7 @@ static inline bool fixup_guest_exit(struct kvm_vcpu *vcpu, u64 *exit_code)
 	if (cpus_have_final_cap(ARM64_WORKAROUND_CAVIUM_TX2_219_TVM) &&
 	    kvm_vcpu_trap_get_class(vcpu) == ESR_ELx_EC_SYS64 &&
 	    handle_tx2_tvm(vcpu))
-		return true;
+		goto guest;
 
 	/*
 	 * We trap the first access to the FP/SIMD to save the host context
@@ -434,13 +431,13 @@ static inline bool fixup_guest_exit(struct kvm_vcpu *vcpu, u64 *exit_code)
 	 * Similarly for trapped SVE accesses.
 	 */
 	if (__hyp_handle_fpsimd(vcpu))
-		return true;
+		goto guest;
 
 	if (__hyp_handle_ptrauth(vcpu))
-		return true;
+		goto guest;
 
 	if (!__populate_fault_info(vcpu))
-		return true;
+		goto guest;
 
 	if (static_branch_unlikely(&vgic_v2_cpuif_trap)) {
 		bool valid;
@@ -455,7 +452,7 @@ static inline bool fixup_guest_exit(struct kvm_vcpu *vcpu, u64 *exit_code)
 			int ret = __vgic_v2_perform_cpuif_access(vcpu);
 
 			if (ret == 1)
-				return true;
+				goto guest;
 
 			/* Promote an illegal access to an SError.*/
 			if (ret == -1)
@@ -471,24 +468,28 @@ static inline bool fixup_guest_exit(struct kvm_vcpu *vcpu, u64 *exit_code)
 		int ret = __vgic_v3_perform_cpuif_access(vcpu);
 
 		if (ret == 1)
-			return true;
+			goto guest;
 	}
 
 exit:
 	/* Return to the host kernel and handle the exit */
 	return false;
+
+guest:
+	/* Re-enter the guest */
+	asm(ALTERNATIVE("nop", "dmb sy", ARM64_WORKAROUND_1508412));
+	return true;
 }
 
 static inline void __kvm_unexpected_el2_exception(void)
 {
+	extern char __guest_exit_panic[];
 	unsigned long addr, fixup;
-	struct kvm_cpu_context *host_ctxt;
 	struct exception_table_entry *entry, *end;
 	unsigned long elr_el2 = read_sysreg(elr_el2);
 
 	entry = hyp_symbol_addr(__start___kvm_ex_table);
 	end = hyp_symbol_addr(__stop___kvm_ex_table);
-	host_ctxt = &__hyp_this_cpu_ptr(kvm_host_data)->host_ctxt;
 
 	while (entry < end) {
 		addr = (unsigned long)&entry->insn + entry->insn;
@@ -503,7 +504,8 @@ static inline void __kvm_unexpected_el2_exception(void)
 		return;
 	}
 
-	hyp_panic(host_ctxt);
+	/* Trigger a panic after restoring the hyp context. */
+	write_sysreg(__guest_exit_panic, elr_el2);
 }
 
 #endif /* __ARM64_KVM_HYP_SWITCH_H__ */

@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.video
 
 .. _VIDEO_GET_EVENT:
 
@@ -16,9 +17,9 @@ VIDEO_GET_EVENT
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, VIDEO_GET_EVENT, struct video_event *ev)
-    :name: VIDEO_GET_EVENT
+.. c:macro:: VIDEO_GET_EVENT
 
+``int ioctl(fd, VIDEO_GET_EVENT, struct video_event *ev)``
 
 Arguments
 ---------
@@ -26,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -45,7 +45,6 @@ Arguments
        -  struct video_event \*ev
 
        -  Points to the location where the event, if any, is to be stored.
-
 
 Description
 -----------
@@ -92,7 +91,6 @@ appropriately. The generic error codes are described at the
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 

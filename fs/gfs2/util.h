@@ -205,6 +205,16 @@ static inline bool gfs2_withdrawn(struct gfs2_sbd *sdp)
 		test_bit(SDF_WITHDRAWING, &sdp->sd_flags);
 }
 
+/**
+ * gfs2_withdrawing - check if a withdraw is pending
+ * @sdp: the superblock
+ */
+static inline bool gfs2_withdrawing(struct gfs2_sbd *sdp)
+{
+	return test_bit(SDF_WITHDRAWING, &sdp->sd_flags) &&
+	       !test_bit(SDF_WITHDRAWN, &sdp->sd_flags);
+}
+
 #define gfs2_tune_get(sdp, field) \
 gfs2_tune_get_i(&(sdp)->sd_tune, &(sdp)->sd_tune.field)
 

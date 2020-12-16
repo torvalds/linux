@@ -236,7 +236,7 @@ static int ice_qp_ena(struct ice_vsi *vsi, u16 q_idx)
 		if (err)
 			goto free_buf;
 		ice_set_ring_xdp(xdp_ring);
-		xdp_ring->xsk_umem = ice_xsk_umem(xdp_ring);
+		xdp_ring->xsk_pool = ice_xsk_pool(xdp_ring);
 	}
 
 	err = ice_setup_rx_ctx(rx_ring);
@@ -260,21 +260,21 @@ free_buf:
 }
 
 /**
- * ice_xsk_alloc_umems - allocate a UMEM region for an XDP socket
- * @vsi: VSI to allocate the UMEM on
+ * ice_xsk_alloc_pools - allocate a buffer pool for an XDP socket
+ * @vsi: VSI to allocate the buffer pool on
  *
  * Returns 0 on success, negative on error
  */
-static int ice_xsk_alloc_umems(struct ice_vsi *vsi)
+static int ice_xsk_alloc_pools(struct ice_vsi *vsi)
 {
-	if (vsi->xsk_umems)
+	if (vsi->xsk_pools)
 		return 0;
 
-	vsi->xsk_umems = kcalloc(vsi->num_xsk_umems, sizeof(*vsi->xsk_umems),
+	vsi->xsk_pools = kcalloc(vsi->num_xsk_pools, sizeof(*vsi->xsk_pools),
 				 GFP_KERNEL);
 
-	if (!vsi->xsk_umems) {
-		vsi->num_xsk_umems = 0;
+	if (!vsi->xsk_pools) {
+		vsi->num_xsk_pools = 0;
 		return -ENOMEM;
 	}
 
@@ -282,73 +282,73 @@ static int ice_xsk_alloc_umems(struct ice_vsi *vsi)
 }
 
 /**
- * ice_xsk_remove_umem - Remove an UMEM for a certain ring/qid
+ * ice_xsk_remove_pool - Remove an buffer pool for a certain ring/qid
  * @vsi: VSI from which the VSI will be removed
- * @qid: Ring/qid associated with the UMEM
+ * @qid: Ring/qid associated with the buffer pool
  */
-static void ice_xsk_remove_umem(struct ice_vsi *vsi, u16 qid)
+static void ice_xsk_remove_pool(struct ice_vsi *vsi, u16 qid)
 {
-	vsi->xsk_umems[qid] = NULL;
-	vsi->num_xsk_umems_used--;
+	vsi->xsk_pools[qid] = NULL;
+	vsi->num_xsk_pools_used--;
 
-	if (vsi->num_xsk_umems_used == 0) {
-		kfree(vsi->xsk_umems);
-		vsi->xsk_umems = NULL;
-		vsi->num_xsk_umems = 0;
+	if (vsi->num_xsk_pools_used == 0) {
+		kfree(vsi->xsk_pools);
+		vsi->xsk_pools = NULL;
+		vsi->num_xsk_pools = 0;
 	}
 }
 
 /**
- * ice_xsk_umem_disable - disable a UMEM region
+ * ice_xsk_pool_disable - disable a buffer pool region
  * @vsi: Current VSI
  * @qid: queue ID
  *
  * Returns 0 on success, negative on failure
  */
-static int ice_xsk_umem_disable(struct ice_vsi *vsi, u16 qid)
+static int ice_xsk_pool_disable(struct ice_vsi *vsi, u16 qid)
 {
-	if (!vsi->xsk_umems || qid >= vsi->num_xsk_umems ||
-	    !vsi->xsk_umems[qid])
+	if (!vsi->xsk_pools || qid >= vsi->num_xsk_pools ||
+	    !vsi->xsk_pools[qid])
 		return -EINVAL;
 
-	xsk_buff_dma_unmap(vsi->xsk_umems[qid], ICE_RX_DMA_ATTR);
-	ice_xsk_remove_umem(vsi, qid);
+	xsk_pool_dma_unmap(vsi->xsk_pools[qid], ICE_RX_DMA_ATTR);
+	ice_xsk_remove_pool(vsi, qid);
 
 	return 0;
 }
 
 /**
- * ice_xsk_umem_enable - enable a UMEM region
+ * ice_xsk_pool_enable - enable a buffer pool region
  * @vsi: Current VSI
- * @umem: pointer to a requested UMEM region
+ * @pool: pointer to a requested buffer pool region
  * @qid: queue ID
  *
  * Returns 0 on success, negative on failure
  */
 static int
-ice_xsk_umem_enable(struct ice_vsi *vsi, struct xdp_umem *umem, u16 qid)
+ice_xsk_pool_enable(struct ice_vsi *vsi, struct xsk_buff_pool *pool, u16 qid)
 {
 	int err;
 
 	if (vsi->type != ICE_VSI_PF)
 		return -EINVAL;
 
-	if (!vsi->num_xsk_umems)
-		vsi->num_xsk_umems = min_t(u16, vsi->num_rxq, vsi->num_txq);
-	if (qid >= vsi->num_xsk_umems)
+	if (!vsi->num_xsk_pools)
+		vsi->num_xsk_pools = min_t(u16, vsi->num_rxq, vsi->num_txq);
+	if (qid >= vsi->num_xsk_pools)
 		return -EINVAL;
 
-	err = ice_xsk_alloc_umems(vsi);
+	err = ice_xsk_alloc_pools(vsi);
 	if (err)
 		return err;
 
-	if (vsi->xsk_umems && vsi->xsk_umems[qid])
+	if (vsi->xsk_pools && vsi->xsk_pools[qid])
 		return -EBUSY;
 
-	vsi->xsk_umems[qid] = umem;
-	vsi->num_xsk_umems_used++;
+	vsi->xsk_pools[qid] = pool;
+	vsi->num_xsk_pools_used++;
 
-	err = xsk_buff_dma_map(vsi->xsk_umems[qid], ice_pf_to_dev(vsi->back),
+	err = xsk_pool_dma_map(vsi->xsk_pools[qid], ice_pf_to_dev(vsi->back),
 			       ICE_RX_DMA_ATTR);
 	if (err)
 		return err;
@@ -357,17 +357,17 @@ ice_xsk_umem_enable(struct ice_vsi *vsi, struct xdp_umem *umem, u16 qid)
 }
 
 /**
- * ice_xsk_umem_setup - enable/disable a UMEM region depending on its state
+ * ice_xsk_pool_setup - enable/disable a buffer pool region depending on its state
  * @vsi: Current VSI
- * @umem: UMEM to enable/associate to a ring, NULL to disable
+ * @pool: buffer pool to enable/associate to a ring, NULL to disable
  * @qid: queue ID
  *
  * Returns 0 on success, negative on failure
  */
-int ice_xsk_umem_setup(struct ice_vsi *vsi, struct xdp_umem *umem, u16 qid)
+int ice_xsk_pool_setup(struct ice_vsi *vsi, struct xsk_buff_pool *pool, u16 qid)
 {
-	bool if_running, umem_present = !!umem;
-	int ret = 0, umem_failure = 0;
+	bool if_running, pool_present = !!pool;
+	int ret = 0, pool_failure = 0;
 
 	if_running = netif_running(vsi->netdev) && ice_is_xdp_ena_vsi(vsi);
 
@@ -375,26 +375,26 @@ int ice_xsk_umem_setup(struct ice_vsi *vsi, struct xdp_umem *umem, u16 qid)
 		ret = ice_qp_dis(vsi, qid);
 		if (ret) {
 			netdev_err(vsi->netdev, "ice_qp_dis error = %d\n", ret);
-			goto xsk_umem_if_up;
+			goto xsk_pool_if_up;
 		}
 	}
 
-	umem_failure = umem_present ? ice_xsk_umem_enable(vsi, umem, qid) :
-				      ice_xsk_umem_disable(vsi, qid);
+	pool_failure = pool_present ? ice_xsk_pool_enable(vsi, pool, qid) :
+				      ice_xsk_pool_disable(vsi, qid);
 
-xsk_umem_if_up:
+xsk_pool_if_up:
 	if (if_running) {
 		ret = ice_qp_ena(vsi, qid);
-		if (!ret && umem_present)
+		if (!ret && pool_present)
 			napi_schedule(&vsi->xdp_rings[qid]->q_vector->napi);
 		else if (ret)
 			netdev_err(vsi->netdev, "ice_qp_ena error = %d\n", ret);
 	}
 
-	if (umem_failure) {
-		netdev_err(vsi->netdev, "Could not %sable UMEM, error = %d\n",
-			   umem_present ? "en" : "dis", umem_failure);
-		return umem_failure;
+	if (pool_failure) {
+		netdev_err(vsi->netdev, "Could not %sable buffer pool, error = %d\n",
+			   pool_present ? "en" : "dis", pool_failure);
+		return pool_failure;
 	}
 
 	return ret;
@@ -425,7 +425,7 @@ bool ice_alloc_rx_bufs_zc(struct ice_ring *rx_ring, u16 count)
 	rx_buf = &rx_ring->rx_buf[ntu];
 
 	do {
-		rx_buf->xdp = xsk_buff_alloc(rx_ring->xsk_umem);
+		rx_buf->xdp = xsk_buff_alloc(rx_ring->xsk_pool);
 		if (!rx_buf->xdp) {
 			ret = true;
 			break;
@@ -595,7 +595,7 @@ int ice_clean_rx_irq_zc(struct ice_ring *rx_ring, int budget)
 
 		rx_buf = &rx_ring->rx_buf[rx_ring->next_to_clean];
 		rx_buf->xdp->data_end = rx_buf->xdp->data + size;
-		xsk_buff_dma_sync_for_cpu(rx_buf->xdp);
+		xsk_buff_dma_sync_for_cpu(rx_buf->xdp, rx_ring->xsk_pool);
 
 		xdp_res = ice_run_xdp_zc(rx_ring, rx_buf->xdp);
 		if (xdp_res) {
@@ -645,11 +645,11 @@ int ice_clean_rx_irq_zc(struct ice_ring *rx_ring, int budget)
 	ice_finalize_xdp_rx(rx_ring, xdp_xmit);
 	ice_update_rx_ring_stats(rx_ring, total_rx_packets, total_rx_bytes);
 
-	if (xsk_umem_uses_need_wakeup(rx_ring->xsk_umem)) {
+	if (xsk_uses_need_wakeup(rx_ring->xsk_pool)) {
 		if (failure || rx_ring->next_to_clean == rx_ring->next_to_use)
-			xsk_set_rx_need_wakeup(rx_ring->xsk_umem);
+			xsk_set_rx_need_wakeup(rx_ring->xsk_pool);
 		else
-			xsk_clear_rx_need_wakeup(rx_ring->xsk_umem);
+			xsk_clear_rx_need_wakeup(rx_ring->xsk_pool);
 
 		return (int)total_rx_packets;
 	}
@@ -682,11 +682,11 @@ static bool ice_xmit_zc(struct ice_ring *xdp_ring, int budget)
 
 		tx_buf = &xdp_ring->tx_buf[xdp_ring->next_to_use];
 
-		if (!xsk_umem_consume_tx(xdp_ring->xsk_umem, &desc))
+		if (!xsk_tx_peek_desc(xdp_ring->xsk_pool, &desc))
 			break;
 
-		dma = xsk_buff_raw_get_dma(xdp_ring->xsk_umem, desc.addr);
-		xsk_buff_raw_dma_sync_for_device(xdp_ring->xsk_umem, dma,
+		dma = xsk_buff_raw_get_dma(xdp_ring->xsk_pool, desc.addr);
+		xsk_buff_raw_dma_sync_for_device(xdp_ring->xsk_pool, dma,
 						 desc.len);
 
 		tx_buf->bytecount = desc.len;
@@ -703,7 +703,7 @@ static bool ice_xmit_zc(struct ice_ring *xdp_ring, int budget)
 
 	if (tx_desc) {
 		ice_xdp_ring_update_tail(xdp_ring);
-		xsk_umem_consume_tx_done(xdp_ring->xsk_umem);
+		xsk_tx_release(xdp_ring->xsk_pool);
 	}
 
 	return budget > 0 && work_done;
@@ -777,10 +777,10 @@ bool ice_clean_tx_irq_zc(struct ice_ring *xdp_ring, int budget)
 	xdp_ring->next_to_clean = ntc;
 
 	if (xsk_frames)
-		xsk_umem_complete_tx(xdp_ring->xsk_umem, xsk_frames);
+		xsk_tx_completed(xdp_ring->xsk_pool, xsk_frames);
 
-	if (xsk_umem_uses_need_wakeup(xdp_ring->xsk_umem))
-		xsk_set_tx_need_wakeup(xdp_ring->xsk_umem);
+	if (xsk_uses_need_wakeup(xdp_ring->xsk_pool))
+		xsk_set_tx_need_wakeup(xdp_ring->xsk_pool);
 
 	ice_update_tx_ring_stats(xdp_ring, total_packets, total_bytes);
 	xmit_done = ice_xmit_zc(xdp_ring, ICE_DFLT_IRQ_WORK);
@@ -814,7 +814,7 @@ ice_xsk_wakeup(struct net_device *netdev, u32 queue_id,
 	if (queue_id >= vsi->num_txq)
 		return -ENXIO;
 
-	if (!vsi->xdp_rings[queue_id]->xsk_umem)
+	if (!vsi->xdp_rings[queue_id]->xsk_pool)
 		return -ENXIO;
 
 	ring = vsi->xdp_rings[queue_id];
@@ -833,20 +833,20 @@ ice_xsk_wakeup(struct net_device *netdev, u32 queue_id,
 }
 
 /**
- * ice_xsk_any_rx_ring_ena - Checks if Rx rings have AF_XDP UMEM attached
+ * ice_xsk_any_rx_ring_ena - Checks if Rx rings have AF_XDP buff pool attached
  * @vsi: VSI to be checked
  *
- * Returns true if any of the Rx rings has an AF_XDP UMEM attached
+ * Returns true if any of the Rx rings has an AF_XDP buff pool attached
  */
 bool ice_xsk_any_rx_ring_ena(struct ice_vsi *vsi)
 {
 	int i;
 
-	if (!vsi->xsk_umems)
+	if (!vsi->xsk_pools)
 		return false;
 
-	for (i = 0; i < vsi->num_xsk_umems; i++) {
-		if (vsi->xsk_umems[i])
+	for (i = 0; i < vsi->num_xsk_pools; i++) {
+		if (vsi->xsk_pools[i])
 			return true;
 	}
 
@@ -854,7 +854,7 @@ bool ice_xsk_any_rx_ring_ena(struct ice_vsi *vsi)
 }
 
 /**
- * ice_xsk_clean_rx_ring - clean UMEM queues connected to a given Rx ring
+ * ice_xsk_clean_rx_ring - clean buffer pool queues connected to a given Rx ring
  * @rx_ring: ring to be cleaned
  */
 void ice_xsk_clean_rx_ring(struct ice_ring *rx_ring)
@@ -872,7 +872,7 @@ void ice_xsk_clean_rx_ring(struct ice_ring *rx_ring)
 }
 
 /**
- * ice_xsk_clean_xdp_ring - Clean the XDP Tx ring and its UMEM queues
+ * ice_xsk_clean_xdp_ring - Clean the XDP Tx ring and its buffer pool queues
  * @xdp_ring: XDP_Tx ring
  */
 void ice_xsk_clean_xdp_ring(struct ice_ring *xdp_ring)
@@ -896,5 +896,5 @@ void ice_xsk_clean_xdp_ring(struct ice_ring *xdp_ring)
 	}
 
 	if (xsk_frames)
-		xsk_umem_complete_tx(xdp_ring->xsk_umem, xsk_frames);
+		xsk_tx_completed(xdp_ring->xsk_pool, xsk_frames);
 }

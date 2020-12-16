@@ -87,7 +87,7 @@ MODULE_PARM_DESC(tx_timeout, "The Tx timeout in ms");
 
 #define DPAA_MSG_DEFAULT (NETIF_MSG_DRV | NETIF_MSG_PROBE | \
 			  NETIF_MSG_LINK | NETIF_MSG_IFUP | \
-			  NETIF_MSG_IFDOWN)
+			  NETIF_MSG_IFDOWN | NETIF_MSG_HW)
 
 #define DPAA_INGRESS_CS_THRESHOLD 0x10000000
 /* Ingress congestion threshold on FMan ports
@@ -174,12 +174,17 @@ MODULE_PARM_DESC(tx_timeout, "The Tx timeout in ms");
 #define DPAA_PARSE_RESULTS_SIZE sizeof(struct fman_prs_result)
 #define DPAA_TIME_STAMP_SIZE 8
 #define DPAA_HASH_RESULTS_SIZE 8
-#ifdef CONFIG_DPAA_ERRATUM_A050385
-#define DPAA_RX_PRIV_DATA_SIZE (DPAA_A050385_ALIGN - (DPAA_PARSE_RESULTS_SIZE\
-	 + DPAA_TIME_STAMP_SIZE + DPAA_HASH_RESULTS_SIZE))
-#else
-#define DPAA_RX_PRIV_DATA_SIZE	(u16)(DPAA_TX_PRIV_DATA_SIZE + \
+#define DPAA_HWA_SIZE (DPAA_PARSE_RESULTS_SIZE + DPAA_TIME_STAMP_SIZE \
+		       + DPAA_HASH_RESULTS_SIZE)
+#define DPAA_RX_PRIV_DATA_DEFAULT_SIZE (DPAA_TX_PRIV_DATA_SIZE + \
 					dpaa_rx_extra_headroom)
+#ifdef CONFIG_DPAA_ERRATUM_A050385
+#define DPAA_RX_PRIV_DATA_A050385_SIZE (DPAA_A050385_ALIGN - DPAA_HWA_SIZE)
+#define DPAA_RX_PRIV_DATA_SIZE (fman_has_errata_a050385() ? \
+				DPAA_RX_PRIV_DATA_A050385_SIZE : \
+				DPAA_RX_PRIV_DATA_DEFAULT_SIZE)
+#else
+#define DPAA_RX_PRIV_DATA_SIZE DPAA_RX_PRIV_DATA_DEFAULT_SIZE
 #endif
 
 #define DPAA_ETH_PCD_RXQ_NUM	128
@@ -2840,7 +2845,8 @@ out_error:
 	return err;
 }
 
-static inline u16 dpaa_get_headroom(struct dpaa_buffer_layout *bl)
+static u16 dpaa_get_headroom(struct dpaa_buffer_layout *bl,
+			     enum port_type port)
 {
 	u16 headroom;
 
@@ -2854,10 +2860,12 @@ static inline u16 dpaa_get_headroom(struct dpaa_buffer_layout *bl)
 	 *
 	 * Also make sure the headroom is a multiple of data_align bytes
 	 */
-	headroom = (u16)(bl->priv_data_size + DPAA_PARSE_RESULTS_SIZE +
-		DPAA_TIME_STAMP_SIZE + DPAA_HASH_RESULTS_SIZE);
+	headroom = (u16)(bl[port].priv_data_size + DPAA_HWA_SIZE);
 
-	return ALIGN(headroom, DPAA_FD_DATA_ALIGNMENT);
+	if (port == RX)
+		return ALIGN(headroom, DPAA_FD_RX_DATA_ALIGNMENT);
+	else
+		return ALIGN(headroom, DPAA_FD_DATA_ALIGNMENT);
 }
 
 static int dpaa_eth_probe(struct platform_device *pdev)
@@ -3025,8 +3033,8 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 			goto free_dpaa_fqs;
 	}
 
-	priv->tx_headroom = dpaa_get_headroom(&priv->buf_layout[TX]);
-	priv->rx_headroom = dpaa_get_headroom(&priv->buf_layout[RX]);
+	priv->tx_headroom = dpaa_get_headroom(priv->buf_layout, TX);
+	priv->rx_headroom = dpaa_get_headroom(priv->buf_layout, RX);
 
 	/* All real interfaces need their ports initialized */
 	err = dpaa_eth_init_ports(mac_dev, dpaa_bp, &port_fqs,

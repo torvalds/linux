@@ -16,7 +16,6 @@
 
 #include <asm/dma-coherence.h>
 #include <asm/fw/fw.h>
-#include <asm/mach-malta/malta-dtshim.h>
 #include <asm/mips-cps.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/malta.h>

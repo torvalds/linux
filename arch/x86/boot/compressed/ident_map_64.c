@@ -33,11 +33,11 @@
 #define __PAGE_OFFSET __PAGE_OFFSET_BASE
 #include "../../mm/ident_map.c"
 
-#ifdef CONFIG_X86_5LEVEL
-unsigned int __pgtable_l5_enabled;
-unsigned int pgdir_shift = 39;
-unsigned int ptrs_per_p4d = 1;
-#endif
+#define _SETUP
+#include <asm/setup.h>	/* For COMMAND_LINE_SIZE */
+#undef _SETUP
+
+extern unsigned long get_cmd_line_ptr(void);
 
 /* Used by PAGE_KERN* macros: */
 pteval_t __default_kernel_pte_mask __read_mostly = ~0;
@@ -107,8 +107,10 @@ static void add_identity_map(unsigned long start, unsigned long end)
 }
 
 /* Locates and clears a region for a new top level page table. */
-void initialize_identity_maps(void)
+void initialize_identity_maps(void *rmode)
 {
+	unsigned long cmdline;
+
 	/* Exclude the encryption mask from __PHYSICAL_MASK */
 	physical_mask &= ~sme_me_mask;
 
@@ -149,10 +151,20 @@ void initialize_identity_maps(void)
 	}
 
 	/*
-	 * New page-table is set up - map the kernel image and load it
-	 * into cr3.
+	 * New page-table is set up - map the kernel image, boot_params and the
+	 * command line. The uncompressed kernel requires boot_params and the
+	 * command line to be mapped in the identity mapping. Map them
+	 * explicitly here in case the compressed kernel does not touch them,
+	 * or does not touch all the pages covering them.
 	 */
 	add_identity_map((unsigned long)_head, (unsigned long)_end);
+	boot_params = rmode;
+	add_identity_map((unsigned long)boot_params, (unsigned long)(boot_params + 1));
+	cmdline = get_cmd_line_ptr();
+	add_identity_map(cmdline, cmdline + COMMAND_LINE_SIZE);
+
+	/* Load the new page-table. */
+	sev_verify_cbit(top_level_pgt);
 	write_cr3(top_level_pgt);
 }
 

@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: RC
 
 .. _lirc_set_rec_carrier:
 
@@ -11,12 +12,12 @@ Name
 
 LIRC_SET_REC_CARRIER - Set carrier used to modulate IR receive.
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, LIRC_SET_REC_CARRIER, __u32 *frequency )
-    :name: LIRC_SET_REC_CARRIER
+.. c:macro:: LIRC_SET_REC_CARRIER
+
+``int ioctl(int fd, LIRC_SET_REC_CARRIER, __u32 *frequency)``
 
 Arguments
 =========
@@ -36,7 +37,6 @@ Set receive carrier used to modulate IR PWM pulses and spaces.
 
    If called together with :ref:`LIRC_SET_REC_CARRIER_RANGE`, this ioctl
    sets the upper bound frequency that will be recognized by the device.
-
 
 Return Value
 ============

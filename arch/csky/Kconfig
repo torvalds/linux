@@ -78,6 +78,7 @@ config CSKY
 	select PCI_DOMAINS_GENERIC if PCI
 	select PCI_SYSCALL if PCI
 	select PCI_MSI if PCI
+	select SET_FS
 
 config LOCKDEP_SUPPORT
 	def_bool y

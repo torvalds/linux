@@ -704,12 +704,30 @@ _bpftool()
                                 lru_percpu_hash lpm_trie array_of_maps \
                                 hash_of_maps devmap devmap_hash sockmap cpumap \
                                 xskmap sockhash cgroup_storage reuseport_sockarray \
-                                percpu_cgroup_storage queue stack' -- \
+                                percpu_cgroup_storage queue stack sk_storage \
+                                struct_ops inode_storage' -- \
                                                    "$cur" ) )
                             return 0
                             ;;
-                        key|value|flags|name|entries)
+                        key|value|flags|entries)
                             return 0
+                            ;;
+                        inner_map)
+                            COMPREPLY=( $( compgen -W "$MAP_TYPE" -- "$cur" ) )
+                            return 0
+                            ;;
+                        id)
+                            _bpftool_get_map_ids
+                            ;;
+                        name)
+                            case $pprev in
+                                inner_map)
+                                    _bpftool_get_map_names
+                                    ;;
+                                *)
+                                    return 0
+                                    ;;
+                            esac
                             ;;
                         *)
                             _bpftool_once_attr 'type'
@@ -718,6 +736,9 @@ _bpftool()
                             _bpftool_once_attr 'entries'
                             _bpftool_once_attr 'name'
                             _bpftool_once_attr 'flags'
+                            if _bpftool_search_list 'array_of_maps' 'hash_of_maps'; then
+                                _bpftool_once_attr 'inner_map'
+                            fi
                             _bpftool_once_attr 'dev'
                             return 0
                             ;;

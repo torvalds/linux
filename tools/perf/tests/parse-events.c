@@ -557,6 +557,7 @@ static int test__checkevent_pmu_events(struct evlist *evlist)
 	TEST_ASSERT_VAL("wrong exclude_hv", evsel->core.attr.exclude_hv);
 	TEST_ASSERT_VAL("wrong precise_ip", !evsel->core.attr.precise_ip);
 	TEST_ASSERT_VAL("wrong pinned", !evsel->core.attr.pinned);
+	TEST_ASSERT_VAL("wrong exclusive", !evsel->core.attr.exclusive);
 
 	return 0;
 }
@@ -575,6 +576,7 @@ static int test__checkevent_pmu_events_mix(struct evlist *evlist)
 	TEST_ASSERT_VAL("wrong exclude_hv", evsel->core.attr.exclude_hv);
 	TEST_ASSERT_VAL("wrong precise_ip", !evsel->core.attr.precise_ip);
 	TEST_ASSERT_VAL("wrong pinned", !evsel->core.attr.pinned);
+	TEST_ASSERT_VAL("wrong exclusive", !evsel->core.attr.exclusive);
 
 	/* cpu/pmu-event/u*/
 	evsel = evsel__next(evsel);
@@ -587,6 +589,7 @@ static int test__checkevent_pmu_events_mix(struct evlist *evlist)
 	TEST_ASSERT_VAL("wrong exclude_hv", evsel->core.attr.exclude_hv);
 	TEST_ASSERT_VAL("wrong precise_ip", !evsel->core.attr.precise_ip);
 	TEST_ASSERT_VAL("wrong pinned", !evsel->core.attr.pinned);
+	TEST_ASSERT_VAL("wrong exclusive", !evsel->core.attr.pinned);
 
 	return 0;
 }
@@ -1277,6 +1280,49 @@ static int test__pinned_group(struct evlist *evlist)
 	return 0;
 }
 
+static int test__checkevent_exclusive_modifier(struct evlist *evlist)
+{
+	struct evsel *evsel = evlist__first(evlist);
+
+	TEST_ASSERT_VAL("wrong exclude_user", !evsel->core.attr.exclude_user);
+	TEST_ASSERT_VAL("wrong exclude_kernel", evsel->core.attr.exclude_kernel);
+	TEST_ASSERT_VAL("wrong exclude_hv", evsel->core.attr.exclude_hv);
+	TEST_ASSERT_VAL("wrong precise_ip", evsel->core.attr.precise_ip);
+	TEST_ASSERT_VAL("wrong exclusive", evsel->core.attr.exclusive);
+
+	return test__checkevent_symbolic_name(evlist);
+}
+
+static int test__exclusive_group(struct evlist *evlist)
+{
+	struct evsel *evsel, *leader;
+
+	TEST_ASSERT_VAL("wrong number of entries", 3 == evlist->core.nr_entries);
+
+	/* cycles - group leader */
+	evsel = leader = evlist__first(evlist);
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
+	TEST_ASSERT_VAL("wrong config",
+			PERF_COUNT_HW_CPU_CYCLES == evsel->core.attr.config);
+	TEST_ASSERT_VAL("wrong group name", !evsel->group_name);
+	TEST_ASSERT_VAL("wrong leader", evsel->leader == leader);
+	TEST_ASSERT_VAL("wrong exclusive", evsel->core.attr.exclusive);
+
+	/* cache-misses - can not be pinned, but will go on with the leader */
+	evsel = evsel__next(evsel);
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
+	TEST_ASSERT_VAL("wrong config",
+			PERF_COUNT_HW_CACHE_MISSES == evsel->core.attr.config);
+	TEST_ASSERT_VAL("wrong exclusive", !evsel->core.attr.exclusive);
+
+	/* branch-misses - ditto */
+	evsel = evsel__next(evsel);
+	TEST_ASSERT_VAL("wrong config",
+			PERF_COUNT_HW_BRANCH_MISSES == evsel->core.attr.config);
+	TEST_ASSERT_VAL("wrong exclusive", !evsel->core.attr.exclusive);
+
+	return 0;
+}
 static int test__checkevent_breakpoint_len(struct evlist *evlist)
 {
 	struct evsel *evsel = evlist__first(evlist);
@@ -1765,7 +1811,17 @@ static struct evlist_test test__events[] = {
 		.name  = "cycles:k",
 		.check = test__sym_event_dc,
 		.id    = 55,
-	}
+	},
+	{
+		.name  = "instructions:uep",
+		.check = test__checkevent_exclusive_modifier,
+		.id    = 56,
+	},
+	{
+		.name  = "{cycles,cache-misses,branch-misses}:e",
+		.check = test__exclusive_group,
+		.id    = 57,
+	},
 };
 
 static struct evlist_test test__events_pmu[] = {

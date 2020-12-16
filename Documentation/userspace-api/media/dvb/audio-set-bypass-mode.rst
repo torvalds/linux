@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.audio
 
 .. _AUDIO_SET_BYPASS_MODE:
 
@@ -16,8 +17,9 @@ AUDIO_SET_BYPASS_MODE
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, AUDIO_SET_BYPASS_MODE, boolean mode)
-    :name: AUDIO_SET_BYPASS_MODE
+.. c:macro:: AUDIO_SET_BYPASS_MODE
+
+``int ioctl(int fd, AUDIO_SET_BYPASS_MODE, boolean mode)``
 
 Arguments
 ---------
@@ -25,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -
 
@@ -44,7 +45,6 @@ Arguments
 
           FALSE: Bypass is enabled
 
-
 Description
 -----------
 
@@ -53,7 +53,6 @@ forward the stream without decoding. This mode shall be used if streams
 that can’t be handled by the Digital TV system shall be decoded. Dolby
 DigitalTM streams are automatically forwarded by the Digital TV subsystem if
 the hardware can handle it.
-
 
 Return Value
 ------------

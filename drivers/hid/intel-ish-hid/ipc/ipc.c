@@ -755,7 +755,7 @@ static int _ish_hw_reset(struct ishtp_device *dev)
 	csr |= PCI_D3hot;
 	pci_write_config_word(pdev, pdev->pm_cap + PCI_PM_CTRL, csr);
 
-	mdelay(pdev->d3_delay);
+	mdelay(pdev->d3hot_delay);
 
 	csr &= ~PCI_PM_CTRL_STATE_MASK;
 	csr |= PCI_D0;

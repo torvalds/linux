@@ -410,7 +410,7 @@ static int tmio_probe(struct platform_device *dev)
 	nand_chip->legacy.read_buf = tmio_nand_read_buf;
 
 	/* set eccmode using hardware ECC */
-	nand_chip->ecc.mode = NAND_ECC_HW;
+	nand_chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 	nand_chip->ecc.size = 512;
 	nand_chip->ecc.bytes = 6;
 	nand_chip->ecc.strength = 2;

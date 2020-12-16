@@ -279,12 +279,12 @@ struct scmi_notify_ops {
 struct scmi_handle {
 	struct device *dev;
 	struct scmi_revision_info *version;
-	struct scmi_perf_ops *perf_ops;
-	struct scmi_clk_ops *clk_ops;
-	struct scmi_power_ops *power_ops;
-	struct scmi_sensor_ops *sensor_ops;
-	struct scmi_reset_ops *reset_ops;
-	struct scmi_notify_ops *notify_ops;
+	const struct scmi_perf_ops *perf_ops;
+	const struct scmi_clk_ops *clk_ops;
+	const struct scmi_power_ops *power_ops;
+	const struct scmi_sensor_ops *sensor_ops;
+	const struct scmi_reset_ops *reset_ops;
+	const struct scmi_notify_ops *notify_ops;
 	/* for protocol internal use */
 	void *perf_priv;
 	void *clk_priv;
@@ -292,6 +292,7 @@ struct scmi_handle {
 	void *sensor_priv;
 	void *reset_priv;
 	void *notify_priv;
+	void *system_priv;
 };
 
 enum scmi_std_protocol {
@@ -302,6 +303,15 @@ enum scmi_std_protocol {
 	SCMI_PROTOCOL_CLOCK = 0x14,
 	SCMI_PROTOCOL_SENSOR = 0x15,
 	SCMI_PROTOCOL_RESET = 0x16,
+};
+
+enum scmi_system_events {
+	SCMI_SYSTEM_SHUTDOWN,
+	SCMI_SYSTEM_COLDRESET,
+	SCMI_SYSTEM_WARMRESET,
+	SCMI_SYSTEM_POWERUP,
+	SCMI_SYSTEM_SUSPEND,
+	SCMI_SYSTEM_MAX
 };
 
 struct scmi_device {
@@ -335,7 +345,7 @@ struct scmi_driver {
 
 #define to_scmi_driver(d) container_of(d, struct scmi_driver, driver)
 
-#ifdef CONFIG_ARM_SCMI_PROTOCOL
+#if IS_REACHABLE(CONFIG_ARM_SCMI_PROTOCOL)
 int scmi_driver_register(struct scmi_driver *driver,
 			 struct module *owner, const char *mod_name);
 void scmi_driver_unregister(struct scmi_driver *driver);
@@ -378,6 +388,7 @@ enum scmi_notification_events {
 	SCMI_EVENT_SENSOR_TRIP_POINT_EVENT = 0x0,
 	SCMI_EVENT_RESET_ISSUED = 0x0,
 	SCMI_EVENT_BASE_ERROR_EVENT = 0x0,
+	SCMI_EVENT_SYSTEM_POWER_STATE_NOTIFIER = 0x0,
 };
 
 struct scmi_power_state_changed_report {
@@ -385,6 +396,13 @@ struct scmi_power_state_changed_report {
 	unsigned int	agent_id;
 	unsigned int	domain_id;
 	unsigned int	power_state;
+};
+
+struct scmi_system_power_state_notifier_report {
+	ktime_t		timestamp;
+	unsigned int	agent_id;
+	unsigned int	flags;
+	unsigned int	system_state;
 };
 
 struct scmi_perf_limits_report {

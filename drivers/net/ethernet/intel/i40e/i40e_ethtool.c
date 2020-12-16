@@ -891,6 +891,7 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_10GB)
 			ethtool_link_ksettings_add_link_mode(ks, advertising,
 							     10000baseT_Full);
+		i40e_get_settings_link_up_fec(hw_link_info->req_fec_info, ks);
 		break;
 	case I40E_PHY_TYPE_SGMII:
 		ethtool_link_ksettings_add_link_mode(ks, supported, Autoneg);
@@ -1481,12 +1482,16 @@ static int i40e_set_fec_param(struct net_device *netdev,
 	struct i40e_pf *pf = np->vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	u8 fec_cfg = 0;
-	int err = 0;
 
 	if (hw->device_id != I40E_DEV_ID_25G_SFP28 &&
-	    hw->device_id != I40E_DEV_ID_25G_B) {
-		err = -EPERM;
-		goto done;
+	    hw->device_id != I40E_DEV_ID_25G_B &&
+	    hw->device_id != I40E_DEV_ID_KX_X722)
+		return -EPERM;
+
+	if (hw->mac.type == I40E_MAC_X722 &&
+	    !(hw->flags & I40E_HW_FLAG_X722_FEC_REQUEST_CAPABLE)) {
+		netdev_err(netdev, "Setting FEC encoding not supported by firmware. Please update the NVM image.\n");
+		return -EOPNOTSUPP;
 	}
 
 	switch (fecparam->fec) {
@@ -1508,14 +1513,10 @@ static int i40e_set_fec_param(struct net_device *netdev,
 	default:
 		dev_warn(&pf->pdev->dev, "Unsupported FEC mode: %d",
 			 fecparam->fec);
-		err = -EINVAL;
-		goto done;
+		return -EINVAL;
 	}
 
-	err = i40e_set_fec_cfg(netdev, fec_cfg);
-
-done:
-	return err;
+	return i40e_set_fec_cfg(netdev, fec_cfg);
 }
 
 static int i40e_nway_reset(struct net_device *netdev)
@@ -1967,7 +1968,7 @@ static int i40e_set_ringparam(struct net_device *netdev,
 	    (new_rx_count == vsi->rx_rings[0]->count))
 		return 0;
 
-	/* If there is a AF_XDP UMEM attached to any of Rx rings,
+	/* If there is a AF_XDP page pool attached to any of Rx rings,
 	 * disallow changing the number of descriptors -- regardless
 	 * if the netdev is running or not.
 	 */
@@ -4951,10 +4952,18 @@ flags_complete:
 		}
 	}
 
-	if (((changed_flags & I40E_FLAG_RS_FEC) ||
-	     (changed_flags & I40E_FLAG_BASE_R_FEC)) &&
+	if (changed_flags & I40E_FLAG_RS_FEC &&
 	    pf->hw.device_id != I40E_DEV_ID_25G_SFP28 &&
 	    pf->hw.device_id != I40E_DEV_ID_25G_B) {
+		dev_warn(&pf->pdev->dev,
+			 "Device does not support changing FEC configuration\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (changed_flags & I40E_FLAG_BASE_R_FEC &&
+	    pf->hw.device_id != I40E_DEV_ID_25G_SFP28 &&
+	    pf->hw.device_id != I40E_DEV_ID_25G_B &&
+	    pf->hw.device_id != I40E_DEV_ID_KX_X722) {
 		dev_warn(&pf->pdev->dev,
 			 "Device does not support changing FEC configuration\n");
 		return -EOPNOTSUPP;

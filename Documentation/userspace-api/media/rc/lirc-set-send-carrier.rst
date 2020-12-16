@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: RC
 
 .. _lirc_set_send_carrier:
 
@@ -11,12 +12,12 @@ Name
 
 LIRC_SET_SEND_CARRIER - Set send carrier used to modulate IR TX.
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, LIRC_SET_SEND_CARRIER, __u32 *frequency )
-    :name: LIRC_SET_SEND_CARRIER
+.. c:macro:: LIRC_SET_SEND_CARRIER
+
+``int ioctl(int fd, LIRC_SET_SEND_CARRIER, __u32 *frequency)``
 
 Arguments
 =========
@@ -31,7 +32,6 @@ Description
 ===========
 
 Set send carrier used to modulate IR PWM pulses and spaces.
-
 
 Return Value
 ============

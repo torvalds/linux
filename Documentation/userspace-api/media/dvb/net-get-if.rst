@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.net
 
 .. _NET_GET_IF:
 
@@ -11,23 +12,21 @@ Name
 
 NET_GET_IF - Read the configuration data of an interface created via - :ref:`NET_ADD_IF <net>`.
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, NET_GET_IF, struct dvb_net_if *net_if )
-    :name: NET_GET_IF
+.. c:macro:: NET_GET_IF
 
+``int ioctl(int fd, NET_GET_IF, struct dvb_net_if *net_if)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <frontend_f_open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``net_if``
     pointer to struct :c:type:`dvb_net_if`
-
 
 Description
 ===========
@@ -38,7 +37,6 @@ struct :c:type:`dvb_net_if` with the packet ID and
 encapsulation type used on such interface. If the interface was not
 created yet with :ref:`NET_ADD_IF <net>`, it will return -1 and fill
 the ``errno`` with ``EINVAL`` error code.
-
 
 Return Value
 ============

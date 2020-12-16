@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: RC
 
 .. _lirc_get_min_timeout:
 .. _lirc_get_max_timeout:
@@ -16,11 +17,13 @@ range for IR receive.
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, LIRC_GET_MIN_TIMEOUT, __u32 *timeout)
-    :name: LIRC_GET_MIN_TIMEOUT
+.. c:macro:: LIRC_GET_MIN_TIMEOUT
 
-.. c:function:: int ioctl( int fd, LIRC_GET_MAX_TIMEOUT, __u32 *timeout)
-    :name: LIRC_GET_MAX_TIMEOUT
+``int ioctl(int fd, LIRC_GET_MIN_TIMEOUT, __u32 *timeout)``
+
+.. c:macro:: LIRC_GET_MAX_TIMEOUT
+
+``int ioctl(int fd, LIRC_GET_MAX_TIMEOUT, __u32 *timeout)``
 
 Arguments
 =========
@@ -30,7 +33,6 @@ Arguments
 
 ``timeout``
     Timeout, in microseconds.
-
 
 Description
 ===========
@@ -46,7 +48,6 @@ that can be set.
    Some devices have a fixed timeout, in that case
    both ioctls will return the same value even though the timeout
    cannot be changed via :ref:`LIRC_SET_REC_TIMEOUT`.
-
 
 Return Value
 ============

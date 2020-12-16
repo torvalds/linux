@@ -12,7 +12,6 @@
 #include <asm/cpufeature.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_asm.h>
-#include <asm/kvm_mmu.h>
 #include <asm/mmu.h>
 
 .macro save_caller_saved_regs_vect
@@ -41,20 +40,6 @@
 
 	.text
 
-.macro do_el2_call
-	/*
-	 * Shuffle the parameters before calling the function
-	 * pointed to in x0. Assumes parameters in x[1,2,3].
-	 */
-	str	lr, [sp, #-16]!
-	mov	lr, x0
-	mov	x0, x1
-	mov	x1, x2
-	mov	x2, x3
-	blr	lr
-	ldr	lr, [sp], #16
-.endm
-
 el1_sync:				// Guest trapped into EL2
 
 	mrs	x0, esr_el2
@@ -63,44 +48,6 @@ el1_sync:				// Guest trapped into EL2
 	ccmp	x0, #ESR_ELx_EC_HVC32, #4, ne
 	b.ne	el1_trap
 
-#ifdef __KVM_NVHE_HYPERVISOR__
-	mrs	x1, vttbr_el2		// If vttbr is valid, the guest
-	cbnz	x1, el1_hvc_guest	// called HVC
-
-	/* Here, we're pretty sure the host called HVC. */
-	ldp	x0, x1, [sp], #16
-
-	/* Check for a stub HVC call */
-	cmp	x0, #HVC_STUB_HCALL_NR
-	b.hs	1f
-
-	/*
-	 * Compute the idmap address of __kvm_handle_stub_hvc and
-	 * jump there. Since we use kimage_voffset, do not use the
-	 * HYP VA for __kvm_handle_stub_hvc, but the kernel VA instead
-	 * (by loading it from the constant pool).
-	 *
-	 * Preserve x0-x4, which may contain stub parameters.
-	 */
-	ldr	x5, =__kvm_handle_stub_hvc
-	ldr_l	x6, kimage_voffset
-
-	/* x5 = __pa(x5) */
-	sub	x5, x5, x6
-	br	x5
-
-1:
-	/*
-	 * Perform the EL2 call
-	 */
-	kern_hyp_va	x0
-	do_el2_call
-
-	eret
-	sb
-#endif /* __KVM_NVHE_HYPERVISOR__ */
-
-el1_hvc_guest:
 	/*
 	 * Fastest possible path for ARM_SMCCC_ARCH_WORKAROUND_1.
 	 * The workaround has already been applied on the host,
@@ -169,24 +116,7 @@ el2_error:
 	eret
 	sb
 
-#ifdef __KVM_NVHE_HYPERVISOR__
-SYM_FUNC_START(__hyp_do_panic)
-	mov	lr, #(PSR_F_BIT | PSR_I_BIT | PSR_A_BIT | PSR_D_BIT |\
-		      PSR_MODE_EL1h)
-	msr	spsr_el2, lr
-	ldr	lr, =panic
-	msr	elr_el2, lr
-	eret
-	sb
-SYM_FUNC_END(__hyp_do_panic)
-#endif
-
-SYM_CODE_START(__hyp_panic)
-	get_host_ctxt x0, x1
-	b	hyp_panic
-SYM_CODE_END(__hyp_panic)
-
-.macro invalid_vector	label, target = __hyp_panic
+.macro invalid_vector	label, target = __guest_exit_panic
 	.align	2
 SYM_CODE_START(\label)
 	b \target
@@ -198,7 +128,6 @@ SYM_CODE_END(\label)
 	invalid_vector	el2t_irq_invalid
 	invalid_vector	el2t_fiq_invalid
 	invalid_vector	el2t_error_invalid
-	invalid_vector	el2h_sync_invalid
 	invalid_vector	el2h_irq_invalid
 	invalid_vector	el2h_fiq_invalid
 	invalid_vector	el1_fiq_invalid
@@ -228,10 +157,9 @@ check_preamble_length 661b, 662b
 .macro invalid_vect target
 	.align 7
 661:
-	b	\target
 	nop
+	stp	x0, x1, [sp, #-16]!
 662:
-	ldp	x0, x1, [sp], #16
 	b	\target
 
 check_preamble_length 661b, 662b

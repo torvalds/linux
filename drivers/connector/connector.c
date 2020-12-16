@@ -197,17 +197,12 @@ int cn_add_callback(struct cb_id *id, const char *name,
 		    void (*callback)(struct cn_msg *,
 				     struct netlink_skb_parms *))
 {
-	int err;
 	struct cn_dev *dev = &cdev;
 
 	if (!cn_already_initialized)
 		return -EAGAIN;
 
-	err = cn_queue_add_callback(dev->cbdev, name, id, callback);
-	if (err)
-		return err;
-
-	return 0;
+	return cn_queue_add_callback(dev->cbdev, name, id, callback);
 }
 EXPORT_SYMBOL_GPL(cn_add_callback);
 

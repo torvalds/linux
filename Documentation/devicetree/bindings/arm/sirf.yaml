@@ -24,4 +24,7 @@ properties:
       - items:
           - const: sirf,prima2-cb
           - const: sirf,prima2
+
+additionalProperties: true
+
 ...

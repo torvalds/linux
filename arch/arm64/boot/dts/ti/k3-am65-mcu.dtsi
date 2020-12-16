@@ -6,7 +6,7 @@
  */
 
 &cbass_mcu {
-	mcu_conf: scm_conf@40f00000 {
+	mcu_conf: scm-conf@40f00000 {
 		compatible = "syscon", "simple-mfd";
 		reg = <0x0 0x40f00000 0x0 0x20000>;
 		#address-cells = <1>;
@@ -116,7 +116,7 @@
 		};
 	};
 
-	mcu_navss {
+	mcu-navss {
 		compatible = "simple-mfd";
 		#address-cells = <2>;
 		#size-cells = <2>;

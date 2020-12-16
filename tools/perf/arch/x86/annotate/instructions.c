@@ -110,6 +110,7 @@ static struct ins x86__instructions[] = {
 	{ .name = "por",	.ops = &mov_ops,  },
 	{ .name = "rclb",	.ops = &mov_ops,  },
 	{ .name = "rcll",	.ops = &mov_ops,  },
+	{ .name = "ret",	.ops = &ret_ops,  },
 	{ .name = "retq",	.ops = &ret_ops,  },
 	{ .name = "sbb",	.ops = &mov_ops,  },
 	{ .name = "sbbl",	.ops = &mov_ops,  },

@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: RC
 
 .. _lirc_set_wideband_receiver:
 
@@ -14,8 +15,9 @@ LIRC_SET_WIDEBAND_RECEIVER - enable wide band receiver.
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, LIRC_SET_WIDEBAND_RECEIVER, __u32 *enable )
-    :name: LIRC_SET_WIDEBAND_RECEIVER
+.. c:macro:: LIRC_SET_WIDEBAND_RECEIVER
+
+``int ioctl(int fd, LIRC_SET_WIDEBAND_RECEIVER, __u32 *enable)``
 
 Arguments
 =========
@@ -26,7 +28,6 @@ Arguments
 ``enable``
     enable = 1 means enable wideband receiver, enable = 0 means disable
     wideband receiver.
-
 
 Description
 ===========
@@ -46,7 +47,6 @@ reduced range of reception.
     carrier reports. In that case it will be disabled as soon as you disable
     carrier reports. Trying to disable wide band receiver while carrier
     reports are active will do nothing.
-
 
 Return Value
 ============

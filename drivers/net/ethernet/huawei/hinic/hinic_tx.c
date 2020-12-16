@@ -357,6 +357,7 @@ static int offload_csum(struct hinic_sq_task *task, u32 *queue_info,
 	enum hinic_l4_offload_type l4_offload;
 	u32 offset, l4_len, network_hdr_len;
 	enum hinic_l3_offload_type l3_type;
+	u32 tunnel_type = NOT_TUNNEL;
 	union hinic_l3 ip;
 	union hinic_l4 l4;
 	u8 l4_proto;
@@ -367,27 +368,55 @@ static int offload_csum(struct hinic_sq_task *task, u32 *queue_info,
 	if (skb->encapsulation) {
 		u32 l4_tunnel_len;
 
+		tunnel_type = TUNNEL_UDP_NO_CSUM;
 		ip.hdr = skb_network_header(skb);
 
-		if (ip.v4->version == 4)
+		if (ip.v4->version == 4) {
 			l3_type = IPV4_PKT_NO_CHKSUM_OFFLOAD;
-		else if (ip.v4->version == 6)
+			l4_proto = ip.v4->protocol;
+		} else if (ip.v4->version == 6) {
+			unsigned char *exthdr;
+			__be16 frag_off;
 			l3_type = IPV6_PKT;
-		else
+			tunnel_type = TUNNEL_UDP_CSUM;
+			exthdr = ip.hdr + sizeof(*ip.v6);
+			l4_proto = ip.v6->nexthdr;
+			l4.hdr = skb_transport_header(skb);
+			if (l4.hdr != exthdr)
+				ipv6_skip_exthdr(skb, exthdr - skb->data,
+						 &l4_proto, &frag_off);
+		} else {
 			l3_type = L3TYPE_UNKNOWN;
+			l4_proto = IPPROTO_RAW;
+		}
 
 		hinic_task_set_outter_l3(task, l3_type,
 					 skb_network_header_len(skb));
 
-		l4_tunnel_len = skb_inner_network_offset(skb) -
-				skb_transport_offset(skb);
+		switch (l4_proto) {
+		case IPPROTO_UDP:
+			l4_tunnel_len = skb_inner_network_offset(skb) -
+					skb_transport_offset(skb);
+			ip.hdr = skb_inner_network_header(skb);
+			l4.hdr = skb_inner_transport_header(skb);
+			network_hdr_len = skb_inner_network_header_len(skb);
+			break;
+		case IPPROTO_IPIP:
+		case IPPROTO_IPV6:
+			tunnel_type = NOT_TUNNEL;
+			l4_tunnel_len = 0;
 
-		hinic_task_set_tunnel_l4(task, TUNNEL_UDP_NO_CSUM,
-					 l4_tunnel_len);
+			ip.hdr = skb_inner_network_header(skb);
+			l4.hdr = skb_transport_header(skb);
+			network_hdr_len = skb_network_header_len(skb);
+			break;
+		default:
+			/* Unsupported tunnel packet, disable csum offload */
+			skb_checksum_help(skb);
+			return 0;
+		}
 
-		ip.hdr = skb_inner_network_header(skb);
-		l4.hdr = skb_inner_transport_header(skb);
-		network_hdr_len = skb_inner_network_header_len(skb);
+		hinic_task_set_tunnel_l4(task, tunnel_type, l4_tunnel_len);
 	} else {
 		ip.hdr = skb_network_header(skb);
 		l4.hdr = skb_transport_header(skb);
@@ -853,14 +882,14 @@ int hinic_init_txq(struct hinic_txq *txq, struct hinic_sq *sq,
 		goto err_alloc_free_sges;
 	}
 
-	irqname_len = snprintf(NULL, 0, "hinic_txq%d", qp->q_id) + 1;
+	irqname_len = snprintf(NULL, 0, "%s_txq%d", netdev->name, qp->q_id) + 1;
 	txq->irq_name = devm_kzalloc(&netdev->dev, irqname_len, GFP_KERNEL);
 	if (!txq->irq_name) {
 		err = -ENOMEM;
 		goto err_alloc_irqname;
 	}
 
-	sprintf(txq->irq_name, "hinic_txq%d", qp->q_id);
+	sprintf(txq->irq_name, "%s_txq%d", netdev->name, qp->q_id);
 
 	err = hinic_hwdev_hw_ci_addr_set(hwdev, sq, CI_UPDATE_NO_PENDING,
 					 CI_UPDATE_NO_COALESC);

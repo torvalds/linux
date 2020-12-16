@@ -152,10 +152,26 @@ struct typec_altmode_driver {
 #define to_altmode_driver(d) container_of(d, struct typec_altmode_driver, \
 					  driver)
 
+/**
+ * typec_altmode_register_driver - registers a USB Type-C alternate mode
+ * 				   device driver
+ * @drv: pointer to struct typec_altmode_driver
+ *
+ * These drivers will be bind to the partner alternate mode devices. They will
+ * handle all SVID specific communication.
+ */
 #define typec_altmode_register_driver(drv) \
 		__typec_altmode_register_driver(drv, THIS_MODULE)
 int __typec_altmode_register_driver(struct typec_altmode_driver *drv,
 				    struct module *module);
+/**
+ * typec_altmode_unregister_driver - unregisters a USB Type-C alternate mode
+ * 				     device driver
+ * @drv: pointer to struct typec_altmode_driver
+ *
+ * These drivers will be bind to the partner alternate mode devices. They will
+ * handle all SVID specific communication.
+ */
 void typec_altmode_unregister_driver(struct typec_altmode_driver *drv);
 
 #define module_typec_altmode_driver(__typec_altmode_driver) \

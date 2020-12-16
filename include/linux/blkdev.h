@@ -8,6 +8,7 @@
 #include <linux/genhd.h>
 #include <linux/list.h>
 #include <linux/llist.h>
+#include <linux/minmax.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/pagemap.h>

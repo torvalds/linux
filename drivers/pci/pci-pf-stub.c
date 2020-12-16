@@ -37,18 +37,6 @@ static struct pci_driver pf_stub_driver = {
 	.probe			= pci_pf_stub_probe,
 	.sriov_configure	= pci_sriov_configure_simple,
 };
-
-static int __init pci_pf_stub_init(void)
-{
-	return pci_register_driver(&pf_stub_driver);
-}
-
-static void __exit pci_pf_stub_exit(void)
-{
-	pci_unregister_driver(&pf_stub_driver);
-}
-
-module_init(pci_pf_stub_init);
-module_exit(pci_pf_stub_exit);
+module_pci_driver(pf_stub_driver);
 
 MODULE_LICENSE("GPL");
