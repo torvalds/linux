@@ -4232,6 +4232,18 @@ sub process {
 			}
 		}
 
+# check for const static or static <non ptr type> const declarations
+# prefer 'static const <foo>' over 'const static <foo>' and 'static <foo> const'
+		if ($sline =~ /^\+\s*const\s+static\s+($Type)\b/ ||
+		    $sline =~ /^\+\s*static\s+($BasicType)\s+const\b/) {
+			if (WARN("STATIC_CONST",
+				 "Move const after static - use 'static const $1'\n" . $herecurr) &&
+			    $fix) {
+				$fixed[$fixlinenr] =~ s/\bconst\s+static\b/static const/;
+				$fixed[$fixlinenr] =~ s/\bstatic\s+($BasicType)\s+const\b/static const $1/;
+			}
+		}
+
 # check for non-global char *foo[] = {"bar", ...} declarations.
 		if ($line =~ /^.\s+(?:static\s+|const\s+)?char\s+\*\s*\w+\s*\[\s*\]\s*=\s*\{/) {
 			WARN("STATIC_CONST_CHAR_ARRAY",
