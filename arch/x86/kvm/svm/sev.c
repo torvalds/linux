@@ -529,6 +529,7 @@ static int sev_es_sync_vmsa(struct vcpu_svm *svm)
 	save->rbp = svm->vcpu.arch.regs[VCPU_REGS_RBP];
 	save->rsi = svm->vcpu.arch.regs[VCPU_REGS_RSI];
 	save->rdi = svm->vcpu.arch.regs[VCPU_REGS_RDI];
+#ifdef CONFIG_X86_64
 	save->r8  = svm->vcpu.arch.regs[VCPU_REGS_R8];
 	save->r9  = svm->vcpu.arch.regs[VCPU_REGS_R9];
 	save->r10 = svm->vcpu.arch.regs[VCPU_REGS_R10];
@@ -537,6 +538,7 @@ static int sev_es_sync_vmsa(struct vcpu_svm *svm)
 	save->r13 = svm->vcpu.arch.regs[VCPU_REGS_R13];
 	save->r14 = svm->vcpu.arch.regs[VCPU_REGS_R14];
 	save->r15 = svm->vcpu.arch.regs[VCPU_REGS_R15];
+#endif
 	save->rip = svm->vcpu.arch.regs[VCPU_REGS_RIP];
 
 	/* Sync some non-GPR registers before encrypting */
