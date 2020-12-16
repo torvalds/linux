@@ -94,6 +94,7 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_flag("forcemandatorylock", Opt_forcemandatorylock),
 	fsparam_flag("forcemand", Opt_forcemandatorylock),
 	fsparam_flag("setuidfromacl", Opt_setuidfromacl),
+	fsparam_flag("idsfromsid", Opt_setuidfromacl),
 	fsparam_flag_no("setuids", Opt_setuids),
 	fsparam_flag_no("dynperm", Opt_dynperm),
 	fsparam_flag_no("intr", Opt_intr),
@@ -105,6 +106,7 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_flag("locallease", Opt_locallease),
 	fsparam_flag("sign", Opt_sign),
 	fsparam_flag("ignore_signature", Opt_ignore_signature),
+	fsparam_flag("signloosely", Opt_ignore_signature),
 	fsparam_flag("seal", Opt_seal),
 	fsparam_flag("noac", Opt_noac),
 	fsparam_flag("fsc", Opt_fsc),
@@ -112,11 +114,12 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_flag("multiuser", Opt_multiuser),
 	fsparam_flag("sloppy", Opt_sloppy),
 	fsparam_flag("nosharesock", Opt_nosharesock),
-	fsparam_flag_no("persistent", Opt_persistent),
-	fsparam_flag_no("resilient", Opt_resilient),
+	fsparam_flag_no("persistenthandles", Opt_persistent),
+	fsparam_flag_no("resilienthandles", Opt_resilient),
 	fsparam_flag("domainauto", Opt_domainauto),
 	fsparam_flag("rdma", Opt_rdma),
 	fsparam_flag("modesid", Opt_modesid),
+	fsparam_flag("modefromsid", Opt_modesid),
 	fsparam_flag("rootfs", Opt_rootfs),
 	fsparam_flag("compress", Opt_compress),
 	fsparam_flag("witness", Opt_witness),
@@ -132,6 +135,7 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_u32("dir_mode", Opt_dirmode),
 	fsparam_u32("port", Opt_port),
 	fsparam_u32("min_enc_offload", Opt_min_enc_offload),
+	fsparam_u32("esize", Opt_min_enc_offload),
 	fsparam_u32("bsize", Opt_blocksize),
 	fsparam_u32("rsize", Opt_rsize),
 	fsparam_u32("wsize", Opt_wsize),
@@ -1212,14 +1216,15 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		break;
 	case Opt_persistent:
 		if (result.negated) {
-			if ((ctx->nopersistent) || (ctx->resilient)) {
+			ctx->nopersistent = true;
+			if (ctx->persistent) {
 				cifs_dbg(VFS,
 				  "persistenthandles mount options conflict\n");
 				goto cifs_parse_mount_err;
 			}
 		} else {
-			ctx->nopersistent = true;
-			if (ctx->persistent) {
+			ctx->persistent = true;
+			if ((ctx->nopersistent) || (ctx->resilient)) {
 				cifs_dbg(VFS,
 				  "persistenthandles mount options conflict\n");
 				goto cifs_parse_mount_err;
