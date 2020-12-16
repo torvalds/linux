@@ -73,18 +73,11 @@
 #define TODO_FLAGS_FINISH 0
 #endif
 
-#if BUILDING_GCC_VERSION >= 4009
 namespace {
 static const pass_data _PASS_NAME_PASS_DATA = {
-#else
-static struct gimple_opt_pass _PASS_NAME_PASS = {
-	.pass = {
-#endif
 		.type			= GIMPLE_PASS,
 		.name			= _PASS_NAME_NAME,
-#if BUILDING_GCC_VERSION >= 4008
 		.optinfo_flags		= OPTGROUP_NONE,
-#endif
 #if BUILDING_GCC_VERSION >= 5000
 #elif BUILDING_GCC_VERSION == 4009
 		.has_gate		= _HAS_GATE,
@@ -102,12 +95,8 @@ static struct gimple_opt_pass _PASS_NAME_PASS = {
 		.properties_destroyed	= PROPERTIES_DESTROYED,
 		.todo_flags_start	= TODO_FLAGS_START,
 		.todo_flags_finish	= TODO_FLAGS_FINISH,
-#if BUILDING_GCC_VERSION < 4009
-	}
-#endif
 };
 
-#if BUILDING_GCC_VERSION >= 4009
 class _PASS_NAME_PASS : public gimple_opt_pass {
 public:
 	_PASS_NAME_PASS() : gimple_opt_pass(_PASS_NAME_PASS_DATA, g) {}
@@ -127,7 +116,6 @@ public:
 	virtual unsigned int execute(function *) { return _EXECUTE(); }
 #else
 	virtual unsigned int execute(void) { return _EXECUTE(); }
-#endif
 #endif
 };
 }
