@@ -4543,16 +4543,23 @@ sub process {
 			     "printk() should include KERN_<LEVEL> facility level\n" . $herecurr);
 		}
 
-		if ($line =~ /\bprintk\s*\(\s*KERN_([A-Z]+)/) {
-			my $orig = $1;
+# prefer variants of (subsystem|netdev|dev|pr)_<level> to printk(KERN_<LEVEL>
+		if ($line =~ /\b(printk(_once|_ratelimited)?)\s*\(\s*KERN_([A-Z]+)/) {
+			my $printk = $1;
+			my $modifier = $2;
+			my $orig = $3;
+			$modifier = "" if (!defined($modifier));
 			my $level = lc($orig);
 			$level = "warn" if ($level eq "warning");
 			my $level2 = $level;
 			$level2 = "dbg" if ($level eq "debug");
+			$level .= $modifier;
+			$level2 .= $modifier;
 			WARN("PREFER_PR_LEVEL",
-			     "Prefer [subsystem eg: netdev]_$level2([subsystem]dev, ... then dev_$level2(dev, ... then pr_$level(...  to printk(KERN_$orig ...\n" . $herecurr);
+			     "Prefer [subsystem eg: netdev]_$level2([subsystem]dev, ... then dev_$level2(dev, ... then pr_$level(...  to $printk(KERN_$orig ...\n" . $herecurr);
 		}
 
+# prefer dev_<level> to dev_printk(KERN_<LEVEL>
 		if ($line =~ /\bdev_printk\s*\(\s*KERN_([A-Z]+)/) {
 			my $orig = $1;
 			my $level = lc($orig);
