@@ -59,7 +59,7 @@ __irq_entry:
 
 	get_thread_info tsk
 	ldr	r2, [tsk, #TI_FLAGS]
-	tst	r2, #_TIF_WORK_MASK
+	movs	r2, r2, lsl #16
 	beq	2f			@ no work pending
 	mov	r0, #V7M_SCB_ICSR_PENDSVSET
 	str	r0, [r1, V7M_SCB_ICSR]	@ raise PendSV

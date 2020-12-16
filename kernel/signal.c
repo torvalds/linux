@@ -2555,14 +2555,12 @@ bool get_signal(struct ksignal *ksig)
 	 * that the arch handlers don't all have to do it. If we get here
 	 * without TIF_SIGPENDING, just exit after running signal work.
 	 */
-#ifdef TIF_NOTIFY_SIGNAL
 	if (!IS_ENABLED(CONFIG_GENERIC_ENTRY)) {
 		if (test_thread_flag(TIF_NOTIFY_SIGNAL))
 			tracehook_notify_signal();
 		if (!task_sigpending(current))
 			return false;
 	}
-#endif
 
 	if (unlikely(uprobe_deny_signal()))
 		return false;
@@ -2576,26 +2574,6 @@ bool get_signal(struct ksignal *ksig)
 
 relock:
 	spin_lock_irq(&sighand->siglock);
-	/*
-	 * Make sure we can safely read ->jobctl() in task_work add. As Oleg
-	 * states:
-	 *
-	 * It pairs with mb (implied by cmpxchg) before READ_ONCE. So we
-	 * roughly have
-	 *
-	 *	task_work_add:				get_signal:
-	 *	STORE(task->task_works, new_work);	STORE(task->jobctl);
-	 *	mb();					mb();
-	 *	LOAD(task->jobctl);			LOAD(task->task_works);
-	 *
-	 * and we can rely on STORE-MB-LOAD [ in task_work_add].
-	 */
-	smp_store_mb(current->jobctl, current->jobctl & ~JOBCTL_TASK_WORK);
-	if (unlikely(current->task_works)) {
-		spin_unlock_irq(&sighand->siglock);
-		task_work_run();
-		goto relock;
-	}
 
 	/*
 	 * Every stopped thread goes here after wakeup. Check to see if
