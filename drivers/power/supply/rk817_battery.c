@@ -2424,7 +2424,7 @@ static void rk817_bat_smooth_algorithm(struct rk817_battery_device *battery)
 	}
 
 	/* discharge: sm_linek < 0, if delate_cap <0, ydsoc > 0 */
-	ydsoc = battery->sm_linek * abs(delta_cap / DIV(battery->fcc)) / 10;
+	ydsoc = battery->sm_linek * abs(delta_cap / 10) / DIV(battery->fcc);
 
 	DBG("smooth: ydsoc = %d, fcc = %d\n", ydsoc, battery->fcc);
 	if (ydsoc == 0) {
