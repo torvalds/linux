@@ -786,7 +786,7 @@ static void rk817_shutdown_prepare(void)
 
 	/* close rtc int when power off */
 	regmap_update_bits(rk808->regmap,
-			   RK817_INT_STS_MSK_REG1,
+			   RK817_INT_STS_MSK_REG0,
 			   (0x3 << 5), (0x3 << 5));
 	regmap_update_bits(rk808->regmap,
 			   RK817_RTC_INT_REG,
