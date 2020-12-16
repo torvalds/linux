@@ -81,5 +81,6 @@ struct ishtp_device *ish_dev_init(struct pci_dev *pdev);
 int ish_hw_start(struct ishtp_device *dev);
 void ish_device_disable(struct ishtp_device *dev);
 int ish_disable_dma(struct ishtp_device *dev);
+void ish_set_host_ready(struct ishtp_device *dev);
 
 #endif /* _ISHTP_HW_ISH_H_ */
