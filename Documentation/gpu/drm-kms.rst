@@ -370,6 +370,12 @@ Plane Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_plane.c
    :export:
 
+Plane Composition Functions Reference
+-------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_blend.c
+   :export:
+
 Display Modes Function Reference
 ================================
 
@@ -471,9 +477,6 @@ Plane Composition Properties
 
 .. kernel-doc:: drivers/gpu/drm/drm_blend.c
    :doc: overview
-
-.. kernel-doc:: drivers/gpu/drm/drm_blend.c
-   :export:
 
 Damage Tracking Properties
 --------------------------
