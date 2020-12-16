@@ -475,8 +475,8 @@ Plane Composition Properties
 .. kernel-doc:: drivers/gpu/drm/drm_blend.c
    :export:
 
-FB_DAMAGE_CLIPS
-~~~~~~~~~~~~~~~
+Damage Tracking Properties
+--------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_damage_helper.c
    :doc: overview
