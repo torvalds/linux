@@ -2988,7 +2988,7 @@ int ext4_orphan_add(handle_t *handle, struct inode *inode)
 	mutex_unlock(&sbi->s_orphan_lock);
 
 	if (dirty) {
-		err = ext4_handle_dirty_super(handle, sb);
+		err = ext4_handle_dirty_metadata(handle, NULL, sbi->s_sbh);
 		rc = ext4_mark_iloc_dirty(handle, inode, &iloc);
 		if (!err)
 			err = rc;
@@ -3069,7 +3069,7 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 		ext4_superblock_csum_set(inode->i_sb);
 		unlock_buffer(sbi->s_sbh);
 		mutex_unlock(&sbi->s_orphan_lock);
-		err = ext4_handle_dirty_super(handle, inode->i_sb);
+		err = ext4_handle_dirty_metadata(handle, NULL, sbi->s_sbh);
 	} else {
 		struct ext4_iloc iloc2;
 		struct inode *i_prev =

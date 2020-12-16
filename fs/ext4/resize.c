@@ -903,7 +903,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	le16_add_cpu(&es->s_reserved_gdt_blocks, -1);
 	ext4_superblock_csum_set(sb);
 	unlock_buffer(EXT4_SB(sb)->s_sbh);
-	err = ext4_handle_dirty_super(handle, sb);
+	err = ext4_handle_dirty_metadata(handle, NULL, EXT4_SB(sb)->s_sbh);
 	if (err)
 		ext4_std_error(sb, err);
 	return err;
@@ -1521,7 +1521,7 @@ static int ext4_flex_group_add(struct super_block *sb,
 
 	ext4_update_super(sb, flex_gd);
 
-	err = ext4_handle_dirty_super(handle, sb);
+	err = ext4_handle_dirty_metadata(handle, NULL, sbi->s_sbh);
 
 exit_journal:
 	err2 = ext4_journal_stop(handle);
@@ -1734,7 +1734,7 @@ static int ext4_group_extend_no_check(struct super_block *sb,
 	err = ext4_group_add_blocks(handle, sb, o_blocks_count, add);
 	if (err)
 		goto errout;
-	ext4_handle_dirty_super(handle, sb);
+	ext4_handle_dirty_metadata(handle, NULL, EXT4_SB(sb)->s_sbh);
 	ext4_debug("freed blocks %llu through %llu\n", o_blocks_count,
 		   o_blocks_count + add);
 errout:
@@ -1891,7 +1891,7 @@ static int ext4_convert_meta_bg(struct super_block *sb, struct inode *inode)
 	ext4_superblock_csum_set(sb);
 	unlock_buffer(sbi->s_sbh);
 
-	err = ext4_handle_dirty_super(handle, sb);
+	err = ext4_handle_dirty_metadata(handle, NULL, sbi->s_sbh);
 	if (err) {
 		ext4_std_error(sb, err);
 		goto errout;

@@ -5155,7 +5155,8 @@ static int ext4_do_update_inode(handle_t *handle,
 		ext4_superblock_csum_set(sb);
 		unlock_buffer(EXT4_SB(sb)->s_sbh);
 		ext4_handle_sync(handle);
-		err = ext4_handle_dirty_super(handle, sb);
+		err = ext4_handle_dirty_metadata(handle, NULL,
+						 EXT4_SB(sb)->s_sbh);
 	}
 	ext4_update_inode_fsync_trans(handle, inode, need_datasync);
 out_brelse:

@@ -796,7 +796,7 @@ static void ext4_xattr_update_super_block(handle_t *handle,
 		ext4_set_feature_xattr(sb);
 		ext4_superblock_csum_set(sb);
 		unlock_buffer(EXT4_SB(sb)->s_sbh);
-		ext4_handle_dirty_super(handle, sb);
+		ext4_handle_dirty_metadata(handle, NULL, EXT4_SB(sb)->s_sbh);
 	}
 }
 
