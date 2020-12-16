@@ -2119,7 +2119,7 @@ void __mptcp_close_ssk(struct sock *sk, struct sock *ssk,
 
 	list_del(&subflow->node);
 
-	lock_sock(ssk);
+	lock_sock_nested(ssk, SINGLE_DEPTH_NESTING);
 
 	/* if we are invoked by the msk cleanup code, the subflow is
 	 * already orphaned
