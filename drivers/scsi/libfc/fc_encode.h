@@ -9,6 +9,7 @@
 #define _FC_ENCODE_H_
 #include <asm/unaligned.h>
 #include <linux/utsname.h>
+#include <scsi/fc/fc_ms.h>
 
 /*
  * F_CTL values for simple requests and responses.
@@ -38,35 +39,6 @@ struct fc_ct_req {
 		struct fc_fdmi_dhba dhba;
 	} payload;
 };
-
-static inline void __fc_fill_fc_hdr(struct fc_frame_header *fh,
-				    enum fc_rctl r_ctl,
-				    u32 did, u32 sid, enum fc_fh_type type,
-				    u32 f_ctl, u32 parm_offset)
-{
-	WARN_ON(r_ctl == 0);
-	fh->fh_r_ctl = r_ctl;
-	hton24(fh->fh_d_id, did);
-	hton24(fh->fh_s_id, sid);
-	fh->fh_type = type;
-	hton24(fh->fh_f_ctl, f_ctl);
-	fh->fh_cs_ctl = 0;
-	fh->fh_df_ctl = 0;
-	fh->fh_parm_offset = htonl(parm_offset);
-}
-
-/**
- * fill FC header fields in specified fc_frame
- */
-static inline void fc_fill_fc_hdr(struct fc_frame *fp, enum fc_rctl r_ctl,
-				  u32 did, u32 sid, enum fc_fh_type type,
-				  u32 f_ctl, u32 parm_offset)
-{
-	struct fc_frame_header *fh;
-
-	fh = fc_frame_header_get(fp);
-	__fc_fill_fc_hdr(fh, r_ctl, did, sid, type, f_ctl, parm_offset);
-}
 
 /**
  * fc_adisc_fill() - Fill in adisc request frame
@@ -191,6 +163,14 @@ static inline int fc_ct_ns_fill(struct fc_lport *lport,
 	return 0;
 }
 
+static inline void fc_ct_ms_fill_attr(struct fc_fdmi_attr_entry *entry,
+				    const char *in, size_t len)
+{
+	int copied = strscpy(entry->value, in, len);
+	if (copied > 0)
+		memset(entry->value, copied, len - copied);
+}
+
 /**
  * fc_ct_ms_fill() - Fill in a mgmt service request frame
  * @lport: local port.
@@ -260,7 +240,7 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 		put_unaligned_be16(FC_FDMI_HBA_ATTR_MANUFACTURER,
 				   &entry->type);
 		put_unaligned_be16(len, &entry->len);
-		strncpy((char *)&entry->value,
+		fc_ct_ms_fill_attr(entry,
 			fc_host_manufacturer(lport->host),
 			FC_FDMI_HBA_ATTR_MANUFACTURER_LEN);
 
@@ -272,7 +252,7 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 		put_unaligned_be16(FC_FDMI_HBA_ATTR_SERIALNUMBER,
 				   &entry->type);
 		put_unaligned_be16(len, &entry->len);
-		strncpy((char *)&entry->value,
+		fc_ct_ms_fill_attr(entry,
 			fc_host_serial_number(lport->host),
 			FC_FDMI_HBA_ATTR_SERIALNUMBER_LEN);
 
@@ -284,7 +264,7 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 		put_unaligned_be16(FC_FDMI_HBA_ATTR_MODEL,
 				   &entry->type);
 		put_unaligned_be16(len, &entry->len);
-		strncpy((char *)&entry->value,
+		fc_ct_ms_fill_attr(entry,
 			fc_host_model(lport->host),
 			FC_FDMI_HBA_ATTR_MODEL_LEN);
 
@@ -296,7 +276,7 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 		put_unaligned_be16(FC_FDMI_HBA_ATTR_MODELDESCRIPTION,
 				   &entry->type);
 		put_unaligned_be16(len, &entry->len);
-		strncpy((char *)&entry->value,
+		fc_ct_ms_fill_attr(entry,
 			fc_host_model_description(lport->host),
 			FC_FDMI_HBA_ATTR_MODELDESCR_LEN);
 
@@ -308,7 +288,7 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 		put_unaligned_be16(FC_FDMI_HBA_ATTR_HARDWAREVERSION,
 				   &entry->type);
 		put_unaligned_be16(len, &entry->len);
-		strncpy((char *)&entry->value,
+		fc_ct_ms_fill_attr(entry,
 			fc_host_hardware_version(lport->host),
 			FC_FDMI_HBA_ATTR_HARDWAREVERSION_LEN);
 
@@ -320,7 +300,7 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 		put_unaligned_be16(FC_FDMI_HBA_ATTR_DRIVERVERSION,
 				   &entry->type);
 		put_unaligned_be16(len, &entry->len);
-		strncpy((char *)&entry->value,
+		fc_ct_ms_fill_attr(entry,
 			fc_host_driver_version(lport->host),
 			FC_FDMI_HBA_ATTR_DRIVERVERSION_LEN);
 
@@ -332,7 +312,7 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 		put_unaligned_be16(FC_FDMI_HBA_ATTR_OPTIONROMVERSION,
 				   &entry->type);
 		put_unaligned_be16(len, &entry->len);
-		strncpy((char *)&entry->value,
+		fc_ct_ms_fill_attr(entry,
 			fc_host_optionrom_version(lport->host),
 			FC_FDMI_HBA_ATTR_OPTIONROMVERSION_LEN);
 
@@ -344,7 +324,7 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 		put_unaligned_be16(FC_FDMI_HBA_ATTR_FIRMWAREVERSION,
 				   &entry->type);
 		put_unaligned_be16(len, &entry->len);
-		strncpy((char *)&entry->value,
+		fc_ct_ms_fill_attr(entry,
 			fc_host_firmware_version(lport->host),
 			FC_FDMI_HBA_ATTR_FIRMWAREVERSION_LEN);
 
@@ -439,7 +419,7 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 				   &entry->type);
 		put_unaligned_be16(len, &entry->len);
 		/* Use the sysfs device name */
-		strncpy((char *)&entry->value,
+		fc_ct_ms_fill_attr(entry,
 			dev_name(&lport->host->shost_gendev),
 			strnlen(dev_name(&lport->host->shost_gendev),
 				FC_FDMI_PORT_ATTR_HOSTNAME_LEN));
@@ -453,12 +433,12 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 				   &entry->type);
 		put_unaligned_be16(len, &entry->len);
 		if (strlen(fc_host_system_hostname(lport->host)))
-			strncpy((char *)&entry->value,
+			fc_ct_ms_fill_attr(entry,
 				fc_host_system_hostname(lport->host),
 				strnlen(fc_host_system_hostname(lport->host),
 					FC_FDMI_PORT_ATTR_HOSTNAME_LEN));
 		else
-			strncpy((char *)&entry->value,
+			fc_ct_ms_fill_attr(entry,
 				init_utsname()->nodename,
 				FC_FDMI_PORT_ATTR_HOSTNAME_LEN);
 		break;

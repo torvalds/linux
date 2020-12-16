@@ -721,6 +721,7 @@ static void set_speed_mask(u8 *speed_mask, struct asd_phy_desc *pd)
 		fallthrough;
 	case SAS_LINK_RATE_3_0_GBPS:
 		*speed_mask |= SAS_SPEED_15_DIS;
+		fallthrough;
 	default:
 	case SAS_LINK_RATE_1_5_GBPS:
 		/* nothing to do */
@@ -739,6 +740,7 @@ static void set_speed_mask(u8 *speed_mask, struct asd_phy_desc *pd)
 	switch (pd->min_sata_lrate) {
 	case SAS_LINK_RATE_3_0_GBPS:
 		*speed_mask |= SATA_SPEED_15_DIS;
+		fallthrough;
 	default:
 	case SAS_LINK_RATE_1_5_GBPS:
 		/* nothing to do */
