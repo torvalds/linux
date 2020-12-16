@@ -376,6 +376,15 @@ Plane Composition Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_blend.c
    :export:
 
+Plane Damage Tracking Functions Reference
+-----------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_damage_helper.c
+   :export:
+
+.. kernel-doc:: include/drm/drm_damage_helper.h
+   :internal:
+
 Display Modes Function Reference
 ================================
 
@@ -483,12 +492,6 @@ Damage Tracking Properties
 
 .. kernel-doc:: drivers/gpu/drm/drm_damage_helper.c
    :doc: overview
-
-.. kernel-doc:: drivers/gpu/drm/drm_damage_helper.c
-   :export:
-
-.. kernel-doc:: include/drm/drm_damage_helper.h
-   :internal:
 
 Color Management Properties
 ---------------------------
