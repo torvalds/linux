@@ -939,7 +939,7 @@ int acpi_add_power_resource(acpi_handle handle)
 
 	device = &resource->device;
 	acpi_init_device_object(device, handle, ACPI_BUS_TYPE_POWER,
-				ACPI_STA_DEFAULT);
+				ACPI_STA_DEFAULT, NULL);
 	mutex_init(&resource->resource_lock);
 	INIT_LIST_HEAD(&resource->list_node);
 	INIT_LIST_HEAD(&resource->dependents);
