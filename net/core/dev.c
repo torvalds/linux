@@ -1457,6 +1457,25 @@ void netdev_state_change(struct net_device *dev)
 EXPORT_SYMBOL(netdev_state_change);
 
 /**
+ * __netdev_notify_peers - notify network peers about existence of @dev,
+ * to be called when rtnl lock is already held.
+ * @dev: network device
+ *
+ * Generate traffic such that interested network peers are aware of
+ * @dev, such as by generating a gratuitous ARP. This may be used when
+ * a device wants to inform the rest of the network about some sort of
+ * reconfiguration such as a failover event or virtual machine
+ * migration.
+ */
+void __netdev_notify_peers(struct net_device *dev)
+{
+	ASSERT_RTNL();
+	call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, dev);
+	call_netdevice_notifiers(NETDEV_RESEND_IGMP, dev);
+}
+EXPORT_SYMBOL(__netdev_notify_peers);
+
+/**
  * netdev_notify_peers - notify network peers about existence of @dev
  * @dev: network device
  *
@@ -1469,8 +1488,7 @@ EXPORT_SYMBOL(netdev_state_change);
 void netdev_notify_peers(struct net_device *dev)
 {
 	rtnl_lock();
-	call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, dev);
-	call_netdevice_notifiers(NETDEV_RESEND_IGMP, dev);
+	__netdev_notify_peers(dev);
 	rtnl_unlock();
 }
 EXPORT_SYMBOL(netdev_notify_peers);
