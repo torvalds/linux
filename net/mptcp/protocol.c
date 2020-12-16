@@ -2915,7 +2915,7 @@ void __mptcp_data_acked(struct sock *sk)
 		mptcp_schedule_work(sk);
 }
 
-void __mptcp_wnd_updated(struct sock *sk, struct sock *ssk)
+void __mptcp_check_push(struct sock *sk, struct sock *ssk)
 {
 	if (!mptcp_send_head(sk))
 		return;
