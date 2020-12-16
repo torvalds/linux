@@ -1201,8 +1201,7 @@ static void raid10_read_request(struct mddev *mddev, struct bio *bio,
 	read_bio->bi_private = r10_bio;
 
 	if (mddev->gendisk)
-	        trace_block_bio_remap(read_bio->bi_disk->queue,
-	                              read_bio, disk_devt(mddev->gendisk),
+	        trace_block_bio_remap(read_bio, disk_devt(mddev->gendisk),
 	                              r10_bio->sector);
 	submit_bio_noacct(read_bio);
 	return;
@@ -1251,8 +1250,7 @@ static void raid10_write_one_disk(struct mddev *mddev, struct r10bio *r10_bio,
 	mbio->bi_private = r10_bio;
 
 	if (conf->mddev->gendisk)
-		trace_block_bio_remap(mbio->bi_disk->queue,
-				      mbio, disk_devt(conf->mddev->gendisk),
+		trace_block_bio_remap(mbio, disk_devt(conf->mddev->gendisk),
 				      r10_bio->sector);
 	/* flush_pending_writes() needs access to the rdev so...*/
 	mbio->bi_disk = (void *)rdev;

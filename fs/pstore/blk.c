@@ -244,7 +244,7 @@ static struct block_device *psblk_get_bdev(void *holder,
 			return bdev;
 	}
 
-	nr_sects = part_nr_sects_read(bdev->bd_part);
+	nr_sects = bdev_nr_sectors(bdev);
 	if (!nr_sects) {
 		pr_err("not enough space for '%s'\n", blkdev);
 		blkdev_put(bdev, mode);

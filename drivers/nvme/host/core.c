@@ -93,16 +93,6 @@ static void nvme_put_subsystem(struct nvme_subsystem *subsys);
 static void nvme_remove_invalid_namespaces(struct nvme_ctrl *ctrl,
 					   unsigned nsid);
 
-static void nvme_update_bdev_size(struct gendisk *disk)
-{
-	struct block_device *bdev = bdget_disk(disk, 0);
-
-	if (bdev) {
-		bd_set_nr_sectors(bdev, get_capacity(disk));
-		bdput(bdev);
-	}
-}
-
 /*
  * Prepare a queue for teardown.
  *
@@ -119,8 +109,7 @@ static void nvme_set_queue_dying(struct nvme_ns *ns)
 	blk_set_queue_dying(ns->queue);
 	blk_mq_unquiesce_queue(ns->queue);
 
-	set_capacity(ns->disk, 0);
-	nvme_update_bdev_size(ns->disk);
+	set_capacity_and_notify(ns->disk, 0);
 }
 
 static void nvme_queue_scan(struct nvme_ctrl *ctrl)
@@ -2053,7 +2042,7 @@ static void nvme_update_disk_info(struct gendisk *disk,
 			capacity = 0;
 	}
 
-	set_capacity_revalidate_and_notify(disk, capacity, false);
+	set_capacity_and_notify(disk, capacity);
 
 	nvme_config_discard(disk, ns);
 	nvme_config_write_zeroes(disk, ns);
@@ -2134,7 +2123,6 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_id_ns *id)
 		blk_stack_limits(&ns->head->disk->queue->limits,
 				 &ns->queue->limits, 0);
 		blk_queue_update_readahead(ns->head->disk->queue);
-		nvme_update_bdev_size(ns->head->disk);
 		blk_mq_unfreeze_queue(ns->head->disk->queue);
 	}
 #endif
@@ -3962,8 +3950,6 @@ out:
 	 */
 	if (ret && ret != -ENOMEM && !(ret > 0 && !(ret & NVME_SC_DNR)))
 		nvme_ns_remove(ns);
-	else
-		revalidate_disk_size(ns->disk, true);
 }
 
 static void nvme_validate_or_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)

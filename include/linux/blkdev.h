@@ -191,7 +191,7 @@ struct request {
 	};
 
 	struct gendisk *rq_disk;
-	struct hd_struct *part;
+	struct block_device *part;
 #ifdef CONFIG_BLK_RQ_ALLOC_TIME
 	/* Time that the first bio started allocating this request. */
 	u64 alloc_time_ns;
@@ -1491,7 +1491,7 @@ static inline int bdev_alignment_offset(struct block_device *bdev)
 		return -1;
 	if (bdev_is_partition(bdev))
 		return queue_limit_alignment_offset(&q->limits,
-				bdev->bd_part->start_sect);
+				bdev->bd_start_sect);
 	return q->limits.alignment_offset;
 }
 
@@ -1532,7 +1532,7 @@ static inline int bdev_discard_alignment(struct block_device *bdev)
 
 	if (bdev_is_partition(bdev))
 		return queue_limit_discard_alignment(&q->limits,
-				bdev->bd_part->start_sect);
+				bdev->bd_start_sect);
 	return q->limits.discard_alignment;
 }
 
@@ -1853,6 +1853,7 @@ struct block_device_operations {
 	void (*unlock_native_capacity) (struct gendisk *);
 	int (*revalidate_disk) (struct gendisk *);
 	int (*getgeo)(struct block_device *, struct hd_geometry *);
+	int (*set_read_only)(struct block_device *bdev, bool ro);
 	/* this callback is with swap_lock and sometimes page table lock held */
 	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
 	int (*report_zones)(struct gendisk *, sector_t sector,
@@ -1869,8 +1870,6 @@ extern int blkdev_compat_ptr_ioctl(struct block_device *, fmode_t,
 #define blkdev_compat_ptr_ioctl NULL
 #endif
 
-extern int __blkdev_driver_ioctl(struct block_device *, fmode_t, unsigned int,
-				 unsigned long);
 extern int bdev_read_page(struct block_device *, sector_t, struct page *);
 extern int bdev_write_page(struct block_device *, sector_t, struct page *,
 						struct writeback_control *);
@@ -1947,9 +1946,9 @@ unsigned long disk_start_io_acct(struct gendisk *disk, unsigned int sectors,
 void disk_end_io_acct(struct gendisk *disk, unsigned int op,
 		unsigned long start_time);
 
-unsigned long part_start_io_acct(struct gendisk *disk, struct hd_struct **part,
-				 struct bio *bio);
-void part_end_io_acct(struct hd_struct *part, struct bio *bio,
+unsigned long part_start_io_acct(struct gendisk *disk,
+		struct block_device **part, struct bio *bio);
+void part_end_io_acct(struct block_device *part, struct bio *bio,
 		      unsigned long start_time);
 
 /**
@@ -1977,7 +1976,7 @@ int bdev_read_only(struct block_device *bdev);
 int set_blocksize(struct block_device *bdev, int size);
 
 const char *bdevname(struct block_device *bdev, char *buffer);
-struct block_device *lookup_bdev(const char *);
+int lookup_bdev(const char *pathname, dev_t *dev);
 
 void blkdev_show(struct seq_file *seqf, off_t offset);
 
@@ -1992,14 +1991,17 @@ void blkdev_show(struct seq_file *seqf, off_t offset);
 struct block_device *blkdev_get_by_path(const char *path, fmode_t mode,
 		void *holder);
 struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder);
-int bd_prepare_to_claim(struct block_device *bdev, struct block_device *whole,
-		void *holder);
-void bd_abort_claiming(struct block_device *bdev, struct block_device *whole,
-		void *holder);
+int bd_prepare_to_claim(struct block_device *bdev, void *holder);
+void bd_abort_claiming(struct block_device *bdev, void *holder);
 void blkdev_put(struct block_device *bdev, fmode_t mode);
 
+/* just for blk-cgroup, don't use elsewhere */
+struct block_device *blkdev_get_no_open(dev_t dev);
+void blkdev_put_no_open(struct block_device *bdev);
+
+struct block_device *bdev_alloc(struct gendisk *disk, u8 partno);
+void bdev_add(struct block_device *bdev, dev_t dev);
 struct block_device *I_BDEV(struct inode *inode);
-struct block_device *bdget_part(struct hd_struct *part);
 struct block_device *bdgrab(struct block_device *bdev);
 void bdput(struct block_device *);
 
@@ -2024,7 +2026,7 @@ static inline int sync_blockdev(struct block_device *bdev)
 #endif
 int fsync_bdev(struct block_device *bdev);
 
-struct super_block *freeze_bdev(struct block_device *bdev);
-int thaw_bdev(struct block_device *bdev, struct super_block *sb);
+int freeze_bdev(struct block_device *bdev);
+int thaw_bdev(struct block_device *bdev);
 
 #endif /* _LINUX_BLKDEV_H */
