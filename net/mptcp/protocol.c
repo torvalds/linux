@@ -1658,6 +1658,7 @@ static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		frag_truesize += psize;
 		pfrag->offset += frag_truesize;
 		WRITE_ONCE(msk->write_seq, msk->write_seq + psize);
+		msk->tx_pending_data += psize;
 
 		/* charge data on mptcp pending queue to the msk socket
 		 * Note: we charge such data both to sk and ssk
@@ -1683,10 +1684,8 @@ wait_for_memory:
 			goto out;
 	}
 
-	if (copied) {
-		msk->tx_pending_data += copied;
+	if (copied)
 		mptcp_push_pending(sk, msg->msg_flags);
-	}
 
 out:
 	release_sock(sk);
