@@ -315,6 +315,7 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 		range = NULL;
 		break;
 
+#ifdef CONFIG_PINCTRL_SH_PFC_GPIO
 	case PINMUX_TYPE_OUTPUT:
 		range = &pfc->info->output;
 		break;
@@ -322,6 +323,7 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 	case PINMUX_TYPE_INPUT:
 		range = &pfc->info->input;
 		break;
+#endif /* CONFIG_PINCTRL_SH_PFC_GPIO */
 
 	default:
 		return -EINVAL;

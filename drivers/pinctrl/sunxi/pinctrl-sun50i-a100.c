@@ -677,7 +677,7 @@ static const struct sunxi_desc_pin a100_pins[] = {
 		  SUNXI_FUNCTION_IRQ_BANK(0x6, 6, 19)),
 };
 
-static const unsigned int a100_irq_bank_map[] = { 0, 1, 2, 3, 4, 5, 6};
+static const unsigned int a100_irq_bank_map[] = { 1, 2, 3, 4, 5, 6, 7};
 
 static const struct sunxi_pinctrl_desc a100_pinctrl_data = {
 	.pins = a100_pins,
