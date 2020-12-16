@@ -1,0 +1,79 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3568-evb2-lp4x-v10.dtsi"
+#include "rk3568-android.dtsi"
+
+&dsi0 {
+	status = "disabled";
+};
+
+&hdmi {
+	status = "disabled";
+};
+
+&i2c3 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	sii9022: sii9022@39 {
+		compatible = "sil,sii9022";
+		reg = <0x39>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sii902x_hdmi_int>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <RK_PA0 IRQ_TYPE_LEVEL_HIGH>;
+		reset-gpio = <&gpio3 RK_PC4 GPIO_ACTIVE_LOW>;
+		enable-gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
+		bus-format = <1>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				sii9022_in_rgb: endpoint {
+					remote-endpoint = <&rgb_out_sii9022>;
+				};
+			};
+		};
+	};
+};
+
+&mipi_dphy0 {
+	status = "disabled";
+};
+
+&rgb {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&bt1120_pins>;
+
+	ports {
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			rgb_out_sii9022: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&sii9022_in_rgb>;
+			};
+		};
+	};
+};
+
+&rgb_in_vp2 {
+	status = "okay";
+};
+
+&vcc3v3_lcd1_n {
+	status = "disabled";
+	gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+};
