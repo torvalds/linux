@@ -176,6 +176,10 @@
 	};
 };
 
+&combphy0_us {
+	status = "okay";
+};
+
 &cpu0 {
 	cpu-supply = <&vdd_cpu>;
 };
@@ -410,24 +414,12 @@
 };
 
 &usbdrd_dwc3 {
-	dr_mode = "peripheral";
-	phys = <&u2phy0_otg>;
-	phy-names = "usb2-phy";
-	maximum-speed = "high-speed";
+	dr_mode = "otg";
+	extcon = <&usb2phy0>;
 	status = "okay";
 };
 
 &usbdrd30 {
-	status = "okay";
-};
-
-&usbhost_dwc3 {
-	phys = <&u2phy0_host>;
-	phy-names = "usb2-phy";
-	status = "okay";
-};
-
-&usbhost30 {
 	status = "okay";
 };
 
