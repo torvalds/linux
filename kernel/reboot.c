@@ -553,20 +553,24 @@ static int __init reboot_setup(char *str)
 			break;
 
 		case 's':
-			if (isdigit(*(str+1)))
-				reboot_cpu = simple_strtoul(str+1, NULL, 0);
-			else if (str[1] == 'm' && str[2] == 'p' &&
-							isdigit(*(str+3)))
-				reboot_cpu = simple_strtoul(str+3, NULL, 0);
-			else
+			/*
+			 * reboot_cpu is s[mp]#### with #### being the processor
+			 * to be used for rebooting. Skip 's' or 'smp' prefix.
+			 */
+			str += str[1] == 'm' && str[2] == 'p' ? 3 : 1;
+
+			if (isdigit(str[0])) {
+				int cpu = simple_strtoul(str, NULL, 0);
+
+				if (cpu >= num_possible_cpus()) {
+					pr_err("Ignoring the CPU number in reboot= option. "
+					"CPU %d exceeds possible cpu number %d\n",
+					cpu, num_possible_cpus());
+					break;
+				}
+				reboot_cpu = cpu;
+			} else
 				*mode = REBOOT_SOFT;
-			if (reboot_cpu >= num_possible_cpus()) {
-				pr_err("Ignoring the CPU number in reboot= option. "
-				       "CPU %d exceeds possible cpu number %d\n",
-				       reboot_cpu, num_possible_cpus());
-				reboot_cpu = 0;
-				break;
-			}
 			break;
 
 		case 'g':
