@@ -328,16 +328,56 @@ static void ion_dma_buf_release(struct dma_buf *dmabuf)
 	_ion_buffer_destroy(buffer);
 }
 
-static void *ion_dma_buf_kmap(struct dma_buf *dmabuf, unsigned long offset)
+static void *ion_dma_buf_vmap(struct dma_buf *dmabuf)
+{
+	struct ion_buffer *buffer = dmabuf->priv;
+	void *vaddr = ERR_PTR(-EINVAL);
+
+	if (buffer->heap->ops->map_kernel) {
+		mutex_lock(&buffer->lock);
+		vaddr = ion_buffer_kmap_get(buffer);
+		mutex_unlock(&buffer->lock);
+	} else {
+		pr_warn_ratelimited("heap %s doesn't support map_kernel\n",
+				    buffer->heap->name);
+	}
+
+	return vaddr;
+}
+
+static void ion_dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
 {
 	struct ion_buffer *buffer = dmabuf->priv;
 
-	return buffer->vaddr + offset * PAGE_SIZE;
+	if (buffer->heap->ops->map_kernel) {
+		mutex_lock(&buffer->lock);
+		ion_buffer_kmap_put(buffer);
+		mutex_unlock(&buffer->lock);
+	}
+}
+
+static void *ion_dma_buf_kmap(struct dma_buf *dmabuf, unsigned long offset)
+{
+	/*
+	 * TODO: Once clients remove their hacks where they assume kmap(ed)
+	 * addresses are virtually contiguous implement this properly
+	 */
+	void *vaddr = ion_dma_buf_vmap(dmabuf);
+
+	if (IS_ERR(vaddr))
+		return vaddr;
+
+	return vaddr + offset * PAGE_SIZE;
 }
 
 static void ion_dma_buf_kunmap(struct dma_buf *dmabuf, unsigned long offset,
 			       void *ptr)
 {
+	/*
+	 * TODO: Once clients remove their hacks where they assume kmap(ed)
+	 * addresses are virtually contiguous implement this properly
+	 */
+	ion_dma_buf_vunmap(dmabuf, ptr);
 }
 
 static int ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
@@ -409,6 +449,8 @@ static const struct dma_buf_ops dma_buf_ops = {
 	.end_cpu_access = ion_dma_buf_end_cpu_access,
 	.map = ion_dma_buf_kmap,
 	.unmap = ion_dma_buf_kunmap,
+	.vmap = ion_dma_buf_vmap,
+	.vunmap = ion_dma_buf_vunmap,
 };
 
 int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
