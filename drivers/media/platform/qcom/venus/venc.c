@@ -598,16 +598,19 @@ static int venc_set_properties(struct venus_inst *inst)
 			return ret;
 	}
 
-	/* IDR periodicity, n:
-	 * n = 0 - only the first I-frame is IDR frame
-	 * n = 1 - all I-frames will be IDR frames
-	 * n > 1 - every n-th I-frame will be IDR frame
-	 */
-	ptype = HFI_PROPERTY_CONFIG_VENC_IDR_PERIOD;
-	idrp.idr_period = 0;
-	ret = hfi_session_set_property(inst, ptype, &idrp);
-	if (ret)
-		return ret;
+	if (inst->fmt_cap->pixfmt == V4L2_PIX_FMT_H264 ||
+	    inst->fmt_cap->pixfmt == V4L2_PIX_FMT_HEVC) {
+		/* IDR periodicity, n:
+		 * n = 0 - only the first I-frame is IDR frame
+		 * n = 1 - all I-frames will be IDR frames
+		 * n > 1 - every n-th I-frame will be IDR frame
+		 */
+		ptype = HFI_PROPERTY_CONFIG_VENC_IDR_PERIOD;
+		idrp.idr_period = 0;
+		ret = hfi_session_set_property(inst, ptype, &idrp);
+		if (ret)
+			return ret;
+	}
 
 	if (ctr->num_b_frames) {
 		u32 max_num_b_frames = NUM_B_FRAMES_MAX;
