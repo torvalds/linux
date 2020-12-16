@@ -154,10 +154,22 @@ static int armada8k_pcie_link_up(struct dw_pcie *pci)
 	return 0;
 }
 
-static void armada8k_pcie_establish_link(struct armada8k_pcie *pcie)
+static int armada8k_pcie_start_link(struct dw_pcie *pci)
 {
-	struct dw_pcie *pci = pcie->pci;
 	u32 reg;
+
+	/* Start LTSSM */
+	reg = dw_pcie_readl_dbi(pci, PCIE_GLOBAL_CONTROL_REG);
+	reg |= PCIE_APP_LTSSM_EN;
+	dw_pcie_writel_dbi(pci, PCIE_GLOBAL_CONTROL_REG, reg);
+
+	return 0;
+}
+
+static int armada8k_pcie_host_init(struct pcie_port *pp)
+{
+	u32 reg;
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 
 	if (!dw_pcie_link_up(pci)) {
 		/* Disable LTSSM state machine to enable configuration */
@@ -192,26 +204,6 @@ static void armada8k_pcie_establish_link(struct armada8k_pcie *pcie)
 	reg |= PCIE_INT_A_ASSERT_MASK | PCIE_INT_B_ASSERT_MASK |
 	       PCIE_INT_C_ASSERT_MASK | PCIE_INT_D_ASSERT_MASK;
 	dw_pcie_writel_dbi(pci, PCIE_GLOBAL_INT_MASK1_REG, reg);
-
-	if (!dw_pcie_link_up(pci)) {
-		/* Configuration done. Start LTSSM */
-		reg = dw_pcie_readl_dbi(pci, PCIE_GLOBAL_CONTROL_REG);
-		reg |= PCIE_APP_LTSSM_EN;
-		dw_pcie_writel_dbi(pci, PCIE_GLOBAL_CONTROL_REG, reg);
-	}
-
-	/* Wait until the link becomes active again */
-	if (dw_pcie_wait_for_link(pci))
-		dev_err(pci->dev, "Link not up after reconfiguration\n");
-}
-
-static int armada8k_pcie_host_init(struct pcie_port *pp)
-{
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct armada8k_pcie *pcie = to_armada8k_pcie(pci);
-
-	dw_pcie_setup_rc(pp);
-	armada8k_pcie_establish_link(pcie);
 
 	return 0;
 }
@@ -269,6 +261,7 @@ static int armada8k_add_pcie_port(struct armada8k_pcie *pcie,
 
 static const struct dw_pcie_ops dw_pcie_ops = {
 	.link_up = armada8k_pcie_link_up,
+	.start_link = armada8k_pcie_start_link,
 };
 
 static int armada8k_pcie_probe(struct platform_device *pdev)
