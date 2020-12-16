@@ -133,7 +133,7 @@ config VIRTIO_MMIO_CMDLINE_DEVICES
 	 If unsure, say 'N'.
 
 config VIRTIO_DMA_SHARED_BUFFER
-	tristate
+	tristate "Virtio DMA shared buffer support"
 	depends on DMA_SHARED_BUFFER
 	help
 	 This option adds a flavor of dma buffers that are backed by
