@@ -733,6 +733,9 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		if (!strcmp("pass", param->key) || !strcmp("password", param->key)) {
 			skip_parsing = true;
 			opt = Opt_pass;
+		} else if (!strcmp("user", param->key) || !strcmp("username", param->key)) {
+			skip_parsing = true;
+			opt = Opt_user;
 		}
 	}
 
@@ -1250,6 +1253,7 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		ctx->rdma = true;
 		break;
 	}
+	/* case Opt_ignore: - is ignored as expected ... */
 
 	return 0;
 
