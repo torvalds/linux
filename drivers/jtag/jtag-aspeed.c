@@ -101,7 +101,7 @@
 
 #define ASPEED_JTAG_TCK_WAIT		10
 #define ASPEED_JTAG_RESET_CNTR		10
-#define WAIT_ITERATIONS		75
+#define WAIT_ITERATIONS		300
 
 /* Use this macro to switch between HW mode 1(comment out) and 2(defined)  */
 #define ASPEED_JTAG_HW_MODE_2_ENABLE	1
@@ -157,6 +157,12 @@
 
 #define ASPEED_JTAG_MAX_PAD_SIZE	512
 
+/* Use this macro to set us delay to WA the intensive R/W FIFO usage issue */
+#define AST26XX_FIFO_UDELAY		2
+
+/* Use this macro to set us delay for JTAG Master Controller to be programmed */
+#define AST26XX_JTAG_CTRL_UDELAY	2
+
 /*#define USE_INTERRUPTS*/
 #define DEBUG_JTAG
 
@@ -211,6 +217,7 @@ struct jtag_low_level_functions {
 			u32 *data);
 	int (*xfer_hw)(struct aspeed_jtag *aspeed_jtag, struct jtag_xfer *xfer,
 		       u32 *data);
+	void (*xfer_hw_fifo_delay)(void);
 };
 
 struct aspeed_jtag_functions {
@@ -576,6 +583,11 @@ static int aspeed_jtag_bitbang(struct jtag *jtag,
 	return 0;
 }
 
+static inline void aspeed_jtag_xfer_hw_fifo_delay_26xx(void)
+{
+	udelay(AST26XX_FIFO_UDELAY);
+}
+
 static int aspeed_jtag_isr_wait(struct aspeed_jtag *aspeed_jtag, u32 bit)
 {
 	int res = 0;
@@ -747,7 +759,7 @@ static void aspeed_jtag_set_tap_state_hw2(struct aspeed_jtag *aspeed_jtag,
 	if (tapstate->reset) {
 		/* Disable sw mode */
 		aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_SW);
-		mdelay(1);
+		udelay(AST26XX_JTAG_CTRL_UDELAY);
 		reg_val = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_GBLCTRL);
 		aspeed_jtag_write(aspeed_jtag,
 				  reg_val | ASPEED_JTAG_GBLCTRL_ENG_MODE_EN |
@@ -755,7 +767,7 @@ static void aspeed_jtag_set_tap_state_hw2(struct aspeed_jtag *aspeed_jtag,
 					  ASPEED_JTAG_GBLCTRL_RESET_FIFO |
 					  ASPEED_JTAG_GBLCTRL_FORCE_TMS,
 				  ASPEED_JTAG_GBLCTRL);
-		mdelay(1);
+		udelay(AST26XX_JTAG_CTRL_UDELAY);
 		aspeed_jtag->current_state = JTAG_STATE_TLRESET;
 		return;
 	}
@@ -993,7 +1005,7 @@ static int aspeed_jtag_xfer_hw(struct aspeed_jtag *aspeed_jtag,
 			scan_end = 1;
 	}
 
-	// Perform pre padding
+	/* Perform pre padding */
 	if (padding.pre_pad_number) {
 		struct jtag_xfer pre_xfer = {
 			.type = xfer->type,
@@ -1019,6 +1031,8 @@ static int aspeed_jtag_xfer_hw(struct aspeed_jtag *aspeed_jtag,
 			aspeed_jtag_write(aspeed_jtag, data[index], data_reg);
 		else
 			aspeed_jtag_write(aspeed_jtag, 0, data_reg);
+		if (aspeed_jtag->llops->xfer_hw_fifo_delay)
+			aspeed_jtag->llops->xfer_hw_fifo_delay();
 
 		if (remain_xfer > ASPEED_JTAG_DATA_CHUNK_SIZE) {
 #ifdef DEBUG_JTAG
@@ -1093,13 +1107,15 @@ static int aspeed_jtag_xfer_hw(struct aspeed_jtag *aspeed_jtag,
 				data[index] =
 					aspeed_jtag_read(aspeed_jtag, data_reg);
 			}
+			if (aspeed_jtag->llops->xfer_hw_fifo_delay)
+				aspeed_jtag->llops->xfer_hw_fifo_delay();
 		}
 
 		remain_xfer = remain_xfer - shift_bits;
 		index++;
 	}
 
-	// Perform post padding
+	/* Perform post padding */
 	if (padding.post_pad_number) {
 		struct jtag_xfer post_xfer = {
 			.type = xfer->type,
@@ -1188,10 +1204,6 @@ static int aspeed_jtag_xfer_hw2(struct aspeed_jtag *aspeed_jtag,
 	} else if (aspeed_jtag->current_state == JTAG_STATE_IDLE ||
 		   aspeed_jtag->current_state == JTAG_STATE_TLRESET ||
 		   aspeed_jtag->current_state == pause) {
-		reg_val = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_GBLCTRL);
-		aspeed_jtag_write(aspeed_jtag, reg_val |
-				  ASPEED_JTAG_GBLCTRL_RESET_FIFO,
-				  ASPEED_JTAG_GBLCTRL);
 		start_shift = ASPEED_JTAG_SHCTRL_START_SHIFT;
 	} else {
 		return -EINVAL;
@@ -1248,6 +1260,17 @@ static int aspeed_jtag_xfer_hw2(struct aspeed_jtag *aspeed_jtag,
 
 		partial_index = index;
 		partial_xfer = partial_xfer_size;
+
+		reg_val = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_GBLCTRL);
+		aspeed_jtag_write(aspeed_jtag, reg_val |
+				  ASPEED_JTAG_GBLCTRL_RESET_FIFO,
+				  ASPEED_JTAG_GBLCTRL);
+
+		/* Switch internal FIFO into CPU mode */
+		reg_val = reg_val & ~BIT(24);
+		aspeed_jtag_write(aspeed_jtag, reg_val,
+				  ASPEED_JTAG_GBLCTRL);
+
 		while (partial_xfer) {
 			if (partial_xfer > ASPEED_JTAG_DATA_CHUNK_SIZE)
 				shift_bits = ASPEED_JTAG_DATA_CHUNK_SIZE;
@@ -1260,6 +1283,8 @@ static int aspeed_jtag_xfer_hw2(struct aspeed_jtag *aspeed_jtag,
 						  data_reg);
 			else
 				aspeed_jtag_write(aspeed_jtag, 0, data_reg);
+			if (aspeed_jtag->llops->xfer_hw_fifo_delay)
+				aspeed_jtag->llops->xfer_hw_fifo_delay();
 			partial_xfer = partial_xfer - shift_bits;
 		}
 		if (remain_xfer > ASPEED_JTAG_HW2_DATA_CHUNK_SIZE) {
@@ -1331,6 +1356,8 @@ static int aspeed_jtag_xfer_hw2(struct aspeed_jtag *aspeed_jtag,
 					aspeed_jtag_read(aspeed_jtag,
 							 data_reg);
 			}
+			if (aspeed_jtag->llops->xfer_hw_fifo_delay)
+				aspeed_jtag->llops->xfer_hw_fifo_delay();
 			partial_xfer = partial_xfer - shift_bits;
 		}
 
@@ -1506,7 +1533,8 @@ static const struct jtag_low_level_functions ast25xx_llops = {
 	.xfer_push_data = aspeed_jtag_xfer_push_data,
 	.xfer_push_data_last = aspeed_jtag_xfer_push_data_last,
 	.xfer_sw = aspeed_jtag_xfer_sw,
-	.xfer_hw = aspeed_jtag_xfer_hw
+	.xfer_hw = aspeed_jtag_xfer_hw,
+	.xfer_hw_fifo_delay = NULL
 };
 
 static const struct aspeed_jtag_functions ast25xx_functions = {
@@ -1521,14 +1549,16 @@ static const struct jtag_low_level_functions ast26xx_llops = {
 	.xfer_push_data = aspeed_jtag_xfer_push_data_26xx,
 	.xfer_push_data_last = aspeed_jtag_xfer_push_data_last_26xx,
 	.xfer_sw = aspeed_jtag_xfer_sw,
-	.xfer_hw = aspeed_jtag_xfer_hw2
+	.xfer_hw = aspeed_jtag_xfer_hw2,
+	.xfer_hw_fifo_delay = aspeed_jtag_xfer_hw_fifo_delay_26xx
 #else
 	.master_enable = aspeed_jtag_master,
 	.output_disable = aspeed_jtag_output_disable,
 	.xfer_push_data = aspeed_jtag_xfer_push_data_26xx,
 	.xfer_push_data_last = aspeed_jtag_xfer_push_data_last_26xx,
 	.xfer_sw = aspeed_jtag_xfer_sw,
-	.xfer_hw = aspeed_jtag_xfer_hw
+	.xfer_hw = aspeed_jtag_xfer_hw,
+	.xfer_hw_fifo_delay = aspeed_jtag_xfer_hw_fifo_delay_26xx
 #endif
 };
 
