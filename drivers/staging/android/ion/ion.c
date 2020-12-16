@@ -570,6 +570,28 @@ static const struct file_operations ion_fops = {
 #endif
 };
 
+static int ion_debug_heap_show(struct seq_file *s, void *unused)
+{
+	struct ion_heap *heap = s->private;
+
+	if (heap->debug_show)
+		heap->debug_show(heap, s, unused);
+
+	return 0;
+}
+
+static int ion_debug_heap_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ion_debug_heap_show, inode->i_private);
+}
+
+static const struct file_operations debug_heap_fops = {
+	.open = ion_debug_heap_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 static int debug_shrink_set(void *data, u64 val)
 {
 	struct ion_heap *heap = data;
@@ -642,6 +664,14 @@ void ion_device_add_heap(struct ion_heap *heap)
 		snprintf(debug_name, 64, "%s_shrink", heap->name);
 		debugfs_create_file(debug_name, 0644, dev->debug_root,
 				    heap, &debug_shrink_fops);
+	}
+
+	if (heap->debug_show) {
+		char debug_name[64];
+
+		snprintf(debug_name, 64, "%s_stats", heap->name);
+		debugfs_create_file(debug_name, 0644, dev->debug_root,
+				    heap, &debug_heap_fops);
 	}
 
 	dev->heap_cnt++;
