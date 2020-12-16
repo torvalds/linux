@@ -11,6 +11,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
@@ -427,7 +428,6 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	struct device_node *dn = pdev->dev.of_node;
 	int err;
 	const char *mode;
-	const struct of_device_id *match;
 	void (*dvr_init)(struct brcm_usb_init_params *params);
 	const struct match_chip_info *info;
 	struct regmap *rmap;
@@ -441,8 +441,9 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	priv->ini.family_id = brcmstb_get_family_id();
 	priv->ini.product_id = brcmstb_get_product_id();
 
-	match = of_match_node(brcm_usb_dt_ids, dev->of_node);
-	info = match->data;
+	info = of_device_get_match_data(&pdev->dev);
+	if (!info)
+		return -ENOENT;
 	dvr_init = info->init_func;
 	(*dvr_init)(&priv->ini);
 
