@@ -9662,6 +9662,8 @@ _nfs4_proc_getdeviceinfo(struct nfs_server *server,
 	if (res.notification != args.notify_types)
 		pdev->nocache = 1;
 
+	trace_nfs4_getdeviceinfo(server, &pdev->dev_id, status);
+
 	dprintk("<-- %s status=%d\n", __func__, status);
 
 	return status;
