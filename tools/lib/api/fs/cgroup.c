@@ -11,9 +11,10 @@
 int cgroupfs_find_mountpoint(char *buf, size_t maxlen, const char *subsys)
 {
 	FILE *fp;
-	char mountpoint[PATH_MAX + 1], tokens[PATH_MAX + 1], type[PATH_MAX + 1];
-	char path_v2[PATH_MAX + 1];
-	char *token, *saved_ptr = NULL;
+	char *line = NULL;
+	size_t len = 0;
+	char *p, *path;
+	char mountpoint[PATH_MAX];
 
 	fp = fopen("/proc/mounts", "r");
 	if (!fp)
@@ -25,38 +26,57 @@ int cgroupfs_find_mountpoint(char *buf, size_t maxlen, const char *subsys)
 	 * the given subsystem.  If we found v1, just use it.  If not we can
 	 * use v2 path as a fallback.
 	 */
-	path_v2[0] = '\0';
+	mountpoint[0] = '\0';
 
-	while (fscanf(fp, "%*s %"__stringify(PATH_MAX)"s %"__stringify(PATH_MAX)"s %"
-				__stringify(PATH_MAX)"s %*d %*d\n",
-				mountpoint, type, tokens) == 3) {
+	/*
+	 * The /proc/mounts has the follow format:
+	 *
+	 *   <devname> <mount point> <fs type> <options> ...
+	 *
+	 */
+	while (getline(&line, &len, fp) != -1) {
+		/* skip devname */
+		p = strchr(line, ' ');
+		if (p == NULL)
+			continue;
 
-		if (!strcmp(type, "cgroup")) {
+		/* save the mount point */
+		path = ++p;
+		p = strchr(p, ' ');
+		if (p == NULL)
+			continue;
 
-			token = strtok_r(tokens, ",", &saved_ptr);
+		*p++ = '\0';
 
-			while (token != NULL) {
-				if (subsys && !strcmp(token, subsys)) {
-					/* found */
-					fclose(fp);
+		/* check filesystem type */
+		if (strncmp(p, "cgroup", 6))
+			continue;
 
-					if (strlen(mountpoint) < maxlen) {
-						strcpy(buf, mountpoint);
-						return 0;
-					}
-					return -1;
-				}
-				token = strtok_r(NULL, ",", &saved_ptr);
-			}
+		if (p[6] == '2') {
+			/* save cgroup v2 path */
+			strcpy(mountpoint, path);
+			continue;
 		}
 
-		if (!strcmp(type, "cgroup2"))
-			strcpy(path_v2, mountpoint);
+		/* now we have cgroup v1, check the options for subsystem */
+		p += 7;
+
+		p = strstr(p, subsys);
+		if (p == NULL)
+			continue;
+
+		/* sanity check: it should be separated by a space or a comma */
+		if (!strchr(" ,", p[-1]) || !strchr(" ,", p[strlen(subsys)]))
+			continue;
+
+		strcpy(mountpoint, path);
+		break;
 	}
+	free(line);
 	fclose(fp);
 
-	if (path_v2[0] && strlen(path_v2) < maxlen) {
-		strcpy(buf, path_v2);
+	if (mountpoint[0] && strlen(mountpoint) < maxlen) {
+		strcpy(buf, mountpoint);
 		return 0;
 	}
 	return -1;
