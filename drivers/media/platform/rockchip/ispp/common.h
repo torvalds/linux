@@ -64,6 +64,7 @@ struct rkispp_dummy_buffer {
 	dma_addr_t dma_addr;
 	void *mem_priv;
 	void *vaddr;
+	struct page **pages;
 	/* timestamp in ns */
 	u64 timestamp;
 	u32 size;

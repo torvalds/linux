@@ -284,7 +284,8 @@ static int rkispp_hw_probe(struct platform_device *pdev)
 	hw_dev->is_idle = true;
 	hw_dev->is_single = true;
 	hw_dev->is_fec_ext = false;
-	if (!is_iommu_enable(dev)) {
+	hw_dev->is_mmu = is_iommu_enable(dev);
+	if (!hw_dev->is_mmu) {
 		ret = of_reserved_mem_device_init(dev);
 		if (ret)
 			dev_warn(dev, "No reserved memory region assign to ispp\n");

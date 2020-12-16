@@ -1406,16 +1406,7 @@ static void rkispp_buf_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 }
 
-static int rkispp_create_dummy_buf(struct rkispp_stream *stream)
-{
-	struct rkispp_device *dev = stream->isppdev;
-
-	if (stream->type != STREAM_OUTPUT)
-		return 0;
-	return rkispp_alloc_common_dummy_buf(dev);
-}
-
-static void rkispp_destroy_dummy_buf(struct rkispp_stream *stream)
+static void rkispp_destroy_buf(struct rkispp_stream *stream)
 {
 	struct rkispp_device *dev = stream->isppdev;
 	struct rkispp_stream_vdev *vdev= &dev->stream_vdev;
@@ -1426,7 +1417,6 @@ static void rkispp_destroy_dummy_buf(struct rkispp_stream *stream)
 		nr_free_buf(dev);
 		fec_free_buf(dev);
 		rkispp_event_handle(dev, CMD_FREE_POOL, NULL);
-		rkispp_free_common_dummy_buf(dev);
 	}
 }
 
@@ -1509,8 +1499,9 @@ static void rkispp_stop_streaming(struct vb2_queue *queue)
 	mutex_lock(&dev->hw_dev->dev_lock);
 	rkispp_stream_stop(stream);
 	destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);
-	rkispp_destroy_dummy_buf(stream);
+	rkispp_destroy_buf(stream);
 	mutex_unlock(&dev->hw_dev->dev_lock);
+	rkispp_free_common_dummy_buf(dev);
 	atomic_dec(&dev->stream_vdev.refcnt);
 
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
@@ -1598,7 +1589,7 @@ static int rkispp_start_streaming(struct vb2_queue *queue,
 		goto free_buf_queue;
 	}
 
-	ret = rkispp_create_dummy_buf(stream);
+	ret = rkispp_alloc_common_dummy_buf(stream->isppdev);
 	if (ret < 0)
 		goto free_buf_queue;
 
@@ -1626,7 +1617,7 @@ static int rkispp_start_streaming(struct vb2_queue *queue,
 		 "%s id:%d exit\n", __func__, stream->id);
 	return 0;
 free_dummy_buf:
-	rkispp_destroy_dummy_buf(stream);
+	rkispp_free_common_dummy_buf(stream->isppdev);
 free_buf_queue:
 	destroy_buf_queue(stream, VB2_BUF_STATE_QUEUED);
 	atomic_dec(&dev->stream_vdev.refcnt);
