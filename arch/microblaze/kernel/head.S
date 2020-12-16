@@ -34,7 +34,6 @@
 #include <asm/page.h>
 #include <linux/of_fdt.h>		/* for OF_DT_HEADER */
 
-#ifdef CONFIG_MMU
 #include <asm/setup.h> /* COMMAND_LINE_SIZE */
 #include <asm/mmu.h>
 #include <asm/processor.h>
@@ -47,8 +46,6 @@ empty_zero_page:
 .global swapper_pg_dir
 swapper_pg_dir:
 	.space	PAGE_SIZE
-
-#endif /* CONFIG_MMU */
 
 .section .rodata
 .align 4
@@ -107,8 +104,6 @@ _copy_fdt:
 	bgtid	r3, _copy_fdt /* loop for all entries */
 	addik	r3, r3, -4 /* descrement loop */
 no_fdt_arg:
-
-#ifdef CONFIG_MMU
 
 #ifndef CONFIG_CMDLINE_BOOL
 /*
@@ -329,7 +324,6 @@ turn_on_mmu:
 	nop
 
 start_here:
-#endif /* CONFIG_MMU */
 
 	/* Initialize small data anchors */
 	addik	r13, r0, _KERNEL_SDA_BASE_
@@ -345,11 +339,6 @@ start_here:
 	brald	r15, r11
 	nop
 
-#ifndef CONFIG_MMU
-	addik	r15, r0, machine_halt
-	braid	start_kernel
-	nop
-#else
 	/*
 	 * Initialize the MMU.
 	 */
@@ -383,4 +372,3 @@ kernel_load_context:
 	nop
 	rted	r17, 0		/* enable MMU and jump to start_kernel */
 	nop
-#endif /* CONFIG_MMU */
