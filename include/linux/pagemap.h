@@ -629,8 +629,10 @@ static inline struct page *grab_cache_page(struct address_space *mapping,
 	return find_or_create_page(mapping, index, mapping_gfp_mask(mapping));
 }
 
-extern struct page * read_cache_page(struct address_space *mapping,
-				pgoff_t index, filler_t *filler, void *data);
+struct folio *read_cache_folio(struct address_space *, pgoff_t index,
+		filler_t *filler, void *data);
+struct page *read_cache_page(struct address_space *, pgoff_t index,
+		filler_t *filler, void *data);
 extern struct page * read_cache_page_gfp(struct address_space *mapping,
 				pgoff_t index, gfp_t gfp_mask);
 extern int read_cache_pages(struct address_space *mapping,
@@ -640,6 +642,12 @@ static inline struct page *read_mapping_page(struct address_space *mapping,
 				pgoff_t index, void *data)
 {
 	return read_cache_page(mapping, index, NULL, data);
+}
+
+static inline struct folio *read_mapping_folio(struct address_space *mapping,
+				pgoff_t index, void *data)
+{
+	return read_cache_folio(mapping, index, NULL, data);
 }
 
 /*

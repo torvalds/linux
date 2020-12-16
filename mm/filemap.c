@@ -3418,35 +3418,20 @@ EXPORT_SYMBOL(filemap_page_mkwrite);
 EXPORT_SYMBOL(generic_file_mmap);
 EXPORT_SYMBOL(generic_file_readonly_mmap);
 
-static struct page *wait_on_page_read(struct page *page)
+static struct folio *do_read_cache_folio(struct address_space *mapping,
+		pgoff_t index, filler_t filler, void *data, gfp_t gfp)
 {
-	if (!IS_ERR(page)) {
-		wait_on_page_locked(page);
-		if (!PageUptodate(page)) {
-			put_page(page);
-			page = ERR_PTR(-EIO);
-		}
-	}
-	return page;
-}
-
-static struct page *do_read_cache_page(struct address_space *mapping,
-				pgoff_t index,
-				int (*filler)(void *, struct page *),
-				void *data,
-				gfp_t gfp)
-{
-	struct page *page;
+	struct folio *folio;
 	int err;
 repeat:
-	page = find_get_page(mapping, index);
-	if (!page) {
-		page = __page_cache_alloc(gfp);
-		if (!page)
+	folio = filemap_get_folio(mapping, index);
+	if (!folio) {
+		folio = filemap_alloc_folio(gfp, 0);
+		if (!folio)
 			return ERR_PTR(-ENOMEM);
-		err = add_to_page_cache_lru(page, mapping, index, gfp);
+		err = filemap_add_folio(mapping, folio, index, gfp);
 		if (unlikely(err)) {
-			put_page(page);
+			folio_put(folio);
 			if (err == -EEXIST)
 				goto repeat;
 			/* Presumably ENOMEM for xarray node */
@@ -3455,21 +3440,24 @@ repeat:
 
 filler:
 		if (filler)
-			err = filler(data, page);
+			err = filler(data, &folio->page);
 		else
-			err = mapping->a_ops->readpage(data, page);
+			err = mapping->a_ops->readpage(data, &folio->page);
 
 		if (err < 0) {
-			put_page(page);
+			folio_put(folio);
 			return ERR_PTR(err);
 		}
 
-		page = wait_on_page_read(page);
-		if (IS_ERR(page))
-			return page;
+		folio_wait_locked(folio);
+		if (!folio_test_uptodate(folio)) {
+			folio_put(folio);
+			return ERR_PTR(-EIO);
+		}
+
 		goto out;
 	}
-	if (PageUptodate(page))
+	if (folio_test_uptodate(folio))
 		goto out;
 
 	/*
@@ -3503,23 +3491,23 @@ filler:
 	 * avoid spurious serialisations and wakeups when multiple processes
 	 * wait on the same page for IO to complete.
 	 */
-	wait_on_page_locked(page);
-	if (PageUptodate(page))
+	folio_wait_locked(folio);
+	if (folio_test_uptodate(folio))
 		goto out;
 
 	/* Distinguish between all the cases under the safety of the lock */
-	lock_page(page);
+	folio_lock(folio);
 
 	/* Case c or d, restart the operation */
-	if (!page->mapping) {
-		unlock_page(page);
-		put_page(page);
+	if (!folio->mapping) {
+		folio_unlock(folio);
+		folio_put(folio);
 		goto repeat;
 	}
 
 	/* Someone else locked and filled the page in a very small window */
-	if (PageUptodate(page)) {
-		unlock_page(page);
+	if (folio_test_uptodate(folio)) {
+		folio_unlock(folio);
 		goto out;
 	}
 
@@ -3529,16 +3517,16 @@ filler:
 	 * Clear page error before actual read, PG_error will be
 	 * set again if read page fails.
 	 */
-	ClearPageError(page);
+	folio_clear_error(folio);
 	goto filler;
 
 out:
-	mark_page_accessed(page);
-	return page;
+	folio_mark_accessed(folio);
+	return folio;
 }
 
 /**
- * read_cache_page - read into page cache, fill it if needed
+ * read_cache_folio - read into page cache, fill it if needed
  * @mapping:	the page's address_space
  * @index:	the page index
  * @filler:	function to perform the read
@@ -3553,10 +3541,27 @@ out:
  *
  * Return: up to date page on success, ERR_PTR() on failure.
  */
+struct folio *read_cache_folio(struct address_space *mapping, pgoff_t index,
+		filler_t filler, void *data)
+{
+	return do_read_cache_folio(mapping, index, filler, data,
+			mapping_gfp_mask(mapping));
+}
+EXPORT_SYMBOL(read_cache_folio);
+
+static struct page *do_read_cache_page(struct address_space *mapping,
+		pgoff_t index, filler_t *filler, void *data, gfp_t gfp)
+{
+	struct folio *folio;
+
+	folio = do_read_cache_folio(mapping, index, filler, data, gfp);
+	if (IS_ERR(folio))
+		return &folio->page;
+	return folio_file_page(folio, index);
+}
+
 struct page *read_cache_page(struct address_space *mapping,
-				pgoff_t index,
-				int (*filler)(void *, struct page *),
-				void *data)
+				pgoff_t index, filler_t *filler, void *data)
 {
 	return do_read_cache_page(mapping, index, filler, data,
 			mapping_gfp_mask(mapping));
