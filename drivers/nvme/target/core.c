@@ -757,8 +757,6 @@ void nvmet_cq_setup(struct nvmet_ctrl *ctrl, struct nvmet_cq *cq,
 {
 	cq->qid = qid;
 	cq->size = size;
-
-	ctrl->cqs[qid] = cq;
 }
 
 void nvmet_sq_setup(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq,
@@ -1344,20 +1342,14 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	if (!ctrl->changed_ns_list)
 		goto out_free_ctrl;
 
-	ctrl->cqs = kcalloc(subsys->max_qid + 1,
-			sizeof(struct nvmet_cq *),
-			GFP_KERNEL);
-	if (!ctrl->cqs)
-		goto out_free_changed_ns_list;
-
 	ctrl->sqs = kcalloc(subsys->max_qid + 1,
 			sizeof(struct nvmet_sq *),
 			GFP_KERNEL);
 	if (!ctrl->sqs)
-		goto out_free_cqs;
+		goto out_free_changed_ns_list;
 
 	if (subsys->cntlid_min > subsys->cntlid_max)
-		goto out_free_cqs;
+		goto out_free_changed_ns_list;
 
 	ret = ida_simple_get(&cntlid_ida,
 			     subsys->cntlid_min, subsys->cntlid_max,
@@ -1395,8 +1387,6 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 
 out_free_sqs:
 	kfree(ctrl->sqs);
-out_free_cqs:
-	kfree(ctrl->cqs);
 out_free_changed_ns_list:
 	kfree(ctrl->changed_ns_list);
 out_free_ctrl:
@@ -1426,7 +1416,6 @@ static void nvmet_ctrl_free(struct kref *ref)
 
 	nvmet_async_events_free(ctrl);
 	kfree(ctrl->sqs);
-	kfree(ctrl->cqs);
 	kfree(ctrl->changed_ns_list);
 	kfree(ctrl);
 

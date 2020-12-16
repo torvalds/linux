@@ -2084,19 +2084,24 @@ static void __dasd_device_start_head(struct dasd_device *device)
 
 static void __dasd_device_check_path_events(struct dasd_device *device)
 {
+	__u8 tbvpm, fcsecpm;
 	int rc;
 
-	if (!dasd_path_get_tbvpm(device))
+	tbvpm = dasd_path_get_tbvpm(device);
+	fcsecpm = dasd_path_get_fcsecpm(device);
+
+	if (!tbvpm && !fcsecpm)
 		return;
 
 	if (device->stopped & ~(DASD_STOPPED_DC_WAIT))
 		return;
-	rc = device->discipline->verify_path(device,
-					     dasd_path_get_tbvpm(device));
-	if (rc)
+	rc = device->discipline->pe_handler(device, tbvpm, fcsecpm);
+	if (rc) {
 		dasd_device_set_timer(device, 50);
-	else
+	} else {
 		dasd_path_clear_all_verify(device);
+		dasd_path_clear_all_fcsec(device);
+	}
 };
 
 /*
@@ -3448,8 +3453,7 @@ static void dasd_generic_auto_online(void *data, async_cookie_t cookie)
  * Initial attempt at a probe function. this can be simplified once
  * the other detection code is gone.
  */
-int dasd_generic_probe(struct ccw_device *cdev,
-		       struct dasd_discipline *discipline)
+int dasd_generic_probe(struct ccw_device *cdev)
 {
 	int ret;
 
@@ -3846,6 +3850,10 @@ void dasd_generic_path_event(struct ccw_device *cdev, int *path_event)
 				      "Pathgroup re-established\n");
 			if (device->discipline->kick_validate)
 				device->discipline->kick_validate(device);
+		}
+		if (path_event[chp] & PE_PATH_FCES_EVENT) {
+			dasd_path_fcsec_update(device, chp);
+			dasd_schedule_device_bh(device);
 		}
 	}
 	hpfpm = dasd_path_get_hpfpm(device);
