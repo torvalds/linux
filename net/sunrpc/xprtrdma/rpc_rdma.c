@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (c) 2014-2017 Oracle.  All rights reserved.
+ * Copyright (c) 2014-2020, Oracle and/or its affiliates.
  * Copyright (c) 2003-2007 Network Appliance, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -331,7 +331,6 @@ static struct rpcrdma_mr_seg *rpcrdma_mr_prepare(struct rpcrdma_xprt *r_xprt,
 		*mr = rpcrdma_mr_get(r_xprt);
 		if (!*mr)
 			goto out_getmr_err;
-		trace_xprtrdma_mr_get(req);
 		(*mr)->mr_req = req;
 	}
 
@@ -339,7 +338,7 @@ static struct rpcrdma_mr_seg *rpcrdma_mr_prepare(struct rpcrdma_xprt *r_xprt,
 	return frwr_map(r_xprt, seg, nsegs, writing, req->rl_slot.rq_xid, *mr);
 
 out_getmr_err:
-	trace_xprtrdma_nomrs(req);
+	trace_xprtrdma_nomrs_err(r_xprt, req);
 	xprt_wait_for_buffer_space(&r_xprt->rx_xprt);
 	rpcrdma_mrs_refresh(r_xprt);
 	return ERR_PTR(-EAGAIN);
@@ -1344,20 +1343,13 @@ rpcrdma_decode_error(struct rpcrdma_xprt *r_xprt, struct rpcrdma_rep *rep,
 		p = xdr_inline_decode(xdr, 2 * sizeof(*p));
 		if (!p)
 			break;
-		dprintk("RPC:       %s: server reports "
-			"version error (%u-%u), xid %08x\n", __func__,
-			be32_to_cpup(p), be32_to_cpu(*(p + 1)),
-			be32_to_cpu(rep->rr_xid));
+		trace_xprtrdma_err_vers(rqst, p, p + 1);
 		break;
 	case err_chunk:
-		dprintk("RPC:       %s: server reports "
-			"header decoding error, xid %08x\n", __func__,
-			be32_to_cpu(rep->rr_xid));
+		trace_xprtrdma_err_chunk(rqst);
 		break;
 	default:
-		dprintk("RPC:       %s: server reports "
-			"unrecognized error %d, xid %08x\n", __func__,
-			be32_to_cpup(p), be32_to_cpu(rep->rr_xid));
+		trace_xprtrdma_err_unrecognized(rqst, p);
 	}
 
 	return -EIO;
@@ -1398,7 +1390,7 @@ out:
 	return;
 
 out_badheader:
-	trace_xprtrdma_reply_hdr(rep);
+	trace_xprtrdma_reply_hdr_err(rep);
 	r_xprt->rx_stats.bad_reply_count++;
 	rqst->rq_task->tk_status = status;
 	status = 0;
@@ -1472,14 +1464,12 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	rpcrdma_post_recvs(r_xprt, false);
 
 	req = rpcr_to_rdmar(rqst);
-	if (req->rl_reply) {
-		trace_xprtrdma_leaked_rep(rqst, req->rl_reply);
+	if (unlikely(req->rl_reply))
 		rpcrdma_recv_buffer_put(req->rl_reply);
-	}
 	req->rl_reply = rep;
 	rep->rr_rqst = rqst;
 
-	trace_xprtrdma_reply(rqst->rq_task, rep, req, credits);
+	trace_xprtrdma_reply(rqst->rq_task, rep, credits);
 
 	if (rep->rr_wc_flags & IB_WC_WITH_INVALIDATE)
 		frwr_reminv(rep, &req->rl_registered);
@@ -1491,16 +1481,16 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	return;
 
 out_badversion:
-	trace_xprtrdma_reply_vers(rep);
+	trace_xprtrdma_reply_vers_err(rep);
 	goto out;
 
 out_norqst:
 	spin_unlock(&xprt->queue_lock);
-	trace_xprtrdma_reply_rqst(rep);
+	trace_xprtrdma_reply_rqst_err(rep);
 	goto out;
 
 out_shortreply:
-	trace_xprtrdma_reply_short(rep);
+	trace_xprtrdma_reply_short_err(rep);
 
 out:
 	rpcrdma_recv_buffer_put(rep);
