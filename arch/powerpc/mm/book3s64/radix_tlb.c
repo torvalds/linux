@@ -639,7 +639,11 @@ static bool mm_needs_flush_escalation(struct mm_struct *mm)
 	return false;
 }
 
-static void exit_lazy_flush_tlb(struct mm_struct *mm)
+/*
+ * If always_flush is true, then flush even if this CPU can't be removed
+ * from mm_cpumask.
+ */
+void exit_lazy_flush_tlb(struct mm_struct *mm, bool always_flush)
 {
 	unsigned long pid = mm->context.id;
 	int cpu = smp_processor_id();
@@ -652,7 +656,7 @@ static void exit_lazy_flush_tlb(struct mm_struct *mm)
 	 * done with interrupts off.
 	 */
 	if (current->mm == mm)
-		goto out_flush;
+		goto out;
 
 	if (current->active_mm == mm) {
 		WARN_ON_ONCE(current->mm != NULL);
@@ -674,17 +678,19 @@ static void exit_lazy_flush_tlb(struct mm_struct *mm)
 	if (cpumask_test_cpu(cpu, mm_cpumask(mm))) {
 		atomic_dec(&mm->context.active_cpus);
 		cpumask_clear_cpu(cpu, mm_cpumask(mm));
+		always_flush = true;
 	}
 
-out_flush:
-	_tlbiel_pid(pid, RIC_FLUSH_ALL);
+out:
+	if (always_flush)
+		_tlbiel_pid(pid, RIC_FLUSH_ALL);
 }
 
 #ifdef CONFIG_SMP
 static void do_exit_flush_lazy_tlb(void *arg)
 {
 	struct mm_struct *mm = arg;
-	exit_lazy_flush_tlb(mm);
+	exit_lazy_flush_tlb(mm, true);
 }
 
 static void exit_flush_lazy_tlbs(struct mm_struct *mm)
@@ -746,7 +752,7 @@ static enum tlb_flush_type flush_type_needed(struct mm_struct *mm, bool fullmm)
 			 * to trim.
 			 */
 			if (tick_and_test_trim_clock()) {
-				exit_lazy_flush_tlb(mm);
+				exit_lazy_flush_tlb(mm, true);
 				return FLUSH_TYPE_NONE;
 			}
 		}
@@ -792,7 +798,7 @@ static enum tlb_flush_type flush_type_needed(struct mm_struct *mm, bool fullmm)
 		if (current->mm == mm)
 			return FLUSH_TYPE_LOCAL;
 		if (cpumask_test_cpu(cpu, mm_cpumask(mm)))
-			exit_lazy_flush_tlb(mm);
+			exit_lazy_flush_tlb(mm, true);
 		return FLUSH_TYPE_NONE;
 	}
 
