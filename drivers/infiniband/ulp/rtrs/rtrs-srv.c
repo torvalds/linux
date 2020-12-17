@@ -651,7 +651,7 @@ static int map_cont_bufs(struct rtrs_srv_sess *sess)
 			if (!srv_mr->iu) {
 				err = -ENOMEM;
 				rtrs_err(ss, "rtrs_iu_alloc(), err: %d\n", err);
-				goto free_iu;
+				goto dereg_mr;
 			}
 		}
 		/* Eventually dma addr for each chunk can be cached */
@@ -667,7 +667,6 @@ err:
 			srv_mr = &sess->mrs[mri];
 			sgt = &srv_mr->sgt;
 			mr = srv_mr->mr;
-free_iu:
 			rtrs_iu_free(srv_mr->iu, sess->s.dev->ib_dev, 1);
 dereg_mr:
 			ib_dereg_mr(mr);
