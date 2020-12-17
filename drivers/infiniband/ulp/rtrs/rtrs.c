@@ -310,7 +310,7 @@ void rtrs_send_hb_ack(struct rtrs_sess *sess)
 
 	imm = rtrs_to_imm(RTRS_HB_ACK_IMM, 0);
 	err = rtrs_post_rdma_write_imm_empty(usr_con, sess->hb_cqe, imm,
-					      IB_SEND_SIGNALED, NULL);
+					     0, NULL);
 	if (err) {
 		sess->hb_err_handler(usr_con);
 		return;
@@ -339,7 +339,7 @@ static void hb_work(struct work_struct *work)
 	}
 	imm = rtrs_to_imm(RTRS_HB_MSG_IMM, 0);
 	err = rtrs_post_rdma_write_imm_empty(usr_con, sess->hb_cqe, imm,
-					      IB_SEND_SIGNALED, NULL);
+					     0, NULL);
 	if (err) {
 		sess->hb_err_handler(usr_con);
 		return;

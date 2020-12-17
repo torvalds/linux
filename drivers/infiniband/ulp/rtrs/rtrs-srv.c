@@ -1242,7 +1242,6 @@ static void rtrs_srv_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 	case IB_WC_SEND:
 		/*
 		 * post_send() RDMA write completions of IO reqs (read/write)
-		 * and hb
 		 */
 		atomic_add(srv->queue_depth, &con->sq_wr_avail);
 
