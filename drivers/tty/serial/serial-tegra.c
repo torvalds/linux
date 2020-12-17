@@ -75,12 +75,17 @@
 #define TEGRA_UART_FCR_IIR_FIFO_EN		0x40
 
 /**
- * tegra_uart_chip_data: SOC specific data.
+ * struct tegra_uart_chip_data: SOC specific data.
  *
  * @tx_fifo_full_status: Status flag available for checking tx fifo full.
  * @allow_txfifo_reset_fifo_mode: allow_tx fifo reset with fifo mode or not.
  *			Tegra30 does not allow this.
  * @support_clk_src_div: Clock source support the clock divider.
+ * @fifo_mode_enable_status: Is FIFO mode enabled?
+ * @uart_max_port: Maximum number of UART ports
+ * @max_dma_burst_bytes: Maximum size of DMA bursts
+ * @error_tolerance_low_range: Lowest number in the error tolerance range
+ * @error_tolerance_high_range: Highest number in the error tolerance range
  */
 struct tegra_uart_chip_data {
 	bool	tx_fifo_full_status;
