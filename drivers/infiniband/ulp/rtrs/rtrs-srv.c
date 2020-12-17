@@ -1863,8 +1863,8 @@ reject_w_econnreset:
 	return rtrs_rdma_do_reject(cm_id, -ECONNRESET);
 
 close_and_return_err:
-	close_sess(sess);
 	mutex_unlock(&srv->paths_mutex);
+	close_sess(sess);
 
 	return err;
 }
