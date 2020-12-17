@@ -678,7 +678,9 @@ struct drm_get_cap {
 /**
  * DRM_CLIENT_CAP_ATOMIC
  *
- * If set to 1, the DRM core will expose atomic properties to userspace
+ * If set to 1, the DRM core will expose atomic properties to userspace. This
+ * implicitly enables &DRM_CLIENT_CAP_UNIVERSAL_PLANES and
+ * &DRM_CLIENT_CAP_ASPECT_RATIO.
  */
 #define DRM_CLIENT_CAP_ATOMIC	3
 
