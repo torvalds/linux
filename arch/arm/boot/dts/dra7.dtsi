@@ -932,7 +932,7 @@
 			};
 		};
 
-		sham_target: target-module@4b101000 {
+		sham1_target: target-module@4b101000 {
 			compatible = "ti,sysc-omap3-sham", "ti,sysc";
 			reg = <0x4b101100 0x4>,
 			      <0x4b101110 0x4>,
@@ -951,11 +951,41 @@
 			#size-cells = <1>;
 			ranges = <0x0 0x4b101000 0x1000>;
 
-			sham: sham@0 {
+			sham1: sham@0 {
 				compatible = "ti,omap5-sham";
 				reg = <0 0x300>;
 				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 				dmas = <&edma_xbar 119 0>;
+				dma-names = "rx";
+				clocks = <&l3_iclk_div>;
+				clock-names = "fck";
+			};
+		};
+
+		sham2_target: target-module@42701000 {
+			compatible = "ti,sysc-omap3-sham", "ti,sysc";
+			reg = <0x42701100 0x4>,
+			      <0x42701110 0x4>,
+			      <0x42701114 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			/* Domains (P, C): l4per_pwrdm, l4sec_clkdm */
+			clocks = <&l4sec_clkctrl DRA7_L4SEC_SHAM2_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x42701000 0x1000>;
+
+			sham2: sham@0 {
+				compatible = "ti,omap5-sham";
+				reg = <0 0x300>;
+				interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>;
+				dmas = <&edma_xbar 165 0>;
 				dma-names = "rx";
 				clocks = <&l3_iclk_div>;
 				clock-names = "fck";

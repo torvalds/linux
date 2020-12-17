@@ -27,7 +27,7 @@
 		stdout-path = "serial2:115200n8";
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
 		menu {
@@ -211,7 +211,7 @@
 	samsung,i2c-max-bus-freq = <20000>;
 	samsung,i2c-slave-addr = <0x66>;
 
-	s5m8767_pmic@66 {
+	pmic@66 {
 		compatible = "samsung,s5m8767-pmic";
 		reg = <0x66>;
 		interrupt-parent = <&gpx3>;
@@ -511,7 +511,7 @@
 &i2c_3 {
 	status = "okay";
 
-	wm1811: codec@1a {
+	wm1811: audio-codec@1a {
 		compatible = "wlf,wm1811";
 		reg = <0x1a>;
 		clocks = <&i2s0 CLK_I2S_CDCLK>;
