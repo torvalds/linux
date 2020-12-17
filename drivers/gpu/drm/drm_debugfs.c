@@ -103,48 +103,79 @@ static char *get_format_str(uint32_t format)
 	}
 }
 
-int vop_plane_dump(struct vop_dump_info *dump_info, int frame_count)
+static int get_bpp(uint32_t format)
 {
-	int flags;
-	int bits = 32;
-	int fd;
-	const char *ptr;
-	char file_name[100];
-	int width;
-	void *kvaddr;
-	mm_segment_t old_fs;
-	u32 format = dump_info->pixel_format;
+	uint32_t bpp;
 
 	switch (format) {
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_ARGB8888:
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_ABGR8888:
-		bits = 32;
+		bpp = 32;
 		break;
 	case DRM_FORMAT_RGB888:
 	case DRM_FORMAT_BGR888:
 	case DRM_FORMAT_NV24:
 	case DRM_FORMAT_NV24_10:
-		bits = 24;
+		bpp = 24;
 		break;
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_BGR565:
 	case DRM_FORMAT_NV16:
 	case DRM_FORMAT_NV16_10:
-		bits = 16;
+		bpp = 16;
 		break;
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV12_10:
-		bits = 12;
+		bpp = 12;
 		break;
 	case DRM_FORMAT_YUYV:
-		bits = 16;
+		bpp = 16;
 		break;
 	default:
 		DRM_ERROR("unsupported format[%08x]\n", format);
-		return -1;
+		bpp = 0;
 	}
+
+	return bpp;
+}
+
+#define AFBC_HEADER_SIZE                16
+#define AFBC_HDR_ALIGN                  64
+#define AFBC_SUPERBLK_PIXELS		256
+#define AFBC_SUPERBLK_ALIGNMENT         128
+
+static int get_afbc_size(uint32_t width, uint32_t height, uint32_t bpp)
+{
+	uint32_t h_alignment = 16;
+	uint32_t n_blocks;
+	uint32_t hdr_size;
+	uint32_t size;
+
+	height = ALIGN(height, h_alignment);
+	n_blocks = width * height / AFBC_SUPERBLK_PIXELS;
+	hdr_size = ALIGN(n_blocks * AFBC_HEADER_SIZE, AFBC_HDR_ALIGN);
+
+	size = hdr_size + n_blocks * ALIGN(bpp * AFBC_SUPERBLK_PIXELS / 8, AFBC_SUPERBLK_ALIGNMENT);
+
+	return size;
+}
+
+int vop_plane_dump(struct vop_dump_info *dump_info, int frame_count)
+{
+	int flags;
+	int bpp;
+	int fd;
+	const char *ptr;
+	char file_name[100];
+	int width;
+	size_t size;
+	void *kvaddr;
+	mm_segment_t old_fs;
+	u32 format = dump_info->pixel_format;
+
+	bpp = get_bpp(format);
 
 	if (dump_info->yuv_format) {
 		width = dump_info->pitches;
@@ -163,17 +194,22 @@ int vop_plane_dump(struct vop_dump_info *dump_info, int frame_count)
 	}
 	kvaddr = vmap(dump_info->pages, dump_info->num_pages, VM_MAP,
 		      pgprot_writecombine(PAGE_KERNEL));
-	if (!kvaddr)
-		DRM_ERROR("failed to vmap() buffer\n");
-	else
-		kvaddr += dump_info->offset;
+	if (!kvaddr) {
+		DRM_ERROR("failed to vmap() buffer for %s\n", file_name);
+		return -ENOMEM;
+	}
+	kvaddr += dump_info->offset;
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
 	ksys_mkdir(DUMP_BUF_PATH, 0700);
 	ptr = file_name;
+	if (dump_info->AFBC_flag)
+		size = get_afbc_size(width, dump_info->height, bpp);
+	else
+		size = width * dump_info->height * bpp >> 3;
 	fd = ksys_open(ptr, flags, 0644);
 	if (fd >= 0) {
-		ksys_write(fd, kvaddr, width * dump_info->height * bits >> 3);
+		ksys_write(fd, kvaddr, size);
 		DRM_INFO("dump file name is:%s\n", file_name);
 		ksys_close(fd);
 	} else {
@@ -249,14 +285,12 @@ static ssize_t vop_dump_write(struct file *file, const char __user *ubuf,
 		}
 			crtc->vop_dump_times = dump_times;
 		} else {
-			drm_modeset_lock_all(crtc->dev);
 			list_for_each_entry_safe(pos, n,
 						 &crtc->vop_dump_list_head,
 						 entry) {
 				vop_plane_dump(&pos->dump_info,
 					       crtc->frame_count);
 		}
-			drm_modeset_unlock_all(crtc->dev);
 			crtc->frame_count++;
 		}
 	} else {
