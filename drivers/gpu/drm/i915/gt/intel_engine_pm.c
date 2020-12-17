@@ -65,6 +65,7 @@ static int __engine_unpark(struct intel_wakeref *wf)
 	if (engine->unpark)
 		engine->unpark(engine);
 
+	intel_breadcrumbs_unpark(engine->breadcrumbs);
 	intel_engine_unpark_heartbeat(engine);
 	return 0;
 }
