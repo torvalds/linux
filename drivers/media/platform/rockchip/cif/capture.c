@@ -15,6 +15,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
+#include <media/videobuf2-dma-sg.h>
 #include <soc/rockchip/rockchip-system-status.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
 
@@ -1624,7 +1625,13 @@ static void rkcif_buf_queue(struct vb2_buffer *vb)
 	for (i = 0; i < fmt->mplanes; i++) {
 		void *addr = vb2_plane_vaddr(vb, i);
 
-		cifbuf->buff_addr[i] = vb2_dma_contig_plane_dma_addr(vb, i);
+		if (stream->cifdev->iommu_en) {
+			struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, i);
+
+			cifbuf->buff_addr[i] = sg_dma_address(sgt->sgl);
+		} else {
+			cifbuf->buff_addr[i] = vb2_dma_contig_plane_dma_addr(vb, i);
+		}
 		if (rkcif_debug && addr && !stream->cifdev->hw_dev->iommu_en) {
 			memset(addr, 0, pixm->plane_fmt[i].sizeimage);
 			v4l2_dbg(1, rkcif_debug, &stream->cifdev->v4l2_dev,
@@ -2407,7 +2414,10 @@ static int rkcif_init_vb2_queue(struct vb2_queue *q,
 	q->io_modes = VB2_MMAP | VB2_DMABUF;
 	q->drv_priv = stream;
 	q->ops = &rkcif_vb2_ops;
-	q->mem_ops = &vb2_dma_contig_memops;
+	if (stream->cifdev->iommu_en)
+		q->mem_ops = &vb2_dma_sg_memops;
+	else
+		q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct rkcif_buffer);
 	q->min_buffers_needed = CIF_REQ_BUFS_MIN;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;

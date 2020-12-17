@@ -941,7 +941,6 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rkcif_device *cif_dev;
 	const struct rkcif_match_data *data;
-	bool iommu_en;
 	int ret;
 
 	sprintf(rkcif_version, "v%02x.%02x.%02x",
@@ -968,8 +967,8 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 
 	rkcif_attach_hw(cif_dev);
 
-	iommu_en = is_iommu_enable(dev);
-	if (!iommu_en) {
+	cif_dev->iommu_en = is_iommu_enable(dev);
+	if (!cif_dev->iommu_en) {
 		ret = of_reserved_mem_device_init(dev);
 		if (ret)
 			dev_info(dev, "No reserved memory region assign to CIF\n");

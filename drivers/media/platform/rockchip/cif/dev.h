@@ -472,6 +472,8 @@ struct rkcif_device {
 	struct rkcif_work_struct	reset_work;
 	struct rkcif_timer		reset_watchdog_timer;
 	unsigned int			buf_wake_up_cnt;
+
+	bool				iommu_en;
 };
 
 extern struct platform_driver rkcif_plat_drv;
