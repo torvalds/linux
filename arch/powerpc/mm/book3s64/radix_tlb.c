@@ -653,13 +653,14 @@ static void do_exit_flush_lazy_tlb(void *arg)
 {
 	struct mm_struct *mm = arg;
 	unsigned long pid = mm->context.id;
+	int cpu = smp_processor_id();
 
 	/*
 	 * A kthread could have done a mmget_not_zero() after the flushing CPU
-	 * checked mm_is_singlethreaded, and be in the process of
-	 * kthread_use_mm when interrupted here. In that case, current->mm will
-	 * be set to mm, because kthread_use_mm() setting ->mm and switching to
-	 * the mm is done with interrupts off.
+	 * checked mm_cpumask, and be in the process of kthread_use_mm when
+	 * interrupted here. In that case, current->mm will be set to mm,
+	 * because kthread_use_mm() setting ->mm and switching to the mm is
+	 * done with interrupts off.
 	 */
 	if (current->mm == mm)
 		goto out_flush;
@@ -673,8 +674,22 @@ static void do_exit_flush_lazy_tlb(void *arg)
 		mmdrop(mm);
 	}
 
-	atomic_dec(&mm->context.active_cpus);
-	cpumask_clear_cpu(smp_processor_id(), mm_cpumask(mm));
+	/*
+	 * This IPI is only initiated from a CPU which is running mm which
+	 * is a single-threaded process, so there will not be another racing
+	 * IPI coming in where we would find our cpumask already clear.
+	 *
+	 * Nothing else clears our bit in the cpumask except CPU offlining,
+	 * in which case we should not be taking IPIs here. However check
+	 * this just in case the logic is wrong somewhere, and don't underflow
+	 * the active_cpus count.
+	 */
+	if (cpumask_test_cpu(cpu, mm_cpumask(mm))) {
+		atomic_dec(&mm->context.active_cpus);
+		cpumask_clear_cpu(cpu, mm_cpumask(mm));
+	} else {
+		WARN_ON_ONCE(1);
+	}
 
 out_flush:
 	_tlbiel_pid(pid, RIC_FLUSH_ALL);
