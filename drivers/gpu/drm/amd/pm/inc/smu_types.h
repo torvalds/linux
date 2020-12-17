@@ -211,6 +211,7 @@
 	__SMU_DUMMY_MAP(SetGpoFeaturePMask),             \
 	__SMU_DUMMY_MAP(DisallowGpo),                    \
 	__SMU_DUMMY_MAP(Enable2ndUSB20Port),             \
+	__SMU_DUMMY_MAP(RequestActiveWgp),               \
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type

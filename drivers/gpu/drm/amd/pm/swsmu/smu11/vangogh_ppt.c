@@ -31,6 +31,9 @@
 #include "smu_v11_5_ppsmc.h"
 #include "smu_v11_5_pmfw.h"
 #include "smu_cmn.h"
+#include "soc15_common.h"
+#include "asic_reg/gc/gc_10_3_0_offset.h"
+#include "asic_reg/gc/gc_10_3_0_sh_mask.h"
 
 /*
  * DO NOT use these for err/warn/info/debug messages.
@@ -118,6 +121,7 @@ static struct cmn2asic_msg_mapping vangogh_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(StopDramLogging,                    PPSMC_MSG_StopDramLogging,						0),
 	MSG_MAP(SetSoftMinCclk,                     PPSMC_MSG_SetSoftMinCclk,						0),
 	MSG_MAP(SetSoftMaxCclk,                     PPSMC_MSG_SetSoftMaxCclk,						0),
+	MSG_MAP(RequestActiveWgp,                   PPSMC_MSG_RequestActiveWgp,                     0),
 };
 
 static struct cmn2asic_mapping vangogh_feature_mask_map[SMU_FEATURE_COUNT] = {
@@ -733,6 +737,38 @@ static int vangogh_system_features_control(struct smu_context *smu, bool en)
 		return 0;
 }
 
+static int vangogh_post_smu_init(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t tmp;
+	uint8_t aon_bits = 0;
+	/* Two CUs in one WGP */
+	uint32_t req_active_wgps = adev->gfx.cu_info.number/2;
+	uint32_t total_cu = adev->gfx.config.max_cu_per_sh *
+		adev->gfx.config.max_sh_per_se * adev->gfx.config.max_shader_engines;
+
+	/* if all CUs are active, no need to power off any WGPs */
+	if (total_cu == adev->gfx.cu_info.number)
+		return 0;
+
+	/*
+	 * Calculate the total bits number of always on WGPs for all SA/SEs in
+	 * RLC_PG_ALWAYS_ON_WGP_MASK.
+	 */
+	tmp = RREG32_KIQ(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_ALWAYS_ON_WGP_MASK));
+	tmp &= RLC_PG_ALWAYS_ON_WGP_MASK__AON_WGP_MASK_MASK;
+
+	aon_bits = hweight32(tmp) * adev->gfx.config.max_sh_per_se * adev->gfx.config.max_shader_engines;
+
+	/* Do not request any WGPs less than set in the AON_WGP_MASK */
+	if (aon_bits > req_active_wgps) {
+		dev_info(adev->dev, "Number of always on WGPs greater than active WGPs: WGP power save not requested.\n");
+		return 0;
+	} else {
+		return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_RequestActiveWgp, req_active_wgps, NULL);
+	}
+}
+
 static const struct pptable_funcs vangogh_ppt_funcs = {
 
 	.check_fw_status = smu_v11_0_check_fw_status,
@@ -761,6 +797,7 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.set_default_dpm_table = vangogh_set_default_dpm_tables,
 	.set_fine_grain_gfx_freq_parameters = vangogh_set_fine_grain_gfx_freq_parameters,
 	.system_features_control = vangogh_system_features_control,
+	.post_init = vangogh_post_smu_init,
 };
 
 void vangogh_set_ppt_funcs(struct smu_context *smu)

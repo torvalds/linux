@@ -478,9 +478,6 @@ static int smu_late_init(void *handle)
 
 	smu_set_fine_grain_gfx_freq_parameters(smu);
 
-	if (adev->asic_type == CHIP_VANGOGH)
-		return 0;
-
 	if (!smu->pm_enabled)
 		return 0;
 
@@ -489,6 +486,9 @@ static int smu_late_init(void *handle)
 		dev_err(adev->dev, "Failed to post smu init!\n");
 		return ret;
 	}
+
+	if (adev->asic_type == CHIP_VANGOGH)
+		return 0;
 
 	ret = smu_set_default_od_settings(smu);
 	if (ret) {
