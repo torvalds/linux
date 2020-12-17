@@ -460,6 +460,9 @@ KMS Locking
 KMS Properties
 ==============
 
+This section of the documentation is primarily aimed at user-space developers.
+For the driver APIs, see the other sections.
+
 Property Types and Blob Property Support
 ----------------------------------------
 
