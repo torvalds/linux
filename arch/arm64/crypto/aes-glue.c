@@ -24,6 +24,7 @@
 #ifdef USE_V8_CRYPTO_EXTENSIONS
 #define MODE			"ce"
 #define PRIO			300
+#define STRIDE			5
 #define aes_expandkey		ce_aes_expandkey
 #define aes_ecb_encrypt		ce_aes_ecb_encrypt
 #define aes_ecb_decrypt		ce_aes_ecb_decrypt
@@ -41,6 +42,7 @@ MODULE_DESCRIPTION("AES-ECB/CBC/CTR/XTS using ARMv8 Crypto Extensions");
 #else
 #define MODE			"neon"
 #define PRIO			200
+#define STRIDE			4
 #define aes_ecb_encrypt		neon_aes_ecb_encrypt
 #define aes_ecb_decrypt		neon_aes_ecb_decrypt
 #define aes_cbc_encrypt		neon_aes_cbc_encrypt
@@ -87,7 +89,7 @@ asmlinkage void aes_cbc_cts_decrypt(u8 out[], u8 const in[], u32 const rk[],
 				int rounds, int bytes, u8 const iv[]);
 
 asmlinkage void aes_ctr_encrypt(u8 out[], u8 const in[], u32 const rk[],
-				int rounds, int blocks, u8 ctr[]);
+				int rounds, int bytes, u8 ctr[], u8 finalbuf[]);
 
 asmlinkage void aes_xts_encrypt(u8 out[], u8 const in[], u32 const rk1[],
 				int rounds, int bytes, u32 const rk2[], u8 iv[],
@@ -448,34 +450,36 @@ static int ctr_encrypt(struct skcipher_request *req)
 	struct crypto_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
 	int err, rounds = 6 + ctx->key_length / 4;
 	struct skcipher_walk walk;
-	int blocks;
 
 	err = skcipher_walk_virt(&walk, req, false);
 
-	while ((blocks = (walk.nbytes / AES_BLOCK_SIZE))) {
-		kernel_neon_begin();
-		aes_ctr_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
-				ctx->key_enc, rounds, blocks, walk.iv);
-		kernel_neon_end();
-		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
-	}
-	if (walk.nbytes) {
-		u8 __aligned(8) tail[AES_BLOCK_SIZE];
+	while (walk.nbytes > 0) {
+		const u8 *src = walk.src.virt.addr;
 		unsigned int nbytes = walk.nbytes;
-		u8 *tdst = walk.dst.virt.addr;
-		u8 *tsrc = walk.src.virt.addr;
+		u8 *dst = walk.dst.virt.addr;
+		u8 buf[AES_BLOCK_SIZE];
+		unsigned int tail;
 
-		/*
-		 * Tell aes_ctr_encrypt() to process a tail block.
-		 */
-		blocks = -1;
+		if (unlikely(nbytes < AES_BLOCK_SIZE))
+			src = memcpy(buf, src, nbytes);
+		else if (nbytes < walk.total)
+			nbytes &= ~(AES_BLOCK_SIZE - 1);
 
 		kernel_neon_begin();
-		aes_ctr_encrypt(tail, NULL, ctx->key_enc, rounds,
-				blocks, walk.iv);
+		aes_ctr_encrypt(dst, src, ctx->key_enc, rounds, nbytes,
+				walk.iv, buf);
 		kernel_neon_end();
-		crypto_xor_cpy(tdst, tsrc, tail, nbytes);
-		err = skcipher_walk_done(&walk, 0);
+
+		tail = nbytes % (STRIDE * AES_BLOCK_SIZE);
+		if (tail > 0 && tail < AES_BLOCK_SIZE)
+			/*
+			 * The final partial block could not be returned using
+			 * an overlapping store, so it was passed via buf[]
+			 * instead.
+			 */
+			memcpy(dst + nbytes - tail, buf, tail);
+
+		err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
 	}
 
 	return err;
