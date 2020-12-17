@@ -13,6 +13,7 @@
 #include <linux/perf_event.h>
 #include <linux/signal.h>
 #include <linux/uaccess.h>
+#include <linux/kprobes.h>
 
 #include <asm/ptrace.h>
 #include <asm/tlbflush.h>
@@ -212,6 +213,9 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
 
 	tsk = current;
 	mm = tsk->mm;
+
+	if (kprobe_page_fault(regs, cause))
+		return;
 
 	/*
 	 * Fault-in kernel-space virtual memory on-demand.
