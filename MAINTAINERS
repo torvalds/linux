@@ -2617,8 +2617,8 @@ S:	Maintained
 F:	drivers/power/reset/keystone-reset.c
 
 ARM/TEXAS INSTRUMENTS K3 ARCHITECTURE
-M:	Tero Kristo <t-kristo@ti.com>
 M:	Nishanth Menon <nm@ti.com>
+M:	Tero Kristo <kristo@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 F:	Documentation/devicetree/bindings/arm/ti/k3.yaml
@@ -6474,9 +6474,9 @@ S:	Maintained
 F:	drivers/edac/skx_*.[ch]
 
 EDAC-TI
-M:	Tero Kristo <t-kristo@ti.com>
+M:	Tero Kristo <kristo@kernel.org>
 L:	linux-edac@vger.kernel.org
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/edac/ti_edac.c
 
 EDIROL UA-101/UA-1000 DRIVER
@@ -17555,7 +17555,7 @@ F:	drivers/iio/dac/ti-dac7612.c
 
 TEXAS INSTRUMENTS' SYSTEM CONTROL INTERFACE (TISCI) PROTOCOL DRIVER
 M:	Nishanth Menon <nm@ti.com>
-M:	Tero Kristo <t-kristo@ti.com>
+M:	Tero Kristo <kristo@kernel.org>
 M:	Santosh Shilimkar <ssantosh@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org
 S:	Maintained
@@ -17699,9 +17699,9 @@ S:	Maintained
 F:	drivers/clk/clk-cdce706.c
 
 TI CLOCK DRIVER
-M:	Tero Kristo <t-kristo@ti.com>
+M:	Tero Kristo <kristo@kernel.org>
 L:	linux-omap@vger.kernel.org
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/clk/ti/
 F:	include/linux/clk/ti.h
 
