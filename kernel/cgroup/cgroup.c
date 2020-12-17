@@ -199,7 +199,7 @@ static u16 have_canfork_callback __read_mostly;
 
 /* cgroup namespace for init task */
 struct cgroup_namespace init_cgroup_ns = {
-	.count		= REFCOUNT_INIT(2),
+	.ns.count	= REFCOUNT_INIT(2),
 	.user_ns	= &init_user_ns,
 	.ns.ops		= &cgroupns_operations,
 	.ns.inum	= PROC_CGROUP_INIT_INO,
@@ -280,9 +280,6 @@ bool cgroup_ssid_enabled(int ssid)
  *
  * - cpuset: a task can be moved into an empty cpuset, and again it takes
  *   masks of ancestors.
- *
- * - memcg: use_hierarchy is on by default and the cgroup file for the flag
- *   is not created.
  *
  * - blkcg: blk-throttle becomes properly hierarchical.
  *
@@ -5151,15 +5148,6 @@ static struct cgroup_subsys_state *css_create(struct cgroup *cgrp,
 	err = online_css(css);
 	if (err)
 		goto err_list_del;
-
-	if (ss->broken_hierarchy && !ss->warned_broken_hierarchy &&
-	    cgroup_parent(parent)) {
-		pr_warn("%s (%d) created nested cgroup for controller \"%s\" which has incomplete hierarchy support. Nested cgroups may change behavior in the future.\n",
-			current->comm, current->pid, ss->name);
-		if (!strcmp(ss->name, "memory"))
-			pr_warn("\"memory\" requires setting use_hierarchy to 1 on the root\n");
-		ss->warned_broken_hierarchy = true;
-	}
 
 	return css;
 

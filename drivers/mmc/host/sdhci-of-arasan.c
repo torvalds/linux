@@ -624,6 +624,7 @@ static int sdhci_zynqmp_sdcardclk_set_phase(struct clk_hw *hw, int degrees)
 	case MMC_TIMING_MMC_HS200:
 		/* For 200MHz clock, 8 Taps are available */
 		tap_max = 8;
+		break;
 	default:
 		break;
 	}
@@ -692,6 +693,7 @@ static int sdhci_zynqmp_sampleclk_set_phase(struct clk_hw *hw, int degrees)
 	case MMC_TIMING_MMC_HS200:
 		/* For 200MHz clock, 30 Taps are available */
 		tap_max = 30;
+		break;
 	default:
 		break;
 	}
@@ -751,6 +753,7 @@ static int sdhci_versal_sdcardclk_set_phase(struct clk_hw *hw, int degrees)
 	case MMC_TIMING_MMC_HS200:
 		/* For 200MHz clock, 8 Taps are available */
 		tap_max = 8;
+		break;
 	default:
 		break;
 	}
@@ -817,6 +820,7 @@ static int sdhci_versal_sampleclk_set_phase(struct clk_hw *hw, int degrees)
 	case MMC_TIMING_MMC_HS200:
 		/* For 200MHz clock, 30 Taps are available */
 		tap_max = 30;
+		break;
 	default:
 		break;
 	}
@@ -1186,16 +1190,19 @@ static struct sdhci_arasan_of_data sdhci_arasan_versal_data = {
 static struct sdhci_arasan_of_data intel_keembay_emmc_data = {
 	.soc_ctl_map = &intel_keembay_soc_ctl_map,
 	.pdata = &sdhci_keembay_emmc_pdata,
+	.clk_ops = &arasan_clk_ops,
 };
 
 static struct sdhci_arasan_of_data intel_keembay_sd_data = {
 	.soc_ctl_map = &intel_keembay_soc_ctl_map,
 	.pdata = &sdhci_keembay_sd_pdata,
+	.clk_ops = &arasan_clk_ops,
 };
 
 static struct sdhci_arasan_of_data intel_keembay_sdio_data = {
 	.soc_ctl_map = &intel_keembay_soc_ctl_map,
 	.pdata = &sdhci_keembay_sdio_pdata,
+	.clk_ops = &arasan_clk_ops,
 };
 
 static const struct of_device_id sdhci_arasan_of_match[] = {

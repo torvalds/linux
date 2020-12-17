@@ -51,6 +51,67 @@ void apei_mce_report_mem_error(int severity, struct cper_sec_mem_err *mem_err)
 }
 EXPORT_SYMBOL_GPL(apei_mce_report_mem_error);
 
+int apei_smca_report_x86_error(struct cper_ia_proc_ctx *ctx_info, u64 lapic_id)
+{
+	const u64 *i_mce = ((const u64 *) (ctx_info + 1));
+	unsigned int cpu;
+	struct mce m;
+
+	if (!boot_cpu_has(X86_FEATURE_SMCA))
+		return -EINVAL;
+
+	/*
+	 * The starting address of the register array extracted from BERT must
+	 * match with the first expected register in the register layout of
+	 * SMCA address space. This address corresponds to banks's MCA_STATUS
+	 * register.
+	 *
+	 * Match any MCi_STATUS register by turning off bank numbers.
+	 */
+	if ((ctx_info->msr_addr & MSR_AMD64_SMCA_MC0_STATUS) !=
+				  MSR_AMD64_SMCA_MC0_STATUS)
+		return -EINVAL;
+
+	/*
+	 * The register array size must be large enough to include all the
+	 * SMCA registers which need to be extracted.
+	 *
+	 * The number of registers in the register array is determined by
+	 * Register Array Size/8 as defined in UEFI spec v2.8, sec N.2.4.2.2.
+	 * The register layout is fixed and currently the raw data in the
+	 * register array includes 6 SMCA registers which the kernel can
+	 * extract.
+	 */
+	if (ctx_info->reg_arr_size < 48)
+		return -EINVAL;
+
+	mce_setup(&m);
+
+	m.extcpu = -1;
+	m.socketid = -1;
+
+	for_each_possible_cpu(cpu) {
+		if (cpu_data(cpu).initial_apicid == lapic_id) {
+			m.extcpu = cpu;
+			m.socketid = cpu_data(m.extcpu).phys_proc_id;
+			break;
+		}
+	}
+
+	m.apicid = lapic_id;
+	m.bank = (ctx_info->msr_addr >> 4) & 0xFF;
+	m.status = *i_mce;
+	m.addr = *(i_mce + 1);
+	m.misc = *(i_mce + 2);
+	/* Skipping MCA_CONFIG */
+	m.ipid = *(i_mce + 4);
+	m.synd = *(i_mce + 5);
+
+	mce_log(&m);
+
+	return 0;
+}
+
 #define CPER_CREATOR_MCE						\
 	GUID_INIT(0x75a574e3, 0x5052, 0x4b29, 0x8a, 0x8e, 0xbe, 0x2c,	\
 		  0x64, 0x90, 0xb8, 0x9d)

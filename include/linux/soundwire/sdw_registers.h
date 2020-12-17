@@ -41,6 +41,12 @@
 #define SDW_DP0_INT_IMPDEF1			BIT(5)
 #define SDW_DP0_INT_IMPDEF2			BIT(6)
 #define SDW_DP0_INT_IMPDEF3			BIT(7)
+#define SDW_DP0_INTERRUPTS			(SDW_DP0_INT_TEST_FAIL | \
+						 SDW_DP0_INT_PORT_READY | \
+						 SDW_DP0_INT_BRA_FAILURE | \
+						 SDW_DP0_INT_IMPDEF1 | \
+						 SDW_DP0_INT_IMPDEF2 | \
+						 SDW_DP0_INT_IMPDEF3)
 
 #define SDW_DP0_PORTCTRL_DATAMODE		GENMASK(3, 2)
 #define SDW_DP0_PORTCTRL_NXTINVBANK		BIT(4)
@@ -241,6 +247,11 @@
 #define SDW_DPN_INT_IMPDEF1			BIT(5)
 #define SDW_DPN_INT_IMPDEF2			BIT(6)
 #define SDW_DPN_INT_IMPDEF3			BIT(7)
+#define SDW_DPN_INTERRUPTS			(SDW_DPN_INT_TEST_FAIL | \
+						 SDW_DPN_INT_PORT_READY | \
+						 SDW_DPN_INT_IMPDEF1 | \
+						 SDW_DPN_INT_IMPDEF2 | \
+						 SDW_DPN_INT_IMPDEF3)
 
 #define SDW_DPN_PORTCTRL_FLOWMODE		GENMASK(1, 0)
 #define SDW_DPN_PORTCTRL_DATAMODE		GENMASK(3, 2)
@@ -297,5 +308,37 @@
 #define SDW_CASC_PORT_START_INTSTAT3		11
 #define SDW_CASC_PORT_MASK_INTSTAT3		1
 #define SDW_CASC_PORT_REG_OFFSET_INTSTAT3	2
+
+/*
+ * v1.2 device - SDCA address mapping
+ *
+ * Spec definition
+ *	Bits		Contents
+ *	31		0 (required by addressing range)
+ *	30:26		0b10000 (Control Prefix)
+ *	25		0 (Reserved)
+ *	24:22		Function Number [2:0]
+ *	21		Entity[6]
+ *	20:19		Control Selector[5:4]
+ *	18		0 (Reserved)
+ *	17:15		Control Number[5:3]
+ *	14		Next
+ *	13		MBQ
+ *	12:7		Entity[5:0]
+ *	6:3		Control Selector[3:0]
+ *	2:0		Control Number[2:0]
+ */
+
+#define SDW_SDCA_CTL(fun, ent, ctl, ch)		(BIT(30) |			\
+						 (((fun) & 0x7) << 22) |	\
+						 (((ent) & 0x40) << 15) |	\
+						 (((ent) & 0x3f) << 7) |	\
+						 (((ctl) & 0x30) << 15) |	\
+						 (((ctl) & 0x0f) << 3) |	\
+						 (((ch) & 0x38) << 12) |	\
+						 ((ch) & 0x07))
+
+#define SDW_SDCA_MBQ_CTL(reg)			((reg) | BIT(13))
+#define SDW_SDCA_NEXT_CTL(reg)			((reg) | BIT(14))
 
 #endif /* __SDW_REGISTERS_H */

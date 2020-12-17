@@ -68,21 +68,21 @@ static int pvrdma_del_gid(const struct ib_gid_attr *attr, void **context);
 static ssize_t hca_type_show(struct device *device,
 			     struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "VMW_PVRDMA-%s\n", DRV_VERSION);
+	return sysfs_emit(buf, "VMW_PVRDMA-%s\n", DRV_VERSION);
 }
 static DEVICE_ATTR_RO(hca_type);
 
 static ssize_t hw_rev_show(struct device *device,
 			   struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", PVRDMA_REV_ID);
+	return sysfs_emit(buf, "%d\n", PVRDMA_REV_ID);
 }
 static DEVICE_ATTR_RO(hw_rev);
 
 static ssize_t board_id_show(struct device *device,
 			     struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", PVRDMA_BOARD_ID);
+	return sysfs_emit(buf, "%d\n", PVRDMA_BOARD_ID);
 }
 static DEVICE_ATTR_RO(board_id);
 
@@ -205,27 +205,6 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 	dev->flags = 0;
 	dev->ib_dev.num_comp_vectors = 1;
 	dev->ib_dev.dev.parent = &dev->pdev->dev;
-	dev->ib_dev.uverbs_cmd_mask =
-		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
-		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)	|
-		(1ull << IB_USER_VERBS_CMD_QUERY_PORT)		|
-		(1ull << IB_USER_VERBS_CMD_ALLOC_PD)		|
-		(1ull << IB_USER_VERBS_CMD_DEALLOC_PD)		|
-		(1ull << IB_USER_VERBS_CMD_REG_MR)		|
-		(1ull << IB_USER_VERBS_CMD_DEREG_MR)		|
-		(1ull << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL)	|
-		(1ull << IB_USER_VERBS_CMD_CREATE_CQ)		|
-		(1ull << IB_USER_VERBS_CMD_POLL_CQ)		|
-		(1ull << IB_USER_VERBS_CMD_REQ_NOTIFY_CQ)	|
-		(1ull << IB_USER_VERBS_CMD_DESTROY_CQ)		|
-		(1ull << IB_USER_VERBS_CMD_CREATE_QP)		|
-		(1ull << IB_USER_VERBS_CMD_MODIFY_QP)		|
-		(1ull << IB_USER_VERBS_CMD_QUERY_QP)		|
-		(1ull << IB_USER_VERBS_CMD_DESTROY_QP)		|
-		(1ull << IB_USER_VERBS_CMD_POST_SEND)		|
-		(1ull << IB_USER_VERBS_CMD_POST_RECV)		|
-		(1ull << IB_USER_VERBS_CMD_CREATE_AH)		|
-		(1ull << IB_USER_VERBS_CMD_DESTROY_AH);
 
 	dev->ib_dev.node_type = RDMA_NODE_IB_CA;
 	dev->ib_dev.phys_port_cnt = dev->dsr->caps.phys_port_cnt;
@@ -249,13 +228,6 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 
 	/* Check if SRQ is supported by backend */
 	if (dev->dsr->caps.max_srq) {
-		dev->ib_dev.uverbs_cmd_mask |=
-			(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)	|
-			(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)	|
-			(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)	|
-			(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ)	|
-			(1ull << IB_USER_VERBS_CMD_POST_SRQ_RECV);
-
 		ib_set_device_ops(&dev->ib_dev, &pvrdma_dev_srq_ops);
 
 		dev->srq_tbl = kcalloc(dev->dsr->caps.max_srq,

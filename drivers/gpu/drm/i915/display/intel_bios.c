@@ -425,6 +425,7 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv,
 	const struct bdb_lfp_backlight_data *backlight_data;
 	const struct lfp_backlight_data_entry *entry;
 	int panel_type = dev_priv->vbt.panel_type;
+	u16 level;
 
 	backlight_data = find_section(bdb, BDB_LVDS_BACKLIGHT);
 	if (!backlight_data)
@@ -459,14 +460,39 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv,
 
 	dev_priv->vbt.backlight.pwm_freq_hz = entry->pwm_freq_hz;
 	dev_priv->vbt.backlight.active_low_pwm = entry->active_low_pwm;
-	dev_priv->vbt.backlight.min_brightness = entry->min_brightness;
+
+	if (bdb->version >= 234) {
+		u16 min_level;
+		bool scale;
+
+		level = backlight_data->brightness_level[panel_type].level;
+		min_level = backlight_data->brightness_min_level[panel_type].level;
+
+		if (bdb->version >= 236)
+			scale = backlight_data->brightness_precision_bits[panel_type] == 16;
+		else
+			scale = level > 255;
+
+		if (scale)
+			min_level = min_level / 255;
+
+		if (min_level > 255) {
+			drm_warn(&dev_priv->drm, "Brightness min level > 255\n");
+			level = 255;
+		}
+		dev_priv->vbt.backlight.min_brightness = min_level;
+	} else {
+		level = backlight_data->level[panel_type];
+		dev_priv->vbt.backlight.min_brightness = entry->min_brightness;
+	}
+
 	drm_dbg_kms(&dev_priv->drm,
 		    "VBT backlight PWM modulation frequency %u Hz, "
 		    "active %s, min brightness %u, level %u, controller %u\n",
 		    dev_priv->vbt.backlight.pwm_freq_hz,
 		    dev_priv->vbt.backlight.active_low_pwm ? "low" : "high",
 		    dev_priv->vbt.backlight.min_brightness,
-		    backlight_data->level[panel_type],
+		    level,
 		    dev_priv->vbt.backlight.controller);
 }
 
@@ -1602,7 +1628,9 @@ static u8 map_ddc_pin(struct drm_i915_private *dev_priv, u8 vbt_pin)
 	const u8 *ddc_pin_map;
 	int n_entries;
 
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP) {
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1) {
+		return vbt_pin;
+	} else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP) {
 		ddc_pin_map = icp_ddc_pin_map;
 		n_entries = ARRAY_SIZE(icp_ddc_pin_map);
 	} else if (HAS_PCH_CNP(dev_priv)) {
@@ -1660,20 +1688,18 @@ static enum port dvo_port_to_port(struct drm_i915_private *dev_priv,
 		[PORT_I] = { DVO_PORT_HDMII, DVO_PORT_DPI, -1 },
 	};
 	/*
-	 * Bspec lists the ports as A, B, C, D - however internally in our
-	 * driver we keep them as PORT_A, PORT_B, PORT_D and PORT_E so the
-	 * registers in Display Engine match the right offsets. Apply the
-	 * mapping here to translate from VBT to internal convention.
+	 * RKL VBT uses PHY based mapping. Combo PHYs A,B,C,D
+	 * map to DDI A,B,TC1,TC2 respectively.
 	 */
 	static const int rkl_port_mapping[][3] = {
 		[PORT_A] = { DVO_PORT_HDMIA, DVO_PORT_DPA, -1 },
 		[PORT_B] = { DVO_PORT_HDMIB, DVO_PORT_DPB, -1 },
 		[PORT_C] = { -1 },
-		[PORT_D] = { DVO_PORT_HDMIC, DVO_PORT_DPC, -1 },
-		[PORT_E] = { DVO_PORT_HDMID, DVO_PORT_DPD, -1 },
+		[PORT_TC1] = { DVO_PORT_HDMIC, DVO_PORT_DPC, -1 },
+		[PORT_TC2] = { DVO_PORT_HDMID, DVO_PORT_DPD, -1 },
 	};
 
-	if (IS_ROCKETLAKE(dev_priv))
+	if (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv))
 		return __dvo_port_to_port(ARRAY_SIZE(rkl_port_mapping),
 					  ARRAY_SIZE(rkl_port_mapping[0]),
 					  rkl_port_mapping,
@@ -1889,7 +1915,7 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 		expected_size = 37;
 	} else if (bdb->version <= 215) {
 		expected_size = 38;
-	} else if (bdb->version <= 229) {
+	} else if (bdb->version <= 237) {
 		expected_size = 39;
 	} else {
 		expected_size = sizeof(*child);
@@ -2638,10 +2664,16 @@ enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv,
 		aux_ch = AUX_CH_B;
 		break;
 	case DP_AUX_C:
-		aux_ch = IS_ROCKETLAKE(dev_priv) ? AUX_CH_D : AUX_CH_C;
+		/*
+		 * RKL/DG1 VBT uses PHY based mapping. Combo PHYs A,B,C,D
+		 * map to DDI A,B,TC1,TC2 respectively.
+		 */
+		aux_ch = (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv)) ?
+			AUX_CH_USBC1 : AUX_CH_C;
 		break;
 	case DP_AUX_D:
-		aux_ch = IS_ROCKETLAKE(dev_priv) ? AUX_CH_E : AUX_CH_D;
+		aux_ch = (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv)) ?
+			AUX_CH_USBC2 : AUX_CH_D;
 		break;
 	case DP_AUX_E:
 		aux_ch = AUX_CH_E;

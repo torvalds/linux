@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2011 Philippe Rétornaz
  *
  * Based on twl4030-pwrbutton driver by:

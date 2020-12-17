@@ -164,6 +164,52 @@ disconnects. Calls to both callbacks are serialized.
 The open() callback should return a 0 in case of success or any nonzero value
 in case of failure. The close() callback (which is void) must always succeed.
 
+Inhibiting input devices
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Inhibiting a device means ignoring input events from it. As such it is about
+maintaining relationships with input handlers - either already existing
+relationships, or relationships to be established while the device is in
+inhibited state.
+
+If a device is inhibited, no input handler will receive events from it.
+
+The fact that nobody wants events from the device is exploited further, by
+calling device's close() (if there are users) and open() (if there are users) on
+inhibit and uninhibit operations, respectively. Indeed, the meaning of close()
+is to stop providing events to the input core and that of open() is to start
+providing events to the input core.
+
+Calling the device's close() method on inhibit (if there are users) allows the
+driver to save power. Either by directly powering down the device or by
+releasing the runtime-pm reference it got in open() when the driver is using
+runtime-pm.
+
+Inhibiting and uninhibiting are orthogonal to opening and closing the device by
+input handlers. Userspace might want to inhibit a device in anticipation before
+any handler is positively matched against it.
+
+Inhibiting and uninhibiting are orthogonal to device's being a wakeup source,
+too. Being a wakeup source plays a role when the system is sleeping, not when
+the system is operating.  How drivers should program their interaction between
+inhibiting, sleeping and being a wakeup source is driver-specific.
+
+Taking the analogy with the network devices - bringing a network interface down
+doesn't mean that it should be impossible be wake the system up on LAN through
+this interface. So, there may be input drivers which should be considered wakeup
+sources even when inhibited. Actually, in many I2C input devices their interrupt
+is declared a wakeup interrupt and its handling happens in driver's core, which
+is not aware of input-specific inhibit (nor should it be).  Composite devices
+containing several interfaces can be inhibited on a per-interface basis and e.g.
+inhibiting one interface shouldn't affect the device's capability of being a
+wakeup source.
+
+If a device is to be considered a wakeup source while inhibited, special care
+must be taken when programming its suspend(), as it might need to call device's
+open(). Depending on what close() means for the device in question, not
+opening() it before going to sleep might make it impossible to provide any
+wakeup events. The device is going to sleep anyway.
+
 Basic event types
 ~~~~~~~~~~~~~~~~~
 

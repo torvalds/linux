@@ -724,22 +724,40 @@
 
 		/* OCP2SCP1 */
 		/* IRQ for DWC3_3 and DWC3_4 need IRQ crossbar */
-		gpmc: gpmc@50000000 {
-			compatible = "ti,am3352-gpmc";
-			ti,hwmods = "gpmc";
-			reg = <0x50000000 0x37c>;      /* device IO registers */
-			interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&edma_xbar 4 0>;
-			dma-names = "rxtx";
-			gpmc,num-cs = <8>;
-			gpmc,num-waitpins = <2>;
-			#address-cells = <2>;
+
+		target-module@50000000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x50000000 4>,
+			      <0x50000010 4>,
+			      <0x50000014 4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			clocks = <&l3main1_clkctrl DRA7_L3MAIN1_GPMC_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
 			#size-cells = <1>;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-			gpio-controller;
-			#gpio-cells = <2>;
-			status = "disabled";
+			ranges = <0x50000000 0x50000000 0x00001000>, /* regs */
+				 <0x00000000 0x00000000 0x40000000>; /* data */
+
+			gpmc: gpmc@50000000 {
+				compatible = "ti,am3352-gpmc";
+				reg = <0x50000000 0x37c>;      /* device IO registers */
+				interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+				dmas = <&edma_xbar 4 0>;
+				dma-names = "rxtx";
+				gpmc,num-cs = <8>;
+				gpmc,num-waitpins = <2>;
+				#address-cells = <2>;
+				#size-cells = <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				status = "disabled";
+			};
 		};
 
 		target-module@56000000 {
@@ -932,7 +950,7 @@
 			};
 		};
 
-		sham_target: target-module@4b101000 {
+		sham1_target: target-module@4b101000 {
 			compatible = "ti,sysc-omap3-sham", "ti,sysc";
 			reg = <0x4b101100 0x4>,
 			      <0x4b101110 0x4>,
@@ -951,7 +969,7 @@
 			#size-cells = <1>;
 			ranges = <0x0 0x4b101000 0x1000>;
 
-			sham: sham@0 {
+			sham1: sham@0 {
 				compatible = "ti,omap5-sham";
 				reg = <0 0x300>;
 				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
@@ -959,6 +977,62 @@
 				dma-names = "rx";
 				clocks = <&l3_iclk_div>;
 				clock-names = "fck";
+			};
+		};
+
+		sham2_target: target-module@42701000 {
+			compatible = "ti,sysc-omap3-sham", "ti,sysc";
+			reg = <0x42701100 0x4>,
+			      <0x42701110 0x4>,
+			      <0x42701114 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			/* Domains (P, C): l4per_pwrdm, l4sec_clkdm */
+			clocks = <&l4sec_clkctrl DRA7_L4SEC_SHAM2_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x42701000 0x1000>;
+
+			sham2: sham@0 {
+				compatible = "ti,omap5-sham";
+				reg = <0 0x300>;
+				interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>;
+				dmas = <&edma_xbar 165 0>;
+				dma-names = "rx";
+				clocks = <&l3_iclk_div>;
+				clock-names = "fck";
+			};
+		};
+
+		iva_hd_target: target-module@5a000000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x5a05a400 0x4>,
+			      <0x5a05a410 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			power-domains = <&prm_iva>;
+			resets = <&prm_iva 2>;
+			reset-names = "rstctrl";
+			clocks = <&iva_clkctrl DRA7_IVA_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x5a000000 0x5a000000 0x1000000>,
+				 <0x5b000000 0x5b000000 0x1000000>;
+
+			iva {
+				compatible = "ti,ivahd";
 			};
 		};
 
@@ -1031,53 +1105,130 @@
 #include "dra7xx-clocks.dtsi"
 
 &prm {
+	prm_mpu: prm@300 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0x300 0x100>;
+		#power-domain-cells = <0>;
+	};
+
 	prm_dsp1: prm@400 {
 		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
 		reg = <0x400 0x100>;
 		#reset-cells = <1>;
+		#power-domain-cells = <0>;
 	};
 
 	prm_ipu: prm@500 {
 		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
 		reg = <0x500 0x100>;
 		#reset-cells = <1>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_coreaon: prm@628 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0x628 0xd8>;
+		#power-domain-cells = <0>;
 	};
 
 	prm_core: prm@700 {
 		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
 		reg = <0x700 0x100>;
 		#reset-cells = <1>;
+		#power-domain-cells = <0>;
 	};
 
 	prm_iva: prm@f00 {
 		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
 		reg = <0xf00 0x100>;
+		#reset-cells = <1>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_cam: prm@1000 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1000 0x100>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_dss: prm@1100 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1100 0x100>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_gpu: prm@1200 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1200 0x100>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_l3init: prm@1300 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1300 0x100>;
+		#reset-cells = <1>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_l4per: prm@1400 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1400 0x100>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_custefuse: prm@1600 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1600 0x100>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_wkupaon: prm@1724 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1724 0x100>;
+		#power-domain-cells = <0>;
 	};
 
 	prm_dsp2: prm@1b00 {
 		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
 		reg = <0x1b00 0x40>;
 		#reset-cells = <1>;
+		#power-domain-cells = <0>;
 	};
 
 	prm_eve1: prm@1b40 {
 		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
 		reg = <0x1b40 0x40>;
+		#power-domain-cells = <0>;
 	};
 
 	prm_eve2: prm@1b80 {
 		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
 		reg = <0x1b80 0x40>;
+		#power-domain-cells = <0>;
 	};
 
 	prm_eve3: prm@1bc0 {
 		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
 		reg = <0x1bc0 0x40>;
+		#power-domain-cells = <0>;
 	};
 
 	prm_eve4: prm@1c00 {
 		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
 		reg = <0x1c00 0x60>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_rtc: prm@1c60 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1c60 0x20>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_vpe: prm@1c80 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1c80 0x80>;
+		#power-domain-cells = <0>;
 	};
 };
 

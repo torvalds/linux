@@ -190,8 +190,9 @@ function calls GCC directly inserts the code to check the shadow memory.
 This option significantly enlarges kernel but it gives x1.1-x2 performance
 boost over outline instrumented kernel.
 
-Generic KASAN prints up to 2 call_rcu() call stacks in reports, the last one
-and the second to last.
+Generic KASAN also reports the last 2 call stacks to creation of work that
+potentially has access to an object. Call stacks for the following are shown:
+call_rcu() and workqueue queuing.
 
 Software tag-based KASAN
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -330,7 +331,7 @@ using something like insmod or modprobe. The module is called ``test_kasan``.
 ~~~~~~~~~~~~~
 
 With ``CONFIG_KUNIT`` built-in, ``CONFIG_KASAN_KUNIT_TEST`` can be built-in
-on any architecure that supports KASAN. These and any other KUnit
+on any architecture that supports KASAN. These and any other KUnit
 tests enabled will run and print the results at boot as a late-init
 call.
 
@@ -351,5 +352,5 @@ converted to KUnit. These tests can be run only as a module with
 ``CONFIG_KASAN`` built-in. The type of error expected and the
 function being run is printed before the expression expected to give
 an error. Then the error is printed, if found, and that test
-should be interpretted to pass only if the error was the one expected
+should be interpreted to pass only if the error was the one expected
 by the test.

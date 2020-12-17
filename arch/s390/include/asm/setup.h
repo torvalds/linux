@@ -16,8 +16,6 @@
 #define EARLY_SCCB_OFFSET	0x11000
 #define HEAD_END		0x12000
 
-#define EARLY_SCCB_SIZE		PAGE_SIZE
-
 /*
  * Machine features detected in early.c
  */
@@ -88,10 +86,8 @@ extern unsigned int zlib_dfltcc_support;
 #define ZLIB_DFLTCC_FULL_DEBUG		4
 
 extern int noexec_disabled;
-extern int memory_end_set;
-extern unsigned long memory_end;
+extern unsigned long ident_map_size;
 extern unsigned long vmalloc_size;
-extern unsigned long max_physmem_end;
 
 /* The Write Back bit position in the physaddr is given by the SLPC PCI */
 extern unsigned long mio_wb_bit_mask;

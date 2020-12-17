@@ -354,42 +354,6 @@ static struct omap_hwmod omap44xx_emif2_hwmod = {
 };
 
 /*
- * 'gpmc' class
- * general purpose memory controller
- */
-
-static struct omap_hwmod_class_sysconfig omap44xx_gpmc_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.syss_offs	= 0x0014,
-	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_SIDLEMODE |
-			   SYSC_HAS_SOFTRESET | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class omap44xx_gpmc_hwmod_class = {
-	.name	= "gpmc",
-	.sysc	= &omap44xx_gpmc_sysc,
-};
-
-/* gpmc */
-static struct omap_hwmod omap44xx_gpmc_hwmod = {
-	.name		= "gpmc",
-	.class		= &omap44xx_gpmc_hwmod_class,
-	.clkdm_name	= "l3_2_clkdm",
-	/* Skip reset for CONFIG_OMAP_GPMC_DEBUG for bootloader timings */
-	.flags		= DEBUG_OMAP_GPMC_HWMOD_FLAGS,
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_L3_2_GPMC_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_L3_2_GPMC_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
-		},
-	},
-};
-
-/*
  * 'iss' class
  * external images sensor pixel data processor
  */
@@ -438,39 +402,6 @@ static struct omap_hwmod omap44xx_iss_hwmod = {
 	},
 	.opt_clks	= iss_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(iss_opt_clks),
-};
-
-/*
- * 'iva' class
- * multi-standard video encoder/decoder hardware accelerator
- */
-
-static struct omap_hwmod_class omap44xx_iva_hwmod_class = {
-	.name	= "iva",
-};
-
-/* iva */
-static struct omap_hwmod_rst_info omap44xx_iva_resets[] = {
-	{ .name = "seq0", .rst_shift = 0 },
-	{ .name = "seq1", .rst_shift = 1 },
-	{ .name = "logic", .rst_shift = 2 },
-};
-
-static struct omap_hwmod omap44xx_iva_hwmod = {
-	.name		= "iva",
-	.class		= &omap44xx_iva_hwmod_class,
-	.clkdm_name	= "ivahd_clkdm",
-	.rst_lines	= omap44xx_iva_resets,
-	.rst_lines_cnt	= ARRAY_SIZE(omap44xx_iva_resets),
-	.main_clk	= "dpll_iva_m5x2_ck",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_IVAHD_IVAHD_CLKCTRL_OFFSET,
-			.rstctrl_offs = OMAP4_RM_IVAHD_RSTCTRL_OFFSET,
-			.context_offs = OMAP4_RM_IVAHD_IVAHD_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
-		},
-	},
 };
 
 /*
@@ -644,14 +575,6 @@ static struct omap_hwmod_ocp_if omap44xx_mpu__dmm = {
 	.user		= OCP_USER_MPU,
 };
 
-/* iva -> l3_instr */
-static struct omap_hwmod_ocp_if omap44xx_iva__l3_instr = {
-	.master		= &omap44xx_iva_hwmod,
-	.slave		= &omap44xx_l3_instr_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3_main_3 -> l3_instr */
 static struct omap_hwmod_ocp_if omap44xx_l3_main_3__l3_instr = {
 	.master		= &omap44xx_l3_main_3_hwmod,
@@ -703,14 +626,6 @@ static struct omap_hwmod_ocp_if omap44xx_debugss__l3_main_2 = {
 /* iss -> l3_main_2 */
 static struct omap_hwmod_ocp_if omap44xx_iss__l3_main_2 = {
 	.master		= &omap44xx_iss_hwmod,
-	.slave		= &omap44xx_l3_main_2_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* iva -> l3_main_2 */
-static struct omap_hwmod_ocp_if omap44xx_iva__l3_main_2 = {
-	.master		= &omap44xx_iva_hwmod,
 	.slave		= &omap44xx_l3_main_2_hwmod,
 	.clk		= "l3_div_ck",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
@@ -836,36 +751,12 @@ static struct omap_hwmod_ocp_if omap44xx_l3_instr__debugss = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l3_main_2 -> gpmc */
-static struct omap_hwmod_ocp_if omap44xx_l3_main_2__gpmc = {
-	.master		= &omap44xx_l3_main_2_hwmod,
-	.slave		= &omap44xx_gpmc_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3_main_2 -> iss */
 static struct omap_hwmod_ocp_if omap44xx_l3_main_2__iss = {
 	.master		= &omap44xx_l3_main_2_hwmod,
 	.slave		= &omap44xx_iss_hwmod,
 	.clk		= "l3_div_ck",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* iva -> sl2if */
-static struct omap_hwmod_ocp_if __maybe_unused omap44xx_iva__sl2if = {
-	.master		= &omap44xx_iva_hwmod,
-	.slave		= &omap44xx_sl2if_hwmod,
-	.clk		= "dpll_iva_m5x2_ck",
-	.user		= OCP_USER_IVA,
-};
-
-/* l3_main_2 -> iva */
-static struct omap_hwmod_ocp_if omap44xx_l3_main_2__iva = {
-	.master		= &omap44xx_l3_main_2_hwmod,
-	.slave		= &omap44xx_iva_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU,
 };
 
 /* l3_main_2 -> ocmc_ram */
@@ -943,7 +834,6 @@ static struct omap_hwmod_ocp_if omap44xx_mpu__emif2 = {
 static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l3_main_1__dmm,
 	&omap44xx_mpu__dmm,
-	&omap44xx_iva__l3_instr,
 	&omap44xx_l3_main_3__l3_instr,
 	&omap44xx_ocp_wp_noc__l3_instr,
 	&omap44xx_l3_main_2__l3_main_1,
@@ -951,7 +841,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_mpu__l3_main_1,
 	&omap44xx_debugss__l3_main_2,
 	&omap44xx_iss__l3_main_2,
-	&omap44xx_iva__l3_main_2,
 	&omap44xx_l3_main_1__l3_main_2,
 	&omap44xx_l4_cfg__l3_main_2,
 	&omap44xx_l3_main_1__l3_main_3,
@@ -967,10 +856,7 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_wkup__ctrl_module_wkup,
 	&omap44xx_l4_wkup__ctrl_module_pad_wkup,
 	&omap44xx_l3_instr__debugss,
-	&omap44xx_l3_main_2__gpmc,
 	&omap44xx_l3_main_2__iss,
-	/* &omap44xx_iva__sl2if, */
-	&omap44xx_l3_main_2__iva,
 	&omap44xx_l3_main_2__ocmc_ram,
 	&omap44xx_mpu_private__prcm_mpu,
 	&omap44xx_l4_wkup__cm_core_aon,

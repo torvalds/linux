@@ -378,7 +378,7 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 
 	xdr_init_decode_pages(&stream, &buf, lgr->layoutp->pages,
 			      lgr->layoutp->len);
-	xdr_set_scratch_buffer(&stream, page_address(scratch), PAGE_SIZE);
+	xdr_set_scratch_page(&stream, scratch);
 
 	/* stripe unit and mirror_array_cnt */
 	rc = -EIO;
@@ -838,7 +838,7 @@ ff_layout_pg_init_read(struct nfs_pageio_descriptor *pgio,
 	struct nfs_pgio_mirror *pgm;
 	struct nfs4_ff_layout_mirror *mirror;
 	struct nfs4_pnfs_ds *ds;
-	u32 ds_idx, i;
+	u32 ds_idx;
 
 retry:
 	ff_layout_pg_check_layout(pgio, req);
@@ -864,11 +864,9 @@ retry:
 		goto retry;
 	}
 
-	for (i = 0; i < pgio->pg_mirror_count; i++) {
-		mirror = FF_LAYOUT_COMP(pgio->pg_lseg, i);
-		pgm = &pgio->pg_mirrors[i];
-		pgm->pg_bsize = mirror->mirror_ds->ds_versions[0].rsize;
-	}
+	mirror = FF_LAYOUT_COMP(pgio->pg_lseg, ds_idx);
+	pgm = &pgio->pg_mirrors[0];
+	pgm->pg_bsize = mirror->mirror_ds->ds_versions[0].rsize;
 
 	pgio->pg_mirror_idx = ds_idx;
 
@@ -985,6 +983,21 @@ out:
 	return 1;
 }
 
+static u32
+ff_layout_pg_set_mirror_write(struct nfs_pageio_descriptor *desc, u32 idx)
+{
+	u32 old = desc->pg_mirror_idx;
+
+	desc->pg_mirror_idx = idx;
+	return old;
+}
+
+static struct nfs_pgio_mirror *
+ff_layout_pg_get_mirror_write(struct nfs_pageio_descriptor *desc, u32 idx)
+{
+	return &desc->pg_mirrors[idx];
+}
+
 static const struct nfs_pageio_ops ff_layout_pg_read_ops = {
 	.pg_init = ff_layout_pg_init_read,
 	.pg_test = pnfs_generic_pg_test,
@@ -998,6 +1011,8 @@ static const struct nfs_pageio_ops ff_layout_pg_write_ops = {
 	.pg_doio = pnfs_generic_pg_writepages,
 	.pg_get_mirror_count = ff_layout_pg_get_mirror_count_write,
 	.pg_cleanup = pnfs_generic_pg_cleanup,
+	.pg_get_mirror = ff_layout_pg_get_mirror_write,
+	.pg_set_mirror = ff_layout_pg_set_mirror_write,
 };
 
 static void ff_layout_reset_write(struct nfs_pgio_header *hdr, bool retry_pnfs)

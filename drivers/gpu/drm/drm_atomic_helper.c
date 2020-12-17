@@ -918,7 +918,7 @@ drm_atomic_helper_check_planes(struct drm_device *dev,
 		if (!funcs || !funcs->atomic_check)
 			continue;
 
-		ret = funcs->atomic_check(crtc, new_crtc_state);
+		ret = funcs->atomic_check(crtc, state);
 		if (ret) {
 			DRM_DEBUG_ATOMIC("[CRTC:%d:%s] atomic driver check failed\n",
 					 crtc->base.id, crtc->name);
@@ -1093,7 +1093,7 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		if (new_crtc_state->enable && funcs->prepare)
 			funcs->prepare(crtc);
 		else if (funcs->atomic_disable)
-			funcs->atomic_disable(crtc, old_crtc_state);
+			funcs->atomic_disable(crtc, old_state);
 		else if (funcs->disable)
 			funcs->disable(crtc);
 		else if (funcs->dpms)
@@ -1358,7 +1358,7 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 			DRM_DEBUG_ATOMIC("enabling [CRTC:%d:%s]\n",
 					 crtc->base.id, crtc->name);
 			if (funcs->atomic_enable)
-				funcs->atomic_enable(crtc, old_crtc_state);
+				funcs->atomic_enable(crtc, old_state);
 			else if (funcs->commit)
 				funcs->commit(crtc);
 		}
@@ -1736,8 +1736,11 @@ int drm_atomic_helper_async_check(struct drm_device *dev,
 	 * overridden by a previous synchronous update's state.
 	 */
 	if (old_plane_state->commit &&
-	    !try_wait_for_completion(&old_plane_state->commit->hw_done))
+	    !try_wait_for_completion(&old_plane_state->commit->hw_done)) {
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] inflight previous commit preventing async commit\n",
+			plane->base.id, plane->name);
 		return -EBUSY;
+	}
 
 	return funcs->atomic_async_check(plane, new_plane_state);
 }
@@ -1955,6 +1958,9 @@ static int stall_checks(struct drm_crtc *crtc, bool nonblock)
 			 * commit with nonblocking ones. */
 			if (!completed && nonblock) {
 				spin_unlock(&crtc->commit_lock);
+				DRM_DEBUG_ATOMIC("[CRTC:%d:%s] busy with a previous commit\n",
+					crtc->base.id, crtc->name);
+
 				return -EBUSY;
 			}
 		} else if (i == 1) {
@@ -2129,8 +2135,12 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 		/* Userspace is not allowed to get ahead of the previous
 		 * commit with nonblocking ones. */
 		if (nonblock && old_conn_state->commit &&
-		    !try_wait_for_completion(&old_conn_state->commit->flip_done))
+		    !try_wait_for_completion(&old_conn_state->commit->flip_done)) {
+			DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] busy with a previous commit\n",
+				conn->base.id, conn->name);
+
 			return -EBUSY;
+		}
 
 		/* Always track connectors explicitly for e.g. link retraining. */
 		commit = crtc_or_fake_commit(state, new_conn_state->crtc ?: old_conn_state->crtc);
@@ -2144,8 +2154,12 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 		/* Userspace is not allowed to get ahead of the previous
 		 * commit with nonblocking ones. */
 		if (nonblock && old_plane_state->commit &&
-		    !try_wait_for_completion(&old_plane_state->commit->flip_done))
+		    !try_wait_for_completion(&old_plane_state->commit->flip_done)) {
+			DRM_DEBUG_ATOMIC("[PLANE:%d:%s] busy with a previous commit\n",
+				plane->base.id, plane->name);
+
 			return -EBUSY;
+		}
 
 		/* Always track planes explicitly for async pageflip support. */
 		commit = crtc_or_fake_commit(state, new_plane_state->crtc ?: old_plane_state->crtc);
@@ -2507,7 +2521,7 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 		if (active_only && !new_crtc_state->active)
 			continue;
 
-		funcs->atomic_begin(crtc, old_crtc_state);
+		funcs->atomic_begin(crtc, old_state);
 	}
 
 	for_each_oldnew_plane_in_state(old_state, plane, old_plane_state, new_plane_state, i) {
@@ -2565,7 +2579,7 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 		if (active_only && !new_crtc_state->active)
 			continue;
 
-		funcs->atomic_flush(crtc, old_crtc_state);
+		funcs->atomic_flush(crtc, old_state);
 	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_planes);
@@ -2603,7 +2617,7 @@ drm_atomic_helper_commit_planes_on_crtc(struct drm_crtc_state *old_crtc_state)
 
 	crtc_funcs = crtc->helper_private;
 	if (crtc_funcs && crtc_funcs->atomic_begin)
-		crtc_funcs->atomic_begin(crtc, old_crtc_state);
+		crtc_funcs->atomic_begin(crtc, old_state);
 
 	drm_for_each_plane_mask(plane, crtc->dev, plane_mask) {
 		struct drm_plane_state *old_plane_state =
@@ -2629,7 +2643,7 @@ drm_atomic_helper_commit_planes_on_crtc(struct drm_crtc_state *old_crtc_state)
 	}
 
 	if (crtc_funcs && crtc_funcs->atomic_flush)
-		crtc_funcs->atomic_flush(crtc, old_crtc_state);
+		crtc_funcs->atomic_flush(crtc, old_state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_planes_on_crtc);
 

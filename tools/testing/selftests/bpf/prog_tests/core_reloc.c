@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 #include "progs/core_reloc_types.h"
+#include "bpf_testmod/bpf_testmod.h"
 #include <sys/mman.h>
 #include <sys/syscall.h>
 #include <bpf/btf.h>
@@ -8,6 +9,30 @@
 static int duration = 0;
 
 #define STRUCT_TO_CHAR_PTR(struct_name) (const char *)&(struct struct_name)
+
+#define MODULES_CASE(name, sec_name, tp_name) {				\
+	.case_name = name,						\
+	.bpf_obj_file = "test_core_reloc_module.o",			\
+	.btf_src_file = NULL, /* find in kernel module BTFs */		\
+	.input = "",							\
+	.input_len = 0,							\
+	.output = STRUCT_TO_CHAR_PTR(core_reloc_module_output) {	\
+		.read_ctx_sz = sizeof(struct bpf_testmod_test_read_ctx),\
+		.read_ctx_exists = true,				\
+		.buf_exists = true,					\
+		.len_exists = true,					\
+		.off_exists = true,					\
+		.len = 123,						\
+		.off = 0,						\
+		.comm = "test_progs",					\
+		.comm_len = sizeof("test_progs"),			\
+	},								\
+	.output_len = sizeof(struct core_reloc_module_output),		\
+	.prog_sec_name = sec_name,					\
+	.raw_tp_name = tp_name,						\
+	.trigger = trigger_module_test_read,				\
+	.needs_testmod = true,						\
+}
 
 #define FLAVORS_DATA(struct_name) STRUCT_TO_CHAR_PTR(struct_name) {	\
 	.a = 42,							\
@@ -211,7 +236,7 @@ static int duration = 0;
 	.output = STRUCT_TO_CHAR_PTR(core_reloc_bitfields_output)	\
 		__VA_ARGS__,						\
 	.output_len = sizeof(struct core_reloc_bitfields_output),	\
-	.direct_raw_tp = true,						\
+	.prog_sec_name = "tp_btf/sys_enter",				\
 }
 
 
@@ -222,7 +247,7 @@ static int duration = 0;
 }, {									\
 	BITFIELDS_CASE_COMMON("test_core_reloc_bitfields_direct.o",	\
 			      "direct:", name),				\
-	.direct_raw_tp = true,						\
+	.prog_sec_name = "tp_btf/sys_enter",				\
 	.fails = true,							\
 }
 
@@ -309,6 +334,7 @@ static int duration = 0;
 struct core_reloc_test_case;
 
 typedef int (*setup_test_fn)(struct core_reloc_test_case *test);
+typedef int (*trigger_test_fn)(const struct core_reloc_test_case *test);
 
 struct core_reloc_test_case {
 	const char *case_name;
@@ -319,9 +345,12 @@ struct core_reloc_test_case {
 	const char *output;
 	int output_len;
 	bool fails;
+	bool needs_testmod;
 	bool relaxed_core_relocs;
-	bool direct_raw_tp;
+	const char *prog_sec_name;
+	const char *raw_tp_name;
 	setup_test_fn setup;
+	trigger_test_fn trigger;
 };
 
 static int find_btf_type(const struct btf *btf, const char *name, __u32 kind)
@@ -451,6 +480,23 @@ static int setup_type_id_case_failure(struct core_reloc_test_case *test)
 	return 0;
 }
 
+static int trigger_module_test_read(const struct core_reloc_test_case *test)
+{
+	struct core_reloc_module_output *exp = (void *)test->output;
+	int fd, err;
+
+	fd = open("/sys/kernel/bpf_testmod", O_RDONLY);
+	err = -errno;
+	if (CHECK(fd < 0, "testmod_file_open", "failed: %d\n", err))
+		return err;
+
+	read(fd, NULL, exp->len); /* request expected number of bytes */
+	close(fd);
+
+	return 0;
+}
+
+
 static struct core_reloc_test_case test_cases[] = {
 	/* validate we can find kernel image and use its BTF for relocs */
 	{
@@ -466,6 +512,10 @@ static struct core_reloc_test_case test_cases[] = {
 		},
 		.output_len = sizeof(struct core_reloc_kernel_output),
 	},
+
+	/* validate we can find kernel module BTF types for relocs/attach */
+	MODULES_CASE("module_probed", "raw_tp/bpf_testmod_test_read", "bpf_testmod_test_read"),
+	MODULES_CASE("module_direct", "tp_btf/bpf_testmod_test_read", NULL),
 
 	/* validate BPF program can use multiple flavors to match against
 	 * single target BTF type
@@ -779,6 +829,11 @@ void test_core_reloc(void)
 		if (!test__start_subtest(test_case->case_name))
 			continue;
 
+		if (test_case->needs_testmod && !env.has_testmod) {
+			test__skip();
+			continue;
+		}
+
 		if (test_case->setup) {
 			err = test_case->setup(test_case);
 			if (CHECK(err, "test_setup", "test #%d setup failed: %d\n", i, err))
@@ -790,13 +845,11 @@ void test_core_reloc(void)
 			  test_case->bpf_obj_file, PTR_ERR(obj)))
 			continue;
 
-		/* for typed raw tracepoints, NULL should be specified */
-		if (test_case->direct_raw_tp) {
-			probe_name = "tp_btf/sys_enter";
-			tp_name = NULL;
-		} else {
-			probe_name = "raw_tracepoint/sys_enter";
-			tp_name = "sys_enter";
+		probe_name = "raw_tracepoint/sys_enter";
+		tp_name = "sys_enter";
+		if (test_case->prog_sec_name) {
+			probe_name = test_case->prog_sec_name;
+			tp_name = test_case->raw_tp_name; /* NULL for tp_btf */
 		}
 
 		prog = bpf_object__find_program_by_title(obj, probe_name);
@@ -837,7 +890,12 @@ void test_core_reloc(void)
 			goto cleanup;
 
 		/* trigger test run */
-		usleep(1);
+		if (test_case->trigger) {
+			if (!ASSERT_OK(test_case->trigger(test_case), "test_trigger"))
+				goto cleanup;
+		} else {
+			usleep(1);
+		}
 
 		if (data->skip) {
 			test__skip();

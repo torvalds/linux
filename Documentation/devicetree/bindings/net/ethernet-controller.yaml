@@ -95,6 +95,7 @@ properties:
       # 10GBASE-KR, XFI, SFI
       - 10gbase-kr
       - usxgmii
+      - 10gbase-r
 
   phy-mode:
     $ref: "#/properties/phy-connection-type"

@@ -6130,6 +6130,7 @@ ahd_free(struct ahd_softc *ahd)
 		fallthrough;
 	case 2:
 		ahd_dma_tag_destroy(ahd, ahd->shared_data_dmat);
+		break;
 	case 1:
 		break;
 	case 0:
@@ -6542,8 +6543,8 @@ ahd_fini_scbdata(struct ahd_softc *ahd)
 			kfree(hscb_map);
 		}
 		ahd_dma_tag_destroy(ahd, scb_data->hscb_dmat);
-		/* FALLTHROUGH */
 	}
+		fallthrough;
 	case 4:
 	case 3:
 	case 2:
@@ -7866,11 +7867,9 @@ ahd_pause_and_flushwork(struct ahd_softc *ahd)
 	ahd->flags &= ~AHD_ALL_INTERRUPTS;
 }
 
-#ifdef CONFIG_PM
-int
+int __maybe_unused
 ahd_suspend(struct ahd_softc *ahd)
 {
-
 	ahd_pause_and_flushwork(ahd);
 
 	if (LIST_FIRST(&ahd->pending_scbs) != NULL) {
@@ -7881,15 +7880,13 @@ ahd_suspend(struct ahd_softc *ahd)
 	return (0);
 }
 
-void
+void __maybe_unused
 ahd_resume(struct ahd_softc *ahd)
 {
-
 	ahd_reset(ahd, /*reinit*/TRUE);
 	ahd_intr_enable(ahd, TRUE); 
 	ahd_restart(ahd);
 }
-#endif
 
 /************************** Busy Target Table *********************************/
 /*
@@ -8911,6 +8908,7 @@ ahd_handle_scsi_status(struct ahd_softc *ahd, struct scb *scb)
 					break;
 				case SIU_PFC_ILLEGAL_REQUEST:
 					printk("Illegal request\n");
+					break;
 				default:
 					break;
 				}

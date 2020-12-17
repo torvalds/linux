@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011 Texas Instruments Incorporated - https://www.ti.com/
  * Author: Rob Clark <rob.clark@linaro.org>
  */
 
@@ -100,8 +100,7 @@ int omap_irq_enable_framedone(struct drm_crtc *crtc, bool enable)
 
 /**
  * enable_vblank - enable vblank interrupt events
- * @dev: DRM device
- * @pipe: which irq to enable
+ * @crtc: DRM CRTC
  *
  * Enable vblank interrupts for @crtc.  If the device doesn't have
  * a hardware vblank counter, this routine should be a no-op, since
@@ -131,8 +130,7 @@ int omap_irq_enable_vblank(struct drm_crtc *crtc)
 
 /**
  * disable_vblank - disable vblank interrupt events
- * @dev: DRM device
- * @pipe: which irq to enable
+ * @crtc: DRM CRTC
  *
  * Disable vblank interrupts for @crtc.  If the device doesn't have
  * a hardware vblank counter, this routine should be a no-op, since

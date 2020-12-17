@@ -74,7 +74,7 @@ memory node's access class 0 initiators as follows::
 	/sys/devices/system/node/nodeY/access0/initiators/
 
 These attributes apply only when accessed from nodes that have the
-are linked under the this access's inititiators.
+are linked under the this access's initiators.
 
 The performance characteristics the kernel provides for the local initiators
 are exported are as follows::

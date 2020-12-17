@@ -8,6 +8,7 @@ thuge-gen
 compaction_test
 mlock2-tests
 mremap_dontunmap
+mremap_test
 on-fault-limit
 transhuge-stress
 protection_keys
@@ -15,8 +16,9 @@ userfaultfd
 mlock-intersect-test
 mlock-random-test
 virtual_address_range
-gup_benchmark
+gup_test
 va_128TBswitch
 map_fixed_noreplace
 write_to_hugetlbfs
 hmm-tests
+local_config.*

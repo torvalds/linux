@@ -153,6 +153,7 @@ void tcp_rack_reo_timeout(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	u32 timeout, prior_inflight;
+	u32 lost = tp->lost;
 
 	prior_inflight = tcp_packets_in_flight(tp);
 	tcp_rack_detect_loss(sk, &timeout);
@@ -160,7 +161,7 @@ void tcp_rack_reo_timeout(struct sock *sk)
 		if (inet_csk(sk)->icsk_ca_state != TCP_CA_Recovery) {
 			tcp_enter_recovery(sk, false);
 			if (!inet_csk(sk)->icsk_ca_ops->cong_control)
-				tcp_cwnd_reduction(sk, 1, 0);
+				tcp_cwnd_reduction(sk, 1, tp->lost - lost, 0);
 		}
 		tcp_xmit_retransmit_queue(sk);
 	}

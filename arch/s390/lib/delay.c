@@ -13,10 +13,18 @@
 #include <linux/export.h>
 #include <linux/irqflags.h>
 #include <linux/interrupt.h>
+#include <linux/jump_label.h>
 #include <linux/irq.h>
 #include <asm/vtimer.h>
 #include <asm/div64.h>
 #include <asm/idle.h>
+
+static DEFINE_STATIC_KEY_FALSE(udelay_ready);
+
+void __init udelay_enable(void)
+{
+	static_branch_enable(&udelay_ready);
+}
 
 void __delay(unsigned long loops)
 {
@@ -33,7 +41,7 @@ EXPORT_SYMBOL(__delay);
 
 static void __udelay_disabled(unsigned long long usecs)
 {
-	unsigned long cr0, cr0_new, psw_mask, flags;
+	unsigned long cr0, cr0_new, psw_mask;
 	struct s390_idle_data idle;
 	u64 end;
 
@@ -45,9 +53,8 @@ static void __udelay_disabled(unsigned long long usecs)
 	psw_mask = __extract_psw() | PSW_MASK_EXT | PSW_MASK_WAIT;
 	set_clock_comparator(end);
 	set_cpu_flag(CIF_IGNORE_IRQ);
-	local_irq_save(flags);
 	psw_idle(&idle, psw_mask);
-	local_irq_restore(flags);
+	trace_hardirqs_off();
 	clear_cpu_flag(CIF_IGNORE_IRQ);
 	set_clock_comparator(S390_lowcore.clock_comparator);
 	__ctl_load(cr0, 0, 0);
@@ -76,6 +83,11 @@ static void __udelay_enabled(unsigned long long usecs)
 void __udelay(unsigned long long usecs)
 {
 	unsigned long flags;
+
+	if (!static_branch_likely(&udelay_ready)) {
+		udelay_simple(usecs);
+		return;
+	}
 
 	preempt_disable();
 	local_irq_save(flags);

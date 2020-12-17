@@ -270,37 +270,11 @@ static int adt7470_update_thread(void *p)
 	return 0;
 }
 
-static struct adt7470_data *adt7470_update_device(struct device *dev)
+static int adt7470_update_sensors(struct adt7470_data *data)
 {
-	struct adt7470_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
-	unsigned long local_jiffies = jiffies;
 	u8 cfg;
 	int i;
-	int need_sensors = 1;
-	int need_limits = 1;
-
-	/*
-	 * Figure out if we need to update the shadow registers.
-	 * Lockless means that we may occasionally report out of
-	 * date data.
-	 */
-	if (time_before(local_jiffies, data->sensors_last_updated +
-			SENSOR_REFRESH_INTERVAL) &&
-	    data->sensors_valid)
-		need_sensors = 0;
-
-	if (time_before(local_jiffies, data->limits_last_updated +
-			LIMIT_REFRESH_INTERVAL) &&
-	    data->limits_valid)
-		need_limits = 0;
-
-	if (!need_sensors && !need_limits)
-		return data;
-
-	mutex_lock(&data->lock);
-	if (!need_sensors)
-		goto no_sensor_update;
 
 	if (!data->temperatures_probed)
 		adt7470_read_temperatures(client, data);
@@ -352,12 +326,13 @@ static struct adt7470_data *adt7470_update_device(struct device *dev)
 	data->alarms_mask = adt7470_read_word_data(client,
 						   ADT7470_REG_ALARM1_MASK);
 
-	data->sensors_last_updated = local_jiffies;
-	data->sensors_valid = 1;
+	return 0;
+}
 
-no_sensor_update:
-	if (!need_limits)
-		goto out;
+static int adt7470_update_limits(struct adt7470_data *data)
+{
+	struct i2c_client *client = data->client;
+	int i;
 
 	for (i = 0; i < ADT7470_TEMP_COUNT; i++) {
 		data->temp_min[i] = i2c_smbus_read_byte_data(client,
@@ -382,12 +357,55 @@ no_sensor_update:
 						ADT7470_REG_PWM_TMIN(i));
 	}
 
-	data->limits_last_updated = local_jiffies;
-	data->limits_valid = 1;
+	return 0;
+}
 
+static struct adt7470_data *adt7470_update_device(struct device *dev)
+{
+	struct adt7470_data *data = dev_get_drvdata(dev);
+	unsigned long local_jiffies = jiffies;
+	int need_sensors = 1;
+	int need_limits = 1;
+	int err;
+
+	/*
+	 * Figure out if we need to update the shadow registers.
+	 * Lockless means that we may occasionally report out of
+	 * date data.
+	 */
+	if (time_before(local_jiffies, data->sensors_last_updated +
+			SENSOR_REFRESH_INTERVAL) &&
+	    data->sensors_valid)
+		need_sensors = 0;
+
+	if (time_before(local_jiffies, data->limits_last_updated +
+			LIMIT_REFRESH_INTERVAL) &&
+	    data->limits_valid)
+		need_limits = 0;
+
+	if (!need_sensors && !need_limits)
+		return data;
+
+	mutex_lock(&data->lock);
+	if (need_sensors) {
+		err = adt7470_update_sensors(data);
+		if (err < 0)
+			goto out;
+		data->sensors_last_updated = local_jiffies;
+		data->sensors_valid = 1;
+	}
+
+	if (need_limits) {
+		err = adt7470_update_limits(data);
+		if (err < 0)
+			goto out;
+		data->limits_last_updated = local_jiffies;
+		data->limits_valid = 1;
+	}
 out:
 	mutex_unlock(&data->lock);
-	return data;
+
+	return err < 0 ? ERR_PTR(err) : data;
 }
 
 static ssize_t auto_update_interval_show(struct device *dev,
@@ -395,6 +413,10 @@ static ssize_t auto_update_interval_show(struct device *dev,
 					 char *buf)
 {
 	struct adt7470_data *data = adt7470_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n", data->auto_update_interval);
 }
 
@@ -422,6 +444,10 @@ static ssize_t num_temp_sensors_show(struct device *dev,
 				     char *buf)
 {
 	struct adt7470_data *data = adt7470_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n", data->num_temp_sensors);
 }
 
@@ -451,6 +477,10 @@ static ssize_t temp_min_show(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adt7470_data *data = adt7470_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n", 1000 * data->temp_min[attr->index]);
 }
 
@@ -483,6 +513,10 @@ static ssize_t temp_max_show(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adt7470_data *data = adt7470_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n", 1000 * data->temp_max[attr->index]);
 }
 
@@ -515,6 +549,10 @@ static ssize_t temp_show(struct device *dev, struct device_attribute *devattr,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adt7470_data *data = adt7470_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n", 1000 * data->temp[attr->index]);
 }
 
@@ -523,6 +561,9 @@ static ssize_t alarm_mask_show(struct device *dev,
 			   char *buf)
 {
 	struct adt7470_data *data = adt7470_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	return sprintf(buf, "%x\n", data->alarms_mask);
 }
@@ -553,6 +594,9 @@ static ssize_t fan_max_show(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adt7470_data *data = adt7470_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	if (FAN_DATA_VALID(data->fan_max[attr->index]))
 		return sprintf(buf, "%d\n",
@@ -590,6 +634,9 @@ static ssize_t fan_min_show(struct device *dev,
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adt7470_data *data = adt7470_update_device(dev);
 
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	if (FAN_DATA_VALID(data->fan_min[attr->index]))
 		return sprintf(buf, "%d\n",
 			       FAN_PERIOD_TO_RPM(data->fan_min[attr->index]));
@@ -626,6 +673,9 @@ static ssize_t fan_show(struct device *dev, struct device_attribute *devattr,
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adt7470_data *data = adt7470_update_device(dev);
 
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	if (FAN_DATA_VALID(data->fan[attr->index]))
 		return sprintf(buf, "%d\n",
 			       FAN_PERIOD_TO_RPM(data->fan[attr->index]));
@@ -637,6 +687,10 @@ static ssize_t force_pwm_max_show(struct device *dev,
 				  struct device_attribute *devattr, char *buf)
 {
 	struct adt7470_data *data = adt7470_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n", data->force_pwm_max);
 }
 
@@ -670,6 +724,10 @@ static ssize_t pwm_show(struct device *dev, struct device_attribute *devattr,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adt7470_data *data = adt7470_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n", data->pwm[attr->index]);
 }
 
@@ -763,6 +821,10 @@ static ssize_t pwm_max_show(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adt7470_data *data = adt7470_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n", data->pwm_max[attr->index]);
 }
 
@@ -794,6 +856,10 @@ static ssize_t pwm_min_show(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adt7470_data *data = adt7470_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n", data->pwm_min[attr->index]);
 }
 
@@ -825,6 +891,10 @@ static ssize_t pwm_tmax_show(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adt7470_data *data = adt7470_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	/* the datasheet says that tmax = tmin + 20C */
 	return sprintf(buf, "%d\n", 1000 * (20 + data->pwm_tmin[attr->index]));
 }
@@ -834,6 +904,10 @@ static ssize_t pwm_tmin_show(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adt7470_data *data = adt7470_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n", 1000 * data->pwm_tmin[attr->index]);
 }
 
@@ -866,6 +940,10 @@ static ssize_t pwm_auto_show(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adt7470_data *data = adt7470_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n", 1 + data->pwm_automatic[attr->index]);
 }
 
@@ -911,8 +989,12 @@ static ssize_t pwm_auto_temp_show(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adt7470_data *data = adt7470_update_device(dev);
-	u8 ctrl = data->pwm_auto_temp[attr->index];
+	u8 ctrl;
 
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	ctrl = data->pwm_auto_temp[attr->index];
 	if (ctrl)
 		return sprintf(buf, "%d\n", 1 << (ctrl - 1));
 	else

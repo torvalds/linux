@@ -442,8 +442,8 @@ static void intel_gpio_set_gpio_mode(void __iomem *padcfg0)
 	value |= PADCFG0_PMODE_GPIO;
 
 	/* Disable input and output buffers */
-	value &= ~PADCFG0_GPIORXDIS;
-	value &= ~PADCFG0_GPIOTXDIS;
+	value |= PADCFG0_GPIORXDIS;
+	value |= PADCFG0_GPIOTXDIS;
 
 	/* Disable SCI/SMI/NMI generation */
 	value &= ~(PADCFG0_GPIROUTIOXAPIC | PADCFG0_GPIROUTSCI);

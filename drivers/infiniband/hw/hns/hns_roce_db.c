@@ -95,8 +95,8 @@ static struct hns_roce_db_pgdir *hns_roce_alloc_db_pgdir(
 static int hns_roce_alloc_db_from_pgdir(struct hns_roce_db_pgdir *pgdir,
 					struct hns_roce_db *db, int order)
 {
-	int o;
-	int i;
+	unsigned long o;
+	unsigned long i;
 
 	for (o = order; o <= 1; ++o) {
 		i = find_first_bit(pgdir->bits[o], HNS_ROCE_DB_PER_PAGE >> o);
@@ -154,8 +154,8 @@ out:
 
 void hns_roce_free_db(struct hns_roce_dev *hr_dev, struct hns_roce_db *db)
 {
-	int o;
-	int i;
+	unsigned long o;
+	unsigned long i;
 
 	mutex_lock(&hr_dev->pgdir_mutex);
 

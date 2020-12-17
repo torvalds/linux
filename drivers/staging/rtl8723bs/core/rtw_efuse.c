@@ -303,12 +303,7 @@ bool		bPseudoTest)
 }
 
 /*  11/16/2008 MH Write one byte to reald Efuse. */
-u8
-efuse_OneByteWrite(
-struct adapter *padapter,
-u16 		addr,
-u8 	data,
-bool		bPseudoTest)
+u8 efuse_OneByteWrite(struct adapter *padapter, u16 addr, u8 data, bool bPseudoTest)
 {
 	u8 tmpidx = 0;
 	u8 bResult = false;
@@ -456,12 +451,7 @@ Efuse_ReadAllMap(
 	u8 efuseType,
 	u8 *Efuse,
 	bool		bPseudoTest);
-void
-Efuse_ReadAllMap(
-	struct adapter *padapter,
-	u8 efuseType,
-	u8 *Efuse,
-	bool		bPseudoTest)
+void Efuse_ReadAllMap(struct adapter *padapter, u8 efuseType, u8 *Efuse, bool bPseudoTest)
 {
 	u16 mapLen = 0;
 
@@ -492,11 +482,7 @@ Efuse_ReadAllMap(
  * 11/12/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-static void
-efuse_ShadowRead1Byte(
-struct adapter *padapter,
-u16 	Offset,
-	u8 *Value)
+static void efuse_ShadowRead1Byte(struct adapter *padapter, u16 Offset, u8 *Value)
 {
 	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
 
@@ -505,11 +491,7 @@ u16 	Offset,
 }	/*  EFUSE_ShadowRead1Byte */
 
 /* Read Two Bytes */
-static void
-efuse_ShadowRead2Byte(
-struct adapter *padapter,
-u16 	Offset,
-	u16 	*Value)
+static void efuse_ShadowRead2Byte(struct adapter *padapter, u16 Offset, u16 *Value)
 {
 	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
 
@@ -519,11 +501,7 @@ u16 	Offset,
 }	/*  EFUSE_ShadowRead2Byte */
 
 /* Read Four Bytes */
-static void
-efuse_ShadowRead4Byte(
-struct adapter *padapter,
-u16 	Offset,
-	u32 	*Value)
+static void efuse_ShadowRead4Byte(struct adapter *padapter, u16 Offset, u32 *Value)
 {
 	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
 
@@ -550,10 +528,7 @@ u16 	Offset,
  * 11/13/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-void EFUSE_ShadowMapUpdate(
-	struct adapter *padapter,
-	u8 efuseType,
-	bool	bPseudoTest)
+void EFUSE_ShadowMapUpdate(struct adapter *padapter, u8 efuseType, bool bPseudoTest)
 {
 	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
 	u16 mapLen = 0;
@@ -586,12 +561,7 @@ void EFUSE_ShadowMapUpdate(
  * 11/12/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-void
-EFUSE_ShadowRead(
-	struct adapter *padapter,
-	u8 Type,
-	u16 	Offset,
-	u32 	*Value)
+void EFUSE_ShadowRead(struct adapter *padapter, u8 Type, u16 Offset, u32 *Value)
 {
 	if (Type == 1)
 		efuse_ShadowRead1Byte(padapter, Offset, (u8 *)Value);

@@ -5,7 +5,7 @@
 
 config DM9000
 	tristate "DM9000 support"
-	depends on ARM || MIPS || COLDFIRE || NIOS2
+	depends on ARM || MIPS || COLDFIRE || NIOS2 || COMPILE_TEST
 	select CRC32
 	select MII
 	help

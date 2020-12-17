@@ -336,7 +336,7 @@
 #include <linux/completion.h>
 #include <linux/uuid.h>
 #include <crypto/chacha.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
 
 #include <asm/processor.h>
 #include <linux/uaccess.h>

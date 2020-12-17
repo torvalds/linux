@@ -113,8 +113,8 @@ should be referenced as follows:
 For the compatible strings below the following supplies are required:
   "qcom,q6v5-pil"
   "qcom,msm8916-mss-pil",
-- cx-supply:
-- mx-supply:
+- cx-supply: (deprecated, use power domain instead)
+- mx-supply: (deprecated, use power domain instead)
 - pll-supply:
 	Usage: required
 	Value type: <phandle>
@@ -123,9 +123,9 @@ For the compatible strings below the following supplies are required:
 
 For the compatible string below the following supplies are required:
   "qcom,msm8974-mss-pil"
-- cx-supply:
+- cx-supply: (deprecated, use power domain instead)
 - mss-supply:
-- mx-supply:
+- mx-supply: (deprecated, use power domain instead)
 - pll-supply:
 	Usage: required
 	Value type: <phandle>
@@ -149,11 +149,11 @@ For the compatible string below the following supplies are required:
 	Usage: required
 	Value type: <stringlist>
 	Definition: The power-domains needed depend on the compatible string:
-	qcom,q6v5-pil:
 	qcom,ipq8074-wcss-pil:
+		    no power-domain names required
+	qcom,q6v5-pil:
 	qcom,msm8916-mss-pil:
 	qcom,msm8974-mss-pil:
-		    no power-domain names required
 	qcom,msm8996-mss-pil:
 	qcom,msm8998-mss-pil:
 		    must be "cx", "mx"

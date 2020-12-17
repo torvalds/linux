@@ -62,6 +62,7 @@ MODULE_FIRMWARE("amdgpu/navi14_smc.bin");
 MODULE_FIRMWARE("amdgpu/navi12_smc.bin");
 MODULE_FIRMWARE("amdgpu/sienna_cichlid_smc.bin");
 MODULE_FIRMWARE("amdgpu/navy_flounder_smc.bin");
+MODULE_FIRMWARE("amdgpu/dimgrey_cavefish_smc.bin");
 
 #define SMU11_VOLTAGE_SCALE 4
 
@@ -84,7 +85,7 @@ int smu_v11_0_init_microcode(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	const char *chip_name;
-	char fw_name[30];
+	char fw_name[SMU_FW_NAME_LEN];
 	int err = 0;
 	const struct smc_firmware_header_v1_0 *hdr;
 	const struct common_firmware_header *header;
@@ -108,6 +109,9 @@ int smu_v11_0_init_microcode(struct smu_context *smu)
 		break;
 	case CHIP_NAVY_FLOUNDER:
 		chip_name = "navy_flounder";
+		break;
+	case CHIP_DIMGREY_CAVEFISH:
+		chip_name = "dimgrey_cavefish";
 		break;
 	default:
 		dev_err(adev->dev, "Unsupported ASIC type %d\n", adev->asic_type);
@@ -212,6 +216,7 @@ int smu_v11_0_check_fw_status(struct smu_context *smu)
 
 int smu_v11_0_check_fw_version(struct smu_context *smu)
 {
+	struct amdgpu_device *adev = smu->adev;
 	uint32_t if_version = 0xff, smu_version = 0xff;
 	uint16_t smu_major;
 	uint8_t smu_minor, smu_debug;
@@ -224,6 +229,8 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 	smu_major = (smu_version >> 16) & 0xffff;
 	smu_minor = (smu_version >> 8) & 0xff;
 	smu_debug = (smu_version >> 0) & 0xff;
+	if (smu->is_apu)
+		adev->pm.fw_version = smu_version;
 
 	switch (smu->adev->asic_type) {
 	case CHIP_ARCTURUS:
@@ -243,6 +250,12 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 		break;
 	case CHIP_NAVY_FLOUNDER:
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Navy_Flounder;
+		break;
+	case CHIP_VANGOGH:
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_VANGOGH;
+		break;
+	case CHIP_DIMGREY_CAVEFISH:
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Dimgrey_Cavefish;
 		break;
 	default:
 		dev_err(smu->adev->dev, "smu unsupported asic type:%d.\n", smu->adev->asic_type);
@@ -326,8 +339,7 @@ int smu_v11_0_setup_pptable(struct smu_context *smu)
 		hdr = (const struct smc_firmware_header_v1_0 *) adev->pm.fw->data;
 		version_major = le16_to_cpu(hdr->header.header_version_major);
 		version_minor = le16_to_cpu(hdr->header.header_version_minor);
-		if ((version_major == 2 && smu->smu_table.boot_values.pp_table_id > 0) ||
-			adev->asic_type == CHIP_NAVY_FLOUNDER) {
+		if (version_major == 2 && smu->smu_table.boot_values.pp_table_id > 0) {
 			dev_info(adev->dev, "use driver provided pptable %d\n", smu->smu_table.boot_values.pp_table_id);
 			switch (version_minor) {
 			case 0:
@@ -425,11 +437,13 @@ int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 	kfree(smu_table->overdrive_table);
 	kfree(smu_table->max_sustainable_clocks);
 	kfree(smu_table->driver_pptable);
+	kfree(smu_table->clocks_table);
 	smu_table->gpu_metrics_table = NULL;
 	smu_table->boot_overdrive_table = NULL;
 	smu_table->overdrive_table = NULL;
 	smu_table->max_sustainable_clocks = NULL;
 	smu_table->driver_pptable = NULL;
+	smu_table->clocks_table = NULL;
 	kfree(smu_table->hardcode_pptable);
 	smu_table->hardcode_pptable = NULL;
 
@@ -456,11 +470,11 @@ int smu_v11_0_init_power(struct smu_context *smu)
 {
 	struct smu_power_context *smu_power = &smu->smu_power;
 
-	smu_power->power_context = kzalloc(sizeof(struct smu_11_0_dpm_context),
+	smu_power->power_context = kzalloc(sizeof(struct smu_11_0_power_context),
 					   GFP_KERNEL);
 	if (!smu_power->power_context)
 		return -ENOMEM;
-	smu_power->power_context_size = sizeof(struct smu_11_0_dpm_context);
+	smu_power->power_context_size = sizeof(struct smu_11_0_power_context);
 
 	return 0;
 }
@@ -592,6 +606,11 @@ int smu_v11_0_get_vbios_bootup_values(struct smu_context *smu)
 						 (uint8_t)SMU11_SYSPLL1_2_ID,
 						 &smu->smu_table.boot_values.fclk);
 
+	smu_v11_0_atom_get_smu_clockinfo(smu->adev,
+					 (uint8_t)SMU11_SYSPLL3_1_LCLK_ID,
+					 (uint8_t)SMU11_SYSPLL3_1_ID,
+					 &smu->smu_table.boot_values.lclk);
+
 	return 0;
 }
 
@@ -699,8 +718,11 @@ int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count)
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	/* Navy_Flounder do not support to change display num currently */
-	if (adev->asic_type == CHIP_NAVY_FLOUNDER)
+	/* Navy_Flounder/Dimgrey_Cavefish do not support to change
+	 * display num currently
+	 */
+	if (adev->asic_type >= CHIP_NAVY_FLOUNDER &&
+	    adev->asic_type <= CHIP_DIMGREY_CAVEFISH)
 		return 0;
 
 	return smu_cmn_send_smc_msg_with_param(smu,
@@ -1068,6 +1090,7 @@ int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable)
 	case CHIP_NAVI12:
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_DIMGREY_CAVEFISH:
 		if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 			return 0;
 		if (enable)
@@ -1164,7 +1187,12 @@ int smu_v11_0_set_fan_speed_rpm(struct smu_context *smu,
 	if (ret)
 		return ret;
 
-	crystal_clock_freq = amdgpu_asic_get_xclk(adev);
+	/*
+	 * crystal_clock_freq div by 4 is required since the fan control
+	 * module refers to 25MHz
+	 */
+
+	crystal_clock_freq = amdgpu_asic_get_xclk(adev) / 4;
 	tach_period = 60 * crystal_clock_freq * 10000 / (8 * speed);
 	WREG32_SOC15(THM, 0, mmCG_TACH_CTRL,
 		     REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_TACH_CTRL),
@@ -1462,6 +1490,9 @@ enum smu_baco_state smu_v11_0_baco_get_state(struct smu_context *smu)
 	return baco_state;
 }
 
+#define D3HOT_BACO_SEQUENCE 0
+#define D3HOT_BAMACO_SEQUENCE 2
+
 int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 {
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
@@ -1476,15 +1507,34 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 	mutex_lock(&smu_baco->mutex);
 
 	if (state == SMU_BACO_STATE_ENTER) {
-		if (!ras || !ras->supported) {
-			data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL);
-			data |= 0x80000000;
-			WREG32_SOC15(THM, 0, mmTHM_BACO_CNTL, data);
+		switch (adev->asic_type) {
+		case CHIP_SIENNA_CICHLID:
+		case CHIP_NAVY_FLOUNDER:
+		case CHIP_DIMGREY_CAVEFISH:
+			if (amdgpu_runtime_pm == 2)
+				ret = smu_cmn_send_smc_msg_with_param(smu,
+								      SMU_MSG_EnterBaco,
+								      D3HOT_BAMACO_SEQUENCE,
+								      NULL);
+			else
+				ret = smu_cmn_send_smc_msg_with_param(smu,
+								      SMU_MSG_EnterBaco,
+								      D3HOT_BACO_SEQUENCE,
+								      NULL);
+			break;
+		default:
+			if (!ras || !ras->supported) {
+				data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL);
+				data |= 0x80000000;
+				WREG32_SOC15(THM, 0, mmTHM_BACO_CNTL, data);
 
-			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_EnterBaco, 0, NULL);
-		} else {
-			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_EnterBaco, 1, NULL);
+				ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_EnterBaco, 0, NULL);
+			} else {
+				ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_EnterBaco, 1, NULL);
+			}
+			break;
 		}
+
 	} else {
 		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_ExitBaco, NULL);
 		if (ret)
@@ -1972,6 +2022,18 @@ void smu_v11_0_init_gpu_metrics_v1_0(struct gpu_metrics_v1_0 *gpu_metrics)
 	gpu_metrics->common_header.structure_size =
 				sizeof(struct gpu_metrics_v1_0);
 	gpu_metrics->common_header.format_revision = 1;
+	gpu_metrics->common_header.content_revision = 0;
+
+	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
+}
+
+void smu_v11_0_init_gpu_metrics_v2_0(struct gpu_metrics_v2_0 *gpu_metrics)
+{
+	memset(gpu_metrics, 0xFF, sizeof(struct gpu_metrics_v2_0));
+
+	gpu_metrics->common_header.structure_size =
+				sizeof(struct gpu_metrics_v2_0);
+	gpu_metrics->common_header.format_revision = 2;
 	gpu_metrics->common_header.content_revision = 0;
 
 	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();

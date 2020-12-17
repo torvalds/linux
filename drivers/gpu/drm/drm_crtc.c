@@ -229,6 +229,15 @@ struct dma_fence *drm_crtc_create_fence(struct drm_crtc *crtc)
  * 	user-space must set this property to 0.
  *
  * 	Setting MODE_ID to 0 will release reserved resources for the CRTC.
+ * SCALING_FILTER:
+ *	Atomic property for setting the scaling filter for CRTC scaler
+ *
+ *	The value of this property can be one of the following:
+ *	Default:
+ *		Driver's default scaling filter
+ *	Nearest Neighbor:
+ *		Nearest Neighbor scaling filter
+ *
  */
 
 /**
@@ -774,3 +783,34 @@ int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
 
 	return ret;
 }
+
+/**
+ * drm_crtc_create_scaling_filter_property - create a new scaling filter
+ * property
+ *
+ * @crtc: drm CRTC
+ * @supported_filters: bitmask of supported scaling filters, must include
+ *		       BIT(DRM_SCALING_FILTER_DEFAULT).
+ *
+ * This function lets driver to enable the scaling filter property on a given
+ * CRTC.
+ *
+ * RETURNS:
+ * Zero for success or -errno
+ */
+int drm_crtc_create_scaling_filter_property(struct drm_crtc *crtc,
+					    unsigned int supported_filters)
+{
+	struct drm_property *prop =
+		drm_create_scaling_filter_prop(crtc->dev, supported_filters);
+
+	if (IS_ERR(prop))
+		return PTR_ERR(prop);
+
+	drm_object_attach_property(&crtc->base, prop,
+				   DRM_SCALING_FILTER_DEFAULT);
+	crtc->scaling_filter_property = prop;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_crtc_create_scaling_filter_property);

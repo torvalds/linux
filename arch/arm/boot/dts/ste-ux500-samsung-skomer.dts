@@ -393,7 +393,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&dsi_default_mode>;
 
-			dsi-controller@a0351000 {
+			dsi@a0351000 {
 				panel {
 					/* NT35510-based Hydis HVA40WV1 */
 					compatible = "hydis,hva40wv1", "novatek,nt35510";
@@ -429,6 +429,16 @@
 			default_cfg5 {
 				pins = "GPIO21_AB3"; /* DAT31DIR */
 				ste,config = <&out_hi>;
+			};
+		};
+	};
+
+	/* The unused FBCLK needs to be pulled down on this machine */
+	sdi2 {
+		mc2_a_1_default {
+			default_cfg2 {
+				pins = "GPIO130_C8"; /* FBCLK */
+				ste,config = <&in_pd>;
 			};
 		};
 	};

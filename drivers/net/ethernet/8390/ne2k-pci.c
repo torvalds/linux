@@ -610,7 +610,7 @@ static void ne2k_pci_block_output(struct net_device *dev, int count,
 	/* We should already be in page 0, but to be safe... */
 	outb(E8390_PAGE0+E8390_START+E8390_NODMA, nic_base + NE_CMD);
 
-#ifdef NE8390_RW_BUGFIX
+#ifdef NE_RW_BUGFIX
 	/* Handle the read-before-write bug the same way as the
 	 * Crynwr packet driver -- the NatSemi method doesn't work.
 	 * Actually this doesn't always work either, but if you have

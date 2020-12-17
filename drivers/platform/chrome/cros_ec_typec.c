@@ -438,8 +438,7 @@ static int cros_typec_enable_tbt(struct cros_typec_data *typec,
 	if (pd_ctrl->control_flags & USB_PD_CTRL_ACTIVE_LINK_UNIDIR)
 		data.cable_mode |= TBT_CABLE_LINK_TRAINING;
 
-	if (pd_ctrl->cable_gen)
-		data.cable_mode |= TBT_CABLE_ROUNDED;
+	data.cable_mode |= TBT_SET_CABLE_ROUNDED(pd_ctrl->cable_gen);
 
 	/* Enter Mode VDO */
 	data.enter_vdo = TBT_SET_CABLE_SPEED(pd_ctrl->cable_speed);

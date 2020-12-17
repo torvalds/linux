@@ -740,6 +740,11 @@ S: (ask for current address)
 S: Portland, Oregon
 S: USA
 
+N: Jason Cooper
+D: ARM/Marvell SOC co-maintainer
+D: irqchip co-maintainer
+D: MVEBU PCI DRIVER co-maintainer
+
 N: Robin Cornelius
 E: robincornelius@users.sourceforge.net
 D: Ralink rt2x00 WLAN driver
@@ -2504,15 +2509,6 @@ E: paulmck@us.ibm.com
 W: http://www.rdrop.com/users/paulmck/
 D: RCU and variants
 D: rcutorture module
-
-N: Mike McLagan
-E: mike.mclagan@linux.org
-W: http://www.invlogic.com/~mmclagan
-D: DLCI/FRAD drivers for Sangoma SDLAs
-S: Innovative Logic Corp
-S: Post Office Box 1068
-S: Laurel, Maryland 20732
-S: USA
 
 N: Bradley McLean
 E: brad@bradpc.gaylord.com

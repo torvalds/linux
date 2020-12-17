@@ -2227,6 +2227,11 @@ quirk_alias
     Quirk alias list, pass strings like ``0123abcd:5678beef``, which
     applies the existing quirk for the device 5678:beef to a new
     device 0123:abcd.
+implicit_fb
+    Apply the generic implicit feedback sync mode.  When this is set
+    and the playback stream sync mode is ASYNC, the driver tries to
+    tie an adjacent ASYNC capture stream as the implicit feedback
+    source.
 use_vmalloc
     Use vmalloc() for allocations of the PCM buffers (default: yes).
     For architectures with non-coherent memory like ARM or MIPS, the

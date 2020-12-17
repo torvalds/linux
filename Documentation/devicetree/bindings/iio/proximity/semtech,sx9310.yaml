@@ -40,6 +40,63 @@ properties:
   "#io-channel-cells":
     const: 1
 
+  semtech,cs0-ground:
+    description: Indicates the CS0 sensor is connected to ground.
+    type: boolean
+
+  semtech,combined-sensors:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: |
+      List of which sensors are combined and represented by CS3.
+      Possible values are -
+      3        - CS3 (internal)
+      0 1      - CS0 + CS1
+      1 2      - CS1 + CS2 (default)
+      0 1 2 3  - CS0 + CS1 + CS2 + CS3
+    items:
+      enum: [ 0, 1, 2, 3 ]
+    minItems: 1
+    maxItems: 4
+
+  semtech,resolution:
+    description:
+      Capacitance measure resolution. Refer to datasheet for more details.
+    enum:
+      - coarsest
+      - very-coarse
+      - coarse
+      - medium-coarse
+      - medium
+      - fine
+      - very-fine
+      - finest
+
+  semtech,startup-sensor:
+    $ref: /schemas/types.yaml#definitions/uint32
+    enum: [0, 1, 2, 3]
+    default: 0
+    description:
+      Sensor used for start-up proximity detection. The combined
+      sensor is represented by the value 3. This is used for initial
+      compensation.
+
+  semtech,proxraw-strength:
+    $ref: /schemas/types.yaml#definitions/uint32
+    enum: [0, 2, 4, 8]
+    default: 2
+    description:
+      PROXRAW filter strength. A value of 0 represents off, and other values
+      represent 1-1/N.
+
+  semtech,avg-pos-strength:
+    $ref: /schemas/types.yaml#definitions/uint32
+    enum: [0, 16, 64, 128, 256, 512, 1024, 4294967295]
+    default: 16
+    description:
+      Average positive filter strength. A value of 0 represents off and
+      UINT_MAX (4294967295) represents infinite. Other values
+      represent 1-1/N.
+
 required:
   - compatible
   - reg
@@ -61,5 +118,11 @@ examples:
         vdd-supply = <&pp3300_a>;
         svdd-supply = <&pp1800_prox>;
         #io-channel-cells = <1>;
+        semtech,cs0-ground;
+        semtech,combined-sensors = <1 2 3>;
+        semtech,resolution = "fine";
+        semtech,startup-sensor = <1>;
+        semtech,proxraw-strength = <2>;
+        semtech,avg-pos-strength = <64>;
       };
     };

@@ -442,6 +442,7 @@ enum ufs_dev_pwr_mode {
 	UFS_ACTIVE_PWR_MODE	= 1,
 	UFS_SLEEP_PWR_MODE	= 2,
 	UFS_POWERDOWN_PWR_MODE	= 3,
+	UFS_DEEPSLEEP_PWR_MODE	= 4,
 };
 
 #define UFS_WB_BUF_REMAIN_PERCENT(val) ((val) / 10)

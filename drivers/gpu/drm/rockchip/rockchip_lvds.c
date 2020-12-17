@@ -42,7 +42,7 @@ struct rockchip_lvds;
 		container_of(c, struct rockchip_lvds, encoder)
 
 /**
- * rockchip_lvds_soc_data - rockchip lvds Soc private data
+ * struct rockchip_lvds_soc_data - rockchip lvds Soc private data
  * @probe: LVDS platform probe function
  * @helper_funcs: LVDS connector helper functions
  */
@@ -544,7 +544,7 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 	struct device_node  *port, *endpoint;
 	int ret = 0, child_count = 0;
 	const char *name;
-	u32 endpoint_id;
+	u32 endpoint_id = 0;
 
 	lvds->drm_dev = drm_dev;
 	port = of_graph_get_port_by_id(dev->of_node, 1);

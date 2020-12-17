@@ -559,6 +559,7 @@ static void source_sink_complete(struct usb_ep *ep, struct usb_request *req)
 #if 1
 		DBG(cdev, "%s complete --> %d, %d/%d\n", ep->name,
 				status, req->actual, req->length);
+		break;
 #endif
 	case -EREMOTEIO:		/* short read */
 		break;

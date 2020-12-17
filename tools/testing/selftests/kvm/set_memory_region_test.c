@@ -156,14 +156,23 @@ static void guest_code_move_memory_region(void)
 	GUEST_SYNC(0);
 
 	/*
-	 * Spin until the memory region is moved to a misaligned address.  This
-	 * may or may not trigger MMIO, as the window where the memslot is
-	 * invalid is quite small.
+	 * Spin until the memory region starts getting moved to a
+	 * misaligned address.
+	 * Every region move may or may not trigger MMIO, as the
+	 * window where the memslot is invalid is usually quite small.
 	 */
 	val = guest_spin_on_val(0);
 	GUEST_ASSERT_1(val == 1 || val == MMIO_VAL, val);
 
-	/* Spin until the memory region is realigned. */
+	/* Spin until the misaligning memory region move completes. */
+	val = guest_spin_on_val(MMIO_VAL);
+	GUEST_ASSERT_1(val == 1 || val == 0, val);
+
+	/* Spin until the memory region starts to get re-aligned. */
+	val = guest_spin_on_val(0);
+	GUEST_ASSERT_1(val == 1 || val == MMIO_VAL, val);
+
+	/* Spin until the re-aligning memory region move completes. */
 	val = guest_spin_on_val(MMIO_VAL);
 	GUEST_ASSERT_1(val == 1, val);
 

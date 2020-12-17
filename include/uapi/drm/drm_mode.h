@@ -924,6 +924,12 @@ struct drm_mode_create_blob {
  * struct drm_mode_destroy_blob - Destroy user blob
  * @blob_id: blob_id to destroy
  * Destroy a user-created blob property.
+ *
+ * User-space can release blobs as soon as they do not need to refer to them by
+ * their blob object ID.  For instance, if you are using a MODE_ID blob in an
+ * atomic commit and you will not make another commit re-using the same ID, you
+ * can destroy the blob as soon as the commit has been issued, without waiting
+ * for it to complete.
  */
 struct drm_mode_destroy_blob {
 	__u32 blob_id;

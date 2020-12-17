@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config INTERCONNECT_SAMSUNG
+	bool "Samsung SoC interconnect drivers"
+	depends on ARCH_EXYNOS || COMPILE_TEST
+	help
+	  Interconnect drivers for Samsung SoCs.
+
+config INTERCONNECT_EXYNOS
+	tristate "Exynos generic interconnect driver"
+	depends on INTERCONNECT_SAMSUNG
+	default y if ARCH_EXYNOS
+	help
+	  Generic interconnect driver for Exynos SoCs.

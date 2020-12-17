@@ -52,6 +52,7 @@ ALL_TESTS="
 	blackhole_route_test
 	irif_disabled_test
 	erif_disabled_test
+	blackhole_nexthop_test
 "
 
 NUM_NETIFS=4
@@ -645,6 +646,41 @@ erif_disabled_test()
 	__addr_add_del $rp1 add 192.0.2.2/24 2001:db8:1::2/64
 	ip link del dev br0 type bridge
 	devlink_trap_action_set $trap_name "drop"
+}
+
+__blackhole_nexthop_test()
+{
+	local flags=$1; shift
+	local subnet=$1; shift
+	local proto=$1; shift
+	local dip=$1; shift
+	local trap_name="blackhole_nexthop"
+	local mz_pid
+
+	RET=0
+
+	ip -$flags nexthop add id 1 blackhole
+	ip -$flags route add $subnet nhid 1
+	tc filter add dev $rp2 egress protocol $proto pref 1 handle 101 \
+		flower skip_hw dst_ip $dip ip_proto udp action drop
+
+	# Generate packets to the blackhole nexthop
+	$MZ $h1 -$flags -t udp "sp=54321,dp=12345" -c 0 -p 100 -b $rp1mac \
+		-B $dip -d 1msec -q &
+	mz_pid=$!
+
+	devlink_trap_drop_test $trap_name $rp2 101
+	log_test "Blackhole nexthop: IPv$flags"
+
+	devlink_trap_drop_cleanup $mz_pid $rp2 $proto 1 101
+	ip -$flags route del $subnet
+	ip -$flags nexthop del id 1
+}
+
+blackhole_nexthop_test()
+{
+	__blackhole_nexthop_test "4" "198.51.100.0/30" "ip" $h2_ipv4
+	__blackhole_nexthop_test "6" "2001:db8:2::/120" "ipv6" $h2_ipv6
 }
 
 trap cleanup EXIT

@@ -105,6 +105,9 @@ static int tcf_mpls_act(struct sk_buff *skb, const struct tc_action *a,
 			goto drop;
 		break;
 	case TCA_MPLS_ACT_MODIFY:
+		if (!pskb_may_pull(skb,
+				   skb_network_offset(skb) + MPLS_HLEN))
+			goto drop;
 		new_lse = tcf_mpls_get_lse(mpls_hdr(skb), p, false);
 		if (skb_mpls_update_lse(skb, new_lse))
 			goto drop;

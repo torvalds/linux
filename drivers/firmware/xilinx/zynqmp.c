@@ -29,7 +29,7 @@
 #define PM_API_FEATURE_CHECK_MAX_ORDER  7
 
 static bool feature_check_enabled;
-DEFINE_HASHTABLE(pm_api_features_map, PM_API_FEATURE_CHECK_MAX_ORDER);
+static DEFINE_HASHTABLE(pm_api_features_map, PM_API_FEATURE_CHECK_MAX_ORDER);
 
 /**
  * struct pm_api_feature_data - PM API Feature data
@@ -615,13 +615,13 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_get_pll_frac_data);
 /**
  * zynqmp_pm_set_sd_tapdelay() -  Set tap delay for the SD device
  *
- * @node_id	Node ID of the device
- * @type	Type of tap delay to set (input/output)
- * @value	Value to set fot the tap delay
+ * @node_id:	Node ID of the device
+ * @type:	Type of tap delay to set (input/output)
+ * @value:	Value to set fot the tap delay
  *
  * This function sets input/output tap delay for the SD device.
  *
- * @return	Returns status, either success or error+reason
+ * Return:	Returns status, either success or error+reason
  */
 int zynqmp_pm_set_sd_tapdelay(u32 node_id, u32 type, u32 value)
 {
@@ -633,12 +633,12 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_set_sd_tapdelay);
 /**
  * zynqmp_pm_sd_dll_reset() - Reset DLL logic
  *
- * @node_id	Node ID of the device
- * @type	Reset type
+ * @node_id:	Node ID of the device
+ * @type:	Reset type
  *
  * This function resets DLL logic for the SD device.
  *
- * @return	Returns status, either success or error+reason
+ * Return:	Returns status, either success or error+reason
  */
 int zynqmp_pm_sd_dll_reset(u32 node_id, u32 type)
 {
@@ -649,12 +649,12 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_sd_dll_reset);
 
 /**
  * zynqmp_pm_write_ggs() - PM API for writing global general storage (ggs)
- * @index	GGS register index
- * @value	Register value to be written
+ * @index:	GGS register index
+ * @value:	Register value to be written
  *
  * This function writes value to GGS register.
  *
- * @return      Returns status, either success or error+reason
+ * Return:      Returns status, either success or error+reason
  */
 int zynqmp_pm_write_ggs(u32 index, u32 value)
 {
@@ -665,12 +665,12 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_write_ggs);
 
 /**
  * zynqmp_pm_write_ggs() - PM API for reading global general storage (ggs)
- * @index	GGS register index
- * @value	Register value to be written
+ * @index:	GGS register index
+ * @value:	Register value to be written
  *
  * This function returns GGS register value.
  *
- * @return      Returns status, either success or error+reason
+ * Return:	Returns status, either success or error+reason
  */
 int zynqmp_pm_read_ggs(u32 index, u32 *value)
 {
@@ -682,12 +682,12 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_read_ggs);
 /**
  * zynqmp_pm_write_pggs() - PM API for writing persistent global general
  *			     storage (pggs)
- * @index	PGGS register index
- * @value	Register value to be written
+ * @index:	PGGS register index
+ * @value:	Register value to be written
  *
  * This function writes value to PGGS register.
  *
- * @return      Returns status, either success or error+reason
+ * Return:	Returns status, either success or error+reason
  */
 int zynqmp_pm_write_pggs(u32 index, u32 value)
 {
@@ -699,12 +699,12 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_write_pggs);
 /**
  * zynqmp_pm_write_pggs() - PM API for reading persistent global general
  *			     storage (pggs)
- * @index	PGGS register index
- * @value	Register value to be written
+ * @index:	PGGS register index
+ * @value:	Register value to be written
  *
  * This function returns PGGS register value.
  *
- * @return      Returns status, either success or error+reason
+ * Return:	Returns status, either success or error+reason
  */
 int zynqmp_pm_read_pggs(u32 index, u32 *value)
 {
@@ -715,12 +715,12 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_read_pggs);
 
 /**
  * zynqmp_pm_set_boot_health_status() - PM API for setting healthy boot status
- * @value	Status value to be written
+ * @value:	Status value to be written
  *
  * This function sets healthy bit value to indicate boot health status
  * to firmware.
  *
- * @return      Returns status, either success or error+reason
+ * Return:	Returns status, either success or error+reason
  */
 int zynqmp_pm_set_boot_health_status(u32 value)
 {
@@ -815,10 +815,10 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_fpga_get_status);
  * zynqmp_pm_init_finalize() - PM call to inform firmware that the caller
  *			       master has initialized its own power management
  *
+ * Return: Returns status, either success or error+reason
+ *
  * This API function is to be used for notify the power management controller
  * about the completed power management initialization.
- *
- * Return: Returns status, either success or error+reason
  */
 int zynqmp_pm_init_finalize(void)
 {

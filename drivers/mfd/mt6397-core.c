@@ -237,7 +237,7 @@ static struct platform_driver mt6397_driver = {
 	.probe = mt6397_probe,
 	.driver = {
 		.name = "mt6397",
-		.of_match_table = of_match_ptr(mt6397_of_match),
+		.of_match_table = mt6397_of_match,
 	},
 	.id_table = mt6397_id,
 };
