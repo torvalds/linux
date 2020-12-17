@@ -70,6 +70,12 @@
  * 3. fix mmu err due to buf free for multi dev
  * 4. support output isp/ispp reg on each frame
  * 5. fix error detected by depmod
+ *
+ * v1.3.0:
+ * 1. fec extend to independent video
+ * 2. reduce buf count
+ * 3. dummy buf map to one page if iommu enable
+ * 4. vb2 dma sg for iommu enable
  */
 
 #define RKISPP_DRIVER_VERSION ISPP_API_VERSION
