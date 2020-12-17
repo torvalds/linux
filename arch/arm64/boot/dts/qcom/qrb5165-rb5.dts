@@ -660,8 +660,6 @@
 	vqmmc-supply = <&vreg_l6c_2p96>;
 	cd-gpios = <&tlmm 77 GPIO_ACTIVE_LOW>;
 	bus-width = <4>;
-	/* there seem to be issues with HS400-1.8V mode, so disable it */
-	no-1-8-v;
 	no-sdio;
 	no-emmc;
 };
@@ -982,13 +980,13 @@
 		cmd {
 			pins = "sdc2_cmd";
 			bias-pull-up;
-			drive-strength = <16>;
+			drive-strength = <10>;
 		};
 
 		data {
 			pins = "sdc2_data";
 			bias-pull-up;
-			drive-strength = <16>;
+			drive-strength = <10>;
 		};
 	};
 
