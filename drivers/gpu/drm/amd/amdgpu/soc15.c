@@ -1488,7 +1488,7 @@ static int soc15_common_early_init(void *handle)
 	case CHIP_ALDEBARAN:
 		adev->asic_funcs = &vega20_asic_funcs;
 		adev->cg_flags = 0;
-		adev->pg_flags = 0;
+		adev->pg_flags = AMD_PG_SUPPORT_VCN_DPG;
 		adev->external_rev_id = adev->rev_id + 0x3c;
 		break;
 	default:
