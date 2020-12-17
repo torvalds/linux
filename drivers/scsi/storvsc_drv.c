@@ -2161,12 +2161,15 @@ static int __init storvsc_drv_init(void)
 	 * than the ring buffer size since that page is reserved for
 	 * the ring buffer indices) by the max request size (which is
 	 * vmbus_channel_packet_multipage_buffer + struct vstor_packet + u64)
+	 *
+	 * The computation underestimates max_outstanding_req_per_channel
+	 * for Win7 and older hosts because it does not take into account
+	 * the vmscsi_size_delta correction to the max request size.
 	 */
 	max_outstanding_req_per_channel =
 		((storvsc_ringbuffer_size - PAGE_SIZE) /
 		ALIGN(MAX_MULTIPAGE_BUFFER_PACKET +
-		sizeof(struct vstor_packet) + sizeof(u64) -
-		vmscsi_size_delta,
+		sizeof(struct vstor_packet) + sizeof(u64),
 		sizeof(u64)));
 
 #if IS_ENABLED(CONFIG_SCSI_FC_ATTRS)
