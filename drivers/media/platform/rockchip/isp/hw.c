@@ -15,6 +15,8 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
+#include <media/videobuf2-dma-contig.h>
+#include <media/videobuf2-dma-sg.h>
 
 #include "common.h"
 #include "dev.h"
@@ -698,10 +700,14 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	hw_dev->is_idle = true;
 	hw_dev->is_single = true;
 	hw_dev->is_mi_update = false;
-	if (!is_iommu_enable(dev)) {
+	hw_dev->is_mmu = is_iommu_enable(dev);
+	if (!hw_dev->is_mmu) {
+		hw_dev->mem_ops = &vb2_dma_contig_memops;
 		ret = of_reserved_mem_device_init(dev);
 		if (ret)
 			dev_err(dev, "No reserved memory region\n");
+	} else {
+		hw_dev->mem_ops = &vb2_dma_sg_memops;
 	}
 
 	pm_runtime_enable(dev);

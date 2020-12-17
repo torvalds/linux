@@ -2,12 +2,11 @@
 /* Copyright (C) 2019 Rockchip Electronics Co., Ltd */
 
 #include <media/videobuf2-dma-contig.h>
+#include <media/videobuf2-dma-sg.h>
 #include <linux/of_platform.h>
 #include "dev.h"
 #include "isp_ispp.h"
 #include "regs.h"
-
-static const struct vb2_mem_ops *g_ops = &vb2_dma_contig_memops;
 
 void rkisp_write(struct rkisp_device *dev, u32 reg, u32 val, bool is_direct)
 {
@@ -69,6 +68,8 @@ int rkisp_alloc_buffer(struct rkisp_device *dev,
 		       struct rkisp_dummy_buffer *buf)
 {
 	unsigned long attrs = buf->is_need_vaddr ? 0 : DMA_ATTR_NO_KERNEL_MAPPING;
+	const struct vb2_mem_ops *g_ops = dev->hw_dev->mem_ops;
+	struct sg_table	 *sg_tbl;
 	void *mem_priv;
 	int ret = 0;
 
@@ -77,6 +78,7 @@ int rkisp_alloc_buffer(struct rkisp_device *dev,
 		goto err;
 	}
 
+	buf->size = PAGE_ALIGN(buf->size);
 	mem_priv = g_ops->alloc(dev->hw_dev->dev, attrs, buf->size,
 				DMA_BIDIRECTIONAL, GFP_KERNEL);
 	if (IS_ERR_OR_NULL(mem_priv)) {
@@ -85,7 +87,12 @@ int rkisp_alloc_buffer(struct rkisp_device *dev,
 	}
 
 	buf->mem_priv = mem_priv;
-	buf->dma_addr = *((dma_addr_t *)g_ops->cookie(mem_priv));
+	if (dev->hw_dev->is_mmu) {
+		sg_tbl = (struct sg_table *)g_ops->cookie(mem_priv);
+		buf->dma_addr = sg_dma_address(sg_tbl->sgl);
+	} else {
+		buf->dma_addr = *((dma_addr_t *)g_ops->cookie(mem_priv));
+	}
 	if (!attrs)
 		buf->vaddr = g_ops->vaddr(mem_priv);
 	if (buf->is_need_dbuf) {
@@ -112,6 +119,8 @@ err:
 void rkisp_free_buffer(struct rkisp_device *dev,
 		       struct rkisp_dummy_buffer *buf)
 {
+	const struct vb2_mem_ops *g_ops = dev->hw_dev->mem_ops;
+
 	if (buf && buf->mem_priv) {
 		v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 			 "%s buf:0x%x~0x%x\n", __func__,
