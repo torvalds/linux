@@ -256,6 +256,15 @@
 	};
 };
 
+&dfi {
+	status = "okay";
+};
+
+&dmc {
+	center-supply = <&vdd_logic>;
+	status = "okay";
+};
+
 &dsi0 {
 	status = "okay";
 	rockchip,dual-channel = <&dsi1>;

@@ -366,6 +366,15 @@
 	cpu-supply = <&vdd_cpu>;
 };
 
+&dfi {
+	status = "okay";
+};
+
+&dmc {
+	center-supply = <&vdd_logic>;
+	status = "okay";
+};
+
 &dsi0 {
 	status = "disabled";
 	//rockchip,lane-rate = <1000>;

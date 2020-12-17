@@ -252,6 +252,15 @@
 	};
 };
 
+&dfi {
+	status = "okay";
+};
+
+&dmc {
+	center-supply = <&vdd_logic>;
+	status = "okay";
+};
+
 &dsi0 {
 	status = "okay";
 	rockchip,lane-rate = <1000>;
