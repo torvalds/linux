@@ -666,20 +666,16 @@ static void do_exit_flush_lazy_tlb(void *arg)
 	}
 
 	/*
-	 * This IPI is only initiated from a CPU which is running mm which
-	 * is a single-threaded process, so there will not be another racing
-	 * IPI coming in where we would find our cpumask already clear.
-	 *
-	 * Nothing else clears our bit in the cpumask except CPU offlining,
-	 * in which case we should not be taking IPIs here. However check
-	 * this just in case the logic is wrong somewhere, and don't underflow
-	 * the active_cpus count.
+	 * This IPI may be initiated from any source including those not
+	 * running the mm, so there may be a racing IPI that comes after
+	 * this one which finds the cpumask already clear. Check and avoid
+	 * underflowing the active_cpus count in that case. The race should
+	 * not otherwise be a problem, but the TLB must be flushed because
+	 * that's what the caller expects.
 	 */
 	if (cpumask_test_cpu(cpu, mm_cpumask(mm))) {
 		atomic_dec(&mm->context.active_cpus);
 		cpumask_clear_cpu(cpu, mm_cpumask(mm));
-	} else {
-		WARN_ON_ONCE(1);
 	}
 
 out_flush:
