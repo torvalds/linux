@@ -639,10 +639,8 @@ static bool mm_needs_flush_escalation(struct mm_struct *mm)
 	return false;
 }
 
-#ifdef CONFIG_SMP
-static void do_exit_flush_lazy_tlb(void *arg)
+static void exit_lazy_flush_tlb(struct mm_struct *mm)
 {
-	struct mm_struct *mm = arg;
 	unsigned long pid = mm->context.id;
 	int cpu = smp_processor_id();
 
@@ -682,6 +680,13 @@ out_flush:
 	_tlbiel_pid(pid, RIC_FLUSH_ALL);
 }
 
+#ifdef CONFIG_SMP
+static void do_exit_flush_lazy_tlb(void *arg)
+{
+	struct mm_struct *mm = arg;
+	exit_lazy_flush_tlb(mm);
+}
+
 static void exit_flush_lazy_tlbs(struct mm_struct *mm)
 {
 	/*
@@ -694,9 +699,31 @@ static void exit_flush_lazy_tlbs(struct mm_struct *mm)
 	smp_call_function_many(mm_cpumask(mm), do_exit_flush_lazy_tlb,
 				(void *)mm, 1);
 }
+
 #else /* CONFIG_SMP */
 static inline void exit_flush_lazy_tlbs(struct mm_struct *mm) { }
 #endif /* CONFIG_SMP */
+
+static DEFINE_PER_CPU(unsigned int, mm_cpumask_trim_clock);
+
+/*
+ * Interval between flushes at which we send out IPIs to check whether the
+ * mm_cpumask can be trimmed for the case where it's not a single-threaded
+ * process flushing its own mm. The intent is to reduce the cost of later
+ * flushes. Don't want this to be so low that it adds noticable cost to TLB
+ * flushing, or so high that it doesn't help reduce global TLBIEs.
+ */
+static unsigned long tlb_mm_cpumask_trim_timer = 1073;
+
+static bool tick_and_test_trim_clock(void)
+{
+	if (__this_cpu_inc_return(mm_cpumask_trim_clock) ==
+			tlb_mm_cpumask_trim_timer) {
+		__this_cpu_write(mm_cpumask_trim_clock, 0);
+		return true;
+	}
+	return false;
+}
 
 enum tlb_flush_type {
 	FLUSH_TYPE_NONE,
@@ -711,8 +738,20 @@ static enum tlb_flush_type flush_type_needed(struct mm_struct *mm, bool fullmm)
 
 	if (active_cpus == 0)
 		return FLUSH_TYPE_NONE;
-	if (active_cpus == 1 && cpumask_test_cpu(cpu, mm_cpumask(mm)))
+	if (active_cpus == 1 && cpumask_test_cpu(cpu, mm_cpumask(mm))) {
+		if (current->mm != mm) {
+			/*
+			 * Asynchronous flush sources may trim down to nothing
+			 * if the process is not running, so occasionally try
+			 * to trim.
+			 */
+			if (tick_and_test_trim_clock()) {
+				exit_lazy_flush_tlb(mm);
+				return FLUSH_TYPE_NONE;
+			}
+		}
 		return FLUSH_TYPE_LOCAL;
+	}
 
 	/* Coprocessors require TLBIE to invalidate nMMU. */
 	if (atomic_read(&mm->context.copros) > 0)
@@ -742,6 +781,19 @@ static enum tlb_flush_type flush_type_needed(struct mm_struct *mm, bool fullmm)
 		 * will only require a local flush.
 		 */
 		return FLUSH_TYPE_LOCAL;
+	}
+
+	/*
+	 * Occasionally try to trim down the cpumask. It's possible this can
+	 * bring the mask to zero, which results in no flush.
+	 */
+	if (tick_and_test_trim_clock()) {
+		exit_flush_lazy_tlbs(mm);
+		if (current->mm == mm)
+			return FLUSH_TYPE_LOCAL;
+		if (cpumask_test_cpu(cpu, mm_cpumask(mm)))
+			exit_lazy_flush_tlb(mm);
+		return FLUSH_TYPE_NONE;
 	}
 
 	return FLUSH_TYPE_GLOBAL;
