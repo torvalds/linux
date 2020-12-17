@@ -466,7 +466,7 @@ config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 	  then enter your normal kernel breakpoints once the MMU was mapped
 	  to the kernel mappings (0XC0000000).
 
-	  This unfortunately won't work for U-Boot and likely also wont
+	  This unfortunately won't work for U-Boot and likely also won't
 	  work for using KEXEC to have a hot kernel ready for doing a
 	  KDUMP.
 
