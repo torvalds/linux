@@ -1,0 +1,123 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/st,st-sensors.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STMicroelectronics MEMS sensors
+
+description: |
+  Note that whilst this covers many STMicro MEMs sensors, some more complex
+  IMUs need their own bindings.
+  The STMicroelectronics sensor devices are pretty straight-forward I2C or
+  SPI devices, all sharing the same device tree descriptions no matter what
+  type of sensor it is.
+
+maintainers:
+  - Denis Ciocca <denis.ciocca@st.com>
+
+properties:
+  compatible:
+    description: |
+      Some values are deprecated.
+      st,lis3lv02d (deprecated, use st,lis3lv02dl-accel)
+      st,lis302dl-spi (deprecated, use st,lis3lv02dl-accel)
+    enum:
+        # Accelerometers
+      - st,lis3lv02d
+      - st,lis302dl-spi
+      - st,lis3lv02dl-accel
+      - st,lsm303dlh-accel
+      - st,lsm303dlhc-accel
+      - st,lis3dh-accel
+      - st,lsm330d-accel
+      - st,lsm330dl-accel
+      - st,lsm330dlc-accel
+      - st,lis331dl-accel
+      - st,lis331dlh-accel
+      - st,lsm303dl-accel
+      - st,lsm303dlm-accel
+      - st,lsm330-accel
+      - st,lsm303agr-accel
+      - st,lis2dh12-accel
+      - st,h3lis331dl-accel
+      - st,lng2dm-accel
+      - st,lis3l02dq
+      - st,lis2dw12
+      - st,lis3dhh
+      - st,lis3de
+      - st,lis2de12
+      - st,lis2hh12
+        # Gyroscopes
+      - st,l3g4200d-gyro
+      - st,lsm330d-gyro
+      - st,lsm330dl-gyro
+      - st,lsm330dlc-gyro
+      - st,l3gd20-gyro
+      - st,l3gd20h-gyro
+      - st,l3g4is-gyro
+      - st,lsm330-gyro
+      - st,lsm9ds0-gyro
+        # Magnetometers
+      - st,lsm303agr-magn
+      - st,lsm303dlh-magn
+      - st,lsm303dlhc-magn
+      - st,lsm303dlm-magn
+      - st,lis3mdl-magn
+      - st,lis2mdl
+      - st,lsm9ds1-magn
+        # Pressure sensors
+      - st,lps001wp-press
+      - st,lps25h-press
+      - st,lps331ap-press
+      - st,lps22hb-press
+      - st,lps33hw
+      - st,lps35hw
+      - st,lps22hh
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    minItems: 1
+
+  vdd-supply: true
+  vddio-supply: true
+
+  st,drdy-int-pin:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Some sensors have multiple possible pins via which they can provide
+      a data ready interrupt.  This selects which one.
+    enum:
+      - 1
+      - 2
+
+  drive-open-drain:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      The interrupt/data ready line will be configured as open drain, which
+      is useful if several sensors share the same interrupt line.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        accelerometer@1d {
+            compatible = "st,lis3lv02dl-accel";
+            reg = <0x1d>;
+            interrupt-parent = <&gpio2>;
+            interrupts = <18 IRQ_TYPE_EDGE_RISING>;
+            pinctrl-0 = <&lis3lv02dl_nhk_mode>;
+            pinctrl-names = "default";
+        };
+    };
+...

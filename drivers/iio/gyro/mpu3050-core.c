@@ -13,6 +13,7 @@
  * TODO: add support for setting up the low pass 3dB frequency.
  */
 
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -784,7 +785,8 @@ static int mpu3050_read_mem(struct mpu3050 *mpu3050,
 static int mpu3050_hw_init(struct mpu3050 *mpu3050)
 {
 	int ret;
-	u8 otp[8];
+	__le64 otp_le;
+	u64 otp;
 
 	/* Reset */
 	ret = regmap_update_bits(mpu3050->map,
@@ -815,29 +817,31 @@ static int mpu3050_hw_init(struct mpu3050 *mpu3050)
 				MPU3050_MEM_USER_BANK |
 				MPU3050_MEM_OTP_BANK_0),
 			       0,
-			       sizeof(otp),
-			       otp);
+			       sizeof(otp_le),
+			       (u8 *)&otp_le);
 	if (ret)
 		return ret;
 
 	/* This is device-unique data so it goes into the entropy pool */
-	add_device_randomness(otp, sizeof(otp));
+	add_device_randomness(&otp_le, sizeof(otp_le));
+
+	otp = le64_to_cpu(otp_le);
 
 	dev_info(mpu3050->dev,
-		 "die ID: %04X, wafer ID: %02X, A lot ID: %04X, "
-		 "W lot ID: %03X, WP ID: %01X, rev ID: %02X\n",
+		 "die ID: %04llX, wafer ID: %02llX, A lot ID: %04llX, "
+		 "W lot ID: %03llX, WP ID: %01llX, rev ID: %02llX\n",
 		 /* Die ID, bits 0-12 */
-		 (otp[1] << 8 | otp[0]) & 0x1fff,
+		 FIELD_GET(GENMASK_ULL(12, 0), otp),
 		 /* Wafer ID, bits 13-17 */
-		 ((otp[2] << 8 | otp[1]) & 0x03e0) >> 5,
+		 FIELD_GET(GENMASK_ULL(17, 13), otp),
 		 /* A lot ID, bits 18-33 */
-		 ((otp[4] << 16 | otp[3] << 8 | otp[2]) & 0x3fffc) >> 2,
+		 FIELD_GET(GENMASK_ULL(33, 18), otp),
 		 /* W lot ID, bits 34-45 */
-		 ((otp[5] << 8 | otp[4]) & 0x3ffc) >> 2,
+		 FIELD_GET(GENMASK_ULL(45, 34), otp),
 		 /* WP ID, bits 47-49 */
-		 ((otp[6] << 8 | otp[5]) & 0x0380) >> 7,
+		 FIELD_GET(GENMASK_ULL(49, 47), otp),
 		 /* rev ID, bits 50-55 */
-		 otp[6] >> 2);
+		 FIELD_GET(GENMASK_ULL(55, 50), otp));
 
 	return 0;
 }

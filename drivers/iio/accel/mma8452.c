@@ -1187,7 +1187,7 @@ static struct attribute *mma8452_event_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group mma8452_event_attribute_group = {
+static const struct attribute_group mma8452_event_attribute_group = {
 	.attrs = mma8452_event_attributes,
 };
 

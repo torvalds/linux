@@ -534,6 +534,7 @@ error_ack_short:
 /**
  * i2400m_bm_cmd - Execute a boot mode command
  *
+ * @i2400m: device descriptor
  * @cmd: buffer containing the command data (pointing at the header).
  *     This data can be ANYWHERE (for USB, we will copy it to an
  *     specific buffer). Make sure everything is in proper little
@@ -566,7 +567,7 @@ error_ack_short:
  *
  * @flags: see I2400M_BM_CMD_* above.
  *
- * @returns: bytes received by the notification; if < 0, an errno code
+ * Returns: bytes received by the notification; if < 0, an errno code
  *     denoting an error or:
  *
  *     -ERESTARTSYS  The device has rebooted
@@ -634,8 +635,8 @@ error_cmd_send:
  * i2400m_download_chunk - write a single chunk of data to the device's memory
  *
  * @i2400m: device descriptor
- * @buf: the buffer to write
- * @buf_len: length of the buffer to write
+ * @chunk: the buffer to write
+ * @__chunk_len: length of the buffer to write
  * @addr: address in the device memory space
  * @direct: bootrom write mode
  * @do_csum: should a checksum validation be performed
@@ -1533,6 +1534,13 @@ void i2400m_fw_put(struct i2400m_fw *i2400m_fw)
  * i2400m_dev_bootstrap - Bring the device to a known state and upload firmware
  *
  * @i2400m: device descriptor
+ * @flags:
+ *      I2400M_BRI_SOFT: a reboot barker has been seen
+ *          already, so don't wait for it.
+ *
+ *      I2400M_BRI_NO_REBOOT: Don't send a reboot command, but wait
+ *          for a reboot barker notification. This is a one shot; if
+ *          the state machine needs to send a reboot command it will.
  *
  * Returns: >= 0 if ok, < 0 errno code on error.
  *
