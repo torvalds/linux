@@ -25,12 +25,7 @@ int __weak orc_dump(const char *_objname)
 	UNSUPPORTED("orc");
 }
 
-int __weak create_orc(struct objtool_file *file)
-{
-	UNSUPPORTED("orc");
-}
-
-int __weak create_orc_sections(struct objtool_file *file)
+int __weak orc_create(struct objtool_file *file)
 {
 	UNSUPPORTED("orc");
 }

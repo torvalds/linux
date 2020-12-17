@@ -26,7 +26,6 @@ struct objtool_file *objtool_open_read(const char *_objname);
 
 int check(struct objtool_file *file);
 int orc_dump(const char *objname);
-int create_orc(struct objtool_file *file);
-int create_orc_sections(struct objtool_file *file);
+int orc_create(struct objtool_file *file);
 
 #endif /* _OBJTOOL_H */
