@@ -703,13 +703,19 @@ static inline void exit_flush_lazy_tlbs(struct mm_struct *mm) { }
 #endif /* CONFIG_SMP */
 
 enum tlb_flush_type {
+	FLUSH_TYPE_NONE,
 	FLUSH_TYPE_LOCAL,
 	FLUSH_TYPE_GLOBAL,
 };
 
 static enum tlb_flush_type flush_type_needed(struct mm_struct *mm, bool fullmm)
 {
-	if (mm_is_thread_local(mm))
+	int active_cpus = atomic_read(&mm->context.active_cpus);
+	int cpu = smp_processor_id();
+
+	if (active_cpus == 0)
+		return FLUSH_TYPE_NONE;
+	if (active_cpus == 1 && cpumask_test_cpu(cpu, mm_cpumask(mm)))
 		return FLUSH_TYPE_LOCAL;
 
 	/* Coprocessors require TLBIE to invalidate nMMU. */
@@ -763,7 +769,9 @@ void radix__flush_tlb_mm(struct mm_struct *mm)
 	 */
 	smp_mb();
 	type = flush_type_needed(mm, false);
-	if (type == FLUSH_TYPE_GLOBAL) {
+	if (type == FLUSH_TYPE_LOCAL) {
+		_tlbiel_pid(pid, RIC_FLUSH_TLB);
+	} else if (type == FLUSH_TYPE_GLOBAL) {
 		if (!mmu_has_feature(MMU_FTR_GTSE)) {
 			unsigned long tgt = H_RPTI_TARGET_CMMU;
 
@@ -779,8 +787,6 @@ void radix__flush_tlb_mm(struct mm_struct *mm)
 		} else {
 			_tlbiel_pid_multicast(mm, pid, RIC_FLUSH_TLB);
 		}
-	} else {
-		_tlbiel_pid(pid, RIC_FLUSH_TLB);
 	}
 	preempt_enable();
 }
@@ -798,7 +804,9 @@ static void __flush_all_mm(struct mm_struct *mm, bool fullmm)
 	preempt_disable();
 	smp_mb(); /* see radix__flush_tlb_mm */
 	type = flush_type_needed(mm, fullmm);
-	if (type == FLUSH_TYPE_GLOBAL) {
+	if (type == FLUSH_TYPE_LOCAL) {
+		_tlbiel_pid(pid, RIC_FLUSH_ALL);
+	} else if (type == FLUSH_TYPE_GLOBAL) {
 		if (!mmu_has_feature(MMU_FTR_GTSE)) {
 			unsigned long tgt = H_RPTI_TARGET_CMMU;
 			unsigned long type = H_RPTI_TYPE_TLB | H_RPTI_TYPE_PWC |
@@ -812,8 +820,6 @@ static void __flush_all_mm(struct mm_struct *mm, bool fullmm)
 			_tlbie_pid(pid, RIC_FLUSH_ALL);
 		else
 			_tlbiel_pid_multicast(mm, pid, RIC_FLUSH_ALL);
-	} else {
-		_tlbiel_pid(pid, RIC_FLUSH_ALL);
 	}
 	preempt_enable();
 }
@@ -837,7 +843,9 @@ void radix__flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
 	preempt_disable();
 	smp_mb(); /* see radix__flush_tlb_mm */
 	type = flush_type_needed(mm, false);
-	if (type == FLUSH_TYPE_GLOBAL) {
+	if (type == FLUSH_TYPE_LOCAL) {
+		_tlbiel_va(vmaddr, pid, psize, RIC_FLUSH_TLB);
+	} else if (type == FLUSH_TYPE_GLOBAL) {
 		if (!mmu_has_feature(MMU_FTR_GTSE)) {
 			unsigned long tgt, pg_sizes, size;
 
@@ -854,8 +862,6 @@ void radix__flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
 			_tlbie_va(vmaddr, pid, psize, RIC_FLUSH_TLB);
 		else
 			_tlbiel_va_multicast(mm, vmaddr, pid, psize, RIC_FLUSH_TLB);
-	} else {
-		_tlbiel_va(vmaddr, pid, psize, RIC_FLUSH_TLB);
 	}
 	preempt_enable();
 }
@@ -944,6 +950,8 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
 	preempt_disable();
 	smp_mb(); /* see radix__flush_tlb_mm */
 	type = flush_type_needed(mm, fullmm);
+	if (type == FLUSH_TYPE_NONE)
+		goto out;
 
 	if (fullmm)
 		flush_pid = true;
@@ -1008,6 +1016,7 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
 					hstart, hend, pid, PMD_SIZE, MMU_PAGE_2M, false);
 		}
 	}
+out:
 	preempt_enable();
 }
 
@@ -1132,6 +1141,8 @@ static __always_inline void __radix__flush_tlb_range_psize(struct mm_struct *mm,
 	preempt_disable();
 	smp_mb(); /* see radix__flush_tlb_mm */
 	type = flush_type_needed(mm, fullmm);
+	if (type == FLUSH_TYPE_NONE)
+		goto out;
 
 	if (fullmm)
 		flush_pid = true;
@@ -1175,6 +1186,7 @@ static __always_inline void __radix__flush_tlb_range_psize(struct mm_struct *mm,
 			_tlbiel_va_range_multicast(mm,
 					start, end, pid, page_size, psize, also_pwc);
 	}
+out:
 	preempt_enable();
 }
 
@@ -1212,7 +1224,9 @@ void radix__flush_tlb_collapsed_pmd(struct mm_struct *mm, unsigned long addr)
 	preempt_disable();
 	smp_mb(); /* see radix__flush_tlb_mm */
 	type = flush_type_needed(mm, false);
-	if (type == FLUSH_TYPE_GLOBAL) {
+	if (type == FLUSH_TYPE_LOCAL) {
+		_tlbiel_va_range(addr, end, pid, PAGE_SIZE, mmu_virtual_psize, true);
+	} else if (type == FLUSH_TYPE_GLOBAL) {
 		if (!mmu_has_feature(MMU_FTR_GTSE)) {
 			unsigned long tgt, type, pg_sizes;
 
@@ -1230,8 +1244,6 @@ void radix__flush_tlb_collapsed_pmd(struct mm_struct *mm, unsigned long addr)
 		else
 			_tlbiel_va_range_multicast(mm,
 					addr, end, pid, PAGE_SIZE, mmu_virtual_psize, true);
-	} else {
-		_tlbiel_va_range(addr, end, pid, PAGE_SIZE, mmu_virtual_psize, true);
 	}
 
 	preempt_enable();
