@@ -42,6 +42,7 @@ struct ceph_vxattr {
 #define VXATTR_FLAG_READONLY		(1<<0)
 #define VXATTR_FLAG_HIDDEN		(1<<1)
 #define VXATTR_FLAG_RSTAT		(1<<2)
+#define VXATTR_FLAG_DIRSTAT		(1<<3)
 
 /* layouts */
 
@@ -303,6 +304,36 @@ static ssize_t ceph_vxattrcb_snap_btime(struct ceph_inode_info *ci, char *val,
 				ci->i_snap_btime.tv_nsec);
 }
 
+static ssize_t ceph_vxattrcb_cluster_fsid(struct ceph_inode_info *ci,
+					  char *val, size_t size)
+{
+	struct ceph_fs_client *fsc = ceph_sb_to_client(ci->vfs_inode.i_sb);
+
+	return ceph_fmt_xattr(val, size, "%pU", &fsc->client->fsid);
+}
+
+static ssize_t ceph_vxattrcb_client_id(struct ceph_inode_info *ci,
+				       char *val, size_t size)
+{
+	struct ceph_fs_client *fsc = ceph_sb_to_client(ci->vfs_inode.i_sb);
+
+	return ceph_fmt_xattr(val, size, "client%lld",
+			      ceph_client_gid(fsc->client));
+}
+
+static ssize_t ceph_vxattrcb_caps(struct ceph_inode_info *ci, char *val,
+					size_t size)
+{
+	int issued;
+
+	spin_lock(&ci->i_ceph_lock);
+	issued = __ceph_caps_issued(ci, NULL);
+	spin_unlock(&ci->i_ceph_lock);
+
+	return ceph_fmt_xattr(val, size, "%s/0x%x",
+			      ceph_cap_string(issued), issued);
+}
+
 #define CEPH_XATTR_NAME(_type, _name)	XATTR_CEPH_PREFIX #_type "." #_name
 #define CEPH_XATTR_NAME2(_type, _name, _name2)	\
 	XATTR_CEPH_PREFIX #_type "." #_name "." #_name2
@@ -347,9 +378,9 @@ static struct ceph_vxattr ceph_dir_vxattrs[] = {
 	XATTR_LAYOUT_FIELD(dir, layout, object_size),
 	XATTR_LAYOUT_FIELD(dir, layout, pool),
 	XATTR_LAYOUT_FIELD(dir, layout, pool_namespace),
-	XATTR_NAME_CEPH(dir, entries, 0),
-	XATTR_NAME_CEPH(dir, files, 0),
-	XATTR_NAME_CEPH(dir, subdirs, 0),
+	XATTR_NAME_CEPH(dir, entries, VXATTR_FLAG_DIRSTAT),
+	XATTR_NAME_CEPH(dir, files, VXATTR_FLAG_DIRSTAT),
+	XATTR_NAME_CEPH(dir, subdirs, VXATTR_FLAG_DIRSTAT),
 	XATTR_RSTAT_FIELD(dir, rentries),
 	XATTR_RSTAT_FIELD(dir, rfiles),
 	XATTR_RSTAT_FIELD(dir, rsubdirs),
@@ -378,6 +409,13 @@ static struct ceph_vxattr ceph_dir_vxattrs[] = {
 		.exists_cb = ceph_vxattrcb_snap_btime_exists,
 		.flags = VXATTR_FLAG_READONLY,
 	},
+	{
+		.name = "ceph.caps",
+		.name_size = sizeof("ceph.caps"),
+		.getxattr_cb = ceph_vxattrcb_caps,
+		.exists_cb = NULL,
+		.flags = VXATTR_FLAG_HIDDEN,
+	},
 	{ .name = NULL, 0 }	/* Required table terminator */
 };
 
@@ -403,6 +441,31 @@ static struct ceph_vxattr ceph_file_vxattrs[] = {
 		.exists_cb = ceph_vxattrcb_snap_btime_exists,
 		.flags = VXATTR_FLAG_READONLY,
 	},
+	{
+		.name = "ceph.caps",
+		.name_size = sizeof("ceph.caps"),
+		.getxattr_cb = ceph_vxattrcb_caps,
+		.exists_cb = NULL,
+		.flags = VXATTR_FLAG_HIDDEN,
+	},
+	{ .name = NULL, 0 }	/* Required table terminator */
+};
+
+static struct ceph_vxattr ceph_common_vxattrs[] = {
+	{
+		.name = "ceph.cluster_fsid",
+		.name_size = sizeof("ceph.cluster_fsid"),
+		.getxattr_cb = ceph_vxattrcb_cluster_fsid,
+		.exists_cb = NULL,
+		.flags = VXATTR_FLAG_READONLY,
+	},
+	{
+		.name = "ceph.client_id",
+		.name_size = sizeof("ceph.client_id"),
+		.getxattr_cb = ceph_vxattrcb_client_id,
+		.exists_cb = NULL,
+		.flags = VXATTR_FLAG_READONLY,
+	},
 	{ .name = NULL, 0 }	/* Required table terminator */
 };
 
@@ -426,6 +489,13 @@ static struct ceph_vxattr *ceph_match_vxattr(struct inode *inode,
 				return vxattr;
 			vxattr++;
 		}
+	}
+
+	vxattr = ceph_common_vxattrs;
+	while (vxattr->name) {
+		if (!strcmp(vxattr->name, name))
+			return vxattr;
+		vxattr++;
 	}
 
 	return NULL;
@@ -837,6 +907,8 @@ ssize_t __ceph_getxattr(struct inode *inode, const char *name, void *value,
 		int mask = 0;
 		if (vxattr->flags & VXATTR_FLAG_RSTAT)
 			mask |= CEPH_STAT_RSTAT;
+		if (vxattr->flags & VXATTR_FLAG_DIRSTAT)
+			mask |= CEPH_CAP_FILE_SHARED;
 		err = ceph_do_getattr(inode, mask, true);
 		if (err)
 			return err;
@@ -950,6 +1022,7 @@ static int ceph_sync_setxattr(struct inode *inode, const char *name,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_mds_request *req;
 	struct ceph_mds_client *mdsc = fsc->mdsc;
+	struct ceph_osd_client *osdc = &fsc->client->osdc;
 	struct ceph_pagelist *pagelist = NULL;
 	int op = CEPH_MDS_OP_SETXATTR;
 	int err;
@@ -988,6 +1061,8 @@ static int ceph_sync_setxattr(struct inode *inode, const char *name,
 
 	if (op == CEPH_MDS_OP_SETXATTR) {
 		req->r_args.setxattr.flags = cpu_to_le32(flags);
+		req->r_args.setxattr.osdmap_epoch =
+			cpu_to_le32(osdc->osdmap->epoch);
 		req->r_pagelist = pagelist;
 		pagelist = NULL;
 	}
