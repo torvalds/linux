@@ -68,9 +68,9 @@
  *
  * IN_FORMATS:
  *     Blob property which contains the set of buffer format and modifier
- *     pairs supported by this plane. The blob is a drm_format_modifier_blob
- *     struct. Without this property the plane doesn't support buffers with
- *     modifiers. Userspace cannot change this property.
+ *     pairs supported by this plane. The blob is a struct
+ *     drm_format_modifier_blob. Without this property the plane doesn't
+ *     support buffers with modifiers. Userspace cannot change this property.
  */
 
 static unsigned int drm_num_planes(struct drm_device *dev)
