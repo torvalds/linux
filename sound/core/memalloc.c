@@ -77,7 +77,8 @@ static void snd_malloc_dev_iram(struct snd_dma_buffer *dmab, size_t size)
 	/* Assign the pool into private_data field */
 	dmab->private_data = pool;
 
-	dmab->area = gen_pool_dma_alloc(pool, size, &dmab->addr);
+	dmab->area = gen_pool_dma_alloc_align(pool, size, &dmab->addr,
+					PAGE_SIZE);
 }
 
 /**
