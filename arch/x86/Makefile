@@ -304,4 +304,7 @@ define archhelp
   echo  '                  bzdisk/fdimage*/isoimage also accept:'
   echo  '                  FDARGS="..."  arguments for the booted kernel'
   echo  '                  FDINITRD=file initrd for the booted kernel'
+  echo  '  kvm_guest.config - Enable Kconfig items for running this kernel as a KVM guest'
+  echo  '  xen.config	  - Enable Kconfig items for running this kernel as a Xen guest'
+
 endef
