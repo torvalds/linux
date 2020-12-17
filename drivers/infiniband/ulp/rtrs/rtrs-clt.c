@@ -178,18 +178,18 @@ struct rtrs_clt_con *rtrs_permit_to_clt_con(struct rtrs_clt_sess *sess,
 }
 
 /**
- * __rtrs_clt_change_state() - change the session state through session state
+ * rtrs_clt_change_state() - change the session state through session state
  * machine.
  *
  * @sess: client session to change the state of.
  * @new_state: state to change to.
  *
- * returns true if successful, false if the requested state can not be set.
+ * returns true if sess's state is changed to new state, otherwise return false.
  *
  * Locks:
  * state_wq lock must be hold.
  */
-static bool __rtrs_clt_change_state(struct rtrs_clt_sess *sess,
+static bool rtrs_clt_change_state(struct rtrs_clt_sess *sess,
 				     enum rtrs_clt_state new_state)
 {
 	enum rtrs_clt_state old_state;
@@ -286,7 +286,7 @@ static bool rtrs_clt_change_state_from_to(struct rtrs_clt_sess *sess,
 
 	spin_lock_irq(&sess->state_wq.lock);
 	if (sess->state == old_state)
-		changed = __rtrs_clt_change_state(sess, new_state);
+		changed = rtrs_clt_change_state(sess, new_state);
 	spin_unlock_irq(&sess->state_wq.lock);
 
 	return changed;
@@ -1361,7 +1361,7 @@ static bool rtrs_clt_change_state_get_old(struct rtrs_clt_sess *sess,
 	spin_lock_irq(&sess->state_wq.lock);
 	if (old_state)
 		*old_state = sess->state;
-	changed = __rtrs_clt_change_state(sess, new_state);
+	changed = rtrs_clt_change_state(sess, new_state);
 	spin_unlock_irq(&sess->state_wq.lock);
 
 	return changed;
