@@ -480,16 +480,16 @@ static int cifs_swn_store_swn_addr(const struct sockaddr_storage *new,
 
 static int cifs_swn_reconnect(struct cifs_tcon *tcon, struct sockaddr_storage *addr)
 {
+	int ret = 0;
+
 	/* Store the reconnect address */
 	mutex_lock(&tcon->ses->server->srv_mutex);
 	if (!cifs_sockaddr_equal(&tcon->ses->server->dstaddr, addr)) {
-		int ret;
-
 		ret = cifs_swn_store_swn_addr(addr, &tcon->ses->server->dstaddr,
 				&tcon->ses->server->swn_dstaddr);
 		if (ret < 0) {
 			cifs_dbg(VFS, "%s: failed to store address: %d\n", __func__, ret);
-			return ret;
+			goto unlock;
 		}
 		tcon->ses->server->use_swn_dstaddr = true;
 
@@ -500,7 +500,7 @@ static int cifs_swn_reconnect(struct cifs_tcon *tcon, struct sockaddr_storage *a
 		if (ret < 0) {
 			cifs_dbg(VFS, "%s: Failed to unregister for witness notifications: %d\n",
 					__func__, ret);
-			return ret;
+			goto unlock;
 		}
 
 		/*
@@ -511,7 +511,7 @@ static int cifs_swn_reconnect(struct cifs_tcon *tcon, struct sockaddr_storage *a
 		if (ret < 0) {
 			cifs_dbg(VFS, "%s: Failed to register for witness notifications: %d\n",
 					__func__, ret);
-			return ret;
+			goto unlock;
 		}
 
 		spin_lock(&GlobalMid_Lock);
@@ -519,9 +519,10 @@ static int cifs_swn_reconnect(struct cifs_tcon *tcon, struct sockaddr_storage *a
 			tcon->ses->server->tcpStatus = CifsNeedReconnect;
 		spin_unlock(&GlobalMid_Lock);
 	}
+unlock:
 	mutex_unlock(&tcon->ses->server->srv_mutex);
 
-	return 0;
+	return ret;
 }
 
 static int cifs_swn_client_move(struct cifs_swn_reg *swnreg, struct sockaddr_storage *addr)
