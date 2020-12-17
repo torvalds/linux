@@ -20,6 +20,7 @@
 #include <linux/mmc/card.h>
 #include <linux/rtsx_pci.h>
 #include <asm/unaligned.h>
+#include <linux/pm_runtime.h>
 
 struct realtek_pci_sdmmc {
 	struct platform_device	*pdev;
@@ -1343,6 +1344,7 @@ static void init_extra_caps(struct realtek_pci_sdmmc *host)
 static void realtek_init_host(struct realtek_pci_sdmmc *host)
 {
 	struct mmc_host *mmc = host->mmc;
+	struct rtsx_pcr *pcr = host->pcr;
 
 	mmc->f_min = 250000;
 	mmc->f_max = 208000000;
@@ -1350,6 +1352,8 @@ static void realtek_init_host(struct realtek_pci_sdmmc *host)
 	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_SD_HIGHSPEED |
 		MMC_CAP_MMC_HIGHSPEED | MMC_CAP_BUS_WIDTH_TEST |
 		MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25;
+	if (pcr->rtd3_en)
+		mmc->caps = mmc->caps | MMC_CAP_AGGRESSIVE_PM;
 	mmc->caps2 = MMC_CAP2_NO_PRESCAN_POWERUP | MMC_CAP2_FULL_PWR_CYCLE;
 	mmc->max_current_330 = 400;
 	mmc->max_current_180 = 800;
@@ -1407,6 +1411,13 @@ static int rtsx_pci_sdmmc_drv_probe(struct platform_device *pdev)
 
 	realtek_init_host(host);
 
+	if (pcr->rtd3_en) {
+		pm_runtime_set_autosuspend_delay(&pdev->dev, 5000);
+		pm_runtime_use_autosuspend(&pdev->dev);
+		pm_runtime_enable(&pdev->dev);
+	}
+
+
 	mmc_add_host(mmc);
 
 	return 0;
@@ -1425,6 +1436,11 @@ static int rtsx_pci_sdmmc_drv_remove(struct platform_device *pdev)
 	pcr->slots[RTSX_SD_CARD].p_dev = NULL;
 	pcr->slots[RTSX_SD_CARD].card_event = NULL;
 	mmc = host->mmc;
+
+	if (pcr->rtd3_en) {
+		pm_runtime_dont_use_autosuspend(&pdev->dev);
+		pm_runtime_disable(&pdev->dev);
+	}
 
 	cancel_work_sync(&host->work);
 
