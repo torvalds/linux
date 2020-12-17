@@ -2434,7 +2434,6 @@ static int rtrs_send_sess_info(struct rtrs_clt_sess *sess)
 			err = -ECONNRESET;
 		else
 			err = -ETIMEDOUT;
-		goto out;
 	}
 
 out:
