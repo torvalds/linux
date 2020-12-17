@@ -984,18 +984,21 @@ rk_pcie_handle_dma_interrupt(struct rk_pcie *rk_pcie)
 static irqreturn_t rk_pcie_sys_irq_handler(int irq, void *arg)
 {
 	struct rk_pcie *rk_pcie = arg;
-	u32 chn = rk_pcie->dma_obj->cur->chn;
+	u32 chn = 0;
 	union int_status status;
 	union int_clear clears;
 
 	status.asdword = dw_pcie_readl_dbi(rk_pcie->pci, PCIE_DMA_OFFSET +
 					   PCIE_DMA_WR_INT_STATUS);
 
+	if (rk_pcie->dma_obj && rk_pcie->dma_obj->cur)
+		chn = rk_pcie->dma_obj->cur->chn;
+
 	if (status.donesta & BIT(0)) {
-		rk_pcie_handle_dma_interrupt(rk_pcie);
 		clears.doneclr = 0x1 << chn;
 		dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET +
 				   PCIE_DMA_WR_INT_CLEAR, clears.asdword);
+		rk_pcie_handle_dma_interrupt(rk_pcie);
 	}
 
 	if (status.abortsta & BIT(0)) {
