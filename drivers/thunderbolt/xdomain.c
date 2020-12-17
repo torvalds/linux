@@ -591,6 +591,8 @@ static void tb_xdp_handle_request(struct work_struct *work)
 
 	finalize_property_block();
 
+	tb_dbg(tb, "%llx: received XDomain request %#x\n", route, pkg->type);
+
 	switch (pkg->type) {
 	case PROPERTIES_REQUEST:
 		ret = tb_xdp_properties_response(tb, ctl, route, sequence, uuid,
@@ -1002,9 +1004,12 @@ static void tb_xdomain_get_uuid(struct work_struct *work)
 	uuid_t uuid;
 	int ret;
 
+	dev_dbg(&xd->dev, "requesting remote UUID\n");
+
 	ret = tb_xdp_uuid_request(tb->ctl, xd->route, xd->uuid_retries, &uuid);
 	if (ret < 0) {
 		if (xd->uuid_retries-- > 0) {
+			dev_dbg(&xd->dev, "failed to request UUID, retrying\n");
 			queue_delayed_work(xd->tb->wq, &xd->get_uuid_work,
 					   msecs_to_jiffies(100));
 		} else {
@@ -1012,6 +1017,8 @@ static void tb_xdomain_get_uuid(struct work_struct *work)
 		}
 		return;
 	}
+
+	dev_dbg(&xd->dev, "got remote UUID %pUb\n", &uuid);
 
 	if (uuid_equal(&uuid, xd->local_uuid))
 		dev_dbg(&xd->dev, "intra-domain loop detected\n");
@@ -1052,11 +1059,15 @@ static void tb_xdomain_get_properties(struct work_struct *work)
 	u32 gen = 0;
 	int ret;
 
+	dev_dbg(&xd->dev, "requesting remote properties\n");
+
 	ret = tb_xdp_properties_request(tb->ctl, xd->route, xd->local_uuid,
 					xd->remote_uuid, xd->properties_retries,
 					&block, &gen);
 	if (ret < 0) {
 		if (xd->properties_retries-- > 0) {
+			dev_dbg(&xd->dev,
+				"failed to request remote properties, retrying\n");
 			queue_delayed_work(xd->tb->wq, &xd->get_properties_work,
 					   msecs_to_jiffies(1000));
 		} else {
@@ -1123,6 +1134,11 @@ static void tb_xdomain_get_properties(struct work_struct *work)
 			dev_err(&xd->dev, "failed to add XDomain device\n");
 			return;
 		}
+		dev_info(&xd->dev, "new host found, vendor=%#x device=%#x\n",
+			 xd->vendor, xd->device);
+		if (xd->vendor_name && xd->device_name)
+			dev_info(&xd->dev, "%s %s\n", xd->vendor_name,
+				 xd->device_name);
 	} else {
 		kobject_uevent(&xd->dev.kobj, KOBJ_CHANGE);
 	}
@@ -1143,13 +1159,19 @@ static void tb_xdomain_properties_changed(struct work_struct *work)
 					     properties_changed_work.work);
 	int ret;
 
+	dev_dbg(&xd->dev, "sending properties changed notification\n");
+
 	ret = tb_xdp_properties_changed_request(xd->tb->ctl, xd->route,
 				xd->properties_changed_retries, xd->local_uuid);
 	if (ret) {
-		if (xd->properties_changed_retries-- > 0)
+		if (xd->properties_changed_retries-- > 0) {
+			dev_dbg(&xd->dev,
+				"failed to send properties changed notification, retrying\n");
 			queue_delayed_work(xd->tb->wq,
 					   &xd->properties_changed_work,
 					   msecs_to_jiffies(1000));
+		}
+		dev_err(&xd->dev, "failed to send properties changed notification\n");
 		return;
 	}
 
@@ -1390,6 +1412,10 @@ struct tb_xdomain *tb_xdomain_alloc(struct tb *tb, struct device *parent,
 	xd->dev.groups = xdomain_attr_groups;
 	dev_set_name(&xd->dev, "%u-%llx", tb->index, route);
 
+	dev_dbg(&xd->dev, "local UUID %pUb\n", local_uuid);
+	if (remote_uuid)
+		dev_dbg(&xd->dev, "remote UUID %pUb\n", remote_uuid);
+
 	/*
 	 * This keeps the DMA powered on as long as we have active
 	 * connection to another host.
@@ -1452,10 +1478,12 @@ void tb_xdomain_remove(struct tb_xdomain *xd)
 	pm_runtime_put_noidle(&xd->dev);
 	pm_runtime_set_suspended(&xd->dev);
 
-	if (!device_is_registered(&xd->dev))
+	if (!device_is_registered(&xd->dev)) {
 		put_device(&xd->dev);
-	else
+	} else {
+		dev_info(&xd->dev, "host disconnected\n");
 		device_unregister(&xd->dev);
+	}
 }
 
 /**
