@@ -1328,6 +1328,12 @@ out_err:
 
 static void free_permits(struct rtrs_clt *clt)
 {
+	if (clt->permits_map) {
+		size_t sz = clt->queue_depth;
+
+		wait_event(clt->permits_wait,
+			   find_first_bit(clt->permits_map, sz) >= sz);
+	}
 	kfree(clt->permits_map);
 	clt->permits_map = NULL;
 	kfree(clt->permits);
@@ -2630,19 +2636,8 @@ err_put:
 	return ERR_PTR(err);
 }
 
-static void wait_for_inflight_permits(struct rtrs_clt *clt)
-{
-	if (clt->permits_map) {
-		size_t sz = clt->queue_depth;
-
-		wait_event(clt->permits_wait,
-			   find_first_bit(clt->permits_map, sz) >= sz);
-	}
-}
-
 static void free_clt(struct rtrs_clt *clt)
 {
-	wait_for_inflight_permits(clt);
 	free_permits(clt);
 	free_percpu(clt->pcpu_path);
 
