@@ -578,52 +578,6 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_QLOGIC, 0x2261, quirk_blacklist_vpd);
 DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_AMAZON_ANNAPURNA_LABS, 0x0031,
 			      PCI_CLASS_BRIDGE_PCI, 8, quirk_blacklist_vpd);
 
-/*
- * For Broadcom 5706, 5708, 5709 rev. A nics, any read beyond the
- * VPD end tag will hang the device.  This problem was initially
- * observed when a vpd entry was created in sysfs
- * ('/sys/bus/pci/devices/<id>/vpd').   A read to this sysfs entry
- * will dump 32k of data.  Reading a full 32k will cause an access
- * beyond the VPD end tag causing the device to hang.  Once the device
- * is hung, the bnx2 driver will not be able to reset the device.
- * We believe that it is legal to read beyond the end tag and
- * therefore the solution is to limit the read/write length.
- */
-static void quirk_brcm_570x_limit_vpd(struct pci_dev *dev)
-{
-	/*
-	 * Only disable the VPD capability for 5706, 5706S, 5708,
-	 * 5708S and 5709 rev. A
-	 */
-	if ((dev->device == PCI_DEVICE_ID_NX2_5706) ||
-	    (dev->device == PCI_DEVICE_ID_NX2_5706S) ||
-	    (dev->device == PCI_DEVICE_ID_NX2_5708) ||
-	    (dev->device == PCI_DEVICE_ID_NX2_5708S) ||
-	    ((dev->device == PCI_DEVICE_ID_NX2_5709) &&
-	     (dev->revision & 0xf0) == 0x0)) {
-		if (dev->vpd)
-			dev->vpd->len = 0x80;
-	}
-}
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
-			PCI_DEVICE_ID_NX2_5706,
-			quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
-			PCI_DEVICE_ID_NX2_5706S,
-			quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
-			PCI_DEVICE_ID_NX2_5708,
-			quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
-			PCI_DEVICE_ID_NX2_5708S,
-			quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
-			PCI_DEVICE_ID_NX2_5709,
-			quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
-			PCI_DEVICE_ID_NX2_5709S,
-			quirk_brcm_570x_limit_vpd);
-
 static void quirk_chelsio_extend_vpd(struct pci_dev *dev)
 {
 	int chip = (dev->device & 0xf000) >> 12;
