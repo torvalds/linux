@@ -2707,8 +2707,7 @@ close_all_sess:
 		rtrs_clt_close_conns(sess, true);
 		kobject_put(&sess->kobj);
 	}
-	rtrs_clt_destroy_sysfs_root_files(clt);
-	rtrs_clt_destroy_sysfs_root_folders(clt);
+	rtrs_clt_destroy_sysfs_root(clt);
 	free_clt(clt);
 
 out:
@@ -2725,8 +2724,7 @@ void rtrs_clt_close(struct rtrs_clt *clt)
 	struct rtrs_clt_sess *sess, *tmp;
 
 	/* Firstly forbid sysfs access */
-	rtrs_clt_destroy_sysfs_root_files(clt);
-	rtrs_clt_destroy_sysfs_root_folders(clt);
+	rtrs_clt_destroy_sysfs_root(clt);
 
 	/* Now it is safe to iterate over all paths without locks */
 	list_for_each_entry_safe(sess, tmp, &clt->paths_list, s.entry) {
