@@ -411,6 +411,12 @@ Some people also put extra tags at the end.  They'll just be ignored for
 now, but you can do this to mark internal company procedures or just
 point out some special detail about the sign-off.
 
+Any further SoBs (Signed-off-by:'s) following the author's SoB are from
+people handling and transporting the patch, but were not involved in its
+development. SoB chains should reflect the **real** route a patch took
+as it was propagated to the maintainers and ultimately to Linus, with
+the first SoB entry signalling primary authorship of a single author.
+
 
 When to use Acked-by:, Cc:, and Co-developed-by:
 ------------------------------------------------
