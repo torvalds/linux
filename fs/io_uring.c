@@ -1693,6 +1693,11 @@ static inline bool io_should_trigger_evfd(struct io_ring_ctx *ctx)
 	return io_wq_current_is_worker();
 }
 
+static inline unsigned __io_cqring_events(struct io_ring_ctx *ctx)
+{
+	return ctx->cached_cq_tail - READ_ONCE(ctx->rings->cq.head);
+}
+
 static void io_cqring_ev_posted(struct io_ring_ctx *ctx)
 {
 	if (waitqueue_active(&ctx->wait))
@@ -1723,14 +1728,10 @@ static bool io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force,
 	unsigned long flags;
 	LIST_HEAD(list);
 
-	if (!force) {
-		if ((ctx->cached_cq_tail - READ_ONCE(rings->cq.head) ==
-		    rings->cq_ring_entries))
-			return false;
-	}
+	if (!force && __io_cqring_events(ctx) == rings->cq_ring_entries)
+		return false;
 
 	spin_lock_irqsave(&ctx->completion_lock, flags);
-
 	cqe = NULL;
 	list_for_each_entry_safe(req, tmp, &ctx->cq_overflow_list, compl.list) {
 		if (!io_match_task(req, tsk, files))
@@ -2314,8 +2315,6 @@ static void io_double_put_req(struct io_kiocb *req)
 
 static unsigned io_cqring_events(struct io_ring_ctx *ctx, bool noflush)
 {
-	struct io_rings *rings = ctx->rings;
-
 	if (test_bit(0, &ctx->cq_check_overflow)) {
 		/*
 		 * noflush == true is from the waitqueue handler, just ensure
@@ -2330,7 +2329,7 @@ static unsigned io_cqring_events(struct io_ring_ctx *ctx, bool noflush)
 
 	/* See comment at the top of this file */
 	smp_rmb();
-	return ctx->cached_cq_tail - READ_ONCE(rings->cq.head);
+	return __io_cqring_events(ctx);
 }
 
 static inline unsigned int io_sqring_entries(struct io_ring_ctx *ctx)
