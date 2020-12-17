@@ -200,6 +200,12 @@ extern u32 __kvm_get_mdcr_el2(void);
 
 extern char __smccc_workaround_1_smc[__SMCCC_WORKAROUND_1_SMC_SZ];
 
+#if defined(GCC_VERSION) && GCC_VERSION < 50000
+#define SYM_CONSTRAINT	"i"
+#else
+#define SYM_CONSTRAINT	"S"
+#endif
+
 /*
  * Obtain the PC-relative address of a kernel symbol
  * s: symbol
@@ -216,7 +222,7 @@ extern char __smccc_workaround_1_smc[__SMCCC_WORKAROUND_1_SMC_SZ];
 		typeof(s) *addr;					\
 		asm("adrp	%0, %1\n"				\
 		    "add	%0, %0, :lo12:%1\n"			\
-		    : "=r" (addr) : "S" (&s));				\
+		    : "=r" (addr) : SYM_CONSTRAINT (&s));		\
 		addr;							\
 	})
 
