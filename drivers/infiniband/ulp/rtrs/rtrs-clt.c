@@ -1359,19 +1359,12 @@ static bool rtrs_clt_change_state_get_old(struct rtrs_clt_sess *sess,
 	bool changed;
 
 	spin_lock_irq(&sess->state_wq.lock);
-	*old_state = sess->state;
+	if (old_state)
+		*old_state = sess->state;
 	changed = __rtrs_clt_change_state(sess, new_state);
 	spin_unlock_irq(&sess->state_wq.lock);
 
 	return changed;
-}
-
-static bool rtrs_clt_change_state(struct rtrs_clt_sess *sess,
-				   enum rtrs_clt_state new_state)
-{
-	enum rtrs_clt_state old_state;
-
-	return rtrs_clt_change_state_get_old(sess, new_state, &old_state);
 }
 
 static void rtrs_clt_hb_err_handler(struct rtrs_con *c)
@@ -1799,7 +1792,7 @@ static int rtrs_rdma_conn_rejected(struct rtrs_clt_con *con,
 
 static void rtrs_clt_close_conns(struct rtrs_clt_sess *sess, bool wait)
 {
-	if (rtrs_clt_change_state(sess, RTRS_CLT_CLOSING))
+	if (rtrs_clt_change_state_get_old(sess, RTRS_CLT_CLOSING, NULL))
 		queue_work(rtrs_wq, &sess->close_work);
 	if (wait)
 		flush_work(&sess->close_work);
@@ -2185,7 +2178,7 @@ static void rtrs_clt_close_work(struct work_struct *work)
 
 	cancel_delayed_work_sync(&sess->reconnect_dwork);
 	rtrs_clt_stop_and_destroy_conns(sess);
-	rtrs_clt_change_state(sess, RTRS_CLT_CLOSED);
+	rtrs_clt_change_state_get_old(sess, RTRS_CLT_CLOSED, NULL);
 }
 
 static int init_conns(struct rtrs_clt_sess *sess)
@@ -2237,7 +2230,7 @@ destroy:
 	 * doing rdma_resolve_addr(), switch to CONNECTION_ERR state
 	 * manually to keep reconnecting.
 	 */
-	rtrs_clt_change_state(sess, RTRS_CLT_CONNECTING_ERR);
+	rtrs_clt_change_state_get_old(sess, RTRS_CLT_CONNECTING_ERR, NULL);
 
 	return err;
 }
@@ -2254,7 +2247,7 @@ static void rtrs_clt_info_req_done(struct ib_cq *cq, struct ib_wc *wc)
 	if (unlikely(wc->status != IB_WC_SUCCESS)) {
 		rtrs_err(sess->clt, "Sess info request send failed: %s\n",
 			  ib_wc_status_msg(wc->status));
-		rtrs_clt_change_state(sess, RTRS_CLT_CONNECTING_ERR);
+		rtrs_clt_change_state_get_old(sess, RTRS_CLT_CONNECTING_ERR, NULL);
 		return;
 	}
 
@@ -2378,7 +2371,7 @@ static void rtrs_clt_info_rsp_done(struct ib_cq *cq, struct ib_wc *wc)
 out:
 	rtrs_clt_update_wc_stats(con);
 	rtrs_iu_free(iu, sess->s.dev->ib_dev, 1);
-	rtrs_clt_change_state(sess, state);
+	rtrs_clt_change_state_get_old(sess, state, NULL);
 }
 
 static int rtrs_send_sess_info(struct rtrs_clt_sess *sess)
@@ -2443,7 +2436,7 @@ out:
 		rtrs_iu_free(rx_iu, sess->s.dev->ib_dev, 1);
 	if (unlikely(err))
 		/* If we've never taken async path because of malloc problems */
-		rtrs_clt_change_state(sess, RTRS_CLT_CONNECTING_ERR);
+		rtrs_clt_change_state_get_old(sess, RTRS_CLT_CONNECTING_ERR, NULL);
 
 	return err;
 }
@@ -2500,7 +2493,7 @@ static void rtrs_clt_reconnect_work(struct work_struct *work)
 	/* Stop everything */
 	rtrs_clt_stop_and_destroy_conns(sess);
 	msleep(RTRS_RECONNECT_BACKOFF);
-	if (rtrs_clt_change_state(sess, RTRS_CLT_CONNECTING)) {
+	if (rtrs_clt_change_state_get_old(sess, RTRS_CLT_CONNECTING, NULL)) {
 		err = init_sess(sess);
 		if (err)
 			goto reconnect_again;
@@ -2509,7 +2502,7 @@ static void rtrs_clt_reconnect_work(struct work_struct *work)
 	return;
 
 reconnect_again:
-	if (rtrs_clt_change_state(sess, RTRS_CLT_RECONNECTING)) {
+	if (rtrs_clt_change_state_get_old(sess, RTRS_CLT_RECONNECTING, NULL)) {
 		sess->stats->reconnects.fail_cnt++;
 		delay_ms = clt->reconnect_delay_sec * 1000;
 		queue_delayed_work(rtrs_wq, &sess->reconnect_dwork,
