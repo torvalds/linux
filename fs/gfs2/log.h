@@ -74,8 +74,12 @@ extern void gfs2_ordered_del_inode(struct gfs2_inode *ip);
 extern unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct);
 extern void gfs2_remove_from_ail(struct gfs2_bufdata *bd);
 extern bool gfs2_log_is_empty(struct gfs2_sbd *sdp);
+extern void gfs2_log_release_revokes(struct gfs2_sbd *sdp, unsigned int revokes);
 extern void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks);
-extern void gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks);
+extern bool gfs2_log_try_reserve(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
+				 unsigned int *extra_revokes);
+extern void gfs2_log_reserve(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
+			     unsigned int *extra_revokes);
 extern void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 				  u64 seq, u32 tail, u32 lblock, u32 flags,
 				  int op_flags);

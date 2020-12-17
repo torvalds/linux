@@ -429,6 +429,32 @@ bool gfs2_log_is_empty(struct gfs2_sbd *sdp) {
 	return atomic_read(&sdp->sd_log_blks_free) == sdp->sd_jdesc->jd_blocks;
 }
 
+static bool __gfs2_log_try_reserve_revokes(struct gfs2_sbd *sdp, unsigned int revokes)
+{
+	unsigned int available;
+
+	available = atomic_read(&sdp->sd_log_revokes_available);
+	while (available >= revokes) {
+		if (atomic_try_cmpxchg(&sdp->sd_log_revokes_available,
+				       &available, available - revokes))
+			return true;
+	}
+	return false;
+}
+
+/**
+ * gfs2_log_release_revokes - Release a given number of revokes
+ * @sdp: The GFS2 superblock
+ * @revokes: The number of revokes to release
+ *
+ * sdp->sd_log_flush_lock must be held.
+ */
+void gfs2_log_release_revokes(struct gfs2_sbd *sdp, unsigned int revokes)
+{
+	if (revokes)
+		atomic_add(revokes, &sdp->sd_log_revokes_available);
+}
+
 /**
  * gfs2_log_release - Release a given number of log blocks
  * @sdp: The GFS2 superblock
@@ -519,15 +545,59 @@ reserved:
 }
 
 /**
- * gfs2_log_reserve - Make a log reservation
+ * gfs2_log_try_reserve - Try to make a log reservation
  * @sdp: The GFS2 superblock
- * @blks: The number of blocks to reserve
+ * @tr: The transaction
+ * @extra_revokes: The number of additional revokes reserved (output)
+ *
+ * This is similar to gfs2_log_reserve, but sdp->sd_log_flush_lock must be
+ * held for correct revoke accounting.
  */
 
-void gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
+bool gfs2_log_try_reserve(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
+			  unsigned int *extra_revokes)
 {
+	unsigned int blks = tr->tr_reserved;
+	unsigned int revokes = tr->tr_revokes;
+	unsigned int revoke_blks = 0;
+
+	*extra_revokes = 0;
+	if (revokes && !__gfs2_log_try_reserve_revokes(sdp, revokes)) {
+		revoke_blks = DIV_ROUND_UP(revokes, sdp->sd_inptrs);
+		*extra_revokes = revoke_blks * sdp->sd_inptrs - revokes;
+		blks += revoke_blks;
+	}
+	if (!blks)
+		return true;
 	if (__gfs2_log_try_reserve(sdp, blks, GFS2_LOG_FLUSH_MIN_BLOCKS))
-		return;
+		return true;
+	if (!revoke_blks)
+		gfs2_log_release_revokes(sdp, revokes);
+	return false;
+}
+
+/**
+ * gfs2_log_reserve - Make a log reservation
+ * @sdp: The GFS2 superblock
+ * @tr: The transaction
+ * @extra_revokes: The number of additional revokes reserved (output)
+ *
+ * sdp->sd_log_flush_lock must not be held.
+ */
+
+void gfs2_log_reserve(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
+		      unsigned int *extra_revokes)
+{
+	unsigned int blks = tr->tr_reserved;
+	unsigned int revokes = tr->tr_revokes;
+	unsigned int revoke_blks = 0;
+
+	*extra_revokes = 0;
+	if (revokes) {
+		revoke_blks = DIV_ROUND_UP(revokes, sdp->sd_inptrs);
+		*extra_revokes = revoke_blks * sdp->sd_inptrs - revokes;
+		blks += revoke_blks;
+	}
 	__gfs2_log_reserve(sdp, blks, GFS2_LOG_FLUSH_MIN_BLOCKS);
 }
 
@@ -588,9 +658,6 @@ static unsigned int calc_reserved(struct gfs2_sbd *sdp)
 		blocks = tr->tr_num_databuf_new - tr->tr_num_databuf_rm;
 		reserved += blocks + DIV_ROUND_UP(blocks, databuf_limit(sdp));
 	}
-
-	if (sdp->sd_log_committed_revoke > 0)
-		reserved += gfs2_struct2blk(sdp, sdp->sd_log_committed_revoke) - 1;
 	return reserved;
 }
 
@@ -730,14 +797,9 @@ void gfs2_glock_remove_revoke(struct gfs2_glock *gl)
 void gfs2_flush_revokes(struct gfs2_sbd *sdp)
 {
 	/* number of revokes we still have room for */
-	unsigned int max_revokes;
+	unsigned int max_revokes = atomic_read(&sdp->sd_log_revokes_available);
 
 	gfs2_log_lock(sdp);
-	max_revokes = sdp->sd_ldptrs;
-	if (sdp->sd_log_num_revoke > sdp->sd_ldptrs)
-		max_revokes += roundup(sdp->sd_log_num_revoke - sdp->sd_ldptrs,
-				       sdp->sd_inptrs);
-	max_revokes -= sdp->sd_log_num_revoke;
 	gfs2_ail1_empty(sdp, max_revokes);
 	gfs2_log_unlock(sdp);
 }
@@ -955,6 +1017,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 	unsigned int reserved_blocks = 0, used_blocks = 0;
 	enum gfs2_freeze_state state = atomic_read(&sdp->sd_freeze_state);
 	unsigned int first_log_head;
+	unsigned int reserved_revokes = 0;
 
 	down_write(&sdp->sd_log_flush_lock);
 	trace_gfs2_log_flush(sdp, 1, flags);
@@ -979,13 +1042,15 @@ repeat:
 		if (reserved_blocks)
 			gfs2_log_release(sdp, reserved_blocks);
 		reserved_blocks = sdp->sd_log_blks_reserved;
+		reserved_revokes = sdp->sd_log_num_revoke;
 		if (tr) {
 			sdp->sd_log_tr = NULL;
 			tr->tr_first = first_log_head;
-			if (unlikely (state == SFS_FROZEN))
+			if (unlikely (state == SFS_FROZEN)) {
 				if (gfs2_assert_withdraw_delayed(sdp,
 				       !tr->tr_num_buf_new && !tr->tr_num_databuf_new))
 					goto out_withdraw;
+			}
 		}
 	} else if (!reserved_blocks) {
 		unsigned int taboo_blocks = GFS2_LOG_FLUSH_MIN_BLOCKS;
@@ -1000,17 +1065,15 @@ repeat:
 			down_write(&sdp->sd_log_flush_lock);
 			goto repeat;
 		}
+		BUG_ON(sdp->sd_log_num_revoke);
 	}
 
 	if (flags & GFS2_LOG_HEAD_FLUSH_SHUTDOWN)
 		clear_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
 
 	if (unlikely(state == SFS_FROZEN))
-		if (gfs2_assert_withdraw_delayed(sdp, !sdp->sd_log_num_revoke))
+		if (gfs2_assert_withdraw_delayed(sdp, !reserved_revokes))
 			goto out_withdraw;
-	if (gfs2_assert_withdraw_delayed(sdp,
-			sdp->sd_log_num_revoke == sdp->sd_log_committed_revoke))
-		goto out_withdraw;
 
 	gfs2_ordered_write(sdp);
 	if (gfs2_withdrawn(sdp))
@@ -1034,7 +1097,6 @@ repeat:
 
 	gfs2_log_lock(sdp);
 	sdp->sd_log_blks_reserved = 0;
-	sdp->sd_log_committed_revoke = 0;
 
 	spin_lock(&sdp->sd_ail_lock);
 	if (tr && !list_empty(&tr->tr_ail1_list)) {
@@ -1060,11 +1122,16 @@ repeat:
 
 out_end:
 	used_blocks = log_distance(sdp, sdp->sd_log_flush_head, first_log_head);
-	if (gfs2_assert_withdraw_delayed(sdp, used_blocks <= reserved_blocks))
-		goto out;
+	reserved_revokes += atomic_read(&sdp->sd_log_revokes_available);
+	atomic_set(&sdp->sd_log_revokes_available, sdp->sd_ldptrs);
+	gfs2_assert_withdraw(sdp, reserved_revokes % sdp->sd_inptrs == sdp->sd_ldptrs);
+	if (reserved_revokes > sdp->sd_ldptrs)
+		reserved_blocks += (reserved_revokes - sdp->sd_ldptrs) / sdp->sd_inptrs;
 out:
-	if (used_blocks != reserved_blocks)
+	if (used_blocks != reserved_blocks) {
+		gfs2_assert_withdraw_delayed(sdp, used_blocks < reserved_blocks);
 		gfs2_log_release(sdp, reserved_blocks - used_blocks);
+	}
 	up_write(&sdp->sd_log_flush_lock);
 	gfs2_trans_free(sdp, tr);
 	if (gfs2_withdrawing(sdp))
@@ -1105,8 +1172,8 @@ static void gfs2_merge_trans(struct gfs2_sbd *sdp, struct gfs2_trans *new)
 	old->tr_num_databuf_new	+= new->tr_num_databuf_new;
 	old->tr_num_buf_rm	+= new->tr_num_buf_rm;
 	old->tr_num_databuf_rm	+= new->tr_num_databuf_rm;
+	old->tr_revokes		+= new->tr_revokes;
 	old->tr_num_revoke	+= new->tr_num_revoke;
-	old->tr_num_revoke_rm	+= new->tr_num_revoke_rm;
 
 	list_splice_tail_init(&new->tr_databuf, &old->tr_databuf);
 	list_splice_tail_init(&new->tr_buf, &old->tr_buf);
@@ -1133,7 +1200,6 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 		set_bit(TR_ATTACHED, &tr->tr_flags);
 	}
 
-	sdp->sd_log_committed_revoke += tr->tr_num_revoke - tr->tr_num_revoke_rm;
 	reserved = calc_reserved(sdp);
 	maxres = sdp->sd_log_blks_reserved + tr->tr_reserved;
 	gfs2_assert_withdraw(sdp, maxres >= reserved);
