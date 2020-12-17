@@ -886,6 +886,32 @@ static void ath11k_pci_free_region(struct ath11k_pci *ab_pci)
 		pci_disable_device(pci_dev);
 }
 
+static void ath11k_pci_aspm_disable(struct ath11k_pci *ab_pci)
+{
+	struct ath11k_base *ab = ab_pci->ab;
+
+	pcie_capability_read_word(ab_pci->pdev, PCI_EXP_LNKCTL,
+				  &ab_pci->link_ctl);
+
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "pci link_ctl 0x%04x L0s %d L1 %d\n",
+		   ab_pci->link_ctl,
+		   u16_get_bits(ab_pci->link_ctl, PCI_EXP_LNKCTL_ASPM_L0S),
+		   u16_get_bits(ab_pci->link_ctl, PCI_EXP_LNKCTL_ASPM_L1));
+
+	/* disable L0s and L1 */
+	pcie_capability_write_word(ab_pci->pdev, PCI_EXP_LNKCTL,
+				   ab_pci->link_ctl & ~PCI_EXP_LNKCTL_ASPMC);
+
+	set_bit(ATH11K_PCI_ASPM_RESTORE, &ab_pci->flags);
+}
+
+static void ath11k_pci_aspm_restore(struct ath11k_pci *ab_pci)
+{
+	if (test_and_clear_bit(ATH11K_PCI_ASPM_RESTORE, &ab_pci->flags))
+		pcie_capability_write_word(ab_pci->pdev, PCI_EXP_LNKCTL,
+					   ab_pci->link_ctl);
+}
+
 static int ath11k_pci_power_up(struct ath11k_base *ab)
 {
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
@@ -894,6 +920,11 @@ static int ath11k_pci_power_up(struct ath11k_base *ab)
 	ab_pci->register_window = 0;
 	clear_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags);
 	ath11k_pci_sw_reset(ab_pci->ab, true);
+
+	/* Disable ASPM during firmware download due to problems switching
+	 * to AMSS state.
+	 */
+	ath11k_pci_aspm_disable(ab_pci);
 
 	ret = ath11k_mhi_start(ab_pci);
 	if (ret) {
@@ -907,6 +938,9 @@ static int ath11k_pci_power_up(struct ath11k_base *ab)
 static void ath11k_pci_power_down(struct ath11k_base *ab)
 {
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
+
+	/* restore aspm in case firmware bootup fails */
+	ath11k_pci_aspm_restore(ab_pci);
 
 	ath11k_pci_force_wake(ab_pci->ab);
 	ath11k_mhi_stop(ab_pci);
@@ -964,6 +998,8 @@ static int ath11k_pci_start(struct ath11k_base *ab)
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 
 	set_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags);
+
+	ath11k_pci_aspm_restore(ab_pci);
 
 	ath11k_pci_ce_irqs_enable(ab);
 	ath11k_ce_rx_post_buf(ab);
