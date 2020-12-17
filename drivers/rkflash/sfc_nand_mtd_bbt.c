@@ -166,7 +166,7 @@ static int nanddev_write_bbt(struct snand_mtd_dev *nand, u32 block)
 	bbt_info->version = nand->bbt.version;
 
 	/* Store one entry for each block */
-	ret = sfc_nand_erase_mtd(mtd, block / mtd->erasesize);
+	ret = sfc_nand_erase_mtd(mtd, block * mtd->erasesize);
 	if (ret)
 		goto out;
 
