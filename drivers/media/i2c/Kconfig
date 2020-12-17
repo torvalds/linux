@@ -1657,6 +1657,17 @@ config VIDEO_SC4238
 	  To compile this driver as a module, choose M here: the
 	  module will be called sc4238.
 
+config VIDEO_SC430CS
+	tristate "SmartSens SC430CS sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for the SmartSens SC430CS sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called SC430CS.
+
 config VIDEO_SC500AI
 	tristate "SmartSens SC500AI sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API

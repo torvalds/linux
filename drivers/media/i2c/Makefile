@@ -177,6 +177,7 @@ obj-$(CONFIG_VIDEO_SC2232)	+= sc2232.o
 obj-$(CONFIG_VIDEO_SC2239)	+= sc2239.o
 obj-$(CONFIG_VIDEO_SC2310)	+= sc2310.o
 obj-$(CONFIG_VIDEO_SC4238)	+= sc4238.o
+obj-$(CONFIG_VIDEO_SC430CS)	+= sc430cs.o
 obj-$(CONFIG_VIDEO_SC500AI)	+= sc500ai.o
 
 obj-$(CONFIG_VIDEO_PREISP_DUMMY_SENSOR)	+= preisp-dummy.o
