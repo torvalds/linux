@@ -340,21 +340,19 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 		 * fetch owner, DACL, and SACL if asked for full descriptor,
 		 * fetch owner and DACL otherwise
 		 */
-		u32 acllen, additional_info = 0;
+		u32 acllen, extra_info;
 		struct cifs_ntsd *pacl;
 
 		if (pTcon->ses->server->ops->get_acl == NULL)
 			goto out; /* rc already EOPNOTSUPP */
 
 		if (handler->flags == XATTR_CIFS_NTSD_FULL) {
-			additional_info = OWNER_SECINFO | GROUP_SECINFO |
-				DACL_SECINFO | SACL_SECINFO;
+			extra_info = SACL_SECINFO;
 		} else {
-			additional_info = OWNER_SECINFO | GROUP_SECINFO |
-				DACL_SECINFO;
+			extra_info = 0;
 		}
 		pacl = pTcon->ses->server->ops->get_acl(cifs_sb,
-				inode, full_path, &acllen, additional_info);
+				inode, full_path, &acllen, extra_info);
 		if (IS_ERR(pacl)) {
 			rc = PTR_ERR(pacl);
 			cifs_dbg(VFS, "%s: error %zd getting sec desc\n",
