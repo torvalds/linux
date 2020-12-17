@@ -942,16 +942,6 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
 	struct nouveau_drm_tile *new_tile = NULL;
 	int ret = 0;
 
-	if ((old_reg->mem_type == TTM_PL_SYSTEM &&
-	     new_reg->mem_type == TTM_PL_VRAM) ||
-	    (old_reg->mem_type == TTM_PL_VRAM &&
-	     new_reg->mem_type == TTM_PL_SYSTEM)) {
-		hop->fpfn = 0;
-		hop->lpfn = 0;
-		hop->mem_type = TTM_PL_TT;
-		hop->flags = 0;
-		return -EMULTIHOP;
-	}
 
 	if (new_reg->mem_type == TTM_PL_TT) {
 		ret = nouveau_ttm_tt_bind(bo->bdev, bo->ttm, new_reg);
@@ -995,14 +985,25 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
 
 	/* Hardware assisted copy. */
 	if (drm->ttm.move) {
+		if ((old_reg->mem_type == TTM_PL_SYSTEM &&
+		     new_reg->mem_type == TTM_PL_VRAM) ||
+		    (old_reg->mem_type == TTM_PL_VRAM &&
+		     new_reg->mem_type == TTM_PL_SYSTEM)) {
+			hop->fpfn = 0;
+			hop->lpfn = 0;
+			hop->mem_type = TTM_PL_TT;
+			hop->flags = 0;
+			return -EMULTIHOP;
+		}
 		ret = nouveau_bo_move_m2mf(bo, evict, ctx,
 					   new_reg);
-		if (!ret)
-			goto out;
-	}
+	} else
+		ret = -ENODEV;
 
-	/* Fallback to software copy. */
-	ret = ttm_bo_move_memcpy(bo, ctx, new_reg);
+	if (ret) {
+		/* Fallback to software copy. */
+		ret = ttm_bo_move_memcpy(bo, ctx, new_reg);
+	}
 
 out:
 	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {
