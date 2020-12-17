@@ -909,6 +909,9 @@ void release_pages(struct page **pages, int nr)
 				put_devmap_managed_page(page);
 				continue;
 			}
+			if (put_page_testzero(page))
+				put_dev_pagemap(page->pgmap);
+			continue;
 		}
 
 		if (!put_page_testzero(page))
@@ -1164,15 +1167,6 @@ unsigned pagevec_lookup_range_tag(struct pagevec *pvec,
 }
 EXPORT_SYMBOL(pagevec_lookup_range_tag);
 
-unsigned pagevec_lookup_range_nr_tag(struct pagevec *pvec,
-		struct address_space *mapping, pgoff_t *index, pgoff_t end,
-		xa_mark_t tag, unsigned max_pages)
-{
-	pvec->nr = find_get_pages_range_tag(mapping, index, end, tag,
-		min_t(unsigned int, max_pages, PAGEVEC_SIZE), pvec->pages);
-	return pagevec_count(pvec);
-}
-EXPORT_SYMBOL(pagevec_lookup_range_nr_tag);
 /*
  * Perform any setup for the swap system
  */

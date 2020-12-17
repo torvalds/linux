@@ -1592,9 +1592,6 @@ EXPORT_SYMBOL_GPL(ide_port_unregister_devices);
 
 static void ide_unregister(ide_hwif_t *hwif)
 {
-	BUG_ON(in_interrupt());
-	BUG_ON(irqs_disabled());
-
 	mutex_lock(&ide_cfg_mtx);
 
 	if (hwif->present) {
