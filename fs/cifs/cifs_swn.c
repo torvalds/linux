@@ -484,41 +484,43 @@ static int cifs_swn_reconnect(struct cifs_tcon *tcon, struct sockaddr_storage *a
 
 	/* Store the reconnect address */
 	mutex_lock(&tcon->ses->server->srv_mutex);
-	if (!cifs_sockaddr_equal(&tcon->ses->server->dstaddr, addr)) {
-		ret = cifs_swn_store_swn_addr(addr, &tcon->ses->server->dstaddr,
-				&tcon->ses->server->swn_dstaddr);
-		if (ret < 0) {
-			cifs_dbg(VFS, "%s: failed to store address: %d\n", __func__, ret);
-			goto unlock;
-		}
-		tcon->ses->server->use_swn_dstaddr = true;
+	if (cifs_sockaddr_equal(&tcon->ses->server->dstaddr, addr))
+		goto unlock;
 
-		/*
-		 * Unregister to stop receiving notifications for the old IP address.
-		 */
-		ret = cifs_swn_unregister(tcon);
-		if (ret < 0) {
-			cifs_dbg(VFS, "%s: Failed to unregister for witness notifications: %d\n",
-					__func__, ret);
-			goto unlock;
-		}
-
-		/*
-		 * And register to receive notifications for the new IP address now that we have
-		 * stored the new address.
-		 */
-		ret = cifs_swn_register(tcon);
-		if (ret < 0) {
-			cifs_dbg(VFS, "%s: Failed to register for witness notifications: %d\n",
-					__func__, ret);
-			goto unlock;
-		}
-
-		spin_lock(&GlobalMid_Lock);
-		if (tcon->ses->server->tcpStatus != CifsExiting)
-			tcon->ses->server->tcpStatus = CifsNeedReconnect;
-		spin_unlock(&GlobalMid_Lock);
+	ret = cifs_swn_store_swn_addr(addr, &tcon->ses->server->dstaddr,
+				      &tcon->ses->server->swn_dstaddr);
+	if (ret < 0) {
+		cifs_dbg(VFS, "%s: failed to store address: %d\n", __func__, ret);
+		goto unlock;
 	}
+	tcon->ses->server->use_swn_dstaddr = true;
+
+	/*
+	 * Unregister to stop receiving notifications for the old IP address.
+	 */
+	ret = cifs_swn_unregister(tcon);
+	if (ret < 0) {
+		cifs_dbg(VFS, "%s: Failed to unregister for witness notifications: %d\n",
+			 __func__, ret);
+		goto unlock;
+	}
+
+	/*
+	 * And register to receive notifications for the new IP address now that we have
+	 * stored the new address.
+	 */
+	ret = cifs_swn_register(tcon);
+	if (ret < 0) {
+		cifs_dbg(VFS, "%s: Failed to register for witness notifications: %d\n",
+			 __func__, ret);
+		goto unlock;
+	}
+
+	spin_lock(&GlobalMid_Lock);
+	if (tcon->ses->server->tcpStatus != CifsExiting)
+		tcon->ses->server->tcpStatus = CifsNeedReconnect;
+	spin_unlock(&GlobalMid_Lock);
+
 unlock:
 	mutex_unlock(&tcon->ses->server->srv_mutex);
 
