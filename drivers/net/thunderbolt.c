@@ -1241,7 +1241,7 @@ static int tbnet_probe(struct tb_service *svc, const struct tb_service_id *id)
 	dev->max_mtu = TBNET_MAX_MTU - ETH_HLEN;
 
 	net->handler.uuid = &tbnet_svc_uuid;
-	net->handler.callback = tbnet_handle_packet,
+	net->handler.callback = tbnet_handle_packet;
 	net->handler.data = net;
 	tb_register_protocol_handler(&net->handler);
 

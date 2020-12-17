@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# WiMAX LAN device configuration
+#
+
+menuconfig WIMAX
+	tristate "WiMAX Wireless Broadband support"
+	depends on RFKILL || !RFKILL
+	help
+
+	  Select to configure support for devices that provide
+	  wireless broadband connectivity using the WiMAX protocol
+	  (IEEE 802.16).
+
+	  Please note that most of these devices require signing up
+	  for a service plan with a provider.
+
+	  The different WiMAX drivers can be enabled in the menu entry
+
+	  Device Drivers > Network device support > WiMAX Wireless
+	  Broadband devices
+
+	  If unsure, it is safe to select M (module).
+
+if WIMAX
+
+config WIMAX_DEBUG_LEVEL
+	int "WiMAX debug level"
+	depends on WIMAX
+	default 8
+	help
+
+	  Select the maximum debug verbosity level to be compiled into
+	  the WiMAX stack code.
+
+	  By default, debug messages are disabled at runtime and can
+	  be selectively enabled for different parts of the code using
+	  the sysfs debug-levels file.
+
+	  If set at zero, this will compile out all the debug code.
+
+	  It is recommended that it is left at 8.
+
+source "drivers/staging/wimax/i2400m/Kconfig"
+
+endif

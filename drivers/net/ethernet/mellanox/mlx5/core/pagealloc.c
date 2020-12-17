@@ -374,7 +374,7 @@ retry:
 	if (func_id)
 		dev->priv.vfs_pages += npages;
 	else if (mlx5_core_is_ecpf(dev) && !ec_function)
-		dev->priv.peer_pf_pages += npages;
+		dev->priv.host_pf_pages += npages;
 
 	mlx5_core_dbg(dev, "npages %d, ec_function %d, func_id 0x%x, err %d\n",
 		      npages, ec_function, func_id, err);
@@ -416,7 +416,7 @@ static void release_all_pages(struct mlx5_core_dev *dev, u32 func_id,
 	if (func_id)
 		dev->priv.vfs_pages -= npages;
 	else if (mlx5_core_is_ecpf(dev) && !ec_function)
-		dev->priv.peer_pf_pages -= npages;
+		dev->priv.host_pf_pages -= npages;
 
 	mlx5_core_dbg(dev, "npages %d, ec_function %d, func_id 0x%x\n",
 		      npages, ec_function, func_id);
@@ -523,7 +523,7 @@ static int reclaim_pages(struct mlx5_core_dev *dev, u32 func_id, int npages,
 	if (func_id)
 		dev->priv.vfs_pages -= num_claimed;
 	else if (mlx5_core_is_ecpf(dev) && !ec_function)
-		dev->priv.peer_pf_pages -= num_claimed;
+		dev->priv.host_pf_pages -= num_claimed;
 
 out_free:
 	kvfree(out);
@@ -678,9 +678,9 @@ int mlx5_reclaim_startup_pages(struct mlx5_core_dev *dev)
 	WARN(dev->priv.vfs_pages,
 	     "VFs FW pages counter is %d after reclaiming all pages\n",
 	     dev->priv.vfs_pages);
-	WARN(dev->priv.peer_pf_pages,
-	     "Peer PF FW pages counter is %d after reclaiming all pages\n",
-	     dev->priv.peer_pf_pages);
+	WARN(dev->priv.host_pf_pages,
+	     "External host PF FW pages counter is %d after reclaiming all pages\n",
+	     dev->priv.host_pf_pages);
 
 	return 0;
 }

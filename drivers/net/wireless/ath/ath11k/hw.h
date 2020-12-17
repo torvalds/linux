@@ -143,12 +143,6 @@ struct ath11k_hw_params {
 
 	bool single_pdev_only;
 
-	/* For example on QCA6390 struct
-	 * wmi_init_cmd_param::band_to_mac_config needs to be false as the
-	 * firmware creates the mapping.
-	 */
-	bool needs_band_to_mac;
-
 	bool rxdma1_enable;
 	int num_rxmda_per_pdev;
 	bool rx_mac_buf_ring;
@@ -161,6 +155,8 @@ struct ath11k_hw_params {
 	bool supports_monitor;
 	bool supports_shadow_regs;
 	bool idle_ps;
+	bool cold_boot_calib;
+	bool supports_suspend;
 };
 
 struct ath11k_hw_ops {

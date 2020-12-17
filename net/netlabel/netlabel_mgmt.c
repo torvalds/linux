@@ -95,7 +95,7 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 			ret_val = -ENOMEM;
 			goto add_free_entry;
 		}
-		nla_strlcpy(entry->domain,
+		nla_strscpy(entry->domain,
 			    info->attrs[NLBL_MGMT_A_DOMAIN], tmp_size);
 	}
 

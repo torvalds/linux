@@ -548,7 +548,7 @@ done:
 }
 
 int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
-	struct sockaddr_storage *p)
+		  struct sockaddr_storage __user *p)
 {
 	int err, i, count, copycount;
 	const struct in6_addr *group;

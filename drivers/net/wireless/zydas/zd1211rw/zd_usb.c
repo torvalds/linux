@@ -1711,11 +1711,6 @@ int zd_usb_ioread16v(struct zd_usb *usb, u16 *values,
 			 count, USB_MAX_IOREAD16_COUNT);
 		return -EINVAL;
 	}
-	if (in_atomic()) {
-		dev_dbg_f(zd_usb_dev(usb),
-			 "error: io in atomic context not supported\n");
-		return -EWOULDBLOCK;
-	}
 	if (!usb_int_enabled(usb)) {
 		dev_dbg_f(zd_usb_dev(usb),
 			  "error: usb interrupt not enabled\n");
@@ -1882,11 +1877,6 @@ int zd_usb_iowrite16v_async(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
 			count, USB_MAX_IOWRITE16_COUNT);
 		return -EINVAL;
 	}
-	if (in_atomic()) {
-		dev_dbg_f(zd_usb_dev(usb),
-			"error: io in atomic context not supported\n");
-		return -EWOULDBLOCK;
-	}
 
 	udev = zd_usb_to_usbdev(usb);
 
@@ -1966,11 +1956,6 @@ int zd_usb_rfwrite(struct zd_usb *usb, u32 value, u8 bits)
 	int i, req_len, actual_req_len;
 	u16 bit_value_template;
 
-	if (in_atomic()) {
-		dev_dbg_f(zd_usb_dev(usb),
-			"error: io in atomic context not supported\n");
-		return -EWOULDBLOCK;
-	}
 	if (bits < USB_MIN_RFWRITE_BIT_COUNT) {
 		dev_dbg_f(zd_usb_dev(usb),
 			"error: bits %d are smaller than"

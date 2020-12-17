@@ -118,7 +118,8 @@ static void tipc_tlv_init(struct sk_buff *skb, u16 type)
 	skb_put(skb, sizeof(struct tlv_desc));
 }
 
-static int tipc_tlv_sprintf(struct sk_buff *skb, const char *fmt, ...)
+static __printf(2, 3) int tipc_tlv_sprintf(struct sk_buff *skb,
+					   const char *fmt, ...)
 {
 	int n;
 	u16 len;
@@ -588,7 +589,7 @@ static int tipc_nl_compat_link_stat_dump(struct tipc_nl_compat_msg *msg,
 		return 0;
 
 	tipc_tlv_sprintf(msg->rep, "\nLink <%s>\n",
-			 nla_data(link[TIPC_NLA_LINK_NAME]));
+			 (char *)nla_data(link[TIPC_NLA_LINK_NAME]));
 
 	if (link[TIPC_NLA_LINK_BROADCAST]) {
 		__fill_bc_link_stat(msg, prop, stats);
@@ -695,7 +696,7 @@ static int tipc_nl_compat_link_dump(struct tipc_nl_compat_msg *msg,
 
 	link_info.dest = nla_get_flag(link[TIPC_NLA_LINK_DEST]);
 	link_info.up = htonl(nla_get_flag(link[TIPC_NLA_LINK_UP]));
-	nla_strlcpy(link_info.str, link[TIPC_NLA_LINK_NAME],
+	nla_strscpy(link_info.str, link[TIPC_NLA_LINK_NAME],
 		    TIPC_MAX_LINK_NAME);
 
 	return tipc_add_tlv(msg->rep, TIPC_TLV_LINK_INFO,

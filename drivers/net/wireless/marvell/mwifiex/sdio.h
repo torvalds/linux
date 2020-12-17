@@ -43,8 +43,6 @@
 #define BLOCK_MODE	1
 #define BYTE_MODE	0
 
-#define REG_PORT			0
-
 #define MWIFIEX_SDIO_IO_PORT_MASK		0xfffff
 
 #define MWIFIEX_SDIO_BYTE_MODE_MASK	0x80000000

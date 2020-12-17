@@ -1499,7 +1499,7 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 		u64_stats_init(&nvchan->tx_stats.syncp);
 		u64_stats_init(&nvchan->rx_stats.syncp);
 
-		ret = xdp_rxq_info_reg(&nvchan->xdp_rxq, ndev, i);
+		ret = xdp_rxq_info_reg(&nvchan->xdp_rxq, ndev, i, 0);
 
 		if (ret) {
 			netdev_err(ndev, "xdp_rxq_info_reg fail: %d\n", ret);

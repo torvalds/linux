@@ -954,7 +954,7 @@ int tcp_send_mss(struct sock *sk, int *size_goal, int flags)
  * importantly be able to generate EPOLLOUT for Edge Trigger epoll()
  * users.
  */
-static void tcp_remove_empty_skb(struct sock *sk, struct sk_buff *skb)
+void tcp_remove_empty_skb(struct sock *sk, struct sk_buff *skb)
 {
 	if (skb && !skb->len) {
 		tcp_unlink_write_queue(skb, sk);
@@ -962,6 +962,68 @@ static void tcp_remove_empty_skb(struct sock *sk, struct sk_buff *skb)
 			tcp_chrono_stop(sk, TCP_CHRONO_BUSY);
 		sk_wmem_free_skb(sk, skb);
 	}
+}
+
+struct sk_buff *tcp_build_frag(struct sock *sk, int size_goal, int flags,
+			       struct page *page, int offset, size_t *size)
+{
+	struct sk_buff *skb = tcp_write_queue_tail(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
+	bool can_coalesce;
+	int copy, i;
+
+	if (!skb || (copy = size_goal - skb->len) <= 0 ||
+	    !tcp_skb_can_collapse_to(skb)) {
+new_segment:
+		if (!sk_stream_memory_free(sk))
+			return NULL;
+
+		skb = sk_stream_alloc_skb(sk, 0, sk->sk_allocation,
+					  tcp_rtx_and_write_queues_empty(sk));
+		if (!skb)
+			return NULL;
+
+#ifdef CONFIG_TLS_DEVICE
+		skb->decrypted = !!(flags & MSG_SENDPAGE_DECRYPTED);
+#endif
+		skb_entail(sk, skb);
+		copy = size_goal;
+	}
+
+	if (copy > *size)
+		copy = *size;
+
+	i = skb_shinfo(skb)->nr_frags;
+	can_coalesce = skb_can_coalesce(skb, i, page, offset);
+	if (!can_coalesce && i >= sysctl_max_skb_frags) {
+		tcp_mark_push(tp, skb);
+		goto new_segment;
+	}
+	if (!sk_wmem_schedule(sk, copy))
+		return NULL;
+
+	if (can_coalesce) {
+		skb_frag_size_add(&skb_shinfo(skb)->frags[i - 1], copy);
+	} else {
+		get_page(page);
+		skb_fill_page_desc(skb, i, page, offset, copy);
+	}
+
+	if (!(flags & MSG_NO_SHARED_FRAGS))
+		skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
+
+	skb->len += copy;
+	skb->data_len += copy;
+	skb->truesize += copy;
+	sk_wmem_queued_add(sk, copy);
+	sk_mem_charge(sk, copy);
+	skb->ip_summed = CHECKSUM_PARTIAL;
+	WRITE_ONCE(tp->write_seq, tp->write_seq + copy);
+	TCP_SKB_CB(skb)->end_seq += copy;
+	tcp_skb_pcount_set(skb, 0);
+
+	*size = copy;
+	return skb;
 }
 
 ssize_t do_tcp_sendpages(struct sock *sk, struct page *page, int offset,
@@ -999,59 +1061,12 @@ ssize_t do_tcp_sendpages(struct sock *sk, struct page *page, int offset,
 		goto out_err;
 
 	while (size > 0) {
-		struct sk_buff *skb = tcp_write_queue_tail(sk);
-		int copy, i;
-		bool can_coalesce;
+		struct sk_buff *skb;
+		size_t copy = size;
 
-		if (!skb || (copy = size_goal - skb->len) <= 0 ||
-		    !tcp_skb_can_collapse_to(skb)) {
-new_segment:
-			if (!sk_stream_memory_free(sk))
-				goto wait_for_space;
-
-			skb = sk_stream_alloc_skb(sk, 0, sk->sk_allocation,
-					tcp_rtx_and_write_queues_empty(sk));
-			if (!skb)
-				goto wait_for_space;
-
-#ifdef CONFIG_TLS_DEVICE
-			skb->decrypted = !!(flags & MSG_SENDPAGE_DECRYPTED);
-#endif
-			skb_entail(sk, skb);
-			copy = size_goal;
-		}
-
-		if (copy > size)
-			copy = size;
-
-		i = skb_shinfo(skb)->nr_frags;
-		can_coalesce = skb_can_coalesce(skb, i, page, offset);
-		if (!can_coalesce && i >= sysctl_max_skb_frags) {
-			tcp_mark_push(tp, skb);
-			goto new_segment;
-		}
-		if (!sk_wmem_schedule(sk, copy))
+		skb = tcp_build_frag(sk, size_goal, flags, page, offset, &copy);
+		if (!skb)
 			goto wait_for_space;
-
-		if (can_coalesce) {
-			skb_frag_size_add(&skb_shinfo(skb)->frags[i - 1], copy);
-		} else {
-			get_page(page);
-			skb_fill_page_desc(skb, i, page, offset, copy);
-		}
-
-		if (!(flags & MSG_NO_SHARED_FRAGS))
-			skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
-
-		skb->len += copy;
-		skb->data_len += copy;
-		skb->truesize += copy;
-		sk_wmem_queued_add(sk, copy);
-		sk_mem_charge(sk, copy);
-		skb->ip_summed = CHECKSUM_PARTIAL;
-		WRITE_ONCE(tp->write_seq, tp->write_seq + copy);
-		TCP_SKB_CB(skb)->end_seq += copy;
-		tcp_skb_pcount_set(skb, 0);
 
 		if (!copied)
 			TCP_SKB_CB(skb)->tcp_flags &= ~TCPHDR_PSH;
@@ -1743,51 +1758,271 @@ int tcp_mmap(struct file *file, struct socket *sock,
 }
 EXPORT_SYMBOL(tcp_mmap);
 
+static skb_frag_t *skb_advance_to_frag(struct sk_buff *skb, u32 offset_skb,
+				       u32 *offset_frag)
+{
+	skb_frag_t *frag;
+
+	offset_skb -= skb_headlen(skb);
+	if ((int)offset_skb < 0 || skb_has_frag_list(skb))
+		return NULL;
+
+	frag = skb_shinfo(skb)->frags;
+	while (offset_skb) {
+		if (skb_frag_size(frag) > offset_skb) {
+			*offset_frag = offset_skb;
+			return frag;
+		}
+		offset_skb -= skb_frag_size(frag);
+		++frag;
+	}
+	*offset_frag = 0;
+	return frag;
+}
+
+static bool can_map_frag(const skb_frag_t *frag)
+{
+	return skb_frag_size(frag) == PAGE_SIZE && !skb_frag_off(frag);
+}
+
+static int find_next_mappable_frag(const skb_frag_t *frag,
+				   int remaining_in_skb)
+{
+	int offset = 0;
+
+	if (likely(can_map_frag(frag)))
+		return 0;
+
+	while (offset < remaining_in_skb && !can_map_frag(frag)) {
+		offset += skb_frag_size(frag);
+		++frag;
+	}
+	return offset;
+}
+
+static void tcp_zerocopy_set_hint_for_skb(struct sock *sk,
+					  struct tcp_zerocopy_receive *zc,
+					  struct sk_buff *skb, u32 offset)
+{
+	u32 frag_offset, partial_frag_remainder = 0;
+	int mappable_offset;
+	skb_frag_t *frag;
+
+	/* worst case: skip to next skb. try to improve on this case below */
+	zc->recv_skip_hint = skb->len - offset;
+
+	/* Find the frag containing this offset (and how far into that frag) */
+	frag = skb_advance_to_frag(skb, offset, &frag_offset);
+	if (!frag)
+		return;
+
+	if (frag_offset) {
+		struct skb_shared_info *info = skb_shinfo(skb);
+
+		/* We read part of the last frag, must recvmsg() rest of skb. */
+		if (frag == &info->frags[info->nr_frags - 1])
+			return;
+
+		/* Else, we must at least read the remainder in this frag. */
+		partial_frag_remainder = skb_frag_size(frag) - frag_offset;
+		zc->recv_skip_hint -= partial_frag_remainder;
+		++frag;
+	}
+
+	/* partial_frag_remainder: If part way through a frag, must read rest.
+	 * mappable_offset: Bytes till next mappable frag, *not* counting bytes
+	 * in partial_frag_remainder.
+	 */
+	mappable_offset = find_next_mappable_frag(frag, zc->recv_skip_hint);
+	zc->recv_skip_hint = mappable_offset + partial_frag_remainder;
+}
+
+static int tcp_recvmsg_locked(struct sock *sk, struct msghdr *msg, size_t len,
+			      int nonblock, int flags,
+			      struct scm_timestamping_internal *tss,
+			      int *cmsg_flags);
+static int receive_fallback_to_copy(struct sock *sk,
+				    struct tcp_zerocopy_receive *zc, int inq)
+{
+	unsigned long copy_address = (unsigned long)zc->copybuf_address;
+	struct scm_timestamping_internal tss_unused;
+	int err, cmsg_flags_unused;
+	struct msghdr msg = {};
+	struct iovec iov;
+
+	zc->length = 0;
+	zc->recv_skip_hint = 0;
+
+	if (copy_address != zc->copybuf_address)
+		return -EINVAL;
+
+	err = import_single_range(READ, (void __user *)copy_address,
+				  inq, &iov, &msg.msg_iter);
+	if (err)
+		return err;
+
+	err = tcp_recvmsg_locked(sk, &msg, inq, /*nonblock=*/1, /*flags=*/0,
+				 &tss_unused, &cmsg_flags_unused);
+	if (err < 0)
+		return err;
+
+	zc->copybuf_len = err;
+	if (likely(zc->copybuf_len)) {
+		struct sk_buff *skb;
+		u32 offset;
+
+		skb = tcp_recv_skb(sk, tcp_sk(sk)->copied_seq, &offset);
+		if (skb)
+			tcp_zerocopy_set_hint_for_skb(sk, zc, skb, offset);
+	}
+	return 0;
+}
+
+static int tcp_copy_straggler_data(struct tcp_zerocopy_receive *zc,
+				   struct sk_buff *skb, u32 copylen,
+				   u32 *offset, u32 *seq)
+{
+	unsigned long copy_address = (unsigned long)zc->copybuf_address;
+	struct msghdr msg = {};
+	struct iovec iov;
+	int err;
+
+	if (copy_address != zc->copybuf_address)
+		return -EINVAL;
+
+	err = import_single_range(READ, (void __user *)copy_address,
+				  copylen, &iov, &msg.msg_iter);
+	if (err)
+		return err;
+	err = skb_copy_datagram_msg(skb, *offset, &msg, copylen);
+	if (err)
+		return err;
+	zc->recv_skip_hint -= copylen;
+	*offset += copylen;
+	*seq += copylen;
+	return (__s32)copylen;
+}
+
+static int tcp_zerocopy_handle_leftover_data(struct tcp_zerocopy_receive *zc,
+					     struct sock *sk,
+					     struct sk_buff *skb,
+					     u32 *seq,
+					     s32 copybuf_len)
+{
+	u32 offset, copylen = min_t(u32, copybuf_len, zc->recv_skip_hint);
+
+	if (!copylen)
+		return 0;
+	/* skb is null if inq < PAGE_SIZE. */
+	if (skb)
+		offset = *seq - TCP_SKB_CB(skb)->seq;
+	else
+		skb = tcp_recv_skb(sk, *seq, &offset);
+
+	zc->copybuf_len = tcp_copy_straggler_data(zc, skb, copylen, &offset,
+						  seq);
+	return zc->copybuf_len < 0 ? 0 : copylen;
+}
+
+static int tcp_zerocopy_vm_insert_batch_error(struct vm_area_struct *vma,
+					      struct page **pending_pages,
+					      unsigned long pages_remaining,
+					      unsigned long *address,
+					      u32 *length,
+					      u32 *seq,
+					      struct tcp_zerocopy_receive *zc,
+					      u32 total_bytes_to_map,
+					      int err)
+{
+	/* At least one page did not map. Try zapping if we skipped earlier. */
+	if (err == -EBUSY &&
+	    zc->flags & TCP_RECEIVE_ZEROCOPY_FLAG_TLB_CLEAN_HINT) {
+		u32 maybe_zap_len;
+
+		maybe_zap_len = total_bytes_to_map -  /* All bytes to map */
+				*length + /* Mapped or pending */
+				(pages_remaining * PAGE_SIZE); /* Failed map. */
+		zap_page_range(vma, *address, maybe_zap_len);
+		err = 0;
+	}
+
+	if (!err) {
+		unsigned long leftover_pages = pages_remaining;
+		int bytes_mapped;
+
+		/* We called zap_page_range, try to reinsert. */
+		err = vm_insert_pages(vma, *address,
+				      pending_pages,
+				      &pages_remaining);
+		bytes_mapped = PAGE_SIZE * (leftover_pages - pages_remaining);
+		*seq += bytes_mapped;
+		*address += bytes_mapped;
+	}
+	if (err) {
+		/* Either we were unable to zap, OR we zapped, retried an
+		 * insert, and still had an issue. Either ways, pages_remaining
+		 * is the number of pages we were unable to map, and we unroll
+		 * some state we speculatively touched before.
+		 */
+		const int bytes_not_mapped = PAGE_SIZE * pages_remaining;
+
+		*length -= bytes_not_mapped;
+		zc->recv_skip_hint += bytes_not_mapped;
+	}
+	return err;
+}
+
 static int tcp_zerocopy_vm_insert_batch(struct vm_area_struct *vma,
 					struct page **pages,
-					unsigned long pages_to_map,
-					unsigned long *insert_addr,
-					u32 *length_with_pending,
+					unsigned int pages_to_map,
+					unsigned long *address,
+					u32 *length,
 					u32 *seq,
-					struct tcp_zerocopy_receive *zc)
+					struct tcp_zerocopy_receive *zc,
+					u32 total_bytes_to_map)
 {
 	unsigned long pages_remaining = pages_to_map;
-	int bytes_mapped;
-	int ret;
+	unsigned int pages_mapped;
+	unsigned int bytes_mapped;
+	int err;
 
-	ret = vm_insert_pages(vma, *insert_addr, pages, &pages_remaining);
-	bytes_mapped = PAGE_SIZE * (pages_to_map - pages_remaining);
+	err = vm_insert_pages(vma, *address, pages, &pages_remaining);
+	pages_mapped = pages_to_map - (unsigned int)pages_remaining;
+	bytes_mapped = PAGE_SIZE * pages_mapped;
 	/* Even if vm_insert_pages fails, it may have partially succeeded in
 	 * mapping (some but not all of the pages).
 	 */
 	*seq += bytes_mapped;
-	*insert_addr += bytes_mapped;
-	if (ret) {
-		/* But if vm_insert_pages did fail, we have to unroll some state
-		 * we speculatively touched before.
-		 */
-		const int bytes_not_mapped = PAGE_SIZE * pages_remaining;
-		*length_with_pending -= bytes_not_mapped;
-		zc->recv_skip_hint += bytes_not_mapped;
-	}
-	return ret;
+	*address += bytes_mapped;
+
+	if (likely(!err))
+		return 0;
+
+	/* Error: maybe zap and retry + rollback state for failed inserts. */
+	return tcp_zerocopy_vm_insert_batch_error(vma, pages + pages_mapped,
+		pages_remaining, address, length, seq, zc, total_bytes_to_map,
+		err);
 }
 
+#define TCP_ZEROCOPY_PAGE_BATCH_SIZE 32
 static int tcp_zerocopy_receive(struct sock *sk,
 				struct tcp_zerocopy_receive *zc)
 {
+	u32 length = 0, offset, vma_len, avail_len, copylen = 0;
 	unsigned long address = (unsigned long)zc->address;
-	u32 length = 0, seq, offset, zap_len;
-	#define PAGE_BATCH_SIZE 8
-	struct page *pages[PAGE_BATCH_SIZE];
+	struct page *pages[TCP_ZEROCOPY_PAGE_BATCH_SIZE];
+	s32 copybuf_len = zc->copybuf_len;
+	struct tcp_sock *tp = tcp_sk(sk);
 	const skb_frag_t *frags = NULL;
+	unsigned int pages_to_map = 0;
 	struct vm_area_struct *vma;
 	struct sk_buff *skb = NULL;
-	unsigned long pg_idx = 0;
-	unsigned long curr_addr;
-	struct tcp_sock *tp;
-	int inq;
+	u32 seq = tp->copied_seq;
+	u32 total_bytes_to_map;
+	int inq = tcp_inq(sk);
 	int ret;
+
+	zc->copybuf_len = 0;
 
 	if (address & (PAGE_SIZE - 1) || address != zc->address)
 		return -EINVAL;
@@ -1797,7 +2032,16 @@ static int tcp_zerocopy_receive(struct sock *sk,
 
 	sock_rps_record_flow(sk);
 
-	tp = tcp_sk(sk);
+	if (inq && inq <= copybuf_len)
+		return receive_fallback_to_copy(sk, zc, inq);
+
+	if (inq < PAGE_SIZE) {
+		zc->length = 0;
+		zc->recv_skip_hint = inq;
+		if (!inq && sock_flag(sk, SOCK_DONE))
+			return -EIO;
+		return 0;
+	}
 
 	mmap_read_lock(current->mm);
 
@@ -1806,33 +2050,26 @@ static int tcp_zerocopy_receive(struct sock *sk,
 		mmap_read_unlock(current->mm);
 		return -EINVAL;
 	}
-	zc->length = min_t(unsigned long, zc->length, vma->vm_end - address);
-
-	seq = tp->copied_seq;
-	inq = tcp_inq(sk);
-	zc->length = min_t(u32, zc->length, inq);
-	zap_len = zc->length & ~(PAGE_SIZE - 1);
-	if (zap_len) {
-		zap_page_range(vma, address, zap_len);
+	vma_len = min_t(unsigned long, zc->length, vma->vm_end - address);
+	avail_len = min_t(u32, vma_len, inq);
+	total_bytes_to_map = avail_len & ~(PAGE_SIZE - 1);
+	if (total_bytes_to_map) {
+		if (!(zc->flags & TCP_RECEIVE_ZEROCOPY_FLAG_TLB_CLEAN_HINT))
+			zap_page_range(vma, address, total_bytes_to_map);
+		zc->length = total_bytes_to_map;
 		zc->recv_skip_hint = 0;
 	} else {
-		zc->recv_skip_hint = zc->length;
+		zc->length = avail_len;
+		zc->recv_skip_hint = avail_len;
 	}
 	ret = 0;
-	curr_addr = address;
 	while (length + PAGE_SIZE <= zc->length) {
+		int mappable_offset;
+		struct page *page;
+
 		if (zc->recv_skip_hint < PAGE_SIZE) {
-			/* If we're here, finish the current batch. */
-			if (pg_idx) {
-				ret = tcp_zerocopy_vm_insert_batch(vma, pages,
-								   pg_idx,
-								   &curr_addr,
-								   &length,
-								   &seq, zc);
-				if (ret)
-					goto out;
-				pg_idx = 0;
-			}
+			u32 offset_frag;
+
 			if (skb) {
 				if (zc->recv_skip_hint > 0)
 					break;
@@ -1842,56 +2079,57 @@ static int tcp_zerocopy_receive(struct sock *sk,
 				skb = tcp_recv_skb(sk, seq, &offset);
 			}
 			zc->recv_skip_hint = skb->len - offset;
-			offset -= skb_headlen(skb);
-			if ((int)offset < 0 || skb_has_frag_list(skb))
+			frags = skb_advance_to_frag(skb, offset, &offset_frag);
+			if (!frags || offset_frag)
 				break;
-			frags = skb_shinfo(skb)->frags;
-			while (offset) {
-				if (skb_frag_size(frags) > offset)
-					goto out;
-				offset -= skb_frag_size(frags);
-				frags++;
-			}
 		}
-		if (skb_frag_size(frags) != PAGE_SIZE || skb_frag_off(frags)) {
-			int remaining = zc->recv_skip_hint;
 
-			while (remaining && (skb_frag_size(frags) != PAGE_SIZE ||
-					     skb_frag_off(frags))) {
-				remaining -= skb_frag_size(frags);
-				frags++;
-			}
-			zc->recv_skip_hint -= remaining;
+		mappable_offset = find_next_mappable_frag(frags,
+							  zc->recv_skip_hint);
+		if (mappable_offset) {
+			zc->recv_skip_hint = mappable_offset;
 			break;
 		}
-		pages[pg_idx] = skb_frag_page(frags);
-		pg_idx++;
+		page = skb_frag_page(frags);
+		prefetchw(page);
+		pages[pages_to_map++] = page;
 		length += PAGE_SIZE;
 		zc->recv_skip_hint -= PAGE_SIZE;
 		frags++;
-		if (pg_idx == PAGE_BATCH_SIZE) {
-			ret = tcp_zerocopy_vm_insert_batch(vma, pages, pg_idx,
-							   &curr_addr, &length,
-							   &seq, zc);
+		if (pages_to_map == TCP_ZEROCOPY_PAGE_BATCH_SIZE ||
+		    zc->recv_skip_hint < PAGE_SIZE) {
+			/* Either full batch, or we're about to go to next skb
+			 * (and we cannot unroll failed ops across skbs).
+			 */
+			ret = tcp_zerocopy_vm_insert_batch(vma, pages,
+							   pages_to_map,
+							   &address, &length,
+							   &seq, zc,
+							   total_bytes_to_map);
 			if (ret)
 				goto out;
-			pg_idx = 0;
+			pages_to_map = 0;
 		}
 	}
-	if (pg_idx) {
-		ret = tcp_zerocopy_vm_insert_batch(vma, pages, pg_idx,
-						   &curr_addr, &length, &seq,
-						   zc);
+	if (pages_to_map) {
+		ret = tcp_zerocopy_vm_insert_batch(vma, pages, pages_to_map,
+						   &address, &length, &seq,
+						   zc, total_bytes_to_map);
 	}
 out:
 	mmap_read_unlock(current->mm);
-	if (length) {
+	/* Try to copy straggler data. */
+	if (!ret)
+		copylen = tcp_zerocopy_handle_leftover_data(zc, sk, skb, &seq,
+							    copybuf_len);
+
+	if (length + copylen) {
 		WRITE_ONCE(tp->copied_seq, seq);
 		tcp_rcv_space_adjust(sk);
 
 		/* Clean up data we have read: This will do ACK frames. */
 		tcp_recv_skb(sk, seq, &offset);
-		tcp_cleanup_rbuf(sk, length);
+		tcp_cleanup_rbuf(sk, length + copylen);
 		ret = 0;
 		if (length == zc->length)
 			zc->recv_skip_hint = 0;
@@ -2013,36 +2251,28 @@ static int tcp_inq_hint(struct sock *sk)
  *	Probably, code can be easily improved even more.
  */
 
-int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
-		int flags, int *addr_len)
+static int tcp_recvmsg_locked(struct sock *sk, struct msghdr *msg, size_t len,
+			      int nonblock, int flags,
+			      struct scm_timestamping_internal *tss,
+			      int *cmsg_flags)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	int copied = 0;
 	u32 peek_seq;
 	u32 *seq;
 	unsigned long used;
-	int err, inq;
+	int err;
 	int target;		/* Read at least this many bytes */
 	long timeo;
 	struct sk_buff *skb, *last;
 	u32 urg_hole = 0;
-	struct scm_timestamping_internal tss;
-	int cmsg_flags;
-
-	if (unlikely(flags & MSG_ERRQUEUE))
-		return inet_recv_error(sk, msg, len, addr_len);
-
-	if (sk_can_busy_loop(sk) && skb_queue_empty_lockless(&sk->sk_receive_queue) &&
-	    (sk->sk_state == TCP_ESTABLISHED))
-		sk_busy_loop(sk, nonblock);
-
-	lock_sock(sk);
 
 	err = -ENOTCONN;
 	if (sk->sk_state == TCP_LISTEN)
 		goto out;
 
-	cmsg_flags = tp->recvmsg_inq ? 1 : 0;
+	if (tp->recvmsg_inq)
+		*cmsg_flags = 1;
 	timeo = sock_rcvtimeo(sk, nonblock);
 
 	/* Urgent data needs to be handled specially. */
@@ -2222,8 +2452,8 @@ skip_copy:
 		}
 
 		if (TCP_SKB_CB(skb)->has_rxtstamp) {
-			tcp_update_recv_tstamps(skb, &tss);
-			cmsg_flags |= 2;
+			tcp_update_recv_tstamps(skb, tss);
+			*cmsg_flags |= 2;
 		}
 
 		if (used + offset < skb->len)
@@ -2249,22 +2479,9 @@ found_fin_ok:
 
 	/* Clean up data we have read: This will do ACK frames. */
 	tcp_cleanup_rbuf(sk, copied);
-
-	release_sock(sk);
-
-	if (cmsg_flags) {
-		if (cmsg_flags & 2)
-			tcp_recv_timestamp(msg, sk, &tss);
-		if (cmsg_flags & 1) {
-			inq = tcp_inq_hint(sk);
-			put_cmsg(msg, SOL_TCP, TCP_CM_INQ, sizeof(inq), &inq);
-		}
-	}
-
 	return copied;
 
 out:
-	release_sock(sk);
 	return err;
 
 recv_urg:
@@ -2274,6 +2491,36 @@ recv_urg:
 recv_sndq:
 	err = tcp_peek_sndq(sk, msg, len);
 	goto out;
+}
+
+int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
+		int flags, int *addr_len)
+{
+	int cmsg_flags = 0, ret, inq;
+	struct scm_timestamping_internal tss;
+
+	if (unlikely(flags & MSG_ERRQUEUE))
+		return inet_recv_error(sk, msg, len, addr_len);
+
+	if (sk_can_busy_loop(sk) &&
+	    skb_queue_empty_lockless(&sk->sk_receive_queue) &&
+	    sk->sk_state == TCP_ESTABLISHED)
+		sk_busy_loop(sk, nonblock);
+
+	lock_sock(sk);
+	ret = tcp_recvmsg_locked(sk, msg, len, nonblock, flags, &tss,
+				 &cmsg_flags);
+	release_sock(sk);
+
+	if (cmsg_flags && ret >= 0) {
+		if (cmsg_flags & 2)
+			tcp_recv_timestamp(msg, sk, &tss);
+		if (cmsg_flags & 1) {
+			inq = tcp_inq_hint(sk);
+			put_cmsg(msg, SOL_TCP, TCP_CM_INQ, sizeof(inq), &inq);
+		}
+	}
+	return ret;
 }
 EXPORT_SYMBOL(tcp_recvmsg);
 
@@ -2405,13 +2652,12 @@ bool tcp_check_oom(struct sock *sk, int shift)
 	return too_many_orphans || out_of_socket_memory;
 }
 
-void tcp_close(struct sock *sk, long timeout)
+void __tcp_close(struct sock *sk, long timeout)
 {
 	struct sk_buff *skb;
 	int data_was_unread = 0;
 	int state;
 
-	lock_sock(sk);
 	sk->sk_shutdown = SHUTDOWN_MASK;
 
 	if (sk->sk_state == TCP_LISTEN) {
@@ -2575,6 +2821,12 @@ adjudge_to_death:
 out:
 	bh_unlock_sock(sk);
 	local_bh_enable();
+}
+
+void tcp_close(struct sock *sk, long timeout)
+{
+	lock_sock(sk);
+	__tcp_close(sk, timeout);
 	release_sock(sk);
 	sock_put(sk);
 }
@@ -3022,6 +3274,21 @@ int tcp_sock_set_keepcnt(struct sock *sk, int val)
 }
 EXPORT_SYMBOL(tcp_sock_set_keepcnt);
 
+int tcp_set_window_clamp(struct sock *sk, int val)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (!val) {
+		if (sk->sk_state != TCP_CLOSE)
+			return -EINVAL;
+		tp->window_clamp = 0;
+	} else {
+		tp->window_clamp = val < SOCK_MIN_RCVBUF / 2 ?
+			SOCK_MIN_RCVBUF / 2 : val;
+	}
+	return 0;
+}
+
 /*
  *	Socket option code for TCP.
  */
@@ -3235,15 +3502,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case TCP_WINDOW_CLAMP:
-		if (!val) {
-			if (sk->sk_state != TCP_CLOSE) {
-				err = -EINVAL;
-				break;
-			}
-			tp->window_clamp = 0;
-		} else
-			tp->window_clamp = val < SOCK_MIN_RCVBUF / 2 ?
-						SOCK_MIN_RCVBUF / 2 : val;
+		err = tcp_set_window_clamp(sk, val);
 		break;
 
 	case TCP_QUICKACK:
@@ -3823,7 +4082,7 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 	}
 #ifdef CONFIG_MMU
 	case TCP_ZEROCOPY_RECEIVE: {
-		struct tcp_zerocopy_receive zc;
+		struct tcp_zerocopy_receive zc = {};
 		int err;
 
 		if (get_user(len, optlen))
@@ -3840,7 +4099,7 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		lock_sock(sk);
 		err = tcp_zerocopy_receive(sk, &zc);
 		release_sock(sk);
-		if (len == sizeof(zc))
+		if (len >= offsetofend(struct tcp_zerocopy_receive, err))
 			goto zerocopy_rcv_sk_err;
 		switch (len) {
 		case offsetofend(struct tcp_zerocopy_receive, err):
