@@ -1658,6 +1658,7 @@ static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		frag_truesize += psize;
 		pfrag->offset += frag_truesize;
 		WRITE_ONCE(msk->write_seq, msk->write_seq + psize);
+		msk->tx_pending_data += psize;
 
 		/* charge data on mptcp pending queue to the msk socket
 		 * Note: we charge such data both to sk and ssk
@@ -1683,10 +1684,8 @@ wait_for_memory:
 			goto out;
 	}
 
-	if (copied) {
-		msk->tx_pending_data += copied;
+	if (copied)
 		mptcp_push_pending(sk, msg->msg_flags);
-	}
 
 out:
 	release_sock(sk);
@@ -2119,7 +2118,7 @@ void __mptcp_close_ssk(struct sock *sk, struct sock *ssk,
 
 	list_del(&subflow->node);
 
-	lock_sock(ssk);
+	lock_sock_nested(ssk, SINGLE_DEPTH_NESTING);
 
 	/* if we are invoked by the msk cleanup code, the subflow is
 	 * already orphaned
@@ -2699,6 +2698,8 @@ struct sock *mptcp_sk_clone(const struct sock *sk,
 	sock_reset_flag(nsk, SOCK_RCU_FREE);
 	/* will be fully established after successful MPC subflow creation */
 	inet_sk_state_store(nsk, TCP_SYN_RECV);
+
+	security_inet_csk_clone(nsk, req);
 	bh_unlock_sock(nsk);
 
 	/* keep a single reference */
@@ -2913,7 +2914,7 @@ void __mptcp_data_acked(struct sock *sk)
 		mptcp_schedule_work(sk);
 }
 
-void __mptcp_wnd_updated(struct sock *sk, struct sock *ssk)
+void __mptcp_check_push(struct sock *sk, struct sock *ssk)
 {
 	if (!mptcp_send_head(sk))
 		return;
