@@ -19,6 +19,16 @@ config EXYNOS_AUDSS_CLK_CON
 	  on some Exynos SoC variants. Choose M or Y here if you want to
 	  use audio devices such as I2S, PCM, etc.
 
+config EXYNOS_CLKOUT
+	tristate "Samsung Exynos clock output driver"
+	depends on COMMON_CLK_SAMSUNG
+	default y if ARCH_EXYNOS
+	help
+	  Support for the clock output (XCLKOUT) present on some of Exynos SoC
+	  variants. Usually the XCLKOUT is used to monitor the status of the
+	  certains clocks from SoC, but it could also be tied to other devices
+	  as an input clock.
+
 # For S3C24XX platforms, select following symbols:
 config S3C2410_COMMON_CLK
 	bool "Samsung S3C2410 clock controller support" if COMPILE_TEST
