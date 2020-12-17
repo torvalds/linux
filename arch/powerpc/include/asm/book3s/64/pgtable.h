@@ -1231,11 +1231,26 @@ static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
 	return hash__pmd_same(pmd_a, pmd_b);
 }
 
-static inline pmd_t pmd_mkhuge(pmd_t pmd)
+static inline pmd_t __pmd_mkhuge(pmd_t pmd)
 {
 	if (radix_enabled())
 		return radix__pmd_mkhuge(pmd);
 	return hash__pmd_mkhuge(pmd);
+}
+
+/*
+ * pfn_pmd return a pmd_t that can be used as pmd pte entry.
+ */
+static inline pmd_t pmd_mkhuge(pmd_t pmd)
+{
+#ifdef CONFIG_DEBUG_VM
+	if (radix_enabled())
+		WARN_ON((pmd_raw(pmd) & cpu_to_be64(_PAGE_PTE)) == 0);
+	else
+		WARN_ON((pmd_raw(pmd) & cpu_to_be64(_PAGE_PTE | H_PAGE_THP_HUGE)) !=
+			cpu_to_be64(_PAGE_PTE | H_PAGE_THP_HUGE));
+#endif
+	return pmd;
 }
 
 #define __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS

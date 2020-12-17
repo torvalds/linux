@@ -684,6 +684,63 @@ int rtas_set_indicator_fast(int indicator, int index, int new_value)
 	return rc;
 }
 
+/**
+ * rtas_ibm_suspend_me() - Call ibm,suspend-me to suspend the LPAR.
+ *
+ * @fw_status: RTAS call status will be placed here if not NULL.
+ *
+ * rtas_ibm_suspend_me() should be called only on a CPU which has
+ * received H_CONTINUE from the H_JOIN hcall. All other active CPUs
+ * should be waiting to return from H_JOIN.
+ *
+ * rtas_ibm_suspend_me() may suspend execution of the OS
+ * indefinitely. Callers should take appropriate measures upon return, such as
+ * resetting watchdog facilities.
+ *
+ * Callers may choose to retry this call if @fw_status is
+ * %RTAS_THREADS_ACTIVE.
+ *
+ * Return:
+ * 0          - The partition has resumed from suspend, possibly after
+ *              migration to a different host.
+ * -ECANCELED - The operation was aborted.
+ * -EAGAIN    - There were other CPUs not in H_JOIN at the time of the call.
+ * -EBUSY     - Some other condition prevented the suspend from succeeding.
+ * -EIO       - Hardware/platform error.
+ */
+int rtas_ibm_suspend_me(int *fw_status)
+{
+	int fwrc;
+	int ret;
+
+	fwrc = rtas_call(rtas_token("ibm,suspend-me"), 0, 1, NULL);
+
+	switch (fwrc) {
+	case 0:
+		ret = 0;
+		break;
+	case RTAS_SUSPEND_ABORTED:
+		ret = -ECANCELED;
+		break;
+	case RTAS_THREADS_ACTIVE:
+		ret = -EAGAIN;
+		break;
+	case RTAS_NOT_SUSPENDABLE:
+	case RTAS_OUTSTANDING_COPROC:
+		ret = -EBUSY;
+		break;
+	case -1:
+	default:
+		ret = -EIO;
+		break;
+	}
+
+	if (fw_status)
+		*fw_status = fwrc;
+
+	return ret;
+}
+
 void __noreturn rtas_restart(char *cmd)
 {
 	if (rtas_flash_term_hook)
@@ -741,163 +798,38 @@ void rtas_os_term(char *str)
 		printk(KERN_EMERG "ibm,os-term call failed %d\n", status);
 }
 
+/**
+ * rtas_activate_firmware() - Activate a new version of firmware.
+ *
+ * Activate a new version of partition firmware. The OS must call this
+ * after resuming from a partition hibernation or migration in order
+ * to maintain the ability to perform live firmware updates. It's not
+ * catastrophic for this method to be absent or to fail; just log the
+ * condition in that case.
+ *
+ * Context: This function may sleep.
+ */
+void rtas_activate_firmware(void)
+{
+	int token;
+	int fwrc;
+
+	token = rtas_token("ibm,activate-firmware");
+	if (token == RTAS_UNKNOWN_SERVICE) {
+		pr_notice("ibm,activate-firmware method unavailable\n");
+		return;
+	}
+
+	do {
+		fwrc = rtas_call(token, 0, 1, NULL);
+	} while (rtas_busy_delay(fwrc));
+
+	if (fwrc)
+		pr_err("ibm,activate-firmware failed (%i)\n", fwrc);
+}
+
 static int ibm_suspend_me_token = RTAS_UNKNOWN_SERVICE;
 #ifdef CONFIG_PPC_PSERIES
-static int __rtas_suspend_last_cpu(struct rtas_suspend_me_data *data, int wake_when_done)
-{
-	u16 slb_size = mmu_slb_size;
-	int rc = H_MULTI_THREADS_ACTIVE;
-	int cpu;
-
-	slb_set_size(SLB_MIN_SIZE);
-	printk(KERN_DEBUG "calling ibm,suspend-me on cpu %i\n", smp_processor_id());
-
-	while (rc == H_MULTI_THREADS_ACTIVE && !atomic_read(&data->done) &&
-	       !atomic_read(&data->error))
-		rc = rtas_call(data->token, 0, 1, NULL);
-
-	if (rc || atomic_read(&data->error)) {
-		printk(KERN_DEBUG "ibm,suspend-me returned %d\n", rc);
-		slb_set_size(slb_size);
-	}
-
-	if (atomic_read(&data->error))
-		rc = atomic_read(&data->error);
-
-	atomic_set(&data->error, rc);
-	pSeries_coalesce_init();
-
-	if (wake_when_done) {
-		atomic_set(&data->done, 1);
-
-		for_each_online_cpu(cpu)
-			plpar_hcall_norets(H_PROD, get_hard_smp_processor_id(cpu));
-	}
-
-	if (atomic_dec_return(&data->working) == 0)
-		complete(data->complete);
-
-	return rc;
-}
-
-int rtas_suspend_last_cpu(struct rtas_suspend_me_data *data)
-{
-	atomic_inc(&data->working);
-	return __rtas_suspend_last_cpu(data, 0);
-}
-
-static int __rtas_suspend_cpu(struct rtas_suspend_me_data *data, int wake_when_done)
-{
-	long rc = H_SUCCESS;
-	unsigned long msr_save;
-	int cpu;
-
-	atomic_inc(&data->working);
-
-	/* really need to ensure MSR.EE is off for H_JOIN */
-	msr_save = mfmsr();
-	mtmsr(msr_save & ~(MSR_EE));
-
-	while (rc == H_SUCCESS && !atomic_read(&data->done) && !atomic_read(&data->error))
-		rc = plpar_hcall_norets(H_JOIN);
-
-	mtmsr(msr_save);
-
-	if (rc == H_SUCCESS) {
-		/* This cpu was prodded and the suspend is complete. */
-		goto out;
-	} else if (rc == H_CONTINUE) {
-		/* All other cpus are in H_JOIN, this cpu does
-		 * the suspend.
-		 */
-		return __rtas_suspend_last_cpu(data, wake_when_done);
-	} else {
-		printk(KERN_ERR "H_JOIN on cpu %i failed with rc = %ld\n",
-		       smp_processor_id(), rc);
-		atomic_set(&data->error, rc);
-	}
-
-	if (wake_when_done) {
-		atomic_set(&data->done, 1);
-
-		/* This cpu did the suspend or got an error; in either case,
-		 * we need to prod all other other cpus out of join state.
-		 * Extra prods are harmless.
-		 */
-		for_each_online_cpu(cpu)
-			plpar_hcall_norets(H_PROD, get_hard_smp_processor_id(cpu));
-	}
-out:
-	if (atomic_dec_return(&data->working) == 0)
-		complete(data->complete);
-	return rc;
-}
-
-int rtas_suspend_cpu(struct rtas_suspend_me_data *data)
-{
-	return __rtas_suspend_cpu(data, 0);
-}
-
-static void rtas_percpu_suspend_me(void *info)
-{
-	__rtas_suspend_cpu((struct rtas_suspend_me_data *)info, 1);
-}
-
-int rtas_ibm_suspend_me(u64 handle)
-{
-	long state;
-	long rc;
-	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
-	struct rtas_suspend_me_data data;
-	DECLARE_COMPLETION_ONSTACK(done);
-
-	if (!rtas_service_present("ibm,suspend-me"))
-		return -ENOSYS;
-
-	/* Make sure the state is valid */
-	rc = plpar_hcall(H_VASI_STATE, retbuf, handle);
-
-	state = retbuf[0];
-
-	if (rc) {
-		printk(KERN_ERR "rtas_ibm_suspend_me: vasi_state returned %ld\n",rc);
-		return rc;
-	} else if (state == H_VASI_ENABLED) {
-		return -EAGAIN;
-	} else if (state != H_VASI_SUSPENDING) {
-		printk(KERN_ERR "rtas_ibm_suspend_me: vasi_state returned state %ld\n",
-		       state);
-		return -EIO;
-	}
-
-	atomic_set(&data.working, 0);
-	atomic_set(&data.done, 0);
-	atomic_set(&data.error, 0);
-	data.token = rtas_token("ibm,suspend-me");
-	data.complete = &done;
-
-	lock_device_hotplug();
-
-	cpu_hotplug_disable();
-
-	/* Call function on all CPUs.  One of us will make the
-	 * rtas call
-	 */
-	on_each_cpu(rtas_percpu_suspend_me, &data, 0);
-
-	wait_for_completion(&done);
-
-	if (atomic_read(&data.error) != 0)
-		printk(KERN_ERR "Error doing global join\n");
-
-
-	cpu_hotplug_enable();
-
-	unlock_device_hotplug();
-
-	return atomic_read(&data.error);
-}
-
 /**
  * rtas_call_reentrant() - Used for reentrant rtas calls
  * @token:	Token for desired reentrant RTAS call
@@ -948,12 +880,7 @@ int rtas_call_reentrant(int token, int nargs, int nret, int *outputs, ...)
 	return ret;
 }
 
-#else /* CONFIG_PPC_PSERIES */
-int rtas_ibm_suspend_me(u64 handle)
-{
-	return -ENOSYS;
-}
-#endif
+#endif /* CONFIG_PPC_PSERIES */
 
 /**
  * Find a specific pseries error log in an RTAS extended event log.
@@ -1030,7 +957,7 @@ static struct rtas_filter rtas_filters[] __ro_after_init = {
 	{ "ibm,display-message", -1, 0, -1, -1, -1 },
 	{ "ibm,errinjct", -1, 2, -1, -1, -1, 1024 },
 	{ "ibm,close-errinjct", -1, -1, -1, -1, -1 },
-	{ "ibm,open-errinct", -1, -1, -1, -1, -1 },
+	{ "ibm,open-errinjct", -1, -1, -1, -1, -1 },
 	{ "ibm,get-config-addr-info2", -1, -1, -1, -1, -1 },
 	{ "ibm,get-dynamic-sensor-state", -1, 1, -1, -1, -1 },
 	{ "ibm,get-indices", -1, 2, 3, -1, -1 },
@@ -1050,9 +977,11 @@ static struct rtas_filter rtas_filters[] __ro_after_init = {
 	{ "set-time-for-power-on", -1, -1, -1, -1, -1 },
 	{ "ibm,set-system-parameter", -1, 1, -1, -1, -1 },
 	{ "set-time-of-day", -1, -1, -1, -1, -1 },
+#ifdef CONFIG_CPU_BIG_ENDIAN
 	{ "ibm,suspend-me", -1, -1, -1, -1, -1 },
 	{ "ibm,update-nodes", -1, 0, -1, -1, -1, 4096 },
 	{ "ibm,update-properties", -1, 0, -1, -1, -1, 4096 },
+#endif
 	{ "ibm,physical-attestation", -1, 0, 1, -1, -1 },
 };
 
@@ -1183,7 +1112,7 @@ SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 		int rc = 0;
 		u64 handle = ((u64)be32_to_cpu(args.args[0]) << 32)
 		              | be32_to_cpu(args.args[1]);
-		rc = rtas_ibm_suspend_me(handle);
+		rc = rtas_syscall_dispatch_ibm_suspend_me(handle);
 		if (rc == -EAGAIN)
 			args.rets[0] = cpu_to_be32(RTAS_NOT_SUSPENDABLE);
 		else if (rc == -EIO)

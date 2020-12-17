@@ -526,8 +526,11 @@ static int mce_handle_err_realmode(int disposition, u8 error_type)
 #ifdef CONFIG_PPC_BOOK3S_64
 	if (disposition == RTAS_DISP_NOT_RECOVERED) {
 		switch (error_type) {
-		case	MC_ERROR_TYPE_SLB:
 		case	MC_ERROR_TYPE_ERAT:
+			flush_erat();
+			disposition = RTAS_DISP_FULLY_RECOVERED;
+			break;
+		case	MC_ERROR_TYPE_SLB:
 			/*
 			 * Store the old slb content in paca before flushing.
 			 * Print this when we go to virtual mode.
