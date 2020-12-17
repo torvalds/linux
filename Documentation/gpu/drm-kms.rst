@@ -493,6 +493,12 @@ Standard CRTC Properties
 .. kernel-doc:: drivers/gpu/drm/drm_crtc.c
    :doc: standard CRTC properties
 
+Standard Plane Properties
+-------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_plane.c
+   :doc: standard plane properties
+
 Plane Composition Properties
 ----------------------------
 
