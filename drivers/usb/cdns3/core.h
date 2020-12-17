@@ -42,6 +42,8 @@ struct cdns3_role_driver {
 struct cdns3_platform_data {
 	int (*platform_suspend)(struct device *dev,
 			bool suspend, bool wakeup);
+	unsigned long quirks;
+#define CDNS3_DEFAULT_PM_RUNTIME_ALLOW	BIT(0)
 };
 
 /**
@@ -73,6 +75,7 @@ struct cdns3_platform_data {
  * @wakeup_pending: wakeup interrupt pending
  * @pdata: platform data from glue layer
  * @lock: spinlock structure
+ * @xhci_plat_data: xhci private data structure pointer
  */
 struct cdns3 {
 	struct device			*dev;
@@ -106,6 +109,7 @@ struct cdns3 {
 	bool				wakeup_pending;
 	struct cdns3_platform_data	*pdata;
 	spinlock_t			lock;
+	struct xhci_plat_priv		*xhci_plat_data;
 };
 
 int cdns3_hw_role_switch(struct cdns3 *cdns);

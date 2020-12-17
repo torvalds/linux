@@ -142,8 +142,8 @@ struct tcpc_dev {
 	int (*enable_auto_vbus_discharge)(struct tcpc_dev *dev, bool enable);
 	int (*set_auto_vbus_discharge_threshold)(struct tcpc_dev *dev, enum typec_pwr_opmode mode,
 						 bool pps_active, u32 requested_vbus_voltage);
-	int (*check_contaminant)(struct tcpc_dev *dev);
 	bool (*is_vbus_vsafe0v)(struct tcpc_dev *dev);
+	int (*check_contaminant)(struct tcpc_dev *dev);
 };
 
 struct tcpm_port;

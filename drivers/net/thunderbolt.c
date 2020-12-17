@@ -866,7 +866,7 @@ static int tbnet_open(struct net_device *dev)
 	eof_mask = BIT(TBIP_PDF_FRAME_END);
 
 	ring = tb_ring_alloc_rx(xd->tb->nhi, -1, TBNET_RING_SIZE,
-				RING_FLAG_FRAME, sof_mask, eof_mask,
+				RING_FLAG_FRAME, 0, sof_mask, eof_mask,
 				tbnet_start_poll, net);
 	if (!ring) {
 		netdev_err(dev, "failed to allocate Rx ring\n");

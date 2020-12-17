@@ -641,7 +641,7 @@ static struct attribute *usb2_hardware_lpm_attr[] = {
 	&dev_attr_usb2_lpm_besl.attr,
 	NULL,
 };
-static struct attribute_group usb2_hardware_lpm_attr_group = {
+static const struct attribute_group usb2_hardware_lpm_attr_group = {
 	.name	= power_group_name,
 	.attrs	= usb2_hardware_lpm_attr,
 };
@@ -651,7 +651,7 @@ static struct attribute *usb3_hardware_lpm_attr[] = {
 	&dev_attr_usb3_hardware_lpm_u2.attr,
 	NULL,
 };
-static struct attribute_group usb3_hardware_lpm_attr_group = {
+static const struct attribute_group usb3_hardware_lpm_attr_group = {
 	.name	= power_group_name,
 	.attrs	= usb3_hardware_lpm_attr,
 };
@@ -663,7 +663,7 @@ static struct attribute *power_attrs[] = {
 	&dev_attr_active_duration.attr,
 	NULL,
 };
-static struct attribute_group power_attr_group = {
+static const struct attribute_group power_attr_group = {
 	.name	= power_group_name,
 	.attrs	= power_attrs,
 };
@@ -832,7 +832,7 @@ static struct attribute *dev_attrs[] = {
 #endif
 	NULL,
 };
-static struct attribute_group dev_attr_grp = {
+static const struct attribute_group dev_attr_grp = {
 	.attrs = dev_attrs,
 };
 
@@ -865,7 +865,7 @@ static umode_t dev_string_attrs_are_visible(struct kobject *kobj,
 	return a->mode;
 }
 
-static struct attribute_group dev_string_attr_grp = {
+static const struct attribute_group dev_string_attr_grp = {
 	.attrs =	dev_string_attrs,
 	.is_visible =	dev_string_attrs_are_visible,
 };
@@ -1222,7 +1222,7 @@ static struct attribute *intf_attrs[] = {
 	&dev_attr_interface_authorized.attr,
 	NULL,
 };
-static struct attribute_group intf_attr_grp = {
+static const struct attribute_group intf_attr_grp = {
 	.attrs = intf_attrs,
 };
 
@@ -1246,7 +1246,7 @@ static umode_t intf_assoc_attrs_are_visible(struct kobject *kobj,
 	return a->mode;
 }
 
-static struct attribute_group intf_assoc_attr_grp = {
+static const struct attribute_group intf_assoc_attr_grp = {
 	.attrs =	intf_assoc_attrs,
 	.is_visible =	intf_assoc_attrs_are_visible,
 };

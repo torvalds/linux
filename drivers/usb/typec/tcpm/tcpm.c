@@ -4850,6 +4850,24 @@ static void tcpm_init(struct tcpm_port *port)
 	if (port->vbus_present)
 		port->vbus_never_low = true;
 
+	/*
+	 * 1. When vbus_present is true, voltage on VBUS is already at VSAFE5V.
+	 * So implicitly vbus_vsafe0v = false.
+	 *
+	 * 2. When vbus_present is false and TCPC does NOT support querying
+	 * vsafe0v status, then, it's best to assume vbus is at VSAFE0V i.e.
+	 * vbus_vsafe0v is true.
+	 *
+	 * 3. When vbus_present is false and TCPC does support querying vsafe0v,
+	 * then, query tcpc for vsafe0v status.
+	 */
+	if (port->vbus_present)
+		port->vbus_vsafe0v = false;
+	else if (!port->tcpc->is_vbus_vsafe0v)
+		port->vbus_vsafe0v = true;
+	else
+		port->vbus_vsafe0v = port->tcpc->is_vbus_vsafe0v(port->tcpc);
+
 	tcpm_set_state(port, tcpm_default_state(port), 0);
 
 	if (port->tcpc->get_cc(port->tcpc, &cc1, &cc2) == 0)
@@ -5242,14 +5260,14 @@ static int devm_tcpm_psy_register(struct tcpm_port *port)
 	snprintf(psy_name, psy_name_len, "%s%s", tcpm_psy_name_prefix,
 		 port_dev_name);
 	port->psy_desc.name = psy_name;
-	port->psy_desc.type = POWER_SUPPLY_TYPE_USB,
+	port->psy_desc.type = POWER_SUPPLY_TYPE_USB;
 	port->psy_desc.usb_types = tcpm_psy_usb_types;
 	port->psy_desc.num_usb_types = ARRAY_SIZE(tcpm_psy_usb_types);
-	port->psy_desc.properties = tcpm_psy_props,
-	port->psy_desc.num_properties = ARRAY_SIZE(tcpm_psy_props),
-	port->psy_desc.get_property = tcpm_psy_get_prop,
-	port->psy_desc.set_property = tcpm_psy_set_prop,
-	port->psy_desc.property_is_writeable = tcpm_psy_prop_writeable,
+	port->psy_desc.properties = tcpm_psy_props;
+	port->psy_desc.num_properties = ARRAY_SIZE(tcpm_psy_props);
+	port->psy_desc.get_property = tcpm_psy_get_prop;
+	port->psy_desc.set_property = tcpm_psy_set_prop;
+	port->psy_desc.property_is_writeable = tcpm_psy_prop_writeable;
 
 	port->usb_type = POWER_SUPPLY_USB_TYPE_C;
 
