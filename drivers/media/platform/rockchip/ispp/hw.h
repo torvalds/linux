@@ -48,6 +48,7 @@ struct rkispp_hw_dev {
 	struct mutex dev_lock;
 	spinlock_t buf_lock;
 	atomic_t refcnt;
+	const struct vb2_mem_ops *mem_ops;
 	bool is_mmu;
 	bool is_idle;
 	bool is_single;

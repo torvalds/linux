@@ -8,8 +8,6 @@
 #include "dev.h"
 #include "regs.h"
 
-static const struct vb2_mem_ops *g_ops = &vb2_dma_contig_memops;
-
 void rkispp_write(struct rkispp_device *dev, u32 reg, u32 val)
 {
 	u32 *mem = dev->sw_base_addr + reg;
@@ -68,6 +66,8 @@ int rkispp_allow_buffer(struct rkispp_device *dev,
 			struct rkispp_dummy_buffer *buf)
 {
 	unsigned long attrs = buf->is_need_vaddr ? 0 : DMA_ATTR_NO_KERNEL_MAPPING;
+	const struct vb2_mem_ops *g_ops = dev->hw_dev->mem_ops;
+	struct sg_table  *sg_tbl;
 	void *mem_priv;
 	int ret = 0;
 
@@ -76,6 +76,7 @@ int rkispp_allow_buffer(struct rkispp_device *dev,
 		goto err;
 	}
 
+	buf->size = PAGE_ALIGN(buf->size);
 	mem_priv = g_ops->alloc(dev->hw_dev->dev, attrs, buf->size,
 				DMA_BIDIRECTIONAL, GFP_KERNEL);
 	if (IS_ERR_OR_NULL(mem_priv)) {
@@ -84,7 +85,12 @@ int rkispp_allow_buffer(struct rkispp_device *dev,
 	}
 
 	buf->mem_priv = mem_priv;
-	buf->dma_addr = *((dma_addr_t *)g_ops->cookie(mem_priv));
+	if (dev->hw_dev->is_mmu) {
+		sg_tbl = (struct sg_table *)g_ops->cookie(mem_priv);
+		buf->dma_addr = sg_dma_address(sg_tbl->sgl);
+	} else {
+		buf->dma_addr = *((dma_addr_t *)g_ops->cookie(mem_priv));
+	}
 	if (!attrs)
 		buf->vaddr = g_ops->vaddr(mem_priv);
 	if (buf->is_need_dbuf) {
@@ -111,6 +117,8 @@ err:
 void rkispp_free_buffer(struct rkispp_device *dev,
 			struct rkispp_dummy_buffer *buf)
 {
+	const struct vb2_mem_ops *g_ops = dev->hw_dev->mem_ops;
+
 	if (buf && buf->mem_priv) {
 		v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 			 "%s buf:0x%x~0x%x\n", __func__,
@@ -226,6 +234,7 @@ static int rkispp_find_regbuf_by_stat(struct rkispp_hw_dev *hw, struct rkisp_isp
 
 static void rkispp_free_pool(struct rkispp_hw_dev *hw)
 {
+	const struct vb2_mem_ops *g_ops = hw->mem_ops;
 	struct rkispp_isp_buf_pool *buf;
 	int i, j;
 
@@ -254,7 +263,9 @@ static void rkispp_free_pool(struct rkispp_hw_dev *hw)
 
 static int rkispp_init_pool(struct rkispp_hw_dev *hw, struct rkisp_ispp_buf *dbufs)
 {
+	const struct vb2_mem_ops *g_ops = hw->mem_ops;
 	struct rkispp_isp_buf_pool *pool;
+	struct sg_table	 *sg_tbl;
 	int i, ret = 0;
 	void *mem;
 
@@ -281,7 +292,12 @@ static int rkispp_init_pool(struct rkispp_hw_dev *hw, struct rkisp_ispp_buf *dbu
 		ret = g_ops->map_dmabuf(mem);
 		if (ret)
 			goto err;
-		pool->dma[i] = *((dma_addr_t *)g_ops->cookie(mem));
+		if (hw->is_mmu) {
+			sg_tbl = (struct sg_table *)g_ops->cookie(mem);
+			pool->dma[i] = sg_dma_address(sg_tbl->sgl);
+		} else {
+			pool->dma[i] = *((dma_addr_t *)g_ops->cookie(mem));
+		}
 		if (rkispp_debug)
 			dev_info(hw->dev, "%s dma[%d]:0x%x\n",
 				 __func__, i, (u32)pool->dma[i]);

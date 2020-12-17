@@ -7,6 +7,7 @@
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-vmalloc.h>	/* for ISP statistics */
 #include <media/videobuf2-dma-contig.h>
+#include <media/videobuf2-dma-sg.h>
 #include <media/v4l2-mc.h>
 #include "dev.h"
 #include "regs.h"
@@ -213,7 +214,13 @@ static void rkispp_stats_vb2_buf_queue(struct vb2_buffer *vb)
 	struct rkispp_stats_vdev *stats_dev = vq->drv_priv;
 	unsigned long lock_flags = 0;
 
-	buf->buff_addr[0] = vb2_dma_contig_plane_dma_addr(vb, 0);
+	if (stats_dev->dev->hw_dev->is_mmu) {
+		struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
+
+		buf->buff_addr[0] = sg_dma_address(sgt->sgl);
+	} else {
+		buf->buff_addr[0] = vb2_dma_contig_plane_dma_addr(vb, 0);
+	}
 	spin_lock_irqsave(&stats_dev->irq_lock, lock_flags);
 	if (stats_dev->streamon &&
 	    !stats_dev->next_buf) {
@@ -293,7 +300,7 @@ static int rkispp_stats_init_vb2_queue(struct vb2_queue *q,
 	q->io_modes = VB2_MMAP | VB2_USERPTR;
 	q->drv_priv = stats_vdev;
 	q->ops = &rkispp_stats_vb2_ops;
-	q->mem_ops = &vb2_dma_contig_memops;
+	q->mem_ops = stats_vdev->dev->hw_dev->mem_ops;
 	q->buf_struct_size = sizeof(struct rkispp_buffer);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &stats_vdev->dev->iqlock;

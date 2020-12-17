@@ -10,6 +10,7 @@
 #include <media/v4l2-mc.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
+#include <media/videobuf2-dma-sg.h>
 #include <linux/rkisp1-config.h>
 
 #include "dev.h"
@@ -1365,12 +1366,18 @@ static void rkispp_buf_queue(struct vb2_buffer *vb)
 	struct capture_fmt *cap_fmt = &stream->out_cap_fmt;
 	unsigned long lock_flags = 0;
 	u32 height, size, offset;
+	struct sg_table *sgt;
 	int i;
 
 	memset(isppbuf->buff_addr, 0, sizeof(isppbuf->buff_addr));
-	for (i = 0; i < cap_fmt->mplanes; i++)
-		isppbuf->buff_addr[i] = vb2_dma_contig_plane_dma_addr(vb, i);
-
+	for (i = 0; i < cap_fmt->mplanes; i++) {
+		if (stream->isppdev->hw_dev->is_mmu) {
+			sgt = vb2_dma_sg_plane_desc(vb, i);
+			isppbuf->buff_addr[i] = sg_dma_address(sgt->sgl);
+		} else {
+			isppbuf->buff_addr[i] = vb2_dma_contig_plane_dma_addr(vb, i);
+		}
+	}
 	/*
 	 * NOTE: plane_fmt[0].sizeimage is total size of all planes for single
 	 * memory plane formats, so calculate the size explicitly.
@@ -1645,7 +1652,7 @@ static int rkispp_init_vb2_queue(struct vb2_queue *q,
 	q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_USERPTR;
 	q->drv_priv = stream;
 	q->ops = &stream_vb2_ops;
-	q->mem_ops = &vb2_dma_contig_memops;
+	q->mem_ops = stream->isppdev->hw_dev->mem_ops;
 	q->buf_struct_size = sizeof(struct rkispp_buffer);
 	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 		q->min_buffers_needed = STREAM_IN_REQ_BUFS_MIN;

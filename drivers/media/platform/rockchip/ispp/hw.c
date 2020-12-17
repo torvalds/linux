@@ -12,6 +12,8 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
+#include <media/videobuf2-dma-contig.h>
+#include <media/videobuf2-dma-sg.h>
 
 #include "common.h"
 #include "dev.h"
@@ -286,9 +288,12 @@ static int rkispp_hw_probe(struct platform_device *pdev)
 	hw_dev->is_fec_ext = false;
 	hw_dev->is_mmu = is_iommu_enable(dev);
 	if (!hw_dev->is_mmu) {
+		hw_dev->mem_ops = &vb2_dma_contig_memops;
 		ret = of_reserved_mem_device_init(dev);
 		if (ret)
 			dev_warn(dev, "No reserved memory region assign to ispp\n");
+	} else {
+		hw_dev->mem_ops = &vb2_dma_sg_memops;
 	}
 
 	rkispp_register_fec(hw_dev);
