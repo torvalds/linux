@@ -182,10 +182,6 @@ struct snd_usb_stream {
 	struct list_head list;
 };
 
-struct snd_usb_substream *find_snd_usb_substream(unsigned int card_num,
-	unsigned int pcm_idx, unsigned int direction, struct snd_usb_audio
-	**uchip, void (*disconnect_cb)(struct snd_usb_audio *chip));
-
 int snd_vendor_set_ops(struct snd_usb_audio_vendor_ops *vendor_ops);
 struct snd_usb_audio_vendor_ops *snd_vendor_get_ops(void);
 int snd_vendor_set_interface(struct usb_device *udev,
