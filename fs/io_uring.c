@@ -9154,10 +9154,13 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 	 */
 	ret = 0;
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
-		io_ring_submit_lock(ctx, (ctx->flags & IORING_SETUP_IOPOLL));
-		if (!list_empty_careful(&ctx->cq_overflow_list))
+		if (!list_empty_careful(&ctx->cq_overflow_list)) {
+			bool needs_lock = ctx->flags & IORING_SETUP_IOPOLL;
+
+			io_ring_submit_lock(ctx, needs_lock);
 			io_cqring_overflow_flush(ctx, false, NULL, NULL);
-		io_ring_submit_unlock(ctx, (ctx->flags & IORING_SETUP_IOPOLL));
+			io_ring_submit_unlock(ctx, needs_lock);
+		}
 		if (flags & IORING_ENTER_SQ_WAKEUP)
 			wake_up(&ctx->sq_data->wait);
 		if (flags & IORING_ENTER_SQ_WAIT)
