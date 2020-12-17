@@ -4,7 +4,7 @@
 
 #include "bcachefs.h"
 #include "alloc_foreground.h"
-#include "bkey_on_stack.h"
+#include "bkey_buf.h"
 #include "bset.h"
 #include "btree_gc.h"
 #include "btree_update.h"
@@ -783,10 +783,10 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 	struct btree_iter *iter;
 	struct bkey_s_c k;
 	struct bkey_s_extent e;
-	struct bkey_on_stack sk;
+	struct bkey_buf sk;
 	int ret = 0, dev, idx;
 
-	bkey_on_stack_init(&sk);
+	bch2_bkey_buf_init(&sk);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	/* XXX this doesn't support the reflink btree */
@@ -813,7 +813,7 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 
 		dev = s->key.v.ptrs[idx].dev;
 
-		bkey_on_stack_reassemble(&sk, c, k);
+		bch2_bkey_buf_reassemble(&sk, c, k);
 		e = bkey_i_to_s_extent(sk.k);
 
 		bch2_bkey_drop_ptrs(e.s, ptr, ptr->dev != dev);
@@ -834,7 +834,7 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 	}
 
 	bch2_trans_exit(&trans);
-	bkey_on_stack_exit(&sk, c);
+	bch2_bkey_buf_exit(&sk, c);
 
 	return ret;
 }

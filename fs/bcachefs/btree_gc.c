@@ -8,7 +8,7 @@
 #include "alloc_background.h"
 #include "alloc_foreground.h"
 #include "bkey_methods.h"
-#include "bkey_on_stack.h"
+#include "bkey_buf.h"
 #include "btree_locking.h"
 #include "btree_update_interior.h"
 #include "btree_io.h"
@@ -267,10 +267,12 @@ static int bch2_gc_btree_init_recurse(struct bch_fs *c, struct btree *b,
 	struct btree_and_journal_iter iter;
 	struct bkey_s_c k;
 	struct bpos next_node_start = b->data->min_key;
+	struct bkey_buf tmp;
 	u8 max_stale = 0;
 	int ret = 0;
 
 	bch2_btree_and_journal_iter_init_node_iter(&iter, journal_keys, b);
+	bch2_bkey_buf_init(&tmp);
 
 	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
 		bch2_bkey_debugcheck(c, b, k);
@@ -284,10 +286,9 @@ static int bch2_gc_btree_init_recurse(struct bch_fs *c, struct btree *b,
 
 		if (b->c.level) {
 			struct btree *child;
-			BKEY_PADDED(k) tmp;
 
-			bkey_reassemble(&tmp.k, k);
-			k = bkey_i_to_s_c(&tmp.k);
+			bch2_bkey_buf_reassemble(&tmp, c, k);
+			k = bkey_i_to_s_c(tmp.k);
 
 			bch2_btree_and_journal_iter_advance(&iter);
 
@@ -299,7 +300,7 @@ static int bch2_gc_btree_init_recurse(struct bch_fs *c, struct btree *b,
 				break;
 
 			if (b->c.level > target_depth) {
-				child = bch2_btree_node_get_noiter(c, &tmp.k,
+				child = bch2_btree_node_get_noiter(c, tmp.k,
 							b->c.btree_id, b->c.level - 1);
 				ret = PTR_ERR_OR_ZERO(child);
 				if (ret)
@@ -317,6 +318,7 @@ static int bch2_gc_btree_init_recurse(struct bch_fs *c, struct btree *b,
 		}
 	}
 
+	bch2_bkey_buf_exit(&tmp, c);
 	return ret;
 }
 
@@ -929,10 +931,10 @@ static int bch2_gc_btree_gens(struct bch_fs *c, enum btree_id btree_id)
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
-	struct bkey_on_stack sk;
+	struct bkey_buf sk;
 	int ret = 0;
 
-	bkey_on_stack_init(&sk);
+	bch2_bkey_buf_init(&sk);
 	bch2_trans_init(&trans, c, 0, 0);
 
 	iter = bch2_trans_get_iter(&trans, btree_id, POS_MIN,
@@ -941,7 +943,7 @@ static int bch2_gc_btree_gens(struct bch_fs *c, enum btree_id btree_id)
 	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = bkey_err(k))) {
 		if (gc_btree_gens_key(c, k)) {
-			bkey_on_stack_reassemble(&sk, c, k);
+			bch2_bkey_buf_reassemble(&sk, c, k);
 			bch2_extent_normalize(c, bkey_i_to_s(sk.k));
 
 			bch2_btree_iter_set_pos(iter, bkey_start_pos(&sk.k->k));
@@ -961,7 +963,7 @@ static int bch2_gc_btree_gens(struct bch_fs *c, enum btree_id btree_id)
 	}
 
 	bch2_trans_exit(&trans);
-	bkey_on_stack_exit(&sk, c);
+	bch2_bkey_buf_exit(&sk, c);
 
 	return ret;
 }
@@ -1073,7 +1075,7 @@ static void bch2_coalesce_nodes(struct bch_fs *c, struct btree_iter *iter,
 		}
 
 	if (bch2_keylist_realloc(&keylist, NULL, 0,
-			(BKEY_U64s + BKEY_EXTENT_U64s_MAX) * nr_old_nodes)) {
+			BKEY_BTREE_PTR_U64s_MAX * nr_old_nodes)) {
 		trace_btree_gc_coalesce_fail(c,
 				BTREE_GC_COALESCE_FAIL_KEYLIST_REALLOC);
 		return;

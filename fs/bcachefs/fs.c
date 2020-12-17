@@ -3,7 +3,7 @@
 
 #include "bcachefs.h"
 #include "acl.h"
-#include "bkey_on_stack.h"
+#include "bkey_buf.h"
 #include "btree_update.h"
 #include "buckets.h"
 #include "chardev.h"
@@ -899,7 +899,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
-	struct bkey_on_stack cur, prev;
+	struct bkey_buf cur, prev;
 	struct bpos end = POS(ei->v.i_ino, (start + len) >> 9);
 	unsigned offset_into_extent, sectors;
 	bool have_extent = false;
@@ -912,8 +912,8 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	if (start + len < start)
 		return -EINVAL;
 
-	bkey_on_stack_init(&cur);
-	bkey_on_stack_init(&prev);
+	bch2_bkey_buf_init(&cur);
+	bch2_bkey_buf_init(&prev);
 	bch2_trans_init(&trans, c, 0, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
@@ -932,7 +932,7 @@ retry:
 			bkey_start_offset(k.k);
 		sectors			= k.k->size - offset_into_extent;
 
-		bkey_on_stack_reassemble(&cur, c, k);
+		bch2_bkey_buf_reassemble(&cur, c, k);
 
 		ret = bch2_read_indirect_extent(&trans,
 					&offset_into_extent, &cur);
@@ -940,7 +940,7 @@ retry:
 			break;
 
 		k = bkey_i_to_s_c(cur.k);
-		bkey_on_stack_realloc(&prev, c, k.k->u64s);
+		bch2_bkey_buf_realloc(&prev, c, k.k->u64s);
 
 		sectors = min(sectors, k.k->size - offset_into_extent);
 
@@ -974,8 +974,8 @@ retry:
 				       FIEMAP_EXTENT_LAST);
 
 	ret = bch2_trans_exit(&trans) ?: ret;
-	bkey_on_stack_exit(&cur, c);
-	bkey_on_stack_exit(&prev, c);
+	bch2_bkey_buf_exit(&cur, c);
+	bch2_bkey_buf_exit(&prev, c);
 	return ret < 0 ? ret : 0;
 }
 

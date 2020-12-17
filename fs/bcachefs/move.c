@@ -2,7 +2,7 @@
 
 #include "bcachefs.h"
 #include "alloc_foreground.h"
-#include "bkey_on_stack.h"
+#include "bkey_buf.h"
 #include "btree_gc.h"
 #include "btree_update.h"
 #include "btree_update_interior.h"
@@ -60,7 +60,12 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 	struct migrate_write *m =
 		container_of(op, struct migrate_write, op);
 	struct keylist *keys = &op->insert_keys;
+	struct bkey_buf _new, _insert;
 	int ret = 0;
+
+	bch2_bkey_buf_init(&_new);
+	bch2_bkey_buf_init(&_insert);
+	bch2_bkey_buf_realloc(&_insert, c, U8_MAX);
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
@@ -72,7 +77,6 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 		struct bkey_s_c k;
 		struct bkey_i *insert;
 		struct bkey_i_extent *new;
-		BKEY_PADDED(k) _new, _insert;
 		const union bch_extent_entry *entry;
 		struct extent_ptr_decoded p;
 		bool did_work = false;
@@ -92,11 +96,11 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 		    !bch2_bkey_matches_ptr(c, k, m->ptr, m->offset))
 			goto nomatch;
 
-		bkey_reassemble(&_insert.k, k);
-		insert = &_insert.k;
+		bkey_reassemble(_insert.k, k);
+		insert = _insert.k;
 
-		bkey_copy(&_new.k, bch2_keylist_front(keys));
-		new = bkey_i_to_extent(&_new.k);
+		bch2_bkey_buf_copy(&_new, c, bch2_keylist_front(keys));
+		new = bkey_i_to_extent(_new.k);
 		bch2_cut_front(iter->pos, &new->k_i);
 
 		bch2_cut_front(iter->pos,	insert);
@@ -192,6 +196,8 @@ nomatch:
 	}
 out:
 	bch2_trans_exit(&trans);
+	bch2_bkey_buf_exit(&_insert, c);
+	bch2_bkey_buf_exit(&_new, c);
 	BUG_ON(ret == -EINTR);
 	return ret;
 }
@@ -511,7 +517,7 @@ static int __bch2_move_data(struct bch_fs *c,
 {
 	bool kthread = (current->flags & PF_KTHREAD) != 0;
 	struct bch_io_opts io_opts = bch2_opts_to_inode_opts(c->opts);
-	struct bkey_on_stack sk;
+	struct bkey_buf sk;
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
@@ -520,7 +526,7 @@ static int __bch2_move_data(struct bch_fs *c,
 	u64 delay, cur_inum = U64_MAX;
 	int ret = 0, ret2;
 
-	bkey_on_stack_init(&sk);
+	bch2_bkey_buf_init(&sk);
 	bch2_trans_init(&trans, c, 0, 0);
 
 	stats->data_type = BCH_DATA_user;
@@ -600,7 +606,7 @@ peek:
 		}
 
 		/* unlock before doing IO: */
-		bkey_on_stack_reassemble(&sk, c, k);
+		bch2_bkey_buf_reassemble(&sk, c, k);
 		k = bkey_i_to_s_c(sk.k);
 		bch2_trans_unlock(&trans);
 
@@ -634,7 +640,7 @@ next_nondata:
 	}
 out:
 	ret = bch2_trans_exit(&trans) ?: ret;
-	bkey_on_stack_exit(&sk, c);
+	bch2_bkey_buf_exit(&sk, c);
 
 	return ret;
 }

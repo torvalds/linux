@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
-#include "bkey_on_stack.h"
+#include "bkey_buf.h"
 #include "btree_update.h"
 #include "dirent.h"
 #include "error.h"
@@ -464,11 +464,11 @@ static int check_extents(struct bch_fs *c)
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
-	struct bkey_on_stack prev;
+	struct bkey_buf prev;
 	u64 i_sectors;
 	int ret = 0;
 
-	bkey_on_stack_init(&prev);
+	bch2_bkey_buf_init(&prev);
 	prev.k->k = KEY(0, 0, 0);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
@@ -500,7 +500,7 @@ retry:
 					goto err;
 			}
 		}
-		bkey_on_stack_reassemble(&prev, c, k);
+		bch2_bkey_buf_reassemble(&prev, c, k);
 
 		ret = walk_inode(&trans, &w, k.k->p.inode);
 		if (ret)
@@ -569,7 +569,7 @@ err:
 fsck_err:
 	if (ret == -EINTR)
 		goto retry;
-	bkey_on_stack_exit(&prev, c);
+	bch2_bkey_buf_exit(&prev, c);
 	return bch2_trans_exit(&trans) ?: ret;
 }
 

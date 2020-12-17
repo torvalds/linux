@@ -1097,7 +1097,7 @@ int bch2_fs_journal_init(struct journal *j)
 
 	/* Btree roots: */
 	j->entry_u64s_reserved +=
-		BTREE_ID_NR * (JSET_KEYS_U64s + BKEY_EXTENT_U64s_MAX);
+		BTREE_ID_NR * (JSET_KEYS_U64s + BKEY_BTREE_PTR_U64s_MAX);
 
 	atomic64_set(&j->reservations.counter,
 		((union journal_res_state)

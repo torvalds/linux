@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "bcachefs.h"
-#include "bkey_on_stack.h"
+#include "bkey_buf.h"
 #include "bkey_sort.h"
 #include "bset.h"
 #include "extents.h"
@@ -187,11 +187,11 @@ bch2_sort_repack_merge(struct bch_fs *c,
 		       bool filter_whiteouts)
 {
 	struct bkey_packed *out = vstruct_last(dst), *k_packed;
-	struct bkey_on_stack k;
+	struct bkey_buf k;
 	struct btree_nr_keys nr;
 
 	memset(&nr, 0, sizeof(nr));
-	bkey_on_stack_init(&k);
+	bch2_bkey_buf_init(&k);
 
 	while ((k_packed = bch2_btree_node_iter_next_all(iter, src))) {
 		if (filter_whiteouts && bkey_whiteout(k_packed))
@@ -204,7 +204,7 @@ bch2_sort_repack_merge(struct bch_fs *c,
 		 * node; we have to make a copy of the entire key before calling
 		 * normalize
 		 */
-		bkey_on_stack_realloc(&k, c, k_packed->u64s + BKEY_U64s);
+		bch2_bkey_buf_realloc(&k, c, k_packed->u64s + BKEY_U64s);
 		bch2_bkey_unpack(src, k.k, k_packed);
 
 		if (filter_whiteouts &&
@@ -215,7 +215,7 @@ bch2_sort_repack_merge(struct bch_fs *c,
 	}
 
 	dst->u64s = cpu_to_le16((u64 *) out - dst->_data);
-	bkey_on_stack_exit(&k, c);
+	bch2_bkey_buf_exit(&k, c);
 	return nr;
 }
 
@@ -315,11 +315,11 @@ bch2_extent_sort_fix_overlapping(struct bch_fs *c, struct bset *dst,
 	struct bkey l_unpacked, r_unpacked;
 	struct bkey_s l, r;
 	struct btree_nr_keys nr;
-	struct bkey_on_stack split;
+	struct bkey_buf split;
 	unsigned i;
 
 	memset(&nr, 0, sizeof(nr));
-	bkey_on_stack_init(&split);
+	bch2_bkey_buf_init(&split);
 
 	sort_iter_sort(iter, extent_sort_fix_overlapping_cmp);
 	for (i = 0; i < iter->used;) {
@@ -379,7 +379,7 @@ bch2_extent_sort_fix_overlapping(struct bch_fs *c, struct bset *dst,
 			/*
 			 * r wins, but it overlaps in the middle of l - split l:
 			 */
-			bkey_on_stack_reassemble(&split, c, l.s_c);
+			bch2_bkey_buf_reassemble(&split, c, l.s_c);
 			bch2_cut_back(bkey_start_pos(r.k), split.k);
 
 			bch2_cut_front_s(r.k->p, l);
@@ -398,7 +398,7 @@ bch2_extent_sort_fix_overlapping(struct bch_fs *c, struct bset *dst,
 
 	dst->u64s = cpu_to_le16((u64 *) out - dst->_data);
 
-	bkey_on_stack_exit(&split, c);
+	bch2_bkey_buf_exit(&split, c);
 	return nr;
 }
 

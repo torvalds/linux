@@ -2,6 +2,7 @@
 
 #include "bcachefs.h"
 #include "bkey_methods.h"
+#include "bkey_buf.h"
 #include "btree_cache.h"
 #include "btree_iter.h"
 #include "btree_key_cache.h"
@@ -1048,27 +1049,31 @@ static void btree_iter_prefetch(struct btree_iter *iter)
 	struct btree_iter_level *l = &iter->l[iter->level];
 	struct btree_node_iter node_iter = l->iter;
 	struct bkey_packed *k;
-	BKEY_PADDED(k) tmp;
+	struct bkey_buf tmp;
 	unsigned nr = test_bit(BCH_FS_STARTED, &c->flags)
 		? (iter->level > 1 ? 0 :  2)
 		: (iter->level > 1 ? 1 : 16);
 	bool was_locked = btree_node_locked(iter, iter->level);
 
+	bch2_bkey_buf_init(&tmp);
+
 	while (nr) {
 		if (!bch2_btree_node_relock(iter, iter->level))
-			return;
+			break;
 
 		bch2_btree_node_iter_advance(&node_iter, l->b);
 		k = bch2_btree_node_iter_peek(&node_iter, l->b);
 		if (!k)
 			break;
 
-		bch2_bkey_unpack(l->b, &tmp.k, k);
-		bch2_btree_node_prefetch(c, iter, &tmp.k, iter->level - 1);
+		bch2_bkey_buf_unpack(&tmp, c, l->b, k);
+		bch2_btree_node_prefetch(c, iter, tmp.k, iter->level - 1);
 	}
 
 	if (!was_locked)
 		btree_node_unlock(iter, iter->level);
+
+	bch2_bkey_buf_exit(&tmp, c);
 }
 
 static noinline void btree_node_mem_ptr_set(struct btree_iter *iter,
@@ -1100,30 +1105,34 @@ static __always_inline int btree_iter_down(struct btree_iter *iter,
 	struct btree *b;
 	unsigned level = iter->level - 1;
 	enum six_lock_type lock_type = __btree_lock_want(iter, level);
-	BKEY_PADDED(k) tmp;
+	struct bkey_buf tmp;
+	int ret;
 
 	EBUG_ON(!btree_node_locked(iter, iter->level));
 
-	bch2_bkey_unpack(l->b, &tmp.k,
+	bch2_bkey_buf_init(&tmp);
+	bch2_bkey_buf_unpack(&tmp, c, l->b,
 			 bch2_btree_node_iter_peek(&l->iter, l->b));
 
-	b = bch2_btree_node_get(c, iter, &tmp.k, level, lock_type, trace_ip);
-	if (unlikely(IS_ERR(b)))
-		return PTR_ERR(b);
+	b = bch2_btree_node_get(c, iter, tmp.k, level, lock_type, trace_ip);
+	ret = PTR_ERR_OR_ZERO(b);
+	if (unlikely(ret))
+		goto err;
 
 	mark_btree_node_locked(iter, level, lock_type);
 	btree_iter_node_set(iter, b);
 
-	if (tmp.k.k.type == KEY_TYPE_btree_ptr_v2 &&
-	    unlikely(b != btree_node_mem_ptr(&tmp.k)))
+	if (tmp.k->k.type == KEY_TYPE_btree_ptr_v2 &&
+	    unlikely(b != btree_node_mem_ptr(tmp.k)))
 		btree_node_mem_ptr_set(iter, level + 1, b);
 
 	if (iter->flags & BTREE_ITER_PREFETCH)
 		btree_iter_prefetch(iter);
 
 	iter->level = level;
-
-	return 0;
+err:
+	bch2_bkey_buf_exit(&tmp, c);
+	return ret;
 }
 
 static void btree_iter_up(struct btree_iter *iter)

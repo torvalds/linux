@@ -4,7 +4,7 @@
  */
 
 #include "bcachefs.h"
-#include "bkey_on_stack.h"
+#include "bkey_buf.h"
 #include "btree_update.h"
 #include "btree_update_interior.h"
 #include "buckets.h"
@@ -41,10 +41,10 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
-	struct bkey_on_stack sk;
+	struct bkey_buf sk;
 	int ret = 0;
 
-	bkey_on_stack_init(&sk);
+	bch2_bkey_buf_init(&sk);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	iter = bch2_trans_get_iter(&trans, btree_id, POS_MIN,
@@ -57,7 +57,7 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 			continue;
 		}
 
-		bkey_on_stack_reassemble(&sk, c, k);
+		bch2_bkey_buf_reassemble(&sk, c, k);
 
 		ret = drop_dev_ptrs(c, bkey_i_to_s(sk.k),
 				    dev_idx, flags, false);
@@ -90,7 +90,7 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 	}
 
 	ret = bch2_trans_exit(&trans) ?: ret;
-	bkey_on_stack_exit(&sk, c);
+	bch2_bkey_buf_exit(&sk, c);
 
 	BUG_ON(ret == -EINTR);
 
@@ -109,6 +109,7 @@ static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 	struct btree_iter *iter;
 	struct closure cl;
 	struct btree *b;
+	struct bkey_buf k;
 	unsigned id;
 	int ret;
 
@@ -116,28 +117,28 @@ static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 	if (flags & BCH_FORCE_IF_METADATA_LOST)
 		return -EINVAL;
 
+	bch2_bkey_buf_init(&k);
 	bch2_trans_init(&trans, c, 0, 0);
 	closure_init_stack(&cl);
 
 	for (id = 0; id < BTREE_ID_NR; id++) {
 		for_each_btree_node(&trans, iter, id, POS_MIN,
 				    BTREE_ITER_PREFETCH, b) {
-			__BKEY_PADDED(k, BKEY_BTREE_PTR_VAL_U64s_MAX) tmp;
 retry:
 			if (!bch2_bkey_has_device(bkey_i_to_s_c(&b->key),
 						  dev_idx))
 				continue;
 
-			bkey_copy(&tmp.k, &b->key);
+			bch2_bkey_buf_copy(&k, c, &b->key);
 
-			ret = drop_dev_ptrs(c, bkey_i_to_s(&tmp.k),
+			ret = drop_dev_ptrs(c, bkey_i_to_s(k.k),
 					    dev_idx, flags, true);
 			if (ret) {
 				bch_err(c, "Cannot drop device without losing data");
 				goto err;
 			}
 
-			ret = bch2_btree_node_update_key(c, iter, b, &tmp.k);
+			ret = bch2_btree_node_update_key(c, iter, b, k.k);
 			if (ret == -EINTR) {
 				b = bch2_btree_iter_peek_node(iter);
 				goto retry;
@@ -157,6 +158,7 @@ retry:
 	ret = 0;
 err:
 	ret = bch2_trans_exit(&trans) ?: ret;
+	bch2_bkey_buf_exit(&k, c);
 
 	BUG_ON(ret == -EINTR);
 

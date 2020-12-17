@@ -3,7 +3,7 @@
 
 #include "bcachefs.h"
 #include "alloc_foreground.h"
-#include "bkey_on_stack.h"
+#include "bkey_buf.h"
 #include "btree_update.h"
 #include "buckets.h"
 #include "clock.h"
@@ -774,7 +774,7 @@ static void bchfs_read(struct btree_trans *trans, struct btree_iter *iter,
 		       struct readpages_iter *readpages_iter)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_on_stack sk;
+	struct bkey_buf sk;
 	int flags = BCH_READ_RETRY_IF_STALE|
 		BCH_READ_MAY_PROMOTE;
 	int ret = 0;
@@ -782,7 +782,7 @@ static void bchfs_read(struct btree_trans *trans, struct btree_iter *iter,
 	rbio->c = c;
 	rbio->start_time = local_clock();
 
-	bkey_on_stack_init(&sk);
+	bch2_bkey_buf_init(&sk);
 retry:
 	while (1) {
 		struct bkey_s_c k;
@@ -800,7 +800,7 @@ retry:
 			bkey_start_offset(k.k);
 		sectors = k.k->size - offset_into_extent;
 
-		bkey_on_stack_reassemble(&sk, c, k);
+		bch2_bkey_buf_reassemble(&sk, c, k);
 
 		ret = bch2_read_indirect_extent(trans,
 					&offset_into_extent, &sk);
@@ -845,7 +845,7 @@ retry:
 		bio_endio(&rbio->bio);
 	}
 
-	bkey_on_stack_exit(&sk, c);
+	bch2_bkey_buf_exit(&sk, c);
 }
 
 void bch2_readahead(struct readahead_control *ractl)
@@ -2431,7 +2431,7 @@ static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct address_space *mapping = inode->v.i_mapping;
-	struct bkey_on_stack copy;
+	struct bkey_buf copy;
 	struct btree_trans trans;
 	struct btree_iter *src, *dst;
 	loff_t shift, new_size;
@@ -2441,7 +2441,7 @@ static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 	if ((offset | len) & (block_bytes(c) - 1))
 		return -EINVAL;
 
-	bkey_on_stack_init(&copy);
+	bch2_bkey_buf_init(&copy);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 256);
 
 	/*
@@ -2529,7 +2529,7 @@ static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 		    bkey_cmp(k.k->p, POS(inode->v.i_ino, offset >> 9)) <= 0)
 			break;
 reassemble:
-		bkey_on_stack_reassemble(&copy, c, k);
+		bch2_bkey_buf_reassemble(&copy, c, k);
 
 		if (insert &&
 		    bkey_cmp(bkey_start_pos(k.k), move_pos) < 0)
@@ -2606,7 +2606,7 @@ bkey_err:
 	}
 err:
 	bch2_trans_exit(&trans);
-	bkey_on_stack_exit(&copy, c);
+	bch2_bkey_buf_exit(&copy, c);
 	bch2_pagecache_block_put(&inode->ei_pagecache_lock);
 	inode_unlock(&inode->v);
 	return ret;

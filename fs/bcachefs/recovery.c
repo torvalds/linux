@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "bkey_buf.h"
 #include "alloc_background.h"
 #include "btree_gc.h"
 #include "btree_update.h"
@@ -224,28 +225,29 @@ static int bch2_btree_and_journal_walk_recurse(struct bch_fs *c, struct btree *b
 
 		if (b->c.level) {
 			struct btree *child;
-			BKEY_PADDED(k) tmp;
+			struct bkey_buf tmp;
 
-			bkey_reassemble(&tmp.k, k);
-			k = bkey_i_to_s_c(&tmp.k);
+			bch2_bkey_buf_init(&tmp);
+			bch2_bkey_buf_reassemble(&tmp, c, k);
+			k = bkey_i_to_s_c(tmp.k);
 
 			bch2_btree_and_journal_iter_advance(&iter);
 
-			if (b->c.level > 0) {
-				child = bch2_btree_node_get_noiter(c, &tmp.k,
-							b->c.btree_id, b->c.level - 1);
-				ret = PTR_ERR_OR_ZERO(child);
-				if (ret)
-					break;
+			child = bch2_btree_node_get_noiter(c, tmp.k,
+						b->c.btree_id, b->c.level - 1);
+			bch2_bkey_buf_exit(&tmp, c);
 
-				ret   = (node_fn ? node_fn(c, b) : 0) ?:
-					bch2_btree_and_journal_walk_recurse(c, child,
-						journal_keys, btree_id, node_fn, key_fn);
-				six_unlock_read(&child->c.lock);
+			ret = PTR_ERR_OR_ZERO(child);
+			if (ret)
+				break;
 
-				if (ret)
-					break;
-			}
+			ret   = (node_fn ? node_fn(c, b) : 0) ?:
+				bch2_btree_and_journal_walk_recurse(c, child,
+					journal_keys, btree_id, node_fn, key_fn);
+			six_unlock_read(&child->c.lock);
+
+			if (ret)
+				break;
 		} else {
 			bch2_btree_and_journal_iter_advance(&iter);
 		}

@@ -195,7 +195,7 @@ static struct btree *__bch2_btree_node_alloc(struct bch_fs *c,
 {
 	struct write_point *wp;
 	struct btree *b;
-	BKEY_PADDED(k) tmp;
+	__BKEY_PADDED(k, BKEY_BTREE_PTR_VAL_U64s_MAX) tmp;
 	struct open_buckets ob = { .nr = 0 };
 	struct bch_devs_list devs_have = (struct bch_devs_list) { 0 };
 	unsigned nr_reserve;

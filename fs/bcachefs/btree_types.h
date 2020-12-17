@@ -57,7 +57,7 @@ struct btree_write {
 
 struct btree_alloc {
 	struct open_buckets	ob;
-	BKEY_PADDED(k);
+	__BKEY_PADDED(k, BKEY_BTREE_PTR_VAL_U64s_MAX);
 };
 
 struct btree_bkey_cached_common {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "bcachefs.h"
-#include "bkey_on_stack.h"
+#include "bkey_buf.h"
 #include "btree_update.h"
 #include "extents.h"
 #include "inode.h"
@@ -198,8 +198,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 	struct btree_trans trans;
 	struct btree_iter *dst_iter, *src_iter;
 	struct bkey_s_c src_k;
-	BKEY_PADDED(k) new_dst;
-	struct bkey_on_stack new_src;
+	struct bkey_buf new_dst, new_src;
 	struct bpos dst_end = dst_start, src_end = src_start;
 	struct bpos dst_want, src_want;
 	u64 src_done, dst_done;
@@ -216,7 +215,8 @@ s64 bch2_remap_range(struct bch_fs *c,
 	dst_end.offset += remap_sectors;
 	src_end.offset += remap_sectors;
 
-	bkey_on_stack_init(&new_src);
+	bch2_bkey_buf_init(&new_dst);
+	bch2_bkey_buf_init(&new_src);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 4096);
 
 	src_iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS, src_start,
@@ -257,7 +257,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 			break;
 
 		if (src_k.k->type != KEY_TYPE_reflink_p) {
-			bkey_on_stack_reassemble(&new_src, c, src_k);
+			bch2_bkey_buf_reassemble(&new_src, c, src_k);
 			src_k = bkey_i_to_s_c(new_src.k);
 
 			bch2_cut_front(src_iter->pos,	new_src.k);
@@ -275,7 +275,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 			struct bkey_s_c_reflink_p src_p =
 				bkey_s_c_to_reflink_p(src_k);
 			struct bkey_i_reflink_p *dst_p =
-				bkey_reflink_p_init(&new_dst.k);
+				bkey_reflink_p_init(new_dst.k);
 
 			u64 offset = le64_to_cpu(src_p.v->idx) +
 				(src_iter->pos.offset -
@@ -286,12 +286,12 @@ s64 bch2_remap_range(struct bch_fs *c,
 			BUG();
 		}
 
-		new_dst.k.k.p = dst_iter->pos;
-		bch2_key_resize(&new_dst.k.k,
+		new_dst.k->k.p = dst_iter->pos;
+		bch2_key_resize(&new_dst.k->k,
 				min(src_k.k->p.offset - src_iter->pos.offset,
 				    dst_end.offset - dst_iter->pos.offset));
 
-		ret = bch2_extent_update(&trans, dst_iter, &new_dst.k,
+		ret = bch2_extent_update(&trans, dst_iter, new_dst.k,
 					 NULL, journal_seq,
 					 new_i_size, i_sectors_delta);
 		if (ret)
@@ -333,7 +333,8 @@ err:
 	} while (ret2 == -EINTR);
 
 	ret = bch2_trans_exit(&trans) ?: ret;
-	bkey_on_stack_exit(&new_src, c);
+	bch2_bkey_buf_exit(&new_src, c);
+	bch2_bkey_buf_exit(&new_dst, c);
 
 	percpu_ref_put(&c->writes);
 

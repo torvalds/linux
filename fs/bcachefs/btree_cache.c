@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "bkey_buf.h"
 #include "btree_cache.h"
 #include "btree_io.h"
 #include "btree_iter.h"
@@ -899,9 +900,11 @@ struct btree *bch2_btree_node_get_sibling(struct bch_fs *c,
 	struct btree *parent;
 	struct btree_node_iter node_iter;
 	struct bkey_packed *k;
-	BKEY_PADDED(k) tmp;
+	struct bkey_buf tmp;
 	struct btree *ret = NULL;
 	unsigned level = b->c.level;
+
+	bch2_bkey_buf_init(&tmp);
 
 	parent = btree_iter_node(iter, level + 1);
 	if (!parent)
@@ -936,9 +939,9 @@ struct btree *bch2_btree_node_get_sibling(struct bch_fs *c,
 	if (!k)
 		goto out;
 
-	bch2_bkey_unpack(parent, &tmp.k, k);
+	bch2_bkey_buf_unpack(&tmp, c, parent, k);
 
-	ret = bch2_btree_node_get(c, iter, &tmp.k, level,
+	ret = bch2_btree_node_get(c, iter, tmp.k, level,
 				  SIX_LOCK_intent, _THIS_IP_);
 
 	if (PTR_ERR_OR_ZERO(ret) == -EINTR && !trans->nounlock) {
@@ -958,7 +961,7 @@ struct btree *bch2_btree_node_get_sibling(struct bch_fs *c,
 		if (sib == btree_prev_sib)
 			btree_node_unlock(iter, level);
 
-		ret = bch2_btree_node_get(c, iter, &tmp.k, level,
+		ret = bch2_btree_node_get(c, iter, tmp.k, level,
 					  SIX_LOCK_intent, _THIS_IP_);
 
 		/*
@@ -998,6 +1001,8 @@ out:
 	}
 
 	bch2_btree_trans_verify_locks(trans);
+
+	bch2_bkey_buf_exit(&tmp, c);
 
 	return ret;
 }

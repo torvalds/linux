@@ -20,7 +20,7 @@
 struct journal_buf {
 	struct jset		*data;
 
-	BKEY_PADDED(key);
+	__BKEY_PADDED(key, BCH_REPLICAS_MAX);
 
 	struct closure_waitlist	wait;
 
