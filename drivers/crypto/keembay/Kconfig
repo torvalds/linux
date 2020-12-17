@@ -1,5 +1,6 @@
 config CRYPTO_DEV_KEEMBAY_OCS_AES_SM4
 	tristate "Support for Intel Keem Bay OCS AES/SM4 HW acceleration"
+	depends on HAS_IOMEM
 	depends on ARCH_KEEMBAY || COMPILE_TEST
 	select CRYPTO_SKCIPHER
 	select CRYPTO_AEAD
