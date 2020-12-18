@@ -908,8 +908,7 @@ static void core_put_v4(struct device *dev)
 
 	if (core->has_opp_table)
 		dev_pm_opp_of_remove_table(dev);
-	if (core->opp_table)
-		dev_pm_opp_put_clkname(core->opp_table);
+	dev_pm_opp_put_clkname(core->opp_table);
 
 }
 

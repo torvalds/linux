@@ -2569,14 +2569,13 @@ static int intel_cpufreq_update_pstate(struct cpufreq_policy *policy,
 	int old_pstate = cpu->pstate.current_pstate;
 
 	target_pstate = intel_pstate_prepare_request(cpu, target_pstate);
-	if (hwp_active) {
+	if (hwp_active)
 		intel_cpufreq_adjust_hwp(cpu, target_pstate,
 					 policy->strict_target, fast_switch);
-		cpu->pstate.current_pstate = target_pstate;
-	} else if (target_pstate != old_pstate) {
+	else if (target_pstate != old_pstate)
 		intel_cpufreq_adjust_perf_ctl(cpu, target_pstate, fast_switch);
-		cpu->pstate.current_pstate = target_pstate;
-	}
+
+	cpu->pstate.current_pstate = target_pstate;
 
 	intel_cpufreq_trace(cpu, fast_switch ? INTEL_PSTATE_TRACE_FAST_SWITCH :
 			    INTEL_PSTATE_TRACE_TARGET, old_pstate);
