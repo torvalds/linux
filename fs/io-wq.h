@@ -59,6 +59,7 @@ static inline void wq_list_add_tail(struct io_wq_work_node *node,
 		list->last->next = node;
 		list->last = node;
 	}
+	node->next = NULL;
 }
 
 static inline void wq_list_cut(struct io_wq_work_list *list,
