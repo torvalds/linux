@@ -40,9 +40,9 @@ static const struct ieee80211_iface_limit if_limits[] = {
 		.types = BIT(NL80211_IFTYPE_ADHOC)
 	}, {
 		.max = 16,
-		.types = BIT(NL80211_IFTYPE_AP) |
+		.types = BIT(NL80211_IFTYPE_AP)
 #ifdef CONFIG_MAC80211_MESH
-			 BIT(NL80211_IFTYPE_MESH_POINT)
+			 | BIT(NL80211_IFTYPE_MESH_POINT)
 #endif
 	}, {
 		.max = MT7915_MAX_INTERFACES,
