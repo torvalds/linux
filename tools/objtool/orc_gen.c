@@ -141,6 +141,13 @@ static int orc_list_add(struct list_head *orc_list, struct orc_entry *orc,
 	return 0;
 }
 
+static unsigned long alt_group_len(struct alt_group *alt_group)
+{
+	return alt_group->last_insn->offset +
+	       alt_group->last_insn->len -
+	       alt_group->first_insn->offset;
+}
+
 int orc_create(struct objtool_file *file)
 {
 	struct section *sec, *ip_rsec, *orc_sec;
@@ -165,15 +172,48 @@ int orc_create(struct objtool_file *file)
 			continue;
 
 		sec_for_each_insn(file, sec, insn) {
-			if (init_orc_entry(&orc, &insn->cfi))
-				return -1;
-			if (!memcmp(&prev_orc, &orc, sizeof(orc)))
+			struct alt_group *alt_group = insn->alt_group;
+			int i;
+
+			if (!alt_group) {
+				if (init_orc_entry(&orc, &insn->cfi))
+					return -1;
+				if (!memcmp(&prev_orc, &orc, sizeof(orc)))
+					continue;
+				if (orc_list_add(&orc_list, &orc, sec,
+						 insn->offset))
+					return -1;
+				nr++;
+				prev_orc = orc;
+				empty = false;
 				continue;
-			if (orc_list_add(&orc_list, &orc, sec, insn->offset))
-				return -1;
-			nr++;
-			prev_orc = orc;
-			empty = false;
+			}
+
+			/*
+			 * Alternatives can have different stack layout
+			 * possibilities (but they shouldn't conflict).
+			 * Instead of traversing the instructions, use the
+			 * alt_group's flattened byte-offset-addressed CFI
+			 * array.
+			 */
+			for (i = 0; i < alt_group_len(alt_group); i++) {
+				struct cfi_state *cfi = alt_group->cfi[i];
+				if (!cfi)
+					continue;
+				if (init_orc_entry(&orc, cfi))
+					return -1;
+				if (!memcmp(&prev_orc, &orc, sizeof(orc)))
+					continue;
+				if (orc_list_add(&orc_list, &orc, insn->sec,
+						 insn->offset + i))
+					return -1;
+				nr++;
+				prev_orc = orc;
+				empty = false;
+			}
+
+			/* Skip to the end of the alt_group */
+			insn = alt_group->last_insn;
 		}
 
 		/* Add a section terminator */

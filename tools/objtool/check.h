@@ -28,6 +28,12 @@ struct alt_group {
 
 	/* First and last instructions in the group */
 	struct instruction *first_insn, *last_insn;
+
+	/*
+	 * Byte-offset-addressed len-sized array of pointers to CFI structs.
+	 * This is shared with the other alt_groups in the same alternative.
+	 */
+	struct cfi_state **cfi;
 };
 
 struct instruction {
