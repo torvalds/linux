@@ -75,16 +75,24 @@
 #define SC500AI_REG_SHORT_EXPOSURE_H	0x3e22
 #define SC500AI_REG_SHORT_EXPOSURE_M	0x3e04
 #define SC500AI_REG_SHORT_EXPOSURE_L	0x3e05
+#define SC500AI_REG_MAX_SHORT_EXP_H	0x3e23
+#define SC500AI_REG_MAX_SHORT_EXP_L	0x3e24
 
-#define SC500AI_SHORT_EXPOSURE_MAX	0x00b4  // Half line exposure time
-#define SC500AI_HDR_EXPOSURE_MIN	5 	// Half line exposure time
-#define SC500AI_HDR_EXPOSURE_STEP	4	// Half line exposure time
+#define SC500AI_HDR_EXPOSURE_MIN	5		// Half line exposure time
+#define SC500AI_HDR_EXPOSURE_STEP	4		// Half line exposure time
+
+#define SC500AI_MAX_SHORT_EXPOSURE	608
 
 // short frame gain
 #define SC500AI_REG_SDIG_GAIN		0x3e10
 #define SC500AI_REG_SDIG_FINE_GAIN	0x3e11
 #define SC500AI_REG_SANA_GAIN		0x3e12
 #define SC500AI_REG_SANA_FINE_GAIN	0x3e13
+
+//group hold
+#define SC500AI_GROUP_UPDATE_ADDRESS	0x3812
+#define SC500AI_GROUP_UPDATE_START_DATA	0x00
+#define SC500AI_GROUP_UPDATE_LAUNCH	0x30
 
 #define SC500AI_FLIP_MIRROR_REG		0x3221
 #define SC500AI_FLIP_MASK		0x60
@@ -389,8 +397,8 @@ static const struct regval sc500ai_hdr_10_2880x1620_regs[] = {
 	{0x3e02, 0x00},
 	{0x3e04, 0x18},
 	{0x3e05, 0xc0},
-	{0x3e23, 0x00},
-	{0x3e24, 0xcc},
+	{0x3e23, 0x01},
+	{0x3e24, 0x37},
 	{0x4500, 0x88},
 	{0x4509, 0x20},
 	{0x4800, 0x04},
@@ -791,14 +799,13 @@ static int sc500ai_get_gain_reg(u32 total_gain, u32* again, u32* again_fine, u32
 }
 
 static int sc500ai_set_hdrae(struct sc500ai *sc500ai,
-			    struct preisp_hdrae_exp_s *ae)
+			   struct preisp_hdrae_exp_s *ae)
 {
 	int ret = 0;
 	u32 l_exp_time, m_exp_time, s_exp_time;
 	u32 l_t_gain, m_t_gain, s_t_gain;
 	u32 l_again = 0 , l_again_fine = 0, l_dgain = 0, l_dgain_fine = 0;
 	u32 s_again = 0, s_again_fine = 0, s_dgain = 0, s_dgain_fine = 0;
-	u32 l_exp_max = 0, s_exp_max = 0;
 
 	if (!sc500ai->has_init_exp && !sc500ai->streaming) {
 		sc500ai->init_hdrae_exp = *ae;
@@ -827,23 +834,21 @@ static int sc500ai_set_hdrae(struct sc500ai *sc500ai,
 	l_exp_time = l_exp_time << 1;
 	s_exp_time = s_exp_time << 1;
 
-	if (s_exp_time < SC500AI_HDR_EXPOSURE_MIN)
-		s_exp_time = SC500AI_HDR_EXPOSURE_MIN;
-	s_exp_max = 2 * SC500AI_SHORT_EXPOSURE_MAX - 14;   // 346
-	if (s_exp_time > s_exp_max)
-		s_exp_time = s_exp_max;
+	if (s_t_gain != l_t_gain)
+		dev_err(&sc500ai->client->dev,
+			"line mode: Long and short frame gains must be equal, l_t_gain: 0x%x, s_t_gain: 0x%x\n",
+			l_t_gain, s_t_gain);
 
-	if (l_exp_time < SC500AI_HDR_EXPOSURE_MIN)
-		l_exp_time = SC500AI_HDR_EXPOSURE_MIN;
-	l_exp_max = 2 * (sc500ai->cur_mode->vts_def - SC500AI_SHORT_EXPOSURE_MAX) - 18;
-	if (l_exp_time > l_exp_max)
-		l_exp_time = l_exp_max;
+	if (s_exp_time > SC500AI_MAX_SHORT_EXPOSURE)
+		dev_err(&sc500ai->client->dev,
+			"set short exp error, s_exp_time: 0x%x, max_short_exp: 0x%x\n",
+			s_exp_time, SC500AI_MAX_SHORT_EXPOSURE);
 
 	// set exposure reg
-	ret = sc500ai_write_reg(sc500ai->client,
-	                        SC500AI_REG_EXPOSURE_H,
-	                        SC500AI_REG_VALUE_08BIT,
-	                        SC500AI_FETCH_EXP_H(l_exp_time));
+	ret |= sc500ai_write_reg(sc500ai->client,
+				 SC500AI_REG_EXPOSURE_H,
+				 SC500AI_REG_VALUE_08BIT,
+				 SC500AI_FETCH_EXP_H(l_exp_time));
 	ret |= sc500ai_write_reg(sc500ai->client,
 	                         SC500AI_REG_EXPOSURE_M,
 	                         SC500AI_REG_VALUE_08BIT,
@@ -870,9 +875,9 @@ static int sc500ai_set_hdrae(struct sc500ai *sc500ai,
 	sc500ai_get_gain_reg(s_t_gain, &s_again, &s_again_fine, &s_dgain, &s_dgain_fine);
 
 	ret |= sc500ai_write_reg(sc500ai->client,
-	                        SC500AI_REG_DIG_GAIN,
-	                        SC500AI_REG_VALUE_08BIT,
-	                        l_dgain);
+				 SC500AI_REG_DIG_GAIN,
+				 SC500AI_REG_VALUE_08BIT,
+				 l_dgain);
 	ret |= sc500ai_write_reg(sc500ai->client,
 	                         SC500AI_REG_DIG_FINE_GAIN,
 	                         SC500AI_REG_VALUE_08BIT,
@@ -887,9 +892,9 @@ static int sc500ai_set_hdrae(struct sc500ai *sc500ai,
 	                         l_again_fine);
 
 	ret |= sc500ai_write_reg(sc500ai->client,
-	                        SC500AI_REG_SDIG_GAIN,
-	                        SC500AI_REG_VALUE_08BIT,
-	                        s_dgain);
+				 SC500AI_REG_SDIG_GAIN,
+				 SC500AI_REG_VALUE_08BIT,
+				 s_dgain);
 	ret |= sc500ai_write_reg(sc500ai->client,
 	                         SC500AI_REG_SDIG_FINE_GAIN,
 	                         SC500AI_REG_VALUE_08BIT,
@@ -1372,13 +1377,13 @@ static int sc500ai_set_ctrl(struct v4l2_ctrl *ctrl)
 	s64 max;
 	u32 again = 0, again_fine = 0, dgain = 0, dgain_fine = 0;
 	int ret = 0;
-	u32 val = 0;
+	u32 val = 0, vts = 0;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
 	case V4L2_CID_VBLANK:
 		/* Update max exposure while meeting expected vblanking */
-		max = sc500ai->cur_mode->height + ctrl->val - 8;
+		max = sc500ai->cur_mode->height + ctrl->val - 5;
 		__v4l2_ctrl_modify_range(sc500ai->exposure,
 		                         sc500ai->exposure->minimum, max,
 		                         sc500ai->exposure->step,
@@ -1386,7 +1391,7 @@ static int sc500ai_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	if (pm_runtime_get(&client->dev) <= 0)
+	if (!pm_runtime_get_if_in_use(&client->dev))
 		return 0;
 
 	switch (ctrl->id) {
@@ -1437,16 +1442,15 @@ static int sc500ai_set_ctrl(struct v4l2_ctrl *ctrl)
 		        ctrl->val, again, again_fine, dgain, dgain_fine);
 		break;
 	case V4L2_CID_VBLANK:
+		vts = ctrl->val + sc500ai->cur_mode->height;
 		ret = sc500ai_write_reg(sc500ai->client,
-		                        SC500AI_REG_VTS_H,
-		                        SC500AI_REG_VALUE_08BIT,
-		                        ((ctrl->val + sc500ai->cur_mode->height) >> 8)
-		                        & 0x7f);
+					SC500AI_REG_VTS_H,
+					SC500AI_REG_VALUE_08BIT,
+					(vts >> 8) & 0x7f);
 		ret |= sc500ai_write_reg(sc500ai->client,
-		                         SC500AI_REG_VTS_L,
-		                         SC500AI_REG_VALUE_08BIT,
-		                         (ctrl->val + sc500ai->cur_mode->height)
-		                         & 0xff);
+					 SC500AI_REG_VTS_L,
+					 SC500AI_REG_VALUE_08BIT,
+					 vts & 0xff);
 		break;
 	case V4L2_CID_HFLIP:
 		ret = sc500ai_read_reg(sc500ai->client, SC500AI_FLIP_MIRROR_REG,
