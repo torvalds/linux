@@ -38,21 +38,24 @@ struct tegra_usb_soc_info {
 
 static const struct tegra_usb_soc_info tegra20_ehci_soc_info = {
 	.flags = CI_HDRC_REQUIRES_ALIGNED_DMA |
-		 CI_HDRC_OVERRIDE_PHY_CONTROL,
+		 CI_HDRC_OVERRIDE_PHY_CONTROL |
+		 CI_HDRC_SUPPORTS_RUNTIME_PM,
 	.dr_mode = USB_DR_MODE_HOST,
 	.txfifothresh = 10,
 };
 
 static const struct tegra_usb_soc_info tegra30_ehci_soc_info = {
 	.flags = CI_HDRC_REQUIRES_ALIGNED_DMA |
-		 CI_HDRC_OVERRIDE_PHY_CONTROL,
+		 CI_HDRC_OVERRIDE_PHY_CONTROL |
+		 CI_HDRC_SUPPORTS_RUNTIME_PM,
 	.dr_mode = USB_DR_MODE_HOST,
 	.txfifothresh = 16,
 };
 
 static const struct tegra_usb_soc_info tegra_udc_soc_info = {
 	.flags = CI_HDRC_REQUIRES_ALIGNED_DMA |
-		 CI_HDRC_OVERRIDE_PHY_CONTROL,
+		 CI_HDRC_OVERRIDE_PHY_CONTROL |
+		 CI_HDRC_SUPPORTS_RUNTIME_PM,
 	.dr_mode = USB_DR_MODE_UNKNOWN,
 };
 
@@ -322,6 +325,10 @@ static int tegra_usb_probe(struct platform_device *pdev)
 	usb->data.enter_lpm = tegra_usb_enter_lpm;
 	usb->data.hub_control = tegra_ehci_hub_control;
 	usb->data.notify_event = tegra_usb_notify_event;
+
+	/* Tegra PHY driver currently doesn't support LPM for ULPI */
+	if (of_usb_get_phy_mode(pdev->dev.of_node) == USBPHY_INTERFACE_MODE_ULPI)
+		usb->data.flags &= ~CI_HDRC_SUPPORTS_RUNTIME_PM;
 
 	usb->dev = ci_hdrc_add_device(&pdev->dev, pdev->resource,
 				      pdev->num_resources, &usb->data);
