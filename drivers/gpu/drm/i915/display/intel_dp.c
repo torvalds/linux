@@ -6001,6 +6001,28 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 	return link_ok;
 }
 
+static void
+intel_dp_handle_hdmi_link_status_change(struct intel_dp *intel_dp)
+{
+	bool is_active;
+	u8 buf = 0;
+
+	is_active = drm_dp_pcon_hdmi_link_active(&intel_dp->aux);
+	if (intel_dp->frl.is_trained && !is_active) {
+		if (drm_dp_dpcd_readb(&intel_dp->aux, DP_PCON_HDMI_LINK_CONFIG_1, &buf) < 0)
+			return;
+
+		buf &=  ~DP_PCON_ENABLE_HDMI_LINK;
+		if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_PCON_HDMI_LINK_CONFIG_1, buf) < 0)
+			return;
+
+		drm_dp_pcon_hdmi_frl_link_error_count(&intel_dp->aux, &intel_dp->attached_connector->base);
+
+		/* Restart FRL training or fall back to TMDS mode */
+		intel_dp_check_frl_training(intel_dp);
+	}
+}
+
 static bool
 intel_dp_needs_link_retrain(struct intel_dp *intel_dp)
 {
@@ -6366,7 +6388,7 @@ intel_dp_hotplug(struct intel_encoder *encoder,
 	return state;
 }
 
-static void intel_dp_check_service_irq(struct intel_dp *intel_dp)
+static void intel_dp_check_device_service_irq(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	u8 val;
@@ -6388,6 +6410,30 @@ static void intel_dp_check_service_irq(struct intel_dp *intel_dp)
 
 	if (val & DP_SINK_SPECIFIC_IRQ)
 		drm_dbg_kms(&i915->drm, "Sink specific irq unhandled\n");
+}
+
+static void intel_dp_check_link_service_irq(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	u8 val;
+
+	if (intel_dp->dpcd[DP_DPCD_REV] < 0x11)
+		return;
+
+	if (drm_dp_dpcd_readb(&intel_dp->aux,
+			      DP_LINK_SERVICE_IRQ_VECTOR_ESI0, &val) != 1 || !val) {
+		drm_dbg_kms(&i915->drm, "Error in reading link service irq vector\n");
+		return;
+	}
+
+	if (drm_dp_dpcd_writeb(&intel_dp->aux,
+			       DP_LINK_SERVICE_IRQ_VECTOR_ESI0, val) != 1) {
+		drm_dbg_kms(&i915->drm, "Error in writing link service irq vector\n");
+		return;
+	}
+
+	if (val & HDMI_LINK_STATUS_CHANGED)
+		intel_dp_handle_hdmi_link_status_change(intel_dp);
 }
 
 /*
@@ -6429,7 +6475,8 @@ intel_dp_short_pulse(struct intel_dp *intel_dp)
 		return false;
 	}
 
-	intel_dp_check_service_irq(intel_dp);
+	intel_dp_check_device_service_irq(intel_dp);
+	intel_dp_check_link_service_irq(intel_dp);
 
 	/* Handle CEC interrupts, if any */
 	drm_dp_cec_irq(&intel_dp->aux);
@@ -6859,7 +6906,7 @@ intel_dp_detect(struct drm_connector *connector,
 	    to_intel_connector(connector)->detect_edid)
 		status = connector_status_connected;
 
-	intel_dp_check_service_irq(intel_dp);
+	intel_dp_check_device_service_irq(intel_dp);
 
 out:
 	if (status != connector_status_connected && !intel_dp->is_mst)
