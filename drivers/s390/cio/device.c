@@ -1681,7 +1681,7 @@ void ccw_device_wait_idle(struct ccw_device *cdev)
 		cio_tsch(sch);
 		if (sch->schib.scsw.cmd.actl == 0)
 			break;
-		udelay_simple(100);
+		udelay(100);
 	}
 }
 #endif

@@ -335,7 +335,6 @@ int __init arch_early_irq_init(void)
 	if (!stack)
 		panic("Couldn't allocate async stack");
 	S390_lowcore.async_stack = stack + STACK_INIT_OFFSET;
-	udelay_enable();
 	return 0;
 }
 
