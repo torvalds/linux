@@ -12,16 +12,14 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <time.h>
 #include <pthread.h>
 #include <linux/bitmap.h>
-#include <linux/bitops.h>
 
 #include "kvm_util.h"
-#include "perf_test_util.h"
-#include "processor.h"
 #include "test_util.h"
+#include "perf_test_util.h"
+#include "guest_modes.h"
 
 /* How many host loops to run by default (one KVM_GET_DIRTY_LOG for each loop)*/
 #define TEST_HOST_LOOP_N		2UL
@@ -89,9 +87,15 @@ static void *vcpu_worker(void *data)
 	return NULL;
 }
 
-static void run_test(enum vm_guest_mode mode, unsigned long iterations,
-		     uint64_t phys_offset, int wr_fract)
+struct test_params {
+	unsigned long iterations;
+	uint64_t phys_offset;
+	int wr_fract;
+};
+
+static void run_test(enum vm_guest_mode mode, void *arg)
 {
+	struct test_params *p = arg;
 	pthread_t *vcpu_threads;
 	struct kvm_vm *vm;
 	unsigned long *bmap;
@@ -108,7 +112,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 
 	vm = create_vm(mode, nr_vcpus, guest_percpu_mem_size);
 
-	perf_test_args.wr_fract = wr_fract;
+	perf_test_args.wr_fract = p->wr_fract;
 
 	guest_num_pages = (nr_vcpus * guest_percpu_mem_size) >> vm_get_page_shift(vm);
 	guest_num_pages = vm_adjust_num_guest_pages(mode, guest_num_pages);
@@ -156,7 +160,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	pr_info("Enabling dirty logging time: %ld.%.9lds\n\n",
 		ts_diff.tv_sec, ts_diff.tv_nsec);
 
-	while (iteration < iterations) {
+	while (iteration < p->iterations) {
 		/*
 		 * Incrementing the iteration number will start the vCPUs
 		 * dirtying memory again.
@@ -210,15 +214,15 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	pr_info("Disabling dirty logging time: %ld.%.9lds\n",
 		ts_diff.tv_sec, ts_diff.tv_nsec);
 
-	avg = timespec_div(get_dirty_log_total, iterations);
+	avg = timespec_div(get_dirty_log_total, p->iterations);
 	pr_info("Get dirty log over %lu iterations took %ld.%.9lds. (Avg %ld.%.9lds/iteration)\n",
-		iterations, get_dirty_log_total.tv_sec,
+		p->iterations, get_dirty_log_total.tv_sec,
 		get_dirty_log_total.tv_nsec, avg.tv_sec, avg.tv_nsec);
 
 	if (dirty_log_manual_caps) {
-		avg = timespec_div(clear_dirty_log_total, iterations);
+		avg = timespec_div(clear_dirty_log_total, p->iterations);
 		pr_info("Clear dirty log over %lu iterations took %ld.%.9lds. (Avg %ld.%.9lds/iteration)\n",
-			iterations, clear_dirty_log_total.tv_sec,
+			p->iterations, clear_dirty_log_total.tv_sec,
 			clear_dirty_log_total.tv_nsec, avg.tv_sec, avg.tv_nsec);
 	}
 
@@ -228,20 +232,8 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	kvm_vm_free(vm);
 }
 
-struct guest_mode {
-	bool supported;
-	bool enabled;
-};
-static struct guest_mode guest_modes[NUM_VM_MODES];
-
-#define guest_mode_init(mode, supported, enabled) ({ \
-	guest_modes[mode] = (struct guest_mode){ supported, enabled }; \
-})
-
 static void help(char *name)
 {
-	int i;
-
 	puts("");
 	printf("usage: %s [-h] [-i iterations] [-p offset] "
 	       "[-m mode] [-b vcpu bytes] [-v vcpus]\n", name);
@@ -250,14 +242,7 @@ static void help(char *name)
 	       TEST_HOST_LOOP_N);
 	printf(" -p: specify guest physical test memory offset\n"
 	       "     Warning: a low offset can conflict with the loaded test code.\n");
-	printf(" -m: specify the guest mode ID to test "
-	       "(default: test all supported modes)\n"
-	       "     This option may be used multiple times.\n"
-	       "     Guest mode IDs:\n");
-	for (i = 0; i < NUM_VM_MODES; ++i) {
-		printf("         %d:    %s%s\n", i, vm_guest_mode_string(i),
-		       guest_modes[i].supported ? " (supported)" : "");
-	}
+	guest_modes_help();
 	printf(" -b: specify the size of the memory region which should be\n"
 	       "     dirtied by each vCPU. e.g. 10M or 3G.\n"
 	       "     (default: 1G)\n");
@@ -272,74 +257,43 @@ static void help(char *name)
 
 int main(int argc, char *argv[])
 {
-	unsigned long iterations = TEST_HOST_LOOP_N;
-	bool mode_selected = false;
-	uint64_t phys_offset = 0;
-	unsigned int mode;
-	int opt, i;
-	int wr_fract = 1;
+	int max_vcpus = kvm_check_cap(KVM_CAP_MAX_VCPUS);
+	struct test_params p = {
+		.iterations = TEST_HOST_LOOP_N,
+		.wr_fract = 1,
+	};
+	int opt;
 
 	dirty_log_manual_caps =
 		kvm_check_cap(KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2);
 	dirty_log_manual_caps &= (KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE |
 				  KVM_DIRTY_LOG_INITIALLY_SET);
 
-#ifdef __x86_64__
-	guest_mode_init(VM_MODE_PXXV48_4K, true, true);
-#endif
-#ifdef __aarch64__
-	guest_mode_init(VM_MODE_P40V48_4K, true, true);
-	guest_mode_init(VM_MODE_P40V48_64K, true, true);
-
-	{
-		unsigned int limit = kvm_check_cap(KVM_CAP_ARM_VM_IPA_SIZE);
-
-		if (limit >= 52)
-			guest_mode_init(VM_MODE_P52V48_64K, true, true);
-		if (limit >= 48) {
-			guest_mode_init(VM_MODE_P48V48_4K, true, true);
-			guest_mode_init(VM_MODE_P48V48_64K, true, true);
-		}
-	}
-#endif
-#ifdef __s390x__
-	guest_mode_init(VM_MODE_P40V48_4K, true, true);
-#endif
+	guest_modes_append_default();
 
 	while ((opt = getopt(argc, argv, "hi:p:m:b:f:v:")) != -1) {
 		switch (opt) {
 		case 'i':
-			iterations = strtol(optarg, NULL, 10);
+			p.iterations = strtol(optarg, NULL, 10);
 			break;
 		case 'p':
-			phys_offset = strtoull(optarg, NULL, 0);
+			p.phys_offset = strtoull(optarg, NULL, 0);
 			break;
 		case 'm':
-			if (!mode_selected) {
-				for (i = 0; i < NUM_VM_MODES; ++i)
-					guest_modes[i].enabled = false;
-				mode_selected = true;
-			}
-			mode = strtoul(optarg, NULL, 10);
-			TEST_ASSERT(mode < NUM_VM_MODES,
-				    "Guest mode ID %d too big", mode);
-			guest_modes[mode].enabled = true;
+			guest_modes_cmdline(optarg);
 			break;
 		case 'b':
 			guest_percpu_mem_size = parse_size(optarg);
 			break;
 		case 'f':
-			wr_fract = atoi(optarg);
-			TEST_ASSERT(wr_fract >= 1,
+			p.wr_fract = atoi(optarg);
+			TEST_ASSERT(p.wr_fract >= 1,
 				    "Write fraction cannot be less than one");
 			break;
 		case 'v':
 			nr_vcpus = atoi(optarg);
-			TEST_ASSERT(nr_vcpus > 0,
-				    "Must have a positive number of vCPUs");
-			TEST_ASSERT(nr_vcpus <= MAX_VCPUS,
-				    "This test does not currently support\n"
-				    "more than %d vCPUs.", MAX_VCPUS);
+			TEST_ASSERT(nr_vcpus > 0 && nr_vcpus <= max_vcpus,
+				    "Invalid number of vcpus, must be between 1 and %d", max_vcpus);
 			break;
 		case 'h':
 		default:
@@ -348,18 +302,11 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	TEST_ASSERT(iterations >= 2, "The test should have at least two iterations");
+	TEST_ASSERT(p.iterations >= 2, "The test should have at least two iterations");
 
-	pr_info("Test iterations: %"PRIu64"\n",	iterations);
+	pr_info("Test iterations: %"PRIu64"\n",	p.iterations);
 
-	for (i = 0; i < NUM_VM_MODES; ++i) {
-		if (!guest_modes[i].enabled)
-			continue;
-		TEST_ASSERT(guest_modes[i].supported,
-			    "Guest mode ID %d (%s) not supported.",
-			    i, vm_guest_mode_string(i));
-		run_test(i, iterations, phys_offset, wr_fract);
-	}
+	for_each_guest_mode(run_test, &p);
 
 	return 0;
 }

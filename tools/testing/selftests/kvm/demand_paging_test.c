@@ -7,23 +7,20 @@
  * Copyright (C) 2019, Google, Inc.
  */
 
-#define _GNU_SOURCE /* for program_invocation_name */
+#define _GNU_SOURCE /* for program_invocation_name and pipe2 */
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-#include <asm/unistd.h>
 #include <time.h>
 #include <poll.h>
 #include <pthread.h>
-#include <linux/bitmap.h>
-#include <linux/bitops.h>
 #include <linux/userfaultfd.h>
+#include <sys/syscall.h>
 
-#include "perf_test_util.h"
-#include "processor.h"
+#include "kvm_util.h"
 #include "test_util.h"
+#include "perf_test_util.h"
+#include "guest_modes.h"
 
 #ifdef __NR_userfaultfd
 
@@ -248,9 +245,14 @@ static int setup_demand_paging(struct kvm_vm *vm,
 	return 0;
 }
 
-static void run_test(enum vm_guest_mode mode, bool use_uffd,
-		     useconds_t uffd_delay)
+struct test_params {
+	bool use_uffd;
+	useconds_t uffd_delay;
+};
+
+static void run_test(enum vm_guest_mode mode, void *arg)
 {
+	struct test_params *p = arg;
 	pthread_t *vcpu_threads;
 	pthread_t *uffd_handler_threads = NULL;
 	struct uffd_handler_args *uffd_args = NULL;
@@ -275,7 +277,7 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 
 	add_vcpus(vm, nr_vcpus, guest_percpu_mem_size);
 
-	if (use_uffd) {
+	if (p->use_uffd) {
 		uffd_handler_threads =
 			malloc(nr_vcpus * sizeof(*uffd_handler_threads));
 		TEST_ASSERT(uffd_handler_threads, "Memory allocation failed");
@@ -308,7 +310,7 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 			r = setup_demand_paging(vm,
 						&uffd_handler_threads[vcpu_id],
 						pipefds[vcpu_id * 2],
-						uffd_delay, &uffd_args[vcpu_id],
+						p->uffd_delay, &uffd_args[vcpu_id],
 						vcpu_hva, guest_percpu_mem_size);
 			if (r < 0)
 				exit(-r);
@@ -339,7 +341,7 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 
 	pr_info("All vCPU threads joined\n");
 
-	if (use_uffd) {
+	if (p->use_uffd) {
 		char c;
 
 		/* Tell the user fault fd handler threads to quit */
@@ -362,38 +364,19 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 
 	free(guest_data_prototype);
 	free(vcpu_threads);
-	if (use_uffd) {
+	if (p->use_uffd) {
 		free(uffd_handler_threads);
 		free(uffd_args);
 		free(pipefds);
 	}
 }
 
-struct guest_mode {
-	bool supported;
-	bool enabled;
-};
-static struct guest_mode guest_modes[NUM_VM_MODES];
-
-#define guest_mode_init(mode, supported, enabled) ({ \
-	guest_modes[mode] = (struct guest_mode){ supported, enabled }; \
-})
-
 static void help(char *name)
 {
-	int i;
-
 	puts("");
 	printf("usage: %s [-h] [-m mode] [-u] [-d uffd_delay_usec]\n"
 	       "          [-b memory] [-v vcpus]\n", name);
-	printf(" -m: specify the guest mode ID to test\n"
-	       "     (default: test all supported modes)\n"
-	       "     This option may be used multiple times.\n"
-	       "     Guest mode IDs:\n");
-	for (i = 0; i < NUM_VM_MODES; ++i) {
-		printf("         %d:    %s%s\n", i, vm_guest_mode_string(i),
-		       guest_modes[i].supported ? " (supported)" : "");
-	}
+	guest_modes_help();
 	printf(" -u: use User Fault FD to handle vCPU page\n"
 	       "     faults.\n");
 	printf(" -d: add a delay in usec to the User Fault\n"
@@ -410,53 +393,22 @@ static void help(char *name)
 int main(int argc, char *argv[])
 {
 	int max_vcpus = kvm_check_cap(KVM_CAP_MAX_VCPUS);
-	bool mode_selected = false;
-	unsigned int mode;
-	int opt, i;
-	bool use_uffd = false;
-	useconds_t uffd_delay = 0;
+	struct test_params p = {};
+	int opt;
 
-#ifdef __x86_64__
-	guest_mode_init(VM_MODE_PXXV48_4K, true, true);
-#endif
-#ifdef __aarch64__
-	guest_mode_init(VM_MODE_P40V48_4K, true, true);
-	guest_mode_init(VM_MODE_P40V48_64K, true, true);
-	{
-		unsigned int limit = kvm_check_cap(KVM_CAP_ARM_VM_IPA_SIZE);
-
-		if (limit >= 52)
-			guest_mode_init(VM_MODE_P52V48_64K, true, true);
-		if (limit >= 48) {
-			guest_mode_init(VM_MODE_P48V48_4K, true, true);
-			guest_mode_init(VM_MODE_P48V48_64K, true, true);
-		}
-	}
-#endif
-#ifdef __s390x__
-	guest_mode_init(VM_MODE_P40V48_4K, true, true);
-#endif
+	guest_modes_append_default();
 
 	while ((opt = getopt(argc, argv, "hm:ud:b:v:")) != -1) {
 		switch (opt) {
 		case 'm':
-			if (!mode_selected) {
-				for (i = 0; i < NUM_VM_MODES; ++i)
-					guest_modes[i].enabled = false;
-				mode_selected = true;
-			}
-			mode = strtoul(optarg, NULL, 10);
-			TEST_ASSERT(mode < NUM_VM_MODES,
-				    "Guest mode ID %d too big", mode);
-			guest_modes[mode].enabled = true;
+			guest_modes_cmdline(optarg);
 			break;
 		case 'u':
-			use_uffd = true;
+			p.use_uffd = true;
 			break;
 		case 'd':
-			uffd_delay = strtoul(optarg, NULL, 0);
-			TEST_ASSERT(uffd_delay >= 0,
-				    "A negative UFFD delay is not supported.");
+			p.uffd_delay = strtoul(optarg, NULL, 0);
+			TEST_ASSERT(p.uffd_delay >= 0, "A negative UFFD delay is not supported.");
 			break;
 		case 'b':
 			guest_percpu_mem_size = parse_size(optarg);
@@ -473,14 +425,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	for (i = 0; i < NUM_VM_MODES; ++i) {
-		if (!guest_modes[i].enabled)
-			continue;
-		TEST_ASSERT(guest_modes[i].supported,
-			    "Guest mode ID %d (%s) not supported.",
-			    i, vm_guest_mode_string(i));
-		run_test(i, use_uffd, uffd_delay);
-	}
+	for_each_guest_mode(run_test, &p);
 
 	return 0;
 }
