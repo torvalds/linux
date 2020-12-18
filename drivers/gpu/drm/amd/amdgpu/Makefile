@@ -97,6 +97,7 @@ amdgpu-y += \
 	tonga_ih.o \
 	cz_ih.o \
 	vega10_ih.o \
+	vega20_ih.o \
 	navi10_ih.o
 
 # add PSP block
