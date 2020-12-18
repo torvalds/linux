@@ -115,6 +115,10 @@ enum virtio_gpu_ctrl_type {
 
 enum virtio_gpu_shm_id {
 	VIRTIO_GPU_SHM_ID_UNDEFINED = 0,
+	/*
+	 * VIRTIO_GPU_CMD_RESOURCE_MAP_BLOB
+	 * VIRTIO_GPU_CMD_RESOURCE_UNMAP_BLOB
+	 */
 	VIRTIO_GPU_SHM_ID_HOST_VISIBLE = 1
 };
 
