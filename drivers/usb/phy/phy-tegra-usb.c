@@ -784,6 +784,9 @@ static int tegra_usb_phy_power_on(struct tegra_usb_phy *phy)
 
 	phy->powered_on = true;
 
+	/* Let PHY settle down */
+	usleep_range(2000, 2500);
+
 	return 0;
 }
 
