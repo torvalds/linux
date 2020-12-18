@@ -59,6 +59,7 @@ static void rnbd_clt_put_dev(struct rnbd_clt_dev *dev)
 	ida_simple_remove(&index_ida, dev->clt_device_id);
 	mutex_unlock(&ida_lock);
 	kfree(dev->hw_queues);
+	kfree(dev->pathname);
 	rnbd_clt_put_sess(dev->sess);
 	mutex_destroy(&dev->lock);
 	kfree(dev);
@@ -100,8 +101,7 @@ static int rnbd_clt_change_capacity(struct rnbd_clt_dev *dev,
 	rnbd_clt_info(dev, "Device size changed from %zu to %zu sectors\n",
 		       dev->nsectors, new_nsectors);
 	dev->nsectors = new_nsectors;
-	set_capacity(dev->gd, dev->nsectors);
-	revalidate_disk_size(dev->gd, true);
+	set_capacity_and_notify(dev->gd, dev->nsectors);
 	return 0;
 }
 
@@ -1193,6 +1193,12 @@ find_and_get_or_create_sess(const char *sessname,
 	else if (!first)
 		return sess;
 
+	if (!path_cnt) {
+		pr_err("Session %s not found, and path parameter not given", sessname);
+		err = -ENXIO;
+		goto put_sess;
+	}
+
 	rtrs_ops = (struct rtrs_clt_ops) {
 		.priv = sess,
 		.link_ev = rnbd_clt_link_ev,
@@ -1381,10 +1387,17 @@ static struct rnbd_clt_dev *init_dev(struct rnbd_clt_session *sess,
 		       pathname, sess->sessname, ret);
 		goto out_queues;
 	}
+
+	dev->pathname = kzalloc(strlen(pathname) + 1, GFP_KERNEL);
+	if (!dev->pathname) {
+		ret = -ENOMEM;
+		goto out_queues;
+	}
+	strlcpy(dev->pathname, pathname, strlen(pathname) + 1);
+
 	dev->clt_device_id	= ret;
 	dev->sess		= sess;
 	dev->access_mode	= access_mode;
-	strlcpy(dev->pathname, pathname, sizeof(dev->pathname));
 	mutex_init(&dev->lock);
 	refcount_set(&dev->refcount, 1);
 	dev->dev_state = DEV_STATE_INIT;
@@ -1404,17 +1417,20 @@ out_alloc:
 	return ERR_PTR(ret);
 }
 
-static bool __exists_dev(const char *pathname)
+static bool __exists_dev(const char *pathname, const char *sessname)
 {
 	struct rnbd_clt_session *sess;
 	struct rnbd_clt_dev *dev;
 	bool found = false;
 
 	list_for_each_entry(sess, &sess_list, list) {
+		if (sessname && strncmp(sess->sessname, sessname,
+					sizeof(sess->sessname)))
+			continue;
 		mutex_lock(&sess->lock);
 		list_for_each_entry(dev, &sess->devs_list, list) {
-			if (!strncmp(dev->pathname, pathname,
-				     sizeof(dev->pathname))) {
+			if (strlen(dev->pathname) == strlen(pathname) &&
+			    !strcmp(dev->pathname, pathname)) {
 				found = true;
 				break;
 			}
@@ -1427,12 +1443,12 @@ static bool __exists_dev(const char *pathname)
 	return found;
 }
 
-static bool exists_devpath(const char *pathname)
+static bool exists_devpath(const char *pathname, const char *sessname)
 {
 	bool found;
 
 	mutex_lock(&sess_lock);
-	found = __exists_dev(pathname);
+	found = __exists_dev(pathname, sessname);
 	mutex_unlock(&sess_lock);
 
 	return found;
@@ -1445,7 +1461,7 @@ static bool insert_dev_if_not_exists_devpath(const char *pathname,
 	bool found;
 
 	mutex_lock(&sess_lock);
-	found = __exists_dev(pathname);
+	found = __exists_dev(pathname, sess->sessname);
 	if (!found) {
 		mutex_lock(&sess->lock);
 		list_add_tail(&dev->list, &sess->devs_list);
@@ -1475,7 +1491,7 @@ struct rnbd_clt_dev *rnbd_clt_map_device(const char *sessname,
 	struct rnbd_clt_dev *dev;
 	int ret;
 
-	if (exists_devpath(pathname))
+	if (unlikely(exists_devpath(pathname, sessname)))
 		return ERR_PTR(-EEXIST);
 
 	sess = find_and_get_or_create_sess(sessname, paths, path_cnt, port_nr);

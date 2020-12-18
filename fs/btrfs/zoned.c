@@ -165,7 +165,7 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device)
 	if (!zone_info)
 		return -ENOMEM;
 
-	nr_sectors = bdev->bd_part->nr_sects;
+	nr_sectors = bdev_nr_sectors(bdev);
 	zone_sectors = bdev_zone_sectors(bdev);
 	/* Check if it's power of 2 (see is_power_of_2) */
 	ASSERT(zone_sectors != 0 && (zone_sectors & (zone_sectors - 1)) == 0);
@@ -505,7 +505,7 @@ int btrfs_sb_log_location_bdev(struct block_device *bdev, int mirror, int rw,
 		return -EINVAL;
 	zone_size = zone_sectors << SECTOR_SHIFT;
 	zone_sectors_shift = ilog2(zone_sectors);
-	nr_sectors = bdev->bd_part->nr_sects;
+	nr_sectors = bdev_nr_sectors(bdev);
 	nr_zones = nr_sectors >> zone_sectors_shift;
 
 	sb_zone = sb_zone_number(zone_sectors_shift + SECTOR_SHIFT, mirror);
@@ -603,7 +603,7 @@ int btrfs_reset_sb_log_zones(struct block_device *bdev, int mirror)
 
 	zone_sectors = bdev_zone_sectors(bdev);
 	zone_sectors_shift = ilog2(zone_sectors);
-	nr_sectors = bdev->bd_part->nr_sects;
+	nr_sectors = bdev_nr_sectors(bdev);
 	nr_zones = nr_sectors >> zone_sectors_shift;
 
 	sb_zone = sb_zone_number(zone_sectors_shift + SECTOR_SHIFT, mirror);
