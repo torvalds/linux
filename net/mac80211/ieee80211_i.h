@@ -848,7 +848,6 @@ enum txq_info_flags {
  */
 struct txq_info {
 	struct fq_tin tin;
-	struct fq_flow def_flow;
 	struct codel_vars def_cvars;
 	struct codel_stats cstats;
 	struct sk_buff_head frags;

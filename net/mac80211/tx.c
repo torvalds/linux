@@ -1309,7 +1309,7 @@ static struct sk_buff *codel_dequeue_func(struct codel_vars *cvars,
 	fq = &local->fq;
 
 	if (cvars == &txqi->def_cvars)
-		flow = &txqi->def_flow;
+		flow = &txqi->tin.default_flow;
 	else
 		flow = &fq->flows[cvars - local->cvars];
 
@@ -1352,7 +1352,7 @@ static struct sk_buff *fq_tin_dequeue_func(struct fq *fq,
 		cparams = &local->cparams;
 	}
 
-	if (flow == &txqi->def_flow)
+	if (flow == &tin->default_flow)
 		cvars = &txqi->def_cvars;
 	else
 		cvars = &local->cvars[flow - fq->flows];
@@ -1379,17 +1379,6 @@ static void fq_skb_free_func(struct fq *fq,
 	ieee80211_free_txskb(&local->hw, skb);
 }
 
-static struct fq_flow *fq_flow_get_default_func(struct fq *fq,
-						struct fq_tin *tin,
-						int idx,
-						struct sk_buff *skb)
-{
-	struct txq_info *txqi;
-
-	txqi = container_of(tin, struct txq_info, tin);
-	return &txqi->def_flow;
-}
-
 static void ieee80211_txq_enqueue(struct ieee80211_local *local,
 				  struct txq_info *txqi,
 				  struct sk_buff *skb)
@@ -1402,8 +1391,7 @@ static void ieee80211_txq_enqueue(struct ieee80211_local *local,
 
 	spin_lock_bh(&fq->lock);
 	fq_tin_enqueue(fq, tin, flow_idx, skb,
-		       fq_skb_free_func,
-		       fq_flow_get_default_func);
+		       fq_skb_free_func);
 	spin_unlock_bh(&fq->lock);
 }
 
@@ -1446,7 +1434,6 @@ void ieee80211_txq_init(struct ieee80211_sub_if_data *sdata,
 			struct txq_info *txqi, int tid)
 {
 	fq_tin_init(&txqi->tin);
-	fq_flow_init(&txqi->def_flow);
 	codel_vars_init(&txqi->def_cvars);
 	codel_stats_init(&txqi->cstats);
 	__skb_queue_head_init(&txqi->frags);
@@ -3283,8 +3270,7 @@ static bool ieee80211_amsdu_aggregate(struct ieee80211_sub_if_data *sdata,
 	 */
 
 	tin = &txqi->tin;
-	flow = fq_flow_classify(fq, tin, flow_idx, skb,
-				fq_flow_get_default_func);
+	flow = fq_flow_classify(fq, tin, flow_idx, skb);
 	head = skb_peek_tail(&flow->queue);
 	if (!head || skb_is_gso(head))
 		goto out;

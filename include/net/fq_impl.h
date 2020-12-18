@@ -151,8 +151,7 @@ static u32 fq_flow_idx(struct fq *fq, struct sk_buff *skb)
 
 static struct fq_flow *fq_flow_classify(struct fq *fq,
 					struct fq_tin *tin, u32 idx,
-					struct sk_buff *skb,
-					fq_flow_get_default_t get_default_func)
+					struct sk_buff *skb)
 {
 	struct fq_flow *flow;
 
@@ -160,7 +159,7 @@ static struct fq_flow *fq_flow_classify(struct fq *fq,
 
 	flow = &fq->flows[idx];
 	if (flow->tin && flow->tin != tin) {
-		flow = get_default_func(fq, tin, idx, skb);
+		flow = &tin->default_flow;
 		tin->collisions++;
 		fq->collisions++;
 	}
@@ -192,15 +191,14 @@ static void fq_recalc_backlog(struct fq *fq,
 static void fq_tin_enqueue(struct fq *fq,
 			   struct fq_tin *tin, u32 idx,
 			   struct sk_buff *skb,
-			   fq_skb_free_t free_func,
-			   fq_flow_get_default_t get_default_func)
+			   fq_skb_free_t free_func)
 {
 	struct fq_flow *flow;
 	bool oom;
 
 	lockdep_assert_held(&fq->lock);
 
-	flow = fq_flow_classify(fq, tin, idx, skb, get_default_func);
+	flow = fq_flow_classify(fq, tin, idx, skb);
 
 	flow->tin = tin;
 	flow->backlog += skb->len;
@@ -331,6 +329,7 @@ static void fq_tin_init(struct fq_tin *tin)
 {
 	INIT_LIST_HEAD(&tin->new_flows);
 	INIT_LIST_HEAD(&tin->old_flows);
+	fq_flow_init(&tin->default_flow);
 }
 
 static int fq_init(struct fq *fq, int flows_cnt)

@@ -47,6 +47,7 @@ struct fq_flow {
 struct fq_tin {
 	struct list_head new_flows;
 	struct list_head old_flows;
+	struct fq_flow default_flow;
 	u32 backlog_bytes;
 	u32 backlog_packets;
 	u32 overlimit;
