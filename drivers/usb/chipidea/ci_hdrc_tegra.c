@@ -128,5 +128,4 @@ module_platform_driver(tegra_udc_driver);
 
 MODULE_DESCRIPTION("NVIDIA Tegra USB device mode driver");
 MODULE_AUTHOR("Thierry Reding <treding@nvidia.com>");
-MODULE_ALIAS("platform:tegra-udc");
 MODULE_LICENSE("GPL v2");
