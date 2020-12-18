@@ -102,7 +102,7 @@ TEST(close_range_unshare)
 	int i, ret, status;
 	pid_t pid;
 	int open_fds[101];
-	struct clone_args args = {
+	struct __clone_args args = {
 		.flags = CLONE_FILES,
 		.exit_signal = SIGCHLD,
 	};
@@ -191,7 +191,7 @@ TEST(close_range_unshare_capped)
 	int i, ret, status;
 	pid_t pid;
 	int open_fds[101];
-	struct clone_args args = {
+	struct __clone_args args = {
 		.flags = CLONE_FILES,
 		.exit_signal = SIGCHLD,
 	};
@@ -241,7 +241,7 @@ TEST(close_range_cloexec)
 		fd = open("/dev/null", O_RDONLY);
 		ASSERT_GE(fd, 0) {
 			if (errno == ENOENT)
-				XFAIL(return, "Skipping test since /dev/null does not exist");
+				SKIP(return, "Skipping test since /dev/null does not exist");
 		}
 
 		open_fds[i] = fd;
@@ -250,9 +250,9 @@ TEST(close_range_cloexec)
 	ret = sys_close_range(1000, 1000, CLOSE_RANGE_CLOEXEC);
 	if (ret < 0) {
 		if (errno == ENOSYS)
-			XFAIL(return, "close_range() syscall not supported");
+			SKIP(return, "close_range() syscall not supported");
 		if (errno == EINVAL)
-			XFAIL(return, "close_range() doesn't support CLOSE_RANGE_CLOEXEC");
+			SKIP(return, "close_range() doesn't support CLOSE_RANGE_CLOEXEC");
 	}
 
 	/* Ensure the FD_CLOEXEC bit is set also with a resource limit in place.  */
