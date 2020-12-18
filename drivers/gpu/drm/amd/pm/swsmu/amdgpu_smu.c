@@ -402,6 +402,8 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		break;
 	case CHIP_RENOIR:
 		renoir_set_ppt_funcs(smu);
+		/* enable the OD by default to allow the fine grain tuning function */
+		smu->od_enabled = true;
 		break;
 	case CHIP_VANGOGH:
 		vangogh_set_ppt_funcs(smu);
