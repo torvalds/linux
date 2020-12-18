@@ -209,6 +209,12 @@ struct drm_hdmi_info {
 
 	/* @colorimetry: bitmap of supported colorimetry modes */
 	u16 colorimetry;
+
+	/** @max_frl_rate_per_lane: support fixed rate link */
+	u8 max_frl_rate_per_lane;
+
+	/** @max_lanes: supported by sink */
+	u8 max_lanes;
 };
 
 /**
