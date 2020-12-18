@@ -432,6 +432,17 @@ struct drm_device;
 # define DP_DS_HDMI_YCBCR444_TO_422_CONV    (1 << 3)
 # define DP_DS_HDMI_YCBCR444_TO_420_CONV    (1 << 4)
 
+/*
+ * VESA DP-to-HDMI PCON Specification adds caps for colorspace
+ * conversion in DFP cap DPCD 83h. Sec6.1 Table-3.
+ * Based on the available support the source can enable
+ * color conversion by writing into PROTOCOL_COVERTER_CONTROL_2
+ * DPCD 3052h.
+ */
+# define DP_DS_HDMI_BT601_RGB_YCBCR_CONV    (1 << 5)
+# define DP_DS_HDMI_BT709_RGB_YCBCR_CONV    (1 << 6)
+# define DP_DS_HDMI_BT2020_RGB_YCBCR_CONV   (1 << 7)
+
 #define DP_MAX_DOWNSTREAM_PORTS		    0x10
 
 /* DP Forward error Correction Registers */
@@ -1207,7 +1218,10 @@ struct drm_device;
 # define DP_PCON_ENC_PPS_OVERRIDE_DISABLED      0
 # define DP_PCON_ENC_PPS_OVERRIDE_EN_PARAMS     1
 # define DP_PCON_ENC_PPS_OVERRIDE_EN_BUFFER     2
-
+# define DP_CONVERSION_RGB_YCBCR_MASK	       (7 << 4)
+# define DP_CONVERSION_BT601_RGB_YCBCR_ENABLE  (1 << 4)
+# define DP_CONVERSION_BT709_RGB_YCBCR_ENABLE  (1 << 5)
+# define DP_CONVERSION_BT2020_RGB_YCBCR_ENABLE (1 << 6)
 
 /* PCON Downstream HDMI ERROR Status per Lane */
 #define DP_PCON_HDMI_ERROR_STATUS_LN0          0x3037
@@ -2167,5 +2181,8 @@ int drm_dp_pcon_dsc_bpp_incr(const u8 pcon_dsc_dpcd[DP_PCON_DSC_ENCODER_CAP_SIZE
 int drm_dp_pcon_pps_default(struct drm_dp_aux *aux);
 int drm_dp_pcon_pps_override_buf(struct drm_dp_aux *aux, u8 pps_buf[128]);
 int drm_dp_pcon_pps_override_param(struct drm_dp_aux *aux, u8 pps_param[6]);
+bool drm_dp_downstream_rgb_to_ycbcr_conversion(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+					       const u8 port_cap[4], u8 color_spc);
+int drm_dp_pcon_convert_rgb_to_ycbcr(struct drm_dp_aux *aux, u8 color_spc);
 
 #endif /* _DRM_DP_HELPER_H_ */
