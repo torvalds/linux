@@ -338,6 +338,12 @@
 			#interrupt-cells = <3>;
 
 			/omit-if-no-ref/
+			csi0_mclk_pin: csi0-mclk-pin {
+				pins = "PE20";
+				function = "csi_mipi";
+			};
+
+			/omit-if-no-ref/
 			csi1_8bit_pins: csi1-8bit-pins {
 				pins = "PE0", "PE2", "PE3", "PE8", "PE9",
 				       "PE10", "PE11", "PE12", "PE13", "PE14",
