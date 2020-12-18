@@ -402,7 +402,7 @@ int __msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 	struct msi_domain_ops *ops = info->ops;
 	struct irq_data *irq_data;
 	struct msi_desc *desc;
-	msi_alloc_info_t arg;
+	msi_alloc_info_t arg = { };
 	int i, ret, virq;
 	bool can_reserve;
 
