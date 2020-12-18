@@ -1300,11 +1300,13 @@ static int __maybe_unused da7280_resume(struct device *dev)
 	return retval;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id da7280_of_match[] = {
 	{ .compatible = "dlg,da7280", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, da7280_of_match);
+#endif
 
 static const struct i2c_device_id da7280_i2c_id[] = {
 	{ "da7280", },
