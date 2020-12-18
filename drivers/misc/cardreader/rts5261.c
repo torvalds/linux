@@ -26,16 +26,16 @@ static u8 rts5261_get_ic_version(struct rtsx_pcr *pcr)
 static void rts5261_fill_driving(struct rtsx_pcr *pcr, u8 voltage)
 {
 	u8 driving_3v3[4][3] = {
-		{0x13, 0x13, 0x13},
+		{0x96, 0x96, 0x96},
 		{0x96, 0x96, 0x96},
 		{0x7F, 0x7F, 0x7F},
-		{0x96, 0x96, 0x96},
+		{0x13, 0x13, 0x13},
 	};
 	u8 driving_1v8[4][3] = {
-		{0x99, 0x99, 0x99},
+		{0xB3, 0xB3, 0xB3},
 		{0x3A, 0x3A, 0x3A},
 		{0xE6, 0xE6, 0xE6},
-		{0xB3, 0xB3, 0xB3},
+		{0x99, 0x99, 0x99},
 	};
 	u8 (*driving)[3], drive_sel;
 
@@ -67,12 +67,17 @@ static void rtsx5261_fetch_vendor_settings(struct rtsx_pcr *pcr)
 	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG2, reg);
 
 	if (!rts5261_vendor_setting_valid(reg)) {
+		/* Not support MMC default */
+		pcr->extra_caps |= EXTRA_CAPS_NO_MMC;
 		pcr_dbg(pcr, "skip fetch vendor setting\n");
 		return;
 	}
 
-	pcr->card_drive_sel &= 0x3F;
-	pcr->card_drive_sel |= rts5261_reg_to_card_drive_sel(reg);
+	if (!rts5261_reg_check_mmc_support(reg))
+		pcr->extra_caps |= EXTRA_CAPS_NO_MMC;
+
+	/* TO do: need to add rtd3 function */
+	pcr->rtd3_en = rts5261_reg_to_rtd3(reg);
 
 	if (rts5261_reg_check_reverse_socket(reg))
 		pcr->flags |= PCR_REVERSE_SOCKET;
@@ -171,6 +176,8 @@ static int rts5261_card_power_on(struct rtsx_pcr *pcr, int card)
 	if (option->ocp_en)
 		rtsx_pci_enable_ocp(pcr);
 
+	rtsx_pci_write_register(pcr, REG_CRC_DUMMY_0,
+		CFG_SD_POW_AUTO_PD, CFG_SD_POW_AUTO_PD);
 
 	rtsx_pci_write_register(pcr, RTS5261_LDO1_CFG1,
 			RTS5261_LDO1_TUNE_MASK, RTS5261_LDO1_33);
@@ -272,6 +279,9 @@ static void rts5261_enable_ocp(struct rtsx_pcr *pcr)
 	u8 val = 0;
 
 	val = SD_OCP_INT_EN | SD_DETECT_EN;
+	rtsx_pci_write_register(pcr, RTS5261_LDO1_CFG0,
+			RTS5261_LDO1_OCP_EN | RTS5261_LDO1_OCP_LMT_EN,
+			RTS5261_LDO1_OCP_EN | RTS5261_LDO1_OCP_LMT_EN);
 	rtsx_pci_write_register(pcr, REG_OCPCTL, 0xFF, val);
 
 }
@@ -295,6 +305,8 @@ static int rts5261_card_power_off(struct rtsx_pcr *pcr, int card)
 	err = rtsx_pci_write_register(pcr, RTS5261_LDO1233318_POW_CTL,
 				RTS5261_LDO_POWERON_MASK, 0);
 
+	rtsx_pci_write_register(pcr, REG_CRC_DUMMY_0,
+		CFG_SD_POW_AUTO_PD, 0);
 	if (pcr->option.ocp_en)
 		rtsx_pci_disable_ocp(pcr);
 
@@ -340,7 +352,7 @@ static void rts5261_clear_ocpstat(struct rtsx_pcr *pcr)
 
 	rtsx_pci_write_register(pcr, REG_OCPCTL, mask, val);
 
-	udelay(10);
+	udelay(1000);
 	rtsx_pci_write_register(pcr, REG_OCPCTL, mask, 0);
 
 }
@@ -353,9 +365,9 @@ static void rts5261_process_ocp(struct rtsx_pcr *pcr)
 	rtsx_pci_get_ocpstat(pcr, &pcr->ocp_stat);
 
 	if (pcr->ocp_stat & (SD_OC_NOW | SD_OC_EVER)) {
+		rts5261_clear_ocpstat(pcr);
 		rts5261_card_power_off(pcr, RTSX_SD_CARD);
 		rtsx_pci_write_register(pcr, CARD_OE, SD_OUTPUT_EN, 0);
-		rts5261_clear_ocpstat(pcr);
 		pcr->ocp_stat = 0;
 	}
 
@@ -467,6 +479,7 @@ static void rts5261_init_from_cfg(struct rtsx_pcr *pcr)
 static int rts5261_extra_init_hw(struct rtsx_pcr *pcr)
 {
 	struct rtsx_cr_option *option = &pcr->option;
+	u32 val;
 
 	rtsx_pci_write_register(pcr, RTS5261_AUTOLOAD_CFG1,
 			CD_RESUME_EN_MASK, CD_RESUME_EN_MASK);
@@ -481,6 +494,10 @@ static int rts5261_extra_init_hw(struct rtsx_pcr *pcr)
 			AUX_CLK_ACTIVE_SEL_MASK, MAC_CKSW_DONE);
 	rtsx_pci_write_register(pcr, L1SUB_CONFIG3, 0xFF, 0);
 
+	if (is_version_higher_than(pcr, PID_5261, IC_VER_B)) {
+		val = rtsx_pci_readl(pcr, RTSX_DUM_REG);
+		rtsx_pci_writel(pcr, RTSX_DUM_REG, val | 0x1);
+	}
 	rtsx_pci_write_register(pcr, RTS5261_AUTOLOAD_CFG4,
 			RTS5261_AUX_CLK_16M_EN, 0);
 
@@ -502,6 +519,11 @@ static int rts5261_extra_init_hw(struct rtsx_pcr *pcr)
 	/* Configure driving */
 	rts5261_fill_driving(pcr, OUTPUT_3V3);
 
+	if (pcr->flags & PCR_REVERSE_SOCKET)
+		rtsx_pci_write_register(pcr, PETXCFG, 0x30, 0x30);
+	else
+		rtsx_pci_write_register(pcr, PETXCFG, 0x30, 0x00);
+
 	/*
 	 * If u_force_clkreq_0 is enabled, CLKREQ# PIN will be forced
 	 * to drive low, and we forcibly request clock.
@@ -513,6 +535,7 @@ static int rts5261_extra_init_hw(struct rtsx_pcr *pcr)
 		rtsx_pci_write_register(pcr, PETXCFG,
 				 FORCE_CLKREQ_DELINK_MASK, FORCE_CLKREQ_HIGH);
 
+	rtsx_pci_write_register(pcr, PWD_SUSPEND_EN, 0xFF, 0xFB);
 	rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3, 0x10, 0x00);
 	rtsx_pci_write_register(pcr, RTS5261_REG_PME_FORCE_CTL,
 			FORCE_PM_CONTROL | FORCE_PM_VALUE, FORCE_PM_CONTROL);
@@ -526,22 +549,30 @@ static int rts5261_extra_init_hw(struct rtsx_pcr *pcr)
 
 static void rts5261_enable_aspm(struct rtsx_pcr *pcr, bool enable)
 {
+	u8 val = FORCE_ASPM_CTL0 | FORCE_ASPM_CTL1;
+	u8 mask = FORCE_ASPM_VAL_MASK | FORCE_ASPM_CTL0 | FORCE_ASPM_CTL1;
+
 	if (pcr->aspm_enabled == enable)
 		return;
 
+	val |= (pcr->aspm_en & 0x02);
+	rtsx_pci_write_register(pcr, ASPM_FORCE_CTL, mask, val);
 	pcie_capability_clear_and_set_word(pcr->pci, PCI_EXP_LNKCTL,
 					   PCI_EXP_LNKCTL_ASPMC, pcr->aspm_en);
 	pcr->aspm_enabled = enable;
-
 }
 
 static void rts5261_disable_aspm(struct rtsx_pcr *pcr, bool enable)
 {
+	u8 val = FORCE_ASPM_CTL0 | FORCE_ASPM_CTL1;
+	u8 mask = FORCE_ASPM_VAL_MASK | FORCE_ASPM_CTL0 | FORCE_ASPM_CTL1;
+
 	if (pcr->aspm_enabled == enable)
 		return;
 
 	pcie_capability_clear_and_set_word(pcr->pci, PCI_EXP_LNKCTL,
 					   PCI_EXP_LNKCTL_ASPMC, 0);
+	rtsx_pci_write_register(pcr, ASPM_FORCE_CTL, mask, val);
 	rtsx_pci_write_register(pcr, SD_CFG1, SD_ASYNC_FIFO_NOT_RST, 0);
 	udelay(10);
 	pcr->aspm_enabled = enable;
@@ -618,7 +649,7 @@ int rts5261_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 
 	if (initial_mode) {
 		/* We use 250k(around) here, in initial stage */
-		if (is_version(pcr, PID_5261, IC_VER_D)) {
+		if (is_version_higher_than(pcr, PID_5261, IC_VER_C)) {
 			clk_divider = SD_CLK_DIVIDE_256;
 			card_clock = 60000000;
 		} else {
@@ -669,7 +700,7 @@ int rts5261_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 		div++;
 	}
 
-	n = (n / 2);
+	n = (n / 2) - 1;
 	pcr_dbg(pcr, "n = %d, div = %d\n", n, div);
 
 	ssc_depth = depth[ssc_depth];
@@ -738,15 +769,19 @@ void rts5261_init_params(struct rtsx_pcr *pcr)
 {
 	struct rtsx_cr_option *option = &pcr->option;
 	struct rtsx_hw_param *hw_param = &pcr->hw_param;
+	u8 val;
 
 	pcr->extra_caps = EXTRA_CAPS_SD_SDR50 | EXTRA_CAPS_SD_SDR104;
+	rtsx_pci_read_register(pcr, RTS5261_FW_STATUS, &val);
+	if (!(val & RTS5261_EXPRESS_LINK_FAIL_MASK))
+		pcr->extra_caps |= EXTRA_CAPS_SD_EXPRESS;
 	pcr->num_slots = 1;
 	pcr->ops = &rts5261_pcr_ops;
 
 	pcr->flags = 0;
 	pcr->card_drive_sel = RTSX_CARD_DRIVE_DEFAULT;
-	pcr->sd30_drive_sel_1v8 = CFG_DRIVER_TYPE_B;
-	pcr->sd30_drive_sel_3v3 = CFG_DRIVER_TYPE_B;
+	pcr->sd30_drive_sel_1v8 = 0x00;
+	pcr->sd30_drive_sel_3v3 = 0x00;
 	pcr->aspm_en = ASPM_L1_EN;
 	pcr->tx_initial_phase = SET_CLOCK_PHASE(27, 27, 11);
 	pcr->rx_initial_phase = SET_CLOCK_PHASE(24, 6, 5);
