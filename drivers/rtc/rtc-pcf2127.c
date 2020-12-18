@@ -336,7 +336,8 @@ static int pcf2127_watchdog_init(struct device *dev, struct pcf2127 *pcf2127)
 	u32 wdd_timeout;
 	int ret;
 
-	if (!IS_ENABLED(CONFIG_WATCHDOG))
+	if (!IS_ENABLED(CONFIG_WATCHDOG) ||
+	    !device_property_read_bool(dev, "reset-source"))
 		return 0;
 
 	pcf2127->wdd.parent = dev;
