@@ -618,6 +618,8 @@ static int msm8974_icc_set(struct icc_node *src, struct icc_node *dst)
 
 	do_div(rate, src_qn->buswidth);
 
+	rate = min_t(u32, rate, INT_MAX);
+
 	if (src_qn->rate == rate)
 		return 0;
 
@@ -631,6 +633,14 @@ static int msm8974_icc_set(struct icc_node *src, struct icc_node *dst)
 	}
 
 	src_qn->rate = rate;
+
+	return 0;
+}
+
+static int msm8974_get_bw(struct icc_node *node, u32 *avg, u32 *peak)
+{
+	*avg = 0;
+	*peak = 0;
 
 	return 0;
 }
@@ -688,6 +698,7 @@ static int msm8974_icc_probe(struct platform_device *pdev)
 	provider->aggregate = icc_std_aggregate;
 	provider->xlate = of_icc_xlate_onecell;
 	provider->data = data;
+	provider->get_bw = msm8974_get_bw;
 
 	ret = icc_provider_add(provider);
 	if (ret) {
@@ -758,6 +769,7 @@ static struct platform_driver msm8974_noc_driver = {
 	.driver = {
 		.name = "qnoc-msm8974",
 		.of_match_table = msm8974_noc_of_match,
+		.sync_state = icc_sync_state,
 	},
 };
 module_platform_driver(msm8974_noc_driver);

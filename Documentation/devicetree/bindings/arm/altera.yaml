@@ -19,4 +19,7 @@ properties:
           - altr,socfpga-arria5
           - altr,socfpga-arria10
       - const: altr,socfpga
+
+additionalProperties: true
+
 ...

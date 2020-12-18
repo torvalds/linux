@@ -28,6 +28,12 @@
 		clock-frequency = <0>;
 	};
 
+	audio_clk_b: audio_clk_b {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+	};
+
 	audio_clk_c: audio_clk_c {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;

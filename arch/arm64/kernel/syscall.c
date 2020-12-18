@@ -121,7 +121,6 @@ static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
 
 	cortex_a76_erratum_1463225_svc_handler();
 	local_daif_restore(DAIF_PROCCTX);
-	user_exit();
 
 	if (system_supports_mte() && (flags & _TIF_MTE_ASYNC_FAULT)) {
 		/*

@@ -20,17 +20,23 @@
 	compatible = "globalscale,espressobin-v7-emmc", "globalscale,espressobin-v7",
 		     "globalscale,espressobin", "marvell,armada3720",
 		     "marvell,armada3710";
+
+	aliases {
+		/* ethernet1 is wan port */
+		ethernet1 = &switch0port3;
+		ethernet3 = &switch0port1;
+	};
 };
 
 &switch0 {
 	ports {
-		port@1 {
+		switch0port1: port@1 {
 			reg = <1>;
 			label = "lan1";
 			phy-handle = <&switch0phy0>;
 		};
 
-		port@3 {
+		switch0port3: port@3 {
 			reg = <3>;
 			label = "wan";
 			phy-handle = <&switch0phy2>;

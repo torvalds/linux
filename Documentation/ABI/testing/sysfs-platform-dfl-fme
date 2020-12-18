@@ -113,8 +113,11 @@ KernelVersion:	5.5
 Contact:	Wu Hao <hao.wu@intel.com>
 Description:	Read-Only. Read this file to get the name of hwmon device, it
 		supports values:
-		    'dfl_fme_thermal' - thermal hwmon device name
-		    'dfl_fme_power'   - power hwmon device name
+
+		=================  =========================
+		'dfl_fme_thermal'  thermal hwmon device name
+		'dfl_fme_power'    power hwmon device name
+		=================  =========================
 
 What:		/sys/bus/platform/devices/dfl-fme.0/hwmon/hwmonX/temp1_input
 Date:		October 2019
@@ -169,8 +172,11 @@ KernelVersion:	5.5
 Contact:	Wu Hao <hao.wu@intel.com>
 Description:	Read-Only. Read this file to get the policy of hardware threshold1
 		(see 'temp1_max'). It only supports two values (policies):
-		    0 - AP2 state (90% throttling)
-		    1 - AP1 state (50% throttling)
+
+		==  ==========================
+		 0  AP2 state (90% throttling)
+	         1  AP1 state (50% throttling)
+		==  ==========================
 
 What:		/sys/bus/platform/devices/dfl-fme.0/hwmon/hwmonX/power1_input
 Date:		October 2019

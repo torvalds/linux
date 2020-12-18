@@ -2287,6 +2287,7 @@ mvneta_swbm_add_rx_fragment(struct mvneta_port *pp,
 	dma_sync_single_for_cpu(dev->dev.parent,
 				rx_desc->buf_phys_addr,
 				len, dma_dir);
+	rx_desc->buf_phys_addr = 0;
 
 	if (data_len > 0 && sinfo->nr_frags < MAX_SKB_FRAGS) {
 		skb_frag_t *frag = &sinfo->frags[sinfo->nr_frags];
@@ -2295,8 +2296,8 @@ mvneta_swbm_add_rx_fragment(struct mvneta_port *pp,
 		skb_frag_size_set(frag, data_len);
 		__skb_frag_set_page(frag, page);
 		sinfo->nr_frags++;
-
-		rx_desc->buf_phys_addr = 0;
+	} else {
+		page_pool_put_full_page(rxq->page_pool, page, true);
 	}
 	*size -= len;
 }

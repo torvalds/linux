@@ -491,8 +491,8 @@ struct iwl_cfg {
 #define IWL_CFG_RF_ID_HR		0x7
 #define IWL_CFG_RF_ID_HR1		0x4
 
-#define IWL_CFG_NO_160			0x0
-#define IWL_CFG_160			0x1
+#define IWL_CFG_NO_160			0x1
+#define IWL_CFG_160			0x0
 
 #define IWL_CFG_CORES_BT		0x0
 #define IWL_CFG_CORES_BT_GNSS		0x5

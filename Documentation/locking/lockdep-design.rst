@@ -42,6 +42,7 @@ The validator tracks lock-class usage history and divides the usage into
 (4 usages * n STATEs + 1) categories:
 
 where the 4 usages can be:
+
 - 'ever held in STATE context'
 - 'ever held as readlock in STATE context'
 - 'ever held with STATE enabled'
@@ -49,10 +50,12 @@ where the 4 usages can be:
 
 where the n STATEs are coded in kernel/locking/lockdep_states.h and as of
 now they include:
+
 - hardirq
 - softirq
 
 where the last 1 category is:
+
 - 'ever used'                                       [ == !unused        ]
 
 When locking rules are violated, these usage bits are presented in the
@@ -96,9 +99,9 @@ exact case is for the lock as of the reporting time.
   +--------------+-------------+--------------+
   |              | irq enabled | irq disabled |
   +--------------+-------------+--------------+
-  | ever in irq  |      ?      |       -      |
+  | ever in irq  |     '?'     |      '-'     |
   +--------------+-------------+--------------+
-  | never in irq |      +      |       .      |
+  | never in irq |     '+'     |      '.'     |
   +--------------+-------------+--------------+
 
 The character '-' suggests irq is disabled because if otherwise the
@@ -216,7 +219,7 @@ looks like this::
        BD_MUTEX_PARTITION
   };
 
-mutex_lock_nested(&bdev->bd_contains->bd_mutex, BD_MUTEX_PARTITION);
+  mutex_lock_nested(&bdev->bd_contains->bd_mutex, BD_MUTEX_PARTITION);
 
 In this case the locking is done on a bdev object that is known to be a
 partition.
@@ -334,7 +337,7 @@ Troubleshooting:
 ----------------
 
 The validator tracks a maximum of MAX_LOCKDEP_KEYS number of lock classes.
-Exceeding this number will trigger the following lockdep warning:
+Exceeding this number will trigger the following lockdep warning::
 
 	(DEBUG_LOCKS_WARN_ON(id >= MAX_LOCKDEP_KEYS))
 
@@ -420,7 +423,8 @@ the critical section of another reader of the same lock instance.
 
 The difference between recursive readers and non-recursive readers is because:
 recursive readers get blocked only by a write lock *holder*, while non-recursive
-readers could get blocked by a write lock *waiter*. Considering the follow example:
+readers could get blocked by a write lock *waiter*. Considering the follow
+example::
 
 	TASK A:			TASK B:
 
@@ -448,20 +452,22 @@ There are simply four block conditions:
 
 Block condition matrix, Y means the row blocks the column, and N means otherwise.
 
-	    | E | r | R |
 	+---+---+---+---+
-	  E | Y | Y | Y |
+	|   | E | r | R |
 	+---+---+---+---+
-	  r | Y | Y | N |
+	| E | Y | Y | Y |
 	+---+---+---+---+
-	  R | Y | Y | N |
+	| r | Y | Y | N |
+	+---+---+---+---+
+	| R | Y | Y | N |
+	+---+---+---+---+
 
 	(W: writers, r: non-recursive readers, R: recursive readers)
 
 
 acquired recursively. Unlike non-recursive read locks, recursive read locks
 only get blocked by current write lock *holders* other than write lock
-*waiters*, for example:
+*waiters*, for example::
 
 	TASK A:			TASK B:
 
@@ -491,7 +497,7 @@ Recursive locks don't block each other, while non-recursive locks do (this is
 even true for two non-recursive read locks). A non-recursive lock can block the
 corresponding recursive lock, and vice versa.
 
-A deadlock case with recursive locks involved is as follow:
+A deadlock case with recursive locks involved is as follow::
 
 	TASK A:			TASK B:
 
@@ -510,7 +516,7 @@ because there are 3 types for lockers, there are, in theory, 9 types of lock
 dependencies, but we can show that 4 types of lock dependencies are enough for
 deadlock detection.
 
-For each lock dependency:
+For each lock dependency::
 
 	L1 -> L2
 
@@ -525,20 +531,25 @@ same types).
 With the above combination for simplification, there are 4 types of dependency edges
 in the lockdep graph:
 
-1) -(ER)->: exclusive writer to recursive reader dependency, "X -(ER)-> Y" means
+1) -(ER)->:
+	    exclusive writer to recursive reader dependency, "X -(ER)-> Y" means
 	    X -> Y and X is a writer and Y is a recursive reader.
 
-2) -(EN)->: exclusive writer to non-recursive locker dependency, "X -(EN)-> Y" means
+2) -(EN)->:
+	    exclusive writer to non-recursive locker dependency, "X -(EN)-> Y" means
 	    X -> Y and X is a writer and Y is either a writer or non-recursive reader.
 
-3) -(SR)->: shared reader to recursive reader dependency, "X -(SR)-> Y" means
+3) -(SR)->:
+	    shared reader to recursive reader dependency, "X -(SR)-> Y" means
 	    X -> Y and X is a reader (recursive or not) and Y is a recursive reader.
 
-4) -(SN)->: shared reader to non-recursive locker dependency, "X -(SN)-> Y" means
+4) -(SN)->:
+	    shared reader to non-recursive locker dependency, "X -(SN)-> Y" means
 	    X -> Y and X is a reader (recursive or not) and Y is either a writer or
 	    non-recursive reader.
 
-Note that given two locks, they may have multiple dependencies between them, for example:
+Note that given two locks, they may have multiple dependencies between them,
+for example::
 
 	TASK A:
 
@@ -592,11 +603,11 @@ circles that won't cause deadlocks.
 
 Proof for sufficiency (Lemma 1):
 
-Let's say we have a strong circle:
+Let's say we have a strong circle::
 
 	L1 -> L2 ... -> Ln -> L1
 
-, which means we have dependencies:
+, which means we have dependencies::
 
 	L1 -> L2
 	L2 -> L3
@@ -633,7 +644,7 @@ a lock held by P2, and P2 is waiting for a lock held by P3, ... and Pn is waitin
 for a lock held by P1. Let's name the lock Px is waiting as Lx, so since P1 is waiting
 for L1 and holding Ln, so we will have Ln -> L1 in the dependency graph. Similarly,
 we have L1 -> L2, L2 -> L3, ..., Ln-1 -> Ln in the dependency graph, which means we
-have a circle:
+have a circle::
 
 	Ln -> L1 -> L2 -> ... -> Ln
 

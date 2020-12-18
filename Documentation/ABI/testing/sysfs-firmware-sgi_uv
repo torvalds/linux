@@ -5,7 +5,7 @@ Description:
 		The /sys/firmware/sgi_uv directory contains information
 		about the SGI UV platform.
 
-		Under that directory are a number of files:
+		Under that directory are a number of files::
 
 			partition_id
 			coherence_id
@@ -14,7 +14,7 @@ Description:
 		SGI UV systems can be partitioned into multiple physical
 		machines, which each partition running a unique copy
 		of the operating system.  Each partition will have a unique
-		partition id.  To display the partition id, use the command:
+		partition id.  To display the partition id, use the command::
 
 			cat /sys/firmware/sgi_uv/partition_id
 
@@ -22,6 +22,6 @@ Description:
 		A partitioned SGI UV system can have one or more coherence
 		domain.  The coherence id indicates which coherence domain
 		this partition is in.  To display the coherence id, use the
-		command:
+		command::
 
 			cat /sys/firmware/sgi_uv/coherence_id

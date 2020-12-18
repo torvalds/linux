@@ -7,17 +7,17 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Toshiba TC358775 DSI to LVDS bridge bindings
 
 maintainers:
- - Vinay Simha BN <simhavcs@gmail.com>
+  - Vinay Simha BN <simhavcs@gmail.com>
 
 description: |
- This binding supports DSI to LVDS bridge TC358775
+  This binding supports DSI to LVDS bridge TC358775
 
- MIPI DSI-RX Data 4-lane, CLK 1-lane with data rates up to 800 Mbps/lane.
- Video frame size:
- Up to 1600x1200 24-bit/pixel resolution for single-link LVDS display panel
- limited by 135 MHz LVDS speed
- Up to WUXGA (1920x1200 24-bit pixels) resolution for dual-link LVDS display
- panel, limited by 270 MHz LVDS speed.
+  MIPI DSI-RX Data 4-lane, CLK 1-lane with data rates up to 800 Mbps/lane.
+  Video frame size:
+  Up to 1600x1200 24-bit/pixel resolution for single-link LVDS display panel
+  limited by 135 MHz LVDS speed
+  Up to WUXGA (1920x1200 24-bit pixels) resolution for dual-link LVDS display
+  panel, limited by 270 MHz LVDS speed.
 
 properties:
   compatible:
@@ -29,7 +29,7 @@ properties:
 
   vdd-supply:
     maxItems: 1
-    description:  1.2V LVDS Power Supply
+    description: 1.2V LVDS Power Supply
 
   vddio-supply:
     maxItems: 1
@@ -77,16 +77,18 @@ properties:
       - port@1
 
 required:
- - compatible
- - reg
- - vdd-supply
- - vddio-supply
- - stby-gpios
- - reset-gpios
- - ports
+  - compatible
+  - reg
+  - vdd-supply
+  - vddio-supply
+  - stby-gpios
+  - reset-gpios
+  - ports
+
+additionalProperties: false
 
 examples:
- - |
+  - |
     #include <dt-bindings/gpio/gpio.h>
 
     /* For single-link LVDS display panel */
@@ -147,7 +149,7 @@ examples:
          };
      };
 
- - |
+  - |
     /* For dual-link LVDS display panel */
 
     i2c@78b8000 {

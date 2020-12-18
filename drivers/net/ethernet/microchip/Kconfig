@@ -47,6 +47,7 @@ config LAN743X
 	depends on PCI
 	select PHYLIB
 	select CRC16
+	select CRC32
 	help
 	  Support for the Microchip LAN743x PCI Express Gigabit Ethernet chip
 

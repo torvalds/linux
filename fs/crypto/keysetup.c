@@ -269,9 +269,7 @@ unlock:
 	 * New inodes may not have an inode number assigned yet.
 	 * Hashing their inode number is delayed until later.
 	 */
-	if (ci->ci_inode->i_ino == 0)
-		WARN_ON(!(ci->ci_inode->i_state & I_CREATING));
-	else
+	if (ci->ci_inode->i_ino)
 		fscrypt_hash_inode_number(ci, mk);
 	return 0;
 }

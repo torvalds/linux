@@ -8,6 +8,7 @@ Description:
 	performance issues in its first generation.  Any video1394 user had
 	to use raw1394 + libraw1394 too because video1394 did not provide
 	asynchronous I/O for device discovery and configuration.
+
 	Replaced by /dev/fw*, i.e. the <linux/firewire-cdev.h> ABI of
 	firewire-core.
 

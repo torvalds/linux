@@ -83,7 +83,7 @@ EXPORT_SYMBOL(xudma_rflow_is_gp);
 #define XUDMA_GET_PUT_RESOURCE(res)					\
 struct udma_##res *xudma_##res##_get(struct udma_dev *ud, int id)	\
 {									\
-	return __udma_reserve_##res(ud, false, id);			\
+	return __udma_reserve_##res(ud, UDMA_TP_NORMAL, id);		\
 }									\
 EXPORT_SYMBOL(xudma_##res##_get);					\
 									\

@@ -19,9 +19,11 @@ Description:
 		is separately set for "GND-Open" and "Supply-Open" modes.
 		Channels 0..31 have common low threshold values, but could have different
 		sensing_modes.
+
 		The low voltage threshold range is between 2..21V.
 		Hysteresis between low and high thresholds can not be lower then 2 and
 		can not be odd.
+
 		If falling threshold results hysteresis to odd value then rising
 		threshold is automatically subtracted by one.
 
@@ -34,10 +36,13 @@ Description:
 		this value then the threshold rising event is pushed.
 		Depending on in_voltageY_sensing_mode the high voltage threshold
 		is separately set for "GND-Open" and "Supply-Open" modes.
+
 		Channels 0..31 have common high threshold values, but could have different
 		sensing_modes.
+
 		The high voltage threshold range is between 3..22V.
 		Hysteresis between low and high thresholds can not be lower then 2 and
 		can not be odd.
+
 		If rising threshold results hysteresis to odd value then falling
 		threshold is automatically appended by one.

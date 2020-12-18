@@ -1393,13 +1393,14 @@ static void add_cpu_to_masks(int cpu)
 /* Activate a secondary processor. */
 void start_secondary(void *unused)
 {
-	unsigned int cpu = smp_processor_id();
+	unsigned int cpu = raw_smp_processor_id();
 
 	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 
 	smp_store_cpu_info(cpu);
 	set_dec(tb_ticks_per_jiffy);
+	rcu_cpu_starting(cpu);
 	preempt_disable();
 	cpu_callin_map[cpu] = 1;
 

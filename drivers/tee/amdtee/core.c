@@ -20,7 +20,6 @@
 
 static struct amdtee_driver_data *drv_data;
 static DEFINE_MUTEX(session_list_mutex);
-static struct amdtee_shm_context shmctx;
 
 static void amdtee_get_version(struct tee_device *teedev,
 			       struct tee_ioctl_version_data *vers)
@@ -42,7 +41,8 @@ static int amdtee_open(struct tee_context *ctx)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&ctxdata->sess_list);
-	INIT_LIST_HEAD(&shmctx.shmdata_list);
+	INIT_LIST_HEAD(&ctxdata->shm_list);
+	mutex_init(&ctxdata->shm_mutex);
 
 	ctx->data = ctxdata;
 	return 0;
@@ -86,6 +86,7 @@ static void amdtee_release(struct tee_context *ctx)
 		list_del(&sess->list_node);
 		release_session(sess);
 	}
+	mutex_destroy(&ctxdata->shm_mutex);
 	kfree(ctxdata);
 
 	ctx->data = NULL;
@@ -152,14 +153,17 @@ static struct amdtee_session *find_session(struct amdtee_context_data *ctxdata,
 
 u32 get_buffer_id(struct tee_shm *shm)
 {
-	u32 buf_id = 0;
+	struct amdtee_context_data *ctxdata = shm->ctx->data;
 	struct amdtee_shm_data *shmdata;
+	u32 buf_id = 0;
 
-	list_for_each_entry(shmdata, &shmctx.shmdata_list, shm_node)
+	mutex_lock(&ctxdata->shm_mutex);
+	list_for_each_entry(shmdata, &ctxdata->shm_list, shm_node)
 		if (shmdata->kaddr == shm->kaddr) {
 			buf_id = shmdata->buf_id;
 			break;
 		}
+	mutex_unlock(&ctxdata->shm_mutex);
 
 	return buf_id;
 }
@@ -333,8 +337,9 @@ int amdtee_close_session(struct tee_context *ctx, u32 session)
 
 int amdtee_map_shmem(struct tee_shm *shm)
 {
-	struct shmem_desc shmem;
+	struct amdtee_context_data *ctxdata;
 	struct amdtee_shm_data *shmnode;
+	struct shmem_desc shmem;
 	int rc, count;
 	u32 buf_id;
 
@@ -362,7 +367,10 @@ int amdtee_map_shmem(struct tee_shm *shm)
 
 	shmnode->kaddr = shm->kaddr;
 	shmnode->buf_id = buf_id;
-	list_add(&shmnode->shm_node, &shmctx.shmdata_list);
+	ctxdata = shm->ctx->data;
+	mutex_lock(&ctxdata->shm_mutex);
+	list_add(&shmnode->shm_node, &ctxdata->shm_list);
+	mutex_unlock(&ctxdata->shm_mutex);
 
 	pr_debug("buf_id :[%x] kaddr[%p]\n", shmnode->buf_id, shmnode->kaddr);
 
@@ -371,6 +379,7 @@ int amdtee_map_shmem(struct tee_shm *shm)
 
 void amdtee_unmap_shmem(struct tee_shm *shm)
 {
+	struct amdtee_context_data *ctxdata;
 	struct amdtee_shm_data *shmnode;
 	u32 buf_id;
 
@@ -381,12 +390,15 @@ void amdtee_unmap_shmem(struct tee_shm *shm)
 	/* Unmap the shared memory from TEE */
 	handle_unmap_shmem(buf_id);
 
-	list_for_each_entry(shmnode, &shmctx.shmdata_list, shm_node)
+	ctxdata = shm->ctx->data;
+	mutex_lock(&ctxdata->shm_mutex);
+	list_for_each_entry(shmnode, &ctxdata->shm_list, shm_node)
 		if (buf_id == shmnode->buf_id) {
 			list_del(&shmnode->shm_node);
 			kfree(shmnode);
 			break;
 		}
+	mutex_unlock(&ctxdata->shm_mutex);
 }
 
 int amdtee_invoke_func(struct tee_context *ctx,

@@ -35,10 +35,13 @@ What:		/sys/firmware/efi/esrt/entries/entry$N/fw_type
 Date:		February 2015
 Contact:	Peter Jones <pjones@redhat.com>
 Description:	What kind of firmware entry this is:
-		0 - Unknown
-		1 - System Firmware
-		2 - Device Firmware
-		3 - UEFI Driver
+
+		==  ===============
+		0   Unknown
+		1   System Firmware
+		2   Device Firmware
+		3   UEFI Driver
+		==  ===============
 
 What:		/sys/firmware/efi/esrt/entries/entry$N/fw_class
 Date:		February 2015
@@ -71,11 +74,14 @@ Date:		February 2015
 Contact:	Peter Jones <pjones@redhat.com>
 Description:	The result of the last firmware update attempt for the
 		firmware resource entry.
-		0 - Success
-		1 - Insufficient resources
-		2 - Incorrect version
-		3 - Invalid format
-		4 - Authentication error
-		5 - AC power event
-		6 - Battery power event
+
+		==  ======================
+		0   Success
+		1   Insufficient resources
+		2   Incorrect version
+		3   Invalid format
+		4   Authentication error
+		5   AC power event
+		6   Battery power event
+		==  ======================
 
