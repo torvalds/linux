@@ -8,8 +8,6 @@
  * Copyright (C) 2020, Google, Inc.
  */
 
-#define _GNU_SOURCE /* for program_invocation_name */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>

@@ -7,7 +7,7 @@
  * Copyright (C) 2019, Google, Inc.
  */
 
-#define _GNU_SOURCE /* for program_invocation_name and pipe2 */
+#define _GNU_SOURCE /* for pipe2 */
 
 #include <stdio.h>
 #include <stdlib.h>

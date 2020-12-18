@@ -13,9 +13,6 @@
 
 #define MAX_VCPUS 512
 
-#define PAGE_SHIFT_4K  12
-#define PTES_PER_4K_PT 512
-
 #define TEST_MEM_SLOT_INDEX		1
 
 /* Default guest test virtual memory offset */
@@ -94,41 +91,26 @@ static struct kvm_vm *create_vm(enum vm_guest_mode mode, int vcpus,
 				uint64_t vcpu_memory_bytes)
 {
 	struct kvm_vm *vm;
-	uint64_t pages = DEFAULT_GUEST_PHY_PAGES;
 	uint64_t guest_num_pages;
-
-	/* Account for a few pages per-vCPU for stacks */
-	pages += DEFAULT_STACK_PGS * vcpus;
-
-	/*
-	 * Reserve twice the ammount of memory needed to map the test region and
-	 * the page table / stacks region, at 4k, for page tables. Do the
-	 * calculation with 4K page size: the smallest of all archs. (e.g., 64K
-	 * page size guest will need even less memory for page tables).
-	 */
-	pages += (2 * pages) / PTES_PER_4K_PT;
-	pages += ((2 * vcpus * vcpu_memory_bytes) >> PAGE_SHIFT_4K) /
-		 PTES_PER_4K_PT;
-	pages = vm_adjust_num_guest_pages(mode, pages);
 
 	pr_info("Testing guest mode: %s\n", vm_guest_mode_string(mode));
 
-	vm = vm_create(mode, pages, O_RDWR);
-	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);
-#ifdef __x86_64__
-	vm_create_irqchip(vm);
-#endif
-
-	perf_test_args.vm = vm;
-	perf_test_args.guest_page_size = vm_get_page_size(vm);
 	perf_test_args.host_page_size = getpagesize();
+	perf_test_args.guest_page_size = vm_guest_mode_params[mode].page_size;
 
+	guest_num_pages = vm_adjust_num_guest_pages(mode,
+				(vcpus * vcpu_memory_bytes) / perf_test_args.guest_page_size);
+
+	TEST_ASSERT(vcpu_memory_bytes % perf_test_args.host_page_size == 0,
+		    "Guest memory size is not host page size aligned.");
 	TEST_ASSERT(vcpu_memory_bytes % perf_test_args.guest_page_size == 0,
 		    "Guest memory size is not guest page size aligned.");
 
-	guest_num_pages = (vcpus * vcpu_memory_bytes) /
-			  perf_test_args.guest_page_size;
-	guest_num_pages = vm_adjust_num_guest_pages(mode, guest_num_pages);
+	vm = vm_create_with_vcpus(mode, vcpus,
+				  (vcpus * vcpu_memory_bytes) / perf_test_args.guest_page_size,
+				  0, guest_code, NULL);
+
+	perf_test_args.vm = vm;
 
 	/*
 	 * If there should be more memory in the guest test region than there
@@ -140,18 +122,13 @@ static struct kvm_vm *create_vm(enum vm_guest_mode mode, int vcpus,
 		    guest_num_pages, vm_get_max_gfn(vm), vcpus,
 		    vcpu_memory_bytes);
 
-	TEST_ASSERT(vcpu_memory_bytes % perf_test_args.host_page_size == 0,
-		    "Guest memory size is not host page size aligned.");
-
 	guest_test_phys_mem = (vm_get_max_gfn(vm) - guest_num_pages) *
 			      perf_test_args.guest_page_size;
 	guest_test_phys_mem &= ~(perf_test_args.host_page_size - 1);
-
 #ifdef __s390x__
 	/* Align to 1M (segment size) */
 	guest_test_phys_mem &= ~((1 << 20) - 1);
 #endif
-
 	pr_info("guest physical test memory offset: 0x%lx\n", guest_test_phys_mem);
 
 	/* Add an extra memory slot for testing */
@@ -176,8 +153,6 @@ static void add_vcpus(struct kvm_vm *vm, int vcpus, uint64_t vcpu_memory_bytes)
 
 	for (vcpu_id = 0; vcpu_id < vcpus; vcpu_id++) {
 		vcpu_args = &perf_test_args.vcpu_args[vcpu_id];
-
-		vm_vcpu_add_default(vm, vcpu_id, guest_code);
 
 		vcpu_args->vcpu_id = vcpu_id;
 		vcpu_args->gva = guest_test_virt_mem +
