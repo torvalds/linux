@@ -183,7 +183,8 @@ xdr_adjust_iovec(struct kvec *iov, __be32 *p)
  */
 extern void xdr_shift_buf(struct xdr_buf *, size_t);
 extern void xdr_buf_from_iov(struct kvec *, struct xdr_buf *);
-extern int xdr_buf_subsegment(struct xdr_buf *, struct xdr_buf *, unsigned int, unsigned int);
+extern int xdr_buf_subsegment(const struct xdr_buf *buf, struct xdr_buf *subbuf,
+			      unsigned int base, unsigned int len);
 extern void xdr_buf_trim(struct xdr_buf *, unsigned int);
 extern int read_bytes_from_xdr_buf(struct xdr_buf *, unsigned int, void *, unsigned int);
 extern int write_bytes_to_xdr_buf(struct xdr_buf *, unsigned int, void *, unsigned int);
@@ -247,13 +248,57 @@ extern void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf,
 			    __be32 *p, struct rpc_rqst *rqst);
 extern void xdr_init_decode_pages(struct xdr_stream *xdr, struct xdr_buf *buf,
 		struct page **pages, unsigned int len);
-extern void xdr_set_scratch_buffer(struct xdr_stream *xdr, void *buf, size_t buflen);
 extern __be32 *xdr_inline_decode(struct xdr_stream *xdr, size_t nbytes);
 extern unsigned int xdr_read_pages(struct xdr_stream *xdr, unsigned int len);
 extern void xdr_enter_page(struct xdr_stream *xdr, unsigned int len);
 extern int xdr_process_buf(struct xdr_buf *buf, unsigned int offset, unsigned int len, int (*actor)(struct scatterlist *, void *), void *data);
 extern uint64_t xdr_align_data(struct xdr_stream *, uint64_t, uint32_t);
 extern uint64_t xdr_expand_hole(struct xdr_stream *, uint64_t, uint64_t);
+extern bool xdr_stream_subsegment(struct xdr_stream *xdr, struct xdr_buf *subbuf,
+				  unsigned int len);
+
+/**
+ * xdr_set_scratch_buffer - Attach a scratch buffer for decoding data.
+ * @xdr: pointer to xdr_stream struct
+ * @buf: pointer to an empty buffer
+ * @buflen: size of 'buf'
+ *
+ * The scratch buffer is used when decoding from an array of pages.
+ * If an xdr_inline_decode() call spans across page boundaries, then
+ * we copy the data into the scratch buffer in order to allow linear
+ * access.
+ */
+static inline void
+xdr_set_scratch_buffer(struct xdr_stream *xdr, void *buf, size_t buflen)
+{
+	xdr->scratch.iov_base = buf;
+	xdr->scratch.iov_len = buflen;
+}
+
+/**
+ * xdr_set_scratch_page - Attach a scratch buffer for decoding data
+ * @xdr: pointer to xdr_stream struct
+ * @page: an anonymous page
+ *
+ * See xdr_set_scratch_buffer().
+ */
+static inline void
+xdr_set_scratch_page(struct xdr_stream *xdr, struct page *page)
+{
+	xdr_set_scratch_buffer(xdr, page_address(page), PAGE_SIZE);
+}
+
+/**
+ * xdr_reset_scratch_buffer - Clear scratch buffer information
+ * @xdr: pointer to xdr_stream struct
+ *
+ * See xdr_set_scratch_buffer().
+ */
+static inline void
+xdr_reset_scratch_buffer(struct xdr_stream *xdr)
+{
+	xdr_set_scratch_buffer(xdr, NULL, 0);
+}
 
 /**
  * xdr_stream_remaining - Return the number of bytes remaining in the stream
@@ -506,6 +551,27 @@ static inline bool xdr_item_is_present(const __be32 *p)
 }
 
 /**
+ * xdr_stream_decode_bool - Decode a boolean
+ * @xdr: pointer to xdr_stream
+ * @ptr: pointer to a u32 in which to store the result
+ *
+ * Return values:
+ *   %0 on success
+ *   %-EBADMSG on XDR buffer overflow
+ */
+static inline ssize_t
+xdr_stream_decode_bool(struct xdr_stream *xdr, __u32 *ptr)
+{
+	const size_t count = sizeof(*ptr);
+	__be32 *p = xdr_inline_decode(xdr, count);
+
+	if (unlikely(!p))
+		return -EBADMSG;
+	*ptr = (*p != xdr_zero);
+	return 0;
+}
+
+/**
  * xdr_stream_decode_u32 - Decode a 32-bit integer
  * @xdr: pointer to xdr_stream
  * @ptr: location to store integer
@@ -523,6 +589,27 @@ xdr_stream_decode_u32(struct xdr_stream *xdr, __u32 *ptr)
 	if (unlikely(!p))
 		return -EBADMSG;
 	*ptr = be32_to_cpup(p);
+	return 0;
+}
+
+/**
+ * xdr_stream_decode_u64 - Decode a 64-bit integer
+ * @xdr: pointer to xdr_stream
+ * @ptr: location to store 64-bit integer
+ *
+ * Return values:
+ *   %0 on success
+ *   %-EBADMSG on XDR buffer overflow
+ */
+static inline ssize_t
+xdr_stream_decode_u64(struct xdr_stream *xdr, __u64 *ptr)
+{
+	const size_t count = sizeof(*ptr);
+	__be32 *p = xdr_inline_decode(xdr, count);
+
+	if (unlikely(!p))
+		return -EBADMSG;
+	xdr_decode_hyper(p, ptr);
 	return 0;
 }
 
