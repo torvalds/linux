@@ -384,4 +384,187 @@ TEST(close_range_cloexec_unshare)
 	}
 }
 
+/*
+ * Regression test for syzbot+96cfd2b22b3213646a93@syzkaller.appspotmail.com
+ */
+TEST(close_range_cloexec_syzbot)
+{
+	int fd1, fd2, fd3, flags, ret, status;
+	pid_t pid;
+	struct __clone_args args = {
+		.flags = CLONE_FILES,
+		.exit_signal = SIGCHLD,
+	};
+
+	/* Create a huge gap in the fd table. */
+	fd1 = open("/dev/null", O_RDWR);
+	EXPECT_GT(fd1, 0);
+
+	fd2 = dup2(fd1, 1000);
+	EXPECT_GT(fd2, 0);
+
+	pid = sys_clone3(&args, sizeof(args));
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		ret = sys_close_range(3, ~0U, CLOSE_RANGE_CLOEXEC);
+		if (ret)
+			exit(EXIT_FAILURE);
+
+		/*
+			 * We now have a private file descriptor table and all
+			 * our open fds should still be open but made
+			 * close-on-exec.
+			 */
+		flags = fcntl(fd1, F_GETFD);
+		EXPECT_GT(flags, -1);
+		EXPECT_EQ(flags & FD_CLOEXEC, FD_CLOEXEC);
+
+		flags = fcntl(fd2, F_GETFD);
+		EXPECT_GT(flags, -1);
+		EXPECT_EQ(flags & FD_CLOEXEC, FD_CLOEXEC);
+
+		fd3 = dup2(fd1, 42);
+		EXPECT_GT(fd3, 0);
+
+		/*
+			 * Duplicating the file descriptor must remove the
+			 * FD_CLOEXEC flag.
+			 */
+		flags = fcntl(fd3, F_GETFD);
+		EXPECT_GT(flags, -1);
+		EXPECT_EQ(flags & FD_CLOEXEC, 0);
+
+		exit(EXIT_SUCCESS);
+	}
+
+	EXPECT_EQ(waitpid(pid, &status, 0), pid);
+	EXPECT_EQ(true, WIFEXITED(status));
+	EXPECT_EQ(0, WEXITSTATUS(status));
+
+	/*
+	 * We had a shared file descriptor table before along with requesting
+	 * close-on-exec so the original fds must not be close-on-exec.
+	 */
+	flags = fcntl(fd1, F_GETFD);
+	EXPECT_GT(flags, -1);
+	EXPECT_EQ(flags & FD_CLOEXEC, FD_CLOEXEC);
+
+	flags = fcntl(fd2, F_GETFD);
+	EXPECT_GT(flags, -1);
+	EXPECT_EQ(flags & FD_CLOEXEC, FD_CLOEXEC);
+
+	fd3 = dup2(fd1, 42);
+	EXPECT_GT(fd3, 0);
+
+	flags = fcntl(fd3, F_GETFD);
+	EXPECT_GT(flags, -1);
+	EXPECT_EQ(flags & FD_CLOEXEC, 0);
+
+	EXPECT_EQ(close(fd1), 0);
+	EXPECT_EQ(close(fd2), 0);
+	EXPECT_EQ(close(fd3), 0);
+}
+
+/*
+ * Regression test for syzbot+96cfd2b22b3213646a93@syzkaller.appspotmail.com
+ */
+TEST(close_range_cloexec_unshare_syzbot)
+{
+	int i, fd1, fd2, fd3, flags, ret, status;
+	pid_t pid;
+	struct __clone_args args = {
+		.flags = CLONE_FILES,
+		.exit_signal = SIGCHLD,
+	};
+
+	/*
+	 * Create a huge gap in the fd table. When we now call
+	 * CLOSE_RANGE_UNSHARE with a shared fd table and and with ~0U as upper
+	 * bound the kernel will only copy up to fd1 file descriptors into the
+	 * new fd table. If the kernel is buggy and doesn't handle
+	 * CLOSE_RANGE_CLOEXEC correctly it will not have copied all file
+	 * descriptors and we will oops!
+	 *
+	 * On a buggy kernel this should immediately oops. But let's loop just
+	 * to be sure.
+	 */
+	fd1 = open("/dev/null", O_RDWR);
+	EXPECT_GT(fd1, 0);
+
+	fd2 = dup2(fd1, 1000);
+	EXPECT_GT(fd2, 0);
+
+	for (i = 0; i < 100; i++) {
+
+		pid = sys_clone3(&args, sizeof(args));
+		ASSERT_GE(pid, 0);
+
+		if (pid == 0) {
+			ret = sys_close_range(3, ~0U, CLOSE_RANGE_UNSHARE |
+						      CLOSE_RANGE_CLOEXEC);
+			if (ret)
+				exit(EXIT_FAILURE);
+
+			/*
+			 * We now have a private file descriptor table and all
+			 * our open fds should still be open but made
+			 * close-on-exec.
+			 */
+			flags = fcntl(fd1, F_GETFD);
+			EXPECT_GT(flags, -1);
+			EXPECT_EQ(flags & FD_CLOEXEC, FD_CLOEXEC);
+
+			flags = fcntl(fd2, F_GETFD);
+			EXPECT_GT(flags, -1);
+			EXPECT_EQ(flags & FD_CLOEXEC, FD_CLOEXEC);
+
+			fd3 = dup2(fd1, 42);
+			EXPECT_GT(fd3, 0);
+
+			/*
+			 * Duplicating the file descriptor must remove the
+			 * FD_CLOEXEC flag.
+			 */
+			flags = fcntl(fd3, F_GETFD);
+			EXPECT_GT(flags, -1);
+			EXPECT_EQ(flags & FD_CLOEXEC, 0);
+
+			EXPECT_EQ(close(fd1), 0);
+			EXPECT_EQ(close(fd2), 0);
+			EXPECT_EQ(close(fd3), 0);
+
+			exit(EXIT_SUCCESS);
+		}
+
+		EXPECT_EQ(waitpid(pid, &status, 0), pid);
+		EXPECT_EQ(true, WIFEXITED(status));
+		EXPECT_EQ(0, WEXITSTATUS(status));
+	}
+
+	/*
+	 * We created a private file descriptor table before along with
+	 * requesting close-on-exec so the original fds must not be
+	 * close-on-exec.
+	 */
+	flags = fcntl(fd1, F_GETFD);
+	EXPECT_GT(flags, -1);
+	EXPECT_EQ(flags & FD_CLOEXEC, 0);
+
+	flags = fcntl(fd2, F_GETFD);
+	EXPECT_GT(flags, -1);
+	EXPECT_EQ(flags & FD_CLOEXEC, 0);
+
+	fd3 = dup2(fd1, 42);
+	EXPECT_GT(fd3, 0);
+
+	flags = fcntl(fd3, F_GETFD);
+	EXPECT_GT(flags, -1);
+	EXPECT_EQ(flags & FD_CLOEXEC, 0);
+
+	EXPECT_EQ(close(fd1), 0);
+	EXPECT_EQ(close(fd2), 0);
+	EXPECT_EQ(close(fd3), 0);
+}
+
 TEST_HARNESS_MAIN
