@@ -1743,7 +1743,7 @@ static inline struct timespec64 ep_set_mstimeout(long ms)
 static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		   int maxevents, long timeout)
 {
-	int res, eavail, timed_out = 0;
+	int res, eavail = 0, timed_out = 0;
 	u64 slack = 0;
 	wait_queue_entry_t wait;
 	ktime_t expires, *to = NULL;
@@ -1769,18 +1769,30 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		write_lock_irq(&ep->lock);
 		eavail = ep_events_available(ep);
 		write_unlock_irq(&ep->lock);
-
-		goto send_events;
 	}
 
-fetch_events:
-	do {
-		eavail = ep_events_available(ep);
-		if (!eavail)
-			eavail = ep_busy_loop(ep, timed_out);
+	while (1) {
+		if (eavail) {
+			/*
+			 * Try to transfer events to user space. In case we get
+			 * 0 events and there's still timeout left over, we go
+			 * trying again in search of more luck.
+			 */
+			res = ep_send_events(ep, events, maxevents);
+			if (res)
+				return res;
+		}
 
+		if (timed_out)
+			return 0;
+
+		eavail = ep_events_available(ep);
 		if (eavail)
-			goto send_events;
+			continue;
+
+		eavail = ep_busy_loop(ep, timed_out);
+		if (eavail)
+			continue;
 
 		if (signal_pending(current))
 			return -EINTR;
@@ -1845,19 +1857,7 @@ fetch_events:
 			__remove_wait_queue(&ep->wq, &wait);
 			write_unlock_irq(&ep->lock);
 		}
-	} while (0);
-
-send_events:
-	/*
-	 * Try to transfer events to user space. In case we get 0 events and
-	 * there's still timeout left over, we go trying again in search of
-	 * more luck.
-	 */
-	if (eavail &&
-	    !(res = ep_send_events(ep, events, maxevents)) && !timed_out)
-		goto fetch_events;
-
-	return res;
+	}
 }
 
 /**
