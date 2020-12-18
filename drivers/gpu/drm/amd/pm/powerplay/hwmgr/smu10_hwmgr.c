@@ -251,7 +251,7 @@ static int smu10_set_hard_min_gfxclk_by_freq(struct pp_hwmgr *hwmgr, uint32_t cl
 		smu10_data->gfx_actual_soft_min_freq = clock;
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetHardMinGfxClk,
-					smu10_data->gfx_actual_soft_min_freq,
+					clock,
 					NULL);
 	}
 	return 0;
@@ -948,6 +948,8 @@ static int smu10_print_clock_levels(struct pp_hwmgr *hwmgr,
 	struct smu10_voltage_dependency_table *mclk_table =
 			data->clock_vol_info.vdd_dep_on_fclk;
 	uint32_t i, now, size = 0;
+	uint32_t min_freq, max_freq = 0;
+	uint32_t ret = 0;
 
 	switch (type) {
 	case PP_SCLK:
@@ -983,18 +985,28 @@ static int smu10_print_clock_levels(struct pp_hwmgr *hwmgr,
 		break;
 	case OD_SCLK:
 		if (hwmgr->od_enabled) {
-			size = sprintf(buf, "%s:\n", "OD_SCLK");
+			ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMinGfxclkFrequency, &min_freq);
+			if (ret)
+				return ret;
+			ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxGfxclkFrequency, &max_freq);
+			if (ret)
+				return ret;
 
+			size = sprintf(buf, "%s:\n", "OD_SCLK");
 			size += sprintf(buf + size, "0: %10uMhz\n",
-			(data->gfx_actual_soft_min_freq > 0) ? data->gfx_actual_soft_min_freq : data->gfx_min_freq_limit/100);
-			size += sprintf(buf + size, "1: %10uMhz\n", data->gfx_max_freq_limit/100);
+			(data->gfx_actual_soft_min_freq > 0) ? data->gfx_actual_soft_min_freq : min_freq);
+			size += sprintf(buf + size, "1: %10uMhz\n",
+			(data->gfx_actual_soft_max_freq > 0) ? data->gfx_actual_soft_max_freq : max_freq);
 		}
 		break;
 	case OD_RANGE:
 		if (hwmgr->od_enabled) {
-			uint32_t min_freq, max_freq = 0;
-			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMinGfxclkFrequency, &min_freq);
-			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxGfxclkFrequency, &max_freq);
+			ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMinGfxclkFrequency, &min_freq);
+			if (ret)
+				return ret;
+			ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxGfxclkFrequency, &max_freq);
+			if (ret)
+				return ret;
 
 			size = sprintf(buf, "%s:\n", "OD_RANGE");
 			size += sprintf(buf + size, "SCLK: %7uMHz %10uMHz\n",
@@ -1414,23 +1426,91 @@ static int smu10_set_fine_grain_clk_vol(struct pp_hwmgr *hwmgr,
 					enum PP_OD_DPM_TABLE_COMMAND type,
 					long *input, uint32_t size)
 {
+	uint32_t min_freq, max_freq = 0;
+	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
+	int ret = 0;
+
 	if (!hwmgr->od_enabled) {
 		pr_err("Fine grain not support\n");
 		return -EINVAL;
 	}
 
-	if (size != 2) {
-		pr_err("Input parameter number not correct\n");
-		return -EINVAL;
-	}
-
 	if (type == PP_OD_EDIT_SCLK_VDDC_TABLE) {
-		if (input[0] == 0)
-			smu10_set_hard_min_gfxclk_by_freq(hwmgr, input[1]);
-		else if (input[0] == 1)
-			smu10_set_soft_max_gfxclk_by_freq(hwmgr, input[1]);
-		else
+		if (size != 2) {
+			pr_err("Input parameter number not correct\n");
 			return -EINVAL;
+		}
+
+		if (input[0] == 0) {
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMinGfxclkFrequency, &min_freq);
+			if (input[1] < min_freq) {
+				pr_err("Fine grain setting minimum sclk (%ld) MHz is less than the minimum allowed (%d) MHz\n",
+					input[1], min_freq);
+				return -EINVAL;
+			}
+			smu10_data->gfx_actual_soft_min_freq = input[1];
+		} else if (input[0] == 1) {
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxGfxclkFrequency, &max_freq);
+			if (input[1] > max_freq) {
+				pr_err("Fine grain setting maximum sclk (%ld) MHz is greater than the maximum allowed (%d) MHz\n",
+					input[1], max_freq);
+				return -EINVAL;
+			}
+			smu10_data->gfx_actual_soft_max_freq = input[1];
+		} else {
+			return -EINVAL;
+		}
+	} else if (type == PP_OD_RESTORE_DEFAULT_TABLE) {
+		if (size != 0) {
+			pr_err("Input parameter number not correct\n");
+			return -EINVAL;
+		}
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMinGfxclkFrequency, &min_freq);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxGfxclkFrequency, &max_freq);
+
+		smu10_data->gfx_actual_soft_min_freq = min_freq;
+		smu10_data->gfx_actual_soft_max_freq = max_freq;
+
+		ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetHardMinGfxClk,
+					min_freq,
+					NULL);
+		if (ret)
+			return ret;
+
+		ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetSoftMaxGfxClk,
+					max_freq,
+					NULL);
+		if (ret)
+			return ret;
+	} else if (type == PP_OD_COMMIT_DPM_TABLE) {
+		if (size != 0) {
+			pr_err("Input parameter number not correct\n");
+			return -EINVAL;
+		}
+
+		if (smu10_data->gfx_actual_soft_min_freq > smu10_data->gfx_actual_soft_max_freq) {
+			pr_err("The setting minimun sclk (%d) MHz is greater than the setting maximum sclk (%d) MHz\n",
+					smu10_data->gfx_actual_soft_min_freq, smu10_data->gfx_actual_soft_max_freq);
+			return -EINVAL;
+		}
+
+		ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetHardMinGfxClk,
+					smu10_data->gfx_actual_soft_min_freq,
+					NULL);
+		if (ret)
+			return ret;
+
+		ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetSoftMaxGfxClk,
+					smu10_data->gfx_actual_soft_max_freq,
+					NULL);
+		if (ret)
+			return ret;
+	} else {
+		return -EINVAL;
 	}
 
 	return 0;
