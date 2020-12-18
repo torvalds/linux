@@ -1774,14 +1774,14 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 	}
 
 fetch_events:
-	eavail = ep_events_available(ep);
-	if (!eavail)
-		eavail = ep_busy_loop(ep, timed_out);
-
-	if (eavail)
-		goto send_events;
-
 	do {
+		eavail = ep_events_available(ep);
+		if (!eavail)
+			eavail = ep_busy_loop(ep, timed_out);
+
+		if (eavail)
+			goto send_events;
+
 		if (signal_pending(current))
 			return -EINTR;
 
@@ -1830,21 +1830,22 @@ fetch_events:
 		 * carefully under lock, below.
 		 */
 		eavail = 1;
-	} while (0);
 
-	if (!list_empty_careful(&wait.entry)) {
-		write_lock_irq(&ep->lock);
-		/*
-		 * If the thread timed out and is not on the wait queue, it
-		 * means that the thread was woken up after its timeout expired
-		 * before it could reacquire the lock. Thus, when wait.entry is
-		 * empty, it needs to harvest events.
-		 */
-		if (timed_out)
-			eavail = list_empty(&wait.entry);
-		__remove_wait_queue(&ep->wq, &wait);
-		write_unlock_irq(&ep->lock);
-	}
+		if (!list_empty_careful(&wait.entry)) {
+			write_lock_irq(&ep->lock);
+			/*
+			 * If the thread timed out and is not on the wait queue,
+			 * it means that the thread was woken up after its
+			 * timeout expired before it could reacquire the lock.
+			 * Thus, when wait.entry is empty, it needs to harvest
+			 * events.
+			 */
+			if (timed_out)
+				eavail = list_empty(&wait.entry);
+			__remove_wait_queue(&ep->wq, &wait);
+			write_unlock_irq(&ep->lock);
+		}
+	} while (0);
 
 send_events:
 	/*
