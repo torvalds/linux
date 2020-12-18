@@ -213,10 +213,12 @@ struct i40e_fdir_filter {
 	struct hlist_node fdir_node;
 	/* filter ipnut set */
 	u8 flow_type;
-	u8 ip4_proto;
+	u8 ipl4_proto;
 	/* TX packet view of src and dst */
 	__be32 dst_ip;
 	__be32 src_ip;
+	__be32 dst_ip6[4];
+	__be32 src_ip6[4];
 	__be16 src_port;
 	__be16 dst_port;
 	__be32 sctp_v_tag;
@@ -476,6 +478,11 @@ struct i40e_pf {
 	u16 fd_udp4_filter_cnt;
 	u16 fd_sctp4_filter_cnt;
 	u16 fd_ip4_filter_cnt;
+
+	u16 fd_tcp6_filter_cnt;
+	u16 fd_udp6_filter_cnt;
+	u16 fd_sctp6_filter_cnt;
+	u16 fd_ip6_filter_cnt;
 
 	/* Flexible filter table values that need to be programmed into
 	 * hardware, which expects L3 and L4 to be programmed separately. We

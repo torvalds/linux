@@ -3222,13 +3222,30 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 		fsp->m_u.usr_ip4_spec.proto = 0;
 	}
 
-	/* Reverse the src and dest notion, since the HW views them from
-	 * Tx perspective where as the user expects it from Rx filter view.
-	 */
-	fsp->h_u.tcp_ip4_spec.psrc = rule->dst_port;
-	fsp->h_u.tcp_ip4_spec.pdst = rule->src_port;
-	fsp->h_u.tcp_ip4_spec.ip4src = rule->dst_ip;
-	fsp->h_u.tcp_ip4_spec.ip4dst = rule->src_ip;
+	if (fsp->flow_type == IPV6_USER_FLOW ||
+	    fsp->flow_type == UDP_V6_FLOW ||
+	    fsp->flow_type == TCP_V6_FLOW ||
+	    fsp->flow_type == SCTP_V6_FLOW) {
+		/* Reverse the src and dest notion, since the HW views them
+		 * from Tx perspective where as the user expects it from
+		 * Rx filter view.
+		 */
+		fsp->h_u.tcp_ip6_spec.psrc = rule->dst_port;
+		fsp->h_u.tcp_ip6_spec.pdst = rule->src_port;
+		memcpy(fsp->h_u.tcp_ip6_spec.ip6dst, rule->src_ip6,
+		       sizeof(__be32) * 4);
+		memcpy(fsp->h_u.tcp_ip6_spec.ip6src, rule->dst_ip6,
+		       sizeof(__be32) * 4);
+	} else {
+		/* Reverse the src and dest notion, since the HW views them
+		 * from Tx perspective where as the user expects it from
+		 * Rx filter view.
+		 */
+		fsp->h_u.tcp_ip4_spec.psrc = rule->dst_port;
+		fsp->h_u.tcp_ip4_spec.pdst = rule->src_port;
+		fsp->h_u.tcp_ip4_spec.ip4src = rule->dst_ip;
+		fsp->h_u.tcp_ip4_spec.ip4dst = rule->src_ip;
+	}
 
 	switch (rule->flow_type) {
 	case SCTP_V4_FLOW:
@@ -3240,8 +3257,20 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 	case UDP_V4_FLOW:
 		index = I40E_FILTER_PCTYPE_NONF_IPV4_UDP;
 		break;
+	case SCTP_V6_FLOW:
+		index = I40E_FILTER_PCTYPE_NONF_IPV6_SCTP;
+		break;
+	case TCP_V6_FLOW:
+		index = I40E_FILTER_PCTYPE_NONF_IPV6_TCP;
+		break;
+	case UDP_V6_FLOW:
+		index = I40E_FILTER_PCTYPE_NONF_IPV6_UDP;
+		break;
 	case IP_USER_FLOW:
 		index = I40E_FILTER_PCTYPE_NONF_IPV4_OTHER;
+		break;
+	case IPV6_USER_FLOW:
+		index = I40E_FILTER_PCTYPE_NONF_IPV6_OTHER;
 		break;
 	default:
 		/* If we have stored a filter with a flow type not listed here
@@ -3258,6 +3287,20 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 	input_set = i40e_read_fd_input_set(pf, index);
 
 no_input_set:
+	if (input_set & I40E_L3_V6_SRC_MASK) {
+		fsp->m_u.tcp_ip6_spec.ip6src[0] = htonl(0xFFFFFFFF);
+		fsp->m_u.tcp_ip6_spec.ip6src[1] = htonl(0xFFFFFFFF);
+		fsp->m_u.tcp_ip6_spec.ip6src[2] = htonl(0xFFFFFFFF);
+		fsp->m_u.tcp_ip6_spec.ip6src[3] = htonl(0xFFFFFFFF);
+	}
+
+	if (input_set & I40E_L3_V6_DST_MASK) {
+		fsp->m_u.tcp_ip6_spec.ip6dst[0] = htonl(0xFFFFFFFF);
+		fsp->m_u.tcp_ip6_spec.ip6dst[1] = htonl(0xFFFFFFFF);
+		fsp->m_u.tcp_ip6_spec.ip6dst[2] = htonl(0xFFFFFFFF);
+		fsp->m_u.tcp_ip6_spec.ip6dst[3] = htonl(0xFFFFFFFF);
+	}
+
 	if (input_set & I40E_L3_SRC_MASK)
 		fsp->m_u.tcp_ip4_spec.ip4src = htonl(0xFFFFFFFF);
 
@@ -3921,6 +3964,14 @@ static const char *i40e_flow_str(struct ethtool_rx_flow_spec *fsp)
 		return "sctp4";
 	case IP_USER_FLOW:
 		return "ip4";
+	case TCP_V6_FLOW:
+		return "tcp6";
+	case UDP_V6_FLOW:
+		return "udp6";
+	case SCTP_V6_FLOW:
+		return "sctp6";
+	case IPV6_USER_FLOW:
+		return "ip6";
 	default:
 		return "unknown";
 	}
@@ -4056,9 +4107,14 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 				     struct ethtool_rx_flow_spec *fsp,
 				     struct i40e_rx_flow_userdef *userdef)
 {
-	struct i40e_pf *pf = vsi->back;
+	static const __be32 ipv6_full_mask[4] = {cpu_to_be32(0xffffffff),
+		cpu_to_be32(0xffffffff), cpu_to_be32(0xffffffff),
+		cpu_to_be32(0xffffffff)};
+	struct ethtool_tcpip6_spec *tcp_ip6_spec;
+	struct ethtool_usrip6_spec *usr_ip6_spec;
 	struct ethtool_tcpip4_spec *tcp_ip4_spec;
 	struct ethtool_usrip4_spec *usr_ip4_spec;
+	struct i40e_pf *pf = vsi->back;
 	u64 current_mask, new_mask;
 	bool new_flex_offset = false;
 	bool flex_l3 = false;
@@ -4080,9 +4136,26 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 		index = I40E_FILTER_PCTYPE_NONF_IPV4_UDP;
 		fdir_filter_count = &pf->fd_udp4_filter_cnt;
 		break;
+	case SCTP_V6_FLOW:
+		index = I40E_FILTER_PCTYPE_NONF_IPV6_SCTP;
+		fdir_filter_count = &pf->fd_sctp6_filter_cnt;
+		break;
+	case TCP_V6_FLOW:
+		index = I40E_FILTER_PCTYPE_NONF_IPV6_TCP;
+		fdir_filter_count = &pf->fd_tcp6_filter_cnt;
+		break;
+	case UDP_V6_FLOW:
+		index = I40E_FILTER_PCTYPE_NONF_IPV6_UDP;
+		fdir_filter_count = &pf->fd_udp6_filter_cnt;
+		break;
 	case IP_USER_FLOW:
 		index = I40E_FILTER_PCTYPE_NONF_IPV4_OTHER;
 		fdir_filter_count = &pf->fd_ip4_filter_cnt;
+		flex_l3 = true;
+		break;
+	case IPV6_USER_FLOW:
+		index = I40E_FILTER_PCTYPE_NONF_IPV6_OTHER;
+		fdir_filter_count = &pf->fd_ip6_filter_cnt;
 		flex_l3 = true;
 		break;
 	default:
@@ -4147,6 +4220,53 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 			return -EOPNOTSUPP;
 
 		break;
+	case SCTP_V6_FLOW:
+		new_mask &= ~I40E_VERIFY_TAG_MASK;
+		fallthrough;
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+		tcp_ip6_spec = &fsp->m_u.tcp_ip6_spec;
+
+		/* Check if user provided IPv6 source address. */
+		if (ipv6_addr_equal((struct in6_addr *)&tcp_ip6_spec->ip6src,
+				    (struct in6_addr *)&ipv6_full_mask))
+			new_mask |= I40E_L3_V6_SRC_MASK;
+		else if (ipv6_addr_any((struct in6_addr *)
+				       &tcp_ip6_spec->ip6src))
+			new_mask &= ~I40E_L3_V6_SRC_MASK;
+		else
+			return -EOPNOTSUPP;
+
+		/* Check if user provided destination address. */
+		if (ipv6_addr_equal((struct in6_addr *)&tcp_ip6_spec->ip6dst,
+				    (struct in6_addr *)&ipv6_full_mask))
+			new_mask |= I40E_L3_V6_DST_MASK;
+		else if (ipv6_addr_any((struct in6_addr *)
+				       &tcp_ip6_spec->ip6src))
+			new_mask &= ~I40E_L3_V6_DST_MASK;
+		else
+			return -EOPNOTSUPP;
+
+		/* L4 source port */
+		if (tcp_ip6_spec->psrc == htons(0xFFFF))
+			new_mask |= I40E_L4_SRC_MASK;
+		else if (!tcp_ip6_spec->psrc)
+			new_mask &= ~I40E_L4_SRC_MASK;
+		else
+			return -EOPNOTSUPP;
+
+		/* L4 destination port */
+		if (tcp_ip6_spec->pdst == htons(0xFFFF))
+			new_mask |= I40E_L4_DST_MASK;
+		else if (!tcp_ip6_spec->pdst)
+			new_mask &= ~I40E_L4_DST_MASK;
+		else
+			return -EOPNOTSUPP;
+
+		/* Filtering on Traffic Classes is not supported. */
+		if (tcp_ip6_spec->tclass)
+			return -EOPNOTSUPP;
+		break;
 	case IP_USER_FLOW:
 		usr_ip4_spec = &fsp->m_u.usr_ip4_spec;
 
@@ -4184,6 +4304,45 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 
 		/* Filtering on L4 protocol is not supported */
 		if (usr_ip4_spec->proto)
+			return -EINVAL;
+
+		break;
+	case IPV6_USER_FLOW:
+		usr_ip6_spec = &fsp->m_u.usr_ip6_spec;
+
+		/* Check if user provided IPv6 source address. */
+		if (ipv6_addr_equal((struct in6_addr *)&usr_ip6_spec->ip6src,
+				    (struct in6_addr *)&ipv6_full_mask))
+			new_mask |= I40E_L3_V6_SRC_MASK;
+		else if (ipv6_addr_any((struct in6_addr *)
+				       &usr_ip6_spec->ip6src))
+			new_mask &= ~I40E_L3_V6_SRC_MASK;
+		else
+			return -EOPNOTSUPP;
+
+		/* Check if user provided destination address. */
+		if (ipv6_addr_equal((struct in6_addr *)&usr_ip6_spec->ip6dst,
+				    (struct in6_addr *)&ipv6_full_mask))
+			new_mask |= I40E_L3_V6_DST_MASK;
+		else if (ipv6_addr_any((struct in6_addr *)
+				       &usr_ip6_spec->ip6src))
+			new_mask &= ~I40E_L3_V6_DST_MASK;
+		else
+			return -EOPNOTSUPP;
+
+		if (usr_ip6_spec->l4_4_bytes == htonl(0xFFFFFFFF))
+			new_mask |= I40E_L4_SRC_MASK | I40E_L4_DST_MASK;
+		else if (!usr_ip6_spec->l4_4_bytes)
+			new_mask &= ~(I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
+		else
+			return -EOPNOTSUPP;
+
+		/* Filtering on Traffic class is not supported. */
+		if (usr_ip6_spec->tclass)
+			return -EOPNOTSUPP;
+
+		/* Filtering on L4 protocol is not supported */
+		if (usr_ip6_spec->l4_proto)
 			return -EINVAL;
 
 		break;
@@ -4370,7 +4529,7 @@ static bool i40e_match_fdir_filter(struct i40e_fdir_filter *a,
 	    a->dst_port != b->dst_port ||
 	    a->src_port != b->src_port ||
 	    a->flow_type != b->flow_type ||
-	    a->ip4_proto != b->ip4_proto)
+	    a->ipl4_proto != b->ipl4_proto)
 		return false;
 
 	return true;
@@ -4528,15 +4687,33 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 	input->dst_ip = fsp->h_u.tcp_ip4_spec.ip4src;
 	input->src_ip = fsp->h_u.tcp_ip4_spec.ip4dst;
 	input->flow_type = fsp->flow_type & ~FLOW_EXT;
-	input->ip4_proto = fsp->h_u.usr_ip4_spec.proto;
 
-	/* Reverse the src and dest notion, since the HW expects them to be from
-	 * Tx perspective where as the input from user is from Rx filter view.
-	 */
-	input->dst_port = fsp->h_u.tcp_ip4_spec.psrc;
-	input->src_port = fsp->h_u.tcp_ip4_spec.pdst;
-	input->dst_ip = fsp->h_u.tcp_ip4_spec.ip4src;
-	input->src_ip = fsp->h_u.tcp_ip4_spec.ip4dst;
+	if (input->flow_type == IPV6_USER_FLOW ||
+	    input->flow_type == UDP_V6_FLOW ||
+	    input->flow_type == TCP_V6_FLOW ||
+	    input->flow_type == SCTP_V6_FLOW) {
+		/* Reverse the src and dest notion, since the HW expects them
+		 * to be from Tx perspective where as the input from user is
+		 * from Rx filter view.
+		 */
+		input->ipl4_proto = fsp->h_u.usr_ip6_spec.l4_proto;
+		input->dst_port = fsp->h_u.tcp_ip6_spec.psrc;
+		input->src_port = fsp->h_u.tcp_ip6_spec.pdst;
+		memcpy(input->dst_ip6, fsp->h_u.ah_ip6_spec.ip6src,
+		       sizeof(__be32) * 4);
+		memcpy(input->src_ip6, fsp->h_u.ah_ip6_spec.ip6dst,
+		       sizeof(__be32) * 4);
+	} else {
+		/* Reverse the src and dest notion, since the HW expects them
+		 * to be from Tx perspective where as the input from user is
+		 * from Rx filter view.
+		 */
+		input->ipl4_proto = fsp->h_u.usr_ip4_spec.proto;
+		input->dst_port = fsp->h_u.tcp_ip4_spec.psrc;
+		input->src_port = fsp->h_u.tcp_ip4_spec.pdst;
+		input->dst_ip = fsp->h_u.tcp_ip4_spec.ip4src;
+		input->src_ip = fsp->h_u.tcp_ip4_spec.ip4dst;
+	}
 
 	if (userdef.flex_filter) {
 		input->flex_filter = true;
