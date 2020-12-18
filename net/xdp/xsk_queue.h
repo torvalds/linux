@@ -334,6 +334,11 @@ static inline bool xskq_prod_is_full(struct xsk_queue *q)
 	return xskq_prod_nb_free(q, 1) ? false : true;
 }
 
+static inline void xskq_prod_cancel(struct xsk_queue *q)
+{
+	q->cached_prod--;
+}
+
 static inline int xskq_prod_reserve(struct xsk_queue *q)
 {
 	if (xskq_prod_is_full(q))
