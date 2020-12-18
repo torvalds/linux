@@ -150,6 +150,10 @@
  * CPU_BOOT_DEV_STS0_PLL_INFO_EN	FW retrieval of PLL info is enabled.
  *					Initialized in: linux
  *
+ * CPU_BOOT_DEV_STS0_SP_SRAM_EN		SP SRAM is initialized and available
+ *					for use.
+ *					Initialized in: preboot
+ *
  * CPU_BOOT_DEV_STS0_CLK_GATE_EN	Clock Gating enabled.
  *					FW initialized Clock Gating.
  *					Initialized in: preboot
@@ -160,10 +164,6 @@
  *					register. Meaning the device status
  *					bits are not garbage, but actual
  *					statuses.
- *					Initialized in: preboot
- *
- * CPU_BOOT_DEV_STS0_SP_SRAM_EN		SP SRAM is initialized and available
- *					for use.
  *					Initialized in: preboot
  *
  */
