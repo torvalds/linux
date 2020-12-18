@@ -1450,7 +1450,14 @@ static void device_links_purge(struct device *dev)
 	device_links_write_unlock();
 }
 
-static u32 fw_devlink_flags = DL_FLAG_SYNC_STATE_ONLY;
+#define FW_DEVLINK_FLAGS_PERMISSIVE	(DL_FLAG_INFERRED | \
+					 DL_FLAG_SYNC_STATE_ONLY)
+#define FW_DEVLINK_FLAGS_ON		(DL_FLAG_INFERRED | \
+					 DL_FLAG_AUTOPROBE_CONSUMER)
+#define FW_DEVLINK_FLAGS_RPM		(FW_DEVLINK_FLAGS_ON | \
+					 DL_FLAG_PM_RUNTIME)
+
+static u32 fw_devlink_flags = FW_DEVLINK_FLAGS_PERMISSIVE;
 static int __init fw_devlink_setup(char *arg)
 {
 	if (!arg)
@@ -1459,12 +1466,11 @@ static int __init fw_devlink_setup(char *arg)
 	if (strcmp(arg, "off") == 0) {
 		fw_devlink_flags = 0;
 	} else if (strcmp(arg, "permissive") == 0) {
-		fw_devlink_flags = DL_FLAG_SYNC_STATE_ONLY;
+		fw_devlink_flags = FW_DEVLINK_FLAGS_PERMISSIVE;
 	} else if (strcmp(arg, "on") == 0) {
-		fw_devlink_flags = DL_FLAG_AUTOPROBE_CONSUMER;
+		fw_devlink_flags = FW_DEVLINK_FLAGS_ON;
 	} else if (strcmp(arg, "rpm") == 0) {
-		fw_devlink_flags = DL_FLAG_AUTOPROBE_CONSUMER |
-				   DL_FLAG_PM_RUNTIME;
+		fw_devlink_flags = FW_DEVLINK_FLAGS_RPM;
 	}
 	return 0;
 }
@@ -1477,7 +1483,7 @@ u32 fw_devlink_get_flags(void)
 
 static bool fw_devlink_is_permissive(void)
 {
-	return fw_devlink_flags == DL_FLAG_SYNC_STATE_ONLY;
+	return fw_devlink_flags == FW_DEVLINK_FLAGS_PERMISSIVE;
 }
 
 static void fw_devlink_parse_fwnode(struct fwnode_handle *fwnode)
@@ -1624,7 +1630,7 @@ static void __fw_devlink_link_to_consumers(struct device *dev)
 				con_dev = NULL;
 			} else {
 				own_link = false;
-				dl_flags = DL_FLAG_SYNC_STATE_ONLY;
+				dl_flags = FW_DEVLINK_FLAGS_PERMISSIVE;
 			}
 		}
 
@@ -1679,7 +1685,7 @@ static void __fw_devlink_link_to_suppliers(struct device *dev,
 	if (own_link)
 		dl_flags = fw_devlink_get_flags();
 	else
-		dl_flags = DL_FLAG_SYNC_STATE_ONLY;
+		dl_flags = FW_DEVLINK_FLAGS_PERMISSIVE;
 
 	list_for_each_entry_safe(link, tmp, &fwnode->suppliers, c_hook) {
 		int ret;
