@@ -946,6 +946,11 @@ struct drm_device;
 # define DP_CEC_IRQ                          (1 << 2)
 
 #define DP_LINK_SERVICE_IRQ_VECTOR_ESI0     0x2005   /* 1.2 */
+# define RX_CAP_CHANGED                      (1 << 0)
+# define LINK_STATUS_CHANGED                 (1 << 1)
+# define STREAM_STATUS_CHANGED               (1 << 2)
+# define HDMI_LINK_STATUS_CHANGED            (1 << 3)
+# define CONNECTED_OFF_ENTRY_REQUESTED       (1 << 4)
 
 #define DP_PSR_ERROR_STATUS                 0x2006  /* XXX 1.2? */
 # define DP_PSR_LINK_CRC_ERROR              (1 << 0)
@@ -1119,6 +1124,16 @@ struct drm_device;
 # define DP_HDMI_FORCE_SCRAMBLING		(1 << 3) /* DP 1.4 */
 #define DP_PROTOCOL_CONVERTER_CONTROL_2		0x3052 /* DP 1.3 */
 # define DP_CONVERSION_TO_YCBCR422_ENABLE	(1 << 0) /* DP 1.3 */
+
+/* PCON Downstream HDMI ERROR Status per Lane */
+#define DP_PCON_HDMI_ERROR_STATUS_LN0          0x3037
+#define DP_PCON_HDMI_ERROR_STATUS_LN1          0x3038
+#define DP_PCON_HDMI_ERROR_STATUS_LN2          0x3039
+#define DP_PCON_HDMI_ERROR_STATUS_LN3          0x303A
+# define DP_PCON_HDMI_ERROR_COUNT_MASK         (0x7 << 0)
+# define DP_PCON_HDMI_ERROR_COUNT_THREE_PLUS   (1 << 0)
+# define DP_PCON_HDMI_ERROR_COUNT_TEN_PLUS     (1 << 1)
+# define DP_PCON_HDMI_ERROR_COUNT_HUNDRED_PLUS (1 << 2)
 
 /* HDCP 1.3 and HDCP 2.2 */
 #define DP_AUX_HDCP_BKSV		0x68000
@@ -2036,5 +2051,7 @@ int drm_dp_pcon_frl_enable(struct drm_dp_aux *aux);
 
 bool drm_dp_pcon_hdmi_link_active(struct drm_dp_aux *aux);
 int drm_dp_pcon_hdmi_link_mode(struct drm_dp_aux *aux, u8 *frl_trained_mask);
+void drm_dp_pcon_hdmi_frl_link_error_count(struct drm_dp_aux *aux,
+					   struct drm_connector *connector);
 
 #endif /* _DRM_DP_HELPER_H_ */
