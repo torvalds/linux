@@ -16,6 +16,7 @@
 
 #include "sparsebit.h"
 
+#define KVM_MAX_VCPUS 512
 
 /*
  * Callers of kvm_util only have an incomplete/opaque description of the
