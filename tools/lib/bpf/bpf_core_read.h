@@ -308,6 +308,18 @@ enum bpf_enum_value_kind {
 		     dst, (src), a, ##__VA_ARGS__)			    \
 })
 
+/* Non-CO-RE variant of BPF_CORE_READ_INTO() */
+#define BPF_PROBE_READ_INTO(dst, src, a, ...) ({			    \
+	___core_read(bpf_probe_read, bpf_probe_read,			    \
+		     dst, (src), a, ##__VA_ARGS__)			    \
+})
+
+/* Non-CO-RE variant of BPF_CORE_READ_USER_INTO() */
+#define BPF_PROBE_READ_USER_INTO(dst, src, a, ...) ({			    \
+	___core_read(bpf_probe_read_user, bpf_probe_read_user,		    \
+		     dst, (src), a, ##__VA_ARGS__)			    \
+})
+
 /*
  * BPF_CORE_READ_STR_INTO() does same "pointer chasing" as
  * BPF_CORE_READ() for intermediate pointers, but then executes (and returns
@@ -321,6 +333,18 @@ enum bpf_enum_value_kind {
 /* Variant of BPF_CORE_READ_STR_INTO() for reading from user-space memory */
 #define BPF_CORE_READ_USER_STR_INTO(dst, src, a, ...) ({		    \
 	___core_read(bpf_core_read_user_str, bpf_core_read_user,	    \
+		     dst, (src), a, ##__VA_ARGS__)			    \
+})
+
+/* Non-CO-RE variant of BPF_CORE_READ_STR_INTO() */
+#define BPF_PROBE_READ_STR_INTO(dst, src, a, ...) ({			    \
+	___core_read(bpf_probe_read_str, bpf_probe_read,		    \
+		     dst, (src), a, ##__VA_ARGS__)			    \
+})
+
+/* Non-CO-RE variant of BPF_CORE_READ_USER_STR_INTO() */
+#define BPF_PROBE_READ_USER_STR_INTO(dst, src, a, ...) ({		    \
+	___core_read(bpf_probe_read_user_str, bpf_probe_read_user,	    \
 		     dst, (src), a, ##__VA_ARGS__)			    \
 })
 
@@ -358,6 +382,20 @@ enum bpf_enum_value_kind {
 #define BPF_CORE_READ_USER(src, a, ...) ({				    \
 	___type((src), a, ##__VA_ARGS__) __r;				    \
 	BPF_CORE_READ_USER_INTO(&__r, (src), a, ##__VA_ARGS__);		    \
+	__r;								    \
+})
+
+/* Non-CO-RE variant of BPF_CORE_READ() */
+#define BPF_PROBE_READ(src, a, ...) ({					    \
+	___type((src), a, ##__VA_ARGS__) __r;				    \
+	BPF_PROBE_READ_INTO(&__r, (src), a, ##__VA_ARGS__);		    \
+	__r;								    \
+})
+
+/* Non-CO-RE variant of BPF_CORE_READ_USER() */
+#define BPF_PROBE_READ_USER(src, a, ...) ({				    \
+	___type((src), a, ##__VA_ARGS__) __r;				    \
+	BPF_PROBE_READ_USER_INTO(&__r, (src), a, ##__VA_ARGS__);	    \
 	__r;								    \
 })
 
