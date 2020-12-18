@@ -3488,7 +3488,7 @@ static bool mmio_info_in_cache(struct kvm_vcpu *vcpu, u64 addr, bool direct)
 static int get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes)
 {
 	struct kvm_shadow_walk_iterator iterator;
-	int leaf = vcpu->arch.mmu->root_level;
+	int leaf = -1;
 	u64 spte;
 
 
@@ -3531,6 +3531,11 @@ static bool get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 		leaf = kvm_tdp_mmu_get_walk(vcpu, addr, sptes);
 	else
 		leaf = get_walk(vcpu, addr, sptes);
+
+	if (unlikely(leaf < 0)) {
+		*sptep = 0ull;
+		return reserved;
+	}
 
 	rsvd_check = &vcpu->arch.mmu->shadow_zero_check;
 
