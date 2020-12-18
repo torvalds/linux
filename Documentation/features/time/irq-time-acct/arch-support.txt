@@ -23,7 +23,7 @@
     |    openrisc: | TODO |
     |      parisc: |  ..  |
     |     powerpc: |  ok  |
-    |       riscv: | TODO |
+    |       riscv: |  ok  |
     |        s390: |  ..  |
     |          sh: | TODO |
     |       sparc: |  ..  |
