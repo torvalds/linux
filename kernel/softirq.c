@@ -562,15 +562,10 @@ static void tasklet_action_common(struct softirq_action *a,
 				if (!test_and_clear_bit(TASKLET_STATE_SCHED,
 							&t->state))
 					BUG();
-				if (t->use_callback) {
-					trace_tasklet_entry(t->callback);
+				if (t->use_callback)
 					t->callback(t);
-					trace_tasklet_exit(t->callback);
-				} else {
-					trace_tasklet_entry(t->func);
+				else
 					t->func(t->data);
-					trace_tasklet_exit(t->func);
-				}
 				tasklet_unlock(t);
 				continue;
 			}
