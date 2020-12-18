@@ -1519,7 +1519,7 @@ static void fw_devlink_parse_fwtree(struct fwnode_handle *fwnode)
  *
  * Return 1 if a cycle is found. Otherwise, return 0.
  */
-int fw_devlink_relax_cycle(struct device *con, void *sup)
+static int fw_devlink_relax_cycle(struct device *con, void *sup)
 {
 	struct device_link *link;
 	int ret;
