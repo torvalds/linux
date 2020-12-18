@@ -11,17 +11,25 @@
 
 /* functions that are embedded into includer */
 
+
+static void
+__fq_adjust_removal(struct fq *fq, struct fq_flow *flow, unsigned int packets,
+		    unsigned int bytes, unsigned int truesize)
+{
+	struct fq_tin *tin = flow->tin;
+
+	tin->backlog_bytes -= bytes;
+	tin->backlog_packets -= packets;
+	flow->backlog -= bytes;
+	fq->backlog -= packets;
+	fq->memory_usage -= truesize;
+}
+
 static void fq_adjust_removal(struct fq *fq,
 			      struct fq_flow *flow,
 			      struct sk_buff *skb)
 {
-	struct fq_tin *tin = flow->tin;
-
-	tin->backlog_bytes -= skb->len;
-	tin->backlog_packets--;
-	flow->backlog -= skb->len;
-	fq->backlog--;
-	fq->memory_usage -= skb->truesize;
+	__fq_adjust_removal(fq, flow, 1, skb->len, skb->truesize);
 }
 
 static void fq_rejigger_backlog(struct fq *fq, struct fq_flow *flow)
@@ -57,6 +65,34 @@ static struct sk_buff *fq_flow_dequeue(struct fq *fq,
 	fq_rejigger_backlog(fq, flow);
 
 	return skb;
+}
+
+static int fq_flow_drop(struct fq *fq, struct fq_flow *flow,
+			fq_skb_free_t free_func)
+{
+	unsigned int packets = 0, bytes = 0, truesize = 0;
+	struct fq_tin *tin = flow->tin;
+	struct sk_buff *skb;
+	int pending;
+
+	lockdep_assert_held(&fq->lock);
+
+	pending = min_t(int, 32, skb_queue_len(&flow->queue) / 2);
+	do {
+		skb = __skb_dequeue(&flow->queue);
+		if (!skb)
+			break;
+
+		packets++;
+		bytes += skb->len;
+		truesize += skb->truesize;
+		free_func(fq, tin, flow, skb);
+	} while (packets < pending);
+
+	__fq_adjust_removal(fq, flow, packets, bytes, truesize);
+	fq_rejigger_backlog(fq, flow);
+
+	return packets;
 }
 
 static struct sk_buff *fq_tin_dequeue(struct fq *fq,
@@ -190,11 +226,8 @@ static void fq_tin_enqueue(struct fq *fq,
 		if (!flow)
 			return;
 
-		skb = fq_flow_dequeue(fq, flow);
-		if (!skb)
+		if (!fq_flow_drop(fq, flow, free_func))
 			return;
-
-		free_func(fq, flow->tin, flow, skb);
 
 		flow->tin->overlimit++;
 		fq->overlimit++;
