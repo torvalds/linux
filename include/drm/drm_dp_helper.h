@@ -411,6 +411,17 @@ struct drm_device;
 # define DP_DS_10BPC		            1
 # define DP_DS_12BPC		            2
 # define DP_DS_16BPC		            3
+/* HDMI2.1 PCON FRL CONFIGURATION */
+# define DP_PCON_MAX_FRL_BW                 (7 << 2)
+# define DP_PCON_MAX_0GBPS                  (0 << 2)
+# define DP_PCON_MAX_9GBPS                  (1 << 2)
+# define DP_PCON_MAX_18GBPS                 (2 << 2)
+# define DP_PCON_MAX_24GBPS                 (3 << 2)
+# define DP_PCON_MAX_32GBPS                 (4 << 2)
+# define DP_PCON_MAX_40GBPS                 (5 << 2)
+# define DP_PCON_MAX_48GBPS                 (6 << 2)
+# define DP_PCON_SOURCE_CTL_MODE            (1 << 5)
+
 /* offset 3 for DVI */
 # define DP_DS_DVI_DUAL_LINK		    (1 << 1)
 # define DP_DS_DVI_HIGH_COLOR_DEPTH	    (1 << 2)
@@ -1053,6 +1064,51 @@ struct drm_device;
 #define DP_CEC_RX_MESSAGE_BUFFER               0x3010
 #define DP_CEC_TX_MESSAGE_BUFFER               0x3020
 #define DP_CEC_MESSAGE_BUFFER_LENGTH             0x10
+
+/* PCON CONFIGURE-1 FRL FOR HDMI SINK */
+#define DP_PCON_HDMI_LINK_CONFIG_1             0x305A
+# define DP_PCON_ENABLE_MAX_FRL_BW             (7 << 0)
+# define DP_PCON_ENABLE_MAX_BW_0GBPS	       0
+# define DP_PCON_ENABLE_MAX_BW_9GBPS	       1
+# define DP_PCON_ENABLE_MAX_BW_18GBPS	       2
+# define DP_PCON_ENABLE_MAX_BW_24GBPS	       3
+# define DP_PCON_ENABLE_MAX_BW_32GBPS	       4
+# define DP_PCON_ENABLE_MAX_BW_40GBPS	       5
+# define DP_PCON_ENABLE_MAX_BW_48GBPS	       6
+# define DP_PCON_ENABLE_SOURCE_CTL_MODE       (1 << 3)
+# define DP_PCON_ENABLE_CONCURRENT_LINK       (1 << 4)
+# define DP_PCON_ENABLE_LINK_FRL_MODE         (1 << 5)
+# define DP_PCON_ENABLE_HPD_READY	      (1 << 6)
+# define DP_PCON_ENABLE_HDMI_LINK             (1 << 7)
+
+/* PCON CONFIGURE-2 FRL FOR HDMI SINK */
+#define DP_PCON_HDMI_LINK_CONFIG_2            0x305B
+# define DP_PCON_MAX_LINK_BW_MASK             (0x3F << 0)
+# define DP_PCON_FRL_BW_MASK_9GBPS            (1 << 0)
+# define DP_PCON_FRL_BW_MASK_18GBPS           (1 << 1)
+# define DP_PCON_FRL_BW_MASK_24GBPS           (1 << 2)
+# define DP_PCON_FRL_BW_MASK_32GBPS           (1 << 3)
+# define DP_PCON_FRL_BW_MASK_40GBPS           (1 << 4)
+# define DP_PCON_FRL_BW_MASK_48GBPS           (1 << 5)
+# define DP_PCON_FRL_LINK_TRAIN_EXTENDED      (1 << 6)
+
+/* PCON HDMI LINK STATUS */
+#define DP_PCON_HDMI_TX_LINK_STATUS           0x303B
+# define DP_PCON_HDMI_TX_LINK_ACTIVE          (1 << 0)
+# define DP_PCON_FRL_READY		      (1 << 1)
+
+/* PCON HDMI POST FRL STATUS */
+#define DP_PCON_HDMI_POST_FRL_STATUS          0x3036
+# define DP_PCON_HDMI_LINK_MODE               (1 << 0)
+# define DP_PCON_HDMI_MODE_TMDS               0
+# define DP_PCON_HDMI_MODE_FRL                1
+# define DP_PCON_HDMI_FRL_TRAINED_BW          (0x3F << 1)
+# define DP_PCON_FRL_TRAINED_BW_9GBPS	      (1 << 1)
+# define DP_PCON_FRL_TRAINED_BW_18GBPS	      (1 << 2)
+# define DP_PCON_FRL_TRAINED_BW_24GBPS	      (1 << 3)
+# define DP_PCON_FRL_TRAINED_BW_32GBPS	      (1 << 4)
+# define DP_PCON_FRL_TRAINED_BW_40GBPS	      (1 << 5)
+# define DP_PCON_FRL_TRAINED_BW_48GBPS	      (1 << 6)
 
 #define DP_PROTOCOL_CONVERTER_CONTROL_0		0x3050 /* DP 1.3 */
 # define DP_HDMI_DVI_OUTPUT_CONFIG		(1 << 0) /* DP 1.3 */
@@ -1967,4 +2023,18 @@ int drm_dp_get_phy_test_pattern(struct drm_dp_aux *aux,
 				struct drm_dp_phy_test_params *data);
 int drm_dp_set_phy_test_pattern(struct drm_dp_aux *aux,
 				struct drm_dp_phy_test_params *data, u8 dp_rev);
+int drm_dp_get_pcon_max_frl_bw(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			       const u8 port_cap[4]);
+int drm_dp_pcon_frl_prepare(struct drm_dp_aux *aux, bool enable_frl_ready_hpd);
+bool drm_dp_pcon_is_frl_ready(struct drm_dp_aux *aux);
+int drm_dp_pcon_frl_configure_1(struct drm_dp_aux *aux, int max_frl_gbps,
+				bool concurrent_mode);
+int drm_dp_pcon_frl_configure_2(struct drm_dp_aux *aux, int max_frl_mask,
+				bool extended_train_mode);
+int drm_dp_pcon_reset_frl_config(struct drm_dp_aux *aux);
+int drm_dp_pcon_frl_enable(struct drm_dp_aux *aux);
+
+bool drm_dp_pcon_hdmi_link_active(struct drm_dp_aux *aux);
+int drm_dp_pcon_hdmi_link_mode(struct drm_dp_aux *aux, u8 *frl_trained_mask);
+
 #endif /* _DRM_DP_HELPER_H_ */
