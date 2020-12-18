@@ -416,6 +416,7 @@ struct hl_mmu_properties {
  *                            from BOOT_DEV_STS0
  * @dram_supports_virtual_memory: is there an MMU towards the DRAM
  * @hard_reset_done_by_fw: true if firmware is handling hard reset flow
+ * @num_functional_hbms: number of functional HBMs in each DCORE.
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	*hw_queues_props;
@@ -474,6 +475,7 @@ struct asic_fixed_properties {
 	u8				fw_security_status_valid;
 	u8				dram_supports_virtual_memory;
 	u8				hard_reset_done_by_fw;
+	u8				num_functional_hbms;
 };
 
 /**
