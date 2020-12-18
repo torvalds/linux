@@ -12,7 +12,7 @@
 
 #include "ci.h"
 
-struct tegra_udc {
+struct tegra_usb {
 	struct ci_hdrc_platform_data data;
 	struct platform_device *dev;
 
@@ -20,15 +20,15 @@ struct tegra_udc {
 	struct clk *clk;
 };
 
-struct tegra_udc_soc_info {
+struct tegra_usb_soc_info {
 	unsigned long flags;
 };
 
-static const struct tegra_udc_soc_info tegra_udc_soc_info = {
+static const struct tegra_usb_soc_info tegra_udc_soc_info = {
 	.flags = CI_HDRC_REQUIRES_ALIGNED_DMA,
 };
 
-static const struct of_device_id tegra_udc_of_match[] = {
+static const struct of_device_id tegra_usb_of_match[] = {
 	{
 		.compatible = "nvidia,tegra20-udc",
 		.data = &tegra_udc_soc_info,
@@ -45,16 +45,16 @@ static const struct of_device_id tegra_udc_of_match[] = {
 		/* sentinel */
 	}
 };
-MODULE_DEVICE_TABLE(of, tegra_udc_of_match);
+MODULE_DEVICE_TABLE(of, tegra_usb_of_match);
 
-static int tegra_udc_probe(struct platform_device *pdev)
+static int tegra_usb_probe(struct platform_device *pdev)
 {
-	const struct tegra_udc_soc_info *soc;
-	struct tegra_udc *udc;
+	const struct tegra_usb_soc_info *soc;
+	struct tegra_usb *usb;
 	int err;
 
-	udc = devm_kzalloc(&pdev->dev, sizeof(*udc), GFP_KERNEL);
-	if (!udc)
+	usb = devm_kzalloc(&pdev->dev, sizeof(*usb), GFP_KERNEL);
+	if (!usb)
 		return -ENOMEM;
 
 	soc = of_device_get_match_data(&pdev->dev);
@@ -63,69 +63,69 @@ static int tegra_udc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	udc->phy = devm_usb_get_phy_by_phandle(&pdev->dev, "nvidia,phy", 0);
-	if (IS_ERR(udc->phy)) {
-		err = PTR_ERR(udc->phy);
+	usb->phy = devm_usb_get_phy_by_phandle(&pdev->dev, "nvidia,phy", 0);
+	if (IS_ERR(usb->phy)) {
+		err = PTR_ERR(usb->phy);
 		dev_err(&pdev->dev, "failed to get PHY: %d\n", err);
 		return err;
 	}
 
-	udc->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(udc->clk)) {
-		err = PTR_ERR(udc->clk);
+	usb->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(usb->clk)) {
+		err = PTR_ERR(usb->clk);
 		dev_err(&pdev->dev, "failed to get clock: %d\n", err);
 		return err;
 	}
 
-	err = clk_prepare_enable(udc->clk);
+	err = clk_prepare_enable(usb->clk);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to enable clock: %d\n", err);
 		return err;
 	}
 
 	/* setup and register ChipIdea HDRC device */
-	udc->data.name = "tegra-udc";
-	udc->data.flags = soc->flags;
-	udc->data.usb_phy = udc->phy;
-	udc->data.capoffset = DEF_CAPOFFSET;
+	usb->data.name = "tegra-usb";
+	usb->data.flags = soc->flags;
+	usb->data.usb_phy = usb->phy;
+	usb->data.capoffset = DEF_CAPOFFSET;
 
-	udc->dev = ci_hdrc_add_device(&pdev->dev, pdev->resource,
-				      pdev->num_resources, &udc->data);
-	if (IS_ERR(udc->dev)) {
-		err = PTR_ERR(udc->dev);
+	usb->dev = ci_hdrc_add_device(&pdev->dev, pdev->resource,
+				      pdev->num_resources, &usb->data);
+	if (IS_ERR(usb->dev)) {
+		err = PTR_ERR(usb->dev);
 		dev_err(&pdev->dev, "failed to add HDRC device: %d\n", err);
 		goto fail_power_off;
 	}
 
-	platform_set_drvdata(pdev, udc);
+	platform_set_drvdata(pdev, usb);
 
 	return 0;
 
 fail_power_off:
-	clk_disable_unprepare(udc->clk);
+	clk_disable_unprepare(usb->clk);
 	return err;
 }
 
-static int tegra_udc_remove(struct platform_device *pdev)
+static int tegra_usb_remove(struct platform_device *pdev)
 {
-	struct tegra_udc *udc = platform_get_drvdata(pdev);
+	struct tegra_usb *usb = platform_get_drvdata(pdev);
 
-	ci_hdrc_remove_device(udc->dev);
-	clk_disable_unprepare(udc->clk);
+	ci_hdrc_remove_device(usb->dev);
+	clk_disable_unprepare(usb->clk);
 
 	return 0;
 }
 
-static struct platform_driver tegra_udc_driver = {
+static struct platform_driver tegra_usb_driver = {
 	.driver = {
-		.name = "tegra-udc",
-		.of_match_table = tegra_udc_of_match,
+		.name = "tegra-usb",
+		.of_match_table = tegra_usb_of_match,
 	},
-	.probe = tegra_udc_probe,
-	.remove = tegra_udc_remove,
+	.probe = tegra_usb_probe,
+	.remove = tegra_usb_remove,
 };
-module_platform_driver(tegra_udc_driver);
+module_platform_driver(tegra_usb_driver);
 
-MODULE_DESCRIPTION("NVIDIA Tegra USB device mode driver");
+MODULE_DESCRIPTION("NVIDIA Tegra USB driver");
 MODULE_AUTHOR("Thierry Reding <treding@nvidia.com>");
 MODULE_LICENSE("GPL v2");
