@@ -32,7 +32,6 @@
 
 #include <linux/platform_device.h>
 #include <linux/pci.h>
-#include <uapi/rdma/hns-abi.h>
 #include "hns_roce_device.h"
 
 static int hns_roce_pd_alloc(struct hns_roce_dev *hr_dev, unsigned long *pdn)
@@ -65,21 +64,22 @@ int hns_roce_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 
 	ret = hns_roce_pd_alloc(to_hr_dev(ib_dev), &pd->pdn);
 	if (ret) {
-		ibdev_err(ib_dev, "failed to alloc pd, ret = %d\n", ret);
+		ibdev_err(ib_dev, "failed to alloc pd, ret = %d.\n", ret);
 		return ret;
 	}
 
 	if (udata) {
-		struct hns_roce_ib_alloc_pd_resp uresp = {.pdn = pd->pdn};
+		struct hns_roce_ib_alloc_pd_resp resp = {.pdn = pd->pdn};
 
-		if (ib_copy_to_udata(udata, &uresp, sizeof(uresp))) {
+		ret = ib_copy_to_udata(udata, &resp,
+				       min(udata->outlen, sizeof(resp)));
+		if (ret) {
 			hns_roce_pd_free(to_hr_dev(ib_dev), pd->pdn);
-			ibdev_err(ib_dev, "failed to copy to udata\n");
-			return -EFAULT;
+			ibdev_err(ib_dev, "failed to copy to udata, ret = %d\n", ret);
 		}
 	}
 
-	return 0;
+	return ret;
 }
 
 int hns_roce_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)

@@ -2426,7 +2426,7 @@ static void i40iw_handle_rst_pkt(struct i40iw_cm_node *cm_node,
 		}
 		break;
 	case I40IW_CM_STATE_MPAREQ_RCVD:
-		atomic_add_return(1, &cm_node->passive_state);
+		atomic_inc(&cm_node->passive_state);
 		break;
 	case I40IW_CM_STATE_ESTABLISHED:
 	case I40IW_CM_STATE_SYN_RCVD:
@@ -3020,7 +3020,7 @@ static int i40iw_cm_reject(struct i40iw_cm_node *cm_node, const void *pdata, u8 
 	i40iw_cleanup_retrans_entry(cm_node);
 
 	if (!loopback) {
-		passive_state = atomic_add_return(1, &cm_node->passive_state);
+		passive_state = atomic_inc_return(&cm_node->passive_state);
 		if (passive_state == I40IW_SEND_RESET_EVENT) {
 			cm_node->state = I40IW_CM_STATE_CLOSED;
 			i40iw_rem_ref_cm_node(cm_node);
@@ -3678,7 +3678,7 @@ int i40iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		return -EINVAL;
 	}
 
-	passive_state = atomic_add_return(1, &cm_node->passive_state);
+	passive_state = atomic_inc_return(&cm_node->passive_state);
 	if (passive_state == I40IW_SEND_RESET_EVENT) {
 		i40iw_rem_ref_cm_node(cm_node);
 		return -ECONNRESET;

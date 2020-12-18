@@ -365,22 +365,6 @@ static int dereg_mem(struct c4iw_rdev *rdev, u32 stag, u32 pbl_size,
 			       pbl_size, pbl_addr, skb, wr_waitp);
 }
 
-static int allocate_window(struct c4iw_rdev *rdev, u32 *stag, u32 pdid,
-			   struct c4iw_wr_wait *wr_waitp)
-{
-	*stag = T4_STAG_UNSET;
-	return write_tpt_entry(rdev, 0, stag, 0, pdid, FW_RI_STAG_MW, 0, 0, 0,
-			       0UL, 0, 0, 0, 0, NULL, wr_waitp);
-}
-
-static int deallocate_window(struct c4iw_rdev *rdev, u32 stag,
-			     struct sk_buff *skb,
-			     struct c4iw_wr_wait *wr_waitp)
-{
-	return write_tpt_entry(rdev, 1, &stag, 0, 0, 0, 0, 0, 0, 0UL, 0, 0, 0,
-			       0, skb, wr_waitp);
-}
-
 static int allocate_stag(struct c4iw_rdev *rdev, u32 *stag, u32 pdid,
 			 u32 pbl_size, u32 pbl_addr,
 			 struct c4iw_wr_wait *wr_waitp)
@@ -609,74 +593,6 @@ err_free_wr_wait:
 err_free_mhp:
 	kfree(mhp);
 	return ERR_PTR(err);
-}
-
-int c4iw_alloc_mw(struct ib_mw *ibmw, struct ib_udata *udata)
-{
-	struct c4iw_mw *mhp = to_c4iw_mw(ibmw);
-	struct c4iw_dev *rhp;
-	struct c4iw_pd *php;
-	u32 mmid;
-	u32 stag = 0;
-	int ret;
-
-	if (ibmw->type != IB_MW_TYPE_1)
-		return -EINVAL;
-
-	php = to_c4iw_pd(ibmw->pd);
-	rhp = php->rhp;
-	mhp->wr_waitp = c4iw_alloc_wr_wait(GFP_KERNEL);
-	if (!mhp->wr_waitp)
-		return -ENOMEM;
-
-	mhp->dereg_skb = alloc_skb(SGE_MAX_WR_LEN, GFP_KERNEL);
-	if (!mhp->dereg_skb) {
-		ret = -ENOMEM;
-		goto free_wr_wait;
-	}
-
-	ret = allocate_window(&rhp->rdev, &stag, php->pdid, mhp->wr_waitp);
-	if (ret)
-		goto free_skb;
-
-	mhp->rhp = rhp;
-	mhp->attr.pdid = php->pdid;
-	mhp->attr.type = FW_RI_STAG_MW;
-	mhp->attr.stag = stag;
-	mmid = (stag) >> 8;
-	ibmw->rkey = stag;
-	if (xa_insert_irq(&rhp->mrs, mmid, mhp, GFP_KERNEL)) {
-		ret = -ENOMEM;
-		goto dealloc_win;
-	}
-	pr_debug("mmid 0x%x mhp %p stag 0x%x\n", mmid, mhp, stag);
-	return 0;
-
-dealloc_win:
-	deallocate_window(&rhp->rdev, mhp->attr.stag, mhp->dereg_skb,
-			  mhp->wr_waitp);
-free_skb:
-	kfree_skb(mhp->dereg_skb);
-free_wr_wait:
-	c4iw_put_wr_wait(mhp->wr_waitp);
-	return ret;
-}
-
-int c4iw_dealloc_mw(struct ib_mw *mw)
-{
-	struct c4iw_dev *rhp;
-	struct c4iw_mw *mhp;
-	u32 mmid;
-
-	mhp = to_c4iw_mw(mw);
-	rhp = mhp->rhp;
-	mmid = (mw->rkey) >> 8;
-	xa_erase_irq(&rhp->mrs, mmid);
-	deallocate_window(&rhp->rdev, mhp->attr.stag, mhp->dereg_skb,
-			  mhp->wr_waitp);
-	kfree_skb(mhp->dereg_skb);
-	c4iw_put_wr_wait(mhp->wr_waitp);
-	return 0;
 }
 
 struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
