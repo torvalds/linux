@@ -766,6 +766,34 @@ static const struct cnl_ddi_buf_trans tgl_combo_phy_ddi_translations_edp_hbr2_ho
 	{ 0x6, 0x7F, 0x3F, 0x00, 0x00 },	/* 2	1	*/
 };
 
+static const struct cnl_ddi_buf_trans rkl_combo_phy_ddi_translations_dp_hbr[] = {
+						/* NT mV Trans mV db    */
+	{ 0xA, 0x2F, 0x3F, 0x00, 0x00 },	/* 350   350      0.0   */
+	{ 0xA, 0x4F, 0x37, 0x00, 0x08 },	/* 350   500      3.1   */
+	{ 0xC, 0x63, 0x2F, 0x00, 0x10 },	/* 350   700      6.0   */
+	{ 0x6, 0x7D, 0x2A, 0x00, 0x15 },	/* 350   900      8.2   */
+	{ 0xA, 0x4C, 0x3F, 0x00, 0x00 },	/* 500   500      0.0   */
+	{ 0xC, 0x73, 0x34, 0x00, 0x0B },	/* 500   700      2.9   */
+	{ 0x6, 0x7F, 0x2F, 0x00, 0x10 },	/* 500   900      5.1   */
+	{ 0xC, 0x6E, 0x3E, 0x00, 0x01 },	/* 650   700      0.6   */
+	{ 0x6, 0x7F, 0x35, 0x00, 0x0A },	/* 600   900      3.5   */
+	{ 0x6, 0x7F, 0x3F, 0x00, 0x00 },	/* 900   900      0.0   */
+};
+
+static const struct cnl_ddi_buf_trans rkl_combo_phy_ddi_translations_dp_hbr2_hbr3[] = {
+						/* NT mV Trans mV db    */
+	{ 0xA, 0x35, 0x3F, 0x00, 0x00 },	/* 350   350      0.0   */
+	{ 0xA, 0x50, 0x38, 0x00, 0x07 },	/* 350   500      3.1   */
+	{ 0xC, 0x61, 0x33, 0x00, 0x0C },	/* 350   700      6.0   */
+	{ 0x6, 0x7F, 0x2E, 0x00, 0x11 },	/* 350   900      8.2   */
+	{ 0xA, 0x47, 0x3F, 0x00, 0x00 },	/* 500   500      0.0   */
+	{ 0xC, 0x5F, 0x38, 0x00, 0x07 },	/* 500   700      2.9   */
+	{ 0x6, 0x7F, 0x2F, 0x00, 0x10 },	/* 500   900      5.1   */
+	{ 0xC, 0x5F, 0x3F, 0x00, 0x00 },	/* 650   700      0.6   */
+	{ 0x6, 0x7E, 0x36, 0x00, 0x09 },	/* 600   900      3.5   */
+	{ 0x6, 0x7F, 0x3F, 0x00, 0x00 },	/* 900   900      0.0   */
+};
+
 static bool is_hobl_buf_trans(const struct cnl_ddi_buf_trans *table)
 {
 	return table == tgl_combo_phy_ddi_translations_edp_hbr2_hobl;
@@ -1259,7 +1287,10 @@ tgl_get_combo_buf_trans_dp(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	if (crtc_state->port_clock > 270000) {
-		if (IS_TGL_U(dev_priv) || IS_TGL_Y(dev_priv)) {
+		if (IS_ROCKETLAKE(dev_priv)) {
+			*n_entries = ARRAY_SIZE(rkl_combo_phy_ddi_translations_dp_hbr2_hbr3);
+			return rkl_combo_phy_ddi_translations_dp_hbr2_hbr3;
+		} else if (IS_TGL_U(dev_priv) || IS_TGL_Y(dev_priv)) {
 			*n_entries = ARRAY_SIZE(tgl_uy_combo_phy_ddi_translations_dp_hbr2);
 			return tgl_uy_combo_phy_ddi_translations_dp_hbr2;
 		} else {
@@ -1267,8 +1298,13 @@ tgl_get_combo_buf_trans_dp(struct intel_encoder *encoder,
 			return tgl_combo_phy_ddi_translations_dp_hbr2;
 		}
 	} else {
-		*n_entries = ARRAY_SIZE(tgl_combo_phy_ddi_translations_dp_hbr);
-		return tgl_combo_phy_ddi_translations_dp_hbr;
+		if (IS_ROCKETLAKE(dev_priv)) {
+			*n_entries = ARRAY_SIZE(rkl_combo_phy_ddi_translations_dp_hbr);
+			return rkl_combo_phy_ddi_translations_dp_hbr;
+		} else {
+			*n_entries = ARRAY_SIZE(tgl_combo_phy_ddi_translations_dp_hbr);
+			return tgl_combo_phy_ddi_translations_dp_hbr;
+		}
 	}
 }
 
