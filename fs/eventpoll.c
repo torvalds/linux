@@ -1828,6 +1828,7 @@ fetch_events:
 		if (!eavail)
 			timed_out = !schedule_hrtimeout_range(to, slack,
 							      HRTIMER_MODE_ABS);
+		__set_current_state(TASK_RUNNING);
 
 		/*
 		 * We were woken up, thus go and try to harvest some events.
@@ -1836,8 +1837,6 @@ fetch_events:
 		 */
 		eavail = 1;
 	} while (0);
-
-	__set_current_state(TASK_RUNNING);
 
 	if (!list_empty_careful(&wait.entry)) {
 		write_lock_irq(&ep->lock);
