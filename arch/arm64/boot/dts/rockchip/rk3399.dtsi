@@ -1531,7 +1531,7 @@
 	};
 
 	watchdog@ff848000 {
-		compatible = "snps,dw-wdt";
+		compatible = "rockchip,rk3399-wdt", "snps,dw-wdt";
 		reg = <0x0 0xff848000 0x0 0x100>;
 		clocks = <&cru PCLK_WDT>;
 		interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH 0>;
