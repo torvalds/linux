@@ -20,3 +20,8 @@
 		stdout-path = "serial0:115200n8";
 	};
 };
+
+&rwdt {
+	timeout-sec = <60>;
+	status = "okay";
+};
