@@ -4426,7 +4426,6 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 	}
 
 	if (node->type == BTRFS_SHARED_BLOCK_REF_KEY) {
-		BUG_ON(!(flags & BTRFS_BLOCK_FLAG_FULL_BACKREF));
 		btrfs_set_extent_inline_ref_type(leaf, iref,
 						 BTRFS_SHARED_BLOCK_REF_KEY);
 		btrfs_set_extent_inline_ref_offset(leaf, iref, ref->parent);
