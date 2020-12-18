@@ -6098,15 +6098,15 @@ static void io_req_drop_files(struct io_kiocb *req)
 	struct io_uring_task *tctx = req->task->io_uring;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ctx->inflight_lock, flags);
-	list_del(&req->inflight_entry);
-	if (atomic_read(&tctx->in_idle))
-		wake_up(&tctx->wait);
-	spin_unlock_irqrestore(&ctx->inflight_lock, flags);
-	req->flags &= ~REQ_F_INFLIGHT;
 	put_files_struct(req->work.identity->files);
 	put_nsproxy(req->work.identity->nsproxy);
+	spin_lock_irqsave(&ctx->inflight_lock, flags);
+	list_del(&req->inflight_entry);
+	spin_unlock_irqrestore(&ctx->inflight_lock, flags);
+	req->flags &= ~REQ_F_INFLIGHT;
 	req->work.flags &= ~IO_WQ_WORK_FILES;
+	if (atomic_read(&tctx->in_idle))
+		wake_up(&tctx->wait);
 }
 
 static void __io_clean_op(struct io_kiocb *req)
