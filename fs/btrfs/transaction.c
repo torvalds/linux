@@ -1433,6 +1433,23 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	record_root_in_trans(trans, src, 1);
 
 	/*
+	 * btrfs_qgroup_inherit relies on a consistent view of the usage for the
+	 * src root, so we must run the delayed refs here.
+	 *
+	 * However this isn't particularly fool proof, because there's no
+	 * synchronization keeping us from changing the tree after this point
+	 * before we do the qgroup_inherit, or even from making changes while
+	 * we're doing the qgroup_inherit.  But that's a problem for the future,
+	 * for now flush the delayed refs to narrow the race window where the
+	 * qgroup counters could end up wrong.
+	 */
+	ret = btrfs_run_delayed_refs(trans, (unsigned long)-1);
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
+		goto out;
+	}
+
+	/*
 	 * We are going to commit transaction, see btrfs_commit_transaction()
 	 * comment for reason locking tree_log_mutex
 	 */
@@ -1680,12 +1697,6 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	}
 
 	ret = btrfs_reloc_post_snapshot(trans, pending);
-	if (ret) {
-		btrfs_abort_transaction(trans, ret);
-		goto fail;
-	}
-
-	ret = btrfs_run_delayed_refs(trans, (unsigned long)-1);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
