@@ -1506,6 +1506,53 @@ static void fw_devlink_parse_fwtree(struct fwnode_handle *fwnode)
 }
 
 /**
+ * fw_devlink_relax_cycle - Convert cyclic links to SYNC_STATE_ONLY links
+ * @con: Device to check dependencies for.
+ * @sup: Device to check against.
+ *
+ * Check if @sup depends on @con or any device dependent on it (its child or
+ * its consumer etc).  When such a cyclic dependency is found, convert all
+ * device links created solely by fw_devlink into SYNC_STATE_ONLY device links.
+ * This is the equivalent of doing fw_devlink=permissive just between the
+ * devices in the cycle. We need to do this because, at this point, fw_devlink
+ * can't tell which of these dependencies is not a real dependency.
+ *
+ * Return 1 if a cycle is found. Otherwise, return 0.
+ */
+int fw_devlink_relax_cycle(struct device *con, void *sup)
+{
+	struct device_link *link;
+	int ret;
+
+	if (con == sup)
+		return 1;
+
+	ret = device_for_each_child(con, sup, fw_devlink_relax_cycle);
+	if (ret)
+		return ret;
+
+	list_for_each_entry(link, &con->links.consumers, s_node) {
+		if ((link->flags & ~DL_FLAG_INFERRED) ==
+		    (DL_FLAG_SYNC_STATE_ONLY | DL_FLAG_MANAGED))
+			continue;
+
+		if (!fw_devlink_relax_cycle(link->consumer, sup))
+			continue;
+
+		ret = 1;
+
+		if (!(link->flags & DL_FLAG_INFERRED))
+			continue;
+
+		pm_runtime_drop_link(link);
+		link->flags = DL_FLAG_MANAGED | FW_DEVLINK_FLAGS_PERMISSIVE;
+		dev_dbg(link->consumer, "Relaxing link with %s\n",
+			dev_name(link->supplier));
+	}
+	return ret;
+}
+
+/**
  * fw_devlink_create_devlink - Create a device link from a consumer to fwnode
  * @con - Consumer device for the device link
  * @sup_handle - fwnode handle of supplier
@@ -1536,8 +1583,17 @@ static int fw_devlink_create_devlink(struct device *con,
 		 * If this fails, it is due to cycles in device links.  Just
 		 * give up on this link and treat it as invalid.
 		 */
-		if (!device_link_add(con, sup_dev, flags))
+		if (!device_link_add(con, sup_dev, flags) &&
+		    !(flags & DL_FLAG_SYNC_STATE_ONLY)) {
+			dev_info(con, "Fixing up cyclic dependency with %s\n",
+				 dev_name(sup_dev));
+			device_links_write_lock();
+			fw_devlink_relax_cycle(con, sup_dev);
+			device_links_write_unlock();
+			device_link_add(con, sup_dev,
+					FW_DEVLINK_FLAGS_PERMISSIVE);
 			ret = -EINVAL;
+		}
 
 		goto out;
 	}
