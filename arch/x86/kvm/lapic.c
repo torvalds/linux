@@ -674,7 +674,7 @@ static bool pv_eoi_get_pending(struct kvm_vcpu *vcpu)
 			   (unsigned long long)vcpu->arch.pv_eoi.msr_val);
 		return false;
 	}
-	return val & 0x1;
+	return val & KVM_PV_EOI_ENABLED;
 }
 
 static void pv_eoi_set_pending(struct kvm_vcpu *vcpu)
