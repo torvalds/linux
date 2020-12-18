@@ -52,11 +52,20 @@ static const struct tegra_usb_soc_info tegra30_ehci_soc_info = {
 	.txfifothresh = 16,
 };
 
-static const struct tegra_usb_soc_info tegra_udc_soc_info = {
+static const struct tegra_usb_soc_info tegra20_udc_soc_info = {
 	.flags = CI_HDRC_REQUIRES_ALIGNED_DMA |
 		 CI_HDRC_OVERRIDE_PHY_CONTROL |
 		 CI_HDRC_SUPPORTS_RUNTIME_PM,
 	.dr_mode = USB_DR_MODE_UNKNOWN,
+	.txfifothresh = 10,
+};
+
+static const struct tegra_usb_soc_info tegra30_udc_soc_info = {
+	.flags = CI_HDRC_REQUIRES_ALIGNED_DMA |
+		 CI_HDRC_OVERRIDE_PHY_CONTROL |
+		 CI_HDRC_SUPPORTS_RUNTIME_PM,
+	.dr_mode = USB_DR_MODE_UNKNOWN,
+	.txfifothresh = 16,
 };
 
 static const struct of_device_id tegra_usb_of_match[] = {
@@ -68,16 +77,16 @@ static const struct of_device_id tegra_usb_of_match[] = {
 		.data = &tegra30_ehci_soc_info,
 	}, {
 		.compatible = "nvidia,tegra20-udc",
-		.data = &tegra_udc_soc_info,
+		.data = &tegra20_udc_soc_info,
 	}, {
 		.compatible = "nvidia,tegra30-udc",
-		.data = &tegra_udc_soc_info,
+		.data = &tegra30_udc_soc_info,
 	}, {
 		.compatible = "nvidia,tegra114-udc",
-		.data = &tegra_udc_soc_info,
+		.data = &tegra30_udc_soc_info,
 	}, {
 		.compatible = "nvidia,tegra124-udc",
-		.data = &tegra_udc_soc_info,
+		.data = &tegra30_udc_soc_info,
 	}, {
 		/* sentinel */
 	}
