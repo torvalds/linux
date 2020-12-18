@@ -185,7 +185,7 @@ static int mhi_fw_load_bhie(struct mhi_controller *mhi_cntrl,
 	void __iomem *base = mhi_cntrl->bhie;
 	struct device *dev = &mhi_cntrl->mhi_dev->dev;
 	rwlock_t *pm_lock = &mhi_cntrl->pm_lock;
-	u32 tx_status, sequence_id;
+	u32 tx_status;
 	int ret;
 
 	read_lock_bh(pm_lock);
@@ -194,9 +194,9 @@ static int mhi_fw_load_bhie(struct mhi_controller *mhi_cntrl,
 		return -EIO;
 	}
 
-	sequence_id = MHI_RANDOM_U32_NONZERO(BHIE_TXVECSTATUS_SEQNUM_BMSK);
+	mhi_cntrl->session_id = MHI_RANDOM_U32_NONZERO(BHIE_TXVECSTATUS_SEQNUM_BMSK);
 	dev_dbg(dev, "Starting image download via BHIe. Sequence ID: %u\n",
-		sequence_id);
+		mhi_cntrl->session_id);
 	mhi_write_reg(mhi_cntrl, base, BHIE_TXVECADDR_HIGH_OFFS,
 		      upper_32_bits(mhi_buf->dma_addr));
 
@@ -206,7 +206,7 @@ static int mhi_fw_load_bhie(struct mhi_controller *mhi_cntrl,
 	mhi_write_reg(mhi_cntrl, base, BHIE_TXVECSIZE_OFFS, mhi_buf->len);
 
 	ret = mhi_write_reg_field(mhi_cntrl, base, BHIE_TXVECDB_OFFS,
-				  BHIE_TXVECDB_SEQNUM_BMSK, sequence_id);
+				  BHIE_TXVECDB_SEQNUM_BMSK, mhi_cntrl->session_id);
 	read_unlock_bh(pm_lock);
 
 	if (ret)
