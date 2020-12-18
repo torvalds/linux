@@ -175,13 +175,6 @@ struct i2c_client; /* forward declaration */
 
 struct adp5589_gpio_platform_data {
 	int	gpio_start;	/* GPIO Chip base # */
-	int	(*setup)(struct i2c_client *client,
-				int gpio, unsigned ngpio,
-				void *context);
-	int	(*teardown)(struct i2c_client *client,
-				int gpio, unsigned ngpio,
-				void *context);
-	void	*context;
 };
 
 #endif
