@@ -3,6 +3,7 @@
  *  Copyright (C) 2004 Embedded Edge, LLC
  */
 
+#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
