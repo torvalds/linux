@@ -43,7 +43,9 @@ static inline void gfs2_log_pointers_init(struct gfs2_sbd *sdp,
 	if (++value == sdp->sd_jdesc->jd_blocks) {
 		value = 0;
 	}
-	sdp->sd_log_head = sdp->sd_log_tail = value;
+	sdp->sd_log_tail = value;
+	sdp->sd_log_flush_tail = value;
+	sdp->sd_log_head = value;
 }
 
 static inline void gfs2_ordered_add_inode(struct gfs2_inode *ip)

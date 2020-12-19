@@ -242,6 +242,28 @@ static void gfs2_ail1_start(struct gfs2_sbd *sdp)
 	return gfs2_ail1_flush(sdp, &wbc);
 }
 
+static void gfs2_log_update_flush_tail(struct gfs2_sbd *sdp)
+{
+	unsigned int new_flush_tail = sdp->sd_log_head;
+	struct gfs2_trans *tr;
+
+	if (!list_empty(&sdp->sd_ail1_list)) {
+		tr = list_last_entry(&sdp->sd_ail1_list,
+				     struct gfs2_trans, tr_list);
+		new_flush_tail = tr->tr_first;
+	}
+	sdp->sd_log_flush_tail = new_flush_tail;
+}
+
+static void gfs2_log_update_head(struct gfs2_sbd *sdp)
+{
+	unsigned int new_head = sdp->sd_log_flush_head;
+
+	if (sdp->sd_log_flush_tail == sdp->sd_log_head)
+		sdp->sd_log_flush_tail = new_head;
+	sdp->sd_log_head = new_head;
+}
+
 /**
  * gfs2_ail1_empty_one - Check whether or not a trans in the AIL has been synced
  * @sdp: the filesystem
@@ -317,6 +339,7 @@ static int gfs2_ail1_empty(struct gfs2_sbd *sdp, int max_revokes)
 		else
 			oldest_tr = 0;
 	}
+	gfs2_log_update_flush_tail(sdp);
 	ret = list_empty(&sdp->sd_ail1_list);
 	spin_unlock(&sdp->sd_ail_lock);
 
@@ -544,30 +567,14 @@ static unsigned int calc_reserved(struct gfs2_sbd *sdp)
 	return reserved;
 }
 
-static unsigned int current_tail(struct gfs2_sbd *sdp)
+static void log_pull_tail(struct gfs2_sbd *sdp)
 {
-	struct gfs2_trans *tr;
-	unsigned int tail;
+	unsigned int new_tail = sdp->sd_log_flush_tail;
+	unsigned int dist;
 
-	spin_lock(&sdp->sd_ail_lock);
-
-	if (list_empty(&sdp->sd_ail1_list)) {
-		tail = sdp->sd_log_head;
-	} else {
-		tr = list_last_entry(&sdp->sd_ail1_list, struct gfs2_trans,
-				tr_list);
-		tail = tr->tr_first;
-	}
-
-	spin_unlock(&sdp->sd_ail_lock);
-
-	return tail;
-}
-
-static void log_pull_tail(struct gfs2_sbd *sdp, unsigned int new_tail)
-{
-	unsigned int dist = log_distance(sdp, new_tail, sdp->sd_log_tail);
-
+	if (new_tail == sdp->sd_log_tail)
+		return;
+	dist = log_distance(sdp, new_tail, sdp->sd_log_tail);
 	ail2_empty(sdp, new_tail);
 	gfs2_log_release(sdp, dist);
 	sdp->sd_log_tail = new_tail;
@@ -822,26 +829,23 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 
 static void log_write_header(struct gfs2_sbd *sdp, u32 flags)
 {
-	unsigned int tail;
 	int op_flags = REQ_PREFLUSH | REQ_FUA | REQ_META | REQ_SYNC;
 	enum gfs2_freeze_state state = atomic_read(&sdp->sd_freeze_state);
 
 	gfs2_assert_withdraw(sdp, (state != SFS_FROZEN));
-	tail = current_tail(sdp);
 
 	if (test_bit(SDF_NOBARRIERS, &sdp->sd_flags)) {
 		gfs2_ordered_wait(sdp);
 		log_flush_wait(sdp);
 		op_flags = REQ_SYNC | REQ_META | REQ_PRIO;
 	}
-	sdp->sd_log_idle = (tail == sdp->sd_log_flush_head);
-	gfs2_write_log_header(sdp, sdp->sd_jdesc, sdp->sd_log_sequence++, tail,
-			      sdp->sd_log_flush_head, flags, op_flags);
+	sdp->sd_log_idle = (sdp->sd_log_flush_tail == sdp->sd_log_flush_head);
+	gfs2_write_log_header(sdp, sdp->sd_jdesc, sdp->sd_log_sequence++,
+			      sdp->sd_log_flush_tail, sdp->sd_log_flush_head,
+			      flags, op_flags);
 	gfs2_log_incr_head(sdp);
 	log_flush_wait(sdp);
-
-	if (sdp->sd_log_tail != tail)
-		log_pull_tail(sdp, tail);
+	log_pull_tail(sdp);
 }
 
 /**
@@ -991,7 +995,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 	if (sdp->sd_log_head != sdp->sd_log_flush_head) {
 		log_flush_wait(sdp);
 		log_write_header(sdp, flags);
-	} else if (sdp->sd_log_tail != current_tail(sdp) && !sdp->sd_log_idle) {
+	} else if (sdp->sd_log_tail != sdp->sd_log_flush_tail && !sdp->sd_log_idle) {
 		atomic_dec(&sdp->sd_log_blks_free); /* Adjust for unreserved buffer */
 		trace_gfs2_log_blocks(sdp, -1);
 		log_write_header(sdp, flags);
@@ -1001,7 +1005,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 	lops_after_commit(sdp, tr);
 
 	gfs2_log_lock(sdp);
-	sdp->sd_log_head = sdp->sd_log_flush_head;
+	gfs2_log_update_head(sdp);
 	sdp->sd_log_blks_reserved = 0;
 	sdp->sd_log_committed_revoke = 0;
 
@@ -1021,7 +1025,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 			atomic_dec(&sdp->sd_log_blks_free); /* Adjust for unreserved buffer */
 			trace_gfs2_log_blocks(sdp, -1);
 			log_write_header(sdp, flags);
-			sdp->sd_log_head = sdp->sd_log_flush_head;
+			gfs2_log_update_head(sdp);
 		}
 		if (flags & (GFS2_LOG_HEAD_FLUSH_SHUTDOWN |
 			     GFS2_LOG_HEAD_FLUSH_FREEZE))
@@ -1156,7 +1160,7 @@ static void gfs2_log_shutdown(struct gfs2_sbd *sdp)
 	gfs2_assert_warn(sdp, sdp->sd_log_head == sdp->sd_log_tail);
 	gfs2_assert_warn(sdp, list_empty(&sdp->sd_ail2_list));
 
-	sdp->sd_log_head = sdp->sd_log_flush_head;
+	gfs2_log_update_head(sdp);
 	sdp->sd_log_tail = sdp->sd_log_head;
 }
 
