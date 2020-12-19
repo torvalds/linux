@@ -2391,7 +2391,7 @@ static void __split_huge_page_tail(struct page *head, int tail,
 	 * Clone page flags before unfreezing refcount.
 	 *
 	 * After successful get_page_unless_zero() might follow flags change,
-	 * for exmaple lock_page() which set PG_waiters.
+	 * for example lock_page() which set PG_waiters.
 	 */
 	page_tail->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
 	page_tail->flags |= (head->flags &

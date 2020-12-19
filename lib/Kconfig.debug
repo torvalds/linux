@@ -2311,6 +2311,17 @@ config LINEAR_RANGES_TEST
 
 	  If unsure, say N.
 
+config CMDLINE_KUNIT_TEST
+	tristate "KUnit test for cmdline API"
+	depends on KUNIT
+	help
+	  This builds the cmdline API unit test.
+	  Tests the logic of API provided by cmdline.c.
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
+
 config BITS_TEST
 	tristate "KUnit test for bits.h"
 	depends on KUNIT
