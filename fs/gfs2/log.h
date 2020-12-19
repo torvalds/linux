@@ -78,6 +78,6 @@ extern void log_flush_wait(struct gfs2_sbd *sdp);
 extern int gfs2_logd(void *data);
 extern void gfs2_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd);
 extern void gfs2_glock_remove_revoke(struct gfs2_glock *gl);
-extern void gfs2_write_revokes(struct gfs2_sbd *sdp);
+extern void gfs2_flush_revokes(struct gfs2_sbd *sdp);
 
 #endif /* __LOG_DOT_H__ */
