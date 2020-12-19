@@ -8696,6 +8696,8 @@ static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 			ufshcd_wb_need_flush(hba));
 	}
 
+	flush_work(&hba->eeh_work);
+
 	if (req_dev_pwr_mode != hba->curr_dev_pwr_mode) {
 		if (!ufshcd_is_runtime_pm(pm_op))
 			/* ensure that bkops is disabled */
@@ -8707,8 +8709,6 @@ static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 				goto enable_gating;
 		}
 	}
-
-	flush_work(&hba->eeh_work);
 
 	/*
 	 * In the case of DeepSleep, the device is expected to remain powered
