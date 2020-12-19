@@ -265,6 +265,23 @@ static void gfs2_log_update_head(struct gfs2_sbd *sdp)
 }
 
 /**
+ * gfs2_ail_empty_tr - empty one of the ail lists of a transaction
+ */
+
+static void gfs2_ail_empty_tr(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
+			      struct list_head *head)
+{
+	struct gfs2_bufdata *bd;
+
+	while (!list_empty(head)) {
+		bd = list_first_entry(head, struct gfs2_bufdata,
+				      bd_ail_st_list);
+		gfs2_assert(sdp, bd->bd_tr == tr);
+		gfs2_remove_from_ail(bd);
+	}
+}
+
+/**
  * gfs2_ail1_empty_one - Check whether or not a trans in the AIL has been synced
  * @sdp: the filesystem
  * @tr: the transaction
@@ -371,23 +388,6 @@ static void gfs2_ail1_wait(struct gfs2_sbd *sdp)
 		}
 	}
 	spin_unlock(&sdp->sd_ail_lock);
-}
-
-/**
- * gfs2_ail_empty_tr - empty one of the ail lists for a transaction
- */
-
-static void gfs2_ail_empty_tr(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
-			      struct list_head *head)
-{
-	struct gfs2_bufdata *bd;
-
-	while (!list_empty(head)) {
-		bd = list_first_entry(head, struct gfs2_bufdata,
-				      bd_ail_st_list);
-		gfs2_assert(sdp, bd->bd_tr == tr);
-		gfs2_remove_from_ail(bd);
-	}
 }
 
 static void __ail2_empty(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
