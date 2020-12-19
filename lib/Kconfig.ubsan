@@ -160,7 +160,7 @@ config UBSAN_ENUM
 config UBSAN_ALIGNMENT
 	bool "Perform checking for misaligned pointer usage"
 	default !HAVE_EFFICIENT_UNALIGNED_ACCESS
-	depends on !UBSAN_TRAP && !COMPILE_TEST
+	depends on !UBSAN_TRAP
 	depends on $(cc-option,-fsanitize=alignment)
 	help
 	  This option enables the check of unaligned memory accesses.
@@ -170,6 +170,7 @@ config UBSAN_ALIGNMENT
 config UBSAN_SANITIZE_ALL
 	bool "Enable instrumentation for the entire kernel"
 	depends on ARCH_HAS_UBSAN_SANITIZE_ALL
+	depends on !COMPILE_TEST
 	default y
 	help
 	  This option activates instrumentation for the entire kernel.
