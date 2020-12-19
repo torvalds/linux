@@ -3209,11 +3209,10 @@ static int ab8500_charger_usb_notifier_call(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-#if defined(CONFIG_PM)
-static int ab8500_charger_resume(struct platform_device *pdev)
+static int __maybe_unused ab8500_charger_resume(struct device *dev)
 {
 	int ret;
-	struct ab8500_charger *di = platform_get_drvdata(pdev);
+	struct ab8500_charger *di = dev_get_drvdata(dev);
 
 	/*
 	 * For ABB revision 1.0 and 1.1 there is a bug in the watchdog
@@ -3247,10 +3246,9 @@ static int ab8500_charger_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static int ab8500_charger_suspend(struct platform_device *pdev,
-	pm_message_t state)
+static int __maybe_unused ab8500_charger_suspend(struct device *dev)
 {
-	struct ab8500_charger *di = platform_get_drvdata(pdev);
+	struct ab8500_charger *di = dev_get_drvdata(dev);
 
 	/* Cancel any pending jobs */
 	cancel_delayed_work(&di->check_hw_failure_work);
@@ -3272,10 +3270,6 @@ static int ab8500_charger_suspend(struct platform_device *pdev,
 
 	return 0;
 }
-#else
-#define ab8500_charger_suspend      NULL
-#define ab8500_charger_resume       NULL
-#endif
 
 static struct notifier_block charger_nb = {
 	.notifier_call = ab8500_external_charger_prepare,
@@ -3354,23 +3348,22 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	struct power_supply_config ac_psy_cfg = {}, usb_psy_cfg = {};
 	struct ab8500_charger *di;
 	int irq, i, charger_status, ret = 0, ch_stat;
+	struct device *dev = &pdev->dev;
 
-	di = devm_kzalloc(&pdev->dev, sizeof(*di), GFP_KERNEL);
-	if (!di) {
-		dev_err(&pdev->dev, "%s no mem for ab8500_charger\n", __func__);
+	di = devm_kzalloc(dev, sizeof(*di), GFP_KERNEL);
+	if (!di)
 		return -ENOMEM;
-	}
 
 	if (!plat) {
-		dev_err(&pdev->dev, "no battery management data supplied\n");
+		dev_err(dev, "no battery management data supplied\n");
 		return -EINVAL;
 	}
 	di->bm = plat;
 
 	if (np) {
-		ret = ab8500_bm_of_probe(&pdev->dev, np, di->bm);
+		ret = ab8500_bm_of_probe(dev, np, di->bm);
 		if (ret) {
-			dev_err(&pdev->dev, "failed to get battery information\n");
+			dev_err(dev, "failed to get battery information\n");
 			return ret;
 		}
 		di->autopower_cfg = of_property_read_bool(np, "autopower_cfg");
@@ -3378,40 +3371,33 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 		di->autopower_cfg = false;
 
 	/* get parent data */
-	di->dev = &pdev->dev;
+	di->dev = dev;
 	di->parent = dev_get_drvdata(pdev->dev.parent);
 
 	/* Get ADC channels */
-	di->adc_main_charger_v = devm_iio_channel_get(&pdev->dev,
-						      "main_charger_v");
+	di->adc_main_charger_v = devm_iio_channel_get(dev, "main_charger_v");
 	if (IS_ERR(di->adc_main_charger_v)) {
-		if (PTR_ERR(di->adc_main_charger_v) == -ENODEV)
-			return -EPROBE_DEFER;
-		dev_err(&pdev->dev, "failed to get ADC main charger voltage\n");
-		return PTR_ERR(di->adc_main_charger_v);
+		ret = dev_err_probe(dev, PTR_ERR(di->adc_main_charger_v),
+				    "failed to get ADC main charger voltage\n");
+		return ret;
 	}
-	di->adc_main_charger_c = devm_iio_channel_get(&pdev->dev,
-						      "main_charger_c");
+	di->adc_main_charger_c = devm_iio_channel_get(dev, "main_charger_c");
 	if (IS_ERR(di->adc_main_charger_c)) {
-		if (PTR_ERR(di->adc_main_charger_c) == -ENODEV)
-			return -EPROBE_DEFER;
-		dev_err(&pdev->dev, "failed to get ADC main charger current\n");
-		return PTR_ERR(di->adc_main_charger_c);
+		ret = dev_err_probe(dev, PTR_ERR(di->adc_main_charger_c),
+				    "failed to get ADC main charger current\n");
+		return ret;
 	}
-	di->adc_vbus_v = devm_iio_channel_get(&pdev->dev, "vbus_v");
+	di->adc_vbus_v = devm_iio_channel_get(dev, "vbus_v");
 	if (IS_ERR(di->adc_vbus_v)) {
-		if (PTR_ERR(di->adc_vbus_v) == -ENODEV)
-			return -EPROBE_DEFER;
-		dev_err(&pdev->dev, "failed to get ADC USB charger voltage\n");
-		return PTR_ERR(di->adc_vbus_v);
+		ret = dev_err_probe(dev, PTR_ERR(di->adc_vbus_v),
+				    "failed to get ADC USB charger voltage\n");
+		return ret;
 	}
-	di->adc_usb_charger_c = devm_iio_channel_get(&pdev->dev,
-						     "usb_charger_c");
+	di->adc_usb_charger_c = devm_iio_channel_get(dev, "usb_charger_c");
 	if (IS_ERR(di->adc_usb_charger_c)) {
-		if (PTR_ERR(di->adc_usb_charger_c) == -ENODEV)
-			return -EPROBE_DEFER;
-		dev_err(&pdev->dev, "failed to get ADC USB charger current\n");
-		return PTR_ERR(di->adc_usb_charger_c);
+		ret = dev_err_probe(dev, PTR_ERR(di->adc_usb_charger_c),
+				    "failed to get ADC USB charger current\n");
+		return ret;
 	}
 
 	/* initialize lock */
@@ -3467,7 +3453,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->charger_wq = alloc_ordered_workqueue("ab8500_charger_wq",
 						 WQ_MEM_RECLAIM);
 	if (di->charger_wq == NULL) {
-		dev_err(di->dev, "failed to create work queue\n");
+		dev_err(dev, "failed to create work queue\n");
 		return -ENOMEM;
 	}
 
@@ -3526,10 +3512,10 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	 * is a charger connected to avoid erroneous BTEMP_HIGH/LOW
 	 * interrupts during charging
 	 */
-	di->regu = devm_regulator_get(di->dev, "vddadc");
+	di->regu = devm_regulator_get(dev, "vddadc");
 	if (IS_ERR(di->regu)) {
 		ret = PTR_ERR(di->regu);
-		dev_err(di->dev, "failed to get vddadc regulator\n");
+		dev_err(dev, "failed to get vddadc regulator\n");
 		goto free_charger_wq;
 	}
 
@@ -3537,17 +3523,17 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	/* Initialize OVV, and other registers */
 	ret = ab8500_charger_init_hw_registers(di);
 	if (ret) {
-		dev_err(di->dev, "failed to initialize ABB registers\n");
+		dev_err(dev, "failed to initialize ABB registers\n");
 		goto free_charger_wq;
 	}
 
 	/* Register AC charger class */
 	if (di->ac_chg.enabled) {
-		di->ac_chg.psy = power_supply_register(di->dev,
+		di->ac_chg.psy = power_supply_register(dev,
 						       &ab8500_ac_chg_desc,
 						       &ac_psy_cfg);
 		if (IS_ERR(di->ac_chg.psy)) {
-			dev_err(di->dev, "failed to register AC charger\n");
+			dev_err(dev, "failed to register AC charger\n");
 			ret = PTR_ERR(di->ac_chg.psy);
 			goto free_charger_wq;
 		}
@@ -3555,11 +3541,11 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 
 	/* Register USB charger class */
 	if (di->usb_chg.enabled) {
-		di->usb_chg.psy = power_supply_register(di->dev,
+		di->usb_chg.psy = power_supply_register(dev,
 							&ab8500_usb_chg_desc,
 							&usb_psy_cfg);
 		if (IS_ERR(di->usb_chg.psy)) {
-			dev_err(di->dev, "failed to register USB charger\n");
+			dev_err(dev, "failed to register USB charger\n");
 			ret = PTR_ERR(di->usb_chg.psy);
 			goto free_ac;
 		}
@@ -3567,14 +3553,14 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 
 	di->usb_phy = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (IS_ERR_OR_NULL(di->usb_phy)) {
-		dev_err(di->dev, "failed to get usb transceiver\n");
+		dev_err(dev, "failed to get usb transceiver\n");
 		ret = -EINVAL;
 		goto free_usb;
 	}
 	di->nb.notifier_call = ab8500_charger_usb_notifier_call;
 	ret = usb_register_notifier(di->usb_phy, &di->nb);
 	if (ret) {
-		dev_err(di->dev, "failed to register usb notifier\n");
+		dev_err(dev, "failed to register usb notifier\n");
 		goto put_usb_phy;
 	}
 
@@ -3603,15 +3589,15 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 		}
 
 		ret = request_threaded_irq(irq, NULL, ab8500_charger_irq[i].isr,
-			IRQF_SHARED | IRQF_NO_SUSPEND,
+			IRQF_SHARED | IRQF_NO_SUSPEND | IRQF_ONESHOT,
 			ab8500_charger_irq[i].name, di);
 
 		if (ret != 0) {
-			dev_err(di->dev, "failed to request %s IRQ %d: %d\n"
+			dev_err(dev, "failed to request %s IRQ %d: %d\n"
 				, ab8500_charger_irq[i].name, irq, ret);
 			goto free_irq;
 		}
-		dev_dbg(di->dev, "Requested %s IRQ %d: %d\n",
+		dev_dbg(dev, "Requested %s IRQ %d: %d\n",
 			ab8500_charger_irq[i].name, irq, ret);
 	}
 
@@ -3659,6 +3645,8 @@ free_charger_wq:
 	return ret;
 }
 
+static SIMPLE_DEV_PM_OPS(ab8500_charger_pm_ops, ab8500_charger_suspend, ab8500_charger_resume);
+
 static const struct of_device_id ab8500_charger_match[] = {
 	{ .compatible = "stericsson,ab8500-charger", },
 	{ },
@@ -3667,11 +3655,10 @@ static const struct of_device_id ab8500_charger_match[] = {
 static struct platform_driver ab8500_charger_driver = {
 	.probe = ab8500_charger_probe,
 	.remove = ab8500_charger_remove,
-	.suspend = ab8500_charger_suspend,
-	.resume = ab8500_charger_resume,
 	.driver = {
 		.name = "ab8500-charger",
 		.of_match_table = ab8500_charger_match,
+		.pm = &ab8500_charger_pm_ops,
 	},
 };
 

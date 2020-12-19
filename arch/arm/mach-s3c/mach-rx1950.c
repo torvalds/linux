@@ -206,6 +206,15 @@ static const struct s3c_adc_bat_thresh bat_lut_acin[] = {
 	{ .volt = 3820, .cur = 0, .level = 0},
 };
 
+static struct gpiod_lookup_table rx1950_bat_gpio_table = {
+	.dev_id = "s3c-adc-battery",
+	.table = {
+		/* Charge status S3C2410_GPF(3) */
+		GPIO_LOOKUP("GPIOF", 3, "charge-status", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static int rx1950_bat_init(void)
 {
 	int ret;
@@ -331,7 +340,6 @@ static struct s3c_adc_bat_pdata rx1950_bat_cfg = {
 	.exit = rx1950_bat_exit,
 	.enable_charger = rx1950_enable_charger,
 	.disable_charger = rx1950_disable_charger,
-	.gpio_charge_finished = S3C2410_GPF(3),
 	.lut_noac = bat_lut_noac,
 	.lut_noac_cnt = ARRAY_SIZE(bat_lut_noac),
 	.lut_acin = bat_lut_acin,
@@ -840,6 +848,7 @@ static void __init rx1950_init_machine(void)
 
 	pwm_add_table(rx1950_pwm_lookup, ARRAY_SIZE(rx1950_pwm_lookup));
 	gpiod_add_lookup_table(&rx1950_audio_gpio_table);
+	gpiod_add_lookup_table(&rx1950_bat_gpio_table);
 	/* Configure the I2S pins (GPE0...GPE4) in correct mode */
 	s3c_gpio_cfgall_range(S3C2410_GPE(0), 5, S3C_GPIO_SFN(2),
 			      S3C_GPIO_PULL_NONE);
