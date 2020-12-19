@@ -25,33 +25,6 @@
 #define NUM_GPR 16
 #define NUM_GPR_DW (NUM_GPR * 2) /* each GPR is 2 dwords */
 
-static struct i915_vma *create_scratch(struct intel_gt *gt)
-{
-	struct drm_i915_gem_object *obj;
-	struct i915_vma *vma;
-	int err;
-
-	obj = i915_gem_object_create_internal(gt->i915, PAGE_SIZE);
-	if (IS_ERR(obj))
-		return ERR_CAST(obj);
-
-	i915_gem_object_set_cache_coherency(obj, I915_CACHING_CACHED);
-
-	vma = i915_vma_instance(obj, &gt->ggtt->vm, NULL);
-	if (IS_ERR(vma)) {
-		i915_gem_object_put(obj);
-		return vma;
-	}
-
-	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL);
-	if (err) {
-		i915_gem_object_put(obj);
-		return ERR_PTR(err);
-	}
-
-	return vma;
-}
-
 static bool is_active(struct i915_request *rq)
 {
 	if (i915_request_is_active(rq))
@@ -4167,7 +4140,8 @@ static int preserved_virtual_engine(struct intel_gt *gt,
 	int err = 0;
 	u32 *cs;
 
-	scratch = create_scratch(siblings[0]->gt);
+	scratch = __vm_create_scratch_for_read(&siblings[0]->gt->ggtt->vm,
+					       PAGE_SIZE);
 	if (IS_ERR(scratch))
 		return PTR_ERR(scratch);
 

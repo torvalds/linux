@@ -486,10 +486,11 @@ static int check_dirty_whitelist(struct intel_context *ce)
 	struct intel_engine_cs *engine = ce->engine;
 	struct i915_vma *scratch;
 	struct i915_vma *batch;
-	int err = 0, i, v;
+	int err = 0, i, v, sz;
 	u32 *cs, *results;
 
-	scratch = create_scratch(ce->vm, 2 * ARRAY_SIZE(values) + 1);
+	sz = (2 * ARRAY_SIZE(values) + 1) * sizeof(u32);
+	scratch = __vm_create_scratch_for_read(ce->vm, sz);
 	if (IS_ERR(scratch))
 		return PTR_ERR(scratch);
 
@@ -1028,13 +1029,15 @@ static int live_isolated_whitelist(void *arg)
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(client); i++) {
-		client[i].scratch[0] = create_scratch(gt->vm, 1024);
+		client[i].scratch[0] =
+			__vm_create_scratch_for_read(gt->vm, 4096);
 		if (IS_ERR(client[i].scratch[0])) {
 			err = PTR_ERR(client[i].scratch[0]);
 			goto err;
 		}
 
-		client[i].scratch[1] = create_scratch(gt->vm, 1024);
+		client[i].scratch[1] =
+			__vm_create_scratch_for_read(gt->vm, 4096);
 		if (IS_ERR(client[i].scratch[1])) {
 			err = PTR_ERR(client[i].scratch[1]);
 			i915_vma_unpin_and_release(&client[i].scratch[0], 0);

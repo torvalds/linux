@@ -57,33 +57,6 @@ static int request_add_spin(struct i915_request *rq, struct igt_spinner *spin)
 	return err;
 }
 
-static struct i915_vma *create_scratch(struct intel_gt *gt)
-{
-	struct drm_i915_gem_object *obj;
-	struct i915_vma *vma;
-	int err;
-
-	obj = i915_gem_object_create_internal(gt->i915, PAGE_SIZE);
-	if (IS_ERR(obj))
-		return ERR_CAST(obj);
-
-	i915_gem_object_set_cache_coherency(obj, I915_CACHING_CACHED);
-
-	vma = i915_vma_instance(obj, &gt->ggtt->vm, NULL);
-	if (IS_ERR(vma)) {
-		i915_gem_object_put(obj);
-		return vma;
-	}
-
-	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL);
-	if (err) {
-		i915_gem_object_put(obj);
-		return ERR_PTR(err);
-	}
-
-	return vma;
-}
-
 static int live_mocs_init(struct live_mocs *arg, struct intel_gt *gt)
 {
 	struct drm_i915_mocs_table table;
@@ -102,7 +75,7 @@ static int live_mocs_init(struct live_mocs *arg, struct intel_gt *gt)
 	if (flags & (HAS_GLOBAL_MOCS | HAS_ENGINE_MOCS))
 		arg->mocs = table;
 
-	arg->scratch = create_scratch(gt);
+	arg->scratch = __vm_create_scratch_for_read(&gt->ggtt->vm, PAGE_SIZE);
 	if (IS_ERR(arg->scratch))
 		return PTR_ERR(arg->scratch);
 

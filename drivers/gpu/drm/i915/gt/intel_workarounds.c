@@ -2086,39 +2086,6 @@ void intel_engine_apply_workarounds(struct intel_engine_cs *engine)
 	wa_list_apply(engine->uncore, &engine->wa_list);
 }
 
-static struct i915_vma *
-create_scratch(struct i915_address_space *vm, int count)
-{
-	struct drm_i915_gem_object *obj;
-	struct i915_vma *vma;
-	unsigned int size;
-	int err;
-
-	size = round_up(count * sizeof(u32), PAGE_SIZE);
-	obj = i915_gem_object_create_internal(vm->i915, size);
-	if (IS_ERR(obj))
-		return ERR_CAST(obj);
-
-	i915_gem_object_set_cache_coherency(obj, I915_CACHE_LLC);
-
-	vma = i915_vma_instance(obj, vm, NULL);
-	if (IS_ERR(vma)) {
-		err = PTR_ERR(vma);
-		goto err_obj;
-	}
-
-	err = i915_vma_pin(vma, 0, 0,
-			   i915_vma_is_ggtt(vma) ? PIN_GLOBAL : PIN_USER);
-	if (err)
-		goto err_obj;
-
-	return vma;
-
-err_obj:
-	i915_gem_object_put(obj);
-	return ERR_PTR(err);
-}
-
 struct mcr_range {
 	u32 start;
 	u32 end;
@@ -2221,7 +2188,8 @@ static int engine_wa_list_verify(struct intel_context *ce,
 	if (!wal->count)
 		return 0;
 
-	vma = create_scratch(&ce->engine->gt->ggtt->vm, wal->count);
+	vma = __vm_create_scratch_for_read(&ce->engine->gt->ggtt->vm,
+					   wal->count * sizeof(u32));
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
