@@ -1338,7 +1338,7 @@ static void rcu_torture_reader_do_mbchk(long myid, struct rcu_torture *rtp,
 					struct torture_random_state *trsp)
 {
 	unsigned long loops;
-	int noc = num_online_cpus();
+	int noc = torture_num_online_cpus();
 	int rdrchked;
 	int rdrchker;
 	struct rcu_torture_reader_check *rtrcp; // Me.
@@ -1658,7 +1658,7 @@ rcu_torture_reader(void *arg)
 			torture_hrtimeout_us(500, 1000, &rand);
 			lastsleep = jiffies + 10;
 		}
-		while (num_online_cpus() < mynumonline && !torture_must_stop())
+		while (torture_num_online_cpus() < mynumonline && !torture_must_stop())
 			schedule_timeout_interruptible(HZ / 5);
 		stutter_wait("rcu_torture_reader");
 	} while (!torture_must_stop());

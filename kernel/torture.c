@@ -175,6 +175,19 @@ static unsigned long sum_online;
 static int min_online = -1;
 static int max_online;
 
+static int torture_online_cpus = NR_CPUS;
+
+/*
+ * Some torture testing leverages confusion as to the number of online
+ * CPUs.  This function returns the torture-testing view of this number,
+ * which allows torture tests to load-balance appropriately.
+ */
+int torture_num_online_cpus(void)
+{
+	return READ_ONCE(torture_online_cpus);
+}
+EXPORT_SYMBOL_GPL(torture_num_online_cpus);
+
 /*
  * Attempt to take a CPU offline.  Return false if the CPU is already
  * offline or if it is not subject to CPU-hotplug operations.  The
@@ -229,6 +242,8 @@ bool torture_offline(int cpu, long *n_offl_attempts, long *n_offl_successes,
 			*min_offl = delta;
 		if (*max_offl < delta)
 			*max_offl = delta;
+		WRITE_ONCE(torture_online_cpus, torture_online_cpus - 1);
+		WARN_ON_ONCE(torture_online_cpus <= 0);
 	}
 
 	return true;
@@ -285,6 +300,7 @@ bool torture_online(int cpu, long *n_onl_attempts, long *n_onl_successes,
 			*min_onl = delta;
 		if (*max_onl < delta)
 			*max_onl = delta;
+		WRITE_ONCE(torture_online_cpus, torture_online_cpus + 1);
 	}
 
 	return true;

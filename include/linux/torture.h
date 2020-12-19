@@ -48,6 +48,11 @@ do {										\
 void verbose_torout_sleep(void);
 
 /* Definitions for online/offline exerciser. */
+#ifdef CONFIG_HOTPLUG_CPU
+int torture_num_online_cpus(void);
+#else /* #ifdef CONFIG_HOTPLUG_CPU */
+static inline int torture_num_online_cpus(void) { return 1; }
+#endif /* #else #ifdef CONFIG_HOTPLUG_CPU */
 typedef void torture_ofl_func(void);
 bool torture_offline(int cpu, long *n_onl_attempts, long *n_onl_successes,
 		     unsigned long *sum_offl, int *min_onl, int *max_onl);
