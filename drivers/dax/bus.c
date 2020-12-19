@@ -772,22 +772,14 @@ static int alloc_dev_dax_range(struct dev_dax *dev_dax, u64 start,
 		return 0;
 	}
 
-	ranges = krealloc(dev_dax->ranges, sizeof(*ranges)
-			* (dev_dax->nr_range + 1), GFP_KERNEL);
-	if (!ranges)
+	alloc = __request_region(res, start, size, dev_name(dev), 0);
+	if (!alloc)
 		return -ENOMEM;
 
-	alloc = __request_region(res, start, size, dev_name(dev), 0);
-	if (!alloc) {
-		/*
-		 * If this was an empty set of ranges nothing else
-		 * will release @ranges, so do it now.
-		 */
-		if (!dev_dax->nr_range) {
-			kfree(ranges);
-			ranges = NULL;
-		}
-		dev_dax->ranges = ranges;
+	ranges = krealloc(dev_dax->ranges, sizeof(*ranges)
+			* (dev_dax->nr_range + 1), GFP_KERNEL);
+	if (!ranges) {
+		__release_region(res, alloc->start, resource_size(alloc));
 		return -ENOMEM;
 	}
 
