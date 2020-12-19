@@ -964,8 +964,8 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 	struct dc *dc = kzalloc(sizeof(*dc), GFP_KERNEL);
 	unsigned int full_pipe_count;
 
-	if (NULL == dc)
-		goto alloc_fail;
+	if (!dc)
+		return NULL;
 
 	if (init_params->dce_environment == DCE_ENV_VIRTUAL_HW) {
 		if (false == dc_construct_ctx(dc, init_params)) {
@@ -1009,8 +1009,6 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 
 construct_fail:
 	kfree(dc);
-
-alloc_fail:
 	return NULL;
 }
 
