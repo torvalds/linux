@@ -104,6 +104,7 @@ gt-y += \
 	gt/intel_gt_requests.o \
 	gt/intel_gtt.o \
 	gt/intel_llc.o \
+	gt/intel_lrc.o \
 	gt/intel_mocs.o \
 	gt/intel_ppgtt.o \
 	gt/intel_rc6.o \

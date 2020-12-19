@@ -11,7 +11,7 @@
 #include "gt/intel_execlists_submission.h" /* XXX */
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
-#include "gt/intel_lrc_reg.h"
+#include "gt/intel_lrc.h"
 #include "gt/intel_ring.h"
 
 #include "intel_guc_submission.h"
@@ -402,6 +402,28 @@ cancel_port_requests(struct intel_engine_execlists * const execlists)
 		memset(execlists->inflight, 0, sizeof(execlists->inflight));
 }
 
+static void guc_reset_state(struct intel_context *ce,
+			    struct intel_engine_cs *engine,
+			    u32 head,
+			    bool scrub)
+{
+	GEM_BUG_ON(!intel_context_is_pinned(ce));
+
+	/*
+	 * We want a simple context + ring to execute the breadcrumb update.
+	 * We cannot rely on the context being intact across the GPU hang,
+	 * so clear it and rebuild just what we need for the breadcrumb.
+	 * All pending requests for this context will be zapped, and any
+	 * future request will be after userspace has had the opportunity
+	 * to recreate its own state.
+	 */
+	if (scrub)
+		lrc_init_regs(ce, engine, true);
+
+	/* Rerun the request; its payload has been neutered (if guilty). */
+	lrc_update_regs(ce, engine, head);
+}
+
 static void guc_reset_rewind(struct intel_engine_cs *engine, bool stalled)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -421,7 +443,7 @@ static void guc_reset_rewind(struct intel_engine_cs *engine, bool stalled)
 		stalled = false;
 
 	__i915_request_reset(rq, stalled);
-	intel_lr_context_reset(engine, rq->context, rq->head, stalled);
+	guc_reset_state(rq->context, engine, rq->head, stalled);
 
 out_unlock:
 	spin_unlock_irqrestore(&engine->active.lock, flags);

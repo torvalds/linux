@@ -201,7 +201,7 @@
 #include "gt/intel_execlists_submission.h"
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_gt.h"
-#include "gt/intel_lrc_reg.h"
+#include "gt/intel_lrc.h"
 #include "gt/intel_ring.h"
 
 #include "i915_drv.h"

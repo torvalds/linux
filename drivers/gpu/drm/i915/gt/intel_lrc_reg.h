@@ -9,6 +9,8 @@
 
 #include <linux/types.h>
 
+#define CTX_DESC_FORCE_RESTORE BIT_ULL(2)
+
 /* GEN8 to GEN12 Reg State Context */
 #define CTX_CONTEXT_CONTROL		(0x02 + 1)
 #define CTX_RING_HEAD			(0x04 + 1)
