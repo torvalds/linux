@@ -292,6 +292,26 @@ bool torture_online(int cpu, long *n_onl_attempts, long *n_onl_successes,
 EXPORT_SYMBOL_GPL(torture_online);
 
 /*
+ * Get everything online at the beginning and ends of tests.
+ */
+static void torture_online_all(char *phase)
+{
+	int cpu;
+	int ret;
+
+	for_each_possible_cpu(cpu) {
+		if (cpu_online(cpu))
+			continue;
+		ret = add_cpu(cpu);
+		if (ret && verbose) {
+			pr_alert("%s" TORTURE_FLAG
+				 "%s: %s online %d: errno %d\n",
+				 __func__, phase, torture_type, cpu, ret);
+		}
+	}
+}
+
+/*
  * Execute random CPU-hotplug operations at the interval specified
  * by the onoff_interval.
  */
@@ -301,25 +321,12 @@ torture_onoff(void *arg)
 	int cpu;
 	int maxcpu = -1;
 	DEFINE_TORTURE_RANDOM(rand);
-	int ret;
 
 	VERBOSE_TOROUT_STRING("torture_onoff task started");
 	for_each_online_cpu(cpu)
 		maxcpu = cpu;
 	WARN_ON(maxcpu < 0);
-	if (!IS_MODULE(CONFIG_TORTURE_TEST)) {
-		for_each_possible_cpu(cpu) {
-			if (cpu_online(cpu))
-				continue;
-			ret = add_cpu(cpu);
-			if (ret && verbose) {
-				pr_alert("%s" TORTURE_FLAG
-					 "%s: Initial online %d: errno %d\n",
-					 __func__, torture_type, cpu, ret);
-			}
-		}
-	}
-
+	torture_online_all("Initial");
 	if (maxcpu == 0) {
 		VERBOSE_TOROUT_STRING("Only one CPU, so CPU-hotplug testing is disabled");
 		goto stop;
@@ -347,6 +354,7 @@ torture_onoff(void *arg)
 
 stop:
 	torture_kthread_stopping("torture_onoff");
+	torture_online_all("Final");
 	return 0;
 }
 
