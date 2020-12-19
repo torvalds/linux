@@ -136,6 +136,7 @@ static int cyttsp5_i2c_probe(struct i2c_client *client,
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_CYTTSP5_DEVICETREE_SUPPORT
 	const struct of_device_id *match;
 #endif
+	struct cyttsp5_platform_data *pdata;
 	int rc;
 
 	printk("*****cyttsp5_i2c_probe start \n");
@@ -153,7 +154,26 @@ static int cyttsp5_i2c_probe(struct i2c_client *client,
 			return rc;
 	}
 #endif
-
+	pdata = dev_get_platdata(dev);
+	if (pdata && pdata->core_pdata) {
+		char buf[32];
+		/* Call platform init function */
+		if (pdata->core_pdata->init) {
+			dev_info(dev, "%s: Init HW\n", __func__);
+			rc = pdata->core_pdata->init(pdata->core_pdata, 1, dev);
+			if (rc < 0) {
+				dev_err(dev, "%s: HW Init fail %d\n", __func__, rc);
+				return -EIO;
+			}
+		} else {
+			dev_info(dev, "%s: No HW INIT function\n", __func__);
+		}
+		rc = cyttsp5_i2c_read_default(&client->dev, buf, 16);
+		if (rc < 0) {
+			dev_err(dev, "%s, read_default rc=%d\n", __func__, rc);
+			return -ENODEV;
+		}
+	}
 	rc = cyttsp5_probe(&cyttsp5_i2c_bus_ops, &client->dev, client->irq,
 			  CY_I2C_DATA_SIZE);
 
