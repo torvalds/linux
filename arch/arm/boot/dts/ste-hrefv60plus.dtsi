@@ -194,12 +194,6 @@
 			cd-gpios  = <&gpio2 31 GPIO_ACTIVE_HIGH>; // 95
 		};
 
-		vmmci: regulator-gpio {
-			gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
-			enable-gpio = <&gpio5 9 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
-
 		pinctrl {
 			/*
 			 * Set this up using hogs, as time goes by and as seems fit, these
@@ -223,16 +217,6 @@
 					default_hrefv60_cfg1 {
 						pins = "GPIO95_E8";
 						ste,config = <&gpio_in_pu>;
-					};
-					/* VMMCI level-shifter enable */
-					default_hrefv60_cfg2 {
-						pins = "GPIO169_D22";
-						ste,config = <&gpio_out_hi>;
-					};
-					/* VMMCI level-shifter voltage select */
-					default_hrefv60_cfg3 {
-						pins = "GPIO5_AG6";
-						ste,config = <&gpio_out_hi>;
 					};
 				};
 			};
