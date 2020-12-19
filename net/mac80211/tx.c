@@ -2120,6 +2120,10 @@ bool ieee80211_parse_tx_radiotap(struct sk_buff *skb,
 			if (mcs_known & IEEE80211_RADIOTAP_MCS_HAVE_BW &&
 			    mcs_bw == IEEE80211_RADIOTAP_MCS_BW_40)
 				rate_flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
+
+			if (mcs_known & IEEE80211_RADIOTAP_MCS_HAVE_FEC &&
+			    mcs_flags & IEEE80211_RADIOTAP_MCS_FEC_LDPC)
+				info->flags |= IEEE80211_TX_CTL_LDPC;
 			break;
 
 		case IEEE80211_RADIOTAP_VHT:
