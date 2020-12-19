@@ -56,6 +56,9 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/timer.h>
 
+EXPORT_TRACEPOINT_SYMBOL_GPL(hrtimer_expire_entry);
+EXPORT_TRACEPOINT_SYMBOL_GPL(hrtimer_expire_exit);
+
 __visible u64 jiffies_64 __cacheline_aligned_in_smp = INITIAL_JIFFIES;
 
 EXPORT_SYMBOL(jiffies_64);
