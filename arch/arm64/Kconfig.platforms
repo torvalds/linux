@@ -257,7 +257,6 @@ config ARCH_TEGRA
 	select ARM_GIC_PM
 	select CLKSRC_MMIO
 	select TIMER_OF
-	select GENERIC_CLOCKEVENTS
 	select GPIOLIB
 	select PINCTRL
 	select PM

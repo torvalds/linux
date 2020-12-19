@@ -77,7 +77,7 @@ static void atari_heartbeat(int on);
 #endif
 
 /* atari specific timer functions (in time.c) */
-extern void atari_sched_init(irq_handler_t);
+extern void atari_sched_init(void);
 extern int atari_mste_hwclk (int, struct rtc_time *);
 extern int atari_tt_hwclk (int, struct rtc_time *);
 

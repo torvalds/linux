@@ -583,19 +583,17 @@ static u32 clk_total, clk_offset;
 
 static irqreturn_t via_timer_handler(int irq, void *dev_id)
 {
-	irq_handler_t timer_routine = dev_id;
-
 	clk_total += VIA_TIMER_CYCLES;
 	clk_offset = 0;
-	timer_routine(0, NULL);
+	legacy_timer_tick(1);
 
 	return IRQ_HANDLED;
 }
 
-void __init via_init_clock(irq_handler_t timer_routine)
+void __init via_init_clock(void)
 {
 	if (request_irq(IRQ_MAC_TIMER_1, via_timer_handler, IRQF_TIMER, "timer",
-			timer_routine)) {
+			NULL)) {
 		pr_err("Couldn't register %s interrupt\n", "timer");
 		return;
 	}
