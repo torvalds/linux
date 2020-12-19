@@ -1319,17 +1319,19 @@ xfs_filemap_pfn_mkwrite(
 	return __xfs_filemap_fault(vmf, PE_SIZE_PTE, true);
 }
 
-static void
+static vm_fault_t
 xfs_filemap_map_pages(
 	struct vm_fault		*vmf,
 	pgoff_t			start_pgoff,
 	pgoff_t			end_pgoff)
 {
 	struct inode		*inode = file_inode(vmf->vma->vm_file);
+	vm_fault_t ret;
 
 	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
-	filemap_map_pages(vmf, start_pgoff, end_pgoff);
+	ret = filemap_map_pages(vmf, start_pgoff, end_pgoff);
 	xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+	return ret;
 }
 
 static const struct vm_operations_struct xfs_file_vm_ops = {
