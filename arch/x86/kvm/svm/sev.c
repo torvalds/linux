@@ -2001,7 +2001,7 @@ void sev_es_vcpu_load(struct vcpu_svm *svm, int cpu)
 	 * of which one step is to perform a VMLOAD. Since hardware does not
 	 * perform a VMSAVE on VMRUN, the host savearea must be updated.
 	 */
-	asm volatile(__ex("vmsave") : : "a" (__sme_page_pa(sd->save_area)) : "memory");
+	asm volatile(__ex("vmsave %0") : : "a" (__sme_page_pa(sd->save_area)) : "memory");
 
 	/*
 	 * Certain MSRs are restored on VMEXIT, only save ones that aren't
