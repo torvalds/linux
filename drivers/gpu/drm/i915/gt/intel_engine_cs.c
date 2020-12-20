@@ -1190,17 +1190,13 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 	return idle;
 }
 
-void intel_engine_flush_submission(struct intel_engine_cs *engine)
+void __intel_engine_flush_submission(struct intel_engine_cs *engine, bool sync)
 {
 	struct tasklet_struct *t = &engine->execlists.tasklet;
 
 	if (!t->func)
 		return;
 
-	/* Synchronise and wait for the tasklet on another CPU */
-	tasklet_kill(t);
-
-	/* Having cancelled the tasklet, ensure that is run */
 	local_bh_disable();
 	if (tasklet_trylock(t)) {
 		/* Must wait for any GPU reset in progress. */
@@ -1209,6 +1205,10 @@ void intel_engine_flush_submission(struct intel_engine_cs *engine)
 		tasklet_unlock(t);
 	}
 	local_bh_enable();
+
+	/* Synchronise and wait for the tasklet on another CPU */
+	if (sync)
+		tasklet_unlock_wait(t);
 }
 
 /**

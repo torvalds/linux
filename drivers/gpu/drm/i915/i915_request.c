@@ -1825,7 +1825,7 @@ long i915_request_wait(struct i915_request *rq,
 	 * for unhappy HW.
 	 */
 	if (i915_request_is_ready(rq))
-		intel_engine_flush_submission(rq->engine);
+		__intel_engine_flush_submission(rq->engine, false);
 
 	for (;;) {
 		set_current_state(state);
