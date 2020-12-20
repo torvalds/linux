@@ -1512,17 +1512,14 @@ int transport_handle_cdb_direct(
 {
 	sense_reason_t ret;
 
+	might_sleep();
+
 	if (!cmd->se_lun) {
 		dump_stack();
 		pr_err("cmd->se_lun is NULL\n");
 		return -EINVAL;
 	}
-	if (in_interrupt()) {
-		dump_stack();
-		pr_err("transport_generic_handle_cdb cannot be called"
-				" from interrupt context\n");
-		return -EINVAL;
-	}
+
 	/*
 	 * Set TRANSPORT_NEW_CMD state and CMD_T_ACTIVE to ensure that
 	 * outstanding descriptors are handled correctly during shutdown via
