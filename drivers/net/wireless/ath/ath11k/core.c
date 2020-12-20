@@ -185,7 +185,7 @@ int ath11k_core_suspend(struct ath11k_base *ab)
 	ath11k_hif_ce_irq_disable(ab);
 
 	ret = ath11k_hif_suspend(ab);
-	if (!ret) {
+	if (ret) {
 		ath11k_warn(ab, "failed to suspend hif: %d\n", ret);
 		return ret;
 	}
