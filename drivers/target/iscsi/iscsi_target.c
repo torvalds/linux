@@ -4400,9 +4400,9 @@ int iscsit_close_session(struct iscsi_session *sess, bool can_sleep)
 	 * restart the timer and exit.
 	 */
 	if (can_sleep) {
-		iscsit_check_session_usage_count(sess);
+		iscsit_check_session_usage_count(sess, can_sleep);
 	} else {
-		if (iscsit_check_session_usage_count(sess) == 2) {
+		if (iscsit_check_session_usage_count(sess, can_sleep) == 2) {
 			atomic_set(&sess->session_logout, 0);
 			iscsit_start_time2retain_handler(sess);
 			return 0;
