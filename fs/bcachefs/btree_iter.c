@@ -2124,9 +2124,12 @@ static struct btree_iter *__btree_trans_get_iter(struct btree_trans *trans,
 	iter->flags &= ~BTREE_ITER_USER_FLAGS;
 	iter->flags |= flags & BTREE_ITER_USER_FLAGS;
 
-	if (iter->flags & BTREE_ITER_INTENT)
-		bch2_btree_iter_upgrade(iter, 1);
-	else
+	if (iter->flags & BTREE_ITER_INTENT) {
+		if (!iter->locks_want) {
+			__bch2_btree_iter_unlock(iter);
+			iter->locks_want = 1;
+		}
+	} else
 		bch2_btree_iter_downgrade(iter);
 
 	BUG_ON(iter->btree_id != btree_id);
