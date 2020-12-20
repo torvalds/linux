@@ -3300,7 +3300,7 @@ video_usercopy(struct file *file, unsigned int orig_cmd, unsigned long arg,
 			parg = sbuf;
 		} else {
 			/* too big to allocate from stack */
-			mbuf = kvmalloc(ioc_size, GFP_KERNEL);
+			mbuf = kmalloc(ioc_size, GFP_KERNEL);
 			if (NULL == mbuf)
 				return -ENOMEM;
 			parg = mbuf;
@@ -3377,7 +3377,7 @@ out_array_args:
 		err = -EFAULT;
 out:
 	kvfree(array_buf);
-	kvfree(mbuf);
+	kfree(mbuf);
 	return err;
 }
 
