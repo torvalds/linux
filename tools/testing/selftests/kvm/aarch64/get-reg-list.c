@@ -42,12 +42,16 @@
 #define for_each_reg(i)								\
 	for ((i) = 0; (i) < reg_list->n; ++(i))
 
+#define for_each_reg_filtered(i)						\
+	for_each_reg(i)								\
+		if (!filter_reg(reg_list->reg[i]))
+
 #define for_each_missing_reg(i)							\
 	for ((i) = 0; (i) < blessed_n; ++(i))					\
 		if (!find_reg(reg_list->reg, reg_list->n, blessed_reg[i]))
 
 #define for_each_new_reg(i)							\
-	for ((i) = 0; (i) < reg_list->n; ++(i))					\
+	for_each_reg_filtered(i)						\
 		if (!find_reg(blessed_reg, blessed_n, reg_list->reg[i]))
 
 
@@ -56,6 +60,18 @@ static struct kvm_reg_list *reg_list;
 static __u64 base_regs[], vregs[], sve_regs[], rejects_set[];
 static __u64 base_regs_n, vregs_n, sve_regs_n, rejects_set_n;
 static __u64 *blessed_reg, blessed_n;
+
+static bool filter_reg(__u64 reg)
+{
+	/*
+	 * DEMUX register presence depends on the host's CLIDR_EL1.
+	 * This means there's no set of them that we can bless.
+	 */
+	if ((reg & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_DEMUX)
+		return true;
+
+	return false;
+}
 
 static bool find_reg(__u64 regs[], __u64 nr_regs, __u64 reg)
 {
@@ -325,7 +341,7 @@ int main(int ac, char **av)
 	struct kvm_vcpu_init init = { .target = -1, };
 	int new_regs = 0, missing_regs = 0, i;
 	int failed_get = 0, failed_set = 0, failed_reject = 0;
-	bool print_list = false, fixup_core_regs = false;
+	bool print_list = false, print_filtered = false, fixup_core_regs = false;
 	struct kvm_vm *vm;
 	__u64 *vec_regs;
 
@@ -336,8 +352,10 @@ int main(int ac, char **av)
 			fixup_core_regs = true;
 		else if (strcmp(av[i], "--list") == 0)
 			print_list = true;
+		else if (strcmp(av[i], "--list-filtered") == 0)
+			print_filtered = true;
 		else
-			fprintf(stderr, "Ignoring unknown option: %s\n", av[i]);
+			TEST_FAIL("Unknown option: %s\n", av[i]);
 	}
 
 	vm = vm_create(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES, O_RDWR);
@@ -350,10 +368,14 @@ int main(int ac, char **av)
 	if (fixup_core_regs)
 		core_reg_fixup();
 
-	if (print_list) {
+	if (print_list || print_filtered) {
 		putchar('\n');
-		for_each_reg(i)
-			print_reg(reg_list->reg[i]);
+		for_each_reg(i) {
+			__u64 id = reg_list->reg[i];
+			if ((print_list && !filter_reg(id)) ||
+			    (print_filtered && filter_reg(id)))
+				print_reg(id);
+		}
 		putchar('\n');
 		return 0;
 	}
@@ -458,6 +480,8 @@ int main(int ac, char **av)
 /*
  * The current blessed list was primed with the output of kernel version
  * v4.15 with --core-reg-fixup and then later updated with new registers.
+ *
+ * The blessed list is up to date with kernel version v5.10-rc5
  */
 static __u64 base_regs[] = {
 	KVM_REG_ARM64 | KVM_REG_SIZE_U64 | KVM_REG_ARM_CORE | KVM_REG_ARM_CORE_REG(regs.regs[0]),
@@ -736,9 +760,6 @@ static __u64 base_regs[] = {
 	ARM64_SYS_REG(3, 4, 3, 0, 0),	/* DACR32_EL2 */
 	ARM64_SYS_REG(3, 4, 5, 0, 1),	/* IFSR32_EL2 */
 	ARM64_SYS_REG(3, 4, 5, 3, 0),	/* FPEXC32_EL2 */
-	KVM_REG_ARM64 | KVM_REG_SIZE_U32 | KVM_REG_ARM_DEMUX | KVM_REG_ARM_DEMUX_ID_CCSIDR | 0,
-	KVM_REG_ARM64 | KVM_REG_SIZE_U32 | KVM_REG_ARM_DEMUX | KVM_REG_ARM_DEMUX_ID_CCSIDR | 1,
-	KVM_REG_ARM64 | KVM_REG_SIZE_U32 | KVM_REG_ARM_DEMUX | KVM_REG_ARM_DEMUX_ID_CCSIDR | 2,
 };
 static __u64 base_regs_n = ARRAY_SIZE(base_regs);
 

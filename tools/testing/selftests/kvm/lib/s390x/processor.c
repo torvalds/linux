@@ -5,8 +5,6 @@
  * Copyright (C) 2019, Red Hat, Inc.
  */
 
-#define _GNU_SOURCE /* for program_invocation_name */
-
 #include "processor.h"
 #include "kvm_util.h"
 #include "../kvm_util_internal.h"
@@ -158,26 +156,6 @@ void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 		return;
 
 	virt_dump_region(stream, vm, indent, vm->pgd);
-}
-
-struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
-				 void *guest_code)
-{
-	/*
-	 * The additional amount of pages required for the page tables is:
-	 * 1 * n / 256 + 4 * (n / 256) / 2048 + 4 * (n / 256) / 2048^2 + ...
-	 * which is definitely smaller than (n / 256) * 2.
-	 */
-	uint64_t extra_pg_pages = extra_mem_pages / 256 * 2;
-	struct kvm_vm *vm;
-
-	vm = vm_create(VM_MODE_DEFAULT,
-		       DEFAULT_GUEST_PHY_PAGES + extra_pg_pages, O_RDWR);
-
-	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);
-	vm_vcpu_add_default(vm, vcpuid, guest_code);
-
-	return vm;
 }
 
 void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
