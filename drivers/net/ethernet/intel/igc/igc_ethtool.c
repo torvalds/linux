@@ -131,16 +131,21 @@ static void igc_ethtool_get_drvinfo(struct net_device *netdev,
 	struct igc_adapter *adapter = netdev_priv(netdev);
 	struct igc_hw *hw = &adapter->hw;
 	u16 nvm_version = 0;
+	u16 gphy_version;
 
 	strscpy(drvinfo->driver, igc_driver_name, sizeof(drvinfo->driver));
 
 	/* NVM image version is reported as firmware version for i225 device */
 	hw->nvm.ops.read(hw, IGC_NVM_DEV_STARTER, 1, &nvm_version);
 
+	/* gPHY firmware version is reported as PHY FW version */
+	gphy_version = igc_read_phy_fw_version(hw);
+
 	scnprintf(adapter->fw_version,
 		  sizeof(adapter->fw_version),
-		  "%x",
-		  nvm_version);
+		  "%x:%x",
+		  nvm_version,
+		  gphy_version);
 
 	strscpy(drvinfo->fw_version, adapter->fw_version,
 		sizeof(drvinfo->fw_version));
