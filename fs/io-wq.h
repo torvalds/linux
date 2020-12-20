@@ -129,8 +129,6 @@ static inline bool io_wq_is_hashed(struct io_wq_work *work)
 	return work->flags & IO_WQ_WORK_HASHED;
 }
 
-void io_wq_cancel_all(struct io_wq *wq);
-
 typedef bool (work_cancel_fn)(struct io_wq_work *, void *);
 
 enum io_wq_cancel io_wq_cancel_cb(struct io_wq *wq, work_cancel_fn *cancel,
