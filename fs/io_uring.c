@@ -8989,9 +8989,9 @@ void __io_uring_task_cancel(void)
 		if (inflight != tctx_inflight(tctx))
 			continue;
 		schedule();
+		finish_wait(&tctx->wait, &wait);
 	} while (1);
 
-	finish_wait(&tctx->wait, &wait);
 	atomic_dec(&tctx->in_idle);
 }
 
