@@ -8801,9 +8801,9 @@ static void __io_uring_cancel_task_requests(struct io_ring_ctx *ctx,
 
 		ret |= io_poll_remove_all(ctx, task, NULL);
 		ret |= io_kill_timeouts(ctx, task, NULL);
+		ret |= io_run_task_work();
 		if (!ret)
 			break;
-		io_run_task_work();
 		cond_resched();
 	}
 }
