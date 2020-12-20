@@ -526,7 +526,7 @@ int evlist__add_bpf_sb_event(struct evlist *evlist, struct perf_env *env)
 	 */
 	attr.wakeup_watermark = 1;
 
-	return perf_evlist__add_sb_event(evlist, &attr, bpf_event__sb_cb, env);
+	return evlist__add_sb_event(evlist, &attr, bpf_event__sb_cb, env);
 }
 
 void bpf_event__print_bpf_prog_info(struct bpf_prog_info *info,
