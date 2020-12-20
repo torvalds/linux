@@ -8637,6 +8637,13 @@ static void io_ring_exit_work(struct work_struct *work)
 	io_ring_ctx_free(ctx);
 }
 
+static bool io_cancel_ctx_cb(struct io_wq_work *work, void *data)
+{
+	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
+
+	return req->ctx == data;
+}
+
 static void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 {
 	mutex_lock(&ctx->uring_lock);
@@ -8651,7 +8658,7 @@ static void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 	io_poll_remove_all(ctx, NULL, NULL);
 
 	if (ctx->io_wq)
-		io_wq_cancel_all(ctx->io_wq);
+		io_wq_cancel_cb(ctx->io_wq, io_cancel_ctx_cb, ctx, true);
 
 	/* if we failed setting up the ctx, we might not have any rings */
 	io_iopoll_try_reap_events(ctx);
