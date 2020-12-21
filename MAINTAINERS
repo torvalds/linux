@@ -11818,6 +11818,7 @@ M:	Maximilian Luz <luzmaximilian@gmail.com>
 S:	Maintained
 W:	https://github.com/linux-surface/surface-aggregator-module
 C:	irc://chat.freenode.net/##linux-surface
+F:	Documentation/driver-api/surface_aggregator/
 F:	drivers/platform/surface/aggregator/
 F:	include/linux/surface_aggregator/
 
