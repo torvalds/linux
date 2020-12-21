@@ -1140,16 +1140,24 @@ void __ceph_remove_cap(struct ceph_cap *cap, bool queue_release)
 {
 	struct ceph_mds_session *session = cap->session;
 	struct ceph_inode_info *ci = cap->ci;
-	struct ceph_mds_client *mdsc =
-		ceph_sb_to_client(ci->vfs_inode.i_sb)->mdsc;
+	struct ceph_mds_client *mdsc;
 	int removed = 0;
 
+	/* 'ci' being NULL means the remove have already occurred */
+	if (!ci) {
+		dout("%s: cap inode is NULL\n", __func__);
+		return;
+	}
+
 	dout("__ceph_remove_cap %p from %p\n", cap, &ci->vfs_inode);
+
+	mdsc = ceph_inode_to_client(&ci->vfs_inode)->mdsc;
 
 	/* remove from inode's cap rbtree, and clear auth cap */
 	rb_erase(&cap->ci_node, &ci->i_caps);
 	if (ci->i_auth_cap == cap) {
-		WARN_ON_ONCE(!list_empty(&ci->i_dirty_item));
+		WARN_ON_ONCE(!list_empty(&ci->i_dirty_item) &&
+			     !mdsc->fsc->blocklisted);
 		ci->i_auth_cap = NULL;
 	}
 
@@ -2746,7 +2754,7 @@ again:
 			goto out_unlock;
 		}
 
-		if (READ_ONCE(mdsc->fsc->mount_state) == CEPH_MOUNT_SHUTDOWN) {
+		if (READ_ONCE(mdsc->fsc->mount_state) >= CEPH_MOUNT_SHUTDOWN) {
 			dout("get_cap_refs %p forced umount\n", inode);
 			ret = -EIO;
 			goto out_unlock;
@@ -4027,15 +4035,13 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	}
 
 	if (msg_version >= 8) {
-		u64 flush_tid;
-		u32 caller_uid, caller_gid;
 		u32 pool_ns_len;
 
 		/* version >= 6 */
-		ceph_decode_64_safe(&p, end, flush_tid, bad);
+		ceph_decode_skip_64(&p, end, bad);	// flush_tid
 		/* version >= 7 */
-		ceph_decode_32_safe(&p, end, caller_uid, bad);
-		ceph_decode_32_safe(&p, end, caller_gid, bad);
+		ceph_decode_skip_32(&p, end, bad);	// caller_uid
+		ceph_decode_skip_32(&p, end, bad);	// caller_gid
 		/* version >= 8 */
 		ceph_decode_32_safe(&p, end, pool_ns_len, bad);
 		if (pool_ns_len > 0) {
@@ -4058,9 +4064,8 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	}
 
 	if (msg_version >= 11) {
-		u32 flags;
 		/* version >= 10 */
-		ceph_decode_32_safe(&p, end, flags, bad);
+		ceph_decode_skip_32(&p, end, bad); // flags
 		/* version >= 11 */
 		extra_info.dirstat_valid = true;
 		ceph_decode_64_safe(&p, end, extra_info.nfiles, bad);

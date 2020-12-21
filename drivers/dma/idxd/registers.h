@@ -5,6 +5,7 @@
 
 /* PCI Config */
 #define PCI_DEVICE_ID_INTEL_DSA_SPR0	0x0b25
+#define PCI_DEVICE_ID_INTEL_IAX_SPR0	0x0cfe
 
 #define IDXD_MMIO_BAR		0
 #define IDXD_WQ_BAR		2
@@ -47,7 +48,7 @@ union wq_cap_reg {
 		u64 rsvd:20;
 		u64 shared_mode:1;
 		u64 dedicated_mode:1;
-		u64 rsvd2:1;
+		u64 wq_ats_support:1;
 		u64 priority:1;
 		u64 occupancy:1;
 		u64 occupancy_int:1;
@@ -101,6 +102,8 @@ union offsets_reg {
 	};
 	u64 bits[2];
 } __packed;
+
+#define IDXD_TABLE_MULT			0x100
 
 #define IDXD_GENCFG_OFFSET		0x80
 union gencfg_reg {
@@ -301,7 +304,8 @@ union wqcfg {
 		/* bytes 8-11 */
 		u32 mode:1;	/* shared or dedicated */
 		u32 bof:1;	/* block on fault */
-		u32 rsvd2:2;
+		u32 wq_ats_disable:1;
+		u32 rsvd2:1;
 		u32 priority:4;
 		u32 pasid:20;
 		u32 pasid_en:1;
@@ -336,6 +340,8 @@ union wqcfg {
 	u32 bits[8];
 } __packed;
 
+#define WQCFG_PASID_IDX                2
+
 /*
  * This macro calculates the offset into the WQCFG register
  * idxd - struct idxd *
@@ -353,5 +359,23 @@ union wqcfg {
 })
 
 #define WQCFG_STRIDES(_idxd_dev) ((_idxd_dev)->wqcfg_size / sizeof(u32))
+
+#define GRPCFG_SIZE		64
+#define GRPWQCFG_STRIDES	4
+
+/*
+ * This macro calculates the offset into the GRPCFG register
+ * idxd - struct idxd *
+ * n - wq id
+ * ofs - the index of the 32b dword for the config register
+ *
+ * The WQCFG register block is divided into groups per each wq. The n index
+ * allows us to move to the register group that's for that particular wq.
+ * Each register is 32bits. The ofs gives us the number of register to access.
+ */
+#define GRPWQCFG_OFFSET(idxd_dev, n, ofs) ((idxd_dev)->grpcfg_offset +\
+					   (n) * GRPCFG_SIZE + sizeof(u64) * (ofs))
+#define GRPENGCFG_OFFSET(idxd_dev, n) ((idxd_dev)->grpcfg_offset + (n) * GRPCFG_SIZE + 32)
+#define GRPFLGCFG_OFFSET(idxd_dev, n) ((idxd_dev)->grpcfg_offset + (n) * GRPCFG_SIZE + 40)
 
 #endif

@@ -16,6 +16,7 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	struct ceph_metric_read_latency *read;
 	struct ceph_metric_write_latency *write;
 	struct ceph_metric_metadata_latency *meta;
+	struct ceph_metric_dlease *dlease;
 	struct ceph_client_metric *m = &mdsc->metric;
 	u64 nr_caps = atomic64_read(&m->total_caps);
 	struct ceph_msg *msg;
@@ -25,7 +26,7 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	s32 len;
 
 	len = sizeof(*head) + sizeof(*cap) + sizeof(*read) + sizeof(*write)
-	      + sizeof(*meta);
+	      + sizeof(*meta) + sizeof(*dlease);
 
 	msg = ceph_msg_new(CEPH_MSG_CLIENT_METRICS, len, GFP_NOFS, true);
 	if (!msg) {
@@ -42,8 +43,8 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	cap->ver = 1;
 	cap->compat = 1;
 	cap->data_len = cpu_to_le32(sizeof(*cap) - 10);
-	cap->hit = cpu_to_le64(percpu_counter_sum(&mdsc->metric.i_caps_hit));
-	cap->mis = cpu_to_le64(percpu_counter_sum(&mdsc->metric.i_caps_mis));
+	cap->hit = cpu_to_le64(percpu_counter_sum(&m->i_caps_hit));
+	cap->mis = cpu_to_le64(percpu_counter_sum(&m->i_caps_mis));
 	cap->total = cpu_to_le64(nr_caps);
 	items++;
 
@@ -81,6 +82,17 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	jiffies_to_timespec64(sum, &ts);
 	meta->sec = cpu_to_le32(ts.tv_sec);
 	meta->nsec = cpu_to_le32(ts.tv_nsec);
+	items++;
+
+	/* encode the dentry lease metric */
+	dlease = (struct ceph_metric_dlease *)(meta + 1);
+	dlease->type = cpu_to_le32(CLIENT_METRIC_TYPE_DENTRY_LEASE);
+	dlease->ver = 1;
+	dlease->compat = 1;
+	dlease->data_len = cpu_to_le32(sizeof(*dlease) - 10);
+	dlease->hit = cpu_to_le64(percpu_counter_sum(&m->d_lease_hit));
+	dlease->mis = cpu_to_le64(percpu_counter_sum(&m->d_lease_mis));
+	dlease->total = cpu_to_le64(atomic64_read(&m->total_dentries));
 	items++;
 
 	put_unaligned_le32(items, &head->num);

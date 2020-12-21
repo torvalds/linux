@@ -573,6 +573,7 @@ static int dmatest_func(void *data)
 	struct dmatest_params	*params;
 	struct dma_chan		*chan;
 	struct dma_device	*dev;
+	struct device		*dma_dev;
 	unsigned int		error_count;
 	unsigned int		failed_tests = 0;
 	unsigned int		total_tests = 0;
@@ -606,6 +607,8 @@ static int dmatest_func(void *data)
 	params = &info->params;
 	chan = thread->chan;
 	dev = chan->device;
+	dma_dev = dmaengine_get_dma_device(chan);
+
 	src = &thread->src;
 	dst = &thread->dst;
 	if (thread->type == DMA_MEMCPY) {
@@ -730,7 +733,7 @@ static int dmatest_func(void *data)
 			filltime = ktime_add(filltime, diff);
 		}
 
-		um = dmaengine_get_unmap_data(dev->dev, src->cnt + dst->cnt,
+		um = dmaengine_get_unmap_data(dma_dev, src->cnt + dst->cnt,
 					      GFP_KERNEL);
 		if (!um) {
 			failed_tests++;
@@ -745,10 +748,10 @@ static int dmatest_func(void *data)
 			struct page *pg = virt_to_page(buf);
 			unsigned long pg_off = offset_in_page(buf);
 
-			um->addr[i] = dma_map_page(dev->dev, pg, pg_off,
+			um->addr[i] = dma_map_page(dma_dev, pg, pg_off,
 						   um->len, DMA_TO_DEVICE);
 			srcs[i] = um->addr[i] + src->off;
-			ret = dma_mapping_error(dev->dev, um->addr[i]);
+			ret = dma_mapping_error(dma_dev, um->addr[i]);
 			if (ret) {
 				result("src mapping error", total_tests,
 				       src->off, dst->off, len, ret);
@@ -763,9 +766,9 @@ static int dmatest_func(void *data)
 			struct page *pg = virt_to_page(buf);
 			unsigned long pg_off = offset_in_page(buf);
 
-			dsts[i] = dma_map_page(dev->dev, pg, pg_off, um->len,
+			dsts[i] = dma_map_page(dma_dev, pg, pg_off, um->len,
 					       DMA_BIDIRECTIONAL);
-			ret = dma_mapping_error(dev->dev, dsts[i]);
+			ret = dma_mapping_error(dma_dev, dsts[i]);
 			if (ret) {
 				result("dst mapping error", total_tests,
 				       src->off, dst->off, len, ret);
