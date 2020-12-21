@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <linux/sched/task.h>
 #include <linux/kmsg_dump.h>
+#include <linux/suspend.h>
 
 #include <asm/processor.h>
 #include <asm/sections.h>
@@ -377,3 +378,69 @@ void *text_poke(void *addr, const void *opcode, size_t len)
 void text_poke_sync(void)
 {
 }
+
+void uml_pm_wake(void)
+{
+	pm_system_wakeup();
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int um_suspend_valid(suspend_state_t state)
+{
+	return state == PM_SUSPEND_MEM;
+}
+
+static int um_suspend_prepare(void)
+{
+	um_irqs_suspend();
+	return 0;
+}
+
+static int um_suspend_enter(suspend_state_t state)
+{
+	if (WARN_ON(state != PM_SUSPEND_MEM))
+		return -EINVAL;
+
+	/*
+	 * This is identical to the idle sleep, but we've just
+	 * (during suspend) turned off all interrupt sources
+	 * except for the ones we want, so now we can only wake
+	 * up on something we actually want to wake up on. All
+	 * timing has also been suspended.
+	 */
+	um_idle_sleep();
+	return 0;
+}
+
+static void um_suspend_finish(void)
+{
+	um_irqs_resume();
+}
+
+const struct platform_suspend_ops um_suspend_ops = {
+	.valid = um_suspend_valid,
+	.prepare = um_suspend_prepare,
+	.enter = um_suspend_enter,
+	.finish = um_suspend_finish,
+};
+
+static int init_pm_wake_signal(void)
+{
+	/*
+	 * In external time-travel mode we can't use signals to wake up
+	 * since that would mess with the scheduling. We'll have to do
+	 * some additional work to support wakeup on virtio devices or
+	 * similar, perhaps implementing a fake RTC controller that can
+	 * trigger wakeup (and request the appropriate scheduling from
+	 * the external scheduler when going to suspend.)
+	 */
+	if (time_travel_mode != TT_MODE_EXTERNAL)
+		register_pm_wake_signal();
+
+	suspend_set_ops(&um_suspend_ops);
+
+	return 0;
+}
+
+late_initcall(init_pm_wake_signal);
+#endif

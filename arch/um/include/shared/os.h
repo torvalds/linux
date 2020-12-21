@@ -233,6 +233,7 @@ extern void timer_set_signal_handler(void);
 extern void set_sigstack(void *sig_stack, int size);
 extern void remove_sigstack(void);
 extern void set_handler(int sig);
+extern void send_sigio_to_self(void);
 extern int change_sig(int signal, int on);
 extern void block_signals(void);
 extern void unblock_signals(void);
@@ -241,6 +242,7 @@ extern int set_signals(int enable);
 extern int set_signals_trace(int enable);
 extern int os_is_signal_stack(void);
 extern void deliver_alarm(void);
+extern void register_pm_wake_signal(void);
 
 /* util.c */
 extern void stack_protections(unsigned long address);
@@ -256,7 +258,7 @@ extern void os_warn(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
 /* time.c */
-extern void os_idle_sleep(unsigned long long nsecs);
+extern void os_idle_sleep(void);
 extern int os_timer_create(void);
 extern int os_timer_set_interval(unsigned long long nsecs);
 extern int os_timer_one_shot(unsigned long long nsecs);
@@ -299,19 +301,29 @@ extern void reboot_skas(void);
 extern int os_waiting_for_events_epoll(void);
 extern void *os_epoll_get_data_pointer(int index);
 extern int os_epoll_triggered(int index, int events);
-extern int os_event_mask(int irq_type);
+extern int os_event_mask(enum um_irq_type irq_type);
 extern int os_setup_epoll(void);
 extern int os_add_epoll_fd(int events, int fd, void *data);
 extern int os_mod_epoll_fd(int events, int fd, void *data);
 extern int os_del_epoll_fd(int fd);
 extern void os_set_ioignore(void);
 extern void os_close_epoll_fd(void);
+extern void um_irqs_suspend(void);
+extern void um_irqs_resume(void);
 
 /* sigio.c */
 extern int add_sigio_fd(int fd);
 extern int ignore_sigio_fd(int fd);
-extern void maybe_sigio_broken(int fd, int read);
-extern void sigio_broken(int fd, int read);
+extern void maybe_sigio_broken(int fd);
+extern void sigio_broken(int fd);
+/*
+ * unlocked versions for IRQ controller code.
+ *
+ * This is safe because it's used at suspend/resume and nothing
+ * else is running.
+ */
+extern int __add_sigio_fd(int fd);
+extern int __ignore_sigio_fd(int fd);
 
 /* prctl.c */
 extern int os_arch_prctl(int pid, int option, unsigned long *arg2);
@@ -329,5 +341,8 @@ extern void block_signals_trace(void);
 extern void unblock_signals_trace(void);
 extern void um_trace_signals_on(void);
 extern void um_trace_signals_off(void);
+
+/* time-travel */
+extern void deliver_time_travel_irqs(void);
 
 #endif
