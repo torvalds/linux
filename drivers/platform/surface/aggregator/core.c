@@ -22,6 +22,8 @@
 #include <linux/sysfs.h>
 
 #include <linux/surface_aggregator/controller.h>
+
+#include "bus.h"
 #include "controller.h"
 
 #define CREATE_TRACE_POINTS
@@ -739,6 +741,9 @@ static void ssam_serial_hub_remove(struct serdev_device *serdev)
 	sysfs_remove_group(&serdev->dev.kobj, &ssam_sam_group);
 	ssam_controller_lock(ctrl);
 
+	/* Remove all client devices. */
+	ssam_controller_remove_clients(ctrl);
+
 	/* Act as if suspending to silence events. */
 	status = ssam_ctrl_notif_display_off(ctrl);
 	if (status) {
@@ -791,6 +796,10 @@ static int __init ssam_core_init(void)
 {
 	int status;
 
+	status = ssam_bus_register();
+	if (status)
+		goto err_bus;
+
 	status = ssh_ctrl_packet_cache_init();
 	if (status)
 		goto err_cpkg;
@@ -810,6 +819,8 @@ err_register:
 err_evitem:
 	ssh_ctrl_packet_cache_destroy();
 err_cpkg:
+	ssam_bus_unregister();
+err_bus:
 	return status;
 }
 module_init(ssam_core_init);
@@ -819,6 +830,7 @@ static void __exit ssam_core_exit(void)
 	serdev_device_driver_unregister(&ssam_serial_hub);
 	ssam_event_item_cache_destroy();
 	ssh_ctrl_packet_cache_destroy();
+	ssam_bus_unregister();
 }
 module_exit(ssam_core_exit);
 

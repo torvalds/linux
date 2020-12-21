@@ -11,3 +11,7 @@ surface_aggregator-objs += ssh_parser.o
 surface_aggregator-objs += ssh_packet_layer.o
 surface_aggregator-objs += ssh_request_layer.o
 surface_aggregator-objs += controller.o
+
+ifeq ($(CONFIG_SURFACE_AGGREGATOR_BUS),y)
+surface_aggregator-objs += bus.o
+endif

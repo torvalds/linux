@@ -41,6 +41,18 @@ menuconfig SURFACE_AGGREGATOR
 	  module, y if you want to build it into the kernel and n if you don't
 	  want it at all.
 
+config SURFACE_AGGREGATOR_BUS
+	bool "Surface System Aggregator Module Bus"
+	depends on SURFACE_AGGREGATOR
+	default y
+	help
+	  Expands the Surface System Aggregator Module (SSAM) core driver by
+	  providing a dedicated bus and client-device type.
+
+	  This bus and device type are intended to provide and simplify support
+	  for non-platform and non-ACPI SSAM devices, i.e. SSAM devices that are
+	  not auto-detectable via the conventional means (e.g. ACPI).
+
 config SURFACE_AGGREGATOR_ERROR_INJECTION
 	bool "Surface System Aggregator Module Error Injection Capabilities"
 	depends on SURFACE_AGGREGATOR
