@@ -48,6 +48,10 @@
 	};
 };
 
+&rkisp {
+	rockchip,iq-feature = /bits/ 64 <0x3FBF7FE67FF>;
+};
+
 &usbdrd_dwc3 {
 	phys = <&u2phy0_otg>;
 	phy-names = "usb2-phy";
