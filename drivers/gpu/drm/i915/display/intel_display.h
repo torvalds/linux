@@ -647,6 +647,13 @@ bool
 intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
 				    uint64_t modifier);
 
+int intel_plane_compute_gtt(struct intel_plane_state *plane_state);
+u32 intel_plane_compute_aligned_offset(int *x, int *y,
+				       const struct intel_plane_state *state,
+				       int color_plane);
+int intel_plane_pin_fb(struct intel_plane_state *plane_state);
+void intel_plane_unpin_fb(struct intel_plane_state *old_plane_state);
+
 /* modesetting */
 void intel_modeset_init_hw(struct drm_i915_private *i915);
 int intel_modeset_init_noirq(struct drm_i915_private *i915);
