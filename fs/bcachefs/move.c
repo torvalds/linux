@@ -611,6 +611,12 @@ peek:
 		ret2 = bch2_move_extent(&trans, ctxt, wp, io_opts, btree_id, k,
 					data_cmd, data_opts);
 		if (ret2) {
+			if (ret2 == -EINTR) {
+				bch2_trans_reset(&trans, 0);
+				bch2_trans_cond_resched(&trans);
+				continue;
+			}
+
 			if (ret2 == -ENOMEM) {
 				/* memory allocation failure, wait for some IO to finish */
 				bch2_move_ctxt_wait_for_io(ctxt);

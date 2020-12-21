@@ -2202,7 +2202,11 @@ get_bio:
 
 	bch2_increment_clock(c, bio_sectors(&rbio->bio), READ);
 
-	if (pick.ptr.cached)
+	/*
+	 * If it's being moved internally, we don't want to flag it as a cache
+	 * hit:
+	 */
+	if (pick.ptr.cached && !(flags & BCH_READ_NODECODE))
 		bch2_bucket_io_time_reset(trans, pick.ptr.dev,
 			PTR_BUCKET_NR(ca, &pick.ptr), READ);
 
