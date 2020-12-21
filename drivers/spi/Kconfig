@@ -843,6 +843,15 @@ config SPI_MXS
 	help
 	  SPI driver for Freescale MXS devices.
 
+config SPI_TEGRA210_QUAD
+	tristate "NVIDIA Tegra QSPI Controller"
+	depends on ARCH_TEGRA || COMPILE_TEST
+	depends on RESET_CONTROLLER
+	help
+	  QSPI driver for NVIDIA Tegra QSPI Controller interface. This
+	  controller is different from the SPI controller and is available
+	  on Tegra SoCs starting from Tegra210.
+
 config SPI_TEGRA114
 	tristate "NVIDIA Tegra114 SPI Controller"
 	depends on (ARCH_TEGRA && TEGRA20_APB_DMA) || COMPILE_TEST
