@@ -780,7 +780,32 @@ static struct serdev_device_driver ssam_serial_hub = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
-module_serdev_device_driver(ssam_serial_hub);
+
+
+/* -- Module setup. --------------------------------------------------------- */
+
+static int __init ssam_core_init(void)
+{
+	int status;
+
+	status = ssh_ctrl_packet_cache_init();
+	if (status)
+		return status;
+
+	status = serdev_device_driver_register(&ssam_serial_hub);
+	if (status)
+		ssh_ctrl_packet_cache_destroy();
+
+	return status;
+}
+module_init(ssam_core_init);
+
+static void __exit ssam_core_exit(void)
+{
+	serdev_device_driver_unregister(&ssam_serial_hub);
+	ssh_ctrl_packet_cache_destroy();
+}
+module_exit(ssam_core_exit);
 
 MODULE_AUTHOR("Maximilian Luz <luzmaximilian@gmail.com>");
 MODULE_DESCRIPTION("Subsystem and Surface Serial Hub driver for Surface System Aggregator Module");

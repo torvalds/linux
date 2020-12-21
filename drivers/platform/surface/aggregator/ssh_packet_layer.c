@@ -303,24 +303,53 @@ void ssh_packet_init(struct ssh_packet *packet, unsigned long type,
 	packet->ops = ops;
 }
 
+static struct kmem_cache *ssh_ctrl_packet_cache;
+
 /**
- * ssh_ctrl_packet_alloc() - Allocate control packet.
+ * ssh_ctrl_packet_cache_init() - Initialize the control packet cache.
+ */
+int ssh_ctrl_packet_cache_init(void)
+{
+	const unsigned int size = sizeof(struct ssh_packet) + SSH_MSG_LEN_CTRL;
+	const unsigned int align = __alignof__(struct ssh_packet);
+	struct kmem_cache *cache;
+
+	cache = kmem_cache_create("ssam_ctrl_packet", size, align, 0, NULL);
+	if (!cache)
+		return -ENOMEM;
+
+	ssh_ctrl_packet_cache = cache;
+	return 0;
+}
+
+/**
+ * ssh_ctrl_packet_cache_destroy() - Deinitialize the control packet cache.
+ */
+void ssh_ctrl_packet_cache_destroy(void)
+{
+	kmem_cache_destroy(ssh_ctrl_packet_cache);
+	ssh_ctrl_packet_cache = NULL;
+}
+
+/**
+ * ssh_ctrl_packet_alloc() - Allocate packet from control packet cache.
  * @packet: Where the pointer to the newly allocated packet should be stored.
  * @buffer: The buffer corresponding to this packet.
  * @flags:  Flags used for allocation.
  *
- * Allocates a packet and corresponding transport buffer. Sets the packet's
- * buffer reference to the allocated buffer. The packet must be freed via
- * ssh_ctrl_packet_free(), which will also free the corresponding buffer. The
- * corresponding buffer must not be freed separately. Intended to be used with
- * %ssh_ptl_ctrl_packet_ops as packet operations.
+ * Allocates a packet and corresponding transport buffer from the control
+ * packet cache. Sets the packet's buffer reference to the allocated buffer.
+ * The packet must be freed via ssh_ctrl_packet_free(), which will also free
+ * the corresponding buffer. The corresponding buffer must not be freed
+ * separately. Intended to be used with %ssh_ptl_ctrl_packet_ops as packet
+ * operations.
  *
  * Return: Returns zero on success, %-ENOMEM if the allocation failed.
  */
 static int ssh_ctrl_packet_alloc(struct ssh_packet **packet,
 				 struct ssam_span *buffer, gfp_t flags)
 {
-	*packet = kzalloc(sizeof(**packet) + SSH_MSG_LEN_CTRL, flags);
+	*packet = kmem_cache_alloc(ssh_ctrl_packet_cache, flags);
 	if (!*packet)
 		return -ENOMEM;
 
@@ -331,12 +360,12 @@ static int ssh_ctrl_packet_alloc(struct ssh_packet **packet,
 }
 
 /**
- * ssh_ctrl_packet_free() - Free control packet.
+ * ssh_ctrl_packet_free() - Free packet allocated from control packet cache.
  * @p: The packet to free.
  */
 static void ssh_ctrl_packet_free(struct ssh_packet *p)
 {
-	kfree(p);
+	kmem_cache_free(ssh_ctrl_packet_cache, p);
 }
 
 static const struct ssh_packet_ops ssh_ptl_ctrl_packet_ops = {
