@@ -370,6 +370,9 @@ static int navi10_ih_irq_init(struct amdgpu_device *adev)
 	/* enable wptr force update for self int */
 	force_update_wptr_for_self_int(adev, 0, 8, true);
 
+	if (adev->irq.ih_soft.ring_size)
+		adev->irq.ih_soft.enabled = true;
+
 	return 0;
 }
 

@@ -307,6 +307,9 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 	if (ret)
 		return ret;
 
+	if (adev->irq.ih_soft.ring_size)
+		adev->irq.ih_soft.enabled = true;
+
 	return 0;
 }
 
