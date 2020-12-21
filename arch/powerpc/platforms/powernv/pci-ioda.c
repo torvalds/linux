@@ -2613,8 +2613,10 @@ static bool pnv_pci_enable_device_hook(struct pci_dev *dev)
 		return true;
 
 	pdn = pci_get_pdn(dev);
-	if (!pdn || pdn->pe_number == IODA_INVALID_PE)
+	if (!pdn || pdn->pe_number == IODA_INVALID_PE) {
+		pci_err(dev, "pci_enable_device() blocked, no PE assigned.\n");
 		return false;
+	}
 
 	return true;
 }

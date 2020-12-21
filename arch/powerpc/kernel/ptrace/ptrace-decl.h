@@ -159,7 +159,28 @@ int tm_cgpr32_set(struct task_struct *target, const struct user_regset *regset,
 
 /* ptrace-view */
 
+int ptrace_get_reg(struct task_struct *task, int regno, unsigned long *data);
+int ptrace_put_reg(struct task_struct *task, int regno, unsigned long data);
+
 extern const struct user_regset_view user_ppc_native_view;
+
+/* ptrace-fpu */
+#ifdef CONFIG_PPC_FPU_REGS
+int ptrace_get_fpr(struct task_struct *child, int index, unsigned long *data);
+int ptrace_put_fpr(struct task_struct *child, int index, unsigned long data);
+#else
+static inline int
+ptrace_get_fpr(struct task_struct *child, int index, unsigned long *data)
+{
+	return -EIO;
+}
+
+static inline int
+ptrace_put_fpr(struct task_struct *child, int index, unsigned long data)
+{
+	return -EIO;
+}
+#endif
 
 /* ptrace-(no)adv */
 void ppc_gethwdinfo(struct ppc_debug_info *dbginfo);
