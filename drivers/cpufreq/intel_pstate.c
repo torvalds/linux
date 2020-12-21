@@ -76,11 +76,6 @@ static inline int ceiling_fp(int32_t x)
 	return ret;
 }
 
-static inline int32_t percent_fp(int percent)
-{
-	return div_fp(percent, 100);
-}
-
 static inline u64 mul_ext_fp(u64 x, u64 y)
 {
 	return (x * y) >> EXT_FRAC_BITS;
@@ -89,11 +84,6 @@ static inline u64 mul_ext_fp(u64 x, u64 y)
 static inline u64 div_ext_fp(u64 x, u64 y)
 {
 	return div64_u64(x << EXT_FRAC_BITS, y);
-}
-
-static inline int32_t percent_ext_fp(int percent)
-{
-	return div_ext_fp(percent, 100);
 }
 
 /**
