@@ -1777,6 +1777,12 @@ intel_crtc_has_dp_encoder(const struct intel_crtc_state *crtc_state)
 		 (1 << INTEL_OUTPUT_EDP));
 }
 
+static inline bool
+intel_crtc_needs_modeset(const struct intel_crtc_state *crtc_state)
+{
+	return drm_atomic_crtc_needs_modeset(&crtc_state->uapi);
+}
+
 static inline void
 intel_wait_for_vblank(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
