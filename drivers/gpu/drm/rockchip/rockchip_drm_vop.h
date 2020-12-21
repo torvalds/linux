@@ -545,6 +545,7 @@ struct vop2_video_port_regs {
 	struct vop_reg mipi_dual_channel_swap;
 	struct vop_reg dsp_lut_en;
 
+	struct vop_reg hdr10_en;
 	struct vop_reg hdr_lut_update_en;
 	struct vop_reg hdr_lut_mode;
 	struct vop_reg hdr_lut_mst;
@@ -561,11 +562,11 @@ struct vop2_video_port_regs {
 	struct vop_reg hdr2sdr_dst_min;
 	struct vop_reg hdr2sdr_dst_max;
 	struct vop_reg hdr2sdr_normfacgamma;
-	struct vop_reg hdr2sdr_eetf_oetf_y0_offset;
-	struct vop_reg hdr2sdr_sat_y0_offset;
-	struct vop_reg sdr2hdr_eotf_oetf_y0_offset;
-	struct vop_reg sdr2hdr_oetf_dx_pow1_offset;
-	struct vop_reg sdr2hdr_oetf_xn1_offset;
+	uint32_t hdr2sdr_eetf_oetf_y0_offset;
+	uint32_t hdr2sdr_sat_y0_offset;
+	uint32_t sdr2hdr_eotf_oetf_y0_offset;
+	uint32_t sdr2hdr_oetf_dx_pow1_offset;
+	uint32_t sdr2hdr_oetf_xn1_offset;
 	struct vop_reg hdr_src_color_ctrl;
 	struct vop_reg hdr_dst_color_ctrl;
 	struct vop_reg hdr_src_alpha_ctrl;

@@ -166,6 +166,11 @@ enum vop2_afbc_format {
 	VOP2_AFBC_FMT_YUV422_10BIT = 0xe,
 };
 
+enum vop2_hdr_lut_mode {
+	VOP2_HDR_LUT_MODE_AXI,
+	VOP2_HDR_LUT_MODE_AHB,
+};
+
 enum vop2_pending {
 	VOP_PENDING_FB_UNREF,
 };
@@ -603,6 +608,7 @@ static void vop2_load_hdr2sdr_table(struct vop2_video_port *vp)
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 	const struct vop_hdr_table *table = vp_data->hdr_table;
+	const struct vop2_video_port_regs *regs = vp->regs;
 	uint32_t hdr2sdr_eetf_oetf_yn[33];
 	int i;
 
@@ -610,17 +616,12 @@ static void vop2_load_hdr2sdr_table(struct vop2_video_port *vp)
 		hdr2sdr_eetf_oetf_yn[i] = table->hdr2sdr_eetf_yn[i] +
 				(table->hdr2sdr_bt1886oetf_yn[i] << 16);
 
-	vop2_writel(vop2, table->hdr2sdr_eetf_oetf_y0_offset,
-		    hdr2sdr_eetf_oetf_yn[0]);
-	for (i = 1; i < 33; i++)
-		vop2_writel(vop2,
-			    table->hdr2sdr_eetf_oetf_y1_offset + (i - 1) * 4,
+	for (i = 0; i < 33; i++)
+		vop2_writel(vop2, regs->hdr2sdr_eetf_oetf_y0_offset + i * 4,
 			    hdr2sdr_eetf_oetf_yn[i]);
 
-	vop2_writel(vop2, table->hdr2sdr_sat_y0_offset,
-		    table->hdr2sdr_sat_yn[0]);
-	for (i = 1; i < 9; i++)
-		vop2_writel(vop2, table->hdr2sdr_sat_y1_offset + (i - 1) * 4,
+	for (i = 0; i < 9; i++)
+		vop2_writel(vop2, regs->hdr2sdr_sat_y0_offset + i * 4,
 			    table->hdr2sdr_sat_yn[i]);
 }
 
@@ -630,6 +631,7 @@ static void vop2_load_sdr2hdr_table(struct vop2_video_port *vp, int sdr2hdr_tf)
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 	const struct vop_hdr_table *table = vp_data->hdr_table;
+	const struct vop2_video_port_regs *regs = vp->regs;
 	uint32_t sdr2hdr_eotf_oetf_yn[65];
 	uint32_t sdr2hdr_oetf_dx_dxpow[64];
 	int i;
@@ -648,21 +650,20 @@ static void vop2_load_sdr2hdr_table(struct vop2_video_port *vp, int sdr2hdr_tf)
 				table->sdr2hdr_bt1886eotf_yn_for_hlg_hdr[i] +
 				(table->sdr2hdr_st2084oetf_yn_for_hlg_hdr[i] << 18);
 	}
-	vop2_writel(vop2, table->sdr2hdr_eotf_oetf_y0_offset,
-		    sdr2hdr_eotf_oetf_yn[0]);
-	for (i = 1; i < 65; i++)
-		vop2_writel(vop2, table->sdr2hdr_eotf_oetf_y1_offset +
-			   (i - 1) * 4, sdr2hdr_eotf_oetf_yn[i]);
+
+	for (i = 0; i < 65; i++)
+		vop2_writel(vop2, regs->sdr2hdr_eotf_oetf_y0_offset + i * 4,
+			    sdr2hdr_eotf_oetf_yn[i]);
 
 	for (i = 0; i < 64; i++) {
 		sdr2hdr_oetf_dx_dxpow[i] = table->sdr2hdr_st2084oetf_dxn[i] +
 				(table->sdr2hdr_st2084oetf_dxn_pow2[i] << 16);
-		vop2_writel(vop2, table->sdr2hdr_oetf_dx_dxpow1_offset + i * 4,
+		vop2_writel(vop2, regs->sdr2hdr_oetf_dx_pow1_offset + i * 4,
 			    sdr2hdr_oetf_dx_dxpow[i]);
 	}
 
 	for (i = 0; i < 63; i++)
-		vop2_writel(vop2, table->sdr2hdr_oetf_xn1_offset + i * 4,
+		vop2_writel(vop2, regs->sdr2hdr_oetf_xn1_offset + i * 4,
 			    table->sdr2hdr_st2084oetf_xn[i]);
 }
 
@@ -2537,6 +2538,7 @@ static void vop2_crtc_regs_dump(struct drm_crtc *crtc, struct seq_file *s)
 		RK3568_ESMART1_CTRL0,
 		RK3568_SMART0_CTRL0,
 		RK3568_SMART1_CTRL0,
+		RK3568_HDR_LUT_CTRL,
 	};
 	uint32_t buf[64];
 	unsigned int len = ARRAY_SIZE(buf);
@@ -3221,11 +3223,14 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 	const struct vop_hdr_table *hdr_table = vp_data->hdr_table;
-	int hdr_en = 0;
-	int hdr2sdr_en = 0;
-	int sdr2hdr_en = 0;
-	int sdr2hdr_tf = 0;
-	int sdr2hdr_r2r_mode = 0;
+	uint32_t lut_mode = VOP2_HDR_LUT_MODE_AHB;
+	uint32_t sdr2hdr_r2r_mode = 0;
+	bool hdr_en = 0;
+	bool hdr2sdr_en = 0;
+	bool sdr2hdr_en = 0;
+	bool sdr2hdr_tf = 0;
+	bool hdr2sdr_tf_update = 1;
+	bool sdr2hdr_tf_update = 1;
 
 	/*
 	 * Check whether this video port support hdr or not
@@ -3249,24 +3254,28 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 	 * the other attached win must for ui, and should do sdr2hdr.
 	 *
 	 */
-	if (hdr_en) {
-		if (vcstate->eotf < SMPTE_ST2084)
-			hdr2sdr_en = 1;
-		if ((vcstate->eotf == SMPTE_ST2084) && (vp->nr_wins > 1)) {
-			sdr2hdr_en = 1;
-			sdr2hdr_r2r_mode = BT709_TO_BT2020;
+	if (vp->hdr_in && !vp->hdr_out)
+		hdr2sdr_en = 1;
+
+	if (vp->hdr_out)
+		sdr2hdr_en = 1;
+
+	if (sdr2hdr_en) {
+		sdr2hdr_r2r_mode = BT709_TO_BT2020;
+		if (vp->hdr_in)
 			sdr2hdr_tf = SDR2HDR_FOR_HDR;
-		}
-	} else {
-		if (vcstate->eotf == SMPTE_ST2084) {
-			sdr2hdr_en = 1;
+		else
 			sdr2hdr_tf = SDR2HDR_FOR_BT2020;
-			sdr2hdr_r2r_mode = BT709_TO_BT2020;
-		}
 	}
 
+	VOP_MODULE_SET(vop2, vp, hdr10_en, hdr_en);
+
+	if (hdr2sdr_en || sdr2hdr_en)
+		VOP_MODULE_SET(vop2, vp, hdr_lut_mode, lut_mode);
+
 	if (hdr2sdr_en) {
-		vop2_load_hdr2sdr_table(vp);
+		if (hdr2sdr_tf_update)
+			vop2_load_hdr2sdr_table(vp);
 		VOP_MODULE_SET(vop2, vp, hdr2sdr_src_min, hdr_table->hdr2sdr_src_range_min);
 		VOP_MODULE_SET(vop2, vp, hdr2sdr_src_max, hdr_table->hdr2sdr_src_range_max);
 		VOP_MODULE_SET(vop2, vp, hdr2sdr_normfaceetf, hdr_table->hdr2sdr_normfaceetf);
@@ -3274,19 +3283,17 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 		VOP_MODULE_SET(vop2, vp, hdr2sdr_dst_max, hdr_table->hdr2sdr_dst_range_max);
 		VOP_MODULE_SET(vop2, vp, hdr2sdr_normfacgamma, hdr_table->hdr2sdr_normfacgamma);
 	}
+	VOP_MODULE_SET(vop2, vp, hdr2sdr_en, hdr2sdr_en);
 
 	if (sdr2hdr_en) {
-		vop2_load_sdr2hdr_table(vp, sdr2hdr_tf);
-		VOP_MODULE_SET(vop2, vp, sdr2hdr_eotf_en, 1);
-		VOP_MODULE_SET(vop2, vp, sdr2hdr_r2r_en, 1);
+		if (sdr2hdr_tf_update)
+			vop2_load_sdr2hdr_table(vp, sdr2hdr_tf);
 		VOP_MODULE_SET(vop2, vp, sdr2hdr_r2r_mode, sdr2hdr_r2r_mode);
-		VOP_MODULE_SET(vop2, vp, sdr2hdr_oetf_en, 1);
-
-	} else {
-		VOP_MODULE_SET(vop2, vp, sdr2hdr_bypass_en, 1);
 	}
-
-	VOP_MODULE_SET(vop2, vp, hdr2sdr_en, hdr2sdr_en);
+	VOP_MODULE_SET(vop2, vp, sdr2hdr_oetf_en, sdr2hdr_en);
+	VOP_MODULE_SET(vop2, vp, sdr2hdr_eotf_en, sdr2hdr_en);
+	VOP_MODULE_SET(vop2, vp, sdr2hdr_r2r_en, sdr2hdr_en);
+	VOP_MODULE_SET(vop2, vp, sdr2hdr_bypass_en, !sdr2hdr_en);
 }
 
 static void vop2_parse_alpha(struct vop2_alpha *alpha, int pixel_alpha_en,
@@ -3561,19 +3568,22 @@ static void vop2_setup_dly_for_vp(struct vop2_video_port *vp)
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	u16 hsync_len = adjusted_mode->crtc_hsync_end - adjusted_mode->crtc_hsync_start;
 	u16 hdisplay = adjusted_mode->crtc_hdisplay;
-	u32 bg_dly, pre_scan_dly;
+	u32 bg_dly = vp_data->pre_scan_max_dly[0];
+	u32 pre_scan_dly;
 
 	if (vp_data->hdr_table)  {
-		if (vp->hdr_in && !vp->hdr_out)
-			bg_dly = vp_data->pre_scan_max_dly[1] - vp->bg_ovl_dly;
-		else if (vp->hdr_out)
-			bg_dly = vp_data->pre_scan_max_dly[2] - vp->bg_ovl_dly;
-		else
-			bg_dly = vp_data->pre_scan_max_dly[3] - vp->bg_ovl_dly;
-
-	} else {
-		bg_dly = vp_data->pre_scan_max_dly[0] - vp->bg_ovl_dly;
+		if (vp->hdr_in) {
+			if (vp->hdr_out)
+				bg_dly = vp_data->pre_scan_max_dly[2];
+		} else {
+			if (vp->hdr_out)
+				bg_dly = vp_data->pre_scan_max_dly[1];
+			else
+				bg_dly = vp_data->pre_scan_max_dly[3];
+		}
 	}
+
+	bg_dly -= vp->bg_ovl_dly;
 
 	pre_scan_dly = bg_dly + (hdisplay >> 1) - 1;
 	pre_scan_dly = (pre_scan_dly << 16) | hsync_len;
