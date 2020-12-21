@@ -272,10 +272,11 @@ $(obj)/%.o: $(src)/%.c $(recordmcount_source) $(objtool_dep) FORCE
 	$(call if_changed_rule,cc_o_c)
 	$(call cmd,force_checksrc)
 
-cmd_mod = { \
-	echo $(if $($*-objs)$($*-y)$($*-m), $(addprefix $(obj)/, $($*-objs) $($*-y) $($*-m)), $(@:.mod=.o)); \
-	$(undefined_syms) echo; \
-	} > $@
+cmd_mod = $(file >$@,\
+		$(if $($*-objs)$($*-y)$($*-m), \
+			$(addprefix $(obj)/, $($*-objs) $($*-y) $($*-m)), \
+			$(@:.mod=.o))) \
+	$(undefined_syms) echo >> $@
 
 $(obj)/%.mod: $(obj)/%.o FORCE
 	$(call if_changed,mod)
