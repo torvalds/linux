@@ -232,6 +232,8 @@ int its_make_vpe_non_resident(struct its_vpe *vpe, bool db)
 	if (!ret)
 		vpe->resident = false;
 
+	vpe->ready = false;
+
 	return ret;
 }
 
@@ -257,6 +259,23 @@ int its_make_vpe_resident(struct its_vpe *vpe, bool g0en, bool g1en)
 
 	return ret;
 }
+
+int its_commit_vpe(struct its_vpe *vpe)
+{
+	struct its_cmd_info info = {
+		.cmd_type = COMMIT_VPE,
+	};
+	int ret;
+
+	WARN_ON(preemptible());
+
+	ret = its_send_vpe_cmd(vpe, &info);
+	if (!ret)
+		vpe->ready = true;
+
+	return ret;
+}
+
 
 int its_invall_vpe(struct its_vpe *vpe)
 {

@@ -21,3 +21,16 @@ config DW_I3C_MASTER
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called dw-i3c-master.
+
+config MIPI_I3C_HCI
+	tristate "MIPI I3C Host Controller Interface driver (EXPERIMENTAL)"
+	depends on I3C
+	help
+	  Support for hardware following the MIPI Aliance's I3C Host Controller
+	  Interface specification.
+
+	  For details please see:
+	  https://www.mipi.org/specifications/i3c-hci
+
+	  This driver can also be built as a module.  If so, the module will be
+	  called mipi-i3c-hci.

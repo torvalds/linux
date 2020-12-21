@@ -814,7 +814,7 @@ static int __init dryice_rtc_probe(struct platform_device *pdev)
 	imxdi->rtc->ops = &dryice_rtc_ops;
 	imxdi->rtc->range_max = U32_MAX;
 
-	rc = rtc_register_device(imxdi->rtc);
+	rc = devm_rtc_register_device(imxdi->rtc);
 	if (rc)
 		goto err;
 

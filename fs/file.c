@@ -694,8 +694,10 @@ int __close_range(unsigned fd, unsigned max_fd, unsigned int flags)
 		 * If the requested range is greater than the current maximum,
 		 * we're closing everything so only copy all file descriptors
 		 * beneath the lowest file descriptor.
+		 * If the caller requested all fds to be made cloexec copy all
+		 * of the file descriptors since they still want to use them.
 		 */
-		if (max_fd >= cur_max)
+		if (!(flags & CLOSE_RANGE_CLOEXEC) && (max_fd >= cur_max))
 			max_unshare_fds = fd;
 
 		ret = unshare_fd(CLONE_FILES, max_unshare_fds, &fds);

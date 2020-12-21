@@ -1184,12 +1184,8 @@ static void print_percore(struct perf_stat_config *config,
 		fputc('\n', output);
 }
 
-void
-perf_evlist__print_counters(struct evlist *evlist,
-			    struct perf_stat_config *config,
-			    struct target *_target,
-			    struct timespec *ts,
-			    int argc, const char **argv)
+void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *config,
+			    struct target *_target, struct timespec *ts, int argc, const char **argv)
 {
 	bool metric_only = config->metric_only;
 	int interval = config->interval;

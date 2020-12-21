@@ -218,9 +218,9 @@ extern int cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb,
 extern int id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 *pnmode,
 					kuid_t uid, kgid_t gid);
 extern struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *, struct inode *,
-					const char *, u32 *);
+				      const char *, u32 *, u32);
 extern struct cifs_ntsd *get_cifs_acl_by_fid(struct cifs_sb_info *,
-						const struct cifs_fid *, u32 *);
+				const struct cifs_fid *, u32 *, u32);
 extern int set_cifs_acl(struct cifs_ntsd *, __u32, struct inode *,
 				const char *, int);
 extern unsigned int setup_authusers_ACE(struct cifs_ace *pace);

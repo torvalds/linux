@@ -155,6 +155,7 @@ static void reconn_set_next_dfs_target(struct TCP_Server_Info *server,
 		cifs_dbg(FYI,
 			 "%s: failed to extract hostname from target: %ld\n",
 			 __func__, PTR_ERR(server->hostname));
+		return;
 	}
 
 	rc = reconn_set_ipaddr_from_hostname(server);

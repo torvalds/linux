@@ -18,10 +18,8 @@
 #include "thread_map.h"
 #include "record.h"
 #include "tsc.h"
-#include "util/mmap.h"
-#include "tests/tests.h"
-
-#include "arch-tests.h"
+#include "mmap.h"
+#include "tests.h"
 
 #define CHECK__(x) {				\
 	while ((x) < 0) {			\
@@ -82,7 +80,7 @@ int test__perf_time_to_tsc(struct test *test __maybe_unused, int subtest __maybe
 
 	CHECK__(parse_events(evlist, "cycles:u", NULL));
 
-	perf_evlist__config(evlist, &opts, NULL);
+	evlist__config(evlist, &opts, NULL);
 
 	evsel = evlist__first(evlist);
 
@@ -170,4 +168,17 @@ next_event:
 out_err:
 	evlist__delete(evlist);
 	return err;
+}
+
+bool test__tsc_is_supported(void)
+{
+	/*
+	 * Except x86_64/i386 and Arm64, other archs don't support TSC in perf.
+	 * Just enable the test for x86_64/i386 and Arm64 archs.
+	 */
+#if defined(__x86_64__) || defined(__i386__) || defined(__aarch64__)
+	return true;
+#else
+	return false;
+#endif
 }

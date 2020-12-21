@@ -270,7 +270,7 @@ static void perf_stat__reset_stats(void)
 {
 	int i;
 
-	perf_evlist__reset_stats(evsel_list);
+	evlist__reset_stats(evsel_list);
 	perf_stat__reset_shadow_stats();
 
 	for (i = 0; i < stat_config.stats_num; i++)
@@ -534,7 +534,7 @@ static void disable_counters(void)
 static volatile int workload_exec_errno;
 
 /*
- * perf_evlist__prepare_workload will send a SIGUSR1
+ * evlist__prepare_workload will send a SIGUSR1
  * if the fork fails, since we asked by setting its
  * want_signal to true.
  */
@@ -724,8 +724,7 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	bool second_pass = false;
 
 	if (forks) {
-		if (perf_evlist__prepare_workload(evsel_list, &target, argv, is_pipe,
-						  workload_exec_failed_signal) < 0) {
+		if (evlist__prepare_workload(evsel_list, &target, argv, is_pipe, workload_exec_failed_signal) < 0) {
 			perror("failed to prepare workload");
 			return -1;
 		}
@@ -733,7 +732,7 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	}
 
 	if (group)
-		perf_evlist__set_leader(evsel_list);
+		evlist__set_leader(evsel_list);
 
 	if (affinity__setup(&affinity) < 0)
 		return -1;
@@ -760,7 +759,7 @@ try_again:
 				if ((errno == EINVAL || errno == EBADF) &&
 				    counter->leader != counter &&
 				    counter->weak_group) {
-					perf_evlist__reset_weak_group(evsel_list, counter, false);
+					evlist__reset_weak_group(evsel_list, counter, false);
 					assert(counter->reset_group);
 					second_pass = true;
 					continue;
@@ -843,7 +842,7 @@ try_again_reset:
 			return -1;
 	}
 
-	if (perf_evlist__apply_filters(evsel_list, &counter)) {
+	if (evlist__apply_filters(evsel_list, &counter)) {
 		pr_err("failed to set filter \"%s\" on event %s with %d (%s)\n",
 			counter->filter, evsel__name(counter), errno,
 			str_error_r(errno, msg, sizeof(msg)));
@@ -876,7 +875,7 @@ try_again_reset:
 	clock_gettime(CLOCK_MONOTONIC, &ref_time);
 
 	if (forks) {
-		perf_evlist__start_workload(evsel_list);
+		evlist__start_workload(evsel_list);
 		enable_counters();
 
 		if (interval || timeout || evlist__ctlfd_initialized(evsel_list))
@@ -914,10 +913,10 @@ try_again_reset:
 		update_stats(&walltime_nsecs_stats, t1 - t0);
 
 		if (stat_config.aggr_mode == AGGR_GLOBAL)
-			perf_evlist__save_aggr_prev_raw_counts(evsel_list);
+			evlist__save_aggr_prev_raw_counts(evsel_list);
 
-		perf_evlist__copy_prev_raw_counts(evsel_list);
-		perf_evlist__reset_prev_raw_counts(evsel_list);
+		evlist__copy_prev_raw_counts(evsel_list);
+		evlist__reset_prev_raw_counts(evsel_list);
 		runtime_stat_reset(&stat_config);
 		perf_stat__reset_shadow_per_stat(&rt_stat);
 	} else
@@ -972,9 +971,10 @@ static void print_counters(struct timespec *ts, int argc, const char **argv)
 	/* Do not print anything if we record to the pipe. */
 	if (STAT_RECORD && perf_stat.data.is_pipe)
 		return;
+	if (stat_config.quiet)
+		return;
 
-	perf_evlist__print_counters(evsel_list, &stat_config, &target,
-				    ts, argc, argv);
+	evlist__print_counters(evsel_list, &stat_config, &target, ts, argc, argv);
 }
 
 static volatile int signr = -1;
@@ -1171,6 +1171,8 @@ static struct option stat_options[] = {
 		    "threads of same physical core"),
 	OPT_BOOLEAN(0, "summary", &stat_config.summary,
 		       "print summary for interval mode"),
+	OPT_BOOLEAN(0, "quiet", &stat_config.quiet,
+			"don't print output (useful with record)"),
 #ifdef HAVE_LIBPFM
 	OPT_CALLBACK(0, "pfm-events", &evsel_list, "event",
 		"libpfm4 event selector. use 'perf list' to list available events",
@@ -1904,7 +1906,7 @@ static int set_maps(struct perf_stat *st)
 
 	perf_evlist__set_maps(&evsel_list->core, st->cpus, st->threads);
 
-	if (perf_evlist__alloc_stats(evsel_list, true))
+	if (evlist__alloc_stats(evsel_list, true))
 		return -ENOMEM;
 
 	st->maps_allocated = true;
@@ -2132,7 +2134,7 @@ int cmd_stat(int argc, const char **argv)
 		goto out;
 	}
 
-	if (!output) {
+	if (!output && !stat_config.quiet) {
 		struct timespec tm;
 		mode = append_file ? "a" : "w";
 
@@ -2235,8 +2237,11 @@ int cmd_stat(int argc, const char **argv)
 		}
 
 		if (evlist__expand_cgroup(evsel_list, stat_config.cgroup_list,
-					  &stat_config.metric_events, true) < 0)
+					  &stat_config.metric_events, true) < 0) {
+			parse_options_usage(stat_usage, stat_options,
+					    "for-each-cgroup", 0);
 			goto out;
+		}
 	}
 
 	target__validate(&target);
@@ -2244,7 +2249,7 @@ int cmd_stat(int argc, const char **argv)
 	if ((stat_config.aggr_mode == AGGR_THREAD) && (target.system_wide))
 		target.per_thread = true;
 
-	if (perf_evlist__create_maps(evsel_list, &target) < 0) {
+	if (evlist__create_maps(evsel_list, &target) < 0) {
 		if (target__has_task(&target)) {
 			pr_err("Problems finding threads of monitor\n");
 			parse_options_usage(stat_usage, stat_options, "p", 1);
@@ -2303,7 +2308,7 @@ int cmd_stat(int argc, const char **argv)
 		goto out;
 	}
 
-	if (perf_evlist__alloc_stats(evsel_list, interval))
+	if (evlist__alloc_stats(evsel_list, interval))
 		goto out;
 
 	if (perf_stat_init_aggr_mode())
@@ -2343,7 +2348,7 @@ int cmd_stat(int argc, const char **argv)
 				run_idx + 1);
 
 		if (run_idx != 0)
-			perf_evlist__reset_prev_raw_counts(evsel_list);
+			evlist__reset_prev_raw_counts(evsel_list);
 
 		status = run_perf_stat(argc, argv, run_idx);
 		if (forever && status != -1 && !interval) {
@@ -2394,7 +2399,7 @@ int cmd_stat(int argc, const char **argv)
 	}
 
 	perf_stat__exit_aggr_mode();
-	perf_evlist__free_stats(evsel_list);
+	evlist__free_stats(evsel_list);
 out:
 	zfree(&stat_config.walltime_run);
 
