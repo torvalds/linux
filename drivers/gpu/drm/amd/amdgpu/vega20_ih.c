@@ -342,6 +342,9 @@ static int vega20_ih_irq_init(struct amdgpu_device *adev)
 	if (ret)
 		return ret;
 
+	if (adev->irq.ih_soft.ring_size)
+		adev->irq.ih_soft.enabled = true;
+
 	return 0;
 }
 
@@ -538,6 +541,10 @@ static int vega20_ih_sw_init(void *handle)
 
 	/* initialize ih control registers offset */
 	vega20_ih_init_register_offset(adev);
+
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih_soft, PAGE_SIZE, true);
+	if (r)
+		return r;
 
 	r = amdgpu_irq_init(adev);
 
