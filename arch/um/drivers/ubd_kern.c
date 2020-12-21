@@ -375,11 +375,11 @@ break_loop:
 		file = NULL;
 
 	backing_file = strsep(&str, ",:");
-	if (*backing_file == '\0')
+	if (backing_file && *backing_file == '\0')
 		backing_file = NULL;
 
 	serial = strsep(&str, ",:");
-	if (*serial == '\0')
+	if (serial && *serial == '\0')
 		serial = NULL;
 
 	if (backing_file && ubd_dev->no_cow) {
