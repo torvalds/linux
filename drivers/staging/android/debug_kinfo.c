@@ -150,6 +150,10 @@ static int debug_kinfo_probe(struct platform_device *pdev)
 	info->thread_size = THREAD_SIZE;
 	info->swapper_pg_dir_pa = (u64)virt_to_phys(swapper_pg_dir);
 	strlcpy(info->last_uts_release, init_utsname()->release, sizeof(info->last_uts_release));
+	info->enabled_modules_tree_lookup = IS_ENABLED(CONFIG_MODULES_TREE_LOOKUP);
+	info->mod_core_layout_offset = offsetof(struct module, core_layout);
+	info->mod_init_layout_offset = offsetof(struct module, init_layout);
+	info->mod_kallsyms_offset = offsetof(struct module, kallsyms);
 
 	update_kernel_all_info(all_info);
 
