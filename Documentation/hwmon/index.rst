@@ -18,10 +18,8 @@ Hardware Monitoring Kernel Drivers
 .. toctree::
    :maxdepth: 1
 
-   ab8500
    abituguru
    abituguru3
-   abx500
    acpi_power_meter
    ad7314
    adc128d818
