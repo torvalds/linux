@@ -75,6 +75,7 @@
 
 	eeprom@52 {
 		compatible = "catalyst,24c32", "atmel,24c32";
+		pagesize = <32>;
 		reg = <0x52>;
 	};
 };

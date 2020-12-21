@@ -134,7 +134,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	s5m8767: s5m8767-pmic@66 {
+	s5m8767: pmic@66 {
 		compatible = "samsung,s5m8767-pmic";
 		reg = <0x66>;
 

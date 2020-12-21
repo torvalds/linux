@@ -369,14 +369,22 @@
 
 &remoteproc_adsp {
 	status = "okay";
+	firmware-name = "qcom/sm8150/adsp.mdt";
 };
 
 &remoteproc_cdsp {
 	status = "okay";
+	firmware-name = "qcom/sm8150/cdsp.mdt";
+};
+
+&remoteproc_mpss {
+	status = "okay";
+	firmware-name = "qcom/sm8150/modem.mdt";
 };
 
 &remoteproc_slpi {
 	status = "okay";
+	firmware-name = "qcom/sm8150/slpi.mdt";
 };
 
 &tlmm {
@@ -428,4 +436,13 @@
 
 &usb_1_dwc3 {
 	dr_mode = "peripheral";
+};
+
+&wifi {
+	status = "okay";
+
+	vdd-0.8-cx-mx-supply = <&vdda_wcss_pll>;
+	vdd-1.8-xo-supply = <&vreg_l7a_1p8>;
+	vdd-1.3-rfa-supply = <&vdda_wcss_adcdac_1>;
+	vdd-3.3-ch0-supply = <&vreg_l11c_3p3>;
 };

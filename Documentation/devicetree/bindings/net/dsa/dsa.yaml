@@ -20,7 +20,7 @@ select: false
 
 properties:
   $nodename:
-    pattern: "^switch(@.*)?$"
+    pattern: "^(ethernet-)?switch(@.*)?$"
 
   dsa,member:
     minItems: 2
@@ -77,6 +77,10 @@ patternProperties:
           fixed-link: true
 
           mac-address: true
+
+          sfp: true
+
+          managed: true
 
         required:
           - reg

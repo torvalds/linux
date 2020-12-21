@@ -188,6 +188,7 @@
 	port {
 		dcmi_0: endpoint {
 			remote-endpoint = <&ov2640_0>;
+			bus-type = <5>;
 			bus-width = <8>;
 			hsync-active = <0>;
 			vsync-active = <0>;

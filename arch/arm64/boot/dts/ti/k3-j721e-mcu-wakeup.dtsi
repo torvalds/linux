@@ -2,7 +2,7 @@
 /*
  * Device Tree Source for J721E SoC Family MCU/WAKEUP Domain peripherals
  *
- * Copyright (C) 2016-2019 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (C) 2016-2020 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 &cbass_mcu_wakeup {
@@ -351,6 +351,46 @@
 			interrupt-names = "cpts";
 			ti,cpts-ext-ts-inputs = <4>;
 			ti,cpts-periodic-outputs = <2>;
+		};
+	};
+
+	mcu_r5fss0: r5fss@41000000 {
+		compatible = "ti,j721e-r5fss";
+		ti,cluster-mode = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x41000000 0x00 0x41000000 0x20000>,
+			 <0x41400000 0x00 0x41400000 0x20000>;
+		power-domains = <&k3_pds 249 TI_SCI_PD_EXCLUSIVE>;
+
+		mcu_r5fss0_core0: r5f@41000000 {
+			compatible = "ti,j721e-r5f";
+			reg = <0x41000000 0x00008000>,
+			      <0x41010000 0x00008000>;
+			reg-names = "atcm", "btcm";
+			ti,sci = <&dmsc>;
+			ti,sci-dev-id = <250>;
+			ti,sci-proc-ids = <0x01 0xff>;
+			resets = <&k3_reset 250 1>;
+			firmware-name = "j7-mcu-r5f0_0-fw";
+			ti,atcm-enable = <1>;
+			ti,btcm-enable = <1>;
+			ti,loczrama = <1>;
+		};
+
+		mcu_r5fss0_core1: r5f@41400000 {
+			compatible = "ti,j721e-r5f";
+			reg = <0x41400000 0x00008000>,
+			      <0x41410000 0x00008000>;
+			reg-names = "atcm", "btcm";
+			ti,sci = <&dmsc>;
+			ti,sci-dev-id = <251>;
+			ti,sci-proc-ids = <0x02 0xff>;
+			resets = <&k3_reset 251 1>;
+			firmware-name = "j7-mcu-r5f0_1-fw";
+			ti,atcm-enable = <1>;
+			ti,btcm-enable = <1>;
+			ti,loczrama = <1>;
 		};
 	};
 };

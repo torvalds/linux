@@ -17,46 +17,46 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@40000000 {
 		device_type = "memory";
 		reg = <0x40000000 0x20000000>;
 	};
 
-	amba {
+	amba-bus {
 		dual_timer0: dual_timer@800000 {
 			status = "ok";
 		};
 
-		uart0: uart@b00000 {	/* console */
-			pinctrl-names = "default", "idle";
+		uart0: serial@b00000 {	/* console */
+			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&uart0_pmx_func &uart0_cfg_func>;
 			pinctrl-1 = <&uart0_pmx_idle &uart0_cfg_idle>;
 			status = "ok";
 		};
 
-		uart1: uart@b01000 { /* modem */
-			pinctrl-names = "default", "idle";
+		uart1: serial@b01000 { /* modem */
+			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&uart1_pmx_func &uart1_cfg_func>;
 			pinctrl-1 = <&uart1_pmx_idle &uart1_cfg_idle>;
 			status = "ok";
 		};
 
-		uart2: uart@b02000 { /* audience */
-			pinctrl-names = "default", "idle";
+		uart2: serial@b02000 { /* audience */
+			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&uart2_pmx_func &uart2_cfg_func>;
 			pinctrl-1 = <&uart2_pmx_idle &uart2_cfg_idle>;
 			status = "ok";
 		};
 
-		uart3: uart@b03000 {
-			pinctrl-names = "default", "idle";
+		uart3: serial@b03000 {
+			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&uart3_pmx_func &uart3_cfg_func>;
 			pinctrl-1 = <&uart3_pmx_idle &uart3_cfg_idle>;
 			status = "ok";
 		};
 
-		uart4: uart@b04000 {
-			pinctrl-names = "default", "idle";
+		uart4: serial@b04000 {
+			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&uart4_pmx_func &uart4_cfg_func>;
 			pinctrl-1 = <&uart4_pmx_idle &uart4_cfg_func>;
 			status = "ok";

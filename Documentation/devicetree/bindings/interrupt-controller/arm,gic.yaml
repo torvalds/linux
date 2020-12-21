@@ -35,7 +35,6 @@ properties:
               - arm,gic-400
               - arm,pl390
               - arm,tc11mp-gic
-              - nvidia,tegra210-agic
               - qcom,msm-8660-qgic
               - qcom,msm-qgic2
 
@@ -52,6 +51,14 @@ properties:
       - items:
           - const: brcm,brahma-b15-gic
           - const: arm,cortex-a15-gic
+
+      - oneOf:
+          - const: nvidia,tegra210-agic
+          - items:
+              - enum:
+                  - nvidia,tegra186-agic
+                  - nvidia,tegra194-agic
+              - const: nvidia,tegra210-agic
 
   interrupt-controller: true
 
