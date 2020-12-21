@@ -54,10 +54,15 @@ union afs_xdr_dirent {
 		__be16		hash_next;
 		__be32		vnode;
 		__be32		unique;
-		u8		name[16];
-		u8		overflow[4];	/* if any char of the name (inc
-						 * NUL) reaches here, consume
-						 * the next dirent too */
+		u8		name[];
+		/* When determining the number of dirent slots needed to
+		 * represent a directory entry, name should be assumed to be 16
+		 * bytes, due to a now-standardised (mis)calculation, but it is
+		 * in fact 20 bytes in size.
+		 *
+		 * For names longer than (16 or) 20 bytes, extra slots should
+		 * be annexed to this one using the extended_name format.
+		 */
 	} u;
 	u8			extended_name[32];
 } __packed;
