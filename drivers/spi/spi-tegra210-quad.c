@@ -117,6 +117,7 @@
 
 #define QSPI_MISC_REG                           0x194
 #define QSPI_NUM_DUMMY_CYCLE(x)			(((x) & 0xff) << 0)
+#define QSPI_DUMMY_CYCLES_MAX			0xff
 
 #define DATA_DIR_TX				BIT(0)
 #define DATA_DIR_RX				BIT(1)
@@ -170,6 +171,7 @@ struct tegra_qspi {
 	u32					def_command2_reg;
 	u32					spi_cs_timing1;
 	u32					spi_cs_timing2;
+	u8					dummy_cycles;
 
 	struct completion			xfer_completion;
 	struct spi_transfer			*curr_xfer;
@@ -856,6 +858,8 @@ static int tegra_qspi_start_transfer_one(struct spi_device *spi,
 
 	tqspi->command1_reg = command1;
 
+	tegra_qspi_writel(tqspi, QSPI_NUM_DUMMY_CYCLE(tqspi->dummy_cycles), QSPI_MISC_REG);
+
 	ret = tegra_qspi_flush_fifos(tqspi, false);
 	if (ret < 0)
 		return ret;
@@ -974,7 +978,7 @@ static int tegra_qspi_transfer_one_message(struct spi_master *master, struct spi
 {
 	struct tegra_qspi *tqspi = spi_master_get_devdata(master);
 	struct spi_device *spi = msg->spi;
-	struct spi_transfer *xfer;
+	struct spi_transfer *transfer;
 	bool is_first_msg = true;
 	int ret;
 
@@ -983,8 +987,32 @@ static int tegra_qspi_transfer_one_message(struct spi_master *master, struct spi
 	tqspi->tx_status = 0;
 	tqspi->rx_status = 0;
 
-	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+	list_for_each_entry(transfer, &msg->transfers, transfer_list) {
+		struct spi_transfer *xfer = transfer;
+		u8 dummy_bytes = 0;
 		u32 cmd1;
+
+		tqspi->dummy_cycles = 0;
+		/*
+		 * Tegra QSPI hardware supports dummy bytes transfer after actual transfer
+		 * bytes based on programmed dummy clock cycles in the QSPI_MISC register.
+		 * So, check if the next transfer is dummy data transfer and program dummy
+		 * clock cycles along with the current transfer and skip next transfer.
+		 */
+		if (!list_is_last(&xfer->transfer_list, &msg->transfers)) {
+			struct spi_transfer *next_xfer;
+
+			next_xfer = list_next_entry(xfer, transfer_list);
+			if (next_xfer->dummy_data) {
+				u32 dummy_cycles = next_xfer->len * 8 / next_xfer->tx_nbits;
+
+				if (dummy_cycles <= QSPI_DUMMY_CYCLES_MAX) {
+					tqspi->dummy_cycles = dummy_cycles;
+					dummy_bytes = next_xfer->len;
+					transfer = next_xfer;
+				}
+			}
+		}
 
 		reinit_completion(&tqspi->xfer_completion);
 
@@ -1016,7 +1044,7 @@ static int tegra_qspi_transfer_one_message(struct spi_master *master, struct spi
 			goto complete_xfer;
 		}
 
-		msg->actual_length += xfer->len;
+		msg->actual_length += xfer->len + dummy_bytes;
 
 complete_xfer:
 		if (ret < 0) {
