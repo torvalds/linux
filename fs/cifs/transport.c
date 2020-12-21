@@ -527,6 +527,7 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 	int *credits;
 	int optype;
 	long int t;
+	int scredits = server->credits;
 
 	if (timeout < 0)
 		t = MAX_JIFFY_OFFSET;
@@ -624,12 +625,18 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 			/* update # of requests on the wire to server */
 			if ((flags & CIFS_TIMEOUT_MASK) != CIFS_BLOCKING_OP) {
 				*credits -= num_credits;
+				scredits = *credits;
 				server->in_flight += num_credits;
 				if (server->in_flight > server->max_in_flight)
 					server->max_in_flight = server->in_flight;
 				*instance = server->reconnect_instance;
 			}
 			spin_unlock(&server->req_lock);
+
+			trace_smb3_add_credits(server->CurrentMid,
+					server->hostname, scredits, -(num_credits));
+			cifs_dbg(FYI, "%s: remove %u credits total=%d\n",
+					__func__, num_credits, scredits);
 			break;
 		}
 	}
@@ -649,10 +656,14 @@ wait_for_compound_request(struct TCP_Server_Info *server, int num,
 			  const int flags, unsigned int *instance)
 {
 	int *credits;
+	int scredits, sin_flight;
 
 	credits = server->ops->get_credits_field(server, flags & CIFS_OP_MASK);
 
 	spin_lock(&server->req_lock);
+	scredits = *credits;
+	sin_flight = server->in_flight;
+
 	if (*credits < num) {
 		/*
 		 * Return immediately if not too many requests in flight since
@@ -660,6 +671,10 @@ wait_for_compound_request(struct TCP_Server_Info *server, int num,
 		 */
 		if (server->in_flight < num - *credits) {
 			spin_unlock(&server->req_lock);
+			trace_smb3_insufficient_credits(server->CurrentMid,
+					server->hostname, scredits, sin_flight);
+			cifs_dbg(FYI, "%s: %d requests in flight, needed %d total=%d\n",
+					__func__, sin_flight, num, scredits);
 			return -ENOTSUPP;
 		}
 	}
