@@ -6,6 +6,7 @@
 #ifndef __LINUX_SPI_H
 #define __LINUX_SPI_H
 
+#include <linux/bits.h>
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/slab.h>
@@ -166,6 +167,18 @@ struct spi_device {
 	u8			chip_select;
 	u8			bits_per_word;
 	bool			rt;
+#define SPI_NO_TX	BIT(31)		/* no transmit wire */
+#define SPI_NO_RX	BIT(30)		/* no receive wire */
+	/*
+	 * All bits defined above should be covered by SPI_MODE_KERNEL_MASK.
+	 * The SPI_MODE_KERNEL_MASK has the SPI_MODE_USER_MASK counterpart,
+	 * which is defined in 'include/uapi/linux/spi/spi.h'.
+	 * The bits defined here are from bit 31 downwards, while in
+	 * SPI_MODE_USER_MASK are from 0 upwards.
+	 * These bits must not overlap. A static assert check should make sure of that.
+	 * If adding extra bits, make sure to decrease the bit index below as well.
+	 */
+#define SPI_MODE_KERNEL_MASK	(~(BIT(30) - 1))
 	u32			mode;
 	int			irq;
 	void			*controller_state;
@@ -188,6 +201,10 @@ struct spi_device {
 	 *  - ...
 	 */
 };
+
+/* Make sure that SPI_MODE_KERNEL_MASK & SPI_MODE_USER_MASK don't overlap */
+static_assert((SPI_MODE_KERNEL_MASK & SPI_MODE_USER_MASK) == 0,
+	      "SPI_MODE_USER_MASK & SPI_MODE_KERNEL_MASK must not overlap");
 
 static inline struct spi_device *to_spi_device(struct device *dev)
 {
