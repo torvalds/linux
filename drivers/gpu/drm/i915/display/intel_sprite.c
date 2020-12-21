@@ -49,6 +49,7 @@
 #include "intel_psr.h"
 #include "intel_dsi.h"
 #include "intel_sprite.h"
+#include "i9xx_plane.h"
 
 int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 			     int usecs)

@@ -215,7 +215,8 @@ i915-y += \
 	display/intel_quirks.o \
 	display/intel_sprite.o \
 	display/intel_tc.o \
-	display/intel_vga.o
+	display/intel_vga.o \
+	display/i9xx_plane.o
 i915-$(CONFIG_ACPI) += \
 	display/intel_acpi.o \
 	display/intel_opregion.o
