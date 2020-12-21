@@ -1962,17 +1962,17 @@ static inline bool nocb_gp_update_state(struct rcu_data *rdp, bool *needwake_sta
 				*needwake_state = true;
 		}
 		return true;
-	} else {
-		/*
-		 * De-offloading. Clear our flag and notify the de-offload worker.
-		 * We will ignore this rdp until it ever gets re-offloaded.
-		 */
-		WARN_ON_ONCE(!rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_GP));
-		rcu_segcblist_clear_flags(cblist, SEGCBLIST_KTHREAD_GP);
-		if (!rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_CB))
-			*needwake_state = true;
-		return false;
 	}
+
+	/*
+	 * De-offloading. Clear our flag and notify the de-offload worker.
+	 * We will ignore this rdp until it ever gets re-offloaded.
+	 */
+	WARN_ON_ONCE(!rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_GP));
+	rcu_segcblist_clear_flags(cblist, SEGCBLIST_KTHREAD_GP);
+	if (!rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_CB))
+		*needwake_state = true;
+	return false;
 }
 
 
@@ -2005,6 +2005,7 @@ static void nocb_gp_wait(struct rcu_data *my_rdp)
 	WARN_ON_ONCE(my_rdp->nocb_gp_rdp != my_rdp);
 	for (rdp = my_rdp; rdp; rdp = rdp->nocb_next_cb_rdp) {
 		bool needwake_state = false;
+
 		if (!nocb_gp_enabled_cb(rdp))
 			continue;
 		trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("Check"));
@@ -2160,11 +2161,11 @@ static inline bool nocb_cb_wait_cond(struct rcu_data *rdp)
 static void nocb_cb_wait(struct rcu_data *rdp)
 {
 	struct rcu_segcblist *cblist = &rdp->cblist;
-	struct rcu_node *rnp = rdp->mynode;
-	bool needwake_state = false;
-	bool needwake_gp = false;
 	unsigned long cur_gp_seq;
 	unsigned long flags;
+	bool needwake_state = false;
+	bool needwake_gp = false;
+	struct rcu_node *rnp = rdp->mynode;
 
 	local_irq_save(flags);
 	rcu_momentary_dyntick_idle();
@@ -2217,8 +2218,8 @@ static void nocb_cb_wait(struct rcu_data *rdp)
 		swait_event_interruptible_exclusive(rdp->nocb_cb_wq,
 						    nocb_cb_wait_cond(rdp));
 
-		/* ^^^ Ensure CB invocation follows _sleep test. */
-		if (smp_load_acquire(&rdp->nocb_cb_sleep)) {
+		// VVV Ensure CB invocation follows _sleep test.
+		if (smp_load_acquire(&rdp->nocb_cb_sleep)) { // ^^^
 			WARN_ON(signal_pending(current));
 			trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("WokeEmpty"));
 		}
@@ -2323,7 +2324,7 @@ static int __rcu_nocb_rdp_deoffload(struct rcu_data *rdp)
 	unsigned long flags;
 	int ret;
 
-	printk("De-offloading %d\n", rdp->cpu);
+	pr_info("De-offloading %d\n", rdp->cpu);
 
 	rcu_nocb_lock_irqsave(rdp, flags);
 	/*
@@ -2384,11 +2385,10 @@ int rcu_nocb_cpu_deoffload(int cpu)
 	mutex_lock(&rcu_state.barrier_mutex);
 	cpus_read_lock();
 	if (rcu_segcblist_is_offloaded(&rdp->cblist)) {
-		if (cpu_online(cpu)) {
+		if (cpu_online(cpu))
 			ret = work_on_cpu(cpu, rcu_nocb_rdp_deoffload, rdp);
-		} else {
+		else
 			ret = __rcu_nocb_rdp_deoffload(rdp);
-		}
 		if (!ret)
 			cpumask_clear_cpu(cpu, rcu_nocb_mask);
 	}
@@ -2412,7 +2412,7 @@ static int __rcu_nocb_rdp_offload(struct rcu_data *rdp)
 	if (!rdp->nocb_gp_rdp)
 		return -EINVAL;
 
-	printk("Offloading %d\n", rdp->cpu);
+	pr_info("Offloading %d\n", rdp->cpu);
 	/*
 	 * Can't use rcu_nocb_lock_irqsave() while we are in
 	 * SEGCBLIST_SOFTIRQ_ONLY mode.
@@ -2460,11 +2460,10 @@ int rcu_nocb_cpu_offload(int cpu)
 	mutex_lock(&rcu_state.barrier_mutex);
 	cpus_read_lock();
 	if (!rcu_segcblist_is_offloaded(&rdp->cblist)) {
-		if (cpu_online(cpu)) {
+		if (cpu_online(cpu))
 			ret = work_on_cpu(cpu, rcu_nocb_rdp_offload, rdp);
-		} else {
+		else
 			ret = __rcu_nocb_rdp_offload(rdp);
-		}
 		if (!ret)
 			cpumask_set_cpu(cpu, rcu_nocb_mask);
 	}

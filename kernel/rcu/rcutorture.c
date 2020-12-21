@@ -1606,7 +1606,7 @@ rcu_torture_stats_print(void)
 		data_race(n_barrier_successes),
 		data_race(n_barrier_attempts),
 		data_race(n_rcu_torture_barrier_error));
-	pr_cont("read-exits: %ld ", data_race(n_read_exits));
+	pr_cont("read-exits: %ld ", data_race(n_read_exits)); // Statistic.
 	pr_cont("nocb-toggles: %ld:%ld\n",
 		atomic_long_read(&n_nocb_offload), atomic_long_read(&n_nocb_deoffload));
 
