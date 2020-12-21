@@ -11813,6 +11813,14 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Supported
 F:	drivers/platform/surface/surfacepro3_button.c
 
+MICROSOFT SURFACE SYSTEM AGGREGATOR SUBSYSTEM
+M:	Maximilian Luz <luzmaximilian@gmail.com>
+S:	Maintained
+W:	https://github.com/linux-surface/surface-aggregator-module
+C:	irc://chat.freenode.net/##linux-surface
+F:	drivers/platform/surface/aggregator/
+F:	include/linux/surface_aggregator/
+
 MICROTEK X6 SCANNER
 M:	Oliver Neukum <oliver@neukum.org>
 S:	Maintained

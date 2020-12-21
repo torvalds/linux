@@ -56,4 +56,6 @@ config SURFACE_PRO3_BUTTON
 	help
 	  This driver handles the power/home/volume buttons on the Microsoft Surface Pro 3/4 tablet.
 
+source "drivers/platform/surface/aggregator/Kconfig"
+
 endif # SURFACE_PLATFORMS
