@@ -20,6 +20,13 @@ config DRM_ROCKCHIP
 
 if DRM_ROCKCHIP
 
+config ROCKCHIP_DRM_CUBIC_LUT
+	bool "Support 3D cubic LUT"
+	depends on NO_GKI
+	help
+	  This add properties to support provision of a 3D cubic
+	  look up table, allowing for color specific adjustments.
+
 config ROCKCHIP_ANALOGIX_DP
 	bool "Rockchip specific extensions for Analogix DP driver"
 	help
