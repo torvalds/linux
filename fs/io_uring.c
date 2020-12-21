@@ -8852,10 +8852,9 @@ static void io_uring_cancel_task_requests(struct io_ring_ctx *ctx,
 static int io_uring_add_task_file(struct io_ring_ctx *ctx, struct file *file)
 {
 	struct io_uring_task *tctx = current->io_uring;
+	int ret;
 
 	if (unlikely(!tctx)) {
-		int ret;
-
 		ret = io_uring_alloc_task_context(current);
 		if (unlikely(ret))
 			return ret;
@@ -8866,7 +8865,12 @@ static int io_uring_add_task_file(struct io_ring_ctx *ctx, struct file *file)
 
 		if (!old) {
 			get_file(file);
-			xa_store(&tctx->xa, (unsigned long)file, file, GFP_KERNEL);
+			ret = xa_err(xa_store(&tctx->xa, (unsigned long)file,
+						file, GFP_KERNEL));
+			if (ret) {
+				fput(file);
+				return ret;
+			}
 		}
 		tctx->last = file;
 	}
