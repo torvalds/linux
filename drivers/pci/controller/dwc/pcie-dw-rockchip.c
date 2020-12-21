@@ -1061,6 +1061,8 @@ static const struct of_device_id rk_pcie_of_match[] = {
 	{},
 };
 
+MODULE_DEVICE_TABLE(of, rk_pcie_of_match);
+
 static const struct dw_pcie_ops dw_pcie_ops = {
 	.start_link = rk_pcie_establish_link,
 	.link_up = rk_pcie_link_up,
@@ -1109,8 +1111,9 @@ static void rk_pcie_fast_link_setup(struct rk_pcie *rk_pcie)
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_HOT_RESET_CTRL, val);
 }
 
-static int rk_pcie_probe(struct platform_device *pdev)
+static int rk_pcie_really_probe(void *p)
 {
+	struct platform_device *pdev = p;
 	struct device *dev = &pdev->dev;
 	struct rk_pcie *rk_pcie;
 	struct dw_pcie *pci;
@@ -1246,7 +1249,17 @@ deinit_clk:
 	return ret;
 }
 
-MODULE_DEVICE_TABLE(of, rk_pcie_of_match);
+static int rk_pcie_probe(struct platform_device *pdev)
+{
+	struct task_struct *tsk;
+
+	tsk = kthread_run(rk_pcie_really_probe, pdev, "rk-pcie");
+	if (IS_ERR(tsk)) {
+		dev_err(&pdev->dev, "start rk-pcie thread failed\n");
+		return PTR_ERR(tsk);
+	}
+	return 0;
+}
 
 static int __maybe_unused rockchip_dw_pcie_suspend(struct device *dev)
 {
