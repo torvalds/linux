@@ -37,15 +37,7 @@ const struct cred *ovl_override_creds(struct super_block *sb)
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
 
-	if (!ofs->config.override_creds)
-		return NULL;
 	return override_creds(ofs->creator_cred);
-}
-
-void ovl_revert_creds(struct super_block *sb, const struct cred *old_cred)
-{
-	if (old_cred)
-		revert_creds(old_cred);
 }
 
 /*
@@ -831,7 +823,7 @@ int ovl_nlink_start(struct dentry *dentry)
 	 * value relative to the upper inode nlink in an upper inode xattr.
 	 */
 	err = ovl_set_nlink_upper(dentry);
-	ovl_revert_creds(dentry->d_sb, old_cred);
+	revert_creds(old_cred);
 
 out:
 	if (err)
@@ -849,7 +841,7 @@ void ovl_nlink_end(struct dentry *dentry)
 
 		old_cred = ovl_override_creds(dentry->d_sb);
 		ovl_cleanup_index(dentry);
-		ovl_revert_creds(dentry->d_sb, old_cred);
+		revert_creds(old_cred);
 	}
 
 	ovl_inode_unlock(inode);
