@@ -22,6 +22,8 @@
 #include "ssh_packet_layer.h"
 #include "ssh_request_layer.h"
 
+#include "trace.h"
+
 /*
  * SSH_RTL_REQUEST_TIMEOUT - Request timeout.
  *
@@ -144,6 +146,8 @@ static void ssh_rtl_complete_with_status(struct ssh_request *rqst, int status)
 {
 	struct ssh_rtl *rtl = ssh_request_rtl(rqst);
 
+	trace_ssam_request_complete(rqst, status);
+
 	/* rtl/ptl may not be set if we're canceling before submitting. */
 	rtl_dbg_cond(rtl, "rtl: completing request (rqid: %#06x, status: %d)\n",
 		     ssh_request_get_rqid_safe(rqst), status);
@@ -156,6 +160,8 @@ static void ssh_rtl_complete_with_rsp(struct ssh_request *rqst,
 				      const struct ssam_span *data)
 {
 	struct ssh_rtl *rtl = ssh_request_rtl(rqst);
+
+	trace_ssam_request_complete(rqst, 0);
 
 	rtl_dbg(rtl, "rtl: completing request with response (rqid: %#06x)\n",
 		ssh_request_get_rqid(rqst));
@@ -329,6 +335,8 @@ static void ssh_rtl_tx_work_fn(struct work_struct *work)
  */
 int ssh_rtl_submit(struct ssh_rtl *rtl, struct ssh_request *rqst)
 {
+	trace_ssam_request_submit(rqst);
+
 	/*
 	 * Ensure that requests expecting a response are sequenced. If this
 	 * invariant ever changes, see the comment in ssh_rtl_complete() on what
@@ -438,6 +446,8 @@ static void ssh_rtl_complete(struct ssh_rtl *rtl,
 	struct ssh_request *r = NULL;
 	struct ssh_request *p, *n;
 	u16 rqid = get_unaligned_le16(&command->rqid);
+
+	trace_ssam_rx_response_received(command, command_data->len);
 
 	/*
 	 * Get request from pending based on request ID and mark it as response
@@ -688,6 +698,8 @@ bool ssh_rtl_cancel(struct ssh_request *rqst, bool pending)
 	if (test_and_set_bit(SSH_REQUEST_SF_CANCELED_BIT, &rqst->state))
 		return true;
 
+	trace_ssam_request_cancel(rqst);
+
 	if (pending)
 		canceled = ssh_rtl_cancel_pending(rqst);
 	else
@@ -779,6 +791,8 @@ static void ssh_rtl_timeout_reap(struct work_struct *work)
 	ktime_t timeout = rtl->rtx_timeout.timeout;
 	ktime_t next = KTIME_MAX;
 
+	trace_ssam_rtl_timeout_reap(atomic_read(&rtl->pending.count));
+
 	/*
 	 * Mark reaper as "not pending". This is done before checking any
 	 * requests to avoid lost-update type problems.
@@ -822,6 +836,8 @@ static void ssh_rtl_timeout_reap(struct work_struct *work)
 
 	/* Cancel and complete the request. */
 	list_for_each_entry_safe(r, n, &claimed, node) {
+		trace_ssam_request_timeout(r);
+
 		/*
 		 * At this point we've removed the packet from pending. This
 		 * means that we've obtained the last (only) reference of the
@@ -849,6 +865,8 @@ static void ssh_rtl_timeout_reap(struct work_struct *work)
 static void ssh_rtl_rx_event(struct ssh_rtl *rtl, const struct ssh_command *cmd,
 			     const struct ssam_span *data)
 {
+	trace_ssam_rx_event_received(cmd, data->len);
+
 	rtl_dbg(rtl, "rtl: handling event (rqid: %#06x)\n",
 		get_unaligned_le16(&cmd->rqid));
 
