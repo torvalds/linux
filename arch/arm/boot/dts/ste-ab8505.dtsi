@@ -13,7 +13,8 @@
 			      <&gpadc 0x08>, /* Main battery voltage */
 			      <&gpadc 0x09>, /* VBUS */
 			      <&gpadc 0x0b>, /* Charger current */
-			      <&gpadc 0x0c>; /* Backup battery voltage */
+			      <&gpadc 0x0c>, /* Backup battery voltage */
+			      <&gpadc 0x0d>; /* Die temperature */
 	};
 
 	soc {
@@ -82,6 +83,9 @@
 					};
 					bk_bat_v: channel@0c {
 						reg = <0x0c>;
+					};
+					die_temp: channel@0d {
+						reg = <0x0d>;
 					};
 					usb_id: channel@0e {
 						reg = <0x0e>;
