@@ -41,6 +41,23 @@ config SURFACE_3_POWER_OPREGION
 	  This driver provides support for ACPI operation
 	  region of the Surface 3 battery platform driver.
 
+config SURFACE_AGGREGATOR_CDEV
+	tristate "Surface System Aggregator Module User-Space Interface"
+	depends on SURFACE_AGGREGATOR
+	help
+	  Provides a misc-device interface to the Surface System Aggregator
+	  Module (SSAM) controller.
+
+	  This option provides a module (called surface_aggregator_cdev), that,
+	  when loaded, will add a client device (and its respective driver) to
+	  the SSAM controller. Said client device manages a misc-device
+	  interface (/dev/surface/aggregator), which can be used by user-space
+	  tools to directly communicate with the SSAM EC by sending requests and
+	  receiving the corresponding responses.
+
+	  The provided interface is intended for debugging and development only,
+	  and should not be used otherwise.
+
 config SURFACE_GPE
 	tristate "Surface GPE/Lid Support Driver"
 	depends on DMI

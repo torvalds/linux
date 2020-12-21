@@ -7,4 +7,14 @@ Client Driver Documentation
 This is the documentation for client drivers themselves. Refer to
 :doc:`../client` for documentation on how to write client drivers.
 
-.. Place documentation for individual client drivers here.
+.. toctree::
+   :maxdepth: 1
+
+   cdev
+
+.. only::  subproject and html
+
+   Indices
+   =======
+
+   * :ref:`genindex`
