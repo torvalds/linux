@@ -498,7 +498,7 @@ static void __tcs_buffer_write(struct rsc_drv *drv, int tcs_id, int cmd_id,
 		write_tcs_cmd(drv, RSC_DRV_CMD_MSGID, tcs_id, j, msgid);
 		write_tcs_cmd(drv, RSC_DRV_CMD_ADDR, tcs_id, j, cmd->addr);
 		write_tcs_cmd(drv, RSC_DRV_CMD_DATA, tcs_id, j, cmd->data);
-		// trace_rpmh_send_msg_rcuidle(drv, tcs_id, j, msgid, cmd);
+		trace_rpmh_send_msg(drv, tcs_id, j, msgid, cmd);
 	}
 
 	write_tcs_reg(drv, RSC_DRV_CMD_WAIT_FOR_CMPL, tcs_id, cmd_complete);
@@ -1020,7 +1020,6 @@ static const struct of_device_id rpmh_drv_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rpmh_drv_match);
-
 
 static struct platform_driver rpmh_driver = {
 	.probe = rpmh_rsc_probe,

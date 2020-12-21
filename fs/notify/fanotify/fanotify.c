@@ -268,12 +268,11 @@ static u32 fanotify_group_event_mask(struct fsnotify_group *group,
 			continue;
 
 		/*
-		 * If the event is for a child and this mark is on a parent not
+		 * If the event is on a child and this mark is on a parent not
 		 * watching children, don't send it!
 		 */
-		if (event_mask & FS_EVENT_ON_CHILD &&
-		    type == FSNOTIFY_OBJ_TYPE_INODE &&
-		     !(mark->mask & FS_EVENT_ON_CHILD))
+		if (type == FSNOTIFY_OBJ_TYPE_PARENT &&
+		    !(mark->mask & FS_EVENT_ON_CHILD))
 			continue;
 
 		marks_mask |= mark->mask;
