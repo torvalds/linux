@@ -11,6 +11,12 @@
 
 #include "efi-header.S"
 
+#ifdef __ARMEB__
+#define OF_DT_MAGIC 0xd00dfeed
+#else
+#define OF_DT_MAGIC 0xedfe0dd0
+#endif
+
  AR_CLASS(	.arch	armv7-a	)
  M_CLASS(	.arch	armv7-m	)
 
@@ -116,7 +122,7 @@
 		/*
 		 * Debug print of the final appended DTB location
 		 */
-		.macro dbgadtb, begin, end
+		.macro dbgadtb, begin, size
 #ifdef DEBUG
 		kputc   #'D'
 		kputc   #'T'
@@ -129,7 +135,7 @@
 		kputc	#'('
 		kputc	#'0'
 		kputc	#'x'
-		kphex	\end, 8		/* End of appended DTB */
+		kphex	\size, 8	/* Size of appended DTB */
 		kputc	#')'
 		kputc	#'\n'
 #endif
@@ -163,6 +169,16 @@
 		ldrb	\tmp1, [\tmp1, #3]
 		orr	\res, \res, \tmp2, lsl #16
 		orr	\res, \res, \tmp1, lsl #24
+		.endm
+
+		.macro	be32tocpu, val, tmp
+#ifndef __ARMEB__
+		/* convert to little endian */
+		eor	\tmp, \val, \val, ror #16
+		bic	\tmp, \tmp, #0x00ff0000
+		mov	\val, \val, ror #8
+		eor	\val, \val, \tmp, lsr #8
+#endif
 		.endm
 
 		.section ".start", "ax"
@@ -325,11 +341,7 @@ restart:	adr	r0, LC1
  */
 
 		ldr	lr, [r6, #0]
-#ifndef __ARMEB__
-		ldr	r1, =0xedfe0dd0		@ sig is 0xd00dfeed big endian
-#else
-		ldr	r1, =0xd00dfeed
-#endif
+		ldr	r1, =OF_DT_MAGIC
 		cmp	lr, r1
 		bne	dtb_check_done		@ not found
 
@@ -345,13 +357,7 @@ restart:	adr	r0, LC1
 
 		/* Get the initial DTB size */
 		ldr	r5, [r6, #4]
-#ifndef __ARMEB__
-		/* convert to little endian */
-		eor	r1, r5, r5, ror #16
-		bic	r1, r1, #0x00ff0000
-		mov	r5, r5, ror #8
-		eor	r5, r5, r1, lsr #8
-#endif
+		be32tocpu r5, r1
 		dbgadtb	r6, r5
 		/* 50% DTB growth should be good enough */
 		add	r5, r5, r5, lsr #1
@@ -403,13 +409,7 @@ restart:	adr	r0, LC1
 
 		/* Get the current DTB size */
 		ldr	r5, [r6, #4]
-#ifndef __ARMEB__
-		/* convert r5 (dtb size) to little endian */
-		eor	r1, r5, r5, ror #16
-		bic	r1, r1, #0x00ff0000
-		mov	r5, r5, ror #8
-		eor	r5, r5, r1, lsr #8
-#endif
+		be32tocpu r5, r1
 
 		/* preserve 64-bit alignment */
 		add	r5, r5, #7

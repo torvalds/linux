@@ -228,12 +228,6 @@ ENTRY(__hyp_soft_restart)
 	ret	lr
 ENDPROC(__hyp_soft_restart)
 
-#ifndef ZIMAGE
-.align 2
-.L__boot_cpu_mode_offset:
-	.long	__boot_cpu_mode - .
-#endif
-
 .align 5
 ENTRY(__hyp_stub_vectors)
 __hyp_stub_reset:	W(b)	.

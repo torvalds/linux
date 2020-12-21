@@ -524,14 +524,13 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 }
 
 static const char *ipi_types[NR_IPI] __tracepoint_string = {
-#define S(x,s)	[x] = s
-	S(IPI_WAKEUP, "CPU wakeup interrupts"),
-	S(IPI_TIMER, "Timer broadcast interrupts"),
-	S(IPI_RESCHEDULE, "Rescheduling interrupts"),
-	S(IPI_CALL_FUNC, "Function call interrupts"),
-	S(IPI_CPU_STOP, "CPU stop interrupts"),
-	S(IPI_IRQ_WORK, "IRQ work interrupts"),
-	S(IPI_COMPLETION, "completion interrupts"),
+	[IPI_WAKEUP]		= "CPU wakeup interrupts",
+	[IPI_TIMER]		= "Timer broadcast interrupts",
+	[IPI_RESCHEDULE]	= "Rescheduling interrupts",
+	[IPI_CALL_FUNC]		= "Function call interrupts",
+	[IPI_CPU_STOP]		= "CPU stop interrupts",
+	[IPI_IRQ_WORK]		= "IRQ work interrupts",
+	[IPI_COMPLETION]	= "completion interrupts",
 };
 
 static void smp_cross_call(const struct cpumask *target, unsigned int ipinr);
