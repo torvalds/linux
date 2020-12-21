@@ -27,11 +27,6 @@
 		reg = <0x40000000 0x40000000>;
 	};
 
-	iio-hwmon {
-		compatible = "iio-hwmon";
-		io-channels = <&saradc 8>;
-	};
-
 	vcck: regulator-vcck {
 		compatible = "pwm-regulator";
 
