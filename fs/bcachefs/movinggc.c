@@ -200,6 +200,11 @@ static int bch2_copygc(struct bch_fs *c)
 		return -1;
 	}
 
+	/*
+	 * Our btree node allocations also come out of RESERVE_MOVINGGC:
+	 */
+	sectors_to_move = (sectors_to_move * 3) / 4;
+
 	for (i = h->data; i < h->data + h->used; i++)
 		sectors_to_move += i->sectors * i->replicas;
 

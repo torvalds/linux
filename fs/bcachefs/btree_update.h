@@ -20,7 +20,6 @@ enum btree_insert_flags {
 	__BTREE_INSERT_NOCHECK_RW,
 	__BTREE_INSERT_LAZY_RW,
 	__BTREE_INSERT_USE_RESERVE,
-	__BTREE_INSERT_USE_ALLOC_RESERVE,
 	__BTREE_INSERT_JOURNAL_REPLAY,
 	__BTREE_INSERT_JOURNAL_RESERVED,
 	__BTREE_INSERT_JOURNAL_RECLAIM,
@@ -43,7 +42,6 @@ enum btree_insert_flags {
 
 /* for copygc, or when merging btree nodes */
 #define BTREE_INSERT_USE_RESERVE	(1 << __BTREE_INSERT_USE_RESERVE)
-#define BTREE_INSERT_USE_ALLOC_RESERVE	(1 << __BTREE_INSERT_USE_ALLOC_RESERVE)
 
 /* Insert is for journal replay - don't get journal reservations: */
 #define BTREE_INSERT_JOURNAL_REPLAY	(1 << __BTREE_INSERT_JOURNAL_REPLAY)

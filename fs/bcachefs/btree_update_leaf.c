@@ -1084,8 +1084,7 @@ int bch2_btree_delete_at(struct btree_trans *trans,
 
 	bch2_trans_update(trans, iter, &k, 0);
 	return bch2_trans_commit(trans, NULL, NULL,
-				 BTREE_INSERT_NOFAIL|
-				 BTREE_INSERT_USE_RESERVE|flags);
+				 BTREE_INSERT_NOFAIL|flags);
 }
 
 int bch2_btree_delete_range_trans(struct btree_trans *trans, enum btree_id id,

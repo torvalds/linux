@@ -201,12 +201,9 @@ static struct btree *__bch2_btree_node_alloc(struct bch_fs *c,
 	unsigned nr_reserve;
 	enum alloc_reserve alloc_reserve;
 
-	if (flags & BTREE_INSERT_USE_ALLOC_RESERVE) {
+	if (flags & BTREE_INSERT_USE_RESERVE) {
 		nr_reserve	= 0;
-		alloc_reserve	= RESERVE_ALLOC;
-	} else if (flags & BTREE_INSERT_USE_RESERVE) {
-		nr_reserve	= BTREE_NODE_RESERVE / 2;
-		alloc_reserve	= RESERVE_BTREE;
+		alloc_reserve	= RESERVE_MOVINGGC;
 	} else {
 		nr_reserve	= BTREE_NODE_RESERVE;
 		alloc_reserve	= RESERVE_NONE;
@@ -577,8 +574,6 @@ static void btree_update_nodes_written(struct btree_update *as)
 	bch2_trans_init(&trans, c, 0, 512);
 	ret = __bch2_trans_do(&trans, &as->disk_res, &journal_seq,
 			      BTREE_INSERT_NOFAIL|
-			      BTREE_INSERT_USE_RESERVE|
-			      BTREE_INSERT_USE_ALLOC_RESERVE|
 			      BTREE_INSERT_NOCHECK_RW|
 			      BTREE_INSERT_JOURNAL_RECLAIM|
 			      BTREE_INSERT_JOURNAL_RESERVED,
@@ -1457,15 +1452,6 @@ int bch2_btree_split_leaf(struct bch_fs *c, struct btree_iter *iter,
 	struct btree_update *as;
 	struct closure cl;
 	int ret = 0;
-	struct btree_insert_entry *i;
-
-	/*
-	 * We already have a disk reservation and open buckets pinned; this
-	 * allocation must not block:
-	 */
-	trans_for_each_update(trans, i)
-		if (btree_node_type_needs_gc(i->iter->btree_id))
-			flags |= BTREE_INSERT_USE_RESERVE;
 
 	closure_init_stack(&cl);
 
@@ -1926,10 +1912,7 @@ int bch2_btree_node_update_key(struct bch_fs *c, struct btree_iter *iter,
 retry:
 	as = bch2_btree_update_start(iter->trans, iter->btree_id,
 		parent ? btree_update_reserve_required(c, parent) : 0,
-		BTREE_INSERT_NOFAIL|
-		BTREE_INSERT_USE_RESERVE|
-		BTREE_INSERT_USE_ALLOC_RESERVE,
-		&cl);
+		BTREE_INSERT_NOFAIL, &cl);
 
 	if (IS_ERR(as)) {
 		ret = PTR_ERR(as);

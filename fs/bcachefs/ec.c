@@ -800,8 +800,7 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 		bch2_trans_update(&trans, iter, sk.k, 0);
 
 		ret = bch2_trans_commit(&trans, NULL, NULL,
-					BTREE_INSERT_NOFAIL|
-					BTREE_INSERT_USE_RESERVE);
+					BTREE_INSERT_NOFAIL);
 		if (ret == -EINTR)
 			ret = 0;
 		if (ret)

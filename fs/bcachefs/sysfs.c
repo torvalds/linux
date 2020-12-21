@@ -798,7 +798,6 @@ static void dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 
 	pr_buf(out,
 		"free_inc:               %zu/%zu\n"
-		"free[RESERVE_BTREE]:    %zu/%zu\n"
 		"free[RESERVE_MOVINGGC]: %zu/%zu\n"
 		"free[RESERVE_NONE]:     %zu/%zu\n"
 		"buckets:\n"
@@ -826,7 +825,6 @@ static void dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 		"open_buckets_user:      %u\n"
 		"btree reserve cache:    %u\n",
 		fifo_used(&ca->free_inc),		ca->free_inc.size,
-		fifo_used(&ca->free[RESERVE_BTREE]),	ca->free[RESERVE_BTREE].size,
 		fifo_used(&ca->free[RESERVE_MOVINGGC]),	ca->free[RESERVE_MOVINGGC].size,
 		fifo_used(&ca->free[RESERVE_NONE]),	ca->free[RESERVE_NONE].size,
 		ca->mi.nbuckets - ca->mi.first_bucket,

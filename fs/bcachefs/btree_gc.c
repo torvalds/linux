@@ -233,7 +233,6 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 			if (max_stale > 64)
 				bch2_btree_node_rewrite(c, iter,
 						b->data->keys.seq,
-						BTREE_INSERT_USE_RESERVE|
 						BTREE_INSERT_NOWAIT|
 						BTREE_INSERT_GC_LOCK_HELD);
 			else if (!bch2_btree_gc_rewrite_disabled &&

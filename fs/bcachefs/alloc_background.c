@@ -319,9 +319,7 @@ retry:
 	bch2_trans_update(trans, iter, &a->k_i,
 			  BTREE_TRIGGER_NORUN);
 	ret = bch2_trans_commit(trans, NULL, NULL,
-				BTREE_INSERT_NOFAIL|
-				BTREE_INSERT_USE_RESERVE|
-				flags);
+				BTREE_INSERT_NOFAIL|flags);
 err:
 	if (ret == -EINTR)
 		goto retry;
@@ -575,8 +573,7 @@ static int wait_buckets_available(struct bch_fs *c, struct bch_dev *ca)
 
 		if (available > fifo_free(&ca->free_inc) ||
 		    (available &&
-		     (!fifo_full(&ca->free[RESERVE_BTREE]) ||
-		      !fifo_full(&ca->free[RESERVE_MOVINGGC]))))
+		     !fifo_full(&ca->free[RESERVE_MOVINGGC])))
 			break;
 
 		up_read(&c->gc_lock);
@@ -977,8 +974,7 @@ retry:
 				BTREE_INSERT_NOUNLOCK|
 				BTREE_INSERT_NOCHECK_RW|
 				BTREE_INSERT_NOFAIL|
-				BTREE_INSERT_USE_RESERVE|
-				BTREE_INSERT_USE_ALLOC_RESERVE|
+				BTREE_INSERT_JOURNAL_RESERVED|
 				flags);
 	if (ret == -EINTR)
 		goto retry;

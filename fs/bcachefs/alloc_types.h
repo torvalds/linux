@@ -37,11 +37,9 @@ struct bucket_clock {
 /* There is one reserve for each type of btree, one for prios and gens
  * and one for moving GC */
 enum alloc_reserve {
-	RESERVE_ALLOC		= -1,
-	RESERVE_BTREE		= 0,
-	RESERVE_MOVINGGC	= 1,
-	RESERVE_NONE		= 2,
-	RESERVE_NR		= 3,
+	RESERVE_MOVINGGC	= 0,
+	RESERVE_NONE		= 1,
+	RESERVE_NR		= 2,
 };
 
 typedef FIFO(long)	alloc_fifo;
