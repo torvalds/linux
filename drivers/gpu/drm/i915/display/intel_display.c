@@ -989,7 +989,8 @@ chv_find_best_dpll(const struct intel_limit *limit,
 	 * set to 2.  If requires to support 200Mhz refclk, we need to
 	 * revisit this because n may not 1 anymore.
 	 */
-	clock.n = 1, clock.m1 = 2;
+	clock.n = 1;
+	clock.m1 = 2;
 	target *= 5;	/* fast clock */
 
 	for (clock.p1 = limit->p1.max; clock.p1 >= limit->p1.min; clock.p1--) {
