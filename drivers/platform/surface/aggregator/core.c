@@ -790,12 +790,23 @@ static int __init ssam_core_init(void)
 
 	status = ssh_ctrl_packet_cache_init();
 	if (status)
-		return status;
+		goto err_cpkg;
+
+	status = ssam_event_item_cache_init();
+	if (status)
+		goto err_evitem;
 
 	status = serdev_device_driver_register(&ssam_serial_hub);
 	if (status)
-		ssh_ctrl_packet_cache_destroy();
+		goto err_register;
 
+	return 0;
+
+err_register:
+	ssam_event_item_cache_destroy();
+err_evitem:
+	ssh_ctrl_packet_cache_destroy();
+err_cpkg:
 	return status;
 }
 module_init(ssam_core_init);
@@ -803,6 +814,7 @@ module_init(ssam_core_init);
 static void __exit ssam_core_exit(void)
 {
 	serdev_device_driver_unregister(&ssam_serial_hub);
+	ssam_event_item_cache_destroy();
 	ssh_ctrl_packet_cache_destroy();
 }
 module_exit(ssam_core_exit);

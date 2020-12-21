@@ -80,11 +80,17 @@ struct ssam_cplt;
  * struct ssam_event_item - Struct for event queuing and completion.
  * @node:     The node in the queue.
  * @rqid:     The request ID of the event.
+ * @ops:      Instance specific functions.
+ * @ops.free: Callback for freeing this event item.
  * @event:    Actual event data.
  */
 struct ssam_event_item {
 	struct list_head node;
 	u16 rqid;
+
+	struct {
+		void (*free)(struct ssam_event_item *event);
+	} ops;
 
 	struct ssam_event event;	/* must be last */
 };
@@ -272,5 +278,8 @@ int ssam_ctrl_notif_d0_entry(struct ssam_controller *ctrl);
 
 int ssam_controller_suspend(struct ssam_controller *ctrl);
 int ssam_controller_resume(struct ssam_controller *ctrl);
+
+int ssam_event_item_cache_init(void);
+void ssam_event_item_cache_destroy(void);
 
 #endif /* _SURFACE_AGGREGATOR_CONTROLLER_H */

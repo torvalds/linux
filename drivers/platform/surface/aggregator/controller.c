@@ -513,14 +513,74 @@ static void ssam_nf_destroy(struct ssam_nf *nf)
  */
 #define SSAM_CPLT_WQ_BATCH	10
 
+/*
+ * SSAM_EVENT_ITEM_CACHE_PAYLOAD_LEN - Maximum payload length for a cached
+ * &struct ssam_event_item.
+ *
+ * This length has been chosen to be accommodate standard touchpad and
+ * keyboard input events. Events with larger payloads will be allocated
+ * separately.
+ */
+#define SSAM_EVENT_ITEM_CACHE_PAYLOAD_LEN	32
+
+static struct kmem_cache *ssam_event_item_cache;
+
+/**
+ * ssam_event_item_cache_init() - Initialize the event item cache.
+ */
+int ssam_event_item_cache_init(void)
+{
+	const unsigned int size = sizeof(struct ssam_event_item)
+				  + SSAM_EVENT_ITEM_CACHE_PAYLOAD_LEN;
+	const unsigned int align = __alignof__(struct ssam_event_item);
+	struct kmem_cache *cache;
+
+	cache = kmem_cache_create("ssam_event_item", size, align, 0, NULL);
+	if (!cache)
+		return -ENOMEM;
+
+	ssam_event_item_cache = cache;
+	return 0;
+}
+
+/**
+ * ssam_event_item_cache_destroy() - Deinitialize the event item cache.
+ */
+void ssam_event_item_cache_destroy(void)
+{
+	kmem_cache_destroy(ssam_event_item_cache);
+	ssam_event_item_cache = NULL;
+}
+
+static void __ssam_event_item_free_cached(struct ssam_event_item *item)
+{
+	kmem_cache_free(ssam_event_item_cache, item);
+}
+
+static void __ssam_event_item_free_generic(struct ssam_event_item *item)
+{
+	kfree(item);
+}
+
+/**
+ * ssam_event_item_free() - Free the provided event item.
+ * @item: The event item to free.
+ */
+static void ssam_event_item_free(struct ssam_event_item *item)
+{
+	item->ops.free(item);
+}
+
 /**
  * ssam_event_item_alloc() - Allocate an event item with the given payload size.
  * @len:   The event payload length.
  * @flags: The flags used for allocation.
  *
- * Allocate an event item with the given payload size. Sets the item
- * operations and payload length values. The item free callback (``ops.free``)
- * should not be overwritten after this call.
+ * Allocate an event item with the given payload size, preferring allocation
+ * from the event item cache if the payload is small enough (i.e. smaller than
+ * %SSAM_EVENT_ITEM_CACHE_PAYLOAD_LEN). Sets the item operations and payload
+ * length values. The item free callback (``ops.free``) should not be
+ * overwritten after this call.
  *
  * Return: Returns the newly allocated event item.
  */
@@ -528,9 +588,19 @@ static struct ssam_event_item *ssam_event_item_alloc(size_t len, gfp_t flags)
 {
 	struct ssam_event_item *item;
 
-	item = kzalloc(struct_size(item, event.data, len), flags);
-	if (!item)
-		return NULL;
+	if (len <= SSAM_EVENT_ITEM_CACHE_PAYLOAD_LEN) {
+		item = kmem_cache_alloc(ssam_event_item_cache, flags);
+		if (!item)
+			return NULL;
+
+		item->ops.free = __ssam_event_item_free_cached;
+	} else {
+		item = kzalloc(struct_size(item, event.data, len), flags);
+		if (!item)
+			return NULL;
+
+		item->ops.free = __ssam_event_item_free_generic;
+	}
 
 	item->event.length = len;
 	return item;
@@ -692,7 +762,7 @@ static void ssam_event_queue_work_fn(struct work_struct *work)
 			return;
 
 		ssam_nf_call(nf, dev, item->rqid, &item->event);
-		kfree(item);
+		ssam_event_item_free(item);
 	} while (--iterations);
 
 	if (!ssam_event_queue_is_empty(queue))
@@ -900,7 +970,7 @@ static void ssam_handle_event(struct ssh_rtl *rtl,
 	memcpy(&item->event.data[0], data->ptr, data->len);
 
 	if (WARN_ON(ssam_cplt_submit_event(&ctrl->cplt, item)))
-		kfree(item);
+		ssam_event_item_free(item);
 }
 
 static const struct ssh_rtl_ops ssam_rtl_ops = {
