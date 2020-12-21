@@ -221,9 +221,10 @@ static const struct sdhci_pltfm_data sdhci_dwcmshc_pdata = {
 
 static const struct sdhci_pltfm_data sdhci_dwcmshc_rk_pdata = {
 	.ops = &sdhci_dwcmshc_rk_ops,
-	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
+	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
+		  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
-			SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
+		   SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
 };
 
 static int rockchip_pltf_init(struct sdhci_host *host, struct dwcmshc_priv *priv)
