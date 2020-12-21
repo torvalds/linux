@@ -277,6 +277,7 @@ struct device *dma_heap_get_dev(struct dma_heap *heap)
 {
 	return heap->heap_dev;
 }
+EXPORT_SYMBOL_GPL(dma_heap_get_dev);
 
 struct dma_heap *dma_heap_add(const struct dma_heap_export_info *exp_info)
 {
