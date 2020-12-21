@@ -2304,6 +2304,55 @@ static void get_clos_assoc(int arg)
 	isst_ctdp_display_information_end(outf);
 }
 
+static void set_turbo_mode_for_cpu(int cpu, int status)
+{
+	int base_freq;
+
+	if (status) {
+		base_freq = get_cpufreq_base_freq(cpu);
+		set_cpufreq_scaling_min_max(cpu, 1, base_freq);
+	} else {
+		set_scaling_max_to_cpuinfo_max(cpu);
+	}
+
+	if (status) {
+		isst_display_result(cpu, outf, "turbo-mode", "enable", 0);
+	} else {
+		isst_display_result(cpu, outf, "turbo-mode", "disable", 0);
+	}
+}
+
+static void set_turbo_mode(int arg)
+{
+	int i, enable = arg;
+
+	if (cmd_help) {
+		if (enable)
+			fprintf(stderr, "Set turbo mode enable\n");
+		else
+			fprintf(stderr, "Set turbo mode disable\n");
+		exit(0);
+	}
+
+	isst_ctdp_display_information_start(outf);
+
+	for (i = 0; i < topo_max_cpus; ++i) {
+		int online;
+
+		if (i)
+			online = parse_int_file(
+				1, "/sys/devices/system/cpu/cpu%d/online", i);
+		else
+			online =
+				1; /* online entry for CPU 0 needs some special configs */
+
+		if (online)
+			set_turbo_mode_for_cpu(i, enable);
+
+	}
+	isst_ctdp_display_information_end(outf);
+}
+
 static struct process_cmd_struct clx_n_cmds[] = {
 	{ "perf-profile", "info", dump_isst_config, 0 },
 	{ "base-freq", "info", dump_pbf_config, 0 },
@@ -2334,6 +2383,8 @@ static struct process_cmd_struct isst_cmds[] = {
 	{ "core-power", "get-config", dump_clos_config, 0 },
 	{ "core-power", "assoc", set_clos_assoc, 0 },
 	{ "core-power", "get-assoc", get_clos_assoc, 0 },
+	{ "turbo-mode", "enable", set_turbo_mode, 0 },
+	{ "turbo-mode", "disable", set_turbo_mode, 1 },
 	{ NULL, NULL, NULL }
 };
 
@@ -2549,6 +2600,14 @@ static void fact_help(void)
 	printf("\tcommand : disable\n");
 }
 
+static void turbo_mode_help(void)
+{
+	printf("turbo-mode:\tEnables users to enable/disable turbo mode by adjusting frequency settings\n");
+	printf("\tcommand : enable\n");
+	printf("\tcommand : disable\n");
+}
+
+
 static void core_power_help(void)
 {
 	printf("core-power:\tInterface that allows user to define per core/tile\n\
@@ -2573,6 +2632,7 @@ static struct process_cmd_help_struct isst_help_cmds[] = {
 	{ "base-freq", pbf_help },
 	{ "turbo-freq", fact_help },
 	{ "core-power", core_power_help },
+	{ "turbo-mode", turbo_mode_help },
 	{ NULL, NULL }
 };
 
@@ -2636,7 +2696,7 @@ static void usage(void)
 	if (is_clx_n_platform())
 		printf("\nFEATURE : [perf-profile|base-freq]\n");
 	else
-		printf("\nFEATURE : [perf-profile|base-freq|turbo-freq|core-power]\n");
+		printf("\nFEATURE : [perf-profile|base-freq|turbo-freq|core-power|turbo-mode]\n");
 	printf("\nFor help on each feature, use -h|--help\n");
 	printf("\tFor example:  intel-speed-select perf-profile -h\n");
 
