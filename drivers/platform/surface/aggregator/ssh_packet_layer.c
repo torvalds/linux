@@ -7,6 +7,7 @@
 
 #include <asm/unaligned.h>
 #include <linux/atomic.h>
+#include <linux/error-injection.h>
 #include <linux/jiffies.h>
 #include <linux/kfifo.h>
 #include <linux/kref.h>
@@ -225,6 +226,286 @@
  * SSH_PTL_RX_FIFO_LEN - Fifo input-buffer size in bytes.
  */
 #define SSH_PTL_RX_FIFO_LEN			4096
+
+#ifdef CONFIG_SURFACE_AGGREGATOR_ERROR_INJECTION
+
+/**
+ * ssh_ptl_should_drop_ack_packet() - Error injection hook to drop ACK packets.
+ *
+ * Useful to test detection and handling of automated re-transmits by the EC.
+ * Specifically of packets that the EC considers not-ACKed but the driver
+ * already considers ACKed (due to dropped ACK). In this case, the EC
+ * re-transmits the packet-to-be-ACKed and the driver should detect it as
+ * duplicate/already handled. Note that the driver should still send an ACK
+ * for the re-transmitted packet.
+ */
+static noinline bool ssh_ptl_should_drop_ack_packet(void)
+{
+	return false;
+}
+ALLOW_ERROR_INJECTION(ssh_ptl_should_drop_ack_packet, TRUE);
+
+/**
+ * ssh_ptl_should_drop_nak_packet() - Error injection hook to drop NAK packets.
+ *
+ * Useful to test/force automated (timeout-based) re-transmit by the EC.
+ * Specifically, packets that have not reached the driver completely/with valid
+ * checksums. Only useful in combination with receival of (injected) bad data.
+ */
+static noinline bool ssh_ptl_should_drop_nak_packet(void)
+{
+	return false;
+}
+ALLOW_ERROR_INJECTION(ssh_ptl_should_drop_nak_packet, TRUE);
+
+/**
+ * ssh_ptl_should_drop_dsq_packet() - Error injection hook to drop sequenced
+ * data packet.
+ *
+ * Useful to test re-transmit timeout of the driver. If the data packet has not
+ * been ACKed after a certain time, the driver should re-transmit the packet up
+ * to limited number of times defined in SSH_PTL_MAX_PACKET_TRIES.
+ */
+static noinline bool ssh_ptl_should_drop_dsq_packet(void)
+{
+	return false;
+}
+ALLOW_ERROR_INJECTION(ssh_ptl_should_drop_dsq_packet, TRUE);
+
+/**
+ * ssh_ptl_should_fail_write() - Error injection hook to make
+ * serdev_device_write() fail.
+ *
+ * Hook to simulate errors in serdev_device_write when transmitting packets.
+ */
+static noinline int ssh_ptl_should_fail_write(void)
+{
+	return 0;
+}
+ALLOW_ERROR_INJECTION(ssh_ptl_should_fail_write, ERRNO);
+
+/**
+ * ssh_ptl_should_corrupt_tx_data() - Error injection hook to simulate invalid
+ * data being sent to the EC.
+ *
+ * Hook to simulate corrupt/invalid data being sent from host (driver) to EC.
+ * Causes the packet data to be actively corrupted by overwriting it with
+ * pre-defined values, such that it becomes invalid, causing the EC to respond
+ * with a NAK packet. Useful to test handling of NAK packets received by the
+ * driver.
+ */
+static noinline bool ssh_ptl_should_corrupt_tx_data(void)
+{
+	return false;
+}
+ALLOW_ERROR_INJECTION(ssh_ptl_should_corrupt_tx_data, TRUE);
+
+/**
+ * ssh_ptl_should_corrupt_rx_syn() - Error injection hook to simulate invalid
+ * data being sent by the EC.
+ *
+ * Hook to simulate invalid SYN bytes, i.e. an invalid start of messages and
+ * test handling thereof in the driver.
+ */
+static noinline bool ssh_ptl_should_corrupt_rx_syn(void)
+{
+	return false;
+}
+ALLOW_ERROR_INJECTION(ssh_ptl_should_corrupt_rx_syn, TRUE);
+
+/**
+ * ssh_ptl_should_corrupt_rx_data() - Error injection hook to simulate invalid
+ * data being sent by the EC.
+ *
+ * Hook to simulate invalid data/checksum of the message frame and test handling
+ * thereof in the driver.
+ */
+static noinline bool ssh_ptl_should_corrupt_rx_data(void)
+{
+	return false;
+}
+ALLOW_ERROR_INJECTION(ssh_ptl_should_corrupt_rx_data, TRUE);
+
+static bool __ssh_ptl_should_drop_ack_packet(struct ssh_packet *packet)
+{
+	if (likely(!ssh_ptl_should_drop_ack_packet()))
+		return false;
+
+	trace_ssam_ei_tx_drop_ack_packet(packet);
+	ptl_info(packet->ptl, "packet error injection: dropping ACK packet %p\n",
+		 packet);
+
+	return true;
+}
+
+static bool __ssh_ptl_should_drop_nak_packet(struct ssh_packet *packet)
+{
+	if (likely(!ssh_ptl_should_drop_nak_packet()))
+		return false;
+
+	trace_ssam_ei_tx_drop_nak_packet(packet);
+	ptl_info(packet->ptl, "packet error injection: dropping NAK packet %p\n",
+		 packet);
+
+	return true;
+}
+
+static bool __ssh_ptl_should_drop_dsq_packet(struct ssh_packet *packet)
+{
+	if (likely(!ssh_ptl_should_drop_dsq_packet()))
+		return false;
+
+	trace_ssam_ei_tx_drop_dsq_packet(packet);
+	ptl_info(packet->ptl,
+		 "packet error injection: dropping sequenced data packet %p\n",
+		 packet);
+
+	return true;
+}
+
+static bool ssh_ptl_should_drop_packet(struct ssh_packet *packet)
+{
+	/* Ignore packets that don't carry any data (i.e. flush). */
+	if (!packet->data.ptr || !packet->data.len)
+		return false;
+
+	switch (packet->data.ptr[SSH_MSGOFFSET_FRAME(type)]) {
+	case SSH_FRAME_TYPE_ACK:
+		return __ssh_ptl_should_drop_ack_packet(packet);
+
+	case SSH_FRAME_TYPE_NAK:
+		return __ssh_ptl_should_drop_nak_packet(packet);
+
+	case SSH_FRAME_TYPE_DATA_SEQ:
+		return __ssh_ptl_should_drop_dsq_packet(packet);
+
+	default:
+		return false;
+	}
+}
+
+static int ssh_ptl_write_buf(struct ssh_ptl *ptl, struct ssh_packet *packet,
+			     const unsigned char *buf, size_t count)
+{
+	int status;
+
+	status = ssh_ptl_should_fail_write();
+	if (unlikely(status)) {
+		trace_ssam_ei_tx_fail_write(packet, status);
+		ptl_info(packet->ptl,
+			 "packet error injection: simulating transmit error %d, packet %p\n",
+			 status, packet);
+
+		return status;
+	}
+
+	return serdev_device_write_buf(ptl->serdev, buf, count);
+}
+
+static void ssh_ptl_tx_inject_invalid_data(struct ssh_packet *packet)
+{
+	/* Ignore packets that don't carry any data (i.e. flush). */
+	if (!packet->data.ptr || !packet->data.len)
+		return;
+
+	/* Only allow sequenced data packets to be modified. */
+	if (packet->data.ptr[SSH_MSGOFFSET_FRAME(type)] != SSH_FRAME_TYPE_DATA_SEQ)
+		return;
+
+	if (likely(!ssh_ptl_should_corrupt_tx_data()))
+		return;
+
+	trace_ssam_ei_tx_corrupt_data(packet);
+	ptl_info(packet->ptl,
+		 "packet error injection: simulating invalid transmit data on packet %p\n",
+		 packet);
+
+	/*
+	 * NB: The value 0xb3 has been chosen more or less randomly so that it
+	 * doesn't have any (major) overlap with the SYN bytes (aa 55) and is
+	 * non-trivial (i.e. non-zero, non-0xff).
+	 */
+	memset(packet->data.ptr, 0xb3, packet->data.len);
+}
+
+static void ssh_ptl_rx_inject_invalid_syn(struct ssh_ptl *ptl,
+					  struct ssam_span *data)
+{
+	struct ssam_span frame;
+
+	/* Check if there actually is something to corrupt. */
+	if (!sshp_find_syn(data, &frame))
+		return;
+
+	if (likely(!ssh_ptl_should_corrupt_rx_syn()))
+		return;
+
+	trace_ssam_ei_rx_corrupt_syn(data->len);
+
+	data->ptr[1] = 0xb3;	/* Set second byte of SYN to "random" value. */
+}
+
+static void ssh_ptl_rx_inject_invalid_data(struct ssh_ptl *ptl,
+					   struct ssam_span *frame)
+{
+	size_t payload_len, message_len;
+	struct ssh_frame *sshf;
+
+	/* Ignore incomplete messages, will get handled once it's complete. */
+	if (frame->len < SSH_MESSAGE_LENGTH(0))
+		return;
+
+	/* Ignore incomplete messages, part 2. */
+	payload_len = get_unaligned_le16(&frame->ptr[SSH_MSGOFFSET_FRAME(len)]);
+	message_len = SSH_MESSAGE_LENGTH(payload_len);
+	if (frame->len < message_len)
+		return;
+
+	if (likely(!ssh_ptl_should_corrupt_rx_data()))
+		return;
+
+	sshf = (struct ssh_frame *)&frame->ptr[SSH_MSGOFFSET_FRAME(type)];
+	trace_ssam_ei_rx_corrupt_data(sshf);
+
+	/*
+	 * Flip bits in first byte of payload checksum. This is basically
+	 * equivalent to a payload/frame data error without us having to worry
+	 * about (the, arguably pretty small, probability of) accidental
+	 * checksum collisions.
+	 */
+	frame->ptr[frame->len - 2] = ~frame->ptr[frame->len - 2];
+}
+
+#else /* CONFIG_SURFACE_AGGREGATOR_ERROR_INJECTION */
+
+static inline bool ssh_ptl_should_drop_packet(struct ssh_packet *packet)
+{
+	return false;
+}
+
+static inline int ssh_ptl_write_buf(struct ssh_ptl *ptl,
+				    struct ssh_packet *packet,
+				    const unsigned char *buf,
+				    size_t count)
+{
+	return serdev_device_write_buf(ptl->serdev, buf, count);
+}
+
+static inline void ssh_ptl_tx_inject_invalid_data(struct ssh_packet *packet)
+{
+}
+
+static inline void ssh_ptl_rx_inject_invalid_syn(struct ssh_ptl *ptl,
+						 struct ssam_span *data)
+{
+}
+
+static inline void ssh_ptl_rx_inject_invalid_data(struct ssh_ptl *ptl,
+						  struct ssam_span *frame)
+{
+}
+
+#endif /* CONFIG_SURFACE_AGGREGATOR_ERROR_INJECTION */
 
 static void __ssh_ptl_packet_release(struct kref *kref)
 {
@@ -776,6 +1057,13 @@ static int ssh_ptl_tx_packet(struct ssh_ptl *ptl, struct ssh_packet *packet)
 	if (unlikely(!packet->data.ptr))
 		return 0;
 
+	/* Error injection: drop packet to simulate transmission problem. */
+	if (ssh_ptl_should_drop_packet(packet))
+		return 0;
+
+	/* Error injection: simulate invalid packet data. */
+	ssh_ptl_tx_inject_invalid_data(packet);
+
 	ptl_dbg(ptl, "tx: sending data (length: %zu)\n", packet->data.len);
 	print_hex_dump_debug("tx: ", DUMP_PREFIX_OFFSET, 16, 1,
 			     packet->data.ptr, packet->data.len, false);
@@ -787,7 +1075,7 @@ static int ssh_ptl_tx_packet(struct ssh_ptl *ptl, struct ssh_packet *packet)
 		buf = packet->data.ptr + offset;
 		len = packet->data.len - offset;
 
-		status = serdev_device_write_buf(ptl->serdev, buf, len);
+		status = ssh_ptl_write_buf(ptl, packet, buf, len);
 		if (status < 0)
 			return status;
 
@@ -1400,6 +1688,9 @@ static size_t ssh_ptl_rx_eval(struct ssh_ptl *ptl, struct ssam_span *source)
 	bool syn_found;
 	int status;
 
+	/* Error injection: Modify data to simulate corrupt SYN bytes. */
+	ssh_ptl_rx_inject_invalid_syn(ptl, source);
+
 	/* Find SYN. */
 	syn_found = sshp_find_syn(source, &aligned);
 
@@ -1429,6 +1720,9 @@ static size_t ssh_ptl_rx_eval(struct ssh_ptl *ptl, struct ssam_span *source)
 
 	if (unlikely(!syn_found))
 		return aligned.ptr - source->ptr;
+
+	/* Error injection: Modify data to simulate corruption. */
+	ssh_ptl_rx_inject_invalid_data(ptl, &aligned);
 
 	/* Parse and validate frame. */
 	status = sshp_parse_frame(&ptl->serdev->dev, &aligned, &frame, &payload,
