@@ -1805,4 +1805,10 @@ static inline u32 intel_plane_ggtt_offset(const struct intel_plane_state *state)
 	return i915_ggtt_offset(state->vma);
 }
 
+static inline struct intel_frontbuffer *
+to_intel_frontbuffer(struct drm_framebuffer *fb)
+{
+	return fb ? to_intel_framebuffer(fb)->frontbuffer : NULL;
+}
+
 #endif /*  __INTEL_DISPLAY_TYPES_H__ */

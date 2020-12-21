@@ -3611,12 +3611,6 @@ static void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 	intel_disable_plane(plane, crtc_state);
 }
 
-static struct intel_frontbuffer *
-to_intel_frontbuffer(struct drm_framebuffer *fb)
-{
-	return fb ? to_intel_framebuffer(fb)->frontbuffer : NULL;
-}
-
 static void
 intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 			     struct intel_initial_plane_config *plane_config)
