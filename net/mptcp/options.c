@@ -606,6 +606,8 @@ static bool mptcp_established_options_add_addr(struct sock *sk, struct sk_buff *
 	    skb && skb_is_tcp_pure_ack(skb)) {
 		pr_debug("drop other suboptions");
 		opts->suboptions = 0;
+		opts->ext_copy.use_ack = 0;
+		opts->ext_copy.use_map = 0;
 		remaining += opt_size;
 		drop_other_suboptions = true;
 	}
@@ -873,10 +875,13 @@ static void ack_update_msk(struct mptcp_sock *msk,
 
 	new_wnd_end = new_snd_una + tcp_sk(ssk)->snd_wnd;
 
-	if (after64(new_wnd_end, msk->wnd_end)) {
+	if (after64(new_wnd_end, msk->wnd_end))
 		msk->wnd_end = new_wnd_end;
-		__mptcp_wnd_updated(sk, ssk);
-	}
+
+	/* this assumes mptcp_incoming_options() is invoked after tcp_ack() */
+	if (after64(msk->wnd_end, READ_ONCE(msk->snd_nxt)) &&
+	    sk_stream_memory_free(ssk))
+		__mptcp_check_push(sk, ssk);
 
 	if (after64(new_snd_una, old_snd_una)) {
 		msk->snd_una = new_snd_una;
@@ -942,8 +947,8 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb)
 		 * helpers are cheap.
 		 */
 		mptcp_data_lock(subflow->conn);
-		if (mptcp_send_head(subflow->conn))
-			__mptcp_wnd_updated(subflow->conn, sk);
+		if (sk_stream_memory_free(sk))
+			__mptcp_check_push(subflow->conn, sk);
 		__mptcp_data_acked(subflow->conn);
 		mptcp_data_unlock(subflow->conn);
 		return;
