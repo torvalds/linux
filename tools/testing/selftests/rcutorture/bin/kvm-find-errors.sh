@@ -46,6 +46,7 @@ fi
 if grep -q -e "--buildonly" < ${rundir}/log
 then
 	echo Build-only run, no console logs to check.
+	exit $editorret
 fi
 
 # Find console logs with errors
