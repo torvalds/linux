@@ -3422,10 +3422,23 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 		(struct rkisp_isp_params_v21_ops *)params_vdev->priv_ops;
 	struct rkisp_isp_params_val_v21 *priv_val =
 		(struct rkisp_isp_params_val_v21 *)params_vdev->priv_val;
+	struct rkisp_device *ispdev = params_vdev->dev;
+	bool is_feature_on = ispdev->hw_dev->is_feature_on;
+	u64 iq_feature = ispdev->hw_dev->iq_feature;
 
 	module_en_update = new_params->module_en_update;
 	module_cfg_update = new_params->module_cfg_update;
 	module_ens = new_params->module_ens;
+
+	if (is_feature_on) {
+		module_en_update &= ~ISP2X_MODULE_HDRMGE;
+		if (module_en_update & ~iq_feature) {
+			dev_err(ispdev->dev,
+				"some iq features(0x%llx, 0x%llx) are not supported\n",
+				module_en_update, iq_feature);
+			module_en_update &= iq_feature;
+		}
+	}
 
 	if (type == RKISP_PARAMS_SHD) {
 		if ((module_en_update & ISP2X_MODULE_HDRMGE) ||
@@ -3701,6 +3714,9 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 	u64 module_en_update, module_cfg_update, module_ens;
 	struct rkisp_isp_params_v21_ops *ops =
 		(struct rkisp_isp_params_v21_ops *)params_vdev->priv_ops;
+	struct rkisp_device *ispdev = params_vdev->dev;
+	bool is_feature_on = ispdev->hw_dev->is_feature_on;
+	u64 iq_feature = ispdev->hw_dev->iq_feature;
 
 	if (type == RKISP_PARAMS_SHD)
 		return;
@@ -3708,6 +3724,16 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 	module_en_update = new_params->module_en_update;
 	module_cfg_update = new_params->module_cfg_update;
 	module_ens = new_params->module_ens;
+
+	if (is_feature_on) {
+		module_en_update &= ~ISP2X_MODULE_HDRMGE;
+		if (module_en_update & ~iq_feature) {
+			dev_err(ispdev->dev,
+				"some iq features(0x%llx, 0x%llx) are not supported\n",
+				module_en_update, iq_feature);
+			module_en_update &= iq_feature;
+		}
+	}
 
 	if ((module_en_update & ISP2X_MODULE_RAWAE0) ||
 	    (module_cfg_update & ISP2X_MODULE_RAWAE0)) {

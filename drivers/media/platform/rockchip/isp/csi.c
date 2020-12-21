@@ -269,6 +269,8 @@ static int csi_config(struct rkisp_csi_device *csi)
 			 rkisp_read(dev, CIF_ISP_CSI0_DATA_IDS_1, true),
 			 rkisp_read(dev, CIF_ISP_CSI0_MASK3, true));
 	} else if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21) {
+		bool is_feature_on = dev->hw_dev->is_feature_on;
+		u64 iq_feature = dev->hw_dev->iq_feature;
 		struct rkmodule_hdr_cfg hdr_cfg;
 		u32 val;
 
@@ -338,6 +340,12 @@ static int csi_config(struct rkisp_csi_device *csi)
 		default:
 			val = 0;
 		}
+		if (is_feature_on) {
+			if ((ISP2X_MODULE_HDRMGE & ~iq_feature) && (val & SW_HDRMGE_EN)) {
+				v4l2_err(&dev->v4l2_dev, "hdrmge is not supported\n");
+				return -EINVAL;
+			}
+		}
 		rkisp_write(dev, ISP_HDRMGE_BASE, val, false);
 
 		v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
@@ -398,6 +406,8 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 {
 	int val = 0, ret = 0;
 	struct v4l2_subdev *mipi_sensor;
+	bool is_feature_on = dev->hw_dev->is_feature_on;
+	u64 iq_feature = dev->hw_dev->iq_feature;
 
 	if (dev->isp_inp & INP_CSI) {
 		dev->hw_dev->mipi_dev_id = dev->dev_id;
@@ -444,6 +454,13 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 		if (!dev->hw_dev->is_mi_update)
 			rkisp_write(dev, CSI2RX_CTRL0,
 				    SW_IBUF_OP_MODE(dev->hdr.op_mode), true);
+
+		if (is_feature_on) {
+			if ((ISP2X_MODULE_HDRMGE & ~iq_feature) && (val & SW_HDRMGE_EN)) {
+				v4l2_err(&dev->v4l2_dev, "hdrmge is not supported\n");
+				return -EINVAL;
+			}
+		}
 		rkisp_write(dev, ISP_HDRMGE_BASE, val, false);
 		rkisp_write(dev, CSI2RX_MASK_STAT, 0x7FFFFF7F, true);
 	}
@@ -470,6 +487,8 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 	struct rkisp_hw_dev *hw = dev->hw_dev;
 	struct rkisp_isp_params_vdev *params_vdev = &dev->params_vdev;
 	u32 val, cur_frame_id, tmp, rd_mode;
+	bool is_feature_on = hw->is_feature_on;
+	u64 iq_feature = hw->iq_feature;
 	bool is_upd = false;
 
 	if (dev->isp_ver == ISP_V21)
@@ -499,6 +518,14 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 		rd_mode = csi->rd_mode;
 		val = rkisp_read(dev, ISP_HDRMGE_BASE, false) & 0xf;
 	}
+
+	if (is_feature_on) {
+		if ((ISP2X_MODULE_HDRMGE & ~iq_feature) && (val & SW_HDRMGE_EN)) {
+			v4l2_err(&dev->v4l2_dev, "hdrmge is not supported\n");
+			return;
+		}
+	}
+
 	tmp = rkisp_read(dev, ISP_HDRMGE_BASE, false) & 0xf;
 	if (val != tmp) {
 		rkisp_write(dev, ISP_HDRMGE_BASE, val, false);

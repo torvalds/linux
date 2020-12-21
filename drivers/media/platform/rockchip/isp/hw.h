@@ -60,6 +60,9 @@ struct rkisp_hw_dev {
 	bool is_single;
 	bool is_mi_update;
 	bool is_thunderboot;
+
+	bool is_feature_on;
+	u64 iq_feature;
 };
 
 int rkisp_register_irq(struct rkisp_hw_dev *dev);

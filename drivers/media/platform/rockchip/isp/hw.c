@@ -688,6 +688,12 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 		hw_dev->reset = NULL;
 	}
 
+	ret = of_property_read_u64(node, "rockchip,iq-feature", &hw_dev->iq_feature);
+	if (!ret)
+		hw_dev->is_feature_on = true;
+	else
+		hw_dev->is_feature_on = false;
+
 	hw_dev->dev_num = 0;
 	hw_dev->cur_dev_id = 0;
 	hw_dev->mipi_dev_id = 0;
