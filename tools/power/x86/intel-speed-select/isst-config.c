@@ -2353,6 +2353,53 @@ static void set_turbo_mode(int arg)
 	isst_ctdp_display_information_end(outf);
 }
 
+static void get_set_trl(int cpu, void *arg1, void *arg2, void *arg3,
+			void *arg4)
+{
+	unsigned long long trl;
+	int set = *(int *)arg4;
+	int ret;
+
+	if (set && !fact_trl) {
+		isst_display_error_info_message(1, "Invalid TRL. Specify with [-t|--trl]", 0, 0);
+		exit(0);
+	}
+
+	if (set) {
+		ret = isst_set_trl(cpu, fact_trl);
+		isst_display_result(cpu, outf, "turbo-mode", "set-trl", ret);
+		return;
+	}
+
+	ret = isst_get_trl(cpu, &trl);
+	if (ret)
+		isst_display_result(cpu, outf, "turbo-mode", "get-trl", ret);
+	else
+		isst_trl_display_information(cpu, outf, trl);
+}
+
+static void process_trl(int arg)
+{
+	if (cmd_help) {
+		if (arg) {
+			fprintf(stderr, "Set TRL (turbo ratio limits)\n");
+			fprintf(stderr, "\t t|--trl: Specify turbo ratio limit for setting TRL\n");
+		} else {
+			fprintf(stderr, "Get TRL (turbo ratio limits)\n");
+		}
+		exit(0);
+	}
+
+	isst_ctdp_display_information_start(outf);
+	if (max_target_cpus)
+		for_each_online_target_cpu_in_set(get_set_trl, NULL,
+						  NULL, NULL, &arg);
+	else
+		for_each_online_package_in_set(get_set_trl, NULL,
+					       NULL, NULL, &arg);
+	isst_ctdp_display_information_end(outf);
+}
+
 static struct process_cmd_struct clx_n_cmds[] = {
 	{ "perf-profile", "info", dump_isst_config, 0 },
 	{ "base-freq", "info", dump_pbf_config, 0 },
@@ -2385,6 +2432,8 @@ static struct process_cmd_struct isst_cmds[] = {
 	{ "core-power", "get-assoc", get_clos_assoc, 0 },
 	{ "turbo-mode", "enable", set_turbo_mode, 0 },
 	{ "turbo-mode", "disable", set_turbo_mode, 1 },
+	{ "turbo-mode", "get-trl", process_trl, 0 },
+	{ "turbo-mode", "set-trl", process_trl, 1 },
 	{ NULL, NULL, NULL }
 };
 
@@ -2602,9 +2651,11 @@ static void fact_help(void)
 
 static void turbo_mode_help(void)
 {
-	printf("turbo-mode:\tEnables users to enable/disable turbo mode by adjusting frequency settings\n");
+	printf("turbo-mode:\tEnables users to enable/disable turbo mode by adjusting frequency settings. Also allows to get and set turbo ratio limits (TRL).\n");
 	printf("\tcommand : enable\n");
 	printf("\tcommand : disable\n");
+	printf("\tcommand : get-trl\n");
+	printf("\tcommand : set-trl\n");
 }
 
 
