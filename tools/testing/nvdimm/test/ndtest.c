@@ -254,6 +254,45 @@ static inline struct ndtest_priv *to_ndtest_priv(struct device *dev)
 	return container_of(pdev, struct ndtest_priv, pdev);
 }
 
+static int ndtest_config_get(struct ndtest_dimm *p, unsigned int buf_len,
+			     struct nd_cmd_get_config_data_hdr *hdr)
+{
+	unsigned int len;
+
+	if ((hdr->in_offset + hdr->in_length) > LABEL_SIZE)
+		return -EINVAL;
+
+	hdr->status = 0;
+	len = min(hdr->in_length, LABEL_SIZE - hdr->in_offset);
+	memcpy(hdr->out_buf, p->label_area + hdr->in_offset, len);
+
+	return buf_len - len;
+}
+
+static int ndtest_config_set(struct ndtest_dimm *p, unsigned int buf_len,
+			     struct nd_cmd_set_config_hdr *hdr)
+{
+	unsigned int len;
+
+	if ((hdr->in_offset + hdr->in_length) > LABEL_SIZE)
+		return -EINVAL;
+
+	len = min(hdr->in_length, LABEL_SIZE - hdr->in_offset);
+	memcpy(p->label_area + hdr->in_offset, hdr->in_buf, len);
+
+	return buf_len - len;
+}
+
+static int ndtest_get_config_size(struct ndtest_dimm *dimm, unsigned int buf_len,
+				  struct nd_cmd_get_config_size *size)
+{
+	size->status = 0;
+	size->max_xfer = 8;
+	size->config_size = dimm->config_size;
+
+	return 0;
+}
+
 static int ndtest_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		      struct nvdimm *nvdimm, unsigned int cmd, void *buf,
 		      unsigned int buf_len, int *cmd_rc)
@@ -275,11 +314,23 @@ static int ndtest_ctl(struct nvdimm_bus_descriptor *nd_desc,
 
 	switch (cmd) {
 	case ND_CMD_GET_CONFIG_SIZE:
+		*cmd_rc = ndtest_get_config_size(dimm, buf_len, buf);
+		break;
 	case ND_CMD_GET_CONFIG_DATA:
+		*cmd_rc = ndtest_config_get(dimm, buf_len, buf);
+		break;
 	case ND_CMD_SET_CONFIG_DATA:
+		*cmd_rc = ndtest_config_set(dimm, buf_len, buf);
+		break;
 	default:
 		return -EINVAL;
 	}
+
+	/* Failures for a DIMM can be injected using fail_cmd and
+	 * fail_cmd_code, see the device attributes below
+	 */
+	if ((1 << cmd) & dimm->fail_cmd)
+		return dimm->fail_cmd_code ? dimm->fail_cmd_code : -EIO;
 
 	return 0;
 }
