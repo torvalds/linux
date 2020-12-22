@@ -1899,7 +1899,7 @@ static int btusb_setup_csr(struct hci_dev *hdev)
 		    le16_to_cpu(rp->lmp_subver) == 0x1012 &&
 		    le16_to_cpu(rp->hci_rev) == 0x0810 &&
 		    le16_to_cpu(rp->hci_ver) == BLUETOOTH_VER_4_0) {
-			bt_dev_warn(hdev, "CSR: detected a fake CSR dongle using a Barrot 8041a02 chip, this chip is very buggy and may have issues\n");
+			bt_dev_warn(hdev, "CSR: detected a fake CSR dongle using a Barrot 8041a02 chip, this chip is very buggy and may have issues");
 
 			pm_runtime_allow(&data->udev->dev);
 
@@ -1907,7 +1907,7 @@ static int btusb_setup_csr(struct hci_dev *hdev)
 			if (ret >= 0)
 				msleep(200);
 			else
-				bt_dev_err(hdev, "Failed to suspend the device for Barrot 8041a02 receive-issue workaround\n");
+				bt_dev_err(hdev, "Failed to suspend the device for Barrot 8041a02 receive-issue workaround");
 
 			pm_runtime_forbid(&data->udev->dev);
 
@@ -3724,7 +3724,7 @@ static int marvell_config_oob_wake(struct hci_dev *hdev)
 
 	skb = bt_skb_alloc(sizeof(cmd), GFP_KERNEL);
 	if (!skb) {
-		bt_dev_err(hdev, "%s: No memory\n", __func__);
+		bt_dev_err(hdev, "%s: No memory", __func__);
 		return -ENOMEM;
 	}
 
@@ -3733,7 +3733,7 @@ static int marvell_config_oob_wake(struct hci_dev *hdev)
 
 	ret = btusb_send_frame(hdev, skb);
 	if (ret) {
-		bt_dev_err(hdev, "%s: configuration failed\n", __func__);
+		bt_dev_err(hdev, "%s: configuration failed", __func__);
 		kfree_skb(skb);
 		return ret;
 	}
