@@ -72,10 +72,12 @@
 #define RKVDEC_IRQ_RAW			BIT(1)
 #define RKVDEC_IRQ			BIT(0)
 
-#define RKVDEC_REG_CACHE0_SIZE_BASE	0x71c
-#define RKVDEC_REG_CACHE1_SIZE_BASE	0x75c
-#define RKVDEC_REG_CLR_CACHE0_BASE	0x710
-#define RKVDEC_REG_CLR_CACHE1_BASE	0x750
+#define RKVDEC_REG_CACHE0_SIZE_BASE	0x51c
+#define RKVDEC_REG_CACHE1_SIZE_BASE	0x55c
+#define RKVDEC_REG_CACHE2_SIZE_BASE	0x59c
+#define RKVDEC_REG_CLR_CACHE0_BASE	0x510
+#define RKVDEC_REG_CLR_CACHE1_BASE	0x550
+#define RKVDEC_REG_CLR_CACHE2_BASE	0x590
 
 #define RKVDEC_CACHE_PERMIT_CACHEABLE_ACCESS	BIT(0)
 #define RKVDEC_CACHE_PERMIT_READ_ALLOCATE	BIT(1)
@@ -311,9 +313,11 @@ static int rkvdec_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 
 		mpp_write_relaxed(mpp, RKVDEC_REG_CACHE0_SIZE_BASE, reg);
 		mpp_write_relaxed(mpp, RKVDEC_REG_CACHE1_SIZE_BASE, reg);
+		mpp_write_relaxed(mpp, RKVDEC_REG_CACHE2_SIZE_BASE, reg);
 		/* clear cache */
 		mpp_write_relaxed(mpp, RKVDEC_REG_CLR_CACHE0_BASE, 1);
 		mpp_write_relaxed(mpp, RKVDEC_REG_CLR_CACHE1_BASE, 1);
+		mpp_write_relaxed(mpp, RKVDEC_REG_CLR_CACHE2_BASE, 1);
 		/* set registers for hardware */
 		for (i = 0; i < task->w_req_cnt; i++) {
 			int s, e;
