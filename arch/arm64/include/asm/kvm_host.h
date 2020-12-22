@@ -241,11 +241,6 @@ struct kvm_host_data {
 	struct kvm_pmu_events pmu_events;
 };
 
-#define KVM_HOST_PSCI_0_1_CPU_SUSPEND	BIT(0)
-#define KVM_HOST_PSCI_0_1_CPU_ON	BIT(1)
-#define KVM_HOST_PSCI_0_1_CPU_OFF	BIT(2)
-#define KVM_HOST_PSCI_0_1_MIGRATE	BIT(3)
-
 struct kvm_host_psci_config {
 	/* PSCI version used by host. */
 	u32 version;
@@ -253,8 +248,10 @@ struct kvm_host_psci_config {
 	/* Function IDs used by host if version is v0.1. */
 	struct psci_0_1_function_ids function_ids_0_1;
 
-	/* Bitmask of functions enabled for v0.1, bits KVM_HOST_PSCI_0_1_*. */
-	unsigned int enabled_functions_0_1;
+	bool psci_0_1_cpu_suspend_implemented;
+	bool psci_0_1_cpu_on_implemented;
+	bool psci_0_1_cpu_off_implemented;
+	bool psci_0_1_migrate_implemented;
 };
 
 extern struct kvm_host_psci_config kvm_nvhe_sym(kvm_host_psci_config);
