@@ -76,6 +76,13 @@ struct xdp_buff {
 	u32 frame_sz; /* frame size to deduce data_hard_end/reserved tailroom*/
 };
 
+static __always_inline void
+xdp_init_buff(struct xdp_buff *xdp, u32 frame_sz, struct xdp_rxq_info *rxq)
+{
+	xdp->frame_sz = frame_sz;
+	xdp->rxq = rxq;
+}
+
 /* Reserve memory area at end-of data area.
  *
  * This macro reserves tailroom in the XDP buffer by limiting the

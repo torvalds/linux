@@ -335,6 +335,8 @@ static void cpsw_rx_handler(void *token, int len, int status)
 	}
 
 	if (priv->xdp_prog) {
+		xdp_init_buff(&xdp, PAGE_SIZE, &priv->xdp_rxq[ch]);
+
 		if (status & CPDMA_RX_VLAN_ENCAP) {
 			xdp.data = pa + CPSW_HEADROOM +
 				   CPSW_RX_VLAN_ENCAP_HDR_SIZE;
@@ -348,8 +350,6 @@ static void cpsw_rx_handler(void *token, int len, int status)
 		xdp_set_data_meta_invalid(&xdp);
 
 		xdp.data_hard_start = pa;
-		xdp.rxq = &priv->xdp_rxq[ch];
-		xdp.frame_sz = PAGE_SIZE;
 
 		ret = cpsw_run_xdp(priv, ch, &xdp, page, priv->emac_port);
 		if (ret != CPSW_XDP_PASS)

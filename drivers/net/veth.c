@@ -654,7 +654,7 @@ static struct sk_buff *veth_xdp_rcv_skb(struct veth_rq *rq,
 					struct veth_xdp_tx_bq *bq,
 					struct veth_stats *stats)
 {
-	u32 pktlen, headroom, act, metalen;
+	u32 pktlen, headroom, act, metalen, frame_sz;
 	void *orig_data, *orig_data_end;
 	struct bpf_prog *xdp_prog;
 	int mac_len, delta, off;
@@ -714,11 +714,11 @@ static struct sk_buff *veth_xdp_rcv_skb(struct veth_rq *rq,
 	xdp.data = skb_mac_header(skb);
 	xdp.data_end = xdp.data + pktlen;
 	xdp.data_meta = xdp.data;
-	xdp.rxq = &rq->xdp_rxq;
 
 	/* SKB "head" area always have tailroom for skb_shared_info */
-	xdp.frame_sz = (void *)skb_end_pointer(skb) - xdp.data_hard_start;
-	xdp.frame_sz += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	frame_sz = (void *)skb_end_pointer(skb) - xdp.data_hard_start;
+	frame_sz += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	xdp_init_buff(&xdp, frame_sz, &rq->xdp_rxq);
 
 	orig_data = xdp.data;
 	orig_data_end = xdp.data_end;

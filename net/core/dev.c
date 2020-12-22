@@ -4606,11 +4606,11 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 	struct netdev_rx_queue *rxqueue;
 	void *orig_data, *orig_data_end;
 	u32 metalen, act = XDP_DROP;
+	u32 mac_len, frame_sz;
 	__be16 orig_eth_type;
 	struct ethhdr *eth;
 	bool orig_bcast;
 	int hlen, off;
-	u32 mac_len;
 
 	/* Reinjected packets coming from act_mirred or similar should
 	 * not get XDP generic processing.
@@ -4649,8 +4649,8 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 	xdp->data_hard_start = skb->data - skb_headroom(skb);
 
 	/* SKB "head" area always have tailroom for skb_shared_info */
-	xdp->frame_sz  = (void *)skb_end_pointer(skb) - xdp->data_hard_start;
-	xdp->frame_sz += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	frame_sz = (void *)skb_end_pointer(skb) - xdp->data_hard_start;
+	frame_sz += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
 	orig_data_end = xdp->data_end;
 	orig_data = xdp->data;
@@ -4659,7 +4659,7 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 	orig_eth_type = eth->h_proto;
 
 	rxqueue = netif_get_rxqueue(skb);
-	xdp->rxq = &rxqueue->xdp_rxq;
+	xdp_init_buff(xdp, frame_sz, &rxqueue->xdp_rxq);
 
 	act = bpf_prog_run_xdp(xdp_prog, xdp);
 

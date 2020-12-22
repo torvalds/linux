@@ -2363,9 +2363,8 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 	u32 desc_status, frame_sz;
 	struct xdp_buff xdp_buf;
 
+	xdp_init_buff(&xdp_buf, PAGE_SIZE, &rxq->xdp_rxq);
 	xdp_buf.data_hard_start = NULL;
-	xdp_buf.frame_sz = PAGE_SIZE;
-	xdp_buf.rxq = &rxq->xdp_rxq;
 
 	sinfo.nr_frags = 0;
 

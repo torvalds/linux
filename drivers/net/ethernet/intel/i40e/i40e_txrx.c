@@ -2344,7 +2344,7 @@ static void i40e_inc_ntc(struct i40e_ring *rx_ring)
  **/
 static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 {
-	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
+	unsigned int total_rx_bytes = 0, total_rx_packets = 0, frame_sz = 0;
 	struct sk_buff *skb = rx_ring->skb;
 	u16 cleaned_count = I40E_DESC_UNUSED(rx_ring);
 	unsigned int xdp_xmit = 0;
@@ -2352,9 +2352,9 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 	struct xdp_buff xdp;
 
 #if (PAGE_SIZE < 8192)
-	xdp.frame_sz = i40e_rx_frame_truesize(rx_ring, 0);
+	frame_sz = i40e_rx_frame_truesize(rx_ring, 0);
 #endif
-	xdp.rxq = &rx_ring->xdp_rxq;
+	xdp_init_buff(&xdp, frame_sz, &rx_ring->xdp_rxq);
 
 	while (likely(total_rx_packets < (unsigned int)budget)) {
 		struct i40e_rx_buffer *rx_buffer;

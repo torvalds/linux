@@ -1822,8 +1822,8 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 	rcu_read_lock();
 	xdp_prog = READ_ONCE(dp->xdp_prog);
 	true_bufsz = xdp_prog ? PAGE_SIZE : dp->fl_bufsz;
-	xdp.frame_sz = PAGE_SIZE - NFP_NET_RX_BUF_HEADROOM;
-	xdp.rxq = &rx_ring->xdp_rxq;
+	xdp_init_buff(&xdp, PAGE_SIZE - NFP_NET_RX_BUF_HEADROOM,
+		      &rx_ring->xdp_rxq);
 	tx_ring = r_vec->xdp_ring;
 
 	while (pkts_polled < budget) {
