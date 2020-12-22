@@ -632,6 +632,7 @@ L_SAVE_VGPR_END:
 #if ASIC_FAMILY >= CHIP_ALDEBARAN
     // ACC VGPR count may differ from ARCH VGPR count.
     get_num_acc_vgprs(s_save_alloc_size, s_save_tmp)
+    s_and_b32       s_save_alloc_size, s_save_alloc_size, s_save_alloc_size
     s_cbranch_scc0  L_SAVE_ACCVGPR_END
     s_add_u32	    s_save_alloc_size, s_save_alloc_size, 0x1000		    //add 0x1000 since we compare m0 against it later
 #endif
@@ -769,6 +770,7 @@ L_RESTORE:
 #if ASIC_FAMILY >= CHIP_ALDEBARAN
     // ACC VGPR count may differ from ARCH VGPR count.
     get_num_acc_vgprs(s_restore_alloc_size, s_restore_tmp2)
+    s_and_b32       s_restore_alloc_size, s_restore_alloc_size, s_restore_alloc_size
     s_cbranch_scc0  L_RESTORE_ACCVGPR_END
     s_add_u32	    s_restore_alloc_size, s_restore_alloc_size, 0x8000			    //add 0x8000 since we compare m0 against it later
 #endif
