@@ -10,6 +10,8 @@
   blocking_notifier_call_chain
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
+  bpf_trace_run1
+  bpf_trace_run2
   bpf_trace_run3
   bpf_trace_run4
   bpf_trace_run5
@@ -114,6 +116,7 @@
   devm_regulator_get
   devm_regulator_register
   devm_request_threaded_irq
+  devm_reset_control_array_get
   __devm_reset_control_get
   devm_reset_controller_register
   devm_snd_soc_register_component
@@ -139,6 +142,7 @@
   dev_set_name
   _dev_warn
   disable_irq
+  disable_irq_nosync
   divider_get_val
   divider_recalc_rate
   divider_round_rate_parent
@@ -175,6 +179,10 @@
   eth_platform_get_mac_address
   eth_validate_addr
   event_triggers_call
+  extcon_get_edev_by_phandle
+  extcon_get_state
+  extcon_register_notifier
+  extcon_unregister_notifier
   find_next_bit
   find_next_zero_bit
   finish_wait
@@ -335,6 +343,7 @@
   of_alias_get_id
   of_clk_add_hw_provider
   of_clk_del_provider
+  of_clk_get
   of_clk_hw_simple_get
   of_clk_set_defaults
   of_device_get_match_data
@@ -355,6 +364,7 @@
   of_get_regulator_init_data
   of_graph_get_remote_node
   of_graph_parse_endpoint
+  of_icc_get
   of_icc_xlate_onecell
   of_iomap
   of_irq_find_parent
@@ -386,12 +396,18 @@
   phy_init
   phy_power_off
   phy_power_on
+  phy_set_mode_ext
   pinconf_generic_dt_node_to_map
   pinctrl_dev_get_drvdata
   pinctrl_pm_select_default_state
   pinctrl_pm_select_sleep_state
   pinctrl_utils_free_map
   platform_bus_type
+  platform_device_add
+  platform_device_add_properties
+  platform_device_add_resources
+  platform_device_alloc
+  platform_device_put
   platform_device_register_full
   platform_device_unregister
   __platform_driver_register
@@ -403,6 +419,7 @@
   platform_get_resource_byname
   pm_genpd_add_subdomain
   pm_genpd_init
+  pm_runtime_allow
   __pm_runtime_disable
   pm_runtime_enable
   pm_runtime_forbid
@@ -583,8 +600,11 @@
   unregister_chrdev_region
   unregister_reboot_notifier
   unregister_rpmsg_driver
+  usb_debug_root
   usb_deregister
   usb_disabled
+  usb_get_dr_mode
+  usb_get_maximum_speed
   usbnet_disconnect
   usbnet_get_endpoints
   usbnet_get_msglevel
@@ -825,6 +845,38 @@
   dmam_free_coherent
   mmc_cqe_request_done
 
+# required by dwc3-qcom.ko
+  devm_extcon_register_notifier
+  of_clk_get_parent_count
+
+# required by dwc3.ko
+  debugfs_create_regset32
+  dev_fwnode
+  device_property_read_string
+  device_property_read_u8_array
+  devm_usb_get_phy
+  devm_usb_get_phy_by_phandle
+  extcon_find_edev_by_node
+  extcon_get_extcon_dev
+  of_usb_get_phy_mode
+  phy_pm_runtime_get_sync
+  phy_pm_runtime_put_sync
+  platform_get_irq_byname_optional
+  system_freezable_wq
+  usb_add_gadget
+  usb_decode_ctrl
+  usb_del_gadget_udc
+  usb_ep_set_maxpacket_limit
+  usb_gadget_giveback_request
+  usb_gadget_map_request_by_dev
+  usb_gadget_set_state
+  usb_gadget_udc_reset
+  usb_gadget_unmap_request_by_dev
+  usb_initialize_gadget
+  usb_role_switch_get_drvdata
+  usb_role_switch_register
+  usb_role_switch_unregister
+
 # required by extcon-usb-gpio.ko
   devm_extcon_dev_allocate
   devm_extcon_dev_register
@@ -931,8 +983,6 @@
 # required by msm.ko
   __bitmap_andnot
   __bitmap_weight
-  bpf_trace_run1
-  bpf_trace_run2
   bpf_trace_run6
   bpf_trace_run8
   clk_get_parent
@@ -1195,7 +1245,6 @@
   of_graph_get_endpoint_by_regs
   of_graph_get_next_endpoint
   of_graph_get_remote_port_parent
-  of_icc_get
   param_ops_charp
   phy_calibrate
   phy_configure
@@ -1270,7 +1319,6 @@
   usb_amd_quirk_pll_disable
   usb_amd_quirk_pll_enable
   usb_calc_bus_time
-  usb_debug_root
   usb_hcd_check_unlink_urb
   usb_hcd_giveback_urb
   usb_hc_died
@@ -1293,8 +1341,6 @@
   usb_hcd_pci_shutdown
 
 # required by ohci-platform.ko
-  devm_reset_control_array_get
-  of_clk_get
   usb_add_hcd
   usb_create_hcd
   usb_hcd_platform_shutdown
@@ -1310,12 +1356,6 @@
 
 # required by phy-qcom-qusb2.ko
   devm_nvmem_cell_get
-
-# required by phy-qcom-usb-hs.ko
-  extcon_get_edev_by_phandle
-  extcon_get_state
-  extcon_register_notifier
-  extcon_unregister_notifier
 
 # required by pinctrl-msm.ko
   device_property_read_u16_array
@@ -1560,10 +1600,6 @@
   sdhci_set_power_noreg
   sdhci_setup_host
 
-# required by slim-qcom-ngd-ctrl.ko
-  platform_device_add
-  platform_device_alloc
-
 # required by smem.ko
   hwspin_lock_free
   hwspin_lock_request_specific
@@ -1657,7 +1693,6 @@
   spmi_controller_remove
 
 # required by ufs_qcom.ko
-  phy_set_mode_ext
   ufshcd_dme_get_attr
   ufshcd_dme_set_attr
   ufshcd_dump_regs
