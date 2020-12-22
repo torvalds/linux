@@ -91,6 +91,31 @@ out_unlock:
 	return error;
 }
 
+/**
+ * gfs2_freeze_lock - hold the freeze glock
+ * @sdp: the superblock
+ * @freeze_gh: pointer to the requested holder
+ * @caller_flags: any additional flags needed by the caller
+ */
+int gfs2_freeze_lock(struct gfs2_sbd *sdp, struct gfs2_holder *freeze_gh,
+		     int caller_flags)
+{
+	int flags = LM_FLAG_NOEXP | GL_EXACT | caller_flags;
+	int error;
+
+	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED, flags,
+				   freeze_gh);
+	if (error && error != GLR_TRYFAILED)
+		fs_err(sdp, "can't lock the freeze lock: %d\n", error);
+	return error;
+}
+
+void gfs2_freeze_unlock(struct gfs2_holder *freeze_gh)
+{
+	if (gfs2_holder_initialized(freeze_gh))
+		gfs2_glock_dq_uninit(freeze_gh);
+}
+
 static void signal_our_withdraw(struct gfs2_sbd *sdp)
 {
 	struct gfs2_glock *live_gl = sdp->sd_live_gh.gh_gl;
