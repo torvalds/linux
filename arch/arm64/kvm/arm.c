@@ -1603,6 +1603,9 @@ static void init_cpu_logical_map(void)
 		hyp_cpu_logical_map[cpu] = cpu_logical_map(cpu);
 }
 
+#define init_psci_0_1_impl_state(config, what)	\
+	config.psci_0_1_ ## what ## _implemented = psci_ops.what
+
 static bool init_psci_relay(void)
 {
 	/*
@@ -1618,11 +1621,10 @@ static bool init_psci_relay(void)
 
 	if (kvm_host_psci_config.version == PSCI_VERSION(0, 1)) {
 		kvm_host_psci_config.function_ids_0_1 = get_psci_0_1_function_ids();
-		kvm_host_psci_config.enabled_functions_0_1 =
-			(psci_ops.cpu_suspend ? KVM_HOST_PSCI_0_1_CPU_SUSPEND : 0) |
-			(psci_ops.cpu_off ? KVM_HOST_PSCI_0_1_CPU_OFF : 0) |
-			(psci_ops.cpu_on ? KVM_HOST_PSCI_0_1_CPU_ON : 0) |
-			(psci_ops.migrate ? KVM_HOST_PSCI_0_1_MIGRATE : 0);
+		init_psci_0_1_impl_state(kvm_host_psci_config, cpu_suspend);
+		init_psci_0_1_impl_state(kvm_host_psci_config, cpu_on);
+		init_psci_0_1_impl_state(kvm_host_psci_config, cpu_off);
+		init_psci_0_1_impl_state(kvm_host_psci_config, migrate);
 	}
 	return true;
 }
