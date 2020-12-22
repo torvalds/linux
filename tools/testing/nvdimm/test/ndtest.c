@@ -65,11 +65,34 @@ static int ndtest_ctl(struct nvdimm_bus_descriptor *nd_desc,
 	return 0;
 }
 
+static ssize_t compatible_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "nvdimm_test");
+}
+static DEVICE_ATTR_RO(compatible);
+
+static struct attribute *of_node_attributes[] = {
+	&dev_attr_compatible.attr,
+	NULL
+};
+
+static const struct attribute_group of_node_attribute_group = {
+	.name = "of_node",
+	.attrs = of_node_attributes,
+};
+
+static const struct attribute_group *ndtest_attribute_groups[] = {
+	&of_node_attribute_group,
+	NULL,
+};
+
 static int ndtest_bus_register(struct ndtest_priv *p)
 {
 	p->bus_desc.ndctl = ndtest_ctl;
 	p->bus_desc.module = THIS_MODULE;
 	p->bus_desc.provider_name = NULL;
+	p->bus_desc.attr_groups = ndtest_attribute_groups;
 
 	p->bus = nvdimm_bus_register(&p->pdev.dev, &p->bus_desc);
 	if (!p->bus) {
