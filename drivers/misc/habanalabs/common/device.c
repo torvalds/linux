@@ -17,12 +17,12 @@ enum hl_device_status hl_device_status(struct hl_device *hdev)
 {
 	enum hl_device_status status;
 
-	if (hdev->disabled)
-		status = HL_DEVICE_STATUS_MALFUNCTION;
-	else if (atomic_read(&hdev->in_reset))
+	if (atomic_read(&hdev->in_reset))
 		status = HL_DEVICE_STATUS_IN_RESET;
 	else if (hdev->needs_reset)
 		status = HL_DEVICE_STATUS_NEEDS_RESET;
+	else if (hdev->disabled)
+		status = HL_DEVICE_STATUS_MALFUNCTION;
 	else
 		status = HL_DEVICE_STATUS_OPERATIONAL;
 
