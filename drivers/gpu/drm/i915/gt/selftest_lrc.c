@@ -607,6 +607,10 @@ static int __live_lrc_gpr(struct intel_engine_cs *engine,
 		err = emit_semaphore_signal(engine->kernel_context, slot);
 		if (err)
 			goto err_rq;
+
+		err = wait_for_submit(engine, rq, HZ / 2);
+		if (err)
+			goto err_rq;
 	} else {
 		slot[0] = 1;
 		wmb();
