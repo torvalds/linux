@@ -165,17 +165,12 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 {
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_jdesc->jd_inode);
 	struct gfs2_glock *j_gl = ip->i_gl;
-	struct gfs2_holder freeze_gh;
 	struct gfs2_log_header_host head;
 	int error;
 
 	error = init_threads(sdp);
 	if (error)
 		return error;
-
-	error = gfs2_freeze_lock(sdp, &freeze_gh, 0);
-	if (error)
-		goto fail_threads;
 
 	j_gl->gl_ops->go_inval(j_gl, DIO_METADATA);
 	if (gfs2_withdrawn(sdp)) {
@@ -203,13 +198,9 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 
 	set_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
 
-	gfs2_freeze_unlock(&freeze_gh);
-
 	return 0;
 
 fail:
-	gfs2_freeze_unlock(&freeze_gh);
-fail_threads:
 	if (sdp->sd_quotad_process)
 		kthread_stop(sdp->sd_quotad_process);
 	sdp->sd_quotad_process = NULL;
@@ -607,20 +598,8 @@ out:
 
 int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 {
-	struct gfs2_holder freeze_gh;
 	int error = 0;
 	int log_write_allowed = test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
-
-	gfs2_holder_mark_uninitialized(&freeze_gh);
-	if (sdp->sd_freeze_gl &&
-	    !gfs2_glock_is_locked_by_me(sdp->sd_freeze_gl)) {
-		error = gfs2_freeze_lock(sdp, &freeze_gh,
-					 log_write_allowed ? 0 : LM_FLAG_TRY);
-		if (error == GLR_TRYFAILED)
-			error = 0;
-		if (error && !gfs2_withdrawn(sdp))
-			return error;
-	}
 
 	gfs2_flush_delete_work(sdp);
 	if (!log_write_allowed && current == sdp->sd_quotad_process)
@@ -650,8 +629,6 @@ int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 				   atomic_read(&sdp->sd_reserving_log) == 0,
 				   HZ * 5);
 	}
-	gfs2_freeze_unlock(&freeze_gh);
-
 	gfs2_quota_cleanup(sdp);
 
 	if (!log_write_allowed)
