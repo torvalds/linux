@@ -885,7 +885,6 @@ err_vma:
 
 void lrc_reset(struct intel_context *ce)
 {
-	CE_TRACE(ce, "reset\n");
 	GEM_BUG_ON(!intel_context_is_pinned(ce));
 
 	intel_ring_reset(ce->ring, ce->ring->emit);

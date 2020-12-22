@@ -319,6 +319,25 @@ __intel_timeline_create(struct intel_gt *gt,
 	return timeline;
 }
 
+struct intel_timeline *
+intel_timeline_create_from_engine(struct intel_engine_cs *engine,
+				  unsigned int offset)
+{
+	struct i915_vma *hwsp = engine->status_page.vma;
+	struct intel_timeline *tl;
+
+	tl = __intel_timeline_create(engine->gt, hwsp, offset);
+	if (IS_ERR(tl))
+		return tl;
+
+	/* Borrow a nearby lock; we only create these timelines during init */
+	mutex_lock(&hwsp->vm->mutex);
+	list_add_tail(&tl->engine_link, &engine->status_page.timelines);
+	mutex_unlock(&hwsp->vm->mutex);
+
+	return tl;
+}
+
 void __intel_timeline_pin(struct intel_timeline *tl)
 {
 	GEM_BUG_ON(!atomic_read(&tl->pin_count));

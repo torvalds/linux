@@ -648,6 +648,8 @@ static int init_status_page(struct intel_engine_cs *engine)
 	void *vaddr;
 	int ret;
 
+	INIT_LIST_HEAD(&engine->status_page.timelines);
+
 	/*
 	 * Though the HWS register does support 36bit addresses, historically
 	 * we have had hangs and corruption reported due to wild writes if
@@ -830,6 +832,21 @@ create_pinned_context(struct intel_engine_cs *engine,
 	return ce;
 }
 
+static void destroy_pinned_context(struct intel_context *ce)
+{
+	struct intel_engine_cs *engine = ce->engine;
+	struct i915_vma *hwsp = engine->status_page.vma;
+
+	GEM_BUG_ON(ce->timeline->hwsp_ggtt != hwsp);
+
+	mutex_lock(&hwsp->vm->mutex);
+	list_del(&ce->timeline->engine_link);
+	mutex_unlock(&hwsp->vm->mutex);
+
+	intel_context_unpin(ce);
+	intel_context_put(ce);
+}
+
 static struct intel_context *
 create_kernel_context(struct intel_engine_cs *engine)
 {
@@ -926,7 +943,6 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	GEM_BUG_ON(!list_empty(&engine->active.requests));
 	tasklet_kill(&engine->execlists.tasklet); /* flush the callback */
 
-	cleanup_status_page(engine);
 	intel_breadcrumbs_free(engine->breadcrumbs);
 
 	intel_engine_fini_retire(engine);
@@ -935,11 +951,11 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	if (engine->default_state)
 		fput(engine->default_state);
 
-	if (engine->kernel_context) {
-		intel_context_unpin(engine->kernel_context);
-		intel_context_put(engine->kernel_context);
-	}
+	if (engine->kernel_context)
+		destroy_pinned_context(engine->kernel_context);
+
 	GEM_BUG_ON(!llist_empty(&engine->barrier_tasks));
+	cleanup_status_page(engine);
 
 	intel_wa_list_free(&engine->ctx_wa_list);
 	intel_wa_list_free(&engine->wa_list);
@@ -1274,8 +1290,12 @@ void intel_engines_reset_default_submission(struct intel_gt *gt)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	for_each_engine(engine, gt, id)
+	for_each_engine(engine, gt, id) {
+		if (engine->sanitize)
+			engine->sanitize(engine);
+
 		engine->set_default_submission(engine);
+	}
 }
 
 bool intel_engine_can_store_dword(struct intel_engine_cs *engine)

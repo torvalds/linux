@@ -321,6 +321,39 @@ out:
 	return ret;
 }
 
+static void sanitize_hwsp(struct intel_engine_cs *engine)
+{
+	struct intel_timeline *tl;
+
+	list_for_each_entry(tl, &engine->status_page.timelines, engine_link)
+		intel_timeline_reset_seqno(tl);
+}
+
+static void xcs_sanitize(struct intel_engine_cs *engine)
+{
+	/*
+	 * Poison residual state on resume, in case the suspend didn't!
+	 *
+	 * We have to assume that across suspend/resume (or other loss
+	 * of control) that the contents of our pinned buffers has been
+	 * lost, replaced by garbage. Since this doesn't always happen,
+	 * let's poison such state so that we more quickly spot when
+	 * we falsely assume it has been preserved.
+	 */
+	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+		memset(engine->status_page.addr, POISON_INUSE, PAGE_SIZE);
+
+	/*
+	 * The kernel_context HWSP is stored in the status_page. As above,
+	 * that may be lost on resume/initialisation, and so we need to
+	 * reset the value in the HWSP.
+	 */
+	sanitize_hwsp(engine);
+
+	/* And scrub the dirty cachelines for the HWSP */
+	clflush_cache_range(engine->status_page.addr, PAGE_SIZE);
+}
+
 static void reset_prepare(struct intel_engine_cs *engine)
 {
 	struct intel_uncore *uncore = engine->uncore;
@@ -1070,6 +1103,8 @@ static void setup_common(struct intel_engine_cs *engine)
 	setup_irq(engine);
 
 	engine->resume = xcs_resume;
+	engine->sanitize = xcs_sanitize;
+
 	engine->reset.prepare = reset_prepare;
 	engine->reset.rewind = reset_rewind;
 	engine->reset.cancel = reset_cancel;

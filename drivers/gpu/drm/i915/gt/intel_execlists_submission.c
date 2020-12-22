@@ -2698,6 +2698,14 @@ static void reset_csb_pointers(struct intel_engine_cs *engine)
 	GEM_BUG_ON(READ_ONCE(*execlists->csb_write) != reset_value);
 }
 
+static void sanitize_hwsp(struct intel_engine_cs *engine)
+{
+	struct intel_timeline *tl;
+
+	list_for_each_entry(tl, &engine->status_page.timelines, engine_link)
+		intel_timeline_reset_seqno(tl);
+}
+
 static void execlists_sanitize(struct intel_engine_cs *engine)
 {
 	GEM_BUG_ON(execlists_active(&engine->execlists));
@@ -2721,7 +2729,7 @@ static void execlists_sanitize(struct intel_engine_cs *engine)
 	 * that may be lost on resume/initialisation, and so we need to
 	 * reset the value in the HWSP.
 	 */
-	intel_timeline_reset_seqno(engine->kernel_context->timeline);
+	sanitize_hwsp(engine);
 
 	/* And scrub the dirty cachelines for the HWSP */
 	clflush_cache_range(engine->status_page.addr, PAGE_SIZE);

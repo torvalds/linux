@@ -44,14 +44,9 @@ intel_timeline_create(struct intel_gt *gt)
 	return __intel_timeline_create(gt, NULL, 0);
 }
 
-static inline struct intel_timeline *
+struct intel_timeline *
 intel_timeline_create_from_engine(struct intel_engine_cs *engine,
-				  unsigned int offset)
-{
-	return __intel_timeline_create(engine->gt,
-				       engine->status_page.vma,
-				       offset);
-}
+				  unsigned int offset);
 
 static inline struct intel_timeline *
 intel_timeline_get(struct intel_timeline *timeline)

@@ -60,6 +60,13 @@ static int __engine_unpark(struct intel_wakeref *wf)
 
 		/* Scrub the context image after our loss of control */
 		ce->ops->reset(ce);
+
+		CE_TRACE(ce, "reset { seqno:%x, *hwsp:%x, ring:%x }\n",
+			 ce->timeline->seqno,
+			 READ_ONCE(*ce->timeline->hwsp_seqno),
+			 ce->ring->emit);
+		GEM_BUG_ON(ce->timeline->seqno !=
+			   READ_ONCE(*ce->timeline->hwsp_seqno));
 	}
 
 	if (engine->unpark)
