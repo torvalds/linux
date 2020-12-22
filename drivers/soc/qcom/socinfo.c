@@ -83,6 +83,11 @@ static const char *const pmic_models[] = {
 	[23] = "PM8038",
 	[24] = "PM8922",
 	[25] = "PM8917",
+	[30] = "PM8150",
+	[31] = "PM8150L",
+	[32] = "PM8150B",
+	[33] = "PMK8002",
+	[36] = "PM8009",
 };
 #endif /* CONFIG_DEBUG_FS */
 
