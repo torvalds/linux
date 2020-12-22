@@ -8,7 +8,8 @@
  * V0.0X01.0X02 fix mclk issue when probe multiple camera.
  * V0.0X01.0X03 fix gain range.
  * V0.0X01.0X04 add enum_frame_interval function.
- * V0.0X01.0X05 add quick stream on/off
+ * V0.0X01.0X05 add quick stream on/off.
+ * V0.0X01.0X06 fix set vflip/hflip failed bug.
  */
 
 #include <linux/clk.h>
@@ -30,7 +31,7 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x05)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -1711,6 +1712,12 @@ static int sc200ai_initialize_controls(struct sc200ai *sc200ai)
 					V4L2_CID_TEST_PATTERN,
 					ARRAY_SIZE(sc200ai_test_pattern_menu) - 1,
 					0, 0, sc200ai_test_pattern_menu);
+	v4l2_ctrl_new_std(handler, &sc200ai_ctrl_ops,
+				V4L2_CID_HFLIP, 0, 1, 1, 0);
+
+	v4l2_ctrl_new_std(handler, &sc200ai_ctrl_ops,
+				V4L2_CID_VFLIP, 0, 1, 1, 0);
+
 	if (handler->error) {
 		ret = handler->error;
 		dev_err(&sc200ai->client->dev,
