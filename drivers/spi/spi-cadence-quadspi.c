@@ -1031,6 +1031,66 @@ static int cqspi_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	return ret;
 }
 
+static int cqspi_check_buswidth_req(struct spi_mem *mem, u8 buswidth, bool tx)
+{
+	u32 mode = mem->spi->mode;
+
+	switch (buswidth) {
+	case 1:
+		return 0;
+
+	case 2:
+		if ((tx &&
+		     (mode & (SPI_TX_DUAL | SPI_TX_QUAD | SPI_TX_OCTAL))) ||
+		    (!tx &&
+		     (mode & (SPI_RX_DUAL | SPI_RX_QUAD | SPI_RX_OCTAL))))
+			return 0;
+
+		break;
+
+	case 4:
+		if ((tx && (mode & (SPI_TX_QUAD | SPI_TX_OCTAL))) ||
+		    (!tx && (mode & (SPI_RX_QUAD | SPI_RX_OCTAL))))
+			return 0;
+
+		break;
+
+	case 8:
+		if ((tx && (mode & SPI_TX_OCTAL)) ||
+		    (!tx && (mode & SPI_RX_OCTAL)))
+			return 0;
+
+		break;
+
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static bool cqspi_supports_mem_op(struct spi_mem *mem,
+				  const struct spi_mem_op *op)
+{
+	if (cqspi_check_buswidth_req(mem, op->cmd.buswidth, true))
+		return false;
+
+	if (op->addr.nbytes &&
+	    cqspi_check_buswidth_req(mem, op->addr.buswidth, true))
+		return false;
+
+	if (op->dummy.nbytes &&
+	    cqspi_check_buswidth_req(mem, op->dummy.buswidth, true))
+		return false;
+
+	if (op->data.nbytes &&
+	    cqspi_check_buswidth_req(mem, op->data.buswidth,
+				     op->data.dir == SPI_MEM_DATA_OUT))
+		return false;
+
+	return true;
+}
+
 static int cqspi_of_get_flash_pdata(struct platform_device *pdev,
 				    struct cqspi_flash_pdata *f_pdata,
 				    struct device_node *np)
@@ -1159,6 +1219,7 @@ static const char *cqspi_get_name(struct spi_mem *mem)
 static const struct spi_controller_mem_ops cqspi_mem_ops = {
 	.exec_op = cqspi_exec_mem_op,
 	.get_name = cqspi_get_name,
+	.supports_op = cqspi_supports_mem_op,
 };
 
 static int cqspi_setup_flash(struct cqspi_st *cqspi)
