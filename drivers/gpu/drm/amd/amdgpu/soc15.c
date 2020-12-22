@@ -1061,6 +1061,7 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &gfx_v9_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &sdma_v4_0_ip_block);
 
+		amdgpu_device_ip_block_add(adev, &smu_v13_0_ip_block);
 		/*amdgpu_device_ip_block_add(adev, &vcn_v2_5_ip_block);
 		amdgpu_device_ip_block_add(adev, &jpeg_v2_5_ip_block);*/
 		break;
