@@ -645,6 +645,16 @@ void drm_mode_config_validate(struct drm_device *dev)
 		WARN(!crtc->primary, "Missing primary plane on [CRTC:%d:%s]\n",
 		     crtc->base.id, crtc->name);
 
+		WARN(crtc->cursor && crtc->funcs->cursor_set,
+		     "[CRTC:%d:%s] must not have both a cursor plane and a cursor_set func",
+		     crtc->base.id, crtc->name);
+		WARN(crtc->cursor && crtc->funcs->cursor_set2,
+		     "[CRTC:%d:%s] must not have both a cursor plane and a cursor_set2 func",
+		     crtc->base.id, crtc->name);
+		WARN(crtc->cursor && crtc->funcs->cursor_move,
+		     "[CRTC:%d:%s] must not have both a cursor plane and a cursor_move func",
+		     crtc->base.id, crtc->name);
+
 		if (crtc->primary) {
 			WARN(!(crtc->primary->possible_crtcs & drm_crtc_mask(crtc)),
 			     "Bogus primary plane possible_crtcs: [PLANE:%d:%s] must be compatible with [CRTC:%d:%s]\n",
