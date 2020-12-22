@@ -167,6 +167,34 @@ static inline int sms_to_mode(u32 mode)
 	return TRANSMISSION_MODE_AUTO;
 }
 
+static inline int sms_to_isdbt_mode(u32 mode)
+{
+	switch (mode) {
+	case 1:
+		return TRANSMISSION_MODE_2K;
+	case 2:
+		return TRANSMISSION_MODE_4K;
+	case 3:
+		return TRANSMISSION_MODE_8K;
+	}
+	return TRANSMISSION_MODE_AUTO;
+}
+
+static inline int sms_to_isdbt_guard_interval(u32 interval)
+{
+	switch (interval) {
+	case 4:
+		return GUARD_INTERVAL_1_4;
+	case 8:
+		return GUARD_INTERVAL_1_8;
+	case 16:
+		return GUARD_INTERVAL_1_16;
+	case 32:
+		return GUARD_INTERVAL_1_32;
+	}
+	return GUARD_INTERVAL_AUTO;
+}
+
 static inline int sms_to_status(u32 is_demod_locked, u32 is_rf_locked)
 {
 	if (is_demod_locked)
@@ -345,8 +373,8 @@ static void smsdvb_update_isdbt_stats(struct smsdvb_client_t *client,
 	/* Update ISDB-T transmission parameters */
 	c->frequency = p->frequency;
 	c->bandwidth_hz = sms_to_bw(p->bandwidth);
-	c->transmission_mode = sms_to_mode(p->transmission_mode);
-	c->guard_interval = sms_to_guard_interval(p->guard_interval);
+	c->transmission_mode = sms_to_isdbt_mode(p->transmission_mode);
+	c->guard_interval = sms_to_isdbt_guard_interval(p->guard_interval);
 	c->isdbt_partial_reception = p->partial_reception ? 1 : 0;
 	n_layers = p->num_of_layers;
 	if (n_layers < 1)
@@ -391,6 +419,10 @@ static void smsdvb_update_isdbt_stats(struct smsdvb_client_t *client,
 			continue;
 		}
 		c->layer[i].modulation = sms_to_modulation(lr->constellation);
+		c->layer[i].fec = sms_to_code_rate(lr->code_rate);
+
+		/* Time interleaving */
+		c->layer[i].interleaving = (u8)lr->ti_ldepth_i;
 
 		/* TS PER */
 		c->block_error.stat[i + 1].scale = FE_SCALE_COUNTER;
@@ -429,8 +461,8 @@ static void smsdvb_update_isdbt_stats_ex(struct smsdvb_client_t *client,
 	c->frequency = p->frequency;
 	client->fe_status = sms_to_status(p->is_demod_locked, 0);
 	c->bandwidth_hz = sms_to_bw(p->bandwidth);
-	c->transmission_mode = sms_to_mode(p->transmission_mode);
-	c->guard_interval = sms_to_guard_interval(p->guard_interval);
+	c->transmission_mode = sms_to_isdbt_mode(p->transmission_mode);
+	c->guard_interval = sms_to_isdbt_guard_interval(p->guard_interval);
 	c->isdbt_partial_reception = p->partial_reception ? 1 : 0;
 	n_layers = p->num_of_layers;
 	if (n_layers < 1)
@@ -479,6 +511,10 @@ static void smsdvb_update_isdbt_stats_ex(struct smsdvb_client_t *client,
 			continue;
 		}
 		c->layer[i].modulation = sms_to_modulation(lr->constellation);
+		c->layer[i].fec = sms_to_code_rate(lr->code_rate);
+
+		/* Time interleaving */
+		c->layer[i].interleaving = (u8)lr->ti_ldepth_i;
 
 		/* TS PER */
 		c->block_error.stat[i + 1].scale = FE_SCALE_COUNTER;
