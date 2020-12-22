@@ -1600,10 +1600,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 		u32 act;
 
 		xdp_init_buff(&xdp, buflen, &tfile->xdp_rxq);
-		xdp.data_hard_start = buf;
-		xdp.data = buf + pad;
-		xdp_set_data_meta_invalid(&xdp);
-		xdp.data_end = xdp.data + len;
+		xdp_prepare_buff(&xdp, buf, pad, len, false);
 
 		act = bpf_prog_run_xdp(xdp_prog, &xdp);
 		if (act == XDP_REDIRECT || act == XDP_TX) {

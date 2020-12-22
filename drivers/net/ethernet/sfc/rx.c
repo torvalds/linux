@@ -294,12 +294,9 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 	       efx->rx_prefix_size);
 
 	xdp_init_buff(&xdp, efx->rx_page_buf_step, &rx_queue->xdp_rxq_info);
-	xdp.data = *ehp;
-	xdp.data_hard_start = xdp.data - EFX_XDP_HEADROOM;
-
 	/* No support yet for XDP metadata */
-	xdp_set_data_meta_invalid(&xdp);
-	xdp.data_end = xdp.data + rx_buf->len;
+	xdp_prepare_buff(&xdp, *ehp - EFX_XDP_HEADROOM, EFX_XDP_HEADROOM,
+			 rx_buf->len, false);
 
 	xdp_act = bpf_prog_run_xdp(xdp_prog, &xdp);
 	rcu_read_unlock();

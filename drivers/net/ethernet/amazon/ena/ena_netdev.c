@@ -1585,10 +1585,9 @@ static int ena_xdp_handle_buff(struct ena_ring *rx_ring, struct xdp_buff *xdp)
 	int ret;
 
 	rx_info = &rx_ring->rx_buffer_info[rx_ring->ena_bufs[0].req_id];
-	xdp->data = page_address(rx_info->page) + rx_info->page_offset;
-	xdp_set_data_meta_invalid(xdp);
-	xdp->data_hard_start = page_address(rx_info->page);
-	xdp->data_end = xdp->data + rx_ring->ena_bufs[0].len;
+	xdp_prepare_buff(xdp, page_address(rx_info->page),
+			 rx_info->page_offset,
+			 rx_ring->ena_bufs[0].len, false);
 	/* If for some reason we received a bigger packet than
 	 * we expect, then we simply drop it
 	 */

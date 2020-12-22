@@ -1104,8 +1104,10 @@ int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 
 	/* start the loop to process Rx packets bounded by 'budget' */
 	while (likely(total_rx_pkts < (unsigned int)budget)) {
+		unsigned int offset = ice_rx_offset(rx_ring);
 		union ice_32b_rx_flex_desc *rx_desc;
 		struct ice_rx_buf *rx_buf;
+		unsigned char *hard_start;
 		struct sk_buff *skb;
 		unsigned int size;
 		u16 stat_err_bits;
@@ -1151,10 +1153,9 @@ int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 			goto construct_skb;
 		}
 
-		xdp.data = page_address(rx_buf->page) + rx_buf->page_offset;
-		xdp.data_hard_start = xdp.data - ice_rx_offset(rx_ring);
-		xdp.data_meta = xdp.data;
-		xdp.data_end = xdp.data + size;
+		hard_start = page_address(rx_buf->page) + rx_buf->page_offset -
+			     offset;
+		xdp_prepare_buff(&xdp, hard_start, offset, size, true);
 #if (PAGE_SIZE > 4096)
 		/* At larger PAGE_SIZE, frame_sz depend on len size */
 		xdp.frame_sz = ice_rx_frame_truesize(rx_ring, size);

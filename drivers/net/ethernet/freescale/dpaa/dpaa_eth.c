@@ -2534,10 +2534,8 @@ static u32 dpaa_run_xdp(struct dpaa_priv *priv, struct qm_fd *fd, void *vaddr,
 
 	xdp_init_buff(&xdp, DPAA_BP_RAW_SIZE - DPAA_TX_PRIV_DATA_SIZE,
 		      &dpaa_fq->xdp_rxq);
-	xdp.data = vaddr + fd_off;
-	xdp.data_meta = xdp.data;
-	xdp.data_hard_start = xdp.data - XDP_PACKET_HEADROOM;
-	xdp.data_end = xdp.data + qm_fd_get_length(fd);
+	xdp_prepare_buff(&xdp, vaddr + fd_off - XDP_PACKET_HEADROOM,
+			 XDP_PACKET_HEADROOM, qm_fd_get_length(fd), true);
 
 	/* We reserve a fixed headroom of 256 bytes under the erratum and we
 	 * offer it all to XDP programs to use. If no room is left for the

@@ -1015,10 +1015,8 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 					dma_dir);
 		prefetch(desc->addr);
 
-		xdp.data_hard_start = desc->addr;
-		xdp.data = desc->addr + NETSEC_RXBUF_HEADROOM;
-		xdp_set_data_meta_invalid(&xdp);
-		xdp.data_end = xdp.data + pkt_len;
+		xdp_prepare_buff(&xdp, desc->addr, NETSEC_RXBUF_HEADROOM,
+				 pkt_len, false);
 
 		if (xdp_prog) {
 			xdp_result = netsec_run_xdp(priv, xdp_prog, &xdp);

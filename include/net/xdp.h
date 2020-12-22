@@ -83,6 +83,18 @@ xdp_init_buff(struct xdp_buff *xdp, u32 frame_sz, struct xdp_rxq_info *rxq)
 	xdp->rxq = rxq;
 }
 
+static __always_inline void
+xdp_prepare_buff(struct xdp_buff *xdp, unsigned char *hard_start,
+		 int headroom, int data_len, const bool meta_valid)
+{
+	unsigned char *data = hard_start + headroom;
+
+	xdp->data_hard_start = hard_start;
+	xdp->data = data;
+	xdp->data_end = data + data_len;
+	xdp->data_meta = meta_valid ? data : data + 1;
+}
+
 /* Reserve memory area at end-of data area.
  *
  * This macro reserves tailroom in the XDP buffer by limiting the

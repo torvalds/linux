@@ -1091,10 +1091,8 @@ static bool qede_rx_xdp(struct qede_dev *edev,
 	enum xdp_action act;
 
 	xdp_init_buff(&xdp, rxq->rx_buf_seg_size, &rxq->xdp_rxq);
-	xdp.data_hard_start = page_address(bd->data);
-	xdp.data = xdp.data_hard_start + *data_offset;
-	xdp_set_data_meta_invalid(&xdp);
-	xdp.data_end = xdp.data + *len;
+	xdp_prepare_buff(&xdp, page_address(bd->data), *data_offset,
+			 *len, false);
 
 	/* Queues always have a full reset currently, so for the time
 	 * being until there's atomic program replace just mark read
