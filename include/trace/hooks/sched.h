@@ -198,6 +198,22 @@ DECLARE_RESTRICTED_HOOK(android_rvh_cpu_cgroup_can_attach,
 	TP_PROTO(struct cgroup_taskset *tset, int *retval),
 	TP_ARGS(tset, retval), 1);
 
+DECLARE_RESTRICTED_HOOK(android_rvh_sched_fork_init,
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_ttwu_cond,
+	TP_PROTO(bool *cond),
+	TP_ARGS(cond), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_schedule_bug,
+	TP_PROTO(void *unused),
+	TP_ARGS(unused), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_sched_exec,
+	TP_PROTO(bool *cond),
+	TP_ARGS(cond), 1);
+
 DECLARE_HOOK(android_vh_map_util_freq,
 	TP_PROTO(unsigned long util, unsigned long freq,
 		unsigned long cap, unsigned long *next_freq),
