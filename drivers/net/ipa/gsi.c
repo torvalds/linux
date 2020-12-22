@@ -340,7 +340,13 @@ static int evt_ring_command(struct gsi *gsi, u32 evt_ring_id,
 	 * is issued here.  Only permit *this* event ring to trigger
 	 * an interrupt, and only enable the event control IRQ type
 	 * when we expect it to occur.
+	 *
+	 * There's a small chance that a previous command completed
+	 * after the interrupt was disabled, so make sure we have no
+	 * pending interrupts before we enable them.
 	 */
+	iowrite32(~0, gsi->virt + GSI_CNTXT_SRC_EV_CH_IRQ_CLR_OFFSET);
+
 	val = BIT(evt_ring_id);
 	iowrite32(val, gsi->virt + GSI_CNTXT_SRC_EV_CH_IRQ_MSK_OFFSET);
 	gsi_irq_type_enable(gsi, GSI_EV_CTRL);
@@ -453,7 +459,13 @@ gsi_channel_command(struct gsi_channel *channel, enum gsi_ch_cmd_opcode opcode)
 	 * issued here.  So we only permit *this* channel to trigger
 	 * an interrupt and only enable the channel control IRQ type
 	 * when we expect it to occur.
+	 *
+	 * There's a small chance that a previous command completed
+	 * after the interrupt was disabled, so make sure we have no
+	 * pending interrupts before we enable them.
 	 */
+	iowrite32(~0, gsi->virt + GSI_CNTXT_SRC_CH_IRQ_CLR_OFFSET);
+
 	val = BIT(channel_id);
 	iowrite32(val, gsi->virt + GSI_CNTXT_SRC_CH_IRQ_MSK_OFFSET);
 	gsi_irq_type_enable(gsi, GSI_CH_CTRL);
