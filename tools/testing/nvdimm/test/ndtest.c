@@ -25,8 +25,83 @@ enum {
 	NUM_DCR = 4,
 };
 
+#define NDTEST_SCM_DIMM_CMD_MASK	   \
+	((1ul << ND_CMD_GET_CONFIG_SIZE) | \
+	 (1ul << ND_CMD_GET_CONFIG_DATA) | \
+	 (1ul << ND_CMD_SET_CONFIG_DATA) | \
+	 (1ul << ND_CMD_CALL))
+
+#define NFIT_DIMM_HANDLE(node, socket, imc, chan, dimm)			\
+	(((node & 0xfff) << 16) | ((socket & 0xf) << 12)		\
+	 | ((imc & 0xf) << 8) | ((chan & 0xf) << 4) | (dimm & 0xf))
+
+static DEFINE_SPINLOCK(ndtest_lock);
 static struct ndtest_priv *instances[NUM_INSTANCES];
 static struct class *ndtest_dimm_class;
+static struct gen_pool *ndtest_pool;
+
+static struct ndtest_dimm dimm_group1[] = {
+	{
+		.size = DIMM_SIZE,
+		.handle = NFIT_DIMM_HANDLE(0, 0, 0, 0, 0),
+		.uuid_str = "1e5c75d2-b618-11ea-9aa3-507b9ddc0f72",
+		.physical_id = 0,
+		.num_formats = 2,
+	},
+	{
+		.size = DIMM_SIZE,
+		.handle = NFIT_DIMM_HANDLE(0, 0, 0, 0, 1),
+		.uuid_str = "1c4d43ac-b618-11ea-be80-507b9ddc0f72",
+		.physical_id = 1,
+		.num_formats = 2,
+	},
+	{
+		.size = DIMM_SIZE,
+		.handle = NFIT_DIMM_HANDLE(0, 0, 1, 0, 0),
+		.uuid_str = "a9f17ffc-b618-11ea-b36d-507b9ddc0f72",
+		.physical_id = 2,
+		.num_formats = 2,
+	},
+	{
+		.size = DIMM_SIZE,
+		.handle = NFIT_DIMM_HANDLE(0, 0, 1, 0, 1),
+		.uuid_str = "b6b83b22-b618-11ea-8aae-507b9ddc0f72",
+		.physical_id = 3,
+		.num_formats = 2,
+	},
+	{
+		.size = DIMM_SIZE,
+		.handle = NFIT_DIMM_HANDLE(0, 1, 0, 0, 0),
+		.uuid_str = "bf9baaee-b618-11ea-b181-507b9ddc0f72",
+		.physical_id = 4,
+		.num_formats = 2,
+	},
+};
+
+static struct ndtest_dimm dimm_group2[] = {
+	{
+		.size = DIMM_SIZE,
+		.handle = NFIT_DIMM_HANDLE(1, 0, 0, 0, 0),
+		.uuid_str = "ca0817e2-b618-11ea-9db3-507b9ddc0f72",
+		.physical_id = 0,
+		.num_formats = 1,
+	},
+};
+
+static struct ndtest_config bus_configs[NUM_INSTANCES] = {
+	/* bus 1 */
+	{
+		.dimm_start = 0,
+		.dimm_count = ARRAY_SIZE(dimm_group1),
+		.dimms = dimm_group1,
+	},
+	/* bus 2 */
+	{
+		.dimm_start = ARRAY_SIZE(dimm_group1),
+		.dimm_count = ARRAY_SIZE(dimm_group2),
+		.dimms = dimm_group2,
+	},
+};
 
 static inline struct ndtest_priv *to_ndtest_priv(struct device *dev)
 {
@@ -65,6 +140,152 @@ static int ndtest_ctl(struct nvdimm_bus_descriptor *nd_desc,
 	return 0;
 }
 
+static void ndtest_release_resource(void *data)
+{
+	struct nfit_test_resource *res  = data;
+
+	spin_lock(&ndtest_lock);
+	list_del(&res->list);
+	spin_unlock(&ndtest_lock);
+
+	if (resource_size(&res->res) >= DIMM_SIZE)
+		gen_pool_free(ndtest_pool, res->res.start,
+				resource_size(&res->res));
+	vfree(res->buf);
+	kfree(res);
+}
+
+static void *ndtest_alloc_resource(struct ndtest_priv *p, size_t size,
+				   dma_addr_t *dma)
+{
+	dma_addr_t __dma;
+	void *buf;
+	struct nfit_test_resource *res;
+	struct genpool_data_align data = {
+		.align = SZ_128M,
+	};
+
+	res = kzalloc(sizeof(*res), GFP_KERNEL);
+	if (!res)
+		return NULL;
+
+	buf = vmalloc(size);
+	if (size >= DIMM_SIZE)
+		__dma = gen_pool_alloc_algo(ndtest_pool, size,
+					    gen_pool_first_fit_align, &data);
+	else
+		__dma = (unsigned long) buf;
+
+	if (!__dma)
+		goto buf_err;
+
+	INIT_LIST_HEAD(&res->list);
+	res->dev = &p->pdev.dev;
+	res->buf = buf;
+	res->res.start = __dma;
+	res->res.end = __dma + size - 1;
+	res->res.name = "NFIT";
+	spin_lock_init(&res->lock);
+	INIT_LIST_HEAD(&res->requests);
+	spin_lock(&ndtest_lock);
+	list_add(&res->list, &p->resources);
+	spin_unlock(&ndtest_lock);
+
+	if (dma)
+		*dma = __dma;
+
+	if (!devm_add_action(&p->pdev.dev, ndtest_release_resource, res))
+		return res->buf;
+
+buf_err:
+	if (__dma && size >= DIMM_SIZE)
+		gen_pool_free(ndtest_pool, __dma, size);
+	if (buf)
+		vfree(buf);
+	kfree(res);
+
+	return NULL;
+}
+
+static void put_dimms(void *data)
+{
+	struct ndtest_priv *p = data;
+	int i;
+
+	for (i = 0; i < p->config->dimm_count; i++)
+		if (p->config->dimms[i].dev) {
+			device_unregister(p->config->dimms[i].dev);
+			p->config->dimms[i].dev = NULL;
+		}
+}
+
+static int ndtest_dimm_register(struct ndtest_priv *priv,
+				struct ndtest_dimm *dimm, int id)
+{
+	struct device *dev = &priv->pdev.dev;
+	unsigned long dimm_flags = dimm->flags;
+
+	if (dimm->num_formats > 1) {
+		set_bit(NDD_ALIASING, &dimm_flags);
+		set_bit(NDD_LABELING, &dimm_flags);
+	}
+
+	dimm->nvdimm = nvdimm_create(priv->bus, dimm, NULL, dimm_flags,
+				    NDTEST_SCM_DIMM_CMD_MASK, 0, NULL);
+	if (!dimm->nvdimm) {
+		dev_err(dev, "Error creating DIMM object for %pOF\n", priv->dn);
+		return -ENXIO;
+	}
+
+	dimm->dev = device_create_with_groups(ndtest_dimm_class,
+					     &priv->pdev.dev,
+					     0, dimm, NULL,
+					     "test_dimm%d", id);
+	if (!dimm->dev) {
+		pr_err("Could not create dimm device attributes\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static int ndtest_nvdimm_init(struct ndtest_priv *p)
+{
+	struct ndtest_dimm *d;
+	void *res;
+	int i, id;
+
+	for (i = 0; i < p->config->dimm_count; i++) {
+		d = &p->config->dimms[i];
+		d->id = id = p->config->dimm_start + i;
+		res = ndtest_alloc_resource(p, LABEL_SIZE, NULL);
+		if (!res)
+			return -ENOMEM;
+
+		d->label_area = res;
+		sprintf(d->label_area, "label%d", id);
+		d->config_size = LABEL_SIZE;
+
+		if (!ndtest_alloc_resource(p, d->size,
+					   &p->dimm_dma[id]))
+			return -ENOMEM;
+
+		if (!ndtest_alloc_resource(p, LABEL_SIZE,
+					   &p->label_dma[id]))
+			return -ENOMEM;
+
+		if (!ndtest_alloc_resource(p, LABEL_SIZE,
+					   &p->dcr_dma[id]))
+			return -ENOMEM;
+
+		d->address = p->dimm_dma[id];
+
+		ndtest_dimm_register(p, d, id);
+	}
+
+	return 0;
+}
+
 static ssize_t compatible_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -89,6 +310,8 @@ static const struct attribute_group *ndtest_attribute_groups[] = {
 
 static int ndtest_bus_register(struct ndtest_priv *p)
 {
+	p->config = &bus_configs[p->pdev.id];
+
 	p->bus_desc.ndctl = ndtest_ctl;
 	p->bus_desc.module = THIS_MODULE;
 	p->bus_desc.provider_name = NULL;
@@ -114,14 +337,34 @@ static int ndtest_remove(struct platform_device *pdev)
 static int ndtest_probe(struct platform_device *pdev)
 {
 	struct ndtest_priv *p;
+	int rc;
 
 	p = to_ndtest_priv(&pdev->dev);
 	if (ndtest_bus_register(p))
 		return -ENOMEM;
 
+	p->dcr_dma = devm_kcalloc(&p->pdev.dev, NUM_DCR,
+				 sizeof(dma_addr_t), GFP_KERNEL);
+	p->label_dma = devm_kcalloc(&p->pdev.dev, NUM_DCR,
+				   sizeof(dma_addr_t), GFP_KERNEL);
+	p->dimm_dma = devm_kcalloc(&p->pdev.dev, NUM_DCR,
+				  sizeof(dma_addr_t), GFP_KERNEL);
+
+	rc = ndtest_nvdimm_init(p);
+	if (rc)
+		goto err;
+
+	rc = devm_add_action_or_reset(&pdev->dev, put_dimms, p);
+	if (rc)
+		goto err;
+
 	platform_set_drvdata(pdev, p);
 
 	return 0;
+
+err:
+	pr_err("%s:%d Failed nvdimm init\n", __func__, __LINE__);
+	return rc;
 }
 
 static const struct platform_device_id ndtest_id[] = {
@@ -155,6 +398,10 @@ static void cleanup_devices(void)
 
 	nfit_test_teardown();
 
+	if (ndtest_pool)
+		gen_pool_destroy(ndtest_pool);
+
+
 	if (ndtest_dimm_class)
 		class_destroy(ndtest_dimm_class);
 }
@@ -175,6 +422,17 @@ static __init int ndtest_init(void)
 	ndtest_dimm_class = class_create(THIS_MODULE, "nfit_test_dimm");
 	if (IS_ERR(ndtest_dimm_class)) {
 		rc = PTR_ERR(ndtest_dimm_class);
+		goto err_register;
+	}
+
+	ndtest_pool = gen_pool_create(ilog2(SZ_4M), NUMA_NO_NODE);
+	if (!ndtest_pool) {
+		rc = -ENOMEM;
+		goto err_register;
+	}
+
+	if (gen_pool_add(ndtest_pool, SZ_4G, SZ_4G, NUMA_NO_NODE)) {
+		rc = -ENOMEM;
 		goto err_register;
 	}
 
