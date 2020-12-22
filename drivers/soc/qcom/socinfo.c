@@ -15,6 +15,8 @@
 #include <linux/sys_soc.h>
 #include <linux/types.h>
 
+#include <asm/unaligned.h>
+
 /*
  * SoC version type with major number in the upper 16 bits and minor
  * number in the lower 16 bits.
@@ -300,6 +302,32 @@ static int qcom_show_pmic_model(struct seq_file *seq, void *p)
 	return 0;
 }
 
+static int qcom_show_pmic_model_array(struct seq_file *seq, void *p)
+{
+	struct socinfo *socinfo = seq->private;
+	unsigned int num_pmics = le32_to_cpu(socinfo->num_pmics);
+	unsigned int pmic_array_offset = le32_to_cpu(socinfo->pmic_array_offset);
+	int i;
+	void *ptr = socinfo;
+
+	ptr += pmic_array_offset;
+
+	/* No need for bounds checking, it happened at socinfo_debugfs_init */
+	for (i = 0; i < num_pmics; i++) {
+		unsigned int model = SOCINFO_MINOR(get_unaligned_le32(ptr + 2 * i * sizeof(u32)));
+		unsigned int die_rev = get_unaligned_le32(ptr + (2 * i + 1) * sizeof(u32));
+
+		if (model <= ARRAY_SIZE(pmic_models) && pmic_models[model])
+			seq_printf(seq, "%s %u.%u\n", pmic_models[model],
+				   SOCINFO_MAJOR(le32_to_cpu(die_rev)),
+				   SOCINFO_MINOR(le32_to_cpu(die_rev)));
+		else
+			seq_printf(seq, "unknown (%d)\n", model);
+	}
+
+	return 0;
+}
+
 static int qcom_show_pmic_die_revision(struct seq_file *seq, void *p)
 {
 	struct socinfo *socinfo = seq->private;
@@ -322,6 +350,7 @@ static int qcom_show_chip_id(struct seq_file *seq, void *p)
 
 QCOM_OPEN(build_id, qcom_show_build_id);
 QCOM_OPEN(pmic_model, qcom_show_pmic_model);
+QCOM_OPEN(pmic_model_array, qcom_show_pmic_model_array);
 QCOM_OPEN(pmic_die_rev, qcom_show_pmic_die_revision);
 QCOM_OPEN(chip_id, qcom_show_chip_id);
 
@@ -350,12 +379,14 @@ DEFINE_IMAGE_OPS(variant);
 DEFINE_IMAGE_OPS(oem);
 
 static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
-				 struct socinfo *info)
+				 struct socinfo *info, size_t info_size)
 {
 	struct smem_image_version *versions;
 	struct dentry *dentry;
 	size_t size;
 	int i;
+	unsigned int num_pmics;
+	unsigned int pmic_array_offset;
 
 	qcom_socinfo->dbg_root = debugfs_create_dir("qcom_socinfo", NULL);
 
@@ -411,6 +442,11 @@ static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
 				   &qcom_socinfo->info.raw_device_num);
 		fallthrough;
 	case SOCINFO_VERSION(0, 11):
+		num_pmics = le32_to_cpu(info->num_pmics);
+		pmic_array_offset = le32_to_cpu(info->pmic_array_offset);
+		if (pmic_array_offset + 2 * num_pmics * sizeof(u32) <= info_size)
+			DEBUGFS_ADD(info, pmic_model_array);
+		fallthrough;
 	case SOCINFO_VERSION(0, 10):
 	case SOCINFO_VERSION(0, 9):
 		qcom_socinfo->info.foundry_id = __le32_to_cpu(info->foundry_id);
@@ -488,7 +524,7 @@ static void socinfo_debugfs_exit(struct qcom_socinfo *qcom_socinfo)
 }
 #else
 static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
-				 struct socinfo *info)
+				 struct socinfo *info, size_t info_size)
 {
 }
 static void socinfo_debugfs_exit(struct qcom_socinfo *qcom_socinfo) {  }
@@ -528,7 +564,7 @@ static int qcom_socinfo_probe(struct platform_device *pdev)
 	if (IS_ERR(qs->soc_dev))
 		return PTR_ERR(qs->soc_dev);
 
-	socinfo_debugfs_init(qs, info);
+	socinfo_debugfs_init(qs, info, item_size);
 
 	/* Feed the soc specific unique data into entropy pool */
 	add_device_randomness(info, item_size);
