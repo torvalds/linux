@@ -853,6 +853,9 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	spin_unlock(&rdma_xprt->sc_rq_dto_lock);
 	percpu_counter_inc(&svcrdma_stat_recv);
 
+	/* Unblock the transport for the next receive */
+	svc_xprt_received(xprt);
+
 	ib_dma_sync_single_for_cpu(rdma_xprt->sc_pd->device,
 				   ctxt->rc_recv_sge.addr, ctxt->rc_byte_len,
 				   DMA_FROM_DEVICE);
@@ -884,33 +887,28 @@ complete:
 	rqstp->rq_xprt_ctxt = ctxt;
 	rqstp->rq_prot = IPPROTO_MAX;
 	svc_xprt_copy_addrs(rqstp, xprt);
-	svc_xprt_received(xprt);
 	return rqstp->rq_arg.len;
 
 out_readlist:
 	ret = svc_rdma_process_read_list(rdma_xprt, rqstp, ctxt);
 	if (ret < 0)
 		goto out_readfail;
-	svc_xprt_received(xprt);
-	return 0;
+	goto complete;
 
 out_err:
 	svc_rdma_send_error(rdma_xprt, ctxt, ret);
 	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
-	svc_xprt_received(xprt);
 	return 0;
 
 out_readfail:
 	if (ret == -EINVAL)
 		svc_rdma_send_error(rdma_xprt, ctxt, ret);
 	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
-	svc_xprt_received(xprt);
 	return ret;
 
 out_backchannel:
 	svc_rdma_handle_bc_reply(rqstp, ctxt);
 out_drop:
 	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
-	svc_xprt_received(xprt);
 	return 0;
 }
