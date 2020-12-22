@@ -123,6 +123,7 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_glock *i_gl = ip->i_gl;
 	u64 no_formal_ino = ip->i_no_formal_ino;
+	int log_write_allowed = test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
 	int ret = 0;
 	int tries;
 
@@ -143,8 +144,21 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	 * therefore we need to clear SDF_JOURNAL_LIVE manually.
 	 */
 	clear_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
-	if (!sb_rdonly(sdp->sd_vfs))
-		ret = gfs2_make_fs_ro(sdp);
+	if (!sb_rdonly(sdp->sd_vfs)) {
+		struct gfs2_holder freeze_gh;
+
+		gfs2_holder_mark_uninitialized(&freeze_gh);
+		if (sdp->sd_freeze_gl &&
+		    !gfs2_glock_is_locked_by_me(sdp->sd_freeze_gl)) {
+			ret = gfs2_freeze_lock(sdp, &freeze_gh,
+				       log_write_allowed ? 0 : LM_FLAG_TRY);
+			if (ret == GLR_TRYFAILED)
+				ret = 0;
+		}
+		if (!ret)
+			ret = gfs2_make_fs_ro(sdp);
+		gfs2_freeze_unlock(&freeze_gh);
+	}
 
 	if (sdp->sd_lockstruct.ls_ops->lm_lock == NULL) { /* lock_nolock */
 		if (!ret)
