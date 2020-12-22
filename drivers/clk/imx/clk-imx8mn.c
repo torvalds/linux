@@ -604,7 +604,7 @@ static struct platform_driver imx8mn_clk_driver = {
 		 * reloading the driver will crash or break devices.
 		 */
 		.suppress_bind_attrs = true,
-		.of_match_table = of_match_ptr(imx8mn_clk_of_match),
+		.of_match_table = imx8mn_clk_of_match,
 	},
 };
 module_platform_driver(imx8mn_clk_driver);

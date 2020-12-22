@@ -81,7 +81,7 @@ SECTIONS {
 		__init_end = .;
 	}
 
-	BSS_SECTION(0, 0, 0)
+	BSS_SECTION(4, 0, 4)
 
 	_end = .;
 
