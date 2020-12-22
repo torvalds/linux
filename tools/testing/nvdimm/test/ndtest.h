@@ -20,6 +20,15 @@ struct ndtest_priv {
 	dma_addr_t *dimm_dma;
 };
 
+struct ndtest_blk_mmio {
+	void __iomem *base;
+	u64 size;
+	u64 base_offset;
+	u32 line_size;
+	u32 num_lines;
+	u32 table_size;
+};
+
 struct ndtest_dimm {
 	struct device *dev;
 	struct nvdimm *nvdimm;
@@ -42,8 +51,25 @@ struct ndtest_dimm {
 	u8 no_alias;
 };
 
+struct ndtest_mapping {
+	u64 start;
+	u64 size;
+	u8 position;
+	u8 dimm;
+};
+
+struct ndtest_region {
+	struct nd_region *region;
+	struct ndtest_mapping *mapping;
+	u64 size;
+	u8 type;
+	u8 num_mappings;
+	u8 range_index;
+};
+
 struct ndtest_config {
 	struct ndtest_dimm *dimms;
+	struct ndtest_region *regions;
 	unsigned int dimm_count;
 	unsigned int dimm_start;
 	u8 num_regions;

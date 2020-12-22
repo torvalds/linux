@@ -23,6 +23,7 @@ enum {
 	LABEL_SIZE = SZ_128K,
 	NUM_INSTANCES = 2,
 	NUM_DCR = 4,
+	NDTEST_MAX_MAPPING = 6,
 };
 
 #define NDTEST_SCM_DIMM_CMD_MASK	   \
@@ -88,18 +89,161 @@ static struct ndtest_dimm dimm_group2[] = {
 	},
 };
 
+static struct ndtest_mapping region0_mapping[] = {
+	{
+		.dimm = 0,
+		.position = 0,
+		.start = 0,
+		.size = SZ_16M,
+	},
+	{
+		.dimm = 1,
+		.position = 1,
+		.start = 0,
+		.size = SZ_16M,
+	}
+};
+
+static struct ndtest_mapping region1_mapping[] = {
+	{
+		.dimm = 0,
+		.position = 0,
+		.start = SZ_16M,
+		.size = SZ_16M,
+	},
+	{
+		.dimm = 1,
+		.position = 1,
+		.start = SZ_16M,
+		.size = SZ_16M,
+	},
+	{
+		.dimm = 2,
+		.position = 2,
+		.start = SZ_16M,
+		.size = SZ_16M,
+	},
+	{
+		.dimm = 3,
+		.position = 3,
+		.start = SZ_16M,
+		.size = SZ_16M,
+	},
+};
+
+static struct ndtest_mapping region2_mapping[] = {
+	{
+		.dimm = 0,
+		.position = 0,
+		.start = 0,
+		.size = DIMM_SIZE,
+	},
+};
+
+static struct ndtest_mapping region3_mapping[] = {
+	{
+		.dimm = 1,
+		.start = 0,
+		.size = DIMM_SIZE,
+	}
+};
+
+static struct ndtest_mapping region4_mapping[] = {
+	{
+		.dimm = 2,
+		.start = 0,
+		.size = DIMM_SIZE,
+	}
+};
+
+static struct ndtest_mapping region5_mapping[] = {
+	{
+		.dimm = 3,
+		.start = 0,
+		.size = DIMM_SIZE,
+	}
+};
+
+static struct ndtest_region bus0_regions[] = {
+	{
+		.type = ND_DEVICE_NAMESPACE_PMEM,
+		.num_mappings = ARRAY_SIZE(region0_mapping),
+		.mapping = region0_mapping,
+		.size = DIMM_SIZE,
+		.range_index = 1,
+	},
+	{
+		.type = ND_DEVICE_NAMESPACE_PMEM,
+		.num_mappings = ARRAY_SIZE(region1_mapping),
+		.mapping = region1_mapping,
+		.size = DIMM_SIZE * 2,
+		.range_index = 2,
+	},
+	{
+		.type = ND_DEVICE_NAMESPACE_BLK,
+		.num_mappings = ARRAY_SIZE(region2_mapping),
+		.mapping = region2_mapping,
+		.size = DIMM_SIZE,
+		.range_index = 3,
+	},
+	{
+		.type = ND_DEVICE_NAMESPACE_BLK,
+		.num_mappings = ARRAY_SIZE(region3_mapping),
+		.mapping = region3_mapping,
+		.size = DIMM_SIZE,
+		.range_index = 4,
+	},
+	{
+		.type = ND_DEVICE_NAMESPACE_BLK,
+		.num_mappings = ARRAY_SIZE(region4_mapping),
+		.mapping = region4_mapping,
+		.size = DIMM_SIZE,
+		.range_index = 5,
+	},
+	{
+		.type = ND_DEVICE_NAMESPACE_BLK,
+		.num_mappings = ARRAY_SIZE(region5_mapping),
+		.mapping = region5_mapping,
+		.size = DIMM_SIZE,
+		.range_index = 6,
+	},
+};
+
+static struct ndtest_mapping region6_mapping[] = {
+	{
+		.dimm = 0,
+		.position = 0,
+		.start = 0,
+		.size = DIMM_SIZE,
+	},
+};
+
+static struct ndtest_region bus1_regions[] = {
+	{
+		.type = ND_DEVICE_NAMESPACE_IO,
+		.num_mappings = ARRAY_SIZE(region6_mapping),
+		.mapping = region6_mapping,
+		.size = DIMM_SIZE,
+		.range_index = 1,
+	},
+};
+
 static struct ndtest_config bus_configs[NUM_INSTANCES] = {
 	/* bus 1 */
 	{
 		.dimm_start = 0,
 		.dimm_count = ARRAY_SIZE(dimm_group1),
 		.dimms = dimm_group1,
+		.regions = bus0_regions,
+		.num_regions = ARRAY_SIZE(bus0_regions),
 	},
 	/* bus 2 */
 	{
 		.dimm_start = ARRAY_SIZE(dimm_group1),
 		.dimm_count = ARRAY_SIZE(dimm_group2),
 		.dimms = dimm_group2,
+		.regions = bus1_regions,
+		.num_regions = ARRAY_SIZE(bus1_regions),
 	},
 };
 
@@ -138,6 +282,95 @@ static int ndtest_ctl(struct nvdimm_bus_descriptor *nd_desc,
 	}
 
 	return 0;
+}
+
+static int ndtest_blk_do_io(struct nd_blk_region *ndbr, resource_size_t dpa,
+		void *iobuf, u64 len, int rw)
+{
+	struct ndtest_dimm *dimm = ndbr->blk_provider_data;
+	struct ndtest_blk_mmio *mmio = dimm->mmio;
+	struct nd_region *nd_region = &ndbr->nd_region;
+	unsigned int lane;
+
+	if (!mmio)
+		return -ENOMEM;
+
+	lane = nd_region_acquire_lane(nd_region);
+	if (rw)
+		memcpy(mmio->base + dpa, iobuf, len);
+	else {
+		memcpy(iobuf, mmio->base + dpa, len);
+		arch_invalidate_pmem(mmio->base + dpa, len);
+	}
+
+	nd_region_release_lane(nd_region, lane);
+
+	return 0;
+}
+
+static int ndtest_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
+				    struct device *dev)
+{
+	struct nd_blk_region *ndbr = to_nd_blk_region(dev);
+	struct nvdimm *nvdimm;
+	struct ndtest_dimm *dimm;
+	struct ndtest_blk_mmio *mmio;
+
+	nvdimm = nd_blk_region_to_dimm(ndbr);
+	dimm = nvdimm_provider_data(nvdimm);
+
+	nd_blk_region_set_provider_data(ndbr, dimm);
+	dimm->blk_region = to_nd_region(dev);
+
+	mmio = devm_kzalloc(dev, sizeof(struct ndtest_blk_mmio), GFP_KERNEL);
+	if (!mmio)
+		return -ENOMEM;
+
+	mmio->base = (void __iomem *) devm_nvdimm_memremap(
+		dev, dimm->address, 12, nd_blk_memremap_flags(ndbr));
+	if (!mmio->base) {
+		dev_err(dev, "%s failed to map blk dimm\n", nvdimm_name(nvdimm));
+		return -ENOMEM;
+	}
+	mmio->size = dimm->size;
+	mmio->base_offset = 0;
+
+	dimm->mmio = mmio;
+
+	return 0;
+}
+
+static struct nfit_test_resource *ndtest_resource_lookup(resource_size_t addr)
+{
+	int i;
+
+	for (i = 0; i < NUM_INSTANCES; i++) {
+		struct nfit_test_resource *n, *nfit_res = NULL;
+		struct ndtest_priv *t = instances[i];
+
+		if (!t)
+			continue;
+		spin_lock(&ndtest_lock);
+		list_for_each_entry(n, &t->resources, list) {
+			if (addr >= n->res.start && (addr < n->res.start
+						+ resource_size(&n->res))) {
+				nfit_res = n;
+				break;
+			} else if (addr >= (unsigned long) n->buf
+					&& (addr < (unsigned long) n->buf
+						+ resource_size(&n->res))) {
+				nfit_res = n;
+				break;
+			}
+		}
+		spin_unlock(&ndtest_lock);
+		if (nfit_res)
+			return nfit_res;
+	}
+
+	pr_warn("Failed to get resource\n");
+
+	return NULL;
 }
 
 static void ndtest_release_resource(void *data)
@@ -205,6 +438,119 @@ buf_err:
 	kfree(res);
 
 	return NULL;
+}
+
+static ssize_t range_index_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_region *nd_region = to_nd_region(dev);
+	struct ndtest_region *region = nd_region_provider_data(nd_region);
+
+	return sprintf(buf, "%d\n", region->range_index);
+}
+static DEVICE_ATTR_RO(range_index);
+
+static struct attribute *ndtest_region_attributes[] = {
+	&dev_attr_range_index.attr,
+	NULL,
+};
+
+static const struct attribute_group ndtest_region_attribute_group = {
+	.name = "papr",
+	.attrs = ndtest_region_attributes,
+};
+
+static const struct attribute_group *ndtest_region_attribute_groups[] = {
+	&ndtest_region_attribute_group,
+	NULL,
+};
+
+static int ndtest_create_region(struct ndtest_priv *p,
+				struct ndtest_region *region)
+{
+	struct nd_mapping_desc mappings[NDTEST_MAX_MAPPING];
+	struct nd_blk_region_desc ndbr_desc;
+	struct nd_interleave_set *nd_set;
+	struct nd_region_desc *ndr_desc;
+	struct resource res;
+	int i, ndimm = region->mapping[0].dimm;
+	u64 uuid[2];
+
+	memset(&res, 0, sizeof(res));
+	memset(&mappings, 0, sizeof(mappings));
+	memset(&ndbr_desc, 0, sizeof(ndbr_desc));
+	ndr_desc = &ndbr_desc.ndr_desc;
+
+	if (!ndtest_alloc_resource(p, region->size, &res.start))
+		return -ENOMEM;
+
+	res.end = res.start + region->size - 1;
+	ndr_desc->mapping = mappings;
+	ndr_desc->res = &res;
+	ndr_desc->provider_data = region;
+	ndr_desc->attr_groups = ndtest_region_attribute_groups;
+
+	if (uuid_parse(p->config->dimms[ndimm].uuid_str, (uuid_t *)uuid)) {
+		pr_err("failed to parse UUID\n");
+		return -ENXIO;
+	}
+
+	nd_set = devm_kzalloc(&p->pdev.dev, sizeof(*nd_set), GFP_KERNEL);
+	if (!nd_set)
+		return -ENOMEM;
+
+	nd_set->cookie1 = cpu_to_le64(uuid[0]);
+	nd_set->cookie2 = cpu_to_le64(uuid[1]);
+	nd_set->altcookie = nd_set->cookie1;
+	ndr_desc->nd_set = nd_set;
+
+	if (region->type == ND_DEVICE_NAMESPACE_BLK) {
+		mappings[0].start = 0;
+		mappings[0].size = DIMM_SIZE;
+		mappings[0].nvdimm = p->config->dimms[ndimm].nvdimm;
+
+		ndr_desc->mapping = &mappings[0];
+		ndr_desc->num_mappings = 1;
+		ndr_desc->num_lanes = 1;
+		ndbr_desc.enable = ndtest_blk_region_enable;
+		ndbr_desc.do_io = ndtest_blk_do_io;
+		region->region = nvdimm_blk_region_create(p->bus, ndr_desc);
+
+		goto done;
+	}
+
+	for (i = 0; i < region->num_mappings; i++) {
+		ndimm = region->mapping[i].dimm;
+		mappings[i].start = region->mapping[i].start;
+		mappings[i].size = region->mapping[i].size;
+		mappings[i].position = region->mapping[i].position;
+		mappings[i].nvdimm = p->config->dimms[ndimm].nvdimm;
+	}
+
+	ndr_desc->num_mappings = region->num_mappings;
+	region->region = nvdimm_pmem_region_create(p->bus, ndr_desc);
+
+done:
+	if (!region->region) {
+		dev_err(&p->pdev.dev, "Error registering region %pR\n",
+			ndr_desc->res);
+		return -ENXIO;
+	}
+
+	return 0;
+}
+
+static int ndtest_init_regions(struct ndtest_priv *p)
+{
+	int i, ret = 0;
+
+	for (i = 0; i < p->config->num_regions; i++) {
+		ret = ndtest_create_region(p, &p->config->regions[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static void put_dimms(void *data)
@@ -552,6 +898,10 @@ static int ndtest_probe(struct platform_device *pdev)
 	if (rc)
 		goto err;
 
+	rc = ndtest_init_regions(p);
+	if (rc)
+		goto err;
+
 	rc = devm_add_action_or_reset(&pdev->dev, put_dimms, p);
 	if (rc)
 		goto err;
@@ -616,6 +966,8 @@ static __init int ndtest_init(void)
 #ifdef CONFIG_DEV_DAX_PMEM_COMPAT
 	dax_pmem_compat_test();
 #endif
+
+	nfit_test_setup(ndtest_resource_lookup, NULL);
 
 	ndtest_dimm_class = class_create(THIS_MODULE, "nfit_test_dimm");
 	if (IS_ERR(ndtest_dimm_class)) {
