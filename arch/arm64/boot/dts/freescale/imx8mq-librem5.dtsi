@@ -459,6 +459,13 @@
 		>;
 	};
 
+	pinctrl_touch: touchgrp {
+		fsl,pins = <
+			/* TP_INT */
+			MX8MQ_IOMUXC_ENET_RD1_GPIO1_IO27	0x80
+		>;
+	};
+
 	pinctrl_typec: typecgrp {
 		fsl,pins = <
 			/* TYPEC_MUX_EN */
@@ -880,6 +887,8 @@
 	touchscreen@38 {
 		compatible = "edt,edt-ft5506";
 		reg = <0x38>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_touch>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <27 IRQ_TYPE_EDGE_FALLING>;
 		touchscreen-size-x = <720>;
