@@ -384,13 +384,15 @@ static int gsi_evt_ring_alloc_command(struct gsi *gsi, u32 evt_ring_id)
 	}
 
 	ret = evt_ring_command(gsi, evt_ring_id, GSI_EVT_ALLOCATE);
-	if (!ret && evt_ring->state != GSI_EVT_RING_STATE_ALLOCATED) {
-		dev_err(gsi->dev, "event ring %u bad state %u after alloc\n",
-			evt_ring_id, evt_ring->state);
-		ret = -EIO;
-	}
 
-	return ret;
+	/* If successful the event ring state will have changed */
+	if (evt_ring->state == GSI_EVT_RING_STATE_ALLOCATED)
+		return 0;
+
+	dev_err(gsi->dev, "event ring %u bad state %u after alloc\n",
+		evt_ring_id, evt_ring->state);
+
+	return -EIO;
 }
 
 /* Reset a GSI event ring in ALLOCATED or ERROR state. */
@@ -408,9 +410,13 @@ static void gsi_evt_ring_reset_command(struct gsi *gsi, u32 evt_ring_id)
 	}
 
 	ret = evt_ring_command(gsi, evt_ring_id, GSI_EVT_RESET);
-	if (!ret && evt_ring->state != GSI_EVT_RING_STATE_ALLOCATED)
-		dev_err(gsi->dev, "event ring %u bad state %u after reset\n",
-			evt_ring_id, evt_ring->state);
+
+	/* If successful the event ring state will have changed */
+	if (evt_ring->state == GSI_EVT_RING_STATE_ALLOCATED)
+		return;
+
+	dev_err(gsi->dev, "event ring %u bad state %u after reset\n",
+		evt_ring_id, evt_ring->state);
 }
 
 /* Issue a hardware de-allocation request for an allocated event ring */
@@ -426,9 +432,13 @@ static void gsi_evt_ring_de_alloc_command(struct gsi *gsi, u32 evt_ring_id)
 	}
 
 	ret = evt_ring_command(gsi, evt_ring_id, GSI_EVT_DE_ALLOC);
-	if (!ret && evt_ring->state != GSI_EVT_RING_STATE_NOT_ALLOCATED)
-		dev_err(gsi->dev, "event ring %u bad state %u after dealloc\n",
-			evt_ring_id, evt_ring->state);
+
+	/* If successful the event ring state will have changed */
+	if (evt_ring->state == GSI_EVT_RING_STATE_NOT_ALLOCATED)
+		return;
+
+	dev_err(gsi->dev, "event ring %u bad state %u after dealloc\n",
+		evt_ring_id, evt_ring->state);
 }
 
 /* Fetch the current state of a channel from hardware */
