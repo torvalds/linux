@@ -714,13 +714,24 @@ int btrtl_setup_realtek(struct hci_dev *hdev)
 
 	ret = btrtl_download_firmware(hdev, btrtl_dev);
 
-	btrtl_free(btrtl_dev);
-
 	/* Enable controller to do both LE scan and BR/EDR inquiry
 	 * simultaneously.
 	 */
 	set_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks);
 
+	/* Enable central-peripheral role (able to create new connections with
+	 * an existing connection in slave role).
+	 */
+	switch (btrtl_dev->ic_info->lmp_subver) {
+	case RTL_ROM_LMP_8822B:
+		set_bit(HCI_QUIRK_VALID_LE_STATES, &hdev->quirks);
+		break;
+	default:
+		rtl_dev_dbg(hdev, "Central-peripheral role not enabled.");
+		break;
+	}
+
+	btrtl_free(btrtl_dev);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(btrtl_setup_realtek);
