@@ -2729,6 +2729,14 @@ static void rk817_bat_zero_algorithm(struct rk817_battery_device *battery)
 		DBG("Zero: dsoc: %d\n", battery->dsoc);
 		rk817_bat_calc_zero_linek(battery);
 	}
+
+	if ((battery->rsoc / 1000 < 1) &&
+	    (battery->zero_batocv_to_cap > battery->fcc / 100)) {
+		DBG("ZERO2:---------check step1 -----------\n");
+		rk817_bat_init_coulomb_cap(battery,
+					   battery->zero_batocv_to_cap);
+		rk817_bat_calc_zero_linek(battery);
+	}
 }
 
 static void rk817_bat_finish_algorithm(struct rk817_battery_device *battery)
