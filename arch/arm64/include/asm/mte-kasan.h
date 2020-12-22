@@ -29,6 +29,8 @@ u8 mte_get_mem_tag(void *addr);
 u8 mte_get_random_tag(void);
 void *mte_set_mem_tag_range(void *addr, size_t size, u8 tag);
 
+void mte_enable_kernel(void);
+
 #else /* CONFIG_ARM64_MTE */
 
 static inline u8 mte_get_ptr_tag(void *ptr)
@@ -47,6 +49,10 @@ static inline u8 mte_get_random_tag(void)
 static inline void *mte_set_mem_tag_range(void *addr, size_t size, u8 tag)
 {
 	return addr;
+}
+
+static inline void mte_enable_kernel(void)
+{
 }
 
 #endif /* CONFIG_ARM64_MTE */
