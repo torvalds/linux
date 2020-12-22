@@ -354,7 +354,7 @@ struct mhi_controller_config {
  * @dev_state: MHI device state
  * @dev_wake: Device wakeup count
  * @pending_pkts: Pending packets for the controller
- * @M0, M2, M3: Counters to track number of device MHI state changes
+ * @M0, M2, M3, M3_fast: Counters to track number of device MHI state changes
  * @transition_list: List of MHI state transitions
  * @transition_lock: Lock for protecting MHI state transition list
  * @wlock: Lock for protecting device wakeup
@@ -444,7 +444,7 @@ struct mhi_controller {
 	enum mhi_state dev_state;
 	atomic_t dev_wake;
 	atomic_t pending_pkts;
-	u32 M0, M2, M3;
+	u32 M0, M2, M3, M3_fast;
 	struct list_head transition_list;
 	spinlock_t transition_lock;
 	spinlock_t wlock;
