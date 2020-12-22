@@ -2898,3 +2898,206 @@ void drm_dp_pcon_hdmi_frl_link_error_count(struct drm_dp_aux *aux,
 	}
 }
 EXPORT_SYMBOL(drm_dp_pcon_hdmi_frl_link_error_count);
+
+/*
+ * drm_dp_pcon_enc_is_dsc_1_2 - Does PCON Encoder supports DSC 1.2
+ * @pcon_dsc_dpcd: DSC capabilities of the PCON DSC Encoder
+ *
+ * Returns true is PCON encoder is DSC 1.2 else returns false.
+ */
+bool drm_dp_pcon_enc_is_dsc_1_2(const u8 pcon_dsc_dpcd[DP_PCON_DSC_ENCODER_CAP_SIZE])
+{
+	u8 buf;
+	u8 major_v, minor_v;
+
+	buf = pcon_dsc_dpcd[DP_PCON_DSC_VERSION - DP_PCON_DSC_ENCODER];
+	major_v = (buf & DP_PCON_DSC_MAJOR_MASK) >> DP_PCON_DSC_MAJOR_SHIFT;
+	minor_v = (buf & DP_PCON_DSC_MINOR_MASK) >> DP_PCON_DSC_MINOR_SHIFT;
+
+	if (major_v == 1 && minor_v == 2)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(drm_dp_pcon_enc_is_dsc_1_2);
+
+/*
+ * drm_dp_pcon_dsc_max_slices - Get max slices supported by PCON DSC Encoder
+ * @pcon_dsc_dpcd: DSC capabilities of the PCON DSC Encoder
+ *
+ * Returns maximum no. of slices supported by the PCON DSC Encoder.
+ */
+int drm_dp_pcon_dsc_max_slices(const u8 pcon_dsc_dpcd[DP_PCON_DSC_ENCODER_CAP_SIZE])
+{
+	u8 slice_cap1, slice_cap2;
+
+	slice_cap1 = pcon_dsc_dpcd[DP_PCON_DSC_SLICE_CAP_1 - DP_PCON_DSC_ENCODER];
+	slice_cap2 = pcon_dsc_dpcd[DP_PCON_DSC_SLICE_CAP_2 - DP_PCON_DSC_ENCODER];
+
+	if (slice_cap2 & DP_PCON_DSC_24_PER_DSC_ENC)
+		return 24;
+	if (slice_cap2 & DP_PCON_DSC_20_PER_DSC_ENC)
+		return 20;
+	if (slice_cap2 & DP_PCON_DSC_16_PER_DSC_ENC)
+		return 16;
+	if (slice_cap1 & DP_PCON_DSC_12_PER_DSC_ENC)
+		return 12;
+	if (slice_cap1 & DP_PCON_DSC_10_PER_DSC_ENC)
+		return 10;
+	if (slice_cap1 & DP_PCON_DSC_8_PER_DSC_ENC)
+		return 8;
+	if (slice_cap1 & DP_PCON_DSC_6_PER_DSC_ENC)
+		return 6;
+	if (slice_cap1 & DP_PCON_DSC_4_PER_DSC_ENC)
+		return 4;
+	if (slice_cap1 & DP_PCON_DSC_2_PER_DSC_ENC)
+		return 2;
+	if (slice_cap1 & DP_PCON_DSC_1_PER_DSC_ENC)
+		return 1;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_pcon_dsc_max_slices);
+
+/*
+ * drm_dp_pcon_dsc_max_slice_width() - Get max slice width for Pcon DSC encoder
+ * @pcon_dsc_dpcd: DSC capabilities of the PCON DSC Encoder
+ *
+ * Returns maximum width of the slices in pixel width i.e. no. of pixels x 320.
+ */
+int drm_dp_pcon_dsc_max_slice_width(const u8 pcon_dsc_dpcd[DP_PCON_DSC_ENCODER_CAP_SIZE])
+{
+	u8 buf;
+
+	buf = pcon_dsc_dpcd[DP_PCON_DSC_MAX_SLICE_WIDTH - DP_PCON_DSC_ENCODER];
+
+	return buf * DP_DSC_SLICE_WIDTH_MULTIPLIER;
+}
+EXPORT_SYMBOL(drm_dp_pcon_dsc_max_slice_width);
+
+/*
+ * drm_dp_pcon_dsc_bpp_incr() - Get bits per pixel increment for PCON DSC encoder
+ * @pcon_dsc_dpcd: DSC capabilities of the PCON DSC Encoder
+ *
+ * Returns the bpp precision supported by the PCON encoder.
+ */
+int drm_dp_pcon_dsc_bpp_incr(const u8 pcon_dsc_dpcd[DP_PCON_DSC_ENCODER_CAP_SIZE])
+{
+	u8 buf;
+
+	buf = pcon_dsc_dpcd[DP_PCON_DSC_BPP_INCR - DP_PCON_DSC_ENCODER];
+
+	switch (buf & DP_PCON_DSC_BPP_INCR_MASK) {
+	case DP_PCON_DSC_ONE_16TH_BPP:
+		return 16;
+	case DP_PCON_DSC_ONE_8TH_BPP:
+		return 8;
+	case DP_PCON_DSC_ONE_4TH_BPP:
+		return 4;
+	case DP_PCON_DSC_ONE_HALF_BPP:
+		return 2;
+	case DP_PCON_DSC_ONE_BPP:
+		return 1;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_pcon_dsc_bpp_incr);
+
+static
+int drm_dp_pcon_configure_dsc_enc(struct drm_dp_aux *aux, u8 pps_buf_config)
+{
+	u8 buf;
+	int ret;
+
+	ret = drm_dp_dpcd_readb(aux, DP_PROTOCOL_CONVERTER_CONTROL_2, &buf);
+	if (ret < 0)
+		return ret;
+
+	buf |= DP_PCON_ENABLE_DSC_ENCODER;
+
+	if (pps_buf_config <= DP_PCON_ENC_PPS_OVERRIDE_EN_BUFFER) {
+		buf &= ~DP_PCON_ENCODER_PPS_OVERRIDE_MASK;
+		buf |= pps_buf_config << 2;
+	}
+
+	ret = drm_dp_dpcd_writeb(aux, DP_PROTOCOL_CONVERTER_CONTROL_2, buf);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+/**
+ * drm_dp_pcon_pps_default() - Let PCON fill the default pps parameters
+ * for DSC1.2 between PCON & HDMI2.1 sink
+ * @aux: DisplayPort AUX channel
+ *
+ * Returns 0 on success, else returns negative error code.
+ */
+int drm_dp_pcon_pps_default(struct drm_dp_aux *aux)
+{
+	int ret;
+
+	ret = drm_dp_pcon_configure_dsc_enc(aux, DP_PCON_ENC_PPS_OVERRIDE_DISABLED);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_pcon_pps_default);
+
+/**
+ * drm_dp_pcon_pps_override_buf() - Configure PPS encoder override buffer for
+ * HDMI sink
+ * @aux: DisplayPort AUX channel
+ * @pps_buf: 128 bytes to be written into PPS buffer for HDMI sink by PCON.
+ *
+ * Returns 0 on success, else returns negative error code.
+ */
+int drm_dp_pcon_pps_override_buf(struct drm_dp_aux *aux, u8 pps_buf[128])
+{
+	int ret;
+
+	ret = drm_dp_dpcd_write(aux, DP_PCON_HDMI_PPS_OVERRIDE_BASE, &pps_buf, 128);
+	if (ret < 0)
+		return ret;
+
+	ret = drm_dp_pcon_configure_dsc_enc(aux, DP_PCON_ENC_PPS_OVERRIDE_EN_BUFFER);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_pcon_pps_override_buf);
+
+/*
+ * drm_dp_pcon_pps_override_param() - Write PPS parameters to DSC encoder
+ * override registers
+ * @aux: DisplayPort AUX channel
+ * @pps_param: 3 Parameters (2 Bytes each) : Slice Width, Slice Height,
+ * bits_per_pixel.
+ *
+ * Returns 0 on success, else returns negative error code.
+ */
+int drm_dp_pcon_pps_override_param(struct drm_dp_aux *aux, u8 pps_param[6])
+{
+	int ret;
+
+	ret = drm_dp_dpcd_write(aux, DP_PCON_HDMI_PPS_OVRD_SLICE_HEIGHT, &pps_param[0], 2);
+	if (ret < 0)
+		return ret;
+	ret = drm_dp_dpcd_write(aux, DP_PCON_HDMI_PPS_OVRD_SLICE_WIDTH, &pps_param[2], 2);
+	if (ret < 0)
+		return ret;
+	ret = drm_dp_dpcd_write(aux, DP_PCON_HDMI_PPS_OVRD_BPP, &pps_param[4], 2);
+	if (ret < 0)
+		return ret;
+
+	ret = drm_dp_pcon_configure_dsc_enc(aux, DP_PCON_ENC_PPS_OVERRIDE_EN_BUFFER);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_pcon_pps_override_param);
