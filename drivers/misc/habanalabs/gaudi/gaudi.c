@@ -1248,7 +1248,7 @@ static int gaudi_collective_wait_create_jobs(struct hl_device *hdev,
 	u32 queue_id, collective_queue, num_jobs;
 	u32 stream, nic_queue, nic_idx = 0;
 	bool skip;
-	int i, rc;
+	int i, rc = 0;
 
 	/* Verify wait queue id is configured as master */
 	hw_queue_prop = &hdev->asic_prop.hw_queues_props[wait_queue_id];
