@@ -136,6 +136,7 @@ int dwc3_gadget_set_link_state(struct dwc3 *dwc, enum dwc3_link_state state)
 	return -ETIMEDOUT;
 }
 
+#ifdef CONFIG_ARCH_ROCKCHIP
 /**
  * dwc3_gadget_resize_tx_fifos - reallocate fifo spaces for current use-case
  * @dwc: pointer to our context structure
@@ -160,55 +161,122 @@ int dwc3_gadget_set_link_state(struct dwc3 *dwc, enum dwc3_link_state state)
 static int dwc3_gadget_resize_tx_fifos(struct dwc3 *dwc)
 {
 	int		last_fifo_depth;
-	int		fifo_size;
+	int		fifo_size, total_size, total_resize = 0;
 	int		mdwidth;
-	u8		num, fifo_number;
+	u8		num, fifo_number, num_in_eps;
 
-	if (!dwc->needs_fifo_resize || dwc->fifo_resize_status)
+	/*
+	 * Only support Tx fifos resize for gadget speed <= high speed
+	 * for the time being and do fifo resize operation only once
+	 * when connect done event occurs, because if resize Tx fifos
+	 * during controller transfer data, it may cause controller
+	 * run into abnormal and unrecoverable state.
+	 */
+	if (!dwc->needs_fifo_resize || dwc->fifo_resize_status ||
+	    dwc->gadget.speed > USB_SPEED_HIGH)
 		return 0;
 
+	num_in_eps = DWC3_NUM_IN_EPS(&dwc->hwparams);
 	mdwidth = DWC3_MDWIDTH(dwc->hwparams.hwparams0);
 	/* MDWIDTH is represented in bits, we need it in bytes */
 	mdwidth >>= 3;
 	fifo_number = 0;
+	/* Get the Tx FIFO 0 size and depth */
 	fifo_size = dwc3_readl(dwc->regs, DWC3_GTXFIFOSIZ(0));
 	last_fifo_depth = DWC3_GTXFIFOSIZ_TXFSTADDR(fifo_size) >> 16;
+	/* Get the Tx FIFO (num_in_eps - 1) size and depth */
+	fifo_size = dwc3_readl(dwc->regs, DWC3_GTXFIFOSIZ(num_in_eps - 1));
+	/* Get the Tx FIFOs total size */
+	total_size = (DWC3_GTXFIFOSIZ_TXFSTADDR(fifo_size) >> 16) +
+		     DWC3_GTXFIFOSIZ_TXFDEF(fifo_size) - last_fifo_depth;
 
 	for (num = 0; num < dwc->num_eps; num++) {
 		struct dwc3_ep  *dep = dwc->eps[num];
-		int	mult = 1;
+		int	mult = 1, maxpacket = 512;
 		int	tmp;
 
 		/* Skip out endpoints */
 		if (!dep || !dep->direction)
 			continue;
 
-		if (!(dep->flags & DWC3_EP_ENABLED)) {
-			mult = 2;
-		} else if (usb_endpoint_xfer_bulk(dep->endpoint.desc)) {
+		switch (dep->endpoint.transfer_type) {
+		case USB_ENDPOINT_XFER_CONTROL:
+			if (!dep->endpoint.caps.type_control) {
+				dev_dbg(dwc->dev, "%s may not be used\n",
+					dep->name);
+				goto out;
+			}
+
+			mult = 1;
+			maxpacket = 64;
+			break;
+		case USB_ENDPOINT_XFER_ISOC:
+			if (!dep->endpoint.caps.type_iso) {
+				dev_WARN(dwc->dev, "%s not support isoc type\n",
+					 dep->name);
+				goto out;
+			}
+
+			/*
+			 * Set enough tx fifos for Isochronous endpoints
+			 * to get better performance and more compliance
+			 * with bus latency.
+			 */
+			mult = dep->endpoint.mult;
+			mult = mult > 0 ? mult * 2 : 3;
+			maxpacket = dep->endpoint.maxpacket;
+			break;
+		case USB_ENDPOINT_XFER_BULK:
+			if (!dep->endpoint.caps.type_bulk) {
+				dev_WARN(dwc->dev, "%s not support bulk type\n",
+					 dep->name);
+				goto out;
+			}
+
+			/*
+			 * Set enough tx fifos for Bulk endpoints to get
+			 * better transmission performance.
+			 */
 			mult = 3;
-		} else if (usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
-			if (dep->endpoint.mult > 0)
-				mult = dep->endpoint.mult * 2;
-			else
-				mult = 3;
+			maxpacket = 512;
+			break;
+		case USB_ENDPOINT_XFER_INT:
+			/* Bulk endpoints handle interrupt transfers. */
+			if (!dep->endpoint.caps.type_int &&
+			    !dep->endpoint.caps.type_bulk) {
+				dev_WARN(dwc->dev, "%s not support int type\n",
+					 dep->name);
+				goto out;
+			}
+
+			/*
+			 * REVIST: we assume that the maxpacket of interrupt
+			 * endpoint is 16 Bytes.
+			 */
+			mult = 1;
+			maxpacket = 16;
+			break;
+		default:
+			/*
+			 * This is only possible with faulty memory
+			 * because we checked it already.
+			 */
+			dev_WARN(dwc->dev, "Unknown endpoint type %d\n",
+				 dep->endpoint.transfer_type);
+			goto out;
 		}
 
-		/*
-		 * REVISIT: the following assumes we will always have enough
-		 * space available on the FIFO RAM for all possible use cases.
-		 * Make sure that's true somehow and change FIFO allocation
-		 * accordingly.
-		 * If we have Bulk or Isochronous endpoints, we want
-		 * them to be able to be very, very fast. So we're giving
-		 * those endpoints a fifo_size which is enough for 3 full
-		 * packets
-		 */
-		tmp = mult * (dep->endpoint.maxpacket + mdwidth);
+		tmp = mult * (maxpacket + mdwidth);
 		tmp += mdwidth;
 
 		fifo_size = DIV_ROUND_UP(tmp, mdwidth);
+		total_resize += fifo_size;
 		fifo_size |= (last_fifo_depth << 16);
+
+		if (total_resize > total_size) {
+			dev_WARN(dwc->dev, "Tx FIFO resize overflow!\n");
+			break;
+		}
 
 		dev_dbg(dwc->dev, "%s: FIFO Addr %04x Size %d\n",
 			dep->name, last_fifo_depth, fifo_size & 0xffff);
@@ -220,10 +288,12 @@ static int dwc3_gadget_resize_tx_fifos(struct dwc3 *dwc)
 		fifo_number++;
 	}
 
+out:
 	dwc->fifo_resize_status = true;
 
 	return 0;
 }
+#endif
 
 /**
  * dwc3_ep_inc_trb - increment a trb index.
@@ -888,10 +958,6 @@ static int dwc3_gadget_ep_enable(struct usb_ep *ep,
 	spin_lock_irqsave(&dwc->lock, flags);
 	ret = __dwc3_gadget_ep_enable(dep, DWC3_DEPCFG_ACTION_INIT);
 	spin_unlock_irqrestore(&dwc->lock, flags);
-
-	if (usb_endpoint_xfer_isoc(ep->desc) &&
-	    usb_endpoint_maxp(ep->desc) >= 1024)
-		dwc3_gadget_resize_tx_fifos(dwc);
 
 	return ret;
 }
@@ -2496,6 +2562,9 @@ static int dwc3_gadget_init_endpoint(struct dwc3 *dwc, u8 epnum)
 	if (!(dep->number > 1)) {
 		dep->endpoint.desc = &dwc3_gadget_ep0_desc;
 		dep->endpoint.comp_desc = NULL;
+#ifdef CONFIG_ARCH_ROCKCHIP
+		dep->endpoint.transfer_type = USB_ENDPOINT_XFER_CONTROL;
+#endif
 	}
 
 	spin_lock_init(&dep->lock);
@@ -3145,6 +3214,10 @@ static void dwc3_gadget_conndone_interrupt(struct dwc3 *dwc)
 		reg &= ~DWC3_DCTL_HIRD_THRES_MASK;
 		dwc3_writel(dwc->regs, DWC3_DCTL, reg);
 	}
+
+#ifdef CONFIG_ARCH_ROCKCHIP
+	dwc3_gadget_resize_tx_fifos(dwc);
+#endif
 
 	dep = dwc->eps[0];
 	ret = __dwc3_gadget_ep_enable(dep, DWC3_DEPCFG_ACTION_MODIFY);
