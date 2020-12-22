@@ -20,6 +20,7 @@
 #include <uapi/linux/incrementalfs.h>
 
 #include "internal.h"
+#include "pseudo_files.h"
 
 #define SEGMENTS_PER_FILE 3
 
@@ -151,11 +152,8 @@ struct mount_info {
 	/* Temporary buffer for read logger. */
 	struct read_log mi_log;
 
-	void *log_xattr;
-	size_t log_xattr_size;
-
-	void *pending_read_xattr;
-	size_t pending_read_xattr_size;
+	/* SELinux needs special xattrs on our pseudo files */
+	struct mem_range pseudo_file_xattr[PSEUDO_FILE_COUNT];
 
 	/* A queue of waiters who want to be notified about blocks_written */
 	wait_queue_head_t mi_blocks_written_notif_wq;

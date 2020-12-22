@@ -1434,6 +1434,7 @@ static ssize_t incfs_getxattr(struct dentry *d, const char *name,
 	struct mount_info *mi = get_mount_info(d->d_sb);
 	char *stored_value;
 	size_t stored_size;
+	int i;
 
 	if (di && di->backing_path.dentry)
 		return vfs_getxattr(di->backing_path.dentry, name, value, size);
@@ -1441,16 +1442,14 @@ static ssize_t incfs_getxattr(struct dentry *d, const char *name,
 	if (strcmp(name, "security.selinux"))
 		return -ENODATA;
 
-	if (!strcmp(d->d_iname, INCFS_PENDING_READS_FILENAME)) {
-		stored_value = mi->pending_read_xattr;
-		stored_size = mi->pending_read_xattr_size;
-	} else if (!strcmp(d->d_iname, INCFS_LOG_FILENAME)) {
-		stored_value = mi->log_xattr;
-		stored_size = mi->log_xattr_size;
-	} else {
+	for (i = 0; i < PSEUDO_FILE_COUNT; ++i)
+		if (!strcmp(d->d_iname, incfs_pseudo_file_names[i].data))
+			break;
+	if (i == PSEUDO_FILE_COUNT)
 		return -ENODATA;
-	}
 
+	stored_value = mi->pseudo_file_xattr[i].data;
+	stored_size = mi->pseudo_file_xattr[i].len;
 	if (!stored_value)
 		return -ENODATA;
 
@@ -1459,7 +1458,6 @@ static ssize_t incfs_getxattr(struct dentry *d, const char *name,
 
 	memcpy(value, stored_value, stored_size);
 	return stored_size;
-
 }
 
 
@@ -1468,8 +1466,9 @@ static ssize_t incfs_setxattr(struct dentry *d, const char *name,
 {
 	struct dentry_info *di = get_incfs_dentry(d);
 	struct mount_info *mi = get_mount_info(d->d_sb);
-	void **stored_value;
+	u8 **stored_value;
 	size_t *stored_size;
+	int i;
 
 	if (di && di->backing_path.dentry)
 		return vfs_setxattr(di->backing_path.dentry, name, value, size,
@@ -1481,16 +1480,14 @@ static ssize_t incfs_setxattr(struct dentry *d, const char *name,
 	if (size > INCFS_MAX_FILE_ATTR_SIZE)
 		return -E2BIG;
 
-	if (!strcmp(d->d_iname, INCFS_PENDING_READS_FILENAME)) {
-		stored_value = &mi->pending_read_xattr;
-		stored_size = &mi->pending_read_xattr_size;
-	} else if (!strcmp(d->d_iname, INCFS_LOG_FILENAME)) {
-		stored_value = &mi->log_xattr;
-		stored_size = &mi->log_xattr_size;
-	} else {
+	for (i = 0; i < PSEUDO_FILE_COUNT; ++i)
+		if (!strcmp(d->d_iname, incfs_pseudo_file_names[i].data))
+			break;
+	if (i == PSEUDO_FILE_COUNT)
 		return -ENODATA;
-	}
 
+	stored_value = &mi->pseudo_file_xattr[i].data;
+	stored_size = &mi->pseudo_file_xattr[i].len;
 	kfree (*stored_value);
 	*stored_value = kzalloc(size, GFP_NOFS);
 	if (!*stored_value)

@@ -19,149 +19,15 @@
 #include "integrity.h"
 #include "vfs.h"
 
-#define INCFS_PENDING_READS_INODE 2
-#define INCFS_LOG_INODE 3
-#define INCFS_BLOCKS_WRITTEN_INODE 4
 #define READ_WRITE_FILE_MODE 0666
 
-/*******************************************************************************
- * .log pseudo file definition
- ******************************************************************************/
-static const char log_file_name[] = INCFS_LOG_FILENAME;
-static const struct mem_range log_file_name_range = {
-	.data = (u8 *)log_file_name,
-	.len = ARRAY_SIZE(log_file_name) - 1
-};
-
-/* State of an open .log file, unique for each file descriptor. */
-struct log_file_state {
-	struct read_log_state state;
-};
-
-static ssize_t log_read(struct file *f, char __user *buf, size_t len,
-			loff_t *ppos)
-{
-	struct log_file_state *log_state = f->private_data;
-	struct mount_info *mi = get_mount_info(file_superblock(f));
-	int total_reads_collected = 0;
-	int rl_size;
-	ssize_t result = 0;
-	bool report_uid;
-	unsigned long page = 0;
-	struct incfs_pending_read_info *reads_buf = NULL;
-	struct incfs_pending_read_info2 *reads_buf2 = NULL;
-	size_t record_size;
-	ssize_t reads_to_collect;
-	ssize_t reads_per_page;
-
-	if (!mi)
-		return -EFAULT;
-
-	report_uid = mi->mi_options.report_uid;
-	record_size = report_uid ? sizeof(*reads_buf2) : sizeof(*reads_buf);
-	reads_to_collect = len / record_size;
-	reads_per_page = PAGE_SIZE / record_size;
-
-	rl_size = READ_ONCE(mi->mi_log.rl_size);
-	if (rl_size == 0)
-		return 0;
-
-	page = __get_free_page(GFP_NOFS);
-	if (!page)
-		return -ENOMEM;
-
-	if (report_uid)
-		reads_buf2 = (struct incfs_pending_read_info2 *) page;
-	else
-		reads_buf = (struct incfs_pending_read_info *) page;
-
-	reads_to_collect = min_t(ssize_t, rl_size, reads_to_collect);
-	while (reads_to_collect > 0) {
-		struct read_log_state next_state;
-		int reads_collected;
-
-		memcpy(&next_state, &log_state->state, sizeof(next_state));
-		reads_collected = incfs_collect_logged_reads(
-			mi, &next_state, reads_buf, reads_buf2,
-			min_t(ssize_t, reads_to_collect, reads_per_page));
-		if (reads_collected <= 0) {
-			result = total_reads_collected ?
-					 total_reads_collected * record_size :
-					 reads_collected;
-			goto out;
-		}
-		if (copy_to_user(buf, (void *) page,
-				 reads_collected * record_size)) {
-			result = total_reads_collected ?
-					 total_reads_collected * record_size :
-					 -EFAULT;
-			goto out;
-		}
-
-		memcpy(&log_state->state, &next_state, sizeof(next_state));
-		total_reads_collected += reads_collected;
-		buf += reads_collected * record_size;
-		reads_to_collect -= reads_collected;
-	}
-
-	result = total_reads_collected * record_size;
-	*ppos = 0;
-out:
-	free_page(page);
-	return result;
-}
-
-static __poll_t log_poll(struct file *file, poll_table *wait)
-{
-	struct log_file_state *log_state = file->private_data;
-	struct mount_info *mi = get_mount_info(file_superblock(file));
-	int count;
-	__poll_t ret = 0;
-
-	poll_wait(file, &mi->mi_log.ml_notif_wq, wait);
-	count = incfs_get_uncollected_logs_count(mi, &log_state->state);
-	if (count >= mi->mi_options.read_log_wakeup_count)
-		ret = EPOLLIN | EPOLLRDNORM;
-
-	return ret;
-}
-
-static int log_open(struct inode *inode, struct file *file)
-{
-	struct log_file_state *log_state = NULL;
-	struct mount_info *mi = get_mount_info(file_superblock(file));
-
-	log_state = kzalloc(sizeof(*log_state), GFP_NOFS);
-	if (!log_state)
-		return -ENOMEM;
-
-	log_state->state = incfs_get_log_state(mi);
-	file->private_data = log_state;
-	return 0;
-}
-
-static int log_release(struct inode *inode, struct file *file)
-{
-	kfree(file->private_data);
-	return 0;
-}
-
-static const struct file_operations incfs_log_file_ops = {
-	.read = log_read,
-	.poll = log_poll,
-	.open = log_open,
-	.release = log_release,
-	.llseek = noop_llseek,
-};
+static bool is_pseudo_filename(struct mem_range name);
 
 /*******************************************************************************
  * .pending_reads pseudo file definition
  ******************************************************************************/
+#define INCFS_PENDING_READS_INODE 2
 static const char pending_reads_file_name[] = INCFS_PENDING_READS_FILENAME;
-static const struct mem_range pending_reads_file_name_range = {
-	.data = (u8 *)pending_reads_file_name,
-	.len = ARRAY_SIZE(pending_reads_file_name) - 1
-};
 
 /* State of an open .pending_reads file, unique for each file descriptor. */
 struct pending_reads_state {
@@ -342,16 +208,6 @@ static bool incfs_equal_ranges(struct mem_range lhs, struct mem_range rhs)
 	if (lhs.len != rhs.len)
 		return false;
 	return memcmp(lhs.data, rhs.data, lhs.len) == 0;
-}
-
-static bool is_pseudo_filename(struct mem_range name)
-{
-	if (incfs_equal_ranges(pending_reads_file_name_range, name))
-		return true;
-	if (incfs_equal_ranges(log_file_name_range, name))
-		return true;
-
-	return false;
 }
 
 static int validate_name(char *file_name)
@@ -1059,7 +915,7 @@ static long pending_reads_dispatch_ioctl(struct file *f, unsigned int req,
 	}
 }
 
-static const struct file_operations incfs_pending_read_file_ops = {
+static const struct file_operations incfs_pending_reads_file_ops = {
 	.read = pending_reads_read,
 	.poll = pending_reads_poll,
 	.open = pending_reads_open,
@@ -1070,13 +926,137 @@ static const struct file_operations incfs_pending_read_file_ops = {
 };
 
 /*******************************************************************************
+ * .log pseudo file definition
+ ******************************************************************************/
+#define INCFS_LOG_INODE 3
+static const char log_file_name[] = INCFS_LOG_FILENAME;
+
+/* State of an open .log file, unique for each file descriptor. */
+struct log_file_state {
+	struct read_log_state state;
+};
+
+static ssize_t log_read(struct file *f, char __user *buf, size_t len,
+			loff_t *ppos)
+{
+	struct log_file_state *log_state = f->private_data;
+	struct mount_info *mi = get_mount_info(file_superblock(f));
+	int total_reads_collected = 0;
+	int rl_size;
+	ssize_t result = 0;
+	bool report_uid;
+	unsigned long page = 0;
+	struct incfs_pending_read_info *reads_buf = NULL;
+	struct incfs_pending_read_info2 *reads_buf2 = NULL;
+	size_t record_size;
+	ssize_t reads_to_collect;
+	ssize_t reads_per_page;
+
+	if (!mi)
+		return -EFAULT;
+
+	report_uid = mi->mi_options.report_uid;
+	record_size = report_uid ? sizeof(*reads_buf2) : sizeof(*reads_buf);
+	reads_to_collect = len / record_size;
+	reads_per_page = PAGE_SIZE / record_size;
+
+	rl_size = READ_ONCE(mi->mi_log.rl_size);
+	if (rl_size == 0)
+		return 0;
+
+	page = __get_free_page(GFP_NOFS);
+	if (!page)
+		return -ENOMEM;
+
+	if (report_uid)
+		reads_buf2 = (struct incfs_pending_read_info2 *)page;
+	else
+		reads_buf = (struct incfs_pending_read_info *)page;
+
+	reads_to_collect = min_t(ssize_t, rl_size, reads_to_collect);
+	while (reads_to_collect > 0) {
+		struct read_log_state next_state;
+		int reads_collected;
+
+		memcpy(&next_state, &log_state->state, sizeof(next_state));
+		reads_collected = incfs_collect_logged_reads(
+			mi, &next_state, reads_buf, reads_buf2,
+			min_t(ssize_t, reads_to_collect, reads_per_page));
+		if (reads_collected <= 0) {
+			result = total_reads_collected ?
+					       total_reads_collected * record_size :
+					       reads_collected;
+			goto out;
+		}
+		if (copy_to_user(buf, (void *)page,
+				 reads_collected * record_size)) {
+			result = total_reads_collected ?
+					       total_reads_collected * record_size :
+					       -EFAULT;
+			goto out;
+		}
+
+		memcpy(&log_state->state, &next_state, sizeof(next_state));
+		total_reads_collected += reads_collected;
+		buf += reads_collected * record_size;
+		reads_to_collect -= reads_collected;
+	}
+
+	result = total_reads_collected * record_size;
+	*ppos = 0;
+out:
+	free_page(page);
+	return result;
+}
+
+static __poll_t log_poll(struct file *file, poll_table *wait)
+{
+	struct log_file_state *log_state = file->private_data;
+	struct mount_info *mi = get_mount_info(file_superblock(file));
+	int count;
+	__poll_t ret = 0;
+
+	poll_wait(file, &mi->mi_log.ml_notif_wq, wait);
+	count = incfs_get_uncollected_logs_count(mi, &log_state->state);
+	if (count >= mi->mi_options.read_log_wakeup_count)
+		ret = EPOLLIN | EPOLLRDNORM;
+
+	return ret;
+}
+
+static int log_open(struct inode *inode, struct file *file)
+{
+	struct log_file_state *log_state = NULL;
+	struct mount_info *mi = get_mount_info(file_superblock(file));
+
+	log_state = kzalloc(sizeof(*log_state), GFP_NOFS);
+	if (!log_state)
+		return -ENOMEM;
+
+	log_state->state = incfs_get_log_state(mi);
+	file->private_data = log_state;
+	return 0;
+}
+
+static int log_release(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+	return 0;
+}
+
+static const struct file_operations incfs_log_file_ops = {
+	.read = log_read,
+	.poll = log_poll,
+	.open = log_open,
+	.release = log_release,
+	.llseek = noop_llseek,
+};
+
+/*******************************************************************************
  * .blocks_written pseudo file definition
  ******************************************************************************/
+#define INCFS_BLOCKS_WRITTEN_INODE 4
 static const char blocks_written_file_name[] = INCFS_BLOCKS_WRITTEN_FILENAME;
-static const struct mem_range blocks_written_file_name_range = {
-	.data = (u8 *)blocks_written_file_name,
-	.len = ARRAY_SIZE(blocks_written_file_name) - 1
-};
 
 /* State of an open .blocks_written file, unique for each file descriptor. */
 struct blocks_written_file_state {
@@ -1156,8 +1136,44 @@ static const struct file_operations incfs_blocks_written_file_ops = {
 /*******************************************************************************
  * Generic inode lookup functionality
  ******************************************************************************/
+
+const struct mem_range incfs_pseudo_file_names[] = {
+	{ .data = (u8 *)pending_reads_file_name,
+	  .len = ARRAY_SIZE(pending_reads_file_name) - 1 },
+	{ .data = (u8 *)log_file_name, .len = ARRAY_SIZE(log_file_name) - 1 },
+	{ .data = (u8 *)blocks_written_file_name,
+	  .len = ARRAY_SIZE(blocks_written_file_name) - 1 }
+};
+
+const unsigned long incfs_pseudo_file_inodes[] = { INCFS_PENDING_READS_INODE,
+						   INCFS_LOG_INODE,
+						   INCFS_BLOCKS_WRITTEN_INODE };
+
+static const struct file_operations *const pseudo_file_operations[] = {
+	&incfs_pending_reads_file_ops, &incfs_log_file_ops,
+	&incfs_blocks_written_file_ops
+};
+
+static bool is_pseudo_filename(struct mem_range name)
+{
+	int i = 0;
+
+	for (; i < ARRAY_SIZE(incfs_pseudo_file_names); ++i)
+		if (incfs_equal_ranges(incfs_pseudo_file_names[i], name))
+			return true;
+	return false;
+}
+
 static bool get_pseudo_inode(int ino, struct inode *inode)
 {
+	int i = 0;
+
+	for (; i < ARRAY_SIZE(incfs_pseudo_file_inodes); ++i)
+		if (ino == incfs_pseudo_file_inodes[i])
+			break;
+	if (i == ARRAY_SIZE(incfs_pseudo_file_inodes))
+		return false;
+
 	inode->i_ctime = (struct timespec64){};
 	inode->i_mtime = inode->i_ctime;
 	inode->i_atime = inode->i_ctime;
@@ -1166,23 +1182,8 @@ static bool get_pseudo_inode(int ino, struct inode *inode)
 	inode->i_private = NULL;
 	inode_init_owner(inode, NULL, S_IFREG | READ_WRITE_FILE_MODE);
 	inode->i_op = &incfs_file_inode_ops;
-
-	switch (ino) {
-	case INCFS_PENDING_READS_INODE:
-		inode->i_fop = &incfs_pending_read_file_ops;
-		return true;
-
-	case INCFS_LOG_INODE:
-		inode->i_fop = &incfs_log_file_ops;
-		return true;
-
-	case INCFS_BLOCKS_WRITTEN_INODE:
-		inode->i_fop = &incfs_blocks_written_file_ops;
-		return true;
-
-	default:
-		return false;
-	}
+	inode->i_fop = pseudo_file_operations[i];
+	return true;
 }
 
 struct inode_search {
@@ -1230,15 +1231,15 @@ int dir_lookup_pseudo_files(struct super_block *sb, struct dentry *dentry)
 			range((u8 *)dentry->d_name.name, dentry->d_name.len);
 	unsigned long ino;
 	struct inode *inode;
+	int i = 0;
 
-	if (incfs_equal_ranges(pending_reads_file_name_range, name_range))
-		ino = INCFS_PENDING_READS_INODE;
-	else if (incfs_equal_ranges(log_file_name_range, name_range))
-		ino = INCFS_LOG_INODE;
-	else if (incfs_equal_ranges(blocks_written_file_name_range, name_range))
-		ino = INCFS_BLOCKS_WRITTEN_INODE;
-	else
+	for (; i < ARRAY_SIZE(incfs_pseudo_file_names); ++i)
+		if (incfs_equal_ranges(incfs_pseudo_file_names[i], name_range))
+			break;
+	if (i == ARRAY_SIZE(incfs_pseudo_file_names))
 		return -ENOENT;
+
+	ino = incfs_pseudo_file_inodes[i];
 
 	inode = fetch_inode(sb, ino);
 	if (IS_ERR(inode))
@@ -1250,32 +1251,15 @@ int dir_lookup_pseudo_files(struct super_block *sb, struct dentry *dentry)
 
 int emit_pseudo_files(struct dir_context *ctx)
 {
-	if (ctx->pos == 0) {
-		if (!dir_emit(ctx, pending_reads_file_name,
-			      ARRAY_SIZE(pending_reads_file_name) - 1,
-			      INCFS_PENDING_READS_INODE, DT_REG))
+	loff_t i = ctx->pos;
+
+	for (; i < ARRAY_SIZE(incfs_pseudo_file_names); ++i) {
+		if (!dir_emit(ctx, incfs_pseudo_file_names[i].data,
+			      incfs_pseudo_file_names[i].len,
+			      incfs_pseudo_file_inodes[i], DT_REG))
 			return -EINVAL;
 
 		ctx->pos++;
 	}
-
-	if (ctx->pos == 1) {
-		if (!dir_emit(ctx, log_file_name,
-			      ARRAY_SIZE(log_file_name) - 1,
-			      INCFS_LOG_INODE, DT_REG))
-			return -EINVAL;
-
-		ctx->pos++;
-	}
-
-	if (ctx->pos == 2) {
-		if (!dir_emit(ctx, blocks_written_file_name,
-			      ARRAY_SIZE(blocks_written_file_name) - 1,
-			      INCFS_BLOCKS_WRITTEN_INODE, DT_REG))
-			return -EINVAL;
-
-		ctx->pos++;
-	}
-
 	return 0;
 }
