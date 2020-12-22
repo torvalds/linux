@@ -828,9 +828,11 @@ static umode_t inj_is_visible(struct kobject *kobj, struct attribute *attr, int 
 	struct mem_ctl_info *mci = container_of(dev, struct mem_ctl_info, dev);
 	struct amd64_pvt *pvt = mci->pvt_info;
 
-	if (pvt->fam < 0x10)
-		return 0;
-	return attr->mode;
+	/* Families which have that injection hw */
+	if (pvt->fam >= 0x10 && pvt->fam <= 0x16)
+		return attr->mode;
+
+	return 0;
 }
 
 static const struct attribute_group inj_group = {
