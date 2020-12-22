@@ -2696,7 +2696,7 @@ retry:
 	src = F2FS_INODE(page);
 	dst = F2FS_INODE(ipage);
 
-	memcpy(dst, src, (unsigned long)&src->i_ext - (unsigned long)src);
+	memcpy(dst, src, offsetof(struct f2fs_inode, i_ext));
 	dst->i_size = 0;
 	dst->i_blocks = cpu_to_le64(1);
 	dst->i_links = cpu_to_le32(1);
