@@ -553,7 +553,7 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 			RK3568_CLKGATE_CON(1), 10, GFLAGS),
 	GATE(CLK_CORE_PVTM_CORE, "clk_core_pvtm_core", "armclk", 0,
 			RK3568_CLKGATE_CON(1), 11, GFLAGS),
-	GATE(CLK_CORE_PVTPLL, "clk_core_pvtpll", "armclk", 0,
+	GATE(CLK_CORE_PVTPLL, "clk_core_pvtpll", "armclk", CLK_IGNORE_UNUSED,
 			RK3568_CLKGATE_CON(1), 12, GFLAGS),
 	GATE(PCLK_CORE_PVTM, "pclk_core_pvtm", "pclk_core_pre", 0,
 			RK3568_CLKGATE_CON(1), 9, GFLAGS),
@@ -577,7 +577,7 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 			RK3568_CLKGATE_CON(2), 7, GFLAGS),
 	GATE(CLK_GPU_PVTM_CORE, "clk_gpu_pvtm_core", "clk_gpu_src", 0,
 			RK3568_CLKGATE_CON(2), 8, GFLAGS),
-	GATE(CLK_GPU_PVTPLL, "clk_gpu_pvtpll", "clk_gpu_src", 0,
+	GATE(CLK_GPU_PVTPLL, "clk_gpu_pvtpll", "clk_gpu_src", CLK_IGNORE_UNUSED,
 			RK3568_CLKGATE_CON(2), 9, GFLAGS),
 
 	/* PD_NPU */
@@ -608,7 +608,7 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 			RK3568_CLKGATE_CON(3), 10, GFLAGS),
 	GATE(CLK_NPU_PVTM_CORE, "clk_npu_pvtm_core", "clk_npu_pre_ndft", 0,
 			RK3568_CLKGATE_CON(3), 11, GFLAGS),
-	GATE(CLK_NPU_PVTPLL, "clk_npu_pvtpll", "clk_npu_pre_ndft", 0,
+	GATE(CLK_NPU_PVTPLL, "clk_npu_pvtpll", "clk_npu_pre_ndft", CLK_IGNORE_UNUSED,
 			RK3568_CLKGATE_CON(3), 12, GFLAGS),
 
 	/* PD_DDR */
