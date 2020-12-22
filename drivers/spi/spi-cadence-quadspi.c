@@ -294,7 +294,7 @@ static unsigned int cqspi_calc_dummy(const struct spi_mem_op *op)
 {
 	unsigned int dummy_clk;
 
-	dummy_clk = op->dummy.nbytes * 8;
+	dummy_clk = op->dummy.nbytes * (8 / op->dummy.buswidth);
 
 	return dummy_clk;
 }
