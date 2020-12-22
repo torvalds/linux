@@ -3137,8 +3137,8 @@ int mt7915_mcu_set_radar_th(struct mt7915_dev *dev, int index,
 		u8 max_crpn;
 		u8 min_crpr;
 		u8 min_pw;
-		u32 min_pri;
-		u32 max_pri;
+		__le32 min_pri;
+		__le32 max_pri;
 		u8 max_pw;
 		u8 min_crbn;
 		u8 max_crbn;
@@ -3146,7 +3146,7 @@ int mt7915_mcu_set_radar_th(struct mt7915_dev *dev, int index,
 		u8 max_stgpn;
 		u8 min_stgpr;
 		u8 rsv[2];
-		u32 min_stgpr_diff;
+		__le32 min_stgpr_diff;
 	} __packed req = {
 		.tag = cpu_to_le32(0x2),
 		.radar_type = cpu_to_le16(index),
