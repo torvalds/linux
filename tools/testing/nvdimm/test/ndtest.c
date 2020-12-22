@@ -86,6 +86,9 @@ static struct ndtest_dimm dimm_group2[] = {
 		.uuid_str = "ca0817e2-b618-11ea-9db3-507b9ddc0f72",
 		.physical_id = 0,
 		.num_formats = 1,
+		.flags = PAPR_PMEM_UNARMED | PAPR_PMEM_EMPTY |
+			 PAPR_PMEM_SAVE_FAILED | PAPR_PMEM_SHUTDOWN_DIRTY |
+			 PAPR_PMEM_HEALTH_FATAL,
 	},
 };
 
@@ -789,6 +792,40 @@ static umode_t ndtest_nvdimm_attr_visible(struct kobject *kobj,
 	return a->mode;
 }
 
+static ssize_t flags_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+	struct ndtest_dimm *dimm = nvdimm_provider_data(nvdimm);
+	struct seq_buf s;
+	u64 flags;
+
+	flags = dimm->flags;
+
+	seq_buf_init(&s, buf, PAGE_SIZE);
+	if (flags & PAPR_PMEM_UNARMED_MASK)
+		seq_buf_printf(&s, "not_armed ");
+
+	if (flags & PAPR_PMEM_BAD_SHUTDOWN_MASK)
+		seq_buf_printf(&s, "flush_fail ");
+
+	if (flags & PAPR_PMEM_BAD_RESTORE_MASK)
+		seq_buf_printf(&s, "restore_fail ");
+
+	if (flags & PAPR_PMEM_SAVE_MASK)
+		seq_buf_printf(&s, "save_fail ");
+
+	if (flags & PAPR_PMEM_SMART_EVENT_MASK)
+		seq_buf_printf(&s, "smart_notify ");
+
+
+	if (seq_buf_used(&s))
+		seq_buf_printf(&s, "\n");
+
+	return seq_buf_used(&s);
+}
+static DEVICE_ATTR_RO(flags);
+
 static struct attribute *ndtest_nvdimm_attributes[] = {
 	&dev_attr_nvdimm_show_handle.attr,
 	&dev_attr_vendor.attr,
@@ -799,6 +836,7 @@ static struct attribute *ndtest_nvdimm_attributes[] = {
 	&dev_attr_formats.attr,
 	&dev_attr_format.attr,
 	&dev_attr_format1.attr,
+	&dev_attr_flags.attr,
 	NULL,
 };
 
@@ -823,6 +861,9 @@ static int ndtest_dimm_register(struct ndtest_priv *priv,
 		set_bit(NDD_ALIASING, &dimm_flags);
 		set_bit(NDD_LABELING, &dimm_flags);
 	}
+
+	if (dimm->flags & PAPR_PMEM_UNARMED_MASK)
+		set_bit(NDD_UNARMED, &dimm_flags);
 
 	dimm->nvdimm = nvdimm_create(priv->bus, dimm,
 				    ndtest_nvdimm_attribute_groups, dimm_flags,
