@@ -123,6 +123,12 @@ found_ep:
 	ep->desc = NULL;
 	ep->comp_desc = NULL;
 	ep->claimed = true;
+#ifdef CONFIG_ARCH_ROCKCHIP
+	ep->transfer_type = type;
+	if (type == USB_ENDPOINT_XFER_ISOC ||
+	    type == USB_ENDPOINT_XFER_INT)
+		ep->mult = usb_endpoint_maxp_mult(desc);
+#endif
 	return ep;
 }
 EXPORT_SYMBOL_GPL(usb_ep_autoconfig_ss);
