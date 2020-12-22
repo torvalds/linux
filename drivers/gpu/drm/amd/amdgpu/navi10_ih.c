@@ -151,14 +151,7 @@ static int navi10_ih_toggle_ring_interrupts(struct amdgpu_device *adev,
 	/* enable_intr field is only valid in ring0 */
 	if (ih == &adev->irq.ih)
 		tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, ENABLE_INTR, (enable ? 1 : 0));
-	if (amdgpu_sriov_vf(adev)) {
-		if (psp_reg_program(&adev->psp, ih_regs->psp_reg_id, tmp)) {
-			dev_err(adev->dev, "PSP program IH_RB_CNTL failed!\n");
-			return -ETIMEDOUT;
-		}
-	} else {
-		WREG32(ih_regs->ih_rb_cntl, tmp);
-	}
+	WREG32(ih_regs->ih_rb_cntl, tmp);
 
 	if (enable) {
 		ih->enabled = true;
@@ -268,14 +261,7 @@ static int navi10_ih_enable_ring(struct amdgpu_device *adev,
 		tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_ENABLE, 0);
 		tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, RB_FULL_DRAIN_ENABLE, 1);
 	}
-	if (amdgpu_sriov_vf(adev)) {
-		if (psp_reg_program(&adev->psp, ih_regs->psp_reg_id, tmp)) {
-			dev_err(adev->dev, "PSP program IH_RB_CNTL failed!\n");
-			return -ETIMEDOUT;
-		}
-	} else {
-		WREG32(ih_regs->ih_rb_cntl, tmp);
-	}
+	WREG32(ih_regs->ih_rb_cntl, tmp);
 
 	if (ih == &adev->irq.ih) {
 		/* set the ih ring 0 writeback address whether it's enabled or not */
