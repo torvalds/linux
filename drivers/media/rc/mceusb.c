@@ -1169,7 +1169,7 @@ static void mceusb_handle_command(struct mceusb_dev *ir, u8 *buf_in)
 		switch (subcmd) {
 		/* the one and only 5-byte return value command */
 		case MCE_RSP_GETPORTSTATUS:
-			if (buf_in[5] == 0)
+			if (buf_in[5] == 0 && *hi < 8)
 				ir->txports_cabled |= 1 << *hi;
 			break;
 
