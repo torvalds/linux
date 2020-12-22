@@ -121,7 +121,6 @@ properties:
       receive and act on notifications of modem up/down events.
 
   memory-region:
-    $ref: /schemas/types.yaml#/definitions/phandle-array
     maxItems: 1
     description:
       If present, a phandle for a reserved memory area that holds
