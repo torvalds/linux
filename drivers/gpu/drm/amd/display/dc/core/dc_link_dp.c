@@ -877,13 +877,13 @@ static uint32_t translate_training_aux_read_interval(uint32_t dpcd_aux_read_inte
 
 	switch (dpcd_aux_read_interval) {
 	case 0x01:
-		aux_rd_interval_us = 400;
-		break;
-	case 0x02:
 		aux_rd_interval_us = 4000;
 		break;
-	case 0x03:
+	case 0x02:
 		aux_rd_interval_us = 8000;
+		break;
+	case 0x03:
+		aux_rd_interval_us = 12000;
 		break;
 	case 0x04:
 		aux_rd_interval_us = 16000;
