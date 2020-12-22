@@ -684,6 +684,26 @@ generates appropriate diffstats by default.)
 See more details on the proper patch format in the following
 references.
 
+Backtraces in commit mesages
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Backtraces help document the call chain leading to a problem. However,
+not all backtraces are helpful. For example, early boot call chains are
+unique and obvious. Copying the full dmesg output verbatim, however,
+adds distracting information like timestamps, module lists, register and
+stack dumps.
+
+Therefore, the most useful backtraces should distill the relevant
+information from the dump, which makes it easier to focus on the real
+issue. Here is an example of a well-trimmed backtrace::
+
+  unchecked MSR access error: WRMSR to 0xd51 (tried to write 0x0000000000000064)
+  at rIP: 0xffffffffae059994 (native_write_msr+0x4/0x20)
+  Call Trace:
+  mba_wrmsr
+  update_domains
+  rdtgroup_mkdir
+
 .. _explicit_in_reply_to:
 
 Explicit In-Reply-To headers
