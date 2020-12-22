@@ -28,6 +28,8 @@
 #define INCFS_MAX_HASH_SIZE 32
 #define INCFS_MAX_FILE_ATTR_SIZE 512
 
+#define INCFS_INDEX_NAME ".index"
+#define INCFS_INCOMPLETE_NAME ".incomplete"
 #define INCFS_PENDING_READS_FILENAME ".pending_reads"
 #define INCFS_LOG_FILENAME ".log"
 #define INCFS_BLOCKS_WRITTEN_FILENAME ".blocks_written"

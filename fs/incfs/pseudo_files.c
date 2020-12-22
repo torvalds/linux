@@ -5,6 +5,7 @@
 
 #include <linux/file.h>
 #include <linux/fs.h>
+#include <linux/fsnotify.h>
 #include <linux/namei.h>
 #include <linux/poll.h>
 #include <linux/syscalls.h>
@@ -231,12 +232,15 @@ static int validate_name(char *file_name)
 static int dir_relative_path_resolve(
 			struct mount_info *mi,
 			const char __user *relative_path,
-			struct path *result_path)
+			struct path *result_path,
+			struct path *base_path)
 {
-	struct path *base_path = &mi->mi_backing_dir_path;
 	int dir_fd = get_unused_fd_flags(0);
 	struct file *dir_f = NULL;
 	int error = 0;
+
+	if (!base_path)
+		base_path = &mi->mi_backing_dir_path;
 
 	if (dir_fd < 0)
 		return dir_fd;
@@ -262,7 +266,7 @@ static int dir_relative_path_resolve(
 out:
 	close_fd(dir_fd);
 	if (error)
-		pr_debug("incfs: %s %d\n", __func__, error);
+		pr_debug("Error: %d\n", error);
 	return error;
 }
 
@@ -364,6 +368,7 @@ static int init_new_file(struct mount_info *mi, struct dentry *dentry,
 
 	if (error)
 		goto out;
+
 out:
 	if (bfc) {
 		mutex_unlock(&bfc->bc_mutex);
@@ -377,9 +382,84 @@ out:
 	return error;
 }
 
-static long ioctl_create_file(struct mount_info *mi,
+static void notify_create(struct file *pending_reads_file,
+			  const char  __user *dir_name, const char *file_name,
+			  const char *file_id_str, bool incomplete_file)
+{
+	struct mount_info *mi =
+		get_mount_info(file_superblock(pending_reads_file));
+	struct path base_path = {
+		.mnt = pending_reads_file->f_path.mnt,
+		.dentry = pending_reads_file->f_path.dentry->d_parent,
+	};
+	struct path dir_path = {};
+	struct dentry *file = NULL;
+	struct dentry *dir = NULL;
+	int error;
+
+	error = dir_relative_path_resolve(mi, dir_name, &dir_path, &base_path);
+	if (error)
+		goto out;
+
+	file = incfs_lookup_dentry(dir_path.dentry, file_name);
+	if (IS_ERR(file)) {
+		error = PTR_ERR(file);
+		file = NULL;
+		goto out;
+	}
+
+	fsnotify_create(d_inode(dir_path.dentry), file);
+
+	dir = incfs_lookup_dentry(base_path.dentry, INCFS_INDEX_NAME);
+	if (IS_ERR(dir)) {
+		error = PTR_ERR(dir);
+		dir = NULL;
+		goto out;
+	}
+
+	dput(file);
+	file = incfs_lookup_dentry(dir, file_id_str);
+	if (IS_ERR(file)) {
+		error = PTR_ERR(file);
+		file = NULL;
+		goto out;
+	}
+
+	fsnotify_create(d_inode(dir), file);
+
+	if (incomplete_file) {
+		dput(dir);
+		dir = incfs_lookup_dentry(base_path.dentry,
+					  INCFS_INCOMPLETE_NAME);
+		if (IS_ERR(dir)) {
+			error = PTR_ERR(dir);
+			dir = NULL;
+			goto out;
+		}
+
+		dput(file);
+		file = incfs_lookup_dentry(dir, file_id_str);
+		if (IS_ERR(file)) {
+			error = PTR_ERR(file);
+			file = NULL;
+			goto out;
+		}
+
+		fsnotify_create(d_inode(dir), file);
+	}
+out:
+	if (error)
+		pr_warn("%s failed with error %d\n", __func__, error);
+
+	dput(dir);
+	dput(file);
+	path_put(&dir_path);
+}
+
+static long ioctl_create_file(struct file *file,
 			struct incfs_new_file_args __user *usr_args)
 {
+	struct mount_info *mi = get_mount_info(file_superblock(file));
 	struct incfs_new_file_args args;
 	char *file_id_str = NULL;
 	struct dentry *index_file_dentry = NULL;
@@ -431,7 +511,7 @@ static long ioctl_create_file(struct mount_info *mi,
 	/* Find a directory to put the file into. */
 	error = dir_relative_path_resolve(mi,
 			u64_to_user_ptr(args.directory_path),
-			&parent_dir_path);
+			&parent_dir_path, NULL);
 	if (error)
 		goto out;
 
@@ -590,6 +670,9 @@ static long ioctl_create_file(struct mount_info *mi,
 		incomplete_linked = true;
 	}
 
+	notify_create(file, u64_to_user_ptr(args.directory_path), file_name,
+		      file_id_str, args.size != 0);
+
 out:
 	if (error) {
 		pr_debug("incfs: %s err:%d\n", __func__, error);
@@ -610,6 +693,7 @@ out:
 	path_put(&parent_dir_path);
 	if (locked)
 		mutex_unlock(&mi->mi_dir_struct_mutex);
+
 	return error;
 }
 
@@ -742,7 +826,7 @@ static long ioctl_create_mapped_file(struct mount_info *mi, void __user *arg)
 	/* Find a directory to put the file into. */
 	error = dir_relative_path_resolve(mi,
 			u64_to_user_ptr(args.directory_path),
-			&parent_dir_path);
+			&parent_dir_path, NULL);
 	if (error)
 		goto out;
 
@@ -902,7 +986,7 @@ static long pending_reads_dispatch_ioctl(struct file *f, unsigned int req,
 
 	switch (req) {
 	case INCFS_IOC_CREATE_FILE:
-		return ioctl_create_file(mi, (void __user *)arg);
+		return ioctl_create_file(f, (void __user *)arg);
 	case INCFS_IOC_PERMIT_FILL:
 		return ioctl_permit_fill(f, (void __user *)arg);
 	case INCFS_IOC_CREATE_MAPPED_FILE:
@@ -985,15 +1069,15 @@ static ssize_t log_read(struct file *f, char __user *buf, size_t len,
 			min_t(ssize_t, reads_to_collect, reads_per_page));
 		if (reads_collected <= 0) {
 			result = total_reads_collected ?
-					       total_reads_collected * record_size :
-					       reads_collected;
+				       total_reads_collected * record_size :
+				       reads_collected;
 			goto out;
 		}
 		if (copy_to_user(buf, (void *)page,
 				 reads_collected * record_size)) {
 			result = total_reads_collected ?
-					       total_reads_collected * record_size :
-					       -EFAULT;
+				       total_reads_collected * record_size :
+				       -EFAULT;
 			goto out;
 		}
 
