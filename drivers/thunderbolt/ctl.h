@@ -124,8 +124,7 @@ static inline struct tb_cfg_header tb_cfg_make_header(u64 route)
 }
 
 int tb_cfg_ack_plug(struct tb_ctl *ctl, u64 route, u32 port, bool unplug);
-struct tb_cfg_result tb_cfg_reset(struct tb_ctl *ctl, u64 route,
-				  int timeout_msec);
+struct tb_cfg_result tb_cfg_reset(struct tb_ctl *ctl, u64 route);
 struct tb_cfg_result tb_cfg_read_raw(struct tb_ctl *ctl, void *buffer,
 				     u64 route, u32 port,
 				     enum tb_cfg_space space, u32 offset,
