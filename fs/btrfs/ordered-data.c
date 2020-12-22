@@ -297,26 +297,33 @@ void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
 }
 
 /*
- * this is used to account for finished IO across a given range
- * of the file.  The IO may span ordered extents.  If
- * a given ordered_extent is completely done, 1 is returned, otherwise
- * 0.
+ * Finish IO for one ordered extent across a given range.  The range can
+ * contain several ordered extents.
  *
- * test_and_set_bit on a flag in the struct btrfs_ordered_extent is used
- * to make sure this function only returns 1 once for a given ordered extent.
+ * @found_ret:	 Return the finished ordered extent
+ * @file_offset: File offset for the finished IO
+ * 		 Will also be updated to one byte past the range that is
+ * 		 recordered as finished. This allows caller to walk forward.
+ * @io_size:	 Length of the finish IO range
+ * @uptodate:	 If the IO finished without problem
  *
- * file_offset is updated to one byte past the range that is recorded as
- * complete.  This allows you to walk forward in the file.
+ * Return true if any ordered extent is finished in the range, and update
+ * @found_ret and @file_offset.
+ * Return false otherwise.
+ *
+ * NOTE: Although The range can cross multiple ordered extents, only one
+ * ordered extent will be updated during one call. The caller is responsible to
+ * iterate all ordered extents in the range.
  */
-int btrfs_dec_test_first_ordered_pending(struct btrfs_inode *inode,
-				   struct btrfs_ordered_extent **cached,
+bool btrfs_dec_test_first_ordered_pending(struct btrfs_inode *inode,
+				   struct btrfs_ordered_extent **finished_ret,
 				   u64 *file_offset, u64 io_size, int uptodate)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_ordered_inode_tree *tree = &inode->ordered_tree;
 	struct rb_node *node;
 	struct btrfs_ordered_extent *entry = NULL;
-	int ret;
+	bool finished = false;
 	unsigned long flags;
 	u64 dec_end;
 	u64 dec_start;
@@ -324,16 +331,12 @@ int btrfs_dec_test_first_ordered_pending(struct btrfs_inode *inode,
 
 	spin_lock_irqsave(&tree->lock, flags);
 	node = tree_search(tree, *file_offset);
-	if (!node) {
-		ret = 1;
+	if (!node)
 		goto out;
-	}
 
 	entry = rb_entry(node, struct btrfs_ordered_extent, rb_node);
-	if (!offset_in_entry(entry, *file_offset)) {
-		ret = 1;
+	if (!offset_in_entry(entry, *file_offset))
 		goto out;
-	}
 
 	dec_start = max(*file_offset, entry->file_offset);
 	dec_end = min(*file_offset + io_size,
@@ -354,39 +357,50 @@ int btrfs_dec_test_first_ordered_pending(struct btrfs_inode *inode,
 		set_bit(BTRFS_ORDERED_IOERR, &entry->flags);
 
 	if (entry->bytes_left == 0) {
-		ret = test_and_set_bit(BTRFS_ORDERED_IO_DONE, &entry->flags);
+		/*
+		 * Ensure only one caller can set the flag and finished_ret
+		 * accordingly
+		 */
+		finished = !test_and_set_bit(BTRFS_ORDERED_IO_DONE, &entry->flags);
 		/* test_and_set_bit implies a barrier */
 		cond_wake_up_nomb(&entry->wait);
-	} else {
-		ret = 1;
 	}
 out:
-	if (!ret && cached && entry) {
-		*cached = entry;
+	if (finished && finished_ret && entry) {
+		*finished_ret = entry;
 		refcount_inc(&entry->refs);
 	}
 	spin_unlock_irqrestore(&tree->lock, flags);
-	return ret == 0;
+	return finished;
 }
 
 /*
- * this is used to account for finished IO across a given range
- * of the file.  The IO should not span ordered extents.  If
- * a given ordered_extent is completely done, 1 is returned, otherwise
- * 0.
+ * Finish IO for one ordered extent across a given range.  The range can only
+ * contain one ordered extent.
  *
- * test_and_set_bit on a flag in the struct btrfs_ordered_extent is used
- * to make sure this function only returns 1 once for a given ordered extent.
+ * @cached:	 The cached ordered extent. If not NULL, we can skip the tree
+ *               search and use the ordered extent directly.
+ * 		 Will be also used to store the finished ordered extent.
+ * @file_offset: File offset for the finished IO
+ * @io_size:	 Length of the finish IO range
+ * @uptodate:	 If the IO finishes without problem
+ *
+ * Return true if the ordered extent is finished in the range, and update
+ * @cached.
+ * Return false otherwise.
+ *
+ * NOTE: The range can NOT cross multiple ordered extents.
+ * Thus caller should ensure the range doesn't cross ordered extents.
  */
-int btrfs_dec_test_ordered_pending(struct btrfs_inode *inode,
-				   struct btrfs_ordered_extent **cached,
-				   u64 file_offset, u64 io_size, int uptodate)
+bool btrfs_dec_test_ordered_pending(struct btrfs_inode *inode,
+				    struct btrfs_ordered_extent **cached,
+				    u64 file_offset, u64 io_size, int uptodate)
 {
 	struct btrfs_ordered_inode_tree *tree = &inode->ordered_tree;
 	struct rb_node *node;
 	struct btrfs_ordered_extent *entry = NULL;
 	unsigned long flags;
-	int ret;
+	bool finished = false;
 
 	spin_lock_irqsave(&tree->lock, flags);
 	if (cached && *cached) {
@@ -395,41 +409,39 @@ int btrfs_dec_test_ordered_pending(struct btrfs_inode *inode,
 	}
 
 	node = tree_search(tree, file_offset);
-	if (!node) {
-		ret = 1;
+	if (!node)
 		goto out;
-	}
 
 	entry = rb_entry(node, struct btrfs_ordered_extent, rb_node);
 have_entry:
-	if (!offset_in_entry(entry, file_offset)) {
-		ret = 1;
+	if (!offset_in_entry(entry, file_offset))
 		goto out;
-	}
 
-	if (io_size > entry->bytes_left) {
+	if (io_size > entry->bytes_left)
 		btrfs_crit(inode->root->fs_info,
 			   "bad ordered accounting left %llu size %llu",
 		       entry->bytes_left, io_size);
-	}
+
 	entry->bytes_left -= io_size;
 	if (!uptodate)
 		set_bit(BTRFS_ORDERED_IOERR, &entry->flags);
 
 	if (entry->bytes_left == 0) {
-		ret = test_and_set_bit(BTRFS_ORDERED_IO_DONE, &entry->flags);
+		/*
+		 * Ensure only one caller can set the flag and finished_ret
+		 * accordingly
+		 */
+		finished = !test_and_set_bit(BTRFS_ORDERED_IO_DONE, &entry->flags);
 		/* test_and_set_bit implies a barrier */
 		cond_wake_up_nomb(&entry->wait);
-	} else {
-		ret = 1;
 	}
 out:
-	if (!ret && cached && entry) {
+	if (finished && cached && entry) {
 		*cached = entry;
 		refcount_inc(&entry->refs);
 	}
 	spin_unlock_irqrestore(&tree->lock, flags);
-	return ret == 0;
+	return finished;
 }
 
 /*
