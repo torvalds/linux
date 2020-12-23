@@ -244,7 +244,7 @@ struct gvt_mmio_block {
 #define INTEL_GVT_MMIO_HASH_BITS 11
 
 struct intel_gvt_mmio {
-	u8 *mmio_attribute;
+	u16 *mmio_attribute;
 /* Register contains RO bits */
 #define F_RO		(1 << 0)
 /* Register contains graphics address */

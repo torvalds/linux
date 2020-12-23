@@ -96,7 +96,7 @@ struct intel_gvt_mmio_info *intel_gvt_find_mmio_info(struct intel_gvt *gvt,
 }
 
 static int new_mmio_info(struct intel_gvt *gvt,
-		u32 offset, u8 flags, u32 size,
+		u32 offset, u16 flags, u32 size,
 		u32 addr_mask, u32 ro_mask, u32 device,
 		gvt_mmio_func read, gvt_mmio_func write)
 {
