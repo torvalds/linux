@@ -144,10 +144,10 @@
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac1m0_miim
-		     &gmac1m0_tx_bus2
+		     &gmac1m0_tx_bus2_level3
 		     &gmac1m0_rx_bus2
-		     &gmac1m0_rgmii_clk
-		     &gmac1m0_rgmii_bus>;
+		     &gmac1m0_rgmii_clk_level2
+		     &gmac1m0_rgmii_bus_level3>;
 
 	tx_delay = <0x59>;
 	rx_delay = <0x2e>;
