@@ -11,11 +11,17 @@
 #include <trace/hooks/vendor_hooks.h>
 
 #if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
-DECLARE_HOOK(android_vh_cpu_idle,
-	TP_PROTO(int event, int state, int cpu),
-	TP_ARGS(event, state, cpu))
+struct cpuidle_device;
+
+DECLARE_HOOK(android_vh_cpu_idle_enter,
+	TP_PROTO(int *state, struct cpuidle_device *dev),
+	TP_ARGS(state, dev))
+DECLARE_HOOK(android_vh_cpu_idle_exit,
+	TP_PROTO(int state, struct cpuidle_device *dev),
+	TP_ARGS(state, dev))
 #else
-#define trace_android_vh_cpu_idle(event, state, cpu)
+#define trace_android_vh_cpu_idle_enter(state, dev)
+#define trace_android_vh_cpu_idle_exit(state, dev)
 #endif
 
 #endif /* _TRACE_HOOK_CPUIDLE_H */
