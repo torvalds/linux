@@ -545,6 +545,9 @@ struct vop2_video_port_regs {
 	struct vop_reg mipi_dual_channel_swap;
 	struct vop_reg dsp_lut_en;
 
+	struct vop_reg dclk_div2;
+	struct vop_reg dclk_div2_phase_lock;
+
 	struct vop_reg hdr10_en;
 	struct vop_reg hdr_lut_update_en;
 	struct vop_reg hdr_lut_mode;
