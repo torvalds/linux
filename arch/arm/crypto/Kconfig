@@ -62,6 +62,15 @@ config CRYPTO_SHA512_ARM
 	  SHA-512 secure hash standard (DFIPS 180-2) implemented
 	  using optimized ARM assembler and NEON, when available.
 
+config CRYPTO_BLAKE2S_ARM
+	tristate "BLAKE2s digest algorithm (ARM)"
+	select CRYPTO_ARCH_HAVE_LIB_BLAKE2S
+	help
+	  BLAKE2s digest algorithm optimized with ARM scalar instructions.  This
+	  is faster than the generic implementations of BLAKE2s and BLAKE2b, but
+	  slower than the NEON implementation of BLAKE2b.  (There is no NEON
+	  implementation of BLAKE2s, since NEON doesn't really help with it.)
+
 config CRYPTO_AES_ARM
 	tristate "Scalar AES cipher for ARM"
 	select CRYPTO_ALGAPI
