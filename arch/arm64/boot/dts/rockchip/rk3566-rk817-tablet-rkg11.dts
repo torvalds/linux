@@ -1063,6 +1063,10 @@
 	status = "okay";
 };
 
+&route_dsi0 {
+	status = "okay";
+};
+
 &saradc {
 	status = "okay";
 	vref-supply = <&vcc_1v8>;
