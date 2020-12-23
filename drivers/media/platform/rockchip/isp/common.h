@@ -119,6 +119,7 @@ struct rkisp_dummy_buffer {
 	struct list_head queue;
 	struct dma_buf *dbuf;
 	dma_addr_t dma_addr;
+	struct page **pages;
 	void *mem_priv;
 	void *vaddr;
 	u32 size;
@@ -164,4 +165,6 @@ void rkisp_update_regs(struct rkisp_device *dev, u32 start, u32 end);
 int rkisp_alloc_buffer(struct rkisp_device *dev, struct rkisp_dummy_buffer *buf);
 void rkisp_free_buffer(struct rkisp_device *dev, struct rkisp_dummy_buffer *buf);
 int rkisp_attach_hw(struct rkisp_device *isp);
+int rkisp_alloc_common_dummy_buf(struct rkisp_device *dev);
+void rkisp_free_common_dummy_buf(struct rkisp_device *dev);
 #endif /* _RKISP_COMMON_H */

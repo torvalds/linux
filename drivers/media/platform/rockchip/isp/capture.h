@@ -191,7 +191,6 @@ struct streams_ops {
  *
  * @vbq_lock: lock to protect buf_queue
  * @buf_queue: queued buffer list
- * @dummy_buf: dummy space to store dropped data
  *
  * rkisp use shadowsock registers, so it need two buffer at a time
  * @curr_buf: the buffer used for current frame
@@ -213,7 +212,6 @@ struct rkisp_stream {
 	struct stream_config *config;
 	spinlock_t vbq_lock;
 	struct list_head buf_queue;
-	struct rkisp_dummy_buffer dummy_buf;
 	struct rkisp_buffer *curr_buf;
 	struct rkisp_buffer *next_buf;
 	bool streaming;

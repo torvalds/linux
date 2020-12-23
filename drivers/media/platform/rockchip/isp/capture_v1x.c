@@ -329,7 +329,7 @@ static void sp_disable_mi(struct rkisp_stream *stream)
 /* Update buffer info to memory interface, it's called in interrupt */
 static void update_mi(struct rkisp_stream *stream)
 {
-	struct rkisp_dummy_buffer *dummy_buf = &stream->dummy_buf;
+	struct rkisp_dummy_buffer *dummy_buf = &stream->ispdev->hw_dev->dummy_buf;
 	void __iomem *base = stream->ispdev->base_addr;
 
 	/* The dummy space allocated by dma_alloc_coherent is used, we can
@@ -342,7 +342,7 @@ static void update_mi(struct rkisp_stream *stream)
 			stream->next_buf->buff_addr[RKISP_PLANE_CB]);
 		mi_set_cr_addr(stream,
 			stream->next_buf->buff_addr[RKISP_PLANE_CR]);
-	} else {
+	} else if (dummy_buf->mem_priv) {
 		mi_set_y_addr(stream, dummy_buf->dma_addr);
 		mi_set_cb_addr(stream, dummy_buf->dma_addr);
 		mi_set_cr_addr(stream, dummy_buf->dma_addr);
@@ -649,38 +649,14 @@ static void rkisp_buf_queue(struct vb2_buffer *vb)
 
 static int rkisp_create_dummy_buf(struct rkisp_stream *stream)
 {
-	struct rkisp_dummy_buffer *dummy_buf = &stream->dummy_buf;
-	struct rkisp_device *dev = stream->ispdev;
-	u32 size = max3(stream->out_fmt.plane_fmt[0].bytesperline *
-			stream->out_fmt.height,
-			stream->out_fmt.plane_fmt[1].sizeimage,
-			stream->out_fmt.plane_fmt[2].sizeimage);
-
-	if (dummy_buf->mem_priv) {
-		if (dummy_buf->size >= size)
-			return 0;
-		rkisp_free_buffer(dev, dummy_buf);
-	}
-
-	dummy_buf->size = size;
-	if (rkisp_alloc_buffer(dev, dummy_buf) < 0) {
-		v4l2_err(&dev->v4l2_dev,
-			 "Failed to allocate the memory for dummy buffer\n");
-		return -ENOMEM;
-	}
-
-	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
-		 "stream:%d dummy buf:0x%x\n",
-		 stream->id, (u32)dummy_buf->dma_addr);
-	return 0;
+	return rkisp_alloc_common_dummy_buf(stream->ispdev);
 }
 
 static void rkisp_destroy_dummy_buf(struct rkisp_stream *stream)
 {
-	struct rkisp_dummy_buffer *dummy_buf = &stream->dummy_buf;
 	struct rkisp_device *dev = stream->ispdev;
 
-	rkisp_free_buffer(dev, dummy_buf);
+	rkisp_free_common_dummy_buf(dev);
 }
 
 static void destroy_buf_queue(struct rkisp_stream *stream,

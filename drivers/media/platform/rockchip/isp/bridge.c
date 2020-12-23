@@ -683,6 +683,8 @@ static void free_bridge_buf(struct rkisp_bridge_device *dev)
 		for (j = 0; j < GROUP_BUF_MAX; j++)
 			rkisp_free_buffer(dev->ispdev, &buf->dummy[j]);
 	}
+
+	rkisp_free_common_dummy_buf(dev->ispdev);
 }
 
 static int init_buf(struct rkisp_bridge_device *dev, u32 pic_size, u32 gain_size)
@@ -699,6 +701,7 @@ static int init_buf(struct rkisp_bridge_device *dev, u32 pic_size, u32 gain_size
 	v4l2_dbg(1, rkisp_debug, &dev->ispdev->v4l2_dev,
 		 "%s pic size:%d gain size:%d\n",
 		 __func__, pic_size, gain_size);
+
 	INIT_LIST_HEAD(&hw->list);
 	for (i = 0; i < dev->buf_num; i++) {
 		buf = &hw->bufs[i];
@@ -715,6 +718,18 @@ static int init_buf(struct rkisp_bridge_device *dev, u32 pic_size, u32 gain_size
 		ret = v4l2_subdev_call(sd, video, s_rx_buffer, &buf->dbufs, NULL);
 		if (ret)
 			goto err;
+	}
+
+	for (i = 0; i < hw->dev_num; i++) {
+		struct rkisp_device *isp = hw->isp[i];
+
+		if (!(isp->isp_inp & INP_CSI))
+			continue;
+		ret = rkisp_alloc_common_dummy_buf(isp);
+		if (ret < 0)
+			goto err;
+		else
+			break;
 	}
 
 	hw->cur_buf = list_first_entry(&hw->list, struct rkisp_ispp_buf, list);
@@ -852,6 +867,7 @@ static int bridge_start(struct rkisp_bridge_device *dev)
 	dev->ops->config(dev);
 
 	if (!dev->ispdev->hw_dev->is_mi_update) {
+		rkisp_config_dmatx_valid_buf(dev->ispdev);
 		force_cfg_update(dev->ispdev);
 
 		if (!(dev->work_mode & ISP_ISPP_QUICK))

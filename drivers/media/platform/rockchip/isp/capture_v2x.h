@@ -15,6 +15,7 @@ int hdr_config_dmatx(struct rkisp_device *dev);
 int hdr_update_dmatx_buf(struct rkisp_device *dev);
 void hdr_stop_dmatx(struct rkisp_device *dev);
 void hdr_destroy_buf(struct rkisp_device *dev);
+void rkisp_config_dmatx_valid_buf(struct rkisp_device *dev);
 
 int rkisp_register_stream_v20(struct rkisp_device *dev);
 void rkisp_unregister_stream_v20(struct rkisp_device *dev);

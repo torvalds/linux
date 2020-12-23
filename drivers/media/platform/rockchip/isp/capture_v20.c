@@ -523,6 +523,31 @@ void hdr_qbuf(struct list_head *q,
 		list_add_tail(&buf->queue, q);
 }
 
+void rkisp_config_dmatx_valid_buf(struct rkisp_device *dev)
+{
+	struct rkisp_hw_dev *hw = dev->hw_dev;
+	struct rkisp_stream *stream;
+	struct rkisp_device *isp;
+	u32 i, j;
+
+	if (!hw->dummy_buf.mem_priv)
+		return;
+	/* dmatx buf update by mi force or oneself frame end,
+	 * for async dmatx enable need to update to valid buf first.
+	 */
+	for (i = 0; i < hw->dev_num; i++) {
+		isp = hw->isp[i];
+		if (!(isp->isp_inp & INP_CSI))
+			continue;
+		for (j = RKISP_STREAM_DMATX0; j < RKISP_MAX_STREAM; j++) {
+			stream = &isp->cap_dev.stream[j];
+			if (!stream->linked || stream->u.dmatx.is_config)
+				continue;
+			mi_set_y_addr(stream, hw->dummy_buf.dma_addr);
+		}
+	}
+}
+
 /* configure dual-crop unit */
 static int rkisp_stream_config_dcrop(struct rkisp_stream *stream, bool async)
 {
@@ -1039,8 +1064,8 @@ static void update_dmatx_v2(struct rkisp_stream *stream)
 			else
 				hdr_qbuf(&dev->hdr.q_tx[index], buf);
 		}
-		if (!buf && stream->dummy_buf.mem_priv)
-			buf = &stream->dummy_buf;
+		if (!buf && dev->hw_dev->dummy_buf.mem_priv)
+			buf = &dev->hw_dev->dummy_buf;
 		if (buf)
 			mi_set_y_addr(stream, buf->dma_addr);
 	}
@@ -1054,7 +1079,7 @@ static void update_dmatx_v2(struct rkisp_stream *stream)
 /* Update buffer info to memory interface, it's called in interrupt */
 static void update_mi(struct rkisp_stream *stream)
 {
-	struct rkisp_dummy_buffer *dummy_buf = &stream->dummy_buf;
+	struct rkisp_dummy_buffer *dummy_buf = &stream->ispdev->hw_dev->dummy_buf;
 	void __iomem *base = stream->ispdev->base_addr;
 
 	/* The dummy space allocated by dma_alloc_coherent is used, we can
@@ -1067,7 +1092,7 @@ static void update_mi(struct rkisp_stream *stream)
 			stream->next_buf->buff_addr[RKISP_PLANE_CB]);
 		mi_set_cr_addr(stream,
 			stream->next_buf->buff_addr[RKISP_PLANE_CR]);
-	} else {
+	} else if (dummy_buf->mem_priv) {
 		mi_set_y_addr(stream, dummy_buf->dma_addr);
 		mi_set_cb_addr(stream, dummy_buf->dma_addr);
 		mi_set_cr_addr(stream, dummy_buf->dma_addr);
@@ -1102,7 +1127,11 @@ static void sp_stop_mi(struct rkisp_stream *stream)
 
 static void dmatx_stop_mi(struct rkisp_stream *stream)
 {
+	struct rkisp_hw_dev *hw = stream->ispdev->hw_dev;
+
 	raw_wr_disable(stream);
+	if (hw->dummy_buf.mem_priv)
+		mi_set_y_addr(stream, hw->dummy_buf.dma_addr);
 	stream->u.dmatx.is_config = false;
 }
 
@@ -1510,6 +1539,7 @@ static int rkisp_start(struct rkisp_stream *stream)
 	 */
 	if (is_update && !dev->br_dev.en) {
 		rkisp_stats_first_ddr_config(&dev->stats_vdev);
+		rkisp_config_dmatx_valid_buf(dev);
 		force_cfg_update(dev);
 		mi_frame_end(stream);
 		hdr_update_dmatx_buf(dev);
@@ -1620,39 +1650,15 @@ static void rkisp_buf_queue(struct vb2_buffer *vb)
 
 static int rkisp_create_dummy_buf(struct rkisp_stream *stream)
 {
-	struct rkisp_dummy_buffer *dummy_buf = &stream->dummy_buf;
-	struct rkisp_device *dev = stream->ispdev;
-	u32 size = max3(stream->out_fmt.plane_fmt[0].bytesperline *
-			stream->out_fmt.height,
-			stream->out_fmt.plane_fmt[1].sizeimage,
-			stream->out_fmt.plane_fmt[2].sizeimage);
-
-	if (dummy_buf->mem_priv) {
-		if (dummy_buf->size >= size)
-			return 0;
-		rkisp_free_buffer(dev, dummy_buf);
-	}
-
-	dummy_buf->size = size;
-	if (rkisp_alloc_buffer(dev, dummy_buf) < 0) {
-		v4l2_err(&dev->v4l2_dev,
-			 "Failed to allocate the memory for dummy buffer\n");
-		return -ENOMEM;
-	}
-
-	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
-		 "stream:%d dummy buf:0x%x\n",
-		 stream->id, (u32)dummy_buf->dma_addr);
-	return 0;
+	return rkisp_alloc_common_dummy_buf(stream->ispdev);
 }
 
 static void rkisp_destroy_dummy_buf(struct rkisp_stream *stream)
 {
-	struct rkisp_dummy_buffer *dummy_buf = &stream->dummy_buf;
 	struct rkisp_device *dev = stream->ispdev;
 
-	rkisp_free_buffer(dev, dummy_buf);
 	hdr_destroy_buf(dev);
+	rkisp_free_common_dummy_buf(dev);
 }
 
 static void destroy_buf_queue(struct rkisp_stream *stream,

@@ -52,7 +52,7 @@ struct rkisp_hw_dev {
 	struct rkisp_ispp_buf *cur_buf;
 	struct rkisp_ispp_buf *nxt_buf;
 	struct list_head list;
-
+	struct rkisp_dummy_buffer dummy_buf;
 	const struct vb2_mem_ops *mem_ops;
 
 	bool is_mmu;
