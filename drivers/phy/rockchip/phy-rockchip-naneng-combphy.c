@@ -185,9 +185,18 @@ static int rockchip_combphy_init(struct phy *phy)
 
 	ret = rockchip_combphy_set_mode(priv);
 	if (ret)
-		return ret;
+		goto err_clk;
+
+	ret = reset_control_deassert(priv->phy_rst);
+	if (ret)
+		goto err_clk;
 
 	return 0;
+
+err_clk:
+	clk_bulk_disable_unprepare(priv->num_clks, priv->clks);
+
+	return ret;
 }
 
 static int rockchip_combphy_exit(struct phy *phy)
@@ -195,6 +204,7 @@ static int rockchip_combphy_exit(struct phy *phy)
 	struct rockchip_combphy_priv *priv = phy_get_drvdata(phy);
 
 	clk_bulk_disable_unprepare(priv->num_clks, priv->clks);
+	reset_control_assert(priv->phy_rst);
 
 	return 0;
 }
@@ -277,7 +287,7 @@ static int rockchip_combphy_parse_dt(struct device *dev,
 		return ret;
 	}
 
-	return 0;
+	return reset_control_assert(priv->phy_rst);
 }
 
 static int rockchip_combphy_probe(struct platform_device *pdev)
