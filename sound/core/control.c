@@ -836,7 +836,7 @@ static void fill_remaining_elem_value(struct snd_ctl_elem_value *control,
 {
 	size_t offset = value_sizes[info->type] * info->count;
 
-	offset = (offset + sizeof(u32) - 1) / sizeof(u32);
+	offset = DIV_ROUND_UP(offset, sizeof(u32));
 	memset32((u32 *)control->value.bytes.data + offset, pattern,
 		 sizeof(control->value) / sizeof(u32) - offset);
 }
@@ -928,7 +928,7 @@ static int sanity_check_elem_value(struct snd_card *card,
 
 	/* check whether the remaining area kept untouched */
 	offset = value_sizes[info->type] * info->count;
-	offset = (offset + sizeof(u32) - 1) / sizeof(u32);
+	offset = DIV_ROUND_UP(offset, sizeof(u32));
 	p = (u32 *)control->value.bytes.data + offset;
 	for (; offset < sizeof(control->value) / sizeof(u32); offset++, p++) {
 		if (*p != pattern) {
