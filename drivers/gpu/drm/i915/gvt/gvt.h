@@ -327,6 +327,7 @@ struct intel_gvt {
 		u32 *mocs_mmio_offset_list;
 		u32 mocs_mmio_offset_list_cnt;
 	} engine_mmio_list;
+	bool is_reg_whitelist_updated;
 
 	struct dentry *debugfs_root;
 };
@@ -409,6 +410,9 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt);
 
 #define vgpu_fence_base(vgpu) (vgpu->fence.base)
 #define vgpu_fence_sz(vgpu) (vgpu->fence.size)
+
+/* ring context size i.e. the first 0x50 dwords*/
+#define RING_CTX_SIZE 320
 
 struct intel_vgpu_creation_params {
 	__u64 handle;

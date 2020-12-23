@@ -38,10 +38,16 @@
 
 #include "i915_drv.h"
 #include "gt/intel_gpu_commands.h"
+#include "gt/intel_lrc.h"
 #include "gt/intel_ring.h"
+#include "gt/intel_gt_requests.h"
 #include "gvt.h"
 #include "i915_pvinfo.h"
 #include "trace.h"
+
+#include "gem/i915_gem_context.h"
+#include "gem/i915_gem_pm.h"
+#include "gt/intel_context.h"
 
 #define INVALID_OP    (~0U)
 
@@ -455,6 +461,7 @@ enum {
 	RING_BUFFER_INSTRUCTION,
 	BATCH_BUFFER_INSTRUCTION,
 	BATCH_BUFFER_2ND_LEVEL,
+	RING_BUFFER_CTX,
 };
 
 enum {
@@ -496,6 +503,7 @@ struct parser_exec_state {
 	 */
 	int saved_buf_addr_type;
 	bool is_ctx_wa;
+	bool is_init_ctx;
 
 	const struct cmd_info *info;
 
@@ -709,6 +717,11 @@ static inline u32 cmd_val(struct parser_exec_state *s, int index)
 	return *cmd_ptr(s, index);
 }
 
+static inline bool is_init_ctx(struct parser_exec_state *s)
+{
+	return (s->buf_type == RING_BUFFER_CTX && s->is_init_ctx);
+}
+
 static void parser_exec_state_dump(struct parser_exec_state *s)
 {
 	int cnt = 0;
@@ -722,7 +735,8 @@ static void parser_exec_state_dump(struct parser_exec_state *s)
 
 	gvt_dbg_cmd("  %s %s ip_gma(%08lx) ",
 			s->buf_type == RING_BUFFER_INSTRUCTION ?
-			"RING_BUFFER" : "BATCH_BUFFER",
+			"RING_BUFFER" : ((s->buf_type == RING_BUFFER_CTX) ?
+				"CTX_BUFFER" : "BATCH_BUFFER"),
 			s->buf_addr_type == GTT_BUFFER ?
 			"GTT" : "PPGTT", s->ip_gma);
 
@@ -757,7 +771,8 @@ static inline void update_ip_va(struct parser_exec_state *s)
 	if (WARN_ON(s->ring_head == s->ring_tail))
 		return;
 
-	if (s->buf_type == RING_BUFFER_INSTRUCTION) {
+	if (s->buf_type == RING_BUFFER_INSTRUCTION ||
+			s->buf_type == RING_BUFFER_CTX) {
 		unsigned long ring_top = s->ring_start + s->ring_size;
 
 		if (s->ring_head > s->ring_tail) {
@@ -935,6 +950,11 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 		gvt_vgpu_err("%s access to (%x) outside of MMIO range\n",
 				cmd, offset);
 		return -EFAULT;
+	}
+
+	if (is_init_ctx(s)) {
+		intel_gvt_mmio_set_cmd_accessible(gvt, offset);
+		return 0;
 	}
 
 	if (!intel_gvt_mmio_is_cmd_accessible(gvt, offset)) {
@@ -1216,6 +1236,8 @@ static int cmd_handler_mi_batch_buffer_end(struct parser_exec_state *s)
 		s->buf_type = BATCH_BUFFER_INSTRUCTION;
 		ret = ip_gma_set(s, s->ret_ip_gma_bb);
 		s->buf_addr_type = s->saved_buf_addr_type;
+	} else if (s->buf_type == RING_BUFFER_CTX) {
+		ret = ip_gma_set(s, s->ring_tail);
 	} else {
 		s->buf_type = RING_BUFFER_INSTRUCTION;
 		s->buf_addr_type = GTT_BUFFER;
@@ -2764,7 +2786,8 @@ static int command_scan(struct parser_exec_state *s,
 	gma_bottom = rb_start +  rb_len;
 
 	while (s->ip_gma != gma_tail) {
-		if (s->buf_type == RING_BUFFER_INSTRUCTION) {
+		if (s->buf_type == RING_BUFFER_INSTRUCTION ||
+				s->buf_type == RING_BUFFER_CTX) {
 			if (!(s->ip_gma >= rb_start) ||
 				!(s->ip_gma < gma_bottom)) {
 				gvt_vgpu_err("ip_gma %lx out of ring scope."
@@ -3055,6 +3078,119 @@ int intel_gvt_scan_and_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	}
 
 	return 0;
+}
+
+/* generate dummy contexts by sending empty requests to HW, and let
+ * the HW to fill Engine Contexts. This dummy contexts are used for
+ * initialization purpose (update reg whitelist), so referred to as
+ * init context here
+ */
+void intel_gvt_update_reg_whitelist(struct intel_vgpu *vgpu)
+{
+	struct intel_gvt *gvt = vgpu->gvt;
+	struct drm_i915_private *dev_priv = gvt->gt->i915;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	const unsigned long start = LRC_STATE_PN * PAGE_SIZE;
+	struct i915_request *rq;
+	struct intel_vgpu_submission *s = &vgpu->submission;
+	struct i915_request *requests[I915_NUM_ENGINES] = {};
+	bool is_ctx_pinned[I915_NUM_ENGINES] = {};
+	int ret;
+
+	if (gvt->is_reg_whitelist_updated)
+		return;
+
+	for_each_engine(engine, &dev_priv->gt, id) {
+		ret = intel_context_pin(s->shadow[id]);
+		if (ret) {
+			gvt_vgpu_err("fail to pin shadow ctx\n");
+			goto out;
+		}
+		is_ctx_pinned[id] = true;
+
+		rq = i915_request_create(s->shadow[id]);
+		if (IS_ERR(rq)) {
+			gvt_vgpu_err("fail to alloc default request\n");
+			ret = -EIO;
+			goto out;
+		}
+		requests[id] = i915_request_get(rq);
+		i915_request_add(rq);
+	}
+
+	if (intel_gt_wait_for_idle(&dev_priv->gt,
+				I915_GEM_IDLE_TIMEOUT) == -ETIME) {
+		ret = -EIO;
+		goto out;
+	}
+
+	/* scan init ctx to update cmd accessible list */
+	for_each_engine(engine, &dev_priv->gt, id) {
+		int size = engine->context_size - PAGE_SIZE;
+		void *vaddr;
+		struct parser_exec_state s;
+		struct drm_i915_gem_object *obj;
+		struct i915_request *rq;
+
+		rq = requests[id];
+		GEM_BUG_ON(!i915_request_completed(rq));
+		GEM_BUG_ON(!intel_context_is_pinned(rq->context));
+		obj = rq->context->state->obj;
+
+		if (!obj) {
+			ret = -EIO;
+			goto out;
+		}
+
+		i915_gem_object_set_cache_coherency(obj,
+						    I915_CACHE_LLC);
+
+		vaddr = i915_gem_object_pin_map(obj, I915_MAP_WB);
+		if (IS_ERR(vaddr)) {
+			gvt_err("failed to pin init ctx obj, ring=%d, err=%lx\n",
+				id, PTR_ERR(vaddr));
+			goto out;
+		}
+
+		s.buf_type = RING_BUFFER_CTX;
+		s.buf_addr_type = GTT_BUFFER;
+		s.vgpu = vgpu;
+		s.engine = engine;
+		s.ring_start = 0;
+		s.ring_size = size;
+		s.ring_head = 0;
+		s.ring_tail = size;
+		s.rb_va = vaddr + start;
+		s.workload = NULL;
+		s.is_ctx_wa = false;
+		s.is_init_ctx = true;
+
+		/* skipping the first RING_CTX_SIZE(0x50) dwords */
+		ret = ip_gma_set(&s, RING_CTX_SIZE);
+		if (ret) {
+			i915_gem_object_unpin_map(obj);
+			goto out;
+		}
+
+		ret = command_scan(&s, 0, size, 0, size);
+		if (ret)
+			gvt_err("Scan init ctx error\n");
+
+		i915_gem_object_unpin_map(obj);
+	}
+
+out:
+	if (!ret)
+		gvt->is_reg_whitelist_updated = true;
+
+	for (id = 0; id < I915_NUM_ENGINES ; id++) {
+		if (requests[id])
+			i915_request_put(requests[id]);
+
+		if (is_ctx_pinned[id])
+			intel_context_unpin(s->shadow[id]);
+	}
 }
 
 static int init_cmd_table(struct intel_gvt *gvt)
