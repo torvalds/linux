@@ -93,10 +93,7 @@ static inline int crypto_blake2s_init(struct shash_desc *desc)
 	struct blake2s_state *state = shash_desc_ctx(desc);
 	unsigned int outlen = crypto_shash_digestsize(desc->tfm);
 
-	if (tctx->keylen)
-		blake2s_init_key(state, outlen, tctx->key, tctx->keylen);
-	else
-		blake2s_init(state, outlen);
+	__blake2s_init(state, outlen, tctx->key, tctx->keylen);
 	return 0;
 }
 
