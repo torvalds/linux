@@ -114,7 +114,7 @@
 		gpio-sck = <&gpio1 12 GPIO_ACTIVE_HIGH>;
 		gpio-miso = <&gpio1 18 GPIO_ACTIVE_HIGH>;
 		gpio-mosi = <&gpio1 20 GPIO_ACTIVE_HIGH>;
-		cs-gpios = <&gpio1 19 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
 		num-chipselects = <1>;
 
 		/* lcd panel */
