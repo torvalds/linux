@@ -58,7 +58,8 @@ union afs_xdr_dirent {
 		/* When determining the number of dirent slots needed to
 		 * represent a directory entry, name should be assumed to be 16
 		 * bytes, due to a now-standardised (mis)calculation, but it is
-		 * in fact 20 bytes in size.
+		 * in fact 20 bytes in size.  afs_dir_calc_slots() should be
+		 * used for this.
 		 *
 		 * For names longer than (16 or) 20 bytes, extra slots should
 		 * be annexed to this one using the extended_name format.
@@ -100,5 +101,16 @@ union afs_xdr_dir_block {
 struct afs_xdr_dir_page {
 	union afs_xdr_dir_block	blocks[AFS_DIR_BLOCKS_PER_PAGE];
 };
+
+/*
+ * Calculate the number of dirent slots required for any given name length.
+ * The calculation is made assuming the part of the name in the first slot is
+ * 16 bytes, rather than 20, but this miscalculation is now standardised.
+ */
+static inline unsigned int afs_dir_calc_slots(size_t name_len)
+{
+	name_len++; /* NUL-terminated */
+	return 1 + ((name_len + 15) / AFS_DIR_DIRENT_SIZE);
+}
 
 #endif /* XDR_FS_H */
