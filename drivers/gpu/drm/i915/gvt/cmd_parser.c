@@ -3193,6 +3193,58 @@ out:
 	}
 }
 
+int intel_gvt_scan_engine_context(struct intel_vgpu_workload *workload)
+{
+	struct intel_vgpu *vgpu = workload->vgpu;
+	unsigned long gma_head, gma_tail, gma_start, ctx_size;
+	struct parser_exec_state s;
+	int ring_id = workload->engine->id;
+	struct intel_context *ce = vgpu->submission.shadow[ring_id];
+	int ret;
+
+	GEM_BUG_ON(atomic_read(&ce->pin_count) < 0);
+
+	ctx_size = workload->engine->context_size - PAGE_SIZE;
+
+	/* Only ring contxt is loaded to HW for inhibit context, no need to
+	 * scan engine context
+	 */
+	if (is_inhibit_context(ce))
+		return 0;
+
+	gma_start = i915_ggtt_offset(ce->state) + LRC_STATE_PN*PAGE_SIZE;
+	gma_head = 0;
+	gma_tail = ctx_size;
+
+	s.buf_type = RING_BUFFER_CTX;
+	s.buf_addr_type = GTT_BUFFER;
+	s.vgpu = workload->vgpu;
+	s.engine = workload->engine;
+	s.ring_start = gma_start;
+	s.ring_size = ctx_size;
+	s.ring_head = gma_start + gma_head;
+	s.ring_tail = gma_start + gma_tail;
+	s.rb_va = ce->lrc_reg_state;
+	s.workload = workload;
+	s.is_ctx_wa = false;
+	s.is_init_ctx = false;
+
+	/* don't scan the first RING_CTX_SIZE(0x50) dwords, as it's ring
+	 * context
+	 */
+	ret = ip_gma_set(&s, gma_start + gma_head + RING_CTX_SIZE);
+	if (ret)
+		goto out;
+
+	ret = command_scan(&s, gma_head, gma_tail,
+		gma_start, ctx_size);
+out:
+	if (ret)
+		gvt_vgpu_err("scan shadow ctx error\n");
+
+	return ret;
+}
+
 static int init_cmd_table(struct intel_gvt *gvt)
 {
 	unsigned int gen_type = intel_gvt_get_device_type(gvt);
