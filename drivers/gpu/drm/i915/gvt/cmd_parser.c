@@ -999,6 +999,11 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 		return -EPERM;
 	}
 
+	if (!strncmp(cmd, "pipe_ctrl", 9)) {
+		/* TODO: add LRI POST logic here */
+		return 0;
+	}
+
 	if (is_cmd_update_pdps(offset, s) &&
 	    cmd_pdp_mmio_update_handler(s, offset, index))
 		return -EINVAL;
