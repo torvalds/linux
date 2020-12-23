@@ -8,6 +8,7 @@
  *	    Sebastian Andrzej Siewior <bigeasy@linutronix.de>
  */
 
+#include <linux/async.h>
 #include <linux/clk.h>
 #include <linux/version.h>
 #include <linux/module.h>
@@ -1525,6 +1526,14 @@ static void dwc3_check_params(struct dwc3 *dwc)
 	}
 }
 
+static void dwc3_rockchip_async_probe(void *data, async_cookie_t cookie)
+{
+	struct dwc3 *dwc = data;
+	struct device *dev = dwc->dev;
+
+	pm_runtime_put_sync_suspend(dev);
+}
+
 static int dwc3_probe(struct platform_device *pdev)
 {
 	struct device		*dev = &pdev->dev;
@@ -1671,7 +1680,11 @@ static int dwc3_probe(struct platform_device *pdev)
 		goto err5;
 
 	dwc3_debugfs_init(dwc);
-	pm_runtime_put(dev);
+
+	if (dwc->en_runtime)
+		async_schedule(dwc3_rockchip_async_probe, dwc);
+	else
+		pm_runtime_put(dev);
 
 	return 0;
 
