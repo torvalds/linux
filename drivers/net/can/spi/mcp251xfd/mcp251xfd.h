@@ -838,4 +838,12 @@ u16 mcp251xfd_crc16_compute2(const void *cmd, size_t cmd_size,
 			     const void *data, size_t data_size);
 u16 mcp251xfd_crc16_compute(const void *data, size_t data_size);
 
+#if IS_ENABLED(CONFIG_DEV_COREDUMP)
+void mcp251xfd_dump(const struct mcp251xfd_priv *priv);
+#else
+static inline void mcp251xfd_dump(const struct mcp251xfd_priv *priv)
+{
+}
+#endif
+
 #endif

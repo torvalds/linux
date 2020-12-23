@@ -1097,6 +1097,7 @@ static int mcp251xfd_chip_start(struct mcp251xfd_priv *priv)
 	return 0;
 
  out_chip_stop:
+	mcp251xfd_dump(priv);
 	mcp251xfd_chip_stop(priv, CAN_STATE_STOPPED);
 
 	return err;
@@ -2277,6 +2278,7 @@ static irqreturn_t mcp251xfd_irq(int irq, void *dev_id)
  out_fail:
 	netdev_err(priv->ndev, "IRQ handler returned %d (intf=0x%08x).\n",
 		   err, priv->regs_status.intf);
+	mcp251xfd_dump(priv);
 	mcp251xfd_chip_interrupts_disable(priv);
 
 	return handled;
