@@ -804,7 +804,7 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 	}
 
 	/* Error means retune, but executed command was still successful */
-	if (host->check_retune && host->check_retune(host))
+	if (host->check_retune && host->check_retune(host, mrq))
 		mmc_retune_needed(host->mmc);
 
 	/* If SET_BLOCK_COUNT, continue with main command */
