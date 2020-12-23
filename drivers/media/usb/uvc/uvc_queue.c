@@ -103,8 +103,8 @@ static int uvc_buffer_prepare(struct vb2_buffer *vb)
 
 	if (vb->type == V4L2_BUF_TYPE_VIDEO_OUTPUT &&
 	    vb2_get_plane_payload(vb, 0) > vb2_plane_size(vb, 0)) {
-		uvc_trace(uvc_queue_to_stream(queue)->dev, UVC_TRACE_CAPTURE,
-			  "[E] Bytes used out of bounds.\n");
+		uvc_dbg(uvc_queue_to_stream(queue)->dev, CAPTURE,
+			"[E] Bytes used out of bounds\n");
 		return -EINVAL;
 	}
 

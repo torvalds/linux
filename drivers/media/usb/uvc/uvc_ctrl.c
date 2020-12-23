@@ -906,8 +906,8 @@ static struct uvc_control *uvc_find_control(struct uvc_video_chain *chain,
 	}
 
 	if (ctrl == NULL && !next)
-		uvc_trace(chain->dev, UVC_TRACE_CONTROL,
-			  "Control 0x%08x not found.\n", v4l2_id);
+		uvc_dbg(chain->dev, CONTROL, "Control 0x%08x not found\n",
+			v4l2_id);
 
 	return ctrl;
 }
@@ -1800,9 +1800,9 @@ static int uvc_ctrl_fill_xu_info(struct uvc_device *dev,
 	ret = uvc_query_ctrl(dev, UVC_GET_LEN, ctrl->entity->id, dev->intfnum,
 			     info->selector, data, 2);
 	if (ret < 0) {
-		uvc_trace(dev, UVC_TRACE_CONTROL,
-			  "GET_LEN failed on control %pUl/%u (%d).\n",
-			  info->entity, info->selector, ret);
+		uvc_dbg(dev, CONTROL,
+			"GET_LEN failed on control %pUl/%u (%d)\n",
+			info->entity, info->selector, ret);
 		goto done;
 	}
 
@@ -1813,20 +1813,20 @@ static int uvc_ctrl_fill_xu_info(struct uvc_device *dev,
 
 	ret = uvc_ctrl_get_flags(dev, ctrl, info);
 	if (ret < 0) {
-		uvc_trace(dev, UVC_TRACE_CONTROL,
-			  "Failed to get flags for control %pUl/%u (%d).\n",
-			  info->entity, info->selector, ret);
+		uvc_dbg(dev, CONTROL,
+			"Failed to get flags for control %pUl/%u (%d)\n",
+			info->entity, info->selector, ret);
 		goto done;
 	}
 
 	uvc_ctrl_fixup_xu_info(dev, ctrl, info);
 
-	uvc_trace(dev, UVC_TRACE_CONTROL,
-		  "XU control %pUl/%u queried: len %u, flags { get %u set %u auto %u }.\n",
-		  info->entity, info->selector, info->size,
-		  (info->flags & UVC_CTRL_FLAG_GET_CUR) ? 1 : 0,
-		  (info->flags & UVC_CTRL_FLAG_SET_CUR) ? 1 : 0,
-		  (info->flags & UVC_CTRL_FLAG_AUTO_UPDATE) ? 1 : 0);
+	uvc_dbg(dev, CONTROL,
+		"XU control %pUl/%u queried: len %u, flags { get %u set %u auto %u }\n",
+		info->entity, info->selector, info->size,
+		(info->flags & UVC_CTRL_FLAG_GET_CUR) ? 1 : 0,
+		(info->flags & UVC_CTRL_FLAG_SET_CUR) ? 1 : 0,
+		(info->flags & UVC_CTRL_FLAG_AUTO_UPDATE) ? 1 : 0);
 
 done:
 	kfree(data);
@@ -1851,10 +1851,10 @@ static int uvc_ctrl_init_xu_ctrl(struct uvc_device *dev,
 
 	ret = uvc_ctrl_add_info(dev, ctrl, &info);
 	if (ret < 0)
-		uvc_trace(dev, UVC_TRACE_CONTROL,
-			  "Failed to initialize control %pUl/%u on device %s entity %u\n",
-			  info.entity, info.selector, dev->udev->devpath,
-			  ctrl->entity->id);
+		uvc_dbg(dev, CONTROL,
+			"Failed to initialize control %pUl/%u on device %s entity %u\n",
+			info.entity, info.selector, dev->udev->devpath,
+			ctrl->entity->id);
 
 	return ret;
 }
@@ -1882,8 +1882,8 @@ int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 	}
 
 	if (!found) {
-		uvc_trace(chain->dev, UVC_TRACE_CONTROL,
-			  "Extension unit %u not found.\n", xqry->unit);
+		uvc_dbg(chain->dev, CONTROL, "Extension unit %u not found\n",
+			xqry->unit);
 		return -ENOENT;
 	}
 
@@ -1898,9 +1898,8 @@ int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 	}
 
 	if (!found) {
-		uvc_trace(chain->dev, UVC_TRACE_CONTROL,
-			  "Control %pUl/%u not found.\n", entity->guid,
-			  xqry->selector);
+		uvc_dbg(chain->dev, CONTROL, "Control %pUl/%u not found\n",
+			entity->guid, xqry->selector);
 		return -ENOENT;
 	}
 
@@ -2048,10 +2047,9 @@ static int uvc_ctrl_add_info(struct uvc_device *dev, struct uvc_control *ctrl,
 
 	ctrl->initialized = 1;
 
-	uvc_trace(dev, UVC_TRACE_CONTROL,
-		  "Added control %pUl/%u to device %s entity %u\n",
-		  ctrl->info.entity, ctrl->info.selector, dev->udev->devpath,
-		  ctrl->entity->id);
+	uvc_dbg(dev, CONTROL, "Added control %pUl/%u to device %s entity %u\n",
+		ctrl->info.entity, ctrl->info.selector, dev->udev->devpath,
+		ctrl->entity->id);
 
 	return 0;
 }
@@ -2088,9 +2086,8 @@ static int __uvc_ctrl_add_mapping(struct uvc_device *dev,
 		map->set = uvc_set_le_value;
 
 	list_add_tail(&map->list, &ctrl->info.mappings);
-	uvc_trace(dev, UVC_TRACE_CONTROL,
-		  "Adding mapping '%s' to control %pUl/%u.\n",
-		  map->name, ctrl->info.entity, ctrl->info.selector);
+	uvc_dbg(dev, CONTROL, "Adding mapping '%s' to control %pUl/%u\n",
+		map->name, ctrl->info.entity, ctrl->info.selector);
 
 	return 0;
 }
@@ -2106,9 +2103,9 @@ int uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 	int ret;
 
 	if (mapping->id & ~V4L2_CTRL_ID_MASK) {
-		uvc_trace(dev, UVC_TRACE_CONTROL,
-			  "Can't add mapping '%s', control id 0x%08x is invalid.\n",
-			  mapping->name, mapping->id);
+		uvc_dbg(dev, CONTROL,
+			"Can't add mapping '%s', control id 0x%08x is invalid\n",
+			mapping->name, mapping->id);
 		return -EINVAL;
 	}
 
@@ -2153,9 +2150,9 @@ int uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 
 	list_for_each_entry(map, &ctrl->info.mappings, list) {
 		if (mapping->id == map->id) {
-			uvc_trace(dev, UVC_TRACE_CONTROL,
-				  "Can't add mapping '%s', control id 0x%08x already exists.\n",
-				  mapping->name, mapping->id);
+			uvc_dbg(dev, CONTROL,
+				"Can't add mapping '%s', control id 0x%08x already exists\n",
+				mapping->name, mapping->id);
 			ret = -EEXIST;
 			goto done;
 		}
@@ -2164,9 +2161,9 @@ int uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 	/* Prevent excess memory consumption */
 	if (atomic_inc_return(&dev->nmappings) > UVC_MAX_CONTROL_MAPPINGS) {
 		atomic_dec(&dev->nmappings);
-		uvc_trace(dev, UVC_TRACE_CONTROL,
-			  "Can't add mapping '%s', maximum mappings count (%u) exceeded.\n",
-			  mapping->name, UVC_MAX_CONTROL_MAPPINGS);
+		uvc_dbg(dev, CONTROL,
+			"Can't add mapping '%s', maximum mappings count (%u) exceeded\n",
+			mapping->name, UVC_MAX_CONTROL_MAPPINGS);
 		ret = -ENOMEM;
 		goto done;
 	}
@@ -2235,9 +2232,9 @@ static void uvc_ctrl_prune_entity(struct uvc_device *dev,
 		    !uvc_test_bit(controls, blacklist[i].index))
 			continue;
 
-		uvc_trace(dev, UVC_TRACE_CONTROL,
-			  "%u/%u control is black listed, removing it.\n",
-			  entity->id, blacklist[i].index);
+		uvc_dbg(dev, CONTROL,
+			"%u/%u control is black listed, removing it\n",
+			entity->id, blacklist[i].index);
 
 		uvc_clear_bit(controls, blacklist[i].index);
 	}
