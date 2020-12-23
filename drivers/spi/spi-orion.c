@@ -96,9 +96,15 @@ struct orion_spi {
 	struct clk              *clk;
 	struct clk              *axi_clk;
 	const struct orion_spi_dev *devdata;
+	struct device		*dev;
 
 	struct orion_child_options	child[ORION_NUM_CHIPSELECTS];
 };
+
+#ifdef CONFIG_PM
+static int orion_spi_runtime_suspend(struct device *dev);
+static int orion_spi_runtime_resume(struct device *dev);
+#endif
 
 static inline void __iomem *spi_reg(struct orion_spi *orion_spi, u32 reg)
 {
@@ -507,7 +513,21 @@ static int orion_spi_transfer_one(struct spi_master *master,
 
 static int orion_spi_setup(struct spi_device *spi)
 {
-	return orion_spi_setup_transfer(spi, NULL);
+	int ret;
+#ifdef CONFIG_PM
+	struct orion_spi *orion_spi = spi_master_get_devdata(spi->master);
+	struct device *dev = orion_spi->dev;
+
+	orion_spi_runtime_resume(dev);
+#endif
+
+	ret = orion_spi_setup_transfer(spi, NULL);
+
+#ifdef CONFIG_PM
+	orion_spi_runtime_suspend(dev);
+#endif
+
+	return ret;
 }
 
 static int orion_spi_reset(struct orion_spi *orion_spi)
@@ -630,6 +650,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 
 	spi = spi_master_get_devdata(master);
 	spi->master = master;
+	spi->dev = &pdev->dev;
 
 	of_id = of_match_device(orion_spi_of_match_table, &pdev->dev);
 	devdata = (of_id) ? of_id->data : &orion_spi_dev_data;
