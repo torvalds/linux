@@ -45,10 +45,10 @@ int os_epoll_triggered(int index, int events)
  * access to the right includes/defines for EPOLL constants.
  */
 
-int os_event_mask(enum um_irq_type irq_type)
+int os_event_mask(int irq_type)
 {
 	if (irq_type == IRQ_READ)
-		return EPOLLIN | EPOLLPRI | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
+		return EPOLLIN | EPOLLPRI;
 	if (irq_type == IRQ_WRITE)
 		return EPOLLOUT;
 	return 0;

@@ -15,7 +15,6 @@ config UML
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DEBUG_BUGVERBOSE
 	select NO_DMA
-	select ARCH_HAS_SET_MEMORY
 	select GENERIC_IRQ_SHOW
 	select GENERIC_CPU_DEVICES
 	select HAVE_GCC_PLUGINS
@@ -192,8 +191,3 @@ config UML_TIME_TRAVEL_SUPPORT
 endmenu
 
 source "arch/um/drivers/Kconfig"
-
-config ARCH_SUSPEND_POSSIBLE
-	def_bool y
-
-source "kernel/power/Kconfig"
