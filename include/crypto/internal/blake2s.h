@@ -4,8 +4,8 @@
  * Keep this in sync with the corresponding BLAKE2b header.
  */
 
-#ifndef BLAKE2S_INTERNAL_H
-#define BLAKE2S_INTERNAL_H
+#ifndef _CRYPTO_INTERNAL_BLAKE2S_H
+#define _CRYPTO_INTERNAL_BLAKE2S_H
 
 #include <crypto/blake2s.h>
 #include <crypto/internal/hash.h>
@@ -116,4 +116,4 @@ static inline int crypto_blake2s_final(struct shash_desc *desc, u8 *out,
 	return 0;
 }
 
-#endif /* BLAKE2S_INTERNAL_H */
+#endif /* _CRYPTO_INTERNAL_BLAKE2S_H */
