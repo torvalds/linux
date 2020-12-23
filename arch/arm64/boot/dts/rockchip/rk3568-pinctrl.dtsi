@@ -157,10 +157,14 @@
 	};
 	cam {
 		/omit-if-no-ref/
-		cam_pins: cam-pins {
+		cam_clkout0: cam-clkout0 {
 			rockchip,pins =
 				/* cam_clkout0 */
-				<4 RK_PA7 1 &pcfg_pull_none>,
+				<4 RK_PA7 1 &pcfg_pull_none>;
+		};
+		/omit-if-no-ref/
+		cam_clkout1: cam-clkout1 {
+			rockchip,pins =
 				/* cam_clkout1 */
 				<4 RK_PB0 1 &pcfg_pull_none>;
 		};
