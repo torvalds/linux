@@ -2041,6 +2041,23 @@
 		};
 	};
 
+	i2c6_pins_a: i2c6-0 {
+		pins {
+			pinmux = <STM32_PINMUX('Z', 6, AF2)>, /* I2C6_SCL */
+				 <STM32_PINMUX('Z', 7, AF2)>; /* I2C6_SDA */
+			bias-disable;
+			drive-open-drain;
+			slew-rate = <0>;
+		};
+	};
+
+	i2c6_sleep_pins_a: i2c6-sleep-0 {
+		pins {
+			pinmux = <STM32_PINMUX('Z', 6, ANALOG)>, /* I2C6_SCL */
+				 <STM32_PINMUX('Z', 7, ANALOG)>; /* I2C6_SDA */
+		};
+	};
+
 	spi1_pins_a: spi1-0 {
 		pins1 {
 			pinmux = <STM32_PINMUX('Z', 0, AF5)>, /* SPI1_SCK */
