@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
+ * shash interface to the generic implementation of BLAKE2s
+ *
  * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
@@ -10,75 +12,15 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-static int crypto_blake2s_setkey(struct crypto_shash *tfm, const u8 *key,
-				 unsigned int keylen)
+static int crypto_blake2s_update_generic(struct shash_desc *desc,
+					 const u8 *in, unsigned int inlen)
 {
-	struct blake2s_tfm_ctx *tctx = crypto_shash_ctx(tfm);
-
-	if (keylen == 0 || keylen > BLAKE2S_KEY_SIZE)
-		return -EINVAL;
-
-	memcpy(tctx->key, key, keylen);
-	tctx->keylen = keylen;
-
-	return 0;
+	return crypto_blake2s_update(desc, in, inlen, blake2s_compress_generic);
 }
 
-static int crypto_blake2s_init(struct shash_desc *desc)
+static int crypto_blake2s_final_generic(struct shash_desc *desc, u8 *out)
 {
-	struct blake2s_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
-	struct blake2s_state *state = shash_desc_ctx(desc);
-	const int outlen = crypto_shash_digestsize(desc->tfm);
-
-	if (tctx->keylen)
-		blake2s_init_key(state, outlen, tctx->key, tctx->keylen);
-	else
-		blake2s_init(state, outlen);
-
-	return 0;
-}
-
-static int crypto_blake2s_update(struct shash_desc *desc, const u8 *in,
-				 unsigned int inlen)
-{
-	struct blake2s_state *state = shash_desc_ctx(desc);
-	const size_t fill = BLAKE2S_BLOCK_SIZE - state->buflen;
-
-	if (unlikely(!inlen))
-		return 0;
-	if (inlen > fill) {
-		memcpy(state->buf + state->buflen, in, fill);
-		blake2s_compress_generic(state, state->buf, 1, BLAKE2S_BLOCK_SIZE);
-		state->buflen = 0;
-		in += fill;
-		inlen -= fill;
-	}
-	if (inlen > BLAKE2S_BLOCK_SIZE) {
-		const size_t nblocks = DIV_ROUND_UP(inlen, BLAKE2S_BLOCK_SIZE);
-		/* Hash one less (full) block than strictly possible */
-		blake2s_compress_generic(state, in, nblocks - 1, BLAKE2S_BLOCK_SIZE);
-		in += BLAKE2S_BLOCK_SIZE * (nblocks - 1);
-		inlen -= BLAKE2S_BLOCK_SIZE * (nblocks - 1);
-	}
-	memcpy(state->buf + state->buflen, in, inlen);
-	state->buflen += inlen;
-
-	return 0;
-}
-
-static int crypto_blake2s_final(struct shash_desc *desc, u8 *out)
-{
-	struct blake2s_state *state = shash_desc_ctx(desc);
-
-	blake2s_set_lastblock(state);
-	memset(state->buf + state->buflen, 0,
-	       BLAKE2S_BLOCK_SIZE - state->buflen); /* Padding */
-	blake2s_compress_generic(state, state->buf, 1, state->buflen);
-	cpu_to_le32_array(state->h, ARRAY_SIZE(state->h));
-	memcpy(out, state->h, state->outlen);
-	memzero_explicit(state, sizeof(*state));
-
-	return 0;
+	return crypto_blake2s_final(desc, out, blake2s_compress_generic);
 }
 
 #define BLAKE2S_ALG(name, driver_name, digest_size)			\
@@ -93,8 +35,8 @@ static int crypto_blake2s_final(struct shash_desc *desc, u8 *out)
 		.digestsize		= digest_size,			\
 		.setkey			= crypto_blake2s_setkey,	\
 		.init			= crypto_blake2s_init,		\
-		.update			= crypto_blake2s_update,	\
-		.final			= crypto_blake2s_final,		\
+		.update			= crypto_blake2s_update_generic, \
+		.final			= crypto_blake2s_final_generic,	\
 		.descsize		= sizeof(struct blake2s_state),	\
 	}
 

@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
+/*
+ * Helper functions for BLAKE2s implementations.
+ * Keep this in sync with the corresponding BLAKE2b header.
+ */
 
 #ifndef BLAKE2S_INTERNAL_H
 #define BLAKE2S_INTERNAL_H
 
 #include <crypto/blake2s.h>
+#include <crypto/internal/hash.h>
 #include <linux/string.h>
-
-struct blake2s_tfm_ctx {
-	u8 key[BLAKE2S_KEY_SIZE];
-	unsigned int keylen;
-};
 
 void blake2s_compress_generic(struct blake2s_state *state,const u8 *block,
 			      size_t nblocks, const u32 inc);
@@ -26,6 +26,8 @@ static inline void blake2s_set_lastblock(struct blake2s_state *state)
 
 typedef void (*blake2s_compress_t)(struct blake2s_state *state,
 				   const u8 *block, size_t nblocks, u32 inc);
+
+/* Helper functions for BLAKE2s shared by the library and shash APIs */
 
 static inline void __blake2s_update(struct blake2s_state *state,
 				    const u8 *in, size_t inlen,
@@ -62,6 +64,59 @@ static inline void __blake2s_final(struct blake2s_state *state, u8 *out,
 	(*compress)(state, state->buf, 1, state->buflen);
 	cpu_to_le32_array(state->h, ARRAY_SIZE(state->h));
 	memcpy(out, state->h, state->outlen);
+}
+
+/* Helper functions for shash implementations of BLAKE2s */
+
+struct blake2s_tfm_ctx {
+	u8 key[BLAKE2S_KEY_SIZE];
+	unsigned int keylen;
+};
+
+static inline int crypto_blake2s_setkey(struct crypto_shash *tfm,
+					const u8 *key, unsigned int keylen)
+{
+	struct blake2s_tfm_ctx *tctx = crypto_shash_ctx(tfm);
+
+	if (keylen == 0 || keylen > BLAKE2S_KEY_SIZE)
+		return -EINVAL;
+
+	memcpy(tctx->key, key, keylen);
+	tctx->keylen = keylen;
+
+	return 0;
+}
+
+static inline int crypto_blake2s_init(struct shash_desc *desc)
+{
+	const struct blake2s_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
+	struct blake2s_state *state = shash_desc_ctx(desc);
+	unsigned int outlen = crypto_shash_digestsize(desc->tfm);
+
+	if (tctx->keylen)
+		blake2s_init_key(state, outlen, tctx->key, tctx->keylen);
+	else
+		blake2s_init(state, outlen);
+	return 0;
+}
+
+static inline int crypto_blake2s_update(struct shash_desc *desc,
+					const u8 *in, unsigned int inlen,
+					blake2s_compress_t compress)
+{
+	struct blake2s_state *state = shash_desc_ctx(desc);
+
+	__blake2s_update(state, in, inlen, compress);
+	return 0;
+}
+
+static inline int crypto_blake2s_final(struct shash_desc *desc, u8 *out,
+				       blake2s_compress_t compress)
+{
+	struct blake2s_state *state = shash_desc_ctx(desc);
+
+	__blake2s_final(state, out, compress);
+	return 0;
 }
 
 #endif /* BLAKE2S_INTERNAL_H */
