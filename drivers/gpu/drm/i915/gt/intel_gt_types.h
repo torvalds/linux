@@ -75,6 +75,7 @@ struct intel_gt {
 	intel_wakeref_t awake;
 
 	u32 clock_frequency;
+	u32 clock_period_ns;
 
 	struct intel_llc llc;
 	struct intel_rc6 rc6;

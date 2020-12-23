@@ -2039,16 +2039,4 @@ i915_coherent_map_type(struct drm_i915_private *i915)
 	return HAS_LLC(i915) ? I915_MAP_WB : I915_MAP_WC;
 }
 
-static inline u64 i915_cs_timestamp_ns_to_ticks(struct drm_i915_private *i915, u64 val)
-{
-	return DIV_ROUND_UP_ULL(val * RUNTIME_INFO(i915)->cs_timestamp_frequency_hz,
-				1000000000);
-}
-
-static inline u64 i915_cs_timestamp_ticks_to_ns(struct drm_i915_private *i915, u64 val)
-{
-	return div_u64(val * 1000000000,
-		       RUNTIME_INFO(i915)->cs_timestamp_frequency_hz);
-}
-
 #endif

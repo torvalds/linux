@@ -156,7 +156,7 @@ static int __live_engine_timestamps(struct intel_engine_cs *engine)
 	d_ring = trifilter(s_ring);
 	d_ctx = trifilter(s_ctx);
 
-	pr_info("%s elapsed:%lldns, CTX_TIMESTAMP:%dns, RING_TIMESTAMP:%dns\n",
+	pr_info("%s elapsed:%lldns, CTX_TIMESTAMP:%lldns, RING_TIMESTAMP:%lldns\n",
 		engine->name, dt,
 		intel_gt_clock_interval_to_ns(engine->gt, d_ctx),
 		intel_gt_clock_interval_to_ns(engine->gt, d_ring));
@@ -171,11 +171,11 @@ static int __live_engine_timestamps(struct intel_engine_cs *engine)
 	d_ring = trifilter(s_ring);
 	d_ctx = trifilter(s_ctx);
 
-	d_ctx *= RUNTIME_INFO(engine->i915)->cs_timestamp_frequency_hz;
+	d_ctx *= engine->gt->clock_frequency;
 	if (IS_ICELAKE(engine->i915))
 		d_ring *= 12500000; /* Fixed 80ns for icl ctx timestamp? */
 	else
-		d_ring *= RUNTIME_INFO(engine->i915)->cs_timestamp_frequency_hz;
+		d_ring *= engine->gt->clock_frequency;
 
 	if (3 * d_ctx > 4 * d_ring || 4 * d_ctx < 3 * d_ring) {
 		pr_err("%s Mismatch between ring and context timestamps!\n",

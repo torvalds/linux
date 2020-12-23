@@ -224,9 +224,6 @@ struct intel_runtime_info {
 	u8 num_scalers[I915_MAX_PIPES];
 
 	u32 rawclk_freq;
-
-	u32 cs_timestamp_frequency_hz;
-	u32 cs_timestamp_period_ns;
 };
 
 struct intel_driver_caps {

@@ -937,27 +937,27 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m, "RPDECLIMIT: 0x%08x\n", rpdeclimit);
 		seq_printf(m, "RPNSWREQ: %dMHz\n", reqf);
 		seq_printf(m, "CAGF: %dMHz\n", cagf);
-		seq_printf(m, "RP CUR UP EI: %d (%dns)\n",
+		seq_printf(m, "RP CUR UP EI: %d (%lldns)\n",
 			   rpupei,
 			   intel_gt_pm_interval_to_ns(&dev_priv->gt, rpupei));
-		seq_printf(m, "RP CUR UP: %d (%dun)\n",
+		seq_printf(m, "RP CUR UP: %d (%lldun)\n",
 			   rpcurup,
 			   intel_gt_pm_interval_to_ns(&dev_priv->gt, rpcurup));
-		seq_printf(m, "RP PREV UP: %d (%dns)\n",
+		seq_printf(m, "RP PREV UP: %d (%lldns)\n",
 			   rpprevup,
 			   intel_gt_pm_interval_to_ns(&dev_priv->gt, rpprevup));
 		seq_printf(m, "Up threshold: %d%%\n",
 			   rps->power.up_threshold);
 
-		seq_printf(m, "RP CUR DOWN EI: %d (%dns)\n",
+		seq_printf(m, "RP CUR DOWN EI: %d (%lldns)\n",
 			   rpdownei,
 			   intel_gt_pm_interval_to_ns(&dev_priv->gt,
 						      rpdownei));
-		seq_printf(m, "RP CUR DOWN: %d (%dns)\n",
+		seq_printf(m, "RP CUR DOWN: %d (%lldns)\n",
 			   rpcurdown,
 			   intel_gt_pm_interval_to_ns(&dev_priv->gt,
 						      rpcurdown));
-		seq_printf(m, "RP PREV DOWN: %d (%dns)\n",
+		seq_printf(m, "RP PREV DOWN: %d (%lldns)\n",
 			   rpprevdown,
 			   intel_gt_pm_interval_to_ns(&dev_priv->gt,
 						      rpprevdown));
@@ -1318,8 +1318,9 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 		   yesno(i915->gt.awake),
 		   atomic_read(&i915->gt.wakeref.count),
 		   ktime_to_ms(intel_gt_get_awake_time(&i915->gt)));
-	seq_printf(m, "CS timestamp frequency: %u Hz\n",
-		   RUNTIME_INFO(i915)->cs_timestamp_frequency_hz);
+	seq_printf(m, "CS timestamp frequency: %u Hz, %d ns\n",
+		   i915->gt.clock_frequency,
+		   i915->gt.clock_period_ns);
 
 	p = drm_seq_file_printer(m);
 	for_each_uabi_engine(engine, i915)
@@ -1415,7 +1416,7 @@ i915_perf_noa_delay_set(void *data, u64 val)
 	 * This would lead to infinite waits as we're doing timestamp
 	 * difference on the CS with only 32bits.
 	 */
-	if (i915_cs_timestamp_ns_to_ticks(i915, val) > U32_MAX)
+	if (intel_gt_ns_to_clock_interval(&i915->gt, val) > U32_MAX)
 		return -EINVAL;
 
 	atomic64_set(&i915->perf.noa_programming_delay, val);

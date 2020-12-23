@@ -33,6 +33,7 @@
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_clock_utils.h"
 #include "gt/intel_gt_requests.h"
 #include "gt/selftest_engine_heartbeat.h"
 
@@ -1560,7 +1561,7 @@ static u32 trifilter(u32 *a)
 
 static u64 cycles_to_ns(struct intel_engine_cs *engine, u32 cycles)
 {
-	u64 ns = i915_cs_timestamp_ticks_to_ns(engine->i915, cycles);
+	u64 ns = intel_gt_clock_interval_to_ns(engine->gt, cycles);
 
 	return DIV_ROUND_CLOSEST(ns, 1 << TF_BIAS);
 }
