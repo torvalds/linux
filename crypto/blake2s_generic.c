@@ -4,11 +4,9 @@
  */
 
 #include <crypto/internal/blake2s.h>
-#include <crypto/internal/simd.h>
 #include <crypto/internal/hash.h>
 
 #include <linux/types.h>
-#include <linux/jump_label.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 
