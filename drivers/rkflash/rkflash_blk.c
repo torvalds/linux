@@ -624,7 +624,7 @@ static void rkflash_blk_unregister(struct flash_blk_ops *blk_ops)
 	unregister_blkdev(blk_ops->major, blk_ops->name);
 }
 
-static int rkflash_dev_vendor_read(u32 sec, u32 n_sec, void *p_data)
+static int __maybe_unused rkflash_dev_vendor_read(u32 sec, u32 n_sec, void *p_data)
 {
 	int ret;
 
@@ -639,7 +639,7 @@ static int rkflash_dev_vendor_read(u32 sec, u32 n_sec, void *p_data)
 	return ret;
 }
 
-static int rkflash_dev_vendor_write(u32 sec, u32 n_sec, void *p_data)
+static int __maybe_unused rkflash_dev_vendor_write(u32 sec, u32 n_sec, void *p_data)
 {
 	int ret;
 
@@ -682,8 +682,12 @@ int rkflash_dev_init(void __iomem *reg_addr,
 	/* vendor part */
 	switch (type) {
 	case FLASH_TYPE_SFC_NOR:
+#if IS_ENABLED(CONFIG_RK_SFC_NOR_MTD) && IS_ENABLED(CONFIG_ROCKCHIP_MTD_VENDOR_STORAGE)
+		break;
+#else
 		flash_vendor_dev_ops_register(rkflash_dev_vendor_read,
 					      rkflash_dev_vendor_write);
+#endif
 		break;
 	case FLASH_TYPE_SFC_NAND:
 #ifdef CONFIG_RK_SFC_NAND_MTD
