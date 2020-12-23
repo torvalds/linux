@@ -24,6 +24,7 @@ enum blake2s_lengths {
 };
 
 struct blake2s_state {
+	/* 'h', 't', and 'f' are used in assembly code, so keep them as-is. */
 	u32 h[8];
 	u32 t[2];
 	u32 f[2];
