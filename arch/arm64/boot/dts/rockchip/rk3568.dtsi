@@ -2881,6 +2881,15 @@
 		status = "disabled";
 	};
 
+	csi_dphy1: csi-dphy@fe870000 {
+		compatible = "rockchip,rk3568-csi-dphy";
+		reg = <0x0 0xfe870000 0x0 0x1000>;
+		clocks = <&cru PCLK_MIPICSIPHY>;
+		clock-names = "pclk";
+		rockchip,grf = <&grf>;
+		status = "disabled";
+	};
+
 	usb2phy0: usb2-phy@fe8a0000 {
 		compatible = "rockchip,rk3568-usb2phy";
 		reg = <0x0 0xfe8a0000 0x0 0x10000>;
