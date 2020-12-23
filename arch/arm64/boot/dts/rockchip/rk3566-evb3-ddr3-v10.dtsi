@@ -48,7 +48,7 @@
 	status = "okay";
 };
 
-&csi_dphy {
+&csi2_dphy0 {
 	status = "okay";
 
 	ports {

@@ -23,6 +23,9 @@
 	#size-cells = <2>;
 
 	aliases {
+		csi2dphy0 = &csi2_dphy0;
+		csi2dphy1 = &csi2_dphy1;
+		csi2dphy2 = &csi2_dphy2;
 		dsi0 = &dsi0;
 		dsi1 = &dsi1;
 		ethernet0 = &gmac0;
@@ -3048,8 +3051,8 @@
 		status = "disabled";
 	};
 
-	csi_dphy: csi-dphy@fe870000 {
-		compatible = "rockchip,rk3568-csi-dphy";
+	csi2_dphy_hw: csi2-dphy-hw@fe870000 {
+		compatible = "rockchip,rk3568-csi2-dphy-hw";
 		reg = <0x0 0xfe870000 0x0 0x1000>;
 		clocks = <&cru PCLK_MIPICSIPHY>;
 		clock-names = "pclk";
@@ -3057,12 +3060,32 @@
 		status = "disabled";
 	};
 
-	csi_dphy1: csi-dphy@fe870000 {
-		compatible = "rockchip,rk3568-csi-dphy";
-		reg = <0x0 0xfe870000 0x0 0x1000>;
-		clocks = <&cru PCLK_MIPICSIPHY>;
-		clock-names = "pclk";
-		rockchip,grf = <&grf>;
+	/*
+	 * csi2_dphy0: used for csi2 dphy full mode,
+		       is mutually exclusive with
+		       csi2_dphy1 and csi2_dphy2
+	 * csi2_dphy1: used for csi2 dphy split mode,
+		       physical lanes use lane0 and lane1,
+		       can be used with csi2_dphy2  parallel
+	 * csi2_dphy2: used for csi2 dphy split mode,
+		       physical lanes use lane2 and lane3,
+		       can be used with csi2_dphy1  parallel
+	 */
+	csi2_dphy0: csi2-dphy0 {
+		compatible = "rockchip,rk3568-csi2-dphy";
+		rockchip,hw = <&csi2_dphy_hw>;
+		status = "disabled";
+	};
+
+	csi2_dphy1: csi2-dphy1 {
+		compatible = "rockchip,rk3568-csi2-dphy";
+		rockchip,hw = <&csi2_dphy_hw>;
+		status = "disabled";
+	};
+
+	csi2_dphy2: csi2-dphy2 {
+		compatible = "rockchip,rk3568-csi2-dphy";
+		rockchip,hw = <&csi2_dphy_hw>;
 		status = "disabled";
 	};
 

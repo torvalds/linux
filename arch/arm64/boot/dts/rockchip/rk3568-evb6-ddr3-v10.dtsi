@@ -253,7 +253,7 @@
 	/delete-node/ mxc6655xa@15;
 };
 
-&csi_dphy {
+&csi2_dphy0 {
 	status = "okay";
 
 	ports {

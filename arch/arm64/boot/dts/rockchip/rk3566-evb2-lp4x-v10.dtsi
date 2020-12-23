@@ -53,36 +53,114 @@
 	status = "okay";
 };
 
-&csi_dphy {
+&csi2_dphy_hw {
 	status = "okay";
+};
 
+&csi2_dphy0 {
+	status = "disabled";
+	/*
+	 * dphy0 only used for full mode,
+	 * full mode and split mode are mutually exclusive
+	 */
 	ports {
 		#address-cells = <1>;
 		#size-cells = <0>;
+
 		port@0 {
 			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			mipi_in_ucam0: endpoint@1 {
+			dphy0_in: endpoint@1 {
 				reg = <1>;
-				remote-endpoint = <&ov5695_out>;
-				data-lanes = <1 2>;
-			};
-			mipi_in_ucam1: endpoint@2 {
-				reg = <2>;
 				remote-endpoint = <&gc8034_out>;
 				data-lanes = <1 2 3 4>;
 			};
 		};
+
 		port@1 {
 			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			csidphy_out: endpoint@0 {
-				reg = <0>;
+			dphy0_out: endpoint@1 {
+				reg = <1>;
 				remote-endpoint = <&isp0_in>;
+			};
+		};
+	};
+};
+
+&csi2_dphy1 {
+	status = "okay";
+
+	/*
+	 * dphy1 only used for split mode,
+	 * can be used  concurrently  with dphy2
+	 * full mode and split mode are mutually exclusive
+	 */
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy1_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ov5695_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy1_out: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&isp0_in>;
+			};
+		};
+	};
+};
+
+&csi2_dphy2 {
+	status = "okay";
+
+	/*
+	 * dphy2 only used for split mode,
+	 * can be used  concurrently  with dphy1
+	 * full mode and split mode are mutually exclusive
+	 */
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy2_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&gc5025_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy2_out: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&mipi_csi2_input>;
 			};
 		};
 	};
@@ -165,6 +243,7 @@
 	status = "okay";
 	pinctrl-0 = <&i2c2m1_xfer>;
 
+	/* split mode: lane0/1 */
 	ov5695: ov5695@36 {
 		status = "okay";
 		compatible = "ovti,ov5695";
@@ -183,12 +262,38 @@
 		rockchip,camera-module-lens-name = "CHT842-MD";
 		port {
 			ov5695_out: endpoint {
-				remote-endpoint = <&mipi_in_ucam0>;
+				remote-endpoint = <&dphy1_in>;
 				data-lanes = <1 2>;
 			};
 		};
 	};
 
+	/* split mode: lane:2/3 */
+	gc5025: gc5025@37 {
+		status = "okay";
+		compatible = "galaxycore,gc5025";
+		reg = <0x37>;
+		clocks = <&pmucru CLK_WIFI>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&refclk_pins>;
+		reset-gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_LOW>;
+		power-domains = <&power RK3568_PD_VI>;
+		/*power-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;*/
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "TongJu";
+		rockchip,camera-module-lens-name = "CHT842-MD";
+		port {
+			gc5025_out: endpoint {
+				remote-endpoint = <&dphy2_in>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	/* full mode: lane0-3 */
 	gc8034: gc8034@37 {
 		compatible = "galaxycore,gc8034";
 		status = "okay";
@@ -206,12 +311,11 @@
 		rockchip,camera-module-lens-name = "CK8401";
 		port {
 			gc8034_out: endpoint {
-				remote-endpoint = <&mipi_in_ucam1>;
+				remote-endpoint = <&dphy0_in>;
 				data-lanes = <1 2 3 4>;
 			};
 		};
 	};
-
 };
 
 &i2c4 {
@@ -267,6 +371,39 @@
  */
 &gt1x {
 	power-supply = <&vcc3v3_lcd0_n>;
+};
+
+&mipi_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&dphy2_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
 };
 
 &mipi_dphy0 {
@@ -347,6 +484,17 @@
 	};
 };
 
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	port {
+		cif_mipi_in: endpoint {
+			remote-endpoint = <&mipi_csi2_output>;
+			data-lanes = <1 2>;
+		};
+	};
+};
+
 &rkcif_mmu {
 	status = "okay";
 };
@@ -368,7 +516,7 @@
 
 		isp0_in: endpoint@0 {
 			reg = <0>;
-			remote-endpoint = <&csidphy_out>;
+			remote-endpoint = <&dphy1_out>;
 		};
 	};
 };

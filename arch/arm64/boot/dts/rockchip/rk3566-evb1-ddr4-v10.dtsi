@@ -55,27 +55,28 @@
 	status = "okay";
 };
 
-&csi_dphy {
+&csi2_dphy_hw {
+	status = "okay";
+};
+
+&csi2_dphy2 {
 	status = "okay";
 
-	/*lane-mode:
-	 * index0: 4 means full mode, 2 means split mode
-	 * index1: 1 means using lane0/1, 2 means using lane2/3
-	 * attention: if lane-mode is not set, default mode is full mode,
-	 *            full mode and split mode are mutually exclusive
-	 * eg:  rockchip,lane-mode = <2 1>, means using split mode, and using lane0/1
+	/*
+	 * dphy2 only used for split mode,
+	 * can be used  concurrently  with dphy1
+	 * full mode and split mode are mutually exclusive
 	 */
-	rockchip,lane-mode = <2 2>;
-
 	ports {
 		#address-cells = <1>;
 		#size-cells = <0>;
+
 		port@0 {
 			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			mipi_in_ucam1: endpoint@1 {
+			dphy2_in: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&ov02k10_out>;
 				data-lanes = <1 2>;
@@ -87,7 +88,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			csidphy_out: endpoint@1 {
+			dphy2_out: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&mipi_csi2_input>;
 			};
@@ -209,7 +210,7 @@
 		rockchip,camera-module-lens-name = "CHT842-MD";
 		port {
 			ov02k10_out: endpoint {
-				remote-endpoint = <&mipi_in_ucam1>;
+				remote-endpoint = <&dphy2_in>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -234,7 +235,7 @@
 
 			mipi_csi2_input: endpoint@1 {
 				reg = <1>;
-				remote-endpoint = <&csidphy_out>;
+				remote-endpoint = <&dphy2_out>;
 				data-lanes = <1 2>;
 			};
 		};
