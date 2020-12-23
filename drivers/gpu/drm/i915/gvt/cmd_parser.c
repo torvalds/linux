@@ -836,66 +836,10 @@ static inline int cmd_length(struct parser_exec_state *s)
 	*addr = val; \
 } while (0)
 
-static bool is_shadowed_mmio(unsigned int offset)
-{
-	bool ret = false;
-
-	if ((offset == 0x2168) || /*BB current head register UDW */
-	    (offset == 0x2140) || /*BB current header register */
-	    (offset == 0x211c) || /*second BB header register UDW */
-	    (offset == 0x2114)) { /*second BB header register UDW */
-		ret = true;
-	}
-	return ret;
-}
-
-static inline bool is_force_nonpriv_mmio(unsigned int offset)
-{
-	return (offset >= 0x24d0 && offset < 0x2500);
-}
-
-static int force_nonpriv_reg_handler(struct parser_exec_state *s,
-		unsigned int offset, unsigned int index, char *cmd)
-{
-	struct intel_gvt *gvt = s->vgpu->gvt;
-	unsigned int data;
-	u32 ring_base;
-	u32 nopid;
-
-	if (!strcmp(cmd, "lri"))
-		data = cmd_val(s, index + 1);
-	else {
-		gvt_err("Unexpected forcenonpriv 0x%x write from cmd %s\n",
-			offset, cmd);
-		return -EINVAL;
-	}
-
-	ring_base = s->engine->mmio_base;
-	nopid = i915_mmio_reg_offset(RING_NOPID(ring_base));
-
-	if (!intel_gvt_in_force_nonpriv_whitelist(gvt, data) &&
-			data != nopid) {
-		gvt_err("Unexpected forcenonpriv 0x%x LRI write, value=0x%x\n",
-			offset, data);
-		patch_value(s, cmd_ptr(s, index), nopid);
-		return 0;
-	}
-	return 0;
-}
-
 static inline bool is_mocs_mmio(unsigned int offset)
 {
 	return ((offset >= 0xc800) && (offset <= 0xcff8)) ||
 		((offset >= 0xb020) && (offset <= 0xb0a0));
-}
-
-static int mocs_cmd_reg_handler(struct parser_exec_state *s,
-				unsigned int offset, unsigned int index)
-{
-	if (!is_mocs_mmio(offset))
-		return -EINVAL;
-	vgpu_vreg(s->vgpu, offset) = cmd_val(s, index + 1);
-	return 0;
 }
 
 static int is_cmd_update_pdps(unsigned int offset,
@@ -945,6 +889,7 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 	struct intel_vgpu *vgpu = s->vgpu;
 	struct intel_gvt *gvt = vgpu->gvt;
 	u32 ctx_sr_ctl;
+	u32 *vreg, vreg_old;
 
 	if (offset + 4 > gvt->device_info.mmio_size) {
 		gvt_vgpu_err("%s access to (%x) outside of MMIO range\n",
@@ -966,25 +911,6 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 		gvt_vgpu_err("%s access to non-render register (%x)\n",
 				cmd, offset);
 		return -EBADRQC;
-	}
-
-	if (is_shadowed_mmio(offset)) {
-		gvt_vgpu_err("found access of shadowed MMIO %x\n", offset);
-		return 0;
-	}
-
-	if (is_mocs_mmio(offset) &&
-	    mocs_cmd_reg_handler(s, offset, index))
-		return -EINVAL;
-
-	if (is_force_nonpriv_mmio(offset) &&
-		force_nonpriv_reg_handler(s, offset, index, cmd))
-		return -EPERM;
-
-	if (offset == i915_mmio_reg_offset(DERRMR) ||
-		offset == i915_mmio_reg_offset(FORCEWAKE_MT)) {
-		/* Writing to HW VGT_PVINFO_PAGE offset will be discarded */
-		patch_value(s, cmd_ptr(s, index), VGT_PVINFO_PAGE);
 	}
 
 	if (!strncmp(cmd, "srm", 3) ||
@@ -1009,9 +935,63 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 		return 0;
 	}
 
+	if (strncmp(cmd, "lri", 3))
+		return -EPERM;
+
+	/* below are all lri handlers */
+	vreg = &vgpu_vreg(s->vgpu, offset);
+	if (!intel_gvt_mmio_is_cmd_accessible(gvt, offset)) {
+		gvt_vgpu_err("%s access to non-render register (%x)\n",
+				cmd, offset);
+		return -EBADRQC;
+	}
+
 	if (is_cmd_update_pdps(offset, s) &&
 	    cmd_pdp_mmio_update_handler(s, offset, index))
 		return -EINVAL;
+
+	if (offset == i915_mmio_reg_offset(DERRMR) ||
+		offset == i915_mmio_reg_offset(FORCEWAKE_MT)) {
+		/* Writing to HW VGT_PVINFO_PAGE offset will be discarded */
+		patch_value(s, cmd_ptr(s, index), VGT_PVINFO_PAGE);
+	}
+
+	if (is_mocs_mmio(offset))
+		*vreg = cmd_val(s, index + 1);
+
+	vreg_old = *vreg;
+
+	if (intel_gvt_mmio_is_cmd_write_patch(gvt, offset)) {
+		u32 cmdval_new, cmdval;
+		struct intel_gvt_mmio_info *mmio_info;
+
+		cmdval = cmd_val(s, index + 1);
+
+		mmio_info = intel_gvt_find_mmio_info(gvt, offset);
+		if (!mmio_info) {
+			cmdval_new = cmdval;
+		} else {
+			u64 ro_mask = mmio_info->ro_mask;
+			int ret;
+
+			if (likely(!ro_mask))
+				ret = mmio_info->write(s->vgpu, offset,
+						&cmdval, 4);
+			else {
+				gvt_vgpu_err("try to write RO reg %x\n",
+						offset);
+				ret = -EBADRQC;
+			}
+			if (ret)
+				return ret;
+			cmdval_new = *vreg;
+		}
+		if (cmdval_new != cmdval)
+			patch_value(s, cmd_ptr(s, index+1), cmdval_new);
+	}
+
+	/* only patch cmd. restore vreg value if changed in mmio write handler*/
+	*vreg = vreg_old;
 
 	/* TODO
 	 * In order to let workload with inhibit context to generate
