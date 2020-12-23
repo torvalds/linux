@@ -89,6 +89,28 @@ TRACE_EVENT(cpuhp_exit,
 		  __entry->cpu, __entry->state, __entry->idx,  __entry->ret)
 );
 
+TRACE_EVENT(cpuhp_pause,
+	TP_PROTO(struct cpumask *cpus, u64 start_time, unsigned char pause),
+
+	TP_ARGS(cpus, start_time, pause),
+
+	TP_STRUCT__entry(
+		__field( unsigned int,	cpus		)
+		__field( unsigned int,	active_cpus	)
+		__field( unsigned int,	time		)
+		__field( unsigned char,	pause		)
+	),
+
+	TP_fast_assign(
+		__entry->cpus	     = cpumask_bits(cpus)[0];
+		__entry->active_cpus = cpumask_bits(cpu_active_mask)[0];
+		__entry->time        = div64_u64(sched_clock() - start_time, 1000);
+		__entry->pause	     = pause;
+	),
+
+	TP_printk("req_cpus=0x%x act_cpus=0x%x time=%u us paused=%d",
+		  __entry->cpus, __entry->active_cpus, __entry->time, __entry->pause)
+);
 #endif
 
 /* This part must be outside protection */
