@@ -219,6 +219,10 @@
 	};
 };
 
+&route_dsi0 {
+	status = "okay";
+};
+
 &sdmmc1 {
 	max-frequency = <150000000>;
 	supports-sdio;

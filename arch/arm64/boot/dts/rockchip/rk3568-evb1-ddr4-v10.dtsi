@@ -420,6 +420,10 @@
 	};
 };
 
+&route_dsi0 {
+	status = "okay";
+};
+
 &sata2 {
 	status = "okay";
 };

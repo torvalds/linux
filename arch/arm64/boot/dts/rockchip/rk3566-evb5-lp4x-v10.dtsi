@@ -220,6 +220,10 @@
 	status = "disabled";
 };
 
+&route_dsi0 {
+	status = "okay";
+};
+
 &sdmmc2 {
 	status = "disabled";
 };
