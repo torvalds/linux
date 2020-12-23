@@ -216,7 +216,7 @@
 		#clock-cells = <0>;
 	};
 
-	gmac1_clkini: external-gmac1-clock {
+	gmac1_clkin: external-gmac1-clock {
 		compatible = "fixed-clock";
 		clock-frequency = <125000000>;
 		clock-output-names = "gmac1_clkin";
