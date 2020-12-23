@@ -379,6 +379,19 @@
 			status = "disabled";
 		};
 
+		nor_flash: spi@11234000 {
+			compatible = "mediatek,mt8192-nor";
+			reg = <0 0x11234000 0 0xe0>;
+			interrupts = <GIC_SPI 431 IRQ_TYPE_LEVEL_HIGH 0>;
+			clocks = <&clk26m>,
+				 <&clk26m>,
+				 <&clk26m>;
+			clock-names = "spi", "sf", "axi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disable";
+		};
+
 		i2c3: i2c3@11cb0000 {
 			compatible = "mediatek,mt8192-i2c";
 			reg = <0 0x11cb0000 0 0x1000>,
