@@ -40,6 +40,7 @@ static int isight_decode(struct uvc_video_queue *queue, struct uvc_buffer *buf,
 		0xde, 0xad, 0xfa, 0xce
 	};
 
+	struct uvc_streaming *stream = uvc_queue_to_stream(queue);
 	unsigned int maxlen, nbytes;
 	u8 *mem;
 	int is_header = 0;
@@ -49,15 +50,16 @@ static int isight_decode(struct uvc_video_queue *queue, struct uvc_buffer *buf,
 
 	if ((len >= 14 && memcmp(&data[2], hdr, 12) == 0) ||
 	    (len >= 15 && memcmp(&data[3], hdr, 12) == 0)) {
-		uvc_trace(UVC_TRACE_FRAME, "iSight header found\n");
+		uvc_trace(stream->dev, UVC_TRACE_FRAME,
+			  "iSight header found\n");
 		is_header = 1;
 	}
 
 	/* Synchronize to the input stream by waiting for a header packet. */
 	if (buf->state != UVC_BUF_STATE_ACTIVE) {
 		if (!is_header) {
-			uvc_trace(UVC_TRACE_FRAME, "Dropping packet (out of "
-				  "sync).\n");
+			uvc_trace(stream->dev, UVC_TRACE_FRAME,
+				  "Dropping packet (out of sync).\n");
 			return 0;
 		}
 
@@ -85,8 +87,8 @@ static int isight_decode(struct uvc_video_queue *queue, struct uvc_buffer *buf,
 		buf->bytesused += nbytes;
 
 		if (len > maxlen || buf->bytesused == buf->length) {
-			uvc_trace(UVC_TRACE_FRAME, "Frame complete "
-				  "(overflow).\n");
+			uvc_trace(stream->dev, UVC_TRACE_FRAME,
+				  "Frame complete (overflow).\n");
 			buf->state = UVC_BUF_STATE_DONE;
 		}
 	}
@@ -103,8 +105,8 @@ void uvc_video_decode_isight(struct uvc_urb *uvc_urb, struct uvc_buffer *buf,
 
 	for (i = 0; i < urb->number_of_packets; ++i) {
 		if (urb->iso_frame_desc[i].status < 0) {
-			uvc_trace(UVC_TRACE_FRAME, "USB isochronous frame "
-				  "lost (%d).\n",
+			uvc_trace(stream->dev, UVC_TRACE_FRAME,
+				  "USB isochronous frame lost (%d).\n",
 				  urb->iso_frame_desc[i].status);
 		}
 

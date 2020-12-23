@@ -752,10 +752,11 @@ extern unsigned int uvc_trace_param;
 extern unsigned int uvc_timeout_param;
 extern unsigned int uvc_hw_timestamps_param;
 
-#define uvc_trace(flag, fmt, ...)					\
+#define uvc_trace(_dev, flag, fmt, ...)					\
 do {									\
 	if (uvc_trace_param & flag)					\
-		printk(KERN_DEBUG "uvcvideo: " fmt, ##__VA_ARGS__);	\
+		dev_printk(KERN_DEBUG, &(_dev)->udev->dev, fmt,		\
+			   ##__VA_ARGS__);				\
 } while (0)
 
 #define uvc_trace_cont(flag, fmt, ...)					\
@@ -815,6 +816,12 @@ int uvc_queue_allocated(struct uvc_video_queue *queue);
 static inline int uvc_queue_streaming(struct uvc_video_queue *queue)
 {
 	return vb2_is_streaming(&queue->queue);
+}
+
+static inline struct uvc_streaming *
+uvc_queue_to_stream(struct uvc_video_queue *queue)
+{
+	return container_of(queue, struct uvc_streaming, queue);
 }
 
 /* V4L2 interface */
