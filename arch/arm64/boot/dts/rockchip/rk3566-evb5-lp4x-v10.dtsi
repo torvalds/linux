@@ -149,7 +149,7 @@
 		     &gmac1m0_rgmii_clk_level2
 		     &gmac1m0_rgmii_bus_level3>;
 
-	tx_delay = <0x59>;
+	tx_delay = <0x41>;
 	rx_delay = <0x2e>;
 
 	phy-handle = <&rgmii_phy1>;
