@@ -3,8 +3,8 @@
  * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
-#ifndef BLAKE2S_H
-#define BLAKE2S_H
+#ifndef _CRYPTO_BLAKE2S_H
+#define _CRYPTO_BLAKE2S_H
 
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -105,4 +105,4 @@ static inline void blake2s(u8 *out, const u8 *in, const u8 *key,
 void blake2s256_hmac(u8 *out, const u8 *in, const u8 *key, const size_t inlen,
 		     const size_t keylen);
 
-#endif /* BLAKE2S_H */
+#endif /* _CRYPTO_BLAKE2S_H */
