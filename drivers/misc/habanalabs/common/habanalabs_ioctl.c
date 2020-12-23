@@ -57,7 +57,9 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 
 	hw_ip.device_id = hdev->asic_funcs->get_pci_id(hdev);
 	hw_ip.sram_base_address = prop->sram_user_base_address;
-	hw_ip.dram_base_address = prop->dram_user_base_address;
+	hw_ip.dram_base_address =
+			hdev->mmu_enable && prop->dram_supports_virtual_memory ?
+			prop->dmmu.start_addr : prop->dram_user_base_address;
 	hw_ip.tpc_enabled_mask = prop->tpc_enabled_mask;
 	hw_ip.sram_size = prop->sram_size - sram_kmd_size;
 	hw_ip.dram_size = prop->dram_size - dram_kmd_size;
