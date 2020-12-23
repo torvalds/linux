@@ -2461,7 +2461,12 @@ static int dwc3_gadget_init_in_endpoint(struct dwc3_ep *dep)
 	else
 		size /= 2;
 
-	if (size < 1024 && dwc->needs_fifo_resize)
+	/*
+	 * If enable tx fifos resize, set each in ep maxpacket
+	 * to 1024, it can avoid being dependent on the default
+	 * fifo size, and more flexible use of endpoints.
+	 */
+	if (dwc->needs_fifo_resize)
 		size = 1024;
 
 	usb_ep_set_maxpacket_limit(&dep->endpoint, size);
