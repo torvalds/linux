@@ -72,6 +72,16 @@
 #define RKVDEC_IRQ_RAW			BIT(1)
 #define RKVDEC_IRQ			BIT(0)
 
+/* perf sel reference register */
+#define RKVDEC_PERF_SEL_OFFSET		0x20000
+#define RKVDEC_PERF_SEL_NUM		64
+#define RKVDEC_PERF_SEL_BASE		0x424
+#define RKVDEC_SEL_VAL0_BASE		0x428
+#define RKVDEC_SEL_VAL1_BASE		0x42c
+#define RKVDEC_SEL_VAL2_BASE		0x430
+#define RKVDEC_SET_PERF_SEL(a, b, c)	((a) | ((b) << 8) | ((c) << 16))
+
+/* cache reference register */
 #define RKVDEC_REG_CACHE0_SIZE_BASE	0x51c
 #define RKVDEC_REG_CACHE1_SIZE_BASE	0x55c
 #define RKVDEC_REG_CACHE2_SIZE_BASE	0x59c
@@ -107,6 +117,9 @@ struct rkvdec_task {
 	enum MPP_CLOCK_MODE clk_mode;
 	u32 reg[RKVDEC_REG_NUM];
 	struct reg_offset_info off_inf;
+
+	/* perf sel data back */
+	u32 reg_sel[RKVDEC_PERF_SEL_NUM];
 
 	u32 strm_addr;
 	u32 irq_status;
@@ -220,11 +233,21 @@ static int rkvdec_extract_task_msg(struct rkvdec_task *task,
 			memcpy(&task->w_reqs[task->w_req_cnt++], req, sizeof(*req));
 		} break;
 		case MPP_CMD_SET_REG_READ: {
-			off_s = hw_info->reg_start * sizeof(u32);
-			off_e = hw_info->reg_end * sizeof(u32);
-			ret = mpp_check_req(req, 0, sizeof(task->reg), off_s, off_e);
+			int req_base;
+			int max_size;
+
+			if (req->offset >= RKVDEC_PERF_SEL_OFFSET) {
+				req_base = RKVDEC_PERF_SEL_OFFSET;
+				max_size = sizeof(task->reg_sel);
+			} else {
+				req_base = 0;
+				max_size = sizeof(task->reg);
+			}
+
+			ret = mpp_check_req(req, req_base, max_size, 0, max_size);
 			if (ret)
 				continue;
+
 			memcpy(&task->r_reqs[task->r_req_cnt++], req, sizeof(*req));
 		} break;
 		case MPP_CMD_SET_REG_ADDR_OFFSET: {
@@ -393,6 +416,34 @@ fail:
 	return IRQ_HANDLED;
 }
 
+static int rkvenc_read_perf_sel(struct mpp_dev *mpp, u32 *regs, u32 s, u32 e)
+{
+	u32 i;
+	u32 sel0, sel1, sel2, val;
+
+	for (i = s; i < e; i += 3) {
+		/* set sel */
+		sel0 = i;
+		sel1 = ((i + 1) < e) ? (i + 1) : 0;
+		sel2 = ((i + 2) < e) ? (i + 2) : 0;
+		val = RKVDEC_SET_PERF_SEL(sel0, sel1, sel2);
+		writel_relaxed(val, mpp->reg_base + RKVDEC_PERF_SEL_BASE);
+		/* read data */
+		regs[sel0] = readl_relaxed(mpp->reg_base + RKVDEC_SEL_VAL0_BASE);
+		mpp_debug(DEBUG_GET_PERF_VAL, "sel[%d]:%u\n", sel0, regs[sel0]);
+		if (sel1) {
+			regs[sel1] = readl_relaxed(mpp->reg_base + RKVDEC_SEL_VAL1_BASE);
+			mpp_debug(DEBUG_GET_PERF_VAL, "sel[%d]:%u\n", sel1, regs[sel1]);
+		}
+		if (sel2) {
+			regs[sel2] = readl_relaxed(mpp->reg_base + RKVDEC_SEL_VAL2_BASE);
+			mpp_debug(DEBUG_GET_PERF_VAL, "sel[%d]:%u\n", sel2, regs[sel2]);
+		}
+	}
+
+	return 0;
+}
+
 static int rkvdec_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 {
 	u32 i;
@@ -411,9 +462,18 @@ static int rkvdec_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 		/* read register after running */
 		for (i = 0; i < task->r_req_cnt; i++) {
 			req = &task->r_reqs[i];
-			s = req->offset / sizeof(u32);
-			e = s + req->size / sizeof(u32);
-			mpp_read_req(mpp, task->reg, s, e);
+			/* read perf register */
+			if (req->offset >= RKVDEC_PERF_SEL_OFFSET) {
+				int off = req->offset - RKVDEC_PERF_SEL_OFFSET;
+
+				s = off / sizeof(u32);
+				e = s + req->size / sizeof(u32);
+				rkvenc_read_perf_sel(mpp, task->reg_sel, s, e);
+			} else {
+				s = req->offset / sizeof(u32);
+				e = s + req->size / sizeof(u32);
+				mpp_read_req(mpp, task->reg, s, e);
+			}
 		}
 		/* revert hack for irq status */
 		task->reg[RKVDEC_REG_INT_EN_INDEX] = task->irq_status;
@@ -440,15 +500,25 @@ static int rkvdec_result(struct mpp_dev *mpp,
 	struct mpp_request *req;
 	struct rkvdec_task *task = to_rkvdec_task(mpp_task);
 
-	/* FIXME may overflow the kernel */
 	for (i = 0; i < task->r_req_cnt; i++) {
 		req = &task->r_reqs[i];
 
-		if (copy_to_user(req->data,
-				 (u8 *)task->reg + req->offset,
-				 req->size)) {
-			mpp_err("copy_to_user reg fail\n");
-			return -EIO;
+		if (req->offset >= RKVDEC_PERF_SEL_OFFSET) {
+			int off = req->offset - RKVDEC_PERF_SEL_OFFSET;
+
+			if (copy_to_user(req->data,
+					 (u8 *)task->reg_sel + off,
+					 req->size)) {
+				mpp_err("copy_to_user perf_sel fail\n");
+				return -EIO;
+			}
+		} else {
+			if (copy_to_user(req->data,
+					 (u8 *)task->reg + req->offset,
+					 req->size)) {
+				mpp_err("copy_to_user reg fail\n");
+				return -EIO;
+			}
 		}
 	}
 
@@ -479,6 +549,13 @@ static int rkvdec_procfs_remove(struct mpp_dev *mpp)
 	return 0;
 }
 
+static int rkvdec_show_pref_sel_offset(struct seq_file *file, void *v)
+{
+	seq_printf(file, "0x%08x\n", RKVDEC_PERF_SEL_OFFSET);
+
+	return 0;
+}
+
 static int rkvdec_procfs_init(struct mpp_dev *mpp)
 {
 	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
@@ -499,6 +576,8 @@ static int rkvdec_procfs_init(struct mpp_dev *mpp)
 			      dec->procfs, &dec->hevc_cabac_clk_info.debug_rate_hz);
 	mpp_procfs_create_u32("session_buffers", 0644,
 			      dec->procfs, &mpp->session_max_buffers);
+	proc_create_single("perf_sel_offset", 0444,
+			   dec->procfs, rkvdec_show_pref_sel_offset);
 
 	return 0;
 }
