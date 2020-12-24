@@ -234,6 +234,7 @@ static void signal_irq_work(struct irq_work *work)
 		intel_breadcrumbs_disarm_irq(b);
 
 	rcu_read_lock();
+	atomic_inc(&b->signaler_active);
 	list_for_each_entry_rcu(ce, &b->signalers, signal_link) {
 		struct i915_request *rq;
 
@@ -269,6 +270,7 @@ static void signal_irq_work(struct irq_work *work)
 			}
 		}
 	}
+	atomic_dec(&b->signaler_active);
 	rcu_read_unlock();
 
 	llist_for_each_safe(signal, sn, signal) {

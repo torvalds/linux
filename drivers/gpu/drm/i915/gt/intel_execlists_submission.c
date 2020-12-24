@@ -594,7 +594,8 @@ static void kick_siblings(struct i915_request *rq, struct intel_context *ce)
 		 * ce->signal_link.
 		 */
 		i915_request_cancel_breadcrumb(rq);
-		irq_work_sync(&engine->breadcrumbs->irq_work);
+		while (atomic_read(&engine->breadcrumbs->signaler_active))
+			cpu_relax();
 	}
 
 	if (READ_ONCE(ve->request))
