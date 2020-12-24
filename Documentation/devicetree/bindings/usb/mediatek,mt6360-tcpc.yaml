@@ -50,6 +50,11 @@ examples:
       mt6360@34 {
         compatible = "mediatek,mt6360";
         reg = <0x34>;
+        interrupts-extended = <&gpio26 0 IRQ_TYPE_LEVEL_LOW>;
+        interrupt-names = "IRQB";
+        interrupt-controller;
+        #interrupt-cells = <1>;
+
         tcpc {
           compatible = "mediatek,mt6360-tcpc";
           interrupts-extended = <&gpio26 3 IRQ_TYPE_LEVEL_LOW>;
