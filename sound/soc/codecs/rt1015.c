@@ -864,14 +864,6 @@ static int rt1015_set_component_pll(struct snd_soc_component *component,
 		freq_out == rt1015->pll_out)
 		return 0;
 
-	if (source == RT1015_PLL_S_BCLK) {
-		if (rt1015->bclk_ratio == 0) {
-			dev_err(component->dev,
-				"Can not support bclk ratio as 0.\n");
-			return -EINVAL;
-		}
-	}
-
 	switch (source) {
 	case RT1015_PLL_S_MCLK:
 		snd_soc_component_update_bits(component, RT1015_CLK2,
@@ -907,23 +899,6 @@ static int rt1015_set_component_pll(struct snd_soc_component *component,
 	rt1015->pll_in = freq_in;
 	rt1015->pll_out = freq_out;
 	rt1015->pll_src = source;
-
-	return 0;
-}
-
-static int rt1015_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
-{
-	struct snd_soc_component *component = dai->component;
-	struct rt1015_priv *rt1015 = snd_soc_component_get_drvdata(component);
-
-	dev_dbg(component->dev, "%s ratio=%d\n", __func__, ratio);
-
-	rt1015->bclk_ratio = ratio;
-
-	if (ratio == 50) {
-		dev_dbg(component->dev, "Unsupport bclk ratio\n");
-		return -EINVAL;
-	}
 
 	return 0;
 }
@@ -1034,8 +1009,6 @@ static int rt1015_probe(struct snd_soc_component *component)
 		snd_soc_component_get_drvdata(component);
 
 	rt1015->component = component;
-	rt1015->bclk_ratio = 0;
-
 	INIT_DELAYED_WORK(&rt1015->flush_work, rt1015_flush_work);
 
 	return 0;
@@ -1056,7 +1029,6 @@ static void rt1015_remove(struct snd_soc_component *component)
 static struct snd_soc_dai_ops rt1015_aif_dai_ops = {
 	.hw_params = rt1015_hw_params,
 	.set_fmt = rt1015_set_dai_fmt,
-	.set_bclk_ratio = rt1015_set_bclk_ratio,
 	.set_tdm_slot = rt1015_set_tdm_slot,
 };
 

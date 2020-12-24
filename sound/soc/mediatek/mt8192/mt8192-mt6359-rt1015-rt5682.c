@@ -46,12 +46,6 @@ static int mt8192_rt1015_i2s_hw_params(struct snd_pcm_substream *substream,
 	int ret, i;
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
-		ret = snd_soc_dai_set_bclk_ratio(codec_dai, 64);
-		if (ret) {
-			dev_err(card->dev, "failed to set bclk ratio\n");
-			return ret;
-		}
-
 		ret = snd_soc_dai_set_pll(codec_dai, 0,
 					  RT1015_PLL_S_BCLK,
 					  params_rate(params) * 64,

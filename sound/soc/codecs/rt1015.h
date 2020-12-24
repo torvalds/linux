@@ -427,7 +427,6 @@ struct rt1015_priv {
 	struct regmap *regmap;
 	int sysclk;
 	int sysclk_src;
-	int bclk_ratio;
 	int pll_src;
 	int pll_in;
 	int pll_out;
