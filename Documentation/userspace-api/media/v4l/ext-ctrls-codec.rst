@@ -1513,6 +1513,26 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     * - Bit 16:32
       - Layer number
 
+``V4L2_CID_MPEG_VIDEO_H264_HIER_CODING_L0_BR (integer)``
+    Indicates bit rate (bps) for hierarchical coding layer 0 for H264 encoder.
+
+``V4L2_CID_MPEG_VIDEO_H264_HIER_CODING_L1_BR (integer)``
+    Indicates bit rate (bps) for hierarchical coding layer 1 for H264 encoder.
+
+``V4L2_CID_MPEG_VIDEO_H264_HIER_CODING_L2_BR (integer)``
+    Indicates bit rate (bps) for hierarchical coding layer 2 for H264 encoder.
+
+``V4L2_CID_MPEG_VIDEO_H264_HIER_CODING_L3_BR (integer)``
+    Indicates bit rate (bps) for hierarchical coding layer 3 for H264 encoder.
+
+``V4L2_CID_MPEG_VIDEO_H264_HIER_CODING_L4_BR (integer)``
+    Indicates bit rate (bps) for hierarchical coding layer 4 for H264 encoder.
+
+``V4L2_CID_MPEG_VIDEO_H264_HIER_CODING_L5_BR (integer)``
+    Indicates bit rate (bps) for hierarchical coding layer 5 for H264 encoder.
+
+``V4L2_CID_MPEG_VIDEO_H264_HIER_CODING_L6_BR (integer)``
+    Indicates bit rate (bps) for hierarchical coding layer 6 for H264 encoder.
 
 .. _v4l2-mpeg-mpeg2:
 
