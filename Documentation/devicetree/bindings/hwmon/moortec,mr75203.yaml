@@ -32,7 +32,7 @@ properties:
       PVT controller has 5 VM (voltage monitor) sensors.
       vm-map defines CPU core to VM instance mapping. A
       value of 0xff means that VM sensor is unused.
-    $ref: /schemas/types.yaml#definitions/uint8-array
+    $ref: /schemas/types.yaml#/definitions/uint8-array
     maxItems: 5
 
   clocks:

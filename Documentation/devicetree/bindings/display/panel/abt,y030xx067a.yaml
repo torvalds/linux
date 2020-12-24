@@ -32,7 +32,7 @@ required:
   - power-supply
   - reset-gpios
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

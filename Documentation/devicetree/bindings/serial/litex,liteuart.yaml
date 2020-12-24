@@ -29,6 +29,8 @@ required:
   - compatible
   - reg
 
+additionalProperties: false
+
 examples:
   - |
     uart0: serial@e0001800 {
