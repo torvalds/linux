@@ -216,6 +216,8 @@ struct vop2_plane_state {
 	dma_addr_t yrgb_mst;
 	dma_addr_t uv_mst;
 	bool afbc_en;
+	bool hdr_in;
+	bool hdr2sdr_en;
 	bool r2y_en;
 	bool y2r_en;
 	uint32_t csc_mode;
@@ -349,6 +351,11 @@ struct vop2_video_port {
 	 *
 	 */
 	bool hdr_out;
+	/*
+	 * @sdr2hdr_en: All the ui plane need to do sdr2hdr for a hdr_out enabled vp.
+	 *
+	 */
+	bool sdr2hdr_en;
 
 	/**
 	 * @bg_ovl_dly: The timing delay from background layer
@@ -1286,18 +1293,29 @@ static void vop2_disable_all_planes_for_crtc(struct drm_crtc *crtc)
  * 11. RGB       --> bypass                --> RGB_OUTPUT(709)
  */
 
-static void vop2_setup_csc_mode(struct rockchip_crtc_state *vcstate,
+static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 				struct vop2_plane_state *vpstate)
 {
 	struct drm_plane_state *pstate = &vpstate->base;
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(vp->crtc.state);
 	int is_input_yuv = is_yuv_support(pstate->fb->format->format);
-	int is_output_yuv = is_yuv_output(vcstate->bus_format);
+	int is_output_yuv = vcstate->yuv_overlay;
 	int input_csc = vpstate->color_space;
 	int output_csc = vcstate->color_space;
 
 	vpstate->y2r_en = 0;
 	vpstate->r2y_en = 0;
 	vpstate->csc_mode = 0;
+
+	/* hdr2sdr and sdr2hdr will do csc itself */
+	if (vpstate->hdr2sdr_en) {
+	/* This is hdr2sdr enabled plane */
+		return;
+	} else if (!vpstate->hdr_in && vp->sdr2hdr_en) {
+	/* This is sdr2hdr enabled plane */
+		return;
+	}
+
 	if (is_input_yuv && !is_output_yuv) {
 		vpstate->y2r_en = 1;
 		vpstate->csc_mode = vop2_convert_csc_mode(input_csc);
@@ -1872,8 +1890,8 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	struct drm_plane_state *pstate = plane->state;
 	struct drm_crtc *crtc = pstate->crtc;
 	struct vop2_win *win = to_vop2_win(plane);
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2_plane_state *vpstate = to_vop2_plane_state(pstate);
-	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	struct vop2 *vop2 = win->vop2;
 	struct drm_framebuffer *fb = pstate->fb;
@@ -1963,7 +1981,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 
 	format = vop2_convert_format(fb->format->format);
 
-	vop2_setup_csc_mode(vcstate, vpstate);
+	vop2_setup_csc_mode(vp, vpstate);
 
 	spin_lock(&vop2->reg_lock);
 
@@ -3134,7 +3152,6 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	else
 		out_mode = vcstate->output_mode;
 	VOP_MODULE_SET(vop2, vp, out_mode, out_mode);
-	VOP_MODULE_SET(vop2, vp, overlay_mode, is_yuv_output(vcstate->bus_format));
 
 	if (vop2_output_uv_swap(vcstate->bus_format, vcstate->output_mode))
 		VOP_MODULE_SET(vop2, vp, dsp_data_swap, DSP_RB_SWAP);
@@ -3190,11 +3207,6 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 
 	clk_set_rate(vp->dclk, adjusted_mode->crtc_clock * 1000);
 
-	if (is_yuv_output(vcstate->bus_format))
-		val = 0x20010200;
-	else
-		val = 0;
-	VOP_MODULE_SET(vop2, vp, dsp_background, val);
 	vop2_post_config(crtc);
 
 	vop2_cfg_done(crtc);
@@ -3236,8 +3248,8 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 	bool hdr2sdr_en = 0;
 	bool sdr2hdr_en = 0;
 	bool sdr2hdr_tf = 0;
-	bool hdr2sdr_tf_update = 1;
-	bool sdr2hdr_tf_update = 1;
+	bool hdr2sdr_tf_update = 0;
+	bool sdr2hdr_tf_update = 0;
 
 	/*
 	 * Check whether this video port support hdr or not
@@ -3264,8 +3276,12 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 	if (vp->hdr_in && !vp->hdr_out)
 		hdr2sdr_en = 1;
 
-	if (vp->hdr_out)
+	if (vp->hdr_out && (vp->nr_wins > 1))
 		sdr2hdr_en = 1;
+
+	vp->sdr2hdr_en = sdr2hdr_en;
+	vpstate->hdr_in = hdr_en;
+	vpstate->hdr2sdr_en = hdr2sdr_en;
 
 	if (sdr2hdr_en) {
 		sdr2hdr_r2r_mode = BT709_TO_BT2020;
@@ -3277,8 +3293,13 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 
 	VOP_MODULE_SET(vop2, vp, hdr10_en, hdr_en);
 
-	if (hdr2sdr_en || sdr2hdr_en)
+	if (hdr2sdr_en || sdr2hdr_en) {
+		/*
+		 * HDR2SDR and SDR2HDR must overlay in yuv color space
+		 */
+		vcstate->yuv_overlay = false;
 		VOP_MODULE_SET(vop2, vp, hdr_lut_mode, lut_mode);
+	}
 
 	if (hdr2sdr_en) {
 		if (hdr2sdr_tf_update)
@@ -3291,6 +3312,7 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 		VOP_MODULE_SET(vop2, vp, hdr2sdr_normfacgamma, hdr_table->hdr2sdr_normfacgamma);
 	}
 	VOP_MODULE_SET(vop2, vp, hdr2sdr_en, hdr2sdr_en);
+	VOP_MODULE_SET(vop2, vp, hdr2sdr_bypass_en, !hdr2sdr_en);
 
 	if (sdr2hdr_en) {
 		if (sdr2hdr_tf_update)
@@ -3778,9 +3800,19 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 			    struct drm_crtc_state *old_crtc_state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2 *vop2 = vp->vop2;
+	uint32_t val;
 
 	spin_lock(&vop2->reg_lock);
+
+	VOP_MODULE_SET(vop2, vp, overlay_mode, vcstate->yuv_overlay);
+
+	if (vcstate->yuv_overlay)
+		val = 0x20010200;
+	else
+		val = 0;
+	VOP_MODULE_SET(vop2, vp, dsp_background, val);
 
 	vop2_tv_config_update(crtc, old_crtc_state);
 

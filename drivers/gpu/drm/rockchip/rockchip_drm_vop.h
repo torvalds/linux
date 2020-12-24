@@ -557,8 +557,10 @@ struct vop2_video_port_regs {
 	struct vop_reg sdr2hdr_r2r_mode;
 	struct vop_reg sdr2hdr_oetf_en;
 	struct vop_reg sdr2hdr_bypass_en;
-	struct vop_reg sdr2hdr_gating_en;
+	struct vop_reg sdr2hdr_auto_gating_en;
 	struct vop_reg hdr2sdr_en;
+	struct vop_reg hdr2sdr_bypass_en;
+	struct vop_reg hdr2sdr_auto_gating_en;
 	struct vop_reg hdr2sdr_src_min;
 	struct vop_reg hdr2sdr_src_max;
 	struct vop_reg hdr2sdr_normfaceetf;
