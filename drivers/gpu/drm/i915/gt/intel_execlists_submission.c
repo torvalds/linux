@@ -571,8 +571,7 @@ __execlists_schedule_in(struct i915_request *rq)
 	return engine;
 }
 
-static inline struct i915_request *
-execlists_schedule_in(struct i915_request *rq, int idx)
+static inline void execlists_schedule_in(struct i915_request *rq, int idx)
 {
 	struct intel_context * const ce = rq->context;
 	struct intel_engine_cs *old;
@@ -589,7 +588,6 @@ execlists_schedule_in(struct i915_request *rq, int idx)
 	} while (!try_cmpxchg(&ce->inflight, &old, ptr_inc(old)));
 
 	GEM_BUG_ON(intel_context_inflight(ce) != rq->engine);
-	return i915_request_get(rq);
 }
 
 static void kick_siblings(struct i915_request *rq, struct intel_context *ce)
@@ -1257,8 +1255,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct i915_request **port = execlists->pending;
 	struct i915_request ** const last_port = port + execlists->port_mask;
-	struct i915_request * const *active;
-	struct i915_request *last;
+	struct i915_request *last = *execlists->active;
 	struct rb_node *rb;
 	bool submit = false;
 
@@ -1283,6 +1280,8 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	 * sequence of requests as being the most optimal (fewest wake ups
 	 * and context switches) submission.
 	 */
+
+	spin_lock(&engine->active.lock);
 
 	for (rb = rb_first_cached(&execlists->virtual); rb; ) {
 		struct virtual_engine *ve =
@@ -1311,10 +1310,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	 * the active context to interject the preemption request,
 	 * i.e. we will retrigger preemption following the ack in case
 	 * of trouble.
-	 */
-	active = READ_ONCE(execlists->active);
-
-	/*
+	 *
 	 * In theory we can skip over completed contexts that have not
 	 * yet been processed by events (as those events are in flight):
 	 *
@@ -1326,7 +1322,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	 * completed and barf.
 	 */
 
-	if ((last = *active)) {
+	if (last) {
 		if (i915_request_completed(last)) {
 			goto check_secondary;
 		} else if (need_preempt(engine, last, rb)) {
@@ -1399,6 +1395,7 @@ check_secondary:
 				 * Even if ELSP[1] is occupied and not worthy
 				 * of timeslices, our queue might be.
 				 */
+				spin_unlock(&engine->active.lock);
 				start_timeslice(engine, queue_prio(execlists));
 				return;
 			}
@@ -1434,6 +1431,7 @@ check_secondary:
 
 			if (last && !can_merge_rq(last, rq)) {
 				spin_unlock(&ve->base.active.lock);
+				spin_unlock(&engine->active.lock);
 				start_timeslice(engine, rq_prio(rq));
 				return; /* leave this for another sibling */
 			}
@@ -1551,8 +1549,7 @@ check_secondary:
 
 			if (__i915_request_submit(rq)) {
 				if (!merge) {
-					*port = execlists_schedule_in(last, port - execlists->pending);
-					port++;
+					*port++ = i915_request_get(last);
 					last = NULL;
 				}
 
@@ -1571,8 +1568,9 @@ check_secondary:
 		rb_erase_cached(&p->node, &execlists->queue);
 		i915_priolist_free(p);
 	}
-
 done:
+	*port++ = i915_request_get(last);
+
 	/*
 	 * Here be a bit of magic! Or sleight-of-hand, whichever you prefer.
 	 *
@@ -1590,34 +1588,43 @@ done:
 	 * interrupt for secondary ports).
 	 */
 	execlists->queue_priority_hint = queue_prio(execlists);
+	spin_unlock(&engine->active.lock);
 
 	if (submit) {
-		*port = execlists_schedule_in(last, port - execlists->pending);
-		execlists->switch_priority_hint =
-			switch_prio(engine, *execlists->pending);
-
 		/*
 		 * Skip if we ended up with exactly the same set of requests,
 		 * e.g. trying to timeslice a pair of ordered contexts
 		 */
-		if (!memcmp(active, execlists->pending,
-			    (port - execlists->pending + 1) * sizeof(*port))) {
-			do
-				execlists_schedule_out(fetch_and_zero(port));
-			while (port-- != execlists->pending);
-
+		if (!memcmp(execlists->active,
+			    execlists->pending,
+			    (port - execlists->pending) * sizeof(*port)))
 			goto skip_submit;
-		}
-		clear_ports(port + 1, last_port - port);
+
+		*port = NULL;
+		while (port-- != execlists->pending)
+			execlists_schedule_in(*port, port - execlists->pending);
+
+		execlists->switch_priority_hint =
+			switch_prio(engine, *execlists->pending);
 
 		WRITE_ONCE(execlists->yield, -1);
-		set_preempt_timeout(engine, *active);
+		set_preempt_timeout(engine, *execlists->active);
 		execlists_submit_ports(engine);
 	} else {
 		start_timeslice(engine, execlists->queue_priority_hint);
 skip_submit:
 		ring_set_paused(engine, 0);
+		while (port-- != execlists->pending)
+			i915_request_put(*port);
+		*execlists->pending = NULL;
 	}
+}
+
+static void execlists_dequeue_irq(struct intel_engine_cs *engine)
+{
+	local_irq_disable(); /* Suspend interrupts across request submission */
+	execlists_dequeue(engine);
+	local_irq_enable(); /* flush irq_work (e.g. breadcrumb enabling) */
 }
 
 static void
@@ -1960,16 +1967,6 @@ static void process_csb(struct intel_engine_cs *engine)
 	 * invalidation before.
 	 */
 	invalidate_csb_entries(&buf[0], &buf[num_entries - 1]);
-}
-
-static void __execlists_submission_tasklet(struct intel_engine_cs *const engine)
-{
-	lockdep_assert_held(&engine->active.lock);
-	if (!READ_ONCE(engine->execlists.pending[0])) {
-		rcu_read_lock(); /* protect peeking at execlists->active */
-		execlists_dequeue(engine);
-		rcu_read_unlock();
-	}
 }
 
 static void __execlists_hold(struct i915_request *rq)
@@ -2363,7 +2360,7 @@ static bool preempt_timeout(const struct intel_engine_cs *const engine)
 	if (!timer_expired(t))
 		return false;
 
-	return READ_ONCE(engine->execlists.pending[0]);
+	return engine->execlists.pending[0];
 }
 
 /*
@@ -2373,9 +2370,13 @@ static bool preempt_timeout(const struct intel_engine_cs *const engine)
 static void execlists_submission_tasklet(unsigned long data)
 {
 	struct intel_engine_cs * const engine = (struct intel_engine_cs *)data;
-	bool timeout = preempt_timeout(engine);
 
 	process_csb(engine);
+
+	if (unlikely(preempt_timeout(engine))) {
+		cancel_timer(&engine->execlists.preempt);
+		engine->execlists.error_interrupt |= ERROR_PREEMPT;
+	}
 
 	if (unlikely(READ_ONCE(engine->execlists.error_interrupt))) {
 		const char *msg;
@@ -2385,6 +2386,8 @@ static void execlists_submission_tasklet(unsigned long data)
 			msg = "CS error"; /* thrown by a user payload */
 		else if (engine->execlists.error_interrupt & ERROR_CSB)
 			msg = "invalid CSB event";
+		else if (engine->execlists.error_interrupt & ERROR_PREEMPT)
+			msg = "preemption time out";
 		else
 			msg = "internal error";
 
@@ -2392,19 +2395,8 @@ static void execlists_submission_tasklet(unsigned long data)
 		execlists_reset(engine, msg);
 	}
 
-	if (!READ_ONCE(engine->execlists.pending[0]) || timeout) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&engine->active.lock, flags);
-		__execlists_submission_tasklet(engine);
-		spin_unlock_irqrestore(&engine->active.lock, flags);
-
-		/* Recheck after serialising with direct-submission */
-		if (unlikely(timeout && preempt_timeout(engine))) {
-			cancel_timer(&engine->execlists.preempt);
-			execlists_reset(engine, "preemption time out");
-		}
-	}
+	if (!engine->execlists.pending[0])
+		execlists_dequeue_irq(engine);
 }
 
 static void __execlists_kick(struct intel_engine_execlists *execlists)
@@ -2435,26 +2427,16 @@ static void queue_request(struct intel_engine_cs *engine,
 	set_bit(I915_FENCE_FLAG_PQUEUE, &rq->fence.flags);
 }
 
-static void __submit_queue_imm(struct intel_engine_cs *engine)
-{
-	struct intel_engine_execlists * const execlists = &engine->execlists;
-
-	if (reset_in_progress(execlists))
-		return; /* defer until we restart the engine following reset */
-
-	__execlists_submission_tasklet(engine);
-}
-
-static void submit_queue(struct intel_engine_cs *engine,
+static bool submit_queue(struct intel_engine_cs *engine,
 			 const struct i915_request *rq)
 {
 	struct intel_engine_execlists *execlists = &engine->execlists;
 
 	if (rq_prio(rq) <= execlists->queue_priority_hint)
-		return;
+		return false;
 
 	execlists->queue_priority_hint = rq_prio(rq);
-	__submit_queue_imm(engine);
+	return true;
 }
 
 static bool ancestor_on_hold(const struct intel_engine_cs *engine,
@@ -2464,24 +2446,10 @@ static bool ancestor_on_hold(const struct intel_engine_cs *engine,
 	return !list_empty(&engine->active.hold) && hold_request(rq);
 }
 
-static void flush_csb(struct intel_engine_cs *engine)
-{
-	struct intel_engine_execlists *el = &engine->execlists;
-
-	if (READ_ONCE(el->pending[0]) && tasklet_trylock(&el->tasklet)) {
-		if (!reset_in_progress(el))
-			process_csb(engine);
-		tasklet_unlock(&el->tasklet);
-	}
-}
-
 static void execlists_submit_request(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
 	unsigned long flags;
-
-	/* Hopefully we clear execlists->pending[] to let us through */
-	flush_csb(engine);
 
 	/* Will be called from irq-context when using foreign fences. */
 	spin_lock_irqsave(&engine->active.lock, flags);
@@ -2496,7 +2464,8 @@ static void execlists_submit_request(struct i915_request *request)
 		GEM_BUG_ON(RB_EMPTY_ROOT(&engine->execlists.queue.rb_root));
 		GEM_BUG_ON(list_empty(&request->sched.link));
 
-		submit_queue(engine, request);
+		if (submit_queue(engine, request))
+			__execlists_kick(&engine->execlists);
 	}
 
 	spin_unlock_irqrestore(&engine->active.lock, flags);
@@ -2837,7 +2806,6 @@ static int execlists_resume(struct intel_engine_cs *engine)
 static void execlists_reset_prepare(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
-	unsigned long flags;
 
 	ENGINE_TRACE(engine, "depth<-%d\n",
 		     atomic_read(&execlists->tasklet.count));
@@ -2853,10 +2821,6 @@ static void execlists_reset_prepare(struct intel_engine_cs *engine)
 	 */
 	__tasklet_disable_sync_once(&execlists->tasklet);
 	GEM_BUG_ON(!reset_in_progress(execlists));
-
-	/* And flush any current direct submission. */
-	spin_lock_irqsave(&engine->active.lock, flags);
-	spin_unlock_irqrestore(&engine->active.lock, flags);
 
 	/*
 	 * We stop engines, otherwise we might get failed reset and a
@@ -3082,12 +3046,12 @@ static void execlists_reset_finish(struct intel_engine_cs *engine)
 	 * to sleep before we restart and reload a context.
 	 */
 	GEM_BUG_ON(!reset_in_progress(execlists));
-	if (!RB_EMPTY_ROOT(&execlists->queue.rb_root))
-		execlists->tasklet.func(execlists->tasklet.data);
+	GEM_BUG_ON(engine->execlists.pending[0]);
 
+	/* And kick in case we missed a new request submission. */
 	if (__tasklet_enable(&execlists->tasklet))
-		/* And kick in case we missed a new request submission. */
-		tasklet_hi_schedule(&execlists->tasklet);
+		__execlists_kick(execlists);
+
 	ENGINE_TRACE(engine, "depth->%d\n",
 		     atomic_read(&execlists->tasklet.count));
 }

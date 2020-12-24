@@ -458,13 +458,9 @@ int i915_sched_node_add_dependency(struct i915_sched_node *node,
 	if (!dep)
 		return -ENOMEM;
 
-	local_bh_disable();
-
 	if (!__i915_sched_node_add_dependency(node, signal, dep,
 					      flags | I915_DEPENDENCY_ALLOC))
 		i915_dependency_free(dep);
-
-	local_bh_enable(); /* kick submission tasklet */
 
 	return 0;
 }

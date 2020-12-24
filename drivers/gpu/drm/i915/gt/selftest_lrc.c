@@ -1607,16 +1607,17 @@ static void garbage_reset(struct intel_engine_cs *engine,
 	const unsigned int bit = I915_RESET_ENGINE + engine->id;
 	unsigned long *lock = &engine->gt->reset.flags;
 
-	if (test_and_set_bit(bit, lock))
-		return;
+	local_bh_disable();
+	if (!test_and_set_bit(bit, lock)) {
+		tasklet_disable(&engine->execlists.tasklet);
 
-	tasklet_disable(&engine->execlists.tasklet);
+		if (!rq->fence.error)
+			__intel_engine_reset_bh(engine, NULL);
 
-	if (!rq->fence.error)
-		intel_engine_reset(engine, NULL);
-
-	tasklet_enable(&engine->execlists.tasklet);
-	clear_and_wake_up_bit(bit, lock);
+		tasklet_enable(&engine->execlists.tasklet);
+		clear_and_wake_up_bit(bit, lock);
+	}
+	local_bh_enable();
 }
 
 static struct i915_request *garbage(struct intel_context *ce,

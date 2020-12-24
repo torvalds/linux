@@ -327,10 +327,15 @@ static int igt_atomic_engine_reset(void *arg)
 		for (p = igt_atomic_phases; p->name; p++) {
 			GEM_TRACE("intel_engine_reset(%s) under %s\n",
 				  engine->name, p->name);
+			if (strcmp(p->name, "softirq"))
+				local_bh_disable();
 
 			p->critical_section_begin();
-			err = intel_engine_reset(engine, NULL);
+			err = __intel_engine_reset_bh(engine, NULL);
 			p->critical_section_end();
+
+			if (strcmp(p->name, "softirq"))
+				local_bh_enable();
 
 			if (err) {
 				pr_err("intel_engine_reset(%s) failed under %s\n",
@@ -341,6 +346,7 @@ static int igt_atomic_engine_reset(void *arg)
 
 		intel_engine_pm_put(engine);
 		tasklet_enable(&engine->execlists.tasklet);
+		tasklet_hi_schedule(&engine->execlists.tasklet);
 		if (err)
 			break;
 	}
