@@ -60,6 +60,24 @@
  * and related files, but that will be described in separate chapters.
  */
 
+/*
+ * Interrupt statistic for PMU. Increments the counter only if the
+ * interrupt originated from the the GPU so interrupts from a device which
+ * shares the interrupt line are not accounted.
+ */
+static inline void pmu_irq_stats(struct drm_i915_private *i915,
+				 irqreturn_t res)
+{
+	if (unlikely(res != IRQ_HANDLED))
+		return;
+
+	/*
+	 * A clever compiler translates that into INC. A not so clever one
+	 * should at least prevent store tearing.
+	 */
+	WRITE_ONCE(i915->pmu.irq_count, i915->pmu.irq_count + 1);
+}
+
 typedef bool (*long_pulse_detect_func)(enum hpd_pin pin, u32 val);
 typedef u32 (*hotplug_enables_func)(struct drm_i915_private *i915,
 				    enum hpd_pin pin);
@@ -1668,6 +1686,8 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		valleyview_pipestat_irq_handler(dev_priv, pipe_stats);
 	} while (0);
 
+	pmu_irq_stats(dev_priv, ret);
+
 	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	return ret;
@@ -1744,6 +1764,8 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 
 		valleyview_pipestat_irq_handler(dev_priv, pipe_stats);
 	} while (0);
+
+	pmu_irq_stats(dev_priv, ret);
 
 	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
@@ -2155,6 +2177,8 @@ static irqreturn_t ilk_irq_handler(int irq, void *arg)
 	if (sde_ier)
 		raw_reg_write(regs, SDEIER, sde_ier);
 
+	pmu_irq_stats(i915, ret);
+
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
 	enable_rpm_wakeref_asserts(&i915->runtime_pm);
 
@@ -2541,6 +2565,8 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 
 	gen8_master_intr_enable(regs);
 
+	pmu_irq_stats(dev_priv, IRQ_HANDLED);
+
 	return IRQ_HANDLED;
 }
 
@@ -2635,6 +2661,8 @@ __gen11_irq_handler(struct drm_i915_private * const i915,
 	intr_enable(regs);
 
 	gen11_gu_misc_irq_handler(gt, gu_misc_iir);
+
+	pmu_irq_stats(i915, IRQ_HANDLED);
 
 	return IRQ_HANDLED;
 }
@@ -3934,6 +3962,8 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		i8xx_pipestat_irq_handler(dev_priv, iir, pipe_stats);
 	} while (0);
 
+	pmu_irq_stats(dev_priv, ret);
+
 	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	return ret;
@@ -4042,6 +4072,8 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 
 		i915_pipestat_irq_handler(dev_priv, iir, pipe_stats);
 	} while (0);
+
+	pmu_irq_stats(dev_priv, ret);
 
 	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
@@ -4188,6 +4220,8 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 
 		i965_pipestat_irq_handler(dev_priv, iir, pipe_stats);
 	} while (0);
+
+	pmu_irq_stats(dev_priv, IRQ_HANDLED);
 
 	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
