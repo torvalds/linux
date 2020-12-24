@@ -1056,6 +1056,50 @@ static int vangogh_set_peak_clock_by_device(struct smu_context *smu)
 	return ret;
 }
 
+static int vangogh_set_performance_level(struct smu_context *smu,
+					enum amd_dpm_forced_level level)
+{
+	int ret = 0;
+	uint32_t soc_mask, mclk_mask, fclk_mask;
+
+	switch (level) {
+	case AMD_DPM_FORCED_LEVEL_HIGH:
+		ret = vangogh_force_dpm_limit_value(smu, true);
+		break;
+	case AMD_DPM_FORCED_LEVEL_LOW:
+		ret = vangogh_force_dpm_limit_value(smu, false);
+		break;
+	case AMD_DPM_FORCED_LEVEL_AUTO:
+		ret = vangogh_unforce_dpm_levels(smu);
+		break;
+	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
+		break;
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
+		break;
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
+		ret = vangogh_get_profiling_clk_mask(smu, level,
+							NULL,
+							NULL,
+							&mclk_mask,
+							&fclk_mask,
+							&soc_mask);
+		if (ret)
+			return ret;
+		vangogh_force_clk_levels(smu, SMU_MCLK, 1 << mclk_mask);
+		vangogh_force_clk_levels(smu, SMU_FCLK, 1 << fclk_mask);
+		vangogh_force_clk_levels(smu, SMU_SOCCLK, 1 << soc_mask);
+		break;
+	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+		ret = vangogh_set_peak_clock_by_device(smu);
+		break;
+	case AMD_DPM_FORCED_LEVEL_MANUAL:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
+	default:
+		break;
+	}
+	return ret;
+}
+
 static int vangogh_read_sensor(struct smu_context *smu,
 				 enum amd_pp_sensors sensor,
 				 void *data, uint32_t *size)
@@ -1138,7 +1182,7 @@ static int vangogh_set_watermarks_table(struct smu_context *smu,
 
 	if (clock_ranges) {
 		if (clock_ranges->num_reader_wm_sets > NUM_WM_RANGES ||
-		    clock_ranges->num_writer_wm_sets > NUM_WM_RANGES)
+			clock_ranges->num_writer_wm_sets > NUM_WM_RANGES)
 			return -EINVAL;
 
 		for (i = 0; i < clock_ranges->num_reader_wm_sets; i++) {
@@ -1449,6 +1493,7 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.set_power_profile_mode = vangogh_set_power_profile_mode,
 	.get_dpm_clock_table = vangogh_get_dpm_clock_table,
 	.force_clk_levels = vangogh_force_clk_levels,
+	.set_performance_level = vangogh_set_performance_level,
 	.post_init = vangogh_post_smu_init,
 };
 
