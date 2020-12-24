@@ -35,11 +35,11 @@
 #define SC500AI_LANES			4
 
 #define SC500AI_LINK_FREQ_198M		198000000 // 396Mbps
-#define SC500AI_LINK_FREQ_338M		338000000 // 675Mbps
+#define SC500AI_LINK_FREQ_405M		405000000 // 810Mbps
 
-#define SC500AI_MAX_PIXEL_RATE		(SC500AI_LINK_FREQ_338M / 10 * 2 * SC500AI_LANES)
+#define SC500AI_MAX_PIXEL_RATE		(SC500AI_LINK_FREQ_405M / 10 * 2 * SC500AI_LANES)
 
-#define SC500AI_XVCLK_FREQ		27000000
+#define SC500AI_XVCLK_FREQ		24000000
 
 #define SC500AI_CHIP_ID 		0xce1f
 #define SC500AI_REG_CHIP_ID		0x3107
@@ -178,36 +178,17 @@ struct sc500ai {
 #define to_sc500ai(sd) container_of(sd, struct sc500ai, subdev)
 
 /*
- * Xclk 27Mhz
+ * Xclk 24Mhz
  * max_framerate 30fps
  * mipi_datarate per lane 1008Mbps, 4lane
  */
-static const struct regval sc500ai_linear_10_2560x1440_regs[] = {
+static const struct regval sc500ai_linear_10_2880x1620_regs[] = {
 	{0x0103, 0x01},
 	{0x0100, 0x00},
 	{0x36e9, 0x80},
 	{0x36f9, 0x80},
-	{0x301f, 0x81},
-	{0x3200, 0x00},
-	{0x3201, 0xa0},
-	{0x3202, 0x00},
-	{0x3203, 0x5a},
-	{0x3204, 0x0a},
-	{0x3205, 0xa7},
-	{0x3206, 0x06},
-	{0x3207, 0x01},
-	{0x3208, 0x0a},
-	{0x3209, 0x00},
-	{0x320a, 0x05},
-	{0x320b, 0xa0},
-	{0x320c, 0x06},
-	{0x320d, 0x40},
-	{0x320e, 0x06},
-	{0x320f, 0x72},
-	{0x3210, 0x00},
-	{0x3211, 0x04},
-	{0x3212, 0x00},
-	{0x3213, 0x04},
+	{0x301f, 0x3c},
+	{0x3250, 0x40},
 	{0x3253, 0x0a},
 	{0x3301, 0x0a},
 	{0x3302, 0x18},
@@ -268,7 +249,14 @@ static const struct regval sc500ai_linear_10_2560x1440_regs[] = {
 	{0x3692, 0x54},
 	{0x369c, 0x48},
 	{0x369d, 0x78},
+	{0x36ea, 0x35},
+	{0x36eb, 0x0c},
 	{0x36ec, 0x1a},
+	{0x36ed, 0x34},
+	{0x36fa, 0x35},
+	{0x36fb, 0x35},
+	{0x36fc, 0x10},
+	{0x36fd, 0x34},
 	{0x3904, 0x04},
 	{0x3908, 0x41},
 	{0x391d, 0x04},
@@ -302,57 +290,39 @@ static const struct regval sc500ai_linear_10_2560x1440_regs[] = {
 	{0x59fb, 0x10},
 	{0x59fc, 0x0c},
 	{0x59ff, 0x02},
-	{0x36e9, 0x1c},
-	{0x36f9, 0x24},
+	{0x36e9, 0x20},
+	{0x36f9, 0x53},
 	{0x0100, 0x01},
 	{REG_NULL, 0x00},
 };
 
-static const struct regval sc500ai_hdr_10_2560x1440_regs[] = {
+static const struct regval sc500ai_hdr_10_2880x1620_regs[] = {
 	{0x0103, 0x01},
 	{0x0100, 0x00},
 	{0x36e9, 0x80},
 	{0x36f9, 0x80},
-	{0x301f, 0x12},
+	{0x301f, 0x3b},
 	{0x3106, 0x01},
-	{0x3200, 0x00},
-	{0x3201, 0xa0},
-	{0x3202, 0x00},
-	{0x3203, 0x5a},
-	{0x3204, 0x0a},
-	{0x3205, 0xa7},
-	{0x3206, 0x06},
-	{0x3207, 0x01},
-	{0x3208, 0x0a},
-	{0x3209, 0x00},
-	{0x320a, 0x05},
-	{0x320b, 0xa0},
-	{0x320c, 0x05},
-	{0x320d, 0xdc},
-	{0x320e, 0x0b},
-	{0x320f, 0xb8},
-	{0x3210, 0x00},
-	{0x3211, 0x04},
-	{0x3212, 0x00},
-	{0x3213, 0x04},
+	{0x320e, 0x0d},
+	{0x320f, 0x30},
 	{0x3220, 0x53},
-	{0x3250, 0x3f},
+	{0x3250, 0xff},
 	{0x3253, 0x0a},
 	{0x3301, 0x0b},
 	{0x3302, 0x20},
 	{0x3303, 0x10},
-	{0x3304, 0x60},
-	{0x3306, 0x40},
+	{0x3304, 0x70},
+	{0x3306, 0x50},
 	{0x3308, 0x18},
 	{0x3309, 0x80},
-	{0x330a, 0x01},
-	{0x330b, 0x04},
-	{0x330d, 0x28},
+	{0x330a, 0x00},
+	{0x330b, 0xe8},
+	{0x330d, 0x30},
 	{0x330e, 0x30},
 	{0x330f, 0x02},
 	{0x3310, 0x02},
 	{0x331c, 0x08},
-	{0x331e, 0x51},
+	{0x331e, 0x61},
 	{0x331f, 0x71},
 	{0x3320, 0x11},
 	{0x3333, 0x10},
@@ -402,40 +372,40 @@ static const struct regval sc500ai_hdr_10_2560x1440_regs[] = {
 	{0x3692, 0x54},
 	{0x369c, 0x48},
 	{0x369d, 0x78},
-	{0x36ea, 0x31},
+	{0x36ea, 0xf1},
 	{0x36eb, 0x04},
 	{0x36ec, 0x0a},
-	{0x36ed, 0x24},
-	{0x36fa, 0x31},
+	{0x36ed, 0x04},
+	{0x36fa, 0xf1},
 	{0x36fb, 0x04},
 	{0x36fc, 0x00},
-	{0x36fd, 0x26},
+	{0x36fd, 0x06},
 	{0x3904, 0x04},
 	{0x3908, 0x41},
 	{0x391f, 0x10},
 	{0x39c2, 0x30},
 	{0x3e00, 0x01},
-	{0x3e01, 0x5e},
+	{0x3e01, 0x8c},
 	{0x3e02, 0x00},
-	{0x3e04, 0x15},
-	{0x3e05, 0xe0},
+	{0x3e04, 0x18},
+	{0x3e05, 0xc0},
 	{0x3e23, 0x00},
-	{0x3e24, 0xb4},
+	{0x3e24, 0xcc},
 	{0x4500, 0x88},
 	{0x4509, 0x20},
-	{0x4800, 0x24},
-	{0x4837, 0x18},
+	{0x4800, 0x04},
+	{0x4837, 0x14},
 	{0x4853, 0xfd},
-	{0x36e9, 0x40},
-	{0x36f9, 0x40},
+	{0x36e9, 0x53},
+	{0x36f9, 0x53},
 	{0x0100, 0x01},
 	{REG_NULL, 0x00},
 };
 
 static const struct sc500ai_mode supported_modes[] = {
 	{
-		.width = 2560,
-		.height = 1440,
+		.width = 2880,
+		.height = 1620,
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 300000,
@@ -444,24 +414,24 @@ static const struct sc500ai_mode supported_modes[] = {
 		.hts_def = 0xb40,
 		.vts_def = 0x0672,
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
-		.reg_list = sc500ai_linear_10_2560x1440_regs,
+		.reg_list = sc500ai_linear_10_2880x1620_regs,
 		.mipi_freq_idx = 0,
 		.bpp = 10,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 	{
-		.width = 2560,
-		.height = 1440,
+		.width = 2880,
+		.height = 1620,
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 300000,
 		},
-		.exp_def = 0x15e0 / 2,
+		.exp_def = 0x18c0 / 2,
 		.hts_def = 0xb40,
-		.vts_def = 0x0bb8,
+		.vts_def = 0x0d30,
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
-		.reg_list = sc500ai_hdr_10_2560x1440_regs,
+		.reg_list = sc500ai_hdr_10_2880x1620_regs,
 		.mipi_freq_idx = 1,
 		.bpp = 10,
 		.hdr_mode = HDR_X2,
@@ -474,7 +444,7 @@ static const struct sc500ai_mode supported_modes[] = {
 
 static const s64 link_freq_items[] = {
 	SC500AI_LINK_FREQ_198M,
-	SC500AI_LINK_FREQ_338M
+	SC500AI_LINK_FREQ_405M
 };
 
 /* Write registers up to 4 at a time */
@@ -1313,6 +1283,32 @@ static int sc500ai_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 }
 #endif
 
+#define DST_WIDTH 2880
+#define DST_HEIGHT 1616
+
+/*
+ * The resolution of the driver configuration needs to be exactly
+ * the same as the current output resolution of the sensor,
+ * the input width of the isp needs to be 16 aligned,
+ * the input height of the isp needs to be 8 aligned.
+ * Can be cropped to standard resolution by this function,
+ * otherwise it will crop out strange resolution according
+ * to the alignment rules.
+ */
+static int sc500ai_get_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_selection *sel)
+{
+	if (sel->target == V4L2_SEL_TGT_CROP_BOUNDS) {
+		sel->r.left = 0;
+		sel->r.width = DST_WIDTH;
+		sel->r.top = 2;
+		sel->r.height = DST_HEIGHT;
+		return 0;
+	}
+	return -EINVAL;
+}
+
 static int sc500ai_enum_frame_interval(struct v4l2_subdev *sd,
                                        struct v4l2_subdev_pad_config *cfg,
                                        struct v4l2_subdev_frame_interval_enum *fie)
@@ -1359,6 +1355,7 @@ static const struct v4l2_subdev_pad_ops sc500ai_pad_ops = {
 	.enum_frame_interval = sc500ai_enum_frame_interval,
 	.get_fmt = sc500ai_get_fmt,
 	.set_fmt = sc500ai_set_fmt,
+	.get_selection = sc500ai_get_selection,
 };
 
 static const struct v4l2_subdev_ops sc500ai_subdev_ops = {
