@@ -550,15 +550,14 @@ static void rt1015_flush_work(struct work_struct *work)
 	struct rt1015_priv *rt1015 = container_of(work, struct rt1015_priv,
 						flush_work.work);
 	struct snd_soc_component *component = rt1015->component;
-	unsigned int val, i = 0, count = 200;
+	unsigned int val, i;
 
-	while (i < count) {
+	for (i = 0; i < 200; ++i) {
 		usleep_range(1000, 1500);
 		dev_dbg(component->dev, "Flush DAC (retry:%u)\n", i);
 		regmap_read(rt1015->regmap, RT1015_CLK_DET, &val);
 		if (val & 0x800)
 			break;
-		i++;
 	}
 
 	regmap_write(rt1015->regmap, RT1015_SYS_RST1, 0x0597);
@@ -1167,9 +1166,8 @@ static int rt1015_i2c_probe(struct i2c_client *i2c,
 	int ret;
 	unsigned int val;
 
-	rt1015 = devm_kzalloc(&i2c->dev, sizeof(struct rt1015_priv),
-				GFP_KERNEL);
-	if (rt1015 == NULL)
+	rt1015 = devm_kzalloc(&i2c->dev, sizeof(*rt1015), GFP_KERNEL);
+	if (!rt1015)
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, rt1015);
