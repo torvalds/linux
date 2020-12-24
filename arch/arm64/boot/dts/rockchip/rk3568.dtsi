@@ -942,8 +942,8 @@
 		upthreshold = <40>;
 		downdifferential = <10>;
 
-		clocks = <&cru CLK_GPU>;
-		clock-names = "clk_mali";
+		clocks = <&scmi_clk 1>, <&cru CLK_GPU>;
+		clock-names = "clk_mali", "clk_gpu";
 		power-domains = <&power RK3568_PD_GPU>;
 		#cooling-cells = <2>;
 		operating-points-v2 = <&gpu_opp_table>;
@@ -975,11 +975,15 @@
 		};
 		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <825000>;
+		};
+		opp-700000000 {
+			opp-hz = /bits/ 64 <700000000>;
 			opp-microvolt = <900000>;
 		};
 		opp-800000000 {
 			opp-hz = /bits/ 64 <800000000>;
-			opp-microvolt = <1075000>;
+			opp-microvolt = <1000000>;
 		};
 	};
 
