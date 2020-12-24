@@ -130,6 +130,7 @@ struct rk_pcie {
 	struct dma_trx_obj		*dma_obj;
 	bool				in_suspend;
 	bool				is_rk1808;
+	bool				is_signal_test;
 	bool				bifurcation;
 	struct regulator		*vpcie3v3;
 };
@@ -468,7 +469,7 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 
 	dev_err(pci->dev, "PCIe Link Fail\n");
 
-	return -EINVAL;
+	return rk_pcie->is_signal_test == true ? 0 : -EINVAL;
 }
 
 static int rk_pcie_host_init_dma_trx(struct rk_pcie *rk_pcie)
@@ -1211,6 +1212,7 @@ static int rk_pcie_really_probe(void *p)
 		val = dw_pcie_readl_dbi(pci, PCIE_PORT_LINK_CONTROL);
 		val |= PORT_LINK_LPBK_ENABLE;
 		dw_pcie_writel_dbi(pci, PCIE_PORT_LINK_CONTROL, val);
+		rk_pcie->is_signal_test = true;
 	}
 
 	/* Force into compliance mode */
@@ -1218,6 +1220,7 @@ static int rk_pcie_really_probe(void *p)
 		val = dw_pcie_readl_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS);
 		val |= BIT(4);
 		dw_pcie_writel_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS, val);
+		rk_pcie->is_signal_test = true;
 	}
 
 	switch (rk_pcie->mode) {
@@ -1228,6 +1231,9 @@ static int rk_pcie_really_probe(void *p)
 		ret = rk_pcie_add_ep(rk_pcie);
 		break;
 	}
+
+	if (rk_pcie->is_signal_test == true)
+		return 0;
 
 	if (ret)
 		goto deinit_clk;
