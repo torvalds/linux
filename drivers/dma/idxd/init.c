@@ -31,7 +31,7 @@ MODULE_AUTHOR("Intel Corporation");
 bool support_enqcmd;
 
 static struct idr idxd_idrs[IDXD_TYPE_MAX];
-static struct mutex idxd_idr_lock;
+static DEFINE_MUTEX(idxd_idr_lock);
 
 static struct pci_device_id idxd_pci_tbl[] = {
 	/* DSA ver 1.0 platforms */
@@ -544,7 +544,6 @@ static int __init idxd_init_module(void)
 	else
 		support_enqcmd = true;
 
-	mutex_init(&idxd_idr_lock);
 	for (i = 0; i < IDXD_TYPE_MAX; i++)
 		idr_init(&idxd_idrs[i]);
 
