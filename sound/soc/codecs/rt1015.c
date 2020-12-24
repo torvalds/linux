@@ -528,17 +528,19 @@ static int rt1015_bypass_boost_put(struct snd_kcontrol *kcontrol,
 	struct rt1015_priv *rt1015 =
 		snd_soc_component_get_drvdata(component);
 
-	if (!rt1015->dac_is_used) {
-		rt1015->bypass_boost = ucontrol->value.integer.value[0];
-		if (rt1015->bypass_boost == RT1015_Bypass_Boost &&
-			!rt1015->cali_done) {
-			rt1015_calibrate(rt1015);
-			rt1015->cali_done = 1;
-
-			regmap_write(rt1015->regmap, RT1015_MONO_DYNA_CTRL, 0x0010);
-		}
-	} else
+	if (rt1015->dac_is_used) {
 		dev_err(component->dev, "DAC is being used!\n");
+		return -EBUSY;
+	}
+
+	rt1015->bypass_boost = ucontrol->value.integer.value[0];
+	if (rt1015->bypass_boost == RT1015_Bypass_Boost &&
+			!rt1015->cali_done) {
+		rt1015_calibrate(rt1015);
+		rt1015->cali_done = 1;
+
+		regmap_write(rt1015->regmap, RT1015_MONO_DYNA_CTRL, 0x0010);
+	}
 
 	return 0;
 }
