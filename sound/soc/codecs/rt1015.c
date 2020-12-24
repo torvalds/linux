@@ -444,10 +444,9 @@ static int rt1015_boost_mode_put(struct snd_kcontrol *kcontrol,
 		snd_soc_kcontrol_component(kcontrol);
 	struct rt1015_priv *rt1015 =
 		snd_soc_component_get_drvdata(component);
+	int boost_mode = ucontrol->value.integer.value[0];
 
-	rt1015->boost_mode = ucontrol->value.integer.value[0];
-
-	switch (rt1015->boost_mode) {
+	switch (boost_mode) {
 	case BYPASS:
 		snd_soc_component_update_bits(component,
 			RT1015_SMART_BST_CTRL1, RT1015_ABST_AUTO_EN_MASK |
@@ -471,7 +470,10 @@ static int rt1015_boost_mode_put(struct snd_kcontrol *kcontrol,
 		break;
 	default:
 		dev_err(component->dev, "Unknown boost control.\n");
+		return -EINVAL;
 	}
+
+	rt1015->boost_mode = boost_mode;
 
 	return 0;
 }
