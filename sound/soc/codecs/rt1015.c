@@ -24,10 +24,10 @@
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
+#include <sound/rt1015.h>
 #include <sound/soc-dapm.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
-#include <sound/rt1015.h>
 
 #include "rl6231.h"
 #include "rt1015.h"
