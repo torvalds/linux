@@ -1,3 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
+config ROCKCHIP_CLK_COMPENSATION
+	bool "Rockchip Clk Compensation"
+	help
+	  Say y here to enable clk compensation(+/- 1000 ppm).
+
 source "drivers/clk/rockchip/regmap/Kconfig"

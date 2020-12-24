@@ -25,6 +25,7 @@
 #include <linux/regmap.h>
 #include <linux/clk.h>
 #include <linux/gcd.h>
+#include <linux/clk/rockchip.h>
 #include <linux/mfd/syscon.h>
 #include "clk.h"
 
@@ -1182,6 +1183,76 @@ static const struct clk_ops rockchip_rk3399_pll_clk_ops = {
 	.is_enabled = rockchip_rk3399_pll_is_enabled,
 	.init = rockchip_rk3399_pll_init,
 };
+
+#ifdef CONFIG_ROCKCHIP_CLK_COMPENSATION
+int rockchip_pll_clk_compensation(struct clk *clk, int ppm)
+{
+	struct clk *parent = clk_get_parent(clk);
+	struct rockchip_clk_pll *pll;
+	static u32 frac, fbdiv;
+	unsigned long m, n;
+	bool negative;
+	u32 pllcon, pllcon0, pllcon2, fbdiv_mask, frac_mask, frac_shift;
+	u64 fracdiv;
+
+	if ((ppm > 1000) || (ppm < -1000))
+		return -EINVAL;
+
+	if (IS_ERR_OR_NULL(parent))
+		return -EINVAL;
+
+	pll = to_rockchip_clk_pll(__clk_get_hw(parent));
+	if (!pll)
+		return -EINVAL;
+
+	switch (pll->type) {
+	case pll_rk3036:
+	case pll_rk3328:
+		pllcon0 = RK3036_PLLCON(0);
+		pllcon2 = RK3036_PLLCON(2);
+		fbdiv_mask = RK3036_PLLCON0_FBDIV_MASK;
+		frac_mask = RK3036_PLLCON2_FRAC_MASK;
+		frac_shift = RK3036_PLLCON2_FRAC_SHIFT;
+		break;
+	case pll_rk3066:
+		return -EINVAL;
+	case pll_rk3399:
+		pllcon0 = RK3399_PLLCON(0);
+		pllcon2 = RK3399_PLLCON(2);
+		fbdiv_mask = RK3399_PLLCON0_FBDIV_MASK;
+		frac_mask = RK3399_PLLCON2_FRAC_MASK;
+		frac_shift = RK3399_PLLCON2_FRAC_SHIFT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	negative = !!(ppm & BIT(31));
+	ppm = negative ? ~ppm + 1 : ppm;
+
+	if (!frac) {
+		frac = readl_relaxed(pll->reg_base + pllcon2) & frac_mask;
+		fbdiv = readl_relaxed(pll->reg_base + pllcon0) & fbdiv_mask;
+	}
+
+	m = frac * ppm;
+	n = ppm << 24;
+
+	fracdiv = negative ? frac - ((m / MHZ) + ((n / MHZ) * fbdiv)) :
+			     frac + ((m / MHZ) + ((n / MHZ) * fbdiv));
+
+	if (fracdiv > frac_mask)
+		return -EINVAL;
+
+	pllcon = readl_relaxed(pll->reg_base + pllcon2);
+	pllcon &= ~(frac_mask << frac_shift);
+	pllcon |= fracdiv << frac_shift;
+	writel_relaxed(pllcon, pll->reg_base + pllcon2);
+
+	return  0;
+}
+EXPORT_SYMBOL(rockchip_pll_clk_compensation);
+#endif
 
 /*
  * Common registering of pll clocks
