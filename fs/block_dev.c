@@ -605,6 +605,8 @@ int thaw_bdev(struct block_device *bdev)
 		error = thaw_super(sb);
 	if (error)
 		bdev->bd_fsfreeze_count++;
+	else
+		bdev->bd_fsfreeze_sb = NULL;
 out:
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
 	return error;
