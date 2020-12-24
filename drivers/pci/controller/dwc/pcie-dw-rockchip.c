@@ -1206,10 +1206,18 @@ static int rk_pcie_really_probe(void *p)
 	/* Set PCIe mode */
 	rk_pcie_set_mode(rk_pcie);
 
+	/* Force into loopback master mode */
 	if (device_property_read_bool(dev, "rockchip,lpbk-master")) {
 		val = dw_pcie_readl_dbi(pci, PCIE_PORT_LINK_CONTROL);
 		val |= PORT_LINK_LPBK_ENABLE;
 		dw_pcie_writel_dbi(pci, PCIE_PORT_LINK_CONTROL, val);
+	}
+
+	/* Force into compliance mode */
+	if (device_property_read_bool(dev, "rockchip,compliance-mode")) {
+		val = dw_pcie_readl_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS);
+		val |= BIT(4);
+		dw_pcie_writel_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS, val);
 	}
 
 	switch (rk_pcie->mode) {
