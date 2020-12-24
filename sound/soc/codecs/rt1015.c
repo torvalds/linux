@@ -704,11 +704,11 @@ static int rt1015_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct rt1015_priv *rt1015 = snd_soc_component_get_drvdata(component);
-	int pre_div, bclk_ms, frame_size;
+	int pre_div, bclk_ms, frame_size, lrck;
 	unsigned int val_len = 0;
 
-	rt1015->lrck = params_rate(params);
-	pre_div = rl6231_get_clk_info(rt1015->sysclk, rt1015->lrck);
+	lrck = params_rate(params);
+	pre_div = rl6231_get_clk_info(rt1015->sysclk, lrck);
 	if (pre_div < 0) {
 		dev_err(component->dev, "Unsupported clock rate\n");
 		return -EINVAL;
@@ -722,13 +722,12 @@ static int rt1015_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	bclk_ms = frame_size > 32;
-	rt1015->bclk = rt1015->lrck * (32 << bclk_ms);
 
 	dev_dbg(component->dev, "bclk_ms is %d and pre_div is %d for iis %d\n",
 				bclk_ms, pre_div, dai->id);
 
 	dev_dbg(component->dev, "lrck is %dHz and pre_div is %d for iis %d\n",
-				rt1015->lrck, pre_div, dai->id);
+				lrck, pre_div, dai->id);
 
 	switch (params_width(params)) {
 	case 16:
