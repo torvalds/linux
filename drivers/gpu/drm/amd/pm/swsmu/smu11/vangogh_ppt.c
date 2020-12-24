@@ -249,6 +249,12 @@ static int vangogh_get_smu_metrics_data(struct smu_context *smu,
 	case METRICS_AVERAGE_SOCCLK:
 		*value = metrics->SocclkFrequency;
 		break;
+	case METRICS_AVERAGE_VCLK:
+		*value = metrics->VclkFrequency;
+		break;
+	case METRICS_AVERAGE_DCLK:
+		*value = metrics->DclkFrequency;
+		break;
 	case METRICS_AVERAGE_UCLK:
 		*value = metrics->MemclkFrequency;
 		break;
@@ -434,6 +440,16 @@ static int vangogh_get_dpm_clk_limited(struct smu_context *smu, enum smu_clk_typ
 			return -EINVAL;
 		*freq = clk_table->SocClocks[dpm_level];
 		break;
+	case SMU_VCLK:
+		if (dpm_level >= clk_table->VcnClkLevelsEnabled)
+			return -EINVAL;
+		*freq = clk_table->VcnClocks[dpm_level].vclk;
+		break;
+	case SMU_DCLK:
+		if (dpm_level >= clk_table->VcnClkLevelsEnabled)
+			return -EINVAL;
+		*freq = clk_table->VcnClocks[dpm_level].dclk;
+		break;
 	case SMU_UCLK:
 	case SMU_MCLK:
 		if (dpm_level >= clk_table->NumDfPstatesEnabled)
@@ -486,10 +502,18 @@ static int vangogh_print_fine_grain_clk(struct smu_context *smu,
 		}
 		break;
 	case SMU_SOCCLK:
-	/* the level 3 ~ 6 of socclk use the same frequency for vangogh */
-	count = clk_table->NumSocClkLevelsEnabled;
-	cur_value = metrics.SocclkFrequency;
-	break;
+		/* the level 3 ~ 6 of socclk use the same frequency for vangogh */
+		count = clk_table->NumSocClkLevelsEnabled;
+		cur_value = metrics.SocclkFrequency;
+		break;
+	case SMU_VCLK:
+		count = clk_table->VcnClkLevelsEnabled;
+		cur_value = metrics.VclkFrequency;
+		break;
+	case SMU_DCLK:
+		count = clk_table->VcnClkLevelsEnabled;
+		cur_value = metrics.DclkFrequency;
+		break;
 	case SMU_MCLK:
 		count = clk_table->NumDfPstatesEnabled;
 		cur_value = metrics.MemclkFrequency;
@@ -506,6 +530,8 @@ static int vangogh_print_fine_grain_clk(struct smu_context *smu,
 
 	switch (clk_type) {
 	case SMU_SOCCLK:
+	case SMU_VCLK:
+	case SMU_DCLK:
 	case SMU_MCLK:
 	case SMU_FCLK:
 		for (i = 0; i < count; i++) {
