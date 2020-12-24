@@ -310,6 +310,19 @@ int devm_clk_register_regmap(struct device *dev, struct clk_regmap *rclk)
 }
 EXPORT_SYMBOL_GPL(devm_clk_register_regmap);
 
+/**
+ * devm_clk_regmap_list_node - Add a clk-regmap clock list for providers
+ *
+ * @rclk: clk to operate on
+ *
+ * Maintain clk-regmap clks list for providers use.
+ */
+void devm_clk_regmap_list_node(struct device *dev, struct clk_regmap *rclk)
+{
+	list_add(&rclk->list_node, &clk_regmap_list);
+}
+EXPORT_SYMBOL_GPL(devm_clk_regmap_list_node);
+
 int clk_runtime_get_regmap(struct clk_regmap *rclk)
 {
 	int ret;
