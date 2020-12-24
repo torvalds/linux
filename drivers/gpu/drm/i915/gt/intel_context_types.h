@@ -58,8 +58,12 @@ struct intel_context {
 
 	struct intel_engine_cs *engine;
 	struct intel_engine_cs *inflight;
-#define intel_context_inflight(ce) ptr_mask_bits(READ_ONCE((ce)->inflight), 2)
-#define intel_context_inflight_count(ce) ptr_unmask_bits(READ_ONCE((ce)->inflight), 2)
+#define __intel_context_inflight(engine) ptr_mask_bits(engine, 3)
+#define __intel_context_inflight_count(engine) ptr_unmask_bits(engine, 3)
+#define intel_context_inflight(ce) \
+	__intel_context_inflight(READ_ONCE((ce)->inflight))
+#define intel_context_inflight_count(ce) \
+	__intel_context_inflight_count(READ_ONCE((ce)->inflight))
 
 	struct i915_address_space *vm;
 	struct i915_gem_context __rcu *gem_context;
