@@ -785,6 +785,277 @@ static int vangogh_set_power_profile_mode(struct smu_context *smu, long *input, 
 	return 0;
 }
 
+static int vangogh_set_soft_freq_limited_range(struct smu_context *smu,
+					  enum smu_clk_type clk_type,
+					  uint32_t min,
+					  uint32_t max)
+{
+	int ret = 0;
+
+	if (!vangogh_clk_dpm_is_enabled(smu, clk_type))
+		return 0;
+
+	switch (clk_type) {
+	case SMU_GFXCLK:
+	case SMU_SCLK:
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+							SMU_MSG_SetHardMinGfxClk,
+							min, NULL);
+		if (ret)
+			return ret;
+
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+							SMU_MSG_SetSoftMaxGfxClk,
+							max, NULL);
+		if (ret)
+			return ret;
+		break;
+	case SMU_FCLK:
+	case SMU_MCLK:
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+							SMU_MSG_SetHardMinFclkByFreq,
+							min, NULL);
+		if (ret)
+			return ret;
+
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+							SMU_MSG_SetSoftMaxFclkByFreq,
+							max, NULL);
+		if (ret)
+			return ret;
+		break;
+	case SMU_SOCCLK:
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+							SMU_MSG_SetHardMinSocclkByFreq,
+							min, NULL);
+		if (ret)
+			return ret;
+
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+							SMU_MSG_SetSoftMaxSocclkByFreq,
+							max, NULL);
+		if (ret)
+			return ret;
+		break;
+	case SMU_VCLK:
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+							SMU_MSG_SetHardMinVcn,
+							min << 16, NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+							SMU_MSG_SetSoftMaxVcn,
+							max << 16, NULL);
+		if (ret)
+			return ret;
+		break;
+	case SMU_DCLK:
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+							SMU_MSG_SetHardMinVcn,
+							min, NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+							SMU_MSG_SetSoftMaxVcn,
+							max, NULL);
+		if (ret)
+			return ret;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+static int vangogh_force_clk_levels(struct smu_context *smu,
+				   enum smu_clk_type clk_type, uint32_t mask)
+{
+	uint32_t soft_min_level = 0, soft_max_level = 0;
+	uint32_t min_freq = 0, max_freq = 0;
+	int ret = 0 ;
+
+	soft_min_level = mask ? (ffs(mask) - 1) : 0;
+	soft_max_level = mask ? (fls(mask) - 1) : 0;
+
+	switch (clk_type) {
+	case SMU_SOCCLK:
+		ret = vangogh_get_dpm_clk_limited(smu, clk_type,
+						soft_min_level, &min_freq);
+		if (ret)
+			return ret;
+		ret = vangogh_get_dpm_clk_limited(smu, clk_type,
+						soft_max_level, &max_freq);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+								SMU_MSG_SetSoftMaxSocclkByFreq,
+								max_freq, NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+								SMU_MSG_SetHardMinSocclkByFreq,
+								min_freq, NULL);
+		if (ret)
+			return ret;
+		break;
+	case SMU_MCLK:
+	case SMU_FCLK:
+		ret = vangogh_get_dpm_clk_limited(smu,
+							clk_type, soft_min_level, &min_freq);
+		if (ret)
+			return ret;
+		ret = vangogh_get_dpm_clk_limited(smu,
+							clk_type, soft_max_level, &max_freq);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+								SMU_MSG_SetSoftMaxFclkByFreq,
+								max_freq, NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+								SMU_MSG_SetHardMinFclkByFreq,
+								min_freq, NULL);
+		if (ret)
+			return ret;
+		break;
+	case SMU_VCLK:
+		ret = vangogh_get_dpm_clk_limited(smu,
+							clk_type, soft_min_level, &min_freq);
+		if (ret)
+			return ret;
+		ret = vangogh_get_dpm_clk_limited(smu,
+							clk_type, soft_max_level, &max_freq);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+								SMU_MSG_SetSoftMaxVcn,
+								max_freq << 16, NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+								SMU_MSG_SetHardMinVcn,
+								min_freq << 16, NULL);
+		if (ret)
+			return ret;
+		break;
+	case SMU_DCLK:
+		ret = vangogh_get_dpm_clk_limited(smu,
+							clk_type, soft_min_level, &min_freq);
+		if (ret)
+			return ret;
+		ret = vangogh_get_dpm_clk_limited(smu,
+							clk_type, soft_max_level, &max_freq);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+							SMU_MSG_SetSoftMaxVcn,
+							max_freq, NULL);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+							SMU_MSG_SetHardMinVcn,
+							min_freq, NULL);
+		if (ret)
+			return ret;
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static int vangogh_force_dpm_limit_value(struct smu_context *smu, bool highest)
+{
+	int ret = 0, i = 0;
+	uint32_t min_freq, max_freq, force_freq;
+	enum smu_clk_type clk_type;
+
+	enum smu_clk_type clks[] = {
+		SMU_SOCCLK,
+		SMU_VCLK,
+		SMU_DCLK,
+		SMU_MCLK,
+		SMU_FCLK,
+	};
+
+	for (i = 0; i < ARRAY_SIZE(clks); i++) {
+		clk_type = clks[i];
+		ret = vangogh_get_dpm_ultimate_freq(smu, clk_type, &min_freq, &max_freq);
+		if (ret)
+			return ret;
+
+		force_freq = highest ? max_freq : min_freq;
+		ret = vangogh_set_soft_freq_limited_range(smu, clk_type, force_freq, force_freq);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+static int vangogh_unforce_dpm_levels(struct smu_context *smu)
+{
+	int ret = 0, i = 0;
+	uint32_t min_freq, max_freq;
+	enum smu_clk_type clk_type;
+
+	struct clk_feature_map {
+		enum smu_clk_type clk_type;
+		uint32_t	feature;
+	} clk_feature_map[] = {
+		{SMU_MCLK,   SMU_FEATURE_DPM_FCLK_BIT},
+		{SMU_FCLK, SMU_FEATURE_DPM_FCLK_BIT},
+		{SMU_SOCCLK, SMU_FEATURE_DPM_SOCCLK_BIT},
+	};
+
+	for (i = 0; i < ARRAY_SIZE(clk_feature_map); i++) {
+
+		if (!smu_cmn_feature_is_enabled(smu, clk_feature_map[i].feature))
+		    continue;
+
+		clk_type = clk_feature_map[i].clk_type;
+
+		ret = vangogh_get_dpm_ultimate_freq(smu, clk_type, &min_freq, &max_freq);
+
+		if (ret)
+			return ret;
+
+		ret = vangogh_set_soft_freq_limited_range(smu, clk_type, min_freq, max_freq);
+
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+static int vangogh_set_peak_clock_by_device(struct smu_context *smu)
+{
+	int ret = 0;
+	uint32_t socclk_freq = 0, fclk_freq = 0;
+
+	ret = vangogh_get_dpm_ultimate_freq(smu, SMU_FCLK, NULL, &fclk_freq);
+	if (ret)
+		return ret;
+
+	ret = vangogh_set_soft_freq_limited_range(smu, SMU_FCLK, fclk_freq, fclk_freq);
+	if (ret)
+		return ret;
+
+	ret = vangogh_get_dpm_ultimate_freq(smu, SMU_SOCCLK, NULL, &socclk_freq);
+	if (ret)
+		return ret;
+
+	ret = vangogh_set_soft_freq_limited_range(smu, SMU_SOCCLK, socclk_freq, socclk_freq);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
 static int vangogh_read_sensor(struct smu_context *smu,
 				 enum amd_pp_sensors sensor,
 				 void *data, uint32_t *size)
@@ -1177,6 +1448,7 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.feature_is_enabled = smu_cmn_feature_is_enabled,
 	.set_power_profile_mode = vangogh_set_power_profile_mode,
 	.get_dpm_clock_table = vangogh_get_dpm_clock_table,
+	.force_clk_levels = vangogh_force_clk_levels,
 	.post_init = vangogh_post_smu_init,
 };
 
