@@ -152,7 +152,6 @@ static int komeda_parse_dt(struct device *dev, struct komeda_dev *mdev)
 	ret = of_reserved_mem_device_init(dev);
 	if (ret && ret != -ENODEV)
 		return ret;
-	ret = 0;
 
 	for_each_available_child_of_node(np, child) {
 		if (of_node_name_eq(child, "pipeline")) {
