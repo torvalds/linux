@@ -556,6 +556,235 @@ static int vangogh_print_fine_grain_clk(struct smu_context *smu,
 	return size;
 }
 
+static int vangogh_get_profiling_clk_mask(struct smu_context *smu,
+					 enum amd_dpm_forced_level level,
+					 uint32_t *vclk_mask,
+					 uint32_t *dclk_mask,
+					 uint32_t *mclk_mask,
+					 uint32_t *fclk_mask,
+					 uint32_t *soc_mask)
+{
+	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
+
+	if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK) {
+		if (soc_mask)
+			*soc_mask = 0;
+	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK) {
+		if (mclk_mask)
+			/* mclk levels are in reverse order */
+			*mclk_mask = clk_table->NumDfPstatesEnabled - 1;
+			/* fclk levels are in reverse order */
+		if (fclk_mask)
+			*fclk_mask = clk_table->NumDfPstatesEnabled - 1;
+	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
+		if (mclk_mask)
+			/* mclk levels are in reverse order */
+			*mclk_mask = 0;
+			/* fclk levels are in reverse order */
+		if (fclk_mask)
+			*fclk_mask = 0;
+
+		if (soc_mask)
+			*soc_mask = clk_table->NumSocClkLevelsEnabled - 1;
+	}
+
+	return 0;
+}
+
+bool vangogh_clk_dpm_is_enabled(struct smu_context *smu,
+				enum smu_clk_type clk_type)
+{
+	enum smu_feature_mask feature_id = 0;
+
+	switch (clk_type) {
+	case SMU_MCLK:
+	case SMU_UCLK:
+	case SMU_FCLK:
+		feature_id = SMU_FEATURE_DPM_FCLK_BIT;
+		break;
+	case SMU_GFXCLK:
+	case SMU_SCLK:
+		feature_id = SMU_FEATURE_DPM_GFXCLK_BIT;
+		break;
+	case SMU_SOCCLK:
+		feature_id = SMU_FEATURE_DPM_SOCCLK_BIT;
+		break;
+	case SMU_VCLK:
+	case SMU_DCLK:
+		feature_id = SMU_FEATURE_VCN_DPM_BIT;
+		break;
+	default:
+		return true;
+	}
+
+	if (!smu_cmn_feature_is_enabled(smu, feature_id))
+		return false;
+
+	return true;
+}
+
+static int vangogh_get_dpm_ultimate_freq(struct smu_context *smu,
+					enum smu_clk_type clk_type,
+					uint32_t *min,
+					uint32_t *max)
+{
+	int ret = 0;
+	uint32_t soc_mask;
+	uint32_t vclk_mask;
+	uint32_t dclk_mask;
+	uint32_t mclk_mask;
+	uint32_t fclk_mask;
+	uint32_t clock_limit;
+
+	if (!vangogh_clk_dpm_is_enabled(smu, clk_type)) {
+		switch (clk_type) {
+		case SMU_MCLK:
+		case SMU_UCLK:
+			clock_limit = smu->smu_table.boot_values.uclk;
+			break;
+		case SMU_FCLK:
+			clock_limit = smu->smu_table.boot_values.fclk;
+			break;
+		case SMU_GFXCLK:
+		case SMU_SCLK:
+			clock_limit = smu->smu_table.boot_values.gfxclk;
+			break;
+		case SMU_SOCCLK:
+			clock_limit = smu->smu_table.boot_values.socclk;
+			break;
+		case SMU_VCLK:
+			clock_limit = smu->smu_table.boot_values.vclk;
+			break;
+		case SMU_DCLK:
+			clock_limit = smu->smu_table.boot_values.dclk;
+			break;
+		default:
+			clock_limit = 0;
+			break;
+		}
+
+		/* clock in Mhz unit */
+		if (min)
+			*min = clock_limit / 100;
+		if (max)
+			*max = clock_limit / 100;
+
+		return 0;
+	}
+	if (max) {
+		ret = vangogh_get_profiling_clk_mask(smu,
+							AMD_DPM_FORCED_LEVEL_PROFILE_PEAK,
+							&vclk_mask,
+							&dclk_mask,
+							&mclk_mask,
+							&fclk_mask,
+							&soc_mask);
+		if (ret)
+			goto failed;
+
+		switch (clk_type) {
+		case SMU_UCLK:
+		case SMU_MCLK:
+			ret = vangogh_get_dpm_clk_limited(smu, clk_type, mclk_mask, max);
+			if (ret)
+				goto failed;
+			break;
+		case SMU_SOCCLK:
+			ret = vangogh_get_dpm_clk_limited(smu, clk_type, soc_mask, max);
+			if (ret)
+				goto failed;
+			break;
+		case SMU_FCLK:
+			ret = vangogh_get_dpm_clk_limited(smu, clk_type, fclk_mask, max);
+			if (ret)
+				goto failed;
+			break;
+		case SMU_VCLK:
+			ret = vangogh_get_dpm_clk_limited(smu, clk_type, vclk_mask, max);
+			if (ret)
+				goto failed;
+			break;
+		case SMU_DCLK:
+			ret = vangogh_get_dpm_clk_limited(smu, clk_type, dclk_mask, max);
+			if (ret)
+				goto failed;
+			break;
+		default:
+			ret = -EINVAL;
+			goto failed;
+		}
+	}
+	if (min) {
+		switch (clk_type) {
+		case SMU_UCLK:
+		case SMU_MCLK:
+			ret = vangogh_get_dpm_clk_limited(smu, clk_type, mclk_mask, min);
+			if (ret)
+				goto failed;
+			break;
+		case SMU_SOCCLK:
+			ret = vangogh_get_dpm_clk_limited(smu, clk_type, soc_mask, min);
+			if (ret)
+				goto failed;
+			break;
+		case SMU_FCLK:
+			ret = vangogh_get_dpm_clk_limited(smu, clk_type, fclk_mask, min);
+			if (ret)
+				goto failed;
+			break;
+		case SMU_VCLK:
+			ret = vangogh_get_dpm_clk_limited(smu, clk_type, vclk_mask, min);
+			if (ret)
+				goto failed;
+			break;
+		case SMU_DCLK:
+			ret = vangogh_get_dpm_clk_limited(smu, clk_type, dclk_mask, min);
+			if (ret)
+				goto failed;
+			break;
+		default:
+			ret = -EINVAL;
+			goto failed;
+		}
+	}
+failed:
+	return ret;
+}
+
+static int vangogh_set_power_profile_mode(struct smu_context *smu, long *input, uint32_t size)
+{
+	int workload_type, ret;
+	uint32_t profile_mode = input[size];
+
+	if (profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
+		dev_err(smu->adev->dev, "Invalid power profile mode %d\n", profile_mode);
+		return -EINVAL;
+	}
+
+	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
+	workload_type = smu_cmn_to_asic_specific_index(smu,
+						       CMN2ASIC_MAPPING_WORKLOAD,
+						       profile_mode);
+	if (workload_type < 0) {
+		dev_err_once(smu->adev->dev, "Unsupported power profile mode %d on VANGOGH\n",
+					profile_mode);
+		return -EINVAL;
+	}
+
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_ActiveProcessNotify,
+				    1 << workload_type,
+				    NULL);
+	if (ret) {
+		dev_err_once(smu->adev->dev, "Fail to set workload type %d\n",
+					workload_type);
+		return ret;
+	}
+
+	smu->power_profile_mode = profile_mode;
+
+	return 0;
+}
+
 static int vangogh_read_sensor(struct smu_context *smu,
 				 enum amd_pp_sensors sensor,
 				 void *data, uint32_t *size)
@@ -945,6 +1174,8 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.set_default_dpm_table = vangogh_set_default_dpm_tables,
 	.set_fine_grain_gfx_freq_parameters = vangogh_set_fine_grain_gfx_freq_parameters,
 	.system_features_control = vangogh_system_features_control,
+	.feature_is_enabled = smu_cmn_feature_is_enabled,
+	.set_power_profile_mode = vangogh_set_power_profile_mode,
 	.get_dpm_clock_table = vangogh_get_dpm_clock_table,
 	.post_init = vangogh_post_smu_init,
 };
