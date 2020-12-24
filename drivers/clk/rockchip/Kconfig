@@ -75,4 +75,9 @@ config CLK_RK3399
 	default y
 	help
 	  Build the driver for RK3399 Clock Driver.
+
+config ROCKCHIP_CLK_COMPENSATION
+	bool "Rockchip Clk Compensation"
+	help
+	  Say y here to enable clk compensation(+/- 1000 ppm).
 endif
