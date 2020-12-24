@@ -87,6 +87,7 @@
 &combphy1_usq {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sata_pm_reset>;
+	rockchip,dis-u3otg1-port;
 	status = "okay";
 };
 
