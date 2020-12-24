@@ -700,6 +700,11 @@ properties:
           - const: pine64,pinetab
           - const: allwinner,sun50i-a64
 
+      - description: Pine64 PineTab, Early Adopter's batch (and maybe later ones)
+        items:
+          - const: pine64,pinetab-early-adopter
+          - const: allwinner,sun50i-a64
+
       - description: Pine64 SoPine Baseboard
         items:
           - const: pine64,sopine-baseboard
