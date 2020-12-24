@@ -40,38 +40,38 @@
 	keys {
 		compatible = "gpio-keys";
 
-		key-1 {
+		key-1 { /* S19 */
 			gpios = <&gpio4 6 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_1>;
-			label = "Switch-1";
+			linux,code = <KEY_UP>;
+			label = "Up";
 			wakeup-source;
 			debounce-interval = <20>;
 		};
-		key-2 {
+		key-2 { /*S20 */
 			gpios = <&gpio3 13 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_2>;
-			label = "Switch-2";
+			linux,code = <KEY_LEFT>;
+			label = "Left";
 			wakeup-source;
 			debounce-interval = <20>;
 		};
-		key-3 {
+		key-3 { /* S21 */
 			gpios = <&gpio5 17 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_3>;
-			label = "Switch-3";
+			linux,code = <KEY_DOWN>;
+			label = "Down";
 			wakeup-source;
 			debounce-interval = <20>;
 		};
-		key-4 {
+		key-4 { /* S22 */
 			gpios = <&gpio5 20 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_4>;
-			label = "Switch-4";
+			linux,code = <KEY_RIGHT>;
+			label = "Right";
 			wakeup-source;
 			debounce-interval = <20>;
 		};
-		key-5 {
+		key-5 { /* S23 */
 			gpios = <&gpio5 22 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_5>;
-			label = "Switch-4";
+			linux,code = <KEY_ENTER>;
+			label = "Center";
 			wakeup-source;
 			debounce-interval = <20>;
 		};
