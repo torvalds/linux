@@ -30,9 +30,12 @@
 #include <asm/tlb.h>
 #include <asm/cacheflush.h>
 
+#define PTRS_KERN_TABLE \
+		((PTRS_PER_PGD - USER_PTRS_PER_PGD) * PTRS_PER_PTE)
+
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __page_aligned_bss;
 pte_t invalid_pte_table[PTRS_PER_PTE] __page_aligned_bss;
-pte_t kernel_pte_tables[(PTRS_PER_PGD - USER_PTRS_PER_PGD)*PTRS_PER_PTE] __page_aligned_bss;
+pte_t kernel_pte_tables[PTRS_KERN_TABLE] __page_aligned_bss;
 
 EXPORT_SYMBOL(invalid_pte_table);
 unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)]
@@ -148,6 +151,9 @@ void __init mmu_init(unsigned long min_pfn, unsigned long max_pfn)
 	for (i = USER_PTRS_PER_PGD; i < PTRS_PER_PGD; i++)
 		swapper_pg_dir[i].pgd =
 			__pa(kernel_pte_tables + (PTRS_PER_PTE * (i - USER_PTRS_PER_PGD)));
+
+	for (i = 0; i < PTRS_KERN_TABLE; i++)
+		set_pte(&kernel_pte_tables[i], __pte(_PAGE_GLOBAL));
 
 	for (i = min_pfn; i < max_pfn; i++)
 		set_pte(&kernel_pte_tables[i - PFN_DOWN(va_pa_offset)], pfn_pte(i, PAGE_KERNEL));
