@@ -388,38 +388,23 @@ __unwind_incomplete_requests(struct intel_engine_cs *engine)
 
 		__i915_request_unsubmit(rq);
 
-		/*
-		 * Push the request back into the queue for later resubmission.
-		 * If this request is not native to this physical engine (i.e.
-		 * it came from a virtual source), push it back onto the virtual
-		 * engine so that it can be moved across onto another physical
-		 * engine as load dictates.
-		 */
-		if (likely(rq->execution_mask == engine->mask)) {
-			GEM_BUG_ON(rq_prio(rq) == I915_PRIORITY_INVALID);
-			if (rq_prio(rq) != prio) {
-				prio = rq_prio(rq);
-				pl = i915_sched_lookup_priolist(engine, prio);
-			}
-			GEM_BUG_ON(RB_EMPTY_ROOT(&engine->execlists.queue.rb_root));
-
-			list_move(&rq->sched.link, pl);
-			set_bit(I915_FENCE_FLAG_PQUEUE, &rq->fence.flags);
-
-			/* Check in case we rollback so far we wrap [size/2] */
-			if (intel_ring_direction(rq->ring,
-						 rq->tail,
-						 rq->ring->tail + 8) > 0)
-				rq->context->lrc.desc |= CTX_DESC_FORCE_RESTORE;
-
-			active = rq;
-		} else {
-			struct intel_engine_cs *owner = rq->context->engine;
-
-			WRITE_ONCE(rq->engine, owner);
-			owner->submit_request(rq);
-			active = NULL;
+		GEM_BUG_ON(rq_prio(rq) == I915_PRIORITY_INVALID);
+		if (rq_prio(rq) != prio) {
+			prio = rq_prio(rq);
+			pl = i915_sched_lookup_priolist(engine, prio);
 		}
+		GEM_BUG_ON(RB_EMPTY_ROOT(&engine->execlists.queue.rb_root));
+
+		list_move(&rq->sched.link, pl);
+		set_bit(I915_FENCE_FLAG_PQUEUE, &rq->fence.flags);
+
+		/* Check in case we rollback so far we wrap [size/2] */
+		if (intel_ring_direction(rq->ring,
+					 rq->tail,
+					 rq->ring->tail + 8) > 0)
+			rq->context->lrc.desc |= CTX_DESC_FORCE_RESTORE;
+
+		active = rq;
 	}
 
 	return active;
@@ -578,9 +563,9 @@ static inline void execlists_schedule_in(struct i915_request *rq, int idx)
 	GEM_BUG_ON(intel_context_inflight(ce) != rq->engine);
 }
 
-static void kick_siblings(struct i915_request *rq, struct intel_context *ce)
+static void
+resubmit_virtual_request(struct i915_request *rq, struct virtual_engine *ve)
 {
-	struct virtual_engine *ve = container_of(ce, typeof(*ve), context);
 	struct intel_engine_cs *engine = rq->engine;
 
 	/* Flush concurrent rcu iterators in signal_irq_work */
@@ -597,6 +582,30 @@ static void kick_siblings(struct i915_request *rq, struct intel_context *ce)
 		while (atomic_read(&engine->breadcrumbs->signaler_active))
 			cpu_relax();
 	}
+
+	spin_lock_irq(&engine->active.lock);
+
+	clear_bit(I915_FENCE_FLAG_PQUEUE, &rq->fence.flags);
+	WRITE_ONCE(rq->engine, &ve->base);
+	ve->base.submit_request(rq);
+
+	spin_unlock_irq(&engine->active.lock);
+}
+
+static void kick_siblings(struct i915_request *rq, struct intel_context *ce)
+{
+	struct virtual_engine *ve = container_of(ce, typeof(*ve), context);
+	struct intel_engine_cs *engine = rq->engine;
+
+	/*
+	 * This engine is now too busy to run this virtual request, so
+	 * see if we can find an alternative engine for it to execute on.
+	 * Once a request has become bonded to this engine, we treat it the
+	 * same as other native request.
+	 */
+	if (i915_request_in_priority_queue(rq) &&
+	    rq->execution_mask != engine->mask)
+		resubmit_virtual_request(rq, ve);
 
 	if (READ_ONCE(ve->request))
 		tasklet_hi_schedule(&ve->base.execlists.tasklet);
@@ -842,6 +851,20 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 			return false;
 		}
 		sentinel = i915_request_has_sentinel(rq);
+
+		/*
+		 * We want virtual requests to only be in the first slot so
+		 * that they are never stuck behind a hog and can be immediately
+		 * transferred onto the next idle engine.
+		 */
+		if (rq->execution_mask != engine->mask &&
+		    port != execlists->pending) {
+			GEM_TRACE_ERR("%s: virtual engine:%llx not in prime position[%zd]\n",
+				      engine->name,
+				      ce->timeline->fence_context,
+				      port - execlists->pending);
+			return false;
+		}
 
 		/* Hold tightly onto the lock to prevent concurrent retires! */
 		if (!spin_trylock_irqsave(&rq->lock, flags))
@@ -1500,6 +1523,15 @@ unlock:
 					goto done;
 
 				if (i915_request_has_sentinel(last))
+					goto done;
+
+				/*
+				 * We avoid submitting virtual requests into
+				 * the secondary ports so that we can migrate
+				 * the request immediately to another engine
+				 * rather than wait for the primary request.
+				 */
+				if (rq->execution_mask != engine->mask)
 					goto done;
 
 				/*
@@ -3562,7 +3594,6 @@ unlock_engine:
 static void virtual_submit_request(struct i915_request *rq)
 {
 	struct virtual_engine *ve = to_virtual_engine(rq->engine);
-	struct i915_request *old;
 	unsigned long flags;
 
 	ENGINE_TRACE(&ve->base, "rq=%llx:%lld\n",
@@ -3573,28 +3604,27 @@ static void virtual_submit_request(struct i915_request *rq)
 
 	spin_lock_irqsave(&ve->base.active.lock, flags);
 
-	old = ve->request;
-	if (old) { /* background completion event from preempt-to-busy */
-		GEM_BUG_ON(!__i915_request_is_complete(old));
-		__i915_request_submit(old);
-		i915_request_put(old);
-	}
-
+	/* By the time we resubmit a request, it may be completed */
 	if (__i915_request_is_complete(rq)) {
 		__i915_request_submit(rq);
-
-		ve->base.execlists.queue_priority_hint = INT_MIN;
-		ve->request = NULL;
-	} else {
-		ve->base.execlists.queue_priority_hint = rq_prio(rq);
-		ve->request = i915_request_get(rq);
-
-		GEM_BUG_ON(!list_empty(virtual_queue(ve)));
-		list_move_tail(&rq->sched.link, virtual_queue(ve));
-
-		tasklet_hi_schedule(&ve->base.execlists.tasklet);
+		goto unlock;
 	}
 
+	if (ve->request) { /* background completion from preempt-to-busy */
+		GEM_BUG_ON(!i915_request_completed(ve->request));
+		__i915_request_submit(ve->request);
+		i915_request_put(ve->request);
+	}
+
+	ve->base.execlists.queue_priority_hint = rq_prio(rq);
+	ve->request = i915_request_get(rq);
+
+	GEM_BUG_ON(!list_empty(virtual_queue(ve)));
+	list_move_tail(&rq->sched.link, virtual_queue(ve));
+
+	tasklet_hi_schedule(&ve->base.execlists.tasklet);
+
+unlock:
 	spin_unlock_irqrestore(&ve->base.active.lock, flags);
 }
 
