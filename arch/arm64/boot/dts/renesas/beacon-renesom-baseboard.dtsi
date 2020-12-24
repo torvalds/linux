@@ -264,21 +264,6 @@
 	status = "okay";
 };
 
-&du {
-	pinctrl-0 = <&du_pins>;
-	pinctrl-names = "default";
-	status = "okay";
-
-	clocks = <&cpg CPG_MOD 724>,
-		<&cpg CPG_MOD 723>,
-		<&cpg CPG_MOD 722>,
-		<&versaclock5 1>,
-		<&x302_clk>,
-		<&versaclock5 2>;
-	clock-names = "du.0", "du.1", "du.2",
-		"dclkin.0", "dclkin.1", "dclkin.2";
-};
-
 &du_out_rgb {
 	remote-endpoint = <&rgb_panel>;
 };
