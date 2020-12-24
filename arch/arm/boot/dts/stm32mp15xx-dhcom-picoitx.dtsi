@@ -36,6 +36,10 @@
 	status = "disabled";
 };
 
+&fmc {
+	status = "disabled";
+};
+
 &gpioa {
 	/*
 	 * NOTE: The USB Port on the PicoITX needs a PWR_EN signal to enable
@@ -92,6 +96,10 @@
 	/* spare dmas for other usage */
 	/delete-property/dmas;
 	/delete-property/dma-names;
+};
+
+&ksz8851 {
+	status = "disabled";
 };
 
 &usart3 {
