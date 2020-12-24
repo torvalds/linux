@@ -27,6 +27,11 @@
 		#size-cells = <2>;
 		ranges;
 
+		drm_logo: drm-logo@00000000 {
+			compatible = "rockchip,drm-logo";
+			reg = <0x0 0x0 0x0 0x0>;
+		};
+
 		ramoops: ramoops@110000 {
 			compatible = "ramoops";
 			reg = <0x0 0x110000 0x0 0xf0000>;

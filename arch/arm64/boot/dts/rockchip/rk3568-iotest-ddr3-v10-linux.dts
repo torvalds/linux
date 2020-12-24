@@ -64,3 +64,5 @@
 &usbdrd30 {
 	status = "okay";
 };
+
+/delete-node/ &display_subsystem;
