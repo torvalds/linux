@@ -286,7 +286,8 @@ then
 		exit 1
 	fi
 fi
-for CF1 in $configs_derep
+echo 'BEGIN {' > $T/cfgcpu.awk
+for CF1 in `echo $configs_derep | tr -s ' ' '\012' | sort -u`
 do
 	if test -f "$CONFIGFRAG/$CF1"
 	then
@@ -299,12 +300,20 @@ do
 		fi
 		cpu_count=`configfrag_boot_cpus "$TORTURE_BOOTARGS" "$CONFIGFRAG/$CF1" "$cpu_count"`
 		cpu_count=`configfrag_boot_maxcpus "$TORTURE_BOOTARGS" "$CONFIGFRAG/$CF1" "$cpu_count"`
-		echo $CF1 $cpu_count >> $T/cfgcpu
+		echo 'scenariocpu["'"$CF1"'"] = '"$cpu_count"';' >> $T/cfgcpu.awk
 	else
 		echo "The --configs file $CF1 does not exist, terminating."
 		exit 1
 	fi
 done
+cat << '___EOF___' >> $T/cfgcpu.awk
+}
+{
+	for (i = 1; i <= NF; i++)
+		print $i, scenariocpu[$i];
+}
+___EOF___
+echo $configs_derep | awk -f $T/cfgcpu.awk > $T/cfgcpu
 sort -k2nr $T/cfgcpu -T="$T" > $T/cfgcpu.sort
 
 # Use a greedy bin-packing algorithm, sorting the list accordingly.
@@ -324,11 +333,10 @@ END {
 	batch = 0;
 	nc = -1;
 
-	# Each pass through the following loop creates on test batch
-	# that can be executed concurrently given ncpus.  Note that a
-	# given test that requires more than the available CPUs will run in
-	# their own batch.  Such tests just have to make do with what
-	# is available.
+	# Each pass through the following loop creates on test batch that
+	# can be executed concurrently given ncpus.  Note that a given test
+	# that requires more than the available CPUs will run in its own
+	# batch.  Such tests just have to make do with what is available.
 	while (nc != ncpus) {
 		batch++;
 		nc = ncpus;
