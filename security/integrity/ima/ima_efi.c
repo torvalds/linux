@@ -5,50 +5,29 @@
 #include <linux/efi.h>
 #include <linux/module.h>
 #include <linux/ima.h>
+#include <asm/efi.h>
 
-extern struct boot_params boot_params;
+#ifndef arch_ima_efi_boot_mode
+#define arch_ima_efi_boot_mode efi_secureboot_mode_unset
+#endif
 
 static enum efi_secureboot_mode get_sb_mode(void)
 {
-	efi_guid_t efi_variable_guid = EFI_GLOBAL_VARIABLE_GUID;
-	efi_status_t status;
-	unsigned long size;
-	u8 secboot, setupmode;
-
-	size = sizeof(secboot);
+	enum efi_secureboot_mode mode;
 
 	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE)) {
 		pr_info("ima: secureboot mode unknown, no efi\n");
 		return efi_secureboot_mode_unknown;
 	}
 
-	/* Get variable contents into buffer */
-	status = efi.get_variable(L"SecureBoot", &efi_variable_guid,
-				  NULL, &size, &secboot);
-	if (status == EFI_NOT_FOUND) {
+	mode = efi_get_secureboot_mode(efi.get_variable);
+	if (mode == efi_secureboot_mode_disabled)
 		pr_info("ima: secureboot mode disabled\n");
-		return efi_secureboot_mode_disabled;
-	}
-
-	if (status != EFI_SUCCESS) {
+	else if (mode == efi_secureboot_mode_unknown)
 		pr_info("ima: secureboot mode unknown\n");
-		return efi_secureboot_mode_unknown;
-	}
-
-	size = sizeof(setupmode);
-	status = efi.get_variable(L"SetupMode", &efi_variable_guid,
-				  NULL, &size, &setupmode);
-
-	if (status != EFI_SUCCESS)	/* ignore unknown SetupMode */
-		setupmode = 0;
-
-	if (secboot == 0 || setupmode == 1) {
-		pr_info("ima: secureboot mode disabled\n");
-		return efi_secureboot_mode_disabled;
-	}
-
-	pr_info("ima: secureboot mode enabled\n");
-	return efi_secureboot_mode_enabled;
+	else
+		pr_info("ima: secureboot mode enabled\n");
+	return mode;
 }
 
 bool arch_ima_get_secureboot(void)
@@ -57,7 +36,7 @@ bool arch_ima_get_secureboot(void)
 	static bool initialized;
 
 	if (!initialized && efi_enabled(EFI_BOOT)) {
-		sb_mode = boot_params.secure_boot;
+		sb_mode = arch_ima_efi_boot_mode;
 
 		if (sb_mode == efi_secureboot_mode_unset)
 			sb_mode = get_sb_mode();
