@@ -39,20 +39,52 @@ int fixup_exception(struct pt_regs *regs)
 	return 0;
 }
 
+static inline bool is_write(struct pt_regs *regs)
+{
+	switch (trap_no(regs)) {
+	case VEC_TLBINVALIDS:
+		return true;
+	case VEC_TLBMODIFIED:
+		return true;
+	}
+
+	return false;
+}
+
+#ifdef CONFIG_CPU_HAS_LDSTEX
+static inline void csky_cmpxchg_fixup(struct pt_regs *regs)
+{
+	return;
+}
+#else
+extern unsigned long csky_cmpxchg_ldw;
+extern unsigned long csky_cmpxchg_stw;
+static inline void csky_cmpxchg_fixup(struct pt_regs *regs)
+{
+	if (trap_no(regs) != VEC_TLBMODIFIED)
+		return;
+
+	if (instruction_pointer(regs) == csky_cmpxchg_stw)
+		instruction_pointer_set(regs, csky_cmpxchg_ldw);
+	return;
+}
+#endif
+
 /*
  * This routine handles page faults. It determines the address,
  * and the problem, and then passes it off to one of the appropriate
  * routines.
  */
-asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long write,
-			      unsigned long mmu_meh)
+asmlinkage void do_page_fault(struct pt_regs *regs)
 {
 	struct vm_area_struct *vma = NULL;
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->mm;
 	int si_code;
 	int fault;
-	unsigned long address = mmu_meh & PAGE_MASK;
+	unsigned long address = read_mmu_entryhi() & PAGE_MASK;
+
+	csky_cmpxchg_fixup(regs);
 
 	if (kprobe_page_fault(regs, tsk->thread.trap_no))
 		return;
@@ -104,6 +136,9 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long write,
 		pte_k = pte_offset_kernel(pmd_k, address);
 		if (!pte_present(*pte_k))
 			goto no_context;
+
+		flush_tlb_one(address);
+
 		return;
 	}
 
@@ -132,7 +167,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long write,
 good_area:
 	si_code = SEGV_ACCERR;
 
-	if (write) {
+	if (is_write(regs)) {
 		if (!(vma->vm_flags & VM_WRITE))
 			goto bad_area;
 	} else {
@@ -145,7 +180,7 @@ good_area:
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	fault = handle_mm_fault(vma, address, write ? FAULT_FLAG_WRITE : 0,
+	fault = handle_mm_fault(vma, address, is_write(regs) ? FAULT_FLAG_WRITE : 0,
 				regs);
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		if (fault & VM_FAULT_OOM)
