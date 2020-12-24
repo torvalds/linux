@@ -30,8 +30,7 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	if (prev != next)
 		check_and_switch_context(next, cpu);
 
-	setup_pgd(next->pgd);
-	write_mmu_entryhi(next->context.asid.counter);
+	setup_pgd(next->pgd, next->context.asid.counter);
 
 	flush_icache_deferred(next);
 }

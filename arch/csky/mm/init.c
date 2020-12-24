@@ -164,7 +164,7 @@ void __init mmu_init(unsigned long min_pfn, unsigned long max_pfn)
 	/* Setup page mask to 4k */
 	write_mmu_pagemask(0);
 
-	setup_pgd(swapper_pg_dir);
+	setup_pgd(swapper_pg_dir, 0);
 }
 
 void __init fixrange_init(unsigned long start, unsigned long end,
