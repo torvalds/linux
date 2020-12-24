@@ -785,6 +785,16 @@ config REGULATOR_MT6397
 	  This driver supports the control of different power rails of device
 	  through regulator interface.
 
+config REGULATOR_MTK_DVFSRC
+	tristate "MediaTek DVFSRC regulator driver"
+	depends on MTK_DVFSRC
+	help
+	  Say y here to control regulator by DVFSRC (dynamic voltage
+	  and frequency scaling resource collector).
+	  This driver supports to control regulators via the DVFSRC
+	  of Mediatek. It allows for voting on regulator state
+	  between multiple users.
+
 config REGULATOR_PALMAS
 	tristate "TI Palmas PMIC Regulators"
 	depends on MFD_PALMAS
