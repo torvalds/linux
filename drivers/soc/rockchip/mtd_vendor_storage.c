@@ -117,6 +117,7 @@ static int mtd_vendor_storage_init(void)
 {
 	int err, offset;
 	size_t bytes_read;
+	struct erase_info ei;
 
 	mtd = get_mtd_device_nm(vendor_mtd_name);
 	if (IS_ERR(mtd))
@@ -170,6 +171,14 @@ static int mtd_vendor_storage_init(void)
 		g_vendor->version = 1;
 		g_vendor->tag = MTD_VENDOR_TAG;
 		g_vendor->free_size = sizeof(g_vendor->data);
+		for (offset = 0; offset < mtd->size; offset += mtd->erasesize) {
+			if (!mtd_block_isbad(mtd, offset)) {
+				memset(&ei, 0, sizeof(struct erase_info));
+				ei.addr = nand_info.blk_offset + offset;
+				ei.len  = mtd->erasesize;
+				mtd_erase(mtd, &ei);
+			}
+		}
 	}
 
 	return 0;
