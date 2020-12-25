@@ -4355,8 +4355,8 @@ T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/pci/cobalt/
 
 COCCINELLE/Semantic Patches (SmPL)
-M:	Julia Lawall <Julia.Lawall@lip6.fr>
-M:	Gilles Muller <Gilles.Muller@lip6.fr>
+M:	Julia Lawall <Julia.Lawall@inria.fr>
+M:	Gilles Muller <Gilles.Muller@inria.fr>
 M:	Nicolas Palix <nicolas.palix@imag.fr>
 M:	Michal Marek <michal.lkml@markovi.net>
 L:	cocci@systeme.lip6.fr (moderated for non-subscribers)
