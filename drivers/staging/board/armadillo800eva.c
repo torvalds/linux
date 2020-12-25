@@ -80,9 +80,11 @@ static const struct board_staging_dev armadillo800eva_devices[] __initconst = {
 
 static void __init armadillo800eva_init(void)
 {
-	board_staging_gic_setup_xlate("arm,pl390", 32);
-	board_staging_register_devices(armadillo800eva_devices,
-				       ARRAY_SIZE(armadillo800eva_devices));
+	if (of_machine_is_compatible("renesas,armadillo800eva")) {
+		board_staging_gic_setup_xlate("arm,pl390", 32);
+		board_staging_register_devices(armadillo800eva_devices,
+					       ARRAY_SIZE(armadillo800eva_devices));
+	}
 }
 
-board_staging("renesas,armadillo800eva", armadillo800eva_init);
+device_initcall(armadillo800eva_init);
