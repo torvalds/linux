@@ -789,12 +789,12 @@
 	status = "okay";
 
 	power-supply@58 {
-		compatible = "pmbus";
+		compatible = "inspur,ipsps1";
 		reg = <0x58>;
 	};
 
 	power-supply@59 {
-		compatible = "pmbus";
+		compatible = "inspur,ipsps1";
 		reg = <0x59>;
 	};
 };
