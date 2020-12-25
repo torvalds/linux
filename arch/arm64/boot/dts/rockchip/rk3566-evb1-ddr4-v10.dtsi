@@ -189,6 +189,8 @@
 
 &i2c2 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2m1_xfer>;
 
 	ov02k10: ov02k10@36 {
 		status = "okay";
