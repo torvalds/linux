@@ -8,6 +8,7 @@
  * V0.0X01.0X01 add quick stream on/off
  * V0.0X01.0X02 support digital gain
  * V0.0X01.0X03 support 2688x1520@30fps 10bit linear mode
+ * V0.0X01.0X04 fixed hdr exposure issue
  */
 //#define DEBUG
 #include <linux/clk.h>
@@ -30,7 +31,7 @@
 #include <linux/rk-preisp.h>
 #include "../platform/rockchip/isp/rkisp_tb_helper.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -59,7 +60,7 @@
 
 #define SC4238_REG_EXP_LONG_H		0x3e00
 #define SC4238_REG_EXP_MID_H		0x3e04
-#define SC4238_REG_EXP_VS_H		0x3e04
+#define SC4238_REG_EXP_MAX_MID_H	0x3e23
 
 #define SC4238_REG_COARSE_AGAIN_L	0x3e08
 #define SC4238_REG_FINE_AGAIN_L		0x3e09
@@ -77,7 +78,6 @@
 #define SC4238_GROUP_UPDATE_ADDRESS	0x3812
 #define SC4238_GROUP_UPDATE_START_DATA	0x00
 #define SC4238_GROUP_UPDATE_END_DATA	0x30
-#define SC4238_GROUP_UPDATE_END_LAUNCH	0x30
 #define SC4238_GROUP_UPDATE_DELAY	0x3802
 
 #define SC4238_SOFTWARE_RESET_REG	0x0103
@@ -705,12 +705,12 @@ static const struct regval sc4238_hdr10bit_2688x1520_regs[] = {
 	{0x39e2, 0x00},
 	{0x39e3, 0x00},
 	{0x39e8, 0x03},
-	{0x3e00, 0x01},
+	{0x3e00, 0x00},
 	{0x3e01, 0x6a},
 	{0x3e02, 0x00},
 	{0x3e03, 0x0b},
-	{0x3e04, 0x16},
-	{0x3e05, 0xa0},
+	{0x3e04, 0x08},
+	{0x3e05, 0x00},
 	{0x3e06, 0x00},
 	{0x3e07, 0x80},
 	{0x3e08, 0x03},
@@ -1372,13 +1372,13 @@ static const struct sc4238_mode supported_modes[] = {
 		.height = 1520,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 300000,
-			/*.denominator = 151417,*/
+			.denominator = 250000,
+			/*.denominator = 300000,*/
 		},
 		.exp_def = 0x0c00,
 		.hts_def = 0x060e * 2,
-		.vts_def = 0x0c18,
-		/*.vts_def = 0x0cb0,*/
+		.vts_def = 0x0e83,
+		/*.vts_def = 0x0c18,*/
 		.reg_list = sc4238_hdr10bit_2688x1520_regs,
 		.hdr_mode = HDR_X2,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
@@ -1765,6 +1765,9 @@ static int sc4238_get_gain_reg(struct sc4238 *sc4238, u32 total_gain,
 		*dgain_fine_reg = (dgain >> 4) & 0xff;
 		*dgain_coarse_reg = 0x0f;
 	}
+	dev_dbg(&sc4238->client->dev,
+		"total_gain 0x%x again_coarse 0x%x, again_fine 0x%x, dgain_coarse 0x%x, dgain_fine 0x%x\n",
+		total_gain, *again_coarse_reg, *again_fine_reg, *dgain_coarse_reg, *dgain_fine_reg);
 	return 0;
 }
 
@@ -1777,6 +1780,7 @@ static int sc4238_set_hdrae(struct sc4238 *sc4238,
 	u32 dgain_coarse_reg, dgain_fine_reg;
 	u32 max_exp_l, max_exp_s;
 	int ret = 0;
+	u32 rhs1 = 0;
 
 	if (!sc4238->has_init_exp && !sc4238->streaming) {
 		sc4238->init_hdrae_exp = *ae;
@@ -1807,18 +1811,19 @@ static int sc4238_set_hdrae(struct sc4238 *sc4238,
 
 	if (l_a_gain != m_a_gain) {
 		dev_err(&sc4238->client->dev,
-			"gain of long frame must same with short frame\n");
-		return -EINVAL;
+			"gain of long frame must same with short frame, 0x%x != 0x%x\n",
+			l_a_gain, m_a_gain);
 	}
 	/* long frame exp max = 2*({320e,320f} -{3e23,3e24} -9) ,unit 1/2 line */
 	/* short frame exp max = 2*({3e23,3e24} - 8) ,unit 1/2 line */
-	max_exp_l = sc4238->cur_vts - 93 - 5;
-	max_exp_s = 89;
-	if (l_exp_time > max_exp_l || m_exp_time > max_exp_s) {
+	//max short exposure limit to 3 ms
+	rhs1 = 286;
+	max_exp_l = sc4238->cur_vts - rhs1 - 9;
+	max_exp_s = rhs1 - 8;
+	if (l_exp_time > max_exp_l || m_exp_time > max_exp_s || l_exp_time <= m_exp_time) {
 		dev_err(&sc4238->client->dev,
 			"max_exp_long %d, max_exp_short %d, cur_exp_long %d, cur_exp_short %d\n",
 			max_exp_l, max_exp_s, l_exp_time, m_exp_time);
-		return -EINVAL;
 	}
 
 	ret = sc4238_get_gain_reg(sc4238, l_a_gain,
@@ -1827,19 +1832,21 @@ static int sc4238_set_hdrae(struct sc4238 *sc4238,
 	if (ret != 0)
 		return -EINVAL;
 
+	dev_dbg(&sc4238->client->dev,
+		"max exposure reg limit 0x%x-8 line\n", rhs1);
 	ret |= sc4238_write_reg(sc4238->client,
-				SC4238_GROUP_UPDATE_ADDRESS,
-				SC4238_REG_VALUE_08BIT,
-				SC4238_GROUP_UPDATE_START_DATA);
+				SC4238_REG_EXP_MAX_MID_H,
+				SC4238_REG_VALUE_16BIT,
+				rhs1);
 
 	ret |= sc4238_write_reg(sc4238->client,
 				SC4238_REG_EXP_LONG_H,
 				SC4238_REG_VALUE_24BIT,
-				l_exp_time << 4);
+				l_exp_time << 5);
 	ret |= sc4238_write_reg(sc4238->client,
 				SC4238_REG_EXP_MID_H,
 				SC4238_REG_VALUE_16BIT,
-				m_exp_time << 4);
+				m_exp_time << 5);
 
 	ret |= sc4238_write_reg(sc4238->client,
 				SC4238_REG_COARSE_AGAIN_L,
@@ -1873,11 +1880,6 @@ static int sc4238_set_hdrae(struct sc4238 *sc4238,
 				SC4238_REG_FINE_DGAIN_S,
 				SC4238_REG_VALUE_08BIT,
 				dgain_fine_reg);
-
-	ret |= sc4238_write_reg(sc4238->client,
-				SC4238_GROUP_UPDATE_ADDRESS,
-				SC4238_REG_VALUE_08BIT,
-				SC4238_GROUP_UPDATE_END_DATA);
 
 	return ret;
 }
