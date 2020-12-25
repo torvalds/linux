@@ -1245,7 +1245,7 @@ static void snd_m3_pcm_setup2(struct snd_m3 *chip, struct m3_dma *s,
 			  snd_pcm_format_width(runtime->format) == 16 ? 0 : 1);
 
 	/* set up dac/adc rate */
-	freq = ((runtime->rate << 15) + 24000 ) / 48000;
+	freq = DIV_ROUND_CLOSEST(runtime->rate << 15, 48000);
 	if (freq) 
 		freq--;
 

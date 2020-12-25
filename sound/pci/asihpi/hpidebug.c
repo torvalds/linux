@@ -52,7 +52,7 @@ void hpi_debug_data(u16 *pdata, u32 len)
 	int lines;
 	int cols = 8;
 
-	lines = (len + cols - 1) / cols;
+	lines = DIV_ROUND_UP(len, cols);
 	if (lines > 8)
 		lines = 8;
 
