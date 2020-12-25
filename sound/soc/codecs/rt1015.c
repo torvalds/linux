@@ -1035,7 +1035,6 @@ static int rt1015_probe(struct snd_soc_component *component)
 
 	rt1015->component = component;
 	rt1015->bclk_ratio = 0;
-	rt1015->cali_done = 0;
 
 	INIT_DELAYED_WORK(&rt1015->flush_work, rt1015_flush_work);
 
@@ -1093,6 +1092,10 @@ static int rt1015_resume(struct snd_soc_component *component)
 
 	regcache_cache_only(rt1015->regmap, false);
 	regcache_sync(rt1015->regmap);
+
+	if (rt1015->cali_done)
+		rt1015_calibrate(rt1015);
+
 	return 0;
 }
 #else
