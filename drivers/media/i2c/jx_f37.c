@@ -3,6 +3,7 @@
  * jx_f37 driver
  *
  * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
+ * v0.0x01.0x04 support mirror/flip
  */
 
 #define DEBUG
@@ -24,7 +25,7 @@
 #include <linux/version.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -68,6 +69,8 @@
 #define JX_F37_REG_LOW_VTS			0X22
 #define JX_F37_FETCH_HIGH_BYTE_VTS(VAL) (((VAL) >> 8) & 0xFF)	/* 8-15 Bits */
 #define JX_F37_FETCH_LOW_BYTE_VTS(VAL) ((VAL) & 0xFF)	/* 0-7 Bits */
+
+#define JX_F37_FLIP_MIRROR_REG		0x12
 
 #define REG_NULL			0xFF
 #define REG_DELAY			0xFE
@@ -1241,6 +1244,7 @@ static int jx_f37_set_ctrl(struct v4l2_ctrl *ctrl)
 					     struct jx_f37, ctrl_handler);
 	struct i2c_client *client = jx_f37->client;
 	s64 max;
+	u8 val = 0;
 	int ret = 0;
 
 	/* Propagate change of current control to all related controls */
@@ -1275,6 +1279,26 @@ static int jx_f37_set_ctrl(struct v4l2_ctrl *ctrl)
 			JX_F37_LONG_GAIN_REG, ctrl->val);
 		break;
 	case V4L2_CID_DIGITAL_GAIN:
+		break;
+	case V4L2_CID_HFLIP:
+		ret = jx_f37_read_reg(jx_f37->client, JX_F37_FLIP_MIRROR_REG,
+				       &val);
+		if (ctrl->val)
+			val |= BIT(5);
+		else
+			val &= ~BIT(5);
+		ret |= jx_f37_write_reg(jx_f37->client, JX_F37_FLIP_MIRROR_REG,
+					val);
+		break;
+	case V4L2_CID_VFLIP:
+		ret = jx_f37_read_reg(jx_f37->client, JX_F37_FLIP_MIRROR_REG,
+				       &val);
+		if (ctrl->val)
+			val |= BIT(4);
+		else
+			val &= ~BIT(4);
+		ret |= jx_f37_write_reg(jx_f37->client, JX_F37_FLIP_MIRROR_REG,
+					val);
 		break;
 	case V4L2_CID_VBLANK:
 		dev_dbg(&client->dev, "set vblank: val: %d\n", ctrl->val);
@@ -1344,6 +1368,12 @@ static int jx_f37_initialize_controls(struct jx_f37 *jx_f37)
 				V4L2_CID_ANALOGUE_GAIN, ANALOG_GAIN_MIN,
 				ANALOG_GAIN_MAX, ANALOG_GAIN_STEP,
 				ANALOG_GAIN_DEFAULT);
+
+	v4l2_ctrl_new_std(handler, &jx_f37_ctrl_ops,
+			  V4L2_CID_HFLIP, 0, 1, 1, 0);
+
+	v4l2_ctrl_new_std(handler, &jx_f37_ctrl_ops,
+			  V4L2_CID_VFLIP, 0, 1, 1, 0);
 
 	if (handler->error) {
 		ret = handler->error;
