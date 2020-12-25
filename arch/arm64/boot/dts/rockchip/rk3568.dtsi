@@ -255,6 +255,10 @@
 		};
 	};
 
+	rockchip_system_monitor: rockchip-system-monitor {
+		compatible = "rockchip,system-monitor";
+	};
+
 	thermal_zones: thermal-zones {
 		soc_thermal: soc-thermal {
 			polling-delay-passive = <20>; /* milliseconds */
