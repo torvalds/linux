@@ -45,6 +45,7 @@ struct rockchip_combphy_grfcfg {
 	struct combphy_reg pipe_clk_25m;
 	struct combphy_reg pipe_clk_100m;
 	struct combphy_reg pipe_clk_ext;
+	struct combphy_reg pipe_phy_status;
 	struct combphy_reg con0_for_pcie;
 	struct combphy_reg con1_for_pcie;
 	struct combphy_reg con2_for_pcie;
@@ -105,6 +106,20 @@ static int param_write(struct regmap *base,
 	val = (tmp << reg->bitstart) | (mask << BIT_WRITEABLE_SHIFT);
 
 	return regmap_write(base, reg->offset, val);
+}
+
+static u32 rockchip_combphy_is_ready(struct rockchip_combphy_priv *priv)
+{
+	const struct rockchip_combphy_grfcfg *cfg = priv->cfg->grfcfg;
+	u32 mask, val;
+
+	mask = GENMASK(cfg->pipe_phy_status.bitend,
+		       cfg->pipe_phy_status.bitstart);
+
+	regmap_read(priv->phy_grf, cfg->pipe_phy_status.offset, &val);
+	val = (val & mask) >> cfg->pipe_phy_status.bitstart;
+
+	return val;
 }
 
 static int rockchip_combphy_pcie_init(struct rockchip_combphy_priv *priv)
@@ -175,6 +190,8 @@ static int rockchip_combphy_set_mode(struct rockchip_combphy_priv *priv)
 static int rockchip_combphy_init(struct phy *phy)
 {
 	struct rockchip_combphy_priv *priv = phy_get_drvdata(phy);
+	const struct rockchip_combphy_grfcfg *cfg = priv->cfg->grfcfg;
+	u32 val;
 	int ret;
 
 	ret = clk_bulk_prepare_enable(priv->num_clks, priv->clks);
@@ -190,6 +207,15 @@ static int rockchip_combphy_init(struct phy *phy)
 	ret = reset_control_deassert(priv->phy_rst);
 	if (ret)
 		goto err_clk;
+
+	if (priv->mode == PHY_TYPE_USB3) {
+		ret = readx_poll_timeout_atomic(rockchip_combphy_is_ready,
+						priv, val,
+						val == cfg->pipe_phy_status.enable,
+						10, 1000);
+		if (ret)
+			dev_warn(priv->dev, "wait phy status ready timeout\n");
+	}
 
 	return 0;
 
@@ -494,6 +520,7 @@ static const struct rockchip_combphy_grfcfg rk3568_combphy_grfcfgs = {
 	.pipe_clk_25m		= { 0x0004, 14, 13, 0x00, 0x01 },
 	.pipe_clk_100m		= { 0x0004, 14, 13, 0x00, 0x02 },
 	.pipe_clk_ext		= { 0x000c, 9, 8, 0x02, 0x01 },
+	.pipe_phy_status	= { 0x0034, 6, 6, 0x01, 0x00 },
 	.con0_for_pcie		= { 0x0000, 15, 0, 0x00, 0x1000 },
 	.con1_for_pcie		= { 0x0004, 15, 0, 0x00, 0x0000 },
 	.con2_for_pcie		= { 0x0008, 15, 0, 0x00, 0x0101 },
