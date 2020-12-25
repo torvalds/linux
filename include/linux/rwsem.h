@@ -55,6 +55,19 @@ struct rw_semaphore {
 	ANDROID_VENDOR_DATA(1);
 };
 
+enum rwsem_waiter_type {
+	RWSEM_WAITING_FOR_WRITE,
+	RWSEM_WAITING_FOR_READ
+};
+
+struct rwsem_waiter {
+	struct list_head list;
+	struct task_struct *task;
+	enum rwsem_waiter_type type;
+	unsigned long timeout;
+	unsigned long last_rowner;
+};
+
 /* In all implementations count != 0 means locked */
 static inline int rwsem_is_locked(struct rw_semaphore *sem)
 {
