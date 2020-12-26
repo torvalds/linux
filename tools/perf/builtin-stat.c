@@ -611,14 +611,12 @@ static void process_evlist(struct evlist *evlist, unsigned int interval)
 	if (evlist__ctlfd_process(evlist, &cmd) > 0) {
 		switch (cmd) {
 		case EVLIST_CTL_CMD_ENABLE:
-			pr_info(EVLIST_ENABLED_MSG);
 			if (interval)
 				process_interval();
 			break;
 		case EVLIST_CTL_CMD_DISABLE:
 			if (interval)
 				process_interval();
-			pr_info(EVLIST_DISABLED_MSG);
 			break;
 		case EVLIST_CTL_CMD_SNAPSHOT:
 		case EVLIST_CTL_CMD_ACK:

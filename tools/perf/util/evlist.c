@@ -1957,6 +1957,64 @@ int evlist__ctlfd_ack(struct evlist *evlist)
 	return err;
 }
 
+static int get_cmd_arg(char *cmd_data, size_t cmd_size, char **arg)
+{
+	char *data = cmd_data + cmd_size;
+
+	/* no argument */
+	if (!*data)
+		return 0;
+
+	/* there's argument */
+	if (*data == ' ') {
+		*arg = data + 1;
+		return 1;
+	}
+
+	/* malformed */
+	return -1;
+}
+
+static int evlist__ctlfd_enable(struct evlist *evlist, char *cmd_data, bool enable)
+{
+	struct evsel *evsel;
+	char *name;
+	int err;
+
+	err = get_cmd_arg(cmd_data,
+			  enable ? sizeof(EVLIST_CTL_CMD_ENABLE_TAG) - 1 :
+				   sizeof(EVLIST_CTL_CMD_DISABLE_TAG) - 1,
+			  &name);
+	if (err < 0) {
+		pr_info("failed: wrong command\n");
+		return -1;
+	}
+
+	if (err) {
+		evsel = evlist__find_evsel_by_str(evlist, name);
+		if (evsel) {
+			if (enable)
+				evlist__enable_evsel(evlist, name);
+			else
+				evlist__disable_evsel(evlist, name);
+			pr_info("Event %s %s\n", evsel->name,
+				enable ? "enabled" : "disabled");
+		} else {
+			pr_info("failed: can't find '%s' event\n", name);
+		}
+	} else {
+		if (enable) {
+			evlist__enable(evlist);
+			pr_info(EVLIST_ENABLED_MSG);
+		} else {
+			evlist__disable(evlist);
+			pr_info(EVLIST_DISABLED_MSG);
+		}
+	}
+
+	return 0;
+}
+
 int evlist__ctlfd_process(struct evlist *evlist, enum evlist_ctl_cmd *cmd)
 {
 	int err = 0;
@@ -1973,10 +2031,9 @@ int evlist__ctlfd_process(struct evlist *evlist, enum evlist_ctl_cmd *cmd)
 		if (err > 0) {
 			switch (*cmd) {
 			case EVLIST_CTL_CMD_ENABLE:
-				evlist__enable(evlist);
-				break;
 			case EVLIST_CTL_CMD_DISABLE:
-				evlist__disable(evlist);
+				err = evlist__ctlfd_enable(evlist, cmd_data,
+							   *cmd == EVLIST_CTL_CMD_ENABLE);
 				break;
 			case EVLIST_CTL_CMD_SNAPSHOT:
 				break;

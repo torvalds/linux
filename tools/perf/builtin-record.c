@@ -1938,18 +1938,14 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 		if (evlist__ctlfd_process(rec->evlist, &cmd) > 0) {
 			switch (cmd) {
-			case EVLIST_CTL_CMD_ENABLE:
-				pr_info(EVLIST_ENABLED_MSG);
-				break;
-			case EVLIST_CTL_CMD_DISABLE:
-				pr_info(EVLIST_DISABLED_MSG);
-				break;
 			case EVLIST_CTL_CMD_SNAPSHOT:
 				hit_auxtrace_snapshot_trigger(rec);
 				evlist__ctlfd_ack(rec->evlist);
 				break;
 			case EVLIST_CTL_CMD_ACK:
 			case EVLIST_CTL_CMD_UNSUPPORTED:
+			case EVLIST_CTL_CMD_ENABLE:
+			case EVLIST_CTL_CMD_DISABLE:
 			default:
 				break;
 			}
