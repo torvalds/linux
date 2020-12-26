@@ -1946,6 +1946,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 			case EVLIST_CTL_CMD_UNSUPPORTED:
 			case EVLIST_CTL_CMD_ENABLE:
 			case EVLIST_CTL_CMD_DISABLE:
+			case EVLIST_CTL_CMD_EVLIST:
 			default:
 				break;
 			}

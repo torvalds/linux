@@ -24,6 +24,7 @@
 #include "bpf-event.h"
 #include "util/string2.h"
 #include "util/perf_api_probe.h"
+#include "util/evsel_fprintf.h"
 #include <signal.h>
 #include <unistd.h>
 #include <sched.h>
@@ -1936,6 +1937,9 @@ static int evlist__ctlfd_recv(struct evlist *evlist, enum evlist_ctl_cmd *cmd,
 				    (sizeof(EVLIST_CTL_CMD_SNAPSHOT_TAG)-1))) {
 			*cmd = EVLIST_CTL_CMD_SNAPSHOT;
 			pr_debug("is snapshot\n");
+		} else if (!strncmp(cmd_data, EVLIST_CTL_CMD_EVLIST_TAG,
+				    (sizeof(EVLIST_CTL_CMD_EVLIST_TAG)-1))) {
+			*cmd = EVLIST_CTL_CMD_EVLIST;
 		}
 	}
 
@@ -2015,6 +2019,40 @@ static int evlist__ctlfd_enable(struct evlist *evlist, char *cmd_data, bool enab
 	return 0;
 }
 
+static int evlist__ctlfd_list(struct evlist *evlist, char *cmd_data)
+{
+	struct perf_attr_details details = { .verbose = false, };
+	struct evsel *evsel;
+	char *arg;
+	int err;
+
+	err = get_cmd_arg(cmd_data,
+			  sizeof(EVLIST_CTL_CMD_EVLIST_TAG) - 1,
+			  &arg);
+	if (err < 0) {
+		pr_info("failed: wrong command\n");
+		return -1;
+	}
+
+	if (err) {
+		if (!strcmp(arg, "-v")) {
+			details.verbose = true;
+		} else if (!strcmp(arg, "-g")) {
+			details.event_group = true;
+		} else if (!strcmp(arg, "-F")) {
+			details.freq = true;
+		} else {
+			pr_info("failed: wrong command\n");
+			return -1;
+		}
+	}
+
+	evlist__for_each_entry(evlist, evsel)
+		evsel__fprintf(evsel, &details, stderr);
+
+	return 0;
+}
+
 int evlist__ctlfd_process(struct evlist *evlist, enum evlist_ctl_cmd *cmd)
 {
 	int err = 0;
@@ -2034,6 +2072,9 @@ int evlist__ctlfd_process(struct evlist *evlist, enum evlist_ctl_cmd *cmd)
 			case EVLIST_CTL_CMD_DISABLE:
 				err = evlist__ctlfd_enable(evlist, cmd_data,
 							   *cmd == EVLIST_CTL_CMD_ENABLE);
+				break;
+			case EVLIST_CTL_CMD_EVLIST:
+				err = evlist__ctlfd_list(evlist, cmd_data);
 				break;
 			case EVLIST_CTL_CMD_SNAPSHOT:
 				break;

@@ -646,11 +646,16 @@ ctl-fifo / ack-fifo are opened and used as ctl-fd / ack-fd as follows.
 Listen on ctl-fd descriptor for command to control measurement.
 
 Available commands:
-  'enable'       : enable events
-  'disable'      : disable events
-  'enable name'  : enable event 'name'
-  'disable name' : disable event 'name'
-  'snapshot'     : AUX area tracing snapshot).
+  'enable'           : enable events
+  'disable'          : disable events
+  'enable name'      : enable event 'name'
+  'disable name'     : disable event 'name'
+  'snapshot'         : AUX area tracing snapshot).
+
+  'evlist [-v|-g|-F] : display all events
+                       -F  Show just the sample frequency used for each event.
+                       -v  Show all fields.
+                       -g  Show event group information.
 
 Measurements can be started with events disabled using --delay=-1 option. Optionally
 send control command completion ('ack\n') to ack-fd descriptor to synchronize with the
