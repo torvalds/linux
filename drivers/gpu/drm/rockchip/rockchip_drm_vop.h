@@ -41,6 +41,8 @@
 #define WIN_FEATURE_CLUSTER_MAIN	BIT(4)
 #define WIN_FEATURE_CLUSTER_SUB		BIT(5)
 
+#define VOP2_SOC_VARIANT		4
+
 enum bcsh_out_mode {
 	BCSH_OUT_MODE_BLACK,
 	BCSH_OUT_MODE_BLUE,
@@ -638,6 +640,7 @@ struct vop2_win_data {
 	const uint32_t *formats;
 	const uint64_t *format_modifiers;
 	const unsigned int supported_rotations;
+	uint32_t possible_crtcs[VOP2_SOC_VARIANT];
 
 	const struct vop2_win_regs *regs;
 	const struct vop2_win_regs **area;
@@ -671,7 +674,7 @@ struct vop2_wb_data {
 struct vop2_video_port_data {
 	char id;
 	uint32_t feature;
-	uint64_t soc_id;
+	uint64_t soc_id[VOP2_SOC_VARIANT];
 	struct vop_rect max_output;
 	const u8 pre_scan_max_dly[4];
 	const struct vop_intr *intr;
@@ -808,6 +811,7 @@ struct vop2_ctrl {
 	struct vop_reg bt656_yc_swap;
 	struct vop_reg gamma_port_sel;
 
+	struct vop_reg otp_en;
 	struct vop_reg reg_done_frm;
 	struct vop_reg cfg_done;
 };

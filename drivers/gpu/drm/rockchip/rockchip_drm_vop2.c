@@ -34,6 +34,7 @@
 #include <linux/delay.h>
 #include <linux/swab.h>
 #include <linux/sort.h>
+#include <linux/rockchip/cpu.h>
 #include <soc/rockchip/rockchip_dmc.h>
 #include <soc/rockchip/rockchip-system-status.h>
 #include <uapi/linux/videodev2.h>
@@ -294,6 +295,10 @@ struct vop2_win {
 	 * one win can only attach to one vp at the one time.
 	 */
 	uint8_t vp_mask;
+	/*
+	 * @possible_crtcs: which crtc/vp this win can attached to.
+	 */
+	uint32_t possible_crtcs;
 	uint8_t zpos;
 	uint32_t offset;
 	enum drm_plane_type type;
@@ -590,6 +595,11 @@ static inline void vop2_mask_write(struct vop2 *vop2, uint32_t offset,
 		writel_relaxed(v, vop2->regs + offset);
 	else
 		writel(v, vop2->regs + offset);
+}
+
+static bool vop2_soc_is_rk3566(void)
+{
+	return soc_is_rk3566();
 }
 
 static inline const struct vop2_win_regs *vop2_get_win_regs(struct vop2_win *win,
@@ -2132,6 +2142,9 @@ static void vop2_initial(struct drm_crtc *crtc)
 			return;
 		}
 
+		if (vop2_soc_is_rk3566())
+			VOP_CTRL_SET(vop2, otp_en, 1);
+
 		memcpy(vop2->regsbak, vop2->regs, vop2->len);
 
 		VOP_MODULE_SET(vop2, wb, axi_yrgb_id, 0xd);
@@ -2157,7 +2170,6 @@ static void vop2_initial(struct drm_crtc *crtc)
 		VOP_CTRL_SET(vop2, if_ctrl_cfg_done_imd, 1);
 
 		vop2_layer_map_initial(vop2, current_vp_id);
-
 		vop2_axi_irqs_enable(vop2);
 
 		vop2->is_enabled = true;
@@ -5085,7 +5097,7 @@ static int vop2_plane_create_feature_property(struct vop2 *vop2, struct vop2_win
 	return 0;
 }
 
-static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned long possible_crtcs)
+static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win)
 {
 	struct rockchip_drm_private *private = vop2->drm_dev->dev_private;
 	unsigned int blend_caps = BIT(DRM_MODE_BLEND_PIXEL_NONE) | BIT(DRM_MODE_BLEND_PREMULTI) |
@@ -5093,9 +5105,9 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 	unsigned int max_width, max_height;
 	int ret;
 
-	ret = drm_universal_plane_init(vop2->drm_dev, &win->base, possible_crtcs, &vop2_plane_funcs,
-				       win->formats, win->nformats, win->format_modifiers,
-				       win->type, win->name);
+	ret = drm_universal_plane_init(vop2->drm_dev, &win->base, win->possible_crtcs,
+				       &vop2_plane_funcs, win->formats, win->nformats,
+				       win->format_modifiers, win->type, win->name);
 	if (ret) {
 		DRM_DEV_ERROR(vop2->dev, "failed to initialize plane %d\n", ret);
 		return ret;
@@ -5223,13 +5235,10 @@ static int vop2_create_crtc(struct vop2 *vop2)
 	struct vop2_win *win = NULL;
 	struct vop2_video_port *vp;
 	const struct vop2_video_port_data *vp_data;
-	uint32_t possible_crtcs;
+	uint64_t soc_id;
 	char dclk_name[9];
 	int i = 0, j = 0;
 	int ret = 0;
-
-	/* all planes can attach to any crtc */
-	possible_crtcs = (1 << vop2_data->nr_vps) - 1;
 
 	/*
 	 * Create primary plane for eache crtc first, since we need
@@ -5242,6 +5251,10 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		vp->vop2 = vop2;
 		vp->id = vp_data->id;
 		vp->regs = vp_data->regs;
+		if (vop2_soc_is_rk3566())
+			soc_id = vp_data->soc_id[1];
+		else
+			soc_id = vp_data->soc_id[0];
 
 		snprintf(dclk_name, sizeof(dclk_name), "dclk_vp%d", vp->id);
 		vp->dclk = devm_clk_get(vop2->dev, dclk_name);
@@ -5266,7 +5279,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 			break;
 		}
 
-		if (vop2_plane_init(vop2, win, possible_crtcs)) {
+		if (vop2_plane_init(vop2, win)) {
 			DRM_DEV_ERROR(vop2->dev, "failed to init plane\n");
 			break;
 		}
@@ -5293,7 +5306,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		init_completion(&vp->dsp_hold_completion);
 		init_completion(&vp->line_flag_completion);
 		rockchip_register_crtc_funcs(crtc, &private_crtc_funcs);
-		drm_object_attach_property(&crtc->base, vop2->soc_id_prop, vp_data->soc_id);
+		drm_object_attach_property(&crtc->base, vop2->soc_id_prop, soc_id);
 		drm_object_attach_property(&crtc->base, vop2->vp_id_prop, vp->id);
 		drm_object_attach_property(&crtc->base,
 					   drm_dev->mode_config.tv_left_margin_property, 100);
@@ -5324,7 +5337,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		if (win->type != DRM_PLANE_TYPE_OVERLAY)
 			continue;
 
-		ret = vop2_plane_init(vop2, win, possible_crtcs);
+		ret = vop2_plane_init(vop2, win);
 		if (ret) {
 			DRM_DEV_ERROR(vop2->dev, "failed to init overlay\n");
 			break;
@@ -5388,6 +5401,10 @@ static int vop2_win_init(struct vop2 *vop2)
 		win->area_id = 0;
 		win->zpos = i;
 		win->vop2 = vop2;
+		if (vop2_soc_is_rk3566())
+			win->possible_crtcs = win_data->possible_crtcs[1];
+		else
+			win->possible_crtcs = win_data->possible_crtcs[0];
 
 		num_wins++;
 
@@ -5405,6 +5422,7 @@ static int vop2_win_init(struct vop2 *vop2)
 			area->formats = win->formats;
 			area->nformats = win->nformats;
 			area->format_modifiers = win->format_modifiers;
+			area->possible_crtcs = win->possible_crtcs;
 			area->max_upscale_factor = win_data->max_upscale_factor;
 			area->max_downscale_factor = win_data->max_downscale_factor;
 			area->supported_rotations = win_data->supported_rotations;

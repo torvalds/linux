@@ -604,7 +604,7 @@ static const struct vop2_video_port_regs rk3568_vop_vp2_regs = {
 static const struct vop2_video_port_data rk3568_vop_video_ports[] = {
 	{
 	 .id = 0,
-	 .soc_id = 0x3568,
+	 .soc_id = { 0x3568, 0x3566 },
 	 .feature = VOP_FEATURE_OUTPUT_10BIT,
 	 .max_output = { 4096, 2304 },
 	 .pre_scan_max_dly = { 69, 53, 53, 42 },
@@ -614,7 +614,7 @@ static const struct vop2_video_port_data rk3568_vop_video_ports[] = {
 	},
 	{
 	 .id = 1,
-	 .soc_id = 0x3568,
+	 .soc_id = { 0x3568, 0x3566 },
 	 .max_output = { 2048, 1536 },
 	 .pre_scan_max_dly = { 40, 40, 40, 40 },
 	 .intr = &rk3568_vp1_intr,
@@ -622,7 +622,7 @@ static const struct vop2_video_port_data rk3568_vop_video_ports[] = {
 	},
 	{
 	 .id = 2,
-	 .soc_id = 0x3568,
+	 .soc_id = { 0x3568, 0x3566 },
 	 .max_output = { 1920, 1080 },
 	 .pre_scan_max_dly = { 40, 40, 40, 40 },
 	 .intr = &rk3568_vp2_intr,
@@ -974,6 +974,8 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .formats = formats_win_full_10bit,
 	  .nformats = ARRAY_SIZE(formats_win_full_10bit),
 	  .format_modifiers = format_modifiers_afbc,
+	  /* RK3568, RK3566 */
+	  .possible_crtcs = { 0x7, 0x1 },
 	  .layer_sel_id = 0,
 	  .supported_rotations = DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_270 |
 				 DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y,
@@ -997,6 +999,8 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .formats = formats_win_full_10bit,
 	  .nformats = ARRAY_SIZE(formats_win_full_10bit),
 	  .format_modifiers = format_modifiers_afbc,
+	  /* RK3568, RK3566 */
+	  .possible_crtcs = { 0x7, 0x1 },
 	  .supported_rotations = DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y,
 	  .hsu_filter_mode = VOP2_SCALE_UP_BIC,
 	  .hsd_filter_mode = VOP2_SCALE_DOWN_BIL,
@@ -1016,6 +1020,8 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .formats = formats_win_full_10bit,
 	  .nformats = ARRAY_SIZE(formats_win_full_10bit),
 	  .format_modifiers = format_modifiers_afbc,
+	  /* RK3568, RK3566 */
+	  .possible_crtcs = { 0x7, 0x2 },
 	  .layer_sel_id = 1,
 	  .supported_rotations = DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_270 |
 				 DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y,
@@ -1038,6 +1044,8 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .formats = formats_win_full_10bit,
 	  .nformats = ARRAY_SIZE(formats_win_full_10bit),
 	  .format_modifiers = format_modifiers_afbc,
+	  /* RK3568, RK3566 */
+	  .possible_crtcs = { 0x7, 0x2 },
 	  .base = 0x80,
 	  .supported_rotations = DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y,
 	  .hsu_filter_mode = VOP2_SCALE_UP_BIC,
@@ -1059,6 +1067,8 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .format_modifiers = format_modifiers,
 	  .base = 0x0,
 	  .layer_sel_id = 2,
+	  /* RK3568, RK3566 */
+	  .possible_crtcs = { 0x7, 0x1 },
 	  .supported_rotations = DRM_MODE_REFLECT_Y,
 	  .hsu_filter_mode = VOP2_SCALE_UP_BIC,
 	  .hsd_filter_mode = VOP2_SCALE_DOWN_BIL,
@@ -1081,6 +1091,8 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .format_modifiers = format_modifiers,
 	  .base = 0x200,
 	  .layer_sel_id = 6,
+	  /* RK3568, RK3566 */
+	  .possible_crtcs = { 0x7, 0x2 },
 	  .supported_rotations = DRM_MODE_REFLECT_Y,
 	  .hsu_filter_mode = VOP2_SCALE_UP_BIC,
 	  .hsd_filter_mode = VOP2_SCALE_DOWN_BIL,
@@ -1103,6 +1115,8 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .nformats = ARRAY_SIZE(formats_win_lite),
 	  .format_modifiers = format_modifiers,
 	  .layer_sel_id = 3,
+	  /* RK3568, RK3566 */
+	  .possible_crtcs = { 0x7, 0x1 },
 	  .supported_rotations = DRM_MODE_REFLECT_Y,
 	  .hsu_filter_mode = VOP2_SCALE_UP_BIC,
 	  .hsd_filter_mode = VOP2_SCALE_DOWN_BIL,
@@ -1125,6 +1139,8 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .format_modifiers = format_modifiers,
 	  .base = 0x600,
 	  .layer_sel_id = 7,
+	  /* RK3568, RK3566 */
+	  .possible_crtcs = { 0x7, 0x2 },
 	  .supported_rotations = DRM_MODE_REFLECT_Y,
 	  .hsu_filter_mode = VOP2_SCALE_UP_BIC,
 	  .hsd_filter_mode = VOP2_SCALE_DOWN_BIL,
@@ -1204,6 +1220,7 @@ static const struct vop2_ctrl rk3568_vop_ctrl = {
 	.win_dly[3] = VOP_REG(RK3568_SMART_DLY_NUM, 0xff, 8),
 	.win_dly[4] = VOP_REG(RK3568_SMART_DLY_NUM, 0xff, 16),
 	.win_dly[5] = VOP_REG(RK3568_SMART_DLY_NUM, 0xff, 24),
+	.otp_en = VOP_REG(RK3568_OTP_WIN_EN, 0x1, 0),
 };
 
 static const struct vop2_data rk3568_vop = {
