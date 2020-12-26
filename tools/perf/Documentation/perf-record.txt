@@ -652,6 +652,7 @@ Available commands:
   'disable name'     : disable event 'name'
   'snapshot'         : AUX area tracing snapshot).
   'stop'             : stop perf record
+  'ping'             : ping
 
   'evlist [-v|-g|-F] : display all events
                        -F  Show just the sample frequency used for each event.

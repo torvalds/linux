@@ -1943,6 +1943,9 @@ static int evlist__ctlfd_recv(struct evlist *evlist, enum evlist_ctl_cmd *cmd,
 		} else if (!strncmp(cmd_data, EVLIST_CTL_CMD_STOP_TAG,
 				    (sizeof(EVLIST_CTL_CMD_STOP_TAG)-1))) {
 			*cmd = EVLIST_CTL_CMD_STOP;
+		} else if (!strncmp(cmd_data, EVLIST_CTL_CMD_PING_TAG,
+				    (sizeof(EVLIST_CTL_CMD_PING_TAG)-1))) {
+			*cmd = EVLIST_CTL_CMD_PING;
 		}
 	}
 
@@ -2081,6 +2084,7 @@ int evlist__ctlfd_process(struct evlist *evlist, enum evlist_ctl_cmd *cmd)
 				break;
 			case EVLIST_CTL_CMD_SNAPSHOT:
 			case EVLIST_CTL_CMD_STOP:
+			case EVLIST_CTL_CMD_PING:
 				break;
 			case EVLIST_CTL_CMD_ACK:
 			case EVLIST_CTL_CMD_UNSUPPORTED:

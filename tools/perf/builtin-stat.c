@@ -623,6 +623,7 @@ static void process_evlist(struct evlist *evlist, unsigned int interval)
 		case EVLIST_CTL_CMD_UNSUPPORTED:
 		case EVLIST_CTL_CMD_EVLIST:
 		case EVLIST_CTL_CMD_STOP:
+		case EVLIST_CTL_CMD_PING:
 		default:
 			break;
 		}
