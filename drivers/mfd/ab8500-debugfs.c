@@ -1521,7 +1521,6 @@ static int ab8500_interrupts_show(struct seq_file *s, void *p)
 			   line + irq_first,
 			   num_interrupts[line],
 			   num_wake_interrupts[line]);
-		seq_putc(s, '\n');
 	}
 
 	return 0;
