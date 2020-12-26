@@ -255,10 +255,10 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 {
 	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
 	struct mt7915_mcu_txd *mcu_txd;
-	u8 seq, pkt_fmt, qidx;
 	enum mt76_txq_id txq;
 	__le32 *txd;
 	u32 val;
+	u8 seq;
 
 	/* TODO: make dynamic based on msg type */
 	mdev->mcu.timeout = 20 * HZ;
@@ -273,22 +273,16 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	}
 
 	mcu_txd = (struct mt7915_mcu_txd *)skb_push(skb, sizeof(*mcu_txd));
-
-	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state)) {
+	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state))
 		txq = MT_MCUQ_WA;
-		qidx = MT_TX_MCU_PORT_RX_Q0;
-		pkt_fmt = MT_TX_TYPE_CMD;
-	} else {
+	else
 		txq = MT_MCUQ_WM;
-		qidx = MT_TX_MCU_PORT_RX_Q0;
-		pkt_fmt = MT_TX_TYPE_CMD;
-	}
 
 	txd = mcu_txd->txd;
 
 	val = FIELD_PREP(MT_TXD0_TX_BYTES, skb->len) |
-	      FIELD_PREP(MT_TXD0_PKT_FMT, pkt_fmt) |
-	      FIELD_PREP(MT_TXD0_Q_IDX, qidx);
+	      FIELD_PREP(MT_TXD0_PKT_FMT, MT_TX_TYPE_CMD) |
+	      FIELD_PREP(MT_TXD0_Q_IDX, MT_TX_MCU_PORT_RX_Q0);
 	txd[0] = cpu_to_le32(val);
 
 	val = MT_TXD1_LONG_FORMAT |
@@ -296,7 +290,8 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	txd[1] = cpu_to_le32(val);
 
 	mcu_txd->len = cpu_to_le16(skb->len - sizeof(mcu_txd->txd));
-	mcu_txd->pq_id = cpu_to_le16(MCU_PQ_ID(MT_TX_PORT_IDX_MCU, qidx));
+	mcu_txd->pq_id = cpu_to_le16(MCU_PQ_ID(MT_TX_PORT_IDX_MCU,
+					       MT_TX_MCU_PORT_RX_Q0));
 	mcu_txd->pkt_type = MCU_PKT_ID;
 	mcu_txd->seq = seq;
 
