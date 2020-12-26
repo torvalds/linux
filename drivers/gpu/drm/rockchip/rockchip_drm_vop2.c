@@ -84,9 +84,6 @@
 #define VOP_MODULE_SET(vop2, module, name, v) \
 		REG_SET(vop2, name, 0, module->regs->name, v, false)
 
-#define VOP_REG_SET(vop2, group, name, v) \
-		    vop2_reg_set(vop2, &vop2->data->group->name, 0, ~0, v, #name)
-
 #define VOP_INTR_SET_MASK(vop2, intr, name, mask, v) \
 		REG_SET_MASK(vop2, name, 0, intr->name, mask, v, false)
 
@@ -287,6 +284,7 @@ struct vop2_win {
 	unsigned int max_upscale_factor;
 	unsigned int max_downscale_factor;
 	unsigned int supported_rotations;
+	const uint8_t *dly;
 	/*
 	 * vertical/horizontal scale up/down filter mode
 	 */
@@ -3620,6 +3618,32 @@ static void vop2_setup_dly_for_vp(struct vop2_video_port *vp)
 	VOP_MODULE_SET(vop2, vp, pre_scan_htiming, pre_scan_dly);
 }
 
+static void vop2_setup_dly_for_window(struct vop2_video_port *vp, const struct vop2_zpos *vop2_zpos)
+{
+	struct vop2 *vop2 = vp->vop2;
+	struct vop2_plane_state *vpstate;
+	const struct vop2_zpos *zpos;
+	struct drm_plane *plane;
+	struct vop2_win *win;
+	uint32_t dly;
+	int i = 0;
+
+	for (i = 0; i < vp->nr_wins; i++) {
+		zpos = &vop2_zpos[i];
+		win = vop2_find_win_by_phys_id(vop2, zpos->win_phys_id);
+		plane = &win->base;
+		vpstate = to_vop2_plane_state(plane->state);
+		if (vp->hdr_in && !vp->hdr_out && !vpstate->hdr_in)
+			dly = win->dly[VOP2_DLY_MODE_HISO_S];
+		else if (vp->hdr_in && vp->hdr_out && vpstate->hdr_in)
+			dly = win->dly[VOP2_DLY_MODE_HIHO_H];
+		else
+			dly = win->dly[VOP2_DLY_MODE_DEFAULT];
+
+		VOP_CTRL_SET(vop2, win_dly[win->phys_id], dly);
+	}
+
+}
 static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state *old_crtc_state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -3688,6 +3712,7 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 		vop2_setup_layer_mixer_for_vp(vp, vop2_zpos);
 		vop2_setup_alpha(vp, vop2_zpos);
 		vop2_setup_dly_for_vp(vp);
+		vop2_setup_dly_for_window(vp, vop2_zpos);
 	}
 
 	/* The pre alpha overlay of Cluster still need process in one win mode. */
@@ -4620,6 +4645,7 @@ static int vop2_win_init(struct vop2 *vop2)
 		win->hsd_filter_mode = win_data->hsd_filter_mode;
 		win->vsu_filter_mode = win_data->vsu_filter_mode;
 		win->vsd_filter_mode = win_data->vsd_filter_mode;
+		win->dly = win_data->dly;
 		win->feature = win_data->feature;
 		win->phys_id = win_data->phys_id;
 		win->layer_sel_id = win_data->layer_sel_id;

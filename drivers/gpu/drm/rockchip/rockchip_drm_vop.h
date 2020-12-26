@@ -59,6 +59,16 @@ enum cabc_stage_up_mode {
 	ADD_MODE,
 };
 
+/*
+ *  the delay number of a window in different mode.
+ */
+enum win_dly_mode {
+	VOP2_DLY_MODE_DEFAULT,   /**< default mode */
+	VOP2_DLY_MODE_HISO_S,    /** HDR in SDR out mode, as a SDR window */
+	VOP2_DLY_MODE_HIHO_H,    /** HDR in HDR out mode, as a HDR window */
+	VOP2_DLY_MODE_MAX,
+};
+
 #define DSP_BG_SWAP		0x1
 #define DSP_RB_SWAP		0x2
 #define DSP_RG_SWAP		0x4
@@ -631,6 +641,7 @@ struct vop2_win_data {
 
 	unsigned int max_upscale_factor;
 	unsigned int max_downscale_factor;
+	const uint8_t dly[VOP2_DLY_MODE_MAX];
 };
 
 struct vop2_video_port_data {
@@ -740,6 +751,7 @@ struct vop2_ctrl {
 	struct vop_reg dp_pin_pol;
 
 	struct vop_reg win_vp_id[8];
+	struct vop_reg win_dly[8];
 
 	/* connector mux */
 	struct vop_reg rgb_mux;

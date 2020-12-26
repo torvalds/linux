@@ -902,6 +902,7 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .regs = &rk3568_cluster0_win_data,
 	  .max_upscale_factor = 4,
 	  .max_downscale_factor = 4,
+	  .dly = { 0, 27, 21 },
 	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .feature = WIN_FEATURE_AFBDC | WIN_FEATURE_CLUSTER_MAIN,
 	},
@@ -942,6 +943,7 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .max_upscale_factor = 4,
 	  .max_downscale_factor = 4,
+	  .dly = { 0, 27, 21 },
 	  .feature = WIN_FEATURE_AFBDC | WIN_FEATURE_CLUSTER_MAIN,
 	},
 
@@ -982,6 +984,7 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .type = DRM_PLANE_TYPE_PRIMARY,
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
+	  .dly = { 20, 47, 41 },
 	},
 
 	{
@@ -1002,6 +1005,7 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .type = DRM_PLANE_TYPE_PRIMARY,
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
+	  .dly = { 20, 47, 41 },
 	},
 
 	{
@@ -1022,6 +1026,7 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .type = DRM_PLANE_TYPE_PRIMARY,
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
+	  .dly = { 20, 47, 41 },
 	},
 
 	{
@@ -1042,6 +1047,7 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
+	  .dly = { 20, 47, 41 },
 	},
 };
 
@@ -1102,6 +1108,12 @@ static const struct vop2_ctrl rk3568_vop_ctrl = {
 	.win_vp_id[3] = VOP_REG(RK3568_OVL_PORT_SEL, 0x3, 26),
 	.win_vp_id[4] = VOP_REG(RK3568_OVL_PORT_SEL, 0x3, 28),
 	.win_vp_id[5] = VOP_REG(RK3568_OVL_PORT_SEL, 0x3, 30),
+	.win_dly[0] = VOP_REG(RK3568_CLUSTER_DLY_NUM, 0xff, 0),
+	.win_dly[1] = VOP_REG(RK3568_CLUSTER_DLY_NUM, 0xff, 16),
+	.win_dly[2] = VOP_REG(RK3568_SMART_DLY_NUM, 0xff, 0),
+	.win_dly[3] = VOP_REG(RK3568_SMART_DLY_NUM, 0xff, 8),
+	.win_dly[4] = VOP_REG(RK3568_SMART_DLY_NUM, 0xff, 16),
+	.win_dly[5] = VOP_REG(RK3568_SMART_DLY_NUM, 0xff, 24),
 };
 
 static const struct vop2_data rk3568_vop = {
