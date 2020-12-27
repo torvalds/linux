@@ -1979,6 +1979,21 @@ struct gpio_chardev_data {
 #endif
 };
 
+static int chipinfo_get(struct gpio_chardev_data *cdev, void __user *ip)
+{
+	struct gpio_device *gdev = cdev->gdev;
+	struct gpiochip_info chipinfo;
+
+	memset(&chipinfo, 0, sizeof(chipinfo));
+
+	strscpy(chipinfo.name, dev_name(&gdev->dev), sizeof(chipinfo.name));
+	strscpy(chipinfo.label, gdev->label, sizeof(chipinfo.label));
+	chipinfo.lines = gdev->ngpio;
+	if (copy_to_user(ip, &chipinfo, sizeof(chipinfo)))
+		return -EFAULT;
+	return 0;
+}
+
 #ifdef CONFIG_GPIO_CDEV_V1
 /*
  * returns 0 if the versions match, else the previously selected ABI version
@@ -1992,6 +2007,41 @@ static int lineinfo_ensure_abi_version(struct gpio_chardev_data *cdata,
 		return 0;
 
 	return abiv;
+}
+
+static int lineinfo_get_v1(struct gpio_chardev_data *cdev, void __user *ip,
+			   bool watch)
+{
+	struct gpio_desc *desc;
+	struct gpioline_info lineinfo;
+	struct gpio_v2_line_info lineinfo_v2;
+
+	if (copy_from_user(&lineinfo, ip, sizeof(lineinfo)))
+		return -EFAULT;
+
+	/* this doubles as a range check on line_offset */
+	desc = gpiochip_get_desc(cdev->gdev->chip, lineinfo.line_offset);
+	if (IS_ERR(desc))
+		return PTR_ERR(desc);
+
+	if (watch) {
+		if (lineinfo_ensure_abi_version(cdev, 1))
+			return -EPERM;
+
+		if (test_and_set_bit(lineinfo.line_offset, cdev->watched_lines))
+			return -EBUSY;
+	}
+
+	gpio_desc_to_lineinfo(desc, &lineinfo_v2);
+	gpio_v2_line_info_to_v1(&lineinfo_v2, &lineinfo);
+
+	if (copy_to_user(ip, &lineinfo, sizeof(lineinfo))) {
+		if (watch)
+			clear_bit(lineinfo.line_offset, cdev->watched_lines);
+		return -EFAULT;
+	}
+
+	return 0;
 }
 #endif
 
@@ -2030,6 +2080,22 @@ static int lineinfo_get(struct gpio_chardev_data *cdev, void __user *ip,
 	return 0;
 }
 
+static int lineinfo_unwatch(struct gpio_chardev_data *cdev, void __user *ip)
+{
+	__u32 offset;
+
+	if (copy_from_user(&offset, ip, sizeof(offset)))
+		return -EFAULT;
+
+	if (offset >= cdev->gdev->ngpio)
+		return -EINVAL;
+
+	if (!test_and_clear_bit(offset, cdev->watched_lines))
+		return -EBUSY;
+
+	return 0;
+}
+
 /*
  * gpio_ioctl() - ioctl handler for the GPIO chardev
  */
@@ -2037,80 +2103,24 @@ static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct gpio_chardev_data *cdev = file->private_data;
 	struct gpio_device *gdev = cdev->gdev;
-	struct gpio_chip *gc = gdev->chip;
 	void __user *ip = (void __user *)arg;
-	__u32 offset;
 
 	/* We fail any subsequent ioctl():s when the chip is gone */
-	if (!gc)
+	if (!gdev->chip)
 		return -ENODEV;
 
 	/* Fill in the struct and pass to userspace */
 	if (cmd == GPIO_GET_CHIPINFO_IOCTL) {
-		struct gpiochip_info chipinfo;
-
-		memset(&chipinfo, 0, sizeof(chipinfo));
-
-		strscpy(chipinfo.name, dev_name(&gdev->dev),
-			sizeof(chipinfo.name));
-		strscpy(chipinfo.label, gdev->label,
-			sizeof(chipinfo.label));
-		chipinfo.lines = gdev->ngpio;
-		if (copy_to_user(ip, &chipinfo, sizeof(chipinfo)))
-			return -EFAULT;
-		return 0;
+		return chipinfo_get(cdev, ip);
 #ifdef CONFIG_GPIO_CDEV_V1
-	} else if (cmd == GPIO_GET_LINEINFO_IOCTL) {
-		struct gpio_desc *desc;
-		struct gpioline_info lineinfo;
-		struct gpio_v2_line_info lineinfo_v2;
-
-		if (copy_from_user(&lineinfo, ip, sizeof(lineinfo)))
-			return -EFAULT;
-
-		/* this doubles as a range check on line_offset */
-		desc = gpiochip_get_desc(gc, lineinfo.line_offset);
-		if (IS_ERR(desc))
-			return PTR_ERR(desc);
-
-		gpio_desc_to_lineinfo(desc, &lineinfo_v2);
-		gpio_v2_line_info_to_v1(&lineinfo_v2, &lineinfo);
-
-		if (copy_to_user(ip, &lineinfo, sizeof(lineinfo)))
-			return -EFAULT;
-		return 0;
 	} else if (cmd == GPIO_GET_LINEHANDLE_IOCTL) {
 		return linehandle_create(gdev, ip);
 	} else if (cmd == GPIO_GET_LINEEVENT_IOCTL) {
 		return lineevent_create(gdev, ip);
-	} else if (cmd == GPIO_GET_LINEINFO_WATCH_IOCTL) {
-		struct gpio_desc *desc;
-		struct gpioline_info lineinfo;
-		struct gpio_v2_line_info lineinfo_v2;
-
-		if (copy_from_user(&lineinfo, ip, sizeof(lineinfo)))
-			return -EFAULT;
-
-		/* this doubles as a range check on line_offset */
-		desc = gpiochip_get_desc(gc, lineinfo.line_offset);
-		if (IS_ERR(desc))
-			return PTR_ERR(desc);
-
-		if (lineinfo_ensure_abi_version(cdev, 1))
-			return -EPERM;
-
-		if (test_and_set_bit(lineinfo.line_offset, cdev->watched_lines))
-			return -EBUSY;
-
-		gpio_desc_to_lineinfo(desc, &lineinfo_v2);
-		gpio_v2_line_info_to_v1(&lineinfo_v2, &lineinfo);
-
-		if (copy_to_user(ip, &lineinfo, sizeof(lineinfo))) {
-			clear_bit(lineinfo.line_offset, cdev->watched_lines);
-			return -EFAULT;
-		}
-
-		return 0;
+	} else if (cmd == GPIO_GET_LINEINFO_IOCTL ||
+		   cmd == GPIO_GET_LINEINFO_WATCH_IOCTL) {
+		return lineinfo_get_v1(cdev, ip,
+				       cmd == GPIO_GET_LINEINFO_WATCH_IOCTL);
 #endif /* CONFIG_GPIO_CDEV_V1 */
 	} else if (cmd == GPIO_V2_GET_LINEINFO_IOCTL ||
 		   cmd == GPIO_V2_GET_LINEINFO_WATCH_IOCTL) {
@@ -2119,16 +2129,7 @@ static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	} else if (cmd == GPIO_V2_GET_LINE_IOCTL) {
 		return linereq_create(gdev, ip);
 	} else if (cmd == GPIO_GET_LINEINFO_UNWATCH_IOCTL) {
-		if (copy_from_user(&offset, ip, sizeof(offset)))
-			return -EFAULT;
-
-		if (offset >= cdev->gdev->ngpio)
-			return -EINVAL;
-
-		if (!test_and_clear_bit(offset, cdev->watched_lines))
-			return -EBUSY;
-
-		return 0;
+		return lineinfo_unwatch(cdev, ip);
 	}
 	return -EINVAL;
 }
