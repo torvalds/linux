@@ -12887,10 +12887,10 @@ static pci_ers_result_t bnxt_io_error_detected(struct pci_dev *pdev,
  */
 static pci_ers_result_t bnxt_io_slot_reset(struct pci_dev *pdev)
 {
+	pci_ers_result_t result = PCI_ERS_RESULT_DISCONNECT;
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct bnxt *bp = netdev_priv(netdev);
 	int err = 0, off;
-	pci_ers_result_t result = PCI_ERS_RESULT_DISCONNECT;
 
 	netdev_info(bp->dev, "PCI Slot Reset\n");
 
@@ -12919,22 +12919,8 @@ static pci_ers_result_t bnxt_io_slot_reset(struct pci_dev *pdev)
 		pci_save_state(pdev);
 
 		err = bnxt_hwrm_func_reset(bp);
-		if (!err) {
-			err = bnxt_hwrm_func_qcaps(bp);
-			if (!err && netif_running(netdev))
-				err = bnxt_open(netdev);
-		}
-		bnxt_ulp_start(bp, err);
-		if (!err) {
-			bnxt_reenable_sriov(bp);
+		if (!err)
 			result = PCI_ERS_RESULT_RECOVERED;
-		}
-	}
-
-	if (result != PCI_ERS_RESULT_RECOVERED) {
-		if (netif_running(netdev))
-			dev_close(netdev);
-		pci_disable_device(pdev);
 	}
 
 	rtnl_unlock();
@@ -12952,10 +12938,21 @@ static pci_ers_result_t bnxt_io_slot_reset(struct pci_dev *pdev)
 static void bnxt_io_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct bnxt *bp = netdev_priv(netdev);
+	int err;
 
+	netdev_info(bp->dev, "PCI Slot Resume\n");
 	rtnl_lock();
 
-	netif_device_attach(netdev);
+	err = bnxt_hwrm_func_qcaps(bp);
+	if (!err && netif_running(netdev))
+		err = bnxt_open(netdev);
+
+	bnxt_ulp_start(bp, err);
+	if (!err) {
+		bnxt_reenable_sriov(bp);
+		netif_device_attach(netdev);
+	}
 
 	rtnl_unlock();
 }
