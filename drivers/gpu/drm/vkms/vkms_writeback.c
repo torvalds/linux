@@ -2,6 +2,7 @@
 
 #include <linux/dma-buf-map.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_writeback.h>
 #include <drm/drm_probe_helper.h>
@@ -105,8 +106,10 @@ static void vkms_wb_cleanup_job(struct drm_writeback_connector *connector,
 }
 
 static void vkms_wb_atomic_commit(struct drm_connector *conn,
-				  struct drm_connector_state *state)
+				  struct drm_atomic_state *state)
 {
+	struct drm_connector_state *connector_state = drm_atomic_get_new_connector_state(state,
+											 conn);
 	struct vkms_device *vkmsdev = drm_device_to_vkms_device(conn->dev);
 	struct vkms_output *output = &vkmsdev->output;
 	struct drm_writeback_connector *wb_conn = &output->wb_connector;
@@ -122,7 +125,7 @@ static void vkms_wb_atomic_commit(struct drm_connector *conn,
 	crtc_state->active_writeback = conn_state->writeback_job->priv;
 	crtc_state->wb_pending = true;
 	spin_unlock_irq(&output->composer_lock);
-	drm_writeback_queue_job(wb_conn, state);
+	drm_writeback_queue_job(wb_conn, connector_state);
 }
 
 static const struct drm_connector_helper_funcs vkms_wb_conn_helper_funcs = {

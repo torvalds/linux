@@ -81,7 +81,9 @@
 	SRI(DP_MSE_RATE_UPDATE, DP, id), \
 	SRI(DP_PIXEL_FORMAT, DP, id), \
 	SRI(DP_SEC_CNTL, DP, id), \
+	SRI(DP_SEC_CNTL1, DP, id), \
 	SRI(DP_SEC_CNTL2, DP, id), \
+	SRI(DP_SEC_CNTL5, DP, id), \
 	SRI(DP_SEC_CNTL6, DP, id), \
 	SRI(DP_STEER_FIFO, DP, id), \
 	SRI(DP_VID_M, DP, id), \
@@ -126,7 +128,9 @@ struct dcn10_stream_enc_registers {
 	uint32_t DP_MSE_RATE_UPDATE;
 	uint32_t DP_PIXEL_FORMAT;
 	uint32_t DP_SEC_CNTL;
+	uint32_t DP_SEC_CNTL1;
 	uint32_t DP_SEC_CNTL2;
+	uint32_t DP_SEC_CNTL5;
 	uint32_t DP_SEC_CNTL6;
 	uint32_t DP_STEER_FIFO;
 	uint32_t DP_VID_M;
@@ -411,6 +415,8 @@ struct dcn10_stream_enc_registers {
 	type DP_SEC_GSP3_ENABLE;\
 	type DP_SEC_GSP4_ENABLE;\
 	type DP_SEC_GSP5_ENABLE;\
+	type DP_SEC_GSP5_LINE_NUM;\
+	type DP_SEC_GSP5_LINE_REFERENCE;\
 	type DP_SEC_GSP6_ENABLE;\
 	type DP_SEC_GSP7_ENABLE;\
 	type DP_SEC_GSP7_PPS;\

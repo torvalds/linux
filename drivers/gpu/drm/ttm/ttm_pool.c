@@ -63,6 +63,9 @@ static atomic_long_t allocated_pages;
 static struct ttm_pool_type global_write_combined[MAX_ORDER];
 static struct ttm_pool_type global_uncached[MAX_ORDER];
 
+static struct ttm_pool_type global_dma32_write_combined[MAX_ORDER];
+static struct ttm_pool_type global_dma32_uncached[MAX_ORDER];
+
 static spinlock_t shrinker_lock;
 static struct list_head shrinker_list;
 static struct shrinker mm_shrinker;
@@ -290,8 +293,14 @@ static struct ttm_pool_type *ttm_pool_select_type(struct ttm_pool *pool,
 #ifdef CONFIG_X86
 	switch (caching) {
 	case ttm_write_combined:
+		if (pool->use_dma32)
+			return &global_dma32_write_combined[order];
+
 		return &global_write_combined[order];
 	case ttm_uncached:
+		if (pool->use_dma32)
+			return &global_dma32_uncached[order];
+
 		return &global_uncached[order];
 	default:
 		break;
@@ -570,6 +579,11 @@ int ttm_pool_debugfs(struct ttm_pool *pool, struct seq_file *m)
 	seq_puts(m, "uc\t:");
 	ttm_pool_debugfs_orders(global_uncached, m);
 
+	seq_puts(m, "wc 32\t:");
+	ttm_pool_debugfs_orders(global_dma32_write_combined, m);
+	seq_puts(m, "uc 32\t:");
+	ttm_pool_debugfs_orders(global_dma32_uncached, m);
+
 	for (i = 0; i < TTM_NUM_CACHING_TYPES; ++i) {
 		seq_puts(m, "DMA ");
 		switch (i) {
@@ -640,6 +654,11 @@ int ttm_pool_mgr_init(unsigned long num_pages)
 		ttm_pool_type_init(&global_write_combined[i], NULL,
 				   ttm_write_combined, i);
 		ttm_pool_type_init(&global_uncached[i], NULL, ttm_uncached, i);
+
+		ttm_pool_type_init(&global_dma32_write_combined[i], NULL,
+				   ttm_write_combined, i);
+		ttm_pool_type_init(&global_dma32_uncached[i], NULL,
+				   ttm_uncached, i);
 	}
 
 	mm_shrinker.count_objects = ttm_pool_shrinker_count;
@@ -660,6 +679,9 @@ void ttm_pool_mgr_fini(void)
 	for (i = 0; i < MAX_ORDER; ++i) {
 		ttm_pool_type_fini(&global_write_combined[i]);
 		ttm_pool_type_fini(&global_uncached[i]);
+
+		ttm_pool_type_fini(&global_dma32_write_combined[i]);
+		ttm_pool_type_fini(&global_dma32_uncached[i]);
 	}
 
 	unregister_shrinker(&mm_shrinker);

@@ -203,27 +203,27 @@ static int cma_heap_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 {
 	struct cma_heap_buffer *buffer = dmabuf->priv;
 	void *vaddr;
+	int ret = 0;
 
 	mutex_lock(&buffer->lock);
 	if (buffer->vmap_cnt) {
 		buffer->vmap_cnt++;
-		vaddr = buffer->vaddr;
+		dma_buf_map_set_vaddr(map, buffer->vaddr);
 		goto out;
 	}
 
 	vaddr = cma_heap_do_vmap(buffer);
 	if (IS_ERR(vaddr)) {
-		mutex_unlock(&buffer->lock);
-		return PTR_ERR(vaddr);
+		ret = PTR_ERR(vaddr);
+		goto out;
 	}
-
 	buffer->vaddr = vaddr;
 	buffer->vmap_cnt++;
+	dma_buf_map_set_vaddr(map, buffer->vaddr);
 out:
 	mutex_unlock(&buffer->lock);
 
-	dma_buf_map_set_vaddr(map, vaddr);
-	return 0;
+	return ret;
 }
 
 static void cma_heap_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
@@ -236,6 +236,7 @@ static void cma_heap_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 		buffer->vaddr = NULL;
 	}
 	mutex_unlock(&buffer->lock);
+	dma_buf_map_clear(map);
 }
 
 static void cma_heap_dma_buf_release(struct dma_buf *dmabuf)
@@ -246,6 +247,7 @@ static void cma_heap_dma_buf_release(struct dma_buf *dmabuf)
 	if (buffer->vmap_cnt > 0) {
 		WARN(1, "%s: buffer still mapped in the kernel\n", __func__);
 		vunmap(buffer->vaddr);
+		buffer->vaddr = NULL;
 	}
 
 	cma_release(cma_heap->cma, buffer->cma_pages, buffer->pagecount);

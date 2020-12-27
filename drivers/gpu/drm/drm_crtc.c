@@ -230,14 +230,14 @@ struct dma_fence *drm_crtc_create_fence(struct drm_crtc *crtc)
  *
  * 	Setting MODE_ID to 0 will release reserved resources for the CRTC.
  * SCALING_FILTER:
- *	Atomic property for setting the scaling filter for CRTC scaler
+ * 	Atomic property for setting the scaling filter for CRTC scaler
  *
- *	The value of this property can be one of the following:
- *	Default:
- *		Driver's default scaling filter
- *	Nearest Neighbor:
- *		Nearest Neighbor scaling filter
+ * 	The value of this property can be one of the following:
  *
+ * 	Default:
+ * 		Driver's default scaling filter
+ * 	Nearest Neighbor:
+ * 		Nearest Neighbor scaling filter
  */
 
 /**

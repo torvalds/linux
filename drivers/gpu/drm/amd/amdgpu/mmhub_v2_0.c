@@ -136,6 +136,7 @@ mmhub_v2_0_print_l2_protection_fault_status(struct amdgpu_device *adev,
 		break;
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_DIMGREY_CAVEFISH:
 		mmhub_cid = mmhub_client_ids_sienna_cichlid[cid][rw];
 		break;
 	default:

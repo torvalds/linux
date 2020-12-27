@@ -81,6 +81,14 @@ const char *const *amdgpu_dm_crtc_get_crc_sources(struct drm_crtc *crtc,
 	return pipe_crc_sources;
 }
 
+static void amdgpu_dm_set_crc_window_default(struct dm_crtc_state *dm_crtc_state)
+{
+	dm_crtc_state->crc_window.x_start = 0;
+	dm_crtc_state->crc_window.y_start = 0;
+	dm_crtc_state->crc_window.x_end = 0;
+	dm_crtc_state->crc_window.y_end = 0;
+}
+
 bool amdgpu_dm_crc_window_is_default(struct dm_crtc_state *dm_crtc_state)
 {
 	bool ret = true;
@@ -141,7 +149,10 @@ int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
 	mutex_lock(&adev->dm.dc_lock);
 
 	/* Enable CRTC CRC generation if necessary. */
-	if (dm_is_crc_source_crtc(source)) {
+	if (dm_is_crc_source_crtc(source) || source == AMDGPU_DM_PIPE_CRC_SOURCE_NONE) {
+		if (!enable)
+			amdgpu_dm_set_crc_window_default(dm_crtc_state);
+
 		if (!amdgpu_dm_crc_window_is_default(dm_crtc_state)) {
 			crc_window = &tmp_window;
 
