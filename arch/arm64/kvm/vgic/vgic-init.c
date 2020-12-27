@@ -446,6 +446,8 @@ int kvm_vgic_map_resources(struct kvm *kvm)
 
 	if (ret)
 		__kvm_vgic_destroy(kvm);
+	else
+		dist->ready = true;
 
 out:
 	mutex_unlock(&kvm->lock);
