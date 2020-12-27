@@ -124,8 +124,8 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 	if (coresight_timeout(drvdata->base, TRCSTATR, TRCSTATR_IDLE_BIT, 1))
 		dev_err(etm_dev,
 			"timeout while waiting for Idle Trace Status\n");
-
-	writel_relaxed(config->pe_sel, drvdata->base + TRCPROCSELR);
+	if (drvdata->nr_pe)
+		writel_relaxed(config->pe_sel, drvdata->base + TRCPROCSELR);
 	writel_relaxed(config->cfg, drvdata->base + TRCCONFIGR);
 	/* nothing specific implemented */
 	writel_relaxed(0x0, drvdata->base + TRCAUXCTLR);
@@ -141,8 +141,9 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 	writel_relaxed(config->viiectlr, drvdata->base + TRCVIIECTLR);
 	writel_relaxed(config->vissctlr,
 		       drvdata->base + TRCVISSCTLR);
-	writel_relaxed(config->vipcssctlr,
-		       drvdata->base + TRCVIPCSSCTLR);
+	if (drvdata->nr_pe_cmp)
+		writel_relaxed(config->vipcssctlr,
+			       drvdata->base + TRCVIPCSSCTLR);
 	for (i = 0; i < drvdata->nrseqstate - 1; i++)
 		writel_relaxed(config->seq_ctrl[i],
 			       drvdata->base + TRCSEQEVRn(i));
@@ -187,13 +188,15 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 		writeq_relaxed(config->ctxid_pid[i],
 			       drvdata->base + TRCCIDCVRn(i));
 	writel_relaxed(config->ctxid_mask0, drvdata->base + TRCCIDCCTLR0);
-	writel_relaxed(config->ctxid_mask1, drvdata->base + TRCCIDCCTLR1);
+	if (drvdata->numcidc > 4)
+		writel_relaxed(config->ctxid_mask1, drvdata->base + TRCCIDCCTLR1);
 
 	for (i = 0; i < drvdata->numvmidc; i++)
 		writeq_relaxed(config->vmid_val[i],
 			       drvdata->base + TRCVMIDCVRn(i));
 	writel_relaxed(config->vmid_mask0, drvdata->base + TRCVMIDCCTLR0);
-	writel_relaxed(config->vmid_mask1, drvdata->base + TRCVMIDCCTLR1);
+	if (drvdata->numvmidc > 4)
+		writel_relaxed(config->vmid_mask1, drvdata->base + TRCVMIDCCTLR1);
 
 	if (!drvdata->skip_power_up) {
 		/*
@@ -779,7 +782,7 @@ static void etm4_init_arch_data(void *info)
 	 * LPOVERRIDE, bit[23] implementation supports
 	 * low-power state override
 	 */
-	if (BMVAL(etmidr5, 23, 23))
+	if (BMVAL(etmidr5, 23, 23) && (!drvdata->skip_power_up))
 		drvdata->lpoverride = true;
 	else
 		drvdata->lpoverride = false;
@@ -1178,7 +1181,8 @@ static int etm4_cpu_save(struct etmv4_drvdata *drvdata)
 	state = drvdata->save_state;
 
 	state->trcprgctlr = readl(drvdata->base + TRCPRGCTLR);
-	state->trcprocselr = readl(drvdata->base + TRCPROCSELR);
+	if (drvdata->nr_pe)
+		state->trcprocselr = readl(drvdata->base + TRCPROCSELR);
 	state->trcconfigr = readl(drvdata->base + TRCCONFIGR);
 	state->trcauxctlr = readl(drvdata->base + TRCAUXCTLR);
 	state->trceventctl0r = readl(drvdata->base + TRCEVENTCTL0R);
@@ -1194,7 +1198,8 @@ static int etm4_cpu_save(struct etmv4_drvdata *drvdata)
 	state->trcvictlr = readl(drvdata->base + TRCVICTLR);
 	state->trcviiectlr = readl(drvdata->base + TRCVIIECTLR);
 	state->trcvissctlr = readl(drvdata->base + TRCVISSCTLR);
-	state->trcvipcssctlr = readl(drvdata->base + TRCVIPCSSCTLR);
+	if (drvdata->nr_pe_cmp)
+		state->trcvipcssctlr = readl(drvdata->base + TRCVIPCSSCTLR);
 	state->trcvdctlr = readl(drvdata->base + TRCVDCTLR);
 	state->trcvdsacctlr = readl(drvdata->base + TRCVDSACCTLR);
 	state->trcvdarcctlr = readl(drvdata->base + TRCVDARCCTLR);
@@ -1240,10 +1245,12 @@ static int etm4_cpu_save(struct etmv4_drvdata *drvdata)
 		state->trcvmidcvr[i] = readq(drvdata->base + TRCVMIDCVRn(i));
 
 	state->trccidcctlr0 = readl(drvdata->base + TRCCIDCCTLR0);
-	state->trccidcctlr1 = readl(drvdata->base + TRCCIDCCTLR1);
+	if (drvdata->numcidc > 4)
+		state->trccidcctlr1 = readl(drvdata->base + TRCCIDCCTLR1);
 
 	state->trcvmidcctlr0 = readl(drvdata->base + TRCVMIDCCTLR0);
-	state->trcvmidcctlr1 = readl(drvdata->base + TRCVMIDCCTLR1);
+	if (drvdata->numvmidc > 4)
+		state->trcvmidcctlr1 = readl(drvdata->base + TRCVMIDCCTLR1);
 
 	state->trcclaimset = readl(drvdata->base + TRCCLAIMCLR);
 
@@ -1283,7 +1290,8 @@ static void etm4_cpu_restore(struct etmv4_drvdata *drvdata)
 	writel_relaxed(state->trcclaimset, drvdata->base + TRCCLAIMSET);
 
 	writel_relaxed(state->trcprgctlr, drvdata->base + TRCPRGCTLR);
-	writel_relaxed(state->trcprocselr, drvdata->base + TRCPROCSELR);
+	if (drvdata->nr_pe)
+		writel_relaxed(state->trcprocselr, drvdata->base + TRCPROCSELR);
 	writel_relaxed(state->trcconfigr, drvdata->base + TRCCONFIGR);
 	writel_relaxed(state->trcauxctlr, drvdata->base + TRCAUXCTLR);
 	writel_relaxed(state->trceventctl0r, drvdata->base + TRCEVENTCTL0R);
@@ -1299,7 +1307,8 @@ static void etm4_cpu_restore(struct etmv4_drvdata *drvdata)
 	writel_relaxed(state->trcvictlr, drvdata->base + TRCVICTLR);
 	writel_relaxed(state->trcviiectlr, drvdata->base + TRCVIIECTLR);
 	writel_relaxed(state->trcvissctlr, drvdata->base + TRCVISSCTLR);
-	writel_relaxed(state->trcvipcssctlr, drvdata->base + TRCVIPCSSCTLR);
+	if (drvdata->nr_pe_cmp)
+		writel_relaxed(state->trcvipcssctlr, drvdata->base + TRCVIPCSSCTLR);
 	writel_relaxed(state->trcvdctlr, drvdata->base + TRCVDCTLR);
 	writel_relaxed(state->trcvdsacctlr, drvdata->base + TRCVDSACCTLR);
 	writel_relaxed(state->trcvdarcctlr, drvdata->base + TRCVDARCCTLR);
@@ -1350,10 +1359,12 @@ static void etm4_cpu_restore(struct etmv4_drvdata *drvdata)
 			       drvdata->base + TRCVMIDCVRn(i));
 
 	writel_relaxed(state->trccidcctlr0, drvdata->base + TRCCIDCCTLR0);
-	writel_relaxed(state->trccidcctlr1, drvdata->base + TRCCIDCCTLR1);
+	if (drvdata->numcidc > 4)
+		writel_relaxed(state->trccidcctlr1, drvdata->base + TRCCIDCCTLR1);
 
 	writel_relaxed(state->trcvmidcctlr0, drvdata->base + TRCVMIDCCTLR0);
-	writel_relaxed(state->trcvmidcctlr1, drvdata->base + TRCVMIDCCTLR1);
+	if (drvdata->numvmidc > 4)
+		writel_relaxed(state->trcvmidcctlr1, drvdata->base + TRCVMIDCCTLR1);
 
 	writel_relaxed(state->trcclaimset, drvdata->base + TRCCLAIMSET);
 
