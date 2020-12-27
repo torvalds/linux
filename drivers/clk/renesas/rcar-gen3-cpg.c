@@ -375,15 +375,9 @@ static const struct clk_ops cpg_sd_clock_ops = {
 	.set_rate = cpg_sd_clock_set_rate,
 };
 
-static u32 cpg_quirks __initdata;
-
-#define PLL_ERRATA	BIT(0)		/* Missing PLL0/2/4 post-divider */
-#define RCKCR_CKSEL	BIT(1)		/* Manual RCLK parent selection */
-#define SD_SKIP_FIRST	BIT(2)		/* Skip first clock in SD table */
-
 static struct clk * __init cpg_sd_clk_register(const char *name,
 	void __iomem *base, unsigned int offset, const char *parent_name,
-	struct raw_notifier_head *notifiers)
+	struct raw_notifier_head *notifiers, bool skip_first)
 {
 	struct clk_init_data init;
 	struct sd_clock *clock;
@@ -405,7 +399,7 @@ static struct clk * __init cpg_sd_clk_register(const char *name,
 	clock->div_table = cpg_sd_div_table;
 	clock->div_num = ARRAY_SIZE(cpg_sd_div_table);
 
-	if (cpg_quirks & SD_SKIP_FIRST) {
+	if (skip_first) {
 		clock->div_table++;
 		clock->div_num--;
 	}
@@ -518,6 +512,12 @@ static struct clk * __init cpg_rpcd2_clk_register(const char *name,
 static const struct rcar_gen3_cpg_pll_config *cpg_pll_config __initdata;
 static unsigned int cpg_clk_extalr __initdata;
 static u32 cpg_mode __initdata;
+static u32 cpg_quirks __initdata;
+
+#define PLL_ERRATA	BIT(0)		/* Missing PLL0/2/4 post-divider */
+#define RCKCR_CKSEL	BIT(1)		/* Manual RCLK parent selection */
+#define SD_SKIP_FIRST	BIT(2)		/* Skip first clock in SD table */
+
 
 static const struct soc_device_attribute cpg_quirks_match[] __initconst = {
 	{
@@ -613,7 +613,8 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 
 	case CLK_TYPE_GEN3_SD:
 		return cpg_sd_clk_register(core->name, base, core->offset,
-					   __clk_get_name(parent), notifiers);
+					   __clk_get_name(parent), notifiers,
+					   cpg_quirks & SD_SKIP_FIRST);
 
 	case CLK_TYPE_GEN3_R:
 		if (cpg_quirks & RCKCR_CKSEL) {
