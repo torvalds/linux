@@ -69,6 +69,8 @@
  *					image has failed to match expected
  *					checksum. Trying to program image again
  *					might solve this.
+ * CPU_BOOT_ERR0_PLL_FAIL		PLL settings failed, meaning that one
+ *					of the PLLs remained in REF_CLK
  *
  * CPU_BOOT_ERR0_ENABLED		Error registers enabled.
  *					This is a main indication that the
@@ -88,6 +90,7 @@
 #define CPU_BOOT_ERR0_EFUSE_FAIL		(1 << 9)
 #define CPU_BOOT_ERR0_PRI_IMG_VER_FAIL		(1 << 10)
 #define CPU_BOOT_ERR0_SEC_IMG_VER_FAIL		(1 << 11)
+#define CPU_BOOT_ERR0_PLL_FAIL			(1 << 12)
 #define CPU_BOOT_ERR0_ENABLED			(1 << 31)
 
 /*
