@@ -14,6 +14,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_print.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "hibmc_drm_drv.h"
 #include "hibmc_drm_regs.h"
@@ -90,10 +91,6 @@ static const struct drm_encoder_helper_funcs hibmc_encoder_helper_funcs = {
 	.mode_set = hibmc_encoder_mode_set,
 };
 
-static const struct drm_encoder_funcs hibmc_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
-};
-
 int hibmc_vdac_init(struct hibmc_drm_private *priv)
 {
 	struct drm_device *dev = &priv->dev;
@@ -109,8 +106,7 @@ int hibmc_vdac_init(struct hibmc_drm_private *priv)
 	}
 
 	encoder->possible_crtcs = 0x1;
-	ret = drm_encoder_init(dev, encoder, &hibmc_encoder_funcs,
-			       DRM_MODE_ENCODER_DAC, NULL);
+	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_DAC);
 	if (ret) {
 		drm_err(dev, "failed to init encoder: %d\n", ret);
 		return ret;
