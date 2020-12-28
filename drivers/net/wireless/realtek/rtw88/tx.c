@@ -158,7 +158,7 @@ void rtw_tx_report_purge_timer(struct timer_list *t)
 	if (skb_queue_len(&tx_report->queue) == 0)
 		return;
 
-	WARN(1, "purge skb(s) not reported by firmware\n");
+	rtw_dbg(rtwdev, RTW_DBG_TX, "purge skb(s) not reported by firmware\n");
 
 	spin_lock_irqsave(&tx_report->q_lock, flags);
 	skb_queue_purge(&tx_report->queue);
