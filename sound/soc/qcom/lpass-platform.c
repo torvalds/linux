@@ -452,7 +452,6 @@ static int lpass_platform_pcmops_trigger(struct snd_soc_component *component,
 	unsigned int reg_irqclr = 0, val_irqclr = 0;
 	unsigned int  reg_irqen = 0, val_irqen = 0, val_mask = 0;
 	unsigned int dai_id = cpu_dai->driver->id;
-	unsigned int dma_ctrl_reg = 0;
 
 	ch = pcm_data->dma_ch;
 	if (dir ==  SNDRV_PCM_STREAM_PLAYBACK) {
@@ -469,17 +468,7 @@ static int lpass_platform_pcmops_trigger(struct snd_soc_component *component,
 		id = pcm_data->dma_ch - v->wrdma_channel_start;
 		map = drvdata->lpaif_map;
 	}
-	ret = regmap_read(map, LPAIF_DMACTL_REG(v, ch, dir, dai_id), &dma_ctrl_reg);
-	if (ret) {
-		dev_err(soc_runtime->dev, "error reading from rdmactl reg: %d\n", ret);
-		return ret;
-	}
 
-	if (dma_ctrl_reg == LPAIF_DMACTL_RESET_STATE ||
-		dma_ctrl_reg == LPAIF_DMACTL_RESET_STATE + 1) {
-		dev_err(soc_runtime->dev, "error in rdmactl register state\n");
-		return -ENOTRECOVERABLE;
-	}
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
@@ -500,7 +489,6 @@ static int lpass_platform_pcmops_trigger(struct snd_soc_component *component,
 					"error writing to rdmactl reg: %d\n", ret);
 				return ret;
 			}
-			map = drvdata->hdmiif_map;
 			reg_irqclr = LPASS_HDMITX_APP_IRQCLEAR_REG(v);
 			val_irqclr = (LPAIF_IRQ_ALL(ch) |
 					LPAIF_IRQ_HDMI_REQ_ON_PRELOAD(ch) |
@@ -519,7 +507,6 @@ static int lpass_platform_pcmops_trigger(struct snd_soc_component *component,
 			break;
 		case MI2S_PRIMARY:
 		case MI2S_SECONDARY:
-			map = drvdata->lpaif_map;
 			reg_irqclr = LPAIF_IRQCLEAR_REG(v, LPAIF_IRQ_PORT_HOST);
 			val_irqclr = LPAIF_IRQ_ALL(ch);
 
@@ -563,7 +550,6 @@ static int lpass_platform_pcmops_trigger(struct snd_soc_component *component,
 					"error writing to rdmactl reg: %d\n", ret);
 				return ret;
 			}
-			map = drvdata->hdmiif_map;
 			reg_irqen = LPASS_HDMITX_APP_IRQEN_REG(v);
 			val_mask = (LPAIF_IRQ_ALL(ch) |
 					LPAIF_IRQ_HDMI_REQ_ON_PRELOAD(ch) |
@@ -573,7 +559,6 @@ static int lpass_platform_pcmops_trigger(struct snd_soc_component *component,
 			break;
 		case MI2S_PRIMARY:
 		case MI2S_SECONDARY:
-			map = drvdata->lpaif_map;
 			reg_irqen = LPAIF_IRQEN_REG(v, LPAIF_IRQ_PORT_HOST);
 			val_mask = LPAIF_IRQ_ALL(ch);
 			val_irqen = 0;
@@ -838,6 +823,39 @@ static void lpass_platform_pcm_free(struct snd_soc_component *component,
 	}
 }
 
+static int lpass_platform_pcmops_suspend(struct snd_soc_component *component)
+{
+	struct lpass_data *drvdata = snd_soc_component_get_drvdata(component);
+	struct regmap *map;
+	unsigned int dai_id = component->id;
+
+	if (dai_id == LPASS_DP_RX)
+		map = drvdata->hdmiif_map;
+	else
+		map = drvdata->lpaif_map;
+
+	regcache_cache_only(map, true);
+	regcache_mark_dirty(map);
+
+	return 0;
+}
+
+static int lpass_platform_pcmops_resume(struct snd_soc_component *component)
+{
+	struct lpass_data *drvdata = snd_soc_component_get_drvdata(component);
+	struct regmap *map;
+	unsigned int dai_id = component->id;
+
+	if (dai_id == LPASS_DP_RX)
+		map = drvdata->hdmiif_map;
+	else
+		map = drvdata->lpaif_map;
+
+	regcache_cache_only(map, false);
+	return regcache_sync(map);
+}
+
+
 static const struct snd_soc_component_driver lpass_component_driver = {
 	.name		= DRV_NAME,
 	.open		= lpass_platform_pcmops_open,
@@ -850,6 +868,8 @@ static const struct snd_soc_component_driver lpass_component_driver = {
 	.mmap		= lpass_platform_pcmops_mmap,
 	.pcm_construct	= lpass_platform_pcm_new,
 	.pcm_destruct	= lpass_platform_pcm_free,
+	.suspend		= lpass_platform_pcmops_suspend,
+	.resume			= lpass_platform_pcmops_resume,
 
 };
 
