@@ -2085,6 +2085,17 @@ config MFD_KHADAS_MCU
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
+config MFD_ACER_A500_EC
+	tristate "Support for Acer Iconia Tab A500 Embedded Controller"
+	depends on I2C
+	depends on (ARCH_TEGRA_2x_SOC && OF) || COMPILE_TEST
+	select MFD_CORE
+	select REGMAP
+	help
+	  Support for Embedded Controller found on Acer Iconia Tab A500.
+	  The controller itself is ENE KB930, it is running firmware
+	  customized for the specific needs of the Acer A500 hardware.
+
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100
 
