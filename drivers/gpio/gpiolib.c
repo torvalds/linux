@@ -3460,6 +3460,10 @@ EXPORT_SYMBOL_GPL(gpiod_add_lookup_table);
  */
 void gpiod_remove_lookup_table(struct gpiod_lookup_table *table)
 {
+	/* Nothing to remove */
+	if (!table)
+		return;
+
 	mutex_lock(&gpio_lookup_lock);
 
 	list_del(&table->list);
