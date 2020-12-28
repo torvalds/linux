@@ -7,7 +7,7 @@
 
 #include <linux/slab.h>
 
-#include "habanalabs.h"
+#include "../habanalabs.h"
 
 bool hl_is_dram_va(struct hl_device *hdev, u64 virt_addr)
 {
