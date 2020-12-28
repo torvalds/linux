@@ -14,17 +14,6 @@
 #define	ENETC_MDIO_DATA	0x8	/* MDIO data */
 #define	ENETC_MDIO_ADDR	0xc	/* MDIO address */
 
-static inline u32 enetc_mdio_rd(struct enetc_mdio_priv *mdio_priv, int off)
-{
-	return enetc_port_rd_mdio(mdio_priv->hw, mdio_priv->mdio_base + off);
-}
-
-static inline void enetc_mdio_wr(struct enetc_mdio_priv *mdio_priv, int off,
-				 u32 val)
-{
-	enetc_port_wr_mdio(mdio_priv->hw, mdio_priv->mdio_base + off, val);
-}
-
 #define MDIO_CFG_CLKDIV(x)	((((x) >> 1) & 0xff) << 8)
 #define MDIO_CFG_BSY		BIT(0)
 #define MDIO_CFG_RD_ER		BIT(1)
@@ -41,6 +30,17 @@ static inline void enetc_mdio_wr(struct enetc_mdio_priv *mdio_priv, int off,
 #define MDIO_CTL_DEV_ADDR(x)	((x) & 0x1f)
 #define MDIO_CTL_PORT_ADDR(x)	(((x) & 0x1f) << 5)
 #define MDIO_CTL_READ		BIT(15)
+
+static inline u32 enetc_mdio_rd(struct enetc_mdio_priv *mdio_priv, int off)
+{
+	return enetc_port_rd_mdio(mdio_priv->hw, mdio_priv->mdio_base + off);
+}
+
+static inline void enetc_mdio_wr(struct enetc_mdio_priv *mdio_priv, int off,
+				 u32 val)
+{
+	enetc_port_wr_mdio(mdio_priv->hw, mdio_priv->mdio_base + off, val);
+}
 
 static bool enetc_mdio_is_busy(struct enetc_mdio_priv *mdio_priv)
 {
