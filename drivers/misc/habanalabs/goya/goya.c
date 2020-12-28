@@ -4122,9 +4122,6 @@ static int goya_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
 		if (ddr_bar_addr == U64_MAX)
 			rc = -EIO;
 
-	} else if (addr >= HOST_PHYS_BASE && !iommu_present(&pci_bus_type)) {
-		*val = *(u32 *) phys_to_virt(addr - HOST_PHYS_BASE);
-
 	} else {
 		rc = -EFAULT;
 	}
@@ -4178,9 +4175,6 @@ static int goya_debugfs_write32(struct hl_device *hdev, u64 addr, u32 val)
 		if (ddr_bar_addr == U64_MAX)
 			rc = -EIO;
 
-	} else if (addr >= HOST_PHYS_BASE && !iommu_present(&pci_bus_type)) {
-		*(u32 *) phys_to_virt(addr - HOST_PHYS_BASE) = val;
-
 	} else {
 		rc = -EFAULT;
 	}
@@ -4223,9 +4217,6 @@ static int goya_debugfs_read64(struct hl_device *hdev, u64 addr, u64 *val)
 		if (ddr_bar_addr == U64_MAX)
 			rc = -EIO;
 
-	} else if (addr >= HOST_PHYS_BASE && !iommu_present(&pci_bus_type)) {
-		*val = *(u64 *) phys_to_virt(addr - HOST_PHYS_BASE);
-
 	} else {
 		rc = -EFAULT;
 	}
@@ -4265,9 +4256,6 @@ static int goya_debugfs_write64(struct hl_device *hdev, u64 addr, u64 val)
 		}
 		if (ddr_bar_addr == U64_MAX)
 			rc = -EIO;
-
-	} else if (addr >= HOST_PHYS_BASE && !iommu_present(&pci_bus_type)) {
-		*(u64 *) phys_to_virt(addr - HOST_PHYS_BASE) = val;
 
 	} else {
 		rc = -EFAULT;
