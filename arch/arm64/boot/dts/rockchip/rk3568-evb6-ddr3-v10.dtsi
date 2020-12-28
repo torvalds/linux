@@ -76,6 +76,27 @@
 	status = "disabled";
 };
 
+&dmc_opp_table {
+	opp-1056000000 {
+		opp-hz = /bits/ 64 <1056000000>;
+		opp-microvolt = <900000>;
+	};
+	/delete-node/ opp-1560000000;
+};
+
+&dmc {
+	system-status-freq = <
+		/*system status         freq(KHz)*/
+		SYS_STATUS_NORMAL       780000
+		SYS_STATUS_REBOOT       1056000
+		SYS_STATUS_SUSPEND      324000
+		SYS_STATUS_VIDEO_1080P  528000
+		SYS_STATUS_BOOST        1056000
+		SYS_STATUS_ISP          1056000
+		SYS_STATUS_PERFORMANCE  1056000
+	>;
+};
+
 /*
  * mipi_dphy0 needs to be enabled
  * when dsi0 is enabled
