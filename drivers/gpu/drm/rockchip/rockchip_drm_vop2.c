@@ -2264,6 +2264,9 @@ static struct drm_plane_state *vop2_atomic_plane_duplicate_state(struct drm_plan
 	if (!vpstate)
 		return NULL;
 
+	vpstate->hdr_in = 0;
+	vpstate->hdr2sdr_en = 0;
+
 	__drm_atomic_helper_plane_duplicate_state(plane, &vpstate->base);
 
 	return &vpstate->base;
