@@ -42,7 +42,7 @@ ENTRY(csky_pagefault)
 	SAVE_ALL 0
 	zero_fp
 	context_tracking
-	psrset  ee, ie
+	psrset  ee
 	mov     a0, sp
 	jbsr    do_page_fault
 	jmpi    ret_from_exception

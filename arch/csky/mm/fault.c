@@ -143,6 +143,10 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
 		return;
 	}
 
+	/* Enable interrupts if they were enabled in the parent context. */
+	if (likely(regs->sr & BIT(6)))
+		local_irq_enable();
+
 	/*
 	 * If we're in an interrupt or have no user
 	 * context, we must not take the fault..
