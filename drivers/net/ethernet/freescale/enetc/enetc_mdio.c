@@ -25,8 +25,6 @@ static inline void enetc_mdio_wr(struct enetc_mdio_priv *mdio_priv, int off,
 	enetc_port_wr_mdio(mdio_priv->hw, mdio_priv->mdio_base + off, val);
 }
 
-#define enetc_mdio_rd_reg(off)	enetc_mdio_rd(mdio_priv, off)
-
 #define MDIO_CFG_CLKDIV(x)	((((x) >> 1) & 0xff) << 8)
 #define MDIO_CFG_BSY		BIT(0)
 #define MDIO_CFG_RD_ER		BIT(1)
@@ -45,13 +43,17 @@ static inline void enetc_mdio_wr(struct enetc_mdio_priv *mdio_priv, int off,
 #define MDIO_CTL_READ		BIT(15)
 #define MDIO_DATA(x)		((x) & 0xffff)
 
-#define TIMEOUT	1000
+static bool enetc_mdio_is_busy(struct enetc_mdio_priv *mdio_priv)
+{
+	return enetc_mdio_rd(mdio_priv, ENETC_MDIO_CFG) & MDIO_CFG_BSY;
+}
+
 static int enetc_mdio_wait_complete(struct enetc_mdio_priv *mdio_priv)
 {
-	u32 val;
+	bool is_busy;
 
-	return readx_poll_timeout(enetc_mdio_rd_reg, ENETC_MDIO_CFG, val,
-				  !(val & MDIO_CFG_BSY), 10, 10 * TIMEOUT);
+	return readx_poll_timeout(enetc_mdio_is_busy, mdio_priv,
+				  is_busy, !is_busy, 10, 10 * 1000);
 }
 
 int enetc_mdio_write(struct mii_bus *bus, int phy_id, int regnum, u16 value)
