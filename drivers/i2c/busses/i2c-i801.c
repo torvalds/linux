@@ -1487,8 +1487,7 @@ static void i801_del_mux(struct i801_priv *priv)
 {
 	if (priv->mux_pdev)
 		platform_device_unregister(priv->mux_pdev);
-	if (priv->lookup)
-		gpiod_remove_lookup_table(priv->lookup);
+	gpiod_remove_lookup_table(priv->lookup);
 }
 
 static unsigned int i801_get_adapter_class(struct i801_priv *priv)
