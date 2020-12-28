@@ -41,7 +41,6 @@ static inline void enetc_mdio_wr(struct enetc_mdio_priv *mdio_priv, int off,
 #define MDIO_CTL_DEV_ADDR(x)	((x) & 0x1f)
 #define MDIO_CTL_PORT_ADDR(x)	(((x) & 0x1f) << 5)
 #define MDIO_CTL_READ		BIT(15)
-#define MDIO_DATA(x)		((x) & 0xffff)
 
 static bool enetc_mdio_is_busy(struct enetc_mdio_priv *mdio_priv)
 {
@@ -93,7 +92,7 @@ int enetc_mdio_write(struct mii_bus *bus, int phy_id, int regnum, u16 value)
 	}
 
 	/* write the value */
-	enetc_mdio_wr(mdio_priv, ENETC_MDIO_DATA, MDIO_DATA(value));
+	enetc_mdio_wr(mdio_priv, ENETC_MDIO_DATA, value);
 
 	ret = enetc_mdio_wait_complete(mdio_priv);
 	if (ret)
