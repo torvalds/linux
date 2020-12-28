@@ -58,10 +58,6 @@ struct xdp_sock {
 
 	struct xsk_queue *tx ____cacheline_aligned_in_smp;
 	struct list_head tx_list;
-	/* Mutual exclusion of NAPI TX thread and sendmsg error paths
-	 * in the SKB destructor callback.
-	 */
-	spinlock_t tx_completion_lock;
 	/* Protects generic receive. */
 	spinlock_t rx_lock;
 
