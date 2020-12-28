@@ -281,20 +281,6 @@ static const char *mmhub_client_ids_arcturus[][2] = {
 	[224+15][1] = "SDMA7",
 };
 
-static const u32 golden_settings_vega10_hdp[] =
-{
-	0xf64, 0x0fffffff, 0x00000000,
-	0xf65, 0x0fffffff, 0x00000000,
-	0xf66, 0x0fffffff, 0x00000000,
-	0xf67, 0x0fffffff, 0x00000000,
-	0xf68, 0x0fffffff, 0x00000000,
-	0xf6a, 0x0fffffff, 0x00000000,
-	0xf6b, 0x0fffffff, 0x00000000,
-	0xf6c, 0x0fffffff, 0x00000000,
-	0xf6d, 0x0fffffff, 0x00000000,
-	0xf6e, 0x0fffffff, 0x00000000,
-};
-
 static const struct soc15_reg_golden golden_settings_mmhub_1_0_0[] =
 {
 	SOC15_REG_GOLDEN_VALUE(MMHUB, 0, mmDAGB1_WRCLI2, 0x00000007, 0xfe5fe0fa),
@@ -1579,10 +1565,6 @@ static int gmc_v9_0_hw_init(void *handle)
 		/* disable VGA render */
 		WREG32_FIELD15(DCE, 0, VGA_RENDER_CONTROL, VGA_VSTATUS_CNTL, 0);
 	}
-
-	amdgpu_device_program_register_sequence(adev,
-						golden_settings_vega10_hdp,
-						ARRAY_SIZE(golden_settings_vega10_hdp));
 
 	if (adev->mmhub.funcs->update_power_gating)
 		adev->mmhub.funcs->update_power_gating(adev, true);
