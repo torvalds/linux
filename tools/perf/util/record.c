@@ -201,10 +201,10 @@ static int record_opts__config_freq(struct record_opts *opts)
 	 * Default frequency is over current maximum.
 	 */
 	if (max_rate < opts->freq) {
-		pr_warning("Lowering default frequency rate to %u.\n"
+		pr_warning("Lowering default frequency rate from %u to %u.\n"
 			   "Please consider tweaking "
 			   "/proc/sys/kernel/perf_event_max_sample_rate.\n",
-			   max_rate);
+			   opts->freq, max_rate);
 		opts->freq = max_rate;
 	}
 
