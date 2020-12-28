@@ -29,6 +29,15 @@
 #include "nbio/nbio_6_1_sh_mask.h"
 #include "nbio/nbio_6_1_smn.h"
 #include "vega10_enum.h"
+#include <uapi/linux/kfd_ioctl.h>
+
+static void nbio_v6_1_remap_hdp_registers(struct amdgpu_device *adev)
+{
+	WREG32_SOC15(NBIO, 0, mmREMAP_HDP_MEM_FLUSH_CNTL,
+		adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL);
+	WREG32_SOC15(NBIO, 0, mmREMAP_HDP_REG_FLUSH_CNTL,
+		adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_REG_FLUSH_CNTL);
+}
 
 static u32 nbio_v6_1_get_rev_id(struct amdgpu_device *adev)
 {
@@ -277,4 +286,5 @@ const struct amdgpu_nbio_funcs nbio_v6_1_funcs = {
 	.get_clockgating_state = nbio_v6_1_get_clockgating_state,
 	.ih_control = nbio_v6_1_ih_control,
 	.init_registers = nbio_v6_1_init_registers,
+	.remap_hdp_registers = nbio_v6_1_remap_hdp_registers,
 };
