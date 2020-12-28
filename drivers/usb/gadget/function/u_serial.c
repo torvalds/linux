@@ -258,9 +258,7 @@ __acquires(&port->port_lock)
 		list_del(&req->list);
 		req->zero = kfifo_is_empty(&port->port_write_buf);
 
-		pr_vdebug("ttyGS%d: tx len=%d, 0x%02x 0x%02x 0x%02x ...\n",
-			  port->port_num, len, *((u8 *)req->buf),
-			  *((u8 *)req->buf+1), *((u8 *)req->buf+2));
+		pr_vdebug("ttyGS%d: tx len=%d, %3ph ...\n", port->port_num, len, req->buf);
 
 		/* Drop lock while we call out of driver; completions
 		 * could be issued while we do so.  Disconnection may
