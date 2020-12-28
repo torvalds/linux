@@ -121,11 +121,13 @@
 #define GET_PCI_BUS_NUM(x)	(((x) & PCI_BUS_NUM_MASK) >> PCI_BUS_NUM_SHIFT)
 
 /* MCTP header definitions */
+#define MCTP_HDR_SRC_EID_OFFSET		14
 #define MCTP_HDR_TAG_OFFSET		15
 #define MCTP_HDR_SOM			BIT(7)
 #define MCTP_HDR_EOM			BIT(6)
 #define MCTP_HDR_SOM_EOM		(MCTP_HDR_SOM | MCTP_HDR_EOM)
 #define MCTP_HDR_TYPE_OFFSET		16
+#define MCTP_HDR_TYPE_CONTROL		0
 #define MCTP_HDR_TYPE_VDM_PCI		0x7e
 #define MCTP_HDR_TYPE_SPDM		0x5
 #define MCTP_HDR_TYPE_BASE_LAST		MCTP_HDR_TYPE_SPDM
@@ -191,6 +193,7 @@ struct aspeed_mctp {
 		bool warmup;
 		int packet_counter;
 	} rx_runaway_wa;
+	u8 eid;
 };
 
 struct mctp_client {
@@ -686,6 +689,7 @@ int aspeed_mctp_send_packet(struct mctp_client *client,
 			    struct mctp_pcie_packet *tx_packet)
 {
 	struct aspeed_mctp *priv = client->priv;
+	u8 *hdr = (u8 *)tx_packet->data.hdr;
 	int ret;
 
 	if (priv->pcie.bdf == 0)
@@ -693,6 +697,13 @@ int aspeed_mctp_send_packet(struct mctp_client *client,
 
 	be32p_replace_bits(&tx_packet->data.hdr[PCIE_VDM_HDR_REQUESTER_BDF_DW],
 			   priv->pcie.bdf, PCIE_VDM_HDR_REQUESTER_BDF_MASK);
+
+	/*
+	 * XXX Don't update EID for MCTP Control messages - old EID may
+	 * interfere with MCTP discovery flow.
+	 */
+	if (priv->eid && hdr[MCTP_HDR_TYPE_OFFSET] != MCTP_HDR_TYPE_CONTROL)
+		hdr[MCTP_HDR_SRC_EID_OFFSET] = priv->eid;
 
 	ret = ptr_ring_produce_bh(&client->tx_queue, tx_packet);
 	if (!ret)
@@ -1088,10 +1099,11 @@ static int
 aspeed_mctp_set_eid_info(struct aspeed_mctp *priv, void __user *userbuf)
 {
 	struct list_head list = LIST_HEAD_INIT(list);
-	int ret = 0;
 	struct aspeed_mctp_set_eid_info set_eid;
 	struct aspeed_mctp_eid_info *user_ptr;
 	struct aspeed_mctp_endpoint *endpoint;
+	int ret = 0;
+	u8 eid = 0;
 	size_t i;
 
 	if (copy_from_user(&set_eid, userbuf, sizeof(set_eid))) {
@@ -1118,6 +1130,17 @@ aspeed_mctp_set_eid_info(struct aspeed_mctp *priv, void __user *userbuf)
 			goto out;
 		}
 
+		/* Detect self EID */
+		if (priv->pcie.bdf == endpoint->data.bdf) {
+			/*
+			 * XXX Use smallest EID with matching BDF.
+			 * On some platforms there could be multiple endpoints
+			 * with same BDF in routing table.
+			 */
+			if (eid == 0 || endpoint->data.eid < eid)
+				eid = endpoint->data.eid;
+		}
+
 		list_add_tail(&endpoint->link, &list);
 	}
 
@@ -1133,6 +1156,7 @@ aspeed_mctp_set_eid_info(struct aspeed_mctp *priv, void __user *userbuf)
 	else
 		list_swap(&list, &priv->endpoints);
 	priv->endpoints_count = set_eid.count;
+	priv->eid = eid;
 	mutex_unlock(&priv->endpoints_lock);
 out:
 	aspeed_mctp_eid_info_list_remove(&list);
@@ -1363,6 +1387,7 @@ static irqreturn_t aspeed_mctp_pcie_rst_irq_handler(int irq, void *arg)
 
 	priv->pcie.need_uevent = true;
 	priv->pcie.bdf = 0;
+	priv->eid = 0;
 
 	schedule_delayed_work(&priv->pcie.rst_dwork, 0);
 
