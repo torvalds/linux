@@ -77,7 +77,7 @@ struct fault {
 };
 
 static LIST_HEAD(state_list);
-static spinlock_t state_lock;
+static DEFINE_SPINLOCK(state_lock);
 
 static struct workqueue_struct *iommu_wq;
 
@@ -937,8 +937,6 @@ static int __init amd_iommu_v2_init(void)
 		 */
 		return 0;
 	}
-
-	spin_lock_init(&state_lock);
 
 	ret = -ENOMEM;
 	iommu_wq = alloc_workqueue("amd_iommu_v2", WQ_MEM_RECLAIM, 0);
