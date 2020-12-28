@@ -15,7 +15,7 @@ struct process_cmd_struct {
 	int arg;
 };
 
-static const char *version_str = "v1.6";
+static const char *version_str = "v1.7";
 static const int supported_api_ver = 1;
 static struct isst_if_platform_info isst_platform_info;
 static char *progname;
@@ -328,8 +328,12 @@ int get_physical_die_id(int cpu)
 		int core_id, pkg_id, die_id;
 
 		ret = get_stored_topology_info(cpu, &core_id, &pkg_id, &die_id);
-		if (!ret)
+		if (!ret) {
+			if (die_id < 0)
+				die_id = 0;
+
 			return die_id;
+		}
 	}
 
 	if (ret < 0)

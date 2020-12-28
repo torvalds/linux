@@ -2410,7 +2410,7 @@ static int send_subvol_begin(struct send_ctx *sctx)
 			    sctx->send_root->root_item.uuid);
 
 	TLV_PUT_U64(sctx, BTRFS_SEND_A_CTRANSID,
-		    le64_to_cpu(sctx->send_root->root_item.ctransid));
+		    btrfs_root_ctransid(&sctx->send_root->root_item));
 	if (parent_root) {
 		if (!btrfs_is_empty_uuid(parent_root->root_item.received_uuid))
 			TLV_PUT_UUID(sctx, BTRFS_SEND_A_CLONE_UUID,
@@ -2419,7 +2419,7 @@ static int send_subvol_begin(struct send_ctx *sctx)
 			TLV_PUT_UUID(sctx, BTRFS_SEND_A_CLONE_UUID,
 				     parent_root->root_item.uuid);
 		TLV_PUT_U64(sctx, BTRFS_SEND_A_CLONE_CTRANSID,
-			    le64_to_cpu(sctx->parent_root->root_item.ctransid));
+			    btrfs_root_ctransid(&sctx->parent_root->root_item));
 	}
 
 	ret = send_cmd(sctx);
@@ -5101,7 +5101,7 @@ static int send_clone(struct send_ctx *sctx,
 		TLV_PUT_UUID(sctx, BTRFS_SEND_A_CLONE_UUID,
 			     clone_root->root->root_item.uuid);
 	TLV_PUT_U64(sctx, BTRFS_SEND_A_CLONE_CTRANSID,
-		    le64_to_cpu(clone_root->root->root_item.ctransid));
+		    btrfs_root_ctransid(&clone_root->root->root_item));
 	TLV_PUT_PATH(sctx, BTRFS_SEND_A_CLONE_PATH, p);
 	TLV_PUT_U64(sctx, BTRFS_SEND_A_CLONE_OFFSET,
 			clone_root->offset);

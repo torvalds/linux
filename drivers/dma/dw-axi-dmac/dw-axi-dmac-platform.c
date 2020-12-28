@@ -992,7 +992,7 @@ static struct platform_driver dw_driver = {
 	.remove		= dw_remove,
 	.driver = {
 		.name	= KBUILD_MODNAME,
-		.of_match_table = of_match_ptr(dw_dma_of_id_table),
+		.of_match_table = dw_dma_of_id_table,
 		.pm = &dw_axi_dma_pm_ops,
 	},
 };

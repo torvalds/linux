@@ -695,6 +695,9 @@
 /* Maximum number of supported ports */
 #define MVPP2_MAX_PORTS			4
 
+/* Loopback port index */
+#define MVPP2_LOOPBACK_PORT_INDEX	3
+
 /* Maximum number of TXQs used by single port */
 #define MVPP2_MAX_TXQ			8
 
@@ -729,22 +732,21 @@
 #define MVPP2_TX_DESC_ALIGN		(MVPP2_DESC_ALIGNED_SIZE - 1)
 
 /* RX FIFO constants */
+#define MVPP2_RX_FIFO_PORT_DATA_SIZE_44KB	0xb000
 #define MVPP2_RX_FIFO_PORT_DATA_SIZE_32KB	0x8000
 #define MVPP2_RX_FIFO_PORT_DATA_SIZE_8KB	0x2000
 #define MVPP2_RX_FIFO_PORT_DATA_SIZE_4KB	0x1000
-#define MVPP2_RX_FIFO_PORT_ATTR_SIZE_32KB	0x200
-#define MVPP2_RX_FIFO_PORT_ATTR_SIZE_8KB	0x80
+#define MVPP2_RX_FIFO_PORT_ATTR_SIZE(data_size)	((data_size) >> 6)
 #define MVPP2_RX_FIFO_PORT_ATTR_SIZE_4KB	0x40
 #define MVPP2_RX_FIFO_PORT_MIN_PKT		0x80
 
 /* TX FIFO constants */
-#define MVPP22_TX_FIFO_DATA_SIZE_10KB		0xa
-#define MVPP22_TX_FIFO_DATA_SIZE_3KB		0x3
-#define MVPP2_TX_FIFO_THRESHOLD_MIN		256
-#define MVPP2_TX_FIFO_THRESHOLD_10KB	\
-	(MVPP22_TX_FIFO_DATA_SIZE_10KB * 1024 - MVPP2_TX_FIFO_THRESHOLD_MIN)
-#define MVPP2_TX_FIFO_THRESHOLD_3KB	\
-	(MVPP22_TX_FIFO_DATA_SIZE_3KB * 1024 - MVPP2_TX_FIFO_THRESHOLD_MIN)
+#define MVPP22_TX_FIFO_DATA_SIZE_16KB		16
+#define MVPP22_TX_FIFO_DATA_SIZE_10KB		10
+#define MVPP22_TX_FIFO_DATA_SIZE_3KB		3
+#define MVPP2_TX_FIFO_THRESHOLD_MIN		256 /* Bytes */
+#define MVPP2_TX_FIFO_THRESHOLD(kb)	\
+		((kb) * 1024 - MVPP2_TX_FIFO_THRESHOLD_MIN)
 
 /* RX buffer constants */
 #define MVPP2_SKB_SHINFO_SIZE \
@@ -946,6 +948,9 @@ struct mvpp2 {
 	/* List of pointers to port structures */
 	int port_count;
 	struct mvpp2_port *port_list[MVPP2_MAX_PORTS];
+	/* Map of enabled ports */
+	unsigned long port_map;
+
 	struct mvpp2_tai *tai;
 
 	/* Number of Tx threads used */

@@ -276,7 +276,7 @@ bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 	if (WARN_ON_ONCE(tls_ctx->netdev != netdev))
 		goto err_out;
 
-	if (mlx5_accel_is_ktls_tx(sq->channel->mdev))
+	if (mlx5_accel_is_ktls_tx(sq->mdev))
 		return mlx5e_ktls_handle_tx_skb(tls_ctx, sq, skb, datalen, state);
 
 	/* FPGA */
@@ -385,15 +385,13 @@ void mlx5e_tls_handle_rx_skb_metadata(struct mlx5e_rq *rq, struct sk_buff *skb,
 	*cqe_bcnt -= MLX5E_METADATA_ETHER_LEN;
 }
 
-u16 mlx5e_tls_get_stop_room(struct mlx5e_txqsq *sq)
+u16 mlx5e_tls_get_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *params)
 {
-	struct mlx5_core_dev *mdev = sq->channel->mdev;
-
 	if (!mlx5_accel_is_tls_device(mdev))
 		return 0;
 
 	if (mlx5_accel_is_ktls_device(mdev))
-		return mlx5e_ktls_get_stop_room(sq);
+		return mlx5e_ktls_get_stop_room(params);
 
 	/* FPGA */
 	/* Resync SKB. */

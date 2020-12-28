@@ -70,7 +70,7 @@ properties:
   pinctrl-names: true
 
   syscon:
-    $ref: /schemas/types.yaml#definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Phandle to the system control device node which provides access to
       efuse IO range with MAC addresses

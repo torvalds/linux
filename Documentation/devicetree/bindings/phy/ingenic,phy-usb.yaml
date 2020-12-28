@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/ingenic,phy-usb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Ingenic SoCs USB PHY devicetree bindings
+
+maintainers:
+  - Paul Cercueil <paul@crapouillou.net>
+  - 周琰杰 (Zhou Yanjie) <zhouyanjie@wanyeetech.com>
+
+properties:
+  $nodename:
+    pattern: '^usb-phy@.*'
+
+  compatible:
+    enum:
+      - ingenic,jz4770-phy
+      - ingenic,jz4775-phy
+      - ingenic,jz4780-phy
+      - ingenic,x1000-phy
+      - ingenic,x1830-phy
+      - ingenic,x2000-phy
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  vcc-supply:
+    description: VCC power supply
+
+  '#phy-cells':
+    const: 0
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - vcc-supply
+  - '#phy-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/jz4770-cgu.h>
+    otg_phy: usb-phy@3c {
+      compatible = "ingenic,jz4770-phy";
+      reg = <0x3c 0x10>;
+
+      vcc-supply = <&vcc>;
+      clocks = <&cgu JZ4770_CLK_OTG_PHY>;
+
+      #phy-cells = <0>;
+    };

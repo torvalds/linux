@@ -74,12 +74,12 @@ struct ipa_init_complete_ind {
 
 /* The AP tells the modem its platform type.  We assume Android. */
 enum ipa_platform_type {
-	IPA_QMI_PLATFORM_TYPE_INVALID		= 0,	/* Invalid */
-	IPA_QMI_PLATFORM_TYPE_TN		= 1,	/* Data card */
-	IPA_QMI_PLATFORM_TYPE_LE		= 2,	/* Data router */
-	IPA_QMI_PLATFORM_TYPE_MSM_ANDROID	= 3,	/* Android MSM */
-	IPA_QMI_PLATFORM_TYPE_MSM_WINDOWS	= 4,	/* Windows MSM */
-	IPA_QMI_PLATFORM_TYPE_MSM_QNX_V01	= 5,	/* QNX MSM */
+	IPA_QMI_PLATFORM_TYPE_INVALID		= 0x0,	/* Invalid */
+	IPA_QMI_PLATFORM_TYPE_TN		= 0x1,	/* Data card */
+	IPA_QMI_PLATFORM_TYPE_LE		= 0x2,	/* Data router */
+	IPA_QMI_PLATFORM_TYPE_MSM_ANDROID	= 0x3,	/* Android MSM */
+	IPA_QMI_PLATFORM_TYPE_MSM_WINDOWS	= 0x4,	/* Windows MSM */
+	IPA_QMI_PLATFORM_TYPE_MSM_QNX_V01	= 0x5,	/* QNX MSM */
 };
 
 /* This defines the start and end offset of a range of memory.  Both

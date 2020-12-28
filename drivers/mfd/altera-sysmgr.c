@@ -152,7 +152,7 @@ static int sysmgr_probe(struct platform_device *pdev)
 		if (!base)
 			return -ENOMEM;
 
-		sysmgr_config.max_register = res->end - res->start - 3;
+		sysmgr_config.max_register = resource_size(res) - 3;
 		regmap = devm_regmap_init_mmio(dev, base, &sysmgr_config);
 	}
 

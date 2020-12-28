@@ -12,7 +12,7 @@ Required properties:
 example:
 
 display-subsystem {
-	compatible = "fsl,display-subsystem";
+	compatible = "fsl,imx-display-subsystem";
 	ports = <&ipu_di0>;
 };
 

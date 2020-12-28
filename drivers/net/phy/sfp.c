@@ -219,6 +219,7 @@ struct sfp {
 	struct sfp_bus *sfp_bus;
 	struct phy_device *mod_phy;
 	const struct sff_data *type;
+	size_t i2c_block_size;
 	u32 max_power_mW;
 
 	unsigned int (*get_state)(struct sfp *);
@@ -335,9 +336,18 @@ static int sfp_i2c_read(struct sfp *sfp, bool a2, u8 dev_addr, void *buf,
 			size_t len)
 {
 	struct i2c_msg msgs[2];
-	u8 bus_addr = a2 ? 0x51 : 0x50;
+	size_t block_size;
 	size_t this_len;
+	u8 bus_addr;
 	int ret;
+
+	if (a2) {
+		block_size = 16;
+		bus_addr = 0x51;
+	} else {
+		block_size = sfp->i2c_block_size;
+		bus_addr = 0x50;
+	}
 
 	msgs[0].addr = bus_addr;
 	msgs[0].flags = 0;
@@ -350,8 +360,8 @@ static int sfp_i2c_read(struct sfp *sfp, bool a2, u8 dev_addr, void *buf,
 
 	while (len) {
 		this_len = len;
-		if (this_len > 16)
-			this_len = 16;
+		if (this_len > block_size)
+			this_len = block_size;
 
 		msgs[1].len = this_len;
 
@@ -1632,6 +1642,28 @@ static int sfp_sm_mod_hpower(struct sfp *sfp, bool enable)
 	return 0;
 }
 
+/* Some modules (Nokia 3FE46541AA) lock up if byte 0x51 is read as a
+ * single read. Switch back to reading 16 byte blocks unless we have
+ * a CarlitoxxPro module (rebranded VSOL V2801F). Even more annoyingly,
+ * some VSOL V2801F have the vendor name changed to OEM.
+ */
+static int sfp_quirk_i2c_block_size(const struct sfp_eeprom_base *base)
+{
+	if (!memcmp(base->vendor_name, "VSOL            ", 16))
+		return 1;
+	if (!memcmp(base->vendor_name, "OEM             ", 16) &&
+	    !memcmp(base->vendor_pn,   "V2801F          ", 16))
+		return 1;
+
+	/* Some modules can't cope with long reads */
+	return 16;
+}
+
+static void sfp_quirks_base(struct sfp *sfp, const struct sfp_eeprom_base *base)
+{
+	sfp->i2c_block_size = sfp_quirk_i2c_block_size(base);
+}
+
 static int sfp_cotsworks_fixup_check(struct sfp *sfp, struct sfp_eeprom_id *id)
 {
 	u8 check;
@@ -1673,14 +1705,20 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	u8 check;
 	int ret;
 
-	ret = sfp_read(sfp, false, 0, &id, sizeof(id));
+	/* Some modules (CarlitoxxPro CPGOS03-0490) do not support multibyte
+	 * reads from the EEPROM, so start by reading the base identifying
+	 * information one byte at a time.
+	 */
+	sfp->i2c_block_size = 1;
+
+	ret = sfp_read(sfp, false, 0, &id.base, sizeof(id.base));
 	if (ret < 0) {
 		if (report)
 			dev_err(sfp->dev, "failed to read EEPROM: %d\n", ret);
 		return -EAGAIN;
 	}
 
-	if (ret != sizeof(id)) {
+	if (ret != sizeof(id.base)) {
 		dev_err(sfp->dev, "EEPROM short read: %d\n", ret);
 		return -EAGAIN;
 	}
@@ -1717,6 +1755,21 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 				       16, 1, &id, sizeof(id), true);
 			return -EINVAL;
 		}
+	}
+
+	/* Apply any early module-specific quirks */
+	sfp_quirks_base(sfp, &id.base);
+
+	ret = sfp_read(sfp, false, SFP_CC_BASE + 1, &id.ext, sizeof(id.ext));
+	if (ret < 0) {
+		if (report)
+			dev_err(sfp->dev, "failed to read EEPROM: %d\n", ret);
+		return -EAGAIN;
+	}
+
+	if (ret != sizeof(id.ext)) {
+		dev_err(sfp->dev, "EEPROM short read: %d\n", ret);
+		return -EAGAIN;
 	}
 
 	check = sfp_check(&id.ext, sizeof(id.ext) - 1);

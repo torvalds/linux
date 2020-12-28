@@ -64,6 +64,17 @@ static inline void __chk_io_ptr(const volatile void __iomem *ptr) { }
 /* Attributes */
 #include <linux/compiler_attributes.h>
 
+/* Builtins */
+
+/*
+ * __has_builtin is supported on gcc >= 10, clang >= 3 and icc >= 21.
+ * In the meantime, to support gcc < 10, we implement __has_builtin
+ * by hand.
+ */
+#ifndef __has_builtin
+#define __has_builtin(x) (0)
+#endif
+
 /* Compiler specific macros. */
 #ifdef __clang__
 #include <linux/compiler-clang.h>

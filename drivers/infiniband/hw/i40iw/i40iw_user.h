@@ -64,13 +64,11 @@ enum i40iw_device_capabilities_const {
 	I40IW_MAX_SGE_RD =			1,
 	I40IW_MAX_OUTBOUND_MESSAGE_SIZE =	2147483647,
 	I40IW_MAX_INBOUND_MESSAGE_SIZE =	2147483647,
-	I40IW_MAX_PUSH_PAGE_COUNT =		4096,
 	I40IW_MAX_PE_ENABLED_VF_COUNT =		32,
 	I40IW_MAX_VF_FPM_ID =			47,
 	I40IW_MAX_VF_PER_PF =			127,
 	I40IW_MAX_SQ_PAYLOAD_SIZE =		2145386496,
 	I40IW_MAX_INLINE_DATA_SIZE =		48,
-	I40IW_MAX_PUSHMODE_INLINE_DATA_SIZE =	48,
 	I40IW_MAX_IRD_SIZE =			64,
 	I40IW_MAX_ORD_SIZE =			127,
 	I40IW_MAX_WQ_ENTRIES =			2048,
@@ -272,7 +270,6 @@ struct i40iw_cq_poll_info {
 	u16 minor_err;
 	u8 op_type;
 	bool stag_invalid_set;
-	bool push_dropped;
 	bool error;
 	bool is_srq;
 	bool solicited_event;
@@ -280,7 +277,6 @@ struct i40iw_cq_poll_info {
 
 struct i40iw_qp_uk_ops {
 	void (*iw_qp_post_wr)(struct i40iw_qp_uk *);
-	void (*iw_qp_ring_push_db)(struct i40iw_qp_uk *, u32);
 	enum i40iw_status_code (*iw_rdma_write)(struct i40iw_qp_uk *,
 						struct i40iw_post_sq_info *, bool);
 	enum i40iw_status_code (*iw_rdma_read)(struct i40iw_qp_uk *,
@@ -340,8 +336,6 @@ struct i40iw_qp_uk {
 	struct i40iw_sq_uk_wr_trk_info *sq_wrtrk_array;
 	u64 *rq_wrid_array;
 	u64 *shadow_area;
-	u32 *push_db;
-	u64 *push_wqe;
 	struct i40iw_ring sq_ring;
 	struct i40iw_ring rq_ring;
 	struct i40iw_ring initial_ring;
@@ -381,8 +375,6 @@ struct i40iw_qp_uk_init_info {
 	u64 *shadow_area;
 	struct i40iw_sq_uk_wr_trk_info *sq_wrtrk_array;
 	u64 *rq_wrid_array;
-	u32 *push_db;
-	u64 *push_wqe;
 	u32 qp_id;
 	u32 sq_size;
 	u32 rq_size;

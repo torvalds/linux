@@ -8,7 +8,7 @@
  */
 
 #include <crypto/internal/hash.h>
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
 #include <linux/module.h>
 #include <asm/vio.h>
 #include <asm/byteorder.h>

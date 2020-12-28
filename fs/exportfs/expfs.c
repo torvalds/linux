@@ -417,9 +417,11 @@ int exportfs_encode_fh(struct dentry *dentry, struct fid *fid, int *max_len,
 }
 EXPORT_SYMBOL_GPL(exportfs_encode_fh);
 
-struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
-		int fh_len, int fileid_type,
-		int (*acceptable)(void *, struct dentry *), void *context)
+struct dentry *
+exportfs_decode_fh_raw(struct vfsmount *mnt, struct fid *fid, int fh_len,
+		       int fileid_type,
+		       int (*acceptable)(void *, struct dentry *),
+		       void *context)
 {
 	const struct export_operations *nop = mnt->mnt_sb->s_export_op;
 	struct dentry *result, *alias;
@@ -432,10 +434,8 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 	if (!nop || !nop->fh_to_dentry)
 		return ERR_PTR(-ESTALE);
 	result = nop->fh_to_dentry(mnt->mnt_sb, fid, fh_len, fileid_type);
-	if (PTR_ERR(result) == -ENOMEM)
-		return ERR_CAST(result);
 	if (IS_ERR_OR_NULL(result))
-		return ERR_PTR(-ESTALE);
+		return result;
 
 	/*
 	 * If no acceptance criteria was specified by caller, a disconnected
@@ -561,9 +561,25 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 
  err_result:
 	dput(result);
-	if (err != -ENOMEM)
-		err = -ESTALE;
 	return ERR_PTR(err);
+}
+EXPORT_SYMBOL_GPL(exportfs_decode_fh_raw);
+
+struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
+				  int fh_len, int fileid_type,
+				  int (*acceptable)(void *, struct dentry *),
+				  void *context)
+{
+	struct dentry *ret;
+
+	ret = exportfs_decode_fh_raw(mnt, fid, fh_len, fileid_type,
+				     acceptable, context);
+	if (IS_ERR_OR_NULL(ret)) {
+		if (ret == ERR_PTR(-ENOMEM))
+			return ret;
+		return ERR_PTR(-ESTALE);
+	}
+	return ret;
 }
 EXPORT_SYMBOL_GPL(exportfs_decode_fh);
 

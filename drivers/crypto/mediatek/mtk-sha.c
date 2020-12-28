@@ -10,7 +10,8 @@
  */
 
 #include <crypto/hmac.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include "mtk-platform.h"
 
 #define SHA_ALIGN_MSK		(sizeof(u32) - 1)

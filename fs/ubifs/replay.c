@@ -574,7 +574,7 @@ static int authenticate_sleb_hash(struct ubifs_info *c, struct shash_desc *log_h
  * @c: UBIFS file-system description object
  * @sleb: the scan LEB to authenticate
  * @log_hash:
- * @is_last: if true, this is is the last LEB
+ * @is_last: if true, this is the last LEB
  *
  * This function iterates over the buds of a single LEB authenticating all buds
  * with the authentication nodes on this LEB. Authentication nodes are written
@@ -827,7 +827,7 @@ out:
 
 out_dump:
 	ubifs_err(c, "bad node is at LEB %d:%d", lnum, snod->offs);
-	ubifs_dump_node(c, snod->node);
+	ubifs_dump_node(c, snod->node, c->leb_size - snod->offs);
 	ubifs_scan_destroy(sleb);
 	return -EINVAL;
 }
@@ -1123,7 +1123,7 @@ out:
 out_dump:
 	ubifs_err(c, "log error detected while replaying the log at LEB %d:%d",
 		  lnum, offs + snod->offs);
-	ubifs_dump_node(c, snod->node);
+	ubifs_dump_node(c, snod->node, c->leb_size - snod->offs);
 	ubifs_scan_destroy(sleb);
 	return -EINVAL;
 }

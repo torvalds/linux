@@ -330,40 +330,6 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 
 #define _FIXED_IE_LENGTH_	_BEACON_IE_OFFSET_
 
-#define _SSID_IE_		0
-#define _SUPPORTEDRATES_IE_	1
-#define _DSSET_IE_		3
-#define _TIM_IE_		5
-#define _IBSS_PARA_IE_		6
-#define _COUNTRY_IE_		7
-#define _CHLGETXT_IE_		16
-#define _SUPPORTED_CH_IE_	36
-#define _CH_SWTICH_ANNOUNCE_	37	/* Secondary Channel Offset */
-#define _RSN_IE_2_		48
-#define _SSN_IE_1_		221
-#define _ERPINFO_IE_		42
-#define _EXT_SUPPORTEDRATES_IE_	50
-
-#define _HT_CAPABILITY_IE_	45
-#define _FTIE_			55
-#define _TIMEOUT_ITVL_IE_	56
-#define _SRC_IE_		59
-#define _HT_EXTRA_INFO_IE_	61
-#define _HT_ADD_INFO_IE_	61 /* _HT_EXTRA_INFO_IE_ */
-#define _WAPI_IE_		68
-
-#define	EID_BSSCoexistence	72 /*  20/40 BSS Coexistence */
-#define	EID_BSSIntolerantChlReport	73
-#define _RIC_Descriptor_IE_	75
-
-#define _LINK_ID_IE_		101
-#define _CH_SWITCH_TIMING_	104
-#define _PTI_BUFFER_STATUS_	106
-#define _EXT_CAP_IE_		127
-#define _VENDOR_SPECIFIC_IE_	221
-
-#define	_RESERVED47_		47
-
 /* ---------------------------------------------------------------------------
 					Below is the fixed elements...
 -----------------------------------------------------------------------------*/

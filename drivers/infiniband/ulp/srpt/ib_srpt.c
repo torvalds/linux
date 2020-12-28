@@ -2085,7 +2085,7 @@ static void srpt_release_channel_work(struct work_struct *w)
 	se_sess = ch->sess;
 	BUG_ON(!se_sess);
 
-	target_sess_cmd_list_set_waiting(se_sess);
+	target_stop_session(se_sess);
 	target_wait_for_sess_cmds(se_sess);
 
 	target_remove_session(se_sess);
@@ -3448,7 +3448,7 @@ static ssize_t srpt_tpg_attrib_srp_max_rdma_size_show(struct config_item *item,
 	struct se_portal_group *se_tpg = attrib_to_tpg(item);
 	struct srpt_port *sport = srpt_tpg_to_sport(se_tpg);
 
-	return sprintf(page, "%u\n", sport->port_attrib.srp_max_rdma_size);
+	return sysfs_emit(page, "%u\n", sport->port_attrib.srp_max_rdma_size);
 }
 
 static ssize_t srpt_tpg_attrib_srp_max_rdma_size_store(struct config_item *item,
@@ -3485,7 +3485,7 @@ static ssize_t srpt_tpg_attrib_srp_max_rsp_size_show(struct config_item *item,
 	struct se_portal_group *se_tpg = attrib_to_tpg(item);
 	struct srpt_port *sport = srpt_tpg_to_sport(se_tpg);
 
-	return sprintf(page, "%u\n", sport->port_attrib.srp_max_rsp_size);
+	return sysfs_emit(page, "%u\n", sport->port_attrib.srp_max_rsp_size);
 }
 
 static ssize_t srpt_tpg_attrib_srp_max_rsp_size_store(struct config_item *item,
@@ -3522,7 +3522,7 @@ static ssize_t srpt_tpg_attrib_srp_sq_size_show(struct config_item *item,
 	struct se_portal_group *se_tpg = attrib_to_tpg(item);
 	struct srpt_port *sport = srpt_tpg_to_sport(se_tpg);
 
-	return sprintf(page, "%u\n", sport->port_attrib.srp_sq_size);
+	return sysfs_emit(page, "%u\n", sport->port_attrib.srp_sq_size);
 }
 
 static ssize_t srpt_tpg_attrib_srp_sq_size_store(struct config_item *item,
@@ -3559,7 +3559,7 @@ static ssize_t srpt_tpg_attrib_use_srq_show(struct config_item *item,
 	struct se_portal_group *se_tpg = attrib_to_tpg(item);
 	struct srpt_port *sport = srpt_tpg_to_sport(se_tpg);
 
-	return sprintf(page, "%d\n", sport->port_attrib.use_srq);
+	return sysfs_emit(page, "%d\n", sport->port_attrib.use_srq);
 }
 
 static ssize_t srpt_tpg_attrib_use_srq_store(struct config_item *item,
@@ -3649,7 +3649,7 @@ out:
 
 static ssize_t srpt_rdma_cm_port_show(struct config_item *item, char *page)
 {
-	return sprintf(page, "%d\n", rdma_cm_port);
+	return sysfs_emit(page, "%d\n", rdma_cm_port);
 }
 
 static ssize_t srpt_rdma_cm_port_store(struct config_item *item,
@@ -3705,7 +3705,7 @@ static ssize_t srpt_tpg_enable_show(struct config_item *item, char *page)
 	struct se_portal_group *se_tpg = to_tpg(item);
 	struct srpt_port *sport = srpt_tpg_to_sport(se_tpg);
 
-	return snprintf(page, PAGE_SIZE, "%d\n", sport->enabled);
+	return sysfs_emit(page, "%d\n", sport->enabled);
 }
 
 static ssize_t srpt_tpg_enable_store(struct config_item *item,
@@ -3812,7 +3812,7 @@ static void srpt_drop_tport(struct se_wwn *wwn)
 
 static ssize_t srpt_wwn_version_show(struct config_item *item, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "\n");
+	return sysfs_emit(buf, "\n");
 }
 
 CONFIGFS_ATTR_RO(srpt_wwn_, version);

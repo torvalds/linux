@@ -386,7 +386,7 @@ static void rs_fill_lq_cmd(struct iwl_mvm *mvm,
 			   const struct rs_rate *initial_rate);
 static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search);
 
-/**
+/*
  * The following tables contain the expected throughput metrics for all rates
  *
  *	1, 2, 5.5, 11, 6, 9, 12, 18, 24, 36, 48, 54, 60 MBits
@@ -396,7 +396,6 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search);
  * CCK rates are only valid in legacy table and will only be used in G
  * (2.4 GHz) band.
  */
-
 static const u16 expected_tpt_legacy[IWL_RATE_COUNT] = {
 	7, 13, 35, 58, 40, 57, 72, 98, 121, 154, 177, 186, 0, 0, 0
 };
@@ -670,7 +669,7 @@ static s32 get_expected_tpt(struct iwl_scale_tbl_info *tbl, int rs_index)
 	return 0;
 }
 
-/**
+/*
  * rs_collect_tx_data - Update the success/failure sliding window
  *
  * We keep a sliding window of the last 62 packets transmitted
@@ -2667,7 +2666,7 @@ void rs_update_last_rssi(struct iwl_mvm *mvm,
 	}
 }
 
-/**
+/*
  * rs_initialize_lq - Initialize a station's hardware rate table
  *
  * The uCode's station table contains a table of fallback rates
@@ -3756,7 +3755,7 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-/**
+/*
  * Program the device to use fixed rate for frame transmit
  * This is for debugging/testing only
  * once the device start use fixed rate, we need to reload the module
@@ -4211,6 +4210,7 @@ static int rs_drv_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 
 /**
  * iwl_mvm_tx_protection - ask FW to enable RTS/CTS protection
+ * @mvm: The mvm component
  * @mvmsta: The station
  * @enable: Enable Tx protection?
  */

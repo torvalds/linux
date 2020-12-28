@@ -717,6 +717,7 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 	struct smu_11_0_dpm_table *single_dpm_table;
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_11_0_dpm_context *dpm_context = NULL;
+	uint32_t gen_speed, lane_width;
 
 	if (amdgpu_ras_intr_triggered())
 		return snprintf(buf, PAGE_SIZE, "unavailable\n");
@@ -818,6 +819,23 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 				(arcturus_freqs_in_same_level(
 				clocks.data[i].clocks_in_khz / 1000,
 				now) ? "*" : ""));
+		break;
+
+	case SMU_PCIE:
+		gen_speed = smu_v11_0_get_current_pcie_link_speed_level(smu);
+		lane_width = smu_v11_0_get_current_pcie_link_width_level(smu);
+		size += sprintf(buf + size, "0: %s %s %dMhz *\n",
+				(gen_speed == 0) ? "2.5GT/s," :
+				(gen_speed == 1) ? "5.0GT/s," :
+				(gen_speed == 2) ? "8.0GT/s," :
+				(gen_speed == 3) ? "16.0GT/s," : "",
+				(lane_width == 1) ? "x1" :
+				(lane_width == 2) ? "x2" :
+				(lane_width == 3) ? "x4" :
+				(lane_width == 4) ? "x8" :
+				(lane_width == 5) ? "x12" :
+				(lane_width == 6) ? "x16" : "",
+				smu->smu_table.boot_values.lclk / 100);
 		break;
 
 	default:
@@ -982,77 +1000,6 @@ static int arcturus_get_thermal_temperature_range(struct smu_context *smu,
 	return 0;
 }
 
-static int arcturus_get_current_activity_percent(struct smu_context *smu,
-						 enum amd_pp_sensors sensor,
-						 uint32_t *value)
-{
-	int ret = 0;
-
-	if (!value)
-		return -EINVAL;
-
-	switch (sensor) {
-	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		ret = arcturus_get_smu_metrics_data(smu,
-						    METRICS_AVERAGE_GFXACTIVITY,
-						    value);
-		break;
-	case AMDGPU_PP_SENSOR_MEM_LOAD:
-		ret = arcturus_get_smu_metrics_data(smu,
-						    METRICS_AVERAGE_MEMACTIVITY,
-						    value);
-		break;
-	default:
-		dev_err(smu->adev->dev, "Invalid sensor for retrieving clock activity\n");
-		return -EINVAL;
-	}
-
-	return ret;
-}
-
-static int arcturus_get_gpu_power(struct smu_context *smu, uint32_t *value)
-{
-	if (!value)
-		return -EINVAL;
-
-	return arcturus_get_smu_metrics_data(smu,
-					     METRICS_AVERAGE_SOCKETPOWER,
-					     value);
-}
-
-static int arcturus_thermal_get_temperature(struct smu_context *smu,
-					    enum amd_pp_sensors sensor,
-					    uint32_t *value)
-{
-	int ret = 0;
-
-	if (!value)
-		return -EINVAL;
-
-	switch (sensor) {
-	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
-		ret = arcturus_get_smu_metrics_data(smu,
-						    METRICS_TEMPERATURE_HOTSPOT,
-						    value);
-		break;
-	case AMDGPU_PP_SENSOR_EDGE_TEMP:
-		ret = arcturus_get_smu_metrics_data(smu,
-						    METRICS_TEMPERATURE_EDGE,
-						    value);
-		break;
-	case AMDGPU_PP_SENSOR_MEM_TEMP:
-		ret = arcturus_get_smu_metrics_data(smu,
-						    METRICS_TEMPERATURE_MEM,
-						    value);
-		break;
-	default:
-		dev_err(smu->adev->dev, "Invalid sensor for retrieving temp\n");
-		return -EINVAL;
-	}
-
-	return ret;
-}
-
 static int arcturus_read_sensor(struct smu_context *smu,
 				enum amd_pp_sensors sensor,
 				void *data, uint32_t *size)
@@ -1074,21 +1021,39 @@ static int arcturus_read_sensor(struct smu_context *smu,
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_MEM_LOAD:
+		ret = arcturus_get_smu_metrics_data(smu,
+						    METRICS_AVERAGE_MEMACTIVITY,
+						    (uint32_t *)data);
+		*size = 4;
+		break;
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		ret = arcturus_get_current_activity_percent(smu,
-							    sensor,
-						(uint32_t *)data);
+		ret = arcturus_get_smu_metrics_data(smu,
+						    METRICS_AVERAGE_GFXACTIVITY,
+						    (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_POWER:
-		ret = arcturus_get_gpu_power(smu, (uint32_t *)data);
+		ret = arcturus_get_smu_metrics_data(smu,
+						    METRICS_AVERAGE_SOCKETPOWER,
+						    (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
+		ret = arcturus_get_smu_metrics_data(smu,
+						    METRICS_TEMPERATURE_HOTSPOT,
+						    (uint32_t *)data);
+		*size = 4;
+		break;
 	case AMDGPU_PP_SENSOR_EDGE_TEMP:
+		ret = arcturus_get_smu_metrics_data(smu,
+						    METRICS_TEMPERATURE_EDGE,
+						    (uint32_t *)data);
+		*size = 4;
+		break;
 	case AMDGPU_PP_SENSOR_MEM_TEMP:
-		ret = arcturus_thermal_get_temperature(smu, sensor,
-						(uint32_t *)data);
+		ret = arcturus_get_smu_metrics_data(smu,
+						    METRICS_TEMPERATURE_MEM,
+						    (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
@@ -1121,14 +1086,9 @@ static int arcturus_get_fan_speed_rpm(struct smu_context *smu,
 	if (!speed)
 		return -EINVAL;
 
-	switch (smu_v11_0_get_fan_control_mode(smu)) {
-	case AMD_FAN_CTRL_AUTO:
-		return arcturus_get_smu_metrics_data(smu,
-						     METRICS_CURR_FANSPEED,
-						     speed);
-	default:
-		return smu_v11_0_get_fan_speed_rpm(smu, speed);
-	}
+	return arcturus_get_smu_metrics_data(smu,
+					     METRICS_CURR_FANSPEED,
+					     speed);
 }
 
 static int arcturus_get_fan_parameters(struct smu_context *smu)

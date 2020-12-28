@@ -274,6 +274,15 @@ config DEBUG_INFO_BTF
 	  Turning this on expects presence of pahole tool, which will convert
 	  DWARF type info into equivalent deduplicated BTF type info.
 
+config PAHOLE_HAS_SPLIT_BTF
+	def_bool $(success, test `$(PAHOLE) --version | sed -E 's/v([0-9]+)\.([0-9]+)/\1\2/'` -ge "119")
+
+config DEBUG_INFO_BTF_MODULES
+	def_bool y
+	depends on DEBUG_INFO_BTF && MODULES && PAHOLE_HAS_SPLIT_BTF
+	help
+	  Generate compact split BTF type information for kernel modules.
+
 config GDB_SCRIPTS
 	bool "Provide GDB scripts for kernel debugging"
 	help
@@ -849,9 +858,31 @@ config DEBUG_PER_CPU_MAPS
 
 	  Say N if unsure.
 
+config DEBUG_KMAP_LOCAL
+	bool "Debug kmap_local temporary mappings"
+	depends on DEBUG_KERNEL && KMAP_LOCAL
+	help
+	  This option enables additional error checking for the kmap_local
+	  infrastructure.  Disable for production use.
+
+config ARCH_SUPPORTS_KMAP_LOCAL_FORCE_MAP
+	bool
+
+config DEBUG_KMAP_LOCAL_FORCE_MAP
+	bool "Enforce kmap_local temporary mappings"
+	depends on DEBUG_KERNEL && ARCH_SUPPORTS_KMAP_LOCAL_FORCE_MAP
+	select KMAP_LOCAL
+	select DEBUG_KMAP_LOCAL
+	help
+	  This option enforces temporary mappings through the kmap_local
+	  mechanism for non-highmem pages and on non-highmem systems.
+	  Disable this for production systems!
+
 config DEBUG_HIGHMEM
 	bool "Highmem debugging"
 	depends on DEBUG_KERNEL && HIGHMEM
+	select DEBUG_KMAP_LOCAL_FORCE_MAP if ARCH_SUPPORTS_KMAP_LOCAL_FORCE_MAP
+	select DEBUG_KMAP_LOCAL
 	help
 	  This option enables additional error checking for high memory
 	  systems.  Disable for production systems.
@@ -1645,7 +1676,7 @@ config ARCH_HAS_DEVMEM_IS_ALLOWED
 config STRICT_DEVMEM
 	bool "Filter access to /dev/mem"
 	depends on MMU && DEVMEM
-	depends on ARCH_HAS_DEVMEM_IS_ALLOWED
+	depends on ARCH_HAS_DEVMEM_IS_ALLOWED || GENERIC_LIB_DEVMEM_IS_ALLOWED
 	default y if PPC || X86 || ARM64
 	help
 	  If this option is disabled, you allow userspace (root) access to all
@@ -2226,6 +2257,17 @@ config BITFIELD_KUNIT
 
 	  If unsure, say N.
 
+config RESOURCE_KUNIT_TEST
+	tristate "KUnit test for resource API"
+	depends on KUNIT
+	help
+	  This builds the resource API unit test.
+	  Tests the logic of API provided by resource.c and ioport.h.
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
+
 config SYSCTL_KUNIT_TEST
 	tristate "KUnit test for sysctl" if !KUNIT_ALL_TESTS
 	depends on KUNIT
@@ -2264,6 +2306,17 @@ config LINEAR_RANGES_TEST
 	help
 	  This builds the linear_ranges unit test, which runs on boot.
 	  Tests the linear_ranges logic correctness.
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
+
+config CMDLINE_KUNIT_TEST
+	tristate "KUnit test for cmdline API"
+	depends on KUNIT
+	help
+	  This builds the cmdline API unit test.
+	  Tests the logic of API provided by cmdline.c.
 	  For more information on KUnit and unit tests in general please refer
 	  to the KUnit documentation in Documentation/dev-tools/kunit/.
 

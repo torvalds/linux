@@ -179,10 +179,6 @@ static void add_vcpus(struct kvm_vm *vm, int vcpus, uint64_t vcpu_memory_bytes)
 
 		vm_vcpu_add_default(vm, vcpu_id, guest_code);
 
-#ifdef __x86_64__
-		vcpu_set_cpuid(vm, vcpu_id, kvm_get_supported_cpuid());
-#endif
-
 		vcpu_args->vcpu_id = vcpu_id;
 		vcpu_args->gva = guest_test_virt_mem +
 				 (vcpu_id * vcpu_memory_bytes);

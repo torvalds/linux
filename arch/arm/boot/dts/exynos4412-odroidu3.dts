@@ -16,9 +16,22 @@
 	model = "Hardkernel ODROID-U3 board based on Exynos4412";
 	compatible = "hardkernel,odroid-u3", "samsung,exynos4412", "samsung,exynos4";
 
+	aliases {
+		ethernet = &ethernet;
+	};
+
 	memory@40000000 {
 		device_type = "memory";
 		reg = <0x40000000 0x7FF00000>;
+	};
+
+	vbus_otg_reg: regulator-1 {
+		compatible = "regulator-fixed";
+		regulator-name = "VBUS_VDD_5.0V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpl2 0 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 
 	leds {
@@ -101,8 +114,21 @@
 };
 
 &ehci {
+	#address-cells = <1>;
+	#size-cells = <0>;
 	phys = <&exynos_usbphy 2>, <&exynos_usbphy 3>;
 	phy-names = "hsic0", "hsic1";
+
+	ethernet: usbether@2 {
+		compatible = "usb0424,9730";
+		reg = <2>;
+		local-mac-address = [00 00 00 00 00 00]; /* Filled in by a bootloader */
+	};
+};
+
+&hsotg {
+	dr_mode = "otg";
+	vbus-supply = <&vbus_otg_reg>;
 };
 
 &sound {

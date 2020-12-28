@@ -180,5 +180,6 @@ void msm_vfe_get_vfe_line_id(struct media_entity *entity, enum vfe_line_id *id);
 
 extern const struct vfe_hw_ops vfe_ops_4_1;
 extern const struct vfe_hw_ops vfe_ops_4_7;
+extern const struct vfe_hw_ops vfe_ops_4_8;
 
 #endif /* QC_MSM_CAMSS_VFE_H */

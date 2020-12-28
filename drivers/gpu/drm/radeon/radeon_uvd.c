@@ -155,7 +155,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 			family_id = le32_to_cpu(hdr->ucode_version) & 0xff;
 			version_major = (le32_to_cpu(hdr->ucode_version) >> 24) & 0xff;
 			version_minor = (le32_to_cpu(hdr->ucode_version) >> 8) & 0xff;
-			DRM_INFO("Found UVD firmware Version: %hu.%hu Family ID: %hu\n",
+			DRM_INFO("Found UVD firmware Version: %u.%u Family ID: %u\n",
 				 version_major, version_minor, family_id);
 
 			/*

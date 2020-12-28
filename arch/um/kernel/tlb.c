@@ -608,3 +608,57 @@ void force_flush_all(void)
 		vma = vma->vm_next;
 	}
 }
+
+struct page_change_data {
+	unsigned int set_mask, clear_mask;
+};
+
+static int change_page_range(pte_t *ptep, unsigned long addr, void *data)
+{
+	struct page_change_data *cdata = data;
+	pte_t pte = READ_ONCE(*ptep);
+
+	pte_clear_bits(pte, cdata->clear_mask);
+	pte_set_bits(pte, cdata->set_mask);
+
+	set_pte(ptep, pte);
+	return 0;
+}
+
+static int change_memory(unsigned long start, unsigned long pages,
+			 unsigned int set_mask, unsigned int clear_mask)
+{
+	unsigned long size = pages * PAGE_SIZE;
+	struct page_change_data data;
+	int ret;
+
+	data.set_mask = set_mask;
+	data.clear_mask = clear_mask;
+
+	ret = apply_to_page_range(&init_mm, start, size, change_page_range,
+				  &data);
+
+	flush_tlb_kernel_range(start, start + size);
+
+	return ret;
+}
+
+int set_memory_ro(unsigned long addr, int numpages)
+{
+	return change_memory(addr, numpages, 0, _PAGE_RW);
+}
+
+int set_memory_rw(unsigned long addr, int numpages)
+{
+	return change_memory(addr, numpages, _PAGE_RW, 0);
+}
+
+int set_memory_nx(unsigned long addr, int numpages)
+{
+	return -EOPNOTSUPP;
+}
+
+int set_memory_x(unsigned long addr, int numpages)
+{
+	return -EOPNOTSUPP;
+}

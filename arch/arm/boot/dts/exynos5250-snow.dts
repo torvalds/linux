@@ -30,7 +30,7 @@
 };
 
 &i2c_7 {
-	max98095: codec@11 {
+	max98095: audio-codec@11 {
 		compatible = "maxim,max98095";
 		reg = <0x11>;
 		pinctrl-names = "default";

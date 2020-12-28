@@ -10,7 +10,7 @@
 #ifndef _MEDIA_V4L2_H264_H
 #define _MEDIA_V4L2_H264_H
 
-#include <media/h264-ctrls.h>
+#include <media/v4l2-ctrls.h>
 
 /**
  * struct v4l2_h264_reflist_builder - Reference list builder object

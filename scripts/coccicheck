@@ -16,7 +16,6 @@ if [ ! -x "$SPATCH" ]; then
 fi
 
 SPATCH_VERSION=$($SPATCH --version | head -1 | awk '{print $3}')
-SPATCH_VERSION_NUM=$(echo $SPATCH_VERSION | ${DIR}/scripts/ld-version.sh)
 
 USE_JOBS="no"
 $SPATCH --help | grep "\-\-jobs" > /dev/null && USE_JOBS="yes"
@@ -60,6 +59,18 @@ COCCIINCLUDE=${COCCIINCLUDE// -include/ --include}
 
 if [ "$C" = "1" -o "$C" = "2" ]; then
     ONLINE=1
+
+    if [[ $# -le 0 ]]; then
+	    echo ''
+	    echo 'Specifying both the variable "C" and rule "coccicheck" in the make
+command results in a shift count error.'
+	    echo ''
+	    echo 'Try specifying "scripts/coccicheck" as a value for the CHECK variable instead.'
+	    echo ''
+	    echo 'Example:	make C=2 CHECK=scripts/coccicheck drivers/net/ethernet/ethoc.o'
+	    echo ''
+	    exit 1
+    fi
 
     # Take only the last argument, which is the C file to test
     shift $(( $# - 1 ))
@@ -186,14 +197,11 @@ coccinelle () {
 
     OPT=`grep "Options:" $COCCI | cut -d':' -f2`
     REQ=`grep "Requires:" $COCCI | cut -d':' -f2 | sed "s| ||"`
-    REQ_NUM=$(echo $REQ | ${DIR}/scripts/ld-version.sh)
-    if [ "$REQ_NUM" != "0" ] ; then
-	    if [ "$SPATCH_VERSION_NUM" -lt "$REQ_NUM" ] ; then
-		    echo "Skipping coccinelle SmPL patch: $COCCI"
-		    echo "You have coccinelle:           $SPATCH_VERSION"
-		    echo "This SmPL patch requires:      $REQ"
-		    return
-	    fi
+    if [ -n "$REQ" ] && ! { echo "$REQ"; echo "$SPATCH_VERSION"; } | sort -CV ; then
+	    echo "Skipping coccinelle SmPL patch: $COCCI"
+	    echo "You have coccinelle:           $SPATCH_VERSION"
+	    echo "This SmPL patch requires:      $REQ"
+	    return
     fi
 
 #   The option '--parse-cocci' can be used to syntactically check the SmPL files.

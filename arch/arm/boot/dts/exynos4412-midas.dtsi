@@ -169,9 +169,8 @@
 		i2c-gpio,delay-us = <2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "okay";
 
-		max77693@66 {
+		pmic@66 {
 			compatible = "maxim,max77693";
 			interrupt-parent = <&gpx1>;
 			interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
@@ -193,7 +192,7 @@
 				};
 			};
 
-			max77693_haptic {
+			motor-driver {
 				compatible = "maxim,max77693-haptic";
 				haptic-supply = <&ldo26_reg>;
 				pwms = <&pwm 0 38022 0>;
@@ -218,9 +217,8 @@
 		i2c-gpio,delay-us = <2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "okay";
 
-		max77693-fuel-gauge@36 {
+		fuel-gauge@36 {
 			compatible = "maxim,max17047";
 			interrupt-parent = <&gpx2>;
 			interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
@@ -262,7 +260,6 @@
 
 		pinctrl-0 = <&i2c_mhl_bus>;
 		pinctrl-names = "default";
-		status = "okay";
 
 		sii9234: hdmi-bridge@39 {
 			compatible = "sil,sii9234";
@@ -550,7 +547,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	s5c73m3: s5c73m3@3c {
+	s5c73m3: image-sensor@3c {
 		compatible = "samsung,s5c73m3";
 		reg = <0x3c>;
 		xshutdown-gpios = <&gpf1 3 GPIO_ACTIVE_LOW>; /* ISP_RESET */
@@ -577,7 +574,7 @@
 	pinctrl-0 = <&fimc_is_i2c1>;
 	pinctrl-names = "default";
 
-	s5k6a3@10 {
+	image-sensor@10 {
 		compatible = "samsung,s5k6a3";
 		reg = <0x10>;
 		svdda-supply = <&cam_io_reg>;
@@ -616,7 +613,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	wm1811: wm1811@1a {
+	wm1811: audio-codec@1a {
 		compatible = "wlf,wm1811";
 		reg = <0x1a>;
 		clocks = <&pmu_system_controller 0>,
@@ -665,7 +662,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	max77686: max77686_pmic@9 {
+	max77686: pmic@9 {
 		compatible = "maxim,max77686";
 		interrupt-parent = <&gpx0>;
 		interrupts = <7 IRQ_TYPE_NONE>;
@@ -1109,6 +1106,21 @@
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
+	bt_shutdown: bt-shutdown {
+		samsung,pins = "gpl0-6";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	bt_host_wakeup: bt-host-wakeup {
+		samsung,pins = "gpx2-6";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	bt_device_wakeup: bt-device-wakeup {
+		samsung,pins = "gpx3-1";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
 	max77686_irq: max77686-irq {
 		samsung,pins = "gpx0-7";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -1386,7 +1398,20 @@
 };
 
 &serial_0 {
+	pinctrl-0 = <&uart0_data &uart0_fctl>;
+	pinctrl-names = "default";
 	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm4330-bt";
+		pinctrl-0 = <&bt_shutdown &bt_device_wakeup &bt_host_wakeup>;
+		pinctrl-names = "default";
+		max-speed = <3000000>;
+		shutdown-gpios = <&gpl0 6 GPIO_ACTIVE_HIGH>;
+		device-wakeup-gpios = <&gpx3 1 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpx2 6 GPIO_ACTIVE_HIGH>;
+		clocks = <&max77686 MAX77686_CLK_PMIC>;
+	};
 };
 
 &serial_1 {
@@ -1407,7 +1432,7 @@
 	cs-gpios = <&gpb 5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
-	s5c73m3_spi: s5c73m3@0 {
+	s5c73m3_spi: image-sensor@0 {
 		compatible = "samsung,s5c73m3";
 		spi-max-frequency = <50000000>;
 		reg = <0>;

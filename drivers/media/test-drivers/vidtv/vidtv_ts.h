@@ -44,7 +44,7 @@ struct vidtv_mpeg_ts {
 		u8 adaptation_field:1;
 		u8 scrambling:2;
 	} __packed;
-	struct vidtv_mpeg_ts_adaption adaption[];
+	struct vidtv_mpeg_ts_adaption *adaption;
 } __packed;
 
 /**

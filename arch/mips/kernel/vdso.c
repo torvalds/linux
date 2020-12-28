@@ -161,7 +161,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 		gic_pfn = virt_to_phys(mips_gic_base + MIPS_GIC_USER_OFS) >> PAGE_SHIFT;
 
 		ret = io_remap_pfn_range(vma, base, gic_pfn, gic_size,
-					 pgprot_noncached(PAGE_READONLY));
+					 pgprot_noncached(vma->vm_page_prot));
 		if (ret)
 			goto out;
 	}
@@ -169,7 +169,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	/* Map data page. */
 	ret = remap_pfn_range(vma, data_addr,
 			      virt_to_phys(vdso_data) >> PAGE_SHIFT,
-			      PAGE_SIZE, PAGE_READONLY);
+			      PAGE_SIZE, vma->vm_page_prot);
 	if (ret)
 		goto out;
 

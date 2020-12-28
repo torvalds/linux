@@ -333,7 +333,7 @@ nfp_devlink_flash_update(struct devlink *devlink,
 			 struct devlink_flash_update_params *params,
 			 struct netlink_ext_ack *extack)
 {
-	return nfp_flash_update_common(devlink_priv(devlink), params->file_name, extack);
+	return nfp_flash_update_common(devlink_priv(devlink), params->fw, extack);
 }
 
 const struct devlink_ops nfp_devlink_ops = {

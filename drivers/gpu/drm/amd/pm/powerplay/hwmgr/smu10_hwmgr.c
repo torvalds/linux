@@ -130,9 +130,10 @@ static int smu10_construct_max_power_limits_table(struct pp_hwmgr *hwmgr,
 static int smu10_init_dynamic_state_adjustment_rule_settings(
 							struct pp_hwmgr *hwmgr)
 {
+	int count = 8;
 	struct phm_clock_voltage_dependency_table *table_clk_vlt;
 
-	table_clk_vlt = kzalloc(struct_size(table_clk_vlt, entries, 7),
+	table_clk_vlt = kzalloc(struct_size(table_clk_vlt, entries, count),
 				GFP_KERNEL);
 
 	if (NULL == table_clk_vlt) {
@@ -140,7 +141,7 @@ static int smu10_init_dynamic_state_adjustment_rule_settings(
 		return -ENOMEM;
 	}
 
-	table_clk_vlt->count = 8;
+	table_clk_vlt->count = count;
 	table_clk_vlt->entries[0].clk = PP_DAL_POWERLEVEL_0;
 	table_clk_vlt->entries[0].v = 0;
 	table_clk_vlt->entries[1].clk = PP_DAL_POWERLEVEL_1;
@@ -1297,14 +1298,8 @@ static int conv_power_profile_to_pplib_workload(int power_profile)
 	int pplib_workload = 0;
 
 	switch (power_profile) {
-	case PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT:
-		pplib_workload = WORKLOAD_DEFAULT_BIT;
-		break;
 	case PP_SMC_POWER_PROFILE_FULLSCREEN3D:
 		pplib_workload = WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT;
-		break;
-	case PP_SMC_POWER_PROFILE_POWERSAVING:
-		pplib_workload = WORKLOAD_PPLIB_POWER_SAVING_BIT;
 		break;
 	case PP_SMC_POWER_PROFILE_VIDEO:
 		pplib_workload = WORKLOAD_PPLIB_VIDEO_BIT;
@@ -1314,6 +1309,9 @@ static int conv_power_profile_to_pplib_workload(int power_profile)
 		break;
 	case PP_SMC_POWER_PROFILE_COMPUTE:
 		pplib_workload = WORKLOAD_PPLIB_COMPUTE_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_CUSTOM:
+		pplib_workload = WORKLOAD_PPLIB_CUSTOM_BIT;
 		break;
 	}
 
@@ -1438,6 +1436,13 @@ static int smu10_set_fine_grain_clk_vol(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int smu10_gfx_state_change(struct pp_hwmgr *hwmgr, uint32_t state)
+{
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GpuChangeState, state, NULL);
+
+	return 0;
+}
+
 static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.backend_init = smu10_hwmgr_backend_init,
 	.backend_fini = smu10_hwmgr_backend_fini,
@@ -1484,6 +1489,7 @@ static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.set_power_profile_mode = smu10_set_power_profile_mode,
 	.asic_reset = smu10_asic_reset,
 	.set_fine_grain_clk_vol = smu10_set_fine_grain_clk_vol,
+	.gfx_state_change = smu10_gfx_state_change,
 };
 
 int smu10_init_function_pointers(struct pp_hwmgr *hwmgr)

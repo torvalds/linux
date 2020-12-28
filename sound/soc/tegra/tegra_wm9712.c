@@ -117,8 +117,8 @@ static int tegra_wm9712_driver_probe(struct platform_device *pdev)
 
 	ret = snd_soc_register_card(card);
 	if (ret) {
-		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
-			ret);
+		dev_err_probe(&pdev->dev, ret,
+			      "snd_soc_register_card failed\n");
 		goto codec_unregister;
 	}
 

@@ -208,7 +208,7 @@ static int amdgpu_vmid_grab_idle(struct amdgpu_vm *vm,
 	if (ring->vmid_wait && !dma_fence_is_signaled(ring->vmid_wait))
 		return amdgpu_sync_fence(sync, ring->vmid_wait);
 
-	fences = kmalloc_array(sizeof(void *), id_mgr->num_ids, GFP_KERNEL);
+	fences = kmalloc_array(id_mgr->num_ids, sizeof(void *), GFP_KERNEL);
 	if (!fences)
 		return -ENOMEM;
 
@@ -259,6 +259,7 @@ static int amdgpu_vmid_grab_idle(struct amdgpu_vm *vm,
  * @sync: sync object where we add dependencies
  * @fence: fence protecting ID from reuse
  * @job: job who wants to use the VMID
+ * @id: resulting VMID
  *
  * Try to assign a reserved VMID.
  */
@@ -514,6 +515,7 @@ void amdgpu_vmid_free_reserved(struct amdgpu_device *adev,
  * amdgpu_vmid_reset - reset VMID to zero
  *
  * @adev: amdgpu device structure
+ * @vmhub: vmhub type
  * @vmid: vmid number to use
  *
  * Reset saved GDW, GWS and OA to force switch on next flush.

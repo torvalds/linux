@@ -244,10 +244,6 @@ config PCMCIA_VRC4171
 	tristate "NEC VRC4171 Card Controllers support"
 	depends on CPU_VR41XX && ISA && PCMCIA
 
-config PCMCIA_VRC4173
-	tristate "NEC VRC4173 CARDU support"
-	depends on CPU_VR41XX && PCI && PCMCIA
-
 config OMAP_CF
 	tristate "OMAP CompactFlash Controller"
 	depends on PCMCIA && ARCH_OMAP16XX
@@ -258,6 +254,7 @@ config OMAP_CF
 config AT91_CF
 	tristate "AT91 CompactFlash Controller"
 	depends on PCI
+	depends on OF
 	depends on PCMCIA && ARCH_AT91
 	help
 	  Say Y here to support the CompactFlash controller on AT91 chips.

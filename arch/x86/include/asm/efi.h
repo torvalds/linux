@@ -213,8 +213,6 @@ static inline bool efi_is_64bit(void)
 
 static inline bool efi_is_native(void)
 {
-	if (!IS_ENABLED(CONFIG_X86_64))
-		return true;
 	return efi_is_64bit();
 }
 
@@ -381,5 +379,8 @@ static inline void efi_fake_memmap_early(void)
 {
 }
 #endif
+
+#define arch_ima_efi_boot_mode	\
+	({ extern struct boot_params boot_params; boot_params.secure_boot; })
 
 #endif /* _ASM_X86_EFI_H */

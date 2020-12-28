@@ -723,8 +723,7 @@ static void ni_release_gpct_mite_channel(struct comedi_device *dev,
 
 		ni_set_bitfield(dev, NI_E_DMA_G0_G1_SEL_REG,
 				NI_E_DMA_G0_G1_SEL_MASK(gpct_index), 0);
-		ni_tio_set_mite_channel(&devpriv->
-					counter_dev->counters[gpct_index],
+		ni_tio_set_mite_channel(&devpriv->counter_dev->counters[gpct_index],
 					NULL);
 		mite_release_channel(mite_chan);
 	}

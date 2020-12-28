@@ -156,7 +156,8 @@ enum vchiq_status vchiq_initialise(struct vchiq_instance **instance_out)
 
 	vchiq_log_trace(vchiq_core_log_level, "%s called", __func__);
 
-	/* VideoCore may not be ready due to boot up timing.
+	/*
+	 * VideoCore may not be ready due to boot up timing.
 	 * It may never be ready if kernel and firmware are mismatched,so don't
 	 * block forever.
 	 */
@@ -460,9 +461,9 @@ vchiq_blocking_bulk_transfer(unsigned int handle, void *data,
 			/* FIXME: why compare a dma address to a pointer? */
 			if ((bulk->data != (dma_addr_t)(uintptr_t)data) ||
 				(bulk->size != size)) {
-				/* This is not a retry of the previous one.
-				 * Cancel the signal when the transfer
-				 * completes.
+				/*
+				 * This is not a retry of the previous one.
+				 * Cancel the signal when the transfer completes.
 				 */
 				spin_lock(&bulk_waiter_spinlock);
 				bulk->userdata = NULL;
@@ -486,9 +487,7 @@ vchiq_blocking_bulk_transfer(unsigned int handle, void *data,
 		struct vchiq_bulk *bulk = waiter->bulk_waiter.bulk;
 
 		if (bulk) {
-			/* Cancel the signal when the transfer
-			 * completes.
-			 */
+			/* Cancel the signal when the transfer completes. */
 			spin_lock(&bulk_waiter_spinlock);
 			bulk->userdata = NULL;
 			spin_unlock(&bulk_waiter_spinlock);
@@ -507,10 +506,10 @@ vchiq_blocking_bulk_transfer(unsigned int handle, void *data,
 	return status;
 }
 /****************************************************************************
-*
-*   add_completion
-*
-***************************************************************************/
+ *
+ *   add_completion
+ *
+ ***************************************************************************/
 
 static enum vchiq_status
 add_completion(struct vchiq_instance *instance, enum vchiq_reason reason,
@@ -551,15 +550,19 @@ add_completion(struct vchiq_instance *instance, enum vchiq_reason reason,
 	completion->bulk_userdata = bulk_userdata;
 
 	if (reason == VCHIQ_SERVICE_CLOSED) {
-		/* Take an extra reference, to be held until
-		   this CLOSED notification is delivered. */
+		/*
+		 * Take an extra reference, to be held until
+		 * this CLOSED notification is delivered.
+		 */
 		lock_service(user_service->service);
 		if (instance->use_close_delivered)
 			user_service->close_pending = 1;
 	}
 
-	/* A write barrier is needed here to ensure that the entire completion
-		record is written out before the insert point. */
+	/*
+	 * A write barrier is needed here to ensure that the entire completion
+	 * record is written out before the insert point.
+	 */
 	wmb();
 
 	if (reason == VCHIQ_MESSAGE_AVAILABLE)
@@ -574,20 +577,21 @@ add_completion(struct vchiq_instance *instance, enum vchiq_reason reason,
 }
 
 /****************************************************************************
-*
-*   service_callback
-*
-***************************************************************************/
+ *
+ *   service_callback
+ *
+ ***************************************************************************/
 
 static enum vchiq_status
 service_callback(enum vchiq_reason reason, struct vchiq_header *header,
 		 unsigned int handle, void *bulk_userdata)
 {
-	/* How do we ensure the callback goes to the right client?
-	** The service_user data points to a user_service record
-	** containing the original callback and the user state structure, which
-	** contains a circular buffer for completion records.
-	*/
+	/*
+	 * How do we ensure the callback goes to the right client?
+	 * The service_user data points to a user_service record
+	 * containing the original callback and the user state structure, which
+	 * contains a circular buffer for completion records.
+	 */
 	struct user_service *user_service;
 	struct vchiq_service *service;
 	struct vchiq_instance *instance;
@@ -606,8 +610,7 @@ service_callback(enum vchiq_reason reason, struct vchiq_header *header,
 		return VCHIQ_SUCCESS;
 
 	vchiq_log_trace(vchiq_arm_log_level,
-		"%s - service %lx(%d,%p), reason %d, header %lx, "
-		"instance %lx, bulk_userdata %lx",
+		"%s - service %lx(%d,%p), reason %d, header %lx, instance %lx, bulk_userdata %lx",
 		__func__, (unsigned long)user_service,
 		service->localport, user_service->userdata,
 		reason, (unsigned long)header,
@@ -622,9 +625,10 @@ service_callback(enum vchiq_reason reason, struct vchiq_header *header,
 			DEBUG_COUNT(MSG_QUEUE_FULL_COUNT);
 			vchiq_log_trace(vchiq_arm_log_level,
 				"service_callback - msg queue full");
-			/* If there is no MESSAGE_AVAILABLE in the completion
-			** queue, add one
-			*/
+			/*
+			 * If there is no MESSAGE_AVAILABLE in the completion
+			 * queue, add one
+			 */
 			if ((user_service->message_available_pos -
 				instance->completion_remove) < 0) {
 				enum vchiq_status status;
@@ -661,10 +665,11 @@ service_callback(enum vchiq_reason reason, struct vchiq_header *header,
 			(MSG_QUEUE_SIZE - 1)] = header;
 		user_service->msg_insert++;
 
-		/* If there is a thread waiting in DEQUEUE_MESSAGE, or if
-		** there is a MESSAGE_AVAILABLE in the completion queue then
-		** bypass the completion queue.
-		*/
+		/*
+		 * If there is a thread waiting in DEQUEUE_MESSAGE, or if
+		 * there is a MESSAGE_AVAILABLE in the completion queue then
+		 * bypass the completion queue.
+		 */
 		if (((user_service->message_available_pos -
 			instance->completion_remove) >= 0) ||
 			user_service->dequeue_pending) {
@@ -687,10 +692,10 @@ service_callback(enum vchiq_reason reason, struct vchiq_header *header,
 }
 
 /****************************************************************************
-*
-*   user_service_free
-*
-***************************************************************************/
+ *
+ *   user_service_free
+ *
+ ***************************************************************************/
 static void
 user_service_free(void *userdata)
 {
@@ -698,10 +703,10 @@ user_service_free(void *userdata)
 }
 
 /****************************************************************************
-*
-*   close_delivered
-*
-***************************************************************************/
+ *
+ *   close_delivered
+ *
+ ***************************************************************************/
 static void close_delivered(struct user_service *user_service)
 {
 	vchiq_log_info(vchiq_arm_log_level,
@@ -1012,8 +1017,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 	if ((status != VCHIQ_RETRY) || fatal_signal_pending(current) ||
 		!waiter->bulk_waiter.bulk) {
 		if (waiter->bulk_waiter.bulk) {
-			/* Cancel the signal when the transfer
-			** completes. */
+			/* Cancel the signal when the transfer completes. */
 			spin_lock(&bulk_waiter_spinlock);
 			waiter->bulk_waiter.bulk->userdata = NULL;
 			spin_unlock(&bulk_waiter_spinlock);
@@ -1179,8 +1183,7 @@ static int vchiq_ioc_await_completion(struct vchiq_instance *instance,
 				break;
 			}
 			if (msgbufcount <= 0)
-				/* Stall here for lack of a
-				** buffer for the message. */
+				/* Stall here for lack of a buffer for the message. */
 				break;
 			/* Get the pointer from user space */
 			msgbufcount--;
@@ -1198,12 +1201,10 @@ static int vchiq_ioc_await_completion(struct vchiq_instance *instance,
 				break;
 			}
 
-			/* Now it has been copied, the message
-			** can be released. */
+			/* Now it has been copied, the message can be released. */
 			vchiq_release_message(service->handle, header);
 
-			/* The completion must point to the
-			** msgbuf. */
+			/* The completion must point to the msgbuf. */
 			user_completion.header = msgbuf;
 		}
 
@@ -1246,10 +1247,10 @@ out:
 }
 
 /****************************************************************************
-*
-*   vchiq_ioctl
-*
-***************************************************************************/
+ *
+ *   vchiq_ioctl
+ *
+ ***************************************************************************/
 static long
 vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -1298,8 +1299,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		rc = mutex_lock_killable(&instance->state->mutex);
 		if (rc) {
 			vchiq_log_error(vchiq_arm_log_level,
-				"vchiq: connect: could not lock mutex for "
-				"state %d: %d",
+				"vchiq: connect: could not lock mutex for state %d: %d",
 				instance->state->id, rc);
 			ret = -EINTR;
 			break;
@@ -1347,8 +1347,10 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		user_service = service->base.userdata;
 
-		/* close_pending is false on first entry, and when the
-		   wait in vchiq_close_service has been interrupted. */
+		/*
+		 * close_pending is false on first entry, and when the
+		 * wait in vchiq_close_service has been interrupted.
+		 */
 		if (!user_service->close_pending) {
 			status = (cmd == VCHIQ_IOC_CLOSE_SERVICE) ?
 				 vchiq_close_service(service->handle) :
@@ -1357,9 +1359,11 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				break;
 		}
 
-		/* close_pending is true once the underlying service
-		   has been closed until the client library calls the
-		   CLOSE_DELIVERED ioctl, signalling close_event. */
+		/*
+		 * close_pending is true once the underlying service
+		 * has been closed until the client library calls the
+		 * CLOSE_DELIVERED ioctl, signalling close_event.
+		 */
 		if (user_service->close_pending &&
 			wait_for_completion_interruptible(
 				&user_service->close_event))
@@ -1378,8 +1382,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				vchiq_release_service_internal(service);
 			if (status != VCHIQ_SUCCESS) {
 				vchiq_log_error(vchiq_susp_log_level,
-					"%s: cmd %s returned error %d for "
-					"service %c%c%c%c:%03d",
+					"%s: cmd %s returned error %d for service %c%c%c%c:%03d",
 					__func__,
 					(cmd == VCHIQ_IOC_USE_SERVICE) ?
 						"VCHIQ_IOC_USE_SERVICE" :
@@ -2001,10 +2004,10 @@ out:
 }
 
 /****************************************************************************
-*
-*   vchiq_dump
-*
-***************************************************************************/
+ *
+ *   vchiq_dump
+ *
+ ***************************************************************************/
 
 int vchiq_dump(void *dump_context, const char *str, int len)
 {
@@ -2048,10 +2051,10 @@ int vchiq_dump(void *dump_context, const char *str, int len)
 }
 
 /****************************************************************************
-*
-*   vchiq_dump_platform_instance_state
-*
-***************************************************************************/
+ *
+ *   vchiq_dump_platform_instance_state
+ *
+ ***************************************************************************/
 
 int vchiq_dump_platform_instances(void *dump_context)
 {
@@ -2060,8 +2063,10 @@ int vchiq_dump_platform_instances(void *dump_context)
 	int len;
 	int i;
 
-	/* There is no list of instances, so instead scan all services,
-		marking those that have been dumped. */
+	/*
+	 * There is no list of instances, so instead scan all services,
+	 * marking those that have been dumped.
+	 */
 
 	rcu_read_lock();
 	for (i = 0; i < state->unused_service; i++) {
@@ -2114,10 +2119,10 @@ int vchiq_dump_platform_instances(void *dump_context)
 }
 
 /****************************************************************************
-*
-*   vchiq_dump_platform_service_state
-*
-***************************************************************************/
+ *
+ *   vchiq_dump_platform_service_state
+ *
+ ***************************************************************************/
 
 int vchiq_dump_platform_service_state(void *dump_context,
 				      struct vchiq_service *service)
@@ -2145,10 +2150,10 @@ int vchiq_dump_platform_service_state(void *dump_context,
 }
 
 /****************************************************************************
-*
-*   vchiq_read
-*
-***************************************************************************/
+ *
+ *   vchiq_read
+ *
+ ***************************************************************************/
 
 static ssize_t
 vchiq_read(struct file *file, char __user *buf,
@@ -2260,13 +2265,17 @@ vchiq_keepalive_thread_func(void *v)
 			continue;
 		}
 
-		/* read and clear counters.  Do release_count then use_count to
-		 * prevent getting more releases than uses */
+		/*
+		 * read and clear counters.  Do release_count then use_count to
+		 * prevent getting more releases than uses
+		 */
 		rc = atomic_xchg(&arm_state->ka_release_count, 0);
 		uc = atomic_xchg(&arm_state->ka_use_count, 0);
 
-		/* Call use/release service the requisite number of times.
-		 * Process use before release so use counts don't go negative */
+		/*
+		 * Call use/release service the requisite number of times.
+		 * Process use before release so use counts don't go negative
+		 */
 		while (uc--) {
 			atomic_inc(&arm_state->ka_use_ack_count);
 			status = vchiq_use_service(ka_handle);
@@ -2335,8 +2344,7 @@ vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 			service->client_id);
 		entity_uc = &service->service_use_count;
 	} else {
-		vchiq_log_error(vchiq_susp_log_level, "%s null service "
-				"ptr", __func__);
+		vchiq_log_error(vchiq_susp_log_level, "%s null service ptr", __func__);
 		ret = VCHIQ_ERROR;
 		goto out;
 	}
@@ -2539,8 +2547,10 @@ vchiq_dump_service_use_state(struct vchiq_state *state)
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 	struct service_data_struct *service_data;
 	int i, found = 0;
-	/* If there's more than 64 services, only dump ones with
-	 * non-zero counts */
+	/*
+	 * If there's more than 64 services, only dump ones with
+	 * non-zero counts
+	 */
 	int only_nonzero = 0;
 	static const char *nz = "<-- preventing suspend";
 
@@ -2629,8 +2639,7 @@ vchiq_check_service(struct vchiq_service *service)
 
 	if (ret == VCHIQ_ERROR) {
 		vchiq_log_error(vchiq_susp_log_level,
-			"%s ERROR - %c%c%c%c:%d service count %d, "
-			"state count %d", __func__,
+			"%s ERROR - %c%c%c%c:%d service count %d, state count %d", __func__,
 			VCHIQ_FOURCC_AS_4CHARS(service->base.fourcc),
 			service->client_id, service->service_use_count,
 			arm_state->videocore_use_count);

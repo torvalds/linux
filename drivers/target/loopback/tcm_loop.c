@@ -46,6 +46,15 @@ static int tcm_loop_hba_no_cnt;
 
 static int tcm_loop_queue_status(struct se_cmd *se_cmd);
 
+static unsigned int tcm_loop_nr_hw_queues = 1;
+module_param_named(nr_hw_queues, tcm_loop_nr_hw_queues, uint, 0644);
+
+static unsigned int tcm_loop_can_queue = 1024;
+module_param_named(can_queue, tcm_loop_can_queue, uint, 0644);
+
+static unsigned int tcm_loop_cmd_per_lun = 1024;
+module_param_named(cmd_per_lun, tcm_loop_cmd_per_lun, uint, 0644);
+
 /*
  * Called from struct target_core_fabric_ops->check_stop_free()
  */
@@ -305,10 +314,8 @@ static struct scsi_host_template tcm_loop_driver_template = {
 	.eh_abort_handler = tcm_loop_abort_task,
 	.eh_device_reset_handler = tcm_loop_device_reset,
 	.eh_target_reset_handler = tcm_loop_target_reset,
-	.can_queue		= 1024,
 	.this_id		= -1,
 	.sg_tablesize		= 256,
-	.cmd_per_lun		= 1024,
 	.max_sectors		= 0xFFFF,
 	.dma_boundary		= PAGE_SIZE - 1,
 	.module			= THIS_MODULE,
@@ -342,6 +349,9 @@ static int tcm_loop_driver_probe(struct device *dev)
 	sh->max_lun = 0;
 	sh->max_channel = 0;
 	sh->max_cmd_len = SCSI_MAX_VARLEN_CDB_SIZE;
+	sh->nr_hw_queues = tcm_loop_nr_hw_queues;
+	sh->can_queue = tcm_loop_can_queue;
+	sh->cmd_per_lun = tcm_loop_cmd_per_lun;
 
 	host_prot = SHOST_DIF_TYPE1_PROTECTION | SHOST_DIF_TYPE2_PROTECTION |
 		    SHOST_DIF_TYPE3_PROTECTION | SHOST_DIX_TYPE1_PROTECTION |

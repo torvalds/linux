@@ -28,6 +28,18 @@ static int isert_debug_level;
 module_param_named(debug_level, isert_debug_level, int, 0644);
 MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0 (default:0)");
 
+static int isert_sg_tablesize_set(const char *val,
+				  const struct kernel_param *kp);
+static const struct kernel_param_ops sg_tablesize_ops = {
+	.set = isert_sg_tablesize_set,
+	.get = param_get_int,
+};
+
+static int isert_sg_tablesize = ISCSI_ISER_DEF_SG_TABLESIZE;
+module_param_cb(sg_tablesize, &sg_tablesize_ops, &isert_sg_tablesize, 0644);
+MODULE_PARM_DESC(sg_tablesize,
+		 "Number of gather/scatter entries in a single scsi command, should >= 128 (default: 256, max: 4096)");
+
 static DEFINE_MUTEX(device_list_mutex);
 static LIST_HEAD(device_list);
 static struct workqueue_struct *isert_comp_wq;
@@ -46,6 +58,19 @@ static void isert_recv_done(struct ib_cq *cq, struct ib_wc *wc);
 static void isert_send_done(struct ib_cq *cq, struct ib_wc *wc);
 static void isert_login_recv_done(struct ib_cq *cq, struct ib_wc *wc);
 static void isert_login_send_done(struct ib_cq *cq, struct ib_wc *wc);
+
+static int isert_sg_tablesize_set(const char *val, const struct kernel_param *kp)
+{
+	int n = 0, ret;
+
+	ret = kstrtoint(val, 10, &n);
+	if (ret != 0 || n < ISCSI_ISER_MIN_SG_TABLESIZE ||
+	    n > ISCSI_ISER_MAX_SG_TABLESIZE)
+		return -EINVAL;
+
+	return param_set_int(val, kp);
+}
+
 
 static inline bool
 isert_prot_cmd(struct isert_conn *conn, struct se_cmd *cmd)
@@ -101,7 +126,7 @@ isert_create_qp(struct isert_conn *isert_conn,
 	attr.cap.max_send_wr = ISERT_QP_MAX_REQ_DTOS + 1;
 	attr.cap.max_recv_wr = ISERT_QP_MAX_RECV_DTOS + 1;
 	factor = rdma_rw_mr_factor(device->ib_device, cma_id->port_num,
-				   ISCSI_ISER_MAX_SG_TABLESIZE);
+				   isert_sg_tablesize);
 	attr.cap.max_rdma_ctxs = ISCSI_DEF_XMIT_CMDS_MAX * factor;
 	attr.cap.max_send_sge = device->ib_device->attrs.max_send_sge;
 	attr.cap.max_recv_sge = 1;
@@ -1076,7 +1101,7 @@ isert_handle_scsi_cmd(struct isert_conn *isert_conn,
 sequence_cmd:
 	rc = iscsit_sequence_cmd(conn, cmd, buf, hdr->cmdsn);
 
-	if (!rc && dump_payload == false && unsol_data)
+	if (!rc && !dump_payload && unsol_data)
 		iscsit_set_unsolicited_dataout(cmd);
 	else if (dump_payload && imm_data)
 		target_put_sess_cmd(&cmd->se_cmd);
@@ -1528,12 +1553,12 @@ isert_check_pi_status(struct se_cmd *se_cmd, struct ib_mr *sig_mr)
 		}
 		sec_offset_err = mr_status.sig_err.sig_err_offset;
 		do_div(sec_offset_err, block_size);
-		se_cmd->bad_sector = sec_offset_err + se_cmd->t_task_lba;
+		se_cmd->sense_info = sec_offset_err + se_cmd->t_task_lba;
 
 		isert_err("PI error found type %d at sector 0x%llx "
 			  "expected 0x%x vs actual 0x%x\n",
 			  mr_status.sig_err.err_type,
-			  (unsigned long long)se_cmd->bad_sector,
+			  (unsigned long long)se_cmd->sense_info,
 			  mr_status.sig_err.expected,
 			  mr_status.sig_err.actual);
 		ret = 1;
@@ -2471,7 +2496,7 @@ isert_wait4cmds(struct iscsi_conn *conn)
 	isert_info("iscsi_conn %p\n", conn);
 
 	if (conn->sess) {
-		target_sess_cmd_list_set_waiting(conn->sess->se_sess);
+		target_stop_session(conn->sess->se_sess);
 		target_wait_for_sess_cmds(conn->sess->se_sess);
 	}
 }

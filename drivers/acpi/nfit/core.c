@@ -5,6 +5,7 @@
 #include <linux/list_sort.h>
 #include <linux/libnvdimm.h>
 #include <linux/module.h>
+#include <linux/nospec.h>
 #include <linux/mutex.h>
 #include <linux/ndctl.h>
 #include <linux/sysfs.h>
@@ -282,17 +283,18 @@ err:
 
 static union acpi_object *int_to_buf(union acpi_object *integer)
 {
-	union acpi_object *buf = ACPI_ALLOCATE(sizeof(*buf) + 4);
+	union acpi_object *buf = NULL;
 	void *dst = NULL;
-
-	if (!buf)
-		goto err;
 
 	if (integer->type != ACPI_TYPE_INTEGER) {
 		WARN_ONCE(1, "BIOS bug, unexpected element type: %d\n",
 				integer->type);
 		goto err;
 	}
+
+	buf = ACPI_ALLOCATE(sizeof(*buf) + 4);
+	if (!buf)
+		goto err;
 
 	dst = buf + 1;
 	buf->type = ACPI_TYPE_BUFFER;
@@ -478,8 +480,11 @@ int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 		cmd_mask = nd_desc->cmd_mask;
 		if (cmd == ND_CMD_CALL && call_pkg->nd_family) {
 			family = call_pkg->nd_family;
-			if (!test_bit(family, &nd_desc->bus_family_mask))
+			if (family > NVDIMM_BUS_FAMILY_MAX ||
+			    !test_bit(family, &nd_desc->bus_family_mask))
 				return -EINVAL;
+			family = array_index_nospec(family,
+						    NVDIMM_BUS_FAMILY_MAX + 1);
 			dsm_mask = acpi_desc->family_dsm_mask[family];
 			guid = to_nfit_bus_uuid(family);
 		} else {

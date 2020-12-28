@@ -33,6 +33,9 @@ struct icp_qat_fw_la_bulk_req {
 	struct icp_qat_fw_comn_req_cd_ctrl cd_ctrl;
 };
 
+#define ICP_QAT_FW_LA_USE_UCS_SLICE_TYPE 1
+#define QAT_LA_SLICE_TYPE_BITPOS 14
+#define QAT_LA_SLICE_TYPE_MASK 0x3
 #define ICP_QAT_FW_LA_GCM_IV_LEN_12_OCTETS 1
 #define ICP_QAT_FW_LA_GCM_IV_LEN_NOT_12_OCTETS 0
 #define QAT_FW_LA_ZUC_3G_PROTO_FLAG_BITPOS 12
@@ -178,6 +181,10 @@ struct icp_qat_fw_la_bulk_req {
 #define ICP_QAT_FW_LA_PARTIAL_SET(flags, val) \
 	QAT_FIELD_SET(flags, val, QAT_LA_PARTIAL_BITPOS, \
 	QAT_LA_PARTIAL_MASK)
+
+#define ICP_QAT_FW_LA_SLICE_TYPE_SET(flags, val) \
+	QAT_FIELD_SET(flags, val, QAT_LA_SLICE_TYPE_BITPOS, \
+	QAT_LA_SLICE_TYPE_MASK)
 
 struct icp_qat_fw_cipher_req_hdr_cd_pars {
 	union {

@@ -5815,8 +5815,8 @@ int ext4_ext_replay_update_ex(struct inode *inode, ext4_lblk_t start,
 	int ret;
 
 	path = ext4_find_extent(inode, start, NULL, 0);
-	if (!path)
-		return -EINVAL;
+	if (IS_ERR(path))
+		return PTR_ERR(path);
 	ex = path[path->p_depth].p_ext;
 	if (!ex) {
 		ret = -EFSCORRUPTED;
@@ -5988,7 +5988,6 @@ int ext4_ext_replay_set_iblocks(struct inode *inode)
 			kfree(path);
 			break;
 		}
-		ex = path2[path2->p_depth].p_ext;
 		for (i = 0; i <= max(path->p_depth, path2->p_depth); i++) {
 			cmp1 = cmp2 = 0;
 			if (i <= path->p_depth)

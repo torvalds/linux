@@ -12,7 +12,6 @@ static int otx2_ptp_adjfine(struct ptp_clock_info *ptp_info, long scaled_ppm)
 	struct otx2_ptp *ptp = container_of(ptp_info, struct otx2_ptp,
 					    ptp_info);
 	struct ptp_req *req;
-	int err;
 
 	if (!ptp->nic)
 		return -ENODEV;
@@ -24,11 +23,7 @@ static int otx2_ptp_adjfine(struct ptp_clock_info *ptp_info, long scaled_ppm)
 	req->op = PTP_OP_ADJFINE;
 	req->scaled_ppm = scaled_ppm;
 
-	err = otx2_sync_mbox_msg(&ptp->nic->mbox);
-	if (err)
-		return err;
-
-	return 0;
+	return otx2_sync_mbox_msg(&ptp->nic->mbox);
 }
 
 static u64 ptp_cc_read(const struct cyclecounter *cc)

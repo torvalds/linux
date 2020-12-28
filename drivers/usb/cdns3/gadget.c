@@ -1260,6 +1260,7 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 		priv_req->end_trb = priv_ep->enqueue;
 		cdns3_ep_inc_enq(priv_ep);
 		trb = priv_ep->trb_pool + priv_ep->enqueue;
+		trb->length = 0;
 	} while (sg_iter < num_trb);
 
 	trb = priv_req->trb;
@@ -3083,7 +3084,7 @@ static void cdns3_gadget_release(struct device *dev)
 	kfree(priv_dev);
 }
 
-void cdns3_gadget_exit(struct cdns3 *cdns)
+static void cdns3_gadget_exit(struct cdns3 *cdns)
 {
 	struct cdns3_device *priv_dev;
 

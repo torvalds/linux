@@ -131,7 +131,7 @@ properties:
     default: 1
 
   read-only:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Disables writes to the eeprom.
 
@@ -141,7 +141,7 @@ properties:
       Total eeprom size in bytes.
 
   no-read-rollover:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Indicates that the multi-address eeprom does not automatically roll
       over reads to the next slave address. Please consult the manual of

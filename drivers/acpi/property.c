@@ -76,7 +76,7 @@ static bool acpi_nondev_subnode_extract(const union acpi_object *desc,
 		return false;
 
 	dn->name = link->package.elements[0].string.pointer;
-	dn->fwnode.ops = &acpi_data_fwnode_ops;
+	fwnode_init(&dn->fwnode, &acpi_data_fwnode_ops);
 	dn->parent = parent;
 	INIT_LIST_HEAD(&dn->data.properties);
 	INIT_LIST_HEAD(&dn->data.subnodes);

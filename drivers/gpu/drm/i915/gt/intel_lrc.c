@@ -1216,7 +1216,8 @@ static void intel_engine_context_out(struct intel_engine_cs *engine)
 
 static void
 execlists_check_context(const struct intel_context *ce,
-			const struct intel_engine_cs *engine)
+			const struct intel_engine_cs *engine,
+			const char *when)
 {
 	const struct intel_ring *ring = ce->ring;
 	u32 *regs = ce->lrc_reg_state;
@@ -1251,7 +1252,7 @@ execlists_check_context(const struct intel_context *ce,
 		valid = false;
 	}
 
-	WARN_ONCE(!valid, "Invalid lrc state found before submission\n");
+	WARN_ONCE(!valid, "Invalid lrc state found %s submission\n", when);
 }
 
 static void restore_default_state(struct intel_context *ce,
@@ -1347,7 +1348,7 @@ __execlists_schedule_in(struct i915_request *rq)
 		reset_active(rq, engine);
 
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
-		execlists_check_context(ce, engine);
+		execlists_check_context(ce, engine, "before");
 
 	if (ce->tag) {
 		/* Use a fixed tag for OA and friends */
@@ -1417,6 +1418,9 @@ __execlists_schedule_out(struct i915_request *rq,
 	 * schedule_out can race with schedule_in meaning that we should
 	 * refrain from doing non-trivial work here.
 	 */
+
+	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+		execlists_check_context(ce, engine, "after");
 
 	/*
 	 * If we have just completed this context, the engine may now be
@@ -2496,25 +2500,11 @@ invalidate_csb_entries(const u64 *first, const u64 *last)
  *     bits 47-57: sw context id of the lrc the GT switched away from
  *     bits 58-63: sw counter of the lrc the GT switched away from
  */
-static inline bool gen12_csb_parse(const u64 *csb)
+static inline bool gen12_csb_parse(const u64 csb)
 {
-	bool ctx_away_valid;
-	bool new_queue;
-	u64 entry;
-
-	/* HSD#22011248461 */
-	entry = READ_ONCE(*csb);
-	if (unlikely(entry == -1)) {
-		preempt_disable();
-		if (wait_for_atomic_us((entry = READ_ONCE(*csb)) != -1, 50))
-			GEM_WARN_ON("50us CSB timeout");
-		preempt_enable();
-	}
-	WRITE_ONCE(*(u64 *)csb, -1);
-
-	ctx_away_valid = GEN12_CSB_CTX_VALID(upper_32_bits(entry));
-	new_queue =
-		lower_32_bits(entry) & GEN12_CTX_STATUS_SWITCHED_TO_NEW_QUEUE;
+	bool ctx_away_valid = GEN12_CSB_CTX_VALID(upper_32_bits(csb));
+	bool new_queue =
+		lower_32_bits(csb) & GEN12_CTX_STATUS_SWITCHED_TO_NEW_QUEUE;
 
 	/*
 	 * The context switch detail is not guaranteed to be 5 when a preemption
@@ -2524,7 +2514,7 @@ static inline bool gen12_csb_parse(const u64 *csb)
 	 * would require some extra handling, but we don't support that.
 	 */
 	if (!ctx_away_valid || new_queue) {
-		GEM_BUG_ON(!GEN12_CSB_CTX_VALID(lower_32_bits(entry)));
+		GEM_BUG_ON(!GEN12_CSB_CTX_VALID(lower_32_bits(csb)));
 		return true;
 	}
 
@@ -2533,19 +2523,79 @@ static inline bool gen12_csb_parse(const u64 *csb)
 	 * context switch on an unsuccessful wait instruction since we always
 	 * use polling mode.
 	 */
-	GEM_BUG_ON(GEN12_CTX_SWITCH_DETAIL(upper_32_bits(entry)));
+	GEM_BUG_ON(GEN12_CTX_SWITCH_DETAIL(upper_32_bits(csb)));
 	return false;
 }
 
-static inline bool gen8_csb_parse(const u64 *csb)
+static inline bool gen8_csb_parse(const u64 csb)
 {
-	return *csb & (GEN8_CTX_STATUS_IDLE_ACTIVE | GEN8_CTX_STATUS_PREEMPTED);
+	return csb & (GEN8_CTX_STATUS_IDLE_ACTIVE | GEN8_CTX_STATUS_PREEMPTED);
+}
+
+static noinline u64
+wa_csb_read(const struct intel_engine_cs *engine, u64 * const csb)
+{
+	u64 entry;
+
+	/*
+	 * Reading from the HWSP has one particular advantage: we can detect
+	 * a stale entry. Since the write into HWSP is broken, we have no reason
+	 * to trust the HW at all, the mmio entry may equally be unordered, so
+	 * we prefer the path that is self-checking and as a last resort,
+	 * return the mmio value.
+	 *
+	 * tgl,dg1:HSDES#22011327657
+	 */
+	preempt_disable();
+	if (wait_for_atomic_us((entry = READ_ONCE(*csb)) != -1, 10)) {
+		int idx = csb - engine->execlists.csb_status;
+		int status;
+
+		status = GEN8_EXECLISTS_STATUS_BUF;
+		if (idx >= 6) {
+			status = GEN11_EXECLISTS_STATUS_BUF2;
+			idx -= 6;
+		}
+		status += sizeof(u64) * idx;
+
+		entry = intel_uncore_read64(engine->uncore,
+					    _MMIO(engine->mmio_base + status));
+	}
+	preempt_enable();
+
+	return entry;
+}
+
+static inline u64
+csb_read(const struct intel_engine_cs *engine, u64 * const csb)
+{
+	u64 entry = READ_ONCE(*csb);
+
+	/*
+	 * Unfortunately, the GPU does not always serialise its write
+	 * of the CSB entries before its write of the CSB pointer, at least
+	 * from the perspective of the CPU, using what is known as a Global
+	 * Observation Point. We may read a new CSB tail pointer, but then
+	 * read the stale CSB entries, causing us to misinterpret the
+	 * context-switch events, and eventually declare the GPU hung.
+	 *
+	 * icl:HSDES#1806554093
+	 * tgl:HSDES#22011248461
+	 */
+	if (unlikely(entry == -1))
+		entry = wa_csb_read(engine, csb);
+
+	/* Consume this entry so that we can spot its future reuse. */
+	WRITE_ONCE(*csb, -1);
+
+	/* ELSP is an implicit wmb() before the GPU wraps and overwrites csb */
+	return entry;
 }
 
 static void process_csb(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
-	const u64 * const buf = execlists->csb_status;
+	u64 * const buf = execlists->csb_status;
 	const u8 num_entries = execlists->csb_size;
 	u8 head, tail;
 
@@ -2603,6 +2653,7 @@ static void process_csb(struct intel_engine_cs *engine)
 	rmb();
 	do {
 		bool promote;
+		u64 csb;
 
 		if (++head == num_entries)
 			head = 0;
@@ -2625,15 +2676,14 @@ static void process_csb(struct intel_engine_cs *engine)
 		 * status notifier.
 		 */
 
+		csb = csb_read(engine, buf + head);
 		ENGINE_TRACE(engine, "csb[%d]: status=0x%08x:0x%08x\n",
-			     head,
-			     upper_32_bits(buf[head]),
-			     lower_32_bits(buf[head]));
+			     head, upper_32_bits(csb), lower_32_bits(csb));
 
 		if (INTEL_GEN(engine->i915) >= 12)
-			promote = gen12_csb_parse(buf + head);
+			promote = gen12_csb_parse(csb);
 		else
-			promote = gen8_csb_parse(buf + head);
+			promote = gen8_csb_parse(csb);
 		if (promote) {
 			struct i915_request * const *old = execlists->active;
 
@@ -2788,6 +2838,9 @@ static void __execlists_hold(struct i915_request *rq)
 static bool execlists_hold(struct intel_engine_cs *engine,
 			   struct i915_request *rq)
 {
+	if (i915_request_on_hold(rq))
+		return false;
+
 	spin_lock_irq(&engine->active.lock);
 
 	if (i915_request_completed(rq)) { /* too late! */
@@ -2988,6 +3041,8 @@ static struct execlists_capture *capture_regs(struct intel_engine_cs *engine)
 	if (!cap->error->gt->engine)
 		goto err_gt;
 
+	cap->error->gt->engine->hung = true;
+
 	return cap;
 
 err_gt:
@@ -3169,8 +3224,10 @@ static void execlists_submission_tasklet(unsigned long data)
 		spin_unlock_irqrestore(&engine->active.lock, flags);
 
 		/* Recheck after serialising with direct-submission */
-		if (unlikely(timeout && preempt_timeout(engine)))
+		if (unlikely(timeout && preempt_timeout(engine))) {
+			cancel_timer(&engine->execlists.preempt);
 			execlists_reset(engine, "preemption time out");
+		}
 	}
 }
 
@@ -4048,6 +4105,8 @@ static void reset_csb_pointers(struct intel_engine_cs *engine)
 
 static void execlists_sanitize(struct intel_engine_cs *engine)
 {
+	GEM_BUG_ON(execlists_active(&engine->execlists));
+
 	/*
 	 * Poison residual state on resume, in case the suspend didn't!
 	 *
@@ -4377,6 +4436,7 @@ static void execlists_reset_cancel(struct intel_engine_cs *engine)
 	/* Mark all executing requests as skipped. */
 	list_for_each_entry(rq, &engine->active.requests, sched.link)
 		mark_eio(rq);
+	intel_engine_signal_breadcrumbs(engine);
 
 	/* Flush the queued requests to the timeline list (for retiring). */
 	while ((rb = rb_first_cached(&execlists->queue))) {
@@ -5967,18 +6027,6 @@ int intel_virtual_engine_attach_bond(struct intel_engine_cs *engine,
 	ve->num_bonds++;
 
 	return 0;
-}
-
-struct intel_engine_cs *
-intel_virtual_engine_get_sibling(struct intel_engine_cs *engine,
-				 unsigned int sibling)
-{
-	struct virtual_engine *ve = to_virtual_engine(engine);
-
-	if (sibling >= ve->num_siblings)
-		return NULL;
-
-	return ve->siblings[sibling];
 }
 
 void intel_execlists_show_requests(struct intel_engine_cs *engine,

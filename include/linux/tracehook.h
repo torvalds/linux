@@ -83,11 +83,12 @@ static inline int ptrace_report_syscall(struct pt_regs *regs,
  * tracehook_report_syscall_entry - task is about to attempt a system call
  * @regs:		user register state of current task
  *
- * This will be called if %TIF_SYSCALL_TRACE or %TIF_SYSCALL_EMU have been set,
- * when the current task has just entered the kernel for a system call.
- * Full user register state is available here.  Changing the values
- * in @regs can affect the system call number and arguments to be tried.
- * It is safe to block here, preventing the system call from beginning.
+ * This will be called if %SYSCALL_WORK_SYSCALL_TRACE or
+ * %SYSCALL_WORK_SYSCALL_EMU have been set, when the current task has just
+ * entered the kernel for a system call.  Full user register state is
+ * available here.  Changing the values in @regs can affect the system
+ * call number and arguments to be tried.  It is safe to block here,
+ * preventing the system call from beginning.
  *
  * Returns zero normally, or nonzero if the calling arch code should abort
  * the system call.  That must prevent normal entry so no system call is
@@ -109,15 +110,15 @@ static inline __must_check int tracehook_report_syscall_entry(
  * @regs:		user register state of current task
  * @step:		nonzero if simulating single-step or block-step
  *
- * This will be called if %TIF_SYSCALL_TRACE has been set, when the
- * current task has just finished an attempted system call.  Full
+ * This will be called if %SYSCALL_WORK_SYSCALL_TRACE has been set, when
+ * the current task has just finished an attempted system call.  Full
  * user register state is available here.  It is safe to block here,
  * preventing signals from being processed.
  *
  * If @step is nonzero, this report is also in lieu of the normal
  * trap that would follow the system call instruction because
  * user_enable_block_step() or user_enable_single_step() was used.
- * In this case, %TIF_SYSCALL_TRACE might not be set.
+ * In this case, %SYSCALL_WORK_SYSCALL_TRACE might not be set.
  *
  * Called without locks, just before checking for pending signals.
  */
@@ -196,6 +197,29 @@ static inline void tracehook_notify_resume(struct pt_regs *regs)
 
 	mem_cgroup_handle_over_high();
 	blkcg_maybe_throttle_current();
+}
+
+/*
+ * called by exit_to_user_mode_loop() if ti_work & _TIF_NOTIFY_SIGNAL. This
+ * is currently used by TWA_SIGNAL based task_work, which requires breaking
+ * wait loops to ensure that task_work is noticed and run.
+ */
+static inline void tracehook_notify_signal(void)
+{
+	clear_thread_flag(TIF_NOTIFY_SIGNAL);
+	smp_mb__after_atomic();
+	if (current->task_works)
+		task_work_run();
+}
+
+/*
+ * Called when we have work to process from exit_to_user_mode_loop()
+ */
+static inline void set_notify_signal(struct task_struct *task)
+{
+	if (!test_and_set_tsk_thread_flag(task, TIF_NOTIFY_SIGNAL) &&
+	    !wake_up_state(task, TASK_INTERRUPTIBLE))
+		kick_process(task);
 }
 
 #endif	/* <linux/tracehook.h> */

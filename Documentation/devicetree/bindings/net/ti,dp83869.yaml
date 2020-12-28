@@ -44,22 +44,22 @@ properties:
        to a maximum value (70 ohms).
 
   tx-fifo-depth:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
        Transmitt FIFO depth see dt-bindings/net/ti-dp83869.h for values
 
   rx-fifo-depth:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
        Receive FIFO depth see dt-bindings/net/ti-dp83869.h for values
 
   ti,clk-output-sel:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
        Muxing option for CLK_OUT pin see dt-bindings/net/ti-dp83869.h for values.
 
   ti,op-mode:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
        Operational mode for the PHY.  If this is not set then the operational
        mode is set by the straps. see dt-bindings/net/ti-dp83869.h for values

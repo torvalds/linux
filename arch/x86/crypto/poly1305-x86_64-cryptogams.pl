@@ -251,7 +251,7 @@ $code.=<<___;
 	mov	%rax,8($ctx)
 	mov	%rax,16($ctx)
 
-	cmp	\$0,$inp
+	test	$inp,$inp
 	je	.Lno_key
 ___
 $code.=<<___ if (!$kernel);

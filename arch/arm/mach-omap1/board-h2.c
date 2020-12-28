@@ -16,6 +16,7 @@
  * Copyright (C) 2004 Nokia Corporation by Imre Deak <imre.deak@nokia.com>
  */
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
@@ -45,6 +46,9 @@
 
 #include "common.h"
 #include "board-h2.h"
+
+/* The first 16 SoC GPIO lines are on this GPIO chip */
+#define OMAP_GPIO_LABEL			"gpio-0-15"
 
 /* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
 #define OMAP1610_ETHR_START		0x04000300
@@ -334,7 +338,19 @@ static struct i2c_board_info __initdata h2_i2c_board_info[] = {
 		I2C_BOARD_INFO("tps65010", 0x48),
 		.platform_data	= &tps_board,
 	}, {
-		I2C_BOARD_INFO("isp1301_omap", 0x2d),
+		.type = "isp1301_omap",
+		.addr = 0x2d,
+		.dev_name = "isp1301",
+	},
+};
+
+static struct gpiod_lookup_table isp1301_gpiod_table = {
+	.dev_id = "isp1301",
+	.table = {
+		/* Active low since the irq triggers on falling edge */
+		GPIO_LOOKUP(OMAP_GPIO_LABEL, 2,
+			    NULL, GPIO_ACTIVE_LOW),
+		{ },
 	},
 };
 
@@ -406,8 +422,10 @@ static void __init h2_init(void)
 	h2_smc91x_resources[1].end = gpio_to_irq(0);
 	platform_add_devices(h2_devices, ARRAY_SIZE(h2_devices));
 	omap_serial_init();
+
+	/* ISP1301 IRQ wired at M14 */
+	omap_cfg_reg(M14_1510_GPIO2);
 	h2_i2c_board_info[0].irq = gpio_to_irq(58);
-	h2_i2c_board_info[1].irq = gpio_to_irq(2);
 	omap_register_i2c_bus(1, 100, h2_i2c_board_info,
 			      ARRAY_SIZE(h2_i2c_board_info));
 	omap1_usb_init(&h2_usb_config);

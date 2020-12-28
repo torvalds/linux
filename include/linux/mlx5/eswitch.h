@@ -96,10 +96,10 @@ static inline u32 mlx5_eswitch_get_vport_metadata_mask(void)
 
 u32 mlx5_eswitch_get_vport_metadata_for_match(struct mlx5_eswitch *esw,
 					      u16 vport_num);
-u8 mlx5_eswitch_mode(struct mlx5_eswitch *esw);
+u8 mlx5_eswitch_mode(struct mlx5_core_dev *dev);
 #else  /* CONFIG_MLX5_ESWITCH */
 
-static inline u8 mlx5_eswitch_mode(struct mlx5_eswitch *esw)
+static inline u8 mlx5_eswitch_mode(struct mlx5_core_dev *dev)
 {
 	return MLX5_ESWITCH_NONE;
 }
@@ -136,4 +136,8 @@ mlx5_eswitch_get_vport_metadata_mask(void)
 }
 #endif /* CONFIG_MLX5_ESWITCH */
 
+static inline bool is_mdev_switchdev_mode(struct mlx5_core_dev *dev)
+{
+	return mlx5_eswitch_mode(dev) == MLX5_ESWITCH_OFFLOADS;
+}
 #endif

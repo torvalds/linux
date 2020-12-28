@@ -812,8 +812,6 @@
 			};
 
 			adc0: adc@fffb0000 {
-				#address-cells = <1>;
-				#size-cells = <0>;
 				compatible = "atmel,at91sam9g45-adc";
 				reg = <0xfffb0000 0x100>;
 				interrupts = <20 IRQ_TYPE_LEVEL_HIGH 0>;
@@ -822,31 +820,6 @@
 				atmel,adc-channels-used = <0xff>;
 				atmel,adc-vref = <3300>;
 				atmel,adc-startup-time = <40>;
-				atmel,adc-res = <8 10>;
-				atmel,adc-res-names = "lowres", "highres";
-				atmel,adc-use-res = "highres";
-
-				trigger0 {
-					trigger-name = "external-rising";
-					trigger-value = <0x1>;
-					trigger-external;
-				};
-				trigger1 {
-					trigger-name = "external-falling";
-					trigger-value = <0x2>;
-					trigger-external;
-				};
-
-				trigger2 {
-					trigger-name = "external-any";
-					trigger-value = <0x3>;
-					trigger-external;
-				};
-
-				trigger3 {
-					trigger-name = "continuous";
-					trigger-value = <0x6>;
-				};
 			};
 
 			isi@fffb4000 {

@@ -31,19 +31,6 @@ static struct smc_diag_dump_ctx *smc_dump_context(struct netlink_callback *cb)
 	return (struct smc_diag_dump_ctx *)cb->ctx;
 }
 
-static void smc_gid_be16_convert(__u8 *buf, u8 *gid_raw)
-{
-	sprintf(buf, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x",
-		be16_to_cpu(((__be16 *)gid_raw)[0]),
-		be16_to_cpu(((__be16 *)gid_raw)[1]),
-		be16_to_cpu(((__be16 *)gid_raw)[2]),
-		be16_to_cpu(((__be16 *)gid_raw)[3]),
-		be16_to_cpu(((__be16 *)gid_raw)[4]),
-		be16_to_cpu(((__be16 *)gid_raw)[5]),
-		be16_to_cpu(((__be16 *)gid_raw)[6]),
-		be16_to_cpu(((__be16 *)gid_raw)[7]));
-}
-
 static void smc_diag_msg_common_fill(struct smc_diag_msg *r, struct sock *sk)
 {
 	struct smc_sock *smc = smc_sk(sk);
@@ -160,17 +147,17 @@ static int __smc_diag_dump(struct sock *sk, struct sk_buff *skb,
 	    !list_empty(&smc->conn.lgr->list)) {
 		struct smc_diag_lgrinfo linfo = {
 			.role = smc->conn.lgr->role,
-			.lnk[0].ibport = smc->conn.lgr->lnk[0].ibport,
-			.lnk[0].link_id = smc->conn.lgr->lnk[0].link_id,
+			.lnk[0].ibport = smc->conn.lnk->ibport,
+			.lnk[0].link_id = smc->conn.lnk->link_id,
 		};
 
 		memcpy(linfo.lnk[0].ibname,
 		       smc->conn.lgr->lnk[0].smcibdev->ibdev->name,
-		       sizeof(smc->conn.lgr->lnk[0].smcibdev->ibdev->name));
+		       sizeof(smc->conn.lnk->smcibdev->ibdev->name));
 		smc_gid_be16_convert(linfo.lnk[0].gid,
-				     smc->conn.lgr->lnk[0].gid);
+				     smc->conn.lnk->gid);
 		smc_gid_be16_convert(linfo.lnk[0].peer_gid,
-				     smc->conn.lgr->lnk[0].peer_gid);
+				     smc->conn.lnk->peer_gid);
 
 		if (nla_put(skb, SMC_DIAG_LGRINFO, sizeof(linfo), &linfo) < 0)
 			goto errout;

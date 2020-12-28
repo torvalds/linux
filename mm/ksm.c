@@ -2833,18 +2833,18 @@ static void wait_while_offlining(void)
 static ssize_t sleep_millisecs_show(struct kobject *kobj,
 				    struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%u\n", ksm_thread_sleep_millisecs);
+	return sysfs_emit(buf, "%u\n", ksm_thread_sleep_millisecs);
 }
 
 static ssize_t sleep_millisecs_store(struct kobject *kobj,
 				     struct kobj_attribute *attr,
 				     const char *buf, size_t count)
 {
-	unsigned long msecs;
+	unsigned int msecs;
 	int err;
 
-	err = kstrtoul(buf, 10, &msecs);
-	if (err || msecs > UINT_MAX)
+	err = kstrtouint(buf, 10, &msecs);
+	if (err)
 		return -EINVAL;
 
 	ksm_thread_sleep_millisecs = msecs;
@@ -2857,18 +2857,18 @@ KSM_ATTR(sleep_millisecs);
 static ssize_t pages_to_scan_show(struct kobject *kobj,
 				  struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%u\n", ksm_thread_pages_to_scan);
+	return sysfs_emit(buf, "%u\n", ksm_thread_pages_to_scan);
 }
 
 static ssize_t pages_to_scan_store(struct kobject *kobj,
 				   struct kobj_attribute *attr,
 				   const char *buf, size_t count)
 {
+	unsigned int nr_pages;
 	int err;
-	unsigned long nr_pages;
 
-	err = kstrtoul(buf, 10, &nr_pages);
-	if (err || nr_pages > UINT_MAX)
+	err = kstrtouint(buf, 10, &nr_pages);
+	if (err)
 		return -EINVAL;
 
 	ksm_thread_pages_to_scan = nr_pages;
@@ -2880,17 +2880,17 @@ KSM_ATTR(pages_to_scan);
 static ssize_t run_show(struct kobject *kobj, struct kobj_attribute *attr,
 			char *buf)
 {
-	return sprintf(buf, "%lu\n", ksm_run);
+	return sysfs_emit(buf, "%lu\n", ksm_run);
 }
 
 static ssize_t run_store(struct kobject *kobj, struct kobj_attribute *attr,
 			 const char *buf, size_t count)
 {
+	unsigned int flags;
 	int err;
-	unsigned long flags;
 
-	err = kstrtoul(buf, 10, &flags);
-	if (err || flags > UINT_MAX)
+	err = kstrtouint(buf, 10, &flags);
+	if (err)
 		return -EINVAL;
 	if (flags > KSM_RUN_UNMERGE)
 		return -EINVAL;
@@ -2927,9 +2927,9 @@ KSM_ATTR(run);
 
 #ifdef CONFIG_NUMA
 static ssize_t merge_across_nodes_show(struct kobject *kobj,
-				struct kobj_attribute *attr, char *buf)
+				       struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%u\n", ksm_merge_across_nodes);
+	return sysfs_emit(buf, "%u\n", ksm_merge_across_nodes);
 }
 
 static ssize_t merge_across_nodes_store(struct kobject *kobj,
@@ -2984,9 +2984,9 @@ KSM_ATTR(merge_across_nodes);
 #endif
 
 static ssize_t use_zero_pages_show(struct kobject *kobj,
-				struct kobj_attribute *attr, char *buf)
+				   struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%u\n", ksm_use_zero_pages);
+	return sysfs_emit(buf, "%u\n", ksm_use_zero_pages);
 }
 static ssize_t use_zero_pages_store(struct kobject *kobj,
 				   struct kobj_attribute *attr,
@@ -3008,7 +3008,7 @@ KSM_ATTR(use_zero_pages);
 static ssize_t max_page_sharing_show(struct kobject *kobj,
 				     struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%u\n", ksm_max_page_sharing);
+	return sysfs_emit(buf, "%u\n", ksm_max_page_sharing);
 }
 
 static ssize_t max_page_sharing_store(struct kobject *kobj,
@@ -3049,21 +3049,21 @@ KSM_ATTR(max_page_sharing);
 static ssize_t pages_shared_show(struct kobject *kobj,
 				 struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%lu\n", ksm_pages_shared);
+	return sysfs_emit(buf, "%lu\n", ksm_pages_shared);
 }
 KSM_ATTR_RO(pages_shared);
 
 static ssize_t pages_sharing_show(struct kobject *kobj,
 				  struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%lu\n", ksm_pages_sharing);
+	return sysfs_emit(buf, "%lu\n", ksm_pages_sharing);
 }
 KSM_ATTR_RO(pages_sharing);
 
 static ssize_t pages_unshared_show(struct kobject *kobj,
 				   struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%lu\n", ksm_pages_unshared);
+	return sysfs_emit(buf, "%lu\n", ksm_pages_unshared);
 }
 KSM_ATTR_RO(pages_unshared);
 
@@ -3080,21 +3080,21 @@ static ssize_t pages_volatile_show(struct kobject *kobj,
 	 */
 	if (ksm_pages_volatile < 0)
 		ksm_pages_volatile = 0;
-	return sprintf(buf, "%ld\n", ksm_pages_volatile);
+	return sysfs_emit(buf, "%ld\n", ksm_pages_volatile);
 }
 KSM_ATTR_RO(pages_volatile);
 
 static ssize_t stable_node_dups_show(struct kobject *kobj,
 				     struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%lu\n", ksm_stable_node_dups);
+	return sysfs_emit(buf, "%lu\n", ksm_stable_node_dups);
 }
 KSM_ATTR_RO(stable_node_dups);
 
 static ssize_t stable_node_chains_show(struct kobject *kobj,
 				       struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%lu\n", ksm_stable_node_chains);
+	return sysfs_emit(buf, "%lu\n", ksm_stable_node_chains);
 }
 KSM_ATTR_RO(stable_node_chains);
 
@@ -3103,7 +3103,7 @@ stable_node_chains_prune_millisecs_show(struct kobject *kobj,
 					struct kobj_attribute *attr,
 					char *buf)
 {
-	return sprintf(buf, "%u\n", ksm_stable_node_chains_prune_millisecs);
+	return sysfs_emit(buf, "%u\n", ksm_stable_node_chains_prune_millisecs);
 }
 
 static ssize_t
@@ -3127,7 +3127,7 @@ KSM_ATTR(stable_node_chains_prune_millisecs);
 static ssize_t full_scans_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%lu\n", ksm_scan.seqnr);
+	return sysfs_emit(buf, "%lu\n", ksm_scan.seqnr);
 }
 KSM_ATTR_RO(full_scans);
 

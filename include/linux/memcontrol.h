@@ -235,11 +235,6 @@ struct mem_cgroup {
 	struct vmpressure vmpressure;
 
 	/*
-	 * Should the accounting and control be hierarchical, per subtree?
-	 */
-	bool use_hierarchy;
-
-	/*
 	 * Should the OOM killer kill all belonging tasks, had it kill one?
 	 */
 	bool oom_group;
@@ -296,7 +291,6 @@ struct mem_cgroup {
 	int			tcpmem_pressure;
 
 #ifdef CONFIG_MEMCG_KMEM
-        /* Index in the kmem_cache->memcg_params.memcg_caches array */
 	int kmemcg_id;
 	enum memcg_kmem_state kmem_state;
 	struct obj_cgroup __rcu *objcg;
@@ -342,6 +336,175 @@ struct mem_cgroup {
 #define MEMCG_CHARGE_BATCH 32U
 
 extern struct mem_cgroup *root_mem_cgroup;
+
+enum page_memcg_data_flags {
+	/* page->memcg_data is a pointer to an objcgs vector */
+	MEMCG_DATA_OBJCGS = (1UL << 0),
+	/* page has been accounted as a non-slab kernel page */
+	MEMCG_DATA_KMEM = (1UL << 1),
+	/* the next bit after the last actual flag */
+	__NR_MEMCG_DATA_FLAGS  = (1UL << 2),
+};
+
+#define MEMCG_DATA_FLAGS_MASK (__NR_MEMCG_DATA_FLAGS - 1)
+
+/*
+ * page_memcg - get the memory cgroup associated with a page
+ * @page: a pointer to the page struct
+ *
+ * Returns a pointer to the memory cgroup associated with the page,
+ * or NULL. This function assumes that the page is known to have a
+ * proper memory cgroup pointer. It's not safe to call this function
+ * against some type of pages, e.g. slab pages or ex-slab pages.
+ *
+ * Any of the following ensures page and memcg binding stability:
+ * - the page lock
+ * - LRU isolation
+ * - lock_page_memcg()
+ * - exclusive reference
+ */
+static inline struct mem_cgroup *page_memcg(struct page *page)
+{
+	unsigned long memcg_data = page->memcg_data;
+
+	VM_BUG_ON_PAGE(PageSlab(page), page);
+	VM_BUG_ON_PAGE(memcg_data & MEMCG_DATA_OBJCGS, page);
+
+	return (struct mem_cgroup *)(memcg_data & ~MEMCG_DATA_FLAGS_MASK);
+}
+
+/*
+ * page_memcg_rcu - locklessly get the memory cgroup associated with a page
+ * @page: a pointer to the page struct
+ *
+ * Returns a pointer to the memory cgroup associated with the page,
+ * or NULL. This function assumes that the page is known to have a
+ * proper memory cgroup pointer. It's not safe to call this function
+ * against some type of pages, e.g. slab pages or ex-slab pages.
+ */
+static inline struct mem_cgroup *page_memcg_rcu(struct page *page)
+{
+	VM_BUG_ON_PAGE(PageSlab(page), page);
+	WARN_ON_ONCE(!rcu_read_lock_held());
+
+	return (struct mem_cgroup *)(READ_ONCE(page->memcg_data) &
+				     ~MEMCG_DATA_FLAGS_MASK);
+}
+
+/*
+ * page_memcg_check - get the memory cgroup associated with a page
+ * @page: a pointer to the page struct
+ *
+ * Returns a pointer to the memory cgroup associated with the page,
+ * or NULL. This function unlike page_memcg() can take any  page
+ * as an argument. It has to be used in cases when it's not known if a page
+ * has an associated memory cgroup pointer or an object cgroups vector.
+ *
+ * Any of the following ensures page and memcg binding stability:
+ * - the page lock
+ * - LRU isolation
+ * - lock_page_memcg()
+ * - exclusive reference
+ */
+static inline struct mem_cgroup *page_memcg_check(struct page *page)
+{
+	/*
+	 * Because page->memcg_data might be changed asynchronously
+	 * for slab pages, READ_ONCE() should be used here.
+	 */
+	unsigned long memcg_data = READ_ONCE(page->memcg_data);
+
+	if (memcg_data & MEMCG_DATA_OBJCGS)
+		return NULL;
+
+	return (struct mem_cgroup *)(memcg_data & ~MEMCG_DATA_FLAGS_MASK);
+}
+
+/*
+ * PageMemcgKmem - check if the page has MemcgKmem flag set
+ * @page: a pointer to the page struct
+ *
+ * Checks if the page has MemcgKmem flag set. The caller must ensure that
+ * the page has an associated memory cgroup. It's not safe to call this function
+ * against some types of pages, e.g. slab pages.
+ */
+static inline bool PageMemcgKmem(struct page *page)
+{
+	VM_BUG_ON_PAGE(page->memcg_data & MEMCG_DATA_OBJCGS, page);
+	return page->memcg_data & MEMCG_DATA_KMEM;
+}
+
+#ifdef CONFIG_MEMCG_KMEM
+/*
+ * page_objcgs - get the object cgroups vector associated with a page
+ * @page: a pointer to the page struct
+ *
+ * Returns a pointer to the object cgroups vector associated with the page,
+ * or NULL. This function assumes that the page is known to have an
+ * associated object cgroups vector. It's not safe to call this function
+ * against pages, which might have an associated memory cgroup: e.g.
+ * kernel stack pages.
+ */
+static inline struct obj_cgroup **page_objcgs(struct page *page)
+{
+	unsigned long memcg_data = READ_ONCE(page->memcg_data);
+
+	VM_BUG_ON_PAGE(memcg_data && !(memcg_data & MEMCG_DATA_OBJCGS), page);
+	VM_BUG_ON_PAGE(memcg_data & MEMCG_DATA_KMEM, page);
+
+	return (struct obj_cgroup **)(memcg_data & ~MEMCG_DATA_FLAGS_MASK);
+}
+
+/*
+ * page_objcgs_check - get the object cgroups vector associated with a page
+ * @page: a pointer to the page struct
+ *
+ * Returns a pointer to the object cgroups vector associated with the page,
+ * or NULL. This function is safe to use if the page can be directly associated
+ * with a memory cgroup.
+ */
+static inline struct obj_cgroup **page_objcgs_check(struct page *page)
+{
+	unsigned long memcg_data = READ_ONCE(page->memcg_data);
+
+	if (!memcg_data || !(memcg_data & MEMCG_DATA_OBJCGS))
+		return NULL;
+
+	VM_BUG_ON_PAGE(memcg_data & MEMCG_DATA_KMEM, page);
+
+	return (struct obj_cgroup **)(memcg_data & ~MEMCG_DATA_FLAGS_MASK);
+}
+
+/*
+ * set_page_objcgs - associate a page with a object cgroups vector
+ * @page: a pointer to the page struct
+ * @objcgs: a pointer to the object cgroups vector
+ *
+ * Atomically associates a page with a vector of object cgroups.
+ */
+static inline bool set_page_objcgs(struct page *page,
+					struct obj_cgroup **objcgs)
+{
+	return !cmpxchg(&page->memcg_data, 0, (unsigned long)objcgs |
+			MEMCG_DATA_OBJCGS);
+}
+#else
+static inline struct obj_cgroup **page_objcgs(struct page *page)
+{
+	return NULL;
+}
+
+static inline struct obj_cgroup **page_objcgs_check(struct page *page)
+{
+	return NULL;
+}
+
+static inline bool set_page_objcgs(struct page *page,
+					struct obj_cgroup **objcgs)
+{
+	return true;
+}
+#endif
 
 static __always_inline bool memcg_stat_item_in_bytes(int idx)
 {
@@ -457,9 +620,10 @@ mem_cgroup_nodeinfo(struct mem_cgroup *memcg, int nid)
 /**
  * mem_cgroup_lruvec - get the lru list vector for a memcg & node
  * @memcg: memcg of the wanted lruvec
+ * @pgdat: pglist_data
  *
  * Returns the lru list vector holding pages for a given @memcg &
- * @node combination. This can be the node lruvec, if the memory
+ * @pgdat combination. This can be the node lruvec, if the memory
  * controller is disabled.
  */
 static inline struct lruvec *mem_cgroup_lruvec(struct mem_cgroup *memcg,
@@ -489,13 +653,56 @@ out:
 	return lruvec;
 }
 
-struct lruvec *mem_cgroup_page_lruvec(struct page *, struct pglist_data *);
+/**
+ * mem_cgroup_page_lruvec - return lruvec for isolating/putting an LRU page
+ * @page: the page
+ * @pgdat: pgdat of the page
+ *
+ * This function relies on page->mem_cgroup being stable.
+ */
+static inline struct lruvec *mem_cgroup_page_lruvec(struct page *page,
+						struct pglist_data *pgdat)
+{
+	struct mem_cgroup *memcg = page_memcg(page);
+
+	VM_WARN_ON_ONCE_PAGE(!memcg, page);
+	return mem_cgroup_lruvec(memcg, pgdat);
+}
+
+static inline bool lruvec_holds_page_lru_lock(struct page *page,
+					      struct lruvec *lruvec)
+{
+	pg_data_t *pgdat = page_pgdat(page);
+	const struct mem_cgroup *memcg;
+	struct mem_cgroup_per_node *mz;
+
+	if (mem_cgroup_disabled())
+		return lruvec == &pgdat->__lruvec;
+
+	mz = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
+	memcg = page_memcg(page) ? : root_mem_cgroup;
+
+	return lruvec->pgdat == pgdat && mz->memcg == memcg;
+}
 
 struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
 
 struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm);
 
 struct mem_cgroup *get_mem_cgroup_from_page(struct page *page);
+
+struct lruvec *lock_page_lruvec(struct page *page);
+struct lruvec *lock_page_lruvec_irq(struct page *page);
+struct lruvec *lock_page_lruvec_irqsave(struct page *page,
+						unsigned long *flags);
+
+#ifdef CONFIG_DEBUG_VM
+void lruvec_memcg_debug(struct lruvec *lruvec, struct page *page);
+#else
+static inline void lruvec_memcg_debug(struct lruvec *lruvec, struct page *page)
+{
+}
+#endif
 
 static inline
 struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
@@ -589,8 +796,6 @@ static inline bool mem_cgroup_is_descendant(struct mem_cgroup *memcg,
 {
 	if (root == memcg)
 		return true;
-	if (!root->use_hierarchy)
-		return false;
 	return cgroup_is_descendant(memcg->css.cgroup, root->css.cgroup);
 }
 
@@ -723,37 +928,6 @@ static inline void mod_memcg_state(struct mem_cgroup *memcg,
 	local_irq_restore(flags);
 }
 
-/**
- * mod_memcg_page_state - update page state statistics
- * @page: the page
- * @idx: page state item to account
- * @val: number of pages (positive or negative)
- *
- * The @page must be locked or the caller must use lock_page_memcg()
- * to prevent double accounting when the page is concurrently being
- * moved to another memcg:
- *
- *   lock_page(page) or lock_page_memcg(page)
- *   if (TestClearPageState(page))
- *     mod_memcg_page_state(page, state, -1);
- *   unlock_page(page) or unlock_page_memcg(page)
- *
- * Kernel pages are an exception to this, since they'll never move.
- */
-static inline void __mod_memcg_page_state(struct page *page,
-					  int idx, int val)
-{
-	if (page->mem_cgroup)
-		__mod_memcg_state(page->mem_cgroup, idx, val);
-}
-
-static inline void mod_memcg_page_state(struct page *page,
-					int idx, int val)
-{
-	if (page->mem_cgroup)
-		mod_memcg_state(page->mem_cgroup, idx, val);
-}
-
 static inline unsigned long lruvec_page_state(struct lruvec *lruvec,
 					      enum node_stat_item idx)
 {
@@ -794,19 +968,15 @@ static inline unsigned long lruvec_page_state_local(struct lruvec *lruvec,
 
 void __mod_memcg_lruvec_state(struct lruvec *lruvec, enum node_stat_item idx,
 			      int val);
-void __mod_lruvec_state(struct lruvec *lruvec, enum node_stat_item idx,
-			int val);
-void __mod_lruvec_slab_state(void *p, enum node_stat_item idx, int val);
+void __mod_lruvec_kmem_state(void *p, enum node_stat_item idx, int val);
 
-void mod_memcg_obj_state(void *p, int idx, int val);
-
-static inline void mod_lruvec_slab_state(void *p, enum node_stat_item idx,
+static inline void mod_lruvec_kmem_state(void *p, enum node_stat_item idx,
 					 int val)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
-	__mod_lruvec_slab_state(p, idx, val);
+	__mod_lruvec_kmem_state(p, idx, val);
 	local_irq_restore(flags);
 }
 
@@ -817,43 +987,6 @@ static inline void mod_memcg_lruvec_state(struct lruvec *lruvec,
 
 	local_irq_save(flags);
 	__mod_memcg_lruvec_state(lruvec, idx, val);
-	local_irq_restore(flags);
-}
-
-static inline void mod_lruvec_state(struct lruvec *lruvec,
-				    enum node_stat_item idx, int val)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	__mod_lruvec_state(lruvec, idx, val);
-	local_irq_restore(flags);
-}
-
-static inline void __mod_lruvec_page_state(struct page *page,
-					   enum node_stat_item idx, int val)
-{
-	struct page *head = compound_head(page); /* rmap on tail pages */
-	pg_data_t *pgdat = page_pgdat(page);
-	struct lruvec *lruvec;
-
-	/* Untracked pages have no memcg, no lruvec. Update only the node */
-	if (!head->mem_cgroup) {
-		__mod_node_page_state(pgdat, idx, val);
-		return;
-	}
-
-	lruvec = mem_cgroup_lruvec(head->mem_cgroup, pgdat);
-	__mod_lruvec_state(lruvec, idx, val);
-}
-
-static inline void mod_lruvec_page_state(struct page *page,
-					 enum node_stat_item idx, int val)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	__mod_lruvec_page_state(page, idx, val);
 	local_irq_restore(flags);
 }
 
@@ -878,8 +1011,10 @@ static inline void count_memcg_events(struct mem_cgroup *memcg,
 static inline void count_memcg_page_event(struct page *page,
 					  enum vm_event_item idx)
 {
-	if (page->mem_cgroup)
-		count_memcg_events(page->mem_cgroup, idx, 1);
+	struct mem_cgroup *memcg = page_memcg(page);
+
+	if (memcg)
+		count_memcg_events(memcg, idx, 1);
 }
 
 static inline void count_memcg_event_mm(struct mm_struct *mm,
@@ -947,6 +1082,27 @@ void mem_cgroup_split_huge_fixup(struct page *head);
 #define MEM_CGROUP_ID_MAX	0
 
 struct mem_cgroup;
+
+static inline struct mem_cgroup *page_memcg(struct page *page)
+{
+	return NULL;
+}
+
+static inline struct mem_cgroup *page_memcg_rcu(struct page *page)
+{
+	WARN_ON_ONCE(!rcu_read_lock_held());
+	return NULL;
+}
+
+static inline struct mem_cgroup *page_memcg_check(struct page *page)
+{
+	return NULL;
+}
+
+static inline bool PageMemcgKmem(struct page *page)
+{
+	return false;
+}
 
 static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
 {
@@ -1020,6 +1176,14 @@ static inline struct lruvec *mem_cgroup_page_lruvec(struct page *page,
 	return &pgdat->__lruvec;
 }
 
+static inline bool lruvec_holds_page_lru_lock(struct page *page,
+					      struct lruvec *lruvec)
+{
+	pg_data_t *pgdat = page_pgdat(page);
+
+	return lruvec == &pgdat->__lruvec;
+}
+
 static inline struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg)
 {
 	return NULL;
@@ -1043,6 +1207,31 @@ static inline struct mem_cgroup *get_mem_cgroup_from_page(struct page *page)
 
 static inline void mem_cgroup_put(struct mem_cgroup *memcg)
 {
+}
+
+static inline struct lruvec *lock_page_lruvec(struct page *page)
+{
+	struct pglist_data *pgdat = page_pgdat(page);
+
+	spin_lock(&pgdat->__lruvec.lru_lock);
+	return &pgdat->__lruvec;
+}
+
+static inline struct lruvec *lock_page_lruvec_irq(struct page *page)
+{
+	struct pglist_data *pgdat = page_pgdat(page);
+
+	spin_lock_irq(&pgdat->__lruvec.lru_lock);
+	return &pgdat->__lruvec;
+}
+
+static inline struct lruvec *lock_page_lruvec_irqsave(struct page *page,
+		unsigned long *flagsp)
+{
+	struct pglist_data *pgdat = page_pgdat(page);
+
+	spin_lock_irqsave(&pgdat->__lruvec.lru_lock, *flagsp);
+	return &pgdat->__lruvec;
 }
 
 static inline struct mem_cgroup *
@@ -1186,18 +1375,6 @@ static inline void mod_memcg_state(struct mem_cgroup *memcg,
 {
 }
 
-static inline void __mod_memcg_page_state(struct page *page,
-					  int idx,
-					  int nr)
-{
-}
-
-static inline void mod_memcg_page_state(struct page *page,
-					int idx,
-					int nr)
-{
-}
-
 static inline unsigned long lruvec_page_state(struct lruvec *lruvec,
 					      enum node_stat_item idx)
 {
@@ -1215,31 +1392,7 @@ static inline void __mod_memcg_lruvec_state(struct lruvec *lruvec,
 {
 }
 
-static inline void __mod_lruvec_state(struct lruvec *lruvec,
-				      enum node_stat_item idx, int val)
-{
-	__mod_node_page_state(lruvec_pgdat(lruvec), idx, val);
-}
-
-static inline void mod_lruvec_state(struct lruvec *lruvec,
-				    enum node_stat_item idx, int val)
-{
-	mod_node_page_state(lruvec_pgdat(lruvec), idx, val);
-}
-
-static inline void __mod_lruvec_page_state(struct page *page,
-					   enum node_stat_item idx, int val)
-{
-	__mod_node_page_state(page_pgdat(page), idx, val);
-}
-
-static inline void mod_lruvec_page_state(struct page *page,
-					 enum node_stat_item idx, int val)
-{
-	mod_node_page_state(page_pgdat(page), idx, val);
-}
-
-static inline void __mod_lruvec_slab_state(void *p, enum node_stat_item idx,
+static inline void __mod_lruvec_kmem_state(void *p, enum node_stat_item idx,
 					   int val)
 {
 	struct page *page = virt_to_head_page(p);
@@ -1247,16 +1400,12 @@ static inline void __mod_lruvec_slab_state(void *p, enum node_stat_item idx,
 	__mod_node_page_state(page_pgdat(page), idx, val);
 }
 
-static inline void mod_lruvec_slab_state(void *p, enum node_stat_item idx,
+static inline void mod_lruvec_kmem_state(void *p, enum node_stat_item idx,
 					 int val)
 {
 	struct page *page = virt_to_head_page(p);
 
 	mod_node_page_state(page_pgdat(page), idx, val);
-}
-
-static inline void mod_memcg_obj_state(void *p, int idx, int val)
-{
 }
 
 static inline
@@ -1292,120 +1441,20 @@ static inline
 void count_memcg_event_mm(struct mm_struct *mm, enum vm_event_item idx)
 {
 }
+
+static inline void lruvec_memcg_debug(struct lruvec *lruvec, struct page *page)
+{
+}
 #endif /* CONFIG_MEMCG */
 
-/* idx can be of type enum memcg_stat_item or node_stat_item */
-static inline void __inc_memcg_state(struct mem_cgroup *memcg,
-				     int idx)
+static inline void __inc_lruvec_kmem_state(void *p, enum node_stat_item idx)
 {
-	__mod_memcg_state(memcg, idx, 1);
+	__mod_lruvec_kmem_state(p, idx, 1);
 }
 
-/* idx can be of type enum memcg_stat_item or node_stat_item */
-static inline void __dec_memcg_state(struct mem_cgroup *memcg,
-				     int idx)
+static inline void __dec_lruvec_kmem_state(void *p, enum node_stat_item idx)
 {
-	__mod_memcg_state(memcg, idx, -1);
-}
-
-/* idx can be of type enum memcg_stat_item or node_stat_item */
-static inline void __inc_memcg_page_state(struct page *page,
-					  int idx)
-{
-	__mod_memcg_page_state(page, idx, 1);
-}
-
-/* idx can be of type enum memcg_stat_item or node_stat_item */
-static inline void __dec_memcg_page_state(struct page *page,
-					  int idx)
-{
-	__mod_memcg_page_state(page, idx, -1);
-}
-
-static inline void __inc_lruvec_state(struct lruvec *lruvec,
-				      enum node_stat_item idx)
-{
-	__mod_lruvec_state(lruvec, idx, 1);
-}
-
-static inline void __dec_lruvec_state(struct lruvec *lruvec,
-				      enum node_stat_item idx)
-{
-	__mod_lruvec_state(lruvec, idx, -1);
-}
-
-static inline void __inc_lruvec_page_state(struct page *page,
-					   enum node_stat_item idx)
-{
-	__mod_lruvec_page_state(page, idx, 1);
-}
-
-static inline void __dec_lruvec_page_state(struct page *page,
-					   enum node_stat_item idx)
-{
-	__mod_lruvec_page_state(page, idx, -1);
-}
-
-static inline void __inc_lruvec_slab_state(void *p, enum node_stat_item idx)
-{
-	__mod_lruvec_slab_state(p, idx, 1);
-}
-
-static inline void __dec_lruvec_slab_state(void *p, enum node_stat_item idx)
-{
-	__mod_lruvec_slab_state(p, idx, -1);
-}
-
-/* idx can be of type enum memcg_stat_item or node_stat_item */
-static inline void inc_memcg_state(struct mem_cgroup *memcg,
-				   int idx)
-{
-	mod_memcg_state(memcg, idx, 1);
-}
-
-/* idx can be of type enum memcg_stat_item or node_stat_item */
-static inline void dec_memcg_state(struct mem_cgroup *memcg,
-				   int idx)
-{
-	mod_memcg_state(memcg, idx, -1);
-}
-
-/* idx can be of type enum memcg_stat_item or node_stat_item */
-static inline void inc_memcg_page_state(struct page *page,
-					int idx)
-{
-	mod_memcg_page_state(page, idx, 1);
-}
-
-/* idx can be of type enum memcg_stat_item or node_stat_item */
-static inline void dec_memcg_page_state(struct page *page,
-					int idx)
-{
-	mod_memcg_page_state(page, idx, -1);
-}
-
-static inline void inc_lruvec_state(struct lruvec *lruvec,
-				    enum node_stat_item idx)
-{
-	mod_lruvec_state(lruvec, idx, 1);
-}
-
-static inline void dec_lruvec_state(struct lruvec *lruvec,
-				    enum node_stat_item idx)
-{
-	mod_lruvec_state(lruvec, idx, -1);
-}
-
-static inline void inc_lruvec_page_state(struct page *page,
-					 enum node_stat_item idx)
-{
-	mod_lruvec_page_state(page, idx, 1);
-}
-
-static inline void dec_lruvec_page_state(struct page *page,
-					 enum node_stat_item idx)
-{
-	mod_lruvec_page_state(page, idx, -1);
+	__mod_lruvec_kmem_state(p, idx, -1);
 }
 
 static inline struct lruvec *parent_lruvec(struct lruvec *lruvec)
@@ -1419,6 +1468,50 @@ static inline struct lruvec *parent_lruvec(struct lruvec *lruvec)
 	if (!memcg)
 		return NULL;
 	return mem_cgroup_lruvec(memcg, lruvec_pgdat(lruvec));
+}
+
+static inline void unlock_page_lruvec(struct lruvec *lruvec)
+{
+	spin_unlock(&lruvec->lru_lock);
+}
+
+static inline void unlock_page_lruvec_irq(struct lruvec *lruvec)
+{
+	spin_unlock_irq(&lruvec->lru_lock);
+}
+
+static inline void unlock_page_lruvec_irqrestore(struct lruvec *lruvec,
+		unsigned long flags)
+{
+	spin_unlock_irqrestore(&lruvec->lru_lock, flags);
+}
+
+/* Don't lock again iff page's lruvec locked */
+static inline struct lruvec *relock_page_lruvec_irq(struct page *page,
+		struct lruvec *locked_lruvec)
+{
+	if (locked_lruvec) {
+		if (lruvec_holds_page_lru_lock(page, locked_lruvec))
+			return locked_lruvec;
+
+		unlock_page_lruvec_irq(locked_lruvec);
+	}
+
+	return lock_page_lruvec_irq(page);
+}
+
+/* Don't lock again iff page's lruvec locked */
+static inline struct lruvec *relock_page_lruvec_irqsave(struct page *page,
+		struct lruvec *locked_lruvec, unsigned long *flags)
+{
+	if (locked_lruvec) {
+		if (lruvec_holds_page_lru_lock(page, locked_lruvec))
+			return locked_lruvec;
+
+		unlock_page_lruvec_irqrestore(locked_lruvec, *flags);
+	}
+
+	return lock_page_lruvec_irqsave(page, flags);
 }
 
 #ifdef CONFIG_CGROUP_WRITEBACK
@@ -1437,7 +1530,7 @@ static inline void mem_cgroup_track_foreign_dirty(struct page *page,
 	if (mem_cgroup_disabled())
 		return;
 
-	if (unlikely(&page->mem_cgroup->css != wb->memcg_css))
+	if (unlikely(&page_memcg(page)->css != wb->memcg_css))
 		mem_cgroup_track_foreign_dirty_slowpath(page, wb);
 }
 
@@ -1552,25 +1645,9 @@ static inline void memcg_kmem_uncharge_page(struct page *page, int order)
 		__memcg_kmem_uncharge_page(page, order);
 }
 
-static inline int memcg_kmem_charge(struct mem_cgroup *memcg, gfp_t gfp,
-				    unsigned int nr_pages)
-{
-	if (memcg_kmem_enabled())
-		return __memcg_kmem_charge(memcg, gfp, nr_pages);
-	return 0;
-}
-
-static inline void memcg_kmem_uncharge(struct mem_cgroup *memcg,
-				       unsigned int nr_pages)
-{
-	if (memcg_kmem_enabled())
-		__memcg_kmem_uncharge(memcg, nr_pages);
-}
-
 /*
- * helper for accessing a memcg's index. It will be used as an index in the
- * child cache array in kmem_cache, and also to derive its name. This function
- * will return -1 when this is not a kmem-limited memcg.
+ * A helper for accessing memcg's kmem_id, used for getting
+ * corresponding LRU lists.
  */
 static inline int memcg_cache_id(struct mem_cgroup *memcg)
 {

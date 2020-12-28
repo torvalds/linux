@@ -240,7 +240,7 @@ static int get_sensor_index_attr(const char *name, u32 *index, char *attr)
 	if (err)
 		return err;
 
-	strncpy(attr, dash_pos + 1, MAX_ATTR_LEN);
+	strscpy(attr, dash_pos + 1, MAX_ATTR_LEN);
 
 	return 0;
 }

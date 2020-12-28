@@ -223,12 +223,12 @@ int max9271_enable_gpios(struct max9271_device *dev, u8 gpio_mask)
 {
 	int ret;
 
-	ret = max9271_read(dev, 0x0f);
+	ret = max9271_read(dev, 0x0e);
 	if (ret < 0)
 		return 0;
 
 	/* BIT(0) reserved: GPO is always enabled. */
-	ret |= gpio_mask | BIT(0);
+	ret |= (gpio_mask & ~BIT(0));
 	ret = max9271_write(dev, 0x0e, ret);
 	if (ret < 0) {
 		dev_err(&dev->client->dev, "Failed to enable gpio (%d)\n", ret);
@@ -245,12 +245,12 @@ int max9271_disable_gpios(struct max9271_device *dev, u8 gpio_mask)
 {
 	int ret;
 
-	ret = max9271_read(dev, 0x0f);
+	ret = max9271_read(dev, 0x0e);
 	if (ret < 0)
 		return 0;
 
 	/* BIT(0) reserved: GPO cannot be disabled */
-	ret &= (~gpio_mask | BIT(0));
+	ret &= ~(gpio_mask | BIT(0));
 	ret = max9271_write(dev, 0x0e, ret);
 	if (ret < 0) {
 		dev_err(&dev->client->dev, "Failed to disable gpio (%d)\n", ret);

@@ -46,7 +46,7 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 	int err;
 	struct v9fs_inode *v9inode;
 	struct v9fs_session_info *v9ses;
-	struct p9_fid *fid;
+	struct p9_fid *fid, *writeback_fid;
 	int omode;
 
 	p9_debug(P9_DEBUG_VFS, "inode: %p file: %p\n", inode, file);
@@ -85,17 +85,18 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 		 * because we want write after unlink usecase
 		 * to work.
 		 */
-		fid = v9fs_writeback_fid(file_dentry(file));
+		writeback_fid = v9fs_writeback_fid(file_dentry(file));
 		if (IS_ERR(fid)) {
 			err = PTR_ERR(fid);
 			mutex_unlock(&v9inode->v_mutex);
 			goto out_error;
 		}
-		v9inode->writeback_fid = (void *) fid;
+		v9inode->writeback_fid = (void *) writeback_fid;
 	}
 	mutex_unlock(&v9inode->v_mutex);
 	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
 		v9fs_cache_inode_set_cookie(inode, file);
+	v9fs_open_fid_add(inode, fid);
 	return 0;
 out_error:
 	p9_client_clunk(file->private_data);
@@ -655,6 +656,8 @@ const struct file_operations v9fs_cached_file_operations = {
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock,
 	.mmap = v9fs_file_mmap,
+	.splice_read = generic_file_splice_read,
+	.splice_write = iter_file_splice_write,
 	.fsync = v9fs_file_fsync,
 };
 
@@ -667,6 +670,8 @@ const struct file_operations v9fs_cached_file_operations_dotl = {
 	.lock = v9fs_file_lock_dotl,
 	.flock = v9fs_file_flock_dotl,
 	.mmap = v9fs_file_mmap,
+	.splice_read = generic_file_splice_read,
+	.splice_write = iter_file_splice_write,
 	.fsync = v9fs_file_fsync_dotl,
 };
 
@@ -678,6 +683,8 @@ const struct file_operations v9fs_file_operations = {
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock,
 	.mmap = generic_file_readonly_mmap,
+	.splice_read = generic_file_splice_read,
+	.splice_write = iter_file_splice_write,
 	.fsync = v9fs_file_fsync,
 };
 
@@ -690,6 +697,8 @@ const struct file_operations v9fs_file_operations_dotl = {
 	.lock = v9fs_file_lock_dotl,
 	.flock = v9fs_file_flock_dotl,
 	.mmap = generic_file_readonly_mmap,
+	.splice_read = generic_file_splice_read,
+	.splice_write = iter_file_splice_write,
 	.fsync = v9fs_file_fsync_dotl,
 };
 
@@ -701,6 +710,8 @@ const struct file_operations v9fs_mmap_file_operations = {
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock,
 	.mmap = v9fs_mmap_file_mmap,
+	.splice_read = generic_file_splice_read,
+	.splice_write = iter_file_splice_write,
 	.fsync = v9fs_file_fsync,
 };
 
@@ -713,5 +724,7 @@ const struct file_operations v9fs_mmap_file_operations_dotl = {
 	.lock = v9fs_file_lock_dotl,
 	.flock = v9fs_file_flock_dotl,
 	.mmap = v9fs_mmap_file_mmap,
+	.splice_read = generic_file_splice_read,
+	.splice_write = iter_file_splice_write,
 	.fsync = v9fs_file_fsync_dotl,
 };

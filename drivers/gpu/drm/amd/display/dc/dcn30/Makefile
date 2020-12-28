@@ -52,6 +52,7 @@ IS_OLD_GCC = 1
 endif
 endif
 
+ifdef CONFIG_X86
 ifdef IS_OLD_GCC
 # Stack alignment mismatch, proceed with caution.
 # GCC < 7.1 cannot compile code using `double` and -mpreferred-stack-boundary=3
@@ -61,6 +62,7 @@ CFLAGS_$(AMDDALPATH)/dc/dcn30/dcn30_optc.o += -mpreferred-stack-boundary=4
 else
 CFLAGS_$(AMDDALPATH)/dc/dcn30/dcn30_resource.o += -msse2
 CFLAGS_$(AMDDALPATH)/dc/dcn30/dcn30_optc.o += -msse2
+endif
 endif
 
 AMD_DAL_DCN30 = $(addprefix $(AMDDALPATH)/dc/dcn30/,$(DCN30))

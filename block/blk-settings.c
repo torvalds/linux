@@ -157,10 +157,16 @@ void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_secto
 		       __func__, max_hw_sectors);
 	}
 
+	max_hw_sectors = round_down(max_hw_sectors,
+				    limits->logical_block_size >> SECTOR_SHIFT);
 	limits->max_hw_sectors = max_hw_sectors;
+
 	max_sectors = min_not_zero(max_hw_sectors, limits->max_dev_sectors);
 	max_sectors = min_t(unsigned int, max_sectors, BLK_DEF_MAX_SECTORS);
+	max_sectors = round_down(max_sectors,
+				 limits->logical_block_size >> SECTOR_SHIFT);
 	limits->max_sectors = max_sectors;
+
 	q->backing_dev_info->io_pages = max_sectors >> (PAGE_SHIFT - 9);
 }
 EXPORT_SYMBOL(blk_queue_max_hw_sectors);
@@ -321,13 +327,20 @@ EXPORT_SYMBOL(blk_queue_max_segment_size);
  **/
 void blk_queue_logical_block_size(struct request_queue *q, unsigned int size)
 {
-	q->limits.logical_block_size = size;
+	struct queue_limits *limits = &q->limits;
 
-	if (q->limits.physical_block_size < size)
-		q->limits.physical_block_size = size;
+	limits->logical_block_size = size;
 
-	if (q->limits.io_min < q->limits.physical_block_size)
-		q->limits.io_min = q->limits.physical_block_size;
+	if (limits->physical_block_size < size)
+		limits->physical_block_size = size;
+
+	if (limits->io_min < limits->physical_block_size)
+		limits->io_min = limits->physical_block_size;
+
+	limits->max_hw_sectors =
+		round_down(limits->max_hw_sectors, size >> SECTOR_SHIFT);
+	limits->max_sectors =
+		round_down(limits->max_sectors, size >> SECTOR_SHIFT);
 }
 EXPORT_SYMBOL(blk_queue_logical_block_size);
 
@@ -547,7 +560,10 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 
 	t->io_min = max(t->io_min, b->io_min);
 	t->io_opt = lcm_not_zero(t->io_opt, b->io_opt);
-	t->chunk_sectors = lcm_not_zero(t->chunk_sectors, b->chunk_sectors);
+
+	/* Set non-power-of-2 compatible chunk_sectors boundary */
+	if (b->chunk_sectors)
+		t->chunk_sectors = gcd(t->chunk_sectors, b->chunk_sectors);
 
 	/* Physical block size a multiple of the logical block size? */
 	if (t->physical_block_size & (t->logical_block_size - 1)) {

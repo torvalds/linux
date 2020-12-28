@@ -27,7 +27,7 @@ properties:
       of this binary blob is kept secret by CellWise. The only way to obtain
       it is to mail two batteries to a test facility of CellWise and receive
       back a test report with the binary blob.
-    $ref: /schemas/types.yaml#definitions/uint8-array
+    $ref: /schemas/types.yaml#/definitions/uint8-array
     minItems: 64
     maxItems: 64
 

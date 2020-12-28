@@ -104,7 +104,7 @@ static int au1xtoy_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtcdev);
 
-	return rtc_register_device(rtcdev);
+	return devm_rtc_register_device(rtcdev);
 }
 
 static struct platform_driver au1xrtc_driver = {

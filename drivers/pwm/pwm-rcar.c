@@ -168,7 +168,7 @@ static int rcar_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	/* This HW/driver only supports normal polarity */
 	if (state->polarity != PWM_POLARITY_NORMAL)
-		return -ENOTSUPP;
+		return -EINVAL;
 
 	if (!state->enabled) {
 		rcar_pwm_disable(rp);
@@ -204,15 +204,13 @@ static const struct pwm_ops rcar_pwm_ops = {
 static int rcar_pwm_probe(struct platform_device *pdev)
 {
 	struct rcar_pwm_chip *rcar_pwm;
-	struct resource *res;
 	int ret;
 
 	rcar_pwm = devm_kzalloc(&pdev->dev, sizeof(*rcar_pwm), GFP_KERNEL);
 	if (rcar_pwm == NULL)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rcar_pwm->base = devm_ioremap_resource(&pdev->dev, res);
+	rcar_pwm->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rcar_pwm->base))
 		return PTR_ERR(rcar_pwm->base);
 

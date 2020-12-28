@@ -1111,8 +1111,7 @@ static int ov2680_remove(struct i2c_client *client)
 
 static int __maybe_unused ov2680_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
 
 	if (sensor->is_streaming)
@@ -1123,8 +1122,7 @@ static int __maybe_unused ov2680_suspend(struct device *dev)
 
 static int __maybe_unused ov2680_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
 	int ret;
 

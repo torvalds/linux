@@ -840,6 +840,7 @@ static bool carl9170_tx_rts_check(struct ar9170 *ar,
 	case CARL9170_ERP_RTS:
 		if (likely(!multi))
 			return true;
+		break;
 
 	default:
 		break;

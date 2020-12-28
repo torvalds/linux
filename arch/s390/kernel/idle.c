@@ -9,7 +9,6 @@
 
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>
-#include <linux/kprobes.h>
 #include <linux/notifier.h>
 #include <linux/init.h>
 #include <linux/cpu.h>
@@ -21,22 +20,19 @@
 
 static DEFINE_PER_CPU(struct s390_idle_data, s390_idle);
 
-void enabled_wait(void)
+void arch_cpu_idle(void)
 {
 	struct s390_idle_data *idle = this_cpu_ptr(&s390_idle);
 	unsigned long long idle_time;
-	unsigned long psw_mask, flags;
-
+	unsigned long psw_mask;
 
 	/* Wait for external, I/O or machine check interrupt. */
 	psw_mask = PSW_KERNEL_BITS | PSW_MASK_WAIT | PSW_MASK_DAT |
 		PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
 	clear_cpu_flag(CIF_NOHZ_DELAY);
 
-	raw_local_irq_save(flags);
-	/* Call the assembler magic in entry.S */
+	/* psw_idle() returns with interrupts disabled. */
 	psw_idle(idle, psw_mask);
-	raw_local_irq_restore(flags);
 
 	/* Account time spent with enabled wait psw loaded as idle time. */
 	raw_write_seqcount_begin(&idle->seqcount);
@@ -46,8 +42,8 @@ void enabled_wait(void)
 	idle->idle_count++;
 	account_idle_time(cputime_to_nsecs(idle_time));
 	raw_write_seqcount_end(&idle->seqcount);
+	raw_local_irq_enable();
 }
-NOKPROBE_SYMBOL(enabled_wait);
 
 static ssize_t show_idle_count(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -118,12 +114,6 @@ u64 arch_cpu_idle_time(int cpu)
 
 void arch_cpu_idle_enter(void)
 {
-}
-
-void arch_cpu_idle(void)
-{
-	enabled_wait();
-	raw_local_irq_enable();
 }
 
 void arch_cpu_idle_exit(void)

@@ -441,3 +441,36 @@ int v4l2_fill_pixfmt(struct v4l2_pix_format *pixfmt, u32 pixelformat,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l2_fill_pixfmt);
+
+s64 v4l2_get_link_rate(struct v4l2_ctrl_handler *handler, unsigned int mul,
+		       unsigned int div)
+{
+	struct v4l2_ctrl *ctrl;
+	s64 freq;
+
+	ctrl = v4l2_ctrl_find(handler, V4L2_CID_LINK_FREQ);
+	if (ctrl) {
+		struct v4l2_querymenu qm = { .id = V4L2_CID_LINK_FREQ };
+		int ret;
+
+		qm.index = v4l2_ctrl_g_ctrl(ctrl);
+
+		ret = v4l2_querymenu(handler, &qm);
+		if (ret)
+			return -ENOENT;
+
+		freq = qm.value;
+	} else {
+		if (!mul || !div)
+			return -ENOENT;
+
+		ctrl = v4l2_ctrl_find(handler, V4L2_CID_PIXEL_RATE);
+		if (!ctrl)
+			return -ENOENT;
+
+		freq = div_u64(v4l2_ctrl_g_ctrl_int64(ctrl) * mul, div);
+	}
+
+	return freq > 0 ? freq : -EINVAL;
+}
+EXPORT_SYMBOL_GPL(v4l2_get_link_rate);

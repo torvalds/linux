@@ -28,34 +28,7 @@
 #include "internal.h"
 
 
-enum slb_index {
-	LINEAR_INDEX	= 0, /* Kernel linear map  (0xc000000000000000) */
-	KSTACK_INDEX	= 1, /* Kernel stack map */
-};
-
 static long slb_allocate_user(struct mm_struct *mm, unsigned long ea);
-
-#define slb_esid_mask(ssize)	\
-	(((ssize) == MMU_SEGSIZE_256M)? ESID_MASK: ESID_MASK_1T)
-
-static inline unsigned long mk_esid_data(unsigned long ea, int ssize,
-					 enum slb_index index)
-{
-	return (ea & slb_esid_mask(ssize)) | SLB_ESID_V | index;
-}
-
-static inline unsigned long __mk_vsid_data(unsigned long vsid, int ssize,
-					 unsigned long flags)
-{
-	return (vsid << slb_vsid_shift(ssize)) | flags |
-		((unsigned long) ssize << SLB_VSID_SSIZE_SHIFT);
-}
-
-static inline unsigned long mk_vsid_data(unsigned long ea, int ssize,
-					 unsigned long flags)
-{
-	return __mk_vsid_data(get_kernel_vsid(ea, ssize), ssize, flags);
-}
 
 bool stress_slb_enabled __initdata;
 
@@ -255,7 +228,6 @@ void slb_dump_contents(struct slb_entry *slb_ptr)
 		return;
 
 	pr_err("SLB contents of cpu 0x%x\n", smp_processor_id());
-	pr_err("Last SLB entry inserted at slot %d\n", get_paca()->stab_rr);
 
 	for (i = 0; i < mmu_slb_size; i++) {
 		e = slb_ptr->esid;
@@ -265,34 +237,38 @@ void slb_dump_contents(struct slb_entry *slb_ptr)
 		if (!e && !v)
 			continue;
 
-		pr_err("%02d %016lx %016lx\n", i, e, v);
+		pr_err("%02d %016lx %016lx %s\n", i, e, v,
+				(e & SLB_ESID_V) ? "VALID" : "NOT VALID");
 
-		if (!(e & SLB_ESID_V)) {
-			pr_err("\n");
+		if (!(e & SLB_ESID_V))
 			continue;
-		}
+
 		llp = v & SLB_VSID_LLP;
 		if (v & SLB_VSID_B_1T) {
-			pr_err("  1T  ESID=%9lx  VSID=%13lx LLP:%3lx\n",
+			pr_err("     1T ESID=%9lx VSID=%13lx LLP:%3lx\n",
 			       GET_ESID_1T(e),
 			       (v & ~SLB_VSID_B) >> SLB_VSID_SHIFT_1T, llp);
 		} else {
-			pr_err(" 256M ESID=%9lx  VSID=%13lx LLP:%3lx\n",
+			pr_err("   256M ESID=%9lx VSID=%13lx LLP:%3lx\n",
 			       GET_ESID(e),
 			       (v & ~SLB_VSID_B) >> SLB_VSID_SHIFT, llp);
 		}
 	}
-	pr_err("----------------------------------\n");
 
-	/* Dump slb cache entires as well. */
-	pr_err("SLB cache ptr value = %d\n", get_paca()->slb_save_cache_ptr);
-	pr_err("Valid SLB cache entries:\n");
-	n = min_t(int, get_paca()->slb_save_cache_ptr, SLB_CACHE_ENTRIES);
-	for (i = 0; i < n; i++)
-		pr_err("%02d EA[0-35]=%9x\n", i, get_paca()->slb_cache[i]);
-	pr_err("Rest of SLB cache entries:\n");
-	for (i = n; i < SLB_CACHE_ENTRIES; i++)
-		pr_err("%02d EA[0-35]=%9x\n", i, get_paca()->slb_cache[i]);
+	if (!early_cpu_has_feature(CPU_FTR_ARCH_300)) {
+		/* RR is not so useful as it's often not used for allocation */
+		pr_err("SLB RR allocator index %d\n", get_paca()->stab_rr);
+
+		/* Dump slb cache entires as well. */
+		pr_err("SLB cache ptr value = %d\n", get_paca()->slb_save_cache_ptr);
+		pr_err("Valid SLB cache entries:\n");
+		n = min_t(int, get_paca()->slb_save_cache_ptr, SLB_CACHE_ENTRIES);
+		for (i = 0; i < n; i++)
+			pr_err("%02d EA[0-35]=%9x\n", i, get_paca()->slb_cache[i]);
+		pr_err("Rest of SLB cache entries:\n");
+		for (i = n; i < SLB_CACHE_ENTRIES; i++)
+			pr_err("%02d EA[0-35]=%9x\n", i, get_paca()->slb_cache[i]);
+	}
 }
 
 void slb_vmalloc_update(void)

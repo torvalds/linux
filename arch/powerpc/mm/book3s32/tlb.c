@@ -30,35 +30,6 @@
 #include <mm/mmu_decl.h>
 
 /*
- * Called when unmapping pages to flush entries from the TLB/hash table.
- */
-void flush_hash_entry(struct mm_struct *mm, pte_t *ptep, unsigned long addr)
-{
-	unsigned long ptephys;
-
-	if (Hash) {
-		ptephys = __pa(ptep) & PAGE_MASK;
-		flush_hash_pages(mm->context.id, addr, ptephys, 1);
-	}
-}
-EXPORT_SYMBOL(flush_hash_entry);
-
-/*
- * Called at the end of a mmu_gather operation to make sure the
- * TLB flush is completely done.
- */
-void tlb_flush(struct mmu_gather *tlb)
-{
-	if (!Hash) {
-		/*
-		 * 603 needs to flush the whole TLB here since
-		 * it doesn't use a hash table.
-		 */
-		_tlbia();
-	}
-}
-
-/*
  * TLB flushing:
  *
  *  - flush_tlb_mm(mm) flushes the specified mm context TLB's
@@ -71,8 +42,12 @@ void tlb_flush(struct mmu_gather *tlb)
  *    -- Cort
  */
 
-static void flush_range(struct mm_struct *mm, unsigned long start,
-			unsigned long end)
+/*
+ * For each address in the range, find the pte for the address
+ * and check _PAGE_HASHPTE bit; if it is set, find and destroy
+ * the corresponding HPTE.
+ */
+void hash__flush_range(struct mm_struct *mm, unsigned long start, unsigned long end)
 {
 	pmd_t *pmd;
 	unsigned long pmd_end;
@@ -80,13 +55,6 @@ static void flush_range(struct mm_struct *mm, unsigned long start,
 	unsigned int ctx = mm->context.id;
 
 	start &= PAGE_MASK;
-	if (!Hash) {
-		if (end - start <= PAGE_SIZE)
-			_tlbie(start);
-		else
-			_tlbia();
-		return;
-	}
 	if (start >= end)
 		return;
 	end = (end - 1) | ~PAGE_MASK;
@@ -105,27 +73,14 @@ static void flush_range(struct mm_struct *mm, unsigned long start,
 		++pmd;
 	}
 }
-
-/*
- * Flush kernel TLB entries in the given range
- */
-void flush_tlb_kernel_range(unsigned long start, unsigned long end)
-{
-	flush_range(&init_mm, start, end);
-}
-EXPORT_SYMBOL(flush_tlb_kernel_range);
+EXPORT_SYMBOL(hash__flush_range);
 
 /*
  * Flush all the (user) entries for the address space described by mm.
  */
-void flush_tlb_mm(struct mm_struct *mm)
+void hash__flush_tlb_mm(struct mm_struct *mm)
 {
 	struct vm_area_struct *mp;
-
-	if (!Hash) {
-		_tlbia();
-		return;
-	}
 
 	/*
 	 * It is safe to go down the mm's list of vmas when called
@@ -134,38 +89,18 @@ void flush_tlb_mm(struct mm_struct *mm)
 	 * but it seems dup_mmap is the only SMP case which gets here.
 	 */
 	for (mp = mm->mmap; mp != NULL; mp = mp->vm_next)
-		flush_range(mp->vm_mm, mp->vm_start, mp->vm_end);
+		hash__flush_range(mp->vm_mm, mp->vm_start, mp->vm_end);
 }
-EXPORT_SYMBOL(flush_tlb_mm);
+EXPORT_SYMBOL(hash__flush_tlb_mm);
 
-void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
+void hash__flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 {
 	struct mm_struct *mm;
 	pmd_t *pmd;
 
-	if (!Hash) {
-		_tlbie(vmaddr);
-		return;
-	}
 	mm = (vmaddr < TASK_SIZE)? vma->vm_mm: &init_mm;
 	pmd = pmd_off(mm, vmaddr);
 	if (!pmd_none(*pmd))
 		flush_hash_pages(mm->context.id, vmaddr, pmd_val(*pmd), 1);
 }
-EXPORT_SYMBOL(flush_tlb_page);
-
-/*
- * For each address in the range, find the pte for the address
- * and check _PAGE_HASHPTE bit; if it is set, find and destroy
- * the corresponding HPTE.
- */
-void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
-		     unsigned long end)
-{
-	flush_range(vma->vm_mm, start, end);
-}
-EXPORT_SYMBOL(flush_tlb_range);
-
-void __init early_init_mmu(void)
-{
-}
+EXPORT_SYMBOL(hash__flush_tlb_page);

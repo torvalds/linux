@@ -35,21 +35,18 @@ internal_dev_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	int len, err;
 
+	/* store len value because skb can be freed inside ovs_vport_receive() */
 	len = skb->len;
+
 	rcu_read_lock();
 	err = ovs_vport_receive(internal_dev_priv(netdev)->vport, skb, NULL);
 	rcu_read_unlock();
 
-	if (likely(!err)) {
-		struct pcpu_sw_netstats *tstats = this_cpu_ptr(netdev->tstats);
-
-		u64_stats_update_begin(&tstats->syncp);
-		tstats->tx_bytes += len;
-		tstats->tx_packets++;
-		u64_stats_update_end(&tstats->syncp);
-	} else {
+	if (likely(!err))
+		dev_sw_netstats_tx_add(netdev, 1, len);
+	else
 		netdev->stats.tx_errors++;
-	}
+
 	return NETDEV_TX_OK;
 }
 
@@ -83,24 +80,12 @@ static void internal_dev_destructor(struct net_device *dev)
 	ovs_vport_free(vport);
 }
 
-static void
-internal_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
-{
-	memset(stats, 0, sizeof(*stats));
-	stats->rx_errors  = dev->stats.rx_errors;
-	stats->tx_errors  = dev->stats.tx_errors;
-	stats->tx_dropped = dev->stats.tx_dropped;
-	stats->rx_dropped = dev->stats.rx_dropped;
-
-	dev_fetch_sw_netstats(stats, dev->tstats);
-}
-
 static const struct net_device_ops internal_dev_netdev_ops = {
 	.ndo_open = internal_dev_open,
 	.ndo_stop = internal_dev_stop,
 	.ndo_start_xmit = internal_dev_xmit,
 	.ndo_set_mac_address = eth_mac_addr,
-	.ndo_get_stats64 = internal_get_stats,
+	.ndo_get_stats64 = dev_get_tstats64,
 };
 
 static struct rtnl_link_ops internal_dev_link_ops __read_mostly = {

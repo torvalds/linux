@@ -32,7 +32,7 @@
 #include <linux/spi/ads7846.h>
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
-#include <asm/irq.h>
+#include <asm/unaligned.h>
 
 /*
  * This code has been heavily tested on a Nokia 770, and lightly
@@ -62,19 +62,26 @@
 /* this driver doesn't aim at the peak continuous sample rate */
 #define	SAMPLE_BITS	(8 /*cmd*/ + 16 /*sample*/ + 2 /* before, after */)
 
-struct ts_event {
+struct ads7846_buf {
+	u8 cmd;
 	/*
-	 * For portability, we can't read 12 bit values using SPI (which
-	 * would make the controller deliver them as native byte order u16
-	 * with msbs zeroed).  Instead, we read them as two 8-bit values,
-	 * *** WHICH NEED BYTESWAPPING *** and range adjustment.
+	 * This union is a temporary hack. The driver does an in-place
+	 * endianness conversion. This will be cleaned up in the next
+	 * patch.
 	 */
-	u16	x;
-	u16	y;
-	u16	z1, z2;
-	bool	ignore;
-	u8	x_buf[3];
-	u8	y_buf[3];
+	union {
+		__be16 data_be16;
+		u16 data;
+	};
+} __packed;
+
+
+struct ts_event {
+	bool ignore;
+	struct ads7846_buf x;
+	struct ads7846_buf y;
+	struct ads7846_buf z1;
+	struct ads7846_buf z2;
 };
 
 /*
@@ -83,11 +90,12 @@ struct ts_event {
  * systems where main memory is not DMA-coherent (most non-x86 boards).
  */
 struct ads7846_packet {
-	u8			read_x, read_y, read_z1, read_z2, pwrdown;
-	u16			dummy;		/* for the pwrdown read */
-	struct ts_event		tc;
-	/* for ads7845 with mpc5121 psc spi we use 3-byte buffers */
-	u8			read_x_cmd[3], read_y_cmd[3], pwrdown_cmd[3];
+	struct ts_event tc;
+	struct ads7846_buf read_x_cmd;
+	struct ads7846_buf read_y_cmd;
+	struct ads7846_buf read_z1_cmd;
+	struct ads7846_buf read_z2_cmd;
+	struct ads7846_buf pwrdown_cmd;
 };
 
 struct ads7846 {
@@ -199,6 +207,26 @@ struct ads7846 {
 #define	REF_ON	(READ_12BIT_DFR(x, 1, 1))
 #define	REF_OFF	(READ_12BIT_DFR(y, 0, 0))
 
+static int get_pendown_state(struct ads7846 *ts)
+{
+	if (ts->get_pendown_state)
+		return ts->get_pendown_state();
+
+	return !gpio_get_value(ts->gpio_pendown);
+}
+
+static void ads7846_report_pen_up(struct ads7846 *ts)
+{
+	struct input_dev *input = ts->input;
+
+	input_report_key(input, BTN_TOUCH, 0);
+	input_report_abs(input, ABS_PRESSURE, 0);
+	input_sync(input);
+
+	ts->pendown = false;
+	dev_vdbg(&ts->spi->dev, "UP\n");
+}
+
 /* Must be called with ts->lock held */
 static void ads7846_stop(struct ads7846 *ts)
 {
@@ -215,6 +243,10 @@ static void ads7846_stop(struct ads7846 *ts)
 static void ads7846_restart(struct ads7846 *ts)
 {
 	if (!ts->disabled && !ts->suspended) {
+		/* Check if pen was released since last stop */
+		if (ts->pendown && !get_pendown_state(ts))
+			ads7846_report_pen_up(ts);
+
 		/* Tell IRQ thread that it may poll the device. */
 		ts->stopped = false;
 		mb();
@@ -411,7 +443,7 @@ static int ads7845_read12_ser(struct device *dev, unsigned command)
 
 	if (status == 0) {
 		/* BE12 value, then padding */
-		status = be16_to_cpu(*((u16 *)&req->sample[1]));
+		status = get_unaligned_be16(&req->sample[1]);
 		status = status >> 3;
 		status &= 0x0fff;
 	}
@@ -481,7 +513,7 @@ SHOW(in1_input, vbatt, vbatt_adjust)
 static umode_t ads7846_is_visible(struct kobject *kobj, struct attribute *attr,
 				  int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct ads7846 *ts = dev_get_drvdata(dev);
 
 	if (ts->model == 7843 && index < 2)	/* in0, in1 */
@@ -606,14 +638,6 @@ static const struct attribute_group ads784x_attr_group = {
 
 /*--------------------------------------------------------------------------*/
 
-static int get_pendown_state(struct ads7846 *ts)
-{
-	if (ts->get_pendown_state)
-		return ts->get_pendown_state();
-
-	return !gpio_get_value(ts->gpio_pendown);
-}
-
 static void null_wait_for_sync(void)
 {
 }
@@ -670,16 +694,9 @@ static int ads7846_get_value(struct ads7846 *ts, struct spi_message *m)
 	int value;
 	struct spi_transfer *t =
 		list_entry(m->transfers.prev, struct spi_transfer, transfer_list);
+	struct ads7846_buf *buf = t->rx_buf;
 
-	if (ts->model == 7845) {
-		value = be16_to_cpup((__be16 *)&(((char *)t->rx_buf)[1]));
-	} else {
-		/*
-		 * adjust:  on-wire is a must-ignore bit, a BE12 value, then
-		 * padding; built from two 8 bit values written msb-first.
-		 */
-		value = be16_to_cpup((__be16 *)t->rx_buf);
-	}
+	value = be16_to_cpup(&buf->data_be16);
 
 	/* enforce ADC output is 12 bits width */
 	return (value >> 3) & 0xfff;
@@ -689,8 +706,9 @@ static void ads7846_update_value(struct spi_message *m, int val)
 {
 	struct spi_transfer *t =
 		list_entry(m->transfers.prev, struct spi_transfer, transfer_list);
+	struct ads7846_buf *buf = t->rx_buf;
 
-	*(u16 *)t->rx_buf = val;
+	buf->data = val;
 }
 
 static void ads7846_read_state(struct ads7846 *ts)
@@ -758,16 +776,14 @@ static void ads7846_report_state(struct ads7846 *ts)
 	 * from on-the-wire format as part of debouncing to get stable
 	 * readings.
 	 */
+	x = packet->tc.x.data;
+	y = packet->tc.y.data;
 	if (ts->model == 7845) {
-		x = *(u16 *)packet->tc.x_buf;
-		y = *(u16 *)packet->tc.y_buf;
 		z1 = 0;
 		z2 = 0;
 	} else {
-		x = packet->tc.x;
-		y = packet->tc.y;
-		z1 = packet->tc.z1;
-		z2 = packet->tc.z2;
+		z1 = packet->tc.z1.data;
+		z2 = packet->tc.z2.data;
 	}
 
 	/* range filtering */
@@ -786,10 +802,11 @@ static void ads7846_report_state(struct ads7846 *ts)
 		/* compute touch pressure resistance using equation #2 */
 		Rt = z2;
 		Rt -= z1;
-		Rt *= x;
 		Rt *= ts->x_plate_ohms;
+		Rt = DIV_ROUND_CLOSEST(Rt, 16);
+		Rt *= x;
 		Rt /= z1;
-		Rt = (Rt + 2047) >> 12;
+		Rt = DIV_ROUND_CLOSEST(Rt, 256);
 	} else {
 		Rt = 0;
 	}
@@ -868,16 +885,8 @@ static irqreturn_t ads7846_irq(int irq, void *handle)
 				   msecs_to_jiffies(TS_POLL_PERIOD));
 	}
 
-	if (ts->pendown && !ts->stopped) {
-		struct input_dev *input = ts->input;
-
-		input_report_key(input, BTN_TOUCH, 0);
-		input_report_abs(input, ABS_PRESSURE, 0);
-		input_sync(input);
-
-		ts->pendown = false;
-		dev_vdbg(&ts->spi->dev, "UP\n");
-	}
+	if (ts->pendown && !ts->stopped)
+		ads7846_report_pen_up(ts);
 
 	return IRQ_HANDLED;
 }
@@ -992,26 +1001,11 @@ static void ads7846_setup_spi_msg(struct ads7846 *ts,
 	spi_message_init(m);
 	m->context = ts;
 
-	if (ts->model == 7845) {
-		packet->read_y_cmd[0] = READ_Y(vref);
-		packet->read_y_cmd[1] = 0;
-		packet->read_y_cmd[2] = 0;
-		x->tx_buf = &packet->read_y_cmd[0];
-		x->rx_buf = &packet->tc.y_buf[0];
-		x->len = 3;
-		spi_message_add_tail(x, m);
-	} else {
-		/* y- still on; turn on only y+ (and ADC) */
-		packet->read_y = READ_Y(vref);
-		x->tx_buf = &packet->read_y;
-		x->len = 1;
-		spi_message_add_tail(x, m);
-
-		x++;
-		x->rx_buf = &packet->tc.y;
-		x->len = 2;
-		spi_message_add_tail(x, m);
-	}
+	packet->read_y_cmd.cmd = READ_Y(vref);
+	x->tx_buf = &packet->read_y_cmd;
+	x->rx_buf = &packet->tc.y;
+	x->len = 3;
+	spi_message_add_tail(x, m);
 
 	/*
 	 * The first sample after switching drivers can be low quality;
@@ -1021,15 +1015,11 @@ static void ads7846_setup_spi_msg(struct ads7846 *ts,
 	if (pdata->settle_delay_usecs) {
 		x->delay.value = pdata->settle_delay_usecs;
 		x->delay.unit = SPI_DELAY_UNIT_USECS;
-
 		x++;
-		x->tx_buf = &packet->read_y;
-		x->len = 1;
-		spi_message_add_tail(x, m);
 
-		x++;
+		x->tx_buf = &packet->read_y_cmd;
 		x->rx_buf = &packet->tc.y;
-		x->len = 2;
+		x->len = 3;
 		spi_message_add_tail(x, m);
 	}
 
@@ -1038,28 +1028,13 @@ static void ads7846_setup_spi_msg(struct ads7846 *ts,
 	spi_message_init(m);
 	m->context = ts;
 
-	if (ts->model == 7845) {
-		x++;
-		packet->read_x_cmd[0] = READ_X(vref);
-		packet->read_x_cmd[1] = 0;
-		packet->read_x_cmd[2] = 0;
-		x->tx_buf = &packet->read_x_cmd[0];
-		x->rx_buf = &packet->tc.x_buf[0];
-		x->len = 3;
-		spi_message_add_tail(x, m);
-	} else {
-		/* turn y- off, x+ on, then leave in lowpower */
-		x++;
-		packet->read_x = READ_X(vref);
-		x->tx_buf = &packet->read_x;
-		x->len = 1;
-		spi_message_add_tail(x, m);
-
-		x++;
-		x->rx_buf = &packet->tc.x;
-		x->len = 2;
-		spi_message_add_tail(x, m);
-	}
+	/* turn y- off, x+ on, then leave in lowpower */
+	x++;
+	packet->read_x_cmd.cmd = READ_X(vref);
+	x->tx_buf = &packet->read_x_cmd;
+	x->rx_buf = &packet->tc.x;
+	x->len = 3;
+	spi_message_add_tail(x, m);
 
 	/* ... maybe discard first sample ... */
 	if (pdata->settle_delay_usecs) {
@@ -1067,13 +1042,9 @@ static void ads7846_setup_spi_msg(struct ads7846 *ts,
 		x->delay.unit = SPI_DELAY_UNIT_USECS;
 
 		x++;
-		x->tx_buf = &packet->read_x;
-		x->len = 1;
-		spi_message_add_tail(x, m);
-
-		x++;
+		x->tx_buf = &packet->read_x_cmd;
 		x->rx_buf = &packet->tc.x;
-		x->len = 2;
+		x->len = 3;
 		spi_message_add_tail(x, m);
 	}
 
@@ -1085,14 +1056,10 @@ static void ads7846_setup_spi_msg(struct ads7846 *ts,
 		m->context = ts;
 
 		x++;
-		packet->read_z1 = READ_Z1(vref);
-		x->tx_buf = &packet->read_z1;
-		x->len = 1;
-		spi_message_add_tail(x, m);
-
-		x++;
+		packet->read_z1_cmd.cmd = READ_Z1(vref);
+		x->tx_buf = &packet->read_z1_cmd;
 		x->rx_buf = &packet->tc.z1;
-		x->len = 2;
+		x->len = 3;
 		spi_message_add_tail(x, m);
 
 		/* ... maybe discard first sample ... */
@@ -1101,13 +1068,9 @@ static void ads7846_setup_spi_msg(struct ads7846 *ts,
 			x->delay.unit = SPI_DELAY_UNIT_USECS;
 
 			x++;
-			x->tx_buf = &packet->read_z1;
-			x->len = 1;
-			spi_message_add_tail(x, m);
-
-			x++;
+			x->tx_buf = &packet->read_z1_cmd;
 			x->rx_buf = &packet->tc.z1;
-			x->len = 2;
+			x->len = 3;
 			spi_message_add_tail(x, m);
 		}
 
@@ -1117,14 +1080,10 @@ static void ads7846_setup_spi_msg(struct ads7846 *ts,
 		m->context = ts;
 
 		x++;
-		packet->read_z2 = READ_Z2(vref);
-		x->tx_buf = &packet->read_z2;
-		x->len = 1;
-		spi_message_add_tail(x, m);
-
-		x++;
+		packet->read_z2_cmd.cmd = READ_Z2(vref);
+		x->tx_buf = &packet->read_z2_cmd;
 		x->rx_buf = &packet->tc.z2;
-		x->len = 2;
+		x->len = 3;
 		spi_message_add_tail(x, m);
 
 		/* ... maybe discard first sample ... */
@@ -1133,13 +1092,9 @@ static void ads7846_setup_spi_msg(struct ads7846 *ts,
 			x->delay.unit = SPI_DELAY_UNIT_USECS;
 
 			x++;
-			x->tx_buf = &packet->read_z2;
-			x->len = 1;
-			spi_message_add_tail(x, m);
-
-			x++;
+			x->tx_buf = &packet->read_z2_cmd;
 			x->rx_buf = &packet->tc.z2;
-			x->len = 2;
+			x->len = 3;
 			spi_message_add_tail(x, m);
 		}
 	}
@@ -1150,24 +1105,10 @@ static void ads7846_setup_spi_msg(struct ads7846 *ts,
 	spi_message_init(m);
 	m->context = ts;
 
-	if (ts->model == 7845) {
-		x++;
-		packet->pwrdown_cmd[0] = PWRDOWN;
-		packet->pwrdown_cmd[1] = 0;
-		packet->pwrdown_cmd[2] = 0;
-		x->tx_buf = &packet->pwrdown_cmd[0];
-		x->len = 3;
-	} else {
-		x++;
-		packet->pwrdown = PWRDOWN;
-		x->tx_buf = &packet->pwrdown;
-		x->len = 1;
-		spi_message_add_tail(x, m);
-
-		x++;
-		x->rx_buf = &packet->dummy;
-		x->len = 2;
-	}
+	x++;
+	packet->pwrdown_cmd.cmd = PWRDOWN;
+	x->tx_buf = &packet->pwrdown_cmd;
+	x->len = 3;
 
 	CS_CHANGE(*x);
 	spi_message_add_tail(x, m);

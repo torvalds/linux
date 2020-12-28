@@ -224,13 +224,20 @@ you may want to use::
 
     rm -f err.log
     export COCCI=scripts/coccinelle/misc/irqf_oneshot.cocci
-    make coccicheck DEBUG_FILE="err.log" MODE=report SPFLAGS="--profile --show-trying" M=./drivers/mfd/arizona-irq.c
+    make coccicheck DEBUG_FILE="err.log" MODE=report SPFLAGS="--profile --show-trying" M=./drivers/mfd
 
 err.log will now have the profiling information, while stdout will
 provide some progress information as Coccinelle moves forward with
 work.
 
+NOTE:
+
 DEBUG_FILE support is only supported when using coccinelle >= 1.0.2.
+
+Currently, DEBUG_FILE support is only available to check folders, and
+not single files. This is because checking a single file requires spatch
+to be called twice leading to DEBUG_FILE being set both times to the same value,
+giving rise to an error.
 
 .cocciconfig support
 --------------------

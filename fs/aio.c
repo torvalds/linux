@@ -43,7 +43,6 @@
 #include <linux/mount.h>
 #include <linux/pseudo_fs.h>
 
-#include <asm/kmap_types.h>
 #include <linux/uaccess.h>
 #include <linux/nospec.h>
 
@@ -324,12 +323,15 @@ static void aio_free_ring(struct kioctx *ctx)
 	}
 }
 
-static int aio_ring_mremap(struct vm_area_struct *vma)
+static int aio_ring_mremap(struct vm_area_struct *vma, unsigned long flags)
 {
 	struct file *file = vma->vm_file;
 	struct mm_struct *mm = vma->vm_mm;
 	struct kioctx_table *table;
 	int i, res = -EINVAL;
+
+	if (flags & MREMAP_DONTUNMAP)
+		return -EINVAL;
 
 	spin_lock(&mm->ioctx_lock);
 	rcu_read_lock();

@@ -574,9 +574,6 @@ static ssize_t ieee80211_if_parse_tsf(
 IEEE80211_IF_FILE_RW(tsf);
 
 
-/* WDS attributes */
-IEEE80211_IF_FILE(peer, u.wds.remote_addr, MAC);
-
 #ifdef CONFIG_MAC80211_MESH
 IEEE80211_IF_FILE(estab_plinks, u.mesh.estab_plinks, ATOMIC);
 
@@ -645,7 +642,7 @@ IEEE80211_IF_FILE(dot11MeshConnectedToAuthServer,
 
 #define DEBUGFS_ADD_MODE(name, mode) \
 	debugfs_create_file(#name, mode, sdata->vif.debugfs_dir, \
-			    sdata, &name##_ops);
+			    sdata, &name##_ops)
 
 #define DEBUGFS_ADD(name) DEBUGFS_ADD_MODE(name, 0400)
 
@@ -701,11 +698,6 @@ static void add_ibss_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD_MODE(tsf, 0600);
 }
 
-static void add_wds_files(struct ieee80211_sub_if_data *sdata)
-{
-	DEBUGFS_ADD(peer);
-}
-
 #ifdef CONFIG_MAC80211_MESH
 
 static void add_mesh_files(struct ieee80211_sub_if_data *sdata)
@@ -719,7 +711,7 @@ static void add_mesh_stats(struct ieee80211_sub_if_data *sdata)
 	struct dentry *dir = debugfs_create_dir("mesh_stats",
 						sdata->vif.debugfs_dir);
 #define MESHSTATS_ADD(name)\
-	debugfs_create_file(#name, 0400, dir, sdata, &name##_ops);
+	debugfs_create_file(#name, 0400, dir, sdata, &name##_ops)
 
 	MESHSTATS_ADD(fwded_mcast);
 	MESHSTATS_ADD(fwded_unicast);
@@ -736,7 +728,7 @@ static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 						sdata->vif.debugfs_dir);
 
 #define MESHPARAMS_ADD(name) \
-	debugfs_create_file(#name, 0600, dir, sdata, &name##_ops);
+	debugfs_create_file(#name, 0600, dir, sdata, &name##_ops)
 
 	MESHPARAMS_ADD(dot11MeshMaxRetries);
 	MESHPARAMS_ADD(dot11MeshRetryTimeout);
@@ -804,9 +796,6 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 		break;
 	case NL80211_IFTYPE_AP_VLAN:
 		add_vlan_files(sdata);
-		break;
-	case NL80211_IFTYPE_WDS:
-		add_wds_files(sdata);
 		break;
 	default:
 		break;
