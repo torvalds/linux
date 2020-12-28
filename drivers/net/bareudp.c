@@ -380,7 +380,7 @@ static int bareudp6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 		goto free_dst;
 
 	min_headroom = LL_RESERVED_SPACE(dst->dev) + dst->header_len +
-		BAREUDP_BASE_HLEN + info->options_len + sizeof(struct iphdr);
+		BAREUDP_BASE_HLEN + info->options_len + sizeof(struct ipv6hdr);
 
 	err = skb_cow_head(skb, min_headroom);
 	if (unlikely(err))
