@@ -58,5 +58,5 @@ create_table()
 
 $gcc -E -dM -x c -I $incpath/include/uapi $input \
 	|sed -ne 's/^#define __NR_//p' \
-	|sort -t' ' -k2 -nu	       \
+	|sort -t' ' -k2 -n	       \
 	|create_table
