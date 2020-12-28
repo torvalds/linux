@@ -16,8 +16,15 @@ static void mt7615_init_work(struct work_struct *work)
 {
 	struct mt7615_dev *dev = container_of(work, struct mt7615_dev,
 					      mcu_work);
+	int i, ret;
 
-	if (mt7615_mcu_init(dev))
+	ret = mt7615_mcu_init(dev);
+	for (i = 0; (ret == -EAGAIN) && (i < 10); i++) {
+		msleep(200);
+		ret = mt7615_mcu_init(dev);
+	}
+
+	if (ret)
 		return;
 
 	mt7615_mcu_set_eeprom(dev);

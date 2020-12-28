@@ -50,6 +50,18 @@ struct udma_dev *of_xudma_dev_get(struct device_node *np, const char *property)
 }
 EXPORT_SYMBOL(of_xudma_dev_get);
 
+struct device *xudma_get_device(struct udma_dev *ud)
+{
+	return ud->dev;
+}
+EXPORT_SYMBOL(xudma_get_device);
+
+struct k3_ringacc *xudma_get_ringacc(struct udma_dev *ud)
+{
+	return ud->ringacc;
+}
+EXPORT_SYMBOL(xudma_get_ringacc);
+
 u32 xudma_dev_get_psil_base(struct udma_dev *ud)
 {
 	return ud->psil_base;
@@ -76,6 +88,9 @@ EXPORT_SYMBOL(xudma_free_gp_rflow_range);
 
 bool xudma_rflow_is_gp(struct udma_dev *ud, int id)
 {
+	if (!ud->rflow_gp_map)
+		return false;
+
 	return !test_bit(id, ud->rflow_gp_map);
 }
 EXPORT_SYMBOL(xudma_rflow_is_gp);
@@ -83,7 +98,7 @@ EXPORT_SYMBOL(xudma_rflow_is_gp);
 #define XUDMA_GET_PUT_RESOURCE(res)					\
 struct udma_##res *xudma_##res##_get(struct udma_dev *ud, int id)	\
 {									\
-	return __udma_reserve_##res(ud, false, id);			\
+	return __udma_reserve_##res(ud, UDMA_TP_NORMAL, id);		\
 }									\
 EXPORT_SYMBOL(xudma_##res##_get);					\
 									\
@@ -106,6 +121,12 @@ void xudma_rflow_put(struct udma_dev *ud, struct udma_rflow *p)
 	__udma_put_rflow(ud, p);
 }
 EXPORT_SYMBOL(xudma_rflow_put);
+
+int xudma_get_rflow_ring_offset(struct udma_dev *ud)
+{
+	return ud->tflow_cnt;
+}
+EXPORT_SYMBOL(xudma_get_rflow_ring_offset);
 
 #define XUDMA_GET_RESOURCE_ID(res)					\
 int xudma_##res##_get_id(struct udma_##res *p)				\
@@ -136,3 +157,27 @@ void xudma_##res##rt_write(struct udma_##res *p, int reg, u32 val)	\
 EXPORT_SYMBOL(xudma_##res##rt_write)
 XUDMA_RT_IO_FUNCTIONS(tchan);
 XUDMA_RT_IO_FUNCTIONS(rchan);
+
+int xudma_is_pktdma(struct udma_dev *ud)
+{
+	return ud->match_data->type == DMA_TYPE_PKTDMA;
+}
+EXPORT_SYMBOL(xudma_is_pktdma);
+
+int xudma_pktdma_tflow_get_irq(struct udma_dev *ud, int udma_tflow_id)
+{
+	const struct udma_oes_offsets *oes = &ud->soc_data->oes;
+
+	return ti_sci_inta_msi_get_virq(ud->dev, udma_tflow_id +
+					oes->pktdma_tchan_flow);
+}
+EXPORT_SYMBOL(xudma_pktdma_tflow_get_irq);
+
+int xudma_pktdma_rflow_get_irq(struct udma_dev *ud, int udma_rflow_id)
+{
+	const struct udma_oes_offsets *oes = &ud->soc_data->oes;
+
+	return ti_sci_inta_msi_get_virq(ud->dev, udma_rflow_id +
+					oes->pktdma_rchan_flow);
+}
+EXPORT_SYMBOL(xudma_pktdma_rflow_get_irq);

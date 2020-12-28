@@ -42,7 +42,7 @@ properties:
       Specifies the list of CPU interrupt vectors to which the GIC may not
       route interrupts. This property is ignored if the CPU is started in EIC
       mode.
-    $ref: /schemas/types.yaml#definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
     maxItems: 6
     uniqueItems: true
@@ -56,7 +56,7 @@ properties:
       It accepts two values: the 1st is the starting interrupt and the 2nd is
       the size of the reserved range. If not specified, the driver will
       allocate the last (2 * number of VPEs in the system).
-    $ref: /schemas/types.yaml#definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     items:
       - minimum: 0
         maximum: 254

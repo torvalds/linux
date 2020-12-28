@@ -353,7 +353,6 @@ int gfs2_statfs_sync(struct super_block *sb, int type)
 	struct buffer_head *m_bh, *l_bh;
 	int error;
 
-	sb_start_write(sb);
 	error = gfs2_glock_nq_init(m_ip->i_gl, LM_ST_EXCLUSIVE, GL_NOCACHE,
 				   &gh);
 	if (error)
@@ -392,7 +391,6 @@ out_bh:
 out_unlock:
 	gfs2_glock_dq_uninit(&gh);
 out:
-	sb_end_write(sb);
 	return error;
 }
 
@@ -738,6 +736,7 @@ restart:
 	gfs2_jindex_free(sdp);
 	/*  Take apart glock structures and buffer lists  */
 	gfs2_gl_hash_clear(sdp);
+	truncate_inode_pages_final(&sdp->sd_aspace);
 	gfs2_delete_debugfs_file(sdp);
 	/*  Unmount the locking protocol  */
 	gfs2_lm_unmount(sdp);

@@ -379,6 +379,27 @@ static void dwmac4_set_eee_pls(struct mac_device_info *hw, int link)
 	writel(value, ioaddr + GMAC4_LPI_CTRL_STATUS);
 }
 
+static void dwmac4_set_eee_lpi_entry_timer(struct mac_device_info *hw, int et)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	int value = et & STMMAC_ET_MAX;
+	int regval;
+
+	/* Program LPI entry timer value into register */
+	writel(value, ioaddr + GMAC4_LPI_ENTRY_TIMER);
+
+	/* Enable/disable LPI entry timer */
+	regval = readl(ioaddr + GMAC4_LPI_CTRL_STATUS);
+	regval |= GMAC4_LPI_CTRL_STATUS_LPIEN | GMAC4_LPI_CTRL_STATUS_LPITXA;
+
+	if (et)
+		regval |= GMAC4_LPI_CTRL_STATUS_LPIATE;
+	else
+		regval &= ~GMAC4_LPI_CTRL_STATUS_LPIATE;
+
+	writel(regval, ioaddr + GMAC4_LPI_CTRL_STATUS);
+}
+
 static void dwmac4_set_eee_timer(struct mac_device_info *hw, int ls, int tw)
 {
 	void __iomem *ioaddr = hw->pcsr;
@@ -1164,6 +1185,7 @@ const struct stmmac_ops dwmac4_ops = {
 	.get_umac_addr = dwmac4_get_umac_addr,
 	.set_eee_mode = dwmac4_set_eee_mode,
 	.reset_eee_mode = dwmac4_reset_eee_mode,
+	.set_eee_lpi_entry_timer = dwmac4_set_eee_lpi_entry_timer,
 	.set_eee_timer = dwmac4_set_eee_timer,
 	.set_eee_pls = dwmac4_set_eee_pls,
 	.pcs_ctrl_ane = dwmac4_ctrl_ane,
@@ -1171,7 +1193,6 @@ const struct stmmac_ops dwmac4_ops = {
 	.pcs_get_adv_lp = dwmac4_get_adv_lp,
 	.debug = dwmac4_debug,
 	.set_filter = dwmac4_set_filter,
-	.flex_pps_config = dwmac5_flex_pps_config,
 	.set_mac_loopback = dwmac4_set_mac_loopback,
 	.update_vlan_hash = dwmac4_update_vlan_hash,
 	.sarc_configure = dwmac4_sarc_configure,
@@ -1206,6 +1227,7 @@ const struct stmmac_ops dwmac410_ops = {
 	.get_umac_addr = dwmac4_get_umac_addr,
 	.set_eee_mode = dwmac4_set_eee_mode,
 	.reset_eee_mode = dwmac4_reset_eee_mode,
+	.set_eee_lpi_entry_timer = dwmac4_set_eee_lpi_entry_timer,
 	.set_eee_timer = dwmac4_set_eee_timer,
 	.set_eee_pls = dwmac4_set_eee_pls,
 	.pcs_ctrl_ane = dwmac4_ctrl_ane,
@@ -1213,6 +1235,7 @@ const struct stmmac_ops dwmac410_ops = {
 	.pcs_get_adv_lp = dwmac4_get_adv_lp,
 	.debug = dwmac4_debug,
 	.set_filter = dwmac4_set_filter,
+	.flex_pps_config = dwmac5_flex_pps_config,
 	.set_mac_loopback = dwmac4_set_mac_loopback,
 	.update_vlan_hash = dwmac4_update_vlan_hash,
 	.sarc_configure = dwmac4_sarc_configure,
@@ -1249,6 +1272,7 @@ const struct stmmac_ops dwmac510_ops = {
 	.get_umac_addr = dwmac4_get_umac_addr,
 	.set_eee_mode = dwmac4_set_eee_mode,
 	.reset_eee_mode = dwmac4_reset_eee_mode,
+	.set_eee_lpi_entry_timer = dwmac4_set_eee_lpi_entry_timer,
 	.set_eee_timer = dwmac4_set_eee_timer,
 	.set_eee_pls = dwmac4_set_eee_pls,
 	.pcs_ctrl_ane = dwmac4_ctrl_ane,

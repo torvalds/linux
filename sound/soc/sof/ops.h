@@ -48,10 +48,10 @@ static inline int snd_sof_dsp_run(struct snd_sof_dev *sdev)
 	return sof_ops(sdev)->run(sdev);
 }
 
-static inline int snd_sof_dsp_stall(struct snd_sof_dev *sdev)
+static inline int snd_sof_dsp_stall(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
 	if (sof_ops(sdev)->stall)
-		return sof_ops(sdev)->stall(sdev);
+		return sof_ops(sdev)->stall(sdev, core_mask);
 
 	return 0;
 }
@@ -96,6 +96,16 @@ static inline int snd_sof_dsp_post_fw_run(struct snd_sof_dev *sdev)
 {
 	if (sof_ops(sdev)->post_fw_run)
 		return sof_ops(sdev)->post_fw_run(sdev);
+
+	return 0;
+}
+
+/* parse platform specific extended manifest */
+static inline int snd_sof_dsp_parse_platform_ext_manifest(struct snd_sof_dev *sdev,
+							  const struct sof_ext_man_elem_header *hdr)
+{
+	if (sof_ops(sdev)->parse_platform_ext_manifest)
+		return sof_ops(sdev)->parse_platform_ext_manifest(sdev, hdr);
 
 	return 0;
 }

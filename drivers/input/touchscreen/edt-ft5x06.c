@@ -69,6 +69,9 @@
 #define EDT_RAW_DATA_RETRIES		100
 #define EDT_RAW_DATA_DELAY		1000 /* usec */
 
+#define EDT_DEFAULT_NUM_X		1024
+#define EDT_DEFAULT_NUM_Y		1024
+
 enum edt_pmode {
 	EDT_PMODE_NOT_SUPPORTED,
 	EDT_PMODE_HIBERNATE,
@@ -977,8 +980,7 @@ static void edt_ft5x06_ts_get_defaults(struct device *dev,
 	}
 }
 
-static void
-edt_ft5x06_ts_get_parameters(struct edt_ft5x06_ts_data *tsdata)
+static void edt_ft5x06_ts_get_parameters(struct edt_ft5x06_ts_data *tsdata)
 {
 	struct edt_reg_addr *reg_addr = &tsdata->reg_addr;
 
@@ -997,21 +999,17 @@ edt_ft5x06_ts_get_parameters(struct edt_ft5x06_ts_data *tsdata)
 	if (reg_addr->reg_report_rate != NO_REGISTER)
 		tsdata->report_rate = edt_ft5x06_register_read(tsdata,
 						reg_addr->reg_report_rate);
-	if (tsdata->version == EDT_M06 ||
-	    tsdata->version == EDT_M09 ||
-	    tsdata->version == EDT_M12) {
+	tsdata->num_x = EDT_DEFAULT_NUM_X;
+	if (reg_addr->reg_num_x != NO_REGISTER)
 		tsdata->num_x = edt_ft5x06_register_read(tsdata,
 							 reg_addr->reg_num_x);
+	tsdata->num_y = EDT_DEFAULT_NUM_Y;
+	if (reg_addr->reg_num_y != NO_REGISTER)
 		tsdata->num_y = edt_ft5x06_register_read(tsdata,
 							 reg_addr->reg_num_y);
-	} else {
-		tsdata->num_x = -1;
-		tsdata->num_y = -1;
-	}
 }
 
-static void
-edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
+static void edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 {
 	struct edt_reg_addr *reg_addr = &tsdata->reg_addr;
 
@@ -1041,22 +1039,25 @@ edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 
 	case EV_FT:
 		reg_addr->reg_threshold = EV_REGISTER_THRESHOLD;
+		reg_addr->reg_report_rate = NO_REGISTER;
 		reg_addr->reg_gain = EV_REGISTER_GAIN;
 		reg_addr->reg_offset = NO_REGISTER;
 		reg_addr->reg_offset_x = EV_REGISTER_OFFSET_X;
 		reg_addr->reg_offset_y = EV_REGISTER_OFFSET_Y;
 		reg_addr->reg_num_x = NO_REGISTER;
 		reg_addr->reg_num_y = NO_REGISTER;
-		reg_addr->reg_report_rate = NO_REGISTER;
 		break;
 
 	case GENERIC_FT:
 		/* this is a guesswork */
 		reg_addr->reg_threshold = M09_REGISTER_THRESHOLD;
+		reg_addr->reg_report_rate = NO_REGISTER;
 		reg_addr->reg_gain = M09_REGISTER_GAIN;
 		reg_addr->reg_offset = M09_REGISTER_OFFSET;
 		reg_addr->reg_offset_x = NO_REGISTER;
 		reg_addr->reg_offset_y = NO_REGISTER;
+		reg_addr->reg_num_x = NO_REGISTER;
+		reg_addr->reg_num_y = NO_REGISTER;
 		break;
 	}
 }
@@ -1195,20 +1196,10 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	input->id.bustype = BUS_I2C;
 	input->dev.parent = &client->dev;
 
-	if (tsdata->version == EDT_M06 ||
-	    tsdata->version == EDT_M09 ||
-	    tsdata->version == EDT_M12) {
-		input_set_abs_params(input, ABS_MT_POSITION_X,
-				     0, tsdata->num_x * 64 - 1, 0, 0);
-		input_set_abs_params(input, ABS_MT_POSITION_Y,
-				     0, tsdata->num_y * 64 - 1, 0, 0);
-	} else {
-		/* Unknown maximum values. Specify via devicetree */
-		input_set_abs_params(input, ABS_MT_POSITION_X,
-				     0, 65535, 0, 0);
-		input_set_abs_params(input, ABS_MT_POSITION_Y,
-				     0, 65535, 0, 0);
-	}
+	input_set_abs_params(input, ABS_MT_POSITION_X,
+			     0, tsdata->num_x * 64 - 1, 0, 0);
+	input_set_abs_params(input, ABS_MT_POSITION_Y,
+			     0, tsdata->num_y * 64 - 1, 0, 0);
 
 	touchscreen_parse_properties(input, true, &tsdata->prop);
 

@@ -307,6 +307,9 @@ enum hclge_opcode_type {
 #define HCLGE_TQP_REG_OFFSET		0x80000
 #define HCLGE_TQP_REG_SIZE		0x200
 
+#define HCLGE_TQP_MAX_SIZE_DEV_V2	1024
+#define HCLGE_TQP_EXT_REG_OFFSET	0x100
+
 #define HCLGE_RCB_INIT_QUERY_TIMEOUT	10
 #define HCLGE_RCB_INIT_FLAG_EN_B	0
 #define HCLGE_RCB_INIT_FLAG_FINI_B	8
@@ -336,7 +339,9 @@ enum hclge_int_type {
 };
 
 struct hclge_ctrl_vector_chain_cmd {
-	u8 int_vector_id;
+#define HCLGE_VECTOR_ID_L_S	0
+#define HCLGE_VECTOR_ID_L_M	GENMASK(7, 0)
+	u8 int_vector_id_l;
 	u8 int_cause_num;
 #define HCLGE_INT_TYPE_S	0
 #define HCLGE_INT_TYPE_M	GENMASK(1, 0)
@@ -346,7 +351,9 @@ struct hclge_ctrl_vector_chain_cmd {
 #define HCLGE_INT_GL_IDX_M	GENMASK(14, 13)
 	__le16 tqp_type_and_id[HCLGE_VECTOR_ELEMENTS_PER_CMD];
 	u8 vfid;
-	u8 rsv;
+#define HCLGE_VECTOR_ID_H_S	8
+#define HCLGE_VECTOR_ID_H_M	GENMASK(15, 8)
+	u8 int_vector_id_h;
 };
 
 #define HCLGE_MAX_TC_NUM		8
@@ -369,12 +376,13 @@ enum HCLGE_CAP_BITS {
 	HCLGE_CAP_FD_FORWARD_TC_B,
 	HCLGE_CAP_PTP_B,
 	HCLGE_CAP_INT_QL_B,
-	HCLGE_CAP_SIMPLE_BD_B,
+	HCLGE_CAP_HW_TX_CSUM_B,
 	HCLGE_CAP_TX_PUSH_B,
 	HCLGE_CAP_PHY_IMP_B,
 	HCLGE_CAP_TQP_TXRX_INDEP_B,
 	HCLGE_CAP_HW_PAD_B,
 	HCLGE_CAP_STASH_B,
+	HCLGE_CAP_UDP_TUNNEL_CSUM_B,
 };
 
 #define HCLGE_QUERY_CAP_LENGTH		3
@@ -470,16 +478,13 @@ struct hclge_pf_res_cmd {
 	__le16 tqp_num;
 	__le16 buf_size;
 	__le16 msixcap_localid_ba_nic;
-	__le16 msixcap_localid_ba_rocee;
-#define HCLGE_MSIX_OFT_ROCEE_S		0
-#define HCLGE_MSIX_OFT_ROCEE_M		GENMASK(15, 0)
-#define HCLGE_PF_VEC_NUM_S		0
-#define HCLGE_PF_VEC_NUM_M		GENMASK(7, 0)
-	__le16 pf_intr_vector_number;
+	__le16 msixcap_localid_number_nic;
+	__le16 pf_intr_vector_number_roce;
 	__le16 pf_own_fun_number;
 	__le16 tx_buf_size;
 	__le16 dv_buf_size;
-	__le32 rsv[2];
+	__le16 ext_tqp_num;
+	u8 rsv[6];
 };
 
 #define HCLGE_CFG_OFFSET_S	0
@@ -513,6 +518,8 @@ struct hclge_pf_res_cmd {
 #define HCLGE_CFG_SPEED_ABILITY_EXT_M	GENMASK(15, 10)
 #define HCLGE_CFG_UMV_TBL_SPACE_S	16
 #define HCLGE_CFG_UMV_TBL_SPACE_M	GENMASK(31, 16)
+#define HCLGE_CFG_PF_RSS_SIZE_S		0
+#define HCLGE_CFG_PF_RSS_SIZE_M		GENMASK(3, 0)
 
 #define HCLGE_CFG_CMD_CNT		4
 
@@ -553,18 +560,23 @@ struct hclge_rss_input_tuple_cmd {
 };
 
 #define HCLGE_RSS_CFG_TBL_SIZE	16
+#define HCLGE_RSS_CFG_TBL_SIZE_H	4
+#define HCLGE_RSS_CFG_TBL_BW_H		2U
+#define HCLGE_RSS_CFG_TBL_BW_L		8U
 
 struct hclge_rss_indirection_table_cmd {
 	__le16 start_table_index;
 	__le16 rss_set_bitmap;
-	u8 rsv[4];
-	u8 rss_result[HCLGE_RSS_CFG_TBL_SIZE];
+	u8 rss_qid_h[HCLGE_RSS_CFG_TBL_SIZE_H];
+	u8 rss_qid_l[HCLGE_RSS_CFG_TBL_SIZE];
 };
 
 #define HCLGE_RSS_TC_OFFSET_S		0
-#define HCLGE_RSS_TC_OFFSET_M		GENMASK(9, 0)
+#define HCLGE_RSS_TC_OFFSET_M		GENMASK(10, 0)
+#define HCLGE_RSS_TC_SIZE_MSB_B		11
 #define HCLGE_RSS_TC_SIZE_S		12
 #define HCLGE_RSS_TC_SIZE_M		GENMASK(14, 12)
+#define HCLGE_RSS_TC_SIZE_MSB_OFFSET	3
 #define HCLGE_RSS_TC_VALID_B		15
 struct hclge_rss_tc_mode_cmd {
 	__le16 rss_tc_mode[HCLGE_MAX_TC_NUM];
@@ -578,23 +590,26 @@ struct hclge_link_status_cmd {
 	u8 rsv[23];
 };
 
-struct hclge_promisc_param {
-	u8 vf_id;
-	u8 enable;
-};
+/* for DEVICE_VERSION_V1/2, reference to promisc cmd byte8 */
+#define HCLGE_PROMISC_EN_UC	1
+#define HCLGE_PROMISC_EN_MC	2
+#define HCLGE_PROMISC_EN_BC	3
+#define HCLGE_PROMISC_TX_EN	4
+#define HCLGE_PROMISC_RX_EN	5
 
-#define HCLGE_PROMISC_TX_EN_B	BIT(4)
-#define HCLGE_PROMISC_RX_EN_B	BIT(5)
-#define HCLGE_PROMISC_EN_B	1
-#define HCLGE_PROMISC_EN_ALL	0x7
-#define HCLGE_PROMISC_EN_UC	0x1
-#define HCLGE_PROMISC_EN_MC	0x2
-#define HCLGE_PROMISC_EN_BC	0x4
+/* for DEVICE_VERSION_V3, reference to promisc cmd byte10 */
+#define HCLGE_PROMISC_UC_RX_EN	2
+#define HCLGE_PROMISC_MC_RX_EN	3
+#define HCLGE_PROMISC_BC_RX_EN	4
+#define HCLGE_PROMISC_UC_TX_EN	5
+#define HCLGE_PROMISC_MC_TX_EN	6
+#define HCLGE_PROMISC_BC_TX_EN	7
+
 struct hclge_promisc_cfg_cmd {
-	u8 flag;
+	u8 promisc;
 	u8 vf_id;
-	__le16 rsv0;
-	u8 rsv1[20];
+	u8 extend_promisc;
+	u8 rsv0[21];
 };
 
 enum hclge_promisc_type {
@@ -643,7 +658,6 @@ struct hclge_config_mac_speed_dup_cmd {
 	u8 rsv[22];
 };
 
-#define HCLGE_RING_ID_MASK		GENMASK(9, 0)
 #define HCLGE_TQP_ENABLE_B		0
 
 #define HCLGE_MAC_CFG_AN_EN_B		0
@@ -818,6 +832,7 @@ enum hclge_mac_vlan_cfg_sel {
 #define HCLGE_CFG_NIC_ROCE_SEL_B	4
 #define HCLGE_ACCEPT_TAG2_B		5
 #define HCLGE_ACCEPT_UNTAG2_B		6
+#define HCLGE_TAG_SHIFT_MODE_EN_B	7
 #define HCLGE_VF_NUM_PER_BYTE		8
 
 struct hclge_vport_vtag_tx_cfg_cmd {
@@ -834,6 +849,8 @@ struct hclge_vport_vtag_tx_cfg_cmd {
 #define HCLGE_REM_TAG2_EN_B		1
 #define HCLGE_SHOW_TAG1_EN_B		2
 #define HCLGE_SHOW_TAG2_EN_B		3
+#define HCLGE_DISCARD_TAG1_EN_B		5
+#define HCLGE_DISCARD_TAG2_EN_B		6
 struct hclge_vport_vtag_rx_cfg_cmd {
 	u8 vport_vlan_cfg;
 	u8 vf_offset;
@@ -1041,6 +1058,9 @@ struct hclge_fd_tcam_config_3_cmd {
 #define HCLGE_FD_AD_WR_RULE_ID_B	0
 #define HCLGE_FD_AD_RULE_ID_S		1
 #define HCLGE_FD_AD_RULE_ID_M		GENMASK(13, 1)
+#define HCLGE_FD_AD_TC_OVRD_B		16
+#define HCLGE_FD_AD_TC_SIZE_S		17
+#define HCLGE_FD_AD_TC_SIZE_M		GENMASK(20, 17)
 
 struct hclge_fd_ad_config_cmd {
 	u8 stage;
@@ -1101,6 +1121,14 @@ struct hclge_dev_specs_0_cmd {
 	u8 max_non_tso_bd_num;
 	u8 rsv1;
 	__le32 max_tm_rate;
+};
+
+#define HCLGE_DEF_MAX_INT_GL		0x1FE0U
+
+struct hclge_dev_specs_1_cmd {
+	__le32 rsv0;
+	__le16 max_int_gl;
+	u8 rsv1[18];
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);

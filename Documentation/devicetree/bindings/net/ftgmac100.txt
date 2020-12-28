@@ -15,6 +15,7 @@ Required properties:
 - interrupts: Should contain ethernet controller interrupt
 
 Optional properties:
+- phy-handle: See ethernet.txt file in the same directory.
 - phy-mode: See ethernet.txt file in the same directory. If the property is
   absent, "rgmii" is assumed. Supported values are "rgmii*" and "rmii" for
   aspeed parts. Other (unknown) parts will accept any value.
@@ -32,6 +33,9 @@ Optional properties:
       - "MACCLK": The MAC IP clock
       - "RCLK": Clock gate for the RMII RCLK
 
+Optional subnodes:
+- mdio: See mdio.txt file in the same directory.
+
 Example:
 
 	mac0: ethernet@1e660000 {
@@ -39,4 +43,25 @@ Example:
 		reg = <0x1e660000 0x180>;
 		interrupts = <2>;
 		use-ncsi;
+	};
+
+Example with phy-handle:
+
+	mac1: ethernet@1e680000 {
+		compatible = "aspeed,ast2500-mac", "faraday,ftgmac100";
+		reg = <0x1e680000 0x180>;
+		interrupts = <2>;
+
+		phy-handle = <&phy>;
+		phy-mode = "rgmii";
+
+		mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			phy: ethernet-phy@1 {
+				compatible = "ethernet-phy-ieee802.3-c22";
+				reg = <1>;
+			};
+		};
 	};

@@ -160,7 +160,7 @@ implementation.
    ia64/index
    m68k/index
    mips/index
-   nios2/nios2
+   nios2/index
    openrisc/index
    parisc/index
    powerpc/index

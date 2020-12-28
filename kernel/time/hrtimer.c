@@ -1284,7 +1284,7 @@ int hrtimer_cancel(struct hrtimer *timer)
 EXPORT_SYMBOL_GPL(hrtimer_cancel);
 
 /**
- * hrtimer_get_remaining - get remaining time for the timer
+ * __hrtimer_get_remaining - get remaining time for the timer
  * @timer:	the timer to read
  * @adjust:	adjust relative timers when CONFIG_TIME_LOW_RES=y
  */

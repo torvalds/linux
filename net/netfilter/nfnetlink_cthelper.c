@@ -146,7 +146,7 @@ nfnl_cthelper_expect_policy(struct nf_conntrack_expect_policy *expect_policy,
 	    !tb[NFCTH_POLICY_EXPECT_TIMEOUT])
 		return -EINVAL;
 
-	nla_strlcpy(expect_policy->name,
+	nla_strscpy(expect_policy->name,
 		    tb[NFCTH_POLICY_NAME], NF_CT_HELPER_NAME_LEN);
 	expect_policy->max_expected =
 		ntohl(nla_get_be32(tb[NFCTH_POLICY_EXPECT_MAX]));
@@ -233,7 +233,7 @@ nfnl_cthelper_create(const struct nlattr * const tb[],
 	if (ret < 0)
 		goto err1;
 
-	nla_strlcpy(helper->name,
+	nla_strscpy(helper->name,
 		    tb[NFCTH_NAME], NF_CT_HELPER_NAME_LEN);
 	size = ntohl(nla_get_be32(tb[NFCTH_PRIV_DATA_LEN]));
 	if (size > sizeof_field(struct nf_conn_help, data)) {

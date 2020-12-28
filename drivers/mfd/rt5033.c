@@ -122,7 +122,7 @@ MODULE_DEVICE_TABLE(of, rt5033_dt_match);
 static struct i2c_driver rt5033_driver = {
 	.driver = {
 		.name = "rt5033",
-		.of_match_table = of_match_ptr(rt5033_dt_match),
+		.of_match_table = rt5033_dt_match,
 	},
 	.probe = rt5033_i2c_probe,
 	.id_table = rt5033_i2c_id,

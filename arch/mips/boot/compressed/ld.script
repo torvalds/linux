@@ -31,9 +31,12 @@ SECTIONS
 		CONSTRUCTORS
 		. = ALIGN(16);
 	}
-	__appended_dtb = .;
-	/* leave space for appended DTB */
-	. += 0x100000;
+
+	.appended_dtb : {
+		__appended_dtb = .;
+		/* leave space for appended DTB */
+		. += 0x100000;
+	}
 
 	_edata = .;
 	/* End of data section */

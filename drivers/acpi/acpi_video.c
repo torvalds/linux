@@ -578,7 +578,7 @@ acpi_video_bqc_value_to_level(struct acpi_video_device *device,
 				ACPI_VIDEO_FIRST_LEVEL - 1 - bqc_value;
 
 		level = device->brightness->levels[bqc_value +
-		                                   ACPI_VIDEO_FIRST_LEVEL];
+						   ACPI_VIDEO_FIRST_LEVEL];
 	} else {
 		level = bqc_value;
 	}
@@ -990,8 +990,8 @@ set_level:
 		goto out_free_levels;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-	                  "found %d brightness levels\n",
-	                  br->count - ACPI_VIDEO_FIRST_LEVEL));
+			  "found %d brightness levels\n",
+			  br->count - ACPI_VIDEO_FIRST_LEVEL));
 	return 0;
 
 out_free_levels:

@@ -1951,8 +1951,8 @@ int kvm_vm_ioctl_hv_eventfd(struct kvm *kvm, struct kvm_hyperv_eventfd *args)
 	return kvm_hv_eventfd_assign(kvm, args->conn_id, args->fd);
 }
 
-int kvm_vcpu_ioctl_get_hv_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid,
-				struct kvm_cpuid_entry2 __user *entries)
+int kvm_get_hv_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid,
+		     struct kvm_cpuid_entry2 __user *entries)
 {
 	uint16_t evmcs_ver = 0;
 	struct kvm_cpuid_entry2 cpuid_entries[] = {
@@ -2037,7 +2037,7 @@ int kvm_vcpu_ioctl_get_hv_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid,
 			 * Direct Synthetic timers only make sense with in-kernel
 			 * LAPIC
 			 */
-			if (lapic_in_kernel(vcpu))
+			if (!vcpu || lapic_in_kernel(vcpu))
 				ent->edx |= HV_STIMER_DIRECT_MODE_AVAILABLE;
 
 			break;

@@ -1644,7 +1644,6 @@ static int xgene_phy_probe(struct platform_device *pdev)
 {
 	struct phy_provider *phy_provider;
 	struct xgene_phy_ctx *ctx;
-	struct resource *res;
 	u32 default_spd[] = DEFAULT_SATA_SPD_SEL;
 	u32 default_txboost_gain[] = DEFAULT_SATA_TXBOOST_GAIN;
 	u32 default_txeye_direction[] = DEFAULT_SATA_TXEYEDIRECTION;
@@ -1661,8 +1660,7 @@ static int xgene_phy_probe(struct platform_device *pdev)
 
 	ctx->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ctx->sds_base = devm_ioremap_resource(&pdev->dev, res);
+	ctx->sds_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctx->sds_base))
 		return PTR_ERR(ctx->sds_base);
 

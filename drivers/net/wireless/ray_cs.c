@@ -877,10 +877,10 @@ static int ray_hw_xmit(unsigned char *data, int len, struct net_device *dev,
 	switch (ccsindex = get_free_tx_ccs(local)) {
 	case ECCSBUSY:
 		pr_debug("ray_hw_xmit tx_ccs table busy\n");
-		/* fall through */
+		fallthrough;
 	case ECCSFULL:
 		pr_debug("ray_hw_xmit No free tx ccs\n");
-		/* fall through */
+		fallthrough;
 	case ECARDGONE:
 		netif_stop_queue(dev);
 		return XMIT_NO_CCS;
@@ -1272,7 +1272,7 @@ static int ray_set_mode(struct net_device *dev, struct iw_request_info *info,
 	switch (wrqu->mode) {
 	case IW_MODE_ADHOC:
 		card_mode = 0;
-		/* Fall through */
+		fallthrough;
 	case IW_MODE_INFRA:
 		local->sparm.b5.a_network_type = card_mode;
 		break;

@@ -642,8 +642,8 @@ int intel_pmu_drain_bts_buffer(void)
 	rcu_read_lock();
 	perf_prepare_sample(&header, &data, event, &regs);
 
-	if (perf_output_begin(&handle, event, header.size *
-			      (top - base - skip)))
+	if (perf_output_begin(&handle, &data, event,
+			      header.size * (top - base - skip)))
 		goto unlock;
 
 	for (at = base; at < top; at++) {
@@ -670,7 +670,9 @@ unlock:
 
 static inline void intel_pmu_drain_pebs_buffer(void)
 {
-	x86_pmu.drain_pebs(NULL);
+	struct perf_sample_data data;
+
+	x86_pmu.drain_pebs(NULL, &data);
 }
 
 /*
@@ -959,7 +961,8 @@ static void adaptive_pebs_record_size_update(void)
 
 #define PERF_PEBS_MEMINFO_TYPE	(PERF_SAMPLE_ADDR | PERF_SAMPLE_DATA_SRC |   \
 				PERF_SAMPLE_PHYS_ADDR | PERF_SAMPLE_WEIGHT | \
-				PERF_SAMPLE_TRANSACTION)
+				PERF_SAMPLE_TRANSACTION |		     \
+				PERF_SAMPLE_DATA_PAGE_SIZE)
 
 static u64 pebs_update_adaptive_cfg(struct perf_event *event)
 {
@@ -1259,7 +1262,7 @@ static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 		old_to = to;
 
 #ifdef CONFIG_X86_64
-		is_64bit = kernel_ip(to) || !test_thread_flag(TIF_IA32);
+		is_64bit = kernel_ip(to) || any_64bit_mode(regs);
 #endif
 		insn_init(&insn, kaddr, size, is_64bit);
 		insn_get_length(&insn);
@@ -1334,6 +1337,10 @@ static u64 get_data_src(struct perf_event *event, u64 aux)
 		val = precise_store_data(aux);
 	return val;
 }
+
+#define PERF_SAMPLE_ADDR_TYPE	(PERF_SAMPLE_ADDR |		\
+				 PERF_SAMPLE_PHYS_ADDR |	\
+				 PERF_SAMPLE_DATA_PAGE_SIZE)
 
 static void setup_pebs_fixed_sample_data(struct perf_event *event,
 				   struct pt_regs *iregs, void *__pebs,
@@ -1449,7 +1456,7 @@ static void setup_pebs_fixed_sample_data(struct perf_event *event,
 	}
 
 
-	if ((sample_type & (PERF_SAMPLE_ADDR | PERF_SAMPLE_PHYS_ADDR)) &&
+	if ((sample_type & PERF_SAMPLE_ADDR_TYPE) &&
 	    x86_pmu.intel_cap.pebs_format >= 1)
 		data->addr = pebs->dla;
 
@@ -1577,7 +1584,7 @@ static void setup_pebs_adaptive_sample_data(struct perf_event *event,
 		if (sample_type & PERF_SAMPLE_DATA_SRC)
 			data->data_src.val = get_data_src(event, meminfo->aux);
 
-		if (sample_type & (PERF_SAMPLE_ADDR | PERF_SAMPLE_PHYS_ADDR))
+		if (sample_type & PERF_SAMPLE_ADDR_TYPE)
 			data->addr = meminfo->address;
 
 		if (sample_type & PERF_SAMPLE_TRANSACTION)
@@ -1719,23 +1726,24 @@ intel_pmu_save_and_restart_reload(struct perf_event *event, int count)
 	return 0;
 }
 
-static void __intel_pmu_pebs_event(struct perf_event *event,
-				   struct pt_regs *iregs,
-				   void *base, void *top,
-				   int bit, int count,
-				   void (*setup_sample)(struct perf_event *,
-						struct pt_regs *,
-						void *,
-						struct perf_sample_data *,
-						struct pt_regs *))
+static __always_inline void
+__intel_pmu_pebs_event(struct perf_event *event,
+		       struct pt_regs *iregs,
+		       struct perf_sample_data *data,
+		       void *base, void *top,
+		       int bit, int count,
+		       void (*setup_sample)(struct perf_event *,
+					    struct pt_regs *,
+					    void *,
+					    struct perf_sample_data *,
+					    struct pt_regs *))
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
-	struct perf_sample_data data;
 	struct x86_perf_regs perf_regs;
 	struct pt_regs *regs = &perf_regs.regs;
 	void *at = get_next_pebs_record_by_bit(base, top, bit);
-	struct pt_regs dummy_iregs;
+	static struct pt_regs dummy_iregs;
 
 	if (hwc->flags & PERF_X86_EVENT_AUTO_RELOAD) {
 		/*
@@ -1752,14 +1760,14 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 		iregs = &dummy_iregs;
 
 	while (count > 1) {
-		setup_sample(event, iregs, at, &data, regs);
-		perf_event_output(event, &data, regs);
+		setup_sample(event, iregs, at, data, regs);
+		perf_event_output(event, data, regs);
 		at += cpuc->pebs_record_size;
 		at = get_next_pebs_record_by_bit(at, top, bit);
 		count--;
 	}
 
-	setup_sample(event, iregs, at, &data, regs);
+	setup_sample(event, iregs, at, data, regs);
 	if (iregs == &dummy_iregs) {
 		/*
 		 * The PEBS records may be drained in the non-overflow context,
@@ -1767,18 +1775,18 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 		 * last record the same as other PEBS records, and doesn't
 		 * invoke the generic overflow handler.
 		 */
-		perf_event_output(event, &data, regs);
+		perf_event_output(event, data, regs);
 	} else {
 		/*
 		 * All but the last records are processed.
 		 * The last one is left to be able to call the overflow handler.
 		 */
-		if (perf_event_overflow(event, &data, regs))
+		if (perf_event_overflow(event, data, regs))
 			x86_pmu_stop(event, 0);
 	}
 }
 
-static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
+static void intel_pmu_drain_pebs_core(struct pt_regs *iregs, struct perf_sample_data *data)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct debug_store *ds = cpuc->ds;
@@ -1812,7 +1820,7 @@ static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 		return;
 	}
 
-	__intel_pmu_pebs_event(event, iregs, at, top, 0, n,
+	__intel_pmu_pebs_event(event, iregs, data, at, top, 0, n,
 			       setup_pebs_fixed_sample_data);
 }
 
@@ -1835,7 +1843,7 @@ static void intel_pmu_pebs_event_update_no_drain(struct cpu_hw_events *cpuc, int
 	}
 }
 
-static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
+static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs, struct perf_sample_data *data)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct debug_store *ds = cpuc->ds;
@@ -1913,7 +1921,7 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 		 * that caused the PEBS record. It's called collision.
 		 * If collision happened, the record will be dropped.
 		 */
-		if (p->status != (1ULL << bit)) {
+		if (pebs_status != (1ULL << bit)) {
 			for_each_set_bit(i, (unsigned long *)&pebs_status, size)
 				error[i]++;
 			continue;
@@ -1937,19 +1945,19 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 		if (error[bit]) {
 			perf_log_lost_samples(event, error[bit]);
 
-			if (perf_event_account_interrupt(event))
+			if (iregs && perf_event_account_interrupt(event))
 				x86_pmu_stop(event, 0);
 		}
 
 		if (counts[bit]) {
-			__intel_pmu_pebs_event(event, iregs, base,
+			__intel_pmu_pebs_event(event, iregs, data, base,
 					       top, bit, counts[bit],
 					       setup_pebs_fixed_sample_data);
 		}
 	}
 }
 
-static void intel_pmu_drain_pebs_icl(struct pt_regs *iregs)
+static void intel_pmu_drain_pebs_icl(struct pt_regs *iregs, struct perf_sample_data *data)
 {
 	short counts[INTEL_PMC_IDX_FIXED + MAX_FIXED_PEBS_EVENTS] = {};
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
@@ -1997,7 +2005,7 @@ static void intel_pmu_drain_pebs_icl(struct pt_regs *iregs)
 		if (WARN_ON_ONCE(!event->attr.precise_ip))
 			continue;
 
-		__intel_pmu_pebs_event(event, iregs, base,
+		__intel_pmu_pebs_event(event, iregs, data, base,
 				       top, bit, counts[bit],
 				       setup_pebs_adaptive_sample_data);
 	}

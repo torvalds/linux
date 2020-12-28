@@ -1073,6 +1073,7 @@ static struct snd_soc_dai_driver adcx140_dai_driver[] = {
 	}
 };
 
+#ifdef CONFIG_OF
 static const struct of_device_id tlv320adcx140_of_match[] = {
 	{ .compatible = "ti,tlv320adc3140" },
 	{ .compatible = "ti,tlv320adc5140" },
@@ -1080,6 +1081,7 @@ static const struct of_device_id tlv320adcx140_of_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, tlv320adcx140_of_match);
+#endif
 
 static int adcx140_i2c_probe(struct i2c_client *i2c,
 			     const struct i2c_device_id *id)

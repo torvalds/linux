@@ -10,6 +10,7 @@
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
 
+#include <linux/dma-buf-map.h>
 #include <linux/kernel.h> /* for container_of() */
 
 struct drm_mode_create_dumb;
@@ -29,13 +30,11 @@ struct vm_area_struct;
 
 /**
  * struct drm_gem_vram_object - GEM object backed by VRAM
- * @gem:	GEM object
  * @bo:		TTM buffer object
- * @kmap:	Mapping information for @bo
+ * @map:	Mapping information for @bo
  * @placement:	TTM placement information. Supported placements are \
 	%TTM_PL_VRAM and %TTM_PL_SYSTEM
  * @placements:	TTM placement information.
- * @pin_count:	Pin counter
  *
  * The type struct drm_gem_vram_object represents a GEM object that is
  * backed by VRAM. It can be used for simple framebuffer devices with
@@ -51,26 +50,24 @@ struct vm_area_struct;
  */
 struct drm_gem_vram_object {
 	struct ttm_buffer_object bo;
-	struct ttm_bo_kmap_obj kmap;
+	struct dma_buf_map map;
 
 	/**
-	 * @kmap_use_count:
+	 * @vmap_use_count:
 	 *
 	 * Reference count on the virtual address.
 	 * The address are un-mapped when the count reaches zero.
 	 */
-	unsigned int kmap_use_count;
+	unsigned int vmap_use_count;
 
 	/* Supported placements are %TTM_PL_VRAM and %TTM_PL_SYSTEM */
 	struct ttm_placement placement;
 	struct ttm_place placements[2];
-
-	int pin_count;
 };
 
 /**
- * Returns the container of type &struct drm_gem_vram_object
- * for field bo.
+ * drm_gem_vram_of_bo - Returns the container of type
+ * &struct drm_gem_vram_object for field bo.
  * @bo:		the VRAM buffer object
  * Returns:	The containing GEM VRAM object
  */
@@ -81,8 +78,8 @@ static inline struct drm_gem_vram_object *drm_gem_vram_of_bo(
 }
 
 /**
- * Returns the container of type &struct drm_gem_vram_object
- * for field gem.
+ * drm_gem_vram_of_gem - Returns the container of type
+ * &struct drm_gem_vram_object for field gem.
  * @gem:	the GEM object
  * Returns:	The containing GEM VRAM object
  */
@@ -100,8 +97,8 @@ u64 drm_gem_vram_mmap_offset(struct drm_gem_vram_object *gbo);
 s64 drm_gem_vram_offset(struct drm_gem_vram_object *gbo);
 int drm_gem_vram_pin(struct drm_gem_vram_object *gbo, unsigned long pl_flag);
 int drm_gem_vram_unpin(struct drm_gem_vram_object *gbo);
-void *drm_gem_vram_vmap(struct drm_gem_vram_object *gbo);
-void drm_gem_vram_vunmap(struct drm_gem_vram_object *gbo, void *vaddr);
+int drm_gem_vram_vmap(struct drm_gem_vram_object *gbo, struct dma_buf_map *map);
+void drm_gem_vram_vunmap(struct drm_gem_vram_object *gbo, struct dma_buf_map *map);
 
 int drm_gem_vram_fill_create_dumb(struct drm_file *file,
 				  struct drm_device *dev,

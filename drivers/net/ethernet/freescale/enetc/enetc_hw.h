@@ -267,8 +267,8 @@ enum enetc_bdr_type {TX, RX};
 #define ENETC_PM0_R255		0x8180
 #define ENETC_PM0_R511		0x8188
 #define ENETC_PM0_R1023		0x8190
-#define ENETC_PM0_R1518		0x8198
-#define ENETC_PM0_R1519X	0x81A0
+#define ENETC_PM0_R1522		0x8198
+#define ENETC_PM0_R1523X	0x81A0
 #define ENETC_PM0_ROVR		0x81A8
 #define ENETC_PM0_RJBR		0x81B0
 #define ENETC_PM0_RFRG		0x81B8
@@ -287,9 +287,13 @@ enum enetc_bdr_type {TX, RX};
 #define ENETC_PM0_TBCA		0x8250
 #define ENETC_PM0_TPKT		0x8260
 #define ENETC_PM0_TUND		0x8268
+#define ENETC_PM0_T64		0x8270
 #define ENETC_PM0_T127		0x8278
+#define ENETC_PM0_T255		0x8280
+#define ENETC_PM0_T511		0x8288
 #define ENETC_PM0_T1023		0x8290
-#define ENETC_PM0_T1518		0x8298
+#define ENETC_PM0_T1522		0x8298
+#define ENETC_PM0_T1523X	0x82A0
 #define ENETC_PM0_TCNP		0x82C0
 #define ENETC_PM0_TDFR		0x82D0
 #define ENETC_PM0_TMCOL		0x82D8
@@ -324,14 +328,100 @@ struct enetc_hw {
 	void __iomem *global;
 };
 
-/* general register accessors */
-#define enetc_rd_reg(reg)	ioread32((reg))
-#define enetc_wr_reg(reg, val)	iowrite32((val), (reg))
+/* ENETC register accessors */
+
+/* MDIO issue workaround (on LS1028A) -
+ * Due to a hardware issue, an access to MDIO registers
+ * that is concurrent with other ENETC register accesses
+ * may lead to the MDIO access being dropped or corrupted.
+ * To protect the MDIO accesses a readers-writers locking
+ * scheme is used, where the MDIO register accesses are
+ * protected by write locks to insure exclusivity, while
+ * the remaining ENETC registers are accessed under read
+ * locks since they only compete with MDIO accesses.
+ */
+extern rwlock_t enetc_mdio_lock;
+
+/* use this locking primitive only on the fast datapath to
+ * group together multiple non-MDIO register accesses to
+ * minimize the overhead of the lock
+ */
+static inline void enetc_lock_mdio(void)
+{
+	read_lock(&enetc_mdio_lock);
+}
+
+static inline void enetc_unlock_mdio(void)
+{
+	read_unlock(&enetc_mdio_lock);
+}
+
+/* use these accessors only on the fast datapath under
+ * the enetc_lock_mdio() locking primitive to minimize
+ * the overhead of the lock
+ */
+static inline u32 enetc_rd_reg_hot(void __iomem *reg)
+{
+	lockdep_assert_held(&enetc_mdio_lock);
+
+	return ioread32(reg);
+}
+
+static inline void enetc_wr_reg_hot(void __iomem *reg, u32 val)
+{
+	lockdep_assert_held(&enetc_mdio_lock);
+
+	iowrite32(val, reg);
+}
+
+/* internal helpers for the MDIO w/a */
+static inline u32 _enetc_rd_reg_wa(void __iomem *reg)
+{
+	u32 val;
+
+	enetc_lock_mdio();
+	val = ioread32(reg);
+	enetc_unlock_mdio();
+
+	return val;
+}
+
+static inline void _enetc_wr_reg_wa(void __iomem *reg, u32 val)
+{
+	enetc_lock_mdio();
+	iowrite32(val, reg);
+	enetc_unlock_mdio();
+}
+
+static inline u32 _enetc_rd_mdio_reg_wa(void __iomem *reg)
+{
+	unsigned long flags;
+	u32 val;
+
+	write_lock_irqsave(&enetc_mdio_lock, flags);
+	val = ioread32(reg);
+	write_unlock_irqrestore(&enetc_mdio_lock, flags);
+
+	return val;
+}
+
+static inline void _enetc_wr_mdio_reg_wa(void __iomem *reg, u32 val)
+{
+	unsigned long flags;
+
+	write_lock_irqsave(&enetc_mdio_lock, flags);
+	iowrite32(val, reg);
+	write_unlock_irqrestore(&enetc_mdio_lock, flags);
+}
+
 #ifdef ioread64
-#define enetc_rd_reg64(reg)	ioread64((reg))
+static inline u64 _enetc_rd_reg64(void __iomem *reg)
+{
+	return ioread64(reg);
+}
 #else
 /* using this to read out stats on 32b systems */
-static inline u64 enetc_rd_reg64(void __iomem *reg)
+static inline u64 _enetc_rd_reg64(void __iomem *reg)
 {
 	u32 low, high, tmp;
 
@@ -345,12 +435,29 @@ static inline u64 enetc_rd_reg64(void __iomem *reg)
 }
 #endif
 
+static inline u64 _enetc_rd_reg64_wa(void __iomem *reg)
+{
+	u64 val;
+
+	enetc_lock_mdio();
+	val = _enetc_rd_reg64(reg);
+	enetc_unlock_mdio();
+
+	return val;
+}
+
+/* general register accessors */
+#define enetc_rd_reg(reg)		_enetc_rd_reg_wa((reg))
+#define enetc_wr_reg(reg, val)		_enetc_wr_reg_wa((reg), (val))
 #define enetc_rd(hw, off)		enetc_rd_reg((hw)->reg + (off))
 #define enetc_wr(hw, off, val)		enetc_wr_reg((hw)->reg + (off), val)
-#define enetc_rd64(hw, off)		enetc_rd_reg64((hw)->reg + (off))
+#define enetc_rd64(hw, off)		_enetc_rd_reg64_wa((hw)->reg + (off))
 /* port register accessors - PF only */
 #define enetc_port_rd(hw, off)		enetc_rd_reg((hw)->port + (off))
 #define enetc_port_wr(hw, off, val)	enetc_wr_reg((hw)->port + (off), val)
+#define enetc_port_rd_mdio(hw, off)	_enetc_rd_mdio_reg_wa((hw)->port + (off))
+#define enetc_port_wr_mdio(hw, off, val)	_enetc_wr_mdio_reg_wa(\
+							(hw)->port + (off), val)
 /* global register accessors - PF only */
 #define enetc_global_rd(hw, off)	enetc_rd_reg((hw)->global + (off))
 #define enetc_global_wr(hw, off, val)	enetc_wr_reg((hw)->global + (off), val)
@@ -374,8 +481,7 @@ union enetc_tx_bd {
 		__le16 frm_len;
 		union {
 			struct {
-				__le16 l3_csoff;
-				u8 l4_csoff;
+				u8 reserved[3];
 				u8 flags;
 			}; /* default layout */
 			__le32 txstart;
@@ -398,40 +504,36 @@ union enetc_tx_bd {
 	} wb; /* writeback descriptor */
 };
 
-#define ENETC_TXBD_FLAGS_L4CS	BIT(0)
-#define ENETC_TXBD_FLAGS_TSE	BIT(1)
-#define ENETC_TXBD_FLAGS_W	BIT(2)
-#define ENETC_TXBD_FLAGS_CSUM	BIT(3)
-#define ENETC_TXBD_FLAGS_TXSTART BIT(4)
-#define ENETC_TXBD_FLAGS_EX	BIT(6)
-#define ENETC_TXBD_FLAGS_F	BIT(7)
+enum enetc_txbd_flags {
+	ENETC_TXBD_FLAGS_RES0 = BIT(0), /* reserved */
+	ENETC_TXBD_FLAGS_TSE = BIT(1),
+	ENETC_TXBD_FLAGS_W = BIT(2),
+	ENETC_TXBD_FLAGS_RES3 = BIT(3), /* reserved */
+	ENETC_TXBD_FLAGS_TXSTART = BIT(4),
+	ENETC_TXBD_FLAGS_EX = BIT(6),
+	ENETC_TXBD_FLAGS_F = BIT(7)
+};
 #define ENETC_TXBD_TXSTART_MASK GENMASK(24, 0)
 #define ENETC_TXBD_FLAGS_OFFSET 24
+
+static inline __le32 enetc_txbd_set_tx_start(u64 tx_start, u8 flags)
+{
+	u32 temp;
+
+	temp = (tx_start >> 5 & ENETC_TXBD_TXSTART_MASK) |
+	       (flags << ENETC_TXBD_FLAGS_OFFSET);
+
+	return cpu_to_le32(temp);
+}
+
 static inline void enetc_clear_tx_bd(union enetc_tx_bd *txbd)
 {
 	memset(txbd, 0, sizeof(*txbd));
 }
 
-/* L3 csum flags */
-#define ENETC_TXBD_L3_IPCS	BIT(7)
-#define ENETC_TXBD_L3_IPV6	BIT(15)
-
-#define ENETC_TXBD_L3_START_MASK	GENMASK(6, 0)
-#define ENETC_TXBD_L3_SET_HSIZE(val)	((((val) >> 2) & 0x7f) << 8)
-
 /* Extension flags */
 #define ENETC_TXBD_E_FLAGS_VLAN_INS	BIT(0)
 #define ENETC_TXBD_E_FLAGS_TWO_STEP_PTP	BIT(2)
-
-static inline __le16 enetc_txbd_l3_csoff(int start, int hdr_sz, u16 l3_flags)
-{
-	return cpu_to_le16(l3_flags | ENETC_TXBD_L3_SET_HSIZE(hdr_sz) |
-			   (start & ENETC_TXBD_L3_START_MASK));
-}
-
-/* L4 csum flags */
-#define ENETC_TXBD_L4_UDP	BIT(5)
-#define ENETC_TXBD_L4_TCP	BIT(6)
 
 union enetc_rx_bd {
 	struct {
@@ -477,10 +579,10 @@ struct enetc_cmd_rfse {
 	u8 smac_m[6];
 	u8 dmac_h[6];
 	u8 dmac_m[6];
-	u32 sip_h[4];
-	u32 sip_m[4];
-	u32 dip_h[4];
-	u32 dip_m[4];
+	__be32 sip_h[4];
+	__be32 sip_m[4];
+	__be32 dip_h[4];
+	__be32 dip_m[4];
 	u16 ethtype_h;
 	u16 ethtype_m;
 	u16 ethtype4_h;

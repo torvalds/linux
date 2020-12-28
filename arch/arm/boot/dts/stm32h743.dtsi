@@ -274,7 +274,7 @@
 
 		dmamux1: dma-router@40020800 {
 			compatible = "st,stm32h7-dmamux";
-			reg = <0x40020800 0x1c>;
+			reg = <0x40020800 0x40>;
 			#dma-cells = <3>;
 			dma-channels = <16>;
 			dma-requests = <128>;

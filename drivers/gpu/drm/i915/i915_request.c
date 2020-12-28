@@ -197,7 +197,7 @@ __notify_execute_cb(struct i915_request *rq, bool (*fn)(struct irq_work *wrk))
 
 	llist_for_each_entry_safe(cb, cn,
 				  llist_del_all(&rq->execute_cb),
-				  work.llnode)
+				  work.node.llist)
 		fn(&cb->work);
 }
 
@@ -460,7 +460,7 @@ __await_execution(struct i915_request *rq,
 	 * callback first, then checking the ACTIVE bit, we serialise with
 	 * the completed/retired request.
 	 */
-	if (llist_add(&cb->work.llnode, &signal->execute_cb)) {
+	if (llist_add(&cb->work.node.llist, &signal->execute_cb)) {
 		if (i915_request_is_active(signal) ||
 		    __request_in_flight(signal))
 			__notify_execute_cb_imm(signal);

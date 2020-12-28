@@ -10,6 +10,7 @@
 
 #include <linux/init.h>
 #include <linux/atomic.h>
+#include <linux/ethtool.h>
 #include <linux/module.h>
 #include <linux/highmem.h>
 #include <linux/device.h>
@@ -2049,11 +2050,11 @@ static void netvsc_link_change(struct work_struct *w)
 		container_of(w, struct net_device_context, dwork.work);
 	struct hv_device *device_obj = ndev_ctx->device_ctx;
 	struct net_device *net = hv_get_drvdata(device_obj);
+	unsigned long flags, next_reconfig, delay;
+	struct netvsc_reconfig *event = NULL;
 	struct netvsc_device *net_device;
 	struct rndis_device *rdev;
-	struct netvsc_reconfig *event = NULL;
-	bool notify = false, reschedule = false;
-	unsigned long flags, next_reconfig, delay;
+	bool reschedule = false;
 
 	/* if changes are happening, comeback later */
 	if (!rtnl_trylock()) {
@@ -2102,7 +2103,7 @@ static void netvsc_link_change(struct work_struct *w)
 			netif_carrier_on(net);
 			netvsc_tx_enable(net_device, net);
 		} else {
-			notify = true;
+			__netdev_notify_peers(net);
 		}
 		kfree(event);
 		break;
@@ -2130,9 +2131,6 @@ static void netvsc_link_change(struct work_struct *w)
 	}
 
 	rtnl_unlock();
-
-	if (notify)
-		netdev_notify_peers(net);
 
 	/* link_watch only sends one notification with current state per
 	 * second, handle next reconfig event in 2 seconds.

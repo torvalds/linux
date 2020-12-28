@@ -621,7 +621,8 @@ struct ieee80211_fils_discovery {
  *	nontransmitted BSSIDs
  * @profile_periodicity: the least number of beacon frames need to be received
  *	in order to discover all the nontransmitted BSSIDs in the set.
- * @he_oper: HE operation information of the AP we are connected to
+ * @he_oper: HE operation information of the BSS (AP/Mesh) or of the AP we are
+ *	connected to (STA)
  * @he_obss_pd: OBSS Packet Detection parameters.
  * @he_bss_color: BSS coloring settings, if BSS supports HE
  * @fils_discovery: FILS discovery configuration
@@ -634,9 +635,7 @@ struct ieee80211_fils_discovery {
 struct ieee80211_bss_conf {
 	const u8 *bssid;
 	u8 htc_trig_based_pkt_ext;
-	bool multi_sta_back_32bit;
 	bool uora_exists;
-	bool ack_enabled;
 	u8 uora_ocw_range;
 	u16 frame_time_rts_th;
 	bool he_support;
@@ -856,6 +855,9 @@ enum mac80211_tx_info_flags {
  *	it can be sent out.
  * @IEEE80211_TX_CTRL_NO_SEQNO: Do not overwrite the sequence number that
  *	has already been assigned to this frame.
+ * @IEEE80211_TX_CTRL_DONT_REORDER: This frame should not be reordered
+ *	relative to other frames that have this flag set, independent
+ *	of their QoS TID or other priority field values.
  *
  * These flags are used in tx_info->control.flags.
  */
@@ -868,6 +870,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTRL_SKIP_MPATH_LOOKUP	= BIT(5),
 	IEEE80211_TX_INTCFL_NEED_TXPROCESSING	= BIT(6),
 	IEEE80211_TX_CTRL_NO_SEQNO		= BIT(7),
+	IEEE80211_TX_CTRL_DONT_REORDER		= BIT(8),
 };
 
 /*
@@ -3311,7 +3314,7 @@ enum ieee80211_roc_type {
 };
 
 /**
- * enum ieee80211_reconfig_complete_type - reconfig type
+ * enum ieee80211_reconfig_type - reconfig type
  *
  * This enum is used by the reconfig_complete() callback to indicate what
  * reconfiguration type was completed.
@@ -4192,6 +4195,8 @@ struct ieee80211_ops {
 				   struct ieee80211_vif *vif);
 	void (*sta_set_4addr)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			      struct ieee80211_sta *sta, bool enabled);
+	int (*set_sar_specs)(struct ieee80211_hw *hw,
+			     const struct cfg80211_sar_specs *sar);
 };
 
 /**
@@ -5319,6 +5324,26 @@ void ieee80211_gtk_rekey_notify(struct ieee80211_vif *vif, const u8 *bssid,
 				const u8 *replay_ctr, gfp_t gfp);
 
 /**
+ * ieee80211_key_mic_failure - increment MIC failure counter for the key
+ *
+ * Note: this is really only safe if no other RX function is called
+ * at the same time.
+ *
+ * @keyconf: the key in question
+ */
+void ieee80211_key_mic_failure(struct ieee80211_key_conf *keyconf);
+
+/**
+ * ieee80211_key_replay - increment replay counter for the key
+ *
+ * Note: this is really only safe if no other RX function is called
+ * at the same time.
+ *
+ * @keyconf: the key in question
+ */
+void ieee80211_key_replay(struct ieee80211_key_conf *keyconf);
+
+/**
  * ieee80211_wake_queue - wake specific queue
  * @hw: pointer as obtained from ieee80211_alloc_hw().
  * @queue: queue number (counted from zero).
@@ -5877,6 +5902,17 @@ void ieee80211_beacon_loss(struct ieee80211_vif *vif);
 void ieee80211_connection_loss(struct ieee80211_vif *vif);
 
 /**
+ * ieee80211_disconnect - request disconnection
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @reconnect: immediate reconnect is desired
+ *
+ * Request disconnection from the current network and, if enabled, send a
+ * hint to the higher layers that immediate reconnect is desired.
+ */
+void ieee80211_disconnect(struct ieee80211_vif *vif, bool reconnect);
+
+/**
  * ieee80211_resume_disconnect - disconnect from AP after resume
  *
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
@@ -6334,7 +6370,8 @@ bool ieee80211_tx_prepare_skb(struct ieee80211_hw *hw,
 			      int band, struct ieee80211_sta **sta);
 
 /**
- * Sanity-check and parse the radiotap header of injected frames
+ * ieee80211_parse_tx_radiotap - Sanity-check and parse the radiotap header
+ *				 of injected frames
  * @skb: packet injected by userspace
  * @dev: the &struct device of this 802.11 device
  */
@@ -6389,7 +6426,7 @@ int ieee80211_parse_p2p_noa(const struct ieee80211_p2p_noa_attr *attr,
 void ieee80211_update_p2p_noa(struct ieee80211_noa_data *data, u32 tsf);
 
 /**
- * ieee80211_tdls_oper - request userspace to perform a TDLS operation
+ * ieee80211_tdls_oper_request - request userspace to perform a TDLS operation
  * @vif: virtual interface
  * @peer: the peer's destination address
  * @oper: the requested TDLS operation

@@ -206,6 +206,17 @@ static void ocelot_port_adjust_link(struct net_device *dev)
 	ocelot_adjust_link(ocelot, port, dev->phydev);
 }
 
+static int ocelot_vlan_vid_prepare(struct net_device *dev, u16 vid, bool pvid,
+				   bool untagged)
+{
+	struct ocelot_port_private *priv = netdev_priv(dev);
+	struct ocelot_port *ocelot_port = &priv->port;
+	struct ocelot *ocelot = ocelot_port->ocelot;
+	int port = priv->chip_port;
+
+	return ocelot_vlan_prepare(ocelot, port, vid, pvid, untagged);
+}
+
 static int ocelot_vlan_vid_add(struct net_device *dev, u16 vid, bool pvid,
 			       bool untagged)
 {
@@ -403,13 +414,81 @@ static int ocelot_port_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
+enum ocelot_action_type {
+	OCELOT_MACT_LEARN,
+	OCELOT_MACT_FORGET,
+};
+
+struct ocelot_mact_work_ctx {
+	struct work_struct work;
+	struct ocelot *ocelot;
+	enum ocelot_action_type type;
+	union {
+		/* OCELOT_MACT_LEARN */
+		struct {
+			unsigned char addr[ETH_ALEN];
+			u16 vid;
+			enum macaccess_entry_type entry_type;
+			int pgid;
+		} learn;
+		/* OCELOT_MACT_FORGET */
+		struct {
+			unsigned char addr[ETH_ALEN];
+			u16 vid;
+		} forget;
+	};
+};
+
+#define ocelot_work_to_ctx(x) \
+	container_of((x), struct ocelot_mact_work_ctx, work)
+
+static void ocelot_mact_work(struct work_struct *work)
+{
+	struct ocelot_mact_work_ctx *w = ocelot_work_to_ctx(work);
+	struct ocelot *ocelot = w->ocelot;
+
+	switch (w->type) {
+	case OCELOT_MACT_LEARN:
+		ocelot_mact_learn(ocelot, w->learn.pgid, w->learn.addr,
+				  w->learn.vid, w->learn.entry_type);
+		break;
+	case OCELOT_MACT_FORGET:
+		ocelot_mact_forget(ocelot, w->forget.addr, w->forget.vid);
+		break;
+	default:
+		break;
+	};
+
+	kfree(w);
+}
+
+static int ocelot_enqueue_mact_action(struct ocelot *ocelot,
+				      const struct ocelot_mact_work_ctx *ctx)
+{
+	struct ocelot_mact_work_ctx *w = kmemdup(ctx, sizeof(*w), GFP_ATOMIC);
+
+	if (!w)
+		return -ENOMEM;
+
+	w->ocelot = ocelot;
+	INIT_WORK(&w->work, ocelot_mact_work);
+	queue_work(ocelot->owq, &w->work);
+
+	return 0;
+}
+
 static int ocelot_mc_unsync(struct net_device *dev, const unsigned char *addr)
 {
 	struct ocelot_port_private *priv = netdev_priv(dev);
 	struct ocelot_port *ocelot_port = &priv->port;
 	struct ocelot *ocelot = ocelot_port->ocelot;
+	struct ocelot_mact_work_ctx w;
 
-	return ocelot_mact_forget(ocelot, addr, ocelot_port->pvid);
+	ether_addr_copy(w.forget.addr, addr);
+	w.forget.vid = ocelot_port->pvid_vlan.vid;
+	w.type = OCELOT_MACT_FORGET;
+
+	return ocelot_enqueue_mact_action(ocelot, &w);
 }
 
 static int ocelot_mc_sync(struct net_device *dev, const unsigned char *addr)
@@ -417,9 +496,15 @@ static int ocelot_mc_sync(struct net_device *dev, const unsigned char *addr)
 	struct ocelot_port_private *priv = netdev_priv(dev);
 	struct ocelot_port *ocelot_port = &priv->port;
 	struct ocelot *ocelot = ocelot_port->ocelot;
+	struct ocelot_mact_work_ctx w;
 
-	return ocelot_mact_learn(ocelot, PGID_CPU, addr, ocelot_port->pvid,
-				 ENTRYTYPE_LOCKED);
+	ether_addr_copy(w.learn.addr, addr);
+	w.learn.vid = ocelot_port->pvid_vlan.vid;
+	w.learn.pgid = PGID_CPU;
+	w.learn.entry_type = ENTRYTYPE_LOCKED;
+	w.type = OCELOT_MACT_LEARN;
+
+	return ocelot_enqueue_mact_action(ocelot, &w);
 }
 
 static void ocelot_set_rx_mode(struct net_device *dev)
@@ -462,10 +547,10 @@ static int ocelot_port_set_mac_address(struct net_device *dev, void *p)
 	const struct sockaddr *addr = p;
 
 	/* Learn the new net device MAC address in the mac table. */
-	ocelot_mact_learn(ocelot, PGID_CPU, addr->sa_data, ocelot_port->pvid,
-			  ENTRYTYPE_LOCKED);
+	ocelot_mact_learn(ocelot, PGID_CPU, addr->sa_data,
+			  ocelot_port->pvid_vlan.vid, ENTRYTYPE_LOCKED);
 	/* Then forget the previous one. */
-	ocelot_mact_forget(ocelot, dev->dev_addr, ocelot_port->pvid);
+	ocelot_mact_forget(ocelot, dev->dev_addr, ocelot_port->pvid_vlan.vid);
 
 	ether_addr_copy(dev->dev_addr, addr->sa_data);
 	return 0;
@@ -812,9 +897,14 @@ static int ocelot_port_obj_add_vlan(struct net_device *dev,
 	u16 vid;
 
 	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		ret = ocelot_vlan_vid_add(dev, vid,
-					  vlan->flags & BRIDGE_VLAN_INFO_PVID,
-					  vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED);
+		bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
+		bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
+
+		if (switchdev_trans_ph_prepare(trans))
+			ret = ocelot_vlan_vid_prepare(dev, vid, pvid,
+						      untagged);
+		else
+			ret = ocelot_vlan_vid_add(dev, vid, pvid, untagged);
 		if (ret)
 			return ret;
 	}
@@ -1074,8 +1164,8 @@ int ocelot_probe_port(struct ocelot *ocelot, int port, struct regmap *target,
 
 	memcpy(dev->dev_addr, ocelot->base_mac, ETH_ALEN);
 	dev->dev_addr[ETH_ALEN - 1] += port;
-	ocelot_mact_learn(ocelot, PGID_CPU, dev->dev_addr, ocelot_port->pvid,
-			  ENTRYTYPE_LOCKED);
+	ocelot_mact_learn(ocelot, PGID_CPU, dev->dev_addr,
+			  ocelot_port->pvid_vlan.vid, ENTRYTYPE_LOCKED);
 
 	ocelot_init_port(ocelot, port);
 

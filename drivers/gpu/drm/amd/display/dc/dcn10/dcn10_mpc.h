@@ -200,4 +200,5 @@ void mpc1_read_mpcc_state(
 
 void mpc1_cursor_lock(struct mpc *mpc, int opp_id, bool lock);
 
+unsigned int mpc1_get_mpc_out_mux(struct mpc *mpc, int opp_id);
 #endif

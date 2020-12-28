@@ -92,18 +92,8 @@ static int enetc_setup_taprio(struct net_device *ndev,
 	gcl_config->atc = 0xff;
 	gcl_config->acl_len = cpu_to_le16(gcl_len);
 
-	if (!admin_conf->base_time) {
-		gcl_data->btl =
-			cpu_to_le32(enetc_rd(&priv->si->hw, ENETC_SICTR0));
-		gcl_data->bth =
-			cpu_to_le32(enetc_rd(&priv->si->hw, ENETC_SICTR1));
-	} else {
-		gcl_data->btl =
-			cpu_to_le32(lower_32_bits(admin_conf->base_time));
-		gcl_data->bth =
-			cpu_to_le32(upper_32_bits(admin_conf->base_time));
-	}
-
+	gcl_data->btl = cpu_to_le32(lower_32_bits(admin_conf->base_time));
+	gcl_data->bth = cpu_to_le32(upper_32_bits(admin_conf->base_time));
 	gcl_data->ct = cpu_to_le32(admin_conf->cycle_time);
 	gcl_data->cte = cpu_to_le32(admin_conf->cycle_time_extension);
 
@@ -128,8 +118,8 @@ static int enetc_setup_taprio(struct net_device *ndev,
 		return -ENOMEM;
 	}
 
-	cbd.addr[0] = lower_32_bits(dma);
-	cbd.addr[1] = upper_32_bits(dma);
+	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma));
+	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma));
 	cbd.cls = BDCR_CMD_PORT_GCL;
 	cbd.status_flags = 0;
 
@@ -506,16 +496,15 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 		return -ENOMEM;
 	}
 
-	cbd.addr[0] = lower_32_bits(dma);
-	cbd.addr[1] = upper_32_bits(dma);
+	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma));
+	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma));
 	eth_broadcast_addr(si_data->dmac);
-	si_data->vid_vidm_tg =
-		cpu_to_le16(ENETC_CBDR_SID_VID_MASK
-			    + ((0x3 << 14) | ENETC_CBDR_SID_VIDM));
+	si_data->vid_vidm_tg = (ENETC_CBDR_SID_VID_MASK
+			       + ((0x3 << 14) | ENETC_CBDR_SID_VIDM));
 
 	si_conf = &cbd.sid_set;
 	/* Only one port supported for one entry, set itself */
-	si_conf->iports = 1 << enetc_get_port(priv);
+	si_conf->iports = cpu_to_le32(1 << enetc_get_port(priv));
 	si_conf->id_type = 1;
 	si_conf->oui[2] = 0x0;
 	si_conf->oui[1] = 0x80;
@@ -540,7 +529,7 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 
 	si_conf->en = 0x80;
 	si_conf->stream_handle = cpu_to_le32(sid->handle);
-	si_conf->iports = 1 << enetc_get_port(priv);
+	si_conf->iports = cpu_to_le32(1 << enetc_get_port(priv));
 	si_conf->id_type = sid->filtertype;
 	si_conf->oui[2] = 0x0;
 	si_conf->oui[1] = 0x80;
@@ -550,8 +539,8 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 
 	cbd.length = cpu_to_le16(data_size);
 
-	cbd.addr[0] = lower_32_bits(dma);
-	cbd.addr[1] = upper_32_bits(dma);
+	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma));
+	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma));
 
 	/* VIDM default to be 1.
 	 * VID Match. If set (b1) then the VID must match, otherwise
@@ -560,16 +549,14 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 	 */
 	if (si_conf->id_type == STREAMID_TYPE_NULL) {
 		ether_addr_copy(si_data->dmac, sid->dst_mac);
-		si_data->vid_vidm_tg =
-		cpu_to_le16((sid->vid & ENETC_CBDR_SID_VID_MASK) +
-			    ((((u16)(sid->tagged) & 0x3) << 14)
-			     | ENETC_CBDR_SID_VIDM));
+		si_data->vid_vidm_tg = (sid->vid & ENETC_CBDR_SID_VID_MASK) +
+				       ((((u16)(sid->tagged) & 0x3) << 14)
+				       | ENETC_CBDR_SID_VIDM);
 	} else if (si_conf->id_type == STREAMID_TYPE_SMAC) {
 		ether_addr_copy(si_data->smac, sid->src_mac);
-		si_data->vid_vidm_tg =
-		cpu_to_le16((sid->vid & ENETC_CBDR_SID_VID_MASK) +
-			    ((((u16)(sid->tagged) & 0x3) << 14)
-			     | ENETC_CBDR_SID_VIDM));
+		si_data->vid_vidm_tg = (sid->vid & ENETC_CBDR_SID_VID_MASK) +
+				       ((((u16)(sid->tagged) & 0x3) << 14)
+				       | ENETC_CBDR_SID_VIDM);
 	}
 
 	err = enetc_send_cmd(priv->si, &cbd);
@@ -604,7 +591,7 @@ static int enetc_streamfilter_hw_set(struct enetc_ndev_priv *priv,
 	}
 
 	sfi_config->sg_inst_table_index = cpu_to_le16(sfi->gate_id);
-	sfi_config->input_ports = 1 << enetc_get_port(priv);
+	sfi_config->input_ports = cpu_to_le32(1 << enetc_get_port(priv));
 
 	/* The priority value which may be matched against the
 	 * frame’s priority value to determine a match for this entry.
@@ -658,8 +645,8 @@ static int enetc_streamcounter_hw_get(struct enetc_ndev_priv *priv,
 		err = -ENOMEM;
 		goto exit;
 	}
-	cbd.addr[0] = lower_32_bits(dma);
-	cbd.addr[1] = upper_32_bits(dma);
+	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma));
+	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma));
 
 	cbd.length = cpu_to_le16(data_size);
 
@@ -667,28 +654,25 @@ static int enetc_streamcounter_hw_get(struct enetc_ndev_priv *priv,
 	if (err)
 		goto exit;
 
-	cnt->matching_frames_count =
-			((u64)le32_to_cpu(data_buf->matchh) << 32)
-			+ data_buf->matchl;
+	cnt->matching_frames_count = ((u64)data_buf->matchh << 32) +
+				     data_buf->matchl;
 
-	cnt->not_passing_sdu_count =
-			((u64)le32_to_cpu(data_buf->msdu_droph) << 32)
-			+ data_buf->msdu_dropl;
+	cnt->not_passing_sdu_count = ((u64)data_buf->msdu_droph << 32) +
+				     data_buf->msdu_dropl;
 
 	cnt->passing_sdu_count = cnt->matching_frames_count
 				- cnt->not_passing_sdu_count;
 
 	cnt->not_passing_frames_count =
-		((u64)le32_to_cpu(data_buf->stream_gate_droph) << 32)
-		+ le32_to_cpu(data_buf->stream_gate_dropl);
+				((u64)data_buf->stream_gate_droph << 32) +
+				data_buf->stream_gate_dropl;
 
-	cnt->passing_frames_count = cnt->matching_frames_count
-				- cnt->not_passing_sdu_count
-				- cnt->not_passing_frames_count;
+	cnt->passing_frames_count = cnt->matching_frames_count -
+				    cnt->not_passing_sdu_count -
+				    cnt->not_passing_frames_count;
 
-	cnt->red_frames_count =
-		((u64)le32_to_cpu(data_buf->flow_meter_droph) << 32)
-		+ le32_to_cpu(data_buf->flow_meter_dropl);
+	cnt->red_frames_count =	((u64)data_buf->flow_meter_droph << 32)	+
+				data_buf->flow_meter_dropl;
 
 exit:
 	kfree(data_buf);
@@ -795,15 +779,15 @@ static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
 		return -ENOMEM;
 	}
 
-	cbd.addr[0] = lower_32_bits(dma);
-	cbd.addr[1] = upper_32_bits(dma);
+	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma));
+	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma));
 
 	sgce = &sgcl_data->sgcl[0];
 
 	sgcl_config->agtst = 0x80;
 
-	sgcl_data->ct = cpu_to_le32(sgi->cycletime);
-	sgcl_data->cte = cpu_to_le32(sgi->cycletimext);
+	sgcl_data->ct = sgi->cycletime;
+	sgcl_data->cte = sgi->cycletimext;
 
 	if (sgi->init_ipv >= 0)
 		sgcl_config->aipv = (sgi->init_ipv & 0x7) | 0x8;
@@ -825,7 +809,7 @@ static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
 			to->msdu[2] = (from->maxoctets >> 16) & 0xFF;
 		}
 
-		to->interval = cpu_to_le32(from->interval);
+		to->interval = from->interval;
 	}
 
 	/* If basetime is less than now, calculate start time */
@@ -837,15 +821,15 @@ static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
 		err = get_start_ns(now, sgi->cycletime, &start);
 		if (err)
 			goto exit;
-		sgcl_data->btl = cpu_to_le32(lower_32_bits(start));
-		sgcl_data->bth = cpu_to_le32(upper_32_bits(start));
+		sgcl_data->btl = lower_32_bits(start);
+		sgcl_data->bth = upper_32_bits(start);
 	} else {
 		u32 hi, lo;
 
 		hi = upper_32_bits(sgi->basetime);
 		lo = lower_32_bits(sgi->basetime);
-		sgcl_data->bth = cpu_to_le32(hi);
-		sgcl_data->btl = cpu_to_le32(lo);
+		sgcl_data->bth = hi;
+		sgcl_data->btl = lo;
 	}
 
 	err = enetc_send_cmd(priv->si, &cbd);

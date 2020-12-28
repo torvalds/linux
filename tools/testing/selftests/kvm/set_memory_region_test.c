@@ -121,8 +121,6 @@ static struct kvm_vm *spawn_vm(pthread_t *vcpu_thread, void *guest_code)
 
 	vm = vm_create_default(VCPU_ID, 0, guest_code);
 
-	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
-
 	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS_THP,
 				    MEM_REGION_GPA, MEM_REGION_SLOT,
 				    MEM_REGION_SIZE / getpagesize(), 0);
@@ -156,14 +154,23 @@ static void guest_code_move_memory_region(void)
 	GUEST_SYNC(0);
 
 	/*
-	 * Spin until the memory region is moved to a misaligned address.  This
-	 * may or may not trigger MMIO, as the window where the memslot is
-	 * invalid is quite small.
+	 * Spin until the memory region starts getting moved to a
+	 * misaligned address.
+	 * Every region move may or may not trigger MMIO, as the
+	 * window where the memslot is invalid is usually quite small.
 	 */
 	val = guest_spin_on_val(0);
 	GUEST_ASSERT_1(val == 1 || val == MMIO_VAL, val);
 
-	/* Spin until the memory region is realigned. */
+	/* Spin until the misaligning memory region move completes. */
+	val = guest_spin_on_val(MMIO_VAL);
+	GUEST_ASSERT_1(val == 1 || val == 0, val);
+
+	/* Spin until the memory region starts to get re-aligned. */
+	val = guest_spin_on_val(0);
+	GUEST_ASSERT_1(val == 1 || val == MMIO_VAL, val);
+
+	/* Spin until the re-aligning memory region move completes. */
 	val = guest_spin_on_val(MMIO_VAL);
 	GUEST_ASSERT_1(val == 1, val);
 

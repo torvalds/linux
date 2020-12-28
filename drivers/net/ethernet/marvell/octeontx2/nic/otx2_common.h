@@ -11,13 +11,16 @@
 #ifndef OTX2_COMMON_H
 #define OTX2_COMMON_H
 
+#include <linux/ethtool.h>
 #include <linux/pci.h>
 #include <linux/iommu.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/timecounter.h>
+#include <linux/soc/marvell/octeontx2/asm.h>
 
 #include <mbox.h>
+#include <npc.h>
 #include "otx2_reg.h"
 #include "otx2_txrx.h"
 #include <rvu_trace.h>
@@ -197,12 +200,17 @@ struct otx2_hw {
 	struct otx2_drv_stats	drv_stats;
 	u64			cgx_rx_stats[CGX_RX_STATS_COUNT];
 	u64			cgx_tx_stats[CGX_TX_STATS_COUNT];
+	u8			cgx_links;  /* No. of CGX links present in HW */
+	u8			lbk_links;  /* No. of LBK links present in HW */
 };
 
 struct otx2_vf_config {
 	struct otx2_nic *pf;
 	struct delayed_work link_event_work;
 	bool intf_down; /* interface was either configured or not */
+	u8 mac[ETH_ALEN];
+	u16 vlan;
+	int tx_vtag_idx;
 };
 
 struct flr_work {
@@ -226,6 +234,32 @@ struct otx2_ptp {
 
 #define OTX2_HW_TIMESTAMP_LEN	8
 
+struct otx2_mac_table {
+	u8 addr[ETH_ALEN];
+	u16 mcam_entry;
+	bool inuse;
+};
+
+struct otx2_flow_config {
+	u16			entry[NPC_MAX_NONCONTIG_ENTRIES];
+	u32			nr_flows;
+#define OTX2_MAX_NTUPLE_FLOWS	32
+#define OTX2_MAX_UNICAST_FLOWS	8
+#define OTX2_MAX_VLAN_FLOWS	1
+#define OTX2_MCAM_COUNT		(OTX2_MAX_NTUPLE_FLOWS + \
+				 OTX2_MAX_UNICAST_FLOWS + \
+				 OTX2_MAX_VLAN_FLOWS)
+	u32			ntuple_offset;
+	u32			unicast_offset;
+	u32			rx_vlan_offset;
+	u32			vf_vlan_offset;
+#define OTX2_PER_VF_VLAN_FLOWS	2 /* rx+tx per VF */
+#define OTX2_VF_VLAN_RX_INDEX	0
+#define OTX2_VF_VLAN_TX_INDEX	1
+	u32                     ntuple_max_flows;
+	struct list_head	flow_list;
+};
+
 struct otx2_nic {
 	void __iomem		*reg_base;
 	struct net_device	*netdev;
@@ -236,6 +270,12 @@ struct otx2_nic {
 #define OTX2_FLAG_RX_TSTAMP_ENABLED		BIT_ULL(0)
 #define OTX2_FLAG_TX_TSTAMP_ENABLED		BIT_ULL(1)
 #define OTX2_FLAG_INTF_DOWN			BIT_ULL(2)
+#define OTX2_FLAG_MCAM_ENTRIES_ALLOC		BIT_ULL(3)
+#define OTX2_FLAG_NTUPLE_SUPPORT		BIT_ULL(4)
+#define OTX2_FLAG_UCAST_FLTR_SUPPORT		BIT_ULL(5)
+#define OTX2_FLAG_RX_VLAN_SUPPORT		BIT_ULL(6)
+#define OTX2_FLAG_VF_VLAN_SUPPORT		BIT_ULL(7)
+#define OTX2_FLAG_PF_SHUTDOWN			BIT_ULL(8)
 #define OTX2_FLAG_RX_PAUSE_ENABLED		BIT_ULL(9)
 #define OTX2_FLAG_TX_PAUSE_ENABLED		BIT_ULL(10)
 	u64			flags;
@@ -264,6 +304,7 @@ struct otx2_nic {
 	struct refill_work	*refill_wrk;
 	struct workqueue_struct	*otx2_wq;
 	struct work_struct	rx_mode_work;
+	struct otx2_mac_table	*mac_table;
 
 	/* Ethtool stuff */
 	u32			msg_enable;
@@ -273,6 +314,8 @@ struct otx2_nic {
 
 	struct otx2_ptp		*ptp;
 	struct hwtstamp_config	tstamp;
+
+	struct otx2_flow_config	*flow_cfg;
 };
 
 static inline bool is_otx2_lbkvf(struct pci_dev *pdev)
@@ -421,21 +464,9 @@ static inline u64 otx2_atomic64_add(u64 incr, u64 *ptr)
 	return result;
 }
 
-static inline u64 otx2_lmt_flush(uint64_t addr)
-{
-	u64 result = 0;
-
-	__asm__ volatile(".cpu  generic+lse\n"
-			 "ldeor xzr,%x[rf],[%[rs]]"
-			 : [rf]"=r"(result)
-			 : [rs]"r"(addr));
-	return result;
-}
-
 #else
 #define otx2_write128(lo, hi, addr)
 #define otx2_atomic64_add(incr, ptr)		({ *ptr += incr; })
-#define otx2_lmt_flush(addr)			({ 0; })
 #endif
 
 /* Alloc pointer from pool/aura */
@@ -642,4 +673,24 @@ int otx2_open(struct net_device *netdev);
 int otx2_stop(struct net_device *netdev);
 int otx2_set_real_num_queues(struct net_device *netdev,
 			     int tx_queues, int rx_queues);
+/* MCAM filter related APIs */
+int otx2_mcam_flow_init(struct otx2_nic *pf);
+int otx2_alloc_mcam_entries(struct otx2_nic *pfvf);
+void otx2_mcam_flow_del(struct otx2_nic *pf);
+int otx2_destroy_ntuple_flows(struct otx2_nic *pf);
+int otx2_destroy_mcam_flows(struct otx2_nic *pfvf);
+int otx2_get_flow(struct otx2_nic *pfvf,
+		  struct ethtool_rxnfc *nfc, u32 location);
+int otx2_get_all_flows(struct otx2_nic *pfvf,
+		       struct ethtool_rxnfc *nfc, u32 *rule_locs);
+int otx2_add_flow(struct otx2_nic *pfvf,
+		  struct ethtool_rx_flow_spec *fsp);
+int otx2_remove_flow(struct otx2_nic *pfvf, u32 location);
+int otx2_prepare_flow_request(struct ethtool_rx_flow_spec *fsp,
+			      struct npc_install_flow_req *req);
+int otx2_del_macfilter(struct net_device *netdev, const u8 *mac);
+int otx2_add_macfilter(struct net_device *netdev, const u8 *mac);
+int otx2_enable_rxvlan(struct otx2_nic *pf, bool enable);
+int otx2_install_rxvlan_offload_flow(struct otx2_nic *pfvf);
+
 #endif /* OTX2_COMMON_H */

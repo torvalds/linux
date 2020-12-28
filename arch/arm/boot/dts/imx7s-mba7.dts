@@ -14,5 +14,5 @@
 
 / {
 	model = "TQ Systems TQMa7S board on MBa7 carrier board";
-	compatible = "tq,imx7s-mba7", "fsl,imx7s";
+	compatible = "tq,imx7s-mba7", "tq,imx7s-tqma7", "fsl,imx7s";
 };

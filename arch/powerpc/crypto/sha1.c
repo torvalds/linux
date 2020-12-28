@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/types.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
 #include <asm/byteorder.h>
 
 void powerpc_sha_transform(u32 *state, const u8 *src);

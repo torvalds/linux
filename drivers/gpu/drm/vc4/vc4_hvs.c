@@ -414,8 +414,10 @@ void vc4_hvs_atomic_disable(struct drm_crtc *crtc,
 }
 
 void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
-			  struct drm_crtc_state *old_state)
+			  struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *old_state = drm_atomic_get_old_crtc_state(state,
+									 crtc);
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
@@ -560,7 +562,7 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm = dev_get_drvdata(master);
-	struct vc4_dev *vc4 = drm->dev_private;
+	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_hvs *hvs = NULL;
 	int ret;
 	u32 dispctrl;
@@ -679,7 +681,7 @@ static void vc4_hvs_unbind(struct device *dev, struct device *master,
 			   void *data)
 {
 	struct drm_device *drm = dev_get_drvdata(master);
-	struct vc4_dev *vc4 = drm->dev_private;
+	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_hvs *hvs = vc4->hvs;
 
 	if (drm_mm_node_allocated(&vc4->hvs->mitchell_netravali_filter))

@@ -58,7 +58,6 @@ void notrace __cpu_suspend_exit(void)
 	 * features that might not have been set correctly.
 	 */
 	__uaccess_enable_hw_pan();
-	uao_thread_switch(current);
 
 	/*
 	 * Restore HW breakpoint registers to sane values

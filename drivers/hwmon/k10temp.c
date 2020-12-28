@@ -11,13 +11,6 @@
  *   convert raw register values is from https://github.com/ocerman/zenpower.
  *   The information is not confirmed from chip datasheets, but experiments
  *   suggest that it provides reasonable temperature values.
- * - Register addresses to read chip voltage and current are also from
- *   https://github.com/ocerman/zenpower, and not confirmed from chip
- *   datasheets. Current calibration is board specific and not typically
- *   shared by board vendors. For this reason, current values are
- *   normalized to report 1A/LSB for core current and and 0.25A/LSB for SoC
- *   current. Reported values can be adjusted using the sensors configuration
- *   file.
  */
 
 #include <linux/bitops.h>
@@ -109,10 +102,7 @@ struct k10temp_data {
 	int temp_offset;
 	u32 temp_adjust_mask;
 	u32 show_temp;
-	u32 svi_addr[2];
 	bool is_zen;
-	bool show_current;
-	int cfactor[2];
 };
 
 #define TCTL_BIT	0
@@ -136,16 +126,6 @@ static const struct tctl_offset tctl_offset_table[] = {
 	{ 0x17, "AMD Ryzen Threadripper 19", 27000 }, /* 19{00,20,50}X */
 	{ 0x17, "AMD Ryzen Threadripper 29", 27000 }, /* 29{20,50,70,90}[W]X */
 };
-
-static bool is_threadripper(void)
-{
-	return strstr(boot_cpu_data.x86_model_id, "Threadripper");
-}
-
-static bool is_epyc(void)
-{
-	return strstr(boot_cpu_data.x86_model_id, "EPYC");
-}
 
 static void read_htcreg_pci(struct pci_dev *pdev, u32 *regval)
 {
@@ -211,16 +191,6 @@ static const char *k10temp_temp_label[] = {
 	"Tccd8",
 };
 
-static const char *k10temp_in_label[] = {
-	"Vcore",
-	"Vsoc",
-};
-
-static const char *k10temp_curr_label[] = {
-	"Icore",
-	"Isoc",
-};
-
 static int k10temp_read_labels(struct device *dev,
 			       enum hwmon_sensor_types type,
 			       u32 attr, int channel, const char **str)
@@ -228,50 +198,6 @@ static int k10temp_read_labels(struct device *dev,
 	switch (type) {
 	case hwmon_temp:
 		*str = k10temp_temp_label[channel];
-		break;
-	case hwmon_in:
-		*str = k10temp_in_label[channel];
-		break;
-	case hwmon_curr:
-		*str = k10temp_curr_label[channel];
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-	return 0;
-}
-
-static int k10temp_read_curr(struct device *dev, u32 attr, int channel,
-			     long *val)
-{
-	struct k10temp_data *data = dev_get_drvdata(dev);
-	u32 regval;
-
-	switch (attr) {
-	case hwmon_curr_input:
-		amd_smn_read(amd_pci_dev_to_node_id(data->pdev),
-			     data->svi_addr[channel], &regval);
-		*val = DIV_ROUND_CLOSEST(data->cfactor[channel] *
-					 (regval & 0xff),
-					 1000);
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-	return 0;
-}
-
-static int k10temp_read_in(struct device *dev, u32 attr, int channel, long *val)
-{
-	struct k10temp_data *data = dev_get_drvdata(dev);
-	u32 regval;
-
-	switch (attr) {
-	case hwmon_in_input:
-		amd_smn_read(amd_pci_dev_to_node_id(data->pdev),
-			     data->svi_addr[channel], &regval);
-		regval = (regval >> 16) & 0xff;
-		*val = DIV_ROUND_CLOSEST(155000 - regval * 625, 100);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -331,10 +257,6 @@ static int k10temp_read(struct device *dev, enum hwmon_sensor_types type,
 	switch (type) {
 	case hwmon_temp:
 		return k10temp_read_temp(dev, attr, channel, val);
-	case hwmon_in:
-		return k10temp_read_in(dev, attr, channel, val);
-	case hwmon_curr:
-		return k10temp_read_curr(dev, attr, channel, val);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -382,11 +304,6 @@ static umode_t k10temp_is_visible(const void *_data,
 		default:
 			return 0;
 		}
-		break;
-	case hwmon_in:
-	case hwmon_curr:
-		if (!data->show_current)
-			return 0;
 		break;
 	default:
 		return 0;
@@ -517,20 +434,10 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		case 0x8:	/* Zen+ */
 		case 0x11:	/* Zen APU */
 		case 0x18:	/* Zen+ APU */
-			data->show_current = !is_threadripper() && !is_epyc();
-			data->svi_addr[0] = F17H_M01H_SVI_TEL_PLANE0;
-			data->svi_addr[1] = F17H_M01H_SVI_TEL_PLANE1;
-			data->cfactor[0] = F17H_M01H_CFACTOR_ICORE;
-			data->cfactor[1] = F17H_M01H_CFACTOR_ISOC;
 			k10temp_get_ccd_support(pdev, data, 4);
 			break;
 		case 0x31:	/* Zen2 Threadripper */
 		case 0x71:	/* Zen2 */
-			data->show_current = !is_threadripper() && !is_epyc();
-			data->cfactor[0] = F17H_M31H_CFACTOR_ICORE;
-			data->cfactor[1] = F17H_M31H_CFACTOR_ISOC;
-			data->svi_addr[0] = F17H_M31H_SVI_TEL_PLANE0;
-			data->svi_addr[1] = F17H_M31H_SVI_TEL_PLANE1;
 			k10temp_get_ccd_support(pdev, data, 8);
 			break;
 		}
@@ -542,11 +449,6 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 		switch (boot_cpu_data.x86_model) {
 		case 0x0 ... 0x1:	/* Zen3 */
-			data->show_current = true;
-			data->svi_addr[0] = F19H_M01_SVI_TEL_PLANE0;
-			data->svi_addr[1] = F19H_M01_SVI_TEL_PLANE1;
-			data->cfactor[0] = F19H_M01H_CFACTOR_ICORE;
-			data->cfactor[1] = F19H_M01H_CFACTOR_ISOC;
 			k10temp_get_ccd_support(pdev, data, 8);
 			break;
 		}

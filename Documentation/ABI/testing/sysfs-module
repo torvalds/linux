@@ -25,7 +25,7 @@ Description:	Maximum time allowed for periodic transfers per microframe (μs)
 		  However there are cases, when 80% max isochronous bandwidth is
 		  too limiting. For example two video streams could require 110
 		  microseconds of isochronous bandwidth per microframe to work
-		  together. 
+		  together.
 
 		Through this setting it is possible to raise the limit so that
 		the host controller would allow allocating more than 100

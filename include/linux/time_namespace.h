@@ -4,7 +4,6 @@
 
 
 #include <linux/sched.h>
-#include <linux/kref.h>
 #include <linux/nsproxy.h>
 #include <linux/ns_common.h>
 #include <linux/err.h>
@@ -18,7 +17,6 @@ struct timens_offsets {
 };
 
 struct time_namespace {
-	struct kref		kref;
 	struct user_namespace	*user_ns;
 	struct ucounts		*ucounts;
 	struct ns_common	ns;
@@ -37,20 +35,21 @@ extern void timens_commit(struct task_struct *tsk, struct time_namespace *ns);
 
 static inline struct time_namespace *get_time_ns(struct time_namespace *ns)
 {
-	kref_get(&ns->kref);
+	refcount_inc(&ns->ns.count);
 	return ns;
 }
 
 struct time_namespace *copy_time_ns(unsigned long flags,
 				    struct user_namespace *user_ns,
 				    struct time_namespace *old_ns);
-void free_time_ns(struct kref *kref);
-int timens_on_fork(struct nsproxy *nsproxy, struct task_struct *tsk);
+void free_time_ns(struct time_namespace *ns);
+void timens_on_fork(struct nsproxy *nsproxy, struct task_struct *tsk);
 struct vdso_data *arch_get_vdso_data(void *vvar_page);
 
 static inline void put_time_ns(struct time_namespace *ns)
 {
-	kref_put(&ns->kref, free_time_ns);
+	if (refcount_dec_and_test(&ns->ns.count))
+		free_time_ns(ns);
 }
 
 void proc_timens_show_offsets(struct task_struct *p, struct seq_file *m);
@@ -75,6 +74,20 @@ static inline void timens_add_boottime(struct timespec64 *ts)
 	struct timens_offsets *ns_offsets = &current->nsproxy->time_ns->offsets;
 
 	*ts = timespec64_add(*ts, ns_offsets->boottime);
+}
+
+static inline u64 timens_add_boottime_ns(u64 nsec)
+{
+	struct timens_offsets *ns_offsets = &current->nsproxy->time_ns->offsets;
+
+	return nsec + timespec64_to_ns(&ns_offsets->boottime);
+}
+
+static inline void timens_sub_boottime(struct timespec64 *ts)
+{
+	struct timens_offsets *ns_offsets = &current->nsproxy->time_ns->offsets;
+
+	*ts = timespec64_sub(*ts, ns_offsets->boottime);
 }
 
 ktime_t do_timens_ktime_to_host(clockid_t clockid, ktime_t tim,
@@ -122,14 +135,22 @@ struct time_namespace *copy_time_ns(unsigned long flags,
 	return old_ns;
 }
 
-static inline int timens_on_fork(struct nsproxy *nsproxy,
+static inline void timens_on_fork(struct nsproxy *nsproxy,
 				 struct task_struct *tsk)
 {
-	return 0;
+	return;
 }
 
 static inline void timens_add_monotonic(struct timespec64 *ts) { }
 static inline void timens_add_boottime(struct timespec64 *ts) { }
+
+static inline u64 timens_add_boottime_ns(u64 nsec)
+{
+	return nsec;
+}
+
+static inline void timens_sub_boottime(struct timespec64 *ts) { }
+
 static inline ktime_t timens_ktime_to_host(clockid_t clockid, ktime_t tim)
 {
 	return tim;

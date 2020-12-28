@@ -298,11 +298,11 @@ static int rx8581_probe(struct i2c_client *client,
 	rx8581->rtc->start_secs = 0;
 	rx8581->rtc->set_start_time = true;
 
-	ret = rtc_register_device(rx8581->rtc);
+	ret = devm_rtc_register_device(rx8581->rtc);
 
 	for (i = 0; i < config->num_nvram; i++) {
 		nvmem_cfg[i].priv = rx8581;
-		rtc_nvmem_register(rx8581->rtc, &nvmem_cfg[i]);
+		devm_rtc_nvmem_register(rx8581->rtc, &nvmem_cfg[i]);
 	}
 
 	return ret;

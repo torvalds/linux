@@ -71,8 +71,15 @@
 /* Custom pinconf parameters */
 #define ATMEL_PIN_CONFIG_DRIVE_STRENGTH	(PIN_CONFIG_END + 1)
 
+/**
+ * struct atmel_pioctrl_data - Atmel PIO controller (pinmux + gpio) data struct
+ * @nbanks: number of PIO banks
+ * @last_bank_count: number of lines in the last bank (can be less than
+ *	the rest of the banks).
+ */
 struct atmel_pioctrl_data {
 	unsigned nbanks;
+	unsigned last_bank_count;
 };
 
 struct atmel_group {
@@ -980,11 +987,13 @@ static const struct dev_pm_ops atmel_pctrl_pm_ops = {
  * We can have up to 16 banks.
  */
 static const struct atmel_pioctrl_data atmel_sama5d2_pioctrl_data = {
-	.nbanks		= 4,
+	.nbanks			= 4,
+	.last_bank_count	= ATMEL_PIO_NPINS_PER_BANK,
 };
 
 static const struct atmel_pioctrl_data microchip_sama7g5_pioctrl_data = {
-	.nbanks		= 5,
+	.nbanks			= 5,
+	.last_bank_count	= 8, /* sama7g5 has only PE0 to PE7 */
 };
 
 static const struct of_device_id atmel_pctrl_of_match[] = {
@@ -1025,6 +1034,11 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	atmel_pioctrl_data = match->data;
 	atmel_pioctrl->nbanks = atmel_pioctrl_data->nbanks;
 	atmel_pioctrl->npins = atmel_pioctrl->nbanks * ATMEL_PIO_NPINS_PER_BANK;
+	/* if last bank has limited number of pins, adjust accordingly */
+	if (atmel_pioctrl_data->last_bank_count != ATMEL_PIO_NPINS_PER_BANK) {
+		atmel_pioctrl->npins -= ATMEL_PIO_NPINS_PER_BANK;
+		atmel_pioctrl->npins += atmel_pioctrl_data->last_bank_count;
+	}
 
 	atmel_pioctrl->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(atmel_pioctrl->reg_base))
@@ -1127,8 +1141,8 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 		atmel_pioctrl->irqs[i] = res->start;
-		irq_set_chained_handler(res->start, atmel_gpio_irq_handler);
-		irq_set_handler_data(res->start, atmel_pioctrl);
+		irq_set_chained_handler_and_data(res->start,
+			atmel_gpio_irq_handler, atmel_pioctrl);
 		dev_dbg(dev, "bank %i: irq=%pr\n", i, res);
 	}
 

@@ -1816,7 +1816,8 @@ void pch_gbe_free_tx_resources(struct pch_gbe_adapter *adapter,
 	pch_gbe_clean_tx_ring(adapter, tx_ring);
 	vfree(tx_ring->buffer_info);
 	tx_ring->buffer_info = NULL;
-	pci_free_consistent(pdev, tx_ring->size, tx_ring->desc, tx_ring->dma);
+	dma_free_coherent(&pdev->dev, tx_ring->size, tx_ring->desc,
+			  tx_ring->dma);
 	tx_ring->desc = NULL;
 }
 
@@ -1833,7 +1834,8 @@ void pch_gbe_free_rx_resources(struct pch_gbe_adapter *adapter,
 	pch_gbe_clean_rx_ring(adapter, rx_ring);
 	vfree(rx_ring->buffer_info);
 	rx_ring->buffer_info = NULL;
-	pci_free_consistent(pdev, rx_ring->size, rx_ring->desc, rx_ring->dma);
+	dma_free_coherent(&pdev->dev, rx_ring->size, rx_ring->desc,
+			  rx_ring->dma);
 	rx_ring->desc = NULL;
 }
 
@@ -1954,8 +1956,8 @@ void pch_gbe_down(struct pch_gbe_adapter *adapter)
 	pch_gbe_clean_tx_ring(adapter, adapter->tx_ring);
 	pch_gbe_clean_rx_ring(adapter, adapter->rx_ring);
 
-	pci_free_consistent(adapter->pdev, rx_ring->rx_buff_pool_size,
-			    rx_ring->rx_buff_pool, rx_ring->rx_buff_pool_logic);
+	dma_free_coherent(&adapter->pdev->dev, rx_ring->rx_buff_pool_size,
+			  rx_ring->rx_buff_pool, rx_ring->rx_buff_pool_logic);
 	rx_ring->rx_buff_pool_logic = 0;
 	rx_ring->rx_buff_pool_size = 0;
 	rx_ring->rx_buff_pool = NULL;
@@ -2412,7 +2414,6 @@ static int __pch_gbe_suspend(struct pci_dev *pdev)
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 	struct pch_gbe_hw *hw = &adapter->hw;
 	u32 wufc = adapter->wake_up_evt;
-	int retval = 0;
 
 	netif_device_detach(netdev);
 	if (netif_running(netdev))
@@ -2432,7 +2433,7 @@ static int __pch_gbe_suspend(struct pci_dev *pdev)
 		pch_gbe_mac_set_wol_event(hw, wufc);
 		pci_disable_device(pdev);
 	}
-	return retval;
+	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -2503,17 +2504,11 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64))
-		|| pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
+		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (ret) {
-			ret = pci_set_consistent_dma_mask(pdev,
-							  DMA_BIT_MASK(32));
-			if (ret) {
-				dev_err(&pdev->dev, "ERR: No usable DMA "
-					"configuration, aborting\n");
-				return ret;
-			}
+			dev_err(&pdev->dev, "ERR: No usable DMA configuration, aborting\n");
+			return ret;
 		}
 	}
 

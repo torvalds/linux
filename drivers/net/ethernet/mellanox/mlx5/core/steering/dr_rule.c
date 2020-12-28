@@ -874,8 +874,7 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 	u32 s_idx, e_idx;
 
 	if (!value_size ||
-	    (value_size > sizeof(struct mlx5dr_match_param) ||
-	     (value_size % sizeof(u32)))) {
+	    (value_size > DR_SZ_MATCH_PARAM || (value_size % sizeof(u32)))) {
 		mlx5dr_err(matcher->tbl->dmn, "Rule parameters length is incorrect\n");
 		return false;
 	}

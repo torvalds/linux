@@ -56,6 +56,8 @@ struct drm_i915_gem_object_ops {
 	void (*truncate)(struct drm_i915_gem_object *obj);
 	void (*writeback)(struct drm_i915_gem_object *obj);
 
+	int (*pread)(struct drm_i915_gem_object *obj,
+		     const struct drm_i915_gem_pread *arg);
 	int (*pwrite)(struct drm_i915_gem_object *obj,
 		      const struct drm_i915_gem_pwrite *arg);
 
@@ -78,6 +80,14 @@ struct i915_mmap_offset {
 	enum i915_mmap_type mmap_type;
 
 	struct rb_node offset;
+};
+
+struct i915_gem_object_page_iter {
+	struct scatterlist *sg_pos;
+	unsigned int sg_idx; /* in pages, but 32bit eek! */
+
+	struct radix_tree_root radix;
+	struct mutex lock; /* protects this cache */
 };
 
 struct drm_i915_gem_object {
@@ -246,13 +256,8 @@ struct drm_i915_gem_object {
 
 		I915_SELFTEST_DECLARE(unsigned int page_mask);
 
-		struct i915_gem_object_page_iter {
-			struct scatterlist *sg_pos;
-			unsigned int sg_idx; /* in pages, but 32bit eek! */
-
-			struct radix_tree_root radix;
-			struct mutex lock; /* protects this cache */
-		} get_page;
+		struct i915_gem_object_page_iter get_page;
+		struct i915_gem_object_page_iter get_dma_page;
 
 		/**
 		 * Element within i915->mm.unbound_list or i915->mm.bound_list,

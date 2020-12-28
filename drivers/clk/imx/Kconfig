@@ -5,8 +5,8 @@ config MXC_CLK
 	depends on ARCH_MXC || COMPILE_TEST
 
 config MXC_CLK_SCU
-	tristate "IMX SCU clock"
-	depends on ARCH_MXC || COMPILE_TEST
+	tristate
+	depends on ARCH_MXC
 	depends on IMX_SCU && HAVE_ARM_SMCCC
 
 config CLK_IMX1

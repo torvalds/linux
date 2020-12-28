@@ -176,7 +176,7 @@ static int ftrtc010_rtc_probe(struct platform_device *pdev)
 	if (unlikely(ret))
 		return ret;
 
-	return rtc_register_device(rtc->rtc_dev);
+	return devm_rtc_register_device(rtc->rtc_dev);
 }
 
 static int ftrtc010_rtc_remove(struct platform_device *pdev)

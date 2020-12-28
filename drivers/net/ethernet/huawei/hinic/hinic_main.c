@@ -313,13 +313,7 @@ static void free_rxqs(struct hinic_dev *nic_dev)
 
 static int hinic_configure_max_qnum(struct hinic_dev *nic_dev)
 {
-	int err;
-
-	err = hinic_set_max_qnum(nic_dev, nic_dev->hwdev->nic_cap.max_qps);
-	if (err)
-		return err;
-
-	return 0;
+	return hinic_set_max_qnum(nic_dev, nic_dev->hwdev->nic_cap.max_qps);
 }
 
 static int hinic_rss_init(struct hinic_dev *nic_dev)

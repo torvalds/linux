@@ -121,7 +121,7 @@ sh73a0_cpg_register_clock(struct device_node *np, struct sh73a0_cpg *cpg,
 			(phy_no ? CPG_DSI1PHYCR : CPG_DSI0PHYCR);
 
 		parent_name = phy_no ? "dsi1pck" : "dsi0pck";
-		mult = __raw_readl(dsi_reg);
+		mult = readl(dsi_reg);
 		if (!(mult & 0x8000))
 			mult = 1;
 		else

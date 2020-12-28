@@ -138,13 +138,6 @@ static int mlx5_ib_create_counters(struct ib_counters *counters,
 }
 
 
-static bool is_mdev_switchdev_mode(const struct mlx5_core_dev *mdev)
-{
-	return MLX5_ESWITCH_MANAGER(mdev) &&
-	       mlx5_ib_eswitch_mode(mdev->priv.eswitch) ==
-		       MLX5_ESWITCH_OFFLOADS;
-}
-
 static const struct mlx5_ib_counters *get_counters(struct mlx5_ib_dev *dev,
 						   u8 port_num)
 {

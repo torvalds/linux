@@ -143,6 +143,13 @@ static int uio_dmem_genirq_irqcontrol(struct uio_info *dev_info, s32 irq_on)
 	return 0;
 }
 
+static void uio_dmem_genirq_pm_disable(void *data)
+{
+	struct device *dev = data;
+
+	pm_runtime_disable(dev);
+}
+
 static int uio_dmem_genirq_probe(struct platform_device *pdev)
 {
 	struct uio_dmem_genirq_pdata *pdata = dev_get_platdata(&pdev->dev);
@@ -154,11 +161,10 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 
 	if (pdev->dev.of_node) {
 		/* alloc uioinfo for one device */
-		uioinfo = kzalloc(sizeof(*uioinfo), GFP_KERNEL);
+		uioinfo = devm_kzalloc(&pdev->dev, sizeof(*uioinfo), GFP_KERNEL);
 		if (!uioinfo) {
-			ret = -ENOMEM;
 			dev_err(&pdev->dev, "unable to kmalloc\n");
-			goto bad2;
+			return -ENOMEM;
 		}
 		uioinfo->name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%pOFn",
 					       pdev->dev.of_node);
@@ -167,20 +173,19 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 
 	if (!uioinfo || !uioinfo->name || !uioinfo->version) {
 		dev_err(&pdev->dev, "missing platform_data\n");
-		goto bad0;
+		return -EINVAL;
 	}
 
 	if (uioinfo->handler || uioinfo->irqcontrol ||
 	    uioinfo->irq_flags & IRQF_SHARED) {
 		dev_err(&pdev->dev, "interrupt configuration error\n");
-		goto bad0;
+		return -EINVAL;
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		ret = -ENOMEM;
 		dev_err(&pdev->dev, "unable to kmalloc\n");
-		goto bad0;
+		return -ENOMEM;
 	}
 
 	dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
@@ -197,7 +202,7 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 		if (ret == -ENXIO && pdev->dev.of_node)
 			ret = UIO_IRQ_NONE;
 		else if (ret < 0)
-			goto bad1;
+			return ret;
 		uioinfo->irq = ret;
 	}
 
@@ -282,41 +287,11 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 	 */
 	pm_runtime_enable(&pdev->dev);
 
-	ret = uio_register_device(&pdev->dev, priv->uioinfo);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to register uio device\n");
-		pm_runtime_disable(&pdev->dev);
-		goto bad1;
-	}
+	ret = devm_add_action_or_reset(&pdev->dev, uio_dmem_genirq_pm_disable, &pdev->dev);
+	if (ret)
+		return ret;
 
-	platform_set_drvdata(pdev, priv);
-	return 0;
- bad1:
-	kfree(priv);
- bad0:
-	/* kfree uioinfo for OF */
-	if (pdev->dev.of_node)
-		kfree(uioinfo);
- bad2:
-	return ret;
-}
-
-static int uio_dmem_genirq_remove(struct platform_device *pdev)
-{
-	struct uio_dmem_genirq_platdata *priv = platform_get_drvdata(pdev);
-
-	uio_unregister_device(priv->uioinfo);
-	pm_runtime_disable(&pdev->dev);
-
-	priv->uioinfo->handler = NULL;
-	priv->uioinfo->irqcontrol = NULL;
-
-	/* kfree uioinfo for OF */
-	if (pdev->dev.of_node)
-		kfree(priv->uioinfo);
-
-	kfree(priv);
-	return 0;
+	return devm_uio_register_device(&pdev->dev, priv->uioinfo);
 }
 
 static int uio_dmem_genirq_runtime_nop(struct device *dev)
@@ -350,7 +325,6 @@ MODULE_DEVICE_TABLE(of, uio_of_genirq_match);
 
 static struct platform_driver uio_dmem_genirq = {
 	.probe = uio_dmem_genirq_probe,
-	.remove = uio_dmem_genirq_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.pm = &uio_dmem_genirq_dev_pm_ops,

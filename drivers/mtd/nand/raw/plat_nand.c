@@ -14,8 +14,23 @@
 #include <linux/mtd/platnand.h>
 
 struct plat_nand_data {
+	struct nand_controller	controller;
 	struct nand_chip	chip;
 	void __iomem		*io_base;
+};
+
+static int plat_nand_attach_chip(struct nand_chip *chip)
+{
+	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
+
+	if (chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
+
+	return 0;
+}
+
+static const struct nand_controller_ops plat_nand_ops = {
+	.attach_chip = plat_nand_attach_chip,
 };
 
 /*
@@ -46,6 +61,10 @@ static int plat_nand_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
+	data->controller.ops = &plat_nand_ops;
+	nand_controller_init(&data->controller);
+	data->chip.controller = &data->controller;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	data->io_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(data->io_base))
@@ -65,9 +84,6 @@ static int plat_nand_probe(struct platform_device *pdev)
 	data->chip.legacy.chip_delay = pdata->chip.chip_delay;
 	data->chip.options |= pdata->chip.options;
 	data->chip.bbt_options |= pdata->chip.bbt_options;
-
-	data->chip.ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
-	data->chip.ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	platform_set_drvdata(pdev, data);
 

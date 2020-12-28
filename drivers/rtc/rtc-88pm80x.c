@@ -294,7 +294,7 @@ static int pm80x_rtc_probe(struct platform_device *pdev)
 	info->rtc_dev->ops = &pm80x_rtc_ops;
 	info->rtc_dev->range_max = U32_MAX;
 
-	ret = rtc_register_device(info->rtc_dev);
+	ret = devm_rtc_register_device(info->rtc_dev);
 	if (ret)
 		goto out_rtc;
 

@@ -10,7 +10,6 @@
 #include "main.h"
 
 #include <linux/netlink.h>
-#include <linux/seq_file.h>
 #include <linux/skbuff.h>
 #include <linux/types.h>
 
@@ -18,9 +17,9 @@ extern char batadv_routing_algo[];
 extern struct list_head batadv_hardif_list;
 
 void batadv_algo_init(void);
+struct batadv_algo_ops *batadv_algo_get(const char *name);
 int batadv_algo_register(struct batadv_algo_ops *bat_algo_ops);
-int batadv_algo_select(struct batadv_priv *bat_priv, char *name);
-int batadv_algo_seq_print_text(struct seq_file *seq, void *offset);
+int batadv_algo_select(struct batadv_priv *bat_priv, const char *name);
 int batadv_algo_dump(struct sk_buff *msg, struct netlink_callback *cb);
 
 #endif /* _NET_BATMAN_ADV_BAT_ALGO_H_ */

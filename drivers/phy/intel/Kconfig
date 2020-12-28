@@ -4,7 +4,7 @@
 #
 config PHY_INTEL_KEEMBAY_EMMC
 	tristate "Intel Keem Bay EMMC PHY driver"
-	depends on (OF && ARM64) || COMPILE_TEST
+	depends on ARCH_KEEMBAY || COMPILE_TEST
 	depends on HAS_IOMEM
 	select GENERIC_PHY
 	select REGMAP_MMIO
@@ -13,6 +13,18 @@ config PHY_INTEL_KEEMBAY_EMMC
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called phy-keembay-emmc.ko.
+
+config PHY_INTEL_KEEMBAY_USB
+	tristate "Intel Keem Bay USB PHY driver"
+	depends on ARCH_KEEMBAY || COMPILE_TEST
+	depends on HAS_IOMEM
+	select GENERIC_PHY
+	select REGMAP_MMIO
+	help
+	  Choose this option if you have an Intel Keem Bay SoC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called phy-keembay-usb.ko.
 
 config PHY_INTEL_LGM_COMBO
 	bool "Intel Lightning Mountain ComboPHY driver"

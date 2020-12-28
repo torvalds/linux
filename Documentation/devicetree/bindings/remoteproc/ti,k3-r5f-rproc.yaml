@@ -32,6 +32,7 @@ properties:
     enum:
       - ti,am654-r5fss
       - ti,j721e-r5fss
+      - ti,j7200-r5fss
 
   power-domains:
     description: |
@@ -95,6 +96,7 @@ patternProperties:
         enum:
           - ti,am654-r5f
           - ti,j721e-r5f
+          - ti,j7200-r5f
 
       reg:
         items:

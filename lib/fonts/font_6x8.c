@@ -3,7 +3,7 @@
 
 #define FONTDATAMAX 2048
 
-static struct font_data fontdata_6x8 = {
+static const struct font_data fontdata_6x8 = {
 	{ 0, 0, FONTDATAMAX, 0 }, {
 	/* 0 0x00 '^@' */
 	0x00, /* 000000 */
@@ -2571,6 +2571,7 @@ const struct font_desc font_6x8 = {
 	.name	= "6x8",
 	.width	= 6,
 	.height	= 8,
+	.charcount = 256,
 	.data	= fontdata_6x8.data,
 	.pref	= 0,
 };

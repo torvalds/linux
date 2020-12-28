@@ -187,9 +187,6 @@ set_ivor:
 
 	/* Setup the defaults for TLB entries */
 	li	r2,(MAS4_TSIZED(BOOK3E_PAGESZ_4K))@l
-#ifdef CONFIG_E200
-	oris	r2,r2,MAS4_TLBSELD(1)@h
-#endif
 	mtspr	SPRN_MAS4, r2
 
 #if !defined(CONFIG_BDI_SWITCH)
@@ -362,13 +359,7 @@ interrupt_base:
 	CRITICAL_EXCEPTION(0x0100, CRITICAL, CriticalInput, unknown_exception)
 
 	/* Machine Check Interrupt */
-#ifdef CONFIG_E200
-	/* no RFMCI, MCSRRs on E200 */
-	CRITICAL_EXCEPTION(0x0200, MACHINE_CHECK, MachineCheck, \
-			   machine_check_exception)
-#else
 	MCHECK_EXCEPTION(0x0200, MachineCheck, machine_check_exception)
-#endif
 
 	/* Data Storage Interrupt */
 	START_EXCEPTION(DataStorage)
@@ -400,14 +391,8 @@ interrupt_base:
 #ifdef CONFIG_PPC_FPU
 	FP_UNAVAILABLE_EXCEPTION
 #else
-#ifdef CONFIG_E200
-	/* E200 treats 'normal' floating point instructions as FP Unavail exception */
-	EXCEPTION(0x0800, FP_UNAVAIL, FloatingPointUnavailable, \
-		  program_check_exception, EXC_XFER_STD)
-#else
 	EXCEPTION(0x0800, FP_UNAVAIL, FloatingPointUnavailable, \
 		  unknown_exception, EXC_XFER_STD)
-#endif
 #endif
 
 	/* System Call Interrupt */
@@ -625,7 +610,7 @@ END_BTB_FLUSH_SECTION
 	mfspr	r10, SPRN_SPRG_RSCRATCH0
 	b	InstructionStorage
 
-/* Define SPE handlers for e200 and e500v2 */
+/* Define SPE handlers for e500v2 */
 #ifdef CONFIG_SPE
 	/* SPE Unavailable */
 	START_EXCEPTION(SPEUnavailable)
@@ -807,31 +792,6 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
 #endif
 3:	mtspr	SPRN_MAS2, r12
 
-#ifdef CONFIG_E200
-	/* Round robin TLB1 entries assignment */
-	mfspr	r12, SPRN_MAS0
-
-	/* Extract TLB1CFG(NENTRY) */
-	mfspr	r11, SPRN_TLB1CFG
-	andi.	r11, r11, 0xfff
-
-	/* Extract MAS0(NV) */
-	andi.	r13, r12, 0xfff
-	addi	r13, r13, 1
-	cmpw	0, r13, r11
-	addi	r12, r12, 1
-
-	/* check if we need to wrap */
-	blt	7f
-
-	/* wrap back to first free tlbcam entry */
-	lis	r13, tlbcam_index@ha
-	lwz	r13, tlbcam_index@l(r13)
-	rlwimi	r12, r13, 0, 20, 31
-7:
-	mtspr	SPRN_MAS0,r12
-#endif /* CONFIG_E200 */
-
 tlb_write_entry:
 	tlbwe
 
@@ -932,21 +892,6 @@ get_phys_addr:
 /*
  * Global functions
  */
-
-#ifdef CONFIG_E200
-/* Adjust or setup IVORs for e200 */
-_GLOBAL(__setup_e200_ivors)
-	li	r3,DebugDebug@l
-	mtspr	SPRN_IVOR15,r3
-	li	r3,SPEUnavailable@l
-	mtspr	SPRN_IVOR32,r3
-	li	r3,SPEFloatingPointData@l
-	mtspr	SPRN_IVOR33,r3
-	li	r3,SPEFloatingPointRound@l
-	mtspr	SPRN_IVOR34,r3
-	sync
-	blr
-#endif
 
 #ifdef CONFIG_E500
 #ifndef CONFIG_PPC_E500MC

@@ -396,7 +396,6 @@ static struct i2c_driver zl6100_driver = {
 		   .name = "zl6100",
 		   },
 	.probe_new = zl6100_probe,
-	.remove = pmbus_do_remove,
 	.id_table = zl6100_id,
 };
 

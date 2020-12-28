@@ -3,8 +3,10 @@
 #ifndef __FAST_COMMIT_H__
 #define __FAST_COMMIT_H__
 
-/* Number of blocks in journal area to allocate for fast commits */
-#define EXT4_NUM_FC_BLKS		256
+/*
+ * Note this file is present in e2fsprogs/lib/ext2fs/fast_commit.h and
+ * linux/fs/ext4/fast_commit.h. These file should always be byte identical.
+ */
 
 /* Fast commit tags */
 #define EXT4_FC_TAG_ADD_RANGE		0x0001
@@ -53,7 +55,7 @@ struct ext4_fc_del_range {
 struct ext4_fc_dentry_info {
 	__le32 fc_parent_ino;
 	__le32 fc_ino;
-	u8 fc_dname[0];
+	__u8 fc_dname[0];
 };
 
 /* Value structure for EXT4_FC_TAG_INODE and EXT4_FC_TAG_INODE_PARTIAL. */
@@ -66,19 +68,6 @@ struct ext4_fc_inode {
 struct ext4_fc_tail {
 	__le32 fc_tid;
 	__le32 fc_crc;
-};
-
-/*
- * In memory list of dentry updates that are performed on the file
- * system used by fast commit code.
- */
-struct ext4_fc_dentry_update {
-	int fcd_op;		/* Type of update create / unlink / link */
-	int fcd_parent;		/* Parent inode number */
-	int fcd_ino;		/* Inode number */
-	struct qstr fcd_name;	/* Dirent name */
-	unsigned char fcd_iname[DNAME_INLINE_LEN];	/* Dirent name string */
-	struct list_head fcd_list;
 };
 
 /*
@@ -100,13 +89,28 @@ enum {
 	EXT4_FC_REASON_XATTR = 0,
 	EXT4_FC_REASON_CROSS_RENAME,
 	EXT4_FC_REASON_JOURNAL_FLAG_CHANGE,
-	EXT4_FC_REASON_MEM,
+	EXT4_FC_REASON_NOMEM,
 	EXT4_FC_REASON_SWAP_BOOT,
 	EXT4_FC_REASON_RESIZE,
 	EXT4_FC_REASON_RENAME_DIR,
 	EXT4_FC_REASON_FALLOC_RANGE,
+	EXT4_FC_REASON_INODE_JOURNAL_DATA,
 	EXT4_FC_COMMIT_FAILED,
 	EXT4_FC_REASON_MAX
+};
+
+#ifdef __KERNEL__
+/*
+ * In memory list of dentry updates that are performed on the file
+ * system used by fast commit code.
+ */
+struct ext4_fc_dentry_update {
+	int fcd_op;		/* Type of update create / unlink / link */
+	int fcd_parent;		/* Parent inode number */
+	int fcd_ino;		/* Inode number */
+	struct qstr fcd_name;	/* Dirent name */
+	unsigned char fcd_iname[DNAME_INLINE_LEN];	/* Dirent name string */
+	struct list_head fcd_list;
 };
 
 struct ext4_fc_stats {
@@ -147,13 +151,51 @@ struct ext4_fc_replay_state {
 };
 
 #define region_last(__region) (((__region)->lblk) + ((__region)->len) - 1)
+#endif
 
 #define fc_for_each_tl(__start, __end, __tl)				\
-	for (tl = (struct ext4_fc_tl *)start;				\
-		(u8 *)tl < (u8 *)end;					\
-		tl = (struct ext4_fc_tl *)((u8 *)tl +			\
+	for (tl = (struct ext4_fc_tl *)(__start);			\
+	     (__u8 *)tl < (__u8 *)(__end);				\
+		tl = (struct ext4_fc_tl *)((__u8 *)tl +			\
 					sizeof(struct ext4_fc_tl) +	\
 					+ le16_to_cpu(tl->fc_len)))
 
+static inline const char *tag2str(__u16 tag)
+{
+	switch (tag) {
+	case EXT4_FC_TAG_LINK:
+		return "ADD_ENTRY";
+	case EXT4_FC_TAG_UNLINK:
+		return "DEL_ENTRY";
+	case EXT4_FC_TAG_ADD_RANGE:
+		return "ADD_RANGE";
+	case EXT4_FC_TAG_CREAT:
+		return "CREAT_DENTRY";
+	case EXT4_FC_TAG_DEL_RANGE:
+		return "DEL_RANGE";
+	case EXT4_FC_TAG_INODE:
+		return "INODE";
+	case EXT4_FC_TAG_PAD:
+		return "PAD";
+	case EXT4_FC_TAG_TAIL:
+		return "TAIL";
+	case EXT4_FC_TAG_HEAD:
+		return "HEAD";
+	default:
+		return "ERROR";
+	}
+}
+
+/* Get length of a particular tlv */
+static inline int ext4_fc_tag_len(struct ext4_fc_tl *tl)
+{
+	return le16_to_cpu(tl->fc_len);
+}
+
+/* Get a pointer to "value" of a tlv */
+static inline __u8 *ext4_fc_tag_val(struct ext4_fc_tl *tl)
+{
+	return (__u8 *)tl + sizeof(*tl);
+}
 
 #endif /* __FAST_COMMIT_H__ */

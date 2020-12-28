@@ -187,6 +187,21 @@ struct intel_encoder {
 	 * be set correctly before calling this function. */
 	void (*get_config)(struct intel_encoder *,
 			   struct intel_crtc_state *pipe_config);
+
+	/*
+	 * Optional hook called during init/resume to sync any state
+	 * stored in the encoder (eg. DP link parameters) wrt. the HW state.
+	 */
+	void (*sync_state)(struct intel_encoder *encoder,
+			   const struct intel_crtc_state *crtc_state);
+
+	/*
+	 * Optional hook, returning true if this encoder allows a fastset
+	 * during the initial commit, false otherwise.
+	 */
+	bool (*initial_fastset_check)(struct intel_encoder *encoder,
+				      struct intel_crtc_state *crtc_state);
+
 	/*
 	 * Acquires the power domains needed for an active encoder during
 	 * hardware state readout.
@@ -199,6 +214,11 @@ struct intel_encoder {
 	 * device interrupts are disabled.
 	 */
 	void (*suspend)(struct intel_encoder *);
+	/*
+	 * Called during system reboot/shutdown after all the
+	 * encoders have been disabled and suspended.
+	 */
+	void (*shutdown)(struct intel_encoder *encoder);
 	enum hpd_pin hpd_pin;
 	enum intel_display_power_domain power_domain;
 	/* for communication with audio component; protected by av_mutex */
@@ -515,6 +535,7 @@ struct intel_plane_state {
 		unsigned int rotation;
 		enum drm_color_encoding color_encoding;
 		enum drm_color_range color_range;
+		enum drm_scaling_filter scaling_filter;
 	} hw;
 
 	struct i915_ggtt_view view;
@@ -665,6 +686,7 @@ struct skl_wm_level {
 	u8 plane_res_l;
 	bool plane_en;
 	bool ignore_lines;
+	bool can_sagv;
 };
 
 struct skl_plane_wm {
@@ -716,24 +738,35 @@ struct g4x_wm_state {
 
 struct intel_crtc_wm_state {
 	union {
+		/*
+		 * raw:
+		 * The "raw" watermark values produced by the formula
+		 * given the plane's current state. They do not consider
+		 * how much FIFO is actually allocated for each plane.
+		 *
+		 * optimal:
+		 * The "optimal" watermark values given the current
+		 * state of the planes and the amount of FIFO
+		 * allocated to each, ignoring any previous state
+		 * of the planes.
+		 *
+		 * intermediate:
+		 * The "intermediate" watermark values when transitioning
+		 * between the old and new "optimal" values. Used when
+		 * the watermark registers are single buffered and hence
+		 * their state changes asynchronously with regards to the
+		 * actual plane registers. These are essentially the
+		 * worst case combination of the old and new "optimal"
+		 * watermarks, which are therefore safe to use when the
+		 * plane is in either its old or new state.
+		 */
 		struct {
-			/*
-			 * Intermediate watermarks; these can be
-			 * programmed immediately since they satisfy
-			 * both the current configuration we're
-			 * switching away from and the new
-			 * configuration we're switching to.
-			 */
 			struct intel_pipe_wm intermediate;
-
-			/*
-			 * Optimal watermarks, programmed post-vblank
-			 * when this state is committed.
-			 */
 			struct intel_pipe_wm optimal;
 		} ilk;
 
 		struct {
+			struct skl_pipe_wm raw;
 			/* gen9+ only needs 1-step wm programming */
 			struct skl_pipe_wm optimal;
 			struct skl_ddb_entry ddb;
@@ -742,22 +775,15 @@ struct intel_crtc_wm_state {
 		} skl;
 
 		struct {
-			/* "raw" watermarks (not inverted) */
-			struct g4x_pipe_wm raw[NUM_VLV_WM_LEVELS];
-			/* intermediate watermarks (inverted) */
-			struct vlv_wm_state intermediate;
-			/* optimal watermarks (inverted) */
-			struct vlv_wm_state optimal;
-			/* display FIFO split */
+			struct g4x_pipe_wm raw[NUM_VLV_WM_LEVELS]; /* not inverted */
+			struct vlv_wm_state intermediate; /* inverted */
+			struct vlv_wm_state optimal; /* inverted */
 			struct vlv_fifo_state fifo_state;
 		} vlv;
 
 		struct {
-			/* "raw" watermarks */
 			struct g4x_pipe_wm raw[NUM_G4X_WM_LEVELS];
-			/* intermediate watermarks */
 			struct g4x_wm_state intermediate;
-			/* optimal watermarks */
 			struct g4x_wm_state optimal;
 		} g4x;
 	};
@@ -796,15 +822,23 @@ struct intel_crtc_state {
 	 * The following members are used to verify the hardware state:
 	 * - enable
 	 * - active
-	 * - mode / adjusted_mode
+	 * - mode / pipe_mode / adjusted_mode
 	 * - color property blobs.
 	 *
 	 * During initial hw readout, they need to be copied to uapi.
+	 *
+	 * Bigjoiner will allow a transcoder mode that spans 2 pipes;
+	 * Use the pipe_mode for calculations like watermarks, pipe
+	 * scaler, and bandwidth.
+	 *
+	 * Use adjusted_mode for things that need to know the full
+	 * mode on the transcoder, which spans all pipes.
 	 */
 	struct {
 		bool active, enable;
 		struct drm_property_blob *degamma_lut, *gamma_lut, *ctm;
-		struct drm_display_mode mode, adjusted_mode;
+		struct drm_display_mode mode, pipe_mode, adjusted_mode;
+		enum drm_scaling_filter scaling_filter;
 	} hw;
 
 	/**
@@ -816,6 +850,7 @@ struct intel_crtc_state {
 	 * accordingly.
 	 */
 #define PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS	(1<<0) /* unreliable sync mode.flags */
+#define PIPE_CONFIG_QUIRK_BIGJOINER_SLAVE      (1<<1) /* bigjoiner slave, partial readout */
 	unsigned long quirks;
 
 	unsigned fb_bits; /* framebuffers to flip */
@@ -997,6 +1032,10 @@ struct intel_crtc_state {
 
 	u32 data_rate[I915_MAX_PLANES];
 
+	/* FIXME unify with data_rate[] */
+	u64 plane_data_rate[I915_MAX_PLANES];
+	u64 uv_plane_data_rate[I915_MAX_PLANES];
+
 	/* Gamma mode programmed on the pipe */
 	u32 gamma_mode;
 
@@ -1035,14 +1074,20 @@ struct intel_crtc_state {
 	/* Output format RGB/YCBCR etc */
 	enum intel_output_format output_format;
 
-	/* Output down scaling is done in LSPCON device */
-	bool lspcon_downsampling;
-
 	/* enable pipe gamma? */
 	bool gamma_enable;
 
 	/* enable pipe csc? */
 	bool csc_enable;
+
+	/* enable pipe big joiner? */
+	bool bigjoiner;
+
+	/* big joiner slave crtc? */
+	bool bigjoiner_slave;
+
+	/* linked crtc for bigjoiner, either slave or master */
+	struct intel_crtc *bigjoiner_linked_crtc;
 
 	/* Display Stream compression state */
 	struct {
@@ -1170,6 +1215,15 @@ struct intel_plane {
 	 * the intel_plane_state structure and accessed via plane_state.
 	 */
 
+	int (*min_width)(const struct drm_framebuffer *fb,
+			 int color_plane,
+			 unsigned int rotation);
+	int (*max_width)(const struct drm_framebuffer *fb,
+			 int color_plane,
+			 unsigned int rotation);
+	int (*max_height)(const struct drm_framebuffer *fb,
+			  int color_plane,
+			  unsigned int rotation);
 	unsigned int (*max_stride)(struct intel_plane *plane,
 				   u32 pixel_format, u64 modifier,
 				   unsigned int rotation);
@@ -1183,6 +1237,9 @@ struct intel_plane {
 			   struct intel_plane_state *plane_state);
 	int (*min_cdclk)(const struct intel_crtc_state *crtc_state,
 			 const struct intel_plane_state *plane_state);
+	void (*async_flip)(struct intel_plane *plane,
+			   const struct intel_crtc_state *crtc_state,
+			   const struct intel_plane_state *plane_state);
 };
 
 struct intel_watermark_params {
@@ -1270,7 +1327,6 @@ struct intel_dp {
 	int link_rate;
 	u8 lane_count;
 	u8 sink_count;
-	bool link_mst;
 	bool link_trained;
 	bool has_hdmi_sink;
 	bool has_audio;
@@ -1280,6 +1336,8 @@ struct intel_dp {
 	u8 downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
 	u8 edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE];
 	u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE];
+	u8 lttpr_common_caps[DP_LTTPR_COMMON_CAP_SIZE];
+	u8 lttpr_phy_caps[DP_MAX_LTTPR_COUNT][DP_LTTPR_PHY_CAP_SIZE];
 	u8 fec_capable;
 	/* source rates */
 	int num_source_rates;
@@ -1312,8 +1370,6 @@ struct intel_dp {
 	unsigned long last_backlight_off;
 	ktime_t panel_power_off_time;
 
-	struct notifier_block edp_notifier;
-
 	/*
 	 * Pipe whose power sequencer is currently locked into
 	 * this port. Only relevant on VLV/CHV.
@@ -1336,14 +1392,6 @@ struct intel_dp {
 	bool is_mst;
 	int active_mst_links;
 
-	/*
-	 * DP_TP_* registers may be either on port or transcoder register space.
-	 */
-	struct {
-		i915_reg_t dp_tp_ctl;
-		i915_reg_t dp_tp_status;
-	} regs;
-
 	/* connector directly attached - won't be use for modeset in mst world */
 	struct intel_connector *attached_connector;
 
@@ -1363,13 +1411,19 @@ struct intel_dp {
 	i915_reg_t (*aux_ch_data_reg)(struct intel_dp *dp, int index);
 
 	/* This is called before a link training is starterd */
-	void (*prepare_link_retrain)(struct intel_dp *intel_dp);
-	void (*set_link_train)(struct intel_dp *intel_dp, u8 dp_train_pat);
-	void (*set_idle_link_train)(struct intel_dp *intel_dp);
-	void (*set_signal_levels)(struct intel_dp *intel_dp);
+	void (*prepare_link_retrain)(struct intel_dp *intel_dp,
+				     const struct intel_crtc_state *crtc_state);
+	void (*set_link_train)(struct intel_dp *intel_dp,
+			       const struct intel_crtc_state *crtc_state,
+			       u8 dp_train_pat);
+	void (*set_idle_link_train)(struct intel_dp *intel_dp,
+				    const struct intel_crtc_state *crtc_state);
+	void (*set_signal_levels)(struct intel_dp *intel_dp,
+				  const struct intel_crtc_state *crtc_state);
 
 	u8 (*preemph_max)(struct intel_dp *intel_dp);
-	u8 (*voltage_max)(struct intel_dp *intel_dp);
+	u8 (*voltage_max)(struct intel_dp *intel_dp,
+			  const struct intel_crtc_state *crtc_state);
 
 	/* Displayport compliance testing */
 	struct intel_dp_compliance compliance;

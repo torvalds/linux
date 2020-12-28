@@ -515,6 +515,13 @@ void dso__insert_symbol(struct dso *dso, struct symbol *sym)
 	}
 }
 
+void dso__delete_symbol(struct dso *dso, struct symbol *sym)
+{
+	rb_erase_cached(&sym->rb_node, &dso->symbols);
+	symbol__delete(sym);
+	dso__reset_find_symbol_cache(dso);
+}
+
 struct symbol *dso__find_symbol(struct dso *dso, u64 addr)
 {
 	if (dso->last_find_result.addr != addr || dso->last_find_result.symbol == NULL) {
@@ -2182,6 +2189,8 @@ static int dso__load_kernel_sym(struct dso *dso, struct map *map)
 	int err;
 	const char *kallsyms_filename = NULL;
 	char *kallsyms_allocated_filename = NULL;
+	char *filename = NULL;
+
 	/*
 	 * Step 1: if the user specified a kallsyms or vmlinux filename, use
 	 * it and only it, reporting errors to the user if it cannot be used.
@@ -2204,6 +2213,20 @@ static int dso__load_kernel_sym(struct dso *dso, struct map *map)
 
 	if (!symbol_conf.ignore_vmlinux && symbol_conf.vmlinux_name != NULL) {
 		return dso__load_vmlinux(dso, map, symbol_conf.vmlinux_name, false);
+	}
+
+	/*
+	 * Before checking on common vmlinux locations, check if it's
+	 * stored as standard build id binary (not kallsyms) under
+	 * .debug cache.
+	 */
+	if (!symbol_conf.ignore_vmlinux_buildid)
+		filename = __dso__build_id_filename(dso, NULL, 0, false, false);
+	if (filename != NULL) {
+		err = dso__load_vmlinux(dso, map, filename, true);
+		if (err > 0)
+			return err;
+		free(filename);
 	}
 
 	if (!symbol_conf.ignore_vmlinux && vmlinux_path != NULL) {

@@ -886,14 +886,14 @@ static int rv3028_probe(struct i2c_client *client)
 	rv3028->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	rv3028->rtc->range_max = RTC_TIMESTAMP_END_2099;
 	rv3028->rtc->ops = &rv3028_rtc_ops;
-	ret = rtc_register_device(rv3028->rtc);
+	ret = devm_rtc_register_device(rv3028->rtc);
 	if (ret)
 		return ret;
 
 	nvmem_cfg.priv = rv3028->regmap;
-	rtc_nvmem_register(rv3028->rtc, &nvmem_cfg);
+	devm_rtc_nvmem_register(rv3028->rtc, &nvmem_cfg);
 	eeprom_cfg.priv = rv3028;
-	rtc_nvmem_register(rv3028->rtc, &eeprom_cfg);
+	devm_rtc_nvmem_register(rv3028->rtc, &eeprom_cfg);
 
 	rv3028->rtc->max_user_freq = 1;
 

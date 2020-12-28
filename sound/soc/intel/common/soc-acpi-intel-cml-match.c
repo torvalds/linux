@@ -14,6 +14,11 @@ static struct snd_soc_acpi_codecs rt1011_spk_codecs = {
 	.codecs = {"10EC1011"}
 };
 
+static struct snd_soc_acpi_codecs rt1015_spk_codecs = {
+	.num_codecs = 1,
+	.codecs = {"10EC1015"}
+};
+
 static struct snd_soc_acpi_codecs max98357a_spk_codecs = {
 	.num_codecs = 1,
 	.codecs = {"MX98357A"}
@@ -35,6 +40,14 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_cml_machines[] = {
 		.drv_name = "cml_rt1011_rt5682",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &rt1011_spk_codecs,
+		.sof_fw_filename = "sof-cml.ri",
+		.sof_tplg_filename = "sof-cml-rt1011-rt5682.tplg",
+	},
+	{
+		.id = "10EC5682",
+		.drv_name = "cml_rt1015_rt5682",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &rt1015_spk_codecs,
 		.sof_fw_filename = "sof-cml.ri",
 		.sof_tplg_filename = "sof-cml-rt1011-rt5682.tplg",
 	},

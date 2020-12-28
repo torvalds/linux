@@ -866,7 +866,7 @@ static int tbnet_open(struct net_device *dev)
 	eof_mask = BIT(TBIP_PDF_FRAME_END);
 
 	ring = tb_ring_alloc_rx(xd->tb->nhi, -1, TBNET_RING_SIZE,
-				RING_FLAG_FRAME, sof_mask, eof_mask,
+				RING_FLAG_FRAME, 0, sof_mask, eof_mask,
 				tbnet_start_poll, net);
 	if (!ring) {
 		netdev_err(dev, "failed to allocate Rx ring\n");
@@ -1241,7 +1241,7 @@ static int tbnet_probe(struct tb_service *svc, const struct tb_service_id *id)
 	dev->max_mtu = TBNET_MAX_MTU - ETH_HLEN;
 
 	net->handler.uuid = &tbnet_svc_uuid;
-	net->handler.callback = tbnet_handle_packet,
+	net->handler.callback = tbnet_handle_packet;
 	net->handler.data = net;
 	tb_register_protocol_handler(&net->handler);
 

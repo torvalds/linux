@@ -96,6 +96,7 @@ static const struct file_operations nsim_dev_take_snapshot_fops = {
 	.open = simple_open,
 	.write = nsim_dev_take_snapshot_write,
 	.llseek = generic_file_llseek,
+	.owner = THIS_MODULE,
 };
 
 static ssize_t nsim_dev_trap_fa_cookie_read(struct file *file,
@@ -188,6 +189,7 @@ static const struct file_operations nsim_dev_trap_fa_cookie_fops = {
 	.read = nsim_dev_trap_fa_cookie_read,
 	.write = nsim_dev_trap_fa_cookie_write,
 	.llseek = generic_file_llseek,
+	.owner = THIS_MODULE,
 };
 
 static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
@@ -323,6 +325,12 @@ static int nsim_dev_resources_register(struct devlink *devlink)
 		pr_err("Failed to register IPv6 FIB rules resource\n");
 		return err;
 	}
+
+	/* Resources for nexthops */
+	err = devlink_resource_register(devlink, "nexthops", (u64)-1,
+					NSIM_RESOURCE_NEXTHOPS,
+					DEVLINK_RESOURCE_ID_PARENT_TOP,
+					&params);
 
 out:
 	return err;
@@ -758,7 +766,6 @@ static int nsim_dev_flash_update(struct devlink *devlink,
 		return -EOPNOTSUPP;
 
 	if (nsim_dev->fw_update_status) {
-		devlink_flash_update_begin_notify(devlink);
 		devlink_flash_update_status_notify(devlink,
 						   "Preparing to flash",
 						   params->component, 0, 0);
@@ -782,7 +789,6 @@ static int nsim_dev_flash_update(struct devlink *devlink,
 						    params->component, 81);
 		devlink_flash_update_status_notify(devlink, "Flashing done",
 						   params->component, 0, 0);
-		devlink_flash_update_end_notify(devlink);
 	}
 
 	return 0;

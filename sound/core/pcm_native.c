@@ -112,7 +112,7 @@ void snd_pcm_stream_lock(struct snd_pcm_substream *substream)
 EXPORT_SYMBOL_GPL(snd_pcm_stream_lock);
 
 /**
- * snd_pcm_stream_lock - Unlock the PCM stream
+ * snd_pcm_stream_unlock - Unlock the PCM stream
  * @substream: PCM substream
  *
  * This unlocks the PCM stream that has been locked via snd_pcm_stream_lock().
@@ -595,7 +595,7 @@ static void snd_pcm_sync_stop(struct snd_pcm_substream *substream)
 }
 
 /**
- * snd_pcm_hw_param_choose - choose a configuration defined by @params
+ * snd_pcm_hw_params_choose - choose a configuration defined by @params
  * @pcm: PCM instance
  * @params: the hw_params instance
  *
@@ -755,8 +755,13 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 		runtime->boundary *= 2;
 
 	/* clear the buffer for avoiding possible kernel info leaks */
-	if (runtime->dma_area && !substream->ops->copy_user)
-		memset(runtime->dma_area, 0, runtime->dma_bytes);
+	if (runtime->dma_area && !substream->ops->copy_user) {
+		size_t size = runtime->dma_bytes;
+
+		if (runtime->info & SNDRV_PCM_INFO_MMAP)
+			size = PAGE_ALIGN(size);
+		memset(runtime->dma_area, 0, size);
+	}
 
 	snd_pcm_timer_resolution_change(substream);
 	snd_pcm_set_state(substream, SNDRV_PCM_STATE_SETUP);

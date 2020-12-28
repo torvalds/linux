@@ -859,8 +859,8 @@ static struct cm_id_private *cm_alloc_id_priv(struct ib_device *device,
 	atomic_set(&cm_id_priv->work_count, -1);
 	refcount_set(&cm_id_priv->refcount, 1);
 
-	ret = xa_alloc_cyclic_irq(&cm.local_id_table, &id, NULL, xa_limit_32b,
-				  &cm.local_id_next, GFP_KERNEL);
+	ret = xa_alloc_cyclic(&cm.local_id_table, &id, NULL, xa_limit_32b,
+			      &cm.local_id_next, GFP_KERNEL);
 	if (ret < 0)
 		goto error;
 	cm_id_priv->id.local_id = (__force __be32)id ^ cm.random_id_operand;
@@ -878,8 +878,8 @@ error:
  */
 static void cm_finalize_id(struct cm_id_private *cm_id_priv)
 {
-	xa_store_irq(&cm.local_id_table, cm_local_id(cm_id_priv->id.local_id),
-		     cm_id_priv, GFP_KERNEL);
+	xa_store(&cm.local_id_table, cm_local_id(cm_id_priv->id.local_id),
+		 cm_id_priv, GFP_ATOMIC);
 }
 
 struct ib_cm_id *ib_create_cm_id(struct ib_device *device,
@@ -1169,7 +1169,7 @@ retest:
 	spin_unlock(&cm.lock);
 	spin_unlock_irq(&cm_id_priv->lock);
 
-	xa_erase_irq(&cm.local_id_table, cm_local_id(cm_id->local_id));
+	xa_erase(&cm.local_id_table, cm_local_id(cm_id->local_id));
 	cm_deref_id(cm_id_priv);
 	wait_for_completion(&cm_id_priv->comp);
 	while ((work = cm_dequeue_work(cm_id_priv)) != NULL)
@@ -1251,7 +1251,8 @@ out:
 EXPORT_SYMBOL(ib_cm_listen);
 
 /**
- * Create a new listening ib_cm_id and listen on the given service ID.
+ * ib_cm_insert_listen - Create a new listening ib_cm_id and listen on
+ *			 the given service ID.
  *
  * If there's an existing ID listening on that same device and service ID,
  * return it.
@@ -1522,6 +1523,7 @@ int ib_send_cm_req(struct ib_cm_id *cm_id,
 							    id.local_id);
 	if (IS_ERR(cm_id_priv->timewait_info)) {
 		ret = PTR_ERR(cm_id_priv->timewait_info);
+		cm_id_priv->timewait_info = NULL;
 		goto out;
 	}
 
@@ -1764,7 +1766,7 @@ static u16 cm_get_bth_pkey(struct cm_work *work)
 }
 
 /**
- * Convert OPA SGID to IB SGID
+ * cm_opa_to_ib_sgid - Convert OPA SGID to IB SGID
  * ULPs (such as IPoIB) do not understand OPA GIDs and will
  * reject them as the local_gid will not match the sgid. Therefore,
  * change the pathrec's SGID to an IB SGID.
@@ -2114,6 +2116,7 @@ static int cm_req_handler(struct cm_work *work)
 							    id.local_id);
 	if (IS_ERR(cm_id_priv->timewait_info)) {
 		ret = PTR_ERR(cm_id_priv->timewait_info);
+		cm_id_priv->timewait_info = NULL;
 		goto destroy;
 	}
 	cm_id_priv->timewait_info->work.remote_id = cm_id_priv->id.remote_id;
@@ -4271,8 +4274,8 @@ static ssize_t cm_show_counter(struct kobject *obj, struct attribute *attr,
 	group = container_of(obj, struct cm_counter_group, obj);
 	cm_attr = container_of(attr, struct cm_counter_attribute, attr);
 
-	return sprintf(buf, "%ld\n",
-		       atomic_long_read(&group->counter[cm_attr->index]));
+	return sysfs_emit(buf, "%ld\n",
+			  atomic_long_read(&group->counter[cm_attr->index]));
 }
 
 static const struct sysfs_ops cm_counter_ops = {
@@ -4482,7 +4485,7 @@ static int __init ib_cm_init(void)
 	cm.remote_id_table = RB_ROOT;
 	cm.remote_qp_table = RB_ROOT;
 	cm.remote_sidr_table = RB_ROOT;
-	xa_init_flags(&cm.local_id_table, XA_FLAGS_ALLOC | XA_FLAGS_LOCK_IRQ);
+	xa_init_flags(&cm.local_id_table, XA_FLAGS_ALLOC);
 	get_random_bytes(&cm.random_id_operand, sizeof cm.random_id_operand);
 	INIT_LIST_HEAD(&cm.timewait_list);
 

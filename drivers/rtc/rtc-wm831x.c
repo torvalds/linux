@@ -429,7 +429,7 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 	wm831x_rtc->rtc->ops = &wm831x_rtc_ops;
 	wm831x_rtc->rtc->range_max = U32_MAX;
 
-	ret = rtc_register_device(wm831x_rtc->rtc);
+	ret = devm_rtc_register_device(wm831x_rtc->rtc);
 	if (ret)
 		return ret;
 

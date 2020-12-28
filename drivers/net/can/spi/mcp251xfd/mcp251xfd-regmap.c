@@ -173,7 +173,7 @@ mcp251xfd_regmap_nocrc_read(void *context,
 		memcpy(&buf_tx->cmd, reg, sizeof(buf_tx->cmd));
 		if (MCP251XFD_SANITIZE_SPI)
 			memset(buf_tx->data, 0x0, val_len);
-	};
+	}
 
 	err = spi_sync(spi, &msg);
 	if (err)
@@ -330,17 +330,17 @@ mcp251xfd_regmap_crc_read(void *context,
 			goto out;
 		}
 
-		netdev_dbg(priv->ndev,
-			   "CRC read error at address 0x%04x (length=%zd, data=%*ph, CRC=0x%04x) retrying.\n",
-			   reg, val_len, (int)val_len, buf_rx->data,
-			   get_unaligned_be16(buf_rx->data + val_len));
+		netdev_info(priv->ndev,
+			    "CRC read error at address 0x%04x (length=%zd, data=%*ph, CRC=0x%04x) retrying.\n",
+			    reg, val_len, (int)val_len, buf_rx->data,
+			    get_unaligned_be16(buf_rx->data + val_len));
 	}
 
 	if (err) {
-		netdev_info(priv->ndev,
-			    "CRC read error at address 0x%04x (length=%zd, data=%*ph, CRC=0x%04x).\n",
-			    reg, val_len, (int)val_len, buf_rx->data,
-			    get_unaligned_be16(buf_rx->data + val_len));
+		netdev_err(priv->ndev,
+			   "CRC read error at address 0x%04x (length=%zd, data=%*ph, CRC=0x%04x).\n",
+			   reg, val_len, (int)val_len, buf_rx->data,
+			   get_unaligned_be16(buf_rx->data + val_len));
 
 		return err;
 	}

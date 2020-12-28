@@ -7,6 +7,8 @@
  *
  */
 
+#include <linux/ethtool.h>
+
 #include "ethsw.h"
 
 static struct {
@@ -24,7 +26,7 @@ static struct {
 	{DPSW_CNT_EGR_FRAME,		"tx frames"},
 	{DPSW_CNT_EGR_BYTE,		"tx bytes"},
 	{DPSW_CNT_EGR_FRAME_DISCARD,	"tx discarded frames"},
-
+	{DPSW_CNT_ING_NO_BUFF_DISCARD,	"rx discarded no buffer frames"},
 };
 
 #define DPAA2_SWITCH_NUM_COUNTERS	ARRAY_SIZE(dpaa2_switch_ethtool_counters)

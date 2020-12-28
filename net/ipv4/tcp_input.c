@@ -510,7 +510,6 @@ static void tcp_init_buffer_space(struct sock *sk)
 	if (!(sk->sk_userlocks & SOCK_SNDBUF_LOCK))
 		tcp_sndbuf_expand(sk);
 
-	tp->rcvq_space.space = min_t(u32, tp->rcv_wnd, TCP_INIT_CWND * tp->advmss);
 	tcp_mstamp_refresh(tp);
 	tp->rcvq_space.time = tp->tcp_mstamp;
 	tp->rcvq_space.seq = tp->copied_seq;
@@ -534,6 +533,8 @@ static void tcp_init_buffer_space(struct sock *sk)
 
 	tp->rcv_ssthresh = min(tp->rcv_ssthresh, tp->window_clamp);
 	tp->snd_cwnd_stamp = tcp_jiffies32;
+	tp->rcvq_space.space = min3(tp->rcv_ssthresh, tp->rcv_wnd,
+				    (u32)TCP_INIT_CWND * tp->advmss);
 }
 
 /* 4. Recalculate window clamp after socket hit its memory bounds. */
@@ -2546,7 +2547,7 @@ static bool tcp_try_undo_loss(struct sock *sk, bool frto_undo)
  *   1) If the packets in flight is larger than ssthresh, PRR spreads the
  *	cwnd reductions across a full RTT.
  *   2) Otherwise PRR uses packet conservation to send as much as delivered.
- *      But when the retransmits are acked without further losses, PRR
+ *      But when SND_UNA is acked without further losses,
  *      slow starts cwnd up to ssthresh to speed up the recovery.
  */
 static void tcp_init_cwnd_reduction(struct sock *sk)
@@ -2563,7 +2564,7 @@ static void tcp_init_cwnd_reduction(struct sock *sk)
 	tcp_ecn_queue_cwr(tp);
 }
 
-void tcp_cwnd_reduction(struct sock *sk, int newly_acked_sacked, int flag)
+void tcp_cwnd_reduction(struct sock *sk, int newly_acked_sacked, int newly_lost, int flag)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	int sndcnt = 0;
@@ -2577,8 +2578,7 @@ void tcp_cwnd_reduction(struct sock *sk, int newly_acked_sacked, int flag)
 		u64 dividend = (u64)tp->snd_ssthresh * tp->prr_delivered +
 			       tp->prior_cwnd - 1;
 		sndcnt = div_u64(dividend, tp->prior_cwnd) - tp->prr_out;
-	} else if ((flag & (FLAG_RETRANS_DATA_ACKED | FLAG_LOST_RETRANS)) ==
-		   FLAG_RETRANS_DATA_ACKED) {
+	} else if (flag & FLAG_SND_UNA_ADVANCED && !newly_lost) {
 		sndcnt = min_t(int, delta,
 			       max_t(int, tp->prr_delivered - tp->prr_out,
 				     newly_acked_sacked) + 1);
@@ -2689,7 +2689,22 @@ void tcp_simple_retransmit(struct sock *sk)
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
-	unsigned int mss = tcp_current_mss(sk);
+	int mss;
+
+	/* A fastopen SYN request is stored as two separate packets within
+	 * the retransmit queue, this is done by tcp_send_syn_data().
+	 * As a result simply checking the MSS of the frames in the queue
+	 * will not work for the SYN packet.
+	 *
+	 * Us being here is an indication of a path MTU issue so we can
+	 * assume that the fastopen SYN was lost and just mark all the
+	 * frames in the retransmit queue as lost. We will use an MSS of
+	 * -1 to mark all frames as lost, otherwise compute the current MSS.
+	 */
+	if (tp->syn_data && sk->sk_state == TCP_SYN_SENT)
+		mss = -1;
+	else
+		mss = tcp_current_mss(sk);
 
 	skb_rbtree_walk(skb, &sk->tcp_rtx_queue) {
 		if (tcp_skb_seglen(skb) > mss)
@@ -3419,7 +3434,7 @@ static void tcp_cong_control(struct sock *sk, u32 ack, u32 acked_sacked,
 
 	if (tcp_in_cwnd_reduction(sk)) {
 		/* Reduce cwnd if state mandates */
-		tcp_cwnd_reduction(sk, acked_sacked, flag);
+		tcp_cwnd_reduction(sk, acked_sacked, rs->losses, flag);
 	} else if (tcp_may_raise_cwnd(sk, flag)) {
 		/* Advance cwnd if state allows */
 		tcp_cong_avoid(sk, ack, acked_sacked);
@@ -4218,9 +4233,12 @@ static inline bool tcp_sequence(const struct tcp_sock *tp, u32 seq, u32 end_seq)
 }
 
 /* When we get a reset we do this. */
-void tcp_reset(struct sock *sk)
+void tcp_reset(struct sock *sk, struct sk_buff *skb)
 {
 	trace_tcp_receive_reset(sk);
+
+	if (sk_is_mptcp(sk))
+		mptcp_incoming_options(sk, skb);
 
 	/* We want the right error as BSD sees it (and indeed as we do). */
 	switch (sk->sk_state) {
@@ -5604,7 +5622,7 @@ static bool tcp_validate_incoming(struct sock *sk, struct sk_buff *skb,
 						  &tp->last_oow_ack_time))
 				tcp_send_dupack(sk, skb);
 		} else if (tcp_reset_check(sk, skb)) {
-			tcp_reset(sk);
+			tcp_reset(sk, skb);
 		}
 		goto discard;
 	}
@@ -5640,7 +5658,7 @@ static bool tcp_validate_incoming(struct sock *sk, struct sk_buff *skb,
 		}
 
 		if (rst_seq_match)
-			tcp_reset(sk);
+			tcp_reset(sk, skb);
 		else {
 			/* Disable TFO if RST is out-of-order
 			 * and no data has been received
@@ -6077,7 +6095,7 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 		 */
 
 		if (th->rst) {
-			tcp_reset(sk);
+			tcp_reset(sk, skb);
 			goto discard;
 		}
 
@@ -6519,7 +6537,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 			if (TCP_SKB_CB(skb)->end_seq != TCP_SKB_CB(skb)->seq &&
 			    after(TCP_SKB_CB(skb)->end_seq - th->fin, tp->rcv_nxt)) {
 				NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPABORTONDATA);
-				tcp_reset(sk);
+				tcp_reset(sk, skb);
 				return 1;
 			}
 		}
@@ -6800,17 +6818,12 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	/* Note: tcp_v6_init_req() might override ir_iif for link locals */
 	inet_rsk(req)->ir_iif = inet_request_bound_dev_if(sk, skb);
 
-	af_ops->init_req(req, sk, skb);
-
-	if (security_inet_conn_request(sk, skb, req))
+	dst = af_ops->route_req(sk, skb, &fl, req);
+	if (!dst)
 		goto drop_and_free;
 
 	if (tmp_opt.tstamp_ok)
 		tcp_rsk(req)->ts_off = af_ops->init_ts_off(net, skb);
-
-	dst = af_ops->route_req(sk, &fl, req);
-	if (!dst)
-		goto drop_and_free;
 
 	if (!want_cookie && !isn) {
 		/* Kill the following clause, if you dislike this way. */

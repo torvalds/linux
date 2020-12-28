@@ -10,7 +10,7 @@
 
 / {
 	model = "SMDK2416";
-	compatible = "samsung,s3c2416";
+	compatible = "samsung,smdk2416", "samsung,s3c2416";
 
 	memory@30000000 {
 		device_type = "memory";

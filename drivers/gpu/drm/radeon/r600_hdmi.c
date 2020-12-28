@@ -30,6 +30,7 @@
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_audio.h"
+#include "r600.h"
 #include "r600d.h"
 #include "atom.h"
 

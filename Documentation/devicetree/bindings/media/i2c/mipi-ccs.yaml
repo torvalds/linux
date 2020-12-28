@@ -1,0 +1,133 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2014--2020 Intel Corporation
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/mipi-ccs.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MIPI CCS, SMIA++ and SMIA compliant camera sensors
+
+maintainers:
+  - Sakari Ailus <sakari.ailus@linux.intel.com>
+
+description:
+
+  CCS (Camera Command Set) is a raw Bayer camera sensor standard defined by the
+  MIPI Alliance; see
+  <URL:https://www.mipi.org/specifications/camera-command-set>.
+
+  SMIA (Standard Mobile Imaging Architecture) is an image sensor standard
+  defined jointly by Nokia and ST. SMIA++, defined by Nokia, is an extension of
+  that.
+
+  More detailed documentation can be found in
+  Documentation/devicetree/bindings/media/video-interfaces.txt .
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: mipi-ccs-1.1
+          - const: mipi-ccs
+      - items:
+          - const: mipi-ccs-1.0
+          - const: mipi-ccs
+      - const: nokia,smia
+
+  reg:
+    maxItems: 1
+
+  vana-supply:
+    description: Analogue voltage supply (VANA), sensor dependent.
+
+  vcore-supply:
+    description: Core voltage supply (VCore), sensor dependent.
+
+  vio-supply:
+    description: I/O voltage supply (VIO), sensor dependent.
+
+  clocks:
+    description: External clock to the sensor.
+    maxItems: 1
+
+  clock-frequency:
+    description: Frequency of the external clock to the sensor in Hz.
+
+  reset-gpios:
+    description: Reset GPIO. Also commonly called XSHUTDOWN in hardware
+      documentation.
+    maxItems: 1
+
+  flash-leds:
+    description: Flash LED phandles. See ../video-interfaces.txt for details.
+
+  lens-focus:
+    description: Lens focus controller phandles. See ../video-interfaces.txt
+      for details.
+
+  rotation:
+    description: Rotation of the sensor.  See ../video-interfaces.txt for
+      details.
+    enum: [ 0, 180 ]
+
+  port:
+    type: object
+    properties:
+      endpoint:
+        type: object
+        properties:
+          link-frequencies:
+            $ref: /schemas/types.yaml#/definitions/uint64-array
+            description: List of allowed data link frequencies.
+          data-lanes:
+            minItems: 1
+            maxItems: 8
+          bus-type:
+            description: The type of the data bus.
+            oneOf:
+              - const: 1 # CSI-2 C-PHY
+              - const: 3 # CCP2
+              - const: 4 # CSI-2 D-PHY
+
+        required:
+          - link-frequencies
+          - data-lanes
+          - bus-type
+
+required:
+  - compatible
+  - reg
+  - clock-frequency
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c2 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        clock-frequency = <400000>;
+
+        camera-sensor@10 {
+            compatible = "mipi-ccs-1.0", "mipi-ccs";
+            reg = <0x10>;
+            reset-gpios = <&gpio3 20 GPIO_ACTIVE_LOW>;
+            vana-supply = <&vaux3>;
+            clocks = <&omap3_isp 0>;
+            clock-frequency = <9600000>;
+            port {
+                ccs_ep: endpoint {
+                    data-lanes = <1 2>;
+                    remote-endpoint = <&csi2a_ep>;
+                    link-frequencies = /bits/ 64 <199200000 210000000
+                                                  499200000>;
+                    bus-type = <4>;
+                };
+            };
+        };
+    };
+...

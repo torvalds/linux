@@ -126,21 +126,20 @@ static int mt7663u_probe(struct usb_interface *usb_intf,
 alloc_queues:
 	ret = mt76u_alloc_mcu_queue(&dev->mt76);
 	if (ret)
-		goto error_free_q;
+		goto error;
 
 	ret = mt76u_alloc_queues(&dev->mt76);
 	if (ret)
-		goto error_free_q;
+		goto error;
 
 	ret = mt7663_usb_sdio_register_device(dev);
 	if (ret)
-		goto error_free_q;
+		goto error;
 
 	return 0;
 
-error_free_q:
-	mt76u_queues_deinit(&dev->mt76);
 error:
+	mt76u_queues_deinit(&dev->mt76);
 	usb_set_intfdata(usb_intf, NULL);
 	usb_put_dev(interface_to_usbdev(usb_intf));
 

@@ -10,7 +10,7 @@
 #include <linux/tpm_command.h>
 #include <crypto/akcipher.h>
 #include <crypto/hash.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
 #include <asm/unaligned.h>
 #include <keys/asymmetric-subtype.h>
 #include <keys/trusted_tpm.h>
