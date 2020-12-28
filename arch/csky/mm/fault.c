@@ -143,12 +143,11 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
 		return;
 	}
 
-	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 	/*
 	 * If we're in an interrupt or have no user
 	 * context, we must not take the fault..
 	 */
-	if (in_atomic() || !mm)
+	if (unlikely(faulthandler_disabled() || !mm))
 		goto bad_area_nosemaphore;
 
 	if (user_mode(regs))
@@ -157,6 +156,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
 	if (is_write(regs))
 		flags |= FAULT_FLAG_WRITE;
 
+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 retry:
 	mmap_read_lock(mm);
 	vma = find_vma(mm, address);
