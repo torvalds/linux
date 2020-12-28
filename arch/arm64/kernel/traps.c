@@ -42,7 +42,6 @@
 #include <asm/smp.h>
 #include <asm/stack_pointer.h>
 #include <asm/stacktrace.h>
-#include <asm/exception.h>
 #include <asm/system_misc.h>
 #include <asm/sysreg.h>
 
