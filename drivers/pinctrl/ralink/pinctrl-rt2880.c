@@ -361,7 +361,7 @@ static struct platform_driver rt2880_pinmux_driver = {
 	},
 };
 
-int __init rt2880_pinmux_init(void)
+static int __init rt2880_pinmux_init(void)
 {
 	return platform_driver_register(&rt2880_pinmux_driver);
 }
