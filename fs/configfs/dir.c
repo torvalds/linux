@@ -1411,6 +1411,22 @@ static int configfs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
 	else
 		ret = configfs_attach_item(parent_item, item, dentry, frag);
 
+	/* inherit uid/gid from process creating the directory */
+	if (!uid_eq(current_fsuid(), GLOBAL_ROOT_UID) ||
+	    !gid_eq(current_fsgid(), GLOBAL_ROOT_GID)) {
+		struct inode *inode = d_inode(dentry);
+		struct iattr ia = {
+			.ia_uid = current_fsuid(),
+			.ia_gid = current_fsgid(),
+			.ia_valid = ATTR_UID | ATTR_GID,
+		};
+
+		inode->i_uid = ia.ia_uid;
+		inode->i_gid = ia.ia_gid;
+		/* the above manual assignments skip the permission checks */
+		configfs_setattr(mnt_userns, dentry, &ia);
+	}
+
 	spin_lock(&configfs_dirent_lock);
 	sd->s_type &= ~CONFIGFS_USET_IN_MKDIR;
 	if (!ret)
