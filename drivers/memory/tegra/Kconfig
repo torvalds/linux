@@ -36,6 +36,7 @@ config TEGRA124_EMC
 	default y
 	depends on TEGRA_MC && ARCH_TEGRA_124_SOC
 	select TEGRA124_CLK_EMC
+	select PM_OPP
 	help
 	  This driver is for the External Memory Controller (EMC) found on
 	  Tegra124 chips. The EMC controls the external DRAM on the board.
