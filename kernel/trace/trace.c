@@ -48,6 +48,7 @@
 #include <linux/fsnotify.h>
 #include <linux/irq_work.h>
 #include <linux/workqueue.h>
+#include <trace/hooks/ftrace_dump.h>
 
 #include "trace.h"
 #include "trace_output.h"
@@ -9201,8 +9202,17 @@ static __init int tracer_init_tracefs(void)
 static int trace_panic_handler(struct notifier_block *this,
 			       unsigned long event, void *unused)
 {
+	bool ftrace_check = false;
+
+	trace_android_vh_ftrace_oops_enter(&ftrace_check);
+
+	if (ftrace_check)
+		return NOTIFY_OK;
+
 	if (ftrace_dump_on_oops)
 		ftrace_dump(ftrace_dump_on_oops);
+
+	trace_android_vh_ftrace_oops_exit(&ftrace_check);
 	return NOTIFY_OK;
 }
 
@@ -9216,6 +9226,13 @@ static int trace_die_handler(struct notifier_block *self,
 			     unsigned long val,
 			     void *data)
 {
+	bool ftrace_check = false;
+
+	trace_android_vh_ftrace_oops_enter(&ftrace_check);
+
+	if (ftrace_check)
+		return NOTIFY_OK;
+
 	switch (val) {
 	case DIE_OOPS:
 		if (ftrace_dump_on_oops)
@@ -9224,6 +9241,8 @@ static int trace_die_handler(struct notifier_block *self,
 	default:
 		break;
 	}
+
+	trace_android_vh_ftrace_oops_exit(&ftrace_check);
 	return NOTIFY_OK;
 }
 
@@ -9248,6 +9267,8 @@ static struct notifier_block trace_die_notifier = {
 void
 trace_printk_seq(struct trace_seq *s)
 {
+	bool dump_printk = true;
+
 	/* Probably should print a warning here. */
 	if (s->seq.len >= TRACE_MAX_PRINT)
 		s->seq.len = TRACE_MAX_PRINT;
@@ -9263,7 +9284,9 @@ trace_printk_seq(struct trace_seq *s)
 	/* should be zero ended, but we are paranoid. */
 	s->buffer[s->seq.len] = 0;
 
-	printk(KERN_TRACE "%s", s->buffer);
+	trace_android_vh_ftrace_dump_buffer(s, &dump_printk);
+	if (dump_printk)
+		printk(KERN_TRACE "%s", s->buffer);
 
 	trace_seq_init(s);
 }
@@ -9296,6 +9319,8 @@ void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 	unsigned int old_userobj;
 	unsigned long flags;
 	int cnt = 0, cpu;
+	bool ftrace_check = false;
+	unsigned long size;
 
 	/* Only allow one dump user at a time. */
 	if (atomic_inc_return(&dump_running) != 1) {
@@ -9324,12 +9349,17 @@ void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 
 	for_each_tracing_cpu(cpu) {
 		atomic_inc(&per_cpu_ptr(iter.array_buffer->data, cpu)->disabled);
+		size = ring_buffer_size(iter.array_buffer->buffer, cpu);
+		trace_android_vh_ftrace_size_check(size, &ftrace_check);
 	}
 
 	old_userobj = tr->trace_flags & TRACE_ITER_SYM_USEROBJ;
 
 	/* don't look at user memory in panic mode */
 	tr->trace_flags &= ~TRACE_ITER_SYM_USEROBJ;
+
+	if (ftrace_check)
+		goto out_enable;
 
 	switch (oops_dump_mode) {
 	case DUMP_ALL:
@@ -9361,6 +9391,7 @@ void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 	 */
 
 	while (!trace_empty(&iter)) {
+		ftrace_check = true;
 
 		if (!cnt)
 			printk(KERN_TRACE "---------------------------------\n");
@@ -9368,7 +9399,9 @@ void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 		cnt++;
 
 		trace_iterator_reset(&iter);
-		iter.iter_flags |= TRACE_FILE_LAT_FMT;
+		trace_android_vh_ftrace_format_check(&ftrace_check);
+		if (ftrace_check)
+			iter.iter_flags |= TRACE_FILE_LAT_FMT;
 
 		if (trace_find_next_entry_inc(&iter) != NULL) {
 			int ret;
