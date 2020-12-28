@@ -42,13 +42,23 @@ config INTERCONNECT_QCOM_QCS404
 	  This is a driver for the Qualcomm Network-on-Chip on qcs404-based
 	  platforms.
 
+config INTERCONNECT_QCOM_RPMH_POSSIBLE
+	tristate
+	default INTERCONNECT_QCOM
+	depends on QCOM_RPMH || (COMPILE_TEST && !QCOM_RPMH)
+	depends on QCOM_COMMAND_DB || (COMPILE_TEST && !QCOM_COMMAND_DB)
+	depends on OF || COMPILE_TEST
+	help
+	  Compile-testing RPMH drivers is possible on other platforms,
+	  but in order to avoid link failures, drivers must not be built-in
+	  when QCOM_RPMH or QCOM_COMMAND_DB are loadable modules
+
 config INTERCONNECT_QCOM_RPMH
 	tristate
 
 config INTERCONNECT_QCOM_SC7180
 	tristate "Qualcomm SC7180 interconnect driver"
-	depends on INTERCONNECT_QCOM
-	depends on (QCOM_RPMH && QCOM_COMMAND_DB && OF) || COMPILE_TEST
+	depends on INTERCONNECT_QCOM_RPMH_POSSIBLE
 	select INTERCONNECT_QCOM_RPMH
 	select INTERCONNECT_QCOM_BCM_VOTER
 	help
@@ -57,8 +67,7 @@ config INTERCONNECT_QCOM_SC7180
 
 config INTERCONNECT_QCOM_SDM845
 	tristate "Qualcomm SDM845 interconnect driver"
-	depends on INTERCONNECT_QCOM
-	depends on (QCOM_RPMH && QCOM_COMMAND_DB && OF) || COMPILE_TEST
+	depends on INTERCONNECT_QCOM_RPMH_POSSIBLE
 	select INTERCONNECT_QCOM_RPMH
 	select INTERCONNECT_QCOM_BCM_VOTER
 	help
@@ -67,8 +76,7 @@ config INTERCONNECT_QCOM_SDM845
 
 config INTERCONNECT_QCOM_SM8150
 	tristate "Qualcomm SM8150 interconnect driver"
-	depends on INTERCONNECT_QCOM
-	depends on (QCOM_RPMH && QCOM_COMMAND_DB && OF) || COMPILE_TEST
+	depends on INTERCONNECT_QCOM_RPMH_POSSIBLE
 	select INTERCONNECT_QCOM_RPMH
 	select INTERCONNECT_QCOM_BCM_VOTER
 	help
@@ -77,8 +85,7 @@ config INTERCONNECT_QCOM_SM8150
 
 config INTERCONNECT_QCOM_SM8250
 	tristate "Qualcomm SM8250 interconnect driver"
-	depends on INTERCONNECT_QCOM
-	depends on (QCOM_RPMH && QCOM_COMMAND_DB && OF) || COMPILE_TEST
+	depends on INTERCONNECT_QCOM_RPMH_POSSIBLE
 	select INTERCONNECT_QCOM_RPMH
 	select INTERCONNECT_QCOM_BCM_VOTER
 	help
