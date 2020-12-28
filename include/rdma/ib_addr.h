@@ -7,6 +7,7 @@
 #ifndef IB_ADDR_H
 #define IB_ADDR_H
 
+#include <linux/ethtool.h>
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/if_arp.h>

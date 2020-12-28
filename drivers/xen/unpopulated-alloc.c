@@ -12,7 +12,7 @@
 #include <xen/xen.h>
 
 static DEFINE_MUTEX(list_lock);
-static LIST_HEAD(page_list);
+static struct page *page_list;
 static unsigned int list_count;
 
 static int fill_list(unsigned int nr_pages)
@@ -27,11 +27,6 @@ static int fill_list(unsigned int nr_pages)
 	if (!res)
 		return -ENOMEM;
 
-	pgmap = kzalloc(sizeof(*pgmap), GFP_KERNEL);
-	if (!pgmap)
-		goto err_pgmap;
-
-	pgmap->type = MEMORY_DEVICE_GENERIC;
 	res->name = "Xen scratch";
 	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 
@@ -43,6 +38,11 @@ static int fill_list(unsigned int nr_pages)
 		goto err_resource;
 	}
 
+	pgmap = kzalloc(sizeof(*pgmap), GFP_KERNEL);
+	if (!pgmap)
+		goto err_pgmap;
+
+	pgmap->type = MEMORY_DEVICE_GENERIC;
 	pgmap->range = (struct range) {
 		.start = res->start,
 		.end = res->end,
@@ -84,17 +84,18 @@ static int fill_list(unsigned int nr_pages)
 		struct page *pg = virt_to_page(vaddr + PAGE_SIZE * i);
 
 		BUG_ON(!virt_addr_valid(vaddr + PAGE_SIZE * i));
-		list_add(&pg->lru, &page_list);
+		pg->zone_device_data = page_list;
+		page_list = pg;
 		list_count++;
 	}
 
 	return 0;
 
 err_memremap:
-	release_resource(res);
-err_resource:
 	kfree(pgmap);
 err_pgmap:
+	release_resource(res);
+err_resource:
 	kfree(res);
 	return ret;
 }
@@ -118,12 +119,10 @@ int xen_alloc_unpopulated_pages(unsigned int nr_pages, struct page **pages)
 	}
 
 	for (i = 0; i < nr_pages; i++) {
-		struct page *pg = list_first_entry_or_null(&page_list,
-							   struct page,
-							   lru);
+		struct page *pg = page_list;
 
 		BUG_ON(!pg);
-		list_del(&pg->lru);
+		page_list = pg->zone_device_data;
 		list_count--;
 		pages[i] = pg;
 
@@ -134,7 +133,8 @@ int xen_alloc_unpopulated_pages(unsigned int nr_pages, struct page **pages)
 				unsigned int j;
 
 				for (j = 0; j <= i; j++) {
-					list_add(&pages[j]->lru, &page_list);
+					pages[j]->zone_device_data = page_list;
+					page_list = pages[j];
 					list_count++;
 				}
 				goto out;
@@ -160,7 +160,8 @@ void xen_free_unpopulated_pages(unsigned int nr_pages, struct page **pages)
 
 	mutex_lock(&list_lock);
 	for (i = 0; i < nr_pages; i++) {
-		list_add(&pages[i]->lru, &page_list);
+		pages[i]->zone_device_data = page_list;
+		page_list = pages[i];
 		list_count++;
 	}
 	mutex_unlock(&list_lock);
@@ -189,7 +190,8 @@ static int __init init(void)
 			struct page *pg =
 				pfn_to_page(xen_extra_mem[i].start_pfn + j);
 
-			list_add(&pg->lru, &page_list);
+			pg->zone_device_data = page_list;
+			page_list = pg;
 			list_count++;
 		}
 	}

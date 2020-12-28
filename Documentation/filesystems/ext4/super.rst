@@ -596,6 +596,13 @@ following:
      - Sparse Super Block, v2. If this flag is set, the SB field s\_backup\_bgs
        points to the two block groups that contain backup superblocks
        (COMPAT\_SPARSE\_SUPER2).
+   * - 0x400
+     - Fast commits supported. Although fast commits blocks are
+       backward incompatible, fast commit blocks are not always
+       present in the journal. If fast commit blocks are present in
+       the journal, JBD2 incompat feature
+       (JBD2\_FEATURE\_INCOMPAT\_FAST\_COMMIT) gets
+       set (COMPAT\_FAST\_COMMIT).
 
 .. _super_incompat:
 

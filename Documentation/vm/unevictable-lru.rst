@@ -33,7 +33,7 @@ reclaim in Linux.  The problems have been observed at customer sites on large
 memory x86_64 systems.
 
 To illustrate this with an example, a non-NUMA x86_64 platform with 128GB of
-main memory will have over 32 million 4k pages in a single zone.  When a large
+main memory will have over 32 million 4k pages in a single node.  When a large
 fraction of these pages are not evictable for any reason [see below], vmscan
 will spend a lot of time scanning the LRU lists looking for the small fraction
 of pages that are evictable.  This can result in a situation where all CPUs are
@@ -55,7 +55,7 @@ unevictable, either by definition or by circumstance, in the future.
 The Unevictable Page List
 -------------------------
 
-The Unevictable LRU infrastructure consists of an additional, per-zone, LRU list
+The Unevictable LRU infrastructure consists of an additional, per-node, LRU list
 called the "unevictable" list and an associated page flag, PG_unevictable, to
 indicate that the page is being managed on the unevictable list.
 
@@ -84,14 +84,8 @@ The unevictable list does not differentiate between file-backed and anonymous,
 swap-backed pages.  This differentiation is only important while the pages are,
 in fact, evictable.
 
-The unevictable list benefits from the "arrayification" of the per-zone LRU
+The unevictable list benefits from the "arrayification" of the per-node LRU
 lists and statistics originally proposed and posted by Christoph Lameter.
-
-The unevictable list does not use the LRU pagevec mechanism. Rather,
-unevictable pages are placed directly on the page's zone's unevictable list
-under the zone lru_lock.  This allows us to prevent the stranding of pages on
-the unevictable list when one task has the page isolated from the LRU and other
-tasks are changing the "evictability" state of the page.
 
 
 Memory Control Group Interaction
@@ -101,8 +95,8 @@ The unevictable LRU facility interacts with the memory control group [aka
 memory controller; see Documentation/admin-guide/cgroup-v1/memory.rst] by extending the
 lru_list enum.
 
-The memory controller data structure automatically gets a per-zone unevictable
-list as a result of the "arrayification" of the per-zone LRU lists (one per
+The memory controller data structure automatically gets a per-node unevictable
+list as a result of the "arrayification" of the per-node LRU lists (one per
 lru_list enum element).  The memory controller tracks the movement of pages to
 and from the unevictable list.
 
@@ -196,7 +190,7 @@ for the sake of expediency, to leave a unevictable page on one of the regular
 active/inactive LRU lists for vmscan to deal with.  vmscan checks for such
 pages in all of the shrink_{active|inactive|page}_list() functions and will
 "cull" such pages that it encounters: that is, it diverts those pages to the
-unevictable list for the zone being scanned.
+unevictable list for the node being scanned.
 
 There may be situations where a page is mapped into a VM_LOCKED VMA, but the
 page is not marked as PG_mlocked.  Such pages will make it all the way to
@@ -328,7 +322,7 @@ If the page was NOT already mlocked, mlock_vma_page() attempts to isolate the
 page from the LRU, as it is likely on the appropriate active or inactive list
 at that time.  If the isolate_lru_page() succeeds, mlock_vma_page() will put
 back the page - by calling putback_lru_page() - which will notice that the page
-is now mlocked and divert the page to the zone's unevictable list.  If
+is now mlocked and divert the page to the node's unevictable list.  If
 mlock_vma_page() is unable to isolate the page from the LRU, vmscan will handle
 it later if and when it attempts to reclaim the page.
 
@@ -603,7 +597,7 @@ Some examples of these unevictable pages on the LRU lists are:
      unevictable list in mlock_vma_page().
 
 shrink_inactive_list() also diverts any unevictable pages that it finds on the
-inactive lists to the appropriate zone's unevictable list.
+inactive lists to the appropriate node's unevictable list.
 
 shrink_inactive_list() should only see SHM_LOCK'd pages that became SHM_LOCK'd
 after shrink_active_list() had moved them to the inactive list, or pages mapped

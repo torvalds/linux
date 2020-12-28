@@ -100,7 +100,7 @@
         ],
         "cmdUnderTest": "$TC filter add dev $DEV2 protocol ip pref 1 ingress flower dst_mac e4:11:22:11:4a:51 action drop",
         "expExitCode": "0",
-        "verifyCmd": "$TC filter show terse dev $DEV2 ingress",
+        "verifyCmd": "$TC -br filter show dev $DEV2 ingress",
         "matchPattern": "filter protocol ip pref 1 flower.*handle",
         "matchCount": "1",
         "teardown": [
@@ -119,7 +119,7 @@
         ],
         "cmdUnderTest": "$TC filter add dev $DEV2 protocol ip pref 1 ingress flower dst_mac e4:11:22:11:4a:51 action drop",
         "expExitCode": "0",
-        "verifyCmd": "$TC filter show terse dev $DEV2 ingress",
+        "verifyCmd": "$TC -br filter show dev $DEV2 ingress",
         "matchPattern": "  dst_mac e4:11:22:11:4a:51",
         "matchCount": "0",
         "teardown": [

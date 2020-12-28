@@ -34,6 +34,13 @@ static inline int ib_umem_offset(struct ib_umem *umem)
 	return umem->address & ~PAGE_MASK;
 }
 
+static inline unsigned long ib_umem_dma_offset(struct ib_umem *umem,
+					       unsigned long pgsz)
+{
+	return (sg_dma_address(umem->sg_head.sgl) + ib_umem_offset(umem)) &
+	       (pgsz - 1);
+}
+
 static inline size_t ib_umem_num_dma_blocks(struct ib_umem *umem,
 					    unsigned long pgsz)
 {
@@ -79,6 +86,35 @@ int ib_umem_copy_from(void *dst, struct ib_umem *umem, size_t offset,
 unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
 				     unsigned long pgsz_bitmap,
 				     unsigned long virt);
+/**
+ * ib_umem_find_best_pgoff - Find best HW page size
+ *
+ * @umem: umem struct
+ * @pgsz_bitmap bitmap of HW supported page sizes
+ * @pgoff_bitmask: Mask of bits that can be represented with an offset
+ *
+ * This is very similar to ib_umem_find_best_pgsz() except instead of accepting
+ * an IOVA it accepts a bitmask specifying what address bits can be represented
+ * with a page offset.
+ *
+ * For instance if the HW has multiple page sizes, requires 64 byte alignemnt,
+ * and can support aligned offsets up to 4032 then pgoff_bitmask would be
+ * "111111000000".
+ *
+ * If the pgoff_bitmask requires either alignment in the low bit or an
+ * unavailable page size for the high bits, this function returns 0.
+ */
+static inline unsigned long ib_umem_find_best_pgoff(struct ib_umem *umem,
+						    unsigned long pgsz_bitmap,
+						    u64 pgoff_bitmask)
+{
+	struct scatterlist *sg = umem->sg_head.sgl;
+	dma_addr_t dma_addr;
+
+	dma_addr = sg_dma_address(sg) + (umem->address & ~PAGE_MASK);
+	return ib_umem_find_best_pgsz(umem, pgsz_bitmap,
+				      dma_addr & pgoff_bitmask);
+}
 
 #else /* CONFIG_INFINIBAND_USER_MEM */
 
@@ -98,6 +134,12 @@ static inline int ib_umem_copy_from(void *dst, struct ib_umem *umem, size_t offs
 static inline unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
 						   unsigned long pgsz_bitmap,
 						   unsigned long virt)
+{
+	return 0;
+}
+static inline unsigned long ib_umem_find_best_pgoff(struct ib_umem *umem,
+						    unsigned long pgsz_bitmap,
+						    u64 pgoff_bitmask)
 {
 	return 0;
 }

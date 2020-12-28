@@ -189,7 +189,7 @@ static ssize_t read_file_phy_err(struct file *file, char __user *user_buf,
 {
 #define PHY_ERR(s, p) \
 	len += scnprintf(buf + len, size - len, "%22s : %10u\n", s, \
-			 rxstats->phy_err_stats[p]);
+			 rxstats->phy_err_stats[p])
 
 	struct ath_rx_stats *rxstats = file->private_data;
 	char *buf;

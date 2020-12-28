@@ -56,12 +56,15 @@
 
 #define RING_NUM_FRAMES			20
 
+static uint32_t cfg_max_num_members;
+
 /* Open a socket in a given fanout mode.
  * @return -1 if mode is bad, a valid socket otherwise */
 static int sock_fanout_open(uint16_t typeflags, uint16_t group_id)
 {
 	struct sockaddr_ll addr = {0};
-	int fd, val;
+	struct fanout_args args;
+	int fd, val, err;
 
 	fd = socket(PF_PACKET, SOCK_RAW, 0);
 	if (fd < 0) {
@@ -83,8 +86,18 @@ static int sock_fanout_open(uint16_t typeflags, uint16_t group_id)
 		exit(1);
 	}
 
-	val = (((int) typeflags) << 16) | group_id;
-	if (setsockopt(fd, SOL_PACKET, PACKET_FANOUT, &val, sizeof(val))) {
+	if (cfg_max_num_members) {
+		args.id = group_id;
+		args.type_flags = typeflags;
+		args.max_num_members = cfg_max_num_members;
+		err = setsockopt(fd, SOL_PACKET, PACKET_FANOUT, &args,
+				 sizeof(args));
+	} else {
+		val = (((int) typeflags) << 16) | group_id;
+		err = setsockopt(fd, SOL_PACKET, PACKET_FANOUT, &val,
+				 sizeof(val));
+	}
+	if (err) {
 		if (close(fd)) {
 			perror("close packet");
 			exit(1);
@@ -286,6 +299,56 @@ static void test_control_group(void)
 	}
 }
 
+/* Test illegal max_num_members values */
+static void test_control_group_max_num_members(void)
+{
+	int fds[3];
+
+	fprintf(stderr, "test: control multiple sockets, max_num_members\n");
+
+	/* expected failure on greater than PACKET_FANOUT_MAX */
+	cfg_max_num_members = (1 << 16) + 1;
+	if (sock_fanout_open(PACKET_FANOUT_HASH, 0) != -1) {
+		fprintf(stderr, "ERROR: max_num_members > PACKET_FANOUT_MAX\n");
+		exit(1);
+	}
+
+	cfg_max_num_members = 256;
+	fds[0] = sock_fanout_open(PACKET_FANOUT_HASH, 0);
+	if (fds[0] == -1) {
+		fprintf(stderr, "ERROR: failed open\n");
+		exit(1);
+	}
+
+	/* expected failure on joining group with different max_num_members */
+	cfg_max_num_members = 257;
+	if (sock_fanout_open(PACKET_FANOUT_HASH, 0) != -1) {
+		fprintf(stderr, "ERROR: set different max_num_members\n");
+		exit(1);
+	}
+
+	/* success on joining group with same max_num_members */
+	cfg_max_num_members = 256;
+	fds[1] = sock_fanout_open(PACKET_FANOUT_HASH, 0);
+	if (fds[1] == -1) {
+		fprintf(stderr, "ERROR: failed to join group\n");
+		exit(1);
+	}
+
+	/* success on joining group with max_num_members unspecified */
+	cfg_max_num_members = 0;
+	fds[2] = sock_fanout_open(PACKET_FANOUT_HASH, 0);
+	if (fds[2] == -1) {
+		fprintf(stderr, "ERROR: failed to join group\n");
+		exit(1);
+	}
+
+	if (close(fds[2]) || close(fds[1]) || close(fds[0])) {
+		fprintf(stderr, "ERROR: closing sockets\n");
+		exit(1);
+	}
+}
+
 /* Test creating a unique fanout group ids */
 static void test_unique_fanout_group_ids(void)
 {
@@ -426,8 +489,11 @@ int main(int argc, char **argv)
 
 	test_control_single();
 	test_control_group();
+	test_control_group_max_num_members();
 	test_unique_fanout_group_ids();
 
+	/* PACKET_FANOUT_MAX */
+	cfg_max_num_members = 1 << 16;
 	/* find a set of ports that do not collide onto the same socket */
 	ret = test_datapath(PACKET_FANOUT_HASH, port_off,
 			    expect_hash[0], expect_hash[1]);

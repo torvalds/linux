@@ -28,6 +28,12 @@
 		clock-frequency = <0>;
 	};
 
+	audio_clk_b: audio_clk_b {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+	};
+
 	audio_clk_c: audio_clk_c {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -1212,6 +1218,8 @@
 			power-domains = <&sysc R8A774E1_PD_ALWAYS_ON>;
 			resets = <&cpg 812>;
 			phy-mode = "rgmii";
+			rx-internal-delay-ps = <0>;
+			tx-internal-delay-ps = <0>;
 			iommus = <&ipmmu_ds0 16>;
 			#address-cells = <1>;
 			#size-cells = <0>;

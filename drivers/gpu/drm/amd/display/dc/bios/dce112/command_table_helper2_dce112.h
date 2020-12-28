@@ -30,8 +30,5 @@ struct command_table_helper;
 
 /* Initialize command table helper functions */
 const struct command_table_helper *dal_cmd_tbl_helper_dce112_get_table2(void);
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-const struct command_table_helper *dal_cmd_tbl_helper_dcn2_get_table2(void);
-#endif
 
 #endif /* __DAL_COMMAND_TABLE_HELPER_DCE110_H__ */

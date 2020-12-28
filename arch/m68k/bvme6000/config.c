@@ -38,7 +38,7 @@
 #include <asm/bvme6000hw.h>
 
 static void bvme6000_get_model(char *model);
-extern void bvme6000_sched_init(irq_handler_t handler);
+extern void bvme6000_sched_init(void);
 extern int bvme6000_hwclk (int, struct rtc_time *);
 extern void bvme6000_reset (void);
 void bvme6000_set_vectors (void);
@@ -101,7 +101,6 @@ void __init config_bvme6000(void)
     bvme6000_set_vectors();
 #endif
 
-    mach_max_dma_address = 0xffffffff;
     mach_sched_init      = bvme6000_sched_init;
     mach_init_IRQ        = bvme6000_init_IRQ;
     mach_hwclk           = bvme6000_hwclk;
@@ -165,7 +164,6 @@ static u32 clk_total, clk_offset;
 
 static irqreturn_t bvme6000_timer_int (int irq, void *dev_id)
 {
-    irq_handler_t timer_routine = dev_id;
     unsigned long flags;
     volatile RtcPtr_t rtc = (RtcPtr_t)BVME_RTC_BASE;
     unsigned char msr;
@@ -175,7 +173,7 @@ static irqreturn_t bvme6000_timer_int (int irq, void *dev_id)
     rtc->msr = msr | 0x20;		/* Ack the interrupt */
     clk_total += RTC_TIMER_CYCLES;
     clk_offset = 0;
-    timer_routine(0, NULL);
+    legacy_timer_tick(1);
     local_irq_restore(flags);
 
     return IRQ_HANDLED;
@@ -190,7 +188,7 @@ static irqreturn_t bvme6000_timer_int (int irq, void *dev_id)
  * so divide by 8 to get the microsecond result.
  */
 
-void bvme6000_sched_init (irq_handler_t timer_routine)
+void bvme6000_sched_init (void)
 {
     volatile RtcPtr_t rtc = (RtcPtr_t)BVME_RTC_BASE;
     unsigned char msr = rtc->msr & 0xc0;
@@ -198,7 +196,7 @@ void bvme6000_sched_init (irq_handler_t timer_routine)
     rtc->msr = 0;	/* Ensure timer registers accessible */
 
     if (request_irq(BVME_IRQ_RTC, bvme6000_timer_int, IRQF_TIMER, "timer",
-                    timer_routine))
+                    NULL))
 	panic ("Couldn't register timer int");
 
     rtc->t1cr_omr = 0x04;	/* Mode 2, ext clk */

@@ -612,7 +612,7 @@ int clk_enable(struct clk *clk)
 	unsigned long flags;
 	int ret;
 
-	if (clk == NULL || IS_ERR(clk))
+	if (IS_ERR_OR_NULL(clk))
 		return -EINVAL;
 
 	spin_lock_irqsave(&clockfw_lock, flags);
@@ -627,7 +627,7 @@ void clk_disable(struct clk *clk)
 {
 	unsigned long flags;
 
-	if (clk == NULL || IS_ERR(clk))
+	if (IS_ERR_OR_NULL(clk))
 		return;
 
 	spin_lock_irqsave(&clockfw_lock, flags);
@@ -650,7 +650,7 @@ unsigned long clk_get_rate(struct clk *clk)
 	unsigned long flags;
 	unsigned long ret;
 
-	if (clk == NULL || IS_ERR(clk))
+	if (IS_ERR_OR_NULL(clk))
 		return 0;
 
 	spin_lock_irqsave(&clockfw_lock, flags);
@@ -670,7 +670,7 @@ long clk_round_rate(struct clk *clk, unsigned long rate)
 	unsigned long flags;
 	long ret;
 
-	if (clk == NULL || IS_ERR(clk))
+	if (IS_ERR_OR_NULL(clk))
 		return 0;
 
 	spin_lock_irqsave(&clockfw_lock, flags);
@@ -686,7 +686,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	unsigned long flags;
 	int ret = -EINVAL;
 
-	if (clk == NULL || IS_ERR(clk))
+	if (IS_ERR_OR_NULL(clk))
 		return ret;
 
 	spin_lock_irqsave(&clockfw_lock, flags);
@@ -791,7 +791,7 @@ void clk_preinit(struct clk *clk)
 
 int clk_register(struct clk *clk)
 {
-	if (clk == NULL || IS_ERR(clk))
+	if (IS_ERR_OR_NULL(clk))
 		return -EINVAL;
 
 	/*
@@ -817,7 +817,7 @@ EXPORT_SYMBOL(clk_register);
 
 void clk_unregister(struct clk *clk)
 {
-	if (clk == NULL || IS_ERR(clk))
+	if (IS_ERR_OR_NULL(clk))
 		return;
 
 	mutex_lock(&clocks_mutex);

@@ -6,7 +6,6 @@
 #include <linux/time.h>
 #include <linux/pstore.h>
 
-#define PSTORE_DEFAULT_KMSG_BYTES 10240
 extern unsigned long kmsg_bytes;
 
 #ifdef CONFIG_PSTORE_FTRACE

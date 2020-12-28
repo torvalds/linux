@@ -3,6 +3,7 @@
 #include <linux/errno.h>
 #include <linux/errname.h>
 #include <linux/kernel.h>
+#include <linux/math.h>
 
 /*
  * Ensure these tables do not accidentally become gigantic if some

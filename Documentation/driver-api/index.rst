@@ -29,6 +29,7 @@ available subsections can be seen below.
    infiniband
    frame-buffer
    regulator
+   reset
    iio/index
    input
    usb/index

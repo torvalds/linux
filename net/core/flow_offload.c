@@ -381,10 +381,8 @@ static void __flow_block_indr_cleanup(void (*release)(void *cb_priv),
 
 	list_for_each_entry_safe(this, next, &flow_block_indr_list, indr.list) {
 		if (this->release == release &&
-		    this->indr.cb_priv == cb_priv) {
+		    this->indr.cb_priv == cb_priv)
 			list_move(&this->indr.list, cleanup_list);
-			return;
-		}
 	}
 }
 

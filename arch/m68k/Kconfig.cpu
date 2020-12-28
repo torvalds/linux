@@ -20,6 +20,7 @@ choice
 
 config M68KCLASSIC
 	bool "Classic M68K CPU family support"
+	select HAVE_ARCH_PFN_VALID
 
 config COLDFIRE
 	bool "Coldfire CPU family support"
@@ -35,7 +36,7 @@ endchoice
 if M68KCLASSIC
 
 config M68000
-	bool "MC68000"
+	bool
 	depends on !MMU
 	select CPU_HAS_NO_BITFIELDS
 	select CPU_HAS_NO_MULDIV64
@@ -102,22 +103,25 @@ config M68060
 	  processor, say Y. Otherwise, say N.
 
 config M68328
-	bool "MC68328"
+	bool
 	depends on !MMU
+	select LEGACY_TIMER_TICK
 	select M68000
 	help
 	  Motorola 68328 processor support.
 
 config M68EZ328
-	bool "MC68EZ328"
+	bool
 	depends on !MMU
+	select LEGACY_TIMER_TICK
 	select M68000
 	help
 	  Motorola 68EX328 processor support.
 
 config M68VZ328
-	bool "MC68VZ328"
+	bool
 	depends on !MMU
+	select LEGACY_TIMER_TICK
 	select M68000
 	help
 	  Motorola 68VZ328 processor support.
@@ -137,6 +141,7 @@ config M5206
 	bool "MCF5206"
 	depends on !MMU
 	select COLDFIRE_SW_A7
+	select COLDFIRE_TIMERS
 	select HAVE_MBAR
 	select CPU_NO_EFFICIENT_FFS
 	help
@@ -146,6 +151,7 @@ config M5206e
 	bool "MCF5206e"
 	depends on !MMU
 	select COLDFIRE_SW_A7
+	select COLDFIRE_TIMERS
 	select HAVE_MBAR
 	select CPU_NO_EFFICIENT_FFS
 	help
@@ -154,7 +160,7 @@ config M5206e
 config M520x
 	bool "MCF520x"
 	depends on !MMU
-	select GENERIC_CLOCKEVENTS
+	select COLDFIRE_PIT_TIMER
 	select HAVE_CACHE_SPLIT
 	help
 	   Freescale Coldfire 5207/5208 processor support.
@@ -162,7 +168,7 @@ config M520x
 config M523x
 	bool "MCF523x"
 	depends on !MMU
-	select GENERIC_CLOCKEVENTS
+	select COLDFIRE_PIT_TIMER
 	select HAVE_CACHE_SPLIT
 	select HAVE_IPSBAR
 	help
@@ -172,6 +178,7 @@ config M5249
 	bool "MCF5249"
 	depends on !MMU
 	select COLDFIRE_SW_A7
+	select COLDFIRE_TIMERS
 	select HAVE_MBAR
 	select CPU_NO_EFFICIENT_FFS
 	help
@@ -181,6 +188,7 @@ config M525x
 	bool "MCF525x"
 	depends on !MMU
 	select COLDFIRE_SW_A7
+	select COLDFIRE_TIMERS
 	select HAVE_MBAR
 	select CPU_NO_EFFICIENT_FFS
 	help
@@ -189,10 +197,10 @@ config M525x
 config M5271
 	bool "MCF5271"
 	depends on !MMU
+	select COLDFIRE_PIT_TIMER
 	select M527x
 	select HAVE_CACHE_SPLIT
 	select HAVE_IPSBAR
-	select GENERIC_CLOCKEVENTS
 	help
 	  Freescale (Motorola) ColdFire 5270/5271 processor support.
 
@@ -200,6 +208,7 @@ config M5272
 	bool "MCF5272"
 	depends on !MMU
 	select COLDFIRE_SW_A7
+	select COLDFIRE_TIMERS
 	select HAVE_MBAR
 	select CPU_NO_EFFICIENT_FFS
 	help
@@ -208,17 +217,17 @@ config M5272
 config M5275
 	bool "MCF5275"
 	depends on !MMU
+	select COLDFIRE_PIT_TIMER
 	select M527x
 	select HAVE_CACHE_SPLIT
 	select HAVE_IPSBAR
-	select GENERIC_CLOCKEVENTS
 	help
 	  Freescale (Motorola) ColdFire 5274/5275 processor support.
 
 config M528x
 	bool "MCF528x"
 	depends on !MMU
-	select GENERIC_CLOCKEVENTS
+	select COLDFIRE_PIT_TIMER
 	select HAVE_CACHE_SPLIT
 	select HAVE_IPSBAR
 	help
@@ -227,6 +236,7 @@ config M528x
 config M5307
 	bool "MCF5307"
 	depends on !MMU
+	select COLDFIRE_TIMERS
 	select COLDFIRE_SW_A7
 	select HAVE_CACHE_CB
 	select HAVE_MBAR
@@ -237,6 +247,7 @@ config M5307
 config M532x
 	bool "MCF532x"
 	depends on !MMU
+	select COLDFIRE_TIMERS
 	select M53xx
 	select HAVE_CACHE_CB
 	help
@@ -245,6 +256,7 @@ config M532x
 config M537x
 	bool "MCF537x"
 	depends on !MMU
+	select COLDFIRE_TIMERS
 	select M53xx
 	select HAVE_CACHE_CB
 	help
@@ -254,6 +266,7 @@ config M5407
 	bool "MCF5407"
 	depends on !MMU
 	select COLDFIRE_SW_A7
+	select COLDFIRE_TIMERS
 	select HAVE_CACHE_CB
 	select HAVE_MBAR
 	select CPU_NO_EFFICIENT_FFS
@@ -263,6 +276,7 @@ config M5407
 config M547x
 	bool "MCF547x"
 	select M54xx
+	select COLDFIRE_SLTIMERS
 	select MMU_COLDFIRE if MMU
 	select FPU if MMU
 	select HAVE_CACHE_CB
@@ -273,6 +287,7 @@ config M547x
 
 config M548x
 	bool "MCF548x"
+	select COLDFIRE_SLTIMERS
 	select MMU_COLDFIRE if MMU
 	select FPU if MMU
 	select M54xx
@@ -284,8 +299,8 @@ config M548x
 
 config M5441x
 	bool "MCF5441x"
+	select COLDFIRE_PIT_TIMER
 	select MMU_COLDFIRE if MMU
-	select GENERIC_CLOCKEVENTS
 	select HAVE_CACHE_CB
 	help
 	  Freescale Coldfire 54410/54415/54416/54417/54418 processor support.
@@ -301,6 +316,17 @@ config M53xx
 config M54xx
 	select HAVE_PCI
 	bool
+
+config COLDFIRE_PIT_TIMER
+	bool
+
+config COLDFIRE_TIMERS
+	bool
+	select LEGACY_TIMER_TICK
+
+config COLDFIRE_SLTIMERS
+	bool
+	select LEGACY_TIMER_TICK
 
 endif # COLDFIRE
 
@@ -373,15 +399,37 @@ config RMW_INSNS
 config SINGLE_MEMORY_CHUNK
 	bool "Use one physical chunk of memory only" if ADVANCED && !SUN3
 	depends on MMU
-	default y if SUN3
-	select NEED_MULTIPLE_NODES
+	default y if SUN3 || MMU_COLDFIRE
 	help
 	  Ignore all but the first contiguous chunk of physical memory for VM
 	  purposes.  This will save a few bytes kernel size and may speed up
-	  some operations.  Say N if not sure.
+	  some operations.
+	  When this option os set to N, you may want to lower "Maximum zone
+	  order" to save memory that could be wasted for unused memory map.
+	  Say N if not sure.
 
 config ARCH_DISCONTIGMEM_ENABLE
+	depends on BROKEN
 	def_bool MMU && !SINGLE_MEMORY_CHUNK
+
+config FORCE_MAX_ZONEORDER
+	int "Maximum zone order" if ADVANCED
+	depends on !SINGLE_MEMORY_CHUNK
+	default "11"
+	help
+	  The kernel memory allocator divides physically contiguous memory
+	  blocks into "zones", where each zone is a power of two number of
+	  pages.  This option selects the largest power of two that the kernel
+	  keeps in the memory allocator.  If you need to allocate very large
+	  blocks of physically contiguous memory, then you may need to
+	  increase this value.
+
+	  For systems that have holes in their physical address space this
+	  value also defines the minimal size of the hole that allows
+	  freeing unused memory map.
+
+	  This config option is actually maximum order plus one. For example,
+	  a value of 11 means that the largest free memory block is 2^10 pages.
 
 config 060_WRITETHROUGH
 	bool "Use write-through caching for 68060 supervisor accesses"
@@ -406,7 +454,7 @@ config M68K_L2_CACHE
 config NODES_SHIFT
 	int
 	default "3"
-	depends on !SINGLE_MEMORY_CHUNK
+	depends on DISCONTIGMEM
 
 config CPU_HAS_NO_BITFIELDS
 	bool

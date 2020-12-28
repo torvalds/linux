@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
-#include <linux/mtd/nand_ecc.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
@@ -29,6 +28,7 @@
 
 static unsigned int lpcctl;
 static struct mtd_info *pasemi_nand_mtd;
+static struct nand_controller controller;
 static const char driver_name[] = "pasemi-nand";
 
 static void pasemi_read_buf(struct nand_chip *chip, u_char *buf, int len)
@@ -73,6 +73,20 @@ static int pasemi_device_ready(struct nand_chip *chip)
 	return !!(inl(lpcctl) & LBICTRL_LPCCTL_NR);
 }
 
+static int pasemi_attach_chip(struct nand_chip *chip)
+{
+	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
+
+	if (chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
+
+	return 0;
+}
+
+static const struct nand_controller_ops pasemi_ops = {
+	.attach_chip = pasemi_attach_chip,
+};
+
 static int pasemi_nand_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
@@ -99,6 +113,10 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 		err = -ENOMEM;
 		goto out;
 	}
+
+	controller.ops = &pasemi_ops;
+	nand_controller_init(&controller);
+	chip->controller = &controller;
 
 	pasemi_nand_mtd = nand_to_mtd(chip);
 
@@ -132,8 +150,6 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 	chip->legacy.read_buf = pasemi_read_buf;
 	chip->legacy.write_buf = pasemi_write_buf;
 	chip->legacy.chip_delay = 0;
-	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
-	chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	/* Enable the following for a flash based bad block table */
 	chip->bbt_options = NAND_BBT_USE_FLASH;

@@ -22,6 +22,9 @@
  * mean that some AT25 products are EEPROMs, and others are FLASH.
  * Handle FLASH chips with the drivers/mtd/devices/m25p80.c driver,
  * not this one!
+ *
+ * EEPROMs that can be used with this driver include, for example:
+ *   AT25M02, AT25128B
  */
 
 struct at25_data {

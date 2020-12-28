@@ -74,7 +74,6 @@ properties:
     description: Power down GPIO signal, pin name "/PDWN", active low.
 
   vcc-supply:
-    maxItems: 1
     description:
       Power supply for the TTL output, TTL CLOCKOUT signal, LVDS input, PLL and
       digital circuitry.

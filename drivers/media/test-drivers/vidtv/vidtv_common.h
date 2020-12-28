@@ -16,7 +16,6 @@
 #define CLOCK_UNIT_27MHZ 27000000
 #define VIDTV_SLEEP_USECS 10000
 #define VIDTV_MAX_SLEEP_USECS (2 * VIDTV_SLEEP_USECS)
-#define VIDTV_DEFAULT_TS_ID 0x744
 
 u32 vidtv_memcpy(void *to,
 		 size_t to_offset,

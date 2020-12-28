@@ -241,7 +241,7 @@ static int __maybe_unused eeti_ts_suspend(struct device *dev)
 
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users)
+	if (input_device_enabled(input_dev))
 		eeti_ts_stop(eeti);
 
 	mutex_unlock(&input_dev->mutex);
@@ -263,7 +263,7 @@ static int __maybe_unused eeti_ts_resume(struct device *dev)
 
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users)
+	if (input_device_enabled(input_dev))
 		eeti_ts_start(eeti);
 
 	mutex_unlock(&input_dev->mutex);

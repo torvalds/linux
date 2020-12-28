@@ -1514,7 +1514,7 @@ xfs_rmap_convert_shared(
 	 * record for our insertion point. This will also give us the record for
 	 * start block contiguity tests.
 	 */
-	error = xfs_rmap_lookup_le_range(cur, bno, owner, offset, flags,
+	error = xfs_rmap_lookup_le_range(cur, bno, owner, offset, oldext,
 			&PREV, &i);
 	if (error)
 		goto done;
@@ -2404,10 +2404,6 @@ xfs_rmap_finish_one(
 			return -EFSCORRUPTED;
 
 		rcur = xfs_rmapbt_init_cursor(mp, tp, agbp, agno);
-		if (!rcur) {
-			error = -ENOMEM;
-			goto out_cur;
-		}
 	}
 	*pcur = rcur;
 
@@ -2445,11 +2441,6 @@ xfs_rmap_finish_one(
 		ASSERT(0);
 		error = -EFSCORRUPTED;
 	}
-	return error;
-
-out_cur:
-	xfs_trans_brelse(tp, agbp);
-
 	return error;
 }
 

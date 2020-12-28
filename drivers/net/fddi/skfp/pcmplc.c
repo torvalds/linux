@@ -45,10 +45,6 @@
 #define KERNEL
 #include "h/smtstate.h"
 
-#ifndef	lint
-static const char ID_sccs[] = "@(#)pcmplc.c	2.55 99/08/05 (C) SK " ;
-#endif
-
 #ifdef	FDDI_MIB
 extern int snmp_fddi_trap(
 #ifdef	ANSIC

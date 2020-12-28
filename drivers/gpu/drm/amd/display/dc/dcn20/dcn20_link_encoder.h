@@ -276,10 +276,8 @@ struct mpll_cfg {
 	bool dp_tx1_vergdrv_byp;
 	bool dp_tx2_vergdrv_byp;
 	bool dp_tx3_vergdrv_byp;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	uint32_t tx_peaking_lvl;
 	uint32_t ctr_reqs_pll;
-#endif
 
 
 };

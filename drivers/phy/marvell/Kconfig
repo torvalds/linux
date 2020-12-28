@@ -116,3 +116,15 @@ config PHY_MMP3_USB
 	  The PHY driver will be used by Marvell udc/ehci/otg driver.
 
 	  To compile this driver as a module, choose M here.
+
+config PHY_MMP3_HSIC
+	tristate "Marvell MMP3 USB HSIC PHY Driver"
+	depends on MACH_MMP3_DT || COMPILE_TEST
+	select GENERIC_PHY
+	help
+	  Enable this to support Marvell MMP3 USB HSIC PHY driver for
+	  Marvell MMP3 SoC. This driver will be used my the Marvell EHCI
+	  driver to initialize the interface to internal USB HSIC
+	  components on MMP3-based boards.
+
+	  To compile this driver as a module, choose M here.

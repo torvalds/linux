@@ -136,13 +136,19 @@ properties:
       - const: tcl2host-status-ring
 
   qcom,rproc:
-    $ref: /schemas/types.yaml#definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       DT entry of q6v5-wcss remoteproc driver.
       Phandle to a node that can contain the following properties
         * compatible
         * reg
         * reg-names
+
+  qcom,ath11k-calibration-variant:
+    $ref: /schemas/types.yaml#/definitions/string
+    description:
+      string to uniquely identify variant of the calibration data in the
+      board-2.bin for designs with colliding bus and device specific ids
 
 required:
   - compatible

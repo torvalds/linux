@@ -7,23 +7,28 @@ dm-mod-y	+= dm.o dm-table.o dm-target.o dm-linear.o dm-stripe.o \
 		   dm-ioctl.o dm-io.o dm-kcopyd.o dm-sysfs.o dm-stats.o \
 		   dm-rq.o
 dm-multipath-y	+= dm-path-selector.o dm-mpath.o
+dm-historical-service-time-y += dm-ps-historical-service-time.o
+dm-io-affinity-y += dm-ps-io-affinity.o
+dm-queue-length-y += dm-ps-queue-length.o
+dm-round-robin-y += dm-ps-round-robin.o
+dm-service-time-y += dm-ps-service-time.o
 dm-snapshot-y	+= dm-snap.o dm-exception-store.o dm-snap-transient.o \
 		    dm-snap-persistent.o
 dm-mirror-y	+= dm-raid1.o
-dm-log-userspace-y \
-		+= dm-log-userspace-base.o dm-log-userspace-transfer.o
+dm-log-userspace-y += dm-log-userspace-base.o dm-log-userspace-transfer.o
 dm-bio-prison-y += dm-bio-prison-v1.o dm-bio-prison-v2.o
 dm-thin-pool-y	+= dm-thin.o dm-thin-metadata.o
 dm-cache-y	+= dm-cache-target.o dm-cache-metadata.o dm-cache-policy.o \
 		    dm-cache-background-tracker.o
-dm-cache-smq-y   += dm-cache-policy-smq.o
+dm-cache-smq-y	+= dm-cache-policy-smq.o
 dm-ebs-y	+= dm-ebs-target.o
 dm-era-y	+= dm-era-target.o
 dm-clone-y	+= dm-clone-target.o dm-clone-metadata.o
 dm-verity-y	+= dm-verity-target.o
+dm-zoned-y	+= dm-zoned-target.o dm-zoned-metadata.o dm-zoned-reclaim.o
+
 md-mod-y	+= md.o md-bitmap.o
 raid456-y	+= raid5.o raid5-cache.o raid5-ppl.o
-dm-zoned-y	+= dm-zoned-target.o dm-zoned-metadata.o dm-zoned-reclaim.o
 linear-y	+= md-linear.o
 multipath-y	+= md-multipath.o
 faulty-y	+= md-faulty.o
@@ -59,14 +64,15 @@ obj-$(CONFIG_DM_MULTIPATH)	+= dm-multipath.o dm-round-robin.o
 obj-$(CONFIG_DM_MULTIPATH_QL)	+= dm-queue-length.o
 obj-$(CONFIG_DM_MULTIPATH_ST)	+= dm-service-time.o
 obj-$(CONFIG_DM_MULTIPATH_HST)	+= dm-historical-service-time.o
+obj-$(CONFIG_DM_MULTIPATH_IOA)	+= dm-io-affinity.o
 obj-$(CONFIG_DM_SWITCH)		+= dm-switch.o
 obj-$(CONFIG_DM_SNAPSHOT)	+= dm-snapshot.o
-obj-$(CONFIG_DM_PERSISTENT_DATA)	+= persistent-data/
+obj-$(CONFIG_DM_PERSISTENT_DATA) += persistent-data/
 obj-$(CONFIG_DM_MIRROR)		+= dm-mirror.o dm-log.o dm-region-hash.o
 obj-$(CONFIG_DM_LOG_USERSPACE)	+= dm-log-userspace.o
 obj-$(CONFIG_DM_ZERO)		+= dm-zero.o
-obj-$(CONFIG_DM_RAID)	+= dm-raid.o
-obj-$(CONFIG_DM_THIN_PROVISIONING)	+= dm-thin-pool.o
+obj-$(CONFIG_DM_RAID)		+= dm-raid.o
+obj-$(CONFIG_DM_THIN_PROVISIONING) += dm-thin-pool.o
 obj-$(CONFIG_DM_VERITY)		+= dm-verity.o
 obj-$(CONFIG_DM_CACHE)		+= dm-cache.o
 obj-$(CONFIG_DM_CACHE_SMQ)	+= dm-cache-smq.o

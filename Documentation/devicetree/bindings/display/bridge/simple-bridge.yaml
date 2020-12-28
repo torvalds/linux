@@ -60,7 +60,6 @@ properties:
     description: GPIO controlling bridge enable
 
   vdd-supply:
-    maxItems: 1
     description: Power supply for the bridge
 
 required:

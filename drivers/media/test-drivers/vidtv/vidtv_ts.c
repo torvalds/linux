@@ -9,14 +9,13 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s, %d: " fmt, __func__, __LINE__
 
+#include <linux/math64.h>
 #include <linux/printk.h>
 #include <linux/ratelimit.h>
 #include <linux/types.h>
-#include <linux/math64.h>
-#include <asm/byteorder.h>
 
-#include "vidtv_ts.h"
 #include "vidtv_common.h"
+#include "vidtv_ts.h"
 
 static u32 vidtv_ts_write_pcr_bits(u8 *to, u32 to_offset, u64 pcr)
 {

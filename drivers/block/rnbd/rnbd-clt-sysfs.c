@@ -37,7 +37,6 @@ enum {
 };
 
 static const unsigned int rnbd_opt_mandatory[] = {
-	RNBD_OPT_PATH,
 	RNBD_OPT_DEV_PATH,
 	RNBD_OPT_SESSNAME,
 };
@@ -433,8 +432,9 @@ void rnbd_clt_remove_dev_symlink(struct rnbd_clt_dev *dev)
 	 * i.e. rnbd_clt_unmap_dev_store() leading to a sysfs warning because
 	 * of sysfs link already was removed already.
 	 */
-	if (strlen(dev->blk_symlink_name) && try_module_get(THIS_MODULE)) {
+	if (dev->blk_symlink_name && try_module_get(THIS_MODULE)) {
 		sysfs_remove_link(rnbd_devs_kobj, dev->blk_symlink_name);
+		kfree(dev->blk_symlink_name);
 		module_put(THIS_MODULE);
 	}
 }
@@ -451,9 +451,11 @@ static int rnbd_clt_add_dev_kobj(struct rnbd_clt_dev *dev)
 
 	ret = kobject_init_and_add(&dev->kobj, &rnbd_dev_ktype, gd_kobj, "%s",
 				   "rnbd");
-	if (ret)
+	if (ret) {
 		rnbd_clt_err(dev, "Failed to create device sysfs dir, err: %d\n",
 			      ret);
+		kobject_put(&dev->kobj);
+	}
 
 	return ret;
 }
@@ -481,16 +483,27 @@ static int rnbd_clt_get_path_name(struct rnbd_clt_dev *dev, char *buf,
 	if (ret >= len)
 		return -ENAMETOOLONG;
 
+	ret = snprintf(buf, len, "%s@%s", buf, dev->sess->sessname);
+	if (ret >= len)
+		return -ENAMETOOLONG;
+
 	return 0;
 }
 
 static int rnbd_clt_add_dev_symlink(struct rnbd_clt_dev *dev)
 {
 	struct kobject *gd_kobj = &disk_to_dev(dev->gd)->kobj;
-	int ret;
+	int ret, len;
+
+	len = strlen(dev->pathname) + strlen(dev->sess->sessname) + 2;
+	dev->blk_symlink_name = kzalloc(len, GFP_KERNEL);
+	if (!dev->blk_symlink_name) {
+		rnbd_clt_err(dev, "Failed to allocate memory for blk_symlink_name\n");
+		return -ENOMEM;
+	}
 
 	ret = rnbd_clt_get_path_name(dev, dev->blk_symlink_name,
-				      sizeof(dev->blk_symlink_name));
+				      len);
 	if (ret) {
 		rnbd_clt_err(dev, "Failed to get /sys/block symlink path, err: %d\n",
 			      ret);
@@ -508,7 +521,8 @@ static int rnbd_clt_add_dev_symlink(struct rnbd_clt_dev *dev)
 	return 0;
 
 out_err:
-	dev->blk_symlink_name[0] = '\0';
+	kfree(dev->blk_symlink_name);
+	dev->blk_symlink_name = NULL ;
 	return ret;
 }
 

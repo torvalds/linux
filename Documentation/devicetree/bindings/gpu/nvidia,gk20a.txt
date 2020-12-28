@@ -97,8 +97,8 @@ Example for GV11B:
 
 	gpu@17000000 {
 		compatible = "nvidia,gv11b";
-		reg = <0x17000000 0x10000000>,
-		      <0x18000000 0x10000000>;
+		reg = <0x17000000 0x1000000>,
+		      <0x18000000 0x1000000>;
 		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "stall", "nonstall";

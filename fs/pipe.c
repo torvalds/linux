@@ -1342,9 +1342,8 @@ out_revert_acct:
 }
 
 /*
- * After the inode slimming patch, i_pipe/i_bdev/i_cdev share the same
- * location, so checking ->i_pipe is not enough to verify that this is a
- * pipe.
+ * Note that i_pipe and i_cdev share the same location, so checking ->i_pipe is
+ * not enough to verify that this is a pipe.
  */
 struct pipe_inode_info *get_pipe_info(struct file *file, bool for_splice)
 {

@@ -57,7 +57,7 @@ static const struct file_lock_operations ceph_fl_lock_ops = {
 	.fl_release_private = ceph_fl_release_lock,
 };
 
-/**
+/*
  * Implement fcntl and flock locking functions.
  */
 static int ceph_lock_message(u8 lock_type, u16 operation, struct inode *inode,
@@ -225,7 +225,7 @@ static int try_unlock_file(struct file *file, struct file_lock *fl)
 	return 1;
 }
 
-/**
+/*
  * Attempt to set an fcntl lock.
  * For now, this just goes away to the server. Later it may be more awesome.
  */
@@ -408,7 +408,7 @@ static int lock_to_ceph_filelock(struct file_lock *lock,
 	return err;
 }
 
-/**
+/*
  * Encode the flock and fcntl locks for the given inode into the ceph_filelock
  * array. Must be called with inode->i_lock already held.
  * If we encounter more of a specific lock type than expected, return -ENOSPC.
@@ -458,7 +458,7 @@ fail:
 	return err;
 }
 
-/**
+/*
  * Copy the encoded flock and fcntl locks into the pagelist.
  * Format is: #fcntl locks, sequential fcntl locks, #flock locks,
  * sequential flock locks.

@@ -92,10 +92,15 @@ static int auxiliary_bus_remove(struct device *dev)
 
 static void auxiliary_bus_shutdown(struct device *dev)
 {
-	struct auxiliary_driver *auxdrv = to_auxiliary_drv(dev->driver);
-	struct auxiliary_device *auxdev = to_auxiliary_dev(dev);
+	struct auxiliary_driver *auxdrv = NULL;
+	struct auxiliary_device *auxdev;
 
-	if (auxdrv->shutdown)
+	if (dev->driver) {
+		auxdrv = to_auxiliary_drv(dev->driver);
+		auxdev = to_auxiliary_dev(dev);
+	}
+
+	if (auxdrv && auxdrv->shutdown)
 		auxdrv->shutdown(auxdev);
 }
 

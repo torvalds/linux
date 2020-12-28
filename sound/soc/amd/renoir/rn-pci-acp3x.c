@@ -6,6 +6,7 @@
 
 #include <linux/pci.h>
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/delay.h>
@@ -20,14 +21,13 @@ module_param(acp_power_gating, int, 0644);
 MODULE_PARM_DESC(acp_power_gating, "Enable acp power gating");
 
 /**
- * dmic_acpi_check = -1 - Checks ACPI method to know DMIC hardware status runtime
- *                 = 0 - Skips the DMIC device creation and returns probe failure
- *                 = 1 - Assumes that platform has DMIC support and skips ACPI
- *                       method check
+ * dmic_acpi_check = -1 - Use ACPI/DMI method to detect the DMIC hardware presence at runtime
+ *                 =  0 - Skip the DMIC device creation and return probe failure
+ *                 =  1 - Force DMIC support
  */
 static int dmic_acpi_check = ACP_DMIC_AUTO;
 module_param(dmic_acpi_check, bint, 0644);
-MODULE_PARM_DESC(dmic_acpi_check, "checks Dmic hardware runtime");
+MODULE_PARM_DESC(dmic_acpi_check, "Digital microphone presence (-1=auto, 0=none, 1=force)");
 
 struct acp_dev_data {
 	void __iomem *acp_base;
@@ -163,6 +163,17 @@ static int rn_acp_deinit(void __iomem *acp_base)
 	return 0;
 }
 
+static const struct dmi_system_id rn_acp_quirk_table[] = {
+	{
+		/* Lenovo IdeaPad Flex 5 14ARE05, IdeaPad 5 15ARE05 */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "LNVNB161216"),
+		}
+	},
+	{}
+};
+
 static int snd_rn_acp_probe(struct pci_dev *pci,
 			    const struct pci_device_id *pci_id)
 {
@@ -172,9 +183,14 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 	acpi_handle handle;
 	acpi_integer dmic_status;
 #endif
+	const struct dmi_system_id *dmi_id;
 	unsigned int irqflags;
 	int ret, index;
 	u32 addr;
+
+	/* Renoir device check */
+	if (pci->revision != 0x01)
+		return -ENODEV;
 
 	if (pci_enable_device(pci)) {
 		dev_err(&pci->dev, "pci_enable_device failed\n");
@@ -232,6 +248,12 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 			goto de_init;
 		}
 #endif
+		dmi_id = dmi_first_match(rn_acp_quirk_table);
+		if (dmi_id && !dmi_id->driver_data) {
+			dev_info(&pci->dev, "ACPI settings override using DMI (ACP mic is not present)");
+			ret = -ENODEV;
+			goto de_init;
+		}
 	}
 
 	adata->res = devm_kzalloc(&pci->dev,

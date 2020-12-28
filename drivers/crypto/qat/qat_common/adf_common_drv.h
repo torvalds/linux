@@ -133,8 +133,7 @@ void adf_vf_isr_resource_free(struct adf_accel_dev *accel_dev);
 
 int qat_hal_init(struct adf_accel_dev *accel_dev);
 void qat_hal_deinit(struct icp_qat_fw_loader_handle *handle);
-void qat_hal_start(struct icp_qat_fw_loader_handle *handle, unsigned char ae,
-		   unsigned int ctx_mask);
+int qat_hal_start(struct icp_qat_fw_loader_handle *handle);
 void qat_hal_stop(struct icp_qat_fw_loader_handle *handle, unsigned char ae,
 		  unsigned int ctx_mask);
 void qat_hal_reset(struct icp_qat_fw_loader_handle *handle);
@@ -163,28 +162,32 @@ int qat_hal_batch_wr_lm(struct icp_qat_fw_loader_handle *handle,
 			unsigned char ae,
 			struct icp_qat_uof_batch_init *lm_init_header);
 int qat_hal_init_gpr(struct icp_qat_fw_loader_handle *handle,
-		     unsigned char ae, unsigned char ctx_mask,
+		     unsigned char ae, unsigned long ctx_mask,
 		     enum icp_qat_uof_regtype reg_type,
 		     unsigned short reg_num, unsigned int regdata);
 int qat_hal_init_wr_xfer(struct icp_qat_fw_loader_handle *handle,
-			 unsigned char ae, unsigned char ctx_mask,
+			 unsigned char ae, unsigned long ctx_mask,
 			 enum icp_qat_uof_regtype reg_type,
 			 unsigned short reg_num, unsigned int regdata);
 int qat_hal_init_rd_xfer(struct icp_qat_fw_loader_handle *handle,
-			 unsigned char ae, unsigned char ctx_mask,
+			 unsigned char ae, unsigned long ctx_mask,
 			 enum icp_qat_uof_regtype reg_type,
 			 unsigned short reg_num, unsigned int regdata);
 int qat_hal_init_nn(struct icp_qat_fw_loader_handle *handle,
-		    unsigned char ae, unsigned char ctx_mask,
+		    unsigned char ae, unsigned long ctx_mask,
 		    unsigned short reg_num, unsigned int regdata);
 int qat_hal_wr_lm(struct icp_qat_fw_loader_handle *handle,
 		  unsigned char ae, unsigned short lm_addr, unsigned int value);
+void qat_hal_set_ae_tindex_mode(struct icp_qat_fw_loader_handle *handle,
+				unsigned char ae, unsigned char mode);
 int qat_uclo_wr_all_uimage(struct icp_qat_fw_loader_handle *handle);
-void qat_uclo_del_uof_obj(struct icp_qat_fw_loader_handle *handle);
+void qat_uclo_del_obj(struct icp_qat_fw_loader_handle *handle);
 int qat_uclo_wr_mimage(struct icp_qat_fw_loader_handle *handle, void *addr_ptr,
 		       int mem_size);
 int qat_uclo_map_obj(struct icp_qat_fw_loader_handle *handle,
-		     void *addr_ptr, int mem_size);
+		     void *addr_ptr, u32 mem_size, char *obj_name);
+int qat_uclo_set_cfg_ae_mask(struct icp_qat_fw_loader_handle *handle,
+			     unsigned int cfg_ae_mask);
 #if defined(CONFIG_PCI_IOV)
 int adf_sriov_configure(struct pci_dev *pdev, int numvfs);
 void adf_disable_sriov(struct adf_accel_dev *accel_dev);

@@ -89,7 +89,7 @@ Read path::
 
 .. _seqcount_locktype_t:
 
-Sequence counters with associated locks (``seqcount_LOCKTYPE_t``)
+Sequence counters with associated locks (``seqcount_LOCKNAME_t``)
 -----------------------------------------------------------------
 
 As discussed at :ref:`seqcount_t`, sequence count write side critical
@@ -115,27 +115,26 @@ The following sequence counters with associated locks are defined:
   - ``seqcount_mutex_t``
   - ``seqcount_ww_mutex_t``
 
-The plain seqcount read and write APIs branch out to the specific
-seqcount_LOCKTYPE_t implementation at compile-time. This avoids kernel
-API explosion per each new seqcount LOCKTYPE.
+The sequence counter read and write APIs can take either a plain
+seqcount_t or any of the seqcount_LOCKNAME_t variants above.
 
-Initialization (replace "LOCKTYPE" with one of the supported locks)::
+Initialization (replace "LOCKNAME" with one of the supported locks)::
 
 	/* dynamic */
-	seqcount_LOCKTYPE_t foo_seqcount;
-	seqcount_LOCKTYPE_init(&foo_seqcount, &lock);
+	seqcount_LOCKNAME_t foo_seqcount;
+	seqcount_LOCKNAME_init(&foo_seqcount, &lock);
 
 	/* static */
-	static seqcount_LOCKTYPE_t foo_seqcount =
-		SEQCNT_LOCKTYPE_ZERO(foo_seqcount, &lock);
+	static seqcount_LOCKNAME_t foo_seqcount =
+		SEQCNT_LOCKNAME_ZERO(foo_seqcount, &lock);
 
 	/* C99 struct init */
 	struct {
-		.seq   = SEQCNT_LOCKTYPE_ZERO(foo.seq, &lock),
+		.seq   = SEQCNT_LOCKNAME_ZERO(foo.seq, &lock),
 	} foo;
 
 Write path: same as in :ref:`seqcount_t`, while running from a context
-with the associated LOCKTYPE lock acquired.
+with the associated write serialization lock acquired.
 
 Read path: same as in :ref:`seqcount_t`.
 

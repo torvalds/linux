@@ -194,7 +194,6 @@ static unsigned short myrb_exec_cmd(struct myrb_hba *cb,
 	cb->qcmd(cb, cmd_blk);
 	spin_unlock_irqrestore(&cb->queue_lock, flags);
 
-	WARN_ON(in_interrupt());
 	wait_for_completion(&cmpl);
 	return cmd_blk->status;
 }

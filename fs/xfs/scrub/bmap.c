@@ -113,6 +113,8 @@ xchk_bmap_get_rmap(
 
 	if (info->whichfork == XFS_ATTR_FORK)
 		rflags |= XFS_RMAP_ATTR_FORK;
+	if (irec->br_state == XFS_EXT_UNWRITTEN)
+		rflags |= XFS_RMAP_UNWRITTEN;
 
 	/*
 	 * CoW staging extents are owned (on disk) by the refcountbt, so
@@ -216,13 +218,13 @@ xchk_bmap_xref_rmap(
 	 * which doesn't track unwritten state.
 	 */
 	if (owner != XFS_RMAP_OWN_COW &&
-	    irec->br_state == XFS_EXT_UNWRITTEN &&
-	    !(rmap.rm_flags & XFS_RMAP_UNWRITTEN))
+	    !!(irec->br_state == XFS_EXT_UNWRITTEN) !=
+	    !!(rmap.rm_flags & XFS_RMAP_UNWRITTEN))
 		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
 				irec->br_startoff);
 
-	if (info->whichfork == XFS_ATTR_FORK &&
-	    !(rmap.rm_flags & XFS_RMAP_ATTR_FORK))
+	if (!!(info->whichfork == XFS_ATTR_FORK) !=
+	    !!(rmap.rm_flags & XFS_RMAP_ATTR_FORK))
 		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
 				irec->br_startoff);
 	if (rmap.rm_flags & XFS_RMAP_BMBT_BLOCK)
@@ -317,7 +319,6 @@ xchk_bmap_iextent(
 	struct xfs_bmbt_irec	*irec)
 {
 	struct xfs_mount	*mp = info->sc->mp;
-	xfs_filblks_t		end;
 	int			error = 0;
 
 	/*
@@ -325,6 +326,10 @@ xchk_bmap_iextent(
 	 * from the incore list, for which there is no ordering check.
 	 */
 	if (irec->br_startoff < info->lastoff)
+		xchk_fblock_set_corrupt(info->sc, info->whichfork,
+				irec->br_startoff);
+
+	if (!xfs_verify_fileext(mp, irec->br_startoff, irec->br_blockcount))
 		xchk_fblock_set_corrupt(info->sc, info->whichfork,
 				irec->br_startoff);
 
@@ -347,20 +352,12 @@ xchk_bmap_iextent(
 	if (irec->br_blockcount > MAXEXTLEN)
 		xchk_fblock_set_corrupt(info->sc, info->whichfork,
 				irec->br_startoff);
-	if (irec->br_startblock + irec->br_blockcount <= irec->br_startblock)
-		xchk_fblock_set_corrupt(info->sc, info->whichfork,
-				irec->br_startoff);
-	end = irec->br_startblock + irec->br_blockcount - 1;
 	if (info->is_rt &&
-	    (!xfs_verify_rtbno(mp, irec->br_startblock) ||
-	     !xfs_verify_rtbno(mp, end)))
+	    !xfs_verify_rtext(mp, irec->br_startblock, irec->br_blockcount))
 		xchk_fblock_set_corrupt(info->sc, info->whichfork,
 				irec->br_startoff);
 	if (!info->is_rt &&
-	    (!xfs_verify_fsbno(mp, irec->br_startblock) ||
-	     !xfs_verify_fsbno(mp, end) ||
-	     XFS_FSB_TO_AGNO(mp, irec->br_startblock) !=
-				XFS_FSB_TO_AGNO(mp, end)))
+	    !xfs_verify_fsbext(mp, irec->br_startblock, irec->br_blockcount))
 		xchk_fblock_set_corrupt(info->sc, info->whichfork,
 				irec->br_startoff);
 
@@ -561,10 +558,6 @@ xchk_bmap_check_ag_rmaps(
 		return error;
 
 	cur = xfs_rmapbt_init_cursor(sc->mp, sc->tp, agf, agno);
-	if (!cur) {
-		error = -ENOMEM;
-		goto out_agf;
-	}
 
 	sbcri.sc = sc;
 	sbcri.whichfork = whichfork;
@@ -573,7 +566,6 @@ xchk_bmap_check_ag_rmaps(
 		error = 0;
 
 	xfs_btree_del_cursor(cur, error);
-out_agf:
 	xfs_trans_brelse(sc->tp, agf);
 	return error;
 }

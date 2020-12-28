@@ -91,11 +91,10 @@
 			gmacphyrst: reset-controller {
 				compatible = "ti,syscon-reset";
 				#reset-cells = <1>;
-				ti,reset-bits =
-					<0xcc 12 0xcc 12 0 0 (ASSERT_CLEAR |
-					 DEASSERT_SET|STATUS_NONE)>,
-					<0xcc 13 0xcc 13 0 0 (ASSERT_CLEAR |
-					 DEASSERT_SET|STATUS_NONE)>;
+				ti,reset-bits = <
+					0xcc 12 0xcc 12 0 0 (ASSERT_CLEAR | DEASSERT_SET | STATUS_NONE)
+					0xcc 13 0xcc 13 0 0 (ASSERT_CLEAR | DEASSERT_SET | STATUS_NONE)
+				>;
 			};
 		};
 
@@ -217,8 +216,8 @@
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x8b00000 0x1000>;
 			interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&sysctrl HISTB_UART0_CLK>;
-			clock-names = "apb_pclk";
+			clocks = <&sysctrl HISTB_UART0_CLK>, <&sysctrl HISTB_UART0_CLK>;
+			clock-names = "uartclk", "apb_pclk";
 			status = "disabled";
 		};
 
@@ -226,8 +225,8 @@
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x8b02000 0x1000>;
 			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&crg HISTB_UART2_CLK>;
-			clock-names = "apb_pclk";
+			clocks = <&crg HISTB_UART2_CLK>, <&crg HISTB_UART2_CLK>;
+			clock-names = "uartclk", "apb_pclk";
 			status = "disabled";
 		};
 
@@ -292,8 +291,8 @@
 			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
 			num-cs = <1>;
 			cs-gpios = <&gpio7 1 0>;
-			clocks = <&crg HISTB_SPI0_CLK>;
-			clock-names = "apb_pclk";
+			clocks = <&crg HISTB_SPI0_CLK>, <&crg HISTB_SPI0_CLK>;
+			clock-names = "sspclk", "apb_pclk";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -305,7 +304,7 @@
 			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&crg HISTB_SDIO0_CIU_CLK>,
 				 <&crg HISTB_SDIO0_BIU_CLK>;
-			clock-names = "ciu", "biu";
+			clock-names = "biu", "ciu";
 			resets = <&crg 0x9c 4>;
 			reset-names = "reset";
 			status = "disabled";
@@ -585,7 +584,7 @@
 			status = "disabled";
 		};
 
-		ohci: ohci@9880000 {
+		ohci: usb@9880000 {
 			compatible = "generic-ohci";
 			reg = <0x9880000 0x10000>;
 			interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
@@ -600,7 +599,7 @@
 			status = "disabled";
 		};
 
-		ehci: ehci@9890000 {
+		ehci: usb@9890000 {
 			compatible = "generic-ehci";
 			reg = <0x9890000 0x10000>;
 			interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;

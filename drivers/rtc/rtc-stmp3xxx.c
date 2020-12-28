@@ -366,7 +366,7 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 	rtc_data->rtc->ops = &stmp3xxx_rtc_ops;
 	rtc_data->rtc->range_max = U32_MAX;
 
-	err = rtc_register_device(rtc_data->rtc);
+	err = devm_rtc_register_device(rtc_data->rtc);
 	if (err)
 		return err;
 

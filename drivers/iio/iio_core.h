@@ -17,6 +17,20 @@ struct iio_dev;
 
 extern struct device_type iio_device_type;
 
+#define IIO_IOCTL_UNHANDLED	1
+struct iio_ioctl_handler {
+	struct list_head entry;
+	long (*ioctl)(struct iio_dev *indio_dev, struct file *filp,
+		      unsigned int cmd, unsigned long arg);
+};
+
+long iio_device_ioctl(struct iio_dev *indio_dev, struct file *filp,
+		      unsigned int cmd, unsigned long arg);
+
+void iio_device_ioctl_handler_register(struct iio_dev *indio_dev,
+				       struct iio_ioctl_handler *h);
+void iio_device_ioctl_handler_unregister(struct iio_ioctl_handler *h);
+
 int __iio_add_chan_devattr(const char *postfix,
 			   struct iio_chan_spec const *chan,
 			   ssize_t (*func)(struct device *dev,
@@ -74,7 +88,6 @@ static inline void iio_buffer_wakeup_poll(struct iio_dev *indio_dev) {}
 int iio_device_register_eventset(struct iio_dev *indio_dev);
 void iio_device_unregister_eventset(struct iio_dev *indio_dev);
 void iio_device_wakeup_eventset(struct iio_dev *indio_dev);
-int iio_event_getfd(struct iio_dev *indio_dev);
 
 struct iio_event_interface;
 bool iio_event_enabled(const struct iio_event_interface *ev_int);

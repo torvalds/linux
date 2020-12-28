@@ -86,32 +86,32 @@ struct ipa_uc_mem_area {
 
 /** enum ipa_uc_command - commands from the AP to the microcontroller */
 enum ipa_uc_command {
-	IPA_UC_COMMAND_NO_OP		= 0,
-	IPA_UC_COMMAND_UPDATE_FLAGS	= 1,
-	IPA_UC_COMMAND_DEBUG_RUN_TEST	= 2,
-	IPA_UC_COMMAND_DEBUG_GET_INFO	= 3,
-	IPA_UC_COMMAND_ERR_FATAL	= 4,
-	IPA_UC_COMMAND_CLK_GATE		= 5,
-	IPA_UC_COMMAND_CLK_UNGATE	= 6,
-	IPA_UC_COMMAND_MEMCPY		= 7,
-	IPA_UC_COMMAND_RESET_PIPE	= 8,
-	IPA_UC_COMMAND_REG_WRITE	= 9,
-	IPA_UC_COMMAND_GSI_CH_EMPTY	= 10,
+	IPA_UC_COMMAND_NO_OP		= 0x0,
+	IPA_UC_COMMAND_UPDATE_FLAGS	= 0x1,
+	IPA_UC_COMMAND_DEBUG_RUN_TEST	= 0x2,
+	IPA_UC_COMMAND_DEBUG_GET_INFO	= 0x3,
+	IPA_UC_COMMAND_ERR_FATAL	= 0x4,
+	IPA_UC_COMMAND_CLK_GATE		= 0x5,
+	IPA_UC_COMMAND_CLK_UNGATE	= 0x6,
+	IPA_UC_COMMAND_MEMCPY		= 0x7,
+	IPA_UC_COMMAND_RESET_PIPE	= 0x8,
+	IPA_UC_COMMAND_REG_WRITE	= 0x9,
+	IPA_UC_COMMAND_GSI_CH_EMPTY	= 0xa,
 };
 
 /** enum ipa_uc_response - microcontroller response codes */
 enum ipa_uc_response {
-	IPA_UC_RESPONSE_NO_OP		= 0,
-	IPA_UC_RESPONSE_INIT_COMPLETED	= 1,
-	IPA_UC_RESPONSE_CMD_COMPLETED	= 2,
-	IPA_UC_RESPONSE_DEBUG_GET_INFO	= 3,
+	IPA_UC_RESPONSE_NO_OP		= 0x0,
+	IPA_UC_RESPONSE_INIT_COMPLETED	= 0x1,
+	IPA_UC_RESPONSE_CMD_COMPLETED	= 0x2,
+	IPA_UC_RESPONSE_DEBUG_GET_INFO	= 0x3,
 };
 
 /** enum ipa_uc_event - common cpu events reported by the microcontroller */
 enum ipa_uc_event {
-	IPA_UC_EVENT_NO_OP     = 0,
-	IPA_UC_EVENT_ERROR     = 1,
-	IPA_UC_EVENT_LOG_INFO  = 2,
+	IPA_UC_EVENT_NO_OP		= 0x0,
+	IPA_UC_EVENT_ERROR		= 0x1,
+	IPA_UC_EVENT_LOG_INFO		= 0x2,
 };
 
 static struct ipa_uc_mem_area *ipa_uc_shared(struct ipa *ipa)
@@ -129,9 +129,10 @@ static void ipa_uc_event_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 
 	if (shared->event == IPA_UC_EVENT_ERROR)
 		dev_err(dev, "microcontroller error event\n");
-	else
+	else if (shared->event != IPA_UC_EVENT_LOG_INFO)
 		dev_err(dev, "unsupported microcontroller event %hhu\n",
 			shared->event);
+	/* The LOG_INFO event can be safely ignored */
 }
 
 /* Microcontroller response IPA interrupt handler */
@@ -191,14 +192,19 @@ void ipa_uc_teardown(struct ipa *ipa)
 static void send_uc_command(struct ipa *ipa, u32 command, u32 command_param)
 {
 	struct ipa_uc_mem_area *shared = ipa_uc_shared(ipa);
+	u32 val;
 
+	/* Fill in the command data */
 	shared->command = command;
 	shared->command_param = cpu_to_le32(command_param);
 	shared->command_param_hi = 0;
 	shared->response = 0;
 	shared->response_param = 0;
 
-	iowrite32(1, ipa->reg_virt + IPA_REG_IRQ_UC_OFFSET);
+	/* Use an interrupt to tell the microcontroller the command is ready */
+	val = u32_encode_bits(1, UC_INTR_FMASK);
+
+	iowrite32(val, ipa->reg_virt + IPA_REG_IRQ_UC_OFFSET);
 }
 
 /* Tell the microcontroller the AP is shutting down */

@@ -278,13 +278,30 @@ struct pp_atom_ctrl__avfs_parameters {
 	uint8_t  ucReserved;
 };
 
+struct _AtomCtrl_HiLoLeakageOffsetTable
+{
+    USHORT usHiLoLeakageThreshold;
+    USHORT usEdcDidtLoDpm7TableOffset;
+    USHORT usEdcDidtHiDpm7TableOffset;
+};
+typedef struct _AtomCtrl_HiLoLeakageOffsetTable AtomCtrl_HiLoLeakageOffsetTable;
+
+struct _AtomCtrl_EDCLeakgeTable
+{
+    ULONG DIDT_REG[24];
+};
+typedef struct _AtomCtrl_EDCLeakgeTable AtomCtrl_EDCLeakgeTable;
+
 extern bool atomctrl_get_pp_assign_pin(struct pp_hwmgr *hwmgr, const uint32_t pinId, pp_atomctrl_gpio_pin_assignment *gpio_pin_assignment);
 extern int atomctrl_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type, uint32_t sclk, uint16_t virtual_voltage_Id, uint16_t *voltage);
 extern int atomctrl_get_voltage_evv(struct pp_hwmgr *hwmgr, uint16_t virtual_voltage_id, uint16_t *voltage);
 extern uint32_t atomctrl_get_mpll_reference_clock(struct pp_hwmgr *hwmgr);
+
+bool atomctrl_is_asic_internal_ss_supported(struct pp_hwmgr *hwmgr);
 extern int atomctrl_get_memory_clock_spread_spectrum(struct pp_hwmgr *hwmgr, const uint32_t memory_clock, pp_atomctrl_internal_ss_info *ssInfo);
 extern int atomctrl_get_engine_clock_spread_spectrum(struct pp_hwmgr *hwmgr, const uint32_t engine_clock, pp_atomctrl_internal_ss_info *ssInfo);
 extern int atomctrl_initialize_mc_reg_table(struct pp_hwmgr *hwmgr, uint8_t module_index, pp_atomctrl_mc_reg_table *table);
+extern int atomctrl_initialize_mc_reg_table_v2_2(struct pp_hwmgr *hwmgr, uint8_t module_index, pp_atomctrl_mc_reg_table *table);
 extern int atomctrl_set_engine_dram_timings_rv770(struct pp_hwmgr *hwmgr, uint32_t engine_clock, uint32_t memory_clock);
 extern uint32_t atomctrl_get_reference_clock(struct pp_hwmgr *hwmgr);
 extern int atomctrl_get_memory_pll_dividers_si(struct pp_hwmgr *hwmgr, uint32_t clock_value, pp_atomctrl_memory_clock_param *mpll_param, bool strobe_mode);
@@ -300,7 +317,7 @@ extern int atomctrl_get_engine_pll_dividers_kong(struct pp_hwmgr *hwmgr,
 						 uint32_t clock_value,
 						 pp_atomctrl_clock_dividers_kong *dividers);
 extern int atomctrl_read_efuse(struct pp_hwmgr *hwmgr, uint16_t start_index,
-		uint16_t end_index, uint32_t mask, uint32_t *efuse);
+		uint16_t end_index, uint32_t *efuse);
 extern int atomctrl_calculate_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 		uint32_t sclk, uint16_t virtual_voltage_Id, uint16_t *voltage, uint16_t dpm_level, bool debug);
 extern int atomctrl_get_engine_pll_dividers_ai(struct pp_hwmgr *hwmgr, uint32_t clock_value, pp_atomctrl_clock_dividers_ai *dividers);
@@ -324,5 +341,14 @@ extern int atomctrl_get_leakage_id_from_efuse(struct pp_hwmgr *hwmgr, uint16_t *
 
 extern void atomctrl_get_voltage_range(struct pp_hwmgr *hwmgr, uint32_t *max_vddc,
 							uint32_t *min_vddc);
+
+extern int atomctrl_get_edc_hilo_leakage_offset_table(struct pp_hwmgr *hwmgr,
+						      AtomCtrl_HiLoLeakageOffsetTable *table);
+
+extern int atomctrl_get_edc_leakage_table(struct pp_hwmgr *hwmgr,
+					  AtomCtrl_EDCLeakgeTable *table,
+					  uint16_t offset);
+
+extern int atomctrl_get_vddc_shared_railinfo(struct pp_hwmgr *hwmgr, uint8_t *shared_rail);
 #endif
 

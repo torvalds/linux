@@ -274,7 +274,6 @@
 			clocks = <&clock CLK_TSADC>;
 			clock-names = "adc";
 			#io-channel-cells = <1>;
-			io-channel-ranges;
 			samsung,syscon-phandle = <&pmu_system_controller>;
 			status = "disabled";
 		};
@@ -378,15 +377,17 @@
 			#iommu-cells = <0>;
 		};
 
-		bus_dmc: bus_dmc {
+		bus_dmc: bus-dmc {
 			compatible = "samsung,exynos-bus";
 			clocks = <&clock CLK_DIV_DMC>;
 			clock-names = "bus";
 			operating-points-v2 = <&bus_dmc_opp_table>;
+			samsung,data-clock-ratio = <4>;
+			#interconnect-cells = <0>;
 			status = "disabled";
 		};
 
-		bus_acp: bus_acp {
+		bus_acp: bus-acp {
 			compatible = "samsung,exynos-bus";
 			clocks = <&clock CLK_DIV_ACP>;
 			clock-names = "bus";
@@ -394,7 +395,7 @@
 			status = "disabled";
 		};
 
-		bus_c2c: bus_c2c {
+		bus_c2c: bus-c2c {
 			compatible = "samsung,exynos-bus";
 			clocks = <&clock CLK_DIV_C2C>;
 			clock-names = "bus";
@@ -404,7 +405,6 @@
 
 		bus_dmc_opp_table: opp-table1 {
 			compatible = "operating-points-v2";
-			opp-shared;
 
 			opp-100000000 {
 				opp-hz = /bits/ 64 <100000000>;
@@ -431,7 +431,6 @@
 
 		bus_acp_opp_table: opp-table2 {
 			compatible = "operating-points-v2";
-			opp-shared;
 
 			opp-100000000 {
 				opp-hz = /bits/ 64 <100000000>;
@@ -447,15 +446,17 @@
 			};
 		};
 
-		bus_leftbus: bus_leftbus {
+		bus_leftbus: bus-leftbus {
 			compatible = "samsung,exynos-bus";
 			clocks = <&clock CLK_DIV_GDL>;
 			clock-names = "bus";
 			operating-points-v2 = <&bus_leftbus_opp_table>;
+			interconnects = <&bus_dmc>;
+			#interconnect-cells = <0>;
 			status = "disabled";
 		};
 
-		bus_rightbus: bus_rightbus {
+		bus_rightbus: bus-rightbus {
 			compatible = "samsung,exynos-bus";
 			clocks = <&clock CLK_DIV_GDR>;
 			clock-names = "bus";
@@ -463,15 +464,17 @@
 			status = "disabled";
 		};
 
-		bus_display: bus_display {
+		bus_display: bus-display {
 			compatible = "samsung,exynos-bus";
 			clocks = <&clock CLK_ACLK160>;
 			clock-names = "bus";
 			operating-points-v2 = <&bus_display_opp_table>;
+			interconnects = <&bus_leftbus &bus_dmc>;
+			#interconnect-cells = <0>;
 			status = "disabled";
 		};
 
-		bus_fsys: bus_fsys {
+		bus_fsys: bus-fsys {
 			compatible = "samsung,exynos-bus";
 			clocks = <&clock CLK_ACLK133>;
 			clock-names = "bus";
@@ -479,7 +482,7 @@
 			status = "disabled";
 		};
 
-		bus_peri: bus_peri {
+		bus_peri: bus-peri {
 			compatible = "samsung,exynos-bus";
 			clocks = <&clock CLK_ACLK100>;
 			clock-names = "bus";
@@ -487,7 +490,7 @@
 			status = "disabled";
 		};
 
-		bus_mfc: bus_mfc {
+		bus_mfc: bus-mfc {
 			compatible = "samsung,exynos-bus";
 			clocks = <&clock CLK_SCLK_MFC>;
 			clock-names = "bus";
@@ -497,7 +500,6 @@
 
 		bus_leftbus_opp_table: opp-table3 {
 			compatible = "operating-points-v2";
-			opp-shared;
 
 			opp-100000000 {
 				opp-hz = /bits/ 64 <100000000>;
@@ -520,7 +522,6 @@
 
 		bus_display_opp_table: opp-table4 {
 			compatible = "operating-points-v2";
-			opp-shared;
 
 			opp-160000000 {
 				opp-hz = /bits/ 64 <160000000>;
@@ -532,7 +533,6 @@
 
 		bus_fsys_opp_table: opp-table5 {
 			compatible = "operating-points-v2";
-			opp-shared;
 
 			opp-100000000 {
 				opp-hz = /bits/ 64 <100000000>;
@@ -544,7 +544,6 @@
 
 		bus_peri_opp_table: opp-table6 {
 			compatible = "operating-points-v2";
-			opp-shared;
 
 			opp-50000000 {
 				opp-hz = /bits/ 64 <50000000>;
@@ -773,6 +772,7 @@
 	clock-names = "mixer", "hdmi", "sclk_hdmi", "vp";
 	clocks = <&clock CLK_MIXER>, <&clock CLK_HDMI>,
 		 <&clock CLK_SCLK_HDMI>, <&clock CLK_VP>;
+	interconnects = <&bus_display &bus_dmc>;
 };
 
 &pmu {

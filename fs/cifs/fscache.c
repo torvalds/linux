@@ -22,6 +22,7 @@
 #include "cifsglob.h"
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
+#include "cifsproto.h"
 
 /*
  * Key layout of CIFS server cache index object

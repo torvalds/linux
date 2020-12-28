@@ -322,7 +322,7 @@ enum devlink_reload_limit {
 	DEVLINK_RELOAD_LIMIT_MAX = __DEVLINK_RELOAD_LIMIT_MAX - 1
 };
 
-#define DEVLINK_RELOAD_LIMITS_VALID_MASK (BIT(__DEVLINK_RELOAD_LIMIT_MAX) - 1)
+#define DEVLINK_RELOAD_LIMITS_VALID_MASK (_BITUL(__DEVLINK_RELOAD_LIMIT_MAX) - 1)
 
 enum devlink_attr {
 	/* don't change the order or add anything between, this is ABI! */
@@ -526,6 +526,8 @@ enum devlink_attr {
 	DEVLINK_ATTR_RELOAD_STATS_LIMIT,	/* u8 */
 	DEVLINK_ATTR_RELOAD_STATS_VALUE,	/* u32 */
 	DEVLINK_ATTR_REMOTE_RELOAD_STATS,	/* nested */
+	DEVLINK_ATTR_RELOAD_ACTION_INFO,        /* nested */
+	DEVLINK_ATTR_RELOAD_ACTION_STATS,       /* nested */
 
 	/* add new attributes above here, update the policy in devlink.c */
 

@@ -414,8 +414,10 @@ void vc4_hvs_atomic_disable(struct drm_crtc *crtc,
 }
 
 void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
-			  struct drm_crtc_state *old_state)
+			  struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *old_state = drm_atomic_get_old_crtc_state(state,
+									 crtc);
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);

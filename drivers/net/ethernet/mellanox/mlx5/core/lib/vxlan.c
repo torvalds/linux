@@ -168,6 +168,17 @@ struct mlx5_vxlan *mlx5_vxlan_create(struct mlx5_core_dev *mdev)
 
 void mlx5_vxlan_destroy(struct mlx5_vxlan *vxlan)
 {
+	if (!mlx5_vxlan_allowed(vxlan))
+		return;
+
+	mlx5_vxlan_del_port(vxlan, IANA_VXLAN_UDP_PORT);
+	WARN_ON(!hash_empty(vxlan->htable));
+
+	kfree(vxlan);
+}
+
+void mlx5_vxlan_reset_to_default(struct mlx5_vxlan *vxlan)
+{
 	struct mlx5_vxlan_port *vxlanp;
 	struct hlist_node *tmp;
 	int bkt;
@@ -175,12 +186,12 @@ void mlx5_vxlan_destroy(struct mlx5_vxlan *vxlan)
 	if (!mlx5_vxlan_allowed(vxlan))
 		return;
 
-	/* Lockless since we are the only hash table consumers*/
 	hash_for_each_safe(vxlan->htable, bkt, tmp, vxlanp, hlist) {
-		hash_del(&vxlanp->hlist);
-		mlx5_vxlan_core_del_port_cmd(vxlan->mdev, vxlanp->udp_port);
-		kfree(vxlanp);
+		/* Don't delete default UDP port added by the HW.
+		 * Remove only user configured ports
+		 */
+		if (vxlanp->udp_port == IANA_VXLAN_UDP_PORT)
+			continue;
+		mlx5_vxlan_del_port(vxlan, vxlanp->udp_port);
 	}
-
-	kfree(vxlan);
 }

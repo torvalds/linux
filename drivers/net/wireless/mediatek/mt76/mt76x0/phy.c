@@ -447,11 +447,11 @@ static void mt76x0_phy_ant_select(struct mt76x02_dev *dev)
 		else
 			coex3 |= BIT(4);
 		coex3 |= BIT(3);
-		if (dev->mt76.cap.has_2ghz)
+		if (dev->mphy.cap.has_2ghz)
 			wlan |= BIT(6);
 	} else {
 		/* sigle antenna mode */
-		if (dev->mt76.cap.has_5ghz) {
+		if (dev->mphy.cap.has_5ghz) {
 			coex3 |= BIT(3) | BIT(4);
 		} else {
 			wlan |= BIT(6);

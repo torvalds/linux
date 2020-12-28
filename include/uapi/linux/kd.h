@@ -173,7 +173,7 @@ struct console_font {
 #define KD_FONT_OP_SET		0	/* Set font */
 #define KD_FONT_OP_GET		1	/* Get font */
 #define KD_FONT_OP_SET_DEFAULT	2	/* Set font to default, data points to name / NULL */
-#define KD_FONT_OP_COPY		3	/* Copy from another console */
+#define KD_FONT_OP_COPY		3	/* Obsolete, do not use */
 
 #define KD_FONT_FLAG_DONT_RECALC 	1	/* Don't recalculate hw charcell size [compat] */
 

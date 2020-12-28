@@ -92,7 +92,7 @@ typedef struct card_s {
 
 
 #define get_port(card, port)	     (&card->ports[port])
-#define sca_flush(card)		     (sca_in(IER0, card));
+#define sca_flush(card)		     (sca_in(IER0, card))
 
 static inline void new_memcpy_toio(char __iomem *dest, char *src, int length)
 {

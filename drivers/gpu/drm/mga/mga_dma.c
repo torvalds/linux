@@ -25,7 +25,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-/**
+/*
  * \file mga_dma.c
  * DMA support for MGA G200 / G400.
  *
@@ -435,7 +435,7 @@ int mga_driver_load(struct drm_device *dev, unsigned long flags)
 }
 
 #if IS_ENABLED(CONFIG_AGP)
-/**
+/*
  * Bootstrap the driver for AGP DMA.
  *
  * \todo
@@ -610,7 +610,7 @@ static int mga_do_agp_dma_bootstrap(struct drm_device *dev,
 }
 #endif
 
-/**
+/*
  * Bootstrap the driver for PCI DMA.
  *
  * \todo
@@ -1143,7 +1143,7 @@ int mga_dma_buffers(struct drm_device *dev, void *data,
 	return ret;
 }
 
-/**
+/*
  * Called just before the module is unloaded.
  */
 void mga_driver_unload(struct drm_device *dev)
@@ -1152,7 +1152,7 @@ void mga_driver_unload(struct drm_device *dev)
 	dev->dev_private = NULL;
 }
 
-/**
+/*
  * Called when the last opener of the device is closed.
  */
 void mga_driver_lastclose(struct drm_device *dev)

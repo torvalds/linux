@@ -8,7 +8,7 @@
  * EC for audio function.
  */
 
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
 #include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/device.h>

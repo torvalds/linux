@@ -28,7 +28,7 @@ module_param_named(modeset, mgag200_modeset, int, 0400);
 
 DEFINE_DRM_GEM_FOPS(mgag200_driver_fops);
 
-static struct drm_driver mgag200_driver = {
+static const struct drm_driver mgag200_driver = {
 	.driver_features = DRIVER_ATOMIC | DRIVER_GEM | DRIVER_MODESET,
 	.fops = &mgag200_driver_fops,
 	.name = DRIVER_NAME,
@@ -37,7 +37,6 @@ static struct drm_driver mgag200_driver = {
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
-	.gem_create_object = drm_gem_shmem_create_object_cached,
 	DRM_GEM_SHMEM_DRIVER_OPS,
 };
 

@@ -395,7 +395,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 	 * To obtain the auxtrace buffer file descriptor, the auxtrace
 	 * event must come first.
 	 */
-	perf_evlist__to_front(evlist, cs_etm_evsel);
+	evlist__to_front(evlist, cs_etm_evsel);
 
 	/*
 	 * In the case of per-cpu mmaps, we need the CPU on the
@@ -420,7 +420,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 			goto out;
 
 		tracking_evsel = evlist__last(evlist);
-		perf_evlist__set_tracking_event(evlist, tracking_evsel);
+		evlist__set_tracking_event(evlist, tracking_evsel);
 
 		tracking_evsel->core.attr.freq = 0;
 		tracking_evsel->core.attr.sample_period = 1;

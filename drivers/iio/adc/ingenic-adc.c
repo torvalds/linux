@@ -71,7 +71,7 @@
 #define JZ4725B_ADC_BATTERY_HIGH_VREF_BITS	10
 #define JZ4740_ADC_BATTERY_HIGH_VREF		(7500 * 0.986)
 #define JZ4740_ADC_BATTERY_HIGH_VREF_BITS	12
-#define JZ4770_ADC_BATTERY_VREF			6600
+#define JZ4770_ADC_BATTERY_VREF			1200
 #define JZ4770_ADC_BATTERY_VREF_BITS		12
 
 #define JZ_ADC_IRQ_AUX			BIT(0)
@@ -177,13 +177,12 @@ static void ingenic_adc_set_config(struct ingenic_adc *adc,
 	mutex_unlock(&adc->lock);
 }
 
-static void ingenic_adc_enable(struct ingenic_adc *adc,
-			       int engine,
-			       bool enabled)
+static void ingenic_adc_enable_unlocked(struct ingenic_adc *adc,
+					int engine,
+					bool enabled)
 {
 	u8 val;
 
-	mutex_lock(&adc->lock);
 	val = readb(adc->base + JZ_ADC_REG_ENABLE);
 
 	if (enabled)
@@ -192,20 +191,41 @@ static void ingenic_adc_enable(struct ingenic_adc *adc,
 		val &= ~BIT(engine);
 
 	writeb(val, adc->base + JZ_ADC_REG_ENABLE);
+}
+
+static void ingenic_adc_enable(struct ingenic_adc *adc,
+			       int engine,
+			       bool enabled)
+{
+	mutex_lock(&adc->lock);
+	ingenic_adc_enable_unlocked(adc, engine, enabled);
 	mutex_unlock(&adc->lock);
 }
 
 static int ingenic_adc_capture(struct ingenic_adc *adc,
 			       int engine)
 {
+	u32 cfg;
 	u8 val;
 	int ret;
 
-	ingenic_adc_enable(adc, engine, true);
+	/*
+	 * Disable CMD_SEL temporarily, because it causes wrong VBAT readings,
+	 * probably due to the switch of VREF. We must keep the lock here to
+	 * avoid races with the buffer enable/disable functions.
+	 */
+	mutex_lock(&adc->lock);
+	cfg = readl(adc->base + JZ_ADC_REG_CFG);
+	writel(cfg & ~JZ_ADC_REG_CFG_CMD_SEL, adc->base + JZ_ADC_REG_CFG);
+
+	ingenic_adc_enable_unlocked(adc, engine, true);
 	ret = readb_poll_timeout(adc->base + JZ_ADC_REG_ENABLE, val,
 				 !(val & BIT(engine)), 250, 1000);
 	if (ret)
-		ingenic_adc_enable(adc, engine, false);
+		ingenic_adc_enable_unlocked(adc, engine, false);
+
+	writel(cfg, adc->base + JZ_ADC_REG_CFG);
+	mutex_unlock(&adc->lock);
 
 	return ret;
 }
@@ -542,7 +562,7 @@ static int ingenic_adc_read_avail(struct iio_dev *iio_dev,
 		return IIO_AVAIL_LIST;
 	default:
 		return -EINVAL;
-	};
+	}
 }
 
 static int ingenic_adc_read_chan_info_raw(struct iio_dev *iio_dev,

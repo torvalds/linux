@@ -37,8 +37,13 @@
 #include "dc_link_ddc.h"
 #include "dce/dce_aux.h"
 
+/*DP to Dual link DVI converter*/
+static const uint8_t DP_DVI_CONVERTER_ID_4[] = "m2DVIa";
+static const uint8_t DP_DVI_CONVERTER_ID_5[] = "3393N2";
+
 #define AUX_POWER_UP_WA_DELAY 500
 #define I2C_OVER_AUX_DEFER_WA_DELAY 70
+#define I2C_OVER_AUX_DEFER_WA_DELAY_1MS 1
 
 /* CV smart dongle slave address for retrieving supported HDTV modes*/
 #define CV_SMART_DONGLE_ADDRESS 0x20
@@ -282,11 +287,17 @@ static uint32_t defer_delay_converter_wa(
 	struct dc_link *link = ddc->link;
 
 	if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_0080E1 &&
-		!memcmp(link->dpcd_caps.branch_dev_name,
-			DP_DVI_CONVERTER_ID_4,
-			sizeof(link->dpcd_caps.branch_dev_name)))
+	    !memcmp(link->dpcd_caps.branch_dev_name,
+		    DP_DVI_CONVERTER_ID_4,
+		    sizeof(link->dpcd_caps.branch_dev_name)))
 		return defer_delay > I2C_OVER_AUX_DEFER_WA_DELAY ?
 			defer_delay : I2C_OVER_AUX_DEFER_WA_DELAY;
+	if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_006037 &&
+	    !memcmp(link->dpcd_caps.branch_dev_name,
+		    DP_DVI_CONVERTER_ID_5,
+		    sizeof(link->dpcd_caps.branch_dev_name)))
+		return defer_delay > I2C_OVER_AUX_DEFER_WA_DELAY_1MS ?
+			I2C_OVER_AUX_DEFER_WA_DELAY_1MS : defer_delay;
 
 	return defer_delay;
 }

@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/atmel,maxtouch.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Atmel maXTouch touchscreen/touchpad
+
+maintainers:
+  - Nick Dyer <nick@shmanahar.org>
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description: |
+  Atmel maXTouch touchscreen or touchpads such as the mXT244
+  and similar devices.
+
+properties:
+  compatible:
+    const: atmel,maxtouch
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  vdda-supply:
+    description:
+      Optional regulator for the AVDD analog voltage.
+
+  vdd-supply:
+    description:
+      Optional regulator for the VDD digital voltage.
+
+  reset-gpios:
+    maxItems: 1
+    description:
+      Optional GPIO specifier for the touchscreen's reset pin
+      (active low). The line must be flagged with
+      GPIO_ACTIVE_LOW.
+
+  linux,gpio-keymap:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: |
+      When enabled, the SPT_GPIOPWN_T19 object sends messages
+      on GPIO bit changes. An array of up to 8 entries can be provided
+      indicating the Linux keycode mapped to each bit of the status byte,
+      starting at the LSB. Linux keycodes are defined in
+      <dt-bindings/input/input.h>.
+
+      Note: the numbering of the GPIOs and the bit they start at varies
+      between maXTouch devices. You must either refer to the documentation,
+      or experiment to determine which bit corresponds to which input. Use
+      KEY_RESERVED for unused padding values.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/gpio/gpio.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      touchscreen@4a {
+        compatible = "atmel,maxtouch";
+        reg = <0x4a>;
+        interrupt-parent = <&gpio>;
+        interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
+        reset-gpios = <&gpio 27 GPIO_ACTIVE_LOW>;
+        vdda-supply = <&ab8500_ldo_aux2_reg>;
+        vdd-supply = <&ab8500_ldo_aux5_reg>;
+      };
+    };
+
+...

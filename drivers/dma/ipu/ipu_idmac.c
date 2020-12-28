@@ -1160,14 +1160,13 @@ static irqreturn_t idmac_interrupt(int irq, void *dev_id)
 	struct idmac_tx_desc *desc, *descnew;
 	bool done = false;
 	u32 ready0, ready1, curbuf, err;
-	unsigned long flags;
 	struct dmaengine_desc_callback cb;
 
 	/* IDMAC has cleared the respective BUFx_RDY bit, we manage the buffer */
 
 	dev_dbg(dev, "IDMAC irq %d, buf %d\n", irq, ichan->active_buffer);
 
-	spin_lock_irqsave(&ipu_data.lock, flags);
+	spin_lock(&ipu_data.lock);
 
 	ready0	= idmac_read_ipureg(&ipu_data, IPU_CHA_BUF0_RDY);
 	ready1	= idmac_read_ipureg(&ipu_data, IPU_CHA_BUF1_RDY);
@@ -1176,7 +1175,7 @@ static irqreturn_t idmac_interrupt(int irq, void *dev_id)
 
 	if (err & (1 << chan_id)) {
 		idmac_write_ipureg(&ipu_data, 1 << chan_id, IPU_INT_STAT_4);
-		spin_unlock_irqrestore(&ipu_data.lock, flags);
+		spin_unlock(&ipu_data.lock);
 		/*
 		 * Doing this
 		 * ichan->sg[0] = ichan->sg[1] = NULL;
@@ -1188,7 +1187,7 @@ static irqreturn_t idmac_interrupt(int irq, void *dev_id)
 			 chan_id, ready0, ready1, curbuf);
 		return IRQ_HANDLED;
 	}
-	spin_unlock_irqrestore(&ipu_data.lock, flags);
+	spin_unlock(&ipu_data.lock);
 
 	/* Other interrupts do not interfere with this channel */
 	spin_lock(&ichan->lock);
@@ -1251,9 +1250,9 @@ static irqreturn_t idmac_interrupt(int irq, void *dev_id)
 		if (unlikely(sgnew)) {
 			ipu_submit_buffer(ichan, descnew, sgnew, !ichan->active_buffer);
 		} else {
-			spin_lock_irqsave(&ipu_data.lock, flags);
+			spin_lock(&ipu_data.lock);
 			ipu_ic_disable_task(&ipu_data, chan_id);
-			spin_unlock_irqrestore(&ipu_data.lock, flags);
+			spin_unlock(&ipu_data.lock);
 			ichan->status = IPU_CHANNEL_READY;
 			/* Continue to check for complete descriptor */
 		}

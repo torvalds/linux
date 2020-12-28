@@ -62,6 +62,7 @@
 #define NAND_CON_NANDM		1
 
 struct xway_nand_data {
+	struct nand_controller	controller;
 	struct nand_chip	chip;
 	unsigned long		csflags;
 	void __iomem		*nandaddr;
@@ -145,6 +146,20 @@ static void xway_write_buf(struct nand_chip *chip, const u_char *buf, int len)
 		xway_writeb(nand_to_mtd(chip), NAND_WRITE_DATA, buf[i]);
 }
 
+static int xway_attach_chip(struct nand_chip *chip)
+{
+	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
+
+	if (chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
+
+	return 0;
+}
+
+static const struct nand_controller_ops xway_nand_ops = {
+	.attach_chip = xway_attach_chip,
+};
+
 /*
  * Probe for the NAND device.
  */
@@ -180,8 +195,9 @@ static int xway_nand_probe(struct platform_device *pdev)
 	data->chip.legacy.read_byte = xway_read_byte;
 	data->chip.legacy.chip_delay = 30;
 
-	data->chip.ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
-	data->chip.ecc.algo = NAND_ECC_ALGO_HAMMING;
+	nand_controller_init(&data->controller);
+	data->controller.ops = &xway_nand_ops;
+	data->chip.controller = &data->controller;
 
 	platform_set_drvdata(pdev, data);
 	nand_set_controller_data(&data->chip, data);

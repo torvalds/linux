@@ -177,6 +177,7 @@ DEFINE_QBCM(bcm_sn15, "SN15", false, &qnm_memnoc);
 
 static struct qcom_icc_bcm *aggre1_noc_bcms[] = {
 	&bcm_sn9,
+	&bcm_qup0,
 };
 
 static struct qcom_icc_node *aggre1_noc_nodes[] = {
@@ -190,6 +191,7 @@ static struct qcom_icc_node *aggre1_noc_nodes[] = {
 	[SLAVE_A1NOC_SNOC] = &qns_a1noc_snoc,
 	[SLAVE_SERVICE_A1NOC] = &srvc_aggre1_noc,
 	[SLAVE_ANOC_PCIE_A1NOC_SNOC] = &qns_pcie_a1noc_snoc,
+	[MASTER_QUP_1] = &qhm_qup1,
 };
 
 static const struct qcom_icc_desc sdm845_aggre1_noc = {
@@ -218,6 +220,7 @@ static struct qcom_icc_node *aggre2_noc_nodes[] = {
 	[SLAVE_A2NOC_SNOC] = &qns_a2noc_snoc,
 	[SLAVE_ANOC_PCIE_SNOC] = &qns_pcie_snoc,
 	[SLAVE_SERVICE_A2NOC] = &srvc_aggre2_noc,
+	[MASTER_QUP_2] = &qhm_qup2,
 };
 
 static const struct qcom_icc_desc sdm845_aggre2_noc = {
