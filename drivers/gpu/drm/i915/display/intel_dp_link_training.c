@@ -335,21 +335,24 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 }
 
 void intel_dp_set_signal_levels(struct intel_dp *intel_dp,
-				const struct intel_crtc_state *crtc_state)
+				const struct intel_crtc_state *crtc_state,
+				enum drm_dp_phy dp_phy)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u8 train_set = intel_dp->train_set[0];
+	char phy_name[10];
 
-	drm_dbg_kms(&dev_priv->drm, "Using vswing level %d%s\n",
+	drm_dbg_kms(&dev_priv->drm, "Using vswing level %d%s, pre-emphasis level %d%s, at %s\n",
 		    train_set & DP_TRAIN_VOLTAGE_SWING_MASK,
-		    train_set & DP_TRAIN_MAX_SWING_REACHED ? " (max)" : "");
-	drm_dbg_kms(&dev_priv->drm, "Using pre-emphasis level %d%s\n",
+		    train_set & DP_TRAIN_MAX_SWING_REACHED ? " (max)" : "",
 		    (train_set & DP_TRAIN_PRE_EMPHASIS_MASK) >>
 		    DP_TRAIN_PRE_EMPHASIS_SHIFT,
 		    train_set & DP_TRAIN_MAX_PRE_EMPHASIS_REACHED ?
-		    " (max)" : "");
+		    " (max)" : "",
+		    intel_dp_phy_name(dp_phy, phy_name, sizeof(phy_name)));
 
-	intel_dp->set_signal_levels(intel_dp, crtc_state);
+	if (intel_dp_phy_is_downstream_of_source(intel_dp, dp_phy))
+		intel_dp->set_signal_levels(intel_dp, crtc_state);
 }
 
 static bool
@@ -359,7 +362,7 @@ intel_dp_reset_link_train(struct intel_dp *intel_dp,
 			  u8 dp_train_pat)
 {
 	memset(intel_dp->train_set, 0, sizeof(intel_dp->train_set));
-	intel_dp_set_signal_levels(intel_dp, crtc_state);
+	intel_dp_set_signal_levels(intel_dp, crtc_state, dp_phy);
 	return intel_dp_set_link_train(intel_dp, crtc_state, dp_phy, dp_train_pat);
 }
 
@@ -373,7 +376,7 @@ intel_dp_update_link_train(struct intel_dp *intel_dp,
 			    DP_TRAINING_LANE0_SET_PHY_REPEATER(dp_phy);
 	int ret;
 
-	intel_dp_set_signal_levels(intel_dp, crtc_state);
+	intel_dp_set_signal_levels(intel_dp, crtc_state, dp_phy);
 
 	ret = drm_dp_dpcd_write(&intel_dp->aux, reg,
 				intel_dp->train_set, crtc_state->lane_count);
