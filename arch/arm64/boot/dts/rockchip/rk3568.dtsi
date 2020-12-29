@@ -226,13 +226,12 @@
 		scmi: scmi {
 			compatible = "arm,scmi-smc";
 			shmem = <&scmi_shmem>;
-			arm,smc-id = <0x8200000f>;
+			arm,smc-id = <0x82000010>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
 			scmi_clk: protocol@14 {
 				reg = <0x14>;
-				shmem = <&scmi_shmem>;
 				#clock-cells = <1>;
 			};
 		};
@@ -344,6 +343,11 @@
 		#clock-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&clk32k_out0>;
+	};
+
+	scmi_shmem: scmi-shmem@10f000 {
+		compatible = "arm,scmi-shmem";
+		reg = <0x0 0x0010f000 0x0 0x100>;
 	};
 
 	sata0: sata@fc000000 {
@@ -667,11 +671,6 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0xfdcc0000 0xc000>;
-
-		scmi_shmem: scmi-shmem@0 {
-			compatible = "arm,scmi-shmem";
-			reg = <0x0 0x200>;
-		};
 	};
 
 	pmucru: clock-controller@fdd00000 {
