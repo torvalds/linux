@@ -127,6 +127,7 @@ ifneq ($(silent),1)
 			 $(MAKE) $(PRINT_DIR) -C $$subdir
 	QUIET_FLEX     = @echo '  FLEX     '$@;
 	QUIET_BISON    = @echo '  BISON    '$@;
+	QUIET_GENSKEL  = @echo '  GEN-SKEL '$@;
 
 	descend = \
 		+@echo	       '  DESCEND  '$(1); \
