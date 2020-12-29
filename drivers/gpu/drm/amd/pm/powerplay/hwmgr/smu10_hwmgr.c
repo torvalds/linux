@@ -558,7 +558,8 @@ static int smu10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	/* enable the pp_od_clk_voltage sysfs file */
 	hwmgr->od_enabled = 1;
-
+	/* disabled fine grain tuning function by default */
+	data->fine_grain_enabled = 0;
 	return result;
 }
 
@@ -597,6 +598,7 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	uint32_t min_mclk = hwmgr->display_config->min_mem_set_clock/100;
 	uint32_t index_fclk = data->clock_vol_info.vdd_dep_on_fclk->count - 1;
 	uint32_t index_socclk = data->clock_vol_info.vdd_dep_on_socclk->count - 1;
+	uint32_t fine_grain_min_freq = 0, fine_grain_max_freq = 0;
 
 	if (hwmgr->smu_version < 0x1E3700) {
 		pr_info("smu firmware version too old, can not set dpm level\n");
@@ -613,6 +615,14 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+		data->fine_grain_enabled = 0;
+
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMinGfxclkFrequency, &fine_grain_min_freq);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxGfxclkFrequency, &fine_grain_max_freq);
+
+		data->gfx_actual_soft_min_freq = fine_grain_min_freq;
+		data->gfx_actual_soft_max_freq = fine_grain_max_freq;
+
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinGfxClk,
 						data->gfx_max_freq_limit/100,
@@ -648,6 +658,14 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 						NULL);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
+		data->fine_grain_enabled = 0;
+
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMinGfxclkFrequency, &fine_grain_min_freq);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxGfxclkFrequency, &fine_grain_max_freq);
+
+		data->gfx_actual_soft_min_freq = fine_grain_min_freq;
+		data->gfx_actual_soft_max_freq = fine_grain_max_freq;
+
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinGfxClk,
 						min_sclk,
@@ -658,6 +676,14 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 						NULL);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
+		data->fine_grain_enabled = 0;
+
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMinGfxclkFrequency, &fine_grain_min_freq);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxGfxclkFrequency, &fine_grain_max_freq);
+
+		data->gfx_actual_soft_min_freq = fine_grain_min_freq;
+		data->gfx_actual_soft_max_freq = fine_grain_max_freq;
+
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinFclkByFreq,
 						min_mclk,
@@ -668,6 +694,14 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 						NULL);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
+		data->fine_grain_enabled = 0;
+
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMinGfxclkFrequency, &fine_grain_min_freq);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxGfxclkFrequency, &fine_grain_max_freq);
+
+		data->gfx_actual_soft_min_freq = fine_grain_min_freq;
+		data->gfx_actual_soft_max_freq = fine_grain_max_freq;
+
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinGfxClk,
 						SMU10_UMD_PSTATE_GFXCLK,
@@ -703,6 +737,14 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 						NULL);
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
+		data->fine_grain_enabled = 0;
+
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMinGfxclkFrequency, &fine_grain_min_freq);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxGfxclkFrequency, &fine_grain_max_freq);
+
+		data->gfx_actual_soft_min_freq = fine_grain_min_freq;
+		data->gfx_actual_soft_max_freq = fine_grain_max_freq;
+
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinGfxClk,
 						min_sclk,
@@ -741,6 +783,14 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 						NULL);
 		break;
 	case AMD_DPM_FORCED_LEVEL_LOW:
+		data->fine_grain_enabled = 0;
+
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMinGfxclkFrequency, &fine_grain_min_freq);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxGfxclkFrequency, &fine_grain_max_freq);
+
+		data->gfx_actual_soft_min_freq = fine_grain_min_freq;
+		data->gfx_actual_soft_max_freq = fine_grain_max_freq;
+
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinGfxClk,
 						data->gfx_min_freq_limit/100,
@@ -759,6 +809,7 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 						NULL);
 		break;
 	case AMD_DPM_FORCED_LEVEL_MANUAL:
+		data->fine_grain_enabled = 1;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
 	default:
 		break;
@@ -1432,6 +1483,11 @@ static int smu10_set_fine_grain_clk_vol(struct pp_hwmgr *hwmgr,
 
 	if (!hwmgr->od_enabled) {
 		pr_err("Fine grain not support\n");
+		return -EINVAL;
+	}
+
+	if (!smu10_data->fine_grain_enabled) {
+		pr_err("Fine grain not started\n");
 		return -EINVAL;
 	}
 

@@ -300,6 +300,8 @@ struct smu10_hwmgr {
 	bool need_min_deep_sleep_dcefclk;
 	uint32_t                             deep_sleep_dcefclk;
 	uint32_t                             num_active_display;
+
+	bool							fine_grain_enabled;
 };
 
 struct pp_hwmgr;
