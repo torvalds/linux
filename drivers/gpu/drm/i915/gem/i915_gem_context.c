@@ -423,6 +423,9 @@ static struct intel_engine_cs *active_engine(struct intel_context *ce)
 	struct intel_engine_cs *engine = NULL;
 	struct i915_request *rq;
 
+	if (intel_context_has_inflight(ce))
+		return intel_context_inflight(ce);
+
 	if (!ce->timeline)
 		return NULL;
 

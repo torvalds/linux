@@ -191,6 +191,11 @@ static inline bool intel_context_is_closed(const struct intel_context *ce)
 	return test_bit(CONTEXT_CLOSED_BIT, &ce->flags);
 }
 
+static inline bool intel_context_has_inflight(const struct intel_context *ce)
+{
+	return test_bit(COPS_HAS_INFLIGHT_BIT, &ce->ops->flags);
+}
+
 static inline bool intel_context_use_semaphores(const struct intel_context *ce)
 {
 	return test_bit(CONTEXT_USE_SEMAPHORES, &ce->flags);

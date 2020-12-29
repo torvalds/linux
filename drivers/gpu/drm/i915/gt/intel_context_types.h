@@ -30,6 +30,10 @@ struct intel_context;
 struct intel_ring;
 
 struct intel_context_ops {
+	unsigned long flags;
+#define COPS_HAS_INFLIGHT_BIT 0
+#define COPS_HAS_INFLIGHT BIT(COPS_HAS_INFLIGHT_BIT)
+
 	int (*alloc)(struct intel_context *ce);
 
 	int (*pre_pin)(struct intel_context *ce, struct i915_gem_ww_ctx *ww, void **vaddr);
