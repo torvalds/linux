@@ -5,6 +5,7 @@
  * Copyright (c) 2016-2017 Andreas Färber
  */
 
+#include <dt-bindings/clock/actions,s500-cmu.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/power/owl-s500-powergate.h>
 
@@ -67,6 +68,12 @@
 	hosc: hosc {
 		compatible = "fixed-clock";
 		clock-frequency = <24000000>;
+		#clock-cells = <0>;
+	};
+
+	losc: losc {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
 		#clock-cells = <0>;
 	};
 
@@ -167,6 +174,13 @@
 			reg = <0xb012c000 0x2000>;
 			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
+		};
+
+		cmu: clock-controller@b0160000 {
+			compatible = "actions,s500-cmu";
+			reg = <0xb0160000 0x8000>;
+			clocks = <&hosc>, <&losc>;
+			#clock-cells = <1>;
 		};
 
 		timer: timer@b0168000 {
