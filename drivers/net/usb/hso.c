@@ -370,7 +370,7 @@ static struct usb_driver hso_driver;
 static struct tty_driver *tty_drv;
 static struct hso_device *serial_table[HSO_SERIAL_TTY_MINORS];
 static struct hso_device *network_table[HSO_MAX_NET_DEVICES];
-static spinlock_t serial_table_lock;
+static DEFINE_SPINLOCK(serial_table_lock);
 
 static const s32 default_port_spec[] = {
 	HSO_INTF_MUX | HSO_PORT_NETWORK,
@@ -3236,7 +3236,6 @@ static int __init hso_init(void)
 	pr_info("%s\n", version);
 
 	/* Initialise the serial table semaphore and table */
-	spin_lock_init(&serial_table_lock);
 	for (i = 0; i < HSO_SERIAL_TTY_MINORS; i++)
 		serial_table[i] = NULL;
 
