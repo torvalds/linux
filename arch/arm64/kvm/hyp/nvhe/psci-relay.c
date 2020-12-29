@@ -77,12 +77,6 @@ static unsigned long psci_forward(struct kvm_cpu_context *host_ctxt)
 			 cpu_reg(host_ctxt, 2), cpu_reg(host_ctxt, 3));
 }
 
-static __noreturn unsigned long psci_forward_noreturn(struct kvm_cpu_context *host_ctxt)
-{
-	psci_forward(host_ctxt);
-	hyp_panic(); /* unreachable */
-}
-
 static unsigned int find_cpu_id(u64 mpidr)
 {
 	unsigned int i;
@@ -251,10 +245,13 @@ static unsigned long psci_0_2_handler(u64 func_id, struct kvm_cpu_context *host_
 	case PSCI_0_2_FN_MIGRATE_INFO_TYPE:
 	case PSCI_0_2_FN64_MIGRATE_INFO_UP_CPU:
 		return psci_forward(host_ctxt);
+	/*
+	 * SYSTEM_OFF/RESET should not return according to the spec.
+	 * Allow it so as to stay robust to broken firmware.
+	 */
 	case PSCI_0_2_FN_SYSTEM_OFF:
 	case PSCI_0_2_FN_SYSTEM_RESET:
-		psci_forward_noreturn(host_ctxt);
-		unreachable();
+		return psci_forward(host_ctxt);
 	case PSCI_0_2_FN64_CPU_SUSPEND:
 		return psci_cpu_suspend(func_id, host_ctxt);
 	case PSCI_0_2_FN64_CPU_ON:
