@@ -9,7 +9,7 @@
 
 / {
 	model = "Rockchip RK3566 EVB2 LP4X V10 Eink Board";
-	compatible = "rockchip,rk3566-evb2-lp4x-v10-eink", "rockchip,rk3568";
+	compatible = "rockchip,rk3566-evb2-lp4x-v10-eink", "rockchip,rk3566";
 
 	reserved-memory {
 		#address-cells = <2>;

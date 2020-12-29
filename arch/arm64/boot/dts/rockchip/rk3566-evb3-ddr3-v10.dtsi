@@ -13,7 +13,7 @@
 
 / {
 	model = "Rockchip RK3566 EVB3 DDR3 V10 Board";
-	compatible = "rockchip,rk3566-evb3-DDR3-v10", "rockchip,rk3568";
+	compatible = "rockchip,rk3566-evb3-DDR3-v10", "rockchip,rk3566";
 
 	rk_headset: rk-headset {
 		compatible = "rockchip_headset";

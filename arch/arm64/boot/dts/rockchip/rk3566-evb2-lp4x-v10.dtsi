@@ -13,7 +13,7 @@
 
 / {
 	model = "Rockchip RK3566 EVB2 LP4X V10 Board";
-	compatible = "rockchip,rk3566-evb2-lp4x-v10", "rockchip,rk3568";
+	compatible = "rockchip,rk3566-evb2-lp4x-v10", "rockchip,rk3566";
 
 	pcie20_3v3: gpio-regulator {
 		compatible = "regulator-gpio";

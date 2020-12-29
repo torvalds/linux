@@ -16,7 +16,7 @@
 
 / {
 	model = "Rockchip RK3566 RK817 EINK LP4X Board";
-	compatible = "rockchip,rk3566-rk817-eink", "rockchip,rk3568";
+	compatible = "rockchip,rk3566-rk817-eink", "rockchip,rk3566";
 
 	reserved-memory {
 		#address-cells = <2>;

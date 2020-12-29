@@ -16,7 +16,7 @@
 
 / {
 	model = "Rockchip RK3566 RK817 TABLET LP4X Board";
-	compatible = "rockchip,rk3566-rk817-tablet", "rockchip,rk3568";
+	compatible = "rockchip,rk3566-rk817-tablet", "rockchip,rk3566";
 
 	adc_keys: adc-keys {
 		compatible = "adc-keys";

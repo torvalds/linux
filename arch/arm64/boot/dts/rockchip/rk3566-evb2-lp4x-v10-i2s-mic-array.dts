@@ -9,7 +9,7 @@
 
 / {
 	model = "Rockchip RK3566 EVB2 LP4X V10 Board I2S Mic Array";
-	compatible = "rockchip,rk3566-evb2-lp4x-v10", "rockchip,rk3568";
+	compatible = "rockchip,rk3566-evb2-lp4x-v10", "rockchip,rk3566";
 
 	rk809_sound_micarray: rk809-sound-micarray {
 		compatible = "simple-audio-card";
