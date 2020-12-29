@@ -224,27 +224,43 @@ static struct ctl_table svcrdma_root_table[] = {
 	{ },
 };
 
+static void svc_rdma_proc_cleanup(void)
+{
+	if (!svcrdma_table_header)
+		return;
+	unregister_sysctl_table(svcrdma_table_header);
+	svcrdma_table_header = NULL;
+}
+
+static int svc_rdma_proc_init(void)
+{
+	if (svcrdma_table_header)
+		return 0;
+
+	svcrdma_table_header = register_sysctl_table(svcrdma_root_table);
+	return 0;
+}
+
 void svc_rdma_cleanup(void)
 {
 	dprintk("SVCRDMA Module Removed, deregister RPC RDMA transport\n");
-	if (svcrdma_table_header) {
-		unregister_sysctl_table(svcrdma_table_header);
-		svcrdma_table_header = NULL;
-	}
 	svc_unreg_xprt_class(&svc_rdma_class);
+	svc_rdma_proc_cleanup();
 }
 
 int svc_rdma_init(void)
 {
+	int rc;
+
 	dprintk("SVCRDMA Module Init, register RPC RDMA transport\n");
 	dprintk("\tsvcrdma_ord      : %d\n", svcrdma_ord);
 	dprintk("\tmax_requests     : %u\n", svcrdma_max_requests);
 	dprintk("\tmax_bc_requests  : %u\n", svcrdma_max_bc_requests);
 	dprintk("\tmax_inline       : %d\n", svcrdma_max_req_size);
 
-	if (!svcrdma_table_header)
-		svcrdma_table_header =
-			register_sysctl_table(svcrdma_root_table);
+	rc = svc_rdma_proc_init();
+	if (rc)
+		return rc;
 
 	/* Register RDMA with the SVC transport switch */
 	svc_reg_xprt_class(&svc_rdma_class);
