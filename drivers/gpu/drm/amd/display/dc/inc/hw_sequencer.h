@@ -111,6 +111,9 @@ struct hw_sequencer_funcs {
 	void (*enable_timing_synchronization)(struct dc *dc,
 			int group_index, int group_size,
 			struct pipe_ctx *grouped_pipes[]);
+	void (*enable_vblanks_synchronization)(struct dc *dc,
+			int group_index, int group_size,
+			struct pipe_ctx *grouped_pipes[]);
 	void (*setup_periodic_interrupt)(struct dc *dc,
 			struct pipe_ctx *pipe_ctx,
 			enum vline_select vline);

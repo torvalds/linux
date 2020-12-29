@@ -1851,6 +1851,225 @@ static bool wait_for_reset_trigger_to_occur(
 	return rc;
 }
 
+uint64_t reduceSizeAndFraction(
+	uint64_t *numerator,
+	uint64_t *denominator,
+	bool checkUint32Bounary)
+{
+	int i;
+	bool ret = checkUint32Bounary == false;
+	uint64_t max_int32 = 0xffffffff;
+	uint64_t num, denom;
+	static const uint16_t prime_numbers[] = {
+		2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43,
+		47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103,
+		107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163,
+		167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227,
+		229, 233, 239, 241, 251, 257, 263, 269, 271, 277, 281,
+		283, 293, 307, 311, 313, 317, 331, 337, 347, 349, 353,
+		359, 367, 373, 379, 383, 389, 397, 401, 409, 419, 421,
+		431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487,
+		491, 499, 503, 509, 521, 523, 541, 547, 557, 563, 569,
+		571, 577, 587, 593, 599, 601, 607, 613, 617, 619, 631,
+		641, 643, 647, 653, 659, 661, 673, 677, 683, 691, 701,
+		709, 719, 727, 733, 739, 743, 751, 757, 761, 769, 773,
+		787, 797, 809, 811, 821, 823, 827, 829, 839, 853, 857,
+		859, 863, 877, 881, 883, 887, 907, 911, 919, 929, 937,
+		941, 947, 953, 967, 971, 977, 983, 991, 997};
+	int count = ARRAY_SIZE(prime_numbers);
+
+	num = *numerator;
+	denom = *denominator;
+	for (i = 0; i < count; i++) {
+		if (checkUint32Bounary &&
+			num <= max_int32 && denom <= max_int32) {
+			ret = true;
+			break;
+		}
+		while (num % prime_numbers[i] == 0 &&
+			   denom % prime_numbers[i] == 0) {
+			num /= prime_numbers[i];
+			denom /= prime_numbers[i];
+		}
+	}
+	*numerator = num;
+	*denominator = denom;
+	return ret;
+}
+
+bool is_low_refresh_rate(struct pipe_ctx *pipe)
+{
+	uint32_t master_pipe_refresh_rate =
+		pipe->stream->timing.pix_clk_100hz * 100 /
+		pipe->stream->timing.h_total /
+		pipe->stream->timing.v_total;
+	return master_pipe_refresh_rate <= 30;
+}
+
+uint8_t get_clock_divider(struct pipe_ctx *pipe, bool account_low_refresh_rate)
+{
+	uint32_t clock_divider = 1;
+	uint32_t numpipes = 1;
+
+	if (account_low_refresh_rate && is_low_refresh_rate(pipe))
+		clock_divider *= 2;
+
+	if (pipe->stream_res.pix_clk_params.pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		clock_divider *= 2;
+
+	while (pipe->next_odm_pipe) {
+		pipe = pipe->next_odm_pipe;
+		numpipes++;
+	}
+	clock_divider *= numpipes;
+
+	return clock_divider;
+}
+
+int dcn10_align_pixel_clocks(
+	struct dc *dc,
+	int group_size,
+	struct pipe_ctx *grouped_pipes[])
+{
+	struct dc_context *dc_ctx = dc->ctx;
+	int i, master = -1, embedded = -1;
+	struct dc_crtc_timing hw_crtc_timing[MAX_PIPES] = {0};
+	uint64_t phase[MAX_PIPES];
+	uint64_t modulo[MAX_PIPES];
+	unsigned int pclk;
+
+	uint32_t embedded_pix_clk_100hz;
+	uint16_t embedded_h_total;
+	uint16_t embedded_v_total;
+	bool clamshell_closed = false;
+	uint32_t dp_ref_clk_100hz =
+		dc->res_pool->dp_clock_source->ctx->dc->clk_mgr->dprefclk_khz*10;
+
+	if (dc->config.vblank_alignment_dto_params &&
+		dc->res_pool->dp_clock_source->funcs->override_dp_pix_clk) {
+		clamshell_closed =
+			(dc->config.vblank_alignment_dto_params >> 63);
+		embedded_h_total =
+			(dc->config.vblank_alignment_dto_params >> 32) & 0x7FFF;
+		embedded_v_total =
+			(dc->config.vblank_alignment_dto_params >> 48) & 0x7FFF;
+		embedded_pix_clk_100hz =
+			dc->config.vblank_alignment_dto_params & 0xFFFFFFFF;
+
+		for (i = 0; i < group_size; i++) {
+			grouped_pipes[i]->stream_res.tg->funcs->get_hw_timing(
+					grouped_pipes[i]->stream_res.tg,
+					&hw_crtc_timing[i]);
+			dc->res_pool->dp_clock_source->funcs->get_pixel_clk_frequency_100hz(
+				dc->res_pool->dp_clock_source,
+				grouped_pipes[i]->stream_res.tg->inst,
+				&pclk);
+			hw_crtc_timing[i].pix_clk_100hz = pclk;
+			if (dc_is_embedded_signal(
+					grouped_pipes[i]->stream->signal)) {
+				embedded = i;
+				master = i;
+				phase[i] = embedded_pix_clk_100hz*100;
+				modulo[i] = dp_ref_clk_100hz*100;
+			} else {
+
+				phase[i] = (uint64_t)embedded_pix_clk_100hz*
+					hw_crtc_timing[i].h_total*
+					hw_crtc_timing[i].v_total/
+					get_clock_divider(grouped_pipes[i], true);
+				modulo[i] = (uint64_t)dp_ref_clk_100hz*
+					embedded_h_total*
+					embedded_v_total;
+
+				if (reduceSizeAndFraction(&phase[i],
+						&modulo[i], true) == false) {
+					/*
+					 * this will help to stop reporting
+					 * this timing synchronizable
+					 */
+					DC_SYNC_INFO("Failed to reduce DTO parameters\n");
+					grouped_pipes[i]->stream->has_non_synchronizable_pclk = true;
+				}
+			}
+		}
+
+		for (i = 0; i < group_size; i++) {
+			if (i != embedded && !grouped_pipes[i]->stream->has_non_synchronizable_pclk) {
+				dc->res_pool->dp_clock_source->funcs->override_dp_pix_clk(
+					dc->res_pool->dp_clock_source,
+					grouped_pipes[i]->stream_res.tg->inst,
+					phase[i], modulo[i]);
+				dc->res_pool->dp_clock_source->funcs->get_pixel_clk_frequency_100hz(
+					dc->res_pool->dp_clock_source,
+					grouped_pipes[i]->stream_res.tg->inst, &pclk);
+					grouped_pipes[i]->stream->timing.pix_clk_100hz =
+						pclk*get_clock_divider(grouped_pipes[i], false);
+				if (master == -1)
+					master = i;
+			}
+		}
+
+	}
+	return master;
+}
+
+void dcn10_enable_vblanks_synchronization(
+	struct dc *dc,
+	int group_index,
+	int group_size,
+	struct pipe_ctx *grouped_pipes[])
+{
+	struct dc_context *dc_ctx = dc->ctx;
+	struct output_pixel_processor *opp;
+	struct timing_generator *tg;
+	int i, width, height, master;
+
+	for (i = 1; i < group_size; i++) {
+		opp = grouped_pipes[i]->stream_res.opp;
+		tg = grouped_pipes[i]->stream_res.tg;
+		tg->funcs->get_otg_active_size(tg, &width, &height);
+		if (opp->funcs->opp_program_dpg_dimensions)
+			opp->funcs->opp_program_dpg_dimensions(opp, width, 2*(height) + 1);
+	}
+
+	for (i = 0; i < group_size; i++) {
+		if (grouped_pipes[i]->stream == NULL)
+			continue;
+		grouped_pipes[i]->stream->vblank_synchronized = false;
+		grouped_pipes[i]->stream->has_non_synchronizable_pclk = false;
+	}
+
+	DC_SYNC_INFO("Aligning DP DTOs\n");
+
+	master = dcn10_align_pixel_clocks(dc, group_size, grouped_pipes);
+
+	DC_SYNC_INFO("Synchronizing VBlanks\n");
+
+	if (master >= 0) {
+		for (i = 0; i < group_size; i++) {
+			if (i != master && !grouped_pipes[i]->stream->has_non_synchronizable_pclk)
+			grouped_pipes[i]->stream_res.tg->funcs->align_vblanks(
+				grouped_pipes[master]->stream_res.tg,
+				grouped_pipes[i]->stream_res.tg,
+				grouped_pipes[master]->stream->timing.pix_clk_100hz,
+				grouped_pipes[i]->stream->timing.pix_clk_100hz,
+				get_clock_divider(grouped_pipes[master], false),
+				get_clock_divider(grouped_pipes[i], false));
+				grouped_pipes[i]->stream->vblank_synchronized = true;
+		}
+		grouped_pipes[master]->stream->vblank_synchronized = true;
+		DC_SYNC_INFO("Sync complete\n");
+	}
+
+	for (i = 1; i < group_size; i++) {
+		opp = grouped_pipes[i]->stream_res.opp;
+		tg = grouped_pipes[i]->stream_res.tg;
+		tg->funcs->get_otg_active_size(tg, &width, &height);
+		if (opp->funcs->opp_program_dpg_dimensions)
+			opp->funcs->opp_program_dpg_dimensions(opp, width, height);
+	}
+}
+
 void dcn10_enable_timing_synchronization(
 	struct dc *dc,
 	int group_index,
@@ -1870,6 +2089,12 @@ void dcn10_enable_timing_synchronization(
 		tg->funcs->get_otg_active_size(tg, &width, &height);
 		if (opp->funcs->opp_program_dpg_dimensions)
 			opp->funcs->opp_program_dpg_dimensions(opp, width, 2*(height) + 1);
+	}
+
+	for (i = 0; i < group_size; i++) {
+		if (grouped_pipes[i]->stream == NULL)
+			continue;
+		grouped_pipes[i]->stream->vblank_synchronized = false;
 	}
 
 	for (i = 1; i < group_size; i++)

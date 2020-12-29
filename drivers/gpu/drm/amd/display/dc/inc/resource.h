@@ -115,6 +115,10 @@ bool resource_are_streams_timing_synchronizable(
 		struct dc_stream_state *stream1,
 		struct dc_stream_state *stream2);
 
+bool resource_are_vblanks_synchronizable(
+		struct dc_stream_state *stream1,
+		struct dc_stream_state *stream2);
+
 struct clock_source *resource_find_used_clk_src_for_sharing(
 		struct resource_context *res_ctx,
 		struct pipe_ctx *pipe_ctx);

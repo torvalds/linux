@@ -42,6 +42,7 @@ static const struct hw_sequencer_funcs dcn20_funcs = {
 	.program_output_csc = dcn20_program_output_csc,
 	.enable_accelerated_mode = dce110_enable_accelerated_mode,
 	.enable_timing_synchronization = dcn10_enable_timing_synchronization,
+	.enable_vblanks_synchronization = dcn10_enable_vblanks_synchronization,
 	.enable_per_frame_crtc_position_reset = dcn10_enable_per_frame_crtc_position_reset,
 	.update_info_frame = dce110_update_info_frame,
 	.send_immediate_sdp_message = dcn10_send_immediate_sdp_message,

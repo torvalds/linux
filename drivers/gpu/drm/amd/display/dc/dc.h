@@ -301,6 +301,8 @@ struct dc_config {
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool clamp_min_dcfclk;
 #endif
+	uint64_t vblank_alignment_dto_params;
+	uint8_t  vblank_alignment_max_frame_time_diff;
 };
 
 enum visual_confirm {
@@ -528,6 +530,7 @@ struct dc_debug_options {
 	bool disable_dsc;
 	bool enable_dram_clock_change_one_display_vactive;
 	union mem_low_power_enable_options enable_mem_low_power;
+	bool force_vblank_alignment;
 };
 
 struct dc_debug_data {

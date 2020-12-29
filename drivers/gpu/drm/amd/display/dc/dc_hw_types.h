@@ -705,6 +705,7 @@ struct dc_crtc_timing_flags {
 #ifndef TRIM_FSFT
 	uint32_t FAST_TRANSPORT: 1;
 #endif
+	uint32_t VBLANK_SYNCHRONIZABLE: 1;
 };
 
 enum dc_timing_3d_format {
