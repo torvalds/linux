@@ -848,10 +848,12 @@ properties:
           Kontron SMARC-sAL28 board on the SMARC Eval Carrier 2.0
         items:
           - enum:
+              - kontron,sl28-var1-ads2
               - kontron,sl28-var2-ads2
               - kontron,sl28-var3-ads2
               - kontron,sl28-var4-ads2
           - enum:
+              - kontron,sl28-var1
               - kontron,sl28-var2
               - kontron,sl28-var3
               - kontron,sl28-var4
@@ -862,6 +864,7 @@ properties:
           Kontron SMARC-sAL28 board (on a generic/undefined carrier)
         items:
           - enum:
+              - kontron,sl28-var1
               - kontron,sl28-var2
               - kontron,sl28-var3
               - kontron,sl28-var4
