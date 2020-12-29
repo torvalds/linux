@@ -8603,7 +8603,7 @@ msix_setup_exit:
 
 static int bnxt_init_inta(struct bnxt *bp)
 {
-	bp->irq_tbl = kcalloc(1, sizeof(struct bnxt_irq), GFP_KERNEL);
+	bp->irq_tbl = kzalloc(sizeof(struct bnxt_irq), GFP_KERNEL);
 	if (!bp->irq_tbl)
 		return -ENOMEM;
 
