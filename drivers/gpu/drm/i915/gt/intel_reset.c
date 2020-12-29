@@ -1394,6 +1394,17 @@ void intel_gt_init_reset(struct intel_gt *gt)
 	mutex_init(&gt->reset.mutex);
 	init_srcu_struct(&gt->reset.backoff_srcu);
 
+	/*
+	 * While undesirable to wait inside the shrinker, complain anyway.
+	 *
+	 * If we have to wait during shrinking, we guarantee forward progress
+	 * by forcing the reset. Therefore during the reset we must not
+	 * re-enter the shrinker. By declaring that we take the reset mutex
+	 * within the shrinker, we forbid ourselves from performing any
+	 * fs-reclaim or taking related locks during reset.
+	 */
+	i915_gem_shrinker_taints_mutex(gt->i915, &gt->reset.mutex);
+
 	/* no GPU until we are ready! */
 	__set_bit(I915_WEDGED, &gt->reset.flags);
 }
