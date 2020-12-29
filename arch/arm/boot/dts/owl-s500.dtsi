@@ -6,6 +6,7 @@
  */
 
 #include <dt-bindings/clock/actions,s500-cmu.h>
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/power/owl-s500-powergate.h>
 #include <dt-bindings/reset/actions,s500-reset.h>
@@ -206,6 +207,25 @@
 			compatible = "actions,s500-sps";
 			reg = <0xb01b0100 0x100>;
 			#power-domain-cells = <1>;
+		};
+
+		pinctrl: pinctrl@b01b0000 {
+			compatible = "actions,s500-pinctrl";
+			reg = <0xb01b0000 0x40>, /* GPIO */
+			      <0xb01b0040 0x10>, /* Multiplexing Control */
+			      <0xb01b0060 0x18>, /* PAD Control */
+			      <0xb01b0080 0xc>;  /* PAD Drive Capacity */
+			clocks = <&cmu CLK_GPIO>;
+			gpio-controller;
+			gpio-ranges = <&pinctrl 0 0 132>;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>, /* GPIOA */
+				     <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>, /* GPIOB */
+				     <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>, /* GPIOC */
+				     <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>, /* GPIOD */
+				     <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>; /* GPIOE */
 		};
 
 		dma: dma-controller@b0260000 {
