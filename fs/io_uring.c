@@ -1501,6 +1501,13 @@ static bool io_grab_identity(struct io_kiocb *req)
 		spin_unlock_irq(&ctx->inflight_lock);
 		req->work.flags |= IO_WQ_WORK_FILES;
 	}
+	if (!(req->work.flags & IO_WQ_WORK_MM) &&
+	    (def->work_flags & IO_WQ_WORK_MM)) {
+		if (id->mm != current->mm)
+			return false;
+		mmgrab(id->mm);
+		req->work.flags |= IO_WQ_WORK_MM;
+	}
 
 	return true;
 }
@@ -1523,13 +1530,6 @@ static void io_prep_async_work(struct io_kiocb *req)
 	} else {
 		if (def->unbound_nonreg_file)
 			req->work.flags |= IO_WQ_WORK_UNBOUND;
-	}
-
-	/* ->mm can never change on us */
-	if (!(req->work.flags & IO_WQ_WORK_MM) &&
-	    (def->work_flags & IO_WQ_WORK_MM)) {
-		mmgrab(id->mm);
-		req->work.flags |= IO_WQ_WORK_MM;
 	}
 
 	/* if we fail grabbing identity, we must COW, regrab, and retry */
