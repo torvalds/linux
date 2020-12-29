@@ -6297,6 +6297,7 @@ void get_slabinfo(struct kmem_cache *s, struct slabinfo *sinfo)
 	sinfo->objects_per_slab = oo_objects(s->oo);
 	sinfo->cache_order = oo_order(s->oo);
 }
+EXPORT_SYMBOL_NS_GPL(get_slabinfo, MINIDUMP);
 
 void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *s)
 {
