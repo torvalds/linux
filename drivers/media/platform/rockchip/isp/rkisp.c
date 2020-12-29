@@ -1750,9 +1750,6 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 		}
 	} else if (!strcmp(remote->entity->name, SP_VDEV_NAME)) {
 		stream = &dev->cap_dev.stream[RKISP_STREAM_SP];
-		if (flags & MEDIA_LNK_FL_ENABLED &&
-		    dev->br_dev.linked)
-			goto err;
 	} else if (!strcmp(remote->entity->name, MP_VDEV_NAME)) {
 		stream = &dev->cap_dev.stream[RKISP_STREAM_MP];
 		if (flags & MEDIA_LNK_FL_ENABLED &&
@@ -1760,8 +1757,7 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 			goto err;
 	} else if (!strcmp(remote->entity->name, BRIDGE_DEV_NAME)) {
 		if (flags & MEDIA_LNK_FL_ENABLED &&
-		    (dev->cap_dev.stream[RKISP_STREAM_SP].linked ||
-		     dev->cap_dev.stream[RKISP_STREAM_MP].linked))
+		    dev->cap_dev.stream[RKISP_STREAM_MP].linked)
 			goto err;
 		dev->br_dev.linked = flags & MEDIA_LNK_FL_ENABLED;
 	} else if (!strcmp(remote->entity->name, "rockchip-mipi-dphy-rx")) {
@@ -1863,6 +1859,7 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkisp_ldchbuf_info *ldchbuf;
 	struct rkisp_ldchbuf_size *ldchsize;
 	struct rkisp_thunderboot_shmem *shmem;
+	struct isp2x_buf_idxfd *idxfd;
 	void *resmem_va;
 	long ret = 0;
 
@@ -1925,6 +1922,10 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		shmem = (struct rkisp_thunderboot_shmem *)arg;
 		ret = rkisp_tb_shm_ioctl(shmem);
 		break;
+	case RKISP_CMD_GET_FBCBUF_FD:
+		idxfd = (struct isp2x_buf_idxfd *)arg;
+		ret = rkisp_bridge_get_fbcbuf_fd(isp_dev, idxfd);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	}
@@ -1942,6 +1943,7 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkisp_ldchbuf_info ldchbuf;
 	struct rkisp_ldchbuf_size ldchsize;
 	struct rkisp_thunderboot_shmem shmem;
+	struct isp2x_buf_idxfd idxfd;
 	long ret = 0;
 	int mode;
 
@@ -1984,6 +1986,11 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 			if (!ret)
 				ret = copy_to_user(up, &shmem, sizeof(shmem));
 		}
+		break;
+	case RKISP_CMD_GET_FBCBUF_FD:
+		ret = rkisp_ioctl(sd, cmd, &idxfd);
+		if (!ret)
+			ret = copy_to_user(up, &idxfd, sizeof(idxfd));
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

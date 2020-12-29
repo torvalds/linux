@@ -63,6 +63,8 @@
 #define RKISP_EMDDATA_FIFO_MAX		4
 #define RKISP_DMATX_CHECK              0xA5A5A5A5
 
+#define RKISP_MOTION_DECT_TS_SIZE	16
+
 struct rkisp_device;
 
 /* ISP_V10_1 for only support MP */
@@ -96,6 +98,7 @@ enum rkisp_fmt_pix_type {
 	FMT_RGB,
 	FMT_BAYER,
 	FMT_JPEG,
+	FMT_FBCGAIN,
 	FMT_MAX
 };
 
@@ -109,6 +112,7 @@ enum rkisp_fmt_raw_pat_type {
 struct rkisp_buffer {
 	struct vb2_v4l2_buffer vb;
 	struct list_head queue;
+	int dev_id;
 	union {
 		u32 buff_addr[VIDEO_MAX_PLANES];
 		void *vaddr[VIDEO_MAX_PLANES];
@@ -164,6 +168,9 @@ void rkisp_update_regs(struct rkisp_device *dev, u32 start, u32 end);
 
 int rkisp_alloc_buffer(struct rkisp_device *dev, struct rkisp_dummy_buffer *buf);
 void rkisp_free_buffer(struct rkisp_device *dev, struct rkisp_dummy_buffer *buf);
+void rkisp_prepare_buffer(struct rkisp_device *dev, struct rkisp_dummy_buffer *buf);
+void rkisp_finish_buffer(struct rkisp_device *dev, struct rkisp_dummy_buffer *buf);
+
 int rkisp_attach_hw(struct rkisp_device *isp);
 int rkisp_alloc_common_dummy_buf(struct rkisp_device *dev);
 void rkisp_free_common_dummy_buf(struct rkisp_device *dev);

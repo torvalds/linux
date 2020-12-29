@@ -92,6 +92,7 @@ struct tnr_module {
 	struct in_tnr_buf buf;
 	struct list_head list_rd;
 	struct list_head list_wr;
+	struct list_head list_rpt;
 	spinlock_t buf_lock;
 	struct rkisp_ispp_buf *cur_rd;
 	struct rkisp_ispp_buf *nxt_rd;
@@ -101,6 +102,7 @@ struct tnr_module {
 	u32 uv_offset;
 	bool is_end;
 	bool is_3to1;
+	bool is_but_init;
 };
 
 struct nr_module {
@@ -226,6 +228,9 @@ struct rkispp_stream_vdev {
 	u32 irq_ends;
 };
 
+int rkispp_get_tnrbuf_fd(struct rkispp_device *dev, struct rkispp_buf_idxfd *idxfd);
+void rkispp_sendbuf_to_nr(struct rkispp_device *dev,
+			  struct rkispp_tnr_inf *tnr_inf);
 void rkispp_module_work_event(struct rkispp_device *dev,
 			      void *buf_rd, void *buf_wr,
 			      u32 module, bool is_isr);

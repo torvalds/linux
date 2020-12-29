@@ -215,5 +215,8 @@ struct rkisp_device {
 	unsigned int skip_frame;
 	unsigned int irq_ends;
 	unsigned int irq_ends_mask;
+	bool send_fbcgain;
+	struct rkisp_ispp_buf *cur_fbcgain;
+	struct rkisp_buffer *cur_spbuf;
 };
 #endif

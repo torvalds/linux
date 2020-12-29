@@ -577,10 +577,17 @@ static void tnr_free_buf(struct rkispp_device *dev)
 		dbufs = get_list_buf(list, true);
 		kfree(dbufs);
 	}
+	list = &vdev->tnr.list_rpt;
+	while (!list_empty(list)) {
+		dbufs = get_list_buf(list, true);
+		kfree(dbufs);
+	}
 
 	for (i = 0; i < sizeof(vdev->tnr.buf) /
 	     sizeof(struct rkispp_dummy_buffer); i++)
 		rkispp_free_buffer(dev, &vdev->tnr.buf.iir + i);
+
+	vdev->tnr.is_but_init = false;
 }
 
 static int tnr_init_buf(struct rkispp_device *dev,
@@ -590,6 +597,7 @@ static int tnr_init_buf(struct rkispp_device *dev,
 	struct rkisp_ispp_buf *dbufs;
 	struct rkispp_dummy_buffer *buf;
 	int i, j, ret, cnt = RKISPP_BUF_MAX;
+	u32 buf_idx = 0;
 
 	if (dev->inp == INP_ISP && dev->isp_mode & ISP_ISPP_QUICK)
 		cnt = 1;
@@ -603,13 +611,17 @@ static int tnr_init_buf(struct rkispp_device *dev,
 		for (j = 0; j < GROUP_BUF_MAX; j++) {
 			buf = &vdev->tnr.buf.wr[i][j];
 			buf->is_need_dbuf = true;
-			buf->size = !j ? pic_size : gain_size;
+			buf->is_need_dmafd = false;
+			buf->is_need_vaddr = true;
+			buf->size = !j ? pic_size : PAGE_ALIGN(gain_size);
+			buf->index = buf_idx++;
 			ret = rkispp_allow_buffer(dev, buf);
 			if (ret) {
 				kfree(dbufs);
 				goto err;
 			}
 			dbufs->dbuf[j] = buf->dbuf;
+			dbufs->didx[j] = buf->index;
 		}
 		list_add_tail(&dbufs->list, &vdev->tnr.list_wr);
 	}
@@ -623,10 +635,16 @@ static int tnr_init_buf(struct rkispp_device *dev,
 	}
 
 	buf = &vdev->tnr.buf.gain_kg;
-	buf->size = gain_size * 4;
+	buf->is_need_vaddr = true;
+	buf->is_need_dbuf = true;
+	buf->is_need_dmafd = false;
+	buf->size = PAGE_ALIGN(gain_size * 4);
+	buf->index = buf_idx++;
 	ret = rkispp_allow_buffer(dev, buf);
 	if (ret < 0)
 		goto err;
+
+	vdev->tnr.is_but_init = true;
 	return 0;
 err:
 	tnr_free_buf(dev);
@@ -1062,6 +1080,20 @@ static void rkispp_stop_3a_run(struct rkispp_device *dev)
 	else
 		v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 			 "Waiting for 3A off use %d ms\n", 1000 - ret);
+}
+
+static void rkispp_tnr_complete(struct rkispp_device *dev, struct rkispp_tnr_inf *inf)
+{
+	struct rkispp_subdev *ispp_sdev = &dev->ispp_sdev;
+	struct v4l2_event ev = {
+		.type = RKISPP_V4L2_EVENT_TNR_COMPLETE,
+	};
+	struct rkispp_tnr_inf *tnr_inf;
+
+	tnr_inf = (struct rkispp_tnr_inf *)ev.u.data;
+	memcpy(tnr_inf, inf, sizeof(*tnr_inf));
+
+	v4l2_subdev_notify_event(&ispp_sdev->sd, &ev);
 }
 
 static int config_modules(struct rkispp_device *dev)
@@ -2639,6 +2671,8 @@ static void tnr_work_event(struct rkispp_device *dev,
 	bool is_3to1 = vdev->tnr.is_3to1, is_start = false, is_skip = false;
 	bool is_en = rkispp_read(dev, RKISPP_TNR_CORE_CTRL) & SW_TNR_EN;
 	struct rkisp_ispp_reg *reg_buf;
+	u32 *vaddr, buf_size;
+	u64 pic_ts, gain_ts;
 
 	if (!(vdev->module_ens & ISPP_MODULE_TNR) ||
 	    (dev->inp == INP_ISP && dev->isp_mode & ISP_ISPP_QUICK))
@@ -2663,9 +2697,26 @@ static void tnr_work_event(struct rkispp_device *dev,
 		}
 
 		if (vdev->tnr.cur_wr) {
-			/* tnr write buf to nr */
-			rkispp_module_work_event(dev, vdev->tnr.cur_wr, NULL,
-						 ISPP_MODULE_NR, is_isr);
+			struct rkispp_tnr_inf tnr_inf;
+
+			if (!vdev->tnr.cur_wr->is_move_judge) {
+				/* tnr write buf to nr */
+				rkispp_module_work_event(dev, vdev->tnr.cur_wr, NULL,
+							 ISPP_MODULE_NR, is_isr);
+			} else {
+				tnr_inf.dev_id = dev->dev_id;
+				tnr_inf.frame_id = vdev->tnr.cur_wr->frame_id;
+				tnr_inf.gainkg_idx = vdev->tnr.buf.gain_kg.index;
+				tnr_inf.gainwr_idx = vdev->tnr.cur_wr->didx[GROUP_BUF_GAIN];
+				tnr_inf.gainkg_size = vdev->tnr.buf.gain_kg.size;
+				dbuf = vdev->tnr.cur_wr->dbuf[GROUP_BUF_GAIN];
+				dummy = dbuf_to_dummy(dbuf, &vdev->tnr.buf.iir, size);
+				tnr_inf.gainwr_size = dummy->size;
+				rkispp_finish_buffer(dev, dummy);
+				rkispp_finish_buffer(dev, &vdev->tnr.buf.gain_kg);
+				rkispp_tnr_complete(dev, &tnr_inf);
+				list_add_tail(&vdev->tnr.cur_wr->list, &vdev->tnr.list_rpt);
+			}
 			vdev->tnr.cur_wr = NULL;
 		}
 	}
@@ -2747,21 +2798,43 @@ static void tnr_work_event(struct rkispp_device *dev,
 		} else {
 			buf = get_pool_buf(dev, vdev->tnr.cur_rd);
 			val = buf->dma[GROUP_BUF_PIC];
+			vaddr = (u32 *)buf->vaddr[GROUP_BUF_PIC];
+			buf_size = buf->dbufs->dbuf[GROUP_BUF_PIC]->size;
+			pic_ts = *(u64 *)(vaddr + buf_size / 4 - 2);
 			rkispp_write(dev, RKISPP_TNR_CUR_Y_BASE, val);
 			val += vdev->tnr.uv_offset;
 			rkispp_write(dev, RKISPP_TNR_CUR_UV_BASE, val);
 
 			val = buf->dma[GROUP_BUF_GAIN];
+			vaddr = (u32 *)buf->vaddr[GROUP_BUF_GAIN];
+			buf_size = buf->dbufs->dbuf[GROUP_BUF_GAIN]->size;
+			gain_ts = *(u64 *)(vaddr + buf_size / 4 - 2);
+			if (abs(pic_ts - gain_ts) > 5000000LL) {
+				v4l2_info(&dev->v4l2_dev,
+					"%s: frame %d, timestamp is not match (pic_ts %lld, gain_ts %lld)",
+					__func__, vdev->tnr.nxt_rd->frame_id, pic_ts, gain_ts);
+			}
 			rkispp_write(dev, RKISPP_TNR_GAIN_CUR_Y_BASE, val);
 			if (is_3to1) {
 				buf = get_pool_buf(dev, vdev->tnr.nxt_rd);
 				val = buf->dma[GROUP_BUF_PIC];
+				vaddr = (u32 *)buf->vaddr[GROUP_BUF_PIC];
+				buf_size = buf->dbufs->dbuf[GROUP_BUF_PIC]->size;
+				pic_ts = *(u64 *)(vaddr + buf_size / 4 - 2);
 				rkispp_write(dev, RKISPP_TNR_NXT_Y_BASE, val);
 				val += vdev->tnr.uv_offset;
 				rkispp_write(dev, RKISPP_TNR_NXT_UV_BASE, val);
 
 				val = buf->dma[GROUP_BUF_GAIN];
 				rkispp_write(dev, RKISPP_TNR_GAIN_NXT_Y_BASE, val);
+				vaddr = (u32 *)buf->vaddr[GROUP_BUF_GAIN];
+				buf_size = buf->dbufs->dbuf[GROUP_BUF_GAIN]->size;
+				gain_ts = *(u64 *)(vaddr + buf_size / 4 - 2);
+				if (abs(pic_ts - gain_ts) > 5000000LL) {
+					v4l2_info(&dev->v4l2_dev,
+						"%s: frame %d, timestamp is not match (pic_ts %lld, gain_ts %lld)",
+						__func__, vdev->tnr.nxt_rd->frame_id, pic_ts, gain_ts);
+				}
 
 				if (rkispp_read(dev, RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM)
 					vdev->tnr.cur_rd = NULL;
@@ -2798,6 +2871,8 @@ static void tnr_work_event(struct rkispp_device *dev,
 				vdev->tnr.cur_wr->frame_id = seq;
 				vdev->tnr.cur_wr->frame_timestamp =
 					vdev->tnr.nxt_rd->frame_timestamp;
+				vdev->tnr.cur_wr->is_move_judge =
+					vdev->tnr.nxt_rd->is_move_judge;
 			}
 		}
 
@@ -2817,6 +2892,8 @@ static void tnr_work_event(struct rkispp_device *dev,
 			     rkispp_read(dev, RKISPP_TNR_WR_Y_BASE));
 		rkispp_write(dev, RKISPP_TNR_IIR_UV_BASE,
 			     rkispp_read(dev, RKISPP_TNR_WR_UV_BASE));
+
+		rkispp_prepare_buffer(dev, &vdev->tnr.buf.gain_kg);
 
 		vdev->tnr.dbg.id = seq;
 		vdev->tnr.dbg.timestamp = ktime_get_ns();
@@ -2853,6 +2930,100 @@ static void tnr_work_event(struct rkispp_device *dev,
 restart_unlock:
 	spin_unlock_irqrestore(&monitor->lock, lock_flags1);
 end:
+	spin_unlock_irqrestore(&vdev->tnr.buf_lock, lock_flags);
+}
+
+int rkispp_get_tnrbuf_fd(struct rkispp_device *dev, struct rkispp_buf_idxfd *idxfd)
+{
+	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
+	struct rkisp_ispp_buf *dbufs;
+	struct rkispp_dummy_buffer *buf;
+	unsigned long lock_flags = 0;
+	int j, buf_idx, ret = 0;
+
+	spin_lock_irqsave(&vdev->tnr.buf_lock, lock_flags);
+	if (!vdev->tnr.is_but_init) {
+		spin_unlock_irqrestore(&vdev->tnr.buf_lock, lock_flags);
+		ret = -EAGAIN;
+		return ret;
+	}
+	spin_unlock_irqrestore(&vdev->tnr.buf_lock, lock_flags);
+
+	buf_idx = 0;
+	list_for_each_entry(dbufs, &vdev->tnr.list_wr, list) {
+		for (j = 0; j < GROUP_BUF_MAX; j++) {
+			dbufs->dfd[j] = dma_buf_fd(dbufs->dbuf[j], O_CLOEXEC);
+			get_dma_buf(dbufs->dbuf[j]);
+			idxfd->index[buf_idx] = dbufs->didx[j];
+			idxfd->dmafd[buf_idx] = dbufs->dfd[j];
+			buf_idx++;
+		}
+	}
+
+	list_for_each_entry(dbufs, &vdev->tnr.list_rpt, list) {
+		for (j = 0; j < GROUP_BUF_MAX; j++) {
+			dbufs->dfd[j] = dma_buf_fd(dbufs->dbuf[j], O_CLOEXEC);
+			get_dma_buf(dbufs->dbuf[j]);
+			idxfd->index[buf_idx] = dbufs->didx[j];
+			idxfd->dmafd[buf_idx] = dbufs->dfd[j];
+			buf_idx++;
+		}
+	}
+
+	if (vdev->tnr.cur_wr) {
+		for (j = 0; j < GROUP_BUF_MAX; j++) {
+			vdev->tnr.cur_wr->dfd[j] = dma_buf_fd(vdev->tnr.cur_wr->dbuf[j], O_CLOEXEC);
+			get_dma_buf(vdev->tnr.cur_wr->dbuf[j]);
+			idxfd->index[buf_idx] = vdev->tnr.cur_wr->didx[j];
+			idxfd->dmafd[buf_idx] = vdev->tnr.cur_wr->dfd[j];
+			buf_idx++;
+		}
+	}
+
+	buf = &vdev->tnr.buf.gain_kg;
+	buf->dma_fd = dma_buf_fd(buf->dbuf, O_CLOEXEC);
+	get_dma_buf(buf->dbuf);
+	idxfd->index[buf_idx] = buf->index;
+	idxfd->dmafd[buf_idx] = buf->dma_fd;
+	buf_idx++;
+
+	idxfd->buf_num = buf_idx;
+
+	return ret;
+}
+
+void rkispp_sendbuf_to_nr(struct rkispp_device *dev,
+			  struct rkispp_tnr_inf *tnr_inf)
+{
+	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
+	struct rkispp_dummy_buffer *dummy;
+	struct rkisp_ispp_buf *cur_buf;
+	unsigned long lock_flags = 0;
+	bool find_flg = false;
+	struct dma_buf *dbuf;
+	u32 size;
+
+	size = sizeof(vdev->tnr.buf) / sizeof(*dummy);
+	spin_lock_irqsave(&vdev->tnr.buf_lock, lock_flags);
+	list_for_each_entry(cur_buf, &vdev->tnr.list_rpt, list) {
+		if (cur_buf->index == tnr_inf->dev_id &&
+		    cur_buf->didx[GROUP_BUF_GAIN] == tnr_inf->gainwr_idx) {
+			find_flg = true;
+			break;
+		}
+	}
+
+	if (find_flg) {
+		list_del(&cur_buf->list);
+
+		dbuf = cur_buf->dbuf[GROUP_BUF_GAIN];
+		dummy = dbuf_to_dummy(dbuf, &vdev->tnr.buf.iir, size);
+		rkispp_prepare_buffer(dev, dummy);
+
+		/* tnr write buf to nr */
+		rkispp_module_work_event(dev, cur_buf, NULL,
+					 ISPP_MODULE_NR, false);
+	}
 	spin_unlock_irqrestore(&vdev->tnr.buf_lock, lock_flags);
 }
 
@@ -2981,12 +3152,14 @@ int rkispp_register_stream_vdevs(struct rkispp_device *dev)
 	atomic_set(&stream_vdev->refcnt, 0);
 	INIT_LIST_HEAD(&stream_vdev->tnr.list_rd);
 	INIT_LIST_HEAD(&stream_vdev->tnr.list_wr);
+	INIT_LIST_HEAD(&stream_vdev->tnr.list_rpt);
 	INIT_LIST_HEAD(&stream_vdev->nr.list_rd);
 	INIT_LIST_HEAD(&stream_vdev->nr.list_wr);
 	INIT_LIST_HEAD(&stream_vdev->fec.list_rd);
 	spin_lock_init(&stream_vdev->tnr.buf_lock);
 	spin_lock_init(&stream_vdev->nr.buf_lock);
 	spin_lock_init(&stream_vdev->fec.buf_lock);
+	stream_vdev->tnr.is_but_init = false;
 
 	for (i = 0; i < STREAM_MAX; i++) {
 		stream = &stream_vdev->stream[i];

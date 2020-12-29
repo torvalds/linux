@@ -119,7 +119,7 @@ err:
 }
 
 void rkisp_free_buffer(struct rkisp_device *dev,
-		       struct rkisp_dummy_buffer *buf)
+			struct rkisp_dummy_buffer *buf)
 {
 	const struct vb2_mem_ops *g_ops = dev->hw_dev->mem_ops;
 
@@ -138,6 +138,24 @@ void rkisp_free_buffer(struct rkisp_device *dev,
 		buf->is_need_vaddr = false;
 		buf->is_need_dmafd = false;
 	}
+}
+
+void rkisp_prepare_buffer(struct rkisp_device *dev,
+			struct rkisp_dummy_buffer *buf)
+{
+	const struct vb2_mem_ops *g_ops = dev->hw_dev->mem_ops;
+
+	if (buf && buf->mem_priv)
+		g_ops->prepare(buf->mem_priv);
+}
+
+void rkisp_finish_buffer(struct rkisp_device *dev,
+			struct rkisp_dummy_buffer *buf)
+{
+	const struct vb2_mem_ops *g_ops = dev->hw_dev->mem_ops;
+
+	if (buf && buf->mem_priv)
+		g_ops->finish(buf->mem_priv);
 }
 
 int rkisp_attach_hw(struct rkisp_device *isp)

@@ -138,6 +138,24 @@ void rkispp_free_buffer(struct rkispp_device *dev,
 	}
 }
 
+void rkispp_prepare_buffer(struct rkispp_device *dev,
+			struct rkispp_dummy_buffer *buf)
+{
+	const struct vb2_mem_ops *g_ops = dev->hw_dev->mem_ops;
+
+	if (buf && buf->mem_priv)
+		g_ops->prepare(buf->mem_priv);
+}
+
+void rkispp_finish_buffer(struct rkispp_device *dev,
+			struct rkispp_dummy_buffer *buf)
+{
+	const struct vb2_mem_ops *g_ops = dev->hw_dev->mem_ops;
+
+	if (buf && buf->mem_priv)
+		g_ops->finish(buf->mem_priv);
+}
+
 int rkispp_attach_hw(struct rkispp_device *ispp)
 {
 	struct device_node *np;
@@ -261,6 +279,7 @@ static void rkispp_free_pool(struct rkispp_hw_dev *hw)
 	}
 
 	rkispp_free_regbuf(hw);
+	hw->is_idle = true;
 }
 
 static int rkispp_init_pool(struct rkispp_hw_dev *hw, struct rkisp_ispp_buf *dbufs)
@@ -303,8 +322,11 @@ static int rkispp_init_pool(struct rkispp_hw_dev *hw, struct rkisp_ispp_buf *dbu
 		if (rkispp_debug)
 			dev_info(hw->dev, "%s dma[%d]:0x%x\n",
 				 __func__, i, (u32)pool->dma[i]);
+
+		pool->vaddr[i] = g_ops->vaddr(mem);
 	}
 	rkispp_init_regbuf(hw);
+	hw->is_idle = true;
 	return ret;
 err:
 	rkispp_free_pool(hw);

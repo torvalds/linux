@@ -218,6 +218,7 @@ struct rkisp_stream {
 	bool stopping;
 	bool frame_end;
 	bool linked;
+	bool start_stream;
 	wait_queue_head_t done;
 	unsigned int burst;
 	atomic_t sequence;

@@ -40,6 +40,7 @@ struct rkispp_isp_buf_pool {
 	struct rkisp_ispp_buf *dbufs;
 	void *mem_priv[GROUP_BUF_MAX];
 	dma_addr_t dma[GROUP_BUF_MAX];
+	void *vaddr[GROUP_BUF_MAX];
 };
 
 /* One structure per video node */
@@ -69,6 +70,7 @@ struct rkispp_dummy_buffer {
 	u64 timestamp;
 	u32 size;
 	u32 id;
+	u32 index;
 	int dma_fd;
 	bool is_need_vaddr;
 	bool is_need_dbuf;
@@ -112,6 +114,10 @@ void rkispp_update_regs(struct rkispp_device *dev, u32 start, u32 end);
 int rkispp_allow_buffer(struct rkispp_device *dev,
 			struct rkispp_dummy_buffer *buf);
 void rkispp_free_buffer(struct rkispp_device *dev,
+			struct rkispp_dummy_buffer *buf);
+void rkispp_prepare_buffer(struct rkispp_device *dev,
+			struct rkispp_dummy_buffer *buf);
+void rkispp_finish_buffer(struct rkispp_device *dev,
 			struct rkispp_dummy_buffer *buf);
 
 int rkispp_attach_hw(struct rkispp_device *ispp);

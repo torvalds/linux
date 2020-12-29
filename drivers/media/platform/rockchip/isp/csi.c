@@ -2,6 +2,7 @@
 /* Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd. */
 
 #include <linux/delay.h>
+#include <linux/iopoll.h>
 #include <linux/pm_runtime.h>
 #include <linux/rk-camera-module.h>
 #include <media/v4l2-common.h>

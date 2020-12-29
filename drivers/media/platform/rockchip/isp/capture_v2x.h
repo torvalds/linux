@@ -9,6 +9,8 @@ extern struct stream_config rkisp2_dmatx1_stream_config;
 extern struct stream_config rkisp2_dmatx2_stream_config;
 extern struct stream_config rkisp2_dmatx3_stream_config;
 
+struct rkisp_stream;
+
 struct rkisp_dummy_buffer *hdr_dqbuf(struct list_head *q);
 void hdr_qbuf(struct list_head *q, struct rkisp_dummy_buffer *buf);
 int hdr_config_dmatx(struct rkisp_device *dev);
@@ -26,4 +28,10 @@ int rkisp_register_stream_v21(struct rkisp_device *dev);
 void rkisp_unregister_stream_v21(struct rkisp_device *dev);
 void rkisp_mi_v21_isr(u32 mis_val, struct rkisp_device *dev);
 void rkisp_mipi_v21_isr(u32 phy, u32 packet, u32 overflow, u32 state, struct rkisp_device *dev);
+
+void rkisp_spbuf_queue(struct rkisp_stream *stream, struct rkisp_buffer *sp_buf);
+int rkisp_start_spstream(struct rkisp_stream *stream);
+void rkisp_stop_spstream(struct rkisp_stream *stream);
+void rkisp_update_spstream_buf(struct rkisp_stream *stream);
+
 #endif

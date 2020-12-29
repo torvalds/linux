@@ -52,6 +52,7 @@ struct rkisp_hw_dev {
 	struct rkisp_ispp_buf *cur_buf;
 	struct rkisp_ispp_buf *nxt_buf;
 	struct list_head list;
+	struct list_head rpt_list;
 	struct rkisp_dummy_buffer dummy_buf;
 	const struct vb2_mem_ops *mem_ops;
 	bool is_dma_contig;
@@ -63,6 +64,7 @@ struct rkisp_hw_dev {
 
 	bool is_feature_on;
 	u64 iq_feature;
+	bool is_buf_init;
 };
 
 int rkisp_register_irq(struct rkisp_hw_dev *dev);

@@ -429,12 +429,93 @@ static void dump_dbg_reg(struct rkisp_bridge_device *dev, struct rkisp_ispp_reg 
 	reg_buf->reg_size = offset;
 }
 
+static void rkisp_bridge_try_sendtohal(struct rkisp_device *dev)
+{
+	struct rkisp_hw_dev *hw = dev->hw_dev;
+	struct rkisp_bridge_device *br_dev = &dev->br_dev;
+	struct rkisp_ispp_buf *cur_fbcgain = dev->cur_fbcgain;
+	struct rkisp_buffer *cur_spbuf = dev->cur_spbuf;
+	struct isp2x_ispgain_buf *buf;
+	struct rkisp_bridge_buf *bdgbuf;
+	struct vb2_buffer *vb2_buf;
+	u32 *vaddr, size;
+	u64 pic_ts, gain_ts, sp_ts;
+
+	if (cur_fbcgain && cur_spbuf) {
+		if ((cur_fbcgain->frame_id == cur_spbuf->vb.sequence) &&
+		    (cur_fbcgain->index == cur_spbuf->dev_id)) {
+			vb2_buf = &cur_spbuf->vb.vb2_buf;
+			cur_fbcgain->buf_idx = vb2_buf->index;
+			buf = vb2_plane_vaddr(vb2_buf, 1);
+			buf->gain_dmaidx = cur_fbcgain->gain_dmaidx;
+			buf->mfbc_dmaidx = cur_fbcgain->mfbc_dmaidx;
+			buf->gain_size = cur_fbcgain->gain_size;
+			buf->mfbc_size = cur_fbcgain->mfbc_size;
+			buf->frame_id = cur_fbcgain->frame_id;
+			bdgbuf = to_bridge_buf(cur_fbcgain);
+			rkisp_finish_buffer(dev, &bdgbuf->dummy[GROUP_BUF_GAIN]);
+			vb2_buffer_done(&cur_spbuf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+			list_add_tail(&cur_fbcgain->list, &hw->rpt_list);
+			dev->cur_fbcgain = NULL;
+			dev->cur_spbuf = NULL;
+			v4l2_dbg(3, rkisp_debug, &br_dev->sd,
+				 "%s send mfbcgain buf to hal, frame_id %d\n",
+				 __func__, cur_fbcgain->frame_id);
+
+			bdgbuf = to_bridge_buf(cur_fbcgain);
+			vaddr = bdgbuf->dummy[GROUP_BUF_PIC].vaddr;
+			size = bdgbuf->dummy[GROUP_BUF_PIC].size;
+			pic_ts = *(u64 *)(vaddr + size / 4 - 2);
+
+			vaddr = bdgbuf->dummy[GROUP_BUF_GAIN].vaddr;
+			size = bdgbuf->dummy[GROUP_BUF_GAIN].size;
+			gain_ts = *(u64 *)(vaddr + size / 4 - 2);
+
+			size = vb2_plane_size(&cur_spbuf->vb.vb2_buf, 0);
+			vaddr = (u32 *)vb2_plane_vaddr(&cur_spbuf->vb.vb2_buf, 0);
+			sp_ts = *(u64 *)(vaddr + size / 4 - 2);
+			if (abs(pic_ts - gain_ts) > 5000000LL || abs(pic_ts - sp_ts) > 5000000LL ||
+			    abs(gain_ts - sp_ts) > 5000000LL) {
+				v4l2_info(&br_dev->sd,
+					"%s: frame %d, timestamp is not match (pic_ts %lld, gain_ts %lld, sp_ts %lld)\n",
+					__func__, cur_fbcgain->frame_id, pic_ts, gain_ts, sp_ts);
+			}
+		} else {
+			v4l2_info(&br_dev->sd,
+				  "%s frame_id(%d, %d) or dev_id(%d, %d) is not match\n",
+				  __func__,
+				  cur_fbcgain->frame_id, cur_spbuf->vb.sequence,
+				  cur_fbcgain->index, cur_spbuf->dev_id);
+		}
+	}
+}
+
+static void rkisp_bridge_save_fbcgain(struct rkisp_device *dev, struct rkisp_ispp_buf *fbcgain)
+{
+	struct rkisp_hw_dev *hw = dev->hw_dev;
+	struct rkisp_bridge_device *br_dev = &dev->br_dev;
+	unsigned long lock_flags = 0;
+
+	spin_lock_irqsave(&hw->buf_lock, lock_flags);
+	if (dev->cur_fbcgain) {
+		v4l2_dbg(3, rkisp_debug, &br_dev->sd,
+			 "%s old mfbcgain buf is exit, frame_id %d\n",
+			 __func__, dev->cur_fbcgain->frame_id);
+		list_add_tail(&dev->cur_fbcgain->list, &hw->list);
+		dev->cur_fbcgain = NULL;
+	}
+	dev->cur_fbcgain = fbcgain;
+	rkisp_bridge_try_sendtohal(dev);
+	spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
+}
+
 static int frame_end(struct rkisp_bridge_device *dev, bool en)
 {
 	struct rkisp_hw_dev *hw = dev->ispdev->hw_dev;
 	struct v4l2_subdev *sd = v4l2_get_subdev_hostdata(&dev->sd);
 	unsigned long lock_flags = 0;
 	u64 ns = ktime_get_ns();
+	struct rkisp_bridge_buf *buf;
 
 	rkisp_dmarx_get_frame(dev->ispdev, &dev->dbg.id, NULL, NULL, true);
 	dev->dbg.interval = ns - dev->dbg.timestamp;
@@ -473,9 +554,31 @@ static int frame_end(struct rkisp_bridge_device *dev, bool en)
 				reg_buf->exposure = dev->ispdev->params_vdev.exposure;
 				dump_dbg_reg(dev, reg_buf);
 			}
-			v4l2_subdev_call(sd, video, s_rx_buffer, hw->cur_buf, NULL);
+
+			if (dev->ispdev->send_fbcgain) {
+				u32 *vaddr, size;
+
+				buf = to_bridge_buf(hw->cur_buf);
+				vaddr = buf->dummy[GROUP_BUF_PIC].vaddr;
+				size = buf->dummy[GROUP_BUF_PIC].size;
+				*(u64 *)(vaddr + size / 4 - 2) = ktime_get_ns();
+
+				vaddr = buf->dummy[GROUP_BUF_GAIN].vaddr;
+				size = buf->dummy[GROUP_BUF_GAIN].size;
+				*(u64 *)(vaddr + size / 4 - 2) = ktime_get_ns();
+				hw->cur_buf->mfbc_dmaidx = hw->cur_buf->didx[GROUP_BUF_PIC];
+				hw->cur_buf->gain_dmaidx = hw->cur_buf->didx[GROUP_BUF_GAIN];
+				hw->cur_buf->is_move_judge = true;
+				rkisp_bridge_save_fbcgain(dev->ispdev, hw->cur_buf);
+			} else {
+				hw->cur_buf->is_move_judge = false;
+				v4l2_subdev_call(sd, video, s_rx_buffer, hw->cur_buf, NULL);
+			}
 		}
 		hw->cur_buf = NULL;
+	} else if (dev->ispdev->send_fbcgain) {
+		v4l2_dbg(1, rkisp_debug, &dev->sd,
+			 "use dummy buffer, lost fbcgain data, frm_id %d\n", dev->dbg.id);
 	}
 
 	if (hw->nxt_buf) {
@@ -672,11 +775,25 @@ static void free_bridge_buf(struct rkisp_bridge_device *dev)
 		hw->nxt_buf = NULL;
 	}
 
+	if (dev->ispdev->cur_fbcgain) {
+		list_add_tail(&dev->ispdev->cur_fbcgain->list, &hw->list);
+		dev->ispdev->cur_fbcgain = NULL;
+	}
+
+	while (!list_empty(&hw->rpt_list)) {
+		dbufs = list_first_entry(&hw->rpt_list,
+				struct rkisp_ispp_buf, list);
+		list_del(&dbufs->list);
+		list_add_tail(&dbufs->list, &hw->list);
+	}
+
 	while (!list_empty(&hw->list)) {
 		dbufs = list_first_entry(&hw->list,
 				struct rkisp_ispp_buf, list);
 		list_del(&dbufs->list);
 	}
+
+	hw->is_buf_init = false;
 	spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
 	for (i = 0; i < BRIDGE_BUF_MAX; i++) {
 		buf = &hw->bufs[i];
@@ -694,6 +811,7 @@ static int init_buf(struct rkisp_bridge_device *dev, u32 pic_size, u32 gain_size
 	struct rkisp_bridge_buf *buf;
 	struct rkisp_dummy_buffer *dummy;
 	int i, j, val, ret = 0;
+	unsigned long lock_flags = 0;
 
 	if (atomic_inc_return(&hw->refcnt) > 1)
 		return 0;
@@ -707,12 +825,16 @@ static int init_buf(struct rkisp_bridge_device *dev, u32 pic_size, u32 gain_size
 		buf = &hw->bufs[i];
 		for (j = 0; j < GROUP_BUF_MAX; j++) {
 			dummy = &buf->dummy[j];
+			dummy->is_need_vaddr = true;
 			dummy->is_need_dbuf = true;
-			dummy->size = !j ? pic_size : gain_size;
+			dummy->size = PAGE_ALIGN(!j ? pic_size : gain_size);
 			ret = rkisp_alloc_buffer(dev->ispdev, dummy);
 			if (ret)
 				goto err;
 			buf->dbufs.dbuf[j] = dummy->dbuf;
+			buf->dbufs.didx[j] = i * GROUP_BUF_MAX + j;
+			buf->dbufs.gain_size = PAGE_ALIGN(gain_size);
+			buf->dbufs.mfbc_size = PAGE_ALIGN(pic_size);
 		}
 		list_add_tail(&buf->dbufs.list, &hw->list);
 		ret = v4l2_subdev_call(sd, video, s_rx_buffer, &buf->dbufs, NULL);
@@ -767,6 +889,10 @@ static int init_buf(struct rkisp_bridge_device *dev, u32 pic_size, u32 gain_size
 		       CIF_MI_CTRL_INIT_OFFSET_EN, true);
 	rkisp_set_bits(dev->ispdev, MI_IMSC, 0,
 		       dev->cfg->frame_end_id, true);
+
+	spin_lock_irqsave(&hw->buf_lock, lock_flags);
+	hw->is_buf_init = true;
+	spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
 	return 0;
 err:
 	free_bridge_buf(dev);
@@ -819,6 +945,9 @@ static int config_mode(struct rkisp_bridge_device *dev)
 	else
 		pic_size += w * h * 3 >> 1;
 	dev->cfg->offset = offs;
+
+	pic_size += RKISP_MOTION_DECT_TS_SIZE;
+	gain_size += RKISP_MOTION_DECT_TS_SIZE;
 	return init_buf(dev, pic_size, gain_size);
 }
 
@@ -862,13 +991,18 @@ static void crop_off(struct rkisp_bridge_device *dev)
 
 static int bridge_start(struct rkisp_bridge_device *dev)
 {
+	struct rkisp_stream *sp_stream;
+
+	sp_stream = &dev->ispdev->cap_dev.stream[RKISP_STREAM_SP];
 	crop_on(dev);
 	config_gain(dev);
 	dev->ops->config(dev);
+	rkisp_start_spstream(sp_stream);
 
 	if (!dev->ispdev->hw_dev->is_mi_update) {
 		rkisp_config_dmatx_valid_buf(dev->ispdev);
 		force_cfg_update(dev->ispdev);
+		rkisp_update_spstream_buf(sp_stream);
 
 		if (!(dev->work_mode & ISP_ISPP_QUICK))
 			update_mi(dev);
@@ -882,11 +1016,14 @@ static int bridge_start(struct rkisp_bridge_device *dev)
 
 static int bridge_stop(struct rkisp_bridge_device *dev)
 {
+	struct rkisp_stream *sp_stream;
 	int ret;
 	u32 irq;
 
+	sp_stream = &dev->ispdev->cap_dev.stream[RKISP_STREAM_SP];
 	dev->stopping = true;
 	dev->ops->disable(dev);
+	rkisp_stop_spstream(sp_stream);
 	hdr_stop_dmatx(dev->ispdev);
 	ret = wait_event_timeout(dev->done, !dev->en,
 				 msecs_to_jiffies(1000));
@@ -1156,11 +1293,155 @@ static struct v4l2_subdev_ops bridge_v4l2_ops = {
 	.pad = &bridge_pad_ops,
 };
 
+int rkisp_bridge_get_fbcbuf_fd(struct rkisp_device *dev, struct isp2x_buf_idxfd *idxfd)
+{
+	struct rkisp_hw_dev *hw = dev->hw_dev;
+	struct rkisp_bridge_device *br_dev = &dev->br_dev;
+	struct rkisp_bridge_buf *buf;
+	struct rkisp_dummy_buffer *dummy;
+	unsigned long lock_flags = 0;
+	int i, j, buf_idx, ret = 0;
+
+	spin_lock_irqsave(&hw->buf_lock, lock_flags);
+	if (!hw->is_buf_init) {
+		spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
+		ret = -EAGAIN;
+		return ret;
+	}
+	spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
+
+	buf_idx = 0;
+	for (i = 0; i < br_dev->buf_num; i++) {
+		buf = &hw->bufs[i];
+		for (j = 0; j < GROUP_BUF_MAX; j++) {
+			dummy = &buf->dummy[j];
+			buf->dbufs.dfd[j] = dma_buf_fd(dummy->dbuf, O_CLOEXEC);
+			get_dma_buf(buf->dbufs.dbuf[j]);
+			idxfd->index[buf_idx] = buf->dbufs.didx[j];
+			idxfd->dmafd[buf_idx] = buf->dbufs.dfd[j];
+			buf_idx++;
+		}
+	}
+
+	idxfd->buf_num = buf_idx;
+
+	return ret;
+}
+
+void rkisp_bridge_sendtopp_buffer(struct rkisp_device *dev, u32 dev_id, u32 buf_idx)
+{
+	struct rkisp_hw_dev *hw = dev->hw_dev;
+	struct rkisp_bridge_device *br_dev = &dev->br_dev;
+	struct v4l2_subdev *sd = v4l2_get_subdev_hostdata(&br_dev->sd);
+	struct rkisp_ispp_buf *cur_buf, *cur_buf_tmp, *find_buf;
+	struct rkisp_bridge_buf *buf;
+	unsigned long lock_flags = 0;
+	bool find_flg = false;
+	u32 *vaddr, size;
+	u64 pic_ts, gain_ts;
+
+	spin_lock_irqsave(&hw->buf_lock, lock_flags);
+	list_for_each_entry(cur_buf, &hw->rpt_list, list) {
+		if (cur_buf->index == dev_id && cur_buf->buf_idx == buf_idx) {
+			find_flg = true;
+			break;
+		}
+	}
+
+	if (find_flg) {
+		list_del(&cur_buf->list);
+		find_buf = cur_buf;
+		list_for_each_entry_safe(cur_buf, cur_buf_tmp, &hw->rpt_list, list) {
+			if ((cur_buf->frame_id < find_buf->frame_id) &&
+				(cur_buf->index == find_buf->index)) {
+				list_del_init(&cur_buf->list);
+				v4l2_dbg(3, rkisp_debug, &br_dev->sd,
+					 "%s send buffer to pp, frame_id %d\n",
+					 __func__, cur_buf->frame_id);
+
+				buf = to_bridge_buf(cur_buf);
+				rkisp_prepare_buffer(dev, &buf->dummy[GROUP_BUF_GAIN]);
+				vaddr = buf->dummy[GROUP_BUF_PIC].vaddr;
+				size = buf->dummy[GROUP_BUF_PIC].size;
+				pic_ts = *(u64 *)(vaddr + size / 4 - 2);
+
+				vaddr = buf->dummy[GROUP_BUF_GAIN].vaddr;
+				size = buf->dummy[GROUP_BUF_GAIN].size;
+				gain_ts = *(u64 *)(vaddr + size / 4 - 2);
+				if (abs(pic_ts - gain_ts) > 5000000LL) {
+					v4l2_info(&br_dev->sd,
+						"%s: frame %d, timestamp is not match (pic_ts %lld, gain_ts %lld)",
+						__func__, cur_buf->frame_id, pic_ts, gain_ts);
+				}
+				cur_buf->is_move_judge = true;
+				v4l2_subdev_call(sd, video, s_rx_buffer, cur_buf, NULL);
+			}
+		}
+
+		v4l2_dbg(3, rkisp_debug, &br_dev->sd,
+			 "%s send buffer to pp, frame_id %d\n",
+			 __func__, find_buf->frame_id);
+
+		buf = to_bridge_buf(find_buf);
+		rkisp_prepare_buffer(dev, &buf->dummy[GROUP_BUF_GAIN]);
+		vaddr = buf->dummy[GROUP_BUF_PIC].vaddr;
+		size = buf->dummy[GROUP_BUF_PIC].size;
+		pic_ts = *(u64 *)(vaddr + size / 4 - 2);
+
+		vaddr = buf->dummy[GROUP_BUF_GAIN].vaddr;
+		size = buf->dummy[GROUP_BUF_GAIN].size;
+		gain_ts = *(u64 *)(vaddr + size / 4 - 2);
+		if (abs(pic_ts - gain_ts) > 5000000LL) {
+			v4l2_info(&br_dev->sd,
+				"%s: frame %d, timestamp is not match (pic_ts %lld, gain_ts %lld)",
+				__func__, find_buf->frame_id, pic_ts, gain_ts);
+		}
+		find_buf->is_move_judge = true;
+		v4l2_subdev_call(sd, video, s_rx_buffer, find_buf, NULL);
+	}
+	spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
+}
+
+void rkisp_bridge_save_spbuf(struct rkisp_device *dev, struct rkisp_buffer *sp_buf)
+{
+	struct rkisp_hw_dev *hw = dev->hw_dev;
+	struct rkisp_bridge_device *br_dev = &dev->br_dev;
+	unsigned long lock_flags = 0;
+
+	spin_lock_irqsave(&hw->buf_lock, lock_flags);
+	if (dev->cur_spbuf) {
+		v4l2_dbg(3, rkisp_debug, &br_dev->sd,
+			 "%s old sp buf is exit, frame_id %d\n",
+			 __func__, dev->cur_spbuf->vb.sequence);
+		rkisp_spbuf_queue(&dev->cap_dev.stream[RKISP_STREAM_SP], dev->cur_spbuf);
+		dev->cur_spbuf = NULL;
+	}
+	dev->cur_spbuf = sp_buf;
+	rkisp_bridge_try_sendtohal(dev);
+	spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
+}
+
+void rkisp_bridge_stop_spstream(struct rkisp_device *dev)
+{
+	struct rkisp_hw_dev *hw = dev->hw_dev;
+	unsigned long lock_flags = 0;
+
+	spin_lock_irqsave(&hw->buf_lock, lock_flags);
+	if (dev->cur_spbuf) {
+		rkisp_spbuf_queue(&dev->cap_dev.stream[RKISP_STREAM_SP], dev->cur_spbuf);
+		dev->cur_spbuf = NULL;
+	}
+	spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
+}
+
 void rkisp_bridge_isr(u32 *mis_val, struct rkisp_device *dev)
 {
 	struct rkisp_bridge_device *bridge = &dev->br_dev;
 	void __iomem *base = dev->base_addr;
 	u32 irq;
+
+	if (!bridge->en)
+		return;
 
 	if (!bridge->cfg ||
 	    (bridge->cfg &&

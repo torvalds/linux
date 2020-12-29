@@ -96,11 +96,19 @@ struct rkisp_ispp_reg {
 struct rkisp_ispp_buf {
 	struct list_head list;
 	struct dma_buf *dbuf[GROUP_BUF_MAX];
+	int dfd[GROUP_BUF_MAX];
+	u32 didx[GROUP_BUF_MAX];
 	/* timestamp in ns */
 	u64 frame_timestamp;
 	u32 frame_id;
 	u32 index;
 	bool is_isp;
+	bool is_move_judge;
+	u32 buf_idx;
+	u32 gain_dmaidx;
+	u32 mfbc_dmaidx;
+	u32 gain_size;
+	u32 mfbc_size;
 };
 
 #if IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISP) && IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISPP)

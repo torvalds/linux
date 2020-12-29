@@ -711,10 +711,12 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	atomic_set(&hw_dev->refcnt, 0);
 	spin_lock_init(&hw_dev->buf_lock);
 	INIT_LIST_HEAD(&hw_dev->list);
+	INIT_LIST_HEAD(&hw_dev->rpt_list);
 	hw_dev->is_idle = true;
 	hw_dev->is_single = true;
 	hw_dev->is_mi_update = false;
 	hw_dev->is_dma_contig = true;
+	hw_dev->is_buf_init = false;
 	hw_dev->is_mmu = is_iommu_enable(dev);
 	if (!hw_dev->is_mmu)
 		hw_dev->mem_ops = &vb2_dma_contig_memops;
