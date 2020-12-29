@@ -81,7 +81,7 @@
 #define SC2310_SF_REG_DGAIN_FINE	0x3e11
 
 #define SC2310_GAIN_MIN			0x40
-#define SC2310_GAIN_MAX			0x8000
+#define SC2310_GAIN_MAX			(44 * 32 * 64)
 #define SC2310_GAIN_STEP		1
 #define SC2310_GAIN_DEFAULT		0x40
 
@@ -919,11 +919,11 @@ static void sc2310_get_gain_reg(u32 val, u32 *again_reg, u32 *again_fine_reg,
 	u32 again = 0;
 	u32 dgain = 0;
 
-	if (val <= 1024) {
+	if (val <= 2764) {
 		again = val;
 		dgain = 128;
 	} else {
-		again = 1024;
+		again = 2764;
 		dgain = val * 128 / again;
 	}
 
