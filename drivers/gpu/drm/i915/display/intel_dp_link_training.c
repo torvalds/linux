@@ -334,6 +334,24 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 	return drm_dp_dpcd_write(&intel_dp->aux, reg, buf, len) == len;
 }
 
+void intel_dp_set_signal_levels(struct intel_dp *intel_dp,
+				const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	u8 train_set = intel_dp->train_set[0];
+
+	drm_dbg_kms(&dev_priv->drm, "Using vswing level %d%s\n",
+		    train_set & DP_TRAIN_VOLTAGE_SWING_MASK,
+		    train_set & DP_TRAIN_MAX_SWING_REACHED ? " (max)" : "");
+	drm_dbg_kms(&dev_priv->drm, "Using pre-emphasis level %d%s\n",
+		    (train_set & DP_TRAIN_PRE_EMPHASIS_MASK) >>
+		    DP_TRAIN_PRE_EMPHASIS_SHIFT,
+		    train_set & DP_TRAIN_MAX_PRE_EMPHASIS_REACHED ?
+		    " (max)" : "");
+
+	intel_dp->set_signal_levels(intel_dp, crtc_state);
+}
+
 static bool
 intel_dp_reset_link_train(struct intel_dp *intel_dp,
 			  const struct intel_crtc_state *crtc_state,
