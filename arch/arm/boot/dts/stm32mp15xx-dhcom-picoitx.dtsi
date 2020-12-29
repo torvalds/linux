@@ -45,7 +45,7 @@
 	 */
 	usb-port-power-hog {
 		gpio-hog;
-		gpios = <13 GPIO_ACTIVE_LOW>;
+		gpios = <13 0>;
 		output-low;
 		line-name = "usb-port-power";
 	};
