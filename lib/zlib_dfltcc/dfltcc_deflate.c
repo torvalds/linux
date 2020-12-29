@@ -4,6 +4,7 @@
 #include "dfltcc_util.h"
 #include "dfltcc.h"
 #include <asm/setup.h>
+#include <linux/export.h>
 #include <linux/zutil.h>
 
 /*
@@ -34,6 +35,7 @@ int dfltcc_can_deflate(
 
     return 1;
 }
+EXPORT_SYMBOL(dfltcc_can_deflate);
 
 static void dfltcc_gdht(
     z_streamp strm
@@ -277,3 +279,4 @@ again:
         goto again; /* deflate() must use all input or all output */
     return 1;
 }
+EXPORT_SYMBOL(dfltcc_deflate);
