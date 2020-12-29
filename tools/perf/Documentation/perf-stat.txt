@@ -75,6 +75,24 @@ report::
 --tid=<tid>::
         stat events on existing thread id (comma separated list)
 
+-b::
+--bpf-prog::
+        stat events on existing bpf program id (comma separated list),
+        requiring root rights. bpftool-prog could be used to find program
+        id all bpf programs in the system. For example:
+
+  # bpftool prog | head -n 1
+  17247: tracepoint  name sys_enter  tag 192d548b9d754067  gpl
+
+  # perf stat -e cycles,instructions --bpf-prog 17247 --timeout 1000
+
+   Performance counter stats for 'BPF program(s) 17247':
+
+             85,967      cycles
+             28,982      instructions              #    0.34  insn per cycle
+
+        1.102235068 seconds time elapsed
+
 ifdef::HAVE_LIBPFM[]
 --pfm-events events::
 Select a PMU event using libpfm4 syntax (see http://perfmon2.sf.net)

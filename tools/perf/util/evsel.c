@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <perf/evsel.h>
 #include "asm/bug.h"
+#include "bpf_counter.h"
 #include "callchain.h"
 #include "cgroup.h"
 #include "counts.h"
@@ -247,6 +248,7 @@ void evsel__init(struct evsel *evsel,
 	evsel->bpf_obj	   = NULL;
 	evsel->bpf_fd	   = -1;
 	INIT_LIST_HEAD(&evsel->config_terms);
+	INIT_LIST_HEAD(&evsel->bpf_counter_list);
 	perf_evsel__object.init(evsel);
 	evsel->sample_size = __evsel__sample_size(attr->sample_type);
 	evsel__calc_id_pos(evsel);
@@ -1368,6 +1370,7 @@ void evsel__exit(struct evsel *evsel)
 {
 	assert(list_empty(&evsel->core.node));
 	assert(evsel->evlist == NULL);
+	bpf_counter__destroy(evsel);
 	evsel__free_counts(evsel);
 	perf_evsel__free_fd(&evsel->core);
 	perf_evsel__free_id(&evsel->core);
@@ -1782,6 +1785,8 @@ retry_open:
 					     group_fd, flags);
 
 			FD(evsel, cpu, thread) = fd;
+
+			bpf_counter__install_pe(evsel, cpu, fd);
 
 			if (unlikely(test_attr__enabled)) {
 				test_attr__open(&evsel->core.attr, pid, cpus->map[cpu],

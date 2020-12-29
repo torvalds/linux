@@ -17,6 +17,8 @@ struct cgroup;
 struct perf_counts;
 struct perf_stat_evsel;
 union perf_event;
+struct bpf_counter_ops;
+struct target;
 
 typedef int (evsel__sb_cb_t)(union perf_event *event, void *data);
 
@@ -127,6 +129,8 @@ struct evsel {
 	 * See also evsel__has_callchain().
 	 */
 	__u64			synth_sample_type;
+	struct list_head	bpf_counter_list;
+	struct bpf_counter_ops	*bpf_counter_ops;
 };
 
 struct perf_missing_features {
@@ -424,4 +428,5 @@ static inline bool evsel__is_dummy_event(struct evsel *evsel)
 struct perf_env *evsel__env(struct evsel *evsel);
 
 int evsel__store_ids(struct evsel *evsel, struct evlist *evlist);
+
 #endif /* __PERF_EVSEL_H */
