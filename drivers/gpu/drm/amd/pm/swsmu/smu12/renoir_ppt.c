@@ -350,8 +350,13 @@ static int renoir_od_edit_dpm_table(struct smu_context *smu,
 {
 	int ret = 0;
 
-	if (!smu->od_enabled) {
+	if (!smu->fine_grain_enabled) {
 		dev_warn(smu->adev->dev, "Fine grain is not enabled!\n");
+		return -EINVAL;
+	}
+
+	if (!smu->fine_grain_started) {
+		dev_warn(smu->adev->dev, "Fine grain is enabled but not started!\n");
 		return -EINVAL;
 	}
 
@@ -364,14 +369,16 @@ static int renoir_od_edit_dpm_table(struct smu_context *smu,
 
 		if (input[0] == 0) {
 			if (input[1] < smu->gfx_default_hard_min_freq) {
-				dev_warn(smu->adev->dev, "Fine grain setting minimum sclk (%ld) MHz is less than the minimum allowed (%d) MHz\n",
+				dev_warn(smu->adev->dev,
+					"Fine grain setting minimum sclk (%ld) MHz is less than the minimum allowed (%d) MHz\n",
 					input[1], smu->gfx_default_hard_min_freq);
 				return -EINVAL;
 			}
 			smu->gfx_actual_hard_min_freq = input[1];
 		} else if (input[0] == 1) {
 			if (input[1] > smu->gfx_default_soft_max_freq) {
-				dev_warn(smu->adev->dev, "Fine grain setting maximum sclk (%ld) MHz is greater than the maximum allowed (%d) MHz\n",
+				dev_warn(smu->adev->dev,
+					"Fine grain setting maximum sclk (%ld) MHz is greater than the maximum allowed (%d) MHz\n",
 					input[1], smu->gfx_default_soft_max_freq);
 				return -EINVAL;
 			}
@@ -412,8 +419,10 @@ static int renoir_od_edit_dpm_table(struct smu_context *smu,
 			return -EINVAL;
 		} else {
 			if (smu->gfx_actual_hard_min_freq > smu->gfx_actual_soft_max_freq) {
-				dev_err(smu->adev->dev, "The setting minimun sclk (%d) MHz is greater than the setting maximum sclk (%d) MHz\n",
-				smu->gfx_actual_hard_min_freq, smu->gfx_actual_soft_max_freq);
+				dev_err(smu->adev->dev,
+					"The setting minimun sclk (%d) MHz is greater than the setting maximum sclk (%d) MHz\n",
+					smu->gfx_actual_hard_min_freq,
+					smu->gfx_actual_soft_max_freq);
 				return -EINVAL;
 			}
 
@@ -483,7 +492,7 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 
 	switch (clk_type) {
 	case SMU_OD_RANGE:
-		if (smu->od_enabled) {
+		if (smu->fine_grain_enabled) {
 			ret = smu_cmn_send_smc_msg_with_param(smu,
 						SMU_MSG_GetMinGfxclkFrequency,
 						0, &min);
@@ -498,11 +507,13 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 		}
 		break;
 	case SMU_OD_SCLK:
+		if (smu->fine_grain_enabled) {
 			min = (smu->gfx_actual_hard_min_freq > 0) ? smu->gfx_actual_hard_min_freq : smu->gfx_default_hard_min_freq;
 			max = (smu->gfx_actual_soft_max_freq > 0) ? smu->gfx_actual_soft_max_freq : smu->gfx_default_soft_max_freq;
 			size += sprintf(buf + size, "OD_SCLK\n");
 			size += sprintf(buf + size, "0:%10uMhz\n", min);
 			size += sprintf(buf + size, "1:%10uMhz\n", max);
+		}
 		break;
 	case SMU_GFXCLK:
 	case SMU_SCLK:
@@ -882,15 +893,31 @@ static int renoir_set_performance_level(struct smu_context *smu,
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
+		smu->fine_grain_started = 0;
+		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
+		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
+
 		ret = renoir_force_dpm_limit_value(smu, true);
 		break;
 	case AMD_DPM_FORCED_LEVEL_LOW:
+		smu->fine_grain_started = 0;
+		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
+		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
+
 		ret = renoir_force_dpm_limit_value(smu, false);
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
+		smu->fine_grain_started = 0;
+		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
+		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
+
 		ret = renoir_unforce_dpm_levels(smu);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
+		smu->fine_grain_started = 0;
+		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
+		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
+
 		ret = smu_cmn_send_smc_msg_with_param(smu,
 						      SMU_MSG_SetHardMinGfxClk,
 						      RENOIR_UMD_PSTATE_GFXCLK,
@@ -943,6 +970,10 @@ static int renoir_set_performance_level(struct smu_context *smu,
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
+		smu->fine_grain_started = 0;
+		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
+		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
+
 		ret = renoir_get_profiling_clk_mask(smu, level,
 						    &sclk_mask,
 						    &mclk_mask,
@@ -954,9 +985,14 @@ static int renoir_set_performance_level(struct smu_context *smu,
 		renoir_force_clk_levels(smu, SMU_SOCCLK, 1 << soc_mask);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+		smu->fine_grain_started = 0;
+		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
+		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
+
 		ret = renoir_set_peak_clock_by_device(smu);
 		break;
 	case AMD_DPM_FORCED_LEVEL_MANUAL:
+		smu->fine_grain_started = 1;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
 	default:
 		break;
