@@ -966,7 +966,7 @@
 		};
 
 		lcd_stanby_gpio: lcd-stanby-gpio {
-			rockchip,pins = <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
