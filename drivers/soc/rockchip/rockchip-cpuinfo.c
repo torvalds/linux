@@ -159,6 +159,16 @@ static void rk3308_init(void)
 	}
 }
 
+static void rk3566_init(void)
+{
+	rockchip_soc_id = ROCKCHIP_SOC_RK3566;
+}
+
+static void rk3568_init(void)
+{
+	rockchip_soc_id = ROCKCHIP_SOC_RK3568;
+}
+
 static int __init rockchip_soc_id_init(void)
 {
 	if (cpu_is_rk3288()) {
@@ -174,6 +184,10 @@ static int __init rockchip_soc_id_init(void)
 		rv1109_init();
 	} else if (cpu_is_rv1126()) {
 		rv1126_init();
+	} else if (cpu_is_rk3566()) {
+		rk3566_init();
+	} else if (cpu_is_rk3568()) {
+		rk3568_init();
 	}
 
 	return 0;
