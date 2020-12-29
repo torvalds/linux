@@ -247,7 +247,7 @@ static inline void memcpy_swab32(u32 *dest, u32 *src, int cnt)
 }
 #endif
 
-static spinlock_t mdio_lock;
+static DEFINE_SPINLOCK(mdio_lock);
 static struct eth_regs __iomem *mdio_regs; /* mdio command and status only */
 static struct mii_bus *mdio_bus;
 static int ports_open;
@@ -528,7 +528,6 @@ static int ixp4xx_mdio_register(struct eth_regs __iomem *regs)
 
 	mdio_regs = regs;
 	__raw_writel(DEFAULT_CORE_CNTRL, &mdio_regs->core_control);
-	spin_lock_init(&mdio_lock);
 	mdio_bus->name = "IXP4xx MII Bus";
 	mdio_bus->read = &ixp4xx_mdio_read;
 	mdio_bus->write = &ixp4xx_mdio_write;
