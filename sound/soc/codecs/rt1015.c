@@ -24,10 +24,10 @@
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
+#include <sound/rt1015.h>
 #include <sound/soc-dapm.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
-#include <sound/rt1015.h>
 
 #include "rl6231.h"
 #include "rt1015.h"
@@ -444,10 +444,9 @@ static int rt1015_boost_mode_put(struct snd_kcontrol *kcontrol,
 		snd_soc_kcontrol_component(kcontrol);
 	struct rt1015_priv *rt1015 =
 		snd_soc_component_get_drvdata(component);
+	int boost_mode = ucontrol->value.integer.value[0];
 
-	rt1015->boost_mode = ucontrol->value.integer.value[0];
-
-	switch (rt1015->boost_mode) {
+	switch (boost_mode) {
 	case BYPASS:
 		snd_soc_component_update_bits(component,
 			RT1015_SMART_BST_CTRL1, RT1015_ABST_AUTO_EN_MASK |
@@ -471,7 +470,10 @@ static int rt1015_boost_mode_put(struct snd_kcontrol *kcontrol,
 		break;
 	default:
 		dev_err(component->dev, "Unknown boost control.\n");
+		return -EINVAL;
 	}
+
+	rt1015->boost_mode = boost_mode;
 
 	return 0;
 }
@@ -526,17 +528,19 @@ static int rt1015_bypass_boost_put(struct snd_kcontrol *kcontrol,
 	struct rt1015_priv *rt1015 =
 		snd_soc_component_get_drvdata(component);
 
-	if (!rt1015->dac_is_used) {
-		rt1015->bypass_boost = ucontrol->value.integer.value[0];
-		if (rt1015->bypass_boost == RT1015_Bypass_Boost &&
-			!rt1015->cali_done) {
-			rt1015_calibrate(rt1015);
-			rt1015->cali_done = 1;
-
-			regmap_write(rt1015->regmap, RT1015_MONO_DYNA_CTRL, 0x0010);
-		}
-	} else
+	if (rt1015->dac_is_used) {
 		dev_err(component->dev, "DAC is being used!\n");
+		return -EBUSY;
+	}
+
+	rt1015->bypass_boost = ucontrol->value.integer.value[0];
+	if (rt1015->bypass_boost == RT1015_Bypass_Boost &&
+			!rt1015->cali_done) {
+		rt1015_calibrate(rt1015);
+		rt1015->cali_done = 1;
+
+		regmap_write(rt1015->regmap, RT1015_MONO_DYNA_CTRL, 0x0010);
+	}
 
 	return 0;
 }
@@ -546,15 +550,14 @@ static void rt1015_flush_work(struct work_struct *work)
 	struct rt1015_priv *rt1015 = container_of(work, struct rt1015_priv,
 						flush_work.work);
 	struct snd_soc_component *component = rt1015->component;
-	unsigned int val, i = 0, count = 200;
+	unsigned int val, i;
 
-	while (i < count) {
+	for (i = 0; i < 200; ++i) {
 		usleep_range(1000, 1500);
 		dev_dbg(component->dev, "Flush DAC (retry:%u)\n", i);
 		regmap_read(rt1015->regmap, RT1015_CLK_DET, &val);
 		if (val & 0x800)
 			break;
-		i++;
 	}
 
 	regmap_write(rt1015->regmap, RT1015_SYS_RST1, 0x0597);
@@ -701,11 +704,11 @@ static int rt1015_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct rt1015_priv *rt1015 = snd_soc_component_get_drvdata(component);
-	int pre_div, bclk_ms, frame_size;
+	int pre_div, bclk_ms, frame_size, lrck;
 	unsigned int val_len = 0;
 
-	rt1015->lrck = params_rate(params);
-	pre_div = rl6231_get_clk_info(rt1015->sysclk, rt1015->lrck);
+	lrck = params_rate(params);
+	pre_div = rl6231_get_clk_info(rt1015->sysclk, lrck);
 	if (pre_div < 0) {
 		dev_err(component->dev, "Unsupported clock rate\n");
 		return -EINVAL;
@@ -719,13 +722,12 @@ static int rt1015_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	bclk_ms = frame_size > 32;
-	rt1015->bclk = rt1015->lrck * (32 << bclk_ms);
 
 	dev_dbg(component->dev, "bclk_ms is %d and pre_div is %d for iis %d\n",
 				bclk_ms, pre_div, dai->id);
 
 	dev_dbg(component->dev, "lrck is %dHz and pre_div is %d for iis %d\n",
-				rt1015->lrck, pre_div, dai->id);
+				lrck, pre_div, dai->id);
 
 	switch (params_width(params)) {
 	case 16:
@@ -1163,9 +1165,8 @@ static int rt1015_i2c_probe(struct i2c_client *i2c,
 	int ret;
 	unsigned int val;
 
-	rt1015 = devm_kzalloc(&i2c->dev, sizeof(struct rt1015_priv),
-				GFP_KERNEL);
-	if (rt1015 == NULL)
+	rt1015 = devm_kzalloc(&i2c->dev, sizeof(*rt1015), GFP_KERNEL);
+	if (!rt1015)
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, rt1015);
