@@ -2416,7 +2416,7 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 	struct icm *icm;
 	struct tb *tb;
 
-	tb = tb_domain_alloc(nhi, sizeof(struct icm));
+	tb = tb_domain_alloc(nhi, ICM_TIMEOUT, sizeof(struct icm));
 	if (!tb)
 		return NULL;
 

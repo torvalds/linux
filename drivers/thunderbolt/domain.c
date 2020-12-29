@@ -341,9 +341,34 @@ struct device_type tb_domain_type = {
 	.release = tb_domain_release,
 };
 
+static bool tb_domain_event_cb(void *data, enum tb_cfg_pkg_type type,
+			       const void *buf, size_t size)
+{
+	struct tb *tb = data;
+
+	if (!tb->cm_ops->handle_event) {
+		tb_warn(tb, "domain does not have event handler\n");
+		return true;
+	}
+
+	switch (type) {
+	case TB_CFG_PKG_XDOMAIN_REQ:
+	case TB_CFG_PKG_XDOMAIN_RESP:
+		if (tb_is_xdomain_enabled())
+			return tb_xdomain_handle_request(tb, type, buf, size);
+		break;
+
+	default:
+		tb->cm_ops->handle_event(tb, type, buf, size);
+	}
+
+	return true;
+}
+
 /**
  * tb_domain_alloc() - Allocate a domain
  * @nhi: Pointer to the host controller
+ * @timeout_msec: Control channel timeout for non-raw messages
  * @privsize: Size of the connection manager private data
  *
  * Allocates and initializes a new Thunderbolt domain. Connection
@@ -355,7 +380,7 @@ struct device_type tb_domain_type = {
  *
  * Return: allocated domain structure on %NULL in case of error
  */
-struct tb *tb_domain_alloc(struct tb_nhi *nhi, size_t privsize)
+struct tb *tb_domain_alloc(struct tb_nhi *nhi, int timeout_msec, size_t privsize)
 {
 	struct tb *tb;
 
@@ -382,6 +407,10 @@ struct tb *tb_domain_alloc(struct tb_nhi *nhi, size_t privsize)
 	if (!tb->wq)
 		goto err_remove_ida;
 
+	tb->ctl = tb_ctl_alloc(nhi, timeout_msec, tb_domain_event_cb, tb);
+	if (!tb->ctl)
+		goto err_destroy_wq;
+
 	tb->dev.parent = &nhi->pdev->dev;
 	tb->dev.bus = &tb_bus_type;
 	tb->dev.type = &tb_domain_type;
@@ -391,36 +420,14 @@ struct tb *tb_domain_alloc(struct tb_nhi *nhi, size_t privsize)
 
 	return tb;
 
+err_destroy_wq:
+	destroy_workqueue(tb->wq);
 err_remove_ida:
 	ida_simple_remove(&tb_domain_ida, tb->index);
 err_free:
 	kfree(tb);
 
 	return NULL;
-}
-
-static bool tb_domain_event_cb(void *data, enum tb_cfg_pkg_type type,
-			       const void *buf, size_t size)
-{
-	struct tb *tb = data;
-
-	if (!tb->cm_ops->handle_event) {
-		tb_warn(tb, "domain does not have event handler\n");
-		return true;
-	}
-
-	switch (type) {
-	case TB_CFG_PKG_XDOMAIN_REQ:
-	case TB_CFG_PKG_XDOMAIN_RESP:
-		if (tb_is_xdomain_enabled())
-			return tb_xdomain_handle_request(tb, type, buf, size);
-		break;
-
-	default:
-		tb->cm_ops->handle_event(tb, type, buf, size);
-	}
-
-	return true;
 }
 
 /**
@@ -442,13 +449,6 @@ int tb_domain_add(struct tb *tb)
 		return -EINVAL;
 
 	mutex_lock(&tb->lock);
-
-	tb->ctl = tb_ctl_alloc(tb->nhi, tb_domain_event_cb, tb);
-	if (!tb->ctl) {
-		ret = -ENOMEM;
-		goto err_unlock;
-	}
-
 	/*
 	 * tb_schedule_hotplug_handler may be called as soon as the config
 	 * channel is started. Thats why we have to hold the lock here.
@@ -493,8 +493,6 @@ err_domain_del:
 	device_del(&tb->dev);
 err_ctl_stop:
 	tb_ctl_stop(tb->ctl);
-err_unlock:
-	mutex_unlock(&tb->lock);
 
 	return ret;
 }

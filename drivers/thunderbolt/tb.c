@@ -15,6 +15,8 @@
 #include "tb_regs.h"
 #include "tunnel.h"
 
+#define TB_TIMEOUT	100 /* ms */
+
 /**
  * struct tb_cm - Simple Thunderbolt connection manager
  * @tunnel_list: List of active tunnels
@@ -1558,7 +1560,7 @@ struct tb *tb_probe(struct tb_nhi *nhi)
 	struct tb_cm *tcm;
 	struct tb *tb;
 
-	tb = tb_domain_alloc(nhi, sizeof(*tcm));
+	tb = tb_domain_alloc(nhi, TB_TIMEOUT, sizeof(*tcm));
 	if (!tb)
 		return NULL;
 
