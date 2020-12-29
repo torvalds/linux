@@ -317,7 +317,7 @@ static int sja1105_init_static_vlan(struct sja1105_private *priv)
 		table->entry_count = 0;
 	}
 
-	table->entries = kcalloc(1, table->ops->unpacked_entry_size,
+	table->entries = kzalloc(table->ops->unpacked_entry_size,
 				 GFP_KERNEL);
 	if (!table->entries)
 		return -ENOMEM;
