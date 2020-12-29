@@ -232,17 +232,19 @@ AES_ENTRY(aes_ctr_encrypt)
 	bmi		.Lctr1x
 	cmn		w6, #4			/* 32 bit overflow? */
 	bcs		.Lctr1x
-	ldr		q8, =0x30000000200000001	/* addends 1,2,3[,0] */
-	dup		v7.4s, w6
+	add		w7, w6, #1
 	mov		v0.16b, v4.16b
-	add		v7.4s, v7.4s, v8.4s
+	add		w8, w6, #2
 	mov		v1.16b, v4.16b
-	rev32		v8.16b, v7.16b
+	add		w9, w6, #3
 	mov		v2.16b, v4.16b
+	rev		w7, w7
 	mov		v3.16b, v4.16b
-	mov		v1.s[3], v8.s[0]
-	mov		v2.s[3], v8.s[1]
-	mov		v3.s[3], v8.s[2]
+	rev		w8, w8
+	mov		v1.s[3], w7
+	rev		w9, w9
+	mov		v2.s[3], w8
+	mov		v3.s[3], w9
 	ld1		{v5.16b-v7.16b}, [x20], #48	/* get 3 input blocks */
 	bl		aes_encrypt_block4x
 	eor		v0.16b, v5.16b, v0.16b

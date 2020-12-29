@@ -14,7 +14,4 @@
 
 #include "internal.h"
 
-int ncsi_init_netlink(struct net_device *dev);
-int ncsi_unregister_netlink(struct net_device *dev);
-
 #endif /* __NCSI_NETLINK_H__ */

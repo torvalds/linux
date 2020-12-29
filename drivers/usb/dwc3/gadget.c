@@ -1216,6 +1216,8 @@ static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
 	struct scatterlist *s;
 	int		i;
 	unsigned int length = req->request.length;
+	unsigned int maxp = usb_endpoint_maxp(dep->endpoint.desc);
+	unsigned int rem = length % maxp;
 	unsigned int remaining = req->request.num_mapped_sgs
 		- req->num_queued_sgs;
 
@@ -1227,8 +1229,6 @@ static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
 		length -= sg_dma_len(s);
 
 	for_each_sg(sg, s, remaining, i) {
-		unsigned int maxp = usb_endpoint_maxp(dep->endpoint.desc);
-		unsigned int rem = length % maxp;
 		unsigned int trb_length;
 		unsigned chain = true;
 
@@ -2759,6 +2759,12 @@ static int dwc3_gadget_ep_cleanup_completed_request(struct dwc3_ep *dep,
 		ret = dwc3_gadget_ep_reclaim_trb_linear(dep, req, event,
 				status);
 
+	req->request.actual = req->request.length - req->remaining;
+
+	if (!dwc3_gadget_ep_request_completed(req) &&
+	    !usb_endpoint_xfer_isoc(dep->endpoint.desc))
+		goto out;
+
 	if (req->needs_extra_trb) {
 		unsigned int maxp = usb_endpoint_maxp(dep->endpoint.desc);
 
@@ -2774,27 +2780,22 @@ static int dwc3_gadget_ep_cleanup_completed_request(struct dwc3_ep *dep,
 		req->needs_extra_trb = false;
 	}
 
-	req->request.actual = req->request.length - req->remaining;
+	if (event->status & DEPEVT_STATUS_MISSED_ISOC &&
+	    usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
+		/*
+		 * unmap isoc request and move the request
+		 * to the pending list to wait for kicking
+		 * transfer again.
+		 */
+		req->remaining = 0;
+		req->needs_extra_trb = false;
+		dwc3_gadget_move_queued_request(req);
+		if (req->trb)
+			usb_gadget_unmap_request_by_dev(dwc->sysdev,
+							&req->request,
+							req->direction);
+		req->trb = NULL;
 
-	if (!dwc3_gadget_ep_request_completed(req) ||
-	    event->status & DEPEVT_STATUS_MISSED_ISOC) {
-		if (usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
-			/*
-			 * unmap isoc request and move the request
-			 * to the pending list to wait for kicking
-			 * transfer again.
-			 */
-			req->remaining = 0;
-			req->needs_extra_trb = false;
-			dwc3_gadget_move_queued_request(req);
-			if (req->trb)
-				usb_gadget_unmap_request_by_dev(dwc->sysdev,
-								&req->request,
-								req->direction);
-			req->trb = NULL;
-		} else {
-			__dwc3_gadget_kick_transfer(dep);
-		}
 		goto out;
 	}
 
@@ -2818,6 +2819,24 @@ static void dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 		if (ret)
 			break;
 	}
+}
+
+static bool dwc3_gadget_ep_should_continue(struct dwc3_ep *dep)
+{
+	struct dwc3_request	*req;
+
+	if (!list_empty(&dep->pending_list))
+		return true;
+
+	/*
+	 * We only need to check the first entry of the started list. We can
+	 * assume the completed requests are removed from the started list.
+	 */
+	req = next_request(&dep->started_list);
+	if (!req)
+		return false;
+
+	return !dwc3_gadget_ep_request_completed(req);
 }
 
 static void dwc3_gadget_endpoint_frame_from_event(struct dwc3_ep *dep,
@@ -2845,6 +2864,8 @@ static void dwc3_gadget_endpoint_transfer_in_progress(struct dwc3_ep *dep,
 	if (event->status & DEPEVT_STATUS_MISSED_ISOC &&
 	    list_empty(&dep->started_list))
 		dwc3_stop_active_transfer(dep, true, true);
+	else if (dwc3_gadget_ep_should_continue(dep))
+		__dwc3_gadget_kick_transfer(dep);
 
 	/*
 	 * WORKAROUND: This is the 2nd half of U1/U2 -> U0 workaround.

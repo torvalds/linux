@@ -41,6 +41,7 @@
   bus_for_each_dev
   bus_register
   bus_unregister
+  call_rcu
   cancel_delayed_work
   cancel_delayed_work_sync
   cancel_work_sync
@@ -287,7 +288,6 @@
   get_cpu_device
   get_device
   __get_free_pages
-  get_next_event_cpu
   get_pid_task
   get_random_bytes
   __get_task_comm
@@ -467,6 +467,7 @@
   __ll_sc_atomic64_fetch_or
   __ll_sc_atomic64_or
   __ll_sc_atomic64_sub
+  __ll_sc_atomic64_sub_return
   __ll_sc_atomic_add
   __ll_sc_atomic_add_return
   __ll_sc_atomic_sub
@@ -491,6 +492,10 @@
   __memcpy_toio
   memdup_user
   memmove
+  mempool_alloc
+  mempool_free
+  mempool_kfree
+  mempool_kmalloc
   memremap
   memset
   __memset_io
@@ -506,6 +511,7 @@
   module_put
   __msecs_to_jiffies
   msleep
+  msleep_interruptible
   __mutex_init
   mutex_lock
   mutex_lock_interruptible
@@ -1210,14 +1216,23 @@
   crc_ccitt_table
   kernel_restart
   kernel_setsockopt
-  mempool_alloc
   mempool_create
   mempool_destroy
-  mempool_free
-  mempool_kfree
-  mempool_kmalloc
   send_sig_info
   time64_to_tm
+
+# required by dm-user.ko
+  bio_advance
+  bio_endio
+  bio_put
+  _copy_from_iter
+  copy_page_from_iter
+  copy_page_to_iter
+  _copy_to_iter
+  dm_register_target
+  dm_unregister_target
+  mempool_exit
+  mempool_init
 
 # required by dwc3-haps.ko
   pcim_enable_device
@@ -1315,9 +1330,6 @@
   proc_create
   seq_write
 
-# required by google-battery.ko
-  simple_strtoull
-
 # required by google-bms.ko
   full_name_hash
 
@@ -1362,7 +1374,6 @@
   __break_lease
   clear_inode
   __close_fd
-  crc32_le
   d_add
   d_drop
   deactivate_locked_super
@@ -1370,6 +1381,8 @@
   dget_parent
   d_instantiate
   d_make_root
+  down_read_killable
+  down_write_killable
   dput
   flush_dcache_page
   fs_kobj
@@ -1419,6 +1432,7 @@
   user_path_at_empty
   vfs_create
   vfs_fallocate
+  vfs_fsync
   vfs_getattr
   vfs_getxattr
   vfs_link
@@ -1428,19 +1442,19 @@
   vfs_rmdir
   vfs_setxattr
   vfs_unlink
+  ZSTD_decompressStream
+  ZSTD_DStreamWorkspaceBound
+  ZSTD_initDStream
 
 # required by ion-alloc.ko
   dma_buf_export
   dma_get_device_base
   dma_get_size
-  __ll_sc_atomic64_sub_return
   mm_event_count
   __next_zones_zonelist
   ptr_to_hashval
   sched_setattr
   split_page
-  vm_map_ram
-  vm_unmap_ram
   zone_watermark_ok_safe
 
 # required by ipa3.ko
@@ -2223,7 +2237,6 @@
 # required by sctp.ko
   __bitmap_shift_right
   __bitmap_weight
-  call_rcu
   compat_ip_getsockopt
   compat_ip_setsockopt
   compat_ipv6_getsockopt
@@ -2518,100 +2531,6 @@
   trace_output_call
   utf16s_to_utf8s
 
-# required by wlan.ko
-  bitmap_print_to_pagebuf
-  __cfg80211_alloc_event_skb
-  __cfg80211_alloc_reply_skb
-  cfg80211_ap_stopped
-  cfg80211_calculate_bitrate
-  cfg80211_chandef_create
-  cfg80211_ch_switch_notify
-  cfg80211_connect_done
-  cfg80211_del_sta_sinfo
-  cfg80211_disconnected
-  cfg80211_external_auth_request
-  cfg80211_ft_event
-  cfg80211_get_bss
-  cfg80211_gtk_rekey_notify
-  cfg80211_ibss_joined
-  cfg80211_inform_bss_frame_data
-  cfg80211_mgmt_tx_status
-  cfg80211_michael_mic_failure
-  cfg80211_new_sta
-  cfg80211_pmksa_candidate_notify
-  cfg80211_put_bss
-  cfg80211_ready_on_channel
-  cfg80211_remain_on_channel_expired
-  cfg80211_roamed
-  cfg80211_rx_mgmt
-  cfg80211_rx_unprot_mlme_mgmt
-  cfg80211_scan_done
-  cfg80211_sched_scan_results
-  __cfg80211_send_event_skb
-  cfg80211_tdls_oper_request
-  cfg80211_unlink_bss
-  cfg80211_update_owe_info_event
-  cfg80211_vendor_cmd_reply
-  complete_and_exit
-  cpufreq_quick_get_max
-  __cpuhp_remove_state
-  cpu_topology
-  crypto_aead_setauthsize
-  crypto_aead_setkey
-  crypto_alloc_aead
-  crypto_alloc_base
-  crypto_alloc_skcipher
-  crypto_shash_final
-  crypto_shash_update
-  dev_alloc_name
-  dump_stack
-  hex2bin
-  hex_to_bin
-  ieee80211_channel_to_frequency
-  ieee80211_frequency_to_channel
-  ieee80211_get_channel
-  ieee80211_hdrlen
-  iommu_iova_to_phys
-  irq_set_affinity_hint
-  mac_pton
-  msleep_interruptible
-  netif_tx_stop_all_queues
-  netlink_broadcast
-  __netlink_kernel_create
-  netlink_kernel_release
-  nla_put_64bit
-  nla_strlcpy
-  param_get_string
-  param_ops_byte
-  param_set_copystring
-  pci_read_config_dword
-  pci_read_config_word
-  pci_write_config_dword
-  pci_write_config_word
-  PDE_DATA
-  pm_freezing
-  pm_system_wakeup
-  proc_create_data
-  proc_mkdir
-  register_netevent_notifier
-  register_sysctl_table
-  regulatory_set_wiphy_regd
-  rtnl_lock
-  save_stack_trace_tsk
-  schedule_timeout_interruptible
-  seq_vprintf
-  set_cpus_allowed_ptr
-  skip_spaces
-  strchrnul
-  unregister_netevent_notifier
-  unregister_sysctl_table
-  vprintk
-  wiphy_free
-  wiphy_new_nm
-  wiphy_register
-  wiphy_unregister
-  wireless_send_event
-
 # required by usb-audio-qmi.ko
   find_snd_usb_substream
   snd_usb_enable_audio_stream
@@ -2684,6 +2603,99 @@
   irq_create_mapping
   regmap_irq_get_virq
 
+# required by wlan.ko
+  bitmap_print_to_pagebuf
+  __cfg80211_alloc_event_skb
+  __cfg80211_alloc_reply_skb
+  cfg80211_ap_stopped
+  cfg80211_calculate_bitrate
+  cfg80211_chandef_create
+  cfg80211_ch_switch_notify
+  cfg80211_connect_done
+  cfg80211_del_sta_sinfo
+  cfg80211_disconnected
+  cfg80211_external_auth_request
+  cfg80211_ft_event
+  cfg80211_get_bss
+  cfg80211_gtk_rekey_notify
+  cfg80211_ibss_joined
+  cfg80211_inform_bss_frame_data
+  cfg80211_mgmt_tx_status
+  cfg80211_michael_mic_failure
+  cfg80211_new_sta
+  cfg80211_pmksa_candidate_notify
+  cfg80211_put_bss
+  cfg80211_ready_on_channel
+  cfg80211_remain_on_channel_expired
+  cfg80211_roamed
+  cfg80211_rx_mgmt
+  cfg80211_rx_unprot_mlme_mgmt
+  cfg80211_scan_done
+  cfg80211_sched_scan_results
+  __cfg80211_send_event_skb
+  cfg80211_tdls_oper_request
+  cfg80211_unlink_bss
+  cfg80211_update_owe_info_event
+  cfg80211_vendor_cmd_reply
+  complete_and_exit
+  cpufreq_quick_get_max
+  __cpuhp_remove_state
+  cpu_topology
+  crypto_aead_setauthsize
+  crypto_aead_setkey
+  crypto_alloc_aead
+  crypto_alloc_base
+  crypto_alloc_skcipher
+  crypto_shash_final
+  crypto_shash_update
+  dev_alloc_name
+  dump_stack
+  hex2bin
+  hex_to_bin
+  ieee80211_channel_to_frequency
+  ieee80211_frequency_to_channel
+  ieee80211_get_channel
+  ieee80211_hdrlen
+  iommu_iova_to_phys
+  irq_set_affinity_hint
+  mac_pton
+  netif_tx_stop_all_queues
+  netlink_broadcast
+  __netlink_kernel_create
+  netlink_kernel_release
+  nla_put_64bit
+  nla_strlcpy
+  param_get_string
+  param_ops_byte
+  param_set_copystring
+  pci_read_config_dword
+  pci_read_config_word
+  pci_write_config_dword
+  pci_write_config_word
+  PDE_DATA
+  pm_freezing
+  pm_system_wakeup
+  proc_create_data
+  proc_mkdir
+  register_netevent_notifier
+  register_sysctl_table
+  regulatory_set_wiphy_regd
+  rtnl_lock
+  save_stack_trace_tsk
+  schedule_timeout_interruptible
+  seq_vprintf
+  set_cpus_allowed_ptr
+  skip_spaces
+  strchrnul
+  unregister_netevent_notifier
+  unregister_sysctl_table
+  vprintk
+  wiphy_free
+  wiphy_new_nm
+  wiphy_register
+  wiphy_unregister
+  wireless_send_event
+
 # required by wsa883x_dlkm.ko
   snd_info_create_module_entry
   snd_soc_component_exit_regmap
@@ -2702,3 +2714,10 @@
   xhci_resume
   xhci_run
   xhci_suspend
+
+# preserved by --additions-only
+  crc32_le
+  get_next_event_cpu
+  simple_strtoull
+  vm_map_ram
+  vm_unmap_ram

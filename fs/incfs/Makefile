@@ -6,4 +6,5 @@ incrementalfs-y := \
 	format.o \
 	integrity.o \
 	main.o \
+	pseudo_files.o \
 	vfs.o

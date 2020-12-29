@@ -10,9 +10,12 @@
 #include <linux/types.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/rcupdate.h>
 #include <linux/completion.h>
 #include <linux/wait.h>
+#include <linux/zstd.h>
 #include <crypto/hash.h>
+#include <linux/rwsem.h>
 
 #include <uapi/linux/incrementalfs.h>
 
@@ -32,13 +35,14 @@ struct full_record {
 	u32 block_index : 30;
 	incfs_uuid_t file_id;
 	u64 absolute_ts_us;
+	uid_t uid;
 } __packed; /* 28 bytes */
 
 struct same_file_record {
 	enum LOG_RECORD_TYPE type : 2; /* SAME_FILE */
 	u32 block_index : 30;
 	u32 relative_ts_us; /* max 2^32 us ~= 1 hour (1:11:30) */
-} __packed; /* 12 bytes */
+} __packed; /* 8 bytes */
 
 struct same_file_next_block {
 	enum LOG_RECORD_TYPE type : 2; /* SAME_FILE_NEXT_BLOCK */
@@ -99,8 +103,7 @@ struct mount_options {
 	unsigned int readahead_pages;
 	unsigned int read_log_pages;
 	unsigned int read_log_wakeup_count;
-	bool no_backing_file_cache;
-	bool no_backing_file_readahead;
+	bool report_uid;
 };
 
 struct mount_info {
@@ -109,6 +112,8 @@ struct mount_info {
 	struct path mi_backing_dir_path;
 
 	struct dentry *mi_index_dir;
+
+	struct dentry *mi_incomplete_dir;
 
 	const struct cred *mi_owner;
 
@@ -123,13 +128,13 @@ struct mount_info {
 	wait_queue_head_t mi_pending_reads_notif_wq;
 
 	/*
-	 * Protects:
+	 * Protects - RCU safe:
 	 *  - reads_list_head
 	 *  - mi_pending_reads_count
 	 *  - mi_last_pending_read_number
 	 *  - data_file_segment.reads_list_head
 	 */
-	struct mutex mi_pending_reads_mutex;
+	spinlock_t pending_read_lock;
 
 	/* List of active pending_read objects */
 	struct list_head mi_reads_list_head;
@@ -151,6 +156,23 @@ struct mount_info {
 
 	void *pending_read_xattr;
 	size_t pending_read_xattr_size;
+
+	/* A queue of waiters who want to be notified about blocks_written */
+	wait_queue_head_t mi_blocks_written_notif_wq;
+
+	/* Number of blocks written since mount */
+	atomic_t mi_blocks_written;
+
+	/* Per UID read timeouts */
+	spinlock_t mi_per_uid_read_timeouts_lock;
+	struct incfs_per_uid_read_timeouts *mi_per_uid_read_timeouts;
+	int mi_per_uid_read_timeouts_size;
+
+	/* zstd workspace */
+	struct mutex mi_zstd_workspace_mutex;
+	void *mi_zstd_workspace;
+	ZSTD_DStream *mi_zstd_stream;
+	struct delayed_work mi_zstd_cleanup_work;
 };
 
 struct data_file_block {
@@ -172,17 +194,20 @@ struct pending_read {
 
 	int serial_number;
 
+	uid_t uid;
+
 	struct list_head mi_reads_list;
 
 	struct list_head segment_reads_list;
+
+	struct rcu_head rcu;
 };
 
 struct data_file_segment {
 	wait_queue_head_t new_data_arrival_wq;
 
 	/* Protects reads and writes from the blockmap */
-	/* Good candidate for read/write mutex */
-	struct mutex blockmap_mutex;
+	struct rw_semaphore rwsem;
 
 	/* List of active pending_read objects belonging to this segment */
 	/* Protected by mount_info.pending_reads_mutex */
@@ -232,7 +257,23 @@ struct data_file {
 	/* Total number of blocks, data + hash */
 	int df_total_block_count;
 
-	struct file_attr n_attr;
+	/* For mapped files, the offset into the actual file */
+	loff_t df_mapped_offset;
+
+	/* Number of data blocks written to file */
+	atomic_t df_data_blocks_written;
+
+	/* Number of data blocks in the status block */
+	u32 df_initial_data_blocks_written;
+
+	/* Number of hash blocks written to file */
+	atomic_t df_hash_blocks_written;
+
+	/* Number of hash blocks in the status block */
+	u32 df_initial_hash_blocks_written;
+
+	/* Offset to status metadata header */
+	loff_t df_status_offset;
 
 	struct mtree *df_hash_tree;
 
@@ -259,6 +300,23 @@ struct dentry_info {
 	struct path backing_path;
 };
 
+enum FILL_PERMISSION {
+	CANT_FILL = 0,
+	CAN_FILL = 1,
+};
+
+struct incfs_file_data {
+	/* Does this file handle have INCFS_IOC_FILL_BLOCKS permission */
+	enum FILL_PERMISSION fd_fill_permission;
+
+	/* If INCFS_IOC_GET_FILLED_BLOCKS has been called, where are we */
+	int fd_get_block_pos;
+
+	/* And how many filled blocks are there up to that point */
+	int fd_filled_data_blocks;
+	int fd_filled_hash_blocks;
+};
+
 struct mount_info *incfs_alloc_mount_info(struct super_block *sb,
 					  struct mount_options *options,
 					  struct path *backing_dir_path);
@@ -268,19 +326,21 @@ int incfs_realloc_mount_info(struct mount_info *mi,
 
 void incfs_free_mount_info(struct mount_info *mi);
 
+char *file_id_to_str(incfs_uuid_t id);
+struct dentry *incfs_lookup_dentry(struct dentry *parent, const char *name);
 struct data_file *incfs_open_data_file(struct mount_info *mi, struct file *bf);
 void incfs_free_data_file(struct data_file *df);
-
-int incfs_scan_metadata_chain(struct data_file *df);
 
 struct dir_file *incfs_open_dir_file(struct mount_info *mi, struct file *bf);
 void incfs_free_dir_file(struct dir_file *dir);
 
 ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
-				   int index, int timeout_ms,
-				   struct mem_range tmp);
+			int index, int min_time_ms,
+			int min_pending_time_ms, int max_pending_time_ms,
+			struct mem_range tmp);
 
 int incfs_get_filled_blocks(struct data_file *df,
+			    struct incfs_file_data *fd,
 			    struct incfs_get_filled_blocks_args *arg);
 
 int incfs_read_file_signature(struct data_file *df, struct mem_range dst);
@@ -300,11 +360,13 @@ bool incfs_fresh_pending_reads_exist(struct mount_info *mi, int last_number);
  */
 int incfs_collect_pending_reads(struct mount_info *mi, int sn_lowerbound,
 				struct incfs_pending_read_info *reads,
-				int reads_size);
+				struct incfs_pending_read_info2 *reads2,
+				int reads_size, int *new_max_sn);
 
 int incfs_collect_logged_reads(struct mount_info *mi,
 			       struct read_log_state *start_state,
 			       struct incfs_pending_read_info *reads,
+			       struct incfs_pending_read_info2 *reads2,
 			       int reads_size);
 struct read_log_state incfs_get_log_state(struct mount_info *mi);
 int incfs_get_uncollected_logs_count(struct mount_info *mi,
@@ -388,7 +450,5 @@ static inline int get_blocks_count_for_size(u64 size)
 		return 0;
 	return 1 + (size - 1) / INCFS_DATA_FILE_BLOCK_SIZE;
 }
-
-bool incfs_equal_ranges(struct mem_range lhs, struct mem_range rhs);
 
 #endif /* _INCFS_DATA_MGMT_H */

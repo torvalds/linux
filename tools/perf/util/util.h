@@ -22,7 +22,7 @@ static inline void *zalloc(size_t size)
 	return calloc(1, size);
 }
 
-#define zfree(ptr) ({ free(*ptr); *ptr = NULL; })
+#define zfree(ptr) ({ free((void *)*ptr); *ptr = NULL; })
 
 struct dirent;
 struct nsinfo;

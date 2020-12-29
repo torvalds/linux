@@ -98,21 +98,21 @@ asm (
 			"optprobe_template_end:\n");
 
 #define TMPL_VAL_IDX \
-	((unsigned long *)&optprobe_template_val - (unsigned long *)&optprobe_template_entry)
+	((unsigned long *)optprobe_template_val - (unsigned long *)optprobe_template_entry)
 #define TMPL_CALL_IDX \
-	((unsigned long *)&optprobe_template_call - (unsigned long *)&optprobe_template_entry)
+	((unsigned long *)optprobe_template_call - (unsigned long *)optprobe_template_entry)
 #define TMPL_END_IDX \
-	((unsigned long *)&optprobe_template_end - (unsigned long *)&optprobe_template_entry)
+	((unsigned long *)optprobe_template_end - (unsigned long *)optprobe_template_entry)
 #define TMPL_ADD_SP \
-	((unsigned long *)&optprobe_template_add_sp - (unsigned long *)&optprobe_template_entry)
+	((unsigned long *)optprobe_template_add_sp - (unsigned long *)optprobe_template_entry)
 #define TMPL_SUB_SP \
-	((unsigned long *)&optprobe_template_sub_sp - (unsigned long *)&optprobe_template_entry)
+	((unsigned long *)optprobe_template_sub_sp - (unsigned long *)optprobe_template_entry)
 #define TMPL_RESTORE_BEGIN \
-	((unsigned long *)&optprobe_template_restore_begin - (unsigned long *)&optprobe_template_entry)
+	((unsigned long *)optprobe_template_restore_begin - (unsigned long *)optprobe_template_entry)
 #define TMPL_RESTORE_ORIGN_INSN \
-	((unsigned long *)&optprobe_template_restore_orig_insn - (unsigned long *)&optprobe_template_entry)
+	((unsigned long *)optprobe_template_restore_orig_insn - (unsigned long *)optprobe_template_entry)
 #define TMPL_RESTORE_END \
-	((unsigned long *)&optprobe_template_restore_end - (unsigned long *)&optprobe_template_entry)
+	((unsigned long *)optprobe_template_restore_end - (unsigned long *)optprobe_template_entry)
 
 /*
  * ARM can always optimize an instruction when using ARM ISA, except
@@ -247,7 +247,7 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *or
 	}
 
 	/* Copy arch-dep-instance from template. */
-	memcpy(code, (unsigned long *)&optprobe_template_entry,
+	memcpy(code, (unsigned long *)optprobe_template_entry,
 			TMPL_END_IDX * sizeof(kprobe_opcode_t));
 
 	/* Adjust buffer according to instruction. */

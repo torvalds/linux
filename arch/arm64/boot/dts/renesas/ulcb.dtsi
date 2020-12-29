@@ -430,6 +430,7 @@
 	bus-width = <8>;
 	mmc-hs200-1_8v;
 	non-removable;
+	full-pwr-cycle-in-suspend;
 	status = "okay";
 };
 
