@@ -364,6 +364,7 @@ static int svc_rdma_post_chunk_ctxt(struct svc_rdma_chunk_ctxt *cc)
 			return 0;
 		}
 
+		percpu_counter_inc(&svcrdma_stat_sq_starve);
 		trace_svcrdma_sq_full(rdma);
 		atomic_add(cc->cc_sqecount, &rdma->sc_sq_avail);
 		wait_event(rdma->sc_send_wait,

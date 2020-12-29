@@ -66,7 +66,7 @@ static unsigned int max_max_inline = RPCRDMA_MAX_INLINE_THRESH;
 struct percpu_counter svcrdma_stat_recv;
 atomic_t rdma_stat_read;
 atomic_t rdma_stat_write;
-atomic_t rdma_stat_sq_starve;
+struct percpu_counter svcrdma_stat_sq_starve;
 atomic_t rdma_stat_rq_starve;
 atomic_t rdma_stat_rq_poll;
 atomic_t rdma_stat_rq_prod;
@@ -199,10 +199,10 @@ static struct ctl_table svcrdma_parm_table[] = {
 	},
 	{
 		.procname	= "rdma_stat_sq_starve",
-		.data		= &rdma_stat_sq_starve,
-		.maxlen		= sizeof(atomic_t),
+		.data		= &svcrdma_stat_sq_starve,
+		.maxlen		= SVCRDMA_COUNTER_BUFSIZ,
 		.mode		= 0644,
-		.proc_handler	= read_reset_stat,
+		.proc_handler	= svcrdma_counter_handler,
 	},
 	{
 		.procname	= "rdma_stat_rq_starve",
@@ -267,6 +267,7 @@ static void svc_rdma_proc_cleanup(void)
 	unregister_sysctl_table(svcrdma_table_header);
 	svcrdma_table_header = NULL;
 
+	percpu_counter_destroy(&svcrdma_stat_sq_starve);
 	percpu_counter_destroy(&svcrdma_stat_recv);
 }
 
@@ -280,11 +281,15 @@ static int svc_rdma_proc_init(void)
 	rc = percpu_counter_init(&svcrdma_stat_recv, 0, GFP_KERNEL);
 	if (rc)
 		goto out_err;
+	rc = percpu_counter_init(&svcrdma_stat_sq_starve, 0, GFP_KERNEL);
+	if (rc)
+		goto out_err;
 
 	svcrdma_table_header = register_sysctl_table(svcrdma_root_table);
 	return 0;
 
 out_err:
+	percpu_counter_destroy(&svcrdma_stat_recv);
 	return rc;
 }
 

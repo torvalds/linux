@@ -69,7 +69,7 @@ extern unsigned int svcrdma_max_req_size;
 extern struct percpu_counter svcrdma_stat_recv;
 extern atomic_t rdma_stat_read;
 extern atomic_t rdma_stat_write;
-extern atomic_t rdma_stat_sq_starve;
+extern struct percpu_counter svcrdma_stat_sq_starve;
 extern atomic_t rdma_stat_rq_starve;
 extern atomic_t rdma_stat_rq_poll;
 extern atomic_t rdma_stat_rq_prod;
