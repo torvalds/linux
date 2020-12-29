@@ -469,6 +469,7 @@ svc_rdma_build_writes(struct svc_rdma_write_info *info,
 					   DMA_TO_DEVICE);
 		if (ret < 0)
 			return -EIO;
+		percpu_counter_inc(&svcrdma_stat_write);
 
 		list_add(&ctxt->rw_list, &cc->cc_rwctxts);
 		cc->cc_sqecount += ret;
@@ -719,6 +720,7 @@ static int svc_rdma_build_read_segment(struct svc_rdma_read_info *info,
 				   segment->rs_handle, DMA_FROM_DEVICE);
 	if (ret < 0)
 		return -EIO;
+	percpu_counter_inc(&svcrdma_stat_read);
 
 	list_add(&ctxt->rw_list, &cc->cc_rwctxts);
 	cc->cc_sqecount += ret;

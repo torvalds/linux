@@ -63,10 +63,10 @@ unsigned int svcrdma_max_req_size = RPCRDMA_DEF_INLINE_THRESH;
 static unsigned int min_max_inline = RPCRDMA_DEF_INLINE_THRESH;
 static unsigned int max_max_inline = RPCRDMA_MAX_INLINE_THRESH;
 
+struct percpu_counter svcrdma_stat_read;
 struct percpu_counter svcrdma_stat_recv;
-atomic_t rdma_stat_read;
-atomic_t rdma_stat_write;
 struct percpu_counter svcrdma_stat_sq_starve;
+struct percpu_counter svcrdma_stat_write;
 atomic_t rdma_stat_rq_starve;
 atomic_t rdma_stat_rq_poll;
 atomic_t rdma_stat_rq_prod;
@@ -178,10 +178,10 @@ static struct ctl_table svcrdma_parm_table[] = {
 
 	{
 		.procname	= "rdma_stat_read",
-		.data		= &rdma_stat_read,
-		.maxlen		= sizeof(atomic_t),
+		.data		= &svcrdma_stat_read,
+		.maxlen		= SVCRDMA_COUNTER_BUFSIZ,
 		.mode		= 0644,
-		.proc_handler	= read_reset_stat,
+		.proc_handler	= svcrdma_counter_handler,
 	},
 	{
 		.procname	= "rdma_stat_recv",
@@ -192,10 +192,10 @@ static struct ctl_table svcrdma_parm_table[] = {
 	},
 	{
 		.procname	= "rdma_stat_write",
-		.data		= &rdma_stat_write,
-		.maxlen		= sizeof(atomic_t),
+		.data		= &svcrdma_stat_write,
+		.maxlen		= SVCRDMA_COUNTER_BUFSIZ,
 		.mode		= 0644,
-		.proc_handler	= read_reset_stat,
+		.proc_handler	= svcrdma_counter_handler,
 	},
 	{
 		.procname	= "rdma_stat_sq_starve",
@@ -267,8 +267,10 @@ static void svc_rdma_proc_cleanup(void)
 	unregister_sysctl_table(svcrdma_table_header);
 	svcrdma_table_header = NULL;
 
+	percpu_counter_destroy(&svcrdma_stat_write);
 	percpu_counter_destroy(&svcrdma_stat_sq_starve);
 	percpu_counter_destroy(&svcrdma_stat_recv);
+	percpu_counter_destroy(&svcrdma_stat_read);
 }
 
 static int svc_rdma_proc_init(void)
@@ -278,10 +280,16 @@ static int svc_rdma_proc_init(void)
 	if (svcrdma_table_header)
 		return 0;
 
+	rc = percpu_counter_init(&svcrdma_stat_read, 0, GFP_KERNEL);
+	if (rc)
+		goto out_err;
 	rc = percpu_counter_init(&svcrdma_stat_recv, 0, GFP_KERNEL);
 	if (rc)
 		goto out_err;
 	rc = percpu_counter_init(&svcrdma_stat_sq_starve, 0, GFP_KERNEL);
+	if (rc)
+		goto out_err;
+	rc = percpu_counter_init(&svcrdma_stat_write, 0, GFP_KERNEL);
 	if (rc)
 		goto out_err;
 
@@ -289,7 +297,9 @@ static int svc_rdma_proc_init(void)
 	return 0;
 
 out_err:
+	percpu_counter_destroy(&svcrdma_stat_sq_starve);
 	percpu_counter_destroy(&svcrdma_stat_recv);
+	percpu_counter_destroy(&svcrdma_stat_read);
 	return rc;
 }
 
