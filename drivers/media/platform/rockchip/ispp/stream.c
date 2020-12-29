@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd. */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
 #include <media/v4l2-common.h>
@@ -1591,6 +1592,7 @@ static void rkispp_stop_streaming(struct vb2_queue *queue)
 {
 	struct rkispp_stream *stream = queue->drv_priv;
 	struct rkispp_device *dev = stream->isppdev;
+	struct rkispp_hw_dev *hw = dev->hw_dev;
 
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "%s id:%d enter\n", __func__, stream->id);
@@ -1619,6 +1621,9 @@ static void rkispp_stop_streaming(struct vb2_queue *queue)
 	rkispp_free_common_dummy_buf(dev);
 	atomic_dec(&dev->stream_vdev.refcnt);
 
+	if (!atomic_read(&hw->refcnt) &&
+	    !atomic_read(&dev->stream_vdev.refcnt))
+		clk_set_rate(hw->clks[0], hw->core_clk_min);
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "%s id:%d exit\n", __func__, stream->id);
 }
@@ -1687,6 +1692,7 @@ static int rkispp_start_streaming(struct vb2_queue *queue,
 {
 	struct rkispp_stream *stream = queue->drv_priv;
 	struct rkispp_device *dev = stream->isppdev;
+	struct rkispp_hw_dev *hw = dev->hw_dev;
 	int ret = -1;
 
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
@@ -1714,6 +1720,11 @@ static int rkispp_start_streaming(struct vb2_queue *queue,
 		}
 		return ret;
 	}
+
+	if (!atomic_read(&hw->refcnt) &&
+	    !atomic_read(&dev->stream_vdev.refcnt) &&
+	    clk_get_rate(hw->clks[0]) <= hw->core_clk_min)
+		clk_set_rate(hw->clks[0], hw->core_clk_max);
 
 	stream->is_upd = false;
 	stream->is_cfg = false;

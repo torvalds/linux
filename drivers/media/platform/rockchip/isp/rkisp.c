@@ -972,9 +972,6 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 			udelay(100);
 		}
 		rkisp_soft_reset(dev->hw_dev);
-		/* restore the old ispclk after reset */
-		if (old_rate != safe_rate)
-			clk_set_rate(dev->hw_dev->clks[0], old_rate);
 	}
 	rkisp_write(dev, CTRL_VI_ISP_CLK_CTRL, val, true);
 

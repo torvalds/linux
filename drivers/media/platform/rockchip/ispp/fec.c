@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd. */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fh.h>
@@ -39,6 +40,10 @@ static int fec_running(struct rkispp_fec_dev *fec,
 		 buf->in_fourcc >> 16, buf->in_fourcc >> 24,
 		 buf->out_fourcc, buf->out_fourcc >> 8,
 		 buf->out_fourcc >> 16, buf->out_fourcc >> 24);
+
+	if (clk_get_rate(fec->hw->clks[0]) <= fec->hw->core_clk_min)
+		clk_set_rate(fec->hw->clks[0], fec->hw->core_clk_max);
+
 	init_completion(&fec->cmpl);
 	density = w > 1920 ? SW_MESH_DENSITY : 0;
 	mesh_size = cal_fec_mesh(w, h, !!density);

@@ -350,6 +350,9 @@ static const struct isp_clk_info rk3568_isp_clk_rate[] = {
 
 static const struct isp_clk_info rv1126_isp_clk_rate[] = {
 	{
+		.clk_rate = 20,
+		.refer_data = 0,
+	}, {
 		.clk_rate = 300,
 		.refer_data = 1920, //width
 	}, {
@@ -600,6 +603,8 @@ static int enable_sys_clk(struct rkisp_hw_dev *dev)
 				goto err;
 		}
 	}
+
+	clk_set_rate(dev->clks[0], dev->clk_rate_tbl[0].clk_rate * 1000000UL);
 
 	rkisp_soft_reset(dev);
 	isp_config_clk(dev, true);

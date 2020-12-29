@@ -108,7 +108,9 @@ static int enable_sys_clk(struct rkispp_hw_dev *dev)
 		i++;
 	if (i > dev->clk_rate_tbl_num - 1)
 		i = dev->clk_rate_tbl_num - 1;
-	clk_set_rate(dev->clks[0], dev->clk_rate_tbl[i].clk_rate * 1000000UL);
+	dev->core_clk_max = dev->clk_rate_tbl[i].clk_rate * 1000000;
+	dev->core_clk_min = dev->clk_rate_tbl[0].clk_rate * 1000000;
+	clk_set_rate(dev->clks[0], dev->core_clk_min);
 	dev_dbg(dev->dev, "set ispp clk:%luHz\n", clk_get_rate(dev->clks[0]));
 	return 0;
 err:
@@ -149,6 +151,9 @@ static const char * const rv1126_ispp_clks[] = {
 
 static const struct ispp_clk_info rv1126_ispp_clk_rate[] = {
 	{
+		.clk_rate = 20,
+		.refer_data = 0,
+	}, {
 		.clk_rate = 250,
 		.refer_data = 1920 //width
 	}, {
