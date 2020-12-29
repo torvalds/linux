@@ -70,11 +70,6 @@ extern struct percpu_counter svcrdma_stat_read;
 extern struct percpu_counter svcrdma_stat_recv;
 extern struct percpu_counter svcrdma_stat_sq_starve;
 extern struct percpu_counter svcrdma_stat_write;
-extern atomic_t rdma_stat_rq_starve;
-extern atomic_t rdma_stat_rq_poll;
-extern atomic_t rdma_stat_rq_prod;
-extern atomic_t rdma_stat_sq_poll;
-extern atomic_t rdma_stat_sq_prod;
 
 struct svcxprt_rdma {
 	struct svc_xprt      sc_xprt;		/* SVC transport structure */
