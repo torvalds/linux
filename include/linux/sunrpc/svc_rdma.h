@@ -49,6 +49,7 @@
 #include <linux/sunrpc/rpc_rdma_cid.h>
 #include <linux/sunrpc/svc_rdma_pcl.h>
 
+#include <linux/percpu_counter.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
 
@@ -65,7 +66,7 @@ extern unsigned int svcrdma_max_requests;
 extern unsigned int svcrdma_max_bc_requests;
 extern unsigned int svcrdma_max_req_size;
 
-extern atomic_t rdma_stat_recv;
+extern struct percpu_counter svcrdma_stat_recv;
 extern atomic_t rdma_stat_read;
 extern atomic_t rdma_stat_write;
 extern atomic_t rdma_stat_sq_starve;

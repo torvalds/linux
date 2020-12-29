@@ -63,7 +63,7 @@ unsigned int svcrdma_max_req_size = RPCRDMA_DEF_INLINE_THRESH;
 static unsigned int min_max_inline = RPCRDMA_DEF_INLINE_THRESH;
 static unsigned int max_max_inline = RPCRDMA_MAX_INLINE_THRESH;
 
-atomic_t rdma_stat_recv;
+struct percpu_counter svcrdma_stat_recv;
 atomic_t rdma_stat_read;
 atomic_t rdma_stat_write;
 atomic_t rdma_stat_sq_starve;
@@ -110,6 +110,42 @@ static int read_reset_stat(struct ctl_table *table, int write,
 	return 0;
 }
 
+enum {
+	SVCRDMA_COUNTER_BUFSIZ	= sizeof(unsigned long long),
+};
+
+static int svcrdma_counter_handler(struct ctl_table *table, int write,
+				   void *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct percpu_counter *stat = (struct percpu_counter *)table->data;
+	char tmp[SVCRDMA_COUNTER_BUFSIZ + 1];
+	int len;
+
+	if (write) {
+		percpu_counter_set(stat, 0);
+		return 0;
+	}
+
+	len = snprintf(tmp, SVCRDMA_COUNTER_BUFSIZ, "%lld\n",
+		       percpu_counter_sum_positive(stat));
+	if (len >= SVCRDMA_COUNTER_BUFSIZ)
+		return -EFAULT;
+	len = strlen(tmp);
+	if (*ppos > len) {
+		*lenp = 0;
+		return 0;
+	}
+	len -= *ppos;
+	if (len > *lenp)
+		len = *lenp;
+	if (len)
+		memcpy(buffer, tmp, len);
+	*lenp = len;
+	*ppos += len;
+
+	return 0;
+}
+
 static struct ctl_table_header *svcrdma_table_header;
 static struct ctl_table svcrdma_parm_table[] = {
 	{
@@ -149,10 +185,10 @@ static struct ctl_table svcrdma_parm_table[] = {
 	},
 	{
 		.procname	= "rdma_stat_recv",
-		.data		= &rdma_stat_recv,
-		.maxlen		= sizeof(atomic_t),
+		.data		= &svcrdma_stat_recv,
+		.maxlen		= SVCRDMA_COUNTER_BUFSIZ,
 		.mode		= 0644,
-		.proc_handler	= read_reset_stat,
+		.proc_handler	= svcrdma_counter_handler,
 	},
 	{
 		.procname	= "rdma_stat_write",
@@ -230,15 +266,26 @@ static void svc_rdma_proc_cleanup(void)
 		return;
 	unregister_sysctl_table(svcrdma_table_header);
 	svcrdma_table_header = NULL;
+
+	percpu_counter_destroy(&svcrdma_stat_recv);
 }
 
 static int svc_rdma_proc_init(void)
 {
+	int rc;
+
 	if (svcrdma_table_header)
 		return 0;
 
+	rc = percpu_counter_init(&svcrdma_stat_recv, 0, GFP_KERNEL);
+	if (rc)
+		goto out_err;
+
 	svcrdma_table_header = register_sysctl_table(svcrdma_root_table);
 	return 0;
+
+out_err:
+	return rc;
 }
 
 void svc_rdma_cleanup(void)

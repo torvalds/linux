@@ -845,8 +845,7 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	}
 	list_del(&ctxt->rc_list);
 	spin_unlock(&rdma_xprt->sc_rq_dto_lock);
-
-	atomic_inc(&rdma_stat_recv);
+	percpu_counter_inc(&svcrdma_stat_recv);
 
 	svc_rdma_build_arg_xdr(rqstp, ctxt);
 
