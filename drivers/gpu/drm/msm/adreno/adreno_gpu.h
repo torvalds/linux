@@ -18,6 +18,7 @@
 #include "adreno_pm4.xml.h"
 
 extern bool snapshot_debugbus;
+extern bool allow_vram_carveout;
 
 enum {
 	ADRENO_FW_PM4 = 0,
