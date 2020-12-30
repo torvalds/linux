@@ -89,8 +89,7 @@
  * svc_rdma_recvfrom call returns.
  *
  * During the second svc_rdma_recvfrom call, RDMA Read sink pages
- * are transferred from the svc_rdma_recv_ctxt to the second svc_rqst
- * (see rdma_read_complete() below).
+ * are transferred from the svc_rdma_recv_ctxt to the second svc_rqst.
  */
 
 #include <linux/slab.h>
@@ -379,10 +378,6 @@ void svc_rdma_flush_recv_queues(struct svcxprt_rdma *rdma)
 {
 	struct svc_rdma_recv_ctxt *ctxt;
 
-	while ((ctxt = svc_rdma_next_recv_ctxt(&rdma->sc_read_complete_q))) {
-		list_del(&ctxt->rc_list);
-		svc_rdma_recv_ctxt_put(rdma, ctxt);
-	}
 	while ((ctxt = svc_rdma_next_recv_ctxt(&rdma->sc_rq_dto_q))) {
 		list_del(&ctxt->rc_list);
 		svc_rdma_recv_ctxt_put(rdma, ctxt);
@@ -720,35 +715,6 @@ out_inval:
 	return -EINVAL;
 }
 
-static void rdma_read_complete(struct svc_rqst *rqstp,
-			       struct svc_rdma_recv_ctxt *head)
-{
-	int page_no;
-
-	/* Move Read chunk pages to rqstp so that they will be released
-	 * when svc_process is done with them.
-	 */
-	for (page_no = 0; page_no < head->rc_page_count; page_no++) {
-		put_page(rqstp->rq_pages[page_no]);
-		rqstp->rq_pages[page_no] = head->rc_pages[page_no];
-	}
-	head->rc_page_count = 0;
-
-	/* Point rq_arg.pages past header */
-	rqstp->rq_arg.pages = &rqstp->rq_pages[head->rc_hdr_count];
-	rqstp->rq_arg.page_len = head->rc_arg.page_len;
-
-	/* rq_respages starts after the last arg page */
-	rqstp->rq_respages = &rqstp->rq_pages[page_no];
-	rqstp->rq_next_page = rqstp->rq_respages + 1;
-
-	/* Rebuild rq_arg head and tail. */
-	rqstp->rq_arg.head[0] = head->rc_arg.head[0];
-	rqstp->rq_arg.tail[0] = head->rc_arg.tail[0];
-	rqstp->rq_arg.len = head->rc_arg.len;
-	rqstp->rq_arg.buflen = head->rc_arg.buflen;
-}
-
 static void svc_rdma_send_error(struct svcxprt_rdma *rdma,
 				struct svc_rdma_recv_ctxt *rctxt,
 				int status)
@@ -834,13 +800,6 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	rqstp->rq_xprt_ctxt = NULL;
 
 	spin_lock(&rdma_xprt->sc_rq_dto_lock);
-	ctxt = svc_rdma_next_recv_ctxt(&rdma_xprt->sc_read_complete_q);
-	if (ctxt) {
-		list_del(&ctxt->rc_list);
-		spin_unlock(&rdma_xprt->sc_rq_dto_lock);
-		rdma_read_complete(rqstp, ctxt);
-		goto complete;
-	}
 	ctxt = svc_rdma_next_recv_ctxt(&rdma_xprt->sc_rq_dto_q);
 	if (!ctxt) {
 		/* No new incoming requests, terminate the loop */
@@ -880,20 +839,16 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	svc_rdma_get_inv_rkey(rdma_xprt, ctxt);
 
 	if (!pcl_is_empty(&ctxt->rc_read_pcl) ||
-	    !pcl_is_empty(&ctxt->rc_call_pcl))
-		goto out_readlist;
+	    !pcl_is_empty(&ctxt->rc_call_pcl)) {
+		ret = svc_rdma_process_read_list(rdma_xprt, rqstp, ctxt);
+		if (ret < 0)
+			goto out_readfail;
+	}
 
-complete:
 	rqstp->rq_xprt_ctxt = ctxt;
 	rqstp->rq_prot = IPPROTO_MAX;
 	svc_xprt_copy_addrs(rqstp, xprt);
 	return rqstp->rq_arg.len;
-
-out_readlist:
-	ret = svc_rdma_process_read_list(rdma_xprt, rqstp, ctxt);
-	if (ret < 0)
-		goto out_readfail;
-	goto complete;
 
 out_err:
 	svc_rdma_send_error(rdma_xprt, ctxt, ret);

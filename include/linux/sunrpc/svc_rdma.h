@@ -106,7 +106,6 @@ struct svcxprt_rdma {
 
 	wait_queue_head_t    sc_send_wait;	/* SQ exhaustion waitlist */
 	unsigned long	     sc_flags;
-	struct list_head     sc_read_complete_q;
 	struct work_struct   sc_work;
 
 	struct llist_head    sc_recv_ctxts;
@@ -140,7 +139,6 @@ struct svc_rdma_recv_ctxt {
 	bool			rc_temp;
 	u32			rc_byte_len;
 	unsigned int		rc_page_count;
-	unsigned int		rc_hdr_count;
 	u32			rc_inv_rkey;
 	__be32			rc_msgtype;
 
