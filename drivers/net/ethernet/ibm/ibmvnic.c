@@ -2981,9 +2981,7 @@ static int reset_one_sub_crq_queue(struct ibmvnic_adapter *adapter,
 	int rc;
 
 	if (!scrq) {
-		netdev_dbg(adapter->netdev,
-			   "Invalid scrq reset. irq (%d) or msgs (%p).\n",
-			   scrq->irq, scrq->msgs);
+		netdev_dbg(adapter->netdev, "Invalid scrq reset.\n");
 		return -EINVAL;
 	}
 
