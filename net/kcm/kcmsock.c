@@ -1496,7 +1496,7 @@ static int kcm_attach_ioctl(struct socket *sock, struct kcm_attach *info)
 
 	return 0;
 out:
-	fput(csock->file);
+	sockfd_put(csock);
 	return err;
 }
 
@@ -1644,7 +1644,7 @@ static int kcm_unattach_ioctl(struct socket *sock, struct kcm_unattach *info)
 	spin_unlock_bh(&mux->lock);
 
 out:
-	fput(csock->file);
+	sockfd_put(csock);
 	return err;
 }
 
