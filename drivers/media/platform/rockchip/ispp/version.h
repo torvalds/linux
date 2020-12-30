@@ -76,6 +76,12 @@
  * 2. reduce buf count
  * 3. dummy buf map to one page if iommu enable
  * 4. vb2 dma sg for iommu enable
+ *
+ * v1.4.1
+ * 1. support motion detection mode
+ * 2. fix panic for vmap at interrupt
+ * 3. add virtual video for iqtool
+ *
  */
 
 #define RKISPP_DRIVER_VERSION ISPP_API_VERSION

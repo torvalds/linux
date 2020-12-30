@@ -91,6 +91,12 @@
  * 14. extend line to fix merge bypass bug for isp20
  * 15. vb2 dma sg for iommu enable
  * 16. config dmatx to valid buf addr
+ *
+ * v1.4.1:
+ * 1. support motion detection mode
+ * 2. get stats only when meas done is on
+ * 3. fix lsc lut error in start/stop test
+ *
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION
