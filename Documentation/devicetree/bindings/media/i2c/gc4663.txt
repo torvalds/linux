@@ -1,0 +1,44 @@
+* galaxycore,gc4663 MIPI sensor
+
+Required Properties:
+- compatible: should be "galaxycore,gc4663"
+- clocks: reference to the 24M xvclk input clock.
+- clock-names: should be "xvclk".
+- dovdd-supply: Digital I/O voltage supply, 1.8 volts
+- avdd-supply: Analog voltage supply, 2.8 volts
+- dvdd-supply: Digital core voltage supply, 1.2 volts
+- reset-gpios: High active reset gpio
+
+Attention:
+GC4C33 device address 0x29(7bit)
+
+Example:
+&i2c1 {
+	status = "okay";
+	gc4663: gc4663@29 {
+		compatible = "galaxycore,gc4663";
+		reg = <0x29>;
+		clocks = <&cru CLK_MIPICSI_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RV1126_PD_VI>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&mipicsi_clk0>;
+		avdd-supply = <&vcc_avdd>;
+		dovdd-supply = <&vcc_dovdd>;
+		dvdd-supply = <&vcc_dvdd>;
+		pwdn-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "TRC-2232A6";
+		rockchip,camera-module-lens-name = "28IRC-4M-F22";
+		/* NO_HDR:0 HDR_X2:5 HDR_X3:6 */
+		rockchip,camera-hdr-mode = <5>;
+		port {
+			sc4238_out: endpoint {
+				remote-endpoint = <&mipi_in_ucam1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
