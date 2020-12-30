@@ -13,76 +13,11 @@
 #include <dt-bindings/display/drm_mipi_dsi.h>
 #include "rk3566.dtsi"
 #include "rk3568-android.dtsi"
+#include "rk3566-eink.dtsi"
 
 / {
 	model = "Rockchip RK3566 RK817 EINK LP4X Board";
 	compatible = "rockchip,rk3566-rk817-eink", "rockchip,rk3566";
-
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		waveform_reserved: waveform@8300000 {
-			reg = <0x0 0x08300000 0x0 0x100000>;
-		};
-
-		display_reserved: framebuffer@10000000 {
-			reg = <0x0 0x10000000 0x0 0x2000000>;
-		};
-	};
-
-	ebc_dev: ebc-dev {
-		compatible = "rockchip,ebc-dev";
-		ebc_tcon = <&ebc>;
-		eink_tcon = <&eink>;
-		memory-region = <&display_reserved>;
-		waveform-region = <&waveform_reserved>;
-		pmic = <&tps65185>;
-		status = "okay";
-#if 0
-		/* ED097TC2U1 */
-		panel,width = <1200>;
-		panel,height = <825>;
-		panel,sdck = <25000000>;
-		panel,lsl = <4>;
-		panel,lbl = <4>;
-		panel,ldl = <300>;
-		panel,lel = <36>;
-		panel,gdck-sta = <18>;
-		panel,lgonl = <265>;
-		panel,fsl = <2>;
-		panel,fbl = <4>;
-		panel,fdl = <825>;
-		panel,fel = <24>;
-		panel,mirror = <0>;
-		panel,panel_16bit = <0>;
-		panel,panel_color = <0>;
-		panel,width-mm = <203>;
-		panel,height-mm = <140>;
-#else
-		/* ES103TC1 */
-		panel,width = <1872>;
-		panel,height = <1404>;
-		panel,sdck = <33300000>;
-		panel,lsl = <18>;
-		panel,lbl = <17>;
-		panel,ldl = <234>;
-		panel,lel = <7>;
-		panel,gdck-sta = <34>;
-		panel,lgonl = <192>;
-		panel,fsl = <1>;
-		panel,fbl = <4>;
-		panel,fdl = <1404>;
-		panel,fel = <12>;
-		panel,mirror = <0>;
-		panel,panel_16bit = <1>;
-		panel,panel_color = <0>;
-		panel,width-mm = <157>;
-		panel,height-mm = <210>;
-		panel,direct_mode = <0>;
-#endif
-	};
 
 	charge-animation {
 		compatible = "rockchip,uboot-charge";
@@ -219,8 +154,51 @@
 	status = "okay";
 };
 
-&eink {
+&ebc_dev {
+	pmic = <&tps65185>;
 	status = "okay";
+#if 0
+	/* ED097TC2U1 */
+	panel,width = <1200>;
+	panel,height = <825>;
+	panel,sdck = <25000000>;
+	panel,lsl = <4>;
+	panel,lbl = <4>;
+	panel,ldl = <300>;
+	panel,lel = <36>;
+	panel,gdck-sta = <18>;
+	panel,lgonl = <265>;
+	panel,fsl = <2>;
+	panel,fbl = <4>;
+	panel,fdl = <825>;
+	panel,fel = <24>;
+	panel,mirror = <0>;
+	panel,panel_16bit = <0>;
+	panel,panel_color = <0>;
+	panel,width-mm = <203>;
+	panel,height-mm = <140>;
+#else
+	/* ES103TC1 */
+	panel,width = <1872>;
+	panel,height = <1404>;
+	panel,sdck = <33300000>;
+	panel,lsl = <18>;
+	panel,lbl = <17>;
+	panel,ldl = <234>;
+	panel,lel = <7>;
+	panel,gdck-sta = <34>;
+	panel,lgonl = <192>;
+	panel,fsl = <1>;
+	panel,fbl = <4>;
+	panel,fdl = <1404>;
+	panel,fel = <12>;
+	panel,mirror = <0>;
+	panel,panel_16bit = <1>;
+	panel,panel_color = <0>;
+	panel,width-mm = <157>;
+	panel,height-mm = <210>;
+	panel,direct_mode = <0>;
+#endif
 };
 
 &cpu0 {
