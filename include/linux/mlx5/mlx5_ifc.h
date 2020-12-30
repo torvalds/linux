@@ -5904,6 +5904,18 @@ struct mlx5_ifc_dealloc_modify_header_context_in_bits {
 	u8         reserved_at_60[0x20];
 };
 
+struct mlx5_ifc_query_modify_header_context_in_bits {
+	u8         opcode[0x10];
+	u8         uid[0x10];
+
+	u8         reserved_at_20[0x10];
+	u8         op_mod[0x10];
+
+	u8         modify_header_id[0x20];
+
+	u8         reserved_at_60[0xa0];
+};
+
 struct mlx5_ifc_query_dct_out_bits {
 	u8         status[0x8];
 	u8         reserved_at_8[0x18];
