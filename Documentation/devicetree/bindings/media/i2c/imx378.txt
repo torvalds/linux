@@ -1,0 +1,49 @@
+* Sony IMX378 MIPI sensor
+
+Required Properties:
+- compatible: should be "sony,imx378"
+- clocks: reference to the 24M xvclk input clock.
+- clock-names: should be "xvclk".
+- dovdd-supply: Digital I/O voltage supply, 1.8 volts
+- avdd-supply: Analog voltage supply, 2.8 volts
+- dvdd-supply: Digital core voltage supply, 1.2 volts
+- reset-gpios: High active reset gpio
+
+Attention:
+IMX378 device address 0x1a(7bit);
+
+The device node must contain one 'port' child node for its digital output
+video port, in accordance with the video interface bindings defined in
+Documentation/devicetree/bindings/media/video-interfaces.txt.
+
+Example:
+
+&i2c1 {
+	status = "okay";
+	imx378: imx378@1a {
+		compatible = "sony,imx378";
+		reg = <0x1a>;
+		clocks = <&cru CLK_MIPICSI_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RV1126_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipicsi_clk0>;
+		avdd-supply = <&vcc_avdd>;
+		dovdd-supply = <&vcc_dovdd>;
+		dvdd-supply = <&vcc_dvdd>;
+		pwdn-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "A12N01B";
+		rockchip,camera-module-lens-name = "48IRC-12M-F18";
+		/* NO_HDR:0 HDR_X2:5 HDR_X3:6 */
+		rockchip,camera-hdr-mode = <0>;
+		port {
+			sc4238_out: endpoint {
+				remote-endpoint = <&mipi_in_ucam1>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
