@@ -106,8 +106,7 @@ static int function_trace_init(struct trace_array *tr)
 
 	ftrace_init_array_ops(tr, func);
 
-	tr->array_buffer.cpu = get_cpu();
-	put_cpu();
+	tr->array_buffer.cpu = raw_smp_processor_id();
 
 	tracing_start_cmdline_record();
 	tracing_start_function_trace(tr);
