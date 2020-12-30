@@ -600,7 +600,8 @@ int mlx5_irq_table_init(struct mlx5_core_dev *dev)
 	if (mlx5_core_is_sf(dev))
 		return 0;
 
-	irq_table = kvzalloc(sizeof(*irq_table), GFP_KERNEL);
+	irq_table = kvzalloc_node(sizeof(*irq_table), GFP_KERNEL,
+				  dev->priv.numa_node);
 	if (!irq_table)
 		return -ENOMEM;
 
