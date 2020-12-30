@@ -6,7 +6,6 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/version.h>
 #include <asm/types.h>
 #include <asm/page.h>
 #include <asm/processor.h>
