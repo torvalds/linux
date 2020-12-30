@@ -25,8 +25,8 @@
  * rax: dest
  */
 .weak memmove
-
-ENTRY(memmove)
+.p2align 4, 0x90
+memmove:
 ENTRY(__memmove)
 
 	/* Handle more 32 bytes in loop */

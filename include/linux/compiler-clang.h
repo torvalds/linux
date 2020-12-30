@@ -44,7 +44,6 @@
  * and may be redefined here because they should not be shared with other
  * compilers, like ICC.
  */
-#define barrier() __asm__ __volatile__("" : : : "memory")
 #define __must_be_array(a) BUILD_BUG_ON_ZERO(__same_type((a), &(a)[0]))
 #define __assume_aligned(a, ...)	\
 	__attribute__((__assume_aligned__(a, ## __VA_ARGS__)))
