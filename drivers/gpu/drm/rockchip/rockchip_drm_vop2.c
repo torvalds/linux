@@ -4345,12 +4345,16 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 	vop2_plane_create_feature_property(vop2, win);
 	max_width = vop2->data->max_input.width;
 	max_height = vop2->data->max_input.height;
+	if (win->feature & WIN_FEATURE_CLUSTER_SUB)
+		max_width >>= 1;
 	win->input_width_prop = drm_property_create_range(vop2->drm_dev, DRM_MODE_PROP_IMMUTABLE,
 							  "INPUT_WIDTH", 0, max_width);
 	win->input_height_prop = drm_property_create_range(vop2->drm_dev, DRM_MODE_PROP_IMMUTABLE,
 							   "INPUT_HEIGHT", 0, max_height);
 	max_width = vop2->data->max_output.width;
 	max_height = vop2->data->max_output.height;
+	if (win->feature & WIN_FEATURE_CLUSTER_SUB)
+		max_width >>= 1;
 	win->output_width_prop = drm_property_create_range(vop2->drm_dev, DRM_MODE_PROP_IMMUTABLE,
 							   "OUTPUT_WIDTH", 0, max_width);
 	win->output_height_prop = drm_property_create_range(vop2->drm_dev, DRM_MODE_PROP_IMMUTABLE,
