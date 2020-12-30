@@ -35,6 +35,7 @@
 	phys = <&u2phy0_otg>;
 	phy-names = "usb2-phy";
 	maximum-speed = "high-speed";
+	snps,dis_u2_susphy_quirk;
 	status = "okay";
 };
 

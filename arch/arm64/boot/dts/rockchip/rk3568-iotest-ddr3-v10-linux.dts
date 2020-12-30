@@ -58,6 +58,7 @@
 	phy-names = "usb2-phy";
 	extcon = <&usb2phy0>;
 	maximum-speed = "high-speed";
+	snps,dis_u2_susphy_quirk;
 	status = "okay";
 };
 
