@@ -11,7 +11,7 @@ maintainers:
 
 properties:
   compatible:
-    const: ti,afe4403
+    const: ti,afe4404
 
   reg:
     maxItems: 1
