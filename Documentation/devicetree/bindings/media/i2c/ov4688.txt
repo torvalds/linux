@@ -1,0 +1,50 @@
+* OmniVision ov4688 MIPI sensor
+
+Required Properties:
+- compatible: should be "ovti,ov4688"
+- clocks: reference to the 24M xvclk input clock.
+- clock-names: should be "xvclk".
+- dovdd-supply: Digital I/O voltage supply, 1.8 volts
+- avdd-supply: Analog voltage supply, 2.8 volts
+- dvdd-supply: Digital core voltage supply, 1.2 volts
+- reset-gpios: Low active reset gpio
+
+Attention:
+SC4238 device address 0x36(7bit);
+
+The device node must contain one 'port' child node for its digital output
+video port, in accordance with the video interface bindings defined in
+Documentation/devicetree/bindings/media/video-interfaces.txt.
+
+Example:
+//rv1126 evb13 board
+&i2c1 {
+	status = "okay";
+	ov4688: ov4688@36 {
+		compatible = "smartsens,ov4688";
+		reg = <0x36>;
+		clocks = <&cru CLK_MIPICSI_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RV1126_PD_VI>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&mipicsi_clk0>;
+		avdd-supply = <&vcc_avdd>;
+		dovdd-supply = <&vcc_dovdd>;
+		dvdd-supply = <&vcc_dvdd>;
+		pwdn-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "ODF1981";
+		rockchip,camera-module-lens-name = "40IRC-4M-F18";
+		/* NO_HDR:0 HDR_X2:5 HDR_X3:6 */
+		rockchip,camera-hdr-mode = <0>;
+		ir-cut = <&cam_ircut0>;
+		port {
+			sc4238_out: endpoint {
+				remote-endpoint = <&mipi_in_ucam1>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
