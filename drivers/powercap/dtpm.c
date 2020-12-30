@@ -99,8 +99,8 @@ static void __dtpm_rebalance_weight(struct dtpm *dtpm)
 		pr_debug("Setting weight '%d' for '%s'\n",
 			 child->weight, child->zone.name);
 
-		child->weight = DIV_ROUND_CLOSEST(child->power_max * 1024,
-						  dtpm->power_max);
+		child->weight = DIV64_U64_ROUND_CLOSEST(
+			child->power_max * 1024, dtpm->power_max);
 
 		__dtpm_rebalance_weight(child);
 	}
@@ -272,7 +272,7 @@ static int __set_power_limit_uw(struct dtpm *dtpm, int cid, u64 power_limit)
 			} else if (power_limit == dtpm->power_min) {
 				power = child->power_min;
 			} else {
-				power = DIV_ROUND_CLOSEST(
+				power = DIV_ROUND_CLOSEST_ULL(
 					power_limit * child->weight, 1024);
 			}
 
