@@ -1382,6 +1382,9 @@ struct intel_dp {
 		bool ycbcr_444_to_420;
 	} dfp;
 
+	/* To control wakeup latency, e.g. for irq-driven dp aux transfers. */
+	struct pm_qos_request pm_qos;
+
 	/* Display stream compression testing */
 	bool force_dsc_en;
 
