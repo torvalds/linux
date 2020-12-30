@@ -22,26 +22,6 @@
 		status = "okay";
 	};
 
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		drm_logo: drm-logo@00000000 {
-			compatible = "rockchip,drm-logo";
-			reg = <0x0 0x0 0x0 0x0>;
-		};
-
-		ramoops: ramoops@110000 {
-			compatible = "ramoops";
-			reg = <0x0 0x110000 0x0 0xf0000>;
-			record-size = <0x20000>;
-			console-size = <0x80000>;
-			ftrace-size = <0x00000>;
-			pmsg-size = <0x50000>;
-		};
-	};
-
 	debug: debug@fd904000 {
 		compatible = "rockchip,debug";
 		reg = <0x0 0xfd904000 0x0 0x1000>,
@@ -56,6 +36,17 @@
 			<0x0 0xfd90d000 0x0 0x1000>,
 			<0x0 0xfd90e000 0x0 0x1000>,
 			<0x0 0xfd90f000 0x0 0x1000>;
+	};
+};
+
+&reserved_memory {
+	ramoops: ramoops@110000 {
+		compatible = "ramoops";
+		reg = <0x0 0x110000 0x0 0xf0000>;
+		record-size = <0x20000>;
+		console-size = <0x80000>;
+		ftrace-size = <0x00000>;
+		pmsg-size = <0x50000>;
 	};
 };
 

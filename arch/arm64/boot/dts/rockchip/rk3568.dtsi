@@ -250,6 +250,17 @@
 		method = "smc";
 	};
 
+	reserved_memory: reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		drm_logo: drm-logo@00000000 {
+			compatible = "rockchip,drm-logo";
+			reg = <0x0 0x0 0x0 0x0>;
+		};
+	};
+
 	thermal_zones: thermal-zones {
 		soc_thermal: soc-thermal {
 			polling-delay-passive = <20>; /* milliseconds */
