@@ -59,12 +59,6 @@ static const struct pci_device_id rtsx_pci_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, rtsx_pci_ids);
 
-static inline void rtsx_pci_disable_aspm(struct rtsx_pcr *pcr)
-{
-	pcie_capability_clear_and_set_word(pcr->pci, PCI_EXP_LNKCTL,
-					   PCI_EXP_LNKCTL_ASPMC, 0);
-}
-
 static int rtsx_comm_set_ltr_latency(struct rtsx_pcr *pcr, u32 latency)
 {
 	rtsx_pci_write_register(pcr, MSGTXDATA0,
