@@ -104,14 +104,26 @@
 #define RX_DATA_ADDR(x) \
 	((DATA_ADDR(x) << RX_DATA_ADDR_SHIFT) & RX_DATA_ADDR_MASK)
 
-/* Buffer sizes */
-#define TX_PACKET_COUNT 64
-#define RX_PACKET_COUNT 64
-#define TX_MAX_PACKET_COUNT (TX_BUF_RD_PTR_MASK + 1)
-#define RX_MAX_PACKET_COUNT (RX_BUF_RD_PTR_MASK + 1)
+/* HW buffer sizes */
+#define TX_PACKET_COUNT		48
+#define RX_PACKET_COUNT		96
+#define TX_MAX_PACKET_COUNT	(TX_BUF_RD_PTR_MASK + 1)
+#define RX_MAX_PACKET_COUNT	(RX_BUF_RD_PTR_MASK + 1)
+
+#define TX_CMD_BUF_SIZE \
+	PAGE_ALIGN(TX_PACKET_COUNT * sizeof(struct aspeed_mctp_tx_cmd))
+#define TX_DATA_BUF_SIZE \
+	 PAGE_ALIGN(TX_PACKET_COUNT * sizeof(struct mctp_pcie_packet_data))
+#define RX_CMD_BUF_SIZE PAGE_ALIGN(RX_PACKET_COUNT * sizeof(u32))
+#define RX_DATA_BUF_SIZE \
+	PAGE_ALIGN(RX_PACKET_COUNT * sizeof(struct mctp_pcie_packet_data))
+
+/* Per client packet cache sizes */
+#define RX_RING_COUNT		64
+#define TX_RING_COUNT		64
 
 /* PCIe Host Controller registers */
-#define ASPEED_PCIE_MISC_STS_1 0x0c4
+#define ASPEED_PCIE_MISC_STS_1	0x0c4
 
 /* PCI address definitions */
 #define PCI_DEV_NUM_MASK	GENMASK(4, 0)
@@ -219,14 +231,6 @@ struct aspeed_mctp_endpoint {
 	struct list_head link;
 };
 
-#define TX_CMD_BUF_SIZE \
-	PAGE_ALIGN(TX_PACKET_COUNT * sizeof(struct aspeed_mctp_tx_cmd))
-#define TX_DATA_BUF_SIZE \
-	 PAGE_ALIGN(TX_PACKET_COUNT * sizeof(struct mctp_pcie_packet_data))
-#define RX_CMD_BUF_SIZE PAGE_ALIGN(RX_PACKET_COUNT * sizeof(u32))
-#define RX_DATA_BUF_SIZE \
-	PAGE_ALIGN(RX_PACKET_COUNT * sizeof(struct mctp_pcie_packet_data))
-
 struct kmem_cache *packet_cache;
 
 void *aspeed_mctp_packet_alloc(gfp_t flags)
@@ -282,18 +286,18 @@ static void aspeed_mctp_rx_trigger(struct mctp_channel *rx)
 			   RX_CMD_READY);
 }
 
-static void aspeed_mctp_tx_trigger(struct mctp_channel *tx)
+static void aspeed_mctp_tx_trigger(struct mctp_channel *tx, bool notify)
 {
 	struct aspeed_mctp *priv = container_of(tx, typeof(*priv), tx);
-	struct aspeed_mctp_tx_cmd *last_cmd;
 
-	last_cmd = (struct aspeed_mctp_tx_cmd *)tx->cmd.vaddr +
-		   (tx->wr_ptr - 1) % TX_PACKET_COUNT;
-	last_cmd->tx_hi |= TX_LAST_CMD;
-	last_cmd->tx_lo |= TX_STOP_AFTER_CMD | TX_INTERRUPT_AFTER_CMD;
+	if (notify) {
+		struct aspeed_mctp_tx_cmd *last_cmd;
 
-	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_ADDR,
-		     tx->cmd.dma_handle);
+		last_cmd = (struct aspeed_mctp_tx_cmd *)tx->cmd.vaddr +
+			   (tx->wr_ptr - 1) % TX_PACKET_COUNT;
+		last_cmd->tx_lo |= TX_INTERRUPT_AFTER_CMD;
+	}
+
 	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_WR_PTR, tx->wr_ptr);
 	regmap_update_bits(priv->map, ASPEED_MCTP_CTRL, TX_CMD_TRIGGER,
 			   TX_CMD_TRIGGER);
@@ -317,7 +321,7 @@ static void aspeed_mctp_emit_tx_cmd(struct mctp_channel *tx,
 	tx_cmd->tx_hi = TX_RESERVED_1;
 	tx_cmd->tx_hi |= TX_DATA_ADDR(tx->data.dma_handle + offset);
 
-	tx->wr_ptr++;
+	tx->wr_ptr = (tx->wr_ptr + 1) % TX_PACKET_COUNT;
 }
 
 static struct mctp_client *aspeed_mctp_client_alloc(struct aspeed_mctp *priv)
@@ -330,8 +334,8 @@ static struct mctp_client *aspeed_mctp_client_alloc(struct aspeed_mctp *priv)
 
 	kref_init(&client->ref);
 	client->priv = priv;
-	ptr_ring_init(&client->tx_queue, TX_PACKET_COUNT, GFP_KERNEL);
-	ptr_ring_init(&client->rx_queue, RX_PACKET_COUNT, GFP_ATOMIC);
+	ptr_ring_init(&client->tx_queue, TX_RING_COUNT, GFP_KERNEL);
+	ptr_ring_init(&client->rx_queue, RX_RING_COUNT, GFP_ATOMIC);
 
 out:
 	return client;
@@ -440,31 +444,25 @@ static void aspeed_mctp_tx_tasklet(unsigned long data)
 {
 	struct mctp_channel *tx = (struct mctp_channel *)data;
 	struct aspeed_mctp *priv = container_of(tx, typeof(*priv), tx);
-	u32 rd_ptr = READ_ONCE(tx->rd_ptr);
 	struct mctp_client *client;
 	bool trigger = false;
+	bool full = false;
+	u32 rd_ptr;
 
-	/* we're called while there's still TX in progress */
-	if (rd_ptr == 0 && tx->wr_ptr != 0)
-		return;
-
-	/* last tx ended up with buffer size, meaning we now restart from 0 */
-	if (rd_ptr == TX_PACKET_COUNT) {
-		WRITE_ONCE(tx->rd_ptr, 0);
-		tx->wr_ptr = 0;
-	}
+	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_RD_PTR, UPDATE_RX_RD_PTR);
+	regmap_read(priv->map, ASPEED_MCTP_TX_BUF_RD_PTR, &rd_ptr);
+	rd_ptr &= TX_BUF_RD_PTR_MASK;
 
 	spin_lock(&priv->clients_lock);
 
 	list_for_each_entry(client, &priv->clients, link) {
-		while (tx->wr_ptr < TX_PACKET_COUNT) {
+		while (!(full = (tx->wr_ptr + 1) % TX_PACKET_COUNT == rd_ptr)) {
 			struct mctp_pcie_packet *packet;
 
-			packet = __ptr_ring_peek(&client->tx_queue);
+			packet = ptr_ring_consume(&client->tx_queue);
 			if (!packet)
 				break;
 
-			ptr_ring_consume(&client->tx_queue);
 			aspeed_mctp_emit_tx_cmd(tx, packet);
 			aspeed_mctp_packet_free(packet);
 			trigger = true;
@@ -474,7 +472,7 @@ static void aspeed_mctp_tx_tasklet(unsigned long data)
 	spin_unlock(&priv->clients_lock);
 
 	if (trigger)
-		aspeed_mctp_tx_trigger(tx);
+		aspeed_mctp_tx_trigger(tx, full);
 }
 
 static void aspeed_mctp_rx_tasklet(unsigned long data)
@@ -609,9 +607,10 @@ static void aspeed_mctp_tx_chan_init(struct mctp_channel *tx)
 {
 	struct aspeed_mctp *priv = container_of(tx, typeof(*priv), tx);
 
+	regmap_update_bits(priv->map, ASPEED_MCTP_CTRL, TX_CMD_TRIGGER, 0);
 	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_SIZE, TX_PACKET_COUNT);
 	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_WR_PTR, 0);
-	regmap_update_bits(priv->map, ASPEED_MCTP_CTRL, TX_CMD_TRIGGER, 0);
+	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_ADDR, tx->cmd.dma_handle);
 }
 
 struct mctp_client *aspeed_mctp_create_client(struct aspeed_mctp *priv)
@@ -1285,7 +1284,7 @@ static void aspeed_mctp_pcie_setup(struct aspeed_mctp *priv)
 
 static void aspeed_mctp_irq_enable(struct aspeed_mctp *priv)
 {
-	u32 enable = TX_CMD_LAST_INT | TX_CMD_WRONG_INT |
+	u32 enable = TX_CMD_SENT_INT | TX_CMD_WRONG_INT |
 		     RX_CMD_RECEIVE_INT | RX_CMD_NO_MORE_INT;
 
 	regmap_write(priv->map, ASPEED_MCTP_INT_EN, enable);
@@ -1331,25 +1330,10 @@ static irqreturn_t aspeed_mctp_irq_handler(int irq, void *arg)
 	regmap_read(priv->map, ASPEED_MCTP_INT_STS, &status);
 	regmap_write(priv->map, ASPEED_MCTP_INT_STS, status);
 
-	if (status & TX_CMD_LAST_INT) {
-		u32 rd_ptr;
-
-		regmap_write(priv->map, ASPEED_MCTP_TX_BUF_RD_PTR,
-			     UPDATE_RX_RD_PTR);
-		regmap_read(priv->map, ASPEED_MCTP_TX_BUF_RD_PTR, &rd_ptr);
-		rd_ptr &= TX_BUF_RD_PTR_MASK;
-
-		/*
-		 * rd_ptr on TX side seems to be busted...
-		 * Since we're always reading zeroes, let's trust that when
-		 * we're getting LAST_CMD irq, everything we previously
-		 * submitted was transmitted and start from 0
-		 */
-		WRITE_ONCE(priv->tx.rd_ptr, TX_PACKET_COUNT);
-
+	if (status & TX_CMD_SENT_INT) {
 		tasklet_hi_schedule(&priv->tx.tasklet);
 
-		handled |= TX_CMD_LAST_INT;
+		handled |= TX_CMD_SENT_INT;
 	}
 
 	if (status & TX_CMD_WRONG_INT) {
