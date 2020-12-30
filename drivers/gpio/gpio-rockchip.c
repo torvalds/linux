@@ -522,6 +522,7 @@ static int rockchip_interrupts_register(struct rockchip_pin_bank *bank)
 	 * things enabled, so for us that's all masked and all enabled.
 	 */
 	rockchip_gpio_writel(bank, 0xffffffff, bank->gpio_regs->int_mask);
+	rockchip_gpio_writel(bank, 0xffffffff, bank->gpio_regs->port_eoi);
 	rockchip_gpio_writel(bank, 0xffffffff, bank->gpio_regs->int_en);
 	gc->mask_cache = 0xffffffff;
 
