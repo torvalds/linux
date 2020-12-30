@@ -7231,6 +7231,16 @@ static void io_file_ref_kill(struct percpu_ref *ref)
 	complete(&data->done);
 }
 
+static void io_sqe_files_set_node(struct fixed_file_data *file_data,
+				  struct fixed_file_ref_node *ref_node)
+{
+	spin_lock_bh(&file_data->lock);
+	file_data->node = ref_node;
+	list_add_tail(&ref_node->node, &file_data->ref_list);
+	spin_unlock_bh(&file_data->lock);
+	percpu_ref_get(&file_data->refs);
+}
+
 static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 {
 	struct fixed_file_data *data = ctx->file_data;
@@ -7758,11 +7768,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		return PTR_ERR(ref_node);
 	}
 
-	file_data->node = ref_node;
-	spin_lock_bh(&file_data->lock);
-	list_add_tail(&ref_node->node, &file_data->ref_list);
-	spin_unlock_bh(&file_data->lock);
-	percpu_ref_get(&file_data->refs);
+	io_sqe_files_set_node(file_data, ref_node);
 	return ret;
 out_fput:
 	for (i = 0; i < ctx->nr_user_files; i++) {
@@ -7918,11 +7924,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 
 	if (needs_switch) {
 		percpu_ref_kill(&data->node->refs);
-		spin_lock_bh(&data->lock);
-		list_add_tail(&ref_node->node, &data->ref_list);
-		data->node = ref_node;
-		spin_unlock_bh(&data->lock);
-		percpu_ref_get(&ctx->file_data->refs);
+		io_sqe_files_set_node(data, ref_node);
 	} else
 		destroy_fixed_file_ref_node(ref_node);
 
