@@ -1333,7 +1333,8 @@ static int prepare_auth_signature(struct ceph_connection *con)
 	void *buf;
 	int ret;
 
-	buf = alloc_conn_buf(con, head_onwire_len(SHA256_DIGEST_SIZE, false));
+	buf = alloc_conn_buf(con, head_onwire_len(SHA256_DIGEST_SIZE,
+						  con_secure(con)));
 	if (!buf)
 		return -ENOMEM;
 
@@ -2032,10 +2033,18 @@ bad:
 	return -EINVAL;
 }
 
+/*
+ * Align session_key and con_secret to avoid GFP_ATOMIC allocation
+ * inside crypto_shash_setkey() and crypto_aead_setkey() called from
+ * setup_crypto().  __aligned(16) isn't guaranteed to work for stack
+ * objects, so do it by hand.
+ */
 static int process_auth_done(struct ceph_connection *con, void *p, void *end)
 {
-	u8 session_key[CEPH_KEY_LEN];
-	u8 con_secret[CEPH_MAX_CON_SECRET_LEN];
+	u8 session_key_buf[CEPH_KEY_LEN + 16];
+	u8 con_secret_buf[CEPH_MAX_CON_SECRET_LEN + 16];
+	u8 *session_key = PTR_ALIGN(&session_key_buf[0], 16);
+	u8 *con_secret = PTR_ALIGN(&con_secret_buf[0], 16);
 	int session_key_len, con_secret_len;
 	int payload_len;
 	u64 global_id;

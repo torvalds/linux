@@ -2475,6 +2475,22 @@ static int set_request_path_attr(struct inode *rinode, struct dentry *rdentry,
 	return r;
 }
 
+static void encode_timestamp_and_gids(void **p,
+				      const struct ceph_mds_request *req)
+{
+	struct ceph_timespec ts;
+	int i;
+
+	ceph_encode_timespec64(&ts, &req->r_stamp);
+	ceph_encode_copy(p, &ts, sizeof(ts));
+
+	/* gid_list */
+	ceph_encode_32(p, req->r_cred->group_info->ngroups);
+	for (i = 0; i < req->r_cred->group_info->ngroups; i++)
+		ceph_encode_64(p, from_kgid(&init_user_ns,
+					    req->r_cred->group_info->gid[i]));
+}
+
 /*
  * called under mdsc->mutex
  */
@@ -2491,7 +2507,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_session *session,
 	u64 ino1 = 0, ino2 = 0;
 	int pathlen1 = 0, pathlen2 = 0;
 	bool freepath1 = false, freepath2 = false;
-	int len, i;
+	int len;
 	u16 releases;
 	void *p, *end;
 	int ret;
@@ -2517,17 +2533,10 @@ static struct ceph_msg *create_request_message(struct ceph_mds_session *session,
 		goto out_free1;
 	}
 
-	if (legacy) {
-		/* Old style */
-		len = sizeof(*head);
-	} else {
-		/* New style: add gid_list and any later fields */
-		len = sizeof(struct ceph_mds_request_head) + sizeof(u32) +
-		      (sizeof(u64) * req->r_cred->group_info->ngroups);
-	}
-
+	len = legacy ? sizeof(*head) : sizeof(struct ceph_mds_request_head);
 	len += pathlen1 + pathlen2 + 2*(1 + sizeof(u32) + sizeof(u64)) +
 		sizeof(struct ceph_timespec);
+	len += sizeof(u32) + (sizeof(u64) * req->r_cred->group_info->ngroups);
 
 	/* calculate (max) length for cap releases */
 	len += sizeof(struct ceph_mds_request_release) *
@@ -2548,7 +2557,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_session *session,
 	msg->hdr.tid = cpu_to_le64(req->r_tid);
 
 	/*
-	 * The old ceph_mds_request_header didn't contain a version field, and
+	 * The old ceph_mds_request_head didn't contain a version field, and
 	 * one was added when we moved the message version from 3->4.
 	 */
 	if (legacy) {
@@ -2609,20 +2618,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_session *session,
 
 	head->num_releases = cpu_to_le16(releases);
 
-	/* time stamp */
-	{
-		struct ceph_timespec ts;
-		ceph_encode_timespec64(&ts, &req->r_stamp);
-		ceph_encode_copy(&p, &ts, sizeof(ts));
-	}
-
-	/* gid list */
-	if (!legacy) {
-		ceph_encode_32(&p, req->r_cred->group_info->ngroups);
-		for (i = 0; i < req->r_cred->group_info->ngroups; i++)
-			ceph_encode_64(&p, from_kgid(&init_user_ns,
-				       req->r_cred->group_info->gid[i]));
-	}
+	encode_timestamp_and_gids(&p, req);
 
 	if (WARN_ON_ONCE(p > end)) {
 		ceph_msg_put(msg);
@@ -2730,13 +2726,8 @@ static int __prepare_send_request(struct ceph_mds_session *session,
 		/* remove cap/dentry releases from message */
 		rhead->num_releases = 0;
 
-		/* time stamp */
 		p = msg->front.iov_base + req->r_request_release_offset;
-		{
-			struct ceph_timespec ts;
-			ceph_encode_timespec64(&ts, &req->r_stamp);
-			ceph_encode_copy(&p, &ts, sizeof(ts));
-		}
+		encode_timestamp_and_gids(&p, req);
 
 		msg->front.iov_len = p - msg->front.iov_base;
 		msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
