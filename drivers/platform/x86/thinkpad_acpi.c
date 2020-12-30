@@ -9951,9 +9951,9 @@ static int tpacpi_proxsensor_init(struct ibm_init_struct *iibm)
 	if ((palm_err == -ENODEV) && (lap_err == -ENODEV))
 		return 0;
 	/* Otherwise, if there was an error return it */
-	if (palm_err && (palm_err != ENODEV))
+	if (palm_err && (palm_err != -ENODEV))
 		return palm_err;
-	if (lap_err && (lap_err != ENODEV))
+	if (lap_err && (lap_err != -ENODEV))
 		return lap_err;
 
 	if (has_palmsensor) {
