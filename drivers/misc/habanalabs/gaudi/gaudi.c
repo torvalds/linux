@@ -5802,6 +5802,7 @@ static void gaudi_add_end_of_cb_packets(struct hl_device *hdev,
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 	struct packet_msg_prot *cq_pkt;
+	u64 msi_addr;
 	u32 tmp;
 
 	cq_pkt = kernel_address + len - (sizeof(struct packet_msg_prot) * 2);
@@ -5823,10 +5824,12 @@ static void gaudi_add_end_of_cb_packets(struct hl_device *hdev,
 	cq_pkt->ctl = cpu_to_le32(tmp);
 	cq_pkt->value = cpu_to_le32(1);
 
-	if (!gaudi->multi_msi_mode)
-		msi_vec = 0;
+	if (gaudi->multi_msi_mode)
+		msi_addr = mmPCIE_MSI_INTR_0 + msi_vec * 4;
+	else
+		msi_addr = mmPCIE_CORE_MSI_REQ;
 
-	cq_pkt->addr = cpu_to_le64(CFG_BASE + mmPCIE_MSI_INTR_0 + msi_vec * 4);
+	cq_pkt->addr = cpu_to_le64(CFG_BASE + msi_addr);
 }
 
 static void gaudi_update_eq_ci(struct hl_device *hdev, u32 val)
