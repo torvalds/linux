@@ -151,19 +151,6 @@ static const u16 gaudi_packet_sizes[MAX_PACKET_ID] = {
 	[PACKET_LOAD_AND_EXE]	= sizeof(struct packet_load_and_exe)
 };
 
-static const u32 gaudi_pll_base_addresses[GAUDI_PLL_MAX] = {
-	[CPU_PLL] = mmPSOC_CPU_PLL_NR,
-	[PCI_PLL] = mmPSOC_PCI_PLL_NR,
-	[SRAM_PLL] = mmSRAM_W_PLL_NR,
-	[HBM_PLL] = mmPSOC_HBM_PLL_NR,
-	[NIC_PLL] = mmNIC0_PLL_NR,
-	[DMA_PLL] = mmDMA_W_PLL_NR,
-	[MESH_PLL] = mmMESH_W_PLL_NR,
-	[MME_PLL] = mmPSOC_MME_PLL_NR,
-	[TPC_PLL] = mmPSOC_TPC_PLL_NR,
-	[IF_PLL] = mmIF_W_PLL_NR
-};
-
 static inline bool validate_packet_id(enum packet_id id)
 {
 	switch (id) {
@@ -374,7 +361,7 @@ static int gaudi_cpucp_info_get(struct hl_device *hdev);
 static void gaudi_disable_clock_gating(struct hl_device *hdev);
 static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid);
 static u32 gaudi_gen_signal_cb(struct hl_device *hdev, void *data, u16 sob_id,
-				u32 size);
+				u32 size, bool eb);
 static u32 gaudi_gen_wait_cb(struct hl_device *hdev,
 				struct hl_gen_wait_properties *prop);
 
@@ -667,12 +654,6 @@ static int gaudi_early_init(struct hl_device *hdev)
 	if (rc)
 		goto free_queue_props;
 
-	if (gaudi_get_hw_state(hdev) == HL_DEVICE_HW_STATE_DIRTY) {
-		dev_info(hdev->dev,
-			"H/W state is dirty, must reset before initializing\n");
-		hdev->asic_funcs->hw_fini(hdev, true);
-	}
-
 	/* Before continuing in the initialization, we need to read the preboot
 	 * version to determine whether we run with a security-enabled firmware
 	 */
@@ -683,6 +664,12 @@ static int gaudi_early_init(struct hl_device *hdev)
 		if (hdev->reset_on_preboot_fail)
 			hdev->asic_funcs->hw_fini(hdev, true);
 		goto pci_fini;
+	}
+
+	if (gaudi_get_hw_state(hdev) == HL_DEVICE_HW_STATE_DIRTY) {
+		dev_info(hdev->dev,
+			"H/W state is dirty, must reset before initializing\n");
+		hdev->asic_funcs->hw_fini(hdev, true);
 	}
 
 	return 0;
@@ -703,73 +690,6 @@ static int gaudi_early_fini(struct hl_device *hdev)
 }
 
 /**
- * gaudi_fetch_pll_frequency - Fetch PLL frequency values
- *
- * @hdev: pointer to hl_device structure
- * @pll_index: index of the pll to fetch frequency from
- * @pll_freq: pointer to store the pll frequency in MHz in each of the available
- *            outputs. if a certain output is not available a 0 will be set
- *
- */
-static int gaudi_fetch_pll_frequency(struct hl_device *hdev,
-				enum gaudi_pll_index pll_index,
-				u16 *pll_freq_arr)
-{
-	u32 nr = 0, nf = 0, od = 0, pll_clk = 0, div_fctr, div_sel,
-			pll_base_addr = gaudi_pll_base_addresses[pll_index];
-	u16 freq = 0;
-	int i, rc;
-
-	if (hdev->asic_prop.fw_security_status_valid &&
-			(hdev->asic_prop.fw_app_security_map &
-					CPU_BOOT_DEV_STS0_PLL_INFO_EN)) {
-		rc = hl_fw_cpucp_pll_info_get(hdev, pll_index, pll_freq_arr);
-
-		if (rc)
-			return rc;
-	} else if (hdev->asic_prop.fw_security_disabled) {
-		/* Backward compatibility */
-		nr = RREG32(pll_base_addr + PLL_NR_OFFSET);
-		nf = RREG32(pll_base_addr + PLL_NF_OFFSET);
-		od = RREG32(pll_base_addr + PLL_OD_OFFSET);
-
-		for (i = 0; i < HL_PLL_NUM_OUTPUTS; i++) {
-			div_fctr = RREG32(pll_base_addr +
-					PLL_DIV_FACTOR_0_OFFSET + i * 4);
-			div_sel = RREG32(pll_base_addr +
-					PLL_DIV_SEL_0_OFFSET + i * 4);
-
-			if (div_sel == DIV_SEL_REF_CLK ||
-				div_sel == DIV_SEL_DIVIDED_REF) {
-				if (div_sel == DIV_SEL_REF_CLK)
-					freq = PLL_REF_CLK;
-				else
-					freq = PLL_REF_CLK / (div_fctr + 1);
-			} else if (div_sel == DIV_SEL_PLL_CLK ||
-					div_sel == DIV_SEL_DIVIDED_PLL) {
-				pll_clk = PLL_REF_CLK * (nf + 1) /
-						((nr + 1) * (od + 1));
-				if (div_sel == DIV_SEL_PLL_CLK)
-					freq = pll_clk;
-				else
-					freq = pll_clk / (div_fctr + 1);
-			} else {
-				dev_warn(hdev->dev,
-					"Received invalid div select value: %d",
-					div_sel);
-			}
-
-			pll_freq_arr[i] = freq;
-		}
-	} else {
-		dev_err(hdev->dev, "Failed to fetch PLL frequency values\n");
-		return -EIO;
-	}
-
-	return 0;
-}
-
-/**
  * gaudi_fetch_psoc_frequency - Fetch PSOC frequency values
  *
  * @hdev: pointer to hl_device structure
@@ -778,18 +698,52 @@ static int gaudi_fetch_pll_frequency(struct hl_device *hdev,
 static int gaudi_fetch_psoc_frequency(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u16 pll_freq[HL_PLL_NUM_OUTPUTS];
+	u32 nr = 0, nf = 0, od = 0, div_fctr = 0, pll_clk, div_sel;
+	u16 pll_freq_arr[HL_PLL_NUM_OUTPUTS], freq;
 	int rc;
 
-	rc = gaudi_fetch_pll_frequency(hdev, CPU_PLL, pll_freq);
-	if (rc)
-		return rc;
+	if (hdev->asic_prop.fw_security_disabled) {
+		/* Backward compatibility */
+		div_fctr = RREG32(mmPSOC_CPU_PLL_DIV_FACTOR_2);
+		div_sel = RREG32(mmPSOC_CPU_PLL_DIV_SEL_2);
+		nr = RREG32(mmPSOC_CPU_PLL_NR);
+		nf = RREG32(mmPSOC_CPU_PLL_NF);
+		od = RREG32(mmPSOC_CPU_PLL_OD);
 
-	prop->psoc_timestamp_frequency = pll_freq[2];
-	prop->psoc_pci_pll_nr = 0;
-	prop->psoc_pci_pll_nf = 0;
-	prop->psoc_pci_pll_od = 0;
-	prop->psoc_pci_pll_div_factor = 0;
+		if (div_sel == DIV_SEL_REF_CLK ||
+				div_sel == DIV_SEL_DIVIDED_REF) {
+			if (div_sel == DIV_SEL_REF_CLK)
+				freq = PLL_REF_CLK;
+			else
+				freq = PLL_REF_CLK / (div_fctr + 1);
+		} else if (div_sel == DIV_SEL_PLL_CLK ||
+			div_sel == DIV_SEL_DIVIDED_PLL) {
+			pll_clk = PLL_REF_CLK * (nf + 1) /
+					((nr + 1) * (od + 1));
+			if (div_sel == DIV_SEL_PLL_CLK)
+				freq = pll_clk;
+			else
+				freq = pll_clk / (div_fctr + 1);
+		} else {
+			dev_warn(hdev->dev,
+				"Received invalid div select value: %d",
+				div_sel);
+			freq = 0;
+		}
+	} else {
+		rc = hl_fw_cpucp_pll_info_get(hdev, CPU_PLL, pll_freq_arr);
+
+		if (rc)
+			return rc;
+
+		freq = pll_freq_arr[2];
+	}
+
+	prop->psoc_timestamp_frequency = freq;
+	prop->psoc_pci_pll_nr = nr;
+	prop->psoc_pci_pll_nf = nf;
+	prop->psoc_pci_pll_od = od;
+	prop->psoc_pci_pll_div_factor = div_fctr;
 
 	return 0;
 }
@@ -884,11 +838,17 @@ static int gaudi_init_tpc_mem(struct hl_device *hdev)
 	size_t fw_size;
 	void *cpu_addr;
 	dma_addr_t dma_handle;
-	int rc;
+	int rc, count = 5;
 
+again:
 	rc = request_firmware(&fw, GAUDI_TPC_FW_FILE, hdev->dev);
+	if (rc == -EINTR && count-- > 0) {
+		msleep(50);
+		goto again;
+	}
+
 	if (rc) {
-		dev_err(hdev->dev, "Firmware file %s is not found!\n",
+		dev_err(hdev->dev, "Failed to load firmware file %s\n",
 				GAUDI_TPC_FW_FILE);
 		goto out;
 	}
@@ -1110,7 +1070,7 @@ static void gaudi_collective_slave_init_job(struct hl_device *hdev,
 		prop->collective_sob_id, queue_id);
 
 	cb_size += gaudi_gen_signal_cb(hdev, job->user_cb,
-			prop->collective_sob_id, cb_size);
+			prop->collective_sob_id, cb_size, false);
 }
 
 static void gaudi_collective_wait_init_cs(struct hl_cs *cs)
@@ -2449,8 +2409,6 @@ static void gaudi_init_golden_registers(struct hl_device *hdev)
 	gaudi_init_e2e(hdev);
 	gaudi_init_hbm_cred(hdev);
 
-	hdev->asic_funcs->disable_clock_gating(hdev);
-
 	for (tpc_id = 0, tpc_offset = 0;
 				tpc_id < TPC_NUMBER_OF_ENGINES;
 				tpc_id++, tpc_offset += TPC_CFG_OFFSET) {
@@ -3462,6 +3420,9 @@ static void gaudi_set_clock_gating(struct hl_device *hdev)
 	if (hdev->in_debug)
 		return;
 
+	if (!hdev->asic_prop.fw_security_disabled)
+		return;
+
 	for (i = GAUDI_PCI_DMA_1, qman_offset = 0 ; i < GAUDI_HBM_DMA_1 ; i++) {
 		enable = !!(hdev->clock_gating_mask &
 				(BIT_ULL(gaudi_dma_assignment[i])));
@@ -3513,7 +3474,7 @@ static void gaudi_disable_clock_gating(struct hl_device *hdev)
 	u32 qman_offset;
 	int i;
 
-	if (!(gaudi->hw_cap_initialized & HW_CAP_CLK_GATE))
+	if (!hdev->asic_prop.fw_security_disabled)
 		return;
 
 	for (i = 0, qman_offset = 0 ; i < DMA_NUMBER_OF_CHANNELS ; i++) {
@@ -3806,7 +3767,7 @@ static int gaudi_init_cpu_queues(struct hl_device *hdev, u32 cpu_timeout)
 static void gaudi_pre_hw_init(struct hl_device *hdev)
 {
 	/* Perform read from the device to make sure device is up */
-	RREG32(mmPCIE_DBI_DEVICE_ID_VENDOR_ID_REG);
+	RREG32(mmHW_STATE);
 
 	if (hdev->asic_prop.fw_security_disabled) {
 		/* Set the access through PCI bars (Linux driver only) as
@@ -3847,6 +3808,13 @@ static int gaudi_hw_init(struct hl_device *hdev)
 		return rc;
 	}
 
+	/* In case the clock gating was enabled in preboot we need to disable
+	 * it here before touching the MME/TPC registers.
+	 * There is no need to take clk gating mutex because when this function
+	 * runs, no other relevant code can run
+	 */
+	hdev->asic_funcs->disable_clock_gating(hdev);
+
 	/* SRAM scrambler must be initialized after CPU is running from HBM */
 	gaudi_init_scrambler_sram(hdev);
 
@@ -3885,7 +3853,7 @@ static int gaudi_hw_init(struct hl_device *hdev)
 	}
 
 	/* Perform read from the device to flush all configuration */
-	RREG32(mmPCIE_DBI_DEVICE_ID_VENDOR_ID_REG);
+	RREG32(mmHW_STATE);
 
 	return 0;
 
@@ -3927,7 +3895,10 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 	/* I don't know what is the state of the CPU so make sure it is
 	 * stopped in any means necessary
 	 */
-	WREG32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU, KMD_MSG_GOTO_WFE);
+	if (hdev->asic_prop.hard_reset_done_by_fw)
+		WREG32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU, KMD_MSG_RST_DEV);
+	else
+		WREG32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU, KMD_MSG_GOTO_WFE);
 
 	WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR, GAUDI_EVENT_HALT_MACHINE);
 
@@ -3971,11 +3942,15 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 
 		WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST,
 			1 << PSOC_GLOBAL_CONF_SW_ALL_RST_IND_SHIFT);
-	}
 
-	dev_info(hdev->dev,
-		"Issued HARD reset command, going to wait %dms\n",
-		reset_timeout_ms);
+		dev_info(hdev->dev,
+			"Issued HARD reset command, going to wait %dms\n",
+			reset_timeout_ms);
+	} else {
+		dev_info(hdev->dev,
+			"Firmware performs HARD reset, going to wait %dms\n",
+			reset_timeout_ms);
+	}
 
 	/*
 	 * After hard reset, we can't poll the BTM_FSM register because the PSOC
@@ -7936,7 +7911,7 @@ static u32 gaudi_get_wait_cb_size(struct hl_device *hdev)
 }
 
 static u32 gaudi_gen_signal_cb(struct hl_device *hdev, void *data, u16 sob_id,
-				u32 size)
+				u32 size, bool eb)
 {
 	struct hl_cb *cb = (struct hl_cb *) data;
 	struct packet_msg_short *pkt;
@@ -7953,7 +7928,7 @@ static u32 gaudi_gen_signal_cb(struct hl_device *hdev, void *data, u16 sob_id,
 	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_OP_MASK, 0); /* write the value */
 	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_BASE_MASK, 3); /* W_S SOB base */
 	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_OPCODE_MASK, PACKET_MSG_SHORT);
-	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_EB_MASK, 1);
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_EB_MASK, eb);
 	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_RB_MASK, 1);
 	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_MB_MASK, 1);
 

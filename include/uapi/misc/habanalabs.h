@@ -279,6 +279,7 @@ enum hl_device_status {
  * HL_INFO_CLK_THROTTLE_REASON - Retrieve clock throttling reason
  * HL_INFO_SYNC_MANAGER  - Retrieve sync manager info per dcore
  * HL_INFO_TOTAL_ENERGY  - Retrieve total energy consumption
+ * HL_INFO_PLL_FREQUENCY - Retrieve PLL frequency
  */
 #define HL_INFO_HW_IP_INFO		0
 #define HL_INFO_HW_EVENTS		1
@@ -425,6 +426,8 @@ struct hl_info_sync_manager {
  * @ctx_device_in_reset_drop_cnt: context dropped due to device in reset
  * @total_max_cs_in_flight_drop_cnt: total dropped due to maximum CS in-flight
  * @ctx_max_cs_in_flight_drop_cnt: context dropped due to maximum CS in-flight
+ * @total_validation_drop_cnt: total dropped due to validation error
+ * @ctx_validation_drop_cnt: context dropped due to validation error
  */
 struct hl_info_cs_counters {
 	__u64 total_out_of_mem_drop_cnt;
@@ -437,6 +440,8 @@ struct hl_info_cs_counters {
 	__u64 ctx_device_in_reset_drop_cnt;
 	__u64 total_max_cs_in_flight_drop_cnt;
 	__u64 ctx_max_cs_in_flight_drop_cnt;
+	__u64 total_validation_drop_cnt;
+	__u64 ctx_validation_drop_cnt;
 };
 
 enum gaudi_dcores {
