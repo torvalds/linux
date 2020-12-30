@@ -560,6 +560,16 @@
 				regulator-boot-on;
 			};
 
+			EN32KHZ_AP {
+				regulator-name = "EN32KHZ_AP";
+				regulator-always-on;
+			};
+
+			EN32KHZ_CP {
+				regulator-name = "EN32KHZ_CP";
+				regulator-always-on;
+			};
+
 			charger_reg: CHARGER {
 				regulator-name = "CHARGER";
 				regulator-min-microamp = <200000>;
@@ -573,13 +583,10 @@
 				regulator-always-on;
 			};
 
-			EN32KHZ_AP {
-				regulator-name = "EN32KHZ_AP";
-				regulator-always-on;
-			};
-
-			EN32KHZ_CP {
-				regulator-name = "EN32KHZ_CP";
+			CHARGER_TOPOFF {
+				regulator-name = "CHARGER_TOPOFF";
+				regulator-min-microamp = <200000>;
+				regulator-max-microamp = <200000>;
 				regulator-always-on;
 			};
 		};
