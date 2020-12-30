@@ -492,6 +492,8 @@ static void __init loongson3_smp_setup(void)
 			__cpu_number_map[i] = num;
 			__cpu_logical_map[num] = i;
 			set_cpu_possible(num, true);
+			/* Loongson processors are always grouped by 4 */
+			cpu_set_cluster(&cpu_data[num], i / 4);
 			num++;
 		}
 		i++;
