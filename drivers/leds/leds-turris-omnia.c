@@ -98,9 +98,9 @@ static int omnia_led_register(struct i2c_client *client, struct omnia_led *led,
 	}
 
 	ret = of_property_read_u32(np, "color", &color);
-	if (ret || color != LED_COLOR_ID_MULTI) {
+	if (ret || color != LED_COLOR_ID_RGB) {
 		dev_warn(dev,
-			 "Node %pOF: must contain 'color' property with value LED_COLOR_ID_MULTI\n",
+			 "Node %pOF: must contain 'color' property with value LED_COLOR_ID_RGB\n",
 			 np);
 		return 0;
 	}

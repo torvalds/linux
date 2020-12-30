@@ -1046,15 +1046,17 @@ int mt7615_mac_wtbl_update_key(struct mt7615_dev *dev,
 	if (cmd == SET_KEY) {
 		if (cipher == MT_CIPHER_TKIP) {
 			/* Rx/Tx MIC keys are swapped */
+			memcpy(data, key, 16);
 			memcpy(data + 16, key + 24, 8);
 			memcpy(data + 24, key + 16, 8);
+		} else {
+			if (cipher != MT_CIPHER_BIP_CMAC_128 && wcid->cipher)
+				memmove(data + 16, data, 16);
+			if (cipher != MT_CIPHER_BIP_CMAC_128 || !wcid->cipher)
+				memcpy(data, key, keylen);
+			else if (cipher == MT_CIPHER_BIP_CMAC_128)
+				memcpy(data + 16, key, 16);
 		}
-		if (cipher != MT_CIPHER_BIP_CMAC_128 && wcid->cipher)
-			memmove(data + 16, data, 16);
-		if (cipher != MT_CIPHER_BIP_CMAC_128 || !wcid->cipher)
-			memcpy(data, key, keylen);
-		else if (cipher == MT_CIPHER_BIP_CMAC_128)
-			memcpy(data + 16, key, 16);
 	} else {
 		if (wcid->cipher & ~BIT(cipher)) {
 			if (cipher != MT_CIPHER_BIP_CMAC_128)

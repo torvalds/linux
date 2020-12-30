@@ -777,16 +777,12 @@ static struct resource scc_b_rsrcs[] = {
 struct platform_device scc_a_pdev = {
 	.name           = "scc",
 	.id             = 0,
-	.num_resources  = ARRAY_SIZE(scc_a_rsrcs),
-	.resource       = scc_a_rsrcs,
 };
 EXPORT_SYMBOL(scc_a_pdev);
 
 struct platform_device scc_b_pdev = {
 	.name           = "scc",
 	.id             = 1,
-	.num_resources  = ARRAY_SIZE(scc_b_rsrcs),
-	.resource       = scc_b_rsrcs,
 };
 EXPORT_SYMBOL(scc_b_pdev);
 
@@ -813,10 +809,15 @@ static void __init mac_identify(void)
 
 	/* Set up serial port resources for the console initcall. */
 
-	scc_a_rsrcs[0].start = (resource_size_t) mac_bi_data.sccbase + 2;
-	scc_a_rsrcs[0].end   = scc_a_rsrcs[0].start;
-	scc_b_rsrcs[0].start = (resource_size_t) mac_bi_data.sccbase;
-	scc_b_rsrcs[0].end   = scc_b_rsrcs[0].start;
+	scc_a_rsrcs[0].start     = (resource_size_t)mac_bi_data.sccbase + 2;
+	scc_a_rsrcs[0].end       = scc_a_rsrcs[0].start;
+	scc_a_pdev.num_resources = ARRAY_SIZE(scc_a_rsrcs);
+	scc_a_pdev.resource      = scc_a_rsrcs;
+
+	scc_b_rsrcs[0].start     = (resource_size_t)mac_bi_data.sccbase;
+	scc_b_rsrcs[0].end       = scc_b_rsrcs[0].start;
+	scc_b_pdev.num_resources = ARRAY_SIZE(scc_b_rsrcs);
+	scc_b_pdev.resource      = scc_b_rsrcs;
 
 	switch (macintosh_config->scc_type) {
 	case MAC_SCC_PSC:

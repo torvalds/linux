@@ -219,9 +219,6 @@ static int _dpu_core_perf_crtc_update_bus(struct dpu_kms *kms,
 	int i, ret = 0;
 	u64 avg_bw;
 
-	if (!kms->num_paths)
-		return -EINVAL;
-
 	drm_for_each_crtc(tmp_crtc, crtc->dev) {
 		if (tmp_crtc->enabled &&
 			curr_client_type ==
@@ -238,6 +235,9 @@ static int _dpu_core_perf_crtc_update_bus(struct dpu_kms *kms,
 				  dpu_cstate->new_perf.bw_ctl, kms->num_paths);
 		}
 	}
+
+	if (!kms->num_paths)
+		return 0;
 
 	avg_bw = perf.bw_ctl;
 	do_div(avg_bw, (kms->num_paths * 1000)); /*Bps_to_icc*/

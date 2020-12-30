@@ -1469,7 +1469,7 @@ static struct platform_driver at91_adc_driver = {
 	.id_table = at91_adc_ids,
 	.driver = {
 		   .name = DRIVER_NAME,
-		   .of_match_table = of_match_ptr(at91_adc_dt_ids),
+		   .of_match_table = at91_adc_dt_ids,
 		   .pm = &at91_adc_pm_ops,
 	},
 };

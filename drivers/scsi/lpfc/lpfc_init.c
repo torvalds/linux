@@ -5958,18 +5958,21 @@ lpfc_sli4_async_grp5_evt(struct lpfc_hba *phba,
 void lpfc_sli4_async_event_proc(struct lpfc_hba *phba)
 {
 	struct lpfc_cq_event *cq_event;
+	unsigned long iflags;
 
 	/* First, declare the async event has been handled */
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irqsave(&phba->hbalock, iflags);
 	phba->hba_flag &= ~ASYNC_EVENT;
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
+
 	/* Now, handle all the async events */
+	spin_lock_irqsave(&phba->sli4_hba.asynce_list_lock, iflags);
 	while (!list_empty(&phba->sli4_hba.sp_asynce_work_queue)) {
-		/* Get the first event from the head of the event queue */
-		spin_lock_irq(&phba->hbalock);
 		list_remove_head(&phba->sli4_hba.sp_asynce_work_queue,
 				 cq_event, struct lpfc_cq_event, list);
-		spin_unlock_irq(&phba->hbalock);
+		spin_unlock_irqrestore(&phba->sli4_hba.asynce_list_lock,
+				       iflags);
+
 		/* Process the asynchronous event */
 		switch (bf_get(lpfc_trailer_code, &cq_event->cqe.mcqe_cmpl)) {
 		case LPFC_TRAILER_CODE_LINK:
@@ -6001,9 +6004,12 @@ void lpfc_sli4_async_event_proc(struct lpfc_hba *phba)
 					&cq_event->cqe.mcqe_cmpl));
 			break;
 		}
+
 		/* Free the completion event processed to the free pool */
 		lpfc_sli4_cq_event_release(phba, cq_event);
+		spin_lock_irqsave(&phba->sli4_hba.asynce_list_lock, iflags);
 	}
+	spin_unlock_irqrestore(&phba->sli4_hba.asynce_list_lock, iflags);
 }
 
 /**
@@ -6630,6 +6636,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	/* This abort list used by worker thread */
 	spin_lock_init(&phba->sli4_hba.sgl_list_lock);
 	spin_lock_init(&phba->sli4_hba.nvmet_io_wait_lock);
+	spin_lock_init(&phba->sli4_hba.asynce_list_lock);
+	spin_lock_init(&phba->sli4_hba.els_xri_abrt_list_lock);
 
 	/*
 	 * Initialize driver internal slow-path work queues
@@ -6641,8 +6649,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	INIT_LIST_HEAD(&phba->sli4_hba.sp_queue_event);
 	/* Asynchronous event CQ Event work queue list */
 	INIT_LIST_HEAD(&phba->sli4_hba.sp_asynce_work_queue);
-	/* Fast-path XRI aborted CQ Event work queue list */
-	INIT_LIST_HEAD(&phba->sli4_hba.sp_fcp_xri_aborted_work_queue);
 	/* Slow-path XRI aborted CQ Event work queue list */
 	INIT_LIST_HEAD(&phba->sli4_hba.sp_els_xri_aborted_work_queue);
 	/* Receive queue CQ Event work queue list */
@@ -10174,26 +10180,28 @@ lpfc_sli4_cq_event_release(struct lpfc_hba *phba,
 static void
 lpfc_sli4_cq_event_release_all(struct lpfc_hba *phba)
 {
-	LIST_HEAD(cqelist);
-	struct lpfc_cq_event *cqe;
+	LIST_HEAD(cq_event_list);
+	struct lpfc_cq_event *cq_event;
 	unsigned long iflags;
 
 	/* Retrieve all the pending WCQEs from pending WCQE lists */
-	spin_lock_irqsave(&phba->hbalock, iflags);
-	/* Pending FCP XRI abort events */
-	list_splice_init(&phba->sli4_hba.sp_fcp_xri_aborted_work_queue,
-			 &cqelist);
-	/* Pending ELS XRI abort events */
-	list_splice_init(&phba->sli4_hba.sp_els_xri_aborted_work_queue,
-			 &cqelist);
-	/* Pending asynnc events */
-	list_splice_init(&phba->sli4_hba.sp_asynce_work_queue,
-			 &cqelist);
-	spin_unlock_irqrestore(&phba->hbalock, iflags);
 
-	while (!list_empty(&cqelist)) {
-		list_remove_head(&cqelist, cqe, struct lpfc_cq_event, list);
-		lpfc_sli4_cq_event_release(phba, cqe);
+	/* Pending ELS XRI abort events */
+	spin_lock_irqsave(&phba->sli4_hba.els_xri_abrt_list_lock, iflags);
+	list_splice_init(&phba->sli4_hba.sp_els_xri_aborted_work_queue,
+			 &cq_event_list);
+	spin_unlock_irqrestore(&phba->sli4_hba.els_xri_abrt_list_lock, iflags);
+
+	/* Pending asynnc events */
+	spin_lock_irqsave(&phba->sli4_hba.asynce_list_lock, iflags);
+	list_splice_init(&phba->sli4_hba.sp_asynce_work_queue,
+			 &cq_event_list);
+	spin_unlock_irqrestore(&phba->sli4_hba.asynce_list_lock, iflags);
+
+	while (!list_empty(&cq_event_list)) {
+		list_remove_head(&cq_event_list, cq_event,
+				 struct lpfc_cq_event, list);
+		lpfc_sli4_cq_event_release(phba, cq_event);
 	}
 }
 

@@ -561,7 +561,7 @@ static int metric_parse_fake(const char *str)
 		}
 	}
 
-	if (expr__parse(&result, &ctx, str, 1))
+	if (expr__parse(&result, &ctx, str, 0))
 		pr_err("expr__parse failed\n");
 	else
 		ret = 0;

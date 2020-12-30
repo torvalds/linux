@@ -919,7 +919,7 @@ static __always_inline bool get_lbr_predicted(u64 info)
 	return !(info & LBR_INFO_MISPRED);
 }
 
-static __always_inline bool get_lbr_cycles(u64 info)
+static __always_inline u16 get_lbr_cycles(u64 info)
 {
 	if (static_cpu_has(X86_FEATURE_ARCH_LBR) &&
 	    !(x86_pmu.lbr_timed_lbr && info & LBR_INFO_CYC_CNT_VALID))

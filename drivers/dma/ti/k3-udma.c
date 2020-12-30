@@ -3201,8 +3201,7 @@ static int udma_setup_resources(struct udma_dev *ud)
 	} else if (UDMA_CAP3_UCHAN_CNT(cap3)) {
 		ud->tpl_levels = 3;
 		ud->tpl_start_idx[1] = UDMA_CAP3_UCHAN_CNT(cap3);
-		ud->tpl_start_idx[0] = ud->tpl_start_idx[1] +
-				       UDMA_CAP3_HCHAN_CNT(cap3);
+		ud->tpl_start_idx[0] = UDMA_CAP3_HCHAN_CNT(cap3);
 	} else if (UDMA_CAP3_HCHAN_CNT(cap3)) {
 		ud->tpl_levels = 2;
 		ud->tpl_start_idx[0] = UDMA_CAP3_HCHAN_CNT(cap3);

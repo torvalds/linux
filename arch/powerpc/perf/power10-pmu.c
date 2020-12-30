@@ -23,10 +23,10 @@
  *
  *        28        24        20        16        12         8         4         0
  * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |
- *   [   ] [  sample ]   [ ] [ ]   [ pmc ]   [unit ]   [ ]   m   [    pmcxsel    ]
- *     |        |        |    |                        |     |
- *     |        |        |    |                        |     *- mark
- *     |        |        |    *- L1/L2/L3 cache_sel    |
+ *   [   ] [  sample ]   [ ] [ ]   [ pmc ]   [unit ]   [ ] |  m   [    pmcxsel    ]
+ *     |        |        |    |                        |   |  |
+ *     |        |        |    |                        |   |  *- mark
+ *     |        |        |    *- L1/L2/L3 cache_sel    |   |*-radix_scope_qual
  *     |        |        sdar_mode                     |
  *     |        *- sampling mode for marked events     *- combine
  *     |
@@ -59,6 +59,7 @@
  *
  * MMCR1[16] = cache_sel[0]
  * MMCR1[17] = cache_sel[1]
+ * MMCR1[18] = radix_scope_qual
  *
  * if mark:
  *	MMCRA[63]    = 1		(SAMPLE_ENABLE)
@@ -175,6 +176,7 @@ PMU_FORMAT_ATTR(src_sel,        "config:45-46");
 PMU_FORMAT_ATTR(invert_bit,     "config:47");
 PMU_FORMAT_ATTR(src_mask,       "config:48-53");
 PMU_FORMAT_ATTR(src_match,      "config:54-59");
+PMU_FORMAT_ATTR(radix_scope,	"config:9");
 
 static struct attribute *power10_pmu_format_attr[] = {
 	&format_attr_event.attr,
@@ -194,6 +196,7 @@ static struct attribute *power10_pmu_format_attr[] = {
 	&format_attr_invert_bit.attr,
 	&format_attr_src_mask.attr,
 	&format_attr_src_match.attr,
+	&format_attr_radix_scope.attr,
 	NULL,
 };
 

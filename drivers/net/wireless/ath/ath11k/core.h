@@ -75,12 +75,14 @@ static inline enum wme_ac ath11k_tid_to_ac(u32 tid)
 
 enum ath11k_skb_flags {
 	ATH11K_SKB_HW_80211_ENCAP = BIT(0),
+	ATH11K_SKB_CIPHER_SET = BIT(1),
 };
 
 struct ath11k_skb_cb {
 	dma_addr_t paddr;
 	u8 eid;
 	u8 flags;
+	u32 cipher;
 	struct ath11k *ar;
 	struct ieee80211_vif *vif;
 } __packed;

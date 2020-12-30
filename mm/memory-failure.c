@@ -989,7 +989,7 @@ static int get_hwpoison_page(struct page *page)
 static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
 				  int flags, struct page **hpagep)
 {
-	enum ttu_flags ttu = TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS;
+	enum ttu_flags ttu = TTU_IGNORE_MLOCK;
 	struct address_space *mapping;
 	LIST_HEAD(tokill);
 	bool unmap_success = true;
@@ -1230,6 +1230,12 @@ static int memory_failure_dev_pagemap(unsigned long pfn, int flags,
 	int rc = -EBUSY;
 	loff_t start;
 	dax_entry_t cookie;
+
+	if (flags & MF_COUNT_INCREASED)
+		/*
+		 * Drop the extra refcount in case we come from madvise().
+		 */
+		put_page(page);
 
 	/*
 	 * Prevent the inode from being freed while we are interrogating

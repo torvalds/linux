@@ -41,6 +41,7 @@ enum lpfc_work_type {
 	LPFC_EVT_DEV_LOSS,
 	LPFC_EVT_FASTPATH_MGMT_EVT,
 	LPFC_EVT_RESET_HBA,
+	LPFC_EVT_RECOVER_PORT
 };
 
 /* structure used to queue event to the discovery tasklet */
@@ -128,6 +129,7 @@ struct lpfc_nodelist {
 	struct lpfc_vport *vport;
 	struct lpfc_work_evt els_retry_evt;
 	struct lpfc_work_evt dev_loss_evt;
+	struct lpfc_work_evt recovery_evt;
 	struct kref     kref;
 	atomic_t cmd_pending;
 	uint32_t cmd_qdepth;

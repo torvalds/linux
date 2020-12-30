@@ -155,18 +155,8 @@
 		};
 
 		partition@210000 {
-			reg = <0x210000 0x0f0000>;
+			reg = <0x210000 0x1d0000>;
 			label = "bootloader";
-		};
-
-		partition@300000 {
-			reg = <0x300000 0x040000>;
-			label = "DP firmware";
-		};
-
-		partition@340000 {
-			reg = <0x340000 0x0a0000>;
-			label = "trusted firmware";
 		};
 
 		partition@3e0000 {

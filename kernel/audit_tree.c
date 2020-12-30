@@ -1037,7 +1037,7 @@ static void evict_chunk(struct audit_chunk *chunk)
 
 static int audit_tree_handle_event(struct fsnotify_mark *mark, u32 mask,
 				   struct inode *inode, struct inode *dir,
-				   const struct qstr *file_name)
+				   const struct qstr *file_name, u32 cookie)
 {
 	return 0;
 }

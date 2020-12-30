@@ -59,6 +59,7 @@ static void rnbd_clt_put_dev(struct rnbd_clt_dev *dev)
 	ida_simple_remove(&index_ida, dev->clt_device_id);
 	mutex_unlock(&ida_lock);
 	kfree(dev->hw_queues);
+	kfree(dev->pathname);
 	rnbd_clt_put_sess(dev->sess);
 	mutex_destroy(&dev->lock);
 	kfree(dev);
@@ -1381,10 +1382,16 @@ static struct rnbd_clt_dev *init_dev(struct rnbd_clt_session *sess,
 		       pathname, sess->sessname, ret);
 		goto out_queues;
 	}
+
+	dev->pathname = kstrdup(pathname, GFP_KERNEL);
+	if (!dev->pathname) {
+		ret = -ENOMEM;
+		goto out_queues;
+	}
+
 	dev->clt_device_id	= ret;
 	dev->sess		= sess;
 	dev->access_mode	= access_mode;
-	strlcpy(dev->pathname, pathname, sizeof(dev->pathname));
 	mutex_init(&dev->lock);
 	refcount_set(&dev->refcount, 1);
 	dev->dev_state = DEV_STATE_INIT;
@@ -1413,8 +1420,8 @@ static bool __exists_dev(const char *pathname)
 	list_for_each_entry(sess, &sess_list, list) {
 		mutex_lock(&sess->lock);
 		list_for_each_entry(dev, &sess->devs_list, list) {
-			if (!strncmp(dev->pathname, pathname,
-				     sizeof(dev->pathname))) {
+			if (strlen(dev->pathname) == strlen(pathname) &&
+			    !strcmp(dev->pathname, pathname)) {
 				found = true;
 				break;
 			}

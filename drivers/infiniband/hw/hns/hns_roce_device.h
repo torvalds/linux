@@ -547,7 +547,7 @@ struct hns_roce_av {
 	u8 dgid[HNS_ROCE_GID_SIZE];
 	u8 mac[ETH_ALEN];
 	u16 vlan_id;
-	bool vlan_en;
+	u8 vlan_en;
 };
 
 struct hns_roce_ah {
@@ -1130,6 +1130,14 @@ static inline u32 to_hr_hem_entries_shift(u32 count, u32 buf_shift)
 		return 0;
 
 	return ilog2(to_hr_hem_entries_count(count, buf_shift));
+}
+
+#define DSCP_SHIFT 2
+
+static inline u8 get_tclass(const struct ib_global_route *grh)
+{
+	return grh->sgid_attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP ?
+	       grh->traffic_class >> DSCP_SHIFT : grh->traffic_class;
 }
 
 int hns_roce_init_uar_table(struct hns_roce_dev *dev);

@@ -1327,6 +1327,7 @@ static const struct drm_display_mode boe_nv133fhm_n61_modes = {
 	.vsync_start = 1080 + 3,
 	.vsync_end = 1080 + 3 + 6,
 	.vtotal = 1080 + 3 + 6 + 31,
+	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
 /* Also used for boe_nv133fhm_n62 */
