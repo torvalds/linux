@@ -215,20 +215,30 @@ static void mark_eio(struct i915_request *rq)
 }
 
 static struct i915_request *
-active_request(const struct intel_timeline * const tl, struct i915_request *rq)
+__active_request(const struct intel_timeline * const tl,
+		 struct i915_request *rq,
+		 int error)
 {
 	struct i915_request *active = rq;
 
-	rcu_read_lock();
-	list_for_each_entry_continue_reverse(rq, &tl->requests, link) {
+	list_for_each_entry_from_reverse(rq, &tl->requests, link) {
 		if (__i915_request_is_complete(rq))
 			break;
 
+		if (error) {
+			i915_request_set_error_once(rq, error);
+			__i915_request_skip(rq);
+		}
 		active = rq;
 	}
-	rcu_read_unlock();
 
 	return active;
+}
+
+static struct i915_request *
+active_request(const struct intel_timeline * const tl, struct i915_request *rq)
+{
+	return __active_request(tl, rq, 0);
 }
 
 static inline void
@@ -487,14 +497,14 @@ static void reset_active(struct i915_request *rq,
 	 * remain correctly ordered. And we defer to __i915_request_submit()
 	 * so that all asynchronous waits are correctly handled.
 	 */
-	ENGINE_TRACE(engine, "{ rq=%llx:%lld }\n",
+	ENGINE_TRACE(engine, "{ reset rq=%llx:%lld }\n",
 		     rq->fence.context, rq->fence.seqno);
 
 	/* On resubmission of the active request, payload will be scrubbed */
 	if (__i915_request_is_complete(rq))
 		head = rq->tail;
 	else
-		head = active_request(ce->timeline, rq)->head;
+		head = __active_request(ce->timeline, rq, -EIO)->head;
 	head = intel_ring_wrap(ce->ring, head);
 
 	/* Scrub the context image to prevent replaying the previous batch */
