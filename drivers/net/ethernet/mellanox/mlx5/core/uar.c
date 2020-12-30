@@ -99,19 +99,21 @@ static struct mlx5_uars_page *alloc_uars_page(struct mlx5_core_dev *mdev,
 	int err = -ENOMEM;
 	phys_addr_t pfn;
 	int bfregs;
+	int node;
 	int i;
 
 	bfregs = uars_per_sys_page(mdev) * MLX5_BFREGS_PER_UAR;
-	up = kzalloc(sizeof(*up), GFP_KERNEL);
+	node = mdev->priv.numa_node;
+	up = kzalloc_node(sizeof(*up), GFP_KERNEL, node);
 	if (!up)
 		return ERR_PTR(err);
 
 	up->mdev = mdev;
-	up->reg_bitmap = bitmap_zalloc(bfregs, GFP_KERNEL);
+	up->reg_bitmap = bitmap_zalloc_node(bfregs, GFP_KERNEL, node);
 	if (!up->reg_bitmap)
 		goto error1;
 
-	up->fp_bitmap = bitmap_zalloc(bfregs, GFP_KERNEL);
+	up->fp_bitmap = bitmap_zalloc_node(bfregs, GFP_KERNEL, node);
 	if (!up->fp_bitmap)
 		goto error1;
 
