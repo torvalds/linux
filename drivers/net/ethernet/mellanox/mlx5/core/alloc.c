@@ -183,11 +183,11 @@ static struct mlx5_db_pgdir *mlx5_alloc_db_pgdir(struct mlx5_core_dev *dev,
 	u32 db_per_page = PAGE_SIZE / cache_line_size();
 	struct mlx5_db_pgdir *pgdir;
 
-	pgdir = kzalloc(sizeof(*pgdir), GFP_KERNEL);
+	pgdir = kzalloc_node(sizeof(*pgdir), GFP_KERNEL, node);
 	if (!pgdir)
 		return NULL;
 
-	pgdir->bitmap = bitmap_zalloc(db_per_page, GFP_KERNEL);
+	pgdir->bitmap = bitmap_zalloc_node(db_per_page, GFP_KERNEL, node);
 	if (!pgdir->bitmap) {
 		kfree(pgdir);
 		return NULL;
