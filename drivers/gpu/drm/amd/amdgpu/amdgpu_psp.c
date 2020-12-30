@@ -563,7 +563,7 @@ static int psp_asd_load(struct psp_context *psp)
 	 * add workaround to bypass it for sriov now.
 	 * TODO: add version check to make it common
 	 */
-	if (amdgpu_sriov_vf(psp->adev) || !psp->asd_fw)
+	if (amdgpu_sriov_vf(psp->adev) || !psp->asd_ucode_size)
 		return 0;
 
 	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
@@ -2589,11 +2589,10 @@ static int parse_ta_bin_descriptor(struct psp_context *psp,
 
 	switch (desc->fw_type) {
 	case TA_FW_TYPE_PSP_ASD:
-		psp->asd_fw_version	   = le32_to_cpu(desc->fw_version);
+		psp->asd_fw_version        = le32_to_cpu(desc->fw_version);
 		psp->asd_feature_version   = le32_to_cpu(desc->fw_version);
-		psp->asd_ucode_size	   = le32_to_cpu(desc->size_bytes);
+		psp->asd_ucode_size        = le32_to_cpu(desc->size_bytes);
 		psp->asd_start_addr 	   = ucode_start_addr;
-		psp->asd_fw                = psp->ta_fw;
 		break;
 	case TA_FW_TYPE_PSP_XGMI:
 		psp->ta_xgmi_ucode_version = le32_to_cpu(desc->fw_version);
