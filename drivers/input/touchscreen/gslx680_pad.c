@@ -938,6 +938,24 @@ static int gsl_ts_resume(struct device *dev)
     return 0;
 }
 
+static int gsl_ts_early_suspend(struct tp_device *tp_d)
+{
+	struct gsl_ts *ts = container_of(tp_d, struct gsl_ts, tp);
+
+	gsl_ts_suspend(&ts->client->dev);
+
+	return 0;
+}
+
+static int gsl_ts_late_resume(struct tp_device *tp_d)
+{
+	struct gsl_ts *ts = container_of(tp_d, struct gsl_ts, tp);
+
+	gsl_ts_resume(&ts->client->dev);
+
+	return 0;
+}
+
 static void gsl_download_fw_work(struct work_struct *work)
 {
     struct gsl_ts *ts = dev_get_drvdata(&gsl_client->dev);
@@ -980,7 +998,6 @@ static void  gsl_resume_work(struct work_struct *work)
 #endif
    enable_irq(ts->irq);
 }
-
 
 static int  gsl_ts_probe(struct i2c_client *client,
         const struct i2c_device_id *id)
@@ -1097,6 +1114,10 @@ static int  gsl_ts_probe(struct i2c_client *client,
     gpio_set_value(ts->irq_pin, 0);
     enable_irq(ts->irq);
 
+    ts->tp.tp_resume = gsl_ts_late_resume;
+    ts->tp.tp_suspend = gsl_ts_early_suspend;
+    tp_register_fb(&ts->tp);
+
     return 0;
 
     //exit_set_irq_mode:
@@ -1136,17 +1157,21 @@ static const struct i2c_device_id gsl_ts_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, gsl_ts_id);
 
+#if !defined(CONFIG_DRM_FBDEV_EMULATION) && defined(CONFIG_PM)
 static const struct dev_pm_ops gsl_pm_ops = {
      .suspend    = gsl_ts_suspend,
      .resume     = gsl_ts_resume,
 };
+#endif
 
 static struct i2c_driver gsl_ts_driver = {
     .driver = {
         .name = GSLX680_I2C_NAME,
         .owner = THIS_MODULE,
         .of_match_table = of_match_ptr(gsl_ts_ids),
+#if !defined(CONFIG_DRM_FBDEV_EMULATION) && defined(CONFIG_PM)
         .pm = &gsl_pm_ops,
+#endif
     },
     .probe		= gsl_ts_probe,
     .remove		= gsl_ts_remove,
