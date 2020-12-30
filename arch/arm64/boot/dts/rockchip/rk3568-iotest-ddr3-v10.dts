@@ -45,5 +45,3 @@
 	maximum-speed = "high-speed";
 	status = "okay";
 };
-
-/delete-node/ &display_subsystem;
