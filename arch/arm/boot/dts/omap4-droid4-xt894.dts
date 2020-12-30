@@ -16,8 +16,13 @@
 			debounce-interval = <10>;
 		};
 
+		/*
+		 * We use pad 0x4a100116 abe_dmic_din3.gpio_122 as the irq instead
+		 * of the gpio interrupt to avoid lost events in deeper idle states.
+		*/
 		slider {
 			label = "Keypad Slide";
+			interrupts-extended = <&omap4_pmx_core 0xd6>;
 			gpios = <&gpio4 26 GPIO_ACTIVE_HIGH>; /* gpio122 */
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_KEYPAD_SLIDE>;
