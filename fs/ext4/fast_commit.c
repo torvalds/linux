@@ -1268,7 +1268,7 @@ static void ext4_fc_cleanup(journal_t *journal, int full)
 	list_splice_init(&sbi->s_fc_dentry_q[FC_Q_STAGING],
 				&sbi->s_fc_dentry_q[FC_Q_MAIN]);
 	list_splice_init(&sbi->s_fc_q[FC_Q_STAGING],
-				&sbi->s_fc_q[FC_Q_STAGING]);
+				&sbi->s_fc_q[FC_Q_MAIN]);
 
 	ext4_clear_mount_flag(sb, EXT4_MF_FC_COMMITTING);
 	ext4_clear_mount_flag(sb, EXT4_MF_FC_INELIGIBLE);
