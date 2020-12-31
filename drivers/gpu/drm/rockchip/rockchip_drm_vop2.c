@@ -1969,6 +1969,11 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	if (!(win->feature & WIN_FEATURE_AFBDC) &&
 	    actual_w > dsp_w && actual_w % 16 == 1)
 		actual_w -= 1;
+	if (vpstate->afbc_en && actual_w % 4) {
+		DRM_ERROR("%s actual_w[%d] should align as 4 pixel when enable afbc\n",
+			  win->name, actual_w);
+		actual_w = ALIGN_DOWN(actual_w, 4);
+	}
 
 	act_info = (actual_h - 1) << 16 | ((actual_w - 1) & 0xffff);
 	dsp_info = (dsp_h - 1) << 16 | ((dsp_w - 1) & 0xffff);
