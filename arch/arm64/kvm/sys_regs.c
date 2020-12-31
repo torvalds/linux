@@ -1056,8 +1056,8 @@ static u64 read_id_reg(const struct kvm_vcpu *vcpu,
 	} else if (id == SYS_ID_DFR0_EL1) {
 		/* Limit guests to PMUv3 for ARMv8.1 */
 		val = cpuid_feature_cap_perfmon_field(val,
-						ID_DFR0_PERFMON_SHIFT,
-						ID_DFR0_PERFMON_8_1);
+						      ID_DFR0_PERFMON_SHIFT,
+						      kvm_vcpu_has_pmu(vcpu) ? ID_DFR0_PERFMON_8_1 : 0);
 	}
 
 	return val;
