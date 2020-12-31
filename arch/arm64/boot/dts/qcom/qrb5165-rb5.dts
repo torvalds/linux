@@ -114,7 +114,7 @@
 
 &apps_rsc {
 	pm8009-rpmh-regulators {
-		compatible = "qcom,pm8009-rpmh-regulators";
+		compatible = "qcom,pm8009-1-rpmh-regulators";
 		qcom,pmic-id = "f";
 
 		vdd-s1-supply = <&vph_pwr>;
@@ -122,6 +122,13 @@
 		vdd-l2-supply = <&vreg_s8c_1p3>;
 		vdd-l5-l6-supply = <&vreg_bob>;
 		vdd-l7-supply = <&vreg_s4a_1p8>;
+
+		vreg_s2f_0p95: smps2 {
+			regulator-name = "vreg_s2f_0p95";
+			regulator-min-microvolt = <900000>;
+			regulator-max-microvolt = <952000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_AUTO>;
+		};
 
 		vreg_l1f_1p1: ldo1 {
 			regulator-name = "vreg_l1f_1p1";
