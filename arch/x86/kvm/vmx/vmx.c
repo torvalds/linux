@@ -2369,21 +2369,12 @@ static void vmclear_local_loaded_vmcss(void)
 		__loaded_vmcs_clear(v);
 }
 
-
-/* Just like cpu_vmxoff(), but with the __kvm_handle_fault_on_reboot()
- * tricks.
- */
-static void kvm_cpu_vmxoff(void)
-{
-	asm volatile (__ex("vmxoff"));
-
-	cr4_clear_bits(X86_CR4_VMXE);
-}
-
 static void hardware_disable(void)
 {
 	vmclear_local_loaded_vmcss();
-	kvm_cpu_vmxoff();
+
+	if (cpu_vmxoff())
+		kvm_spurious_fault();
 
 	intel_pt_handle_vmx(0);
 }
