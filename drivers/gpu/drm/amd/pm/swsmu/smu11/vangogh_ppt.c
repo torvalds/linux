@@ -1009,6 +1009,8 @@ static int vangogh_unforce_dpm_levels(struct smu_context *smu)
 		{SMU_MCLK,   SMU_FEATURE_DPM_FCLK_BIT},
 		{SMU_FCLK, SMU_FEATURE_DPM_FCLK_BIT},
 		{SMU_SOCCLK, SMU_FEATURE_DPM_SOCCLK_BIT},
+		{SMU_VCLK, SMU_FEATURE_VCN_DPM_BIT},
+		{SMU_DCLK, SMU_FEATURE_VCN_DPM_BIT},
 	};
 
 	for (i = 0; i < ARRAY_SIZE(clk_feature_map); i++) {
