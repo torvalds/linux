@@ -199,7 +199,7 @@ struct optee_msg_arg {
 	u32 num_params;
 
 	/* num_params tells the actual number of element in params */
-	struct optee_msg_param params[0];
+	struct optee_msg_param params[];
 };
 
 /**
