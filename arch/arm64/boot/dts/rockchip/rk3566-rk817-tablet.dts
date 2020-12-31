@@ -727,7 +727,7 @@
 			sleep_enter_current = <150>;
 			sleep_exit_current = <180>;
 			sleep_filter_current = <100>;
-			power_off_thresd = <3450>;
+			power_off_thresd = <3350>;
 			zero_algorithm_vol = <3850>;
 			max_soc_offset = <60>;
 			monitor_sec = <5>;
