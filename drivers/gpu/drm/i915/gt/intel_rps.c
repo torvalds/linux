@@ -862,6 +862,8 @@ void intel_rps_park(struct intel_rps *rps)
 {
 	int adj;
 
+	GEM_BUG_ON(atomic_read(&rps->num_waiters));
+
 	if (!intel_rps_clear_active(rps))
 		return;
 
@@ -917,28 +919,27 @@ void intel_rps_park(struct intel_rps *rps)
 
 void intel_rps_boost(struct i915_request *rq)
 {
-	struct intel_rps *rps = &READ_ONCE(rq->engine)->gt->rps;
-	unsigned long flags;
-
-	if (i915_request_signaled(rq) || !intel_rps_is_active(rps))
+	if (i915_request_signaled(rq) || i915_request_has_waitboost(rq))
 		return;
 
 	/* Serializes with i915_request_retire() */
-	spin_lock_irqsave(&rq->lock, flags);
-	if (!i915_request_has_waitboost(rq) &&
-	    !dma_fence_is_signaled_locked(&rq->fence)) {
-		set_bit(I915_FENCE_FLAG_BOOST, &rq->fence.flags);
+	if (!test_and_set_bit(I915_FENCE_FLAG_BOOST, &rq->fence.flags)) {
+		struct intel_rps *rps = &READ_ONCE(rq->engine)->gt->rps;
+
+		if (atomic_fetch_inc(&rps->num_waiters))
+			return;
+
+		if (!intel_rps_is_active(rps))
+			return;
 
 		GT_TRACE(rps_to_gt(rps), "boost fence:%llx:%llx\n",
 			 rq->fence.context, rq->fence.seqno);
 
-		if (!atomic_fetch_inc(&rps->num_waiters) &&
-		    READ_ONCE(rps->cur_freq) < rps->boost_freq)
+		if (READ_ONCE(rps->cur_freq) < rps->boost_freq)
 			schedule_work(&rps->work);
 
-		atomic_inc(&rps->boosts);
+		WRITE_ONCE(rps->boosts, rps->boosts + 1); /* debug only */
 	}
-	spin_unlock_irqrestore(&rq->lock, flags);
 }
 
 int intel_rps_set(struct intel_rps *rps, u8 val)

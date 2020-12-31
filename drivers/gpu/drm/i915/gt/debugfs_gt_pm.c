@@ -578,7 +578,7 @@ static int rps_boost_show(struct seq_file *m, void *data)
 		   intel_gpu_freq(rps, rps->efficient_freq),
 		   intel_gpu_freq(rps, rps->boost_freq));
 
-	seq_printf(m, "Wait boosts: %d\n", atomic_read(&rps->boosts));
+	seq_printf(m, "Wait boosts: %d\n", READ_ONCE(rps->boosts));
 
 	if (INTEL_GEN(i915) >= 6 && intel_rps_is_active(rps)) {
 		struct intel_uncore *uncore = gt->uncore;
