@@ -309,6 +309,20 @@
 		#clock-cells = <0>;
 	};
 
+	gmac0_xpcsclk: xpcs-gmac0-clock {
+		compatible = "fixed-clock";
+		clock-frequency = <125000000>;
+		clock-output-names = "clk_gmac0_xpcs_mii";
+		#clock-cells = <0>;
+	};
+
+	gmac1_xpcsclk: xpcs-gmac1-clock {
+		compatible = "fixed-clock";
+		clock-frequency = <125000000>;
+		clock-output-names = "clk_gmac1_xpcs_mii";
+		#clock-cells = <0>;
+	};
+
 	mpll: mpll {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -504,6 +518,12 @@
 		clock-names = "usbhost", "arbiter", "pclk", "utmi";
 		phys = <&u2phy1_host>;
 		phy-names = "usb2-phy";
+		status = "disabled";
+	};
+
+	xpcs: syscon@fda00000 {
+		compatible = "rockchip,rk3568-xpcs", "syscon";
+		reg = <0x0 0xfda00000 0x0 0x200000>;
 		status = "disabled";
 	};
 
@@ -1362,11 +1382,13 @@
 		clocks = <&cru SCLK_GMAC1>, <&cru SCLK_GMAC1_RX_TX>,
 			 <&cru SCLK_GMAC1_RX_TX>, <&cru CLK_MAC1_REFOUT>,
 			 <&cru ACLK_GMAC1>, <&cru PCLK_GMAC1>,
-			 <&cru SCLK_GMAC1_RX_TX>, <&cru CLK_GMAC1_PTP_REF>;
+			 <&cru SCLK_GMAC1_RX_TX>, <&cru CLK_GMAC1_PTP_REF>,
+			 <&cru PCLK_XPCS>;
 		clock-names = "stmmaceth", "mac_clk_rx",
 			      "mac_clk_tx", "clk_mac_refout",
 			      "aclk_mac", "pclk_mac",
-			      "clk_mac_speed", "ptp_ref";
+			      "clk_mac_speed", "ptp_ref",
+			      "pclk_xpcs";
 		resets = <&cru SRST_A_GMAC1>;
 		reset-names = "stmmaceth";
 
@@ -1988,11 +2010,13 @@
 		clocks = <&cru SCLK_GMAC0>, <&cru SCLK_GMAC0_RX_TX>,
 			 <&cru SCLK_GMAC0_RX_TX>, <&cru CLK_MAC0_REFOUT>,
 			 <&cru ACLK_GMAC0>, <&cru PCLK_GMAC0>,
-			 <&cru SCLK_GMAC0_RX_TX>, <&cru CLK_GMAC0_PTP_REF>;
+			 <&cru SCLK_GMAC0_RX_TX>, <&cru CLK_GMAC0_PTP_REF>,
+			 <&cru PCLK_XPCS>;
 		clock-names = "stmmaceth", "mac_clk_rx",
 			      "mac_clk_tx", "clk_mac_refout",
 			      "aclk_mac", "pclk_mac",
-			      "clk_mac_speed", "ptp_ref";
+			      "clk_mac_speed", "ptp_ref",
+			      "pclk_xpcs";
 		resets = <&cru SRST_A_GMAC0>;
 		reset-names = "stmmaceth";
 
