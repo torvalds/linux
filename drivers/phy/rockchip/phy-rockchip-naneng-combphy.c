@@ -33,12 +33,14 @@ struct combphy_reg {
 struct rockchip_combphy_grfcfg {
 	struct combphy_reg pcie_mode_set;
 	struct combphy_reg usb_mode_set;
+	struct combphy_reg sgmii_mode_set;
 	struct combphy_reg qsgmii_mode_set;
 	struct combphy_reg pipe_rxterm_set;
 	struct combphy_reg pipe_txelec_set;
 	struct combphy_reg pipe_txcomp_set;
 	struct combphy_reg pipe_clk_25m;
 	struct combphy_reg pipe_clk_100m;
+	struct combphy_reg pipe_rate_sel;
 	struct combphy_reg pipe_rxterm_sel;
 	struct combphy_reg pipe_txelec_sel;
 	struct combphy_reg pipe_txcomp_sel;
@@ -55,6 +57,8 @@ struct rockchip_combphy_grfcfg {
 	struct combphy_reg con2_for_sata;
 	struct combphy_reg con3_for_sata;
 	struct combphy_reg pipe_con0_for_sata;
+	struct combphy_reg pipe_sgmii_mac_sel;
+	struct combphy_reg pipe_xpcs_phy_ready;
 	struct combphy_reg u3otg0_port_en;
 	struct combphy_reg u3otg1_port_en;
 };
@@ -167,6 +171,21 @@ static int rockchip_combphy_sata_init(struct rockchip_combphy_priv *priv)
 	return ret;
 }
 
+static int rockchip_combphy_sgmii_init(struct rockchip_combphy_priv *priv)
+{
+	int ret = 0;
+
+	if (priv->cfg->combphy_cfg) {
+		ret = priv->cfg->combphy_cfg(priv);
+		if (ret) {
+			dev_err(priv->dev, "failed to init phy for sgmii\n");
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
 static int rockchip_combphy_set_mode(struct rockchip_combphy_priv *priv)
 {
 	switch (priv->mode) {
@@ -179,6 +198,9 @@ static int rockchip_combphy_set_mode(struct rockchip_combphy_priv *priv)
 	case PHY_TYPE_SATA:
 		rockchip_combphy_sata_init(priv);
 		break;
+	case PHY_TYPE_SGMII:
+	case PHY_TYPE_QSGMII:
+		return rockchip_combphy_sgmii_init(priv);
 	default:
 		dev_err(priv->dev, "incompatible PHY type\n");
 		return -EINVAL;
@@ -264,7 +286,7 @@ static int rockchip_combphy_parse_dt(struct device *dev,
 				     struct rockchip_combphy_priv *priv)
 {
 	const struct rockchip_combphy_cfg *phy_cfg = priv->cfg;
-	int ret;
+	int ret, mac_id;
 
 	ret = devm_clk_bulk_get(dev, priv->num_clks, priv->clks);
 	if (ret == -EPROBE_DEFER)
@@ -292,6 +314,11 @@ static int rockchip_combphy_parse_dt(struct device *dev,
 	else if (device_property_present(dev, "rockchip,dis-u3otg1-port"))
 		param_write(priv->pipe_grf, &phy_cfg->grfcfg->u3otg1_port_en,
 			    false);
+
+	if (!device_property_read_u32(dev, "rockchip,sgmii-mac-sel", &mac_id) &&
+	    (mac_id > 0))
+		param_write(priv->pipe_grf, &phy_cfg->grfcfg->pipe_sgmii_mac_sel,
+			    true);
 
 	priv->apb_rst = devm_reset_control_get_optional(dev, "combphy-apb");
 	if (IS_ERR(priv->apb_rst)) {
@@ -434,6 +461,17 @@ static int rk3568_combphy_cfg(struct rockchip_combphy_priv *priv)
 		param_write(priv->phy_grf, &cfg->con3_for_sata, true);
 		param_write(priv->pipe_grf, &cfg->pipe_con0_for_sata, true);
 		break;
+	case PHY_TYPE_SGMII:
+		param_write(priv->pipe_grf, &cfg->pipe_xpcs_phy_ready, true);
+		param_write(priv->phy_grf, &cfg->pipe_sel_qsgmii, true);
+		param_write(priv->phy_grf, &cfg->sgmii_mode_set, true);
+		break;
+	case PHY_TYPE_QSGMII:
+		param_write(priv->pipe_grf, &cfg->pipe_xpcs_phy_ready, true);
+		param_write(priv->phy_grf, &cfg->pipe_rate_sel, true);
+		param_write(priv->phy_grf, &cfg->pipe_sel_qsgmii, true);
+		param_write(priv->phy_grf, &cfg->qsgmii_mode_set, true);
+		break;
 	default:
 		dev_err(priv->dev, "incompatible PHY type\n");
 		return -EINVAL;
@@ -509,18 +547,20 @@ static const struct rockchip_combphy_grfcfg rk3568_combphy_grfcfgs = {
 	/* pipe-phy-grf */
 	.pcie_mode_set		= { 0x0000, 5, 0, 0x00, 0x11 },
 	.usb_mode_set		= { 0x0000, 5, 0, 0x00, 0x04 },
-	.qsgmii_mode_set	= { 0x0000, 5, 0, 0x00, 0x0d },
+	.sgmii_mode_set		= { 0x0000, 5, 0, 0x00, 0x01 },
+	.qsgmii_mode_set	= { 0x0000, 5, 0, 0x00, 0x21 },
 	.pipe_rxterm_set	= { 0x0000, 12, 12, 0x00, 0x01 },
 	.pipe_txelec_set	= { 0x0004, 1, 1, 0x00, 0x01 },
 	.pipe_txcomp_set	= { 0x0004, 4, 4, 0x00, 0x01 },
 	.pipe_clk_25m		= { 0x0004, 14, 13, 0x00, 0x01 },
 	.pipe_clk_100m		= { 0x0004, 14, 13, 0x00, 0x02 },
+	.pipe_rate_sel		= { 0x0008, 2, 2, 0x00, 0x01 },
 	.pipe_rxterm_sel	= { 0x0008, 8, 8, 0x00, 0x01 },
 	.pipe_txelec_sel	= { 0x0008, 12, 12, 0x00, 0x01 },
 	.pipe_txcomp_sel	= { 0x0008, 15, 15, 0x00, 0x01 },
 	.pipe_clk_ext		= { 0x000c, 9, 8, 0x02, 0x01 },
 	.pipe_sel_usb		= { 0x000c, 14, 13, 0x00, 0x01 },
-	.pipe_sel_qsgmii	= { 0x000c, 14, 13, 0x00, 0x03 },
+	.pipe_sel_qsgmii	= { 0x000c, 15, 13, 0x00, 0x07 },
 	.pipe_phy_status	= { 0x0034, 6, 6, 0x01, 0x00 },
 	.con0_for_pcie		= { 0x0000, 15, 0, 0x00, 0x1000 },
 	.con1_for_pcie		= { 0x0004, 15, 0, 0x00, 0x0000 },
@@ -532,6 +572,8 @@ static const struct rockchip_combphy_grfcfg rk3568_combphy_grfcfgs = {
 	.con3_for_sata		= { 0x000c, 15, 0, 0x00, 0x4407 },
 	/* pipe-grf */
 	.pipe_con0_for_sata	= { 0x0000, 15, 0, 0x00, 0x2220 },
+	.pipe_sgmii_mac_sel	= { 0x0040, 1, 1, 0x00, 0x01 },
+	.pipe_xpcs_phy_ready	= { 0x0040, 2, 2, 0x00, 0x01 },
 	.u3otg0_port_en		= { 0x0104, 15, 0, 0x0181, 0x1100 },
 	.u3otg1_port_en		= { 0x0144, 15, 0, 0x0181, 0x1100 },
 };
