@@ -62,7 +62,15 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 			prop->dmmu.start_addr : prop->dram_user_base_address;
 	hw_ip.tpc_enabled_mask = prop->tpc_enabled_mask;
 	hw_ip.sram_size = prop->sram_size - sram_kmd_size;
-	hw_ip.dram_size = prop->dram_size - dram_kmd_size;
+
+	if (hdev->mmu_enable)
+		hw_ip.dram_size =
+			DIV_ROUND_DOWN_ULL(prop->dram_size - dram_kmd_size,
+						prop->dram_page_size) *
+							prop->dram_page_size;
+	else
+		hw_ip.dram_size = prop->dram_size - dram_kmd_size;
+
 	if (hw_ip.dram_size > PAGE_SIZE)
 		hw_ip.dram_enabled = 1;
 	hw_ip.dram_page_size = prop->dram_page_size;
