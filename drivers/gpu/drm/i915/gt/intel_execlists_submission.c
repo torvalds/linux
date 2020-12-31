@@ -2500,48 +2500,9 @@ static int execlists_context_pin(struct intel_context *ce, void *vaddr)
 	return lrc_pin(ce, ce->engine, vaddr);
 }
 
-static int __lrc_setup(struct intel_context *ce,
-		       struct intel_engine_cs *engine)
-{
-	struct drm_i915_gem_object *obj = ce->state->obj;
-	void *vaddr;
-
-	vaddr = i915_gem_object_pin_map(obj, I915_MAP_WB);
-	if (IS_ERR(vaddr)) {
-		drm_dbg(&engine->i915->drm, "Could not map object pages!\n");
-		return PTR_ERR(vaddr);
-	}
-
-	lrc_init_state(ce, engine, vaddr);
-
-	__i915_gem_object_flush_map(obj, 0, engine->context_size);
-	i915_gem_object_unpin_map(obj);
-	return 0;
-}
-
-static int __execlists_context_alloc(struct intel_context *ce,
-				     struct intel_engine_cs *engine)
-{
-	int err;
-
-	err = lrc_alloc(ce, engine);
-	if (err)
-		return err;
-
-	err = __lrc_setup(ce, engine);
-	if (err)
-		goto err_lrc;
-
-	return 0;
-
-err_lrc:
-	lrc_fini(ce);
-	return err;
-}
-
 static int execlists_context_alloc(struct intel_context *ce)
 {
-	return __execlists_context_alloc(ce, ce->engine);
+	return lrc_alloc(ce, ce->engine);
 }
 
 static const struct intel_context_ops execlists_context_ops = {
@@ -3414,7 +3375,7 @@ static int virtual_context_alloc(struct intel_context *ce)
 {
 	struct virtual_engine *ve = container_of(ce, typeof(*ve), context);
 
-	return __execlists_context_alloc(ce, ve->siblings[0]);
+	return lrc_alloc(ce, ve->siblings[0]);
 }
 
 static int virtual_context_pre_pin(struct intel_context *ce,

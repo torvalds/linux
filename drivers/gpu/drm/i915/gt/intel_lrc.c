@@ -916,6 +916,10 @@ lrc_pin(struct intel_context *ce,
 	void *vaddr)
 {
 	ce->lrc_reg_state = vaddr + LRC_STATE_OFFSET;
+
+	if (!__test_and_set_bit(CONTEXT_INIT_BIT, &ce->flags))
+		lrc_init_state(ce, engine, vaddr);
+
 	ce->lrc.lrca = lrc_update_regs(ce, engine, ce->ring->tail);
 	return 0;
 }
