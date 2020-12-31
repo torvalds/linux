@@ -530,6 +530,7 @@ trace_find_filtered_pid(struct trace_pid_list *filtered_pids, pid_t search_pid)
 /**
  * trace_ignore_this_task - should a task be ignored for tracing
  * @filtered_pids: The list of pids to check
+ * @filtered_no_pids: The list of pids not to be traced
  * @task: The task that should be ignored if not filtered
  *
  * Checks if @task should be traced or not from @filtered_pids.
@@ -780,7 +781,7 @@ u64 ftrace_now(int cpu)
 }
 
 /**
- * tracing_is_enabled - Show if global_trace has been disabled
+ * tracing_is_enabled - Show if global_trace has been enabled
  *
  * Shows if the global trace has been enabled or not. It uses the
  * mirror flag "buffer_disabled" to be used in fast paths such as for
