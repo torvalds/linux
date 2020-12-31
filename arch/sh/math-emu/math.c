@@ -51,8 +51,8 @@
 #define Rn	(regs->regs[n])
 #define Rm	(regs->regs[m])
 
-#define WRITE(d,a)	({if(put_user(d, (typeof (d)*)a)) return -EFAULT;})
-#define READ(d,a)	({if(get_user(d, (typeof (d)*)a)) return -EFAULT;})
+#define WRITE(d,a)	({if(put_user(d, (typeof (d) __user *)a)) return -EFAULT;})
+#define READ(d,a)	({if(get_user(d, (typeof (d) __user *)a)) return -EFAULT;})
 
 #define PACK_S(r,f)	FP_PACK_SP(&r,f)
 #define UNPACK_S(f,r)	FP_UNPACK_SP(f,&r)
