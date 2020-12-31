@@ -1383,9 +1383,9 @@ static bool
 wa_verify(const struct i915_wa *wa, u32 cur, const char *name, const char *from)
 {
 	if ((cur ^ wa->set) & wa->read) {
-		DRM_ERROR("%s workaround lost on %s! (%x=%x/%x, expected %x)\n",
+		DRM_ERROR("%s workaround lost on %s! (reg[%x]=0x%x, relevant bits were 0x%x vs expected 0x%x)\n",
 			  name, from, i915_mmio_reg_offset(wa->reg),
-			  cur, cur & wa->read, wa->set);
+			  cur, cur & wa->read, wa->set & wa->read);
 
 		return false;
 	}
