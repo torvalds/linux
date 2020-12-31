@@ -1991,7 +1991,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	if (vpstate->afbc_en) {
 		/* the afbc superblock is 16 x 16 */
 		afbc_format = vop2_convert_afbc_format(fb->format->format);
-		afbc_tile_num = actual_w >> 4;
+		afbc_tile_num = ALIGN(actual_w, 16) >> 4;
 		/* AFBC pic_vir_width is count by pixel, this is different
 		 * with WIN_VIR_STRIDE.
 		 */
