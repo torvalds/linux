@@ -33,9 +33,6 @@
 #include <crypto/internal/skcipher.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
-#ifdef CONFIG_X86_64
-#include <asm/crypto/glue_helper.h>
-#endif
 
 
 #define AESNI_ALIGN	16
@@ -632,98 +629,6 @@ static int ctr_crypt(struct skcipher_request *req)
 	return err;
 }
 
-static int xts_aesni_setkey(struct crypto_skcipher *tfm, const u8 *key,
-			    unsigned int keylen)
-{
-	struct aesni_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
-	int err;
-
-	err = xts_verify_key(tfm, key, keylen);
-	if (err)
-		return err;
-
-	keylen /= 2;
-
-	/* first half of xts-key is for crypt */
-	err = aes_set_key_common(crypto_skcipher_tfm(tfm), ctx->raw_crypt_ctx,
-				 key, keylen);
-	if (err)
-		return err;
-
-	/* second half of xts-key is for tweak */
-	return aes_set_key_common(crypto_skcipher_tfm(tfm), ctx->raw_tweak_ctx,
-				  key + keylen, keylen);
-}
-
-
-static void aesni_xts_enc(const void *ctx, u8 *dst, const u8 *src, le128 *iv)
-{
-	glue_xts_crypt_128bit_one(ctx, dst, src, iv, aesni_enc);
-}
-
-static void aesni_xts_dec(const void *ctx, u8 *dst, const u8 *src, le128 *iv)
-{
-	glue_xts_crypt_128bit_one(ctx, dst, src, iv, aesni_dec);
-}
-
-static void aesni_xts_enc32(const void *ctx, u8 *dst, const u8 *src, le128 *iv)
-{
-	aesni_xts_encrypt(ctx, dst, src, 32 * AES_BLOCK_SIZE, (u8 *)iv);
-}
-
-static void aesni_xts_dec32(const void *ctx, u8 *dst, const u8 *src, le128 *iv)
-{
-	aesni_xts_decrypt(ctx, dst, src, 32 * AES_BLOCK_SIZE, (u8 *)iv);
-}
-
-static const struct common_glue_ctx aesni_enc_xts = {
-	.num_funcs = 2,
-	.fpu_blocks_limit = 1,
-
-	.funcs = { {
-		.num_blocks = 32,
-		.fn_u = { .xts = aesni_xts_enc32 }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .xts = aesni_xts_enc }
-	} }
-};
-
-static const struct common_glue_ctx aesni_dec_xts = {
-	.num_funcs = 2,
-	.fpu_blocks_limit = 1,
-
-	.funcs = { {
-		.num_blocks = 32,
-		.fn_u = { .xts = aesni_xts_dec32 }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .xts = aesni_xts_dec }
-	} }
-};
-
-static int xts_encrypt(struct skcipher_request *req)
-{
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct aesni_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
-
-	return glue_xts_req_128bit(&aesni_enc_xts, req, aesni_enc,
-				   aes_ctx(ctx->raw_tweak_ctx),
-				   aes_ctx(ctx->raw_crypt_ctx),
-				   false);
-}
-
-static int xts_decrypt(struct skcipher_request *req)
-{
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct aesni_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
-
-	return glue_xts_req_128bit(&aesni_dec_xts, req, aesni_enc,
-				   aes_ctx(ctx->raw_tweak_ctx),
-				   aes_ctx(ctx->raw_crypt_ctx),
-				   true);
-}
-
 static int
 rfc4106_set_hash_subkey(u8 *hash_subkey, const u8 *key, unsigned int key_len)
 {
@@ -996,6 +901,128 @@ static int helper_rfc4106_decrypt(struct aead_request *req)
 }
 #endif
 
+static int xts_aesni_setkey(struct crypto_skcipher *tfm, const u8 *key,
+			    unsigned int keylen)
+{
+	struct aesni_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
+	int err;
+
+	err = xts_verify_key(tfm, key, keylen);
+	if (err)
+		return err;
+
+	keylen /= 2;
+
+	/* first half of xts-key is for crypt */
+	err = aes_set_key_common(crypto_skcipher_tfm(tfm), ctx->raw_crypt_ctx,
+				 key, keylen);
+	if (err)
+		return err;
+
+	/* second half of xts-key is for tweak */
+	return aes_set_key_common(crypto_skcipher_tfm(tfm), ctx->raw_tweak_ctx,
+				  key + keylen, keylen);
+}
+
+static int xts_crypt(struct skcipher_request *req, bool encrypt)
+{
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct aesni_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
+	int tail = req->cryptlen % AES_BLOCK_SIZE;
+	struct skcipher_request subreq;
+	struct skcipher_walk walk;
+	int err;
+
+	if (req->cryptlen < AES_BLOCK_SIZE)
+		return -EINVAL;
+
+	err = skcipher_walk_virt(&walk, req, false);
+
+	if (unlikely(tail > 0 && walk.nbytes < walk.total)) {
+		int blocks = DIV_ROUND_UP(req->cryptlen, AES_BLOCK_SIZE) - 2;
+
+		skcipher_walk_abort(&walk);
+
+		skcipher_request_set_tfm(&subreq, tfm);
+		skcipher_request_set_callback(&subreq,
+					      skcipher_request_flags(req),
+					      NULL, NULL);
+		skcipher_request_set_crypt(&subreq, req->src, req->dst,
+					   blocks * AES_BLOCK_SIZE, req->iv);
+		req = &subreq;
+		err = skcipher_walk_virt(&walk, req, false);
+	} else {
+		tail = 0;
+	}
+
+	kernel_fpu_begin();
+
+	/* calculate first value of T */
+	aesni_enc(aes_ctx(ctx->raw_tweak_ctx), walk.iv, walk.iv);
+
+	while (walk.nbytes > 0) {
+		int nbytes = walk.nbytes;
+
+		if (nbytes < walk.total)
+			nbytes &= ~(AES_BLOCK_SIZE - 1);
+
+		if (encrypt)
+			aesni_xts_encrypt(aes_ctx(ctx->raw_crypt_ctx),
+					  walk.dst.virt.addr, walk.src.virt.addr,
+					  nbytes, walk.iv);
+		else
+			aesni_xts_decrypt(aes_ctx(ctx->raw_crypt_ctx),
+					  walk.dst.virt.addr, walk.src.virt.addr,
+					  nbytes, walk.iv);
+		kernel_fpu_end();
+
+		err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
+
+		if (walk.nbytes > 0)
+			kernel_fpu_begin();
+	}
+
+	if (unlikely(tail > 0 && !err)) {
+		struct scatterlist sg_src[2], sg_dst[2];
+		struct scatterlist *src, *dst;
+
+		dst = src = scatterwalk_ffwd(sg_src, req->src, req->cryptlen);
+		if (req->dst != req->src)
+			dst = scatterwalk_ffwd(sg_dst, req->dst, req->cryptlen);
+
+		skcipher_request_set_crypt(req, src, dst, AES_BLOCK_SIZE + tail,
+					   req->iv);
+
+		err = skcipher_walk_virt(&walk, &subreq, false);
+		if (err)
+			return err;
+
+		kernel_fpu_begin();
+		if (encrypt)
+			aesni_xts_encrypt(aes_ctx(ctx->raw_crypt_ctx),
+					  walk.dst.virt.addr, walk.src.virt.addr,
+					  walk.nbytes, walk.iv);
+		else
+			aesni_xts_decrypt(aes_ctx(ctx->raw_crypt_ctx),
+					  walk.dst.virt.addr, walk.src.virt.addr,
+					  walk.nbytes, walk.iv);
+		kernel_fpu_end();
+
+		err = skcipher_walk_done(&walk, 0);
+	}
+	return err;
+}
+
+static int xts_encrypt(struct skcipher_request *req)
+{
+	return xts_crypt(req, true);
+}
+
+static int xts_decrypt(struct skcipher_request *req)
+{
+	return xts_crypt(req, false);
+}
+
 static struct crypto_alg aesni_cipher_alg = {
 	.cra_name		= "aes",
 	.cra_driver_name	= "aes-aesni",
@@ -1082,6 +1109,7 @@ static struct skcipher_alg aesni_skciphers[] = {
 		.setkey		= aesni_skcipher_setkey,
 		.encrypt	= ctr_crypt,
 		.decrypt	= ctr_crypt,
+#endif
 	}, {
 		.base = {
 			.cra_name		= "__xts(aes)",
@@ -1095,10 +1123,10 @@ static struct skcipher_alg aesni_skciphers[] = {
 		.min_keysize	= 2 * AES_MIN_KEY_SIZE,
 		.max_keysize	= 2 * AES_MAX_KEY_SIZE,
 		.ivsize		= AES_BLOCK_SIZE,
+		.walksize	= 2 * AES_BLOCK_SIZE,
 		.setkey		= xts_aesni_setkey,
 		.encrypt	= xts_encrypt,
 		.decrypt	= xts_decrypt,
-#endif
 	}
 };
 
