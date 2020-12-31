@@ -426,19 +426,10 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 {
 	int retries;
 	struct rk_pcie *rk_pcie = to_rk_pcie(pci);
-	int err = 0;
 
 	if (dw_pcie_link_up(pci)) {
 		dev_err(pci->dev, "link is already up\n");
 		return 0;
-	}
-
-	if (!IS_ERR(rk_pcie->vpcie3v3)) {
-		err = regulator_enable(rk_pcie->vpcie3v3);
-		if (err) {
-			dev_err(pci->dev, "fail to enable vpcie3v3 regulator\n");
-			return err;
-		}
 	}
 
 	/* Rest the device */
@@ -1161,26 +1152,7 @@ static int rk_pcie_really_probe(void *p)
 		return ret;
 	}
 
-	ret = rk_pcie_phy_init(rk_pcie);
-	if (ret) {
-		dev_err(dev, "phy init failed\n");
-		return ret;
-	}
-
-	ret = rk_pcie_reset_control_release(rk_pcie);
-	if (ret) {
-		dev_err(dev, "reset control init failed\n");
-		return ret;
-	}
-
-	ret = rk_pcie_request_sys_irq(rk_pcie, pdev);
-	if (ret) {
-		dev_err(dev, "pcie irq init failed\n");
-		return ret;
-	}
-
-	platform_set_drvdata(pdev, rk_pcie);
-
+	/* DON'T MOVE ME: must be enable before phy init */
 	rk_pcie->vpcie3v3 = devm_regulator_get_optional(dev, "vpcie3v3");
 	if (IS_ERR(rk_pcie->vpcie3v3)) {
 		if (PTR_ERR(rk_pcie->vpcie3v3) != -ENODEV)
@@ -1188,10 +1160,38 @@ static int rk_pcie_really_probe(void *p)
 		dev_info(dev, "no vpcie3v3 regulator found\n");
 	}
 
+	if (!IS_ERR(rk_pcie->vpcie3v3)) {
+		ret = regulator_enable(rk_pcie->vpcie3v3);
+		if (ret) {
+			dev_err(pci->dev, "fail to enable vpcie3v3 regulator\n");
+			return ret;
+		}
+	}
+
+	ret = rk_pcie_phy_init(rk_pcie);
+	if (ret) {
+		dev_err(dev, "phy init failed\n");
+		goto disable_vpcie3v3;
+	}
+
+	ret = rk_pcie_reset_control_release(rk_pcie);
+	if (ret) {
+		dev_err(dev, "reset control init failed\n");
+		goto disable_vpcie3v3;
+	}
+
+	ret = rk_pcie_request_sys_irq(rk_pcie, pdev);
+	if (ret) {
+		dev_err(dev, "pcie irq init failed\n");
+		goto disable_vpcie3v3;
+	}
+
+	platform_set_drvdata(pdev, rk_pcie);
+
 	ret = rk_pcie_clk_init(rk_pcie);
 	if (ret) {
 		dev_err(dev, "clock init failed\n");
-		return ret;
+		goto disable_vpcie3v3;
 	}
 
 	dw_pcie_dbi_ro_wr_en(pci);
@@ -1258,6 +1258,7 @@ static int rk_pcie_really_probe(void *p)
 
 deinit_clk:
 	rk_pcie_clk_deinit(rk_pcie);
+disable_vpcie3v3:
 	if (!IS_ERR(rk_pcie->vpcie3v3))
 		regulator_disable(rk_pcie->vpcie3v3);
 	return ret;
