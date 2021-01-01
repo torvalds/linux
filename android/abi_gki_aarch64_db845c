@@ -120,6 +120,7 @@
   __devm_reset_control_get
   devm_reset_controller_register
   devm_snd_soc_register_component
+  __devm_spi_alloc_controller
   devm_spi_register_controller
   devm_watchdog_register_device
   _dev_notice
@@ -147,6 +148,7 @@
   divider_recalc_rate
   divider_round_rate_parent
   dma_alloc_attrs
+  dma_buf_export
   dma_free_attrs
   dmam_alloc_attrs
   dma_map_page_attrs
@@ -482,6 +484,7 @@
   regulator_set_load
   regulator_set_voltage
   release_firmware
+  remap_pfn_range
   request_firmware
   request_firmware_direct
   request_firmware_into_buf
@@ -507,9 +510,11 @@
   seq_putc
   seq_puts
   seq_read
+  sg_alloc_table
   sg_free_table
   sg_init_table
   sg_next
+  __sg_page_iter_start
   simple_read_from_buffer
   single_open
   single_release
@@ -629,6 +634,10 @@
   usb_register_driver
   usleep_range
   vabits_actual
+  vfree
+  vmalloc
+  vmap
+  vunmap
   wait_for_completion_timeout
   __wake_up
   __warn_printk
@@ -769,7 +778,6 @@
   __sw_hweight16
   __sw_hweight8
   thermal_cooling_device_register
-  vfree
   vzalloc
   wiphy_read_of_freq_limits
   wiphy_rfkill_set_hw_state
@@ -889,7 +897,6 @@
 # required by fastrpc.ko
   dma_buf_attach
   dma_buf_detach
-  dma_buf_export
   dma_buf_fd
   dma_buf_get
   dma_buf_map_attachment
@@ -1265,7 +1272,6 @@
   sched_set_fifo
   schedule_timeout_interruptible
   __sg_page_iter_dma_next
-  __sg_page_iter_start
   shmem_truncate_range
   simple_attr_open
   simple_attr_read
@@ -1278,12 +1284,10 @@
   unmap_mapping_range
   unregister_shrinker
   unregister_vmap_purge_notifier
-  vmap
   vmf_insert_mixed
   vm_get_page_prot
   vscnprintf
   vsnprintf
-  vunmap
   wake_up_process
   ww_mutex_lock_interruptible
   ww_mutex_unlock
@@ -1484,7 +1488,6 @@
 
 # required by qcom_q6v5_mss.ko
   rproc_coredump_add_custom_segment
-  vmalloc
 
 # required by qcom_q6v5_wcss.ko
   rproc_elf_get_boot_addr
@@ -1567,7 +1570,6 @@
   alloc_chrdev_region
   __class_register
   class_unregister
-  remap_pfn_range
 
 # required by rtc-pm8xxx.ko
   devm_request_any_context_irq
@@ -1680,7 +1682,6 @@
   __dma_request_channel
   loops_per_jiffy
   pinctrl_pm_select_idle_state
-  sg_alloc_table
   spi_delay_exec
   spi_finalize_current_message
   spi_get_next_queued_message
@@ -1691,6 +1692,15 @@
   spmi_controller_add
   spmi_controller_alloc
   spmi_controller_remove
+
+# required by system_heap.ko
+  __alloc_pages_nodemask
+  dma_heap_add
+  dma_heap_get_dev
+  dma_sync_sg_for_cpu
+  dma_sync_sg_for_device
+  __free_pages
+  __sg_page_iter_next
 
 # required by ufs_qcom.ko
   ufshcd_dme_get_attr
