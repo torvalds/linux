@@ -1218,16 +1218,12 @@ static inline void ufshcd_vops_dbg_register_dump(struct ufs_hba *hba)
 		hba->vops->dbg_register_dump(hba);
 }
 
-static inline void ufshcd_vops_device_reset(struct ufs_hba *hba)
+static inline int ufshcd_vops_device_reset(struct ufs_hba *hba)
 {
-	if (hba->vops && hba->vops->device_reset) {
-		int err = hba->vops->device_reset(hba);
+	if (hba->vops && hba->vops->device_reset)
+		return hba->vops->device_reset(hba);
 
-		if (!err)
-			ufshcd_set_ufs_dev_active(hba);
-		if (err != -EOPNOTSUPP)
-			ufshcd_update_evt_hist(hba, UFS_EVT_DEV_RESET, err);
-	}
+	return -EOPNOTSUPP;
 }
 
 static inline void ufshcd_vops_config_scaling_param(struct ufs_hba *hba,
