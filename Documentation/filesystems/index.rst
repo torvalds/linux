@@ -83,6 +83,7 @@ Documentation for filesystem implementations.
    erofs
    ext2
    ext3
+   ext4/index
    f2fs
    gfs2
    gfs2-uevents
