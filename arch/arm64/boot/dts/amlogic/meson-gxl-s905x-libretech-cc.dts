@@ -135,7 +135,7 @@
 
 	sound {
 		compatible = "amlogic,gx-sound-card";
-		model = "GXL-LIBRETECH-S905X-CC";
+		model = "LIBRETECH-CC";
 		audio-aux-devs = <&dio2133>;
 		audio-widgets = "Line", "Lineout";
 		audio-routing = "AU2 INL", "ACODEC LOLN",
