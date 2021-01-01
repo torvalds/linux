@@ -243,3 +243,7 @@ Rockchip platforms device tree bindings
 - Tronsmart Orion R68 Meta
     Required root node properties:
       - compatible = "tronsmart,orion-r68-meta", "rockchip,rk3368";
+
+- Rockchip RK3568 NVR Demo V10:
+    Required root node properties:
+      - compatible = "rockchip,rk3568-nvr-demo-ddr4-v10-linux-spi-nand", "rockchip,rk3568";
