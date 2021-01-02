@@ -1024,7 +1024,9 @@ static void qca_controller_memdump(struct work_struct *work)
 			dump_size = __le32_to_cpu(dump->dump_size);
 			if (!(dump_size)) {
 				bt_dev_err(hu->hdev, "Rx invalid memdump size");
+				kfree(qca_memdump);
 				kfree_skb(skb);
+				qca->qca_memdump = NULL;
 				mutex_unlock(&qca->hci_memdump_lock);
 				return;
 			}
