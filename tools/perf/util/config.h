@@ -39,6 +39,7 @@ int config_error_nonbool(const char *);
 const char *perf_etc_perfconfig(void);
 const char *perf_home_perfconfig(void);
 int perf_config_system(void);
+int perf_config_global(void);
 
 struct perf_config_set *perf_config_set__new(void);
 struct perf_config_set *perf_config_set__load_file(const char *file);

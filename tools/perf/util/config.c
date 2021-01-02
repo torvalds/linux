@@ -526,7 +526,7 @@ int perf_config_system(void)
 	return !perf_env_bool("PERF_CONFIG_NOSYSTEM", 0);
 }
 
-static int perf_config_global(void)
+int perf_config_global(void)
 {
 	return !perf_env_bool("PERF_CONFIG_NOGLOBAL", 0);
 }
