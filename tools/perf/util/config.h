@@ -37,6 +37,7 @@ int perf_config_u64(u64 *dest, const char *, const char *);
 int perf_config_bool(const char *, const char *);
 int config_error_nonbool(const char *);
 const char *perf_etc_perfconfig(void);
+const char *perf_home_perfconfig(void);
 
 struct perf_config_set *perf_config_set__new(void);
 struct perf_config_set *perf_config_set__load_file(const char *file);

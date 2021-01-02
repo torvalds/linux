@@ -531,6 +531,56 @@ static int perf_config_global(void)
 	return !perf_env_bool("PERF_CONFIG_NOGLOBAL", 0);
 }
 
+static char *home_perfconfig(void)
+{
+	const char *home = NULL;
+	char *config;
+	struct stat st;
+
+	home = getenv("HOME");
+
+	/*
+	 * Skip reading user config if:
+	 *   - there is no place to read it from (HOME)
+	 *   - we are asked not to (PERF_CONFIG_NOGLOBAL=1)
+	 */
+	if (!home || !*home || !perf_config_global())
+		return NULL;
+
+	config = strdup(mkpath("%s/.perfconfig", home));
+	if (config == NULL) {
+		pr_warning("Not enough memory to process %s/.perfconfig, ignoring it.", home);
+		return NULL;
+	}
+
+	if (stat(config, &st) < 0)
+		goto out_free;
+
+	if (st.st_uid && (st.st_uid != geteuid())) {
+		pr_warning("File %s not owned by current user or root, ignoring it.", config);
+		goto out_free;
+	}
+
+	if (st.st_size)
+		return config;
+
+out_free:
+	free(config);
+	return NULL;
+}
+
+const char *perf_home_perfconfig(void)
+{
+	static const char *config;
+	static bool failed;
+
+	config = failed ? NULL : home_perfconfig();
+	if (!config)
+		failed = true;
+
+	return config;
+}
+
 static struct perf_config_section *find_section(struct list_head *sections,
 						const char *section_name)
 {
@@ -676,9 +726,6 @@ int perf_config_set__collect(struct perf_config_set *set, const char *file_name,
 static int perf_config_set__init(struct perf_config_set *set)
 {
 	int ret = -1;
-	const char *home = NULL;
-	char *user_config;
-	struct stat st;
 
 	/* Setting $PERF_CONFIG makes perf read _only_ the given config file. */
 	if (config_exclusive_filename)
@@ -687,41 +734,11 @@ static int perf_config_set__init(struct perf_config_set *set)
 		if (perf_config_from_file(collect_config, perf_etc_perfconfig(), set) < 0)
 			goto out;
 	}
-
-	home = getenv("HOME");
-
-	/*
-	 * Skip reading user config if:
-	 *   - there is no place to read it from (HOME)
-	 *   - we are asked not to (PERF_CONFIG_NOGLOBAL=1)
-	 */
-	if (!home || !*home || !perf_config_global())
-		return 0;
-
-	user_config = strdup(mkpath("%s/.perfconfig", home));
-	if (user_config == NULL) {
-		pr_warning("Not enough memory to process %s/.perfconfig, ignoring it.", home);
-		goto out;
+	if (perf_config_global() && perf_home_perfconfig()) {
+		if (perf_config_from_file(collect_config, perf_home_perfconfig(), set) < 0)
+			goto out;
 	}
 
-	if (stat(user_config, &st) < 0) {
-		if (errno == ENOENT)
-			ret = 0;
-		goto out_free;
-	}
-
-	ret = 0;
-
-	if (st.st_uid && (st.st_uid != geteuid())) {
-		pr_warning("File %s not owned by current user or root, ignoring it.", user_config);
-		goto out_free;
-	}
-
-	if (st.st_size)
-		ret = perf_config_from_file(collect_config, user_config, set);
-
-out_free:
-	free(user_config);
 out:
 	return ret;
 }
