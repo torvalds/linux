@@ -47,7 +47,8 @@ struct st1232_ts_data {
 	u8 *read_buf;
 };
 
-static int st1232_ts_read_data(struct st1232_ts_data *ts, u8 reg)
+static int st1232_ts_read_data(struct st1232_ts_data *ts, u8 reg,
+			       unsigned int n)
 {
 	struct i2c_client *client = ts->client;
 	struct i2c_msg msg[] = {
@@ -59,7 +60,7 @@ static int st1232_ts_read_data(struct st1232_ts_data *ts, u8 reg)
 		{
 			.addr	= client->addr,
 			.flags	= I2C_M_RD | I2C_M_DMA_SAFE,
-			.len	= ts->read_buf_len,
+			.len	= n,
 			.buf	= ts->read_buf,
 		}
 	};
@@ -79,7 +80,7 @@ static int st1232_ts_read_resolution(struct st1232_ts_data *ts, u16 *max_x,
 	int error;
 
 	/* select resolution register */
-	error = st1232_ts_read_data(ts, REG_XY_RESOLUTION);
+	error = st1232_ts_read_data(ts, REG_XY_RESOLUTION, 3);
 	if (error)
 		return error;
 
@@ -140,7 +141,7 @@ static irqreturn_t st1232_ts_irq_handler(int irq, void *dev_id)
 	int count;
 	int error;
 
-	error = st1232_ts_read_data(ts, REG_XY_COORDINATES);
+	error = st1232_ts_read_data(ts, REG_XY_COORDINATES, ts->read_buf_len);
 	if (error)
 		goto out;
 
