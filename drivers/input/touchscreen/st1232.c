@@ -85,8 +85,8 @@ static int st1232_ts_read_resolution(struct st1232_ts_data *ts, u16 *max_x,
 
 	buf = ts->read_buf;
 
-	*max_x = ((buf[0] & 0x0070) << 4) | buf[1];
-	*max_y = ((buf[0] & 0x0007) << 8) | buf[2];
+	*max_x = (((buf[0] & 0x0070) << 4) | buf[1]) - 1;
+	*max_y = (((buf[0] & 0x0007) << 8) | buf[2]) - 1;
 
 	return 0;
 }
