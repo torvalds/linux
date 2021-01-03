@@ -58,11 +58,18 @@ struct hl_eq_ecc_data {
 	__u8 pad[7];
 };
 
+struct hl_eq_sm_sei_data {
+	__le16 sei_log;
+	__u8 sei_cause;
+	__u8 pad[5];
+};
+
 struct hl_eq_entry {
 	struct hl_eq_header hdr;
 	union {
 		struct hl_eq_ecc_data ecc_data;
 		struct hl_eq_hbm_ecc_data hbm_ecc_data;
+		struct hl_eq_sm_sei_data sm_sei_data;
 		__le64 data[7];
 	};
 };

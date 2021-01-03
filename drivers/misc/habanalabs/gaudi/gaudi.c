@@ -225,6 +225,12 @@ gaudi_qman_arb_error_cause[GAUDI_NUM_OF_QM_ARB_ERR_CAUSE] = {
 	"MSG AXI LBW returned with error"
 };
 
+enum gaudi_sm_sei_cause {
+	GAUDI_SM_SEI_SO_OVERFLOW,
+	GAUDI_SM_SEI_LBW_4B_UNALIGNED,
+	GAUDI_SM_SEI_AXI_RESPONSE_ERR
+};
+
 static enum hl_queue_type gaudi_queue_type[GAUDI_QUEUE_ID_SIZE] = {
 	QUEUE_TYPE_EXT, /* GAUDI_QUEUE_ID_DMA_0_0 */
 	QUEUE_TYPE_EXT, /* GAUDI_QUEUE_ID_DMA_0_1 */
@@ -6846,6 +6852,34 @@ static void gaudi_handle_qman_err_generic(struct hl_device *hdev,
 	}
 }
 
+static void gaudi_print_sm_sei_info(struct hl_device *hdev, u16 event_type,
+		struct hl_eq_sm_sei_data *sei_data)
+{
+	u32 index = event_type - GAUDI_EVENT_DMA_IF_SEI_0;
+
+	switch (sei_data->sei_cause) {
+	case GAUDI_SM_SEI_SO_OVERFLOW:
+		dev_err(hdev->dev,
+			"SM %u SEI Error: SO %u overflow/underflow",
+			index, le16_to_cpu(sei_data->sei_log));
+		break;
+	case GAUDI_SM_SEI_LBW_4B_UNALIGNED:
+		dev_err(hdev->dev,
+			"SM %u SEI Error: Unaligned 4B LBW access, monitor agent address low - %#x",
+			index, le16_to_cpu(sei_data->sei_log));
+		break;
+	case GAUDI_SM_SEI_AXI_RESPONSE_ERR:
+		dev_err(hdev->dev,
+			"SM %u SEI Error: AXI ID %u response error",
+			index, le16_to_cpu(sei_data->sei_log));
+		break;
+	default:
+		dev_err(hdev->dev, "Unknown SM SEI cause %u",
+				le16_to_cpu(sei_data->sei_log));
+		break;
+	}
+}
+
 static void gaudi_handle_ecc_event(struct hl_device *hdev, u16 event_type,
 		struct hl_eq_ecc_data *ecc_data)
 {
@@ -7466,6 +7500,13 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	case GAUDI_EVENT_TPC7_BMON_SPMU:
 	case GAUDI_EVENT_DMA_BM_CH0 ... GAUDI_EVENT_DMA_BM_CH7:
 		gaudi_print_irq_info(hdev, event_type, false);
+		hl_fw_unmask_irq(hdev, event_type);
+		break;
+
+	case GAUDI_EVENT_DMA_IF_SEI_0 ... GAUDI_EVENT_DMA_IF_SEI_3:
+		gaudi_print_irq_info(hdev, event_type, false);
+		gaudi_print_sm_sei_info(hdev, event_type,
+					&eq_entry->sm_sei_data);
 		hl_fw_unmask_irq(hdev, event_type);
 		break;
 
