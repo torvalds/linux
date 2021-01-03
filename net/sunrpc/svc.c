@@ -559,7 +559,7 @@ EXPORT_SYMBOL_GPL(svc_destroy);
 
 /*
  * Allocate an RPC server's buffer space.
- * We allocate pages and place them in rq_argpages.
+ * We allocate pages and place them in rq_pages.
  */
 static int
 svc_init_buffer(struct svc_rqst *rqstp, unsigned int size, int node)
