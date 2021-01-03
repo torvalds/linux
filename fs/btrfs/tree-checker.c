@@ -754,6 +754,7 @@ int btrfs_check_chunk_valid(struct extent_buffer *leaf,
 {
 	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	u64 length;
+	u64 chunk_end;
 	u64 stripe_len;
 	u16 num_stripes;
 	u16 sub_stripes;
@@ -806,6 +807,12 @@ int btrfs_check_chunk_valid(struct extent_buffer *leaf,
 	if (!length || !IS_ALIGNED(length, fs_info->sectorsize)) {
 		chunk_err(leaf, chunk, logical,
 			  "invalid chunk length, have %llu", length);
+		return -EUCLEAN;
+	}
+	if (unlikely(check_add_overflow(logical, length, &chunk_end))) {
+		chunk_err(leaf, chunk, logical,
+"invalid chunk logical start and length, have logical start %llu length %llu",
+			  logical, length);
 		return -EUCLEAN;
 	}
 	if (!is_power_of_2(stripe_len) || stripe_len != BTRFS_STRIPE_LEN) {
