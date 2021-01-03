@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/etherdevice.h>
@@ -972,6 +972,7 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 {
 	int cid, security;
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
+	struct wil6210_vif *vif = ndev_to_vif(ndev);
 	struct wil_net_stats *stats;
 
 	wil->txrx_ops.get_netif_rx_params(skb, &cid, &security);
@@ -979,6 +980,18 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 	stats = &wil->sta[cid].stats;
 
 	skb_orphan(skb);
+
+	/* pass only EAPOL packets as plaintext */
+	if (vif->privacy && !security &&
+	    wil_skb_get_protocol(skb) != htons(ETH_P_PAE)) {
+		wil_dbg_txrx(wil,
+			     "Rx drop plaintext frame with %d bytes in secure network\n",
+			     skb->len);
+		dev_kfree_skb(skb);
+		ndev->stats.rx_dropped++;
+		stats->rx_dropped++;
+		return;
+	}
 
 	if (security && (wil->txrx_ops.rx_crypto_check(wil, skb) != 0)) {
 		wil_dbg_txrx(wil, "Rx drop %d bytes\n", skb->len);
