@@ -1948,7 +1948,7 @@ static int gpi_ch_init(struct gchan *gchan)
 	return ret;
 
 error_start_chan:
-	for (i = i - 1; i >= 0; i++) {
+	for (i = i - 1; i >= 0; i--) {
 		gpi_stop_chan(&gpii->gchan[i]);
 		gpi_send_cmd(gpii, gchan, GPI_CH_CMD_RESET);
 	}
