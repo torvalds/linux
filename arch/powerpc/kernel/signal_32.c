@@ -929,8 +929,9 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 	regs->gpr[3] = ksig->sig;
 	regs->gpr[4] = (unsigned long) sc;
 	regs->nip = (unsigned long)ksig->ka.sa.sa_handler;
-	/* enter the signal handler in big-endian mode */
+	/* enter the signal handler in native-endian mode */
 	regs->msr &= ~MSR_LE;
+	regs->msr |= (MSR_KERNEL & MSR_LE);
 	return 0;
 
 failed:
