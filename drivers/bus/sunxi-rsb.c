@@ -614,12 +614,6 @@ static int of_rsb_register_devices(struct sunxi_rsb *rsb)
 	return 0;
 }
 
-static const struct of_device_id sunxi_rsb_of_match_table[] = {
-	{ .compatible = "allwinner,sun8i-a23-rsb" },
-	{}
-};
-MODULE_DEVICE_TABLE(of, sunxi_rsb_of_match_table);
-
 static int sunxi_rsb_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -746,6 +740,12 @@ static int sunxi_rsb_remove(struct platform_device *pdev)
 
 	return 0;
 }
+
+static const struct of_device_id sunxi_rsb_of_match_table[] = {
+	{ .compatible = "allwinner,sun8i-a23-rsb" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, sunxi_rsb_of_match_table);
 
 static struct platform_driver sunxi_rsb_driver = {
 	.probe = sunxi_rsb_probe,
