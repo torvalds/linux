@@ -729,23 +729,6 @@ int device_reprobe(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(device_reprobe);
 
-/**
- * find_bus - locate bus by name.
- * @name: name of bus.
- *
- * Call kset_find_obj() to iterate over list of buses to
- * find a bus by name. Return bus if found.
- *
- * Note that kset_find_obj increments bus' reference count.
- */
-#if 0
-struct bus_type *find_bus(char *name)
-{
-	struct kobject *k = kset_find_obj(bus_kset, name);
-	return k ? to_bus(k) : NULL;
-}
-#endif  /*  0  */
-
 static int bus_add_groups(struct bus_type *bus,
 			  const struct attribute_group **groups)
 {
