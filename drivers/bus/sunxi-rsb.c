@@ -45,6 +45,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
@@ -675,6 +676,22 @@ static void sunxi_rsb_hw_exit(struct sunxi_rsb *rsb)
 	clk_disable_unprepare(rsb->clk);
 }
 
+static int __maybe_unused sunxi_rsb_suspend(struct device *dev)
+{
+	struct sunxi_rsb *rsb = dev_get_drvdata(dev);
+
+	sunxi_rsb_hw_exit(rsb);
+
+	return 0;
+}
+
+static int __maybe_unused sunxi_rsb_resume(struct device *dev)
+{
+	struct sunxi_rsb *rsb = dev_get_drvdata(dev);
+
+	return sunxi_rsb_hw_init(rsb);
+}
+
 static int sunxi_rsb_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -756,6 +773,17 @@ static int sunxi_rsb_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void sunxi_rsb_shutdown(struct platform_device *pdev)
+{
+	struct sunxi_rsb *rsb = platform_get_drvdata(pdev);
+
+	sunxi_rsb_hw_exit(rsb);
+}
+
+static const struct dev_pm_ops sunxi_rsb_dev_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sunxi_rsb_suspend, sunxi_rsb_resume)
+};
+
 static const struct of_device_id sunxi_rsb_of_match_table[] = {
 	{ .compatible = "allwinner,sun8i-a23-rsb" },
 	{}
@@ -765,9 +793,11 @@ MODULE_DEVICE_TABLE(of, sunxi_rsb_of_match_table);
 static struct platform_driver sunxi_rsb_driver = {
 	.probe = sunxi_rsb_probe,
 	.remove	= sunxi_rsb_remove,
+	.shutdown = sunxi_rsb_shutdown,
 	.driver	= {
 		.name = RSB_CTRL_NAME,
 		.of_match_table = sunxi_rsb_of_match_table,
+		.pm = &sunxi_rsb_dev_pm_ops,
 	},
 };
 
