@@ -46,6 +46,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
@@ -337,6 +338,10 @@ static int sunxi_rsb_read(struct sunxi_rsb *rsb, u8 rtaddr, u8 addr,
 		return -EINVAL;
 	}
 
+	ret = pm_runtime_resume_and_get(rsb->dev);
+	if (ret)
+		return ret;
+
 	mutex_lock(&rsb->lock);
 
 	writel(addr, rsb->regs + RSB_ADDR);
@@ -351,6 +356,9 @@ static int sunxi_rsb_read(struct sunxi_rsb *rsb, u8 rtaddr, u8 addr,
 
 unlock:
 	mutex_unlock(&rsb->lock);
+
+	pm_runtime_mark_last_busy(rsb->dev);
+	pm_runtime_put_autosuspend(rsb->dev);
 
 	return ret;
 }
@@ -379,6 +387,10 @@ static int sunxi_rsb_write(struct sunxi_rsb *rsb, u8 rtaddr, u8 addr,
 		return -EINVAL;
 	}
 
+	ret = pm_runtime_resume_and_get(rsb->dev);
+	if (ret)
+		return ret;
+
 	mutex_lock(&rsb->lock);
 
 	writel(addr, rsb->regs + RSB_ADDR);
@@ -388,6 +400,9 @@ static int sunxi_rsb_write(struct sunxi_rsb *rsb, u8 rtaddr, u8 addr,
 	ret = _sunxi_rsb_run_xfer(rsb);
 
 	mutex_unlock(&rsb->lock);
+
+	pm_runtime_mark_last_busy(rsb->dev);
+	pm_runtime_put_autosuspend(rsb->dev);
 
 	return ret;
 }
@@ -672,8 +687,27 @@ err_clk_disable:
 
 static void sunxi_rsb_hw_exit(struct sunxi_rsb *rsb)
 {
+	/* Keep the clock and PM reference counts consistent. */
+	if (pm_runtime_status_suspended(rsb->dev))
+		pm_runtime_resume(rsb->dev);
 	reset_control_assert(rsb->rstc);
 	clk_disable_unprepare(rsb->clk);
+}
+
+static int __maybe_unused sunxi_rsb_runtime_suspend(struct device *dev)
+{
+	struct sunxi_rsb *rsb = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(rsb->clk);
+
+	return 0;
+}
+
+static int __maybe_unused sunxi_rsb_runtime_resume(struct device *dev)
+{
+	struct sunxi_rsb *rsb = dev_get_drvdata(dev);
+
+	return clk_prepare_enable(rsb->clk);
 }
 
 static int __maybe_unused sunxi_rsb_suspend(struct device *dev)
@@ -758,6 +792,12 @@ static int sunxi_rsb_probe(struct platform_device *pdev)
 	if (ret)
 		dev_warn(dev, "Initialize device mode failed: %d\n", ret);
 
+	pm_suspend_ignore_children(dev, true);
+	pm_runtime_set_active(dev);
+	pm_runtime_set_autosuspend_delay(dev, MSEC_PER_SEC);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_enable(dev);
+
 	of_rsb_register_devices(rsb);
 
 	return 0;
@@ -768,6 +808,7 @@ static int sunxi_rsb_remove(struct platform_device *pdev)
 	struct sunxi_rsb *rsb = platform_get_drvdata(pdev);
 
 	device_for_each_child(rsb->dev, NULL, sunxi_rsb_remove_devices);
+	pm_runtime_disable(&pdev->dev);
 	sunxi_rsb_hw_exit(rsb);
 
 	return 0;
@@ -777,10 +818,13 @@ static void sunxi_rsb_shutdown(struct platform_device *pdev)
 {
 	struct sunxi_rsb *rsb = platform_get_drvdata(pdev);
 
+	pm_runtime_disable(&pdev->dev);
 	sunxi_rsb_hw_exit(rsb);
 }
 
 static const struct dev_pm_ops sunxi_rsb_dev_pm_ops = {
+	SET_RUNTIME_PM_OPS(sunxi_rsb_runtime_suspend,
+			   sunxi_rsb_runtime_resume, NULL)
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sunxi_rsb_suspend, sunxi_rsb_resume)
 };
 
