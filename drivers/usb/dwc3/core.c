@@ -1273,7 +1273,10 @@ static int dwc3_core_init_mode(struct dwc3 *dwc)
 		 * keep PD on and run phy_power_on again to avoid
 		 * phy_power_on failed (error -110) in Rockchip platform.
 		 */
-		device_init_wakeup(dev, true);
+		if (!of_machine_is_compatible("rockchip,rk3568") &&
+		    !of_machine_is_compatible("rockchip,rk3566"))
+			device_init_wakeup(dev, true);
+
 		phy_power_on(dwc->usb3_generic_phy);
 
 		dwc3_set_prtcap(dwc, DWC3_GCTL_PRTCAP_HOST);
