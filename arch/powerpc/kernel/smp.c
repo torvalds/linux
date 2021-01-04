@@ -34,6 +34,7 @@
 #include <linux/random.h>
 #include <linux/stackprotector.h>
 #include <linux/pgtable.h>
+#include <linux/clockchips.h>
 
 #include <asm/ptrace.h>
 #include <linux/atomic.h>
