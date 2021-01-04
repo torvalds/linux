@@ -130,7 +130,7 @@ struct mhi_pci_dev_info {
 #define MHI_EVENT_CONFIG_HW_DATA(ev_ring, ch_num) \
 	{					\
 		.num_elements = 256,		\
-		.irq_moderation_ms = 5,		\
+		.irq_moderation_ms = 1,		\
 		.irq = (ev_ring) + 1,		\
 		.priority = 1,			\
 		.mode = MHI_DB_BRST_DISABLE,	\
