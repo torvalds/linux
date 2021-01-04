@@ -525,6 +525,7 @@ void slb_dump_contents(struct slb_entry *slb_ptr);
 
 extern void slb_vmalloc_update(void);
 extern void slb_set_size(u16 size);
+void preload_new_slb_context(unsigned long start, unsigned long sp);
 #endif /* __ASSEMBLY__ */
 
 /*
