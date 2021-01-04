@@ -2658,8 +2658,10 @@ static int create_gang(struct intel_engine_cs *engine,
 		goto err_obj;
 
 	cs = i915_gem_object_pin_map(obj, I915_MAP_WC);
-	if (IS_ERR(cs))
+	if (IS_ERR(cs)) {
+		err = PTR_ERR(cs);
 		goto err_obj;
+	}
 
 	/* Semaphore target: spin until zero */
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
@@ -2686,8 +2688,10 @@ static int create_gang(struct intel_engine_cs *engine,
 	i915_gem_object_unpin_map(obj);
 
 	rq = intel_context_create_request(ce);
-	if (IS_ERR(rq))
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
 		goto err_obj;
+	}
 
 	rq->batch = i915_vma_get(vma);
 	i915_request_get(rq);
