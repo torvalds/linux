@@ -40,35 +40,22 @@ properties:
     maxItems: 1
 
   ports:
-    type: object
-    description: |
-      A ports node with endpoint definitions as defined in
-      Documentation/devicetree/bindings/media/video-interfaces.txt.
+    $ref: /schemas/graph.yaml#/properties/ports
 
     properties:
-      "#address-cells":
-        const: 1
-
-      "#size-cells":
-        const: 0
-
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           Input endpoints of the controller.
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           Output endpoints of the controller.
 
     required:
-      - "#address-cells"
-      - "#size-cells"
       - port@0
       - port@1
-
-    additionalProperties: false
 
 required:
   - compatible

@@ -47,14 +47,15 @@ properties:
     const: apb
 
   ports:
-    type: object
+    $ref: /schemas/graph.yaml#/properties/ports
 
     properties:
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: Input node to receive pixel data.
+
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: DSI output node to panel.
 
     required:
