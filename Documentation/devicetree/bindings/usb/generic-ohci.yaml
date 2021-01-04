@@ -71,7 +71,7 @@ properties:
       Overrides the detected port count
 
   phys:
-    description: PHY specifier for the USB PHY
+    maxItems: 1
 
   phy-names:
     const: usb

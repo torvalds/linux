@@ -40,6 +40,7 @@ properties:
       Digital core voltage supply, 1.2 volts
 
   reset-gpios:
+    maxItems: 1
     description: |-
       Reference to the GPIO connected to the xclr pin, if any.
       Must be released (set high) after all supplies are applied.

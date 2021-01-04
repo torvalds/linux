@@ -40,7 +40,7 @@ properties:
       - const: mc
 
   phys:
-    description: PHY specifier for the USB PHY
+    maxItems: 1
 
   usb-role-switch:
     type: boolean

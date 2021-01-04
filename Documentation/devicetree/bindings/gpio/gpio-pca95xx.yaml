@@ -81,6 +81,7 @@ properties:
     const: 2
 
   reset-gpios:
+    maxItems: 1
     description:
       GPIO specification for the RESET input. This is an active low signal to
       the PCA953x.  Not valid for Maxim MAX732x devices.

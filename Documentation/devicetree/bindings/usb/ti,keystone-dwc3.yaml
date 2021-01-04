@@ -43,12 +43,14 @@ properties:
     maxItems: 2
 
   power-domains:
+    maxItems: 1
     description: Should contain a phandle to a PM domain provider node
       and an args specifier containing the USB device id
       value. This property is as per the binding,
       Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
 
   phys:
+    maxItems: 1
     description:
       PHY specifier for the USB3.0 PHY. Some SoCs need the USB3.0 PHY
       to be turned on before the controller.

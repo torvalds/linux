@@ -27,9 +27,11 @@ properties:
        I2C address of the device can be between 0x41 to 0x48.
 
   reset-gpio:
+    maxItems: 1
     description: GPIO used to reset the device.
 
   shutdown-gpios:
+    maxItems: 1
     description: GPIO used to control the state of the device.
 
   interrupts:

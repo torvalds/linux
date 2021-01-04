@@ -22,6 +22,8 @@ properties:
     description: Interrupt for signals mirrored to out-gpios.
 
   in-gpios:
+    minItems: 1
+    maxItems: 2
     description: Array of one or two GPIO pins used for input signals.
 
   brcm,in-functions:
@@ -33,6 +35,7 @@ properties:
     description: Array of enable and mask pairs, one per gpio in-gpios.
 
   out-gpios:
+    maxItems: 1
     description: Array of one GPIO pin used for output signals.
 
   brcm,out-functions:

@@ -29,6 +29,7 @@ properties:
     description: touchscreen can be used as a wakeup source.
 
   reset-gpios:
+    maxItems: 1
     description: reset gpio the chip is connected to.
 
   vcc33-supply:

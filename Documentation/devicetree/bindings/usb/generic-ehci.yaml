@@ -83,7 +83,7 @@ properties:
       Phandle of a companion.
 
   phys:
-    description: PHY specifier for the USB PHY
+    maxItems: 1
 
   phy-names:
     const: usb

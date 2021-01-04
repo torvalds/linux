@@ -66,6 +66,7 @@ properties:
   dma-coherent: true
 
   clocks:
+    maxItems: 1
     description: CPSW2G NUSS functional clock
 
   clock-names:

@@ -15,13 +15,14 @@ properties:
       - const: ti,j721e-usb
 
   reg:
-    description: module registers
+    maxItems: 1
 
   power-domains:
     description:
       PM domain provider node and an args specifier containing
       the USB device id value. See,
       Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
+    maxItems: 1
 
   clocks:
     description: Clock phandles to usb2_refclk and lpm_clk

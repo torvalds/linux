@@ -62,12 +62,15 @@ properties:
     description: Supply for the micbias on the headset mic
 
   earpath-sel-gpios:
+    maxItems: 1
     description: GPIO for switching between tv-out and mic paths
 
   headset-detect-gpios:
+    maxItems: 1
     description: GPIO for detection of headset insertion
 
   headset-key-gpios:
+    maxItems: 1
     description: GPIO for detection of headset key press
 
   io-channels:

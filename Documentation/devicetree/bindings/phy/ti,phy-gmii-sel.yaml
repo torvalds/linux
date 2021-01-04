@@ -55,7 +55,7 @@ properties:
       - ti,am654-phy-gmii-sel
 
   reg:
-    description: Address and length of the register set for the device
+    maxItems: 1
 
   '#phy-cells': true
 

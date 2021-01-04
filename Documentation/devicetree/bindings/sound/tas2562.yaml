@@ -36,10 +36,12 @@ properties:
        I2C address of the device can be one of these 0x4c, 0x4d, 0x4e or 0x4f
 
   shut-down-gpios:
+    maxItems: 1
     description: GPIO used to control the state of the device.
     deprecated: true
 
   shutdown-gpios:
+    maxItems: 1
     description: GPIO used to control the state of the device.
 
   interrupts:

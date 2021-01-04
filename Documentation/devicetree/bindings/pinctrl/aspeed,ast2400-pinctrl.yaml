@@ -23,8 +23,7 @@ properties:
   compatible:
     const: aspeed,ast2400-pinctrl
   reg:
-    description: |
-      A hint for the memory regions associated with the pin-controller
+    maxItems: 2
 
 patternProperties:
   '^.*$':
