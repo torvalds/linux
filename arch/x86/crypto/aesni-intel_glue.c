@@ -667,14 +667,15 @@ static int gcmaes_crypt_by_sg(bool enc, struct aead_request *req,
 		gcm_tfm = &aesni_gcm_tfm_sse;
 
 	/* Linearize assoc, if not already linear */
-	if (req->src->length >= assoclen && req->src->length &&
-		(!PageHighMem(sg_page(req->src)) ||
-			req->src->offset + req->src->length <= PAGE_SIZE)) {
+	if (req->src->length >= assoclen && req->src->length) {
 		scatterwalk_start(&assoc_sg_walk, req->src);
 		assoc = scatterwalk_map(&assoc_sg_walk);
 	} else {
+		gfp_t flags = (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
+			      GFP_KERNEL : GFP_ATOMIC;
+
 		/* assoc can be any length, so must be on heap */
-		assocmem = kmalloc(assoclen, GFP_ATOMIC);
+		assocmem = kmalloc(assoclen, flags);
 		if (unlikely(!assocmem))
 			return -ENOMEM;
 		assoc = assocmem;
