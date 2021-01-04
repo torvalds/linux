@@ -2614,6 +2614,13 @@ err_out:
 	return NULL;
 }
 
+static int hisi_sas_interrupt_preinit(struct hisi_hba *hisi_hba)
+{
+	if (hisi_hba->hw->interrupt_preinit)
+		return hisi_hba->hw->interrupt_preinit(hisi_hba);
+	return 0;
+}
+
 int hisi_sas_probe(struct platform_device *pdev,
 		   const struct hisi_sas_hw *hw)
 {
@@ -2670,6 +2677,10 @@ int hisi_sas_probe(struct platform_device *pdev,
 		sha->sas_phy[i] = &hisi_hba->phy[i].sas_phy;
 		sha->sas_port[i] = &hisi_hba->port[i].sas_port;
 	}
+
+	rc = hisi_sas_interrupt_preinit(hisi_hba);
+	if (rc)
+		goto err_out_ha;
 
 	rc = scsi_add_host(shost, &pdev->dev);
 	if (rc)
