@@ -111,49 +111,6 @@ static void (*aesni_ctr_enc_tfm)(struct crypto_aes_ctx *ctx, u8 *out,
 asmlinkage void aesni_ctr_enc(struct crypto_aes_ctx *ctx, u8 *out,
 			      const u8 *in, unsigned int len, u8 *iv);
 
-/* asmlinkage void aesni_gcm_enc()
- * void *ctx,  AES Key schedule. Starts on a 16 byte boundary.
- * struct gcm_context_data.  May be uninitialized.
- * u8 *out, Ciphertext output. Encrypt in-place is allowed.
- * const u8 *in, Plaintext input
- * unsigned long plaintext_len, Length of data in bytes for encryption.
- * u8 *iv, Pre-counter block j0: 12 byte IV concatenated with 0x00000001.
- *         16-byte aligned pointer.
- * u8 *hash_subkey, the Hash sub key input. Data starts on a 16-byte boundary.
- * const u8 *aad, Additional Authentication Data (AAD)
- * unsigned long aad_len, Length of AAD in bytes.
- * u8 *auth_tag, Authenticated Tag output.
- * unsigned long auth_tag_len), Authenticated Tag Length in bytes.
- *          Valid values are 16 (most likely), 12 or 8.
- */
-asmlinkage void aesni_gcm_enc(void *ctx,
-			struct gcm_context_data *gdata, u8 *out,
-			const u8 *in, unsigned long plaintext_len, u8 *iv,
-			u8 *hash_subkey, const u8 *aad, unsigned long aad_len,
-			u8 *auth_tag, unsigned long auth_tag_len);
-
-/* asmlinkage void aesni_gcm_dec()
- * void *ctx, AES Key schedule. Starts on a 16 byte boundary.
- * struct gcm_context_data.  May be uninitialized.
- * u8 *out, Plaintext output. Decrypt in-place is allowed.
- * const u8 *in, Ciphertext input
- * unsigned long ciphertext_len, Length of data in bytes for decryption.
- * u8 *iv, Pre-counter block j0: 12 byte IV concatenated with 0x00000001.
- *         16-byte aligned pointer.
- * u8 *hash_subkey, the Hash sub key input. Data starts on a 16-byte boundary.
- * const u8 *aad, Additional Authentication Data (AAD)
- * unsigned long aad_len, Length of AAD in bytes. With RFC4106 this is going
- * to be 8 or 12 bytes
- * u8 *auth_tag, Authenticated Tag output.
- * unsigned long auth_tag_len) Authenticated Tag Length in bytes.
- * Valid values are 16 (most likely), 12 or 8.
- */
-asmlinkage void aesni_gcm_dec(void *ctx,
-			struct gcm_context_data *gdata, u8 *out,
-			const u8 *in, unsigned long ciphertext_len, u8 *iv,
-			u8 *hash_subkey, const u8 *aad, unsigned long aad_len,
-			u8 *auth_tag, unsigned long auth_tag_len);
-
 /* Scatter / Gather routines, with args similar to above */
 asmlinkage void aesni_gcm_init(void *ctx,
 			       struct gcm_context_data *gdata,
@@ -218,18 +175,6 @@ asmlinkage void aesni_gcm_finalize_avx_gen2(void *ctx,
 				   struct gcm_context_data *gdata,
 				   u8 *auth_tag, unsigned long auth_tag_len);
 
-asmlinkage void aesni_gcm_enc_avx_gen2(void *ctx,
-				struct gcm_context_data *gdata, u8 *out,
-			const u8 *in, unsigned long plaintext_len, u8 *iv,
-			const u8 *aad, unsigned long aad_len,
-			u8 *auth_tag, unsigned long auth_tag_len);
-
-asmlinkage void aesni_gcm_dec_avx_gen2(void *ctx,
-				struct gcm_context_data *gdata, u8 *out,
-			const u8 *in, unsigned long ciphertext_len, u8 *iv,
-			const u8 *aad, unsigned long aad_len,
-			u8 *auth_tag, unsigned long auth_tag_len);
-
 static const struct aesni_gcm_tfm_s aesni_gcm_tfm_avx_gen2 = {
 	.init = &aesni_gcm_init_avx_gen2,
 	.enc_update = &aesni_gcm_enc_update_avx_gen2,
@@ -259,18 +204,6 @@ asmlinkage void aesni_gcm_dec_update_avx_gen4(void *ctx,
 asmlinkage void aesni_gcm_finalize_avx_gen4(void *ctx,
 				   struct gcm_context_data *gdata,
 				   u8 *auth_tag, unsigned long auth_tag_len);
-
-asmlinkage void aesni_gcm_enc_avx_gen4(void *ctx,
-				struct gcm_context_data *gdata, u8 *out,
-			const u8 *in, unsigned long plaintext_len, u8 *iv,
-			const u8 *aad, unsigned long aad_len,
-			u8 *auth_tag, unsigned long auth_tag_len);
-
-asmlinkage void aesni_gcm_dec_avx_gen4(void *ctx,
-				struct gcm_context_data *gdata, u8 *out,
-			const u8 *in, unsigned long ciphertext_len, u8 *iv,
-			const u8 *aad, unsigned long aad_len,
-			u8 *auth_tag, unsigned long auth_tag_len);
 
 static const struct aesni_gcm_tfm_s aesni_gcm_tfm_avx_gen4 = {
 	.init = &aesni_gcm_init_avx_gen4,
