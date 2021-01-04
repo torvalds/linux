@@ -1388,7 +1388,7 @@ static pci_ers_result_t aer_root_reset(struct pci_dev *dev)
 	if (type == PCI_EXP_TYPE_RC_END)
 		root = dev->rcec;
 	else
-		root = dev;
+		root = pcie_find_root_port(dev);
 
 	/*
 	 * If the platform retained control of AER, an RCiEP may not have
