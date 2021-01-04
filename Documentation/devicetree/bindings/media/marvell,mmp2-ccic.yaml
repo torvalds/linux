@@ -24,28 +24,19 @@ properties:
     maxItems: 1
 
   port:
-    type: object
+    $ref: /schemas/graph.yaml#/$defs/port-base
     additionalProperties: false
 
     properties:
       endpoint:
-        type: object
-        additionalProperties: false
+        $ref: video-interfaces.yaml#
+        unevaluatedProperties: false
 
-        # Properties described in
-        # Documentation/devicetree/bindings/media/video-interfaces.txt
         properties:
-          remote-endpoint: true
           hsync-active: true
           vsync-active: true
           pclk-sample: true
           bus-type: true
-
-        required:
-          - remote-endpoint
-
-    required:
-      - endpoint
 
   clocks:
     minItems: 1
