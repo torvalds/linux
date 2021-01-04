@@ -824,40 +824,6 @@ ilk_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 static void
 snb_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	/* WaDisableHiZPlanesWhenMSAAEnabled:snb */
-	wa_masked_en(wal,
-		     _3D_CHICKEN,
-		     _3D_CHICKEN_HIZ_PLANE_DISABLE_MSAA_4X_SNB);
-
-	/* WaDisable_RenderCache_OperationalFlush:snb */
-	wa_masked_dis(wal, CACHE_MODE_0, RC_OP_FLUSH_ENABLE);
-
-	/*
-	 * BSpec recommends 8x4 when MSAA is used,
-	 * however in practice 16x4 seems fastest.
-	 *
-	 * Note that PS/WM thread counts depend on the WIZ hashing
-	 * disable bit, which we don't touch here, but it's good
-	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
-	 */
-	wa_add(wal,
-	       GEN6_GT_MODE, 0,
-	       _MASKED_FIELD(GEN6_WIZ_HASHING_MASK, GEN6_WIZ_HASHING_16x4),
-	       GEN6_WIZ_HASHING_16x4);
-
-	wa_masked_dis(wal, CACHE_MODE_0, CM0_STC_EVICT_DISABLE_LRA_SNB);
-
-	wa_masked_en(wal,
-		     _3D_CHICKEN3,
-		     /* WaStripsFansDisableFastClipPerformanceFix:snb */
-		     _3D_CHICKEN3_SF_DISABLE_FASTCLIP_CULL |
-		     /*
-		      * Bspec says:
-		      * "This bit must be set if 3DSTATE_CLIP clip mode is set
-		      * to normal and 3DSTATE_SF number of SF output attributes
-		      * is more than 16."
-		      */
-		   _3D_CHICKEN3_SF_DISABLE_PIPELINED_ATTR_FETCH);
 }
 
 static void
@@ -2009,6 +1975,39 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		wa_masked_en(wal,
 			     GFX_MODE,
 			     GFX_TLB_INVALIDATE_EXPLICIT);
+
+		/* WaDisableHiZPlanesWhenMSAAEnabled:snb */
+		wa_masked_en(wal,
+			     _3D_CHICKEN,
+			     _3D_CHICKEN_HIZ_PLANE_DISABLE_MSAA_4X_SNB);
+
+		wa_masked_en(wal,
+			     _3D_CHICKEN3,
+			     /* WaStripsFansDisableFastClipPerformanceFix:snb */
+			     _3D_CHICKEN3_SF_DISABLE_FASTCLIP_CULL |
+			     /*
+			      * Bspec says:
+			      * "This bit must be set if 3DSTATE_CLIP clip mode is set
+			      * to normal and 3DSTATE_SF number of SF output attributes
+			      * is more than 16."
+			      */
+			     _3D_CHICKEN3_SF_DISABLE_PIPELINED_ATTR_FETCH);
+
+		/*
+		 * BSpec recommends 8x4 when MSAA is used,
+		 * however in practice 16x4 seems fastest.
+		 *
+		 * Note that PS/WM thread counts depend on the WIZ hashing
+		 * disable bit, which we don't touch here, but it's good
+		 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
+		 */
+		wa_add(wal,
+		       GEN6_GT_MODE, 0,
+		       _MASKED_FIELD(GEN6_WIZ_HASHING_MASK, GEN6_WIZ_HASHING_16x4),
+		       GEN6_WIZ_HASHING_16x4);
+
+		/* WaDisable_RenderCache_OperationalFlush:snb */
+		wa_masked_dis(wal, CACHE_MODE_0, RC_OP_FLUSH_ENABLE);
 
 		/*
 		 * From the Sandybridge PRM, volume 1 part 3, page 24:
