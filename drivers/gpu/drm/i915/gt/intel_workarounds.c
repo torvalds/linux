@@ -956,31 +956,6 @@ hsw_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 
 	/* WaVSRefCountFullforceMissDisable:hsw */
 	wa_write_clr(wal, GEN7_FF_THREAD_MODE, GEN7_FF_VS_REF_CNT_FFME);
-
-	wa_masked_dis(wal,
-		      CACHE_MODE_0_GEN7,
-		      /* WaDisable_RenderCache_OperationalFlush:hsw */
-		      RC_OP_FLUSH_ENABLE |
-		      /* enable HiZ Raw Stall Optimization */
-		      HIZ_RAW_STALL_OPT_DISABLE);
-
-	/* WaDisable4x2SubspanOptimization:hsw */
-	wa_masked_en(wal, CACHE_MODE_1, PIXEL_SUBSPAN_COLLECT_OPT_DISABLE);
-
-	/*
-	 * BSpec recommends 8x4 when MSAA is used,
-	 * however in practice 16x4 seems fastest.
-	 *
-	 * Note that PS/WM thread counts depend on the WIZ hashing
-	 * disable bit, which we don't touch here, but it's good
-	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
-	 */
-	wa_add(wal, GEN7_GT_MODE, 0,
-	       _MASKED_FIELD(GEN6_WIZ_HASHING_MASK, GEN6_WIZ_HASHING_16x4),
-	       GEN6_WIZ_HASHING_16x4);
-
-	/* WaSampleCChickenBitEnable:hsw */
-	wa_masked_en(wal, HALF_SLICE_CHICKEN3, HSW_SAMPLE_C_PERFORMANCE);
 }
 
 static void
@@ -1946,6 +1921,35 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		wa_write_or(wal,
 			    GEN8_L3SQCREG4,
 			    GEN8_LQSC_FLUSH_COHERENT_LINES);
+	}
+
+	if (IS_HASWELL(i915)) {
+		/* WaSampleCChickenBitEnable:hsw */
+		wa_masked_en(wal,
+			     HALF_SLICE_CHICKEN3, HSW_SAMPLE_C_PERFORMANCE);
+
+		wa_masked_dis(wal,
+			      CACHE_MODE_0_GEN7,
+			      /* WaDisable_RenderCache_OperationalFlush:hsw */
+			      RC_OP_FLUSH_ENABLE |
+			      /* enable HiZ Raw Stall Optimization */
+			      HIZ_RAW_STALL_OPT_DISABLE);
+
+		/* WaDisable4x2SubspanOptimization:hsw */
+		wa_masked_en(wal, CACHE_MODE_1, PIXEL_SUBSPAN_COLLECT_OPT_DISABLE);
+
+		/*
+		 * BSpec recommends 8x4 when MSAA is used,
+		 * however in practice 16x4 seems fastest.
+		 *
+		 * Note that PS/WM thread counts depend on the WIZ hashing
+		 * disable bit, which we don't touch here, but it's good
+		 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
+		 */
+		wa_add(wal, GEN7_GT_MODE, 0,
+		       _MASKED_FIELD(GEN6_WIZ_HASHING_MASK,
+				     GEN6_WIZ_HASHING_16x4),
+		       GEN6_WIZ_HASHING_16x4);
 	}
 
 	if (IS_GEN(i915, 7))
