@@ -54,7 +54,7 @@ extern void ia64_xchg_called_with_bad_pointer(void);
 })
 
 #define xchg(ptr, x)							\
-((__typeof__(*(ptr))) __xchg((unsigned long) (x), (ptr), sizeof(*(ptr))))
+({(__typeof__(*(ptr))) __xchg((unsigned long) (x), (ptr), sizeof(*(ptr)));})
 
 /*
  * Atomic compare and exchange.  Compare OLD with MEM, if identical,
