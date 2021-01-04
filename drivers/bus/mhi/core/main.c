@@ -135,6 +135,19 @@ enum mhi_state mhi_get_mhi_state(struct mhi_controller *mhi_cntrl)
 }
 EXPORT_SYMBOL_GPL(mhi_get_mhi_state);
 
+void mhi_soc_reset(struct mhi_controller *mhi_cntrl)
+{
+	if (mhi_cntrl->reset) {
+		mhi_cntrl->reset(mhi_cntrl);
+		return;
+	}
+
+	/* Generic MHI SoC reset */
+	mhi_write_reg(mhi_cntrl, mhi_cntrl->regs, MHI_SOC_RESET_REQ_OFFSET,
+		      MHI_SOC_RESET_REQ);
+}
+EXPORT_SYMBOL_GPL(mhi_soc_reset);
+
 int mhi_map_single_no_bb(struct mhi_controller *mhi_cntrl,
 			 struct mhi_buf_info *buf_info)
 {
