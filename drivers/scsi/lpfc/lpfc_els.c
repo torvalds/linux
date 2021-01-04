@@ -2815,7 +2815,6 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) cmdiocb->context1;
 	struct lpfc_vport *vport = ndlp->vport;
 	IOCB_t *irsp;
-	struct lpfcMboxq *mbox;
 	unsigned long flags;
 	uint32_t skip_recovery = 0;
 
@@ -2884,31 +2883,11 @@ out:
 	lpfc_els_free_iocb(phba, cmdiocb);
 	lpfc_nlp_put(ndlp);
 
-	/* If we are in pt2pt mode, we could rcv new S_ID on PLOGI */
-	if ((vport->fc_flag & FC_PT2PT) &&
-		!(vport->fc_flag & FC_PT2PT_PLOGI)) {
-		phba->pport->fc_myDID = 0;
-
-		if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-		    (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
-			if (phba->nvmet_support)
-				lpfc_nvmet_update_targetport(phba);
-			else
-				lpfc_nvme_update_localport(phba->pport);
-		}
-
-		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-		if (mbox) {
-			lpfc_config_link(phba, mbox);
-			mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-			mbox->vport = vport;
-			if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT) ==
-				MBX_NOT_FINISHED) {
-				mempool_free(mbox, phba->mbox_mem_pool);
-				skip_recovery = 1;
-			}
-		}
-	}
+	/* At this point, the LOGO processing is complete. NOTE: For a
+	 * pt2pt topology, we are assuming the NPortID will only change
+	 * on link up processing. For a LOGO / PLOGI initiated by the
+	 * Initiator, we are assuming the NPortID is not going to change.
+	 */
 
 	/*
 	 * If the node is a target, the handling attempts to recover the port.
