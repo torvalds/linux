@@ -3047,9 +3047,13 @@ static void execlists_reset_finish(struct intel_engine_cs *engine)
 	 * After a GPU reset, we may have requests to replay. Do so now while
 	 * we still have the forcewake to be sure that the GPU is not allowed
 	 * to sleep before we restart and reload a context.
+	 *
+	 * If the GPU reset fails, the engine may still be alive with requests
+	 * inflight. We expect those to complete, or for the device to be
+	 * reset as the next level of recovery, and as a final resort we
+	 * will declare the device wedged.
 	 */
 	GEM_BUG_ON(!reset_in_progress(execlists));
-	GEM_BUG_ON(engine->execlists.pending[0]);
 
 	/* And kick in case we missed a new request submission. */
 	if (__tasklet_enable(&execlists->tasklet))

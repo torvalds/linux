@@ -561,6 +561,8 @@ struct intel_engine_cs {
 		unsigned long stop_timeout_ms;
 		unsigned long timeslice_duration_ms;
 	} props, defaults;
+
+	I915_SELFTEST_DECLARE(struct fault_attr reset_timeout);
 };
 
 static inline bool

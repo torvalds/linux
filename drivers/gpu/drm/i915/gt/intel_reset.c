@@ -497,6 +497,9 @@ static int gen8_engine_reset_prepare(struct intel_engine_cs *engine)
 	u32 request, mask, ack;
 	int ret;
 
+	if (I915_SELFTEST_ONLY(should_fail(&engine->reset_timeout, 1)))
+		return -ETIMEDOUT;
+
 	ack = intel_uncore_read_fw(uncore, reg);
 	if (ack & RESET_CTL_CAT_ERROR) {
 		/*

@@ -2299,6 +2299,77 @@ out:
 	return err;
 }
 
+static void force_reset_timeout(struct intel_engine_cs *engine)
+{
+	engine->reset_timeout.probability = 999;
+	atomic_set(&engine->reset_timeout.times, -1);
+}
+
+static void cancel_reset_timeout(struct intel_engine_cs *engine)
+{
+	memset(&engine->reset_timeout, 0, sizeof(engine->reset_timeout));
+}
+
+static int __cancel_fail(struct live_preempt_cancel *arg)
+{
+	struct intel_engine_cs *engine = arg->engine;
+	struct i915_request *rq;
+	int err;
+
+	if (!IS_ACTIVE(CONFIG_DRM_I915_PREEMPT_TIMEOUT))
+		return 0;
+
+	if (!intel_has_reset_engine(engine->gt))
+		return 0;
+
+	GEM_TRACE("%s(%s)\n", __func__, engine->name);
+	rq = spinner_create_request(&arg->a.spin,
+				    arg->a.ctx, engine,
+				    MI_NOOP); /* preemption disabled */
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+
+	clear_bit(CONTEXT_BANNED, &rq->context->flags);
+	i915_request_get(rq);
+	i915_request_add(rq);
+	if (!igt_wait_for_spinner(&arg->a.spin, rq)) {
+		err = -EIO;
+		goto out;
+	}
+
+	intel_context_set_banned(rq->context);
+
+	err = intel_engine_pulse(engine);
+	if (err)
+		goto out;
+
+	force_reset_timeout(engine);
+
+	/* force preempt reset [failure] */
+	while (!engine->execlists.pending[0])
+		intel_engine_flush_submission(engine);
+	del_timer_sync(&engine->execlists.preempt);
+	intel_engine_flush_submission(engine);
+
+	cancel_reset_timeout(engine);
+
+	/* after failure, require heartbeats to reset device */
+	intel_engine_set_heartbeat(engine, 1);
+	err = wait_for_reset(engine, rq, HZ / 2);
+	intel_engine_set_heartbeat(engine,
+				   engine->defaults.heartbeat_interval_ms);
+	if (err) {
+		pr_err("Cancelled inflight0 request did not reset\n");
+		goto out;
+	}
+
+out:
+	i915_request_put(rq);
+	if (igt_flush_test(engine->i915))
+		err = -EIO;
+	return err;
+}
+
 static int live_preempt_cancel(void *arg)
 {
 	struct intel_gt *gt = arg;
@@ -2336,6 +2407,10 @@ static int live_preempt_cancel(void *arg)
 			goto err_wedged;
 
 		err = __cancel_hostile(&data);
+		if (err)
+			goto err_wedged;
+
+		err = __cancel_fail(&data);
 		if (err)
 			goto err_wedged;
 	}
