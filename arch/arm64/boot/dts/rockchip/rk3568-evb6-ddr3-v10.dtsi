@@ -267,6 +267,7 @@
 &usbhost_dwc3 {
 	phys = <&u2phy0_host>;
 	phy-names = "usb2-phy";
+	maximum-speed = "high-speed";
 	status = "okay";
 };
 
