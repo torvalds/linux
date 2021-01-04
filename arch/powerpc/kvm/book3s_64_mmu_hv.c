@@ -27,6 +27,7 @@
 #include <asm/cputable.h>
 #include <asm/pte-walk.h>
 
+#include "book3s.h"
 #include "trace_hv.h"
 
 //#define DEBUG_RESIZE_HPT	1
