@@ -200,7 +200,7 @@ static int cpuhp_dtpm_cpu_online(unsigned int cpu)
 	if (!dtpm)
 		return -EINVAL;
 
-	dtpm_cpu = kzalloc(sizeof(dtpm_cpu), GFP_KERNEL);
+	dtpm_cpu = kzalloc(sizeof(*dtpm_cpu), GFP_KERNEL);
 	if (!dtpm_cpu)
 		goto out_kfree_dtpm;
 
