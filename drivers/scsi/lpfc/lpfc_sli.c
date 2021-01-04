@@ -3011,22 +3011,43 @@ lpfc_nvme_unsol_ls_handler(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 	axchg->payload = nvmebuf->dbuf.virt;
 	INIT_LIST_HEAD(&axchg->list);
 
-	if (phba->nvmet_support)
+	if (phba->nvmet_support) {
 		ret = lpfc_nvmet_handle_lsreq(phba, axchg);
-	else
+		spin_lock_irq(&ndlp->lock);
+		if (!ret && !(ndlp->fc4_xpt_flags & NLP_XPT_HAS_HH)) {
+			ndlp->fc4_xpt_flags |= NLP_XPT_HAS_HH;
+			spin_unlock_irq(&ndlp->lock);
+
+			/* This reference is a single occurrence to hold the
+			 * node valid until the nvmet transport calls
+			 * host_release.
+			 */
+			if (!lpfc_nlp_get(ndlp))
+				goto out_fail;
+
+			lpfc_printf_log(phba, KERN_ERR, LOG_NODE,
+					"6206 NVMET unsol ls_req ndlp %p "
+					"DID x%x xflags x%x refcnt %d\n",
+					ndlp, ndlp->nlp_DID,
+					ndlp->fc4_xpt_flags,
+					kref_read(&ndlp->kref));
+		} else {
+			spin_unlock_irq(&ndlp->lock);
+		}
+	} else {
 		ret = lpfc_nvme_handle_lsreq(phba, axchg);
+	}
 
 	/* if zero, LS was successfully handled. If non-zero, LS not handled */
 	if (!ret)
 		return;
 
+out_fail:
 	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"6155 Drop NVME LS from DID %06X: SID %06X OXID x%X "
 			"NVMe%s handler failed %d\n",
 			did, sid, oxid,
 			(phba->nvmet_support) ? "T" : "I", ret);
-
-out_fail:
 
 	/* recycle receive buffer */
 	lpfc_in_buf_free(phba, &nvmebuf->dbuf);

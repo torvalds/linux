@@ -77,6 +77,13 @@ struct lpfc_node_rrqs {
 	unsigned long xri_bitmap[XRI_BITMAP_ULONGS];
 };
 
+enum lpfc_fc4_xpt_flags {
+	NLP_WAIT_FOR_UNREG = 0x1,
+	SCSI_XPT_REGD      = 0x2,
+	NVME_XPT_REGD      = 0x4,
+	NLP_XPT_HAS_HH     = 0x8,
+};
+
 struct lpfc_nodelist {
 	struct list_head nlp_listp;
 	struct lpfc_name nlp_portname;
@@ -134,13 +141,10 @@ struct lpfc_nodelist {
 	unsigned long *active_rrqs_xri_bitmap;
 	struct lpfc_scsicmd_bkt *lat_data;	/* Latency data */
 	uint32_t fc4_prli_sent;
-	uint32_t fc4_xpt_flags;
-	uint32_t upcall_flags;
-#define NLP_WAIT_FOR_UNREG    0x1
-#define SCSI_XPT_REGD         0x2
-#define NVME_XPT_REGD         0x4
-#define NLP_WAIT_FOR_LOGO     0x2
+	u32 upcall_flags;
+#define	NLP_WAIT_FOR_LOGO 0x2
 
+	enum lpfc_fc4_xpt_flags fc4_xpt_flags;
 
 	uint32_t nvme_fb_size; /* NVME target's supported byte cnt */
 #define NVME_FB_BIT_SHIFT 9    /* PRLI Rsp first burst in 512B units. */
