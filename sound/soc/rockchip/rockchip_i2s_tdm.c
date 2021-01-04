@@ -83,6 +83,7 @@ struct rk_i2s_tdm_dev {
 	bool io_multiplex;
 	bool mclk_calibrate;
 	bool tdm_mode;
+	bool tdm_fsync_half_frame;
 	unsigned int mclk_rx_freq;
 	unsigned int mclk_tx_freq;
 	unsigned int mclk_root0_freq;
@@ -582,7 +583,10 @@ static int rockchip_i2s_tdm_set_fmt(struct snd_soc_dai *cpu_dai,
 		}
 
 		tdm_val |= TDM_FSYNC_WIDTH_SEL1(1);
-		tdm_val |= TDM_FSYNC_WIDTH_ONE_FRAME;
+		if (i2s_tdm->tdm_fsync_half_frame)
+			tdm_val |= TDM_FSYNC_WIDTH_HALF_FRAME;
+		else
+			tdm_val |= TDM_FSYNC_WIDTH_ONE_FRAME;
 
 		mask = I2S_TXCR_TFS_MASK;
 		regmap_update_bits(i2s_tdm->regmap, I2S_TXCR, mask, val);
@@ -1633,6 +1637,9 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 				soc_dai->symmetric_rates = 1;
 		}
 	}
+
+	i2s_tdm->tdm_fsync_half_frame =
+		of_property_read_bool(node, "rockchip,tdm-fsync-half-frame");
 
 	if (of_property_read_bool(node, "rockchip,playback-only"))
 		soc_dai->capture.channels_min = 0;
