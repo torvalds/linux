@@ -674,6 +674,9 @@ properties:
               - beacon,imx8mm-beacon-kit  # i.MX8MM Beacon Development Kit
               - fsl,imx8mm-ddr4-evk       # i.MX8MM DDR4 EVK Board
               - fsl,imx8mm-evk            # i.MX8MM EVK Board
+              - gw,imx8mm-gw71xx-0x       # i.MX8MM Gateworks Development Kit
+              - gw,imx8mm-gw72xx-0x       # i.MX8MM Gateworks Development Kit
+              - gw,imx8mm-gw73xx-0x       # i.MX8MM Gateworks Development Kit
               - kontron,imx8mm-n801x-som  # i.MX8MM Kontron SL (N801X) SOM
               - variscite,var-som-mx8mm   # i.MX8MM Variscite VAR-SOM-MX8MM module
           - const: fsl,imx8mm
