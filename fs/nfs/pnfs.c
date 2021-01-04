@@ -1152,7 +1152,7 @@ void pnfs_layoutreturn_free_lsegs(struct pnfs_layout_hdr *lo,
 	LIST_HEAD(freeme);
 
 	spin_lock(&inode->i_lock);
-	if (!pnfs_layout_is_valid(lo) || !arg_stateid ||
+	if (!pnfs_layout_is_valid(lo) ||
 	    !nfs4_stateid_match_other(&lo->plh_stateid, arg_stateid))
 		goto out_unlock;
 	if (stateid) {
@@ -1559,7 +1559,6 @@ void pnfs_roc_release(struct nfs4_layoutreturn_args *args,
 {
 	struct pnfs_layout_hdr *lo = args->layout;
 	struct inode *inode = args->inode;
-	const nfs4_stateid *arg_stateid = NULL;
 	const nfs4_stateid *res_stateid = NULL;
 	struct nfs4_xdr_opaque_data *ld_private = args->ld_private;
 
@@ -1569,6 +1568,7 @@ void pnfs_roc_release(struct nfs4_layoutreturn_args *args,
 		if (pnfs_layout_is_valid(lo) &&
 		    nfs4_stateid_match_other(&args->stateid, &lo->plh_stateid))
 			pnfs_set_plh_return_info(lo, args->range.iomode, 0);
+		pnfs_clear_layoutreturn_waitbit(lo);
 		spin_unlock(&inode->i_lock);
 		break;
 	case 0:
@@ -1576,11 +1576,10 @@ void pnfs_roc_release(struct nfs4_layoutreturn_args *args,
 			res_stateid = &res->stateid;
 		fallthrough;
 	default:
-		arg_stateid = &args->stateid;
+		pnfs_layoutreturn_free_lsegs(lo, &args->stateid, &args->range,
+					     res_stateid);
 	}
 	trace_nfs4_layoutreturn_on_close(args->inode, &args->stateid, ret);
-	pnfs_layoutreturn_free_lsegs(lo, arg_stateid, &args->range,
-			res_stateid);
 	if (ld_private && ld_private->ops && ld_private->ops->free)
 		ld_private->ops->free(ld_private);
 	pnfs_put_layout_hdr(lo);
