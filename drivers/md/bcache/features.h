@@ -13,11 +13,15 @@
 
 /* Feature set definition */
 /* Incompat feature set */
-#define BCH_FEATURE_INCOMPAT_LARGE_BUCKET	0x0001 /* 32bit bucket size */
+/* 32bit bucket size, obsoleted */
+#define BCH_FEATURE_INCOMPAT_OBSO_LARGE_BUCKET		0x0001
+/* real bucket size is (1 << bucket_size) */
+#define BCH_FEATURE_INCOMPAT_LOG_LARGE_BUCKET_SIZE	0x0002
 
 #define BCH_FEATURE_COMPAT_SUPP		0
 #define BCH_FEATURE_RO_COMPAT_SUPP	0
-#define BCH_FEATURE_INCOMPAT_SUPP	BCH_FEATURE_INCOMPAT_LARGE_BUCKET
+#define BCH_FEATURE_INCOMPAT_SUPP	(BCH_FEATURE_INCOMPAT_OBSO_LARGE_BUCKET| \
+					 BCH_FEATURE_INCOMPAT_LOG_LARGE_BUCKET_SIZE)
 
 #define BCH_HAS_COMPAT_FEATURE(sb, mask) \
 		((sb)->feature_compat & (mask))
@@ -77,7 +81,8 @@ static inline void bch_clear_feature_##name(struct cache_sb *sb) \
 		~BCH##_FEATURE_INCOMPAT_##flagname; \
 }
 
-BCH_FEATURE_INCOMPAT_FUNCS(large_bucket, LARGE_BUCKET);
+BCH_FEATURE_INCOMPAT_FUNCS(obso_large_bucket, OBSO_LARGE_BUCKET);
+BCH_FEATURE_INCOMPAT_FUNCS(large_bucket, LOG_LARGE_BUCKET_SIZE);
 
 static inline bool bch_has_unknown_compat_features(struct cache_sb *sb)
 {
