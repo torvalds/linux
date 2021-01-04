@@ -64,6 +64,9 @@ Optional properties:
   You need to add the property for i2s node on dts:
   - rockchip,i2s-tx-route = <2 1 0 3>;
 
+- rockchip,tdm-fsync-half-frame: This is a boolean value, if present, use half
+  frame fsync.
+
 Example for rk3308 I2S/TDM controller:
 
 i2s_8ch_0: i2s@ff300000 {
