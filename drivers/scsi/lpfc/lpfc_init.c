@@ -3602,7 +3602,11 @@ lpfc_offline(struct lpfc_hba *phba)
 			spin_unlock_irq(shost->host_lock);
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
-	__lpfc_cpuhp_remove(phba);
+	/* If OFFLINE flag is clear (i.e. unloading), cpuhp removal is handled
+	 * in hba_unset
+	 */
+	if (phba->pport->fc_flag & FC_OFFLINE_MODE)
+		__lpfc_cpuhp_remove(phba);
 
 	if (phba->cfg_xri_rebalancing)
 		lpfc_destroy_multixri_pools(phba);
