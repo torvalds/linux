@@ -607,8 +607,8 @@ enum get_iov_fw_value_index {
 	WDW_SIZE      = 3     /*  Get Window Size */
 };
 
-resource_size_t pseries_get_iov_fw_value(struct pci_dev *dev, int resno,
-					 enum get_iov_fw_value_index value)
+static resource_size_t pseries_get_iov_fw_value(struct pci_dev *dev, int resno,
+						enum get_iov_fw_value_index value)
 {
 	const int *indexes;
 	struct device_node *dn = pci_device_to_OF_node(dev);
@@ -643,7 +643,7 @@ resource_size_t pseries_get_iov_fw_value(struct pci_dev *dev, int resno,
 	return ret;
 }
 
-void of_pci_set_vf_bar_size(struct pci_dev *dev, const int *indexes)
+static void of_pci_set_vf_bar_size(struct pci_dev *dev, const int *indexes)
 {
 	struct resource *res;
 	resource_size_t base, size;
@@ -665,7 +665,7 @@ void of_pci_set_vf_bar_size(struct pci_dev *dev, const int *indexes)
 	}
 }
 
-void of_pci_parse_iov_addrs(struct pci_dev *dev, const int *indexes)
+static void of_pci_parse_iov_addrs(struct pci_dev *dev, const int *indexes)
 {
 	struct resource *res, *root, *conflict;
 	resource_size_t base, size;
