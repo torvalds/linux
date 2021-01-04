@@ -5924,6 +5924,8 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 	struct lpfc_scsi_event_header scsi_event;
 	int status;
 	u32 logit = LOG_FCP;
+	unsigned long flags;
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(waitq);
 
 	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
 	if (!rdata || !rdata->pnode) {
@@ -5942,10 +5944,10 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			"0722 Target Reset rport failure: rdata x%px\n", rdata);
 		if (pnode) {
-			spin_lock_irq(&pnode->lock);
+			spin_lock_irqsave(&pnode->lock, flags);
 			pnode->nlp_flag &= ~NLP_NPR_ADISC;
 			pnode->nlp_fcp_info &= ~NLP_FCP_2_DEVICE;
-			spin_unlock_irq(&pnode->lock);
+			spin_unlock_irqrestore(&pnode->lock, flags);
 		}
 		lpfc_reset_flush_io_context(vport, tgt_id, lun_id,
 					  LPFC_CTX_TGT);
@@ -5965,6 +5967,38 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 					FCP_TARGET_RESET);
 	if (status != SUCCESS)
 		logit =  LOG_TRACE_EVENT;
+	spin_lock_irqsave(&pnode->lock, flags);
+	if (status != SUCCESS &&
+	    (!(pnode->upcall_flags & NLP_WAIT_FOR_LOGO)) &&
+	     !pnode->logo_waitq) {
+		pnode->logo_waitq = &waitq;
+		pnode->nlp_fcp_info &= ~NLP_FCP_2_DEVICE;
+		pnode->nlp_flag |= NLP_ISSUE_LOGO;
+		pnode->upcall_flags |= NLP_WAIT_FOR_LOGO;
+		spin_unlock_irqrestore(&pnode->lock, flags);
+		lpfc_unreg_rpi(vport, pnode);
+		wait_event_timeout(waitq,
+				   (!(pnode->upcall_flags & NLP_WAIT_FOR_LOGO)),
+				    msecs_to_jiffies(vport->cfg_devloss_tmo *
+				    1000));
+
+		if (pnode->upcall_flags & NLP_WAIT_FOR_LOGO) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				"0725 SCSI layer TGTRST failed & LOGO TMO "
+				" (%d, %llu) return x%x\n", tgt_id,
+				 lun_id, status);
+			spin_lock_irqsave(&pnode->lock, flags);
+			pnode->upcall_flags &= ~NLP_WAIT_FOR_LOGO;
+		} else {
+			spin_lock_irqsave(&pnode->lock, flags);
+		}
+		pnode->logo_waitq = NULL;
+		spin_unlock_irqrestore(&pnode->lock, flags);
+		status = SUCCESS;
+	} else {
+		status = FAILED;
+		spin_unlock_irqrestore(&pnode->lock, flags);
+	}
 
 	lpfc_printf_vlog(vport, KERN_ERR, logit,
 			 "0723 SCSI layer issued Target Reset (%d, %llu) "
