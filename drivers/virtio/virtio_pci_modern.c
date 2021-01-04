@@ -315,9 +315,16 @@ static void vp_reset(struct virtio_device *vdev)
 	vp_synchronize_vectors(vdev);
 }
 
-static u16 vp_config_vector(struct virtio_pci_device *vp_dev, u16 vector)
+/*
+ * vp_modern_config_vector - set the vector for config interrupt
+ * @mdev: the modern virtio-pci device
+ * @vector: the config vector
+ *
+ * Returns the config vector read from the device
+ */
+static u16 vp_modern_config_vector(struct virtio_pci_modern_device *mdev,
+				   u16 vector)
 {
-	struct virtio_pci_modern_device *mdev = &vp_dev->mdev;
 	struct virtio_pci_common_cfg __iomem *cfg = mdev->common;
 
 	/* Setup the vector used for configuration events */
@@ -325,6 +332,11 @@ static u16 vp_config_vector(struct virtio_pci_device *vp_dev, u16 vector)
 	/* Verify we had enough resources to assign the vector */
 	/* Will also flush the write out to device */
 	return vp_ioread16(&cfg->msix_config);
+}
+
+static u16 vp_config_vector(struct virtio_pci_device *vp_dev, u16 vector)
+{
+	return vp_modern_config_vector(&vp_dev->mdev, vector);
 }
 
 static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
