@@ -2864,7 +2864,6 @@ config IA32_EMULATION
 	depends on X86_64
 	select ARCH_WANT_OLD_COMPAT_IPC
 	select BINFMT_ELF
-	select COMPAT_BINFMT_ELF
 	select COMPAT_OLD_SIGACTION
 	help
 	  Include code to run legacy 32-bit programs under a
@@ -2900,6 +2899,7 @@ config COMPAT_32
 config COMPAT
 	def_bool y
 	depends on IA32_EMULATION || X86_X32
+	select COMPAT_BINFMT_ELF if BINFMT_ELF
 
 if COMPAT
 config COMPAT_FOR_U64_ALIGNMENT
