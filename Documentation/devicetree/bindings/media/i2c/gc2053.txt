@@ -1,0 +1,44 @@
+* galaxycore,gc2053 MIPI sensor
+
+Required Properties:
+- compatible: should be "galaxycore,gc2053"
+- clocks: reference to the 24M xvclk input clock.
+- clock-names: should be "xvclk".
+- dovdd-supply: Digital I/O voltage supply, 1.8 volts
+- avdd-supply: Analog voltage supply, 2.8 volts
+- dvdd-supply: Digital core voltage supply, 1.2 volts
+- reset-gpios: Low active reset gpio
+- pwdn-gpios: Low active power-down gpio
+
+Attention:
+GC2053 device address 0x37(7bit)
+
+Example:
+&i2c1 {
+	status = "okay";
+	gc2053: gc2053@37 {
+		compatible = "galaxycore,gc2053";
+		reg = <0x37>;
+		clocks = <&cru CLK_MIPICSI_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RV1126_PD_VI>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&mipicsi_clk0>;
+		power-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+		avdd-supply = <&vcc_avdd>;
+		dovdd-supply = <&vcc_dovdd>;
+		dvdd-supply = <&vcc_dvdd>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "YT-RV1109-2-V1";
+		rockchip,camera-module-lens-name = "40IR-2MP-F20";
+		port {
+			ucam_out0: endpoint {
+				remote-endpoint = <&mipi_in_ucam0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
