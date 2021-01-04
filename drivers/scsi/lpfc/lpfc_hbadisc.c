@@ -73,6 +73,16 @@ static void lpfc_unregister_fcfi_cmpl(struct lpfc_hba *, LPFC_MBOXQ_t *);
 static int lpfc_fcf_inuse(struct lpfc_hba *);
 static void lpfc_mbx_cmpl_read_sparam(struct lpfc_hba *, LPFC_MBOXQ_t *);
 
+static int
+lpfc_valid_xpt_node(struct lpfc_nodelist *ndlp)
+{
+	if (ndlp->nlp_fc4_type ||
+	    ndlp->nlp_DID == Fabric_DID ||
+	    ndlp->nlp_DID == NameServer_DID ||
+	    ndlp->nlp_DID == FDMI_DID)
+		return 1;
+	return 0;
+}
 /* The source of a terminate rport I/O is either a dev_loss_tmo
  * event or a call to fc_remove_host.  While the rport should be
  * valid during these downcalls, the transport can call twice
@@ -4318,7 +4328,8 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	/* FCP and NVME Transport interface */
 	if ((old_state == NLP_STE_MAPPED_NODE ||
 	     old_state == NLP_STE_UNMAPPED_NODE)) {
-		if (ndlp->rport) {
+		if (ndlp->rport &&
+		    lpfc_valid_xpt_node(ndlp)) {
 			vport->phba->nport_event_cnt++;
 			lpfc_unregister_remote_port(ndlp);
 		}
@@ -4340,10 +4351,7 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	if (new_state ==  NLP_STE_MAPPED_NODE ||
 	    new_state == NLP_STE_UNMAPPED_NODE) {
-		if (ndlp->nlp_fc4_type ||
-		    ndlp->nlp_DID == Fabric_DID ||
-		    ndlp->nlp_DID == NameServer_DID ||
-		    ndlp->nlp_DID == FDMI_DID) {
+		if (lpfc_valid_xpt_node(ndlp)) {
 			vport->phba->nport_event_cnt++;
 			/*
 			 * Tell the fc transport about the port, if we haven't

@@ -1021,7 +1021,12 @@ lpfc_rcv_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			ndlp->nlp_fc4_type |= NLP_FC4_NVME;
 			lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
 		}
-		if (npr->prliType == PRLI_FCP_TYPE)
+
+		/* Fabric Controllers send FCP PRLI as an initiator but should
+		 * not get recognized as FCP type and registered with transport.
+		 */
+		if (npr->prliType == PRLI_FCP_TYPE &&
+		    !(ndlp->nlp_type & NLP_FABRIC))
 			ndlp->nlp_fc4_type |= NLP_FC4_FCP;
 	}
 	if (rport) {
@@ -2044,6 +2049,7 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 		 * must complete PRLI.
 		 */
 		if (ndlp->nlp_type & NLP_FABRIC) {
+			ndlp->nlp_fc4_type &= ~NLP_FC4_FCP;
 			ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
 			lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
 		}
