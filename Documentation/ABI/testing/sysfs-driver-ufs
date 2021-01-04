@@ -916,21 +916,24 @@ Date:		September 2014
 Contact:	Subhash Jadavani <subhashj@codeaurora.org>
 Description:	This entry could be used to set or show the UFS device
 		runtime power management level. The current driver
-		implementation supports 6 levels with next target states:
+		implementation supports 7 levels with next target states:
 
 		==  ====================================================
-		0   an UFS device will stay active, an UIC link will
+		0   UFS device will stay active, UIC link will
 		    stay active
-		1   an UFS device will stay active, an UIC link will
+		1   UFS device will stay active, UIC link will
 		    hibernate
-		2   an UFS device will moved to sleep, an UIC link will
+		2   UFS device will be moved to sleep, UIC link will
 		    stay active
-		3   an UFS device will moved to sleep, an UIC link will
+		3   UFS device will be moved to sleep, UIC link will
 		    hibernate
-		4   an UFS device will be powered off, an UIC link will
+		4   UFS device will be powered off, UIC link will
 		    hibernate
-		5   an UFS device will be powered off, an UIC link will
+		5   UFS device will be powered off, UIC link will
 		    be powered off
+		6   UFS device will be moved to deep sleep, UIC link
+		will be powered off. Note, deep sleep might not be
+		supported in which case this value will not be accepted
 		==  ====================================================
 
 What:		/sys/bus/platform/drivers/ufshcd/*/rpm_target_dev_state
@@ -954,21 +957,24 @@ Date:		September 2014
 Contact:	Subhash Jadavani <subhashj@codeaurora.org>
 Description:	This entry could be used to set or show the UFS device
 		system power management level. The current driver
-		implementation supports 6 levels with next target states:
+		implementation supports 7 levels with next target states:
 
 		==  ====================================================
-		0   an UFS device will stay active, an UIC link will
+		0   UFS device will stay active, UIC link will
 		    stay active
-		1   an UFS device will stay active, an UIC link will
+		1   UFS device will stay active, UIC link will
 		    hibernate
-		2   an UFS device will moved to sleep, an UIC link will
+		2   UFS device will be moved to sleep, UIC link will
 		    stay active
-		3   an UFS device will moved to sleep, an UIC link will
+		3   UFS device will be moved to sleep, UIC link will
 		    hibernate
-		4   an UFS device will be powered off, an UIC link will
+		4   UFS device will be powered off, UIC link will
 		    hibernate
-		5   an UFS device will be powered off, an UIC link will
+		5   UFS device will be powered off, UIC link will
 		    be powered off
+		6   UFS device will be moved to deep sleep, UIC link
+		will be powered off. Note, deep sleep might not be
+		supported in which case this value will not be accepted
 		==  ====================================================
 
 What:		/sys/bus/platform/drivers/ufshcd/*/spm_target_dev_state
