@@ -352,7 +352,9 @@ out_put:
 	return err;
 }
 
+#ifndef SZ_8G
 #define SZ_8G BIT_ULL(33)
+#endif
 
 static int igt_mock_max_segment(void *arg)
 {
