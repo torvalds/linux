@@ -10728,17 +10728,19 @@ lpfc_sli_enable_intr(struct lpfc_hba *phba, uint32_t cfg_mode)
 	uint32_t intr_mode = LPFC_INTR_ERROR;
 	int retval;
 
+	/* Need to issue conf_port mbox cmd before conf_msi mbox cmd */
+	retval = lpfc_sli_config_port(phba, LPFC_SLI_REV3);
+	if (retval)
+		return intr_mode;
+	phba->hba_flag &= ~HBA_NEEDS_CFG_PORT;
+
 	if (cfg_mode == 2) {
-		/* Need to issue conf_port mbox cmd before conf_msi mbox cmd */
-		retval = lpfc_sli_config_port(phba, LPFC_SLI_REV3);
+		/* Now, try to enable MSI-X interrupt mode */
+		retval = lpfc_sli_enable_msix(phba);
 		if (!retval) {
-			/* Now, try to enable MSI-X interrupt mode */
-			retval = lpfc_sli_enable_msix(phba);
-			if (!retval) {
-				/* Indicate initialization to MSI-X mode */
-				phba->intr_type = MSIX;
-				intr_mode = 2;
-			}
+			/* Indicate initialization to MSI-X mode */
+			phba->intr_type = MSIX;
+			intr_mode = 2;
 		}
 	}
 

@@ -4359,6 +4359,8 @@ lpfc_sli_brdready_s3(struct lpfc_hba *phba, uint32_t mask)
 	if (lpfc_readl(phba->HSregaddr, &status))
 		return 1;
 
+	phba->hba_flag |= HBA_NEEDS_CFG_PORT;
+
 	/*
 	 * Check status register every 100ms for 5 retries, then every
 	 * 500ms for 5, then every 2.5 sec for 5, then reset board and
@@ -4687,6 +4689,7 @@ lpfc_sli_brdreset(struct lpfc_hba *phba)
 	/* perform board reset */
 	phba->fc_eventTag = 0;
 	phba->link_events = 0;
+	phba->hba_flag |= HBA_NEEDS_CFG_PORT;
 	if (phba->pport) {
 		phba->pport->fc_myDID = 0;
 		phba->pport->fc_prevDID = 0;
@@ -5020,6 +5023,8 @@ lpfc_sli_chipset_init(struct lpfc_hba *phba)
 		return -EIO;
 	}
 
+	phba->hba_flag |= HBA_NEEDS_CFG_PORT;
+
 	/* Clear all interrupt enable conditions */
 	writel(0, phba->HCregaddr);
 	readl(phba->HCregaddr); /* flush */
@@ -5316,44 +5321,17 @@ int
 lpfc_sli_hba_setup(struct lpfc_hba *phba)
 {
 	uint32_t rc;
-	int  mode = 3, i;
+	int  i;
 	int longs;
 
-	switch (phba->cfg_sli_mode) {
-	case 2:
-		if (phba->cfg_enable_npiv) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"1824 NPIV enabled: Override sli_mode "
-				"parameter (%d) to auto (0).\n",
-				phba->cfg_sli_mode);
-			break;
-		}
-		mode = 2;
-		break;
-	case 0:
-	case 3:
-		break;
-	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"1819 Unrecognized sli_mode parameter: %d.\n",
-				phba->cfg_sli_mode);
-
-		break;
+	/* Enable ISR already does config_port because of config_msi mbx */
+	if (phba->hba_flag & HBA_NEEDS_CFG_PORT) {
+		rc = lpfc_sli_config_port(phba, LPFC_SLI_REV3);
+		if (rc)
+			return -EIO;
+		phba->hba_flag &= ~HBA_NEEDS_CFG_PORT;
 	}
 	phba->fcp_embed_io = 0;	/* SLI4 FC support only */
-
-	rc = lpfc_sli_config_port(phba, mode);
-
-	if (rc && phba->cfg_sli_mode == 3)
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"1820 Unable to select SLI-3.  "
-				"Not supported by adapter.\n");
-	if (rc && mode != 2)
-		rc = lpfc_sli_config_port(phba, 2);
-	else if (rc && mode == 2)
-		rc = lpfc_sli_config_port(phba, 3);
-	if (rc)
-		goto lpfc_sli_hba_setup_error;
 
 	/* Enable PCIe device Advanced Error Reporting (AER) if configured */
 	if (phba->cfg_aer_support == 1 && !(phba->hba_flag & HBA_AER_ENABLED)) {
