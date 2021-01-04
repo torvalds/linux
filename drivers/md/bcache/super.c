@@ -1341,6 +1341,12 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c,
 	bcache_device_link(&dc->disk, c, "bdev");
 	atomic_inc(&c->attached_dev_nr);
 
+	if (bch_has_feature_obso_large_bucket(&(c->cache->sb))) {
+		pr_err("The obsoleted large bucket layout is unsupported, set the bcache device into read-only\n");
+		pr_err("Please update to the latest bcache-tools to create the cache device\n");
+		set_disk_ro(dc->disk.disk, 1);
+	}
+
 	/* Allow the writeback thread to proceed */
 	up_write(&dc->writeback_lock);
 
@@ -1563,6 +1569,12 @@ static int flash_dev_run(struct cache_set *c, struct uuid_entry *u)
 		goto err;
 
 	bcache_device_link(d, c, "volume");
+
+	if (bch_has_feature_obso_large_bucket(&c->cache->sb)) {
+		pr_err("The obsoleted large bucket layout is unsupported, set the bcache device into read-only\n");
+		pr_err("Please update to the latest bcache-tools to create the cache device\n");
+		set_disk_ro(d->disk, 1);
+	}
 
 	return 0;
 err:
@@ -2122,6 +2134,9 @@ static int run_cache_set(struct cache_set *c)
 	closure_sync(&cl);
 	c->cache->sb.last_mount = (u32)ktime_get_real_seconds();
 	bcache_write_super(c);
+
+	if (bch_has_feature_obso_large_bucket(&c->cache->sb))
+		pr_err("Detect obsoleted large bucket layout, all attached bcache device will be read-only\n");
 
 	list_for_each_entry_safe(dc, t, &uncached_devices, list)
 		bch_cached_dev_attach(dc, c, NULL);
