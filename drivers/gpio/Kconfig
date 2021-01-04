@@ -487,11 +487,11 @@ config GPIO_PXA
 	  Say yes here to support the PXA GPIO device
 
 config GPIO_RCAR
-	tristate "Renesas R-Car GPIO"
+	tristate "Renesas R-Car and RZ/G GPIO support"
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to support GPIO on Renesas R-Car SoCs.
+	  Say yes here to support GPIO on Renesas R-Car or RZ/G SoCs.
 
 config GPIO_RDA
 	bool "RDA Micro GPIO controller support"
