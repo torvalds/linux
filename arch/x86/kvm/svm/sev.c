@@ -1041,6 +1041,74 @@ e_unpin_memory:
 	return ret;
 }
 
+static int sev_get_attestation_report(struct kvm *kvm, struct kvm_sev_cmd *argp)
+{
+	void __user *report = (void __user *)(uintptr_t)argp->data;
+	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
+	struct sev_data_attestation_report *data;
+	struct kvm_sev_attestation_report params;
+	void __user *p;
+	void *blob = NULL;
+	int ret;
+
+	if (!sev_guest(kvm))
+		return -ENOTTY;
+
+	if (copy_from_user(&params, (void __user *)(uintptr_t)argp->data, sizeof(params)))
+		return -EFAULT;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
+	if (!data)
+		return -ENOMEM;
+
+	/* User wants to query the blob length */
+	if (!params.len)
+		goto cmd;
+
+	p = (void __user *)(uintptr_t)params.uaddr;
+	if (p) {
+		if (params.len > SEV_FW_BLOB_MAX_SIZE) {
+			ret = -EINVAL;
+			goto e_free;
+		}
+
+		ret = -ENOMEM;
+		blob = kmalloc(params.len, GFP_KERNEL);
+		if (!blob)
+			goto e_free;
+
+		data->address = __psp_pa(blob);
+		data->len = params.len;
+		memcpy(data->mnonce, params.mnonce, sizeof(params.mnonce));
+	}
+cmd:
+	data->handle = sev->handle;
+	ret = sev_issue_cmd(kvm, SEV_CMD_ATTESTATION_REPORT, data, &argp->error);
+	/*
+	 * If we query the session length, FW responded with expected data.
+	 */
+	if (!params.len)
+		goto done;
+
+	if (ret)
+		goto e_free_blob;
+
+	if (blob) {
+		if (copy_to_user(p, blob, params.len))
+			ret = -EFAULT;
+	}
+
+done:
+	params.len = data->len;
+	if (copy_to_user(report, &params, sizeof(params)))
+		ret = -EFAULT;
+e_free_blob:
+	kfree(blob);
+e_free:
+	kfree(data);
+	return ret;
+}
+
 int svm_mem_enc_op(struct kvm *kvm, void __user *argp)
 {
 	struct kvm_sev_cmd sev_cmd;
@@ -1090,6 +1158,9 @@ int svm_mem_enc_op(struct kvm *kvm, void __user *argp)
 		break;
 	case KVM_SEV_LAUNCH_SECRET:
 		r = sev_launch_secret(kvm, &sev_cmd);
+		break;
+	case KVM_SEV_GET_ATTESTATION_REPORT:
+		r = sev_get_attestation_report(kvm, &sev_cmd);
 		break;
 	default:
 		r = -EINVAL;

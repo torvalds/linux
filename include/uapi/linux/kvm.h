@@ -1593,6 +1593,8 @@ enum sev_cmd_id {
 	KVM_SEV_DBG_ENCRYPT,
 	/* Guest certificates commands */
 	KVM_SEV_CERT_EXPORT,
+	/* Attestation report */
+	KVM_SEV_GET_ATTESTATION_REPORT,
 
 	KVM_SEV_NR_MAX,
 };
@@ -1642,6 +1644,12 @@ struct kvm_sev_guest_status {
 struct kvm_sev_dbg {
 	__u64 src_uaddr;
 	__u64 dst_uaddr;
+	__u32 len;
+};
+
+struct kvm_sev_attestation_report {
+	__u8 mnonce[16];
+	__u64 uaddr;
 	__u32 len;
 };
 
