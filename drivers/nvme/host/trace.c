@@ -102,6 +102,23 @@ static const char *nvme_trace_get_lba_status(struct trace_seq *p,
 	return ret;
 }
 
+static const char *nvme_trace_admin_format_nvm(struct trace_seq *p, u8 *cdw10)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+	u8 lbaf = cdw10[0] & 0xF;
+	u8 mset = (cdw10[0] >> 4) & 0x1;
+	u8 pi = (cdw10[0] >> 5) & 0x7;
+	u8 pil = cdw10[1] & 0x1;
+	u8 ses = (cdw10[1] >> 1) & 0x7;
+
+	trace_seq_printf(p, "lbaf=%u, mset=%u, pi=%u, pil=%u, ses=%u",
+			lbaf, mset, pi, pil, ses);
+
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
 static const char *nvme_trace_read_write(struct trace_seq *p, u8 *cdw10)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
@@ -159,6 +176,8 @@ const char *nvme_trace_parse_admin_cmd(struct trace_seq *p,
 		return nvme_trace_admin_get_features(p, cdw10);
 	case nvme_admin_get_lba_status:
 		return nvme_trace_get_lba_status(p, cdw10);
+	case nvme_admin_format_nvm:
+		return nvme_trace_admin_format_nvm(p, cdw10);
 	default:
 		return nvme_trace_common(p, cdw10);
 	}
