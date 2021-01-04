@@ -122,7 +122,7 @@ static inline u8 rtas_mc_error_sub_type(const struct pseries_mc_errorlog *mlog)
  * devices or systems (e.g. hugepages) that have not been initialized at the
  * subsys stage.
  */
-int __init init_ras_hotplug_IRQ(void)
+static int __init init_ras_hotplug_IRQ(void)
 {
 	struct device_node *np;
 
