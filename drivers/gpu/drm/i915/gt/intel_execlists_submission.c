@@ -1016,6 +1016,9 @@ static bool virtual_matches(const struct virtual_engine *ve,
 {
 	const struct intel_engine_cs *inflight;
 
+	if (!rq)
+		return false;
+
 	if (!(rq->execution_mask & engine->mask)) /* We peeked too soon! */
 		return false;
 
@@ -1423,8 +1426,8 @@ check_secondary:
 		spin_lock(&ve->base.active.lock);
 
 		rq = ve->request;
-		if (unlikely(!rq)) /* lost the race to a sibling */
-			goto unlock;
+		if (unlikely(!virtual_matches(ve, rq, engine)))
+			goto unlock; /* lost the race to a sibling */
 
 		GEM_BUG_ON(rq->engine != &ve->base);
 		GEM_BUG_ON(rq->context != &ve->context);
@@ -1433,8 +1436,6 @@ check_secondary:
 			spin_unlock(&ve->base.active.lock);
 			break;
 		}
-
-		GEM_BUG_ON(!virtual_matches(ve, rq, engine));
 
 		if (last && !can_merge_rq(last, rq)) {
 			spin_unlock(&ve->base.active.lock);
