@@ -217,7 +217,7 @@ void __init pseries_add_gpage(u64 addr, u64 page_size, unsigned long number_of_p
 	}
 }
 
-int __init pseries_alloc_bootmem_huge_page(struct hstate *hstate)
+static int __init pseries_alloc_bootmem_huge_page(struct hstate *hstate)
 {
 	struct huge_bootmem_page *m;
 	if (nr_gpages == 0)
