@@ -26,6 +26,7 @@
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
 #include <asm/hugetlb.h>
+#include <asm/pte-walk.h>
 
 static inline int is_exec_fault(void)
 {
