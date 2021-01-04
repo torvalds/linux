@@ -124,7 +124,7 @@ static void max8997_battery_extcon_evt_worker(struct work_struct *work)
 		dev_dbg(charger->dev, "USB CDP charger is connected\n");
 		current_limit = 650000;
 	} else {
-		dev_dbg(charger->dev, "USB charger is diconnected\n");
+		dev_dbg(charger->dev, "USB charger is disconnected\n");
 		current_limit = -1;
 	}
 
