@@ -16,6 +16,7 @@ struct otx2_flow {
 	u32 location;
 	u16 entry;
 	bool is_vf;
+	u8 rss_ctx_id;
 	int vf;
 };
 
@@ -245,6 +246,7 @@ int otx2_get_flow(struct otx2_nic *pfvf, struct ethtool_rxnfc *nfc,
 	list_for_each_entry(iter, &pfvf->flow_cfg->flow_list, list) {
 		if (iter->location == location) {
 			nfc->fs = iter->flow_spec;
+			nfc->rss_context = iter->rss_ctx_id;
 			return 0;
 		}
 	}
@@ -429,7 +431,7 @@ int otx2_prepare_flow_request(struct ethtool_rx_flow_spec *fsp,
 	struct flow_msg *pkt = &req->packet;
 	u32 flow_type;
 
-	flow_type = fsp->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT);
+	flow_type = fsp->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT | FLOW_RSS);
 	switch (flow_type) {
 	/* bits not set in mask are don't care */
 	case ETHER_FLOW:
@@ -532,9 +534,13 @@ static int otx2_add_flow_msg(struct otx2_nic *pfvf, struct otx2_flow *flow)
 		/* change to unicast only if action of default entry is not
 		 * requested by user
 		 */
-		if (req->op != NIX_RX_ACTION_DEFAULT)
+		if (flow->flow_spec.flow_type & FLOW_RSS) {
+			req->op = NIX_RX_ACTIONOP_RSS;
+			req->index = flow->rss_ctx_id;
+		} else {
 			req->op = NIX_RX_ACTIONOP_UCAST;
-		req->index = ethtool_get_flow_spec_ring(ring_cookie);
+			req->index = ethtool_get_flow_spec_ring(ring_cookie);
+		}
 		vf = ethtool_get_flow_spec_ring_vf(ring_cookie);
 		if (vf > pci_num_vf(pfvf->pdev)) {
 			mutex_unlock(&pfvf->mbox.lock);
@@ -555,14 +561,16 @@ static int otx2_add_flow_msg(struct otx2_nic *pfvf, struct otx2_flow *flow)
 	return err;
 }
 
-int otx2_add_flow(struct otx2_nic *pfvf, struct ethtool_rx_flow_spec *fsp)
+int otx2_add_flow(struct otx2_nic *pfvf, struct ethtool_rxnfc *nfc)
 {
 	struct otx2_flow_config *flow_cfg = pfvf->flow_cfg;
-	u32 ring = ethtool_get_flow_spec_ring(fsp->ring_cookie);
+	struct ethtool_rx_flow_spec *fsp = &nfc->fs;
 	struct otx2_flow *flow;
 	bool new = false;
+	u32 ring;
 	int err;
 
+	ring = ethtool_get_flow_spec_ring(fsp->ring_cookie);
 	if (!(pfvf->flags & OTX2_FLAG_NTUPLE_SUPPORT))
 		return -ENOMEM;
 
@@ -584,6 +592,9 @@ int otx2_add_flow(struct otx2_nic *pfvf, struct ethtool_rx_flow_spec *fsp)
 	}
 	/* struct copy */
 	flow->flow_spec = *fsp;
+
+	if (fsp->flow_type & FLOW_RSS)
+		flow->rss_ctx_id = nfc->rss_context;
 
 	err = otx2_add_flow_msg(pfvf, flow);
 	if (err) {
@@ -645,6 +656,22 @@ int otx2_remove_flow(struct otx2_nic *pfvf, u32 location)
 	flow_cfg->nr_flows--;
 
 	return 0;
+}
+
+void otx2_rss_ctx_flow_del(struct otx2_nic *pfvf, int ctx_id)
+{
+	struct otx2_flow *flow, *tmp;
+	int err;
+
+	list_for_each_entry_safe(flow, tmp, &pfvf->flow_cfg->flow_list, list) {
+		if (flow->rss_ctx_id != ctx_id)
+			continue;
+		err = otx2_remove_flow(pfvf, flow->location);
+		if (err)
+			netdev_warn(pfvf->netdev,
+				    "Can't delete the rule %d associated with this rss group err:%d",
+				    flow->location, err);
+	}
 }
 
 int otx2_destroy_ntuple_flows(struct otx2_nic *pfvf)
