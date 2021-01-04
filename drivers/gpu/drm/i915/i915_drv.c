@@ -410,6 +410,7 @@ static int i915_driver_mmio_probe(struct drm_i915_private *dev_priv)
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
 	intel_setup_mchbar(dev_priv);
+	intel_device_info_runtime_init(dev_priv);
 
 	ret = intel_gt_init_mmio(&dev_priv->gt);
 	if (ret)
@@ -515,8 +516,6 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 
 	if (i915_inject_probe_failure(dev_priv))
 		return -ENODEV;
-
-	intel_device_info_runtime_init(dev_priv);
 
 	if (HAS_PPGTT(dev_priv)) {
 		if (intel_vgpu_active(dev_priv) &&
