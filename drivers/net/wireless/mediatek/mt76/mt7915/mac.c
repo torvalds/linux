@@ -1544,9 +1544,9 @@ void mt7915_mac_reset_work(struct work_struct *work)
 	set_bit(MT76_RESET, &dev->mphy.state);
 	set_bit(MT76_MCU_RESET, &dev->mphy.state);
 	wake_up(&dev->mt76.mcu.wait);
-	cancel_delayed_work_sync(&dev->phy.mac_work);
+	cancel_delayed_work_sync(&dev->mphy.mac_work);
 	if (phy2)
-		cancel_delayed_work_sync(&phy2->mac_work);
+		cancel_delayed_work_sync(&phy2->mt76->mac_work);
 
 	/* lock/unlock all queues to ensure that no tx is pending */
 	mt76_txq_schedule_all(&dev->mphy);
@@ -1600,10 +1600,11 @@ void mt7915_mac_reset_work(struct work_struct *work)
 
 	mt7915_update_beacons(dev);
 
-	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->phy.mac_work,
+	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mphy.mac_work,
 				     MT7915_WATCHDOG_TIME);
 	if (phy2)
-		ieee80211_queue_delayed_work(ext_phy->hw, &phy2->mac_work,
+		ieee80211_queue_delayed_work(ext_phy->hw,
+					     &phy2->mt76->mac_work,
 					     MT7915_WATCHDOG_TIME);
 }
 
@@ -1714,17 +1715,17 @@ void mt7915_mac_sta_rc_work(struct work_struct *work)
 void mt7915_mac_work(struct work_struct *work)
 {
 	struct mt7915_phy *phy;
-	struct mt76_dev *mdev;
+	struct mt76_phy *mphy;
 
-	phy = (struct mt7915_phy *)container_of(work, struct mt7915_phy,
-						mac_work.work);
-	mdev = &phy->dev->mt76;
+	mphy = (struct mt76_phy *)container_of(work, struct mt76_phy,
+					       mac_work.work);
+	phy = mphy->priv;
 
-	mutex_lock(&mdev->mutex);
+	mutex_lock(&mphy->dev->mutex);
 
-	mt76_update_survey(mdev);
-	if (++phy->mac_work_count == 5) {
-		phy->mac_work_count = 0;
+	mt76_update_survey(mphy->dev);
+	if (++mphy->mac_work_count == 5) {
+		mphy->mac_work_count = 0;
 
 		mt7915_mac_update_mib_stats(phy);
 	}
@@ -1734,9 +1735,9 @@ void mt7915_mac_work(struct work_struct *work)
 		mt7915_mac_sta_stats_work(phy);
 	};
 
-	mutex_unlock(&mdev->mutex);
+	mutex_unlock(&mphy->dev->mutex);
 
-	ieee80211_queue_delayed_work(phy->mt76->hw, &phy->mac_work,
+	ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work,
 				     MT7915_WATCHDOG_TIME);
 }
 

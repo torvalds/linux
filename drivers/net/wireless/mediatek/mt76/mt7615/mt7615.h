@@ -185,9 +185,6 @@ struct mt7615_phy {
 
 	struct mib_stats mib;
 
-	struct delayed_work mac_work;
-	u8 mac_work_count;
-
 	struct sk_buff_head scan_event_list;
 	struct delayed_work scan_work;
 

@@ -236,7 +236,7 @@ fail:
 void mt76x2u_stop_hw(struct mt76x02_dev *dev)
 {
 	cancel_delayed_work_sync(&dev->cal_work);
-	cancel_delayed_work_sync(&dev->mt76.mac_work);
+	cancel_delayed_work_sync(&dev->mphy.mac_work);
 	mt76x2u_mac_stop(dev);
 }
 

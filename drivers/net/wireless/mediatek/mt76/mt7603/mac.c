@@ -1788,7 +1788,7 @@ out:
 void mt7603_mac_work(struct work_struct *work)
 {
 	struct mt7603_dev *dev = container_of(work, struct mt7603_dev,
-					      mt76.mac_work.work);
+					      mphy.mac_work.work);
 	bool reset = false;
 	int i, idx;
 
@@ -1796,7 +1796,7 @@ void mt7603_mac_work(struct work_struct *work)
 
 	mutex_lock(&dev->mt76.mutex);
 
-	dev->mac_work_count++;
+	dev->mphy.mac_work_count++;
 	mt76_update_survey(&dev->mt76);
 	mt7603_edcca_check(dev);
 
@@ -1807,7 +1807,7 @@ void mt7603_mac_work(struct work_struct *work)
 		dev->mt76.aggr_stats[idx++] += val >> 16;
 	}
 
-	if (dev->mac_work_count == 10)
+	if (dev->mphy.mac_work_count == 10)
 		mt7603_false_cca_check(dev);
 
 	if (mt7603_watchdog_check(dev, &dev->rx_pse_check,
@@ -1838,17 +1838,17 @@ void mt7603_mac_work(struct work_struct *work)
 		dev->rx_dma_idx = ~0;
 		memset(dev->tx_dma_idx, 0xff, sizeof(dev->tx_dma_idx));
 		reset = true;
-		dev->mac_work_count = 0;
+		dev->mphy.mac_work_count = 0;
 	}
 
-	if (dev->mac_work_count >= 10)
-		dev->mac_work_count = 0;
+	if (dev->mphy.mac_work_count >= 10)
+		dev->mphy.mac_work_count = 0;
 
 	mutex_unlock(&dev->mt76.mutex);
 
 	if (reset)
 		mt7603_mac_watchdog_reset(dev);
 
-	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
+	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mphy.mac_work,
 				     msecs_to_jiffies(MT7603_WATCHDOG_TIME));
 }

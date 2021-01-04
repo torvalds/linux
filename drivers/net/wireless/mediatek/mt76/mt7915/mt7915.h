@@ -140,8 +140,6 @@ struct mt7915_phy {
 	struct mib_stats mib;
 	struct list_head stats_list;
 
-	struct delayed_work mac_work;
-	u8 mac_work_count;
 	u8 sta_work_count;
 
 #ifdef CONFIG_NL80211_TESTMODE

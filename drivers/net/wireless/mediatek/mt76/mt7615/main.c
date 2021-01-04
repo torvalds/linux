@@ -70,7 +70,7 @@ static int mt7615_start(struct ieee80211_hw *hw)
 
 	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 
-	ieee80211_queue_delayed_work(hw, &phy->mac_work,
+	ieee80211_queue_delayed_work(hw, &phy->mt76->mac_work,
 				     MT7615_WATCHDOG_TIME);
 
 	if (!running)
@@ -86,7 +86,7 @@ static void mt7615_stop(struct ieee80211_hw *hw)
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
 
-	cancel_delayed_work_sync(&phy->mac_work);
+	cancel_delayed_work_sync(&phy->mt76->mac_work);
 	del_timer_sync(&phy->roc_timer);
 	cancel_work_sync(&phy->roc_work);
 
@@ -300,7 +300,7 @@ int mt7615_set_channel(struct mt7615_phy *phy)
 	bool ext_phy = phy != &dev->phy;
 	int ret;
 
-	cancel_delayed_work_sync(&phy->mac_work);
+	cancel_delayed_work_sync(&phy->mt76->mac_work);
 
 	mt7615_mutex_acquire(dev);
 
@@ -335,7 +335,8 @@ out:
 	mt76_txq_schedule_all(phy->mt76);
 
 	if (!mt76_testmode_enabled(phy->mt76))
-		ieee80211_queue_delayed_work(phy->mt76->hw, &phy->mac_work,
+		ieee80211_queue_delayed_work(phy->mt76->hw,
+					     &phy->mt76->mac_work,
 					     MT7615_WATCHDOG_TIME);
 
 	return ret;
@@ -1112,7 +1113,7 @@ static int mt7615_suspend(struct ieee80211_hw *hw,
 
 	clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 	cancel_delayed_work_sync(&phy->scan_work);
-	cancel_delayed_work_sync(&phy->mac_work);
+	cancel_delayed_work_sync(&phy->mt76->mac_work);
 
 	set_bit(MT76_STATE_SUSPEND, &phy->mt76->state);
 	ieee80211_iterate_active_interfaces(hw,
@@ -1153,7 +1154,7 @@ static int mt7615_resume(struct ieee80211_hw *hw)
 					    IEEE80211_IFACE_ITER_RESUME_ALL,
 					    mt7615_mcu_set_suspend_iter, phy);
 
-	ieee80211_queue_delayed_work(hw, &phy->mac_work,
+	ieee80211_queue_delayed_work(hw, &phy->mt76->mac_work,
 				     MT7615_WATCHDOG_TIME);
 
 	mt7615_mutex_release(dev);
