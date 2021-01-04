@@ -141,12 +141,13 @@ static void __iomem *map_capability(struct pci_dev *dev, int off,
 static u64 vp_get_features(struct virtio_device *vdev)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+	struct virtio_pci_common_cfg __iomem *cfg = vp_dev->common;
 	u64 features;
 
-	vp_iowrite32(0, &vp_dev->common->device_feature_select);
-	features = vp_ioread32(&vp_dev->common->device_feature);
-	vp_iowrite32(1, &vp_dev->common->device_feature_select);
-	features |= ((u64)vp_ioread32(&vp_dev->common->device_feature) << 32);
+	vp_iowrite32(0, &cfg->device_feature_select);
+	features = vp_ioread32(&cfg->device_feature);
+	vp_iowrite32(1, &cfg->device_feature_select);
+	features |= ((u64)vp_ioread32(&cfg->device_feature) << 32);
 
 	return features;
 }
@@ -165,6 +166,7 @@ static void vp_transport_features(struct virtio_device *vdev, u64 features)
 static int vp_finalize_features(struct virtio_device *vdev)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+	struct virtio_pci_common_cfg __iomem *cfg = vp_dev->common;
 	u64 features = vdev->features;
 
 	/* Give virtio_ring a chance to accept features. */
@@ -179,10 +181,10 @@ static int vp_finalize_features(struct virtio_device *vdev)
 		return -EINVAL;
 	}
 
-	vp_iowrite32(0, &vp_dev->common->guest_feature_select);
-	vp_iowrite32((u32)vdev->features, &vp_dev->common->guest_feature);
-	vp_iowrite32(1, &vp_dev->common->guest_feature_select);
-	vp_iowrite32(vdev->features >> 32, &vp_dev->common->guest_feature);
+	vp_iowrite32(0, &cfg->guest_feature_select);
+	vp_iowrite32((u32)vdev->features, &cfg->guest_feature);
+	vp_iowrite32(1, &cfg->guest_feature_select);
+	vp_iowrite32(vdev->features >> 32, &cfg->guest_feature);
 
 	return 0;
 }
@@ -192,6 +194,7 @@ static void vp_get(struct virtio_device *vdev, unsigned offset,
 		   void *buf, unsigned len)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+	void __iomem *device = vp_dev->device;
 	u8 b;
 	__le16 w;
 	__le32 l;
@@ -200,21 +203,21 @@ static void vp_get(struct virtio_device *vdev, unsigned offset,
 
 	switch (len) {
 	case 1:
-		b = ioread8(vp_dev->device + offset);
+		b = ioread8(device + offset);
 		memcpy(buf, &b, sizeof b);
 		break;
 	case 2:
-		w = cpu_to_le16(ioread16(vp_dev->device + offset));
+		w = cpu_to_le16(ioread16(device + offset));
 		memcpy(buf, &w, sizeof w);
 		break;
 	case 4:
-		l = cpu_to_le32(ioread32(vp_dev->device + offset));
+		l = cpu_to_le32(ioread32(device + offset));
 		memcpy(buf, &l, sizeof l);
 		break;
 	case 8:
-		l = cpu_to_le32(ioread32(vp_dev->device + offset));
+		l = cpu_to_le32(ioread32(device + offset));
 		memcpy(buf, &l, sizeof l);
-		l = cpu_to_le32(ioread32(vp_dev->device + offset + sizeof l));
+		l = cpu_to_le32(ioread32(device + offset + sizeof l));
 		memcpy(buf + sizeof l, &l, sizeof l);
 		break;
 	default:
@@ -228,6 +231,7 @@ static void vp_set(struct virtio_device *vdev, unsigned offset,
 		   const void *buf, unsigned len)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+	void __iomem *device = vp_dev->device;
 	u8 b;
 	__le16 w;
 	__le32 l;
@@ -237,21 +241,21 @@ static void vp_set(struct virtio_device *vdev, unsigned offset,
 	switch (len) {
 	case 1:
 		memcpy(&b, buf, sizeof b);
-		iowrite8(b, vp_dev->device + offset);
+		iowrite8(b, device + offset);
 		break;
 	case 2:
 		memcpy(&w, buf, sizeof w);
-		iowrite16(le16_to_cpu(w), vp_dev->device + offset);
+		iowrite16(le16_to_cpu(w), device + offset);
 		break;
 	case 4:
 		memcpy(&l, buf, sizeof l);
-		iowrite32(le32_to_cpu(l), vp_dev->device + offset);
+		iowrite32(le32_to_cpu(l), device + offset);
 		break;
 	case 8:
 		memcpy(&l, buf, sizeof l);
-		iowrite32(le32_to_cpu(l), vp_dev->device + offset);
+		iowrite32(le32_to_cpu(l), device + offset);
 		memcpy(&l, buf + sizeof l, sizeof l);
-		iowrite32(le32_to_cpu(l), vp_dev->device + offset + sizeof l);
+		iowrite32(le32_to_cpu(l), device + offset + sizeof l);
 		break;
 	default:
 		BUG();
@@ -261,35 +265,43 @@ static void vp_set(struct virtio_device *vdev, unsigned offset,
 static u32 vp_generation(struct virtio_device *vdev)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
-	return vp_ioread8(&vp_dev->common->config_generation);
+	struct virtio_pci_common_cfg __iomem *cfg = vp_dev->common;
+
+	return vp_ioread8(&cfg->config_generation);
 }
 
 /* config->{get,set}_status() implementations */
 static u8 vp_get_status(struct virtio_device *vdev)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
-	return vp_ioread8(&vp_dev->common->device_status);
+	struct virtio_pci_common_cfg __iomem *cfg = vp_dev->common;
+
+	return vp_ioread8(&cfg->device_status);
 }
 
 static void vp_set_status(struct virtio_device *vdev, u8 status)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+	struct virtio_pci_common_cfg __iomem *cfg = vp_dev->common;
+
 	/* We should never be setting status to 0. */
 	BUG_ON(status == 0);
-	vp_iowrite8(status, &vp_dev->common->device_status);
+	vp_iowrite8(status, &cfg->device_status);
 }
 
 static void vp_reset(struct virtio_device *vdev)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+	struct virtio_pci_common_cfg __iomem *cfg = vp_dev->common;
+
 	/* 0 status means a reset. */
-	vp_iowrite8(0, &vp_dev->common->device_status);
+	vp_iowrite8(0, &cfg->device_status);
 	/* After writing 0 to device_status, the driver MUST wait for a read of
 	 * device_status to return 0 before reinitializing the device.
 	 * This will flush out the status write, and flush in device writes,
 	 * including MSI-X interrupts, if any.
 	 */
-	while (vp_ioread8(&vp_dev->common->device_status))
+	while (vp_ioread8(&cfg->device_status))
 		msleep(1);
 	/* Flush pending VQ/configuration callbacks. */
 	vp_synchronize_vectors(vdev);
@@ -297,11 +309,13 @@ static void vp_reset(struct virtio_device *vdev)
 
 static u16 vp_config_vector(struct virtio_pci_device *vp_dev, u16 vector)
 {
+	struct virtio_pci_common_cfg __iomem *cfg = vp_dev->common;
+
 	/* Setup the vector used for configuration events */
-	vp_iowrite16(vector, &vp_dev->common->msix_config);
+	vp_iowrite16(vector, &cfg->msix_config);
 	/* Verify we had enough resources to assign the vector */
 	/* Will also flush the write out to device */
-	return vp_ioread16(&vp_dev->common->msix_config);
+	return vp_ioread16(&cfg->msix_config);
 }
 
 static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
@@ -407,6 +421,7 @@ static int vp_modern_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 			      struct irq_affinity *desc)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+	struct virtio_pci_common_cfg __iomem *cfg = vp_dev->common;
 	struct virtqueue *vq;
 	int rc = vp_find_vqs(vdev, nvqs, vqs, callbacks, names, ctx, desc);
 
@@ -417,8 +432,8 @@ static int vp_modern_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	 * this, there's no way to go back except reset.
 	 */
 	list_for_each_entry(vq, &vdev->vqs, list) {
-		vp_iowrite16(vq->index, &vp_dev->common->queue_select);
-		vp_iowrite16(1, &vp_dev->common->queue_enable);
+		vp_iowrite16(vq->index, &cfg->queue_select);
+		vp_iowrite16(1, &cfg->queue_enable);
 	}
 
 	return 0;
@@ -428,14 +443,15 @@ static void del_vq(struct virtio_pci_vq_info *info)
 {
 	struct virtqueue *vq = info->vq;
 	struct virtio_pci_device *vp_dev = to_vp_device(vq->vdev);
+	struct virtio_pci_common_cfg __iomem *cfg = vp_dev->common;
 
-	vp_iowrite16(vq->index, &vp_dev->common->queue_select);
+	vp_iowrite16(vq->index, &cfg->queue_select);
 
 	if (vp_dev->msix_enabled) {
 		vp_iowrite16(VIRTIO_MSI_NO_VECTOR,
-			     &vp_dev->common->queue_msix_vector);
+			     &cfg->queue_msix_vector);
 		/* Flush the write out to device */
-		vp_ioread16(&vp_dev->common->queue_msix_vector);
+		vp_ioread16(&cfg->queue_msix_vector);
 	}
 
 	if (!vp_dev->notify_base)
