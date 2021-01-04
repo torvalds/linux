@@ -579,6 +579,7 @@ struct mt76_phy {
 
 	int txpower_cur;
 	u8 antenna_mask;
+	u16 chainmask;
 
 #ifdef CONFIG_NL80211_TESTMODE
 	struct mt76_testmode_data test;

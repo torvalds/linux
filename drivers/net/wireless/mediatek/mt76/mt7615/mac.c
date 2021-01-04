@@ -326,7 +326,7 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 		 * that PHY.
 		 */
 		if (phy_idx < 0) {
-			int first_chain = ffs(phy2->chainmask) - 1;
+			int first_chain = ffs(phy2->mt76->chainmask) - 1;
 
 			phy_idx = ((rxdg5 >> (first_chain * 8)) & 0xff) == 0;
 		}

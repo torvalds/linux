@@ -362,9 +362,9 @@ mt7615_cap_dbdc_enable(struct mt7615_dev *dev)
 		dev->mphy.antenna_mask = dev->chainmask >> 2;
 	else
 		dev->mphy.antenna_mask = dev->chainmask >> 1;
-	dev->phy.chainmask = dev->mphy.antenna_mask;
-	dev->mphy.hw->wiphy->available_antennas_rx = dev->phy.chainmask;
-	dev->mphy.hw->wiphy->available_antennas_tx = dev->phy.chainmask;
+	dev->mphy.chainmask = dev->mphy.antenna_mask;
+	dev->mphy.hw->wiphy->available_antennas_rx = dev->mphy.chainmask;
+	dev->mphy.hw->wiphy->available_antennas_tx = dev->mphy.chainmask;
 	mt76_set_stream_caps(&dev->mphy, true);
 }
 
@@ -375,7 +375,7 @@ mt7615_cap_dbdc_disable(struct mt7615_dev *dev)
 			IEEE80211_VHT_CAP_SHORT_GI_160 |
 			IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ;
 	dev->mphy.antenna_mask = dev->chainmask;
-	dev->phy.chainmask = dev->chainmask;
+	dev->mphy.chainmask = dev->chainmask;
 	dev->mphy.hw->wiphy->available_antennas_rx = dev->chainmask;
 	dev->mphy.hw->wiphy->available_antennas_tx = dev->chainmask;
 	mt76_set_stream_caps(&dev->mphy, true);
@@ -404,8 +404,8 @@ int mt7615_register_ext_phy(struct mt7615_dev *dev)
 	phy = mphy->priv;
 	phy->dev = dev;
 	phy->mt76 = mphy;
-	phy->chainmask = dev->chainmask & ~dev->phy.chainmask;
-	mphy->antenna_mask = BIT(hweight8(phy->chainmask)) - 1;
+	mphy->chainmask = dev->chainmask & ~dev->mphy.chainmask;
+	mphy->antenna_mask = BIT(hweight8(mphy->chainmask)) - 1;
 	mt7615_init_wiphy(mphy->hw);
 
 	INIT_DELAYED_WORK(&mphy->mac_work, mt7615_mac_work);

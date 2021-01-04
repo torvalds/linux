@@ -126,7 +126,6 @@ struct mt7915_phy {
 	u64 omac_mask;
 
 	u16 noise;
-	u16 chainmask;
 
 	s16 coverage_class;
 	u8 slottime;

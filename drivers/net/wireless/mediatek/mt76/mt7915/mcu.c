@@ -834,9 +834,9 @@ static void
 mt7915_mcu_bss_ra_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 		      struct mt7915_phy *phy)
 {
+	int max_nss = hweight8(phy->mt76->chainmask);
 	struct bss_info_ra *ra;
 	struct tlv *tlv;
-	int max_nss = hweight8(phy->chainmask);
 
 	tlv = mt7915_mcu_add_tlv(skb, BSS_INFO_RA, sizeof(*ra));
 
@@ -1771,7 +1771,7 @@ mt7915_mcu_sta_bfer_vht(struct ieee80211_sta *sta, struct mt7915_phy *phy,
 {
 	struct ieee80211_sta_vht_cap *pc = &sta->vht_cap;
 	struct ieee80211_sta_vht_cap *vc = &phy->mt76->sband_5g.sband.vht_cap;
-	u8 bfee_nr, bfer_nr, n, tx_ant = hweight8(phy->chainmask) - 1;
+	u8 bfee_nr, bfer_nr, n, tx_ant = hweight8(phy->mt76->chainmask) - 1;
 	u16 mcs_map;
 
 	bf->tx_mode = MT_PHY_TYPE_VHT;
@@ -1868,9 +1868,9 @@ mt7915_mcu_sta_bfer_tlv(struct sk_buff *skb, struct ieee80211_sta *sta,
 			struct ieee80211_vif *vif, struct mt7915_phy *phy,
 			bool enable)
 {
+	int tx_ant = hweight8(phy->mt76->chainmask) - 1;
 	struct sta_rec_bf *bf;
 	struct tlv *tlv;
-	int tx_ant = hweight8(phy->chainmask) - 1;
 	const u8 matrix[4][4] = {
 		{0, 0, 0, 0},
 		{1, 1, 0, 0},	/* 2x1, 2x2, 2x3, 2x4 */
@@ -1923,9 +1923,9 @@ static void
 mt7915_mcu_sta_bfee_tlv(struct sk_buff *skb, struct ieee80211_sta *sta,
 			struct mt7915_phy *phy)
 {
+	int tx_ant = hweight8(phy->mt76->chainmask) - 1;
 	struct sta_rec_bfee *bfee;
 	struct tlv *tlv;
-	int tx_ant = hweight8(phy->chainmask) - 1;
 	u8 nr = 0;
 
 	tlv = mt7915_mcu_add_tlv(skb, STA_REC_BFEE, sizeof(*bfee));

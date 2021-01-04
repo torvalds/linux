@@ -1362,7 +1362,7 @@ mt7915_phy_get_nf(struct mt7915_phy *phy, int idx)
 	u32 val, sum = 0, n = 0;
 	int nss, i;
 
-	for (nss = 0; nss < hweight8(phy->chainmask); nss++) {
+	for (nss = 0; nss < hweight8(phy->mt76->chainmask); nss++) {
 		u32 reg = MT_WF_IRPI(nss + (idx << dev->dbdc_support));
 
 		for (i = 0; i < ARRAY_SIZE(nf_power); i++, reg += 4) {

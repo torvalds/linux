@@ -1662,7 +1662,7 @@ mt7615_mcu_uni_add_bss(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 			.center_chan = ieee80211_frequency_to_channel(freq1),
 			.center_chan2 = ieee80211_frequency_to_channel(freq2),
 			.tx_streams = hweight8(phy->mt76->antenna_mask),
-			.rx_streams = phy->chainmask,
+			.rx_streams = phy->mt76->chainmask,
 			.short_st = true,
 		},
 	};
@@ -2880,7 +2880,7 @@ int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd)
 		.control_chan = chandef->chan->hw_value,
 		.center_chan = ieee80211_frequency_to_channel(freq1),
 		.tx_streams = hweight8(phy->mt76->antenna_mask),
-		.rx_streams_mask = phy->chainmask,
+		.rx_streams_mask = phy->mt76->chainmask,
 		.center_chan2 = ieee80211_frequency_to_channel(freq2),
 	};
 

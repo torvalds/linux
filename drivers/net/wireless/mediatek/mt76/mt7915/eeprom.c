@@ -89,7 +89,7 @@ static void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev)
 
 	dev->chainmask = BIT(nss) - 1;
 	dev->mphy.antenna_mask = BIT(tx_mask[0]) - 1;
-	dev->phy.chainmask = dev->mphy.antenna_mask;
+	dev->mphy.chainmask = dev->mphy.antenna_mask;
 }
 
 int mt7915_eeprom_init(struct mt7915_dev *dev)

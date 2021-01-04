@@ -178,7 +178,7 @@ mt7615_tm_set_tx_antenna(struct mt7615_phy *phy, bool en)
 		return;
 
 	if (!en)
-		mask = phy->chainmask;
+		mask = phy->mt76->chainmask;
 
 	for (i = 0; i < 4; i++) {
 		mt76_rmw_field(dev, MT_WF_PHY_RFINTF3_0(i),
@@ -306,7 +306,7 @@ mt7615_tm_set_params(struct mt76_phy *mphy, struct nlattr **tb,
 	    td->state == MT76_TM_STATE_OFF)
 		return 0;
 
-	if (td->tx_antenna_mask & ~phy->chainmask)
+	if (td->tx_antenna_mask & ~mphy->chainmask)
 		return -EINVAL;
 
 	for (i = 0; i < ARRAY_SIZE(tm_change_map); i++) {

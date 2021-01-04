@@ -171,8 +171,6 @@ struct mt7615_phy {
 	s8 ofdm_sensitivity;
 	s8 cck_sensitivity;
 
-	u16 chainmask;
-
 	s16 coverage_class;
 	u8 slottime;
 
