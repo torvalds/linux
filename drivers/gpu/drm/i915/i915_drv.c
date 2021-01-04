@@ -1046,6 +1046,8 @@ static void intel_shutdown_encoders(struct drm_i915_private *dev_priv)
 
 void i915_driver_shutdown(struct drm_i915_private *i915)
 {
+	disable_rpm_wakeref_asserts(&i915->runtime_pm);
+
 	i915_gem_suspend(i915);
 
 	drm_kms_helper_poll_disable(&i915->drm);
@@ -1059,6 +1061,8 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 
 	intel_suspend_encoders(i915);
 	intel_shutdown_encoders(i915);
+
+	enable_rpm_wakeref_asserts(&i915->runtime_pm);
 }
 
 static bool suspend_to_idle(struct drm_i915_private *dev_priv)
