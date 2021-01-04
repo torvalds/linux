@@ -2126,15 +2126,16 @@ static void io_req_task_cancel(struct callback_head *cb)
 static void __io_req_task_submit(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
+	bool fail;
 
-	if (!__io_sq_thread_acquire_mm(ctx) &&
-	    !__io_sq_thread_acquire_files(ctx)) {
-		mutex_lock(&ctx->uring_lock);
+	fail = __io_sq_thread_acquire_mm(ctx) ||
+		__io_sq_thread_acquire_files(ctx);
+	mutex_lock(&ctx->uring_lock);
+	if (!fail)
 		__io_queue_sqe(req, NULL);
-		mutex_unlock(&ctx->uring_lock);
-	} else {
+	else
 		__io_req_task_cancel(req, -EFAULT);
-	}
+	mutex_unlock(&ctx->uring_lock);
 }
 
 static void io_req_task_submit(struct callback_head *cb)
