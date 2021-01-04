@@ -1875,9 +1875,10 @@ config AUTO_ZRELADDR
 	help
 	  ZRELADDR is the physical address where the decompressed kernel
 	  image will be placed. If AUTO_ZRELADDR is selected, the address
-	  will be determined at run-time by masking the current IP with
-	  0xf8000000. This assumes the zImage being placed in the first 128MB
-	  from start of memory.
+	  will be determined at run-time, either by masking the current IP
+	  with 0xf8000000, or, if invalid, from the DTB passed in r2.
+	  This assumes the zImage being placed in the first 128MB from
+	  start of memory.
 
 config EFI_STUB
 	bool

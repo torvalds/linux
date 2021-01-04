@@ -279,10 +279,40 @@ not_angel:
 		 * are already placing their zImage in (eg) the top 64MB
 		 * of this range.
 		 */
-		mov	r4, pc
-		and	r4, r4, #0xf8000000
+		mov	r0, pc
+		and	r0, r0, #0xf8000000
+#ifdef CONFIG_USE_OF
+		adr	r1, LC1
+#ifdef CONFIG_ARM_APPENDED_DTB
+		/*
+		 * Look for an appended DTB.  If found, we cannot use it to
+		 * validate the calculated start of physical memory, as its
+		 * memory nodes may need to be augmented by ATAGS stored at
+		 * an offset from the same start of physical memory.
+		 */
+		ldr	r2, [r1, #4]	@ get &_edata
+		add	r2, r2, r1	@ relocate it
+		ldr	r2, [r2]	@ get DTB signature
+		ldr	r3, =OF_DT_MAGIC
+		cmp	r2, r3		@ do we have a DTB there?
+		beq	1f		@ if yes, skip validation
+#endif /* CONFIG_ARM_APPENDED_DTB */
+
+		/*
+		 * Make sure we have some stack before calling C code.
+		 * No GOT fixup has occurred yet, but none of the code we're
+		 * about to call uses any global variables.
+		 */
+		ldr	sp, [r1]	@ get stack location
+		add	sp, sp, r1	@ apply relocation
+
+		/* Validate calculated start against passed DTB */
+		mov	r1, r8
+		bl	fdt_check_mem_start
+1:
+#endif /* CONFIG_USE_OF */
 		/* Determine final kernel image address. */
-		add	r4, r4, #TEXT_OFFSET
+		add	r4, r0, #TEXT_OFFSET
 #else
 		ldr	r4, =zreladdr
 #endif
