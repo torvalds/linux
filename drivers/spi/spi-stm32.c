@@ -1028,10 +1028,10 @@ static int stm32_spi_prepare_msg(struct spi_master *master,
 		clrb |= spi->cfg->regs->lsb_first.mask;
 
 	dev_dbg(spi->dev, "cpol=%d cpha=%d lsb_first=%d cs_high=%d\n",
-		spi_dev->mode & SPI_CPOL,
-		spi_dev->mode & SPI_CPHA,
-		spi_dev->mode & SPI_LSB_FIRST,
-		spi_dev->mode & SPI_CS_HIGH);
+		!!(spi_dev->mode & SPI_CPOL),
+		!!(spi_dev->mode & SPI_CPHA),
+		!!(spi_dev->mode & SPI_LSB_FIRST),
+		!!(spi_dev->mode & SPI_CS_HIGH));
 
 	spin_lock_irqsave(&spi->lock, flags);
 
