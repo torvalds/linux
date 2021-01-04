@@ -2885,7 +2885,7 @@ static void vop2_crtc_regs_dump(struct drm_crtc *crtc, struct seq_file *s)
 		RK3568_SMART1_CTRL0,
 		RK3568_HDR_LUT_CTRL,
 	};
-	uint32_t buf[64];
+	uint32_t buf[68];
 	unsigned int len = ARRAY_SIZE(buf);
 	unsigned int n, i, j;
 	uint32_t base;
@@ -4615,10 +4615,6 @@ static irqreturn_t vop2_isr(int irq, void *data)
 		}
 
 		if (active_irqs & FS_FIELD_INTR) {
-			drm_crtc_handle_vblank(crtc);
-			vop2_handle_vblank(vop2, crtc);
-			active_irqs &= ~FS_FIELD_INTR;
-
 			if (vp->wb_en) {
 				vp->fs_vsync_cnt++;
 				/*
@@ -4637,9 +4633,10 @@ static irqreturn_t vop2_isr(int irq, void *data)
 					drm_writeback_signal_completion(&vop2->wb.conn, 0);
 					vp->wb_en = 0;
 				}
-
-
 			}
+			drm_crtc_handle_vblank(crtc);
+			vop2_handle_vblank(vop2, crtc);
+			active_irqs &= ~FS_FIELD_INTR;
 			ret = IRQ_HANDLED;
 		}
 
