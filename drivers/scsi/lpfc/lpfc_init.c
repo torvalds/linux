@@ -6191,10 +6191,14 @@ lpfc_reset_hba(struct lpfc_hba *phba)
 		phba->link_state = LPFC_HBA_ERROR;
 		return;
 	}
-	if (phba->sli.sli_flag & LPFC_SLI_ACTIVE)
+
+	/* If not LPFC_SLI_ACTIVE, force all IO to be flushed */
+	if (phba->sli.sli_flag & LPFC_SLI_ACTIVE) {
 		lpfc_offline_prep(phba, LPFC_MBX_WAIT);
-	else
+	} else {
 		lpfc_offline_prep(phba, LPFC_MBX_NO_WAIT);
+		lpfc_sli_flush_io_rings(phba);
+	}
 	lpfc_offline(phba);
 	lpfc_sli_brdrestart(phba);
 	lpfc_online(phba);
