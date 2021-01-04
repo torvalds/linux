@@ -228,6 +228,20 @@ static const char *read_super(struct cache_sb *sb, struct block_device *bdev,
 		sb->feature_compat = le64_to_cpu(s->feature_compat);
 		sb->feature_incompat = le64_to_cpu(s->feature_incompat);
 		sb->feature_ro_compat = le64_to_cpu(s->feature_ro_compat);
+
+		/* Check incompatible features */
+		err = "Unsupported compatible feature found";
+		if (bch_has_unknown_compat_features(sb))
+			goto err;
+
+		err = "Unsupported read-only compatible feature found";
+		if (bch_has_unknown_ro_compat_features(sb))
+			goto err;
+
+		err = "Unsupported incompatible feature found";
+		if (bch_has_unknown_incompat_features(sb))
+			goto err;
+
 		err = read_super_common(sb, bdev, s);
 		if (err)
 			goto err;
