@@ -278,17 +278,19 @@
 		};
 	};
 
-	wireless-wlan {
-		wifi_poweren: wifi-poweren {
+	sdio-pwrseq {
+		wifi_enable_h: wifi-enable-h {
 			rockchip,pins = <2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-
-		wifi_host_wake_irq: wifi-host-wake-irq {
-			rockchip,pins = <2 RK_PB2 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 
 		wifi_32k: wifi-32k {
 			rockchip,pins = <2 RK_PC6 1 &pcfg_pull_none>;
+		};
+	};
+
+	wireless-wlan {
+		wifi_host_wake_irq: wifi-host-wake-irq {
+			rockchip,pins = <2 RK_PB2 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
@@ -417,6 +419,19 @@
 	status = "okay";
 };
 
+&sdio_pwrseq {
+	clocks = <&pmucru CLK_RTC_32K>;
+	pinctrl-0 = <&wifi_enable_h &wifi_32k>;
+
+	/*
+	 * On the module itself this is one of these (depending
+	 * on the actual card populated):
+	 * - SDIO_RESET_L_WL_REG_ON
+	 * - PDN (power down when low)
+	 */
+	reset-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>;
+};
+
 &sdmmc1 {
 	max-frequency = <150000000>;
 	supports-sdio;
@@ -425,10 +440,11 @@
 	cap-sd-highspeed;
 	cap-sdio-irq;
 	keep-power-in-suspend;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	non-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc1_bus4 &sdmmc1_cmd &sdmmc1_clk>;
 	sd-uhs-sdr104;
-	logic-remove-card;
 	status = "okay";
 };
 
@@ -454,8 +470,7 @@
 
 &wireless_wlan {
 	pinctrl-names = "default";
-	pinctrl-0 = <&wifi_poweren &wifi_host_wake_irq &wifi_32k>;
-	WIFI,poweren_gpio = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
+	pinctrl-0 = <&wifi_host_wake_irq>;
 	WIFI,host_wake_irq = <&gpio2 RK_PB2 GPIO_ACTIVE_HIGH>;
 };
 

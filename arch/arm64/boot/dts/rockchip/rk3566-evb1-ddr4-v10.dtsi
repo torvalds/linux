@@ -315,10 +315,11 @@
 	cap-sd-highspeed;
 	cap-sdio-irq;
 	keep-power-in-suspend;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	non-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc2m0_bus4 &sdmmc2m0_cmd &sdmmc2m0_clk>;
 	sd-uhs-sdr104;
-	logic-remove-card;
 	status = "okay";
 };
 
@@ -351,8 +352,7 @@
 
 &wireless_wlan {
 	pinctrl-names = "default";
-	pinctrl-0 = <&wifi_poweren &wifi_host_wake_irq>;
-	WIFI,poweren_gpio = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
+	pinctrl-0 = <&wifi_host_wake_irq>;
 	WIFI,host_wake_irq = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;
 };
 
@@ -376,10 +376,6 @@
 	};
 
 	wireless-wlan {
-		wifi_poweren: wifi-poweren {
-			rockchip,pins = <3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-
 		wifi_host_wake_irq: wifi-host-wake-irq {
 			rockchip,pins = <3 RK_PD4 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
