@@ -11,6 +11,7 @@
 #include <dt-bindings/phy/phy.h>
 #include <dt-bindings/power/rk3568-power.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
+#include <dt-bindings/thermal/thermal.h>
 #include "rk3568-dram-default-timing.dtsi"
 
 / {
@@ -63,6 +64,16 @@
 			enable-method = "psci";
 			clocks = <&scmi_clk 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			#cooling-cells = <2>;
+			dynamic-power-coefficient = <187>;
+			power-model {
+				compatible = "simple-power-model";
+				leakage-range= <10 40>;
+				ls = <(-9196) 6360 0>;
+				static-coefficient = <100000>;
+				ts = <83822 206397 (-4300) 71>;
+				thermal-zone = "soc-thermal";
+			};
 		};
 
 		cpu1: cpu@100 {
@@ -266,15 +277,38 @@
 		soc_thermal: soc-thermal {
 			polling-delay-passive = <20>; /* milliseconds */
 			polling-delay = <1000>; /* milliseconds */
+			sustainable-power = <1475>; /* milliwatts */
 
 			thermal-sensors = <&tsadc 0>;
 			trips {
+				threshold: trip-point-0 {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				target: trip-point-1 {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
 				soc_crit: soc-crit {
 					/* millicelsius */
 					temperature = <115000>;
 					/* millicelsius */
 					hysteresis = <2000>;
 					type = "critical";
+				};
+			};
+			cooling-maps {
+				map0 {
+					trip = <&target>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
+				};
+				map1 {
+					trip = <&target>;
+					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
 				};
 			};
 		};
@@ -961,11 +995,13 @@
 		operating-points-v2 = <&gpu_opp_table>;
 
 		status = "disabled";
-		power_model {
-			compatible = "arm,mali-simple-power-model";
-			static-coefficient = <411000>;
-			dynamic-coefficient = <733>;
-			ts = <32000 4700 (-80) 2>;
+		gpu_power_model: power-model {
+			compatible = "simple-power-model";
+			leakage-range= <5 15>;
+			ls = <(-24002) 22823 0>;
+			static-coefficient = <100000>;
+			dynamic-coefficient = <953>;
+			ts = <(-108890) 63610 (-1355) 20>;
 			thermal-zone = "gpu-thermal";
 		};
 	};
