@@ -458,7 +458,7 @@ lpfc_nvme_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	bf_set(wqe_xri_tag, &wqe->gen_req.wqe_com, genwqe->sli4_xritag);
 
 	/* Word 7 */
-	bf_set(wqe_tmo, &wqe->gen_req.wqe_com, (vport->phba->fc_ratov-1));
+	bf_set(wqe_tmo, &wqe->gen_req.wqe_com, tmo);
 	bf_set(wqe_class, &wqe->gen_req.wqe_com, CLASS3);
 	bf_set(wqe_cmnd, &wqe->gen_req.wqe_com, CMD_GEN_REQUEST64_WQE);
 	bf_set(wqe_ct, &wqe->gen_req.wqe_com, SLI4_CT_RPI);
@@ -615,7 +615,7 @@ __lpfc_nvme_ls_req(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	ret = lpfc_nvme_gen_req(vport, bmp, pnvme_lsreq->rqstaddr,
 				pnvme_lsreq, gen_req_cmp, ndlp, 2,
-				LPFC_NVME_LS_TIMEOUT, 0);
+				pnvme_lsreq->timeout, 0);
 	if (ret != WQE_SUCCESS) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "6052 NVMEx REQ: EXIT. issue ls wqe failed "
