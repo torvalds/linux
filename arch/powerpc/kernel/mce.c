@@ -21,6 +21,7 @@
 #include <asm/machdep.h>
 #include <asm/mce.h>
 #include <asm/nmi.h>
+#include <asm/asm-prototypes.h>
 
 static DEFINE_PER_CPU(int, mce_nest_count);
 static DEFINE_PER_CPU(struct machine_check_event[MAX_MC_EVT], mce_event);
