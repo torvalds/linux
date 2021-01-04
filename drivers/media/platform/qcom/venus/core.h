@@ -236,6 +236,8 @@ struct venc_controls {
 		u32 hevc;
 		u32 vp9;
 	} level;
+
+	u32 base_priority_id;
 };
 
 struct venus_buffer {
