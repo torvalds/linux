@@ -63,12 +63,25 @@ static void vp_iowrite64_twopart(u64 val,
 	vp_iowrite32(val >> 32, hi);
 }
 
-static void __iomem *map_capability(struct pci_dev *dev, int off,
-				    size_t minlen,
-				    u32 align,
-				    u32 start, u32 size,
-				    size_t *len)
+/*
+ * vp_modern_map_capability - map a part of virtio pci capability
+ * @mdev: the modern virtio-pci device
+ * @off: offset of the capability
+ * @minlen: minimal length of the capability
+ * @align: align requirement
+ * @start: start from the capability
+ * @size: map size
+ * @len: the length that is actually mapped
+ *
+ * Returns the io address of for the part of the capability
+ */
+void __iomem *vp_modern_map_capability(struct virtio_pci_modern_device *mdev, int off,
+				       size_t minlen,
+				       u32 align,
+				       u32 start, u32 size,
+				       size_t *len)
 {
+	struct pci_dev *dev = mdev->pci_dev;
 	u8 bar;
 	u32 offset, length;
 	void __iomem *p;
@@ -582,7 +595,7 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 		vq->priv = (void __force *)mdev->notify_base +
 			off * mdev->notify_offset_multiplier;
 	} else {
-		vq->priv = (void __force *)map_capability(mdev->pci_dev,
+		vq->priv = (void __force *)vp_modern_map_capability(mdev,
 							  mdev->notify_map_cap, 2, 2,
 							  off * mdev->notify_offset_multiplier, 2,
 							  NULL);
@@ -956,15 +969,15 @@ static int vp_modern_probe(struct virtio_pci_modern_device *mdev)
 		return err;
 
 	err = -EINVAL;
-	mdev->common = map_capability(pci_dev, common,
+	mdev->common = vp_modern_map_capability(mdev, common,
 				      sizeof(struct virtio_pci_common_cfg), 4,
 				      0, sizeof(struct virtio_pci_common_cfg),
 				      NULL);
 	if (!mdev->common)
 		goto err_map_common;
-	mdev->isr = map_capability(pci_dev, isr, sizeof(u8), 1,
-				   0, 1,
-				   NULL);
+	mdev->isr = vp_modern_map_capability(mdev, isr, sizeof(u8), 1,
+					     0, 1,
+					     NULL);
 	if (!mdev->isr)
 		goto err_map_isr;
 
@@ -989,9 +1002,10 @@ static int vp_modern_probe(struct virtio_pci_modern_device *mdev)
 	 * Otherwise, map each VQ individually later.
 	 */
 	if ((u64)notify_length + (notify_offset % PAGE_SIZE) <= PAGE_SIZE) {
-		mdev->notify_base = map_capability(pci_dev, notify, 2, 2,
-						   0, notify_length,
-						   &mdev->notify_len);
+		mdev->notify_base = vp_modern_map_capability(mdev, notify,
+							     2, 2,
+							     0, notify_length,
+							     &mdev->notify_len);
 		if (!mdev->notify_base)
 			goto err_map_notify;
 	} else {
@@ -1002,9 +1016,9 @@ static int vp_modern_probe(struct virtio_pci_modern_device *mdev)
 	 * is more than enough for all existing devices.
 	 */
 	if (device) {
-		mdev->device = map_capability(pci_dev, device, 0, 4,
-					      0, PAGE_SIZE,
-					      &mdev->device_len);
+		mdev->device = vp_modern_map_capability(mdev, device, 0, 4,
+							0, PAGE_SIZE,
+							&mdev->device_len);
 		if (!mdev->device)
 			goto err_map_device;
 	}
