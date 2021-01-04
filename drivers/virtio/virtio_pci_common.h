@@ -39,22 +39,16 @@ struct virtio_pci_vq_info {
 	unsigned msix_vector;
 };
 
-/* Our device structure */
-struct virtio_pci_device {
-	struct virtio_device vdev;
+struct virtio_pci_modern_device {
 	struct pci_dev *pci_dev;
 
-	/* In legacy mode, these two point to within ->legacy. */
-	/* Where to read and clear interrupt */
-	u8 __iomem *isr;
-
-	/* Modern only fields */
-	/* The IO mapping for the PCI config space (non-legacy mode) */
 	struct virtio_pci_common_cfg __iomem *common;
 	/* Device-specific data (non-legacy mode)  */
 	void __iomem *device;
 	/* Base of vq notifications (non-legacy mode). */
 	void __iomem *notify_base;
+	/* Where to read and clear interrupt */
+	u8 __iomem *isr;
 
 	/* So we can sanity-check accesses. */
 	size_t notify_len;
@@ -67,6 +61,19 @@ struct virtio_pci_device {
 	u32 notify_offset_multiplier;
 
 	int modern_bars;
+
+	struct virtio_device_id id;
+};
+
+/* Our device structure */
+struct virtio_pci_device {
+	struct virtio_device vdev;
+	struct pci_dev *pci_dev;
+	struct virtio_pci_modern_device mdev;
+
+	/* In legacy mode, these two point to within ->legacy. */
+	/* Where to read and clear interrupt */
+	u8 __iomem *isr;
 
 	/* Legacy only field */
 	/* the IO mapping for the PCI config space */
