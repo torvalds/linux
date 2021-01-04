@@ -1833,6 +1833,16 @@ lpfc_sli4_port_sta_fn_reset(struct lpfc_hba *phba, int mbx_action,
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2887 Reset Needed: Attempting Port "
 				"Recovery...\n");
+
+	/* If we are no wait, the HBA has been reset and is not
+	 * functional, thus we should clear LPFC_SLI_ACTIVE flag.
+	 */
+	if (mbx_action == LPFC_MBX_NO_WAIT) {
+		spin_lock_irq(&phba->hbalock);
+		phba->sli.sli_flag &= ~LPFC_SLI_ACTIVE;
+		spin_unlock_irq(&phba->hbalock);
+	}
+
 	lpfc_offline_prep(phba, mbx_action);
 	lpfc_sli_flush_io_rings(phba);
 	lpfc_offline(phba);
