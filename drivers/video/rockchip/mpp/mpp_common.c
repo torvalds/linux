@@ -992,7 +992,8 @@ static int mpp_process_request(struct mpp_session *session,
 	} break;
 	case MPP_CMD_SET_REG_WRITE:
 	case MPP_CMD_SET_REG_READ:
-	case MPP_CMD_SET_REG_ADDR_OFFSET: {
+	case MPP_CMD_SET_REG_ADDR_OFFSET:
+	case MPP_CMD_SET_RCB_INFO: {
 		msgs->flags |= req->flags;
 		msgs->set_cnt++;
 	} break;
