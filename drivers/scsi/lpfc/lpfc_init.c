@@ -1865,7 +1865,7 @@ lpfc_sli4_port_sta_fn_reset(struct lpfc_hba *phba, int mbx_action,
 
 	/* need reset: attempt for port recovery */
 	if (en_rn_msg)
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"2887 Reset Needed: Attempting Port "
 				"Recovery...\n");
 
@@ -14177,15 +14177,32 @@ void lpfc_dmp_dbg(struct lpfc_hba *phba)
 	int i;
 	int j = 0;
 	unsigned long rem_nsec;
+	struct lpfc_vport **vports;
 
+	/* Don't dump messages if we explicitly set log_verbose for the
+	 * physical port or any vport.
+	 */
 	if (phba->cfg_log_verbose)
 		return;
+
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports != NULL) {
+		for (i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
+			if (vports[i]->cfg_log_verbose) {
+				lpfc_destroy_vport_work_array(phba, vports);
+				return;
+			}
+		}
+	}
+	lpfc_destroy_vport_work_array(phba, vports);
 
 	if (atomic_cmpxchg(&phba->dbg_log_dmping, 0, 1) != 0)
 		return;
 
 	start_idx = (unsigned int)atomic_read(&phba->dbg_log_idx) % DBG_LOG_SZ;
 	dbg_cnt = (unsigned int)atomic_read(&phba->dbg_log_cnt);
+	if (!dbg_cnt)
+		goto out;
 	temp_idx = start_idx;
 	if (dbg_cnt >= DBG_LOG_SZ) {
 		dbg_cnt = DBG_LOG_SZ;
@@ -14215,6 +14232,7 @@ void lpfc_dmp_dbg(struct lpfc_hba *phba)
 			 rem_nsec / 1000,
 			 phba->dbg_log[temp_idx].log);
 	}
+out:
 	atomic_set(&phba->dbg_log_cnt, 0);
 	atomic_set(&phba->dbg_log_dmping, 0);
 }
