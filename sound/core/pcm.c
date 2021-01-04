@@ -729,7 +729,7 @@ static int _snd_pcm_new(struct snd_card *card, const char *id, int device,
 	init_waitqueue_head(&pcm->open_wait);
 	INIT_LIST_HEAD(&pcm->list);
 	if (id)
-		strlcpy(pcm->id, id, sizeof(pcm->id));
+		strscpy(pcm->id, id, sizeof(pcm->id));
 
 	err = snd_pcm_new_stream(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 				 playback_count);
