@@ -308,40 +308,6 @@ int hl_pci_set_outbound_region(struct hl_device *hdev,
 }
 
 /**
- * hl_pci_set_dma_mask() - Set DMA masks for the device.
- * @hdev: Pointer to hl_device structure.
- *
- * This function sets the DMA masks (regular and consistent) for a specified
- * value. If it doesn't succeed, it tries to set it to a fall-back value
- *
- * Return: 0 on success, non-zero for failure.
- */
-static int hl_pci_set_dma_mask(struct hl_device *hdev)
-{
-	struct pci_dev *pdev = hdev->pdev;
-	int rc;
-
-	/* set DMA mask */
-	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(hdev->dma_mask));
-	if (rc) {
-		dev_err(hdev->dev,
-			"Failed to set pci dma mask to %d bits, error %d\n",
-			hdev->dma_mask, rc);
-		return rc;
-	}
-
-	rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(hdev->dma_mask));
-	if (rc) {
-		dev_err(hdev->dev,
-			"Failed to set pci consistent dma mask to %d bits, error %d\n",
-			hdev->dma_mask, rc);
-		return rc;
-	}
-
-	return 0;
-}
-
-/**
  * hl_pci_init() - PCI initialization code.
  * @hdev: Pointer to hl_device structure.
  *
@@ -377,9 +343,14 @@ int hl_pci_init(struct hl_device *hdev)
 		goto unmap_pci_bars;
 	}
 
-	rc = hl_pci_set_dma_mask(hdev);
-	if (rc)
+	rc = dma_set_mask_and_coherent(&pdev->dev,
+					DMA_BIT_MASK(hdev->dma_mask));
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to set dma mask to %d bits, error %d\n",
+			hdev->dma_mask, rc);
 		goto unmap_pci_bars;
+	}
 
 	return 0;
 
