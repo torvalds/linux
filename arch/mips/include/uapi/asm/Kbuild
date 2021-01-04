@@ -2,8 +2,5 @@
 generated-y += unistd_n32.h
 generated-y += unistd_n64.h
 generated-y += unistd_o32.h
-generated-y += unistd_nr_n32.h
-generated-y += unistd_nr_n64.h
-generated-y += unistd_nr_o32.h
 
 generic-y += kvm_para.h
