@@ -752,7 +752,8 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 		handle->flags |= HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK;
 		handle->flags |= HNAE3_SUPPORT_SERDES_PARALLEL_LOOPBACK;
 
-		if (hdev->hw.mac.phydev) {
+		if (hdev->hw.mac.phydev && hdev->hw.mac.phydev->drv &&
+		    hdev->hw.mac.phydev->drv->set_loopback) {
 			count += 1;
 			handle->flags |= HNAE3_SUPPORT_PHY_LOOPBACK;
 		}
