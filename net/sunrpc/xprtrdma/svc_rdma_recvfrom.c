@@ -846,6 +846,7 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 		/* No new incoming requests, terminate the loop */
 		clear_bit(XPT_DATA, &xprt->xpt_flags);
 		spin_unlock(&rdma_xprt->sc_rq_dto_lock);
+		svc_xprt_received(xprt);
 		return 0;
 	}
 	list_del(&ctxt->rc_list);
@@ -883,28 +884,33 @@ complete:
 	rqstp->rq_xprt_ctxt = ctxt;
 	rqstp->rq_prot = IPPROTO_MAX;
 	svc_xprt_copy_addrs(rqstp, xprt);
+	svc_xprt_received(xprt);
 	return rqstp->rq_arg.len;
 
 out_readlist:
 	ret = svc_rdma_process_read_list(rdma_xprt, rqstp, ctxt);
 	if (ret < 0)
 		goto out_readfail;
+	svc_xprt_received(xprt);
 	return 0;
 
 out_err:
 	svc_rdma_send_error(rdma_xprt, ctxt, ret);
 	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
+	svc_xprt_received(xprt);
 	return 0;
 
 out_readfail:
 	if (ret == -EINVAL)
 		svc_rdma_send_error(rdma_xprt, ctxt, ret);
 	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
+	svc_xprt_received(xprt);
 	return ret;
 
 out_backchannel:
 	svc_rdma_handle_bc_reply(rqstp, ctxt);
 out_drop:
 	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
+	svc_xprt_received(xprt);
 	return 0;
 }

@@ -519,6 +519,7 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 	if (serv->sv_stats)
 		serv->sv_stats->netudpcnt++;
 
+	svc_xprt_received(rqstp->rq_xprt);
 	return len;
 
 out_recv_err:
@@ -527,7 +528,7 @@ out_recv_err:
 		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 	}
 	trace_svcsock_udp_recv_err(&svsk->sk_xprt, err);
-	return 0;
+	goto out_clear_busy;
 out_cmsg_err:
 	net_warn_ratelimited("svc: received unknown control message %d/%d; dropping RPC reply datagram\n",
 			     cmh->cmsg_level, cmh->cmsg_type);
@@ -536,6 +537,8 @@ out_bh_enable:
 	local_bh_enable();
 out_free:
 	kfree_skb(skb);
+out_clear_busy:
+	svc_xprt_received(rqstp->rq_xprt);
 	return 0;
 }
 
@@ -1033,6 +1036,7 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	if (serv->sv_stats)
 		serv->sv_stats->nettcpcnt++;
 
+	svc_xprt_received(rqstp->rq_xprt);
 	return rqstp->rq_arg.len;
 
 err_incomplete:
@@ -1050,13 +1054,14 @@ error:
 	if (len != -EAGAIN)
 		goto err_delete;
 	trace_svcsock_tcp_recv_eagain(&svsk->sk_xprt, 0);
-	return 0;
+	goto err_noclose;
 err_nuts:
 	svsk->sk_datalen = 0;
 err_delete:
 	trace_svcsock_tcp_recv_err(&svsk->sk_xprt, len);
 	svc_xprt_deferred_close(&svsk->sk_xprt);
 err_noclose:
+	svc_xprt_received(rqstp->rq_xprt);
 	return 0;	/* record not complete */
 }
 
