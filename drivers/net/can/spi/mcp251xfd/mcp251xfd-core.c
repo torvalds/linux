@@ -1368,13 +1368,10 @@ static int mcp251xfd_handle_tefif(struct mcp251xfd_priv *priv)
 		struct mcp251xfd_tx_ring *tx_ring = priv->tx;
 		struct spi_transfer *last_xfer;
 
-		tx_ring->tail += len;
-
 		/* Increment the TEF FIFO tail pointer 'len' times in
 		 * a single SPI message.
-		 */
-
-		/* Note:
+		 *
+		 * Note:
 		 *
 		 * "cs_change == 1" on the last transfer results in an
 		 * active chip select after the complete SPI
@@ -1390,6 +1387,8 @@ static int mcp251xfd_handle_tefif(struct mcp251xfd_priv *priv)
 		last_xfer->cs_change = 1;
 		if (err)
 			return err;
+
+		tx_ring->tail += len;
 
 		err = mcp251xfd_check_tef_tail(priv);
 		if (err)
