@@ -375,6 +375,8 @@ struct snd_sof_dev {
 
 	/* current DSP power state */
 	struct sof_dsp_power_state dsp_power_state;
+	/* mutex to protect the dsp_power_state access */
+	struct mutex power_state_access;
 
 	/* Intended power target of system suspend */
 	enum sof_system_suspend_state system_suspend_target;
