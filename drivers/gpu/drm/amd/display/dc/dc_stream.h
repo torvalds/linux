@@ -136,6 +136,10 @@ struct dc_stream_state {
 	struct dc_sink *sink;
 
 	struct dc_link *link;
+	/* For dynamic link encoder assignment, update the link encoder assigned to
+	 * a stream via the volatile dc_state rather than the static dc_link.
+	 */
+	struct link_encoder *link_enc;
 	struct dc_panel_patch sink_patches;
 	union display_content_support content_support;
 	struct dc_crtc_timing timing;

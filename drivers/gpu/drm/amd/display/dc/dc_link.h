@@ -132,6 +132,11 @@ struct dc_link {
 	uint8_t hpd_src;
 
 	uint8_t link_enc_hw_inst;
+	/* DIG link encoder ID. Used as index in link encoder resource pool.
+	 * For links with fixed mapping to DIG, this is not changed after dc_link
+	 * object creation.
+	 */
+	enum engine_id eng_id;
 
 	bool test_pattern_enabled;
 	union compliance_test_state compliance_test_state;
@@ -151,6 +156,11 @@ struct dc_link {
 	struct panel_cntl *panel_cntl;
 	struct link_encoder *link_enc;
 	struct graphics_object_id link_id;
+	/* Endpoint type distinguishes display endpoints which do not have entries
+	 * in the BIOS connector table from those that do. Helps when tracking link
+	 * encoder to display endpoint assignments.
+	 */
+	enum display_endpoint_type ep_type;
 	union ddi_channel_mapping ddi_channel_mapping;
 	struct connector_device_tag_info device_tag;
 	struct dpcd_caps dpcd_caps;

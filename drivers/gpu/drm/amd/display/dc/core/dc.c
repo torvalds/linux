@@ -52,6 +52,7 @@
 
 #include "link_hwss.h"
 #include "link_encoder.h"
+#include "link_enc_cfg.h"
 
 #include "dc_link_ddc.h"
 #include "dm_helpers.h"
@@ -869,6 +870,9 @@ static bool dc_construct(struct dc *dc,
 
 	if (!create_links(dc, init_params->num_virtual_links))
 		goto fail;
+
+	/* Initialise DIG link encoder resource tracking variables. */
+	link_enc_cfg_init(dc, dc->current_state);
 
 	return true;
 

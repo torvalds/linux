@@ -92,11 +92,14 @@ static void dc_link_destruct(struct dc_link *link)
 		link->panel_cntl->funcs->destroy(&link->panel_cntl);
 
 	if (link->link_enc) {
-		/* Update link encoder tracking variables. These are used for the dynamic
-		 * assignment of link encoders to streams.
+		/* Update link encoder resource tracking variables. These are used for
+		 * the dynamic assignment of link encoders to streams. Virtual links
+		 * are not assigned encoder resources on creation.
 		 */
-		link->dc->res_pool->link_encoders[link->link_enc->preferred_engine] = NULL;
-		link->dc->res_pool->dig_link_enc_count--;
+		if (link->link_id.id != CONNECTOR_ID_VIRTUAL) {
+			link->dc->res_pool->link_encoders[link->eng_id - ENGINE_ID_DIGA] = NULL;
+			link->dc->res_pool->dig_link_enc_count--;
+		}
 		link->link_enc->funcs->destroy(&link->link_enc);
 	}
 
@@ -1409,6 +1412,8 @@ static bool dc_link_construct(struct dc_link *link,
 	link->link_id =
 		bios->funcs->get_connector_id(bios, init_params->connector_index);
 
+	link->ep_type = DISPLAY_ENDPOINT_PHY;
+
 	DC_LOG_DC("BIOS object table - link_id: %d", link->link_id.id);
 
 	if (bios->funcs->get_disp_connector_caps_info) {
@@ -1547,7 +1552,8 @@ static bool dc_link_construct(struct dc_link *link,
 	/* Update link encoder tracking variables. These are used for the dynamic
 	 * assignment of link encoders to streams.
 	 */
-	link->dc->res_pool->link_encoders[link->link_enc->preferred_engine] = link->link_enc;
+	link->eng_id = link->link_enc->preferred_engine;
+	link->dc->res_pool->link_encoders[link->eng_id - ENGINE_ID_DIGA] = link->link_enc;
 	link->dc->res_pool->dig_link_enc_count++;
 
 	link->link_enc_hw_inst = link->link_enc->transmitter;

@@ -934,4 +934,19 @@ enum dc_psr_version {
 	DC_PSR_VERSION_UNSUPPORTED		= 0xFFFFFFFF,
 };
 
+/* Possible values of display_endpoint_id.endpoint */
+enum display_endpoint_type {
+	DISPLAY_ENDPOINT_PHY = 0, /* Physical connector. */
+	DISPLAY_ENDPOINT_UNKNOWN = -1
+};
+
+/* Extends graphics_object_id with an additional member 'ep_type' for
+ * distinguishing between physical endpoints (with entries in BIOS connector table) and
+ * logical endpoints.
+ */
+struct display_endpoint_id {
+	struct graphics_object_id link_id;
+	enum display_endpoint_type ep_type;
+};
+
 #endif /* DC_TYPES_H_ */
