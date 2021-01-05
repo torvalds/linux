@@ -21,7 +21,8 @@
 #include <crypto/internal/simd.h>
 #include <crypto/serpent.h>
 #include <asm/crypto/serpent-sse2.h>
-#include <asm/crypto/glue_helper.h>
+
+#include "ecb_cbc_helpers.h"
 
 static int serpent_setkey_skcipher(struct crypto_skcipher *tfm,
 				   const u8 *key, unsigned int keylen)
@@ -29,80 +30,46 @@ static int serpent_setkey_skcipher(struct crypto_skcipher *tfm,
 	return __serpent_setkey(crypto_skcipher_ctx(tfm), key, keylen);
 }
 
-static void serpent_decrypt_cbc_xway(const void *ctx, u8 *d, const u8 *s)
+static void serpent_decrypt_cbc_xway(const void *ctx, u8 *dst, const u8 *src)
 {
-	u128 ivs[SERPENT_PARALLEL_BLOCKS - 1];
-	u128 *dst = (u128 *)d;
-	const u128 *src = (const u128 *)s;
-	unsigned int j;
+	u8 buf[SERPENT_PARALLEL_BLOCKS - 1][SERPENT_BLOCK_SIZE];
+	const u8 *s = src;
 
-	for (j = 0; j < SERPENT_PARALLEL_BLOCKS - 1; j++)
-		ivs[j] = src[j];
-
-	serpent_dec_blk_xway(ctx, (u8 *)dst, (u8 *)src);
-
-	for (j = 0; j < SERPENT_PARALLEL_BLOCKS - 1; j++)
-		u128_xor(dst + (j + 1), dst + (j + 1), ivs + j);
+	if (dst == src)
+		s = memcpy(buf, src, sizeof(buf));
+	serpent_dec_blk_xway(ctx, dst, src);
+	crypto_xor(dst + SERPENT_BLOCK_SIZE, s, sizeof(buf));
 }
-
-static const struct common_glue_ctx serpent_enc = {
-	.num_funcs = 2,
-	.fpu_blocks_limit = SERPENT_PARALLEL_BLOCKS,
-
-	.funcs = { {
-		.num_blocks = SERPENT_PARALLEL_BLOCKS,
-		.fn_u = { .ecb = serpent_enc_blk_xway }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .ecb = __serpent_encrypt }
-	} }
-};
-
-static const struct common_glue_ctx serpent_dec = {
-	.num_funcs = 2,
-	.fpu_blocks_limit = SERPENT_PARALLEL_BLOCKS,
-
-	.funcs = { {
-		.num_blocks = SERPENT_PARALLEL_BLOCKS,
-		.fn_u = { .ecb = serpent_dec_blk_xway }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .ecb = __serpent_decrypt }
-	} }
-};
-
-static const struct common_glue_ctx serpent_dec_cbc = {
-	.num_funcs = 2,
-	.fpu_blocks_limit = SERPENT_PARALLEL_BLOCKS,
-
-	.funcs = { {
-		.num_blocks = SERPENT_PARALLEL_BLOCKS,
-		.fn_u = { .cbc = serpent_decrypt_cbc_xway }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .cbc = __serpent_decrypt }
-	} }
-};
 
 static int ecb_encrypt(struct skcipher_request *req)
 {
-	return glue_ecb_req_128bit(&serpent_enc, req);
+	ECB_WALK_START(req, SERPENT_BLOCK_SIZE, SERPENT_PARALLEL_BLOCKS);
+	ECB_BLOCK(SERPENT_PARALLEL_BLOCKS, serpent_enc_blk_xway);
+	ECB_BLOCK(1, __serpent_encrypt);
+	ECB_WALK_END();
 }
 
 static int ecb_decrypt(struct skcipher_request *req)
 {
-	return glue_ecb_req_128bit(&serpent_dec, req);
+	ECB_WALK_START(req, SERPENT_BLOCK_SIZE, SERPENT_PARALLEL_BLOCKS);
+	ECB_BLOCK(SERPENT_PARALLEL_BLOCKS, serpent_dec_blk_xway);
+	ECB_BLOCK(1, __serpent_decrypt);
+	ECB_WALK_END();
 }
 
 static int cbc_encrypt(struct skcipher_request *req)
 {
-	return glue_cbc_encrypt_req_128bit(__serpent_encrypt,
-					   req);
+	CBC_WALK_START(req, SERPENT_BLOCK_SIZE, -1);
+	CBC_ENC_BLOCK(__serpent_encrypt);
+	CBC_WALK_END();
 }
 
 static int cbc_decrypt(struct skcipher_request *req)
 {
-	return glue_cbc_decrypt_req_128bit(&serpent_dec_cbc, req);
+	CBC_WALK_START(req, SERPENT_BLOCK_SIZE, SERPENT_PARALLEL_BLOCKS);
+	CBC_DEC_BLOCK(SERPENT_PARALLEL_BLOCKS, serpent_decrypt_cbc_xway);
+	CBC_DEC_BLOCK(1, __serpent_decrypt);
+	CBC_WALK_END();
 }
 
 static struct skcipher_alg serpent_algs[] = {
