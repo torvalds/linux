@@ -78,6 +78,9 @@ struct packet_wreg_bulk {
 	__le64 values[0]; /* data starts here */
 };
 
+#define GAUDI_PKT_LONG_CTL_OP_SHIFT		20
+#define GAUDI_PKT_LONG_CTL_OP_MASK		0x00300000
+
 struct packet_msg_long {
 	__le32 value;
 	__le32 ctl;

@@ -251,11 +251,13 @@ enum gaudi_nic_mask {
  * @hdev: habanalabs device structure.
  * @kref: refcount of this SOB group. group will reset once refcount is zero.
  * @base_sob_id: base sob id of this SOB group.
+ * @queue_id: id of the queue that waits on this sob group
  */
 struct gaudi_hw_sob_group {
 	struct hl_device	*hdev;
 	struct kref		kref;
 	u32			base_sob_id;
+	u32			queue_id;
 };
 
 #define NUM_SOB_GROUPS (HL_RSVD_SOBS * QMAN_STREAMS)
