@@ -22,8 +22,6 @@ asmlinkage void serpent_ecb_enc_16way(const void *ctx, u8 *dst, const u8 *src);
 asmlinkage void serpent_ecb_dec_16way(const void *ctx, u8 *dst, const u8 *src);
 asmlinkage void serpent_cbc_dec_16way(const void *ctx, u8 *dst, const u8 *src);
 
-asmlinkage void serpent_ctr_16way(const void *ctx, u8 *dst, const u8 *src,
-				  le128 *iv);
 static int serpent_setkey_skcipher(struct crypto_skcipher *tfm,
 				   const u8 *key, unsigned int keylen)
 {
@@ -43,22 +41,6 @@ static const struct common_glue_ctx serpent_enc = {
 	}, {
 		.num_blocks = 1,
 		.fn_u = { .ecb = __serpent_encrypt }
-	} }
-};
-
-static const struct common_glue_ctx serpent_ctr = {
-	.num_funcs = 3,
-	.fpu_blocks_limit = 8,
-
-	.funcs = { {
-		.num_blocks = 16,
-		.fn_u = { .ctr = serpent_ctr_16way }
-	},  {
-		.num_blocks = 8,
-		.fn_u = { .ctr = serpent_ctr_8way_avx }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .ctr = __serpent_crypt_ctr }
 	} }
 };
 
@@ -114,11 +96,6 @@ static int cbc_decrypt(struct skcipher_request *req)
 	return glue_cbc_decrypt_req_128bit(&serpent_dec_cbc, req);
 }
 
-static int ctr_crypt(struct skcipher_request *req)
-{
-	return glue_ctr_req_128bit(&serpent_ctr, req);
-}
-
 static struct skcipher_alg serpent_algs[] = {
 	{
 		.base.cra_name		= "__ecb(serpent)",
@@ -147,21 +124,6 @@ static struct skcipher_alg serpent_algs[] = {
 		.setkey			= serpent_setkey_skcipher,
 		.encrypt		= cbc_encrypt,
 		.decrypt		= cbc_decrypt,
-	}, {
-		.base.cra_name		= "__ctr(serpent)",
-		.base.cra_driver_name	= "__ctr-serpent-avx2",
-		.base.cra_priority	= 600,
-		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
-		.base.cra_blocksize	= 1,
-		.base.cra_ctxsize	= sizeof(struct serpent_ctx),
-		.base.cra_module	= THIS_MODULE,
-		.min_keysize		= SERPENT_MIN_KEY_SIZE,
-		.max_keysize		= SERPENT_MAX_KEY_SIZE,
-		.ivsize			= SERPENT_BLOCK_SIZE,
-		.chunksize		= SERPENT_BLOCK_SIZE,
-		.setkey			= serpent_setkey_skcipher,
-		.encrypt		= ctr_crypt,
-		.decrypt		= ctr_crypt,
 	},
 };
 

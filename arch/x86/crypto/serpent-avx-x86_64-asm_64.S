@@ -711,23 +711,3 @@ SYM_FUNC_START(serpent_cbc_dec_8way_avx)
 	FRAME_END
 	ret;
 SYM_FUNC_END(serpent_cbc_dec_8way_avx)
-
-SYM_FUNC_START(serpent_ctr_8way_avx)
-	/* input:
-	 *	%rdi: ctx, CTX
-	 *	%rsi: dst
-	 *	%rdx: src
-	 *	%rcx: iv (little endian, 128bit)
-	 */
-	FRAME_BEGIN
-
-	load_ctr_8way(%rcx, .Lbswap128_mask, RA1, RB1, RC1, RD1, RA2, RB2, RC2,
-		      RD2, RK0, RK1, RK2);
-
-	call __serpent_enc_blk8_avx;
-
-	store_ctr_8way(%rdx, %rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
-
-	FRAME_END
-	ret;
-SYM_FUNC_END(serpent_ctr_8way_avx)
