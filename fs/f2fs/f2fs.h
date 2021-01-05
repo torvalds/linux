@@ -1341,7 +1341,7 @@ struct compress_io_ctx {
 	atomic_t pending_pages;		/* in-flight compressed page count */
 };
 
-/* decompress io context for read IO path */
+/* Context for decompressing one cluster on the read IO path */
 struct decompress_io_ctx {
 	u32 magic;			/* magic number to indicate page is compressed */
 	struct inode *inode;		/* inode the context belong to */
@@ -1357,11 +1357,37 @@ struct decompress_io_ctx {
 	struct compress_data *cbuf;	/* virtual mapped address on cpages */
 	size_t rlen;			/* valid data length in rbuf */
 	size_t clen;			/* valid data length in cbuf */
-	atomic_t pending_pages;		/* in-flight compressed page count */
-	atomic_t verity_pages;		/* in-flight page count for verity */
-	bool failed;			/* indicate IO error during decompression */
+
+	/*
+	 * The number of compressed pages remaining to be read in this cluster.
+	 * This is initially nr_cpages.  It is decremented by 1 each time a page
+	 * has been read (or failed to be read).  When it reaches 0, the cluster
+	 * is decompressed (or an error is reported).
+	 *
+	 * If an error occurs before all the pages have been submitted for I/O,
+	 * then this will never reach 0.  In this case the I/O submitter is
+	 * responsible for calling f2fs_decompress_end_io() instead.
+	 */
+	atomic_t remaining_pages;
+
+	/*
+	 * Number of references to this decompress_io_ctx.
+	 *
+	 * One reference is held for I/O completion.  This reference is dropped
+	 * after the pagecache pages are updated and unlocked -- either after
+	 * decompression (and verity if enabled), or after an error.
+	 *
+	 * In addition, each compressed page holds a reference while it is in a
+	 * bio.  These references are necessary prevent compressed pages from
+	 * being freed while they are still in a bio.
+	 */
+	refcount_t refcnt;
+
+	bool failed;			/* IO error occurred before decompression? */
+	bool need_verity;		/* need fs-verity verification after decompression? */
 	void *private;			/* payload buffer for specified decompression algorithm */
 	void *private2;			/* extra payload buffer */
+	struct work_struct verity_work;	/* work to verify the decompressed pages */
 };
 
 #define NULL_CLUSTER			((unsigned int)(~0))
@@ -3883,7 +3909,7 @@ void f2fs_compress_write_end_io(struct bio *bio, struct page *page);
 bool f2fs_is_compress_backend_ready(struct inode *inode);
 int f2fs_init_compress_mempool(void);
 void f2fs_destroy_compress_mempool(void);
-void f2fs_decompress_pages(struct bio *bio, struct page *page, bool verity);
+void f2fs_end_read_compressed_page(struct page *page, bool failed);
 bool f2fs_cluster_is_empty(struct compress_ctx *cc);
 bool f2fs_cluster_can_merge_page(struct compress_ctx *cc, pgoff_t index);
 void f2fs_compress_ctx_add_page(struct compress_ctx *cc, struct page *page);
@@ -3896,9 +3922,8 @@ int f2fs_read_multi_pages(struct compress_ctx *cc, struct bio **bio_ret,
 				unsigned nr_pages, sector_t *last_block_in_bio,
 				bool is_readahead, bool for_write);
 struct decompress_io_ctx *f2fs_alloc_dic(struct compress_ctx *cc);
-void f2fs_free_dic(struct decompress_io_ctx *dic);
-void f2fs_decompress_end_io(struct page **rpages,
-			unsigned int cluster_size, bool err, bool verity);
+void f2fs_decompress_end_io(struct decompress_io_ctx *dic, bool failed);
+void f2fs_put_page_dic(struct page *page);
 int f2fs_init_compress_ctx(struct compress_ctx *cc);
 void f2fs_destroy_compress_ctx(struct compress_ctx *cc);
 void f2fs_init_compress_info(struct f2fs_sb_info *sbi);
@@ -3922,6 +3947,14 @@ static inline struct page *f2fs_compress_control_page(struct page *page)
 }
 static inline int f2fs_init_compress_mempool(void) { return 0; }
 static inline void f2fs_destroy_compress_mempool(void) { }
+static inline void f2fs_end_read_compressed_page(struct page *page, bool failed)
+{
+	WARN_ON_ONCE(1);
+}
+static inline void f2fs_put_page_dic(struct page *page)
+{
+	WARN_ON_ONCE(1);
+}
 static inline int f2fs_init_page_array_cache(struct f2fs_sb_info *sbi) { return 0; }
 static inline void f2fs_destroy_page_array_cache(struct f2fs_sb_info *sbi) { }
 static inline int __init f2fs_init_compress_cache(void) { return 0; }
@@ -4124,6 +4157,12 @@ static inline bool f2fs_force_buffered_io(struct inode *inode,
 		return true;
 
 	return false;
+}
+
+static inline bool f2fs_need_verity(const struct inode *inode, pgoff_t idx)
+{
+	return fsverity_active(inode) &&
+	       idx < DIV_ROUND_UP(inode->i_size, PAGE_SIZE);
 }
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
