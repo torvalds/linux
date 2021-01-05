@@ -1552,10 +1552,8 @@ mcp251xfd_handle_rxif_ring(struct mcp251xfd_priv *priv,
 
 		/* Increment the RX FIFO tail pointer 'len' times in a
 		 * single SPI message.
-		 */
-		ring->tail += len;
-
-		/* Note:
+		 *
+		 * Note:
 		 *
 		 * "cs_change == 1" on the last transfer results in an
 		 * active chip select after the complete SPI
@@ -1571,6 +1569,8 @@ mcp251xfd_handle_rxif_ring(struct mcp251xfd_priv *priv,
 		last_xfer->cs_change = 1;
 		if (err)
 			return err;
+
+		ring->tail += len;
 	}
 
 	return 0;
