@@ -237,6 +237,96 @@ done:
 				     aifsn, cw, cw, 0);
 }
 
+static int
+mt7915_tm_set_tx_len(struct mt7915_phy *phy, u32 tx_time)
+{
+	struct mt76_phy *mphy = phy->mt76;
+	struct mt76_testmode_data *td = &mphy->test;
+	struct sk_buff *old = td->tx_skb, *new;
+	struct ieee80211_supported_band *sband;
+	struct rate_info rate = {};
+	u16 flags = 0, tx_len;
+	u32 bitrate;
+
+	if (!tx_time || !old)
+		return 0;
+
+	rate.mcs = td->tx_rate_idx;
+	rate.nss = td->tx_rate_nss;
+
+	switch (td->tx_rate_mode) {
+	case MT76_TM_TX_MODE_CCK:
+	case MT76_TM_TX_MODE_OFDM:
+		if (mphy->chandef.chan->band == NL80211_BAND_5GHZ)
+			sband = &mphy->sband_5g.sband;
+		else
+			sband = &mphy->sband_2g.sband;
+
+		rate.legacy = sband->bitrates[rate.mcs].bitrate;
+		break;
+	case MT76_TM_TX_MODE_HT:
+		rate.mcs += rate.nss * 8;
+		flags |= RATE_INFO_FLAGS_MCS;
+
+		if (td->tx_rate_sgi)
+			flags |= RATE_INFO_FLAGS_SHORT_GI;
+		break;
+	case MT76_TM_TX_MODE_VHT:
+		flags |= RATE_INFO_FLAGS_VHT_MCS;
+
+		if (td->tx_rate_sgi)
+			flags |= RATE_INFO_FLAGS_SHORT_GI;
+		break;
+	case MT76_TM_TX_MODE_HE_SU:
+	case MT76_TM_TX_MODE_HE_EXT_SU:
+	case MT76_TM_TX_MODE_HE_TB:
+	case MT76_TM_TX_MODE_HE_MU:
+		rate.he_gi = td->tx_rate_sgi;
+		flags |= RATE_INFO_FLAGS_HE_MCS;
+		break;
+	default:
+		break;
+	}
+	rate.flags = flags;
+
+	switch (mphy->chandef.width) {
+	case NL80211_CHAN_WIDTH_160:
+	case NL80211_CHAN_WIDTH_80P80:
+		rate.bw = RATE_INFO_BW_160;
+		break;
+	case NL80211_CHAN_WIDTH_80:
+		rate.bw = RATE_INFO_BW_80;
+		break;
+	case NL80211_CHAN_WIDTH_40:
+		rate.bw = RATE_INFO_BW_40;
+		break;
+	default:
+		rate.bw = RATE_INFO_BW_20;
+		break;
+	}
+
+	bitrate = cfg80211_calculate_bitrate(&rate);
+	tx_len = bitrate * tx_time / 10 / 8;
+
+	if (tx_len < sizeof(struct ieee80211_hdr))
+		tx_len = sizeof(struct ieee80211_hdr);
+	else if (tx_len > IEEE80211_MAX_FRAME_LEN)
+		tx_len = IEEE80211_MAX_FRAME_LEN;
+
+	new = alloc_skb(tx_len, GFP_KERNEL);
+	if (!new)
+		return -ENOMEM;
+
+	skb_copy_header(new, old);
+	__skb_put_zero(new, tx_len);
+	memcpy(new->data, old->data, sizeof(struct ieee80211_hdr));
+
+	dev_kfree_skb(old);
+	td->tx_skb = new;
+
+	return 0;
+}
+
 static void
 mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
 {
@@ -312,7 +402,6 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
 					 9, 8, 6, 10, 16, 12, 18, 0};
 	struct mt76_testmode_data *td = &phy->mt76->test;
 	struct mt7915_dev *dev = phy->dev;
-	struct sk_buff *skb = td->tx_skb;
 	struct ieee80211_tx_info *info;
 	u8 duty_cycle = td->tx_duty_cycle;
 	u32 tx_time = td->tx_time;
@@ -347,14 +436,15 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
 	}
 
 	mt7915_tm_set_ipg_params(phy, ipg, td->tx_rate_mode);
+	mt7915_tm_set_tx_len(phy, tx_time);
 
 	if (ipg)
 		td->tx_queued_limit = MT76_TM_TIMEOUT * 1000000 / ipg / 2;
 
-	if (!en || !skb)
+	if (!en || !td->tx_skb)
 		return;
 
-	info = IEEE80211_SKB_CB(skb);
+	info = IEEE80211_SKB_CB(td->tx_skb);
 	info->control.vif = phy->monitor_vif;
 
 	mt7915_tm_set_trx(phy, TM_MAC_TX, en);
