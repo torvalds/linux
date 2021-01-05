@@ -230,7 +230,7 @@ switch_create()
 	__mlnx_qos -i $swp4 --pfc=0,1,0,0,0,0,0,0 >/dev/null
 	# PG0 will get autoconfigured to Xoff, give PG1 arbitrarily 100K, which
 	# is (-2*MTU) about 80K of delay provision.
-	__mlnx_qos -i $swp3 --buffer_size=0,$_100KB,0,0,0,0,0,0 >/dev/null
+	__mlnx_qos -i $swp4 --buffer_size=0,$_100KB,0,0,0,0,0,0 >/dev/null
 
 	# bridges
 	# -------

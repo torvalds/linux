@@ -715,7 +715,7 @@ static void worker_pkt_dump(void)
 		int payload = *((uint32_t *)(pkt_buf[iter]->payload + PKT_HDR_SIZE));
 
 		if (payload == EOT) {
-			ksft_print_msg("End-of-tranmission frame received\n");
+			ksft_print_msg("End-of-transmission frame received\n");
 			fprintf(stdout, "---------------------------------------\n");
 			break;
 		}
@@ -747,7 +747,7 @@ static void worker_pkt_validate(void)
 			}
 
 			if (payloadseqnum == EOT) {
-				ksft_print_msg("End-of-tranmission frame received: PASS\n");
+				ksft_print_msg("End-of-transmission frame received: PASS\n");
 				sigvar = 1;
 				break;
 			}

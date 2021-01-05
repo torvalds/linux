@@ -203,8 +203,8 @@ F:	include/uapi/linux/nl80211.h
 F:	net/wireless/
 
 8169 10/100/1000 GIGABIT ETHERNET DRIVER
-M:	Realtek linux nic maintainers <nic_swsd@realtek.com>
 M:	Heiner Kallweit <hkallweit1@gmail.com>
+M:	nic_swsd@realtek.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/realtek/r8169*
@@ -2119,7 +2119,7 @@ N:	atmel
 ARM/Microchip Sparx5 SoC support
 M:	Lars Povlsen <lars.povlsen@microchip.com>
 M:	Steen Hegelund <Steen.Hegelund@microchip.com>
-M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
+M:	UNGLinuxDriver@microchip.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 T:	git git://github.com/microchip-ung/linux-upstream.git
@@ -3556,7 +3556,7 @@ S:	Supported
 F:	drivers/net/ethernet/broadcom/bnxt/
 
 BROADCOM BRCM80211 IEEE802.11n WIRELESS DRIVER
-M:	Arend van Spriel <arend.vanspriel@broadcom.com>
+M:	Arend van Spriel <aspriel@gmail.com>
 M:	Franky Lin <franky.lin@broadcom.com>
 M:	Hante Meuleman <hante.meuleman@broadcom.com>
 M:	Chi-hsien Lin <chi-hsien.lin@infineon.com>
@@ -3961,7 +3961,7 @@ F:	net/can/
 CAN-J1939 NETWORK LAYER
 M:	Robin van der Gracht <robin@protonic.nl>
 M:	Oleksij Rempel <o.rempel@pengutronix.de>
-R:	Pengutronix Kernel Team <kernel@pengutronix.de>
+R:	kernel@pengutronix.de
 L:	linux-can@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/j1939.rst
@@ -11667,7 +11667,7 @@ F:	drivers/media/platform/atmel/atmel-isi.h
 
 MICROCHIP KSZ SERIES ETHERNET SWITCH DRIVER
 M:	Woojung Huh <woojung.huh@microchip.com>
-M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
+M:	UNGLinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/dsa/microchip,ksz.yaml
@@ -11677,7 +11677,7 @@ F:	net/dsa/tag_ksz.c
 
 MICROCHIP LAN743X ETHERNET DRIVER
 M:	Bryan Whitehead <bryan.whitehead@microchip.com>
-M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
+M:	UNGLinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/microchip/lan743x_*
@@ -11771,7 +11771,7 @@ F:	drivers/net/wireless/microchip/wilc1000/
 
 MICROSEMI MIPS SOCS
 M:	Alexandre Belloni <alexandre.belloni@bootlin.com>
-M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
+M:	UNGLinuxDriver@microchip.com
 L:	linux-mips@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/mips/mscc.txt
@@ -12825,10 +12825,10 @@ F:	tools/objtool/
 F:	include/linux/objtool.h
 
 OCELOT ETHERNET SWITCH DRIVER
-M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
 M:	Vladimir Oltean <vladimir.oltean@nxp.com>
 M:	Claudiu Manoil <claudiu.manoil@nxp.com>
 M:	Alexandre Belloni <alexandre.belloni@bootlin.com>
+M:	UNGLinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/dsa/ocelot/*
@@ -13890,7 +13890,7 @@ F:	drivers/platform/x86/peaq-wmi.c
 
 PENSANDO ETHERNET DRIVERS
 M:	Shannon Nelson <snelson@pensando.io>
-M:	Pensando Drivers <drivers@pensando.io>
+M:	drivers@pensando.io
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/device_drivers/ethernet/pensando/ionic.rst
@@ -14669,7 +14669,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/ath.git
 F:	drivers/net/wireless/ath/ath11k/
 
 QUALCOMM ATHEROS ATH9K WIRELESS DRIVER
-M:	QCA ath9k Development <ath9k-devel@qca.qualcomm.com>
+M:	ath9k-devel@qca.qualcomm.com
 L:	linux-wireless@vger.kernel.org
 S:	Supported
 W:	https://wireless.wiki.kernel.org/en/users/Drivers/ath9k
@@ -18370,7 +18370,7 @@ F:	include/linux/usb/isp116x.h
 
 USB LAN78XX ETHERNET DRIVER
 M:	Woojung Huh <woojung.huh@microchip.com>
-M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
+M:	UNGLinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/microchip,lan78xx.txt
@@ -18484,7 +18484,7 @@ F:	drivers/net/usb/smsc75xx.*
 
 USB SMSC95XX ETHERNET DRIVER
 M:	Steve Glendinning <steve.glendinning@shawell.net>
-M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
+M:	UNGLinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/usb/smsc95xx.*
@@ -19031,7 +19031,7 @@ F:	drivers/input/mouse/vmmouse.h
 
 VMWARE VMXNET3 ETHERNET DRIVER
 M:	Ronak Doshi <doshir@vmware.com>
-M:	"VMware, Inc." <pv-drivers@vmware.com>
+M:	pv-drivers@vmware.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/vmxnet3/
