@@ -560,10 +560,10 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 
 	/* PD_GPU */
 	COMPOSITE(CLK_GPU_SRC, "clk_gpu_src", mpll_gpll_cpll_npll_p, 0,
-			RK3568_CLKSEL_CON(6), 6, 2, MFLAGS, 0, 4, DFLAGS,
+			RK3568_CLKSEL_CON(6), 6, 2, MFLAGS | CLK_MUX_READ_ONLY, 0, 4, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RK3568_CLKGATE_CON(2), 0, GFLAGS),
 	MUX(CLK_GPU_PRE_MUX, "clk_gpu_pre_mux", clk_gpu_pre_mux_p, CLK_SET_RATE_PARENT,
-			RK3568_CLKSEL_CON(6), 11, 1, MFLAGS),
+			RK3568_CLKSEL_CON(6), 11, 1, MFLAGS | CLK_MUX_READ_ONLY),
 	DIV(ACLK_GPU_PRE, "aclk_gpu_pre", "clk_gpu_pre_mux", 0,
 			RK3568_CLKSEL_CON(6), 8, 2, DFLAGS),
 	DIV(PCLK_GPU_PRE, "pclk_gpu_pre", "clk_gpu_pre_mux", 0,
