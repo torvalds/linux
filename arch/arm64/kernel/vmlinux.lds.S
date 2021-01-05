@@ -43,10 +43,19 @@ jiffies = jiffies_64;
 	HYP_SECTION_NAME(.data..percpu) : {			\
 		*(HYP_SECTION_NAME(.data..percpu))		\
 	}
+
+#define HYPERVISOR_RELOC_SECTION				\
+	.hyp.reloc : ALIGN(4) {					\
+		__hyp_reloc_begin = .;				\
+		*(.hyp.reloc)					\
+		__hyp_reloc_end = .;				\
+	}
+
 #else /* CONFIG_KVM */
 #define HYPERVISOR_EXTABLE
 #define HYPERVISOR_DATA_SECTIONS
 #define HYPERVISOR_PERCPU_SECTION
+#define HYPERVISOR_RELOC_SECTION
 #endif
 
 #define HYPERVISOR_TEXT					\
@@ -216,6 +225,8 @@ SECTIONS
 
 	PERCPU_SECTION(L1_CACHE_BYTES)
 	HYPERVISOR_PERCPU_SECTION
+
+	HYPERVISOR_RELOC_SECTION
 
 	.rela.dyn : ALIGN(8) {
 		*(.rela .rela*)
