@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/rpmsg.h>
+#include <linux/rpmsg/qcom_glink.h>
 #include <linux/remoteproc/qcom_rproc.h>
 
 /**
