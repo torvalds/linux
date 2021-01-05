@@ -9,7 +9,6 @@
 #include <asm/crypto/glue_helper.h>
 #include <crypto/algapi.h>
 #include <crypto/internal/simd.h>
-#include <crypto/xts.h>
 #include <linux/crypto.h>
 #include <linux/err.h>
 #include <linux/module.h>
@@ -25,11 +24,6 @@ asmlinkage void camellia_ecb_dec_32way(const void *ctx, u8 *dst, const u8 *src);
 asmlinkage void camellia_cbc_dec_32way(const void *ctx, u8 *dst, const u8 *src);
 asmlinkage void camellia_ctr_32way(const void *ctx, u8 *dst, const u8 *src,
 				   le128 *iv);
-
-asmlinkage void camellia_xts_enc_32way(const void *ctx, u8 *dst, const u8 *src,
-				       le128 *iv);
-asmlinkage void camellia_xts_dec_32way(const void *ctx, u8 *dst, const u8 *src,
-				       le128 *iv);
 
 static const struct common_glue_ctx camellia_enc = {
 	.num_funcs = 4,
@@ -66,22 +60,6 @@ static const struct common_glue_ctx camellia_ctr = {
 	}, {
 		.num_blocks = 1,
 		.fn_u = { .ctr = camellia_crypt_ctr }
-	} }
-};
-
-static const struct common_glue_ctx camellia_enc_xts = {
-	.num_funcs = 3,
-	.fpu_blocks_limit = CAMELLIA_AESNI_PARALLEL_BLOCKS,
-
-	.funcs = { {
-		.num_blocks = CAMELLIA_AESNI_AVX2_PARALLEL_BLOCKS,
-		.fn_u = { .xts = camellia_xts_enc_32way }
-	}, {
-		.num_blocks = CAMELLIA_AESNI_PARALLEL_BLOCKS,
-		.fn_u = { .xts = camellia_xts_enc_16way }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .xts = camellia_xts_enc }
 	} }
 };
 
@@ -123,22 +101,6 @@ static const struct common_glue_ctx camellia_dec_cbc = {
 	} }
 };
 
-static const struct common_glue_ctx camellia_dec_xts = {
-	.num_funcs = 3,
-	.fpu_blocks_limit = CAMELLIA_AESNI_PARALLEL_BLOCKS,
-
-	.funcs = { {
-		.num_blocks = CAMELLIA_AESNI_AVX2_PARALLEL_BLOCKS,
-		.fn_u = { .xts = camellia_xts_dec_32way }
-	}, {
-		.num_blocks = CAMELLIA_AESNI_PARALLEL_BLOCKS,
-		.fn_u = { .xts = camellia_xts_dec_16way }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .xts = camellia_xts_dec }
-	} }
-};
-
 static int camellia_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			   unsigned int keylen)
 {
@@ -168,24 +130,6 @@ static int cbc_decrypt(struct skcipher_request *req)
 static int ctr_crypt(struct skcipher_request *req)
 {
 	return glue_ctr_req_128bit(&camellia_ctr, req);
-}
-
-static int xts_encrypt(struct skcipher_request *req)
-{
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct camellia_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
-
-	return glue_xts_req_128bit(&camellia_enc_xts, req, camellia_enc_blk,
-				   &ctx->tweak_ctx, &ctx->crypt_ctx, false);
-}
-
-static int xts_decrypt(struct skcipher_request *req)
-{
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct camellia_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
-
-	return glue_xts_req_128bit(&camellia_dec_xts, req, camellia_enc_blk,
-				   &ctx->tweak_ctx, &ctx->crypt_ctx, true);
 }
 
 static struct skcipher_alg camellia_algs[] = {
@@ -231,20 +175,6 @@ static struct skcipher_alg camellia_algs[] = {
 		.setkey			= camellia_setkey,
 		.encrypt		= ctr_crypt,
 		.decrypt		= ctr_crypt,
-	}, {
-		.base.cra_name		= "__xts(camellia)",
-		.base.cra_driver_name	= "__xts-camellia-aesni-avx2",
-		.base.cra_priority	= 500,
-		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
-		.base.cra_blocksize	= CAMELLIA_BLOCK_SIZE,
-		.base.cra_ctxsize	= sizeof(struct camellia_xts_ctx),
-		.base.cra_module	= THIS_MODULE,
-		.min_keysize		= 2 * CAMELLIA_MIN_KEY_SIZE,
-		.max_keysize		= 2 * CAMELLIA_MAX_KEY_SIZE,
-		.ivsize			= CAMELLIA_BLOCK_SIZE,
-		.setkey			= xts_camellia_setkey,
-		.encrypt		= xts_encrypt,
-		.decrypt		= xts_decrypt,
 	},
 };
 

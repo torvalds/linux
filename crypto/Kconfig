@@ -1305,7 +1305,7 @@ config CRYPTO_CAMELLIA_AESNI_AVX_X86_64
 	select CRYPTO_CAMELLIA_X86_64
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SIMD
-	select CRYPTO_XTS
+	imply CRYPTO_XTS
 	help
 	  Camellia cipher algorithm module (x86_64/AES-NI/AVX).
 
