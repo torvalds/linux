@@ -73,7 +73,7 @@ config_override_param "--kconfig argument" KcList "$TORTURE_KCONFIG_ARG"
 cp $T/KcList $resdir/ConfigFragment
 
 base_resdir=`echo $resdir | sed -e 's/\.[0-9]\+$//'`
-if test "$base_resdir" != "$resdir" -a -f $base_resdir/bzImage -a -f $base_resdir/vmlinux
+if test "$base_resdir" != "$resdir" && test -f $base_resdir/bzImage && test -f $base_resdir/vmlinux
 then
 	# Rerunning previous test, so use that test's kernel.
 	QEMU="`identify_qemu $base_resdir/vmlinux`"
@@ -83,6 +83,17 @@ then
 	ln -s $base_resdir/.config $resdir  # for kvm-recheck.sh
 	# Arch-independent indicator
 	touch $resdir/builtkernel
+elif test "$base_resdir" != "$resdir"
+then
+	# Rerunning previous test for which build failed
+	ln -s $base_resdir/Make*.out $resdir  # for kvm-recheck.sh
+	ln -s $base_resdir/.config $resdir  # for kvm-recheck.sh
+	echo Initial build failed, not running KVM, see $resdir.
+	if test -f $builddir.wait
+	then
+		mv $builddir.wait $builddir.ready
+	fi
+	exit 1
 elif kvm-build.sh $T/KcList $resdir
 then
 	# Had to build a kernel for this test.
