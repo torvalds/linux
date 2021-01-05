@@ -133,6 +133,21 @@ mt7915_tm_set_trx(struct mt7915_phy *phy, int type, bool en)
 }
 
 static int
+mt7915_tm_clean_hwq(struct mt7915_phy *phy, u8 wcid)
+{
+	struct mt7915_dev *dev = phy->dev;
+	struct mt7915_tm_cmd req = {
+		.testmode_en = 1,
+		.param_idx = MCU_ATE_CLEAN_TXQUEUE,
+		.param.clean.wcid = wcid,
+		.param.clean.band = phy != &dev->phy,
+	};
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_ATE_CTRL, &req,
+				 sizeof(req), false);
+}
+
+static int
 mt7915_tm_set_slot_time(struct mt7915_phy *phy, u8 slot_time, u8 sifs)
 {
 	struct mt7915_dev *dev = phy->dev;
@@ -408,6 +423,7 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
 	u32 ipg = td->tx_ipg;
 
 	mt7915_tm_set_trx(phy, TM_MAC_RX_RXV, false);
+	mt7915_tm_clean_hwq(phy, dev->mt76.global_wcid.idx);
 
 	if (en) {
 		mutex_unlock(&dev->mt76.mutex);

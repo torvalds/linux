@@ -26,6 +26,13 @@ struct mt7915_tm_slot_time {
 	u8 _rsv1[5];
 };
 
+struct mt7915_tm_clean_txq {
+	bool sta_pause;
+	u8 wcid;	/* 256 sta */
+	u8 band;
+	u8 rsv;
+};
+
 struct mt7915_tm_cmd {
 	u8 testmode_en;
 	u8 param_idx;
@@ -35,6 +42,7 @@ struct mt7915_tm_cmd {
 		struct mt7915_tm_trx trx;
 		struct mt7915_tm_freq_offset freq;
 		struct mt7915_tm_slot_time slot;
+		struct mt7915_tm_clean_txq clean;
 		u8 test[72];
 	} param;
 } __packed;
