@@ -153,6 +153,7 @@ int reboot_mode_register(struct reboot_mode_driver *reboot)
 	reboot->reboot_notifier.notifier_call = reboot_mode_notify;
 	reboot->panic_notifier.notifier_call = reboot_mode_panic_notify;
 	register_reboot_notifier(&reboot->reboot_notifier);
+	register_pre_restart_handler(&reboot->reboot_notifier);
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &reboot->panic_notifier);
 	ret = sysfs_create_file(kernel_kobj, &kobj_boot_mode.attr);
