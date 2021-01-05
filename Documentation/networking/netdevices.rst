@@ -64,8 +64,8 @@ ndo_do_ioctl:
 	Context: process
 
 ndo_get_stats:
-	Synchronization: dev_base_lock rwlock.
-	Context: nominally process, but don't sleep inside an rwlock
+	Synchronization: rtnl_lock() semaphore, dev_base_lock rwlock, or RCU.
+	Context: atomic (can't sleep under rwlock or RCU)
 
 ndo_start_xmit:
 	Synchronization: __netif_tx_lock spinlock.
