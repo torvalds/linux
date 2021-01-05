@@ -110,6 +110,7 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 	struct dev_pm_opp *opp;
 	unsigned long nominal_freq, nominal_volt;
 	unsigned long freqs[BASE_MAX_NR_CLOCKS_REGULATORS] = {0};
+	unsigned long old_freqs[BASE_MAX_NR_CLOCKS_REGULATORS] = {0};
 	unsigned long volts[BASE_MAX_NR_CLOCKS_REGULATORS] = {0};
 	unsigned int i;
 	u64 core_mask = 0;
@@ -180,10 +181,14 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 	 * to sustain its current frequency (even if that happens for a short
 	 * transition interval).
 	 */
+
+	for (i = 0; i < kbdev->nr_clocks; i++)
+		old_freqs[i] = kbdev->current_freqs[i];
+
 	for (i = 0; i < kbdev->nr_clocks; i++) {
 		if (kbdev->regulators[i] &&
 				kbdev->current_voltages[i] != volts[i] &&
-				kbdev->current_freqs[i] < freqs[i]) {
+				old_freqs[i] < freqs[i]) {
 			int err;
 
 			err = regulator_set_voltage(kbdev->regulators[i],
@@ -218,7 +223,7 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 	for (i = 0; i < kbdev->nr_clocks; i++) {
 		if (kbdev->regulators[i] &&
 				kbdev->current_voltages[i] != volts[i] &&
-				kbdev->current_freqs[i] > freqs[i]) {
+				old_freqs[i] > freqs[i]) {
 			int err;
 
 			err = regulator_set_voltage(kbdev->regulators[i],
