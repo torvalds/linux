@@ -103,6 +103,10 @@ struct dc_link {
 	bool lttpr_non_transparent_mode;
 	bool is_internal_display;
 
+	/* TODO: Rename. Flag an endpoint as having a programmable mapping to a
+	 * DIG encoder. */
+	bool is_dig_mapping_flexible;
+
 	bool edp_sink_present;
 
 	/* caps is the same as reported_link_cap. link_traing use

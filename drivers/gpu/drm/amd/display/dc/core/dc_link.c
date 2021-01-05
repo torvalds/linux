@@ -91,8 +91,14 @@ static void dc_link_destruct(struct dc_link *link)
 	if (link->panel_cntl)
 		link->panel_cntl->funcs->destroy(&link->panel_cntl);
 
-	if (link->link_enc)
+	if (link->link_enc) {
+		/* Update link encoder tracking variables. These are used for the dynamic
+		 * assignment of link encoders to streams.
+		 */
+		link->dc->res_pool->link_encoders[link->link_enc->preferred_engine] = NULL;
+		link->dc->res_pool->dig_link_enc_count--;
 		link->link_enc->funcs->destroy(&link->link_enc);
+	}
 
 	if (link->local_sink)
 		dc_sink_release(link->local_sink);
@@ -1531,6 +1537,12 @@ static bool dc_link_construct(struct dc_link *link,
 	}
 
 	DC_LOG_DC("BIOS object table - DP_IS_USB_C: %d", link->link_enc->features.flags.bits.DP_IS_USB_C);
+
+	/* Update link encoder tracking variables. These are used for the dynamic
+	 * assignment of link encoders to streams.
+	 */
+	link->dc->res_pool->link_encoders[link->link_enc->preferred_engine] = link->link_enc;
+	link->dc->res_pool->dig_link_enc_count++;
 
 	link->link_enc_hw_inst = link->link_enc->transmitter;
 

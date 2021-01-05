@@ -48,6 +48,7 @@ struct resource_caps {
 	int num_ddc;
 	int num_vmid;
 	int num_dsc;
+	unsigned int num_dig_link_enc; // Total number of DIGs (digital encoders) in DIO (Display Input/Output).
 	int num_mpc_3dlut;
 };
 
