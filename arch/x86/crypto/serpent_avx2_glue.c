@@ -12,8 +12,8 @@
 #include <crypto/algapi.h>
 #include <crypto/internal/simd.h>
 #include <crypto/serpent.h>
-#include <asm/crypto/serpent-avx.h>
 
+#include "serpent-avx.h"
 #include "ecb_cbc_helpers.h"
 
 #define SERPENT_AVX2_PARALLEL_BLOCKS 16

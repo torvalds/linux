@@ -15,8 +15,8 @@
 #include <crypto/algapi.h>
 #include <crypto/internal/simd.h>
 #include <crypto/twofish.h>
-#include <asm/crypto/twofish.h>
 
+#include "twofish.h"
 #include "ecb_cbc_helpers.h"
 
 #define TWOFISH_PARALLEL_BLOCKS 8

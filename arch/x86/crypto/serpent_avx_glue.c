@@ -15,8 +15,8 @@
 #include <crypto/algapi.h>
 #include <crypto/internal/simd.h>
 #include <crypto/serpent.h>
-#include <asm/crypto/serpent-avx.h>
 
+#include "serpent-avx.h"
 #include "ecb_cbc_helpers.h"
 
 /* 8-way parallel cipher functions */

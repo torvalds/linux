@@ -20,8 +20,8 @@
 #include <crypto/b128ops.h>
 #include <crypto/internal/simd.h>
 #include <crypto/serpent.h>
-#include <asm/crypto/serpent-sse2.h>
 
+#include "serpent-sse2.h"
 #include "ecb_cbc_helpers.h"
 
 static int serpent_setkey_skcipher(struct crypto_skcipher *tfm,

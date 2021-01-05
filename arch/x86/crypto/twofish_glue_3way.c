@@ -5,7 +5,6 @@
  * Copyright (c) 2011 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
  */
 
-#include <asm/crypto/twofish.h>
 #include <crypto/algapi.h>
 #include <crypto/twofish.h>
 #include <linux/crypto.h>
@@ -13,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 
+#include "twofish.h"
 #include "ecb_cbc_helpers.h"
 
 EXPORT_SYMBOL_GPL(__twofish_enc_blk_3way);

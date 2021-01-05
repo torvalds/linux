@@ -14,8 +14,8 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <crypto/algapi.h>
-#include <asm/crypto/camellia.h>
 
+#include "camellia.h"
 #include "ecb_cbc_helpers.h"
 
 /* regular block cipher functions */
