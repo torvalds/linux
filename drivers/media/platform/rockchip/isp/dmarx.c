@@ -323,9 +323,6 @@ static int rawrd_config_mi(struct rkisp_stream *stream)
 	rkisp_write(dev, CSI2RX_DATA_IDS_1, val, false);
 	rkisp_rawrd_set_pic_size(dev, stream->out_fmt.width,
 				 stream->out_fmt.height);
-	rkisp_set_bits(dev, CSI2RX_RAW_RD_CTRL, 0,
-		       dev->csi_dev.memory << 2 |
-		       1 << (stream->id - 1), true);
 	mi_raw_length(stream);
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s id:%d 0x%x %dx%d\n", __func__,
