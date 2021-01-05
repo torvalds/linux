@@ -192,7 +192,7 @@
 			compatible = "shared-dma-pool";
 			inactive;
 			reusable;
-			size = <0x0 0x20000000>;
+			size = <0x0 0x08000000>;
 			alignment = <0x0 0x1000>;
 		};
 	};
