@@ -22,15 +22,21 @@ enum {
 	CHANNEL_SCAN_INDEX_MAX
 };
 
+#define CHANNEL_SCAN_INDEX_TIMESTAMP CHANNEL_SCAN_INDEX_MAX
+
 struct als_state {
 	struct hid_sensor_hub_callbacks callbacks;
 	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info als_illum;
-	u32 illum[CHANNEL_SCAN_INDEX_MAX];
+	struct {
+		u32 illum[CHANNEL_SCAN_INDEX_MAX];
+		u64 timestamp __aligned(8);
+	} scan;
 	int scale_pre_decml;
 	int scale_post_decml;
 	int scale_precision;
 	int value_offset;
+	s64 timestamp;
 };
 
 /* Channel definitions */
@@ -54,7 +60,8 @@ static const struct iio_chan_spec als_channels[] = {
 		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
 		BIT(IIO_CHAN_INFO_HYSTERESIS),
 		.scan_index = CHANNEL_SCAN_INDEX_ILLUM,
-	}
+	},
+	IIO_CHAN_SOFT_TIMESTAMP(CHANNEL_SCAN_INDEX_TIMESTAMP)
 };
 
 /* Adjust channel real bits based on report descriptor */
@@ -168,14 +175,6 @@ static const struct iio_info als_info = {
 	.write_raw = &als_write_raw,
 };
 
-/* Function to push data to buffer */
-static void hid_sensor_push_data(struct iio_dev *indio_dev, const void *data,
-					int len)
-{
-	dev_dbg(&indio_dev->dev, "hid_sensor_push_data\n");
-	iio_push_to_buffers(indio_dev, data);
-}
-
 /* Callback handler to send event after all samples are received and captured */
 static int als_proc_event(struct hid_sensor_hub_device *hsdev,
 				unsigned usage_id,
@@ -185,10 +184,14 @@ static int als_proc_event(struct hid_sensor_hub_device *hsdev,
 	struct als_state *als_state = iio_priv(indio_dev);
 
 	dev_dbg(&indio_dev->dev, "als_proc_event\n");
-	if (atomic_read(&als_state->common_attributes.data_ready))
-		hid_sensor_push_data(indio_dev,
-				&als_state->illum,
-				sizeof(als_state->illum));
+	if (atomic_read(&als_state->common_attributes.data_ready)) {
+		if (!als_state->timestamp)
+			als_state->timestamp = iio_get_time_ns(indio_dev);
+
+		iio_push_to_buffers_with_timestamp(indio_dev, &als_state->scan,
+						   als_state->timestamp);
+		als_state->timestamp = 0;
+	}
 
 	return 0;
 }
@@ -206,9 +209,13 @@ static int als_capture_sample(struct hid_sensor_hub_device *hsdev,
 
 	switch (usage_id) {
 	case HID_USAGE_SENSOR_LIGHT_ILLUM:
-		als_state->illum[CHANNEL_SCAN_INDEX_INTENSITY] = sample_data;
-		als_state->illum[CHANNEL_SCAN_INDEX_ILLUM] = sample_data;
+		als_state->scan.illum[CHANNEL_SCAN_INDEX_INTENSITY] = sample_data;
+		als_state->scan.illum[CHANNEL_SCAN_INDEX_ILLUM] = sample_data;
 		ret = 0;
+		break;
+	case HID_USAGE_SENSOR_TIME_TIMESTAMP:
+		als_state->timestamp = hid_sensor_convert_timestamp(&als_state->common_attributes,
+								    *(s64 *)raw_data);
 		break;
 	default:
 		break;
