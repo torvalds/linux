@@ -129,10 +129,6 @@ void __init prom_init(void)
 	register_bmips_smp_ops();
 }
 
-void __init prom_free_prom_memory(void)
-{
-}
-
 const char *get_system_type(void)
 {
 	return "Generic BMIPS kernel";

@@ -115,10 +115,6 @@ void __init prom_init(void)
 	board_nmi_handler_setup = mips_nmi_setup;
 }
 
-void __init prom_free_prom_memory(void)
-{
-}
-
 static int __init add_legacy_isa_io(struct fwnode_handle *fwnode, resource_size_t hw_start,
 				    resource_size_t size)
 {

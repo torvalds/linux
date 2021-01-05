@@ -118,10 +118,6 @@ void __init prom_init(void)
 	pr_info("SoC Type: %s\n", get_system_type());
 }
 
-void __init prom_free_prom_memory(void)
-{
-}
-
 void __init device_tree_init(void)
 {
 	if (!initial_boot_params)

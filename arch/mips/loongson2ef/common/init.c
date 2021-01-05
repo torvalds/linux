@@ -46,7 +46,3 @@ void __init prom_init(void)
 	prom_init_uart_base();
 	board_nmi_handler_setup = mips_nmi_setup;
 }
-
-void __init prom_free_prom_memory(void)
-{
-}

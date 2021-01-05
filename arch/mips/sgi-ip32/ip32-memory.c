@@ -40,8 +40,3 @@ void __init prom_meminit(void)
 		memblock_add(base, size);
 	}
 }
-
-
-void __init prom_free_prom_memory(void)
-{
-}

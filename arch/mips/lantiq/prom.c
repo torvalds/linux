@@ -44,10 +44,6 @@ int ltq_soc_type(void)
 	return soc_info.type;
 }
 
-void __init prom_free_prom_memory(void)
-{
-}
-
 static void __init prom_init_cmdline(void)
 {
 	int argc = fw_arg0;

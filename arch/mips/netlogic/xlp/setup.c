@@ -130,11 +130,6 @@ const char *get_system_type(void)
 	}
 }
 
-void __init prom_free_prom_memory(void)
-{
-	/* Nothing yet */
-}
-
 void xlp_mmu_init(void)
 {
 	u32 conf4;

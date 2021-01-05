@@ -117,8 +117,3 @@ void __init prom_init(void)
 
 	setup_8250_early_printk_port(CKSEG1ADDR(0x1c800000), 0, 0);
 }
-
-void __init prom_free_prom_memory(void)
-{
-	/* Nothing to do! */
-}

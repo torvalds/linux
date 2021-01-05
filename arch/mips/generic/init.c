@@ -202,7 +202,3 @@ void __init arch_init_irq(void)
 
 	irqchip_init();
 }
-
-void __init prom_free_prom_memory(void)
-{
-}
