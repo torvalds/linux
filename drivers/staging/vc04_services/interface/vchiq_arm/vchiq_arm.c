@@ -1052,14 +1052,21 @@ static inline int vchiq_get_user_ptr(void __user **buf, void __user *ubuf, int i
 		compat_uptr_t ptr32;
 		compat_uptr_t __user *uptr = ubuf;
 		ret = get_user(ptr32, uptr + index);
+		if (ret)
+			return ret;
+
 		*buf = compat_ptr(ptr32);
 	} else {
 		uintptr_t ptr, __user *uptr = ubuf;
 		ret = get_user(ptr, uptr + index);
+
+		if (ret)
+			return ret;
+
 		*buf = (void __user *)ptr;
 	}
 
-	return ret;
+	return 0;
 }
 
 struct vchiq_completion_data32 {
