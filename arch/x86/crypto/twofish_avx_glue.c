@@ -15,8 +15,9 @@
 #include <crypto/algapi.h>
 #include <crypto/internal/simd.h>
 #include <crypto/twofish.h>
-#include <asm/crypto/glue_helper.h>
 #include <asm/crypto/twofish.h>
+
+#include "ecb_cbc_helpers.h"
 
 #define TWOFISH_PARALLEL_BLOCKS 8
 
@@ -37,72 +38,38 @@ static inline void twofish_enc_blk_3way(const void *ctx, u8 *dst, const u8 *src)
 	__twofish_enc_blk_3way(ctx, dst, src, false);
 }
 
-static const struct common_glue_ctx twofish_enc = {
-	.num_funcs = 3,
-	.fpu_blocks_limit = TWOFISH_PARALLEL_BLOCKS,
-
-	.funcs = { {
-		.num_blocks = TWOFISH_PARALLEL_BLOCKS,
-		.fn_u = { .ecb = twofish_ecb_enc_8way }
-	}, {
-		.num_blocks = 3,
-		.fn_u = { .ecb = twofish_enc_blk_3way }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .ecb = twofish_enc_blk }
-	} }
-};
-
-static const struct common_glue_ctx twofish_dec = {
-	.num_funcs = 3,
-	.fpu_blocks_limit = TWOFISH_PARALLEL_BLOCKS,
-
-	.funcs = { {
-		.num_blocks = TWOFISH_PARALLEL_BLOCKS,
-		.fn_u = { .ecb = twofish_ecb_dec_8way }
-	}, {
-		.num_blocks = 3,
-		.fn_u = { .ecb = twofish_dec_blk_3way }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .ecb = twofish_dec_blk }
-	} }
-};
-
-static const struct common_glue_ctx twofish_dec_cbc = {
-	.num_funcs = 3,
-	.fpu_blocks_limit = TWOFISH_PARALLEL_BLOCKS,
-
-	.funcs = { {
-		.num_blocks = TWOFISH_PARALLEL_BLOCKS,
-		.fn_u = { .cbc = twofish_cbc_dec_8way }
-	}, {
-		.num_blocks = 3,
-		.fn_u = { .cbc = twofish_dec_blk_cbc_3way }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .cbc = twofish_dec_blk }
-	} }
-};
-
 static int ecb_encrypt(struct skcipher_request *req)
 {
-	return glue_ecb_req_128bit(&twofish_enc, req);
+	ECB_WALK_START(req, TF_BLOCK_SIZE, TWOFISH_PARALLEL_BLOCKS);
+	ECB_BLOCK(TWOFISH_PARALLEL_BLOCKS, twofish_ecb_enc_8way);
+	ECB_BLOCK(3, twofish_enc_blk_3way);
+	ECB_BLOCK(1, twofish_enc_blk);
+	ECB_WALK_END();
 }
 
 static int ecb_decrypt(struct skcipher_request *req)
 {
-	return glue_ecb_req_128bit(&twofish_dec, req);
+	ECB_WALK_START(req, TF_BLOCK_SIZE, TWOFISH_PARALLEL_BLOCKS);
+	ECB_BLOCK(TWOFISH_PARALLEL_BLOCKS, twofish_ecb_dec_8way);
+	ECB_BLOCK(3, twofish_dec_blk_3way);
+	ECB_BLOCK(1, twofish_dec_blk);
+	ECB_WALK_END();
 }
 
 static int cbc_encrypt(struct skcipher_request *req)
 {
-	return glue_cbc_encrypt_req_128bit(twofish_enc_blk, req);
+	CBC_WALK_START(req, TF_BLOCK_SIZE, -1);
+	CBC_ENC_BLOCK(twofish_enc_blk);
+	CBC_WALK_END();
 }
 
 static int cbc_decrypt(struct skcipher_request *req)
 {
-	return glue_cbc_decrypt_req_128bit(&twofish_dec_cbc, req);
+	CBC_WALK_START(req, TF_BLOCK_SIZE, TWOFISH_PARALLEL_BLOCKS);
+	CBC_DEC_BLOCK(TWOFISH_PARALLEL_BLOCKS, twofish_cbc_dec_8way);
+	CBC_DEC_BLOCK(3, twofish_dec_blk_cbc_3way);
+	CBC_DEC_BLOCK(1, twofish_dec_blk);
+	CBC_WALK_END();
 }
 
 static struct skcipher_alg twofish_algs[] = {
