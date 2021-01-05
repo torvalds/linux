@@ -9687,6 +9687,10 @@ void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 			amdgpu_dm_connector->max_vfreq = range->max_vfreq;
 			amdgpu_dm_connector->pixel_clock_mhz =
 				range->pixel_clock_mhz * 10;
+
+			connector->display_info.monitor_range.min_vfreq = range->min_vfreq;
+			connector->display_info.monitor_range.max_vfreq = range->max_vfreq;
+
 			break;
 		}
 
