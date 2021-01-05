@@ -997,6 +997,7 @@ struct kbase_device {
 	int num_opps;
 	struct kbasep_pm_metrics last_devfreq_metrics;
 	struct monitor_dev_info *mdev_info;
+	struct ipa_power_model_data *model_data;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
 	struct kbase_devfreq_queue_info devfreq_queue;
 #endif
