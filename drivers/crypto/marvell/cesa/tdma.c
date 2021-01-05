@@ -177,7 +177,7 @@ int mv_cesa_tdma_process(struct mv_cesa_engine *engine, u32 status)
 
 	/*
 	 * Save the last request in error to engine->req, so that the core
-	 * knows which request was fautly
+	 * knows which request was faulty
 	 */
 	if (res) {
 		spin_lock_bh(&engine->lock);
