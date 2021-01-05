@@ -28,17 +28,18 @@
 #define HL_NAME				"habanalabs"
 
 /* Use upper bits of mmap offset to store habana driver specific information.
- * bits[63:62] - Encode mmap type
+ * bits[63:61] - Encode mmap type
  * bits[45:0]  - mmap offset value
  *
  * NOTE: struct vm_area_struct.vm_pgoff uses offset in pages. Hence, these
  *  defines are w.r.t to PAGE_SIZE
  */
-#define HL_MMAP_TYPE_SHIFT		(62 - PAGE_SHIFT)
-#define HL_MMAP_TYPE_MASK		(0x3ull << HL_MMAP_TYPE_SHIFT)
+#define HL_MMAP_TYPE_SHIFT		(61 - PAGE_SHIFT)
+#define HL_MMAP_TYPE_MASK		(0x7ull << HL_MMAP_TYPE_SHIFT)
+#define HL_MMAP_TYPE_BLOCK		(0x4ull << HL_MMAP_TYPE_SHIFT)
 #define HL_MMAP_TYPE_CB			(0x2ull << HL_MMAP_TYPE_SHIFT)
 
-#define HL_MMAP_OFFSET_VALUE_MASK	(0x3FFFFFFFFFFFull >> PAGE_SHIFT)
+#define HL_MMAP_OFFSET_VALUE_MASK	(0x1FFFFFFFFFFFull >> PAGE_SHIFT)
 #define HL_MMAP_OFFSET_VALUE_GET(off)	(off & HL_MMAP_OFFSET_VALUE_MASK)
 
 #define HL_PENDING_RESET_PER_SEC	10
@@ -856,6 +857,8 @@ enum div_select_defs {
  * @descramble_addr: Routine to de-scramble the address prior of
  *                  showing it to users.
  * @ack_protection_bits_errors: ack and dump all security violations
+ * @get_hw_block_id: retrieve a HW block id to be used by the user to mmap it.
+ * @hw_block_mmap: mmap a HW block with a given id.
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -968,6 +971,10 @@ struct hl_asic_funcs {
 	u64 (*scramble_addr)(struct hl_device *hdev, u64 addr);
 	u64 (*descramble_addr)(struct hl_device *hdev, u64 addr);
 	void (*ack_protection_bits_errors)(struct hl_device *hdev);
+	int (*get_hw_block_id)(struct hl_device *hdev, u64 block_addr,
+			u32 *block_id);
+	int (*hw_block_mmap)(struct hl_device *hdev, struct vm_area_struct *vma,
+			u32 block_id, u32 block_size);
 };
 
 
@@ -2167,6 +2174,7 @@ int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 			bool map_cb, u64 *handle);
 int hl_cb_destroy(struct hl_device *hdev, struct hl_cb_mgr *mgr, u64 cb_handle);
 int hl_cb_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma);
+int hl_hw_block_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma);
 struct hl_cb *hl_cb_get(struct hl_device *hdev,	struct hl_cb_mgr *mgr,
 			u32 handle);
 void hl_cb_put(struct hl_cb *cb);

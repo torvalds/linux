@@ -1289,11 +1289,88 @@ vm_type_err:
 	return rc;
 }
 
+static int map_block(struct hl_device *hdev, u64 address, u64 *handle)
+{
+	u32 block_id = 0;
+	int rc;
+
+	rc = hdev->asic_funcs->get_hw_block_id(hdev, address, &block_id);
+
+	*handle = block_id | HL_MMAP_TYPE_BLOCK;
+	*handle <<= PAGE_SHIFT;
+
+	return rc;
+}
+
+static void hw_block_vm_close(struct vm_area_struct *vma)
+{
+	struct hl_ctx *ctx = (struct hl_ctx *) vma->vm_private_data;
+
+	hl_ctx_put(ctx);
+	vma->vm_private_data = NULL;
+}
+
+static const struct vm_operations_struct hw_block_vm_ops = {
+	.close = hw_block_vm_close
+};
+
+/**
+ * hl_hw_block_mmap() - mmap a hw block to user.
+ * @hpriv: pointer to the private data of the fd
+ * @vma: pointer to vm_area_struct of the process
+ *
+ * Driver increments context reference for every HW block mapped in order
+ * to prevent user from closing FD without unmapping first
+ */
+int hl_hw_block_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	u32 block_id, block_size;
+	int rc;
+
+	/* We use the page offset to hold the block id and thus we need to clear
+	 * it before doing the mmap itself
+	 */
+	block_id = vma->vm_pgoff;
+	vma->vm_pgoff = 0;
+
+	/* Driver only allows mapping of a complete HW block */
+	block_size = vma->vm_end - vma->vm_start;
+
+#ifdef _HAS_TYPE_ARG_IN_ACCESS_OK
+	if (!access_ok(VERIFY_WRITE,
+		(void __user *) (uintptr_t) vma->vm_start, block_size)) {
+#else
+	if (!access_ok((void __user *) (uintptr_t) vma->vm_start, block_size)) {
+#endif
+		dev_err(hdev->dev,
+			"user pointer is invalid - 0x%lx\n",
+			vma->vm_start);
+
+		return -EINVAL;
+	}
+
+	vma->vm_ops = &hw_block_vm_ops;
+	vma->vm_private_data = hpriv->ctx;
+
+	hl_ctx_get(hdev, hpriv->ctx);
+
+	rc = hdev->asic_funcs->hw_block_mmap(hdev, vma, block_id, block_size);
+	if (rc) {
+		hl_ctx_put(hpriv->ctx);
+		return rc;
+	}
+
+	vma->vm_pgoff = block_id;
+
+	return 0;
+}
+
 static int mem_ioctl_no_mmu(struct hl_fpriv *hpriv, union hl_mem_args *args)
 {
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_ctx *ctx = hpriv->ctx;
-	u64 device_addr = 0;
+	u64 block_handle, device_addr = 0;
 	u32 handle = 0;
 	int rc;
 
@@ -1337,6 +1414,12 @@ static int mem_ioctl_no_mmu(struct hl_fpriv *hpriv, union hl_mem_args *args)
 		rc = 0;
 		break;
 
+	case HL_MEM_OP_MAP_BLOCK:
+		rc = map_block(hdev, args->in.map_block.block_addr,
+							&block_handle);
+		args->out.handle = block_handle;
+		break;
+
 	default:
 		dev_err(hdev->dev, "Unknown opcode for memory IOCTL\n");
 		rc = -ENOTTY;
@@ -1353,7 +1436,7 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 	union hl_mem_args *args = data;
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_ctx *ctx = hpriv->ctx;
-	u64 device_addr = 0;
+	u64 block_handle, device_addr = 0;
 	u32 handle = 0;
 	int rc;
 
@@ -1437,6 +1520,12 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 
 	case HL_MEM_OP_UNMAP:
 		rc = unmap_device_va(ctx, &args->in, false);
+		break;
+
+	case HL_MEM_OP_MAP_BLOCK:
+		rc = map_block(hdev, args->in.map_block.block_addr,
+							&block_handle);
+		args->out.handle = block_handle;
 		break;
 
 	default:

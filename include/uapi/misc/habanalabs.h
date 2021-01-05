@@ -718,6 +718,8 @@ union hl_wait_cs_args {
 #define HL_MEM_OP_MAP			2
 /* Opcode to unmap previously mapped host and device memory */
 #define HL_MEM_OP_UNMAP			3
+/* Opcode to map a hw block */
+#define HL_MEM_OP_MAP_BLOCK		4
 
 /* Memory flags */
 #define HL_MEM_CONTIGUOUS	0x1
@@ -772,6 +774,17 @@ struct hl_mem_in {
 			__u64 mem_size;
 		} map_host;
 
+		/* HL_MEM_OP_MAP_BLOCK - map a hw block */
+		struct {
+			/*
+			 * HW block address to map, a handle will be returned
+			 * to the user and will be used to mmap the relevant
+			 * block. Only addresses from configuration space are
+			 * allowed.
+			 */
+			__u64 block_addr;
+		} map_block;
+
 		/* HL_MEM_OP_UNMAP - unmap host memory */
 		struct {
 			/* Virtual address returned from HL_MEM_OP_MAP */
@@ -798,8 +811,9 @@ struct hl_mem_out {
 		__u64 device_virt_addr;
 
 		/*
-		 * Used for HL_MEM_OP_ALLOC. This is the assigned
-		 * handle for the allocated memory
+		 * Used for HL_MEM_OP_ALLOC and HL_MEM_OP_MAP_BLOCK.
+		 * This is the assigned handle for the allocated memory
+		 * or mapped block
 		 */
 		__u64 handle;
 	};

@@ -5382,6 +5382,18 @@ static void goya_ctx_fini(struct hl_ctx *ctx)
 
 }
 
+static int goya_get_hw_block_id(struct hl_device *hdev, u64 block_addr,
+				u32 *block_id)
+{
+	return -EPERM;
+}
+
+static int goya_block_mmap(struct hl_device *hdev, struct vm_area_struct *vma,
+				u32 block_id, u32 block_size)
+{
+	return -EPERM;
+}
+
 static const struct hl_asic_funcs goya_funcs = {
 	.early_init = goya_early_init,
 	.early_fini = goya_early_fini,
@@ -5461,7 +5473,9 @@ static const struct hl_asic_funcs goya_funcs = {
 	.collective_wait_create_jobs = goya_collective_wait_create_jobs,
 	.scramble_addr = hl_mmu_scramble_addr,
 	.descramble_addr = hl_mmu_descramble_addr,
-	.ack_protection_bits_errors = goya_ack_protection_bits_errors
+	.ack_protection_bits_errors = goya_ack_protection_bits_errors,
+	.get_hw_block_id = goya_get_hw_block_id,
+	.hw_block_mmap = goya_block_mmap
 };
 
 /*
