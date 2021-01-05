@@ -12,6 +12,7 @@
 #include <asm/memory.h>
 
 SECTIONS {
+	HYP_SECTION(.idmap.text)
 	HYP_SECTION(.text)
 	/*
 	 * .hyp..data..percpu needs to be page aligned to maintain the same
