@@ -8,6 +8,7 @@ ADDITIONAL_KMI_SYMBOL_LISTS="
 android/abi_gki_aarch64_db845c
 android/abi_gki_aarch64_qcom
 android/abi_gki_aarch64_virtual_device
+android/abi_gki_aarch64_hikey960
 "
 
 MODULES_ORDER=android/gki_aarch64_modules
