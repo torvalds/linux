@@ -395,9 +395,8 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
 }
 
 static void
-mt7915_tm_init(struct mt7915_phy *phy)
+mt7915_tm_init(struct mt7915_phy *phy, bool en)
 {
-	bool en = !(phy->mt76->test.state == MT76_TM_STATE_OFF);
 	struct mt7915_dev *dev = phy->dev;
 
 	if (!test_bit(MT76_STATE_RUNNING, &phy->mt76->state))
@@ -502,16 +501,15 @@ mt7915_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
 
 	mphy->test.state = state;
 
-	if (prev_state == MT76_TM_STATE_TX_FRAMES)
-		mt7915_tm_set_tx_frames(phy, false);
-	else if (state == MT76_TM_STATE_TX_FRAMES)
-		mt7915_tm_set_tx_frames(phy, true);
-	else if (prev_state == MT76_TM_STATE_RX_FRAMES)
-		mt7915_tm_set_rx_frames(phy, false);
-	else if (state == MT76_TM_STATE_RX_FRAMES)
-		mt7915_tm_set_rx_frames(phy, true);
-	else if (prev_state == MT76_TM_STATE_OFF || state == MT76_TM_STATE_OFF)
-		mt7915_tm_init(phy);
+	if (prev_state == MT76_TM_STATE_TX_FRAMES ||
+	    state == MT76_TM_STATE_TX_FRAMES)
+		mt7915_tm_set_tx_frames(phy, state == MT76_TM_STATE_TX_FRAMES);
+	else if (prev_state == MT76_TM_STATE_RX_FRAMES ||
+		 state == MT76_TM_STATE_RX_FRAMES)
+		mt7915_tm_set_rx_frames(phy, state == MT76_TM_STATE_RX_FRAMES);
+	else if (prev_state == MT76_TM_STATE_OFF ||
+		 state == MT76_TM_STATE_OFF)
+		mt7915_tm_init(phy, !(state == MT76_TM_STATE_OFF));
 
 	if ((state == MT76_TM_STATE_IDLE &&
 	     prev_state == MT76_TM_STATE_OFF) ||
