@@ -37,6 +37,11 @@
  * @MT76_TM_ATTR_STATS: statistics (nested, see &enum mt76_testmode_stats_attr)
  *
  * @MT76_TM_ATTR_TX_SPE_IDX: tx spatial extension index (u8)
+ *
+ * @MT76_TM_ATTR_TX_DUTY_CYCLE: packet tx duty cycle (u8)
+ * @MT76_TM_ATTR_TX_IPG: tx inter-packet gap, in unit of us (u32)
+ * @MT76_TM_ATTR_TX_TIME: packet transmission time, in unit of us (u32)
+ *
  */
 enum mt76_testmode_attr {
 	MT76_TM_ATTR_UNSPEC,
@@ -66,6 +71,10 @@ enum mt76_testmode_attr {
 	MT76_TM_ATTR_STATS,
 
 	MT76_TM_ATTR_TX_SPE_IDX,
+
+	MT76_TM_ATTR_TX_DUTY_CYCLE,
+	MT76_TM_ATTR_TX_IPG,
+	MT76_TM_ATTR_TX_TIME,
 
 	/* keep last */
 	NUM_MT76_TM_ATTRS,

@@ -17,6 +17,9 @@ static const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
 	[MT76_TM_ATTR_TX_SPE_IDX] = { .type = NLA_U8 },
 	[MT76_TM_ATTR_TX_POWER_CONTROL] = { .type = NLA_U8 },
 	[MT76_TM_ATTR_TX_POWER] = { .type = NLA_NESTED },
+	[MT76_TM_ATTR_TX_DUTY_CYCLE] = { .type = NLA_U8 },
+	[MT76_TM_ATTR_TX_IPG] = { .type = NLA_U32 },
+	[MT76_TM_ATTR_TX_TIME] = { .type = NLA_U32 },
 	[MT76_TM_ATTR_FREQ_OFFSET] = { .type = NLA_U32 },
 };
 
@@ -361,9 +364,17 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_ANTENNA], &td->tx_antenna_mask,
 			   1 << (ext_phy * 2), phy->antenna_mask << (ext_phy * 2)) ||
 	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_SPE_IDX], &td->tx_spe_idx, 0, 27) ||
+	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_DUTY_CYCLE],
+			   &td->tx_duty_cycle, 0, 99) ||
 	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_POWER_CONTROL],
 			   &td->tx_power_control, 0, 1))
 		goto out;
+
+	if (tb[MT76_TM_ATTR_TX_IPG])
+		td->tx_ipg = nla_get_u32(tb[MT76_TM_ATTR_TX_IPG]);
+
+	if (tb[MT76_TM_ATTR_TX_TIME])
+		td->tx_time = nla_get_u32(tb[MT76_TM_ATTR_TX_TIME]);
 
 	if (tb[MT76_TM_ATTR_FREQ_OFFSET])
 		td->freq_offset = nla_get_u32(tb[MT76_TM_ATTR_FREQ_OFFSET]);
@@ -503,6 +514,12 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
 	     nla_put_u8(msg, MT76_TM_ATTR_TX_ANTENNA, td->tx_antenna_mask)) ||
 	    (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_SPE_IDX) &&
 	     nla_put_u8(msg, MT76_TM_ATTR_TX_SPE_IDX, td->tx_spe_idx)) ||
+	    (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_DUTY_CYCLE) &&
+	     nla_put_u8(msg, MT76_TM_ATTR_TX_DUTY_CYCLE, td->tx_duty_cycle)) ||
+	    (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_IPG) &&
+	     nla_put_u32(msg, MT76_TM_ATTR_TX_IPG, td->tx_ipg)) ||
+	    (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_TIME) &&
+	     nla_put_u32(msg, MT76_TM_ATTR_TX_TIME, td->tx_time)) ||
 	    (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_POWER_CONTROL) &&
 	     nla_put_u8(msg, MT76_TM_ATTR_TX_POWER_CONTROL, td->tx_power_control)) ||
 	    (mt76_testmode_param_present(td, MT76_TM_ATTR_FREQ_OFFSET) &&
