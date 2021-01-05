@@ -73,8 +73,18 @@ alternative_cb_end
 .endm
 
 /*
- * Convert a kernel image address to a PA
- * reg: kernel address to be converted in place
+ * Convert a hypervisor VA to a PA
+ * reg: hypervisor address to be converted in place
+ * tmp: temporary register
+ */
+.macro hyp_pa reg, tmp
+	ldr_l	\tmp, hyp_physvirt_offset
+	add	\reg, \reg, \tmp
+.endm
+
+/*
+ * Convert a hypervisor VA to a kernel image address
+ * reg: hypervisor address to be converted in place
  * tmp: temporary register
  *
  * The actual code generation takes place in kvm_get_kimage_voffset, and
@@ -82,7 +92,11 @@ alternative_cb_end
  * perform the register allocation (kvm_get_kimage_voffset uses the
  * specific registers encoded in the instructions).
  */
-.macro kimg_pa reg, tmp
+.macro hyp_kimg_va reg, tmp
+	/* Convert hyp VA -> PA. */
+	hyp_pa	\reg, \tmp
+
+	/* Load kimage_voffset. */
 alternative_cb kvm_get_kimage_voffset
 	movz	\tmp, #0
 	movk	\tmp, #0, lsl #16
@@ -90,32 +104,8 @@ alternative_cb kvm_get_kimage_voffset
 	movk	\tmp, #0, lsl #48
 alternative_cb_end
 
-	/* reg = __pa(reg) */
-	sub	\reg, \reg, \tmp
-.endm
-
-/*
- * Convert a kernel image address to a hyp VA
- * reg: kernel address to be converted in place
- * tmp: temporary register
- *
- * The actual code generation takes place in kvm_get_kimage_voffset, and
- * the instructions below are only there to reserve the space and
- * perform the register allocation (kvm_update_kimg_phys_offset uses the
- * specific registers encoded in the instructions).
- */
-.macro kimg_hyp_va reg, tmp
-alternative_cb kvm_update_kimg_phys_offset
-	movz	\tmp, #0
-	movk	\tmp, #0, lsl #16
-	movk	\tmp, #0, lsl #32
-	movk	\tmp, #0, lsl #48
-alternative_cb_end
-
-	sub	\reg, \reg, \tmp
-	mov_q	\tmp, PAGE_OFFSET
-	orr	\reg, \reg, \tmp
-	kern_hyp_va \reg
+	/* Convert PA -> kimg VA. */
+	add	\reg, \reg, \tmp
 .endm
 
 #else

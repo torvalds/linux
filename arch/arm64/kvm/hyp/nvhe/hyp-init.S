@@ -139,7 +139,6 @@ alternative_else_nop_endif
 
 	/* Set the host vector */
 	ldr	x0, =__kvm_hyp_host_vector
-	kimg_hyp_va x0, x1
 	msr	vbar_el2, x0
 
 	ret
@@ -198,7 +197,6 @@ SYM_CODE_START_LOCAL(__kvm_hyp_init_cpu)
 	/* Leave idmap. */
 	mov	x0, x29
 	ldr	x1, =kvm_host_psci_cpu_entry
-	kimg_hyp_va x1, x2
 	br	x1
 SYM_CODE_END(__kvm_hyp_init_cpu)
 
