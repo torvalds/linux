@@ -1732,6 +1732,8 @@ static bool dc_link_construct_dpia(struct dc_link *link,
 		  init_params->connector_index,
 		  link->connector_signal);
 
+	link->ep_type = DISPLAY_ENDPOINT_USB4_DPIA;
+
 	/* TODO: Initialize link : funcs->link_init */
 
 	ddc_service_init_data.ctx = link->ctx;
