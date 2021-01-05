@@ -143,12 +143,14 @@ enum mt76_testmode_rx_attr {
  * @MT76_TM_STATE_IDLE: test mode enabled, but idle
  * @MT76_TM_STATE_TX_FRAMES: send a fixed number of test frames
  * @MT76_TM_STATE_RX_FRAMES: receive packets and keep statistics
+ * @MT76_TM_STATE_TX_CONT: waveform tx without time gap
  */
 enum mt76_testmode_state {
 	MT76_TM_STATE_OFF,
 	MT76_TM_STATE_IDLE,
 	MT76_TM_STATE_TX_FRAMES,
 	MT76_TM_STATE_RX_FRAMES,
+	MT76_TM_STATE_TX_CONT,
 
 	/* keep last */
 	NUM_MT76_TM_STATES,
