@@ -15,7 +15,8 @@
 #include <crypto/algapi.h>
 #include <crypto/cast6.h>
 #include <crypto/internal/simd.h>
-#include <asm/crypto/glue_helper.h>
+
+#include "ecb_cbc_helpers.h"
 
 #define CAST6_PARALLEL_BLOCKS 8
 
@@ -30,63 +31,35 @@ static int cast6_setkey_skcipher(struct crypto_skcipher *tfm,
 	return cast6_setkey(&tfm->base, key, keylen);
 }
 
-static const struct common_glue_ctx cast6_enc = {
-	.num_funcs = 2,
-	.fpu_blocks_limit = CAST6_PARALLEL_BLOCKS,
-
-	.funcs = { {
-		.num_blocks = CAST6_PARALLEL_BLOCKS,
-		.fn_u = { .ecb = cast6_ecb_enc_8way }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .ecb = __cast6_encrypt }
-	} }
-};
-
-static const struct common_glue_ctx cast6_dec = {
-	.num_funcs = 2,
-	.fpu_blocks_limit = CAST6_PARALLEL_BLOCKS,
-
-	.funcs = { {
-		.num_blocks = CAST6_PARALLEL_BLOCKS,
-		.fn_u = { .ecb = cast6_ecb_dec_8way }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .ecb = __cast6_decrypt }
-	} }
-};
-
-static const struct common_glue_ctx cast6_dec_cbc = {
-	.num_funcs = 2,
-	.fpu_blocks_limit = CAST6_PARALLEL_BLOCKS,
-
-	.funcs = { {
-		.num_blocks = CAST6_PARALLEL_BLOCKS,
-		.fn_u = { .cbc = cast6_cbc_dec_8way }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .cbc = __cast6_decrypt }
-	} }
-};
-
 static int ecb_encrypt(struct skcipher_request *req)
 {
-	return glue_ecb_req_128bit(&cast6_enc, req);
+	ECB_WALK_START(req, CAST6_BLOCK_SIZE, CAST6_PARALLEL_BLOCKS);
+	ECB_BLOCK(CAST6_PARALLEL_BLOCKS, cast6_ecb_enc_8way);
+	ECB_BLOCK(1, __cast6_encrypt);
+	ECB_WALK_END();
 }
 
 static int ecb_decrypt(struct skcipher_request *req)
 {
-	return glue_ecb_req_128bit(&cast6_dec, req);
+	ECB_WALK_START(req, CAST6_BLOCK_SIZE, CAST6_PARALLEL_BLOCKS);
+	ECB_BLOCK(CAST6_PARALLEL_BLOCKS, cast6_ecb_dec_8way);
+	ECB_BLOCK(1, __cast6_decrypt);
+	ECB_WALK_END();
 }
 
 static int cbc_encrypt(struct skcipher_request *req)
 {
-	return glue_cbc_encrypt_req_128bit(__cast6_encrypt, req);
+	CBC_WALK_START(req, CAST6_BLOCK_SIZE, -1);
+	CBC_ENC_BLOCK(__cast6_encrypt);
+	CBC_WALK_END();
 }
 
 static int cbc_decrypt(struct skcipher_request *req)
 {
-	return glue_cbc_decrypt_req_128bit(&cast6_dec_cbc, req);
+	CBC_WALK_START(req, CAST6_BLOCK_SIZE, CAST6_PARALLEL_BLOCKS);
+	CBC_DEC_BLOCK(CAST6_PARALLEL_BLOCKS, cast6_cbc_dec_8way);
+	CBC_DEC_BLOCK(1, __cast6_decrypt);
+	CBC_WALK_END();
 }
 
 static struct skcipher_alg cast6_algs[] = {
