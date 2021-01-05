@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/atomic.h>
@@ -458,7 +458,6 @@ struct haptics_chip {
 	struct haptics_play_info	play;
 	struct dentry			*debugfs_dir;
 	struct regulator_dev		*swr_slave_rdev;
-	struct mutex			irq_lock;
 	struct nvmem_cell		*cl_brake_nvmem;
 	struct nvmem_device		*hap_cfg_nvmem;
 	struct device_node		*pbs_node;
@@ -1616,6 +1615,18 @@ static int haptics_set_fifo_empty_threshold(struct haptics_chip *chip,
 	return rc;
 }
 
+static void haptics_fifo_empty_irq_config(struct haptics_chip *chip,
+						bool enable)
+{
+	if (!chip->fifo_empty_irq_en && enable) {
+		enable_irq(chip->fifo_empty_irq);
+		chip->fifo_empty_irq_en = true;
+	} else if (chip->fifo_empty_irq_en && !enable) {
+		disable_irq_nosync(chip->fifo_empty_irq);
+		chip->fifo_empty_irq_en = false;
+	}
+}
+
 static int haptics_module_enable(struct haptics_chip *chip, bool enable)
 {
 	u8 val;
@@ -1709,8 +1720,13 @@ static int haptics_set_fifo(struct haptics_chip *chip, struct fifo_cfg *fifo)
 	 * FIFO samples can be written (if available) when
 	 * FIFO empty IRQ is triggered.
 	 */
+	rc = haptics_set_fifo_empty_threshold(chip, fifo_thresh);
+	if (rc < 0)
+		return rc;
 
-	return haptics_set_fifo_empty_threshold(chip, fifo_thresh);
+	haptics_fifo_empty_irq_config(chip, true);
+
+	return 0;
 }
 
 static int haptics_load_constant_effect(struct haptics_chip *chip, u8 amplitude)
@@ -2153,20 +2169,6 @@ static int haptics_upload_effect(struct input_dev *dev,
 	return rc;
 }
 
-static void haptics_fifo_empty_irq_config(struct haptics_chip *chip,
-						bool enable)
-{
-	mutex_lock(&chip->irq_lock);
-	if (!chip->fifo_empty_irq_en && enable) {
-		enable_irq(chip->fifo_empty_irq);
-		chip->fifo_empty_irq_en = true;
-	} else if (chip->fifo_empty_irq_en && !enable) {
-		disable_irq_nosync(chip->fifo_empty_irq);
-		chip->fifo_empty_irq_en = false;
-	}
-	mutex_unlock(&chip->irq_lock);
-}
-
 static int haptics_stop_fifo_play(struct haptics_chip *chip)
 {
 	int rc;
@@ -2218,9 +2220,6 @@ static int haptics_playback(struct input_dev *dev, int effect_id, int val)
 		rc = haptics_enable_play(chip, true);
 		if (rc < 0)
 			return rc;
-
-		if (play->pattern_src == FIFO)
-			haptics_fifo_empty_irq_config(chip, true);
 	} else {
 		if (play->pattern_src == FIFO &&
 				atomic_read(&play->fifo_status.is_busy)) {
@@ -4261,7 +4260,6 @@ static int haptics_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	mutex_init(&chip->irq_lock);
 	mutex_init(&chip->play.lock);
 	disable_irq_nosync(chip->fifo_empty_irq);
 	chip->fifo_empty_irq_en = false;
