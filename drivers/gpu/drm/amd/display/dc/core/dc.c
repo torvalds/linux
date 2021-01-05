@@ -296,6 +296,75 @@ failed_alloc:
 	return false;
 }
 
+/* Create additional DIG link encoder objects if fewer than the platform
+ * supports were created during link construction. This can happen if the
+ * number of physical connectors is less than the number of DIGs.
+ */
+static bool create_link_encoders(struct dc *dc)
+{
+	bool res = true;
+	unsigned int num_usb4_dpia = dc->res_pool->res_cap->num_usb4_dpia;
+	unsigned int num_dig_link_enc = dc->res_pool->res_cap->num_dig_link_enc;
+	int i;
+
+	/* A platform without USB4 DPIA endpoints has a fixed mapping between DIG
+	 * link encoders and physical display endpoints and does not require
+	 * additional link encoder objects.
+	 */
+	if (num_usb4_dpia == 0)
+		return res;
+
+	/* Create as many link encoder objects as the platform supports. DPIA
+	 * endpoints can be programmably mapped to any DIG.
+	 */
+	if (num_dig_link_enc > dc->res_pool->dig_link_enc_count) {
+		for (i = 0; i < num_dig_link_enc; i++) {
+			struct link_encoder *link_enc = dc->res_pool->link_encoders[i];
+
+			if (!link_enc && dc->res_pool->funcs->link_enc_create_minimal) {
+				link_enc = dc->res_pool->funcs->link_enc_create_minimal(dc->ctx,
+						(enum engine_id)(ENGINE_ID_DIGA + i));
+				if (link_enc) {
+					dc->res_pool->link_encoders[i] = link_enc;
+					dc->res_pool->dig_link_enc_count++;
+				} else {
+					res = false;
+				}
+			}
+		}
+	}
+
+	return res;
+}
+
+/* Destroy any additional DIG link encoder objects created by
+ * create_link_encoders().
+ * NB: Must only be called after destroy_links().
+ */
+static void destroy_link_encoders(struct dc *dc)
+{
+	unsigned int num_usb4_dpia = dc->res_pool->res_cap->num_usb4_dpia;
+	unsigned int num_dig_link_enc = dc->res_pool->res_cap->num_dig_link_enc;
+	int i;
+
+	/* A platform without USB4 DPIA endpoints has a fixed mapping between DIG
+	 * link encoders and physical display endpoints and does not require
+	 * additional link encoder objects.
+	 */
+	if (num_usb4_dpia == 0)
+		return;
+
+	for (i = 0; i < num_dig_link_enc; i++) {
+		struct link_encoder *link_enc = dc->res_pool->link_encoders[i];
+
+		if (link_enc) {
+			link_enc->funcs->destroy(&link_enc);
+			dc->res_pool->link_encoders[i] = NULL;
+			dc->res_pool->dig_link_enc_count--;
+		}
+	}
+}
+
 static struct dc_perf_trace *dc_perf_trace_create(void)
 {
 	return kzalloc(sizeof(struct dc_perf_trace), GFP_KERNEL);
@@ -729,6 +798,8 @@ static void dc_destruct(struct dc *dc)
 
 	destroy_links(dc);
 
+	destroy_link_encoders(dc);
+
 	if (dc->clk_mgr) {
 		dc_destroy_clk_mgr(dc->clk_mgr);
 		dc->clk_mgr = NULL;
@@ -931,6 +1002,12 @@ static bool dc_construct(struct dc *dc,
 	dc_resource_state_construct(dc, dc->current_state);
 
 	if (!create_links(dc, init_params->num_virtual_links))
+		goto fail;
+
+	/* Create additional DIG link encoder objects if fewer than the platform
+	 * supports were created during link construction.
+	 */
+	if (!create_link_encoders(dc))
 		goto fail;
 
 	/* Initialise DIG link encoder resource tracking variables. */
