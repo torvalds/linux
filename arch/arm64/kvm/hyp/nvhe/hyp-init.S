@@ -18,7 +18,7 @@
 #include <asm/virt.h>
 
 	.text
-	.pushsection	.hyp.idmap.text, "ax"
+	.pushsection	.idmap.text, "ax"
 
 	.align	11
 
