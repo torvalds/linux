@@ -605,7 +605,7 @@ static int hvcs_io(struct hvcs_struct *hvcsd)
 		hvcsd->todo_mask |= HVCS_QUICK_READ;
 
 	spin_unlock_irqrestore(&hvcsd->lock, flags);
-	/* This is synch because tty->low_latency == 1 */
+	/* This is synch -- FIXME :js: it is not! */
 	if(got)
 		tty_flip_buffer_push(&hvcsd->port);
 

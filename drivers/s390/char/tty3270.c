@@ -967,7 +967,6 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 		tty->driver_data = tp;
 		tty->winsize.ws_row = tp->view.rows - 2;
 		tty->winsize.ws_col = tp->view.cols;
-		tp->port.low_latency = 0;
 		tp->inattr = TF_INPUT;
 		goto port_install;
 	}
@@ -996,7 +995,6 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 		return rc;
 	}
 
-	tp->port.low_latency = 0;
 	tty->winsize.ws_row = tp->view.rows - 2;
 	tty->winsize.ws_col = tp->view.cols;
 

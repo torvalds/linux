@@ -672,7 +672,6 @@ static int open(struct tty_struct *tty, struct file *filp)
 	DBGINFO(("%s open, old ref count = %d\n", info->device_name, info->port.count));
 
 	mutex_lock(&info->port.mutex);
-	info->port.low_latency = (info->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 	spin_lock_irqsave(&info->netlock, flags);
 	if (info->netcount) {

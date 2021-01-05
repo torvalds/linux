@@ -975,7 +975,6 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 	port->closing_wait    = closing_wait;
 	if (new_info->xmit_fifo_size)
 		uport->fifosize = new_info->xmit_fifo_size;
-	port->low_latency = (uport->flags & UPF_LOW_LATENCY) ? 1 : 0;
 
  check_and_exit:
 	retval = 0;
@@ -1794,8 +1793,6 @@ static int uart_port_activate(struct tty_port *port, struct tty_struct *tty)
 	uport = uart_port_check(state);
 	if (!uport || uport->flags & UPF_DEAD)
 		return -ENXIO;
-
-	port->low_latency = (uport->flags & UPF_LOW_LATENCY) ? 1 : 0;
 
 	/*
 	 * Start up the serial port.

@@ -68,7 +68,6 @@ There are debugfs parameters provided for serial communication.
 * tty_status: Prints the bit-mask tty status information
 
   - 0x01 - tty->warned is on.
-  - 0x02 - tty->low_latency is on.
   - 0x04 - tty->packed is on.
   - 0x08 - tty->flow_stopped is on.
   - 0x10 - tty->hw_stopped is on.
