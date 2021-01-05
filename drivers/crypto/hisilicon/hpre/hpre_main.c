@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/topology.h>
+#include <linux/uacce.h>
 #include "hpre.h"
 
 #define HPRE_QUEUE_NUM_V2		1024
@@ -178,6 +179,19 @@ static const char *hpre_dfx_files[HPRE_DFX_FILE_NUM] = {
 	"invalid_req_cnt"
 };
 
+static const struct kernel_param_ops hpre_uacce_mode_ops = {
+	.set = uacce_mode_set,
+	.get = param_get_int,
+};
+
+/*
+ * uacce_mode = 0 means hpre only register to crypto,
+ * uacce_mode = 1 means hpre both register to crypto and uacce.
+ */
+static u32 uacce_mode = UACCE_MODE_NOUACCE;
+module_param_cb(uacce_mode, &hpre_uacce_mode_ops, &uacce_mode, 0444);
+MODULE_PARM_DESC(uacce_mode, UACCE_MODE_DESC);
+
 static int pf_q_num_set(const char *val, const struct kernel_param *kp)
 {
 	return q_num_set(val, kp, HPRE_PCI_DEVICE_ID);
@@ -212,6 +226,30 @@ struct hisi_qp *hpre_create_qp(void)
 		return qp;
 
 	return NULL;
+}
+
+static void hpre_pasid_enable(struct hisi_qm *qm)
+{
+	u32 val;
+
+	val = readl_relaxed(qm->io_base + HPRE_DATA_RUSER_CFG);
+	val |= BIT(HPRE_PASID_EN_BIT);
+	writel_relaxed(val, qm->io_base + HPRE_DATA_RUSER_CFG);
+	val = readl_relaxed(qm->io_base + HPRE_DATA_WUSER_CFG);
+	val |= BIT(HPRE_PASID_EN_BIT);
+	writel_relaxed(val, qm->io_base + HPRE_DATA_WUSER_CFG);
+}
+
+static void hpre_pasid_disable(struct hisi_qm *qm)
+{
+	u32 val;
+
+	val = readl_relaxed(qm->io_base +  HPRE_DATA_RUSER_CFG);
+	val &= ~BIT(HPRE_PASID_EN_BIT);
+	writel_relaxed(val, qm->io_base + HPRE_DATA_RUSER_CFG);
+	val = readl_relaxed(qm->io_base + HPRE_DATA_WUSER_CFG);
+	val &= ~BIT(HPRE_PASID_EN_BIT);
+	writel_relaxed(val, qm->io_base + HPRE_DATA_WUSER_CFG);
 }
 
 static int hpre_cfg_by_dsm(struct hisi_qm *qm)
@@ -278,6 +316,10 @@ static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 	writel(0x0, HPRE_ADDR(qm, HPRE_POISON_BYPASS));
 	writel(0x0, HPRE_ADDR(qm, HPRE_COMM_CNT_CLR_CE));
 	writel(0x0, HPRE_ADDR(qm, HPRE_ECC_BYPASS));
+
+	/* Enable data buffer pasid */
+	if (qm->use_sva)
+		hpre_pasid_enable(qm);
 
 	writel(HPRE_BD_USR_MASK, HPRE_ADDR(qm, HPRE_BD_ARUSR_CFG));
 	writel(HPRE_BD_USR_MASK, HPRE_ADDR(qm, HPRE_BD_AWUSR_CFG));
@@ -734,6 +776,8 @@ static int hpre_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		return -EINVAL;
 	}
 
+	qm->algs = "rsa\ndh\n";
+	qm->mode = uacce_mode;
 	qm->pdev = pdev;
 	qm->ver = pdev->revision;
 	qm->sqe_size = HPRE_SQE_SIZE;
@@ -872,6 +916,14 @@ static int hpre_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_with_qm_start;
 	}
 
+	if (qm->uacce) {
+		ret = uacce_register(qm->uacce);
+		if (ret) {
+			pci_err(pdev, "failed to register uacce (%d)!\n", ret);
+			goto err_with_alg_register;
+		}
+	}
+
 	if (qm->fun_type == QM_HW_PF && vfs_num) {
 		ret = hisi_qm_sriov_enable(pdev, vfs_num);
 		if (ret < 0)
@@ -911,6 +963,8 @@ static void hpre_remove(struct pci_dev *pdev)
 		}
 	}
 	if (qm->fun_type == QM_HW_PF) {
+		if (qm->use_sva)
+			hpre_pasid_disable(qm);
 		hpre_cnt_regs_clear(qm);
 		qm->debug.curr_qm_qp_num = 0;
 	}
