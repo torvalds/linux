@@ -34,17 +34,17 @@ struct rockchip_combphy_grfcfg {
 	struct combphy_reg pcie_mode_set;
 	struct combphy_reg usb_mode_set;
 	struct combphy_reg qsgmii_mode_set;
-	struct combphy_reg pipe_rxterm_sel;
 	struct combphy_reg pipe_rxterm_set;
-	struct combphy_reg pipe_txcomp_sel;
-	struct combphy_reg pipe_txcomp_set;
-	struct combphy_reg pipe_txelec_sel;
 	struct combphy_reg pipe_txelec_set;
-	struct combphy_reg pipe_sel_usb;
-	struct combphy_reg pipe_sel_qsgmii;
+	struct combphy_reg pipe_txcomp_set;
 	struct combphy_reg pipe_clk_25m;
 	struct combphy_reg pipe_clk_100m;
+	struct combphy_reg pipe_rxterm_sel;
+	struct combphy_reg pipe_txelec_sel;
+	struct combphy_reg pipe_txcomp_sel;
 	struct combphy_reg pipe_clk_ext;
+	struct combphy_reg pipe_sel_usb;
+	struct combphy_reg pipe_sel_qsgmii;
 	struct combphy_reg pipe_phy_status;
 	struct combphy_reg con0_for_pcie;
 	struct combphy_reg con1_for_pcie;
@@ -506,20 +506,21 @@ static int rk3568_combphy_cfg(struct rockchip_combphy_priv *priv)
 }
 
 static const struct rockchip_combphy_grfcfg rk3568_combphy_grfcfgs = {
+	/* pipe-phy-grf */
 	.pcie_mode_set		= { 0x0000, 5, 0, 0x00, 0x11 },
 	.usb_mode_set		= { 0x0000, 5, 0, 0x00, 0x04 },
 	.qsgmii_mode_set	= { 0x0000, 5, 0, 0x00, 0x0d },
-	.pipe_rxterm_sel	= { 0x0008, 8, 8, 0x00, 0x01 },
 	.pipe_rxterm_set	= { 0x0000, 12, 12, 0x00, 0x01 },
-	.pipe_txcomp_sel	= { 0x0008, 15, 15, 0x00, 0x01 },
-	.pipe_txcomp_set	= { 0x0004, 4, 4, 0x00, 0x01 },
-	.pipe_txelec_sel	= { 0x0008, 12, 12, 0x00, 0x01 },
 	.pipe_txelec_set	= { 0x0004, 1, 1, 0x00, 0x01 },
-	.pipe_sel_usb		= { 0x000c, 14, 13, 0x00, 0x01 },
-	.pipe_sel_qsgmii	= { 0x000c, 14, 13, 0x00, 0x03 },
+	.pipe_txcomp_set	= { 0x0004, 4, 4, 0x00, 0x01 },
 	.pipe_clk_25m		= { 0x0004, 14, 13, 0x00, 0x01 },
 	.pipe_clk_100m		= { 0x0004, 14, 13, 0x00, 0x02 },
+	.pipe_rxterm_sel	= { 0x0008, 8, 8, 0x00, 0x01 },
+	.pipe_txelec_sel	= { 0x0008, 12, 12, 0x00, 0x01 },
+	.pipe_txcomp_sel	= { 0x0008, 15, 15, 0x00, 0x01 },
 	.pipe_clk_ext		= { 0x000c, 9, 8, 0x02, 0x01 },
+	.pipe_sel_usb		= { 0x000c, 14, 13, 0x00, 0x01 },
+	.pipe_sel_qsgmii	= { 0x000c, 14, 13, 0x00, 0x03 },
 	.pipe_phy_status	= { 0x0034, 6, 6, 0x01, 0x00 },
 	.con0_for_pcie		= { 0x0000, 15, 0, 0x00, 0x1000 },
 	.con1_for_pcie		= { 0x0004, 15, 0, 0x00, 0x0000 },
@@ -529,6 +530,7 @@ static const struct rockchip_combphy_grfcfg rk3568_combphy_grfcfgs = {
 	.con1_for_sata		= { 0x0004, 15, 0, 0x00, 0x0040 },
 	.con2_for_sata		= { 0x0008, 15, 0, 0x00, 0x80c3 },
 	.con3_for_sata		= { 0x000c, 15, 0, 0x00, 0x4407 },
+	/* pipe-grf */
 	.pipe_con0_for_sata	= { 0x0000, 15, 0, 0x00, 0x2220 },
 	.u3otg0_port_en		= { 0x0104, 15, 0, 0x0181, 0x1100 },
 	.u3otg1_port_en		= { 0x0144, 15, 0, 0x0181, 0x1100 },
