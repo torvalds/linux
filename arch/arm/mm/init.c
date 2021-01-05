@@ -543,10 +543,10 @@ void __init mem_init(void)
 #ifdef CONFIG_MODULES
 			"    modules : 0x%08lx - 0x%08lx   (%4ld MB)\n"
 #endif
-			"      .text : 0x%p" " - 0x%p" "   (%4td kB)\n"
-			"      .init : 0x%p" " - 0x%p" "   (%4td kB)\n"
-			"      .data : 0x%p" " - 0x%p" "   (%4td kB)\n"
-			"       .bss : 0x%p" " - 0x%p" "   (%4td kB)\n",
+			"      .text : 0x%px" " - 0x%px" "   (%4td kB)\n"
+			"      .init : 0x%px" " - 0x%px" "   (%4td kB)\n"
+			"      .data : 0x%px" " - 0x%px" "   (%4td kB)\n"
+			"       .bss : 0x%px" " - 0x%px" "   (%4td kB)\n",
 
 			MLK(VECTORS_BASE, VECTORS_BASE + PAGE_SIZE),
 #ifdef CONFIG_HAVE_TCM
