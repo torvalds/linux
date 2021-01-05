@@ -672,8 +672,7 @@ static inline void nvme_mpath_check_last_path(struct nvme_ns *ns)
 		kblockd_schedule_work(&head->requeue_work);
 }
 
-static inline void nvme_trace_bio_complete(struct request *req,
-        blk_status_t status)
+static inline void nvme_trace_bio_complete(struct request *req)
 {
 	struct nvme_ns *ns = req->q->queuedata;
 
@@ -728,8 +727,7 @@ static inline void nvme_mpath_clear_ctrl_paths(struct nvme_ctrl *ctrl)
 static inline void nvme_mpath_check_last_path(struct nvme_ns *ns)
 {
 }
-static inline void nvme_trace_bio_complete(struct request *req,
-        blk_status_t status)
+static inline void nvme_trace_bio_complete(struct request *req)
 {
 }
 static inline int nvme_mpath_init(struct nvme_ctrl *ctrl,
