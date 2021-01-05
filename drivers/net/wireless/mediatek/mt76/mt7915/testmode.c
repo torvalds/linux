@@ -410,6 +410,16 @@ mt7915_tm_init(struct mt7915_phy *phy, bool en)
 }
 
 static void
+mt7915_tm_update_channel(struct mt7915_phy *phy)
+{
+	mutex_unlock(&phy->dev->mt76.mutex);
+	mt7915_set_channel(phy);
+	mutex_lock(&phy->dev->mt76.mutex);
+
+	mt7915_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
+}
+
+static void
 mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
 {
 	static const u8 spe_idx_map[] = {0, 0, 1, 0, 3, 2, 4, 0,
@@ -425,11 +435,7 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
 	mt7915_tm_clean_hwq(phy, dev->mt76.global_wcid.idx);
 
 	if (en) {
-		mutex_unlock(&dev->mt76.mutex);
-		mt7915_set_channel(phy);
-		mutex_lock(&dev->mt76.mutex);
-
-		mt7915_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
+		mt7915_tm_update_channel(phy);
 
 		if (td->tx_spe_idx) {
 			phy->test.spe_idx = td->tx_spe_idx;
@@ -468,16 +474,144 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
 static void
 mt7915_tm_set_rx_frames(struct mt7915_phy *phy, bool en)
 {
-	struct mt7915_dev *dev = phy->dev;
-	if (en) {
-		mutex_unlock(&dev->mt76.mutex);
-		mt7915_set_channel(phy);
-		mutex_lock(&dev->mt76.mutex);
-
-		mt7915_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
-	}
+	if (en)
+		mt7915_tm_update_channel(phy);
 
 	mt7915_tm_set_trx(phy, TM_MAC_RX_RXV, en);
+}
+
+static int
+mt7915_tm_rf_switch_mode(struct mt7915_dev *dev, u32 oper)
+{
+	struct mt7915_tm_rf_test req = {
+		.op.op_mode = cpu_to_le32(oper),
+	};
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_RF_TEST, &req,
+				 sizeof(req), true);
+}
+
+static int
+mt7915_tm_set_tx_cont(struct mt7915_phy *phy, bool en)
+{
+#define TX_CONT_START	0x05
+#define TX_CONT_STOP	0x06
+	struct mt7915_dev *dev = phy->dev;
+	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
+	int freq1 = ieee80211_frequency_to_channel(chandef->center_freq1);
+	struct mt76_testmode_data *td = &phy->mt76->test;
+	u32 func_idx = en ? TX_CONT_START : TX_CONT_STOP;
+	u8 rate_idx = td->tx_rate_idx, mode;
+	u16 rateval;
+	struct mt7915_tm_rf_test req = {
+		.action = 1,
+		.icap_len = 120,
+		.op.rf.func_idx = cpu_to_le32(func_idx),
+	};
+	struct tm_tx_cont *tx_cont = &req.op.rf.param.tx_cont;
+
+	tx_cont->control_ch = chandef->chan->hw_value;
+	tx_cont->center_ch = freq1;
+	tx_cont->tx_ant = td->tx_antenna_mask;
+	tx_cont->band = phy != &dev->phy;
+
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_40:
+		tx_cont->bw = CMD_CBW_40MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_80:
+		tx_cont->bw = CMD_CBW_80MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_80P80:
+		tx_cont->bw = CMD_CBW_8080MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_160:
+		tx_cont->bw = CMD_CBW_160MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_5:
+		tx_cont->bw = CMD_CBW_5MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_10:
+		tx_cont->bw = CMD_CBW_10MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_20:
+		tx_cont->bw = CMD_CBW_20MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_20_NOHT:
+		tx_cont->bw = CMD_CBW_20MHZ;
+		break;
+	default:
+		break;
+	}
+
+	if (!en) {
+		req.op.rf.param.func_data = cpu_to_le32(phy != &dev->phy);
+		goto out;
+	}
+
+	if (td->tx_rate_mode <= MT76_TM_TX_MODE_OFDM) {
+		struct ieee80211_supported_band *sband;
+		u8 idx = rate_idx;
+
+		if (chandef->chan->band == NL80211_BAND_5GHZ)
+			sband = &phy->mt76->sband_5g.sband;
+		else
+			sband = &phy->mt76->sband_2g.sband;
+
+		if (td->tx_rate_mode == MT76_TM_TX_MODE_OFDM)
+			idx += 4;
+		rate_idx = sband->bitrates[idx].hw_value & 0xff;
+	}
+
+	switch (td->tx_rate_mode) {
+	case MT76_TM_TX_MODE_CCK:
+		mode = MT_PHY_TYPE_CCK;
+		break;
+	case MT76_TM_TX_MODE_OFDM:
+		mode = MT_PHY_TYPE_OFDM;
+		break;
+	case MT76_TM_TX_MODE_HT:
+		mode = MT_PHY_TYPE_HT;
+		break;
+	case MT76_TM_TX_MODE_VHT:
+		mode = MT_PHY_TYPE_VHT;
+		break;
+	case MT76_TM_TX_MODE_HE_SU:
+		mode = MT_PHY_TYPE_HE_SU;
+		break;
+	case MT76_TM_TX_MODE_HE_EXT_SU:
+		mode = MT_PHY_TYPE_HE_EXT_SU;
+		break;
+	case MT76_TM_TX_MODE_HE_TB:
+		mode = MT_PHY_TYPE_HE_TB;
+		break;
+	case MT76_TM_TX_MODE_HE_MU:
+		mode = MT_PHY_TYPE_HE_MU;
+		break;
+	default:
+		break;
+	}
+
+	rateval =  mode << 6 | rate_idx;
+	tx_cont->rateval = cpu_to_le16(rateval);
+
+out:
+	if (!en) {
+		int ret;
+
+		ret = mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_RF_TEST, &req,
+					sizeof(req), true);
+		if (ret)
+			return ret;
+
+		return mt7915_tm_rf_switch_mode(dev, RF_OPER_NORMAL);
+	}
+
+	mt7915_tm_rf_switch_mode(dev, RF_OPER_RF_TEST);
+	mt7915_tm_update_channel(phy);
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_RF_TEST, &req,
+				 sizeof(req), true);
 }
 
 static void
@@ -507,6 +641,9 @@ mt7915_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
 	else if (prev_state == MT76_TM_STATE_RX_FRAMES ||
 		 state == MT76_TM_STATE_RX_FRAMES)
 		mt7915_tm_set_rx_frames(phy, state == MT76_TM_STATE_RX_FRAMES);
+	else if (prev_state == MT76_TM_STATE_TX_CONT ||
+		 state == MT76_TM_STATE_TX_CONT)
+		mt7915_tm_set_tx_cont(phy, state == MT76_TM_STATE_TX_CONT);
 	else if (prev_state == MT76_TM_STATE_OFF ||
 		 state == MT76_TM_STATE_OFF)
 		mt7915_tm_init(phy, !(state == MT76_TM_STATE_OFF));

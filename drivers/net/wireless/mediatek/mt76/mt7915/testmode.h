@@ -56,4 +56,44 @@ enum {
 	TM_MAC_RX_RXV,
 };
 
+struct tm_tx_cont {
+	u8 control_ch;
+	u8 center_ch;
+	u8 bw;
+	u8 tx_ant;
+	__le16 rateval;
+	u8 band;
+	u8 txfd_mode;
+};
+
+struct mt7915_tm_rf_test {
+	u8 action;
+	u8 icap_len;
+	u8 _rsv[2];
+	union {
+		__le32 op_mode;
+		__le32 freq;
+
+		struct {
+			__le32 func_idx;
+			union {
+				__le32 func_data;
+				__le32 cal_dump;
+
+				struct tm_tx_cont tx_cont;
+
+				u8 _pad[80];
+			} param;
+		} rf;
+	} op;
+} __packed;
+
+enum {
+	RF_OPER_NORMAL,
+	RF_OPER_RF_TEST,
+	RF_OPER_ICAP,
+	RF_OPER_ICAP_OVERLAP,
+	RF_OPER_WIFI_SPECTRUM,
+};
+
 #endif
