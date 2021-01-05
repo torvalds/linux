@@ -280,6 +280,44 @@ static const char *mmhub_client_ids_arcturus[][2] = {
 	[384][1] = "OSS",
 };
 
+static const char *mmhub_client_ids_aldebaran[][2] = {
+	[2][0] = "MP1",
+	[3][0] = "MP0",
+	[15][0] = "SDMA0",
+	[32+0][0] = "UTCL2",
+	[32+4][0] = "MPIO",
+	[32+13][0] = "OSS",
+	[32+15][0] = "SDMA1",
+	[64+15][0] = "SDMA2",
+	[96+11][0] = "JPEG0",
+	[96+12][0] = "VCN0",
+	[96+13][0] = "VCNU0",
+	[96+15][0] = "SDMA3",
+	[128+11][0] = "JPEG1",
+	[128+12][0] = "VCN1",
+	[128+13][0] = "VCNU1",
+	[128+15][0] = "SDMA4",
+	[160+14][0] = "HDP",
+	[2][1] = "MP1",
+	[3][1] = "MP0",
+	[15][1] = "SDMA0",
+	[32+1][1] = "DBGU_IO0",
+	[32+2][1] = "DBGU_IO2",
+	[32+4][1] = "MPIO",
+	[32+13][1] = "OSS",
+	[32+15][1] = "SDMA1",
+	[64+15][1] = "SDMA2",
+	[96+11][1] = "JPEG0",
+	[96+12][1] = "VCN0",
+	[96+13][1] = "VCNU0",
+	[96+15][1] = "SDMA3",
+	[128+11][1] = "JPEG1",
+	[128+12][1] = "VCN1",
+	[128+13][1] = "VCNU1",
+	[128+15][1] = "SDMA4",
+	[160+14][1] = "HDP",
+};
+
 static const struct soc15_reg_golden golden_settings_mmhub_1_0_0[] =
 {
 	SOC15_REG_GOLDEN_VALUE(MMHUB, 0, mmDAGB1_WRCLI2, 0x00000007, 0xfe5fe0fa),
@@ -569,6 +607,9 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 			break;
 		case CHIP_RENOIR:
 			mmhub_cid = mmhub_client_ids_renoir[cid][rw];
+			break;
+		case CHIP_ALDEBARAN:
+			mmhub_cid = mmhub_client_ids_aldebaran[cid][rw];
 			break;
 		default:
 			mmhub_cid = NULL;
