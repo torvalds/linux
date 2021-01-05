@@ -5,6 +5,8 @@
 #ifndef __MT76_TESTMODE_H
 #define __MT76_TESTMODE_H
 
+#define MT76_TM_TIMEOUT	10
+
 /**
  * enum mt76_testmode_attr - testmode attributes inside NL80211_ATTR_TESTDATA
  *

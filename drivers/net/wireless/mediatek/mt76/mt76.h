@@ -552,6 +552,7 @@ struct mt76_testmode_data {
 
 	u32 tx_pending;
 	u32 tx_queued;
+	u16 tx_queued_limit;
 	u32 tx_done;
 	struct {
 		u64 packets[__MT_RXQ_MAX];
