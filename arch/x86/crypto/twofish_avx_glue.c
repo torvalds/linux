@@ -25,8 +25,6 @@ asmlinkage void twofish_ecb_enc_8way(const void *ctx, u8 *dst, const u8 *src);
 asmlinkage void twofish_ecb_dec_8way(const void *ctx, u8 *dst, const u8 *src);
 
 asmlinkage void twofish_cbc_dec_8way(const void *ctx, u8 *dst, const u8 *src);
-asmlinkage void twofish_ctr_8way(const void *ctx, u8 *dst, const u8 *src,
-				 le128 *iv);
 
 static int twofish_setkey_skcipher(struct crypto_skcipher *tfm,
 				   const u8 *key, unsigned int keylen)
@@ -52,22 +50,6 @@ static const struct common_glue_ctx twofish_enc = {
 	}, {
 		.num_blocks = 1,
 		.fn_u = { .ecb = twofish_enc_blk }
-	} }
-};
-
-static const struct common_glue_ctx twofish_ctr = {
-	.num_funcs = 3,
-	.fpu_blocks_limit = TWOFISH_PARALLEL_BLOCKS,
-
-	.funcs = { {
-		.num_blocks = TWOFISH_PARALLEL_BLOCKS,
-		.fn_u = { .ctr = twofish_ctr_8way }
-	}, {
-		.num_blocks = 3,
-		.fn_u = { .ctr = twofish_enc_blk_ctr_3way }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .ctr = twofish_enc_blk_ctr }
 	} }
 };
 
@@ -123,11 +105,6 @@ static int cbc_decrypt(struct skcipher_request *req)
 	return glue_cbc_decrypt_req_128bit(&twofish_dec_cbc, req);
 }
 
-static int ctr_crypt(struct skcipher_request *req)
-{
-	return glue_ctr_req_128bit(&twofish_ctr, req);
-}
-
 static struct skcipher_alg twofish_algs[] = {
 	{
 		.base.cra_name		= "__ecb(twofish)",
@@ -156,21 +133,6 @@ static struct skcipher_alg twofish_algs[] = {
 		.setkey			= twofish_setkey_skcipher,
 		.encrypt		= cbc_encrypt,
 		.decrypt		= cbc_decrypt,
-	}, {
-		.base.cra_name		= "__ctr(twofish)",
-		.base.cra_driver_name	= "__ctr-twofish-avx",
-		.base.cra_priority	= 400,
-		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
-		.base.cra_blocksize	= 1,
-		.base.cra_ctxsize	= sizeof(struct twofish_ctx),
-		.base.cra_module	= THIS_MODULE,
-		.min_keysize		= TF_MIN_KEY_SIZE,
-		.max_keysize		= TF_MAX_KEY_SIZE,
-		.ivsize			= TF_BLOCK_SIZE,
-		.chunksize		= TF_BLOCK_SIZE,
-		.setkey			= twofish_setkey_skcipher,
-		.encrypt		= ctr_crypt,
-		.decrypt		= ctr_crypt,
 	},
 };
 

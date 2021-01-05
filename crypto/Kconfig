@@ -1680,6 +1680,7 @@ config CRYPTO_TWOFISH_586
 	depends on (X86 || UML_X86) && !64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_TWOFISH_COMMON
+	imply CRYPTO_CTR
 	help
 	  Twofish cipher algorithm.
 
@@ -1696,6 +1697,7 @@ config CRYPTO_TWOFISH_X86_64
 	depends on (X86 || UML_X86) && 64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_TWOFISH_COMMON
+	imply CRYPTO_CTR
 	help
 	  Twofish cipher algorithm (x86_64).
 
