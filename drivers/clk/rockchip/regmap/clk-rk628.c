@@ -97,7 +97,7 @@ static const struct clk_mux_data rk628_clk_muxes[] = {
 	    0),
 	MUX(CGU_CLK_GPLL_MUX, CNAME("clk_gpll_mux"), mux_gpll_osc_p,
 	    CRU_MODE_CON, 2, 1,
-	    0),
+	    CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT),
 };
 
 static const struct clk_gate_data rk628_clk_gates[] = {
@@ -174,7 +174,7 @@ static const struct clk_composite_data rk628_clk_composites[] = {
 		  CRU_CLKSEL_CON05, 15, 1,
 		  CRU_CLKSEL_CON05, 6, 8,
 		  CRU_GATE_CON02, 10,
-		  0),
+		  CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT),
 	COMPOSITE_FRAC_NOMUX(CGU_CLK_HDMIRX_CEC, CNAME("clk_hdmirx_cec"), "xin_osc0_func",
 			     CRU_CLKSEL_CON12,
 			     CRU_GATE_CON01, 15,
