@@ -700,7 +700,7 @@ mt7915_mac_write_txwi_tm(struct mt7915_phy *phy, __le32 *txwi,
 	if (mode >= MT_PHY_TYPE_HE_SU)
 		val |= FIELD_PREP(MT_TXD6_HELTF, td->tx_ltf);
 
-	if (td->tx_rate_ldpc)
+	if (td->tx_rate_ldpc || bw > 0)
 		val |= MT_TXD6_LDPC;
 
 	txwi[6] |= cpu_to_le32(val);
