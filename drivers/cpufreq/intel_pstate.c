@@ -2653,12 +2653,13 @@ static void intel_cpufreq_adjust_perf(unsigned int cpunum,
 				      unsigned long capacity)
 {
 	struct cpudata *cpu = all_cpu_data[cpunum];
+	u64 hwp_cap = READ_ONCE(cpu->hwp_cap_cached);
 	int old_pstate = cpu->pstate.current_pstate;
 	int cap_pstate, min_pstate, max_pstate, target_pstate;
 
 	update_turbo_state();
-	cap_pstate = global.turbo_disabled ? cpu->pstate.max_pstate :
-					     cpu->pstate.turbo_pstate;
+	cap_pstate = global.turbo_disabled ? HWP_GUARANTEED_PERF(hwp_cap) :
+					     HWP_HIGHEST_PERF(hwp_cap);
 
 	/* Optimization: Avoid unnecessary divisions. */
 
