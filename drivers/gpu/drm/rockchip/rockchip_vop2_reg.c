@@ -60,6 +60,50 @@ static const u32 formats_wb[] = {
 	DRM_FORMAT_NV12,
 };
 
+static const uint64_t format_modifiers[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID,
+};
+
+static const uint64_t format_modifiers_afbc[] = {
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16),
+
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16 |
+				AFBC_FORMAT_MOD_SPARSE),
+
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16 |
+				AFBC_FORMAT_MOD_YTR),
+
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16 |
+				AFBC_FORMAT_MOD_CBR),
+
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16 |
+				AFBC_FORMAT_MOD_YTR |
+				AFBC_FORMAT_MOD_SPARSE),
+
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16 |
+				AFBC_FORMAT_MOD_CBR |
+				AFBC_FORMAT_MOD_SPARSE),
+
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16 |
+				AFBC_FORMAT_MOD_YTR |
+				AFBC_FORMAT_MOD_CBR),
+
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16 |
+				AFBC_FORMAT_MOD_YTR |
+				AFBC_FORMAT_MOD_CBR |
+				AFBC_FORMAT_MOD_SPARSE),
+
+	/* SPLIT mandates SPARSE, RGB modes mandates YTR */
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16 |
+				AFBC_FORMAT_MOD_YTR |
+				AFBC_FORMAT_MOD_SPARSE |
+				AFBC_FORMAT_MOD_SPLIT),
+
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID,
+};
+
 static const u32 sdr2hdr_bt1886eotf_yn_for_hlg_hdr[65] = {
 	0,
 	1,	7,	17,	35,
@@ -925,6 +969,7 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .base = 0x00,
 	  .formats = formats_win_full_10bit,
 	  .nformats = ARRAY_SIZE(formats_win_full_10bit),
+	  .format_modifiers = format_modifiers_afbc,
 	  .layer_sel_id = 0,
 	  .supported_rotations = DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_270 |
 				 DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y,
@@ -947,6 +992,7 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .layer_sel_id = -1,
 	  .formats = formats_win_full_10bit,
 	  .nformats = ARRAY_SIZE(formats_win_full_10bit),
+	  .format_modifiers = format_modifiers_afbc,
 	  .supported_rotations = DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y,
 	  .hsu_filter_mode = VOP2_SCALE_UP_BIC,
 	  .hsd_filter_mode = VOP2_SCALE_DOWN_BIL,
@@ -965,6 +1011,7 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .base = 0x00,
 	  .formats = formats_win_full_10bit,
 	  .nformats = ARRAY_SIZE(formats_win_full_10bit),
+	  .format_modifiers = format_modifiers_afbc,
 	  .layer_sel_id = 1,
 	  .supported_rotations = DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_270 |
 				 DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y,
@@ -986,6 +1033,7 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .layer_sel_id = -1,
 	  .formats = formats_win_full_10bit,
 	  .nformats = ARRAY_SIZE(formats_win_full_10bit),
+	  .format_modifiers = format_modifiers_afbc,
 	  .base = 0x80,
 	  .supported_rotations = DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y,
 	  .hsu_filter_mode = VOP2_SCALE_UP_BIC,
@@ -1004,6 +1052,7 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .phys_id = 2,
 	  .formats = formats_win_full_10bit,
 	  .nformats = ARRAY_SIZE(formats_win_full_10bit),
+	  .format_modifiers = format_modifiers,
 	  .base = 0x0,
 	  .layer_sel_id = 2,
 	  .supported_rotations = DRM_MODE_REFLECT_Y,
@@ -1025,6 +1074,7 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .phys_id = 3,
 	  .formats = formats_win_full_10bit,
 	  .nformats = ARRAY_SIZE(formats_win_full_10bit),
+	  .format_modifiers = format_modifiers,
 	  .base = 0x200,
 	  .layer_sel_id = 6,
 	  .supported_rotations = DRM_MODE_REFLECT_Y,
@@ -1047,6 +1097,7 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .base = 0x400,
 	  .formats = formats_win_lite,
 	  .nformats = ARRAY_SIZE(formats_win_lite),
+	  .format_modifiers = format_modifiers,
 	  .layer_sel_id = 3,
 	  .supported_rotations = DRM_MODE_REFLECT_Y,
 	  .hsu_filter_mode = VOP2_SCALE_UP_BIC,
@@ -1067,6 +1118,7 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	  .phys_id = 5,
 	  .formats = formats_win_lite,
 	  .nformats = ARRAY_SIZE(formats_win_lite),
+	  .format_modifiers = format_modifiers,
 	  .base = 0x600,
 	  .layer_sel_id = 7,
 	  .supported_rotations = DRM_MODE_REFLECT_Y,

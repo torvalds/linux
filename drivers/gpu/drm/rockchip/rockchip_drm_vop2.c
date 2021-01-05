@@ -127,7 +127,6 @@
 #define to_vop2_plane_state(x) container_of(x, struct vop2_plane_state, base)
 #define to_wb_state(x) container_of(x, struct vop2_wb_connector_state, base)
 
-#define ROCKCHIP_AFBC_MOD DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16)
 
 #define VOP2_SYS_AXI_BUS_NUM 2
 
@@ -163,6 +162,7 @@ enum vop2_afbc_format {
 	VOP2_AFBC_FMT_YUV420 = 9,
 	VOP2_AFBC_FMT_YUV422 = 0xb,
 	VOP2_AFBC_FMT_YUV422_10BIT = 0xe,
+	VOP2_AFBC_FMT_INVALID = -1,
 };
 
 enum vop2_hdr_lut_mode {
@@ -296,6 +296,7 @@ struct vop2_win {
 	uint8_t vsd_filter_mode;
 
 	const struct vop2_win_regs *regs;
+	const uint64_t *format_modifiers;
 	const uint32_t *formats;
 	uint32_t nformats;
 	uint64_t feature;
@@ -805,10 +806,10 @@ static enum vop2_afbc_format vop2_convert_afbc_format(uint32_t format)
 		/* either of the below should not be reachable */
 	default:
 		DRM_WARN_ONCE("unsupported AFBC format[%08x]\n", format);
-		return -EINVAL;
+		return VOP2_AFBC_FMT_INVALID;
 	}
 
-	return -EINVAL;
+	return VOP2_AFBC_FMT_INVALID;
 }
 
 static enum vop2_wb_format vop2_convert_wb_format(uint32_t format)
@@ -965,9 +966,36 @@ static bool is_alpha_support(uint32_t format)
 	}
 }
 
-static inline bool rockchip_afbc(u64 modifier)
+static inline bool rockchip_afbc(struct drm_plane *plane, u64 modifier)
 {
-	return modifier == ROCKCHIP_AFBC_MOD;
+	int i;
+
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		return false;
+
+	for (i = 0 ; i < plane->modifier_count; i++)
+		if (plane->modifiers[i] == modifier)
+			break;
+
+	return (i < plane->modifier_count) ? true : false;
+
+}
+
+static bool rockchip_vop2_mod_supported(struct drm_plane *plane, u32 format, u64 modifier)
+{
+	if (modifier == DRM_FORMAT_MOD_INVALID)
+		return false;
+
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		return true;
+
+	if (!rockchip_afbc(plane, modifier)) {
+		DRM_ERROR("Unsupported format modifier 0x%llx\n", modifier);
+
+		return false;
+	}
+
+	return vop2_convert_afbc_format(format) >= 0;
 }
 
 static inline bool vop2_cluster_window(struct vop2_win *win)
@@ -2132,7 +2160,7 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 		return -EINVAL;
 	}
 
-	if (rockchip_afbc(fb->modifier))
+	if (rockchip_afbc(plane, fb->modifier))
 		vpstate->afbc_en = true;
 	else
 		vpstate->afbc_en = false;
@@ -2248,7 +2276,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 		num_pages = rk_obj->num_pages;
 		pages = rk_obj->pages;
 	}
-	if (rockchip_afbc(fb->modifier))
+	if (rockchip_afbc(plane, fb->modifier))
 		AFBC_flag = true;
 	else
 		AFBC_flag = false;
@@ -2312,6 +2340,9 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	if (vpstate->afbc_en) {
 		/* the afbc superblock is 16 x 16 */
 		afbc_format = vop2_convert_afbc_format(fb->format->format);
+		/* Enable color transform for YTR */
+		if (fb->modifier & AFBC_FORMAT_MOD_YTR)
+			afbc_format |= (1 << 4);
 		afbc_tile_num = ALIGN(actual_w, 16) >> 4;
 		/* AFBC pic_vir_width is count by pixel, this is different
 		 * with WIN_VIR_STRIDE.
@@ -2687,6 +2718,7 @@ static const struct drm_plane_funcs vop2_plane_funcs = {
 	.atomic_destroy_state = vop2_atomic_plane_destroy_state,
 	.atomic_set_property = vop2_atomic_plane_set_property,
 	.atomic_get_property = vop2_atomic_plane_get_property,
+	.format_mod_supported = rockchip_vop2_mod_supported,
 };
 
 static int vop2_crtc_enable_vblank(struct drm_crtc *crtc)
@@ -2801,7 +2833,7 @@ static int vop2_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 	drm_get_format_name(fb->format->format, &format_name);
 	DEBUG_PRINT("\tformat: %s%s%s[%d] color_space[%d]\n",
 		    format_name.str,
-		    rockchip_afbc(fb->modifier) ? "[AFBC]" : "",
+		    rockchip_afbc(plane, fb->modifier) ? "[AFBC]" : "",
 		    vpstate->eotf ? " HDR" : " SDR", vpstate->eotf,
 		    vpstate->color_space);
 	DEBUG_PRINT("\trotate: xmirror: %d ymirror: %d rotate_90: %d rotate_270: %d\n",
@@ -4729,7 +4761,8 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 	int ret;
 
 	ret = drm_universal_plane_init(vop2->drm_dev, &win->base, possible_crtcs, &vop2_plane_funcs,
-				       win->formats, win->nformats, NULL, win->type, win->name);
+				       win->formats, win->nformats, win->format_modifiers,
+				       win->type, win->name);
 	if (ret) {
 		DRM_DEV_ERROR(vop2->dev, "failed to initialize plane %d\n", ret);
 		return ret;
@@ -4996,6 +5029,7 @@ static int vop2_win_init(struct vop2 *vop2)
 		win->type = win_data->type;
 		win->formats = win_data->formats;
 		win->nformats = win_data->nformats;
+		win->format_modifiers = win_data->format_modifiers;
 		win->supported_rotations = win_data->supported_rotations;
 		win->max_upscale_factor = win_data->max_upscale_factor;
 		win->max_downscale_factor = win_data->max_downscale_factor;
@@ -5028,6 +5062,7 @@ static int vop2_win_init(struct vop2 *vop2)
 			area->type = DRM_PLANE_TYPE_OVERLAY;
 			area->formats = win->formats;
 			area->nformats = win->nformats;
+			area->format_modifiers = win->format_modifiers;
 			area->max_upscale_factor = win_data->max_upscale_factor;
 			area->max_downscale_factor = win_data->max_downscale_factor;
 			area->supported_rotations = win_data->supported_rotations;

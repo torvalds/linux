@@ -634,6 +634,7 @@ struct vop2_win_data {
 
 	uint32_t nformats;
 	const uint32_t *formats;
+	const uint64_t *format_modifiers;
 	const unsigned int supported_rotations;
 
 	const struct vop2_win_regs *regs;
