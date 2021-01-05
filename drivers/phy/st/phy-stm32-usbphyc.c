@@ -17,6 +17,7 @@
 
 #define STM32_USBPHYC_PLL	0x0
 #define STM32_USBPHYC_MISC	0x8
+#define STM32_USBPHYC_MONITOR(X) (0x108 + ((X) * 0x100))
 #define STM32_USBPHYC_VERSION	0x3F4
 
 /* STM32_USBPHYC_PLL bit fields */
@@ -32,12 +33,16 @@
 /* STM32_USBPHYC_MISC bit fields */
 #define SWITHOST		BIT(0)
 
+/* STM32_USBPHYC_MONITOR bit fields */
+#define STM32_USBPHYC_MON_OUT	GENMASK(3, 0)
+#define STM32_USBPHYC_MON_SEL	GENMASK(8, 4)
+#define STM32_USBPHYC_MON_SEL_LOCKP 0x1F
+#define STM32_USBPHYC_MON_OUT_LOCKP BIT(3)
+
 /* STM32_USBPHYC_VERSION bit fields */
 #define MINREV			GENMASK(3, 0)
 #define MAJREV			GENMASK(7, 4)
 
-#define PLL_LOCK_TIME_US	100
-#define PLL_PWR_DOWN_TIME_US	5
 #define PLL_FVCO_MHZ		2880
 #define PLL_INFF_MIN_RATE_HZ	19200000
 #define PLL_INFF_MAX_RATE_HZ	38400000
@@ -64,6 +69,7 @@ struct stm32_usbphyc {
 	int nphys;
 	struct regulator *vdda1v1;
 	struct regulator *vdda1v8;
+	atomic_t n_pll_cons;
 	int switch_setup;
 };
 
@@ -171,35 +177,27 @@ static int stm32_usbphyc_pll_init(struct stm32_usbphyc *usbphyc)
 	return 0;
 }
 
-static bool stm32_usbphyc_has_one_phy_active(struct stm32_usbphyc *usbphyc)
+static int __stm32_usbphyc_pll_disable(struct stm32_usbphyc *usbphyc)
 {
-	int i;
+	void __iomem *pll_reg = usbphyc->base + STM32_USBPHYC_PLL;
+	u32 pllen;
 
-	for (i = 0; i < usbphyc->nphys; i++)
-		if (usbphyc->phys[i]->active)
-			return true;
+	stm32_usbphyc_clr_bits(pll_reg, PLLEN);
 
-	return false;
+	/* Wait for minimum width of powerdown pulse (ENABLE = Low) */
+	if (readl_relaxed_poll_timeout(pll_reg, pllen, !(pllen & PLLEN), 5, 50))
+		dev_err(usbphyc->dev, "PLL not reset\n");
+
+	return stm32_usbphyc_regulators_disable(usbphyc);
 }
 
 static int stm32_usbphyc_pll_disable(struct stm32_usbphyc *usbphyc)
 {
-	void __iomem *pll_reg = usbphyc->base + STM32_USBPHYC_PLL;
-
-	/* Check if other phy port active */
-	if (stm32_usbphyc_has_one_phy_active(usbphyc))
+	/* Check if a phy port is still active or clk48 in use */
+	if (atomic_dec_return(&usbphyc->n_pll_cons) > 0)
 		return 0;
 
-	stm32_usbphyc_clr_bits(pll_reg, PLLEN);
-	/* Wait for minimum width of powerdown pulse (ENABLE = Low) */
-	udelay(PLL_PWR_DOWN_TIME_US);
-
-	if (readl_relaxed(pll_reg) & PLLEN) {
-		dev_err(usbphyc->dev, "PLL not reset\n");
-		return -EIO;
-	}
-
-	return stm32_usbphyc_regulators_disable(usbphyc);
+	return __stm32_usbphyc_pll_disable(usbphyc);
 }
 
 static int stm32_usbphyc_pll_enable(struct stm32_usbphyc *usbphyc)
@@ -208,38 +206,42 @@ static int stm32_usbphyc_pll_enable(struct stm32_usbphyc *usbphyc)
 	bool pllen = readl_relaxed(pll_reg) & PLLEN;
 	int ret;
 
-	/* Check if one phy port has already configured the pll */
-	if (pllen && stm32_usbphyc_has_one_phy_active(usbphyc))
+	/*
+	 * Check if a phy port or clk48 prepare has configured the pll
+	 * and ensure the PLL is enabled
+	 */
+	if (atomic_inc_return(&usbphyc->n_pll_cons) > 1 && pllen)
 		return 0;
 
 	if (pllen) {
-		ret = stm32_usbphyc_pll_disable(usbphyc);
+		/*
+		 * PLL shouldn't be enabled without known consumer,
+		 * disable it and reinit n_pll_cons
+		 */
+		dev_warn(usbphyc->dev, "PLL enabled without known consumers\n");
+
+		ret = __stm32_usbphyc_pll_disable(usbphyc);
 		if (ret)
 			return ret;
 	}
 
 	ret = stm32_usbphyc_regulators_enable(usbphyc);
 	if (ret)
-		return ret;
+		goto dec_n_pll_cons;
 
 	ret = stm32_usbphyc_pll_init(usbphyc);
 	if (ret)
 		goto reg_disable;
 
 	stm32_usbphyc_set_bits(pll_reg, PLLEN);
-	/* Wait for maximum lock time */
-	udelay(PLL_LOCK_TIME_US);
-
-	if (!(readl_relaxed(pll_reg) & PLLEN)) {
-		dev_err(usbphyc->dev, "PLLEN not set\n");
-		ret = -EIO;
-		goto reg_disable;
-	}
 
 	return 0;
 
 reg_disable:
 	stm32_usbphyc_regulators_disable(usbphyc);
+
+dec_n_pll_cons:
+	atomic_dec(&usbphyc->n_pll_cons);
 
 	return ret;
 }
@@ -248,15 +250,33 @@ static int stm32_usbphyc_phy_init(struct phy *phy)
 {
 	struct stm32_usbphyc_phy *usbphyc_phy = phy_get_drvdata(phy);
 	struct stm32_usbphyc *usbphyc = usbphyc_phy->usbphyc;
+	u32 reg_mon = STM32_USBPHYC_MONITOR(usbphyc_phy->index);
+	u32 monsel = FIELD_PREP(STM32_USBPHYC_MON_SEL,
+				STM32_USBPHYC_MON_SEL_LOCKP);
+	u32 monout;
 	int ret;
 
 	ret = stm32_usbphyc_pll_enable(usbphyc);
 	if (ret)
 		return ret;
 
+	/* Check that PLL Lock input to PHY is High */
+	writel_relaxed(monsel, usbphyc->base + reg_mon);
+	ret = readl_relaxed_poll_timeout(usbphyc->base + reg_mon, monout,
+					 (monout & STM32_USBPHYC_MON_OUT_LOCKP),
+					 100, 1000);
+	if (ret) {
+		dev_err(usbphyc->dev, "PLL Lock input to PHY is Low (val=%x)\n",
+			(u32)(monout & STM32_USBPHYC_MON_OUT));
+		goto pll_disable;
+	}
+
 	usbphyc_phy->active = true;
 
 	return 0;
+
+pll_disable:
+	return stm32_usbphyc_pll_disable(usbphyc);
 }
 
 static int stm32_usbphyc_phy_exit(struct phy *phy)
