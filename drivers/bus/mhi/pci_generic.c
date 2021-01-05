@@ -154,7 +154,7 @@ static const struct mhi_channel_config modem_qcom_v1_mhi_channels[] = {
 	MHI_CHANNEL_CONFIG_HW_DL(101, "IP_HW0", 128, 3),
 };
 
-static const struct mhi_event_config modem_qcom_v1_mhi_events[] = {
+static struct mhi_event_config modem_qcom_v1_mhi_events[] = {
 	/* first ring is control+data ring */
 	MHI_EVENT_CONFIG_CTRL(0),
 	/* DIAG dedicated event ring */
@@ -164,7 +164,7 @@ static const struct mhi_event_config modem_qcom_v1_mhi_events[] = {
 	MHI_EVENT_CONFIG_HW_DATA(3, 101)
 };
 
-static const struct mhi_controller_config modem_qcom_v1_mhiv_config = {
+static struct mhi_controller_config modem_qcom_v1_mhiv_config = {
 	.max_channels = 128,
 	.timeout_ms = 8000,
 	.num_channels = ARRAY_SIZE(modem_qcom_v1_mhi_channels),
@@ -295,8 +295,12 @@ static int mhi_pci_get_irqs(struct mhi_controller *mhi_cntrl,
 	}
 
 	if (nr_vectors < mhi_cntrl->nr_irqs) {
-		dev_warn(&pdev->dev, "Not enough MSI vectors (%d/%d), use shared MSI\n",
-			 nr_vectors, mhi_cntrl_config->num_events);
+		dev_warn(&pdev->dev, "using shared MSI\n");
+
+		/* Patch msi vectors, use only one (shared) */
+		for (i = 0; i < mhi_cntrl_config->num_events; i++)
+			mhi_cntrl_config->event_cfg[i].irq = 0;
+		mhi_cntrl->nr_irqs = 1;
 	}
 
 	irq = devm_kcalloc(&pdev->dev, mhi_cntrl->nr_irqs, sizeof(int), GFP_KERNEL);
