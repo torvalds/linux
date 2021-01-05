@@ -38,8 +38,6 @@ asmlinkage void camellia_ecb_enc_16way(const void *ctx, u8 *dst, const u8 *src);
 asmlinkage void camellia_ecb_dec_16way(const void *ctx, u8 *dst, const u8 *src);
 
 asmlinkage void camellia_cbc_dec_16way(const void *ctx, u8 *dst, const u8 *src);
-asmlinkage void camellia_ctr_16way(const void *ctx, u8 *dst, const u8 *src,
-				   le128 *iv);
 
 static inline void camellia_enc_blk(const void *ctx, u8 *dst, const u8 *src)
 {
@@ -65,9 +63,5 @@ static inline void camellia_enc_blk_xor_2way(const void *ctx, u8 *dst,
 
 /* glue helpers */
 extern void camellia_decrypt_cbc_2way(const void *ctx, u8 *dst, const u8 *src);
-extern void camellia_crypt_ctr(const void *ctx, u8 *dst, const u8 *src,
-			       le128 *iv);
-extern void camellia_crypt_ctr_2way(const void *ctx, u8 *dst, const u8 *src,
-				    le128 *iv);
 
 #endif /* ASM_X86_CAMELLIA_H */

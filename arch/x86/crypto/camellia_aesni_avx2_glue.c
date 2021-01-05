@@ -22,8 +22,6 @@ asmlinkage void camellia_ecb_enc_32way(const void *ctx, u8 *dst, const u8 *src);
 asmlinkage void camellia_ecb_dec_32way(const void *ctx, u8 *dst, const u8 *src);
 
 asmlinkage void camellia_cbc_dec_32way(const void *ctx, u8 *dst, const u8 *src);
-asmlinkage void camellia_ctr_32way(const void *ctx, u8 *dst, const u8 *src,
-				   le128 *iv);
 
 static const struct common_glue_ctx camellia_enc = {
 	.num_funcs = 4,
@@ -41,25 +39,6 @@ static const struct common_glue_ctx camellia_enc = {
 	}, {
 		.num_blocks = 1,
 		.fn_u = { .ecb = camellia_enc_blk }
-	} }
-};
-
-static const struct common_glue_ctx camellia_ctr = {
-	.num_funcs = 4,
-	.fpu_blocks_limit = CAMELLIA_AESNI_PARALLEL_BLOCKS,
-
-	.funcs = { {
-		.num_blocks = CAMELLIA_AESNI_AVX2_PARALLEL_BLOCKS,
-		.fn_u = { .ctr = camellia_ctr_32way }
-	}, {
-		.num_blocks = CAMELLIA_AESNI_PARALLEL_BLOCKS,
-		.fn_u = { .ctr = camellia_ctr_16way }
-	}, {
-		.num_blocks = 2,
-		.fn_u = { .ctr = camellia_crypt_ctr_2way }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .ctr = camellia_crypt_ctr }
 	} }
 };
 
@@ -127,11 +106,6 @@ static int cbc_decrypt(struct skcipher_request *req)
 	return glue_cbc_decrypt_req_128bit(&camellia_dec_cbc, req);
 }
 
-static int ctr_crypt(struct skcipher_request *req)
-{
-	return glue_ctr_req_128bit(&camellia_ctr, req);
-}
-
 static struct skcipher_alg camellia_algs[] = {
 	{
 		.base.cra_name		= "__ecb(camellia)",
@@ -160,21 +134,6 @@ static struct skcipher_alg camellia_algs[] = {
 		.setkey			= camellia_setkey,
 		.encrypt		= cbc_encrypt,
 		.decrypt		= cbc_decrypt,
-	}, {
-		.base.cra_name		= "__ctr(camellia)",
-		.base.cra_driver_name	= "__ctr-camellia-aesni-avx2",
-		.base.cra_priority	= 500,
-		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
-		.base.cra_blocksize	= 1,
-		.base.cra_ctxsize	= sizeof(struct camellia_ctx),
-		.base.cra_module	= THIS_MODULE,
-		.min_keysize		= CAMELLIA_MIN_KEY_SIZE,
-		.max_keysize		= CAMELLIA_MAX_KEY_SIZE,
-		.ivsize			= CAMELLIA_BLOCK_SIZE,
-		.chunksize		= CAMELLIA_BLOCK_SIZE,
-		.setkey			= camellia_setkey,
-		.encrypt		= ctr_crypt,
-		.decrypt		= ctr_crypt,
 	},
 };
 
