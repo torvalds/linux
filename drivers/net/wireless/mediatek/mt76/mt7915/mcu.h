@@ -182,6 +182,30 @@ struct mt7915_mcu_phy_rx_info {
 #define MT_RA_RATE_DCM_EN		BIT(4)
 #define MT_RA_RATE_BW			GENMASK(14, 13)
 
+struct edca {
+	u8 queue;
+	u8 set;
+	u8 aifs;
+	u8 cw_min;
+	__le16 cw_max;
+	__le16 txop;
+};
+
+struct mt7915_mcu_tx {
+	u8 total;
+	u8 action;
+	u8 valid;
+	u8 mode;
+
+	struct edca edca[IEEE80211_NUM_ACS];
+} __packed;
+
+#define WMM_AIFS_SET		BIT(0)
+#define WMM_CW_MIN_SET		BIT(1)
+#define WMM_CW_MAX_SET		BIT(2)
+#define WMM_TXOP_SET		BIT(3)
+#define WMM_PARAM_SET		GENMASK(3, 0)
+
 #define MCU_PQ_ID(p, q)			(((p) << 15) | ((q) << 10))
 #define MCU_PKT_ID			0xa0
 

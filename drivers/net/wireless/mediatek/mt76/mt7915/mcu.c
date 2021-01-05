@@ -2977,30 +2977,21 @@ int mt7915_mcu_set_rts_thresh(struct mt7915_phy *phy, u32 val)
 				 sizeof(req), true);
 }
 
+int mt7915_mcu_update_edca(struct mt7915_dev *dev, void *param)
+{
+	struct mt7915_mcu_tx *req = (struct mt7915_mcu_tx *)param;
+	u8 num = req->total;
+	size_t len = sizeof(*req) -
+		     (IEEE80211_NUM_ACS - num) * sizeof(struct edca);
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_EDCA_UPDATE, req,
+				 len, true);
+}
+
 int mt7915_mcu_set_tx(struct mt7915_dev *dev, struct ieee80211_vif *vif)
 {
-#define WMM_AIFS_SET		BIT(0)
-#define WMM_CW_MIN_SET		BIT(1)
-#define WMM_CW_MAX_SET		BIT(2)
-#define WMM_TXOP_SET		BIT(3)
-#define WMM_PARAM_SET		GENMASK(3, 0)
 #define TX_CMD_MODE		1
-	struct edca {
-		u8 queue;
-		u8 set;
-		u8 aifs;
-		u8 cw_min;
-		__le16 cw_max;
-		__le16 txop;
-	};
-	struct mt7915_mcu_tx {
-		u8 total;
-		u8 action;
-		u8 valid;
-		u8 mode;
-
-		struct edca edca[IEEE80211_NUM_ACS];
-	} __packed req = {
+	struct mt7915_mcu_tx req = {
 		.valid = true,
 		.mode = TX_CMD_MODE,
 		.total = IEEE80211_NUM_ACS,
@@ -3027,8 +3018,8 @@ int mt7915_mcu_set_tx(struct mt7915_dev *dev, struct ieee80211_vif *vif)
 		else
 			e->cw_max = cpu_to_le16(10);
 	}
-	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_EDCA_UPDATE, &req,
-				 sizeof(req), true);
+
+	return mt7915_mcu_update_edca(dev, &req);
 }
 
 int mt7915_mcu_set_pm(struct mt7915_dev *dev, int band, int enter)
