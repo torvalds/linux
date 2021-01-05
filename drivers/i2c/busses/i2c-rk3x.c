@@ -1315,7 +1315,7 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 
 	i2c->i2c_restart_nb.notifier_call = rk3x_i2c_restart_notify;
 	i2c->i2c_restart_nb.priority = 128;
-	ret = register_i2c_restart_handler(&i2c->i2c_restart_nb);
+	ret = register_pre_restart_handler(&i2c->i2c_restart_nb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup i2c restart handler.\n");
 		return ret;
@@ -1446,7 +1446,7 @@ static int rk3x_i2c_remove(struct platform_device *pdev)
 	i2c_del_adapter(&i2c->adap);
 
 	clk_notifier_unregister(i2c->clk, &i2c->clk_rate_nb);
-	unregister_i2c_restart_handler(&i2c->i2c_restart_nb);
+	unregister_pre_restart_handler(&i2c->i2c_restart_nb);
 	clk_unprepare(i2c->pclk);
 	clk_unprepare(i2c->clk);
 

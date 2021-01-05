@@ -141,7 +141,7 @@ void machine_restart(char *cmd)
 	local_irq_disable();
 	smp_send_stop();
 
-	do_kernel_i2c_restart(cmd);
+	do_kernel_pre_restart(cmd);
 
 	if (arm_pm_restart)
 		arm_pm_restart(reboot_mode, cmd);
