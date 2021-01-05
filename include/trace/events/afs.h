@@ -231,6 +231,7 @@ enum afs_file_error {
 	afs_file_error_dir_bad_magic,
 	afs_file_error_dir_big,
 	afs_file_error_dir_missing_page,
+	afs_file_error_dir_name_too_long,
 	afs_file_error_dir_over_end,
 	afs_file_error_dir_small,
 	afs_file_error_dir_unmarked_ext,
@@ -488,6 +489,7 @@ enum afs_cb_break_reason {
 	EM(afs_file_error_dir_bad_magic,	"DIR_BAD_MAGIC")	\
 	EM(afs_file_error_dir_big,		"DIR_BIG")		\
 	EM(afs_file_error_dir_missing_page,	"DIR_MISSING_PAGE")	\
+	EM(afs_file_error_dir_name_too_long,	"DIR_NAME_TOO_LONG")	\
 	EM(afs_file_error_dir_over_end,		"DIR_ENT_OVER_END")	\
 	EM(afs_file_error_dir_small,		"DIR_SMALL")		\
 	EM(afs_file_error_dir_unmarked_ext,	"DIR_UNMARKED_EXT")	\
