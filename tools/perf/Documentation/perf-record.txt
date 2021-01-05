@@ -296,6 +296,9 @@ OPTIONS
 --data-page-size::
 	Record the sampled data address data page size.
 
+--code-page-size::
+	Record the sampled code address (ip) page size
+
 -T::
 --timestamp::
 	Record the sample timestamps. Use it with 'perf report -D' to see the

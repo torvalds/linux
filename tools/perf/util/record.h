@@ -23,6 +23,7 @@ struct record_opts {
 	bool	      sample_address;
 	bool	      sample_phys_addr;
 	bool	      sample_data_page_size;
+	bool	      sample_code_page_size;
 	bool	      sample_weight;
 	bool	      sample_time;
 	bool	      sample_time_set;
