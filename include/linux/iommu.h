@@ -37,6 +37,13 @@
  * the last-level or system cache.
  */
 #define IOMMU_SYS_CACHE_ONLY	(1 << 6)
+/*
+ * Non-coherent masters can use this page protection flag to set cacheable
+ * memory attributes with a no write allocation cache policy for only a
+ * transparent outer level of cache, also known as the last-level or system
+ * cache.
+ */
+#define IOMMU_SYS_CACHE_ONLY_NWA (1 << 7)
 
 struct iommu_ops;
 struct iommu_group;
