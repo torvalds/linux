@@ -142,9 +142,29 @@ struct nfs_fs_context {
 	} clone_data;
 };
 
-#define nfs_errorf(fc, fmt, ...) errorf(fc, fmt, ## __VA_ARGS__)
-#define nfs_invalf(fc, fmt, ...) invalf(fc, fmt, ## __VA_ARGS__)
-#define nfs_warnf(fc, fmt, ...) warnf(fc, fmt, ## __VA_ARGS__)
+#define nfs_errorf(fc, fmt, ...) ((fc)->log.log ?		\
+	errorf(fc, fmt, ## __VA_ARGS__) :			\
+	({ dprintk(fmt "\n", ## __VA_ARGS__); }))
+
+#define nfs_ferrorf(fc, fac, fmt, ...) ((fc)->log.log ?		\
+	errorf(fc, fmt, ## __VA_ARGS__) :			\
+	({ dfprintk(fac, fmt "\n", ## __VA_ARGS__); }))
+
+#define nfs_invalf(fc, fmt, ...) ((fc)->log.log ?		\
+	invalf(fc, fmt, ## __VA_ARGS__) :			\
+	({ dprintk(fmt "\n", ## __VA_ARGS__);  -EINVAL; }))
+
+#define nfs_finvalf(fc, fac, fmt, ...) ((fc)->log.log ?		\
+	invalf(fc, fmt, ## __VA_ARGS__) :			\
+	({ dfprintk(fac, fmt "\n", ## __VA_ARGS__);  -EINVAL; }))
+
+#define nfs_warnf(fc, fmt, ...) ((fc)->log.log ?		\
+	warnf(fc, fmt, ## __VA_ARGS__) :			\
+	({ dprintk(fmt "\n", ## __VA_ARGS__); }))
+
+#define nfs_fwarnf(fc, fac, fmt, ...) ((fc)->log.log ?		\
+	warnf(fc, fmt, ## __VA_ARGS__) :			\
+	({ dfprintk(fac, fmt "\n", ## __VA_ARGS__); }))
 
 static inline struct nfs_fs_context *nfs_fc2context(const struct fs_context *fc)
 {
