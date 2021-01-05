@@ -1394,7 +1394,7 @@ config CRYPTO_CAST6_AVX_X86_64
 	select CRYPTO_CAST_COMMON
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SIMD
-	select CRYPTO_XTS
+	imply CRYPTO_XTS
 	help
 	  The CAST6 encryption algorithm (synonymous with CAST-256) is
 	  described in RFC2612.
