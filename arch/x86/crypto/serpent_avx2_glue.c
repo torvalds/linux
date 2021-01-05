@@ -12,7 +12,6 @@
 #include <crypto/algapi.h>
 #include <crypto/internal/simd.h>
 #include <crypto/serpent.h>
-#include <crypto/xts.h>
 #include <asm/crypto/glue_helper.h>
 #include <asm/crypto/serpent-avx.h>
 
@@ -25,11 +24,6 @@ asmlinkage void serpent_cbc_dec_16way(const void *ctx, u8 *dst, const u8 *src);
 
 asmlinkage void serpent_ctr_16way(const void *ctx, u8 *dst, const u8 *src,
 				  le128 *iv);
-asmlinkage void serpent_xts_enc_16way(const void *ctx, u8 *dst, const u8 *src,
-				      le128 *iv);
-asmlinkage void serpent_xts_dec_16way(const void *ctx, u8 *dst, const u8 *src,
-				      le128 *iv);
-
 static int serpent_setkey_skcipher(struct crypto_skcipher *tfm,
 				   const u8 *key, unsigned int keylen)
 {
@@ -68,22 +62,6 @@ static const struct common_glue_ctx serpent_ctr = {
 	} }
 };
 
-static const struct common_glue_ctx serpent_enc_xts = {
-	.num_funcs = 3,
-	.fpu_blocks_limit = 8,
-
-	.funcs = { {
-		.num_blocks = 16,
-		.fn_u = { .xts = serpent_xts_enc_16way }
-	}, {
-		.num_blocks = 8,
-		.fn_u = { .xts = serpent_xts_enc_8way_avx }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .xts = serpent_xts_enc }
-	} }
-};
-
 static const struct common_glue_ctx serpent_dec = {
 	.num_funcs = 3,
 	.fpu_blocks_limit = 8,
@@ -116,22 +94,6 @@ static const struct common_glue_ctx serpent_dec_cbc = {
 	} }
 };
 
-static const struct common_glue_ctx serpent_dec_xts = {
-	.num_funcs = 3,
-	.fpu_blocks_limit = 8,
-
-	.funcs = { {
-		.num_blocks = 16,
-		.fn_u = { .xts = serpent_xts_dec_16way }
-	}, {
-		.num_blocks = 8,
-		.fn_u = { .xts = serpent_xts_dec_8way_avx }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .xts = serpent_xts_dec }
-	} }
-};
-
 static int ecb_encrypt(struct skcipher_request *req)
 {
 	return glue_ecb_req_128bit(&serpent_enc, req);
@@ -155,26 +117,6 @@ static int cbc_decrypt(struct skcipher_request *req)
 static int ctr_crypt(struct skcipher_request *req)
 {
 	return glue_ctr_req_128bit(&serpent_ctr, req);
-}
-
-static int xts_encrypt(struct skcipher_request *req)
-{
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct serpent_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
-
-	return glue_xts_req_128bit(&serpent_enc_xts, req,
-				   __serpent_encrypt, &ctx->tweak_ctx,
-				   &ctx->crypt_ctx, false);
-}
-
-static int xts_decrypt(struct skcipher_request *req)
-{
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct serpent_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
-
-	return glue_xts_req_128bit(&serpent_dec_xts, req,
-				   __serpent_encrypt, &ctx->tweak_ctx,
-				   &ctx->crypt_ctx, true);
 }
 
 static struct skcipher_alg serpent_algs[] = {
@@ -220,20 +162,6 @@ static struct skcipher_alg serpent_algs[] = {
 		.setkey			= serpent_setkey_skcipher,
 		.encrypt		= ctr_crypt,
 		.decrypt		= ctr_crypt,
-	}, {
-		.base.cra_name		= "__xts(serpent)",
-		.base.cra_driver_name	= "__xts-serpent-avx2",
-		.base.cra_priority	= 600,
-		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
-		.base.cra_blocksize	= SERPENT_BLOCK_SIZE,
-		.base.cra_ctxsize	= sizeof(struct serpent_xts_ctx),
-		.base.cra_module	= THIS_MODULE,
-		.min_keysize		= 2 * SERPENT_MIN_KEY_SIZE,
-		.max_keysize		= 2 * SERPENT_MAX_KEY_SIZE,
-		.ivsize			= SERPENT_BLOCK_SIZE,
-		.setkey			= xts_serpent_setkey,
-		.encrypt		= xts_encrypt,
-		.decrypt		= xts_decrypt,
 	},
 };
 
