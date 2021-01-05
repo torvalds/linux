@@ -1094,6 +1094,7 @@ static void free_empty_tables(unsigned long addr, unsigned long end,
 int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 		struct vmem_altmap *altmap)
 {
+	WARN_ON((start < VMEMMAP_START) || (end > VMEMMAP_END));
 	return vmemmap_populate_basepages(start, end, node, altmap);
 }
 #else	/* !ARM64_SWAPPER_USES_SECTION_MAPS */
@@ -1107,6 +1108,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 	pud_t *pudp;
 	pmd_t *pmdp;
 
+	WARN_ON((start < VMEMMAP_START) || (end > VMEMMAP_END));
 	do {
 		next = pmd_addr_end(addr, end);
 
