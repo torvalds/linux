@@ -48,7 +48,7 @@ enum rockchip_canfd_reg {
 	CAN_TSCV = 0x110,
 	CAN_TXEFC = 0x114,
 	CAN_RXFC = 0x118,
-	CAN_AFC	= 0x11c,
+	CAN_AFC = 0x11c,
 	CAN_IDCODE0 = 0x120,
 	CAN_IDMASK0 = 0x124,
 	CAN_IDCODE1 = 0x128,
@@ -115,6 +115,7 @@ enum rockchip_canfd_reg {
 #define MODE_FDOE		BIT(15)
 #define MODE_BRSD		BIT(13)
 #define MODE_SPACE_RX		BIT(12)
+#define MODE_AUTO_RETX		BIT(10)
 #define MODE_RXSORT		BIT(7)
 #define MODE_TXORDER		BIT(6)
 #define MODE_RXSTX		BIT(5)
@@ -314,12 +315,10 @@ static int rockchip_canfd_set_bittiming(struct net_device *ndev)
 			/* Equation based on Bosch's ROCKCHIP_CAN User Manual's
 			 * Transmitter Delay Compensation Section
 			 */
-			tdco = ((dbt->brp * (dbt->phase_seg1 +
-				dbt->phase_seg2 + 1))) / 2;
-
-			/* Max valid TDCO value is 127 */
-			if (tdco > 127)
-				tdco = 127;
+			tdco = (rcan->can.clock.freq / dbt->bitrate) * 2 / 3;
+			/* Max valid TDCO value is 63 */
+			if (tdco > 63)
+				tdco = 63;
 
 			rockchip_canfd_write(rcan, CAN_TDCR,
 					     (tdco << TDCR_TDCO_SHIFT) |
@@ -396,6 +395,10 @@ static int rockchip_canfd_start(struct net_device *ndev)
 	/* set mode */
 	val = rockchip_canfd_read(rcan, CAN_MODE);
 
+	/* rx fifo enable */
+	rockchip_canfd_write(rcan, CAN_RXFC,
+			     rockchip_canfd_read(rcan, CAN_RXFC) | FIFO_ENABLE);
+
 	/* Canfd Mode */
 	if (rcan->can.ctrlmode & CAN_CTRLMODE_FD) {
 		val |= MODE_FDOE;
@@ -407,6 +410,8 @@ static int rockchip_canfd_start(struct net_device *ndev)
 	/* Loopback Mode */
 	if (rcan->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)
 		val |= MODE_SELF_TEST | MODE_LBACK;
+
+	val |= MODE_AUTO_RETX;
 
 	rockchip_canfd_write(rcan, CAN_MODE, val);
 
@@ -490,6 +495,7 @@ static int rockchip_canfd_start_xmit(struct sk_buff *skb,
 		/* Extended CAN ID format */
 		id = cf->can_id & CAN_EFF_MASK;
 		dlc = can_len2dlc(cf->len) & DLC_MASK;
+		dlc |= FORMAT_MASK;
 
 		/* Extended frames remote TX request */
 		if (cf->can_id & CAN_RTR_FLAG)
@@ -533,10 +539,13 @@ static int rockchip_canfd_rx(struct net_device *ndev)
 	u32 id_rockchip_canfd, dlc;
 	int i = 0;
 	u32 __maybe_unused ts, ret;
+	u32 data[16] = {0};
 
 	dlc = rockchip_canfd_read(rcan, CAN_RXFRD);
 	id_rockchip_canfd = rockchip_canfd_read(rcan, CAN_RXFRD);
 	ts = rockchip_canfd_read(rcan, CAN_RXFRD);
+	for (i = 0; i < 16; i++)
+		data[i] = rockchip_canfd_read(rcan, CAN_RXFRD);
 
 	/* create zero'ed CAN frame buffer */
 	if (dlc & FDF_MASK)
@@ -552,7 +561,7 @@ static int rockchip_canfd_rx(struct net_device *ndev)
 	if (dlc & FDF_MASK)
 		cf->len = can_dlc2len(dlc & DLC_MASK);
 	else
-		cf->len = get_can_dlc((dlc >> 16) & 0x0F);
+		cf->len = get_can_dlc(dlc & DLC_MASK);
 
 	/* Change CAN ID format to socketCAN ID format */
 	if (dlc & FORMAT_MASK) {
@@ -574,13 +583,8 @@ static int rockchip_canfd_rx(struct net_device *ndev)
 	if (!(cf->can_id & CAN_RTR_FLAG)) {
 		/* Change CAN data format to socketCAN data format */
 		for (i = 0; i < cf->len; i += 4)
-			*(u32 *)(cf->data + i) =
-				rockchip_canfd_read(rcan, CAN_RXFRD);
+			*(u32 *)(cf->data + i) = data[i / 4];
 	}
-
-	/* Read the others FIFO register to clear all the FIFO */
-	for (i = 0; i < (16 - cf->len / 4); i++)
-		ret = rockchip_canfd_read(rcan, CAN_RXFRD);
 
 	stats->rx_packets++;
 	stats->rx_bytes += cf->len;
@@ -605,9 +609,9 @@ static int rockchip_canfd_err(struct net_device *ndev, u8 isr)
 
 	skb = alloc_can_err_skb(ndev, &cf);
 
-	rxerr = rockchip_canfd_read(rcan,  CAN_TX_ERR_CNT);
-	txerr = rockchip_canfd_read(rcan,  CAN_RX_ERR_CNT);
-	sta_reg = rockchip_canfd_read(rcan,  CAN_STATE);
+	rxerr = rockchip_canfd_read(rcan, CAN_RX_ERR_CNT);
+	txerr = rockchip_canfd_read(rcan, CAN_TX_ERR_CNT);
+	sta_reg = rockchip_canfd_read(rcan, CAN_STATE);
 
 	if (skb) {
 		cf->data[6] = txerr;
@@ -645,7 +649,7 @@ static int rockchip_canfd_err(struct net_device *ndev, u8 isr)
 
 	if (isr & BUS_ERR_INT) {
 		/* bus error interrupt */
-		netdev_dbg(ndev, "bus error interrupt\n");
+		netdev_dbg(ndev, "bus error interrupt, retry it.\n");
 		rcan->can.can_stats.bus_error++;
 		stats->rx_errors++;
 
@@ -725,12 +729,16 @@ static irqreturn_t rockchip_canfd_interrupt(int irq, void *dev_id)
 	u8 err_int = ERR_WARN_INT | RX_BUF_OV_INT | PASSIVE_ERR_INT |
 		     TX_LOSTARB_INT | BUS_ERR_INT;
 	u8 isr;
+	u32 dlc = 0;
 
-	isr = rockchip_canfd_read(rcan,  CAN_INT);
+	isr = rockchip_canfd_read(rcan, CAN_INT);
 	if (isr & TX_FINISH_INT) {
+		dlc = rockchip_canfd_read(rcan, CAN_TXFIC);
 		/* transmission complete interrupt */
-		stats->tx_bytes += rockchip_canfd_read(rcan, CAN_RXFIC) &
-				   DLC_MASK;
+		if (dlc & FDF_MASK)
+			stats->tx_bytes += can_dlc2len(dlc & DLC_MASK);
+		else
+			stats->tx_bytes += (dlc & DLC_MASK);
 		stats->tx_packets++;
 		rockchip_canfd_write(rcan, CAN_CMD, 0);
 		can_get_echo_skb(ndev, 0);
@@ -748,7 +756,7 @@ static irqreturn_t rockchip_canfd_interrupt(int irq, void *dev_id)
 	}
 
 	rockchip_canfd_write(rcan, CAN_INT, isr);
-	return	IRQ_HANDLED;
+	return IRQ_HANDLED;
 }
 
 static int rockchip_canfd_open(struct net_device *ndev)
@@ -805,7 +813,7 @@ static const struct net_device_ops rockchip_canfd_netdev_ops = {
 	.ndo_open = rockchip_canfd_open,
 	.ndo_stop = rockchip_canfd_close,
 	.ndo_start_xmit = rockchip_canfd_start_xmit,
-	.ndo_change_mtu	= can_change_mtu,
+	.ndo_change_mtu = can_change_mtu,
 };
 
 /**
@@ -906,7 +914,7 @@ static const struct dev_pm_ops rockchip_canfd_dev_pm_ops = {
 };
 
 static const struct of_device_id rockchip_canfd_of_match[] = {
-	{.compatible = "rockchip,canfd-1.0"},
+	{ .compatible = "rockchip,canfd-1.0" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rockchip_canfd_of_match);
@@ -984,10 +992,6 @@ static int rockchip_canfd_probe(struct platform_device *pdev)
 			__func__, err);
 		goto err_pmdisable;
 	}
-
-	/* rx fifo enable */
-	rockchip_canfd_write(rcan, CAN_RXFC,
-			     rockchip_canfd_read(rcan, CAN_RXFC) | FIFO_ENABLE);
 
 	err = register_candev(ndev);
 	if (err) {
