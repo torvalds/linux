@@ -12,6 +12,11 @@
 / {
 	model = "LS1012A RDB Board";
 	compatible = "fsl,ls1012a-rdb", "fsl,ls1012a";
+
+	aliases {
+		mmc0 = &esdhc0;
+		mmc1 = &esdhc1;
+	};
 };
 
 &duart0 {
