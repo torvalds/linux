@@ -131,6 +131,9 @@ static const unsigned char max_vals[] = {
 
 static const int NR_TYPES = ARRAY_SIZE(max_vals);
 
+static void kbd_bh(unsigned long dummy);
+static DECLARE_TASKLET_DISABLED_OLD(keyboard_tasklet, kbd_bh);
+
 static struct input_handler kbd_handler;
 static DEFINE_SPINLOCK(kbd_event_lock);
 static DEFINE_SPINLOCK(led_lock);
@@ -1257,8 +1260,6 @@ static void kbd_bh(unsigned long dummy)
 		ledstate = leds;
 	}
 }
-
-DECLARE_TASKLET_DISABLED_OLD(keyboard_tasklet, kbd_bh);
 
 #if defined(CONFIG_X86) || defined(CONFIG_IA64) || defined(CONFIG_ALPHA) ||\
     defined(CONFIG_MIPS) || defined(CONFIG_PPC) || defined(CONFIG_SPARC) ||\

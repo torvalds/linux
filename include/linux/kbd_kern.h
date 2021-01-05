@@ -6,8 +6,6 @@
 #include <linux/interrupt.h>
 #include <linux/keyboard.h>
 
-extern struct tasklet_struct keyboard_tasklet;
-
 extern char *func_table[MAX_NR_FUNC];
 
 /*
