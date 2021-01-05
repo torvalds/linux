@@ -48,6 +48,12 @@
 	EM(UFS_TM_COMP,		"tm_complete")			\
 	EMe(UFS_TM_ERR,		"tm_complete_err")
 
+#define UFS_CMD_TRACE_TSF_TYPES					\
+	EM(UFS_TSF_CDB,		"CDB")		                \
+	EM(UFS_TSF_OSF,		"OSF")		                \
+	EM(UFS_TSF_TM_INPUT,	"TM_INPUT")                     \
+	EMe(UFS_TSF_TM_OUTPUT,	"TM_OUTPUT")
+
 /* Enums require being exported to userspace, for user tool parsing */
 #undef EM
 #undef EMe
@@ -58,6 +64,7 @@ UFS_LINK_STATES;
 UFS_PWR_MODES;
 UFSCHD_CLK_GATING_STATES;
 UFS_CMD_TRACE_STRINGS
+UFS_CMD_TRACE_TSF_TYPES
 
 /*
  * Now redefine the EM() and EMe() macros to map the enums to the strings
@@ -70,6 +77,8 @@ UFS_CMD_TRACE_STRINGS
 
 #define show_ufs_cmd_trace_str(str_t)	\
 				__print_symbolic(str_t, UFS_CMD_TRACE_STRINGS)
+#define show_ufs_cmd_trace_tsf(tsf)	\
+				__print_symbolic(tsf, UFS_CMD_TRACE_TSF_TYPES)
 
 TRACE_EVENT(ufshcd_clk_gating,
 
@@ -311,15 +320,16 @@ TRACE_EVENT(ufshcd_uic_command,
 
 TRACE_EVENT(ufshcd_upiu,
 	TP_PROTO(const char *dev_name, enum ufs_trace_str_t str_t, void *hdr,
-		 void *tsf),
+		 void *tsf, enum ufs_trace_tsf_t tsf_t),
 
-	TP_ARGS(dev_name, str_t, hdr, tsf),
+	TP_ARGS(dev_name, str_t, hdr, tsf, tsf_t),
 
 	TP_STRUCT__entry(
 		__string(dev_name, dev_name)
 		__field(enum ufs_trace_str_t, str_t)
 		__array(unsigned char, hdr, 12)
 		__array(unsigned char, tsf, 16)
+		__field(enum ufs_trace_tsf_t, tsf_t)
 	),
 
 	TP_fast_assign(
@@ -327,12 +337,14 @@ TRACE_EVENT(ufshcd_upiu,
 		__entry->str_t = str_t;
 		memcpy(__entry->hdr, hdr, sizeof(__entry->hdr));
 		memcpy(__entry->tsf, tsf, sizeof(__entry->tsf));
+		__entry->tsf_t = tsf_t;
 	),
 
 	TP_printk(
-		"%s: %s: HDR:%s, CDB:%s",
+		"%s: %s: HDR:%s, %s:%s",
 		show_ufs_cmd_trace_str(__entry->str_t), __get_str(dev_name),
 		__print_hex(__entry->hdr, sizeof(__entry->hdr)),
+		show_ufs_cmd_trace_tsf(__entry->tsf_t),
 		__print_hex(__entry->tsf, sizeof(__entry->tsf))
 	)
 );

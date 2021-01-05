@@ -554,6 +554,13 @@ enum ufs_trace_str_t {
 	UFS_TM_SEND, UFS_TM_COMP, UFS_TM_ERR
 };
 
+/*
+ * Transaction Specific Fields (TSF) type in the UPIU package, this enum is
+ * used in include/trace/events/ufs.h for UFS command trace.
+ */
+enum ufs_trace_tsf_t {
+	UFS_TSF_CDB, UFS_TSF_OSF, UFS_TSF_TM_INPUT, UFS_TSF_TM_OUTPUT
+};
 
 /**
  * ufs_is_valid_unit_desc_lun - checks if the given LUN has a unit descriptor
