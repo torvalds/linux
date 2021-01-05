@@ -15,8 +15,6 @@ typedef void (*common_glue_func_t)(const void *ctx, u8 *dst, const u8 *src);
 typedef void (*common_glue_cbc_func_t)(const void *ctx, u8 *dst, const u8 *src);
 typedef void (*common_glue_ctr_func_t)(const void *ctx, u8 *dst, const u8 *src,
 				       le128 *iv);
-typedef void (*common_glue_xts_func_t)(const void *ctx, u8 *dst, const u8 *src,
-				       le128 *iv);
 
 struct common_glue_func_entry {
 	unsigned int num_blocks; /* number of blocks that @fn will process */
@@ -24,7 +22,6 @@ struct common_glue_func_entry {
 		common_glue_func_t ecb;
 		common_glue_cbc_func_t cbc;
 		common_glue_ctr_func_t ctr;
-		common_glue_xts_func_t xts;
 	} fn_u;
 };
 
@@ -105,14 +102,5 @@ extern int glue_cbc_decrypt_req_128bit(const struct common_glue_ctx *gctx,
 
 extern int glue_ctr_req_128bit(const struct common_glue_ctx *gctx,
 			       struct skcipher_request *req);
-
-extern int glue_xts_req_128bit(const struct common_glue_ctx *gctx,
-			       struct skcipher_request *req,
-			       common_glue_func_t tweak_fn, void *tweak_ctx,
-			       void *crypt_ctx, bool decrypt);
-
-extern void glue_xts_crypt_128bit_one(const void *ctx, u8 *dst,
-				      const u8 *src, le128 *iv,
-				      common_glue_func_t fn);
 
 #endif /* _CRYPTO_GLUE_HELPER_H */
