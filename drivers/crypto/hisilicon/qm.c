@@ -2206,7 +2206,7 @@ static int qm_alloc_uacce(struct hisi_qm *qm)
 	if (IS_ERR(uacce))
 		return PTR_ERR(uacce);
 
-	if (uacce->flags & UACCE_DEV_SVA) {
+	if (uacce->flags & UACCE_DEV_SVA && qm->mode == UACCE_MODE_SVA) {
 		qm->use_sva = true;
 	} else {
 		/* only consider sva case */

@@ -85,6 +85,11 @@
 /* page number for queue file region */
 #define QM_DOORBELL_PAGE_NR		1
 
+/* uacce mode of the driver */
+#define UACCE_MODE_NOUACCE		0 /* don't use uacce */
+#define UACCE_MODE_SVA			1 /* use uacce sva mode */
+#define UACCE_MODE_DESC	"0(default) means only register to crypto, 1 means both register to crypto and uacce"
+
 enum qm_stop_reason {
 	QM_NORMAL,
 	QM_SOFT_RESET,
@@ -249,6 +254,7 @@ struct hisi_qm {
 	resource_size_t phys_base;
 	resource_size_t phys_size;
 	struct uacce_device *uacce;
+	int mode;
 };
 
 struct hisi_qp_status {
@@ -331,6 +337,27 @@ static inline int vfs_num_set(const char *val, const struct kernel_param *kp)
 		return -EINVAL;
 
 	return param_set_int(val, kp);
+}
+
+static inline int mode_set(const char *val, const struct kernel_param *kp)
+{
+	u32 n;
+	int ret;
+
+	if (!val)
+		return -EINVAL;
+
+	ret = kstrtou32(val, 10, &n);
+	if (ret != 0 || (n != UACCE_MODE_SVA &&
+			 n != UACCE_MODE_NOUACCE))
+		return -EINVAL;
+
+	return param_set_int(val, kp);
+}
+
+static inline int uacce_mode_set(const char *val, const struct kernel_param *kp)
+{
+	return mode_set(val, kp);
 }
 
 static inline void hisi_qm_init_list(struct hisi_qm_list *qm_list)
