@@ -95,10 +95,11 @@ struct page_ext_operations page_owner_ops = {
 	.init = init_page_owner,
 };
 
-static inline struct page_owner *get_page_owner(struct page_ext *page_ext)
+struct page_owner *get_page_owner(struct page_ext *page_ext)
 {
 	return (void *)page_ext + page_owner_ops.offset;
 }
+EXPORT_SYMBOL_GPL(get_page_owner);
 
 static inline bool check_recursive_alloc(unsigned long *entries,
 					 unsigned int nr_entries,
