@@ -432,6 +432,8 @@ static int dma_info_to_prot(enum dma_data_direction dir, bool coherent,
 
 	if (attrs & DMA_ATTR_PRIVILEGED)
 		prot |= IOMMU_PRIV;
+	if (attrs & DMA_ATTR_SYS_CACHE_ONLY)
+		prot |= IOMMU_SYS_CACHE_ONLY;
 
 	switch (dir) {
 	case DMA_BIDIRECTIONAL:
