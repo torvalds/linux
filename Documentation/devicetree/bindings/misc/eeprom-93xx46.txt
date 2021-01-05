@@ -4,6 +4,7 @@ Required properties:
 - compatible : shall be one of:
     "atmel,at93c46d"
     "eeprom-93xx46"
+    "microchip,93lc46b"
 - data-size : number of data bits per word (either 8 or 16)
 
 Optional properties:
