@@ -58,7 +58,6 @@ struct pll_params {
 struct stm32_usbphyc_phy {
 	struct phy *phy;
 	struct stm32_usbphyc *usbphyc;
-	struct regulator_bulk_data supplies[NUM_SUPPLIES];
 	u32 index;
 	bool active;
 };
@@ -70,6 +69,7 @@ struct stm32_usbphyc {
 	struct reset_control *rst;
 	struct stm32_usbphyc_phy **phys;
 	int nphys;
+	struct regulator_bulk_data supplies[NUM_SUPPLIES];
 	int switch_setup;
 };
 
@@ -153,39 +153,6 @@ static bool stm32_usbphyc_has_one_phy_active(struct stm32_usbphyc *usbphyc)
 	return false;
 }
 
-static int stm32_usbphyc_pll_enable(struct stm32_usbphyc *usbphyc)
-{
-	void __iomem *pll_reg = usbphyc->base + STM32_USBPHYC_PLL;
-	bool pllen = (readl_relaxed(pll_reg) & PLLEN);
-	int ret;
-
-	/* Check if one phy port has already configured the pll */
-	if (pllen && stm32_usbphyc_has_one_phy_active(usbphyc))
-		return 0;
-
-	if (pllen) {
-		stm32_usbphyc_clr_bits(pll_reg, PLLEN);
-		/* Wait for minimum width of powerdown pulse (ENABLE = Low) */
-		udelay(PLL_PWR_DOWN_TIME_US);
-	}
-
-	ret = stm32_usbphyc_pll_init(usbphyc);
-	if (ret)
-		return ret;
-
-	stm32_usbphyc_set_bits(pll_reg, PLLEN);
-
-	/* Wait for maximum lock time */
-	udelay(PLL_LOCK_TIME_US);
-
-	if (!(readl_relaxed(pll_reg) & PLLEN)) {
-		dev_err(usbphyc->dev, "PLLEN not set\n");
-		return -EIO;
-	}
-
-	return 0;
-}
-
 static int stm32_usbphyc_pll_disable(struct stm32_usbphyc *usbphyc)
 {
 	void __iomem *pll_reg = usbphyc->base + STM32_USBPHYC_PLL;
@@ -203,7 +170,49 @@ static int stm32_usbphyc_pll_disable(struct stm32_usbphyc *usbphyc)
 		return -EIO;
 	}
 
+	return regulator_bulk_disable(NUM_SUPPLIES, usbphyc->supplies);
+}
+
+static int stm32_usbphyc_pll_enable(struct stm32_usbphyc *usbphyc)
+{
+	void __iomem *pll_reg = usbphyc->base + STM32_USBPHYC_PLL;
+	bool pllen = readl_relaxed(pll_reg) & PLLEN;
+	int ret;
+
+	/* Check if one phy port has already configured the pll */
+	if (pllen && stm32_usbphyc_has_one_phy_active(usbphyc))
+		return 0;
+
+	if (pllen) {
+		ret = stm32_usbphyc_pll_disable(usbphyc);
+		if (ret)
+			return ret;
+	}
+
+	ret = regulator_bulk_enable(NUM_SUPPLIES, usbphyc->supplies);
+	if (ret)
+		return ret;
+
+	ret = stm32_usbphyc_pll_init(usbphyc);
+	if (ret)
+		goto reg_disable;
+
+	stm32_usbphyc_set_bits(pll_reg, PLLEN);
+	/* Wait for maximum lock time */
+	udelay(PLL_LOCK_TIME_US);
+
+	if (!(readl_relaxed(pll_reg) & PLLEN)) {
+		dev_err(usbphyc->dev, "PLLEN not set\n");
+		ret = -EIO;
+		goto reg_disable;
+	}
+
 	return 0;
+
+reg_disable:
+	regulator_bulk_disable(NUM_SUPPLIES, usbphyc->supplies);
+
+	return ret;
 }
 
 static int stm32_usbphyc_phy_init(struct phy *phy)
@@ -231,25 +240,9 @@ static int stm32_usbphyc_phy_exit(struct phy *phy)
 	return stm32_usbphyc_pll_disable(usbphyc);
 }
 
-static int stm32_usbphyc_phy_power_on(struct phy *phy)
-{
-	struct stm32_usbphyc_phy *usbphyc_phy = phy_get_drvdata(phy);
-
-	return regulator_bulk_enable(NUM_SUPPLIES, usbphyc_phy->supplies);
-}
-
-static int stm32_usbphyc_phy_power_off(struct phy *phy)
-{
-	struct stm32_usbphyc_phy *usbphyc_phy = phy_get_drvdata(phy);
-
-	return regulator_bulk_disable(NUM_SUPPLIES, usbphyc_phy->supplies);
-}
-
 static const struct phy_ops stm32_usbphyc_phy_ops = {
 	.init = stm32_usbphyc_phy_init,
 	.exit = stm32_usbphyc_phy_exit,
-	.power_on = stm32_usbphyc_phy_power_on,
-	.power_off = stm32_usbphyc_phy_power_off,
 	.owner = THIS_MODULE,
 };
 
@@ -313,7 +306,7 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 	struct device_node *child, *np = dev->of_node;
 	struct phy_provider *phy_provider;
 	u32 version;
-	int ret, port = 0;
+	int ret, i, port = 0;
 
 	usbphyc = devm_kzalloc(dev, sizeof(*usbphyc), GFP_KERNEL);
 	if (!usbphyc)
@@ -355,11 +348,20 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 		goto clk_disable;
 	}
 
+	for (i = 0; i < NUM_SUPPLIES; i++)
+		usbphyc->supplies[i].supply = supplies_names[i];
+
+	ret = devm_regulator_bulk_get(dev, NUM_SUPPLIES, usbphyc->supplies);
+	if (ret) {
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "failed to get regulators: %d\n", ret);
+		goto clk_disable;
+	}
+
 	for_each_child_of_node(np, child) {
 		struct stm32_usbphyc_phy *usbphyc_phy;
 		struct phy *phy;
 		u32 index;
-		int i;
 
 		phy = devm_phy_create(dev, child, &stm32_usbphyc_phy_ops);
 		if (IS_ERR(phy)) {
@@ -374,18 +376,6 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 					   GFP_KERNEL);
 		if (!usbphyc_phy) {
 			ret = -ENOMEM;
-			goto put_child;
-		}
-
-		for (i = 0; i < NUM_SUPPLIES; i++)
-			usbphyc_phy->supplies[i].supply = supplies_names[i];
-
-		ret = devm_regulator_bulk_get(&phy->dev, NUM_SUPPLIES,
-					      usbphyc_phy->supplies);
-		if (ret) {
-			if (ret != -EPROBE_DEFER)
-				dev_err(&phy->dev,
-					"failed to get regulators: %d\n", ret);
 			goto put_child;
 		}
 
