@@ -35,6 +35,8 @@
  * @MT76_TM_ATTR_FREQ_OFFSET: RF frequency offset (u32)
  *
  * @MT76_TM_ATTR_STATS: statistics (nested, see &enum mt76_testmode_stats_attr)
+ *
+ * @MT76_TM_ATTR_TX_SPE_IDX: tx spatial extension index (u8)
  */
 enum mt76_testmode_attr {
 	MT76_TM_ATTR_UNSPEC,
@@ -62,6 +64,8 @@ enum mt76_testmode_attr {
 	MT76_TM_ATTR_FREQ_OFFSET,
 
 	MT76_TM_ATTR_STATS,
+
+	MT76_TM_ATTR_TX_SPE_IDX,
 
 	/* keep last */
 	NUM_MT76_TM_ATTRS,

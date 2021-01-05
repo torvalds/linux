@@ -205,6 +205,7 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
 {
 	static const u8 spe_idx_map[] = {0, 0, 1, 0, 3, 2, 4, 0,
 					 9, 8, 6, 10, 16, 12, 18, 0};
+	struct mt76_testmode_data *td = &phy->mt76->test;
 	struct sk_buff *skb = phy->mt76->test.tx_skb;
 	struct mt7915_dev *dev = phy->dev;
 	struct ieee80211_tx_info *info;
@@ -212,17 +213,21 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
 	mt7915_tm_set_trx(phy, TM_MAC_RX_RXV, false);
 
 	if (en) {
-		u8 tx_ant = phy->mt76->test.tx_antenna_mask;
-
 		mutex_unlock(&dev->mt76.mutex);
 		mt7915_set_channel(phy);
 		mutex_lock(&dev->mt76.mutex);
 
 		mt7915_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
 
-		if (phy != &dev->phy)
-			tx_ant >>= 2;
-		phy->test.spe_idx = spe_idx_map[tx_ant];
+		if (td->tx_spe_idx) {
+			phy->test.spe_idx = td->tx_spe_idx;
+		} else {
+			u8 tx_ant = td->tx_antenna_mask;
+
+			if (phy != &dev->phy)
+				tx_ant >>= 2;
+			phy->test.spe_idx = spe_idx_map[tx_ant];
+		}
 	}
 
 	mt7915_tm_set_trx(phy, TM_MAC_TX, en);

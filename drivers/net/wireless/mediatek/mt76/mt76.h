@@ -539,6 +539,7 @@ struct mt76_testmode_data {
 	u8 tx_ltf;
 
 	u8 tx_antenna_mask;
+	u8 tx_spe_idx;
 
 	u32 freq_offset;
 
