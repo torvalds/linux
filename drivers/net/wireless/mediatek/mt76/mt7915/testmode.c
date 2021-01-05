@@ -132,6 +132,111 @@ mt7915_tm_set_trx(struct mt7915_phy *phy, int type, bool en)
 				 sizeof(req), false);
 }
 
+static int
+mt7915_tm_set_slot_time(struct mt7915_phy *phy, u8 slot_time, u8 sifs)
+{
+	struct mt7915_dev *dev = phy->dev;
+	struct mt7915_tm_cmd req = {
+		.testmode_en = !(phy->mt76->test.state == MT76_TM_STATE_OFF),
+		.param_idx = MCU_ATE_SET_SLOT_TIME,
+		.param.slot.slot_time = slot_time,
+		.param.slot.sifs = sifs,
+		.param.slot.rifs = 2,
+		.param.slot.eifs = cpu_to_le16(60),
+		.param.slot.band = phy != &dev->phy,
+	};
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_ATE_CTRL, &req,
+				 sizeof(req), false);
+}
+
+static int
+mt7915_tm_set_wmm_qid(struct mt7915_dev *dev, u8 qid, u8 aifs, u8 cw_min,
+		      u16 cw_max, u16 txop)
+{
+	struct mt7915_mcu_tx req = { .total = 1 };
+	struct edca *e = &req.edca[0];
+
+	e->queue = qid;
+	e->set = WMM_PARAM_SET;
+
+	e->aifs = aifs;
+	e->cw_min = cw_min;
+	e->cw_max = cpu_to_le16(cw_max);
+	e->txop = cpu_to_le16(txop);
+
+	return mt7915_mcu_update_edca(dev, &req);
+}
+
+static int
+mt7915_tm_set_ipg_params(struct mt7915_phy *phy, u32 ipg, u8 mode)
+{
+#define TM_DEFAULT_SIFS	10
+#define TM_MAX_SIFS	127
+#define TM_MAX_AIFSN	0xf
+#define TM_MIN_AIFSN	0x1
+#define BBP_PROC_TIME	1500
+	struct mt7915_dev *dev = phy->dev;
+	u8 sig_ext = (mode == MT76_TM_TX_MODE_CCK) ? 0 : 6;
+	u8 slot_time = 9, sifs = TM_DEFAULT_SIFS;
+	u8 aifsn = TM_MIN_AIFSN;
+	u32 i2t_time, tr2t_time, txv_time;
+	bool ext_phy = phy != &dev->phy;
+	u16 cw = 0;
+
+	if (ipg < sig_ext + slot_time + sifs)
+		ipg = 0;
+
+	if (!ipg)
+		goto done;
+
+	ipg -= sig_ext;
+
+	if (ipg <= (TM_MAX_SIFS + slot_time)) {
+		sifs = ipg - slot_time;
+	} else {
+		u32 val = (ipg + slot_time) / slot_time;
+
+		while (val >>= 1)
+			cw++;
+
+		if (cw > 16)
+			cw = 16;
+
+		ipg -= ((1 << cw) - 1) * slot_time;
+
+		aifsn = ipg / slot_time;
+		if (aifsn > TM_MAX_AIFSN)
+			aifsn = TM_MAX_AIFSN;
+
+		ipg -= aifsn * slot_time;
+
+		if (ipg > TM_DEFAULT_SIFS) {
+			if (ipg < TM_MAX_SIFS)
+				sifs = ipg;
+			else
+				sifs = TM_MAX_SIFS;
+		}
+	}
+done:
+	txv_time = mt76_get_field(dev, MT_TMAC_ATCR(ext_phy),
+				  MT_TMAC_ATCR_TXV_TOUT);
+	txv_time *= 50;	/* normal clock time */
+
+	i2t_time = (slot_time * 1000 - txv_time - BBP_PROC_TIME) / 50;
+	tr2t_time = (sifs * 1000 - txv_time - BBP_PROC_TIME) / 50;
+
+	mt76_set(dev, MT_TMAC_TRCR0(ext_phy),
+		 FIELD_PREP(MT_TMAC_TRCR0_TR2T_CHK, tr2t_time) |
+		 FIELD_PREP(MT_TMAC_TRCR0_I2T_CHK, i2t_time));
+
+	mt7915_tm_set_slot_time(phy, slot_time, sifs);
+
+	return mt7915_tm_set_wmm_qid(dev,
+				     mt7915_lmac_mapping(dev, IEEE80211_AC_BE),
+				     aifsn, cw, cw, 0);
+}
+
 static void
 mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
 {
@@ -206,9 +311,12 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
 	static const u8 spe_idx_map[] = {0, 0, 1, 0, 3, 2, 4, 0,
 					 9, 8, 6, 10, 16, 12, 18, 0};
 	struct mt76_testmode_data *td = &phy->mt76->test;
-	struct sk_buff *skb = phy->mt76->test.tx_skb;
 	struct mt7915_dev *dev = phy->dev;
+	struct sk_buff *skb = td->tx_skb;
 	struct ieee80211_tx_info *info;
+	u8 duty_cycle = td->tx_duty_cycle;
+	u32 tx_time = td->tx_time;
+	u32 ipg = td->tx_ipg;
 
 	mt7915_tm_set_trx(phy, TM_MAC_RX_RXV, false);
 
@@ -230,13 +338,26 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
 		}
 	}
 
-	mt7915_tm_set_trx(phy, TM_MAC_TX, en);
+	/* if all three params are set, duty_cycle will be ignored */
+	if (duty_cycle && tx_time && !ipg) {
+		ipg = tx_time * 100 / duty_cycle - tx_time;
+	} else if (duty_cycle && !tx_time && ipg) {
+		if (duty_cycle < 100)
+			tx_time = duty_cycle * ipg / (100 - duty_cycle);
+	}
+
+	mt7915_tm_set_ipg_params(phy, ipg, td->tx_rate_mode);
+
+	if (ipg)
+		td->tx_queued_limit = MT76_TM_TIMEOUT * 1000000 / ipg / 2;
 
 	if (!en || !skb)
 		return;
 
 	info = IEEE80211_SKB_CB(skb);
 	info->control.vif = phy->monitor_vif;
+
+	mt7915_tm_set_trx(phy, TM_MAC_TX, en);
 }
 
 static void

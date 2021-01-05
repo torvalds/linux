@@ -49,6 +49,7 @@ enum {
 enum {
 	MCU_ATE_SET_TRX = 0x1,
 	MCU_ATE_SET_FREQ_OFFSET = 0xa,
+	MCU_ATE_SET_SLOT_TIME = 0x13,
 };
 
 struct mt7915_mcu_rxd {
