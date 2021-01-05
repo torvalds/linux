@@ -45,6 +45,8 @@ struct vdpa_mgmt_dev;
  * @index: device index
  * @features_valid: were features initialized? for legacy guests
  * @nvqs: maximum number of supported virtqueues
+ * @mdev: management device pointer; caller must setup when registering device as part
+ *	  of dev_add() mgmtdev ops callback before invoking _vdpa_register_device().
  */
 struct vdpa_device {
 	struct device dev;
@@ -53,6 +55,7 @@ struct vdpa_device {
 	unsigned int index;
 	bool features_valid;
 	int nvqs;
+	struct vdpa_mgmt_dev *mdev;
 };
 
 /**
@@ -259,6 +262,9 @@ struct vdpa_device *__vdpa_alloc_device(struct device *parent,
 
 int vdpa_register_device(struct vdpa_device *vdev);
 void vdpa_unregister_device(struct vdpa_device *vdev);
+
+int _vdpa_register_device(struct vdpa_device *vdev);
+void _vdpa_unregister_device(struct vdpa_device *vdev);
 
 /**
  * vdpa_driver - operations for a vDPA driver
