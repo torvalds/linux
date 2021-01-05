@@ -496,7 +496,8 @@
 	container_of(s, struct ov5648_sensor, subdev)
 
 #define ov5648_ctrl_subdev(c) \
-	(&container_of(c->handler, struct ov5648_sensor, ctrls.handler)->subdev)
+	(&container_of((c)->handler, struct ov5648_sensor, \
+		       ctrls.handler)->subdev)
 
 /* Data structures */
 

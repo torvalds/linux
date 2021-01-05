@@ -223,7 +223,6 @@
 #define OV8865_FORMAT2_FLIP_HORZ_SENSOR_EN	BIT(1)
 #define OV8865_FORMAT2_SYNC_HBIN_EN		BIT(0)
 
-
 #define OV8865_INC_Y_ODD_REG			0x382a
 #define OV8865_INC_Y_ODD(v)			((v) & GENMASK(4, 0))
 #define OV8865_INC_Y_EVEN_REG			0x382b
@@ -460,7 +459,8 @@
 	container_of(s, struct ov8865_sensor, subdev)
 
 #define ov8865_ctrl_subdev(c) \
-	(&container_of(c->handler, struct ov8865_sensor, ctrls.handler)->subdev)
+	(&container_of((c)->handler, struct ov8865_sensor, \
+		       ctrls.handler)->subdev)
 
 /* Data structures */
 
@@ -1598,8 +1598,8 @@ static int ov8865_mode_pll1_configure(struct ov8865_sensor *sensor,
 		return ret;
 
 	ret = ov8865_update_bits(sensor, OV8865_PCLK_SEL_REG,
-			   OV8865_PCLK_SEL_PCLK_DIV_MASK,
-			   OV8865_PCLK_SEL_PCLK_DIV(config->pclk_div));
+				 OV8865_PCLK_SEL_PCLK_DIV_MASK,
+				 OV8865_PCLK_SEL_PCLK_DIV(config->pclk_div));
 	if (ret)
 		return ret;
 
