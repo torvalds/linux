@@ -49,6 +49,8 @@ struct oom_control {
 	unsigned long totalpages;
 	struct task_struct *chosen;
 	long chosen_points;
+	struct task_struct *chosen_non_negative_adj;
+	long chosen_non_negative_adj_points;
 
 	/* Used to print the constraint info. */
 	enum oom_constraint constraint;

@@ -339,7 +339,24 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
 	}
 
 	points = oom_badness(task, oc->totalpages);
-	if (points == LONG_MIN || points < oc->chosen_points)
+
+	if (points == LONG_MIN)
+		goto next;
+
+	/*
+	 * Check to see if this is the worst task with a non-negative
+	 * ADJ score seen so far
+	 */
+	if (task->signal->oom_score_adj >= 0 &&
+	    points > oc->chosen_non_negative_adj_points) {
+		if (oc->chosen_non_negative_adj)
+			put_task_struct(oc->chosen_non_negative_adj);
+		get_task_struct(task);
+		oc->chosen_non_negative_adj = task;
+		oc->chosen_non_negative_adj_points = points;
+	}
+
+	if (points < oc->chosen_points)
 		goto next;
 
 select:
@@ -351,6 +368,8 @@ select:
 next:
 	return 0;
 abort:
+	if (oc->chosen_non_negative_adj)
+		put_task_struct(oc->chosen_non_negative_adj);
 	if (oc->chosen)
 		put_task_struct(oc->chosen);
 	oc->chosen = (void *)-1UL;
@@ -364,6 +383,8 @@ abort:
 static void select_bad_process(struct oom_control *oc)
 {
 	oc->chosen_points = LONG_MIN;
+	oc->chosen_non_negative_adj_points = LONG_MIN;
+	oc->chosen_non_negative_adj = NULL;
 
 	if (is_memcg_oom(oc))
 		mem_cgroup_scan_tasks(oc->memcg, oom_evaluate_task, oc);
@@ -375,6 +396,20 @@ static void select_bad_process(struct oom_control *oc)
 			if (oom_evaluate_task(p, oc))
 				break;
 		rcu_read_unlock();
+	}
+
+	if (oc->chosen_non_negative_adj) {
+		/*
+		 * If oc->chosen has a negative ADJ, and we found a task with
+		 * a postive ADJ to kill, kill the task with the positive ADJ
+		 * instead.
+		 */
+		if (oc->chosen && oc->chosen->signal->oom_score_adj < 0) {
+			put_task_struct(oc->chosen);
+			oc->chosen = oc->chosen_non_negative_adj;
+			oc->chosen_points = oc->chosen_non_negative_adj_points;
+		} else
+			put_task_struct(oc->chosen_non_negative_adj);
 	}
 }
 
