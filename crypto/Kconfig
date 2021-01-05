@@ -210,11 +210,6 @@ config CRYPTO_SIMD
 	tristate
 	select CRYPTO_CRYPTD
 
-config CRYPTO_GLUE_HELPER_X86
-	tristate
-	depends on X86
-	select CRYPTO_SKCIPHER
-
 config CRYPTO_ENGINE
 	tristate
 
