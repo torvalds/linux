@@ -348,7 +348,8 @@ pgprot_t dma_pgprot(struct device *dev, pgprot_t prot, unsigned long attrs)
 	if (attrs & DMA_ATTR_WRITE_COMBINE)
 		return pgprot_writecombine(prot);
 #endif
-	if (attrs & DMA_ATTR_SYS_CACHE_ONLY)
+	if (attrs & DMA_ATTR_SYS_CACHE_ONLY ||
+	    attrs & DMA_ATTR_SYS_CACHE_ONLY_NWA)
 		return pgprot_syscached(prot);
 	return pgprot_dmacoherent(prot);
 }
