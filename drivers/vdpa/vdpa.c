@@ -11,10 +11,16 @@
 #include <linux/idr.h>
 #include <linux/slab.h>
 #include <linux/vdpa.h>
+#include <uapi/linux/vdpa.h>
+#include <net/genetlink.h>
+#include <linux/mod_devicetable.h>
 
+static LIST_HEAD(mdev_head);
 /* A global mutex that protects vdpa management device and device level operations. */
 static DEFINE_MUTEX(vdpa_dev_mutex);
 static DEFINE_IDA(vdpa_index_ida);
+
+static struct genl_family vdpa_nl_family;
 
 static int vdpa_dev_probe(struct device *d)
 {
@@ -195,13 +201,218 @@ void vdpa_unregister_driver(struct vdpa_driver *drv)
 }
 EXPORT_SYMBOL_GPL(vdpa_unregister_driver);
 
+/**
+ * vdpa_mgmtdev_register - register a vdpa management device
+ *
+ * @mdev: Pointer to vdpa management device
+ * vdpa_mgmtdev_register() register a vdpa management device which supports
+ * vdpa device management.
+ */
+int vdpa_mgmtdev_register(struct vdpa_mgmt_dev *mdev)
+{
+	if (!mdev->device || !mdev->ops || !mdev->ops->dev_add || !mdev->ops->dev_del)
+		return -EINVAL;
+
+	INIT_LIST_HEAD(&mdev->list);
+	mutex_lock(&vdpa_dev_mutex);
+	list_add_tail(&mdev->list, &mdev_head);
+	mutex_unlock(&vdpa_dev_mutex);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vdpa_mgmtdev_register);
+
+void vdpa_mgmtdev_unregister(struct vdpa_mgmt_dev *mdev)
+{
+	mutex_lock(&vdpa_dev_mutex);
+	list_del(&mdev->list);
+	mutex_unlock(&vdpa_dev_mutex);
+}
+EXPORT_SYMBOL_GPL(vdpa_mgmtdev_unregister);
+
+static bool mgmtdev_handle_match(const struct vdpa_mgmt_dev *mdev,
+				 const char *busname, const char *devname)
+{
+	/* Bus name is optional for simulated management device, so ignore the
+	 * device with bus if bus attribute is provided.
+	 */
+	if ((busname && !mdev->device->bus) || (!busname && mdev->device->bus))
+		return false;
+
+	if (!busname && strcmp(dev_name(mdev->device), devname) == 0)
+		return true;
+
+	if (busname && (strcmp(mdev->device->bus->name, busname) == 0) &&
+	    (strcmp(dev_name(mdev->device), devname) == 0))
+		return true;
+
+	return false;
+}
+
+static struct vdpa_mgmt_dev *vdpa_mgmtdev_get_from_attr(struct nlattr **attrs)
+{
+	struct vdpa_mgmt_dev *mdev;
+	const char *busname = NULL;
+	const char *devname;
+
+	if (!attrs[VDPA_ATTR_MGMTDEV_DEV_NAME])
+		return ERR_PTR(-EINVAL);
+	devname = nla_data(attrs[VDPA_ATTR_MGMTDEV_DEV_NAME]);
+	if (attrs[VDPA_ATTR_MGMTDEV_BUS_NAME])
+		busname = nla_data(attrs[VDPA_ATTR_MGMTDEV_BUS_NAME]);
+
+	list_for_each_entry(mdev, &mdev_head, list) {
+		if (mgmtdev_handle_match(mdev, busname, devname))
+			return mdev;
+	}
+	return ERR_PTR(-ENODEV);
+}
+
+static int vdpa_nl_mgmtdev_handle_fill(struct sk_buff *msg, const struct vdpa_mgmt_dev *mdev)
+{
+	if (mdev->device->bus &&
+	    nla_put_string(msg, VDPA_ATTR_MGMTDEV_BUS_NAME, mdev->device->bus->name))
+		return -EMSGSIZE;
+	if (nla_put_string(msg, VDPA_ATTR_MGMTDEV_DEV_NAME, dev_name(mdev->device)))
+		return -EMSGSIZE;
+	return 0;
+}
+
+static int vdpa_mgmtdev_fill(const struct vdpa_mgmt_dev *mdev, struct sk_buff *msg,
+			     u32 portid, u32 seq, int flags)
+{
+	u64 supported_classes = 0;
+	void *hdr;
+	int i = 0;
+	int err;
+
+	hdr = genlmsg_put(msg, portid, seq, &vdpa_nl_family, flags, VDPA_CMD_MGMTDEV_NEW);
+	if (!hdr)
+		return -EMSGSIZE;
+	err = vdpa_nl_mgmtdev_handle_fill(msg, mdev);
+	if (err)
+		goto msg_err;
+
+	while (mdev->id_table[i].device) {
+		supported_classes |= BIT(mdev->id_table[i].device);
+		i++;
+	}
+
+	if (nla_put_u64_64bit(msg, VDPA_ATTR_MGMTDEV_SUPPORTED_CLASSES,
+			      supported_classes, VDPA_ATTR_UNSPEC)) {
+		err = -EMSGSIZE;
+		goto msg_err;
+	}
+
+	genlmsg_end(msg, hdr);
+	return 0;
+
+msg_err:
+	genlmsg_cancel(msg, hdr);
+	return err;
+}
+
+static int vdpa_nl_cmd_mgmtdev_get_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	struct vdpa_mgmt_dev *mdev;
+	struct sk_buff *msg;
+	int err;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	mutex_lock(&vdpa_dev_mutex);
+	mdev = vdpa_mgmtdev_get_from_attr(info->attrs);
+	if (IS_ERR(mdev)) {
+		mutex_unlock(&vdpa_dev_mutex);
+		NL_SET_ERR_MSG_MOD(info->extack, "Fail to find the specified mgmt device");
+		err = PTR_ERR(mdev);
+		goto out;
+	}
+
+	err = vdpa_mgmtdev_fill(mdev, msg, info->snd_portid, info->snd_seq, 0);
+	mutex_unlock(&vdpa_dev_mutex);
+	if (err)
+		goto out;
+	err = genlmsg_reply(msg, info);
+	return err;
+
+out:
+	nlmsg_free(msg);
+	return err;
+}
+
+static int
+vdpa_nl_cmd_mgmtdev_get_dumpit(struct sk_buff *msg, struct netlink_callback *cb)
+{
+	struct vdpa_mgmt_dev *mdev;
+	int start = cb->args[0];
+	int idx = 0;
+	int err;
+
+	mutex_lock(&vdpa_dev_mutex);
+	list_for_each_entry(mdev, &mdev_head, list) {
+		if (idx < start) {
+			idx++;
+			continue;
+		}
+		err = vdpa_mgmtdev_fill(mdev, msg, NETLINK_CB(cb->skb).portid,
+					cb->nlh->nlmsg_seq, NLM_F_MULTI);
+		if (err)
+			goto out;
+		idx++;
+	}
+out:
+	mutex_unlock(&vdpa_dev_mutex);
+	cb->args[0] = idx;
+	return msg->len;
+}
+
+static const struct nla_policy vdpa_nl_policy[VDPA_ATTR_MAX + 1] = {
+	[VDPA_ATTR_MGMTDEV_BUS_NAME] = { .type = NLA_NUL_STRING },
+	[VDPA_ATTR_MGMTDEV_DEV_NAME] = { .type = NLA_STRING },
+};
+
+static const struct genl_ops vdpa_nl_ops[] = {
+	{
+		.cmd = VDPA_CMD_MGMTDEV_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
+		.doit = vdpa_nl_cmd_mgmtdev_get_doit,
+		.dumpit = vdpa_nl_cmd_mgmtdev_get_dumpit,
+	},
+};
+
+static struct genl_family vdpa_nl_family __ro_after_init = {
+	.name = VDPA_GENL_NAME,
+	.version = VDPA_GENL_VERSION,
+	.maxattr = VDPA_ATTR_MAX,
+	.policy = vdpa_nl_policy,
+	.netnsok = false,
+	.module = THIS_MODULE,
+	.ops = vdpa_nl_ops,
+	.n_ops = ARRAY_SIZE(vdpa_nl_ops),
+};
+
 static int vdpa_init(void)
 {
-	return bus_register(&vdpa_bus);
+	int err;
+
+	err = bus_register(&vdpa_bus);
+	if (err)
+		return err;
+	err = genl_register_family(&vdpa_nl_family);
+	if (err)
+		goto err;
+	return 0;
+
+err:
+	bus_unregister(&vdpa_bus);
+	return err;
 }
 
 static void __exit vdpa_exit(void)
 {
+	genl_unregister_family(&vdpa_nl_family);
 	bus_unregister(&vdpa_bus);
 	ida_destroy(&vdpa_index_ida);
 }

@@ -35,6 +35,8 @@ struct vdpa_vq_state {
 	u16	avail_index;
 };
 
+struct vdpa_mgmt_dev;
+
 /**
  * vDPA device - representation of a vDPA device
  * @dev: underlying device
@@ -334,5 +336,34 @@ static inline void vdpa_get_config(struct vdpa_device *vdev, unsigned offset,
 		vdpa_set_features(vdev, 0);
 	ops->get_config(vdev, offset, buf, len);
 }
+
+/**
+ * vdpa_mgmtdev_ops - vdpa device ops
+ * @dev_add:	Add a vdpa device using alloc and register
+ *		@mdev: parent device to use for device addition
+ *		@name: name of the new vdpa device
+ *		Driver need to add a new device using _vdpa_register_device()
+ *		after fully initializing the vdpa device. Driver must return 0
+ *		on success or appropriate error code.
+ * @dev_del:	Remove a vdpa device using unregister
+ *		@mdev: parent device to use for device removal
+ *		@dev: vdpa device to remove
+ *		Driver need to remove the specified device by calling
+ *		_vdpa_unregister_device().
+ */
+struct vdpa_mgmtdev_ops {
+	int (*dev_add)(struct vdpa_mgmt_dev *mdev, const char *name);
+	void (*dev_del)(struct vdpa_mgmt_dev *mdev, struct vdpa_device *dev);
+};
+
+struct vdpa_mgmt_dev {
+	struct device *device;
+	const struct vdpa_mgmtdev_ops *ops;
+	const struct virtio_device_id *id_table; /* supported ids */
+	struct list_head list;
+};
+
+int vdpa_mgmtdev_register(struct vdpa_mgmt_dev *mdev);
+void vdpa_mgmtdev_unregister(struct vdpa_mgmt_dev *mdev);
 
 #endif /* _LINUX_VDPA_H */
