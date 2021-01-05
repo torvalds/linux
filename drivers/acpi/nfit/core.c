@@ -2269,40 +2269,24 @@ static const struct attribute_group *acpi_nfit_region_attribute_groups[] = {
 
 /* enough info to uniquely specify an interleave set */
 struct nfit_set_info {
-	struct nfit_set_info_map {
-		u64 region_offset;
-		u32 serial_number;
-		u32 pad;
-	} mapping[0];
+	u64 region_offset;
+	u32 serial_number;
+	u32 pad;
 };
 
 struct nfit_set_info2 {
-	struct nfit_set_info_map2 {
-		u64 region_offset;
-		u32 serial_number;
-		u16 vendor_id;
-		u16 manufacturing_date;
-		u8  manufacturing_location;
-		u8  reserved[31];
-	} mapping[0];
+	u64 region_offset;
+	u32 serial_number;
+	u16 vendor_id;
+	u16 manufacturing_date;
+	u8 manufacturing_location;
+	u8 reserved[31];
 };
-
-static size_t sizeof_nfit_set_info(int num_mappings)
-{
-	return sizeof(struct nfit_set_info)
-		+ num_mappings * sizeof(struct nfit_set_info_map);
-}
-
-static size_t sizeof_nfit_set_info2(int num_mappings)
-{
-	return sizeof(struct nfit_set_info2)
-		+ num_mappings * sizeof(struct nfit_set_info_map2);
-}
 
 static int cmp_map_compat(const void *m0, const void *m1)
 {
-	const struct nfit_set_info_map *map0 = m0;
-	const struct nfit_set_info_map *map1 = m1;
+	const struct nfit_set_info *map0 = m0;
+	const struct nfit_set_info *map1 = m1;
 
 	return memcmp(&map0->region_offset, &map1->region_offset,
 			sizeof(u64));
@@ -2310,8 +2294,8 @@ static int cmp_map_compat(const void *m0, const void *m1)
 
 static int cmp_map(const void *m0, const void *m1)
 {
-	const struct nfit_set_info_map *map0 = m0;
-	const struct nfit_set_info_map *map1 = m1;
+	const struct nfit_set_info *map0 = m0;
+	const struct nfit_set_info *map1 = m1;
 
 	if (map0->region_offset < map1->region_offset)
 		return -1;
@@ -2322,8 +2306,8 @@ static int cmp_map(const void *m0, const void *m1)
 
 static int cmp_map2(const void *m0, const void *m1)
 {
-	const struct nfit_set_info_map2 *map0 = m0;
-	const struct nfit_set_info_map2 *map1 = m1;
+	const struct nfit_set_info2 *map0 = m0;
+	const struct nfit_set_info2 *map1 = m1;
 
 	if (map0->region_offset < map1->region_offset)
 		return -1;
@@ -2361,22 +2345,22 @@ static int acpi_nfit_init_interleave_set(struct acpi_nfit_desc *acpi_desc,
 		return -ENOMEM;
 	import_guid(&nd_set->type_guid, spa->range_guid);
 
-	info = devm_kzalloc(dev, sizeof_nfit_set_info(nr), GFP_KERNEL);
+	info = devm_kcalloc(dev, nr, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
-	info2 = devm_kzalloc(dev, sizeof_nfit_set_info2(nr), GFP_KERNEL);
+	info2 = devm_kcalloc(dev, nr, sizeof(*info2), GFP_KERNEL);
 	if (!info2)
 		return -ENOMEM;
 
 	for (i = 0; i < nr; i++) {
 		struct nd_mapping_desc *mapping = &ndr_desc->mapping[i];
-		struct nfit_set_info_map *map = &info->mapping[i];
-		struct nfit_set_info_map2 *map2 = &info2->mapping[i];
 		struct nvdimm *nvdimm = mapping->nvdimm;
 		struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
-		struct acpi_nfit_memory_map *memdev = memdev_from_spa(acpi_desc,
-				spa->range_index, i);
+		struct nfit_set_info *map = &info[i];
+		struct nfit_set_info2 *map2 = &info2[i];
+		struct acpi_nfit_memory_map *memdev =
+			memdev_from_spa(acpi_desc, spa->range_index, i);
 		struct acpi_nfit_control_region *dcr = nfit_mem->dcr;
 
 		if (!memdev || !nfit_mem->dcr) {
@@ -2395,23 +2379,20 @@ static int acpi_nfit_init_interleave_set(struct acpi_nfit_desc *acpi_desc,
 	}
 
 	/* v1.1 namespaces */
-	sort(&info->mapping[0], nr, sizeof(struct nfit_set_info_map),
-			cmp_map, NULL);
-	nd_set->cookie1 = nd_fletcher64(info, sizeof_nfit_set_info(nr), 0);
+	sort(info, nr, sizeof(*info), cmp_map, NULL);
+	nd_set->cookie1 = nd_fletcher64(info, sizeof(*info) * nr, 0);
 
 	/* v1.2 namespaces */
-	sort(&info2->mapping[0], nr, sizeof(struct nfit_set_info_map2),
-			cmp_map2, NULL);
-	nd_set->cookie2 = nd_fletcher64(info2, sizeof_nfit_set_info2(nr), 0);
+	sort(info2, nr, sizeof(*info2), cmp_map2, NULL);
+	nd_set->cookie2 = nd_fletcher64(info2, sizeof(*info2) * nr, 0);
 
 	/* support v1.1 namespaces created with the wrong sort order */
-	sort(&info->mapping[0], nr, sizeof(struct nfit_set_info_map),
-			cmp_map_compat, NULL);
-	nd_set->altcookie = nd_fletcher64(info, sizeof_nfit_set_info(nr), 0);
+	sort(info, nr, sizeof(*info), cmp_map_compat, NULL);
+	nd_set->altcookie = nd_fletcher64(info, sizeof(*info) * nr, 0);
 
 	/* record the result of the sort for the mapping position */
 	for (i = 0; i < nr; i++) {
-		struct nfit_set_info_map2 *map2 = &info2->mapping[i];
+		struct nfit_set_info2 *map2 = &info2[i];
 		int j;
 
 		for (j = 0; j < nr; j++) {
