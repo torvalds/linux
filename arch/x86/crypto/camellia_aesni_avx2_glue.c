@@ -6,13 +6,14 @@
  */
 
 #include <asm/crypto/camellia.h>
-#include <asm/crypto/glue_helper.h>
 #include <crypto/algapi.h>
 #include <crypto/internal/simd.h>
 #include <linux/crypto.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/types.h>
+
+#include "ecb_cbc_helpers.h"
 
 #define CAMELLIA_AESNI_PARALLEL_BLOCKS 16
 #define CAMELLIA_AESNI_AVX2_PARALLEL_BLOCKS 32
@@ -23,63 +24,6 @@ asmlinkage void camellia_ecb_dec_32way(const void *ctx, u8 *dst, const u8 *src);
 
 asmlinkage void camellia_cbc_dec_32way(const void *ctx, u8 *dst, const u8 *src);
 
-static const struct common_glue_ctx camellia_enc = {
-	.num_funcs = 4,
-	.fpu_blocks_limit = CAMELLIA_AESNI_PARALLEL_BLOCKS,
-
-	.funcs = { {
-		.num_blocks = CAMELLIA_AESNI_AVX2_PARALLEL_BLOCKS,
-		.fn_u = { .ecb = camellia_ecb_enc_32way }
-	}, {
-		.num_blocks = CAMELLIA_AESNI_PARALLEL_BLOCKS,
-		.fn_u = { .ecb = camellia_ecb_enc_16way }
-	}, {
-		.num_blocks = 2,
-		.fn_u = { .ecb = camellia_enc_blk_2way }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .ecb = camellia_enc_blk }
-	} }
-};
-
-static const struct common_glue_ctx camellia_dec = {
-	.num_funcs = 4,
-	.fpu_blocks_limit = CAMELLIA_AESNI_PARALLEL_BLOCKS,
-
-	.funcs = { {
-		.num_blocks = CAMELLIA_AESNI_AVX2_PARALLEL_BLOCKS,
-		.fn_u = { .ecb = camellia_ecb_dec_32way }
-	}, {
-		.num_blocks = CAMELLIA_AESNI_PARALLEL_BLOCKS,
-		.fn_u = { .ecb = camellia_ecb_dec_16way }
-	}, {
-		.num_blocks = 2,
-		.fn_u = { .ecb = camellia_dec_blk_2way }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .ecb = camellia_dec_blk }
-	} }
-};
-
-static const struct common_glue_ctx camellia_dec_cbc = {
-	.num_funcs = 4,
-	.fpu_blocks_limit = CAMELLIA_AESNI_PARALLEL_BLOCKS,
-
-	.funcs = { {
-		.num_blocks = CAMELLIA_AESNI_AVX2_PARALLEL_BLOCKS,
-		.fn_u = { .cbc = camellia_cbc_dec_32way }
-	}, {
-		.num_blocks = CAMELLIA_AESNI_PARALLEL_BLOCKS,
-		.fn_u = { .cbc = camellia_cbc_dec_16way }
-	}, {
-		.num_blocks = 2,
-		.fn_u = { .cbc = camellia_decrypt_cbc_2way }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .cbc = camellia_dec_blk }
-	} }
-};
-
 static int camellia_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			   unsigned int keylen)
 {
@@ -88,22 +32,39 @@ static int camellia_setkey(struct crypto_skcipher *tfm, const u8 *key,
 
 static int ecb_encrypt(struct skcipher_request *req)
 {
-	return glue_ecb_req_128bit(&camellia_enc, req);
+	ECB_WALK_START(req, CAMELLIA_BLOCK_SIZE, CAMELLIA_AESNI_PARALLEL_BLOCKS);
+	ECB_BLOCK(CAMELLIA_AESNI_AVX2_PARALLEL_BLOCKS, camellia_ecb_enc_32way);
+	ECB_BLOCK(CAMELLIA_AESNI_PARALLEL_BLOCKS, camellia_ecb_enc_16way);
+	ECB_BLOCK(2, camellia_enc_blk_2way);
+	ECB_BLOCK(1, camellia_enc_blk);
+	ECB_WALK_END();
 }
 
 static int ecb_decrypt(struct skcipher_request *req)
 {
-	return glue_ecb_req_128bit(&camellia_dec, req);
+	ECB_WALK_START(req, CAMELLIA_BLOCK_SIZE, CAMELLIA_AESNI_PARALLEL_BLOCKS);
+	ECB_BLOCK(CAMELLIA_AESNI_AVX2_PARALLEL_BLOCKS, camellia_ecb_dec_32way);
+	ECB_BLOCK(CAMELLIA_AESNI_PARALLEL_BLOCKS, camellia_ecb_dec_16way);
+	ECB_BLOCK(2, camellia_dec_blk_2way);
+	ECB_BLOCK(1, camellia_dec_blk);
+	ECB_WALK_END();
 }
 
 static int cbc_encrypt(struct skcipher_request *req)
 {
-	return glue_cbc_encrypt_req_128bit(camellia_enc_blk, req);
+	CBC_WALK_START(req, CAMELLIA_BLOCK_SIZE, -1);
+	CBC_ENC_BLOCK(camellia_enc_blk);
+	CBC_WALK_END();
 }
 
 static int cbc_decrypt(struct skcipher_request *req)
 {
-	return glue_cbc_decrypt_req_128bit(&camellia_dec_cbc, req);
+	CBC_WALK_START(req, CAMELLIA_BLOCK_SIZE, CAMELLIA_AESNI_PARALLEL_BLOCKS);
+	CBC_DEC_BLOCK(CAMELLIA_AESNI_AVX2_PARALLEL_BLOCKS, camellia_cbc_dec_32way);
+	CBC_DEC_BLOCK(CAMELLIA_AESNI_PARALLEL_BLOCKS, camellia_cbc_dec_16way);
+	CBC_DEC_BLOCK(2, camellia_decrypt_cbc_2way);
+	CBC_DEC_BLOCK(1, camellia_dec_blk);
+	CBC_WALK_END();
 }
 
 static struct skcipher_alg camellia_algs[] = {

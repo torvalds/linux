@@ -15,7 +15,8 @@
 #include <linux/types.h>
 #include <crypto/algapi.h>
 #include <asm/crypto/camellia.h>
-#include <asm/crypto/glue_helper.h>
+
+#include "ecb_cbc_helpers.h"
 
 /* regular block cipher functions */
 asmlinkage void __camellia_enc_blk(const void *ctx, u8 *dst, const u8 *src,
@@ -1262,75 +1263,47 @@ static int camellia_setkey_skcipher(struct crypto_skcipher *tfm, const u8 *key,
 	return camellia_setkey(&tfm->base, key, key_len);
 }
 
-void camellia_decrypt_cbc_2way(const void *ctx, u8 *d, const u8 *s)
+void camellia_decrypt_cbc_2way(const void *ctx, u8 *dst, const u8 *src)
 {
-	u128 *dst = (u128 *)d;
-	const u128 *src = (const u128 *)s;
-	u128 iv = *src;
+	u8 buf[CAMELLIA_BLOCK_SIZE];
+	const u8 *iv = src;
 
-	camellia_dec_blk_2way(ctx, (u8 *)dst, (u8 *)src);
-
-	u128_xor(&dst[1], &dst[1], &iv);
+	if (dst == src)
+		iv = memcpy(buf, iv, sizeof(buf));
+	camellia_dec_blk_2way(ctx, dst, src);
+	crypto_xor(dst + CAMELLIA_BLOCK_SIZE, iv, CAMELLIA_BLOCK_SIZE);
 }
 EXPORT_SYMBOL_GPL(camellia_decrypt_cbc_2way);
 
-static const struct common_glue_ctx camellia_enc = {
-	.num_funcs = 2,
-	.fpu_blocks_limit = -1,
-
-	.funcs = { {
-		.num_blocks = 2,
-		.fn_u = { .ecb = camellia_enc_blk_2way }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .ecb = camellia_enc_blk }
-	} }
-};
-
-static const struct common_glue_ctx camellia_dec = {
-	.num_funcs = 2,
-	.fpu_blocks_limit = -1,
-
-	.funcs = { {
-		.num_blocks = 2,
-		.fn_u = { .ecb = camellia_dec_blk_2way }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .ecb = camellia_dec_blk }
-	} }
-};
-
-static const struct common_glue_ctx camellia_dec_cbc = {
-	.num_funcs = 2,
-	.fpu_blocks_limit = -1,
-
-	.funcs = { {
-		.num_blocks = 2,
-		.fn_u = { .cbc = camellia_decrypt_cbc_2way }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .cbc = camellia_dec_blk }
-	} }
-};
-
 static int ecb_encrypt(struct skcipher_request *req)
 {
-	return glue_ecb_req_128bit(&camellia_enc, req);
+	ECB_WALK_START(req, CAMELLIA_BLOCK_SIZE, -1);
+	ECB_BLOCK(2, camellia_enc_blk_2way);
+	ECB_BLOCK(1, camellia_enc_blk);
+	ECB_WALK_END();
 }
 
 static int ecb_decrypt(struct skcipher_request *req)
 {
-	return glue_ecb_req_128bit(&camellia_dec, req);
+	ECB_WALK_START(req, CAMELLIA_BLOCK_SIZE, -1);
+	ECB_BLOCK(2, camellia_dec_blk_2way);
+	ECB_BLOCK(1, camellia_dec_blk);
+	ECB_WALK_END();
 }
 
 static int cbc_encrypt(struct skcipher_request *req)
 {
-	return glue_cbc_encrypt_req_128bit(camellia_enc_blk, req);
+	CBC_WALK_START(req, CAMELLIA_BLOCK_SIZE, -1);
+	CBC_ENC_BLOCK(camellia_enc_blk);
+	CBC_WALK_END();
 }
 
 static int cbc_decrypt(struct skcipher_request *req)
 {
-	return glue_cbc_decrypt_req_128bit(&camellia_dec_cbc, req);
+	CBC_WALK_START(req, CAMELLIA_BLOCK_SIZE, -1);
+	CBC_DEC_BLOCK(2, camellia_decrypt_cbc_2way);
+	CBC_DEC_BLOCK(1, camellia_dec_blk);
+	CBC_WALK_END();
 }
 
 static struct crypto_alg camellia_cipher_alg = {

@@ -1286,7 +1286,6 @@ config CRYPTO_CAMELLIA_X86_64
 	depends on X86 && 64BIT
 	depends on CRYPTO
 	select CRYPTO_SKCIPHER
-	select CRYPTO_GLUE_HELPER_X86
 	imply CRYPTO_CTR
 	help
 	  Camellia cipher algorithm module (x86_64).
@@ -1305,7 +1304,6 @@ config CRYPTO_CAMELLIA_AESNI_AVX_X86_64
 	depends on CRYPTO
 	select CRYPTO_SKCIPHER
 	select CRYPTO_CAMELLIA_X86_64
-	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SIMD
 	imply CRYPTO_XTS
 	help
