@@ -14,6 +14,7 @@ struct rkispp_stream;
  * STREAM_S0: scale0 output
  * STREAM_S1: scale1 output
  * STREAM_S2: scale2 output
+ * STREAM_VIR: virtual output for debug
  */
 enum rkispp_stream_id {
 	STREAM_II = 0,
@@ -21,6 +22,7 @@ enum rkispp_stream_id {
 	STREAM_S0,
 	STREAM_S1,
 	STREAM_S2,
+	STREAM_VIR,
 	STREAM_MAX
 };
 
@@ -165,11 +167,13 @@ struct rkispp_stream {
 	struct frame_debug_info dbg;
 
 	u8 last_module;
+	u8 conn_id;
 	bool streaming;
 	bool stopping;
 	bool linked;
 	bool is_upd;
 	bool is_cfg;
+	bool is_end;
 };
 
 enum {
@@ -200,6 +204,13 @@ struct rkispp_monitor {
 	bool is_en;
 };
 
+struct rkispp_vir_cpy {
+	struct work_struct work;
+	struct completion cmpl;
+	struct list_head queue;
+	struct rkispp_stream *stream;
+};
+
 /* rkispp stream device */
 struct rkispp_stream_vdev {
 	struct rkispp_stream stream[STREAM_MAX];
@@ -209,6 +220,7 @@ struct rkispp_stream_vdev {
 	struct fec_module fec;
 	struct frame_debug_info dbg;
 	struct rkispp_monitor monitor;
+	struct rkispp_vir_cpy vir_cpy;
 	atomic_t refcnt;
 	u32 module_ens;
 	u32 irq_ends;

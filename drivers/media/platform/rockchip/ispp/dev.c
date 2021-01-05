@@ -168,6 +168,14 @@ static int rkispp_create_links(struct rkispp_device *ispp_dev)
 	if (ret < 0)
 		return ret;
 
+	stream = &stream_vdev->stream[STREAM_VIR];
+	stream->linked = flags;
+	sink = &stream->vnode.vdev.entity;
+	ret = media_create_pad_link(source, RKISPP_PAD_SOURCE,
+				    sink, 0, flags);
+	if (ret < 0)
+		return ret;
+
 	/* default enable tnr (2to1), nr, sharp */
 	ispp_dev->stream_vdev.module_ens =
 		ISPP_MODULE_TNR | ISPP_MODULE_NR | ISPP_MODULE_SHP;

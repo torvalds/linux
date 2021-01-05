@@ -17,6 +17,7 @@
 #define S0_VDEV_NAME DRIVER_NAME	"_scale0"
 #define S1_VDEV_NAME DRIVER_NAME	"_scale1"
 #define S2_VDEV_NAME DRIVER_NAME	"_scale2"
+#define VIR_VDEV_NAME DRIVER_NAME	"_iqtool"
 
 enum rkispp_input {
 	INP_INVAL = 0,

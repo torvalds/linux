@@ -246,6 +246,87 @@ struct capture_fmt *find_fmt(struct rkispp_stream *stream,
 	return NULL;
 }
 
+static void vir_cpy_image(struct work_struct *work)
+{
+	struct rkispp_vir_cpy *cpy =
+		container_of(work, struct rkispp_vir_cpy, work);
+	struct rkispp_stream *vir = cpy->stream;
+	struct rkispp_buffer *src_buf = NULL;
+	unsigned long lock_flags = 0;
+	u32 i;
+
+	v4l2_dbg(1, rkispp_debug, &vir->isppdev->v4l2_dev,
+		 "%s enter\n", __func__);
+
+	vir->streaming = true;
+	spin_lock_irqsave(&vir->vbq_lock, lock_flags);
+	if (!list_empty(&cpy->queue)) {
+		src_buf = list_first_entry(&cpy->queue,
+				struct rkispp_buffer, queue);
+		list_del(&src_buf->queue);
+	}
+	spin_unlock_irqrestore(&vir->vbq_lock, lock_flags);
+
+	while (src_buf || vir->streaming) {
+		if (vir->stopping || !vir->streaming)
+			goto end;
+		if (!src_buf)
+			wait_for_completion(&cpy->cmpl);
+
+		vir->is_end = false;
+		spin_lock_irqsave(&vir->vbq_lock, lock_flags);
+		if (!src_buf && !list_empty(&cpy->queue)) {
+			src_buf = list_first_entry(&cpy->queue,
+					struct rkispp_buffer, queue);
+			list_del(&src_buf->queue);
+		}
+		if (src_buf && !vir->curr_buf && !list_empty(&vir->buf_queue)) {
+			vir->curr_buf = list_first_entry(&vir->buf_queue,
+					struct rkispp_buffer, queue);
+			list_del(&vir->curr_buf->queue);
+		}
+		spin_unlock_irqrestore(&vir->vbq_lock, lock_flags);
+		if (!vir->curr_buf || !src_buf)
+			goto end;
+		for (i = 0; i < vir->out_cap_fmt.mplanes; i++) {
+			u32 payload_size = vir->out_fmt.plane_fmt[i].sizeimage;
+			void *src = vb2_plane_vaddr(&src_buf->vb.vb2_buf, i);
+			void *dst = vb2_plane_vaddr(&vir->curr_buf->vb.vb2_buf, i);
+
+			if (!src || !dst)
+				break;
+			vb2_set_plane_payload(&vir->curr_buf->vb.vb2_buf, i, payload_size);
+			memcpy(dst, src, payload_size);
+		}
+		vir->curr_buf->vb.sequence = src_buf->vb.sequence;
+		vir->curr_buf->vb.vb2_buf.timestamp = src_buf->vb.vb2_buf.timestamp;
+		vb2_buffer_done(&vir->curr_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+		vir->curr_buf = NULL;
+end:
+		if (src_buf)
+			vb2_buffer_done(&src_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+		src_buf = NULL;
+		spin_lock_irqsave(&vir->vbq_lock, lock_flags);
+		if (!list_empty(&cpy->queue)) {
+			src_buf = list_first_entry(&cpy->queue,
+					struct rkispp_buffer, queue);
+			list_del(&src_buf->queue);
+		} else if (vir->stopping) {
+			vir->streaming = false;
+		}
+		spin_unlock_irqrestore(&vir->vbq_lock, lock_flags);
+	}
+
+	vir->is_end = true;
+	if (vir->stopping) {
+		vir->stopping = false;
+		vir->streaming = false;
+		wake_up(&vir->done);
+	}
+	v4l2_dbg(1, rkispp_debug, &vir->isppdev->v4l2_dev,
+		 "%s exit\n", __func__);
+}
+
 static void check_to_force_update(struct rkispp_device *dev, u32 mis_val)
 {
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
@@ -261,7 +342,7 @@ static void check_to_force_update(struct rkispp_device *dev, u32 mis_val)
 					 ISPP_MODULE_FEC, true);
 
 	/* wait nr_shp/fec/scl idle */
-	for (i = STREAM_S0; i < STREAM_MAX; i++) {
+	for (i = STREAM_S0; i <= STREAM_S2; i++) {
 		stream = &vdev->stream[i];
 		if (stream->is_upd && !is_fec_en)
 			mask |= stream->config->frame_end_id;
@@ -277,7 +358,7 @@ static void check_to_force_update(struct rkispp_device *dev, u32 mis_val)
 	rkispp_module_work_event(dev, NULL, NULL,
 				 ISPP_MODULE_NR, true);
 
-	for (i = STREAM_MB; i < STREAM_MAX; i++) {
+	for (i = STREAM_MB; i <= STREAM_S2; i++) {
 		stream = &vdev->stream[i];
 		if (stream->streaming)
 			stream->is_upd = true;
@@ -331,6 +412,7 @@ static int rkispp_frame_end(struct rkispp_stream *stream)
 	int i = 0;
 
 	if (stream->curr_buf) {
+		struct rkispp_stream *vir = &dev->stream_vdev.stream[STREAM_VIR];
 		u64 ns;
 
 		if (dev->isp_mode & ISP_ISPP_QUICK || dev->inp == INP_DDR)
@@ -368,9 +450,21 @@ static int rkispp_frame_end(struct rkispp_stream *stream)
 			}
 		}
 
-		vb2_buffer_done(&stream->curr_buf->vb.vb2_buf,
-				VB2_BUF_STATE_DONE);
-
+		if (vir->streaming && vir->conn_id == stream->id) {
+			spin_lock_irqsave(&vir->vbq_lock, lock_flags);
+			if (vir->streaming)
+				list_add_tail(&stream->curr_buf->queue,
+					&dev->stream_vdev.vir_cpy.queue);
+			spin_unlock_irqrestore(&vir->vbq_lock, lock_flags);
+			if (!completion_done(&dev->stream_vdev.vir_cpy.cmpl))
+				complete(&dev->stream_vdev.vir_cpy.cmpl);
+			if (!vir->streaming)
+				vb2_buffer_done(&stream->curr_buf->vb.vb2_buf,
+						VB2_BUF_STATE_DONE);
+		} else {
+			vb2_buffer_done(&stream->curr_buf->vb.vb2_buf,
+					VB2_BUF_STATE_DONE);
+		}
 		ns = ktime_get_ns();
 		stream->dbg.interval = ns - stream->dbg.timestamp;
 		stream->dbg.timestamp = ns;
@@ -1013,7 +1107,7 @@ static int start_ii(struct rkispp_stream *stream)
 	u32 i, module;
 
 	writel(ALL_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
-	for (i = STREAM_MB; i < STREAM_MAX; i++) {
+	for (i = STREAM_MB; i <= STREAM_S2; i++) {
 		if (vdev->stream[i].streaming)
 			vdev->stream[i].is_upd = true;
 	}
@@ -1454,7 +1548,7 @@ static void rkispp_stream_stop(struct rkispp_stream *stream)
 			v4l2_warn(&dev->v4l2_dev,
 				  "stream:%d stop timeout\n", stream->id);
 	}
-	if (!ret) {
+	if (!ret && stream->ops) {
 		/* scl stream close dma write */
 		if (stream->ops->stop)
 			stream->ops->stop(stream);
@@ -1504,6 +1598,19 @@ static void rkispp_stop_streaming(struct vb2_queue *queue)
 	if (!stream->streaming)
 		return;
 
+	if (stream->id == STREAM_VIR) {
+		stream->stopping = true;
+		wait_event_timeout(stream->done,
+				   stream->is_end,
+				   msecs_to_jiffies(500));
+		stream->streaming = false;
+		stream->stopping = false;
+		destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);
+		if (!completion_done(&dev->stream_vdev.vir_cpy.cmpl))
+			complete(&dev->stream_vdev.vir_cpy.cmpl);
+		return;
+	}
+
 	mutex_lock(&dev->hw_dev->dev_lock);
 	rkispp_stream_stop(stream);
 	destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);
@@ -1529,7 +1636,7 @@ static int start_isp(struct rkispp_device *dev)
 
 	if (dev->stream_sync) {
 		/* output stream enable then start isp */
-		for (i = STREAM_MB; i < STREAM_MAX; i++) {
+		for (i = STREAM_MB; i <= STREAM_S2; i++) {
 			stream = &vdev->stream[i];
 			if (stream->linked && !stream->streaming)
 				return 0;
@@ -1559,7 +1666,7 @@ static int start_isp(struct rkispp_device *dev)
 	}
 	if (dev->hw_dev->is_single)
 		writel(ALL_FORCE_UPD, dev->hw_dev->base_addr + RKISPP_CTRL_UPDATE);
-	for (i = STREAM_MB; i < STREAM_MAX; i++) {
+	for (i = STREAM_MB; i <= STREAM_S2; i++) {
 		stream = &vdev->stream[i];
 		if (stream->streaming)
 			stream->is_upd = true;
@@ -1588,6 +1695,26 @@ static int rkispp_start_streaming(struct vb2_queue *queue,
 	if (stream->streaming)
 		return -EBUSY;
 
+	stream->is_end = true;
+	if (stream->id == STREAM_VIR) {
+		struct rkispp_stream *t = &dev->stream_vdev.stream[stream->conn_id];
+
+		if (t->streaming) {
+			INIT_WORK(&dev->stream_vdev.vir_cpy.work, vir_cpy_image);
+			init_completion(&dev->stream_vdev.vir_cpy.cmpl);
+			INIT_LIST_HEAD(&dev->stream_vdev.vir_cpy.queue);
+			dev->stream_vdev.vir_cpy.stream = stream;
+			schedule_work(&dev->stream_vdev.vir_cpy.work);
+			ret = 0;
+		} else {
+			v4l2_err(&dev->v4l2_dev,
+				 "no stream enable for iqtool\n");
+			destroy_buf_queue(stream, VB2_BUF_STATE_QUEUED);
+			ret = -EINVAL;
+		}
+		return ret;
+	}
+
 	stream->is_upd = false;
 	stream->is_cfg = false;
 	atomic_inc(&dev->stream_vdev.refcnt);
@@ -1604,14 +1731,14 @@ static int rkispp_start_streaming(struct vb2_queue *queue,
 	if (dev->inp == INP_ISP)
 		dev->stream_vdev.module_ens |= ISPP_MODULE_NR;
 
-	if (stream->ops->config) {
+	if (stream->ops && stream->ops->config) {
 		ret = stream->ops->config(stream);
 		if (ret < 0)
 			goto free_dummy_buf;
 	}
 
 	/* start from ddr */
-	if (stream->ops->start)
+	if (stream->ops && stream->ops->start)
 		stream->ops->start(stream);
 
 	stream->streaming = true;
@@ -1678,6 +1805,25 @@ static int rkispp_set_fmt(struct rkispp_stream *stream,
 	unsigned int planes;
 	u32 xsubs = 1, ysubs = 1;
 	unsigned int i;
+
+	if (stream->id == STREAM_VIR) {
+		for (i = STREAM_MB; i <= STREAM_S2; i++) {
+			struct rkispp_stream *t = &dev->stream_vdev.stream[i];
+
+			if (t->out_cap_fmt.wr_fmt & FMT_FBC || !t->streaming)
+				continue;
+			if (t->out_fmt.plane_fmt[0].sizeimage > imagsize) {
+				imagsize = t->out_fmt.plane_fmt[0].sizeimage;
+				*pixm = t->out_fmt;
+				stream->conn_id = t->id;
+			}
+		}
+		if (!imagsize) {
+			v4l2_err(&dev->v4l2_dev, "no output stream for iqtool\n");
+			return -EINVAL;
+		}
+		imagsize = 0;
+	}
 
 	fmt = find_fmt(stream, pixm->pixelformat);
 	if (!fmt) {
@@ -1764,7 +1910,7 @@ static int rkispp_set_fmt(struct rkispp_stream *stream,
 		}
 	}
 
-	if (stream->ops->limit_check)
+	if (stream->ops && stream->ops->limit_check)
 		return stream->ops->limit_check(stream, try ? pixm : NULL);
 
 	return 0;
@@ -2394,7 +2540,7 @@ static void nr_work_event(struct rkispp_device *dev,
 			 seq, readl(base + RKISPP_NR_ADDR_BASE_Y_SHD),
 			 readl(base + RKISPP_SHARP_WR_Y_BASE_SHD));
 
-		for (val = STREAM_S0; val < STREAM_MAX; val++) {
+		for (val = STREAM_S0; val <= STREAM_S2; val++) {
 			stream = &vdev->stream[val];
 			if (stream->stopping && stream->ops->stop)
 				stream->ops->stop(stream);
@@ -2789,7 +2935,7 @@ void rkispp_isr(u32 mis_val, struct rkispp_device *dev)
 	rkispp_params_isr(&dev->params_vdev, mis_val);
 	rkispp_stats_isr(&dev->stats_vdev, mis_val);
 
-	for (i = 0; i < STREAM_MAX; i++) {
+	for (i = 0; i <= STREAM_S2; i++) {
 		stream = &vdev->stream[i];
 
 		if (!stream->streaming || !stream->is_cfg ||
@@ -2868,6 +3014,12 @@ int rkispp_register_stream_vdevs(struct rkispp_device *dev)
 			stream->type = STREAM_OUTPUT;
 			stream->ops = &scal_stream_ops;
 			stream->config = &scl2_config;
+			break;
+		case STREAM_VIR:
+			vdev_name = VIR_VDEV_NAME;
+			stream->type = STREAM_OUTPUT;
+			stream->config = &input_config;
+			stream->ops = NULL;
 			break;
 		default:
 			v4l2_err(&dev->v4l2_dev, "Invalid stream:%d\n", i);

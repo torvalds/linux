@@ -46,7 +46,7 @@ static int ispp_show(struct seq_file *p, void *v)
 		   dev->stream_vdev.dbg.id,
 		   dev->stream_vdev.dbg.interval / 1000 / 1000,
 		   dev->stream_vdev.dbg.delay / 1000 / 1000);
-	for (val = STREAM_MB; val < STREAM_MAX; val++) {
+	for (val = STREAM_MB; val <= STREAM_S2; val++) {
 		stream = &dev->stream_vdev.stream[val];
 		if (!stream->streaming)
 			continue;
