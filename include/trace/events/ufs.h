@@ -20,28 +20,28 @@
 		{ SYNCHRONIZE_CACHE,	"SYNC" },			\
 		{ UNMAP,		"UNMAP" })
 
-#define UFS_LINK_STATES			\
-	EM(UIC_LINK_OFF_STATE)		\
-	EM(UIC_LINK_ACTIVE_STATE)	\
-	EMe(UIC_LINK_HIBERN8_STATE)
+#define UFS_LINK_STATES						\
+	EM(UIC_LINK_OFF_STATE,		"UIC_LINK_OFF_STATE")		\
+	EM(UIC_LINK_ACTIVE_STATE,	"UIC_LINK_ACTIVE_STATE")	\
+	EMe(UIC_LINK_HIBERN8_STATE,	"UIC_LINK_HIBERN8_STATE")
 
-#define UFS_PWR_MODES			\
-	EM(UFS_ACTIVE_PWR_MODE)		\
-	EM(UFS_SLEEP_PWR_MODE)		\
-	EM(UFS_POWERDOWN_PWR_MODE)	\
-	EMe(UFS_DEEPSLEEP_PWR_MODE)
+#define UFS_PWR_MODES							\
+	EM(UFS_ACTIVE_PWR_MODE,		"UFS_ACTIVE_PWR_MODE")		\
+	EM(UFS_SLEEP_PWR_MODE,		"UFS_SLEEP_PWR_MODE")		\
+	EM(UFS_POWERDOWN_PWR_MODE,	"UFS_POWERDOWN_PWR_MODE")	\
+	EMe(UFS_DEEPSLEEP_PWR_MODE,	"UFS_DEEPSLEEP_PWR_MODE")
 
-#define UFSCHD_CLK_GATING_STATES	\
-	EM(CLKS_OFF)			\
-	EM(CLKS_ON)			\
-	EM(REQ_CLKS_OFF)		\
-	EMe(REQ_CLKS_ON)
+#define UFSCHD_CLK_GATING_STATES				\
+	EM(CLKS_OFF,			"CLKS_OFF")		\
+	EM(CLKS_ON,			"CLKS_ON")		\
+	EM(REQ_CLKS_OFF,		"REQ_CLKS_OFF")		\
+	EMe(REQ_CLKS_ON,		"REQ_CLKS_ON")
 
 /* Enums require being exported to userspace, for user tool parsing */
 #undef EM
 #undef EMe
-#define EM(a)	TRACE_DEFINE_ENUM(a);
-#define EMe(a)	TRACE_DEFINE_ENUM(a);
+#define EM(a, b)	TRACE_DEFINE_ENUM(a);
+#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
 
 UFS_LINK_STATES;
 UFS_PWR_MODES;
@@ -53,8 +53,8 @@ UFSCHD_CLK_GATING_STATES;
  */
 #undef EM
 #undef EMe
-#define EM(a)	{ a, #a },
-#define EMe(a)	{ a, #a }
+#define EM(a, b)	{a, b},
+#define EMe(a, b)	{a, b}
 
 TRACE_EVENT(ufshcd_clk_gating,
 
