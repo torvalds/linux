@@ -4916,6 +4916,9 @@ static int rtw_p2p_set_intent(struct net_device *dev,
 	struct wifidirect_info 			*pwdinfo= &(padapter->wdinfo);
 	u8							intent = pwdinfo->intent;
 
+	if (wrqu->data.length >= 4096)
+		return -1;
+
 	extra[ wrqu->data.length ] = 0x00;
 
 	intent = rtw_atoi( extra );
@@ -4944,6 +4947,9 @@ static int rtw_p2p_set_listen_ch(struct net_device *dev,
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
 	struct wifidirect_info *pwdinfo= &(padapter->wdinfo);
 	u8	listen_ch = pwdinfo->listen_channel;	//	Listen channel number
+
+	if (wrqu->data.length >= 4096)
+		return -1;
 
 	extra[ wrqu->data.length ] = 0x00;
 	listen_ch = rtw_atoi( extra );
@@ -4975,6 +4981,9 @@ static int rtw_p2p_set_op_ch(struct net_device *dev,
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
 	struct wifidirect_info *pwdinfo= &(padapter->wdinfo);
 	u8	op_ch = pwdinfo->operating_channel;	//	Operating channel number
+
+	if(wrqu->data.length >= 4096)
+		return -1;
 
 	extra[ wrqu->data.length ] = 0x00;
 
@@ -13723,6 +13732,11 @@ static int _rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq
 		extra = buffer;
 
 	handler = priv[priv_args[k].cmd - SIOCIWFIRSTPRIV];
+	if (handler == NULL) {
+		err = -EINVAL;
+		goto exit;
+	}
+
 	err = handler(dev, NULL, &wdata, extra);
 
 	/* If we have to get some data */
