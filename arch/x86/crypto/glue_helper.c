@@ -6,8 +6,6 @@
  *
  * CBC & ECB parts based on code (crypto/cbc.c,ecb.c) by:
  *   Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
- * CTR part based on code (crypto/ctr.c) by:
- *   (C) Copyright IBM Corp. 2007 - Joy Latten <latten@us.ibm.com>
  */
 
 #include <linux/module.h>
@@ -153,75 +151,5 @@ done:
 	return err;
 }
 EXPORT_SYMBOL_GPL(glue_cbc_decrypt_req_128bit);
-
-int glue_ctr_req_128bit(const struct common_glue_ctx *gctx,
-			struct skcipher_request *req)
-{
-	void *ctx = crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
-	const unsigned int bsize = 128 / 8;
-	struct skcipher_walk walk;
-	bool fpu_enabled = false;
-	unsigned int nbytes;
-	int err;
-
-	err = skcipher_walk_virt(&walk, req, false);
-
-	while ((nbytes = walk.nbytes) >= bsize) {
-		const u128 *src = walk.src.virt.addr;
-		u128 *dst = walk.dst.virt.addr;
-		unsigned int func_bytes, num_blocks;
-		unsigned int i;
-		le128 ctrblk;
-
-		fpu_enabled = glue_fpu_begin(bsize, gctx->fpu_blocks_limit,
-					     &walk, fpu_enabled, nbytes);
-
-		be128_to_le128(&ctrblk, (be128 *)walk.iv);
-
-		for (i = 0; i < gctx->num_funcs; i++) {
-			num_blocks = gctx->funcs[i].num_blocks;
-			func_bytes = bsize * num_blocks;
-
-			if (nbytes < func_bytes)
-				continue;
-
-			/* Process multi-block batch */
-			do {
-				gctx->funcs[i].fn_u.ctr(ctx, (u8 *)dst,
-							(const u8 *)src,
-							&ctrblk);
-				src += num_blocks;
-				dst += num_blocks;
-				nbytes -= func_bytes;
-			} while (nbytes >= func_bytes);
-
-			if (nbytes < bsize)
-				break;
-		}
-
-		le128_to_be128((be128 *)walk.iv, &ctrblk);
-		err = skcipher_walk_done(&walk, nbytes);
-	}
-
-	glue_fpu_end(fpu_enabled);
-
-	if (nbytes) {
-		le128 ctrblk;
-		u128 tmp;
-
-		be128_to_le128(&ctrblk, (be128 *)walk.iv);
-		memcpy(&tmp, walk.src.virt.addr, nbytes);
-		gctx->funcs[gctx->num_funcs - 1].fn_u.ctr(ctx, (u8 *)&tmp,
-							  (const u8 *)&tmp,
-							  &ctrblk);
-		memcpy(walk.dst.virt.addr, &tmp, nbytes);
-		le128_to_be128((be128 *)walk.iv, &ctrblk);
-
-		err = skcipher_walk_done(&walk, 0);
-	}
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(glue_ctr_req_128bit);
 
 MODULE_LICENSE("GPL");

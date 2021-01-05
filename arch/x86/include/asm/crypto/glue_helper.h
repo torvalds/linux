@@ -9,19 +9,15 @@
 #include <crypto/internal/skcipher.h>
 #include <linux/kernel.h>
 #include <asm/fpu/api.h>
-#include <crypto/b128ops.h>
 
 typedef void (*common_glue_func_t)(const void *ctx, u8 *dst, const u8 *src);
 typedef void (*common_glue_cbc_func_t)(const void *ctx, u8 *dst, const u8 *src);
-typedef void (*common_glue_ctr_func_t)(const void *ctx, u8 *dst, const u8 *src,
-				       le128 *iv);
 
 struct common_glue_func_entry {
 	unsigned int num_blocks; /* number of blocks that @fn will process */
 	union {
 		common_glue_func_t ecb;
 		common_glue_cbc_func_t cbc;
-		common_glue_ctr_func_t ctr;
 	} fn_u;
 };
 
@@ -66,31 +62,6 @@ static inline void glue_fpu_end(bool fpu_enabled)
 		kernel_fpu_end();
 }
 
-static inline void le128_to_be128(be128 *dst, const le128 *src)
-{
-	dst->a = cpu_to_be64(le64_to_cpu(src->a));
-	dst->b = cpu_to_be64(le64_to_cpu(src->b));
-}
-
-static inline void be128_to_le128(le128 *dst, const be128 *src)
-{
-	dst->a = cpu_to_le64(be64_to_cpu(src->a));
-	dst->b = cpu_to_le64(be64_to_cpu(src->b));
-}
-
-static inline void le128_inc(le128 *i)
-{
-	u64 a = le64_to_cpu(i->a);
-	u64 b = le64_to_cpu(i->b);
-
-	b++;
-	if (!b)
-		a++;
-
-	i->a = cpu_to_le64(a);
-	i->b = cpu_to_le64(b);
-}
-
 extern int glue_ecb_req_128bit(const struct common_glue_ctx *gctx,
 			       struct skcipher_request *req);
 
@@ -99,8 +70,5 @@ extern int glue_cbc_encrypt_req_128bit(const common_glue_func_t fn,
 
 extern int glue_cbc_decrypt_req_128bit(const struct common_glue_ctx *gctx,
 				       struct skcipher_request *req);
-
-extern int glue_ctr_req_128bit(const struct common_glue_ctx *gctx,
-			       struct skcipher_request *req);
 
 #endif /* _CRYPTO_GLUE_HELPER_H */
