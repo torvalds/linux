@@ -645,11 +645,20 @@ static int bareudp_link_config(struct net_device *dev,
 	return 0;
 }
 
+static void bareudp_dellink(struct net_device *dev, struct list_head *head)
+{
+	struct bareudp_dev *bareudp = netdev_priv(dev);
+
+	list_del(&bareudp->next);
+	unregister_netdevice_queue(dev, head);
+}
+
 static int bareudp_newlink(struct net *net, struct net_device *dev,
 			   struct nlattr *tb[], struct nlattr *data[],
 			   struct netlink_ext_ack *extack)
 {
 	struct bareudp_conf conf;
+	LIST_HEAD(list_kill);
 	int err;
 
 	err = bareudp2info(data, &conf, extack);
@@ -662,17 +671,14 @@ static int bareudp_newlink(struct net *net, struct net_device *dev,
 
 	err = bareudp_link_config(dev, tb);
 	if (err)
-		return err;
+		goto err_unconfig;
 
 	return 0;
-}
 
-static void bareudp_dellink(struct net_device *dev, struct list_head *head)
-{
-	struct bareudp_dev *bareudp = netdev_priv(dev);
-
-	list_del(&bareudp->next);
-	unregister_netdevice_queue(dev, head);
+err_unconfig:
+	bareudp_dellink(dev, &list_kill);
+	unregister_netdevice_many(&list_kill);
+	return err;
 }
 
 static size_t bareudp_get_size(const struct net_device *dev)
