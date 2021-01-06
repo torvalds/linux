@@ -3513,23 +3513,20 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 				 unsigned long nr_written,
 				 int *nr_ret)
 {
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct extent_io_tree *tree = &inode->io_tree;
 	u64 start = page_offset(page);
-	u64 page_end = start + PAGE_SIZE - 1;
-	u64 end;
+	u64 end = start + PAGE_SIZE - 1;
 	u64 cur = start;
 	u64 extent_offset;
 	u64 block_start;
-	u64 iosize;
 	struct extent_map *em;
-	size_t pg_offset = 0;
-	size_t blocksize;
 	int ret = 0;
 	int nr = 0;
 	const unsigned int write_flags = wbc_to_write_flags(wbc);
 	bool compressed;
 
-	ret = btrfs_writepage_cow_fixup(page, start, page_end);
+	ret = btrfs_writepage_cow_fixup(page, start, end);
 	if (ret) {
 		/* Fixup worker will requeue */
 		redirty_page_for_writepage(wbc, page);
@@ -3544,16 +3541,13 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 	 */
 	update_nr_written(wbc, nr_written + 1);
 
-	end = page_end;
-	blocksize = inode->vfs_inode.i_sb->s_blocksize;
-
 	while (cur <= end) {
 		u64 disk_bytenr;
 		u64 em_end;
+		u32 iosize;
 
 		if (cur >= i_size) {
-			btrfs_writepage_endio_finish_ordered(page, cur,
-							     page_end, 1);
+			btrfs_writepage_endio_finish_ordered(page, cur, end, 1);
 			break;
 		}
 		em = btrfs_get_extent(inode, NULL, 0, cur, end - cur + 1);
@@ -3565,13 +3559,16 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 
 		extent_offset = cur - em->start;
 		em_end = extent_map_end(em);
-		BUG_ON(em_end <= cur);
-		BUG_ON(end < cur);
-		iosize = min(em_end - cur, end - cur + 1);
-		iosize = ALIGN(iosize, blocksize);
-		disk_bytenr = em->block_start + extent_offset;
+		ASSERT(cur <= em_end);
+		ASSERT(cur < end);
+		ASSERT(IS_ALIGNED(em->start, fs_info->sectorsize));
+		ASSERT(IS_ALIGNED(em->len, fs_info->sectorsize));
 		block_start = em->block_start;
 		compressed = test_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
+		disk_bytenr = em->block_start + extent_offset;
+
+		/* Note that em_end from extent_map_end() is exclusive */
+		iosize = min(em_end, end + 1) - cur;
 		free_extent_map(em);
 		em = NULL;
 
@@ -3587,7 +3584,6 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 				btrfs_writepage_endio_finish_ordered(page, cur,
 							cur + iosize - 1, 1);
 			cur += iosize;
-			pg_offset += iosize;
 			continue;
 		}
 
@@ -3599,8 +3595,8 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		}
 
 		ret = submit_extent_page(REQ_OP_WRITE | write_flags, wbc,
-					 page, disk_bytenr, iosize, pg_offset,
-					 &epd->bio,
+					 page, disk_bytenr, iosize,
+					 cur - page_offset(page), &epd->bio,
 					 end_bio_extent_writepage,
 					 0, 0, 0, false);
 		if (ret) {
@@ -3609,8 +3605,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 				end_page_writeback(page);
 		}
 
-		cur = cur + iosize;
-		pg_offset += iosize;
+		cur += iosize;
 		nr++;
 	}
 	*nr_ret = nr;
