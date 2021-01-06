@@ -626,7 +626,6 @@ static inline void dev_iommu_priv_set(struct device *dev, void *priv)
 int iommu_probe_device(struct device *dev);
 void iommu_release_device(struct device *dev);
 
-bool iommu_dev_has_feature(struct device *dev, enum iommu_dev_features f);
 int iommu_dev_enable_feature(struct device *dev, enum iommu_dev_features f);
 int iommu_dev_disable_feature(struct device *dev, enum iommu_dev_features f);
 bool iommu_dev_feature_enabled(struct device *dev, enum iommu_dev_features f);
@@ -973,12 +972,6 @@ static inline
 const struct iommu_ops *iommu_ops_from_fwnode(struct fwnode_handle *fwnode)
 {
 	return NULL;
-}
-
-static inline bool
-iommu_dev_has_feature(struct device *dev, enum iommu_dev_features feat)
-{
-	return false;
 }
 
 static inline bool
