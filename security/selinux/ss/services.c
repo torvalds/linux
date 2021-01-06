@@ -3693,15 +3693,11 @@ out:
 	return match;
 }
 
-static int (*aurule_callback)(void) = audit_update_lsm_rules;
-
 static int aurule_avc_callback(u32 event)
 {
-	int err = 0;
-
-	if (event == AVC_CALLBACK_RESET && aurule_callback)
-		err = aurule_callback();
-	return err;
+	if (event == AVC_CALLBACK_RESET)
+		return audit_update_lsm_rules();
+	return 0;
 }
 
 static int __init aurule_init(void)
