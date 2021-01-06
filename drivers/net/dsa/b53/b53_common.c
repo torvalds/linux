@@ -2459,6 +2459,20 @@ static const struct b53_chip_data b53_switch_chips[] = {
 		.jumbo_pm_reg = B53_JUMBO_PORT_MASK,
 		.jumbo_size_reg = B53_JUMBO_MAX_SIZE,
 	},
+	/* Starfighter 2 */
+	{
+		.chip_id = BCM4908_DEVICE_ID,
+		.dev_name = "BCM4908",
+		.vlans = 4096,
+		.enabled_ports = 0x1bf,
+		.arl_bins = 4,
+		.arl_buckets = 256,
+		.cpu_port = 8, /* TODO: ports 4, 5, 8 */
+		.vta_regs = B53_VTA_REGS,
+		.duplex_reg = B53_DUPLEX_STAT_GE,
+		.jumbo_pm_reg = B53_JUMBO_PORT_MASK,
+		.jumbo_size_reg = B53_JUMBO_MAX_SIZE,
+	},
 	{
 		.chip_id = BCM7445_DEVICE_ID,
 		.dev_name = "BCM7445",
