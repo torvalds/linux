@@ -96,10 +96,10 @@ __igt_reset_stolen(struct intel_gt *gt,
 		if (!__drm_mm_interval_first(&gt->i915->mm.stolen,
 					     page << PAGE_SHIFT,
 					     ((page + 1) << PAGE_SHIFT) - 1))
-			memset32(s, STACK_MAGIC, PAGE_SIZE / sizeof(u32));
+			memset_io(s, STACK_MAGIC, PAGE_SIZE);
 
-		in = s;
-		if (i915_memcpy_from_wc(tmp, s, PAGE_SIZE))
+		in = (void __force *)s;
+		if (i915_memcpy_from_wc(tmp, in, PAGE_SIZE))
 			in = tmp;
 		crc[page] = crc32_le(0, in, PAGE_SIZE);
 
@@ -134,8 +134,8 @@ __igt_reset_stolen(struct intel_gt *gt,
 				      ggtt->error_capture.start,
 				      PAGE_SIZE);
 
-		in = s;
-		if (i915_memcpy_from_wc(tmp, s, PAGE_SIZE))
+		in = (void __force *)s;
+		if (i915_memcpy_from_wc(tmp, in, PAGE_SIZE))
 			in = tmp;
 		x = crc32_le(0, in, PAGE_SIZE);
 
