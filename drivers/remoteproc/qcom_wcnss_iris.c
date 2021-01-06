@@ -160,6 +160,7 @@ static int qcom_iris_remove(struct platform_device *pdev)
 static const struct of_device_id iris_of_match[] = {
 	{ .compatible = "qcom,wcn3620", .data = &wcn3620_data },
 	{ .compatible = "qcom,wcn3660", .data = &wcn3660_data },
+	{ .compatible = "qcom,wcn3660b", .data = &wcn3680_data },
 	{ .compatible = "qcom,wcn3680", .data = &wcn3680_data },
 	{}
 };
