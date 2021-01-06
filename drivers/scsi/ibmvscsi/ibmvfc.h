@@ -768,10 +768,13 @@ struct ibmvfc_queue {
 	dma_addr_t msg_token;
 	enum ibmvfc_msg_fmt fmt;
 	int size, cur;
+	spinlock_t _lock;
+	spinlock_t *q_lock;
 
 	struct ibmvfc_event_pool evt_pool;
 	struct list_head sent;
 	struct list_head free;
+	spinlock_t l_lock;
 };
 
 enum ibmvfc_host_action {
@@ -808,11 +811,13 @@ struct ibmvfc_host {
 	enum ibmvfc_host_action action;
 #define IBMVFC_NUM_TRACE_INDEX_BITS		8
 #define IBMVFC_NUM_TRACE_ENTRIES		(1 << IBMVFC_NUM_TRACE_INDEX_BITS)
+#define IBMVFC_TRACE_INDEX_MASK			(IBMVFC_NUM_TRACE_ENTRIES - 1)
 #define IBMVFC_TRACE_SIZE	(sizeof(struct ibmvfc_trace_entry) * IBMVFC_NUM_TRACE_ENTRIES)
 	struct ibmvfc_trace_entry *trace;
-	u32 trace_index:IBMVFC_NUM_TRACE_INDEX_BITS;
+	atomic_t trace_index;
 	int num_targets;
 	struct list_head targets;
+	struct list_head purge;
 	struct device *dev;
 	struct dma_pool *sg_pool;
 	mempool_t *tgt_pool;
