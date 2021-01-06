@@ -604,13 +604,13 @@ void ext4_fc_track_range(handle_t *handle, struct inode *inode, ext4_lblk_t star
 	trace_ext4_fc_track_range(inode, start, end, ret);
 }
 
-static void ext4_fc_submit_bh(struct super_block *sb)
+static void ext4_fc_submit_bh(struct super_block *sb, bool is_tail)
 {
 	int write_flags = REQ_SYNC;
 	struct buffer_head *bh = EXT4_SB(sb)->s_fc_bh;
 
-	/* TODO: REQ_FUA | REQ_PREFLUSH is unnecessarily expensive. */
-	if (test_opt(sb, BARRIER))
+	/* Add REQ_FUA | REQ_PREFLUSH only its tail */
+	if (test_opt(sb, BARRIER) && is_tail)
 		write_flags |= REQ_FUA | REQ_PREFLUSH;
 	lock_buffer(bh);
 	set_buffer_dirty(bh);
@@ -684,7 +684,7 @@ static u8 *ext4_fc_reserve_space(struct super_block *sb, int len, u32 *crc)
 		*crc = ext4_chksum(sbi, *crc, tl, sizeof(*tl));
 	if (pad_len > 0)
 		ext4_fc_memzero(sb, tl + 1, pad_len, crc);
-	ext4_fc_submit_bh(sb);
+	ext4_fc_submit_bh(sb, false);
 
 	ret = jbd2_fc_get_buf(EXT4_SB(sb)->s_journal, &bh);
 	if (ret)
@@ -741,7 +741,7 @@ static int ext4_fc_write_tail(struct super_block *sb, u32 crc)
 	tail.fc_crc = cpu_to_le32(crc);
 	ext4_fc_memcpy(sb, dst, &tail.fc_crc, sizeof(tail.fc_crc), NULL);
 
-	ext4_fc_submit_bh(sb);
+	ext4_fc_submit_bh(sb, true);
 
 	return 0;
 }
