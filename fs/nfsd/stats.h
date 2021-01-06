@@ -59,19 +59,25 @@ static inline void nfsd_stats_rc_nocache_inc(void)
 	percpu_counter_inc(&nfsdstats.counter[NFSD_STATS_RC_NOCACHE]);
 }
 
-static inline void nfsd_stats_fh_stale_inc(void)
+static inline void nfsd_stats_fh_stale_inc(struct svc_export *exp)
 {
 	percpu_counter_inc(&nfsdstats.counter[NFSD_STATS_FH_STALE]);
+	if (exp)
+		percpu_counter_inc(&exp->ex_stats.counter[EXP_STATS_FH_STALE]);
 }
 
-static inline void nfsd_stats_io_read_add(s64 amount)
+static inline void nfsd_stats_io_read_add(struct svc_export *exp, s64 amount)
 {
 	percpu_counter_add(&nfsdstats.counter[NFSD_STATS_IO_READ], amount);
+	if (exp)
+		percpu_counter_add(&exp->ex_stats.counter[EXP_STATS_IO_READ], amount);
 }
 
-static inline void nfsd_stats_io_write_add(s64 amount)
+static inline void nfsd_stats_io_write_add(struct svc_export *exp, s64 amount)
 {
 	percpu_counter_add(&nfsdstats.counter[NFSD_STATS_IO_WRITE], amount);
+	if (exp)
+		percpu_counter_add(&exp->ex_stats.counter[EXP_STATS_IO_WRITE], amount);
 }
 
 static inline void nfsd_stats_payload_misses_inc(struct nfsd_net *nn)
