@@ -2598,15 +2598,6 @@ int iommu_domain_window_enable(struct iommu_domain *domain, u32 wnd_nr,
 }
 EXPORT_SYMBOL_GPL(iommu_domain_window_enable);
 
-void iommu_domain_window_disable(struct iommu_domain *domain, u32 wnd_nr)
-{
-	if (unlikely(domain->ops->domain_window_disable == NULL))
-		return;
-
-	return domain->ops->domain_window_disable(domain, wnd_nr);
-}
-EXPORT_SYMBOL_GPL(iommu_domain_window_disable);
-
 /**
  * report_iommu_fault() - report about an IOMMU fault to the IOMMU framework
  * @domain: the iommu domain where the fault has happened
