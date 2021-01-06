@@ -1165,7 +1165,7 @@ struct ubuf_info *msg_zerocopy_realloc(struct sock *sk, size_t size,
 
 			/* no extra ref when appending to datagram (MSG_MORE) */
 			if (sk->sk_type == SOCK_STREAM)
-				skb_zcopy_get(uarg);
+				net_zcopy_get(uarg);
 
 			return uarg;
 		}

@@ -1443,7 +1443,7 @@ static inline struct ubuf_info *skb_zcopy(struct sk_buff *skb)
 	return is_zcopy ? skb_uarg(skb) : NULL;
 }
 
-static inline void skb_zcopy_get(struct ubuf_info *uarg)
+static inline void net_zcopy_get(struct ubuf_info *uarg)
 {
 	refcount_inc(&uarg->refcnt);
 }
@@ -1461,7 +1461,7 @@ static inline void skb_zcopy_set(struct sk_buff *skb, struct ubuf_info *uarg,
 		if (unlikely(have_ref && *have_ref))
 			*have_ref = false;
 		else
-			skb_zcopy_get(uarg);
+			net_zcopy_get(uarg);
 		skb_zcopy_init(skb, uarg);
 	}
 }
@@ -1482,19 +1482,19 @@ static inline void *skb_zcopy_get_nouarg(struct sk_buff *skb)
 	return (void *)((uintptr_t) skb_shinfo(skb)->destructor_arg & ~0x1UL);
 }
 
-static inline void skb_zcopy_put(struct ubuf_info *uarg)
+static inline void net_zcopy_put(struct ubuf_info *uarg)
 {
 	if (uarg)
 		uarg->callback(NULL, uarg, true);
 }
 
-static inline void skb_zcopy_put_abort(struct ubuf_info *uarg, bool have_uref)
+static inline void net_zcopy_put_abort(struct ubuf_info *uarg, bool have_uref)
 {
 	if (uarg) {
 		if (uarg->callback == msg_zerocopy_callback)
 			msg_zerocopy_put_abort(uarg, have_uref);
 		else if (have_uref)
-			skb_zcopy_put(uarg);
+			net_zcopy_put(uarg);
 	}
 }
 

@@ -1715,7 +1715,7 @@ alloc_new_skb:
 error_efault:
 	err = -EFAULT;
 error:
-	skb_zcopy_put_abort(uarg, extra_uref);
+	net_zcopy_put_abort(uarg, extra_uref);
 	cork->length -= length;
 	IP6_INC_STATS(sock_net(sk), rt->rt6i_idev, IPSTATS_MIB_OUTDISCARDS);
 	refcount_add(wmem_alloc_delta, &sk->sk_wmem_alloc);
