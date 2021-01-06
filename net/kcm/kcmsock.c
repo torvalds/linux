@@ -786,7 +786,7 @@ static ssize_t kcm_sendpage(struct socket *sock, struct page *page,
 
 		if (skb_can_coalesce(skb, i, page, offset)) {
 			skb_frag_size_add(&skb_shinfo(skb)->frags[i - 1], size);
-			skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
+			skb_shinfo(skb)->flags |= SKBFL_SHARED_FRAG;
 			goto coalesced;
 		}
 
@@ -834,7 +834,7 @@ static ssize_t kcm_sendpage(struct socket *sock, struct page *page,
 
 	get_page(page);
 	skb_fill_page_desc(skb, i, page, offset, size);
-	skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
+	skb_shinfo(skb)->flags |= SKBFL_SHARED_FRAG;
 
 coalesced:
 	skb->len += size;

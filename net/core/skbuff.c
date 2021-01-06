@@ -1327,7 +1327,7 @@ static int skb_zerocopy_clone(struct sk_buff *nskb, struct sk_buff *orig,
  *	@skb: the skb to modify
  *	@gfp_mask: allocation priority
  *
- *	This must be called on SKBTX_DEV_ZEROCOPY skb.
+ *	This must be called on skb with SKBFL_ZEROCOPY_ENABLE.
  *	It will copy all frags into kernel and drop the reference
  *	to userspace pages.
  *
@@ -3264,8 +3264,7 @@ void skb_split(struct sk_buff *skb, struct sk_buff *skb1, const u32 len)
 {
 	int pos = skb_headlen(skb);
 
-	skb_shinfo(skb1)->tx_flags |= skb_shinfo(skb)->tx_flags &
-				      SKBTX_SHARED_FRAG;
+	skb_shinfo(skb1)->flags |= skb_shinfo(skb)->flags & SKBFL_SHARED_FRAG;
 	skb_zerocopy_clone(skb1, skb, 0);
 	if (len < pos)	/* Split line is inside header. */
 		skb_split_inside_header(skb, skb1, len, pos);
@@ -3954,8 +3953,8 @@ normal:
 		skb_copy_from_linear_data_offset(head_skb, offset,
 						 skb_put(nskb, hsize), hsize);
 
-		skb_shinfo(nskb)->tx_flags |= skb_shinfo(head_skb)->tx_flags &
-					      SKBTX_SHARED_FRAG;
+		skb_shinfo(nskb)->flags |= skb_shinfo(head_skb)->flags &
+					   SKBFL_SHARED_FRAG;
 
 		if (skb_orphan_frags(frag_skb, GFP_ATOMIC) ||
 		    skb_zerocopy_clone(nskb, frag_skb, GFP_ATOMIC))
