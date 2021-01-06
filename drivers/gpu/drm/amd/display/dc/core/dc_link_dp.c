@@ -1728,11 +1728,16 @@ bool perform_link_training_with_retries(
 		if (link->aux_access_disabled) {
 			dc_link_dp_perform_link_training_skip_aux(link, link_setting);
 			return true;
-		} else if (dc_link_dp_perform_link_training(
-				link,
-				link_setting,
-				skip_video_pattern) == LINK_TRAINING_SUCCESS)
-			return true;
+		} else {
+			enum link_training_result status = LINK_TRAINING_CR_FAIL_LANE0;
+
+				status = dc_link_dp_perform_link_training(
+										link,
+										link_setting,
+										skip_video_pattern);
+			if (status == LINK_TRAINING_SUCCESS)
+				return true;
+		}
 
 		/* latest link training still fail, skip delay and keep PHY on
 		 */

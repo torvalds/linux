@@ -65,4 +65,22 @@ void link_enc_cfg_link_enc_unassign(
 		struct dc_state *state,
 		struct dc_stream_state *stream);
 
+/*
+ * Check whether the transmitter driven by a link encoder is a mappable
+ * endpoint.
+ */
+bool link_enc_cfg_is_transmitter_mappable(
+		struct dc_state *state,
+		struct link_encoder *link_enc);
+
+/* Return link using DIG link encoder resource. NULL if unused. */
+struct dc_link *link_enc_cfg_get_link_using_link_enc(
+		struct dc_state *state,
+		enum engine_id eng_id);
+
+/* Return DIG link encoder used by link. NULL if unused. */
+struct link_encoder *link_enc_cfg_get_link_enc_used_by_link(
+		struct dc_state *state,
+		struct dc_link *link);
+
 #endif /* DC_INC_LINK_ENC_CFG_H_ */

@@ -127,6 +127,32 @@ static enum engine_id find_first_avail_link_enc(
 	return eng_id;
 }
 
+/* Return stream using DIG link encoder resource. NULL if unused. */
+static struct dc_stream_state *get_stream_using_link_enc(
+		struct dc_state *state,
+		enum engine_id eng_id)
+{
+	struct dc_stream_state *stream = NULL;
+	int stream_idx = -1;
+	int i;
+
+	for (i = 0; i < state->stream_count; i++) {
+		struct link_enc_assignment assignment = state->res_ctx.link_enc_assignments[i];
+
+		if (assignment.valid && (assignment.eng_id == eng_id)) {
+			stream_idx = i;
+			break;
+		}
+	}
+
+	if (stream_idx != -1)
+		stream = state->streams[stream_idx];
+	else
+		dm_output_to_console("%s: No stream using DIG(%d).\n", __func__, eng_id);
+
+	return stream;
+}
+
 void link_enc_cfg_init(
 		struct dc *dc,
 		struct dc_state *state)
@@ -201,4 +227,77 @@ void link_enc_cfg_link_enc_unassign(
 		eng_id = stream->link_enc->preferred_engine;
 
 	update_link_enc_assignment(state, stream, eng_id, false);
+}
+
+bool link_enc_cfg_is_transmitter_mappable(
+		struct dc_state *state,
+		struct link_encoder *link_enc)
+{
+	bool is_mappable = false;
+	enum engine_id eng_id = link_enc->preferred_engine;
+	struct dc_stream_state *stream = get_stream_using_link_enc(state, eng_id);
+
+	if (stream)
+		is_mappable = stream->link->is_dig_mapping_flexible;
+
+	return is_mappable;
+}
+
+struct dc_link *link_enc_cfg_get_link_using_link_enc(
+		struct dc_state *state,
+		enum engine_id eng_id)
+{
+	struct dc_link *link = NULL;
+	int stream_idx = -1;
+	int i;
+
+	for (i = 0; i < state->stream_count; i++) {
+		struct link_enc_assignment assignment = state->res_ctx.link_enc_assignments[i];
+
+		if (assignment.valid && (assignment.eng_id == eng_id)) {
+			stream_idx = i;
+			break;
+		}
+	}
+
+	if (stream_idx != -1)
+		link = state->streams[stream_idx]->link;
+	else
+		dm_output_to_console("%s: No link using DIG(%d).\n", __func__, eng_id);
+
+	return link;
+}
+
+struct link_encoder *link_enc_cfg_get_link_enc_used_by_link(
+		struct dc_state *state,
+		struct dc_link *link)
+{
+	struct link_encoder *link_enc = NULL;
+	struct display_endpoint_id ep_id;
+	int stream_idx = -1;
+	int i;
+
+	ep_id = (struct display_endpoint_id) {
+		.link_id = link->link_id,
+		.ep_type = link->ep_type};
+
+	for (i = 0; i < state->stream_count; i++) {
+		struct link_enc_assignment assignment = state->res_ctx.link_enc_assignments[i];
+
+		if (assignment.valid &&
+				assignment.ep_id.link_id.id == ep_id.link_id.id &&
+				assignment.ep_id.link_id.enum_id == ep_id.link_id.enum_id &&
+				assignment.ep_id.link_id.type == ep_id.link_id.type &&
+				assignment.ep_id.ep_type == ep_id.ep_type) {
+			stream_idx = i;
+			break;
+		}
+	}
+
+	if (stream_idx != -1)
+		link_enc = state->streams[stream_idx]->link_enc;
+	else
+		dm_output_to_console("%s: No link encoder used by link(%d).\n", __func__, link->link_index);
+
+	return link_enc;
 }
