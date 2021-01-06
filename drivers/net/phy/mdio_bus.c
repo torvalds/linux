@@ -740,7 +740,7 @@ int __mdiobus_read(struct mii_bus *bus, int addr, u32 regnum)
 {
 	int retval;
 
-	WARN_ON_ONCE(!mutex_is_locked(&bus->mdio_lock));
+	lockdep_assert_held_once(&bus->mdio_lock);
 
 	retval = bus->read(bus, addr, regnum);
 
@@ -766,7 +766,7 @@ int __mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val)
 {
 	int err;
 
-	WARN_ON_ONCE(!mutex_is_locked(&bus->mdio_lock));
+	lockdep_assert_held_once(&bus->mdio_lock);
 
 	err = bus->write(bus, addr, regnum, val);
 
