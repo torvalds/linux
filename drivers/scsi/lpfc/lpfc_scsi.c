@@ -6708,6 +6708,7 @@ struct scsi_host_template lpfc_template = {
 	.info			= lpfc_info,
 	.queuecommand		= lpfc_queuecommand,
 	.eh_timed_out		= fc_eh_timed_out,
+	.eh_should_retry_cmd    = fc_eh_should_retry_cmd,
 	.eh_abort_handler	= lpfc_abort_handler,
 	.eh_device_reset_handler = lpfc_device_reset_handler,
 	.eh_target_reset_handler = lpfc_target_reset_handler,
