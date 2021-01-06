@@ -388,7 +388,7 @@ static int prepare_ipad(struct ahash_request *req)
 	 * longer keys are hashed by kmb_ocs_hcu_setkey()).
 	 */
 	if (ctx->key_len > rctx->blk_sz) {
-		WARN("%s: Invalid key length in tfm context\n", __func__);
+		WARN(1, "%s: Invalid key length in tfm context\n", __func__);
 		return -EINVAL;
 	}
 	memzero_explicit(&ctx->key[ctx->key_len],
