@@ -571,7 +571,6 @@ static struct platform_device vidtv_bridge_dev = {
 static struct platform_driver vidtv_bridge_driver = {
 	.driver = {
 		.name                = "vidtv_bridge",
-		.suppress_bind_attrs = true,
 	},
 	.probe    = vidtv_bridge_probe,
 	.remove   = vidtv_bridge_remove,
