@@ -719,6 +719,9 @@ int btrtl_setup_realtek(struct hci_dev *hdev)
 	 */
 	set_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks);
 
+	if (!btrtl_dev->ic_info)
+		goto done;
+
 	/* Enable central-peripheral role (able to create new connections with
 	 * an existing connection in slave role).
 	 */
@@ -731,6 +734,7 @@ int btrtl_setup_realtek(struct hci_dev *hdev)
 		break;
 	}
 
+done:
 	btrtl_free(btrtl_dev);
 	return ret;
 }
