@@ -660,7 +660,7 @@ static void ibmvfc_init_host(struct ibmvfc_host *vhost)
 	}
 
 	if (!ibmvfc_set_host_state(vhost, IBMVFC_INITIALIZING)) {
-		memset(vhost->async_crq.msgs, 0, PAGE_SIZE);
+		memset(vhost->async_crq.msgs.async, 0, PAGE_SIZE);
 		vhost->async_crq.cur = 0;
 
 		list_for_each_entry(tgt, &vhost->targets, queue)
@@ -714,6 +714,23 @@ static int ibmvfc_send_crq_init_complete(struct ibmvfc_host *vhost)
 }
 
 /**
+ * ibmvfc_free_queue - Deallocate queue
+ * @vhost:	ibmvfc host struct
+ * @queue:	ibmvfc queue struct
+ *
+ * Unmaps dma and deallocates page for messages
+ **/
+static void ibmvfc_free_queue(struct ibmvfc_host *vhost,
+			      struct ibmvfc_queue *queue)
+{
+	struct device *dev = vhost->dev;
+
+	dma_unmap_single(dev, queue->msg_token, PAGE_SIZE, DMA_BIDIRECTIONAL);
+	free_page((unsigned long)queue->msgs.handle);
+	queue->msgs.handle = NULL;
+}
+
+/**
  * ibmvfc_release_crq_queue - Deallocates data and unregisters CRQ
  * @vhost:	ibmvfc host struct
  *
@@ -724,7 +741,7 @@ static void ibmvfc_release_crq_queue(struct ibmvfc_host *vhost)
 {
 	long rc = 0;
 	struct vio_dev *vdev = to_vio_dev(vhost->dev);
-	struct ibmvfc_crq_queue *crq = &vhost->crq;
+	struct ibmvfc_queue *crq = &vhost->crq;
 
 	ibmvfc_dbg(vhost, "Releasing CRQ\n");
 	free_irq(vdev->irq, vhost);
@@ -737,8 +754,8 @@ static void ibmvfc_release_crq_queue(struct ibmvfc_host *vhost)
 
 	vhost->state = IBMVFC_NO_CRQ;
 	vhost->logged_in = 0;
-	dma_unmap_single(vhost->dev, crq->msg_token, PAGE_SIZE, DMA_BIDIRECTIONAL);
-	free_page((unsigned long)crq->msgs);
+
+	ibmvfc_free_queue(vhost, crq);
 }
 
 /**
@@ -778,7 +795,7 @@ static int ibmvfc_reset_crq(struct ibmvfc_host *vhost)
 	int rc = 0;
 	unsigned long flags;
 	struct vio_dev *vdev = to_vio_dev(vhost->dev);
-	struct ibmvfc_crq_queue *crq = &vhost->crq;
+	struct ibmvfc_queue *crq = &vhost->crq;
 
 	/* Close the CRQ */
 	do {
@@ -792,7 +809,7 @@ static int ibmvfc_reset_crq(struct ibmvfc_host *vhost)
 	vhost->logged_in = 0;
 
 	/* Clean out the queue */
-	memset(crq->msgs, 0, PAGE_SIZE);
+	memset(crq->msgs.crq, 0, PAGE_SIZE);
 	crq->cur = 0;
 
 	/* And re-open it again */
@@ -1238,6 +1255,7 @@ static void ibmvfc_gather_partition_info(struct ibmvfc_host *vhost)
 static void ibmvfc_set_login_info(struct ibmvfc_host *vhost)
 {
 	struct ibmvfc_npiv_login *login_info = &vhost->login_info;
+	struct ibmvfc_queue *async_crq = &vhost->async_crq;
 	struct device_node *of_node = vhost->dev->of_node;
 	const char *location;
 
@@ -1257,7 +1275,8 @@ static void ibmvfc_set_login_info(struct ibmvfc_host *vhost)
 	login_info->max_cmds = cpu_to_be32(max_requests + IBMVFC_NUM_INTERNAL_REQ);
 	login_info->capabilities = cpu_to_be64(IBMVFC_CAN_MIGRATE | IBMVFC_CAN_SEND_VF_WWPN);
 	login_info->async.va = cpu_to_be64(vhost->async_crq.msg_token);
-	login_info->async.len = cpu_to_be32(vhost->async_crq.size * sizeof(*vhost->async_crq.msgs));
+	login_info->async.len = cpu_to_be32(async_crq->size *
+					    sizeof(*async_crq->msgs.async));
 	strncpy(login_info->partition_name, vhost->partition_name, IBMVFC_MAX_NAME);
 	strncpy(login_info->device_name,
 		dev_name(&vhost->host->shost_gendev), IBMVFC_MAX_NAME);
@@ -3230,10 +3249,10 @@ static struct scsi_host_template driver_template = {
  **/
 static struct ibmvfc_async_crq *ibmvfc_next_async_crq(struct ibmvfc_host *vhost)
 {
-	struct ibmvfc_async_crq_queue *async_crq = &vhost->async_crq;
+	struct ibmvfc_queue *async_crq = &vhost->async_crq;
 	struct ibmvfc_async_crq *crq;
 
-	crq = &async_crq->msgs[async_crq->cur];
+	crq = &async_crq->msgs.async[async_crq->cur];
 	if (crq->valid & 0x80) {
 		if (++async_crq->cur == async_crq->size)
 			async_crq->cur = 0;
@@ -3253,10 +3272,10 @@ static struct ibmvfc_async_crq *ibmvfc_next_async_crq(struct ibmvfc_host *vhost)
  **/
 static struct ibmvfc_crq *ibmvfc_next_crq(struct ibmvfc_host *vhost)
 {
-	struct ibmvfc_crq_queue *queue = &vhost->crq;
+	struct ibmvfc_queue *queue = &vhost->crq;
 	struct ibmvfc_crq *crq;
 
-	crq = &queue->msgs[queue->cur];
+	crq = &queue->msgs.crq[queue->cur];
 	if (crq->valid & 0x80) {
 		if (++queue->cur == queue->size)
 			queue->cur = 0;
@@ -4896,6 +4915,54 @@ static int ibmvfc_work(void *data)
 }
 
 /**
+ * ibmvfc_alloc_queue - Allocate queue
+ * @vhost:	ibmvfc host struct
+ * @queue:	ibmvfc queue to allocate
+ * @fmt:	queue format to allocate
+ *
+ * Returns:
+ *	0 on success / non-zero on failure
+ **/
+static int ibmvfc_alloc_queue(struct ibmvfc_host *vhost,
+			      struct ibmvfc_queue *queue,
+			      enum ibmvfc_msg_fmt fmt)
+{
+	struct device *dev = vhost->dev;
+	size_t fmt_size;
+
+	ENTER;
+	switch (fmt) {
+	case IBMVFC_CRQ_FMT:
+		fmt_size = sizeof(*queue->msgs.crq);
+		break;
+	case IBMVFC_ASYNC_FMT:
+		fmt_size = sizeof(*queue->msgs.async);
+		break;
+	default:
+		dev_warn(dev, "Unknown command/response queue message format: %d\n", fmt);
+		return -EINVAL;
+	}
+
+	queue->msgs.handle = (void *)get_zeroed_page(GFP_KERNEL);
+	if (!queue->msgs.handle)
+		return -ENOMEM;
+
+	queue->msg_token = dma_map_single(dev, queue->msgs.handle, PAGE_SIZE,
+					  DMA_BIDIRECTIONAL);
+
+	if (dma_mapping_error(dev, queue->msg_token)) {
+		free_page((unsigned long)queue->msgs.handle);
+		queue->msgs.handle = NULL;
+		return -ENOMEM;
+	}
+
+	queue->cur = 0;
+	queue->fmt = fmt;
+	queue->size = PAGE_SIZE / fmt_size;
+	return 0;
+}
+
+/**
  * ibmvfc_init_crq - Initializes and registers CRQ with hypervisor
  * @vhost:	ibmvfc host struct
  *
@@ -4910,20 +4977,11 @@ static int ibmvfc_init_crq(struct ibmvfc_host *vhost)
 	int rc, retrc = -ENOMEM;
 	struct device *dev = vhost->dev;
 	struct vio_dev *vdev = to_vio_dev(dev);
-	struct ibmvfc_crq_queue *crq = &vhost->crq;
+	struct ibmvfc_queue *crq = &vhost->crq;
 
 	ENTER;
-	crq->msgs = (struct ibmvfc_crq *)get_zeroed_page(GFP_KERNEL);
-
-	if (!crq->msgs)
+	if (ibmvfc_alloc_queue(vhost, crq, IBMVFC_CRQ_FMT))
 		return -ENOMEM;
-
-	crq->size = PAGE_SIZE / sizeof(*crq->msgs);
-	crq->msg_token = dma_map_single(dev, crq->msgs,
-					PAGE_SIZE, DMA_BIDIRECTIONAL);
-
-	if (dma_mapping_error(dev, crq->msg_token))
-		goto map_failed;
 
 	retrc = rc = plpar_hcall_norets(H_REG_CRQ, vdev->unit_address,
 					crq->msg_token, PAGE_SIZE);
@@ -4953,7 +5011,6 @@ static int ibmvfc_init_crq(struct ibmvfc_host *vhost)
 		goto req_irq_failed;
 	}
 
-	crq->cur = 0;
 	LEAVE;
 	return retrc;
 
@@ -4963,9 +5020,7 @@ req_irq_failed:
 		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
 	} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));
 reg_crq_failed:
-	dma_unmap_single(dev, crq->msg_token, PAGE_SIZE, DMA_BIDIRECTIONAL);
-map_failed:
-	free_page((unsigned long)crq->msgs);
+	ibmvfc_free_queue(vhost, crq);
 	return retrc;
 }
 
@@ -4978,7 +5033,7 @@ map_failed:
  **/
 static void ibmvfc_free_mem(struct ibmvfc_host *vhost)
 {
-	struct ibmvfc_async_crq_queue *async_q = &vhost->async_crq;
+	struct ibmvfc_queue *async_q = &vhost->async_crq;
 
 	ENTER;
 	mempool_destroy(vhost->tgt_pool);
@@ -4988,9 +5043,7 @@ static void ibmvfc_free_mem(struct ibmvfc_host *vhost)
 	dma_free_coherent(vhost->dev, sizeof(*vhost->login_buf),
 			  vhost->login_buf, vhost->login_buf_dma);
 	dma_pool_destroy(vhost->sg_pool);
-	dma_unmap_single(vhost->dev, async_q->msg_token,
-			 async_q->size * sizeof(*async_q->msgs), DMA_BIDIRECTIONAL);
-	free_page((unsigned long)async_q->msgs);
+	ibmvfc_free_queue(vhost, async_q);
 	LEAVE;
 }
 
@@ -5003,24 +5056,13 @@ static void ibmvfc_free_mem(struct ibmvfc_host *vhost)
  **/
 static int ibmvfc_alloc_mem(struct ibmvfc_host *vhost)
 {
-	struct ibmvfc_async_crq_queue *async_q = &vhost->async_crq;
+	struct ibmvfc_queue *async_q = &vhost->async_crq;
 	struct device *dev = vhost->dev;
 
 	ENTER;
-	async_q->msgs = (struct ibmvfc_async_crq *)get_zeroed_page(GFP_KERNEL);
-	if (!async_q->msgs) {
-		dev_err(dev, "Couldn't allocate async queue.\n");
+	if (ibmvfc_alloc_queue(vhost, async_q, IBMVFC_ASYNC_FMT)) {
+		dev_err(dev, "Couldn't allocate/map async queue.\n");
 		goto nomem;
-	}
-
-	async_q->size = PAGE_SIZE / sizeof(struct ibmvfc_async_crq);
-	async_q->msg_token = dma_map_single(dev, async_q->msgs,
-					    async_q->size * sizeof(*async_q->msgs),
-					    DMA_BIDIRECTIONAL);
-
-	if (dma_mapping_error(dev, async_q->msg_token)) {
-		dev_err(dev, "Failed to map async queue\n");
-		goto free_async_crq;
 	}
 
 	vhost->sg_pool = dma_pool_create(IBMVFC_NAME, dev,
@@ -5077,10 +5119,7 @@ free_login_buffer:
 free_sg_pool:
 	dma_pool_destroy(vhost->sg_pool);
 unmap_async_crq:
-	dma_unmap_single(dev, async_q->msg_token,
-			 async_q->size * sizeof(*async_q->msgs), DMA_BIDIRECTIONAL);
-free_async_crq:
-	free_page((unsigned long)async_q->msgs);
+	ibmvfc_free_queue(vhost, async_q);
 nomem:
 	LEAVE;
 	return -ENOMEM;

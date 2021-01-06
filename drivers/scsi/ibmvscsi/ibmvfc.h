@@ -645,12 +645,6 @@ struct ibmvfc_crq {
 	volatile __be64 ioba;
 } __packed __aligned(8);
 
-struct ibmvfc_crq_queue {
-	struct ibmvfc_crq *msgs;
-	int size, cur;
-	dma_addr_t msg_token;
-};
-
 enum ibmvfc_ae_link_state {
 	IBMVFC_AE_LS_LINK_UP		= 0x01,
 	IBMVFC_AE_LS_LINK_BOUNCED	= 0x02,
@@ -677,12 +671,6 @@ struct ibmvfc_async_crq {
 	volatile __be64 node_name;
 	__be64 reserved;
 } __packed __aligned(8);
-
-struct ibmvfc_async_crq_queue {
-	struct ibmvfc_async_crq *msgs;
-	int size, cur;
-	dma_addr_t msg_token;
-};
 
 union ibmvfc_iu {
 	struct ibmvfc_mad_common mad_common;
@@ -763,6 +751,24 @@ struct ibmvfc_event_pool {
 	dma_addr_t iu_token;
 };
 
+enum ibmvfc_msg_fmt {
+	IBMVFC_CRQ_FMT = 0,
+	IBMVFC_ASYNC_FMT,
+};
+
+union ibmvfc_msgs {
+	void *handle;
+	struct ibmvfc_crq *crq;
+	struct ibmvfc_async_crq *async;
+};
+
+struct ibmvfc_queue {
+	union ibmvfc_msgs msgs;
+	dma_addr_t msg_token;
+	enum ibmvfc_msg_fmt fmt;
+	int size, cur;
+};
+
 enum ibmvfc_host_action {
 	IBMVFC_HOST_ACTION_NONE = 0,
 	IBMVFC_HOST_ACTION_RESET,
@@ -808,8 +814,8 @@ struct ibmvfc_host {
 	struct ibmvfc_event_pool pool;
 	struct dma_pool *sg_pool;
 	mempool_t *tgt_pool;
-	struct ibmvfc_crq_queue crq;
-	struct ibmvfc_async_crq_queue async_crq;
+	struct ibmvfc_queue crq;
+	struct ibmvfc_queue async_crq;
 	struct ibmvfc_npiv_login login_info;
 	union ibmvfc_npiv_login_data *login_buf;
 	dma_addr_t login_buf_dma;
