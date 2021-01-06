@@ -43,6 +43,10 @@
  * 64bit interface.
  */
 
+#define reg_to_encoding(x)						\
+	sys_reg((u32)(x)->Op0, (u32)(x)->Op1,				\
+		(u32)(x)->CRn, (u32)(x)->CRm, (u32)(x)->Op2)
+
 static bool read_from_write_only(struct kvm_vcpu *vcpu,
 				 struct sys_reg_params *params,
 				 const struct sys_reg_desc *r)
@@ -273,8 +277,7 @@ static bool trap_loregion(struct kvm_vcpu *vcpu,
 			  const struct sys_reg_desc *r)
 {
 	u64 val = read_sanitised_ftr_reg(SYS_ID_AA64MMFR1_EL1);
-	u32 sr = sys_reg((u32)r->Op0, (u32)r->Op1,
-			 (u32)r->CRn, (u32)r->CRm, (u32)r->Op2);
+	u32 sr = reg_to_encoding(r);
 
 	if (!(val & (0xfUL << ID_AA64MMFR1_LOR_SHIFT))) {
 		kvm_inject_undefined(vcpu);
@@ -924,10 +927,6 @@ static bool access_pmuserenr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	return true;
 }
 
-#define reg_to_encoding(x)						\
-	sys_reg((u32)(x)->Op0, (u32)(x)->Op1,				\
-		(u32)(x)->CRn, (u32)(x)->CRm, (u32)(x)->Op2)
-
 /* Silly macro to expand the DBG{BCR,BVR,WVR,WCR}n_EL1 registers in one go */
 #define DBG_BCR_BVR_WCR_WVR_EL1(n)					\
 	{ SYS_DESC(SYS_DBGBVRn_EL1(n)),					\
@@ -1026,8 +1025,7 @@ static bool access_arch_timer(struct kvm_vcpu *vcpu,
 static u64 read_id_reg(const struct kvm_vcpu *vcpu,
 		struct sys_reg_desc const *r, bool raz)
 {
-	u32 id = sys_reg((u32)r->Op0, (u32)r->Op1,
-			 (u32)r->CRn, (u32)r->CRm, (u32)r->Op2);
+	u32 id = reg_to_encoding(r);
 	u64 val = raz ? 0 : read_sanitised_ftr_reg(id);
 
 	if (id == SYS_ID_AA64PFR0_EL1) {
@@ -1068,8 +1066,7 @@ static u64 read_id_reg(const struct kvm_vcpu *vcpu,
 static unsigned int id_visibility(const struct kvm_vcpu *vcpu,
 				  const struct sys_reg_desc *r)
 {
-	u32 id = sys_reg((u32)r->Op0, (u32)r->Op1,
-			 (u32)r->CRn, (u32)r->CRm, (u32)r->Op2);
+	u32 id = reg_to_encoding(r);
 
 	switch (id) {
 	case SYS_ID_AA64ZFR0_EL1:
