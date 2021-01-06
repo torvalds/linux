@@ -1448,6 +1448,12 @@ static inline void skb_zcopy_get(struct ubuf_info *uarg)
 	refcount_inc(&uarg->refcnt);
 }
 
+static inline void skb_zcopy_init(struct sk_buff *skb, struct ubuf_info *uarg)
+{
+	skb_shinfo(skb)->destructor_arg = uarg;
+	skb_shinfo(skb)->flags |= uarg->flags;
+}
+
 static inline void skb_zcopy_set(struct sk_buff *skb, struct ubuf_info *uarg,
 				 bool *have_ref)
 {
@@ -1456,8 +1462,7 @@ static inline void skb_zcopy_set(struct sk_buff *skb, struct ubuf_info *uarg,
 			*have_ref = false;
 		else
 			skb_zcopy_get(uarg);
-		skb_shinfo(skb)->destructor_arg = uarg;
-		skb_shinfo(skb)->flags |= uarg->flags;
+		skb_zcopy_init(skb, uarg);
 	}
 }
 
