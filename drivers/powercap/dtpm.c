@@ -467,9 +467,9 @@ static int __init dtpm_init(void)
 	struct dtpm_descr **dtpm_descr;
 
 	pct = powercap_register_control_type(NULL, "dtpm", NULL);
-	if (!pct) {
+	if (IS_ERR(pct)) {
 		pr_err("Failed to register control type\n");
-		return -EINVAL;
+		return PTR_ERR(pct);
 	}
 
 	for_each_dtpm_table(dtpm_descr)
