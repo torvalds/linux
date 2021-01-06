@@ -17,6 +17,7 @@
   bpf_trace_run5
   bus_register
   bus_unregister
+  cancel_delayed_work
   cancel_delayed_work_sync
   cancel_work_sync
   capable
@@ -58,11 +59,13 @@
   crc32_le
   debugfs_create_dir
   debugfs_create_file
+  debugfs_create_regset32
   debugfs_create_u32
   debugfs_create_x32
   debugfs_remove
   default_llseek
   delayed_work_timer_fn
+  del_timer
   del_timer_sync
   destroy_workqueue
   dev_coredumpv
@@ -122,6 +125,7 @@
   devm_snd_soc_register_component
   __devm_spi_alloc_controller
   devm_spi_register_controller
+  devm_usb_get_phy_by_phandle
   devm_watchdog_register_device
   _dev_notice
   dev_pm_domain_attach_by_name
@@ -154,6 +158,10 @@
   dma_map_page_attrs
   dma_map_sg_attrs
   dma_mmap_attrs
+  dma_pool_alloc
+  dma_pool_create
+  dma_pool_destroy
+  dma_pool_free
   dma_release_channel
   dma_request_chan
   dma_set_coherent_mask
@@ -340,6 +348,7 @@
   __netif_napi_del
   no_llseek
   nr_cpu_ids
+  __num_online_cpus
   nvmem_cell_read
   of_address_to_resource
   of_alias_get_id
@@ -389,7 +398,10 @@
   of_property_read_variable_u8_array
   of_reserved_mem_lookup
   param_ops_bool
+  param_ops_int
   param_ops_uint
+  pci_bus_type
+  pci_match_id
   __pci_register_driver
   pci_unregister_driver
   perf_trace_buf_alloc
@@ -504,6 +516,7 @@
   rproc_remove_subdev
   schedule
   schedule_timeout
+  schedule_timeout_uninterruptible
   scnprintf
   seq_lseek
   seq_printf
@@ -605,11 +618,29 @@
   unregister_chrdev_region
   unregister_reboot_notifier
   unregister_rpmsg_driver
+  usb_add_hcd
+  usb_amd_dev_put
+  usb_amd_quirk_pll_check
+  usb_amd_quirk_pll_disable
+  usb_amd_quirk_pll_enable
   usb_debug_root
   usb_deregister
   usb_disabled
   usb_get_dr_mode
   usb_get_maximum_speed
+  usb_hcd_check_unlink_urb
+  usb_hcd_giveback_urb
+  usb_hc_died
+  usb_hcd_is_primary_hcd
+  usb_hcd_link_urb_to_ep
+  usb_hcd_pci_pm_ops
+  usb_hcd_pci_probe
+  usb_hcd_pci_remove
+  usb_hcd_pci_shutdown
+  usb_hcd_platform_shutdown
+  usb_hcd_poll_rh_status
+  usb_hcd_resume_root_hub
+  usb_hcd_unlink_urb_from_ep
   usbnet_disconnect
   usbnet_get_endpoints
   usbnet_get_msglevel
@@ -631,12 +662,16 @@
   usbnet_write_cmd
   usbnet_write_cmd_async
   usbnet_write_cmd_nopm
+  usb_put_hcd
   usb_register_driver
+  usb_remove_hcd
+  usb_root_hub_lost_power
   usleep_range
   vabits_actual
   vfree
   vmalloc
   vmap
+  vsnprintf
   vunmap
   wait_for_completion_timeout
   __wake_up
@@ -666,8 +701,6 @@
   iommu_group_ref_get
   iommu_put_dma_cookie
   of_dma_is_coherent
-  param_ops_int
-  pci_bus_type
   pci_device_group
 
 # required by asix.ko
@@ -703,7 +736,6 @@
 
 # required by ath10k_core.ko
   bcmp
-  cancel_delayed_work
   cfg80211_calculate_bitrate
   cfg80211_find_elem_match
   cfg80211_find_vendor_elem
@@ -858,12 +890,10 @@
   of_clk_get_parent_count
 
 # required by dwc3.ko
-  debugfs_create_regset32
   dev_fwnode
   device_property_read_string
   device_property_read_u8_array
   devm_usb_get_phy
-  devm_usb_get_phy_by_phandle
   extcon_find_edev_by_node
   extcon_get_extcon_dev
   of_usb_get_phy_mode
@@ -1010,7 +1040,6 @@
   _ctype
   debugfs_create_bool
   debugfs_create_u64
-  del_timer
   dev_coredumpm
   devfreq_recommended_opp
   devfreq_resume_device
@@ -1287,7 +1316,6 @@
   vmf_insert_mixed
   vm_get_page_prot
   vscnprintf
-  vsnprintf
   wake_up_process
   ww_mutex_lock_interruptible
   ww_mutex_unlock
@@ -1307,10 +1335,6 @@
   devm_nvmem_register
 
 # required by ohci-hcd.ko
-  dma_pool_alloc
-  dma_pool_create
-  dma_pool_destroy
-  dma_pool_free
   flush_work
   free_pages
   gen_pool_dma_alloc_align
@@ -1318,38 +1342,16 @@
   gen_pool_free_owner
   get_zeroed_page
   sb800_prefetch
-  schedule_timeout_uninterruptible
-  usb_amd_dev_put
-  usb_amd_quirk_pll_disable
-  usb_amd_quirk_pll_enable
   usb_calc_bus_time
-  usb_hcd_check_unlink_urb
-  usb_hcd_giveback_urb
-  usb_hc_died
-  usb_hcd_link_urb_to_ep
-  usb_hcd_poll_rh_status
-  usb_hcd_resume_root_hub
   usb_hcds_loaded
-  usb_hcd_unlink_urb_from_ep
-  usb_root_hub_lost_power
 
 # required by ohci-pci.ko
   pci_dev_put
   pci_get_slot
-  pci_match_id
   usb_amd_prefetch_quirk
-  usb_amd_quirk_pll_check
-  usb_hcd_pci_pm_ops
-  usb_hcd_pci_probe
-  usb_hcd_pci_remove
-  usb_hcd_pci_shutdown
 
 # required by ohci-platform.ko
-  usb_add_hcd
   usb_create_hcd
-  usb_hcd_platform_shutdown
-  usb_put_hcd
-  usb_remove_hcd
 
 # required by pdr_interface.ko
   strnlen
@@ -1496,7 +1498,6 @@
   bitmap_find_next_zero_area_off
   __bitmap_set
   cpu_pm_register_notifier
-  __num_online_cpus
 
 # required by qcom_spmi-regulator.ko
   jiffies_to_usecs
@@ -1727,3 +1728,40 @@
 # required by wcd934x.ko
   mfd_add_devices
   mfd_remove_devices
+
+# required by xhci-hcd.ko
+  add_timer
+  kstrtou16_from_user
+  mod_delayed_work_on
+  param_ops_ullong
+  pci_alloc_irq_vectors_affinity
+  pci_free_irq_vectors
+  pci_irq_vector
+  preempt_schedule
+  radix_tree_maybe_preload
+  sg_pcopy_from_buffer
+  sg_pcopy_to_buffer
+  trace_print_symbols_seq
+  usb_amd_pt_check_port
+  usb_asmedia_modifyflowcontrol
+  usb_disable_xhci_ports
+  usb_hcd_end_port_resume
+  usb_hcd_irq
+  usb_hcd_map_urb_for_dma
+  usb_hcd_start_port_resume
+  usb_hub_clear_tt_buffer
+  usb_wakeup_notification
+  wait_for_completion
+
+# required by xhci-pci.ko
+  pci_d3cold_disable
+  pci_read_config_byte
+  pci_set_mwi
+  pci_set_power_state
+  usb_create_shared_hcd
+  usb_enable_intel_xhci_ports
+
+# required by xhci-plat-hcd.ko
+  devm_platform_get_and_ioremap_resource
+  of_usb_host_tpl_support
+  __usb_create_hcd
