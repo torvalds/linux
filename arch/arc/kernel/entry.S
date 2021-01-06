@@ -308,7 +308,7 @@ resume_user_mode_begin:
 	mov r0, sp	; pt_regs for arg to do_signal()/do_notify_resume()
 
 	GET_CURR_THR_INFO_FLAGS   r9
-	and.f  0,  r9, TIF_SIGPENDING|TIF_NOTIFY_SIGNAL
+	and.f  0,  r9, _TIF_SIGPENDING|_TIF_NOTIFY_SIGNAL
 	bz .Lchk_notify_resume
 
 	; Normal Trap/IRQ entry only saves Scratch (caller-saved) regs
