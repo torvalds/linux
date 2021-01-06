@@ -367,6 +367,7 @@ properties:
               - ply,plybas                # Plymovent BAS board
               - ply,plym2m                # Plymovent M2M board
               - poslab,imx6dl-savageboard # Poslab SavageBoard Dual
+              - prt,prtmvt                # Protonic MVT board
               - prt,prtrvt                # Protonic RVT board
               - prt,prtvt7                # Protonic VT7 board
               - rex,imx6dl-rex-basic      # Rex Basic i.MX6 Dual Lite Board
