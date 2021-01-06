@@ -164,10 +164,10 @@ static int xen_cpu_up_prepare_hvm(unsigned int cpu)
 	else
 		per_cpu(xen_vcpu_id, cpu) = cpu;
 	rc = xen_vcpu_setup(cpu);
-	if (rc)
+	if (rc || !xen_have_vector_callback)
 		return rc;
 
-	if (xen_have_vector_callback && xen_feature(XENFEAT_hvm_safe_pvclock))
+	if (xen_feature(XENFEAT_hvm_safe_pvclock))
 		xen_setup_timer(cpu);
 
 	rc = xen_smp_intr_init(cpu);
