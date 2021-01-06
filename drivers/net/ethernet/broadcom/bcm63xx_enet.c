@@ -237,7 +237,10 @@ static int bcm_enet_refill_rx(struct net_device *dev)
 		desc = &priv->rx_desc_cpu[desc_idx];
 
 		if (!priv->rx_skb[desc_idx]) {
-			skb = netdev_alloc_skb(dev, priv->rx_skb_size);
+			if (priv->enet_is_sw)
+				skb = netdev_alloc_skb_ip_align(dev, priv->rx_skb_size);
+			else
+				skb = netdev_alloc_skb(dev, priv->rx_skb_size);
 			if (!skb)
 				break;
 			priv->rx_skb[desc_idx] = skb;
