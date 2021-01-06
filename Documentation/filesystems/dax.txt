@@ -83,20 +83,9 @@ Summary
        directories.  This has runtime constraints and limitations that are
        described in 6) below.
 
- 6. When changing the S_DAX policy via toggling the persistent FS_XFLAG_DAX flag,
-    the change in behaviour for existing regular files may not occur
-    immediately.  If the change must take effect immediately, the administrator
-    needs to:
-
-    a) stop the application so there are no active references to the data set
-       the policy change will affect
-
-    b) evict the data set from kernel caches so it will be re-instantiated when
-       the application is restarted. This can be achieved by:
-
-       i. drop-caches
-       ii. a filesystem unmount and mount cycle
-       iii. a system reboot
+ 6. When changing the S_DAX policy via toggling the persistent FS_XFLAG_DAX
+    flag, the change to existing regular files won't take effect until the
+    files are closed by all processes.
 
 
 Details
