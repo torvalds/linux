@@ -225,6 +225,31 @@ static int mmc_clock_opt_set(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(mmc_clock_fops, mmc_clock_opt_get, mmc_clock_opt_set,
 	"%llu\n");
 
+static int mmc_max_clock_opt_get(void *data, u64 *val)
+{
+	struct mmc_host *host = data;
+
+	*val = host->f_max;
+
+	return 0;
+}
+
+static int mmc_max_clock_opt_set(void *data, u64 val)
+{
+	struct mmc_host *host = data;
+
+	/* We need this check due to input value is u64 */
+	if (val != 0 && (val > UHS_SDR104_MAX_DTR || val < host->f_min))
+		return -EINVAL;
+
+	host->f_max = (unsigned int) val;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(mmc_max_clock_fops, mmc_max_clock_opt_get, mmc_max_clock_opt_set,
+	"%llu\n");
+
 void mmc_add_host_debugfs(struct mmc_host *host)
 {
 	struct dentry *root;
@@ -252,6 +277,9 @@ void mmc_add_host_debugfs(struct mmc_host *host)
 	if (!debugfs_create_file("clock", S_IRUSR | S_IWUSR, root, host,
 			&mmc_clock_fops))
 		goto err_node;
+
+	debugfs_create_file_unsafe("max_clock", S_IRUSR | S_IWUSR, root, host,
+				   &mmc_max_clock_fops);
 
 #ifdef CONFIG_FAIL_MMC_REQUEST
 	if (fail_request)
