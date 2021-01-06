@@ -6790,6 +6790,4 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_bpf = ice_xdp,
 	.ndo_xdp_xmit = ice_xdp_xmit,
 	.ndo_xsk_wakeup = ice_xsk_wakeup,
-	.ndo_udp_tunnel_add = udp_tunnel_nic_add_port,
-	.ndo_udp_tunnel_del = udp_tunnel_nic_del_port,
 };
