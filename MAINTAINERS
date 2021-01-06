@@ -9240,7 +9240,7 @@ F:	tools/testing/selftests/sgx/*
 K:	\bSGX_
 
 INTERCONNECT API
-M:	Georgi Djakov <georgi.djakov@linaro.org>
+M:	Georgi Djakov <djakov@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/interconnect/
