@@ -716,10 +716,10 @@ void analogix_dp_set_lane_link_training(struct analogix_dp_device *dp)
 			u8 training_lane = dp->link_train.training_lane[lane];
 			u8 vs, pe;
 
-			vs = (training_lane >> DP_TRAIN_VOLTAGE_SWING_SHIFT) &
-			     DP_TRAIN_VOLTAGE_SWING_MASK;
-			pe = (training_lane >> DP_TRAIN_PRE_EMPHASIS_SHIFT) &
-			     DP_TRAIN_PRE_EMPHASIS_MASK;
+			vs = (training_lane & DP_TRAIN_VOLTAGE_SWING_MASK) >>
+			     DP_TRAIN_VOLTAGE_SWING_SHIFT;
+			pe = (training_lane & DP_TRAIN_PRE_EMPHASIS_MASK) >>
+			     DP_TRAIN_PRE_EMPHASIS_SHIFT;
 			phy_cfg.dp.voltage[lane] = vs;
 			phy_cfg.dp.pre[lane] = pe;
 		}
