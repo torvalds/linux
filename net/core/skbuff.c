@@ -1254,15 +1254,13 @@ EXPORT_SYMBOL_GPL(sock_zerocopy_callback);
 
 void sock_zerocopy_put_abort(struct ubuf_info *uarg, bool have_uref)
 {
-	if (uarg) {
-		struct sock *sk = skb_from_uarg(uarg)->sk;
+	struct sock *sk = skb_from_uarg(uarg)->sk;
 
-		atomic_dec(&sk->sk_zckey);
-		uarg->len--;
+	atomic_dec(&sk->sk_zckey);
+	uarg->len--;
 
-		if (have_uref)
-			skb_zcopy_put(uarg);
-	}
+	if (have_uref)
+		sock_zerocopy_callback(NULL, uarg, true);
 }
 EXPORT_SYMBOL_GPL(sock_zerocopy_put_abort);
 

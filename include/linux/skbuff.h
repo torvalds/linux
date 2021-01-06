@@ -1478,6 +1478,16 @@ static inline void skb_zcopy_put(struct ubuf_info *uarg)
 		uarg->callback(NULL, uarg, true);
 }
 
+static inline void skb_zcopy_put_abort(struct ubuf_info *uarg, bool have_uref)
+{
+	if (uarg) {
+		if (uarg->callback == sock_zerocopy_callback)
+			sock_zerocopy_put_abort(uarg, have_uref);
+		else if (have_uref)
+			skb_zcopy_put(uarg);
+	}
+}
+
 /* Release a reference on a zerocopy structure */
 static inline void skb_zcopy_clear(struct sk_buff *skb, bool zerocopy_success)
 {
