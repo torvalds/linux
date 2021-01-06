@@ -67,7 +67,7 @@ static ssize_t rpm_lvl_show(struct device *dev,
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", hba->rpm_lvl);
+	return sysfs_emit(buf, "%d\n", hba->rpm_lvl);
 }
 
 static ssize_t rpm_lvl_store(struct device *dev,
@@ -81,7 +81,7 @@ static ssize_t rpm_target_dev_state_show(struct device *dev,
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%s\n", ufschd_ufs_dev_pwr_mode_to_string(
+	return sysfs_emit(buf, "%s\n", ufschd_ufs_dev_pwr_mode_to_string(
 			ufs_pm_lvl_states[hba->rpm_lvl].dev_state));
 }
 
@@ -90,7 +90,7 @@ static ssize_t rpm_target_link_state_show(struct device *dev,
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%s\n", ufschd_uic_link_state_to_string(
+	return sysfs_emit(buf, "%s\n", ufschd_uic_link_state_to_string(
 			ufs_pm_lvl_states[hba->rpm_lvl].link_state));
 }
 
@@ -99,7 +99,7 @@ static ssize_t spm_lvl_show(struct device *dev,
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", hba->spm_lvl);
+	return sysfs_emit(buf, "%d\n", hba->spm_lvl);
 }
 
 static ssize_t spm_lvl_store(struct device *dev,
@@ -113,7 +113,7 @@ static ssize_t spm_target_dev_state_show(struct device *dev,
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%s\n", ufschd_ufs_dev_pwr_mode_to_string(
+	return sysfs_emit(buf, "%s\n", ufschd_ufs_dev_pwr_mode_to_string(
 				ufs_pm_lvl_states[hba->spm_lvl].dev_state));
 }
 
@@ -122,7 +122,7 @@ static ssize_t spm_target_link_state_show(struct device *dev,
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%s\n", ufschd_uic_link_state_to_string(
+	return sysfs_emit(buf, "%s\n", ufschd_uic_link_state_to_string(
 				ufs_pm_lvl_states[hba->spm_lvl].link_state));
 }
 
@@ -165,7 +165,7 @@ static ssize_t auto_hibern8_show(struct device *dev,
 	ufshcd_release(hba);
 	pm_runtime_put_sync(hba->dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", ufshcd_ahit_to_us(ahit));
+	return sysfs_emit(buf, "%d\n", ufshcd_ahit_to_us(ahit));
 }
 
 static ssize_t auto_hibern8_store(struct device *dev,
@@ -233,18 +233,18 @@ static ssize_t ufs_sysfs_read_desc_param(struct ufs_hba *hba,
 		return -EINVAL;
 	switch (param_size) {
 	case 1:
-		ret = sprintf(sysfs_buf, "0x%02X\n", *desc_buf);
+		ret = sysfs_emit(sysfs_buf, "0x%02X\n", *desc_buf);
 		break;
 	case 2:
-		ret = sprintf(sysfs_buf, "0x%04X\n",
+		ret = sysfs_emit(sysfs_buf, "0x%04X\n",
 			get_unaligned_be16(desc_buf));
 		break;
 	case 4:
-		ret = sprintf(sysfs_buf, "0x%08X\n",
+		ret = sysfs_emit(sysfs_buf, "0x%08X\n",
 			get_unaligned_be32(desc_buf));
 		break;
 	case 8:
-		ret = sprintf(sysfs_buf, "0x%016llX\n",
+		ret = sysfs_emit(sysfs_buf, "0x%016llX\n",
 			get_unaligned_be64(desc_buf));
 		break;
 	}
@@ -609,7 +609,7 @@ static ssize_t _name##_show(struct device *dev,				\
 				      SD_ASCII_STD);			\
 	if (ret < 0)							\
 		goto out;						\
-	ret = snprintf(buf, PAGE_SIZE, "%s\n", desc_buf);		\
+	ret = sysfs_emit(buf, "%s\n", desc_buf);		\
 out:									\
 	pm_runtime_put_sync(hba->dev);					\
 	kfree(desc_buf);						\
@@ -659,7 +659,7 @@ static ssize_t _name##_show(struct device *dev,				\
 	pm_runtime_put_sync(hba->dev);					\
 	if (ret)							\
 		return -EINVAL;						\
-	return sprintf(buf, "%s\n", flag ? "true" : "false"); \
+	return sysfs_emit(buf, "%s\n", flag ? "true" : "false");	\
 }									\
 static DEVICE_ATTR_RO(_name)
 
@@ -717,7 +717,7 @@ static ssize_t _name##_show(struct device *dev,				\
 	pm_runtime_put_sync(hba->dev);					\
 	if (ret)							\
 		return -EINVAL;						\
-	return sprintf(buf, "0x%08X\n", value);				\
+	return sysfs_emit(buf, "0x%08X\n", value);			\
 }									\
 static DEVICE_ATTR_RO(_name)
 
@@ -856,7 +856,7 @@ static ssize_t dyn_cap_needed_attribute_show(struct device *dev,
 	pm_runtime_put_sync(hba->dev);
 	if (ret)
 		return -EINVAL;
-	return sprintf(buf, "0x%08X\n", value);
+	return sysfs_emit(buf, "0x%08X\n", value);
 }
 static DEVICE_ATTR_RO(dyn_cap_needed_attribute);
 
