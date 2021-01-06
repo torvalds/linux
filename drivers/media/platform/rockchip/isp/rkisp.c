@@ -940,6 +940,9 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 		writel(val & (~CIF_MIPI_CTRL_OUTPUT_ENA), base + CIF_MIPI_CTRL);
 		udelay(20);
 	}
+	/* stop lsc to avoid lsclut error */
+	if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21)
+		writel(0, base + ISP_LSC_CTRL);
 	/* stop ISP */
 	val = readl(base + CIF_ISP_CTRL);
 	val &= ~(CIF_ISP_CTRL_ISP_INFORM_ENABLE | CIF_ISP_CTRL_ISP_ENABLE);
