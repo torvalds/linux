@@ -1,12 +1,13 @@
 config CRYPTO_DEV_KEEMBAY_OCS_AES_SM4
 	tristate "Support for Intel Keem Bay OCS AES/SM4 HW acceleration"
-	depends on OF || COMPILE_TEST
+	depends on HAS_IOMEM
+	depends on ARCH_KEEMBAY || COMPILE_TEST
 	select CRYPTO_SKCIPHER
 	select CRYPTO_AEAD
 	select CRYPTO_ENGINE
 	help
 	  Support for Intel Keem Bay Offload and Crypto Subsystem (OCS) AES and
-	  SM4 cihper hardware acceleration for use with Crypto API.
+	  SM4 cipher hardware acceleration for use with Crypto API.
 
 	  Provides HW acceleration for the following transformations:
 	  cbc(aes), ctr(aes), ccm(aes), gcm(aes), cbc(sm4), ctr(sm4), ccm(sm4)
