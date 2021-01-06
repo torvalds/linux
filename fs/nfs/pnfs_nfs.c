@@ -78,22 +78,18 @@ void
 pnfs_generic_clear_request_commit(struct nfs_page *req,
 				  struct nfs_commit_info *cinfo)
 {
-	struct pnfs_layout_segment *freeme = NULL;
+	struct pnfs_commit_bucket *bucket = NULL;
 
 	if (!test_and_clear_bit(PG_COMMIT_TO_DS, &req->wb_flags))
 		goto out;
 	cinfo->ds->nwritten--;
-	if (list_is_singular(&req->wb_list)) {
-		struct pnfs_commit_bucket *bucket;
-
+	if (list_is_singular(&req->wb_list))
 		bucket = list_first_entry(&req->wb_list,
-					  struct pnfs_commit_bucket,
-					  written);
-		freeme = pnfs_free_bucket_lseg(bucket);
-	}
+					  struct pnfs_commit_bucket, written);
 out:
 	nfs_request_remove_commit_list(req, cinfo);
-	pnfs_put_lseg(freeme);
+	if (bucket)
+		pnfs_put_lseg(pnfs_free_bucket_lseg(bucket));
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_clear_request_commit);
 
