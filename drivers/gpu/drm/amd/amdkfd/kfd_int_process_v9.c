@@ -56,7 +56,11 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 	    client_id != SOC15_IH_CLIENTID_SDMA7 &&
 	    client_id != SOC15_IH_CLIENTID_VMC &&
 	    client_id != SOC15_IH_CLIENTID_VMC1 &&
-	    client_id != SOC15_IH_CLIENTID_UTCL2)
+	    client_id != SOC15_IH_CLIENTID_UTCL2 &&
+	    client_id != SOC15_IH_CLIENTID_SE0SH &&
+	    client_id != SOC15_IH_CLIENTID_SE1SH &&
+	    client_id != SOC15_IH_CLIENTID_SE2SH &&
+	    client_id != SOC15_IH_CLIENTID_SE3SH)
 		return false;
 
 	/* This is a known issue for gfx9. Under non HWS, pasid is not set
@@ -111,7 +115,11 @@ static void event_interrupt_wq_v9(struct kfd_dev *dev,
 	vmid = SOC15_VMID_FROM_IH_ENTRY(ih_ring_entry);
 	context_id = SOC15_CONTEXT_ID0_FROM_IH_ENTRY(ih_ring_entry);
 
-	if (client_id == SOC15_IH_CLIENTID_GRBM_CP) {
+	if (client_id == SOC15_IH_CLIENTID_GRBM_CP ||
+	    client_id == SOC15_IH_CLIENTID_SE0SH ||
+	    client_id == SOC15_IH_CLIENTID_SE1SH ||
+	    client_id == SOC15_IH_CLIENTID_SE2SH ||
+	    client_id == SOC15_IH_CLIENTID_SE3SH) {
 		if (source_id == SOC15_INTSRC_CP_END_OF_PIPE)
 			kfd_signal_event_interrupt(pasid, context_id, 32);
 		else if (source_id == SOC15_INTSRC_SQ_INTERRUPT_MSG)
