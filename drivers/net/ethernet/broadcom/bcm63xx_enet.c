@@ -417,9 +417,11 @@ static int bcm_enet_receive_queue(struct net_device *dev, int budget)
 static int bcm_enet_tx_reclaim(struct net_device *dev, int force)
 {
 	struct bcm_enet_priv *priv;
+	unsigned int bytes;
 	int released;
 
 	priv = netdev_priv(dev);
+	bytes = 0;
 	released = 0;
 
 	while (priv->tx_desc_count < priv->tx_ring_size) {
@@ -456,9 +458,12 @@ static int bcm_enet_tx_reclaim(struct net_device *dev, int force)
 		if (desc->len_stat & DMADESC_UNDER_MASK)
 			dev->stats.tx_errors++;
 
+		bytes += skb->len;
 		dev_kfree_skb(skb);
 		released++;
 	}
+
+	netdev_completed_queue(dev, released, bytes);
 
 	if (netif_queue_stopped(dev) && released)
 		netif_wake_queue(dev);
@@ -625,6 +630,8 @@ bcm_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	wmb();
 	desc->len_stat = len_stat;
 	wmb();
+
+	netdev_sent_queue(dev, skb->len);
 
 	/* kick tx dma */
 	enet_dmac_writel(priv, priv->dma_chan_en_mask,
@@ -1169,6 +1176,7 @@ static int bcm_enet_stop(struct net_device *dev)
 	kdev = &priv->pdev->dev;
 
 	netif_stop_queue(dev);
+	netdev_reset_queue(dev);
 	napi_disable(&priv->napi);
 	if (priv->has_phy)
 		phy_stop(dev->phydev);
@@ -2338,6 +2346,7 @@ static int bcm_enetsw_stop(struct net_device *dev)
 
 	del_timer_sync(&priv->swphy_poll);
 	netif_stop_queue(dev);
+	netdev_reset_queue(dev);
 	napi_disable(&priv->napi);
 	del_timer_sync(&priv->rx_timeout);
 
