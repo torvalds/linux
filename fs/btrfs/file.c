@@ -453,12 +453,11 @@ static void btrfs_drop_pages(struct page **pages, size_t num_pages)
 }
 
 /*
- * after copy_from_user, pages need to be dirtied and we need to make
- * sure holes are created between the current EOF and the start of
- * any next extents (if required).
- *
- * this also makes the decision about creating an inline extent vs
- * doing real data extents, marking pages dirty and delalloc as required.
+ * After btrfs_copy_from_user(), update the following things for delalloc:
+ * - Mark newly dirtied pages as DELALLOC in the io tree.
+ *   Used to advise which range is to be written back.
+ * - Mark modified pages as Uptodate/Dirty and not needing COW fixup
+ * - Update inode size for past EOF write
  */
 int btrfs_dirty_pages(struct btrfs_inode *inode, struct page **pages,
 		      size_t num_pages, loff_t pos, size_t write_bytes,
