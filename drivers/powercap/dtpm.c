@@ -147,13 +147,17 @@ static void __dtpm_add_power(struct dtpm *dtpm)
  */
 int dtpm_update_power(struct dtpm *dtpm, u64 power_min, u64 power_max)
 {
+	int ret = 0;
+
 	mutex_lock(&dtpm_lock);
 
 	if (power_min == dtpm->power_min && power_max == dtpm->power_max)
-		return 0;
+		goto unlock;
 
-	if (power_max < power_min)
-		return -EINVAL;
+	if (power_max < power_min) {
+		ret = -EINVAL;
+		goto unlock;
+	}
 
 	__dtpm_sub_power(dtpm);
 
@@ -164,9 +168,10 @@ int dtpm_update_power(struct dtpm *dtpm, u64 power_min, u64 power_max)
 
 	__dtpm_add_power(dtpm);
 
+unlock:
 	mutex_unlock(&dtpm_lock);
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -187,8 +192,10 @@ int dtpm_release_zone(struct powercap_zone *pcz)
 
 	mutex_lock(&dtpm_lock);
 
-	if (!list_empty(&dtpm->children))
+	if (!list_empty(&dtpm->children)) {
+		mutex_unlock(&dtpm_lock);
 		return -EBUSY;
+	}
 
 	if (parent)
 		list_del(&dtpm->sibling);
