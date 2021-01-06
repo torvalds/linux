@@ -634,7 +634,8 @@ bcm_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	netdev_sent_queue(dev, skb->len);
 
 	/* kick tx dma */
-	enet_dmac_writel(priv, priv->dma_chan_en_mask,
+	if (!netdev_xmit_more() || !priv->tx_desc_count)
+		enet_dmac_writel(priv, priv->dma_chan_en_mask,
 				 ENETDMAC_CHANCFG, priv->tx_chan);
 
 	/* stop queue if no more desc available */
