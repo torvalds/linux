@@ -10002,7 +10002,7 @@ int register_netdevice(struct net_device *dev)
 	dev->hw_features |= (NETIF_F_SOFT_FEATURES | NETIF_F_SOFT_FEATURES_OFF);
 	dev->features |= NETIF_F_SOFT_FEATURES;
 
-	if (dev->netdev_ops->ndo_udp_tunnel_add) {
+	if (dev->udp_tunnel_nic_info) {
 		dev->features |= NETIF_F_RX_UDP_TUNNEL_PORT;
 		dev->hw_features |= NETIF_F_RX_UDP_TUNNEL_PORT;
 	}
