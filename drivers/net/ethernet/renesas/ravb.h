@@ -241,13 +241,12 @@ enum ESR_BIT {
 	ESR_EIL		= 0x00001000,
 };
 
-/* APSR */
+/* APSR (R-Car Gen3 only) */
 enum APSR_BIT {
-	APSR_MEMS		= 0x00000002,
-	APSR_CMSW		= 0x00000010,
-	APSR_DM			= 0x00006000,	/* Undocumented? */
-	APSR_DM_RDM		= 0x00002000,
-	APSR_DM_TDM		= 0x00004000,
+	APSR_MEMS	= 0x00000002,	/* Undocumented */
+	APSR_CMSW	= 0x00000010,
+	APSR_RDM	= 0x00002000,
+	APSR_TDM	= 0x00004000,
 };
 
 /* RCR */
