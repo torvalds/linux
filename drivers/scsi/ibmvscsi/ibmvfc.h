@@ -726,8 +726,9 @@ struct ibmvfc_target {
 
 /* a unit of work for the hosting partition */
 struct ibmvfc_event {
-	struct list_head queue;
+	struct list_head queue_list;
 	struct ibmvfc_host *vhost;
+	struct ibmvfc_queue *queue;
 	struct ibmvfc_target *tgt;
 	struct scsi_cmnd *cmnd;
 	atomic_t free;
@@ -767,6 +768,10 @@ struct ibmvfc_queue {
 	dma_addr_t msg_token;
 	enum ibmvfc_msg_fmt fmt;
 	int size, cur;
+
+	struct ibmvfc_event_pool evt_pool;
+	struct list_head sent;
+	struct list_head free;
 };
 
 enum ibmvfc_host_action {
@@ -808,10 +813,7 @@ struct ibmvfc_host {
 	u32 trace_index:IBMVFC_NUM_TRACE_INDEX_BITS;
 	int num_targets;
 	struct list_head targets;
-	struct list_head sent;
-	struct list_head free;
 	struct device *dev;
-	struct ibmvfc_event_pool pool;
 	struct dma_pool *sg_pool;
 	mempool_t *tgt_pool;
 	struct ibmvfc_queue crq;
