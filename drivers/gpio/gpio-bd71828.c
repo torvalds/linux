@@ -97,15 +97,15 @@ static int bd71828_get_direction(struct gpio_chip *chip, unsigned int offset)
 
 static int bd71828_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct bd71828_gpio *bdgpio;
 
-	bdgpio = devm_kzalloc(&pdev->dev, sizeof(*bdgpio),
-			      GFP_KERNEL);
+	bdgpio = devm_kzalloc(dev, sizeof(*bdgpio), GFP_KERNEL);
 	if (!bdgpio)
 		return -ENOMEM;
 
-	bdgpio->dev = &pdev->dev;
-	bdgpio->gpio.parent = pdev->dev.parent;
+	bdgpio->dev = dev;
+	bdgpio->gpio.parent = dev->parent;
 	bdgpio->gpio.label = "bd71828-gpio";
 	bdgpio->gpio.owner = THIS_MODULE;
 	bdgpio->gpio.get_direction = bd71828_get_direction;
@@ -121,13 +121,12 @@ static int bd71828_probe(struct platform_device *pdev)
 	 * "gpio-reserved-ranges" and exclude them from control
 	 */
 	bdgpio->gpio.ngpio = 4;
-	bdgpio->gpio.of_node = pdev->dev.parent->of_node;
-	bdgpio->regmap = dev_get_regmap(pdev->dev.parent, NULL);
+	bdgpio->gpio.of_node = dev->parent->of_node;
+	bdgpio->regmap = dev_get_regmap(dev->parent, NULL);
 	if (!bdgpio->regmap)
 		return -ENODEV;
 
-	return devm_gpiochip_add_data(&pdev->dev, &bdgpio->gpio,
-				     bdgpio);
+	return devm_gpiochip_add_data(dev, &bdgpio->gpio, bdgpio);
 }
 
 static struct platform_driver bd71828_gpio = {

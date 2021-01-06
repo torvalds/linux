@@ -181,15 +181,15 @@ static int bd70528_gpio_get(struct gpio_chip *chip, unsigned int offset)
 
 static int bd70528_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct bd70528_gpio *bdgpio;
 	int ret;
 
-	bdgpio = devm_kzalloc(&pdev->dev, sizeof(*bdgpio),
-			      GFP_KERNEL);
+	bdgpio = devm_kzalloc(dev, sizeof(*bdgpio), GFP_KERNEL);
 	if (!bdgpio)
 		return -ENOMEM;
-	bdgpio->dev = &pdev->dev;
-	bdgpio->gpio.parent = pdev->dev.parent;
+	bdgpio->dev = dev;
+	bdgpio->gpio.parent = dev->parent;
 	bdgpio->gpio.label = "bd70528-gpio";
 	bdgpio->gpio.owner = THIS_MODULE;
 	bdgpio->gpio.get_direction = bd70528_get_direction;
@@ -202,16 +202,15 @@ static int bd70528_probe(struct platform_device *pdev)
 	bdgpio->gpio.ngpio = 4;
 	bdgpio->gpio.base = -1;
 #ifdef CONFIG_OF_GPIO
-	bdgpio->gpio.of_node = pdev->dev.parent->of_node;
+	bdgpio->gpio.of_node = dev->parent->of_node;
 #endif
-	bdgpio->regmap = dev_get_regmap(pdev->dev.parent, NULL);
+	bdgpio->regmap = dev_get_regmap(dev->parent, NULL);
 	if (!bdgpio->regmap)
 		return -ENODEV;
 
-	ret = devm_gpiochip_add_data(&pdev->dev, &bdgpio->gpio,
-				     bdgpio);
+	ret = devm_gpiochip_add_data(dev, &bdgpio->gpio, bdgpio);
 	if (ret)
-		dev_err(&pdev->dev, "gpio_init: Failed to add bd70528-gpio\n");
+		dev_err(dev, "gpio_init: Failed to add bd70528-gpio\n");
 
 	return ret;
 }
