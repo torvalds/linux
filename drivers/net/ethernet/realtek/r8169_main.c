@@ -872,6 +872,25 @@ static void r8168_mac_ocp_modify(struct rtl8169_private *tp, u32 reg, u16 mask,
 	r8168_mac_ocp_write(tp, reg, (data & ~mask) | set);
 }
 
+/* Work around a hw issue with RTL8168g PHY, the quirk disables
+ * PHY MCU interrupts before PHY power-down.
+ */
+static void rtl8168g_phy_suspend_quirk(struct rtl8169_private *tp, int value)
+{
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_40:
+	case RTL_GIGA_MAC_VER_41:
+	case RTL_GIGA_MAC_VER_49:
+		if (value & BMCR_RESET || !(value & BMCR_PDOWN))
+			rtl_eri_set_bits(tp, 0x1a8, 0xfc000000);
+		else
+			rtl_eri_clear_bits(tp, 0x1a8, 0xfc000000);
+		break;
+	default:
+		break;
+	}
+};
+
 static void r8168g_mdio_write(struct rtl8169_private *tp, int reg, int value)
 {
 	if (reg == 0x1f) {
@@ -881,6 +900,9 @@ static void r8168g_mdio_write(struct rtl8169_private *tp, int reg, int value)
 
 	if (tp->ocp_base != OCP_STD_PHY_BASE)
 		reg -= 0x10;
+
+	if (tp->ocp_base == OCP_STD_PHY_BASE && reg == MII_BMCR)
+		rtl8168g_phy_suspend_quirk(tp, value);
 
 	r8168_phy_ocp_write(tp, tp->ocp_base + reg * 2, value);
 }
@@ -2210,20 +2232,8 @@ static void rtl_pll_power_down(struct rtl8169_private *tp)
 	case RTL_GIGA_MAC_VER_25 ... RTL_GIGA_MAC_VER_26:
 	case RTL_GIGA_MAC_VER_32 ... RTL_GIGA_MAC_VER_33:
 	case RTL_GIGA_MAC_VER_37:
-	case RTL_GIGA_MAC_VER_39:
-	case RTL_GIGA_MAC_VER_43:
-	case RTL_GIGA_MAC_VER_44:
-	case RTL_GIGA_MAC_VER_45:
-	case RTL_GIGA_MAC_VER_46:
-	case RTL_GIGA_MAC_VER_47:
-	case RTL_GIGA_MAC_VER_48:
-	case RTL_GIGA_MAC_VER_50 ... RTL_GIGA_MAC_VER_63:
-		RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) & ~0x80);
-		break;
-	case RTL_GIGA_MAC_VER_40:
-	case RTL_GIGA_MAC_VER_41:
-	case RTL_GIGA_MAC_VER_49:
-		rtl_eri_clear_bits(tp, 0x1a8, 0xfc000000);
+	case RTL_GIGA_MAC_VER_39 ... RTL_GIGA_MAC_VER_41:
+	case RTL_GIGA_MAC_VER_43 ... RTL_GIGA_MAC_VER_63:
 		RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) & ~0x80);
 		break;
 	default:
@@ -2241,19 +2251,9 @@ static void rtl_pll_power_up(struct rtl8169_private *tp)
 	case RTL_GIGA_MAC_VER_43:
 		RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) | 0x80);
 		break;
-	case RTL_GIGA_MAC_VER_44:
-	case RTL_GIGA_MAC_VER_45:
-	case RTL_GIGA_MAC_VER_46:
-	case RTL_GIGA_MAC_VER_47:
-	case RTL_GIGA_MAC_VER_48:
-	case RTL_GIGA_MAC_VER_50 ... RTL_GIGA_MAC_VER_63:
+	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_41:
+	case RTL_GIGA_MAC_VER_44 ... RTL_GIGA_MAC_VER_63:
 		RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) | 0xc0);
-		break;
-	case RTL_GIGA_MAC_VER_40:
-	case RTL_GIGA_MAC_VER_41:
-	case RTL_GIGA_MAC_VER_49:
-		RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) | 0xc0);
-		rtl_eri_set_bits(tp, 0x1a8, 0xfc000000);
 		break;
 	default:
 		break;
