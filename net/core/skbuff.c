@@ -1094,7 +1094,7 @@ void mm_unaccount_pinned_pages(struct mmpin *mmp)
 }
 EXPORT_SYMBOL_GPL(mm_unaccount_pinned_pages);
 
-struct ubuf_info *sock_zerocopy_alloc(struct sock *sk, size_t size)
+struct ubuf_info *msg_zerocopy_alloc(struct sock *sk, size_t size)
 {
 	struct ubuf_info *uarg;
 	struct sk_buff *skb;
@@ -1114,7 +1114,7 @@ struct ubuf_info *sock_zerocopy_alloc(struct sock *sk, size_t size)
 		return NULL;
 	}
 
-	uarg->callback = sock_zerocopy_callback;
+	uarg->callback = msg_zerocopy_callback;
 	uarg->id = ((u32)atomic_inc_return(&sk->sk_zckey)) - 1;
 	uarg->len = 1;
 	uarg->bytelen = size;
@@ -1124,15 +1124,15 @@ struct ubuf_info *sock_zerocopy_alloc(struct sock *sk, size_t size)
 
 	return uarg;
 }
-EXPORT_SYMBOL_GPL(sock_zerocopy_alloc);
+EXPORT_SYMBOL_GPL(msg_zerocopy_alloc);
 
 static inline struct sk_buff *skb_from_uarg(struct ubuf_info *uarg)
 {
 	return container_of((void *)uarg, struct sk_buff, cb);
 }
 
-struct ubuf_info *sock_zerocopy_realloc(struct sock *sk, size_t size,
-					struct ubuf_info *uarg)
+struct ubuf_info *msg_zerocopy_realloc(struct sock *sk, size_t size,
+				       struct ubuf_info *uarg)
 {
 	if (uarg) {
 		const u32 byte_limit = 1 << 19;		/* limit to a few TSO */
@@ -1171,9 +1171,9 @@ struct ubuf_info *sock_zerocopy_realloc(struct sock *sk, size_t size,
 	}
 
 new_alloc:
-	return sock_zerocopy_alloc(sk, size);
+	return msg_zerocopy_alloc(sk, size);
 }
-EXPORT_SYMBOL_GPL(sock_zerocopy_realloc);
+EXPORT_SYMBOL_GPL(msg_zerocopy_realloc);
 
 static bool skb_zerocopy_notify_extend(struct sk_buff *skb, u32 lo, u16 len)
 {
@@ -1195,7 +1195,7 @@ static bool skb_zerocopy_notify_extend(struct sk_buff *skb, u32 lo, u16 len)
 	return true;
 }
 
-static void __sock_zerocopy_callback(struct ubuf_info *uarg)
+static void __msg_zerocopy_callback(struct ubuf_info *uarg)
 {
 	struct sk_buff *tail, *skb = skb_from_uarg(uarg);
 	struct sock_exterr_skb *serr;
@@ -1243,17 +1243,17 @@ release:
 	sock_put(sk);
 }
 
-void sock_zerocopy_callback(struct sk_buff *skb, struct ubuf_info *uarg,
-			    bool success)
+void msg_zerocopy_callback(struct sk_buff *skb, struct ubuf_info *uarg,
+			   bool success)
 {
 	uarg->zerocopy = uarg->zerocopy & success;
 
 	if (refcount_dec_and_test(&uarg->refcnt))
-		__sock_zerocopy_callback(uarg);
+		__msg_zerocopy_callback(uarg);
 }
-EXPORT_SYMBOL_GPL(sock_zerocopy_callback);
+EXPORT_SYMBOL_GPL(msg_zerocopy_callback);
 
-void sock_zerocopy_put_abort(struct ubuf_info *uarg, bool have_uref)
+void msg_zerocopy_put_abort(struct ubuf_info *uarg, bool have_uref)
 {
 	struct sock *sk = skb_from_uarg(uarg)->sk;
 
@@ -1261,9 +1261,9 @@ void sock_zerocopy_put_abort(struct ubuf_info *uarg, bool have_uref)
 	uarg->len--;
 
 	if (have_uref)
-		sock_zerocopy_callback(NULL, uarg, true);
+		msg_zerocopy_callback(NULL, uarg, true);
 }
-EXPORT_SYMBOL_GPL(sock_zerocopy_put_abort);
+EXPORT_SYMBOL_GPL(msg_zerocopy_put_abort);
 
 int skb_zerocopy_iter_dgram(struct sk_buff *skb, struct msghdr *msg, int len)
 {
