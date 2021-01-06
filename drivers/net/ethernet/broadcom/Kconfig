@@ -174,7 +174,6 @@ config BGMAC_BCMA
 config BGMAC_PLATFORM
 	tristate "Broadcom iProc GBit platform support"
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
-	depends on OF
 	select BGMAC
 	select PHYLIB
 	select FIXED_PHY
