@@ -2204,7 +2204,7 @@ static struct file_system_type sel_fs_type = {
 	.kill_sb	= sel_kill_sb,
 };
 
-struct vfsmount *selinuxfs_mount;
+static struct vfsmount *selinuxfs_mount;
 struct path selinux_null;
 
 static int __init init_sel_fs(void)
