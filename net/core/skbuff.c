@@ -1251,13 +1251,6 @@ void sock_zerocopy_callback(struct ubuf_info *uarg, bool success)
 }
 EXPORT_SYMBOL_GPL(sock_zerocopy_callback);
 
-void sock_zerocopy_put(struct ubuf_info *uarg)
-{
-	if (uarg)
-		uarg->callback(uarg, uarg->zerocopy);
-}
-EXPORT_SYMBOL_GPL(sock_zerocopy_put);
-
 void sock_zerocopy_put_abort(struct ubuf_info *uarg, bool have_uref)
 {
 	if (uarg) {
@@ -1267,7 +1260,7 @@ void sock_zerocopy_put_abort(struct ubuf_info *uarg, bool have_uref)
 		uarg->len--;
 
 		if (have_uref)
-			sock_zerocopy_put(uarg);
+			skb_zcopy_put(uarg);
 	}
 }
 EXPORT_SYMBOL_GPL(sock_zerocopy_put_abort);

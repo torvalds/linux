@@ -496,7 +496,6 @@ static inline void sock_zerocopy_get(struct ubuf_info *uarg)
 	refcount_inc(&uarg->refcnt);
 }
 
-void sock_zerocopy_put(struct ubuf_info *uarg);
 void sock_zerocopy_put_abort(struct ubuf_info *uarg, bool have_uref);
 
 void sock_zerocopy_callback(struct ubuf_info *uarg, bool success);
@@ -1469,6 +1468,12 @@ static inline bool skb_zcopy_is_nouarg(struct sk_buff *skb)
 static inline void *skb_zcopy_get_nouarg(struct sk_buff *skb)
 {
 	return (void *)((uintptr_t) skb_shinfo(skb)->destructor_arg & ~0x1UL);
+}
+
+static inline void skb_zcopy_put(struct ubuf_info *uarg)
+{
+	if (uarg)
+		uarg->callback(uarg, true);
 }
 
 /* Release a reference on a zerocopy structure */
