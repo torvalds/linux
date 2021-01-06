@@ -441,7 +441,9 @@ int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,
 	} __packed reply;
 	struct wil_net_stats *stats = &wil->sta[cid].stats;
 	int rc;
-	u8 txflag = RATE_INFO_FLAGS_DMG;
+	u8 tx_mcs, rx_mcs;
+	u8 tx_rate_flag = RATE_INFO_FLAGS_DMG;
+	u8 rx_rate_flag = RATE_INFO_FLAGS_DMG;
 
 	memset(&reply, 0, sizeof(reply));
 
@@ -451,13 +453,15 @@ int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,
 	if (rc)
 		return rc;
 
+	tx_mcs = le16_to_cpu(reply.evt.bf_mcs);
+
 	wil_dbg_wmi(wil, "Link status for CID %d MID %d: {\n"
-		    "  MCS %d TSF 0x%016llx\n"
+		    "  MCS %s TSF 0x%016llx\n"
 		    "  BF status 0x%08x RSSI %d SQI %d%%\n"
 		    "  Tx Tpt %d goodput %d Rx goodput %d\n"
 		    "  Sectors(rx:tx) my %d:%d peer %d:%d\n"
 		    "  Tx mode %d}\n",
-		    cid, vif->mid, le16_to_cpu(reply.evt.bf_mcs),
+		    cid, vif->mid, WIL_EXTENDED_MCS_CHECK(tx_mcs),
 		    le64_to_cpu(reply.evt.tsf), reply.evt.status,
 		    reply.evt.rssi,
 		    reply.evt.sqi,
@@ -481,12 +485,30 @@ int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,
 			BIT_ULL(NL80211_STA_INFO_RX_DROP_MISC) |
 			BIT_ULL(NL80211_STA_INFO_TX_FAILED);
 
-	if (wil->use_enhanced_dma_hw && reply.evt.tx_mode != WMI_TX_MODE_DMG)
-		txflag = RATE_INFO_FLAGS_EDMG;
+	if (wil->use_enhanced_dma_hw && reply.evt.tx_mode != WMI_TX_MODE_DMG) {
+		tx_rate_flag = RATE_INFO_FLAGS_EDMG;
+		rx_rate_flag = RATE_INFO_FLAGS_EDMG;
+	}
 
-	sinfo->txrate.flags = txflag;
-	sinfo->txrate.mcs = le16_to_cpu(reply.evt.bf_mcs);
-	sinfo->rxrate.mcs = stats->last_mcs_rx;
+	rx_mcs = stats->last_mcs_rx;
+
+	/* check extended MCS (12.1) and convert it into
+	 * base MCS (7) + EXTENDED_SC_DMG flag
+	 */
+	if (tx_mcs == WIL_EXTENDED_MCS_26) {
+		tx_rate_flag = RATE_INFO_FLAGS_EXTENDED_SC_DMG;
+		tx_mcs = WIL_BASE_MCS_FOR_EXTENDED_26;
+	}
+	if (rx_mcs == WIL_EXTENDED_MCS_26) {
+		rx_rate_flag = RATE_INFO_FLAGS_EXTENDED_SC_DMG;
+		rx_mcs = WIL_BASE_MCS_FOR_EXTENDED_26;
+	}
+
+	sinfo->txrate.flags = tx_rate_flag;
+	sinfo->rxrate.flags = rx_rate_flag;
+	sinfo->txrate.mcs = tx_mcs;
+	sinfo->rxrate.mcs = rx_mcs;
+
 	sinfo->txrate.n_bonded_ch =
 				  wil_tx_cb_mode_to_n_bonded(reply.evt.tx_mode);
 	sinfo->rxrate.n_bonded_ch =
