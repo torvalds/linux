@@ -297,10 +297,12 @@ static void bcm_enet_refill_rx_timer(struct timer_list *t)
 static int bcm_enet_receive_queue(struct net_device *dev, int budget)
 {
 	struct bcm_enet_priv *priv;
+	struct list_head rx_list;
 	struct device *kdev;
 	int processed;
 
 	priv = netdev_priv(dev);
+	INIT_LIST_HEAD(&rx_list);
 	kdev = &priv->pdev->dev;
 	processed = 0;
 
@@ -391,9 +393,11 @@ static int bcm_enet_receive_queue(struct net_device *dev, int budget)
 		skb->protocol = eth_type_trans(skb, dev);
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += len;
-		netif_receive_skb(skb);
+		list_add_tail(&skb->list, &rx_list);
 
 	} while (--budget > 0);
+
+	netif_receive_skb_list(&rx_list);
 
 	if (processed || !priv->rx_desc_count) {
 		bcm_enet_refill_rx(dev);
