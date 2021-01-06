@@ -727,7 +727,7 @@ static ssize_t tap_get_user(struct tap_queue *q, void *msg_control,
 		skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
 	} else if (msg_control) {
 		struct ubuf_info *uarg = msg_control;
-		uarg->callback(uarg, false);
+		uarg->callback(NULL, uarg, false);
 	}
 
 	if (tap) {

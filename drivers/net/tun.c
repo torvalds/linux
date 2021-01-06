@@ -1819,7 +1819,7 @@ drop:
 		skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
 	} else if (msg_control) {
 		struct ubuf_info *uarg = msg_control;
-		uarg->callback(uarg, false);
+		uarg->callback(NULL, uarg, false);
 	}
 
 	skb_reset_network_header(skb);

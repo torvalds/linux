@@ -461,7 +461,8 @@ enum {
  * The desc field is used to track userspace buffer index.
  */
 struct ubuf_info {
-	void (*callback)(struct ubuf_info *, bool zerocopy_success);
+	void (*callback)(struct sk_buff *, struct ubuf_info *,
+			 bool zerocopy_success);
 	union {
 		struct {
 			unsigned long desc;
@@ -493,7 +494,8 @@ struct ubuf_info *sock_zerocopy_realloc(struct sock *sk, size_t size,
 
 void sock_zerocopy_put_abort(struct ubuf_info *uarg, bool have_uref);
 
-void sock_zerocopy_callback(struct ubuf_info *uarg, bool success);
+void sock_zerocopy_callback(struct sk_buff *skb, struct ubuf_info *uarg,
+			    bool success);
 
 int skb_zerocopy_iter_dgram(struct sk_buff *skb, struct msghdr *msg, int len);
 int skb_zerocopy_iter_stream(struct sock *sk, struct sk_buff *skb,
@@ -1473,20 +1475,17 @@ static inline void *skb_zcopy_get_nouarg(struct sk_buff *skb)
 static inline void skb_zcopy_put(struct ubuf_info *uarg)
 {
 	if (uarg)
-		uarg->callback(uarg, true);
+		uarg->callback(NULL, uarg, true);
 }
 
 /* Release a reference on a zerocopy structure */
-static inline void skb_zcopy_clear(struct sk_buff *skb, bool zerocopy)
+static inline void skb_zcopy_clear(struct sk_buff *skb, bool zerocopy_success)
 {
 	struct ubuf_info *uarg = skb_zcopy(skb);
 
 	if (uarg) {
-		if (skb_zcopy_is_nouarg(skb)) {
-			/* no notification callback */
-		} else {
-			uarg->callback(uarg, zerocopy);
-		}
+		if (!skb_zcopy_is_nouarg(skb))
+			uarg->callback(skb, uarg, zerocopy_success);
 
 		skb_shinfo(skb)->tx_flags &= ~SKBTX_ZEROCOPY_FRAG;
 	}
