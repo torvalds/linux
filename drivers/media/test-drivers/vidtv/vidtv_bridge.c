@@ -17,6 +17,8 @@
 #include <linux/time.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
+#include <media/dvbdev.h>
+#include <media/media-device.h>
 
 #include "vidtv_bridge.h"
 #include "vidtv_common.h"
@@ -501,9 +503,30 @@ static int vidtv_bridge_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dvb);
 
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	dvb->mdev.dev = &pdev->dev;
+
+	strscpy(dvb->mdev.model, "vidtv", sizeof(dvb->mdev.model));
+	strscpy(dvb->mdev.bus_info, "platform:vidtv", sizeof(dvb->mdev.bus_info));
+
+	media_device_init(&dvb->mdev);
+	ret = media_device_register(&dvb->mdev);
+	if (ret) {
+		dev_err(dvb->mdev.dev,
+			"media device register failed (err=%d)\n", ret);
+		goto err_media_device_register;
+	}
+
+	dvb_register_media_controller(&dvb->adapter, &dvb->mdev);
+#endif /* CONFIG_MEDIA_CONTROLLER_DVB */
+
 	dev_info(&pdev->dev, "Successfully initialized vidtv!\n");
 	return ret;
 
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+err_media_device_register:
+	media_device_cleanup(&dvb->mdev);
+#endif /* CONFIG_MEDIA_CONTROLLER_DVB */
 err_dvb:
 	kfree(dvb);
 	return ret;
@@ -515,6 +538,11 @@ static int vidtv_bridge_remove(struct platform_device *pdev)
 	u32 i;
 
 	dvb = platform_get_drvdata(pdev);
+
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	media_device_unregister(&dvb->mdev);
+	media_device_cleanup(&dvb->mdev);
+#endif /* CONFIG_MEDIA_CONTROLLER_DVB */
 
 	mutex_destroy(&dvb->feed_lock);
 
