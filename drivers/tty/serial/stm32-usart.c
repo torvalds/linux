@@ -3,7 +3,8 @@
  * Copyright (C) Maxime Coquelin 2015
  * Copyright (C) STMicroelectronics SA 2017
  * Authors:  Maxime Coquelin <mcoquelin.stm32@gmail.com>
- *	     Gerald Baeza <gerald.baeza@st.com>
+ *	     Gerald Baeza <gerald.baeza@foss.st.com>
+ *	     Erwan Le Ray <erwan.leray@foss.st.com>
  *
  * Inspired by st-asc.c from STMicroelectronics (c)
  */
