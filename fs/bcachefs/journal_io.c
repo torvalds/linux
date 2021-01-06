@@ -576,8 +576,15 @@ reread:
 			if (bch2_dev_io_err_on(ret, ca,
 					       "journal read error: sector %llu",
 					       offset) ||
-			    bch2_meta_read_fault("journal"))
-				return -EIO;
+			    bch2_meta_read_fault("journal")) {
+				/*
+				 * We don't error out of the recovery process
+				 * here, since the relevant journal entry may be
+				 * found on a different device, and missing or
+				 * no journal entries will be handled later
+				 */
+				return 0;
+			}
 
 			j = buf->data;
 		}
