@@ -1190,3 +1190,15 @@ bool cpus_are_stuck_in_kernel(void)
 
 	return !!cpus_stuck_in_kernel || smp_spin_tables;
 }
+
+int nr_ipi_get(void)
+{
+	return nr_ipi;
+}
+EXPORT_SYMBOL_GPL(nr_ipi_get);
+
+struct irq_desc **ipi_desc_get(void)
+{
+	return ipi_desc;
+}
+EXPORT_SYMBOL_GPL(ipi_desc_get);
