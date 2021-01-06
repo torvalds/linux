@@ -746,6 +746,70 @@ static const struct rtl_cond name = {			\
 							\
 static bool name ## _check(struct rtl8169_private *tp)
 
+static void r8168fp_adjust_ocp_cmd(struct rtl8169_private *tp, u32 *cmd, int type)
+{
+	/* based on RTL8168FP_OOBMAC_BASE in vendor driver */
+	if (tp->mac_version == RTL_GIGA_MAC_VER_52 && type == ERIAR_OOB)
+		*cmd |= 0x7f0 << 18;
+}
+
+DECLARE_RTL_COND(rtl_eriar_cond)
+{
+	return RTL_R32(tp, ERIAR) & ERIAR_FLAG;
+}
+
+static void _rtl_eri_write(struct rtl8169_private *tp, int addr, u32 mask,
+			   u32 val, int type)
+{
+	u32 cmd = ERIAR_WRITE_CMD | type | mask | addr;
+
+	BUG_ON((addr & 3) || (mask == 0));
+	RTL_W32(tp, ERIDR, val);
+	r8168fp_adjust_ocp_cmd(tp, &cmd, type);
+	RTL_W32(tp, ERIAR, cmd);
+
+	rtl_loop_wait_low(tp, &rtl_eriar_cond, 100, 100);
+}
+
+static void rtl_eri_write(struct rtl8169_private *tp, int addr, u32 mask,
+			  u32 val)
+{
+	_rtl_eri_write(tp, addr, mask, val, ERIAR_EXGMAC);
+}
+
+static u32 _rtl_eri_read(struct rtl8169_private *tp, int addr, int type)
+{
+	u32 cmd = ERIAR_READ_CMD | type | ERIAR_MASK_1111 | addr;
+
+	r8168fp_adjust_ocp_cmd(tp, &cmd, type);
+	RTL_W32(tp, ERIAR, cmd);
+
+	return rtl_loop_wait_high(tp, &rtl_eriar_cond, 100, 100) ?
+		RTL_R32(tp, ERIDR) : ~0;
+}
+
+static u32 rtl_eri_read(struct rtl8169_private *tp, int addr)
+{
+	return _rtl_eri_read(tp, addr, ERIAR_EXGMAC);
+}
+
+static void rtl_w0w1_eri(struct rtl8169_private *tp, int addr, u32 p, u32 m)
+{
+	u32 val = rtl_eri_read(tp, addr);
+
+	rtl_eri_write(tp, addr, ERIAR_MASK_1111, (val & ~m) | p);
+}
+
+static void rtl_eri_set_bits(struct rtl8169_private *tp, int addr, u32 p)
+{
+	rtl_w0w1_eri(tp, addr, p, 0);
+}
+
+static void rtl_eri_clear_bits(struct rtl8169_private *tp, int addr, u32 m)
+{
+	rtl_w0w1_eri(tp, addr, 0, m);
+}
+
 static bool rtl_ocp_reg_failure(struct rtl8169_private *tp, u32 reg)
 {
 	if (reg & 0xffff0001) {
@@ -1007,70 +1071,6 @@ static u16 rtl_ephy_read(struct rtl8169_private *tp, int reg_addr)
 
 	return rtl_loop_wait_high(tp, &rtl_ephyar_cond, 10, 100) ?
 		RTL_R32(tp, EPHYAR) & EPHYAR_DATA_MASK : ~0;
-}
-
-static void r8168fp_adjust_ocp_cmd(struct rtl8169_private *tp, u32 *cmd, int type)
-{
-	/* based on RTL8168FP_OOBMAC_BASE in vendor driver */
-	if (tp->mac_version == RTL_GIGA_MAC_VER_52 && type == ERIAR_OOB)
-		*cmd |= 0x7f0 << 18;
-}
-
-DECLARE_RTL_COND(rtl_eriar_cond)
-{
-	return RTL_R32(tp, ERIAR) & ERIAR_FLAG;
-}
-
-static void _rtl_eri_write(struct rtl8169_private *tp, int addr, u32 mask,
-			   u32 val, int type)
-{
-	u32 cmd = ERIAR_WRITE_CMD | type | mask | addr;
-
-	BUG_ON((addr & 3) || (mask == 0));
-	RTL_W32(tp, ERIDR, val);
-	r8168fp_adjust_ocp_cmd(tp, &cmd, type);
-	RTL_W32(tp, ERIAR, cmd);
-
-	rtl_loop_wait_low(tp, &rtl_eriar_cond, 100, 100);
-}
-
-static void rtl_eri_write(struct rtl8169_private *tp, int addr, u32 mask,
-			  u32 val)
-{
-	_rtl_eri_write(tp, addr, mask, val, ERIAR_EXGMAC);
-}
-
-static u32 _rtl_eri_read(struct rtl8169_private *tp, int addr, int type)
-{
-	u32 cmd = ERIAR_READ_CMD | type | ERIAR_MASK_1111 | addr;
-
-	r8168fp_adjust_ocp_cmd(tp, &cmd, type);
-	RTL_W32(tp, ERIAR, cmd);
-
-	return rtl_loop_wait_high(tp, &rtl_eriar_cond, 100, 100) ?
-		RTL_R32(tp, ERIDR) : ~0;
-}
-
-static u32 rtl_eri_read(struct rtl8169_private *tp, int addr)
-{
-	return _rtl_eri_read(tp, addr, ERIAR_EXGMAC);
-}
-
-static void rtl_w0w1_eri(struct rtl8169_private *tp, int addr, u32 p, u32 m)
-{
-	u32 val = rtl_eri_read(tp, addr);
-
-	rtl_eri_write(tp, addr, ERIAR_MASK_1111, (val & ~m) | p);
-}
-
-static void rtl_eri_set_bits(struct rtl8169_private *tp, int addr, u32 p)
-{
-	rtl_w0w1_eri(tp, addr, p, 0);
-}
-
-static void rtl_eri_clear_bits(struct rtl8169_private *tp, int addr, u32 m)
-{
-	rtl_w0w1_eri(tp, addr, 0, m);
 }
 
 static u32 r8168dp_ocp_read(struct rtl8169_private *tp, u16 reg)
