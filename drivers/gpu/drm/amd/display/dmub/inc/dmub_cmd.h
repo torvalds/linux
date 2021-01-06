@@ -654,6 +654,10 @@ enum dmub_cmd_type {
 	 */
 	DMUB_CMD__PANEL_CNTL = 74,
 	/**
+	 * Command type used for interfacing with DPIA.
+	 */
+	DMUB_CMD__DPIA = 77,
+	/**
 	 * Command type used for EDID CEA parsing
 	 */
 	DMUB_CMD__EDID_CEA = 79,
@@ -679,6 +683,11 @@ enum dmub_out_cmd_type {
 	 * Command type used for DP HPD event notification
 	 */
 	DMUB_OUT_CMD__DP_HPD_NOTIFY = 2,
+};
+
+/* DMUB_CMD__DPIA command sub-types. */
+enum dmub_cmd_dpia_type {
+	DMUB_CMD__DPIA_DIG1_DPIA_CONTROL = 0,
 };
 
 #pragma pack(push, 1)
@@ -998,6 +1007,34 @@ union dmub_cmd_dig1_transmitter_control_data {
 struct dmub_rb_cmd_dig1_transmitter_control {
 	struct dmub_cmd_header header; /**< header */
 	union dmub_cmd_dig1_transmitter_control_data transmitter_control; /**< payload */
+};
+
+/**
+ * DPIA tunnel command parameters.
+ */
+struct dmub_cmd_dig_dpia_control_data {
+	uint8_t enc_id;         /** 0 = ENGINE_ID_DIGA, ... */
+	uint8_t action;         /** ATOM_TRANSMITER_ACTION_DISABLE/ENABLE/SETUP_VSEMPH */
+	union {
+		uint8_t digmode;    /** enum atom_encode_mode_def */
+		uint8_t dplaneset;  /** DP voltage swing and pre-emphasis value */
+	} mode_laneset;
+	uint8_t lanenum;        /** Lane number 1, 2, 4, 8 */
+	uint32_t symclk_10khz;  /** Symbol Clock in 10Khz */
+	uint8_t hpdsel;         /** =0: HPD is not assigned */
+	uint8_t digfe_sel;      /** DIG stream( front-end ) selection, bit0 - DIG0 FE */
+	uint8_t dpia_id;        /** Index of DPIA */
+	uint8_t fec_rdy : 1;
+	uint8_t reserved : 7;
+	uint32_t reserved1;
+};
+
+/**
+ * DMUB command for DPIA tunnel control.
+ */
+struct dmub_rb_cmd_dig1_dpia_control {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_dig_dpia_control_data dpia_control;
 };
 
 /**
@@ -2441,6 +2478,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__VBIOS_LVTMA_CONTROL command.
 	 */
 	struct dmub_rb_cmd_lvtma_control lvtma_control;
+	/**
+	 * Definition of a DMUB_CMD__DPIA_DIG1_CONTROL command.
+	 */
+	struct dmub_rb_cmd_dig1_dpia_control dig1_dpia_control;
 	/**
 	 * Definition of a DMUB_CMD__EDID_CEA command.
 	 */

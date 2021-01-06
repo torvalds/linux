@@ -2310,6 +2310,23 @@ enum link_training_result dc_link_dp_perform_link_training(
 	return status;
 }
 
+/*
+ * Train DP tunneling link for USB4 DPIA display endpoint.
+ *
+ * DPIA equivalent of dc_link_dp_perfrorm_link_training.
+ */
+enum link_training_result dc_link_dpia_perform_link_training(struct dc_link *link,
+	const struct dc_link_settings *link_setting,
+	bool skip_video_pattern)
+{
+	enum link_training_result status;
+
+	/** @todo Always fail until USB4 DPIA training implemented. */
+	status = LINK_TRAINING_CR_FAIL_LANE0;
+
+	return status;
+}
+
 bool perform_link_training_with_retries(
 	const struct dc_link_settings *link_setting,
 	bool skip_video_pattern,
@@ -2381,10 +2398,15 @@ bool perform_link_training_with_retries(
 			dc_link_dp_perform_link_training_skip_aux(link, &current_setting);
 			return true;
 		} else {
-				status = dc_link_dp_perform_link_training(
-										link,
-										&current_setting,
-										skip_video_pattern);
+			if (link->is_dig_mapping_flexible)
+				status = dc_link_dpia_perform_link_training(link,
+									    link_setting,
+									    skip_video_pattern);
+			else
+				status = dc_link_dp_perform_link_training(link,
+									  &current_setting,
+									  skip_video_pattern);
+
 			if (status == LINK_TRAINING_SUCCESS)
 				return true;
 		}
