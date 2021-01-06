@@ -1479,9 +1479,6 @@ static inline void skb_zcopy_clear(struct sk_buff *skb, bool zerocopy)
 	if (uarg) {
 		if (skb_zcopy_is_nouarg(skb)) {
 			/* no notification callback */
-		} else if (uarg->callback == sock_zerocopy_callback) {
-			uarg->zerocopy = uarg->zerocopy && zerocopy;
-			sock_zerocopy_put(uarg);
 		} else {
 			uarg->callback(uarg, zerocopy);
 		}
