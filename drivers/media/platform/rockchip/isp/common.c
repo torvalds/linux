@@ -78,6 +78,8 @@ int rkisp_alloc_buffer(struct rkisp_device *dev,
 		goto err;
 	}
 
+	if (dev->hw_dev->is_dma_contig)
+		attrs |= DMA_ATTR_FORCE_CONTIGUOUS;
 	buf->size = PAGE_ALIGN(buf->size);
 	mem_priv = g_ops->alloc(dev->hw_dev->dev, attrs, buf->size,
 				DMA_BIDIRECTIONAL, GFP_KERNEL);
@@ -93,7 +95,7 @@ int rkisp_alloc_buffer(struct rkisp_device *dev,
 	} else {
 		buf->dma_addr = *((dma_addr_t *)g_ops->cookie(mem_priv));
 	}
-	if (!attrs)
+	if (buf->is_need_vaddr)
 		buf->vaddr = g_ops->vaddr(mem_priv);
 	if (buf->is_need_dbuf) {
 		buf->dbuf = g_ops->get_dmabuf(mem_priv, O_RDWR);

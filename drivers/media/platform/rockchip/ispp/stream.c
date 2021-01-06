@@ -1790,7 +1790,8 @@ static int rkispp_init_vb2_queue(struct vb2_queue *q,
 	q->lock = &stream->isppdev->apilock;
 	q->dev = stream->isppdev->hw_dev->dev;
 	q->allow_cache_hints = 1;
-
+	if (stream->isppdev->hw_dev->is_dma_contig)
+		q->dma_attrs = DMA_ATTR_FORCE_CONTIGUOUS;
 	return vb2_queue_init(q);
 }
 

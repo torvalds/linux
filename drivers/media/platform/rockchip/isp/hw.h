@@ -54,7 +54,7 @@ struct rkisp_hw_dev {
 	struct list_head list;
 	struct rkisp_dummy_buffer dummy_buf;
 	const struct vb2_mem_ops *mem_ops;
-
+	bool is_dma_contig;
 	bool is_mmu;
 	bool is_idle;
 	bool is_single;

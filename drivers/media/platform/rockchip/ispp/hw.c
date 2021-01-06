@@ -286,14 +286,18 @@ static int rkispp_hw_probe(struct platform_device *pdev)
 	hw_dev->is_idle = true;
 	hw_dev->is_single = true;
 	hw_dev->is_fec_ext = false;
+	hw_dev->is_dma_contig = true;
 	hw_dev->is_mmu = is_iommu_enable(dev);
-	if (!hw_dev->is_mmu) {
+	if (!hw_dev->is_mmu)
 		hw_dev->mem_ops = &vb2_dma_contig_memops;
-		ret = of_reserved_mem_device_init(dev);
-		if (ret)
-			dev_warn(dev, "No reserved memory region assign to ispp\n");
-	} else {
+	else
 		hw_dev->mem_ops = &vb2_dma_sg_memops;
+	ret = of_reserved_mem_device_init(dev);
+	if (ret) {
+		if (!hw_dev->is_mmu)
+			dev_warn(dev, "No reserved memory region. default cma area!\n");
+		else
+			hw_dev->is_dma_contig = false;
 	}
 
 	rkispp_register_fec(hw_dev);
