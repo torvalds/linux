@@ -408,6 +408,8 @@ struct hl_mmu_properties {
  * @sync_stream_first_mon: first monitor available for sync stream use
  * @first_available_user_sob: first sob available for the user
  * @first_available_user_mon: first monitor available for the user
+ * @first_available_user_msix_interrupt: first available msix interrupt
+ *                                       reserved for the user
  * @tpc_enabled_mask: which TPCs are enabled.
  * @completion_queues_count: number of completion queues.
  * @fw_security_disabled: true if security measures are disabled in firmware,
@@ -469,6 +471,7 @@ struct asic_fixed_properties {
 	u16				sync_stream_first_mon;
 	u16				first_available_user_sob[HL_MAX_DCORES];
 	u16				first_available_user_mon[HL_MAX_DCORES];
+	u16				first_available_user_msix_interrupt;
 	u8				tpc_enabled_mask;
 	u8				completion_queues_count;
 	u8				fw_security_disabled;
