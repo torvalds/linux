@@ -49,7 +49,7 @@ static inline unsigned long get_tbl(void)
 	return mftb();
 }
 
-static inline u64 get_tb(void)
+static __always_inline u64 get_tb(void)
 {
 	unsigned int tbhi, tblo, tbhi2;
 

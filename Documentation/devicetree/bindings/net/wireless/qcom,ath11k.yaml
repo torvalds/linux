@@ -136,7 +136,7 @@ properties:
       - const: tcl2host-status-ring
 
   qcom,rproc:
-    $ref: /schemas/types.yaml#definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       DT entry of q6v5-wcss remoteproc driver.
       Phandle to a node that can contain the following properties

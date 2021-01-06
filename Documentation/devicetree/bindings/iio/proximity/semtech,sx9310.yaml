@@ -72,7 +72,7 @@ properties:
       - finest
 
   semtech,startup-sensor:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1, 2, 3]
     default: 0
     description:
@@ -81,7 +81,7 @@ properties:
       compensation.
 
   semtech,proxraw-strength:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 2, 4, 8]
     default: 2
     description:
@@ -89,7 +89,7 @@ properties:
       represent 1-1/N.
 
   semtech,avg-pos-strength:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 16, 64, 128, 256, 512, 1024, 4294967295]
     default: 16
     description:

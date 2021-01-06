@@ -44,6 +44,13 @@ struct rnbd_iu_comp {
 	int errno;
 };
 
+#ifdef CONFIG_ARCH_NO_SG_CHAIN
+#define RNBD_INLINE_SG_CNT 0
+#else
+#define RNBD_INLINE_SG_CNT 2
+#endif
+#define RNBD_RDMA_SGL_SIZE (sizeof(struct scatterlist) * RNBD_INLINE_SG_CNT)
+
 struct rnbd_iu {
 	union {
 		struct request *rq; /* for block io */
@@ -56,11 +63,12 @@ struct rnbd_iu {
 		/* use to send msg associated with a sess */
 		struct rnbd_clt_session *sess;
 	};
-	struct scatterlist	sglist[BMAX_SEGMENTS];
+	struct sg_table		sgt;
 	struct work_struct	work;
 	int			errno;
 	struct rnbd_iu_comp	comp;
 	atomic_t		refcount;
+	struct scatterlist	first_sgl[]; /* must be the last one */
 };
 
 struct rnbd_cpu_qlist {
@@ -112,6 +120,8 @@ struct rnbd_clt_dev {
 	enum rnbd_access_mode	access_mode;
 	bool			read_only;
 	bool			rotational;
+	bool			wc;
+	bool			fua;
 	u32			max_hw_sectors;
 	u32			max_write_same_sectors;
 	u32			max_discard_sectors;

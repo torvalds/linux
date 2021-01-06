@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  *  gendisk handling
+ *
+ * Portions Copyright (C) 2020 Christoph Hellwig
  */
 
 #include <linux/module.h>

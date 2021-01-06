@@ -791,7 +791,7 @@ static char *synthesize_sdt_probe_command(struct sdt_note *note,
 					const char *sdtgrp)
 {
 	struct strbuf buf;
-	char *ret = NULL, **args;
+	char *ret = NULL;
 	int i, args_count, err;
 	unsigned long long ref_ctr_offset;
 
@@ -813,12 +813,19 @@ static char *synthesize_sdt_probe_command(struct sdt_note *note,
 		goto out;
 
 	if (note->args) {
-		args = argv_split(note->args, &args_count);
+		char **args = argv_split(note->args, &args_count);
+
+		if (args == NULL)
+			goto error;
 
 		for (i = 0; i < args_count; ++i) {
-			if (synthesize_sdt_probe_arg(&buf, i, args[i]) < 0)
+			if (synthesize_sdt_probe_arg(&buf, i, args[i]) < 0) {
+				argv_free(args);
 				goto error;
+			}
 		}
+
+		argv_free(args);
 	}
 
 out:

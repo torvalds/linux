@@ -313,7 +313,7 @@ static int check_per_pkg(struct evsel *counter,
 	if (!(vals->run && vals->ena))
 		return 0;
 
-	s = cpu_map__get_socket(cpus, cpu, NULL);
+	s = cpu_map__get_socket(cpus, cpu, NULL).socket;
 	if (s < 0)
 		return -1;
 

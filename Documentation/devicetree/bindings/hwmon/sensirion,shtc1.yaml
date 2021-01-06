@@ -29,12 +29,12 @@ properties:
     const: 0x70
 
   sensirion,blocking-io:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       If set, the driver hold the i2c bus until measurement is finished.
 
   sensirion,low-precision:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       If set, the sensor aquire data with low precision (not recommended).
       The driver aquire data with high precision by default.

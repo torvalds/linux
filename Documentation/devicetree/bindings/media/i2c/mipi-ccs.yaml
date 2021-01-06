@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 # Copyright (C) 2014--2020 Intel Corporation
-
+%YAML 1.2
+---
 $id: http://devicetree.org/schemas/media/i2c/mipi-ccs.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
@@ -26,11 +27,11 @@ properties:
   compatible:
     oneOf:
       - items:
-        - const: mipi-ccs-1.1
-        - const: mipi-ccs
+          - const: mipi-ccs-1.1
+          - const: mipi-ccs
       - items:
-        - const: mipi-ccs-1.0
-        - const: mipi-ccs
+          - const: mipi-ccs-1.0
+          - const: mipi-ccs
       - const: nokia,smia
 
   reg:
@@ -38,15 +39,12 @@ properties:
 
   vana-supply:
     description: Analogue voltage supply (VANA), sensor dependent.
-    maxItems: 1
 
   vcore-supply:
     description: Core voltage supply (VCore), sensor dependent.
-    maxItems: 1
 
   vio-supply:
     description: I/O voltage supply (VIO), sensor dependent.
-    maxItems: 1
 
   clocks:
     description: External clock to the sensor.

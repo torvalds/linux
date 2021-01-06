@@ -1428,6 +1428,7 @@ const struct mpc_funcs dcn30_mpc_funcs = {
 	.program_3dlut = mpc3_program_3dlut,
 	.release_rmu = mpcc3_release_rmu,
 	.power_on_mpc_mem_pwr = mpc20_power_on_ogam_lut,
+	.get_mpc_out_mux = mpc1_get_mpc_out_mux,
 
 };
 

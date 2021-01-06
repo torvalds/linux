@@ -55,7 +55,7 @@ properties:
     description: TI-SCI RM subtype for GP ring range
 
   ti,sci:
-    $ref: /schemas/types.yaml#definitions/phandle-array
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     description: phandle on TI-SCI compatible System controller node
 
   ti,sci-dev-id:

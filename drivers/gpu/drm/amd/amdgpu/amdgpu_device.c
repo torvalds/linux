@@ -5069,8 +5069,7 @@ out:
  * @pdev: pointer to PCI device
  *
  * Called when the error recovery driver tells us that its
- * OK to resume normal operation. Use completion to allow
- * halted scsi ops to resume.
+ * OK to resume normal operation.
  */
 void amdgpu_pci_resume(struct pci_dev *pdev)
 {

@@ -479,7 +479,6 @@ int mlx5e_port_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	c->mkey_be  = cpu_to_be32(priv->mdev->mlx5e_res.mkey.key);
 	c->num_tc   = params->num_tc;
 	c->stats    = &priv->port_ptp_stats.ch;
-	c->irq_desc = irq_to_desc(irq);
 	c->lag_port = lag_port;
 
 	netif_napi_add(netdev, &c->napi, mlx5e_ptp_napi_poll, 64);

@@ -28,7 +28,6 @@ struct mlx5e_port_ptp {
 	u8                         lag_port;
 
 	/* data path - accessed per napi poll */
-	struct irq_desc *irq_desc;
 	struct mlx5e_ch_stats     *stats;
 
 	/* control */

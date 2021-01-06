@@ -1577,13 +1577,10 @@ static int gmc_v9_0_hw_init(void *handle)
 	gmc_v9_0_init_golden_registers(adev);
 
 	if (adev->mode_info.num_crtc) {
-		if (adev->asic_type != CHIP_ARCTURUS) {
-			/* Lockout access through VGA aperture*/
-			WREG32_FIELD15(DCE, 0, VGA_HDP_CONTROL, VGA_MEMORY_DISABLE, 1);
-
-			/* disable VGA render */
-			WREG32_FIELD15(DCE, 0, VGA_RENDER_CONTROL, VGA_VSTATUS_CNTL, 0);
-		}
+		/* Lockout access through VGA aperture*/
+		WREG32_FIELD15(DCE, 0, VGA_HDP_CONTROL, VGA_MEMORY_DISABLE, 1);
+		/* disable VGA render */
+		WREG32_FIELD15(DCE, 0, VGA_RENDER_CONTROL, VGA_VSTATUS_CNTL, 0);
 	}
 
 	amdgpu_device_program_register_sequence(adev,

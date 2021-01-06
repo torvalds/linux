@@ -37,7 +37,7 @@ properties:
     description: Size of the connector, should be specified in case of
       non-fullsize 'usb-a-connector' or 'usb-b-connector' compatible
       connectors.
-    $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#/definitions/string
 
     enum:
       - mini
@@ -67,7 +67,7 @@ properties:
   power-role:
     description: Determines the power role that the Type C connector will
       support. "dual" refers to Dual Role Port (DRP).
-    $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#/definitions/string
 
     enum:
       - source
@@ -76,7 +76,7 @@ properties:
 
   try-power-role:
     description: Preferred power role.
-    $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#/definitions/string
 
     enum:
       - source
@@ -86,7 +86,7 @@ properties:
   data-role:
     description: Data role if Type C connector supports USB data. "dual" refers
       Dual Role Device (DRD).
-    $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#/definitions/string
 
     enum:
       - host
@@ -105,7 +105,7 @@ properties:
         Type-C Cable and Connector specification, when Power Delivery is not
         supported.
     allOf:
-      - $ref: /schemas/types.yaml#definitions/string
+      - $ref: /schemas/types.yaml#/definitions/string
     enum:
       - default
       - 1.5A

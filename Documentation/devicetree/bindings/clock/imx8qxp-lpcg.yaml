@@ -29,18 +29,18 @@ properties:
       - const: fsl,imx8qxp-lpcg
       - items:
           - enum:
-            - fsl,imx8qm-lpcg
+              - fsl,imx8qm-lpcg
           - const: fsl,imx8qxp-lpcg
       - enum:
-        - fsl,imx8qxp-lpcg-adma
-        - fsl,imx8qxp-lpcg-conn
-        - fsl,imx8qxp-lpcg-dc
-        - fsl,imx8qxp-lpcg-dsp
-        - fsl,imx8qxp-lpcg-gpu
-        - fsl,imx8qxp-lpcg-hsio
-        - fsl,imx8qxp-lpcg-img
-        - fsl,imx8qxp-lpcg-lsio
-        - fsl,imx8qxp-lpcg-vpu
+          - fsl,imx8qxp-lpcg-adma
+          - fsl,imx8qxp-lpcg-conn
+          - fsl,imx8qxp-lpcg-dc
+          - fsl,imx8qxp-lpcg-dsp
+          - fsl,imx8qxp-lpcg-gpu
+          - fsl,imx8qxp-lpcg-hsio
+          - fsl,imx8qxp-lpcg-img
+          - fsl,imx8qxp-lpcg-lsio
+          - fsl,imx8qxp-lpcg-vpu
         deprecated: true
   reg:
     maxItems: 1

@@ -106,7 +106,7 @@ patternProperties:
           Must contain the phandle and index of the SAI sub-block providing
           the synchronization.
         allOf:
-          - $ref: /schemas/types.yaml#definitions/phandle-array
+          - $ref: /schemas/types.yaml#/definitions/phandle-array
           - maxItems: 1
 
       st,iec60958:
@@ -117,7 +117,7 @@ patternProperties:
           configured according to protocol defined in related DAI link node,
           such as i2s, left justified, right justified, dsp and pdm protocols.
         allOf:
-          - $ref: /schemas/types.yaml#definitions/flag
+          - $ref: /schemas/types.yaml#/definitions/flag
 
       "#clock-cells":
         description: Configure the SAI device as master clock provider.

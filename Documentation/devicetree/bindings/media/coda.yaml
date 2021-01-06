@@ -44,6 +44,21 @@ properties:
       - const: per
       - const: ahb
 
+  interrupts:
+    minItems: 1
+    items:
+      - description: BIT processor interrupt
+      - description: JPEG unit interrupt
+
+  interrupt-names:
+    minItems: 1
+    items:
+      - const: bit
+      - const: jpeg
+
+  power-domains:
+    maxItems: 1
+
   resets:
     maxItems: 1
 
@@ -59,6 +74,8 @@ required:
   - clocks
   - clock-names
 
+additionalProperties: false
+
 allOf:
   - if:
       properties:
@@ -68,33 +85,16 @@ allOf:
     then:
       properties:
         interrupts:
-          items:
-            - description: BIT processor interrupt
-            - description: JPEG unit interrupt
+          minItems: 2
 
         interrupt-names:
-          items:
-            - const: bit
-            - const: jpeg
+          minItems: 2
     else:
       properties:
         interrupts:
-          items:
-            - description: BIT processor interrupt
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - fsl,imx6dl-vpu
-              - fsl,imx6q-vpu
-    then:
-      properties:
-        power-domains:
-          $ref: /schemas/types.yaml#/definitions/phandle
-          description: phandle pointing to the PU power domain
           maxItems: 1
+
+        power-domains: false
 
 examples:
   - |

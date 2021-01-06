@@ -1186,65 +1186,67 @@ static struct option stat_options[] = {
 	OPT_END()
 };
 
-static int perf_stat__get_socket(struct perf_stat_config *config __maybe_unused,
+static struct aggr_cpu_id perf_stat__get_socket(struct perf_stat_config *config __maybe_unused,
 				 struct perf_cpu_map *map, int cpu)
 {
 	return cpu_map__get_socket(map, cpu, NULL);
 }
 
-static int perf_stat__get_die(struct perf_stat_config *config __maybe_unused,
+static struct aggr_cpu_id perf_stat__get_die(struct perf_stat_config *config __maybe_unused,
 			      struct perf_cpu_map *map, int cpu)
 {
 	return cpu_map__get_die(map, cpu, NULL);
 }
 
-static int perf_stat__get_core(struct perf_stat_config *config __maybe_unused,
+static struct aggr_cpu_id perf_stat__get_core(struct perf_stat_config *config __maybe_unused,
 			       struct perf_cpu_map *map, int cpu)
 {
 	return cpu_map__get_core(map, cpu, NULL);
 }
 
-static int perf_stat__get_node(struct perf_stat_config *config __maybe_unused,
+static struct aggr_cpu_id perf_stat__get_node(struct perf_stat_config *config __maybe_unused,
 			       struct perf_cpu_map *map, int cpu)
 {
 	return cpu_map__get_node(map, cpu, NULL);
 }
 
-static int perf_stat__get_aggr(struct perf_stat_config *config,
+static struct aggr_cpu_id perf_stat__get_aggr(struct perf_stat_config *config,
 			       aggr_get_id_t get_id, struct perf_cpu_map *map, int idx)
 {
 	int cpu;
+	struct aggr_cpu_id id = cpu_map__empty_aggr_cpu_id();
 
 	if (idx >= map->nr)
-		return -1;
+		return id;
 
 	cpu = map->map[idx];
 
-	if (config->cpus_aggr_map->map[cpu] == -1)
+	if (cpu_map__aggr_cpu_id_is_empty(config->cpus_aggr_map->map[cpu]))
 		config->cpus_aggr_map->map[cpu] = get_id(config, map, idx);
 
-	return config->cpus_aggr_map->map[cpu];
+	id = config->cpus_aggr_map->map[cpu];
+	return id;
 }
 
-static int perf_stat__get_socket_cached(struct perf_stat_config *config,
+static struct aggr_cpu_id perf_stat__get_socket_cached(struct perf_stat_config *config,
 					struct perf_cpu_map *map, int idx)
 {
 	return perf_stat__get_aggr(config, perf_stat__get_socket, map, idx);
 }
 
-static int perf_stat__get_die_cached(struct perf_stat_config *config,
+static struct aggr_cpu_id perf_stat__get_die_cached(struct perf_stat_config *config,
 					struct perf_cpu_map *map, int idx)
 {
 	return perf_stat__get_aggr(config, perf_stat__get_die, map, idx);
 }
 
-static int perf_stat__get_core_cached(struct perf_stat_config *config,
+static struct aggr_cpu_id perf_stat__get_core_cached(struct perf_stat_config *config,
 				      struct perf_cpu_map *map, int idx)
 {
 	return perf_stat__get_aggr(config, perf_stat__get_core, map, idx);
 }
 
-static int perf_stat__get_node_cached(struct perf_stat_config *config,
+static struct aggr_cpu_id perf_stat__get_node_cached(struct perf_stat_config *config,
 				      struct perf_cpu_map *map, int idx)
 {
 	return perf_stat__get_aggr(config, perf_stat__get_node, map, idx);
@@ -1318,14 +1320,29 @@ static int perf_stat_init_aggr_mode(void)
 	 * the aggregation translate cpumap.
 	 */
 	nr = perf_cpu_map__max(evsel_list->core.cpus);
-	stat_config.cpus_aggr_map = perf_cpu_map__empty_new(nr + 1);
+	stat_config.cpus_aggr_map = cpu_aggr_map__empty_new(nr + 1);
 	return stat_config.cpus_aggr_map ? 0 : -ENOMEM;
+}
+
+static void cpu_aggr_map__delete(struct cpu_aggr_map *map)
+{
+	if (map) {
+		WARN_ONCE(refcount_read(&map->refcnt) != 0,
+			  "cpu_aggr_map refcnt unbalanced\n");
+		free(map);
+	}
+}
+
+static void cpu_aggr_map__put(struct cpu_aggr_map *map)
+{
+	if (map && refcount_dec_and_test(&map->refcnt))
+		cpu_aggr_map__delete(map);
 }
 
 static void perf_stat__exit_aggr_mode(void)
 {
-	perf_cpu_map__put(stat_config.aggr_map);
-	perf_cpu_map__put(stat_config.cpus_aggr_map);
+	cpu_aggr_map__put(stat_config.aggr_map);
+	cpu_aggr_map__put(stat_config.cpus_aggr_map);
 	stat_config.aggr_map = NULL;
 	stat_config.cpus_aggr_map = NULL;
 }
@@ -1345,117 +1362,108 @@ static inline int perf_env__get_cpu(struct perf_env *env, struct perf_cpu_map *m
 	return cpu;
 }
 
-static int perf_env__get_socket(struct perf_cpu_map *map, int idx, void *data)
+static struct aggr_cpu_id perf_env__get_socket(struct perf_cpu_map *map, int idx, void *data)
 {
 	struct perf_env *env = data;
 	int cpu = perf_env__get_cpu(env, map, idx);
+	struct aggr_cpu_id id = cpu_map__empty_aggr_cpu_id();
 
-	return cpu == -1 ? -1 : env->cpu[cpu].socket_id;
+	if (cpu != -1)
+		id.socket = env->cpu[cpu].socket_id;
+
+	return id;
 }
 
-static int perf_env__get_die(struct perf_cpu_map *map, int idx, void *data)
+static struct aggr_cpu_id perf_env__get_die(struct perf_cpu_map *map, int idx, void *data)
 {
 	struct perf_env *env = data;
-	int die_id = -1, cpu = perf_env__get_cpu(env, map, idx);
+	struct aggr_cpu_id id = cpu_map__empty_aggr_cpu_id();
+	int cpu = perf_env__get_cpu(env, map, idx);
 
 	if (cpu != -1) {
 		/*
-		 * Encode socket in bit range 15:8
-		 * die_id is relative to socket,
-		 * we need a global id. So we combine
-		 * socket + die id
+		 * die_id is relative to socket, so start
+		 * with the socket ID and then add die to
+		 * make a unique ID.
 		 */
-		if (WARN_ONCE(env->cpu[cpu].socket_id >> 8, "The socket id number is too big.\n"))
-			return -1;
-
-		if (WARN_ONCE(env->cpu[cpu].die_id >> 8, "The die id number is too big.\n"))
-			return -1;
-
-		die_id = (env->cpu[cpu].socket_id << 8) | (env->cpu[cpu].die_id & 0xff);
+		id.socket = env->cpu[cpu].socket_id;
+		id.die = env->cpu[cpu].die_id;
 	}
 
-	return die_id;
+	return id;
 }
 
-static int perf_env__get_core(struct perf_cpu_map *map, int idx, void *data)
+static struct aggr_cpu_id perf_env__get_core(struct perf_cpu_map *map, int idx, void *data)
 {
 	struct perf_env *env = data;
-	int core = -1, cpu = perf_env__get_cpu(env, map, idx);
+	struct aggr_cpu_id id = cpu_map__empty_aggr_cpu_id();
+	int cpu = perf_env__get_cpu(env, map, idx);
 
 	if (cpu != -1) {
 		/*
-		 * Encode socket in bit range 31:24
-		 * encode die id in bit range 23:16
 		 * core_id is relative to socket and die,
-		 * we need a global id. So we combine
-		 * socket + die id + core id
+		 * we need a global id. So we set
+		 * socket, die id and core id
 		 */
-		if (WARN_ONCE(env->cpu[cpu].socket_id >> 8, "The socket id number is too big.\n"))
-			return -1;
-
-		if (WARN_ONCE(env->cpu[cpu].die_id >> 8, "The die id number is too big.\n"))
-			return -1;
-
-		if (WARN_ONCE(env->cpu[cpu].core_id >> 16, "The core id number is too big.\n"))
-			return -1;
-
-		core = (env->cpu[cpu].socket_id << 24) |
-		       (env->cpu[cpu].die_id << 16) |
-		       (env->cpu[cpu].core_id & 0xffff);
+		id.socket = env->cpu[cpu].socket_id;
+		id.die = env->cpu[cpu].die_id;
+		id.core = env->cpu[cpu].core_id;
 	}
 
-	return core;
+	return id;
 }
 
-static int perf_env__get_node(struct perf_cpu_map *map, int idx, void *data)
+static struct aggr_cpu_id perf_env__get_node(struct perf_cpu_map *map, int idx, void *data)
 {
 	int cpu = perf_env__get_cpu(data, map, idx);
+	struct aggr_cpu_id id = cpu_map__empty_aggr_cpu_id();
 
-	return perf_env__numa_node(data, cpu);
+	id.node = perf_env__numa_node(data, cpu);
+	return id;
 }
 
 static int perf_env__build_socket_map(struct perf_env *env, struct perf_cpu_map *cpus,
-				      struct perf_cpu_map **sockp)
+				      struct cpu_aggr_map **sockp)
 {
 	return cpu_map__build_map(cpus, sockp, perf_env__get_socket, env);
 }
 
 static int perf_env__build_die_map(struct perf_env *env, struct perf_cpu_map *cpus,
-				   struct perf_cpu_map **diep)
+				   struct cpu_aggr_map **diep)
 {
 	return cpu_map__build_map(cpus, diep, perf_env__get_die, env);
 }
 
 static int perf_env__build_core_map(struct perf_env *env, struct perf_cpu_map *cpus,
-				    struct perf_cpu_map **corep)
+				    struct cpu_aggr_map **corep)
 {
 	return cpu_map__build_map(cpus, corep, perf_env__get_core, env);
 }
 
 static int perf_env__build_node_map(struct perf_env *env, struct perf_cpu_map *cpus,
-				    struct perf_cpu_map **nodep)
+				    struct cpu_aggr_map **nodep)
 {
 	return cpu_map__build_map(cpus, nodep, perf_env__get_node, env);
 }
 
-static int perf_stat__get_socket_file(struct perf_stat_config *config __maybe_unused,
+static struct aggr_cpu_id perf_stat__get_socket_file(struct perf_stat_config *config __maybe_unused,
 				      struct perf_cpu_map *map, int idx)
 {
 	return perf_env__get_socket(map, idx, &perf_stat.session->header.env);
 }
-static int perf_stat__get_die_file(struct perf_stat_config *config __maybe_unused,
+static struct aggr_cpu_id perf_stat__get_die_file(struct perf_stat_config *config __maybe_unused,
 				   struct perf_cpu_map *map, int idx)
 {
 	return perf_env__get_die(map, idx, &perf_stat.session->header.env);
 }
 
-static int perf_stat__get_core_file(struct perf_stat_config *config __maybe_unused,
+static struct aggr_cpu_id perf_stat__get_core_file(struct perf_stat_config *config __maybe_unused,
 				    struct perf_cpu_map *map, int idx)
 {
 	return perf_env__get_core(map, idx, &perf_stat.session->header.env);
 }
 
-static int perf_stat__get_node_file(struct perf_stat_config *config __maybe_unused,
+static struct aggr_cpu_id perf_stat__get_node_file(struct perf_stat_config *config __maybe_unused,
 				    struct perf_cpu_map *map, int idx)
 {
 	return perf_env__get_node(map, idx, &perf_stat.session->header.env);

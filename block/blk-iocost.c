@@ -2185,6 +2185,9 @@ static int ioc_check_iocgs(struct ioc *ioc, struct ioc_now *now)
 							    WEIGHT_ONE);
 			}
 
+			TRACE_IOCG_PATH(iocg_idle, iocg, now,
+					atomic64_read(&iocg->active_period),
+					atomic64_read(&ioc->cur_period), vtime);
 			__propagate_weights(iocg, 0, 0, false, now);
 			list_del_init(&iocg->active_list);
 		}

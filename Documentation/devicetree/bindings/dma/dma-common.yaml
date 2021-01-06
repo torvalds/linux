@@ -38,12 +38,12 @@ properties:
       maxItems: 255
 
   dma-channels:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Number of DMA channels supported by the controller.
 
   dma-requests:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Number of DMA request signals supported by the controller.
 

@@ -180,7 +180,12 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #define VCPU_GPR(n)	__VCPU_GPR(__REG_##n)
 
 #ifdef __KERNEL__
-#ifdef CONFIG_PPC64
+
+/*
+ * We use __powerpc64__ here because we want the compat VDSO to use the 32-bit
+ * version below in the else case of the ifdef.
+ */
+#ifdef __powerpc64__
 
 #define STACKFRAMESIZE 256
 #define __STK_REG(i)   (112 + ((i)-14)*8)

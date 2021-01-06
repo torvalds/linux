@@ -12,7 +12,10 @@ KASAN_SANITIZE_runtime-wrappers.o	:= n
 
 obj-$(CONFIG_ACPI_BGRT) 		+= efi-bgrt.o
 obj-$(CONFIG_EFI)			+= efi.o vars.o reboot.o memattr.o tpm.o
-obj-$(CONFIG_EFI)			+= capsule.o memmap.o
+obj-$(CONFIG_EFI)			+= memmap.o
+ifneq ($(CONFIG_EFI_CAPSULE_LOADER),)
+obj-$(CONFIG_EFI)			+= capsule.o
+endif
 obj-$(CONFIG_EFI_PARAMS_FROM_FDT)	+= fdtparams.o
 obj-$(CONFIG_EFI_VARS)			+= efivars.o
 obj-$(CONFIG_EFI_ESRT)			+= esrt.o

@@ -22,8 +22,7 @@ properties:
       - ti,hdc2010
       - ti,hdc2080
 
-  vdd-supply:
-    maxItems: 1
+  vdd-supply: true
 
   reg:
     maxItems: 1

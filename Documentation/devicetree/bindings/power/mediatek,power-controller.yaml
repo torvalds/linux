@@ -83,11 +83,11 @@ patternProperties:
           SUSBSYS clocks.
 
       mediatek,infracfg:
-        $ref: /schemas/types.yaml#definitions/phandle
+        $ref: /schemas/types.yaml#/definitions/phandle
         description: phandle to the device containing the INFRACFG register range.
 
       mediatek,smi:
-        $ref: /schemas/types.yaml#definitions/phandle
+        $ref: /schemas/types.yaml#/definitions/phandle
         description: phandle to the device containing the SMI register range.
 
     patternProperties:
@@ -131,11 +131,11 @@ patternProperties:
               SUSBSYS clocks.
 
           mediatek,infracfg:
-            $ref: /schemas/types.yaml#definitions/phandle
+            $ref: /schemas/types.yaml#/definitions/phandle
             description: phandle to the device containing the INFRACFG register range.
 
           mediatek,smi:
-            $ref: /schemas/types.yaml#definitions/phandle
+            $ref: /schemas/types.yaml#/definitions/phandle
             description: phandle to the device containing the SMI register range.
 
         patternProperties:
@@ -179,11 +179,11 @@ patternProperties:
                   SUSBSYS clocks.
 
               mediatek,infracfg:
-                $ref: /schemas/types.yaml#definitions/phandle
+                $ref: /schemas/types.yaml#/definitions/phandle
                 description: phandle to the device containing the INFRACFG register range.
 
               mediatek,smi:
-                $ref: /schemas/types.yaml#definitions/phandle
+                $ref: /schemas/types.yaml#/definitions/phandle
                 description: phandle to the device containing the SMI register range.
 
             required:
