@@ -8,6 +8,11 @@
 #include <linux/kernel.h>
 #include <asm/cpufeature.h>
 
+static inline bool __init smccc_probe_trng(void)
+{
+	return false;
+}
+
 static inline bool __arm64_rndr(unsigned long *v)
 {
 	bool ok;
@@ -78,6 +83,13 @@ arch_get_random_seed_long_early(unsigned long *v)
 	return __arm64_rndr(v);
 }
 #define arch_get_random_seed_long_early arch_get_random_seed_long_early
+
+#else /* !CONFIG_ARCH_RANDOM */
+
+static inline bool __init smccc_probe_trng(void)
+{
+	return false;
+}
 
 #endif /* CONFIG_ARCH_RANDOM */
 #endif /* _ASM_ARCHRANDOM_H */
