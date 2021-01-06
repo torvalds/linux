@@ -605,13 +605,14 @@ static void skb_release_data(struct sk_buff *skb)
 			      &shinfo->dataref))
 		return;
 
+	skb_zcopy_clear(skb, true);
+
 	for (i = 0; i < shinfo->nr_frags; i++)
 		__skb_frag_unref(&shinfo->frags[i]);
 
 	if (shinfo->frag_list)
 		kfree_skb_list(shinfo->frag_list);
 
-	skb_zcopy_clear(skb, true);
 	skb_free_head(skb);
 }
 
