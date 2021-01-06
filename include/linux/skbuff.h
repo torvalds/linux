@@ -480,6 +480,7 @@ struct ubuf_info {
 		};
 	};
 	refcount_t refcnt;
+	u8 flags;
 
 	struct mmpin {
 		struct user_struct *user;
@@ -1456,7 +1457,7 @@ static inline void skb_zcopy_set(struct sk_buff *skb, struct ubuf_info *uarg,
 		else
 			skb_zcopy_get(uarg);
 		skb_shinfo(skb)->destructor_arg = uarg;
-		skb_shinfo(skb)->flags |= SKBFL_ZEROCOPY_FRAG;
+		skb_shinfo(skb)->flags |= uarg->flags;
 	}
 }
 
