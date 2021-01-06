@@ -1884,9 +1884,9 @@ static void bl_abort_syn_rcv(struct sock *lsk, struct sk_buff *skb)
 	queue = csk->txq_idx;
 
 	skb->sk	= NULL;
-	do_abort_syn_rcv(child, lsk);
 	chtls_send_abort_rpl(child, skb, BLOG_SKB_CB(skb)->cdev,
 			     CPL_ABORT_NO_RST, queue);
+	do_abort_syn_rcv(child, lsk);
 }
 
 static int abort_syn_rcv(struct sock *sk, struct sk_buff *skb)
@@ -1916,8 +1916,8 @@ static int abort_syn_rcv(struct sock *sk, struct sk_buff *skb)
 	if (!sock_owned_by_user(psk)) {
 		int queue = csk->txq_idx;
 
-		do_abort_syn_rcv(sk, psk);
 		chtls_send_abort_rpl(sk, skb, cdev, CPL_ABORT_NO_RST, queue);
+		do_abort_syn_rcv(sk, psk);
 	} else {
 		skb->sk = sk;
 		BLOG_SKB_CB(skb)->backlog_rcv = bl_abort_syn_rcv;
@@ -1960,12 +1960,11 @@ static void chtls_abort_req_rss(struct sock *sk, struct sk_buff *skb)
 
 		if (sk->sk_state == TCP_SYN_RECV && !abort_syn_rcv(sk, skb))
 			return;
-
-		chtls_release_resources(sk);
-		chtls_conn_done(sk);
 	}
 
 	chtls_send_abort_rpl(sk, skb, csk->cdev, rst_status, queue);
+	chtls_release_resources(sk);
+	chtls_conn_done(sk);
 }
 
 static void chtls_abort_rpl_rss(struct sock *sk, struct sk_buff *skb)
