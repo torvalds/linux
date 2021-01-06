@@ -1992,10 +1992,9 @@ static __always_inline void exc_machine_check_kernel(struct pt_regs *regs)
 	 * that out because it's an indirect call. Annotate it.
 	 */
 	instrumentation_begin();
-	trace_hardirqs_off_finish();
+
 	machine_check_vector(regs);
-	if (regs->flags & X86_EFLAGS_IF)
-		trace_hardirqs_on_prepare();
+
 	instrumentation_end();
 	irqentry_nmi_exit(regs, irq_state);
 }
@@ -2004,7 +2003,9 @@ static __always_inline void exc_machine_check_user(struct pt_regs *regs)
 {
 	irqentry_enter_from_user_mode(regs);
 	instrumentation_begin();
+
 	machine_check_vector(regs);
+
 	instrumentation_end();
 	irqentry_exit_to_user_mode(regs);
 }
