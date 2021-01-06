@@ -13,6 +13,7 @@ properties:
   compatible:
     items:
       - enum:
+          - brcm,bcm4908-switch
           - brcm,bcm7278-switch-v4.0
           - brcm,bcm7278-switch-v4.8
           - brcm,bcm7445-switch-v4.0
