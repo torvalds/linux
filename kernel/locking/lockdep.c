@@ -79,7 +79,7 @@ module_param(lock_stat, int, 0644);
 DEFINE_PER_CPU(unsigned int, lockdep_recursion);
 EXPORT_PER_CPU_SYMBOL_GPL(lockdep_recursion);
 
-static inline bool lockdep_enabled(void)
+static __always_inline bool lockdep_enabled(void)
 {
 	if (!debug_locks)
 		return false;
