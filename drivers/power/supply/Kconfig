@@ -646,6 +646,17 @@ config CHARGER_BQ25980
 	  Say Y to enable support for the TI BQ25980, BQ25975 and BQ25960
 	  series of fast battery chargers.
 
+config CHARGER_BQ256XX
+	tristate "TI BQ256XX battery charger driver"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the TI BQ256XX battery chargers. The
+	  BQ256XX family of devices are highly-integrated, switch-mode battery
+	  charge management and system power path management devices for single
+	  cell Li-ion and Li-polymer batteries.
+
 config CHARGER_SMB347
 	tristate "Summit Microelectronics SMB3XX Battery Charger"
 	depends on I2C
