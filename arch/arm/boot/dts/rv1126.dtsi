@@ -1886,7 +1886,7 @@
 		resets = <&cru SRST_ISP>, <&cru SRST_ISP_RX_P>;
 		reset-names = "isp", "isp-rx-p";
 		power-domains = <&power RV1126_PD_VI>;
-		/* iommus = <&rkisp_mmu>; */
+		iommus = <&rkisp_mmu>;
 		memory-region = <&isp_reserved>;
 		status = "disabled";
 	};
