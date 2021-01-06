@@ -2586,7 +2586,6 @@ size_t iommu_map_sg_atomic(struct iommu_domain *domain, unsigned long iova,
 {
 	return __iommu_map_sg(domain, iova, sg, nents, prot, GFP_ATOMIC);
 }
-EXPORT_SYMBOL_GPL(iommu_map_sg_atomic);
 
 int iommu_domain_window_enable(struct iommu_domain *domain, u32 wnd_nr,
 			       phys_addr_t paddr, u64 size, int prot)
