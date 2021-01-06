@@ -366,7 +366,7 @@ void dw_pcie_prog_outbound_atu(struct dw_pcie *pci, int index, int type,
 
 void dw_pcie_prog_ep_outbound_atu(struct dw_pcie *pci, u8 func_no, int index,
 				  int type, u64 cpu_addr, u64 pci_addr,
-				  u32 size)
+				  u64 size)
 {
 	__dw_pcie_prog_outbound_atu(pci, func_no, index, type,
 				    cpu_addr, pci_addr, size);
