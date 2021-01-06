@@ -339,7 +339,6 @@ static int bcm_enet_receive_queue(struct net_device *dev, int budget)
 		priv->rx_curr_desc++;
 		if (priv->rx_curr_desc == priv->rx_ring_size)
 			priv->rx_curr_desc = 0;
-		priv->rx_desc_count--;
 
 		/* if the packet does not have start of packet _and_
 		 * end of packet flag set, then just recycle it */
@@ -404,9 +403,10 @@ static int bcm_enet_receive_queue(struct net_device *dev, int budget)
 		dev->stats.rx_bytes += len;
 		list_add_tail(&skb->list, &rx_list);
 
-	} while (--budget > 0);
+	} while (processed < budget);
 
 	netif_receive_skb_list(&rx_list);
+	priv->rx_desc_count -= processed;
 
 	if (processed || !priv->rx_desc_count) {
 		bcm_enet_refill_rx(dev, true);
