@@ -287,6 +287,10 @@ static const struct match_chip_info chip_info_7445 = {
 
 static const struct of_device_id brcm_usb_dt_ids[] = {
 	{
+		.compatible = "brcm,bcm4908-usb-phy",
+		.data = &chip_info_7445,
+	},
+	{
 		.compatible = "brcm,bcm7216-usb-phy",
 		.data = &chip_info_7216,
 	},
