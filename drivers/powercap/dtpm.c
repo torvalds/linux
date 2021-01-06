@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 
-#define DTPM_POWER_LIMIT_FLAG BIT(0)
+#define DTPM_POWER_LIMIT_FLAG 0
 
 static const char *constraint_name[] = {
 	"Instantaneous",
