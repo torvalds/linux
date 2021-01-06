@@ -182,8 +182,6 @@
 		};
 
 		hdmi: hdmi@120000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
 			reg = <0x00120000 0x9000>;
 			interrupts = <0 115 0x04>;
 			gpr = <&gpr>;
@@ -192,19 +190,24 @@
 			clock-names = "iahb", "isfr";
 			status = "disabled";
 
-			port@0 {
-				reg = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-				hdmi_mux_0: endpoint {
-					remote-endpoint = <&ipu1_di0_hdmi>;
+				port@0 {
+					reg = <0>;
+
+					hdmi_mux_0: endpoint {
+						remote-endpoint = <&ipu1_di0_hdmi>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				hdmi_mux_1: endpoint {
-					remote-endpoint = <&ipu1_di1_hdmi>;
+					hdmi_mux_1: endpoint {
+						remote-endpoint = <&ipu1_di1_hdmi>;
+					};
 				};
 			};
 		};
