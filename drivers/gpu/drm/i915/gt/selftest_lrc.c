@@ -164,7 +164,7 @@ static int live_lrc_layout(void *arg)
 
 		dw = 0;
 		do {
-			u32 lri = hw[dw];
+			u32 lri = READ_ONCE(hw[dw]);
 
 			if (lri == 0) {
 				dw++;
@@ -197,9 +197,11 @@ static int live_lrc_layout(void *arg)
 			dw++;
 
 			while (lri) {
-				if (hw[dw] != lrc[dw]) {
+				u32 offset = READ_ONCE(hw[dw]);
+
+				if (offset != lrc[dw]) {
 					pr_err("%s: Different registers found at dword %d, expected %x, found %x\n",
-					       engine->name, dw, hw[dw], lrc[dw]);
+					       engine->name, dw, offset, lrc[dw]);
 					err = -EINVAL;
 					break;
 				}
@@ -211,7 +213,7 @@ static int live_lrc_layout(void *arg)
 				dw += 2;
 				lri -= 2;
 			}
-		} while ((lrc[dw] & ~BIT(0)) != MI_BATCH_BUFFER_END);
+		} while (!err && (lrc[dw] & ~BIT(0)) != MI_BATCH_BUFFER_END);
 
 		if (err) {
 			pr_info("%s: HW register image:\n", engine->name);
