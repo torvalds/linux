@@ -783,6 +783,8 @@ static int dsa_switch_parse_ports_of(struct dsa_switch *ds,
 			goto out_put_node;
 
 		if (reg >= ds->num_ports) {
+			dev_err(ds->dev, "port %pOF index %u exceeds num_ports (%zu)\n",
+				port, reg, ds->num_ports);
 			err = -EINVAL;
 			goto out_put_node;
 		}
