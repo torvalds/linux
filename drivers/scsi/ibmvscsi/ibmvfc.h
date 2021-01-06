@@ -733,7 +733,8 @@ struct ibmvfc_event {
 	struct scsi_cmnd *cmnd;
 	atomic_t free;
 	union ibmvfc_iu *xfer_iu;
-	void (*done) (struct ibmvfc_event *);
+	void (*done)(struct ibmvfc_event *evt);
+	void (*_done)(struct ibmvfc_event *evt);
 	struct ibmvfc_crq crq;
 	union ibmvfc_iu iu;
 	union ibmvfc_iu *sync_iu;

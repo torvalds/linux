@@ -894,7 +894,7 @@ static void ibmvfc_scsi_eh_done(struct ibmvfc_event *evt)
  * @purge_list:		list head of failed commands
  *
  * This function runs completions on commands to fail as a result of a
- * host reset or platform migration. Caller must hold host_lock.
+ * host reset or platform migration.
  **/
 static void ibmvfc_complete_purge(struct list_head *purge_list)
 {
@@ -1408,6 +1408,23 @@ static struct ibmvfc_event *ibmvfc_get_event(struct ibmvfc_queue *queue)
 }
 
 /**
+ * ibmvfc_locked_done - Calls evt completion with host_lock held
+ * @evt:	ibmvfc evt to complete
+ *
+ * All non-scsi command completion callbacks have the expectation that the
+ * host_lock is held. This callback is used by ibmvfc_init_event to wrap a
+ * MAD evt with the host_lock.
+ **/
+static void ibmvfc_locked_done(struct ibmvfc_event *evt)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(evt->vhost->host->host_lock, flags);
+	evt->_done(evt);
+	spin_unlock_irqrestore(evt->vhost->host->host_lock, flags);
+}
+
+/**
  * ibmvfc_init_event - Initialize fields in an event struct that are always
  *				required.
  * @evt:	The event
@@ -1419,9 +1436,14 @@ static void ibmvfc_init_event(struct ibmvfc_event *evt,
 {
 	evt->cmnd = NULL;
 	evt->sync_iu = NULL;
-	evt->crq.format = format;
-	evt->done = done;
 	evt->eh_comp = NULL;
+	evt->crq.format = format;
+	if (format == IBMVFC_CMD_FORMAT)
+		evt->done = done;
+	else {
+		evt->_done = done;
+		evt->done = ibmvfc_locked_done;
+	}
 }
 
 /**
@@ -1640,7 +1662,9 @@ static void ibmvfc_relogin(struct scsi_device *sdev)
 	struct ibmvfc_host *vhost = shost_priv(sdev->host);
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
 	struct ibmvfc_target *tgt;
+	unsigned long flags;
 
+	spin_lock_irqsave(vhost->host->host_lock, flags);
 	list_for_each_entry(tgt, &vhost->targets, queue) {
 		if (rport == tgt->rport) {
 			ibmvfc_del_tgt(tgt);
@@ -1649,6 +1673,7 @@ static void ibmvfc_relogin(struct scsi_device *sdev)
 	}
 
 	ibmvfc_reinit_host(vhost);
+	spin_unlock_irqrestore(vhost->host->host_lock, flags);
 }
 
 /**
@@ -2901,7 +2926,8 @@ static void ibmvfc_handle_async(struct ibmvfc_async_crq *crq,
  * @vhost:	ibmvfc host struct
  *
  **/
-static void ibmvfc_handle_crq(struct ibmvfc_crq *crq, struct ibmvfc_host *vhost)
+static void ibmvfc_handle_crq(struct ibmvfc_crq *crq, struct ibmvfc_host *vhost,
+			      struct list_head *evt_doneq)
 {
 	long rc;
 	struct ibmvfc_event *evt = (struct ibmvfc_event *)be64_to_cpu(crq->ioba);
@@ -2972,12 +2998,9 @@ static void ibmvfc_handle_crq(struct ibmvfc_crq *crq, struct ibmvfc_host *vhost)
 		return;
 	}
 
-	del_timer(&evt->timer);
 	spin_lock(&evt->queue->l_lock);
-	list_del(&evt->queue_list);
+	list_move_tail(&evt->queue_list, evt_doneq);
 	spin_unlock(&evt->queue->l_lock);
-	ibmvfc_trc_end(evt);
-	evt->done(evt);
 }
 
 /**
@@ -3364,8 +3387,10 @@ static void ibmvfc_tasklet(void *data)
 	struct vio_dev *vdev = to_vio_dev(vhost->dev);
 	struct ibmvfc_crq *crq;
 	struct ibmvfc_async_crq *async;
+	struct ibmvfc_event *evt, *temp;
 	unsigned long flags;
 	int done = 0;
+	LIST_HEAD(evt_doneq);
 
 	spin_lock_irqsave(vhost->host->host_lock, flags);
 	spin_lock(vhost->crq.q_lock);
@@ -3379,7 +3404,7 @@ static void ibmvfc_tasklet(void *data)
 
 		/* Pull all the valid messages off the CRQ */
 		while ((crq = ibmvfc_next_crq(vhost)) != NULL) {
-			ibmvfc_handle_crq(crq, vhost);
+			ibmvfc_handle_crq(crq, vhost, &evt_doneq);
 			crq->valid = 0;
 			wmb();
 		}
@@ -3392,7 +3417,7 @@ static void ibmvfc_tasklet(void *data)
 			wmb();
 		} else if ((crq = ibmvfc_next_crq(vhost)) != NULL) {
 			vio_disable_interrupts(vdev);
-			ibmvfc_handle_crq(crq, vhost);
+			ibmvfc_handle_crq(crq, vhost, &evt_doneq);
 			crq->valid = 0;
 			wmb();
 		} else
@@ -3401,6 +3426,13 @@ static void ibmvfc_tasklet(void *data)
 
 	spin_unlock(vhost->crq.q_lock);
 	spin_unlock_irqrestore(vhost->host->host_lock, flags);
+
+	list_for_each_entry_safe(evt, temp, &evt_doneq, queue_list) {
+		del_timer(&evt->timer);
+		list_del(&evt->queue_list);
+		ibmvfc_trc_end(evt);
+		evt->done(evt);
+	}
 }
 
 /**
@@ -4790,8 +4822,8 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 	case IBMVFC_HOST_ACTION_RESET:
 		vhost->action = IBMVFC_HOST_ACTION_TGT_DEL;
 		list_splice_init(&vhost->purge, &purge);
-		ibmvfc_complete_purge(&purge);
 		spin_unlock_irqrestore(vhost->host->host_lock, flags);
+		ibmvfc_complete_purge(&purge);
 		rc = ibmvfc_reset_crq(vhost);
 		spin_lock_irqsave(vhost->host->host_lock, flags);
 		if (rc == H_CLOSED)
@@ -4805,8 +4837,8 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 	case IBMVFC_HOST_ACTION_REENABLE:
 		vhost->action = IBMVFC_HOST_ACTION_TGT_DEL;
 		list_splice_init(&vhost->purge, &purge);
-		ibmvfc_complete_purge(&purge);
 		spin_unlock_irqrestore(vhost->host->host_lock, flags);
+		ibmvfc_complete_purge(&purge);
 		rc = ibmvfc_reenable_crq_queue(vhost);
 		spin_lock_irqsave(vhost->host->host_lock, flags);
 		if (rc || (rc = ibmvfc_send_crq_init(vhost))) {
@@ -5369,8 +5401,8 @@ static int ibmvfc_remove(struct vio_dev *vdev)
 	spin_lock_irqsave(vhost->host->host_lock, flags);
 	ibmvfc_purge_requests(vhost, DID_ERROR);
 	list_splice_init(&vhost->purge, &purge);
-	ibmvfc_complete_purge(&purge);
 	spin_unlock_irqrestore(vhost->host->host_lock, flags);
+	ibmvfc_complete_purge(&purge);
 	ibmvfc_free_event_pool(vhost, &vhost->crq);
 
 	ibmvfc_free_mem(vhost);
