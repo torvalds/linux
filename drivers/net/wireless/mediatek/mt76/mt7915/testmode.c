@@ -78,7 +78,7 @@ mt7915_tm_set_tx_power(struct mt7915_phy *phy)
 		req.tx_power = tx_power[0];
 
 	ret = mt76_mcu_send_msg(&dev->mt76,
-				MCU_EXT_CMD_TX_POWER_FEATURE_CTRL,
+				MCU_EXT_CMD(TX_POWER_FEATURE_CTRL),
 				&req, sizeof(req), false);
 
 	return ret;
@@ -95,7 +95,7 @@ mt7915_tm_set_freq_offset(struct mt7915_phy *phy, bool en, u32 val)
 		.param.freq.freq_offset = cpu_to_le32(val),
 	};
 
-	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_ATE_CTRL, &req,
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(ATE_CTRL), &req,
 				 sizeof(req), false);
 }
 
@@ -112,7 +112,7 @@ mt7915_tm_mode_ctrl(struct mt7915_dev *dev, bool enable)
 	};
 
 	return mt76_mcu_send_msg(&dev->mt76,
-				 MCU_EXT_CMD_TX_POWER_FEATURE_CTRL,
+				 MCU_EXT_CMD(TX_POWER_FEATURE_CTRL),
 				 &req, sizeof(req), false);
 }
 
@@ -128,7 +128,7 @@ mt7915_tm_set_trx(struct mt7915_phy *phy, int type, bool en)
 		.param.trx.band = phy != &dev->phy,
 	};
 
-	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_ATE_CTRL, &req,
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(ATE_CTRL), &req,
 				 sizeof(req), false);
 }
 
@@ -143,7 +143,7 @@ mt7915_tm_clean_hwq(struct mt7915_phy *phy, u8 wcid)
 		.param.clean.band = phy != &dev->phy,
 	};
 
-	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_ATE_CTRL, &req,
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(ATE_CTRL), &req,
 				 sizeof(req), false);
 }
 
@@ -161,7 +161,7 @@ mt7915_tm_set_slot_time(struct mt7915_phy *phy, u8 slot_time, u8 sifs)
 		.param.slot.band = phy != &dev->phy,
 	};
 
-	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_ATE_CTRL, &req,
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(ATE_CTRL), &req,
 				 sizeof(req), false);
 }
 
@@ -418,7 +418,7 @@ mt7915_tm_update_channel(struct mt7915_phy *phy)
 	mt7915_set_channel(phy);
 	mutex_lock(&phy->dev->mt76.mutex);
 
-	mt7915_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
+	mt7915_mcu_set_chan_info(phy, MCU_EXT_CMD(SET_RX_PATH));
 }
 
 static void
@@ -489,7 +489,7 @@ mt7915_tm_rf_switch_mode(struct mt7915_dev *dev, u32 oper)
 		.op.op_mode = cpu_to_le32(oper),
 	};
 
-	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_RF_TEST, &req,
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(RF_TEST), &req,
 				 sizeof(req), true);
 }
 
@@ -601,7 +601,7 @@ out:
 	if (!en) {
 		int ret;
 
-		ret = mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_RF_TEST, &req,
+		ret = mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(RF_TEST), &req,
 					sizeof(req), true);
 		if (ret)
 			return ret;
@@ -612,7 +612,7 @@ out:
 	mt7915_tm_rf_switch_mode(dev, RF_OPER_RF_TEST);
 	mt7915_tm_update_channel(phy);
 
-	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_RF_TEST, &req,
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(RF_TEST), &req,
 				 sizeof(req), true);
 }
 

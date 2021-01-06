@@ -47,7 +47,7 @@ static int mt7915_start(struct ieee80211_hw *hw)
 	}
 
 	mt7915_mcu_set_sku_en(phy, true);
-	mt7915_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
+	mt7915_mcu_set_chan_info(phy, MCU_EXT_CMD(SET_RX_PATH));
 
 	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 
@@ -283,7 +283,7 @@ int mt7915_set_channel(struct mt7915_phy *phy)
 	mt7915_init_dfs_state(phy);
 	mt76_set_channel(phy->mt76);
 
-	ret = mt7915_mcu_set_chan_info(phy, MCU_EXT_CMD_CHANNEL_SWITCH);
+	ret = mt7915_mcu_set_chan_info(phy, MCU_EXT_CMD(CHANNEL_SWITCH));
 	if (ret)
 		goto out;
 

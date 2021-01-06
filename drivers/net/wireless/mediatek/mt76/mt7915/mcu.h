@@ -225,6 +225,12 @@ enum {
 	MCU_S2D_H2CN
 };
 
+
+#define __MCU_CMD_FIELD_ID	GENMASK(7, 0)
+#define __MCU_CMD_FIELD_EXT_ID	GENMASK(15, 8)
+#define __MCU_CMD_FIELD_QUERY	BIT(16)
+#define __MCU_CMD_FIELD_WA	BIT(17)
+
 enum {
 	MCU_CMD_TARGET_ADDRESS_LEN_REQ = 0x01,
 	MCU_CMD_FW_START_REQ = 0x02,
@@ -270,6 +276,15 @@ enum {
 	MCU_EXT_CMD_SET_SPR = 0xa8,
 	MCU_EXT_CMD_PHY_STAT_INFO = 0xad,
 };
+
+#define MCU_CMD(_t)		FIELD_PREP(__MCU_CMD_FIELD_ID, MCU_CMD_##_t)
+#define MCU_EXT_CMD(_t)		(MCU_CMD(EXT_CID) | \
+				 FIELD_PREP(__MCU_CMD_FIELD_EXT_ID, \
+					    MCU_EXT_CMD_##_t))
+#define MCU_EXT_QUERY(_t)	(MCU_EXT_CMD(_t) | __MCU_CMD_FIELD_QUERY)
+
+#define MCU_WA_CMD(_t)		(MCU_CMD(_t) | __MCU_CMD_FIELD_WA)
+#define MCU_WA_EXT_CMD(_t)	(MCU_EXT_CMD(_t) | __MCU_CMD_FIELD_WA)
 
 enum {
 	PATCH_SEM_RELEASE,
