@@ -969,6 +969,7 @@ unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
 	return desc && desc->kstat_irqs ?
 			*per_cpu_ptr(desc->kstat_irqs, cpu) : 0;
 }
+EXPORT_SYMBOL_GPL(kstat_irqs_cpu);
 
 static bool irq_is_nmi(struct irq_desc *desc)
 {
@@ -1019,3 +1020,4 @@ unsigned int kstat_irqs_usr(unsigned int irq)
 	rcu_read_unlock();
 	return sum;
 }
+EXPORT_SYMBOL_GPL(kstat_irqs_usr);
