@@ -84,6 +84,7 @@
 #define   GLI_9763E_VHS_REV_W      0x2
 #define PCIE_GLI_9763E_MB	 0x888
 #define   GLI_9763E_MB_CMDQ_OFF	   BIT(19)
+#define   GLI_9763E_MB_ERP_ON      BIT(7)
 #define PCIE_GLI_9763E_SCR	 0x8E0
 #define   GLI_9763E_SCR_AXI_REQ	   BIT(9)
 
@@ -814,7 +815,8 @@ static int gli_probe_slot_gl9763e(struct sdhci_pci_slot *slot)
 
 	pci_read_config_dword(pdev, PCIE_GLI_9763E_MB, &value);
 	if (!(value & GLI_9763E_MB_CMDQ_OFF))
-		host->mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
+		if (value & GLI_9763E_MB_ERP_ON)
+			host->mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
 
 	gli_pcie_enable_msi(slot);
 	host->mmc_host_ops.hs400_enhanced_strobe =
