@@ -101,7 +101,7 @@
 		status = "okay";
 		gpio-sck = <&gpio5 11 0>;
 		gpio-mosi = <&gpio5 10 0>;
-		cs-gpios = <&gpio5 7 0>;
+		cs-gpios = <&gpio5 7 GPIO_ACTIVE_LOW>;
 		num-chipselects = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
