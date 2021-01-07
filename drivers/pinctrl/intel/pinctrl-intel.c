@@ -1473,6 +1473,7 @@ static int intel_pinctrl_probe(struct platform_device *pdev,
 		struct intel_community *community = &pctrl->communities[i];
 		void __iomem *regs;
 		u32 padbar;
+		u32 value;
 
 		*community = pctrl->soc->communities[i];
 
@@ -1480,18 +1481,11 @@ static int intel_pinctrl_probe(struct platform_device *pdev,
 		if (IS_ERR(regs))
 			return PTR_ERR(regs);
 
-		/*
-		 * Determine community features based on the revision if
-		 * not specified already.
-		 */
-		if (!community->features) {
-			u32 rev;
-
-			rev = (readl(regs + REVID) & REVID_MASK) >> REVID_SHIFT;
-			if (rev >= 0x94) {
-				community->features |= PINCTRL_FEATURE_DEBOUNCE;
-				community->features |= PINCTRL_FEATURE_1K_PD;
-			}
+		/* Determine community features based on the revision */
+		value = readl(regs + REVID);
+		if (((value & REVID_MASK) >> REVID_SHIFT) >= 0x94) {
+			community->features |= PINCTRL_FEATURE_DEBOUNCE;
+			community->features |= PINCTRL_FEATURE_1K_PD;
 		}
 
 		/* Read offset of the pad configuration registers */
