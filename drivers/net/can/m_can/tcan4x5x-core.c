@@ -2,15 +2,8 @@
 // SPI to CAN driver for the Texas Instruments TCAN4x5x
 // Copyright (C) 2018-19 Texas Instruments Incorporated - http://www.ti.com/
 
-#include <linux/regmap.h>
-#include <linux/spi/spi.h>
+#include "tcan4x5x.h"
 
-#include <linux/regulator/consumer.h>
-#include <linux/gpio/consumer.h>
-
-#include "m_can.h"
-
-#define DEVICE_NAME "tcan4x5x"
 #define TCAN4X5X_EXT_CLK_DEF 40000000
 
 #define TCAN4X5X_DEV_ID0 0x00
@@ -88,13 +81,9 @@
 
 #define TCAN4X5X_MRAM_START 0x8000
 #define TCAN4X5X_MCAN_OFFSET 0x1000
-#define TCAN4X5X_MAX_REGISTER 0x8fff
 
 #define TCAN4X5X_CLEAR_ALL_INT 0xffffffff
 #define TCAN4X5X_SET_ALL_INT 0xffffffff
-
-#define TCAN4X5X_WRITE_CMD (0x61 << 24)
-#define TCAN4X5X_READ_CMD (0x41 << 24)
 
 #define TCAN4X5X_MODE_SEL_MASK (BIT(7) | BIT(6))
 #define TCAN4X5X_MODE_SLEEP 0x00
@@ -113,18 +102,6 @@
 #define TCAN4X5X_WD_3_S_TIMER BIT(29)
 #define TCAN4X5X_WD_6_S_TIMER (BIT(28) | BIT(29))
 
-struct tcan4x5x_priv {
-	struct m_can_classdev cdev;
-
-	struct regmap *regmap;
-	struct spi_device *spi;
-
-	struct gpio_desc *reset_gpio;
-	struct gpio_desc *device_wake_gpio;
-	struct gpio_desc *device_state_gpio;
-	struct regulator *power;
-};
-
 static inline struct tcan4x5x_priv *cdev_to_priv(struct m_can_classdev *cdev)
 {
 	return container_of(cdev, struct tcan4x5x_priv, cdev);
@@ -132,7 +109,7 @@ static inline struct tcan4x5x_priv *cdev_to_priv(struct m_can_classdev *cdev)
 }
 
 static struct can_bittiming_const tcan4x5x_bittiming_const = {
-	.name = DEVICE_NAME,
+	.name = KBUILD_MODNAME,
 	.tseg1_min = 2,
 	.tseg1_max = 31,
 	.tseg2_min = 2,
@@ -144,7 +121,7 @@ static struct can_bittiming_const tcan4x5x_bittiming_const = {
 };
 
 static struct can_bittiming_const tcan4x5x_data_bittiming_const = {
-	.name = DEVICE_NAME,
+	.name = KBUILD_MODNAME,
 	.tseg1_min = 1,
 	.tseg1_max = 32,
 	.tseg2_min = 1,
@@ -190,72 +167,6 @@ static int tcan4x5x_reset(struct tcan4x5x_priv *priv)
 
 	return ret;
 }
-
-static int regmap_spi_gather_write(void *context, const void *reg,
-				   size_t reg_len, const void *val,
-				   size_t val_len)
-{
-	struct device *dev = context;
-	struct spi_device *spi = to_spi_device(dev);
-	struct spi_message m;
-	u32 addr;
-	struct spi_transfer t[2] = {
-		{ .tx_buf = &addr, .len = reg_len, .cs_change = 0,},
-		{ .tx_buf = val, .len = val_len, },
-	};
-
-	addr = TCAN4X5X_WRITE_CMD | (*((u16 *)reg) << 8) | val_len >> 2;
-
-	spi_message_init(&m);
-	spi_message_add_tail(&t[0], &m);
-	spi_message_add_tail(&t[1], &m);
-
-	return spi_sync(spi, &m);
-}
-
-static int tcan4x5x_regmap_write(void *context, const void *data, size_t count)
-{
-	u16 *reg = (u16 *)(data);
-	const u32 *val = data + 4;
-
-	return regmap_spi_gather_write(context, reg, 4, val, count - 4);
-}
-
-static int regmap_spi_async_write(void *context,
-				  const void *reg, size_t reg_len,
-				  const void *val, size_t val_len,
-				  struct regmap_async *a)
-{
-	return -ENOTSUPP;
-}
-
-static struct regmap_async *regmap_spi_async_alloc(void)
-{
-	return NULL;
-}
-
-static int tcan4x5x_regmap_read(void *context,
-				const void *reg, size_t reg_size,
-				void *val, size_t val_size)
-{
-	struct device *dev = context;
-	struct spi_device *spi = to_spi_device(dev);
-
-	u32 addr = TCAN4X5X_READ_CMD | (*((u16 *)reg) << 8) | val_size >> 2;
-
-	return spi_write_then_read(spi, &addr, reg_size, (u32 *)val, val_size);
-}
-
-static struct regmap_bus tcan4x5x_bus = {
-	.write = tcan4x5x_regmap_write,
-	.gather_write = regmap_spi_gather_write,
-	.async_write = regmap_spi_async_write,
-	.async_alloc = regmap_spi_async_alloc,
-	.read = tcan4x5x_regmap_read,
-	.read_flag_mask = 0x00,
-	.reg_format_endian_default = REGMAP_ENDIAN_NATIVE,
-	.val_format_endian_default = REGMAP_ENDIAN_NATIVE,
-};
 
 static u32 tcan4x5x_read_reg(struct m_can_classdev *cdev, int reg)
 {
@@ -411,13 +322,6 @@ static int tcan4x5x_get_gpios(struct m_can_classdev *cdev)
 	return 0;
 }
 
-static const struct regmap_config tcan4x5x_regmap = {
-	.reg_bits = 32,
-	.val_bits = 32,
-	.cache_type = REGCACHE_NONE,
-	.max_register = TCAN4X5X_MAX_REGISTER,
-};
-
 static struct m_can_ops tcan4x5x_ops = {
 	.init = tcan4x5x_init,
 	.read_reg = tcan4x5x_read_reg,
@@ -476,17 +380,14 @@ static int tcan4x5x_can_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, priv);
 
 	/* Configure the SPI bus */
-	spi->bits_per_word = 32;
+	spi->bits_per_word = 8;
 	ret = spi_setup(spi);
 	if (ret)
 		goto out_m_can_class_free_dev;
 
-	priv->regmap = devm_regmap_init(&spi->dev, &tcan4x5x_bus,
-					&spi->dev, &tcan4x5x_regmap);
-	if (IS_ERR(priv->regmap)) {
-		ret = PTR_ERR(priv->regmap);
+	ret = tcan4x5x_regmap_init(priv);
+	if (ret)
 		goto out_m_can_class_free_dev;
-	}
 
 	ret = tcan4x5x_power_enable(priv->power, 1);
 	if (ret)
@@ -528,23 +429,26 @@ static int tcan4x5x_can_remove(struct spi_device *spi)
 }
 
 static const struct of_device_id tcan4x5x_of_match[] = {
-	{ .compatible = "ti,tcan4x5x", },
-	{ }
+	{
+		.compatible = "ti,tcan4x5x",
+	}, {
+		/* sentinel */
+	},
 };
 MODULE_DEVICE_TABLE(of, tcan4x5x_of_match);
 
 static const struct spi_device_id tcan4x5x_id_table[] = {
 	{
-		.name		= "tcan4x5x",
-		.driver_data	= 0,
+		.name = "tcan4x5x",
+	}, {
+		/* sentinel */
 	},
-	{ }
 };
 MODULE_DEVICE_TABLE(spi, tcan4x5x_id_table);
 
 static struct spi_driver tcan4x5x_can_driver = {
 	.driver = {
-		.name = DEVICE_NAME,
+		.name = KBUILD_MODNAME,
 		.of_match_table = tcan4x5x_of_match,
 		.pm = NULL,
 	},
