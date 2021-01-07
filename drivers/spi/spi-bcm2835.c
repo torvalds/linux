@@ -1307,6 +1307,8 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(bs->clk),
 				     "could not get clk\n");
 
+	ctlr->max_speed_hz = clk_get_rate(bs->clk) / 2;
+
 	bs->irq = platform_get_irq(pdev, 0);
 	if (bs->irq <= 0)
 		return bs->irq ? bs->irq : -ENODEV;
