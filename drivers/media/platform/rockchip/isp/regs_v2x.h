@@ -2594,6 +2594,8 @@ static inline void raw_wr_set_pic_size(struct rkisp_stream *stream,
 {
 	void __iomem *base = stream->ispdev->base_addr;
 
+	if (stream->out_isp_fmt.fmt_type == FMT_YUV)
+		width *= 2;
 	writel(height << 16 | width,
 	       base + stream->config->dma.pic_size);
 }
