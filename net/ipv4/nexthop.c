@@ -1459,7 +1459,7 @@ static struct nexthop *nexthop_create_group(struct net *net,
 	return nh;
 
 out_no_nh:
-	for (; i >= 0; --i)
+	for (i--; i >= 0; --i)
 		nexthop_put(nhg->nh_entries[i].nh);
 
 	kfree(nhg->spare);
