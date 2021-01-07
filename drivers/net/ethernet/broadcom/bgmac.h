@@ -556,6 +556,16 @@ static inline void bgmac_write(struct bgmac *bgmac, u16 offset, u32 value)
 	bgmac->write(bgmac, offset, value);
 }
 
+static inline u32 bgmac_umac_read(struct bgmac *bgmac, u16 offset)
+{
+	return bgmac_read(bgmac, offset);
+}
+
+static inline void bgmac_umac_write(struct bgmac *bgmac, u16 offset, u32 value)
+{
+	bgmac_write(bgmac, offset, value);
+}
+
 static inline u32 bgmac_idm_read(struct bgmac *bgmac, u16 offset)
 {
 	return bgmac->idm_read(bgmac, offset);
@@ -607,6 +617,11 @@ static inline void bgmac_mask(struct bgmac *bgmac, u16 offset, u32 mask)
 static inline void bgmac_set(struct bgmac *bgmac, u16 offset, u32 set)
 {
 	bgmac_maskset(bgmac, offset, ~0, set);
+}
+
+static inline void bgmac_umac_maskset(struct bgmac *bgmac, u16 offset, u32 mask, u32 set)
+{
+	bgmac_maskset(bgmac, offset, mask, set);
 }
 
 static inline int bgmac_phy_connect(struct bgmac *bgmac)

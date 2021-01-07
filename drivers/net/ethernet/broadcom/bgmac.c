@@ -746,10 +746,10 @@ error:
 /* TODO: can we just drop @force? Can we don't reset MAC at all if there is
  * nothing to change? Try if after stabilizng driver.
  */
-static void bgmac_cmdcfg_maskset(struct bgmac *bgmac, u32 mask, u32 set,
-				 bool force)
+static void bgmac_umac_cmd_maskset(struct bgmac *bgmac, u32 mask, u32 set,
+				   bool force)
 {
-	u32 cmdcfg = bgmac_read(bgmac, BGMAC_CMDCFG);
+	u32 cmdcfg = bgmac_umac_read(bgmac, BGMAC_CMDCFG);
 	u32 new_val = (cmdcfg & mask) | set;
 	u32 cmdcfg_sr;
 
@@ -758,13 +758,13 @@ static void bgmac_cmdcfg_maskset(struct bgmac *bgmac, u32 mask, u32 set,
 	else
 		cmdcfg_sr = BGMAC_CMDCFG_SR_REV0;
 
-	bgmac_set(bgmac, BGMAC_CMDCFG, cmdcfg_sr);
+	bgmac_umac_maskset(bgmac, BGMAC_CMDCFG, ~0, cmdcfg_sr);
 	udelay(2);
 
 	if (new_val != cmdcfg || force)
-		bgmac_write(bgmac, BGMAC_CMDCFG, new_val);
+		bgmac_umac_write(bgmac, BGMAC_CMDCFG, new_val);
 
-	bgmac_mask(bgmac, BGMAC_CMDCFG, ~cmdcfg_sr);
+	bgmac_umac_maskset(bgmac, BGMAC_CMDCFG, ~cmdcfg_sr, 0);
 	udelay(2);
 }
 
@@ -773,9 +773,9 @@ static void bgmac_write_mac_address(struct bgmac *bgmac, u8 *addr)
 	u32 tmp;
 
 	tmp = (addr[0] << 24) | (addr[1] << 16) | (addr[2] << 8) | addr[3];
-	bgmac_write(bgmac, BGMAC_MACADDR_HIGH, tmp);
+	bgmac_umac_write(bgmac, BGMAC_MACADDR_HIGH, tmp);
 	tmp = (addr[4] << 8) | addr[5];
-	bgmac_write(bgmac, BGMAC_MACADDR_LOW, tmp);
+	bgmac_umac_write(bgmac, BGMAC_MACADDR_LOW, tmp);
 }
 
 static void bgmac_set_rx_mode(struct net_device *net_dev)
@@ -783,9 +783,9 @@ static void bgmac_set_rx_mode(struct net_device *net_dev)
 	struct bgmac *bgmac = netdev_priv(net_dev);
 
 	if (net_dev->flags & IFF_PROMISC)
-		bgmac_cmdcfg_maskset(bgmac, ~0, BGMAC_CMDCFG_PROM, true);
+		bgmac_umac_cmd_maskset(bgmac, ~0, BGMAC_CMDCFG_PROM, true);
 	else
-		bgmac_cmdcfg_maskset(bgmac, ~BGMAC_CMDCFG_PROM, 0, true);
+		bgmac_umac_cmd_maskset(bgmac, ~BGMAC_CMDCFG_PROM, 0, true);
 }
 
 #if 0 /* We don't use that regs yet */
@@ -849,7 +849,7 @@ static void bgmac_mac_speed(struct bgmac *bgmac)
 	if (bgmac->mac_duplex == DUPLEX_HALF)
 		set |= BGMAC_CMDCFG_HD;
 
-	bgmac_cmdcfg_maskset(bgmac, mask, set, true);
+	bgmac_umac_cmd_maskset(bgmac, mask, set, true);
 }
 
 static void bgmac_miiconfig(struct bgmac *bgmac)
@@ -917,7 +917,7 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 		for (i = 0; i < BGMAC_MAX_TX_RINGS; i++)
 			bgmac_dma_tx_reset(bgmac, &bgmac->tx_ring[i]);
 
-		bgmac_cmdcfg_maskset(bgmac, ~0, BGMAC_CMDCFG_ML, false);
+		bgmac_umac_cmd_maskset(bgmac, ~0, BGMAC_CMDCFG_ML, false);
 		udelay(1);
 
 		for (i = 0; i < BGMAC_MAX_RX_RINGS; i++)
@@ -995,25 +995,25 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 	else
 		cmdcfg_sr = BGMAC_CMDCFG_SR_REV0;
 
-	bgmac_cmdcfg_maskset(bgmac,
-			     ~(BGMAC_CMDCFG_TE |
-			       BGMAC_CMDCFG_RE |
-			       BGMAC_CMDCFG_RPI |
-			       BGMAC_CMDCFG_TAI |
-			       BGMAC_CMDCFG_HD |
-			       BGMAC_CMDCFG_ML |
+	bgmac_umac_cmd_maskset(bgmac,
+			       ~(BGMAC_CMDCFG_TE |
+				 BGMAC_CMDCFG_RE |
+				 BGMAC_CMDCFG_RPI |
+				 BGMAC_CMDCFG_TAI |
+				 BGMAC_CMDCFG_HD |
+				 BGMAC_CMDCFG_ML |
+				 BGMAC_CMDCFG_CFE |
+				 BGMAC_CMDCFG_RL |
+				 BGMAC_CMDCFG_RED |
+				 BGMAC_CMDCFG_PE |
+				 BGMAC_CMDCFG_TPI |
+				 BGMAC_CMDCFG_PAD_EN |
+				 BGMAC_CMDCFG_PF),
+			       BGMAC_CMDCFG_PROM |
+			       BGMAC_CMDCFG_NLC |
 			       BGMAC_CMDCFG_CFE |
-			       BGMAC_CMDCFG_RL |
-			       BGMAC_CMDCFG_RED |
-			       BGMAC_CMDCFG_PE |
-			       BGMAC_CMDCFG_TPI |
-			       BGMAC_CMDCFG_PAD_EN |
-			       BGMAC_CMDCFG_PF),
-			     BGMAC_CMDCFG_PROM |
-			     BGMAC_CMDCFG_NLC |
-			     BGMAC_CMDCFG_CFE |
-			     cmdcfg_sr,
-			     false);
+			       cmdcfg_sr,
+			       false);
 	bgmac->mac_speed = SPEED_UNKNOWN;
 	bgmac->mac_duplex = DUPLEX_UNKNOWN;
 
@@ -1053,12 +1053,12 @@ static void bgmac_enable(struct bgmac *bgmac)
 	else
 		cmdcfg_sr = BGMAC_CMDCFG_SR_REV0;
 
-	cmdcfg = bgmac_read(bgmac, BGMAC_CMDCFG);
-	bgmac_cmdcfg_maskset(bgmac, ~(BGMAC_CMDCFG_TE | BGMAC_CMDCFG_RE),
-			     cmdcfg_sr, true);
+	cmdcfg = bgmac_umac_read(bgmac, BGMAC_CMDCFG);
+	bgmac_umac_cmd_maskset(bgmac, ~(BGMAC_CMDCFG_TE | BGMAC_CMDCFG_RE),
+			       cmdcfg_sr, true);
 	udelay(2);
 	cmdcfg |= BGMAC_CMDCFG_TE | BGMAC_CMDCFG_RE;
-	bgmac_write(bgmac, BGMAC_CMDCFG, cmdcfg);
+	bgmac_umac_write(bgmac, BGMAC_CMDCFG, cmdcfg);
 
 	mode = (bgmac_read(bgmac, BGMAC_DEV_STATUS) & BGMAC_DS_MM_MASK) >>
 		BGMAC_DS_MM_SHIFT;
@@ -1078,7 +1078,7 @@ static void bgmac_enable(struct bgmac *bgmac)
 			fl_ctl = 0x03cb04cb;
 
 		bgmac_write(bgmac, BGMAC_FLOW_CTL_THRESH, fl_ctl);
-		bgmac_write(bgmac, BGMAC_PAUSE_CTL, 0x27fff);
+		bgmac_umac_write(bgmac, BGMAC_PAUSE_CTL, 0x27fff);
 	}
 
 	if (bgmac->feature_flags & BGMAC_FEAT_SET_RXQ_CLK) {
@@ -1105,18 +1105,18 @@ static void bgmac_chip_init(struct bgmac *bgmac)
 	bgmac_write(bgmac, BGMAC_INT_RECV_LAZY, 1 << BGMAC_IRL_FC_SHIFT);
 
 	/* Enable 802.3x tx flow control (honor received PAUSE frames) */
-	bgmac_cmdcfg_maskset(bgmac, ~BGMAC_CMDCFG_RPI, 0, true);
+	bgmac_umac_cmd_maskset(bgmac, ~BGMAC_CMDCFG_RPI, 0, true);
 
 	bgmac_set_rx_mode(bgmac->net_dev);
 
 	bgmac_write_mac_address(bgmac, bgmac->net_dev->dev_addr);
 
 	if (bgmac->loopback)
-		bgmac_cmdcfg_maskset(bgmac, ~0, BGMAC_CMDCFG_ML, false);
+		bgmac_umac_cmd_maskset(bgmac, ~0, BGMAC_CMDCFG_ML, false);
 	else
-		bgmac_cmdcfg_maskset(bgmac, ~BGMAC_CMDCFG_ML, 0, false);
+		bgmac_umac_cmd_maskset(bgmac, ~BGMAC_CMDCFG_ML, 0, false);
 
-	bgmac_write(bgmac, BGMAC_RXMAX_LENGTH, 32 + ETHER_MAX_LEN);
+	bgmac_umac_write(bgmac, BGMAC_RXMAX_LENGTH, 32 + ETHER_MAX_LEN);
 
 	bgmac_chip_intrs_on(bgmac);
 
@@ -1252,7 +1252,7 @@ static int bgmac_change_mtu(struct net_device *net_dev, int mtu)
 {
 	struct bgmac *bgmac = netdev_priv(net_dev);
 
-	bgmac_write(bgmac, BGMAC_RXMAX_LENGTH, 32 + mtu);
+	bgmac_umac_write(bgmac, BGMAC_RXMAX_LENGTH, 32 + mtu);
 	return 0;
 }
 
