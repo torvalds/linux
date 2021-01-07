@@ -278,10 +278,8 @@ static int pptp_rcv_core(struct sock *sk, struct sk_buff *skb)
 		header = (struct pptp_gre_header *)(skb->data);
 
 		/* ack in different place if S = 0 */
-		ack = GRE_IS_SEQ(header->gre_hd.flags) ? header->ack : header->seq;
-
-		ack = ntohl(ack);
-
+		ack = GRE_IS_SEQ(header->gre_hd.flags) ? ntohl(header->ack) :
+							 ntohl(header->seq);
 		if (ack > opt->ack_recv)
 			opt->ack_recv = ack;
 		/* also handle sequence number wrap-around  */
@@ -355,7 +353,7 @@ static int pptp_rcv(struct sk_buff *skb)
 		/* if invalid, discard this packet */
 		goto drop;
 
-	po = lookup_chan(htons(header->call_id), iph->saddr);
+	po = lookup_chan(ntohs(header->call_id), iph->saddr);
 	if (po) {
 		skb_dst_drop(skb);
 		nf_reset_ct(skb);
