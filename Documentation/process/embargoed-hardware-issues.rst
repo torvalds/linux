@@ -152,7 +152,7 @@ The disclosing party should provide a list of contacts for all other
 entities who have already been, or should be, informed about the issue.
 This serves several purposes:
 
- - The list of disclosed entities allows communication accross the
+ - The list of disclosed entities allows communication across the
    industry, e.g. other OS vendors, HW vendors, etc.
 
  - The disclosed entities can be contacted to name experts who should

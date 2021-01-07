@@ -109,6 +109,12 @@ static char *cgx_tx_stats_fields[] = {
 	[CGX_STAT17]	= "Control/PAUSE packets sent",
 };
 
+enum cpt_eng_type {
+	CPT_AE_TYPE = 1,
+	CPT_SE_TYPE = 2,
+	CPT_IE_TYPE = 3,
+};
+
 #define NDC_MAX_BANK(rvu, blk_addr) (rvu_read64(rvu, \
 						blk_addr, NDC_AF_CONST) & 0xFF)
 
@@ -224,18 +230,53 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 
 RVU_DEBUG_FOPS(rsrc_status, rsrc_attach_status, NULL);
 
-static bool rvu_dbg_is_valid_lf(struct rvu *rvu, int blktype, int lf,
+static int rvu_dbg_rvu_pf_cgx_map_display(struct seq_file *filp, void *unused)
+{
+	struct rvu *rvu = filp->private;
+	struct pci_dev *pdev = NULL;
+	char cgx[10], lmac[10];
+	struct rvu_pfvf *pfvf;
+	int pf, domain, blkid;
+	u8 cgx_id, lmac_id;
+	u16 pcifunc;
+
+	domain = 2;
+	seq_puts(filp, "PCI dev\t\tRVU PF Func\tNIX block\tCGX\tLMAC\n");
+	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
+		if (!is_pf_cgxmapped(rvu, pf))
+			continue;
+
+		pdev =  pci_get_domain_bus_and_slot(domain, pf + 1, 0);
+		if (!pdev)
+			continue;
+
+		cgx[0] = 0;
+		lmac[0] = 0;
+		pcifunc = pf << 10;
+		pfvf = rvu_get_pfvf(rvu, pcifunc);
+
+		if (pfvf->nix_blkaddr == BLKADDR_NIX0)
+			blkid = 0;
+		else
+			blkid = 1;
+
+		rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id,
+				    &lmac_id);
+		sprintf(cgx, "CGX%d", cgx_id);
+		sprintf(lmac, "LMAC%d", lmac_id);
+		seq_printf(filp, "%s\t0x%x\t\tNIX%d\t\t%s\t%s\n",
+			   dev_name(&pdev->dev), pcifunc, blkid, cgx, lmac);
+	}
+	return 0;
+}
+
+RVU_DEBUG_SEQ_FOPS(rvu_pf_cgx_map, rvu_pf_cgx_map_display, NULL);
+
+static bool rvu_dbg_is_valid_lf(struct rvu *rvu, int blkaddr, int lf,
 				u16 *pcifunc)
 {
 	struct rvu_block *block;
 	struct rvu_hwinfo *hw;
-	int blkaddr;
-
-	blkaddr = rvu_get_blkaddr(rvu, blktype, 0);
-	if (blkaddr < 0) {
-		dev_warn(rvu->dev, "Invalid blktype\n");
-		return false;
-	}
 
 	hw = rvu->hw;
 	block = &hw->block[blkaddr];
@@ -291,10 +332,12 @@ static int rvu_dbg_qsize_display(struct seq_file *filp, void *unsused,
 {
 	void (*print_qsize)(struct seq_file *filp,
 			    struct rvu_pfvf *pfvf) = NULL;
+	struct dentry *current_dir;
 	struct rvu_pfvf *pfvf;
 	struct rvu *rvu;
 	int qsize_id;
 	u16 pcifunc;
+	int blkaddr;
 
 	rvu = filp->private;
 	switch (blktype) {
@@ -312,7 +355,15 @@ static int rvu_dbg_qsize_display(struct seq_file *filp, void *unsused,
 		return -EINVAL;
 	}
 
-	if (!rvu_dbg_is_valid_lf(rvu, blktype, qsize_id, &pcifunc))
+	if (blktype == BLKTYPE_NPA) {
+		blkaddr = BLKADDR_NPA;
+	} else {
+		current_dir = filp->file->f_path.dentry->d_parent;
+		blkaddr = (!strcmp(current_dir->d_name.name, "nix1") ?
+				   BLKADDR_NIX1 : BLKADDR_NIX0);
+	}
+
+	if (!rvu_dbg_is_valid_lf(rvu, blkaddr, qsize_id, &pcifunc))
 		return -EINVAL;
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
@@ -329,6 +380,8 @@ static ssize_t rvu_dbg_qsize_write(struct file *filp,
 	struct seq_file *seqfile = filp->private_data;
 	char *cmd_buf, *cmd_buf_tmp, *subtoken;
 	struct rvu *rvu = seqfile->private;
+	struct dentry *current_dir;
+	int blkaddr;
 	u16 pcifunc;
 	int ret, lf;
 
@@ -355,7 +408,15 @@ static ssize_t rvu_dbg_qsize_write(struct file *filp,
 		goto qsize_write_done;
 	}
 
-	if (!rvu_dbg_is_valid_lf(rvu, blktype, lf, &pcifunc)) {
+	if (blktype == BLKTYPE_NPA) {
+		blkaddr = BLKADDR_NPA;
+	} else {
+		current_dir = filp->f_path.dentry->d_parent;
+		blkaddr = (!strcmp(current_dir->d_name.name, "nix1") ?
+				   BLKADDR_NIX1 : BLKADDR_NIX0);
+	}
+
+	if (!rvu_dbg_is_valid_lf(rvu, blkaddr, lf, &pcifunc)) {
 		ret = -EINVAL;
 		goto qsize_write_done;
 	}
@@ -498,7 +559,7 @@ static int rvu_dbg_npa_ctx_display(struct seq_file *m, void *unused, int ctype)
 		return -EINVAL;
 	}
 
-	if (!rvu_dbg_is_valid_lf(rvu, BLKTYPE_NPA, npalf, &pcifunc))
+	if (!rvu_dbg_is_valid_lf(rvu, BLKADDR_NPA, npalf, &pcifunc))
 		return -EINVAL;
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
@@ -556,7 +617,7 @@ static int write_npa_ctx(struct rvu *rvu, bool all,
 	int max_id = 0;
 	u16 pcifunc;
 
-	if (!rvu_dbg_is_valid_lf(rvu, BLKTYPE_NPA, npalf, &pcifunc))
+	if (!rvu_dbg_is_valid_lf(rvu, BLKADDR_NPA, npalf, &pcifunc))
 		return -EINVAL;
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
@@ -704,8 +765,16 @@ static void ndc_cache_stats(struct seq_file *s, int blk_addr,
 			    int ctype, int transaction)
 {
 	u64 req, out_req, lat, cant_alloc;
-	struct rvu *rvu = s->private;
+	struct nix_hw *nix_hw;
+	struct rvu *rvu;
 	int port;
+
+	if (blk_addr == BLKADDR_NDC_NPA0) {
+		rvu = s->private;
+	} else {
+		nix_hw = s->private;
+		rvu = nix_hw->rvu;
+	}
 
 	for (port = 0; port < NDC_MAX_PORT; port++) {
 		req = rvu_read64(rvu, blk_addr, NDC_AF_PORTX_RTX_RWX_REQ_PC
@@ -749,8 +818,16 @@ RVU_DEBUG_SEQ_FOPS(npa_ndc_cache, npa_ndc_cache_display, NULL);
 
 static int ndc_blk_hits_miss_stats(struct seq_file *s, int idx, int blk_addr)
 {
-	struct rvu *rvu = s->private;
+	struct nix_hw *nix_hw;
+	struct rvu *rvu;
 	int bank, max_bank;
+
+	if (blk_addr == BLKADDR_NDC_NPA0) {
+		rvu = s->private;
+	} else {
+		nix_hw = s->private;
+		rvu = nix_hw->rvu;
+	}
 
 	max_bank = NDC_MAX_BANK(rvu, blk_addr);
 	for (bank = 0; bank < max_bank; bank++) {
@@ -767,16 +844,30 @@ static int ndc_blk_hits_miss_stats(struct seq_file *s, int idx, int blk_addr)
 
 static int rvu_dbg_nix_ndc_rx_cache_display(struct seq_file *filp, void *unused)
 {
-	return ndc_blk_cache_stats(filp, NIX0_RX,
-				   BLKADDR_NDC_NIX0_RX);
+	struct nix_hw *nix_hw = filp->private;
+	int blkaddr = 0;
+	int ndc_idx = 0;
+
+	blkaddr = (nix_hw->blkaddr == BLKADDR_NIX1 ?
+		   BLKADDR_NDC_NIX1_RX : BLKADDR_NDC_NIX0_RX);
+	ndc_idx = (nix_hw->blkaddr == BLKADDR_NIX1 ? NIX1_RX : NIX0_RX);
+
+	return ndc_blk_cache_stats(filp, ndc_idx, blkaddr);
 }
 
 RVU_DEBUG_SEQ_FOPS(nix_ndc_rx_cache, nix_ndc_rx_cache_display, NULL);
 
 static int rvu_dbg_nix_ndc_tx_cache_display(struct seq_file *filp, void *unused)
 {
-	return ndc_blk_cache_stats(filp, NIX0_TX,
-				   BLKADDR_NDC_NIX0_TX);
+	struct nix_hw *nix_hw = filp->private;
+	int blkaddr = 0;
+	int ndc_idx = 0;
+
+	blkaddr = (nix_hw->blkaddr == BLKADDR_NIX1 ?
+		   BLKADDR_NDC_NIX1_TX : BLKADDR_NDC_NIX0_TX);
+	ndc_idx = (nix_hw->blkaddr == BLKADDR_NIX1 ? NIX1_TX : NIX0_TX);
+
+	return ndc_blk_cache_stats(filp, ndc_idx, blkaddr);
 }
 
 RVU_DEBUG_SEQ_FOPS(nix_ndc_tx_cache, nix_ndc_tx_cache_display, NULL);
@@ -792,8 +883,14 @@ RVU_DEBUG_SEQ_FOPS(npa_ndc_hits_miss, npa_ndc_hits_miss_display, NULL);
 static int rvu_dbg_nix_ndc_rx_hits_miss_display(struct seq_file *filp,
 						void *unused)
 {
-	return ndc_blk_hits_miss_stats(filp,
-				      NPA0_U, BLKADDR_NDC_NIX0_RX);
+	struct nix_hw *nix_hw = filp->private;
+	int ndc_idx = NPA0_U;
+	int blkaddr = 0;
+
+	blkaddr = (nix_hw->blkaddr == BLKADDR_NIX1 ?
+		   BLKADDR_NDC_NIX1_RX : BLKADDR_NDC_NIX0_RX);
+
+	return ndc_blk_hits_miss_stats(filp, ndc_idx, blkaddr);
 }
 
 RVU_DEBUG_SEQ_FOPS(nix_ndc_rx_hits_miss, nix_ndc_rx_hits_miss_display, NULL);
@@ -801,8 +898,14 @@ RVU_DEBUG_SEQ_FOPS(nix_ndc_rx_hits_miss, nix_ndc_rx_hits_miss_display, NULL);
 static int rvu_dbg_nix_ndc_tx_hits_miss_display(struct seq_file *filp,
 						void *unused)
 {
-	return ndc_blk_hits_miss_stats(filp,
-				      NPA0_U, BLKADDR_NDC_NIX0_TX);
+	struct nix_hw *nix_hw = filp->private;
+	int ndc_idx = NPA0_U;
+	int blkaddr = 0;
+
+	blkaddr = (nix_hw->blkaddr == BLKADDR_NIX1 ?
+		   BLKADDR_NDC_NIX1_TX : BLKADDR_NDC_NIX0_TX);
+
+	return ndc_blk_hits_miss_stats(filp, ndc_idx, blkaddr);
 }
 
 RVU_DEBUG_SEQ_FOPS(nix_ndc_tx_hits_miss, nix_ndc_tx_hits_miss_display, NULL);
@@ -969,7 +1072,8 @@ static int rvu_dbg_nix_queue_ctx_display(struct seq_file *filp,
 {
 	void (*print_nix_ctx)(struct seq_file *filp,
 			      struct nix_aq_enq_rsp *rsp) = NULL;
-	struct rvu *rvu = filp->private;
+	struct nix_hw *nix_hw = filp->private;
+	struct rvu *rvu = nix_hw->rvu;
 	struct nix_aq_enq_req aq_req;
 	struct nix_aq_enq_rsp rsp;
 	char *ctype_string = NULL;
@@ -1001,7 +1105,7 @@ static int rvu_dbg_nix_queue_ctx_display(struct seq_file *filp,
 		return -EINVAL;
 	}
 
-	if (!rvu_dbg_is_valid_lf(rvu, BLKTYPE_NIX, nixlf, &pcifunc))
+	if (!rvu_dbg_is_valid_lf(rvu, nix_hw->blkaddr, nixlf, &pcifunc))
 		return -EINVAL;
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
@@ -1053,13 +1157,15 @@ static int rvu_dbg_nix_queue_ctx_display(struct seq_file *filp,
 }
 
 static int write_nix_queue_ctx(struct rvu *rvu, bool all, int nixlf,
-			       int id, int ctype, char *ctype_string)
+			       int id, int ctype, char *ctype_string,
+			       struct seq_file *m)
 {
+	struct nix_hw *nix_hw = m->private;
 	struct rvu_pfvf *pfvf;
 	int max_id = 0;
 	u16 pcifunc;
 
-	if (!rvu_dbg_is_valid_lf(rvu, BLKTYPE_NIX, nixlf, &pcifunc))
+	if (!rvu_dbg_is_valid_lf(rvu, nix_hw->blkaddr, nixlf, &pcifunc))
 		return -EINVAL;
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
@@ -1119,7 +1225,8 @@ static ssize_t rvu_dbg_nix_queue_ctx_write(struct file *filp,
 					   int ctype)
 {
 	struct seq_file *m = filp->private_data;
-	struct rvu *rvu = m->private;
+	struct nix_hw *nix_hw = m->private;
+	struct rvu *rvu = nix_hw->rvu;
 	char *cmd_buf, *ctype_string;
 	int nixlf, id = 0, ret;
 	bool all = false;
@@ -1155,7 +1262,7 @@ static ssize_t rvu_dbg_nix_queue_ctx_write(struct file *filp,
 		goto done;
 	} else {
 		ret = write_nix_queue_ctx(rvu, all, nixlf, id, ctype,
-					  ctype_string);
+					  ctype_string, m);
 	}
 done:
 	kfree(cmd_buf);
@@ -1259,102 +1366,54 @@ static int rvu_dbg_nix_qsize_display(struct seq_file *filp, void *unused)
 
 RVU_DEBUG_SEQ_FOPS(nix_qsize, nix_qsize_display, nix_qsize_write);
 
-static void rvu_dbg_nix_init(struct rvu *rvu)
+static void rvu_dbg_nix_init(struct rvu *rvu, int blkaddr)
 {
-	const struct device *dev = &rvu->pdev->dev;
-	struct dentry *pfile;
+	struct nix_hw *nix_hw;
 
-	rvu->rvu_dbg.nix = debugfs_create_dir("nix", rvu->rvu_dbg.root);
-	if (!rvu->rvu_dbg.nix) {
-		dev_err(rvu->dev, "create debugfs dir failed for nix\n");
+	if (!is_block_implemented(rvu->hw, blkaddr))
 		return;
+
+	if (blkaddr == BLKADDR_NIX0) {
+		rvu->rvu_dbg.nix = debugfs_create_dir("nix", rvu->rvu_dbg.root);
+		nix_hw = &rvu->hw->nix[0];
+	} else {
+		rvu->rvu_dbg.nix = debugfs_create_dir("nix1",
+						      rvu->rvu_dbg.root);
+		nix_hw = &rvu->hw->nix[1];
 	}
 
-	pfile = debugfs_create_file("sq_ctx", 0600, rvu->rvu_dbg.nix, rvu,
-				    &rvu_dbg_nix_sq_ctx_fops);
-	if (!pfile)
-		goto create_failed;
-
-	pfile = debugfs_create_file("rq_ctx", 0600, rvu->rvu_dbg.nix, rvu,
-				    &rvu_dbg_nix_rq_ctx_fops);
-	if (!pfile)
-		goto create_failed;
-
-	pfile = debugfs_create_file("cq_ctx", 0600, rvu->rvu_dbg.nix, rvu,
-				    &rvu_dbg_nix_cq_ctx_fops);
-	if (!pfile)
-		goto create_failed;
-
-	pfile = debugfs_create_file("ndc_tx_cache", 0600, rvu->rvu_dbg.nix, rvu,
-				    &rvu_dbg_nix_ndc_tx_cache_fops);
-	if (!pfile)
-		goto create_failed;
-
-	pfile = debugfs_create_file("ndc_rx_cache", 0600, rvu->rvu_dbg.nix, rvu,
-				    &rvu_dbg_nix_ndc_rx_cache_fops);
-	if (!pfile)
-		goto create_failed;
-
-	pfile = debugfs_create_file("ndc_tx_hits_miss", 0600, rvu->rvu_dbg.nix,
-				    rvu, &rvu_dbg_nix_ndc_tx_hits_miss_fops);
-	if (!pfile)
-		goto create_failed;
-
-	pfile = debugfs_create_file("ndc_rx_hits_miss", 0600, rvu->rvu_dbg.nix,
-				    rvu, &rvu_dbg_nix_ndc_rx_hits_miss_fops);
-	if (!pfile)
-		goto create_failed;
-
-	pfile = debugfs_create_file("qsize", 0600, rvu->rvu_dbg.nix, rvu,
-				    &rvu_dbg_nix_qsize_fops);
-	if (!pfile)
-		goto create_failed;
-
-	return;
-create_failed:
-	dev_err(dev, "Failed to create debugfs dir/file for NIX\n");
-	debugfs_remove_recursive(rvu->rvu_dbg.nix);
+	debugfs_create_file("sq_ctx", 0600, rvu->rvu_dbg.nix, nix_hw,
+			    &rvu_dbg_nix_sq_ctx_fops);
+	debugfs_create_file("rq_ctx", 0600, rvu->rvu_dbg.nix, nix_hw,
+			    &rvu_dbg_nix_rq_ctx_fops);
+	debugfs_create_file("cq_ctx", 0600, rvu->rvu_dbg.nix, nix_hw,
+			    &rvu_dbg_nix_cq_ctx_fops);
+	debugfs_create_file("ndc_tx_cache", 0600, rvu->rvu_dbg.nix, nix_hw,
+			    &rvu_dbg_nix_ndc_tx_cache_fops);
+	debugfs_create_file("ndc_rx_cache", 0600, rvu->rvu_dbg.nix, nix_hw,
+			    &rvu_dbg_nix_ndc_rx_cache_fops);
+	debugfs_create_file("ndc_tx_hits_miss", 0600, rvu->rvu_dbg.nix, nix_hw,
+			    &rvu_dbg_nix_ndc_tx_hits_miss_fops);
+	debugfs_create_file("ndc_rx_hits_miss", 0600, rvu->rvu_dbg.nix, nix_hw,
+			    &rvu_dbg_nix_ndc_rx_hits_miss_fops);
+	debugfs_create_file("qsize", 0600, rvu->rvu_dbg.nix, rvu,
+			    &rvu_dbg_nix_qsize_fops);
 }
 
 static void rvu_dbg_npa_init(struct rvu *rvu)
 {
-	const struct device *dev = &rvu->pdev->dev;
-	struct dentry *pfile;
-
 	rvu->rvu_dbg.npa = debugfs_create_dir("npa", rvu->rvu_dbg.root);
-	if (!rvu->rvu_dbg.npa)
-		return;
 
-	pfile = debugfs_create_file("qsize", 0600, rvu->rvu_dbg.npa, rvu,
-				    &rvu_dbg_npa_qsize_fops);
-	if (!pfile)
-		goto create_failed;
-
-	pfile = debugfs_create_file("aura_ctx", 0600, rvu->rvu_dbg.npa, rvu,
-				    &rvu_dbg_npa_aura_ctx_fops);
-	if (!pfile)
-		goto create_failed;
-
-	pfile = debugfs_create_file("pool_ctx", 0600, rvu->rvu_dbg.npa, rvu,
-				    &rvu_dbg_npa_pool_ctx_fops);
-	if (!pfile)
-		goto create_failed;
-
-	pfile = debugfs_create_file("ndc_cache", 0600, rvu->rvu_dbg.npa, rvu,
-				    &rvu_dbg_npa_ndc_cache_fops);
-	if (!pfile)
-		goto create_failed;
-
-	pfile = debugfs_create_file("ndc_hits_miss", 0600, rvu->rvu_dbg.npa,
-				    rvu, &rvu_dbg_npa_ndc_hits_miss_fops);
-	if (!pfile)
-		goto create_failed;
-
-	return;
-
-create_failed:
-	dev_err(dev, "Failed to create debugfs dir/file for NPA\n");
-	debugfs_remove_recursive(rvu->rvu_dbg.npa);
+	debugfs_create_file("qsize", 0600, rvu->rvu_dbg.npa, rvu,
+			    &rvu_dbg_npa_qsize_fops);
+	debugfs_create_file("aura_ctx", 0600, rvu->rvu_dbg.npa, rvu,
+			    &rvu_dbg_npa_aura_ctx_fops);
+	debugfs_create_file("pool_ctx", 0600, rvu->rvu_dbg.npa, rvu,
+			    &rvu_dbg_npa_pool_ctx_fops);
+	debugfs_create_file("ndc_cache", 0600, rvu->rvu_dbg.npa, rvu,
+			    &rvu_dbg_npa_ndc_cache_fops);
+	debugfs_create_file("ndc_hits_miss", 0600, rvu->rvu_dbg.npa, rvu,
+			    &rvu_dbg_npa_ndc_hits_miss_fops);
 }
 
 #define PRINT_CGX_CUML_NIXRX_STATUS(idx, name)				\
@@ -1488,8 +1547,6 @@ RVU_DEBUG_SEQ_FOPS(cgx_stat, cgx_stat_display, NULL);
 
 static void rvu_dbg_cgx_init(struct rvu *rvu)
 {
-	const struct device *dev = &rvu->pdev->dev;
-	struct dentry *pfile;
 	int i, lmac_id;
 	char dname[20];
 	void *cgx;
@@ -1510,18 +1567,10 @@ static void rvu_dbg_cgx_init(struct rvu *rvu)
 			rvu->rvu_dbg.lmac =
 				debugfs_create_dir(dname, rvu->rvu_dbg.cgx);
 
-			pfile =	debugfs_create_file("stats", 0600,
-						    rvu->rvu_dbg.lmac, cgx,
-						    &rvu_dbg_cgx_stat_fops);
-			if (!pfile)
-				goto create_failed;
+			debugfs_create_file("stats", 0600, rvu->rvu_dbg.lmac,
+					    cgx, &rvu_dbg_cgx_stat_fops);
 		}
 	}
-	return;
-
-create_failed:
-	dev_err(dev, "Failed to create debugfs dir/file for CGX\n");
-	debugfs_remove_recursive(rvu->rvu_dbg.cgx_root);
 }
 
 /* NPC debugfs APIs */
@@ -1565,7 +1614,7 @@ static int rvu_dbg_npc_mcam_info_display(struct seq_file *filp, void *unsued)
 	struct rvu *rvu = filp->private;
 	int pf, vf, numvfs, blkaddr;
 	struct npc_mcam *mcam;
-	u16 pcifunc;
+	u16 pcifunc, counters;
 	u64 cfg;
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
@@ -1573,6 +1622,7 @@ static int rvu_dbg_npc_mcam_info_display(struct seq_file *filp, void *unsued)
 		return -ENODEV;
 
 	mcam = &rvu->hw->mcam;
+	counters = rvu->hw->npc_counters;
 
 	seq_puts(filp, "\nNPC MCAM info:\n");
 	/* MCAM keywidth on receive and transmit sides */
@@ -1595,10 +1645,9 @@ static int rvu_dbg_npc_mcam_info_display(struct seq_file *filp, void *unsued)
 	seq_printf(filp, "\t\t Available \t: %d\n", mcam->bmap_fcnt);
 
 	/* MCAM counters */
-	cfg = rvu_read64(rvu, blkaddr, NPC_AF_CONST);
-	cfg = (cfg >> 48) & 0xFFFF;
-	seq_printf(filp, "\n\t\t MCAM counters \t: %lld\n", cfg);
-	seq_printf(filp, "\t\t Reserved \t: %lld\n", cfg - mcam->counters.max);
+	seq_printf(filp, "\n\t\t MCAM counters \t: %d\n", counters);
+	seq_printf(filp, "\t\t Reserved \t: %d\n",
+		   counters - mcam->counters.max);
 	seq_printf(filp, "\t\t Available \t: %d\n",
 		   rvu_rsrc_free_count(&mcam->counters));
 
@@ -1650,57 +1699,453 @@ static int rvu_dbg_npc_rx_miss_stats_display(struct seq_file *filp,
 
 RVU_DEBUG_SEQ_FOPS(npc_rx_miss_act, npc_rx_miss_stats_display, NULL);
 
+static void rvu_dbg_npc_mcam_show_flows(struct seq_file *s,
+					struct rvu_npc_mcam_rule *rule)
+{
+	u8 bit;
+
+	for_each_set_bit(bit, (unsigned long *)&rule->features, 64) {
+		seq_printf(s, "\t%s  ", npc_get_field_name(bit));
+		switch (bit) {
+		case NPC_DMAC:
+			seq_printf(s, "%pM ", rule->packet.dmac);
+			seq_printf(s, "mask %pM\n", rule->mask.dmac);
+			break;
+		case NPC_SMAC:
+			seq_printf(s, "%pM ", rule->packet.smac);
+			seq_printf(s, "mask %pM\n", rule->mask.smac);
+			break;
+		case NPC_ETYPE:
+			seq_printf(s, "0x%x ", ntohs(rule->packet.etype));
+			seq_printf(s, "mask 0x%x\n", ntohs(rule->mask.etype));
+			break;
+		case NPC_OUTER_VID:
+			seq_printf(s, "%d ", ntohs(rule->packet.vlan_tci));
+			seq_printf(s, "mask 0x%x\n",
+				   ntohs(rule->mask.vlan_tci));
+			break;
+		case NPC_TOS:
+			seq_printf(s, "%d ", rule->packet.tos);
+			seq_printf(s, "mask 0x%x\n", rule->mask.tos);
+			break;
+		case NPC_SIP_IPV4:
+			seq_printf(s, "%pI4 ", &rule->packet.ip4src);
+			seq_printf(s, "mask %pI4\n", &rule->mask.ip4src);
+			break;
+		case NPC_DIP_IPV4:
+			seq_printf(s, "%pI4 ", &rule->packet.ip4dst);
+			seq_printf(s, "mask %pI4\n", &rule->mask.ip4dst);
+			break;
+		case NPC_SIP_IPV6:
+			seq_printf(s, "%pI6 ", rule->packet.ip6src);
+			seq_printf(s, "mask %pI6\n", rule->mask.ip6src);
+			break;
+		case NPC_DIP_IPV6:
+			seq_printf(s, "%pI6 ", rule->packet.ip6dst);
+			seq_printf(s, "mask %pI6\n", rule->mask.ip6dst);
+			break;
+		case NPC_SPORT_TCP:
+		case NPC_SPORT_UDP:
+		case NPC_SPORT_SCTP:
+			seq_printf(s, "%d ", ntohs(rule->packet.sport));
+			seq_printf(s, "mask 0x%x\n", ntohs(rule->mask.sport));
+			break;
+		case NPC_DPORT_TCP:
+		case NPC_DPORT_UDP:
+		case NPC_DPORT_SCTP:
+			seq_printf(s, "%d ", ntohs(rule->packet.dport));
+			seq_printf(s, "mask 0x%x\n", ntohs(rule->mask.dport));
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+static void rvu_dbg_npc_mcam_show_action(struct seq_file *s,
+					 struct rvu_npc_mcam_rule *rule)
+{
+	if (rule->intf == NIX_INTF_TX) {
+		switch (rule->tx_action.op) {
+		case NIX_TX_ACTIONOP_DROP:
+			seq_puts(s, "\taction: Drop\n");
+			break;
+		case NIX_TX_ACTIONOP_UCAST_DEFAULT:
+			seq_puts(s, "\taction: Unicast to default channel\n");
+			break;
+		case NIX_TX_ACTIONOP_UCAST_CHAN:
+			seq_printf(s, "\taction: Unicast to channel %d\n",
+				   rule->tx_action.index);
+			break;
+		case NIX_TX_ACTIONOP_MCAST:
+			seq_puts(s, "\taction: Multicast\n");
+			break;
+		case NIX_TX_ACTIONOP_DROP_VIOL:
+			seq_puts(s, "\taction: Lockdown Violation Drop\n");
+			break;
+		default:
+			break;
+		};
+	} else {
+		switch (rule->rx_action.op) {
+		case NIX_RX_ACTIONOP_DROP:
+			seq_puts(s, "\taction: Drop\n");
+			break;
+		case NIX_RX_ACTIONOP_UCAST:
+			seq_printf(s, "\taction: Direct to queue %d\n",
+				   rule->rx_action.index);
+			break;
+		case NIX_RX_ACTIONOP_RSS:
+			seq_puts(s, "\taction: RSS\n");
+			break;
+		case NIX_RX_ACTIONOP_UCAST_IPSEC:
+			seq_puts(s, "\taction: Unicast ipsec\n");
+			break;
+		case NIX_RX_ACTIONOP_MCAST:
+			seq_puts(s, "\taction: Multicast\n");
+			break;
+		default:
+			break;
+		};
+	}
+}
+
+static const char *rvu_dbg_get_intf_name(int intf)
+{
+	switch (intf) {
+	case NIX_INTFX_RX(0):
+		return "NIX0_RX";
+	case NIX_INTFX_RX(1):
+		return "NIX1_RX";
+	case NIX_INTFX_TX(0):
+		return "NIX0_TX";
+	case NIX_INTFX_TX(1):
+		return "NIX1_TX";
+	default:
+		break;
+	}
+
+	return "unknown";
+}
+
+static int rvu_dbg_npc_mcam_show_rules(struct seq_file *s, void *unused)
+{
+	struct rvu_npc_mcam_rule *iter;
+	struct rvu *rvu = s->private;
+	struct npc_mcam *mcam;
+	int pf, vf = -1;
+	int blkaddr;
+	u16 target;
+	u64 hits;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return 0;
+
+	mcam = &rvu->hw->mcam;
+
+	mutex_lock(&mcam->lock);
+	list_for_each_entry(iter, &mcam->mcam_rules, list) {
+		pf = (iter->owner >> RVU_PFVF_PF_SHIFT) & RVU_PFVF_PF_MASK;
+		seq_printf(s, "\n\tInstalled by: PF%d ", pf);
+
+		if (iter->owner & RVU_PFVF_FUNC_MASK) {
+			vf = (iter->owner & RVU_PFVF_FUNC_MASK) - 1;
+			seq_printf(s, "VF%d", vf);
+		}
+		seq_puts(s, "\n");
+
+		seq_printf(s, "\tdirection: %s\n", is_npc_intf_rx(iter->intf) ?
+						    "RX" : "TX");
+		seq_printf(s, "\tinterface: %s\n",
+			   rvu_dbg_get_intf_name(iter->intf));
+		seq_printf(s, "\tmcam entry: %d\n", iter->entry);
+
+		rvu_dbg_npc_mcam_show_flows(s, iter);
+		if (iter->intf == NIX_INTF_RX) {
+			target = iter->rx_action.pf_func;
+			pf = (target >> RVU_PFVF_PF_SHIFT) & RVU_PFVF_PF_MASK;
+			seq_printf(s, "\tForward to: PF%d ", pf);
+
+			if (target & RVU_PFVF_FUNC_MASK) {
+				vf = (target & RVU_PFVF_FUNC_MASK) - 1;
+				seq_printf(s, "VF%d", vf);
+			}
+			seq_puts(s, "\n");
+		}
+
+		rvu_dbg_npc_mcam_show_action(s, iter);
+		seq_printf(s, "\tenabled: %s\n", iter->enable ? "yes" : "no");
+
+		if (!iter->has_cntr)
+			continue;
+		seq_printf(s, "\tcounter: %d\n", iter->cntr);
+
+		hits = rvu_read64(rvu, blkaddr, NPC_AF_MATCH_STATX(iter->cntr));
+		seq_printf(s, "\thits: %lld\n", hits);
+	}
+	mutex_unlock(&mcam->lock);
+
+	return 0;
+}
+
+RVU_DEBUG_SEQ_FOPS(npc_mcam_rules, npc_mcam_show_rules, NULL);
+
 static void rvu_dbg_npc_init(struct rvu *rvu)
 {
-	const struct device *dev = &rvu->pdev->dev;
-	struct dentry *pfile;
-
 	rvu->rvu_dbg.npc = debugfs_create_dir("npc", rvu->rvu_dbg.root);
-	if (!rvu->rvu_dbg.npc)
+
+	debugfs_create_file("mcam_info", 0444, rvu->rvu_dbg.npc, rvu,
+			    &rvu_dbg_npc_mcam_info_fops);
+	debugfs_create_file("mcam_rules", 0444, rvu->rvu_dbg.npc, rvu,
+			    &rvu_dbg_npc_mcam_rules_fops);
+	debugfs_create_file("rx_miss_act_stats", 0444, rvu->rvu_dbg.npc, rvu,
+			    &rvu_dbg_npc_rx_miss_act_fops);
+}
+
+/* CPT debugfs APIs */
+static int cpt_eng_sts_display(struct seq_file *filp, u8 eng_type)
+{
+	struct rvu *rvu = filp->private;
+	u64 busy_sts = 0, free_sts = 0;
+	u32 e_min = 0, e_max = 0, e, i;
+	u16 max_ses, max_ies, max_aes;
+	int blkaddr;
+	u64 reg;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
+	if (blkaddr < 0)
+		return -ENODEV;
+
+	reg = rvu_read64(rvu, blkaddr, CPT_AF_CONSTANTS1);
+	max_ses = reg & 0xffff;
+	max_ies = (reg >> 16) & 0xffff;
+	max_aes = (reg >> 32) & 0xffff;
+
+	switch (eng_type) {
+	case CPT_AE_TYPE:
+		e_min = max_ses + max_ies;
+		e_max = max_ses + max_ies + max_aes;
+		break;
+	case CPT_SE_TYPE:
+		e_min = 0;
+		e_max = max_ses;
+		break;
+	case CPT_IE_TYPE:
+		e_min = max_ses;
+		e_max = max_ses + max_ies;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	for (e = e_min, i = 0; e < e_max; e++, i++) {
+		reg = rvu_read64(rvu, blkaddr, CPT_AF_EXEX_STS(e));
+		if (reg & 0x1)
+			busy_sts |= 1ULL << i;
+
+		if (reg & 0x2)
+			free_sts |= 1ULL << i;
+	}
+	seq_printf(filp, "FREE STS : 0x%016llx\n", free_sts);
+	seq_printf(filp, "BUSY STS : 0x%016llx\n", busy_sts);
+
+	return 0;
+}
+
+static int rvu_dbg_cpt_ae_sts_display(struct seq_file *filp, void *unused)
+{
+	return cpt_eng_sts_display(filp, CPT_AE_TYPE);
+}
+
+RVU_DEBUG_SEQ_FOPS(cpt_ae_sts, cpt_ae_sts_display, NULL);
+
+static int rvu_dbg_cpt_se_sts_display(struct seq_file *filp, void *unused)
+{
+	return cpt_eng_sts_display(filp, CPT_SE_TYPE);
+}
+
+RVU_DEBUG_SEQ_FOPS(cpt_se_sts, cpt_se_sts_display, NULL);
+
+static int rvu_dbg_cpt_ie_sts_display(struct seq_file *filp, void *unused)
+{
+	return cpt_eng_sts_display(filp, CPT_IE_TYPE);
+}
+
+RVU_DEBUG_SEQ_FOPS(cpt_ie_sts, cpt_ie_sts_display, NULL);
+
+static int rvu_dbg_cpt_engines_info_display(struct seq_file *filp, void *unused)
+{
+	struct rvu *rvu = filp->private;
+	u16 max_ses, max_ies, max_aes;
+	u32 e_max, e;
+	int blkaddr;
+	u64 reg;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
+	if (blkaddr < 0)
+		return -ENODEV;
+
+	reg = rvu_read64(rvu, blkaddr, CPT_AF_CONSTANTS1);
+	max_ses = reg & 0xffff;
+	max_ies = (reg >> 16) & 0xffff;
+	max_aes = (reg >> 32) & 0xffff;
+
+	e_max = max_ses + max_ies + max_aes;
+
+	seq_puts(filp, "===========================================\n");
+	for (e = 0; e < e_max; e++) {
+		reg = rvu_read64(rvu, blkaddr, CPT_AF_EXEX_CTL2(e));
+		seq_printf(filp, "CPT Engine[%u] Group Enable   0x%02llx\n", e,
+			   reg & 0xff);
+		reg = rvu_read64(rvu, blkaddr, CPT_AF_EXEX_ACTIVE(e));
+		seq_printf(filp, "CPT Engine[%u] Active Info    0x%llx\n", e,
+			   reg);
+		reg = rvu_read64(rvu, blkaddr, CPT_AF_EXEX_CTL(e));
+		seq_printf(filp, "CPT Engine[%u] Control        0x%llx\n", e,
+			   reg);
+		seq_puts(filp, "===========================================\n");
+	}
+	return 0;
+}
+
+RVU_DEBUG_SEQ_FOPS(cpt_engines_info, cpt_engines_info_display, NULL);
+
+static int rvu_dbg_cpt_lfs_info_display(struct seq_file *filp, void *unused)
+{
+	struct rvu *rvu = filp->private;
+	struct rvu_hwinfo *hw = rvu->hw;
+	struct rvu_block *block;
+	int blkaddr;
+	u64 reg;
+	u32 lf;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
+	if (blkaddr < 0)
+		return -ENODEV;
+
+	block = &hw->block[blkaddr];
+	if (!block->lf.bmap)
+		return -ENODEV;
+
+	seq_puts(filp, "===========================================\n");
+	for (lf = 0; lf < block->lf.max; lf++) {
+		reg = rvu_read64(rvu, blkaddr, CPT_AF_LFX_CTL(lf));
+		seq_printf(filp, "CPT Lf[%u] CTL          0x%llx\n", lf, reg);
+		reg = rvu_read64(rvu, blkaddr, CPT_AF_LFX_CTL2(lf));
+		seq_printf(filp, "CPT Lf[%u] CTL2         0x%llx\n", lf, reg);
+		reg = rvu_read64(rvu, blkaddr, CPT_AF_LFX_PTR_CTL(lf));
+		seq_printf(filp, "CPT Lf[%u] PTR_CTL      0x%llx\n", lf, reg);
+		reg = rvu_read64(rvu, blkaddr, block->lfcfg_reg |
+				(lf << block->lfshift));
+		seq_printf(filp, "CPT Lf[%u] CFG          0x%llx\n", lf, reg);
+		seq_puts(filp, "===========================================\n");
+	}
+	return 0;
+}
+
+RVU_DEBUG_SEQ_FOPS(cpt_lfs_info, cpt_lfs_info_display, NULL);
+
+static int rvu_dbg_cpt_err_info_display(struct seq_file *filp, void *unused)
+{
+	struct rvu *rvu = filp->private;
+	u64 reg0, reg1;
+	int blkaddr;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
+	if (blkaddr < 0)
+		return -ENODEV;
+
+	reg0 = rvu_read64(rvu, blkaddr, CPT_AF_FLTX_INT(0));
+	reg1 = rvu_read64(rvu, blkaddr, CPT_AF_FLTX_INT(1));
+	seq_printf(filp, "CPT_AF_FLTX_INT:       0x%llx 0x%llx\n", reg0, reg1);
+	reg0 = rvu_read64(rvu, blkaddr, CPT_AF_PSNX_EXE(0));
+	reg1 = rvu_read64(rvu, blkaddr, CPT_AF_PSNX_EXE(1));
+	seq_printf(filp, "CPT_AF_PSNX_EXE:       0x%llx 0x%llx\n", reg0, reg1);
+	reg0 = rvu_read64(rvu, blkaddr, CPT_AF_PSNX_LF(0));
+	seq_printf(filp, "CPT_AF_PSNX_LF:        0x%llx\n", reg0);
+	reg0 = rvu_read64(rvu, blkaddr, CPT_AF_RVU_INT);
+	seq_printf(filp, "CPT_AF_RVU_INT:        0x%llx\n", reg0);
+	reg0 = rvu_read64(rvu, blkaddr, CPT_AF_RAS_INT);
+	seq_printf(filp, "CPT_AF_RAS_INT:        0x%llx\n", reg0);
+	reg0 = rvu_read64(rvu, blkaddr, CPT_AF_EXE_ERR_INFO);
+	seq_printf(filp, "CPT_AF_EXE_ERR_INFO:   0x%llx\n", reg0);
+
+	return 0;
+}
+
+RVU_DEBUG_SEQ_FOPS(cpt_err_info, cpt_err_info_display, NULL);
+
+static int rvu_dbg_cpt_pc_display(struct seq_file *filp, void *unused)
+{
+	struct rvu *rvu;
+	int blkaddr;
+	u64 reg;
+
+	rvu = filp->private;
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
+	if (blkaddr < 0)
+		return -ENODEV;
+
+	reg = rvu_read64(rvu, blkaddr, CPT_AF_INST_REQ_PC);
+	seq_printf(filp, "CPT instruction requests   %llu\n", reg);
+	reg = rvu_read64(rvu, blkaddr, CPT_AF_INST_LATENCY_PC);
+	seq_printf(filp, "CPT instruction latency    %llu\n", reg);
+	reg = rvu_read64(rvu, blkaddr, CPT_AF_RD_REQ_PC);
+	seq_printf(filp, "CPT NCB read requests      %llu\n", reg);
+	reg = rvu_read64(rvu, blkaddr, CPT_AF_RD_LATENCY_PC);
+	seq_printf(filp, "CPT NCB read latency       %llu\n", reg);
+	reg = rvu_read64(rvu, blkaddr, CPT_AF_RD_UC_PC);
+	seq_printf(filp, "CPT read requests caused by UC fills   %llu\n", reg);
+	reg = rvu_read64(rvu, blkaddr, CPT_AF_ACTIVE_CYCLES_PC);
+	seq_printf(filp, "CPT active cycles pc       %llu\n", reg);
+	reg = rvu_read64(rvu, blkaddr, CPT_AF_CPTCLK_CNT);
+	seq_printf(filp, "CPT clock count pc         %llu\n", reg);
+
+	return 0;
+}
+
+RVU_DEBUG_SEQ_FOPS(cpt_pc, cpt_pc_display, NULL);
+
+static void rvu_dbg_cpt_init(struct rvu *rvu)
+{
+	if (!is_block_implemented(rvu->hw, BLKADDR_CPT0))
 		return;
 
-	pfile = debugfs_create_file("mcam_info", 0444, rvu->rvu_dbg.npc,
-				    rvu, &rvu_dbg_npc_mcam_info_fops);
-	if (!pfile)
-		goto create_failed;
+	rvu->rvu_dbg.cpt = debugfs_create_dir("cpt", rvu->rvu_dbg.root);
 
-	pfile = debugfs_create_file("rx_miss_act_stats", 0444, rvu->rvu_dbg.npc,
-				    rvu, &rvu_dbg_npc_rx_miss_act_fops);
-	if (!pfile)
-		goto create_failed;
-
-	return;
-
-create_failed:
-	dev_err(dev, "Failed to create debugfs dir/file for NPC\n");
-	debugfs_remove_recursive(rvu->rvu_dbg.npc);
+	debugfs_create_file("cpt_pc", 0600, rvu->rvu_dbg.cpt, rvu,
+			    &rvu_dbg_cpt_pc_fops);
+	debugfs_create_file("cpt_ae_sts", 0600, rvu->rvu_dbg.cpt, rvu,
+			    &rvu_dbg_cpt_ae_sts_fops);
+	debugfs_create_file("cpt_se_sts", 0600, rvu->rvu_dbg.cpt, rvu,
+			    &rvu_dbg_cpt_se_sts_fops);
+	debugfs_create_file("cpt_ie_sts", 0600, rvu->rvu_dbg.cpt, rvu,
+			    &rvu_dbg_cpt_ie_sts_fops);
+	debugfs_create_file("cpt_engines_info", 0600, rvu->rvu_dbg.cpt, rvu,
+			    &rvu_dbg_cpt_engines_info_fops);
+	debugfs_create_file("cpt_lfs_info", 0600, rvu->rvu_dbg.cpt, rvu,
+			    &rvu_dbg_cpt_lfs_info_fops);
+	debugfs_create_file("cpt_err_info", 0600, rvu->rvu_dbg.cpt, rvu,
+			    &rvu_dbg_cpt_err_info_fops);
 }
 
 void rvu_dbg_init(struct rvu *rvu)
 {
-	struct device *dev = &rvu->pdev->dev;
-	struct dentry *pfile;
-
 	rvu->rvu_dbg.root = debugfs_create_dir(DEBUGFS_DIR_NAME, NULL);
-	if (!rvu->rvu_dbg.root) {
-		dev_err(rvu->dev, "%s failed\n", __func__);
-		return;
-	}
-	pfile = debugfs_create_file("rsrc_alloc", 0444, rvu->rvu_dbg.root, rvu,
-				    &rvu_dbg_rsrc_status_fops);
-	if (!pfile)
-		goto create_failed;
+
+	debugfs_create_file("rsrc_alloc", 0444, rvu->rvu_dbg.root, rvu,
+			    &rvu_dbg_rsrc_status_fops);
+	debugfs_create_file("rvu_pf_cgx_map", 0444, rvu->rvu_dbg.root, rvu,
+			    &rvu_dbg_rvu_pf_cgx_map_fops);
 
 	rvu_dbg_npa_init(rvu);
-	rvu_dbg_nix_init(rvu);
+	rvu_dbg_nix_init(rvu, BLKADDR_NIX0);
+
+	rvu_dbg_nix_init(rvu, BLKADDR_NIX1);
 	rvu_dbg_cgx_init(rvu);
 	rvu_dbg_npc_init(rvu);
-
-	return;
-
-create_failed:
-	dev_err(dev, "Failed to create debugfs dir\n");
-	debugfs_remove_recursive(rvu->rvu_dbg.root);
+	rvu_dbg_cpt_init(rvu);
 }
 
 void rvu_dbg_exit(struct rvu *rvu)

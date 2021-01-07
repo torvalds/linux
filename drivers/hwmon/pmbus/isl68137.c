@@ -324,7 +324,6 @@ static struct i2c_driver isl68137_driver = {
 		   .name = "isl68137",
 		   },
 	.probe_new = isl68137_probe,
-	.remove = pmbus_do_remove,
 	.id_table = raa_dmpvr_id,
 };
 

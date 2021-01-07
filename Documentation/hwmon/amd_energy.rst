@@ -5,7 +5,9 @@ Kernel driver amd_energy
 
 Supported chips:
 
-* AMD Family 17h Processors
+* AMD Family 17h Processors: Model 30h
+
+* AMD Family 19h Processors: Model 01h
 
   Prefix: 'amd_energy'
 
@@ -112,3 +114,6 @@ energy[N]_input EcoreX	  Core Energy   X = [0] to [nr_cpus - 1]
 energy[N]_input EsocketX  Socket Energy X = [0] to [nr_socks -1]
 			  Measured input socket energy
 =============== ========  ======================================
+
+Note: To address CVE-2020-12912, the visibility of the energy[N]_input
+attributes is restricted to owner and groups only.

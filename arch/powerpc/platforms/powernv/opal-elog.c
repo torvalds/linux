@@ -171,8 +171,8 @@ static ssize_t raw_attr_read(struct file *filep, struct kobject *kobj,
 		opal_rc = opal_read_elog(__pa(elog->buffer),
 					 elog->size, elog->id);
 		if (opal_rc != OPAL_SUCCESS) {
-			pr_err("ELOG: log read failed for log-id=%llx\n",
-			       elog->id);
+			pr_err_ratelimited("ELOG: log read failed for log-id=%llx\n",
+					   elog->id);
 			kfree(elog->buffer);
 			elog->buffer = NULL;
 			return -EIO;

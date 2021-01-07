@@ -20,6 +20,7 @@ properties:
       - fsl,imx35-spdif
       - fsl,vf610-spdif
       - fsl,imx6sx-spdif
+      - fsl,imx8qm-spdif
 
   reg:
     maxItems: 1

@@ -34,9 +34,9 @@ struct wdat_instruction {
  * @period: How long is one watchdog period in ms
  * @stopped_in_sleep: Is this watchdog stopped by the firmware in S1-S5
  * @stopped: Was the watchdog stopped by the driver in suspend
- * @actions: An array of instruction lists indexed by an action number from
- *           the WDAT table. There can be %NULL entries for not implemented
- *           actions.
+ * @instructions: An array of instruction lists indexed by an action number from
+ *                the WDAT table. There can be %NULL entries for not implemented
+ *                actions.
  */
 struct wdat_wdt {
 	struct platform_device *pdev;

@@ -102,15 +102,10 @@ void lima_devfreq_fini(struct lima_device *ldev)
 
 	dev_pm_opp_of_remove_table(ldev->dev);
 
-	if (devfreq->regulators_opp_table) {
-		dev_pm_opp_put_regulators(devfreq->regulators_opp_table);
-		devfreq->regulators_opp_table = NULL;
-	}
-
-	if (devfreq->clkname_opp_table) {
-		dev_pm_opp_put_clkname(devfreq->clkname_opp_table);
-		devfreq->clkname_opp_table = NULL;
-	}
+	dev_pm_opp_put_regulators(devfreq->regulators_opp_table);
+	dev_pm_opp_put_clkname(devfreq->clkname_opp_table);
+	devfreq->regulators_opp_table = NULL;
+	devfreq->clkname_opp_table = NULL;
 }
 
 int lima_devfreq_init(struct lima_device *ldev)

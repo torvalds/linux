@@ -108,15 +108,6 @@ _GLOBAL(__setup_cpu_e6500)
 #endif /* CONFIG_PPC_E500MC */
 
 #ifdef CONFIG_PPC32
-#ifdef CONFIG_E200
-_GLOBAL(__setup_cpu_e200)
-	/* enable dedicated debug exception handling resources (Debug APU) */
-	mfspr	r3,SPRN_HID0
-	ori	r3,r3,HID0_DAPUEN@l
-	mtspr	SPRN_HID0,r3
-	b	__setup_e200_ivors
-#endif /* CONFIG_E200 */
-
 #ifdef CONFIG_E500
 #ifndef CONFIG_PPC_E500MC
 _GLOBAL(__setup_cpu_e500v1)

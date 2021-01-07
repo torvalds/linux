@@ -378,308 +378,6 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static void gen8_display_interrupt_info(struct seq_file *m)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	enum pipe pipe;
-
-	for_each_pipe(dev_priv, pipe) {
-		enum intel_display_power_domain power_domain;
-		intel_wakeref_t wakeref;
-
-		power_domain = POWER_DOMAIN_PIPE(pipe);
-		wakeref = intel_display_power_get_if_enabled(dev_priv,
-							     power_domain);
-		if (!wakeref) {
-			seq_printf(m, "Pipe %c power disabled\n",
-				   pipe_name(pipe));
-			continue;
-		}
-		seq_printf(m, "Pipe %c IMR:\t%08x\n",
-			   pipe_name(pipe),
-			   I915_READ(GEN8_DE_PIPE_IMR(pipe)));
-		seq_printf(m, "Pipe %c IIR:\t%08x\n",
-			   pipe_name(pipe),
-			   I915_READ(GEN8_DE_PIPE_IIR(pipe)));
-		seq_printf(m, "Pipe %c IER:\t%08x\n",
-			   pipe_name(pipe),
-			   I915_READ(GEN8_DE_PIPE_IER(pipe)));
-
-		intel_display_power_put(dev_priv, power_domain, wakeref);
-	}
-
-	seq_printf(m, "Display Engine port interrupt mask:\t%08x\n",
-		   I915_READ(GEN8_DE_PORT_IMR));
-	seq_printf(m, "Display Engine port interrupt identity:\t%08x\n",
-		   I915_READ(GEN8_DE_PORT_IIR));
-	seq_printf(m, "Display Engine port interrupt enable:\t%08x\n",
-		   I915_READ(GEN8_DE_PORT_IER));
-
-	seq_printf(m, "Display Engine misc interrupt mask:\t%08x\n",
-		   I915_READ(GEN8_DE_MISC_IMR));
-	seq_printf(m, "Display Engine misc interrupt identity:\t%08x\n",
-		   I915_READ(GEN8_DE_MISC_IIR));
-	seq_printf(m, "Display Engine misc interrupt enable:\t%08x\n",
-		   I915_READ(GEN8_DE_MISC_IER));
-
-	seq_printf(m, "PCU interrupt mask:\t%08x\n",
-		   I915_READ(GEN8_PCU_IMR));
-	seq_printf(m, "PCU interrupt identity:\t%08x\n",
-		   I915_READ(GEN8_PCU_IIR));
-	seq_printf(m, "PCU interrupt enable:\t%08x\n",
-		   I915_READ(GEN8_PCU_IER));
-}
-
-static int i915_interrupt_info(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct intel_engine_cs *engine;
-	intel_wakeref_t wakeref;
-	int i, pipe;
-
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
-
-	if (IS_CHERRYVIEW(dev_priv)) {
-		intel_wakeref_t pref;
-
-		seq_printf(m, "Master Interrupt Control:\t%08x\n",
-			   I915_READ(GEN8_MASTER_IRQ));
-
-		seq_printf(m, "Display IER:\t%08x\n",
-			   I915_READ(VLV_IER));
-		seq_printf(m, "Display IIR:\t%08x\n",
-			   I915_READ(VLV_IIR));
-		seq_printf(m, "Display IIR_RW:\t%08x\n",
-			   I915_READ(VLV_IIR_RW));
-		seq_printf(m, "Display IMR:\t%08x\n",
-			   I915_READ(VLV_IMR));
-		for_each_pipe(dev_priv, pipe) {
-			enum intel_display_power_domain power_domain;
-
-			power_domain = POWER_DOMAIN_PIPE(pipe);
-			pref = intel_display_power_get_if_enabled(dev_priv,
-								  power_domain);
-			if (!pref) {
-				seq_printf(m, "Pipe %c power disabled\n",
-					   pipe_name(pipe));
-				continue;
-			}
-
-			seq_printf(m, "Pipe %c stat:\t%08x\n",
-				   pipe_name(pipe),
-				   I915_READ(PIPESTAT(pipe)));
-
-			intel_display_power_put(dev_priv, power_domain, pref);
-		}
-
-		pref = intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
-		seq_printf(m, "Port hotplug:\t%08x\n",
-			   I915_READ(PORT_HOTPLUG_EN));
-		seq_printf(m, "DPFLIPSTAT:\t%08x\n",
-			   I915_READ(VLV_DPFLIPSTAT));
-		seq_printf(m, "DPINVGTT:\t%08x\n",
-			   I915_READ(DPINVGTT));
-		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT, pref);
-
-		for (i = 0; i < 4; i++) {
-			seq_printf(m, "GT Interrupt IMR %d:\t%08x\n",
-				   i, I915_READ(GEN8_GT_IMR(i)));
-			seq_printf(m, "GT Interrupt IIR %d:\t%08x\n",
-				   i, I915_READ(GEN8_GT_IIR(i)));
-			seq_printf(m, "GT Interrupt IER %d:\t%08x\n",
-				   i, I915_READ(GEN8_GT_IER(i)));
-		}
-
-		seq_printf(m, "PCU interrupt mask:\t%08x\n",
-			   I915_READ(GEN8_PCU_IMR));
-		seq_printf(m, "PCU interrupt identity:\t%08x\n",
-			   I915_READ(GEN8_PCU_IIR));
-		seq_printf(m, "PCU interrupt enable:\t%08x\n",
-			   I915_READ(GEN8_PCU_IER));
-	} else if (INTEL_GEN(dev_priv) >= 11) {
-		if (HAS_MASTER_UNIT_IRQ(dev_priv))
-			seq_printf(m, "Master Unit Interrupt Control:  %08x\n",
-				   I915_READ(DG1_MSTR_UNIT_INTR));
-
-		seq_printf(m, "Master Interrupt Control:  %08x\n",
-			   I915_READ(GEN11_GFX_MSTR_IRQ));
-
-		seq_printf(m, "Render/Copy Intr Enable:   %08x\n",
-			   I915_READ(GEN11_RENDER_COPY_INTR_ENABLE));
-		seq_printf(m, "VCS/VECS Intr Enable:      %08x\n",
-			   I915_READ(GEN11_VCS_VECS_INTR_ENABLE));
-		seq_printf(m, "GUC/SG Intr Enable:\t   %08x\n",
-			   I915_READ(GEN11_GUC_SG_INTR_ENABLE));
-		seq_printf(m, "GPM/WGBOXPERF Intr Enable: %08x\n",
-			   I915_READ(GEN11_GPM_WGBOXPERF_INTR_ENABLE));
-		seq_printf(m, "Crypto Intr Enable:\t   %08x\n",
-			   I915_READ(GEN11_CRYPTO_RSVD_INTR_ENABLE));
-		seq_printf(m, "GUnit/CSME Intr Enable:\t   %08x\n",
-			   I915_READ(GEN11_GUNIT_CSME_INTR_ENABLE));
-
-		seq_printf(m, "Display Interrupt Control:\t%08x\n",
-			   I915_READ(GEN11_DISPLAY_INT_CTL));
-
-		gen8_display_interrupt_info(m);
-	} else if (INTEL_GEN(dev_priv) >= 8) {
-		seq_printf(m, "Master Interrupt Control:\t%08x\n",
-			   I915_READ(GEN8_MASTER_IRQ));
-
-		for (i = 0; i < 4; i++) {
-			seq_printf(m, "GT Interrupt IMR %d:\t%08x\n",
-				   i, I915_READ(GEN8_GT_IMR(i)));
-			seq_printf(m, "GT Interrupt IIR %d:\t%08x\n",
-				   i, I915_READ(GEN8_GT_IIR(i)));
-			seq_printf(m, "GT Interrupt IER %d:\t%08x\n",
-				   i, I915_READ(GEN8_GT_IER(i)));
-		}
-
-		gen8_display_interrupt_info(m);
-	} else if (IS_VALLEYVIEW(dev_priv)) {
-		intel_wakeref_t pref;
-
-		seq_printf(m, "Display IER:\t%08x\n",
-			   I915_READ(VLV_IER));
-		seq_printf(m, "Display IIR:\t%08x\n",
-			   I915_READ(VLV_IIR));
-		seq_printf(m, "Display IIR_RW:\t%08x\n",
-			   I915_READ(VLV_IIR_RW));
-		seq_printf(m, "Display IMR:\t%08x\n",
-			   I915_READ(VLV_IMR));
-		for_each_pipe(dev_priv, pipe) {
-			enum intel_display_power_domain power_domain;
-
-			power_domain = POWER_DOMAIN_PIPE(pipe);
-			pref = intel_display_power_get_if_enabled(dev_priv,
-								  power_domain);
-			if (!pref) {
-				seq_printf(m, "Pipe %c power disabled\n",
-					   pipe_name(pipe));
-				continue;
-			}
-
-			seq_printf(m, "Pipe %c stat:\t%08x\n",
-				   pipe_name(pipe),
-				   I915_READ(PIPESTAT(pipe)));
-			intel_display_power_put(dev_priv, power_domain, pref);
-		}
-
-		seq_printf(m, "Master IER:\t%08x\n",
-			   I915_READ(VLV_MASTER_IER));
-
-		seq_printf(m, "Render IER:\t%08x\n",
-			   I915_READ(GTIER));
-		seq_printf(m, "Render IIR:\t%08x\n",
-			   I915_READ(GTIIR));
-		seq_printf(m, "Render IMR:\t%08x\n",
-			   I915_READ(GTIMR));
-
-		seq_printf(m, "PM IER:\t\t%08x\n",
-			   I915_READ(GEN6_PMIER));
-		seq_printf(m, "PM IIR:\t\t%08x\n",
-			   I915_READ(GEN6_PMIIR));
-		seq_printf(m, "PM IMR:\t\t%08x\n",
-			   I915_READ(GEN6_PMIMR));
-
-		pref = intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
-		seq_printf(m, "Port hotplug:\t%08x\n",
-			   I915_READ(PORT_HOTPLUG_EN));
-		seq_printf(m, "DPFLIPSTAT:\t%08x\n",
-			   I915_READ(VLV_DPFLIPSTAT));
-		seq_printf(m, "DPINVGTT:\t%08x\n",
-			   I915_READ(DPINVGTT));
-		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT, pref);
-
-	} else if (!HAS_PCH_SPLIT(dev_priv)) {
-		seq_printf(m, "Interrupt enable:    %08x\n",
-			   I915_READ(GEN2_IER));
-		seq_printf(m, "Interrupt identity:  %08x\n",
-			   I915_READ(GEN2_IIR));
-		seq_printf(m, "Interrupt mask:      %08x\n",
-			   I915_READ(GEN2_IMR));
-		for_each_pipe(dev_priv, pipe)
-			seq_printf(m, "Pipe %c stat:         %08x\n",
-				   pipe_name(pipe),
-				   I915_READ(PIPESTAT(pipe)));
-	} else {
-		seq_printf(m, "North Display Interrupt enable:		%08x\n",
-			   I915_READ(DEIER));
-		seq_printf(m, "North Display Interrupt identity:	%08x\n",
-			   I915_READ(DEIIR));
-		seq_printf(m, "North Display Interrupt mask:		%08x\n",
-			   I915_READ(DEIMR));
-		seq_printf(m, "South Display Interrupt enable:		%08x\n",
-			   I915_READ(SDEIER));
-		seq_printf(m, "South Display Interrupt identity:	%08x\n",
-			   I915_READ(SDEIIR));
-		seq_printf(m, "South Display Interrupt mask:		%08x\n",
-			   I915_READ(SDEIMR));
-		seq_printf(m, "Graphics Interrupt enable:		%08x\n",
-			   I915_READ(GTIER));
-		seq_printf(m, "Graphics Interrupt identity:		%08x\n",
-			   I915_READ(GTIIR));
-		seq_printf(m, "Graphics Interrupt mask:		%08x\n",
-			   I915_READ(GTIMR));
-	}
-
-	if (INTEL_GEN(dev_priv) >= 11) {
-		seq_printf(m, "RCS Intr Mask:\t %08x\n",
-			   I915_READ(GEN11_RCS0_RSVD_INTR_MASK));
-		seq_printf(m, "BCS Intr Mask:\t %08x\n",
-			   I915_READ(GEN11_BCS_RSVD_INTR_MASK));
-		seq_printf(m, "VCS0/VCS1 Intr Mask:\t %08x\n",
-			   I915_READ(GEN11_VCS0_VCS1_INTR_MASK));
-		seq_printf(m, "VCS2/VCS3 Intr Mask:\t %08x\n",
-			   I915_READ(GEN11_VCS2_VCS3_INTR_MASK));
-		seq_printf(m, "VECS0/VECS1 Intr Mask:\t %08x\n",
-			   I915_READ(GEN11_VECS0_VECS1_INTR_MASK));
-		seq_printf(m, "GUC/SG Intr Mask:\t %08x\n",
-			   I915_READ(GEN11_GUC_SG_INTR_MASK));
-		seq_printf(m, "GPM/WGBOXPERF Intr Mask: %08x\n",
-			   I915_READ(GEN11_GPM_WGBOXPERF_INTR_MASK));
-		seq_printf(m, "Crypto Intr Mask:\t %08x\n",
-			   I915_READ(GEN11_CRYPTO_RSVD_INTR_MASK));
-		seq_printf(m, "Gunit/CSME Intr Mask:\t %08x\n",
-			   I915_READ(GEN11_GUNIT_CSME_INTR_MASK));
-
-	} else if (INTEL_GEN(dev_priv) >= 6) {
-		for_each_uabi_engine(engine, dev_priv) {
-			seq_printf(m,
-				   "Graphics Interrupt mask (%s):	%08x\n",
-				   engine->name, ENGINE_READ(engine, RING_IMR));
-		}
-	}
-
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-
-	return 0;
-}
-
-static int i915_gem_fence_regs_info(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *i915 = node_to_i915(m->private);
-	unsigned int i;
-
-	seq_printf(m, "Total fences = %d\n", i915->ggtt.num_fences);
-
-	rcu_read_lock();
-	for (i = 0; i < i915->ggtt.num_fences; i++) {
-		struct i915_fence_reg *reg = &i915->ggtt.fence_regs[i];
-		struct i915_vma *vma = reg->vma;
-
-		seq_printf(m, "Fence %d, pin count = %d, object = ",
-			   i, atomic_read(&reg->pin_count));
-		if (!vma)
-			seq_puts(m, "unused");
-		else
-			i915_debugfs_describe_obj(m, vma->obj);
-		seq_putc(m, '\n');
-	}
-	rcu_read_unlock();
-
-	return 0;
-}
-
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 static ssize_t gpu_state_read(struct file *file, char __user *ubuf,
 			      size_t count, loff_t *pos)
@@ -802,7 +500,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		u32 rpmodectl, freq_sts;
 
-		rpmodectl = I915_READ(GEN6_RP_CONTROL);
+		rpmodectl = intel_uncore_read(&dev_priv->uncore, GEN6_RP_CONTROL);
 		seq_printf(m, "Video Turbo Mode: %s\n",
 			   yesno(rpmodectl & GEN6_RP_MEDIA_TURBO));
 		seq_printf(m, "HW control enabled: %s\n",
@@ -847,19 +545,19 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		u32 pm_ier, pm_imr, pm_isr, pm_iir, pm_mask;
 		int max_freq;
 
-		rp_state_limits = I915_READ(GEN6_RP_STATE_LIMITS);
+		rp_state_limits = intel_uncore_read(&dev_priv->uncore, GEN6_RP_STATE_LIMITS);
 		if (IS_GEN9_LP(dev_priv)) {
-			rp_state_cap = I915_READ(BXT_RP_STATE_CAP);
-			gt_perf_status = I915_READ(BXT_GT_PERF_STATUS);
+			rp_state_cap = intel_uncore_read(&dev_priv->uncore, BXT_RP_STATE_CAP);
+			gt_perf_status = intel_uncore_read(&dev_priv->uncore, BXT_GT_PERF_STATUS);
 		} else {
-			rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
-			gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
+			rp_state_cap = intel_uncore_read(&dev_priv->uncore, GEN6_RP_STATE_CAP);
+			gt_perf_status = intel_uncore_read(&dev_priv->uncore, GEN6_GT_PERF_STATUS);
 		}
 
 		/* RPSTAT1 is in the GT power well */
 		intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 
-		reqf = I915_READ(GEN6_RPNSWREQ);
+		reqf = intel_uncore_read(&dev_priv->uncore, GEN6_RPNSWREQ);
 		if (INTEL_GEN(dev_priv) >= 9)
 			reqf >>= 23;
 		else {
@@ -871,24 +569,24 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		}
 		reqf = intel_gpu_freq(rps, reqf);
 
-		rpmodectl = I915_READ(GEN6_RP_CONTROL);
-		rpinclimit = I915_READ(GEN6_RP_UP_THRESHOLD);
-		rpdeclimit = I915_READ(GEN6_RP_DOWN_THRESHOLD);
+		rpmodectl = intel_uncore_read(&dev_priv->uncore, GEN6_RP_CONTROL);
+		rpinclimit = intel_uncore_read(&dev_priv->uncore, GEN6_RP_UP_THRESHOLD);
+		rpdeclimit = intel_uncore_read(&dev_priv->uncore, GEN6_RP_DOWN_THRESHOLD);
 
-		rpstat = I915_READ(GEN6_RPSTAT1);
-		rpupei = I915_READ(GEN6_RP_CUR_UP_EI) & GEN6_CURICONT_MASK;
-		rpcurup = I915_READ(GEN6_RP_CUR_UP) & GEN6_CURBSYTAVG_MASK;
-		rpprevup = I915_READ(GEN6_RP_PREV_UP) & GEN6_CURBSYTAVG_MASK;
-		rpdownei = I915_READ(GEN6_RP_CUR_DOWN_EI) & GEN6_CURIAVG_MASK;
-		rpcurdown = I915_READ(GEN6_RP_CUR_DOWN) & GEN6_CURBSYTAVG_MASK;
-		rpprevdown = I915_READ(GEN6_RP_PREV_DOWN) & GEN6_CURBSYTAVG_MASK;
+		rpstat = intel_uncore_read(&dev_priv->uncore, GEN6_RPSTAT1);
+		rpupei = intel_uncore_read(&dev_priv->uncore, GEN6_RP_CUR_UP_EI) & GEN6_CURICONT_MASK;
+		rpcurup = intel_uncore_read(&dev_priv->uncore, GEN6_RP_CUR_UP) & GEN6_CURBSYTAVG_MASK;
+		rpprevup = intel_uncore_read(&dev_priv->uncore, GEN6_RP_PREV_UP) & GEN6_CURBSYTAVG_MASK;
+		rpdownei = intel_uncore_read(&dev_priv->uncore, GEN6_RP_CUR_DOWN_EI) & GEN6_CURIAVG_MASK;
+		rpcurdown = intel_uncore_read(&dev_priv->uncore, GEN6_RP_CUR_DOWN) & GEN6_CURBSYTAVG_MASK;
+		rpprevdown = intel_uncore_read(&dev_priv->uncore, GEN6_RP_PREV_DOWN) & GEN6_CURBSYTAVG_MASK;
 		cagf = intel_rps_read_actual_frequency(rps);
 
 		intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
 		if (INTEL_GEN(dev_priv) >= 11) {
-			pm_ier = I915_READ(GEN11_GPM_WGBOXPERF_INTR_ENABLE);
-			pm_imr = I915_READ(GEN11_GPM_WGBOXPERF_INTR_MASK);
+			pm_ier = intel_uncore_read(&dev_priv->uncore, GEN11_GPM_WGBOXPERF_INTR_ENABLE);
+			pm_imr = intel_uncore_read(&dev_priv->uncore, GEN11_GPM_WGBOXPERF_INTR_MASK);
 			/*
 			 * The equivalent to the PM ISR & IIR cannot be read
 			 * without affecting the current state of the system
@@ -896,17 +594,17 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 			pm_isr = 0;
 			pm_iir = 0;
 		} else if (INTEL_GEN(dev_priv) >= 8) {
-			pm_ier = I915_READ(GEN8_GT_IER(2));
-			pm_imr = I915_READ(GEN8_GT_IMR(2));
-			pm_isr = I915_READ(GEN8_GT_ISR(2));
-			pm_iir = I915_READ(GEN8_GT_IIR(2));
+			pm_ier = intel_uncore_read(&dev_priv->uncore, GEN8_GT_IER(2));
+			pm_imr = intel_uncore_read(&dev_priv->uncore, GEN8_GT_IMR(2));
+			pm_isr = intel_uncore_read(&dev_priv->uncore, GEN8_GT_ISR(2));
+			pm_iir = intel_uncore_read(&dev_priv->uncore, GEN8_GT_IIR(2));
 		} else {
-			pm_ier = I915_READ(GEN6_PMIER);
-			pm_imr = I915_READ(GEN6_PMIMR);
-			pm_isr = I915_READ(GEN6_PMISR);
-			pm_iir = I915_READ(GEN6_PMIIR);
+			pm_ier = intel_uncore_read(&dev_priv->uncore, GEN6_PMIER);
+			pm_imr = intel_uncore_read(&dev_priv->uncore, GEN6_PMIMR);
+			pm_isr = intel_uncore_read(&dev_priv->uncore, GEN6_PMISR);
+			pm_iir = intel_uncore_read(&dev_priv->uncore, GEN6_PMIIR);
 		}
-		pm_mask = I915_READ(GEN6_PMINTRMSK);
+		pm_mask = intel_uncore_read(&dev_priv->uncore, GEN6_PMINTRMSK);
 
 		seq_printf(m, "Video Turbo Mode: %s\n",
 			   yesno(rpmodectl & GEN6_RP_MEDIA_TURBO));
@@ -1011,111 +709,6 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int i915_ring_freq_table(struct seq_file *m, void *unused)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct intel_rps *rps = &dev_priv->gt.rps;
-	unsigned int max_gpu_freq, min_gpu_freq;
-	intel_wakeref_t wakeref;
-	int gpu_freq, ia_freq;
-
-	if (!HAS_LLC(dev_priv))
-		return -ENODEV;
-
-	min_gpu_freq = rps->min_freq;
-	max_gpu_freq = rps->max_freq;
-	if (IS_GEN9_BC(dev_priv) || INTEL_GEN(dev_priv) >= 10) {
-		/* Convert GT frequency to 50 HZ units */
-		min_gpu_freq /= GEN9_FREQ_SCALER;
-		max_gpu_freq /= GEN9_FREQ_SCALER;
-	}
-
-	seq_puts(m, "GPU freq (MHz)\tEffective CPU freq (MHz)\tEffective Ring freq (MHz)\n");
-
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
-	for (gpu_freq = min_gpu_freq; gpu_freq <= max_gpu_freq; gpu_freq++) {
-		ia_freq = gpu_freq;
-		sandybridge_pcode_read(dev_priv,
-				       GEN6_PCODE_READ_MIN_FREQ_TABLE,
-				       &ia_freq, NULL);
-		seq_printf(m, "%d\t\t%d\t\t\t\t%d\n",
-			   intel_gpu_freq(rps,
-					  (gpu_freq *
-					   (IS_GEN9_BC(dev_priv) ||
-					    INTEL_GEN(dev_priv) >= 10 ?
-					    GEN9_FREQ_SCALER : 1))),
-			   ((ia_freq >> 0) & 0xff) * 100,
-			   ((ia_freq >> 8) & 0xff) * 100);
-	}
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-
-	return 0;
-}
-
-static void describe_ctx_ring(struct seq_file *m, struct intel_ring *ring)
-{
-	seq_printf(m, " (ringbuffer, space: %d, head: %u, tail: %u, emit: %u)",
-		   ring->space, ring->head, ring->tail, ring->emit);
-}
-
-static int i915_context_status(struct seq_file *m, void *unused)
-{
-	struct drm_i915_private *i915 = node_to_i915(m->private);
-	struct i915_gem_context *ctx, *cn;
-
-	spin_lock(&i915->gem.contexts.lock);
-	list_for_each_entry_safe(ctx, cn, &i915->gem.contexts.list, link) {
-		struct i915_gem_engines_iter it;
-		struct intel_context *ce;
-
-		if (!kref_get_unless_zero(&ctx->ref))
-			continue;
-
-		spin_unlock(&i915->gem.contexts.lock);
-
-		seq_puts(m, "HW context ");
-		if (ctx->pid) {
-			struct task_struct *task;
-
-			task = get_pid_task(ctx->pid, PIDTYPE_PID);
-			if (task) {
-				seq_printf(m, "(%s [%d]) ",
-					   task->comm, task->pid);
-				put_task_struct(task);
-			}
-		} else if (IS_ERR(ctx->file_priv)) {
-			seq_puts(m, "(deleted) ");
-		} else {
-			seq_puts(m, "(kernel) ");
-		}
-
-		seq_putc(m, ctx->remap_slice ? 'R' : 'r');
-		seq_putc(m, '\n');
-
-		for_each_gem_engine(ce,
-				    i915_gem_context_lock_engines(ctx), it) {
-			if (intel_context_pin_if_active(ce)) {
-				seq_printf(m, "%s: ", ce->engine->name);
-				if (ce->state)
-					i915_debugfs_describe_obj(m, ce->state->obj);
-				describe_ctx_ring(m, ce->ring);
-				seq_putc(m, '\n');
-				intel_context_unpin(ce);
-			}
-		}
-		i915_gem_context_unlock_engines(ctx);
-
-		seq_putc(m, '\n');
-
-		spin_lock(&i915->gem.contexts.lock);
-		list_safe_reset_next(ctx, cn, link);
-		i915_gem_context_put(ctx);
-	}
-	spin_unlock(&i915->gem.contexts.lock);
-
-	return 0;
-}
-
 static const char *swizzle_string(unsigned swizzle)
 {
 	switch (swizzle) {
@@ -1193,20 +786,6 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static const char *rps_power_to_str(unsigned int power)
-{
-	static const char * const strings[] = {
-		[LOW_POWER] = "low power",
-		[BETWEEN] = "mixed",
-		[HIGH_POWER] = "high power",
-	};
-
-	if (power >= ARRAY_SIZE(strings) || !strings[power])
-		return "unknown";
-
-	return strings[power];
-}
-
 static int i915_rps_boost_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -1233,41 +812,6 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "Wait boosts: %d\n", atomic_read(&rps->boosts));
 
-	if (INTEL_GEN(dev_priv) >= 6 && intel_rps_is_active(rps)) {
-		u32 rpup, rpupei;
-		u32 rpdown, rpdownei;
-
-		intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
-		rpup = I915_READ_FW(GEN6_RP_CUR_UP) & GEN6_RP_EI_MASK;
-		rpupei = I915_READ_FW(GEN6_RP_CUR_UP_EI) & GEN6_RP_EI_MASK;
-		rpdown = I915_READ_FW(GEN6_RP_CUR_DOWN) & GEN6_RP_EI_MASK;
-		rpdownei = I915_READ_FW(GEN6_RP_CUR_DOWN_EI) & GEN6_RP_EI_MASK;
-		intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
-
-		seq_printf(m, "\nRPS Autotuning (current \"%s\" window):\n",
-			   rps_power_to_str(rps->power.mode));
-		seq_printf(m, "  Avg. up: %d%% [above threshold? %d%%]\n",
-			   rpup && rpupei ? 100 * rpup / rpupei : 0,
-			   rps->power.up_threshold);
-		seq_printf(m, "  Avg. down: %d%% [below threshold? %d%%]\n",
-			   rpdown && rpdownei ? 100 * rpdown / rpdownei : 0,
-			   rps->power.down_threshold);
-	} else {
-		seq_puts(m, "\nRPS Autotuning inactive\n");
-	}
-
-	return 0;
-}
-
-static int i915_llc(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	const bool edram = INTEL_GEN(dev_priv) > 8;
-
-	seq_printf(m, "LLC: %s\n", yesno(HAS_LLC(dev_priv)));
-	seq_printf(m, "%s: %uMB\n", edram ? "eDRAM" : "eLLC",
-		   dev_priv->edram_size_mb);
-
 	return 0;
 }
 
@@ -1280,7 +824,7 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 		seq_puts(m, "Runtime power management not supported\n");
 
 	seq_printf(m, "Runtime power status: %s\n",
-		   enableddisabled(!dev_priv->power_domains.wakeref));
+		   enableddisabled(!dev_priv->power_domains.init_wakeref));
 
 	seq_printf(m, "GPU idle: %s\n", yesno(!dev_priv->gt.awake));
 	seq_printf(m, "IRQs disabled: %s\n",
@@ -1324,16 +868,6 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 		intel_engine_dump(engine, &p, "%s\n", engine->name);
 
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-
-	return 0;
-}
-
-static int i915_shrinker_info(struct seq_file *m, void *unused)
-{
-	struct drm_i915_private *i915 = node_to_i915(m->private);
-
-	seq_printf(m, "seeks = %d\n", i915->mm.shrinker.seeks);
-	seq_printf(m, "batch = %lu\n", i915->mm.shrinker.batch);
 
 	return 0;
 }
@@ -1529,55 +1063,6 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_drop_caches_fops,
 			i915_drop_caches_get, i915_drop_caches_set,
 			"0x%08llx\n");
 
-static int
-i915_cache_sharing_get(void *data, u64 *val)
-{
-	struct drm_i915_private *dev_priv = data;
-	intel_wakeref_t wakeref;
-	u32 snpcr = 0;
-
-	if (!(IS_GEN_RANGE(dev_priv, 6, 7)))
-		return -ENODEV;
-
-	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
-		snpcr = I915_READ(GEN6_MBCUNIT_SNPCR);
-
-	*val = (snpcr & GEN6_MBC_SNPCR_MASK) >> GEN6_MBC_SNPCR_SHIFT;
-
-	return 0;
-}
-
-static int
-i915_cache_sharing_set(void *data, u64 val)
-{
-	struct drm_i915_private *dev_priv = data;
-	intel_wakeref_t wakeref;
-
-	if (!(IS_GEN_RANGE(dev_priv, 6, 7)))
-		return -ENODEV;
-
-	if (val > 3)
-		return -EINVAL;
-
-	drm_dbg(&dev_priv->drm,
-		"Manually setting uncore sharing to %llu\n", val);
-	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
-		u32 snpcr;
-
-		/* Update the cache sharing policy here as well */
-		snpcr = I915_READ(GEN6_MBCUNIT_SNPCR);
-		snpcr &= ~GEN6_MBC_SNPCR_MASK;
-		snpcr |= val << GEN6_MBC_SNPCR_SHIFT;
-		I915_WRITE(GEN6_MBCUNIT_SNPCR, snpcr);
-	}
-
-	return 0;
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(i915_cache_sharing_fops,
-			i915_cache_sharing_get, i915_cache_sharing_set,
-			"%llu\n");
-
 static int i915_sseu_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
@@ -1621,16 +1106,10 @@ static const struct file_operations i915_forcewake_fops = {
 static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_capabilities", i915_capabilities, 0},
 	{"i915_gem_objects", i915_gem_object_info, 0},
-	{"i915_gem_fence_regs", i915_gem_fence_regs_info, 0},
-	{"i915_gem_interrupt", i915_interrupt_info, 0},
 	{"i915_frequency_info", i915_frequency_info, 0},
-	{"i915_ring_freq_table", i915_ring_freq_table, 0},
-	{"i915_context_status", i915_context_status, 0},
 	{"i915_swizzle_info", i915_swizzle_info, 0},
-	{"i915_llc", i915_llc, 0},
 	{"i915_runtime_pm_status", i915_runtime_pm_status, 0},
 	{"i915_engine_info", i915_engine_info, 0},
-	{"i915_shrinker_info", i915_shrinker_info, 0},
 	{"i915_wa_registers", i915_wa_registers, 0},
 	{"i915_sseu_status", i915_sseu_status, 0},
 	{"i915_rps_boost_info", i915_rps_boost_info, 0},
@@ -1643,7 +1122,6 @@ static const struct i915_debugfs_files {
 } i915_debugfs_files[] = {
 	{"i915_perf_noa_delay", &i915_perf_noa_delay_fops},
 	{"i915_wedged", &i915_wedged_fops},
-	{"i915_cache_sharing", &i915_cache_sharing_fops},
 	{"i915_gem_drop_caches", &i915_drop_caches_fops},
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 	{"i915_error_state", &i915_error_state_fops},

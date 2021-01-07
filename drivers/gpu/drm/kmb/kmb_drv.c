@@ -400,7 +400,7 @@ static void kmb_irq_reset(struct drm_device *drm)
 
 DEFINE_DRM_GEM_CMA_FOPS(fops);
 
-static struct drm_driver kmb_driver = {
+static const struct drm_driver kmb_driver = {
 	.driver_features = DRIVER_GEM |
 	    DRIVER_MODESET | DRIVER_ATOMIC,
 	.irq_handler = kmb_isr,

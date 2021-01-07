@@ -737,8 +737,6 @@ static void qeth_l2_dev2br_an_set_cb(void *priv,
  *
  *	On enable, emits a series of address notifications for all
  *	currently registered hosts.
- *
- *	Must be called under rtnl_lock
  */
 static int qeth_l2_dev2br_an_set(struct qeth_card *card, bool enable)
 {
@@ -1276,16 +1274,19 @@ static void qeth_l2_dev2br_worker(struct work_struct *work)
 	if (READ_ONCE(card->info.pnso_mode) == QETH_PNSO_NONE)
 		goto free;
 
-	/* Potential re-config in progress, try again later: */
-	if (!rtnl_trylock()) {
-		queue_delayed_work(card->event_wq, dwork,
-				   msecs_to_jiffies(100));
-		return;
-	}
-	if (!netif_device_present(card->dev))
-		goto out_unlock;
-
 	if (data->ac_event.lost_event_mask) {
+		/* Potential re-config in progress, try again later: */
+		if (!rtnl_trylock()) {
+			queue_delayed_work(card->event_wq, dwork,
+					   msecs_to_jiffies(100));
+			return;
+		}
+
+		if (!netif_device_present(card->dev)) {
+			rtnl_unlock();
+			goto free;
+		}
+
 		QETH_DBF_MESSAGE(3,
 				 "Address change notification overflow on device %x\n",
 				 CARD_DEVID(card));
@@ -1315,6 +1316,8 @@ static void qeth_l2_dev2br_worker(struct work_struct *work)
 					 "Address Notification resynced on device %x\n",
 					 CARD_DEVID(card));
 		}
+
+		rtnl_unlock();
 	} else {
 		for (i = 0; i < data->ac_event.num_entries; i++) {
 			struct qeth_ipacmd_addr_change_entry *entry =
@@ -1325,9 +1328,6 @@ static void qeth_l2_dev2br_worker(struct work_struct *work)
 						  &entry->addr_lnid);
 		}
 	}
-
-out_unlock:
-	rtnl_unlock();
 
 free:
 	kfree(data);
@@ -2189,7 +2189,7 @@ static int qeth_l2_probe_device(struct ccwgroup_device *gdev)
 	mutex_init(&card->sbp_lock);
 
 	if (gdev->dev.type == &qeth_generic_devtype) {
-		rc = qeth_l2_create_device_attributes(&gdev->dev);
+		rc = device_add_groups(&gdev->dev, qeth_l2_attr_groups);
 		if (rc)
 			return rc;
 	}
@@ -2203,7 +2203,7 @@ static void qeth_l2_remove_device(struct ccwgroup_device *gdev)
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
 
 	if (gdev->dev.type == &qeth_generic_devtype)
-		qeth_l2_remove_device_attributes(&gdev->dev);
+		device_remove_groups(&gdev->dev, qeth_l2_attr_groups);
 	qeth_set_allowed_threads(card, 0, 1);
 	wait_event(card->wait_q, qeth_threads_running(card, 0xffffffff) == 0);
 
@@ -2296,11 +2296,8 @@ static void qeth_l2_set_offline(struct qeth_card *card)
 		card->state = CARD_STATE_DOWN;
 
 	qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
-	if (priv->brport_features & BR_LEARNING_SYNC) {
-		rtnl_lock();
+	if (priv->brport_features & BR_LEARNING_SYNC)
 		qeth_l2_dev2br_fdb_flush(card);
-		rtnl_unlock();
-	}
 }
 
 /* Returns zero if the command is successfully "consumed" */

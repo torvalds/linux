@@ -295,6 +295,8 @@ void dce110_link_encoder_connect_dig_be_to_fe(
 	enum engine_id engine,
 	bool connect);
 
+unsigned int dce110_get_dig_frontend(struct link_encoder *enc);
+
 void dce110_link_encoder_set_dp_phy_pattern_training_pattern(
 	struct link_encoder *enc,
 	uint32_t index);

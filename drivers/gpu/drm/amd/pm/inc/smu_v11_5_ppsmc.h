@@ -41,7 +41,7 @@
 #define PPSMC_MSG_PowerUpIspByTile                     0x7
 #define PPSMC_MSG_PowerDownVcn                         0x8 // VCN is power gated by default
 #define PPSMC_MSG_PowerUpVcn                           0x9
-#define PPSMC_MSG_spare                                0xA
+#define PPSMC_MSG_RlcPowerNotify                       0xA
 #define PPSMC_MSG_SetHardMinVcn                        0xB // For wireless display
 #define PPSMC_MSG_SetSoftMinGfxclk                     0xC //Sets SoftMin for GFXCLK. Arg is in MHz
 #define PPSMC_MSG_ActiveProcessNotify                  0xD

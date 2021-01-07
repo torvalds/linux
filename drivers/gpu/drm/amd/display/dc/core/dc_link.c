@@ -3267,9 +3267,6 @@ void core_link_enable_stream(
 			}
 		}
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-#endif
-
 		/* turn off otg test pattern if enable */
 		if (pipe_ctx->stream_res.tg->funcs->set_test_pattern)
 			pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,

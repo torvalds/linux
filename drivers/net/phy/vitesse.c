@@ -40,6 +40,11 @@
 #define MII_VSC8244_ISTAT_SPEED		0x4000
 #define MII_VSC8244_ISTAT_LINK		0x2000
 #define MII_VSC8244_ISTAT_DUPLEX	0x1000
+#define MII_VSC8244_ISTAT_MASK		(MII_VSC8244_ISTAT_SPEED | \
+					 MII_VSC8244_ISTAT_LINK | \
+					 MII_VSC8244_ISTAT_DUPLEX)
+
+#define MII_VSC8221_ISTAT_MASK		MII_VSC8244_ISTAT_LINK
 
 /* Vitesse Auxiliary Control/Status Register */
 #define MII_VSC8244_AUX_CONSTAT		0x1c
@@ -270,25 +275,14 @@ static int vsc8601_config_init(struct phy_device *phydev)
 	return 0;
 }
 
-static int vsc824x_ack_interrupt(struct phy_device *phydev)
-{
-	int err = 0;
-
-	/* Don't bother to ACK the interrupts if interrupts
-	 * are disabled.  The 824x cannot clear the interrupts
-	 * if they are disabled.
-	 */
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		err = phy_read(phydev, MII_VSC8244_ISTAT);
-
-	return (err < 0) ? err : 0;
-}
-
 static int vsc82xx_config_intr(struct phy_device *phydev)
 {
 	int err;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+		/* Don't bother to ACK the interrupts since the 824x cannot
+		 * clear the interrupts if they are disabled.
+		 */
 		err = phy_write(phydev, MII_VSC8244_IMASK,
 			(phydev->drv->phy_id == PHY_ID_VSC8234 ||
 			 phydev->drv->phy_id == PHY_ID_VSC8244 ||
@@ -309,6 +303,31 @@ static int vsc82xx_config_intr(struct phy_device *phydev)
 	}
 
 	return err;
+}
+
+static irqreturn_t vsc82xx_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status, irq_mask;
+
+	if (phydev->drv->phy_id == PHY_ID_VSC8244 ||
+	    phydev->drv->phy_id == PHY_ID_VSC8572 ||
+	    phydev->drv->phy_id == PHY_ID_VSC8601)
+		irq_mask = MII_VSC8244_ISTAT_MASK;
+	else
+		irq_mask = MII_VSC8221_ISTAT_MASK;
+
+	irq_status = phy_read(phydev, MII_VSC8244_ISTAT);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & irq_mask))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static int vsc8221_config_init(struct phy_device *phydev)
@@ -390,8 +409,8 @@ static struct phy_driver vsc82xx_driver[] = {
 	/* PHY_GBIT_FEATURES */
 	.config_init    = &vsc824x_config_init,
 	.config_aneg    = &vsc82x4_config_aneg,
-	.ack_interrupt  = &vsc824x_ack_interrupt,
 	.config_intr    = &vsc82xx_config_intr,
+	.handle_interrupt = &vsc82xx_handle_interrupt,
 }, {
 	.phy_id		= PHY_ID_VSC8244,
 	.name		= "Vitesse VSC8244",
@@ -399,8 +418,8 @@ static struct phy_driver vsc82xx_driver[] = {
 	/* PHY_GBIT_FEATURES */
 	.config_init	= &vsc824x_config_init,
 	.config_aneg	= &vsc82x4_config_aneg,
-	.ack_interrupt	= &vsc824x_ack_interrupt,
 	.config_intr	= &vsc82xx_config_intr,
+	.handle_interrupt = &vsc82xx_handle_interrupt,
 }, {
 	.phy_id         = PHY_ID_VSC8572,
 	.name           = "Vitesse VSC8572",
@@ -408,16 +427,16 @@ static struct phy_driver vsc82xx_driver[] = {
 	/* PHY_GBIT_FEATURES */
 	.config_init    = &vsc824x_config_init,
 	.config_aneg    = &vsc82x4_config_aneg,
-	.ack_interrupt  = &vsc824x_ack_interrupt,
 	.config_intr    = &vsc82xx_config_intr,
+	.handle_interrupt = &vsc82xx_handle_interrupt,
 }, {
 	.phy_id         = PHY_ID_VSC8601,
 	.name           = "Vitesse VSC8601",
 	.phy_id_mask    = 0x000ffff0,
 	/* PHY_GBIT_FEATURES */
 	.config_init    = &vsc8601_config_init,
-	.ack_interrupt  = &vsc824x_ack_interrupt,
 	.config_intr    = &vsc82xx_config_intr,
+	.handle_interrupt = &vsc82xx_handle_interrupt,
 }, {
 	.phy_id         = PHY_ID_VSC7385,
 	.name           = "Vitesse VSC7385",
@@ -461,8 +480,8 @@ static struct phy_driver vsc82xx_driver[] = {
 	/* PHY_GBIT_FEATURES */
 	.config_init    = &vsc824x_config_init,
 	.config_aneg    = &vsc82x4_config_aneg,
-	.ack_interrupt  = &vsc824x_ack_interrupt,
 	.config_intr    = &vsc82xx_config_intr,
+	.handle_interrupt = &vsc82xx_handle_interrupt,
 }, {
 	/* Vitesse 8221 */
 	.phy_id		= PHY_ID_VSC8221,
@@ -470,8 +489,8 @@ static struct phy_driver vsc82xx_driver[] = {
 	.name		= "Vitesse VSC8221",
 	/* PHY_GBIT_FEATURES */
 	.config_init	= &vsc8221_config_init,
-	.ack_interrupt	= &vsc824x_ack_interrupt,
 	.config_intr	= &vsc82xx_config_intr,
+	.handle_interrupt = &vsc82xx_handle_interrupt,
 }, {
 	/* Vitesse 8211 */
 	.phy_id		= PHY_ID_VSC8211,
@@ -479,8 +498,8 @@ static struct phy_driver vsc82xx_driver[] = {
 	.name		= "Vitesse VSC8211",
 	/* PHY_GBIT_FEATURES */
 	.config_init	= &vsc8221_config_init,
-	.ack_interrupt	= &vsc824x_ack_interrupt,
 	.config_intr	= &vsc82xx_config_intr,
+	.handle_interrupt = &vsc82xx_handle_interrupt,
 } };
 
 module_phy_driver(vsc82xx_driver);

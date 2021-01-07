@@ -176,7 +176,7 @@ static int wilco_ec_rtc_probe(struct platform_device *pdev)
 	rtc->range_max = RTC_TIMESTAMP_END_2099;
 	rtc->owner = THIS_MODULE;
 
-	return rtc_register_device(rtc);
+	return devm_rtc_register_device(rtc);
 }
 
 static struct platform_driver wilco_ec_rtc_driver = {

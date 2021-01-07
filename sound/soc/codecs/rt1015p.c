@@ -4,6 +4,7 @@
 //
 // Copyright 2020 The Linux Foundation. All rights reserved.
 
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
@@ -19,38 +20,8 @@
 
 struct rt1015p_priv {
 	struct gpio_desc *sdb;
-	int sdb_switch;
+	bool calib_done;
 };
-
-static int rt1015p_daiops_trigger(struct snd_pcm_substream *substream,
-		int cmd, struct snd_soc_dai *dai)
-{
-	struct snd_soc_component *component = dai->component;
-	struct rt1015p_priv *rt1015p =
-		snd_soc_component_get_drvdata(component);
-
-	if (!rt1015p->sdb)
-		return 0;
-
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
-	case SNDRV_PCM_TRIGGER_RESUME:
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		if (rt1015p->sdb_switch) {
-			gpiod_set_value(rt1015p->sdb, 1);
-			dev_dbg(component->dev, "set sdb to 1");
-		}
-		break;
-	case SNDRV_PCM_TRIGGER_STOP:
-	case SNDRV_PCM_TRIGGER_SUSPEND:
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		gpiod_set_value(rt1015p->sdb, 0);
-		dev_dbg(component->dev, "set sdb to 0");
-		break;
-	}
-
-	return 0;
-}
 
 static int rt1015p_sdb_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
@@ -60,10 +31,26 @@ static int rt1015p_sdb_event(struct snd_soc_dapm_widget *w,
 	struct rt1015p_priv *rt1015p =
 		snd_soc_component_get_drvdata(component);
 
-	if (event & SND_SOC_DAPM_POST_PMU)
-		rt1015p->sdb_switch = 1;
-	else if (event & SND_SOC_DAPM_POST_PMD)
-		rt1015p->sdb_switch = 0;
+	if (!rt1015p->sdb)
+		return 0;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		gpiod_set_value_cansleep(rt1015p->sdb, 1);
+		dev_dbg(component->dev, "set sdb to 1");
+
+		if (!rt1015p->calib_done) {
+			msleep(300);
+			rt1015p->calib_done = true;
+		}
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		gpiod_set_value_cansleep(rt1015p->sdb, 0);
+		dev_dbg(component->dev, "set sdb to 0");
+		break;
+	default:
+		break;
+	}
 
 	return 0;
 }
@@ -72,7 +59,7 @@ static const struct snd_soc_dapm_widget rt1015p_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("Speaker"),
 	SND_SOC_DAPM_OUT_DRV_E("SDB", SND_SOC_NOPM, 0, 0, NULL, 0,
 			rt1015p_sdb_event,
-			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+			SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
 static const struct snd_soc_dapm_route rt1015p_dapm_routes[] = {
@@ -80,7 +67,20 @@ static const struct snd_soc_dapm_route rt1015p_dapm_routes[] = {
 	{"Speaker", NULL, "SDB"},
 };
 
+#ifdef CONFIG_PM
+static int rt1015p_suspend(struct snd_soc_component *component)
+{
+	struct rt1015p_priv *rt1015p = snd_soc_component_get_drvdata(component);
+
+	rt1015p->calib_done = false;
+	return 0;
+}
+#else
+#define rt1015p_suspend NULL
+#endif
+
 static const struct snd_soc_component_driver rt1015p_component_driver = {
+	.suspend		= rt1015p_suspend,
 	.dapm_widgets		= rt1015p_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(rt1015p_dapm_widgets),
 	.dapm_routes		= rt1015p_dapm_routes,
@@ -89,10 +89,6 @@ static const struct snd_soc_component_driver rt1015p_component_driver = {
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
 	.non_legacy_dai_naming	= 1,
-};
-
-static const struct snd_soc_dai_ops rt1015p_dai_ops = {
-	.trigger        = rt1015p_daiops_trigger,
 };
 
 static struct snd_soc_dai_driver rt1015p_dai_driver = {
@@ -104,7 +100,6 @@ static struct snd_soc_dai_driver rt1015p_dai_driver = {
 		.channels_min	= 1,
 		.channels_max	= 2,
 	},
-	.ops    = &rt1015p_dai_ops,
 };
 
 static int rt1015p_platform_probe(struct platform_device *pdev)

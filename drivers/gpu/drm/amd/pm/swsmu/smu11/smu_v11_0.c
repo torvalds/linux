@@ -91,6 +91,11 @@ int smu_v11_0_init_microcode(struct smu_context *smu)
 	const struct common_firmware_header *header;
 	struct amdgpu_firmware_info *ucode = NULL;
 
+	if (amdgpu_sriov_vf(adev) &&
+			((adev->asic_type == CHIP_NAVI12) ||
+			 (adev->asic_type == CHIP_SIENNA_CICHLID)))
+		return 0;
+
 	switch (adev->asic_type) {
 	case CHIP_ARCTURUS:
 		chip_name = "arcturus";
@@ -554,6 +559,7 @@ int smu_v11_0_get_vbios_bootup_values(struct smu_context *smu)
 		smu->smu_table.boot_values.vdd_gfx = v_3_1->bootup_vddgfx_mv;
 		smu->smu_table.boot_values.cooling_id = v_3_1->coolingsolution_id;
 		smu->smu_table.boot_values.pp_table_id = 0;
+		smu->smu_table.boot_values.firmware_caps = v_3_1->firmware_capability;
 		break;
 	case 3:
 	default:
@@ -569,6 +575,7 @@ int smu_v11_0_get_vbios_bootup_values(struct smu_context *smu)
 		smu->smu_table.boot_values.vdd_gfx = v_3_3->bootup_vddgfx_mv;
 		smu->smu_table.boot_values.cooling_id = v_3_3->coolingsolution_id;
 		smu->smu_table.boot_values.pp_table_id = v_3_3->pplib_pptable_id;
+		smu->smu_table.boot_values.firmware_caps = v_3_3->firmware_capability;
 	}
 
 	smu->smu_table.boot_values.format_revision = header->format_revision;
@@ -929,9 +936,13 @@ int smu_v11_0_get_current_power_limit(struct smu_context *smu,
 	if (power_src < 0)
 		return -EINVAL;
 
+	/*
+	 * BIT 24-31: ControllerId (only PPT0 is supported for now)
+	 * BIT 16-23: PowerSource
+	 */
 	ret = smu_cmn_send_smc_msg_with_param(smu,
 					  SMU_MSG_GetPptLimit,
-					  power_src << 16,
+					  (0 << 24) | (power_src << 16),
 					  power_limit);
 	if (ret)
 		dev_err(smu->adev->dev, "[%s] get PPT limit failed!", __func__);
@@ -941,6 +952,7 @@ int smu_v11_0_get_current_power_limit(struct smu_context *smu,
 
 int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 {
+	int power_src;
 	int ret = 0;
 
 	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
@@ -948,6 +960,22 @@ int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 		return -EOPNOTSUPP;
 	}
 
+	power_src = smu_cmn_to_asic_specific_index(smu,
+					CMN2ASIC_MAPPING_PWR,
+					smu->adev->pm.ac_power ?
+					SMU_POWER_SOURCE_AC :
+					SMU_POWER_SOURCE_DC);
+	if (power_src < 0)
+		return -EINVAL;
+
+	/*
+	 * BIT 24-31: ControllerId (only PPT0 is supported for now)
+	 * BIT 16-23: PowerSource
+	 * BIT 0-15: PowerLimit
+	 */
+	n &= 0xFFFF;
+	n |= 0 << 24;
+	n |= (power_src) << 16;
 	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, n, NULL);
 	if (ret) {
 		dev_err(smu->adev->dev, "[%s] Set power limit Failed!\n", __func__);
@@ -2060,6 +2088,22 @@ int smu_v11_0_deep_sleep_control(struct smu_context *smu,
 		ret = smu_cmn_feature_set_enabled(smu, SMU_FEATURE_DS_GFXCLK_BIT, enablement);
 		if (ret) {
 			dev_err(adev->dev, "Failed to %s GFXCLK DS!\n", enablement ? "enable" : "disable");
+			return ret;
+		}
+	}
+
+	if (smu_cmn_feature_is_supported(smu, SMU_FEATURE_DS_UCLK_BIT)) {
+		ret = smu_cmn_feature_set_enabled(smu, SMU_FEATURE_DS_UCLK_BIT, enablement);
+		if (ret) {
+			dev_err(adev->dev, "Failed to %s UCLK DS!\n", enablement ? "enable" : "disable");
+			return ret;
+		}
+	}
+
+	if (smu_cmn_feature_is_supported(smu, SMU_FEATURE_DS_FCLK_BIT)) {
+		ret = smu_cmn_feature_set_enabled(smu, SMU_FEATURE_DS_FCLK_BIT, enablement);
+		if (ret) {
+			dev_err(adev->dev, "Failed to %s FCLK DS!\n", enablement ? "enable" : "disable");
 			return ret;
 		}
 	}

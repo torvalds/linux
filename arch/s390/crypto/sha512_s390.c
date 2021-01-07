@@ -8,7 +8,7 @@
  * Author(s): Jan Glauber (jang@de.ibm.com)
  */
 #include <crypto/internal/hash.h>
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/kernel.h>

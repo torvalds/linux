@@ -44,7 +44,7 @@ struct helene_config {
 
 #if IS_REACHABLE(CONFIG_DVB_HELENE)
 /**
- * Attach a helene tuner (terrestrial and cable standards)
+ * helene_attach - Attach a helene tuner (terrestrial and cable standards)
  *
  * @fe: frontend to be attached
  * @config: pointer to &struct helene_config with tuner configuration.
@@ -57,7 +57,7 @@ extern struct dvb_frontend *helene_attach(struct dvb_frontend *fe,
 					struct i2c_adapter *i2c);
 
 /**
- * Attach a helene tuner (satellite standards)
+ * helene_attach_s - Attach a helene tuner (satellite standards)
  *
  * @fe: frontend to be attached
  * @config: pointer to &struct helene_config with tuner configuration.

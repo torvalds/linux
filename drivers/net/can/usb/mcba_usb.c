@@ -184,7 +184,7 @@ static inline struct mcba_usb_ctx *mcba_usb_get_free_ctx(struct mcba_priv *priv,
 
 			if (cf) {
 				ctx->can = true;
-				ctx->dlc = cf->can_dlc;
+				ctx->dlc = cf->len;
 			} else {
 				ctx->can = false;
 				ctx->dlc = 0;
@@ -348,7 +348,7 @@ static netdev_tx_t mcba_usb_start_xmit(struct sk_buff *skb,
 		usb_msg.eid = 0;
 	}
 
-	usb_msg.dlc = cf->can_dlc;
+	usb_msg.dlc = cf->len;
 
 	memcpy(usb_msg.data, cf->data, usb_msg.dlc);
 
@@ -451,12 +451,12 @@ static void mcba_usb_process_can(struct mcba_priv *priv,
 	if (msg->dlc & MCBA_DLC_RTR_MASK)
 		cf->can_id |= CAN_RTR_FLAG;
 
-	cf->can_dlc = get_can_dlc(msg->dlc & MCBA_DLC_MASK);
+	cf->len = can_cc_dlc2len(msg->dlc & MCBA_DLC_MASK);
 
-	memcpy(cf->data, msg->data, cf->can_dlc);
+	memcpy(cf->data, msg->data, cf->len);
 
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 
 	can_led_event(priv->netdev, CAN_LED_EVENT_RX);
 	netif_rx(skb);

@@ -33,7 +33,7 @@ static int vp3028_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *
 {
 	struct i2c_adapter *adapter	= &mantis->adapter;
 	struct mantis_hwconfig *config	= mantis->hwconfig;
-	int err = 0;
+	int err;
 
 	mantis_gpio_set_bits(mantis, config->reset, 0);
 	msleep(100);

@@ -7,6 +7,7 @@ config AMIGA
 	bool "Amiga support"
 	depends on MMU
 	select MMU_MOTOROLA if MMU
+	select LEGACY_TIMER_TICK
 	help
 	  This option enables support for the Amiga series of computers. If
 	  you plan to use this kernel on an Amiga, say Y here and browse the
@@ -17,6 +18,7 @@ config ATARI
 	depends on MMU
 	select MMU_MOTOROLA if MMU
 	select HAVE_ARCH_NVRAM_OPS
+	select LEGACY_TIMER_TICK
 	help
 	  This option enables support for the 68000-based Atari series of
 	  computers (including the TT, Falcon and Medusa). If you plan to use
@@ -28,18 +30,18 @@ config MAC
 	depends on MMU
 	select MMU_MOTOROLA if MMU
 	select HAVE_ARCH_NVRAM_OPS
+	select LEGACY_TIMER_TICK
 	help
 	  This option enables support for the Apple Macintosh series of
-	  computers (yes, there is experimental support now, at least for part
-	  of the series).
-
-	  Say N unless you're willing to code the remaining necessary support.
-	  ;)
+	  computers. If you plan to use this kernel on a Mac, say Y here and
+	  browse the documentation available at <http://www.mac.linux-m68k.org/>;
+	  otherwise say N.
 
 config APOLLO
 	bool "Apollo support"
 	depends on MMU
 	select MMU_MOTOROLA if MMU
+	select LEGACY_TIMER_TICK
 	help
 	  Say Y here if you want to run Linux on an MC680x0-based Apollo
 	  Domain workstation such as the DN3500.
@@ -58,6 +60,7 @@ config MVME147
 	bool "MVME147 support"
 	depends on MMU
 	depends on VME
+	select LEGACY_TIMER_TICK
 	help
 	  Say Y to include support for early Motorola VME boards.  This will
 	  build a kernel which can run on MVME147 single-board computers.  If
@@ -68,6 +71,7 @@ config MVME16x
 	bool "MVME162, 166 and 167 support"
 	depends on MMU
 	depends on VME
+	select LEGACY_TIMER_TICK
 	help
 	  Say Y to include support for Motorola VME boards.  This will build a
 	  kernel which can run on MVME162, MVME166, MVME167, MVME172, and
@@ -79,6 +83,7 @@ config BVME6000
 	bool "BVME4000 and BVME6000 support"
 	depends on MMU
 	depends on VME
+	select LEGACY_TIMER_TICK
 	help
 	  Say Y to include support for VME boards from BVM Ltd.  This will
 	  build a kernel which can run on BVME4000 and BVME6000 boards.  If
@@ -89,6 +94,7 @@ config HP300
 	bool "HP9000/300 and HP9000/400 support"
 	depends on MMU
 	select MMU_MOTOROLA if MMU
+	select LEGACY_TIMER_TICK
 	help
 	  This option enables support for the HP9000/300 and HP9000/400 series
 	  of workstations. Support for these machines is still somewhat
@@ -99,6 +105,7 @@ config HP300
 config SUN3X
 	bool "Sun3x support"
 	depends on MMU
+	select LEGACY_TIMER_TICK
 	select MMU_MOTOROLA if MMU
 	select M68030
 	help
@@ -114,6 +121,7 @@ config Q40
 	bool "Q40/Q60 support"
 	depends on MMU
 	select MMU_MOTOROLA if MMU
+	select LEGACY_TIMER_TICK
 	help
 	  The Q40 is a Motorola 68040-based successor to the Sinclair QL
 	  manufactured in Germany.  There is an official Q40 home page at
@@ -126,6 +134,7 @@ config SUN3
 	depends on MMU
 	depends on !MMU_MOTOROLA
 	select MMU_SUN3 if MMU
+	select LEGACY_TIMER_TICK
 	select NO_DMA
 	select M68020
 	help
@@ -136,14 +145,13 @@ config SUN3
 
 	  If you don't want to compile a kernel exclusively for a Sun 3, say N.
 
-endif # M68KCLASSIC
-
 config PILOT
 	bool
 
 config PILOT3
 	bool "Pilot 1000/5000, PalmPilot Personal/Pro, or PalmIII support"
-	depends on M68328
+	depends on !MMU
+	select M68328
 	select PILOT
 	help
 	  Support for the Palm Pilot 1000/5000, Personal/Pro and PalmIII.
@@ -156,19 +164,22 @@ config XCOPILOT_BUGS
 
 config UCSIMM
 	bool "uCsimm module support"
-	depends on M68EZ328
+	depends on !MMU
+	select M68EZ328
 	help
 	  Support for the Arcturus Networks uCsimm module.
 
 config UCDIMM
 	bool "uDsimm module support"
-	depends on M68VZ328
+	depends on !MMU
+	select M68VZ328
 	help
 	  Support for the Arcturus Networks uDsimm module.
 
 config DRAGEN2
 	bool "DragenEngine II board support"
-	depends on M68VZ328
+	depends on !MMU
+	select M68VZ328
 	help
 	  Support for the DragenEngine II board.
 
@@ -190,6 +201,8 @@ config MEMORY_RESERVE
 	depends on (UCSIMM || UCDIMM)
 	help
 	  Reserve certain memory regions on 68x328 based boards.
+
+endif # M68KCLASSIC
 
 config ARN5206
 	bool "Arnewsh 5206 board support"

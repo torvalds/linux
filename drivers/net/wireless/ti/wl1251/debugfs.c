@@ -39,7 +39,7 @@ static const struct file_operations name## _ops = {			\
 
 #define DEBUGFS_ADD(name, parent)					\
 	wl->debugfs.name = debugfs_create_file(#name, 0400, parent,	\
-					       wl, &name## _ops);	\
+					       wl, &name## _ops)	\
 
 #define DEBUGFS_DEL(name)						\
 	do {								\

@@ -4,7 +4,7 @@ Freescale i.MX8 DDR Performance Monitoring Unit (PMU)
 
 There are no performance counters inside the DRAM controller, so performance
 signals are brought out to the edge of the controller where a set of 4 x 32 bit
-counters is implemented. This is controlled by the CSV modes programed in counter
+counters is implemented. This is controlled by the CSV modes programmed in counter
 control register which causes a large number of PERF signals to be generated.
 
 Selection of the value for each counter is done via the config registers. There

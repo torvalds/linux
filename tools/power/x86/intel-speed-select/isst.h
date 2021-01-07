@@ -255,4 +255,5 @@ extern int is_clx_n_platform(void);
 extern int get_cpufreq_base_freq(int cpu);
 extern int isst_read_pm_config(int cpu, int *cp_state, int *cp_cap);
 extern void isst_display_error_info_message(int error, char *msg, int arg_valid, int arg);
+extern int is_skx_based_platform(void);
 #endif

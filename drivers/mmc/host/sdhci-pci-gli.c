@@ -87,6 +87,9 @@
 #define PCIE_GLI_9763E_SCR	 0x8E0
 #define   GLI_9763E_SCR_AXI_REQ	   BIT(9)
 
+#define PCIE_GLI_9763E_MMC_CTRL  0x960
+#define   GLI_9763E_HS400_SLOW     BIT(3)
+
 #define SDHCI_GLI_9763E_CQE_BASE_ADDR	 0x200
 #define GLI_9763E_CQE_TRNS_MODE	   (SDHCI_TRNS_MULTI | \
 				    SDHCI_TRNS_BLK_CNT_EN | \
@@ -96,6 +99,10 @@
 #define   PCI_GLI_9755_WT_EN    BIT(0)
 #define   GLI_9755_WT_EN_ON     0x1
 #define   GLI_9755_WT_EN_OFF    0x0
+
+#define PCI_GLI_9755_PECONF   0x44
+#define   PCI_GLI_9755_LFCLK    GENMASK(14, 12)
+#define   PCI_GLI_9755_DMACLK   BIT(29)
 
 #define PCI_GLI_9755_PLL            0x64
 #define   PCI_GLI_9755_PLL_LDIV       GENMASK(9, 0)
@@ -519,6 +526,21 @@ static void sdhci_gl9755_set_clock(struct sdhci_host *host, unsigned int clock)
 	sdhci_enable_clk(host, clk);
 }
 
+static void gl9755_hw_setting(struct sdhci_pci_slot *slot)
+{
+	struct pci_dev *pdev = slot->chip->pdev;
+	u32 value;
+
+	gl9755_wt_on(pdev);
+
+	pci_read_config_dword(pdev, PCI_GLI_9755_PECONF, &value);
+	value &= ~PCI_GLI_9755_LFCLK;
+	value &= ~PCI_GLI_9755_DMACLK;
+	pci_write_config_dword(pdev, PCI_GLI_9755_PECONF, value);
+
+	gl9755_wt_off(pdev);
+}
+
 static int gli_probe_slot_gl9750(struct sdhci_pci_slot *slot)
 {
 	struct sdhci_host *host = slot->host;
@@ -534,6 +556,7 @@ static int gli_probe_slot_gl9755(struct sdhci_pci_slot *slot)
 {
 	struct sdhci_host *host = slot->host;
 
+	gl9755_hw_setting(slot);
 	gli_pcie_enable_msi(slot);
 	slot->host->mmc->caps2 |= MMC_CAP2_NO_SDIO;
 	sdhci_enable_v4_mode(host);
@@ -763,6 +786,10 @@ static void gli_set_gl9763e(struct sdhci_pci_slot *slot)
 	pci_read_config_dword(pdev, PCIE_GLI_9763E_SCR, &value);
 	value |= GLI_9763E_SCR_AXI_REQ;
 	pci_write_config_dword(pdev, PCIE_GLI_9763E_SCR, value);
+
+	pci_read_config_dword(pdev, PCIE_GLI_9763E_MMC_CTRL, &value);
+	value &= ~GLI_9763E_HS400_SLOW;
+	pci_write_config_dword(pdev, PCIE_GLI_9763E_MMC_CTRL, value);
 
 	pci_read_config_dword(pdev, PCIE_GLI_9763E_VHS, &value);
 	value &= ~GLI_9763E_VHS_REV;

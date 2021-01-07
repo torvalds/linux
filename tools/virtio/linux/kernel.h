@@ -11,6 +11,7 @@
 
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <linux/overflow.h>
 #include <linux/list.h>
 #include <linux/printk.h>
 #include <linux/bug.h>
@@ -117,6 +118,16 @@ static inline void free_page(unsigned long addr)
 #  define unlikely(x)	(__builtin_expect(!!(x), 0))
 # endif
 
+static inline void *krealloc_array(void *p, size_t new_n, size_t new_size, gfp_t gfp)
+{
+	size_t bytes;
+
+	if (unlikely(check_mul_overflow(new_n, new_size, &bytes)))
+		return NULL;
+
+	return krealloc(p, bytes, gfp);
+}
+
 #define pr_err(format, ...) fprintf (stderr, format, ## __VA_ARGS__)
 #ifdef DEBUG
 #define pr_debug(format, ...) fprintf (stderr, format, ## __VA_ARGS__)
@@ -125,8 +136,6 @@ static inline void free_page(unsigned long addr)
 #endif
 #define dev_err(dev, format, ...) fprintf (stderr, format, ## __VA_ARGS__)
 #define dev_warn(dev, format, ...) fprintf (stderr, format, ## __VA_ARGS__)
-
-#define WARN_ON_ONCE(cond) (unlikely(cond) ? fprintf (stderr, "WARNING\n") : 0)
 
 #define min(x, y) ({				\
 	typeof(x) _min1 = (x);			\

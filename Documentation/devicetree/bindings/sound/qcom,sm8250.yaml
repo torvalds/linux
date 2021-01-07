@@ -1,0 +1,159 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/qcom,sm8250.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Technologies Inc. SM8250 ASoC sound card driver
+
+maintainers:
+  - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
+
+description:
+  This bindings describes SC8250 SoC based sound cards
+  which uses LPASS internal codec for audio.
+
+properties:
+  compatible:
+    oneOf:
+      - const: qcom,sm8250-sndcard
+      - const: qcom,qrb5165-rb5-sndcard
+
+  audio-routing:
+    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    description:
+      A list of the connections between audio components. Each entry is a
+      pair of strings, the first being the connection's sink, the second
+      being the connection's source. Valid names could be power supplies,
+      MicBias of codec and the jacks on the board.
+
+  model:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: User visible long sound card name
+
+patternProperties:
+  ".*-dai-link$":
+    description:
+      Each subnode represents a dai link. Subnodes of each dai links would be
+      cpu/codec dais.
+
+    type: object
+
+    properties:
+      link-name:
+        description: Indicates dai-link name and PCM stream name.
+        $ref: /schemas/types.yaml#/definitions/string
+        maxItems: 1
+
+      cpu:
+        description: Holds subnode which indicates cpu dai.
+        type: object
+        properties:
+          sound-dai: true
+
+      platform:
+        description: Holds subnode which indicates platform dai.
+        type: object
+        properties:
+          sound-dai: true
+
+      codec:
+        description: Holds subnode which indicates codec dai.
+        type: object
+        properties:
+          sound-dai: true
+
+    required:
+      - link-name
+      - cpu
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - model
+
+additionalProperties: false
+
+examples:
+
+  - |
+    #include <dt-bindings/sound/qcom,q6afe.h>
+    #include <dt-bindings/sound/qcom,q6asm.h>
+    sound {
+        compatible = "qcom,qrb5165-rb5-sndcard";
+        model = "Qualcomm-qrb5165-RB5-WSA8815-Speakers-DMIC0";
+        audio-routing = "SpkrLeft IN", "WSA_SPK1 OUT",
+                    "SpkrRight IN", "WSA_SPK2 OUT",
+                    "VA DMIC0", "vdd-micb",
+                    "VA DMIC1", "vdd-micb",
+                    "MM_DL1",  "MultiMedia1 Playback",
+                    "MM_DL2",  "MultiMedia2 Playback",
+                    "MultiMedia3 Capture", "MM_UL3";
+
+        mm1-dai-link {
+            link-name = "MultiMedia0";
+            cpu {
+                sound-dai = <&q6asmdai  MSM_FRONTEND_DAI_MULTIMEDIA1>;
+            };
+        };
+
+        mm2-dai-link {
+            link-name = "MultiMedia2";
+            cpu {
+                sound-dai = <&q6asmdai  MSM_FRONTEND_DAI_MULTIMEDIA2>;
+            };
+        };
+
+        mm3-dai-link {
+            link-name = "MultiMedia3";
+            cpu {
+                sound-dai = <&q6asmdai  MSM_FRONTEND_DAI_MULTIMEDIA3>;
+            };
+        };
+
+        hdmi-dai-link {
+            link-name = "HDMI Playback";
+            cpu {
+                sound-dai = <&q6afedai TERTIARY_MI2S_RX>;
+            };
+
+            platform {
+                sound-dai = <&q6routing>;
+            };
+
+            codec {
+                sound-dai = <&lt9611_codec 0>;
+            };
+        };
+
+        wsa-dai-link {
+            link-name = "WSA Playback";
+            cpu {
+                sound-dai = <&q6afedai WSA_CODEC_DMA_RX_0>;
+            };
+
+            platform {
+                sound-dai = <&q6routing>;
+            };
+
+            codec {
+                sound-dai = <&left_spkr>, <&right_spkr>, <&swr0 0>, <&wsamacro>;
+            };
+        };
+
+        va-dai-link {
+            link-name = "VA Capture";
+            cpu {
+                sound-dai = <&q6afedai VA_CODEC_DMA_TX_0>;
+            };
+
+            platform {
+                sound-dai = <&q6routing>;
+            };
+
+            codec {
+                sound-dai = <&vamacro 0>;
+            };
+        };
+    };

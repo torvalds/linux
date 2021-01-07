@@ -82,7 +82,7 @@ resolution is read back from the chip and verified.
 
 Note: Changing the resolution reverts the conversion time to default.
 
-The write-only sysfs entry ``eeprom`` is an alternative for EEPROM operations.
+The write-only sysfs entry ``eeprom_cmd`` is an alternative for EEPROM operations.
 Write ``save`` to save device RAM to EEPROM. Write ``restore`` to restore EEPROM
 data in device RAM.
 

@@ -89,7 +89,7 @@ struct vdpa_device *__vdpa_alloc_device(struct device *parent,
 	if (!vdev)
 		goto err;
 
-	err = ida_simple_get(&vdpa_index_ida, 0, 0, GFP_KERNEL);
+	err = ida_alloc(&vdpa_index_ida, GFP_KERNEL);
 	if (err < 0)
 		goto err_ida;
 

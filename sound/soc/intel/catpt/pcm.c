@@ -92,7 +92,7 @@ catpt_get_stream_template(struct snd_pcm_substream *substream)
 		break;
 	default:
 		break;
-	};
+	}
 
 	return catpt_topology[type];
 }
@@ -324,73 +324,6 @@ static void catpt_dai_shutdown(struct snd_pcm_substream *substream,
 	snd_soc_dai_set_dma_data(dai, substream, NULL);
 }
 
-static int catpt_dai_hw_params(struct snd_pcm_substream *substream,
-			       struct snd_pcm_hw_params *params,
-			       struct snd_soc_dai *dai)
-{
-	struct catpt_dev *cdev = dev_get_drvdata(dai->dev);
-	struct catpt_stream_runtime *stream;
-	struct catpt_audio_format afmt;
-	struct catpt_ring_info rinfo;
-	struct snd_pcm_runtime *rtm = substream->runtime;
-	struct snd_dma_buffer *dmab;
-	int ret;
-
-	stream = snd_soc_dai_get_dma_data(dai, substream);
-	if (stream->allocated)
-		return 0;
-
-	memset(&afmt, 0, sizeof(afmt));
-	afmt.sample_rate = params_rate(params);
-	afmt.bit_depth = params_physical_width(params);
-	afmt.valid_bit_depth = params_width(params);
-	afmt.num_channels = params_channels(params);
-	afmt.channel_config = catpt_get_channel_config(afmt.num_channels);
-	afmt.channel_map = catpt_get_channel_map(afmt.channel_config);
-	afmt.interleaving = CATPT_INTERLEAVING_PER_CHANNEL;
-
-	dmab = snd_pcm_get_dma_buf(substream);
-	catpt_arrange_page_table(substream, &stream->pgtbl);
-
-	memset(&rinfo, 0, sizeof(rinfo));
-	rinfo.page_table_addr = stream->pgtbl.addr;
-	rinfo.num_pages = DIV_ROUND_UP(rtm->dma_bytes, PAGE_SIZE);
-	rinfo.size = rtm->dma_bytes;
-	rinfo.offset = 0;
-	rinfo.ring_first_page_pfn = PFN_DOWN(snd_sgbuf_get_addr(dmab, 0));
-
-	ret = catpt_ipc_alloc_stream(cdev, stream->template->path_id,
-				     stream->template->type,
-				     &afmt, &rinfo,
-				     stream->template->num_entries,
-				     stream->template->entries,
-				     stream->persistent,
-				     cdev->scratch,
-				     &stream->info);
-	if (ret)
-		return CATPT_IPC_ERROR(ret);
-
-	stream->allocated = true;
-	return 0;
-}
-
-static int catpt_dai_hw_free(struct snd_pcm_substream *substream,
-			     struct snd_soc_dai *dai)
-{
-	struct catpt_dev *cdev = dev_get_drvdata(dai->dev);
-	struct catpt_stream_runtime *stream;
-
-	stream = snd_soc_dai_get_dma_data(dai, substream);
-	if (!stream->allocated)
-		return 0;
-
-	catpt_ipc_reset_stream(cdev, stream->info.stream_hw_id);
-	catpt_ipc_free_stream(cdev, stream->info.stream_hw_id);
-
-	stream->allocated = false;
-	return 0;
-}
-
 static int catpt_set_dspvol(struct catpt_dev *cdev, u8 stream_id, long *ctlvol);
 
 static int catpt_dai_apply_usettings(struct snd_soc_dai *dai,
@@ -439,6 +372,77 @@ static int catpt_dai_apply_usettings(struct snd_soc_dai *dai,
 	return 0;
 }
 
+static int catpt_dai_hw_params(struct snd_pcm_substream *substream,
+			       struct snd_pcm_hw_params *params,
+			       struct snd_soc_dai *dai)
+{
+	struct catpt_dev *cdev = dev_get_drvdata(dai->dev);
+	struct catpt_stream_runtime *stream;
+	struct catpt_audio_format afmt;
+	struct catpt_ring_info rinfo;
+	struct snd_pcm_runtime *rtm = substream->runtime;
+	struct snd_dma_buffer *dmab;
+	int ret;
+
+	stream = snd_soc_dai_get_dma_data(dai, substream);
+	if (stream->allocated)
+		return 0;
+
+	memset(&afmt, 0, sizeof(afmt));
+	afmt.sample_rate = params_rate(params);
+	afmt.bit_depth = params_physical_width(params);
+	afmt.valid_bit_depth = params_width(params);
+	afmt.num_channels = params_channels(params);
+	afmt.channel_config = catpt_get_channel_config(afmt.num_channels);
+	afmt.channel_map = catpt_get_channel_map(afmt.channel_config);
+	afmt.interleaving = CATPT_INTERLEAVING_PER_CHANNEL;
+
+	dmab = snd_pcm_get_dma_buf(substream);
+	catpt_arrange_page_table(substream, &stream->pgtbl);
+
+	memset(&rinfo, 0, sizeof(rinfo));
+	rinfo.page_table_addr = stream->pgtbl.addr;
+	rinfo.num_pages = DIV_ROUND_UP(rtm->dma_bytes, PAGE_SIZE);
+	rinfo.size = rtm->dma_bytes;
+	rinfo.offset = 0;
+	rinfo.ring_first_page_pfn = PFN_DOWN(snd_sgbuf_get_addr(dmab, 0));
+
+	ret = catpt_ipc_alloc_stream(cdev, stream->template->path_id,
+				     stream->template->type,
+				     &afmt, &rinfo,
+				     stream->template->num_entries,
+				     stream->template->entries,
+				     stream->persistent,
+				     cdev->scratch,
+				     &stream->info);
+	if (ret)
+		return CATPT_IPC_ERROR(ret);
+
+	ret = catpt_dai_apply_usettings(dai, stream);
+	if (ret)
+		return ret;
+
+	stream->allocated = true;
+	return 0;
+}
+
+static int catpt_dai_hw_free(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *dai)
+{
+	struct catpt_dev *cdev = dev_get_drvdata(dai->dev);
+	struct catpt_stream_runtime *stream;
+
+	stream = snd_soc_dai_get_dma_data(dai, substream);
+	if (!stream->allocated)
+		return 0;
+
+	catpt_ipc_reset_stream(cdev, stream->info.stream_hw_id);
+	catpt_ipc_free_stream(cdev, stream->info.stream_hw_id);
+
+	stream->allocated = false;
+	return 0;
+}
+
 static int catpt_dai_prepare(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
@@ -457,10 +461,6 @@ static int catpt_dai_prepare(struct snd_pcm_substream *substream,
 	ret = catpt_ipc_pause_stream(cdev, stream->info.stream_hw_id);
 	if (ret)
 		return CATPT_IPC_ERROR(ret);
-
-	ret = catpt_dai_apply_usettings(dai, stream);
-	if (ret)
-		return ret;
 
 	stream->prepared = true;
 	return 0;

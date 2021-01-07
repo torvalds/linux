@@ -122,7 +122,7 @@ static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
 	cortex_a76_erratum_1463225_svc_handler();
 	local_daif_restore(DAIF_PROCCTX);
 
-	if (system_supports_mte() && (flags & _TIF_MTE_ASYNC_FAULT)) {
+	if (flags & _TIF_MTE_ASYNC_FAULT) {
 		/*
 		 * Process the asynchronous tag check fault before the actual
 		 * syscall. do_notify_resume() will send a signal to userspace

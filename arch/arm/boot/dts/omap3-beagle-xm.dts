@@ -34,26 +34,26 @@
 		clock-frequency = <26000000>;
 	};
 
-	leds {
+	led-controller-1 {
 		compatible = "gpio-leds";
 
-		heartbeat {
+		led-1 {
 			label = "beagleboard::usr0";
 			gpios = <&gpio5 22 GPIO_ACTIVE_HIGH>; /* 150 -> D6 LED */
 			linux,default-trigger = "heartbeat";
 		};
 
-		mmc {
+		led-2 {
 			label = "beagleboard::usr1";
 			gpios = <&gpio5 21 GPIO_ACTIVE_HIGH>; /* 149 -> D7 LED */
 			linux,default-trigger = "mmc0";
 		};
 	};
 
-	pwmleds {
+	led-controller-2 {
 		compatible = "pwm-leds";
 
-		pmu_stat {
+		led-3 {
 			label = "beagleboard::pmu_stat";
 			pwms = <&twl_pwmled 1 7812500>;
 			max-brightness = <127>;

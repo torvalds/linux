@@ -32,6 +32,7 @@
 #include <os.h>
 #include <skas.h>
 #include <linux/time-internal.h>
+#include <asm/set_memory.h>
 
 /*
  * This is a per-cpu array.  A processor only modifies its entry and it only
@@ -62,16 +63,18 @@ void free_stack(unsigned long stack, int order)
 	free_pages(stack, order);
 }
 
-unsigned long alloc_stack(int order, int atomic)
+unsigned long alloc_stack(int atomic)
 {
-	unsigned long page;
+	unsigned long addr;
 	gfp_t flags = GFP_KERNEL;
 
 	if (atomic)
 		flags = GFP_ATOMIC;
-	page = __get_free_pages(flags, order);
+	addr = __get_free_pages(flags, 1);
 
-	return page;
+	set_memory_ro(addr, 1);
+
+	return addr + PAGE_SIZE;
 }
 
 static inline void set_current(struct task_struct *task)
@@ -99,7 +102,8 @@ void interrupt_end(void)
 
 	if (need_resched())
 		schedule();
-	if (test_thread_flag(TIF_SIGPENDING))
+	if (test_thread_flag(TIF_SIGPENDING) ||
+	    test_thread_flag(TIF_NOTIFY_SIGNAL))
 		do_signal(regs);
 	if (test_thread_flag(TIF_NOTIFY_RESUME))
 		tracehook_notify_resume(regs);
@@ -202,15 +206,12 @@ void initial_thread_cb(void (*proc)(void *), void *arg)
 	kmalloc_ok = save_kmalloc_ok;
 }
 
-static void um_idle_sleep(void)
+void um_idle_sleep(void)
 {
-	unsigned long long duration = UM_NSEC_PER_SEC;
-
-	if (time_travel_mode != TT_MODE_OFF) {
-		time_travel_sleep(duration);
-	} else {
-		os_idle_sleep(duration);
-	}
+	if (time_travel_mode != TT_MODE_OFF)
+		time_travel_sleep();
+	else
+		os_idle_sleep();
 }
 
 void arch_cpu_idle(void)

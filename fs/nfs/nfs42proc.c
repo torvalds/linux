@@ -1173,14 +1173,12 @@ static int _nfs42_proc_setxattr(struct inode *inode, const char *name,
 }
 
 static ssize_t _nfs42_proc_getxattr(struct inode *inode, const char *name,
-				void *buf, size_t buflen)
+				void *buf, size_t buflen, struct page **pages,
+				size_t plen)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
-	struct page *pages[NFS4XATTR_MAXPAGES] = {};
 	struct nfs42_getxattrargs arg = {
 		.fh		= NFS_FH(inode),
-		.xattr_pages	= pages,
-		.xattr_len	= buflen,
 		.xattr_name	= name,
 	};
 	struct nfs42_getxattrres res;
@@ -1189,7 +1187,10 @@ static ssize_t _nfs42_proc_getxattr(struct inode *inode, const char *name,
 		.rpc_argp	= &arg,
 		.rpc_resp	= &res,
 	};
-	int ret, np;
+	ssize_t ret;
+
+	arg.xattr_len = plen;
+	arg.xattr_pages = pages;
 
 	ret = nfs4_call_sync(server->client, server, &msg, &arg.seq_args,
 	    &res.seq_res, 0);
@@ -1213,10 +1214,6 @@ static ssize_t _nfs42_proc_getxattr(struct inode *inode, const char *name,
 			return -ERANGE;
 		_copy_from_pages(buf, pages, 0, res.xattr_len);
 	}
-
-	np = DIV_ROUND_UP(res.xattr_len, PAGE_SIZE);
-	while (--np >= 0)
-		__free_page(pages[np]);
 
 	return res.xattr_len;
 }
@@ -1292,15 +1289,44 @@ ssize_t nfs42_proc_getxattr(struct inode *inode, const char *name,
 			      void *buf, size_t buflen)
 {
 	struct nfs4_exception exception = { };
-	ssize_t err;
+	ssize_t err, np, i;
+	struct page **pages;
 
+	np = nfs_page_array_len(0, buflen ?: XATTR_SIZE_MAX);
+	pages = kmalloc_array(np, sizeof(*pages), GFP_KERNEL);
+	if (!pages)
+		return -ENOMEM;
+
+	for (i = 0; i < np; i++) {
+		pages[i] = alloc_page(GFP_KERNEL);
+		if (!pages[i]) {
+			np = i + 1;
+			err = -ENOMEM;
+			goto out;
+		}
+	}
+
+	/*
+	 * The GETXATTR op has no length field in the call, and the
+	 * xattr data is at the end of the reply.
+	 *
+	 * There is no downside in using the page-aligned length. It will
+	 * allow receiving and caching xattrs that are too large for the
+	 * caller but still fit in the page-rounded value.
+	 */
 	do {
-		err = _nfs42_proc_getxattr(inode, name, buf, buflen);
+		err = _nfs42_proc_getxattr(inode, name, buf, buflen,
+			pages, np * PAGE_SIZE);
 		if (err >= 0)
 			break;
 		err = nfs4_handle_exception(NFS_SERVER(inode), err,
 				&exception);
 	} while (exception.retry);
+
+out:
+	while (--np >= 0)
+		__free_page(pages[np]);
+	kfree(pages);
 
 	return err;
 }

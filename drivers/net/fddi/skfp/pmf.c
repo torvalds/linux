@@ -24,10 +24,6 @@
 
 #ifndef	SLIM_SMT
 
-#ifndef	lint
-static const char ID_sccs[] = "@(#)pmf.c	1.37 97/08/04 (C) SK " ;
-#endif
-
 static int smt_authorize(struct s_smc *smc, struct smt_header *sm);
 static int smt_check_set_count(struct s_smc *smc, struct smt_header *sm);
 static const struct s_p_tab* smt_get_ptab(u_short para);

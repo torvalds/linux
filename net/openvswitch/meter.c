@@ -423,7 +423,7 @@ static int ovs_meter_cmd_set(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	meter = dp_meter_create(a);
-	if (IS_ERR_OR_NULL(meter))
+	if (IS_ERR(meter))
 		return PTR_ERR(meter);
 
 	reply = ovs_meter_cmd_reply_start(info, OVS_METER_CMD_SET,

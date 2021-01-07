@@ -532,7 +532,7 @@ static int pcan_usb_pro_handle_canmsg(struct pcan_usb_pro_interface *usb_if,
 		return -ENOMEM;
 
 	can_frame->can_id = le32_to_cpu(rx->id);
-	can_frame->can_dlc = rx->len & 0x0f;
+	can_frame->len = rx->len & 0x0f;
 
 	if (rx->flags & PCAN_USBPRO_EXT)
 		can_frame->can_id |= CAN_EFF_FLAG;
@@ -540,14 +540,14 @@ static int pcan_usb_pro_handle_canmsg(struct pcan_usb_pro_interface *usb_if,
 	if (rx->flags & PCAN_USBPRO_RTR)
 		can_frame->can_id |= CAN_RTR_FLAG;
 	else
-		memcpy(can_frame->data, rx->data, can_frame->can_dlc);
+		memcpy(can_frame->data, rx->data, can_frame->len);
 
 	hwts = skb_hwtstamps(skb);
 	peak_usb_get_ts_time(&usb_if->time_ref, le32_to_cpu(rx->ts32),
 			     &hwts->hwtstamp);
 
 	netdev->stats.rx_packets++;
-	netdev->stats.rx_bytes += can_frame->can_dlc;
+	netdev->stats.rx_bytes += can_frame->len;
 	netif_rx(skb);
 
 	return 0;
@@ -662,7 +662,7 @@ static int pcan_usb_pro_handle_error(struct pcan_usb_pro_interface *usb_if,
 	hwts = skb_hwtstamps(skb);
 	peak_usb_get_ts_time(&usb_if->time_ref, le32_to_cpu(er->ts32), &hwts->hwtstamp);
 	netdev->stats.rx_packets++;
-	netdev->stats.rx_bytes += can_frame->can_dlc;
+	netdev->stats.rx_bytes += can_frame->len;
 	netif_rx(skb);
 
 	return 0;
@@ -767,14 +767,14 @@ static int pcan_usb_pro_encode_msg(struct peak_usb_device *dev,
 
 	pcan_msg_init_empty(&usb_msg, obuf, *size);
 
-	if ((cf->can_id & CAN_RTR_FLAG) || (cf->can_dlc == 0))
+	if ((cf->can_id & CAN_RTR_FLAG) || (cf->len == 0))
 		data_type = PCAN_USBPRO_TXMSG0;
-	else if (cf->can_dlc <= 4)
+	else if (cf->len <= 4)
 		data_type = PCAN_USBPRO_TXMSG4;
 	else
 		data_type = PCAN_USBPRO_TXMSG8;
 
-	len = (dev->ctrl_idx << 4) | (cf->can_dlc & 0x0f);
+	len = (dev->ctrl_idx << 4) | (cf->len & 0x0f);
 
 	flags = 0;
 	if (cf->can_id & CAN_EFF_FLAG)

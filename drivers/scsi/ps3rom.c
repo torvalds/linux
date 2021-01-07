@@ -402,7 +402,7 @@ fail_free_bounce:
 	return error;
 }
 
-static int ps3rom_remove(struct ps3_system_bus_device *_dev)
+static void ps3rom_remove(struct ps3_system_bus_device *_dev)
 {
 	struct ps3_storage_device *dev = to_ps3_storage_device(&_dev->core);
 	struct Scsi_Host *host = ps3_system_bus_get_drvdata(&dev->sbd);
@@ -412,7 +412,6 @@ static int ps3rom_remove(struct ps3_system_bus_device *_dev)
 	scsi_host_put(host);
 	ps3_system_bus_set_drvdata(&dev->sbd, NULL);
 	kfree(dev->bounce_buf);
-	return 0;
 }
 
 static struct ps3_system_bus_driver ps3rom = {

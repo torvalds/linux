@@ -562,7 +562,7 @@ static int ingenic_adc_read_avail(struct iio_dev *iio_dev,
 		return IIO_AVAIL_LIST;
 	default:
 		return -EINVAL;
-	};
+	}
 }
 
 static int ingenic_adc_read_chan_info_raw(struct iio_dev *iio_dev,

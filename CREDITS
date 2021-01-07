@@ -2510,15 +2510,6 @@ W: http://www.rdrop.com/users/paulmck/
 D: RCU and variants
 D: rcutorture module
 
-N: Mike McLagan
-E: mike.mclagan@linux.org
-W: http://www.invlogic.com/~mmclagan
-D: DLCI/FRAD drivers for Sangoma SDLAs
-S: Innovative Logic Corp
-S: Post Office Box 1068
-S: Laurel, Maryland 20732
-S: USA
-
 N: Bradley McLean
 E: brad@bradpc.gaylord.com
 D: Device driver hacker

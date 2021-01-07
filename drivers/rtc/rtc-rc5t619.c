@@ -426,7 +426,7 @@ static int rc5t619_rtc_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "rc5t619 interrupt is disabled\n");
 	}
 
-	return rtc_register_device(rtc->rtc);
+	return devm_rtc_register_device(rtc->rtc);
 }
 
 static struct platform_driver rc5t619_rtc_driver = {

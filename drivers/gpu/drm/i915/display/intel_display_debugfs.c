@@ -18,6 +18,7 @@
 #include "intel_pm.h"
 #include "intel_psr.h"
 #include "intel_sideband.h"
+#include "intel_sprite.h"
 
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
 {
@@ -865,6 +866,110 @@ static void intel_scaler_info(struct seq_file *m, struct intel_crtc *crtc)
 	}
 }
 
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_VBLANK_EVADE)
+static void crtc_updates_info(struct seq_file *m,
+			      struct intel_crtc *crtc,
+			      const char *hdr)
+{
+	u64 count;
+	int row;
+
+	count = 0;
+	for (row = 0; row < ARRAY_SIZE(crtc->debug.vbl.times); row++)
+		count += crtc->debug.vbl.times[row];
+	seq_printf(m, "%sUpdates: %llu\n", hdr, count);
+	if (!count)
+		return;
+
+	for (row = 0; row < ARRAY_SIZE(crtc->debug.vbl.times); row++) {
+		char columns[80] = "       |";
+		unsigned int x;
+
+		if (row & 1) {
+			const char *units;
+
+			if (row > 10) {
+				x = 1000000;
+				units = "ms";
+			} else {
+				x = 1000;
+				units = "us";
+			}
+
+			snprintf(columns, sizeof(columns), "%4ld%s |",
+				 DIV_ROUND_CLOSEST(BIT(row + 9), x), units);
+		}
+
+		if (crtc->debug.vbl.times[row]) {
+			x = ilog2(crtc->debug.vbl.times[row]);
+			memset(columns + 8, '*', x);
+			columns[8 + x] = '\0';
+		}
+
+		seq_printf(m, "%s%s\n", hdr, columns);
+	}
+
+	seq_printf(m, "%sMin update: %lluns\n",
+		   hdr, crtc->debug.vbl.min);
+	seq_printf(m, "%sMax update: %lluns\n",
+		   hdr, crtc->debug.vbl.max);
+	seq_printf(m, "%sAverage update: %lluns\n",
+		   hdr, div64_u64(crtc->debug.vbl.sum,  count));
+	seq_printf(m, "%sOverruns > %uus: %u\n",
+		   hdr, VBLANK_EVASION_TIME_US, crtc->debug.vbl.over);
+}
+
+static int crtc_updates_show(struct seq_file *m, void *data)
+{
+	crtc_updates_info(m, m->private, "");
+	return 0;
+}
+
+static int crtc_updates_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, crtc_updates_show, inode->i_private);
+}
+
+static ssize_t crtc_updates_write(struct file *file,
+				  const char __user *ubuf,
+				  size_t len, loff_t *offp)
+{
+	struct seq_file *m = file->private_data;
+	struct intel_crtc *crtc = m->private;
+
+	/* May race with an update. Meh. */
+	memset(&crtc->debug.vbl, 0, sizeof(crtc->debug.vbl));
+
+	return len;
+}
+
+static const struct file_operations crtc_updates_fops = {
+	.owner = THIS_MODULE,
+	.open = crtc_updates_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = crtc_updates_write
+};
+
+static void crtc_updates_add(struct drm_crtc *crtc)
+{
+	debugfs_create_file("i915_update_info", 0644, crtc->debugfs_entry,
+			    to_intel_crtc(crtc), &crtc_updates_fops);
+}
+
+#else
+static void crtc_updates_info(struct seq_file *m,
+			      struct intel_crtc *crtc,
+			      const char *hdr)
+{
+}
+
+static void crtc_updates_add(struct drm_crtc *crtc)
+{
+}
+#endif
+
 static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -907,6 +1012,8 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 	seq_printf(m, "\tunderrun reporting: cpu=%s pch=%s\n",
 		   yesno(!crtc->cpu_fifo_underrun_disabled),
 		   yesno(!crtc->pch_fifo_underrun_disabled));
+
+	crtc_updates_info(m, crtc, "\t");
 }
 
 static int i915_display_info(struct seq_file *m, void *unused)
@@ -2276,5 +2383,22 @@ int intel_connector_debugfs_add(struct drm_connector *connector)
 		debugfs_create_file("i915_lpsp_capability", 0444, root,
 				    connector, &i915_lpsp_capability_fops);
 
+	return 0;
+}
+
+/**
+ * intel_crtc_debugfs_add - add i915 specific crtc debugfs files
+ * @crtc: pointer to a drm_crtc
+ *
+ * Returns 0 on success, negative error codes on error.
+ *
+ * Failure to add debugfs entries should generally be ignored.
+ */
+int intel_crtc_debugfs_add(struct drm_crtc *crtc)
+{
+	if (!crtc->debugfs_entry)
+		return -ENODEV;
+
+	crtc_updates_add(crtc);
 	return 0;
 }

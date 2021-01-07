@@ -626,14 +626,14 @@ static int __maybe_unused zforce_suspend(struct device *dev)
 		dev_dbg(&client->dev, "suspend while being a wakeup source\n");
 
 		/* Need to start device, if not open, to be a wakeup source. */
-		if (!input->users) {
+		if (!input_device_enabled(input)) {
 			ret = zforce_start(ts);
 			if (ret)
 				goto unlock;
 		}
 
 		enable_irq_wake(client->irq);
-	} else if (input->users) {
+	} else if (input_device_enabled(input)) {
 		dev_dbg(&client->dev,
 			"suspend without being a wakeup source\n");
 
@@ -670,12 +670,12 @@ static int __maybe_unused zforce_resume(struct device *dev)
 		disable_irq_wake(client->irq);
 
 		/* need to stop device if it was not open on suspend */
-		if (!input->users) {
+		if (!input_device_enabled(input)) {
 			ret = zforce_stop(ts);
 			if (ret)
 				goto unlock;
 		}
-	} else if (input->users) {
+	} else if (input_device_enabled(input)) {
 		dev_dbg(&client->dev, "resume without being a wakeup source\n");
 
 		enable_irq(client->irq);

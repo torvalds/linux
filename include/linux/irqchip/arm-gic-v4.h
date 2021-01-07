@@ -39,6 +39,8 @@ struct its_vpe {
 	irq_hw_number_t		vpe_db_lpi;
 	/* VPE resident */
 	bool			resident;
+	/* VPT parse complete */
+	bool			ready;
 	union {
 		/* GICv4.0 implementations */
 		struct {
@@ -104,6 +106,7 @@ enum its_vcpu_info_cmd_type {
 	PROP_UPDATE_AND_INV_VLPI,
 	SCHEDULE_VPE,
 	DESCHEDULE_VPE,
+	COMMIT_VPE,
 	INVALL_VPE,
 	PROP_UPDATE_VSGI,
 };
@@ -129,6 +132,7 @@ int its_alloc_vcpu_irqs(struct its_vm *vm);
 void its_free_vcpu_irqs(struct its_vm *vm);
 int its_make_vpe_resident(struct its_vpe *vpe, bool g0en, bool g1en);
 int its_make_vpe_non_resident(struct its_vpe *vpe, bool db);
+int its_commit_vpe(struct its_vpe *vpe);
 int its_invall_vpe(struct its_vpe *vpe);
 int its_map_vlpi(int irq, struct its_vlpi_map *map);
 int its_get_vlpi(int irq, struct its_vlpi_map *map);

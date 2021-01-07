@@ -154,7 +154,7 @@ static void audit_autoremove_mark_rule(struct audit_fsnotify_mark *audit_mark)
 /* Update mark data in audit rules based on fsnotify events. */
 static int audit_mark_handle_event(struct fsnotify_mark *inode_mark, u32 mask,
 				   struct inode *inode, struct inode *dir,
-				   const struct qstr *dname)
+				   const struct qstr *dname, u32 cookie)
 {
 	struct audit_fsnotify_mark *audit_mark;
 

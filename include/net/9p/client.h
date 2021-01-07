@@ -140,10 +140,16 @@ struct p9_client {
  *
  * TODO: This needs lots of explanation.
  */
+enum fid_source {
+	FID_FROM_OTHER,
+	FID_FROM_INODE,
+	FID_FROM_DENTRY,
+};
 
 struct p9_fid {
 	struct p9_client *clnt;
 	u32 fid;
+	refcount_t count;
 	int mode;
 	struct p9_qid qid;
 	u32 iounit;
@@ -152,6 +158,7 @@ struct p9_fid {
 	void *rdir;
 
 	struct hlist_node dlist;	/* list of all fids attached to a dentry */
+	struct hlist_node ilist;
 };
 
 /**

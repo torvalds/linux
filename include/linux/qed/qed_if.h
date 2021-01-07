@@ -7,6 +7,7 @@
 #ifndef _QED_IF_H
 #define _QED_IF_H
 
+#include <linux/ethtool.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>

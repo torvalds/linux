@@ -265,7 +265,7 @@
 
 			interrupt-parent = <&gic>;
 
-			ehci: ehci@21000 {
+			ehci: usb@21000 {
 				#usb-cells = <0>;
 
 				compatible = "generic-ehci";
@@ -287,7 +287,7 @@
 				};
 			};
 
-			ohci: ohci@22000 {
+			ohci: usb@22000 {
 				#usb-cells = <0>;
 
 				compatible = "generic-ohci";
@@ -318,7 +318,7 @@
 
 			interrupt-parent = <&gic>;
 
-			xhci: xhci@23000 {
+			xhci: usb@23000 {
 				#usb-cells = <0>;
 
 				compatible = "generic-xhci";
@@ -428,7 +428,27 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			pin-controller@1c0 {
+			lcpll0: lcpll0@100 {
+				#clock-cells = <1>;
+				compatible = "brcm,nsp-lcpll0";
+				reg = <0x100 0x14>;
+				clocks = <&osc>;
+				clock-output-names = "lcpll0", "pcie_phy",
+						     "sdio", "ddr_phy";
+			};
+
+			genpll: genpll@140 {
+				#clock-cells = <1>;
+				compatible = "brcm,nsp-genpll";
+				reg = <0x140 0x24>;
+				clocks = <&osc>;
+				clock-output-names = "genpll", "phy",
+						     "ethernetclk",
+						     "usbclk", "iprocfast",
+						     "sata1", "sata2";
+			};
+
+			pinctrl: pin-controller@1c0 {
 				compatible = "brcm,bcm4708-pinmux";
 				reg = <0x1c0 0x24>;
 				reg-names = "cru_gpio_control";
@@ -454,41 +474,26 @@
 					function = "uart1";
 				};
 			};
+
+			thermal: thermal@2c0 {
+				compatible = "brcm,ns-thermal";
+				reg = <0x2c0 0x10>;
+				#thermal-sensor-cells = <0>;
+			};
 		};
 	};
 
-	lcpll0: lcpll0@1800c100 {
-		#clock-cells = <1>;
-		compatible = "brcm,nsp-lcpll0";
-		reg = <0x1800c100 0x14>;
-		clocks = <&osc>;
-		clock-output-names = "lcpll0", "pcie_phy", "sdio",
-				     "ddr_phy";
-	};
-
-	genpll: genpll@1800c140 {
-		#clock-cells = <1>;
-		compatible = "brcm,nsp-genpll";
-		reg = <0x1800c140 0x24>;
-		clocks = <&osc>;
-		clock-output-names = "genpll", "phy", "ethernetclk",
-				     "usbclk", "iprocfast", "sata1",
-				     "sata2";
-	};
-
-	thermal: thermal@1800c2c0 {
-		compatible = "brcm,ns-thermal";
-		reg = <0x1800c2c0 0x10>;
-		#thermal-sensor-cells = <0>;
-	};
-
-	srab: srab@18007000 {
-		compatible = "brcm,bcm5301x-srab";
+	srab: ethernet-switch@18007000 {
+		compatible = "brcm,bcm53011-srab", "brcm,bcm5301x-srab";
 		reg = <0x18007000 0x1000>;
 
 		status = "disabled";
 
 		/* ports are defined in board DTS */
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
 	};
 
 	rng: rng@18004000 {

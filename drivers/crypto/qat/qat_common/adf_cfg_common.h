@@ -32,7 +32,8 @@ enum adf_device_type {
 	DEV_C62X,
 	DEV_C62XVF,
 	DEV_C3XXX,
-	DEV_C3XXXVF
+	DEV_C3XXXVF,
+	DEV_4XXX,
 };
 
 struct adf_dev_status_info {

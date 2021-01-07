@@ -1828,7 +1828,6 @@ static int tegra210_emc_probe(struct platform_device *pdev)
 {
 	struct thermal_cooling_device *cd;
 	unsigned long current_rate;
-	struct platform_device *mc;
 	struct tegra210_emc *emc;
 	struct device_node *np;
 	unsigned int i;
@@ -1846,35 +1845,19 @@ static int tegra210_emc_probe(struct platform_device *pdev)
 	spin_lock_init(&emc->lock);
 	emc->dev = &pdev->dev;
 
-	np = of_parse_phandle(pdev->dev.of_node, "nvidia,memory-controller", 0);
-	if (!np) {
-		dev_err(&pdev->dev, "could not get memory controller\n");
-		return -ENOENT;
-	}
-
-	mc = of_find_device_by_node(np);
-	of_node_put(np);
-	if (!mc)
-		return -ENOENT;
-
-	emc->mc = platform_get_drvdata(mc);
-	if (!emc->mc) {
-		put_device(&mc->dev);
-		return -EPROBE_DEFER;
-	}
+	emc->mc = devm_tegra_memory_controller_get(&pdev->dev);
+	if (IS_ERR(emc->mc))
+		return PTR_ERR(emc->mc);
 
 	emc->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(emc->regs)) {
-		err = PTR_ERR(emc->regs);
-		goto put_mc;
-	}
+	if (IS_ERR(emc->regs))
+		return PTR_ERR(emc->regs);
 
 	for (i = 0; i < 2; i++) {
 		emc->channel[i] = devm_platform_ioremap_resource(pdev, 1 + i);
-		if (IS_ERR(emc->channel[i])) {
-			err = PTR_ERR(emc->channel[i]);
-			goto put_mc;
-		}
+		if (IS_ERR(emc->channel[i]))
+			return PTR_ERR(emc->channel[i]);
+
 	}
 
 	tegra210_emc_detect(emc);
@@ -1884,7 +1867,7 @@ static int tegra210_emc_probe(struct platform_device *pdev)
 	err = of_reserved_mem_device_init_by_name(emc->dev, np, "nominal");
 	if (err < 0) {
 		dev_err(emc->dev, "failed to get nominal EMC table: %d\n", err);
-		goto put_mc;
+		return err;
 	}
 
 	err = of_reserved_mem_device_init_by_name(emc->dev, np, "derated");
@@ -2015,8 +1998,7 @@ detach:
 	tegra210_clk_emc_detach(emc->clk);
 release:
 	of_reserved_mem_device_release(emc->dev);
-put_mc:
-	put_device(emc->mc->dev);
+
 	return err;
 }
 
@@ -2027,7 +2009,6 @@ static int tegra210_emc_remove(struct platform_device *pdev)
 	debugfs_remove_recursive(emc->debugfs.root);
 	tegra210_clk_emc_detach(emc->clk);
 	of_reserved_mem_device_release(emc->dev);
-	put_device(emc->mc->dev);
 
 	return 0;
 }

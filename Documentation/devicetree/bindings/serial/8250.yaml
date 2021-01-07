@@ -126,7 +126,7 @@ properties:
     maxItems: 1
 
   current-speed:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: The current active speed of the UART.
 
   reg-offset:
@@ -154,7 +154,7 @@ properties:
       Set to indicate that the port does not implement loopback test mode.
 
   fifo-size:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: The fifo size of the UART.
 
   auto-flow-control:
@@ -165,7 +165,7 @@ properties:
       property.
 
   tx-threshold:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       Specify the TX FIFO low water indication for parts with programmable
       TX FIFO thresholds.

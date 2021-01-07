@@ -56,4 +56,14 @@ config MLXBF_BOOTCTL
 	  to the userspace tools, to be used in conjunction with the eMMC
 	  device driver to do necessary initial swap of the boot partition.
 
+config MLXBF_PMC
+	tristate "Mellanox BlueField Performance Monitoring Counters driver"
+	depends on ARM64
+	depends on HWMON
+	depends on ACPI
+	help
+	  Say y here to enable PMC support. The PMC driver provides access
+	  to performance monitoring counters within various blocks in the
+	  Mellanox BlueField SoC via a sysfs interface.
+
 endif # MELLANOX_PLATFORM

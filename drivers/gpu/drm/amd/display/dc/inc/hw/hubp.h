@@ -188,6 +188,8 @@ struct hubp_funcs {
 	void (*set_unbounded_requesting)(
 		struct hubp *hubp,
 		bool enable);
+	bool (*hubp_in_blank)(struct hubp *hubp);
+	void (*hubp_soft_reset)(struct hubp *hubp, bool reset);
 
 };
 

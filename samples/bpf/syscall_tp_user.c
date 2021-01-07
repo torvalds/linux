@@ -115,7 +115,6 @@ cleanup:
 
 int main(int argc, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	int opt, num_progs = 1;
 	char filename[256];
 
@@ -131,7 +130,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-	setrlimit(RLIMIT_MEMLOCK, &r);
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 
 	return test(filename, num_progs);

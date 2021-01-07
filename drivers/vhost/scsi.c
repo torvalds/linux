@@ -1643,7 +1643,8 @@ vhost_scsi_set_endpoint(struct vhost_scsi *vs,
 			if (!vhost_vq_is_setup(vq))
 				continue;
 
-			if (vhost_scsi_setup_vq_cmds(vq, vq->num))
+			ret = vhost_scsi_setup_vq_cmds(vq, vq->num);
+			if (ret)
 				goto destroy_vq_cmds;
 		}
 

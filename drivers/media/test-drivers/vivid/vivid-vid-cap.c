@@ -1107,11 +1107,9 @@ int vidioc_g_fmt_vid_overlay(struct file *file, void *priv,
 		    ((compose->width + 7) / 8) * compose->height))
 			return -EFAULT;
 	}
-	if (clipcount && win->clips) {
-		if (copy_to_user(win->clips, dev->clips_cap,
-				 clipcount * sizeof(dev->clips_cap[0])))
-			return -EFAULT;
-	}
+	if (clipcount && win->clips)
+		memcpy(win->clips, dev->clips_cap,
+		       clipcount * sizeof(dev->clips_cap[0]));
 	return 0;
 }
 
@@ -1141,9 +1139,8 @@ int vidioc_try_fmt_vid_overlay(struct file *file, void *priv,
 	if (win->clipcount > MAX_CLIPS)
 		win->clipcount = MAX_CLIPS;
 	if (win->clipcount) {
-		if (copy_from_user(dev->try_clips_cap, win->clips,
-				   win->clipcount * sizeof(dev->clips_cap[0])))
-			return -EFAULT;
+		memcpy(dev->try_clips_cap, win->clips,
+		       win->clipcount * sizeof(dev->clips_cap[0]));
 		for (i = 0; i < win->clipcount; i++) {
 			struct v4l2_rect *r = &dev->try_clips_cap[i].c;
 
@@ -1166,9 +1163,8 @@ int vidioc_try_fmt_vid_overlay(struct file *file, void *priv,
 					return -EINVAL;
 			}
 		}
-		if (copy_to_user(win->clips, dev->try_clips_cap,
-				 win->clipcount * sizeof(dev->clips_cap[0])))
-			return -EFAULT;
+		memcpy(win->clips, dev->try_clips_cap,
+		       win->clipcount * sizeof(dev->clips_cap[0]));
 	}
 	return 0;
 }

@@ -8,7 +8,7 @@
  *
  */
 /*
- * Schematic available at http://wiki.espressobin.net/tiki-download_file.php?fileId=200
+ * Schematic available at http://espressobin.net/wp-content/uploads/2020/05/ESPRESSObin_V7-0_Schematic.pdf
  */
 
 /dts-v1/;
@@ -27,18 +27,14 @@
 	};
 };
 
-&switch0 {
-	ports {
-		switch0port1: port@1 {
-			reg = <1>;
-			label = "lan1";
-			phy-handle = <&switch0phy0>;
-		};
+&switch0port1 {
+	label = "lan1";
+};
 
-		switch0port3: port@3 {
-			reg = <3>;
-			label = "wan";
-			phy-handle = <&switch0phy2>;
-		};
-	};
+&switch0port3 {
+	label = "wan";
+};
+
+&led2 {
+	status = "okay";
 };

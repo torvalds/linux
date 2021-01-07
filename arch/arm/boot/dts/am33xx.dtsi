@@ -144,11 +144,28 @@
 		};
 	};
 
-	pmu@4b000000 {
-		compatible = "arm,cortex-a8-pmu";
-		interrupts = <3>;
-		reg = <0x4b000000 0x1000000>;
-		ti,hwmods = "debugss";
+	target-module@4b000000 {
+		compatible = "ti,sysc-omap4-simple", "ti,sysc";
+		clocks = <&l3_clkctrl AM3_L3_L3_INSTR_CLKCTRL 0>;
+		clock-names = "fck";
+		ti,no-idle;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x4b000000 0x1000000>;
+
+		target-module@140000 {
+			compatible = "ti,sysc-omap4-simple", "ti,sysc";
+			clocks = <&l3_aon_clkctrl AM3_L3_AON_DEBUGSS_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x140000 0xec0000>;
+
+			pmu@0 {
+				compatible = "arm,cortex-a8-pmu";
+				interrupts = <3>;
+			};
+		};
 	};
 
 	/*
@@ -157,12 +174,6 @@
 	 */
 	soc {
 		compatible = "ti,omap-infra";
-		mpu {
-			compatible = "ti,omap3-mpu";
-			ti,hwmods = "mpu";
-			pm-sram = <&pm_sram_code
-				   &pm_sram_data>;
-		};
 	};
 
 	/*
@@ -173,21 +184,15 @@
 	 * the whole bus hierarchy.
 	 */
 	ocp: ocp {
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
+		power-domains = <&prm_per>;
+		clocks = <&l3_clkctrl AM3_L3_L3_MAIN_CLKCTRL 0>;
+		clock-names = "fck";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
-		ti,hwmods = "l3_main";
 
 		l4_wkup: interconnect@44c00000 {
-			wkup_m3: wkup_m3@100000 {
-				compatible = "ti,am3352-wkup-m3";
-				reg = <0x100000 0x4000>,
-				      <0x180000 0x2000>;
-				reg-names = "umem", "dmem";
-				ti,hwmods = "wkup_m3";
-				ti,pm-firmware = "am335x-pm-firmware.elf";
-			};
 		};
 		l4_per: interconnect@48000000 {
 		};
@@ -458,53 +463,89 @@
 			};
 		};
 
-		ocmcram: sram@40300000 {
-			compatible = "mmio-sram";
-			reg = <0x40300000 0x10000>; /* 64k */
-			ranges = <0x0 0x40300000 0x10000>;
+		target-module@40300000 {
+			compatible = "ti,sysc-omap4-simple", "ti,sysc";
+			clocks = <&l3_clkctrl AM3_L3_OCMCRAM_CLKCTRL 0>;
+			clock-names = "fck";
+			ti,no-idle;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			ranges = <0 0x40300000 0x10000>;
 
-			pm_sram_code: pm-code-sram@0 {
-				compatible = "ti,sram";
-				reg = <0x0 0x1000>;
-				protect-exec;
-			};
+			ocmcram: sram@0 {
+				compatible = "mmio-sram";
+				reg = <0 0x10000>; /* 64k */
+				ranges = <0 0 0x10000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
 
-			pm_sram_data: pm-data-sram@1000 {
-				compatible = "ti,sram";
-				reg = <0x1000 0x1000>;
-				pool;
+				pm_sram_code: pm-code-sram@0 {
+					compatible = "ti,sram";
+					reg = <0x0 0x1000>;
+					protect-exec;
+				};
+
+				pm_sram_data: pm-data-sram@1000 {
+					compatible = "ti,sram";
+					reg = <0x1000 0x1000>;
+					pool;
+				};
 			};
 		};
 
-		emif: emif@4c000000 {
-			compatible = "ti,emif-am3352";
-			reg = <0x4c000000 0x1000000>;
-			ti,hwmods = "emif";
-			interrupts = <101>;
-			sram = <&pm_sram_code
-				&pm_sram_data>;
+		target-module@4c000000 {
+			compatible = "ti,sysc-omap4-simple", "ti,sysc";
+			reg = <0x4c000000 0x4>;
+			reg-names = "rev";
+			clocks = <&l3_clkctrl AM3_L3_EMIF_CLKCTRL 0>;
+			clock-names = "fck";
 			ti,no-idle;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x4c000000 0x1000000>;
+
+			emif: emif@0 {
+				compatible = "ti,emif-am3352";
+				reg = <0 0x1000000>;
+				interrupts = <101>;
+				sram = <&pm_sram_code
+					&pm_sram_data>;
+			};
 		};
 
-		gpmc: gpmc@50000000 {
-			compatible = "ti,am3352-gpmc";
-			ti,hwmods = "gpmc";
-			ti,no-idle-on-init;
-			reg = <0x50000000 0x2000>;
-			interrupts = <100>;
-			dmas = <&edma 52 0>;
-			dma-names = "rxtx";
-			gpmc,num-cs = <7>;
-			gpmc,num-waitpins = <2>;
-			#address-cells = <2>;
+		target-module@50000000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x50000000 4>,
+			      <0x50000010 4>,
+			      <0x50000014 4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			clocks = <&l3s_clkctrl AM3_L3S_GPMC_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
 			#size-cells = <1>;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-			gpio-controller;
-			#gpio-cells = <2>;
-			status = "disabled";
+			ranges = <0x50000000 0x50000000 0x00001000>, /* regs */
+				 <0x00000000 0x00000000 0x40000000>; /* data */
+
+			gpmc: gpmc@50000000 {
+				compatible = "ti,am3352-gpmc";
+				reg = <0x50000000 0x2000>;
+				interrupts = <100>;
+				dmas = <&edma 52 0>;
+				dma-names = "rxtx";
+				gpmc,num-cs = <7>;
+				gpmc,num-waitpins = <2>;
+				#address-cells = <2>;
+				#size-cells = <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				status = "disabled";
+			};
 		};
 
 		sham_target: target-module@53100000 {
@@ -601,12 +642,20 @@
 		compatible = "ti,am3-prm-inst", "ti,omap-prm-inst";
 		reg = <0xc00 0x100>;
 		#reset-cells = <1>;
+		#power-domain-cells = <0>;
 	};
 
 	prm_wkup: prm@d00 {
 		compatible = "ti,am3-prm-inst", "ti,omap-prm-inst";
 		reg = <0xd00 0x100>;
 		#reset-cells = <1>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_mpu: prm@e00 {
+		compatible = "ti,am3-prm-inst", "ti,omap-prm-inst";
+		reg = <0xe00 0x100>;
+		#power-domain-cells = <0>;
 	};
 
 	prm_device: prm@f00 {
@@ -615,16 +664,31 @@
 		#reset-cells = <1>;
 	};
 
+	prm_rtc: prm@1000 {
+		compatible = "ti,am3-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1000 0x100>;
+		#power-domain-cells = <0>;
+	};
+
 	prm_gfx: prm@1100 {
 		compatible = "ti,am3-prm-inst", "ti,omap-prm-inst";
 		reg = <0x1100 0x100>;
 		#power-domain-cells = <0>;
 		#reset-cells = <1>;
 	};
+
+	prm_cefuse: prm@1200 {
+		compatible = "ti,am3-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1200 0x100>;
+		#power-domain-cells = <0>;
+	};
 };
 
 /* Preferred always-on timer for clocksource */
 &timer1_target {
+	clocks = <&l4_wkup_clkctrl AM3_L4_WKUP_TIMER1_CLKCTRL 0>,
+		 <&l4_wkup_clkctrl AM3_L4_WKUP_L4_WKUP_CLKCTRL 0>;
+	clock-names = "fck", "ick";
 	ti,no-reset-on-init;
 	ti,no-idle;
 	timer@0 {
@@ -635,6 +699,9 @@
 
 /* Preferred timer for clockevent */
 &timer2_target {
+	clocks = <&l4ls_clkctrl AM3_L4LS_TIMER2_CLKCTRL 0>,
+		 <&l4ls_clkctrl AM3_L4LS_L4_LS_CLKCTRL 0>;
+	clock-names = "fck", "ick";
 	ti,no-reset-on-init;
 	ti,no-idle;
 	timer@0 {

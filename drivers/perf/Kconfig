@@ -130,6 +130,13 @@ config ARM_SPE_PMU
 	  Extension, which provides periodic sampling of operations in
 	  the CPU pipeline and reports this via the perf AUX interface.
 
+config ARM_DMC620_PMU
+	tristate "Enable PMU support for the ARM DMC-620 memory controller"
+	depends on (ARM64 && ACPI) || COMPILE_TEST
+	help
+	  Support for PMU events monitoring on the ARM DMC-620 memory
+	  controller.
+
 source "drivers/perf/hisilicon/Kconfig"
 
 endmenu

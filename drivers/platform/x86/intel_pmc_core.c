@@ -929,7 +929,7 @@ static void pmc_core_slps0_dbg_latch(struct pmc_dev *pmcdev, bool reset)
 		fd |= CNP_PMC_LATCH_SLPS0_EVENTS;
 	pmc_core_reg_write(pmcdev, map->slps0_dbg_offset, fd);
 
-	slps0_dbg_latch = 0;
+	slps0_dbg_latch = false;
 
 out_unlock:
 	mutex_unlock(&pmcdev->lock);

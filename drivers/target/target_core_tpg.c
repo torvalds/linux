@@ -328,7 +328,7 @@ static void target_shutdown_sessions(struct se_node_acl *acl)
 restart:
 	spin_lock_irqsave(&acl->nacl_sess_lock, flags);
 	list_for_each_entry(sess, &acl->acl_sess_list, sess_acl_list) {
-		if (sess->sess_tearing_down)
+		if (atomic_read(&sess->stopped))
 			continue;
 
 		list_del_init(&sess->sess_acl_list);

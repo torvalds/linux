@@ -479,7 +479,7 @@ static int __maybe_unused cyttsp_suspend(struct device *dev)
 
 	mutex_lock(&ts->input->mutex);
 
-	if (ts->input->users) {
+	if (input_device_enabled(ts->input)) {
 		retval = cyttsp_disable(ts);
 		if (retval == 0)
 			ts->suspended = true;
@@ -496,7 +496,7 @@ static int __maybe_unused cyttsp_resume(struct device *dev)
 
 	mutex_lock(&ts->input->mutex);
 
-	if (ts->input->users)
+	if (input_device_enabled(ts->input))
 		cyttsp_enable(ts);
 
 	ts->suspended = false;

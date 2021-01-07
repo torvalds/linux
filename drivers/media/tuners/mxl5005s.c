@@ -3926,14 +3926,25 @@ static int mxl5005s_reconfigure(struct dvb_frontend *fe, u32 mod_type,
 	u32 bandwidth)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
-
-	u8 AddrTable[MXL5005S_REG_WRITING_TABLE_LEN_MAX];
-	u8 ByteTable[MXL5005S_REG_WRITING_TABLE_LEN_MAX];
+	u8 *AddrTable;
+	u8 *ByteTable;
 	int TableLen;
 
 	dprintk(1, "%s(type=%d, bw=%d)\n", __func__, mod_type, bandwidth);
 
 	mxl5005s_reset(fe);
+
+	AddrTable = kcalloc(MXL5005S_REG_WRITING_TABLE_LEN_MAX, sizeof(u8),
+			    GFP_KERNEL);
+	if (!AddrTable)
+		return -ENOMEM;
+
+	ByteTable = kcalloc(MXL5005S_REG_WRITING_TABLE_LEN_MAX, sizeof(u8),
+			    GFP_KERNEL);
+	if (!ByteTable) {
+		kfree(AddrTable);
+		return -ENOMEM;
+	}
 
 	/* Tuner initialization stage 0 */
 	MXL_GetMasterControl(ByteTable, MC_SYNTH_RESET);
@@ -3948,6 +3959,9 @@ static int mxl5005s_reconfigure(struct dvb_frontend *fe, u32 mod_type,
 	MXL_GetInitRegister(fe, AddrTable, ByteTable, &TableLen);
 
 	mxl5005s_writeregs(fe, AddrTable, ByteTable, TableLen);
+
+	kfree(AddrTable);
+	kfree(ByteTable);
 
 	return 0;
 }

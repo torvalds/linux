@@ -3693,7 +3693,7 @@ static inline int mmio_pm_restore_handler(struct intel_gvt *gvt,
 	struct drm_i915_private *dev_priv = gvt->gt->i915;
 
 	if (gvt->mmio.mmio_attribute[offset >> 2] & F_PM_SAVE)
-		I915_WRITE(_MMIO(offset), vgpu_vreg(vgpu, offset));
+		intel_uncore_write(&dev_priv->uncore, _MMIO(offset), vgpu_vreg(vgpu, offset));
 
 	return 0;
 }

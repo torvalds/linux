@@ -431,7 +431,7 @@ static int at91_rtc_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "%s: SET TIME!\n",
 			 dev_name(&rtc->rtcdev->dev));
 
-	return rtc_register_device(rtc->rtcdev);
+	return devm_rtc_register_device(rtc->rtcdev);
 
 err_clk:
 	clk_disable_unprepare(rtc->sclk);

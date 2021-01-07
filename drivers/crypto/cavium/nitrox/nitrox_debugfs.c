@@ -3,6 +3,7 @@
 #include <linux/debugfs.h>
 
 #include "nitrox_csr.h"
+#include "nitrox_debugfs.h"
 #include "nitrox_dev.h"
 
 static int firmware_show(struct seq_file *s, void *v)

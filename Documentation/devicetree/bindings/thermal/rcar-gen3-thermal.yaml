@@ -26,13 +26,16 @@ properties:
       - renesas,r8a77961-thermal # R-Car M3-W+
       - renesas,r8a77965-thermal # R-Car M3-N
       - renesas,r8a77980-thermal # R-Car V3H
+      - renesas,r8a779a0-thermal # R-Car V3U
+
   reg:
     minItems: 2
-    maxItems: 3
+    maxItems: 4
     items:
       - description: TSC1 registers
       - description: TSC2 registers
       - description: TSC3 registers
+      - description: TSC4 registers
 
   interrupts:
     items:
@@ -55,11 +58,21 @@ properties:
 required:
   - compatible
   - reg
-  - interrupts
   - clocks
   - power-domains
   - resets
   - "#thermal-sensor-cells"
+
+if:
+  not:
+    properties:
+      compatible:
+        contains:
+          enum:
+            - renesas,r8a779a0-thermal
+then:
+  required:
+    - interrupts
 
 additionalProperties: false
 

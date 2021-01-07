@@ -18,12 +18,12 @@
 #define LO_ADDR6 "::1"
 #define CG_NAME "/tcpbpf-hdr-opt-test"
 
-struct bpf_test_option exp_passive_estab_in;
-struct bpf_test_option exp_active_estab_in;
-struct bpf_test_option exp_passive_fin_in;
-struct bpf_test_option exp_active_fin_in;
-struct hdr_stg exp_passive_hdr_stg;
-struct hdr_stg exp_active_hdr_stg = { .active = true, };
+static struct bpf_test_option exp_passive_estab_in;
+static struct bpf_test_option exp_active_estab_in;
+static struct bpf_test_option exp_passive_fin_in;
+static struct bpf_test_option exp_active_fin_in;
+static struct hdr_stg exp_passive_hdr_stg;
+static struct hdr_stg exp_active_hdr_stg = { .active = true, };
 
 static struct test_misc_tcp_hdr_options *misc_skel;
 static struct test_tcp_hdr_options *skel;

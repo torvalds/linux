@@ -358,7 +358,7 @@ static void kmb_i2s_start(struct kmb_i2s_info *kmb_i2s,
 
 	kmb_i2s_irq_trigger(kmb_i2s, substream->stream, config->chan_nr, true);
 
-	if (kmb_i2s->master)
+	if (kmb_i2s->clock_provider)
 		writel(1, kmb_i2s->i2s_base + CER);
 	else
 		writel(0, kmb_i2s->i2s_base + CER);
@@ -393,13 +393,13 @@ static int kmb_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	struct kmb_i2s_info *kmb_i2s = snd_soc_dai_get_drvdata(cpu_dai);
 	int ret;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
-		kmb_i2s->master = false;
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
+		kmb_i2s->clock_provider = false;
 		ret = 0;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
-		writel(MASTER_MODE, kmb_i2s->pss_base + I2S_GEN_CFG_0);
+	case SND_SOC_DAIFMT_CBC_CFC:
+		writel(CLOCK_PROVIDER_MODE, kmb_i2s->pss_base + I2S_GEN_CFG_0);
 
 		ret = clk_prepare_enable(kmb_i2s->clk_i2s);
 		if (ret < 0)
@@ -410,7 +410,7 @@ static int kmb_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		if (ret)
 			return ret;
 
-		kmb_i2s->master = true;
+		kmb_i2s->clock_provider = true;
 		break;
 	default:
 		return -EINVAL;
@@ -510,7 +510,7 @@ static int kmb_dai_hw_params(struct snd_pcm_substream *substream,
 		 * Platform is not capable of providing clocks for
 		 * multi channel audio
 		 */
-		if (kmb_i2s->master)
+		if (kmb_i2s->clock_provider)
 			return -EINVAL;
 
 		write_val = ((config->chan_nr / 2) << TDM_CHANNEL_CONFIG_BIT) |
@@ -524,12 +524,12 @@ static int kmb_dai_hw_params(struct snd_pcm_substream *substream,
 		 * Platform is only capable of providing clocks need for
 		 * 2 channel master mode
 		 */
-		if (!(kmb_i2s->master))
+		if (!(kmb_i2s->clock_provider))
 			return -EINVAL;
 
 		write_val = ((config->chan_nr / 2) << TDM_CHANNEL_CONFIG_BIT) |
 				(config->data_width << DATA_WIDTH_CONFIG_BIT) |
-				MASTER_MODE | I2S_OPERATION;
+				CLOCK_PROVIDER_MODE | I2S_OPERATION;
 
 		writel(write_val, kmb_i2s->pss_base + I2S_GEN_CFG_0);
 		break;
@@ -544,7 +544,7 @@ static int kmb_dai_hw_params(struct snd_pcm_substream *substream,
 
 	config->sample_rate = params_rate(hw_params);
 
-	if (kmb_i2s->master) {
+	if (kmb_i2s->clock_provider) {
 		/* Only 2 ch supported in Master mode */
 		u32 bitclk = config->sample_rate * config->data_width * 2;
 

@@ -19,7 +19,6 @@
 #include <linux/delay.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
-#include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 #include <linux/iopoll.h>
 
@@ -252,7 +251,7 @@ static int cs553x_attach_chip(struct nand_chip *chip)
 	chip->ecc.bytes = 3;
 	chip->ecc.hwctl  = cs_enable_hwecc;
 	chip->ecc.calculate = cs_calculate_ecc;
-	chip->ecc.correct  = nand_correct_data;
+	chip->ecc.correct  = rawnand_sw_hamming_correct;
 	chip->ecc.strength = 1;
 
 	return 0;

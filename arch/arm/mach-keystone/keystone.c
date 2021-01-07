@@ -8,7 +8,7 @@
  */
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/init.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>

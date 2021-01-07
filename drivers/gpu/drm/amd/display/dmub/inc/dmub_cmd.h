@@ -47,10 +47,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x931573111
+#define DMUB_FW_VERSION_GIT_HASH 0xf51b86a
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 45
+#define DMUB_FW_VERSION_REVISION 47
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -514,10 +514,18 @@ enum dp_aux_request_action {
 
 enum aux_return_code_type {
 	AUX_RET_SUCCESS = 0,
+	AUX_RET_ERROR_UNKNOWN,
+	AUX_RET_ERROR_INVALID_REPLY,
 	AUX_RET_ERROR_TIMEOUT,
-	AUX_RET_ERROR_NO_DATA,
+	AUX_RET_ERROR_HPD_DISCON,
+	AUX_RET_ERROR_ENGINE_ACQUIRE,
 	AUX_RET_ERROR_INVALID_OPERATION,
 	AUX_RET_ERROR_PROTOCOL_ERROR,
+};
+
+enum aux_channel_type {
+	AUX_CHANNEL_LEGACY_DDC,
+	AUX_CHANNEL_DPIA
 };
 
 /* DP AUX command */
@@ -532,9 +540,10 @@ struct aux_transaction_parameters {
 
 struct dmub_cmd_dp_aux_control_data {
 	uint32_t handle;
-	uint8_t port_index;
+	uint8_t instance;
 	uint8_t sw_crc_enabled;
 	uint16_t timeout;
+	enum aux_channel_type type;
 	struct aux_transaction_parameters dpaux;
 };
 
@@ -558,7 +567,7 @@ struct aux_reply_data {
 
 struct aux_reply_control_data {
 	uint32_t handle;
-	uint8_t phy_port_index;
+	uint8_t instance;
 	uint8_t result;
 	uint16_t pad;
 };
@@ -581,7 +590,7 @@ enum dp_hpd_status {
 };
 
 struct dp_hpd_data {
-	uint8_t phy_port_index;
+	uint8_t instance;
 	uint8_t hpd_type;
 	uint8_t hpd_status;
 	uint8_t pad;
@@ -732,27 +741,30 @@ enum dmub_cmd_abm_type {
 struct abm_config_table {
 	/* Parameters for crgb conversion */
 	uint16_t crgb_thresh[NUM_POWER_FN_SEGS];                 // 0B
-	uint16_t crgb_offset[NUM_POWER_FN_SEGS];                 // 15B
-	uint16_t crgb_slope[NUM_POWER_FN_SEGS];                  // 31B
+	uint16_t crgb_offset[NUM_POWER_FN_SEGS];                 // 16B
+	uint16_t crgb_slope[NUM_POWER_FN_SEGS];                  // 32B
 
 	/* Parameters for custom curve */
-	uint16_t backlight_thresholds[NUM_BL_CURVE_SEGS];        // 47B
-	uint16_t backlight_offsets[NUM_BL_CURVE_SEGS];           // 79B
+	uint16_t backlight_thresholds[NUM_BL_CURVE_SEGS];        // 48B
+	uint16_t backlight_offsets[NUM_BL_CURVE_SEGS];           // 78B
 
-	uint16_t ambient_thresholds_lux[NUM_AMBI_LEVEL];         // 111B
-	uint16_t min_abm_backlight;                              // 121B
+	uint16_t ambient_thresholds_lux[NUM_AMBI_LEVEL];         // 112B
+	uint16_t min_abm_backlight;                              // 122B
 
-	uint8_t min_reduction[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];   // 123B
-	uint8_t max_reduction[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];   // 143B
-	uint8_t bright_pos_gain[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL]; // 163B
-	uint8_t dark_pos_gain[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];   // 183B
-	uint8_t hybrid_factor[NUM_AGGR_LEVEL];                   // 203B
-	uint8_t contrast_factor[NUM_AGGR_LEVEL];                 // 207B
-	uint8_t deviation_gain[NUM_AGGR_LEVEL];                  // 211B
-	uint8_t min_knee[NUM_AGGR_LEVEL];                        // 215B
-	uint8_t max_knee[NUM_AGGR_LEVEL];                        // 219B
-	uint8_t iir_curve[NUM_AMBI_LEVEL];                       // 223B
-	uint8_t pad3[3];                                         // 228B
+	uint8_t min_reduction[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];   // 124B
+	uint8_t max_reduction[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];   // 144B
+	uint8_t bright_pos_gain[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL]; // 164B
+	uint8_t dark_pos_gain[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];   // 184B
+	uint8_t hybrid_factor[NUM_AGGR_LEVEL];                   // 204B
+	uint8_t contrast_factor[NUM_AGGR_LEVEL];                 // 208B
+	uint8_t deviation_gain[NUM_AGGR_LEVEL];                  // 212B
+	uint8_t min_knee[NUM_AGGR_LEVEL];                        // 216B
+	uint8_t max_knee[NUM_AGGR_LEVEL];                        // 220B
+	uint8_t iir_curve[NUM_AMBI_LEVEL];                       // 224B
+	uint8_t pad3[3];                                         // 229B
+
+	uint16_t blRampReduction[NUM_AGGR_LEVEL];                // 232B
+	uint16_t blRampStart[NUM_AGGR_LEVEL];                    // 240B
 };
 
 struct dmub_cmd_abm_set_pipe_data {

@@ -263,7 +263,7 @@ static ssize_t max_alarm_show(struct device *dev,
 static umode_t abx500_attrs_visible(struct kobject *kobj,
 				   struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct abx500_temp *data = dev_get_drvdata(dev);
 
 	if (data->ops.is_visible)

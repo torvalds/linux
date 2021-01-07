@@ -1709,7 +1709,7 @@ int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
 {
 	struct wilc *wl;
 	struct wilc_vif *vif;
-	int ret;
+	int ret, i;
 
 	wl = wilc_create_wiphy(dev);
 	if (!wl)
@@ -1725,7 +1725,10 @@ int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
 	wl->io_type = io_type;
 	wl->hif_func = ops;
 	wl->chip_ps_state = WILC_CHIP_WAKEDUP;
-	INIT_LIST_HEAD(&wl->txq_head.list);
+
+	for (i = 0; i < NQUEUES; i++)
+		INIT_LIST_HEAD(&wl->txq[i].txq_head.list);
+
 	INIT_LIST_HEAD(&wl->rxq_head.list);
 	INIT_LIST_HEAD(&wl->vif_list);
 
