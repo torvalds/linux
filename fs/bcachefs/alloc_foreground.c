@@ -204,8 +204,11 @@ success:
 static inline unsigned open_buckets_reserved(enum alloc_reserve reserve)
 {
 	switch (reserve) {
-	case RESERVE_MOVINGGC:
+	case RESERVE_BTREE:
+	case RESERVE_BTREE_MOVINGGC:
 		return 0;
+	case RESERVE_MOVINGGC:
+		return OPEN_BUCKETS_COUNT / 4;
 	default:
 		return OPEN_BUCKETS_COUNT / 2;
 	}
@@ -261,6 +264,7 @@ struct open_bucket *bch2_bucket_alloc(struct bch_fs *c, struct bch_dev *ca,
 		goto out;
 
 	switch (reserve) {
+	case RESERVE_BTREE_MOVINGGC:
 	case RESERVE_MOVINGGC:
 		if (fifo_pop(&ca->free[RESERVE_MOVINGGC], bucket))
 			goto out;

@@ -34,9 +34,9 @@ struct bucket_clock {
 	struct mutex		lock;
 };
 
-/* There is one reserve for each type of btree, one for prios and gens
- * and one for moving GC */
 enum alloc_reserve {
+	RESERVE_BTREE_MOVINGGC	= -2,
+	RESERVE_BTREE		= -1,
 	RESERVE_MOVINGGC	= 0,
 	RESERVE_NONE		= 1,
 	RESERVE_NR		= 2,
