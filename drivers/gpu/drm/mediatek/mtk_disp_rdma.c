@@ -68,6 +68,7 @@ struct mtk_disp_rdma {
 	const struct mtk_disp_rdma_data	*data;
 	void				(*vblank_cb)(void *data);
 	void				*vblank_cb_data;
+	u32				fifo_size;
 };
 
 static irqreturn_t mtk_disp_rdma_irq_handler(int irq, void *dev_id)
@@ -148,11 +149,17 @@ void mtk_rdma_config(struct device *dev, unsigned int width,
 	unsigned int threshold;
 	unsigned int reg;
 	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
+	u32 rdma_fifo_size;
 
 	mtk_ddp_write_mask(cmdq_pkt, width, &rdma->cmdq_reg, rdma->regs,
 			   DISP_REG_RDMA_SIZE_CON_0, 0xfff);
 	mtk_ddp_write_mask(cmdq_pkt, height, &rdma->cmdq_reg, rdma->regs,
 			   DISP_REG_RDMA_SIZE_CON_1, 0xfffff);
+
+	if (rdma->fifo_size)
+		rdma_fifo_size = rdma->fifo_size;
+	else
+		rdma_fifo_size = RDMA_FIFO_SIZE(rdma);
 
 	/*
 	 * Enable FIFO underflow since DSI and DPI can't be blocked.
@@ -162,7 +169,7 @@ void mtk_rdma_config(struct device *dev, unsigned int width,
 	 */
 	threshold = width * height * vrefresh * 4 * 7 / 1000000;
 	reg = RDMA_FIFO_UNDERFLOW_EN |
-	      RDMA_FIFO_PSEUDO_SIZE(RDMA_FIFO_SIZE(rdma)) |
+	      RDMA_FIFO_PSEUDO_SIZE(rdma_fifo_size) |
 	      RDMA_OUTPUT_VALID_FIFO_THRESHOLD(threshold);
 	mtk_ddp_write(cmdq_pkt, reg, &rdma->cmdq_reg, rdma->regs, DISP_REG_RDMA_FIFO_CON);
 }
@@ -296,6 +303,16 @@ static int mtk_disp_rdma_probe(struct platform_device *pdev)
 	if (ret)
 		dev_dbg(dev, "get mediatek,gce-client-reg fail!\n");
 #endif
+
+	if (of_find_property(dev->of_node, "mediatek,rdma-fifo-size", &ret)) {
+		ret = of_property_read_u32(dev->of_node,
+					   "mediatek,rdma-fifo-size",
+					   &priv->fifo_size);
+		if (ret) {
+			dev_err(dev, "Failed to get rdma fifo size\n");
+			return ret;
+		}
+	}
 
 	/* Disable and clear pending interrupts */
 	writel(0x0, priv->regs + DISP_REG_RDMA_INT_ENABLE);
