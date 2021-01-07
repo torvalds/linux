@@ -337,29 +337,10 @@ struct amdgpu_display_manager {
 	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
 
 #ifdef CONFIG_DEBUG_FS
-	/**
-	 * @crc_win_x_start_property:
-	 *
-	 * X start of the crc calculation window
-	 */
+	/* set the crc calculation window*/
 	struct drm_property *crc_win_x_start_property;
-	/**
-	 * @crc_win_y_start_property:
-	 *
-	 * Y start of the crc calculation window
-	 */
 	struct drm_property *crc_win_y_start_property;
-	/**
-	 * @crc_win_x_end_property:
-	 *
-	 * X end of the crc calculation window
-	 */
 	struct drm_property *crc_win_x_end_property;
-	/**
-	 * @crc_win_y_end_property:
-	 *
-	 * Y end of the crc calculation window
-	 */
 	struct drm_property *crc_win_y_end_property;
 #endif
 	/**
