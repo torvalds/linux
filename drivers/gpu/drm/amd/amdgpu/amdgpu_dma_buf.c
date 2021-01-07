@@ -269,7 +269,7 @@ static struct sg_table *amdgpu_dma_buf_map(struct dma_buf_attachment *attach,
 	case TTM_PL_TT:
 		sgt = drm_prime_pages_to_sg(obj->dev,
 					    bo->tbo.ttm->pages,
-					    bo->tbo.num_pages);
+					    bo->tbo.ttm->num_pages);
 		if (IS_ERR(sgt))
 			return sgt;
 

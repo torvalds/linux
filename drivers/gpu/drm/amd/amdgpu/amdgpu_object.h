@@ -174,12 +174,12 @@ static inline void amdgpu_bo_unreserve(struct amdgpu_bo *bo)
 
 static inline unsigned long amdgpu_bo_size(struct amdgpu_bo *bo)
 {
-	return bo->tbo.num_pages << PAGE_SHIFT;
+	return bo->tbo.base.size;
 }
 
 static inline unsigned amdgpu_bo_ngpu_pages(struct amdgpu_bo *bo)
 {
-	return (bo->tbo.num_pages << PAGE_SHIFT) / AMDGPU_GPU_PAGE_SIZE;
+	return bo->tbo.base.size / AMDGPU_GPU_PAGE_SIZE;
 }
 
 static inline unsigned amdgpu_bo_gpu_page_alignment(struct amdgpu_bo *bo)

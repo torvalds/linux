@@ -171,7 +171,6 @@ struct ttm_bus_placement {
 struct ttm_resource {
 	void *mm_node;
 	unsigned long start;
-	unsigned long size;
 	unsigned long num_pages;
 	uint32_t page_alignment;
 	uint32_t mem_type;

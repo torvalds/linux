@@ -22,6 +22,7 @@
 
 #include <linux/uaccess.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_color_mgmt.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
@@ -89,9 +90,8 @@
  *	modes) appropriately.
  *
  * There is also support for a legacy gamma table, which is set up by calling
- * drm_mode_crtc_set_gamma_size(). Drivers which support both should use
- * drm_atomic_helper_legacy_gamma_set() to alias the legacy gamma ramp with the
- * "GAMMA_LUT" property above.
+ * drm_mode_crtc_set_gamma_size(). The DRM core will then alias the legacy gamma
+ * ramp with "GAMMA_LUT" or, if that is unavailable, "DEGAMMA_LUT".
  *
  * Support for different non RGB color encodings is controlled through
  * &drm_plane specific COLOR_ENCODING and COLOR_RANGE properties. They
@@ -156,9 +156,6 @@ EXPORT_SYMBOL(drm_color_ctm_s31_32_to_qm_n);
  * optional. The gamma and degamma properties are only attached if
  * their size is not 0 and ctm_property is only attached if has_ctm is
  * true.
- *
- * Drivers should use drm_atomic_helper_legacy_gamma_set() to implement the
- * legacy &drm_crtc_funcs.gamma_set callback.
  */
 void drm_crtc_enable_color_mgmt(struct drm_crtc *crtc,
 				uint degamma_lut_size,
@@ -232,6 +229,116 @@ int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 EXPORT_SYMBOL(drm_mode_crtc_set_gamma_size);
 
 /**
+ * drm_crtc_supports_legacy_gamma - does the crtc support legacy gamma correction table
+ * @crtc: CRTC object
+ *
+ * Returns true/false if the given crtc supports setting the legacy gamma
+ * correction table.
+ */
+static bool drm_crtc_supports_legacy_gamma(struct drm_crtc *crtc)
+{
+	u32 gamma_id = crtc->dev->mode_config.gamma_lut_property->base.id;
+	u32 degamma_id = crtc->dev->mode_config.degamma_lut_property->base.id;
+
+	if (!crtc->gamma_size)
+		return false;
+
+	if (crtc->funcs->gamma_set)
+		return true;
+
+	return !!(drm_mode_obj_find_prop_id(&crtc->base, gamma_id) ||
+		  drm_mode_obj_find_prop_id(&crtc->base, degamma_id));
+}
+
+/**
+ * drm_crtc_legacy_gamma_set - set the legacy gamma correction table
+ * @crtc: CRTC object
+ * @red: red correction table
+ * @green: green correction table
+ * @blue: green correction table
+ * @size: size of the tables
+ * @ctx: lock acquire context
+ *
+ * Implements support for legacy gamma correction table for drivers
+ * that have set drm_crtc_funcs.gamma_set or that support color management
+ * through the DEGAMMA_LUT/GAMMA_LUT properties. See
+ * drm_crtc_enable_color_mgmt() and the containing chapter for
+ * how the atomic color management and gamma tables work.
+ *
+ * This function sets the gamma using drm_crtc_funcs.gamma_set if set, or
+ * alternatively using crtc color management properties.
+ */
+static int drm_crtc_legacy_gamma_set(struct drm_crtc *crtc,
+				     u16 *red, u16 *green, u16 *blue,
+				     u32 size,
+				     struct drm_modeset_acquire_ctx *ctx)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_atomic_state *state;
+	struct drm_crtc_state *crtc_state;
+	struct drm_property_blob *blob;
+	struct drm_color_lut *blob_data;
+	u32 gamma_id = dev->mode_config.gamma_lut_property->base.id;
+	u32 degamma_id = dev->mode_config.degamma_lut_property->base.id;
+	bool use_gamma_lut;
+	int i, ret = 0;
+	bool replaced;
+
+	if (crtc->funcs->gamma_set)
+		return crtc->funcs->gamma_set(crtc, red, green, blue, size, ctx);
+
+	if (drm_mode_obj_find_prop_id(&crtc->base, gamma_id))
+		use_gamma_lut = true;
+	else if (drm_mode_obj_find_prop_id(&crtc->base, degamma_id))
+		use_gamma_lut = false;
+	else
+		return -ENODEV;
+
+	state = drm_atomic_state_alloc(crtc->dev);
+	if (!state)
+		return -ENOMEM;
+
+	blob = drm_property_create_blob(dev,
+					sizeof(struct drm_color_lut) * size,
+					NULL);
+	if (IS_ERR(blob)) {
+		ret = PTR_ERR(blob);
+		blob = NULL;
+		goto fail;
+	}
+
+	/* Prepare GAMMA_LUT with the legacy values. */
+	blob_data = blob->data;
+	for (i = 0; i < size; i++) {
+		blob_data[i].red = red[i];
+		blob_data[i].green = green[i];
+		blob_data[i].blue = blue[i];
+	}
+
+	state->acquire_ctx = ctx;
+	crtc_state = drm_atomic_get_crtc_state(state, crtc);
+	if (IS_ERR(crtc_state)) {
+		ret = PTR_ERR(crtc_state);
+		goto fail;
+	}
+
+	/* Set GAMMA_LUT and reset DEGAMMA_LUT and CTM */
+	replaced = drm_property_replace_blob(&crtc_state->degamma_lut,
+					     use_gamma_lut ? NULL : blob);
+	replaced |= drm_property_replace_blob(&crtc_state->ctm, NULL);
+	replaced |= drm_property_replace_blob(&crtc_state->gamma_lut,
+					      use_gamma_lut ? blob : NULL);
+	crtc_state->color_mgmt_changed |= replaced;
+
+	ret = drm_atomic_commit(state);
+
+fail:
+	drm_atomic_state_put(state);
+	drm_property_blob_put(blob);
+	return ret;
+}
+
+/**
  * drm_mode_gamma_set_ioctl - set the gamma table
  * @dev: DRM device
  * @data: ioctl data
@@ -262,7 +369,7 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 	if (!crtc)
 		return -ENOENT;
 
-	if (crtc->funcs->gamma_set == NULL)
+	if (!drm_crtc_supports_legacy_gamma(crtc))
 		return -ENOSYS;
 
 	/* memcpy into gamma store */
@@ -290,8 +397,8 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 		goto out;
 	}
 
-	ret = crtc->funcs->gamma_set(crtc, r_base, g_base, b_base,
-				     crtc->gamma_size, &ctx);
+	ret = drm_crtc_legacy_gamma_set(crtc, r_base, g_base, b_base,
+					crtc->gamma_size, &ctx);
 
 out:
 	DRM_MODESET_LOCK_ALL_END(dev, ctx, ret);

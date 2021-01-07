@@ -473,10 +473,10 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t domain, bool contig)
 
 	switch (bo->mem.mem_type) {
 	case TTM_PL_VRAM:
-		drm->gem.vram_available -= bo->mem.size;
+		drm->gem.vram_available -= bo->base.size;
 		break;
 	case TTM_PL_TT:
-		drm->gem.gart_available -= bo->mem.size;
+		drm->gem.gart_available -= bo->base.size;
 		break;
 	default:
 		break;
@@ -504,10 +504,10 @@ nouveau_bo_unpin(struct nouveau_bo *nvbo)
 	if (!nvbo->bo.pin_count) {
 		switch (bo->mem.mem_type) {
 		case TTM_PL_VRAM:
-			drm->gem.vram_available += bo->mem.size;
+			drm->gem.vram_available += bo->base.size;
 			break;
 		case TTM_PL_TT:
-			drm->gem.gart_available += bo->mem.size;
+			drm->gem.gart_available += bo->base.size;
 			break;
 		default:
 			break;
@@ -774,7 +774,10 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict,
 			return ret;
 	}
 
-	mutex_lock_nested(&cli->mutex, SINGLE_DEPTH_NESTING);
+	if (drm_drv_uses_atomic_modeset(drm->dev))
+		mutex_lock(&cli->mutex);
+	else
+		mutex_lock_nested(&cli->mutex, SINGLE_DEPTH_NESTING);
 	ret = nouveau_fence_sync(nouveau_bo(bo), chan, true, ctx->interruptible);
 	if (ret == 0) {
 		ret = drm->ttm.move(chan, bo, &bo->mem, new_reg);
@@ -910,7 +913,7 @@ nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_resource *new_reg,
 		return 0;
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_CELSIUS) {
-		*new_tile = nv10_bo_set_tiling(dev, offset, new_reg->size,
+		*new_tile = nv10_bo_set_tiling(dev, offset, bo->base.size,
 					       nvbo->mode, nvbo->zeta);
 	}
 
@@ -1232,9 +1235,8 @@ nouveau_ttm_tt_populate(struct ttm_bo_device *bdev,
 		return 0;
 
 	if (slave && ttm->sg) {
-		/* make userspace faulting work */
-		drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
-						 ttm_dma->dma_address, ttm->num_pages);
+		drm_prime_sg_to_dma_addr_array(ttm->sg, ttm_dma->dma_address,
+					       ttm->num_pages);
 		return 0;
 	}
 

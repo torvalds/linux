@@ -496,6 +496,7 @@ static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring,
 	struct amdgpu_job *job;
 	struct amdgpu_ib *ib;
 	uint64_t addr;
+	void *msg = NULL;
 	int i, r;
 
 	r = amdgpu_job_alloc_with_ib(adev, 64,
@@ -505,6 +506,7 @@ static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring,
 
 	ib = &job->ibs[0];
 	addr = amdgpu_bo_gpu_offset(bo);
+	msg = amdgpu_bo_kptr(bo);
 	ib->ptr[0] = PACKET0(adev->vcn.internal.data0, 0);
 	ib->ptr[1] = addr;
 	ib->ptr[2] = PACKET0(adev->vcn.internal.data1, 0);
@@ -523,7 +525,7 @@ static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring,
 
 	amdgpu_bo_fence(bo, f, false);
 	amdgpu_bo_unreserve(bo);
-	amdgpu_bo_unref(&bo);
+	amdgpu_bo_free_kernel(&bo, NULL, (void **)&msg);
 
 	if (fence)
 		*fence = dma_fence_get(f);
@@ -536,7 +538,7 @@ err_free:
 
 err:
 	amdgpu_bo_unreserve(bo);
-	amdgpu_bo_unref(&bo);
+	amdgpu_bo_free_kernel(&bo, NULL, (void **)&msg);
 	return r;
 }
 
@@ -890,6 +892,7 @@ int amdgpu_vcn_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 error:
 	dma_fence_put(fence);
 	amdgpu_bo_unreserve(bo);
-	amdgpu_bo_unref(&bo);
+	amdgpu_bo_free_kernel(&bo, NULL, NULL);
+
 	return r;
 }

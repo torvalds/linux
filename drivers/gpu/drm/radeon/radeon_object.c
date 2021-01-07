@@ -53,20 +53,19 @@ static void radeon_update_memory_usage(struct radeon_bo *bo,
 				       unsigned mem_type, int sign)
 {
 	struct radeon_device *rdev = bo->rdev;
-	u64 size = (u64)bo->tbo.num_pages << PAGE_SHIFT;
 
 	switch (mem_type) {
 	case TTM_PL_TT:
 		if (sign > 0)
-			atomic64_add(size, &rdev->gtt_usage);
+			atomic64_add(bo->tbo.base.size, &rdev->gtt_usage);
 		else
-			atomic64_sub(size, &rdev->gtt_usage);
+			atomic64_sub(bo->tbo.base.size, &rdev->gtt_usage);
 		break;
 	case TTM_PL_VRAM:
 		if (sign > 0)
-			atomic64_add(size, &rdev->vram_usage);
+			atomic64_add(bo->tbo.base.size, &rdev->vram_usage);
 		else
-			atomic64_sub(size, &rdev->vram_usage);
+			atomic64_sub(bo->tbo.base.size, &rdev->vram_usage);
 		break;
 	}
 }
@@ -255,7 +254,7 @@ int radeon_bo_kmap(struct radeon_bo *bo, void **ptr)
 		}
 		return 0;
 	}
-	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.num_pages, &bo->kmap);
+	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.mem.num_pages, &bo->kmap);
 	if (r) {
 		return r;
 	}
@@ -609,7 +608,7 @@ int radeon_bo_get_surface_reg(struct radeon_bo *bo)
 out:
 	radeon_set_surface_reg(rdev, i, bo->tiling_flags, bo->pitch,
 			       bo->tbo.mem.start << PAGE_SHIFT,
-			       bo->tbo.num_pages << PAGE_SHIFT);
+			       bo->tbo.base.size);
 	return 0;
 }
 

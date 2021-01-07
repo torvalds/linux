@@ -4155,8 +4155,8 @@ bool amdgpu_device_has_job_running(struct amdgpu_device *adev)
 			continue;
 
 		spin_lock(&ring->sched.job_list_lock);
-		job = list_first_entry_or_null(&ring->sched.ring_mirror_list,
-				struct drm_sched_job, node);
+		job = list_first_entry_or_null(&ring->sched.pending_list,
+					       struct drm_sched_job, list);
 		spin_unlock(&ring->sched.job_list_lock);
 		if (job)
 			return true;

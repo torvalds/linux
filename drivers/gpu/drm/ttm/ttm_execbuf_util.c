@@ -55,7 +55,7 @@ void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
 	list_for_each_entry(entry, list, head) {
 		struct ttm_buffer_object *bo = entry->bo;
 
-		ttm_bo_move_to_lru_tail(bo, NULL);
+		ttm_bo_move_to_lru_tail(bo, &bo->mem, NULL);
 		dma_resv_unlock(bo->base.resv);
 	}
 	spin_unlock(&ttm_bo_glob.lru_lock);
@@ -162,7 +162,7 @@ void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
 			dma_resv_add_shared_fence(bo->base.resv, fence);
 		else
 			dma_resv_add_excl_fence(bo->base.resv, fence);
-		ttm_bo_move_to_lru_tail(bo, NULL);
+		ttm_bo_move_to_lru_tail(bo, &bo->mem, NULL);
 		dma_resv_unlock(bo->base.resv);
 	}
 	spin_unlock(&ttm_bo_glob.lru_lock);

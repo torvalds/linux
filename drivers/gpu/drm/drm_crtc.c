@@ -67,7 +67,7 @@
  * &drm_crtc_funcs.page_flip and &drm_crtc_funcs.cursor_set2, and other legacy
  * operations like &drm_crtc_funcs.gamma_set. For atomic drivers all these
  * features are controlled through &drm_property and
- * &drm_mode_config_funcs.atomic_check and &drm_mode_config_funcs.atomic_check.
+ * &drm_mode_config_funcs.atomic_check.
  */
 
 /**
@@ -255,6 +255,9 @@ struct dma_fence *drm_crtc_create_fence(struct drm_crtc *crtc)
  * for backwards compatibility with drivers which do not yet support universal
  * planes). For really simple hardware which has only 1 plane look at
  * drm_simple_display_pipe_init() instead.
+ *
+ * The @primary and @cursor planes are only relevant for legacy uAPI, see
+ * &drm_crtc.primary and &drm_crtc.cursor.
  *
  * Returns:
  * Zero on success, error code on failure.

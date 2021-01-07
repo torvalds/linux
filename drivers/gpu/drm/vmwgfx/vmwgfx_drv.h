@@ -39,7 +39,6 @@
 
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_execbuf_util.h>
-#include <drm/ttm/ttm_module.h>
 
 #include "ttm_lock.h"
 #include "ttm_object.h"

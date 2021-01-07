@@ -1220,7 +1220,7 @@ static int vmw_kms_new_framebuffer_bo(struct vmw_private *dev_priv,
 	int ret;
 
 	requested_size = mode_cmd->height * mode_cmd->pitches[0];
-	if (unlikely(requested_size > bo->base.num_pages * PAGE_SIZE)) {
+	if (unlikely(requested_size > bo->base.base.size)) {
 		DRM_ERROR("Screen buffer object size is too small "
 			  "for requested mode.\n");
 		return -EINVAL;

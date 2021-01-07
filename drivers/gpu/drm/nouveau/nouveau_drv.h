@@ -55,7 +55,6 @@
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_memory.h>
-#include <drm/ttm/ttm_module.h>
 
 #include <drm/drm_audio_component.h>
 
