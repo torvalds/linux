@@ -926,6 +926,7 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 				       struct drm_file *file_priv,
 				       const struct drm_mode_fb_cmd2 *mode_cmd)
 {
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct drm_gem_object *obj;
 	struct amdgpu_framebuffer *amdgpu_fb;
 	int ret;

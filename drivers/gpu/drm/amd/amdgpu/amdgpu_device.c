@@ -1427,9 +1427,9 @@ static void amdgpu_switcheroo_set_state(struct pci_dev *pdev,
 		/* don't suspend or resume card normally */
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 
-		pci_set_power_state(dev->pdev, PCI_D0);
-		amdgpu_device_load_pci_state(dev->pdev);
-		r = pci_enable_device(dev->pdev);
+		pci_set_power_state(pdev, PCI_D0);
+		amdgpu_device_load_pci_state(pdev);
+		r = pci_enable_device(pdev);
 		if (r)
 			DRM_WARN("pci_enable_device failed (%d)\n", r);
 		amdgpu_device_resume(dev, true);
@@ -1441,10 +1441,10 @@ static void amdgpu_switcheroo_set_state(struct pci_dev *pdev,
 		drm_kms_helper_poll_disable(dev);
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		amdgpu_device_suspend(dev, true);
-		amdgpu_device_cache_pci_state(dev->pdev);
+		amdgpu_device_cache_pci_state(pdev);
 		/* Shut down the device */
-		pci_disable_device(dev->pdev);
-		pci_set_power_state(dev->pdev, PCI_D3cold);
+		pci_disable_device(pdev);
+		pci_set_power_state(pdev, PCI_D3cold);
 		dev->switch_power_state = DRM_SWITCH_POWER_OFF;
 	}
 }
@@ -1707,8 +1707,7 @@ static void amdgpu_device_enable_virtual_display(struct amdgpu_device *adev)
 	adev->enable_virtual_display = false;
 
 	if (amdgpu_virtual_display) {
-		struct drm_device *ddev = adev_to_drm(adev);
-		const char *pci_address_name = pci_name(ddev->pdev);
+		const char *pci_address_name = pci_name(adev->pdev);
 		char *pciaddstr, *pciaddstr_tmp, *pciaddname_tmp, *pciaddname;
 
 		pciaddstr = kstrdup(amdgpu_virtual_display, GFP_KERNEL);
@@ -3401,7 +3400,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		}
 	}
 
-	pci_enable_pcie_error_reporting(adev->ddev.pdev);
+	pci_enable_pcie_error_reporting(adev->pdev);
 
 	/* Post card if necessary */
 	if (amdgpu_device_need_post(adev)) {
