@@ -239,16 +239,6 @@ struct intel_engine_execlists {
 	unsigned int port_mask;
 
 	/**
-	 * @switch_priority_hint: Second context priority.
-	 *
-	 * We submit multiple contexts to the HW simultaneously and would
-	 * like to occasionally switch between them to emulate timeslicing.
-	 * To know when timeslicing is suitable, we track the priority of
-	 * the context submitted second.
-	 */
-	int switch_priority_hint;
-
-	/**
 	 * @queue_priority_hint: Highest pending priority.
 	 *
 	 * When we add requests into the queue, or adjust the priority of
