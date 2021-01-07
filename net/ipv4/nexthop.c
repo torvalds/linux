@@ -627,7 +627,7 @@ static int nh_check_attr_group(struct net *net, struct nlattr *tb[],
 	for (i = NHA_GROUP_TYPE + 1; i < __NHA_MAX; ++i) {
 		if (!tb[i])
 			continue;
-		if (tb[NHA_FDB])
+		if (i == NHA_FDB)
 			continue;
 		NL_SET_ERR_MSG(extack,
 			       "No other attributes can be set in nexthop groups");
