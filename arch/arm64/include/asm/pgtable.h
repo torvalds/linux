@@ -530,6 +530,13 @@ extern pgd_t tramp_pg_dir[PTRS_PER_PGD];
 
 extern void set_swapper_pgd(pgd_t *pgdp, pgd_t pgd);
 
+#ifdef CONFIG_MEMORY_HOTPLUG
+extern int populate_range_driver_managed(u64 start, u64 size,
+		const char *resource_name);
+extern int depopulate_range_driver_managed(u64 start, u64 size,
+		const char *resource_name);
+#endif
+
 static inline bool in_swapper_pgdir(void *addr)
 {
 	return ((unsigned long)addr & PAGE_MASK) ==
