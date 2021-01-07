@@ -3829,14 +3829,6 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 	}
 	mr->qplib_mr.total_size = length;
 
-	if (page_size == BNXT_RE_PAGE_SIZE_4K &&
-	    length > BNXT_RE_MAX_MR_SIZE_LOW) {
-		ibdev_err(&rdev->ibdev, "Requested MR Sz:%llu Max sup:%llu",
-			  length, (u64)BNXT_RE_MAX_MR_SIZE_LOW);
-		rc = -EINVAL;
-		goto free_umem;
-	}
-
 	umem_pgs = ib_umem_num_dma_blocks(umem, page_size);
 	rc = bnxt_qplib_reg_mr(&rdev->qplib_res, &mr->qplib_mr, umem,
 			       umem_pgs, page_size);

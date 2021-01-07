@@ -658,24 +658,14 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 	struct creq_register_mr_resp resp;
 	struct cmdq_register_mr req;
 	u16 cmd_flags = 0, level;
-	int pages, rc, pg_ptrs;
+	int pages, rc;
 	u32 pg_size;
 
 	if (num_pbls) {
+		pages = roundup_pow_of_two(num_pbls);
 		/* Allocate memory for the non-leaf pages to store buf ptrs.
 		 * Non-leaf pages always uses system PAGE_SIZE
 		 */
-		pg_ptrs = roundup_pow_of_two(num_pbls);
-		pages = pg_ptrs >> MAX_PBL_LVL_1_PGS_SHIFT;
-		if (!pages)
-			pages++;
-
-		if (pages > MAX_PBL_LVL_1_PGS) {
-			dev_err(&res->pdev->dev,
-				"SP: Reg MR: pages requested (0x%x) exceeded max (0x%x)\n",
-				pages, MAX_PBL_LVL_1_PGS);
-			return -ENOMEM;
-		}
 		/* Free the hwq if it already exist, must be a rereg */
 		if (mr->hwq.max_elements)
 			bnxt_qplib_free_hwq(res, &mr->hwq);
