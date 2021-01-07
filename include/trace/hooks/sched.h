@@ -182,6 +182,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_place_entity,
 	TP_PROTO(struct sched_entity *se, u64 *vruntime),
 	TP_ARGS(se, vruntime), 1);
 
+DECLARE_RESTRICTED_HOOK(android_rvh_build_perf_domains,
+	TP_PROTO(bool *eas_check),
+	TP_ARGS(eas_check), 1);
+
 DECLARE_RESTRICTED_HOOK(android_rvh_update_cpu_capacity,
 	TP_PROTO(int cpu, unsigned long *capacity),
 	TP_ARGS(cpu, capacity), 1);
@@ -239,6 +243,7 @@ DECLARE_RESTRICTED_HOOK(android_rvh_cpu_cgroup_can_attach,
 #define trace_android_rvh_sched_cpu_dying(cpu)
 #define trace_android_rvh_account_irq(curr, cpu, delta)
 #define trace_android_rvh_place_entity(se, vruntime)
+#define trace_android_rvh_build_perf_domains(eas_check)
 #define trace_android_rvh_update_cpu_capacity(cpu, capacity)
 #define trace_android_rvh_update_misfit_status(p, rq, need_update)
 #define trace_android_rvh_cpu_cgroup_attach(tset)
