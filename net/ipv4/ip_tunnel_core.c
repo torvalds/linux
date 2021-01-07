@@ -222,7 +222,7 @@ static int iptunnel_pmtud_build_icmp(struct sk_buff *skb, int mtu)
 		.code			= ICMP_FRAG_NEEDED,
 		.checksum		= 0,
 		.un.frag.__unused	= 0,
-		.un.frag.mtu		= ntohs(mtu),
+		.un.frag.mtu		= htons(mtu),
 	};
 	icmph->checksum = ip_compute_csum(icmph, len);
 	skb_reset_transport_header(skb);
@@ -245,7 +245,7 @@ static int iptunnel_pmtud_build_icmp(struct sk_buff *skb, int mtu)
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-	eth_header(skb, skb->dev, htons(eh.h_proto), eh.h_source, eh.h_dest, 0);
+	eth_header(skb, skb->dev, ntohs(eh.h_proto), eh.h_source, eh.h_dest, 0);
 	skb_reset_mac_header(skb);
 
 	return skb->len;
@@ -338,7 +338,7 @@ static int iptunnel_pmtud_build_icmpv6(struct sk_buff *skb, int mtu)
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-	eth_header(skb, skb->dev, htons(eh.h_proto), eh.h_source, eh.h_dest, 0);
+	eth_header(skb, skb->dev, ntohs(eh.h_proto), eh.h_source, eh.h_dest, 0);
 	skb_reset_mac_header(skb);
 
 	return skb->len;
@@ -583,8 +583,9 @@ static int ip_tun_parse_opts_erspan(struct nlattr *attr,
 static int ip_tun_parse_opts(struct nlattr *attr, struct ip_tunnel_info *info,
 			     struct netlink_ext_ack *extack)
 {
-	int err, rem, opt_len, opts_len = 0, type = 0;
+	int err, rem, opt_len, opts_len = 0;
 	struct nlattr *nla;
+	__be16 type = 0;
 
 	if (!attr)
 		return 0;
