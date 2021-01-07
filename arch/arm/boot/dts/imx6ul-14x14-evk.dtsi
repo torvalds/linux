@@ -175,6 +175,10 @@
 			micrel,led-mode = <1>;
 			clocks = <&clks IMX6UL_CLK_ENET_REF>;
 			clock-names = "rmii-ref";
+			reset-gpios = <&gpio_spi 1 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <10000>;
+			reset-deassert-us = <100>;
+
 		};
 
 		ethphy1: ethernet-phy@1 {
@@ -183,6 +187,9 @@
 			micrel,led-mode = <1>;
 			clocks = <&clks IMX6UL_CLK_ENET2_REF>;
 			clock-names = "rmii-ref";
+			reset-gpios = <&gpio_spi 2 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <10000>;
+			reset-deassert-us = <100>;
 		};
 	};
 };
