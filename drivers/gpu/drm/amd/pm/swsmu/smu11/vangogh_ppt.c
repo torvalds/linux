@@ -34,6 +34,7 @@
 #include "soc15_common.h"
 #include "asic_reg/gc/gc_10_3_0_offset.h"
 #include "asic_reg/gc/gc_10_3_0_sh_mask.h"
+#include <asm/processor.h>
 
 /*
  * DO NOT use these for err/warn/info/debug messages.
@@ -293,6 +294,10 @@ static int vangogh_get_smu_metrics_data(struct smu_context *smu,
 		break;
 	case METRICS_VOLTAGE_VDDSOC:
 		*value = metrics->Voltage[1];
+		break;
+	case METRICS_AVERAGE_CPUCLK:
+		memcpy(value, &metrics->CoreFrequency[0],
+		       boot_cpu_data.x86_max_cores * sizeof(uint16_t));
 		break;
 	default:
 		*value = UINT_MAX;
@@ -1253,6 +1258,12 @@ static int vangogh_read_sensor(struct smu_context *smu,
 						   METRICS_VOLTAGE_VDDSOC,
 						   (uint32_t *)data);
 		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_CPU_CLK:
+		ret = vangogh_get_smu_metrics_data(smu,
+						   METRICS_AVERAGE_CPUCLK,
+						   (uint32_t *)data);
+		*size = boot_cpu_data.x86_max_cores * sizeof(uint16_t);
 		break;
 	default:
 		ret = -EOPNOTSUPP;

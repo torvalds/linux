@@ -36,6 +36,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/nospec.h>
 #include <linux/pm_runtime.h>
+#include <asm/processor.h>
 #include "hwmgr.h"
 
 static const struct cg_flag_name clocks[] = {
@@ -3622,6 +3623,27 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
  */
 #if defined(CONFIG_DEBUG_FS)
 
+static void amdgpu_debugfs_prints_cpu_info(struct seq_file *m,
+					   struct amdgpu_device *adev) {
+	uint16_t *p_val;
+	uint32_t size;
+	int i;
+
+	if (is_support_cclk_dpm(adev)) {
+		p_val = kcalloc(boot_cpu_data.x86_max_cores, sizeof(uint16_t),
+				GFP_KERNEL);
+
+		if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_CPU_CLK,
+					    (void *)p_val, &size)) {
+			for (i = 0; i < boot_cpu_data.x86_max_cores; i++)
+				seq_printf(m, "\t%u MHz (CPU%d)\n",
+					   *(p_val + i), i);
+		}
+
+		kfree(p_val);
+	}
+}
+
 static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *adev)
 {
 	uint32_t value;
@@ -3632,6 +3654,9 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 	/* GPU Clocks */
 	size = sizeof(value);
 	seq_printf(m, "GFX Clocks and Power:\n");
+
+	amdgpu_debugfs_prints_cpu_info(m, adev);
+
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GFX_MCLK, (void *)&value, &size))
 		seq_printf(m, "\t%u MHz (MCLK)\n", value/100);
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GFX_SCLK, (void *)&value, &size))

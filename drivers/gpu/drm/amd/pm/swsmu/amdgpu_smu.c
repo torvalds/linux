@@ -288,6 +288,20 @@ bool is_support_sw_smu(struct amdgpu_device *adev)
 	return false;
 }
 
+bool is_support_cclk_dpm(struct amdgpu_device *adev)
+{
+	struct smu_context *smu = &adev->smu;
+
+	if (!is_support_sw_smu(adev))
+		return false;
+
+	if (!smu_feature_is_enabled(smu, SMU_FEATURE_CCLK_DPM_BIT))
+		return false;
+
+	return true;
+}
+
+
 int smu_sys_get_pp_table(struct smu_context *smu, void **table)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
