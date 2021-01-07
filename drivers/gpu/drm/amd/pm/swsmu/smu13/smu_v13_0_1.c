@@ -129,3 +129,26 @@ int smu_v13_0_1_set_default_dpm_tables(struct smu_context *smu)
 	return smu_cmn_update_table(smu, SMU_TABLE_DPMCLOCKS, 0, smu_table->clocks_table, false);
 }
 
+int smu_v13_0_1_set_driver_table_location(struct smu_context *smu)
+{
+	struct smu_table *driver_table = &smu->smu_table.driver_table;
+	int ret = 0;
+
+	if (!driver_table->mc_address)
+		return 0;
+
+	ret = smu_cmn_send_smc_msg_with_param(smu,
+			SMU_MSG_SetDriverDramAddrHigh,
+			upper_32_bits(driver_table->mc_address),
+			NULL);
+
+	if (ret)
+		return ret;
+
+	ret = smu_cmn_send_smc_msg_with_param(smu,
+			SMU_MSG_SetDriverDramAddrLow,
+			lower_32_bits(driver_table->mc_address),
+			NULL);
+
+	return ret;
+}

@@ -48,5 +48,6 @@ int smu_v13_0_1_fini_smc_tables(struct smu_context *smu);
 
 int smu_v13_0_1_set_default_dpm_tables(struct smu_context *smu);
 
+int smu_v13_0_1_set_driver_table_location(struct smu_context *smu);
 #endif
 #endif

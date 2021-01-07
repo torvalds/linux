@@ -151,6 +151,7 @@ static const struct pptable_funcs yellow_carp_ppt_funcs = {
 	.is_dpm_running = yellow_carp_is_dpm_running,
 	.get_enabled_mask = smu_cmn_get_enabled_32_bits_mask,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
+	.set_driver_table_location = smu_v13_0_1_set_driver_table_location,
 };
 
 void yellow_carp_set_ppt_funcs(struct smu_context *smu)
