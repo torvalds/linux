@@ -6954,7 +6954,7 @@ M:	Wu Hao <hao.wu@intel.com>
 R:	Tom Rix <trix@redhat.com>
 L:	linux-fpga@vger.kernel.org
 S:	Maintained
-F:	Documentation/ABI/testing/sysfs-bus-dfl
+F:	Documentation/ABI/testing/sysfs-bus-dfl*
 F:	Documentation/fpga/dfl.rst
 F:	drivers/fpga/dfl*
 F:	include/linux/dfl.h
