@@ -171,9 +171,11 @@ void dcn21_set_abm_immediate_disable(struct pipe_ctx *pipe_ctx)
 		return;
 	}
 
-	if (abm && panel_cntl)
+	if (abm && panel_cntl) {
 		dmub_abm_set_pipe(abm, otg_inst, SET_ABM_PIPE_IMMEDIATELY_DISABLE,
 				panel_cntl->inst);
+		panel_cntl->funcs->store_backlight_level(panel_cntl);
+	}
 }
 
 void dcn21_set_pipe(struct pipe_ctx *pipe_ctx)
@@ -221,5 +223,20 @@ bool dcn21_set_backlight_level(struct pipe_ctx *pipe_ctx,
 	dc_dmub_srv_wait_idle(dc->dmub_srv);
 
 	return true;
+}
+
+bool dcn21_is_abm_supported(struct dc *dc,
+		struct dc_state *context, struct dc_stream_state *stream)
+{
+	int i;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe_ctx->stream == stream &&
+				(pipe_ctx->prev_odm_pipe == NULL && pipe_ctx->next_odm_pipe == NULL))
+			return true;
+	}
+	return false;
 }
 

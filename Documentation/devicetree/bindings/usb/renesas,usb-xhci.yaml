@@ -51,7 +51,6 @@ properties:
     maxItems: 1
 
   phy-names:
-    maxItems: 1
     items:
       - const: usb
 

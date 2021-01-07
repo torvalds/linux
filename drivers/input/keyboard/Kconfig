@@ -457,7 +457,7 @@ config KEYBOARD_SNVS_PWRKEY
 
 config KEYBOARD_IMX
 	tristate "IMX keypad support"
-	depends on ARCH_MXC
+	depends on ARCH_MXC || COMPILE_TEST
 	select INPUT_MATRIXKMAP
 	help
 	  Enable support for IMX keypad port.

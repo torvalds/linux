@@ -378,8 +378,8 @@ struct ps3_system_bus_driver {
 	enum ps3_match_sub_id match_sub_id;
 	struct device_driver core;
 	int (*probe)(struct ps3_system_bus_device *);
-	int (*remove)(struct ps3_system_bus_device *);
-	int (*shutdown)(struct ps3_system_bus_device *);
+	void (*remove)(struct ps3_system_bus_device *);
+	void (*shutdown)(struct ps3_system_bus_device *);
 /*	int (*suspend)(struct ps3_system_bus_device *, pm_message_t); */
 /*	int (*resume)(struct ps3_system_bus_device *); */
 };

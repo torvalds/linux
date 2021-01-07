@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/**
+/*
  * net/tipc/crypto.h: Include file for TIPC crypto
  *
  * Copyright (c) 2019, Ericsson AB
@@ -53,7 +53,7 @@
 #define TIPC_AES_GCM_IV_SIZE		12
 #define TIPC_AES_GCM_TAG_SIZE		16
 
-/**
+/*
  * TIPC crypto modes:
  * - CLUSTER_KEY:
  *	One single key is used for both TX & RX in all nodes in the cluster.
@@ -69,7 +69,7 @@ enum {
 extern int sysctl_tipc_max_tfms __read_mostly;
 extern int sysctl_tipc_key_exchange_enabled __read_mostly;
 
-/**
+/*
  * TIPC encryption message format:
  *
  *     3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0

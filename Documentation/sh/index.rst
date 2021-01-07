@@ -11,6 +11,8 @@ SuperH Interfaces Guide
     new-machine
     register-banks
 
+    features
+
 Memory Management
 =================
 

@@ -69,7 +69,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 
 	evlist = evlist__new();
 	if (evlist == NULL) {
-		pr_debug("perf_evlist__new\n");
+		pr_debug("evlist__new\n");
 		goto out_free_cpus;
 	}
 
@@ -126,14 +126,14 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 			goto out_delete_evlist;
 		}
 
-		err = perf_evlist__parse_sample(evlist, event, &sample);
+		err = evlist__parse_sample(evlist, event, &sample);
 		if (err) {
 			pr_err("Can't parse sample, err = %d\n", err);
 			goto out_delete_evlist;
 		}
 
 		err = -1;
-		evsel = perf_evlist__id2evsel(evlist, sample.id);
+		evsel = evlist__id2evsel(evlist, sample.id);
 		if (evsel == NULL) {
 			pr_debug("event with id %" PRIu64
 				 " doesn't map to an evsel\n", sample.id);

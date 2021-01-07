@@ -308,14 +308,15 @@ static struct lock_class_key dsa_master_addr_list_lock_key;
 
 int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 {
+	int mtu = ETH_DATA_LEN + cpu_dp->tag_ops->overhead;
 	int ret;
 
 	rtnl_lock();
-	ret = dev_set_mtu(dev, ETH_DATA_LEN + cpu_dp->tag_ops->overhead);
+	ret = dev_set_mtu(dev, mtu);
 	rtnl_unlock();
 	if (ret)
-		netdev_warn(dev, "error %d setting MTU to include DSA overhead\n",
-			    ret);
+		netdev_warn(dev, "error %d setting MTU to %d to include DSA overhead\n",
+			    ret, mtu);
 
 	/* If we use a tagging format that doesn't have an ethertype
 	 * field, make sure that all packets from this point on get

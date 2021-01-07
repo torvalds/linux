@@ -10,6 +10,8 @@ PA-RISC Architecture
    debugging
    registers
 
+   features
+
 .. only::  subproject and html
 
    Indices

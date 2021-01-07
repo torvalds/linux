@@ -65,6 +65,7 @@ struct brcm_sata_port {
 	bool ssc_en;
 	enum brcm_sata_phy_rxaeq_mode rxaeq_mode;
 	u32 rxaeq_val;
+	u32 tx_amplitude_val;
 };
 
 struct brcm_sata_phy {
@@ -83,6 +84,10 @@ enum sata_phy_regs {
 	BLOCK0_SPARE				= 0x8d,
 	BLOCK0_SPARE_OOB_CLK_SEL_MASK		= 0x3,
 	BLOCK0_SPARE_OOB_CLK_SEL_REFBY2		= 0x1,
+
+	BLOCK1_REG_BANK				= 0x10,
+	BLOCK1_TEST_TX				= 0x83,
+	BLOCK1_TEST_TX_AMP_SHIFT		= 12,
 
 	PLL_REG_BANK_0				= 0x050,
 	PLL_REG_BANK_0_PLLCONTROL_0		= 0x81,
@@ -378,6 +383,29 @@ static int brcm_stb_sata_16nm_ssc_init(struct brcm_sata_port *port)
 		value = 0;
 	brcm_sata_phy_wr(port, RXPMD_REG_BANK, RXPMD_RX_FREQ_MON_CONTROL1,
 			 ~tmp, RXPMD_MON_CORRECT_EN | value);
+
+	tmp = GENMASK(15, 12);
+	switch (port->tx_amplitude_val) {
+	case 400:
+		value = BIT(12) | BIT(13);
+		break;
+	case 500:
+		value = BIT(13);
+		break;
+	case 600:
+		value = BIT(12);
+		break;
+	case 800:
+		value = 0;
+		break;
+	default:
+		value = tmp;
+		break;
+	}
+
+	if (value != tmp)
+		brcm_sata_phy_wr(port, BLOCK1_REG_BANK, BLOCK1_TEST_TX, ~tmp,
+				 value);
 
 	/* Turn on/off SSC */
 	brcm_sata_phy_wr(port, TX_REG_BANK, TX_ACTRL5, ~TX_ACTRL5_SSC_EN,
@@ -726,7 +754,6 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 	struct device_node *dn = dev->of_node, *child;
 	const struct of_device_id *of_id;
 	struct brcm_sata_phy *priv;
-	struct resource *res;
 	struct phy_provider *provider;
 	int ret, count = 0;
 
@@ -739,8 +766,7 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, priv);
 	priv->dev = dev;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
-	priv->phy_base = devm_ioremap_resource(dev, res);
+	priv->phy_base = devm_platform_ioremap_resource_byname(pdev, "phy");
 	if (IS_ERR(priv->phy_base))
 		return PTR_ERR(priv->phy_base);
 
@@ -751,9 +777,7 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 		priv->version = BRCM_SATA_PHY_STB_28NM;
 
 	if (priv->version == BRCM_SATA_PHY_IPROC_NS2) {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						   "phy-ctrl");
-		priv->ctrl_base = devm_ioremap_resource(dev, res);
+		priv->ctrl_base = devm_platform_ioremap_resource_byname(pdev, "phy-ctrl");
 		if (IS_ERR(priv->ctrl_base))
 			return PTR_ERR(priv->ctrl_base);
 	}
@@ -791,6 +815,10 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 		if (port->rxaeq_mode == RXAEQ_MODE_MANUAL)
 			of_property_read_u32(child, "brcm,rxaeq-value",
 					     &port->rxaeq_val);
+
+		of_property_read_u32(child, "brcm,tx-amplitude-millivolt",
+				     &port->tx_amplitude_val);
+
 		port->ssc_en = of_property_read_bool(child, "brcm,enable-ssc");
 		if (IS_ERR(port->phy)) {
 			dev_err(dev, "failed to create PHY\n");

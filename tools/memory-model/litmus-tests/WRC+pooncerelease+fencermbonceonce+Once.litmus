@@ -10,7 +10,10 @@ C WRC+pooncerelease+fencermbonceonce+Once
  * is A-cumulative in LKMM.
  *)
 
-{}
+{
+	int x;
+	int y;
+}
 
 P0(int *x)
 {

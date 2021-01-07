@@ -2909,7 +2909,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 };
 
 static const struct pinmux_bias_reg pinmux_bias_regs[] = {
-	{ PINMUX_BIAS_REG("PUPR0", 0x100, "N/A", 0) {
+	{ PINMUX_BIAS_REG("PUPR0", 0xfffc0100, "N/A", 0) {
 		[ 0] = RCAR_GP_PIN(0,  6),	/* A0 */
 		[ 1] = RCAR_GP_PIN(0,  7),	/* A1 */
 		[ 2] = RCAR_GP_PIN(0,  8),	/* A2 */
@@ -2943,7 +2943,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[30] = RCAR_GP_PIN(1,  7),	/* /EX_CS4 */
 		[31] = RCAR_GP_PIN(1,  8),	/* /EX_CS5 */
 	} },
-	{ PINMUX_BIAS_REG("PUPR1", 0x104, "N/A", 0) {
+	{ PINMUX_BIAS_REG("PUPR1", 0xfffc0104, "N/A", 0) {
 		[ 0] = RCAR_GP_PIN(0,  0),	/* /PRESETOUT	*/
 		[ 1] = RCAR_GP_PIN(0,  5),	/* /BS		*/
 		[ 2] = RCAR_GP_PIN(1,  0),	/* RD//WR	*/
@@ -2977,7 +2977,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[30] = SH_PFC_PIN_NONE,
 		[31] = SH_PFC_PIN_NONE,
 	} },
-	{ PINMUX_BIAS_REG("PUPR2", 0x108, "N/A", 0) {
+	{ PINMUX_BIAS_REG("PUPR2", 0xfffc0108, "N/A", 0) {
 		[ 0] = RCAR_GP_PIN(1, 22),	/* DU0_DR0	*/
 		[ 1] = RCAR_GP_PIN(1, 23),	/* DU0_DR1	*/
 		[ 2] = RCAR_GP_PIN(1, 24),	/* DU0_DR2	*/
@@ -3011,7 +3011,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[30] = RCAR_GP_PIN(2, 21),	/* DU0_CDE	*/
 		[31] = RCAR_GP_PIN(2, 16),	/* DU0_DOTCLKOUT1 */
 	} },
-	{ PINMUX_BIAS_REG("PUPR3", 0x10c, "N/A", 0) {
+	{ PINMUX_BIAS_REG("PUPR3", 0xfffc010c, "N/A", 0) {
 		[ 0] = RCAR_GP_PIN(3, 24),	/* VI0_CLK	*/
 		[ 1] = RCAR_GP_PIN(3, 25),	/* VI0_CLKENB	*/
 		[ 2] = RCAR_GP_PIN(3, 26),	/* VI0_FIELD	*/
@@ -3045,7 +3045,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[30] = RCAR_GP_PIN(4, 18),	/* ETH_MDIO	*/
 		[31] = RCAR_GP_PIN(4, 19),	/* ETH_LINK	*/
 	} },
-	{ PINMUX_BIAS_REG("PUPR4", 0x110, "N/A", 0) {
+	{ PINMUX_BIAS_REG("PUPR4", 0xfffc0110, "N/A", 0) {
 		[ 0] = RCAR_GP_PIN(3,  6),	/* SSI_SCK012	*/
 		[ 1] = RCAR_GP_PIN(3,  7),	/* SSI_WS012	*/
 		[ 2] = RCAR_GP_PIN(3, 10),	/* SSI_SDATA0	*/
@@ -3079,7 +3079,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[30] = RCAR_GP_PIN(1, 14),	/* IRQ2		*/
 		[31] = RCAR_GP_PIN(1, 15),	/* IRQ3		*/
 	} },
-	{ PINMUX_BIAS_REG("PUPR5", 0x114, "N/A", 0) {
+	{ PINMUX_BIAS_REG("PUPR5", 0xfffc0114, "N/A", 0) {
 		[ 0] = RCAR_GP_PIN(0,  1),	/* PENC0	*/
 		[ 1] = RCAR_GP_PIN(0,  2),	/* PENC1	*/
 		[ 2] = RCAR_GP_PIN(0,  3),	/* USB_OVC0	*/
@@ -3116,48 +3116,9 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 	{ /* sentinel */ },
 };
 
-static unsigned int r8a7778_pinmux_get_bias(struct sh_pfc *pfc,
-					    unsigned int pin)
-{
-	const struct pinmux_bias_reg *reg;
-	void __iomem *addr;
-	unsigned int bit;
-
-	reg = sh_pfc_pin_to_bias_reg(pfc, pin, &bit);
-	if (!reg)
-		return PIN_CONFIG_BIAS_DISABLE;
-
-	addr = pfc->windows->virt + reg->puen;
-
-	if (ioread32(addr) & BIT(bit))
-		return PIN_CONFIG_BIAS_PULL_UP;
-	else
-		return PIN_CONFIG_BIAS_DISABLE;
-}
-
-static void r8a7778_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
-				   unsigned int bias)
-{
-	const struct pinmux_bias_reg *reg;
-	void __iomem *addr;
-	unsigned int bit;
-	u32 value;
-
-	reg = sh_pfc_pin_to_bias_reg(pfc, pin, &bit);
-	if (!reg)
-		return;
-
-	addr = pfc->windows->virt + reg->puen;
-
-	value = ioread32(addr) & ~BIT(bit);
-	if (bias == PIN_CONFIG_BIAS_PULL_UP)
-		value |= BIT(bit);
-	iowrite32(value, addr);
-}
-
 static const struct sh_pfc_soc_operations r8a7778_pfc_ops = {
-	.get_bias = r8a7778_pinmux_get_bias,
-	.set_bias = r8a7778_pinmux_set_bias,
+	.get_bias = rcar_pinmux_get_bias,
+	.set_bias = rcar_pinmux_set_bias,
 };
 
 const struct sh_pfc_soc_info r8a7778_pinmux_info = {

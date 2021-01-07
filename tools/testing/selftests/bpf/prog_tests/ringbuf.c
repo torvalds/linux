@@ -217,8 +217,14 @@ void test_ringbuf(void)
 	if (CHECK(err, "join_bg", "err %d\n", err))
 		goto cleanup;
 
-	if (CHECK(bg_ret != 1, "bg_ret", "epoll_wait result: %ld", bg_ret))
+	if (CHECK(bg_ret <= 0, "bg_ret", "epoll_wait result: %ld", bg_ret))
 		goto cleanup;
+
+	/* due to timing variations, there could still be non-notified
+	 * samples, so consume them here to collect all the samples
+	 */
+	err = ring_buffer__consume(ringbuf);
+	CHECK(err < 0, "rb_consume", "failed: %d\b", err);
 
 	/* 3 rounds, 2 samples each */
 	cnt = atomic_xchg(&sample_cnt, 0);

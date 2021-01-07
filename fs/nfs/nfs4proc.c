@@ -184,6 +184,8 @@ static int nfs4_map_errors(int err)
 		return -EPROTONOSUPPORT;
 	case -NFS4ERR_FILE_OPEN:
 		return -EBUSY;
+	case -NFS4ERR_NOT_SAME:
+		return -ENOTSYNC;
 	default:
 		dprintk("%s could not handle NFSv4 error %d\n",
 				__func__, -err);
@@ -4397,6 +4399,10 @@ static int _nfs4_proc_lookupp(struct inode *inode,
 		.rpc_argp = &args,
 		.rpc_resp = &res,
 	};
+	unsigned short task_flags = 0;
+
+	if (NFS_SERVER(inode)->flags & NFS_MOUNT_SOFTREVAL)
+		task_flags |= RPC_TASK_TIMEOUT;
 
 	args.bitmask = nfs4_bitmask(server, label);
 
@@ -4404,7 +4410,7 @@ static int _nfs4_proc_lookupp(struct inode *inode,
 
 	dprintk("NFS call  lookupp ino=0x%lx\n", inode->i_ino);
 	status = nfs4_call_sync(clnt, server, &msg, &args.seq_args,
-				&res.seq_res, 0);
+				&res.seq_res, task_flags);
 	dprintk("NFS reply lookupp: %d\n", status);
 	return status;
 }
@@ -4957,35 +4963,40 @@ static int nfs4_proc_mkdir(struct inode *dir, struct dentry *dentry,
 	return err;
 }
 
-static int _nfs4_proc_readdir(struct dentry *dentry, const struct cred *cred,
-		u64 cookie, struct page **pages, unsigned int count, bool plus)
+static int _nfs4_proc_readdir(struct nfs_readdir_arg *nr_arg,
+			      struct nfs_readdir_res *nr_res)
 {
-	struct inode		*dir = d_inode(dentry);
+	struct inode		*dir = d_inode(nr_arg->dentry);
+	struct nfs_server	*server = NFS_SERVER(dir);
 	struct nfs4_readdir_arg args = {
 		.fh = NFS_FH(dir),
-		.pages = pages,
+		.pages = nr_arg->pages,
 		.pgbase = 0,
-		.count = count,
-		.bitmask = NFS_SERVER(d_inode(dentry))->attr_bitmask,
-		.plus = plus,
+		.count = nr_arg->page_len,
+		.plus = nr_arg->plus,
 	};
 	struct nfs4_readdir_res res;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READDIR],
 		.rpc_argp = &args,
 		.rpc_resp = &res,
-		.rpc_cred = cred,
+		.rpc_cred = nr_arg->cred,
 	};
 	int			status;
 
-	dprintk("%s: dentry = %pd2, cookie = %Lu\n", __func__,
-			dentry,
-			(unsigned long long)cookie);
-	nfs4_setup_readdir(cookie, NFS_I(dir)->cookieverf, dentry, &args);
+	dprintk("%s: dentry = %pd2, cookie = %llu\n", __func__,
+		nr_arg->dentry, (unsigned long long)nr_arg->cookie);
+	if (!(server->caps & NFS_CAP_SECURITY_LABEL))
+		args.bitmask = server->attr_bitmask_nl;
+	else
+		args.bitmask = server->attr_bitmask;
+
+	nfs4_setup_readdir(nr_arg->cookie, nr_arg->verf, nr_arg->dentry, &args);
 	res.pgbase = args.pgbase;
-	status = nfs4_call_sync(NFS_SERVER(dir)->client, NFS_SERVER(dir), &msg, &args.seq_args, &res.seq_res, 0);
+	status = nfs4_call_sync(server->client, server, &msg, &args.seq_args,
+			&res.seq_res, 0);
 	if (status >= 0) {
-		memcpy(NFS_I(dir)->cookieverf, res.verifier.data, NFS4_VERIFIER_SIZE);
+		memcpy(nr_res->verf, res.verifier.data, NFS4_VERIFIER_SIZE);
 		status += args.pgbase;
 	}
 
@@ -4995,19 +5006,18 @@ static int _nfs4_proc_readdir(struct dentry *dentry, const struct cred *cred,
 	return status;
 }
 
-static int nfs4_proc_readdir(struct dentry *dentry, const struct cred *cred,
-		u64 cookie, struct page **pages, unsigned int count, bool plus)
+static int nfs4_proc_readdir(struct nfs_readdir_arg *arg,
+			     struct nfs_readdir_res *res)
 {
 	struct nfs4_exception exception = {
 		.interruptible = true,
 	};
 	int err;
 	do {
-		err = _nfs4_proc_readdir(dentry, cred, cookie,
-				pages, count, plus);
-		trace_nfs4_readdir(d_inode(dentry), err);
-		err = nfs4_handle_exception(NFS_SERVER(d_inode(dentry)), err,
-				&exception);
+		err = _nfs4_proc_readdir(arg, res);
+		trace_nfs4_readdir(d_inode(arg->dentry), err);
+		err = nfs4_handle_exception(NFS_SERVER(d_inode(arg->dentry)),
+					    err, &exception);
 	} while (exception.retry);
 	return err;
 }
@@ -5309,18 +5319,18 @@ static int nfs4_read_done(struct rpc_task *task, struct nfs_pgio_header *hdr)
 				    nfs4_read_done_cb(task, hdr);
 }
 
-#ifdef CONFIG_NFS_V4_2
-static void nfs42_read_plus_support(struct nfs_server *server, struct rpc_message *msg)
+#if defined CONFIG_NFS_V4_2 && defined CONFIG_NFS_V4_2_READ_PLUS
+static void nfs42_read_plus_support(struct nfs_pgio_header *hdr,
+				    struct rpc_message *msg)
 {
-	if (server->caps & NFS_CAP_READ_PLUS)
+	/* Note: We don't use READ_PLUS with pNFS yet */
+	if (nfs_server_capable(hdr->inode, NFS_CAP_READ_PLUS) && !hdr->ds_clp)
 		msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READ_PLUS];
-	else
-		msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READ];
 }
 #else
-static void nfs42_read_plus_support(struct nfs_server *server, struct rpc_message *msg)
+static void nfs42_read_plus_support(struct nfs_pgio_header *hdr,
+				    struct rpc_message *msg)
 {
-	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READ];
 }
 #endif /* CONFIG_NFS_V4_2 */
 
@@ -5330,7 +5340,8 @@ static void nfs4_proc_read_setup(struct nfs_pgio_header *hdr,
 	hdr->timestamp   = jiffies;
 	if (!hdr->pgio_done_cb)
 		hdr->pgio_done_cb = nfs4_read_done_cb;
-	nfs42_read_plus_support(NFS_SERVER(hdr->inode), msg);
+	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READ];
+	nfs42_read_plus_support(hdr, msg);
 	nfs4_init_sequence(&hdr->args.seq_args, &hdr->res.seq_res, 0, 0);
 }
 
@@ -9650,6 +9661,8 @@ _nfs4_proc_getdeviceinfo(struct nfs_server *server,
 		dprintk("%s: unsupported notification\n", __func__);
 	if (res.notification != args.notify_types)
 		pdev->nocache = 1;
+
+	trace_nfs4_getdeviceinfo(server, &pdev->dev_id, status);
 
 	dprintk("<-- %s status=%d\n", __func__, status);
 

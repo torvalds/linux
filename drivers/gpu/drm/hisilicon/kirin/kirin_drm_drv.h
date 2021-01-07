@@ -40,7 +40,7 @@ struct kirin_drm_data {
 	u32 num_planes;
 	u32 prim_plane;
 
-	struct drm_driver *driver;
+	const struct drm_driver *driver;
 	const struct drm_crtc_helper_funcs *crtc_helper_funcs;
 	const struct drm_crtc_funcs *crtc_funcs;
 	const struct drm_plane_helper_funcs *plane_helper_funcs;

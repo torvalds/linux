@@ -30,34 +30,13 @@
  */
 # define MAKE_MM_SEG(s)       ((mm_segment_t) { (s) })
 
-#  ifndef CONFIG_MMU
-#  define KERNEL_DS	MAKE_MM_SEG(0)
-#  define USER_DS	KERNEL_DS
-#  else
 #  define KERNEL_DS	MAKE_MM_SEG(0xFFFFFFFF)
 #  define USER_DS	MAKE_MM_SEG(TASK_SIZE - 1)
-#  endif
 
 # define get_fs()	(current_thread_info()->addr_limit)
 # define set_fs(val)	(current_thread_info()->addr_limit = (val))
 
 # define uaccess_kernel()	(get_fs().seg == KERNEL_DS.seg)
-
-#ifndef CONFIG_MMU
-
-/* Check against bounds of physical memory */
-static inline int ___range_ok(unsigned long addr, unsigned long size)
-{
-	return ((addr < memory_start) ||
-		((addr + size - 1) > (memory_start + memory_size - 1)));
-}
-
-#define __range_ok(addr, size) \
-		___range_ok((unsigned long)(addr), (unsigned long)(size))
-
-#define access_ok(addr, size) (__range_ok((addr), (size)) == 0)
-
-#else
 
 static inline int access_ok(const void __user *addr, unsigned long size)
 {
@@ -77,15 +56,9 @@ ok:
 			(u32)get_fs().seg);
 	return 1;
 }
-#endif
 
-#ifdef CONFIG_MMU
 # define __FIXUP_SECTION	".section .fixup,\"ax\"\n"
 # define __EX_TABLE_SECTION	".section __ex_table,\"a\"\n"
-#else
-# define __FIXUP_SECTION	".section .discard,\"ax\"\n"
-# define __EX_TABLE_SECTION	".section .discard,\"ax\"\n"
-#endif
 
 extern unsigned long __copy_tofrom_user(void __user *to,
 		const void __user *from, unsigned long size);

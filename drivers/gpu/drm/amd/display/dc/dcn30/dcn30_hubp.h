@@ -251,6 +251,9 @@ bool hubp3_construct(
 		const struct dcn_hubp2_shift *hubp_shift,
 		const struct dcn_hubp2_mask *hubp_mask);
 
+void hubp3_set_vm_system_aperture_settings(struct hubp *hubp,
+	struct vm_system_aperture_param *apt);
+
 bool hubp3_program_surface_flip_and_addr(
 	struct hubp *hubp,
 	const struct dc_plane_address *address,

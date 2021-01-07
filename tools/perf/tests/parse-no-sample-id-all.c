@@ -27,8 +27,8 @@ static int process_event(struct evlist **pevlist, union perf_event *event)
 	if (!*pevlist)
 		return -1;
 
-	if (perf_evlist__parse_sample(*pevlist, event, &sample)) {
-		pr_debug("perf_evlist__parse_sample failed\n");
+	if (evlist__parse_sample(*pevlist, event, &sample)) {
+		pr_debug("evlist__parse_sample failed\n");
 		return -1;
 	}
 

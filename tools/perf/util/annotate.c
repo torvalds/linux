@@ -10,10 +10,6 @@
 #include <inttypes.h>
 #include <libgen.h>
 #include <stdlib.h>
-#include <bpf/bpf.h>
-#include <bpf/btf.h>
-#include <bpf/libbpf.h>
-#include <linux/btf.h>
 #include "util.h" // hex_width()
 #include "ui/ui.h"
 #include "sort.h"
@@ -152,6 +148,7 @@ static int arch__associate_ins_ops(struct arch* arch, const char *name, struct i
 #include "arch/arm/annotate/instructions.c"
 #include "arch/arm64/annotate/instructions.c"
 #include "arch/csky/annotate/instructions.c"
+#include "arch/mips/annotate/instructions.c"
 #include "arch/x86/annotate/instructions.c"
 #include "arch/powerpc/annotate/instructions.c"
 #include "arch/s390/annotate/instructions.c"
@@ -173,6 +170,13 @@ static struct arch architectures[] = {
 	{
 		.name = "csky",
 		.init = csky__annotate_init,
+	},
+	{
+		.name = "mips",
+		.init = mips__annotate_init,
+		.objdump = {
+			.comment_char = '#',
+		},
 	},
 	{
 		.name = "x86",
@@ -1676,6 +1680,10 @@ fallback:
 #define PACKAGE "perf"
 #include <bfd.h>
 #include <dis-asm.h>
+#include <bpf/bpf.h>
+#include <bpf/btf.h>
+#include <bpf/libbpf.h>
+#include <linux/btf.h>
 
 static int symbol__disassemble_bpf(struct symbol *sym,
 				   struct annotate_args *args)

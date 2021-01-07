@@ -93,15 +93,10 @@ static int prestera_port_open(struct net_device *dev)
 static int prestera_port_close(struct net_device *dev)
 {
 	struct prestera_port *port = netdev_priv(dev);
-	int err;
 
 	netif_stop_queue(dev);
 
-	err = prestera_hw_port_state_set(port, false);
-	if (err)
-		return err;
-
-	return 0;
+	return prestera_hw_port_state_set(port, false);
 }
 
 static netdev_tx_t prestera_port_xmit(struct sk_buff *skb,
@@ -318,8 +313,10 @@ static int prestera_port_create(struct prestera_switch *sw, u32 id)
 		goto err_port_init;
 	}
 
-	if (port->fp_id >= PRESTERA_MAC_ADDR_NUM_MAX)
+	if (port->fp_id >= PRESTERA_MAC_ADDR_NUM_MAX) {
+		err = -EINVAL;
 		goto err_port_init;
+	}
 
 	/* firmware requires that port's MAC address consist of the first
 	 * 5 bytes of the base MAC address

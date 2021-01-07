@@ -354,7 +354,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = rtc_register_device(pdata->rtc);
+	ret = devm_rtc_register_device(pdata->rtc);
 	if (ret < 0)
 		clk_unprepare(pdata->clk);
 

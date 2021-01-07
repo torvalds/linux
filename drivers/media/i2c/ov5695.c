@@ -1033,8 +1033,7 @@ static void __ov5695_power_off(struct ov5695 *ov5695)
 
 static int __maybe_unused ov5695_runtime_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov5695 *ov5695 = to_ov5695(sd);
 
 	return __ov5695_power_on(ov5695);
@@ -1042,8 +1041,7 @@ static int __maybe_unused ov5695_runtime_resume(struct device *dev)
 
 static int __maybe_unused ov5695_runtime_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov5695 *ov5695 = to_ov5695(sd);
 
 	__ov5695_power_off(ov5695);

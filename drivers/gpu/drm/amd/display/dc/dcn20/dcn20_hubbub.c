@@ -153,10 +153,8 @@ bool hubbub2_dcc_support_pixel_format(
 	case SURFACE_PIXEL_FORMAT_GRPH_BGR101111_FIX:
 	case SURFACE_PIXEL_FORMAT_GRPH_RGB111110_FLOAT:
 	case SURFACE_PIXEL_FORMAT_GRPH_BGR101111_FLOAT:
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	case SURFACE_PIXEL_FORMAT_GRPH_RGBE:
 	case SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA:
-#endif
 		*bytes_per_element = 4;
 		return true;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
@@ -343,11 +341,9 @@ static enum dcn_hubbub_page_table_block_size page_table_block_size_to_hw(unsigne
 	case 65536:
 		block_size = DCN_PAGE_TABLE_BLOCK_SIZE_64KB;
 		break;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	case 32768:
 		block_size = DCN_PAGE_TABLE_BLOCK_SIZE_32KB;
 		break;
-#endif
 	default:
 		ASSERT(false);
 		block_size = page_table_block_size;

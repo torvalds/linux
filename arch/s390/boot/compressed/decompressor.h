@@ -2,8 +2,10 @@
 #ifndef BOOT_COMPRESSED_DECOMPRESSOR_H
 #define BOOT_COMPRESSED_DECOMPRESSOR_H
 
+#include <linux/stddef.h>
+
 #ifdef CONFIG_KERNEL_UNCOMPRESSED
-static inline void *decompress_kernel(void) {}
+static inline void *decompress_kernel(void) { return NULL; }
 #else
 void *decompress_kernel(void);
 #endif

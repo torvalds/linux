@@ -1380,6 +1380,9 @@ struct lpfc_fdmi_reg_hba {
 	struct lpfc_fdmi_reg_port_list rpl;
 };
 
+/******** MI MIB ********/
+#define SLI_CT_MIB_Subtypes	0x11
+
 /*
  * Register HBA Attributes (RHAT)
  */
@@ -1465,7 +1468,7 @@ struct lpfc_fdmi_reg_portattr {
 #define LPFC_FDMI2_HBA_ATTR			0x0002efff
 
 /*
- * Port Attrubute Types
+ * Port Attribute Types
  */
 #define  RPRT_SUPPORTED_FC4_TYPES     0x1 /* 32 byte binary array */
 #define  RPRT_SUPPORTED_SPEED         0x2 /* 32-bit unsigned int */
@@ -1483,6 +1486,7 @@ struct lpfc_fdmi_reg_portattr {
 #define  RPRT_PORT_STATE              0x101 /* 32-bit unsigned int */
 #define  RPRT_DISC_PORT               0x102 /* 32-bit unsigned int */
 #define  RPRT_PORT_ID                 0x103 /* 32-bit unsigned int */
+#define  RPRT_VENDOR_MI               0xf047 /* vendor ascii string */
 #define  RPRT_SMART_SERVICE           0xf100 /* 4 to 256 byte ASCII string */
 #define  RPRT_SMART_GUID              0xf101 /* 8 byte WWNN + 8 byte WWPN */
 #define  RPRT_SMART_VERSION           0xf102 /* 4 to 256 byte ASCII string */
@@ -1515,6 +1519,7 @@ struct lpfc_fdmi_reg_portattr {
 #define LPFC_FDMI_SMART_ATTR_port_info		0x00100000 /* Vendor specific */
 #define LPFC_FDMI_SMART_ATTR_qos		0x00200000 /* Vendor specific */
 #define LPFC_FDMI_SMART_ATTR_security		0x00400000 /* Vendor specific */
+#define LPFC_FDMI_VENDOR_ATTR_mi		0x00800000 /* Vendor specific */
 
 /* Bit mask for FDMI-1 defined PORT attributes */
 #define LPFC_FDMI1_PORT_ATTR			0x0000003f

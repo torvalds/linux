@@ -34,7 +34,8 @@ Before this framework, the layer is like::
          ------------------------
 	        SPI NOR chip
 
-   After this framework, the layer is like:
+After this framework, the layer is like::
+
                    MTD
          ------------------------
               SPI NOR framework
@@ -45,7 +46,8 @@ Before this framework, the layer is like::
          ------------------------
 	       SPI NOR chip
 
-  With the SPI NOR controller driver (Freescale QuadSPI), it looks like:
+With the SPI NOR controller driver (Freescale QuadSPI), it looks like::
+
                    MTD
          ------------------------
               SPI NOR framework

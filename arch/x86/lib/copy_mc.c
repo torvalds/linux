@@ -10,10 +10,6 @@
 #include <asm/mce.h>
 
 #ifdef CONFIG_X86_MCE
-/*
- * See COPY_MC_TEST for self-test of the copy_mc_fragile()
- * implementation.
- */
 static DEFINE_STATIC_KEY_FALSE(copy_mc_fragile_key);
 
 void enable_copy_mc_fragile(void)

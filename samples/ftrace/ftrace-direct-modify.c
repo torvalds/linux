@@ -21,6 +21,7 @@ static unsigned long my_ip = (unsigned long)schedule;
 asm (
 "	.pushsection    .text, \"ax\", @progbits\n"
 "	.type		my_tramp1, @function\n"
+"	.globl		my_tramp1\n"
 "   my_tramp1:"
 "	pushq %rbp\n"
 "	movq %rsp, %rbp\n"
@@ -29,6 +30,7 @@ asm (
 "	.size		my_tramp1, .-my_tramp1\n"
 "	ret\n"
 "	.type		my_tramp2, @function\n"
+"	.globl		my_tramp2\n"
 "   my_tramp2:"
 "	pushq %rbp\n"
 "	movq %rsp, %rbp\n"

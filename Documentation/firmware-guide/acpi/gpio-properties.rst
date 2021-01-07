@@ -133,7 +133,61 @@ Example::
 
 - gpio-line-names
 
-Example::
+The ``gpio-line-names`` declaration is a list of strings ("names"), which
+describes each line/pin of a GPIO controller/expander. This list, contained in
+a package, must be inserted inside the GPIO controller declaration of an ACPI
+table (typically inside the DSDT). The ``gpio-line-names`` list must respect the
+following rules (see also the examples):
+
+  - the first name in the list corresponds with the first line/pin of the GPIO
+    controller/expander
+  - the names inside the list must be consecutive (no "holes" are permitted)
+  - the list can be incomplete and can end before the last GPIO line: in
+    other words, it is not mandatory to fill all the GPIO lines
+  - empty names are allowed (two quotation marks ``""`` correspond to an empty
+    name)
+
+Example of a GPIO controller of 16 lines, with an incomplete list with two
+empty names::
+
+  Package () {
+      "gpio-line-names",
+      Package () {
+          "pin_0",
+          "pin_1",
+          "",
+          "",
+          "pin_3",
+          "pin_4_push_button",
+      }
+  }
+
+At runtime, the above declaration produces the following result (using the
+"libgpiod" tools)::
+
+  root@debian:~# gpioinfo gpiochip4
+  gpiochip4 - 16 lines:
+          line   0:      "pin_0"       unused   input  active-high
+          line   1:      "pin_1"       unused   input  active-high
+          line   2:      unnamed       unused   input  active-high
+          line   3:      unnamed       unused   input  active-high
+          line   4:      "pin_3"       unused   input  active-high
+          line   5: "pin_4_push_button" unused input active-high
+          line   6:      unnamed       unused   input  active-high
+          line   7       unnamed       unused   input  active-high
+          line   8:      unnamed       unused   input  active-high
+          line   9:      unnamed       unused   input  active-high
+          line  10:      unnamed       unused   input  active-high
+          line  11:      unnamed       unused   input  active-high
+          line  12:      unnamed       unused   input  active-high
+          line  13:      unnamed       unused   input  active-high
+          line  14:      unnamed       unused   input  active-high
+          line  15:      unnamed       unused   input  active-high
+  root@debian:~# gpiofind pin_4_push_button
+  gpiochip4 5
+  root@debian:~#
+
+Another example::
 
   Package () {
       "gpio-line-names",

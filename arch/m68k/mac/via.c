@@ -169,8 +169,6 @@ void __init via_init(void)
 
 	via1[vIER] = 0x7F;
 	via1[vIFR] = 0x7F;
-	via1[vT1LL] = 0;
-	via1[vT1LH] = 0;
 	via1[vT1CL] = 0;
 	via1[vT1CH] = 0;
 	via1[vT2CL] = 0;
@@ -225,8 +223,6 @@ void __init via_init(void)
 	via2[gIER] = 0x7F;
 	via2[gIFR] = 0x7F | rbv_clear;
 	if (!rbv_present) {
-		via2[vT1LL] = 0;
-		via2[vT1LH] = 0;
 		via2[vT1CL] = 0;
 		via2[vT1CH] = 0;
 		via2[vT2CL] = 0;
@@ -302,21 +298,6 @@ void via_l2_flush(int writeback)
 	via2[gBufB] &= ~VIA2B_vMode32;
 	via2[gBufB] |= VIA2B_vMode32;
 	local_irq_restore(flags);
-}
-
-/*
- * Return the status of the L2 cache on a IIci
- */
-
-int via_get_cache_disable(void)
-{
-	/* Safeguard against being called accidentally */
-	if (!via2) {
-		printk(KERN_ERR "via_get_cache_disable called on a non-VIA machine!\n");
-		return 1;
-	}
-
-	return (int) via2[gBufB] & VIA2B_vCDis;
 }
 
 /*
@@ -602,25 +583,21 @@ static u32 clk_total, clk_offset;
 
 static irqreturn_t via_timer_handler(int irq, void *dev_id)
 {
-	irq_handler_t timer_routine = dev_id;
-
 	clk_total += VIA_TIMER_CYCLES;
 	clk_offset = 0;
-	timer_routine(0, NULL);
+	legacy_timer_tick(1);
 
 	return IRQ_HANDLED;
 }
 
-void __init via_init_clock(irq_handler_t timer_routine)
+void __init via_init_clock(void)
 {
 	if (request_irq(IRQ_MAC_TIMER_1, via_timer_handler, IRQF_TIMER, "timer",
-			timer_routine)) {
+			NULL)) {
 		pr_err("Couldn't register %s interrupt\n", "timer");
 		return;
 	}
 
-	via1[vT1LL] = VIA_TC_LOW;
-	via1[vT1LH] = VIA_TC_HIGH;
 	via1[vT1CL] = VIA_TC_LOW;
 	via1[vT1CH] = VIA_TC_HIGH;
 	via1[vACR] |= 0x40;

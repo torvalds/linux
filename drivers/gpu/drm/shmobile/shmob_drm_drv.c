@@ -128,7 +128,7 @@ static irqreturn_t shmob_drm_irq(int irq, void *arg)
 
 DEFINE_DRM_GEM_CMA_FOPS(shmob_drm_fops);
 
-static struct drm_driver shmob_drm_driver = {
+static const struct drm_driver shmob_drm_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET,
 	.irq_handler		= shmob_drm_irq,
 	DRM_GEM_CMA_DRIVER_OPS,

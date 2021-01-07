@@ -138,12 +138,8 @@ void vtime_account_kernel(struct task_struct *tsk)
 	struct thread_info *ti = task_thread_info(tsk);
 	__u64 stime = vtime_delta(tsk);
 
-	if ((tsk->flags & PF_VCPU) && !irq_count())
+	if (tsk->flags & PF_VCPU)
 		ti->gtime += stime;
-	else if (hardirq_count())
-		ti->hardirq_time += stime;
-	else if (in_serving_softirq())
-		ti->softirq_time += stime;
 	else
 		ti->stime += stime;
 }
@@ -156,44 +152,48 @@ void vtime_account_idle(struct task_struct *tsk)
 	ti->idle_time += vtime_delta(tsk);
 }
 
+void vtime_account_softirq(struct task_struct *tsk)
+{
+	struct thread_info *ti = task_thread_info(tsk);
+
+	ti->softirq_time += vtime_delta(tsk);
+}
+
+void vtime_account_hardirq(struct task_struct *tsk)
+{
+	struct thread_info *ti = task_thread_info(tsk);
+
+	ti->hardirq_time += vtime_delta(tsk);
+}
+
 #endif /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 
 static irqreturn_t
 timer_interrupt (int irq, void *dev_id)
 {
-	unsigned long new_itm;
+	unsigned long cur_itm, new_itm, ticks;
 
 	if (cpu_is_offline(smp_processor_id())) {
 		return IRQ_HANDLED;
 	}
 
 	new_itm = local_cpu_data->itm_next;
+	cur_itm = ia64_get_itc();
 
-	if (!time_after(ia64_get_itc(), new_itm))
+	if (!time_after(cur_itm, new_itm)) {
 		printk(KERN_ERR "Oops: timer tick before it's due (itc=%lx,itm=%lx)\n",
-		       ia64_get_itc(), new_itm);
-
-	profile_tick(CPU_PROFILING);
-
-	while (1) {
-		update_process_times(user_mode(get_irq_regs()));
-
-		new_itm += local_cpu_data->itm_delta;
-
-		if (smp_processor_id() == time_keeper_id)
-			xtime_update(1);
-
-		local_cpu_data->itm_next = new_itm;
-
-		if (time_after(new_itm, ia64_get_itc()))
-			break;
-
-		/*
-		 * Allow IPIs to interrupt the timer loop.
-		 */
-		local_irq_enable();
-		local_irq_disable();
+		       cur_itm, new_itm);
+		ticks = 1;
+	} else {
+		ticks = DIV_ROUND_UP(cur_itm - new_itm,
+				     local_cpu_data->itm_delta);
+		new_itm += ticks * local_cpu_data->itm_delta;
 	}
+
+	if (smp_processor_id() != time_keeper_id)
+		ticks = 0;
+
+	legacy_timer_tick(ticks);
 
 	do {
 		/*

@@ -144,14 +144,13 @@ static int __xp_assign_dev(struct xsk_buff_pool *pool,
 	if (err)
 		return err;
 
-	if (flags & XDP_USE_NEED_WAKEUP) {
+	if (flags & XDP_USE_NEED_WAKEUP)
 		pool->uses_need_wakeup = true;
-		/* Tx needs to be explicitly woken up the first time.
-		 * Also for supporting drivers that do not implement this
-		 * feature. They will always have to call sendto().
-		 */
-		pool->cached_need_wakeup = XDP_WAKEUP_TX;
-	}
+	/* Tx needs to be explicitly woken up the first time.  Also
+	 * for supporting drivers that do not implement this
+	 * feature. They will always have to call sendto() or poll().
+	 */
+	pool->cached_need_wakeup = XDP_WAKEUP_TX;
 
 	dev_hold(netdev);
 
@@ -175,6 +174,7 @@ static int __xp_assign_dev(struct xsk_buff_pool *pool,
 
 	if (!pool->dma_pages) {
 		WARN(1, "Driver did not DMA map zero-copy buffers");
+		err = -EINVAL;
 		goto err_unreg_xsk;
 	}
 	pool->umem->zc = true;
@@ -185,8 +185,10 @@ err_unreg_xsk:
 err_unreg_pool:
 	if (!force_zc)
 		err = 0; /* fallback to copy mode */
-	if (err)
+	if (err) {
 		xsk_clear_pool_at_qid(netdev, queue_id);
+		dev_put(netdev);
+	}
 	return err;
 }
 
@@ -242,7 +244,7 @@ static void xp_release_deferred(struct work_struct *work)
 		pool->cq = NULL;
 	}
 
-	xdp_put_umem(pool->umem);
+	xdp_put_umem(pool->umem, false);
 	xp_destroy(pool);
 }
 

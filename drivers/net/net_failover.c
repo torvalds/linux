@@ -697,7 +697,7 @@ static struct failover_ops net_failover_ops = {
 /**
  * net_failover_create - Create and register a failover instance
  *
- * @dev: standby netdev
+ * @standby_dev: standby netdev
  *
  * Creates a failover netdev and registers a failover instance for a standby
  * netdev. Used by paravirtual drivers that use 3-netdev model.

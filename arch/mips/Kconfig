@@ -9,6 +9,8 @@ config MIPS
 	select ARCH_HAS_PTE_SPECIAL if !(32BIT && CPU_HAS_RIXI)
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
+	select ARCH_HAS_GCOV_PROFILE_ALL
+	select ARCH_KEEP_MEMBLOCK if DEBUG_KERNEL
 	select ARCH_SUPPORTS_UPROBES
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF if 64BIT
@@ -21,7 +23,6 @@ config MIPS
 	select CPU_NO_EFFICIENT_FFS if (TARGET_ISA_REV < 1)
 	select CPU_PM if CPU_IDLE
 	select GENERIC_ATOMIC64 if !64BIT
-	select GENERIC_CLOCKEVENTS
 	select GENERIC_CMOS_UPDATE
 	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_GETTIMEOFDAY
@@ -249,6 +250,7 @@ config ATH79
 
 config BMIPS_GENERIC
 	bool "Broadcom Generic BMIPS kernel"
+	select ARCH_HAS_RESET_CONTROLLER
 	select ARCH_HAS_SYNC_DMA_FOR_CPU_ALL
 	select ARCH_HAS_PHYS_TO_DMA
 	select BOOT_RAW
@@ -487,6 +489,7 @@ config MACH_LOONGSON64
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_ZBOOT
+	select SYS_SUPPORTS_RELOCATABLE
 	select ZONE_DMA32
 	select NUMA
 	select SMP
@@ -2485,6 +2488,7 @@ config MIPS_CPS
 	select SYS_SUPPORTS_SCHED_SMT if CPU_MIPSR6
 	select SYS_SUPPORTS_SMP
 	select WEAK_ORDERING
+	select GENERIC_IRQ_MIGRATION if HOTPLUG_CPU
 	help
 	  Select this if you wish to run an SMP kernel across multiple cores
 	  within a MIPS Coherent Processing System. When this option is
@@ -2645,7 +2649,7 @@ config WAR_R4600_V1_INDEX_ICACHEOP
 #  18. The CACHE instructions Hit_Writeback_Invalidate_D, Hit_Writeback_D,
 #      Hit_Invalidate_D and Create_Dirty_Excl_D should only be
 #      executed if there is no other dcache activity. If the dcache is
-#      accessed for another instruction immeidately preceding when these
+#      accessed for another instruction immediately preceding when these
 #      cache instructions are executing, it is possible that the dcache
 #      tag match outputs used by these cache instructions will be
 #      incorrect. These cache instructions should be preceded by at least
@@ -2719,6 +2723,7 @@ config WAR_MIPS34K_MISSED_ITLB
 config HIGHMEM
 	bool "High Memory Support"
 	depends on 32BIT && CPU_SUPPORTS_HIGHMEM && SYS_SUPPORTS_HIGHMEM && !CPU_MIPS32_3_5_EVA
+	select KMAP_LOCAL
 
 config CPU_SUPPORTS_HIGHMEM
 	bool
@@ -2777,7 +2782,8 @@ config RELOCATABLE
 	depends on CPU_MIPS32_R2 || CPU_MIPS64_R2 || \
 		   CPU_MIPS32_R5 || CPU_MIPS64_R5 || \
 		   CPU_MIPS32_R6 || CPU_MIPS64_R6 || \
-		   CPU_P5600 || CAVIUM_OCTEON_SOC
+		   CPU_P5600 || CAVIUM_OCTEON_SOC || \
+		   CPU_LOONGSON64
 	help
 	  This builds a kernel image that retains relocation information
 	  so it can be loaded someplace besides the default 1MB.
@@ -2788,6 +2794,7 @@ config RELOCATION_TABLE_SIZE
 	hex "Relocation table size"
 	depends on RELOCATABLE
 	range 0x0 0x01000000
+	default "0x00200000" if CPU_LOONGSON64
 	default "0x00100000"
 	help
 	  A table of relocation data will be appended to the kernel binary
@@ -3086,7 +3093,7 @@ config MIPS_O32_FP64_SUPPORT
 
 	  Although binutils currently supports use of this flag the details
 	  concerning its effect upon the O32 ABI in userland are still being
-	  worked on. In order to avoid userland becoming dependant upon current
+	  worked on. In order to avoid userland becoming dependent upon current
 	  behaviour before the details have been finalised, this option should
 	  be considered experimental and only enabled by those working upon
 	  said details.
@@ -3124,7 +3131,7 @@ choice
 
 		    objcopy --update-section .appended_dtb=<filename>.dtb vmlinux
 
-		  This is meant as a backward compatiblity convenience for those
+		  This is meant as a backward compatibility convenience for those
 		  systems with a bootloader that can't be upgraded to accommodate
 		  the documented boot protocol using a device tree.
 

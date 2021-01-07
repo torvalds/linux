@@ -26,16 +26,21 @@ properties:
       - const: dev
 
   interrupts:
+    minItems: 3
     items:
       - description: OTG/DRD controller interrupt
       - description: XHCI host controller interrupt
       - description: Device controller interrupt
+      - description: interrupt used to wake up core, e.g when usbcmd.rs is
+                     cleared by xhci core, this interrupt is optional
 
   interrupt-names:
+    minItems: 3
     items:
       - const: host
       - const: peripheral
       - const: otg
+      - const: wakeup
 
   dr_mode:
     enum: [host, otg, peripheral]

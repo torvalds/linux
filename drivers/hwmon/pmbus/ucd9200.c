@@ -201,7 +201,6 @@ static struct i2c_driver ucd9200_driver = {
 		.of_match_table = of_match_ptr(ucd9200_of_match),
 	},
 	.probe_new = ucd9200_probe,
-	.remove = pmbus_do_remove,
 	.id_table = ucd9200_id,
 };
 

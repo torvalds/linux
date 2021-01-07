@@ -23,14 +23,6 @@ struct rtas_t {
 	struct device_node *dev;	/* virtual address pointer */
 };
 
-struct rtas_suspend_me_data {
-	atomic_t working; /* number of cpus accessing this struct */
-	atomic_t done;
-	int token; /* ibm,suspend-me */
-	atomic_t error;
-	struct completion *complete; /* wait on this until working == 0 */
-};
-
 struct rtas_error_log {
 	/* Byte 0 */
 	u8		byte0;			/* Architectural version */

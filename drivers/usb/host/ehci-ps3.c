@@ -200,7 +200,7 @@ fail_start:
 	return result;
 }
 
-static int ps3_ehci_remove(struct ps3_system_bus_device *dev)
+static void ps3_ehci_remove(struct ps3_system_bus_device *dev)
 {
 	unsigned int tmp;
 	struct usb_hcd *hcd = ps3_system_bus_get_drvdata(dev);
@@ -227,8 +227,6 @@ static int ps3_ehci_remove(struct ps3_system_bus_device *dev)
 
 	ps3_dma_region_free(dev->d_region);
 	ps3_close_hv_device(dev);
-
-	return 0;
 }
 
 static int __init ps3_ehci_driver_register(struct ps3_system_bus_driver *drv)

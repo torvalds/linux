@@ -704,10 +704,10 @@ komeda_compiz_set_input(struct komeda_compiz *compiz,
 	cin->layer_alpha = dflow->layer_alpha;
 
 	old_st = komeda_component_get_old_state(&compiz->base, drm_st);
-	WARN_ON(!old_st);
 
 	/* compare with old to check if this input has been changed */
-	if (memcmp(&(to_compiz_st(old_st)->cins[idx]), cin, sizeof(*cin)))
+	if (WARN_ON(!old_st) ||
+	    memcmp(&(to_compiz_st(old_st)->cins[idx]), cin, sizeof(*cin)))
 		c_st->changed_active_inputs |= BIT(idx);
 
 	komeda_component_add_input(c_st, &dflow->input, idx);

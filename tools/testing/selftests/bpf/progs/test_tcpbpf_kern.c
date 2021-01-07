@@ -12,43 +12,33 @@
 #include <linux/tcp.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
+#include "bpf_tcp_helpers.h"
 #include "test_tcpbpf.h"
 
-struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__uint(max_entries, 4);
-	__type(key, __u32);
-	__type(value, struct tcpbpf_globals);
-} global_map SEC(".maps");
-
-struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__uint(max_entries, 2);
-	__type(key, __u32);
-	__type(value, int);
-} sockopt_results SEC(".maps");
-
-static inline void update_event_map(int event)
-{
-	__u32 key = 0;
-	struct tcpbpf_globals g, *gp;
-
-	gp = bpf_map_lookup_elem(&global_map, &key);
-	if (gp == NULL) {
-		struct tcpbpf_globals g = {0};
-
-		g.event_map |= (1 << event);
-		bpf_map_update_elem(&global_map, &key, &g,
-			    BPF_ANY);
-	} else {
-		g = *gp;
-		g.event_map |= (1 << event);
-		bpf_map_update_elem(&global_map, &key, &g,
-			    BPF_ANY);
-	}
-}
-
+struct tcpbpf_globals global = {};
 int _version SEC("version") = 1;
+
+/**
+ * SOL_TCP is defined in <netinet/tcp.h> while
+ * TCP_SAVED_SYN is defined in already included <linux/tcp.h>
+ */
+#ifndef SOL_TCP
+#define SOL_TCP 6
+#endif
+
+static __always_inline int get_tp_window_clamp(struct bpf_sock_ops *skops)
+{
+	struct bpf_sock *sk;
+	struct tcp_sock *tp;
+
+	sk = skops->sk;
+	if (!sk)
+		return -1;
+	tp = bpf_skc_to_tcp_sock(sk);
+	if (!tp)
+		return -1;
+	return tp->window_clamp;
+}
 
 SEC("sockops")
 int bpf_testcb(struct bpf_sock_ops *skops)
@@ -56,6 +46,7 @@ int bpf_testcb(struct bpf_sock_ops *skops)
 	char header[sizeof(struct ipv6hdr) + sizeof(struct tcphdr)];
 	struct bpf_sock_ops *reuse = skops;
 	struct tcphdr *thdr;
+	int window_clamp = 9216;
 	int good_call_rv = 0;
 	int bad_call_rv = 0;
 	int save_syn = 1;
@@ -105,29 +96,20 @@ int bpf_testcb(struct bpf_sock_ops *skops)
 
 	op = (int) skops->op;
 
-	update_event_map(op);
+	global.event_map |= (1 << op);
 
 	switch (op) {
+	case BPF_SOCK_OPS_TCP_CONNECT_CB:
+		rv = bpf_setsockopt(skops, SOL_TCP, TCP_WINDOW_CLAMP,
+				    &window_clamp, sizeof(window_clamp));
+		global.window_clamp_client = get_tp_window_clamp(skops);
+		break;
 	case BPF_SOCK_OPS_ACTIVE_ESTABLISHED_CB:
 		/* Test failure to set largest cb flag (assumes not defined) */
-		bad_call_rv = bpf_sock_ops_cb_flags_set(skops, 0x80);
+		global.bad_cb_test_rv = bpf_sock_ops_cb_flags_set(skops, 0x80);
 		/* Set callback */
-		good_call_rv = bpf_sock_ops_cb_flags_set(skops,
+		global.good_cb_test_rv = bpf_sock_ops_cb_flags_set(skops,
 						 BPF_SOCK_OPS_STATE_CB_FLAG);
-		/* Update results */
-		{
-			__u32 key = 0;
-			struct tcpbpf_globals g, *gp;
-
-			gp = bpf_map_lookup_elem(&global_map, &key);
-			if (!gp)
-				break;
-			g = *gp;
-			g.bad_cb_test_rv = bad_call_rv;
-			g.good_cb_test_rv = good_call_rv;
-			bpf_map_update_elem(&global_map, &key, &g,
-					    BPF_ANY);
-		}
 		break;
 	case BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB:
 		skops->sk_txhash = 0x12345f;
@@ -143,12 +125,14 @@ int bpf_testcb(struct bpf_sock_ops *skops)
 
 				thdr = (struct tcphdr *)(header + offset);
 				v = thdr->syn;
-				__u32 key = 1;
 
-				bpf_map_update_elem(&sockopt_results, &key, &v,
-						    BPF_ANY);
+				global.tcp_saved_syn = v;
 			}
 		}
+		rv = bpf_setsockopt(skops, SOL_TCP, TCP_WINDOW_CLAMP,
+				    &window_clamp, sizeof(window_clamp));
+
+		global.window_clamp_server = get_tp_window_clamp(skops);
 		break;
 	case BPF_SOCK_OPS_RTO_CB:
 		break;
@@ -156,25 +140,16 @@ int bpf_testcb(struct bpf_sock_ops *skops)
 		break;
 	case BPF_SOCK_OPS_STATE_CB:
 		if (skops->args[1] == BPF_TCP_CLOSE) {
-			__u32 key = 0;
-			struct tcpbpf_globals g, *gp;
-
-			gp = bpf_map_lookup_elem(&global_map, &key);
-			if (!gp)
-				break;
-			g = *gp;
 			if (skops->args[0] == BPF_TCP_LISTEN) {
-				g.num_listen++;
+				global.num_listen++;
 			} else {
-				g.total_retrans = skops->total_retrans;
-				g.data_segs_in = skops->data_segs_in;
-				g.data_segs_out = skops->data_segs_out;
-				g.bytes_received = skops->bytes_received;
-				g.bytes_acked = skops->bytes_acked;
+				global.total_retrans = skops->total_retrans;
+				global.data_segs_in = skops->data_segs_in;
+				global.data_segs_out = skops->data_segs_out;
+				global.bytes_received = skops->bytes_received;
+				global.bytes_acked = skops->bytes_acked;
 			}
-			g.num_close_events++;
-			bpf_map_update_elem(&global_map, &key, &g,
-					    BPF_ANY);
+			global.num_close_events++;
 		}
 		break;
 	case BPF_SOCK_OPS_TCP_LISTEN_CB:
@@ -182,9 +157,7 @@ int bpf_testcb(struct bpf_sock_ops *skops)
 		v = bpf_setsockopt(skops, IPPROTO_TCP, TCP_SAVE_SYN,
 				   &save_syn, sizeof(save_syn));
 		/* Update global map w/ result of setsock opt */
-		__u32 key = 0;
-
-		bpf_map_update_elem(&sockopt_results, &key, &v, BPF_ANY);
+		global.tcp_save_syn = v;
 		break;
 	default:
 		rv = -1;

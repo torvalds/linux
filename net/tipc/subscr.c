@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2000-2017, Ericsson AB
  * Copyright (c) 2005-2007, 2010-2013, Wind River Systems
+ * Copyright (c) 2020, Red Hat Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,12 +56,14 @@ static void tipc_sub_send_event(struct tipc_subscription *sub,
 }
 
 /**
- * tipc_sub_check_overlap - test for subscription overlap with the
- * given values
+ * tipc_sub_check_overlap - test for subscription overlap with the given values
+ * @seq: tipc_name_seq to check
+ * @found_lower: lower value to test
+ * @found_upper: upper value to test
  *
- * Returns 1 if there is overlap, otherwise 0.
+ * Return: 1 if there is overlap, otherwise 0.
  */
-int tipc_sub_check_overlap(struct tipc_name_seq *seq, u32 found_lower,
+int tipc_sub_check_overlap(struct tipc_service_range *seq, u32 found_lower,
 			   u32 found_upper)
 {
 	if (found_lower < seq->lower)
@@ -79,7 +82,7 @@ void tipc_sub_report_overlap(struct tipc_subscription *sub,
 {
 	struct tipc_subscr *s = &sub->evt.s;
 	u32 filter = tipc_sub_read(s, filter);
-	struct tipc_name_seq seq;
+	struct tipc_service_range seq;
 
 	seq.type = tipc_sub_read(s, seq.type);
 	seq.lower = tipc_sub_read(s, seq.lower);

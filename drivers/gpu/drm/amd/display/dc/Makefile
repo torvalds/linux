@@ -30,10 +30,9 @@ DC_LIBS += dcn20
 DC_LIBS += dsc
 DC_LIBS += dcn10 dml
 DC_LIBS += dcn21
-endif
-
-ifdef CONFIG_DRM_AMD_DC_DCN3_0
 DC_LIBS += dcn30
+DC_LIBS += dcn301
+DC_LIBS += dcn302
 endif
 
 DC_LIBS += dce120

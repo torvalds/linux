@@ -19,7 +19,7 @@
 #include "atmel_hlcdc_dc.h"
 
 /**
- * Atmel HLCDC Plane state structure.
+ * struct atmel_hlcdc_plane_state - Atmel HLCDC Plane state structure.
  *
  * @base: DRM plane state
  * @crtc_x: x position of the plane relative to the CRTC
@@ -34,6 +34,7 @@
  * @disc_y: y discard position
  * @disc_w: discard width
  * @disc_h: discard height
+ * @ahb_id: AHB identification number
  * @bpp: bytes per pixel deduced from pixel_format
  * @offsets: offsets to apply to the GEM buffers
  * @xstride: value to add to the pixel pointer between each line
@@ -280,8 +281,8 @@ atmel_hlcdc_plane_scaler_set_phicoeff(struct atmel_hlcdc_plane *plane,
 					    coeff_tab[i]);
 }
 
-void atmel_hlcdc_plane_setup_scaler(struct atmel_hlcdc_plane *plane,
-				    struct atmel_hlcdc_plane_state *state)
+static void atmel_hlcdc_plane_setup_scaler(struct atmel_hlcdc_plane *plane,
+					   struct atmel_hlcdc_plane_state *state)
 {
 	const struct atmel_hlcdc_layer_desc *desc = plane->layer.desc;
 	u32 xfactor, yfactor;

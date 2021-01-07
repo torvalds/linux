@@ -427,7 +427,6 @@ static irqreturn_t cdns3_wakeup_irq(int irq, void *data)
  */
 static int cdns3_probe(struct platform_device *pdev)
 {
-	struct usb_role_switch_desc sw_desc = { };
 	struct device *dev = &pdev->dev;
 	struct resource	*res;
 	struct cdns3 *cdns;
@@ -466,11 +465,8 @@ static int cdns3_probe(struct platform_device *pdev)
 	cdns->xhci_res[1] = *res;
 
 	cdns->dev_irq = platform_get_irq_byname(pdev, "peripheral");
-	if (cdns->dev_irq == -EPROBE_DEFER)
-		return cdns->dev_irq;
-
 	if (cdns->dev_irq < 0)
-		dev_err(dev, "couldn't get peripheral irq\n");
+		return cdns->dev_irq;
 
 	regs = devm_platform_ioremap_resource_byname(pdev, "dev");
 	if (IS_ERR(regs))
@@ -478,13 +474,8 @@ static int cdns3_probe(struct platform_device *pdev)
 	cdns->dev_regs	= regs;
 
 	cdns->otg_irq = platform_get_irq_byname(pdev, "otg");
-	if (cdns->otg_irq == -EPROBE_DEFER)
+	if (cdns->otg_irq < 0)
 		return cdns->otg_irq;
-
-	if (cdns->otg_irq < 0) {
-		dev_err(dev, "couldn't get otg irq\n");
-		return cdns->otg_irq;
-	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "otg");
 	if (!res) {
@@ -529,18 +520,21 @@ static int cdns3_probe(struct platform_device *pdev)
 	if (ret)
 		goto err2;
 
-	sw_desc.set = cdns3_role_set;
-	sw_desc.get = cdns3_role_get;
-	sw_desc.allow_userspace_control = true;
-	sw_desc.driver_data = cdns;
-	if (device_property_read_bool(dev, "usb-role-switch"))
+	if (device_property_read_bool(dev, "usb-role-switch")) {
+		struct usb_role_switch_desc sw_desc = { };
+
+		sw_desc.set = cdns3_role_set;
+		sw_desc.get = cdns3_role_get;
+		sw_desc.allow_userspace_control = true;
+		sw_desc.driver_data = cdns;
 		sw_desc.fwnode = dev->fwnode;
 
-	cdns->role_sw = usb_role_switch_register(dev, &sw_desc);
-	if (IS_ERR(cdns->role_sw)) {
-		ret = PTR_ERR(cdns->role_sw);
-		dev_warn(dev, "Unable to register Role Switch\n");
-		goto err3;
+		cdns->role_sw = usb_role_switch_register(dev, &sw_desc);
+		if (IS_ERR(cdns->role_sw)) {
+			ret = PTR_ERR(cdns->role_sw);
+			dev_warn(dev, "Unable to register Role Switch\n");
+			goto err3;
+		}
 	}
 
 	if (cdns->wakeup_irq) {
@@ -551,7 +545,7 @@ static int cdns3_probe(struct platform_device *pdev)
 
 		if (ret) {
 			dev_err(cdns->dev, "couldn't register wakeup irq handler\n");
-			goto err3;
+			goto err4;
 		}
 	}
 
@@ -567,7 +561,8 @@ static int cdns3_probe(struct platform_device *pdev)
 	device_set_wakeup_capable(dev, true);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
-	pm_runtime_forbid(dev);
+	if (!(cdns->pdata && (cdns->pdata->quirks & CDNS3_DEFAULT_PM_RUNTIME_ALLOW)))
+		pm_runtime_forbid(dev);
 
 	/*
 	 * The controller needs less time between bus and controller suspend,
@@ -582,7 +577,8 @@ static int cdns3_probe(struct platform_device *pdev)
 	return 0;
 err4:
 	cdns3_drd_exit(cdns);
-	usb_role_switch_unregister(cdns->role_sw);
+	if (cdns->role_sw)
+		usb_role_switch_unregister(cdns->role_sw);
 err3:
 	set_phy_power_off(cdns);
 err2:

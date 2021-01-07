@@ -53,7 +53,7 @@ by the ``controls`` fields.
 To get the current value of a set of controls applications initialize
 the ``id``, ``size`` and ``reserved2`` fields of each struct
 :c:type:`v4l2_ext_control` and call the
-:ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` ioctl. String controls controls must also set the
+:ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` ioctl. String controls must also set the
 ``string`` field. Controls of compound types
 (``V4L2_CTRL_FLAG_HAS_PAYLOAD`` is set) must set the ``ptr`` field.
 
@@ -180,10 +180,38 @@ still cause this situation.
       - ``p_u32``
       - A pointer to a matrix control of unsigned 32-bit values. Valid if
 	this control is of type ``V4L2_CTRL_TYPE_U32``.
-    * - :c:type:`v4l2_area` *
+    * - struct :c:type:`v4l2_area` *
       - ``p_area``
       - A pointer to a struct :c:type:`v4l2_area`. Valid if this control is
         of type ``V4L2_CTRL_TYPE_AREA``.
+    * - struct :c:type:`v4l2_ctrl_h264_sps` *
+      - ``p_h264_sps``
+      - A pointer to a struct :c:type:`v4l2_ctrl_h264_sps`. Valid if this control is
+        of type ``V4L2_CTRL_TYPE_H264_SPS``.
+    * - struct :c:type:`v4l2_ctrl_h264_pps` *
+      - ``p_h264_pps``
+      - A pointer to a struct :c:type:`v4l2_ctrl_h264_pps`. Valid if this control is
+        of type ``V4L2_CTRL_TYPE_H264_PPS``.
+    * - struct :c:type:`v4l2_ctrl_h264_scaling_matrix` *
+      - ``p_h264_scaling_matrix``
+      - A pointer to a struct :c:type:`v4l2_ctrl_h264_scaling_matrix`. Valid if this control is
+        of type ``V4L2_CTRL_TYPE_H264_SCALING_MATRIX``.
+    * - struct :c:type:`v4l2_ctrl_h264_pred_weights` *
+      - ``p_h264_pred_weights``
+      - A pointer to a struct :c:type:`v4l2_ctrl_h264_pred_weights`. Valid if this control is
+        of type ``V4L2_CTRL_TYPE_H264_PRED_WEIGHTS``.
+    * - struct :c:type:`v4l2_ctrl_h264_slice_params` *
+      - ``p_h264_slice_params``
+      - A pointer to a struct :c:type:`v4l2_ctrl_h264_slice_params`. Valid if this control is
+        of type ``V4L2_CTRL_TYPE_H264_SLICE_PARAMS``.
+    * - struct :c:type:`v4l2_ctrl_h264_decode_params` *
+      - ``p_h264_decode_params``
+      - A pointer to a struct :c:type:`v4l2_ctrl_h264_decode_params`. Valid if this control is
+        of type ``V4L2_CTRL_TYPE_H264_DECODE_PARAMS``.
+    * - struct :c:type:`v4l2_ctrl_fwht_params` *
+      - ``p_fwht_params``
+      - A pointer to a struct :c:type:`v4l2_ctrl_fwht_params`. Valid if this control is
+        of type ``V4L2_CTRL_TYPE_FWHT_PARAMS``.
     * - void *
       - ``ptr``
       - A pointer to a compound type which can be an N-dimensional array
@@ -322,10 +350,10 @@ still cause this situation.
 	:ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` and
 	:ref:`VIDIOC_G_CTRL <VIDIOC_G_CTRL>` ioctl belong to this
 	class.
-    * - ``V4L2_CTRL_CLASS_MPEG``
+    * - ``V4L2_CTRL_CLASS_CODEC``
       - 0x990000
-      - The class containing MPEG compression controls. These controls are
-	described in :ref:`mpeg-controls`.
+      - The class containing stateful codec controls. These controls are
+	described in :ref:`codec-controls`.
     * - ``V4L2_CTRL_CLASS_CAMERA``
       - 0x9a0000
       - The class containing camera controls. These controls are described
@@ -358,6 +386,14 @@ still cause this situation.
       - 0xa20000
       - The class containing RF tuner controls. These controls are
 	described in :ref:`rf-tuner-controls`.
+    * - ``V4L2_CTRL_CLASS_DETECT``
+      - 0xa30000
+      - The class containing motion or object detection controls. These controls
+        are described in :ref:`detect-controls`.
+    * - ``V4L2_CTRL_CLASS_CODEC_STATELESS``
+      - 0xa40000
+      - The class containing stateless codec controls. These controls are
+	described in :ref:`codec-stateless-controls`.
 
 Return Value
 ============

@@ -27,6 +27,7 @@
 #define TEST_HOST_LOOP_N		2UL
 
 /* Host variables */
+static u64 dirty_log_manual_caps;
 static bool host_quit;
 static uint64_t iteration;
 static uint64_t vcpu_last_completed_iteration[MAX_VCPUS];
@@ -88,10 +89,6 @@ static void *vcpu_worker(void *data)
 	return NULL;
 }
 
-#ifdef USE_CLEAR_DIRTY_LOG
-static u64 dirty_log_manual_caps;
-#endif
-
 static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 		     uint64_t phys_offset, int wr_fract)
 {
@@ -106,10 +103,8 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	struct timespec get_dirty_log_total = (struct timespec){0};
 	struct timespec vcpu_dirty_total = (struct timespec){0};
 	struct timespec avg;
-#ifdef USE_CLEAR_DIRTY_LOG
 	struct kvm_enable_cap cap = {};
 	struct timespec clear_dirty_log_total = (struct timespec){0};
-#endif
 
 	vm = create_vm(mode, nr_vcpus, guest_percpu_mem_size);
 
@@ -120,11 +115,11 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	host_num_pages = vm_num_host_pages(mode, guest_num_pages);
 	bmap = bitmap_alloc(host_num_pages);
 
-#ifdef USE_CLEAR_DIRTY_LOG
-	cap.cap = KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2;
-	cap.args[0] = dirty_log_manual_caps;
-	vm_enable_cap(vm, &cap);
-#endif
+	if (dirty_log_manual_caps) {
+		cap.cap = KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2;
+		cap.args[0] = dirty_log_manual_caps;
+		vm_enable_cap(vm, &cap);
+	}
 
 	vcpu_threads = malloc(nr_vcpus * sizeof(*vcpu_threads));
 	TEST_ASSERT(vcpu_threads, "Memory allocation failed");
@@ -190,17 +185,17 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 		pr_info("Iteration %lu get dirty log time: %ld.%.9lds\n",
 			iteration, ts_diff.tv_sec, ts_diff.tv_nsec);
 
-#ifdef USE_CLEAR_DIRTY_LOG
-		clock_gettime(CLOCK_MONOTONIC, &start);
-		kvm_vm_clear_dirty_log(vm, TEST_MEM_SLOT_INDEX, bmap, 0,
-				       host_num_pages);
+		if (dirty_log_manual_caps) {
+			clock_gettime(CLOCK_MONOTONIC, &start);
+			kvm_vm_clear_dirty_log(vm, TEST_MEM_SLOT_INDEX, bmap, 0,
+					       host_num_pages);
 
-		ts_diff = timespec_diff_now(start);
-		clear_dirty_log_total = timespec_add(clear_dirty_log_total,
-						     ts_diff);
-		pr_info("Iteration %lu clear dirty log time: %ld.%.9lds\n",
-			iteration, ts_diff.tv_sec, ts_diff.tv_nsec);
-#endif
+			ts_diff = timespec_diff_now(start);
+			clear_dirty_log_total = timespec_add(clear_dirty_log_total,
+							     ts_diff);
+			pr_info("Iteration %lu clear dirty log time: %ld.%.9lds\n",
+				iteration, ts_diff.tv_sec, ts_diff.tv_nsec);
+		}
 	}
 
 	/* Tell the vcpu thread to quit */
@@ -220,12 +215,12 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 		iterations, get_dirty_log_total.tv_sec,
 		get_dirty_log_total.tv_nsec, avg.tv_sec, avg.tv_nsec);
 
-#ifdef USE_CLEAR_DIRTY_LOG
-	avg = timespec_div(clear_dirty_log_total, iterations);
-	pr_info("Clear dirty log over %lu iterations took %ld.%.9lds. (Avg %ld.%.9lds/iteration)\n",
-		iterations, clear_dirty_log_total.tv_sec,
-		clear_dirty_log_total.tv_nsec, avg.tv_sec, avg.tv_nsec);
-#endif
+	if (dirty_log_manual_caps) {
+		avg = timespec_div(clear_dirty_log_total, iterations);
+		pr_info("Clear dirty log over %lu iterations took %ld.%.9lds. (Avg %ld.%.9lds/iteration)\n",
+			iterations, clear_dirty_log_total.tv_sec,
+			clear_dirty_log_total.tv_nsec, avg.tv_sec, avg.tv_nsec);
+	}
 
 	free(bmap);
 	free(vcpu_threads);
@@ -284,16 +279,10 @@ int main(int argc, char *argv[])
 	int opt, i;
 	int wr_fract = 1;
 
-#ifdef USE_CLEAR_DIRTY_LOG
 	dirty_log_manual_caps =
 		kvm_check_cap(KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2);
-	if (!dirty_log_manual_caps) {
-		print_skip("KVM_CLEAR_DIRTY_LOG not available");
-		exit(KSFT_SKIP);
-	}
 	dirty_log_manual_caps &= (KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE |
 				  KVM_DIRTY_LOG_INITIALLY_SET);
-#endif
 
 #ifdef __x86_64__
 	guest_mode_init(VM_MODE_PXXV48_4K, true, true);

@@ -104,6 +104,8 @@ struct ccw_device {
 					       was successfully verified. */
 #define PE_PATHGROUP_ESTABLISHED	0x4 /* A pathgroup was reset and had
 					       to be established again. */
+#define PE_PATH_FCES_EVENT		0x8 /* The FCES Status of a path has
+					     * changed. */
 
 /*
  * Possible CIO actions triggered by the unit check handler.
@@ -115,7 +117,7 @@ enum uc_todo {
 };
 
 /**
- * struct ccw driver - device driver for channel attached devices
+ * struct ccw_driver - device driver for channel attached devices
  * @ids: ids supported by this driver
  * @probe: function called on probe
  * @remove: function called on remove
@@ -124,11 +126,6 @@ enum uc_todo {
  * @notify: notify driver of device state changes
  * @path_event: notify driver of channel path events
  * @shutdown: called at device shutdown
- * @prepare: prepare for pm state transition
- * @complete: undo work done in @prepare
- * @freeze: callback for freezing during hibernation snapshotting
- * @thaw: undo work done in @freeze
- * @restore: callback for restoring after hibernation
  * @uc_handler: callback for unit check handler
  * @driver: embedded device driver structure
  * @int_class: interruption class to use for accounting interrupts
@@ -142,11 +139,6 @@ struct ccw_driver {
 	int (*notify) (struct ccw_device *, int);
 	void (*path_event) (struct ccw_device *, int *);
 	void (*shutdown) (struct ccw_device *);
-	int (*prepare) (struct ccw_device *);
-	void (*complete) (struct ccw_device *);
-	int (*freeze)(struct ccw_device *);
-	int (*thaw) (struct ccw_device *);
-	int (*restore)(struct ccw_device *);
 	enum uc_todo (*uc_handler) (struct ccw_device *, struct irb *);
 	struct device_driver driver;
 	enum interruption_class int_class;

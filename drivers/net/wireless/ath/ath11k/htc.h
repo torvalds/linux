@@ -65,7 +65,9 @@ enum ath11k_htc_msg_id {
 	ATH11K_HTC_MSG_CONNECT_SERVICE_RESP_ID = 3,
 	ATH11K_HTC_MSG_SETUP_COMPLETE_ID       = 4,
 	ATH11K_HTC_MSG_SETUP_COMPLETE_EX_ID    = 5,
-	ATH11K_HTC_MSG_SEND_SUSPEND_COMPLETE   = 6
+	ATH11K_HTC_MSG_SEND_SUSPEND_COMPLETE   = 6,
+	ATH11K_HTC_MSG_NACK_SUSPEND	       = 7,
+	ATH11K_HTC_MSG_WAKEUP_FROM_SUSPEND_ID  = 8,
 };
 
 enum ath11k_htc_version {
@@ -221,10 +223,6 @@ enum ath11k_htc_ep_id {
 	ATH11K_HTC_EP_COUNT,
 };
 
-struct ath11k_htc_ops {
-	void (*target_send_suspend_complete)(struct ath11k_base *ar);
-};
-
 struct ath11k_htc_ep_ops {
 	void (*ep_tx_complete)(struct ath11k_base *, struct sk_buff *);
 	void (*ep_rx_complete)(struct ath11k_base *, struct sk_buff *);
@@ -283,8 +281,6 @@ struct ath11k_htc {
 
 	/* protects endpoints */
 	spinlock_t tx_lock;
-
-	struct ath11k_htc_ops htc_ops;
 
 	u8 control_resp_buffer[ATH11K_HTC_MAX_CTRL_MSG_LEN];
 	int control_resp_len;

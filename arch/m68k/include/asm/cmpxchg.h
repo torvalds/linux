@@ -76,7 +76,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 }
 #endif
 
-#define xchg(ptr,x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
+#define xchg(ptr,x) ({(__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr)));})
 
 #include <asm-generic/cmpxchg-local.h>
 
@@ -119,11 +119,11 @@ static inline unsigned long __cmpxchg(volatile void *p, unsigned long old,
 }
 
 #define cmpxchg(ptr, o, n)						    \
-	((__typeof__(*(ptr)))__cmpxchg((ptr), (unsigned long)(o),	    \
-			(unsigned long)(n), sizeof(*(ptr))))
+	({(__typeof__(*(ptr)))__cmpxchg((ptr), (unsigned long)(o),	    \
+			(unsigned long)(n), sizeof(*(ptr)));})
 #define cmpxchg_local(ptr, o, n)					    \
-	((__typeof__(*(ptr)))__cmpxchg((ptr), (unsigned long)(o),	    \
-			(unsigned long)(n), sizeof(*(ptr))))
+	({(__typeof__(*(ptr)))__cmpxchg((ptr), (unsigned long)(o),	    \
+			(unsigned long)(n), sizeof(*(ptr)));})
 
 #define cmpxchg64(ptr, o, n)	cmpxchg64_local((ptr), (o), (n))
 

@@ -4,10 +4,5 @@ TODO:
 	- add proper arch dependencies as needed
 	- audit userspace interfaces to make sure they are sane
 
-
-ion/
- - Split /dev/ion up into multiple nodes (e.g. /dev/ion/heap0)
- - Better test framework (integration with VGEM was suggested)
-
 Please send patches to Greg Kroah-Hartman <greg@kroah.com> and Cc:
 Arve Hjønnevåg <arve@android.com> and Riley Andrews <riandrews@android.com>

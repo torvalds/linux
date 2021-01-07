@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2015 Oracle.  All rights reserved.
+ * Copyright (c) 2015-2020, Oracle and/or its affiliates.
  *
  * Support for backward direction RPCs on RPC/RDMA.
  */
@@ -82,7 +82,7 @@ static int rpcrdma_bc_marshal_reply(struct rpc_rqst *rqst)
 				      &rqst->rq_snd_buf, rpcrdma_noch_pullup))
 		return -EIO;
 
-	trace_xprtrdma_cb_reply(rqst);
+	trace_xprtrdma_cb_reply(r_xprt, rqst);
 	return 0;
 }
 
@@ -260,7 +260,7 @@ void rpcrdma_bc_receive_call(struct rpcrdma_xprt *r_xprt,
 	 */
 	req = rpcr_to_rdmar(rqst);
 	req->rl_reply = rep;
-	trace_xprtrdma_cb_call(rqst);
+	trace_xprtrdma_cb_call(r_xprt, rqst);
 
 	/* Queue rqst for ULP's callback service */
 	bc_serv = xprt->bc_serv;

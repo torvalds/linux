@@ -503,7 +503,7 @@ static int __maybe_unused kxtj9_suspend(struct device *dev)
 
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users)
+	if (input_device_enabled(input_dev))
 		kxtj9_disable(tj9);
 
 	mutex_unlock(&input_dev->mutex);
@@ -518,7 +518,7 @@ static int __maybe_unused kxtj9_resume(struct device *dev)
 
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users)
+	if (input_device_enabled(input_dev))
 		kxtj9_enable(tj9);
 
 	mutex_unlock(&input_dev->mutex);

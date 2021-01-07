@@ -53,8 +53,8 @@ config PWM_AB8500
 
 config PWM_ATMEL
 	tristate "Atmel PWM support"
-	depends on OF
 	depends on ARCH_AT91 || COMPILE_TEST
+	depends on HAS_IOMEM && OF
 	help
 	  Generic PWM framework driver for Atmel SoC.
 
@@ -75,7 +75,8 @@ config PWM_ATMEL_HLCDC_PWM
 
 config PWM_ATMEL_TCB
 	tristate "Atmel TC Block PWM support"
-	depends on ATMEL_TCLIB && OF
+	depends on OF
+	select REGMAP_MMIO
 	help
 	  Generic PWM framework driver for Atmel Timer Counter Block.
 
@@ -88,7 +89,7 @@ config PWM_ATMEL_TCB
 config PWM_BCM_IPROC
 	tristate "iProc PWM support"
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
-	depends on COMMON_CLK
+	depends on COMMON_CLK && HAS_IOMEM
 	default ARCH_BCM_IPROC
 	help
 	  Generic PWM framework driver for Broadcom iProc PWM block. This
@@ -111,6 +112,7 @@ config PWM_BCM_KONA
 config PWM_BCM2835
 	tristate "BCM2835 PWM support"
 	depends on ARCH_BCM2835 || ARCH_BRCMSTB || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  PWM framework driver for BCM2835 controller (Raspberry Pi)
 
@@ -120,6 +122,7 @@ config PWM_BCM2835
 config PWM_BERLIN
 	tristate "Marvell Berlin PWM support"
 	depends on ARCH_BERLIN || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  PWM framework driver for Marvell Berlin SoCs.
 
@@ -129,6 +132,7 @@ config PWM_BERLIN
 config PWM_BRCMSTB
 	tristate "Broadcom STB PWM support"
 	depends on ARCH_BRCMSTB || BMIPS_GENERIC || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Generic PWM framework driver for the Broadcom Set-top-Box
 	  SoCs (BCM7xxx).
@@ -160,9 +164,19 @@ config PWM_CROS_EC
 	  PWM driver for exposing a PWM attached to the ChromeOS Embedded
 	  Controller.
 
+config PWM_DWC
+	tristate "DesignWare PWM Controller"
+	depends on PCI
+	help
+	  PWM driver for Synopsys DWC PWM Controller attached to a PCI bus.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-dwc.
+
 config PWM_EP93XX
 	tristate "Cirrus Logic EP93xx PWM support"
 	depends on ARCH_EP93XX || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Generic PWM framework driver for Cirrus Logic EP93xx.
 
@@ -184,6 +198,7 @@ config PWM_FSL_FTM
 config PWM_HIBVT
 	tristate "HiSilicon BVT PWM support"
 	depends on ARCH_HISI || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Generic PWM framework driver for HiSilicon BVT SoCs.
 
@@ -206,6 +221,7 @@ config PWM_IMG
 config PWM_IMX1
 	tristate "i.MX1 PWM support"
 	depends on ARCH_MXC || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Generic PWM framework driver for i.MX1 and i.MX21
 
@@ -215,6 +231,7 @@ config PWM_IMX1
 config PWM_IMX27
 	tristate "i.MX27 PWM support"
 	depends on ARCH_MXC || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Generic PWM framework driver for i.MX27 and later i.MX SoCs.
 
@@ -231,6 +248,17 @@ config PWM_IMX_TPM
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-imx-tpm.
+
+config PWM_INTEL_LGM
+	tristate "Intel LGM PWM support"
+	depends on HAS_IOMEM
+	depends on (OF && X86) || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  Generic PWM fan controller driver for LGM SoC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-intel-lgm.
 
 config PWM_IQS620A
 	tristate "Azoteq IQS620A PWM support"
@@ -254,6 +282,15 @@ config PWM_JZ4740
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-jz4740.
 
+config PWM_KEEMBAY
+	tristate "Intel Keem Bay PWM driver"
+	depends on ARCH_KEEMBAY || (ARM64 && COMPILE_TEST)
+	help
+	  The platform driver for Intel Keem Bay PWM controller.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-keembay.
+
 config PWM_LP3943
 	tristate "TI/National Semiconductor LP3943 PWM support"
 	depends on MFD_LP3943
@@ -267,6 +304,7 @@ config PWM_LP3943
 config PWM_LPC18XX_SCT
 	tristate "LPC18xx/43xx PWM/SCT support"
 	depends on ARCH_LPC18XX || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Generic PWM framework driver for NXP LPC18xx PWM/SCT which
 	  supports 16 channels.
@@ -279,6 +317,7 @@ config PWM_LPC18XX_SCT
 config PWM_LPC32XX
 	tristate "LPC32XX PWM support"
 	depends on ARCH_LPC32XX || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Generic PWM framework driver for LPC32XX. The LPC32XX SOC has two
 	  PWM controllers.
@@ -287,11 +326,13 @@ config PWM_LPC32XX
 	  will be called pwm-lpc32xx.
 
 config PWM_LPSS
+	depends on HAS_IOMEM
 	tristate
 
 config PWM_LPSS_PCI
 	tristate "Intel LPSS PWM PCI driver"
-	depends on X86 && PCI
+	depends on X86 || COMPILE_TEST
+	depends on HAS_IOMEM && PCI
 	select PWM_LPSS
 	help
 	  The PCI driver for Intel Low Power Subsystem PWM controller.
@@ -301,7 +342,8 @@ config PWM_LPSS_PCI
 
 config PWM_LPSS_PLATFORM
 	tristate "Intel LPSS PWM platform driver"
-	depends on X86 && ACPI
+	depends on (X86 && ACPI) || COMPILE_TEST
+	depends on HAS_IOMEM
 	select PWM_LPSS
 	help
 	  The platform driver for Intel Low Power Subsystem PWM controller.
@@ -312,7 +354,7 @@ config PWM_LPSS_PLATFORM
 config PWM_MESON
 	tristate "Amlogic Meson PWM driver"
 	depends on ARCH_MESON || COMPILE_TEST
-	depends on COMMON_CLK
+	depends on COMMON_CLK && HAS_IOMEM
 	help
 	  The platform driver for Amlogic Meson PWM controller.
 
@@ -333,6 +375,7 @@ config PWM_MTK_DISP
 config PWM_MEDIATEK
 	tristate "MediaTek PWM support"
 	depends on ARCH_MEDIATEK || RALINK || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Generic PWM framework driver for Mediatek ARM SoC.
 
@@ -341,8 +384,8 @@ config PWM_MEDIATEK
 
 config PWM_MXS
 	tristate "Freescale MXS PWM support"
-	depends on OF
 	depends on ARCH_MXS || COMPILE_TEST
+	depends on HAS_IOMEM && OF
 	select STMP_DEVICE
 	help
 	  Generic PWM framework driver for Freescale MXS.
@@ -373,6 +416,7 @@ config PWM_PCA9685
 config PWM_PXA
 	tristate "PXA PWM support"
 	depends on ARCH_PXA || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Generic PWM framework driver for PXA.
 
@@ -404,6 +448,7 @@ config PWM_RENESAS_TPU
 config PWM_ROCKCHIP
 	tristate "Rockchip PWM support"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Generic PWM framework driver for the PWM controller found on
 	  Rockchip SoCs.
@@ -411,6 +456,7 @@ config PWM_ROCKCHIP
 config PWM_SAMSUNG
 	tristate "Samsung PWM support"
 	depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Generic PWM framework driver for Samsung.
 
@@ -420,7 +466,7 @@ config PWM_SAMSUNG
 config PWM_SIFIVE
 	tristate "SiFive PWM support"
 	depends on OF
-	depends on COMMON_CLK
+	depends on COMMON_CLK && HAS_IOMEM
 	depends on RISCV || COMPILE_TEST
 	help
 	  Generic PWM framework driver for SiFive SoCs.
@@ -441,7 +487,7 @@ config PWM_SL28CPLD
 config PWM_SPEAR
 	tristate "STMicroelectronics SPEAr PWM support"
 	depends on PLAT_SPEAR || COMPILE_TEST
-	depends on OF
+	depends on HAS_IOMEM && OF
 	help
 	  Generic PWM framework driver for the PWM controller on ST
 	  SPEAr SoCs.
@@ -463,7 +509,7 @@ config PWM_SPRD
 config PWM_STI
 	tristate "STiH4xx PWM support"
 	depends on ARCH_STI || COMPILE_TEST
-	depends on OF
+	depends on HAS_IOMEM && OF
 	help
 	  Generic PWM framework driver for STiH4xx SoCs.
 
@@ -509,6 +555,7 @@ config PWM_SUN4I
 config PWM_TEGRA
 	tristate "NVIDIA Tegra PWM support"
 	depends on ARCH_TEGRA || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Generic PWM framework driver for the PWFM controller found on NVIDIA
 	  Tegra SoCs.
@@ -519,6 +566,7 @@ config PWM_TEGRA
 config PWM_TIECAP
 	tristate "ECAP PWM support"
 	depends on ARCH_OMAP2PLUS || ARCH_DAVINCI_DA8XX || ARCH_KEYSTONE || ARCH_K3 || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  PWM driver support for the ECAP APWM controller found on TI SOCs
 
@@ -528,6 +576,7 @@ config PWM_TIECAP
 config PWM_TIEHRPWM
 	tristate "EHRPWM PWM support"
 	depends on ARCH_OMAP2PLUS || ARCH_DAVINCI_DA8XX || ARCH_K3 || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  PWM driver support for the EHRPWM controller found on TI SOCs
 
@@ -555,6 +604,7 @@ config PWM_TWL_LED
 config PWM_VT8500
 	tristate "vt8500 PWM support"
 	depends on ARCH_VT8500 || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Generic PWM framework driver for vt8500.
 
@@ -564,6 +614,7 @@ config PWM_VT8500
 config PWM_ZX
 	tristate "ZTE ZX PWM support"
 	depends on ARCH_ZX || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Generic PWM framework driver for ZTE ZX family SoCs.
 

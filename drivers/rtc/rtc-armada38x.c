@@ -556,7 +556,7 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 
 	rtc->rtc_dev->range_max = U32_MAX;
 
-	return rtc_register_device(rtc->rtc_dev);
+	return devm_rtc_register_device(rtc->rtc_dev);
 }
 
 #ifdef CONFIG_PM_SLEEP

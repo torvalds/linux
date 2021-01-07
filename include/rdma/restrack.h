@@ -68,6 +68,14 @@ struct rdma_restrack_entry {
 	 * As an example for that, see mlx5 QPs with type MLX5_IB_QPT_HW_GSI
 	 */
 	bool			valid;
+	/**
+	 * @no_track: don't add this entry to restrack DB
+	 *
+	 * This field is used to mark an entry that doesn't need to be added to
+	 * internal restrack DB and presented later to the users at the nldev
+	 * query stage.
+	 */
+	u8			no_track : 1;
 	/*
 	 * @kref: Protect destroy of the resource
 	 */
@@ -145,4 +153,20 @@ int rdma_nl_stat_hwcounter_entry(struct sk_buff *msg, const char *name,
 struct rdma_restrack_entry *rdma_restrack_get_byid(struct ib_device *dev,
 						   enum rdma_restrack_type type,
 						   u32 id);
+
+/**
+ * rdma_restrack_no_track() - don't add resource to the DB
+ * @res: resource entry
+ *
+ * Every user of thie API should be cross examined.
+ * Probaby you don't need to use this function.
+ */
+static inline void rdma_restrack_no_track(struct rdma_restrack_entry *res)
+{
+	res->no_track = true;
+}
+static inline bool rdma_restrack_is_tracked(struct rdma_restrack_entry *res)
+{
+	return !res->no_track;
+}
 #endif /* _RDMA_RESTRACK_H_ */

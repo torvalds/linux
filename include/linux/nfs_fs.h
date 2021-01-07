@@ -46,6 +46,11 @@
 #define NFS_RPC_SWAPFLAGS		(RPC_TASK_SWAPPER|RPC_TASK_ROOTCREDS)
 
 /*
+ * Size of the NFS directory verifier
+ */
+#define NFS_DIR_VERIFIER_SIZE		2
+
+/*
  * NFSv3/v4 Access mode cache entry
  */
 struct nfs_access_entry {
@@ -88,8 +93,8 @@ struct nfs_open_context {
 
 struct nfs_open_dir_context {
 	struct list_head list;
-	const struct cred *cred;
 	unsigned long attr_gencount;
+	__be32	verf[NFS_DIR_VERIFIER_SIZE];
 	__u64 dir_cookie;
 	__u64 dup_cookie;
 	signed char duped;
@@ -157,7 +162,7 @@ struct nfs_inode {
 	 * This is the cookie verifier used for NFSv3 readdir
 	 * operations
 	 */
-	__be32			cookieverf[2];
+	__be32			cookieverf[NFS_DIR_VERIFIER_SIZE];
 
 	atomic_long_t		nrequests;
 	struct nfs_mds_commit_info commit_info;

@@ -97,6 +97,14 @@ a page will cause no race conditions is enough.
 
 * page_pool_get_dma_dir(): Retrieve the stored DMA direction.
 
+* page_pool_put_page_bulk(): Tries to refill a number of pages into the
+  ptr_ring cache holding ptr_ring producer lock. If the ptr_ring is full,
+  page_pool_put_page_bulk() will release leftover pages to the page allocator.
+  page_pool_put_page_bulk() is suitable to be run inside the driver NAPI tx
+  completion loop for the XDP_REDIRECT use case.
+  Please note the caller must not use data area after running
+  page_pool_put_page_bulk(), as this function overwrites it.
+
 Coding examples
 ===============
 

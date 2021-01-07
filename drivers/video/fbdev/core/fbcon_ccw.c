@@ -409,4 +409,3 @@ void fbcon_rotate_ccw(struct fbcon_ops *ops)
 	ops->cursor = ccw_cursor;
 	ops->update_start = ccw_update_start;
 }
-EXPORT_SYMBOL(fbcon_rotate_ccw);

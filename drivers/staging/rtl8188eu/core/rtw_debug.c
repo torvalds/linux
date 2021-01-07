@@ -86,16 +86,20 @@ int proc_get_read_reg(char *page, char **start,
 
 	switch (proc_get_read_len) {
 	case 1:
-		len += scnprintf(page + len, count - len, "usb_read8(0x%x)=0x%x\n", proc_get_read_addr, usb_read8(padapter, proc_get_read_addr));
+		len += scnprintf(page + len, count - len, "usb_read8(0x%x)=0x%x\n",
+				 proc_get_read_addr, usb_read8(padapter, proc_get_read_addr));
 		break;
 	case 2:
-		len += scnprintf(page + len, count - len, "usb_read16(0x%x)=0x%x\n", proc_get_read_addr, usb_read16(padapter, proc_get_read_addr));
+		len += scnprintf(page + len, count - len, "usb_read16(0x%x)=0x%x\n",
+				 proc_get_read_addr, usb_read16(padapter, proc_get_read_addr));
 		break;
 	case 4:
-		len += scnprintf(page + len, count - len, "usb_read32(0x%x)=0x%x\n", proc_get_read_addr, usb_read32(padapter, proc_get_read_addr));
+		len += scnprintf(page + len, count - len, "usb_read32(0x%x)=0x%x\n",
+				 proc_get_read_addr, usb_read32(padapter, proc_get_read_addr));
 		break;
 	default:
-		len += scnprintf(page + len, count - len, "error read length=%d\n", proc_get_read_len);
+		len += scnprintf(page + len, count - len, "error read length=%d\n",
+				 proc_get_read_len);
 		break;
 	}
 
@@ -139,7 +143,8 @@ int proc_get_adapter_state(char *page, char **start,
 	int len = 0;
 
 	len += scnprintf(page + len, count - len, "bSurpriseRemoved=%d, bDriverStopped=%d\n",
-						padapter->bSurpriseRemoved, padapter->bDriverStopped);
+			 padapter->bSurpriseRemoved,
+			 padapter->bDriverStopped);
 
 	*eof = 1;
 	return len;
@@ -171,7 +176,8 @@ int proc_get_best_channel(char *page, char **start,
 
 		/*  debug */
 		len += scnprintf(page + len, count - len, "The rx cnt of channel %3d = %d\n",
-					pmlmeext->channel_set[i].ChannelNum, pmlmeext->channel_set[i].rx_count);
+				 pmlmeext->channel_set[i].ChannelNum,
+				 pmlmeext->channel_set[i].rx_count);
 	}
 
 	len += scnprintf(page + len, count - len, "best_channel_24G = %d\n", best_channel_24G);

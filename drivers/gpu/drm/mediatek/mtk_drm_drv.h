@@ -44,8 +44,6 @@ struct mtk_drm_private {
 	struct mtk_ddp_comp *ddp_comp[DDP_COMPONENT_ID_MAX];
 	const struct mtk_mmsys_driver_data *data;
 	struct drm_atomic_state *suspend_state;
-
-	bool dma_parms_allocated;
 };
 
 extern struct platform_driver mtk_ddp_driver;
@@ -54,6 +52,5 @@ extern struct platform_driver mtk_disp_ovl_driver;
 extern struct platform_driver mtk_disp_rdma_driver;
 extern struct platform_driver mtk_dpi_driver;
 extern struct platform_driver mtk_dsi_driver;
-extern struct platform_driver mtk_mipi_tx_driver;
 
 #endif /* MTK_DRM_DRV_H */

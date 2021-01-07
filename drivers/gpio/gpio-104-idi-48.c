@@ -132,8 +132,7 @@ static void idi_48_irq_mask(struct irq_data *data)
 
 				outb(idi48gpio->cos_enb, idi48gpio->base + 7);
 
-				raw_spin_unlock_irqrestore(&idi48gpio->lock,
-						           flags);
+				raw_spin_unlock_irqrestore(&idi48gpio->lock, flags);
 			}
 
 			return;
@@ -166,8 +165,7 @@ static void idi_48_irq_unmask(struct irq_data *data)
 
 				outb(idi48gpio->cos_enb, idi48gpio->base + 7);
 
-				raw_spin_unlock_irqrestore(&idi48gpio->lock,
-						           flags);
+				raw_spin_unlock_irqrestore(&idi48gpio->lock, flags);
 			}
 
 			return;

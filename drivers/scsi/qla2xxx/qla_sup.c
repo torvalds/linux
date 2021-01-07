@@ -2634,14 +2634,14 @@ qla28xx_extract_sfub_and_verify(struct scsi_qla_host *vha, uint32_t *buf,
 	    sizeof(struct secure_flash_update_block));
 
 	for (i = 0; i < (sizeof(struct secure_flash_update_block) >> 2); i++)
-		check_sum += p[i];
+		check_sum += le32_to_cpu(p[i]);
 
 	check_sum = (~check_sum) + 1;
 
-	if (check_sum != p[i]) {
+	if (check_sum != le32_to_cpu(p[i])) {
 		ql_log(ql_log_warn, vha, 0x7097,
 		    "SFUB checksum failed, 0x%x, 0x%x\n",
-		    check_sum, p[i]);
+		    check_sum, le32_to_cpu(p[i]));
 		return QLA_COMMAND_ERROR;
 	}
 
@@ -2721,7 +2721,7 @@ qla28xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 	if (ha->flags.secure_adapter && region.attribute) {
 
 		ql_log(ql_log_warn + ql_dbg_verbose, vha, 0xffff,
-		    "Region %x is secure\n", region.code);
+		    "Region %x is secure\n", le16_to_cpu(region.code));
 
 		switch (le16_to_cpu(region.code)) {
 		case FLT_REG_FW:
@@ -2775,7 +2775,7 @@ qla28xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 		default:
 			ql_log(ql_log_warn + ql_dbg_verbose, vha,
 			    0xffff, "Secure region %x not supported\n",
-			    region.code);
+			    le16_to_cpu(region.code));
 			rval = QLA_COMMAND_ERROR;
 			goto done;
 		}

@@ -186,8 +186,13 @@ int agp_add_bridge(struct agp_bridge_data *bridge);
 void agp_remove_bridge(struct agp_bridge_data *bridge);
 
 /* Frontend routines. */
+#if IS_ENABLED(CONFIG_DRM_LEGACY)
 int agp_frontend_initialize(void);
 void agp_frontend_cleanup(void);
+#else
+static inline int agp_frontend_initialize(void) { return 0; }
+static inline void agp_frontend_cleanup(void) {}
+#endif
 
 /* Generic routines. */
 void agp_generic_enable(struct agp_bridge_data *bridge, u32 mode);

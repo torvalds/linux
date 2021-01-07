@@ -93,8 +93,19 @@ struct ceph_dir_layout {
 #define CEPH_AUTH_NONE	 	0x1
 #define CEPH_AUTH_CEPHX	 	0x2
 
+#define CEPH_AUTH_MODE_NONE		0
+#define CEPH_AUTH_MODE_AUTHORIZER	1
+#define CEPH_AUTH_MODE_MON		10
+
+/* msgr2 protocol modes */
+#define CEPH_CON_MODE_UNKNOWN	0x0
+#define CEPH_CON_MODE_CRC	0x1
+#define CEPH_CON_MODE_SECURE	0x2
+
 #define CEPH_AUTH_UID_DEFAULT ((__u64) -1)
 
+const char *ceph_auth_proto_name(int proto);
+const char *ceph_con_mode_name(int mode);
 
 /*********************************************
  * message layer
@@ -424,6 +435,7 @@ union ceph_mds_request_args {
 	} __attribute__ ((packed)) open;
 	struct {
 		__le32 flags;
+		__le32 osdmap_epoch; /* used for setting file/dir layouts */
 	} __attribute__ ((packed)) setxattr;
 	struct {
 		struct ceph_file_layout_legacy layout;
@@ -445,11 +457,25 @@ union ceph_mds_request_args {
 	} __attribute__ ((packed)) lookupino;
 } __attribute__ ((packed));
 
+union ceph_mds_request_args_ext {
+	union ceph_mds_request_args old;
+	struct {
+		__le32 mode;
+		__le32 uid;
+		__le32 gid;
+		struct ceph_timespec mtime;
+		struct ceph_timespec atime;
+		__le64 size, old_size;       /* old_size needed by truncate */
+		__le32 mask;                 /* CEPH_SETATTR_* */
+		struct ceph_timespec btime;
+	} __attribute__ ((packed)) setattr_ext;
+};
+
 #define CEPH_MDS_FLAG_REPLAY		1 /* this is a replayed op */
 #define CEPH_MDS_FLAG_WANT_DENTRY	2 /* want dentry in reply */
 #define CEPH_MDS_FLAG_ASYNC		4 /* request is asynchronous */
 
-struct ceph_mds_request_head {
+struct ceph_mds_request_head_old {
 	__le64 oldest_client_tid;
 	__le32 mdsmap_epoch;           /* on client */
 	__le32 flags;                  /* CEPH_MDS_FLAG_* */
@@ -460,6 +486,22 @@ struct ceph_mds_request_head {
 	__le64 ino;                    /* use this ino for openc, mkdir, mknod,
 					  etc. (if replaying) */
 	union ceph_mds_request_args args;
+} __attribute__ ((packed));
+
+#define CEPH_MDS_REQUEST_HEAD_VERSION  1
+
+struct ceph_mds_request_head {
+	__le16 version;                /* struct version */
+	__le64 oldest_client_tid;
+	__le32 mdsmap_epoch;           /* on client */
+	__le32 flags;                  /* CEPH_MDS_FLAG_* */
+	__u8 num_retry, num_fwd;       /* count retry, fwd attempts */
+	__le16 num_releases;           /* # include cap/lease release records */
+	__le32 op;                     /* mds op code */
+	__le32 caller_uid, caller_gid;
+	__le64 ino;                    /* use this ino for openc, mkdir, mknod,
+					  etc. (if replaying) */
+	union ceph_mds_request_args_ext args;
 } __attribute__ ((packed));
 
 /* cap/lease release record */

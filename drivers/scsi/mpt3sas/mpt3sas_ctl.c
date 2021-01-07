@@ -664,7 +664,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	Mpi26NVMeEncapsulatedRequest_t *nvme_encap_request = NULL;
 	struct _pcie_device *pcie_device = NULL;
 	u16 smid;
-	u8 timeout;
+	unsigned long timeout;
 	u8 issue_reset;
 	u32 sz, sz_arg;
 	void *psge;
@@ -902,8 +902,10 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		    (Mpi2SmpPassthroughRequest_t *)mpi_request;
 		u8 *data;
 
-		/* ioc determines which port to use */
-		smp_request->PhysicalPort = 0xFF;
+		if (!ioc->multipath_on_hba) {
+			/* ioc determines which port to use */
+			smp_request->PhysicalPort = 0xFF;
+		}
 		if (smp_request->PassthroughFlags &
 		    MPI2_SMP_PT_REQ_PT_FLAGS_IMMEDIATE)
 			data = (u8 *)&smp_request->SGL;

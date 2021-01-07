@@ -516,7 +516,7 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
 					  struct drm_plane_state *state)
 {
-	unsigned int num_w, denom_w, num_h, denom_h, xres, yres;
+	unsigned int num_w, denom_w, num_h, denom_h, xres, yres, max_w, max_h;
 	struct ingenic_ipu *ipu = plane_to_ingenic_ipu(plane);
 	struct drm_crtc *crtc = state->crtc ?: plane->state->crtc;
 	struct drm_crtc_state *crtc_state;
@@ -558,19 +558,26 @@ static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
 	xres = state->src_w >> 16;
 	yres = state->src_h >> 16;
 
-	/* Adjust the coefficients until we find a valid configuration */
-	for (denom_w = xres, num_w = state->crtc_w;
-	     num_w <= crtc_state->mode.hdisplay; num_w++)
+	/*
+	 * Increase the scaled image's theorical width/height until we find a
+	 * configuration that has valid scaling coefficients, up to 102% of the
+	 * screen's resolution. This makes sure that we can scale from almost
+	 * every resolution possible at the cost of a very small distorsion.
+	 * The CRTC_W / CRTC_H are not modified.
+	 */
+	max_w = crtc_state->mode.hdisplay * 102 / 100;
+	max_h = crtc_state->mode.vdisplay * 102 / 100;
+
+	for (denom_w = xres, num_w = state->crtc_w; num_w <= max_w; num_w++)
 		if (!reduce_fraction(&num_w, &denom_w))
 			break;
-	if (num_w > crtc_state->mode.hdisplay)
+	if (num_w > max_w)
 		return -EINVAL;
 
-	for (denom_h = yres, num_h = state->crtc_h;
-	     num_h <= crtc_state->mode.vdisplay; num_h++)
+	for (denom_h = yres, num_h = state->crtc_h; num_h <= max_h; num_h++)
 		if (!reduce_fraction(&num_h, &denom_h))
 			break;
-	if (num_h > crtc_state->mode.vdisplay)
+	if (num_h > max_h)
 		return -EINVAL;
 
 	ipu->num_w = num_w;

@@ -151,6 +151,7 @@ static int cdns_imx_platform_suspend(struct device *dev,
 	bool suspend, bool wakeup);
 static struct cdns3_platform_data cdns_imx_pdata = {
 	.platform_suspend = cdns_imx_platform_suspend,
+	.quirks		  = CDNS3_DEFAULT_PM_RUNTIME_ALLOW,
 };
 
 static const struct of_dev_auxdata cdns_imx_auxdata[] = {
@@ -206,7 +207,6 @@ static int cdns_imx_probe(struct platform_device *pdev)
 	device_set_wakeup_capable(dev, true);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
-	pm_runtime_forbid(dev);
 
 	return ret;
 err:

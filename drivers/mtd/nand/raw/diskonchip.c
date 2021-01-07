@@ -216,7 +216,7 @@ static int doc_ecc_decode(struct rs_control *rs, uint8_t *data, uint8_t *ecc)
 
 static void DoC_Delay(struct doc_priv *doc, unsigned short cycles)
 {
-	volatile char dummy;
+	volatile char __always_unused dummy;
 	int i;
 
 	for (i = 0; i < cycles; i++) {
@@ -703,7 +703,7 @@ static int doc200x_calculate_ecc(struct nand_chip *this, const u_char *dat,
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 	int i;
-	int emptymatch = 1;
+	int __always_unused emptymatch = 1;
 
 	/* flush the pipeline */
 	if (DoC_is_2000(doc)) {
@@ -1269,12 +1269,31 @@ static inline int __init doc2001plus_init(struct mtd_info *mtd)
 	return 1;
 }
 
+static int doc200x_attach_chip(struct nand_chip *chip)
+{
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST)
+		return 0;
+
+	chip->ecc.placement = NAND_ECC_PLACEMENT_INTERLEAVED;
+	chip->ecc.size = 512;
+	chip->ecc.bytes = 6;
+	chip->ecc.strength = 2;
+	chip->ecc.options = NAND_ECC_GENERIC_ERASED_CHECK;
+	chip->ecc.hwctl = doc200x_enable_hwecc;
+	chip->ecc.calculate = doc200x_calculate_ecc;
+	chip->ecc.correct = doc200x_correct_data;
+
+	return 0;
+}
+
 static const struct nand_controller_ops doc200x_ops = {
 	.exec_op = doc200x_exec_op,
+	.attach_chip = doc200x_attach_chip,
 };
 
 static const struct nand_controller_ops doc2001plus_ops = {
 	.exec_op = doc2001plus_exec_op,
+	.attach_chip = doc200x_attach_chip,
 };
 
 static int __init doc_probe(unsigned long physadr)
@@ -1452,16 +1471,6 @@ static int __init doc_probe(unsigned long physadr)
 
 	nand->controller	= &doc->base;
 	nand_set_controller_data(nand, doc);
-	nand->ecc.hwctl		= doc200x_enable_hwecc;
-	nand->ecc.calculate	= doc200x_calculate_ecc;
-	nand->ecc.correct	= doc200x_correct_data;
-
-	nand->ecc.engine_type	= NAND_ECC_ENGINE_TYPE_ON_HOST;
-	nand->ecc.placement	= NAND_ECC_PLACEMENT_INTERLEAVED;
-	nand->ecc.size		= 512;
-	nand->ecc.bytes		= 6;
-	nand->ecc.strength	= 2;
-	nand->ecc.options	= NAND_ECC_GENERIC_ERASED_CHECK;
 	nand->bbt_options	= NAND_BBT_USE_FLASH;
 	/* Skip the automatic BBT scan so we can run it manually */
 	nand->options		|= NAND_SKIP_BBTSCAN | NAND_NO_BBM_QUIRK;

@@ -34,11 +34,6 @@ ap_h1_spi: &spi0 {};
 	};
 };
 
-&ap_sar_sensor_i2c {
-	/* Not hooked up */
-	status = "disabled";
-};
-
 ap_ts_pen_1v8: &i2c4 {
 	status = "okay";
 	clock-frequency = <400000>;
@@ -56,6 +51,17 @@ ap_ts_pen_1v8: &i2c4 {
 
 		reset-gpios = <&tlmm 8 GPIO_ACTIVE_LOW>;
 	};
+};
+
+&pp3300_hub {
+	/* pp3300_l7c is used to power the USB hub */
+	/delete-property/regulator-always-on;
+	/delete-property/regulator-boot-on;
+};
+
+&pp3300_l7c {
+	regulator-always-on;
+	regulator-boot-on;
 };
 
 &sdhc_2 {

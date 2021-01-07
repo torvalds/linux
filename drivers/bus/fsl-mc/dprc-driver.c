@@ -670,9 +670,7 @@ int dprc_setup(struct fsl_mc_device *mc_dev)
 		goto error_cleanup_open;
 	}
 
-	if (major_ver < DPRC_MIN_VER_MAJOR ||
-	    (major_ver == DPRC_MIN_VER_MAJOR &&
-	     minor_ver < DPRC_MIN_VER_MINOR)) {
+	if (major_ver < DPRC_MIN_VER_MAJOR) {
 		dev_err(&mc_dev->dev,
 			"ERROR: DPRC version %d.%d not supported\n",
 			major_ver, minor_ver);

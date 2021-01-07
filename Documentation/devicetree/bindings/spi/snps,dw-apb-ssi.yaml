@@ -65,6 +65,8 @@ properties:
         const: baikal,bt1-ssi
       - description: Baikal-T1 System Boot SPI Controller
         const: baikal,bt1-sys-ssi
+      - description: Canaan Kendryte K210 SoS SPI Controller
+        const: canaan,k210-spi
 
   reg:
     minItems: 1

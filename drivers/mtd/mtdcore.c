@@ -993,6 +993,8 @@ int __get_mtd_device(struct mtd_info *mtd)
 		}
 	}
 
+	master->usecount++;
+
 	while (mtd->parent) {
 		mtd->usecount++;
 		mtd = mtd->parent;
@@ -1058,6 +1060,8 @@ void __put_mtd_device(struct mtd_info *mtd)
 		BUG_ON(mtd->usecount < 0);
 		mtd = mtd->parent;
 	}
+
+	master->usecount--;
 
 	if (master->_put_device)
 		master->_put_device(master);
@@ -1578,7 +1582,7 @@ static int mtd_ooblayout_find_region(struct mtd_info *mtd, int byte,
  *				  ECC byte
  * @mtd: mtd info structure
  * @eccbyte: the byte we are searching for
- * @sectionp: pointer where the section id will be stored
+ * @section: pointer where the section id will be stored
  * @oobregion: OOB region information
  *
  * Works like mtd_ooblayout_find_region() except it searches for a specific ECC

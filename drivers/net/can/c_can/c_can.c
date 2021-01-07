@@ -306,7 +306,7 @@ static void c_can_setup_tx_object(struct net_device *dev, int iface,
 				  struct can_frame *frame, int idx)
 {
 	struct c_can_priv *priv = netdev_priv(dev);
-	u16 ctrl = IF_MCONT_TX | frame->can_dlc;
+	u16 ctrl = IF_MCONT_TX | frame->len;
 	bool rtr = frame->can_id & CAN_RTR_FLAG;
 	u32 arb = IF_ARB_MSGVAL;
 	int i;
@@ -339,7 +339,7 @@ static void c_can_setup_tx_object(struct net_device *dev, int iface,
 	if (priv->type == BOSCH_D_CAN) {
 		u32 data = 0, dreg = C_CAN_IFACE(DATA1_REG, iface);
 
-		for (i = 0; i < frame->can_dlc; i += 4, dreg += 2) {
+		for (i = 0; i < frame->len; i += 4, dreg += 2) {
 			data = (u32)frame->data[i];
 			data |= (u32)frame->data[i + 1] << 8;
 			data |= (u32)frame->data[i + 2] << 16;
@@ -347,7 +347,7 @@ static void c_can_setup_tx_object(struct net_device *dev, int iface,
 			priv->write_reg32(priv, dreg, data);
 		}
 	} else {
-		for (i = 0; i < frame->can_dlc; i += 2) {
+		for (i = 0; i < frame->len; i += 2) {
 			priv->write_reg(priv,
 					C_CAN_IFACE(DATA1_REG, iface) + i / 2,
 					frame->data[i] |
@@ -397,7 +397,7 @@ static int c_can_read_msg_object(struct net_device *dev, int iface, u32 ctrl)
 		return -ENOMEM;
 	}
 
-	frame->can_dlc = get_can_dlc(ctrl & 0x0F);
+	frame->len = can_cc_dlc2len(ctrl & 0x0F);
 
 	arb = priv->read_reg32(priv, C_CAN_IFACE(ARB1_REG, iface));
 
@@ -412,7 +412,7 @@ static int c_can_read_msg_object(struct net_device *dev, int iface, u32 ctrl)
 		int i, dreg = C_CAN_IFACE(DATA1_REG, iface);
 
 		if (priv->type == BOSCH_D_CAN) {
-			for (i = 0; i < frame->can_dlc; i += 4, dreg += 2) {
+			for (i = 0; i < frame->len; i += 4, dreg += 2) {
 				data = priv->read_reg32(priv, dreg);
 				frame->data[i] = data;
 				frame->data[i + 1] = data >> 8;
@@ -420,7 +420,7 @@ static int c_can_read_msg_object(struct net_device *dev, int iface, u32 ctrl)
 				frame->data[i + 3] = data >> 24;
 			}
 		} else {
-			for (i = 0; i < frame->can_dlc; i += 2, dreg++) {
+			for (i = 0; i < frame->len; i += 2, dreg++) {
 				data = priv->read_reg(priv, dreg);
 				frame->data[i] = data;
 				frame->data[i + 1] = data >> 8;
@@ -429,7 +429,7 @@ static int c_can_read_msg_object(struct net_device *dev, int iface, u32 ctrl)
 	}
 
 	stats->rx_packets++;
-	stats->rx_bytes += frame->can_dlc;
+	stats->rx_bytes += frame->len;
 
 	netif_receive_skb(skb);
 	return 0;
@@ -475,7 +475,7 @@ static netdev_tx_t c_can_start_xmit(struct sk_buff *skb,
 	 * transmit as we might race against do_tx().
 	 */
 	c_can_setup_tx_object(dev, IF_TX, frame, idx);
-	priv->dlc[idx] = frame->can_dlc;
+	priv->dlc[idx] = frame->len;
 	can_put_echo_skb(skb, dev, idx);
 
 	/* Update the active bits */
@@ -977,7 +977,7 @@ static int c_can_handle_state_change(struct net_device *dev,
 	}
 
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 	netif_receive_skb(skb);
 
 	return 1;
@@ -1047,7 +1047,7 @@ static int c_can_handle_bus_err(struct net_device *dev,
 	}
 
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 	netif_receive_skb(skb);
 	return 1;
 }
@@ -1295,12 +1295,22 @@ int c_can_power_up(struct net_device *dev)
 				time_after(time_out, jiffies))
 		cpu_relax();
 
-	if (time_after(jiffies, time_out))
-		return -ETIMEDOUT;
+	if (time_after(jiffies, time_out)) {
+		ret = -ETIMEDOUT;
+		goto err_out;
+	}
 
 	ret = c_can_start(dev);
-	if (!ret)
-		c_can_irq_control(priv, true);
+	if (ret)
+		goto err_out;
+
+	c_can_irq_control(priv, true);
+
+	return 0;
+
+err_out:
+	c_can_reset_ram(priv, false);
+	c_can_pm_runtime_put_sync(priv);
 
 	return ret;
 }

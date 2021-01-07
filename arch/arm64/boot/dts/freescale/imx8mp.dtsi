@@ -133,6 +133,13 @@
 		clock-output-names = "clk_ext4";
 	};
 
+	pmu {
+		compatible = "arm,cortex-a53-pmu";
+		interrupts = <GIC_PPI 7
+			     (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+		interrupt-affinity = <&A53_0>, <&A53_1>, <&A53_2>, <&A53_3>;
+	};
+
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
@@ -202,10 +209,10 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>,
-			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>,
-			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>,
-			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>;
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 		clock-frequency = <8000000>;
 		arm,no-tick-in-suspend;
 	};
@@ -542,6 +549,36 @@
 				clocks = <&clk IMX8MP_CLK_UART2_ROOT>,
 					 <&clk IMX8MP_CLK_UART2_ROOT>;
 				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			flexcan1: can@308c0000 {
+				compatible = "fsl,imx8mp-flexcan", "fsl,imx6q-flexcan";
+				reg = <0x308c0000 0x10000>;
+				interrupts = <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MP_CLK_IPG_ROOT>,
+					 <&clk IMX8MP_CLK_CAN1_ROOT>;
+				clock-names = "ipg", "per";
+				assigned-clocks = <&clk IMX8MP_CLK_CAN1>;
+				assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_40M>;
+				assigned-clock-rates = <40000000>;
+				fsl,clk-source = /bits/ 8 <0>;
+				fsl,stop-mode = <&gpr 0x10 4>;
+				status = "disabled";
+			};
+
+			flexcan2: can@308d0000 {
+				compatible = "fsl,imx8mp-flexcan", "fsl,imx6q-flexcan";
+				reg = <0x308d0000 0x10000>;
+				interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MP_CLK_IPG_ROOT>,
+					 <&clk IMX8MP_CLK_CAN2_ROOT>;
+				clock-names = "ipg", "per";
+				assigned-clocks = <&clk IMX8MP_CLK_CAN2>;
+				assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_40M>;
+				assigned-clock-rates = <40000000>;
+				fsl,clk-source = /bits/ 8 <0>;
+				fsl,stop-mode = <&gpr 0x10 5>;
 				status = "disabled";
 			};
 

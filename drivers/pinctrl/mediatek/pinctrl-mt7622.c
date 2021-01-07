@@ -501,12 +501,6 @@ static int mt7622_pwm_ch6_2_pins[] = { 81, };
 static int mt7622_pwm_ch6_2_funcs[] = { 4, };
 static int mt7622_pwm_ch6_3_pins[] = { 100, };
 static int mt7622_pwm_ch6_3_funcs[] = { 0, };
-static int mt7622_pwm_ch7_0_pins[] = { 70, };
-static int mt7622_pwm_ch7_0_funcs[] = { 3, };
-static int mt7622_pwm_ch7_1_pins[] = { 82, };
-static int mt7622_pwm_ch7_1_funcs[] = { 4, };
-static int mt7622_pwm_ch7_2_pins[] = { 101, };
-static int mt7622_pwm_ch7_2_funcs[] = { 0, };
 
 /* SD */
 static int mt7622_sd_0_pins[] = { 16, 17, 18, 19, 20, 21, };
@@ -703,9 +697,6 @@ static const struct group_desc mt7622_groups[] = {
 	PINCTRL_PIN_GROUP("pwm_ch6_1", mt7622_pwm_ch6_1),
 	PINCTRL_PIN_GROUP("pwm_ch6_2", mt7622_pwm_ch6_2),
 	PINCTRL_PIN_GROUP("pwm_ch6_3", mt7622_pwm_ch6_3),
-	PINCTRL_PIN_GROUP("pwm_ch7_0", mt7622_pwm_ch7_0),
-	PINCTRL_PIN_GROUP("pwm_ch7_1", mt7622_pwm_ch7_1),
-	PINCTRL_PIN_GROUP("pwm_ch7_2", mt7622_pwm_ch7_2),
 	PINCTRL_PIN_GROUP("sd_0", mt7622_sd_0),
 	PINCTRL_PIN_GROUP("sd_1", mt7622_sd_1),
 	PINCTRL_PIN_GROUP("snfi", mt7622_snfi),
@@ -802,9 +793,7 @@ static const char *mt7622_pwm_groups[] = { "pwm_ch1_0", "pwm_ch1_1",
 					   "pwm_ch4_3", "pwm_ch5_0",
 					   "pwm_ch5_1", "pwm_ch5_2",
 					   "pwm_ch6_0", "pwm_ch6_1",
-					   "pwm_ch6_2", "pwm_ch6_3",
-					   "pwm_ch7_0", "pwm_ch7_1",
-					   "pwm_ch7_2", };
+					   "pwm_ch6_2", "pwm_ch6_3", };
 static const char *mt7622_sd_groups[] = { "sd_0", "sd_1", };
 static const char *mt7622_spic_groups[] = { "spic0_0", "spic0_1", "spic1_0",
 					    "spic1_1", "spic2_0",

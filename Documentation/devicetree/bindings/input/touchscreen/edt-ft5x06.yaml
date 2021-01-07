@@ -55,8 +55,7 @@ properties:
 
   wakeup-source: true
 
-  vcc-supply:
-    maxItems: 1
+  vcc-supply: true
 
   gain:
     description: Allows setting the sensitivity in the range from 0 to 31.

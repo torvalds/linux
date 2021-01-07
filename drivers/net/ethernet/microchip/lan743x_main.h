@@ -616,7 +616,8 @@ struct lan743x_intr {
 	int			number_of_vectors;
 	bool			using_vectors;
 
-	int			software_isr_flag;
+	bool			software_isr_flag;
+	wait_queue_head_t	software_isr_wq;
 };
 
 #define LAN743X_MAX_FRAME_SIZE			(9 * 1024)
@@ -703,7 +704,6 @@ struct lan743x_rx {
 struct lan743x_adapter {
 	struct net_device       *netdev;
 	struct mii_bus		*mdiobus;
-	phy_interface_t		phy_mode;
 	int                     msg_enable;
 #ifdef CONFIG_PM
 	u32			wolopts;

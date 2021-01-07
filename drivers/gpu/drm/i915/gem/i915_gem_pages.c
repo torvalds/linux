@@ -33,6 +33,8 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 
 	obj->mm.get_page.sg_pos = pages->sgl;
 	obj->mm.get_page.sg_idx = 0;
+	obj->mm.get_dma_page.sg_pos = pages->sgl;
+	obj->mm.get_dma_page.sg_idx = 0;
 
 	obj->mm.pages = pages;
 
@@ -155,6 +157,8 @@ static void __i915_gem_object_reset_page_iter(struct drm_i915_gem_object *obj)
 	rcu_read_lock();
 	radix_tree_for_each_slot(slot, &obj->mm.get_page.radix, &iter, 0)
 		radix_tree_delete(&obj->mm.get_page.radix, iter.index);
+	radix_tree_for_each_slot(slot, &obj->mm.get_dma_page.radix, &iter, 0)
+		radix_tree_delete(&obj->mm.get_dma_page.radix, iter.index);
 	rcu_read_unlock();
 }
 
@@ -438,11 +442,12 @@ void __i915_gem_object_release_map(struct drm_i915_gem_object *obj)
 }
 
 struct scatterlist *
-i915_gem_object_get_sg(struct drm_i915_gem_object *obj,
-		       unsigned int n,
-		       unsigned int *offset)
+__i915_gem_object_get_sg(struct drm_i915_gem_object *obj,
+			 struct i915_gem_object_page_iter *iter,
+			 unsigned int n,
+			 unsigned int *offset)
 {
-	struct i915_gem_object_page_iter *iter = &obj->mm.get_page;
+	const bool dma = iter == &obj->mm.get_dma_page;
 	struct scatterlist *sg;
 	unsigned int idx, count;
 
@@ -471,7 +476,7 @@ i915_gem_object_get_sg(struct drm_i915_gem_object *obj,
 
 	sg = iter->sg_pos;
 	idx = iter->sg_idx;
-	count = __sg_page_count(sg);
+	count = dma ? __sg_dma_page_count(sg) : __sg_page_count(sg);
 
 	while (idx + count <= n) {
 		void *entry;
@@ -499,7 +504,7 @@ i915_gem_object_get_sg(struct drm_i915_gem_object *obj,
 
 		idx += count;
 		sg = ____sg_next(sg);
-		count = __sg_page_count(sg);
+		count = dma ? __sg_dma_page_count(sg) : __sg_page_count(sg);
 	}
 
 scan:
@@ -517,7 +522,7 @@ scan:
 	while (idx + count <= n) {
 		idx += count;
 		sg = ____sg_next(sg);
-		count = __sg_page_count(sg);
+		count = dma ? __sg_dma_page_count(sg) : __sg_page_count(sg);
 	}
 
 	*offset = n - idx;
@@ -584,7 +589,7 @@ i915_gem_object_get_dma_address_len(struct drm_i915_gem_object *obj,
 	struct scatterlist *sg;
 	unsigned int offset;
 
-	sg = i915_gem_object_get_sg(obj, n, &offset);
+	sg = i915_gem_object_get_sg_dma(obj, n, &offset);
 
 	if (len)
 		*len = sg_dma_len(sg) - (offset << PAGE_SHIFT);

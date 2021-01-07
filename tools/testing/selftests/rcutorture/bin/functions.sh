@@ -169,6 +169,7 @@ identify_qemu () {
 # Output arguments for the qemu "-append" string based on CPU type
 # and the TORTURE_QEMU_INTERACTIVE environment variable.
 identify_qemu_append () {
+	echo debug_boot_weak_hash
 	local console=ttyS0
 	case "$1" in
 	qemu-system-x86_64|qemu-system-i386)

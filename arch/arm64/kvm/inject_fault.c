@@ -14,119 +14,15 @@
 #include <asm/kvm_emulate.h>
 #include <asm/esr.h>
 
-#define CURRENT_EL_SP_EL0_VECTOR	0x0
-#define CURRENT_EL_SP_ELx_VECTOR	0x200
-#define LOWER_EL_AArch64_VECTOR		0x400
-#define LOWER_EL_AArch32_VECTOR		0x600
-
-enum exception_type {
-	except_type_sync	= 0,
-	except_type_irq		= 0x80,
-	except_type_fiq		= 0x100,
-	except_type_serror	= 0x180,
-};
-
-/*
- * This performs the exception entry at a given EL (@target_mode), stashing PC
- * and PSTATE into ELR and SPSR respectively, and compute the new PC/PSTATE.
- * The EL passed to this function *must* be a non-secure, privileged mode with
- * bit 0 being set (PSTATE.SP == 1).
- *
- * When an exception is taken, most PSTATE fields are left unchanged in the
- * handler. However, some are explicitly overridden (e.g. M[4:0]). Luckily all
- * of the inherited bits have the same position in the AArch64/AArch32 SPSR_ELx
- * layouts, so we don't need to shuffle these for exceptions from AArch32 EL0.
- *
- * For the SPSR_ELx layout for AArch64, see ARM DDI 0487E.a page C5-429.
- * For the SPSR_ELx layout for AArch32, see ARM DDI 0487E.a page C5-426.
- *
- * Here we manipulate the fields in order of the AArch64 SPSR_ELx layout, from
- * MSB to LSB.
- */
-static void enter_exception64(struct kvm_vcpu *vcpu, unsigned long target_mode,
-			      enum exception_type type)
-{
-	unsigned long sctlr, vbar, old, new, mode;
-	u64 exc_offset;
-
-	mode = *vcpu_cpsr(vcpu) & (PSR_MODE_MASK | PSR_MODE32_BIT);
-
-	if      (mode == target_mode)
-		exc_offset = CURRENT_EL_SP_ELx_VECTOR;
-	else if ((mode | PSR_MODE_THREAD_BIT) == target_mode)
-		exc_offset = CURRENT_EL_SP_EL0_VECTOR;
-	else if (!(mode & PSR_MODE32_BIT))
-		exc_offset = LOWER_EL_AArch64_VECTOR;
-	else
-		exc_offset = LOWER_EL_AArch32_VECTOR;
-
-	switch (target_mode) {
-	case PSR_MODE_EL1h:
-		vbar = vcpu_read_sys_reg(vcpu, VBAR_EL1);
-		sctlr = vcpu_read_sys_reg(vcpu, SCTLR_EL1);
-		vcpu_write_sys_reg(vcpu, *vcpu_pc(vcpu), ELR_EL1);
-		break;
-	default:
-		/* Don't do that */
-		BUG();
-	}
-
-	*vcpu_pc(vcpu) = vbar + exc_offset + type;
-
-	old = *vcpu_cpsr(vcpu);
-	new = 0;
-
-	new |= (old & PSR_N_BIT);
-	new |= (old & PSR_Z_BIT);
-	new |= (old & PSR_C_BIT);
-	new |= (old & PSR_V_BIT);
-
-	// TODO: TCO (if/when ARMv8.5-MemTag is exposed to guests)
-
-	new |= (old & PSR_DIT_BIT);
-
-	// PSTATE.UAO is set to zero upon any exception to AArch64
-	// See ARM DDI 0487E.a, page D5-2579.
-
-	// PSTATE.PAN is unchanged unless SCTLR_ELx.SPAN == 0b0
-	// SCTLR_ELx.SPAN is RES1 when ARMv8.1-PAN is not implemented
-	// See ARM DDI 0487E.a, page D5-2578.
-	new |= (old & PSR_PAN_BIT);
-	if (!(sctlr & SCTLR_EL1_SPAN))
-		new |= PSR_PAN_BIT;
-
-	// PSTATE.SS is set to zero upon any exception to AArch64
-	// See ARM DDI 0487E.a, page D2-2452.
-
-	// PSTATE.IL is set to zero upon any exception to AArch64
-	// See ARM DDI 0487E.a, page D1-2306.
-
-	// PSTATE.SSBS is set to SCTLR_ELx.DSSBS upon any exception to AArch64
-	// See ARM DDI 0487E.a, page D13-3258
-	if (sctlr & SCTLR_ELx_DSSBS)
-		new |= PSR_SSBS_BIT;
-
-	// PSTATE.BTYPE is set to zero upon any exception to AArch64
-	// See ARM DDI 0487E.a, pages D1-2293 to D1-2294.
-
-	new |= PSR_D_BIT;
-	new |= PSR_A_BIT;
-	new |= PSR_I_BIT;
-	new |= PSR_F_BIT;
-
-	new |= target_mode;
-
-	*vcpu_cpsr(vcpu) = new;
-	vcpu_write_spsr(vcpu, old);
-}
-
 static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr)
 {
 	unsigned long cpsr = *vcpu_cpsr(vcpu);
 	bool is_aarch32 = vcpu_mode_is_32bit(vcpu);
 	u32 esr = 0;
 
-	enter_exception64(vcpu, PSR_MODE_EL1h, except_type_sync);
+	vcpu->arch.flags |= (KVM_ARM64_EXCEPT_AA64_EL1		|
+			     KVM_ARM64_EXCEPT_AA64_ELx_SYNC	|
+			     KVM_ARM64_PENDING_EXCEPTION);
 
 	vcpu_write_sys_reg(vcpu, addr, FAR_EL1);
 
@@ -156,7 +52,9 @@ static void inject_undef64(struct kvm_vcpu *vcpu)
 {
 	u32 esr = (ESR_ELx_EC_UNKNOWN << ESR_ELx_EC_SHIFT);
 
-	enter_exception64(vcpu, PSR_MODE_EL1h, except_type_sync);
+	vcpu->arch.flags |= (KVM_ARM64_EXCEPT_AA64_EL1		|
+			     KVM_ARM64_EXCEPT_AA64_ELx_SYNC	|
+			     KVM_ARM64_PENDING_EXCEPTION);
 
 	/*
 	 * Build an unknown exception, depending on the instruction
@@ -166,6 +64,53 @@ static void inject_undef64(struct kvm_vcpu *vcpu)
 		esr |= ESR_ELx_IL;
 
 	vcpu_write_sys_reg(vcpu, esr, ESR_EL1);
+}
+
+#define DFSR_FSC_EXTABT_LPAE	0x10
+#define DFSR_FSC_EXTABT_nLPAE	0x08
+#define DFSR_LPAE		BIT(9)
+#define TTBCR_EAE		BIT(31)
+
+static void inject_undef32(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.flags |= (KVM_ARM64_EXCEPT_AA32_UND |
+			     KVM_ARM64_PENDING_EXCEPTION);
+}
+
+/*
+ * Modelled after TakeDataAbortException() and TakePrefetchAbortException
+ * pseudocode.
+ */
+static void inject_abt32(struct kvm_vcpu *vcpu, bool is_pabt, u32 addr)
+{
+	u64 far;
+	u32 fsr;
+
+	/* Give the guest an IMPLEMENTATION DEFINED exception */
+	if (vcpu_read_sys_reg(vcpu, TCR_EL1) & TTBCR_EAE) {
+		fsr = DFSR_LPAE | DFSR_FSC_EXTABT_LPAE;
+	} else {
+		/* no need to shuffle FS[4] into DFSR[10] as its 0 */
+		fsr = DFSR_FSC_EXTABT_nLPAE;
+	}
+
+	far = vcpu_read_sys_reg(vcpu, FAR_EL1);
+
+	if (is_pabt) {
+		vcpu->arch.flags |= (KVM_ARM64_EXCEPT_AA32_IABT |
+				     KVM_ARM64_PENDING_EXCEPTION);
+		far &= GENMASK(31, 0);
+		far |= (u64)addr << 32;
+		vcpu_write_sys_reg(vcpu, fsr, IFSR32_EL2);
+	} else { /* !iabt */
+		vcpu->arch.flags |= (KVM_ARM64_EXCEPT_AA32_DABT |
+				     KVM_ARM64_PENDING_EXCEPTION);
+		far &= GENMASK(63, 32);
+		far |= addr;
+		vcpu_write_sys_reg(vcpu, fsr, ESR_EL1);
+	}
+
+	vcpu_write_sys_reg(vcpu, far, FAR_EL1);
 }
 
 /**
@@ -179,7 +124,7 @@ static void inject_undef64(struct kvm_vcpu *vcpu)
 void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr)
 {
 	if (vcpu_el1_is_32bit(vcpu))
-		kvm_inject_dabt32(vcpu, addr);
+		inject_abt32(vcpu, false, addr);
 	else
 		inject_abt64(vcpu, false, addr);
 }
@@ -195,7 +140,7 @@ void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr)
 void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr)
 {
 	if (vcpu_el1_is_32bit(vcpu))
-		kvm_inject_pabt32(vcpu, addr);
+		inject_abt32(vcpu, true, addr);
 	else
 		inject_abt64(vcpu, true, addr);
 }
@@ -210,7 +155,7 @@ void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr)
 void kvm_inject_undefined(struct kvm_vcpu *vcpu)
 {
 	if (vcpu_el1_is_32bit(vcpu))
-		kvm_inject_undef32(vcpu);
+		inject_undef32(vcpu);
 	else
 		inject_undef64(vcpu);
 }

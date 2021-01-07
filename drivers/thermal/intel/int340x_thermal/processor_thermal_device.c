@@ -12,72 +12,16 @@
 #include <linux/acpi.h>
 #include <linux/thermal.h>
 #include <linux/cpuhotplug.h>
-#include <linux/intel_rapl.h>
 #include "int340x_thermal_zone.h"
+#include "processor_thermal_device.h"
 #include "../intel_soc_dts_iosf.h"
 
-/* Broadwell-U/HSB thermal reporting device */
-#define PCI_DEVICE_ID_PROC_BDW_THERMAL	0x1603
-#define PCI_DEVICE_ID_PROC_HSB_THERMAL	0x0A03
-
-/* Skylake thermal reporting device */
-#define PCI_DEVICE_ID_PROC_SKL_THERMAL	0x1903
-
-/* CannonLake thermal reporting device */
-#define PCI_DEVICE_ID_PROC_CNL_THERMAL	0x5a03
-#define PCI_DEVICE_ID_PROC_CFL_THERMAL	0x3E83
-
-/* Braswell thermal reporting device */
-#define PCI_DEVICE_ID_PROC_BSW_THERMAL	0x22DC
-
-/* Broxton thermal reporting device */
-#define PCI_DEVICE_ID_PROC_BXT0_THERMAL  0x0A8C
-#define PCI_DEVICE_ID_PROC_BXT1_THERMAL  0x1A8C
-#define PCI_DEVICE_ID_PROC_BXTX_THERMAL  0x4A8C
-#define PCI_DEVICE_ID_PROC_BXTP_THERMAL  0x5A8C
-
-/* GeminiLake thermal reporting device */
-#define PCI_DEVICE_ID_PROC_GLK_THERMAL	0x318C
-
-/* IceLake thermal reporting device */
-#define PCI_DEVICE_ID_PROC_ICL_THERMAL	0x8a03
-
-/* JasperLake thermal reporting device */
-#define PCI_DEVICE_ID_PROC_JSL_THERMAL	0x4E03
-
-/* TigerLake thermal reporting device */
-#define PCI_DEVICE_ID_PROC_TGL_THERMAL	0x9A03
-
 #define DRV_NAME "proc_thermal"
-
-struct power_config {
-	u32	index;
-	u32	min_uw;
-	u32	max_uw;
-	u32	tmin_us;
-	u32	tmax_us;
-	u32	step_uw;
-};
-
-struct proc_thermal_device {
-	struct device *dev;
-	struct acpi_device *adev;
-	struct power_config power_limits[2];
-	struct int34x_thermal_zone *int340x_zone;
-	struct intel_soc_dts_sensors *soc_dts;
-	void __iomem *mmio_base;
-};
 
 enum proc_thermal_emum_mode_type {
 	PROC_THERMAL_NONE,
 	PROC_THERMAL_PCI,
 	PROC_THERMAL_PLATFORM_DEV
-};
-
-struct rapl_mmio_regs {
-	u64 reg_unit;
-	u64 regs[RAPL_DOMAIN_MAX][RAPL_DOMAIN_REG_MAX];
-	int limits[RAPL_DOMAIN_MAX];
 };
 
 /*
@@ -461,83 +405,12 @@ static irqreturn_t proc_thermal_pci_msi_irq(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_PROC_THERMAL_MMIO_RAPL
-
 #define MCHBAR 0
 
-/* RAPL Support via MMIO interface */
-static struct rapl_if_priv rapl_mmio_priv;
-
-static int rapl_mmio_cpu_online(unsigned int cpu)
+static int proc_thermal_set_mmio_base(struct pci_dev *pdev,
+				      struct proc_thermal_device *proc_priv)
 {
-	struct rapl_package *rp;
-
-	/* mmio rapl supports package 0 only for now */
-	if (topology_physical_package_id(cpu))
-		return 0;
-
-	rp = rapl_find_package_domain(cpu, &rapl_mmio_priv);
-	if (!rp) {
-		rp = rapl_add_package(cpu, &rapl_mmio_priv);
-		if (IS_ERR(rp))
-			return PTR_ERR(rp);
-	}
-	cpumask_set_cpu(cpu, &rp->cpumask);
-	return 0;
-}
-
-static int rapl_mmio_cpu_down_prep(unsigned int cpu)
-{
-	struct rapl_package *rp;
-	int lead_cpu;
-
-	rp = rapl_find_package_domain(cpu, &rapl_mmio_priv);
-	if (!rp)
-		return 0;
-
-	cpumask_clear_cpu(cpu, &rp->cpumask);
-	lead_cpu = cpumask_first(&rp->cpumask);
-	if (lead_cpu >= nr_cpu_ids)
-		rapl_remove_package(rp);
-	else if (rp->lead_cpu == cpu)
-		rp->lead_cpu = lead_cpu;
-	return 0;
-}
-
-static int rapl_mmio_read_raw(int cpu, struct reg_action *ra)
-{
-	if (!ra->reg)
-		return -EINVAL;
-
-	ra->value = readq((void __iomem *)ra->reg);
-	ra->value &= ra->mask;
-	return 0;
-}
-
-static int rapl_mmio_write_raw(int cpu, struct reg_action *ra)
-{
-	u64 val;
-
-	if (!ra->reg)
-		return -EINVAL;
-
-	val = readq((void __iomem *)ra->reg);
-	val &= ~ra->mask;
-	val |= ra->value;
-	writeq(val, (void __iomem *)ra->reg);
-	return 0;
-}
-
-static int proc_thermal_rapl_add(struct pci_dev *pdev,
-				 struct proc_thermal_device *proc_priv,
-				 struct rapl_mmio_regs *rapl_regs)
-{
-	enum rapl_domain_reg_id reg;
-	enum rapl_domain_type domain;
 	int ret;
-
-	if (!rapl_regs)
-		return 0;
 
 	ret = pcim_iomap_regions(pdev, 1 << MCHBAR, DRV_NAME);
 	if (ret) {
@@ -547,66 +420,72 @@ static int proc_thermal_rapl_add(struct pci_dev *pdev,
 
 	proc_priv->mmio_base = pcim_iomap_table(pdev)[MCHBAR];
 
-	for (domain = RAPL_DOMAIN_PACKAGE; domain < RAPL_DOMAIN_MAX; domain++) {
-		for (reg = RAPL_DOMAIN_REG_LIMIT; reg < RAPL_DOMAIN_REG_MAX; reg++)
-			if (rapl_regs->regs[domain][reg])
-				rapl_mmio_priv.regs[domain][reg] =
-						(u64)proc_priv->mmio_base +
-						rapl_regs->regs[domain][reg];
-		rapl_mmio_priv.limits[domain] = rapl_regs->limits[domain];
-	}
-	rapl_mmio_priv.reg_unit = (u64)proc_priv->mmio_base + rapl_regs->reg_unit;
-
-	rapl_mmio_priv.read_raw = rapl_mmio_read_raw;
-	rapl_mmio_priv.write_raw = rapl_mmio_write_raw;
-
-	rapl_mmio_priv.control_type = powercap_register_control_type(NULL, "intel-rapl-mmio", NULL);
-	if (IS_ERR(rapl_mmio_priv.control_type)) {
-		pr_debug("failed to register powercap control_type.\n");
-		return PTR_ERR(rapl_mmio_priv.control_type);
-	}
-
-	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "powercap/rapl:online",
-				rapl_mmio_cpu_online, rapl_mmio_cpu_down_prep);
-	if (ret < 0) {
-		powercap_unregister_control_type(rapl_mmio_priv.control_type);
-		rapl_mmio_priv.control_type = NULL;
-		return ret;
-	}
-	rapl_mmio_priv.pcap_rapl_online = ret;
-
 	return 0;
 }
 
-static void proc_thermal_rapl_remove(void)
-{
-	if (IS_ERR_OR_NULL(rapl_mmio_priv.control_type))
-		return;
-
-	cpuhp_remove_state(rapl_mmio_priv.pcap_rapl_online);
-	powercap_unregister_control_type(rapl_mmio_priv.control_type);
-}
-
-static const struct rapl_mmio_regs rapl_mmio_hsw = {
-	.reg_unit = 0x5938,
-	.regs[RAPL_DOMAIN_PACKAGE] = { 0x59a0, 0x593c, 0x58f0, 0, 0x5930},
-	.regs[RAPL_DOMAIN_DRAM] = { 0x58e0, 0x58e8, 0x58ec, 0, 0},
-	.limits[RAPL_DOMAIN_PACKAGE] = 2,
-	.limits[RAPL_DOMAIN_DRAM] = 2,
-};
-
-#else
-
-static int proc_thermal_rapl_add(struct pci_dev *pdev,
+static int proc_thermal_mmio_add(struct pci_dev *pdev,
 				 struct proc_thermal_device *proc_priv,
-				 struct rapl_mmio_regs *rapl_regs)
+				 kernel_ulong_t feature_mask)
 {
-	return 0;
-}
-static void proc_thermal_rapl_remove(void) {}
-static const struct rapl_mmio_regs rapl_mmio_hsw;
+	int ret;
 
-#endif /* CONFIG_MMIO_RAPL */
+	proc_priv->mmio_feature_mask = feature_mask;
+
+	if (feature_mask) {
+		ret = proc_thermal_set_mmio_base(pdev, proc_priv);
+		if (ret)
+			return ret;
+	}
+
+	if (feature_mask & PROC_THERMAL_FEATURE_RAPL) {
+		ret = proc_thermal_rapl_add(pdev, proc_priv);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to add RAPL MMIO interface\n");
+			return ret;
+		}
+	}
+
+	if (feature_mask & PROC_THERMAL_FEATURE_FIVR ||
+	    feature_mask & PROC_THERMAL_FEATURE_DVFS) {
+		ret = proc_thermal_rfim_add(pdev, proc_priv);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to add RFIM interface\n");
+			goto err_rem_rapl;
+		}
+	}
+
+	if (feature_mask & PROC_THERMAL_FEATURE_MBOX) {
+		ret = proc_thermal_mbox_add(pdev, proc_priv);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to add MBOX interface\n");
+			goto err_rem_rfim;
+		}
+	}
+
+	return 0;
+
+err_rem_rfim:
+	proc_thermal_rfim_remove(pdev);
+err_rem_rapl:
+	proc_thermal_rapl_remove();
+
+	return ret;
+}
+
+static void proc_thermal_mmio_remove(struct pci_dev *pdev)
+{
+	struct proc_thermal_device *proc_priv = pci_get_drvdata(pdev);
+
+	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_RAPL)
+		proc_thermal_rapl_remove();
+
+	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_FIVR ||
+	    proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_DVFS)
+		proc_thermal_rfim_remove(pdev);
+
+	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_MBOX)
+		proc_thermal_mbox_remove(pdev);
+}
 
 static int  proc_thermal_pci_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
@@ -629,18 +508,10 @@ static int  proc_thermal_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	ret = proc_thermal_rapl_add(pdev, proc_priv,
-				(struct rapl_mmio_regs *)id->driver_data);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to add RAPL MMIO interface\n");
-		proc_thermal_remove(proc_priv);
-		return ret;
-	}
-
 	pci_set_drvdata(pdev, proc_priv);
 	proc_thermal_emum_mode = PROC_THERMAL_PCI;
 
-	if (pdev->device == PCI_DEVICE_ID_PROC_BSW_THERMAL) {
+	if (pdev->device == PCI_DEVICE_ID_INTEL_BSW_THERMAL) {
 		/*
 		 * Enumerate additional DTS sensors available via IOSF.
 		 * But we are not treating as a failure condition, if
@@ -676,10 +547,18 @@ static int  proc_thermal_pci_probe(struct pci_dev *pdev,
 		return ret;
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &power_limit_attribute_group);
-	if (ret)
+	if (ret) {
 		sysfs_remove_file(&pdev->dev.kobj, &dev_attr_tcc_offset_degree_celsius.attr);
+		return ret;
+	}
 
-	return ret;
+	ret = proc_thermal_mmio_add(pdev, proc_priv, id->driver_data);
+	if (ret) {
+		proc_thermal_remove(proc_priv);
+		return ret;
+	}
+
+	return 0;
 }
 
 static void  proc_thermal_pci_remove(struct pci_dev *pdev)
@@ -693,7 +572,8 @@ static void  proc_thermal_pci_remove(struct pci_dev *pdev)
 			pci_disable_msi(pdev);
 		}
 	}
-	proc_thermal_rapl_remove();
+
+	proc_thermal_mmio_remove(pdev);
 	proc_thermal_remove(proc_priv);
 }
 
@@ -716,24 +596,22 @@ static int proc_thermal_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(proc_thermal_pm, NULL, proc_thermal_resume);
 
 static const struct pci_device_id proc_thermal_pci_ids[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_BDW_THERMAL)},
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_HSB_THERMAL)},
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_SKL_THERMAL),
-		.driver_data = (kernel_ulong_t)&rapl_mmio_hsw, },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_BSW_THERMAL)},
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_BXT0_THERMAL)},
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_BXT1_THERMAL)},
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_BXTX_THERMAL)},
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_BXTP_THERMAL)},
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_CNL_THERMAL)},
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_CFL_THERMAL)},
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_GLK_THERMAL)},
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_ICL_THERMAL),
-		.driver_data = (kernel_ulong_t)&rapl_mmio_hsw, },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_JSL_THERMAL)},
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_TGL_THERMAL),
-		.driver_data = (kernel_ulong_t)&rapl_mmio_hsw, },
-	{ 0, },
+	{ PCI_DEVICE_DATA(INTEL, ADL_THERMAL, PROC_THERMAL_FEATURE_RAPL | PROC_THERMAL_FEATURE_FIVR | PROC_THERMAL_FEATURE_DVFS | PROC_THERMAL_FEATURE_MBOX) },
+	{ PCI_DEVICE_DATA(INTEL, BDW_THERMAL, 0) },
+	{ PCI_DEVICE_DATA(INTEL, BSW_THERMAL, 0) },
+	{ PCI_DEVICE_DATA(INTEL, BXT0_THERMAL, 0) },
+	{ PCI_DEVICE_DATA(INTEL, BXT1_THERMAL, 0) },
+	{ PCI_DEVICE_DATA(INTEL, BXTX_THERMAL, 0) },
+	{ PCI_DEVICE_DATA(INTEL, BXTP_THERMAL, 0) },
+	{ PCI_DEVICE_DATA(INTEL, CNL_THERMAL, 0) },
+	{ PCI_DEVICE_DATA(INTEL, CFL_THERMAL, 0) },
+	{ PCI_DEVICE_DATA(INTEL, GLK_THERMAL, 0) },
+	{ PCI_DEVICE_DATA(INTEL, HSB_THERMAL, 0) },
+	{ PCI_DEVICE_DATA(INTEL, ICL_THERMAL, PROC_THERMAL_FEATURE_RAPL) },
+	{ PCI_DEVICE_DATA(INTEL, JSL_THERMAL, 0) },
+	{ PCI_DEVICE_DATA(INTEL, SKL_THERMAL, PROC_THERMAL_FEATURE_RAPL) },
+	{ PCI_DEVICE_DATA(INTEL, TGL_THERMAL, PROC_THERMAL_FEATURE_RAPL | PROC_THERMAL_FEATURE_FIVR | PROC_THERMAL_FEATURE_MBOX) },
+	{ },
 };
 
 MODULE_DEVICE_TABLE(pci, proc_thermal_pci_ids);

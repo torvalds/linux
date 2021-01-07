@@ -27,6 +27,7 @@
 #define X86_CR4_OSFXSR		(1ul << 9)
 #define X86_CR4_OSXMMEXCPT	(1ul << 10)
 #define X86_CR4_UMIP		(1ul << 11)
+#define X86_CR4_LA57		(1ul << 12)
 #define X86_CR4_VMXE		(1ul << 13)
 #define X86_CR4_SMXE		(1ul << 14)
 #define X86_CR4_FSGSBASE	(1ul << 16)
@@ -35,6 +36,22 @@
 #define X86_CR4_SMEP		(1ul << 20)
 #define X86_CR4_SMAP		(1ul << 21)
 #define X86_CR4_PKE		(1ul << 22)
+
+/* CPUID.1.ECX */
+#define CPUID_VMX		(1ul << 5)
+#define CPUID_SMX		(1ul << 6)
+#define CPUID_PCID		(1ul << 17)
+#define CPUID_XSAVE		(1ul << 26)
+
+/* CPUID.7.EBX */
+#define CPUID_FSGSBASE		(1ul << 0)
+#define CPUID_SMEP		(1ul << 7)
+#define CPUID_SMAP		(1ul << 20)
+
+/* CPUID.7.ECX */
+#define CPUID_UMIP		(1ul << 2)
+#define CPUID_PKU		(1ul << 3)
+#define CPUID_LA57		(1ul << 16)
 
 #define UNEXPECTED_VECTOR_PORT 0xfff0u
 

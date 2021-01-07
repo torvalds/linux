@@ -31,7 +31,7 @@ struct IP_BASE_INSTANCE {
  
 struct IP_BASE {
 	struct IP_BASE_INSTANCE instance[MAX_INSTANCE];
-};
+} __maybe_unused;
 
 
 static const struct IP_BASE ATHUB_BASE            ={ { { { 0x00000C00, 0, 0, 0, 0, 0 } },

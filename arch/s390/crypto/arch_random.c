@@ -2,7 +2,7 @@
 /*
  * s390 arch random implementation.
  *
- * Copyright IBM Corp. 2017, 2018
+ * Copyright IBM Corp. 2017, 2020
  * Author(s): Harald Freudenberger
  *
  * The s390_arch_random_generate() function may be called from random.c
@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <linux/static_key.h>
 #include <linux/workqueue.h>
+#include <linux/moduleparam.h>
 #include <asm/cpacf.h>
 
 DEFINE_STATIC_KEY_FALSE(s390_arch_random_available);
@@ -98,6 +99,113 @@ static void arch_rng_refill_buffer(struct work_struct *unused)
 	/* kick next check */
 	queue_delayed_work(system_long_wq, &arch_rng_work, delay);
 }
+
+/*
+ * Here follows the implementation of s390_arch_get_random_long().
+ *
+ * The random longs to be pulled by arch_get_random_long() are
+ * prepared in an 4K buffer which is filled from the NIST 800-90
+ * compliant s390 drbg. By default the random long buffer is refilled
+ * 256 times before the drbg itself needs a reseed. The reseed of the
+ * drbg is done with 32 bytes fetched from the high quality (but slow)
+ * trng which is assumed to deliver 100% entropy. So the 32 * 8 = 256
+ * bits of entropy are spread over 256 * 4KB = 1MB serving 131072
+ * arch_get_random_long() invocations before reseeded.
+ *
+ * How often the 4K random long buffer is refilled with the drbg
+ * before the drbg is reseeded can be adjusted. There is a module
+ * parameter 's390_arch_rnd_long_drbg_reseed' accessible via
+ *   /sys/module/arch_random/parameters/rndlong_drbg_reseed
+ * or as kernel command line parameter
+ *   arch_random.rndlong_drbg_reseed=<value>
+ * This parameter tells how often the drbg fills the 4K buffer before
+ * it is re-seeded by fresh entropy from the trng.
+ * A value of 16 results in reseeding the drbg at every 16 * 4 KB = 64
+ * KB with 32 bytes of fresh entropy pulled from the trng. So a value
+ * of 16 would result in 256 bits entropy per 64 KB.
+ * A value of 256 results in 1MB of drbg output before a reseed of the
+ * drbg is done. So this would spread the 256 bits of entropy among 1MB.
+ * Setting this parameter to 0 forces the reseed to take place every
+ * time the 4K buffer is depleted, so the entropy rises to 256 bits
+ * entropy per 4K or 0.5 bit entropy per arch_get_random_long().  With
+ * setting this parameter to negative values all this effort is
+ * disabled, arch_get_random long() returns false and thus indicating
+ * that the arch_get_random_long() feature is disabled at all.
+ */
+
+static unsigned long rndlong_buf[512];
+static DEFINE_SPINLOCK(rndlong_lock);
+static int rndlong_buf_index;
+
+static int rndlong_drbg_reseed = 256;
+module_param_named(rndlong_drbg_reseed, rndlong_drbg_reseed, int, 0600);
+MODULE_PARM_DESC(rndlong_drbg_reseed, "s390 arch_get_random_long() drbg reseed");
+
+static inline void refill_rndlong_buf(void)
+{
+	static u8 prng_ws[240];
+	static int drbg_counter;
+
+	if (--drbg_counter < 0) {
+		/* need to re-seed the drbg */
+		u8 seed[32];
+
+		/* fetch seed from trng */
+		cpacf_trng(NULL, 0, seed, sizeof(seed));
+		/* seed drbg */
+		memset(prng_ws, 0, sizeof(prng_ws));
+		cpacf_prno(CPACF_PRNO_SHA512_DRNG_SEED,
+			   &prng_ws, NULL, 0, seed, sizeof(seed));
+		/* re-init counter for drbg */
+		drbg_counter = rndlong_drbg_reseed;
+	}
+
+	/* fill the arch_get_random_long buffer from drbg */
+	cpacf_prno(CPACF_PRNO_SHA512_DRNG_GEN, &prng_ws,
+		   (u8 *) rndlong_buf, sizeof(rndlong_buf),
+		   NULL, 0);
+}
+
+bool s390_arch_get_random_long(unsigned long *v)
+{
+	bool rc = false;
+	unsigned long flags;
+
+	/* arch_get_random_long() disabled ? */
+	if (rndlong_drbg_reseed < 0)
+		return false;
+
+	/* try to lock the random long lock */
+	if (!spin_trylock_irqsave(&rndlong_lock, flags))
+		return false;
+
+	if (--rndlong_buf_index >= 0) {
+		/* deliver next long value from the buffer */
+		*v = rndlong_buf[rndlong_buf_index];
+		rc = true;
+		goto out;
+	}
+
+	/* buffer is depleted and needs refill */
+	if (in_interrupt()) {
+		/* delay refill in interrupt context to next caller */
+		rndlong_buf_index = 0;
+		goto out;
+	}
+
+	/* refill random long buffer */
+	refill_rndlong_buf();
+	rndlong_buf_index = ARRAY_SIZE(rndlong_buf);
+
+	/* and provide one random long */
+	*v = rndlong_buf[--rndlong_buf_index];
+	rc = true;
+
+out:
+	spin_unlock_irqrestore(&rndlong_lock, flags);
+	return rc;
+}
+EXPORT_SYMBOL(s390_arch_get_random_long);
 
 static int __init s390_arch_random_init(void)
 {

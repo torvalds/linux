@@ -687,7 +687,6 @@ static void print_bpf_prog_info(void)
 
 int main(int argc, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	struct bpf_program *prog;
 	int longindex = 0, opt;
 	int ret = EXIT_FAILURE;
@@ -719,10 +718,6 @@ int main(int argc, char **argv)
 	}
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
-		perror("setrlimit(RLIMIT_MEMLOCK)");
-		return ret;
-	}
 
 	/* Remove tracepoint program when program is interrupted or killed */
 	signal(SIGINT, int_exit);

@@ -1133,6 +1133,8 @@ static int set_signal_handler(void)
 	return ret;
 }
 
+/* Test MEMBARRIER_CMD_PRIVATE_RESTART_RSEQ_ON_CPU membarrier command. */
+#ifdef RSEQ_ARCH_HAS_OFFSET_DEREF_ADDV
 struct test_membarrier_thread_args {
 	int stop;
 	intptr_t percpu_list_ptr;
@@ -1286,8 +1288,6 @@ void *test_membarrier_manager_thread(void *arg)
 	return NULL;
 }
 
-/* Test MEMBARRIER_CMD_PRIVATE_RESTART_RSEQ_ON_CPU membarrier command. */
-#ifdef RSEQ_ARCH_HAS_OFFSET_DEREF_ADDV
 void test_membarrier(void)
 {
 	const int num_threads = opt_threads;

@@ -26,99 +26,99 @@
 
 #define INT_STATUS_NUM			3
 
-static struct resource bk0_resources[] = {
+static const struct resource bk0_resources[] = {
 	{2, 2, "duty cycle", IORESOURCE_REG, },
 	{3, 3, "always on",  IORESOURCE_REG, },
 	{3, 3, "current",    IORESOURCE_REG, },
 };
-static struct resource bk1_resources[] = {
+static const struct resource bk1_resources[] = {
 	{4, 4, "duty cycle", IORESOURCE_REG, },
 	{5, 5, "always on",  IORESOURCE_REG, },
 	{5, 5, "current",    IORESOURCE_REG, },
 };
-static struct resource bk2_resources[] = {
+static const struct resource bk2_resources[] = {
 	{6, 6, "duty cycle", IORESOURCE_REG, },
 	{7, 7, "always on",  IORESOURCE_REG, },
 	{5, 5, "current",    IORESOURCE_REG, },
 };
 
-static struct resource led0_resources[] = {
+static const struct resource led0_resources[] = {
 	/* RGB1 Red LED */
 	{0xd, 0xd, "control", IORESOURCE_REG, },
 	{0xc, 0xc, "blink",   IORESOURCE_REG, },
 };
-static struct resource led1_resources[] = {
+static const struct resource led1_resources[] = {
 	/* RGB1 Green LED */
 	{0xe, 0xe, "control", IORESOURCE_REG, },
 	{0xc, 0xc, "blink",   IORESOURCE_REG, },
 };
-static struct resource led2_resources[] = {
+static const struct resource led2_resources[] = {
 	/* RGB1 Blue LED */
 	{0xf, 0xf, "control", IORESOURCE_REG, },
 	{0xc, 0xc, "blink",   IORESOURCE_REG, },
 };
-static struct resource led3_resources[] = {
+static const struct resource led3_resources[] = {
 	/* RGB2 Red LED */
 	{0x9, 0x9, "control", IORESOURCE_REG, },
 	{0x8, 0x8, "blink",   IORESOURCE_REG, },
 };
-static struct resource led4_resources[] = {
+static const struct resource led4_resources[] = {
 	/* RGB2 Green LED */
 	{0xa, 0xa, "control", IORESOURCE_REG, },
 	{0x8, 0x8, "blink",   IORESOURCE_REG, },
 };
-static struct resource led5_resources[] = {
+static const struct resource led5_resources[] = {
 	/* RGB2 Blue LED */
 	{0xb, 0xb, "control", IORESOURCE_REG, },
 	{0x8, 0x8, "blink",   IORESOURCE_REG, },
 };
 
-static struct resource buck1_resources[] = {
+static const struct resource buck1_resources[] = {
 	{0x24, 0x24, "buck set", IORESOURCE_REG, },
 };
-static struct resource buck2_resources[] = {
+static const struct resource buck2_resources[] = {
 	{0x25, 0x25, "buck set", IORESOURCE_REG, },
 };
-static struct resource buck3_resources[] = {
+static const struct resource buck3_resources[] = {
 	{0x26, 0x26, "buck set", IORESOURCE_REG, },
 };
-static struct resource ldo1_resources[] = {
+static const struct resource ldo1_resources[] = {
 	{0x10, 0x10, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo2_resources[] = {
+static const struct resource ldo2_resources[] = {
 	{0x11, 0x11, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo3_resources[] = {
+static const struct resource ldo3_resources[] = {
 	{0x12, 0x12, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo4_resources[] = {
+static const struct resource ldo4_resources[] = {
 	{0x13, 0x13, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo5_resources[] = {
+static const struct resource ldo5_resources[] = {
 	{0x14, 0x14, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo6_resources[] = {
+static const struct resource ldo6_resources[] = {
 	{0x15, 0x15, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo7_resources[] = {
+static const struct resource ldo7_resources[] = {
 	{0x16, 0x16, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo8_resources[] = {
+static const struct resource ldo8_resources[] = {
 	{0x17, 0x17, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo9_resources[] = {
+static const struct resource ldo9_resources[] = {
 	{0x18, 0x18, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo10_resources[] = {
+static const struct resource ldo10_resources[] = {
 	{0x19, 0x19, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo12_resources[] = {
+static const struct resource ldo12_resources[] = {
 	{0x1a, 0x1a, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo_vibrator_resources[] = {
+static const struct resource ldo_vibrator_resources[] = {
 	{0x28, 0x28, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo14_resources[] = {
+static const struct resource ldo14_resources[] = {
 	{0x1b, 0x1b, "ldo set", IORESOURCE_REG, },
 };
 
