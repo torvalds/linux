@@ -748,11 +748,7 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 		goto err_pd_table_free;
 	}
 
-	ret = hns_roce_init_cq_table(hr_dev);
-	if (ret) {
-		dev_err(dev, "Failed to init completion queue table.\n");
-		goto err_mr_table_free;
-	}
+	hns_roce_init_cq_table(hr_dev);
 
 	ret = hns_roce_init_qp_table(hr_dev);
 	if (ret) {
@@ -777,8 +773,6 @@ err_qp_table_free:
 
 err_cq_table_free:
 	hns_roce_cleanup_cq_table(hr_dev);
-
-err_mr_table_free:
 	hns_roce_cleanup_mr_table(hr_dev);
 
 err_pd_table_free:
