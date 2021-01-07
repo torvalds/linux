@@ -1480,14 +1480,8 @@ void __init console_on_rootfs(void)
 	struct file *file = filp_open("/dev/console", O_RDWR, 0);
 
 	if (IS_ERR(file)) {
-		pr_err("Warning: unable to open an initial console. Fallback to ttynull.\n");
-		register_ttynull_console();
-
-		file = filp_open("/dev/console", O_RDWR, 0);
-		if (IS_ERR(file)) {
-			pr_err("Warning: Failed to add ttynull console. No stdin, stdout, and stderr for the init process!\n");
-			return;
-		}
+		pr_err("Warning: unable to open an initial console.\n");
+		return;
 	}
 	init_dup(file);
 	init_dup(file);
