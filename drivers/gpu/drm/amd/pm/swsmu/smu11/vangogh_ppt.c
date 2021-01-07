@@ -359,48 +359,6 @@ static int vangogh_dpm_set_jpeg_enable(struct smu_context *smu, bool enable)
 	return ret;
 }
 
-static int vangogh_get_allowed_feature_mask(struct smu_context *smu,
-					    uint32_t *feature_mask,
-					    uint32_t num)
-{
-	struct amdgpu_device *adev = smu->adev;
-
-	if (num > 2)
-		return -EINVAL;
-
-	memset(feature_mask, 0, sizeof(uint32_t) * num);
-
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_DPM_BIT)
-				| FEATURE_MASK(FEATURE_MP0CLK_DPM_BIT)
-				| FEATURE_MASK(FEATURE_SOCCLK_DPM_BIT)
-				| FEATURE_MASK(FEATURE_VCN_DPM_BIT)
-				| FEATURE_MASK(FEATURE_FCLK_DPM_BIT)
-				| FEATURE_MASK(FEATURE_DCFCLK_DPM_BIT)
-				| FEATURE_MASK(FEATURE_DS_SOCCLK_BIT)
-				| FEATURE_MASK(FEATURE_PPT_BIT)
-				| FEATURE_MASK(FEATURE_TDC_BIT)
-				| FEATURE_MASK(FEATURE_FAN_CONTROLLER_BIT)
-				| FEATURE_MASK(FEATURE_DS_LCLK_BIT)
-				| FEATURE_MASK(FEATURE_DS_DCFCLK_BIT);
-
-	if (adev->pm.pp_feature & PP_SOCCLK_DPM_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_SOCCLK_DPM_BIT);
-
-	if (adev->pm.pp_feature & PP_DCEFCLK_DPM_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DCFCLK_DPM_BIT);
-
-	if (adev->pm.pp_feature & PP_MCLK_DPM_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_FCLK_DPM_BIT);
-
-	if (adev->pm.pp_feature & PP_SCLK_DPM_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_DPM_BIT);
-
-	if (smu->adev->pg_flags & AMD_PG_SUPPORT_ATHUB)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_ATHUB_PG_BIT);
-
-	return 0;
-}
-
 static bool vangogh_is_dpm_running(struct smu_context *smu)
 {
 	int ret = 0;
@@ -1595,7 +1553,6 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.init_power = smu_v11_0_init_power,
 	.fini_power = smu_v11_0_fini_power,
 	.register_irq_handler = smu_v11_0_register_irq_handler,
-	.get_allowed_feature_mask = vangogh_get_allowed_feature_mask,
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
 	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
 	.send_smc_msg = smu_cmn_send_smc_msg,
