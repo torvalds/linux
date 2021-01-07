@@ -113,6 +113,7 @@
 			reg = <0>;
 			registers-number = <1>;
 			spi-max-frequency = <100000>;
+			enable-gpios = <&gpio5 8 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -169,6 +170,7 @@
 		#size-cells = <0>;
 
 		ethphy0: ethernet-phy@2 {
+			compatible = "ethernet-phy-id0022.1560";
 			reg = <2>;
 			micrel,led-mode = <1>;
 			clocks = <&clks IMX6UL_CLK_ENET_REF>;
@@ -176,6 +178,7 @@
 		};
 
 		ethphy1: ethernet-phy@1 {
+			compatible = "ethernet-phy-id0022.1560";
 			reg = <1>;
 			micrel,led-mode = <1>;
 			clocks = <&clks IMX6UL_CLK_ENET2_REF>;
