@@ -1265,7 +1265,7 @@ static struct platform_driver meson_mmc_driver = {
 	.driver		= {
 		.name = DRIVER_NAME,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.of_match_table = of_match_ptr(meson_mmc_of_match),
+		.of_match_table = meson_mmc_of_match,
 	},
 };
 

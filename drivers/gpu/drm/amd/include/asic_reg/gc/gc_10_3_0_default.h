@@ -1859,6 +1859,7 @@
 #define mmGCMC_SHARED_VIRT_RESET_REQ2_DEFAULT                                    0x00000000
 #define mmGCMC_VM_XGMI_LFB_CNTL_DEFAULT                                          0x00000000
 #define mmGCMC_VM_XGMI_LFB_SIZE_DEFAULT                                          0x00000000
+#define mmGCMC_VM_FB_NOALLOC_CNTL_DEFAULT                                        0x00000000
 #define mmGCUTCL2_HARVEST_BYPASS_GROUPS_DEFAULT                                  0x00000000
 
 

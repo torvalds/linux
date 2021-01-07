@@ -72,22 +72,12 @@ static struct list_head adpt_list;
 		       SNDRV_PCM_INFO_INTERLEAVED | \
 		       SNDRV_PCM_INFO_BLOCK_TRANSFER)
 
-#define swap16(val) ( \
-	(((u16)(val) << 8) & (u16)0xFF00) | \
-	(((u16)(val) >> 8) & (u16)0x00FF))
-
-#define swap32(val) ( \
-	(((u32)(val) << 24) & (u32)0xFF000000) | \
-	(((u32)(val) <<  8) & (u32)0x00FF0000) | \
-	(((u32)(val) >>  8) & (u32)0x0000FF00) | \
-	(((u32)(val) >> 24) & (u32)0x000000FF))
-
 static void swap_copy16(u16 *dest, const u16 *source, unsigned int bytes)
 {
 	unsigned int i = 0;
 
 	while (i < (bytes / 2)) {
-		dest[i] = swap16(source[i]);
+		dest[i] = swab16(source[i]);
 		i++;
 	}
 }
@@ -109,7 +99,7 @@ static void swap_copy32(u32 *dest, const u32 *source, unsigned int bytes)
 	unsigned int i = 0;
 
 	while (i < bytes / 4) {
-		dest[i] = swap32(source[i]);
+		dest[i] = swab32(source[i]);
 		i++;
 	}
 }

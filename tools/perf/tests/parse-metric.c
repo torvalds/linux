@@ -166,7 +166,7 @@ static int __compute_metric(const char *name, struct value *vals,
 	if (err)
 		goto out;
 
-	err = perf_evlist__alloc_stats(evlist, false);
+	err = evlist__alloc_stats(evlist, false);
 	if (err)
 		goto out;
 
@@ -183,7 +183,7 @@ out:
 	/* ... clenup. */
 	metricgroup__rblist_exit(&metric_events);
 	runtime_stat__exit(&st);
-	perf_evlist__free_stats(evlist);
+	evlist__free_stats(evlist);
 	perf_cpu_map__put(cpus);
 	evlist__delete(evlist);
 	return err;

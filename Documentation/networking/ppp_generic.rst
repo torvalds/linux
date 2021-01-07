@@ -314,6 +314,22 @@ channel are:
   it is connected to.  It will return an EINVAL error if the channel
   is not connected to an interface.
 
+* PPPIOCBRIDGECHAN bridges a channel with another. The argument should
+  point to an int containing the channel number of the channel to bridge
+  to. Once two channels are bridged, frames presented to one channel by
+  ppp_input() are passed to the bridge instance for onward transmission.
+  This allows frames to be switched from one channel into another: for
+  example, to pass PPPoE frames into a PPPoL2TP session. Since channel
+  bridging interrupts the normal ppp_input() path, a given channel may
+  not be part of a bridge at the same time as being part of a unit.
+  This ioctl will return an EALREADY error if the channel is already
+  part of a bridge or unit, or ENXIO if the requested channel does not
+  exist.
+
+* PPPIOCUNBRIDGECHAN performs the inverse of PPPIOCBRIDGECHAN, unbridging
+  a channel pair.  This ioctl will return an EINVAL error if the channel
+  does not form part of a bridge.
+
 * All other ioctl commands are passed to the channel ioctl() function.
 
 The ioctl calls that are available on an instance that is attached to

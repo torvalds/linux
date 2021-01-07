@@ -31,6 +31,7 @@
 #define SMU_THERMAL_MINIMUM_ALERT_TEMP		0
 #define SMU_THERMAL_MAXIMUM_ALERT_TEMP		255
 #define SMU_TEMPERATURE_UNITS_PER_CENTIGRADES	1000
+#define SMU_FW_NAME_LEN			0x24
 
 struct smu_hw_power_state {
 	unsigned int magic;
@@ -98,7 +99,7 @@ struct smu_state_display_block {
 	bool              enable_vari_bright;
 };
 
-struct smu_state_memroy_block {
+struct smu_state_memory_block {
 	bool              dll_off;
 	uint8_t                 m3arb;
 	uint8_t                 unused[3];
@@ -145,7 +146,7 @@ struct smu_power_state {
 	struct smu_state_validation_block             validation;
 	struct smu_state_pcie_block                   pcie;
 	struct smu_state_display_block                display;
-	struct smu_state_memroy_block                 memory;
+	struct smu_state_memory_block                 memory;
 	struct smu_state_software_algorithm_block     software;
 	struct smu_uvd_clocks                         uvd_clocks;
 	struct smu_hw_power_state                     hardware;
@@ -225,6 +226,8 @@ struct smu_bios_boot_up_values
 	uint32_t			format_revision;
 	uint32_t			content_revision;
 	uint32_t			fclk;
+	uint32_t			lclk;
+	uint32_t			firmware_caps;
 };
 
 enum smu_table_id
@@ -457,6 +460,11 @@ struct smu_context
 
 	unsigned fan_max_rpm;
 	unsigned manual_fan_speed_rpm;
+
+	uint32_t gfx_default_hard_min_freq;
+	uint32_t gfx_default_soft_max_freq;
+	uint32_t gfx_actual_hard_min_freq;
+	uint32_t gfx_actual_soft_max_freq;
 };
 
 struct i2c_adapter;
@@ -470,11 +478,6 @@ struct pptable_funcs {
 	int (*populate_umd_state_clk)(struct smu_context *smu);
 	int (*print_clk_levels)(struct smu_context *smu, enum smu_clk_type clk_type, char *buf);
 	int (*force_clk_levels)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t mask);
-	int (*set_default_od8_settings)(struct smu_context *smu);
-	int (*get_od_percentage)(struct smu_context *smu, enum smu_clk_type clk_type);
-	int (*set_od_percentage)(struct smu_context *smu,
-				 enum smu_clk_type clk_type,
-				 uint32_t value);
 	int (*od_edit_dpm_table)(struct smu_context *smu,
 				 enum PP_OD_DPM_TABLE_COMMAND type,
 				 long *input, uint32_t size);
@@ -482,11 +485,6 @@ struct pptable_funcs {
 					      enum smu_clk_type clk_type,
 					      struct
 					      pp_clock_levels_with_latency
-					      *clocks);
-	int (*get_clock_by_type_with_voltage)(struct smu_context *smu,
-					      enum amd_pp_clock_type type,
-					      struct
-					      pp_clock_levels_with_voltage
 					      *clocks);
 	int (*get_power_profile_mode)(struct smu_context *smu, char *buf);
 	int (*set_power_profile_mode)(struct smu_context *smu, long *input, uint32_t size);
@@ -498,7 +496,6 @@ struct pptable_funcs {
 	int (*display_config_changed)(struct smu_context *smu);
 	int (*apply_clocks_adjust_rules)(struct smu_context *smu);
 	int (*notify_smc_display_config)(struct smu_context *smu);
-	int (*set_cpu_power_state)(struct smu_context *smu);
 	bool (*is_dpm_running)(struct smu_context *smu);
 	int (*get_fan_speed_rpm)(struct smu_context *smu, uint32_t *speed);
 	int (*set_watermarks_table)(struct smu_context *smu,
@@ -534,7 +531,6 @@ struct pptable_funcs {
 	int (*set_driver_table_location)(struct smu_context *smu);
 	int (*set_tool_table_location)(struct smu_context *smu);
 	int (*notify_memory_pool_location)(struct smu_context *smu);
-	int (*set_last_dcef_min_deep_sleep_clk)(struct smu_context *smu);
 	int (*system_features_control)(struct smu_context *smu, bool en);
 	int (*send_smc_msg_with_param)(struct smu_context *smu,
 				       enum smu_message_type msg, uint32_t param, uint32_t *read_arg);
@@ -552,27 +548,9 @@ struct pptable_funcs {
 	int (*enable_thermal_alert)(struct smu_context *smu);
 	int (*disable_thermal_alert)(struct smu_context *smu);
 	int (*set_min_dcef_deep_sleep)(struct smu_context *smu, uint32_t clk);
-	int (*set_active_display_count)(struct smu_context *smu, uint32_t count);
-	int (*store_cc6_data)(struct smu_context *smu, uint32_t separation_time,
-			      bool cc6_disable, bool pstate_disable,
-			      bool pstate_switch_disable);
-	int (*get_clock_by_type)(struct smu_context *smu,
-				 enum amd_pp_clock_type type,
-				 struct amd_pp_clocks *clocks);
-	int (*get_max_high_clocks)(struct smu_context *smu,
-				   struct amd_pp_simple_clock_info *clocks);
 	int (*display_clock_voltage_request)(struct smu_context *smu, struct
 					     pp_display_clock_request
 					     *clock_req);
-	int (*get_dal_power_level)(struct smu_context *smu,
-				   struct amd_pp_simple_clock_info *clocks);
-	int (*get_perf_level)(struct smu_context *smu,
-			      enum smu_perf_level_designation designation,
-			      struct smu_performance_level *level);
-	int (*get_current_shallow_sleep_clocks)(struct smu_context *smu,
-						struct smu_clock_info *clocks);
-	int (*notify_smu_enable_pwe)(struct smu_context *smu);
-	int (*conv_power_profile_to_pplib_workload)(int power_profile);
 	uint32_t (*get_fan_control_mode)(struct smu_context *smu);
 	int (*set_fan_control_mode)(struct smu_context *smu, uint32_t mode);
 	int (*set_fan_speed_rpm)(struct smu_context *smu, uint32_t speed);
@@ -603,6 +581,9 @@ struct pptable_funcs {
 	int (*get_fan_parameters)(struct smu_context *smu);
 	int (*post_init)(struct smu_context *smu);
 	void (*interrupt_work)(struct smu_context *smu);
+	int (*gpo_control)(struct smu_context *smu, bool enablement);
+	int (*gfx_state_change_set)(struct smu_context *smu, uint32_t state);
+	int (*set_fine_grain_gfx_freq_parameters)(struct smu_context *smu);
 };
 
 typedef enum {
@@ -633,6 +614,8 @@ typedef enum {
 	METRICS_TEMPERATURE_VRMEM,
 	METRICS_THROTTLER_STATUS,
 	METRICS_CURR_FANSPEED,
+	METRICS_VOLTAGE_VDDSOC,
+	METRICS_VOLTAGE_VDDGFX,
 } MetricsMember_t;
 
 enum smu_cmn2asic_mapping_type {
@@ -683,8 +666,6 @@ int smu_get_power_limit(struct smu_context *smu,
 
 int smu_set_power_limit(struct smu_context *smu, uint32_t limit);
 int smu_print_clk_levels(struct smu_context *smu, enum smu_clk_type clk_type, char *buf);
-int smu_get_od_percentage(struct smu_context *smu, enum smu_clk_type type);
-int smu_set_od_percentage(struct smu_context *smu, enum smu_clk_type type, uint32_t value);
 
 int smu_od_edit_dpm_table(struct smu_context *smu,
 			  enum PP_OD_DPM_TABLE_COMMAND type,
@@ -707,25 +688,13 @@ int smu_get_fan_speed_rpm(struct smu_context *smu, uint32_t *speed);
 
 int smu_set_deep_sleep_dcefclk(struct smu_context *smu, int clk);
 
-int smu_get_clock_by_type(struct smu_context *smu,
-			  enum amd_pp_clock_type type,
-			  struct amd_pp_clocks *clocks);
-
-int smu_get_max_high_clocks(struct smu_context *smu,
-			    struct amd_pp_simple_clock_info *clocks);
-
 int smu_get_clock_by_type_with_latency(struct smu_context *smu,
 				       enum smu_clk_type clk_type,
 				       struct pp_clock_levels_with_latency *clocks);
 
-int smu_get_clock_by_type_with_voltage(struct smu_context *smu,
-				       enum amd_pp_clock_type type,
-				       struct pp_clock_levels_with_voltage *clocks);
-
 int smu_display_clock_voltage_request(struct smu_context *smu,
 				      struct pp_display_clock_request *clock_req);
 int smu_display_disable_memory_clock_switch(struct smu_context *smu, bool disable_memory_clock_switch);
-int smu_notify_smu_enable_pwe(struct smu_context *smu);
 
 int smu_set_xgmi_pstate(struct smu_context *smu,
 			uint32_t pstate);
@@ -763,8 +732,6 @@ int smu_set_watermarks_for_clock_ranges(
 extern int smu_display_configuration_change(struct smu_context *smu, const
 					    struct amd_pp_display_configuration
 					    *display_config);
-extern int smu_get_current_clocks(struct smu_context *smu,
-				  struct amd_pp_clock_info *clocks);
 extern int smu_dpm_set_power_gate(struct smu_context *smu,uint32_t block_type, bool gate);
 extern int smu_handle_task(struct smu_context *smu,
 			   enum amd_dpm_forced_level level,
@@ -807,6 +774,7 @@ int smu_get_status_gfxoff(struct amdgpu_device *adev, uint32_t *value);
 ssize_t smu_sys_get_gpu_metrics(struct smu_context *smu, void **table);
 
 int smu_enable_mgpu_fan_boost(struct smu_context *smu);
+int smu_gfx_state_change_set(struct smu_context *smu, uint32_t state);
 
 #endif
 #endif

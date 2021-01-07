@@ -17,8 +17,6 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
-#include <linux/platform_data/ad7303.h>
-
 #define AD7303_CFG_EXTERNAL_VREF BIT(15)
 #define AD7303_CFG_POWER_DOWN(ch) BIT(11 + (ch))
 #define AD7303_CFG_ADDR_OFFSET	10

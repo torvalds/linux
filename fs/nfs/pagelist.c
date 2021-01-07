@@ -31,12 +31,28 @@
 static struct kmem_cache *nfs_page_cachep;
 static const struct rpc_call_ops nfs_pgio_common_ops;
 
+static struct nfs_pgio_mirror *
+nfs_pgio_get_mirror(struct nfs_pageio_descriptor *desc, u32 idx)
+{
+	if (desc->pg_ops->pg_get_mirror)
+		return desc->pg_ops->pg_get_mirror(desc, idx);
+	return &desc->pg_mirrors[0];
+}
+
 struct nfs_pgio_mirror *
 nfs_pgio_current_mirror(struct nfs_pageio_descriptor *desc)
 {
-	return &desc->pg_mirrors[desc->pg_mirror_idx];
+	return nfs_pgio_get_mirror(desc, desc->pg_mirror_idx);
 }
 EXPORT_SYMBOL_GPL(nfs_pgio_current_mirror);
+
+static u32
+nfs_pgio_set_current_mirror(struct nfs_pageio_descriptor *desc, u32 idx)
+{
+	if (desc->pg_ops->pg_set_mirror)
+		return desc->pg_ops->pg_set_mirror(desc, idx);
+	return desc->pg_mirror_idx;
+}
 
 void nfs_pgheader_init(struct nfs_pageio_descriptor *desc,
 		       struct nfs_pgio_header *hdr,
@@ -1259,7 +1275,7 @@ static void nfs_pageio_error_cleanup(struct nfs_pageio_descriptor *desc)
 		return;
 
 	for (midx = 0; midx < desc->pg_mirror_count; midx++) {
-		mirror = &desc->pg_mirrors[midx];
+		mirror = nfs_pgio_get_mirror(desc, midx);
 		desc->pg_completion_ops->error_cleanup(&mirror->pg_list,
 				desc->pg_error);
 	}
@@ -1293,12 +1309,12 @@ int nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 			goto out_failed;
 		}
 
-		desc->pg_mirror_idx = midx;
+		nfs_pgio_set_current_mirror(desc, midx);
 		if (!nfs_pageio_add_request_mirror(desc, dupreq))
 			goto out_cleanup_subreq;
 	}
 
-	desc->pg_mirror_idx = 0;
+	nfs_pgio_set_current_mirror(desc, 0);
 	if (!nfs_pageio_add_request_mirror(desc, req))
 		goto out_failed;
 
@@ -1320,10 +1336,12 @@ out_failed:
 static void nfs_pageio_complete_mirror(struct nfs_pageio_descriptor *desc,
 				       u32 mirror_idx)
 {
-	struct nfs_pgio_mirror *mirror = &desc->pg_mirrors[mirror_idx];
-	u32 restore_idx = desc->pg_mirror_idx;
+	struct nfs_pgio_mirror *mirror;
+	u32 restore_idx;
 
-	desc->pg_mirror_idx = mirror_idx;
+	restore_idx = nfs_pgio_set_current_mirror(desc, mirror_idx);
+	mirror = nfs_pgio_current_mirror(desc);
+
 	for (;;) {
 		nfs_pageio_doio(desc);
 		if (desc->pg_error < 0 || !mirror->pg_recoalesce)
@@ -1331,7 +1349,7 @@ static void nfs_pageio_complete_mirror(struct nfs_pageio_descriptor *desc,
 		if (!nfs_do_recoalesce(desc))
 			break;
 	}
-	desc->pg_mirror_idx = restore_idx;
+	nfs_pgio_set_current_mirror(desc, restore_idx);
 }
 
 /*
@@ -1405,7 +1423,7 @@ void nfs_pageio_cond_complete(struct nfs_pageio_descriptor *desc, pgoff_t index)
 	u32 midx;
 
 	for (midx = 0; midx < desc->pg_mirror_count; midx++) {
-		mirror = &desc->pg_mirrors[midx];
+		mirror = nfs_pgio_get_mirror(desc, midx);
 		if (!list_empty(&mirror->pg_list)) {
 			prev = nfs_list_entry(mirror->pg_list.prev);
 			if (index != prev->wb_index + 1) {

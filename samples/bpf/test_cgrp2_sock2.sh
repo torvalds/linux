@@ -1,6 +1,9 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+BPFFS=/sys/fs/bpf
+LINK_PIN=$BPFFS/test_cgrp2_sock2
+
 function config_device {
 	ip netns add at_ns0
 	ip link add veth0 type veth peer name veth0b
@@ -21,16 +24,22 @@ function config_cgroup {
 	echo $$ >> /tmp/cgroupv2/foo/cgroup.procs
 }
 
+function config_bpffs {
+	if mount | grep $BPFFS > /dev/null; then
+		echo "bpffs already mounted"
+	else
+		echo "bpffs not mounted. Mounting..."
+		mount -t bpf none $BPFFS
+	fi
+}
 
 function attach_bpf {
-	test_cgrp2_sock2 /tmp/cgroupv2/foo sock_flags_kern.o $1
+	./test_cgrp2_sock2 /tmp/cgroupv2/foo sock_flags_kern.o $1
 	[ $? -ne 0 ] && exit 1
 }
 
 function cleanup {
-	if [ -d /tmp/cgroupv2/foo ]; then
-		test_cgrp2_sock -d /tmp/cgroupv2/foo
-	fi
+	rm -rf $LINK_PIN
 	ip link del veth0b
 	ip netns delete at_ns0
 	umount /tmp/cgroupv2
@@ -42,6 +51,7 @@ cleanup 2>/dev/null
 set -e
 config_device
 config_cgroup
+config_bpffs
 set +e
 
 #
@@ -61,6 +71,9 @@ if [ $? -eq 0 ]; then
 	cleanup
 	exit 1
 fi
+
+rm -rf $LINK_PIN
+sleep 1                 # Wait for link detach
 
 #
 # Test 2 - fail ping

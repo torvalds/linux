@@ -326,10 +326,9 @@ static irqreturn_t sf_pdma_done_isr(int irq, void *dev_id)
 {
 	struct sf_pdma_chan *chan = dev_id;
 	struct pdma_regs *regs = &chan->regs;
-	unsigned long flags;
 	u64 residue;
 
-	spin_lock_irqsave(&chan->vchan.lock, flags);
+	spin_lock(&chan->vchan.lock);
 	writel((readl(regs->ctrl)) & ~PDMA_DONE_STATUS_MASK, regs->ctrl);
 	residue = readq(regs->residue);
 
@@ -346,7 +345,7 @@ static irqreturn_t sf_pdma_done_isr(int irq, void *dev_id)
 		sf_pdma_xfer_desc(chan);
 	}
 
-	spin_unlock_irqrestore(&chan->vchan.lock, flags);
+	spin_unlock(&chan->vchan.lock);
 
 	return IRQ_HANDLED;
 }
@@ -355,11 +354,10 @@ static irqreturn_t sf_pdma_err_isr(int irq, void *dev_id)
 {
 	struct sf_pdma_chan *chan = dev_id;
 	struct pdma_regs *regs = &chan->regs;
-	unsigned long flags;
 
-	spin_lock_irqsave(&chan->lock, flags);
+	spin_lock(&chan->lock);
 	writel((readl(regs->ctrl)) & ~PDMA_ERR_STATUS_MASK, regs->ctrl);
-	spin_unlock_irqrestore(&chan->lock, flags);
+	spin_unlock(&chan->lock);
 
 	tasklet_schedule(&chan->err_tasklet);
 
@@ -584,7 +582,7 @@ static struct platform_driver sf_pdma_driver = {
 	.remove		= sf_pdma_remove,
 	.driver		= {
 		.name	= "sf-pdma",
-		.of_match_table = of_match_ptr(sf_pdma_dt_ids),
+		.of_match_table = sf_pdma_dt_ids,
 	},
 };
 

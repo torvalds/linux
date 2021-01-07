@@ -232,7 +232,7 @@ static int vt8500_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	return rtc_register_device(vt8500_rtc->rtc);
+	return devm_rtc_register_device(vt8500_rtc->rtc);
 }
 
 static int vt8500_rtc_remove(struct platform_device *pdev)

@@ -390,23 +390,17 @@ void amdgpu_amdkfd_get_local_mem_info(struct kgd_dev *kgd,
 				      struct kfd_local_mem_info *mem_info)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
-	uint64_t address_mask = adev->dev->dma_mask ? ~*adev->dev->dma_mask :
-					     ~((1ULL << 32) - 1);
-	resource_size_t aper_limit = adev->gmc.aper_base + adev->gmc.aper_size;
 
 	memset(mem_info, 0, sizeof(*mem_info));
-	if (!(adev->gmc.aper_base & address_mask || aper_limit & address_mask)) {
-		mem_info->local_mem_size_public = adev->gmc.visible_vram_size;
-		mem_info->local_mem_size_private = adev->gmc.real_vram_size -
-				adev->gmc.visible_vram_size;
-	} else {
-		mem_info->local_mem_size_public = 0;
-		mem_info->local_mem_size_private = adev->gmc.real_vram_size;
-	}
+
+	mem_info->local_mem_size_public = adev->gmc.visible_vram_size;
+	mem_info->local_mem_size_private = adev->gmc.real_vram_size -
+						adev->gmc.visible_vram_size;
+
 	mem_info->vram_width = adev->gmc.vram_width;
 
-	pr_debug("Address base: %pap limit %pap public 0x%llx private 0x%llx\n",
-			&adev->gmc.aper_base, &aper_limit,
+	pr_debug("Address base: %pap public 0x%llx private 0x%llx\n",
+			&adev->gmc.aper_base,
 			mem_info->local_mem_size_public,
 			mem_info->local_mem_size_private);
 
@@ -648,6 +642,13 @@ void amdgpu_amdkfd_set_compute_idle(struct kgd_dev *kgd, bool idle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 
+	/* Temp workaround to fix the soft hang observed in certain compute
+	 * applications if GFXOFF is enabled.
+	 */
+	if (adev->asic_type == CHIP_SIENNA_CICHLID) {
+		pr_debug("GFXOFF is %s\n", idle ? "enabled" : "disabled");
+		amdgpu_gfx_off_ctrl(adev, idle);
+	}
 	amdgpu_dpm_switch_power_profile(adev,
 					PP_SMC_POWER_PROFILE_COMPUTE,
 					!idle);

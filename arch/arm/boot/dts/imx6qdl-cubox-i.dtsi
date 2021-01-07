@@ -55,12 +55,12 @@
 		pinctrl-0 = <&pinctrl_cubox_i_ir>;
 	};
 
-	pwmleds {
+	led-controller {
 		compatible = "pwm-leds";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_cubox_i_pwm1>;
 
-		front {
+		led-1 {
 			active-low;
 			label = "imx6:red:front";
 			max-brightness = <248>;

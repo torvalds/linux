@@ -103,6 +103,7 @@
 #define SM_RESET_CMD                      0x5A
 
 #define GENERAL_STATUS                    0xc014
+#define BOOT_STATUS                       0x0000
 #define HW_REV_ID                         0x000A
 #define BOND_ID                           0x000B
 #define HW_CSR_ID                         0x000C

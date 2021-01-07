@@ -258,7 +258,7 @@ extern struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 extern void edac_device_free_ctl_info(struct edac_device_ctl_info *ctl_info);
 
 /**
- * edac_device_add_device: Insert the 'edac_dev' structure into the
+ * edac_device_add_device - Insert the 'edac_dev' structure into the
  *	 edac_device global list and create sysfs entries associated with
  *	 edac_device structure.
  *
@@ -271,9 +271,8 @@ extern void edac_device_free_ctl_info(struct edac_device_ctl_info *ctl_info);
 extern int edac_device_add_device(struct edac_device_ctl_info *edac_dev);
 
 /**
- * edac_device_del_device:
- *	Remove sysfs entries for specified edac_device structure and
- *	then remove edac_device structure from global list
+ * edac_device_del_device - Remove sysfs entries for specified edac_device
+ *	structure and then remove edac_device structure from global list
  *
  * @dev:
  *	Pointer to struct &device representing the edac device
@@ -286,7 +285,7 @@ extern int edac_device_add_device(struct edac_device_ctl_info *edac_dev);
 extern struct edac_device_ctl_info *edac_device_del_device(struct device *dev);
 
 /**
- * Log correctable errors.
+ * edac_device_handle_ce_count - Log correctable errors.
  *
  * @edac_dev: pointer to struct &edac_device_ctl_info
  * @inst_nr: number of the instance where the CE error happened
@@ -299,7 +298,7 @@ void edac_device_handle_ce_count(struct edac_device_ctl_info *edac_dev,
 				 const char *msg);
 
 /**
- * Log uncorrectable errors.
+ * edac_device_handle_ue_count - Log uncorrectable errors.
  *
  * @edac_dev: pointer to struct &edac_device_ctl_info
  * @inst_nr: number of the instance where the CE error happened

@@ -28,12 +28,12 @@
 struct IP_BASE_INSTANCE
 {
     unsigned int segment[MAX_SEGMENT];
-};
+} __maybe_unused;
 
 struct IP_BASE
 {
     struct IP_BASE_INSTANCE instance[MAX_INSTANCE];
-};
+} __maybe_unused;
 
 
 static const struct IP_BASE ATHUB_BASE            ={ { { { 0x00000C20, 0x00012460, 0x00408C00, 0, 0, 0 } },

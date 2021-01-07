@@ -385,8 +385,7 @@ int omap_dss_reset(struct omap_hwmod *oh)
 	}
 
 	for (i = oh->opt_clks_cnt, oc = oh->opt_clks; i > 0; i--, oc++)
-		if (oc->_clk)
-			clk_prepare_enable(oc->_clk);
+		clk_prepare_enable(oc->_clk);
 
 	dispc_disable_outputs();
 
@@ -412,8 +411,7 @@ int omap_dss_reset(struct omap_hwmod *oh)
 		pr_debug("dss_core: softreset done\n");
 
 	for (i = oh->opt_clks_cnt, oc = oh->opt_clks; i > 0; i--, oc++)
-		if (oc->_clk)
-			clk_disable_unprepare(oc->_clk);
+		clk_disable_unprepare(oc->_clk);
 
 	r = (c == MAX_MODULE_SOFTRESET_WAIT) ? -ETIMEDOUT : 0;
 

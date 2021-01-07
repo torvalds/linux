@@ -544,7 +544,6 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 		break;
 	default:
 		return;
-		break;
 	}
 
 	baud = tty_get_baud_rate(tty);

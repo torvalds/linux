@@ -846,16 +846,7 @@
 
 #define KS_PRIO_IN_REG			4
 
-#define TOTAL_PORT_NUM			5
-
-/* Host port can only be last of them. */
-#define SWITCH_PORT_NUM			(TOTAL_PORT_NUM - 1)
-
 #define KSZ8795_COUNTER_NUM		0x20
-#define TOTAL_KSZ8795_COUNTER_NUM	(KSZ8795_COUNTER_NUM + 4)
-
-#define SWITCH_COUNTER_NUM		KSZ8795_COUNTER_NUM
-#define TOTAL_SWITCH_COUNTER_NUM	TOTAL_KSZ8795_COUNTER_NUM
 
 /* Common names used by other drivers */
 
@@ -998,7 +989,6 @@
 #define TAIL_TAG_OVERRIDE		BIT(6)
 #define TAIL_TAG_LOOKUP			BIT(7)
 
-#define VLAN_TABLE_ENTRIES		(4096 / 4)
 #define FID_ENTRIES			128
 
 #endif

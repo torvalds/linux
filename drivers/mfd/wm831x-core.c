@@ -616,7 +616,7 @@ int wm831x_set_bits(struct wm831x *wm831x, unsigned short reg,
 }
 EXPORT_SYMBOL_GPL(wm831x_set_bits);
 
-static struct resource wm831x_dcdc1_resources[] = {
+static const struct resource wm831x_dcdc1_resources[] = {
 	{
 		.start = WM831X_DC1_CONTROL_1,
 		.end   = WM831X_DC1_DVS_CONTROL,
@@ -637,7 +637,7 @@ static struct resource wm831x_dcdc1_resources[] = {
 };
 
 
-static struct resource wm831x_dcdc2_resources[] = {
+static const struct resource wm831x_dcdc2_resources[] = {
 	{
 		.start = WM831X_DC2_CONTROL_1,
 		.end   = WM831X_DC2_DVS_CONTROL,
@@ -657,7 +657,7 @@ static struct resource wm831x_dcdc2_resources[] = {
 	},
 };
 
-static struct resource wm831x_dcdc3_resources[] = {
+static const struct resource wm831x_dcdc3_resources[] = {
 	{
 		.start = WM831X_DC3_CONTROL_1,
 		.end   = WM831X_DC3_SLEEP_CONTROL,
@@ -671,7 +671,7 @@ static struct resource wm831x_dcdc3_resources[] = {
 	},
 };
 
-static struct resource wm831x_dcdc4_resources[] = {
+static const struct resource wm831x_dcdc4_resources[] = {
 	{
 		.start = WM831X_DC4_CONTROL,
 		.end   = WM831X_DC4_SLEEP_CONTROL,
@@ -685,7 +685,7 @@ static struct resource wm831x_dcdc4_resources[] = {
 	},
 };
 
-static struct resource wm8320_dcdc4_buck_resources[] = {
+static const struct resource wm8320_dcdc4_buck_resources[] = {
 	{
 		.start = WM831X_DC4_CONTROL,
 		.end   = WM832X_DC4_SLEEP_CONTROL,
@@ -699,7 +699,7 @@ static struct resource wm8320_dcdc4_buck_resources[] = {
 	},
 };
 
-static struct resource wm831x_gpio_resources[] = {
+static const struct resource wm831x_gpio_resources[] = {
 	{
 		.start = WM831X_IRQ_GPIO_1,
 		.end   = WM831X_IRQ_GPIO_16,
@@ -707,7 +707,7 @@ static struct resource wm831x_gpio_resources[] = {
 	},
 };
 
-static struct resource wm831x_isink1_resources[] = {
+static const struct resource wm831x_isink1_resources[] = {
 	{
 		.start = WM831X_CURRENT_SINK_1,
 		.end   = WM831X_CURRENT_SINK_1,
@@ -720,7 +720,7 @@ static struct resource wm831x_isink1_resources[] = {
 	},
 };
 
-static struct resource wm831x_isink2_resources[] = {
+static const struct resource wm831x_isink2_resources[] = {
 	{
 		.start = WM831X_CURRENT_SINK_2,
 		.end   = WM831X_CURRENT_SINK_2,
@@ -733,7 +733,7 @@ static struct resource wm831x_isink2_resources[] = {
 	},
 };
 
-static struct resource wm831x_ldo1_resources[] = {
+static const struct resource wm831x_ldo1_resources[] = {
 	{
 		.start = WM831X_LDO1_CONTROL,
 		.end   = WM831X_LDO1_SLEEP_CONTROL,
@@ -747,7 +747,7 @@ static struct resource wm831x_ldo1_resources[] = {
 	},
 };
 
-static struct resource wm831x_ldo2_resources[] = {
+static const struct resource wm831x_ldo2_resources[] = {
 	{
 		.start = WM831X_LDO2_CONTROL,
 		.end   = WM831X_LDO2_SLEEP_CONTROL,
@@ -761,7 +761,7 @@ static struct resource wm831x_ldo2_resources[] = {
 	},
 };
 
-static struct resource wm831x_ldo3_resources[] = {
+static const struct resource wm831x_ldo3_resources[] = {
 	{
 		.start = WM831X_LDO3_CONTROL,
 		.end   = WM831X_LDO3_SLEEP_CONTROL,
@@ -775,7 +775,7 @@ static struct resource wm831x_ldo3_resources[] = {
 	},
 };
 
-static struct resource wm831x_ldo4_resources[] = {
+static const struct resource wm831x_ldo4_resources[] = {
 	{
 		.start = WM831X_LDO4_CONTROL,
 		.end   = WM831X_LDO4_SLEEP_CONTROL,
@@ -789,7 +789,7 @@ static struct resource wm831x_ldo4_resources[] = {
 	},
 };
 
-static struct resource wm831x_ldo5_resources[] = {
+static const struct resource wm831x_ldo5_resources[] = {
 	{
 		.start = WM831X_LDO5_CONTROL,
 		.end   = WM831X_LDO5_SLEEP_CONTROL,
@@ -803,7 +803,7 @@ static struct resource wm831x_ldo5_resources[] = {
 	},
 };
 
-static struct resource wm831x_ldo6_resources[] = {
+static const struct resource wm831x_ldo6_resources[] = {
 	{
 		.start = WM831X_LDO6_CONTROL,
 		.end   = WM831X_LDO6_SLEEP_CONTROL,
@@ -817,7 +817,7 @@ static struct resource wm831x_ldo6_resources[] = {
 	},
 };
 
-static struct resource wm831x_ldo7_resources[] = {
+static const struct resource wm831x_ldo7_resources[] = {
 	{
 		.start = WM831X_LDO7_CONTROL,
 		.end   = WM831X_LDO7_SLEEP_CONTROL,
@@ -831,7 +831,7 @@ static struct resource wm831x_ldo7_resources[] = {
 	},
 };
 
-static struct resource wm831x_ldo8_resources[] = {
+static const struct resource wm831x_ldo8_resources[] = {
 	{
 		.start = WM831X_LDO8_CONTROL,
 		.end   = WM831X_LDO8_SLEEP_CONTROL,
@@ -845,7 +845,7 @@ static struct resource wm831x_ldo8_resources[] = {
 	},
 };
 
-static struct resource wm831x_ldo9_resources[] = {
+static const struct resource wm831x_ldo9_resources[] = {
 	{
 		.start = WM831X_LDO9_CONTROL,
 		.end   = WM831X_LDO9_SLEEP_CONTROL,
@@ -859,7 +859,7 @@ static struct resource wm831x_ldo9_resources[] = {
 	},
 };
 
-static struct resource wm831x_ldo10_resources[] = {
+static const struct resource wm831x_ldo10_resources[] = {
 	{
 		.start = WM831X_LDO10_CONTROL,
 		.end   = WM831X_LDO10_SLEEP_CONTROL,
@@ -873,7 +873,7 @@ static struct resource wm831x_ldo10_resources[] = {
 	},
 };
 
-static struct resource wm831x_ldo11_resources[] = {
+static const struct resource wm831x_ldo11_resources[] = {
 	{
 		.start = WM831X_LDO11_ON_CONTROL,
 		.end   = WM831X_LDO11_SLEEP_CONTROL,
@@ -881,7 +881,7 @@ static struct resource wm831x_ldo11_resources[] = {
 	},
 };
 
-static struct resource wm831x_on_resources[] = {
+static const struct resource wm831x_on_resources[] = {
 	{
 		.start = WM831X_IRQ_ON,
 		.end   = WM831X_IRQ_ON,
@@ -890,7 +890,7 @@ static struct resource wm831x_on_resources[] = {
 };
 
 
-static struct resource wm831x_power_resources[] = {
+static const struct resource wm831x_power_resources[] = {
 	{
 		.name = "SYSLO",
 		.start = WM831X_IRQ_PPM_SYSLO,
@@ -959,7 +959,7 @@ static struct resource wm831x_power_resources[] = {
 	},
 };
 
-static struct resource wm831x_rtc_resources[] = {
+static const struct resource wm831x_rtc_resources[] = {
 	{
 		.name = "PER",
 		.start = WM831X_IRQ_RTC_PER,
@@ -974,7 +974,7 @@ static struct resource wm831x_rtc_resources[] = {
 	},
 };
 
-static struct resource wm831x_status1_resources[] = {
+static const struct resource wm831x_status1_resources[] = {
 	{
 		.start = WM831X_STATUS_LED_1,
 		.end   = WM831X_STATUS_LED_1,
@@ -982,7 +982,7 @@ static struct resource wm831x_status1_resources[] = {
 	},
 };
 
-static struct resource wm831x_status2_resources[] = {
+static const struct resource wm831x_status2_resources[] = {
 	{
 		.start = WM831X_STATUS_LED_2,
 		.end   = WM831X_STATUS_LED_2,
@@ -990,7 +990,7 @@ static struct resource wm831x_status2_resources[] = {
 	},
 };
 
-static struct resource wm831x_touch_resources[] = {
+static const struct resource wm831x_touch_resources[] = {
 	{
 		.name = "TCHPD",
 		.start = WM831X_IRQ_TCHPD,
@@ -1005,7 +1005,7 @@ static struct resource wm831x_touch_resources[] = {
 	},
 };
 
-static struct resource wm831x_wdt_resources[] = {
+static const struct resource wm831x_wdt_resources[] = {
 	{
 		.start = WM831X_IRQ_WDOG_TO,
 		.end   = WM831X_IRQ_WDOG_TO,

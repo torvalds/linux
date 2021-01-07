@@ -1057,7 +1057,7 @@ static void rtw_chk_hi_queue_hdl(struct adapter *padapter)
 			pstapriv->tim_bitmap &= ~BIT(0);
 			pstapriv->sta_dz_bitmap &= ~BIT(0);
 
-			update_beacon(padapter, _TIM_IE_, NULL, false);
+			update_beacon(padapter, WLAN_EID_TIM, NULL, false);
 		} else { /* re check again */
 			rtw_chk_hi_queue_cmd(padapter);
 		}

@@ -44,7 +44,6 @@ properties:
     maxItems: 3
 
   clock-names:
-    maxItems: 3
     items:
       - const: hda
       - const: hda2hdmi
@@ -54,7 +53,6 @@ properties:
     maxItems: 3
 
   reset-names:
-    maxItems: 3
     items:
       - const: hda
       - const: hda2hdmi

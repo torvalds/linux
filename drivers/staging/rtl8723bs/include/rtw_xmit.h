@@ -183,7 +183,7 @@ struct pkt_attrib {
 	u8   mbssid;
 	u8 ldpc;
 	u8 stbc;
-	struct sta_info * psta;
+	struct sta_info *psta;
 
 	u8 rtsen;
 	u8 cts2self;
@@ -471,7 +471,7 @@ extern u32 rtw_calculate_wlan_pkt_size_by_attribue(struct pkt_attrib *pattrib);
 #define rtw_wlan_pkt_size(f) rtw_calculate_wlan_pkt_size_by_attribue(&f->attrib)
 extern s32 rtw_xmitframe_coalesce(struct adapter *padapter, _pkt *pkt, struct xmit_frame *pxmitframe);
 extern s32 rtw_mgmt_xmitframe_coalesce(struct adapter *padapter, _pkt *pkt, struct xmit_frame *pxmitframe);
-s32 _rtw_init_hw_txqueue(struct hw_txqueue* phw_txqueue, u8 ac_tag);
+s32 _rtw_init_hw_txqueue(struct hw_txqueue *phw_txqueue, u8 ac_tag);
 void _rtw_init_sta_xmit_priv(struct sta_xmit_priv *psta_xmitpriv);
 
 
@@ -501,8 +501,8 @@ u8 qos_acm(u8 acm_mask, u8 priority);
 
 void enqueue_pending_xmitbuf(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf);
 void enqueue_pending_xmitbuf_to_head(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf);
-struct xmit_buf*dequeue_pending_xmitbuf(struct xmit_priv *pxmitpriv);
-struct xmit_buf*dequeue_pending_xmitbuf_under_survey(struct xmit_priv *pxmitpriv);
+struct xmit_buf *dequeue_pending_xmitbuf(struct xmit_priv *pxmitpriv);
+struct xmit_buf *dequeue_pending_xmitbuf_under_survey(struct xmit_priv *pxmitpriv);
 sint	check_pending_xmitbuf(struct xmit_priv *pxmitpriv);
 int	rtw_xmit_thread(void *context);
 

@@ -19,7 +19,9 @@
 #include <sys/utsname.h>
 #include <linux/time64.h>
 #include <dirent.h>
+#ifdef HAVE_LIBBPF_SUPPORT
 #include <bpf/libbpf.h>
+#endif
 #include <perf/cpumap.h>
 
 #include "dso.h"
@@ -987,13 +989,6 @@ out:
 	up_read(&env->bpf_progs.lock);
 	return ret;
 }
-#else // HAVE_LIBBPF_SUPPORT
-static int write_bpf_prog_info(struct feat_fd *ff __maybe_unused,
-			       struct evlist *evlist __maybe_unused)
-{
-	return 0;
-}
-#endif // HAVE_LIBBPF_SUPPORT
 
 static int write_bpf_btf(struct feat_fd *ff,
 			 struct evlist *evlist __maybe_unused)
@@ -1027,6 +1022,7 @@ out:
 	up_read(&env->bpf_progs.lock);
 	return ret;
 }
+#endif // HAVE_LIBBPF_SUPPORT
 
 static int cpu_cache_level__sort(const void *a, const void *b)
 {
@@ -1638,6 +1634,7 @@ static void print_dir_format(struct feat_fd *ff, FILE *fp)
 	fprintf(fp, "# directory data version : %"PRIu64"\n", data->dir.version);
 }
 
+#ifdef HAVE_LIBBPF_SUPPORT
 static void print_bpf_prog_info(struct feat_fd *ff, FILE *fp)
 {
 	struct perf_env *env = &ff->ph->env;
@@ -1683,6 +1680,7 @@ static void print_bpf_btf(struct feat_fd *ff, FILE *fp)
 
 	up_read(&env->bpf_progs.lock);
 }
+#endif // HAVE_LIBBPF_SUPPORT
 
 static void free_event_desc(struct evsel *events)
 {
@@ -2265,8 +2263,7 @@ static int process_total_mem(struct feat_fd *ff, void *data __maybe_unused)
 	return 0;
 }
 
-static struct evsel *
-perf_evlist__find_by_index(struct evlist *evlist, int idx)
+static struct evsel *evlist__find_by_index(struct evlist *evlist, int idx)
 {
 	struct evsel *evsel;
 
@@ -2278,16 +2275,14 @@ perf_evlist__find_by_index(struct evlist *evlist, int idx)
 	return NULL;
 }
 
-static void
-perf_evlist__set_event_name(struct evlist *evlist,
-			    struct evsel *event)
+static void evlist__set_event_name(struct evlist *evlist, struct evsel *event)
 {
 	struct evsel *evsel;
 
 	if (!event->name)
 		return;
 
-	evsel = perf_evlist__find_by_index(evlist, event->idx);
+	evsel = evlist__find_by_index(evlist, event->idx);
 	if (!evsel)
 		return;
 
@@ -2315,7 +2310,7 @@ process_event_desc(struct feat_fd *ff, void *data __maybe_unused)
 	}
 
 	for (evsel = events; evsel->core.attr.size; evsel++)
-		perf_evlist__set_event_name(session->evlist, evsel);
+		evlist__set_event_name(session->evlist, evsel);
 
 	if (!session->data->is_pipe)
 		free_event_desc(events);
@@ -2938,12 +2933,6 @@ out:
 	up_write(&env->bpf_progs.lock);
 	return err;
 }
-#else // HAVE_LIBBPF_SUPPORT
-static int process_bpf_prog_info(struct feat_fd *ff __maybe_unused, void *data __maybe_unused)
-{
-	return 0;
-}
-#endif // HAVE_LIBBPF_SUPPORT
 
 static int process_bpf_btf(struct feat_fd *ff, void *data __maybe_unused)
 {
@@ -2990,6 +2979,7 @@ out:
 	free(node);
 	return err;
 }
+#endif // HAVE_LIBBPF_SUPPORT
 
 static int process_compressed(struct feat_fd *ff,
 			      void *data __maybe_unused)
@@ -3120,8 +3110,10 @@ const struct perf_header_feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPR(MEM_TOPOLOGY,	mem_topology,	true),
 	FEAT_OPR(CLOCKID,	clockid,	false),
 	FEAT_OPN(DIR_FORMAT,	dir_format,	false),
+#ifdef HAVE_LIBBPF_SUPPORT
 	FEAT_OPR(BPF_PROG_INFO, bpf_prog_info,  false),
 	FEAT_OPR(BPF_BTF,       bpf_btf,        false),
+#endif
 	FEAT_OPR(COMPRESSED,	compressed,	false),
 	FEAT_OPR(CPU_PMU_CAPS,	cpu_pmu_caps,	false),
 	FEAT_OPR(CLOCK_DATA,	clock_data,	false),
@@ -3652,7 +3644,8 @@ static int perf_file_section__process(struct perf_file_section *section,
 }
 
 static int perf_file_header__read_pipe(struct perf_pipe_file_header *header,
-				       struct perf_header *ph, int fd,
+				       struct perf_header *ph,
+				       struct perf_data* data,
 				       bool repipe)
 {
 	struct feat_fd ff = {
@@ -3661,7 +3654,7 @@ static int perf_file_header__read_pipe(struct perf_pipe_file_header *header,
 	};
 	ssize_t ret;
 
-	ret = readn(fd, header, sizeof(*header));
+	ret = perf_data__read(data, header, sizeof(*header));
 	if (ret <= 0)
 		return -1;
 
@@ -3684,8 +3677,7 @@ static int perf_header__read_pipe(struct perf_session *session)
 	struct perf_header *header = &session->header;
 	struct perf_pipe_file_header f_header;
 
-	if (perf_file_header__read_pipe(&f_header, header,
-					perf_data__fd(session->data),
+	if (perf_file_header__read_pipe(&f_header, header, session->data,
 					session->repipe) < 0) {
 		pr_debug("incompatible file format\n");
 		return -EINVAL;
@@ -3740,8 +3732,7 @@ static int read_attr(int fd, struct perf_header *ph,
 	return ret <= 0 ? -1 : 0;
 }
 
-static int perf_evsel__prepare_tracepoint_event(struct evsel *evsel,
-						struct tep_handle *pevent)
+static int evsel__prepare_tracepoint_event(struct evsel *evsel, struct tep_handle *pevent)
 {
 	struct tep_event *event;
 	char bf[128];
@@ -3772,14 +3763,13 @@ static int perf_evsel__prepare_tracepoint_event(struct evsel *evsel,
 	return 0;
 }
 
-static int perf_evlist__prepare_tracepoint_events(struct evlist *evlist,
-						  struct tep_handle *pevent)
+static int evlist__prepare_tracepoint_events(struct evlist *evlist, struct tep_handle *pevent)
 {
 	struct evsel *pos;
 
 	evlist__for_each_entry(evlist, pos) {
 		if (pos->core.attr.type == PERF_TYPE_TRACEPOINT &&
-		    perf_evsel__prepare_tracepoint_event(pos, pevent))
+		    evsel__prepare_tracepoint_event(pos, pevent))
 			return -1;
 	}
 
@@ -3888,8 +3878,7 @@ int perf_session__read_header(struct perf_session *session)
 	perf_header__process_sections(header, fd, &session->tevent,
 				      perf_file_section__process);
 
-	if (perf_evlist__prepare_tracepoint_events(session->evlist,
-						   session->tevent.pevent))
+	if (evlist__prepare_tracepoint_events(session->evlist, session->tevent.pevent))
 		goto out_delete_evlist;
 
 	return 0;
@@ -4037,7 +4026,7 @@ int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 
 	evlist = *pevlist;
 
-	evsel = perf_evlist__id2evsel(evlist, ev->id);
+	evsel = evlist__id2evsel(evlist, ev->id);
 	if (evsel == NULL)
 		return -EINVAL;
 
@@ -4110,8 +4099,7 @@ int perf_event__process_tracing_data(struct perf_session *session,
 		return -1;
 	}
 
-	perf_evlist__prepare_tracepoint_events(session->evlist,
-					       session->tevent.pevent);
+	evlist__prepare_tracepoint_events(session->evlist, session->tevent.pevent);
 
 	return size_read + padding;
 }

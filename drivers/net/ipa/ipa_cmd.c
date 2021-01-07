@@ -38,9 +38,9 @@
 
 /* Some commands can wait until indicated pipeline stages are clear */
 enum pipeline_clear_options {
-	pipeline_clear_hps	= 0,
-	pipeline_clear_src_grp	= 1,
-	pipeline_clear_full	= 2,
+	pipeline_clear_hps		= 0x0,
+	pipeline_clear_src_grp		= 0x1,
+	pipeline_clear_full		= 0x2,
 };
 
 /* IPA_CMD_IP_V{4,6}_{FILTER,ROUTING}_INIT */

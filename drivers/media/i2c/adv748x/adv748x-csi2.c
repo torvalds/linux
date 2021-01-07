@@ -14,8 +14,7 @@
 
 #include "adv748x.h"
 
-static int adv748x_csi2_set_virtual_channel(struct adv748x_csi2 *tx,
-					    unsigned int vc)
+int adv748x_csi2_set_virtual_channel(struct adv748x_csi2 *tx, unsigned int vc)
 {
 	return tx_write(tx, ADV748X_CSI_VC_REF, vc << ADV748X_CSI_VC_REF_SHIFT);
 }
@@ -312,9 +311,6 @@ int adv748x_csi2_init(struct adv748x_state *state, struct adv748x_csi2 *tx)
 
 	if (!is_tx_enabled(tx))
 		return 0;
-
-	/* Initialise the virtual channel */
-	adv748x_csi2_set_virtual_channel(tx, 0);
 
 	adv748x_subdev_init(&tx->sd, state, &adv748x_csi2_ops,
 			    MEDIA_ENT_F_VID_IF_BRIDGE,

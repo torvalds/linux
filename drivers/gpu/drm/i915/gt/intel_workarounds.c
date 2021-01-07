@@ -674,6 +674,20 @@ static void tgl_ctx_workarounds_init(struct intel_engine_cs *engine,
 	       0);
 }
 
+static void dg1_ctx_workarounds_init(struct intel_engine_cs *engine,
+				     struct i915_wa_list *wal)
+{
+	gen12_ctx_workarounds_init(engine, wal);
+
+	/* Wa_1409044764 */
+	WA_CLR_BIT_MASKED(GEN11_COMMON_SLICE_CHICKEN3,
+			  DG1_FLOAT_POINT_BLEND_OPT_STRICT_MODE_EN);
+
+	/* Wa_22010493298 */
+	WA_SET_BIT_MASKED(HIZ_CHICKEN,
+			  DG1_HZ_READ_SUPPRESSION_OPTIMIZATION_DISABLE);
+}
+
 static void
 __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 			   struct i915_wa_list *wal,
@@ -686,7 +700,9 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 
 	wa_init_start(wal, name, engine->name);
 
-	if (IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915))
+	if (IS_DG1(i915))
+		dg1_ctx_workarounds_init(engine, wal);
+	else if (IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915))
 		tgl_ctx_workarounds_init(engine, wal);
 	else if (IS_GEN(i915, 12))
 		gen12_ctx_workarounds_init(engine, wal);
@@ -1214,7 +1230,7 @@ icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 
 	/* Wa_1607087056:icl,ehl,jsl */
 	if (IS_ICELAKE(i915) ||
-	    IS_EHL_REVID(i915, EHL_REVID_A0, EHL_REVID_A0)) {
+		IS_JSL_EHL_REVID(i915, EHL_REVID_A0, EHL_REVID_A0)) {
 		wa_write_or(wal,
 			    SLICE_UNIT_LEVEL_CLKGATE,
 			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
@@ -1247,9 +1263,35 @@ tgl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 }
 
 static void
+dg1_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
+{
+	gen12_gt_workarounds_init(i915, wal);
+
+	/* Wa_1607087056:dg1 */
+	if (IS_DG1_REVID(i915, DG1_REVID_A0, DG1_REVID_A0))
+		wa_write_or(wal,
+			    SLICE_UNIT_LEVEL_CLKGATE,
+			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
+
+	/* Wa_1409420604:dg1 */
+	if (IS_DG1(i915))
+		wa_write_or(wal,
+			    SUBSLICE_UNIT_LEVEL_CLKGATE2,
+			    CPSSUNIT_CLKGATE_DIS);
+
+	/* Wa_1408615072:dg1 */
+	/* Empirical testing shows this register is unaffected by engine reset. */
+	if (IS_DG1(i915))
+		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE2,
+			    VSUNIT_CLKGATE_DIS_TGL);
+}
+
+static void
 gt_init_workarounds(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	if (IS_TIGERLAKE(i915))
+	if (IS_DG1(i915))
+		dg1_gt_workarounds_init(i915, wal);
+	else if (IS_TIGERLAKE(i915))
 		tgl_gt_workarounds_init(i915, wal);
 	else if (IS_GEN(i915, 12))
 		gen12_gt_workarounds_init(i915, wal);
@@ -1614,6 +1656,20 @@ static void tgl_whitelist_build(struct intel_engine_cs *engine)
 	}
 }
 
+static void dg1_whitelist_build(struct intel_engine_cs *engine)
+{
+	struct i915_wa_list *w = &engine->whitelist;
+
+	tgl_whitelist_build(engine);
+
+	/* GEN:BUG:1409280441:dg1 */
+	if (IS_DG1_REVID(engine->i915, DG1_REVID_A0, DG1_REVID_A0) &&
+	    (engine->class == RENDER_CLASS ||
+	     engine->class == COPY_ENGINE_CLASS))
+		whitelist_reg_ext(w, RING_ID(engine->mmio_base),
+				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
+}
+
 void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
@@ -1621,7 +1677,9 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 
 	wa_init_start(w, "whitelist", engine->name);
 
-	if (IS_GEN(i915, 12))
+	if (IS_DG1(i915))
+		dg1_whitelist_build(engine);
+	else if (IS_GEN(i915, 12))
 		tgl_whitelist_build(engine);
 	else if (IS_GEN(i915, 11))
 		icl_whitelist_build(engine);
@@ -1675,15 +1733,18 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 {
 	struct drm_i915_private *i915 = engine->i915;
 
-	if (IS_TGL_UY_GT_REVID(i915, TGL_REVID_A0, TGL_REVID_A0)) {
+	if (IS_DG1_REVID(i915, DG1_REVID_A0, DG1_REVID_A0) ||
+	    IS_TGL_UY_GT_REVID(i915, TGL_REVID_A0, TGL_REVID_A0)) {
 		/*
-		 * Wa_1607138336:tgl
-		 * Wa_1607063988:tgl
+		 * Wa_1607138336:tgl[a0],dg1[a0]
+		 * Wa_1607063988:tgl[a0],dg1[a0]
 		 */
 		wa_write_or(wal,
 			    GEN9_CTX_PREEMPT_REG,
 			    GEN12_DISABLE_POSH_BUSY_FF_DOP_CG);
+	}
 
+	if (IS_TGL_UY_GT_REVID(i915, TGL_REVID_A0, TGL_REVID_A0)) {
 		/*
 		 * Wa_1606679103:tgl
 		 * (see also Wa_1606682166:icl)
@@ -1697,35 +1758,41 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			    VSUNIT_CLKGATE_DIS_TGL);
 	}
 
-	if (IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
-		/* Wa_1606931601:tgl,rkl */
+	if (IS_DG1(i915) || IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
+		/* Wa_1606931601:tgl,rkl,dg1 */
 		wa_masked_en(wal, GEN7_ROW_CHICKEN2, GEN12_DISABLE_EARLY_READ);
 
-		/* Wa_1409804808:tgl,rkl */
+		/*
+		 * Wa_1407928979:tgl A*
+		 * Wa_18011464164:tgl[B0+],dg1[B0+]
+		 * Wa_22010931296:tgl[B0+],dg1[B0+]
+		 * Wa_14010919138:rkl, dg1
+		 */
+		wa_write_or(wal, GEN7_FF_THREAD_MODE,
+			    GEN12_FF_TESSELATION_DOP_GATE_DISABLE);
+	}
+
+	if (IS_DG1_REVID(i915, DG1_REVID_A0, DG1_REVID_A0) ||
+	    IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
+		/* Wa_1409804808:tgl,rkl,dg1[a0] */
 		wa_masked_en(wal, GEN7_ROW_CHICKEN2,
 			     GEN12_PUSH_CONST_DEREF_HOLD_DIS);
 
 		/*
 		 * Wa_1409085225:tgl
-		 * Wa_14010229206:tgl,rkl
+		 * Wa_14010229206:tgl,rkl,dg1[a0]
 		 */
 		wa_masked_en(wal, GEN9_ROW_CHICKEN4, GEN12_DISABLE_TDL_PUSH);
 
 		/*
-		 * Wa_1407928979:tgl A*
-		 * Wa_18011464164:tgl B0+
-		 * Wa_22010931296:tgl B0+
-		 * Wa_14010919138:rkl,tgl
-		 */
-		wa_write_or(wal, GEN7_FF_THREAD_MODE,
-			    GEN12_FF_TESSELATION_DOP_GATE_DISABLE);
-
-		/*
 		 * Wa_1607030317:tgl
 		 * Wa_1607186500:tgl
-		 * Wa_1607297627:tgl,rkl there are multiple entries for this
-		 * WA in the BSpec; some indicate this is an A0-only WA,
-		 * others indicate it applies to all steppings.
+		 * Wa_1607297627:tgl,rkl,dg1[a0]
+		 *
+		 * On TGL and RKL there are multiple entries for this WA in the
+		 * BSpec; some indicate this is an A0-only WA, others indicate
+		 * it applies to all steppings so we trust the "all steppings."
+		 * For DG1 this only applies to A0.
 		 */
 		wa_masked_en(wal,
 			     GEN6_RC_SLEEP_PSMI_CONTROL,
@@ -1841,7 +1908,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			    GEN12_FF_TESSELATION_DOP_GATE_DISABLE);
 
 		/* Wa_22010271021:ehl */
-		if (IS_ELKHARTLAKE(i915))
+		if (IS_JSL_EHL(i915))
 			wa_masked_en(wal,
 				     GEN9_CS_DEBUG_MODE1,
 				     FF_DOP_CLOCK_GATE_DISABLE);
@@ -2033,10 +2100,12 @@ err_obj:
 	return ERR_PTR(err);
 }
 
-static const struct {
+struct mcr_range {
 	u32 start;
 	u32 end;
-} mcr_ranges_gen8[] = {
+};
+
+static const struct mcr_range mcr_ranges_gen8[] = {
 	{ .start = 0x5500, .end = 0x55ff },
 	{ .start = 0x7000, .end = 0x7fff },
 	{ .start = 0x9400, .end = 0x97ff },
@@ -2045,11 +2114,25 @@ static const struct {
 	{},
 };
 
+static const struct mcr_range mcr_ranges_gen12[] = {
+	{ .start =  0x8150, .end =  0x815f },
+	{ .start =  0x9520, .end =  0x955f },
+	{ .start =  0xb100, .end =  0xb3ff },
+	{ .start =  0xde80, .end =  0xe8ff },
+	{ .start = 0x24a00, .end = 0x24a7f },
+	{},
+};
+
 static bool mcr_range(struct drm_i915_private *i915, u32 offset)
 {
+	const struct mcr_range *mcr_ranges;
 	int i;
 
-	if (INTEL_GEN(i915) < 8)
+	if (INTEL_GEN(i915) >= 12)
+		mcr_ranges = mcr_ranges_gen12;
+	else if (INTEL_GEN(i915) >= 8)
+		mcr_ranges = mcr_ranges_gen8;
+	else
 		return false;
 
 	/*
@@ -2057,9 +2140,9 @@ static bool mcr_range(struct drm_i915_private *i915, u32 offset)
 	 * which only controls CPU initiated MMIO. Routing does not
 	 * work for CS access so we cannot verify them on this path.
 	 */
-	for (i = 0; mcr_ranges_gen8[i].start; i++)
-		if (offset >= mcr_ranges_gen8[i].start &&
-		    offset <= mcr_ranges_gen8[i].end)
+	for (i = 0; mcr_ranges[i].start; i++)
+		if (offset >= mcr_ranges[i].start &&
+		    offset <= mcr_ranges[i].end)
 			return true;
 
 	return false;

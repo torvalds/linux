@@ -122,7 +122,7 @@ static void *ti_am335x_xbar_route_allocate(struct of_phandle_args *dma_spec,
 	return map;
 }
 
-static const struct of_device_id ti_am335x_master_match[] = {
+static const struct of_device_id ti_am335x_master_match[] __maybe_unused = {
 	{ .compatible = "ti,edma3-tpcc", },
 	{},
 };
@@ -292,7 +292,7 @@ static const u32 ti_dma_offset[] = {
 	[TI_XBAR_SDMA_OFFSET] = 1,
 };
 
-static const struct of_device_id ti_dra7_master_match[] = {
+static const struct of_device_id ti_dra7_master_match[] __maybe_unused = {
 	{
 		.compatible = "ti,omap4430-sdma",
 		.data = &ti_dma_offset[TI_XBAR_SDMA_OFFSET],
@@ -460,7 +460,7 @@ static int ti_dma_xbar_probe(struct platform_device *pdev)
 static struct platform_driver ti_dma_xbar_driver = {
 	.driver = {
 		.name = "ti-dma-crossbar",
-		.of_match_table = of_match_ptr(ti_dma_xbar_match),
+		.of_match_table = ti_dma_xbar_match,
 	},
 	.probe	= ti_dma_xbar_probe,
 };

@@ -571,18 +571,21 @@ struct ocelot_vcap_block {
 	int pol_lpr;
 };
 
+struct ocelot_vlan {
+	bool valid;
+	u16 vid;
+};
+
 struct ocelot_port {
 	struct ocelot			*ocelot;
 
 	struct regmap			*target;
 
 	bool				vlan_aware;
-
-	/* Ingress default VLAN (pvid) */
-	u16				pvid;
-
-	/* Egress default VLAN (vid) */
-	u16				vid;
+	/* VLAN that untagged frames are classified to, on ingress */
+	struct ocelot_vlan		pvid_vlan;
+	/* The VLAN ID that will be transmitted as untagged, on egress */
+	struct ocelot_vlan		native_vlan;
 
 	u8				ptp_cmd;
 	struct sk_buff_head		tx_skbs;
@@ -618,6 +621,9 @@ struct ocelot {
 	/* Keep track of the vlan port masks */
 	u32				vlan_mask[VLAN_N_VID];
 
+	/* Switches like VSC9959 have flooding per traffic class */
+	int				num_flooding_pgids;
+
 	/* In tables like ANA:PORT and the ANA:PGID:PGID mask,
 	 * the CPU is located after the physical ports (at the
 	 * num_phys_ports index).
@@ -632,6 +638,7 @@ struct ocelot {
 	u32				*lags;
 
 	struct list_head		multicast;
+	struct list_head		pgids;
 
 	struct list_head		dummy_rules;
 	struct ocelot_vcap_block	block[3];
@@ -642,6 +649,8 @@ struct ocelot {
 	u64				*stats;
 	struct delayed_work		stats_work;
 	struct workqueue_struct		*stats_queue;
+
+	struct workqueue_struct		*owq;
 
 	u8				ptp:1;
 	struct ptp_clock		*ptp_clock;
@@ -743,6 +752,8 @@ int ocelot_fdb_add(struct ocelot *ocelot, int port,
 		   const unsigned char *addr, u16 vid);
 int ocelot_fdb_del(struct ocelot *ocelot, int port,
 		   const unsigned char *addr, u16 vid);
+int ocelot_vlan_prepare(struct ocelot *ocelot, int port, u16 vid, bool pvid,
+			bool untagged);
 int ocelot_vlan_add(struct ocelot *ocelot, int port, u16 vid, bool pvid,
 		    bool untagged);
 int ocelot_vlan_del(struct ocelot *ocelot, int port, u16 vid);

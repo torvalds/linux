@@ -67,6 +67,7 @@ void mptcp_seq_show(struct seq_file *seq)
 		for (i = 0; mptcp_snmp_list[i].name; i++)
 			seq_puts(seq, " 0");
 
+		seq_putc(seq, '\n');
 		return;
 	}
 

@@ -5,6 +5,8 @@
  * Device Tree file for MACCHIATOBin Armada 8040 community board platform
  */
 
+#include <dt-bindings/leds/common.h>
+
 #include "armada-8040-mcbin.dtsi"
 
 / {
@@ -12,6 +14,19 @@
 	compatible = "marvell,armada8040-mcbin-singleshot",
 			"marvell,armada8040-mcbin", "marvell,armada8040",
 			"marvell,armada-ap806-quad", "marvell,armada-ap806";
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&cp0_led18_pins>;
+		pinctrl-names = "default";
+
+		led18 {
+			gpios = <&cp0_gpio2 1 GPIO_ACTIVE_LOW>;
+			function = LED_FUNCTION_HEARTBEAT;
+			color = <LED_COLOR_ID_GREEN>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
 };
 
 &cp0_eth0 {
@@ -26,4 +41,11 @@
 	phy-mode = "10gbase-r";
 	managed = "in-band-status";
 	sfp = <&sfp_eth1>;
+};
+
+&cp0_pinctrl {
+	cp0_led18_pins: led18-pins {
+		marvell,pins = "mpp33";
+		marvell,function = "gpio";
+	};
 };

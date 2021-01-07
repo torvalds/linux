@@ -157,7 +157,7 @@ int radeon_fence_emit(struct radeon_device *rdev,
 	return 0;
 }
 
-/**
+/*
  * radeon_fence_check_signaled - callback from fence_queue
  *
  * this function is called with fence_queue lock held, which is also used
@@ -383,7 +383,7 @@ static bool radeon_fence_is_signaled(struct dma_fence *f)
 
 /**
  * radeon_fence_enable_signaling - enable signalling on fence
- * @fence: fence
+ * @f: fence
  *
  * This function is called with fence_queue lock held, and adds a callback
  * to fence_queue that checks if this fence is signaled, and if so it
@@ -1001,7 +1001,7 @@ static int radeon_debugfs_fence_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-/**
+/*
  * radeon_debugfs_gpu_reset - manually trigger a gpu reset
  *
  * Manually trigger a gpu reset at the next fence wait.

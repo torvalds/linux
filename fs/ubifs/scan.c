@@ -76,7 +76,7 @@ int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
 	dbg_scan("scanning %s at LEB %d:%d",
 		 dbg_ntype(ch->node_type), lnum, offs);
 
-	if (ubifs_check_node(c, buf, lnum, offs, quiet, 1))
+	if (ubifs_check_node(c, buf, len, lnum, offs, quiet, 1))
 		return SCANNED_A_CORRUPT_NODE;
 
 	if (ch->node_type == UBIFS_PAD_NODE) {
@@ -90,7 +90,7 @@ int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
 			if (!quiet) {
 				ubifs_err(c, "bad pad node at LEB %d:%d",
 					  lnum, offs);
-				ubifs_dump_node(c, pad);
+				ubifs_dump_node(c, pad, len);
 			}
 			return SCANNED_A_BAD_PAD_NODE;
 		}

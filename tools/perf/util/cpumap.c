@@ -95,6 +95,23 @@ struct perf_cpu_map *perf_cpu_map__empty_new(int nr)
 	return cpus;
 }
 
+struct cpu_aggr_map *cpu_aggr_map__empty_new(int nr)
+{
+	struct cpu_aggr_map *cpus = malloc(sizeof(*cpus) + sizeof(struct aggr_cpu_id) * nr);
+
+	if (cpus != NULL) {
+		int i;
+
+		cpus->nr = nr;
+		for (i = 0; i < nr; i++)
+			cpus->map[i] = cpu_map__empty_aggr_cpu_id();
+
+		refcount_set(&cpus->refcnt, 1);
+	}
+
+	return cpus;
+}
+
 static int cpu__get_topology_int(int cpu, const char *name, int *value)
 {
 	char path[PATH_MAX];
@@ -111,40 +128,57 @@ int cpu_map__get_socket_id(int cpu)
 	return ret ?: value;
 }
 
-int cpu_map__get_socket(struct perf_cpu_map *map, int idx, void *data __maybe_unused)
+struct aggr_cpu_id cpu_map__get_socket(struct perf_cpu_map *map, int idx,
+					void *data __maybe_unused)
 {
 	int cpu;
+	struct aggr_cpu_id id = cpu_map__empty_aggr_cpu_id();
 
 	if (idx > map->nr)
-		return -1;
+		return id;
 
 	cpu = map->map[idx];
 
-	return cpu_map__get_socket_id(cpu);
+	id.socket = cpu_map__get_socket_id(cpu);
+	return id;
 }
 
-static int cmp_ids(const void *a, const void *b)
+static int cmp_aggr_cpu_id(const void *a_pointer, const void *b_pointer)
 {
-	return *(int *)a - *(int *)b;
+	struct aggr_cpu_id *a = (struct aggr_cpu_id *)a_pointer;
+	struct aggr_cpu_id *b = (struct aggr_cpu_id *)b_pointer;
+
+	if (a->node != b->node)
+		return a->node - b->node;
+	else if (a->socket != b->socket)
+		return a->socket - b->socket;
+	else if (a->die != b->die)
+		return a->die - b->die;
+	else if (a->core != b->core)
+		return a->core - b->core;
+	else
+		return a->thread - b->thread;
 }
 
-int cpu_map__build_map(struct perf_cpu_map *cpus, struct perf_cpu_map **res,
-		       int (*f)(struct perf_cpu_map *map, int cpu, void *data),
+int cpu_map__build_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **res,
+		       struct aggr_cpu_id (*f)(struct perf_cpu_map *map, int cpu, void *data),
 		       void *data)
 {
-	struct perf_cpu_map *c;
 	int nr = cpus->nr;
-	int cpu, s1, s2;
+	struct cpu_aggr_map *c = cpu_aggr_map__empty_new(nr);
+	int cpu, s2;
+	struct aggr_cpu_id s1;
 
-	/* allocate as much as possible */
-	c = calloc(1, sizeof(*c) + nr * sizeof(int));
 	if (!c)
 		return -1;
+
+	/* Reset size as it may only be partially filled */
+	c->nr = 0;
 
 	for (cpu = 0; cpu < nr; cpu++) {
 		s1 = f(cpus, cpu, data);
 		for (s2 = 0; s2 < c->nr; s2++) {
-			if (s1 == c->map[s2])
+			if (cpu_map__compare_aggr_cpu_id(s1, c->map[s2]))
 				break;
 		}
 		if (s2 == c->nr) {
@@ -153,9 +187,8 @@ int cpu_map__build_map(struct perf_cpu_map *cpus, struct perf_cpu_map **res,
 		}
 	}
 	/* ensure we process id in increasing order */
-	qsort(c->map, c->nr, sizeof(int), cmp_ids);
+	qsort(c->map, c->nr, sizeof(struct aggr_cpu_id), cmp_aggr_cpu_id);
 
-	refcount_set(&c->refcnt, 1);
 	*res = c;
 	return 0;
 }
@@ -167,37 +200,32 @@ int cpu_map__get_die_id(int cpu)
 	return ret ?: value;
 }
 
-int cpu_map__get_die(struct perf_cpu_map *map, int idx, void *data)
+struct aggr_cpu_id cpu_map__get_die(struct perf_cpu_map *map, int idx, void *data)
 {
-	int cpu, die_id, s;
+	int cpu, die;
+	struct aggr_cpu_id id = cpu_map__empty_aggr_cpu_id();
 
 	if (idx > map->nr)
-		return -1;
+		return id;
 
 	cpu = map->map[idx];
 
-	die_id = cpu_map__get_die_id(cpu);
+	die = cpu_map__get_die_id(cpu);
 	/* There is no die_id on legacy system. */
-	if (die_id == -1)
-		die_id = 0;
-
-	s = cpu_map__get_socket(map, idx, data);
-	if (s == -1)
-		return -1;
+	if (die == -1)
+		die = 0;
 
 	/*
-	 * Encode socket in bit range 15:8
-	 * die_id is relative to socket, and
-	 * we need a global id. So we combine
-	 * socket + die id
+	 * die_id is relative to socket, so start
+	 * with the socket ID and then add die to
+	 * make a unique ID.
 	 */
-	if (WARN_ONCE(die_id >> 8, "The die id number is too big.\n"))
-		return -1;
+	id = cpu_map__get_socket(map, idx, data);
+	if (cpu_map__aggr_cpu_id_is_empty(id))
+		return id;
 
-	if (WARN_ONCE(s >> 8, "The socket id number is too big.\n"))
-		return -1;
-
-	return (s << 8) | (die_id & 0xff);
+	id.die = die;
+	return id;
 }
 
 int cpu_map__get_core_id(int cpu)
@@ -211,59 +239,58 @@ int cpu_map__get_node_id(int cpu)
 	return cpu__get_node(cpu);
 }
 
-int cpu_map__get_core(struct perf_cpu_map *map, int idx, void *data)
+struct aggr_cpu_id cpu_map__get_core(struct perf_cpu_map *map, int idx, void *data)
 {
-	int cpu, s_die;
+	int cpu;
+	struct aggr_cpu_id id = cpu_map__empty_aggr_cpu_id();
 
 	if (idx > map->nr)
-		return -1;
+		return id;
 
 	cpu = map->map[idx];
 
 	cpu = cpu_map__get_core_id(cpu);
 
-	/* s_die is the combination of socket + die id */
-	s_die = cpu_map__get_die(map, idx, data);
-	if (s_die == -1)
-		return -1;
+	/* cpu_map__get_die returns a struct with socket and die set*/
+	id = cpu_map__get_die(map, idx, data);
+	if (cpu_map__aggr_cpu_id_is_empty(id))
+		return id;
 
 	/*
-	 * encode socket in bit range 31:24
-	 * encode die id in bit range 23:16
-	 * core_id is relative to socket and die,
-	 * we need a global id. So we combine
-	 * socket + die id + core id
+	 * core_id is relative to socket and die, we need a global id.
+	 * So we combine the result from cpu_map__get_die with the core id
 	 */
-	if (WARN_ONCE(cpu >> 16, "The core id number is too big.\n"))
-		return -1;
-
-	return (s_die << 16) | (cpu & 0xffff);
+	id.core = cpu;
+	return id;
 }
 
-int cpu_map__get_node(struct perf_cpu_map *map, int idx, void *data __maybe_unused)
+struct aggr_cpu_id cpu_map__get_node(struct perf_cpu_map *map, int idx, void *data __maybe_unused)
 {
-	if (idx < 0 || idx >= map->nr)
-		return -1;
+	struct aggr_cpu_id id = cpu_map__empty_aggr_cpu_id();
 
-	return cpu_map__get_node_id(map->map[idx]);
+	if (idx < 0 || idx >= map->nr)
+		return id;
+
+	id.node = cpu_map__get_node_id(map->map[idx]);
+	return id;
 }
 
-int cpu_map__build_socket_map(struct perf_cpu_map *cpus, struct perf_cpu_map **sockp)
+int cpu_map__build_socket_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **sockp)
 {
 	return cpu_map__build_map(cpus, sockp, cpu_map__get_socket, NULL);
 }
 
-int cpu_map__build_die_map(struct perf_cpu_map *cpus, struct perf_cpu_map **diep)
+int cpu_map__build_die_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **diep)
 {
 	return cpu_map__build_map(cpus, diep, cpu_map__get_die, NULL);
 }
 
-int cpu_map__build_core_map(struct perf_cpu_map *cpus, struct perf_cpu_map **corep)
+int cpu_map__build_core_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **corep)
 {
 	return cpu_map__build_map(cpus, corep, cpu_map__get_core, NULL);
 }
 
-int cpu_map__build_node_map(struct perf_cpu_map *cpus, struct perf_cpu_map **numap)
+int cpu_map__build_node_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **numap)
 {
 	return cpu_map__build_map(cpus, numap, cpu_map__get_node, NULL);
 }
@@ -585,4 +612,34 @@ const struct perf_cpu_map *cpu_map__online(void) /* thread unsafe */
 		online = perf_cpu_map__new(NULL); /* from /sys/devices/system/cpu/online */
 
 	return online;
+}
+
+bool cpu_map__compare_aggr_cpu_id(struct aggr_cpu_id a, struct aggr_cpu_id b)
+{
+	return a.thread == b.thread &&
+		a.node == b.node &&
+		a.socket == b.socket &&
+		a.die == b.die &&
+		a.core == b.core;
+}
+
+bool cpu_map__aggr_cpu_id_is_empty(struct aggr_cpu_id a)
+{
+	return a.thread == -1 &&
+		a.node == -1 &&
+		a.socket == -1 &&
+		a.die == -1 &&
+		a.core == -1;
+}
+
+struct aggr_cpu_id cpu_map__empty_aggr_cpu_id(void)
+{
+	struct aggr_cpu_id ret = {
+		.thread = -1,
+		.node = -1,
+		.socket = -1,
+		.die = -1,
+		.core = -1
+	};
+	return ret;
 }

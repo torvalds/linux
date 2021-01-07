@@ -77,6 +77,13 @@
 #define TLS_CIPHER_AES_CCM_128_TAG_SIZE		16
 #define TLS_CIPHER_AES_CCM_128_REC_SEQ_SIZE		8
 
+#define TLS_CIPHER_CHACHA20_POLY1305			54
+#define TLS_CIPHER_CHACHA20_POLY1305_IV_SIZE		12
+#define TLS_CIPHER_CHACHA20_POLY1305_KEY_SIZE	32
+#define TLS_CIPHER_CHACHA20_POLY1305_SALT_SIZE		0
+#define TLS_CIPHER_CHACHA20_POLY1305_TAG_SIZE	16
+#define TLS_CIPHER_CHACHA20_POLY1305_REC_SEQ_SIZE	8
+
 #define TLS_SET_RECORD_TYPE	1
 #define TLS_GET_RECORD_TYPE	2
 
@@ -107,6 +114,14 @@ struct tls12_crypto_info_aes_ccm_128 {
 	unsigned char key[TLS_CIPHER_AES_CCM_128_KEY_SIZE];
 	unsigned char salt[TLS_CIPHER_AES_CCM_128_SALT_SIZE];
 	unsigned char rec_seq[TLS_CIPHER_AES_CCM_128_REC_SEQ_SIZE];
+};
+
+struct tls12_crypto_info_chacha20_poly1305 {
+	struct tls_crypto_info info;
+	unsigned char iv[TLS_CIPHER_CHACHA20_POLY1305_IV_SIZE];
+	unsigned char key[TLS_CIPHER_CHACHA20_POLY1305_KEY_SIZE];
+	unsigned char salt[TLS_CIPHER_CHACHA20_POLY1305_SALT_SIZE];
+	unsigned char rec_seq[TLS_CIPHER_CHACHA20_POLY1305_REC_SEQ_SIZE];
 };
 
 enum {

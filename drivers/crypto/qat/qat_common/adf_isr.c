@@ -21,6 +21,9 @@ static int adf_enable_msix(struct adf_accel_dev *accel_dev)
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	u32 msix_num_entries = 1;
 
+	if (hw_data->set_msix_rttable)
+		hw_data->set_msix_rttable(accel_dev);
+
 	/* If SR-IOV is disabled, add entries for each bank */
 	if (!accel_dev->pf.vf_info) {
 		int i;
@@ -50,8 +53,10 @@ static void adf_disable_msix(struct adf_accel_pci *pci_dev_info)
 static irqreturn_t adf_msix_isr_bundle(int irq, void *bank_ptr)
 {
 	struct adf_etr_bank_data *bank = bank_ptr;
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(bank->accel_dev);
 
-	WRITE_CSR_INT_FLAG_AND_COL(bank->csr_addr, bank->bank_number, 0);
+	csr_ops->write_csr_int_flag_and_col(bank->csr_addr, bank->bank_number,
+					    0);
 	tasklet_hi_schedule(&bank->resp_handler);
 	return IRQ_HANDLED;
 }

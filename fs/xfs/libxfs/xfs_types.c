@@ -61,6 +61,29 @@ xfs_verify_fsbno(
 	return xfs_verify_agbno(mp, agno, XFS_FSB_TO_AGBNO(mp, fsbno));
 }
 
+/*
+ * Verify that a data device extent is fully contained inside the filesystem,
+ * does not cross an AG boundary, and does not point at static metadata.
+ */
+bool
+xfs_verify_fsbext(
+	struct xfs_mount	*mp,
+	xfs_fsblock_t		fsbno,
+	xfs_fsblock_t		len)
+{
+	if (fsbno + len <= fsbno)
+		return false;
+
+	if (!xfs_verify_fsbno(mp, fsbno))
+		return false;
+
+	if (!xfs_verify_fsbno(mp, fsbno + len - 1))
+		return false;
+
+	return  XFS_FSB_TO_AGNO(mp, fsbno) ==
+		XFS_FSB_TO_AGNO(mp, fsbno + len - 1);
+}
+
 /* Calculate the first and last possible inode number in an AG. */
 void
 xfs_agino_range(
@@ -175,6 +198,22 @@ xfs_verify_rtbno(
 	return rtbno < mp->m_sb.sb_rblocks;
 }
 
+/* Verify that a realtime device extent is fully contained inside the volume. */
+bool
+xfs_verify_rtext(
+	struct xfs_mount	*mp,
+	xfs_rtblock_t		rtbno,
+	xfs_rtblock_t		len)
+{
+	if (rtbno + len <= rtbno)
+		return false;
+
+	if (!xfs_verify_rtbno(mp, rtbno))
+		return false;
+
+	return xfs_verify_rtbno(mp, rtbno + len - 1);
+}
+
 /* Calculate the range of valid icount values. */
 void
 xfs_icount_range(
@@ -218,4 +257,29 @@ xfs_verify_dablk(
 	xfs_dablk_t		max_dablk = -1U;
 
 	return dabno <= max_dablk;
+}
+
+/* Check that a file block offset does not exceed the maximum. */
+bool
+xfs_verify_fileoff(
+	struct xfs_mount	*mp,
+	xfs_fileoff_t		off)
+{
+	return off <= XFS_MAX_FILEOFF;
+}
+
+/* Check that a range of file block offsets do not exceed the maximum. */
+bool
+xfs_verify_fileext(
+	struct xfs_mount	*mp,
+	xfs_fileoff_t		off,
+	xfs_fileoff_t		len)
+{
+	if (off + len <= off)
+		return false;
+
+	if (!xfs_verify_fileoff(mp, off))
+		return false;
+
+	return xfs_verify_fileoff(mp, off + len - 1);
 }

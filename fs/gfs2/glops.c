@@ -245,7 +245,7 @@ static void rgrp_go_inval(struct gfs2_glock *gl, int flags)
 static void gfs2_rgrp_go_dump(struct seq_file *seq, struct gfs2_glock *gl,
 			      const char *fs_id_buf)
 {
-	struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(gl);
+	struct gfs2_rgrpd *rgd = gl->gl_object;
 
 	if (rgd)
 		gfs2_rgrp_dump(seq, rgd, fs_id_buf);
@@ -582,7 +582,8 @@ static int freeze_go_sync(struct gfs2_glock *gl)
 	 * Once thawed, the work func acquires the freeze glock in
 	 * SH and everybody goes back to thawed.
 	 */
-	if (gl->gl_state == LM_ST_SHARED && !gfs2_withdrawn(sdp)) {
+	if (gl->gl_state == LM_ST_SHARED && !gfs2_withdrawn(sdp) &&
+	    !test_bit(SDF_NORECOVERY, &sdp->sd_flags)) {
 		atomic_set(&sdp->sd_freeze_state, SFS_STARTING_FREEZE);
 		error = freeze_super(sdp->sd_vfs);
 		if (error) {
@@ -781,6 +782,7 @@ const struct gfs2_glock_operations gfs2_iopen_glops = {
 	.go_callback = iopen_go_callback,
 	.go_demote_ok = iopen_go_demote_ok,
 	.go_flags = GLOF_LRU | GLOF_NONDISK,
+	.go_subclass = 1,
 };
 
 const struct gfs2_glock_operations gfs2_flock_glops = {

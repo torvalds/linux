@@ -87,7 +87,7 @@ static int mlx5e_rx_reporter_err_icosq_cqe_recover(void *ctx)
 
 	/* At this point, both the rq and the icosq are disabled */
 
-	err = mlx5e_health_sq_to_ready(icosq->channel, icosq->sqn);
+	err = mlx5e_health_sq_to_ready(mdev, dev, icosq->sqn);
 	if (err)
 		goto out;
 
@@ -146,17 +146,16 @@ out:
 
 static int mlx5e_rx_reporter_timeout_recover(void *ctx)
 {
-	struct mlx5e_icosq *icosq;
 	struct mlx5_eq_comp *eq;
 	struct mlx5e_rq *rq;
 	int err;
 
 	rq = ctx;
-	icosq = &rq->channel->icosq;
 	eq = rq->cq.mcq.eq;
-	err = mlx5e_health_channel_eq_recover(eq, rq->channel);
-	if (err)
-		clear_bit(MLX5E_SQ_STATE_ENABLED, &icosq->state);
+
+	err = mlx5e_health_channel_eq_recover(rq->netdev, eq, rq->cq.ch_stats);
+	if (err && rq->icosq)
+		clear_bit(MLX5E_SQ_STATE_ENABLED, &rq->icosq->state);
 
 	return err;
 }
@@ -233,21 +232,13 @@ static int mlx5e_reporter_icosq_diagnose(struct mlx5e_icosq *icosq, u8 hw_state,
 static int mlx5e_rx_reporter_build_diagnose_output(struct mlx5e_rq *rq,
 						   struct devlink_fmsg *fmsg)
 {
-	struct mlx5e_priv *priv = rq->channel->priv;
-	struct mlx5e_icosq *icosq;
-	u8 icosq_hw_state;
 	u16 wqe_counter;
 	int wqes_sz;
 	u8 hw_state;
 	u16 wq_head;
 	int err;
 
-	icosq = &rq->channel->icosq;
-	err = mlx5e_query_rq_state(priv->mdev, rq->rqn, &hw_state);
-	if (err)
-		return err;
-
-	err = mlx5_core_query_sq_state(priv->mdev, icosq->sqn, &icosq_hw_state);
+	err = mlx5e_query_rq_state(rq->mdev, rq->rqn, &hw_state);
 	if (err)
 		return err;
 
@@ -259,7 +250,7 @@ static int mlx5e_rx_reporter_build_diagnose_output(struct mlx5e_rq *rq,
 	if (err)
 		return err;
 
-	err = devlink_fmsg_u32_pair_put(fmsg, "channel ix", rq->channel->ix);
+	err = devlink_fmsg_u32_pair_put(fmsg, "channel ix", rq->ix);
 	if (err)
 		return err;
 
@@ -295,9 +286,18 @@ static int mlx5e_rx_reporter_build_diagnose_output(struct mlx5e_rq *rq,
 	if (err)
 		return err;
 
-	err = mlx5e_reporter_icosq_diagnose(icosq, icosq_hw_state, fmsg);
-	if (err)
-		return err;
+	if (rq->icosq) {
+		struct mlx5e_icosq *icosq = rq->icosq;
+		u8 icosq_hw_state;
+
+		err = mlx5_core_query_sq_state(rq->mdev, icosq->sqn, &icosq_hw_state);
+		if (err)
+			return err;
+
+		err = mlx5e_reporter_icosq_diagnose(icosq, icosq_hw_state, fmsg);
+		if (err)
+			return err;
+	}
 
 	err = devlink_fmsg_obj_nest_end(fmsg);
 	if (err)
@@ -557,25 +557,29 @@ static int mlx5e_rx_reporter_dump(struct devlink_health_reporter *reporter,
 
 void mlx5e_reporter_rx_timeout(struct mlx5e_rq *rq)
 {
-	struct mlx5e_icosq *icosq = &rq->channel->icosq;
-	struct mlx5e_priv *priv = rq->channel->priv;
+	char icosq_str[MLX5E_REPORTER_PER_Q_MAX_LEN] = {};
 	char err_str[MLX5E_REPORTER_PER_Q_MAX_LEN];
+	struct mlx5e_icosq *icosq = rq->icosq;
+	struct mlx5e_priv *priv = rq->priv;
 	struct mlx5e_err_ctx err_ctx = {};
 
 	err_ctx.ctx = rq;
 	err_ctx.recover = mlx5e_rx_reporter_timeout_recover;
 	err_ctx.dump = mlx5e_rx_reporter_dump_rq;
+
+	if (icosq)
+		snprintf(icosq_str, sizeof(icosq_str), "ICOSQ: 0x%x, ", icosq->sqn);
 	snprintf(err_str, sizeof(err_str),
-		 "RX timeout on channel: %d, ICOSQ: 0x%x RQ: 0x%x, CQ: 0x%x",
-		 icosq->channel->ix, icosq->sqn, rq->rqn, rq->cq.mcq.cqn);
+		 "RX timeout on channel: %d, %sRQ: 0x%x, CQ: 0x%x",
+		 rq->ix, icosq_str, rq->rqn, rq->cq.mcq.cqn);
 
 	mlx5e_health_report(priv, priv->rx_reporter, err_str, &err_ctx);
 }
 
 void mlx5e_reporter_rq_cqe_err(struct mlx5e_rq *rq)
 {
-	struct mlx5e_priv *priv = rq->channel->priv;
 	char err_str[MLX5E_REPORTER_PER_Q_MAX_LEN];
+	struct mlx5e_priv *priv = rq->priv;
 	struct mlx5e_err_ctx err_ctx = {};
 
 	err_ctx.ctx = rq;

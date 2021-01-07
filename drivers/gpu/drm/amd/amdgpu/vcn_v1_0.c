@@ -431,7 +431,6 @@ static void vcn_v1_0_mc_resume_dpg_mode(struct amdgpu_device *adev)
  * vcn_v1_0_disable_clock_gating - disable VCN clock gating
  *
  * @adev: amdgpu_device pointer
- * @sw: enable SW clock gating
  *
  * Disable clock gating for VCN block
  */
@@ -558,7 +557,6 @@ static void vcn_v1_0_disable_clock_gating(struct amdgpu_device *adev)
  * vcn_v1_0_enable_clock_gating - enable VCN clock gating
  *
  * @adev: amdgpu_device pointer
- * @sw: enable SW clock gating
  *
  * Enable clock gating for VCN block
  */
@@ -1445,7 +1443,9 @@ static void vcn_v1_0_dec_ring_insert_end(struct amdgpu_ring *ring)
  * vcn_v1_0_dec_ring_emit_fence - emit an fence & trap command
  *
  * @ring: amdgpu_ring pointer
- * @fence: fence to emit
+ * @addr: address
+ * @seq: sequence number
+ * @flags: fence related flags
  *
  * Write a fence and a trap command to the ring.
  */
@@ -1484,7 +1484,9 @@ static void vcn_v1_0_dec_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64
  * vcn_v1_0_dec_ring_emit_ib - execute indirect buffer
  *
  * @ring: amdgpu_ring pointer
+ * @job: job to retrieve vmid from
  * @ib: indirect buffer to execute
+ * @flags: unused
  *
  * Write ring commands to execute the indirect buffer
  */
@@ -1619,7 +1621,9 @@ static void vcn_v1_0_enc_ring_set_wptr(struct amdgpu_ring *ring)
  * vcn_v1_0_enc_ring_emit_fence - emit an enc fence & trap command
  *
  * @ring: amdgpu_ring pointer
- * @fence: fence to emit
+ * @addr: address
+ * @seq: sequence number
+ * @flags: fence related flags
  *
  * Write enc a fence and a trap command to the ring.
  */
@@ -1644,7 +1648,9 @@ static void vcn_v1_0_enc_ring_insert_end(struct amdgpu_ring *ring)
  * vcn_v1_0_enc_ring_emit_ib - enc execute indirect buffer
  *
  * @ring: amdgpu_ring pointer
+ * @job: job to retrive vmid from
  * @ib: indirect buffer to execute
+ * @flags: unused
  *
  * Write enc ring commands to execute the indirect buffer
  */

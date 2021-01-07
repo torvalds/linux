@@ -230,6 +230,9 @@ static int afs_parse_source(struct fs_context *fc, struct fs_parameter *param)
 
 	_enter(",%s", name);
 
+	if (fc->source)
+		return invalf(fc, "kAFS: Multiple sources not supported");
+
 	if (!name) {
 		printk(KERN_ERR "kAFS: no volume name specified\n");
 		return -EINVAL;

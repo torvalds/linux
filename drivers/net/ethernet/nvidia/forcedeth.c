@@ -1043,8 +1043,7 @@ static int using_multi_irqs(struct net_device *dev)
 	struct fe_priv *np = get_nvpriv(dev);
 
 	if (!(np->msi_flags & NV_MSI_X_ENABLED) ||
-	    ((np->msi_flags & NV_MSI_X_ENABLED) &&
-	     ((np->msi_flags & NV_MSI_X_VECTORS_MASK) == 0x1)))
+	    ((np->msi_flags & NV_MSI_X_VECTORS_MASK) == 0x1))
 		return 0;
 	else
 		return 1;
@@ -1666,11 +1665,7 @@ static void nv_update_stats(struct net_device *dev)
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
 
-	/* If it happens that this is run in top-half context, then
-	 * replace the spin_lock of hwstats_lock with
-	 * spin_lock_irqsave() in calling functions. */
-	WARN_ONCE(in_irq(), "forcedeth: estats spin_lock(_bh) from top-half");
-	assert_spin_locked(&np->hwstats_lock);
+	lockdep_assert_held(&np->hwstats_lock);
 
 	/* query hardware */
 	np->estats.tx_bytes += readl(base + NvRegTxCnt);

@@ -517,7 +517,7 @@ devlink_reload_limit_is_supported(struct devlink *devlink, enum devlink_reload_l
 	return test_bit(limit, &devlink->ops->reload_limits);
 }
 
-static int devlink_reload_stat_put(struct sk_buff *msg, enum devlink_reload_action action,
+static int devlink_reload_stat_put(struct sk_buff *msg,
 				   enum devlink_reload_limit limit, u32 value)
 {
 	struct nlattr *reload_stats_entry;
@@ -526,8 +526,7 @@ static int devlink_reload_stat_put(struct sk_buff *msg, enum devlink_reload_acti
 	if (!reload_stats_entry)
 		return -EMSGSIZE;
 
-	if (nla_put_u8(msg, DEVLINK_ATTR_RELOAD_ACTION, action) ||
-	    nla_put_u8(msg, DEVLINK_ATTR_RELOAD_STATS_LIMIT, limit) ||
+	if (nla_put_u8(msg, DEVLINK_ATTR_RELOAD_STATS_LIMIT, limit) ||
 	    nla_put_u32(msg, DEVLINK_ATTR_RELOAD_STATS_VALUE, value))
 		goto nla_put_failure;
 	nla_nest_end(msg, reload_stats_entry);
@@ -540,7 +539,7 @@ nla_put_failure:
 
 static int devlink_reload_stats_put(struct sk_buff *msg, struct devlink *devlink, bool is_remote)
 {
-	struct nlattr *reload_stats_attr;
+	struct nlattr *reload_stats_attr, *act_info, *act_stats;
 	int i, j, stat_idx;
 	u32 value;
 
@@ -552,17 +551,29 @@ static int devlink_reload_stats_put(struct sk_buff *msg, struct devlink *devlink
 	if (!reload_stats_attr)
 		return -EMSGSIZE;
 
-	for (j = 0; j <= DEVLINK_RELOAD_LIMIT_MAX; j++) {
-		/* Remote stats are shown even if not locally supported. Stats
-		 * of actions with unspecified limit are shown though drivers
-		 * don't need to register unspecified limit.
-		 */
-		if (!is_remote && j != DEVLINK_RELOAD_LIMIT_UNSPEC &&
-		    !devlink_reload_limit_is_supported(devlink, j))
+	for (i = 0; i <= DEVLINK_RELOAD_ACTION_MAX; i++) {
+		if ((!is_remote &&
+		     !devlink_reload_action_is_supported(devlink, i)) ||
+		    i == DEVLINK_RELOAD_ACTION_UNSPEC)
 			continue;
-		for (i = 0; i <= DEVLINK_RELOAD_ACTION_MAX; i++) {
-			if ((!is_remote && !devlink_reload_action_is_supported(devlink, i)) ||
-			    i == DEVLINK_RELOAD_ACTION_UNSPEC ||
+		act_info = nla_nest_start(msg, DEVLINK_ATTR_RELOAD_ACTION_INFO);
+		if (!act_info)
+			goto nla_put_failure;
+
+		if (nla_put_u8(msg, DEVLINK_ATTR_RELOAD_ACTION, i))
+			goto action_info_nest_cancel;
+		act_stats = nla_nest_start(msg, DEVLINK_ATTR_RELOAD_ACTION_STATS);
+		if (!act_stats)
+			goto action_info_nest_cancel;
+
+		for (j = 0; j <= DEVLINK_RELOAD_LIMIT_MAX; j++) {
+			/* Remote stats are shown even if not locally supported.
+			 * Stats of actions with unspecified limit are shown
+			 * though drivers don't need to register unspecified
+			 * limit.
+			 */
+			if ((!is_remote && j != DEVLINK_RELOAD_LIMIT_UNSPEC &&
+			     !devlink_reload_limit_is_supported(devlink, j)) ||
 			    devlink_reload_combination_is_invalid(i, j))
 				continue;
 
@@ -571,13 +582,19 @@ static int devlink_reload_stats_put(struct sk_buff *msg, struct devlink *devlink
 				value = devlink->stats.reload_stats[stat_idx];
 			else
 				value = devlink->stats.remote_reload_stats[stat_idx];
-			if (devlink_reload_stat_put(msg, i, j, value))
-				goto nla_put_failure;
+			if (devlink_reload_stat_put(msg, j, value))
+				goto action_stats_nest_cancel;
 		}
+		nla_nest_end(msg, act_stats);
+		nla_nest_end(msg, act_info);
 	}
 	nla_nest_end(msg, reload_stats_attr);
 	return 0;
 
+action_stats_nest_cancel:
+	nla_nest_cancel(msg, act_stats);
+action_info_nest_cancel:
+	nla_nest_cancel(msg, act_info);
 nla_put_failure:
 	nla_nest_cancel(msg, reload_stats_attr);
 	return -EMSGSIZE;
@@ -755,6 +772,8 @@ static int devlink_nl_port_fill(struct sk_buff *msg, struct devlink *devlink,
 	if (nla_put_u32(msg, DEVLINK_ATTR_PORT_INDEX, devlink_port->index))
 		goto nla_put_failure;
 
+	/* Hold rtnl lock while accessing port's netdev attributes. */
+	rtnl_lock();
 	spin_lock_bh(&devlink_port->type_lock);
 	if (nla_put_u16(msg, DEVLINK_ATTR_PORT_TYPE, devlink_port->type))
 		goto nla_put_failure_type_locked;
@@ -763,9 +782,10 @@ static int devlink_nl_port_fill(struct sk_buff *msg, struct devlink *devlink,
 			devlink_port->desired_type))
 		goto nla_put_failure_type_locked;
 	if (devlink_port->type == DEVLINK_PORT_TYPE_ETH) {
+		struct net *net = devlink_net(devlink_port->devlink);
 		struct net_device *netdev = devlink_port->type_dev;
 
-		if (netdev &&
+		if (netdev && net_eq(net, dev_net(netdev)) &&
 		    (nla_put_u32(msg, DEVLINK_ATTR_PORT_NETDEV_IFINDEX,
 				 netdev->ifindex) ||
 		     nla_put_string(msg, DEVLINK_ATTR_PORT_NETDEV_NAME,
@@ -781,6 +801,7 @@ static int devlink_nl_port_fill(struct sk_buff *msg, struct devlink *devlink,
 			goto nla_put_failure_type_locked;
 	}
 	spin_unlock_bh(&devlink_port->type_lock);
+	rtnl_unlock();
 	if (devlink_nl_port_attrs_put(msg, devlink_port))
 		goto nla_put_failure;
 	if (devlink_nl_port_function_attrs_put(msg, devlink_port, extack))
@@ -791,6 +812,7 @@ static int devlink_nl_port_fill(struct sk_buff *msg, struct devlink *devlink,
 
 nla_put_failure_type_locked:
 	spin_unlock_bh(&devlink_port->type_lock);
+	rtnl_unlock();
 nla_put_failure:
 	genlmsg_cancel(msg, hdr);
 	return -EMSGSIZE;
@@ -3372,7 +3394,7 @@ out_free_msg:
 	nlmsg_free(msg);
 }
 
-void devlink_flash_update_begin_notify(struct devlink *devlink)
+static void devlink_flash_update_begin_notify(struct devlink *devlink)
 {
 	struct devlink_flash_notify params = { 0 };
 
@@ -3380,9 +3402,8 @@ void devlink_flash_update_begin_notify(struct devlink *devlink)
 				      DEVLINK_CMD_FLASH_UPDATE,
 				      &params);
 }
-EXPORT_SYMBOL_GPL(devlink_flash_update_begin_notify);
 
-void devlink_flash_update_end_notify(struct devlink *devlink)
+static void devlink_flash_update_end_notify(struct devlink *devlink)
 {
 	struct devlink_flash_notify params = { 0 };
 
@@ -3390,7 +3411,6 @@ void devlink_flash_update_end_notify(struct devlink *devlink)
 				      DEVLINK_CMD_FLASH_UPDATE_END,
 				      &params);
 }
-EXPORT_SYMBOL_GPL(devlink_flash_update_end_notify);
 
 void devlink_flash_update_status_notify(struct devlink *devlink,
 					const char *status_msg,
@@ -3431,10 +3451,12 @@ EXPORT_SYMBOL_GPL(devlink_flash_update_timeout_notify);
 static int devlink_nl_cmd_flash_update(struct sk_buff *skb,
 				       struct genl_info *info)
 {
-	struct nlattr *nla_component, *nla_overwrite_mask;
+	struct nlattr *nla_component, *nla_overwrite_mask, *nla_file_name;
 	struct devlink_flash_update_params params = {};
 	struct devlink *devlink = info->user_ptr[0];
+	const char *file_name;
 	u32 supported_params;
+	int ret;
 
 	if (!devlink->ops->flash_update)
 		return -EOPNOTSUPP;
@@ -3443,8 +3465,6 @@ static int devlink_nl_cmd_flash_update(struct sk_buff *skb,
 		return -EINVAL;
 
 	supported_params = devlink->ops->supported_flash_update_params;
-
-	params.file_name = nla_data(info->attrs[DEVLINK_ATTR_FLASH_UPDATE_FILE_NAME]);
 
 	nla_component = info->attrs[DEVLINK_ATTR_FLASH_UPDATE_COMPONENT];
 	if (nla_component) {
@@ -3469,7 +3489,21 @@ static int devlink_nl_cmd_flash_update(struct sk_buff *skb,
 		params.overwrite_mask = sections.value & sections.selector;
 	}
 
-	return devlink->ops->flash_update(devlink, &params, info->extack);
+	nla_file_name = info->attrs[DEVLINK_ATTR_FLASH_UPDATE_FILE_NAME];
+	file_name = nla_data(nla_file_name);
+	ret = request_firmware(&params.fw, file_name, devlink->dev);
+	if (ret) {
+		NL_SET_ERR_MSG_ATTR(info->extack, nla_file_name, "failed to locate the requested firmware file");
+		return ret;
+	}
+
+	devlink_flash_update_begin_notify(devlink);
+	ret = devlink->ops->flash_update(devlink, &params, info->extack);
+	devlink_flash_update_end_notify(devlink);
+
+	release_firmware(params.fw);
+
+	return ret;
 }
 
 static const struct devlink_param devlink_param_generic[] = {
@@ -6959,7 +6993,6 @@ static int devlink_nl_cmd_trap_set_doit(struct sk_buff *skb,
 	struct netlink_ext_ack *extack = info->extack;
 	struct devlink *devlink = info->user_ptr[0];
 	struct devlink_trap_item *trap_item;
-	int err;
 
 	if (list_empty(&devlink->trap_list))
 		return -EOPNOTSUPP;
@@ -6970,11 +7003,7 @@ static int devlink_nl_cmd_trap_set_doit(struct sk_buff *skb,
 		return -ENOENT;
 	}
 
-	err = devlink_trap_action_set(devlink, trap_item, info);
-	if (err)
-		return err;
-
-	return 0;
+	return devlink_trap_action_set(devlink, trap_item, info);
 }
 
 static struct devlink_trap_group_item *
@@ -9478,6 +9507,7 @@ static const struct devlink_trap devlink_trap_generic[] = {
 	DEVLINK_TRAP(DCCP_PARSING, DROP),
 	DEVLINK_TRAP(GTP_PARSING, DROP),
 	DEVLINK_TRAP(ESP_PARSING, DROP),
+	DEVLINK_TRAP(BLACKHOLE_NEXTHOP, DROP),
 };
 
 #define DEVLINK_TRAP_GROUP(_id)						      \
@@ -10227,11 +10257,17 @@ int devlink_compat_flash_update(struct net_device *dev, const char *file_name)
 		goto out;
 	}
 
-	params.file_name = file_name;
+	ret = request_firmware(&params.fw, file_name, devlink->dev);
+	if (ret)
+		goto out;
 
 	mutex_lock(&devlink->lock);
+	devlink_flash_update_begin_notify(devlink);
 	ret = devlink->ops->flash_update(devlink, &params, NULL);
+	devlink_flash_update_end_notify(devlink);
 	mutex_unlock(&devlink->lock);
+
+	release_firmware(params.fw);
 
 out:
 	rtnl_lock();

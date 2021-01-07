@@ -617,7 +617,7 @@ static const struct mlxsw_sp_trap_item mlxsw_sp_trap_items_arr[] = {
 					       TRAP_TO_CPU),
 			MLXSW_SP_RXL_EXCEPTION(HOST_MISS_IPV6, L3_EXCEPTIONS,
 					       TRAP_TO_CPU),
-			MLXSW_SP_RXL_EXCEPTION(DISCARD_ROUTER3, L3_EXCEPTIONS,
+			MLXSW_SP_RXL_EXCEPTION(RTR_EGRESS0, L3_EXCEPTIONS,
 					       TRAP_EXCEPTION_TO_CPU),
 		},
 	},
@@ -1005,6 +1005,12 @@ static const struct mlxsw_sp_trap_item mlxsw_sp_trap_items_arr[] = {
 		.listeners_arr = {
 			MLXSW_SP_RXL_NO_MARK(ACL0, FLOW_LOGGING, TRAP_TO_CPU,
 					     false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP(BLACKHOLE_NEXTHOP, L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(ROUTER3, L3_DISCARDS),
 		},
 	},
 };

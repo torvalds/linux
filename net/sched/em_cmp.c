@@ -41,7 +41,7 @@ static int em_cmp_match(struct sk_buff *skb, struct tcf_ematch *em,
 		break;
 
 	case TCF_EM_ALIGN_U32:
-		/* Worth checking boundries? The branching seems
+		/* Worth checking boundaries? The branching seems
 		 * to get worse. Visit again.
 		 */
 		val = get_unaligned_be32(ptr);

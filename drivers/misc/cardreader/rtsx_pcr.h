@@ -90,6 +90,7 @@ static inline u8 map_sd_drive(int idx)
 
 #define rtsx_check_mmc_support(reg)		((reg) & 0x10)
 #define rtsx_reg_to_rtd3(reg)				((reg) & 0x02)
+#define rtsx_reg_to_rtd3_uhsii(reg)				((reg) & 0x04)
 #define rtsx_reg_to_aspm(reg)			(((reg) >> 28) & 0x03)
 #define rtsx_reg_to_sd30_drive_sel_1v8(reg)	(((reg) >> 26) & 0x03)
 #define rtsx_reg_to_sd30_drive_sel_3v3(reg)	(((reg) >> 5) & 0x03)

@@ -17,6 +17,9 @@ bool mlx5_read_embedded_cpu(struct mlx5_core_dev *dev);
 int mlx5_ec_init(struct mlx5_core_dev *dev);
 void mlx5_ec_cleanup(struct mlx5_core_dev *dev);
 
+int mlx5_cmd_host_pf_enable_hca(struct mlx5_core_dev *dev);
+int mlx5_cmd_host_pf_disable_hca(struct mlx5_core_dev *dev);
+
 #else  /* CONFIG_MLX5_ESWITCH */
 
 static inline bool

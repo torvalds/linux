@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/init.h>
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
@@ -80,6 +81,17 @@ static const struct dmi_system_id dmi_use_low_level_irq[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "One S1003"),
+		},
+	},
+	{
+		/*
+		 * Lenovo Yoga Tab2 1051L, something messes with the home-button
+		 * IRQ settings, leading to a non working home-button.
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "60073"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "1051L"),
 		},
 	},
 	{} /* Terminating entry */

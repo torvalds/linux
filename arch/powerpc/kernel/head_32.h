@@ -40,38 +40,31 @@
 
 .macro EXCEPTION_PROLOG_1 for_rtas=0
 #ifdef CONFIG_VMAP_STACK
-	mr	r11, r1
+	mtspr	SPRN_SPRG_SCRATCH2,r1
 	subi	r1, r1, INT_FRAME_SIZE		/* use r1 if kernel */
 	beq	1f
 	mfspr	r1,SPRN_SPRG_THREAD
 	lwz	r1,TASK_STACK-THREAD(r1)
 	addi	r1, r1, THREAD_SIZE - INT_FRAME_SIZE
+1:
+	mtcrf	0x7f, r1
+	bt	32 - THREAD_ALIGN_SHIFT, stack_overflow
 #else
 	subi	r11, r1, INT_FRAME_SIZE		/* use r1 if kernel */
 	beq	1f
 	mfspr	r11,SPRN_SPRG_THREAD
 	lwz	r11,TASK_STACK-THREAD(r11)
 	addi	r11, r11, THREAD_SIZE - INT_FRAME_SIZE
-#endif
-1:
-	tophys_novmstack r11, r11
-#ifdef CONFIG_VMAP_STACK
-	mtcrf	0x7f, r1
-	bt	32 - THREAD_ALIGN_SHIFT, stack_overflow
+1:	tophys(r11, r11)
 #endif
 .endm
 
 .macro EXCEPTION_PROLOG_2 handle_dar_dsisr=0
 #ifdef CONFIG_VMAP_STACK
-	mtcr	r10
-	li	r10, MSR_KERNEL & ~(MSR_IR | MSR_RI) /* can take DTLB miss */
-	mtmsr	r10
+	li	r11, MSR_KERNEL & ~(MSR_IR | MSR_RI) /* can take DTLB miss */
+	mtmsr	r11
 	isync
-#else
-	stw	r10,_CCR(r11)		/* save registers */
-#endif
-	mfspr	r10, SPRN_SPRG_SCRATCH0
-#ifdef CONFIG_VMAP_STACK
+	mfspr	r11, SPRN_SPRG_SCRATCH2
 	stw	r11,GPR1(r1)
 	stw	r11,0(r1)
 	mr	r11, r1
@@ -80,14 +73,12 @@
 	stw	r1,0(r11)
 	tovirt(r1, r11)		/* set new kernel sp */
 #endif
+	stw	r10,_CCR(r11)		/* save registers */
 	stw	r12,GPR12(r11)
 	stw	r9,GPR9(r11)
-	stw	r10,GPR10(r11)
-#ifdef CONFIG_VMAP_STACK
-	mfcr	r10
-	stw	r10, _CCR(r11)
-#endif
+	mfspr	r10,SPRN_SPRG_SCRATCH0
 	mfspr	r12,SPRN_SPRG_SCRATCH1
+	stw	r10,GPR10(r11)
 	stw	r12,GPR11(r11)
 	mflr	r10
 	stw	r10,_LINK(r11)
@@ -101,7 +92,6 @@
 	stw	r10, _DSISR(r11)
 	.endif
 	lwz	r9, SRR1(r12)
-	andi.	r10, r9, MSR_PR
 	lwz	r12, SRR0(r12)
 #else
 	mfspr	r12,SPRN_SRR0
@@ -131,18 +121,28 @@
 #ifdef CONFIG_VMAP_STACK
 	mfspr	r11, SPRN_SRR0
 	mtctr	r11
-#endif
+	andi.	r11, r9, MSR_PR
+	mr	r11, r1
+	lwz	r1,TASK_STACK-THREAD(r12)
+	beq-	99f
+	addi	r1, r1, THREAD_SIZE - INT_FRAME_SIZE
+	li	r10, MSR_KERNEL & ~(MSR_IR | MSR_RI) /* can take DTLB miss */
+	mtmsr	r10
+	isync
+	tovirt(r12, r12)
+	stw	r11,GPR1(r1)
+	stw	r11,0(r1)
+	mr	r11, r1
+#else
 	andi.	r11, r9, MSR_PR
 	lwz	r11,TASK_STACK-THREAD(r12)
 	beq-	99f
 	addi	r11, r11, THREAD_SIZE - INT_FRAME_SIZE
-#ifdef CONFIG_VMAP_STACK
-	li	r10, MSR_KERNEL & ~(MSR_IR | MSR_RI) /* can take DTLB miss */
-	mtmsr	r10
-	isync
+	tophys(r11, r11)
+	stw	r1,GPR1(r11)
+	stw	r1,0(r11)
+	tovirt(r1, r11)		/* set new kernel sp */
 #endif
-	tovirt_vmstack r12, r12
-	tophys_novmstack r11, r11
 	mflr	r10
 	stw	r10, _LINK(r11)
 #ifdef CONFIG_VMAP_STACK
@@ -150,9 +150,6 @@
 #else
 	mfspr	r10,SPRN_SRR0
 #endif
-	stw	r1,GPR1(r11)
-	stw	r1,0(r11)
-	tovirt_novmstack r1, r11	/* set new kernel sp */
 	stw	r10,_NIP(r11)
 	mfcr	r10
 	rlwinm	r10,r10,0,4,2	/* Clear SO bit in CR */
@@ -222,7 +219,10 @@
 #endif
 	mtspr	SPRN_SRR1,r10
 	mtspr	SPRN_SRR0,r11
-	RFI				/* jump to handler, enable MMU */
+	rfi				/* jump to handler, enable MMU */
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 99:	b	ret_from_kernel_syscall
 .endm
 

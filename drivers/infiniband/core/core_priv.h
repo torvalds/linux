@@ -318,15 +318,12 @@ struct ib_device *ib_device_get_by_index(const struct net *net, u32 index);
 void nldev_init(void);
 void nldev_exit(void);
 
-static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
-					  struct ib_pd *pd,
-					  struct ib_qp_init_attr *attr,
-					  struct ib_udata *udata,
-					  struct ib_uqp_object *uobj)
+static inline struct ib_qp *
+_ib_create_qp(struct ib_device *dev, struct ib_pd *pd,
+	      struct ib_qp_init_attr *attr, struct ib_udata *udata,
+	      struct ib_uqp_object *uobj, const char *caller)
 {
-	enum ib_qp_type qp_type = attr->qp_type;
 	struct ib_qp *qp;
-	bool is_xrc;
 
 	if (!dev->ops.create_qp)
 		return ERR_PTR(-EOPNOTSUPP);
@@ -347,6 +344,7 @@ static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
 	qp->srq = attr->srq;
 	qp->rwq_ind_tbl = attr->rwq_ind_tbl;
 	qp->event_handler = attr->event_handler;
+	qp->port = attr->port_num;
 
 	atomic_set(&qp->usecnt, 0);
 	spin_lock_init(&qp->mr_lock);
@@ -354,16 +352,9 @@ static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
 	INIT_LIST_HEAD(&qp->sig_mrs);
 
 	rdma_restrack_new(&qp->res, RDMA_RESTRACK_QP);
-	/*
-	 * We don't track XRC QPs for now, because they don't have PD
-	 * and more importantly they are created internaly by driver,
-	 * see mlx5 create_dev_resources() as an example.
-	 */
-	is_xrc = qp_type == IB_QPT_XRC_INI || qp_type == IB_QPT_XRC_TGT;
-	if ((qp_type < IB_QPT_MAX && !is_xrc) || qp_type == IB_QPT_DRIVER) {
-		rdma_restrack_parent_name(&qp->res, &pd->res);
-		rdma_restrack_add(&qp->res);
-	}
+	WARN_ONCE(!udata && !caller, "Missing kernel QP owner");
+	rdma_restrack_set_name(&qp->res, udata ? NULL : caller);
+	rdma_restrack_add(&qp->res);
 	return qp;
 }
 
@@ -411,7 +402,6 @@ void rdma_umap_priv_init(struct rdma_umap_priv *priv,
 			 struct vm_area_struct *vma,
 			 struct rdma_user_mmap_entry *entry);
 
-void ib_cq_pool_init(struct ib_device *dev);
-void ib_cq_pool_destroy(struct ib_device *dev);
+void ib_cq_pool_cleanup(struct ib_device *dev);
 
 #endif /* _CORE_PRIV_H */

@@ -24,6 +24,8 @@
 
 #define GCK_INDEX_DT_AUDIO_PLL	5
 
+static DEFINE_SPINLOCK(mck_lock);
+
 #ifdef CONFIG_HAVE_AT91_AUDIO_PLL
 static void __init of_sama5d2_clk_audio_pll_frac_setup(struct device_node *np)
 {
@@ -388,9 +390,16 @@ of_at91_clk_master_setup(struct device_node *np,
 	if (IS_ERR(regmap))
 		return;
 
-	hw = at91_clk_register_master(regmap, name, num_parents,
-				      parent_names, layout,
-				      characteristics);
+	hw = at91_clk_register_master_pres(regmap, "masterck_pres", num_parents,
+					   parent_names, layout,
+					   characteristics, &mck_lock,
+					   CLK_SET_RATE_GATE, INT_MIN);
+	if (IS_ERR(hw))
+		goto out_free_characteristics;
+
+	hw = at91_clk_register_master_div(regmap, name, "masterck_pres",
+					  layout, characteristics,
+					  &mck_lock, CLK_SET_RATE_GATE);
 	if (IS_ERR(hw))
 		goto out_free_characteristics;
 

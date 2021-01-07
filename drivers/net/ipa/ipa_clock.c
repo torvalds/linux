@@ -13,6 +13,7 @@
 #include "ipa.h"
 #include "ipa_clock.h"
 #include "ipa_modem.h"
+#include "ipa_data.h"
 
 /**
  * DOC: IPA Clocking
@@ -29,18 +30,6 @@
  * An IPA clock reference must be held for any access to IPA hardware.
  */
 
-#define	IPA_CORE_CLOCK_RATE		(75UL * 1000 * 1000)	/* Hz */
-
-/* Interconnect path bandwidths (each times 1000 bytes per second) */
-#define IPA_MEMORY_AVG			(80 * 1000)	/* 80 MBps */
-#define IPA_MEMORY_PEAK			(600 * 1000)
-
-#define IPA_IMEM_AVG			(80 * 1000)
-#define IPA_IMEM_PEAK			(350 * 1000)
-
-#define IPA_CONFIG_AVG			(40 * 1000)
-#define IPA_CONFIG_PEAK			(40 * 1000)
-
 /**
  * struct ipa_clock - IPA clocking information
  * @count:		Clocking reference count
@@ -49,6 +38,7 @@
  * @memory_path:	Memory interconnect
  * @imem_path:		Internal memory interconnect
  * @config_path:	Configuration space interconnect
+ * @interconnect_data:	Interconnect configuration data
  */
 struct ipa_clock {
 	refcount_t count;
@@ -57,6 +47,7 @@ struct ipa_clock {
 	struct icc_path *memory_path;
 	struct icc_path *imem_path;
 	struct icc_path *config_path;
+	const struct ipa_interconnect_data *interconnect_data;
 };
 
 static struct icc_path *
@@ -113,18 +104,25 @@ static void ipa_interconnect_exit(struct ipa_clock *clock)
 /* Currently we only use one bandwidth level, so just "enable" interconnects */
 static int ipa_interconnect_enable(struct ipa *ipa)
 {
+	const struct ipa_interconnect_data *data;
 	struct ipa_clock *clock = ipa->clock;
 	int ret;
 
-	ret = icc_set_bw(clock->memory_path, IPA_MEMORY_AVG, IPA_MEMORY_PEAK);
+	data = &clock->interconnect_data[IPA_INTERCONNECT_MEMORY];
+	ret = icc_set_bw(clock->memory_path, data->average_rate,
+			 data->peak_rate);
 	if (ret)
 		return ret;
 
-	ret = icc_set_bw(clock->imem_path, IPA_IMEM_AVG, IPA_IMEM_PEAK);
+	data = &clock->interconnect_data[IPA_INTERCONNECT_IMEM];
+	ret = icc_set_bw(clock->memory_path, data->average_rate,
+			 data->peak_rate);
 	if (ret)
 		goto err_memory_path_disable;
 
-	ret = icc_set_bw(clock->config_path, IPA_CONFIG_AVG, IPA_CONFIG_PEAK);
+	data = &clock->interconnect_data[IPA_INTERCONNECT_CONFIG];
+	ret = icc_set_bw(clock->memory_path, data->average_rate,
+			 data->peak_rate);
 	if (ret)
 		goto err_imem_path_disable;
 
@@ -141,6 +139,7 @@ err_memory_path_disable:
 /* To disable an interconnect, we just its bandwidth to 0 */
 static int ipa_interconnect_disable(struct ipa *ipa)
 {
+	const struct ipa_interconnect_data *data;
 	struct ipa_clock *clock = ipa->clock;
 	int ret;
 
@@ -159,9 +158,13 @@ static int ipa_interconnect_disable(struct ipa *ipa)
 	return 0;
 
 err_imem_path_reenable:
-	(void)icc_set_bw(clock->imem_path, IPA_IMEM_AVG, IPA_IMEM_PEAK);
+	data = &clock->interconnect_data[IPA_INTERCONNECT_IMEM];
+	(void)icc_set_bw(clock->imem_path, data->average_rate,
+			 data->peak_rate);
 err_memory_path_reenable:
-	(void)icc_set_bw(clock->memory_path, IPA_MEMORY_AVG, IPA_MEMORY_PEAK);
+	data = &clock->interconnect_data[IPA_INTERCONNECT_MEMORY];
+	(void)icc_set_bw(clock->memory_path, data->average_rate,
+			 data->peak_rate);
 
 	return ret;
 }
@@ -257,7 +260,8 @@ u32 ipa_clock_rate(struct ipa *ipa)
 }
 
 /* Initialize IPA clocking */
-struct ipa_clock *ipa_clock_init(struct device *dev)
+struct ipa_clock *
+ipa_clock_init(struct device *dev, const struct ipa_clock_data *data)
 {
 	struct ipa_clock *clock;
 	struct clk *clk;
@@ -269,10 +273,10 @@ struct ipa_clock *ipa_clock_init(struct device *dev)
 		return ERR_CAST(clk);
 	}
 
-	ret = clk_set_rate(clk, IPA_CORE_CLOCK_RATE);
+	ret = clk_set_rate(clk, data->core_clock_rate);
 	if (ret) {
-		dev_err(dev, "error %d setting core clock rate to %lu\n",
-			ret, IPA_CORE_CLOCK_RATE);
+		dev_err(dev, "error %d setting core clock rate to %u\n",
+			ret, data->core_clock_rate);
 		goto err_clk_put;
 	}
 
@@ -282,6 +286,7 @@ struct ipa_clock *ipa_clock_init(struct device *dev)
 		goto err_clk_put;
 	}
 	clock->core = clk;
+	clock->interconnect_data = data->interconnect;
 
 	ret = ipa_interconnect_init(clock, dev);
 	if (ret)

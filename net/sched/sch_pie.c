@@ -405,7 +405,7 @@ void pie_calculate_probability(struct pie_params *params, struct pie_vars *vars,
 	/* We restart the measurement cycle if the following conditions are met
 	 * 1. If the delay has been low for 2 consecutive Tupdate periods
 	 * 2. Calculated drop probability is zero
-	 * 3. If average dq_rate_estimator is enabled, we have atleast one
+	 * 3. If average dq_rate_estimator is enabled, we have at least one
 	 *    estimate for the avg_dq_rate ie., is a non-zero value
 	 */
 	if ((vars->qdelay < params->target / 2) &&

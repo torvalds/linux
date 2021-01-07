@@ -797,7 +797,7 @@ fail:
 	return error;
 }
 
-static int ps3vram_remove(struct ps3_system_bus_device *dev)
+static void ps3vram_remove(struct ps3_system_bus_device *dev)
 {
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
 
@@ -817,7 +817,6 @@ static int ps3vram_remove(struct ps3_system_bus_device *dev)
 	free_pages((unsigned long) priv->xdr_buf, get_order(XDR_BUF_SIZE));
 	kfree(priv);
 	ps3_system_bus_set_drvdata(dev, NULL);
-	return 0;
 }
 
 static struct ps3_system_bus_driver ps3vram = {

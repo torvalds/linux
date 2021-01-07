@@ -254,19 +254,6 @@ static int mxs_gpio_get_direction(struct gpio_chip *gc, unsigned offset)
 	return GPIO_LINE_DIRECTION_IN;
 }
 
-static const struct platform_device_id mxs_gpio_ids[] = {
-	{
-		.name = "imx23-gpio",
-		.driver_data = IMX23_GPIO,
-	}, {
-		.name = "imx28-gpio",
-		.driver_data = IMX28_GPIO,
-	}, {
-		/* sentinel */
-	}
-};
-MODULE_DEVICE_TABLE(platform, mxs_gpio_ids);
-
 static const struct of_device_id mxs_gpio_dt_ids[] = {
 	{ .compatible = "fsl,imx23-gpio", .data = (void *) IMX23_GPIO, },
 	{ .compatible = "fsl,imx28-gpio", .data = (void *) IMX28_GPIO, },
@@ -370,7 +357,6 @@ static struct platform_driver mxs_gpio_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe		= mxs_gpio_probe,
-	.id_table	= mxs_gpio_ids,
 };
 
 static int __init mxs_gpio_init(void)

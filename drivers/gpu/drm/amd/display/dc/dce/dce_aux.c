@@ -652,8 +652,10 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 				} else {
 					if ((*payload->reply == AUX_TRANSACTION_REPLY_AUX_DEFER) ||
 						(*payload->reply == AUX_TRANSACTION_REPLY_I2C_OVER_AUX_DEFER)) {
-						if (payload->defer_delay > 0)
+						if (payload->defer_delay > 1)
 							msleep(payload->defer_delay);
+						else if (payload->defer_delay <= 1)
+							udelay(payload->defer_delay * 1000);
 					}
 				}
 				break;

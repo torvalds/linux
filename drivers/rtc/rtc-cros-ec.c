@@ -350,7 +350,7 @@ static int cros_ec_rtc_probe(struct platform_device *pdev)
 	cros_ec_rtc->rtc->ops = &cros_ec_rtc_ops;
 	cros_ec_rtc->rtc->range_max = U32_MAX;
 
-	ret = rtc_register_device(cros_ec_rtc->rtc);
+	ret = devm_rtc_register_device(cros_ec_rtc->rtc);
 	if (ret)
 		return ret;
 

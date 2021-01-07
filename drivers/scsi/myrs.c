@@ -136,7 +136,6 @@ static void myrs_exec_cmd(struct myrs_hba *cs,
 	myrs_qcmd(cs, cmd_blk);
 	spin_unlock_irqrestore(&cs->queue_lock, flags);
 
-	WARN_ON(in_interrupt());
 	wait_for_completion(&complete);
 }
 

@@ -32,23 +32,23 @@ enum {
 	CHTDC_TI_CCEOCAL = 7,	/* battery */
 };
 
-static struct resource power_button_resources[] = {
+static const struct resource power_button_resources[] = {
 	DEFINE_RES_IRQ(CHTDC_TI_PWRBTN),
 };
 
-static struct resource thermal_resources[] = {
+static const struct resource thermal_resources[] = {
 	DEFINE_RES_IRQ(CHTDC_TI_DIETMPWARN),
 };
 
-static struct resource adc_resources[] = {
+static const struct resource adc_resources[] = {
 	DEFINE_RES_IRQ(CHTDC_TI_ADCCMPL),
 };
 
-static struct resource pwrsrc_resources[] = {
+static const struct resource pwrsrc_resources[] = {
 	DEFINE_RES_IRQ(CHTDC_TI_VBUSDET),
 };
 
-static struct resource battery_resources[] = {
+static const struct resource battery_resources[] = {
 	DEFINE_RES_IRQ(CHTDC_TI_VBATLOW),
 	DEFINE_RES_IRQ(CHTDC_TI_CCEOCAL),
 };

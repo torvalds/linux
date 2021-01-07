@@ -98,7 +98,6 @@ properties:
     maxItems: 1
 
   dmas:
-    maxItems: 4
     items:
       - description: Video layer, plane 0 (RGB or luma)
       - description: Video layer, plane 1 (U/V or U)

@@ -915,6 +915,9 @@ void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu)
 
 	if (can_access_vgic_from_kernel())
 		vgic_restore_state(vcpu);
+
+	if (vgic_supports_direct_msis(vcpu->kvm))
+		vgic_v4_commit(vcpu);
 }
 
 void kvm_vgic_load(struct kvm_vcpu *vcpu)

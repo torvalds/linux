@@ -21,8 +21,14 @@ static void
 mt7915_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
 {
 	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
+	static const u32 rx_irq_mask[] = {
+		[MT_RXQ_MAIN] = MT_INT_RX_DONE_DATA0,
+		[MT_RXQ_EXT] = MT_INT_RX_DONE_DATA1,
+		[MT_RXQ_MCU] = MT_INT_RX_DONE_WM,
+		[MT_RXQ_MCU_WA] = MT_INT_RX_DONE_WA,
+	};
 
-	mt7915_irq_enable(dev, MT_INT_RX_DONE(q));
+	mt7915_irq_enable(dev, rx_irq_mask[q]);
 }
 
 /* TODO: support 2/4/6/8 MSI-X vectors */
@@ -49,14 +55,17 @@ static irqreturn_t mt7915_irq_handler(int irq, void *dev_instance)
 	if (intr & MT_INT_TX_DONE_MCU)
 		napi_schedule(&dev->mt76.tx_napi);
 
-	if (intr & MT_INT_RX_DONE_DATA)
-		napi_schedule(&dev->mt76.napi[0]);
+	if (intr & MT_INT_RX_DONE_DATA0)
+		napi_schedule(&dev->mt76.napi[MT_RXQ_MAIN]);
+
+	if (intr & MT_INT_RX_DONE_DATA1)
+		napi_schedule(&dev->mt76.napi[MT_RXQ_EXT]);
 
 	if (intr & MT_INT_RX_DONE_WM)
-		napi_schedule(&dev->mt76.napi[1]);
+		napi_schedule(&dev->mt76.napi[MT_RXQ_MCU]);
 
 	if (intr & MT_INT_RX_DONE_WA)
-		napi_schedule(&dev->mt76.napi[2]);
+		napi_schedule(&dev->mt76.napi[MT_RXQ_MCU_WA]);
 
 	if (intr & MT_INT_MCU_CMD) {
 		u32 val = mt76_rr(dev, MT_MCU_CMD);
@@ -140,7 +149,7 @@ static int mt7915_pci_probe(struct pci_dev *pdev,
 	dev = container_of(mdev, struct mt7915_dev, mt76);
 	ret = mt7915_alloc_device(pdev, dev);
 	if (ret)
-		return ret;
+		goto error;
 
 	mt76_mmio_init(&dev->mt76, pcim_iomap_table(pdev)[0]);
 	mdev->rev = (mt7915_l1_rr(dev, MT_HW_CHIPID) << 16) |
@@ -163,7 +172,8 @@ static int mt7915_pci_probe(struct pci_dev *pdev,
 
 	return 0;
 error:
-	ieee80211_free_hw(mt76_hw(dev));
+	mt76_free_device(&dev->mt76);
+
 	return ret;
 }
 

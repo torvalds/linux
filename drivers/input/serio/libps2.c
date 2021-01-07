@@ -405,7 +405,7 @@ bool ps2_handle_ack(struct ps2dev *ps2dev, u8 data)
 			ps2dev->nak = PS2_RET_ERR;
 			break;
 		}
-		/* Fall through */
+		fallthrough;
 
 	/*
 	 * Workaround for mice which don't ACK the Get ID command.

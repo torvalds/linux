@@ -36,12 +36,17 @@ struct mdp_kms {
 };
 #define to_mdp_kms(x) container_of(x, struct mdp_kms, base)
 
-static inline void mdp_kms_init(struct mdp_kms *mdp_kms,
+static inline int mdp_kms_init(struct mdp_kms *mdp_kms,
 		const struct mdp_kms_funcs *funcs)
 {
 	mdp_kms->funcs = funcs;
 	INIT_LIST_HEAD(&mdp_kms->irq_list);
-	msm_kms_init(&mdp_kms->base, &funcs->base);
+	return msm_kms_init(&mdp_kms->base, &funcs->base);
+}
+
+static inline void mdp_kms_destroy(struct mdp_kms *mdp_kms)
+{
+	msm_kms_destroy(&mdp_kms->base);
 }
 
 /*

@@ -68,48 +68,39 @@ int rtw_leave_ips(struct rtw_dev *rtwdev)
 void rtw_power_mode_change(struct rtw_dev *rtwdev, bool enter)
 {
 	u8 request, confirm, polling;
-	u8 polling_cnt;
-	u8 retry_cnt = 0;
+	int ret;
 
-	for (retry_cnt = 0; retry_cnt < 3; retry_cnt++) {
-		request = rtw_read8(rtwdev, rtwdev->hci.rpwm_addr);
-		confirm = rtw_read8(rtwdev, rtwdev->hci.cpwm_addr);
+	request = rtw_read8(rtwdev, rtwdev->hci.rpwm_addr);
+	confirm = rtw_read8(rtwdev, rtwdev->hci.cpwm_addr);
 
-		/* toggle to request power mode, others remain 0 */
-		request ^= request | BIT_RPWM_TOGGLE;
-		if (!enter) {
-			request |= POWER_MODE_ACK;
-		} else {
-			request |= POWER_MODE_LCLK;
-			if (rtw_fw_lps_deep_mode == LPS_DEEP_MODE_PG)
-				request |= POWER_MODE_PG;
-		}
-
-		rtw_write8(rtwdev, rtwdev->hci.rpwm_addr, request);
-
-		if (enter)
-			return;
-
-		/* check confirm power mode has left power save state */
-		for (polling_cnt = 0; polling_cnt < 50; polling_cnt++) {
-			polling = rtw_read8(rtwdev, rtwdev->hci.cpwm_addr);
-			if ((polling ^ confirm) & BIT_RPWM_TOGGLE)
-				return;
-			udelay(100);
-		}
-
-		/* in case of fw/hw missed the request, retry */
-		rtw_warn(rtwdev, "failed to leave deep PS, retry=%d\n",
-			 retry_cnt);
+	/* toggle to request power mode, others remain 0 */
+	request ^= request | BIT_RPWM_TOGGLE;
+	if (enter) {
+		request |= POWER_MODE_LCLK;
+		if (rtw_get_lps_deep_mode(rtwdev) == LPS_DEEP_MODE_PG)
+			request |= POWER_MODE_PG;
 	}
+	/* Each request require an ack from firmware */
+	request |= POWER_MODE_ACK;
 
-	/* Hit here means that driver failed to change hardware power mode to
-	 * active state after retry 3 times. If the power state is locked at
-	 * Deep sleep, most of the hardware circuits is not working, even
-	 * register read/write. It should be treated as fatal error and
-	 * requires an entire analysis about the firmware/hardware
-	 */
-	WARN(1, "Hardware power state locked\n");
+	rtw_write8(rtwdev, rtwdev->hci.rpwm_addr, request);
+
+	/* Check firmware get the power requset and ack via cpwm register */
+	ret = read_poll_timeout_atomic(rtw_read8, polling,
+				       (polling ^ confirm) & BIT_RPWM_TOGGLE,
+				       100, 15000, true, rtwdev,
+				       rtwdev->hci.cpwm_addr);
+	if (ret) {
+		/* Hit here means that driver failed to get an ack from firmware.
+		 * The reason could be that hardware is locked at Deep sleep,
+		 * so most of the hardware circuits are not working, even
+		 * register read/write; or firmware is locked in some state and
+		 * cannot get the request. It should be treated as fatal error
+		 * and requires an entire analysis about the firmware/hardware.
+		 */
+		WARN(1, "firmware failed to ack driver for %s Deep Power mode\n",
+		     enter ? "entering" : "leaving");
+	}
 }
 EXPORT_SYMBOL(rtw_power_mode_change);
 
@@ -118,7 +109,7 @@ static void __rtw_leave_lps_deep(struct rtw_dev *rtwdev)
 	rtw_hci_deep_ps(rtwdev, false);
 }
 
-static void rtw_fw_leave_lps_state_check(struct rtw_dev *rtwdev)
+static int __rtw_fw_leave_lps_check_reg(struct rtw_dev *rtwdev)
 {
 	int i;
 
@@ -136,12 +127,53 @@ static void rtw_fw_leave_lps_state_check(struct rtw_dev *rtwdev)
 	 */
 	for (i = 0 ; i < LEAVE_LPS_TRY_CNT; i++) {
 		if (rtw_read32_mask(rtwdev, REG_TCR, BIT_PWRMGT_HWDATA_EN) == 0)
-			return;
+			return 0;
 		msleep(20);
 	}
 
-	rtw_write32_mask(rtwdev, REG_TCR, BIT_PWRMGT_HWDATA_EN, 0);
-	rtw_warn(rtwdev, "firmware failed to restore hardware setting\n");
+	return -EBUSY;
+}
+
+static  int __rtw_fw_leave_lps_check_c2h(struct rtw_dev *rtwdev)
+{
+	if (wait_for_completion_timeout(&rtwdev->lps_leave_check,
+					LEAVE_LPS_TIMEOUT))
+		return 0;
+	return -EBUSY;
+}
+
+static void rtw_fw_leave_lps_check(struct rtw_dev *rtwdev)
+{
+	bool ret = false;
+	struct rtw_fw_state *fw;
+
+	if (test_bit(RTW_FLAG_WOWLAN, rtwdev->flags))
+		fw = &rtwdev->wow_fw;
+	else
+		fw = &rtwdev->fw;
+
+	if (fw->feature & FW_FEATURE_LPS_C2H)
+		ret = __rtw_fw_leave_lps_check_c2h(rtwdev);
+	else
+		ret = __rtw_fw_leave_lps_check_reg(rtwdev);
+
+	if (ret) {
+		rtw_write32_clr(rtwdev, REG_TCR, BIT_PWRMGT_HWDATA_EN);
+		rtw_warn(rtwdev, "firmware failed to leave lps state\n");
+	}
+}
+
+static void rtw_fw_leave_lps_check_prepare(struct rtw_dev *rtwdev)
+{
+	struct rtw_fw_state *fw;
+
+	if (test_bit(RTW_FLAG_WOWLAN, rtwdev->flags))
+		fw = &rtwdev->wow_fw;
+	else
+		fw = &rtwdev->fw;
+
+	if (fw->feature & FW_FEATURE_LPS_C2H)
+		reinit_completion(&rtwdev->lps_leave_check);
 }
 
 static void rtw_leave_lps_core(struct rtw_dev *rtwdev)
@@ -154,17 +186,26 @@ static void rtw_leave_lps_core(struct rtw_dev *rtwdev)
 	conf->smart_ps = 0;
 
 	rtw_hci_link_ps(rtwdev, false);
+	rtw_fw_leave_lps_check_prepare(rtwdev);
 	rtw_fw_set_pwr_mode(rtwdev);
-	rtw_fw_leave_lps_state_check(rtwdev);
+	rtw_fw_leave_lps_check(rtwdev);
 
 	clear_bit(RTW_FLAG_LEISURE_PS, rtwdev->flags);
 
 	rtw_coex_lps_notify(rtwdev, COEX_LPS_DISABLE);
 }
 
+enum rtw_lps_deep_mode rtw_get_lps_deep_mode(struct rtw_dev *rtwdev)
+{
+	if (test_bit(RTW_FLAG_WOWLAN, rtwdev->flags))
+		return rtwdev->lps_conf.wow_deep_mode;
+	else
+		return rtwdev->lps_conf.deep_mode;
+}
+
 static void __rtw_enter_lps_deep(struct rtw_dev *rtwdev)
 {
-	if (rtwdev->lps_conf.deep_mode == LPS_DEEP_MODE_NONE)
+	if (rtw_get_lps_deep_mode(rtwdev) == LPS_DEEP_MODE_NONE)
 		return;
 
 	if (!test_bit(RTW_FLAG_LEISURE_PS, rtwdev->flags)) {
@@ -173,7 +214,7 @@ static void __rtw_enter_lps_deep(struct rtw_dev *rtwdev)
 		return;
 	}
 
-	if (rtw_fw_lps_deep_mode == LPS_DEEP_MODE_PG)
+	if (rtw_get_lps_deep_mode(rtwdev) == LPS_DEEP_MODE_PG)
 		rtw_fw_set_pg_info(rtwdev);
 
 	rtw_hci_deep_ps(rtwdev, true);

@@ -332,11 +332,10 @@ static const struct rc_parameters *get_rc_params(u16 compressed_bpp,
 	return &rc_parameters[row_index][column_index];
 }
 
-bool intel_dsc_source_support(struct intel_encoder *encoder,
-			      const struct intel_crtc_state *crtc_state)
+bool intel_dsc_source_support(const struct intel_crtc_state *crtc_state)
 {
 	const struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	enum pipe pipe = crtc->pipe;
 
@@ -490,11 +489,10 @@ intel_dsc_power_domain(const struct intel_crtc_state *crtc_state)
 		return POWER_DOMAIN_TRANSCODER_VDSC_PW2;
 }
 
-static void intel_dsc_pps_configure(struct intel_encoder *encoder,
-				    const struct intel_crtc_state *crtc_state)
+static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	enum pipe pipe = crtc->pipe;
 	u32 pps_val = 0;
@@ -502,6 +500,9 @@ static void intel_dsc_pps_configure(struct intel_encoder *encoder,
 	u32 rc_range_params_dword[8];
 	u8 num_vdsc_instances = (crtc_state->dsc.dsc_split) ? 2 : 1;
 	int i = 0;
+
+	if (crtc_state->bigjoiner)
+		num_vdsc_instances *= 2;
 
 	/* Populate PICTURE_PARAMETER_SET_0 registers */
 	pps_val = DSC_VER_MAJ | vdsc_cfg->dsc_version_minor <<
@@ -973,55 +974,6 @@ static void intel_dsc_pps_configure(struct intel_encoder *encoder,
 	}
 }
 
-void intel_dsc_get_config(struct intel_encoder *encoder,
-			  struct intel_crtc_state *crtc_state)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	enum pipe pipe = crtc->pipe;
-	enum intel_display_power_domain power_domain;
-	intel_wakeref_t wakeref;
-	u32 dss_ctl1, dss_ctl2, val;
-
-	if (!intel_dsc_source_support(encoder, crtc_state))
-		return;
-
-	power_domain = intel_dsc_power_domain(crtc_state);
-
-	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
-	if (!wakeref)
-		return;
-
-	if (!is_pipe_dsc(crtc_state)) {
-		dss_ctl1 = intel_de_read(dev_priv, DSS_CTL1);
-		dss_ctl2 = intel_de_read(dev_priv, DSS_CTL2);
-	} else {
-		dss_ctl1 = intel_de_read(dev_priv, ICL_PIPE_DSS_CTL1(pipe));
-		dss_ctl2 = intel_de_read(dev_priv, ICL_PIPE_DSS_CTL2(pipe));
-	}
-
-	crtc_state->dsc.compression_enable = dss_ctl2 & LEFT_BRANCH_VDSC_ENABLE;
-	if (!crtc_state->dsc.compression_enable)
-		goto out;
-
-	crtc_state->dsc.dsc_split = (dss_ctl2 & RIGHT_BRANCH_VDSC_ENABLE) &&
-		(dss_ctl1 & JOINER_ENABLE);
-
-	/* FIXME: add more state readout as needed */
-
-	/* PPS1 */
-	if (!is_pipe_dsc(crtc_state))
-		val = intel_de_read(dev_priv, DSCA_PICTURE_PARAMETER_SET_1);
-	else
-		val = intel_de_read(dev_priv,
-				    ICL_DSC0_PICTURE_PARAMETER_SET_1(pipe));
-	vdsc_cfg->bits_per_pixel = val;
-	crtc_state->dsc.compressed_bpp = vdsc_cfg->bits_per_pixel >> 4;
-out:
-	intel_display_power_put(dev_priv, power_domain, wakeref);
-}
-
 static void intel_dsc_dsi_pps_write(struct intel_encoder *encoder,
 				    const struct intel_crtc_state *crtc_state)
 {
@@ -1060,77 +1012,126 @@ static void intel_dsc_dp_pps_write(struct intel_encoder *encoder,
 				  sizeof(dp_dsc_pps_sdp));
 }
 
+static i915_reg_t dss_ctl1_reg(const struct intel_crtc_state *crtc_state)
+{
+	enum pipe pipe = to_intel_crtc(crtc_state->uapi.crtc)->pipe;
+
+	if (crtc_state->cpu_transcoder == TRANSCODER_EDP)
+		return DSS_CTL1;
+
+	return ICL_PIPE_DSS_CTL1(pipe);
+}
+
+static i915_reg_t dss_ctl2_reg(const struct intel_crtc_state *crtc_state)
+{
+	enum pipe pipe = to_intel_crtc(crtc_state->uapi.crtc)->pipe;
+
+	if (crtc_state->cpu_transcoder == TRANSCODER_EDP)
+		return DSS_CTL2;
+
+	return ICL_PIPE_DSS_CTL2(pipe);
+}
+
 void intel_dsc_enable(struct intel_encoder *encoder,
 		      const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum pipe pipe = crtc->pipe;
-	i915_reg_t dss_ctl1_reg, dss_ctl2_reg;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 dss_ctl1_val = 0;
 	u32 dss_ctl2_val = 0;
 
 	if (!crtc_state->dsc.compression_enable)
 		return;
 
-	/* Enable Power wells for VDSC/joining */
-	intel_display_power_get(dev_priv,
-				intel_dsc_power_domain(crtc_state));
+	intel_dsc_pps_configure(crtc_state);
 
-	intel_dsc_pps_configure(encoder, crtc_state);
-
-	if (encoder->type == INTEL_OUTPUT_DSI)
-		intel_dsc_dsi_pps_write(encoder, crtc_state);
-	else
-		intel_dsc_dp_pps_write(encoder, crtc_state);
-
-	if (!is_pipe_dsc(crtc_state)) {
-		dss_ctl1_reg = DSS_CTL1;
-		dss_ctl2_reg = DSS_CTL2;
-	} else {
-		dss_ctl1_reg = ICL_PIPE_DSS_CTL1(pipe);
-		dss_ctl2_reg = ICL_PIPE_DSS_CTL2(pipe);
+	if (!crtc_state->bigjoiner_slave) {
+		if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
+			intel_dsc_dsi_pps_write(encoder, crtc_state);
+		else
+			intel_dsc_dp_pps_write(encoder, crtc_state);
 	}
+
 	dss_ctl2_val |= LEFT_BRANCH_VDSC_ENABLE;
 	if (crtc_state->dsc.dsc_split) {
 		dss_ctl2_val |= RIGHT_BRANCH_VDSC_ENABLE;
 		dss_ctl1_val |= JOINER_ENABLE;
 	}
-	intel_de_write(dev_priv, dss_ctl1_reg, dss_ctl1_val);
-	intel_de_write(dev_priv, dss_ctl2_reg, dss_ctl2_val);
+	if (crtc_state->bigjoiner) {
+		dss_ctl1_val |= BIG_JOINER_ENABLE;
+		if (!crtc_state->bigjoiner_slave)
+			dss_ctl1_val |= MASTER_BIG_JOINER_ENABLE;
+	}
+	intel_de_write(dev_priv, dss_ctl1_reg(crtc_state), dss_ctl1_val);
+	intel_de_write(dev_priv, dss_ctl2_reg(crtc_state), dss_ctl2_val);
 }
 
 void intel_dsc_disable(const struct intel_crtc_state *old_crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum pipe pipe = crtc->pipe;
-	i915_reg_t dss_ctl1_reg, dss_ctl2_reg;
-	u32 dss_ctl1_val = 0, dss_ctl2_val = 0;
 
 	if (!old_crtc_state->dsc.compression_enable)
 		return;
 
-	if (!is_pipe_dsc(old_crtc_state)) {
-		dss_ctl1_reg = DSS_CTL1;
-		dss_ctl2_reg = DSS_CTL2;
-	} else {
-		dss_ctl1_reg = ICL_PIPE_DSS_CTL1(pipe);
-		dss_ctl2_reg = ICL_PIPE_DSS_CTL2(pipe);
+	intel_de_write(dev_priv, dss_ctl1_reg(old_crtc_state), 0);
+	intel_de_write(dev_priv, dss_ctl2_reg(old_crtc_state), 0);
+}
+
+void intel_dsc_get_config(struct intel_crtc_state *crtc_state)
+{
+	struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+	enum intel_display_power_domain power_domain;
+	intel_wakeref_t wakeref;
+	u32 dss_ctl1, dss_ctl2, val;
+
+	if (!intel_dsc_source_support(crtc_state))
+		return;
+
+	power_domain = intel_dsc_power_domain(crtc_state);
+
+	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
+	if (!wakeref)
+		return;
+
+	dss_ctl1 = intel_de_read(dev_priv, dss_ctl1_reg(crtc_state));
+	dss_ctl2 = intel_de_read(dev_priv, dss_ctl2_reg(crtc_state));
+
+	crtc_state->dsc.compression_enable = dss_ctl2 & LEFT_BRANCH_VDSC_ENABLE;
+	if (!crtc_state->dsc.compression_enable)
+		goto out;
+
+	crtc_state->dsc.dsc_split = (dss_ctl2 & RIGHT_BRANCH_VDSC_ENABLE) &&
+		(dss_ctl1 & JOINER_ENABLE);
+
+	if (dss_ctl1 & BIG_JOINER_ENABLE) {
+		crtc_state->bigjoiner = true;
+
+		if (!(dss_ctl1 & MASTER_BIG_JOINER_ENABLE)) {
+			crtc_state->bigjoiner_slave = true;
+			if (!WARN_ON(crtc->pipe == PIPE_A))
+				crtc_state->bigjoiner_linked_crtc =
+					intel_get_crtc_for_pipe(dev_priv, crtc->pipe - 1);
+		} else {
+			if (!WARN_ON(INTEL_NUM_PIPES(dev_priv) == crtc->pipe + 1))
+				crtc_state->bigjoiner_linked_crtc =
+					intel_get_crtc_for_pipe(dev_priv, crtc->pipe + 1);
+		}
 	}
-	dss_ctl1_val = intel_de_read(dev_priv, dss_ctl1_reg);
-	if (dss_ctl1_val & JOINER_ENABLE)
-		dss_ctl1_val &= ~JOINER_ENABLE;
-	intel_de_write(dev_priv, dss_ctl1_reg, dss_ctl1_val);
 
-	dss_ctl2_val = intel_de_read(dev_priv, dss_ctl2_reg);
-	if (dss_ctl2_val & LEFT_BRANCH_VDSC_ENABLE ||
-	    dss_ctl2_val & RIGHT_BRANCH_VDSC_ENABLE)
-		dss_ctl2_val &= ~(LEFT_BRANCH_VDSC_ENABLE |
-				  RIGHT_BRANCH_VDSC_ENABLE);
-	intel_de_write(dev_priv, dss_ctl2_reg, dss_ctl2_val);
+	/* FIXME: add more state readout as needed */
 
-	/* Disable Power wells for VDSC/joining */
-	intel_display_power_put_unchecked(dev_priv,
-					  intel_dsc_power_domain(old_crtc_state));
+	/* PPS1 */
+	if (!is_pipe_dsc(crtc_state))
+		val = intel_de_read(dev_priv, DSCA_PICTURE_PARAMETER_SET_1);
+	else
+		val = intel_de_read(dev_priv,
+				    ICL_DSC0_PICTURE_PARAMETER_SET_1(pipe));
+	vdsc_cfg->bits_per_pixel = val;
+	crtc_state->dsc.compressed_bpp = vdsc_cfg->bits_per_pixel >> 4;
+out:
+	intel_display_power_put(dev_priv, power_domain, wakeref);
 }

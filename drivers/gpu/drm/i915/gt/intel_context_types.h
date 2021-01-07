@@ -25,6 +25,7 @@ DECLARE_EWMA(runtime, 3, 8);
 struct i915_gem_context;
 struct i915_gem_ww_ctx;
 struct i915_vma;
+struct intel_breadcrumbs;
 struct intel_context;
 struct intel_ring;
 
@@ -44,7 +45,16 @@ struct intel_context_ops {
 };
 
 struct intel_context {
-	struct kref ref;
+	/*
+	 * Note: Some fields may be accessed under RCU.
+	 *
+	 * Unless otherwise noted a field can safely be assumed to be protected
+	 * by strong reference counting.
+	 */
+	union {
+		struct kref ref; /* no kref_get_unless_zero()! */
+		struct rcu_head rcu;
+	};
 
 	struct intel_engine_cs *engine;
 	struct intel_engine_cs *inflight;
@@ -54,8 +64,15 @@ struct intel_context {
 	struct i915_address_space *vm;
 	struct i915_gem_context __rcu *gem_context;
 
-	struct list_head signal_link;
-	struct list_head signals;
+	/*
+	 * @signal_lock protects the list of requests that need signaling,
+	 * @signals. While there are any requests that need signaling,
+	 * we add the context to the breadcrumbs worker, and remove it
+	 * upon completion/cancellation of the last request.
+	 */
+	struct list_head signal_link; /* Accessed under RCU */
+	struct list_head signals; /* Guarded by signal_lock */
+	spinlock_t signal_lock; /* protects signals, the list of requests */
 
 	struct i915_vma *state;
 	struct intel_ring *ring;

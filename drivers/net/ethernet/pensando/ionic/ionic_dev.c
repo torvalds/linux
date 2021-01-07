@@ -25,7 +25,7 @@ static void ionic_watchdog_cb(struct timer_list *t)
 	hb = ionic_heartbeat_check(ionic);
 
 	if (hb >= 0)
-		ionic_link_status_check_request(ionic->lif, false);
+		ionic_link_status_check_request(ionic->lif, CAN_NOT_SLEEP);
 }
 
 void ionic_init_devinfo(struct ionic *ionic)
@@ -142,7 +142,7 @@ int ionic_heartbeat_check(struct ionic *ionic)
 
 			work = kzalloc(sizeof(*work), GFP_ATOMIC);
 			if (!work) {
-				dev_err(ionic->dev, "%s OOM\n", __func__);
+				dev_err(ionic->dev, "LIF reset trigger dropped\n");
 			} else {
 				work->type = IONIC_DW_TYPE_LIF_RESET;
 				if (fw_status & IONIC_FW_STS_F_RUNNING &&

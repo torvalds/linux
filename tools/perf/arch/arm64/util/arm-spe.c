@@ -118,7 +118,7 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 	 * To obtain the auxtrace buffer file descriptor, the auxtrace event
 	 * must come first.
 	 */
-	perf_evlist__to_front(evlist, arm_spe_evsel);
+	evlist__to_front(evlist, arm_spe_evsel);
 
 	evsel__set_sample_bit(arm_spe_evsel, CPU);
 	evsel__set_sample_bit(arm_spe_evsel, TIME);
@@ -130,7 +130,7 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 		return err;
 
 	tracking_evsel = evlist__last(evlist);
-	perf_evlist__set_tracking_event(evlist, tracking_evsel);
+	evlist__set_tracking_event(evlist, tracking_evsel);
 
 	tracking_evsel->core.attr.freq = 0;
 	tracking_evsel->core.attr.sample_period = 1;

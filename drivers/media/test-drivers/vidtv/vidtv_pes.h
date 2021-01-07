@@ -14,7 +14,6 @@
 #ifndef VIDTV_PES_H
 #define VIDTV_PES_H
 
-#include <asm/byteorder.h>
 #include <linux/types.h>
 
 #include "vidtv_common.h"
@@ -114,8 +113,10 @@ struct pes_header_write_args {
  * @dest_buf_sz: The size of the dest_buffer
  * @pid: The PID to use for the TS packets.
  * @continuity_counter: Incremented on every new TS packet.
- * @n_pes_h_s_bytes: Padding bytes. Might be used by an encoder if needed, gets
+ * @wrote_pes_header: Flag to indicate that the PES header was written
+ * @n_stuffing_bytes: Padding bytes. Might be used by an encoder if needed, gets
  * discarded by the decoder.
+ * @pcr: counter driven by a 27Mhz clock.
  */
 struct pes_ts_header_write_args {
 	void *dest_buf;
@@ -146,6 +147,7 @@ struct pes_ts_header_write_args {
  * @dts: DTS value to send.
  * @n_pes_h_s_bytes: Padding bytes. Might be used by an encoder if needed, gets
  * discarded by the decoder.
+ * @pcr: counter driven by a 27Mhz clock.
  */
 struct pes_write_args {
 	void *dest_buf;
@@ -186,6 +188,6 @@ struct pes_write_args {
  * equal to the size of the access unit, since we need space for PES headers, TS headers
  * and padding bytes, if any.
  */
-u32 vidtv_pes_write_into(struct pes_write_args args);
+u32 vidtv_pes_write_into(struct pes_write_args *args);
 
 #endif // VIDTV_PES_H

@@ -417,12 +417,13 @@ enum qeth_qdio_out_buffer_state {
 	QETH_QDIO_BUF_EMPTY,
 	/* Filled by driver; owned by hardware in order to be sent. */
 	QETH_QDIO_BUF_PRIMED,
-	/* Identified to be pending in TPQ. */
+	/* Discovered by the TX completion code: */
 	QETH_QDIO_BUF_PENDING,
-	/* Found in completion queue. */
-	QETH_QDIO_BUF_IN_CQ,
-	/* Handled via transfer pending / completion queue. */
-	QETH_QDIO_BUF_HANDLED_DELAYED,
+	/* Finished by the TX completion code: */
+	QETH_QDIO_BUF_NEED_QAOB,
+	/* Received QAOB notification on CQ: */
+	QETH_QDIO_BUF_QAOB_OK,
+	QETH_QDIO_BUF_QAOB_ERROR,
 };
 
 struct qeth_qdio_out_buffer {
@@ -621,7 +622,7 @@ struct qeth_reply {
 };
 
 struct qeth_cmd_buffer {
-	struct list_head list;
+	struct list_head list_entry;
 	struct completion done;
 	spinlock_t lock;
 	unsigned int length;
@@ -701,6 +702,19 @@ enum qeth_pnso_mode {
 	QETH_PNSO_ADDR_INFO,
 };
 
+enum qeth_link_mode {
+	QETH_LINK_MODE_UNKNOWN,
+	QETH_LINK_MODE_FIBRE_SHORT,
+	QETH_LINK_MODE_FIBRE_LONG,
+};
+
+struct qeth_link_info {
+	u32 speed;
+	u8 duplex;
+	u8 port;
+	enum qeth_link_mode link_mode;
+};
+
 #define QETH_BROADCAST_WITH_ECHO    0x01
 #define QETH_BROADCAST_WITHOUT_ECHO 0x02
 struct qeth_card_info {
@@ -732,6 +746,7 @@ struct qeth_card_info {
 	struct qeth_card_blkt blkt;
 	__u32 diagass_support;
 	__u32 hwtrap;
+	struct qeth_link_info link_info;
 };
 
 enum qeth_discipline_id {
@@ -794,12 +809,6 @@ struct qeth_rx {
 	int e_offset;
 	int qdio_err;
 	u8 bufs_refill;
-};
-
-struct carrier_info {
-	__u8  card_type;
-	__u16 port_mode;
-	__u32 port_speed;
 };
 
 struct qeth_switch_info {
@@ -1052,10 +1061,8 @@ extern const struct qeth_discipline qeth_l2_discipline;
 extern const struct qeth_discipline qeth_l3_discipline;
 extern const struct ethtool_ops qeth_ethtool_ops;
 extern const struct ethtool_ops qeth_osn_ethtool_ops;
-extern const struct attribute_group *qeth_generic_attr_groups[];
-extern const struct attribute_group *qeth_osn_attr_groups[];
-extern const struct attribute_group qeth_device_attr_group;
-extern const struct attribute_group qeth_device_blkt_group;
+extern const struct attribute_group *qeth_dev_groups[];
+extern const struct attribute_group *qeth_osn_dev_groups[];
 extern const struct device_type qeth_generic_devtype;
 
 const char *qeth_get_cardname_short(struct qeth_card *);
@@ -1108,7 +1115,7 @@ void qeth_prepare_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
 int qeth_query_switch_attributes(struct qeth_card *card,
 				  struct qeth_switch_info *sw_info);
 int qeth_query_card_info(struct qeth_card *card,
-			 struct carrier_info *carrier_info);
+			 struct qeth_link_info *link_info);
 int qeth_setadpparms_set_access_ctrl(struct qeth_card *card,
 				     enum qeth_ipa_isolation_modes mode);
 

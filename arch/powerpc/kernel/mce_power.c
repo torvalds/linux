@@ -62,6 +62,20 @@ out:
 	return pfn;
 }
 
+static bool mce_in_guest(void)
+{
+#ifdef CONFIG_KVM_BOOK3S_HANDLER
+	/*
+	 * If machine check is hit when in guest context or low level KVM
+	 * code, avoid looking up any translations or making any attempts
+	 * to recover, just record the event and pass to KVM.
+	 */
+	if (get_paca()->kvm_hstate.in_guest)
+		return true;
+#endif
+	return false;
+}
+
 /* flush SLBs and reload */
 #ifdef CONFIG_PPC_BOOK3S_64
 void flush_and_reload_slb(void)
@@ -69,14 +83,6 @@ void flush_and_reload_slb(void)
 	/* Invalidate all SLBs */
 	slb_flush_all_realmode();
 
-#ifdef CONFIG_KVM_BOOK3S_HANDLER
-	/*
-	 * If machine check is hit when in guest or in transition, we will
-	 * only flush the SLBs and continue.
-	 */
-	if (get_paca()->kvm_hstate.in_guest)
-		return;
-#endif
 	if (early_radix_enabled())
 		return;
 
@@ -91,7 +97,7 @@ void flush_and_reload_slb(void)
 }
 #endif
 
-static void flush_erat(void)
+void flush_erat(void)
 {
 #ifdef CONFIG_PPC_BOOK3S_64
 	if (!early_cpu_has_feature(CPU_FTR_ARCH_300)) {
@@ -490,19 +496,21 @@ static int mce_handle_ierror(struct pt_regs *regs,
 		if ((srr1 & table[i].srr1_mask) != table[i].srr1_value)
 			continue;
 
-		/* attempt to correct the error */
-		switch (table[i].error_type) {
-		case MCE_ERROR_TYPE_SLB:
-			if (local_paca->in_mce == 1)
-				slb_save_contents(local_paca->mce_faulty_slbs);
-			handled = mce_flush(MCE_FLUSH_SLB);
-			break;
-		case MCE_ERROR_TYPE_ERAT:
-			handled = mce_flush(MCE_FLUSH_ERAT);
-			break;
-		case MCE_ERROR_TYPE_TLB:
-			handled = mce_flush(MCE_FLUSH_TLB);
-			break;
+		if (!mce_in_guest()) {
+			/* attempt to correct the error */
+			switch (table[i].error_type) {
+			case MCE_ERROR_TYPE_SLB:
+				if (local_paca->in_mce == 1)
+					slb_save_contents(local_paca->mce_faulty_slbs);
+				handled = mce_flush(MCE_FLUSH_SLB);
+				break;
+			case MCE_ERROR_TYPE_ERAT:
+				handled = mce_flush(MCE_FLUSH_ERAT);
+				break;
+			case MCE_ERROR_TYPE_TLB:
+				handled = mce_flush(MCE_FLUSH_TLB);
+				break;
+			}
 		}
 
 		/* now fill in mce_error_info */
@@ -534,7 +542,7 @@ static int mce_handle_ierror(struct pt_regs *regs,
 		mce_err->sync_error = table[i].sync_error;
 		mce_err->severity = table[i].severity;
 		mce_err->initiator = table[i].initiator;
-		if (table[i].nip_valid) {
+		if (table[i].nip_valid && !mce_in_guest()) {
 			*addr = regs->nip;
 			if (mce_err->sync_error &&
 				table[i].error_type == MCE_ERROR_TYPE_UE) {
@@ -577,22 +585,24 @@ static int mce_handle_derror(struct pt_regs *regs,
 		if (!(dsisr & table[i].dsisr_value))
 			continue;
 
-		/* attempt to correct the error */
-		switch (table[i].error_type) {
-		case MCE_ERROR_TYPE_SLB:
-			if (local_paca->in_mce == 1)
-				slb_save_contents(local_paca->mce_faulty_slbs);
-			if (mce_flush(MCE_FLUSH_SLB))
-				handled = 1;
-			break;
-		case MCE_ERROR_TYPE_ERAT:
-			if (mce_flush(MCE_FLUSH_ERAT))
-				handled = 1;
-			break;
-		case MCE_ERROR_TYPE_TLB:
-			if (mce_flush(MCE_FLUSH_TLB))
-				handled = 1;
-			break;
+		if (!mce_in_guest()) {
+			/* attempt to correct the error */
+			switch (table[i].error_type) {
+			case MCE_ERROR_TYPE_SLB:
+				if (local_paca->in_mce == 1)
+					slb_save_contents(local_paca->mce_faulty_slbs);
+				if (mce_flush(MCE_FLUSH_SLB))
+					handled = 1;
+				break;
+			case MCE_ERROR_TYPE_ERAT:
+				if (mce_flush(MCE_FLUSH_ERAT))
+					handled = 1;
+				break;
+			case MCE_ERROR_TYPE_TLB:
+				if (mce_flush(MCE_FLUSH_TLB))
+					handled = 1;
+				break;
+			}
 		}
 
 		/*
@@ -634,7 +644,7 @@ static int mce_handle_derror(struct pt_regs *regs,
 		mce_err->initiator = table[i].initiator;
 		if (table[i].dar_valid)
 			*addr = regs->dar;
-		else if (mce_err->sync_error &&
+		else if (mce_err->sync_error && !mce_in_guest() &&
 				table[i].error_type == MCE_ERROR_TYPE_UE) {
 			/*
 			 * We do a maximum of 4 nested MCE calls, see
@@ -662,7 +672,8 @@ static int mce_handle_derror(struct pt_regs *regs,
 static long mce_handle_ue_error(struct pt_regs *regs,
 				struct mce_error_info *mce_err)
 {
-	long handled = 0;
+	if (mce_in_guest())
+		return 0;
 
 	mce_common_process_ue(regs, mce_err);
 	if (mce_err->ignore_event)
@@ -677,9 +688,10 @@ static long mce_handle_ue_error(struct pt_regs *regs,
 
 	if (ppc_md.mce_check_early_recovery) {
 		if (ppc_md.mce_check_early_recovery(regs))
-			handled = 1;
+			return 1;
 	}
-	return handled;
+
+	return 0;
 }
 
 static long mce_handle_error(struct pt_regs *regs,

@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <linux/of.h>
-#include <linux/platform_data/media/coda.h>
+#include <linux/ratelimit.h>
 #include <linux/reset.h>
 
 #include <media/v4l2-ctrls.h>
@@ -172,7 +172,7 @@ struct coda_video_device {
 };
 
 static const struct coda_video_device coda_bit_encoder = {
-	.name = "coda-encoder",
+	.name = "coda-video-encoder",
 	.type = CODA_INST_ENCODER,
 	.ops = &coda_bit_encode_ops,
 	.src_formats = {
@@ -202,7 +202,7 @@ static const struct coda_video_device coda_bit_jpeg_encoder = {
 };
 
 static const struct coda_video_device coda_bit_decoder = {
-	.name = "coda-decoder",
+	.name = "coda-video-decoder",
 	.type = CODA_INST_DECODER,
 	.ops = &coda_bit_decode_ops,
 	.src_formats = {
@@ -2062,6 +2062,7 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 	if (q_data_dst->fourcc == V4L2_PIX_FMT_JPEG)
 		ctx->params.gop_size = 1;
 	ctx->gopcounter = ctx->params.gop_size - 1;
+	v4l2_ctrl_s_ctrl(ctx->mb_err_cnt_ctrl, 0);
 
 	ret = ctx->ops->start_streaming(ctx);
 	if (ctx->inst_type == CODA_INST_DECODER) {
@@ -2462,6 +2463,15 @@ static void coda_decode_ctrls(struct coda_ctx *ctx)
 		ctx->mpeg4_level_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 }
 
+static const struct v4l2_ctrl_config coda_mb_err_cnt_ctrl_config = {
+	.id	= V4L2_CID_CODA_MB_ERR_CNT,
+	.name	= "Macroblocks Error Count",
+	.type	= V4L2_CTRL_TYPE_INTEGER,
+	.min	= 0,
+	.max	= 0x7fffffff,
+	.step	= 1,
+};
+
 static int coda_ctrls_setup(struct coda_ctx *ctx)
 {
 	v4l2_ctrl_handler_init(&ctx->ctrls, 2);
@@ -2484,6 +2494,12 @@ static int coda_ctrls_setup(struct coda_ctx *ctx)
 				  1, 1, 1, 1);
 		if (ctx->cvd->src_formats[0] == V4L2_PIX_FMT_H264)
 			coda_decode_ctrls(ctx);
+
+		ctx->mb_err_cnt_ctrl = v4l2_ctrl_new_custom(&ctx->ctrls,
+						&coda_mb_err_cnt_ctrl_config,
+						NULL);
+		if (ctx->mb_err_cnt_ctrl)
+			ctx->mb_err_cnt_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 	}
 
 	if (ctx->ctrls.error) {
@@ -2851,17 +2867,17 @@ err_clk_per:
 static int coda_register_device(struct coda_dev *dev, int i)
 {
 	struct video_device *vfd = &dev->vfd[i];
-	enum coda_inst_type type;
+	const char *name;
 	int ret;
 
 	if (i >= dev->devtype->num_vdevs)
 		return -EINVAL;
-	type = dev->devtype->vdevs[i]->type;
+	name = dev->devtype->vdevs[i]->name;
 
 	strscpy(vfd->name, dev->devtype->vdevs[i]->name, sizeof(vfd->name));
 	vfd->fops	= &coda_fops;
 	vfd->ioctl_ops	= &coda_ioctl_ops;
-	vfd->release	= video_device_release_empty,
+	vfd->release	= video_device_release_empty;
 	vfd->lock	= &dev->dev_mutex;
 	vfd->v4l2_dev	= &dev->v4l2_dev;
 	vfd->vfl_dir	= VFL_DIR_M2M;
@@ -2876,8 +2892,7 @@ static int coda_register_device(struct coda_dev *dev, int i)
 	ret = video_register_device(vfd, VFL_TYPE_VIDEO, 0);
 	if (!ret)
 		v4l2_info(&dev->v4l2_dev, "%s registered as %s\n",
-			  type == CODA_INST_ENCODER ? "encoder" : "decoder",
-			  video_device_node_name(vfd));
+			  name, video_device_node_name(vfd));
 	return ret;
 }
 
@@ -3086,13 +3101,6 @@ static const struct coda_devtype coda_devdata[] = {
 	},
 };
 
-static const struct platform_device_id coda_platform_ids[] = {
-	{ .name = "coda-imx27", .driver_data = CODA_IMX27 },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(platform, coda_platform_ids);
-
-#ifdef CONFIG_OF
 static const struct of_device_id coda_dt_ids[] = {
 	{ .compatible = "fsl,imx27-vpu", .data = &coda_devdata[CODA_IMX27] },
 	{ .compatible = "fsl,imx51-vpu", .data = &coda_devdata[CODA_IMX51] },
@@ -3102,14 +3110,9 @@ static const struct of_device_id coda_dt_ids[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, coda_dt_ids);
-#endif
 
 static int coda_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id =
-			of_match_device(of_match_ptr(coda_dt_ids), &pdev->dev);
-	const struct platform_device_id *pdev_id;
-	struct coda_platform_data *pdata = pdev->dev.platform_data;
 	struct device_node *np = pdev->dev.of_node;
 	struct gen_pool *pool;
 	struct coda_dev *dev;
@@ -3119,14 +3122,7 @@ static int coda_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
-	pdev_id = of_id ? of_id->data : platform_get_device_id(pdev);
-
-	if (of_id)
-		dev->devtype = of_id->data;
-	else if (pdev_id)
-		dev->devtype = &coda_devdata[pdev_id->driver_data];
-	else
-		return -EINVAL;
+	dev->devtype = of_device_get_match_data(&pdev->dev);
 
 	dev->dev = &pdev->dev;
 	dev->clk_per = devm_clk_get(&pdev->dev, "per");
@@ -3154,7 +3150,7 @@ static int coda_probe(struct platform_device *pdev)
 		return irq;
 
 	ret = devm_request_irq(&pdev->dev, irq, coda_irq_handler, 0,
-			       dev_name(&pdev->dev), dev);
+			       CODA_NAME "-video", dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request irq: %d\n", ret);
 		return ret;
@@ -3168,7 +3164,7 @@ static int coda_probe(struct platform_device *pdev)
 
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 						coda9_jpeg_irq_handler,
-						IRQF_ONESHOT, CODA_NAME " jpeg",
+						IRQF_ONESHOT, CODA_NAME "-jpeg",
 						dev);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to request jpeg irq\n");
@@ -3184,10 +3180,8 @@ static int coda_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Get IRAM pool from device tree or platform data */
+	/* Get IRAM pool from device tree */
 	pool = of_gen_pool_get(np, "iram", 0);
-	if (!pool && pdata)
-		pool = gen_pool_get(pdata->iram_dev, NULL);
 	if (!pool) {
 		dev_err(&pdev->dev, "iram pool not available\n");
 		return -ENOMEM;
@@ -3203,6 +3197,7 @@ static int coda_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ratelimit_default_init(&dev->mb_err_rs);
 	mutex_init(&dev->dev_mutex);
 	mutex_init(&dev->coda_mutex);
 	ida_init(&dev->ida);
@@ -3325,7 +3320,6 @@ static struct platform_driver coda_driver = {
 		.of_match_table = of_match_ptr(coda_dt_ids),
 		.pm	= &coda_pm_ops,
 	},
-	.id_table = coda_platform_ids,
 };
 
 module_platform_driver(coda_driver);

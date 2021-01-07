@@ -54,20 +54,20 @@
 #define RVU_PRIV_PFX_MSIX_CFG(a)            (0x8000110 | (a) << 16)
 #define RVU_PRIV_PFX_ID_CFG(a)              (0x8000120 | (a) << 16)
 #define RVU_PRIV_PFX_INT_CFG(a)             (0x8000200 | (a) << 16)
-#define RVU_PRIV_PFX_NIX0_CFG               (0x8000300)
+#define RVU_PRIV_PFX_NIXX_CFG(a)            (0x8000300 | (a) << 3)
 #define RVU_PRIV_PFX_NPA_CFG		    (0x8000310)
 #define RVU_PRIV_PFX_SSO_CFG                (0x8000320)
 #define RVU_PRIV_PFX_SSOW_CFG               (0x8000330)
 #define RVU_PRIV_PFX_TIM_CFG                (0x8000340)
-#define RVU_PRIV_PFX_CPT0_CFG               (0x8000350)
+#define RVU_PRIV_PFX_CPTX_CFG(a)            (0x8000350 | (a) << 3)
 #define RVU_PRIV_BLOCK_TYPEX_REV(a)         (0x8000400 | (a) << 3)
 #define RVU_PRIV_HWVFX_INT_CFG(a)           (0x8001280 | (a) << 16)
-#define RVU_PRIV_HWVFX_NIX0_CFG             (0x8001300)
+#define RVU_PRIV_HWVFX_NIXX_CFG(a)          (0x8001300 | (a) << 3)
 #define RVU_PRIV_HWVFX_NPA_CFG              (0x8001310)
 #define RVU_PRIV_HWVFX_SSO_CFG              (0x8001320)
 #define RVU_PRIV_HWVFX_SSOW_CFG             (0x8001330)
 #define RVU_PRIV_HWVFX_TIM_CFG              (0x8001340)
-#define RVU_PRIV_HWVFX_CPT0_CFG             (0x8001350)
+#define RVU_PRIV_HWVFX_CPTX_CFG(a)          (0x8001350 | (a) << 3)
 
 /* RVU PF registers */
 #define	RVU_PF_VFX_PFVF_MBOX0		    (0x00000)
@@ -429,12 +429,63 @@
 #define TIM_AF_LF_RST			(0x20)
 
 /* CPT */
-#define CPT_AF_CONSTANTS0		(0x0000)
-#define CPT_PRIV_LFX_CFG		(0x41000)
-#define CPT_PRIV_LFX_INT_CFG		(0x43000)
-#define CPT_AF_RVU_LF_CFG_DEBUG		(0x45000)
-#define CPT_AF_LF_RST			(0x44000)
-#define CPT_AF_BLK_RST			(0x46000)
+#define CPT_AF_CONSTANTS0               (0x0000)
+#define CPT_AF_CONSTANTS1               (0x1000)
+#define CPT_AF_DIAG                     (0x3000)
+#define CPT_AF_ECO                      (0x4000)
+#define CPT_AF_FLTX_INT(a)              (0xa000ull | (u64)(a) << 3)
+#define CPT_AF_FLTX_INT_W1S(a)          (0xb000ull | (u64)(a) << 3)
+#define CPT_AF_FLTX_INT_ENA_W1C(a)      (0xc000ull | (u64)(a) << 3)
+#define CPT_AF_FLTX_INT_ENA_W1S(a)      (0xd000ull | (u64)(a) << 3)
+#define CPT_AF_PSNX_EXE(a)              (0xe000ull | (u64)(a) << 3)
+#define CPT_AF_PSNX_EXE_W1S(a)          (0xf000ull | (u64)(a) << 3)
+#define CPT_AF_PSNX_LF(a)               (0x10000ull | (u64)(a) << 3)
+#define CPT_AF_PSNX_LF_W1S(a)           (0x11000ull | (u64)(a) << 3)
+#define CPT_AF_EXEX_CTL2(a)             (0x12000ull | (u64)(a) << 3)
+#define CPT_AF_EXEX_STS(a)              (0x13000ull | (u64)(a) << 3)
+#define CPT_AF_EXE_ERR_INFO             (0x14000)
+#define CPT_AF_EXEX_ACTIVE(a)           (0x16000ull | (u64)(a) << 3)
+#define CPT_AF_INST_REQ_PC              (0x17000)
+#define CPT_AF_INST_LATENCY_PC          (0x18000)
+#define CPT_AF_RD_REQ_PC                (0x19000)
+#define CPT_AF_RD_LATENCY_PC            (0x1a000)
+#define CPT_AF_RD_UC_PC                 (0x1b000)
+#define CPT_AF_ACTIVE_CYCLES_PC         (0x1c000)
+#define CPT_AF_EXE_DBG_CTL              (0x1d000)
+#define CPT_AF_EXE_DBG_DATA             (0x1e000)
+#define CPT_AF_EXE_REQ_TIMER            (0x1f000)
+#define CPT_AF_EXEX_CTL(a)              (0x20000ull | (u64)(a) << 3)
+#define CPT_AF_EXE_PERF_CTL             (0x21000)
+#define CPT_AF_EXE_DBG_CNTX(a)          (0x22000ull | (u64)(a) << 3)
+#define CPT_AF_EXE_PERF_EVENT_CNT       (0x23000)
+#define CPT_AF_EXE_EPCI_INBX_CNT(a)     (0x24000ull | (u64)(a) << 3)
+#define CPT_AF_EXE_EPCI_OUTBX_CNT(a)    (0x25000ull | (u64)(a) << 3)
+#define CPT_AF_EXEX_UCODE_BASE(a)       (0x26000ull | (u64)(a) << 3)
+#define CPT_AF_LFX_CTL(a)               (0x27000ull | (u64)(a) << 3)
+#define CPT_AF_LFX_CTL2(a)              (0x29000ull | (u64)(a) << 3)
+#define CPT_AF_CPTCLK_CNT               (0x2a000)
+#define CPT_AF_PF_FUNC                  (0x2b000)
+#define CPT_AF_LFX_PTR_CTL(a)           (0x2c000ull | (u64)(a) << 3)
+#define CPT_AF_GRPX_THR(a)              (0x2d000ull | (u64)(a) << 3)
+#define CPT_AF_CTL                      (0x2e000ull)
+#define CPT_AF_XEX_THR(a)               (0x2f000ull | (u64)(a) << 3)
+#define CPT_PRIV_LFX_CFG                (0x41000)
+#define CPT_PRIV_AF_INT_CFG             (0x42000)
+#define CPT_PRIV_LFX_INT_CFG            (0x43000)
+#define CPT_AF_LF_RST                   (0x44000)
+#define CPT_AF_RVU_LF_CFG_DEBUG         (0x45000)
+#define CPT_AF_BLK_RST                  (0x46000)
+#define CPT_AF_RVU_INT                  (0x47000)
+#define CPT_AF_RVU_INT_W1S              (0x47008)
+#define CPT_AF_RVU_INT_ENA_W1S          (0x47010)
+#define CPT_AF_RVU_INT_ENA_W1C          (0x47018)
+#define CPT_AF_RAS_INT                  (0x47020)
+#define CPT_AF_RAS_INT_W1S              (0x47028)
+#define CPT_AF_RAS_INT_ENA_W1S          (0x47030)
+#define CPT_AF_RAS_INT_ENA_W1C          (0x47038)
+
+#define CPT_AF_LF_CTL2_SHIFT 3
+#define CPT_AF_LF_SSO_PF_FUNC_SHIFT 32
 
 #define NPC_AF_BLK_RST                  (0x00040)
 
@@ -446,6 +497,8 @@
 #define NPC_AF_BLK_RST			(0x00040)
 #define NPC_AF_MCAM_SCRUB_CTL		(0x000a0)
 #define NPC_AF_KCAM_SCRUB_CTL		(0x000b0)
+#define NPC_AF_CONST2			(0x00100)
+#define NPC_AF_CONST3			(0x00110)
 #define NPC_AF_KPUX_CFG(a)		(0x00500 | (a) << 3)
 #define NPC_AF_PCK_CFG			(0x00600)
 #define NPC_AF_PCK_DEF_OL2		(0x00610)
@@ -469,20 +522,7 @@
 		(0x900000 | (a) << 16 | (b) << 12 | (c) << 5 | (d) << 3)
 #define NPC_AF_INTFX_LDATAX_FLAGSX_CFG(a, b, c) \
 		(0x980000 | (a) << 16 | (b) << 12 | (c) << 3)
-#define NPC_AF_MCAMEX_BANKX_CAMX_INTF(a, b, c)       \
-		(0x1000000ull | (a) << 10 | (b) << 6 | (c) << 3)
-#define NPC_AF_MCAMEX_BANKX_CAMX_W0(a, b, c)         \
-		(0x1000010ull | (a) << 10 | (b) << 6 | (c) << 3)
-#define NPC_AF_MCAMEX_BANKX_CAMX_W1(a, b, c)         \
-		(0x1000020ull | (a) << 10 | (b) << 6 | (c) << 3)
-#define NPC_AF_MCAMEX_BANKX_CFG(a, b)	 (0x1800000ull | (a) << 8 | (b) << 4)
-#define NPC_AF_MCAMEX_BANKX_STAT_ACT(a, b) \
-		(0x1880000 | (a) << 8 | (b) << 4)
-#define NPC_AF_MATCH_STATX(a)		(0x1880008 | (a) << 8)
 #define NPC_AF_INTFX_MISS_STAT_ACT(a)	(0x1880040 + (a) * 0x8)
-#define NPC_AF_MCAMEX_BANKX_ACTION(a, b) (0x1900000ull | (a) << 8 | (b) << 4)
-#define NPC_AF_MCAMEX_BANKX_TAG_ACT(a, b) \
-		(0x1900008 | (a) << 8 | (b) << 4)
 #define NPC_AF_INTFX_MISS_ACT(a)	(0x1a00000 | (a) << 4)
 #define NPC_AF_INTFX_MISS_TAG_ACT(a)	(0x1b00008 | (a) << 4)
 #define NPC_AF_MCAM_BANKX_HITX(a, b)	(0x1c80000 | (a) << 8 | (b) << 4)
@@ -498,6 +538,70 @@
 #define NPC_AF_MCAM_DBG			(0x3001000)
 #define NPC_AF_DBG_DATAX(a)		(0x3001400 | (a) << 4)
 #define NPC_AF_DBG_RESULTX(a)		(0x3001800 | (a) << 4)
+
+#define NPC_AF_MCAMEX_BANKX_CAMX_INTF(a, b, c) ({			   \
+	u64 offset;							   \
+									   \
+	offset = (0x1000000ull | (a) << 10 | (b) << 6 | (c) << 3);	   \
+	if (rvu->hw->npc_ext_set)					   \
+		offset = (0x8000000ull | (a) << 8 | (b) << 22 | (c) << 3); \
+	offset; })
+
+#define NPC_AF_MCAMEX_BANKX_CAMX_W0(a, b, c) ({				   \
+	u64 offset;							   \
+									   \
+	offset = (0x1000010ull | (a) << 10 | (b) << 6 | (c) << 3);	   \
+	if (rvu->hw->npc_ext_set)					   \
+		offset = (0x8000010ull | (a) << 8 | (b) << 22 | (c) << 3); \
+	offset; })
+
+#define NPC_AF_MCAMEX_BANKX_CAMX_W1(a, b, c) ({				   \
+	u64 offset;							   \
+									   \
+	offset = (0x1000020ull | (a) << 10 | (b) << 6 | (c) << 3);	   \
+	if (rvu->hw->npc_ext_set)					   \
+		offset = (0x8000020ull | (a) << 8 | (b) << 22 | (c) << 3); \
+	offset; })
+
+#define NPC_AF_MCAMEX_BANKX_CFG(a, b) ({				   \
+	u64 offset;							   \
+									   \
+	offset = (0x1800000ull | (a) << 8 | (b) << 4);			   \
+	if (rvu->hw->npc_ext_set)					   \
+		offset = (0x8000038ull | (a) << 8 | (b) << 22);		   \
+	offset; })
+
+#define NPC_AF_MCAMEX_BANKX_ACTION(a, b) ({				   \
+	u64 offset;							   \
+									   \
+	offset = (0x1900000ull | (a) << 8 | (b) << 4);			   \
+	if (rvu->hw->npc_ext_set)					   \
+		offset = (0x8000040ull | (a) << 8 | (b) << 22);		   \
+	offset; })							   \
+
+#define NPC_AF_MCAMEX_BANKX_TAG_ACT(a, b) ({				   \
+	u64 offset;							   \
+									   \
+	offset = (0x1900008ull | (a) << 8 | (b) << 4);			   \
+	if (rvu->hw->npc_ext_set)					   \
+		offset = (0x8000048ull | (a) << 8 | (b) << 22);		   \
+	offset; })							   \
+
+#define NPC_AF_MCAMEX_BANKX_STAT_ACT(a, b) ({				   \
+	u64 offset;							   \
+									   \
+	offset = (0x1880000ull | (a) << 8 | (b) << 4);			   \
+	if (rvu->hw->npc_ext_set)					   \
+		offset = (0x8000050ull | (a) << 8 | (b) << 22);		   \
+	offset; })							   \
+
+#define NPC_AF_MATCH_STATX(a) ({					   \
+	u64 offset;							   \
+									   \
+	offset = (0x1880008ull | (a) << 8);				   \
+	if (rvu->hw->npc_ext_set)					   \
+		offset = (0x8000078ull | (a) << 8);			   \
+	offset; })							   \
 
 /* NDC */
 #define NDC_AF_CONST			(0x00000)

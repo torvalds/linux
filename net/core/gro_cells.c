@@ -99,9 +99,14 @@ void gro_cells_destroy(struct gro_cells *gcells)
 		struct gro_cell *cell = per_cpu_ptr(gcells->cells, i);
 
 		napi_disable(&cell->napi);
-		netif_napi_del(&cell->napi);
+		__netif_napi_del(&cell->napi);
 		__skb_queue_purge(&cell->napi_skbs);
 	}
+	/* This barrier is needed because netpoll could access dev->napi_list
+	 * under rcu protection.
+	 */
+	synchronize_net();
+
 	free_percpu(gcells->cells);
 	gcells->cells = NULL;
 }

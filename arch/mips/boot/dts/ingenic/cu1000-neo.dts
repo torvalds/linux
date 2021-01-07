@@ -3,7 +3,7 @@
 
 #include "x1000.dtsi"
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/clock/ingenic,tcu.h>
+#include <dt-bindings/clock/ingenic,sysost.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
@@ -31,6 +31,42 @@
 		};
 	};
 
+	ssi: spi-gpio {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		num-chipselects = <1>;
+
+		mosi-gpios = <&gpd 2 GPIO_ACTIVE_HIGH>;
+		miso-gpios = <&gpd 3 GPIO_ACTIVE_HIGH>;
+		sck-gpios = <&gpd 0 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&gpd 1 GPIO_ACTIVE_HIGH>;
+
+		status = "okay";
+
+		spi-max-frequency = <50000000>;
+
+		sc16is752: expander@0 {
+			compatible = "nxp,sc16is752";
+			reg = <0>; /* CE0 */
+			spi-max-frequency = <4000000>;
+
+			clocks = <&exclk_sc16is752>;
+
+			interrupt-parent = <&gpc>;
+			interrupts = <6 IRQ_TYPE_EDGE_FALLING>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			exclk_sc16is752: sc16is752 {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-frequency = <48000000>;
+			};
+		};
+	};
+
 	wlan_pwrseq: msc1-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 
@@ -43,13 +79,19 @@
 	clock-frequency = <24000000>;
 };
 
-&tcu {
-	/* 1500 kHz for the system timer and clocksource */
-	assigned-clocks = <&tcu TCU_CLK_TIMER0>, <&tcu TCU_CLK_TIMER2>;
-	assigned-clock-rates = <1500000>, <1500000>;
+&cgu {
+	/*
+	 * Use the 32.768 kHz oscillator as the parent of the RTC for a higher
+	 * precision.
+	 */
+	assigned-clocks = <&cgu X1000_CLK_RTC>;
+	assigned-clock-parents = <&cgu X1000_CLK_RTCLK>;
+};
 
-	/* Use channel #0 for the system timer channel #2 for the clocksource */
-	ingenic,pwm-channels-mask = <0xfa>;
+&ost {
+	/* 1500 kHz for the system timer and clocksource */
+	assigned-clocks = <&ost OST_CLK_PERCPU_TIMER>, <&ost OST_CLK_GLOBAL_TIMER>;
+	assigned-clock-rates = <1500000>, <1500000>;
 };
 
 &uart2 {
@@ -133,6 +175,14 @@
 		compatible = "ethernet-phy-id0007.c0f0", "ethernet-phy-ieee802.3-c22";
 		reg = <0>;
 	};
+};
+
+&otg_phy {
+	status = "okay";
+};
+
+&otg {
+	status = "okay";
 };
 
 &pinctrl {

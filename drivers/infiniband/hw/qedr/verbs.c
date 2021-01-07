@@ -928,6 +928,9 @@ int qedr_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		 "create_cq: called from %s. entries=%d, vector=%d\n",
 		 udata ? "User Lib" : "Kernel", entries, vector);
 
+	if (attr->flags)
+		return -EOPNOTSUPP;
+
 	if (entries > QEDR_MAX_CQES) {
 		DP_ERR(dev,
 		       "create cq: the number of entries %d is too high. Must be equal or below %d.\n",
@@ -1546,6 +1549,10 @@ int qedr_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init_attr,
 		 "create SRQ called from %s (pd %p)\n",
 		 (udata) ? "User lib" : "kernel", pd);
 
+	if (init_attr->srq_type != IB_SRQT_BASIC &&
+	    init_attr->srq_type != IB_SRQT_XRC)
+		return -EOPNOTSUPP;
+
 	rc = qedr_check_srq_params(dev, init_attr, udata);
 	if (rc)
 		return -EINVAL;
@@ -1936,6 +1943,15 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 	}
 
 	if (rdma_protocol_iwarp(&dev->ibdev, 1)) {
+		qp->urq.db_rec_db2_addr = ctx->dpi_addr + uresp.rq_db2_offset;
+
+		/* calculate the db_rec_db2 data since it is constant so no
+		 * need to reflect from user
+		 */
+		qp->urq.db_rec_db2_data.data.icid = cpu_to_le16(qp->icid);
+		qp->urq.db_rec_db2_data.data.value =
+			cpu_to_le16(DQ_TCM_IWARP_POST_RQ_CF_CMD);
+
 		rc = qedr_db_recovery_add(dev, qp->urq.db_rec_db2_addr,
 					  &qp->urq.db_rec_db2_data,
 					  DB_REC_WIDTH_32B,
@@ -2232,6 +2248,9 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 	struct ib_qp *ibqp;
 	int rc = 0;
 
+	if (attrs->create_flags)
+		return ERR_PTR(-EOPNOTSUPP);
+
 	if (attrs->qp_type == IB_QPT_XRC_TGT) {
 		xrcd = get_qedr_xrcd(attrs->xrcd);
 		dev = get_qedr_dev(xrcd->ibxrcd.device);
@@ -2467,6 +2486,9 @@ int qedr_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	DP_DEBUG(dev, QEDR_MSG_QP,
 		 "modify qp: qp %p attr_mask=0x%x, state=%d", qp, attr_mask,
 		 attr->qp_state);
+
+	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
+		return -EOPNOTSUPP;
 
 	old_qp_state = qedr_get_ibqp_state(qp->state);
 	if (attr_mask & IB_QP_STATE)

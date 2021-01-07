@@ -31,4 +31,5 @@
 	.fixup_map_hash_8b = { 1, },
 	.prog_type = BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE,
 	.errstr = "R6 invalid variable buffer offset: off=0, var_off=(0x0; 0xffffffff)",
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },

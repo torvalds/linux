@@ -161,8 +161,19 @@ static int gpio_nand_exec_op(struct nand_chip *chip,
 	return ret;
 }
 
+static int gpio_nand_attach_chip(struct nand_chip *chip)
+{
+	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
+
+	if (chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
+
+	return 0;
+}
+
 static const struct nand_controller_ops gpio_nand_ops = {
 	.exec_op = gpio_nand_exec_op,
+	.attach_chip = gpio_nand_attach_chip,
 };
 
 #ifdef CONFIG_OF
@@ -342,8 +353,6 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	gpiomtd->base.ops = &gpio_nand_ops;
 
 	nand_set_flash_node(chip, pdev->dev.of_node);
-	chip->ecc.engine_type	= NAND_ECC_ENGINE_TYPE_SOFT;
-	chip->ecc.algo		= NAND_ECC_ALGO_HAMMING;
 	chip->options		= gpiomtd->plat.options;
 	chip->controller	= &gpiomtd->base;
 

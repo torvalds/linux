@@ -891,13 +891,13 @@ static int record__open(struct record *rec)
 	 * event synthesis.
 	 */
 	if (opts->initial_delay || target__has_cpu(&opts->target)) {
-		pos = perf_evlist__get_tracking_event(evlist);
+		pos = evlist__get_tracking_event(evlist);
 		if (!evsel__is_dummy_event(pos)) {
 			/* Set up dummy event. */
 			if (evlist__add_dummy(evlist))
 				return -ENOMEM;
 			pos = evlist__last(evlist);
-			perf_evlist__set_tracking_event(evlist, pos);
+			evlist__set_tracking_event(evlist, pos);
 		}
 
 		/*
@@ -910,7 +910,7 @@ static int record__open(struct record *rec)
 			pos->immediate = 1;
 	}
 
-	perf_evlist__config(evlist, opts, &callchain_param);
+	evlist__config(evlist, opts, &callchain_param);
 
 	evlist__for_each_entry(evlist, pos) {
 try_again:
@@ -923,7 +923,7 @@ try_again:
 			if ((errno == EINVAL || errno == EBADF) &&
 			    pos->leader != pos &&
 			    pos->weak_group) {
-			        pos = perf_evlist__reset_weak_group(evlist, pos, true);
+			        pos = evlist__reset_weak_group(evlist, pos, true);
 				goto try_again;
 			}
 			rc = -errno;
@@ -935,7 +935,7 @@ try_again:
 		pos->supported = true;
 	}
 
-	if (symbol_conf.kptr_restrict && !perf_evlist__exclude_kernel(evlist)) {
+	if (symbol_conf.kptr_restrict && !evlist__exclude_kernel(evlist)) {
 		pr_warning(
 "WARNING: Kernel address maps (/proc/{kallsyms,modules}) are restricted,\n"
 "check /proc/sys/kernel/kptr_restrict and /proc/sys/kernel/perf_event_paranoid.\n\n"
@@ -946,7 +946,7 @@ try_again:
 "even with a suitable vmlinux or kallsyms file.\n\n");
 	}
 
-	if (perf_evlist__apply_filters(evlist, &pos)) {
+	if (evlist__apply_filters(evlist, &pos)) {
 		pr_err("failed to set filter \"%s\" on event %s with %d (%s)\n",
 			pos->filter, evsel__name(pos), errno,
 			str_error_r(errno, msg, sizeof(msg)));
@@ -1166,7 +1166,7 @@ static int record__mmap_read_evlist(struct record *rec, struct evlist *evlist,
 		rc = record__write(rec, NULL, &finished_round_event, sizeof(finished_round_event));
 
 	if (overwrite)
-		perf_evlist__toggle_bkw_mmap(evlist, BKW_MMAP_EMPTY);
+		evlist__toggle_bkw_mmap(evlist, BKW_MMAP_EMPTY);
 out:
 	return rc;
 }
@@ -1333,7 +1333,7 @@ record__switch_output(struct record *rec, bool at_exit)
 static volatile int workload_exec_errno;
 
 /*
- * perf_evlist__prepare_workload will send a SIGUSR1
+ * evlist__prepare_workload will send a SIGUSR1
  * if the fork fails, since we asked by setting its
  * want_signal to true.
  */
@@ -1349,8 +1349,7 @@ static void workload_exec_failed_signal(int signo __maybe_unused,
 static void snapshot_sig_handler(int sig);
 static void alarm_sig_handler(int sig);
 
-static const struct perf_event_mmap_page *
-perf_evlist__pick_pc(struct evlist *evlist)
+static const struct perf_event_mmap_page *evlist__pick_pc(struct evlist *evlist)
 {
 	if (evlist) {
 		if (evlist->mmap && evlist->mmap[0].core.base)
@@ -1363,9 +1362,7 @@ perf_evlist__pick_pc(struct evlist *evlist)
 
 static const struct perf_event_mmap_page *record__pick_pc(struct record *rec)
 {
-	const struct perf_event_mmap_page *pc;
-
-	pc = perf_evlist__pick_pc(rec->evlist);
+	const struct perf_event_mmap_page *pc = evlist__pick_pc(rec->evlist);
 	if (pc)
 		return pc;
 	return NULL;
@@ -1444,7 +1441,7 @@ static int record__synthesize(struct record *rec, bool tail)
 			goto out;
 	}
 
-	if (!perf_evlist__exclude_kernel(rec->evlist)) {
+	if (!evlist__exclude_kernel(rec->evlist)) {
 		err = perf_event__synthesize_kernel_mmap(tool, process_synthesized_event,
 							 machine);
 		WARN_ONCE(err < 0, "Couldn't record kernel reference relocation symbol\n"
@@ -1548,7 +1545,7 @@ static int record__setup_sb_evlist(struct record *rec)
 		}
 	}
 #endif
-	if (perf_evlist__start_sb_thread(rec->sb_evlist, &rec->opts.target)) {
+	if (evlist__start_sb_thread(rec->sb_evlist, &rec->opts.target)) {
 		pr_debug("Couldn't start the BPF side band thread:\nBPF programs starting from now on won't be annotatable\n");
 		opts->no_bpf_event = true;
 	}
@@ -1689,9 +1686,8 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	record__init_features(rec);
 
 	if (forks) {
-		err = perf_evlist__prepare_workload(rec->evlist, &opts->target,
-						    argv, data->is_pipe,
-						    workload_exec_failed_signal);
+		err = evlist__prepare_workload(rec->evlist, &opts->target, argv, data->is_pipe,
+					       workload_exec_failed_signal);
 		if (err < 0) {
 			pr_err("Couldn't run the workload!\n");
 			status = err;
@@ -1835,7 +1831,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 						  machine);
 		free(event);
 
-		perf_evlist__start_workload(rec->evlist);
+		evlist__start_workload(rec->evlist);
 	}
 
 	if (evlist__initialize_ctlfd(rec->evlist, opts->ctl_fd, opts->ctl_fd_ack))
@@ -1861,11 +1857,11 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		 * BKW_MMAP_EMPTY here: when done == true and
 		 * hits != rec->samples in previous round.
 		 *
-		 * perf_evlist__toggle_bkw_mmap ensure we never
+		 * evlist__toggle_bkw_mmap ensure we never
 		 * convert BKW_MMAP_EMPTY to BKW_MMAP_DATA_PENDING.
 		 */
 		if (trigger_is_hit(&switch_output_trigger) || done || draining)
-			perf_evlist__toggle_bkw_mmap(rec->evlist, BKW_MMAP_DATA_PENDING);
+			evlist__toggle_bkw_mmap(rec->evlist, BKW_MMAP_DATA_PENDING);
 
 		if (record__mmap_read_all(rec, false) < 0) {
 			trigger_error(&auxtrace_snapshot_trigger);
@@ -1904,7 +1900,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 			 * record__mmap_read_all(): we should have collected
 			 * data from it.
 			 */
-			perf_evlist__toggle_bkw_mmap(rec->evlist, BKW_MMAP_RUNNING);
+			evlist__toggle_bkw_mmap(rec->evlist, BKW_MMAP_RUNNING);
 
 			if (!quiet)
 				fprintf(stderr, "[ perf record: dump data: Woken up %ld times ]\n",
@@ -2066,7 +2062,7 @@ out_delete_session:
 	perf_session__delete(session);
 
 	if (!opts->no_bpf_event)
-		perf_evlist__stop_sb_thread(rec->sb_evlist);
+		evlist__stop_sb_thread(rec->sb_evlist);
 	return status;
 }
 
@@ -2222,7 +2218,7 @@ static int record__parse_mmap_pages(const struct option *opt,
 		*p = '\0';
 
 	if (*s) {
-		ret = __perf_evlist__parse_mmap_pages(&mmap_pages, s);
+		ret = __evlist__parse_mmap_pages(&mmap_pages, s);
 		if (ret)
 			goto out_free;
 		opts->mmap_pages = mmap_pages;
@@ -2233,7 +2229,7 @@ static int record__parse_mmap_pages(const struct option *opt,
 		goto out_free;
 	}
 
-	ret = __perf_evlist__parse_mmap_pages(&mmap_pages, p + 1);
+	ret = __evlist__parse_mmap_pages(&mmap_pages, p + 1);
 	if (ret)
 		goto out_free;
 
@@ -2413,7 +2409,7 @@ static bool dry_run;
  * XXX Will stay a global variable till we fix builtin-script.c to stop messing
  * with it and switch to use the library functions in perf_evlist that came
  * from builtin-record.c, i.e. use record_opts,
- * perf_evlist__prepare_workload, etc instead of fork+exec'in 'perf record',
+ * evlist__prepare_workload, etc instead of fork+exec'in 'perf record',
  * using pipes, etc.
  */
 static struct option __record_options[] = {
@@ -2476,6 +2472,8 @@ static struct option __record_options[] = {
 	OPT_BOOLEAN('d', "data", &record.opts.sample_address, "Record the sample addresses"),
 	OPT_BOOLEAN(0, "phys-data", &record.opts.sample_phys_addr,
 		    "Record the sample physical addresses"),
+	OPT_BOOLEAN(0, "data-page-size", &record.opts.sample_data_page_size,
+		    "Record the sampled data address data page size"),
 	OPT_BOOLEAN(0, "sample-cpu", &record.opts.sample_cpu, "Record the sample cpu"),
 	OPT_BOOLEAN_SET('T', "timestamp", &record.opts.sample_time,
 			&record.opts.sample_time_set,
@@ -2793,7 +2791,7 @@ int cmd_record(int argc, const char **argv)
 	rec->opts.ignore_missing_thread = rec->opts.target.uid != UINT_MAX || rec->opts.target.pid;
 
 	err = -ENOMEM;
-	if (perf_evlist__create_maps(rec->evlist, &rec->opts.target) < 0)
+	if (evlist__create_maps(rec->evlist, &rec->opts.target) < 0)
 		usage_with_options(record_usage, record_options);
 
 	err = auxtrace_record__options(rec->itr, rec->evlist, &rec->opts);

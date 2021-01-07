@@ -2,7 +2,7 @@
 /*
  * HDMI wrapper
  *
- * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #define DSS_SUBSYS_NAME "HDMIWP"

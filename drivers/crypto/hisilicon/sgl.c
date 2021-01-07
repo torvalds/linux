@@ -246,8 +246,6 @@ EXPORT_SYMBOL_GPL(hisi_acc_sg_buf_map_to_hw_sgl);
  * @dev: The device which hw sgl belongs to.
  * @sgl: Related scatterlist.
  * @hw_sgl: Virtual address of hw sgl.
- * @hw_sgl_dma: DMA address of hw sgl.
- * @pool: Pool which hw sgl is allocated in.
  *
  * This function unmaps allocated hw sgl.
  */

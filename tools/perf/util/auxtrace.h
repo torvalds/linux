@@ -88,6 +88,7 @@ enum itrace_period_type {
  * @llc: whether to synthesize last level cache events
  * @tlb: whether to synthesize TLB events
  * @remote_access: whether to synthesize remote access events
+ * @mem: whether to synthesize memory events
  * @callchain_sz: maximum callchain size
  * @last_branch_sz: branch context size
  * @period: 'instructions' events period
@@ -126,6 +127,7 @@ struct itrace_synth_opts {
 	bool			llc;
 	bool			tlb;
 	bool			remote_access;
+	bool			mem;
 	unsigned int		callchain_sz;
 	unsigned int		last_branch_sz;
 	unsigned long long	period;

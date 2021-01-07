@@ -1258,9 +1258,9 @@ static int mlxbf_i2c_get_gpio(struct platform_device *pdev,
 		return -EFAULT;
 
 	gpio_res->io = devm_ioremap(dev, params->start, size);
-	if (IS_ERR(gpio_res->io)) {
+	if (!gpio_res->io) {
 		devm_release_mem_region(dev, params->start, size);
-		return PTR_ERR(gpio_res->io);
+		return -ENOMEM;
 	}
 
 	return 0;
@@ -1323,9 +1323,9 @@ static int mlxbf_i2c_get_corepll(struct platform_device *pdev,
 		return -EFAULT;
 
 	corepll_res->io = devm_ioremap(dev, params->start, size);
-	if (IS_ERR(corepll_res->io)) {
+	if (!corepll_res->io) {
 		devm_release_mem_region(dev, params->start, size);
-		return PTR_ERR(corepll_res->io);
+		return -ENOMEM;
 	}
 
 	return 0;
@@ -1717,9 +1717,9 @@ static int mlxbf_i2c_init_coalesce(struct platform_device *pdev,
 			return -EFAULT;
 
 		coalesce_res->io = ioremap(params->start, size);
-		if (IS_ERR(coalesce_res->io)) {
+		if (!coalesce_res->io) {
 			release_mem_region(params->start, size);
-			return PTR_ERR(coalesce_res->io);
+			return -ENOMEM;
 		}
 
 		priv->coalesce = coalesce_res;

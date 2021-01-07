@@ -2952,7 +2952,8 @@ static int nested_vmx_check_vmcs_link_ptr(struct kvm_vcpu *vcpu,
 static int nested_check_guest_non_reg_state(struct vmcs12 *vmcs12)
 {
 	if (CC(vmcs12->guest_activity_state != GUEST_ACTIVITY_ACTIVE &&
-	       vmcs12->guest_activity_state != GUEST_ACTIVITY_HLT))
+	       vmcs12->guest_activity_state != GUEST_ACTIVITY_HLT &&
+	       vmcs12->guest_activity_state != GUEST_ACTIVITY_WAIT_SIPI))
 		return -EINVAL;
 
 	return 0;
@@ -3559,19 +3560,29 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	 */
 	nested_cache_shadow_vmcs12(vcpu, vmcs12);
 
-	/*
-	 * If we're entering a halted L2 vcpu and the L2 vcpu won't be
-	 * awakened by event injection or by an NMI-window VM-exit or
-	 * by an interrupt-window VM-exit, halt the vcpu.
-	 */
-	if ((vmcs12->guest_activity_state == GUEST_ACTIVITY_HLT) &&
-	    !(vmcs12->vm_entry_intr_info_field & INTR_INFO_VALID_MASK) &&
-	    !(vmcs12->cpu_based_vm_exec_control & CPU_BASED_NMI_WINDOW_EXITING) &&
-	    !((vmcs12->cpu_based_vm_exec_control & CPU_BASED_INTR_WINDOW_EXITING) &&
-	      (vmcs12->guest_rflags & X86_EFLAGS_IF))) {
+	switch (vmcs12->guest_activity_state) {
+	case GUEST_ACTIVITY_HLT:
+		/*
+		 * If we're entering a halted L2 vcpu and the L2 vcpu won't be
+		 * awakened by event injection or by an NMI-window VM-exit or
+		 * by an interrupt-window VM-exit, halt the vcpu.
+		 */
+		if (!(vmcs12->vm_entry_intr_info_field & INTR_INFO_VALID_MASK) &&
+		    !nested_cpu_has(vmcs12, CPU_BASED_NMI_WINDOW_EXITING) &&
+		    !(nested_cpu_has(vmcs12, CPU_BASED_INTR_WINDOW_EXITING) &&
+		      (vmcs12->guest_rflags & X86_EFLAGS_IF))) {
+			vmx->nested.nested_run_pending = 0;
+			return kvm_vcpu_halt(vcpu);
+		}
+		break;
+	case GUEST_ACTIVITY_WAIT_SIPI:
 		vmx->nested.nested_run_pending = 0;
-		return kvm_vcpu_halt(vcpu);
+		vcpu->arch.mp_state = KVM_MP_STATE_INIT_RECEIVED;
+		break;
+	default:
+		break;
 	}
+
 	return 1;
 
 vmentry_failed:
@@ -3797,7 +3808,20 @@ static int vmx_check_nested_events(struct kvm_vcpu *vcpu)
 			return -EBUSY;
 		nested_vmx_update_pending_dbg(vcpu);
 		clear_bit(KVM_APIC_INIT, &apic->pending_events);
-		nested_vmx_vmexit(vcpu, EXIT_REASON_INIT_SIGNAL, 0, 0);
+		if (vcpu->arch.mp_state != KVM_MP_STATE_INIT_RECEIVED)
+			nested_vmx_vmexit(vcpu, EXIT_REASON_INIT_SIGNAL, 0, 0);
+		return 0;
+	}
+
+	if (lapic_in_kernel(vcpu) &&
+	    test_bit(KVM_APIC_SIPI, &apic->pending_events)) {
+		if (block_nested_events)
+			return -EBUSY;
+
+		clear_bit(KVM_APIC_SIPI, &apic->pending_events);
+		if (vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED)
+			nested_vmx_vmexit(vcpu, EXIT_REASON_SIPI_SIGNAL, 0,
+						apic->sipi_vector & 0xFFUL);
 		return 0;
 	}
 
@@ -4036,6 +4060,8 @@ static void sync_vmcs02_to_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 
 	if (vcpu->arch.mp_state == KVM_MP_STATE_HALTED)
 		vmcs12->guest_activity_state = GUEST_ACTIVITY_HLT;
+	else if (vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED)
+		vmcs12->guest_activity_state = GUEST_ACTIVITY_WAIT_SIPI;
 	else
 		vmcs12->guest_activity_state = GUEST_ACTIVITY_ACTIVE;
 
@@ -4814,7 +4840,7 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 	/*
 	 * The Intel VMX Instruction Reference lists a bunch of bits that are
 	 * prerequisite to running VMXON, most notably cr4.VMXE must be set to
-	 * 1 (see vmx_set_cr4() for when we allow the guest to set this).
+	 * 1 (see vmx_is_valid_cr4() for when we allow the guest to set this).
 	 * Otherwise, we should fail with #UD.  But most faulting conditions
 	 * have already been checked by hardware, prior to the VM-exit for
 	 * VMXON.  We do test guest cr4.VMXE because processor CR4 always has
@@ -6483,7 +6509,8 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps)
 	msrs->misc_low |=
 		MSR_IA32_VMX_MISC_VMWRITE_SHADOW_RO_FIELDS |
 		VMX_MISC_EMULATED_PREEMPTION_TIMER_RATE |
-		VMX_MISC_ACTIVITY_HLT;
+		VMX_MISC_ACTIVITY_HLT |
+		VMX_MISC_ACTIVITY_WAIT_SIPI;
 	msrs->misc_high = 0;
 
 	/*

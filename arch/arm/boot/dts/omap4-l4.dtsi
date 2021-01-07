@@ -330,6 +330,7 @@
 			/* Domains (V, P, C): iva, tesla_pwrdm, tesla_clkdm */
 			clocks = <&tesla_clkctrl OMAP4_DSP_CLKCTRL 0>;
 			clock-names = "fck";
+			power-domains = <&prm_tesla>;
 			resets = <&prm_tesla 1>;
 			reset-names = "rstctrl";
 			#address-cells = <1>;
