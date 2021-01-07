@@ -566,26 +566,45 @@ static int vangogh_get_profiling_clk_mask(struct smu_context *smu,
 {
 	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
 
-	if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK) {
-		if (soc_mask)
-			*soc_mask = 0;
-	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK) {
+	if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK) {
 		if (mclk_mask)
-			/* mclk levels are in reverse order */
 			*mclk_mask = clk_table->NumDfPstatesEnabled - 1;
-			/* fclk levels are in reverse order */
+
 		if (fclk_mask)
 			*fclk_mask = clk_table->NumDfPstatesEnabled - 1;
+
+		if (soc_mask)
+			*soc_mask = 0;
 	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
 		if (mclk_mask)
-			/* mclk levels are in reverse order */
 			*mclk_mask = 0;
-			/* fclk levels are in reverse order */
+
 		if (fclk_mask)
 			*fclk_mask = 0;
 
 		if (soc_mask)
-			*soc_mask = clk_table->NumSocClkLevelsEnabled - 1;
+			*soc_mask = 1;
+
+		if (vclk_mask)
+			*vclk_mask = 1;
+
+		if (dclk_mask)
+			*dclk_mask = 1;
+	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD) {
+		if (mclk_mask)
+			*mclk_mask = 0;
+
+		if (fclk_mask)
+			*fclk_mask = 0;
+
+		if (soc_mask)
+			*soc_mask = 1;
+
+		if (vclk_mask)
+			*vclk_mask = 1;
+
+		if (dclk_mask)
+			*dclk_mask = 1;
 	}
 
 	return 0;
@@ -749,6 +768,40 @@ static int vangogh_get_dpm_ultimate_freq(struct smu_context *smu,
 	}
 failed:
 	return ret;
+}
+
+static int vangogh_get_power_profile_mode(struct smu_context *smu,
+					   char *buf)
+{
+	static const char *profile_name[] = {
+					"FULL_SCREEN_3D",
+					"VIDEO",
+					"VR",
+					"COMPUTE",
+					"CUSTOM"};
+	uint32_t i, size = 0;
+	int16_t workload_type = 0;
+
+	if (!buf)
+		return -EINVAL;
+
+	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
+		/*
+		 * Conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT
+		 * Not all profile modes are supported on vangogh.
+		 */
+		workload_type = smu_cmn_to_asic_specific_index(smu,
+							       CMN2ASIC_MAPPING_WORKLOAD,
+							       i);
+
+		if (workload_type < 0)
+			continue;
+
+		size += sprintf(buf + size, "%2d %14s%s\n",
+			i, profile_name[i], (i == smu->power_profile_mode) ? "*" : " ");
+	}
+
+	return size;
 }
 
 static int vangogh_set_power_profile_mode(struct smu_context *smu, long *input, uint32_t size)
@@ -925,40 +978,49 @@ static int vangogh_force_clk_levels(struct smu_context *smu,
 							clk_type, soft_min_level, &min_freq);
 		if (ret)
 			return ret;
+
 		ret = vangogh_get_dpm_clk_limited(smu,
 							clk_type, soft_max_level, &max_freq);
 		if (ret)
 			return ret;
-		ret = smu_cmn_send_smc_msg_with_param(smu,
-								SMU_MSG_SetSoftMaxVcn,
-								max_freq << 16, NULL);
-		if (ret)
-			return ret;
+
+
 		ret = smu_cmn_send_smc_msg_with_param(smu,
 								SMU_MSG_SetHardMinVcn,
 								min_freq << 16, NULL);
 		if (ret)
 			return ret;
+
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+								SMU_MSG_SetSoftMaxVcn,
+								max_freq << 16, NULL);
+		if (ret)
+			return ret;
+
 		break;
 	case SMU_DCLK:
 		ret = vangogh_get_dpm_clk_limited(smu,
 							clk_type, soft_min_level, &min_freq);
 		if (ret)
 			return ret;
+
 		ret = vangogh_get_dpm_clk_limited(smu,
 							clk_type, soft_max_level, &max_freq);
 		if (ret)
 			return ret;
-		ret = smu_cmn_send_smc_msg_with_param(smu,
-							SMU_MSG_SetSoftMaxVcn,
-							max_freq, NULL);
-		if (ret)
-			return ret;
+
 		ret = smu_cmn_send_smc_msg_with_param(smu,
 							SMU_MSG_SetHardMinVcn,
 							min_freq, NULL);
 		if (ret)
 			return ret;
+
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+							SMU_MSG_SetSoftMaxVcn,
+							max_freq, NULL);
+		if (ret)
+			return ret;
+
 		break;
 	default:
 		break;
@@ -1038,6 +1100,7 @@ static int vangogh_set_peak_clock_by_device(struct smu_context *smu)
 {
 	int ret = 0;
 	uint32_t socclk_freq = 0, fclk_freq = 0;
+	uint32_t vclk_freq = 0, dclk_freq = 0;
 
 	ret = vangogh_get_dpm_ultimate_freq(smu, SMU_FCLK, NULL, &fclk_freq);
 	if (ret)
@@ -1055,6 +1118,22 @@ static int vangogh_set_peak_clock_by_device(struct smu_context *smu)
 	if (ret)
 		return ret;
 
+	ret = vangogh_get_dpm_ultimate_freq(smu, SMU_VCLK, NULL, &vclk_freq);
+	if (ret)
+		return ret;
+
+	ret = vangogh_set_soft_freq_limited_range(smu, SMU_VCLK, vclk_freq, vclk_freq);
+	if (ret)
+		return ret;
+
+	ret = vangogh_get_dpm_ultimate_freq(smu, SMU_DCLK, NULL, &dclk_freq);
+	if (ret)
+		return ret;
+
+	ret = vangogh_set_soft_freq_limited_range(smu, SMU_DCLK, dclk_freq, dclk_freq);
+	if (ret)
+		return ret;
+
 	return ret;
 }
 
@@ -1063,6 +1142,7 @@ static int vangogh_set_performance_level(struct smu_context *smu,
 {
 	int ret = 0;
 	uint32_t soc_mask, mclk_mask, fclk_mask;
+	uint32_t vclk_mask = 0, dclk_mask = 0;
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
@@ -1075,8 +1155,44 @@ static int vangogh_set_performance_level(struct smu_context *smu,
 		ret = vangogh_unforce_dpm_levels(smu);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+					SMU_MSG_SetHardMinGfxClk,
+					VANGOGH_UMD_PSTATE_STANDARD_GFXCLK, NULL);
+		if (ret)
+			return ret;
+
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+					SMU_MSG_SetSoftMaxGfxClk,
+					VANGOGH_UMD_PSTATE_STANDARD_GFXCLK, NULL);
+		if (ret)
+			return ret;
+
+		ret = vangogh_get_profiling_clk_mask(smu, level,
+							&vclk_mask,
+							&dclk_mask,
+							&mclk_mask,
+							&fclk_mask,
+							&soc_mask);
+		if (ret)
+			return ret;
+
+		vangogh_force_clk_levels(smu, SMU_MCLK, 1 << mclk_mask);
+		vangogh_force_clk_levels(smu, SMU_FCLK, 1 << fclk_mask);
+		vangogh_force_clk_levels(smu, SMU_SOCCLK, 1 << soc_mask);
+		vangogh_force_clk_levels(smu, SMU_VCLK, 1 << vclk_mask);
+		vangogh_force_clk_levels(smu, SMU_DCLK, 1 << dclk_mask);
+
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinVcn,
+								VANGOGH_UMD_PSTATE_PEAK_DCLK, NULL);
+		if (ret)
+			return ret;
+
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxVcn,
+								VANGOGH_UMD_PSTATE_PEAK_DCLK, NULL);
+		if (ret)
+			return ret;
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
 		ret = vangogh_get_profiling_clk_mask(smu, level,
@@ -1084,14 +1200,24 @@ static int vangogh_set_performance_level(struct smu_context *smu,
 							NULL,
 							&mclk_mask,
 							&fclk_mask,
-							&soc_mask);
+							NULL);
 		if (ret)
 			return ret;
+
 		vangogh_force_clk_levels(smu, SMU_MCLK, 1 << mclk_mask);
 		vangogh_force_clk_levels(smu, SMU_FCLK, 1 << fclk_mask);
-		vangogh_force_clk_levels(smu, SMU_SOCCLK, 1 << soc_mask);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinGfxClk,
+				VANGOGH_UMD_PSTATE_PEAK_GFXCLK, NULL);
+		if (ret)
+			return ret;
+
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxGfxClk,
+				VANGOGH_UMD_PSTATE_PEAK_GFXCLK, NULL);
+		if (ret)
+			return ret;
+
 		ret = vangogh_set_peak_clock_by_device(smu);
 		break;
 	case AMD_DPM_FORCED_LEVEL_MANUAL:
@@ -1302,14 +1428,16 @@ static int vangogh_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TAB
 
 		if (input[0] == 0) {
 			if (input[1] < smu->gfx_default_hard_min_freq) {
-				dev_warn(smu->adev->dev, "Fine grain setting minimum sclk (%ld) MHz is less than the minimum allowed (%d) MHz\n",
+				dev_warn(smu->adev->dev,
+					"Fine grain setting minimum sclk (%ld) MHz is less than the minimum allowed (%d) MHz\n",
 					input[1], smu->gfx_default_hard_min_freq);
 				return -EINVAL;
 			}
 			smu->gfx_actual_hard_min_freq = input[1];
 		} else if (input[0] == 1) {
 			if (input[1] > smu->gfx_default_soft_max_freq) {
-				dev_warn(smu->adev->dev, "Fine grain setting maximum sclk (%ld) MHz is greater than the maximum allowed (%d) MHz\n",
+				dev_warn(smu->adev->dev,
+					"Fine grain setting maximum sclk (%ld) MHz is greater than the maximum allowed (%d) MHz\n",
 					input[1], smu->gfx_default_soft_max_freq);
 				return -EINVAL;
 			}
@@ -1347,8 +1475,10 @@ static int vangogh_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TAB
 			return -EINVAL;
 		} else {
 			if (smu->gfx_actual_hard_min_freq > smu->gfx_actual_soft_max_freq) {
-				dev_err(smu->adev->dev, "The setting minimun sclk (%d) MHz is greater than the setting maximum sclk (%d) MHz\n",
-				smu->gfx_actual_hard_min_freq, smu->gfx_actual_soft_max_freq);
+				dev_err(smu->adev->dev,
+					"The setting minimun sclk (%d) MHz is greater than the setting maximum sclk (%d) MHz\n",
+					smu->gfx_actual_hard_min_freq,
+					smu->gfx_actual_soft_max_freq);
 				return -EINVAL;
 			}
 
@@ -1493,6 +1623,7 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.system_features_control = vangogh_system_features_control,
 	.feature_is_enabled = smu_cmn_feature_is_enabled,
 	.set_power_profile_mode = vangogh_set_power_profile_mode,
+	.get_power_profile_mode = vangogh_get_power_profile_mode,
 	.get_dpm_clock_table = vangogh_get_dpm_clock_table,
 	.force_clk_levels = vangogh_force_clk_levels,
 	.set_performance_level = vangogh_set_performance_level,
