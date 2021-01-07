@@ -30,12 +30,12 @@ DECLARE_HOOK(android_vh_scheduler_tick,
 	TP_ARGS(rq));
 
 DECLARE_RESTRICTED_HOOK(android_rvh_enqueue_task,
-	TP_PROTO(struct rq *rq, struct task_struct *p),
-	TP_ARGS(rq, p), 1);
+	TP_PROTO(struct rq *rq, struct task_struct *p, int flags),
+	TP_ARGS(rq, p, flags), 1);
 
 DECLARE_RESTRICTED_HOOK(android_rvh_dequeue_task,
-	TP_PROTO(struct rq *rq, struct task_struct *p),
-	TP_ARGS(rq, p), 1);
+	TP_PROTO(struct rq *rq, struct task_struct *p, int flags),
+	TP_ARGS(rq, p, flags), 1);
 
 DECLARE_RESTRICTED_HOOK(android_rvh_can_migrate_task,
 	TP_PROTO(struct task_struct *p, int dst_cpu, int *can_migrate),
@@ -195,8 +195,8 @@ DECLARE_RESTRICTED_HOOK(android_rvh_cpu_cgroup_attach,
 #define trace_android_rvh_select_task_rq_rt(p, prev_cpu, sd_flag, wake_flags, new_cpu)
 #define trace_android_rvh_select_fallback_rq(cpu, p, dest_cpu)
 #define trace_android_vh_scheduler_tick(rq)
-#define trace_android_rvh_enqueue_task(rq, p)
-#define trace_android_rvh_dequeue_task(rq, p)
+#define trace_android_rvh_enqueue_task(rq, p, flags)
+#define trace_android_rvh_dequeue_task(rq, p, flags)
 #define trace_android_rvh_can_migrate_task(p, dst_cpu, can_migrate)
 #define trace_android_rvh_find_lowest_rq(p, local_cpu_mask, ret, lowest_cpu)
 #define trace_android_rvh_prepare_prio_fork(p)
