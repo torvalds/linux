@@ -8473,7 +8473,8 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			acrtc->dm_irq_params.stream = dm_new_crtc_state->stream;
 			manage_dm_interrupts(adev, acrtc, true);
 		}
-		if (IS_ENABLED(CONFIG_DEBUG_FS) && new_crtc_state->active &&
+#ifdef CONFIG_DEBUG_FS
+		if (new_crtc_state->active &&
 			amdgpu_dm_is_valid_crc_source(dm_new_crtc_state->crc_src)) {
 			/**
 			 * Frontend may have changed so reapply the CRC capture
@@ -8494,6 +8495,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 				amdgpu_dm_crtc_configure_crc_source(
 					crtc, dm_new_crtc_state, dm_new_crtc_state->crc_src);
 		}
+#endif
 	}
 
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, j)
