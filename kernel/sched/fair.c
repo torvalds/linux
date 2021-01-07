@@ -6625,6 +6625,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
 	struct perf_domain *pd;
 	int new_cpu = INT_MAX;
 
+	sync_entity_load_avg(&p->se);
 	trace_android_rvh_find_energy_efficient_cpu(p, prev_cpu, sync, &new_cpu);
 	if (new_cpu != INT_MAX)
 		return new_cpu;
@@ -6652,7 +6653,6 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
 	if (!sd)
 		goto fail;
 
-	sync_entity_load_avg(&p->se);
 	if (!task_util_est(p))
 		goto unlock;
 
