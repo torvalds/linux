@@ -754,6 +754,7 @@ void svm_leave_nested(struct vcpu_svm *svm)
 		leave_guest_mode(&svm->vcpu);
 		copy_vmcb_control_area(&vmcb->control, &hsave->control);
 		nested_svm_uninit_mmu_context(&svm->vcpu);
+		vmcb_mark_all_dirty(svm->vmcb);
 	}
 
 	kvm_clear_request(KVM_REQ_GET_NESTED_STATE_PAGES, &svm->vcpu);
