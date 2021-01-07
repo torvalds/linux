@@ -152,6 +152,7 @@ static const struct pptable_funcs yellow_carp_ppt_funcs = {
 	.get_enabled_mask = smu_cmn_get_enabled_32_bits_mask,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_driver_table_location = smu_v13_0_1_set_driver_table_location,
+	.gfx_off_control = smu_v13_0_1_gfx_off_control,
 };
 
 void yellow_carp_set_ppt_funcs(struct smu_context *smu)
