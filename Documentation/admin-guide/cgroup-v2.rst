@@ -1558,7 +1558,7 @@ IO Interface Files
 	  8:0 rbytes=90430464 wbytes=299008000 rios=8950 wios=1252 dbytes=50331648 dios=3021
 
   io.cost.qos
-	A read-write nested-keyed file with exists only on the root
+	A read-write nested-keyed file which exists only on the root
 	cgroup.
 
 	This file configures the Quality of Service of the IO cost
@@ -1613,7 +1613,7 @@ IO Interface Files
 	automatic mode can be restored by setting "ctrl" to "auto".
 
   io.cost.model
-	A read-write nested-keyed file with exists only on the root
+	A read-write nested-keyed file which exists only on the root
 	cgroup.
 
 	This file configures the cost model of the IO cost model based
