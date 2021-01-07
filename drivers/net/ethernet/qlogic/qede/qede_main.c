@@ -663,8 +663,6 @@ static const struct net_device_ops qede_netdev_ops = {
 	.ndo_get_vf_config	= qede_get_vf_config,
 	.ndo_set_vf_rate	= qede_set_vf_rate,
 #endif
-	.ndo_udp_tunnel_add	= udp_tunnel_nic_add_port,
-	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
 	.ndo_features_check	= qede_features_check,
 	.ndo_bpf		= qede_xdp,
 #ifdef CONFIG_RFS_ACCEL
@@ -688,8 +686,6 @@ static const struct net_device_ops qede_netdev_vf_ops = {
 	.ndo_fix_features	= qede_fix_features,
 	.ndo_set_features	= qede_set_features,
 	.ndo_get_stats64	= qede_get_stats64,
-	.ndo_udp_tunnel_add	= udp_tunnel_nic_add_port,
-	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
 	.ndo_features_check	= qede_features_check,
 };
 
@@ -707,8 +703,6 @@ static const struct net_device_ops qede_netdev_vf_xdp_ops = {
 	.ndo_fix_features	= qede_fix_features,
 	.ndo_set_features	= qede_set_features,
 	.ndo_get_stats64	= qede_get_stats64,
-	.ndo_udp_tunnel_add	= udp_tunnel_nic_add_port,
-	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
 	.ndo_features_check	= qede_features_check,
 	.ndo_bpf		= qede_xdp,
 	.ndo_xdp_xmit		= qede_xdp_transmit,
