@@ -589,11 +589,7 @@ static int drm_dev_init(struct drm_device *dev,
 
 	kref_init(&dev->ref);
 	dev->dev = get_device(parent);
-#ifdef CONFIG_DRM_LEGACY
-	dev->driver = (struct drm_driver *)driver;
-#else
 	dev->driver = driver;
-#endif
 
 	INIT_LIST_HEAD(&dev->managed.resources);
 	spin_lock_init(&dev->managed.lock);

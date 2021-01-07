@@ -866,12 +866,18 @@ struct drm_connector_helper_funcs {
 	 * The usual way to implement this is to cache the EDID retrieved in the
 	 * probe callback somewhere in the driver-private connector structure.
 	 * In this function drivers then parse the modes in the EDID and add
-	 * them by calling drm_add_edid_modes(). But connectors that driver a
+	 * them by calling drm_add_edid_modes(). But connectors that drive a
 	 * fixed panel can also manually add specific modes using
 	 * drm_mode_probed_add(). Drivers which manually add modes should also
 	 * make sure that the &drm_connector.display_info,
 	 * &drm_connector.width_mm and &drm_connector.height_mm fields are
 	 * filled in.
+	 *
+	 * Note that the caller function will automatically add standard VESA
+	 * DMT modes up to 1024x768 if the .get_modes() helper operation returns
+	 * no mode and if the connector status is connector_status_connected or
+	 * connector_status_unknown. There is no need to call
+	 * drm_add_modes_noedid() manually in that case.
 	 *
 	 * Virtual drivers that just want some standard VESA mode with a given
 	 * resolution can call drm_add_modes_noedid(), and mark the preferred

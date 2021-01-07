@@ -335,22 +335,12 @@ out:
 }
 EXPORT_SYMBOL_GPL(drm_gem_dumb_map_offset);
 
-/**
- * drm_gem_dumb_destroy - dumb fb callback helper for gem based drivers
- * @file: drm file-private structure to remove the dumb handle from
- * @dev: corresponding drm_device
- * @handle: the dumb handle to remove
- *
- * This implements the &drm_driver.dumb_destroy kms driver callback for drivers
- * which use gem to manage their backing storage.
- */
 int drm_gem_dumb_destroy(struct drm_file *file,
 			 struct drm_device *dev,
-			 uint32_t handle)
+			 u32 handle)
 {
 	return drm_gem_handle_delete(file, handle);
 }
-EXPORT_SYMBOL(drm_gem_dumb_destroy);
 
 /**
  * drm_gem_handle_create_tail - internal functions to create a handle
