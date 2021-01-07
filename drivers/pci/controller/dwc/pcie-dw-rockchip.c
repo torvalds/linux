@@ -1352,9 +1352,11 @@ static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
 	rk_pcie_ep_setup(rk_pcie);
 
 	/* hold link reset grant after link-up */
-	ret = rk_pcie_reset_grant_ctrl(rk_pcie, false);
-	if (ret)
-		goto err;
+	if (rk_pcie->is_rk1808) {
+		ret = rk_pcie_reset_grant_ctrl(rk_pcie, false);
+		if (ret)
+			goto err;
+	}
 
 	dw_pcie_dbi_ro_wr_dis(rk_pcie->pci);
 
@@ -1368,8 +1370,8 @@ err:
 }
 
 static const struct dev_pm_ops rockchip_dw_pcie_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(rockchip_dw_pcie_suspend,
-				rockchip_dw_pcie_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(rockchip_dw_pcie_suspend,
+				      rockchip_dw_pcie_resume)
 };
 
 static struct platform_driver rk_plat_pcie_driver = {
