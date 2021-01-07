@@ -878,12 +878,6 @@ static inline int call_dsa_notifiers(unsigned long val, struct net_device *dev,
 }
 #endif
 
-/* Broadcom tag specific helpers to insert and extract queue/port number */
-#define BRCM_TAG_SET_PORT_QUEUE(p, q)	((p) << 8 | q)
-#define BRCM_TAG_GET_PORT(v)		((v) >> 8)
-#define BRCM_TAG_GET_QUEUE(v)		((v) & 0xff)
-
-
 netdev_tx_t dsa_enqueue_skb(struct sk_buff *skb, struct net_device *dev);
 int dsa_port_get_phy_strings(struct dsa_port *dp, uint8_t *data);
 int dsa_port_get_ethtool_phy_stats(struct dsa_port *dp, uint64_t *data);
