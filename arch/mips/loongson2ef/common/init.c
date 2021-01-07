@@ -19,7 +19,6 @@ unsigned long __maybe_unused _loongson_addrwincfg_base;
 static void __init mips_nmi_setup(void)
 {
 	void *base;
-	extern char except_vec_nmi[];
 
 	base = (void *)(CAC_BASE + 0x380);
 	memcpy(base, except_vec_nmi, 0x80);
