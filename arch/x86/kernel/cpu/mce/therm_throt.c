@@ -633,17 +633,6 @@ static int intel_thermal_supported(struct cpuinfo_x86 *c)
 	return 1;
 }
 
-void __init mcheck_intel_therm_init(void)
-{
-	/*
-	 * This function is only called on boot CPU. Save the init thermal
-	 * LVT value on BSP and use that value to restore APs' thermal LVT
-	 * entry BIOS programmed later
-	 */
-	if (intel_thermal_supported(&boot_cpu_data))
-		lvtthmr_init = apic_read(APIC_LVTTHMR);
-}
-
 void intel_init_thermal(struct cpuinfo_x86 *c)
 {
 	unsigned int cpu = smp_processor_id();
@@ -652,6 +641,10 @@ void intel_init_thermal(struct cpuinfo_x86 *c)
 
 	if (!intel_thermal_supported(c))
 		return;
+
+	/* On the BSP? */
+	if (c == &boot_cpu_data)
+		lvtthmr_init = apic_read(APIC_LVTTHMR);
 
 	/*
 	 * First check if its enabled already, in which case there might
