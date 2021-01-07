@@ -28,17 +28,6 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-enum v4l2_fwnode_bus_type {
-	V4L2_FWNODE_BUS_TYPE_GUESS = 0,
-	V4L2_FWNODE_BUS_TYPE_CSI2_CPHY,
-	V4L2_FWNODE_BUS_TYPE_CSI1,
-	V4L2_FWNODE_BUS_TYPE_CCP2,
-	V4L2_FWNODE_BUS_TYPE_CSI2_DPHY,
-	V4L2_FWNODE_BUS_TYPE_PARALLEL,
-	V4L2_FWNODE_BUS_TYPE_BT656,
-	NR_OF_V4L2_FWNODE_BUS_TYPE,
-};
-
 static const struct v4l2_fwnode_bus_conv {
 	enum v4l2_fwnode_bus_type fwnode_bus_type;
 	enum v4l2_mbus_type mbus_type;

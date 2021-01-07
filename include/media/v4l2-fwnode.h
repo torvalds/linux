@@ -214,6 +214,28 @@ struct v4l2_fwnode_connector {
 };
 
 /**
+ * enum v4l2_fwnode_bus_type - Video bus types defined by firmware properties
+ * @V4L2_FWNODE_BUS_TYPE_GUESS: Default value if no bus-type fwnode property
+ * @V4L2_FWNODE_BUS_TYPE_CSI2_CPHY: MIPI CSI-2 bus, C-PHY physical layer
+ * @V4L2_FWNODE_BUS_TYPE_CSI1: MIPI CSI-1 bus
+ * @V4L2_FWNODE_BUS_TYPE_CCP2: SMIA Compact Camera Port 2 bus
+ * @V4L2_FWNODE_BUS_TYPE_CSI2_DPHY: MIPI CSI-2 bus, D-PHY physical layer
+ * @V4L2_FWNODE_BUS_TYPE_PARALLEL: Camera Parallel Interface bus
+ * @V4L2_FWNODE_BUS_TYPE_BT656: BT.656 video format bus-type
+ * @NR_OF_V4L2_FWNODE_BUS_TYPE: Number of bus-types
+ */
+enum v4l2_fwnode_bus_type {
+	V4L2_FWNODE_BUS_TYPE_GUESS = 0,
+	V4L2_FWNODE_BUS_TYPE_CSI2_CPHY,
+	V4L2_FWNODE_BUS_TYPE_CSI1,
+	V4L2_FWNODE_BUS_TYPE_CCP2,
+	V4L2_FWNODE_BUS_TYPE_CSI2_DPHY,
+	V4L2_FWNODE_BUS_TYPE_PARALLEL,
+	V4L2_FWNODE_BUS_TYPE_BT656,
+	NR_OF_V4L2_FWNODE_BUS_TYPE
+};
+
+/**
  * v4l2_fwnode_endpoint_parse() - parse all fwnode node properties
  * @fwnode: pointer to the endpoint's fwnode handle
  * @vep: pointer to the V4L2 fwnode data structure
