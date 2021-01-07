@@ -146,6 +146,41 @@
 		reg = <0x1a>;
 		wlf,shared-lrclk;
 	};
+
+	camera@3c {
+		compatible = "ovti,ov5640";
+		reg = <0x3c>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_camera_clock>;
+		clocks = <&clks IMX6UL_CLK_CSI>;
+		clock-names = "xclk";
+		powerdown-gpios = <&gpio_spi 6 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio_spi 5 GPIO_ACTIVE_LOW>;
+
+		port {
+			ov5640_to_parallel: endpoint {
+				remote-endpoint = <&parallel_from_ov5640>;
+				bus-width = <8>;
+				data-shift = <2>; /* lines 9:2 are used */
+				hsync-active = <0>;
+				vsync-active = <0>;
+				pclk-sample = <1>;
+			};
+		};
+	};
+};
+
+&csi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_csi1>;
+	status = "okay";
+
+	port {
+		parallel_from_ov5640: endpoint {
+			remote-endpoint = <&ov5640_to_parallel>;
+			bus-type = <5>; /* Parallel bus */
+		};
+	};
 };
 
 &fec1 {
@@ -353,9 +388,14 @@
 &iomuxc {
 	pinctrl-names = "default";
 
-	pinctrl_csi1: csi1grp {
+	pinctrl_camera_clock: cameraclockgrp {
 		fsl,pins = <
 			MX6UL_PAD_CSI_MCLK__CSI_MCLK		0x1b088
+		>;
+	};
+
+	pinctrl_csi1: csi1grp {
+		fsl,pins = <
 			MX6UL_PAD_CSI_PIXCLK__CSI_PIXCLK	0x1b088
 			MX6UL_PAD_CSI_VSYNC__CSI_VSYNC		0x1b088
 			MX6UL_PAD_CSI_HSYNC__CSI_HSYNC		0x1b088
