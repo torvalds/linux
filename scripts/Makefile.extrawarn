@@ -60,7 +60,6 @@ endif
 #
 ifneq ($(findstring 2, $(KBUILD_EXTRA_WARN)),)
 
-KBUILD_CFLAGS += -Wcast-align
 KBUILD_CFLAGS += -Wdisabled-optimization
 KBUILD_CFLAGS += -Wnested-externs
 KBUILD_CFLAGS += -Wshadow
@@ -80,6 +79,7 @@ endif
 ifneq ($(findstring 3, $(KBUILD_EXTRA_WARN)),)
 
 KBUILD_CFLAGS += -Wbad-function-cast
+KBUILD_CFLAGS += -Wcast-align
 KBUILD_CFLAGS += -Wcast-qual
 KBUILD_CFLAGS += -Wconversion
 KBUILD_CFLAGS += -Wpacked

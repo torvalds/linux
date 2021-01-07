@@ -84,12 +84,14 @@ struct sl28cpld_pwm {
 	struct regmap *regmap;
 	u32 offset;
 };
+#define sl28cpld_pwm_from_chip(_chip) \
+	container_of(_chip, struct sl28cpld_pwm, pwm_chip)
 
 static void sl28cpld_pwm_get_state(struct pwm_chip *chip,
 				   struct pwm_device *pwm,
 				   struct pwm_state *state)
 {
-	struct sl28cpld_pwm *priv = dev_get_drvdata(chip->dev);
+	struct sl28cpld_pwm *priv = sl28cpld_pwm_from_chip(chip);
 	unsigned int reg;
 	int prescaler;
 
@@ -118,7 +120,7 @@ static void sl28cpld_pwm_get_state(struct pwm_chip *chip,
 static int sl28cpld_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			      const struct pwm_state *state)
 {
-	struct sl28cpld_pwm *priv = dev_get_drvdata(chip->dev);
+	struct sl28cpld_pwm *priv = sl28cpld_pwm_from_chip(chip);
 	unsigned int cycle, prescaler;
 	bool write_duty_cycle_first;
 	int ret;

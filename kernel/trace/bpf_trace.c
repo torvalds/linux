@@ -181,6 +181,16 @@ bpf_probe_read_user_str_common(void *dst, u32 size,
 {
 	int ret;
 
+	/*
+	 * NB: We rely on strncpy_from_user() not copying junk past the NUL
+	 * terminator into `dst`.
+	 *
+	 * strncpy_from_user() does long-sized strides in the fast path. If the
+	 * strncpy does not mask out the bytes after the NUL in `unsafe_ptr`,
+	 * then there could be junk after the NUL in `dst`. If user takes `dst`
+	 * and keys a hash map with it, then semantically identical strings can
+	 * occupy multiple entries in the map.
+	 */
 	ret = strncpy_from_user_nofault(dst, unsafe_ptr, size);
 	if (unlikely(ret < 0))
 		memset(dst, 0, size);
@@ -1198,7 +1208,7 @@ static int bpf_btf_printf_prepare(struct btf_ptr *ptr, u32 btf_ptr_size,
 	*btf = bpf_get_btf_vmlinux();
 
 	if (IS_ERR_OR_NULL(*btf))
-		return PTR_ERR(*btf);
+		return IS_ERR(*btf) ? PTR_ERR(*btf) : -EINVAL;
 
 	if (ptr->type_id > 0)
 		*btf_id = ptr->type_id;
@@ -1327,9 +1337,9 @@ bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return prog->aux->sleepable ? &bpf_copy_from_user_proto : NULL;
 	case BPF_FUNC_snprintf_btf:
 		return &bpf_snprintf_btf_proto;
-	case BPF_FUNC_bpf_per_cpu_ptr:
+	case BPF_FUNC_per_cpu_ptr:
 		return &bpf_per_cpu_ptr_proto;
-	case BPF_FUNC_bpf_this_cpu_ptr:
+	case BPF_FUNC_this_cpu_ptr:
 		return &bpf_this_cpu_ptr_proto;
 	default:
 		return NULL;

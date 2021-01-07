@@ -177,6 +177,9 @@ static int br_dev_open(struct net_device *dev)
 	br_stp_enable_bridge(br);
 	br_multicast_open(br);
 
+	if (br_opt_get(br, BROPT_MULTICAST_ENABLED))
+		br_multicast_join_snoopers(br);
+
 	return 0;
 }
 
@@ -197,6 +200,9 @@ static int br_dev_stop(struct net_device *dev)
 	br_stp_disable_bridge(br);
 	br_multicast_stop(br);
 
+	if (br_opt_get(br, BROPT_MULTICAST_ENABLED))
+		br_multicast_leave_snoopers(br);
+
 	netif_stop_queue(dev);
 
 	return 0;
@@ -207,6 +213,7 @@ static void br_get_stats64(struct net_device *dev,
 {
 	struct net_bridge *br = netdev_priv(dev);
 
+	netdev_stats_to_stats64(stats, &dev->stats);
 	dev_fetch_sw_netstats(stats, br->stats);
 }
 

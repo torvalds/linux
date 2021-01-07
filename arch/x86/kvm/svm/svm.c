@@ -546,12 +546,12 @@ static int svm_hardware_enable(void)
 
 static void svm_cpu_uninit(int cpu)
 {
-	struct svm_cpu_data *sd = per_cpu(svm_data, raw_smp_processor_id());
+	struct svm_cpu_data *sd = per_cpu(svm_data, cpu);
 
 	if (!sd)
 		return;
 
-	per_cpu(svm_data, raw_smp_processor_id()) = NULL;
+	per_cpu(svm_data, cpu) = NULL;
 	kfree(sd->sev_vmcbs);
 	__free_page(sd->save_area);
 	kfree(sd);
@@ -1347,8 +1347,10 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 		svm->avic_is_running = true;
 
 	svm->msrpm = svm_vcpu_alloc_msrpm();
-	if (!svm->msrpm)
+	if (!svm->msrpm) {
+		err = -ENOMEM;
 		goto error_free_vmsa_page;
+	}
 
 	svm_vcpu_init_msrpm(vcpu, svm->msrpm);
 

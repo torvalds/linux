@@ -68,7 +68,7 @@ static bool zap_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
 
 void kvm_tdp_mmu_free_root(struct kvm *kvm, struct kvm_mmu_page *root)
 {
-	gfn_t max_gfn = 1ULL << (boot_cpu_data.x86_phys_bits - PAGE_SHIFT);
+	gfn_t max_gfn = 1ULL << (shadow_phys_bits - PAGE_SHIFT);
 
 	lockdep_assert_held(&kvm->mmu_lock);
 
@@ -464,7 +464,7 @@ bool kvm_tdp_mmu_zap_gfn_range(struct kvm *kvm, gfn_t start, gfn_t end)
 
 void kvm_tdp_mmu_zap_all(struct kvm *kvm)
 {
-	gfn_t max_gfn = 1ULL << (boot_cpu_data.x86_phys_bits - PAGE_SHIFT);
+	gfn_t max_gfn = 1ULL << (shadow_phys_bits - PAGE_SHIFT);
 	bool flush;
 
 	flush = kvm_tdp_mmu_zap_gfn_range(kvm, 0, max_gfn);
@@ -1160,16 +1160,19 @@ bool kvm_tdp_mmu_write_protect_gfn(struct kvm *kvm,
  * Return the level of the lowest level SPTE added to sptes.
  * That SPTE may be non-present.
  */
-int kvm_tdp_mmu_get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes)
+int kvm_tdp_mmu_get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes,
+			 int *root_level)
 {
 	struct tdp_iter iter;
 	struct kvm_mmu *mmu = vcpu->arch.mmu;
-	int leaf = vcpu->arch.mmu->shadow_root_level;
 	gfn_t gfn = addr >> PAGE_SHIFT;
+	int leaf = -1;
+
+	*root_level = vcpu->arch.mmu->shadow_root_level;
 
 	tdp_mmu_for_each_pte(iter, mmu, gfn, gfn + 1) {
 		leaf = iter.level;
-		sptes[leaf - 1] = iter.old_spte;
+		sptes[leaf] = iter.old_spte;
 	}
 
 	return leaf;

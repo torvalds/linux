@@ -2272,17 +2272,15 @@ static struct crt_sd_ctxt *
 create_sd_buf(umode_t mode, bool set_owner, unsigned int *len)
 {
 	struct crt_sd_ctxt *buf;
-	struct cifs_ace *pace;
-	unsigned int sdlen, acelen;
+	__u8 *ptr, *aclptr;
+	unsigned int acelen, acl_size, ace_count;
 	unsigned int owner_offset = 0;
 	unsigned int group_offset = 0;
+	struct smb3_acl acl;
 
-	*len = roundup(sizeof(struct crt_sd_ctxt) + (sizeof(struct cifs_ace) * 2), 8);
+	*len = roundup(sizeof(struct crt_sd_ctxt) + (sizeof(struct cifs_ace) * 4), 8);
 
 	if (set_owner) {
-		/* offset fields are from beginning of security descriptor not of create context */
-		owner_offset = sizeof(struct smb3_acl) + (sizeof(struct cifs_ace) * 2);
-
 		/* sizeof(struct owner_group_sids) is already multiple of 8 so no need to round */
 		*len += sizeof(struct owner_group_sids);
 	}
@@ -2291,26 +2289,22 @@ create_sd_buf(umode_t mode, bool set_owner, unsigned int *len)
 	if (buf == NULL)
 		return buf;
 
+	ptr = (__u8 *)&buf[1];
 	if (set_owner) {
+		/* offset fields are from beginning of security descriptor not of create context */
+		owner_offset = ptr - (__u8 *)&buf->sd;
 		buf->sd.OffsetOwner = cpu_to_le32(owner_offset);
-		group_offset = owner_offset + sizeof(struct owner_sid);
+		group_offset = owner_offset + offsetof(struct owner_group_sids, group);
 		buf->sd.OffsetGroup = cpu_to_le32(group_offset);
+
+		setup_owner_group_sids(ptr);
+		ptr += sizeof(struct owner_group_sids);
 	} else {
 		buf->sd.OffsetOwner = 0;
 		buf->sd.OffsetGroup = 0;
 	}
 
-	sdlen = sizeof(struct smb3_sd) + sizeof(struct smb3_acl) +
-		 2 * sizeof(struct cifs_ace);
-	if (set_owner) {
-		sdlen += sizeof(struct owner_group_sids);
-		setup_owner_group_sids(owner_offset + sizeof(struct create_context) + 8 /* name */
-			+ (char *)buf);
-	}
-
-	buf->ccontext.DataOffset = cpu_to_le16(offsetof
-					(struct crt_sd_ctxt, sd));
-	buf->ccontext.DataLength = cpu_to_le32(sdlen);
+	buf->ccontext.DataOffset = cpu_to_le16(offsetof(struct crt_sd_ctxt, sd));
 	buf->ccontext.NameOffset = cpu_to_le16(offsetof(struct crt_sd_ctxt, Name));
 	buf->ccontext.NameLength = cpu_to_le16(4);
 	/* SMB2_CREATE_SD_BUFFER_TOKEN is "SecD" */
@@ -2319,6 +2313,7 @@ create_sd_buf(umode_t mode, bool set_owner, unsigned int *len)
 	buf->Name[2] = 'c';
 	buf->Name[3] = 'D';
 	buf->sd.Revision = 1;  /* Must be one see MS-DTYP 2.4.6 */
+
 	/*
 	 * ACL is "self relative" ie ACL is stored in contiguous block of memory
 	 * and "DP" ie the DACL is present
@@ -2326,28 +2321,38 @@ create_sd_buf(umode_t mode, bool set_owner, unsigned int *len)
 	buf->sd.Control = cpu_to_le16(ACL_CONTROL_SR | ACL_CONTROL_DP);
 
 	/* offset owner, group and Sbz1 and SACL are all zero */
-	buf->sd.OffsetDacl = cpu_to_le32(sizeof(struct smb3_sd));
-	buf->acl.AclRevision = ACL_REVISION; /* See 2.4.4.1 of MS-DTYP */
+	buf->sd.OffsetDacl = cpu_to_le32(ptr - (__u8 *)&buf->sd);
+	/* Ship the ACL for now. we will copy it into buf later. */
+	aclptr = ptr;
+	ptr += sizeof(struct cifs_acl);
 
 	/* create one ACE to hold the mode embedded in reserved special SID */
-	pace = (struct cifs_ace *)(sizeof(struct crt_sd_ctxt) + (char *)buf);
-	acelen = setup_special_mode_ACE(pace, (__u64)mode);
+	acelen = setup_special_mode_ACE((struct cifs_ace *)ptr, (__u64)mode);
+	ptr += acelen;
+	acl_size = acelen + sizeof(struct smb3_acl);
+	ace_count = 1;
 
 	if (set_owner) {
 		/* we do not need to reallocate buffer to add the two more ACEs. plenty of space */
-		pace = (struct cifs_ace *)(acelen + (sizeof(struct crt_sd_ctxt) + (char *)buf));
-		acelen += setup_special_user_owner_ACE(pace);
-		/* it does not appear necessary to add an ACE for the NFS group SID */
-		buf->acl.AceCount = cpu_to_le16(3);
-	} else
-		buf->acl.AceCount = cpu_to_le16(2);
+		acelen = setup_special_user_owner_ACE((struct cifs_ace *)ptr);
+		ptr += acelen;
+		acl_size += acelen;
+		ace_count += 1;
+	}
 
 	/* and one more ACE to allow access for authenticated users */
-	pace = (struct cifs_ace *)(acelen + (sizeof(struct crt_sd_ctxt) +
-		(char *)buf));
-	acelen += setup_authusers_ACE(pace);
+	acelen = setup_authusers_ACE((struct cifs_ace *)ptr);
+	ptr += acelen;
+	acl_size += acelen;
+	ace_count += 1;
 
-	buf->acl.AclSize = cpu_to_le16(sizeof(struct cifs_acl) + acelen);
+	acl.AclRevision = ACL_REVISION; /* See 2.4.4.1 of MS-DTYP */
+	acl.AclSize = cpu_to_le16(acl_size);
+	acl.AceCount = cpu_to_le16(ace_count);
+	memcpy(aclptr, &acl, sizeof(struct cifs_acl));
+
+	buf->ccontext.DataLength = cpu_to_le32(ptr - (__u8 *)&buf->sd);
+	*len = ptr - (__u8 *)buf;
 
 	return buf;
 }

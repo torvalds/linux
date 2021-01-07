@@ -52,9 +52,9 @@ int main(void)
 {
 	const unsigned int sgmax = SCATTERLIST_MAX_SEGMENT;
 	struct test *test, tests[] = {
-		{ -EINVAL, 1, pfn(0), PAGE_SIZE, PAGE_SIZE + 1, 1 },
 		{ -EINVAL, 1, pfn(0), PAGE_SIZE, 0, 1 },
-		{ -EINVAL, 1, pfn(0), PAGE_SIZE, sgmax + 1, 1 },
+		{ 0, 1, pfn(0), PAGE_SIZE, PAGE_SIZE + 1, 1 },
+		{ 0, 1, pfn(0), PAGE_SIZE, sgmax + 1, 1 },
 		{ 0, 1, pfn(0), PAGE_SIZE, sgmax, 1 },
 		{ 0, 1, pfn(0), 1, sgmax, 1 },
 		{ 0, 2, pfn(0, 1), 2 * PAGE_SIZE, sgmax, 1 },

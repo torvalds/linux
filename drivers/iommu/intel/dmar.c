@@ -335,7 +335,9 @@ static void  dmar_pci_bus_del_dev(struct dmar_pci_notify_info *info)
 
 static inline void vf_inherit_msi_domain(struct pci_dev *pdev)
 {
-	dev_set_msi_domain(&pdev->dev, dev_get_msi_domain(&pdev->physfn->dev));
+	struct pci_dev *physfn = pci_physfn(pdev);
+
+	dev_set_msi_domain(&pdev->dev, dev_get_msi_domain(&physfn->dev));
 }
 
 static int dmar_pci_bus_notifier(struct notifier_block *nb,
@@ -984,7 +986,8 @@ static int map_iommu(struct intel_iommu *iommu, u64 phys_addr)
 		warn_invalid_dmar(phys_addr, " returns all ones");
 		goto unmap;
 	}
-	iommu->vccap = dmar_readq(iommu->reg + DMAR_VCCAP_REG);
+	if (ecap_vcs(iommu->ecap))
+		iommu->vccap = dmar_readq(iommu->reg + DMAR_VCCAP_REG);
 
 	/* the registers might be more than one page */
 	map_size = max_t(int, ecap_max_iotlb_offset(iommu->ecap),

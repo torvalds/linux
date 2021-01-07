@@ -12878,10 +12878,11 @@ compute_sink_pipe_bpp(const struct drm_connector_state *conn_state,
 	case 10 ... 11:
 		bpp = 10 * 3;
 		break;
-	case 12:
+	case 12 ... 16:
 		bpp = 12 * 3;
 		break;
 	default:
+		MISSING_CASE(conn_state->max_bpc);
 		return -EINVAL;
 	}
 
@@ -18020,16 +18021,6 @@ int intel_modeset_init_nogem(struct drm_i915_private *i915)
 	if (!HAS_GMCH(i915))
 		sanitize_watermarks(i915);
 
-	/*
-	 * Force all active planes to recompute their states. So that on
-	 * mode_setcrtc after probe, all the intel_plane_state variables
-	 * are already calculated and there is no assert_plane warnings
-	 * during bootup.
-	 */
-	ret = intel_initial_commit(dev);
-	if (ret)
-		drm_dbg_kms(&i915->drm, "Initial commit in probe failed.\n");
-
 	return 0;
 }
 
@@ -18038,10 +18029,20 @@ int intel_modeset_init(struct drm_i915_private *i915)
 {
 	int ret;
 
-	intel_overlay_setup(i915);
-
 	if (!HAS_DISPLAY(i915))
 		return 0;
+
+	/*
+	 * Force all active planes to recompute their states. So that on
+	 * mode_setcrtc after probe, all the intel_plane_state variables
+	 * are already calculated and there is no assert_plane warnings
+	 * during bootup.
+	 */
+	ret = intel_initial_commit(&i915->drm);
+	if (ret)
+		drm_dbg_kms(&i915->drm, "Initial modeset failed, %d\n", ret);
+
+	intel_overlay_setup(i915);
 
 	ret = intel_fbdev_init(&i915->drm);
 	if (ret)

@@ -10,6 +10,7 @@
 #include <linux/uaccess.h>
 
 #include <asm/alternative.h>
+#include <asm/exception.h>
 #include <asm/kprobes.h>
 #include <asm/mmu.h>
 #include <asm/ptrace.h>
@@ -238,7 +239,7 @@ static void __kprobes notrace __sdei_pstate_entry(void)
 		set_pstate_pan(0);
 }
 
-asmlinkage __kprobes notrace unsigned long
+asmlinkage noinstr unsigned long
 __sdei_handler(struct pt_regs *regs, struct sdei_registered_event *arg)
 {
 	unsigned long ret;
@@ -249,11 +250,11 @@ __sdei_handler(struct pt_regs *regs, struct sdei_registered_event *arg)
 	 */
 	__sdei_pstate_entry();
 
-	nmi_enter();
+	arm64_enter_nmi(regs);
 
 	ret = _sdei_handler(regs, arg);
 
-	nmi_exit();
+	arm64_exit_nmi(regs);
 
 	return ret;
 }

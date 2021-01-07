@@ -147,6 +147,8 @@ static int rtw_debugfs_copy_from_user(char tmp[], int size,
 {
 	int tmp_len;
 
+	memset(tmp, 0, size);
+
 	if (count < num)
 		return -EFAULT;
 

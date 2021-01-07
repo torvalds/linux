@@ -1315,11 +1315,17 @@ static struct sk_buff *vrf_ip6_rcv(struct net_device *vrf_dev,
 	int orig_iif = skb->skb_iif;
 	bool need_strict = rt6_need_strict(&ipv6_hdr(skb)->daddr);
 	bool is_ndisc = ipv6_ndisc_frame(skb);
+	bool is_ll_src;
 
 	/* loopback, multicast & non-ND link-local traffic; do not push through
-	 * packet taps again. Reset pkt_type for upper layers to process skb
+	 * packet taps again. Reset pkt_type for upper layers to process skb.
+	 * for packets with lladdr src, however, skip so that the dst can be
+	 * determine at input using original ifindex in the case that daddr
+	 * needs strict
 	 */
-	if (skb->pkt_type == PACKET_LOOPBACK || (need_strict && !is_ndisc)) {
+	is_ll_src = ipv6_addr_type(&ipv6_hdr(skb)->saddr) & IPV6_ADDR_LINKLOCAL;
+	if (skb->pkt_type == PACKET_LOOPBACK ||
+	    (need_strict && !is_ndisc && !is_ll_src)) {
 		skb->dev = vrf_dev;
 		skb->skb_iif = vrf_dev->ifindex;
 		IP6CB(skb)->flags |= IP6SKB_L3SLAVE;

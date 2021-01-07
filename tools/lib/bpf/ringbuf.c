@@ -278,7 +278,7 @@ int ring_buffer__poll(struct ring_buffer *rb, int timeout_ms)
 		err = ringbuf_process_ring(ring);
 		if (err < 0)
 			return err;
-		res += cnt;
+		res += err;
 	}
 	return cnt < 0 ? -errno : res;
 }

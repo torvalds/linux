@@ -878,7 +878,10 @@ struct btrfs_fs_info {
 	 */
 	struct ulist *qgroup_ulist;
 
-	/* protect user change for quota operations */
+	/*
+	 * Protect user change for quota operations. If a transaction is needed,
+	 * it must be started before locking this lock.
+	 */
 	struct mutex qgroup_ioctl_lock;
 
 	/* list of dirty qgroups to be written at next commit */

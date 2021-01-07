@@ -223,8 +223,7 @@
 };
 
 &ssp3 {
-	/delete-property/ #address-cells;
-	/delete-property/ #size-cells;
+	#address-cells = <0>;
 	spi-slave;
 	status = "okay";
 	ready-gpios = <&gpio 125 GPIO_ACTIVE_HIGH>;

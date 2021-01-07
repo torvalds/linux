@@ -1041,7 +1041,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	amdgpu_dm_init_color_mod();
 
 #ifdef CONFIG_DRM_AMD_DC_HDCP
-	if (adev->asic_type >= CHIP_RAVEN) {
+	if (adev->dm.dc->caps.max_links > 0 && adev->asic_type >= CHIP_RAVEN) {
 		adev->dm.hdcp_workqueue = hdcp_create_workqueue(adev, &init_params.cp_psp, adev->dm.dc);
 
 		if (!adev->dm.hdcp_workqueue)
@@ -1057,9 +1057,6 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		"amdgpu: failed to initialize sw for display support.\n");
 		goto error;
 	}
-
-	/* Update the actual used number of crtc */
-	adev->mode_info.num_crtc = adev->dm.display_indexes_num;
 
 	/* create fake encoders for MST */
 	dm_dp_create_fake_mst_encoders(adev);
@@ -3251,6 +3248,10 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	const struct dc_plane_cap *plane;
 
+	dm->display_indexes_num = dm->dc->caps.max_streams;
+	/* Update the actual used number of crtc */
+	adev->mode_info.num_crtc = adev->dm.display_indexes_num;
+
 	link_cnt = dm->dc->caps.max_links;
 	if (amdgpu_dm_mode_config_init(dm->adev)) {
 		DRM_ERROR("DM: Failed to initialize mode config\n");
@@ -3311,8 +3312,6 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 			DRM_ERROR("KMS: Failed to initialize crtc\n");
 			goto fail;
 		}
-
-	dm->display_indexes_num = dm->dc->caps.max_streams;
 
 	/* loops over all connectors on the board */
 	for (i = 0; i < link_cnt; i++) {
@@ -7506,7 +7505,6 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	bool mode_set_reset_required = false;
 
 	drm_atomic_helper_update_legacy_modeset_state(dev, state);
-	drm_atomic_helper_calc_timestamping_constants(state);
 
 	dm_state = dm_atomic_get_new_state(state);
 	if (dm_state && dm_state->context) {
@@ -7532,6 +7530,8 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			dc_stream_release(dm_old_crtc_state->stream);
 		}
 	}
+
+	drm_atomic_helper_calc_timestamping_constants(state);
 
 	/* update changed items */
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {

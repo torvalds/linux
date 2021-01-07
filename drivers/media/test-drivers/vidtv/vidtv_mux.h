@@ -15,9 +15,10 @@
 #ifndef VIDTV_MUX_H
 #define VIDTV_MUX_H
 
-#include <linux/types.h>
 #include <linux/hashtable.h>
+#include <linux/types.h>
 #include <linux/workqueue.h>
+
 #include <media/dvb_frontend.h>
 
 #include "vidtv_psi.h"
@@ -58,12 +59,16 @@ struct vidtv_mux_timing {
  * @pat: The PAT in use by the muxer.
  * @pmt_secs: The PMT sections in use by the muxer. One for each program in the PAT.
  * @sdt: The SDT in use by the muxer.
+ * @nit: The NIT in use by the muxer.
+ * @eit: the EIT in use by the muxer.
  */
 struct vidtv_mux_si {
 	/* the SI tables */
 	struct vidtv_psi_table_pat *pat;
 	struct vidtv_psi_table_pmt **pmt_secs; /* the PMT sections */
 	struct vidtv_psi_table_sdt *sdt;
+	struct vidtv_psi_table_nit *nit;
+	struct vidtv_psi_table_eit *eit;
 };
 
 /**
@@ -82,8 +87,10 @@ struct vidtv_mux_pid_ctx {
 
 /**
  * struct vidtv_mux - A muxer abstraction loosely based in libavcodec/mpegtsenc.c
- * @mux_rate_kbytes_sec: The bit rate for the TS, in kbytes.
+ * @fe: The frontend structure allocated by the muxer.
+ * @dev: pointer to struct device.
  * @timing: Keeps track of timing related information.
+ * @mux_rate_kbytes_sec: The bit rate for the TS, in kbytes.
  * @pid_ctx: A hash table to keep track of per-PID metadata.
  * @on_new_packets_available_cb: A callback to inform of new TS packets ready.
  * @mux_buf: A pointer to a buffer for this muxer. TS packets are stored there
@@ -99,6 +106,8 @@ struct vidtv_mux_pid_ctx {
  * @pcr_pid: The TS PID used for the PSI packets. All channels will share the
  * same PCR.
  * @transport_stream_id: The transport stream ID
+ * @network_id: The network ID
+ * @network_name: The network name
  * @priv: Private data.
  */
 struct vidtv_mux {
@@ -128,6 +137,8 @@ struct vidtv_mux {
 
 	u16 pcr_pid;
 	u16 transport_stream_id;
+	u16 network_id;
+	char *network_name;
 	void *priv;
 };
 
@@ -142,6 +153,8 @@ struct vidtv_mux {
  * same PCR.
  * @transport_stream_id: The transport stream ID
  * @channels: an optional list of channels to use
+ * @network_id: The network ID
+ * @network_name: The network name
  * @priv: Private data.
  */
 struct vidtv_mux_init_args {
@@ -153,12 +166,14 @@ struct vidtv_mux_init_args {
 	u16 pcr_pid;
 	u16 transport_stream_id;
 	struct vidtv_channel *channels;
+	u16 network_id;
+	char *network_name;
 	void *priv;
 };
 
 struct vidtv_mux *vidtv_mux_init(struct dvb_frontend *fe,
 				 struct device *dev,
-				 struct vidtv_mux_init_args args);
+				 struct vidtv_mux_init_args *args);
 void vidtv_mux_destroy(struct vidtv_mux *m);
 
 void vidtv_mux_start_thread(struct vidtv_mux *m);

@@ -569,7 +569,6 @@ static int felix_setup(struct dsa_switch *ds)
 	struct ocelot *ocelot = ds->priv;
 	struct felix *felix = ocelot_to_felix(ocelot);
 	int port, err;
-	int tc;
 
 	err = felix_init_structs(felix, ds->num_ports);
 	if (err)
@@ -608,12 +607,6 @@ static int felix_setup(struct dsa_switch *ds)
 	ocelot_write_rix(ocelot,
 			 ANA_PGID_PGID_PGID(GENMASK(ocelot->num_phys_ports, 0)),
 			 ANA_PGID_PGID, PGID_UC);
-	/* Setup the per-traffic class flooding PGIDs */
-	for (tc = 0; tc < FELIX_NUM_TC; tc++)
-		ocelot_write_rix(ocelot, ANA_FLOODING_FLD_MULTICAST(PGID_MC) |
-				 ANA_FLOODING_FLD_BROADCAST(PGID_MC) |
-				 ANA_FLOODING_FLD_UNICAST(PGID_UC),
-				 ANA_FLOODING, tc);
 
 	ds->mtu_enforcement_ingress = true;
 	ds->configure_vlan_while_not_filtering = true;

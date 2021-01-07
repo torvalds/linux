@@ -573,7 +573,7 @@ static u8 intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp,
 		return 0;
 	}
 	/* Also take into account max slice width */
-	min_slice_count = min_t(u8, min_slice_count,
+	min_slice_count = max_t(u8, min_slice_count,
 				DIV_ROUND_UP(mode_hdisplay,
 					     max_slice_width));
 

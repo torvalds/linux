@@ -527,15 +527,21 @@ static int tcp_v6_send_synack(const struct sock *sk, struct dst_entry *dst,
 		if (np->repflow && ireq->pktopts)
 			fl6->flowlabel = ip6_flowlabel(ipv6_hdr(ireq->pktopts));
 
+		tclass = sock_net(sk)->ipv4.sysctl_tcp_reflect_tos ?
+				(tcp_rsk(req)->syn_tos & ~INET_ECN_MASK) |
+				(np->tclass & INET_ECN_MASK) :
+				np->tclass;
+
+		if (!INET_ECN_is_capable(tclass) &&
+		    tcp_bpf_ca_needs_ecn((struct sock *)req))
+			tclass |= INET_ECN_ECT_0;
+
 		rcu_read_lock();
 		opt = ireq->ipv6_opt;
-		tclass = sock_net(sk)->ipv4.sysctl_tcp_reflect_tos ?
-				tcp_rsk(req)->syn_tos : np->tclass;
 		if (!opt)
 			opt = rcu_dereference(np->opt);
 		err = ip6_xmit(sk, skb, fl6, sk->sk_mark, opt,
-			       tclass & ~INET_ECN_MASK,
-			       sk->sk_priority);
+			       tclass, sk->sk_priority);
 		rcu_read_unlock();
 		err = net_xmit_eval(err);
 	}
@@ -1193,6 +1199,7 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 	const struct ipv6_pinfo *np = tcp_inet6_sk(sk);
 	struct ipv6_txoptions *opt;
 	struct inet_sock *newinet;
+	bool found_dup_sk = false;
 	struct tcp_sock *newtp;
 	struct sock *newsk;
 #ifdef CONFIG_TCP_MD5SIG
@@ -1314,7 +1321,9 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 	if (np->repflow)
 		newnp->flow_label = ip6_flowlabel(ipv6_hdr(skb));
 
-	/* Set ToS of the new socket based upon the value of incoming SYN. */
+	/* Set ToS of the new socket based upon the value of incoming SYN.
+	 * ECT bits are set later in tcp_init_transfer().
+	 */
 	if (sock_net(sk)->ipv4.sysctl_tcp_reflect_tos)
 		newnp->tclass = tcp_rsk(req)->syn_tos & ~INET_ECN_MASK;
 
@@ -1368,7 +1377,8 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 		tcp_done(newsk);
 		goto out;
 	}
-	*own_req = inet_ehash_nolisten(newsk, req_to_sk(req_unhash));
+	*own_req = inet_ehash_nolisten(newsk, req_to_sk(req_unhash),
+				       &found_dup_sk);
 	if (*own_req) {
 		tcp_move_syn(newtp, req);
 
@@ -1382,6 +1392,15 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 				tcp_v6_restore_cb(newnp->pktoptions);
 				skb_set_owner_r(newnp->pktoptions, newsk);
 			}
+		}
+	} else {
+		if (!req_unhash && found_dup_sk) {
+			/* This code path should only be executed in the
+			 * syncookie case only
+			 */
+			bh_unlock_sock(newsk);
+			sock_put(newsk);
+			newsk = NULL;
 		}
 	}
 

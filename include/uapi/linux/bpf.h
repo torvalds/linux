@@ -3897,8 +3897,8 @@ union bpf_attr {
 	FN(seq_printf_btf),		\
 	FN(skb_cgroup_classid),		\
 	FN(redirect_neigh),		\
-	FN(bpf_per_cpu_ptr),            \
-	FN(bpf_this_cpu_ptr),		\
+	FN(per_cpu_ptr),		\
+	FN(this_cpu_ptr),		\
 	FN(redirect_peer),		\
 	/* */
 

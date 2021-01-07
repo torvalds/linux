@@ -742,7 +742,6 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_SUSPEND:
 		if (ast->tx_chip_type == AST_TX_DP501)
 			ast_set_dp501_video_output(crtc->dev, 1);
-		ast_crtc_load_lut(ast, crtc);
 		break;
 	case DRM_MODE_DPMS_OFF:
 		if (ast->tx_chip_type == AST_TX_DP501)
@@ -775,6 +774,21 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 		return -EINVAL;
 
 	return 0;
+}
+
+static void
+ast_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state *old_crtc_state)
+{
+	struct ast_private *ast = to_ast_private(crtc->dev);
+	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc->state);
+	struct ast_crtc_state *old_ast_crtc_state = to_ast_crtc_state(old_crtc_state);
+
+	/*
+	 * The gamma LUT has to be reloaded after changing the primary
+	 * plane's color format.
+	 */
+	if (old_ast_crtc_state->format != ast_crtc_state->format)
+		ast_crtc_load_lut(ast, crtc);
 }
 
 static void
@@ -830,6 +844,7 @@ ast_crtc_helper_atomic_disable(struct drm_crtc *crtc,
 
 static const struct drm_crtc_helper_funcs ast_crtc_helper_funcs = {
 	.atomic_check = ast_crtc_helper_atomic_check,
+	.atomic_flush = ast_crtc_helper_atomic_flush,
 	.atomic_enable = ast_crtc_helper_atomic_enable,
 	.atomic_disable = ast_crtc_helper_atomic_disable,
 };

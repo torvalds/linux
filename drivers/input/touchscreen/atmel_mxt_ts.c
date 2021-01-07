@@ -2183,11 +2183,11 @@ static int mxt_initialize(struct mxt_data *data)
 		msleep(MXT_FW_RESET_TIME);
 	}
 
-	error = mxt_acquire_irq(data);
+	error = mxt_check_retrigen(data);
 	if (error)
 		return error;
 
-	error = mxt_check_retrigen(data);
+	error = mxt_acquire_irq(data);
 	if (error)
 		return error;
 

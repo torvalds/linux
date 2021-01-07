@@ -56,9 +56,12 @@ static inline void set(struct intel_uncore *uncore, i915_reg_t reg, u32 val)
 
 static void gen11_rc6_enable(struct intel_rc6 *rc6)
 {
-	struct intel_uncore *uncore = rc6_to_uncore(rc6);
+	struct intel_gt *gt = rc6_to_gt(rc6);
+	struct intel_uncore *uncore = gt->uncore;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
+	u32 pg_enable;
+	int i;
 
 	/* 2b: Program RC6 thresholds.*/
 	set(uncore, GEN6_RC6_WAKE_RATE_LIMIT, 54 << 16 | 85);
@@ -102,10 +105,19 @@ static void gen11_rc6_enable(struct intel_rc6 *rc6)
 		GEN6_RC_CTL_RC6_ENABLE |
 		GEN6_RC_CTL_EI_MODE(1);
 
-	set(uncore, GEN9_PG_ENABLE,
-	    GEN9_RENDER_PG_ENABLE |
-	    GEN9_MEDIA_PG_ENABLE |
-	    GEN11_MEDIA_SAMPLER_PG_ENABLE);
+	pg_enable =
+		GEN9_RENDER_PG_ENABLE |
+		GEN9_MEDIA_PG_ENABLE |
+		GEN11_MEDIA_SAMPLER_PG_ENABLE;
+
+	if (INTEL_GEN(gt->i915) >= 12) {
+		for (i = 0; i < I915_MAX_VCS; i++)
+			if (HAS_ENGINE(gt, _VCS(i)))
+				pg_enable |= (VDN_HCP_POWERGATE_ENABLE(i) |
+					      VDN_MFX_POWERGATE_ENABLE(i));
+	}
+
+	set(uncore, GEN9_PG_ENABLE, pg_enable);
 }
 
 static void gen9_rc6_enable(struct intel_rc6 *rc6)

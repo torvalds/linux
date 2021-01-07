@@ -476,8 +476,10 @@ static int dm_blk_report_zones(struct gendisk *disk, sector_t sector,
 		return -EAGAIN;
 
 	map = dm_get_live_table(md, &srcu_idx);
-	if (!map)
-		return -EIO;
+	if (!map) {
+		ret = -EIO;
+		goto out;
+	}
 
 	do {
 		struct dm_target *tgt;
@@ -507,7 +509,6 @@ out:
 
 static int dm_prepare_ioctl(struct mapped_device *md, int *srcu_idx,
 			    struct block_device **bdev)
-	__acquires(md->io_barrier)
 {
 	struct dm_target *tgt;
 	struct dm_table *map;
@@ -541,7 +542,6 @@ retry:
 }
 
 static void dm_unprepare_ioctl(struct mapped_device *md, int srcu_idx)
-	__releases(md->io_barrier)
 {
 	dm_put_live_table(md, srcu_idx);
 }
@@ -1037,15 +1037,18 @@ static sector_t max_io_len(struct dm_target *ti, sector_t sector)
 	sector_t max_len;
 
 	/*
-	 * Does the target need to split even further?
-	 * - q->limits.chunk_sectors reflects ti->max_io_len so
-	 *   blk_max_size_offset() provides required splitting.
-	 * - blk_max_size_offset() also respects q->limits.max_sectors
+	 * Does the target need to split IO even further?
+	 * - varied (per target) IO splitting is a tenet of DM; this
+	 *   explains why stacked chunk_sectors based splitting via
+	 *   blk_max_size_offset() isn't possible here. So pass in
+	 *   ti->max_io_len to override stacked chunk_sectors.
 	 */
-	max_len = blk_max_size_offset(ti->table->md->queue,
-				      target_offset);
-	if (len > max_len)
-		len = max_len;
+	if (ti->max_io_len) {
+		max_len = blk_max_size_offset(ti->table->md->queue,
+					      target_offset, ti->max_io_len);
+		if (len > max_len)
+			len = max_len;
+	}
 
 	return len;
 }
@@ -1196,11 +1199,9 @@ static int dm_dax_zero_page_range(struct dax_device *dax_dev, pgoff_t pgoff,
 		 * ->zero_page_range() is mandatory dax operation. If we are
 		 *  here, something is wrong.
 		 */
-		dm_put_live_table(md, srcu_idx);
 		goto out;
 	}
 	ret = ti->type->dax_zero_page_range(ti, pgoff, nr_pages);
-
  out:
 	dm_put_live_table(md, srcu_idx);
 

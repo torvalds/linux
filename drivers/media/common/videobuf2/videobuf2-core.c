@@ -414,6 +414,17 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 		vb->index = q->num_buffers + buffer;
 		vb->type = q->type;
 		vb->memory = memory;
+		/*
+		 * We need to set these flags here so that the videobuf2 core
+		 * will call ->prepare()/->finish() cache sync/flush on vb2
+		 * buffers when appropriate. However, we can avoid explicit
+		 * ->prepare() and ->finish() cache sync for DMABUF buffers,
+		 * because DMA exporter takes care of it.
+		 */
+		if (q->memory != VB2_MEMORY_DMABUF) {
+			vb->need_cache_sync_on_prepare = 1;
+			vb->need_cache_sync_on_finish = 1;
+		}
 		for (plane = 0; plane < num_planes; ++plane) {
 			vb->planes[plane].length = plane_sizes[plane];
 			vb->planes[plane].min_length = plane_sizes[plane];

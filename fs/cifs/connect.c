@@ -876,6 +876,8 @@ static void clean_demultiplex_info(struct TCP_Server_Info *server)
 	list_del_init(&server->tcp_ses_list);
 	spin_unlock(&cifs_tcp_ses_lock);
 
+	cancel_delayed_work_sync(&server->echo);
+
 	spin_lock(&GlobalMid_Lock);
 	server->tcpStatus = CifsExiting;
 	spin_unlock(&GlobalMid_Lock);
@@ -4544,7 +4546,8 @@ static void set_root_ses(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 	if (ses) {
 		spin_lock(&cifs_tcp_ses_lock);
 		ses->ses_count++;
-		ses->tcon_ipc->remap = cifs_remap(cifs_sb);
+		if (ses->tcon_ipc)
+			ses->tcon_ipc->remap = cifs_remap(cifs_sb);
 		spin_unlock(&cifs_tcp_ses_lock);
 	}
 	*root_ses = ses;

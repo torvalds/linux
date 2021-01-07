@@ -20,9 +20,11 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
+
 #include <media/dmxdev.h>
 #include <media/dvb_demux.h>
 #include <media/dvb_frontend.h>
+
 #include "vidtv_mux.h"
 
 /**
@@ -32,7 +34,7 @@
  * @adapter: Represents a DTV adapter. See 'dvb_register_adapter'.
  * @demux: The demux used by the dvb_dmx_swfilter_packets() call.
  * @dmx_dev: Represents a demux device.
- * @dmx_frontend: The frontends associated with the demux.
+ * @dmx_fe: The frontends associated with the demux.
  * @i2c_adapter: The i2c_adapter associated with the bridge driver.
  * @i2c_client_demod: The i2c_clients associated with the demodulator modules.
  * @i2c_client_tuner: The i2c_clients associated with the tuner modules.

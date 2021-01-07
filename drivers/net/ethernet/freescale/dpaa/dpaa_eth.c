@@ -2120,6 +2120,15 @@ workaround:
 	skb_copy_header(new_skb, skb);
 	new_skb->dev = skb->dev;
 
+	/* Copy relevant timestamp info from the old skb to the new */
+	if (priv->tx_tstamp) {
+		skb_shinfo(new_skb)->tx_flags = skb_shinfo(skb)->tx_flags;
+		skb_shinfo(new_skb)->hwtstamps = skb_shinfo(skb)->hwtstamps;
+		skb_shinfo(new_skb)->tskey = skb_shinfo(skb)->tskey;
+		if (skb->sk)
+			skb_set_owner_w(new_skb, skb->sk);
+	}
+
 	/* We move the headroom when we align it so we have to reset the
 	 * network and transport header offsets relative to the new data
 	 * pointer. The checksum offload relies on these offsets.
@@ -2127,7 +2136,6 @@ workaround:
 	skb_set_network_header(new_skb, skb_network_offset(skb));
 	skb_set_transport_header(new_skb, skb_transport_offset(skb));
 
-	/* TODO: does timestamping need the result in the old skb? */
 	dev_kfree_skb(skb);
 	*s = new_skb;
 

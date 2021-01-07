@@ -940,8 +940,8 @@ int efa_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 			1);
 		EFA_SET(&params.modify_mask,
 			EFA_ADMIN_MODIFY_QP_CMD_CUR_QP_STATE, 1);
-		params.cur_qp_state = qp_attr->cur_qp_state;
-		params.qp_state = qp_attr->qp_state;
+		params.cur_qp_state = cur_state;
+		params.qp_state = new_state;
 	}
 
 	if (qp_attr_mask & IB_QP_EN_SQD_ASYNC_NOTIFY) {

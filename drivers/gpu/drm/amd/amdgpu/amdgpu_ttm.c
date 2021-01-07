@@ -69,10 +69,10 @@ static int amdgpu_ttm_backend_bind(struct ttm_bo_device *bdev,
 
 static int amdgpu_ttm_init_on_chip(struct amdgpu_device *adev,
 				    unsigned int type,
-				    uint64_t size)
+				    uint64_t size_in_page)
 {
 	return ttm_range_man_init(&adev->mman.bdev, type,
-				  false, size >> PAGE_SHIFT);
+				  false, size_in_page);
 }
 
 /**
