@@ -513,6 +513,14 @@ config CHARGER_LT3651
 	  Say Y to include support for the Analog Devices (Linear Technology)
 	  LT3651 battery charger which reports its status via GPIO lines.
 
+config CHARGER_LTC4162L
+	tristate "LTC4162-L charger"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y to include support for the Analog Devices (Linear Technology)
+	  LTC4162-L battery charger connected to I2C.
+
 config CHARGER_MAX14577
 	tristate "Maxim MAX14577/77836 battery charger driver"
 	depends on MFD_MAX14577
