@@ -860,6 +860,7 @@ int register_dsa_notifier(struct notifier_block *nb);
 int unregister_dsa_notifier(struct notifier_block *nb);
 int call_dsa_notifiers(unsigned long val, struct net_device *dev,
 		       struct dsa_notifier_info *info);
+bool dsa_slave_dev_check(const struct net_device *dev);
 #else
 static inline int register_dsa_notifier(struct notifier_block *nb)
 {
@@ -875,6 +876,11 @@ static inline int call_dsa_notifiers(unsigned long val, struct net_device *dev,
 				     struct dsa_notifier_info *info)
 {
 	return NOTIFY_DONE;
+}
+
+static inline bool dsa_slave_dev_check(const struct net_device *dev)
+{
+	return false;
 }
 #endif
 
