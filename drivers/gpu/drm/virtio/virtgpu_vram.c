@@ -69,6 +69,7 @@ static const struct drm_gem_object_funcs virtio_gpu_vram_funcs = {
 	.close = virtio_gpu_gem_object_close,
 	.free = virtio_gpu_vram_free,
 	.mmap = virtio_gpu_vram_mmap,
+	.export = virtgpu_gem_prime_export,
 };
 
 bool virtio_gpu_is_vram(struct virtio_gpu_object *bo)
