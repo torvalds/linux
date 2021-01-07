@@ -1764,20 +1764,6 @@ int dsa_slave_resume(struct net_device *slave_dev)
 	return 0;
 }
 
-static void dsa_slave_notify(struct net_device *dev, unsigned long val)
-{
-	struct net_device *master = dsa_slave_to_master(dev);
-	struct dsa_port *dp = dsa_slave_to_port(dev);
-	struct dsa_notifier_register_info rinfo = {
-		.switch_number = dp->ds->index,
-		.port_number = dp->index,
-		.master = master,
-		.info.dev = dev,
-	};
-
-	call_dsa_notifiers(val, dev, &rinfo.info);
-}
-
 int dsa_slave_create(struct dsa_port *port)
 {
 	const struct dsa_port *cpu_dp = port->cpu_dp;
@@ -1863,8 +1849,6 @@ int dsa_slave_create(struct dsa_port *port)
 		goto out_gcells;
 	}
 
-	dsa_slave_notify(slave_dev, DSA_PORT_REGISTER);
-
 	rtnl_lock();
 
 	ret = register_netdevice(slave_dev);
@@ -1913,7 +1897,6 @@ void dsa_slave_destroy(struct net_device *slave_dev)
 	phylink_disconnect_phy(dp->pl);
 	rtnl_unlock();
 
-	dsa_slave_notify(slave_dev, DSA_PORT_UNREGISTER);
 	phylink_destroy(dp->pl);
 	gro_cells_destroy(&p->gcells);
 	free_percpu(slave_dev->tstats);

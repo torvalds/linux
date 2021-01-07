@@ -833,51 +833,9 @@ static inline int dsa_switch_resume(struct dsa_switch *ds)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-enum dsa_notifier_type {
-	DSA_PORT_REGISTER,
-	DSA_PORT_UNREGISTER,
-};
-
-struct dsa_notifier_info {
-	struct net_device *dev;
-};
-
-struct dsa_notifier_register_info {
-	struct dsa_notifier_info info;	/* must be first */
-	struct net_device *master;
-	unsigned int port_number;
-	unsigned int switch_number;
-};
-
-static inline struct net_device *
-dsa_notifier_info_to_dev(const struct dsa_notifier_info *info)
-{
-	return info->dev;
-}
-
 #if IS_ENABLED(CONFIG_NET_DSA)
-int register_dsa_notifier(struct notifier_block *nb);
-int unregister_dsa_notifier(struct notifier_block *nb);
-int call_dsa_notifiers(unsigned long val, struct net_device *dev,
-		       struct dsa_notifier_info *info);
 bool dsa_slave_dev_check(const struct net_device *dev);
 #else
-static inline int register_dsa_notifier(struct notifier_block *nb)
-{
-	return 0;
-}
-
-static inline int unregister_dsa_notifier(struct notifier_block *nb)
-{
-	return 0;
-}
-
-static inline int call_dsa_notifiers(unsigned long val, struct net_device *dev,
-				     struct dsa_notifier_info *info)
-{
-	return NOTIFY_DONE;
-}
-
 static inline bool dsa_slave_dev_check(const struct net_device *dev)
 {
 	return false;
