@@ -37,6 +37,7 @@ Hardware Monitoring Kernel Drivers
    adt7462
    adt7470
    adt7475
+   aht10
    amc6821
    amd_energy
    asb100
