@@ -1310,9 +1310,6 @@ static int smu_hw_init(void *handle)
 		smu_set_gfx_cgpg(&adev->smu, true);
 	}
 
-	if (adev->asic_type == CHIP_YELLOW_CARP)
-		return 0;
-
 	if (!smu->pm_enabled)
 		return 0;
 
