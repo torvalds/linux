@@ -692,12 +692,12 @@ static const struct backlight_ops s6e63m0_backlight_ops = {
 	.update_status	= s6e63m0_set_brightness,
 };
 
-static int s6e63m0_backlight_register(struct s6e63m0 *ctx)
+static int s6e63m0_backlight_register(struct s6e63m0 *ctx, u32 max_brightness)
 {
 	struct backlight_properties props = {
 		.type		= BACKLIGHT_RAW,
-		.brightness	= MAX_BRIGHTNESS,
-		.max_brightness = MAX_BRIGHTNESS
+		.brightness	= max_brightness,
+		.max_brightness = max_brightness,
 	};
 	struct device *dev = ctx->dev;
 	int ret = 0;
@@ -719,6 +719,7 @@ int s6e63m0_probe(struct device *dev,
 		  bool dsi_mode)
 {
 	struct s6e63m0 *ctx;
+	u32 max_brightness;
 	int ret;
 
 	ctx = devm_kzalloc(dev, sizeof(struct s6e63m0), GFP_KERNEL);
@@ -733,6 +734,14 @@ int s6e63m0_probe(struct device *dev,
 	ctx->dev = dev;
 	ctx->enabled = false;
 	ctx->prepared = false;
+
+	ret = device_property_read_u32(dev, "max-brightness", &max_brightness);
+	if (ret)
+		max_brightness = MAX_BRIGHTNESS;
+	if (max_brightness > MAX_BRIGHTNESS) {
+		dev_err(dev, "illegal max brightness specified\n");
+		max_brightness = MAX_BRIGHTNESS;
+	}
 
 	ctx->supplies[0].supply = "vdd3";
 	ctx->supplies[1].supply = "vci";
@@ -753,7 +762,7 @@ int s6e63m0_probe(struct device *dev,
 		       dsi_mode ? DRM_MODE_CONNECTOR_DSI :
 		       DRM_MODE_CONNECTOR_DPI);
 
-	ret = s6e63m0_backlight_register(ctx);
+	ret = s6e63m0_backlight_register(ctx, max_brightness);
 	if (ret < 0)
 		return ret;
 
