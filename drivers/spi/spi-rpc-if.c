@@ -197,7 +197,9 @@ static struct platform_driver rpcif_spi_driver = {
 	.remove	= rpcif_spi_remove,
 	.driver = {
 		.name	= "rpc-if-spi",
+#ifdef CONFIG_PM_SLEEP
 		.pm	= &rpcif_spi_pm_ops,
+#endif
 	},
 };
 module_platform_driver(rpcif_spi_driver);
