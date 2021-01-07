@@ -692,7 +692,11 @@ out_err:
  * software_node_register_nodes - Register an array of software nodes
  * @nodes: Zero terminated array of software nodes to be registered
  *
- * Register multiple software nodes at once.
+ * Register multiple software nodes at once. If any node in the array
+ * has its .parent pointer set (which can only be to another software_node),
+ * then its parent **must** have been registered before it is; either outside
+ * of this function or by ordering the array such that parent comes before
+ * child.
  */
 int software_node_register_nodes(const struct software_node *nodes)
 {
@@ -700,14 +704,23 @@ int software_node_register_nodes(const struct software_node *nodes)
 	int i;
 
 	for (i = 0; nodes[i].name; i++) {
-		ret = software_node_register(&nodes[i]);
-		if (ret) {
-			software_node_unregister_nodes(nodes);
-			return ret;
+		const struct software_node *parent = nodes[i].parent;
+
+		if (parent && !software_node_to_swnode(parent)) {
+			ret = -EINVAL;
+			goto err_unregister_nodes;
 		}
+
+		ret = software_node_register(&nodes[i]);
+		if (ret)
+			goto err_unregister_nodes;
 	}
 
 	return 0;
+
+err_unregister_nodes:
+	software_node_unregister_nodes(nodes);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(software_node_register_nodes);
 
@@ -715,18 +728,23 @@ EXPORT_SYMBOL_GPL(software_node_register_nodes);
  * software_node_unregister_nodes - Unregister an array of software nodes
  * @nodes: Zero terminated array of software nodes to be unregistered
  *
- * Unregister multiple software nodes at once.
+ * Unregister multiple software nodes at once. If parent pointers are set up
+ * in any of the software nodes then the array **must** be ordered such that
+ * parents come before their children.
  *
- * NOTE: Be careful using this call if the nodes had parent pointers set up in
- * them before registering.  If so, it is wiser to remove the nodes
- * individually, in the correct order (child before parent) instead of relying
- * on the sequential order of the list of nodes in the array.
+ * NOTE: If you are uncertain whether the array is ordered such that
+ * parents will be unregistered before their children, it is wiser to
+ * remove the nodes individually, in the correct order (child before
+ * parent).
  */
 void software_node_unregister_nodes(const struct software_node *nodes)
 {
-	int i;
+	unsigned int i = 0;
 
-	for (i = 0; nodes[i].name; i++)
+	while (nodes[i].name)
+		i++;
+
+	while (i--)
 		software_node_unregister(&nodes[i]);
 }
 EXPORT_SYMBOL_GPL(software_node_unregister_nodes);
