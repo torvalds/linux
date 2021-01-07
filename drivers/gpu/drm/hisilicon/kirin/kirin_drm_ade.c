@@ -436,7 +436,7 @@ static void ade_dump_regs(void __iomem *base) { }
 #endif
 
 static void ade_crtc_atomic_enable(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_state)
+				   struct drm_atomic_state *state)
 {
 	struct kirin_crtc *kcrtc = to_kirin_crtc(crtc);
 	struct ade_hw_ctx *ctx = kcrtc->hw_ctx;
@@ -459,7 +459,7 @@ static void ade_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void ade_crtc_atomic_disable(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_state)
+				    struct drm_atomic_state *state)
 {
 	struct kirin_crtc *kcrtc = to_kirin_crtc(crtc);
 	struct ade_hw_ctx *ctx = kcrtc->hw_ctx;
@@ -485,7 +485,7 @@ static void ade_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static void ade_crtc_atomic_begin(struct drm_crtc *crtc,
-				  struct drm_crtc_state *old_state)
+				  struct drm_atomic_state *state)
 {
 	struct kirin_crtc *kcrtc = to_kirin_crtc(crtc);
 	struct ade_hw_ctx *ctx = kcrtc->hw_ctx;
@@ -498,7 +498,7 @@ static void ade_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void ade_crtc_atomic_flush(struct drm_crtc *crtc,
-				  struct drm_crtc_state *old_state)
+				  struct drm_atomic_state *state)
 
 {
 	struct kirin_crtc *kcrtc = to_kirin_crtc(crtc);
@@ -918,7 +918,7 @@ static const struct drm_mode_config_funcs ade_mode_config_funcs = {
 
 DEFINE_DRM_GEM_CMA_FOPS(ade_fops);
 
-static struct drm_driver ade_driver = {
+static const struct drm_driver ade_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops = &ade_fops,
 	DRM_GEM_CMA_DRIVER_OPS,

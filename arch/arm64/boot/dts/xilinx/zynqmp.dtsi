@@ -99,6 +99,29 @@
 		};
 	};
 
+	zynqmp_ipi {
+		compatible = "xlnx,zynqmp-ipi-mailbox";
+		interrupt-parent = <&gic>;
+		interrupts = <0 35 4>;
+		xlnx,ipi-id = <0>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		ipi_mailbox_pmu1: mailbox@ff990400 {
+			reg = <0x0 0xff9905c0 0x0 0x20>,
+			      <0x0 0xff9905e0 0x0 0x20>,
+			      <0x0 0xff990e80 0x0 0x20>,
+			      <0x0 0xff990ea0 0x0 0x20>;
+			reg-names = "local_request_region",
+				    "local_response_region",
+				    "remote_request_region",
+				    "remote_response_region";
+			#mbox-cells = <1>;
+			xlnx,ipi-id = <4>;
+		};
+	};
+
 	dcc: dcc {
 		compatible = "arm,dcc";
 		status = "disabled";
@@ -128,6 +151,8 @@
 				compatible = "xlnx,zynqmp-power";
 				interrupt-parent = <&gic>;
 				interrupts = <0 35 4>;
+				mboxes = <&ipi_mailbox_pmu1 0>, <&ipi_mailbox_pmu1 1>;
+				mbox-names = "tx", "rx";
 			};
 
 			zynqmp_clk: clock-controller {
@@ -180,25 +205,6 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-	};
-
-	amba_apu: axi@0 {
-		compatible = "simple-bus";
-		#address-cells = <2>;
-		#size-cells = <1>;
-		ranges = <0 0 0 0 0xffffffff>;
-
-		gic: interrupt-controller@f9010000 {
-			compatible = "arm,gic-400";
-			#interrupt-cells = <3>;
-			reg = <0x0 0xf9010000 0x10000>,
-			      <0x0 0xf9020000 0x20000>,
-			      <0x0 0xf9040000 0x20000>,
-			      <0x0 0xf9060000 0x20000>;
-			interrupt-controller;
-			interrupt-parent = <&gic>;
-			interrupts = <1 9 0xf04>;
-		};
 	};
 
 	amba: axi {
@@ -337,6 +343,18 @@
 			clock-names = "clk_main", "clk_apb";
 			xlnx,bus-width = <128>;
 			power-domains = <&zynqmp_firmware PD_GDMA>;
+		};
+
+		gic: interrupt-controller@f9010000 {
+			compatible = "arm,gic-400";
+			#interrupt-cells = <3>;
+			reg = <0x0 0xf9010000 0x0 0x10000>,
+			      <0x0 0xf9020000 0x0 0x20000>,
+			      <0x0 0xf9040000 0x0 0x20000>,
+			      <0x0 0xf9060000 0x0 0x20000>;
+			interrupt-controller;
+			interrupt-parent = <&gic>;
+			interrupts = <1 9 0xf04>;
 		};
 
 		/* LPDDMA default allows only secured access. inorder to enable
@@ -542,8 +560,8 @@
 			      <0x0 0xfd480000 0x0 0x1000>,
 			      <0x80 0x00000000 0x0 0x1000000>;
 			reg-names = "breg", "pcireg", "cfg";
-			ranges = <0x02000000 0x00000000 0xe0000000 0x00000000 0xe0000000 0x00000000 0x10000000	/* non-prefetchable memory */
-				  0x43000000 0x00000006 0x00000000 0x00000006 0x00000000 0x00000002 0x00000000>;/* prefetchable memory */
+			ranges = <0x02000000 0x00000000 0xe0000000 0x00000000 0xe0000000 0x00000000 0x10000000>,/* non-prefetchable memory */
+				 <0x43000000 0x00000006 0x00000000 0x00000006 0x00000000 0x00000002 0x00000000>;/* prefetchable memory */
 			bus-range = <0x00 0xff>;
 			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
 			interrupt-map = <0x0 0x0 0x0 0x1 &pcie_intc 0x1>,

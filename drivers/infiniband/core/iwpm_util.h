@@ -141,7 +141,7 @@ int iwpm_wait_complete_req(struct iwpm_nlmsg_request *nlmsg_request);
 int iwpm_get_nlmsg_seq(void);
 
 /**
- * iwpm_add_reminfo - Add remote address info of the connecting peer
+ * iwpm_add_remote_info - Add remote address info of the connecting peer
  *                    to the remote info hash table
  * @reminfo: The remote info to be added
  */

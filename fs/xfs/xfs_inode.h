@@ -407,9 +407,9 @@ void		xfs_lock_two_inodes(struct xfs_inode *ip0, uint ip0_mode,
 xfs_extlen_t	xfs_get_extsz_hint(struct xfs_inode *ip);
 xfs_extlen_t	xfs_get_cowextsz_hint(struct xfs_inode *ip);
 
-int		xfs_dir_ialloc(struct xfs_trans **, struct xfs_inode *, umode_t,
-			       xfs_nlink_t, dev_t, prid_t,
-			       struct xfs_inode **);
+int xfs_dir_ialloc(struct xfs_trans **tpp, struct xfs_inode *dp, umode_t mode,
+		   xfs_nlink_t nlink, dev_t dev, prid_t prid,
+		   struct xfs_inode **ipp);
 
 static inline int
 xfs_itruncate_extents(

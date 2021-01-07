@@ -196,7 +196,7 @@ MODULE_DEVICE_TABLE(of, mx25_tsadc_ids);
 static struct platform_driver mx25_tsadc_driver = {
 	.driver = {
 		.name = "mx25-tsadc",
-		.of_match_table = of_match_ptr(mx25_tsadc_ids),
+		.of_match_table = mx25_tsadc_ids,
 	},
 	.probe = mx25_tsadc_probe,
 	.remove = mx25_tsadc_remove,

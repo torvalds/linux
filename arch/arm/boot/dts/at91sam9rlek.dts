@@ -218,26 +218,26 @@
 		};
 	};
 
-	pwmleds {
+	led-controller-1 {
 		compatible = "pwm-leds";
 
-		ds1 {
+		led-1 {
 			label = "ds1";
 			pwms = <&pwm0 1 5000 PWM_POLARITY_INVERTED>;
 			max-brightness = <255>;
 		};
 
-		ds2 {
+		led-2 {
 			label = "ds2";
 			pwms = <&pwm0 2 5000 PWM_POLARITY_INVERTED>;
 			max-brightness = <255>;
 		};
 	};
 
-	leds {
+	led-controller-2 {
 		compatible = "gpio-leds";
 
-		ds3 {
+		led-3 {
 			label = "ds3";
 			gpios = <&pioD 14 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";

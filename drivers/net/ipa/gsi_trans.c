@@ -156,6 +156,9 @@ int gsi_trans_pool_init_dma(struct device *dev, struct gsi_trans_pool *pool,
 	/* The allocator will give us a power-of-2 number of pages.  But we
 	 * can't guarantee that, so request it.  That way we won't waste any
 	 * memory that would be available beyond the required space.
+	 *
+	 * Note that gsi_trans_pool_exit_dma() assumes the total allocated
+	 * size is exactly (count * size).
 	 */
 	total_size = get_order(total_size) << PAGE_SHIFT;
 
@@ -175,7 +178,9 @@ int gsi_trans_pool_init_dma(struct device *dev, struct gsi_trans_pool *pool,
 
 void gsi_trans_pool_exit_dma(struct device *dev, struct gsi_trans_pool *pool)
 {
-	dma_free_coherent(dev, pool->size, pool->base, pool->addr);
+	size_t total_size = pool->count * pool->size;
+
+	dma_free_coherent(dev, total_size, pool->base, pool->addr);
 	memset(pool, 0, sizeof(*pool));
 }
 

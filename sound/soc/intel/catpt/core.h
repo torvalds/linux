@@ -22,17 +22,6 @@ void catpt_sram_free(struct resource *sram);
 struct resource *
 catpt_request_region(struct resource *root, resource_size_t size);
 
-static inline bool catpt_resource_overlapping(struct resource *r1,
-					      struct resource *r2,
-					      struct resource *ret)
-{
-	if (!resource_overlaps(r1, r2))
-		return false;
-	ret->start = max(r1->start, r2->start);
-	ret->end = min(r1->end, r2->end);
-	return true;
-}
-
 struct catpt_ipc_msg {
 	union {
 		u32 header;

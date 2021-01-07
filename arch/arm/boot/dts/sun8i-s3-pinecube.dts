@@ -10,7 +10,7 @@
 
 / {
 	model = "PineCube IP Camera";
-	compatible = "pine64,pinecube", "allwinner,sun8i-s3";
+	compatible = "pine64,pinecube", "sochip,s3", "allwinner,sun8i-v3";
 
 	aliases {
 		serial0 = &uart2;

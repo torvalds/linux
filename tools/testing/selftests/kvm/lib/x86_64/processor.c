@@ -5,8 +5,6 @@
  * Copyright (C) 2018, Google LLC.
  */
 
-#define _GNU_SOURCE /* for program_invocation_name */
-
 #include "test_util.h"
 #include "kvm_util.h"
 #include "../kvm_util_internal.h"
@@ -729,36 +727,6 @@ void vcpu_set_cpuid(struct kvm_vm *vm,
 	TEST_ASSERT(rc == 0, "KVM_SET_CPUID2 failed, rc: %i errno: %i",
 		    rc, errno);
 
-}
-
-struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
-				 void *guest_code)
-{
-	struct kvm_vm *vm;
-	/*
-	 * For x86 the maximum page table size for a memory region
-	 * will be when only 4K pages are used.  In that case the
-	 * total extra size for page tables (for extra N pages) will
-	 * be: N/512+N/512^2+N/512^3+... which is definitely smaller
-	 * than N/512*2.
-	 */
-	uint64_t extra_pg_pages = extra_mem_pages / 512 * 2;
-
-	/* Create VM */
-	vm = vm_create(VM_MODE_DEFAULT,
-		       DEFAULT_GUEST_PHY_PAGES + extra_pg_pages,
-		       O_RDWR);
-
-	/* Setup guest code */
-	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);
-
-	/* Setup IRQ Chip */
-	vm_create_irqchip(vm);
-
-	/* Add the first vCPU. */
-	vm_vcpu_add_default(vm, vcpuid, guest_code);
-
-	return vm;
 }
 
 /*

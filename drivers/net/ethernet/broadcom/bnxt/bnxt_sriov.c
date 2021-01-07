@@ -8,6 +8,7 @@
  * the Free Software Foundation.
  */
 
+#include <linux/ethtool.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>

@@ -1274,6 +1274,9 @@ PAGE_SIZE multiple when read back.
 	  kernel_stack
 		Amount of memory allocated to kernel stacks.
 
+	  pagetables
+                Amount of memory allocated for page tables.
+
 	  percpu(npn)
 		Amount of memory used for storing per-cpu kernel
 		data structures.
@@ -1298,6 +1301,14 @@ PAGE_SIZE multiple when read back.
 
 	  anon_thp
 		Amount of memory used in anonymous mappings backed by
+		transparent hugepages
+
+	  file_thp
+		Amount of cached filesystem data backed by transparent
+		hugepages
+
+	  shmem_thp
+		Amount of shm, tmpfs, shared anonymous mmap()s backed by
 		transparent hugepages
 
 	  inactive_anon, active_anon, inactive_file, active_file, unevictable

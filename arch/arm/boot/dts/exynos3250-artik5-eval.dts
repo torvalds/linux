@@ -37,3 +37,29 @@
 &serial_2 {
 	status = "okay";
 };
+
+&spi_0 {
+	status = "okay";
+	cs-gpios = <&gpx3 4 GPIO_ACTIVE_LOW>, <0>;
+
+	assigned-clocks = <&cmu CLK_MOUT_SPI0>, <&cmu CLK_DIV_SPI0>,
+			  <&cmu CLK_DIV_SPI0_PRE>, <&cmu CLK_SCLK_SPI0>;
+	assigned-clock-parents = <&cmu CLK_DIV_MPLL_PRE>, /* for: CLK_MOUT_SPI0 */
+				 <&cmu CLK_MOUT_SPI0>,    /* for: CLK_DIV_SPI0 */
+				 <&cmu CLK_DIV_SPI0>,     /* for: CLK_DIV_SPI0_PRE */
+				 <&cmu CLK_DIV_SPI0_PRE>; /* for: CLK_SCLK_SPI0 */
+
+	ethernet@0 {
+		compatible = "asix,ax88796c";
+		reg = <0x0>;
+		local-mac-address = [00 00 00 00 00 00]; /* Filled in by a boot-loader */
+		interrupt-parent = <&gpx2>;
+		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		spi-max-frequency = <40000000>;
+		reset-gpios = <&gpe0 2 GPIO_ACTIVE_LOW>;
+
+		controller-data {
+			samsung,spi-feedback-delay = <2>;
+		};
+	};
+};

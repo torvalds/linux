@@ -267,8 +267,8 @@ enum enetc_bdr_type {TX, RX};
 #define ENETC_PM0_R255		0x8180
 #define ENETC_PM0_R511		0x8188
 #define ENETC_PM0_R1023		0x8190
-#define ENETC_PM0_R1518		0x8198
-#define ENETC_PM0_R1519X	0x81A0
+#define ENETC_PM0_R1522		0x8198
+#define ENETC_PM0_R1523X	0x81A0
 #define ENETC_PM0_ROVR		0x81A8
 #define ENETC_PM0_RJBR		0x81B0
 #define ENETC_PM0_RFRG		0x81B8
@@ -287,9 +287,13 @@ enum enetc_bdr_type {TX, RX};
 #define ENETC_PM0_TBCA		0x8250
 #define ENETC_PM0_TPKT		0x8260
 #define ENETC_PM0_TUND		0x8268
+#define ENETC_PM0_T64		0x8270
 #define ENETC_PM0_T127		0x8278
+#define ENETC_PM0_T255		0x8280
+#define ENETC_PM0_T511		0x8288
 #define ENETC_PM0_T1023		0x8290
-#define ENETC_PM0_T1518		0x8298
+#define ENETC_PM0_T1522		0x8298
+#define ENETC_PM0_T1523X	0x82A0
 #define ENETC_PM0_TCNP		0x82C0
 #define ENETC_PM0_TDFR		0x82D0
 #define ENETC_PM0_TMCOL		0x82D8
@@ -477,8 +481,7 @@ union enetc_tx_bd {
 		__le16 frm_len;
 		union {
 			struct {
-				__le16 l3_csoff;
-				u8 l4_csoff;
+				u8 reserved[3];
 				u8 flags;
 			}; /* default layout */
 			__le32 txstart;
@@ -501,40 +504,36 @@ union enetc_tx_bd {
 	} wb; /* writeback descriptor */
 };
 
-#define ENETC_TXBD_FLAGS_L4CS	BIT(0)
-#define ENETC_TXBD_FLAGS_TSE	BIT(1)
-#define ENETC_TXBD_FLAGS_W	BIT(2)
-#define ENETC_TXBD_FLAGS_CSUM	BIT(3)
-#define ENETC_TXBD_FLAGS_TXSTART BIT(4)
-#define ENETC_TXBD_FLAGS_EX	BIT(6)
-#define ENETC_TXBD_FLAGS_F	BIT(7)
+enum enetc_txbd_flags {
+	ENETC_TXBD_FLAGS_RES0 = BIT(0), /* reserved */
+	ENETC_TXBD_FLAGS_TSE = BIT(1),
+	ENETC_TXBD_FLAGS_W = BIT(2),
+	ENETC_TXBD_FLAGS_RES3 = BIT(3), /* reserved */
+	ENETC_TXBD_FLAGS_TXSTART = BIT(4),
+	ENETC_TXBD_FLAGS_EX = BIT(6),
+	ENETC_TXBD_FLAGS_F = BIT(7)
+};
 #define ENETC_TXBD_TXSTART_MASK GENMASK(24, 0)
 #define ENETC_TXBD_FLAGS_OFFSET 24
+
+static inline __le32 enetc_txbd_set_tx_start(u64 tx_start, u8 flags)
+{
+	u32 temp;
+
+	temp = (tx_start >> 5 & ENETC_TXBD_TXSTART_MASK) |
+	       (flags << ENETC_TXBD_FLAGS_OFFSET);
+
+	return cpu_to_le32(temp);
+}
+
 static inline void enetc_clear_tx_bd(union enetc_tx_bd *txbd)
 {
 	memset(txbd, 0, sizeof(*txbd));
 }
 
-/* L3 csum flags */
-#define ENETC_TXBD_L3_IPCS	BIT(7)
-#define ENETC_TXBD_L3_IPV6	BIT(15)
-
-#define ENETC_TXBD_L3_START_MASK	GENMASK(6, 0)
-#define ENETC_TXBD_L3_SET_HSIZE(val)	((((val) >> 2) & 0x7f) << 8)
-
 /* Extension flags */
 #define ENETC_TXBD_E_FLAGS_VLAN_INS	BIT(0)
 #define ENETC_TXBD_E_FLAGS_TWO_STEP_PTP	BIT(2)
-
-static inline __le16 enetc_txbd_l3_csoff(int start, int hdr_sz, u16 l3_flags)
-{
-	return cpu_to_le16(l3_flags | ENETC_TXBD_L3_SET_HSIZE(hdr_sz) |
-			   (start & ENETC_TXBD_L3_START_MASK));
-}
-
-/* L4 csum flags */
-#define ENETC_TXBD_L4_UDP	BIT(5)
-#define ENETC_TXBD_L4_TCP	BIT(6)
 
 union enetc_rx_bd {
 	struct {
@@ -580,10 +579,10 @@ struct enetc_cmd_rfse {
 	u8 smac_m[6];
 	u8 dmac_h[6];
 	u8 dmac_m[6];
-	u32 sip_h[4];
-	u32 sip_m[4];
-	u32 dip_h[4];
-	u32 dip_m[4];
+	__be32 sip_h[4];
+	__be32 sip_m[4];
+	__be32 dip_h[4];
+	__be32 dip_m[4];
 	u16 ethtype_h;
 	u16 ethtype_m;
 	u16 ethtype4_h;

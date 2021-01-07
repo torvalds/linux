@@ -422,7 +422,7 @@ static int pnv_pci_vf_assign_m64(struct pci_dev *pdev, u16 num_vfs)
 {
 	struct pnv_iov_data   *iov;
 	struct pnv_phb        *phb;
-	unsigned int           win;
+	int                    win;
 	struct resource       *res;
 	int                    i, j;
 	int64_t                rc;

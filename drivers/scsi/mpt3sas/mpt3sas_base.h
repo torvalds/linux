@@ -71,13 +71,14 @@
 
 #include "mpt3sas_debug.h"
 #include "mpt3sas_trigger_diag.h"
+#include "mpt3sas_trigger_pages.h"
 
 /* driver versioning info */
 #define MPT3SAS_DRIVER_NAME		"mpt3sas"
 #define MPT3SAS_AUTHOR "Avago Technologies <MPT-FusionLinux.pdl@avagotech.com>"
 #define MPT3SAS_DESCRIPTION	"LSI MPT Fusion SAS 3.0 Device Driver"
-#define MPT3SAS_DRIVER_VERSION		"35.100.00.00"
-#define MPT3SAS_MAJOR_VERSION		35
+#define MPT3SAS_DRIVER_VERSION		"36.100.00.00"
+#define MPT3SAS_MAJOR_VERSION		36
 #define MPT3SAS_MINOR_VERSION		100
 #define MPT3SAS_BUILD_VERSION		0
 #define MPT3SAS_RELEASE_VERSION	00
@@ -93,6 +94,14 @@
 /* CoreDump: Default timeout */
 #define MPT3SAS_DEFAULT_COREDUMP_TIMEOUT_SECONDS	(15) /*15 seconds*/
 #define MPT3SAS_COREDUMP_LOOP_DONE                     (0xFF)
+#define MPT3SAS_TIMESYNC_TIMEOUT_SECONDS		(10) /* 10 seconds */
+#define MPT3SAS_TIMESYNC_UPDATE_INTERVAL		(900) /* 15 minutes */
+#define MPT3SAS_TIMESYNC_UNIT_MASK			(0x80) /* bit 7 */
+#define MPT3SAS_TIMESYNC_MASK				(0x7F) /* 0 - 6 bits */
+#define SECONDS_PER_MIN					(60)
+#define SECONDS_PER_HOUR				(3600)
+#define MPT3SAS_COREDUMP_LOOP_DONE			(0xFF)
+#define MPI26_SET_IOC_PARAMETER_SYNC_TIMESTAMP		(0x81)
 
 /*
  * Set MPT3SAS_SG_DEPTH value based on user input.
@@ -405,7 +414,7 @@ struct Mpi2ManufacturingPage11_t {
 	u16	HostTraceBufferMaxSizeKB;	/* 50h */
 	u16	HostTraceBufferMinSizeKB;	/* 52h */
 	u8	CoreDumpTOSec;			/* 54h */
-	u8	Reserved8;			/* 55h */
+	u8	TimeSyncInterval;		/* 55h */
 	u16	Reserved9;			/* 56h */
 	__le32	Reserved10;			/* 58h */
 };
@@ -420,6 +429,7 @@ struct Mpi2ManufacturingPage11_t {
  * @flags: MPT_TARGET_FLAGS_XXX flags
  * @deleted: target flaged for deletion
  * @tm_busy: target is busy with TM request.
+ * @port: hba port entry containing target's port number info
  * @sas_dev: The sas_device associated with this target
  * @pcie_dev: The pcie device associated with this target
  */
@@ -432,6 +442,7 @@ struct MPT3SAS_TARGET {
 	u32	flags;
 	u8	deleted;
 	u8	tm_busy;
+	struct hba_port *port;
 	struct _sas_device *sas_dev;
 	struct _pcie_device *pcie_dev;
 };
@@ -534,6 +545,9 @@ struct _internal_cmd {
  *	addition routine.
  * @chassis_slot: chassis slot
  * @is_chassis_slot_valid: chassis slot valid or not
+ * @port: hba port entry containing device's port number info
+ * @rphy: device's sas_rphy address used to identify this device structure in
+ *	target_alloc callback function
  */
 struct _sas_device {
 	struct list_head list;
@@ -560,6 +574,8 @@ struct _sas_device {
 	u8	is_chassis_slot_valid;
 	u8	connector_name[5];
 	struct kref refcount;
+	struct hba_port *port;
+	struct sas_rphy *rphy;
 };
 
 static inline void sas_device_get(struct _sas_device *s)
@@ -730,6 +746,7 @@ struct _boot_device {
  * @remote_identify: attached device identification
  * @rphy: sas transport rphy object
  * @port: sas transport wide/narrow port object
+ * @hba_port: hba port entry containing port's port number info
  * @phy_list: _sas_phy list objects belonging to this port
  */
 struct _sas_port {
@@ -738,6 +755,7 @@ struct _sas_port {
 	struct sas_identify remote_identify;
 	struct sas_rphy *rphy;
 	struct sas_port *port;
+	struct hba_port *hba_port;
 	struct list_head phy_list;
 };
 
@@ -751,6 +769,7 @@ struct _sas_port {
  * @handle: device handle for this phy
  * @attached_handle: device handle for attached device
  * @phy_belongs_to_port: port has been created for this phy
+ * @port: hba port entry containing port number info
  */
 struct _sas_phy {
 	struct list_head port_siblings;
@@ -761,6 +780,8 @@ struct _sas_phy {
 	u16	handle;
 	u16	attached_handle;
 	u8	phy_belongs_to_port;
+	u8	hba_vphy;
+	struct hba_port *port;
 };
 
 /**
@@ -776,6 +797,8 @@ struct _sas_phy {
  * @responding: used in _scsih_expander_device_mark_responding
  * @phy: a list of phys that make up this sas_host/expander
  * @sas_port_list: list of ports attached to this sas_host/expander
+ * @port: hba port entry containing node's port number info
+ * @rphy: sas_rphy object of this expander
  */
 struct _sas_node {
 	struct list_head list;
@@ -787,10 +810,11 @@ struct _sas_node {
 	u16	enclosure_handle;
 	u64	enclosure_logical_id;
 	u8	responding;
+	struct hba_port *port;
 	struct	_sas_phy *phy;
 	struct list_head sas_port_list;
+	struct sas_rphy *rphy;
 };
-
 
 /**
  * struct _enclosure_node - enclosure information
@@ -1009,6 +1033,46 @@ struct reply_post_struct {
 	dma_addr_t			reply_post_free_dma;
 };
 
+/**
+ * struct virtual_phy - vSES phy structure
+ * sas_address: SAS Address of vSES device
+ * phy_mask: vSES device's phy number
+ * flags: flags used to manage this structure
+ */
+struct virtual_phy {
+	struct	list_head list;
+	u64	sas_address;
+	u32	phy_mask;
+	u8	flags;
+};
+
+#define MPT_VPHY_FLAG_DIRTY_PHY	0x01
+
+/**
+ * struct hba_port - Saves each HBA's Wide/Narrow port info
+ * @sas_address: sas address of this wide/narrow port's attached device
+ * @phy_mask: HBA PHY's belonging to this port
+ * @port_id: port number
+ * @flags: hba port flags
+ * @vphys_mask : mask of vSES devices Phy number
+ * @vphys_list : list containing vSES device structures
+ */
+struct hba_port {
+	struct list_head list;
+	u64	sas_address;
+	u32	phy_mask;
+	u8      port_id;
+	u8	flags;
+	u32	vphys_mask;
+	struct list_head vphys_list;
+};
+
+/* hba port flags */
+#define HBA_PORT_FLAG_DIRTY_PORT       0x01
+#define HBA_PORT_FLAG_NEW_PORT         0x02
+
+#define MULTIPATH_DISABLED_PORT_ID     0xFF
+
 typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
 /**
  * struct MPT3SAS_ADAPTER - per adapter struct
@@ -1058,6 +1122,8 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @cpu_msix_table_sz: table size
  * @total_io_cnt: Gives total IO count, used to load balance the interrupts
  * @ioc_coredump_loop: will have non-zero value when FW is in CoreDump state
+ * @timestamp_update_count: Counter to fire timeSync command
+ * time_sync_interval: Time sync interval read from man page 11
  * @high_iops_outstanding: used to load balance the interrupts
  *				within high iops reply queues
  * @msix_load_balance: Enables load balancing of interrupts across
@@ -1191,6 +1257,8 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  *	which ensures the syncrhonization between cli/sysfs_show path.
  * @atomic_desc_capable: Atomic Request Descriptor support.
  * @GET_MSIX_INDEX: Get the msix index of high iops queues.
+ * @multipath_on_hba: flag to determine multipath on hba is enabled or not
+ * @port_table_list: list containing HBA's wide/narrow port's info
  */
 struct MPT3SAS_ADAPTER {
 	struct list_head list;
@@ -1251,6 +1319,8 @@ struct MPT3SAS_ADAPTER {
 	MPT3SAS_FLUSH_RUNNING_CMDS schedule_dead_ioc_flush_running_cmds;
 	u32             non_operational_loop;
 	u8              ioc_coredump_loop;
+	u32		timestamp_update_count;
+	u32		time_sync_interval;
 	atomic64_t      total_io_cnt;
 	atomic64_t	high_iops_outstanding;
 	bool            msix_load_balance;
@@ -1472,6 +1542,7 @@ struct MPT3SAS_ADAPTER {
 	struct SL_WH_EVENT_TRIGGERS_T diag_trigger_event;
 	struct SL_WH_SCSI_TRIGGERS_T diag_trigger_scsi;
 	struct SL_WH_MPI_TRIGGERS_T diag_trigger_mpi;
+	u8		supports_trigger_pages;
 	void		*device_remove_in_progress;
 	u16		device_remove_in_progress_sz;
 	u8		is_gen35_ioc;
@@ -1483,6 +1554,9 @@ struct MPT3SAS_ADAPTER {
 	PUT_SMID_IO_FP_HIP put_smid_hi_priority;
 	PUT_SMID_DEFAULT put_smid_default;
 	GET_MSIX_INDEX get_msix_index_for_smlio;
+
+	u8		multipath_on_hba;
+	struct list_head port_table_list;
 };
 
 struct mpt3sas_debugfs_buffer {
@@ -1619,20 +1693,27 @@ int mpt3sas_scsih_issue_locked_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 
 void mpt3sas_scsih_set_tm_flag(struct MPT3SAS_ADAPTER *ioc, u16 handle);
 void mpt3sas_scsih_clear_tm_flag(struct MPT3SAS_ADAPTER *ioc, u16 handle);
-void mpt3sas_expander_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address);
+void mpt3sas_expander_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
+	struct hba_port *port);
 void mpt3sas_device_remove_by_sas_address(struct MPT3SAS_ADAPTER *ioc,
-	u64 sas_address);
+	u64 sas_address, struct hba_port *port);
 u8 mpt3sas_check_for_pending_internal_cmds(struct MPT3SAS_ADAPTER *ioc,
 	u16 smid);
+struct hba_port *
+mpt3sas_get_port_by_id(struct MPT3SAS_ADAPTER *ioc, u8 port,
+	u8 bypass_dirty_port_flag);
 
 struct _sas_node *mpt3sas_scsih_expander_find_by_handle(
 	struct MPT3SAS_ADAPTER *ioc, u16 handle);
 struct _sas_node *mpt3sas_scsih_expander_find_by_sas_address(
-	struct MPT3SAS_ADAPTER *ioc, u64 sas_address);
+	struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
+	struct hba_port *port);
 struct _sas_device *mpt3sas_get_sdev_by_addr(
-	 struct MPT3SAS_ADAPTER *ioc, u64 sas_address);
+	 struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
+	 struct hba_port *port);
 struct _sas_device *__mpt3sas_get_sdev_by_addr(
-	 struct MPT3SAS_ADAPTER *ioc, u64 sas_address);
+	 struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
+	 struct hba_port *port);
 struct _sas_device *mpt3sas_get_sdev_by_handle(struct MPT3SAS_ADAPTER *ioc,
 	u16 handle);
 struct _pcie_device *mpt3sas_get_pdev_by_handle(struct MPT3SAS_ADAPTER *ioc,
@@ -1642,6 +1723,11 @@ void mpt3sas_port_enable_complete(struct MPT3SAS_ADAPTER *ioc);
 struct _raid_device *
 mpt3sas_raid_device_find_by_handle(struct MPT3SAS_ADAPTER *ioc, u16 handle);
 void mpt3sas_scsih_change_queue_depth(struct scsi_device *sdev, int qdepth);
+struct _sas_device *
+__mpt3sas_get_sdev_by_rphy(struct MPT3SAS_ADAPTER *ioc, struct sas_rphy *rphy);
+struct virtual_phy *
+mpt3sas_get_vphy_by_phy(struct MPT3SAS_ADAPTER *ioc,
+	struct hba_port *port, u32 phy);
 
 /* config shared API */
 u8 mpt3sas_config_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
@@ -1733,6 +1819,33 @@ int mpt3sas_config_get_volume_handle(struct MPT3SAS_ADAPTER *ioc, u16 pd_handle,
 	u16 *volume_handle);
 int mpt3sas_config_get_volume_wwid(struct MPT3SAS_ADAPTER *ioc,
 	u16 volume_handle, u64 *wwid);
+int
+mpt3sas_config_get_driver_trigger_pg0(struct MPT3SAS_ADAPTER *ioc,
+	Mpi2ConfigReply_t *mpi_reply, Mpi26DriverTriggerPage0_t *config_page);
+int
+mpt3sas_config_get_driver_trigger_pg1(struct MPT3SAS_ADAPTER *ioc,
+	Mpi2ConfigReply_t *mpi_reply, Mpi26DriverTriggerPage1_t *config_page);
+int
+mpt3sas_config_get_driver_trigger_pg2(struct MPT3SAS_ADAPTER *ioc,
+	Mpi2ConfigReply_t *mpi_reply, Mpi26DriverTriggerPage2_t *config_page);
+int
+mpt3sas_config_get_driver_trigger_pg3(struct MPT3SAS_ADAPTER *ioc,
+	Mpi2ConfigReply_t *mpi_reply, Mpi26DriverTriggerPage3_t *config_page);
+int
+mpt3sas_config_get_driver_trigger_pg4(struct MPT3SAS_ADAPTER *ioc,
+	Mpi2ConfigReply_t *mpi_reply, Mpi26DriverTriggerPage4_t *config_page);
+int
+mpt3sas_config_update_driver_trigger_pg1(struct MPT3SAS_ADAPTER *ioc,
+	struct SL_WH_MASTER_TRIGGER_T *master_tg, bool set);
+int
+mpt3sas_config_update_driver_trigger_pg2(struct MPT3SAS_ADAPTER *ioc,
+	struct SL_WH_EVENT_TRIGGERS_T *event_tg, bool set);
+int
+mpt3sas_config_update_driver_trigger_pg3(struct MPT3SAS_ADAPTER *ioc,
+	struct SL_WH_SCSI_TRIGGERS_T *scsi_tg, bool set);
+int
+mpt3sas_config_update_driver_trigger_pg4(struct MPT3SAS_ADAPTER *ioc,
+	struct SL_WH_MPI_TRIGGERS_T *mpi_tg, bool set);
 
 /* ctl shared API */
 extern struct device_attribute *mpt3sas_host_attrs[];
@@ -1759,18 +1872,26 @@ extern struct scsi_transport_template *mpt3sas_transport_template;
 u8 mpt3sas_transport_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	u32 reply);
 struct _sas_port *mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc,
-	u16 handle, u64 sas_address);
+	u16 handle, u64 sas_address, struct hba_port *port);
 void mpt3sas_transport_port_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
-	u64 sas_address_parent);
+	u64 sas_address_parent, struct hba_port *port);
 int mpt3sas_transport_add_host_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_phy
 	*mpt3sas_phy, Mpi2SasPhyPage0_t phy_pg0, struct device *parent_dev);
 int mpt3sas_transport_add_expander_phy(struct MPT3SAS_ADAPTER *ioc,
 	struct _sas_phy *mpt3sas_phy, Mpi2ExpanderPage1_t expander_pg1,
 	struct device *parent_dev);
 void mpt3sas_transport_update_links(struct MPT3SAS_ADAPTER *ioc,
-	u64 sas_address, u16 handle, u8 phy_number, u8 link_rate);
+	u64 sas_address, u16 handle, u8 phy_number, u8 link_rate,
+	struct hba_port *port);
 extern struct sas_function_template mpt3sas_transport_functions;
 extern struct scsi_transport_template *mpt3sas_transport_template;
+void
+mpt3sas_transport_del_phy_from_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
+	struct _sas_node *sas_node, struct _sas_phy *mpt3sas_phy);
+void
+mpt3sas_transport_add_phy_to_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
+	struct _sas_node *sas_node, struct _sas_phy *mpt3sas_phy,
+	u64 sas_address, struct hba_port *port);
 /* trigger data externs */
 void mpt3sas_send_trigger_data_event(struct MPT3SAS_ADAPTER *ioc,
 	struct SL_WH_TRIGGERS_EVENT_DATA_T *event_data);

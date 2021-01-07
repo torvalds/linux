@@ -16,7 +16,6 @@ struct pair {
 
 int main(int ac, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	struct bpf_object *obj;
 	int map_fd, prog_fd;
 	char filename[256];
@@ -24,7 +23,6 @@ int main(int ac, char **argv)
 	FILE *f;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-	setrlimit(RLIMIT_MEMLOCK, &r);
 
 	if (bpf_prog_load(filename, BPF_PROG_TYPE_SOCKET_FILTER,
 			  &obj, &prog_fd))

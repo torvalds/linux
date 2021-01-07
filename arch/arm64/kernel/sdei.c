@@ -7,9 +7,11 @@
 #include <linux/hardirq.h>
 #include <linux/irqflags.h>
 #include <linux/sched/task_stack.h>
+#include <linux/scs.h>
 #include <linux/uaccess.h>
 
 #include <asm/alternative.h>
+#include <asm/exception.h>
 #include <asm/kprobes.h>
 #include <asm/mmu.h>
 #include <asm/ptrace.h>
@@ -37,6 +39,14 @@ DEFINE_PER_CPU(unsigned long *, sdei_stack_normal_ptr);
 DEFINE_PER_CPU(unsigned long *, sdei_stack_critical_ptr);
 #endif
 
+DECLARE_PER_CPU(unsigned long *, sdei_shadow_call_stack_normal_ptr);
+DECLARE_PER_CPU(unsigned long *, sdei_shadow_call_stack_critical_ptr);
+
+#ifdef CONFIG_SHADOW_CALL_STACK
+DEFINE_PER_CPU(unsigned long *, sdei_shadow_call_stack_normal_ptr);
+DEFINE_PER_CPU(unsigned long *, sdei_shadow_call_stack_critical_ptr);
+#endif
+
 static void _free_sdei_stack(unsigned long * __percpu *ptr, int cpu)
 {
 	unsigned long *p;
@@ -51,6 +61,9 @@ static void _free_sdei_stack(unsigned long * __percpu *ptr, int cpu)
 static void free_sdei_stacks(void)
 {
 	int cpu;
+
+	if (!IS_ENABLED(CONFIG_VMAP_STACK))
+		return;
 
 	for_each_possible_cpu(cpu) {
 		_free_sdei_stack(&sdei_stack_normal_ptr, cpu);
@@ -75,6 +88,9 @@ static int init_sdei_stacks(void)
 	int cpu;
 	int err = 0;
 
+	if (!IS_ENABLED(CONFIG_VMAP_STACK))
+		return 0;
+
 	for_each_possible_cpu(cpu) {
 		err = _init_sdei_stack(&sdei_stack_normal_ptr, cpu);
 		if (err)
@@ -86,6 +102,62 @@ static int init_sdei_stacks(void)
 
 	if (err)
 		free_sdei_stacks();
+
+	return err;
+}
+
+static void _free_sdei_scs(unsigned long * __percpu *ptr, int cpu)
+{
+	void *s;
+
+	s = per_cpu(*ptr, cpu);
+	if (s) {
+		per_cpu(*ptr, cpu) = NULL;
+		scs_free(s);
+	}
+}
+
+static void free_sdei_scs(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		_free_sdei_scs(&sdei_shadow_call_stack_normal_ptr, cpu);
+		_free_sdei_scs(&sdei_shadow_call_stack_critical_ptr, cpu);
+	}
+}
+
+static int _init_sdei_scs(unsigned long * __percpu *ptr, int cpu)
+{
+	void *s;
+
+	s = scs_alloc(cpu_to_node(cpu));
+	if (!s)
+		return -ENOMEM;
+	per_cpu(*ptr, cpu) = s;
+
+	return 0;
+}
+
+static int init_sdei_scs(void)
+{
+	int cpu;
+	int err = 0;
+
+	if (!IS_ENABLED(CONFIG_SHADOW_CALL_STACK))
+		return 0;
+
+	for_each_possible_cpu(cpu) {
+		err = _init_sdei_scs(&sdei_shadow_call_stack_normal_ptr, cpu);
+		if (err)
+			break;
+		err = _init_sdei_scs(&sdei_shadow_call_stack_critical_ptr, cpu);
+		if (err)
+			break;
+	}
+
+	if (err)
+		free_sdei_scs();
 
 	return err;
 }
@@ -130,13 +202,14 @@ unsigned long sdei_arch_get_entry_point(int conduit)
 	 */
 	if (is_hyp_mode_available() && !is_kernel_in_hyp_mode()) {
 		pr_err("Not supported on this hardware/boot configuration\n");
-		return 0;
+		goto out_err;
 	}
 
-	if (IS_ENABLED(CONFIG_VMAP_STACK)) {
-		if (init_sdei_stacks())
-			return 0;
-	}
+	if (init_sdei_stacks())
+		goto out_err;
+
+	if (init_sdei_scs())
+		goto out_err_free_stacks;
 
 	sdei_exit_mode = (conduit == SMCCC_CONDUIT_HVC) ? SDEI_EXIT_HVC : SDEI_EXIT_SMC;
 
@@ -151,6 +224,10 @@ unsigned long sdei_arch_get_entry_point(int conduit)
 #endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
 		return (unsigned long)__sdei_asm_handler;
 
+out_err_free_stacks:
+	free_sdei_stacks();
+out_err:
+	return 0;
 }
 
 /*
@@ -177,12 +254,6 @@ static __kprobes unsigned long _sdei_handler(struct pt_regs *regs,
 		/* from within the handler, this call always succeeds */
 		sdei_api_event_context(i, &regs->regs[i]);
 	}
-
-	/*
-	 * We didn't take an exception to get here, set PAN. UAO will be cleared
-	 * by sdei_event_handler()s force_uaccess_begin() call.
-	 */
-	__uaccess_enable_hw_pan();
 
 	err = sdei_event_handler(regs, arg);
 	if (err)
@@ -222,17 +293,44 @@ static __kprobes unsigned long _sdei_handler(struct pt_regs *regs,
 	return vbar + 0x480;
 }
 
+static void __kprobes notrace __sdei_pstate_entry(void)
+{
+	/*
+	 * The original SDEI spec (ARM DEN 0054A) can be read ambiguously as to
+	 * whether PSTATE bits are inherited unchanged or generated from
+	 * scratch, and the TF-A implementation always clears PAN and always
+	 * clears UAO. There are no other known implementations.
+	 *
+	 * Subsequent revisions (ARM DEN 0054B) follow the usual rules for how
+	 * PSTATE is modified upon architectural exceptions, and so PAN is
+	 * either inherited or set per SCTLR_ELx.SPAN, and UAO is always
+	 * cleared.
+	 *
+	 * We must explicitly reset PAN to the expected state, including
+	 * clearing it when the host isn't using it, in case a VM had it set.
+	 */
+	if (system_uses_hw_pan())
+		set_pstate_pan(1);
+	else if (cpu_has_pan())
+		set_pstate_pan(0);
+}
 
-asmlinkage __kprobes notrace unsigned long
+asmlinkage noinstr unsigned long
 __sdei_handler(struct pt_regs *regs, struct sdei_registered_event *arg)
 {
 	unsigned long ret;
 
-	nmi_enter();
+	/*
+	 * We didn't take an exception to get here, so the HW hasn't
+	 * set/cleared bits in PSTATE that we may rely on. Initialize PAN.
+	 */
+	__sdei_pstate_entry();
+
+	arm64_enter_nmi(regs);
 
 	ret = _sdei_handler(regs, arg);
 
-	nmi_exit();
+	arm64_exit_nmi(regs);
 
 	return ret;
 }

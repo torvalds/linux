@@ -408,12 +408,12 @@ static void vmw_stdu_crtc_helper_prepare(struct drm_crtc *crtc)
 }
 
 static void vmw_stdu_crtc_atomic_enable(struct drm_crtc *crtc,
-					struct drm_crtc_state *old_state)
+					struct drm_atomic_state *state)
 {
 }
 
 static void vmw_stdu_crtc_atomic_disable(struct drm_crtc *crtc,
-					 struct drm_crtc_state *old_state)
+					 struct drm_atomic_state *state)
 {
 	struct vmw_private *dev_priv;
 	struct vmw_screen_target_display_unit *stdu;

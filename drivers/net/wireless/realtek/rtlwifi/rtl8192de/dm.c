@@ -986,18 +986,19 @@ old_index_done:
 			rtlpriv->dm.cck_index);
 	}
 	for (i = 0; i < rf; i++) {
-		if (ofdm_index[i] > OFDM_TABLE_SIZE_92D - 1)
+		if (ofdm_index[i] > OFDM_TABLE_SIZE_92D - 1) {
 			ofdm_index[i] = OFDM_TABLE_SIZE_92D - 1;
-		else if (ofdm_index[i] < ofdm_min_index)
-			ofdm_index[i] = ofdm_min_index;
-	}
-	if (rtlhal->current_bandtype == BAND_ON_2_4G) {
-		if (cck_index > CCK_TABLE_SIZE - 1) {
-			cck_index = CCK_TABLE_SIZE - 1;
 		} else if (internal_pa ||
 			   rtlhal->current_bandtype == BAND_ON_2_4G) {
 			if (ofdm_index[i] < ofdm_min_index_internal_pa)
 				ofdm_index[i] = ofdm_min_index_internal_pa;
+		} else if (ofdm_index[i] < ofdm_min_index) {
+			ofdm_index[i] = ofdm_min_index;
+		}
+	}
+	if (rtlhal->current_bandtype == BAND_ON_2_4G) {
+		if (cck_index > CCK_TABLE_SIZE - 1) {
+			cck_index = CCK_TABLE_SIZE - 1;
 		} else if (cck_index < 0) {
 			cck_index = 0;
 		}

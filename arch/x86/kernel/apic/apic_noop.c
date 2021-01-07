@@ -95,19 +95,15 @@ struct apic apic_noop __ro_after_init = {
 	.apic_id_valid			= default_apic_id_valid,
 	.apic_id_registered		= noop_apic_id_registered,
 
-	.irq_delivery_mode		= dest_Fixed,
-	/* logical delivery broadcast to all CPUs: */
-	.irq_dest_mode			= 1,
+	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
+	.dest_mode_logical		= true,
 
 	.disable_esr			= 0,
-	.dest_logical			= APIC_DEST_LOGICAL,
+
 	.check_apicid_used		= default_check_apicid_used,
-
 	.init_apic_ldr			= noop_init_apic_ldr,
-
 	.ioapic_phys_id_map		= default_ioapic_phys_id_map,
 	.setup_apic_routing		= NULL,
-
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
 	.apicid_to_cpu_present		= physid_set_mask_of_physid,
 

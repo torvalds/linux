@@ -314,6 +314,13 @@ over a rather long period of time, but improvements are always welcome!
 	shared between readers and updaters.  Additional primitives
 	are provided for this case, as discussed in lockdep.txt.
 
+	One exception to this rule is when data is only ever added to
+	the linked data structure, and is never removed during any
+	time that readers might be accessing that structure.  In such
+	cases, READ_ONCE() may be used in place of rcu_dereference()
+	and the read-side markers (rcu_read_lock() and rcu_read_unlock(),
+	for example) may be omitted.
+
 10.	Conversely, if you are in an RCU read-side critical section,
 	and you don't hold the appropriate update-side lock, you -must-
 	use the "_rcu()" variants of the list macros.  Failing to do so

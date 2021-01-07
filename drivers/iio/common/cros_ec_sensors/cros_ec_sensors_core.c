@@ -359,19 +359,22 @@ int cros_ec_sensors_core_init(struct platform_device *pdev,
 			if (ret)
 				return ret;
 		} else {
+			const struct attribute **fifo_attrs;
+
+			if (has_hw_fifo)
+				fifo_attrs = cros_ec_sensor_fifo_attributes;
+			else
+				fifo_attrs = NULL;
+
 			/*
 			 * The only way to get samples in buffer is to set a
 			 * software trigger (systrig, hrtimer).
 			 */
-			ret = devm_iio_triggered_buffer_setup(
+			ret = devm_iio_triggered_buffer_setup_ext(
 					dev, indio_dev, NULL, trigger_capture,
-					NULL);
+					NULL, fifo_attrs);
 			if (ret)
 				return ret;
-
-			if (has_hw_fifo)
-				iio_buffer_set_attrs(indio_dev->buffer,
-						     cros_ec_sensor_fifo_attributes);
 		}
 	}
 

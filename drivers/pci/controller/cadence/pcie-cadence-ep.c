@@ -530,12 +530,9 @@ int cdns_pcie_ep_setup(struct cdns_pcie_ep *ep)
 	}
 	pcie->mem_res = res;
 
-	ret = of_property_read_u32(np, "cdns,max-outbound-regions",
-				   &ep->max_regions);
-	if (ret < 0) {
-		dev_err(dev, "missing \"cdns,max-outbound-regions\"\n");
-		return ret;
-	}
+	ep->max_regions = CDNS_PCIE_MAX_OB;
+	of_property_read_u32(np, "cdns,max-outbound-regions", &ep->max_regions);
+
 	ep->ob_addr = devm_kcalloc(dev,
 				   ep->max_regions, sizeof(*ep->ob_addr),
 				   GFP_KERNEL);

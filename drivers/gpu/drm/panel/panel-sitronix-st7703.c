@@ -153,7 +153,7 @@ static const struct drm_display_mode jh057n00900_mode = {
 	.height_mm   = 130,
 };
 
-struct st7703_panel_desc jh057n00900_panel_desc = {
+static const struct st7703_panel_desc jh057n00900_panel_desc = {
 	.mode = &jh057n00900_mode,
 	.lanes = 4,
 	.mode_flags = MIPI_DSI_MODE_VIDEO |

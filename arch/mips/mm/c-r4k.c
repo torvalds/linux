@@ -1609,7 +1609,7 @@ static void __init loongson2_sc_init(void)
 	c->options |= MIPS_CPU_INCLUSIVE_CACHES;
 }
 
-static void __init loongson3_sc_init(void)
+static void loongson3_sc_init(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int config2, lsize;
@@ -1623,15 +1623,13 @@ static void __init loongson3_sc_init(void)
 	c->scache.sets = 64 << ((config2 >> 8) & 15);
 	c->scache.ways = 1 + (config2 & 15);
 
-	scache_size = c->scache.sets *
-				  c->scache.ways *
-				  c->scache.linesz;
-
 	/* Loongson-3 has 4-Scache banks, while Loongson-2K have only 2 banks */
 	if ((c->processor_id & PRID_IMP_MASK) == PRID_IMP_LOONGSON_64R)
-		scache_size *= 2;
+		c->scache.sets *= 2;
 	else
-		scache_size *= 4;
+		c->scache.sets *= 4;
+
+	scache_size = c->scache.sets * c->scache.ways * c->scache.linesz;
 
 	c->scache.waybit = 0;
 	c->scache.waysize = scache_size / c->scache.ways;

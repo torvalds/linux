@@ -367,8 +367,13 @@ static int input_get_disposition(struct input_dev *dev,
 static void input_handle_event(struct input_dev *dev,
 			       unsigned int type, unsigned int code, int value)
 {
-	int disposition = input_get_disposition(dev, type, code, &value);
+	int disposition;
 
+	/* filter-out events from inhibited devices */
+	if (dev->inhibited)
+		return;
+
+	disposition = input_get_disposition(dev, type, code, &value);
 	if (disposition != INPUT_IGNORE_EVENT && type != EV_SYN)
 		add_input_randomness(type, code, value);
 
@@ -612,10 +617,10 @@ int input_open_device(struct input_handle *handle)
 
 	handle->open++;
 
-	if (dev->users++) {
+	if (dev->users++ || dev->inhibited) {
 		/*
-		 * Device is already opened, so we can exit immediately and
-		 * report success.
+		 * Device is already opened and/or inhibited,
+		 * so we can exit immediately and report success.
 		 */
 		goto out;
 	}
@@ -675,10 +680,9 @@ void input_close_device(struct input_handle *handle)
 
 	__input_release_device(handle);
 
-	if (!--dev->users) {
+	if (!dev->inhibited && !--dev->users) {
 		if (dev->poller)
 			input_dev_poller_stop(dev->poller);
-
 		if (dev->close)
 			dev->close(dev);
 	}
@@ -1416,12 +1420,49 @@ static ssize_t input_dev_show_properties(struct device *dev,
 }
 static DEVICE_ATTR(properties, S_IRUGO, input_dev_show_properties, NULL);
 
+static int input_inhibit_device(struct input_dev *dev);
+static int input_uninhibit_device(struct input_dev *dev);
+
+static ssize_t inhibited_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	struct input_dev *input_dev = to_input_dev(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", input_dev->inhibited);
+}
+
+static ssize_t inhibited_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t len)
+{
+	struct input_dev *input_dev = to_input_dev(dev);
+	ssize_t rv;
+	bool inhibited;
+
+	if (strtobool(buf, &inhibited))
+		return -EINVAL;
+
+	if (inhibited)
+		rv = input_inhibit_device(input_dev);
+	else
+		rv = input_uninhibit_device(input_dev);
+
+	if (rv != 0)
+		return rv;
+
+	return len;
+}
+
+static DEVICE_ATTR_RW(inhibited);
+
 static struct attribute *input_dev_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_phys.attr,
 	&dev_attr_uniq.attr,
 	&dev_attr_modalias.attr,
 	&dev_attr_properties.attr,
+	&dev_attr_inhibited.attr,
 	NULL
 };
 
@@ -1702,6 +1743,63 @@ void input_reset_device(struct input_dev *dev)
 	mutex_unlock(&dev->mutex);
 }
 EXPORT_SYMBOL(input_reset_device);
+
+static int input_inhibit_device(struct input_dev *dev)
+{
+	int ret = 0;
+
+	mutex_lock(&dev->mutex);
+
+	if (dev->inhibited)
+		goto out;
+
+	if (dev->users) {
+		if (dev->close)
+			dev->close(dev);
+		if (dev->poller)
+			input_dev_poller_stop(dev->poller);
+	}
+
+	spin_lock_irq(&dev->event_lock);
+	input_dev_release_keys(dev);
+	input_dev_toggle(dev, false);
+	spin_unlock_irq(&dev->event_lock);
+
+	dev->inhibited = true;
+
+out:
+	mutex_unlock(&dev->mutex);
+	return ret;
+}
+
+static int input_uninhibit_device(struct input_dev *dev)
+{
+	int ret = 0;
+
+	mutex_lock(&dev->mutex);
+
+	if (!dev->inhibited)
+		goto out;
+
+	if (dev->users) {
+		if (dev->open) {
+			ret = dev->open(dev);
+			if (ret)
+				goto out;
+		}
+		if (dev->poller)
+			input_dev_poller_start(dev->poller);
+	}
+
+	dev->inhibited = false;
+	spin_lock_irq(&dev->event_lock);
+	input_dev_toggle(dev, true);
+	spin_unlock_irq(&dev->event_lock);
+
+out:
+	mutex_unlock(&dev->mutex);
+	return ret;
+}
 
 #ifdef CONFIG_PM_SLEEP
 static int input_dev_suspend(struct device *dev)
@@ -2126,6 +2224,14 @@ void input_enable_softrepeat(struct input_dev *dev, int delay, int period)
 	dev->rep[REP_PERIOD] = period;
 }
 EXPORT_SYMBOL(input_enable_softrepeat);
+
+bool input_device_enabled(struct input_dev *dev)
+{
+	lockdep_assert_held(&dev->mutex);
+
+	return !dev->inhibited && dev->users > 0;
+}
+EXPORT_SYMBOL_GPL(input_device_enabled);
 
 /**
  * input_register_device - register device with input core

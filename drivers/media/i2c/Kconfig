@@ -722,7 +722,7 @@ menu "Camera sensor devices"
 config VIDEO_APTINA_PLL
 	tristate
 
-config VIDEO_SMIAPP_PLL
+config VIDEO_CCS_PLL
 	tristate
 
 config VIDEO_HI556
@@ -825,6 +825,19 @@ config VIDEO_IMX355
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx355.
 
+config VIDEO_OV02A10
+	tristate "OmniVision OV02A10 sensor support"
+	depends on VIDEO_V4L2 && I2C
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV02A10 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov02a10.
+
 config VIDEO_OV2640
 	tristate "OmniVision OV2640 sensor support"
 	depends on VIDEO_V4L2 && I2C
@@ -877,6 +890,7 @@ config VIDEO_OV2740
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
+	select REGMAP_I2C
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV2740 camera.
@@ -1049,6 +1063,20 @@ config VIDEO_OV9650
 	help
 	  This is a V4L2 sensor driver for the Omnivision
 	  OV9650 and OV9652 camera sensors.
+
+config VIDEO_OV9734
+	tristate "OmniVision OV9734 sensor support"
+	depends on VIDEO_V4L2 && I2C
+	depends on ACPI || COMPILE_TEST
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV9734 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module's name is ov9734.
 
 config VIDEO_OV13858
 	tristate "OmniVision OV13858 sensor support"
@@ -1232,7 +1260,7 @@ config VIDEO_S5K5BAF
 	  This is a V4L2 sensor driver for Samsung S5K5BAF 2M
 	  camera sensor with an embedded SoC image signal processor.
 
-source "drivers/media/i2c/smiapp/Kconfig"
+source "drivers/media/i2c/ccs/Kconfig"
 source "drivers/media/i2c/et8ek8/Kconfig"
 
 config VIDEO_S5C73M3

@@ -33,7 +33,7 @@ static inline int __read_user_stack(const void __user *ptr, void *ret,
 
 	rc = copy_from_user_nofault(ret, ptr, size);
 
-	if (IS_ENABLED(CONFIG_PPC64) && rc)
+	if (IS_ENABLED(CONFIG_PPC64) && !radix_enabled() && rc)
 		return read_user_stack_slow(ptr, ret, size);
 
 	return rc;

@@ -89,6 +89,8 @@ int mt76x02_mcu_cleanup(struct mt76x02_dev *dev);
 int mt76x02_mcu_calibrate(struct mt76x02_dev *dev, int type, u32 param);
 int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 			 int len, bool wait_resp);
+int mt76x02_mcu_parse_response(struct mt76_dev *mdev, int cmd,
+			       struct sk_buff *skb, int seq);
 int mt76x02_mcu_function_select(struct mt76x02_dev *dev, enum mcu_function func,
 				u32 val);
 int mt76x02_mcu_set_radio_state(struct mt76x02_dev *dev, bool on);

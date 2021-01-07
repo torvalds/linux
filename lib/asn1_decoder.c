@@ -381,7 +381,7 @@ next_op:
 	case ASN1_OP_END_SET_ACT:
 		if (unlikely(!(flags & FLAG_MATCHED)))
 			goto tag_mismatch;
-		/* fall through */
+		fallthrough;
 
 	case ASN1_OP_END_SEQ:
 	case ASN1_OP_END_SET_OF:
@@ -448,7 +448,7 @@ next_op:
 			pc += asn1_op_lengths[op];
 			goto next_op;
 		}
-		/* fall through */
+		fallthrough;
 
 	case ASN1_OP_ACT:
 		ret = actions[machine[pc + 1]](context, hdr, tag, data + tdp, len);

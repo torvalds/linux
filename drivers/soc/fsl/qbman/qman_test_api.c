@@ -45,7 +45,8 @@
 
 static enum qman_cb_dqrr_result cb_dqrr(struct qman_portal *,
 					struct qman_fq *,
-					const struct qm_dqrr_entry *);
+					const struct qm_dqrr_entry *,
+					bool sched_napi);
 static void cb_ern(struct qman_portal *, struct qman_fq *,
 		   const union qm_mr_entry *);
 static void cb_fqs(struct qman_portal *, struct qman_fq *,
@@ -208,7 +209,8 @@ failed:
 
 static enum qman_cb_dqrr_result cb_dqrr(struct qman_portal *p,
 					struct qman_fq *fq,
-					const struct qm_dqrr_entry *dq)
+					const struct qm_dqrr_entry *dq,
+					bool sched_napi)
 {
 	if (WARN_ON(fd_neq(&fd_dq, &dq->fd))) {
 		pr_err("BADNESS: dequeued frame doesn't match;\n");

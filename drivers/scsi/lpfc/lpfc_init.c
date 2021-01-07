@@ -2844,28 +2844,6 @@ lpfc_cleanup(struct lpfc_vport *vport)
 		lpfc_port_link_failure(vport);
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (!NLP_CHK_NODE_ACT(ndlp)) {
-			ndlp = lpfc_enable_node(vport, ndlp,
-						NLP_STE_UNUSED_NODE);
-			if (!ndlp)
-				continue;
-			spin_lock_irq(&phba->ndlp_lock);
-			NLP_SET_FREE_REQ(ndlp);
-			spin_unlock_irq(&phba->ndlp_lock);
-			/* Trigger the release of the ndlp memory */
-			lpfc_nlp_put(ndlp);
-			continue;
-		}
-		spin_lock_irq(&phba->ndlp_lock);
-		if (NLP_CHK_FREE_REQ(ndlp)) {
-			/* The ndlp should not be in memory free mode already */
-			spin_unlock_irq(&phba->ndlp_lock);
-			continue;
-		} else
-			/* Indicate request for freeing ndlp memory */
-			NLP_SET_FREE_REQ(ndlp);
-		spin_unlock_irq(&phba->ndlp_lock);
-
 		if (vport->port_type != LPFC_PHYSICAL_PORT &&
 		    ndlp->nlp_DID == Fabric_DID) {
 			/* Just free up ndlp with Fabric_DID for vports */
@@ -2873,20 +2851,23 @@ lpfc_cleanup(struct lpfc_vport *vport)
 			continue;
 		}
 
-		/* take care of nodes in unused state before the state
-		 * machine taking action.
-		 */
-		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
+		if (ndlp->nlp_DID == Fabric_Cntl_DID &&
+		    ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
 			lpfc_nlp_put(ndlp);
 			continue;
 		}
 
-		if (ndlp->nlp_type & NLP_FABRIC)
+		/* Fabric Ports not in UNMAPPED state are cleaned up in the
+		 * DEVICE_RM event.
+		 */
+		if (ndlp->nlp_type & NLP_FABRIC &&
+		    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RECOVERY);
 
-		lpfc_disc_state_machine(vport, ndlp, NULL,
-					     NLP_EVT_DEVICE_RM);
+		if (!(ndlp->fc4_xpt_flags & (NVME_XPT_REGD|SCSI_XPT_REGD)))
+			lpfc_disc_state_machine(vport, ndlp, NULL,
+					NLP_EVT_DEVICE_RM);
 	}
 
 	/* At this point, ALL ndlp's should be gone
@@ -2901,12 +2882,13 @@ lpfc_cleanup(struct lpfc_vport *vport)
 			list_for_each_entry_safe(ndlp, next_ndlp,
 						&vport->fc_nodes, nlp_listp) {
 				lpfc_printf_vlog(ndlp->vport, KERN_ERR,
-						LOG_TRACE_EVENT,
-						"0282 did:x%x ndlp:x%px "
-						"usgmap:x%x refcnt:%d\n",
-						ndlp->nlp_DID, (void *)ndlp,
-						ndlp->nlp_usg_map,
-						kref_read(&ndlp->kref));
+						 LOG_TRACE_EVENT,
+						 "0282 did:x%x ndlp:x%px "
+						 "refcnt:%d xflags x%x nflag x%x\n",
+						 ndlp->nlp_DID, (void *)ndlp,
+						 kref_read(&ndlp->kref),
+						 ndlp->fc4_xpt_flags,
+						 ndlp->nlp_flag);
 			}
 			break;
 		}
@@ -3080,7 +3062,6 @@ lpfc_sli4_node_prep(struct lpfc_hba *phba)
 	struct lpfc_nodelist  *ndlp, *next_ndlp;
 	struct lpfc_vport **vports;
 	int i, rpi;
-	unsigned long flags;
 
 	if (phba->sli_rev != LPFC_SLI_REV4)
 		return;
@@ -3096,22 +3077,18 @@ lpfc_sli4_node_prep(struct lpfc_hba *phba)
 		list_for_each_entry_safe(ndlp, next_ndlp,
 					 &vports[i]->fc_nodes,
 					 nlp_listp) {
-			if (!NLP_CHK_NODE_ACT(ndlp))
-				continue;
 			rpi = lpfc_sli4_alloc_rpi(phba);
 			if (rpi == LPFC_RPI_ALLOC_ERROR) {
-				spin_lock_irqsave(&phba->ndlp_lock, flags);
-				NLP_CLR_NODE_ACT(ndlp);
-				spin_unlock_irqrestore(&phba->ndlp_lock, flags);
+				/* TODO print log? */
 				continue;
 			}
 			ndlp->nlp_rpi = rpi;
 			lpfc_printf_vlog(ndlp->vport, KERN_INFO,
 					 LOG_NODE | LOG_DISCOVERY,
 					 "0009 Assign RPI x%x to ndlp x%px "
-					 "DID:x%06x flg:x%x map:x%x\n",
+					 "DID:x%06x flg:x%x\n",
 					 ndlp->nlp_rpi, ndlp, ndlp->nlp_DID,
-					 ndlp->nlp_flag, ndlp->nlp_usg_map);
+					 ndlp->nlp_flag);
 		}
 	}
 	lpfc_destroy_vport_work_array(phba, vports);
@@ -3510,8 +3487,7 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 			list_for_each_entry_safe(ndlp, next_ndlp,
 						 &vports[i]->fc_nodes,
 						 nlp_listp) {
-				if ((!NLP_CHK_NODE_ACT(ndlp)) ||
-				    ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
+				if (ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
 					/* Driver must assume RPI is invalid for
 					 * any unused or inactive node.
 					 */
@@ -3519,33 +3495,42 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 					continue;
 				}
 
-				if (ndlp->nlp_type & NLP_FABRIC) {
-					lpfc_disc_state_machine(vports[i], ndlp,
-						NULL, NLP_EVT_DEVICE_RECOVERY);
-					lpfc_disc_state_machine(vports[i], ndlp,
-						NULL, NLP_EVT_DEVICE_RM);
-				}
-				spin_lock_irq(shost->host_lock);
+				spin_lock_irq(&ndlp->lock);
 				ndlp->nlp_flag &= ~NLP_NPR_ADISC;
-				spin_unlock_irq(shost->host_lock);
+				spin_unlock_irq(&ndlp->lock);
 				/*
 				 * Whenever an SLI4 port goes offline, free the
 				 * RPI. Get a new RPI when the adapter port
 				 * comes back online.
 				 */
 				if (phba->sli_rev == LPFC_SLI_REV4) {
-					lpfc_printf_vlog(ndlp->vport, KERN_INFO,
+					lpfc_printf_vlog(vports[i], KERN_INFO,
 						 LOG_NODE | LOG_DISCOVERY,
 						 "0011 Free RPI x%x on "
-						 "ndlp:x%px did x%x "
-						 "usgmap:x%x\n",
+						 "ndlp: %p did x%x\n",
 						 ndlp->nlp_rpi, ndlp,
-						 ndlp->nlp_DID,
-						 ndlp->nlp_usg_map);
+						 ndlp->nlp_DID);
 					lpfc_sli4_free_rpi(phba, ndlp->nlp_rpi);
 					ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
 				}
 				lpfc_unreg_rpi(vports[i], ndlp);
+
+				if (ndlp->nlp_type & NLP_FABRIC) {
+					lpfc_disc_state_machine(vports[i], ndlp,
+						NULL, NLP_EVT_DEVICE_RECOVERY);
+
+					/* Don't remove the node unless the
+					 * has been unregistered with the
+					 * transport.  If so, let dev_loss
+					 * take care of the node.
+					 */
+					if (!(ndlp->fc4_xpt_flags &
+					      (NVME_XPT_REGD | SCSI_XPT_REGD)))
+						lpfc_disc_state_machine
+							(vports[i], ndlp,
+							 NULL,
+							 NLP_EVT_DEVICE_RM);
+				}
 			}
 		}
 	}
@@ -4343,16 +4328,13 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 			/* Seed physical port template */
 			memcpy(template, &lpfc_template, sizeof(*template));
 
-			if (use_no_reset_hba) {
+			if (use_no_reset_hba)
 				/* template is for a no reset SCSI Host */
-				template->max_sectors = 0xffff;
 				template->eh_host_reset_handler = NULL;
-			}
 
 			/* Template for all vports this physical port creates */
 			memcpy(&phba->vport_template, &lpfc_template,
 			       sizeof(*template));
-			phba->vport_template.max_sectors = 0xffff;
 			phba->vport_template.shost_attrs = lpfc_vport_attrs;
 			phba->vport_template.eh_bus_reset_handler = NULL;
 			phba->vport_template.eh_host_reset_handler = NULL;
@@ -5607,11 +5589,6 @@ lpfc_sli4_perform_vport_cvl(struct lpfc_vport *vport)
 		ndlp->nlp_type |= NLP_FABRIC;
 		/* Put ndlp onto node list */
 		lpfc_enqueue_node(vport, ndlp);
-	} else if (!NLP_CHK_NODE_ACT(ndlp)) {
-		/* re-setup ndlp without removing from node list */
-		ndlp = lpfc_enable_node(vport, ndlp, NLP_STE_UNUSED_NODE);
-		if (!ndlp)
-			return 0;
 	}
 	if ((phba->pport->port_state < LPFC_FLOGI) &&
 		(phba->pport->port_state != LPFC_VPORT_FAILED))
@@ -5667,7 +5644,6 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 	int rc;
 	struct lpfc_vport *vport;
 	struct lpfc_nodelist *ndlp;
-	struct Scsi_Host  *shost;
 	int active_vlink_present;
 	struct lpfc_vport **vports;
 	int i;
@@ -5848,10 +5824,9 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 			 */
 			mod_timer(&ndlp->nlp_delayfunc,
 				  jiffies + msecs_to_jiffies(1000));
-			shost = lpfc_shost_from_vport(vport);
-			spin_lock_irq(shost->host_lock);
+			spin_lock_irq(&ndlp->lock);
 			ndlp->nlp_flag |= NLP_DELAY_TMO;
-			spin_unlock_irq(shost->host_lock);
+			spin_unlock_irq(&ndlp->lock);
 			ndlp->nlp_last_elscmd = ELS_CMD_FDISC;
 			vport->port_state = LPFC_FDISC;
 		} else {
@@ -5958,18 +5933,21 @@ lpfc_sli4_async_grp5_evt(struct lpfc_hba *phba,
 void lpfc_sli4_async_event_proc(struct lpfc_hba *phba)
 {
 	struct lpfc_cq_event *cq_event;
+	unsigned long iflags;
 
 	/* First, declare the async event has been handled */
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irqsave(&phba->hbalock, iflags);
 	phba->hba_flag &= ~ASYNC_EVENT;
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
+
 	/* Now, handle all the async events */
+	spin_lock_irqsave(&phba->sli4_hba.asynce_list_lock, iflags);
 	while (!list_empty(&phba->sli4_hba.sp_asynce_work_queue)) {
-		/* Get the first event from the head of the event queue */
-		spin_lock_irq(&phba->hbalock);
 		list_remove_head(&phba->sli4_hba.sp_asynce_work_queue,
 				 cq_event, struct lpfc_cq_event, list);
-		spin_unlock_irq(&phba->hbalock);
+		spin_unlock_irqrestore(&phba->sli4_hba.asynce_list_lock,
+				       iflags);
+
 		/* Process the asynchronous event */
 		switch (bf_get(lpfc_trailer_code, &cq_event->cqe.mcqe_cmpl)) {
 		case LPFC_TRAILER_CODE_LINK:
@@ -6001,9 +5979,12 @@ void lpfc_sli4_async_event_proc(struct lpfc_hba *phba)
 					&cq_event->cqe.mcqe_cmpl));
 			break;
 		}
+
 		/* Free the completion event processed to the free pool */
 		lpfc_sli4_cq_event_release(phba, cq_event);
+		spin_lock_irqsave(&phba->sli4_hba.asynce_list_lock, iflags);
 	}
+	spin_unlock_irqrestore(&phba->sli4_hba.asynce_list_lock, iflags);
 }
 
 /**
@@ -6294,9 +6275,6 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 	atomic_set(&phba->dbg_log_cnt, 0);
 	atomic_set(&phba->dbg_log_dmping, 0);
 	spin_lock_init(&phba->hbalock);
-
-	/* Initialize ndlp management spinlock */
-	spin_lock_init(&phba->ndlp_lock);
 
 	/* Initialize port_list spinlock */
 	spin_lock_init(&phba->port_list_lock);
@@ -6630,6 +6608,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	/* This abort list used by worker thread */
 	spin_lock_init(&phba->sli4_hba.sgl_list_lock);
 	spin_lock_init(&phba->sli4_hba.nvmet_io_wait_lock);
+	spin_lock_init(&phba->sli4_hba.asynce_list_lock);
+	spin_lock_init(&phba->sli4_hba.els_xri_abrt_list_lock);
 
 	/*
 	 * Initialize driver internal slow-path work queues
@@ -6641,8 +6621,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	INIT_LIST_HEAD(&phba->sli4_hba.sp_queue_event);
 	/* Asynchronous event CQ Event work queue list */
 	INIT_LIST_HEAD(&phba->sli4_hba.sp_asynce_work_queue);
-	/* Fast-path XRI aborted CQ Event work queue list */
-	INIT_LIST_HEAD(&phba->sli4_hba.sp_fcp_xri_aborted_work_queue);
 	/* Slow-path XRI aborted CQ Event work queue list */
 	INIT_LIST_HEAD(&phba->sli4_hba.sp_els_xri_aborted_work_queue);
 	/* Receive queue CQ Event work queue list */
@@ -7196,7 +7174,6 @@ lpfc_init_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 				"1431 Invalid HBA PCI-device group: 0x%x\n",
 				dev_grp);
 		return -ENODEV;
-		break;
 	}
 	return 0;
 }
@@ -10174,26 +10151,28 @@ lpfc_sli4_cq_event_release(struct lpfc_hba *phba,
 static void
 lpfc_sli4_cq_event_release_all(struct lpfc_hba *phba)
 {
-	LIST_HEAD(cqelist);
-	struct lpfc_cq_event *cqe;
+	LIST_HEAD(cq_event_list);
+	struct lpfc_cq_event *cq_event;
 	unsigned long iflags;
 
 	/* Retrieve all the pending WCQEs from pending WCQE lists */
-	spin_lock_irqsave(&phba->hbalock, iflags);
-	/* Pending FCP XRI abort events */
-	list_splice_init(&phba->sli4_hba.sp_fcp_xri_aborted_work_queue,
-			 &cqelist);
-	/* Pending ELS XRI abort events */
-	list_splice_init(&phba->sli4_hba.sp_els_xri_aborted_work_queue,
-			 &cqelist);
-	/* Pending asynnc events */
-	list_splice_init(&phba->sli4_hba.sp_asynce_work_queue,
-			 &cqelist);
-	spin_unlock_irqrestore(&phba->hbalock, iflags);
 
-	while (!list_empty(&cqelist)) {
-		list_remove_head(&cqelist, cqe, struct lpfc_cq_event, list);
-		lpfc_sli4_cq_event_release(phba, cqe);
+	/* Pending ELS XRI abort events */
+	spin_lock_irqsave(&phba->sli4_hba.els_xri_abrt_list_lock, iflags);
+	list_splice_init(&phba->sli4_hba.sp_els_xri_aborted_work_queue,
+			 &cq_event_list);
+	spin_unlock_irqrestore(&phba->sli4_hba.els_xri_abrt_list_lock, iflags);
+
+	/* Pending asynnc events */
+	spin_lock_irqsave(&phba->sli4_hba.asynce_list_lock, iflags);
+	list_splice_init(&phba->sli4_hba.sp_asynce_work_queue,
+			 &cq_event_list);
+	spin_unlock_irqrestore(&phba->sli4_hba.asynce_list_lock, iflags);
+
+	while (!list_empty(&cq_event_list)) {
+		list_remove_head(&cq_event_list, cq_event,
+				 struct lpfc_cq_event, list);
+		lpfc_sli4_cq_event_release(phba, cq_event);
 	}
 }
 
@@ -12310,6 +12289,21 @@ fcponly:
 	else
 		phba->nsler = 0;
 
+	/* Save PB info for use during HBA setup */
+	sli4_params->mi_ver = bf_get(cfg_mi_ver, mbx_sli4_parameters);
+	sli4_params->mib_bde_cnt = bf_get(cfg_mib_bde_cnt, mbx_sli4_parameters);
+	sli4_params->mib_size = mbx_sli4_parameters->mib_size;
+	sli4_params->mi_value = LPFC_DFLT_MIB_VAL;
+
+	/* Next we check for Vendor MIB support */
+	if (sli4_params->mi_ver && phba->cfg_enable_mi)
+		phba->cfg_fdmi_on = LPFC_FDMI_SUPPORT;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+			"6461 MIB attr %d  enable %d  FDMI %d buf %d:%d\n",
+			sli4_params->mi_ver, phba->cfg_enable_mi,
+			sli4_params->mi_value, sli4_params->mib_bde_cnt,
+			sli4_params->mib_size);
 	return 0;
 }
 
@@ -12515,10 +12509,11 @@ lpfc_pci_remove_one_s3(struct pci_dev *pdev)
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
 
-	/* Remove FC host and then SCSI host with the physical port */
+	/* Remove FC host with the physical port */
 	fc_remove_host(shost);
 	scsi_remove_host(shost);
 
+	/* Clean up all nodes, mailboxes and IOs. */
 	lpfc_cleanup(vport);
 
 	/*
@@ -12581,8 +12576,7 @@ lpfc_pci_remove_one_s3(struct pci_dev *pdev)
 
 /**
  * lpfc_pci_suspend_one_s3 - PCI func to suspend SLI-3 device for power mgmnt
- * @pdev: pointer to PCI device
- * @msg: power management message
+ * @dev_d: pointer to device
  *
  * This routine is to be called from the kernel's PCI subsystem to support
  * system Power Management (PM) to device with SLI-3 interface spec. When
@@ -12600,10 +12594,10 @@ lpfc_pci_remove_one_s3(struct pci_dev *pdev)
  * 	0 - driver suspended the device
  * 	Error otherwise
  **/
-static int
-lpfc_pci_suspend_one_s3(struct pci_dev *pdev, pm_message_t msg)
+static int __maybe_unused
+lpfc_pci_suspend_one_s3(struct device *dev_d)
 {
-	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct Scsi_Host *shost = dev_get_drvdata(dev_d);
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
@@ -12617,16 +12611,12 @@ lpfc_pci_suspend_one_s3(struct pci_dev *pdev, pm_message_t msg)
 	/* Disable interrupt from device */
 	lpfc_sli_disable_intr(phba);
 
-	/* Save device state to PCI config space */
-	pci_save_state(pdev);
-	pci_set_power_state(pdev, PCI_D3hot);
-
 	return 0;
 }
 
 /**
  * lpfc_pci_resume_one_s3 - PCI func to resume SLI-3 device for power mgmnt
- * @pdev: pointer to PCI device
+ * @dev_d: pointer to device
  *
  * This routine is to be called from the kernel's PCI subsystem to support
  * system Power Management (PM) to device with SLI-3 interface spec. When PM
@@ -12643,29 +12633,16 @@ lpfc_pci_suspend_one_s3(struct pci_dev *pdev, pm_message_t msg)
  * 	0 - driver suspended the device
  * 	Error otherwise
  **/
-static int
-lpfc_pci_resume_one_s3(struct pci_dev *pdev)
+static int __maybe_unused
+lpfc_pci_resume_one_s3(struct device *dev_d)
 {
-	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct Scsi_Host *shost = dev_get_drvdata(dev_d);
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 	uint32_t intr_mode;
 	int error;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 			"0452 PCI device Power Management resume.\n");
-
-	/* Restore device state from PCI config space */
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-
-	/*
-	 * As the new kernel behavior of pci_restore_state() API call clears
-	 * device saved_state flag, need to save the restored state again.
-	 */
-	pci_save_state(pdev);
-
-	if (pdev->is_busmaster)
-		pci_set_master(pdev);
 
 	/* Startup the kernel thread for this host adapter. */
 	phba->worker_thread = kthread_run(lpfc_do_work, phba,
@@ -13358,7 +13335,6 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	vport->load_flag |= FC_UNLOADING;
 	spin_unlock_irq(&phba->hbalock);
 
-	/* Free the HBA sysfs attributes */
 	lpfc_free_sysfs_attr(vport);
 
 	/* Release all the vports against this physical port */
@@ -13371,7 +13347,7 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
 
-	/* Remove FC host and then SCSI host with the physical port */
+	/* Remove FC host with the physical port */
 	fc_remove_host(shost);
 	scsi_remove_host(shost);
 
@@ -13423,8 +13399,7 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 
 /**
  * lpfc_pci_suspend_one_s4 - PCI func to suspend SLI-4 device for power mgmnt
- * @pdev: pointer to PCI device
- * @msg: power management message
+ * @dev_d: pointer to device
  *
  * This routine is called from the kernel's PCI subsystem to support system
  * Power Management (PM) to device with SLI-4 interface spec. When PM invokes
@@ -13442,10 +13417,10 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
  * 	0 - driver suspended the device
  * 	Error otherwise
  **/
-static int
-lpfc_pci_suspend_one_s4(struct pci_dev *pdev, pm_message_t msg)
+static int __maybe_unused
+lpfc_pci_suspend_one_s4(struct device *dev_d)
 {
-	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct Scsi_Host *shost = dev_get_drvdata(dev_d);
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
@@ -13460,16 +13435,12 @@ lpfc_pci_suspend_one_s4(struct pci_dev *pdev, pm_message_t msg)
 	lpfc_sli4_disable_intr(phba);
 	lpfc_sli4_queue_destroy(phba);
 
-	/* Save device state to PCI config space */
-	pci_save_state(pdev);
-	pci_set_power_state(pdev, PCI_D3hot);
-
 	return 0;
 }
 
 /**
  * lpfc_pci_resume_one_s4 - PCI func to resume SLI-4 device for power mgmnt
- * @pdev: pointer to PCI device
+ * @dev_d: pointer to device
  *
  * This routine is called from the kernel's PCI subsystem to support system
  * Power Management (PM) to device with SLI-4 interface spac. When PM invokes
@@ -13486,29 +13457,16 @@ lpfc_pci_suspend_one_s4(struct pci_dev *pdev, pm_message_t msg)
  * 	0 - driver suspended the device
  * 	Error otherwise
  **/
-static int
-lpfc_pci_resume_one_s4(struct pci_dev *pdev)
+static int __maybe_unused
+lpfc_pci_resume_one_s4(struct device *dev_d)
 {
-	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct Scsi_Host *shost = dev_get_drvdata(dev_d);
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 	uint32_t intr_mode;
 	int error;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 			"0292 PCI device Power Management resume.\n");
-
-	/* Restore device state from PCI config space */
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-
-	/*
-	 * As the new kernel behavior of pci_restore_state() API call clears
-	 * device saved_state flag, need to save the restored state again.
-	 */
-	pci_save_state(pdev);
-
-	if (pdev->is_busmaster)
-		pci_set_master(pdev);
 
 	 /* Startup the kernel thread for this host adapter. */
 	phba->worker_thread = kthread_run(lpfc_do_work, phba,
@@ -13825,8 +13783,7 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 
 /**
  * lpfc_pci_suspend_one - lpfc PCI func to suspend dev for power management
- * @pdev: pointer to PCI device
- * @msg: power management message
+ * @dev: pointer to device
  *
  * This routine is to be registered to the kernel's PCI subsystem to support
  * system Power Management (PM). When PM invokes this method, it dispatches
@@ -13837,19 +13794,19 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
  * 	0 - driver suspended the device
  * 	Error otherwise
  **/
-static int
-lpfc_pci_suspend_one(struct pci_dev *pdev, pm_message_t msg)
+static int __maybe_unused
+lpfc_pci_suspend_one(struct device *dev)
 {
-	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct Scsi_Host *shost = dev_get_drvdata(dev);
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 	int rc = -ENODEV;
 
 	switch (phba->pci_dev_grp) {
 	case LPFC_PCI_DEV_LP:
-		rc = lpfc_pci_suspend_one_s3(pdev, msg);
+		rc = lpfc_pci_suspend_one_s3(dev);
 		break;
 	case LPFC_PCI_DEV_OC:
-		rc = lpfc_pci_suspend_one_s4(pdev, msg);
+		rc = lpfc_pci_suspend_one_s4(dev);
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
@@ -13862,7 +13819,7 @@ lpfc_pci_suspend_one(struct pci_dev *pdev, pm_message_t msg)
 
 /**
  * lpfc_pci_resume_one - lpfc PCI func to resume dev for power management
- * @pdev: pointer to PCI device
+ * @dev: pointer to device
  *
  * This routine is to be registered to the kernel's PCI subsystem to support
  * system Power Management (PM). When PM invokes this method, it dispatches
@@ -13873,19 +13830,19 @@ lpfc_pci_suspend_one(struct pci_dev *pdev, pm_message_t msg)
  * 	0 - driver suspended the device
  * 	Error otherwise
  **/
-static int
-lpfc_pci_resume_one(struct pci_dev *pdev)
+static int __maybe_unused
+lpfc_pci_resume_one(struct device *dev)
 {
-	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct Scsi_Host *shost = dev_get_drvdata(dev);
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 	int rc = -ENODEV;
 
 	switch (phba->pci_dev_grp) {
 	case LPFC_PCI_DEV_LP:
-		rc = lpfc_pci_resume_one_s3(pdev);
+		rc = lpfc_pci_resume_one_s3(dev);
 		break;
 	case LPFC_PCI_DEV_OC:
-		rc = lpfc_pci_resume_one_s4(pdev);
+		rc = lpfc_pci_resume_one_s4(dev);
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
@@ -14065,14 +14022,17 @@ static const struct pci_error_handlers lpfc_err_handler = {
 	.resume = lpfc_io_resume,
 };
 
+static SIMPLE_DEV_PM_OPS(lpfc_pci_pm_ops_one,
+			 lpfc_pci_suspend_one,
+			 lpfc_pci_resume_one);
+
 static struct pci_driver lpfc_driver = {
 	.name		= LPFC_DRIVER_NAME,
 	.id_table	= lpfc_id_table,
 	.probe		= lpfc_pci_probe_one,
 	.remove		= lpfc_pci_remove_one,
 	.shutdown	= lpfc_pci_remove_one,
-	.suspend        = lpfc_pci_suspend_one,
-	.resume		= lpfc_pci_resume_one,
+	.driver.pm	= &lpfc_pci_pm_ops_one,
 	.err_handler    = &lpfc_err_handler,
 };
 
@@ -14124,7 +14084,7 @@ lpfc_init(void)
 		fc_release_transport(lpfc_transport_template);
 		goto unregister;
 	}
-	lpfc_nvme_cmd_template();
+	lpfc_wqe_cmd_template();
 	lpfc_nvmet_cmd_template();
 
 	/* Initialize in case vector mapping is needed */

@@ -714,21 +714,15 @@ static void enetc_pf_netdev_setup(struct enetc_si *si, struct net_device *ndev,
 	ndev->watchdog_timeo = 5 * HZ;
 	ndev->max_mtu = ENETC_MAX_MTU;
 
-	ndev->hw_features = NETIF_F_SG | NETIF_F_RXCSUM | NETIF_F_HW_CSUM |
+	ndev->hw_features = NETIF_F_SG | NETIF_F_RXCSUM |
 			    NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
 			    NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_LOOPBACK;
-	ndev->features = NETIF_F_HIGHDMA | NETIF_F_SG |
-			 NETIF_F_RXCSUM | NETIF_F_HW_CSUM |
+	ndev->features = NETIF_F_HIGHDMA | NETIF_F_SG | NETIF_F_RXCSUM |
 			 NETIF_F_HW_VLAN_CTAG_TX |
 			 NETIF_F_HW_VLAN_CTAG_RX;
 
 	if (si->num_rss)
 		ndev->hw_features |= NETIF_F_RXHASH;
-
-	if (si->errata & ENETC_ERR_TXCSUM) {
-		ndev->hw_features &= ~NETIF_F_HW_CSUM;
-		ndev->features &= ~NETIF_F_HW_CSUM;
-	}
 
 	ndev->priv_flags |= IFF_UNICAST_FLT;
 
@@ -857,13 +851,12 @@ static bool enetc_port_has_pcs(struct enetc_pf *pf)
 		pf->if_mode == PHY_INTERFACE_MODE_USXGMII);
 }
 
-static int enetc_mdiobus_create(struct enetc_pf *pf)
+static int enetc_mdiobus_create(struct enetc_pf *pf, struct device_node *node)
 {
-	struct device *dev = &pf->si->pdev->dev;
 	struct device_node *mdio_np;
 	int err;
 
-	mdio_np = of_get_child_by_name(dev->of_node, "mdio");
+	mdio_np = of_get_child_by_name(node, "mdio");
 	if (mdio_np) {
 		err = enetc_mdio_probe(pf, mdio_np);
 
@@ -975,18 +968,17 @@ static const struct phylink_mac_ops enetc_mac_phylink_ops = {
 	.mac_link_down = enetc_pl_mac_link_down,
 };
 
-static int enetc_phylink_create(struct enetc_ndev_priv *priv)
+static int enetc_phylink_create(struct enetc_ndev_priv *priv,
+				struct device_node *node)
 {
 	struct enetc_pf *pf = enetc_si_priv(priv->si);
-	struct device *dev = &pf->si->pdev->dev;
 	struct phylink *phylink;
 	int err;
 
 	pf->phylink_config.dev = &priv->ndev->dev;
 	pf->phylink_config.type = PHYLINK_NETDEV;
 
-	phylink = phylink_create(&pf->phylink_config,
-				 of_fwnode_handle(dev->of_node),
+	phylink = phylink_create(&pf->phylink_config, of_fwnode_handle(node),
 				 pf->if_mode, &enetc_mac_phylink_ops);
 	if (IS_ERR(phylink)) {
 		err = PTR_ERR(phylink);
@@ -1007,13 +999,14 @@ static void enetc_phylink_destroy(struct enetc_ndev_priv *priv)
 static int enetc_pf_probe(struct pci_dev *pdev,
 			  const struct pci_device_id *ent)
 {
+	struct device_node *node = pdev->dev.of_node;
 	struct enetc_ndev_priv *priv;
 	struct net_device *ndev;
 	struct enetc_si *si;
 	struct enetc_pf *pf;
 	int err;
 
-	if (pdev->dev.of_node && !of_device_is_available(pdev->dev.of_node)) {
+	if (node && !of_device_is_available(node)) {
 		dev_info(&pdev->dev, "device is disabled, skipping\n");
 		return -ENODEV;
 	}
@@ -1064,12 +1057,12 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 		goto err_alloc_msix;
 	}
 
-	if (!of_get_phy_mode(pdev->dev.of_node, &pf->if_mode)) {
-		err = enetc_mdiobus_create(pf);
+	if (!of_get_phy_mode(node, &pf->if_mode)) {
+		err = enetc_mdiobus_create(pf, node);
 		if (err)
 			goto err_mdiobus_create;
 
-		err = enetc_phylink_create(priv);
+		err = enetc_phylink_create(priv, node);
 		if (err)
 			goto err_phylink_create;
 	}

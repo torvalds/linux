@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright 2014-2016 Freescale Semiconductor Inc.
- * Copyright 2017-2018 NXP
+ * Copyright 2017-2020 NXP
  *
  */
 
@@ -10,12 +10,14 @@
 
 /* DPSW Version */
 #define DPSW_VER_MAJOR		8
-#define DPSW_VER_MINOR		1
+#define DPSW_VER_MINOR		5
 
 #define DPSW_CMD_BASE_VERSION	1
+#define DPSW_CMD_VERSION_2	2
 #define DPSW_CMD_ID_OFFSET	4
 
 #define DPSW_CMD_ID(id)	(((id) << DPSW_CMD_ID_OFFSET) | DPSW_CMD_BASE_VERSION)
+#define DPSW_CMD_V2(id) (((id) << DPSW_CMD_ID_OFFSET) | DPSW_CMD_VERSION_2)
 
 /* Command IDs */
 #define DPSW_CMDID_CLOSE                    DPSW_CMD_ID(0x800)
@@ -38,7 +40,7 @@
 #define DPSW_CMDID_IF_SET_TCI               DPSW_CMD_ID(0x030)
 #define DPSW_CMDID_IF_SET_STP               DPSW_CMD_ID(0x031)
 
-#define DPSW_CMDID_IF_GET_COUNTER           DPSW_CMD_ID(0x034)
+#define DPSW_CMDID_IF_GET_COUNTER           DPSW_CMD_V2(0x034)
 
 #define DPSW_CMDID_IF_ENABLE                DPSW_CMD_ID(0x03D)
 #define DPSW_CMDID_IF_DISABLE               DPSW_CMD_ID(0x03E)
@@ -84,6 +86,7 @@
 #define dpsw_get_bit(var, bit) \
 	(((var)  >> (bit)) & GENMASK(0, 0))
 
+#pragma pack(push, 1)
 struct dpsw_cmd_open {
 	__le32 dpsw_id;
 };
@@ -383,4 +386,5 @@ struct dpsw_cmd_if_set_mac_addr {
 	u8 mac_addr[6];
 };
 
+#pragma pack(pop)
 #endif /* __FSL_DPSW_CMD_H */

@@ -113,7 +113,7 @@ Documentation for filesystem implementations.
    sysv-fs
    tmpfs
    ubifs
-   ubifs-authentication.rst
+   ubifs-authentication
    udf
    virtiofs
    vfat

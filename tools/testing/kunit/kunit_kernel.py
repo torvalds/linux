@@ -23,6 +23,11 @@ DEFAULT_KUNITCONFIG_PATH = 'arch/um/configs/kunit_defconfig'
 BROKEN_ALLCONFIG_PATH = 'tools/testing/kunit/configs/broken_on_uml.config'
 OUTFILE_PATH = 'test.log'
 
+def get_file_path(build_dir, default):
+	if build_dir:
+		default = os.path.join(build_dir, default)
+	return default
+
 class ConfigError(Exception):
 	"""Represents an error trying to configure the Linux kernel."""
 
@@ -97,9 +102,7 @@ class LinuxSourceTreeOperations(object):
 
 	def linux_bin(self, params, timeout, build_dir):
 		"""Runs the Linux UML binary. Must be named 'linux'."""
-		linux_bin = './linux'
-		if build_dir:
-			linux_bin = os.path.join(build_dir, 'linux')
+		linux_bin = get_file_path(build_dir, 'linux')
 		outfile = get_outfile_path(build_dir)
 		with open(outfile, 'w') as output:
 			process = subprocess.Popen([linux_bin] + params,
@@ -108,22 +111,13 @@ class LinuxSourceTreeOperations(object):
 			process.wait(timeout)
 
 def get_kconfig_path(build_dir):
-	kconfig_path = KCONFIG_PATH
-	if build_dir:
-		kconfig_path = os.path.join(build_dir, KCONFIG_PATH)
-	return kconfig_path
+	return get_file_path(build_dir, KCONFIG_PATH)
 
 def get_kunitconfig_path(build_dir):
-	kunitconfig_path = KUNITCONFIG_PATH
-	if build_dir:
-		kunitconfig_path = os.path.join(build_dir, KUNITCONFIG_PATH)
-	return kunitconfig_path
+	return get_file_path(build_dir, KUNITCONFIG_PATH)
 
 def get_outfile_path(build_dir):
-	outfile_path = OUTFILE_PATH
-	if build_dir:
-		outfile_path = os.path.join(build_dir, OUTFILE_PATH)
-	return outfile_path
+	return get_file_path(build_dir, OUTFILE_PATH)
 
 class LinuxSourceTree(object):
 	"""Represents a Linux kernel source tree with KUnit tests."""

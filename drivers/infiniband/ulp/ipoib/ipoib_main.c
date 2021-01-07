@@ -2266,7 +2266,7 @@ static ssize_t show_pkey(struct device *dev,
 	struct net_device *ndev = to_net_dev(dev);
 	struct ipoib_dev_priv *priv = ipoib_priv(ndev);
 
-	return sprintf(buf, "0x%04x\n", priv->pkey);
+	return sysfs_emit(buf, "0x%04x\n", priv->pkey);
 }
 static DEVICE_ATTR(pkey, S_IRUGO, show_pkey, NULL);
 
@@ -2276,7 +2276,8 @@ static ssize_t show_umcast(struct device *dev,
 	struct net_device *ndev = to_net_dev(dev);
 	struct ipoib_dev_priv *priv = ipoib_priv(ndev);
 
-	return sprintf(buf, "%d\n", test_bit(IPOIB_FLAG_UMCAST, &priv->flags));
+	return sysfs_emit(buf, "%d\n",
+			  test_bit(IPOIB_FLAG_UMCAST, &priv->flags));
 }
 
 void ipoib_set_umcast(struct net_device *ndev, int umcast_val)
@@ -2446,7 +2447,7 @@ static ssize_t dev_id_show(struct device *dev,
 			"\"%s\" wants to know my dev_id. Should it look at dev_port instead? See Documentation/ABI/testing/sysfs-class-net for more info.\n",
 			current->comm);
 
-	return sprintf(buf, "%#x\n", ndev->dev_id);
+	return sysfs_emit(buf, "%#x\n", ndev->dev_id);
 }
 static DEVICE_ATTR_RO(dev_id);
 

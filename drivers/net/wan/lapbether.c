@@ -55,6 +55,9 @@ struct lapbethdev {
 
 static LIST_HEAD(lapbeth_devices);
 
+static void lapbeth_connected(struct net_device *dev, int reason);
+static void lapbeth_disconnected(struct net_device *dev, int reason);
+
 /* ------------------------------------------------------------------------ */
 
 /*
@@ -167,11 +170,17 @@ static netdev_tx_t lapbeth_xmit(struct sk_buff *skb,
 	case X25_IFACE_DATA:
 		break;
 	case X25_IFACE_CONNECT:
-		if ((err = lapb_connect_request(dev)) != LAPB_OK)
+		err = lapb_connect_request(dev);
+		if (err == LAPB_CONNECTED)
+			lapbeth_connected(dev, LAPB_OK);
+		else if (err != LAPB_OK)
 			pr_err("lapb_connect_request error: %d\n", err);
 		goto drop;
 	case X25_IFACE_DISCONNECT:
-		if ((err = lapb_disconnect_request(dev)) != LAPB_OK)
+		err = lapb_disconnect_request(dev);
+		if (err == LAPB_NOTCONNECTED)
+			lapbeth_disconnected(dev, LAPB_OK);
+		else if (err != LAPB_OK)
 			pr_err("lapb_disconnect_request err: %d\n", err);
 		fallthrough;
 	default:

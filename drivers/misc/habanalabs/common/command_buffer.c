@@ -11,7 +11,6 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <linux/genalloc.h>
 
 static int cb_map_mem(struct hl_ctx *ctx, struct hl_cb *cb)
 {
@@ -68,9 +67,9 @@ static int cb_map_mem(struct hl_ctx *ctx, struct hl_cb *cb)
 	bus_addr = cb->bus_address;
 	offset = 0;
 	list_for_each_entry(va_block, &cb->va_block_list, node) {
-		rc = hl_mmu_map(ctx, va_block->start, bus_addr, va_block->size,
-				list_is_last(&va_block->node,
-						&cb->va_block_list));
+		rc = hl_mmu_map_page(ctx, va_block->start, bus_addr,
+				va_block->size, list_is_last(&va_block->node,
+							&cb->va_block_list));
 		if (rc) {
 			dev_err(hdev->dev, "Failed to map VA %#llx to CB\n",
 				va_block->start);
@@ -93,7 +92,7 @@ err_va_umap:
 	list_for_each_entry(va_block, &cb->va_block_list, node) {
 		if (offset <= 0)
 			break;
-		hl_mmu_unmap(ctx, va_block->start, va_block->size,
+		hl_mmu_unmap_page(ctx, va_block->start, va_block->size,
 				offset <= va_block->size);
 		offset -= va_block->size;
 	}
@@ -120,7 +119,7 @@ static void cb_unmap_mem(struct hl_ctx *ctx, struct hl_cb *cb)
 	mutex_lock(&ctx->mmu_lock);
 
 	list_for_each_entry(va_block, &cb->va_block_list, node)
-		if (hl_mmu_unmap(ctx, va_block->start, va_block->size,
+		if (hl_mmu_unmap_page(ctx, va_block->start, va_block->size,
 				list_is_last(&va_block->node,
 						&cb->va_block_list)))
 			dev_warn_ratelimited(hdev->dev,
@@ -376,17 +375,49 @@ int hl_cb_destroy(struct hl_device *hdev, struct hl_cb_mgr *mgr, u64 cb_handle)
 	return rc;
 }
 
+static int hl_cb_info(struct hl_device *hdev, struct hl_cb_mgr *mgr,
+			u64 cb_handle, u32 *usage_cnt)
+{
+	struct hl_cb *cb;
+	u32 handle;
+	int rc = 0;
+
+	/* The CB handle was given to user to do mmap, so need to shift it back
+	 * to the value which was allocated by the IDR module.
+	 */
+	cb_handle >>= PAGE_SHIFT;
+	handle = (u32) cb_handle;
+
+	spin_lock(&mgr->cb_lock);
+
+	cb = idr_find(&mgr->cb_handles, handle);
+	if (!cb) {
+		dev_err(hdev->dev,
+			"CB info failed, no match to handle 0x%x\n", handle);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	*usage_cnt = atomic_read(&cb->cs_cnt);
+
+out:
+	spin_unlock(&mgr->cb_lock);
+	return rc;
+}
+
 int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 {
 	union hl_cb_args *args = data;
 	struct hl_device *hdev = hpriv->hdev;
+	enum hl_device_status status;
 	u64 handle = 0;
+	u32 usage_cnt = 0;
 	int rc;
 
-	if (hl_device_disabled_or_in_reset(hdev)) {
+	if (!hl_device_operational(hdev, &status)) {
 		dev_warn_ratelimited(hdev->dev,
 			"Device is %s. Can't execute CB IOCTL\n",
-			atomic_read(&hdev->in_reset) ? "in_reset" : "disabled");
+			hdev->status[status]);
 		return -EBUSY;
 	}
 
@@ -411,6 +442,13 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 	case HL_CB_OP_DESTROY:
 		rc = hl_cb_destroy(hdev, &hpriv->cb_mgr,
 					args->in.cb_handle);
+		break;
+
+	case HL_CB_OP_INFO:
+		rc = hl_cb_info(hdev, &hpriv->cb_mgr, args->in.cb_handle,
+				&usage_cnt);
+		memset(args, 0, sizeof(*args));
+		args->out.usage_cnt = usage_cnt;
 		break;
 
 	default:
@@ -517,6 +555,7 @@ int hl_cb_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 	}
 
 	cb->mmap_size = cb->size;
+	vma->vm_pgoff = handle;
 
 	return 0;
 

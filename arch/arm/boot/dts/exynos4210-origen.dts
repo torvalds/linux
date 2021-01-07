@@ -43,7 +43,7 @@
 		enable-active-high;
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
 		up {
@@ -171,7 +171,7 @@
 	pinctrl-0 = <&i2c0_bus>;
 	pinctrl-names = "default";
 
-	max8997_pmic@66 {
+	pmic@66 {
 		compatible = "maxim,max8997-pmic";
 		reg = <0x66>;
 		interrupt-parent = <&gpx0>;

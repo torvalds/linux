@@ -68,7 +68,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			#io-channel-cells = <1>;
-			io-channel-ranges;
 
 			die_temp {
 				reg = <VADC_DIE_TEMP>;

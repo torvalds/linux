@@ -230,10 +230,6 @@ static inline int identical_mac_addr_allowed(int type1, int type2)
 		type2 == NL80211_IFTYPE_MONITOR ||
 		type1 == NL80211_IFTYPE_P2P_DEVICE ||
 		type2 == NL80211_IFTYPE_P2P_DEVICE ||
-		(type1 == NL80211_IFTYPE_AP && type2 == NL80211_IFTYPE_WDS) ||
-		(type1 == NL80211_IFTYPE_WDS &&
-			(type2 == NL80211_IFTYPE_WDS ||
-			 type2 == NL80211_IFTYPE_AP)) ||
 		(type1 == NL80211_IFTYPE_AP && type2 == NL80211_IFTYPE_AP_VLAN) ||
 		(type1 == NL80211_IFTYPE_AP_VLAN &&
 			(type2 == NL80211_IFTYPE_AP ||
@@ -417,15 +413,12 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	 * (because if we remove a STA after ops->remove_interface()
 	 * the driver will have removed the vif info already!)
 	 *
-	 * In WDS mode a station must exist here and be flushed, for
-	 * AP_VLANs stations may exist since there's nothing else that
+	 * For AP_VLANs stations may exist since there's nothing else that
 	 * would have removed them, but in other modes there shouldn't
 	 * be any stations.
 	 */
 	flushed = sta_info_flush(sdata);
-	WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
-		     ((sdata->vif.type != NL80211_IFTYPE_WDS && flushed > 0) ||
-		      (sdata->vif.type == NL80211_IFTYPE_WDS && flushed != 1)));
+	WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_AP_VLAN && flushed > 0);
 
 	/* don't count this interface for allmulti while it is down */
 	if (sdata->flags & IEEE80211_SDATA_ALLMULTI)
@@ -552,8 +545,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		 * When we get here, the interface is marked down.
 		 * Free the remaining keys, if there are any
 		 * (which can happen in AP mode if userspace sets
-		 * keys before the interface is operating, and maybe
-		 * also in WDS mode)
+		 * keys before the interface is operating)
 		 *
 		 * Force the key freeing to always synchronize_net()
 		 * to wait for the RX path in case it is using this
@@ -948,6 +940,8 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 		return ret;
 	}
 
+	set_bit(SDATA_STATE_RUNNING, &sdata->state);
+
 	ret = ieee80211_check_queues(sdata, NL80211_IFTYPE_MONITOR);
 	if (ret) {
 		kfree(sdata);
@@ -1020,16 +1014,11 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 	struct net_device *dev = wdev->netdev;
 	struct ieee80211_local *local = sdata->local;
-	struct sta_info *sta;
 	u32 changed = 0;
 	int res;
 	u32 hw_reconf_flags = 0;
 
 	switch (sdata->vif.type) {
-	case NL80211_IFTYPE_WDS:
-		if (!is_valid_ether_addr(sdata->u.wds.remote_addr))
-			return -ENOLINK;
-		break;
 	case NL80211_IFTYPE_AP_VLAN: {
 		struct ieee80211_sub_if_data *master;
 
@@ -1078,6 +1067,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	case NUM_NL80211_IFTYPES:
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_P2P_GO:
+	case NL80211_IFTYPE_WDS:
 		/* cannot happen */
 		WARN_ON(1);
 		break;
@@ -1196,7 +1186,6 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		case NL80211_IFTYPE_OCB:
 			netif_carrier_off(dev);
 			break;
-		case NL80211_IFTYPE_WDS:
 		case NL80211_IFTYPE_P2P_DEVICE:
 		case NL80211_IFTYPE_NAN:
 			break;
@@ -1218,28 +1207,6 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	set_bit(SDATA_STATE_RUNNING, &sdata->state);
 
 	switch (sdata->vif.type) {
-	case NL80211_IFTYPE_WDS:
-		/* Create STA entry for the WDS peer */
-		sta = sta_info_alloc(sdata, sdata->u.wds.remote_addr,
-				     GFP_KERNEL);
-		if (!sta) {
-			res = -ENOMEM;
-			goto err_del_interface;
-		}
-
-		sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
-		sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
-		sta_info_pre_move_state(sta, IEEE80211_STA_AUTHORIZED);
-
-		res = sta_info_insert(sta);
-		if (res) {
-			/* STA has been freed */
-			goto err_del_interface;
-		}
-
-		rate_control_rate_init(sta);
-		netif_carrier_on(dev);
-		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		rcu_assign_pointer(local->p2p_sdata, sdata);
 		break;
@@ -1356,6 +1323,7 @@ static void ieee80211_iface_work(struct work_struct *work)
 	while ((skb = skb_dequeue(&sdata->skb_queue))) {
 		struct ieee80211_mgmt *mgmt = (void *)skb->data;
 
+		kcov_remote_start_common(skb_get_kcov_handle(skb));
 		if (ieee80211_is_action(mgmt->frame_control) &&
 		    mgmt->u.action.category == WLAN_CATEGORY_BACK) {
 			int len = skb->len;
@@ -1465,6 +1433,7 @@ static void ieee80211_iface_work(struct work_struct *work)
 		}
 
 		kfree_skb(skb);
+		kcov_remote_stop();
 	}
 
 	/* then other type-dependent work */
@@ -1574,9 +1543,6 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 		sdata->u.mntr.flags = MONITOR_FLAG_CONTROL |
 				      MONITOR_FLAG_OTHER_BSS;
 		break;
-	case NL80211_IFTYPE_WDS:
-		sdata->vif.bss_conf.bssid = NULL;
-		break;
 	case NL80211_IFTYPE_NAN:
 		idr_init(&sdata->u.nan.function_inst_ids);
 		spin_lock_init(&sdata->u.nan.func_lock);
@@ -1587,6 +1553,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.bss_conf.bssid = sdata->vif.addr;
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
+	case NL80211_IFTYPE_WDS:
 	case NUM_NL80211_IFTYPES:
 		WARN_ON(1);
 		break;
@@ -1631,9 +1598,7 @@ static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
 	case NL80211_IFTYPE_OCB:
 		/*
 		 * Could probably support everything
-		 * but WDS here (WDS do_open can fail
-		 * under memory pressure, which this
-		 * code isn't prepared to handle).
+		 * but here.
 		 */
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
@@ -1726,7 +1691,6 @@ static void ieee80211_assign_perm_addr(struct ieee80211_local *local,
 	case NL80211_IFTYPE_MONITOR:
 		/* doesn't matter */
 		break;
-	case NL80211_IFTYPE_WDS:
 	case NL80211_IFTYPE_AP_VLAN:
 		/* match up with an AP interface */
 		list_for_each_entry(sdata, &local->interfaces, list) {

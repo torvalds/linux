@@ -72,7 +72,7 @@ static void ksz_mib_read_work(struct work_struct *work)
 	struct ksz_port *p;
 	int i;
 
-	for (i = 0; i < dev->mib_port_cnt; i++) {
+	for (i = 0; i < dev->port_cnt; i++) {
 		if (dsa_is_unused_port(dev->ds, i))
 			continue;
 
@@ -103,7 +103,7 @@ void ksz_init_mib_timer(struct ksz_device *dev)
 
 	INIT_DELAYED_WORK(&dev->mib_read, ksz_mib_read_work);
 
-	for (i = 0; i < dev->mib_port_cnt; i++)
+	for (i = 0; i < dev->port_cnt; i++)
 		dev->dev_ops->port_init_cnt(dev, i);
 }
 EXPORT_SYMBOL_GPL(ksz_init_mib_timer);
@@ -426,7 +426,9 @@ int ksz_switch_register(struct ksz_device *dev,
 		ret = of_get_phy_mode(dev->dev->of_node, &interface);
 		if (ret == 0)
 			dev->compat_interface = interface;
-		ports = of_get_child_by_name(dev->dev->of_node, "ports");
+		ports = of_get_child_by_name(dev->dev->of_node, "ethernet-ports");
+		if (!ports)
+			ports = of_get_child_by_name(dev->dev->of_node, "ports");
 		if (ports)
 			for_each_available_child_of_node(ports, port) {
 				if (of_property_read_u32(port, "reg",

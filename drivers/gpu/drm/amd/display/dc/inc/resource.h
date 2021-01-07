@@ -48,9 +48,7 @@ struct resource_caps {
 	int num_ddc;
 	int num_vmid;
 	int num_dsc;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	int num_mpc_3dlut;
-#endif
 };
 
 struct resource_straps {

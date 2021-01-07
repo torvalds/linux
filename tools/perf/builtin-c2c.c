@@ -369,6 +369,10 @@ static struct perf_c2c c2c = {
 		.exit		= perf_event__process_exit,
 		.fork		= perf_event__process_fork,
 		.lost		= perf_event__process_lost,
+		.attr		= perf_event__process_attr,
+		.auxtrace_info  = perf_event__process_auxtrace_info,
+		.auxtrace       = perf_event__process_auxtrace,
+		.auxtrace_error = perf_event__process_auxtrace_error,
 		.ordered_events	= true,
 		.ordering_requires_timestamps = true,
 	},
@@ -2678,6 +2682,12 @@ static int setup_coalesce(const char *coalesce, bool no_source)
 
 static int perf_c2c__report(int argc, const char **argv)
 {
+	struct itrace_synth_opts itrace_synth_opts = {
+		.set = true,
+		.mem = true,	/* Only enable memory event */
+		.default_no_sample = true,
+	};
+
 	struct perf_session *session;
 	struct ui_progress prog;
 	struct perf_data data = {
@@ -2756,6 +2766,8 @@ static int perf_c2c__report(int argc, const char **argv)
 		pr_debug("Error creating perf session\n");
 		goto out;
 	}
+
+	session->itrace_synth_opts = &itrace_synth_opts;
 
 	err = setup_nodes(session);
 	if (err) {
@@ -2867,6 +2879,7 @@ static int perf_c2c__record(int argc, const char **argv)
 	int ret;
 	bool all_user = false, all_kernel = false;
 	bool event_set = false;
+	struct perf_mem_event *e;
 	struct option options[] = {
 	OPT_CALLBACK('e', "event", &event_set, "event",
 		     "event selector. Use 'perf c2c record -e list' to list available events",
@@ -2894,11 +2907,24 @@ static int perf_c2c__record(int argc, const char **argv)
 	rec_argv[i++] = "record";
 
 	if (!event_set) {
-		perf_mem_events[PERF_MEM_EVENTS__LOAD].record  = true;
-		perf_mem_events[PERF_MEM_EVENTS__STORE].record = true;
+		e = perf_mem_events__ptr(PERF_MEM_EVENTS__LOAD_STORE);
+		/*
+		 * The load and store operations are required, use the event
+		 * PERF_MEM_EVENTS__LOAD_STORE if it is supported.
+		 */
+		if (e->tag) {
+			e->record = true;
+		} else {
+			e = perf_mem_events__ptr(PERF_MEM_EVENTS__LOAD);
+			e->record = true;
+
+			e = perf_mem_events__ptr(PERF_MEM_EVENTS__STORE);
+			e->record = true;
+		}
 	}
 
-	if (perf_mem_events[PERF_MEM_EVENTS__LOAD].record)
+	e = perf_mem_events__ptr(PERF_MEM_EVENTS__LOAD);
+	if (e->record)
 		rec_argv[i++] = "-W";
 
 	rec_argv[i++] = "-d";
@@ -2906,12 +2932,13 @@ static int perf_c2c__record(int argc, const char **argv)
 	rec_argv[i++] = "--sample-cpu";
 
 	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
-		if (!perf_mem_events[j].record)
+		e = perf_mem_events__ptr(j);
+		if (!e->record)
 			continue;
 
-		if (!perf_mem_events[j].supported) {
+		if (!e->supported) {
 			pr_err("failed: event '%s' not supported\n",
-			       perf_mem_events[j].name);
+			       perf_mem_events__name(j));
 			free(rec_argv);
 			return -1;
 		}

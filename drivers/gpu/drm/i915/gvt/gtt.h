@@ -164,6 +164,9 @@ struct intel_vgpu_mm {
 		} ppgtt_mm;
 		struct {
 			void *virtual_ggtt;
+			/* Save/restore for PM */
+			u64 *host_ggtt_aperture;
+			u64 *host_ggtt_hidden;
 			struct list_head partial_pte_list;
 		} ggtt_mm;
 	};
@@ -280,5 +283,6 @@ int intel_vgpu_emulate_ggtt_mmio_write(struct intel_vgpu *vgpu,
 	unsigned int off, void *p_data, unsigned int bytes);
 
 void intel_vgpu_destroy_all_ppgtt_mm(struct intel_vgpu *vgpu);
+void intel_gvt_restore_ggtt(struct intel_gvt *gvt);
 
 #endif /* _GVT_GTT_H_ */

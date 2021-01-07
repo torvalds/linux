@@ -127,7 +127,6 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, const char *name,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-	path->leave_spinning = 1;
 
 	btrfs_cpu_key_to_disk(&disk_key, location);
 

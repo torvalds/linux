@@ -65,7 +65,7 @@ enum {
 };
 
 /* How long to wait for EOF interrupts in the buffer-capture subdevs */
-#define IMX_MEDIA_EOF_TIMEOUT       1000
+#define IMX_MEDIA_EOF_TIMEOUT       2000
 
 struct imx_media_pixfmt {
 	/* the in-memory FourCC pixel format */

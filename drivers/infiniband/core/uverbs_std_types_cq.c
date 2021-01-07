@@ -46,7 +46,7 @@ static int uverbs_free_cq(struct ib_uobject *uobject,
 	int ret;
 
 	ret = ib_destroy_cq_user(cq, &attrs->driver_udata);
-	if (ib_is_destroy_retryable(ret, why, uobject))
+	if (ret)
 		return ret;
 
 	ib_uverbs_release_ucq(
@@ -55,7 +55,7 @@ static int uverbs_free_cq(struct ib_uobject *uobject,
 					ev_queue) :
 			   NULL,
 		ucq);
-	return ret;
+	return 0;
 }
 
 static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(

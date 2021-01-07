@@ -36,9 +36,9 @@
 #include "hns_roce_device.h"
 #include "hns_roce_cmd.h"
 
-#define CMD_POLL_TOKEN		0xffff
-#define CMD_MAX_NUM		32
-#define CMD_TOKEN_MASK		0x1f
+#define CMD_POLL_TOKEN 0xffff
+#define CMD_MAX_NUM 32
+#define CMD_TOKEN_MASK 0x1f
 
 static int hns_roce_cmd_mbox_post_hw(struct hns_roce_dev *hr_dev, u64 in_param,
 				     u64 out_param, u32 in_modifier,
@@ -60,7 +60,7 @@ static int hns_roce_cmd_mbox_post_hw(struct hns_roce_dev *hr_dev, u64 in_param,
 static int __hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev, u64 in_param,
 				    u64 out_param, unsigned long in_modifier,
 				    u8 op_modifier, u16 op,
-				    unsigned long timeout)
+				    unsigned int timeout)
 {
 	struct device *dev = hr_dev->dev;
 	int ret;
@@ -78,7 +78,7 @@ static int __hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev, u64 in_param,
 
 static int hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev, u64 in_param,
 				  u64 out_param, unsigned long in_modifier,
-				  u8 op_modifier, u16 op, unsigned long timeout)
+				  u8 op_modifier, u16 op, unsigned int timeout)
 {
 	int ret;
 
@@ -93,8 +93,8 @@ static int hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev, u64 in_param,
 void hns_roce_cmd_event(struct hns_roce_dev *hr_dev, u16 token, u8 status,
 			u64 out_param)
 {
-	struct hns_roce_cmd_context
-		*context = &hr_dev->cmd.context[token & hr_dev->cmd.token_mask];
+	struct hns_roce_cmd_context *context =
+		&hr_dev->cmd.context[token % hr_dev->cmd.max_cmds];
 
 	if (token != context->token)
 		return;
@@ -108,7 +108,7 @@ void hns_roce_cmd_event(struct hns_roce_dev *hr_dev, u16 token, u8 status,
 static int __hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
 				    u64 out_param, unsigned long in_modifier,
 				    u8 op_modifier, u16 op,
-				    unsigned long timeout)
+				    unsigned int timeout)
 {
 	struct hns_roce_cmdq *cmd = &hr_dev->cmd;
 	struct hns_roce_cmd_context *context;
@@ -159,13 +159,13 @@ out:
 
 static int hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
 				  u64 out_param, unsigned long in_modifier,
-				  u8 op_modifier, u16 op, unsigned long timeout)
+				  u8 op_modifier, u16 op, unsigned int timeout)
 {
 	int ret;
 
 	down(&hr_dev->cmd.event_sem);
-	ret = __hns_roce_cmd_mbox_wait(hr_dev, in_param, out_param,
-				       in_modifier, op_modifier, op, timeout);
+	ret = __hns_roce_cmd_mbox_wait(hr_dev, in_param, out_param, in_modifier,
+				       op_modifier, op, timeout);
 	up(&hr_dev->cmd.event_sem);
 
 	return ret;
@@ -173,7 +173,7 @@ static int hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
 
 int hns_roce_cmd_mbox(struct hns_roce_dev *hr_dev, u64 in_param, u64 out_param,
 		      unsigned long in_modifier, u8 op_modifier, u16 op,
-		      unsigned long timeout)
+		      unsigned int timeout)
 {
 	int ret;
 
@@ -231,9 +231,8 @@ int hns_roce_cmd_use_events(struct hns_roce_dev *hr_dev)
 	struct hns_roce_cmdq *hr_cmd = &hr_dev->cmd;
 	int i;
 
-	hr_cmd->context = kmalloc_array(hr_cmd->max_cmds,
-					sizeof(*hr_cmd->context),
-					GFP_KERNEL);
+	hr_cmd->context =
+		kcalloc(hr_cmd->max_cmds, sizeof(*hr_cmd->context), GFP_KERNEL);
 	if (!hr_cmd->context)
 		return -ENOMEM;
 
@@ -262,8 +261,8 @@ void hns_roce_cmd_use_polling(struct hns_roce_dev *hr_dev)
 	hr_cmd->use_events = 0;
 }
 
-struct hns_roce_cmd_mailbox
-	*hns_roce_alloc_cmd_mailbox(struct hns_roce_dev *hr_dev)
+struct hns_roce_cmd_mailbox *
+hns_roce_alloc_cmd_mailbox(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_cmd_mailbox *mailbox;
 
@@ -271,8 +270,8 @@ struct hns_roce_cmd_mailbox
 	if (!mailbox)
 		return ERR_PTR(-ENOMEM);
 
-	mailbox->buf = dma_pool_alloc(hr_dev->cmd.pool, GFP_KERNEL,
-				      &mailbox->dma);
+	mailbox->buf =
+		dma_pool_alloc(hr_dev->cmd.pool, GFP_KERNEL, &mailbox->dma);
 	if (!mailbox->buf) {
 		kfree(mailbox);
 		return ERR_PTR(-ENOMEM);

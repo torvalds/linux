@@ -25,19 +25,8 @@ static struct resource *get_platform_resource(struct vfio_platform_device *vdev,
 					      int num)
 {
 	struct platform_device *dev = (struct platform_device *) vdev->opaque;
-	int i;
 
-	for (i = 0; i < dev->num_resources; i++) {
-		struct resource *r = &dev->resource[i];
-
-		if (resource_type(r) & (IORESOURCE_MEM|IORESOURCE_IO)) {
-			if (!num)
-				return r;
-
-			num--;
-		}
-	}
-	return NULL;
+	return platform_get_mem_or_io(dev, num);
 }
 
 static int get_platform_irq(struct vfio_platform_device *vdev, int i)

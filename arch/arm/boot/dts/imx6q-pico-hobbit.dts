@@ -13,5 +13,5 @@
 
 / {
 	model = "TechNexion PICO-IMX6 Quad Board and Hobbit baseboard";
-	compatible = "technexion,imx6q-pico", "fsl,imx6q";
+	compatible = "technexion,imx6q-pico-hobbit", "fsl,imx6q";
 };

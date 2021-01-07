@@ -413,85 +413,63 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 					      buff->rxdata.pg_off,
 					      buff->len, DMA_FROM_DEVICE);
 
-		/* for single fragment packets use build_skb() */
-		if (buff->is_eop &&
-		    buff->len <= AQ_CFG_RX_FRAME_MAX - AQ_SKB_ALIGN) {
-			skb = build_skb(aq_buf_vaddr(&buff->rxdata),
+		skb = napi_alloc_skb(napi, AQ_CFG_RX_HDR_SIZE);
+		if (unlikely(!skb)) {
+			u64_stats_update_begin(&self->stats.rx.syncp);
+			self->stats.rx.skb_alloc_fails++;
+			u64_stats_update_end(&self->stats.rx.syncp);
+			err = -ENOMEM;
+			goto err_exit;
+		}
+		if (is_ptp_ring)
+			buff->len -=
+				aq_ptp_extract_ts(self->aq_nic, skb,
+						  aq_buf_vaddr(&buff->rxdata),
+						  buff->len);
+
+		hdr_len = buff->len;
+		if (hdr_len > AQ_CFG_RX_HDR_SIZE)
+			hdr_len = eth_get_headlen(skb->dev,
+						  aq_buf_vaddr(&buff->rxdata),
+						  AQ_CFG_RX_HDR_SIZE);
+
+		memcpy(__skb_put(skb, hdr_len), aq_buf_vaddr(&buff->rxdata),
+		       ALIGN(hdr_len, sizeof(long)));
+
+		if (buff->len - hdr_len > 0) {
+			skb_add_rx_frag(skb, 0, buff->rxdata.page,
+					buff->rxdata.pg_off + hdr_len,
+					buff->len - hdr_len,
 					AQ_CFG_RX_FRAME_MAX);
-			if (unlikely(!skb)) {
-				u64_stats_update_begin(&self->stats.rx.syncp);
-				self->stats.rx.skb_alloc_fails++;
-				u64_stats_update_end(&self->stats.rx.syncp);
-				err = -ENOMEM;
-				goto err_exit;
-			}
-			if (is_ptp_ring)
-				buff->len -=
-					aq_ptp_extract_ts(self->aq_nic, skb,
-						aq_buf_vaddr(&buff->rxdata),
-						buff->len);
-			skb_put(skb, buff->len);
 			page_ref_inc(buff->rxdata.page);
-		} else {
-			skb = napi_alloc_skb(napi, AQ_CFG_RX_HDR_SIZE);
-			if (unlikely(!skb)) {
-				u64_stats_update_begin(&self->stats.rx.syncp);
-				self->stats.rx.skb_alloc_fails++;
-				u64_stats_update_end(&self->stats.rx.syncp);
-				err = -ENOMEM;
-				goto err_exit;
-			}
-			if (is_ptp_ring)
-				buff->len -=
-					aq_ptp_extract_ts(self->aq_nic, skb,
-						aq_buf_vaddr(&buff->rxdata),
-						buff->len);
+		}
 
-			hdr_len = buff->len;
-			if (hdr_len > AQ_CFG_RX_HDR_SIZE)
-				hdr_len = eth_get_headlen(skb->dev,
-							  aq_buf_vaddr(&buff->rxdata),
-							  AQ_CFG_RX_HDR_SIZE);
+		if (!buff->is_eop) {
+			buff_ = buff;
+			i = 1U;
+			do {
+				next_ = buff_->next;
+				buff_ = &self->buff_ring[next_];
 
-			memcpy(__skb_put(skb, hdr_len), aq_buf_vaddr(&buff->rxdata),
-			       ALIGN(hdr_len, sizeof(long)));
-
-			if (buff->len - hdr_len > 0) {
-				skb_add_rx_frag(skb, 0, buff->rxdata.page,
-						buff->rxdata.pg_off + hdr_len,
-						buff->len - hdr_len,
+				dma_sync_single_range_for_cpu(aq_nic_get_dev(self->aq_nic),
+							      buff_->rxdata.daddr,
+							      buff_->rxdata.pg_off,
+							      buff_->len,
+							      DMA_FROM_DEVICE);
+				skb_add_rx_frag(skb, i++,
+						buff_->rxdata.page,
+						buff_->rxdata.pg_off,
+						buff_->len,
 						AQ_CFG_RX_FRAME_MAX);
-				page_ref_inc(buff->rxdata.page);
-			}
+				page_ref_inc(buff_->rxdata.page);
+				buff_->is_cleaned = 1;
 
-			if (!buff->is_eop) {
-				buff_ = buff;
-				i = 1U;
-				do {
-					next_ = buff_->next,
-					buff_ = &self->buff_ring[next_];
+				buff->is_ip_cso &= buff_->is_ip_cso;
+				buff->is_udp_cso &= buff_->is_udp_cso;
+				buff->is_tcp_cso &= buff_->is_tcp_cso;
+				buff->is_cso_err |= buff_->is_cso_err;
 
-					dma_sync_single_range_for_cpu(
-							aq_nic_get_dev(self->aq_nic),
-							buff_->rxdata.daddr,
-							buff_->rxdata.pg_off,
-							buff_->len,
-							DMA_FROM_DEVICE);
-					skb_add_rx_frag(skb, i++,
-							buff_->rxdata.page,
-							buff_->rxdata.pg_off,
-							buff_->len,
-							AQ_CFG_RX_FRAME_MAX);
-					page_ref_inc(buff_->rxdata.page);
-					buff_->is_cleaned = 1;
-
-					buff->is_ip_cso &= buff_->is_ip_cso;
-					buff->is_udp_cso &= buff_->is_udp_cso;
-					buff->is_tcp_cso &= buff_->is_tcp_cso;
-					buff->is_cso_err |= buff_->is_cso_err;
-
-				} while (!buff_->is_eop);
-			}
+			} while (!buff_->is_eop);
 		}
 
 		if (buff->is_vlan)

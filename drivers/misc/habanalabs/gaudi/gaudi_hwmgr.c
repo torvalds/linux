@@ -20,7 +20,7 @@ int gaudi_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk)
 {
 	long value;
 
-	if (hl_device_disabled_or_in_reset(hdev))
+	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
 	value = hl_get_frequency(hdev, MME_PLL, false);
@@ -54,7 +54,7 @@ static ssize_t clk_max_freq_mhz_show(struct device *dev,
 	struct gaudi_device *gaudi = hdev->asic_specific;
 	long value;
 
-	if (hl_device_disabled_or_in_reset(hdev))
+	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
 	value = hl_get_frequency(hdev, MME_PLL, false);
@@ -72,7 +72,7 @@ static ssize_t clk_max_freq_mhz_store(struct device *dev,
 	int rc;
 	u64 value;
 
-	if (hl_device_disabled_or_in_reset(hdev)) {
+	if (!hl_device_operational(hdev, NULL)) {
 		count = -ENODEV;
 		goto fail;
 	}
@@ -97,7 +97,7 @@ static ssize_t clk_cur_freq_mhz_show(struct device *dev,
 	struct hl_device *hdev = dev_get_drvdata(dev);
 	long value;
 
-	if (hl_device_disabled_or_in_reset(hdev))
+	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
 	value = hl_get_frequency(hdev, MME_PLL, true);

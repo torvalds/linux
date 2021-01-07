@@ -456,10 +456,10 @@ err_free:
 	return ERR_PTR(err);
 }
 
-int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
-			  u64 start, u64 length, u64 virt_addr,
-			  int mr_access_flags, struct ib_pd *pd,
-			  struct ib_udata *udata)
+struct ib_mr *mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags, u64 start,
+				    u64 length, u64 virt_addr,
+				    int mr_access_flags, struct ib_pd *pd,
+				    struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(mr->device);
 	struct mlx4_ib_mr *mmr = to_mmr(mr);
@@ -472,9 +472,8 @@ int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 	 * race exists.
 	 */
 	err =  mlx4_mr_hw_get_mpt(dev->dev, &mmr->mmr, &pmpt_entry);
-
 	if (err)
-		return err;
+		return ERR_PTR(err);
 
 	if (flags & IB_MR_REREG_PD) {
 		err = mlx4_mr_hw_change_pd(dev->dev, *pmpt_entry,
@@ -542,8 +541,9 @@ int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 
 release_mpt_entry:
 	mlx4_mr_hw_put_mpt(dev->dev, pmpt_entry);
-
-	return err;
+	if (err)
+		return ERR_PTR(err);
+	return NULL;
 }
 
 static int

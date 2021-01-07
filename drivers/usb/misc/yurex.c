@@ -137,6 +137,7 @@ static void yurex_interrupt(struct urb *urb)
 		dev_err(&dev->interface->dev,
 			"%s - overflow with length %d, actual length is %d\n",
 			__func__, YUREX_BUF_SIZE, dev->urb->actual_length);
+		return;
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:

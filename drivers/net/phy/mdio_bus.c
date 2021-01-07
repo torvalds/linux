@@ -472,7 +472,7 @@ static inline void of_mdiobus_link_mdiodev(struct mii_bus *mdio,
 #endif
 
 /**
- * mdiobus_create_device_from_board_info - create a full MDIO device given
+ * mdiobus_create_device - create a full MDIO device given
  * a mdio_board_info structure
  * @bus: MDIO bus to create the devices on
  * @bi: mdio_board_info structure describing the devices
@@ -546,10 +546,11 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 	/* de-assert bus level PHY GPIO reset */
 	gpiod = devm_gpiod_get_optional(&bus->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(gpiod)) {
-		dev_err(&bus->dev, "mii_bus %s couldn't get reset GPIO\n",
-			bus->id);
+		err = dev_err_probe(&bus->dev, PTR_ERR(gpiod),
+				    "mii_bus %s couldn't get reset GPIO\n",
+				    bus->id);
 		device_del(&bus->dev);
-		return PTR_ERR(gpiod);
+		return err;
 	} else	if (gpiod) {
 		bus->reset_gpiod = gpiod;
 

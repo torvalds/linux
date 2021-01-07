@@ -246,6 +246,7 @@ smbd_qp_async_error_upcall(struct ib_event *event, void *context)
 	case IB_EVENT_CQ_ERR:
 	case IB_EVENT_QP_FATAL:
 		smbd_disconnect_rdma_connection(info);
+		break;
 
 	default:
 		break;

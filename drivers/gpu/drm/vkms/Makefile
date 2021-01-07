@@ -4,7 +4,6 @@ vkms-y := \
 	vkms_plane.o \
 	vkms_output.o \
 	vkms_crtc.o \
-	vkms_gem.o \
 	vkms_composer.o \
 	vkms_writeback.o
 

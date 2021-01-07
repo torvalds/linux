@@ -9,8 +9,6 @@
 #include "../include/common/hl_boot_if.h"
 
 #include <linux/firmware.h>
-#include <linux/genalloc.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/slab.h>
 
 #define FW_FILE_MAX_SIZE	0x1400000 /* maximum size of 20MB */
@@ -20,16 +18,18 @@
  * @hdev: pointer to hl_device structure.
  * @fw_name: the firmware image name
  * @dst: IO memory mapped address space to copy firmware to
+ * @src_offset: offset in src FW to copy from
+ * @size: amount of bytes to copy (0 to copy the whole binary)
  *
  * Copy fw code from firmware file to device memory.
  *
  * Return: 0 on success, non-zero for failure.
  */
 int hl_fw_load_fw_to_device(struct hl_device *hdev, const char *fw_name,
-				void __iomem *dst)
+				void __iomem *dst, u32 src_offset, u32 size)
 {
 	const struct firmware *fw;
-	const u64 *fw_data;
+	const void *fw_data;
 	size_t fw_size;
 	int rc;
 
@@ -57,9 +57,20 @@ int hl_fw_load_fw_to_device(struct hl_device *hdev, const char *fw_name,
 		goto out;
 	}
 
-	fw_data = (const u64 *) fw->data;
+	if (size - src_offset > fw_size) {
+		dev_err(hdev->dev,
+			"size to copy(%u) and offset(%u) are invalid\n",
+			size, src_offset);
+		rc = -EINVAL;
+		goto out;
+	}
 
-	memcpy_toio(dst, fw_data, fw_size);
+	if (size)
+		fw_size = size;
+
+	fw_data = (const void *) fw->data;
+
+	memcpy_toio(dst, fw_data + src_offset, fw_size);
 
 out:
 	release_firmware(fw);
@@ -77,7 +88,7 @@ int hl_fw_send_pci_access_msg(struct hl_device *hdev, u32 opcode)
 }
 
 int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
-				u16 len, u32 timeout, long *result)
+				u16 len, u32 timeout, u64 *result)
 {
 	struct cpucp_packet *pkt;
 	dma_addr_t pkt_dma_addr;
@@ -132,7 +143,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 						>> CPUCP_PKT_CTL_OPCODE_SHIFT);
 		rc = -EIO;
 	} else if (result) {
-		*result = (long) le64_to_cpu(pkt->result);
+		*result = le64_to_cpu(pkt->result);
 	}
 
 out:
@@ -146,7 +157,7 @@ out:
 int hl_fw_unmask_irq(struct hl_device *hdev, u16 event_type)
 {
 	struct cpucp_packet pkt;
-	long result;
+	u64 result;
 	int rc;
 
 	memset(&pkt, 0, sizeof(pkt));
@@ -169,7 +180,7 @@ int hl_fw_unmask_irq_arr(struct hl_device *hdev, const u32 *irq_arr,
 {
 	struct cpucp_unmask_irq_arr_packet *pkt;
 	size_t total_pkt_size;
-	long result;
+	u64 result;
 	int rc;
 
 	total_pkt_size = sizeof(struct cpucp_unmask_irq_arr_packet) +
@@ -208,7 +219,7 @@ int hl_fw_unmask_irq_arr(struct hl_device *hdev, const u32 *irq_arr,
 int hl_fw_test_cpu_queue(struct hl_device *hdev)
 {
 	struct cpucp_packet test_pkt = {};
-	long result;
+	u64 result;
 	int rc;
 
 	test_pkt.ctl = cpu_to_le32(CPUCP_PACKET_TEST <<
@@ -221,7 +232,7 @@ int hl_fw_test_cpu_queue(struct hl_device *hdev)
 	if (!rc) {
 		if (result != CPUCP_PACKET_FENCE_VAL)
 			dev_err(hdev->dev,
-				"CPU queue test failed (0x%08lX)\n", result);
+				"CPU queue test failed (%#08llx)\n", result);
 	} else {
 		dev_err(hdev->dev, "CPU queue test failed, error %d\n", rc);
 	}
@@ -252,7 +263,7 @@ void hl_fw_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 int hl_fw_send_heartbeat(struct hl_device *hdev)
 {
 	struct cpucp_packet hb_pkt = {};
-	long result;
+	u64 result;
 	int rc;
 
 	hb_pkt.ctl = cpu_to_le32(CPUCP_PACKET_TEST <<
@@ -268,13 +279,14 @@ int hl_fw_send_heartbeat(struct hl_device *hdev)
 	return rc;
 }
 
-int hl_fw_cpucp_info_get(struct hl_device *hdev)
+int hl_fw_cpucp_info_get(struct hl_device *hdev,
+			u32 cpu_security_boot_status_reg)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct cpucp_packet pkt = {};
 	void *cpucp_info_cpu_addr;
 	dma_addr_t cpucp_info_dma_addr;
-	long result;
+	u64 result;
 	int rc;
 
 	cpucp_info_cpu_addr =
@@ -313,6 +325,11 @@ int hl_fw_cpucp_info_get(struct hl_device *hdev)
 		goto out;
 	}
 
+	/* Read FW application security bits again */
+	if (hdev->asic_prop.fw_security_status_valid)
+		hdev->asic_prop.fw_app_security_map =
+				RREG32(cpu_security_boot_status_reg);
+
 out:
 	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
 			sizeof(struct cpucp_info), cpucp_info_cpu_addr);
@@ -325,7 +342,7 @@ int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
 	struct cpucp_packet pkt = {};
 	void *eeprom_info_cpu_addr;
 	dma_addr_t eeprom_info_dma_addr;
-	long result;
+	u64 result;
 	int rc;
 
 	eeprom_info_cpu_addr =
@@ -368,7 +385,7 @@ int hl_fw_cpucp_pci_counters_get(struct hl_device *hdev,
 		struct hl_info_pci_counters *counters)
 {
 	struct cpucp_packet pkt = {};
-	long result;
+	u64 result;
 	int rc;
 
 	pkt.ctl = cpu_to_le32(CPUCP_PACKET_PCIE_THROUGHPUT_GET <<
@@ -415,7 +432,7 @@ int hl_fw_cpucp_pci_counters_get(struct hl_device *hdev,
 int hl_fw_cpucp_total_energy_get(struct hl_device *hdev, u64 *total_energy)
 {
 	struct cpucp_packet pkt = {};
-	long result;
+	u64 result;
 	int rc;
 
 	pkt.ctl = cpu_to_le32(CPUCP_PACKET_TOTAL_ENERGY_GET <<
@@ -435,9 +452,36 @@ int hl_fw_cpucp_total_energy_get(struct hl_device *hdev, u64 *total_energy)
 	return rc;
 }
 
-static void fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg)
+int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, u16 pll_index,
+		u16 *pll_freq_arr)
 {
-	u32 err_val;
+	struct cpucp_packet pkt;
+	u64 result;
+	int rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_PLL_INFO_GET <<
+				CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.pll_type = __cpu_to_le16(pll_index);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+			HL_CPUCP_INFO_TIMEOUT_USEC, &result);
+	if (rc)
+		dev_err(hdev->dev, "Failed to read PLL info, error %d\n", rc);
+
+	pll_freq_arr[0] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT0_MASK, result);
+	pll_freq_arr[1] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT1_MASK, result);
+	pll_freq_arr[2] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT2_MASK, result);
+	pll_freq_arr[3] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT3_MASK, result);
+
+	return rc;
+}
+
+static void fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
+		u32 cpu_security_boot_status_reg)
+{
+	u32 err_val, security_val;
 
 	/* Some of the firmware status codes are deprecated in newer f/w
 	 * versions. In those versions, the errors are reported
@@ -472,6 +516,18 @@ static void fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg)
 	if (err_val & CPU_BOOT_ERR0_NIC_FW_FAIL)
 		dev_err(hdev->dev,
 			"Device boot error - NIC F/W initialization failed\n");
+	if (err_val & CPU_BOOT_ERR0_SECURITY_NOT_RDY)
+		dev_warn(hdev->dev,
+			"Device boot warning - security not ready\n");
+	if (err_val & CPU_BOOT_ERR0_SECURITY_FAIL)
+		dev_err(hdev->dev, "Device boot error - security failure\n");
+	if (err_val & CPU_BOOT_ERR0_EFUSE_FAIL)
+		dev_err(hdev->dev, "Device boot error - eFuse failure\n");
+
+	security_val = RREG32(cpu_security_boot_status_reg);
+	if (security_val & CPU_BOOT_DEV_STS0_ENABLED)
+		dev_dbg(hdev->dev, "Device security status %#x\n",
+				security_val);
 }
 
 static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
@@ -524,10 +580,12 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 	}
 }
 
-int hl_fw_read_preboot_ver(struct hl_device *hdev, u32 cpu_boot_status_reg,
-				u32 boot_err0_reg, u32 timeout)
+int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
+		u32 cpu_security_boot_status_reg, u32 boot_err0_reg,
+		u32 timeout)
 {
-	u32 status;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u32 status, security_status;
 	int rc;
 
 	if (!hdev->cpu_enable)
@@ -557,22 +615,51 @@ int hl_fw_read_preboot_ver(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	if (rc) {
 		dev_err(hdev->dev, "Failed to read preboot version\n");
 		detect_cpu_boot_status(hdev, status);
-		fw_read_errors(hdev, boot_err0_reg);
+		fw_read_errors(hdev, boot_err0_reg,
+				cpu_security_boot_status_reg);
 		return -EIO;
 	}
 
-	hdev->asic_funcs->read_device_fw_version(hdev, FW_COMP_PREBOOT);
+	rc = hdev->asic_funcs->read_device_fw_version(hdev, FW_COMP_PREBOOT);
+	if (rc)
+		return rc;
+
+	security_status = RREG32(cpu_security_boot_status_reg);
+
+	/* We read security status multiple times during boot:
+	 * 1. preboot - we check if fw security feature is supported
+	 * 2. boot cpu - we get boot cpu security status
+	 * 3. FW application - we get FW application security status
+	 *
+	 * Preboot:
+	 * Check security status bit (CPU_BOOT_DEV_STS0_ENABLED), if it is set
+	 * check security enabled bit (CPU_BOOT_DEV_STS0_SECURITY_EN)
+	 */
+	if (security_status & CPU_BOOT_DEV_STS0_ENABLED) {
+		hdev->asic_prop.fw_security_status_valid = 1;
+		prop->fw_security_disabled =
+			!(security_status & CPU_BOOT_DEV_STS0_SECURITY_EN);
+	} else {
+		hdev->asic_prop.fw_security_status_valid = 0;
+		prop->fw_security_disabled = true;
+	}
+
+	dev_info(hdev->dev, "firmware-level security is %s\n",
+		prop->fw_security_disabled ? "disabled" : "enabled");
 
 	return 0;
 }
 
 int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 			u32 msg_to_cpu_reg, u32 cpu_msg_status_reg,
-			u32 boot_err0_reg, bool skip_bmc,
-			u32 cpu_timeout, u32 boot_fit_timeout)
+			u32 cpu_security_boot_status_reg, u32 boot_err0_reg,
+			bool skip_bmc, u32 cpu_timeout, u32 boot_fit_timeout)
 {
 	u32 status;
 	int rc;
+
+	if (!(hdev->fw_loading & FW_TYPE_BOOT_CPU))
+		return 0;
 
 	dev_info(hdev->dev, "Going to wait for device boot (up to %lds)\n",
 		cpu_timeout / USEC_PER_SEC);
@@ -631,8 +718,15 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		10000,
 		cpu_timeout);
 
+	dev_dbg(hdev->dev, "uboot status = %d\n", status);
+
 	/* Read U-Boot version now in case we will later fail */
 	hdev->asic_funcs->read_device_fw_version(hdev, FW_COMP_UBOOT);
+
+	/* Read boot_cpu security bits */
+	if (hdev->asic_prop.fw_security_status_valid)
+		hdev->asic_prop.fw_boot_cpu_security_map =
+				RREG32(cpu_security_boot_status_reg);
 
 	if (rc) {
 		detect_cpu_boot_status(hdev, status);
@@ -640,8 +734,8 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		goto out;
 	}
 
-	if (!hdev->fw_loading) {
-		dev_info(hdev->dev, "Skip loading FW\n");
+	if (!(hdev->fw_loading & FW_TYPE_LINUX)) {
+		dev_info(hdev->dev, "Skip loading Linux F/W\n");
 		goto out;
 	}
 
@@ -702,10 +796,23 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		goto out;
 	}
 
+	/* Read FW application security bits */
+	if (hdev->asic_prop.fw_security_status_valid) {
+		hdev->asic_prop.fw_app_security_map =
+				RREG32(cpu_security_boot_status_reg);
+
+		if (hdev->asic_prop.fw_app_security_map &
+				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
+			hdev->asic_prop.hard_reset_done_by_fw = true;
+	}
+
+	dev_dbg(hdev->dev, "Firmware hard-reset is %s\n",
+		hdev->asic_prop.hard_reset_done_by_fw ? "enabled" : "disabled");
+
 	dev_info(hdev->dev, "Successfully loaded firmware to device\n");
 
 out:
-	fw_read_errors(hdev, boot_err0_reg);
+	fw_read_errors(hdev, boot_err0_reg, cpu_security_boot_status_reg);
 
 	return rc;
 }

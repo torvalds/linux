@@ -157,11 +157,9 @@
 	uint32_t VBLANK_PARAMETERS_5;\
 	uint32_t VBLANK_PARAMETERS_6
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 #define DCN30_HUBP_REG_COMMON_VARIABLE_LIST \
 	DCN21_HUBP_REG_COMMON_VARIABLE_LIST;\
 	uint32_t DCN_DMDATA_VM_CNTL
-#endif
 
 #define DCN2_HUBP_REG_FIELD_VARIABLE_LIST(type) \
 	DCN_HUBP_REG_FIELD_BASE_LIST(type); \
@@ -198,7 +196,6 @@
 	type REFCYC_PER_META_CHUNK_FLIP_C; \
 	type VM_GROUP_SIZE
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 #define DCN30_HUBP_REG_FIELD_VARIABLE_LIST(type) \
 	DCN21_HUBP_REG_FIELD_VARIABLE_LIST(type);\
 	type PRIMARY_SURFACE_DCC_IND_BLK;\
@@ -218,32 +215,17 @@
 	type PACK_3TO2_ELEMENT_DISABLE; \
 	type ROW_TTU_MODE; \
 	type NUM_PKRS
-#endif
 
 struct dcn_hubp2_registers {
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	DCN30_HUBP_REG_COMMON_VARIABLE_LIST;
-#else
-	DCN21_HUBP_REG_COMMON_VARIABLE_LIST;
-#endif
 };
 
 struct dcn_hubp2_shift {
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	DCN30_HUBP_REG_FIELD_VARIABLE_LIST(uint8_t);
-#else
-	DCN21_HUBP_REG_FIELD_VARIABLE_LIST(uint8_t);
-#endif
-
 };
 
 struct dcn_hubp2_mask {
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	DCN30_HUBP_REG_FIELD_VARIABLE_LIST(uint32_t);
-#else
-	DCN21_HUBP_REG_FIELD_VARIABLE_LIST(uint32_t);
-#endif
-
 };
 
 struct dcn20_hubp {

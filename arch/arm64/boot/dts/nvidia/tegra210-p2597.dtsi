@@ -1663,16 +1663,6 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_usb_vbus_otg: regulator@11 {
-		compatible = "regulator-fixed";
-		regulator-name = "USB_VBUS_EN0";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		gpio = <&gpio TEGRA_GPIO(CC, 4) GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-		vin-supply = <&vdd_5v0_sys>;
-	};
-
 	vdd_hdmi: regulator@10 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_HDMI_5V0";
@@ -1711,5 +1701,15 @@
 		gpio = <&exp2 9 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		vin-supply = <&vdd_3v3_sys>;
+	};
+
+	vdd_usb_vbus_otg: regulator@14 {
+		compatible = "regulator-fixed";
+		regulator-name = "USB_VBUS_EN0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio TEGRA_GPIO(CC, 4) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vdd_5v0_sys>;
 	};
 };

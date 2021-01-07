@@ -197,6 +197,7 @@ enum cdns_pcie_rp_bar {
 };
 
 #define CDNS_PCIE_RP_MAX_IB	0x3
+#define CDNS_PCIE_MAX_OB	32
 
 struct cdns_pcie_rp_ib_bar {
 	u64 size;

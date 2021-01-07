@@ -311,7 +311,7 @@ static LIST_HEAD(tomoyo_log);
 /* Lock for "struct list_head tomoyo_log". */
 static DEFINE_SPINLOCK(tomoyo_log_lock);
 
-/* Length of "stuct list_head tomoyo_log". */
+/* Length of "struct list_head tomoyo_log". */
 static unsigned int tomoyo_log_count;
 
 /**

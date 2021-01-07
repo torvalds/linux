@@ -666,9 +666,9 @@ static int __init setup_fail_make_request(char *str)
 }
 __setup("fail_make_request=", setup_fail_make_request);
 
-static bool should_fail_request(struct hd_struct *part, unsigned int bytes)
+static bool should_fail_request(struct block_device *part, unsigned int bytes)
 {
-	return part->make_it_fail && should_fail(&fail_make_request, bytes);
+	return part->bd_make_it_fail && should_fail(&fail_make_request, bytes);
 }
 
 static int __init fail_make_request_debugfs(void)
@@ -683,7 +683,7 @@ late_initcall(fail_make_request_debugfs);
 
 #else /* CONFIG_FAIL_MAKE_REQUEST */
 
-static inline bool should_fail_request(struct hd_struct *part,
+static inline bool should_fail_request(struct block_device *part,
 					unsigned int bytes)
 {
 	return false;
@@ -691,11 +691,11 @@ static inline bool should_fail_request(struct hd_struct *part,
 
 #endif /* CONFIG_FAIL_MAKE_REQUEST */
 
-static inline bool bio_check_ro(struct bio *bio, struct hd_struct *part)
+static inline bool bio_check_ro(struct bio *bio, struct block_device *part)
 {
 	const int op = bio_op(bio);
 
-	if (part->policy && op_is_write(op)) {
+	if (part->bd_read_only && op_is_write(op)) {
 		char b[BDEVNAME_SIZE];
 
 		if (op_is_flush(bio->bi_opf) && !bio_sectors(bio))
@@ -703,7 +703,7 @@ static inline bool bio_check_ro(struct bio *bio, struct hd_struct *part)
 
 		WARN_ONCE(1,
 		       "Trying to write to read-only block-device %s (partno %d)\n",
-			bio_devname(bio, b), part->partno);
+			bio_devname(bio, b), part->bd_partno);
 		/* Older lvm-tools actually trigger this */
 		return false;
 	}
@@ -713,7 +713,7 @@ static inline bool bio_check_ro(struct bio *bio, struct hd_struct *part)
 
 static noinline int should_fail_bio(struct bio *bio)
 {
-	if (should_fail_request(&bio->bi_disk->part0, bio->bi_iter.bi_size))
+	if (should_fail_request(bio->bi_disk->part0, bio->bi_iter.bi_size))
 		return -EIO;
 	return 0;
 }
@@ -742,7 +742,7 @@ static inline int bio_check_eod(struct bio *bio, sector_t maxsector)
  */
 static inline int blk_partition_remap(struct bio *bio)
 {
-	struct hd_struct *p;
+	struct block_device *p;
 	int ret = -EIO;
 
 	rcu_read_lock();
@@ -755,11 +755,12 @@ static inline int blk_partition_remap(struct bio *bio)
 		goto out;
 
 	if (bio_sectors(bio)) {
-		if (bio_check_eod(bio, part_nr_sects_read(p)))
+		if (bio_check_eod(bio, bdev_nr_sectors(p)))
 			goto out;
-		bio->bi_iter.bi_sector += p->start_sect;
-		trace_block_bio_remap(bio->bi_disk->queue, bio, part_devt(p),
-				      bio->bi_iter.bi_sector - p->start_sect);
+		bio->bi_iter.bi_sector += p->bd_start_sect;
+		trace_block_bio_remap(bio, p->bd_dev,
+				      bio->bi_iter.bi_sector -
+				      p->bd_start_sect);
 	}
 	bio->bi_partno = 0;
 	ret = 0;
@@ -829,7 +830,7 @@ static noinline_for_stack bool submit_bio_checks(struct bio *bio)
 		if (unlikely(blk_partition_remap(bio)))
 			goto end_io;
 	} else {
-		if (unlikely(bio_check_ro(bio, &bio->bi_disk->part0)))
+		if (unlikely(bio_check_ro(bio, bio->bi_disk->part0)))
 			goto end_io;
 		if (unlikely(bio_check_eod(bio, get_capacity(bio->bi_disk))))
 			goto end_io;
@@ -906,7 +907,7 @@ static noinline_for_stack bool submit_bio_checks(struct bio *bio)
 	blkcg_bio_issue_init(bio);
 
 	if (!bio_flagged(bio, BIO_TRACE_COMPLETION)) {
-		trace_block_bio_queue(q, bio);
+		trace_block_bio_queue(bio);
 		/* Now that enqueuing has been traced, we need to trace
 		 * completion as well.
 		 */
@@ -1201,7 +1202,7 @@ blk_status_t blk_insert_cloned_request(struct request_queue *q, struct request *
 		return ret;
 
 	if (rq->rq_disk &&
-	    should_fail_request(&rq->rq_disk->part0, blk_rq_bytes(rq)))
+	    should_fail_request(rq->rq_disk->part0, blk_rq_bytes(rq)))
 		return BLK_STS_IOERR;
 
 	if (blk_crypto_insert_cloned_request(rq))
@@ -1260,17 +1261,18 @@ unsigned int blk_rq_err_bytes(const struct request *rq)
 }
 EXPORT_SYMBOL_GPL(blk_rq_err_bytes);
 
-static void update_io_ticks(struct hd_struct *part, unsigned long now, bool end)
+static void update_io_ticks(struct block_device *part, unsigned long now,
+		bool end)
 {
 	unsigned long stamp;
 again:
-	stamp = READ_ONCE(part->stamp);
+	stamp = READ_ONCE(part->bd_stamp);
 	if (unlikely(stamp != now)) {
-		if (likely(cmpxchg(&part->stamp, stamp, now) == stamp))
+		if (likely(cmpxchg(&part->bd_stamp, stamp, now) == stamp))
 			__part_stat_add(part, io_ticks, end ? now - stamp : 1);
 	}
-	if (part->partno) {
-		part = &part_to_disk(part)->part0;
+	if (part->bd_partno) {
+		part = bdev_whole(part);
 		goto again;
 	}
 }
@@ -1279,11 +1281,9 @@ static void blk_account_io_completion(struct request *req, unsigned int bytes)
 {
 	if (req->part && blk_do_io_stat(req)) {
 		const int sgrp = op_stat_group(req_op(req));
-		struct hd_struct *part;
 
 		part_stat_lock();
-		part = req->part;
-		part_stat_add(part, sectors[sgrp], bytes >> 9);
+		part_stat_add(req->part, sectors[sgrp], bytes >> 9);
 		part_stat_unlock();
 	}
 }
@@ -1298,17 +1298,12 @@ void blk_account_io_done(struct request *req, u64 now)
 	if (req->part && blk_do_io_stat(req) &&
 	    !(req->rq_flags & RQF_FLUSH_SEQ)) {
 		const int sgrp = op_stat_group(req_op(req));
-		struct hd_struct *part;
 
 		part_stat_lock();
-		part = req->part;
-
-		update_io_ticks(part, jiffies, true);
-		part_stat_inc(part, ios[sgrp]);
-		part_stat_add(part, nsecs[sgrp], now - req->start_time_ns);
+		update_io_ticks(req->part, jiffies, true);
+		part_stat_inc(req->part, ios[sgrp]);
+		part_stat_add(req->part, nsecs[sgrp], now - req->start_time_ns);
 		part_stat_unlock();
-
-		hd_struct_put(part);
 	}
 }
 
@@ -1324,7 +1319,7 @@ void blk_account_io_start(struct request *rq)
 	part_stat_unlock();
 }
 
-static unsigned long __part_start_io_acct(struct hd_struct *part,
+static unsigned long __part_start_io_acct(struct block_device *part,
 					  unsigned int sectors, unsigned int op)
 {
 	const int sgrp = op_stat_group(op);
@@ -1340,7 +1335,7 @@ static unsigned long __part_start_io_acct(struct hd_struct *part,
 	return now;
 }
 
-unsigned long part_start_io_acct(struct gendisk *disk, struct hd_struct **part,
+unsigned long part_start_io_acct(struct gendisk *disk, struct block_device **part,
 				 struct bio *bio)
 {
 	*part = disk_map_sector_rcu(disk, bio->bi_iter.bi_sector);
@@ -1352,11 +1347,11 @@ EXPORT_SYMBOL_GPL(part_start_io_acct);
 unsigned long disk_start_io_acct(struct gendisk *disk, unsigned int sectors,
 				 unsigned int op)
 {
-	return __part_start_io_acct(&disk->part0, sectors, op);
+	return __part_start_io_acct(disk->part0, sectors, op);
 }
 EXPORT_SYMBOL(disk_start_io_acct);
 
-static void __part_end_io_acct(struct hd_struct *part, unsigned int op,
+static void __part_end_io_acct(struct block_device *part, unsigned int op,
 			       unsigned long start_time)
 {
 	const int sgrp = op_stat_group(op);
@@ -1370,18 +1365,17 @@ static void __part_end_io_acct(struct hd_struct *part, unsigned int op,
 	part_stat_unlock();
 }
 
-void part_end_io_acct(struct hd_struct *part, struct bio *bio,
+void part_end_io_acct(struct block_device *part, struct bio *bio,
 		      unsigned long start_time)
 {
 	__part_end_io_acct(part, bio_op(bio), start_time);
-	hd_struct_put(part);
 }
 EXPORT_SYMBOL_GPL(part_end_io_acct);
 
 void disk_end_io_acct(struct gendisk *disk, unsigned int op,
 		      unsigned long start_time)
 {
-	__part_end_io_acct(&disk->part0, op, start_time);
+	__part_end_io_acct(disk->part0, op, start_time);
 }
 EXPORT_SYMBOL(disk_end_io_acct);
 

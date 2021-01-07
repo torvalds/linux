@@ -19,8 +19,6 @@
 
 #define PREFIX "ACPI: "
 
-#define ACPI_PROCESSOR_CLASS            "processor"
-
 #ifdef CONFIG_CPU_FREQ
 
 /* If a passive cooling situation is detected, primarily CPUfreq is used, as it

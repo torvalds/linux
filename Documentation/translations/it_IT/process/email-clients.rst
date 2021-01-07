@@ -32,6 +32,11 @@ impostato come ``text/plain``.  Tuttavia, generalmente gli allegati non sono
 ben apprezzati perché rende più difficile citare porzioni di patch durante il
 processo di revisione.
 
+Inoltre, è vivamente raccomandato l'uso di puro testo nel corpo del
+messaggio, sia per la patch che per qualsiasi altro messaggio. Il sito
+https://useplaintext.email/ può esservi d'aiuto per configurare il
+vostro programma di posta elettronica.
+
 I programmi di posta elettronica che vengono usati per inviare le patch per il
 kernel Linux dovrebbero inviarle senza alterazioni.  Per esempio, non
 dovrebbero modificare o rimuovere tabulazioni o spazi, nemmeno all'inizio o

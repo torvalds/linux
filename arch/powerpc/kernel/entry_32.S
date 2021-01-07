@@ -234,7 +234,10 @@ transfer_to_handler_cont:
 	mtspr	SPRN_SRR0,r11
 	mtspr	SPRN_SRR1,r10
 	mtlr	r9
-	RFI				/* jump to handler, enable MMU */
+	rfi				/* jump to handler, enable MMU */
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 
 #if defined (CONFIG_PPC_BOOK3S_32) || defined(CONFIG_E500)
 4:	rlwinm	r12,r12,0,~_TLF_NAPPING
@@ -263,7 +266,10 @@ _ASM_NOKPROBE_SYMBOL(transfer_to_handler_cont)
 	LOAD_REG_IMMEDIATE(r0, MSR_KERNEL)
 	mtspr	SPRN_SRR0,r12
 	mtspr	SPRN_SRR1,r0
-	RFI
+	rfi
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 
 reenable_mmu:
 	/*
@@ -321,7 +327,10 @@ stack_ovf:
 #endif
 	mtspr	SPRN_SRR0,r9
 	mtspr	SPRN_SRR1,r10
-	RFI
+	rfi
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 _ASM_NOKPROBE_SYMBOL(stack_ovf)
 #endif
 
@@ -439,15 +448,13 @@ syscall_exit_cont:
 	andis.	r10,r0,DBCR0_IDM@h
 	bnel-	load_dbcr0
 #endif
-#ifdef CONFIG_44x
-BEGIN_MMU_FTR_SECTION
+#ifdef CONFIG_PPC_47x
 	lis	r4,icache_44x_need_flush@ha
 	lwz	r5,icache_44x_need_flush@l(r4)
 	cmplwi	cr0,r5,0
 	bne-	2f
+#endif /* CONFIG_PPC_47x */
 1:
-END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_47x)
-#endif /* CONFIG_44x */
 BEGIN_FTR_SECTION
 	lwarx	r7,0,r1
 END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
@@ -470,7 +477,10 @@ syscall_exit_finish:
 #endif
 	mtspr	SPRN_SRR0,r7
 	mtspr	SPRN_SRR1,r8
-	RFI
+	rfi
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 _ASM_NOKPROBE_SYMBOL(syscall_exit_finish)
 #ifdef CONFIG_44x
 2:	li	r7,0
@@ -600,7 +610,10 @@ ret_from_kernel_syscall:
 #endif
 	mtspr	SPRN_SRR0, r9
 	mtspr	SPRN_SRR1, r10
-	RFI
+	rfi
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 _ASM_NOKPROBE_SYMBOL(ret_from_kernel_syscall)
 
 /*
@@ -671,7 +684,7 @@ handle_page_fault:
 	mr	r5,r3
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	lwz	r4,_DAR(r1)
-	bl	bad_page_fault
+	bl	__bad_page_fault
 	b	ret_from_except_full
 
 #ifdef CONFIG_PPC_BOOK3S_32
@@ -803,7 +816,10 @@ fast_exception_return:
 	REST_GPR(9, r11)
 	REST_GPR(12, r11)
 	lwz	r11,GPR11(r11)
-	RFI
+	rfi
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 _ASM_NOKPROBE_SYMBOL(fast_exception_return)
 
 #if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE))
@@ -948,10 +964,7 @@ restore_kuap:
 
 	/* interrupts are hard-disabled at this point */
 restore:
-#ifdef CONFIG_44x
-BEGIN_MMU_FTR_SECTION
-	b	1f
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_47x)
+#if defined(CONFIG_44x) && !defined(CONFIG_PPC_47x)
 	lis	r4,icache_44x_need_flush@ha
 	lwz	r5,icache_44x_need_flush@l(r4)
 	cmplwi	cr0,r5,0
@@ -1027,7 +1040,7 @@ exc_exit_restart:
 	lwz	r1,GPR1(r1)
 	.globl exc_exit_restart_end
 exc_exit_restart_end:
-	RFI
+	rfi
 _ASM_NOKPROBE_SYMBOL(exc_exit_restart)
 _ASM_NOKPROBE_SYMBOL(exc_exit_restart_end)
 
@@ -1356,7 +1369,7 @@ _GLOBAL(enter_rtas)
 	stw	r7, THREAD + RTAS_SP(r2)
 	mtspr	SPRN_SRR0,r8
 	mtspr	SPRN_SRR1,r9
-	RFI
+	rfi
 1:	tophys_novmstack r9, r1
 #ifdef CONFIG_VMAP_STACK
 	li	r0, MSR_KERNEL & ~MSR_IR	/* can take DTLB miss */
@@ -1371,6 +1384,6 @@ _GLOBAL(enter_rtas)
 	stw	r0, THREAD + RTAS_SP(r7)
 	mtspr	SPRN_SRR0,r8
 	mtspr	SPRN_SRR1,r9
-	RFI			/* return to caller */
+	rfi			/* return to caller */
 _ASM_NOKPROBE_SYMBOL(enter_rtas)
 #endif /* CONFIG_PPC_RTAS */

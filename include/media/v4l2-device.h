@@ -174,7 +174,7 @@ int __must_check v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 void v4l2_device_unregister_subdev(struct v4l2_subdev *sd);
 
 /**
- * __v4l2_device_register_ro_subdev_nodes - Registers device nodes for
+ * __v4l2_device_register_subdev_nodes - Registers device nodes for
  *      all subdevs of the v4l2 device that are marked with the
  *      %V4L2_SUBDEV_FL_HAS_DEVNODE flag.
  *

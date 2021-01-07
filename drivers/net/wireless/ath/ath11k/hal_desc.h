@@ -716,7 +716,7 @@ struct hal_reo_dest_ring {
  *
  * rx_msdu_info
  *		General information related to the MSDU that is passed
- *		on from RXDMA all the way to to the REO destination ring.
+ *		on from RXDMA all the way to the REO destination ring.
  *
  * queue_addr_lo
  *		Address (lower 32 bits) of the REO queue descriptor.
@@ -1425,7 +1425,7 @@ struct hal_ce_srng_dest_desc {
 #define HAL_CE_DST_STATUS_DESC_FLAGS_GATHER		BIT(11)
 #define HAL_CE_DST_STATUS_DESC_FLAGS_LEN		GENMASK(31, 16)
 
-#define HAL_CE_DST_STATUS_DESC_META_INFO_DATA		GENMASK(7, 0)
+#define HAL_CE_DST_STATUS_DESC_META_INFO_DATA		GENMASK(15, 0)
 #define HAL_CE_DST_STATUS_DESC_META_INFO_RING_ID	GENMASK(27, 20)
 #define HAL_CE_DST_STATUS_DESC_META_INFO_LOOP_CNT	HAL_SRNG_DESC_LOOP_CNT
 
@@ -1946,7 +1946,7 @@ enum hal_rx_reo_queue_pn_size {
 
 #define HAL_RX_REO_QUEUE_INFO3_TIMEOUT_COUNT		GENMASK(9, 4)
 #define HAL_RX_REO_QUEUE_INFO3_FWD_DUE_TO_BAR_CNT	GENMASK(15, 10)
-#define HAL_RX_REO_QUEUE_INFO3_DUPLICATE_COUNT		GENMASK(31, 10)
+#define HAL_RX_REO_QUEUE_INFO3_DUPLICATE_COUNT		GENMASK(31, 16)
 
 #define HAL_RX_REO_QUEUE_INFO4_FRAME_IN_ORD_COUNT	GENMASK(23, 0)
 #define HAL_RX_REO_QUEUE_INFO4_BAR_RECVD_COUNT		GENMASK(31, 24)
@@ -2432,7 +2432,7 @@ struct hal_reo_flush_timeout_list_status {
 #define HAL_REO_DESC_THRESH_STATUS_INFO1_LINK_DESC_COUNTER0	GENMASK(23, 0)
 #define HAL_REO_DESC_THRESH_STATUS_INFO2_LINK_DESC_COUNTER1	GENMASK(23, 0)
 #define HAL_REO_DESC_THRESH_STATUS_INFO3_LINK_DESC_COUNTER2	GENMASK(23, 0)
-#define HAL_REO_DESC_THRESH_STATUS_INFO4_LINK_DESC_COUNTER_SUM	GENMASK(23, 0)
+#define HAL_REO_DESC_THRESH_STATUS_INFO4_LINK_DESC_COUNTER_SUM	GENMASK(25, 0)
 
 struct hal_reo_desc_thresh_reached_status {
 	struct hal_reo_status_hdr hdr;

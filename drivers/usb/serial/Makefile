@@ -61,5 +61,4 @@ obj-$(CONFIG_USB_SERIAL_UPD78F0730)		+= upd78f0730.o
 obj-$(CONFIG_USB_SERIAL_VISOR)			+= visor.o
 obj-$(CONFIG_USB_SERIAL_WISHBONE)		+= wishbone-serial.o
 obj-$(CONFIG_USB_SERIAL_WHITEHEAT)		+= whiteheat.o
-obj-$(CONFIG_USB_SERIAL_XIRCOM)			+= keyspan_pda.o
 obj-$(CONFIG_USB_SERIAL_XSENS_MT)		+= xsens_mt.o

@@ -87,7 +87,7 @@ config PHY_QCOM_USB_HSIC
 
 config PHY_QCOM_USB_HS_28NM
 	tristate "Qualcomm 28nm High-Speed PHY"
-	depends on ARCH_QCOM || COMPILE_TEST
+	depends on OF && (ARCH_QCOM || COMPILE_TEST)
 	depends on EXTCON || !EXTCON # if EXTCON=m, this cannot be built-in
 	select GENERIC_PHY
 	help
@@ -98,7 +98,7 @@ config PHY_QCOM_USB_HS_28NM
 
 config PHY_QCOM_USB_SS
 	tristate "Qualcomm USB Super-Speed PHY driver"
-	depends on ARCH_QCOM || COMPILE_TEST
+	depends on OF && (ARCH_QCOM || COMPILE_TEST)
 	depends on EXTCON || !EXTCON # if EXTCON=m, this cannot be built-in
 	select GENERIC_PHY
 	help

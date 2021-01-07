@@ -50,6 +50,7 @@ enum {
 	MLX5_FLOW_TABLE_TUNNEL_EN_DECAP = BIT(1),
 	MLX5_FLOW_TABLE_TERMINATION = BIT(2),
 	MLX5_FLOW_TABLE_UNMANAGED = BIT(3),
+	MLX5_FLOW_TABLE_OTHER_VPORT = BIT(4),
 };
 
 #define LEFTOVERS_RULE_NUM	 2
@@ -132,6 +133,7 @@ struct mlx5_flow_destination {
 			struct mlx5_pkt_reformat *pkt_reformat;
 			u8		flags;
 		} vport;
+		u32			sampler_id;
 	};
 };
 
@@ -173,9 +175,7 @@ mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
 
 struct mlx5_flow_table *
 mlx5_create_vport_flow_table(struct mlx5_flow_namespace *ns,
-			     int prio,
-			     int num_flow_table_entries,
-			     u32 level, u16 vport);
+			     struct mlx5_flow_table_attr *ft_attr, u16 vport);
 struct mlx5_flow_table *mlx5_create_lag_demux_flow_table(
 					       struct mlx5_flow_namespace *ns,
 					       int prio, u32 level);

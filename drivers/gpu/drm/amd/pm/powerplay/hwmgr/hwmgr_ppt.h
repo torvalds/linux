@@ -48,7 +48,7 @@ typedef struct phm_ppt_v1_clock_voltage_dependency_record phm_ppt_v1_clock_volta
 
 struct phm_ppt_v1_clock_voltage_dependency_table {
 	uint32_t count;                                            /* Number of entries. */
-	phm_ppt_v1_clock_voltage_dependency_record entries[1];     /* Dynamically allocate count entries. */
+	phm_ppt_v1_clock_voltage_dependency_record entries[];	   /* Dynamically allocate count entries. */
 };
 
 typedef struct phm_ppt_v1_clock_voltage_dependency_table phm_ppt_v1_clock_voltage_dependency_table;
@@ -71,7 +71,7 @@ typedef struct phm_ppt_v1_mm_clock_voltage_dependency_record phm_ppt_v1_mm_clock
 
 struct phm_ppt_v1_mm_clock_voltage_dependency_table {
 	uint32_t count;													/* Number of entries. */
-	phm_ppt_v1_mm_clock_voltage_dependency_record entries[1];		/* Dynamically allocate count entries. */
+	phm_ppt_v1_mm_clock_voltage_dependency_record entries[];		/* Dynamically allocate count entries. */
 };
 typedef struct phm_ppt_v1_mm_clock_voltage_dependency_table phm_ppt_v1_mm_clock_voltage_dependency_table;
 
@@ -86,7 +86,7 @@ typedef struct phm_ppt_v1_voltage_lookup_record phm_ppt_v1_voltage_lookup_record
 
 struct phm_ppt_v1_voltage_lookup_table {
 	uint32_t count;
-	phm_ppt_v1_voltage_lookup_record entries[1];    /* Dynamically allocate count entries. */
+	phm_ppt_v1_voltage_lookup_record entries[];    /* Dynamically allocate count entries. */
 };
 typedef struct phm_ppt_v1_voltage_lookup_table phm_ppt_v1_voltage_lookup_table;
 
@@ -103,7 +103,7 @@ typedef struct phm_ppt_v1_pcie_record phm_ppt_v1_pcie_record;
 
 struct phm_ppt_v1_pcie_table {
 	uint32_t count;                                            /* Number of entries. */
-	phm_ppt_v1_pcie_record entries[1];                         /* Dynamically allocate count entries. */
+	phm_ppt_v1_pcie_record entries[];			   /* Dynamically allocate count entries. */
 };
 typedef struct phm_ppt_v1_pcie_table phm_ppt_v1_pcie_table;
 

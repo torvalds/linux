@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011 Texas Instruments Incorporated - https://www.ti.com/
  * Author: Rob Clark <rob@ti.com>
  */
 
@@ -436,7 +436,7 @@ static void omap_crtc_arm_event(struct drm_crtc *crtc)
 }
 
 static void omap_crtc_atomic_enable(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_state)
+				    struct drm_atomic_state *state)
 {
 	struct omap_drm_private *priv = crtc->dev->dev_private;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
@@ -462,7 +462,7 @@ static void omap_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void omap_crtc_atomic_disable(struct drm_crtc *crtc,
-				     struct drm_crtc_state *old_state)
+				     struct drm_atomic_state *state)
 {
 	struct omap_drm_private *priv = crtc->dev->dev_private;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
@@ -569,22 +569,25 @@ static bool omap_crtc_is_manually_updated(struct drm_crtc *crtc)
 }
 
 static int omap_crtc_atomic_check(struct drm_crtc *crtc,
-				struct drm_crtc_state *state)
+				struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	struct drm_plane_state *pri_state;
 
-	if (state->color_mgmt_changed && state->gamma_lut) {
-		unsigned int length = state->gamma_lut->length /
+	if (crtc_state->color_mgmt_changed && crtc_state->gamma_lut) {
+		unsigned int length = crtc_state->gamma_lut->length /
 			sizeof(struct drm_color_lut);
 
 		if (length < 2)
 			return -EINVAL;
 	}
 
-	pri_state = drm_atomic_get_new_plane_state(state->state, crtc->primary);
+	pri_state = drm_atomic_get_new_plane_state(state,
+						   crtc->primary);
 	if (pri_state) {
 		struct omap_crtc_state *omap_crtc_state =
-			to_omap_crtc_state(state);
+			to_omap_crtc_state(crtc_state);
 
 		/* Mirror new values for zpos and rotation in omap_crtc_state */
 		omap_crtc_state->zpos = pri_state->zpos;
@@ -598,12 +601,12 @@ static int omap_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void omap_crtc_atomic_begin(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_crtc_state)
+				   struct drm_atomic_state *state)
 {
 }
 
 static void omap_crtc_atomic_flush(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_crtc_state)
+				   struct drm_atomic_state *state)
 {
 	struct omap_drm_private *priv = crtc->dev->dev_private;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);

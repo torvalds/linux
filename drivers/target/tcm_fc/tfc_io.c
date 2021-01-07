@@ -28,7 +28,6 @@
 #include <linux/ratelimit.h>
 #include <asm/unaligned.h>
 #include <scsi/libfc.h>
-#include <scsi/fc_encode.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>

@@ -212,6 +212,16 @@ static int load_scale_bw(struct venus_core *core)
 	}
 	mutex_unlock(&core->lock);
 
+	/*
+	 * keep minimum bandwidth vote for "video-mem" path,
+	 * so that clks can be disabled during vdec_session_release().
+	 * Actual bandwidth drop will be done during device supend
+	 * so that device can power down without any warnings.
+	 */
+
+	if (!total_avg && !total_peak)
+		total_avg = kbps_to_icc(1000);
+
 	dev_dbg(core->dev, VDBGL "total: avg_bw: %u, peak_bw: %u\n",
 		total_avg, total_peak);
 
@@ -794,7 +804,7 @@ skip_pmdomains:
 	return 0;
 
 opp_dl_add_err:
-	dev_pm_domain_detach(core->opp_pmdomain, true);
+	dev_pm_opp_detach_genpd(core->opp_table);
 opp_attach_err:
 	if (core->pd_dl_venus) {
 		device_link_del(core->pd_dl_venus);
@@ -832,7 +842,7 @@ skip_pmdomains:
 	if (core->opp_dl_venus)
 		device_link_del(core->opp_dl_venus);
 
-	dev_pm_domain_detach(core->opp_pmdomain, true);
+	dev_pm_opp_detach_genpd(core->opp_table);
 }
 
 static int core_get_v4(struct device *dev)
@@ -898,8 +908,7 @@ static void core_put_v4(struct device *dev)
 
 	if (core->has_opp_table)
 		dev_pm_opp_of_remove_table(dev);
-	if (core->opp_table)
-		dev_pm_opp_put_clkname(core->opp_table);
+	dev_pm_opp_put_clkname(core->opp_table);
 
 }
 
@@ -928,7 +937,7 @@ static unsigned long calculate_inst_freq(struct venus_inst *inst,
 	u32 fps = (u32)inst->fps;
 	u32 mbs_per_sec;
 
-	mbs_per_sec = load_per_instance(inst) / fps;
+	mbs_per_sec = load_per_instance(inst);
 
 	vpp_freq = mbs_per_sec * inst->clk_data.codec_freq_data->vpp_freq;
 	/* 21 / 20 is overhead factor */

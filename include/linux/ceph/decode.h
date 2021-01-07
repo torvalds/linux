@@ -220,6 +220,8 @@ static inline void ceph_encode_timespec64(struct ceph_timespec *tv,
  */
 #define CEPH_ENTITY_ADDR_TYPE_NONE	0
 #define CEPH_ENTITY_ADDR_TYPE_LEGACY	__cpu_to_le32(1)
+#define CEPH_ENTITY_ADDR_TYPE_MSGR2	__cpu_to_le32(2)
+#define CEPH_ENTITY_ADDR_TYPE_ANY	__cpu_to_le32(3)
 
 static inline void ceph_encode_banner_addr(struct ceph_entity_addr *a)
 {
@@ -239,6 +241,12 @@ static inline void ceph_decode_banner_addr(struct ceph_entity_addr *a)
 
 extern int ceph_decode_entity_addr(void **p, void *end,
 				   struct ceph_entity_addr *addr);
+int ceph_decode_entity_addrvec(void **p, void *end, bool msgr2,
+			       struct ceph_entity_addr *addr);
+
+int ceph_entity_addr_encoding_len(const struct ceph_entity_addr *addr);
+void ceph_encode_entity_addr(void **p, const struct ceph_entity_addr *addr);
+
 /*
  * encoders
  */

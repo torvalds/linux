@@ -8,7 +8,7 @@ Digital TV Video Device
 
 The Digital TV video device controls the MPEG2 video decoder of the Digital
 TV hardware. It can be accessed through **/dev/dvb/adapter0/video0**. Data
-types and and ioctl definitions can be accessed by including
+types and ioctl definitions can be accessed by including
 **linux/dvb/video.h** in your application.
 
 Note that the Digital TV video device only controls decoding of the MPEG video

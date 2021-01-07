@@ -301,7 +301,7 @@ finished_writing_instruction:
 	return in_end - (ii - ti);
 }
 
-int lzogeneric1x_1_compress(const unsigned char *in, size_t in_len,
+static int lzogeneric1x_1_compress(const unsigned char *in, size_t in_len,
 		     unsigned char *out, size_t *out_len,
 		     void *wrkmem, const unsigned char bitstream_version)
 {

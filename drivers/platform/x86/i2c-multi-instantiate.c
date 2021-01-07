@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/types.h>
 
 #define IRQ_RESOURCE_TYPE	GENMASK(1, 0)
@@ -59,7 +60,6 @@ static int i2c_multi_inst_count_resources(struct acpi_device *adev)
 static int i2c_multi_inst_probe(struct platform_device *pdev)
 {
 	struct i2c_multi_inst_data *multi;
-	const struct acpi_device_id *match;
 	const struct i2c_inst_data *inst_data;
 	struct i2c_board_info board_info = {};
 	struct device *dev = &pdev->dev;
@@ -67,12 +67,11 @@ static int i2c_multi_inst_probe(struct platform_device *pdev)
 	char name[32];
 	int i, ret;
 
-	match = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!match) {
+	inst_data = device_get_match_data(dev);
+	if (!inst_data) {
 		dev_err(dev, "Error ACPI match data is missing\n");
 		return -ENODEV;
 	}
-	inst_data = (const struct i2c_inst_data *)match->driver_data;
 
 	adev = ACPI_COMPANION(dev);
 
@@ -118,9 +117,8 @@ static int i2c_multi_inst_probe(struct platform_device *pdev)
 		}
 		multi->clients[i] = i2c_acpi_new_device(dev, i, &board_info);
 		if (IS_ERR(multi->clients[i])) {
-			ret = PTR_ERR(multi->clients[i]);
-			if (ret != -EPROBE_DEFER)
-				dev_err(dev, "Error creating i2c-client, idx %d\n", i);
+			ret = dev_err_probe(dev, PTR_ERR(multi->clients[i]),
+					    "Error creating i2c-client, idx %d\n", i);
 			goto error;
 		}
 	}
@@ -189,7 +187,7 @@ MODULE_DEVICE_TABLE(acpi, i2c_multi_inst_acpi_ids);
 static struct platform_driver i2c_multi_inst_driver = {
 	.driver	= {
 		.name = "I2C multi instantiate pseudo device driver",
-		.acpi_match_table = ACPI_PTR(i2c_multi_inst_acpi_ids),
+		.acpi_match_table = i2c_multi_inst_acpi_ids,
 	},
 	.probe = i2c_multi_inst_probe,
 	.remove = i2c_multi_inst_remove,

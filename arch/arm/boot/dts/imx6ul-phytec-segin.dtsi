@@ -130,31 +130,6 @@
 		status = "disabled";
 	};
 
-	stmpe: touchscreen@44 {
-		compatible = "st,stmpe811";
-		reg = <0x44>;
-		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
-		interrupt-parent = <&gpio5>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_stmpe>;
-		status = "disabled";
-
-		touchscreen {
-			compatible = "st,stmpe-ts";
-			st,sample-time = <4>;
-			st,mod-12b = <1>;
-			st,ref-sel = <0>;
-			st,adc-freq = <1>;
-			st,ave-ctrl = <1>;
-			st,touch-det-delay = <2>;
-			st,settling = <2>;
-			st,fraction-z = <7>;
-			st,i-drive = <1>;
-			touchscreen-inverted-x = <1>;
-			touchscreen-inverted-y = <1>;
-		};
-	};
-
 	i2c_rtc: rtc@68 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_rtc_int>;
@@ -174,12 +149,6 @@
 		clock-names = "rmii-ref";
 		status = "disabled";
 	};
-};
-
-&pwm3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pwm3>;
-	status = "disabled";
 };
 
 &sai2 {
@@ -267,12 +236,6 @@
 		>;
 	};
 
-	pinctrl_pwm3: pwm3grp {
-		fsl,pins = <
-			MX6UL_PAD_GPIO1_IO04__PWM3_OUT	0x0b0b0
-		>;
-	};
-
 	pinctrl_rtc_int: rtcintgrp {
 		fsl,pins = <
 			MX6UL_PAD_SNVS_TAMPER1__GPIO5_IO01	0x17059
@@ -286,12 +249,6 @@
 			MX6UL_PAD_JTAG_TRST_B__SAI2_TX_DATA	0x11088
 			MX6UL_PAD_JTAG_TCK__SAI2_RX_DATA	0x11088
 			MX6UL_PAD_JTAG_TMS__SAI2_MCLK		0x17088
-		>;
-	};
-
-	pinctrl_stmpe: stmpegrp {
-		fsl,pins = <
-			MX6UL_PAD_SNVS_TAMPER3__GPIO5_IO03	0x17059
 		>;
 	};
 

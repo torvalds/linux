@@ -66,24 +66,17 @@ static inline void efifb_setup_from_dmi(struct screen_info *si, const char *opt)
 #define MAX_UNCOMP_KERNEL_SIZE	SZ_32M
 
 /*
- * phys-to-virt patching requires that the physical to virtual offset fits
- * into the immediate field of an add/sub instruction, which comes down to the
- * 24 least significant bits being zero, and so the offset should be a multiple
- * of 16 MB. Since PAGE_OFFSET itself is a multiple of 16 MB, the physical
- * base should be aligned to 16 MB as well.
+ * phys-to-virt patching requires that the physical to virtual offset is a
+ * multiple of 2 MiB. However, using an alignment smaller than TEXT_OFFSET
+ * here throws off the memory allocation logic, so let's use the lowest power
+ * of two greater than 2 MiB and greater than TEXT_OFFSET.
  */
-#define EFI_PHYS_ALIGN		SZ_16M
-
-/* on ARM, the FDT should be located in a lowmem region */
-static inline unsigned long efi_get_max_fdt_addr(unsigned long image_addr)
-{
-	return round_down(image_addr, EFI_PHYS_ALIGN) + SZ_512M;
-}
+#define EFI_PHYS_ALIGN		max(UL(SZ_2M), roundup_pow_of_two(TEXT_OFFSET))
 
 /* on ARM, the initrd should be loaded in a lowmem region */
 static inline unsigned long efi_get_max_initrd_addr(unsigned long image_addr)
 {
-	return round_down(image_addr, EFI_PHYS_ALIGN) + SZ_512M;
+	return round_down(image_addr, SZ_4M) + SZ_512M;
 }
 
 struct efi_arm_entry_state {
@@ -92,5 +85,10 @@ struct efi_arm_entry_state {
 	u32	cpsr_after_ebs;
 	u32	sctlr_after_ebs;
 };
+
+static inline void efi_capsule_flush_cache_range(void *addr, int size)
+{
+	__cpuc_flush_dcache_area(addr, size);
+}
 
 #endif /* _ASM_ARM_EFI_H */

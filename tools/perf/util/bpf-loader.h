@@ -8,6 +8,8 @@
 
 #include <linux/compiler.h>
 #include <linux/err.h>
+
+#ifdef HAVE_LIBBPF_SUPPORT
 #include <bpf/libbpf.h>
 
 enum bpf_loader_errno {
@@ -38,6 +40,7 @@ enum bpf_loader_errno {
 	BPF_LOADER_ERRNO__OBJCONF_MAP_IDX2BIG,	/* Index too large */
 	__BPF_LOADER_ERRNO__END,
 };
+#endif // HAVE_LIBBPF_SUPPORT
 
 struct evsel;
 struct evlist;

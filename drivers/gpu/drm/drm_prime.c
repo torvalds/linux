@@ -386,8 +386,6 @@ static struct dma_buf *export_and_register_object(struct drm_device *dev,
 
 	if (obj->funcs && obj->funcs->export)
 		dmabuf = obj->funcs->export(obj, flags);
-	else if (dev->driver->gem_prime_export)
-		dmabuf = dev->driver->gem_prime_export(obj, flags);
 	else
 		dmabuf = drm_gem_prime_export(obj, flags);
 	if (IS_ERR(dmabuf)) {
@@ -419,7 +417,7 @@ static struct dma_buf *export_and_register_object(struct drm_device *dev,
  * This is the PRIME export function which must be used mandatorily by GEM
  * drivers to ensure correct lifetime management of the underlying GEM object.
  * The actual exporting from GEM object to a dma-buf is done through the
- * &drm_driver.gem_prime_export driver callback.
+ * &drm_gem_object_funcs.export callback.
  */
 int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 			       struct drm_file *file_priv, uint32_t handle,
@@ -622,10 +620,12 @@ struct sg_table *drm_gem_map_dma_buf(struct dma_buf_attachment *attach,
 	if (WARN_ON(dir == DMA_NONE))
 		return ERR_PTR(-EINVAL);
 
-	if (obj->funcs)
-		sgt = obj->funcs->get_sg_table(obj);
-	else
-		sgt = obj->dev->driver->gem_prime_get_sg_table(obj);
+	if (WARN_ON(!obj->funcs->get_sg_table))
+		return ERR_PTR(-ENOSYS);
+
+	sgt = obj->funcs->get_sg_table(obj);
+	if (IS_ERR(sgt))
+		return sgt;
 
 	ret = dma_map_sgtable(attach->dev, sgt, dir,
 			      DMA_ATTR_SKIP_CPU_SYNC);
@@ -663,38 +663,35 @@ EXPORT_SYMBOL(drm_gem_unmap_dma_buf);
 /**
  * drm_gem_dmabuf_vmap - dma_buf vmap implementation for GEM
  * @dma_buf: buffer to be mapped
+ * @map: the virtual address of the buffer
  *
  * Sets up a kernel virtual mapping. This can be used as the &dma_buf_ops.vmap
  * callback. Calls into &drm_gem_object_funcs.vmap for device specific handling.
+ * The kernel virtual address is returned in map.
  *
- * Returns the kernel virtual address or NULL on failure.
+ * Returns 0 on success or a negative errno code otherwise.
  */
-void *drm_gem_dmabuf_vmap(struct dma_buf *dma_buf)
+int drm_gem_dmabuf_vmap(struct dma_buf *dma_buf, struct dma_buf_map *map)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
-	void *vaddr;
 
-	vaddr = drm_gem_vmap(obj);
-	if (IS_ERR(vaddr))
-		vaddr = NULL;
-
-	return vaddr;
+	return drm_gem_vmap(obj, map);
 }
 EXPORT_SYMBOL(drm_gem_dmabuf_vmap);
 
 /**
  * drm_gem_dmabuf_vunmap - dma_buf vunmap implementation for GEM
  * @dma_buf: buffer to be unmapped
- * @vaddr: the virtual address of the buffer
+ * @map: the virtual address of the buffer
  *
  * Releases a kernel virtual mapping. This can be used as the
  * &dma_buf_ops.vunmap callback. Calls into &drm_gem_object_funcs.vunmap for device specific handling.
  */
-void drm_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
+void drm_gem_dmabuf_vunmap(struct dma_buf *dma_buf, struct dma_buf_map *map)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
 
-	drm_gem_vunmap(obj, vaddr);
+	drm_gem_vunmap(obj, map);
 }
 EXPORT_SYMBOL(drm_gem_dmabuf_vunmap);
 
@@ -817,8 +814,8 @@ struct sg_table *drm_prime_pages_to_sg(struct drm_device *dev,
 
 	if (dev)
 		max_segment = dma_max_mapping_size(dev->dev);
-	if (max_segment == 0 || max_segment > SCATTERLIST_MAX_SEGMENT)
-		max_segment = SCATTERLIST_MAX_SEGMENT;
+	if (max_segment == 0)
+		max_segment = UINT_MAX;
 	sge = __sg_alloc_table_from_pages(sg, pages, nr_pages, 0,
 					  nr_pages << PAGE_SHIFT,
 					  max_segment,

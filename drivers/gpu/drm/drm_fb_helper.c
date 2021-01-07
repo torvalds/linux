@@ -281,18 +281,12 @@ int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
 EXPORT_SYMBOL(drm_fb_helper_restore_fbdev_mode_unlocked);
 
 #ifdef CONFIG_MAGIC_SYSRQ
-/*
- * restore fbcon display for all kms driver's using this helper, used for sysrq
- * and panic handling.
- */
-static bool drm_fb_helper_force_kernel_mode(void)
+/* emergency restore, don't bother with error reporting */
+static void drm_fb_helper_restore_work_fn(struct work_struct *ignored)
 {
-	bool ret, error = false;
 	struct drm_fb_helper *helper;
 
-	if (list_empty(&kernel_fb_helper_list))
-		return false;
-
+	mutex_lock(&kernel_fb_helper_lock);
 	list_for_each_entry(helper, &kernel_fb_helper_list, kernel_fb_list) {
 		struct drm_device *dev = helper->dev;
 
@@ -300,22 +294,12 @@ static bool drm_fb_helper_force_kernel_mode(void)
 			continue;
 
 		mutex_lock(&helper->lock);
-		ret = drm_client_modeset_commit_locked(&helper->client);
-		if (ret)
-			error = true;
+		drm_client_modeset_commit_locked(&helper->client);
 		mutex_unlock(&helper->lock);
 	}
-	return error;
+	mutex_unlock(&kernel_fb_helper_lock);
 }
 
-static void drm_fb_helper_restore_work_fn(struct work_struct *ignored)
-{
-	bool ret;
-
-	ret = drm_fb_helper_force_kernel_mode();
-	if (ret == true)
-		DRM_ERROR("Failed to restore crtc configuration\n");
-}
 static DECLARE_WORK(drm_fb_helper_restore_work, drm_fb_helper_restore_work_fn);
 
 static void drm_fb_helper_sysrq(int dummy1)
@@ -387,60 +371,106 @@ static void drm_fb_helper_resume_worker(struct work_struct *work)
 	console_unlock();
 }
 
-static void drm_fb_helper_dirty_blit_real(struct drm_fb_helper *fb_helper,
-					  struct drm_clip_rect *clip)
+static void drm_fb_helper_damage_blit_real(struct drm_fb_helper *fb_helper,
+					   struct drm_clip_rect *clip,
+					   struct dma_buf_map *dst)
 {
 	struct drm_framebuffer *fb = fb_helper->fb;
 	unsigned int cpp = fb->format->cpp[0];
 	size_t offset = clip->y1 * fb->pitches[0] + clip->x1 * cpp;
 	void *src = fb_helper->fbdev->screen_buffer + offset;
-	void *dst = fb_helper->buffer->vaddr + offset;
 	size_t len = (clip->x2 - clip->x1) * cpp;
 	unsigned int y;
 
-	for (y = clip->y1; y < clip->y2; y++) {
-		if (!fb_helper->dev->mode_config.fbdev_use_iomem)
-			memcpy(dst, src, len);
-		else
-			memcpy_toio((void __iomem *)dst, src, len);
+	dma_buf_map_incr(dst, offset); /* go to first pixel within clip rect */
 
+	for (y = clip->y1; y < clip->y2; y++) {
+		dma_buf_map_memcpy_to(dst, src, len);
+		dma_buf_map_incr(dst, fb->pitches[0]);
 		src += fb->pitches[0];
-		dst += fb->pitches[0];
 	}
 }
 
-static void drm_fb_helper_dirty_work(struct work_struct *work)
+static int drm_fb_helper_damage_blit(struct drm_fb_helper *fb_helper,
+				     struct drm_clip_rect *clip)
+{
+	struct drm_client_buffer *buffer = fb_helper->buffer;
+	struct dma_buf_map map, dst;
+	int ret;
+
+	/*
+	 * We have to pin the client buffer to its current location while
+	 * flushing the shadow buffer. In the general case, concurrent
+	 * modesetting operations could try to move the buffer and would
+	 * fail. The modeset has to be serialized by acquiring the reservation
+	 * object of the underlying BO here.
+	 *
+	 * For fbdev emulation, we only have to protect against fbdev modeset
+	 * operations. Nothing else will involve the client buffer's BO. So it
+	 * is sufficient to acquire struct drm_fb_helper.lock here.
+	 */
+	mutex_lock(&fb_helper->lock);
+
+	ret = drm_client_buffer_vmap(buffer, &map);
+	if (ret)
+		goto out;
+
+	dst = map;
+	drm_fb_helper_damage_blit_real(fb_helper, clip, &dst);
+
+	drm_client_buffer_vunmap(buffer);
+
+out:
+	mutex_unlock(&fb_helper->lock);
+
+	return ret;
+}
+
+static void drm_fb_helper_damage_work(struct work_struct *work)
 {
 	struct drm_fb_helper *helper = container_of(work, struct drm_fb_helper,
-						    dirty_work);
-	struct drm_clip_rect *clip = &helper->dirty_clip;
+						    damage_work);
+	struct drm_device *dev = helper->dev;
+	struct drm_clip_rect *clip = &helper->damage_clip;
 	struct drm_clip_rect clip_copy;
 	unsigned long flags;
-	void *vaddr;
+	int ret;
 
-	spin_lock_irqsave(&helper->dirty_lock, flags);
+	spin_lock_irqsave(&helper->damage_lock, flags);
 	clip_copy = *clip;
 	clip->x1 = clip->y1 = ~0;
 	clip->x2 = clip->y2 = 0;
-	spin_unlock_irqrestore(&helper->dirty_lock, flags);
+	spin_unlock_irqrestore(&helper->damage_lock, flags);
 
-	/* call dirty callback only when it has been really touched */
-	if (clip_copy.x1 < clip_copy.x2 && clip_copy.y1 < clip_copy.y2) {
+	/* Call damage handlers only if necessary */
+	if (!(clip_copy.x1 < clip_copy.x2 && clip_copy.y1 < clip_copy.y2))
+		return;
 
-		/* Generic fbdev uses a shadow buffer */
-		if (helper->buffer) {
-			vaddr = drm_client_buffer_vmap(helper->buffer);
-			if (IS_ERR(vaddr))
-				return;
-			drm_fb_helper_dirty_blit_real(helper, &clip_copy);
-		}
-		if (helper->fb->funcs->dirty)
-			helper->fb->funcs->dirty(helper->fb, NULL, 0, 0,
-						 &clip_copy, 1);
-
-		if (helper->buffer)
-			drm_client_buffer_vunmap(helper->buffer);
+	if (helper->buffer) {
+		ret = drm_fb_helper_damage_blit(helper, &clip_copy);
+		if (drm_WARN_ONCE(dev, ret, "Damage blitter failed: ret=%d\n", ret))
+			goto err;
 	}
+
+	if (helper->fb->funcs->dirty) {
+		ret = helper->fb->funcs->dirty(helper->fb, NULL, 0, 0, &clip_copy, 1);
+		if (drm_WARN_ONCE(dev, ret, "Dirty helper failed: ret=%d\n", ret))
+			goto err;
+	}
+
+	return;
+
+err:
+	/*
+	 * Restore damage clip rectangle on errors. The next run
+	 * of the damage worker will perform the update.
+	 */
+	spin_lock_irqsave(&helper->damage_lock, flags);
+	clip->x1 = min_t(u32, clip->x1, clip_copy.x1);
+	clip->y1 = min_t(u32, clip->y1, clip_copy.y1);
+	clip->x2 = max_t(u32, clip->x2, clip_copy.x2);
+	clip->y2 = max_t(u32, clip->y2, clip_copy.y2);
+	spin_unlock_irqrestore(&helper->damage_lock, flags);
 }
 
 /**
@@ -456,10 +486,10 @@ void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
 			   const struct drm_fb_helper_funcs *funcs)
 {
 	INIT_LIST_HEAD(&helper->kernel_fb_list);
-	spin_lock_init(&helper->dirty_lock);
+	spin_lock_init(&helper->damage_lock);
 	INIT_WORK(&helper->resume_work, drm_fb_helper_resume_worker);
-	INIT_WORK(&helper->dirty_work, drm_fb_helper_dirty_work);
-	helper->dirty_clip.x1 = helper->dirty_clip.y1 = ~0;
+	INIT_WORK(&helper->damage_work, drm_fb_helper_damage_work);
+	helper->damage_clip.x1 = helper->damage_clip.y1 = ~0;
 	mutex_init(&helper->lock);
 	helper->funcs = funcs;
 	helper->dev = dev;
@@ -595,7 +625,7 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 		return;
 
 	cancel_work_sync(&fb_helper->resume_work);
-	cancel_work_sync(&fb_helper->dirty_work);
+	cancel_work_sync(&fb_helper->damage_work);
 
 	info = fb_helper->fbdev;
 	if (info) {
@@ -630,30 +660,30 @@ static bool drm_fbdev_use_shadow_fb(struct drm_fb_helper *fb_helper)
 	       fb->funcs->dirty;
 }
 
-static void drm_fb_helper_dirty(struct fb_info *info, u32 x, u32 y,
-				u32 width, u32 height)
+static void drm_fb_helper_damage(struct fb_info *info, u32 x, u32 y,
+				 u32 width, u32 height)
 {
 	struct drm_fb_helper *helper = info->par;
-	struct drm_clip_rect *clip = &helper->dirty_clip;
+	struct drm_clip_rect *clip = &helper->damage_clip;
 	unsigned long flags;
 
 	if (!drm_fbdev_use_shadow_fb(helper))
 		return;
 
-	spin_lock_irqsave(&helper->dirty_lock, flags);
+	spin_lock_irqsave(&helper->damage_lock, flags);
 	clip->x1 = min_t(u32, clip->x1, x);
 	clip->y1 = min_t(u32, clip->y1, y);
 	clip->x2 = max_t(u32, clip->x2, x + width);
 	clip->y2 = max_t(u32, clip->y2, y + height);
-	spin_unlock_irqrestore(&helper->dirty_lock, flags);
+	spin_unlock_irqrestore(&helper->damage_lock, flags);
 
-	schedule_work(&helper->dirty_work);
+	schedule_work(&helper->damage_work);
 }
 
 /**
  * drm_fb_helper_deferred_io() - fbdev deferred_io callback function
  * @info: fb_info struct pointer
- * @pagelist: list of dirty mmap framebuffer pages
+ * @pagelist: list of mmap framebuffer pages that have to be flushed
  *
  * This function is used as the &fb_deferred_io.deferred_io
  * callback function for flushing the fbdev mmap writes.
@@ -678,7 +708,7 @@ void drm_fb_helper_deferred_io(struct fb_info *info,
 		y1 = min / info->fix.line_length;
 		y2 = min_t(u32, DIV_ROUND_UP(max, info->fix.line_length),
 			   info->var.yres);
-		drm_fb_helper_dirty(info, 0, y1, info->var.xres, y2 - y1);
+		drm_fb_helper_damage(info, 0, y1, info->var.xres, y2 - y1);
 	}
 }
 EXPORT_SYMBOL(drm_fb_helper_deferred_io);
@@ -715,8 +745,7 @@ ssize_t drm_fb_helper_sys_write(struct fb_info *info, const char __user *buf,
 
 	ret = fb_sys_write(info, buf, count, ppos);
 	if (ret > 0)
-		drm_fb_helper_dirty(info, 0, 0, info->var.xres,
-				    info->var.yres);
+		drm_fb_helper_damage(info, 0, 0, info->var.xres, info->var.yres);
 
 	return ret;
 }
@@ -733,8 +762,7 @@ void drm_fb_helper_sys_fillrect(struct fb_info *info,
 				const struct fb_fillrect *rect)
 {
 	sys_fillrect(info, rect);
-	drm_fb_helper_dirty(info, rect->dx, rect->dy,
-			    rect->width, rect->height);
+	drm_fb_helper_damage(info, rect->dx, rect->dy, rect->width, rect->height);
 }
 EXPORT_SYMBOL(drm_fb_helper_sys_fillrect);
 
@@ -749,8 +777,7 @@ void drm_fb_helper_sys_copyarea(struct fb_info *info,
 				const struct fb_copyarea *area)
 {
 	sys_copyarea(info, area);
-	drm_fb_helper_dirty(info, area->dx, area->dy,
-			    area->width, area->height);
+	drm_fb_helper_damage(info, area->dx, area->dy, area->width, area->height);
 }
 EXPORT_SYMBOL(drm_fb_helper_sys_copyarea);
 
@@ -765,8 +792,7 @@ void drm_fb_helper_sys_imageblit(struct fb_info *info,
 				 const struct fb_image *image)
 {
 	sys_imageblit(info, image);
-	drm_fb_helper_dirty(info, image->dx, image->dy,
-			    image->width, image->height);
+	drm_fb_helper_damage(info, image->dx, image->dy, image->width, image->height);
 }
 EXPORT_SYMBOL(drm_fb_helper_sys_imageblit);
 
@@ -781,8 +807,7 @@ void drm_fb_helper_cfb_fillrect(struct fb_info *info,
 				const struct fb_fillrect *rect)
 {
 	cfb_fillrect(info, rect);
-	drm_fb_helper_dirty(info, rect->dx, rect->dy,
-			    rect->width, rect->height);
+	drm_fb_helper_damage(info, rect->dx, rect->dy, rect->width, rect->height);
 }
 EXPORT_SYMBOL(drm_fb_helper_cfb_fillrect);
 
@@ -797,8 +822,7 @@ void drm_fb_helper_cfb_copyarea(struct fb_info *info,
 				const struct fb_copyarea *area)
 {
 	cfb_copyarea(info, area);
-	drm_fb_helper_dirty(info, area->dx, area->dy,
-			    area->width, area->height);
+	drm_fb_helper_damage(info, area->dx, area->dy, area->width, area->height);
 }
 EXPORT_SYMBOL(drm_fb_helper_cfb_copyarea);
 
@@ -813,8 +837,7 @@ void drm_fb_helper_cfb_imageblit(struct fb_info *info,
 				 const struct fb_image *image)
 {
 	cfb_imageblit(info, image);
-	drm_fb_helper_dirty(info, image->dx, image->dy,
-			    image->width, image->height);
+	drm_fb_helper_damage(info, image->dx, image->dy, image->width, image->height);
 }
 EXPORT_SYMBOL(drm_fb_helper_cfb_imageblit);
 
@@ -2004,14 +2027,19 @@ static void drm_fbdev_cleanup(struct drm_fb_helper *fb_helper)
 	if (!fb_helper->dev)
 		return;
 
-	if (fbi && fbi->fbdefio) {
-		fb_deferred_io_cleanup(fbi);
-		shadow = fbi->screen_buffer;
+	if (fbi) {
+		if (fbi->fbdefio)
+			fb_deferred_io_cleanup(fbi);
+		if (drm_fbdev_use_shadow_fb(fb_helper))
+			shadow = fbi->screen_buffer;
 	}
 
 	drm_fb_helper_fini(fb_helper);
 
-	vfree(shadow);
+	if (shadow)
+		vfree(shadow);
+	else
+		drm_client_buffer_vunmap(fb_helper->buffer);
 
 	drm_client_framebuffer_delete(fb_helper->buffer);
 }
@@ -2042,6 +2070,202 @@ static int drm_fbdev_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 		return -ENODEV;
 }
 
+static bool drm_fbdev_use_iomem(struct fb_info *info)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_client_buffer *buffer = fb_helper->buffer;
+
+	return !drm_fbdev_use_shadow_fb(fb_helper) && buffer->map.is_iomem;
+}
+
+static ssize_t fb_read_screen_base(struct fb_info *info, char __user *buf, size_t count,
+				   loff_t pos)
+{
+	const char __iomem *src = info->screen_base + pos;
+	size_t alloc_size = min_t(size_t, count, PAGE_SIZE);
+	ssize_t ret = 0;
+	int err = 0;
+	char *tmp;
+
+	tmp = kmalloc(alloc_size, GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
+	while (count) {
+		size_t c = min_t(size_t, count, alloc_size);
+
+		memcpy_fromio(tmp, src, c);
+		if (copy_to_user(buf, tmp, c)) {
+			err = -EFAULT;
+			break;
+		}
+
+		src += c;
+		buf += c;
+		ret += c;
+		count -= c;
+	}
+
+	kfree(tmp);
+
+	return ret ? ret : err;
+}
+
+static ssize_t fb_read_screen_buffer(struct fb_info *info, char __user *buf, size_t count,
+				     loff_t pos)
+{
+	const char *src = info->screen_buffer + pos;
+
+	if (copy_to_user(buf, src, count))
+		return -EFAULT;
+
+	return count;
+}
+
+static ssize_t drm_fbdev_fb_read(struct fb_info *info, char __user *buf,
+				 size_t count, loff_t *ppos)
+{
+	loff_t pos = *ppos;
+	size_t total_size;
+	ssize_t ret;
+
+	if (info->screen_size)
+		total_size = info->screen_size;
+	else
+		total_size = info->fix.smem_len;
+
+	if (pos >= total_size)
+		return 0;
+	if (count >= total_size)
+		count = total_size;
+	if (total_size - count < pos)
+		count = total_size - pos;
+
+	if (drm_fbdev_use_iomem(info))
+		ret = fb_read_screen_base(info, buf, count, pos);
+	else
+		ret = fb_read_screen_buffer(info, buf, count, pos);
+
+	if (ret > 0)
+		*ppos += ret;
+
+	return ret;
+}
+
+static ssize_t fb_write_screen_base(struct fb_info *info, const char __user *buf, size_t count,
+				    loff_t pos)
+{
+	char __iomem *dst = info->screen_base + pos;
+	size_t alloc_size = min_t(size_t, count, PAGE_SIZE);
+	ssize_t ret = 0;
+	int err = 0;
+	u8 *tmp;
+
+	tmp = kmalloc(alloc_size, GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
+	while (count) {
+		size_t c = min_t(size_t, count, alloc_size);
+
+		if (copy_from_user(tmp, buf, c)) {
+			err = -EFAULT;
+			break;
+		}
+		memcpy_toio(dst, tmp, c);
+
+		dst += c;
+		buf += c;
+		ret += c;
+		count -= c;
+	}
+
+	kfree(tmp);
+
+	return ret ? ret : err;
+}
+
+static ssize_t fb_write_screen_buffer(struct fb_info *info, const char __user *buf, size_t count,
+				      loff_t pos)
+{
+	char *dst = info->screen_buffer + pos;
+
+	if (copy_from_user(dst, buf, count))
+		return -EFAULT;
+
+	return count;
+}
+
+static ssize_t drm_fbdev_fb_write(struct fb_info *info, const char __user *buf,
+				  size_t count, loff_t *ppos)
+{
+	loff_t pos = *ppos;
+	size_t total_size;
+	ssize_t ret;
+	int err = 0;
+
+	if (info->screen_size)
+		total_size = info->screen_size;
+	else
+		total_size = info->fix.smem_len;
+
+	if (pos > total_size)
+		return -EFBIG;
+	if (count > total_size) {
+		err = -EFBIG;
+		count = total_size;
+	}
+	if (total_size - count < pos) {
+		if (!err)
+			err = -ENOSPC;
+		count = total_size - pos;
+	}
+
+	/*
+	 * Copy to framebuffer even if we already logged an error. Emulates
+	 * the behavior of the original fbdev implementation.
+	 */
+	if (drm_fbdev_use_iomem(info))
+		ret = fb_write_screen_base(info, buf, count, pos);
+	else
+		ret = fb_write_screen_buffer(info, buf, count, pos);
+
+	if (ret > 0)
+		*ppos += ret;
+
+	if (ret > 0)
+		drm_fb_helper_damage(info, 0, 0, info->var.xres_virtual, info->var.yres_virtual);
+
+	return ret ? ret : err;
+}
+
+static void drm_fbdev_fb_fillrect(struct fb_info *info,
+				  const struct fb_fillrect *rect)
+{
+	if (drm_fbdev_use_iomem(info))
+		drm_fb_helper_cfb_fillrect(info, rect);
+	else
+		drm_fb_helper_sys_fillrect(info, rect);
+}
+
+static void drm_fbdev_fb_copyarea(struct fb_info *info,
+				  const struct fb_copyarea *area)
+{
+	if (drm_fbdev_use_iomem(info))
+		drm_fb_helper_cfb_copyarea(info, area);
+	else
+		drm_fb_helper_sys_copyarea(info, area);
+}
+
+static void drm_fbdev_fb_imageblit(struct fb_info *info,
+				   const struct fb_image *image)
+{
+	if (drm_fbdev_use_iomem(info))
+		drm_fb_helper_cfb_imageblit(info, image);
+	else
+		drm_fb_helper_sys_imageblit(info, image);
+}
+
 static const struct fb_ops drm_fbdev_fb_ops = {
 	.owner		= THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
@@ -2049,11 +2273,11 @@ static const struct fb_ops drm_fbdev_fb_ops = {
 	.fb_release	= drm_fbdev_fb_release,
 	.fb_destroy	= drm_fbdev_fb_destroy,
 	.fb_mmap	= drm_fbdev_fb_mmap,
-	.fb_read	= drm_fb_helper_sys_read,
-	.fb_write	= drm_fb_helper_sys_write,
-	.fb_fillrect	= drm_fb_helper_sys_fillrect,
-	.fb_copyarea	= drm_fb_helper_sys_copyarea,
-	.fb_imageblit	= drm_fb_helper_sys_imageblit,
+	.fb_read	= drm_fbdev_fb_read,
+	.fb_write	= drm_fbdev_fb_write,
+	.fb_fillrect	= drm_fbdev_fb_fillrect,
+	.fb_copyarea	= drm_fbdev_fb_copyarea,
+	.fb_imageblit	= drm_fbdev_fb_imageblit,
 };
 
 static struct fb_deferred_io drm_fbdev_defio = {
@@ -2076,7 +2300,8 @@ static int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 	struct drm_framebuffer *fb;
 	struct fb_info *fbi;
 	u32 format;
-	void *vaddr;
+	struct dma_buf_map map;
+	int ret;
 
 	drm_dbg_kms(dev, "surface width(%d), height(%d) and bpp(%d)\n",
 		    sizes->surface_width, sizes->surface_height,
@@ -2112,14 +2337,22 @@ static int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 		fb_deferred_io_init(fbi);
 	} else {
 		/* buffer is mapped for HW framebuffer */
-		vaddr = drm_client_buffer_vmap(fb_helper->buffer);
-		if (IS_ERR(vaddr))
-			return PTR_ERR(vaddr);
+		ret = drm_client_buffer_vmap(fb_helper->buffer, &map);
+		if (ret)
+			return ret;
+		if (map.is_iomem)
+			fbi->screen_base = map.vaddr_iomem;
+		else
+			fbi->screen_buffer = map.vaddr;
 
-		fbi->screen_buffer = vaddr;
-		/* Shamelessly leak the physical address to user-space */
+		/*
+		 * Shamelessly leak the physical address to user-space. As
+		 * page_to_phys() is undefined for I/O memory, warn in this
+		 * case.
+		 */
 #if IS_ENABLED(CONFIG_DRM_FBDEV_LEAK_PHYS_SMEM)
-		if (drm_leak_fbdev_smem && fbi->fix.smem_start == 0)
+		if (drm_leak_fbdev_smem && fbi->fix.smem_start == 0 &&
+		    !drm_WARN_ON_ONCE(dev, map.is_iomem))
 			fbi->fix.smem_start =
 				page_to_phys(virt_to_page(fbi->screen_buffer));
 #endif

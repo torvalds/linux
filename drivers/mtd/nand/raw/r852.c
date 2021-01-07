@@ -817,6 +817,29 @@ out:
 	return ret;
 }
 
+static int r852_attach_chip(struct nand_chip *chip)
+{
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST)
+		return 0;
+
+	chip->ecc.placement = NAND_ECC_PLACEMENT_INTERLEAVED;
+	chip->ecc.size = R852_DMA_LEN;
+	chip->ecc.bytes = SM_OOB_SIZE;
+	chip->ecc.strength = 2;
+	chip->ecc.hwctl = r852_ecc_hwctl;
+	chip->ecc.calculate = r852_ecc_calculate;
+	chip->ecc.correct = r852_ecc_correct;
+
+	/* TODO: hack */
+	chip->ecc.read_oob = r852_read_oob;
+
+	return 0;
+}
+
+static const struct nand_controller_ops r852_ops = {
+	.attach_chip = r852_attach_chip,
+};
+
 static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 {
 	int error;
@@ -858,19 +881,6 @@ static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	chip->legacy.read_buf = r852_read_buf;
 	chip->legacy.write_buf = r852_write_buf;
 
-	/* ecc */
-	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
-	chip->ecc.placement = NAND_ECC_PLACEMENT_INTERLEAVED;
-	chip->ecc.size = R852_DMA_LEN;
-	chip->ecc.bytes = SM_OOB_SIZE;
-	chip->ecc.strength = 2;
-	chip->ecc.hwctl = r852_ecc_hwctl;
-	chip->ecc.calculate = r852_ecc_calculate;
-	chip->ecc.correct = r852_ecc_correct;
-
-	/* TODO: hack */
-	chip->ecc.read_oob = r852_read_oob;
-
 	/* init our device structure */
 	dev = kzalloc(sizeof(struct r852_device), GFP_KERNEL);
 
@@ -881,6 +891,10 @@ static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	dev->chip = chip;
 	dev->pci_dev = pci_dev;
 	pci_set_drvdata(pci_dev, dev);
+
+	nand_controller_init(&dev->controller);
+	dev->controller.ops = &r852_ops;
+	chip->controller = &dev->controller;
 
 	dev->bounce_buffer = dma_alloc_coherent(&pci_dev->dev, R852_DMA_LEN,
 		&dev->phys_bounce_buffer, GFP_KERNEL);

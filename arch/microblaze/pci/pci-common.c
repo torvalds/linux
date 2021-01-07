@@ -325,12 +325,10 @@ int pci_mmap_legacy_page_range(struct pci_bus *bus,
 		 * memory, effectively behaving just like /dev/zero
 		 */
 		if ((offset + size) > hose->isa_mem_size) {
-#ifdef CONFIG_MMU
 			pr_debug("Process %s (pid:%d) mapped non-existing PCI",
 				current->comm, current->pid);
 			pr_debug("legacy memory for 0%04x:%02x\n",
 				pci_domain_nr(bus), bus->number);
-#endif
 			if (vma->vm_flags & VM_SHARED)
 				return shmem_zero_setup(vma);
 			return 0;

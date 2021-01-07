@@ -76,37 +76,14 @@ config BATMAN_ADV_MCAST
 	  reduce the air overhead while improving the reliability of
 	  multicast messages.
 
-config BATMAN_ADV_DEBUGFS
-	bool "batman-adv debugfs entries"
-	depends on BATMAN_ADV
-	depends on DEBUG_FS
-	help
-	  Enable this to export routing related debug tables via debugfs.
-	  The information for each soft-interface and used hard-interface can be
-	  found under batman_adv/
-
-	  If unsure, say N.
-
 config BATMAN_ADV_DEBUG
 	bool "B.A.T.M.A.N. debugging"
 	depends on BATMAN_ADV
 	help
 	  This is an option for use by developers; most people should
 	  say N here. This enables compilation of support for
-	  outputting debugging information to the debugfs log or tracing
-	  buffer. The output is controlled via the batadv netdev specific
-	  log_level setting.
-
-config BATMAN_ADV_SYSFS
-	bool "batman-adv sysfs entries"
-	depends on BATMAN_ADV
-	help
-	  Say Y here if you want to enable batman-adv device configuration and
-	  status interface through sysfs attributes. It is replaced by the
-	  batadv generic netlink family but still used by various userspace
-	  tools and scripts.
-
-	  If unsure, say Y.
+	  outputting debugging information to the tracing buffer. The output is
+	  controlled via the batadv netdev specific log_level setting.
 
 config BATMAN_ADV_TRACING
 	bool "B.A.T.M.A.N. tracing support"

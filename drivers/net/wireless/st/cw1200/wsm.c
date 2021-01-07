@@ -1139,7 +1139,7 @@ static int wsm_cmd_send(struct cw1200_common *priv,
 			pr_err("Outstanding outgoing frames:  %d\n", priv->hw_bufs_used);
 
 			/* Kill BH thread to report the error to the top layer. */
-			atomic_add(1, &priv->bh_term);
+			atomic_inc(&priv->bh_term);
 			wake_up(&priv->bh_wq);
 			ret = -ETIMEDOUT;
 		}
@@ -1160,7 +1160,7 @@ done:
 void wsm_lock_tx(struct cw1200_common *priv)
 {
 	wsm_cmd_lock(priv);
-	if (atomic_add_return(1, &priv->tx_lock) == 1) {
+	if (atomic_inc_return(&priv->tx_lock) == 1) {
 		if (wsm_flush_tx(priv))
 			pr_debug("[WSM] TX is locked.\n");
 	}
@@ -1169,7 +1169,7 @@ void wsm_lock_tx(struct cw1200_common *priv)
 
 void wsm_lock_tx_async(struct cw1200_common *priv)
 {
-	if (atomic_add_return(1, &priv->tx_lock) == 1)
+	if (atomic_inc_return(&priv->tx_lock) == 1)
 		pr_debug("[WSM] TX is locked (async).\n");
 }
 
@@ -1223,7 +1223,7 @@ bool wsm_flush_tx(struct cw1200_common *priv)
 void wsm_unlock_tx(struct cw1200_common *priv)
 {
 	int tx_lock;
-	tx_lock = atomic_sub_return(1, &priv->tx_lock);
+	tx_lock = atomic_dec_return(&priv->tx_lock);
 	BUG_ON(tx_lock < 0);
 
 	if (tx_lock == 0) {

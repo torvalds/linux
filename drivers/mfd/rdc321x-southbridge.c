@@ -14,7 +14,7 @@
 
 static struct rdc321x_wdt_pdata rdc321x_wdt_pdata;
 
-static struct resource rdc321x_wdt_resource[] = {
+static const struct resource rdc321x_wdt_resource[] = {
 	{
 		.name	= "wdt-reg",
 		.start	= RDC321X_WDT_CTRL,
@@ -27,7 +27,7 @@ static struct rdc321x_gpio_pdata rdc321x_gpio_pdata = {
 	.max_gpios	= RDC321X_NUM_GPIO,
 };
 
-static struct resource rdc321x_gpio_resources[] = {
+static const struct resource rdc321x_gpio_resources[] = {
 	{
 		.name	= "gpio-reg1",
 		.start	= RDC321X_GPIO_CTRL_REG1,

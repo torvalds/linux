@@ -508,7 +508,21 @@ int blk_revalidate_disk_zones(struct gendisk *disk,
 	noio_flag = memalloc_noio_save();
 	ret = disk->fops->report_zones(disk, 0, UINT_MAX,
 				       blk_revalidate_zone_cb, &args);
+	if (!ret) {
+		pr_warn("%s: No zones reported\n", disk->disk_name);
+		ret = -ENODEV;
+	}
 	memalloc_noio_restore(noio_flag);
+
+	/*
+	 * If zones where reported, make sure that the entire disk capacity
+	 * has been checked.
+	 */
+	if (ret > 0 && args.sector != get_capacity(disk)) {
+		pr_warn("%s: Missing zones from sector %llu\n",
+			disk->disk_name, args.sector);
+		ret = -ENODEV;
+	}
 
 	/*
 	 * Install the new bitmaps and update nr_zones only once the queue is
@@ -516,7 +530,7 @@ int blk_revalidate_disk_zones(struct gendisk *disk,
 	 * referencing the bitmaps).
 	 */
 	blk_mq_freeze_queue(q);
-	if (ret >= 0) {
+	if (ret > 0) {
 		blk_queue_chunk_sectors(q, args.zone_sectors);
 		q->nr_zones = args.nr_zones;
 		swap(q->seq_zones_wlock, args.seq_zones_wlock);

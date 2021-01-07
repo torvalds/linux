@@ -43,11 +43,8 @@
 static ssize_t show_hrtbt_enb(struct qib_pportdata *ppd, char *buf)
 {
 	struct qib_devdata *dd = ppd->dd;
-	int ret;
 
-	ret = dd->f_get_ib_cfg(ppd, QIB_IB_CFG_HRTBT);
-	ret = scnprintf(buf, PAGE_SIZE, "%d\n", ret);
-	return ret;
+	return sysfs_emit(buf, "%d\n", dd->f_get_ib_cfg(ppd, QIB_IB_CFG_HRTBT));
 }
 
 static ssize_t store_hrtbt_enb(struct qib_pportdata *ppd, const char *buf,
@@ -106,14 +103,10 @@ static ssize_t store_led_override(struct qib_pportdata *ppd, const char *buf,
 
 static ssize_t show_status(struct qib_pportdata *ppd, char *buf)
 {
-	ssize_t ret;
-
 	if (!ppd->statusp)
-		ret = -EINVAL;
-	else
-		ret = scnprintf(buf, PAGE_SIZE, "0x%llx\n",
-				(unsigned long long) *(ppd->statusp));
-	return ret;
+		return -EINVAL;
+
+	return sysfs_emit(buf, "0x%llx\n", (unsigned long long)*(ppd->statusp));
 }
 
 /*
@@ -392,7 +385,7 @@ static ssize_t sl2vl_attr_show(struct kobject *kobj, struct attribute *attr,
 		container_of(kobj, struct qib_pportdata, sl2vl_kobj);
 	struct qib_ibport *qibp = &ppd->ibport_data;
 
-	return sprintf(buf, "%u\n", qibp->sl_to_vl[sattr->sl]);
+	return sysfs_emit(buf, "%u\n", qibp->sl_to_vl[sattr->sl]);
 }
 
 static const struct sysfs_ops qib_sl2vl_ops = {
@@ -501,17 +494,18 @@ static ssize_t diagc_attr_show(struct kobject *kobj, struct attribute *attr,
 	struct qib_pportdata *ppd =
 		container_of(kobj, struct qib_pportdata, diagc_kobj);
 	struct qib_ibport *qibp = &ppd->ibport_data;
+	u64 val;
 
 	if (!strncmp(dattr->attr.name, "rc_acks", 7))
-		return sprintf(buf, "%llu\n", READ_PER_CPU_CNTR(rc_acks));
+		val = READ_PER_CPU_CNTR(rc_acks);
 	else if (!strncmp(dattr->attr.name, "rc_qacks", 8))
-		return sprintf(buf, "%llu\n", READ_PER_CPU_CNTR(rc_qacks));
+		val = READ_PER_CPU_CNTR(rc_qacks);
 	else if (!strncmp(dattr->attr.name, "rc_delayed_comp", 15))
-		return sprintf(buf, "%llu\n",
-					READ_PER_CPU_CNTR(rc_delayed_comp));
+		val = READ_PER_CPU_CNTR(rc_delayed_comp);
 	else
-		return sprintf(buf, "%u\n",
-				*(u32 *)((char *)qibp + dattr->counter));
+		val = *(u32 *)((char *)qibp + dattr->counter);
+
+	return sysfs_emit(buf, "%llu\n", val);
 }
 
 static ssize_t diagc_attr_store(struct kobject *kobj, struct attribute *attr,
@@ -565,7 +559,7 @@ static ssize_t hw_rev_show(struct device *device, struct device_attribute *attr,
 	struct qib_ibdev *dev =
 		rdma_device_to_drv_device(device, struct qib_ibdev, rdi.ibdev);
 
-	return sprintf(buf, "%x\n", dd_from_dev(dev)->minrev);
+	return sysfs_emit(buf, "%x\n", dd_from_dev(dev)->minrev);
 }
 static DEVICE_ATTR_RO(hw_rev);
 
@@ -575,13 +569,10 @@ static ssize_t hca_type_show(struct device *device,
 	struct qib_ibdev *dev =
 		rdma_device_to_drv_device(device, struct qib_ibdev, rdi.ibdev);
 	struct qib_devdata *dd = dd_from_dev(dev);
-	int ret;
 
 	if (!dd->boardname)
-		ret = -EINVAL;
-	else
-		ret = scnprintf(buf, PAGE_SIZE, "%s\n", dd->boardname);
-	return ret;
+		return -EINVAL;
+	return sysfs_emit(buf, "%s\n", dd->boardname);
 }
 static DEVICE_ATTR_RO(hca_type);
 static DEVICE_ATTR(board_id, 0444, hca_type_show, NULL);
@@ -590,7 +581,7 @@ static ssize_t version_show(struct device *device,
 			    struct device_attribute *attr, char *buf)
 {
 	/* The string printed here is already newline-terminated. */
-	return scnprintf(buf, PAGE_SIZE, "%s", (char *)ib_qib_version);
+	return sysfs_emit(buf, "%s", (char *)ib_qib_version);
 }
 static DEVICE_ATTR_RO(version);
 
@@ -602,7 +593,7 @@ static ssize_t boardversion_show(struct device *device,
 	struct qib_devdata *dd = dd_from_dev(dev);
 
 	/* The string printed here is already newline-terminated. */
-	return scnprintf(buf, PAGE_SIZE, "%s", dd->boardversion);
+	return sysfs_emit(buf, "%s", dd->boardversion);
 }
 static DEVICE_ATTR_RO(boardversion);
 
@@ -614,7 +605,7 @@ static ssize_t localbus_info_show(struct device *device,
 	struct qib_devdata *dd = dd_from_dev(dev);
 
 	/* The string printed here is already newline-terminated. */
-	return scnprintf(buf, PAGE_SIZE, "%s", dd->lbus_info);
+	return sysfs_emit(buf, "%s", dd->lbus_info);
 }
 static DEVICE_ATTR_RO(localbus_info);
 
@@ -628,9 +619,10 @@ static ssize_t nctxts_show(struct device *device,
 	/* Return the number of user ports (contexts) available. */
 	/* The calculation below deals with a special case where
 	 * cfgctxts is set to 1 on a single-port board. */
-	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			(dd->first_user_ctxt > dd->cfgctxts) ? 0 :
-			(dd->cfgctxts - dd->first_user_ctxt));
+	return sysfs_emit(buf, "%u\n",
+			  (dd->first_user_ctxt > dd->cfgctxts) ?
+				  0 :
+				  (dd->cfgctxts - dd->first_user_ctxt));
 }
 static DEVICE_ATTR_RO(nctxts);
 
@@ -642,21 +634,20 @@ static ssize_t nfreectxts_show(struct device *device,
 	struct qib_devdata *dd = dd_from_dev(dev);
 
 	/* Return the number of free user ports (contexts) available. */
-	return scnprintf(buf, PAGE_SIZE, "%u\n", dd->freectxts);
+	return sysfs_emit(buf, "%u\n", dd->freectxts);
 }
 static DEVICE_ATTR_RO(nfreectxts);
 
-static ssize_t serial_show(struct device *device,
-			   struct device_attribute *attr, char *buf)
+static ssize_t serial_show(struct device *device, struct device_attribute *attr,
+			   char *buf)
 {
 	struct qib_ibdev *dev =
 		rdma_device_to_drv_device(device, struct qib_ibdev, rdi.ibdev);
 	struct qib_devdata *dd = dd_from_dev(dev);
+	const u8 *end = memchr(dd->serial, 0, ARRAY_SIZE(dd->serial));
+	int size = end ? end - dd->serial : ARRAY_SIZE(dd->serial);
 
-	buf[sizeof(dd->serial)] = '\0';
-	memcpy(buf, dd->serial, sizeof(dd->serial));
-	strcat(buf, "\n");
-	return strlen(buf);
+	return sysfs_emit(buf, ".%*s\n", size, dd->serial);
 }
 static DEVICE_ATTR_RO(serial);
 
@@ -689,27 +680,26 @@ static ssize_t tempsense_show(struct device *device,
 	struct qib_ibdev *dev =
 		rdma_device_to_drv_device(device, struct qib_ibdev, rdi.ibdev);
 	struct qib_devdata *dd = dd_from_dev(dev);
-	int ret;
-	int idx;
+	int i;
 	u8 regvals[8];
 
-	ret = -ENXIO;
-	for (idx = 0; idx < 8; ++idx) {
-		if (idx == 6)
+	for (i = 0; i < 8; i++) {
+		int ret;
+
+		if (i == 6)
 			continue;
-		ret = dd->f_tempsense_rd(dd, idx);
+		ret = dd->f_tempsense_rd(dd, i);
 		if (ret < 0)
-			break;
-		regvals[idx] = ret;
+			return ret;	/* return error on bad read */
+		regvals[i] = ret;
 	}
-	if (idx == 8)
-		ret = scnprintf(buf, PAGE_SIZE, "%d %d %02X %02X %d %d\n",
-				*(signed char *)(regvals),
-				*(signed char *)(regvals + 1),
-				regvals[2], regvals[3],
-				*(signed char *)(regvals + 5),
-				*(signed char *)(regvals + 7));
-	return ret;
+	return sysfs_emit(buf, "%d %d %02X %02X %d %d\n",
+			  (signed char)regvals[0],
+			  (signed char)regvals[1],
+			  regvals[2],
+			  regvals[3],
+			  (signed char)regvals[5],
+			  (signed char)regvals[7]);
 }
 static DEVICE_ATTR_RO(tempsense);
 

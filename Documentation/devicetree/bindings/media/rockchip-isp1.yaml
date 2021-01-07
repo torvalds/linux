@@ -1,0 +1,215 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/rockchip-isp1.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip SoC Image Signal Processing unit v1
+
+maintainers:
+  - Helen Koike <helen.koike@collabora.com>
+
+description: |
+  Rockchip ISP1 is the Camera interface for the Rockchip series of SoCs
+  which contains image processing, scaling, and compression functions.
+
+properties:
+  compatible:
+    const: rockchip,rk3399-cif-isp
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    minItems: 3
+    items:
+      # isp0 and isp1
+      - description: ISP clock
+      - description: ISP AXI clock
+      - description: ISP AHB clock
+      # only for isp1
+      - description: ISP Pixel clock
+
+  clock-names:
+    minItems: 3
+    items:
+      # isp0 and isp1
+      - const: isp
+      - const: aclk
+      - const: hclk
+      # only for isp1
+      - const: pclk_isp
+
+  iommus:
+    maxItems: 1
+
+  phys:
+    maxItems: 1
+    description: phandle for the PHY port
+
+  phy-names:
+    const: dphy
+
+  power-domains:
+    maxItems: 1
+
+  # See ./video-interfaces.txt for details
+  ports:
+    type: object
+    additionalProperties: false
+
+    properties:
+      "#address-cells":
+        const: 1
+
+      "#size-cells":
+        const: 0
+
+      port@0:
+        type: object
+        description: connection point for sensors at MIPI-DPHY RX0
+        additionalProperties: false
+
+        properties:
+          "#address-cells":
+            const: 1
+
+          "#size-cells":
+            const: 0
+
+          reg:
+            const: 0
+
+        patternProperties:
+          endpoint:
+            type: object
+            additionalProperties: false
+
+            properties:
+              reg:
+                maxItems: 1
+
+              data-lanes:
+                minItems: 1
+                maxItems: 4
+
+              remote-endpoint: true
+
+        required:
+          - reg
+          - "#address-cells"
+          - "#size-cells"
+
+    required:
+      - "#address-cells"
+      - "#size-cells"
+      - port@0
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - iommus
+  - phys
+  - phy-names
+  - power-domains
+  - ports
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: rockchip,rk3399-cif-isp
+then:
+  properties:
+    clocks:
+      minItems: 3
+      maxItems: 4
+    clock-names:
+      minItems: 3
+      maxItems: 4
+
+additionalProperties: false
+
+examples:
+  - |
+
+    #include <dt-bindings/clock/rk3399-cru.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/rk3399-power.h>
+
+    parent0: parent {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        isp0: isp0@ff910000 {
+            compatible = "rockchip,rk3399-cif-isp";
+            reg = <0x0 0xff910000 0x0 0x4000>;
+            interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH 0>;
+            clocks = <&cru SCLK_ISP0>,
+                     <&cru ACLK_ISP0_WRAPPER>,
+                     <&cru HCLK_ISP0_WRAPPER>;
+            clock-names = "isp", "aclk", "hclk";
+            iommus = <&isp0_mmu>;
+            phys = <&dphy>;
+            phy-names = "dphy";
+            power-domains = <&power RK3399_PD_ISP0>;
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+
+                    mipi_in_wcam: endpoint@0 {
+                        reg = <0>;
+                        remote-endpoint = <&wcam_out>;
+                        data-lanes = <1 2>;
+                    };
+
+                    mipi_in_ucam: endpoint@1 {
+                        reg = <1>;
+                        remote-endpoint = <&ucam_out>;
+                        data-lanes = <1>;
+                    };
+                };
+            };
+        };
+
+        i2c7: i2c {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            wcam: camera@36 {
+                compatible = "ovti,ov5695";
+                reg = <0x36>;
+
+                port {
+                    wcam_out: endpoint {
+                        remote-endpoint = <&mipi_in_wcam>;
+                        data-lanes = <1 2>;
+                    };
+                };
+            };
+
+            ucam: camera@3c {
+                compatible = "ovti,ov2685";
+                reg = <0x3c>;
+
+                  port {
+                      ucam_out: endpoint {
+                          remote-endpoint = <&mipi_in_ucam>;
+                          data-lanes = <1>;
+                      };
+                  };
+            };
+        };
+    };

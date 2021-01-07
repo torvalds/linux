@@ -72,6 +72,7 @@ static s64 uv_bios_call_irqsave(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3,
 long sn_partition_id;
 EXPORT_SYMBOL_GPL(sn_partition_id);
 long sn_coherency_id;
+EXPORT_SYMBOL_GPL(sn_coherency_id);
 long sn_region_size;
 EXPORT_SYMBOL_GPL(sn_region_size);
 long system_serial_number;
@@ -170,6 +171,60 @@ int uv_bios_set_legacy_vga_target(bool decode, int domain, int bus)
 	return uv_bios_call(UV_BIOS_SET_LEGACY_VGA_TARGET,
 				(u64)decode, (u64)domain, (u64)bus, 0, 0);
 }
+
+extern s64 uv_bios_get_master_nasid(u64 size, u64 *master_nasid)
+{
+	return uv_bios_call(UV_BIOS_EXTRA, 0, UV_BIOS_EXTRA_MASTER_NASID, 0,
+				size, (u64)master_nasid);
+}
+EXPORT_SYMBOL_GPL(uv_bios_get_master_nasid);
+
+extern s64 uv_bios_get_heapsize(u64 nasid, u64 size, u64 *heap_size)
+{
+	return uv_bios_call(UV_BIOS_EXTRA, nasid, UV_BIOS_EXTRA_GET_HEAPSIZE,
+				0, size, (u64)heap_size);
+}
+EXPORT_SYMBOL_GPL(uv_bios_get_heapsize);
+
+extern s64 uv_bios_install_heap(u64 nasid, u64 heap_size, u64 *bios_heap)
+{
+	return uv_bios_call(UV_BIOS_EXTRA, nasid, UV_BIOS_EXTRA_INSTALL_HEAP,
+				0, heap_size, (u64)bios_heap);
+}
+EXPORT_SYMBOL_GPL(uv_bios_install_heap);
+
+extern s64 uv_bios_obj_count(u64 nasid, u64 size, u64 *objcnt)
+{
+	return uv_bios_call(UV_BIOS_EXTRA, nasid, UV_BIOS_EXTRA_OBJECT_COUNT,
+				0, size, (u64)objcnt);
+}
+EXPORT_SYMBOL_GPL(uv_bios_obj_count);
+
+extern s64 uv_bios_enum_objs(u64 nasid, u64 size, u64 *objbuf)
+{
+	return uv_bios_call(UV_BIOS_EXTRA, nasid, UV_BIOS_EXTRA_ENUM_OBJECTS,
+				0, size, (u64)objbuf);
+}
+EXPORT_SYMBOL_GPL(uv_bios_enum_objs);
+
+extern s64 uv_bios_enum_ports(u64 nasid, u64 obj_id, u64 size, u64 *portbuf)
+{
+	return uv_bios_call(UV_BIOS_EXTRA, nasid, UV_BIOS_EXTRA_ENUM_PORTS,
+				obj_id, size, (u64)portbuf);
+}
+EXPORT_SYMBOL_GPL(uv_bios_enum_ports);
+
+extern s64 uv_bios_get_geoinfo(u64 nasid, u64 size, u64 *buf)
+{
+	return uv_bios_call(UV_BIOS_GET_GEOINFO, nasid, (u64)buf, size, 0, 0);
+}
+EXPORT_SYMBOL_GPL(uv_bios_get_geoinfo);
+
+extern s64 uv_bios_get_pci_topology(u64 size, u64 *buf)
+{
+	return uv_bios_call(UV_BIOS_GET_PCI_TOPOLOGY, (u64)buf, size, 0, 0, 0);
+}
+EXPORT_SYMBOL_GPL(uv_bios_get_pci_topology);
 
 unsigned long get_uv_systab_phys(bool msg)
 {

@@ -159,7 +159,9 @@ static int mhi_debugfs_devices_show(struct seq_file *m, void *d)
 		return -ENODEV;
 	}
 
-	device_for_each_child(mhi_cntrl->cntrl_dev, m, mhi_device_info_show);
+	/* Show controller and client(s) info */
+	mhi_device_info_show(&mhi_cntrl->mhi_dev->dev, m);
+	device_for_each_child(&mhi_cntrl->mhi_dev->dev, m, mhi_device_info_show);
 
 	return 0;
 }

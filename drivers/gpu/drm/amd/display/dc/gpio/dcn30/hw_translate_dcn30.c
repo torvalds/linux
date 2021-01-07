@@ -26,7 +26,7 @@
 /*
  * Pre-requisites: headers required by header of this unit
  */
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 #include "hw_translate_dcn30.h"
 
 #include "dm_services.h"

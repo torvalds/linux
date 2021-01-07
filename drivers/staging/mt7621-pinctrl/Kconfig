@@ -1,6 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0
-config PINCTRL_RT2880
-	bool "RT2800 pinctrl driver for RALINK/Mediatek SOCs"
-	depends on RALINK
-	select PINMUX
-	select GENERIC_PINCONF

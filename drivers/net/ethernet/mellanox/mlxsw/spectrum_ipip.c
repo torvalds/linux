@@ -142,9 +142,9 @@ mlxsw_sp_ipip_nexthop_update_gre4(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
 }
 
 static int
-mlxsw_sp_ipip_fib_entry_op_gre4_rtdp(struct mlxsw_sp *mlxsw_sp,
-				     u32 tunnel_index,
-				     struct mlxsw_sp_ipip_entry *ipip_entry)
+mlxsw_sp_ipip_decap_config_gre4(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_ipip_entry *ipip_entry,
+				u32 tunnel_index)
 {
 	u16 rif_index = mlxsw_sp_ipip_lb_rif_index(ipip_entry->ol_lb);
 	u16 ul_rif_id = mlxsw_sp_ipip_lb_ul_rif_id(ipip_entry->ol_lb);
@@ -180,41 +180,6 @@ mlxsw_sp_ipip_fib_entry_op_gre4_rtdp(struct mlxsw_sp *mlxsw_sp,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rtdp), rtdp_pl);
 }
 
-static int
-mlxsw_sp_ipip_fib_entry_op_gre4_ralue(struct mlxsw_sp *mlxsw_sp,
-				      u32 dip, u8 prefix_len, u16 ul_vr_id,
-				      enum mlxsw_reg_ralue_op op,
-				      u32 tunnel_index)
-{
-	char ralue_pl[MLXSW_REG_RALUE_LEN];
-
-	mlxsw_reg_ralue_pack4(ralue_pl, MLXSW_REG_RALXX_PROTOCOL_IPV4, op,
-			      ul_vr_id, prefix_len, dip);
-	mlxsw_reg_ralue_act_ip2me_tun_pack(ralue_pl, tunnel_index);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
-}
-
-static int mlxsw_sp_ipip_fib_entry_op_gre4(struct mlxsw_sp *mlxsw_sp,
-					struct mlxsw_sp_ipip_entry *ipip_entry,
-					enum mlxsw_reg_ralue_op op,
-					u32 tunnel_index)
-{
-	u16 ul_vr_id = mlxsw_sp_ipip_lb_ul_vr_id(ipip_entry->ol_lb);
-	__be32 dip;
-	int err;
-
-	err = mlxsw_sp_ipip_fib_entry_op_gre4_rtdp(mlxsw_sp, tunnel_index,
-						   ipip_entry);
-	if (err)
-		return err;
-
-	dip = mlxsw_sp_ipip_netdev_saddr(MLXSW_SP_L3_PROTO_IPV4,
-					 ipip_entry->ol_dev).addr4;
-	return mlxsw_sp_ipip_fib_entry_op_gre4_ralue(mlxsw_sp, be32_to_cpu(dip),
-						     32, ul_vr_id, op,
-						     tunnel_index);
-}
-
 static bool mlxsw_sp_ipip_tunnel_complete(enum mlxsw_sp_l3proto proto,
 					  const struct net_device *ol_dev)
 {
@@ -231,8 +196,7 @@ static bool mlxsw_sp_ipip_tunnel_complete(enum mlxsw_sp_l3proto proto,
 }
 
 static bool mlxsw_sp_ipip_can_offload_gre4(const struct mlxsw_sp *mlxsw_sp,
-					   const struct net_device *ol_dev,
-					   enum mlxsw_sp_l3proto ol_proto)
+					   const struct net_device *ol_dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(ol_dev);
 	__be16 okflags = TUNNEL_KEY; /* We can't offload any other features. */
@@ -331,7 +295,7 @@ static const struct mlxsw_sp_ipip_ops mlxsw_sp_ipip_gre4_ops = {
 	.dev_type = ARPHRD_IPGRE,
 	.ul_proto = MLXSW_SP_L3_PROTO_IPV4,
 	.nexthop_update = mlxsw_sp_ipip_nexthop_update_gre4,
-	.fib_entry_op = mlxsw_sp_ipip_fib_entry_op_gre4,
+	.decap_config = mlxsw_sp_ipip_decap_config_gre4,
 	.can_offload = mlxsw_sp_ipip_can_offload_gre4,
 	.ol_loopback_config = mlxsw_sp_ipip_ol_loopback_config_gre4,
 	.ol_netdev_change = mlxsw_sp_ipip_ol_netdev_change_gre4,

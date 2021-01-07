@@ -572,7 +572,7 @@ static int new_lockspace(const char *name, const char *cluster,
 	mutex_init(&ls->ls_requestqueue_mutex);
 	mutex_init(&ls->ls_clear_proc_locks);
 
-	ls->ls_recover_buf = kmalloc(dlm_config.ci_buffer_size, GFP_NOFS);
+	ls->ls_recover_buf = kmalloc(LOWCOMMS_MAX_TX_BUFFER_LEN, GFP_NOFS);
 	if (!ls->ls_recover_buf)
 		goto out_lkbidr;
 

@@ -820,7 +820,7 @@ gfn_to_memslot_dirty_bitmap(struct kvm_vcpu *vcpu, gfn_t gfn,
 	slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
 	if (!slot || slot->flags & KVM_MEMSLOT_INVALID)
 		return NULL;
-	if (no_dirty_log && slot->dirty_bitmap)
+	if (no_dirty_log && kvm_slot_dirty_track_enabled(slot))
 		return NULL;
 
 	return slot;
@@ -1287,6 +1287,14 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 				mask);
 	else
 		kvm_mmu_write_protect_pt_masked(kvm, slot, gfn_offset, mask);
+}
+
+int kvm_cpu_dirty_log_size(void)
+{
+	if (kvm_x86_ops.cpu_dirty_log_size)
+		return kvm_x86_ops.cpu_dirty_log_size();
+
+	return 0;
 }
 
 bool kvm_mmu_slot_gfn_write_protect(struct kvm *kvm,
@@ -3517,7 +3525,7 @@ static bool get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 {
 	u64 sptes[PT64_ROOT_MAX_LEVEL];
 	struct rsvd_bits_validate *rsvd_check;
-	int root = vcpu->arch.mmu->root_level;
+	int root = vcpu->arch.mmu->shadow_root_level;
 	int leaf;
 	int level;
 	bool reserved = false;

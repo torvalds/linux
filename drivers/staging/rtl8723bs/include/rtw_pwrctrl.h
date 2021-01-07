@@ -318,7 +318,7 @@ struct pwrctrl_priv {
 	_rtw_set_pwr_state_check_timer((pwrctl), (pwrctl)->pwr_state_check_interval)
 
 extern void rtw_init_pwrctrl_priv(struct adapter *adapter);
-extern void rtw_free_pwrctrl_priv(struct adapter * adapter);
+extern void rtw_free_pwrctrl_priv(struct adapter *adapter);
 
 s32 rtw_register_task_alive(struct adapter *, u32 task);
 void rtw_unregister_task_alive(struct adapter *, u32 task);
@@ -329,8 +329,8 @@ extern void rtw_unregister_cmd_alive(struct adapter *padapter);
 extern void cpwm_int_hdl(struct adapter *padapter, struct reportpwrstate_parm *preportpwrstate);
 extern void LPS_Leave_check(struct adapter *padapter);
 
-extern void LeaveAllPowerSaveMode(struct adapter * Adapter);
-extern void LeaveAllPowerSaveModeDirect(struct adapter * Adapter);
+extern void LeaveAllPowerSaveMode(struct adapter *Adapter);
+extern void LeaveAllPowerSaveModeDirect(struct adapter *Adapter);
 void _ips_enter(struct adapter *padapter);
 void ips_enter(struct adapter *padapter);
 int _ips_leave(struct adapter *padapter);

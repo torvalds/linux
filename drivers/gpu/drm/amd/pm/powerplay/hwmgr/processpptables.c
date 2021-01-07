@@ -24,6 +24,8 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/pci.h>
+
 #include <drm/amdgpu_drm.h>
 #include "processpptables.h"
 #include <atom-types.h>
@@ -377,14 +379,11 @@ static int get_clock_voltage_dependency_table(struct pp_hwmgr *hwmgr,
 		const ATOM_PPLIB_Clock_Voltage_Dependency_Table *table)
 {
 
-	unsigned long table_size, i;
+	unsigned long i;
 	struct phm_clock_voltage_dependency_table *dep_table;
 
-	table_size = sizeof(unsigned long) +
-		sizeof(struct phm_clock_voltage_dependency_table)
-		* table->ucNumEntries;
-
-	dep_table = kzalloc(table_size, GFP_KERNEL);
+	dep_table = kzalloc(struct_size(dep_table, entries, table->ucNumEntries),
+			    GFP_KERNEL);
 	if (NULL == dep_table)
 		return -ENOMEM;
 
@@ -407,12 +406,11 @@ static int get_valid_clk(struct pp_hwmgr *hwmgr,
 			struct phm_clock_array **ptable,
 			const struct phm_clock_voltage_dependency_table *table)
 {
-	unsigned long table_size, i;
+	unsigned long i;
 	struct phm_clock_array *clock_table;
 
-	table_size = sizeof(unsigned long) + sizeof(unsigned long) * table->count;
-	clock_table = kzalloc(table_size, GFP_KERNEL);
-	if (NULL == clock_table)
+	clock_table = kzalloc(struct_size(clock_table, values, table->count), GFP_KERNEL);
+	if (!clock_table)
 		return -ENOMEM;
 
 	clock_table->count = (unsigned long)table->count;
@@ -984,6 +982,8 @@ static int init_thermal_controller(
 			struct pp_hwmgr *hwmgr,
 			const ATOM_PPLIB_POWERPLAYTABLE *powerplay_table)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
+
 	hwmgr->thermal_controller.ucType =
 			powerplay_table->sThermalController.ucType;
 	hwmgr->thermal_controller.ucI2cLine =
@@ -1008,7 +1008,104 @@ static int init_thermal_controller(
 		   ATOM_PP_THERMALCONTROLLER_NONE != hwmgr->thermal_controller.ucType,
 		   PHM_PlatformCaps_ThermalController);
 
-	hwmgr->thermal_controller.use_hw_fan_control = 1;
+        if (powerplay_table->usTableSize >= sizeof(ATOM_PPLIB_POWERPLAYTABLE3)) {
+		const ATOM_PPLIB_POWERPLAYTABLE3 *powerplay_table3 =
+			(const ATOM_PPLIB_POWERPLAYTABLE3 *)powerplay_table;
+
+		if (0 == le16_to_cpu(powerplay_table3->usFanTableOffset)) {
+			hwmgr->thermal_controller.use_hw_fan_control = 1;
+			return 0;
+		} else {
+			const ATOM_PPLIB_FANTABLE *fan_table =
+				(const ATOM_PPLIB_FANTABLE *)(((unsigned long)powerplay_table) +
+							      le16_to_cpu(powerplay_table3->usFanTableOffset));
+
+			if (1 <= fan_table->ucFanTableFormat) {
+				hwmgr->thermal_controller.advanceFanControlParameters.ucTHyst =
+					fan_table->ucTHyst;
+				hwmgr->thermal_controller.advanceFanControlParameters.usTMin =
+					le16_to_cpu(fan_table->usTMin);
+				hwmgr->thermal_controller.advanceFanControlParameters.usTMed =
+					le16_to_cpu(fan_table->usTMed);
+				hwmgr->thermal_controller.advanceFanControlParameters.usTHigh =
+					le16_to_cpu(fan_table->usTHigh);
+				hwmgr->thermal_controller.advanceFanControlParameters.usPWMMin =
+					le16_to_cpu(fan_table->usPWMMin);
+				hwmgr->thermal_controller.advanceFanControlParameters.usPWMMed =
+					le16_to_cpu(fan_table->usPWMMed);
+				hwmgr->thermal_controller.advanceFanControlParameters.usPWMHigh =
+					le16_to_cpu(fan_table->usPWMHigh);
+				hwmgr->thermal_controller.advanceFanControlParameters.usTMax = 10900;
+				hwmgr->thermal_controller.advanceFanControlParameters.ulCycleDelay = 100000;
+
+				phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+					    PHM_PlatformCaps_MicrocodeFanControl);
+			}
+
+			if (2 <= fan_table->ucFanTableFormat) {
+				const ATOM_PPLIB_FANTABLE2 *fan_table2 =
+					(const ATOM_PPLIB_FANTABLE2 *)(((unsigned long)powerplay_table) +
+								       le16_to_cpu(powerplay_table3->usFanTableOffset));
+				hwmgr->thermal_controller.advanceFanControlParameters.usTMax =
+					le16_to_cpu(fan_table2->usTMax);
+			}
+
+			if (3 <= fan_table->ucFanTableFormat) {
+				const ATOM_PPLIB_FANTABLE3 *fan_table3 =
+					(const ATOM_PPLIB_FANTABLE3 *) (((unsigned long)powerplay_table) +
+									le16_to_cpu(powerplay_table3->usFanTableOffset));
+
+				hwmgr->thermal_controller.advanceFanControlParameters.ucFanControlMode =
+					fan_table3->ucFanControlMode;
+
+				if ((3 == fan_table->ucFanTableFormat) &&
+				    (0x67B1 == adev->pdev->device))
+					hwmgr->thermal_controller.advanceFanControlParameters.usDefaultMaxFanPWM =
+						47;
+				else
+					hwmgr->thermal_controller.advanceFanControlParameters.usDefaultMaxFanPWM =
+						le16_to_cpu(fan_table3->usFanPWMMax);
+
+				hwmgr->thermal_controller.advanceFanControlParameters.usDefaultFanOutputSensitivity =
+					4836;
+				hwmgr->thermal_controller.advanceFanControlParameters.usFanOutputSensitivity =
+					le16_to_cpu(fan_table3->usFanOutputSensitivity);
+			}
+
+			if (6 <= fan_table->ucFanTableFormat) {
+				const ATOM_PPLIB_FANTABLE4 *fan_table4 =
+					(const ATOM_PPLIB_FANTABLE4 *)(((unsigned long)powerplay_table) +
+								       le16_to_cpu(powerplay_table3->usFanTableOffset));
+
+				phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+					    PHM_PlatformCaps_FanSpeedInTableIsRPM);
+
+				hwmgr->thermal_controller.advanceFanControlParameters.usDefaultMaxFanRPM =
+					le16_to_cpu(fan_table4->usFanRPMMax);
+			}
+
+			if (7 <= fan_table->ucFanTableFormat) {
+				const ATOM_PPLIB_FANTABLE5 *fan_table5 =
+					(const ATOM_PPLIB_FANTABLE5 *)(((unsigned long)powerplay_table) +
+								       le16_to_cpu(powerplay_table3->usFanTableOffset));
+
+				if (0x67A2 == adev->pdev->device ||
+				    0x67A9 == adev->pdev->device ||
+				    0x67B9 == adev->pdev->device) {
+					phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+						    PHM_PlatformCaps_GeminiRegulatorFanControlSupport);
+					hwmgr->thermal_controller.advanceFanControlParameters.usFanCurrentLow =
+						le16_to_cpu(fan_table5->usFanCurrentLow);
+					hwmgr->thermal_controller.advanceFanControlParameters.usFanCurrentHigh =
+						le16_to_cpu(fan_table5->usFanCurrentHigh);
+					hwmgr->thermal_controller.advanceFanControlParameters.usFanRPMLow =
+						le16_to_cpu(fan_table5->usFanRPMLow);
+					hwmgr->thermal_controller.advanceFanControlParameters.usFanRPMHigh =
+						le16_to_cpu(fan_table5->usFanRPMHigh);
+				}
+			}
+		}
+	}
 
 	return 0;
 }
@@ -1109,15 +1206,12 @@ static int get_uvd_clock_voltage_limit_table(struct pp_hwmgr *hwmgr,
 		const ATOM_PPLIB_UVD_Clock_Voltage_Limit_Table *table,
 		const UVDClockInfoArray *array)
 {
-	unsigned long table_size, i;
+	unsigned long i;
 	struct phm_uvd_clock_voltage_dependency_table *uvd_table;
 
-	table_size = sizeof(unsigned long) +
-		 sizeof(struct phm_uvd_clock_voltage_dependency_table) *
-		 table->numEntries;
-
-	uvd_table = kzalloc(table_size, GFP_KERNEL);
-	if (NULL == uvd_table)
+	uvd_table = kzalloc(struct_size(uvd_table, entries, table->numEntries),
+			    GFP_KERNEL);
+	if (!uvd_table)
 		return -ENOMEM;
 
 	uvd_table->count = table->numEntries;
@@ -1142,15 +1236,12 @@ static int get_vce_clock_voltage_limit_table(struct pp_hwmgr *hwmgr,
 		const ATOM_PPLIB_VCE_Clock_Voltage_Limit_Table *table,
 		const VCEClockInfoArray    *array)
 {
-	unsigned long table_size, i;
+	unsigned long i;
 	struct phm_vce_clock_voltage_dependency_table *vce_table = NULL;
 
-	table_size = sizeof(unsigned long) +
-			sizeof(struct phm_vce_clock_voltage_dependency_table)
-			* table->numEntries;
-
-	vce_table = kzalloc(table_size, GFP_KERNEL);
-	if (NULL == vce_table)
+	vce_table = kzalloc(struct_size(vce_table, entries, table->numEntries),
+			    GFP_KERNEL);
+	if (!vce_table)
 		return -ENOMEM;
 
 	vce_table->count = table->numEntries;
@@ -1173,15 +1264,12 @@ static int get_samu_clock_voltage_limit_table(struct pp_hwmgr *hwmgr,
 		 struct phm_samu_clock_voltage_dependency_table **ptable,
 		 const ATOM_PPLIB_SAMClk_Voltage_Limit_Table *table)
 {
-	unsigned long table_size, i;
+	unsigned long i;
 	struct phm_samu_clock_voltage_dependency_table *samu_table;
 
-	table_size = sizeof(unsigned long) +
-		sizeof(struct phm_samu_clock_voltage_dependency_table) *
-		table->numEntries;
-
-	samu_table = kzalloc(table_size, GFP_KERNEL);
-	if (NULL == samu_table)
+	samu_table = kzalloc(struct_size(samu_table, entries, table->numEntries),
+			     GFP_KERNEL);
+	if (!samu_table)
 		return -ENOMEM;
 
 	samu_table->count = table->numEntries;
@@ -1201,15 +1289,12 @@ static int get_acp_clock_voltage_limit_table(struct pp_hwmgr *hwmgr,
 		struct phm_acp_clock_voltage_dependency_table **ptable,
 		const ATOM_PPLIB_ACPClk_Voltage_Limit_Table *table)
 {
-	unsigned table_size, i;
+	unsigned long i;
 	struct phm_acp_clock_voltage_dependency_table *acp_table;
 
-	table_size = sizeof(unsigned long) +
-		sizeof(struct phm_acp_clock_voltage_dependency_table) *
-		table->numEntries;
-
-	acp_table = kzalloc(table_size, GFP_KERNEL);
-	if (NULL == acp_table)
+	acp_table = kzalloc(struct_size(acp_table, entries, table->numEntries),
+			    GFP_KERNEL);
+	if (!acp_table)
 		return -ENOMEM;
 
 	acp_table->count = (unsigned long)table->numEntries;
@@ -1397,17 +1482,14 @@ static int get_cac_leakage_table(struct pp_hwmgr *hwmgr,
 				const ATOM_PPLIB_CAC_Leakage_Table *table)
 {
 	struct phm_cac_leakage_table  *cac_leakage_table;
-	unsigned long            table_size, i;
+	unsigned long i;
 
-	if (hwmgr == NULL || table == NULL || ptable == NULL)
+	if (!hwmgr || !table || !ptable)
 		return -EINVAL;
 
-	table_size = sizeof(ULONG) +
-		(sizeof(struct phm_cac_leakage_table) * table->ucNumEntries);
-
-	cac_leakage_table = kzalloc(table_size, GFP_KERNEL);
-
-	if (cac_leakage_table == NULL)
+	cac_leakage_table = kzalloc(struct_size(cac_leakage_table, entries, table->ucNumEntries),
+				    GFP_KERNEL);
+	if (!cac_leakage_table)
 		return -ENOMEM;
 
 	cac_leakage_table->count = (ULONG)table->ucNumEntries;
@@ -1540,16 +1622,12 @@ static int init_phase_shedding_table(struct pp_hwmgr *hwmgr,
 				(((unsigned long)powerplay_table4) +
 				le16_to_cpu(powerplay_table4->usVddcPhaseShedLimitsTableOffset));
 			struct phm_phase_shedding_limits_table *table;
-			unsigned long size, i;
+			unsigned long i;
 
 
-			size = sizeof(unsigned long) +
-				(sizeof(struct phm_phase_shedding_limits_table) *
-				ptable->ucNumEntries);
-
-			table = kzalloc(size, GFP_KERNEL);
-
-			if (table == NULL)
+			table = kzalloc(struct_size(table, entries, ptable->ucNumEntries),
+					GFP_KERNEL);
+			if (!table)
 				return -ENOMEM;
 
 			table->count = (unsigned long)ptable->ucNumEntries;

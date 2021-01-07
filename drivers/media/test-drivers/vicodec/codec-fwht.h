@@ -56,38 +56,6 @@
 #define FWHT_MAGIC1 0x4f4f4f4f
 #define FWHT_MAGIC2 0xffffffff
 
-#define FWHT_VERSION 3
-
-/* Set if this is an interlaced format */
-#define FWHT_FL_IS_INTERLACED		BIT(0)
-/* Set if this is a bottom-first (NTSC) interlaced format */
-#define FWHT_FL_IS_BOTTOM_FIRST		BIT(1)
-/* Set if each 'frame' contains just one field */
-#define FWHT_FL_IS_ALTERNATE		BIT(2)
-/*
- * If FWHT_FL_IS_ALTERNATE was set, then this is set if this
- * 'frame' is the bottom field, else it is the top field.
- */
-#define FWHT_FL_IS_BOTTOM_FIELD		BIT(3)
-/* Set if this frame is uncompressed */
-#define FWHT_FL_LUMA_IS_UNCOMPRESSED	BIT(4)
-#define FWHT_FL_CB_IS_UNCOMPRESSED	BIT(5)
-#define FWHT_FL_CR_IS_UNCOMPRESSED	BIT(6)
-#define FWHT_FL_CHROMA_FULL_HEIGHT	BIT(7)
-#define FWHT_FL_CHROMA_FULL_WIDTH	BIT(8)
-#define FWHT_FL_ALPHA_IS_UNCOMPRESSED	BIT(9)
-#define FWHT_FL_I_FRAME			BIT(10)
-
-/* A 4-values flag - the number of components - 1 */
-#define FWHT_FL_COMPONENTS_NUM_MSK	GENMASK(18, 16)
-#define FWHT_FL_COMPONENTS_NUM_OFFSET	16
-
-#define FWHT_FL_PIXENC_MSK	GENMASK(20, 19)
-#define FWHT_FL_PIXENC_OFFSET	19
-#define FWHT_FL_PIXENC_YUV	(1 << FWHT_FL_PIXENC_OFFSET)
-#define FWHT_FL_PIXENC_RGB	(2 << FWHT_FL_PIXENC_OFFSET)
-#define FWHT_FL_PIXENC_HSV	(3 << FWHT_FL_PIXENC_OFFSET)
-
 /*
  * A macro to calculate the needed padding in order to make sure
  * both luma and chroma components resolutions are rounded up to

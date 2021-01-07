@@ -71,7 +71,9 @@ to the speed-grade of the silicon.  `sustainable_power` is therefore
 simply an estimate, and may be tuned to affect the aggressiveness of
 the thermal ramp. For reference, the sustainable power of a 4" phone
 is typically 2000mW, while on a 10" tablet is around 4500mW (may vary
-depending on screen size).
+depending on screen size). It is possible to have the power value
+expressed in an abstract scale. The sustained power should be aligned
+to the scale used by the related cooling devices.
 
 If you are using device tree, do add it as a property of the
 thermal-zone.  For example::
@@ -269,3 +271,11 @@ won't be very good.  Note that this is not particular to this
 governor, step-wise will also misbehave if you call its throttle()
 faster than the normal thermal framework tick (due to interrupts for
 example) as it will overreact.
+
+Energy Model requirements
+=========================
+
+Another important thing is the consistent scale of the power values
+provided by the cooling devices. All of the cooling devices in a single
+thermal zone should have power values reported either in milli-Watts
+or scaled to the same 'abstract scale'.

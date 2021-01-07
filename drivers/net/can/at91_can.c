@@ -468,7 +468,7 @@ static netdev_tx_t at91_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	reg_mid = at91_can_id_to_reg_mid(cf->can_id);
 	reg_mcr = ((cf->can_id & CAN_RTR_FLAG) ? AT91_MCR_MRTR : 0) |
-		(cf->can_dlc << 16) | AT91_MCR_MTCR;
+		(cf->len << 16) | AT91_MCR_MTCR;
 
 	/* disable MB while writing ID (see datasheet) */
 	set_mb_mode(priv, mb, AT91_MB_MODE_DISABLED);
@@ -481,7 +481,7 @@ static netdev_tx_t at91_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* This triggers transmission */
 	at91_write(priv, AT91_MCR(mb), reg_mcr);
 
-	stats->tx_bytes += cf->can_dlc;
+	stats->tx_bytes += cf->len;
 
 	/* _NOTE_: subtract AT91_MB_TX_FIRST offset from mb! */
 	can_put_echo_skb(skb, dev, mb - get_mb_tx_first(priv));
@@ -554,7 +554,7 @@ static void at91_rx_overflow_err(struct net_device *dev)
 	cf->data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
 
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 	netif_receive_skb(skb);
 }
 
@@ -580,7 +580,7 @@ static void at91_read_mb(struct net_device *dev, unsigned int mb,
 		cf->can_id = (reg_mid >> 18) & CAN_SFF_MASK;
 
 	reg_msr = at91_read(priv, AT91_MSR(mb));
-	cf->can_dlc = get_can_dlc((reg_msr >> 16) & 0xf);
+	cf->len = can_cc_dlc2len((reg_msr >> 16) & 0xf);
 
 	if (reg_msr & AT91_MSR_MRTR)
 		cf->can_id |= CAN_RTR_FLAG;
@@ -619,7 +619,7 @@ static void at91_read_msg(struct net_device *dev, unsigned int mb)
 	at91_read_mb(dev, mb, cf);
 
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 	netif_receive_skb(skb);
 
 	can_led_event(dev, CAN_LED_EVENT_RX);
@@ -780,7 +780,7 @@ static int at91_poll_err(struct net_device *dev, int quota, u32 reg_sr)
 	at91_poll_err_frame(dev, cf, reg_sr);
 
 	dev->stats.rx_packets++;
-	dev->stats.rx_bytes += cf->can_dlc;
+	dev->stats.rx_bytes += cf->len;
 	netif_receive_skb(skb);
 
 	return 1;
@@ -1047,7 +1047,7 @@ static void at91_irq_err(struct net_device *dev)
 	at91_irq_err_state(dev, cf, new_state);
 
 	dev->stats.rx_packets++;
-	dev->stats.rx_bytes += cf->can_dlc;
+	dev->stats.rx_bytes += cf->len;
 	netif_rx(skb);
 
 	priv->can.state = new_state;

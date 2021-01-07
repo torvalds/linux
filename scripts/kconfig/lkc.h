@@ -6,6 +6,10 @@
 #ifndef LKC_H
 #define LKC_H
 
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "expr.h"
 
 #ifdef __cplusplus

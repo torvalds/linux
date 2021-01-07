@@ -13,7 +13,8 @@
 #include <crypto/cryptd.h>
 #include <crypto/des.h>
 #include <crypto/internal/aead.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <crypto/xts.h>
 #include <crypto/scatterwalk.h>
 #include <linux/rtnetlink.h>

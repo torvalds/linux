@@ -38,6 +38,8 @@
 #define PROC_BOOT_CFG_FLAG_R5_TCM_RSTBASE		0x00000800
 #define PROC_BOOT_CFG_FLAG_R5_BTCM_EN			0x00001000
 #define PROC_BOOT_CFG_FLAG_R5_ATCM_EN			0x00002000
+/* Available from J7200 SoCs onwards */
+#define PROC_BOOT_CFG_FLAG_R5_MEM_INIT_DIS		0x00004000
 
 /* R5 TI-SCI Processor Control Flags */
 #define PROC_BOOT_CTRL_FLAG_R5_CORE_HALT		0x00000001
@@ -68,15 +70,27 @@ enum cluster_mode {
 };
 
 /**
+ * struct k3_r5_soc_data - match data to handle SoC variations
+ * @tcm_is_double: flag to denote the larger unified TCMs in certain modes
+ * @tcm_ecc_autoinit: flag to denote the auto-initialization of TCMs for ECC
+ */
+struct k3_r5_soc_data {
+	bool tcm_is_double;
+	bool tcm_ecc_autoinit;
+};
+
+/**
  * struct k3_r5_cluster - K3 R5F Cluster structure
  * @dev: cached device pointer
  * @mode: Mode to configure the Cluster - Split or LockStep
  * @cores: list of R5 cores within the cluster
+ * @soc_data: SoC-specific feature data for a R5FSS
  */
 struct k3_r5_cluster {
 	struct device *dev;
 	enum cluster_mode mode;
 	struct list_head cores;
+	const struct k3_r5_soc_data *soc_data;
 };
 
 /**
@@ -362,7 +376,15 @@ static int k3_r5_rproc_prepare(struct rproc *rproc)
 	struct k3_r5_cluster *cluster = kproc->cluster;
 	struct k3_r5_core *core = kproc->core;
 	struct device *dev = kproc->dev;
+	u32 ctrl = 0, cfg = 0, stat = 0;
+	u64 boot_vec = 0;
+	bool mem_init_dis;
 	int ret;
+
+	ret = ti_sci_proc_get_status(core->tsp, &boot_vec, &cfg, &ctrl, &stat);
+	if (ret < 0)
+		return ret;
+	mem_init_dis = !!(cfg & PROC_BOOT_CFG_FLAG_R5_MEM_INIT_DIS);
 
 	ret = (cluster->mode == CLUSTER_MODE_LOCKSTEP) ?
 		k3_r5_lockstep_release(cluster) : k3_r5_split_release(core);
@@ -370,6 +392,17 @@ static int k3_r5_rproc_prepare(struct rproc *rproc)
 		dev_err(dev, "unable to enable cores for TCM loading, ret = %d\n",
 			ret);
 		return ret;
+	}
+
+	/*
+	 * Newer IP revisions like on J7200 SoCs support h/w auto-initialization
+	 * of TCMs, so there is no need to perform the s/w memzero. This bit is
+	 * configurable through System Firmware, the default value does perform
+	 * auto-init, but account for it in case it is disabled
+	 */
+	if (cluster->soc_data->tcm_ecc_autoinit && !mem_init_dis) {
+		dev_dbg(dev, "leveraging h/w init for TCM memories\n");
+		return 0;
 	}
 
 	/*
@@ -855,6 +888,43 @@ static void k3_r5_reserved_mem_exit(struct k3_r5_rproc *kproc)
 	of_reserved_mem_device_release(kproc->dev);
 }
 
+/*
+ * Each R5F core within a typical R5FSS instance has a total of 64 KB of TCMs,
+ * split equally into two 32 KB banks between ATCM and BTCM. The TCMs from both
+ * cores are usable in Split-mode, but only the Core0 TCMs can be used in
+ * LockStep-mode. The newer revisions of the R5FSS IP maximizes these TCMs by
+ * leveraging the Core1 TCMs as well in certain modes where they would have
+ * otherwise been unusable (Eg: LockStep-mode on J7200 SoCs). This is done by
+ * making a Core1 TCM visible immediately after the corresponding Core0 TCM.
+ * The SoC memory map uses the larger 64 KB sizes for the Core0 TCMs, and the
+ * dts representation reflects this increased size on supported SoCs. The Core0
+ * TCM sizes therefore have to be adjusted to only half the original size in
+ * Split mode.
+ */
+static void k3_r5_adjust_tcm_sizes(struct k3_r5_rproc *kproc)
+{
+	struct k3_r5_cluster *cluster = kproc->cluster;
+	struct k3_r5_core *core = kproc->core;
+	struct device *cdev = core->dev;
+	struct k3_r5_core *core0;
+
+	if (cluster->mode == CLUSTER_MODE_LOCKSTEP ||
+	    !cluster->soc_data->tcm_is_double)
+		return;
+
+	core0 = list_first_entry(&cluster->cores, struct k3_r5_core, elem);
+	if (core == core0) {
+		WARN_ON(core->mem[0].size != SZ_64K);
+		WARN_ON(core->mem[1].size != SZ_64K);
+
+		core->mem[0].size /= 2;
+		core->mem[1].size /= 2;
+
+		dev_dbg(cdev, "adjusted TCM sizes, ATCM = 0x%zx BTCM = 0x%zx\n",
+			core->mem[0].size, core->mem[1].size);
+	}
+}
+
 static int k3_r5_cluster_rproc_init(struct platform_device *pdev)
 {
 	struct k3_r5_cluster *cluster = platform_get_drvdata(pdev);
@@ -902,6 +972,8 @@ static int k3_r5_cluster_rproc_init(struct platform_device *pdev)
 			goto err_config;
 		}
 
+		k3_r5_adjust_tcm_sizes(kproc);
+
 		ret = k3_r5_reserved_mem_init(kproc);
 		if (ret) {
 			dev_err(dev, "reserved memory init failed, ret = %d\n",
@@ -940,9 +1012,9 @@ out:
 	return ret;
 }
 
-static int k3_r5_cluster_rproc_exit(struct platform_device *pdev)
+static void k3_r5_cluster_rproc_exit(void *data)
 {
-	struct k3_r5_cluster *cluster = platform_get_drvdata(pdev);
+	struct k3_r5_cluster *cluster = platform_get_drvdata(data);
 	struct k3_r5_rproc *kproc;
 	struct k3_r5_core *core;
 	struct rproc *rproc;
@@ -967,8 +1039,6 @@ static int k3_r5_cluster_rproc_exit(struct platform_device *pdev)
 		rproc_free(rproc);
 		core->rproc = NULL;
 	}
-
-	return 0;
 }
 
 static int k3_r5_core_of_get_internal_memories(struct platform_device *pdev,
@@ -1255,9 +1325,9 @@ static void k3_r5_core_of_exit(struct platform_device *pdev)
 	devres_release_group(dev, k3_r5_core_of_init);
 }
 
-static void k3_r5_cluster_of_exit(struct platform_device *pdev)
+static void k3_r5_cluster_of_exit(void *data)
 {
-	struct k3_r5_cluster *cluster = platform_get_drvdata(pdev);
+	struct k3_r5_cluster *cluster = platform_get_drvdata(data);
 	struct platform_device *cpdev;
 	struct k3_r5_core *core, *temp;
 
@@ -1311,8 +1381,15 @@ static int k3_r5_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev_of_node(dev);
 	struct k3_r5_cluster *cluster;
+	const struct k3_r5_soc_data *data;
 	int ret;
 	int num_cores;
+
+	data = of_device_get_match_data(&pdev->dev);
+	if (!data) {
+		dev_err(dev, "SoC-specific data is not defined\n");
+		return -ENODEV;
+	}
 
 	cluster = devm_kzalloc(dev, sizeof(*cluster), GFP_KERNEL);
 	if (!cluster)
@@ -1320,6 +1397,7 @@ static int k3_r5_probe(struct platform_device *pdev)
 
 	cluster->dev = dev;
 	cluster->mode = CLUSTER_MODE_LOCKSTEP;
+	cluster->soc_data = data;
 	INIT_LIST_HEAD(&cluster->cores);
 
 	ret = of_property_read_u32(np, "ti,cluster-mode", &cluster->mode);
@@ -1351,9 +1429,7 @@ static int k3_r5_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = devm_add_action_or_reset(dev,
-				       (void(*)(void *))k3_r5_cluster_of_exit,
-				       pdev);
+	ret = devm_add_action_or_reset(dev, k3_r5_cluster_of_exit, pdev);
 	if (ret)
 		return ret;
 
@@ -1364,18 +1440,27 @@ static int k3_r5_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = devm_add_action_or_reset(dev,
-				       (void(*)(void *))k3_r5_cluster_rproc_exit,
-				       pdev);
+	ret = devm_add_action_or_reset(dev, k3_r5_cluster_rproc_exit, pdev);
 	if (ret)
 		return ret;
 
 	return 0;
 }
 
+static const struct k3_r5_soc_data am65_j721e_soc_data = {
+	.tcm_is_double = false,
+	.tcm_ecc_autoinit = false,
+};
+
+static const struct k3_r5_soc_data j7200_soc_data = {
+	.tcm_is_double = true,
+	.tcm_ecc_autoinit = true,
+};
+
 static const struct of_device_id k3_r5_of_match[] = {
-	{ .compatible = "ti,am654-r5fss", },
-	{ .compatible = "ti,j721e-r5fss", },
+	{ .compatible = "ti,am654-r5fss", .data = &am65_j721e_soc_data, },
+	{ .compatible = "ti,j721e-r5fss", .data = &am65_j721e_soc_data, },
+	{ .compatible = "ti,j7200-r5fss", .data = &j7200_soc_data, },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, k3_r5_of_match);

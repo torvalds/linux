@@ -194,7 +194,7 @@
 				#size-cells = <1>;
 				utmi-mode = <2>;
 				ranges = <0 0 0x20000>;
-				dwc3: dwc3@10000 {
+				dwc3: usb@10000 {
 					compatible = "snps,dwc3";
 					reg = <0x10000 0x10000>;
 					interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>,

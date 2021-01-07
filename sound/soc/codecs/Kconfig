@@ -180,7 +180,6 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT700_SDW
 	imply SND_SOC_RT711_SDW
 	imply SND_SOC_RT715_SDW
-	imply SND_SOC_RT715_SDCA_SDW
 	imply SND_SOC_RT1308_SDW
 	imply SND_SOC_SGTL5000
 	imply SND_SOC_SI476X
@@ -458,7 +457,7 @@ config SND_SOC_ADAU7118_HW
 	help
 	  Enable support for the Analog Devices ADAU7118 8 Channel PDM-to-I2S/TDM
 	  Converter. In this mode, the device works in standalone mode which
-	  means that there is no bus to comunicate with it. Stereo mode is not
+	  means that there is no bus to communicate with it. Stereo mode is not
 	  supported in this mode.
 
 	  To compile this driver as a module, choose M here: the module
@@ -1236,12 +1235,6 @@ config SND_SOC_RT715_SDW
 	depends on SOUNDWIRE
 	select SND_SOC_RT715
 	select REGMAP_SOUNDWIRE
-
-config SND_SOC_RT715_SDCA_SDW
-	tristate "Realtek RT715 SDCA Codec - SDW"
-	depends on SOUNDWIRE
-	select REGMAP_SOUNDWIRE
-	select REGMAP_SOUNDWIRE_MBQ
 
 #Freescale sgtl5000 codec
 config SND_SOC_SGTL5000

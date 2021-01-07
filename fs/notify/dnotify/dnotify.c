@@ -72,7 +72,7 @@ static void dnotify_recalc_inode_mask(struct fsnotify_mark *fsn_mark)
  */
 static int dnotify_handle_event(struct fsnotify_mark *inode_mark, u32 mask,
 				struct inode *inode, struct inode *dir,
-				const struct qstr *name)
+				const struct qstr *name, u32 cookie)
 {
 	struct dnotify_mark *dn_mark;
 	struct dnotify_struct *dn;
@@ -327,7 +327,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 	}
 
 	rcu_read_lock();
-	f = fcheck(fd);
+	f = lookup_fd_rcu(fd);
 	rcu_read_unlock();
 
 	/* if (f != filp) means that we lost a race and another task/thread

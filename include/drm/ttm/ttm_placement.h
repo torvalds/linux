@@ -43,27 +43,12 @@
 #define TTM_PL_PRIV             3
 
 /*
- * Other flags that affects data placement.
- * TTM_PL_FLAG_CACHED indicates cache-coherent mappings
- * if available.
- * TTM_PL_FLAG_SHARED means that another application may
- * reference the buffer.
- * TTM_PL_FLAG_NO_EVICT means that the buffer may never
- * be evicted to make room for other buffers.
  * TTM_PL_FLAG_TOPDOWN requests to be placed from the
  * top of the memory area, instead of the bottom.
  */
 
-#define TTM_PL_FLAG_CACHED      (1 << 16)
-#define TTM_PL_FLAG_UNCACHED    (1 << 17)
-#define TTM_PL_FLAG_WC          (1 << 18)
 #define TTM_PL_FLAG_CONTIGUOUS  (1 << 19)
-#define TTM_PL_FLAG_NO_EVICT    (1 << 21)
 #define TTM_PL_FLAG_TOPDOWN     (1 << 22)
-
-#define TTM_PL_MASK_CACHING     (TTM_PL_FLAG_CACHED | \
-				 TTM_PL_FLAG_UNCACHED | \
-				 TTM_PL_FLAG_WC)
 
 /**
  * struct ttm_place
