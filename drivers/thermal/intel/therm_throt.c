@@ -26,13 +26,13 @@
 #include <linux/cpu.h>
 
 #include <asm/processor.h>
+#include <asm/thermal.h>
 #include <asm/traps.h>
 #include <asm/apic.h>
-#include <asm/mce.h>
+#include <asm/irq.h>
 #include <asm/msr.h>
-#include <asm/trace/irq_vectors.h>
 
-#include "internal.h"
+#include "thermal_interrupt.h"
 
 /* How long to wait between reporting thermal events */
 #define CHECK_INTERVAL		(300 * HZ)
@@ -570,7 +570,7 @@ static void notify_thresholds(__u64 msr_val)
 }
 
 /* Thermal transition interrupt handler */
-static void intel_thermal_interrupt(void)
+void intel_thermal_interrupt(void)
 {
 	__u64 msr_val;
 
@@ -606,23 +606,6 @@ static void intel_thermal_interrupt(void)
 	}
 }
 
-static void unexpected_thermal_interrupt(void)
-{
-	pr_err("CPU%d: Unexpected LVT thermal interrupt!\n",
-		smp_processor_id());
-}
-
-static void (*smp_thermal_vector)(void) = unexpected_thermal_interrupt;
-
-DEFINE_IDTENTRY_SYSVEC(sysvec_thermal)
-{
-	trace_thermal_apic_entry(THERMAL_APIC_VECTOR);
-	inc_irq_stat(irq_thermal_count);
-	smp_thermal_vector();
-	trace_thermal_apic_exit(THERMAL_APIC_VECTOR);
-	ack_APIC_irq();
-}
-
 /* Thermal monitoring depends on APIC, ACPI and clock modulation */
 static int intel_thermal_supported(struct cpuinfo_x86 *c)
 {
@@ -631,6 +614,11 @@ static int intel_thermal_supported(struct cpuinfo_x86 *c)
 	if (!cpu_has(c, X86_FEATURE_ACPI) || !cpu_has(c, X86_FEATURE_ACC))
 		return 0;
 	return 1;
+}
+
+bool x86_thermal_enabled(void)
+{
+	return atomic_read(&therm_throt_en);
 }
 
 void intel_init_thermal(struct cpuinfo_x86 *c)
@@ -718,8 +706,6 @@ void intel_init_thermal(struct cpuinfo_x86 *c)
 			      l | (PACKAGE_THERM_INT_LOW_ENABLE
 				| PACKAGE_THERM_INT_HIGH_ENABLE), h);
 	}
-
-	smp_thermal_vector = intel_thermal_interrupt;
 
 	rdmsr(MSR_IA32_MISC_ENABLE, l, h);
 	wrmsr(MSR_IA32_MISC_ENABLE, l | MSR_IA32_MISC_ENABLE_TM1, h);
