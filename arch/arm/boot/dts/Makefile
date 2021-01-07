@@ -634,6 +634,7 @@ dtb-$(CONFIG_SOC_IMX6UL) += \
 	imx6ul-pico-pi.dtb \
 	imx6ul-phytec-segin-ff-rdk-emmc.dtb \
 	imx6ul-phytec-segin-ff-rdk-nand.dtb \
+	imx6ul-prti6g.dtb \
 	imx6ul-tx6ul-0010.dtb \
 	imx6ul-tx6ul-0011.dtb \
 	imx6ul-tx6ul-mainboard.dtb \
