@@ -2555,16 +2555,11 @@ static void fill_dsc(struct intel_crtc_state *crtc_state,
 			      crtc_state->dsc.slice_count);
 
 	/*
-	 * FIXME: Use VBT rc_buffer_block_size and rc_buffer_size for the
-	 * implementation specific physical rate buffer size. Currently we use
-	 * the required rate buffer model size calculated in
-	 * drm_dsc_compute_rc_parameters() according to VESA DSC Annex E.
-	 *
 	 * The VBT rc_buffer_block_size and rc_buffer_size definitions
-	 * correspond to DP 1.4 DPCD offsets 0x62 and 0x63. The DP DSC
-	 * implementation should also use the DPCD (or perhaps VBT for eDP)
-	 * provided value for the buffer size.
+	 * correspond to DP 1.4 DPCD offsets 0x62 and 0x63.
 	 */
+	vdsc_cfg->rc_model_size = drm_dsc_dp_rc_buffer_size(dsc->rc_buffer_block_size,
+							    dsc->rc_buffer_size);
 
 	/* FIXME: DSI spec says bpc + 1 for this one */
 	vdsc_cfg->line_buf_depth = VBT_DSC_LINE_BUFFER_DEPTH(dsc->line_buffer_depth);

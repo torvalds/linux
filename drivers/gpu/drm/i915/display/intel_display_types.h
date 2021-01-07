@@ -225,6 +225,17 @@ struct intel_encoder {
 	const struct drm_connector *audio_connector;
 };
 
+struct intel_panel_bl_funcs {
+	/* Connector and platform specific backlight functions */
+	int (*setup)(struct intel_connector *connector, enum pipe pipe);
+	u32 (*get)(struct intel_connector *connector);
+	void (*set)(const struct drm_connector_state *conn_state, u32 level);
+	void (*disable)(const struct drm_connector_state *conn_state, u32 level);
+	void (*enable)(const struct intel_crtc_state *crtc_state,
+		       const struct drm_connector_state *conn_state, u32 level);
+	u32 (*hz_to_pwm)(struct intel_connector *connector, u32 hz);
+};
+
 struct intel_panel {
 	struct drm_display_mode *fixed_mode;
 	struct drm_display_mode *downclock_mode;
@@ -251,14 +262,7 @@ struct intel_panel {
 
 		struct backlight_device *device;
 
-		/* Connector and platform specific backlight functions */
-		int (*setup)(struct intel_connector *connector, enum pipe pipe);
-		u32 (*get)(struct intel_connector *connector);
-		void (*set)(const struct drm_connector_state *conn_state, u32 level);
-		void (*disable)(const struct drm_connector_state *conn_state);
-		void (*enable)(const struct intel_crtc_state *crtc_state,
-			       const struct drm_connector_state *conn_state);
-		u32 (*hz_to_pwm)(struct intel_connector *connector, u32 hz);
+		const struct intel_panel_bl_funcs *funcs;
 		void (*power)(struct intel_connector *, bool enable);
 	} backlight;
 };
@@ -604,6 +608,8 @@ struct intel_plane_state {
 	u32 planar_slave;
 
 	struct drm_intel_sprite_colorkey ckey;
+
+	struct drm_rect psr2_sel_fetch_area;
 };
 
 struct intel_initial_plane_config {
@@ -1047,7 +1053,10 @@ struct intel_crtc_state {
 		u32 cgm_mode;
 	};
 
-	/* bitmask of visible planes (enum plane_id) */
+	/* bitmask of logically enabled planes (enum plane_id) */
+	u8 enabled_planes;
+
+	/* bitmask of actually visible planes (enum plane_id) */
 	u8 active_planes;
 	u8 nv12_planes;
 	u8 c8_planes;
@@ -1160,7 +1169,7 @@ struct intel_crtc {
 	/* I915_MODE_FLAG_* */
 	u8 mode_flags;
 
-	unsigned long long enabled_power_domains;
+	struct intel_display_power_domain_set enabled_power_domains;
 	struct intel_overlay *overlay;
 
 	struct intel_crtc_state *config;
@@ -1186,6 +1195,15 @@ struct intel_crtc {
 		ktime_t start_vbl_time;
 		int min_vbl, max_vbl;
 		int scanline_start;
+#ifdef CONFIG_DRM_I915_DEBUG_VBLANK_EVADE
+		struct {
+			u64 min;
+			u64 max;
+			u64 sum;
+			unsigned int over;
+			unsigned int times[17]; /* [1us, 16ms] */
+		} vbl;
+#endif
 	} debug;
 
 	/* scalers available on this crtc */
@@ -1375,6 +1393,7 @@ struct intel_dp {
 	unsigned long last_power_on;
 	unsigned long last_backlight_off;
 	ktime_t panel_power_off_time;
+	intel_wakeref_t vdd_wakeref;
 
 	/*
 	 * Pipe whose power sequencer is currently locked into
@@ -1444,6 +1463,9 @@ struct intel_dp {
 		bool rgb_to_ycbcr;
 	} dfp;
 
+	/* To control wakeup latency, e.g. for irq-driven dp aux transfers. */
+	struct pm_qos_request pm_qos;
+
 	/* Display stream compression testing */
 	bool force_dsc_en;
 
@@ -1460,6 +1482,7 @@ enum lspcon_vendor {
 
 struct intel_lspcon {
 	bool active;
+	bool hdr_supported;
 	enum drm_lspcon_mode mode;
 	enum lspcon_vendor vendor;
 };
@@ -1476,6 +1499,8 @@ struct intel_digital_port {
 	/* Used for DP and ICL+ TypeC/DP and TypeC/HDMI ports. */
 	enum aux_ch aux_ch;
 	enum intel_display_power_domain ddi_io_power_domain;
+	intel_wakeref_t ddi_io_wakeref;
+	intel_wakeref_t aux_wakeref;
 	struct mutex tc_lock;	/* protects the TypeC port mode */
 	intel_wakeref_t tc_lock_wakeref;
 	int tc_link_refcount;
@@ -1765,6 +1790,12 @@ intel_crtc_has_dp_encoder(const struct intel_crtc_state *crtc_state)
 		 (1 << INTEL_OUTPUT_EDP));
 }
 
+static inline bool
+intel_crtc_needs_modeset(const struct intel_crtc_state *crtc_state)
+{
+	return drm_atomic_crtc_needs_modeset(&crtc_state->uapi);
+}
+
 static inline void
 intel_wait_for_vblank(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
@@ -1785,6 +1816,12 @@ intel_wait_for_vblank_if_active(struct drm_i915_private *dev_priv, enum pipe pip
 static inline u32 intel_plane_ggtt_offset(const struct intel_plane_state *state)
 {
 	return i915_ggtt_offset(state->vma);
+}
+
+static inline struct intel_frontbuffer *
+to_intel_frontbuffer(struct drm_framebuffer *fb)
+{
+	return fb ? to_intel_framebuffer(fb)->frontbuffer : NULL;
 }
 
 #endif /*  __INTEL_DISPLAY_TYPES_H__ */

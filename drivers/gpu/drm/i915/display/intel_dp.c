@@ -1512,7 +1512,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	 * lowest possible wakeup latency and so prevent the cpu from going into
 	 * deep sleep states.
 	 */
-	cpu_latency_qos_update_request(&i915->pm_qos, 0);
+	cpu_latency_qos_update_request(&intel_dp->pm_qos, 0);
 
 	intel_dp_check_edp(intel_dp);
 
@@ -1645,7 +1645,7 @@ done:
 
 	ret = recv_bytes;
 out:
-	cpu_latency_qos_update_request(&i915->pm_qos, PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_update_request(&intel_dp->pm_qos, PM_QOS_DEFAULT_VALUE);
 
 	if (vdd)
 		edp_panel_vdd_off(intel_dp, false);
@@ -1921,6 +1921,9 @@ static i915_reg_t tgl_aux_data_reg(struct intel_dp *intel_dp, int index)
 static void
 intel_dp_aux_fini(struct intel_dp *intel_dp)
 {
+	if (cpu_latency_qos_request_active(&intel_dp->pm_qos))
+		cpu_latency_qos_remove_request(&intel_dp->pm_qos);
+
 	kfree(intel_dp->aux.name);
 }
 
@@ -1973,6 +1976,7 @@ intel_dp_aux_init(struct intel_dp *intel_dp)
 					       encoder->base.name);
 
 	intel_dp->aux.transfer = intel_dp_aux_transfer;
+	cpu_latency_qos_add_request(&intel_dp->pm_qos, PM_QOS_DEFAULT_VALUE);
 }
 
 bool intel_dp_source_supports_hbr2(struct intel_dp *intel_dp)
@@ -2311,6 +2315,14 @@ static int intel_dp_dsc_compute_params(struct intel_encoder *encoder,
 	struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	u8 line_buf_depth;
 	int ret;
+
+	/*
+	 * RC_MODEL_SIZE is currently a constant across all configurations.
+	 *
+	 * FIXME: Look into using sink defined DPCD DP_DSC_RC_BUF_BLK_SIZE and
+	 * DP_DSC_RC_BUF_SIZE for this.
+	 */
+	vdsc_cfg->rc_model_size = DSC_RC_MODEL_SIZE_CONST;
 
 	ret = intel_dsc_compute_params(encoder, crtc_state);
 	if (ret)
@@ -3117,8 +3129,9 @@ static bool edp_panel_vdd_on(struct intel_dp *intel_dp)
 	if (edp_have_panel_vdd(intel_dp))
 		return need_to_disable;
 
-	intel_display_power_get(dev_priv,
-				intel_aux_power_domain(dig_port));
+	drm_WARN_ON(&dev_priv->drm, intel_dp->vdd_wakeref);
+	intel_dp->vdd_wakeref = intel_display_power_get(dev_priv,
+							intel_aux_power_domain(dig_port));
 
 	drm_dbg_kms(&dev_priv->drm, "Turning [ENCODER:%d:%s] VDD on\n",
 		    dig_port->base.base.base.id,
@@ -3211,8 +3224,9 @@ static void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
 	if ((pp & PANEL_POWER_ON) == 0)
 		intel_dp->panel_power_off_time = ktime_get_boottime();
 
-	intel_display_power_put_unchecked(dev_priv,
-					  intel_aux_power_domain(dig_port));
+	intel_display_power_put(dev_priv,
+				intel_aux_power_domain(dig_port),
+				fetch_and_zero(&intel_dp->vdd_wakeref));
 }
 
 static void edp_panel_vdd_work(struct work_struct *__work)
@@ -3364,7 +3378,9 @@ static void edp_panel_off(struct intel_dp *intel_dp)
 	intel_dp->panel_power_off_time = ktime_get_boottime();
 
 	/* We got a reference when we enabled the VDD. */
-	intel_display_power_put_unchecked(dev_priv, intel_aux_power_domain(dig_port));
+	intel_display_power_put(dev_priv,
+				intel_aux_power_domain(dig_port),
+				fetch_and_zero(&intel_dp->vdd_wakeref));
 }
 
 void intel_edp_panel_off(struct intel_dp *intel_dp)
@@ -3602,6 +3618,29 @@ void intel_dp_sink_set_decompression_state(struct intel_dp *intel_dp,
 			    enable ? "enable" : "disable");
 }
 
+static void
+intel_edp_init_source_oui(struct intel_dp *intel_dp, bool careful)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	u8 oui[] = { 0x00, 0xaa, 0x01 };
+	u8 buf[3] = { 0 };
+
+	/*
+	 * During driver init, we want to be careful and avoid changing the source OUI if it's
+	 * already set to what we want, so as to avoid clearing any state by accident
+	 */
+	if (careful) {
+		if (drm_dp_dpcd_read(&intel_dp->aux, DP_SOURCE_OUI, buf, sizeof(buf)) < 0)
+			drm_err(&i915->drm, "Failed to read source OUI\n");
+
+		if (memcmp(oui, buf, sizeof(oui)) == 0)
+			return;
+	}
+
+	if (drm_dp_dpcd_write(&intel_dp->aux, DP_SOURCE_OUI, oui, sizeof(oui)) < 0)
+		drm_err(&i915->drm, "Failed to write source OUI\n");
+}
+
 /* If the device supports it, try to set the power state appropriately */
 void intel_dp_set_power(struct intel_dp *intel_dp, u8 mode)
 {
@@ -3622,6 +3661,10 @@ void intel_dp_set_power(struct intel_dp *intel_dp, u8 mode)
 		struct intel_lspcon *lspcon = dp_to_lspcon(intel_dp);
 
 		lspcon_resume(dp_to_dig_port(intel_dp));
+
+		/* Write the source OUI as early as possible */
+		if (intel_dp_is_edp(intel_dp))
+			intel_edp_init_source_oui(intel_dp, false);
 
 		/*
 		 * When turning on, we need to retry for 1ms to give the sink
@@ -5196,6 +5239,12 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 	/* Read the eDP DSC DPCD registers */
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		intel_dp_get_dsc_sink_cap(intel_dp);
+
+	/*
+	 * If needed, program our source OUI so we can make various Intel-specific AUX services
+	 * available (such as HDR backlight controls)
+	 */
+	intel_edp_init_source_oui(intel_dp, true);
 
 	return true;
 }
@@ -7177,6 +7226,8 @@ intel_dp_connector_register(struct drm_connector *connector)
 {
 	struct drm_i915_private *i915 = to_i915(connector->dev);
 	struct intel_dp *intel_dp = intel_attached_dp(to_intel_connector(connector));
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct intel_lspcon *lspcon = &dig_port->lspcon;
 	int ret;
 
 	ret = intel_connector_register(connector);
@@ -7190,6 +7241,22 @@ intel_dp_connector_register(struct drm_connector *connector)
 	ret = drm_dp_aux_register(&intel_dp->aux);
 	if (!ret)
 		drm_dp_cec_register_connector(&intel_dp->aux, connector);
+
+	if (!intel_bios_is_lspcon_present(i915, dig_port->base.port))
+		return ret;
+
+	/*
+	 * ToDo: Clean this up to handle lspcon init and resume more
+	 * efficiently and streamlined.
+	 */
+	if (lspcon_init(dig_port)) {
+		lspcon_detect_hdr_capability(lspcon);
+		if (lspcon->hdr_supported)
+			drm_object_attach_property(&connector->base,
+						   connector->dev->mode_config.hdr_output_metadata_property,
+						   0);
+	}
+
 	return ret;
 }
 
@@ -7279,7 +7346,9 @@ static void intel_edp_panel_vdd_sanitize(struct intel_dp *intel_dp)
 	 */
 	drm_dbg_kms(&dev_priv->drm,
 		    "VDD left on by BIOS, adjusting state tracking\n");
-	intel_display_power_get(dev_priv, intel_aux_power_domain(dig_port));
+	drm_WARN_ON(&dev_priv->drm, intel_dp->vdd_wakeref);
+	intel_dp->vdd_wakeref = intel_display_power_get(dev_priv,
+							intel_aux_power_domain(dig_port));
 
 	edp_panel_vdd_schedule_off(intel_dp);
 }
@@ -7578,7 +7647,13 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 	else if (INTEL_GEN(dev_priv) >= 5)
 		drm_connector_attach_max_bpc_property(connector, 6, 12);
 
-	intel_attach_colorspace_property(connector);
+	/* Register HDMI colorspace for case of lspcon */
+	if (intel_bios_is_lspcon_present(dev_priv, port)) {
+		drm_connector_attach_content_type_property(connector);
+		intel_attach_hdmi_colorspace_property(connector);
+	} else {
+		intel_attach_dp_colorspace_property(connector);
+	}
 
 	if (IS_GEMINILAKE(dev_priv) || INTEL_GEN(dev_priv) >= 11)
 		drm_object_attach_property(&connector->base,
