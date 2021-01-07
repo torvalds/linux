@@ -197,14 +197,14 @@ static int cifs_debug_files_proc_show(struct seq_file *m, void *v)
 					cfile = list_entry(tmp2, struct cifsFileInfo,
 						     tlist);
 					seq_printf(m,
-						"0x%x 0x%llx 0x%x %d %d %d %s",
+						"0x%x 0x%llx 0x%x %d %d %d %pd",
 						tcon->tid,
 						cfile->fid.persistent_fid,
 						cfile->f_flags,
 						cfile->count,
 						cfile->pid,
 						from_kuid(&init_user_ns, cfile->uid),
-						cfile->dentry->d_name.name);
+						cfile->dentry);
 #ifdef CONFIG_CIFS_DEBUG2
 					seq_printf(m, " 0x%llx\n", cfile->fid.mid);
 #else
