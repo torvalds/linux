@@ -713,6 +713,7 @@ static int setup_initial_state(struct drm_device *drm_dev,
 		if (ret)
 			goto error_conn;
 
+		mode->picture_aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
 		ret = drm_atomic_set_mode_for_crtc(crtc_state, mode);
 		if (ret)
 			goto error_conn;
