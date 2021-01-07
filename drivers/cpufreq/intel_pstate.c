@@ -2527,7 +2527,7 @@ static void intel_cpufreq_trace(struct cpudata *cpu, unsigned int trace_type, in
 		fp_toint(cpu->iowait_boost * 100));
 }
 
-static void intel_cpufreq_adjust_hwp(struct cpudata *cpu, u32 min, u32 max,
+static void intel_cpufreq_hwp_update(struct cpudata *cpu, u32 min, u32 max,
 				     u32 desired, bool fast_switch)
 {
 	u64 prev = READ_ONCE(cpu->hwp_req_cached), value = prev;
@@ -2551,7 +2551,7 @@ static void intel_cpufreq_adjust_hwp(struct cpudata *cpu, u32 min, u32 max,
 		wrmsrl_on_cpu(cpu->cpu, MSR_HWP_REQUEST, value);
 }
 
-static void intel_cpufreq_adjust_perf_ctl(struct cpudata *cpu,
+static void intel_cpufreq_perf_ctl_update(struct cpudata *cpu,
 					  u32 target_pstate, bool fast_switch)
 {
 	if (fast_switch)
@@ -2573,10 +2573,10 @@ static int intel_cpufreq_update_pstate(struct cpufreq_policy *policy,
 		int max_pstate = policy->strict_target ?
 					target_pstate : cpu->max_perf_ratio;
 
-		intel_cpufreq_adjust_hwp(cpu, target_pstate, max_pstate, 0,
+		intel_cpufreq_hwp_update(cpu, target_pstate, max_pstate, 0,
 					 fast_switch);
 	} else if (target_pstate != old_pstate) {
-		intel_cpufreq_adjust_perf_ctl(cpu, target_pstate, fast_switch);
+		intel_cpufreq_perf_ctl_update(cpu, target_pstate, fast_switch);
 	}
 
 	cpu->pstate.current_pstate = target_pstate;
@@ -2674,7 +2674,7 @@ static void intel_cpufreq_adjust_perf(unsigned int cpunum,
 
 	target_pstate = clamp_t(int, target_pstate, min_pstate, max_pstate);
 
-	intel_cpufreq_adjust_hwp(cpu, min_pstate, max_pstate, target_pstate, true);
+	intel_cpufreq_hwp_update(cpu, min_pstate, max_pstate, target_pstate, true);
 
 	cpu->pstate.current_pstate = target_pstate;
 	intel_cpufreq_trace(cpu, INTEL_PSTATE_TRACE_FAST_SWITCH, old_pstate);
