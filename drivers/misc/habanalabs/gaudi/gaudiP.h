@@ -335,6 +335,7 @@ struct gaudi_device {
 };
 
 void gaudi_init_security(struct hl_device *hdev);
+void gaudi_ack_protection_bits_errors(struct hl_device *hdev);
 void gaudi_add_device_attr(struct hl_device *hdev,
 			struct attribute_group *dev_attr_grp);
 void gaudi_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);

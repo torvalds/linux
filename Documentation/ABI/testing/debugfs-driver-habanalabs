@@ -182,3 +182,11 @@ KernelVersion:  5.6
 Contact:        oded.gabbay@gmail.com
 Description:    Sets the stop-on_error option for the device engines. Value of
                 "0" is for disable, otherwise enable.
+
+What:           /sys/kernel/debug/habanalabs/hl<n>/dump_security_violations
+Date:           Jan 2021
+KernelVersion:  5.12
+Contact:        oded.gabbay@gmail.com
+Description:    Dumps all security violations to dmesg. This will also ack
+                all security violations meanings those violations will not be
+                dumped next time user calls this API

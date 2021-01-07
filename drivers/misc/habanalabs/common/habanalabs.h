@@ -850,6 +850,7 @@ enum div_select_defs {
  * @collective_wait_create_jobs: allocate collective wait cs jobs
  * @scramble_vaddr: Routine to scramble the virtual address prior of mapping it
  *                  in the MMU.
+ * @ack_protection_bits_errors: ack and dump all security violations
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -960,6 +961,7 @@ struct hl_asic_funcs {
 			struct hl_ctx *ctx, struct hl_cs *cs, u32 wait_queue_id,
 			u32 collective_engine_id);
 	u64 (*scramble_vaddr)(struct hl_device *hdev, u64 virt_addr);
+	void (*ack_protection_bits_errors)(struct hl_device *hdev);
 };
 
 

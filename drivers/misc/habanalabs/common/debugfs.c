@@ -867,6 +867,17 @@ static ssize_t hl_stop_on_err_write(struct file *f, const char __user *buf,
 	return count;
 }
 
+static ssize_t hl_security_violations_read(struct file *f, char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_device *hdev = entry->hdev;
+
+	hdev->asic_funcs->ack_protection_bits_errors(hdev);
+
+	return 0;
+}
+
 static const struct file_operations hl_data32b_fops = {
 	.owner = THIS_MODULE,
 	.read = hl_data_read32,
@@ -922,6 +933,11 @@ static const struct file_operations hl_stop_on_err_fops = {
 	.owner = THIS_MODULE,
 	.read = hl_stop_on_err_read,
 	.write = hl_stop_on_err_write
+};
+
+static const struct file_operations hl_security_violations_fops = {
+	.owner = THIS_MODULE,
+	.read = hl_security_violations_read
 };
 
 static const struct hl_info_list hl_debugfs_list[] = {
@@ -1072,6 +1088,12 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 				dev_entry->root,
 				dev_entry,
 				&hl_stop_on_err_fops);
+
+	debugfs_create_file("dump_security_violations",
+				0644,
+				dev_entry->root,
+				dev_entry,
+				&hl_security_violations_fops);
 
 	for (i = 0, entry = dev_entry->entry_arr ; i < count ; i++, entry++) {
 
