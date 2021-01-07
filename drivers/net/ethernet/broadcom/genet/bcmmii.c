@@ -63,11 +63,11 @@ void bcmgenet_mii_setup(struct net_device *dev)
 
 		/* speed */
 		if (phydev->speed == SPEED_1000)
-			cmd_bits = UMAC_SPEED_1000;
+			cmd_bits = CMD_SPEED_1000;
 		else if (phydev->speed == SPEED_100)
-			cmd_bits = UMAC_SPEED_100;
+			cmd_bits = CMD_SPEED_100;
 		else
-			cmd_bits = UMAC_SPEED_10;
+			cmd_bits = CMD_SPEED_10;
 		cmd_bits <<= CMD_SPEED_SHIFT;
 
 		/* duplex */
