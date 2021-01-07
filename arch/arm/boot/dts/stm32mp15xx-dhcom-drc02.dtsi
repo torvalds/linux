@@ -87,6 +87,12 @@
 	};
 };
 
+&i2c4 {
+	touchscreen@49 {
+		status = "disabled";
+	};
+};
+
 &i2c5 {	/* TP7/TP8 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c5_pins_a>;
