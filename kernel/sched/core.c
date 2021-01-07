@@ -1144,6 +1144,12 @@ unsigned long uclamp_eff_value(struct task_struct *p, enum uclamp_id clamp_id)
 {
 	struct uclamp_se uc_eff;
 
+	unsigned long ret = ULONG_MAX;
+
+	trace_android_rvh_uclamp_eff_value(p, clamp_id, &uclamp_default[clamp_id], &ret);
+	if (ret != ULONG_MAX)
+		return ret;
+
 	/* Task currently refcounted: use back-annotated (effective) value */
 	if (p->uclamp[clamp_id].active)
 		return (unsigned long)p->uclamp[clamp_id].value;
