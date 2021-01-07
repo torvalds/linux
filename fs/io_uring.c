@@ -1700,13 +1700,16 @@ static inline unsigned __io_cqring_events(struct io_ring_ctx *ctx)
 
 static void io_cqring_ev_posted(struct io_ring_ctx *ctx)
 {
+	/* see waitqueue_active() comment */
+	smp_mb();
+
 	if (waitqueue_active(&ctx->wait))
 		wake_up(&ctx->wait);
 	if (ctx->sq_data && waitqueue_active(&ctx->sq_data->wait))
 		wake_up(&ctx->sq_data->wait);
 	if (io_should_trigger_evfd(ctx))
 		eventfd_signal(ctx->cq_ev_fd, 1);
-	if (wq_has_sleeper(&ctx->cq_wait)) {
+	if (waitqueue_active(&ctx->cq_wait)) {
 		wake_up_interruptible(&ctx->cq_wait);
 		kill_fasync(&ctx->cq_fasync, SIGIO, POLL_IN);
 	}
@@ -1714,13 +1717,16 @@ static void io_cqring_ev_posted(struct io_ring_ctx *ctx)
 
 static void io_cqring_ev_posted_iopoll(struct io_ring_ctx *ctx)
 {
+	/* see waitqueue_active() comment */
+	smp_mb();
+
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
 		if (waitqueue_active(&ctx->wait))
 			wake_up(&ctx->wait);
 	}
 	if (io_should_trigger_evfd(ctx))
 		eventfd_signal(ctx->cq_ev_fd, 1);
-	if (wq_has_sleeper(&ctx->cq_wait)) {
+	if (waitqueue_active(&ctx->cq_wait)) {
 		wake_up_interruptible(&ctx->cq_wait);
 		kill_fasync(&ctx->cq_fasync, SIGIO, POLL_IN);
 	}
