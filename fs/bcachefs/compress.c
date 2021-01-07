@@ -336,8 +336,19 @@ static int attempt_compress(struct bch_fs *c,
 		ZSTD_CCtx *ctx = zstd_init_cctx(workspace,
 			zstd_cctx_workspace_bound(&c->zstd_params.cParams));
 
+		/*
+		 * ZSTD requires that when we decompress we pass in the exact
+		 * compressed size - rounding it up to the nearest sector
+		 * doesn't work, so we use the first 4 bytes of the buffer for
+		 * that.
+		 *
+		 * Additionally, the ZSTD code seems to have a bug where it will
+		 * write just past the end of the buffer - so subtract a fudge
+		 * factor (7 bytes) from the dst buffer size to account for
+		 * that.
+		 */
 		size_t len = zstd_compress_cctx(ctx,
-				dst + 4,	dst_len - 4,
+				dst + 4,	dst_len - 4 - 7,
 				src,		src_len,
 				&c->zstd_params);
 		if (zstd_is_error(len))
