@@ -835,6 +835,8 @@
 				clocks = <&clk IMX8MQ_CLK_ECSPI1_ROOT>,
 					 <&clk IMX8MQ_CLK_ECSPI1_ROOT>;
 				clock-names = "ipg", "per";
+				dmas = <&sdma1 0 7 1>, <&sdma1 1 7 2>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -847,6 +849,8 @@
 				clocks = <&clk IMX8MQ_CLK_ECSPI2_ROOT>,
 					 <&clk IMX8MQ_CLK_ECSPI2_ROOT>;
 				clock-names = "ipg", "per";
+				dmas = <&sdma1 2 7 1>, <&sdma1 3 7 2>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -859,6 +863,8 @@
 				clocks = <&clk IMX8MQ_CLK_ECSPI3_ROOT>,
 					 <&clk IMX8MQ_CLK_ECSPI3_ROOT>;
 				clock-names = "ipg", "per";
+				dmas = <&sdma1 4 7 1>, <&sdma1 5 7 2>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
