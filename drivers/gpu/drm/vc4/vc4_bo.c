@@ -21,7 +21,7 @@
 #include "vc4_drv.h"
 #include "uapi/drm/vc4_drm.h"
 
-static vm_fault_t vc4_fault(struct vm_fault *vmf);
+static const struct drm_gem_object_funcs vc4_gem_object_funcs;
 
 static const char * const bo_type_names[] = {
 	"kernel",
@@ -376,20 +376,6 @@ out:
 	return bo;
 }
 
-static const struct vm_operations_struct vc4_vm_ops = {
-	.fault = vc4_fault,
-	.open = drm_gem_vm_open,
-	.close = drm_gem_vm_close,
-};
-
-static const struct drm_gem_object_funcs vc4_gem_object_funcs = {
-	.free = vc4_free_object,
-	.export = vc4_prime_export,
-	.get_sg_table = drm_gem_cma_get_sg_table,
-	.vmap = drm_gem_cma_vmap,
-	.vm_ops = &vc4_vm_ops,
-};
-
 /**
  * vc4_create_object - Implementation of driver->gem_create_object.
  * @dev: DRM device
@@ -538,7 +524,7 @@ static void vc4_bo_cache_free_old(struct drm_device *dev)
 /* Called on the last userspace/kernel unreference of the BO.  Returns
  * it to the BO cache if possible, otherwise frees it.
  */
-void vc4_free_object(struct drm_gem_object *gem_bo)
+static void vc4_free_object(struct drm_gem_object *gem_bo)
 {
 	struct drm_device *dev = gem_bo->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -673,7 +659,7 @@ static void vc4_bo_cache_time_timer(struct timer_list *t)
 	schedule_work(&vc4->bo_cache.time_work);
 }
 
-struct dma_buf * vc4_prime_export(struct drm_gem_object *obj, int flags)
+static struct dma_buf *vc4_prime_export(struct drm_gem_object *obj, int flags)
 {
 	struct vc4_bo *bo = to_vc4_bo(obj);
 	struct dma_buf *dmabuf;
@@ -784,6 +770,20 @@ int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 
 	return drm_gem_prime_mmap(obj, vma);
 }
+
+static const struct vm_operations_struct vc4_vm_ops = {
+	.fault = vc4_fault,
+	.open = drm_gem_vm_open,
+	.close = drm_gem_vm_close,
+};
+
+static const struct drm_gem_object_funcs vc4_gem_object_funcs = {
+	.free = vc4_free_object,
+	.export = vc4_prime_export,
+	.get_sg_table = drm_gem_cma_get_sg_table,
+	.vmap = drm_gem_cma_vmap,
+	.vm_ops = &vc4_vm_ops,
+};
 
 struct drm_gem_object *
 vc4_prime_import_sg_table(struct drm_device *dev,
