@@ -164,6 +164,9 @@
 #define mmGCVM_L2_CGTT_CLK_CTRL_Sienna_Cichlid          0x15db
 #define mmGCVM_L2_CGTT_CLK_CTRL_Sienna_Cichlid_BASE_IDX	0
 
+#define mmGC_THROTTLE_CTRL_Sienna_Cichlid              0x2030
+#define mmGC_THROTTLE_CTRL_Sienna_Cichlid_BASE_IDX     0
+
 MODULE_FIRMWARE("amdgpu/navi10_ce.bin");
 MODULE_FIRMWARE("amdgpu/navi10_pfp.bin");
 MODULE_FIRMWARE("amdgpu/navi10_me.bin");
@@ -3328,6 +3331,7 @@ static void gfx_v10_0_ring_emit_de_meta(struct amdgpu_ring *ring, bool resume);
 static void gfx_v10_0_ring_emit_frame_cntl(struct amdgpu_ring *ring, bool start, bool secure);
 static u32 gfx_v10_3_get_disabled_sa(struct amdgpu_device *adev);
 static void gfx_v10_3_program_pbb_mode(struct amdgpu_device *adev);
+static void gfx_v10_3_set_power_brake_sequence(struct amdgpu_device *adev);
 
 static void gfx10_kiq_set_resources(struct amdgpu_ring *kiq_ring, uint64_t queue_mask)
 {
@@ -7196,6 +7200,9 @@ static int gfx_v10_0_hw_init(void *handle)
 	if (adev->asic_type == CHIP_SIENNA_CICHLID)
 		gfx_v10_3_program_pbb_mode(adev);
 
+	if (adev->asic_type >= CHIP_SIENNA_CICHLID)
+		gfx_v10_3_set_power_brake_sequence(adev);
+
 	return r;
 }
 
@@ -9179,6 +9186,31 @@ static void gfx_v10_3_program_pbb_mode(struct amdgpu_device *adev)
 			break;
 		}
 	}
+}
+
+static void gfx_v10_3_set_power_brake_sequence(struct amdgpu_device *adev)
+{
+	WREG32_SOC15(GC, 0, mmGRBM_GFX_INDEX,
+		     (0x1 << GRBM_GFX_INDEX__SA_BROADCAST_WRITES__SHIFT) |
+		     (0x1 << GRBM_GFX_INDEX__INSTANCE_BROADCAST_WRITES__SHIFT) |
+		     (0x1 << GRBM_GFX_INDEX__SE_BROADCAST_WRITES__SHIFT));
+
+	WREG32_SOC15(GC, 0, mmGC_CAC_IND_INDEX, ixPWRBRK_STALL_PATTERN_CTRL);
+	WREG32_SOC15(GC, 0, mmGC_CAC_IND_DATA,
+		     (0x1 << PWRBRK_STALL_PATTERN_CTRL__PWRBRK_STEP_INTERVAL__SHIFT) |
+		     (0x12 << PWRBRK_STALL_PATTERN_CTRL__PWRBRK_BEGIN_STEP__SHIFT) |
+		     (0x13 << PWRBRK_STALL_PATTERN_CTRL__PWRBRK_END_STEP__SHIFT) |
+		     (0xf << PWRBRK_STALL_PATTERN_CTRL__PWRBRK_THROTTLE_PATTERN_BIT_NUMS__SHIFT));
+
+	WREG32_SOC15(GC, 0, mmGC_THROTTLE_CTRL_Sienna_Cichlid,
+		     (0x1 << GC_THROTTLE_CTRL__PWRBRK_STALL_EN__SHIFT) |
+		     (0x1 << GC_THROTTLE_CTRL__PATTERN_MODE__SHIFT) |
+		     (0x5 << GC_THROTTLE_CTRL__RELEASE_STEP_INTERVAL__SHIFT));
+
+	WREG32_SOC15(GC, 0, mmDIDT_IND_INDEX, ixDIDT_SQ_THROTTLE_CTRL);
+
+	WREG32_SOC15(GC, 0, mmDIDT_IND_DATA,
+		     (0x1 << DIDT_SQ_THROTTLE_CTRL__PWRBRK_STALL_EN__SHIFT));
 }
 
 const struct amdgpu_ip_block_version gfx_v10_0_ip_block =
