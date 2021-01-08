@@ -317,6 +317,4 @@ struct dmcu *dcn21_dmcu_create(
 
 void dce_dmcu_destroy(struct dmcu **dmcu);
 
-static const uint32_t abm_gain_stepsize = 0x0060;
-
 #endif /* _DCE_ABM_H_ */
