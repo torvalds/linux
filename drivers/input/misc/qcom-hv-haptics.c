@@ -230,6 +230,9 @@
 #define HAP_BOOST_V0P0				0x0000
 #define HAP_BOOST_V0P1				0x0001
 
+#define HAP_BOOST_STATUS4_REG			0x0B
+#define BOOST_DTEST1_STATUS_BIT			BIT(0)
+
 #define HAP_BOOST_HW_CTRL_FOLLOW_REG		0x41
 #define FOLLOW_HW_EN_BIT			BIT(7)
 #define FOLLOW_HW_CCM_BIT			BIT(6)
@@ -1158,6 +1161,45 @@ static bool is_boost_vreg_enabled_in_open_loop(struct haptics_chip *chip)
 	}
 
 	return false;
+}
+
+#define HBOOST_WAIT_READY_COUNT		100
+#define HBOOST_WAIT_READY_INTERVAL_US	200
+static int haptics_wait_hboost_ready(struct haptics_chip *chip)
+{
+	int i, rc;
+	u8 val;
+
+	/*
+	 * Wait ~20ms until hBoost is ready, otherwise
+	 * bail out and return -EBUSY
+	 */
+	for (i = 0; i < HBOOST_WAIT_READY_COUNT; i++) {
+		/* HBoost is always ready when working in open loop mode */
+		if (is_boost_vreg_enabled_in_open_loop(chip))
+			return 0;
+
+		/* Check if HBoost is in standby (disabled) state */
+		rc = haptics_read(chip, chip->hbst_addr_base,
+				HAP_BOOST_VREG_EN_REG, &val, 1);
+		if (!rc && !(val & VREG_EN_BIT)) {
+			rc = haptics_read(chip, chip->hbst_addr_base,
+					HAP_BOOST_STATUS4_REG, &val, 1);
+			if (!rc && !(val & BOOST_DTEST1_STATUS_BIT))
+				return 0;
+		}
+
+		dev_dbg(chip->dev, "hBoost is busy, wait %d\n", i);
+		usleep_range(HBOOST_WAIT_READY_INTERVAL_US,
+				HBOOST_WAIT_READY_INTERVAL_US + 1);
+	}
+
+	if (i == HBOOST_WAIT_READY_COUNT) {
+		dev_err(chip->dev, "hboost is not ready for haptics play\n");
+		return -EBUSY;
+	}
+
+	return 0;
 }
 
 static int haptics_enable_hpwr_vreg(struct haptics_chip *chip, bool en)
@@ -2163,10 +2205,12 @@ static int haptics_upload_effect(struct input_dev *dev,
 	}
 
 	rc = haptics_enable_hpwr_vreg(chip, true);
-	if (rc < 0)
-		dev_err(chip->dev, "enable hpwr_vreg failed, rc=%d\n");
+	if (rc < 0) {
+		dev_err(chip->dev, "enable hpwr_vreg failed, rc=%d\n", rc);
+		return rc;
+	}
 
-	return rc;
+	return haptics_wait_hboost_ready(chip);
 }
 
 static int haptics_stop_fifo_play(struct haptics_chip *chip)
@@ -2249,7 +2293,8 @@ static int haptics_erase(struct input_dev *dev, int effect_id)
 
 		rc = haptics_stop_fifo_play(chip);
 		if (rc < 0) {
-			dev_err(chip->dev, "stop FIFO playing failed, rc=%d\n");
+			dev_err(chip->dev, "stop FIFO playing failed, rc=%d\n",
+					rc);
 			mutex_unlock(&play->lock);
 			return rc;
 		}
