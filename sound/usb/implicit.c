@@ -378,20 +378,19 @@ snd_usb_find_implicit_fb_sync_format(struct snd_usb_audio *chip,
 				     int stream)
 {
 	struct snd_usb_substream *subs;
-	const struct audioformat *fp, *sync_fmt;
+	const struct audioformat *fp, *sync_fmt = NULL;
 	int score, high_score;
 
-	/* When sharing the same altset, use the original audioformat */
+	/* Use the original audioformat as fallback for the shared altset */
 	if (target->iface == target->sync_iface &&
 	    target->altsetting == target->sync_altsetting)
-		return target;
+		sync_fmt = target;
 
 	subs = find_matching_substream(chip, stream, target->sync_ep,
 				       target->fmt_type);
 	if (!subs)
-		return NULL;
+		return sync_fmt;
 
-	sync_fmt = NULL;
 	high_score = 0;
 	list_for_each_entry(fp, &subs->fmt_list, list) {
 		score = match_endpoint_audioformats(subs, fp,
