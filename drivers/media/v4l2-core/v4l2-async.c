@@ -147,16 +147,6 @@ static bool match_fwnode(struct v4l2_async_notifier *notifier,
 	return true;
 }
 
-static bool match_custom(struct v4l2_async_notifier *notifier,
-			 struct v4l2_subdev *sd, struct v4l2_async_subdev *asd)
-{
-	if (!asd->match.custom.match)
-		/* Match always */
-		return true;
-
-	return asd->match.custom.match(sd->dev, asd);
-}
-
 static LIST_HEAD(subdev_list);
 static LIST_HEAD(notifier_list);
 static DEFINE_MUTEX(list_lock);
@@ -172,9 +162,6 @@ v4l2_async_find_match(struct v4l2_async_notifier *notifier,
 	list_for_each_entry(asd, &notifier->waiting, list) {
 		/* bus_type has been verified valid before */
 		switch (asd->match_type) {
-		case V4L2_ASYNC_MATCH_CUSTOM:
-			match = match_custom;
-			break;
 		case V4L2_ASYNC_MATCH_DEVNAME:
 			match = match_devname;
 			break;
@@ -475,7 +462,6 @@ static int v4l2_async_notifier_asd_valid(struct v4l2_async_notifier *notifier,
 		return -EINVAL;
 
 	switch (asd->match_type) {
-	case V4L2_ASYNC_MATCH_CUSTOM:
 	case V4L2_ASYNC_MATCH_DEVNAME:
 	case V4L2_ASYNC_MATCH_I2C:
 	case V4L2_ASYNC_MATCH_FWNODE:

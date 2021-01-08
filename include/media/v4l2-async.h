@@ -21,8 +21,6 @@ struct v4l2_async_notifier;
  * enum v4l2_async_match_type - type of asynchronous subdevice logic to be used
  *	in order to identify a match
  *
- * @V4L2_ASYNC_MATCH_CUSTOM: Match will use the logic provided by &struct
- *	v4l2_async_subdev.match ops
  * @V4L2_ASYNC_MATCH_DEVNAME: Match will use the device name
  * @V4L2_ASYNC_MATCH_I2C: Match will check for I2C adapter ID and address
  * @V4L2_ASYNC_MATCH_FWNODE: Match will use firmware node
@@ -31,7 +29,6 @@ struct v4l2_async_notifier;
  * algorithm that will be used to match an asynchronous device.
  */
 enum v4l2_async_match_type {
-	V4L2_ASYNC_MATCH_CUSTOM,
 	V4L2_ASYNC_MATCH_DEVNAME,
 	V4L2_ASYNC_MATCH_I2C,
 	V4L2_ASYNC_MATCH_FWNODE,
@@ -58,15 +55,6 @@ enum v4l2_async_match_type {
  * @match.i2c.address:
  *		I2C address to be matched.
  *		Used if @match_type is %V4L2_ASYNC_MATCH_I2C.
- * @match.custom:
- *		Driver-specific match criteria.
- *		Used if @match_type is %V4L2_ASYNC_MATCH_CUSTOM.
- * @match.custom.match:
- *		Driver-specific match function to be used if
- *		%V4L2_ASYNC_MATCH_CUSTOM.
- * @match.custom.priv:
- *		Driver-specific private struct with match parameters
- *		to be used if %V4L2_ASYNC_MATCH_CUSTOM.
  * @asd_list:	used to add struct v4l2_async_subdev objects to the
  *		master notifier @asd_list
  * @list:	used to link struct v4l2_async_subdev objects, waiting to be
@@ -85,11 +73,6 @@ struct v4l2_async_subdev {
 			int adapter_id;
 			unsigned short address;
 		} i2c;
-		struct {
-			bool (*match)(struct device *dev,
-				      struct v4l2_async_subdev *sd);
-			void *priv;
-		} custom;
 	} match;
 
 	/* v4l2-async core private: not to be used by drivers */
