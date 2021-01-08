@@ -110,4 +110,11 @@ void intel_gt_show_timelines(struct intel_gt *gt,
 						  const char *prefix,
 						  int indent));
 
+static inline bool
+intel_timeline_is_last(const struct intel_timeline *tl,
+		       const struct i915_request *rq)
+{
+	return list_is_last_rcu(&rq->link, &tl->requests);
+}
+
 #endif
