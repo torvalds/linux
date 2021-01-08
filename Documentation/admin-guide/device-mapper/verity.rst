@@ -134,7 +134,12 @@ root_hash_sig_key_desc <key_description>
     the pkcs7 signature of the roothash. The pkcs7 signature is used to validate
     the root hash during the creation of the device mapper block device.
     Verification of roothash depends on the config DM_VERITY_VERIFY_ROOTHASH_SIG
-    being set in the kernel.
+    being set in the kernel.  The signatures are checked against the builtin
+    trusted keyring by default, or the secondary trusted keyring if
+    DM_VERITY_VERIFY_ROOTHASH_SIG_SECONDARY_KEYRING is set.  The secondary
+    trusted keyring includes by default the builtin trusted keyring, and it can
+    also gain new certificates at run time if they are signed by a certificate
+    already in the secondary trusted keyring.
 
 Theory of operation
 ===================
