@@ -120,6 +120,40 @@ static int create_standard_audio_quirk(struct snd_usb_audio *chip,
 	return 0;
 }
 
+/* create the audio stream and the corresponding endpoints from the fixed
+ * audioformat object; this is used for quirks with the fixed EPs
+ */
+static int add_audio_stream_from_fixed_fmt(struct snd_usb_audio *chip,
+					   struct audioformat *fp)
+{
+	int stream, err;
+
+	stream = (fp->endpoint & USB_DIR_IN) ?
+		SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK;
+
+	snd_usb_audioformat_set_sync_ep(chip, fp);
+
+	err = snd_usb_add_audio_stream(chip, stream, fp);
+	if (err < 0)
+		return err;
+
+	err = snd_usb_add_endpoint(chip, fp->endpoint,
+				   SND_USB_ENDPOINT_TYPE_DATA);
+	if (err < 0)
+		return err;
+
+	if (fp->sync_ep) {
+		err = snd_usb_add_endpoint(chip, fp->sync_ep,
+					   fp->implicit_fb ?
+					   SND_USB_ENDPOINT_TYPE_DATA :
+					   SND_USB_ENDPOINT_TYPE_SYNC);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
 /*
  * create a stream for an endpoint/altsetting without proper descriptors
  */
@@ -131,8 +165,8 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 	struct audioformat *fp;
 	struct usb_host_interface *alts;
 	struct usb_interface_descriptor *altsd;
-	int stream, err;
 	unsigned *rate_table = NULL;
+	int err;
 
 	fp = kmemdup(quirk->data, sizeof(*fp), GFP_KERNEL);
 	if (!fp)
@@ -153,11 +187,6 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 		fp->rate_table = rate_table;
 	}
 
-	stream = (fp->endpoint & USB_DIR_IN)
-		? SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK;
-	err = snd_usb_add_audio_stream(chip, stream, fp);
-	if (err < 0)
-		goto error;
 	if (fp->iface != get_iface_desc(&iface->altsetting[0])->bInterfaceNumber ||
 	    fp->altset_idx >= iface->num_altsetting) {
 		err = -EINVAL;
@@ -165,7 +194,7 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 	}
 	alts = &iface->altsetting[fp->altset_idx];
 	altsd = get_iface_desc(alts);
-	if (altsd->bNumEndpoints < 1) {
+	if (altsd->bNumEndpoints <= fp->ep_idx) {
 		err = -EINVAL;
 		goto error;
 	}
@@ -175,7 +204,14 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 	if (fp->datainterval == 0)
 		fp->datainterval = snd_usb_parse_datainterval(chip, alts);
 	if (fp->maxpacksize == 0)
-		fp->maxpacksize = le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize);
+		fp->maxpacksize = le16_to_cpu(get_endpoint(alts, fp->ep_idx)->wMaxPacketSize);
+	if (!fp->fmt_type)
+		fp->fmt_type = UAC_FORMAT_TYPE_I;
+
+	err = add_audio_stream_from_fixed_fmt(chip, fp);
+	if (err < 0)
+		goto error;
+
 	usb_set_interface(chip->dev, fp->iface, 0);
 	snd_usb_init_pitch(chip, fp);
 	snd_usb_init_sample_rate(chip, fp, fp->rate_max);
@@ -417,7 +453,7 @@ static int create_uaxx_quirk(struct snd_usb_audio *chip,
 	struct usb_host_interface *alts;
 	struct usb_interface_descriptor *altsd;
 	struct audioformat *fp;
-	int stream, err;
+	int err;
 
 	/* both PCM and MIDI interfaces have 2 or more altsettings */
 	if (iface->num_altsetting < 2)
@@ -482,9 +518,7 @@ static int create_uaxx_quirk(struct snd_usb_audio *chip,
 		return -ENXIO;
 	}
 
-	stream = (fp->endpoint & USB_DIR_IN)
-		? SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK;
-	err = snd_usb_add_audio_stream(chip, stream, fp);
+	err = add_audio_stream_from_fixed_fmt(chip, fp);
 	if (err < 0) {
 		list_del(&fp->list); /* unlink for avoiding double-free */
 		kfree(fp);
