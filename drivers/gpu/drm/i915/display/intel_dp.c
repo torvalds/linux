@@ -6324,13 +6324,8 @@ void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder)
 void intel_dp_encoder_shutdown(struct intel_encoder *intel_encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(intel_encoder);
-	intel_wakeref_t wakeref;
 
-	if (!intel_dp_is_edp(intel_dp))
-		return;
-
-	with_intel_pps_lock(intel_dp, wakeref)
-		wait_panel_power_cycle(intel_dp);
+	intel_pps_wait_power_cycle(intel_dp);
 }
 
 static enum pipe vlv_active_pipe(struct intel_dp *intel_dp)

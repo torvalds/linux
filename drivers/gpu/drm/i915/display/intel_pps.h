@@ -37,8 +37,7 @@ void intel_pps_on(struct intel_dp *intel_dp);
 void intel_pps_off(struct intel_dp *intel_dp);
 void intel_pps_vdd_off_sync(struct intel_dp *intel_dp);
 bool intel_pps_have_power(struct intel_dp *intel_dp);
-
-void wait_panel_power_cycle(struct intel_dp *intel_dp);
+void intel_pps_wait_power_cycle(struct intel_dp *intel_dp);
 
 void intel_pps_init(struct intel_dp *intel_dp);
 void intel_pps_encoder_reset(struct intel_dp *intel_dp);

@@ -500,7 +500,7 @@ static void wait_panel_off(struct intel_dp *intel_dp)
 	wait_panel_status(intel_dp, IDLE_OFF_MASK, IDLE_OFF_VALUE);
 }
 
-void wait_panel_power_cycle(struct intel_dp *intel_dp)
+static void wait_panel_power_cycle(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	ktime_t panel_power_on_time;
@@ -520,6 +520,17 @@ void wait_panel_power_cycle(struct intel_dp *intel_dp)
 				       intel_dp->panel_power_cycle_delay - panel_power_off_duration);
 
 	wait_panel_status(intel_dp, IDLE_CYCLE_MASK, IDLE_CYCLE_VALUE);
+}
+
+void intel_pps_wait_power_cycle(struct intel_dp *intel_dp)
+{
+	intel_wakeref_t wakeref;
+
+	if (!intel_dp_is_edp(intel_dp))
+		return;
+
+	with_intel_pps_lock(intel_dp, wakeref)
+		wait_panel_power_cycle(intel_dp);
 }
 
 static void wait_backlight_on(struct intel_dp *intel_dp)
