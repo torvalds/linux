@@ -791,6 +791,10 @@ int tb_domain_disconnect_pcie_paths(struct tb *tb)
  * tb_domain_approve_xdomain_paths() - Enable DMA paths for XDomain
  * @tb: Domain enabling the DMA paths
  * @xd: XDomain DMA paths are created to
+ * @transmit_path: HopID we are using to send out packets
+ * @transmit_ring: DMA ring used to send out packets
+ * @receive_path: HopID the other end is using to send packets to us
+ * @receive_ring: DMA ring used to receive packets from @receive_path
  *
  * Calls connection manager specific method to enable DMA paths to the
  * XDomain in question.
@@ -799,18 +803,25 @@ int tb_domain_disconnect_pcie_paths(struct tb *tb)
  * particular returns %-ENOTSUPP if the connection manager
  * implementation does not support XDomains.
  */
-int tb_domain_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+int tb_domain_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
+				    int transmit_path, int transmit_ring,
+				    int receive_path, int receive_ring)
 {
 	if (!tb->cm_ops->approve_xdomain_paths)
 		return -ENOTSUPP;
 
-	return tb->cm_ops->approve_xdomain_paths(tb, xd);
+	return tb->cm_ops->approve_xdomain_paths(tb, xd, transmit_path,
+			transmit_ring, receive_path, receive_ring);
 }
 
 /**
  * tb_domain_disconnect_xdomain_paths() - Disable DMA paths for XDomain
  * @tb: Domain disabling the DMA paths
  * @xd: XDomain whose DMA paths are disconnected
+ * @transmit_path: HopID we are using to send out packets
+ * @transmit_ring: DMA ring used to send out packets
+ * @receive_path: HopID the other end is using to send packets to us
+ * @receive_ring: DMA ring used to receive packets from @receive_path
  *
  * Calls connection manager specific method to disconnect DMA paths to
  * the XDomain in question.
@@ -819,12 +830,15 @@ int tb_domain_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
  * particular returns %-ENOTSUPP if the connection manager
  * implementation does not support XDomains.
  */
-int tb_domain_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+int tb_domain_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
+				       int transmit_path, int transmit_ring,
+				       int receive_path, int receive_ring)
 {
 	if (!tb->cm_ops->disconnect_xdomain_paths)
 		return -ENOTSUPP;
 
-	return tb->cm_ops->disconnect_xdomain_paths(tb, xd);
+	return tb->cm_ops->disconnect_xdomain_paths(tb, xd, transmit_path,
+			transmit_ring, receive_path, receive_ring);
 }
 
 static int disconnect_xdomain(struct device *dev, void *data)
@@ -835,7 +849,7 @@ static int disconnect_xdomain(struct device *dev, void *data)
 
 	xd = tb_to_xdomain(dev);
 	if (xd && xd->tb == tb)
-		ret = tb_xdomain_disable_paths(xd);
+		ret = tb_xdomain_disable_all_paths(xd);
 
 	return ret;
 }

@@ -1295,6 +1295,8 @@ static void tb_xdomain_release(struct device *dev)
 
 	kfree(xd->local_property_block);
 	tb_property_free_dir(xd->remote_properties);
+	ida_destroy(&xd->out_hopids);
+	ida_destroy(&xd->in_hopids);
 	ida_destroy(&xd->service_ids);
 
 	kfree(xd->local_uuid);
@@ -1388,6 +1390,8 @@ struct tb_xdomain *tb_xdomain_alloc(struct tb *tb, struct device *parent,
 	xd->route = route;
 	xd->local_max_hopid = down->config.max_in_hop_id;
 	ida_init(&xd->service_ids);
+	ida_init(&xd->in_hopids);
+	ida_init(&xd->out_hopids);
 	mutex_init(&xd->lock);
 	INIT_DELAYED_WORK(&xd->get_uuid_work, tb_xdomain_get_uuid);
 	INIT_DELAYED_WORK(&xd->get_properties_work, tb_xdomain_get_properties);
@@ -1553,73 +1557,118 @@ void tb_xdomain_lane_bonding_disable(struct tb_xdomain *xd)
 EXPORT_SYMBOL_GPL(tb_xdomain_lane_bonding_disable);
 
 /**
+ * tb_xdomain_alloc_in_hopid() - Allocate input HopID for tunneling
+ * @xd: XDomain connection
+ * @hopid: Preferred HopID or %-1 for next available
+ *
+ * Returns allocated HopID or negative errno. Specifically returns
+ * %-ENOSPC if there are no more available HopIDs. Returned HopID is
+ * guaranteed to be within range supported by the input lane adapter.
+ * Call tb_xdomain_release_in_hopid() to release the allocated HopID.
+ */
+int tb_xdomain_alloc_in_hopid(struct tb_xdomain *xd, int hopid)
+{
+	if (hopid < 0)
+		hopid = TB_PATH_MIN_HOPID;
+	if (hopid < TB_PATH_MIN_HOPID || hopid > xd->local_max_hopid)
+		return -EINVAL;
+
+	return ida_alloc_range(&xd->in_hopids, hopid, xd->local_max_hopid,
+			       GFP_KERNEL);
+}
+EXPORT_SYMBOL_GPL(tb_xdomain_alloc_in_hopid);
+
+/**
+ * tb_xdomain_alloc_out_hopid() - Allocate output HopID for tunneling
+ * @xd: XDomain connection
+ * @hopid: Preferred HopID or %-1 for next available
+ *
+ * Returns allocated HopID or negative errno. Specifically returns
+ * %-ENOSPC if there are no more available HopIDs. Returned HopID is
+ * guaranteed to be within range supported by the output lane adapter.
+ * Call tb_xdomain_release_in_hopid() to release the allocated HopID.
+ */
+int tb_xdomain_alloc_out_hopid(struct tb_xdomain *xd, int hopid)
+{
+	if (hopid < 0)
+		hopid = TB_PATH_MIN_HOPID;
+	if (hopid < TB_PATH_MIN_HOPID || hopid > xd->remote_max_hopid)
+		return -EINVAL;
+
+	return ida_alloc_range(&xd->out_hopids, hopid, xd->remote_max_hopid,
+			       GFP_KERNEL);
+}
+EXPORT_SYMBOL_GPL(tb_xdomain_alloc_out_hopid);
+
+/**
+ * tb_xdomain_release_in_hopid() - Release input HopID
+ * @xd: XDomain connection
+ * @hopid: HopID to release
+ */
+void tb_xdomain_release_in_hopid(struct tb_xdomain *xd, int hopid)
+{
+	ida_free(&xd->in_hopids, hopid);
+}
+EXPORT_SYMBOL_GPL(tb_xdomain_release_in_hopid);
+
+/**
+ * tb_xdomain_release_out_hopid() - Release output HopID
+ * @xd: XDomain connection
+ * @hopid: HopID to release
+ */
+void tb_xdomain_release_out_hopid(struct tb_xdomain *xd, int hopid)
+{
+	ida_free(&xd->out_hopids, hopid);
+}
+EXPORT_SYMBOL_GPL(tb_xdomain_release_out_hopid);
+
+/**
  * tb_xdomain_enable_paths() - Enable DMA paths for XDomain connection
  * @xd: XDomain connection
- * @transmit_path: HopID of the transmit path the other end is using to
- *		   send packets
- * @transmit_ring: DMA ring used to receive packets from the other end
- * @receive_path: HopID of the receive path the other end is using to
- *		  receive packets
- * @receive_ring: DMA ring used to send packets to the other end
+ * @transmit_path: HopID we are using to send out packets
+ * @transmit_ring: DMA ring used to send out packets
+ * @receive_path: HopID the other end is using to send packets to us
+ * @receive_ring: DMA ring used to receive packets from @receive_path
  *
  * The function enables DMA paths accordingly so that after successful
  * return the caller can send and receive packets using high-speed DMA
- * path.
+ * path. If a transmit or receive path is not needed, pass %-1 for those
+ * parameters.
  *
  * Return: %0 in case of success and negative errno in case of error
  */
-int tb_xdomain_enable_paths(struct tb_xdomain *xd, u16 transmit_path,
-			    u16 transmit_ring, u16 receive_path,
-			    u16 receive_ring)
+int tb_xdomain_enable_paths(struct tb_xdomain *xd, int transmit_path,
+			    int transmit_ring, int receive_path,
+			    int receive_ring)
 {
-	int ret;
-
-	mutex_lock(&xd->lock);
-
-	if (xd->transmit_path) {
-		ret = xd->transmit_path == transmit_path ? 0 : -EBUSY;
-		goto exit_unlock;
-	}
-
-	xd->transmit_path = transmit_path;
-	xd->transmit_ring = transmit_ring;
-	xd->receive_path = receive_path;
-	xd->receive_ring = receive_ring;
-
-	ret = tb_domain_approve_xdomain_paths(xd->tb, xd);
-
-exit_unlock:
-	mutex_unlock(&xd->lock);
-
-	return ret;
+	return tb_domain_approve_xdomain_paths(xd->tb, xd, transmit_path,
+					       transmit_ring, receive_path,
+					       receive_ring);
 }
 EXPORT_SYMBOL_GPL(tb_xdomain_enable_paths);
 
 /**
  * tb_xdomain_disable_paths() - Disable DMA paths for XDomain connection
  * @xd: XDomain connection
+ * @transmit_path: HopID we are using to send out packets
+ * @transmit_ring: DMA ring used to send out packets
+ * @receive_path: HopID the other end is using to send packets to us
+ * @receive_ring: DMA ring used to receive packets from @receive_path
  *
  * This does the opposite of tb_xdomain_enable_paths(). After call to
- * this the caller is not expected to use the rings anymore.
+ * this the caller is not expected to use the rings anymore. Passing %-1
+ * as path/ring parameter means don't care. Normally the callers should
+ * pass the same values here as they do when paths are enabled.
  *
  * Return: %0 in case of success and negative errno in case of error
  */
-int tb_xdomain_disable_paths(struct tb_xdomain *xd)
+int tb_xdomain_disable_paths(struct tb_xdomain *xd, int transmit_path,
+			     int transmit_ring, int receive_path,
+			     int receive_ring)
 {
-	int ret = 0;
-
-	mutex_lock(&xd->lock);
-	if (xd->transmit_path) {
-		xd->transmit_path = 0;
-		xd->transmit_ring = 0;
-		xd->receive_path = 0;
-		xd->receive_ring = 0;
-
-		ret = tb_domain_disconnect_xdomain_paths(xd->tb, xd);
-	}
-	mutex_unlock(&xd->lock);
-
-	return ret;
+	return tb_domain_disconnect_xdomain_paths(xd->tb, xd, transmit_path,
+						  transmit_ring, receive_path,
+						  receive_ring);
 }
 EXPORT_SYMBOL_GPL(tb_xdomain_disable_paths);
 
