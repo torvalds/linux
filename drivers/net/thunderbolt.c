@@ -25,12 +25,13 @@
 /* Protocol timeouts in ms */
 #define TBNET_LOGIN_DELAY	4500
 #define TBNET_LOGIN_TIMEOUT	500
-#define TBNET_LOGOUT_TIMEOUT	100
+#define TBNET_LOGOUT_TIMEOUT	1000
 
 #define TBNET_RING_SIZE		256
 #define TBNET_LOGIN_RETRIES	60
-#define TBNET_LOGOUT_RETRIES	5
+#define TBNET_LOGOUT_RETRIES	10
 #define TBNET_MATCH_FRAGS_ID	BIT(1)
+#define TBNET_64K_FRAMES	BIT(2)
 #define TBNET_MAX_MTU		SZ_64K
 #define TBNET_FRAME_SIZE	SZ_4K
 #define TBNET_MAX_PAYLOAD_SIZE	\
@@ -1367,7 +1368,7 @@ static int __init tbnet_init(void)
 	 * the moment.
 	 */
 	tb_property_add_immediate(tbnet_dir, "prtcstns",
-				  TBNET_MATCH_FRAGS_ID);
+				  TBNET_MATCH_FRAGS_ID | TBNET_64K_FRAMES);
 
 	ret = tb_register_property_dir("network", tbnet_dir);
 	if (ret) {
