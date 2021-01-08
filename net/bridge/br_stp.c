@@ -601,8 +601,8 @@ int __set_ageing_time(struct net_device *dev, unsigned long t)
 /* Set time interval that dynamic forwarding entries live
  * For pure software bridge, allow values outside the 802.1
  * standard specification for special cases:
- *  0 - entry never ages (all permanant)
- *  1 - entry disappears (no persistance)
+ *  0 - entry never ages (all permanent)
+ *  1 - entry disappears (no persistence)
  *
  * Offloaded switch entries maybe more restrictive
  */

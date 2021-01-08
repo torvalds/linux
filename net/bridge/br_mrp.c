@@ -825,7 +825,7 @@ int br_mrp_start_in_test(struct net_bridge *br,
 	return 0;
 }
 
-/* Determin if the frame type is a ring frame */
+/* Determine if the frame type is a ring frame */
 static bool br_mrp_ring_frame(struct sk_buff *skb)
 {
 	const struct br_mrp_tlv_hdr *hdr;
@@ -845,7 +845,7 @@ static bool br_mrp_ring_frame(struct sk_buff *skb)
 	return false;
 }
 
-/* Determin if the frame type is an interconnect frame */
+/* Determine if the frame type is an interconnect frame */
 static bool br_mrp_in_frame(struct sk_buff *skb)
 {
 	const struct br_mrp_tlv_hdr *hdr;
@@ -894,7 +894,7 @@ static void br_mrp_mrm_process(struct br_mrp *mrp, struct net_bridge_port *port,
 		br_mrp_ring_port_open(port->dev, false);
 }
 
-/* Determin if the test hdr has a better priority than the node */
+/* Determine if the test hdr has a better priority than the node */
 static bool br_mrp_test_better_than_own(struct br_mrp *mrp,
 					struct net_bridge *br,
 					const struct br_mrp_ring_test_hdr *hdr)
