@@ -2692,6 +2692,8 @@ static bool io_rw_reissue(struct io_kiocb *req, long res)
 	if ((res != -EAGAIN && res != -EOPNOTSUPP) || io_wq_current_is_worker())
 		return false;
 
+	lockdep_assert_held(&req->ctx->uring_lock);
+
 	ret = io_sq_thread_acquire_mm_files(req->ctx, req);
 
 	if (io_resubmit_prep(req, ret)) {
