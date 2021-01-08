@@ -134,6 +134,13 @@ Contact:	thunderbolt-software@lists.01.org
 Description:	This attribute contains name of this device extracted from
 		the device DROM.
 
+What:		/sys/bus/thunderbolt/devices/.../maxhopid
+Date:		Jul 2021
+KernelVersion:	5.13
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:	Only set for XDomains. The maximum HopID the other host
+		supports as its input HopID.
+
 What:		/sys/bus/thunderbolt/devices/.../rx_speed
 Date:		Jan 2020
 KernelVersion:	5.5

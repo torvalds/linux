@@ -180,6 +180,8 @@ void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir);
  * @route: Route string the other domain can be reached
  * @vendor: Vendor ID of the remote domain
  * @device: Device ID of the demote domain
+ * @local_max_hopid: Maximum input HopID of this host
+ * @remote_max_hopid: Maximum input HopID of the remote host
  * @lock: Lock to serialize access to the following fields of this structure
  * @vendor_name: Name of the vendor (or %NULL if not known)
  * @device_name: Name of the device (or %NULL if not known)
@@ -193,9 +195,11 @@ void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir);
  * @receive_path: HopID which we expect the remote end to transmit
  * @receive_ring: Local ring (hop) where incoming packets arrive
  * @service_ids: Used to generate IDs for the services
- * @properties: Properties exported by the remote domain
- * @property_block_gen: Generation of @properties
- * @properties_lock: Lock protecting @properties.
+ * @local_property_block: Local block of properties
+ * @local_property_block_gen: Generation of @local_property_block
+ * @local_property_block_len: Length of the @local_property_block in dwords
+ * @remote_properties: Properties exported by the remote domain
+ * @remote_property_block_gen: Generation of @remote_properties
  * @get_uuid_work: Work used to retrieve @remote_uuid
  * @uuid_retries: Number of times left @remote_uuid is requested before
  *		  giving up
@@ -225,6 +229,8 @@ struct tb_xdomain {
 	u64 route;
 	u16 vendor;
 	u16 device;
+	unsigned int local_max_hopid;
+	unsigned int remote_max_hopid;
 	struct mutex lock;
 	const char *vendor_name;
 	const char *device_name;
@@ -237,8 +243,11 @@ struct tb_xdomain {
 	u16 receive_path;
 	u16 receive_ring;
 	struct ida service_ids;
-	struct tb_property_dir *properties;
-	u32 property_block_gen;
+	u32 *local_property_block;
+	u32 local_property_block_gen;
+	u32 local_property_block_len;
+	struct tb_property_dir *remote_properties;
+	u32 remote_property_block_gen;
 	struct delayed_work get_uuid_work;
 	int uuid_retries;
 	struct delayed_work get_properties_work;
