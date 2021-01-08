@@ -691,7 +691,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	return size;
 }
 
-/**
+/*
  * Returns the DMCUB tracebuffer contents.
  * Example usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_dmub_tracebuffer
  */
@@ -735,7 +735,7 @@ static int dmub_tracebuffer_show(struct seq_file *m, void *data)
 	return 0;
 }
 
-/**
+/*
  * Returns the DMCUB firmware state contents.
  * Example usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_dmub_fw_state
  */
