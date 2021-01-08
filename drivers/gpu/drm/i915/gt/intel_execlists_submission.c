@@ -581,21 +581,6 @@ resubmit_virtual_request(struct i915_request *rq, struct virtual_engine *ve)
 {
 	struct intel_engine_cs *engine = rq->engine;
 
-	/* Flush concurrent rcu iterators in signal_irq_work */
-	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &rq->fence.flags)) {
-		/*
-		 * After this point, the rq may be transferred to a new
-		 * sibling, so before we clear ce->inflight make sure that
-		 * the context has been removed from the b->signalers and
-		 * furthermore we need to make sure that the concurrent
-		 * iterator in signal_irq_work is no longer following
-		 * ce->signal_link.
-		 */
-		i915_request_cancel_breadcrumb(rq);
-		while (atomic_read(&engine->breadcrumbs->signaler_active))
-			cpu_relax();
-	}
-
 	spin_lock_irq(&engine->active.lock);
 
 	clear_bit(I915_FENCE_FLAG_PQUEUE, &rq->fence.flags);
@@ -609,6 +594,16 @@ static void kick_siblings(struct i915_request *rq, struct intel_context *ce)
 {
 	struct virtual_engine *ve = container_of(ce, typeof(*ve), context);
 	struct intel_engine_cs *engine = rq->engine;
+
+	/*
+	 * After this point, the rq may be transferred to a new sibling, so
+	 * before we clear ce->inflight make sure that the context has been
+	 * removed from the b->signalers and furthermore we need to make sure
+	 * that the concurrent iterator in signal_irq_work is no longer
+	 * following ce->signal_link.
+	 */
+	if (!list_empty(&ce->signals))
+		intel_context_remove_breadcrumbs(ce, engine->breadcrumbs);
 
 	/*
 	 * This engine is now too busy to run this virtual request, so

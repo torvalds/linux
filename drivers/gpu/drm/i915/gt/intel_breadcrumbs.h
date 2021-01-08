@@ -6,6 +6,7 @@
 #ifndef __INTEL_BREADCRUMBS__
 #define __INTEL_BREADCRUMBS__
 
+#include <linux/atomic.h>
 #include <linux/irq_work.h>
 
 #include "intel_engine_types.h"
@@ -43,5 +44,8 @@ void intel_engine_print_breadcrumbs(struct intel_engine_cs *engine,
 
 bool i915_request_enable_breadcrumb(struct i915_request *request);
 void i915_request_cancel_breadcrumb(struct i915_request *request);
+
+void intel_context_remove_breadcrumbs(struct intel_context *ce,
+				      struct intel_breadcrumbs *b);
 
 #endif /* __INTEL_BREADCRUMBS__ */

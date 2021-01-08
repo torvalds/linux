@@ -472,6 +472,39 @@ void i915_request_cancel_breadcrumb(struct i915_request *rq)
 	i915_request_put(rq);
 }
 
+void intel_context_remove_breadcrumbs(struct intel_context *ce,
+				      struct intel_breadcrumbs *b)
+{
+	struct i915_request *rq, *rn;
+	bool release = false;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ce->signal_lock, flags);
+
+	if (list_empty(&ce->signals))
+		goto unlock;
+
+	list_for_each_entry_safe(rq, rn, &ce->signals, signal_link) {
+		GEM_BUG_ON(!__i915_request_is_complete(rq));
+		if (!test_and_clear_bit(I915_FENCE_FLAG_SIGNAL,
+					&rq->fence.flags))
+			continue;
+
+		list_del_rcu(&rq->signal_link);
+		irq_signal_request(rq, b);
+		i915_request_put(rq);
+	}
+	release = remove_signaling_context(b, ce);
+
+unlock:
+	spin_unlock_irqrestore(&ce->signal_lock, flags);
+	if (release)
+		intel_context_put(ce);
+
+	while (atomic_read(&b->signaler_active))
+		cpu_relax();
+}
+
 static void print_signals(struct intel_breadcrumbs *b, struct drm_printer *p)
 {
 	struct intel_context *ce;
