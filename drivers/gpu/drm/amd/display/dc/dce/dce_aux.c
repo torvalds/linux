@@ -388,12 +388,6 @@ static enum aux_channel_operation_result get_channel_status(
 	}
 }
 
-enum i2caux_engine_type get_engine_type(
-		const struct dce_aux *engine)
-{
-	return I2CAUX_ENGINE_TYPE_AUX;
-}
-
 static bool acquire(
 	struct dce_aux *engine,
 	struct ddc *ddc)
