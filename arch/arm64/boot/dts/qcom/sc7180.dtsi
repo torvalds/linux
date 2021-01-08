@@ -3590,7 +3590,7 @@
 	};
 
 	thermal-zones {
-		cpu0-thermal {
+		cpu0_thermal: cpu0-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
@@ -3639,7 +3639,7 @@
 			};
 		};
 
-		cpu1-thermal {
+		cpu1_thermal: cpu1-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
@@ -3688,7 +3688,7 @@
 			};
 		};
 
-		cpu2-thermal {
+		cpu2_thermal: cpu2-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
@@ -3737,7 +3737,7 @@
 			};
 		};
 
-		cpu3-thermal {
+		cpu3_thermal: cpu3-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
@@ -3786,7 +3786,7 @@
 			};
 		};
 
-		cpu4-thermal {
+		cpu4_thermal: cpu4-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
@@ -3835,7 +3835,7 @@
 			};
 		};
 
-		cpu5-thermal {
+		cpu5_thermal: cpu5-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
@@ -3884,7 +3884,7 @@
 			};
 		};
 
-		cpu6-thermal {
+		cpu6_thermal: cpu6-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
@@ -3925,7 +3925,7 @@
 			};
 		};
 
-		cpu7-thermal {
+		cpu7_thermal: cpu7-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
@@ -3966,7 +3966,7 @@
 			};
 		};
 
-		cpu8-thermal {
+		cpu8_thermal: cpu8-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
@@ -4007,7 +4007,7 @@
 			};
 		};
 
-		cpu9-thermal {
+		cpu9_thermal: cpu9-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
