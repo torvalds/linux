@@ -190,6 +190,7 @@ static struct data_file *handle_mapped_file(struct mount_info *mi,
 	struct path path;
 	struct file *bf;
 	struct data_file *result = NULL;
+	const struct cred *old_cred;
 
 	file_id_str = file_id_to_str(df->df_id);
 	if (!file_id_str)
@@ -212,7 +213,11 @@ static struct data_file *handle_mapped_file(struct mount_info *mi,
 		.dentry = index_file_dentry
 	};
 
-	bf = dentry_open(&path, O_RDWR | O_NOATIME | O_LARGEFILE, mi->mi_owner);
+	old_cred = override_creds(mi->mi_owner);
+	bf = dentry_open(&path, O_RDWR | O_NOATIME | O_LARGEFILE,
+			 current_cred());
+	revert_creds(old_cred);
+
 	if (IS_ERR(bf)) {
 		result = (struct data_file *)bf;
 		goto out;
