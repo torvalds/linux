@@ -112,11 +112,11 @@ static int __measure_timestamps(struct intel_context *ce,
 
 	/* Run the request for a 100us, sampling timestamps before/after */
 	preempt_disable();
-	*dt = ktime_get_raw_fast_ns();
+	*dt = local_clock();
 	write_semaphore(&sema[2], 0);
 	udelay(100);
+	*dt = local_clock() - *dt;
 	write_semaphore(&sema[2], 1);
-	*dt = ktime_get_raw_fast_ns() - *dt;
 	preempt_enable();
 
 	if (i915_request_wait(rq, 0, HZ / 2) < 0) {
