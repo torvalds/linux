@@ -424,7 +424,7 @@ void dce110_opp_set_clamping(
  *		7 for programable
  *	2) Enable clamp if Limited range requested
  */
-void dce60_opp_set_clamping(
+static void dce60_opp_set_clamping(
 	struct dce110_opp *opp110,
 	const struct clamping_and_pixel_encoding_params *params)
 {
@@ -545,7 +545,7 @@ void dce110_opp_program_bit_depth_reduction(
 }
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
-void dce60_opp_program_bit_depth_reduction(
+static void dce60_opp_program_bit_depth_reduction(
 	struct output_pixel_processor *opp,
 	const struct bit_depth_reduction_params *params)
 {
@@ -568,7 +568,7 @@ void dce110_opp_program_clamping_and_pixel_encoding(
 }
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
-void dce60_opp_program_clamping_and_pixel_encoding(
+static void dce60_opp_program_clamping_and_pixel_encoding(
 	struct output_pixel_processor *opp,
 	const struct clamping_and_pixel_encoding_params *params)
 {
@@ -678,7 +678,7 @@ void dce110_opp_program_fmt(
 }
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
-void dce60_opp_program_fmt(
+static void dce60_opp_program_fmt(
 	struct output_pixel_processor *opp,
 	struct bit_depth_reduction_params *fmt_bit_depth,
 	struct clamping_and_pixel_encoding_params *clamping)
