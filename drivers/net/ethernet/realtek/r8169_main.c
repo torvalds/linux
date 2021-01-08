@@ -4892,7 +4892,7 @@ static void rtl_shutdown(struct pci_dev *pdev)
 			rtl_wol_shutdown_quirk(tp);
 		}
 
-		pci_wake_from_d3(pdev, true);
+		pci_wake_from_d3(pdev, tp->saved_wolopts);
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
 }
