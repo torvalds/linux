@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ */
+
+&i2s0_8ch {
+	clocks = <&cru MCLK_I2S0_TX>, <&cru MCLK_I2S0_RX>, <&cru HCLK_I2S0>,
+		 <&cru MCLK_I2S0_TX_DIV>, <&cru MCLK_I2S0_RX_DIV>,
+		 <&cru PLL_CPLL>, <&cru PLL_CPLL>;
+	clock-names = "mclk_tx", "mclk_rx", "hclk",
+		      "mclk_tx_src", "mclk_rx_src",
+		      "mclk_root0", "mclk_root1";
+	rockchip,mclk-calibrate;
+};
+
