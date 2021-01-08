@@ -2585,7 +2585,7 @@ static struct integrated_info *bios_parser_create_integrated_info(
 	return NULL;
 }
 
-enum bp_result update_slot_layout_info(
+static enum bp_result update_slot_layout_info(
 	struct dc_bios *dcb,
 	unsigned int i,
 	struct slot_layout_info *slot_layout_info,
@@ -2689,7 +2689,7 @@ enum bp_result update_slot_layout_info(
 }
 
 
-enum bp_result get_bracket_layout_record(
+static enum bp_result get_bracket_layout_record(
 	struct dc_bios *dcb,
 	unsigned int bracket_layout_id,
 	struct slot_layout_info *slot_layout_info)
