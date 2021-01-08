@@ -711,6 +711,7 @@ int mlx5e_tc_tun_route_lookup(struct mlx5e_priv *priv,
 			      struct mlx5_flow_attr *flow_attr)
 {
 	struct mlx5_esw_flow_attr *esw_attr = flow_attr->esw_attr;
+	struct mlx5e_tc_int_port *int_port;
 	TC_TUN_ROUTE_ATTR_INIT(attr);
 	u16 vport_num;
 	int err = 0;
@@ -735,17 +736,25 @@ int mlx5e_tc_tun_route_lookup(struct mlx5e_priv *priv,
 	if (err)
 		return err;
 
-	if (attr.route_dev->netdev_ops != &mlx5e_netdev_ops ||
-	    !mlx5e_tc_is_vf_tunnel(attr.out_dev, attr.route_dev))
-		goto out;
+	if (attr.route_dev->netdev_ops == &mlx5e_netdev_ops &&
+	    mlx5e_tc_is_vf_tunnel(attr.out_dev, attr.route_dev)) {
+		err = mlx5e_tc_query_route_vport(attr.out_dev, attr.route_dev, &vport_num);
+		if (err)
+			goto out;
 
-	err = mlx5e_tc_query_route_vport(attr.out_dev, attr.route_dev, &vport_num);
-	if (err)
-		goto out;
-
-	esw_attr->rx_tun_attr->vni = MLX5_GET(fte_match_param, spec->match_value,
-					      misc_parameters.vxlan_vni);
-	esw_attr->rx_tun_attr->decap_vport = vport_num;
+		esw_attr->rx_tun_attr->vni = MLX5_GET(fte_match_param, spec->match_value,
+						      misc_parameters.vxlan_vni);
+		esw_attr->rx_tun_attr->decap_vport = vport_num;
+	} else if (netif_is_ovs_master(attr.route_dev)) {
+		int_port = mlx5e_tc_int_port_get(mlx5e_get_int_port_priv(priv),
+						 attr.route_dev->ifindex,
+						 MLX5E_TC_INT_PORT_INGRESS);
+		if (IS_ERR(int_port)) {
+			err = PTR_ERR(int_port);
+			goto out;
+		}
+		esw_attr->int_port = int_port;
+	}
 
 out:
 	if (flow_attr->tun_ip_version == 4)
