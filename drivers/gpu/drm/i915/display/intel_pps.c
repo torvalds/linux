@@ -637,7 +637,7 @@ void intel_pps_vdd_on(struct intel_dp *intel_dp)
 			dp_to_dig_port(intel_dp)->base.base.name);
 }
 
-void intel_pps_vdd_off_sync_unlocked(struct intel_dp *intel_dp)
+static void intel_pps_vdd_off_sync_unlocked(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port =
@@ -676,6 +676,22 @@ void intel_pps_vdd_off_sync_unlocked(struct intel_dp *intel_dp)
 	intel_display_power_put(dev_priv,
 				intel_aux_power_domain(dig_port),
 				fetch_and_zero(&intel_dp->vdd_wakeref));
+}
+
+void intel_pps_vdd_off_sync(struct intel_dp *intel_dp)
+{
+	intel_wakeref_t wakeref;
+
+	if (!intel_dp_is_edp(intel_dp))
+		return;
+
+	cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
+	/*
+	 * vdd might still be enabled due to the delayed vdd off.
+	 * Make sure vdd is actually turned off here.
+	 */
+	with_intel_pps_lock(intel_dp, wakeref)
+		intel_pps_vdd_off_sync_unlocked(intel_dp);
 }
 
 void edp_panel_vdd_work(struct work_struct *__work)

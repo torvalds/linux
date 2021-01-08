@@ -6300,17 +6300,8 @@ void intel_dp_encoder_flush_work(struct drm_encoder *encoder)
 	struct intel_dp *intel_dp = &dig_port->dp;
 
 	intel_dp_mst_encoder_cleanup(dig_port);
-	if (intel_dp_is_edp(intel_dp)) {
-		intel_wakeref_t wakeref;
 
-		cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
-		/*
-		 * vdd might still be enabled do to the delayed vdd off.
-		 * Make sure vdd is actually turned off here.
-		 */
-		with_intel_pps_lock(intel_dp, wakeref)
-			intel_pps_vdd_off_sync_unlocked(intel_dp);
-	}
+	intel_pps_vdd_off_sync(intel_dp);
 
 	intel_dp_aux_fini(intel_dp);
 }
@@ -6326,18 +6317,8 @@ static void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(intel_encoder);
-	intel_wakeref_t wakeref;
 
-	if (!intel_dp_is_edp(intel_dp))
-		return;
-
-	/*
-	 * vdd might still be enabled do to the delayed vdd off.
-	 * Make sure vdd is actually turned off here.
-	 */
-	cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
-	with_intel_pps_lock(intel_dp, wakeref)
-		intel_pps_vdd_off_sync_unlocked(intel_dp);
+	intel_pps_vdd_off_sync(intel_dp);
 }
 
 void intel_dp_encoder_shutdown(struct intel_encoder *intel_encoder)
@@ -7191,13 +7172,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	return true;
 
 out_vdd_off:
-	cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
-	/*
-	 * vdd might still be enabled do to the delayed vdd off.
-	 * Make sure vdd is actually turned off here.
-	 */
-	with_intel_pps_lock(intel_dp, wakeref)
-		intel_pps_vdd_off_sync_unlocked(intel_dp);
+	intel_pps_vdd_off_sync(intel_dp);
 
 	return false;
 }
