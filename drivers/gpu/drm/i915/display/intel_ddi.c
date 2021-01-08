@@ -5321,8 +5321,7 @@ intel_ddi_max_lanes(struct intel_digital_port *dig_port)
 static bool hti_uses_phy(struct drm_i915_private *i915, enum phy phy)
 {
 	return i915->hti_state & HDPORT_ENABLED &&
-		(i915->hti_state & HDPORT_PHY_USED_DP(phy) ||
-		 i915->hti_state & HDPORT_PHY_USED_HDMI(phy));
+	       i915->hti_state & HDPORT_DDI_USED(phy);
 }
 
 static enum hpd_pin dg1_hpd_pin(struct drm_i915_private *dev_priv,
