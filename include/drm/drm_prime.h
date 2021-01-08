@@ -105,8 +105,9 @@ struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 
 void drm_prime_gem_destroy(struct drm_gem_object *obj, struct sg_table *sg);
 
-int drm_prime_sg_to_page_addr_arrays(struct sg_table *sgt, struct page **pages,
-				     dma_addr_t *addrs, int max_pages);
-
+int drm_prime_sg_to_page_array(struct sg_table *sgt, struct page **pages,
+			       int max_pages);
+int drm_prime_sg_to_dma_addr_array(struct sg_table *sgt, dma_addr_t *addrs,
+				   int max_pages);
 
 #endif /* __DRM_PRIME_H__ */

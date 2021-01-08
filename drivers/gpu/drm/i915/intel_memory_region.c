@@ -114,7 +114,7 @@ __intel_memory_region_get_pages_buddy(struct intel_memory_region *mem,
 		n_pages -= BIT(order);
 
 		block->private = mem;
-		list_add(&block->link, blocks);
+		list_add_tail(&block->link, blocks);
 
 		if (!n_pages)
 			break;

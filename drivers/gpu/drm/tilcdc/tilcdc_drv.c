@@ -166,7 +166,7 @@ static void tilcdc_fini(struct drm_device *dev)
 	drm_dev_put(dev);
 }
 
-static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
+static int tilcdc_init(const struct drm_driver *ddrv, struct device *dev)
 {
 	struct drm_device *ddev;
 	struct platform_device *pdev = to_platform_device(dev);
@@ -432,8 +432,8 @@ static int tilcdc_mm_show(struct seq_file *m, void *arg)
 }
 
 static struct drm_info_list tilcdc_debugfs_list[] = {
-		{ "regs", tilcdc_regs_show, 0 },
-		{ "mm",   tilcdc_mm_show,   0 },
+		{ "regs", tilcdc_regs_show, 0, NULL },
+		{ "mm",   tilcdc_mm_show,   0, NULL },
 };
 
 static void tilcdc_debugfs_init(struct drm_minor *minor)
@@ -452,7 +452,7 @@ static void tilcdc_debugfs_init(struct drm_minor *minor)
 
 DEFINE_DRM_GEM_CMA_FOPS(fops);
 
-static struct drm_driver tilcdc_driver = {
+static const struct drm_driver tilcdc_driver = {
 	.driver_features    = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.irq_handler        = tilcdc_irq,
 	DRM_GEM_CMA_DRIVER_OPS,

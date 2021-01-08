@@ -318,7 +318,7 @@ _initial_blocks_\@:
 
 	# Main loop - Encrypt/Decrypt remaining blocks
 
-	cmp	$0, %r13
+	test	%r13, %r13
 	je	_zero_cipher_left_\@
 	sub	$64, %r13
 	je	_four_cipher_left_\@
@@ -437,7 +437,7 @@ _multiple_of_16_bytes_\@:
 
 	mov PBlockLen(%arg2), %r12
 
-	cmp $0, %r12
+	test %r12, %r12
 	je _partial_done\@
 
 	GHASH_MUL %xmm8, %xmm13, %xmm9, %xmm10, %xmm11, %xmm5, %xmm6
@@ -474,7 +474,7 @@ _T_8_\@:
 	add	$8, %r10
 	sub	$8, %r11
 	psrldq	$8, %xmm0
-	cmp	$0, %r11
+	test	%r11, %r11
 	je	_return_T_done_\@
 _T_4_\@:
 	movd	%xmm0, %eax
@@ -482,7 +482,7 @@ _T_4_\@:
 	add	$4, %r10
 	sub	$4, %r11
 	psrldq	$4, %xmm0
-	cmp	$0, %r11
+	test	%r11, %r11
 	je	_return_T_done_\@
 _T_123_\@:
 	movd	%xmm0, %eax
@@ -619,7 +619,7 @@ _get_AAD_blocks\@:
 
 	/* read the last <16B of AAD */
 _get_AAD_rest\@:
-	cmp	   $0, %r11
+	test	   %r11, %r11
 	je	   _get_AAD_done\@
 
 	READ_PARTIAL_BLOCK %r10, %r11, \TMP1, \TMP7
@@ -640,7 +640,7 @@ _get_AAD_done\@:
 .macro PARTIAL_BLOCK CYPH_PLAIN_OUT PLAIN_CYPH_IN PLAIN_CYPH_LEN DATA_OFFSET \
 	AAD_HASH operation
 	mov 	PBlockLen(%arg2), %r13
-	cmp	$0, %r13
+	test	%r13, %r13
 	je	_partial_block_done_\@	# Leave Macro if no partial blocks
 	# Read in input data without over reading
 	cmp	$16, \PLAIN_CYPH_LEN
@@ -692,7 +692,7 @@ _no_extra_mask_1_\@:
 	pshufb	%xmm2, %xmm3
 	pxor	%xmm3, \AAD_HASH
 
-	cmp	$0, %r10
+	test	%r10, %r10
 	jl	_partial_incomplete_1_\@
 
 	# GHASH computation for the last <16 Byte block
@@ -727,7 +727,7 @@ _no_extra_mask_2_\@:
 	pshufb	%xmm2, %xmm9
 	pxor	%xmm9, \AAD_HASH
 
-	cmp	$0, %r10
+	test	%r10, %r10
 	jl	_partial_incomplete_2_\@
 
 	# GHASH computation for the last <16 Byte block
@@ -747,7 +747,7 @@ _encode_done_\@:
 	pshufb	%xmm2, %xmm9
 .endif
 	# output encrypted Bytes
-	cmp	$0, %r10
+	test	%r10, %r10
 	jl	_partial_fill_\@
 	mov	%r13, %r12
 	mov	$16, %r13
@@ -2720,7 +2720,7 @@ SYM_FUNC_END(aesni_ctr_enc)
  */
 SYM_FUNC_START(aesni_xts_crypt8)
 	FRAME_BEGIN
-	cmpb $0, %cl
+	testb %cl, %cl
 	movl $0, %ecx
 	movl $240, %r10d
 	leaq _aesni_enc4, %r11

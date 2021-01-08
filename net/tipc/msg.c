@@ -58,11 +58,13 @@ static unsigned int align(unsigned int i)
 /**
  * tipc_buf_acquire - creates a TIPC message buffer
  * @size: message size (including TIPC header)
+ * @gfp: memory allocation flags
  *
- * Returns a new buffer with data pointers set to the specified size.
+ * Return: a new buffer with data pointers set to the specified size.
  *
- * NOTE: Headroom is reserved to allow prepending of a data link header.
- *       There may also be unrequested tailroom present at the buffer's end.
+ * NOTE:
+ * Headroom is reserved to allow prepending of a data link header.
+ * There may also be unrequested tailroom present at the buffer's end.
  */
 struct sk_buff *tipc_buf_acquire(u32 size, gfp_t gfp)
 {
@@ -207,8 +209,9 @@ err:
  * @m: the data to be appended
  * @mss: max allowable size of buffer
  * @dlen: size of data to be appended
- * @txq: queue to appand to
- * Returns the number og 1k blocks appended or errno value
+ * @txq: queue to append to
+ *
+ * Return: the number of 1k blocks appended or errno value
  */
 int tipc_msg_append(struct tipc_msg *_hdr, struct msghdr *m, int dlen,
 		    int mss, struct sk_buff_head *txq)
@@ -312,7 +315,7 @@ bool tipc_msg_validate(struct sk_buff **_skb)
  * @pktmax: max size of a fragment incl. the header
  * @frags: returned fragment skb list
  *
- * Returns 0 if the fragmentation is successful, otherwise: -EINVAL
+ * Return: 0 if the fragmentation is successful, otherwise: -EINVAL
  * or -ENOMEM
  */
 int tipc_msg_fragment(struct sk_buff *skb, const struct tipc_msg *hdr,
@@ -367,6 +370,7 @@ error:
  * tipc_msg_build - create buffer chain containing specified header and data
  * @mhdr: Message header, to be prepended to data
  * @m: User message
+ * @offset: buffer offset for fragmented messages (FIXME)
  * @dsz: Total length of user data
  * @pktmax: Max packet size that can be used
  * @list: Buffer or chain of buffers to be returned to caller
@@ -374,7 +378,7 @@ error:
  * Note that the recursive call we are making here is safe, since it can
  * logically go only one further level down.
  *
- * Returns message data size or errno: -ENOMEM, -EFAULT
+ * Return: message data size or errno: -ENOMEM, -EFAULT
  */
 int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m, int offset,
 		   int dsz, int pktmax, struct sk_buff_head *list)
@@ -485,7 +489,7 @@ error:
  * @msg: message to be appended
  * @max: max allowable size for the bundle buffer
  *
- * Returns "true" if bundling has been performed, otherwise "false"
+ * Return: "true" if bundling has been performed, otherwise "false"
  */
 static bool tipc_msg_bundle(struct sk_buff *bskb, struct tipc_msg *msg,
 			    u32 max)
@@ -580,9 +584,9 @@ bundle:
  *  @skb: buffer to be extracted from.
  *  @iskb: extracted inner buffer, to be returned
  *  @pos: position in outer message of msg to be extracted.
- *        Returns position of next msg
+ *  Returns position of next msg.
  *  Consumes outer buffer when last packet extracted
- *  Returns true when there is an extracted buffer, otherwise false
+ *  Return: true when there is an extracted buffer, otherwise false
  */
 bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos)
 {
@@ -626,7 +630,7 @@ none:
  * @skb:  buffer containing message to be reversed; will be consumed
  * @err:  error code to be set in message, if any
  * Replaces consumed buffer with new one when successful
- * Returns true if success, otherwise false
+ * Return: true if success, otherwise false
  */
 bool tipc_msg_reverse(u32 own_node,  struct sk_buff **skb, int err)
 {
@@ -698,10 +702,11 @@ bool tipc_msg_skb_clone(struct sk_buff_head *msg, struct sk_buff_head *cpy)
 
 /**
  * tipc_msg_lookup_dest(): try to find new destination for named message
+ * @net: pointer to associated network namespace
  * @skb: the buffer containing the message.
  * @err: error code to be used by caller if lookup fails
  * Does not consume buffer
- * Returns true if a destination is found, false otherwise
+ * Return: true if a destination is found, false otherwise
  */
 bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 {

@@ -164,16 +164,7 @@ void initialize_identity_maps(void *rmode)
 	add_identity_map(cmdline, cmdline + COMMAND_LINE_SIZE);
 
 	/* Load the new page-table. */
-	write_cr3(top_level_pgt);
-}
-
-/*
- * This switches the page tables to the new level4 that has been built
- * via calls to add_identity_map() above. If booted via startup_32(),
- * this is effectively a no-op.
- */
-void finalize_identity_maps(void)
-{
+	sev_verify_cbit(top_level_pgt);
 	write_cr3(top_level_pgt);
 }
 

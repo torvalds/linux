@@ -46,7 +46,7 @@ static void mes_v10_1_ring_set_wptr(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 
 	if (ring->use_doorbell) {
-		atomic64_set((atomic64_t*)&adev->wb.wb[ring->wptr_offs],
+		atomic64_set((atomic64_t *)&adev->wb.wb[ring->wptr_offs],
 			     ring->wptr);
 		WDOORBELL64(ring->doorbell_index, ring->wptr);
 	} else {
@@ -554,7 +554,7 @@ static int mes_v10_1_allocate_eop_buf(struct amdgpu_device *adev)
 		return r;
 	}
 
-	memset(eop, 0, adev->mes.eop_gpu_obj->tbo.mem.size);
+	memset(eop, 0, adev->mes.eop_gpu_obj->tbo.base.size);
 
 	amdgpu_bo_kunmap(adev->mes.eop_gpu_obj);
 	amdgpu_bo_unreserve(adev->mes.eop_gpu_obj);

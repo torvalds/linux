@@ -17,7 +17,7 @@ int flexcop_dma_allocate(struct pci_dev *pdev,
 		return -EINVAL;
 	}
 
-	tcpu = pci_alloc_consistent(pdev, size, &tdma);
+	tcpu = dma_alloc_coherent(&pdev->dev, size, &tdma, GFP_KERNEL);
 	if (tcpu != NULL) {
 		dma->pdev = pdev;
 		dma->cpu_addr0 = tcpu;
@@ -33,8 +33,8 @@ EXPORT_SYMBOL(flexcop_dma_allocate);
 
 void flexcop_dma_free(struct flexcop_dma *dma)
 {
-	pci_free_consistent(dma->pdev, dma->size*2,
-			dma->cpu_addr0, dma->dma_addr0);
+	dma_free_coherent(&dma->pdev->dev, dma->size * 2, dma->cpu_addr0,
+			  dma->dma_addr0);
 	memset(dma, 0, sizeof(struct flexcop_dma));
 }
 EXPORT_SYMBOL(flexcop_dma_free);

@@ -39,8 +39,6 @@ struct nouveau_bo {
 	unsigned mode;
 
 	struct nouveau_drm_tile *tile;
-
-	struct ttm_bo_kmap_obj dma_buf_vmap;
 };
 
 static inline struct nouveau_bo *

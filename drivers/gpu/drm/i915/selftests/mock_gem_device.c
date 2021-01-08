@@ -81,7 +81,7 @@ out:
 	i915_params_free(&i915->params);
 }
 
-static struct drm_driver mock_driver = {
+static const struct drm_driver mock_driver = {
 	.name = "mock",
 	.driver_features = DRIVER_GEM,
 	.release = mock_device_release,

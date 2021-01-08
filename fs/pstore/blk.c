@@ -90,7 +90,6 @@ MODULE_PARM_DESC(blkdev, "block device for pstore storage");
 static DEFINE_MUTEX(pstore_blk_lock);
 static struct block_device *psblk_bdev;
 static struct pstore_zone_info *pstore_zone_info;
-static pstore_blk_panic_write_op blkdev_panic_write;
 
 struct bdev_info {
 	dev_t devt;
@@ -245,7 +244,7 @@ static struct block_device *psblk_get_bdev(void *holder,
 			return bdev;
 	}
 
-	nr_sects = part_nr_sects_read(bdev->bd_part);
+	nr_sects = bdev_nr_sectors(bdev);
 	if (!nr_sects) {
 		pr_err("not enough space for '%s'\n", blkdev);
 		blkdev_put(bdev, mode);
@@ -341,24 +340,11 @@ static ssize_t psblk_generic_blk_write(const char *buf, size_t bytes,
 	return ret;
 }
 
-static ssize_t psblk_blk_panic_write(const char *buf, size_t size,
-		loff_t off)
-{
-	int ret;
-
-	if (!blkdev_panic_write)
-		return -EOPNOTSUPP;
-
-	/* size and off must align to SECTOR_SIZE for block device */
-	ret = blkdev_panic_write(buf, off >> SECTOR_SHIFT,
-			size >> SECTOR_SHIFT);
-	/* try next zone */
-	if (ret == -ENOMSG)
-		return ret;
-	return ret ? -EIO : size;
-}
-
-static int __register_pstore_blk(struct pstore_blk_info *info)
+/*
+ * This takes its configuration only from the module parameters now.
+ * See psblk_get_bdev() and blkdev.
+ */
+static int __register_pstore_blk(void)
 {
 	char bdev_name[BDEVNAME_SIZE];
 	struct block_device *bdev;
@@ -378,67 +364,33 @@ static int __register_pstore_blk(struct pstore_blk_info *info)
 	}
 
 	/* only allow driver matching the @blkdev */
-	if (!binfo.devt || (!best_effort &&
-			    MAJOR(binfo.devt) != info->major)) {
-		pr_debug("invalid major %u (expect %u)\n",
-				info->major, MAJOR(binfo.devt));
+	if (!binfo.devt) {
+		pr_debug("no major\n");
 		ret = -ENODEV;
 		goto err_put_bdev;
 	}
 
 	/* psblk_bdev must be assigned before register to pstore/blk */
 	psblk_bdev = bdev;
-	blkdev_panic_write = info->panic_write;
-
-	/* Copy back block device details. */
-	info->devt = binfo.devt;
-	info->nr_sects = binfo.nr_sects;
-	info->start_sect = binfo.start_sect;
 
 	memset(&dev, 0, sizeof(dev));
-	dev.total_size = info->nr_sects << SECTOR_SHIFT;
-	dev.flags = info->flags;
+	dev.total_size = binfo.nr_sects << SECTOR_SHIFT;
 	dev.read = psblk_generic_blk_read;
 	dev.write = psblk_generic_blk_write;
-	dev.erase = NULL;
-	dev.panic_write = info->panic_write ? psblk_blk_panic_write : NULL;
 
 	ret = __register_pstore_device(&dev);
 	if (ret)
 		goto err_put_bdev;
 
 	bdevname(bdev, bdev_name);
-	pr_info("attached %s%s\n", bdev_name,
-		info->panic_write ? "" : " (no dedicated panic_write!)");
+	pr_info("attached %s (no dedicated panic_write!)\n", bdev_name);
 	return 0;
 
 err_put_bdev:
 	psblk_bdev = NULL;
-	blkdev_panic_write = NULL;
 	psblk_put_bdev(bdev, holder);
 	return ret;
 }
-
-/**
- * register_pstore_blk() - register block device to pstore/blk
- *
- * @info: details on the desired block device interface
- *
- * Return:
- * * 0		- OK
- * * Others	- something error.
- */
-int register_pstore_blk(struct pstore_blk_info *info)
-{
-	int ret;
-
-	mutex_lock(&pstore_blk_lock);
-	ret = __register_pstore_blk(info);
-	mutex_unlock(&pstore_blk_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(register_pstore_blk);
 
 static void __unregister_pstore_blk(unsigned int major)
 {
@@ -449,23 +401,9 @@ static void __unregister_pstore_blk(unsigned int major)
 	if (psblk_bdev && MAJOR(psblk_bdev->bd_dev) == major) {
 		__unregister_pstore_device(&dev);
 		psblk_put_bdev(psblk_bdev, holder);
-		blkdev_panic_write = NULL;
 		psblk_bdev = NULL;
 	}
 }
-
-/**
- * unregister_pstore_blk() - unregister block device from pstore/blk
- *
- * @major: the major device number of device
- */
-void unregister_pstore_blk(unsigned int major)
-{
-	mutex_lock(&pstore_blk_lock);
-	__unregister_pstore_blk(major);
-	mutex_unlock(&pstore_blk_lock);
-}
-EXPORT_SYMBOL_GPL(unregister_pstore_blk);
 
 /* get information of pstore/blk */
 int pstore_blk_get_config(struct pstore_blk_config *info)
@@ -483,12 +421,11 @@ EXPORT_SYMBOL_GPL(pstore_blk_get_config);
 
 static int __init pstore_blk_init(void)
 {
-	struct pstore_blk_info info = { };
 	int ret = 0;
 
 	mutex_lock(&pstore_blk_lock);
 	if (!pstore_zone_info && best_effort && blkdev[0])
-		ret = __register_pstore_blk(&info);
+		ret = __register_pstore_blk();
 	mutex_unlock(&pstore_blk_lock);
 
 	return ret;

@@ -327,7 +327,7 @@ static int tls_device_record_close(struct sock *sk,
 	/* fill prepend */
 	tls_fill_prepend(ctx, skb_frag_address(&record->frags[0]),
 			 record->len - prot->overhead_size,
-			 record_type, prot->version);
+			 record_type);
 	return ret;
 }
 
@@ -694,19 +694,32 @@ static void tls_device_resync_rx(struct tls_context *tls_ctx,
 
 static bool
 tls_device_rx_resync_async(struct tls_offload_resync_async *resync_async,
-			   s64 resync_req, u32 *seq)
+			   s64 resync_req, u32 *seq, u16 *rcd_delta)
 {
 	u32 is_async = resync_req & RESYNC_REQ_ASYNC;
 	u32 req_seq = resync_req >> 32;
 	u32 req_end = req_seq + ((resync_req >> 16) & 0xffff);
+	u16 i;
+
+	*rcd_delta = 0;
 
 	if (is_async) {
+		/* shouldn't get to wraparound:
+		 * too long in async stage, something bad happened
+		 */
+		if (WARN_ON_ONCE(resync_async->rcd_delta == USHRT_MAX))
+			return false;
+
 		/* asynchronous stage: log all headers seq such that
 		 * req_seq <= seq <= end_seq, and wait for real resync request
 		 */
-		if (between(*seq, req_seq, req_end) &&
+		if (before(*seq, req_seq))
+			return false;
+		if (!after(*seq, req_end) &&
 		    resync_async->loglen < TLS_DEVICE_RESYNC_ASYNC_LOGMAX)
 			resync_async->log[resync_async->loglen++] = *seq;
+
+		resync_async->rcd_delta++;
 
 		return false;
 	}
@@ -714,16 +727,18 @@ tls_device_rx_resync_async(struct tls_offload_resync_async *resync_async,
 	/* synchronous stage: check against the logged entries and
 	 * proceed to check the next entries if no match was found
 	 */
-	while (resync_async->loglen) {
-		if (req_seq == resync_async->log[resync_async->loglen - 1] &&
-		    atomic64_try_cmpxchg(&resync_async->req,
-					 &resync_req, 0)) {
-			resync_async->loglen = 0;
+	for (i = 0; i < resync_async->loglen; i++)
+		if (req_seq == resync_async->log[i] &&
+		    atomic64_try_cmpxchg(&resync_async->req, &resync_req, 0)) {
+			*rcd_delta = resync_async->rcd_delta - i;
 			*seq = req_seq;
+			resync_async->loglen = 0;
+			resync_async->rcd_delta = 0;
 			return true;
 		}
-		resync_async->loglen--;
-	}
+
+	resync_async->loglen = 0;
+	resync_async->rcd_delta = 0;
 
 	if (req_seq == *seq &&
 	    atomic64_try_cmpxchg(&resync_async->req,
@@ -741,6 +756,7 @@ void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq)
 	u32 sock_data, is_req_pending;
 	struct tls_prot_info *prot;
 	s64 resync_req;
+	u16 rcd_delta;
 	u32 req_seq;
 
 	if (tls_ctx->rx_conf != TLS_HW)
@@ -786,8 +802,9 @@ void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq)
 			return;
 
 		if (!tls_device_rx_resync_async(rx_ctx->resync_async,
-						resync_req, &seq))
+						resync_req, &seq, &rcd_delta))
 			return;
+		tls_bigint_subtract(rcd_sn, rcd_delta);
 		break;
 	}
 
@@ -981,7 +998,7 @@ static void tls_device_attach(struct tls_context *ctx, struct sock *sk,
 
 int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 {
-	u16 nonce_size, tag_size, iv_size, rec_seq_size;
+	u16 nonce_size, tag_size, iv_size, rec_seq_size, salt_size;
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_prot_info *prot = &tls_ctx->prot_info;
 	struct tls_record_info *start_marker_record;
@@ -1022,6 +1039,7 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 		iv_size = TLS_CIPHER_AES_GCM_128_IV_SIZE;
 		iv = ((struct tls12_crypto_info_aes_gcm_128 *)crypto_info)->iv;
 		rec_seq_size = TLS_CIPHER_AES_GCM_128_REC_SEQ_SIZE;
+		salt_size = TLS_CIPHER_AES_GCM_128_SALT_SIZE;
 		rec_seq =
 		 ((struct tls12_crypto_info_aes_gcm_128 *)crypto_info)->rec_seq;
 		break;
@@ -1042,6 +1060,7 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 	prot->tag_size = tag_size;
 	prot->overhead_size = prot->prepend_size + prot->tag_size;
 	prot->iv_size = iv_size;
+	prot->salt_size = salt_size;
 	ctx->tx.iv = kmalloc(iv_size + TLS_CIPHER_AES_GCM_128_SALT_SIZE,
 			     GFP_KERNEL);
 	if (!ctx->tx.iv) {
@@ -1245,6 +1264,8 @@ void tls_device_offload_cleanup_rx(struct sock *sk)
 	if (tls_ctx->tx_conf != TLS_HW) {
 		dev_put(netdev);
 		tls_ctx->netdev = NULL;
+	} else {
+		set_bit(TLS_RX_DEV_CLOSED, &tls_ctx->flags);
 	}
 out:
 	up_read(&device_offload_lock);
@@ -1274,7 +1295,8 @@ static int tls_device_down(struct net_device *netdev)
 		if (ctx->tx_conf == TLS_HW)
 			netdev->tlsdev_ops->tls_dev_del(netdev, ctx,
 							TLS_OFFLOAD_CTX_DIR_TX);
-		if (ctx->rx_conf == TLS_HW)
+		if (ctx->rx_conf == TLS_HW &&
+		    !test_bit(TLS_RX_DEV_CLOSED, &ctx->flags))
 			netdev->tlsdev_ops->tls_dev_del(netdev, ctx,
 							TLS_OFFLOAD_CTX_DIR_RX);
 		WRITE_ONCE(ctx->netdev, NULL);

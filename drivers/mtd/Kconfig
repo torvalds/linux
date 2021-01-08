@@ -152,6 +152,7 @@ config SM_FTL
 	tristate "SmartMedia/xD new translation layer"
 	depends on BLOCK
 	select MTD_BLKDEVS
+	select MTD_NAND_CORE
 	select MTD_NAND_ECC_SW_HAMMING
 	help
 	  This enables EXPERIMENTAL R/W support for SmartMedia/xD

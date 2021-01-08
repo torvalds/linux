@@ -63,13 +63,12 @@
 	num-cs = <4>;
 	is-decoded-cs = <0>;
 	eeprom: eeprom@2 {
-		at25,byte-len = <8192>;
-		at25,addr-mode = <2>;
-		at25,page-size = <32>;
-
 		compatible = "atmel,at25";
 		reg = <2>;
 		spi-max-frequency = <1000000>;
+		size = <8192>;
+		address-width = <16>;
+		pagesize = <32>;
 	};
 };
 

@@ -897,8 +897,6 @@ EXPORT_SYMBOL_GPL(usb_gadget_unmap_request);
  * @ep: the endpoint to be used with with the request
  * @req: the request being given back
  *
- * Context: in_interrupt()
- *
  * This is called by device controller drivers in order to return the
  * completed request back to the gadget layer.
  */

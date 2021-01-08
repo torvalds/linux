@@ -33,6 +33,7 @@
 #include "cifs_fs_sb.h"
 #include "cifsfs.h"
 #include "smb2proto.h"
+#include "fs_context.h"
 
 /*
  * To be safe - for UCS to UTF-8 with strings loaded with the rare long
@@ -165,8 +166,8 @@ static bool reparse_file_needs_reval(const struct cifs_fattr *fattr)
 static void
 cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 {
-	fattr->cf_uid = cifs_sb->mnt_uid;
-	fattr->cf_gid = cifs_sb->mnt_gid;
+	fattr->cf_uid = cifs_sb->ctx->linux_uid;
+	fattr->cf_gid = cifs_sb->ctx->linux_gid;
 
 	/*
 	 * The IO_REPARSE_TAG_LX_ tags originally were used by WSL but they
@@ -177,25 +178,25 @@ cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 	 * reasonably map some of them to directories vs. files vs. symlinks
 	 */
 	if (fattr->cf_cifsattrs & ATTR_DIRECTORY) {
-		fattr->cf_mode = S_IFDIR | cifs_sb->mnt_dir_mode;
+		fattr->cf_mode = S_IFDIR | cifs_sb->ctx->dir_mode;
 		fattr->cf_dtype = DT_DIR;
 	} else if (fattr->cf_cifstag == IO_REPARSE_TAG_LX_SYMLINK) {
-		fattr->cf_mode |= S_IFLNK | cifs_sb->mnt_file_mode;
+		fattr->cf_mode |= S_IFLNK | cifs_sb->ctx->file_mode;
 		fattr->cf_dtype = DT_LNK;
 	} else if (fattr->cf_cifstag == IO_REPARSE_TAG_LX_FIFO) {
-		fattr->cf_mode |= S_IFIFO | cifs_sb->mnt_file_mode;
+		fattr->cf_mode |= S_IFIFO | cifs_sb->ctx->file_mode;
 		fattr->cf_dtype = DT_FIFO;
 	} else if (fattr->cf_cifstag == IO_REPARSE_TAG_AF_UNIX) {
-		fattr->cf_mode |= S_IFSOCK | cifs_sb->mnt_file_mode;
+		fattr->cf_mode |= S_IFSOCK | cifs_sb->ctx->file_mode;
 		fattr->cf_dtype = DT_SOCK;
 	} else if (fattr->cf_cifstag == IO_REPARSE_TAG_LX_CHR) {
-		fattr->cf_mode |= S_IFCHR | cifs_sb->mnt_file_mode;
+		fattr->cf_mode |= S_IFCHR | cifs_sb->ctx->file_mode;
 		fattr->cf_dtype = DT_CHR;
 	} else if (fattr->cf_cifstag == IO_REPARSE_TAG_LX_BLK) {
-		fattr->cf_mode |= S_IFBLK | cifs_sb->mnt_file_mode;
+		fattr->cf_mode |= S_IFBLK | cifs_sb->ctx->file_mode;
 		fattr->cf_dtype = DT_BLK;
 	} else { /* TODO: should we mark some other reparse points (like DFSR) as directories? */
-		fattr->cf_mode = S_IFREG | cifs_sb->mnt_file_mode;
+		fattr->cf_mode = S_IFREG | cifs_sb->ctx->file_mode;
 		fattr->cf_dtype = DT_REG;
 	}
 

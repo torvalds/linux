@@ -1,36 +1,14 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config MTD_NAND_ECC_SW_HAMMING
-	tristate
-
-config MTD_NAND_ECC_SW_HAMMING_SMC
-	bool "NAND ECC Smart Media byte order"
-	depends on MTD_NAND_ECC_SW_HAMMING
-	default n
-	help
-	  Software ECC according to the Smart Media Specification.
-	  The original Linux implementation had byte 0 and 1 swapped.
-
 menuconfig MTD_RAW_NAND
 	tristate "Raw/Parallel NAND Device Support"
 	select MTD_NAND_CORE
 	select MTD_NAND_ECC
-	select MTD_NAND_ECC_SW_HAMMING
 	help
 	  This enables support for accessing all type of raw/parallel
 	  NAND flash devices. For further information see
 	  <http://www.linux-mtd.infradead.org/doc/nand.html>.
 
 if MTD_RAW_NAND
-
-config MTD_NAND_ECC_SW_BCH
-	bool "Support software BCH ECC"
-	select BCH
-	default n
-	help
-	  This enables support for software BCH error correction. Binary BCH
-	  codes are more powerful and cpu intensive than traditional Hamming
-	  ECC codes. They are used with NAND devices requiring more than 1 bit
-	  of error correction.
 
 comment "Raw/parallel NAND flash controllers"
 
@@ -93,6 +71,7 @@ config MTD_NAND_AU1550
 config MTD_NAND_NDFC
 	tristate "IBM/MCC 4xx NAND controller"
 	depends on 4xx
+	select MTD_NAND_ECC_SW_HAMMING
 	select MTD_NAND_ECC_SW_HAMMING_SMC
 	help
 	  NDFC Nand Flash Controllers are integrated in IBM/AMCC's 4xx SoCs
@@ -313,7 +292,7 @@ config MTD_NAND_VF610_NFC
 config MTD_NAND_MXC
 	tristate "Freescale MXC NAND controller"
 	depends on ARCH_MXC || COMPILE_TEST
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && OF
 	help
 	  This enables the driver for the NAND flash controller on the
 	  MXC processors.
@@ -461,6 +440,26 @@ config MTD_NAND_ARASAN
 	help
 	  Enables the driver for the Arasan NAND flash controller on
 	  Zynq Ultrascale+ MPSoC.
+
+config MTD_NAND_INTEL_LGM
+	tristate "Support for NAND controller on Intel LGM SoC"
+	depends on OF || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Enables support for NAND Flash chips on Intel's LGM SoC.
+	  NAND flash controller interfaced through the External Bus Unit.
+
+config MTD_NAND_ROCKCHIP
+	tristate "Rockchip NAND controller"
+	depends on ARCH_ROCKCHIP && HAS_IOMEM
+	help
+	  Enables support for NAND controller on Rockchip SoCs.
+	  There are four different versions of NAND FLASH Controllers,
+	  including:
+	    NFC v600: RK2928, RK3066, RK3188
+	    NFC v622: RK3036, RK3128
+	    NFC v800: RK3308, RV1108
+	    NFC v900: PX30, RK3326
 
 comment "Misc"
 

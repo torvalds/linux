@@ -1414,10 +1414,12 @@ out:
 		pm_runtime_put_autosuspend(connector->dev->dev);
 	}
 
-	drm_dp_set_subconnector_property(&amdgpu_connector->base,
-					 ret,
-					 amdgpu_dig_connector->dpcd,
-					 amdgpu_dig_connector->downstream_ports);
+	if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
+	    connector->connector_type == DRM_MODE_CONNECTOR_eDP)
+		drm_dp_set_subconnector_property(&amdgpu_connector->base,
+						 ret,
+						 amdgpu_dig_connector->dpcd,
+						 amdgpu_dig_connector->downstream_ports);
 	return ret;
 }
 

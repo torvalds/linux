@@ -667,21 +667,15 @@ EXPORT_SYMBOL(drm_gem_unmap_dma_buf);
  *
  * Sets up a kernel virtual mapping. This can be used as the &dma_buf_ops.vmap
  * callback. Calls into &drm_gem_object_funcs.vmap for device specific handling.
+ * The kernel virtual address is returned in map.
  *
- * Returns the kernel virtual address or NULL on failure.
+ * Returns 0 on success or a negative errno code otherwise.
  */
 int drm_gem_dmabuf_vmap(struct dma_buf *dma_buf, struct dma_buf_map *map)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
-	void *vaddr;
 
-	vaddr = drm_gem_vmap(obj);
-	if (IS_ERR(vaddr))
-		return PTR_ERR(vaddr);
-
-	dma_buf_map_set_vaddr(map, vaddr);
-
-	return 0;
+	return drm_gem_vmap(obj, map);
 }
 EXPORT_SYMBOL(drm_gem_dmabuf_vmap);
 
@@ -697,7 +691,7 @@ void drm_gem_dmabuf_vunmap(struct dma_buf *dma_buf, struct dma_buf_map *map)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
 
-	drm_gem_vunmap(obj, map->vaddr);
+	drm_gem_vunmap(obj, map);
 }
 EXPORT_SYMBOL(drm_gem_dmabuf_vunmap);
 
@@ -820,8 +814,8 @@ struct sg_table *drm_prime_pages_to_sg(struct drm_device *dev,
 
 	if (dev)
 		max_segment = dma_max_mapping_size(dev->dev);
-	if (max_segment == 0 || max_segment > SCATTERLIST_MAX_SEGMENT)
-		max_segment = SCATTERLIST_MAX_SEGMENT;
+	if (max_segment == 0)
+		max_segment = UINT_MAX;
 	sge = __sg_alloc_table_from_pages(sg, pages, nr_pages, 0,
 					  nr_pages << PAGE_SHIFT,
 					  max_segment,
@@ -984,44 +978,58 @@ struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 EXPORT_SYMBOL(drm_gem_prime_import);
 
 /**
- * drm_prime_sg_to_page_addr_arrays - convert an sg table into a page array
+ * drm_prime_sg_to_page_array - convert an sg table into a page array
  * @sgt: scatter-gather table to convert
- * @pages: optional array of page pointers to store the page array in
- * @addrs: optional array to store the dma bus address of each page
- * @max_entries: size of both the passed-in arrays
+ * @pages: array of page pointers to store the pages in
+ * @max_entries: size of the passed-in array
  *
- * Exports an sg table into an array of pages and addresses. This is currently
- * required by the TTM driver in order to do correct fault handling.
+ * Exports an sg table into an array of pages.
  *
- * Drivers can use this in their &drm_driver.gem_prime_import_sg_table
- * implementation.
+ * This function is deprecated and strongly discouraged to be used.
+ * The page array is only useful for page faults and those can corrupt fields
+ * in the struct page if they are not handled by the exporting driver.
  */
-int drm_prime_sg_to_page_addr_arrays(struct sg_table *sgt, struct page **pages,
-				     dma_addr_t *addrs, int max_entries)
+int __deprecated drm_prime_sg_to_page_array(struct sg_table *sgt,
+					    struct page **pages,
+					    int max_entries)
 {
-	struct sg_dma_page_iter dma_iter;
 	struct sg_page_iter page_iter;
 	struct page **p = pages;
-	dma_addr_t *a = addrs;
 
-	if (pages) {
-		for_each_sgtable_page(sgt, &page_iter, 0) {
-			if (WARN_ON(p - pages >= max_entries))
-				return -1;
-			*p++ = sg_page_iter_page(&page_iter);
-		}
+	for_each_sgtable_page(sgt, &page_iter, 0) {
+		if (WARN_ON(p - pages >= max_entries))
+			return -1;
+		*p++ = sg_page_iter_page(&page_iter);
 	}
-	if (addrs) {
-		for_each_sgtable_dma_page(sgt, &dma_iter, 0) {
-			if (WARN_ON(a - addrs >= max_entries))
-				return -1;
-			*a++ = sg_page_iter_dma_address(&dma_iter);
-		}
-	}
-
 	return 0;
 }
-EXPORT_SYMBOL(drm_prime_sg_to_page_addr_arrays);
+EXPORT_SYMBOL(drm_prime_sg_to_page_array);
+
+/**
+ * drm_prime_sg_to_dma_addr_array - convert an sg table into a dma addr array
+ * @sgt: scatter-gather table to convert
+ * @addrs: array to store the dma bus address of each page
+ * @max_entries: size of both the passed-in arrays
+ *
+ * Exports an sg table into an array of addresses.
+ *
+ * Drivers should use this in their &drm_driver.gem_prime_import_sg_table
+ * implementation.
+ */
+int drm_prime_sg_to_dma_addr_array(struct sg_table *sgt, dma_addr_t *addrs,
+				   int max_entries)
+{
+	struct sg_dma_page_iter dma_iter;
+	dma_addr_t *a = addrs;
+
+	for_each_sgtable_dma_page(sgt, &dma_iter, 0) {
+		if (WARN_ON(a - addrs >= max_entries))
+			return -1;
+		*a++ = sg_page_iter_dma_address(&dma_iter);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(drm_prime_sg_to_dma_addr_array);
 
 /**
  * drm_prime_gem_destroy - helper to clean up a PRIME-imported GEM object

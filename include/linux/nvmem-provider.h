@@ -31,6 +31,19 @@ enum nvmem_type {
 #define NVMEM_DEVID_AUTO	(-2)
 
 /**
+ * struct nvmem_keepout - NVMEM register keepout range.
+ *
+ * @start:	The first byte offset to avoid.
+ * @end:	One beyond the last byte offset to avoid.
+ * @value:	The byte to fill reads with for this region.
+ */
+struct nvmem_keepout {
+	unsigned int start;
+	unsigned int end;
+	unsigned char value;
+};
+
+/**
  * struct nvmem_config - NVMEM device configuration
  *
  * @dev:	Parent device.
@@ -39,6 +52,8 @@ enum nvmem_type {
  * @owner:	Pointer to exporter module. Used for refcounting.
  * @cells:	Optional array of pre-defined NVMEM cells.
  * @ncells:	Number of elements in cells.
+ * @keepout:	Optional array of keepout ranges (sorted ascending by start).
+ * @nkeepout:	Number of elements in the keepout array.
  * @type:	Type of the nvmem storage
  * @read_only:	Device is read-only.
  * @root_only:	Device is accessibly to root only.
@@ -66,6 +81,8 @@ struct nvmem_config {
 	struct gpio_desc	*wp_gpio;
 	const struct nvmem_cell_info	*cells;
 	int			ncells;
+	const struct nvmem_keepout *keepout;
+	unsigned int		nkeepout;
 	enum nvmem_type		type;
 	bool			read_only;
 	bool			root_only;

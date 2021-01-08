@@ -16,7 +16,7 @@ mt76x2_eeprom_get_macaddr(struct mt76x02_dev *dev)
 {
 	void *src = dev->mt76.eeprom.data + MT_EE_MAC_ADDR;
 
-	memcpy(dev->mt76.macaddr, src, ETH_ALEN);
+	memcpy(dev->mphy.macaddr, src, ETH_ALEN);
 	return 0;
 }
 
@@ -502,8 +502,8 @@ int mt76x2_eeprom_init(struct mt76x02_dev *dev)
 
 	mt76x02_eeprom_parse_hw_cap(dev);
 	mt76x2_eeprom_get_macaddr(dev);
-	mt76_eeprom_override(&dev->mt76);
-	dev->mt76.macaddr[0] &= ~BIT(1);
+	mt76_eeprom_override(&dev->mphy);
+	dev->mphy.macaddr[0] &= ~BIT(1);
 
 	return 0;
 }

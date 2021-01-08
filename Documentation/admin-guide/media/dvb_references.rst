@@ -10,7 +10,7 @@ The DVB mailing list linux-dvb is hosted at vger. Please see
 http://vger.kernel.org/vger-lists.html#linux-media for details.
 
 There are also some other old lists hosted at:
-https://linuxtv.org/lists.php. If you're insterested on that for historic
+https://linuxtv.org/lists.php. If you're interested on that for historic
 reasons, please check the archive at https://linuxtv.org/pipermail/linux-dvb/.
 
 The media subsystem Wiki is hosted at https://linuxtv.org/wiki/.

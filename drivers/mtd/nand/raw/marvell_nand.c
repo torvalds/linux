@@ -2679,12 +2679,6 @@ static int marvell_nand_chip_init(struct device *dev, struct marvell_nfc *nfc,
 	mtd->dev.parent = dev;
 
 	/*
-	 * Default to HW ECC engine mode. If the nand-ecc-mode property is given
-	 * in the DT node, this entry will be overwritten in nand_scan_ident().
-	 */
-	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
-
-	/*
 	 * Save a reference value for timing registers before
 	 * ->setup_interface() is called.
 	 */

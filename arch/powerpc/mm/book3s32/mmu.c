@@ -33,18 +33,22 @@
 
 u8 __initdata early_hash[SZ_256K] __aligned(SZ_256K) = {0};
 
-struct hash_pte *Hash;
-static unsigned long Hash_size, Hash_mask;
-unsigned long _SDR1;
-static unsigned int hash_mb, hash_mb2;
+static struct hash_pte __initdata *Hash = (struct hash_pte *)early_hash;
+static unsigned long __initdata Hash_size, Hash_mask;
+static unsigned int __initdata hash_mb, hash_mb2;
+unsigned long __initdata _SDR1;
 
 struct ppc_bat BATS[8][2];	/* 8 pairs of IBAT, DBAT */
 
-struct batrange {		/* stores address ranges mapped by BATs */
+static struct batrange {	/* stores address ranges mapped by BATs */
 	unsigned long start;
 	unsigned long limit;
 	phys_addr_t phys;
 } bat_addrs[8];
+
+#ifdef CONFIG_SMP
+unsigned long mmu_hash_lock;
+#endif
 
 /*
  * Return PA for this VA if it is mapped by a BAT, or 0
@@ -157,11 +161,9 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 	unsigned long done;
 	unsigned long border = (unsigned long)__init_begin - PAGE_OFFSET;
 
-	if (__map_without_bats) {
-		pr_debug("RAM mapped without BATs\n");
-		return base;
-	}
-	if (debug_pagealloc_enabled()) {
+
+	if (debug_pagealloc_enabled() || __map_without_bats) {
+		pr_debug_once("Read-Write memory mapped without BATs\n");
 		if (base >= border)
 			return base;
 		if (top >= border)
@@ -304,11 +306,11 @@ void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 /*
  * Preload a translation in the hash table
  */
-void hash_preload(struct mm_struct *mm, unsigned long ea)
+static void hash_preload(struct mm_struct *mm, unsigned long ea)
 {
 	pmd_t *pmd;
 
-	if (!Hash)
+	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE))
 		return;
 	pmd = pmd_off(mm, ea);
 	if (!pmd_none(*pmd))
@@ -469,3 +471,7 @@ void __init setup_kuap(bool disabled)
 		pr_warn("KUAP cannot be disabled yet on 6xx when compiled in\n");
 }
 #endif
+
+void __init early_init_mmu(void)
+{
+}

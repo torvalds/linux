@@ -37,9 +37,6 @@ static u8 xive_vm_esb_load(struct xive_irq_data *xd, u32 offset)
 	 * ordering.
 	 */
 
-	if (xd->flags & XIVE_IRQ_FLAG_SHIFT_BUG)
-		offset |= offset << 4;
-
 	val = in_be64(xd->eoi_mmio + offset);
 	return (u8)val;
 }
@@ -251,6 +248,13 @@ static vm_fault_t xive_native_esb_fault(struct vm_fault *vmf)
 	}
 
 	state = &sb->irq_state[src];
+
+	/* Some sanity checking */
+	if (!state->valid) {
+		pr_devel("%s: source %lx invalid !\n", __func__, irq);
+		return VM_FAULT_SIGBUS;
+	}
+
 	kvmppc_xive_select_irq(state, &hw_num, &xd);
 
 	arch_spin_lock(&sb->lock);
@@ -1212,16 +1216,29 @@ static int xive_native_debug_show(struct seq_file *m, void *private)
 		if (!xc)
 			continue;
 
-		seq_printf(m, "cpu server %#x VP=%#x NSR=%02x CPPR=%02x IBP=%02x PIPR=%02x w01=%016llx w2=%08x\n",
-			   xc->server_num, xc->vp_id,
+		seq_printf(m, "VCPU %d: VP=%#x/%02x\n"
+			   "    NSR=%02x CPPR=%02x IBP=%02x PIPR=%02x w01=%016llx w2=%08x\n",
+			   xc->server_num, xc->vp_id, xc->vp_chip_id,
 			   vcpu->arch.xive_saved_state.nsr,
 			   vcpu->arch.xive_saved_state.cppr,
 			   vcpu->arch.xive_saved_state.ipb,
 			   vcpu->arch.xive_saved_state.pipr,
-			   vcpu->arch.xive_saved_state.w01,
-			   (u32) vcpu->arch.xive_cam_word);
+			   be64_to_cpu(vcpu->arch.xive_saved_state.w01),
+			   be32_to_cpu(vcpu->arch.xive_cam_word));
 
 		kvmppc_xive_debug_show_queues(m, vcpu);
+	}
+
+	seq_puts(m, "=========\nSources\n=========\n");
+
+	for (i = 0; i <= xive->max_sbid; i++) {
+		struct kvmppc_xive_src_block *sb = xive->src_blocks[i];
+
+		if (sb) {
+			arch_spin_lock(&sb->lock);
+			kvmppc_xive_debug_show_sources(m, sb);
+			arch_spin_unlock(&sb->lock);
+		}
 	}
 
 	return 0;

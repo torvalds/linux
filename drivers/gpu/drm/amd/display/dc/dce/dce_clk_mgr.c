@@ -317,7 +317,9 @@ int dce112_set_clock(struct clk_mgr *clk_mgr, int requested_clk_khz)
 	/*VBIOS will determine DPREFCLK frequency, so we don't set it*/
 	dce_clk_params.target_clock_frequency = 0;
 	dce_clk_params.clock_type = DCECLOCK_TYPE_DPREFCLK;
-	if (!ASICREV_IS_VEGA20_P(clk_mgr->ctx->asic_id.hw_internal_rev))
+
+	if (!((clk_mgr->ctx->asic_id.chip_family == FAMILY_AI) &&
+	       ASICREV_IS_VEGA20_P(clk_mgr->ctx->asic_id.hw_internal_rev)))
 		dce_clk_params.flags.USE_GENLOCK_AS_SOURCE_FOR_DPREFCLK =
 			(dce_clk_params.pll_id ==
 					CLOCK_SOURCE_COMBO_DISPLAY_PLL0);

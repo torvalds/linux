@@ -291,6 +291,7 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 		set_bit(WDOG_HW_RUNNING, &wdt->wdd.status);
 	}
 
+	watchdog_stop_on_reboot(&wdt->wdd);
 	ret = watchdog_register_device(&wdt->wdd);
 	if (ret)
 		goto err;

@@ -532,7 +532,7 @@ static int __maybe_unused imx_kbd_noirq_suspend(struct device *dev)
 	/* imx kbd can wake up system even clock is disabled */
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users)
+	if (input_device_enabled(input_dev))
 		clk_disable_unprepare(kbd->clk);
 
 	mutex_unlock(&input_dev->mutex);
@@ -562,7 +562,7 @@ static int __maybe_unused imx_kbd_noirq_resume(struct device *dev)
 
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users) {
+	if (input_device_enabled(input_dev)) {
 		ret = clk_prepare_enable(kbd->clk);
 		if (ret)
 			goto err_clk;

@@ -172,6 +172,8 @@ enum {
 	FUSE_I_INIT_RDPLUS,
 	/** An operation changing file size is in progress  */
 	FUSE_I_SIZE_UNSTABLE,
+	/* Bad inode */
+	FUSE_I_BAD,
 };
 
 struct fuse_conn;
@@ -636,6 +638,14 @@ struct fuse_conn {
 	unsigned int legacy_opts_show:1;
 
 	/*
+	 * fs kills suid/sgid/cap on write/chown/trunc. suid is killed on
+	 * write/trunc only if caller did not have CAP_FSETID.  sgid is killed
+	 * on write/truncate only if caller did not have CAP_FSETID as well as
+	 * file has group execute permission.
+	 */
+	unsigned handle_killpriv_v2:1;
+
+	/*
 	 * The following bitfields are only for optimization purposes
 	 * and hence races in setting them will not cause malfunction
 	 */
@@ -801,9 +811,6 @@ struct fuse_mount {
 	/* Underlying (potentially shared) connection to the FUSE server */
 	struct fuse_conn *fc;
 
-	/* Refcount */
-	refcount_t count;
-
 	/*
 	 * Super block for this connection (fc->killsb must be held when
 	 * accessing this).
@@ -821,9 +828,7 @@ static inline struct fuse_mount *get_fuse_mount_super(struct super_block *sb)
 
 static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)
 {
-	struct fuse_mount *fm = get_fuse_mount_super(sb);
-
-	return fm ? fm->fc : NULL;
+	return get_fuse_mount_super(sb)->fc;
 }
 
 static inline struct fuse_mount *get_fuse_mount(struct inode *inode)
@@ -833,9 +838,7 @@ static inline struct fuse_mount *get_fuse_mount(struct inode *inode)
 
 static inline struct fuse_conn *get_fuse_conn(struct inode *inode)
 {
-	struct fuse_mount *fm = get_fuse_mount(inode);
-
-	return fm ? fm->fc : NULL;
+	return get_fuse_mount_super(inode->i_sb)->fc;
 }
 
 static inline struct fuse_inode *get_fuse_inode(struct inode *inode)
@@ -856,6 +859,16 @@ static inline int invalid_nodeid(u64 nodeid)
 static inline u64 fuse_get_attr_version(struct fuse_conn *fc)
 {
 	return atomic64_read(&fc->attr_version);
+}
+
+static inline void fuse_make_bad(struct inode *inode)
+{
+	set_bit(FUSE_I_BAD, &get_fuse_inode(inode)->state);
+}
+
+static inline bool fuse_is_bad(struct inode *inode)
+{
+	return unlikely(test_bit(FUSE_I_BAD, &get_fuse_inode(inode)->state));
 }
 
 /** Device operations */
@@ -1023,16 +1036,6 @@ void fuse_conn_init(struct fuse_conn *fc, struct fuse_mount *fm,
  * Release reference to fuse_conn
  */
 void fuse_conn_put(struct fuse_conn *fc);
-
-/**
- * Acquire reference to fuse_mount
- */
-struct fuse_mount *fuse_mount_get(struct fuse_mount *fm);
-
-/**
- * Release reference to fuse_mount
- */
-void fuse_mount_put(struct fuse_mount *fm);
 
 struct fuse_dev *fuse_dev_alloc_install(struct fuse_conn *fc);
 struct fuse_dev *fuse_dev_alloc(void);

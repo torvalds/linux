@@ -48,6 +48,7 @@
 #include <linux/jiffies.h>	/* time_after() */
 #include <linux/slab.h>
 #include <linux/memblock.h>
+#include <linux/msi.h>
 
 #include <asm/irqdomain.h>
 #include <asm/io.h>
@@ -63,7 +64,6 @@
 #include <asm/setup.h>
 #include <asm/irq_remapping.h>
 #include <asm/hw_irq.h>
-
 #include <asm/apic.h>
 
 #define	for_each_ioapic(idx)		\
@@ -89,12 +89,12 @@ struct irq_pin_list {
 };
 
 struct mp_chip_data {
-	struct list_head irq_2_pin;
-	struct IO_APIC_route_entry entry;
-	int trigger;
-	int polarity;
+	struct list_head		irq_2_pin;
+	struct IO_APIC_route_entry	entry;
+	bool				is_level;
+	bool				active_low;
+	bool				isa_irq;
 	u32 count;
-	bool isa_irq;
 };
 
 struct mp_ioapic_gsi {
@@ -286,31 +286,26 @@ static void io_apic_write(unsigned int apic, unsigned int reg,
 	writel(value, &io_apic->data);
 }
 
-union entry_union {
-	struct { u32 w1, w2; };
-	struct IO_APIC_route_entry entry;
-};
-
 static struct IO_APIC_route_entry __ioapic_read_entry(int apic, int pin)
 {
-	union entry_union eu;
+	struct IO_APIC_route_entry entry;
 
-	eu.w1 = io_apic_read(apic, 0x10 + 2 * pin);
-	eu.w2 = io_apic_read(apic, 0x11 + 2 * pin);
+	entry.w1 = io_apic_read(apic, 0x10 + 2 * pin);
+	entry.w2 = io_apic_read(apic, 0x11 + 2 * pin);
 
-	return eu.entry;
+	return entry;
 }
 
 static struct IO_APIC_route_entry ioapic_read_entry(int apic, int pin)
 {
-	union entry_union eu;
+	struct IO_APIC_route_entry entry;
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
-	eu.entry = __ioapic_read_entry(apic, pin);
+	entry = __ioapic_read_entry(apic, pin);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
 
-	return eu.entry;
+	return entry;
 }
 
 /*
@@ -321,11 +316,8 @@ static struct IO_APIC_route_entry ioapic_read_entry(int apic, int pin)
  */
 static void __ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
 {
-	union entry_union eu = {{0, 0}};
-
-	eu.entry = e;
-	io_apic_write(apic, 0x11 + 2*pin, eu.w2);
-	io_apic_write(apic, 0x10 + 2*pin, eu.w1);
+	io_apic_write(apic, 0x11 + 2*pin, e.w2);
+	io_apic_write(apic, 0x10 + 2*pin, e.w1);
 }
 
 static void ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
@@ -344,12 +336,12 @@ static void ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
  */
 static void ioapic_mask_entry(int apic, int pin)
 {
+	struct IO_APIC_route_entry e = { .masked = true };
 	unsigned long flags;
-	union entry_union eu = { .entry.mask = IOAPIC_MASKED };
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
-	io_apic_write(apic, 0x10 + 2*pin, eu.w1);
-	io_apic_write(apic, 0x11 + 2*pin, eu.w2);
+	io_apic_write(apic, 0x10 + 2*pin, e.w1);
+	io_apic_write(apic, 0x11 + 2*pin, e.w2);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
 }
 
@@ -422,20 +414,15 @@ static void __init replace_pin_at_irq_node(struct mp_chip_data *data, int node,
 	add_pin_to_irq_node(data, node, newapic, newpin);
 }
 
-static void io_apic_modify_irq(struct mp_chip_data *data,
-			       int mask_and, int mask_or,
+static void io_apic_modify_irq(struct mp_chip_data *data, bool masked,
 			       void (*final)(struct irq_pin_list *entry))
 {
-	union entry_union eu;
 	struct irq_pin_list *entry;
 
-	eu.entry = data->entry;
-	eu.w1 &= mask_and;
-	eu.w1 |= mask_or;
-	data->entry = eu.entry;
+	data->entry.masked = masked;
 
 	for_each_irq_pin(entry, data->irq_2_pin) {
-		io_apic_write(entry->apic, 0x10 + 2 * entry->pin, eu.w1);
+		io_apic_write(entry->apic, 0x10 + 2 * entry->pin, data->entry.w1);
 		if (final)
 			final(entry);
 	}
@@ -459,13 +446,13 @@ static void mask_ioapic_irq(struct irq_data *irq_data)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
-	io_apic_modify_irq(data, ~0, IO_APIC_REDIR_MASKED, &io_apic_sync);
+	io_apic_modify_irq(data, true, &io_apic_sync);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
 }
 
 static void __unmask_ioapic(struct mp_chip_data *data)
 {
-	io_apic_modify_irq(data, ~IO_APIC_REDIR_MASKED, 0, NULL);
+	io_apic_modify_irq(data, false, NULL);
 }
 
 static void unmask_ioapic_irq(struct irq_data *irq_data)
@@ -506,8 +493,8 @@ static void __eoi_ioapic_pin(int apic, int pin, int vector)
 		/*
 		 * Mask the entry and change the trigger mode to edge.
 		 */
-		entry1.mask = IOAPIC_MASKED;
-		entry1.trigger = IOAPIC_EDGE;
+		entry1.masked = true;
+		entry1.is_level = false;
 
 		__ioapic_write_entry(apic, pin, entry1);
 
@@ -535,15 +522,15 @@ static void clear_IO_APIC_pin(unsigned int apic, unsigned int pin)
 
 	/* Check delivery_mode to be sure we're not clearing an SMI pin */
 	entry = ioapic_read_entry(apic, pin);
-	if (entry.delivery_mode == dest_SMI)
+	if (entry.delivery_mode == APIC_DELIVERY_MODE_SMI)
 		return;
 
 	/*
 	 * Make sure the entry is masked and re-read the contents to check
 	 * if it is a level triggered pin and if the remote-IRR is set.
 	 */
-	if (entry.mask == IOAPIC_UNMASKED) {
-		entry.mask = IOAPIC_MASKED;
+	if (!entry.masked) {
+		entry.masked = true;
 		ioapic_write_entry(apic, pin, entry);
 		entry = ioapic_read_entry(apic, pin);
 	}
@@ -556,8 +543,8 @@ static void clear_IO_APIC_pin(unsigned int apic, unsigned int pin)
 		 * doesn't clear the remote-IRR if the trigger mode is not
 		 * set to level.
 		 */
-		if (entry.trigger == IOAPIC_EDGE) {
-			entry.trigger = IOAPIC_LEVEL;
+		if (!entry.is_level) {
+			entry.is_level = true;
 			ioapic_write_entry(apic, pin, entry);
 		}
 		raw_spin_lock_irqsave(&ioapic_lock, flags);
@@ -659,8 +646,8 @@ void mask_ioapic_entries(void)
 			struct IO_APIC_route_entry entry;
 
 			entry = ioapics[apic].saved_registers[pin];
-			if (entry.mask == IOAPIC_UNMASKED) {
-				entry.mask = IOAPIC_MASKED;
+			if (!entry.masked) {
+				entry.masked = true;
 				ioapic_write_entry(apic, pin, entry);
 			}
 		}
@@ -745,44 +732,7 @@ static int __init find_isa_irq_apic(int irq, int type)
 	return -1;
 }
 
-#ifdef CONFIG_EISA
-/*
- * EISA Edge/Level control register, ELCR
- */
-static int EISA_ELCR(unsigned int irq)
-{
-	if (irq < nr_legacy_irqs()) {
-		unsigned int port = 0x4d0 + (irq >> 3);
-		return (inb(port) >> (irq & 7)) & 1;
-	}
-	apic_printk(APIC_VERBOSE, KERN_INFO
-			"Broken MPtable reports ISA irq %d\n", irq);
-	return 0;
-}
-
-#endif
-
-/* ISA interrupts are always active high edge triggered,
- * when listed as conforming in the MP table. */
-
-#define default_ISA_trigger(idx)	(IOAPIC_EDGE)
-#define default_ISA_polarity(idx)	(IOAPIC_POL_HIGH)
-
-/* EISA interrupts are always polarity zero and can be edge or level
- * trigger depending on the ELCR value.  If an interrupt is listed as
- * EISA conforming in the MP table, that means its trigger type must
- * be read in from the ELCR */
-
-#define default_EISA_trigger(idx)	(EISA_ELCR(mp_irqs[idx].srcbusirq))
-#define default_EISA_polarity(idx)	default_ISA_polarity(idx)
-
-/* PCI interrupts are always active low level triggered,
- * when listed as conforming in the MP table. */
-
-#define default_PCI_trigger(idx)	(IOAPIC_LEVEL)
-#define default_PCI_polarity(idx)	(IOAPIC_POL_LOW)
-
-static int irq_polarity(int idx)
+static bool irq_active_low(int idx)
 {
 	int bus = mp_irqs[idx].srcbus;
 
@@ -791,69 +741,122 @@ static int irq_polarity(int idx)
 	 */
 	switch (mp_irqs[idx].irqflag & MP_IRQPOL_MASK) {
 	case MP_IRQPOL_DEFAULT:
-		/* conforms to spec, ie. bus-type dependent polarity */
-		if (test_bit(bus, mp_bus_not_pci))
-			return default_ISA_polarity(idx);
-		else
-			return default_PCI_polarity(idx);
+		/*
+		 * Conforms to spec, ie. bus-type dependent polarity.  PCI
+		 * defaults to low active. [E]ISA defaults to high active.
+		 */
+		return !test_bit(bus, mp_bus_not_pci);
 	case MP_IRQPOL_ACTIVE_HIGH:
-		return IOAPIC_POL_HIGH;
+		return false;
 	case MP_IRQPOL_RESERVED:
 		pr_warn("IOAPIC: Invalid polarity: 2, defaulting to low\n");
 		fallthrough;
 	case MP_IRQPOL_ACTIVE_LOW:
 	default: /* Pointless default required due to do gcc stupidity */
-		return IOAPIC_POL_LOW;
+		return true;
 	}
 }
 
 #ifdef CONFIG_EISA
-static int eisa_irq_trigger(int idx, int bus, int trigger)
+/*
+ * EISA Edge/Level control register, ELCR
+ */
+static bool EISA_ELCR(unsigned int irq)
+{
+	if (irq < nr_legacy_irqs()) {
+		unsigned int port = 0x4d0 + (irq >> 3);
+		return (inb(port) >> (irq & 7)) & 1;
+	}
+	apic_printk(APIC_VERBOSE, KERN_INFO
+			"Broken MPtable reports ISA irq %d\n", irq);
+	return false;
+}
+
+/*
+ * EISA interrupts are always active high and can be edge or level
+ * triggered depending on the ELCR value.  If an interrupt is listed as
+ * EISA conforming in the MP table, that means its trigger type must be
+ * read in from the ELCR.
+ */
+static bool eisa_irq_is_level(int idx, int bus, bool level)
 {
 	switch (mp_bus_id_to_type[bus]) {
 	case MP_BUS_PCI:
 	case MP_BUS_ISA:
-		return trigger;
+		return level;
 	case MP_BUS_EISA:
-		return default_EISA_trigger(idx);
+		return EISA_ELCR(mp_irqs[idx].srcbusirq);
 	}
 	pr_warn("IOAPIC: Invalid srcbus: %d defaulting to level\n", bus);
-	return IOAPIC_LEVEL;
+	return true;
 }
 #else
-static inline int eisa_irq_trigger(int idx, int bus, int trigger)
+static inline int eisa_irq_is_level(int idx, int bus, bool level)
 {
-	return trigger;
+	return level;
 }
 #endif
 
-static int irq_trigger(int idx)
+static bool irq_is_level(int idx)
 {
 	int bus = mp_irqs[idx].srcbus;
-	int trigger;
+	bool level;
 
 	/*
 	 * Determine IRQ trigger mode (edge or level sensitive):
 	 */
 	switch (mp_irqs[idx].irqflag & MP_IRQTRIG_MASK) {
 	case MP_IRQTRIG_DEFAULT:
-		/* conforms to spec, ie. bus-type dependent trigger mode */
-		if (test_bit(bus, mp_bus_not_pci))
-			trigger = default_ISA_trigger(idx);
-		else
-			trigger = default_PCI_trigger(idx);
+		/*
+		 * Conforms to spec, ie. bus-type dependent trigger
+		 * mode. PCI defaults to level, ISA to edge.
+		 */
+		level = !test_bit(bus, mp_bus_not_pci);
 		/* Take EISA into account */
-		return eisa_irq_trigger(idx, bus, trigger);
+		return eisa_irq_is_level(idx, bus, level);
 	case MP_IRQTRIG_EDGE:
-		return IOAPIC_EDGE;
+		return false;
 	case MP_IRQTRIG_RESERVED:
 		pr_warn("IOAPIC: Invalid trigger mode 2 defaulting to level\n");
 		fallthrough;
 	case MP_IRQTRIG_LEVEL:
 	default: /* Pointless default required due to do gcc stupidity */
-		return IOAPIC_LEVEL;
+		return true;
 	}
 }
+
+static int __acpi_get_override_irq(u32 gsi, bool *trigger, bool *polarity)
+{
+	int ioapic, pin, idx;
+
+	if (skip_ioapic_setup)
+		return -1;
+
+	ioapic = mp_find_ioapic(gsi);
+	if (ioapic < 0)
+		return -1;
+
+	pin = mp_find_ioapic_pin(ioapic, gsi);
+	if (pin < 0)
+		return -1;
+
+	idx = find_irq_entry(ioapic, pin, mp_INT);
+	if (idx < 0)
+		return -1;
+
+	*trigger = irq_is_level(idx);
+	*polarity = irq_active_low(idx);
+	return 0;
+}
+
+#ifdef CONFIG_ACPI
+int acpi_get_override_irq(u32 gsi, int *is_level, int *active_low)
+{
+	*is_level = *active_low = 0;
+	return __acpi_get_override_irq(gsi, (bool *)is_level,
+				       (bool *)active_low);
+}
+#endif
 
 void ioapic_set_alloc_attr(struct irq_alloc_info *info, int node,
 			   int trigger, int polarity)
@@ -861,20 +864,16 @@ void ioapic_set_alloc_attr(struct irq_alloc_info *info, int node,
 	init_irq_alloc_info(info, NULL);
 	info->type = X86_IRQ_ALLOC_TYPE_IOAPIC;
 	info->ioapic.node = node;
-	info->ioapic.trigger = trigger;
-	info->ioapic.polarity = polarity;
+	info->ioapic.is_level = trigger;
+	info->ioapic.active_low = polarity;
 	info->ioapic.valid = 1;
 }
-
-#ifndef CONFIG_ACPI
-int acpi_get_override_irq(u32 gsi, int *trigger, int *polarity);
-#endif
 
 static void ioapic_copy_alloc_attr(struct irq_alloc_info *dst,
 				   struct irq_alloc_info *src,
 				   u32 gsi, int ioapic_idx, int pin)
 {
-	int trigger, polarity;
+	bool level, pol_low;
 
 	copy_irq_alloc_info(dst, src);
 	dst->type = X86_IRQ_ALLOC_TYPE_IOAPIC;
@@ -883,20 +882,20 @@ static void ioapic_copy_alloc_attr(struct irq_alloc_info *dst,
 	dst->ioapic.valid = 1;
 	if (src && src->ioapic.valid) {
 		dst->ioapic.node = src->ioapic.node;
-		dst->ioapic.trigger = src->ioapic.trigger;
-		dst->ioapic.polarity = src->ioapic.polarity;
+		dst->ioapic.is_level = src->ioapic.is_level;
+		dst->ioapic.active_low = src->ioapic.active_low;
 	} else {
 		dst->ioapic.node = NUMA_NO_NODE;
-		if (acpi_get_override_irq(gsi, &trigger, &polarity) >= 0) {
-			dst->ioapic.trigger = trigger;
-			dst->ioapic.polarity = polarity;
+		if (__acpi_get_override_irq(gsi, &level, &pol_low) >= 0) {
+			dst->ioapic.is_level = level;
+			dst->ioapic.active_low = pol_low;
 		} else {
 			/*
 			 * PCI interrupts are always active low level
 			 * triggered.
 			 */
-			dst->ioapic.trigger = IOAPIC_LEVEL;
-			dst->ioapic.polarity = IOAPIC_POL_LOW;
+			dst->ioapic.is_level = true;
+			dst->ioapic.active_low = true;
 		}
 	}
 }
@@ -906,12 +905,12 @@ static int ioapic_alloc_attr_node(struct irq_alloc_info *info)
 	return (info && info->ioapic.valid) ? info->ioapic.node : NUMA_NO_NODE;
 }
 
-static void mp_register_handler(unsigned int irq, unsigned long trigger)
+static void mp_register_handler(unsigned int irq, bool level)
 {
 	irq_flow_handler_t hdl;
 	bool fasteoi;
 
-	if (trigger) {
+	if (level) {
 		irq_set_status_flags(irq, IRQ_LEVEL);
 		fasteoi = true;
 	} else {
@@ -933,14 +932,14 @@ static bool mp_check_pin_attr(int irq, struct irq_alloc_info *info)
 	 * pin with real trigger and polarity attributes.
 	 */
 	if (irq < nr_legacy_irqs() && data->count == 1) {
-		if (info->ioapic.trigger != data->trigger)
-			mp_register_handler(irq, info->ioapic.trigger);
-		data->entry.trigger = data->trigger = info->ioapic.trigger;
-		data->entry.polarity = data->polarity = info->ioapic.polarity;
+		if (info->ioapic.is_level != data->is_level)
+			mp_register_handler(irq, info->ioapic.is_level);
+		data->entry.is_level = data->is_level = info->ioapic.is_level;
+		data->entry.active_low = data->active_low = info->ioapic.active_low;
 	}
 
-	return data->trigger == info->ioapic.trigger &&
-	       data->polarity == info->ioapic.polarity;
+	return data->is_level == info->ioapic.is_level &&
+	       data->active_low == info->ioapic.active_low;
 }
 
 static int alloc_irq_from_domain(struct irq_domain *domain, int ioapic, u32 gsi,
@@ -1219,10 +1218,9 @@ void ioapic_zap_locks(void)
 
 static void io_apic_print_entries(unsigned int apic, unsigned int nr_entries)
 {
-	int i;
-	char buf[256];
 	struct IO_APIC_route_entry entry;
-	struct IR_IO_APIC_route_entry *ir_entry = (void *)&entry;
+	char buf[256];
+	int i;
 
 	printk(KERN_DEBUG "IOAPIC %d:\n", apic);
 	for (i = 0; i <= nr_entries; i++) {
@@ -1230,20 +1228,21 @@ static void io_apic_print_entries(unsigned int apic, unsigned int nr_entries)
 		snprintf(buf, sizeof(buf),
 			 " pin%02x, %s, %s, %s, V(%02X), IRR(%1d), S(%1d)",
 			 i,
-			 entry.mask == IOAPIC_MASKED ? "disabled" : "enabled ",
-			 entry.trigger == IOAPIC_LEVEL ? "level" : "edge ",
-			 entry.polarity == IOAPIC_POL_LOW ? "low " : "high",
+			 entry.masked ? "disabled" : "enabled ",
+			 entry.is_level ? "level" : "edge ",
+			 entry.active_low ? "low " : "high",
 			 entry.vector, entry.irr, entry.delivery_status);
-		if (ir_entry->format)
+		if (entry.ir_format) {
 			printk(KERN_DEBUG "%s, remapped, I(%04X),  Z(%X)\n",
-			       buf, (ir_entry->index2 << 15) | ir_entry->index,
-			       ir_entry->zero);
-		else
-			printk(KERN_DEBUG "%s, %s, D(%02X), M(%1d)\n",
 			       buf,
-			       entry.dest_mode == IOAPIC_DEST_MODE_LOGICAL ?
-			       "logical " : "physical",
-			       entry.dest, entry.delivery_mode);
+			       (entry.ir_index_15 << 15) | entry.ir_index_0_14,
+				entry.ir_zero);
+		} else {
+			printk(KERN_DEBUG "%s, %s, D(%02X%02X), M(%1d)\n", buf,
+			       entry.dest_mode_logical ? "logical " : "physical",
+			       entry.virt_destid_8_14, entry.destid_0_7,
+			       entry.delivery_mode);
+		}
 	}
 }
 
@@ -1368,7 +1367,8 @@ void __init enable_IO_APIC(void)
 		/* If the interrupt line is enabled and in ExtInt mode
 		 * I have found the pin where the i8259 is connected.
 		 */
-		if ((entry.mask == 0) && (entry.delivery_mode == dest_ExtINT)) {
+		if (!entry.masked &&
+		    entry.delivery_mode == APIC_DELIVERY_MODE_EXTINT) {
 			ioapic_i8259.apic = apic;
 			ioapic_i8259.pin  = pin;
 			goto found_i8259;
@@ -1410,14 +1410,16 @@ void native_restore_boot_irq_mode(void)
 	 */
 	if (ioapic_i8259.pin != -1) {
 		struct IO_APIC_route_entry entry;
+		u32 apic_id = read_apic_id();
 
 		memset(&entry, 0, sizeof(entry));
-		entry.mask		= IOAPIC_UNMASKED;
-		entry.trigger		= IOAPIC_EDGE;
-		entry.polarity		= IOAPIC_POL_HIGH;
-		entry.dest_mode		= IOAPIC_DEST_MODE_PHYSICAL;
-		entry.delivery_mode	= dest_ExtINT;
-		entry.dest		= read_apic_id();
+		entry.masked		= false;
+		entry.is_level		= false;
+		entry.active_low	= false;
+		entry.dest_mode_logical	= false;
+		entry.delivery_mode	= APIC_DELIVERY_MODE_EXTINT;
+		entry.destid_0_7	= apic_id & 0xFF;
+		entry.virt_destid_8_14	= apic_id >> 8;
 
 		/*
 		 * Add it to the IO-APIC irq-routing table:
@@ -1618,20 +1620,15 @@ static void __init delay_without_tsc(void)
 static int __init timer_irq_works(void)
 {
 	unsigned long t1 = jiffies;
-	unsigned long flags;
 
 	if (no_timer_check)
 		return 1;
 
-	local_save_flags(flags);
 	local_irq_enable();
-
 	if (boot_cpu_has(X86_FEATURE_TSC))
 		delay_with_tsc();
 	else
 		delay_without_tsc();
-
-	local_irq_restore(flags);
 
 	/*
 	 * Expect a few ticks at least, to be sure some possible
@@ -1641,10 +1638,10 @@ static int __init timer_irq_works(void)
 	 * least one tick may be lost due to delays.
 	 */
 
-	/* jiffies wrap? */
-	if (time_after(jiffies, t1 + 4))
-		return 1;
-	return 0;
+	local_irq_disable();
+
+	/* Did jiffies advance? */
+	return time_after(jiffies, t1 + 4);
 }
 
 /*
@@ -1696,13 +1693,13 @@ static bool io_apic_level_ack_pending(struct mp_chip_data *data)
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
 	for_each_irq_pin(entry, data->irq_2_pin) {
-		unsigned int reg;
+		struct IO_APIC_route_entry e;
 		int pin;
 
 		pin = entry->pin;
-		reg = io_apic_read(entry->apic, 0x10 + pin*2);
+		e.w1 = io_apic_read(entry->apic, 0x10 + pin*2);
 		/* Is the remote IRR bit set? */
-		if (reg & IO_APIC_REDIR_REMOTE_IRR) {
+		if (e.irr) {
 			raw_spin_unlock_irqrestore(&ioapic_lock, flags);
 			return true;
 		}
@@ -1849,21 +1846,62 @@ static void ioapic_ir_ack_level(struct irq_data *irq_data)
 	eoi_ioapic_pin(data->entry.vector, data);
 }
 
+/*
+ * The I/OAPIC is just a device for generating MSI messages from legacy
+ * interrupt pins. Various fields of the RTE translate into bits of the
+ * resulting MSI which had a historical meaning.
+ *
+ * With interrupt remapping, many of those bits have different meanings
+ * in the underlying MSI, but the way that the I/OAPIC transforms them
+ * from its RTE to the MSI message is the same. This function allows
+ * the parent IRQ domain to compose the MSI message, then takes the
+ * relevant bits to put them in the appropriate places in the RTE in
+ * order to generate that message when the IRQ happens.
+ *
+ * The setup here relies on a preconfigured route entry (is_level,
+ * active_low, masked) because the parent domain is merely composing the
+ * generic message routing information which is used for the MSI.
+ */
+static void ioapic_setup_msg_from_msi(struct irq_data *irq_data,
+				      struct IO_APIC_route_entry *entry)
+{
+	struct msi_msg msg;
+
+	/* Let the parent domain compose the MSI message */
+	irq_chip_compose_msi_msg(irq_data, &msg);
+
+	/*
+	 * - Real vector
+	 * - DMAR/IR: 8bit subhandle (ioapic.pin)
+	 * - AMD/IR:  8bit IRTE index
+	 */
+	entry->vector			= msg.arch_data.vector;
+	/* Delivery mode (for DMAR/IR all 0) */
+	entry->delivery_mode		= msg.arch_data.delivery_mode;
+	/* Destination mode or DMAR/IR index bit 15 */
+	entry->dest_mode_logical	= msg.arch_addr_lo.dest_mode_logical;
+	/* DMAR/IR: 1, 0 for all other modes */
+	entry->ir_format		= msg.arch_addr_lo.dmar_format;
+	/*
+	 * - DMAR/IR: index bit 0-14.
+	 *
+	 * - Virt: If the host supports x2apic without a virtualized IR
+	 *	   unit then bit 0-6 of dmar_index_0_14 are providing bit
+	 *	   8-14 of the destination id.
+	 *
+	 * All other modes have bit 0-6 of dmar_index_0_14 cleared and the
+	 * topmost 8 bits are destination id bit 0-7 (entry::destid_0_7).
+	 */
+	entry->ir_index_0_14		= msg.arch_addr_lo.dmar_index_0_14;
+}
+
 static void ioapic_configure_entry(struct irq_data *irqd)
 {
 	struct mp_chip_data *mpd = irqd->chip_data;
-	struct irq_cfg *cfg = irqd_cfg(irqd);
 	struct irq_pin_list *entry;
 
-	/*
-	 * Only update when the parent is the vector domain, don't touch it
-	 * if the parent is the remapping domain. Check the installed
-	 * ioapic chip to verify that.
-	 */
-	if (irqd->chip == &ioapic_chip) {
-		mpd->entry.dest = cfg->dest_apicid;
-		mpd->entry.vector = cfg->vector;
-	}
+	ioapic_setup_msg_from_msi(irqd, &mpd->entry);
+
 	for_each_irq_pin(entry, mpd->irq_2_pin)
 		__ioapic_write_entry(entry->apic, entry->pin, mpd->entry);
 }
@@ -1919,7 +1957,7 @@ static int ioapic_irq_get_chip_state(struct irq_data *irqd,
 		 * irrelevant because the IO-APIC treats them as fire and
 		 * forget.
 		 */
-		if (rentry.irr && rentry.trigger) {
+		if (rentry.irr && rentry.is_level) {
 			*state = true;
 			break;
 		}
@@ -2027,6 +2065,7 @@ static inline void __init unlock_ExtINT_logic(void)
 	int apic, pin, i;
 	struct IO_APIC_route_entry entry0, entry1;
 	unsigned char save_control, save_freq_select;
+	u32 apic_id;
 
 	pin  = find_isa_irq_pin(8, mp_INT);
 	if (pin == -1) {
@@ -2042,14 +2081,16 @@ static inline void __init unlock_ExtINT_logic(void)
 	entry0 = ioapic_read_entry(apic, pin);
 	clear_IO_APIC_pin(apic, pin);
 
+	apic_id = hard_smp_processor_id();
 	memset(&entry1, 0, sizeof(entry1));
 
-	entry1.dest_mode = IOAPIC_DEST_MODE_PHYSICAL;
-	entry1.mask = IOAPIC_UNMASKED;
-	entry1.dest = hard_smp_processor_id();
-	entry1.delivery_mode = dest_ExtINT;
-	entry1.polarity = entry0.polarity;
-	entry1.trigger = IOAPIC_EDGE;
+	entry1.dest_mode_logical	= true;
+	entry1.masked			= false;
+	entry1.destid_0_7		= apic_id & 0xFF;
+	entry1.virt_destid_8_14		= apic_id >> 8;
+	entry1.delivery_mode		= APIC_DELIVERY_MODE_EXTINT;
+	entry1.active_low		= entry0.active_low;
+	entry1.is_level			= false;
 	entry1.vector = 0;
 
 	ioapic_write_entry(apic, pin, entry1);
@@ -2117,13 +2158,12 @@ static inline void __init check_timer(void)
 	struct irq_cfg *cfg = irqd_cfg(irq_data);
 	int node = cpu_to_node(0);
 	int apic1, pin1, apic2, pin2;
-	unsigned long flags;
 	int no_pin1 = 0;
 
 	if (!global_clock_event)
 		return;
 
-	local_irq_save(flags);
+	local_irq_disable();
 
 	/*
 	 * get/set the timer IRQ vector:
@@ -2178,9 +2218,9 @@ static inline void __init check_timer(void)
 			 * so only need to unmask if it is level-trigger
 			 * do we really have level trigger timer?
 			 */
-			int idx;
-			idx = find_irq_entry(apic1, pin1, mp_INT);
-			if (idx != -1 && irq_trigger(idx))
+			int idx = find_irq_entry(apic1, pin1, mp_INT);
+
+			if (idx != -1 && irq_is_level(idx))
 				unmask_ioapic_irq(irq_get_irq_data(0));
 		}
 		irq_domain_deactivate_irq(irq_data);
@@ -2191,7 +2231,6 @@ static inline void __init check_timer(void)
 			goto out;
 		}
 		panic_if_irq_remap("timer doesn't work through Interrupt-remapped IO-APIC");
-		local_irq_disable();
 		clear_IO_APIC_pin(apic1, pin1);
 		if (!no_pin1)
 			apic_printk(APIC_QUIET, KERN_ERR "..MP-BIOS bug: "
@@ -2215,7 +2254,6 @@ static inline void __init check_timer(void)
 		/*
 		 * Cleanup, just in case ...
 		 */
-		local_irq_disable();
 		legacy_pic->mask(0);
 		clear_IO_APIC_pin(apic2, pin2);
 		apic_printk(APIC_QUIET, KERN_INFO "....... failed.\n");
@@ -2232,7 +2270,6 @@ static inline void __init check_timer(void)
 		apic_printk(APIC_QUIET, KERN_INFO "..... works.\n");
 		goto out;
 	}
-	local_irq_disable();
 	legacy_pic->mask(0);
 	apic_write(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_FIXED | cfg->vector);
 	apic_printk(APIC_QUIET, KERN_INFO "..... failed.\n");
@@ -2251,7 +2288,6 @@ static inline void __init check_timer(void)
 		apic_printk(APIC_QUIET, KERN_INFO "..... works.\n");
 		goto out;
 	}
-	local_irq_disable();
 	apic_printk(APIC_QUIET, KERN_INFO "..... failed :(.\n");
 	if (apic_is_x2apic_enabled())
 		apic_printk(APIC_QUIET, KERN_INFO
@@ -2260,7 +2296,7 @@ static inline void __init check_timer(void)
 	panic("IO-APIC + timer doesn't work!  Boot with apic=debug and send a "
 		"report.  Then try booting with the 'noapic' option.\n");
 out:
-	local_irq_restore(flags);
+	local_irq_enable();
 }
 
 /*
@@ -2284,34 +2320,35 @@ out:
 
 static int mp_irqdomain_create(int ioapic)
 {
-	struct irq_alloc_info info;
 	struct irq_domain *parent;
 	int hwirqs = mp_ioapic_pin_count(ioapic);
 	struct ioapic *ip = &ioapics[ioapic];
 	struct ioapic_domain_cfg *cfg = &ip->irqdomain_cfg;
 	struct mp_ioapic_gsi *gsi_cfg = mp_ioapic_gsi_routing(ioapic);
 	struct fwnode_handle *fn;
-	char *name = "IO-APIC";
+	struct irq_fwspec fwspec;
 
 	if (cfg->type == IOAPIC_DOMAIN_INVALID)
 		return 0;
-
-	init_irq_alloc_info(&info, NULL);
-	info.type = X86_IRQ_ALLOC_TYPE_IOAPIC_GET_PARENT;
-	info.devid = mpc_ioapic_id(ioapic);
-	parent = irq_remapping_get_irq_domain(&info);
-	if (!parent)
-		parent = x86_vector_domain;
-	else
-		name = "IO-APIC-IR";
 
 	/* Handle device tree enumerated APICs proper */
 	if (cfg->dev) {
 		fn = of_node_to_fwnode(cfg->dev);
 	} else {
-		fn = irq_domain_alloc_named_id_fwnode(name, ioapic);
+		fn = irq_domain_alloc_named_id_fwnode("IO-APIC", mpc_ioapic_id(ioapic));
 		if (!fn)
 			return -ENOMEM;
+	}
+
+	fwspec.fwnode = fn;
+	fwspec.param_count = 1;
+	fwspec.param[0] = mpc_ioapic_id(ioapic);
+
+	parent = irq_find_matching_fwspec(&fwspec, DOMAIN_BUS_ANY);
+	if (!parent) {
+		if (!cfg->dev)
+			irq_domain_free_fwnode(fn);
+		return -ENODEV;
 	}
 
 	ip->irqdomain = irq_domain_create_linear(fn, hwirqs, cfg->ops,
@@ -2585,30 +2622,6 @@ static int io_apic_get_version(int ioapic)
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
 
 	return reg_01.bits.version;
-}
-
-int acpi_get_override_irq(u32 gsi, int *trigger, int *polarity)
-{
-	int ioapic, pin, idx;
-
-	if (skip_ioapic_setup)
-		return -1;
-
-	ioapic = mp_find_ioapic(gsi);
-	if (ioapic < 0)
-		return -1;
-
-	pin = mp_find_ioapic_pin(ioapic, gsi);
-	if (pin < 0)
-		return -1;
-
-	idx = find_irq_entry(ioapic, pin, mp_INT);
-	if (idx < 0)
-		return -1;
-
-	*trigger = irq_trigger(idx);
-	*polarity = irq_polarity(idx);
-	return 0;
 }
 
 /*
@@ -2934,44 +2947,49 @@ static void mp_irqdomain_get_attr(u32 gsi, struct mp_chip_data *data,
 				  struct irq_alloc_info *info)
 {
 	if (info && info->ioapic.valid) {
-		data->trigger = info->ioapic.trigger;
-		data->polarity = info->ioapic.polarity;
-	} else if (acpi_get_override_irq(gsi, &data->trigger,
-					 &data->polarity) < 0) {
+		data->is_level = info->ioapic.is_level;
+		data->active_low = info->ioapic.active_low;
+	} else if (__acpi_get_override_irq(gsi, &data->is_level,
+					   &data->active_low) < 0) {
 		/* PCI interrupts are always active low level triggered. */
-		data->trigger = IOAPIC_LEVEL;
-		data->polarity = IOAPIC_POL_LOW;
+		data->is_level = true;
+		data->active_low = true;
 	}
 }
 
-static void mp_setup_entry(struct irq_cfg *cfg, struct mp_chip_data *data,
-			   struct IO_APIC_route_entry *entry)
+/*
+ * Configure the I/O-APIC specific fields in the routing entry.
+ *
+ * This is important to setup the I/O-APIC specific bits (is_level,
+ * active_low, masked) because the underlying parent domain will only
+ * provide the routing information and is oblivious of the I/O-APIC
+ * specific bits.
+ *
+ * The entry is just preconfigured at this point and not written into the
+ * RTE. This happens later during activation which will fill in the actual
+ * routing information.
+ */
+static void mp_preconfigure_entry(struct mp_chip_data *data)
 {
+	struct IO_APIC_route_entry *entry = &data->entry;
+
 	memset(entry, 0, sizeof(*entry));
-	entry->delivery_mode = apic->irq_delivery_mode;
-	entry->dest_mode     = apic->irq_dest_mode;
-	entry->dest	     = cfg->dest_apicid;
-	entry->vector	     = cfg->vector;
-	entry->trigger	     = data->trigger;
-	entry->polarity	     = data->polarity;
+	entry->is_level		 = data->is_level;
+	entry->active_low	 = data->active_low;
 	/*
 	 * Mask level triggered irqs. Edge triggered irqs are masked
 	 * by the irq core code in case they fire.
 	 */
-	if (data->trigger == IOAPIC_LEVEL)
-		entry->mask = IOAPIC_MASKED;
-	else
-		entry->mask = IOAPIC_UNMASKED;
+	entry->masked		= data->is_level;
 }
 
 int mp_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
 		       unsigned int nr_irqs, void *arg)
 {
-	int ret, ioapic, pin;
-	struct irq_cfg *cfg;
-	struct irq_data *irq_data;
-	struct mp_chip_data *data;
 	struct irq_alloc_info *info = arg;
+	struct mp_chip_data *data;
+	struct irq_data *irq_data;
+	int ret, ioapic, pin;
 	unsigned long flags;
 
 	if (!info || nr_irqs > 1)
@@ -2989,7 +3007,6 @@ int mp_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
 	if (!data)
 		return -ENOMEM;
 
-	info->ioapic.entry = &data->entry;
 	ret = irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, info);
 	if (ret < 0) {
 		kfree(data);
@@ -3003,22 +3020,20 @@ int mp_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
 	irq_data->chip_data = data;
 	mp_irqdomain_get_attr(mp_pin_to_gsi(ioapic, pin), data, info);
 
-	cfg = irqd_cfg(irq_data);
 	add_pin_to_irq_node(data, ioapic_alloc_attr_node(info), ioapic, pin);
 
+	mp_preconfigure_entry(data);
+	mp_register_handler(virq, data->is_level);
+
 	local_irq_save(flags);
-	if (info->ioapic.entry)
-		mp_setup_entry(cfg, data, info->ioapic.entry);
-	mp_register_handler(virq, data->trigger);
 	if (virq < nr_legacy_irqs())
 		legacy_pic->mask(virq);
 	local_irq_restore(flags);
 
 	apic_printk(APIC_VERBOSE, KERN_DEBUG
-		    "IOAPIC[%d]: Set routing entry (%d-%d -> 0x%x -> IRQ %d Mode:%i Active:%i Dest:%d)\n",
-		    ioapic, mpc_ioapic_id(ioapic), pin, cfg->vector,
-		    virq, data->trigger, data->polarity, cfg->dest_apicid);
-
+		    "IOAPIC[%d]: Preconfigured routing entry (%d-%d -> IRQ %d Level:%i ActiveLow:%i)\n",
+		    ioapic, mpc_ioapic_id(ioapic), pin, virq,
+		    data->is_level, data->active_low);
 	return 0;
 }
 

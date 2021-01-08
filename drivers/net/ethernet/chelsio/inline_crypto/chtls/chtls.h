@@ -9,7 +9,8 @@
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
 #include <crypto/hash.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <crypto/authenc.h>
 #include <crypto/ctr.h>
 #include <crypto/gf128mul.h>
@@ -235,6 +236,7 @@ struct chtls_dev {
 	struct list_head na_node;
 	unsigned int send_page_order;
 	int max_host_sndbuf;
+	u32 round_robin_cnt;
 	struct key_map kmap;
 	unsigned int cdev_state;
 };

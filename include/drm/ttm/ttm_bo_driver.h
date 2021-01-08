@@ -39,9 +39,9 @@
 
 #include "ttm_bo_api.h"
 #include "ttm_memory.h"
-#include "ttm_module.h"
 #include "ttm_placement.h"
 #include "ttm_tt.h"
+#include "ttm_pool.h"
 
 /**
  * struct ttm_bo_driver
@@ -120,6 +120,8 @@ struct ttm_bo_driver {
 	 * Return the bo flags for a buffer which is not mapped to the hardware.
 	 * These will be placed in proposed_flags so that when the move is
 	 * finished, they'll end up in bo->mem.flags
+	 * This should not cause multihop evictions, and the core will warn
+	 * if one is proposed.
 	 */
 
 	void (*evict_flags)(struct ttm_buffer_object *bo,
@@ -133,12 +135,15 @@ struct ttm_bo_driver {
 	 * the graphics address space
 	 * @ctx: context for this move with parameters
 	 * @new_mem: the new memory region receiving the buffer
+	 @ @hop: placement for driver directed intermediate hop
 	 *
 	 * Move a buffer between two memory regions.
+	 * Returns errno -EMULTIHOP if driver requests a hop
 	 */
 	int (*move)(struct ttm_buffer_object *bo, bool evict,
 		    struct ttm_operation_ctx *ctx,
-		    struct ttm_resource *new_mem);
+		    struct ttm_resource *new_mem,
+		    struct ttm_place *hop);
 
 	/**
 	 * struct ttm_bo_driver_member verify_access
@@ -275,7 +280,6 @@ extern struct ttm_bo_global {
  * @dev_mapping: A pointer to the struct address_space representing the
  * device address space.
  * @wq: Work queue structure for the delayed delete workqueue.
- * @no_retry: Don't retry allocation if it fails
  *
  */
 
@@ -295,6 +299,7 @@ struct ttm_bo_device {
 	 * Protected by internal locks.
 	 */
 	struct drm_vma_offset_manager *vma_manager;
+	struct ttm_pool pool;
 
 	/*
 	 * Protected by the global:lru lock.
@@ -312,10 +317,6 @@ struct ttm_bo_device {
 	 */
 
 	struct delayed_work wq;
-
-	bool need_dma32;
-
-	bool no_retry;
 };
 
 static inline struct ttm_resource_manager *ttm_manager_type(struct ttm_bo_device *bdev,
@@ -395,11 +396,11 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev);
  * @bdev: A pointer to a struct ttm_bo_device to initialize.
  * @glob: A pointer to an initialized struct ttm_bo_global.
  * @driver: A pointer to a struct ttm_bo_driver set up by the caller.
+ * @dev: The core kernel device pointer for DMA mappings and allocations.
  * @mapping: The address space to use for this bo.
  * @vma_manager: A pointer to a vma manager.
- * @file_page_offset: Offset into the device address space that is available
- * for buffer data. This ensures compatibility with other users of the
- * address space.
+ * @use_dma_alloc: If coherent DMA allocation API should be used.
+ * @use_dma32: If we should use GFP_DMA32 for device memory allocations.
  *
  * Initializes a struct ttm_bo_device:
  * Returns:
@@ -407,9 +408,10 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev);
  */
 int ttm_bo_device_init(struct ttm_bo_device *bdev,
 		       struct ttm_bo_driver *driver,
+		       struct device *dev,
 		       struct address_space *mapping,
 		       struct drm_vma_offset_manager *vma_manager,
-		       bool need_dma32);
+		       bool use_dma_alloc, bool use_dma32);
 
 /**
  * ttm_bo_unmap_virtual
@@ -489,10 +491,11 @@ static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
 	return 0;
 }
 
-static inline void ttm_bo_move_to_lru_tail_unlocked(struct ttm_buffer_object *bo)
+static inline void
+ttm_bo_move_to_lru_tail_unlocked(struct ttm_buffer_object *bo)
 {
 	spin_lock(&ttm_bo_glob.lru_lock);
-	ttm_bo_move_to_lru_tail(bo, NULL);
+	ttm_bo_move_to_lru_tail(bo, &bo->mem, NULL);
 	spin_unlock(&ttm_bo_glob.lru_lock);
 }
 

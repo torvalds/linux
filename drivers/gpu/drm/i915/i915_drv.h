@@ -1577,9 +1577,9 @@ static inline const struct i915_rev_steppings *
 tgl_revids_get(struct drm_i915_private *dev_priv)
 {
 	if (IS_TGL_U(dev_priv) || IS_TGL_Y(dev_priv))
-		return tgl_uy_revids;
+		return &tgl_uy_revids[INTEL_REVID(dev_priv)];
 	else
-		return tgl_revids;
+		return &tgl_revids[INTEL_REVID(dev_priv)];
 }
 
 #define IS_TGL_DISP_REVID(p, since, until) \
@@ -1589,14 +1589,14 @@ tgl_revids_get(struct drm_i915_private *dev_priv)
 
 #define IS_TGL_UY_GT_REVID(p, since, until) \
 	((IS_TGL_U(p) || IS_TGL_Y(p)) && \
-	 tgl_uy_revids->gt_stepping >= (since) && \
-	 tgl_uy_revids->gt_stepping <= (until))
+	 tgl_uy_revids[INTEL_REVID(p)].gt_stepping >= (since) && \
+	 tgl_uy_revids[INTEL_REVID(p)].gt_stepping <= (until))
 
 #define IS_TGL_GT_REVID(p, since, until) \
 	(IS_TIGERLAKE(p) && \
 	 !(IS_TGL_U(p) || IS_TGL_Y(p)) && \
-	 tgl_revids->gt_stepping >= (since) && \
-	 tgl_revids->gt_stepping <= (until))
+	 tgl_revids[INTEL_REVID(p)].gt_stepping >= (since) && \
+	 tgl_revids[INTEL_REVID(p)].gt_stepping <= (until))
 
 #define RKL_REVID_A0		0x0
 #define RKL_REVID_B0		0x1
@@ -1639,8 +1639,7 @@ tgl_revids_get(struct drm_i915_private *dev_priv)
 #define HAS_SNOOP(dev_priv)	(INTEL_INFO(dev_priv)->has_snoop)
 #define HAS_EDRAM(dev_priv)	((dev_priv)->edram_size_mb)
 #define HAS_SECURE_BATCHES(dev_priv) (INTEL_GEN(dev_priv) < 6)
-#define HAS_WT(dev_priv)	((IS_HASWELL(dev_priv) || \
-				 IS_BROADWELL(dev_priv)) && HAS_EDRAM(dev_priv))
+#define HAS_WT(dev_priv)	HAS_EDRAM(dev_priv)
 
 #define HWS_NEEDS_PHYSICAL(dev_priv)	(INTEL_INFO(dev_priv)->hws_needs_physical)
 

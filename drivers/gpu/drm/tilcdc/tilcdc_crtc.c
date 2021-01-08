@@ -535,7 +535,7 @@ static void tilcdc_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 static void tilcdc_crtc_atomic_flush(struct drm_crtc *crtc,
-				     struct drm_crtc_state *old_state)
+				     struct drm_atomic_state *state)
 {
 	if (!crtc->state->event)
 		return;
@@ -657,15 +657,17 @@ static bool tilcdc_crtc_mode_fixup(struct drm_crtc *crtc,
 }
 
 static int tilcdc_crtc_atomic_check(struct drm_crtc *crtc,
-				    struct drm_crtc_state *state)
+				    struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	/* If we are not active we don't care */
-	if (!state->active)
+	if (!crtc_state->active)
 		return 0;
 
-	if (state->state->planes[0].ptr != crtc->primary ||
-	    state->state->planes[0].state == NULL ||
-	    state->state->planes[0].state->crtc != crtc) {
+	if (state->planes[0].ptr != crtc->primary ||
+	    state->planes[0].state == NULL ||
+	    state->planes[0].state->crtc != crtc) {
 		dev_dbg(crtc->dev->dev, "CRTC primary plane must be present");
 		return -EINVAL;
 	}

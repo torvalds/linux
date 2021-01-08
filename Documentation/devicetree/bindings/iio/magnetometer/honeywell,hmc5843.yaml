@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/magnetometer/honeywell,hmc5843.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Honeywell HMC5843 magnetometer sensor
+
+maintainers:
+  - Neil Brown <neilb@suse.de>
+
+properties:
+  compatible:
+    enum:
+      - honeywell,hmc5843
+      - honeywell,hmc5883
+      - honeywell,hmc5883l
+      - honeywell,hmc5983
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        magnetometer@1e {
+            compatible = "honeywell,hmc5843";
+            reg = <0x1e>;
+        };
+    };
+...

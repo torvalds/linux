@@ -751,24 +751,26 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 }
 
 static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
-					struct drm_crtc_state *state)
+					struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	struct drm_device *dev = crtc->dev;
 	struct ast_crtc_state *ast_state;
 	const struct drm_format_info *format;
 	bool succ;
 
-	if (!state->enable)
+	if (!crtc_state->enable)
 		return 0; /* no mode checks if CRTC is being disabled */
 
-	ast_state = to_ast_crtc_state(state);
+	ast_state = to_ast_crtc_state(crtc_state);
 
 	format = ast_state->format;
 	if (drm_WARN_ON_ONCE(dev, !format))
 		return -EINVAL; /* BUG: We didn't set format in primary check(). */
 
-	succ = ast_get_vbios_mode_info(format, &state->mode,
-				       &state->adjusted_mode,
+	succ = ast_get_vbios_mode_info(format, &crtc_state->mode,
+				       &crtc_state->adjusted_mode,
 				       &ast_state->vbios_mode_info);
 	if (!succ)
 		return -EINVAL;
@@ -777,10 +779,15 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 }
 
 static void
-ast_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state *old_crtc_state)
+ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
+			     struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
+	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
+									      crtc);
 	struct ast_private *ast = to_ast_private(crtc->dev);
-	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc->state);
+	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
 	struct ast_crtc_state *old_ast_crtc_state = to_ast_crtc_state(old_crtc_state);
 
 	/*
@@ -896,7 +903,6 @@ static void ast_crtc_atomic_destroy_state(struct drm_crtc *crtc,
 
 static const struct drm_crtc_funcs ast_crtc_funcs = {
 	.reset = ast_crtc_reset,
-	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 	.destroy = drm_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,

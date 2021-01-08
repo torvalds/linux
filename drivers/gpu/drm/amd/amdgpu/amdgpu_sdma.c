@@ -126,7 +126,7 @@ int amdgpu_sdma_ras_late_init(struct amdgpu_device *adev,
 		goto free;
 	}
 
-        return 0;
+	return 0;
 
 late_fini:
 	amdgpu_ras_late_fini(adev, adev->sdma.ras_if, ih_info);

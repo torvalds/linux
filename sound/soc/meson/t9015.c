@@ -312,7 +312,7 @@ static int t9015_probe(struct platform_device *pdev)
 					       &t9015_dai, 1);
 }
 
-static const struct of_device_id t9015_ids[] = {
+static const struct of_device_id t9015_ids[] __maybe_unused = {
 	{ .compatible = "amlogic,t9015", },
 	{ }
 };

@@ -483,7 +483,7 @@ static const struct file_operations xen_drm_dev_fops = {
 	.mmap           = xen_drm_front_gem_mmap,
 };
 
-static struct drm_driver xen_drm_driver = {
+static const struct drm_driver xen_drm_driver = {
 	.driver_features           = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.release                   = xen_drm_drv_release,
 	.prime_handle_to_fd        = drm_gem_prime_handle_to_fd,

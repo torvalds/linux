@@ -381,13 +381,11 @@ static void pipe_ctx_to_e2e_pipe_params (
 		input->src.viewport_width_c    = input->src.viewport_width;
 		input->src.viewport_height_c   = input->src.viewport_height;
 		break;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	case SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA:
 		input->src.source_format = dm_rgbe_alpha;
 		input->src.viewport_width_c    = input->src.viewport_width;
 		input->src.viewport_height_c   = input->src.viewport_height;
 		break;
-#endif
 	default:
 		input->src.source_format = dm_444_32;
 		input->src.viewport_width_c    = input->src.viewport_width;
@@ -736,10 +734,11 @@ static void hack_bounding_box(struct dcn_bw_internal_vars *v,
 		hack_force_pipe_split(v, context->streams[0]->timing.pix_clk_100hz);
 }
 
-unsigned int get_highest_allowed_voltage_level(uint32_t hw_internal_rev, uint32_t pci_revision_id)
+unsigned int get_highest_allowed_voltage_level(uint32_t chip_family, uint32_t hw_internal_rev, uint32_t pci_revision_id)
 {
 	/* for low power RV2 variants, the highest voltage level we want is 0 */
-	if (ASICREV_IS_RAVEN2(hw_internal_rev))
+	if ((chip_family == FAMILY_RV) &&
+	     ASICREV_IS_RAVEN2(hw_internal_rev))
 		switch (pci_revision_id) {
 		case PRID_DALI_DE:
 		case PRID_DALI_DF:
@@ -1324,6 +1323,7 @@ bool dcn_validate_bandwidth(
 	BW_VAL_TRACE_FINISH();
 
 	if (bw_limit_pass && v->voltage_level <= get_highest_allowed_voltage_level(
+							dc->ctx->asic_id.chip_family,
 							dc->ctx->asic_id.hw_internal_rev,
 							dc->ctx->asic_id.pci_revision_id))
 		return true;

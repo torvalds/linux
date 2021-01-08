@@ -16,7 +16,8 @@
 #include <crypto/internal/hash.h>
 #include <crypto/md5.h>
 #include <crypto/rng.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 
 /* CE Registers */
 #define CE_TDQ	0x00

@@ -76,7 +76,7 @@ static const struct drm_mode_config_funcs zynqmp_dpsub_mode_config_funcs = {
 
 DEFINE_DRM_GEM_CMA_FOPS(zynqmp_dpsub_drm_fops);
 
-static struct drm_driver zynqmp_dpsub_drm_driver = {
+static const struct drm_driver zynqmp_dpsub_drm_driver = {
 	.driver_features		= DRIVER_MODESET | DRIVER_GEM |
 					  DRIVER_ATOMIC,
 

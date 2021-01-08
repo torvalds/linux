@@ -53,9 +53,6 @@
 
 struct rockchip_iodomain;
 
-/**
- * @supplies: voltage settings matching the register bits.
- */
 struct rockchip_iodomain_soc_data {
 	int grf_offset;
 	const char *supply_names[MAX_SUPPLIES];
@@ -547,6 +544,7 @@ static int rockchip_iodomain_probe(struct platform_device *pdev)
 		if (uV < 0) {
 			dev_err(iod->dev, "Can't determine voltage: %s\n",
 				supply_name);
+			ret = uV;
 			goto unreg_notify;
 		}
 

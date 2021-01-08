@@ -11,11 +11,22 @@
 static struct idxd_desc *__get_desc(struct idxd_wq *wq, int idx, int cpu)
 {
 	struct idxd_desc *desc;
+	struct idxd_device *idxd = wq->idxd;
 
 	desc = wq->descs[idx];
 	memset(desc->hw, 0, sizeof(struct dsa_hw_desc));
-	memset(desc->completion, 0, sizeof(struct dsa_completion_record));
+	memset(desc->completion, 0, idxd->compl_size);
 	desc->cpu = cpu;
+
+	if (device_pasid_enabled(idxd))
+		desc->hw->pasid = idxd->pasid;
+
+	/*
+	 * Descriptor completion vectors are 1-8 for MSIX. We will round
+	 * robin through the 8 vectors.
+	 */
+	wq->vec_ptr = (wq->vec_ptr % idxd->num_wq_irqs) + 1;
+	desc->hw->int_handle = wq->vec_ptr;
 	return desc;
 }
 
@@ -70,18 +81,32 @@ int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 	struct idxd_device *idxd = wq->idxd;
 	int vec = desc->hw->int_handle;
 	void __iomem *portal;
+	int rc;
 
 	if (idxd->state != IDXD_DEV_ENABLED)
 		return -EIO;
 
-	portal = wq->dportal + idxd_get_wq_portal_offset(IDXD_PORTAL_UNLIMITED);
+	portal = wq->portal;
+
 	/*
-	 * The wmb() flushes writes to coherent DMA data before possibly
-	 * triggering a DMA read. The wmb() is necessary even on UP because
-	 * the recipient is a device.
+	 * The wmb() flushes writes to coherent DMA data before
+	 * possibly triggering a DMA read. The wmb() is necessary
+	 * even on UP because the recipient is a device.
 	 */
 	wmb();
-	iosubmit_cmds512(portal, desc->hw, 1);
+	if (wq_dedicated(wq)) {
+		iosubmit_cmds512(portal, desc->hw, 1);
+	} else {
+		/*
+		 * It's not likely that we would receive queue full rejection
+		 * since the descriptor allocation gates at wq size. If we
+		 * receive a -EAGAIN, that means something went wrong such as the
+		 * device is not accepting descriptor at all.
+		 */
+		rc = enqcmds(portal, desc->hw);
+		if (rc < 0)
+			return rc;
+	}
 
 	/*
 	 * Pending the descriptor to the lockless list for the irq_entry

@@ -278,7 +278,7 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 	pdata->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	pdata->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
-	ret = rtc_register_device(pdata->rtc);
+	ret = devm_rtc_register_device(pdata->rtc);
 	if (!ret)
 		return 0;
 out:

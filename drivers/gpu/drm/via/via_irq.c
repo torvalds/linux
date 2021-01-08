@@ -308,7 +308,7 @@ int via_driver_irq_postinstall(struct drm_device *dev)
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	u32 status;
 
-	DRM_DEBUG("via_driver_irq_postinstall\n");
+	DRM_DEBUG("fun: %s\n", __func__);
 	if (!dev_priv)
 		return -EINVAL;
 
@@ -364,6 +364,7 @@ int via_wait_irq(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		irqwait->request.sequence +=
 			atomic_read(&cur_irq->irq_received);
 		irqwait->request.type &= ~_DRM_VBLANK_RELATIVE;
+		break;
 	case VIA_IRQ_ABSOLUTE:
 		break;
 	default:

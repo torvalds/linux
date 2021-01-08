@@ -34,7 +34,7 @@
 #include "psb_intel_reg.h"
 #include "psb_reg.h"
 
-static struct drm_driver driver;
+static const struct drm_driver driver;
 static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 
 /*
@@ -124,7 +124,6 @@ static int psb_do_init(struct drm_device *dev)
 	    (stolen_gtt << PAGE_SHIFT) * 1024;
 
 	spin_lock_init(&dev_priv->irqmask_lock);
-	spin_lock_init(&dev_priv->lock_2d);
 
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK0);
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK1);
@@ -313,6 +312,8 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto out_err;
 
+	ret = -ENOMEM;
+
 	dev_priv->mmu = psb_mmu_driver_init(dev, 1, 0, 0);
 	if (!dev_priv->mmu)
 		goto out_err;
@@ -491,7 +492,7 @@ static const struct file_operations psb_gem_fops = {
 	.read = drm_read,
 };
 
-static struct drm_driver driver = {
+static const struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM,
 	.lastclose = drm_fb_helper_lastclose,
 

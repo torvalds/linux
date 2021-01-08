@@ -356,29 +356,34 @@ static struct drm_gem_object *vgem_prime_import_sg_table(struct drm_device *dev,
 	}
 
 	obj->pages_pin_count++; /* perma-pinned */
-	drm_prime_sg_to_page_addr_arrays(obj->table, obj->pages, NULL,
-					npages);
+	drm_prime_sg_to_page_array(obj->table, obj->pages, npages);
 	return &obj->base;
 }
 
-static void *vgem_prime_vmap(struct drm_gem_object *obj)
+static int vgem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 {
 	struct drm_vgem_gem_object *bo = to_vgem_bo(obj);
 	long n_pages = obj->size >> PAGE_SHIFT;
 	struct page **pages;
+	void *vaddr;
 
 	pages = vgem_pin_pages(bo);
 	if (IS_ERR(pages))
-		return NULL;
+		return PTR_ERR(pages);
 
-	return vmap(pages, n_pages, 0, pgprot_writecombine(PAGE_KERNEL));
+	vaddr = vmap(pages, n_pages, 0, pgprot_writecombine(PAGE_KERNEL));
+	if (!vaddr)
+		return -ENOMEM;
+	dma_buf_map_set_vaddr(map, vaddr);
+
+	return 0;
 }
 
-static void vgem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
+static void vgem_prime_vunmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 {
 	struct drm_vgem_gem_object *bo = to_vgem_bo(obj);
 
-	vunmap(vaddr);
+	vunmap(map->vaddr);
 	vgem_unpin_pages(bo);
 }
 
@@ -397,8 +402,7 @@ static int vgem_prime_mmap(struct drm_gem_object *obj,
 	if (ret)
 		return ret;
 
-	fput(vma->vm_file);
-	vma->vm_file = get_file(obj->filp);
+	vma_set_file(vma, obj->filp);
 	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_page_prot = pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
 
@@ -415,7 +419,7 @@ static const struct drm_gem_object_funcs vgem_gem_object_funcs = {
 	.vm_ops = &vgem_gem_vm_ops,
 };
 
-static struct drm_driver vgem_driver = {
+static const struct drm_driver vgem_driver = {
 	.driver_features		= DRIVER_GEM | DRIVER_RENDER,
 	.open				= vgem_open,
 	.postclose			= vgem_postclose,

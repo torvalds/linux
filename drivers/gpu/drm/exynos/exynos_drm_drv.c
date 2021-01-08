@@ -113,7 +113,7 @@ static const struct file_operations exynos_drm_driver_fops = {
 	.release	= drm_release,
 };
 
-static struct drm_driver exynos_drm_driver = {
+static const struct drm_driver exynos_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM
 				  | DRIVER_ATOMIC | DRIVER_RENDER,
 	.open			= exynos_drm_open,

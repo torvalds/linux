@@ -60,6 +60,9 @@ struct fsl_mc_addr_translation_range {
 	phys_addr_t start_phys_addr;
 };
 
+#define FSL_MC_GCR1	0x0
+#define GCR1_P1_STOP	BIT(31)
+
 #define FSL_MC_FAPR	0x28
 #define MC_FAPR_PL	BIT(18)
 #define MC_FAPR_BMT	BIT(17)
@@ -967,24 +970,42 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mc);
 
 	plat_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (plat_res)
+	if (plat_res) {
 		mc->fsl_mc_regs = devm_ioremap_resource(&pdev->dev, plat_res);
+		if (IS_ERR(mc->fsl_mc_regs))
+			return PTR_ERR(mc->fsl_mc_regs);
+	}
 
-	if (mc->fsl_mc_regs && IS_ENABLED(CONFIG_ACPI) &&
-	    !dev_of_node(&pdev->dev)) {
-		mc_stream_id = readl(mc->fsl_mc_regs + FSL_MC_FAPR);
+	if (mc->fsl_mc_regs) {
 		/*
-		 * HW ORs the PL and BMT bit, places the result in bit 15 of
-		 * the StreamID and ORs in the ICID. Calculate it accordingly.
+		 * Some bootloaders pause the MC firmware before booting the
+		 * kernel so that MC will not cause faults as soon as the
+		 * SMMU probes due to the fact that there's no configuration
+		 * in place for MC.
+		 * At this point MC should have all its SMMU setup done so make
+		 * sure it is resumed.
 		 */
-		mc_stream_id = (mc_stream_id & 0xffff) |
+		writel(readl(mc->fsl_mc_regs + FSL_MC_GCR1) & (~GCR1_P1_STOP),
+		       mc->fsl_mc_regs + FSL_MC_GCR1);
+
+		if (IS_ENABLED(CONFIG_ACPI) && !dev_of_node(&pdev->dev)) {
+			mc_stream_id = readl(mc->fsl_mc_regs + FSL_MC_FAPR);
+			/*
+			 * HW ORs the PL and BMT bit, places the result in bit
+			 * 14 of the StreamID and ORs in the ICID. Calculate it
+			 * accordingly.
+			 */
+			mc_stream_id = (mc_stream_id & 0xffff) |
 				((mc_stream_id & (MC_FAPR_PL | MC_FAPR_BMT)) ?
-					0x4000 : 0);
-		error = acpi_dma_configure_id(&pdev->dev, DEV_DMA_COHERENT,
-					      &mc_stream_id);
-		if (error)
-			dev_warn(&pdev->dev, "failed to configure dma: %d.\n",
-				 error);
+					BIT(14) : 0);
+			error = acpi_dma_configure_id(&pdev->dev,
+						      DEV_DMA_COHERENT,
+						      &mc_stream_id);
+			if (error)
+				dev_warn(&pdev->dev,
+					 "failed to configure dma: %d.\n",
+					 error);
+		}
 	}
 
 	/*

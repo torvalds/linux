@@ -256,6 +256,10 @@ which is 1024 bytes long:
      - s\_padding2
      -
    * - 0x54
+     - \_\_be32
+     - s\_num\_fc\_blocks
+     - Number of fast commit blocks in the journal.
+   * - 0x58
      - \_\_u32
      - s\_padding[42]
      -
@@ -310,6 +314,8 @@ The journal incompat features are any combination of the following:
      - This journal uses v3 of the checksum on-disk format. This is the same as
        v2, but the journal block tag size is fixed regardless of the size of
        block numbers. (JBD2\_FEATURE\_INCOMPAT\_CSUM\_V3)
+   * - 0x20
+     - Journal has fast commit blocks. (JBD2\_FEATURE\_INCOMPAT\_FAST\_COMMIT)
 
 .. _jbd2_checksum_type:
 
@@ -675,3 +681,53 @@ Here is the list of supported tags and their meanings:
      - Stores the TID of the commit, CRC of the fast commit of which this tag
        represents the end of
 
+Fast Commit Replay Idempotence
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Fast commits tags are idempotent in nature provided the recovery code follows
+certain rules. The guiding principle that the commit path follows while
+committing is that it stores the result of a particular operation instead of
+storing the procedure.
+
+Let's consider this rename operation: 'mv /a /b'. Let's assume dirent '/a'
+was associated with inode 10. During fast commit, instead of storing this
+operation as a procedure "rename a to b", we store the resulting file system
+state as a "series" of outcomes:
+
+- Link dirent b to inode 10
+- Unlink dirent a
+- Inode 10 with valid refcount
+
+Now when recovery code runs, it needs "enforce" this state on the file
+system. This is what guarantees idempotence of fast commit replay.
+
+Let's take an example of a procedure that is not idempotent and see how fast
+commits make it idempotent. Consider following sequence of operations:
+
+1) rm A
+2) mv B A
+3) read A
+
+If we store this sequence of operations as is then the replay is not idempotent.
+Let's say while in replay, we crash after (2). During the second replay,
+file A (which was actually created as a result of "mv B A" operation) would get
+deleted. Thus, file named A would be absent when we try to read A. So, this
+sequence of operations is not idempotent. However, as mentioned above, instead
+of storing the procedure fast commits store the outcome of each procedure. Thus
+the fast commit log for above procedure would be as follows:
+
+(Let's assume dirent A was linked to inode 10 and dirent B was linked to
+inode 11 before the replay)
+
+1) Unlink A
+2) Link A to inode 11
+3) Unlink B
+4) Inode 11
+
+If we crash after (3) we will have file A linked to inode 11. During the second
+replay, we will remove file A (inode 11). But we will create it back and make
+it point to inode 11. We won't find B, so we'll just skip that step. At this
+point, the refcount for inode 11 is not reliable, but that gets fixed by the
+replay of last inode 11 tag. Thus, by converting a non-idempotent procedure
+into a series of idempotent outcomes, fast commits ensured idempotence during
+the replay.

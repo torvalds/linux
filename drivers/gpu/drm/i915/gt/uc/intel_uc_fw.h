@@ -88,6 +88,8 @@ struct intel_uc_fw {
 
 	u32 rsa_size;
 	u32 ucode_size;
+
+	u32 private_data_size;
 };
 
 #ifdef CONFIG_DRM_I915_DEBUG_GUC

@@ -977,7 +977,7 @@ static int m41t80_probe(struct i2c_client *client,
 		m41t80_sqw_register_clk(m41t80_data);
 #endif
 
-	rc = rtc_register_device(m41t80_data->rtc);
+	rc = devm_rtc_register_device(m41t80_data->rtc);
 	if (rc)
 		return rc;
 

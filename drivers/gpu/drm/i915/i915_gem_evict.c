@@ -238,7 +238,7 @@ found:
 }
 
 /**
- * i915_gem_evict_for_vma - Evict vmas to make room for binding a new one
+ * i915_gem_evict_for_node - Evict vmas to make room for binding a new one
  * @vm: address space to evict from
  * @target: range (and color) to evict for
  * @flags: additional flags to control the eviction algorithm

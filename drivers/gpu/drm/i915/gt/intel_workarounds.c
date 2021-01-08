@@ -131,8 +131,10 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 			return;
 		}
 
-		if (wal->list)
+		if (wal->list) {
 			memcpy(list, wal->list, sizeof(*wa) * wal->count);
+			kfree(wal->list);
+		}
 
 		wal->list = list;
 	}

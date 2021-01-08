@@ -30,14 +30,11 @@ extern resource_size_t isa_mem_base;
 #define PCI_IOBASE	((void __iomem *)_IO_BASE)
 #define IO_SPACE_LIMIT (0xFFFFFFFF)
 
-#ifdef CONFIG_MMU
 #define page_to_bus(page)	(page_to_phys(page))
 
 extern void iounmap(volatile void __iomem *addr);
 
 extern void __iomem *ioremap(phys_addr_t address, unsigned long size);
-
-#endif /* CONFIG_MMU */
 
 /* Big Endian */
 #define out_be32(a, v) __raw_writel((v), (void __iomem __force *)(a))

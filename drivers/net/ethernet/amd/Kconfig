@@ -8,7 +8,7 @@ config NET_VENDOR_AMD
 	default y
 	depends on DIO || MACH_DECSTATION || MVME147 || ATARI || SUN3 || \
 		   SUN3X || SBUS || PCI || ZORRO || (ISA && ISA_DMA_API) || \
-		   (ARM && ARCH_EBSA110) || ISA || EISA || PCMCIA || ARM64
+		   ISA || EISA || PCMCIA || ARM64
 	help
 	  If you have a network (Ethernet) chipset belonging to this class,
 	  say Y.
@@ -74,14 +74,6 @@ config ARIADNE
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called ariadne.
-
-config ARM_AM79C961A
-	bool "ARM EBSA110 AM79C961A support"
-	depends on ARM && ARCH_EBSA110
-	select CRC32
-	help
-	  If you wish to compile a kernel for the EBSA-110, then you should
-	  always answer Y to this.
 
 config ATARILANCE
 	tristate "Atari LANCE support"

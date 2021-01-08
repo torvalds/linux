@@ -15,6 +15,11 @@ enum mtk_vcodec_fw_type {
 	SCP,
 };
 
+enum mtk_vcodec_fw_use {
+	DECODER,
+	ENCODER,
+};
+
 struct mtk_vcodec_fw;
 
 typedef void (*mtk_vcodec_ipi_handler) (void *data,
@@ -22,7 +27,7 @@ typedef void (*mtk_vcodec_ipi_handler) (void *data,
 
 struct mtk_vcodec_fw *mtk_vcodec_fw_select(struct mtk_vcodec_dev *dev,
 					   enum mtk_vcodec_fw_type type,
-					   enum rst_id rst_id);
+					   enum mtk_vcodec_fw_use fw_use);
 void mtk_vcodec_fw_release(struct mtk_vcodec_fw *fw);
 
 int mtk_vcodec_fw_load_firmware(struct mtk_vcodec_fw *fw);

@@ -111,6 +111,8 @@ enum bsp_initiate_command {
 
 static struct brcmstb_pm_control ctrl;
 
+noinline int brcmstb_pm_s3_finish(void);
+
 static int (*brcmstb_pm_do_s2_sram)(void __iomem *aon_ctrl_base,
 		void __iomem *ddr_phy_pll_status);
 

@@ -731,7 +731,6 @@ static int _rtl_usb_receive(struct ieee80211_hw *hw)
 
 err_out:
 	usb_kill_anchored_urbs(&rtlusb->rx_submitted);
-	_rtl_usb_cleanup_rx(hw);
 	return err;
 }
 

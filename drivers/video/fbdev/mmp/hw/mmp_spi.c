@@ -17,8 +17,8 @@
 
 /**
  * spi_write - write command to the SPI port
+ * @spi:  the SPI device.
  * @data: can be 8/16/32-bit, MSB justified data to write.
- * @len:  data length.
  *
  * Wait bus transfer complete IRQ.
  * The caller is expected to perform the necessary locking.

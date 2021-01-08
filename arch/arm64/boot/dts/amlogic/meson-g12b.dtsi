@@ -135,3 +135,7 @@
 		};
 	};
 };
+
+&mali {
+	dma-coherent;
+};

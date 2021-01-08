@@ -561,6 +561,7 @@ static int ov7670_read(struct v4l2_subdev *sd, unsigned char reg,
 		unsigned char *value)
 {
 	struct ov7670_info *info = to_state(sd);
+
 	if (info->use_smbus)
 		return ov7670_read_smbus(sd, reg, value);
 	else
@@ -571,6 +572,7 @@ static int ov7670_write(struct v4l2_subdev *sd, unsigned char reg,
 		unsigned char value)
 {
 	struct ov7670_info *info = to_state(sd);
+
 	if (info->use_smbus)
 		return ov7670_write_smbus(sd, reg, value);
 	else
@@ -597,6 +599,7 @@ static int ov7670_write_array(struct v4l2_subdev *sd, struct regval_list *vals)
 {
 	while (vals->reg_num != 0xff || vals->value != 0xff) {
 		int ret = ov7670_write(sd, vals->reg_num, vals->value);
+
 		if (ret < 0)
 			return ret;
 		vals++;
@@ -921,27 +924,38 @@ static int ov7670_set_hw(struct v4l2_subdev *sd, int hstart, int hstop,
 {
 	int ret;
 	unsigned char v;
-/*
- * Horizontal: 11 bits, top 8 live in hstart and hstop.  Bottom 3 of
- * hstart are in href[2:0], bottom 3 of hstop in href[5:3].  There is
- * a mystery "edge offset" value in the top two bits of href.
- */
-	ret =  ov7670_write(sd, REG_HSTART, (hstart >> 3) & 0xff);
-	ret += ov7670_write(sd, REG_HSTOP, (hstop >> 3) & 0xff);
-	ret += ov7670_read(sd, REG_HREF, &v);
+	/*
+	 * Horizontal: 11 bits, top 8 live in hstart and hstop.  Bottom 3 of
+	 * hstart are in href[2:0], bottom 3 of hstop in href[5:3].  There is
+	 * a mystery "edge offset" value in the top two bits of href.
+	 */
+	ret = ov7670_write(sd, REG_HSTART, (hstart >> 3) & 0xff);
+	if (ret)
+		return ret;
+	ret = ov7670_write(sd, REG_HSTOP, (hstop >> 3) & 0xff);
+	if (ret)
+		return ret;
+	ret = ov7670_read(sd, REG_HREF, &v);
+	if (ret)
+		return ret;
 	v = (v & 0xc0) | ((hstop & 0x7) << 3) | (hstart & 0x7);
 	msleep(10);
-	ret += ov7670_write(sd, REG_HREF, v);
-/*
- * Vertical: similar arrangement, but only 10 bits.
- */
-	ret += ov7670_write(sd, REG_VSTART, (vstart >> 2) & 0xff);
-	ret += ov7670_write(sd, REG_VSTOP, (vstop >> 2) & 0xff);
-	ret += ov7670_read(sd, REG_VREF, &v);
+	ret = ov7670_write(sd, REG_HREF, v);
+	if (ret)
+		return ret;
+	/* Vertical: similar arrangement, but only 10 bits. */
+	ret = ov7670_write(sd, REG_VSTART, (vstart >> 2) & 0xff);
+	if (ret)
+		return ret;
+	ret = ov7670_write(sd, REG_VSTOP, (vstop >> 2) & 0xff);
+	if (ret)
+		return ret;
+	ret = ov7670_read(sd, REG_VREF, &v);
+	if (ret)
+		return ret;
 	v = (v & 0xf0) | ((vstop & 0x3) << 2) | (vstart & 0x3);
 	msleep(10);
-	ret += ov7670_write(sd, REG_VREF, v);
-	return ret;
+	return ov7670_write(sd, REG_VREF, v);
 }
 
 
@@ -1245,6 +1259,7 @@ static int ov7670_enum_frame_size(struct v4l2_subdev *sd,
 	 */
 	for (i = 0; i < n_win_sizes; i++) {
 		struct ov7670_win_size *win = &info->devtype->win_sizes[i];
+
 		if (info->min_width && win->width < info->min_width)
 			continue;
 		if (info->min_height && win->height < info->min_height)
@@ -1285,17 +1300,17 @@ static int ov7670_store_cmatrix(struct v4l2_subdev *sd,
 				raw = 0xff;
 			else
 				raw = (-1 * matrix[i]) & 0xff;
-		}
-		else {
+		} else {
 			if (matrix[i] > 255)
 				raw = 0xff;
 			else
 				raw = matrix[i] & 0xff;
 		}
-		ret += ov7670_write(sd, REG_CMATRIX_BASE + i, raw);
+		ret = ov7670_write(sd, REG_CMATRIX_BASE + i, raw);
+		if (ret)
+			return ret;
 	}
-	ret += ov7670_write(sd, REG_CMATRIX_SIGN, signbits);
-	return ret;
+	return ov7670_write(sd, REG_CMATRIX_SIGN, signbits);
 }
 
 
@@ -1381,11 +1396,9 @@ static int ov7670_s_sat_hue(struct v4l2_subdev *sd, int sat, int hue)
 {
 	struct ov7670_info *info = to_state(sd);
 	int matrix[CMATRIX_LEN];
-	int ret;
 
 	ov7670_calc_cmatrix(info, matrix, sat, hue);
-	ret = ov7670_store_cmatrix(sd, matrix);
-	return ret;
+	return ov7670_store_cmatrix(sd, matrix);
 }
 
 
@@ -1403,14 +1416,12 @@ static unsigned char ov7670_abs_to_sm(unsigned char v)
 static int ov7670_s_brightness(struct v4l2_subdev *sd, int value)
 {
 	unsigned char com8 = 0, v;
-	int ret;
 
 	ov7670_read(sd, REG_COM8, &com8);
 	com8 &= ~COM8_AEC;
 	ov7670_write(sd, REG_COM8, com8);
 	v = ov7670_abs_to_sm(value);
-	ret = ov7670_write(sd, REG_BRIGHT, v);
-	return ret;
+	return ov7670_write(sd, REG_BRIGHT, v);
 }
 
 static int ov7670_s_contrast(struct v4l2_subdev *sd, int value)
@@ -1424,13 +1435,14 @@ static int ov7670_s_hflip(struct v4l2_subdev *sd, int value)
 	int ret;
 
 	ret = ov7670_read(sd, REG_MVFP, &v);
+	if (ret)
+		return ret;
 	if (value)
 		v |= MVFP_MIRROR;
 	else
 		v &= ~MVFP_MIRROR;
 	msleep(10);  /* FIXME */
-	ret += ov7670_write(sd, REG_MVFP, v);
-	return ret;
+	return ov7670_write(sd, REG_MVFP, v);
 }
 
 static int ov7670_s_vflip(struct v4l2_subdev *sd, int value)
@@ -1439,13 +1451,14 @@ static int ov7670_s_vflip(struct v4l2_subdev *sd, int value)
 	int ret;
 
 	ret = ov7670_read(sd, REG_MVFP, &v);
+	if (ret)
+		return ret;
 	if (value)
 		v |= MVFP_FLIP;
 	else
 		v &= ~MVFP_FLIP;
 	msleep(10);  /* FIXME */
-	ret += ov7670_write(sd, REG_MVFP, v);
-	return ret;
+	return ov7670_write(sd, REG_MVFP, v);
 }
 
 /*
@@ -1460,8 +1473,10 @@ static int ov7670_g_gain(struct v4l2_subdev *sd, __s32 *value)
 	unsigned char gain;
 
 	ret = ov7670_read(sd, REG_GAIN, &gain);
+	if (ret)
+		return ret;
 	*value = gain;
-	return ret;
+	return 0;
 }
 
 static int ov7670_s_gain(struct v4l2_subdev *sd, int value)
@@ -1470,12 +1485,13 @@ static int ov7670_s_gain(struct v4l2_subdev *sd, int value)
 	unsigned char com8;
 
 	ret = ov7670_write(sd, REG_GAIN, value & 0xff);
+	if (ret)
+		return ret;
 	/* Have to turn off AGC as well */
-	if (ret == 0) {
-		ret = ov7670_read(sd, REG_COM8, &com8);
-		ret = ov7670_write(sd, REG_COM8, com8 & ~COM8_AGC);
-	}
-	return ret;
+	ret = ov7670_read(sd, REG_COM8, &com8);
+	if (ret)
+		return ret;
+	return ov7670_write(sd, REG_COM8, com8 & ~COM8_AGC);
 }
 
 /*
@@ -1680,13 +1696,13 @@ static int ov7670_s_power(struct v4l2_subdev *sd, int on)
 		return 0;
 
 	if (on) {
-		ov7670_power_on (sd);
+		ov7670_power_on(sd);
 		ov7670_init(sd, 0);
 		ov7670_apply_fmt(sd);
 		ov7675_apply_framerate(sd);
 		v4l2_ctrl_handler_setup(&info->hdl);
 	} else {
-		ov7670_power_off (sd);
+		ov7670_power_off(sd);
 	}
 
 	return 0;

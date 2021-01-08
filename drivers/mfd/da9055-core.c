@@ -254,14 +254,14 @@ const struct regmap_config da9055_regmap_config = {
 };
 EXPORT_SYMBOL_GPL(da9055_regmap_config);
 
-static struct resource da9055_onkey_resource = {
+static const struct resource da9055_onkey_resource = {
 	.name = "ONKEY",
 	.start = DA9055_IRQ_NONKEY,
 	.end   = DA9055_IRQ_NONKEY,
 	.flags = IORESOURCE_IRQ,
 };
 
-static struct resource da9055_rtc_resource[] = {
+static const struct resource da9055_rtc_resource[] = {
 	{
 		.name = "ALM",
 		.start = DA9055_IRQ_ALARM,
@@ -276,14 +276,14 @@ static struct resource da9055_rtc_resource[] = {
 	},
 };
 
-static struct resource da9055_hwmon_resource = {
+static const struct resource da9055_hwmon_resource = {
 	.name = "HWMON",
 	.start = DA9055_IRQ_HWMON,
 	.end   = DA9055_IRQ_HWMON,
 	.flags = IORESOURCE_IRQ,
 };
 
-static struct resource da9055_ld05_6_resource = {
+static const struct resource da9055_ld05_6_resource = {
 	.name = "REGULATOR",
 	.start = DA9055_IRQ_REGULATOR,
 	.end   = DA9055_IRQ_REGULATOR,

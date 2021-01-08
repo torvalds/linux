@@ -138,7 +138,7 @@ If you want to add or modify several config items, you can do like
 
 To modify the sort order of report functionality in user config file(i.e. `~/.perfconfig`), do
 
-	% perf config --user report sort-order=srcline
+	% perf config --user report.sort-order=srcline
 
 To change colors of selected line to other foreground and background colors
 in system config file (i.e. `$(sysconf)/perfconfig`), do

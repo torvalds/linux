@@ -753,7 +753,6 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 		default:
 			phy_event_warn(iphy, state, event_code);
 			return SCI_FAILURE;
-			break;
 		}
 		return SCI_SUCCESS;
 	case SCI_PHY_SUB_AWAIT_IAF_UF:
@@ -958,7 +957,6 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 		default:
 			phy_event_warn(iphy, state, event_code);
 			return SCI_FAILURE_INVALID_STATE;
-			break;
 		}
 		return SCI_SUCCESS;
 	default:

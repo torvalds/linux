@@ -742,8 +742,7 @@ static int __init parse_numa_properties(void)
 			of_node_put(cpu);
 		}
 
-		if (likely(nid > 0))
-			node_set_online(nid);
+		node_set_online(nid);
 	}
 
 	get_n_mem_cells(&n_mem_addr_cells, &n_mem_size_cells);

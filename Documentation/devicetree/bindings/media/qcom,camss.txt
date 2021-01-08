@@ -8,6 +8,7 @@ Qualcomm Camera Subsystem
 	Definition: Should contain one of:
 		- "qcom,msm8916-camss"
 		- "qcom,msm8996-camss"
+		- "qcom,sdm660-camss"
 - reg:
 	Usage: required
 	Value type: <prop-encoded-array>
@@ -64,30 +65,36 @@ Qualcomm Camera Subsystem
 	Value type: <stringlist>
 	Definition: Should contain the following entries:
 		- "top_ahb"
+		- "throttle_axi"	(660 only)
 		- "ispif_ahb"
 		- "csiphy0_timer"
 		- "csiphy1_timer"
 		- "csiphy2_timer"	(8996 only)
+		- "csiphy_ahb2crif"	(660 only)
 		- "csi0_ahb"
 		- "csi0"
 		- "csi0_phy"
 		- "csi0_pix"
 		- "csi0_rdi"
+		- "cphy_csid0"		(660 only)
 		- "csi1_ahb"
 		- "csi1"
 		- "csi1_phy"
 		- "csi1_pix"
 		- "csi1_rdi"
+		- "cphy_csid1"		(660 only)
 		- "csi2_ahb"		(8996 only)
 		- "csi2"		(8996 only)
 		- "csi2_phy"		(8996 only)
 		- "csi2_pix"		(8996 only)
 		- "csi2_rdi"		(8996 only)
+		- "cphy_csid2"		(660 only)
 		- "csi3_ahb"		(8996 only)
 		- "csi3"		(8996 only)
 		- "csi3_phy"		(8996 only)
 		- "csi3_pix"		(8996 only)
 		- "csi3_rdi"		(8996 only)
+		- "cphy_csid3"		(660 only)
 		- "ahb"
 		- "vfe0"
 		- "csi_vfe0"

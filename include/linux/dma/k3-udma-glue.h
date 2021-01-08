@@ -41,6 +41,12 @@ void k3_udma_glue_reset_tx_chn(struct k3_udma_glue_tx_channel *tx_chn,
 u32 k3_udma_glue_tx_get_hdesc_size(struct k3_udma_glue_tx_channel *tx_chn);
 u32 k3_udma_glue_tx_get_txcq_id(struct k3_udma_glue_tx_channel *tx_chn);
 int k3_udma_glue_tx_get_irq(struct k3_udma_glue_tx_channel *tx_chn);
+struct device *
+	k3_udma_glue_tx_get_dma_device(struct k3_udma_glue_tx_channel *tx_chn);
+void k3_udma_glue_tx_dma_to_cppi5_addr(struct k3_udma_glue_tx_channel *tx_chn,
+				       dma_addr_t *addr);
+void k3_udma_glue_tx_cppi5_to_dma_addr(struct k3_udma_glue_tx_channel *tx_chn,
+				       dma_addr_t *addr);
 
 enum {
 	K3_UDMA_GLUE_SRC_TAG_LO_KEEP = 0,
@@ -130,5 +136,11 @@ int k3_udma_glue_rx_flow_enable(struct k3_udma_glue_rx_channel *rx_chn,
 				u32 flow_idx);
 int k3_udma_glue_rx_flow_disable(struct k3_udma_glue_rx_channel *rx_chn,
 				 u32 flow_idx);
+struct device *
+	k3_udma_glue_rx_get_dma_device(struct k3_udma_glue_rx_channel *rx_chn);
+void k3_udma_glue_rx_dma_to_cppi5_addr(struct k3_udma_glue_rx_channel *rx_chn,
+				       dma_addr_t *addr);
+void k3_udma_glue_rx_cppi5_to_dma_addr(struct k3_udma_glue_rx_channel *rx_chn,
+				       dma_addr_t *addr);
 
 #endif /* K3_UDMA_GLUE_H_ */

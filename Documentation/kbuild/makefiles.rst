@@ -15,13 +15,15 @@ This document describes the Linux kernel Makefiles.
 	   --- 3.4 Objects which export symbols
 	   --- 3.5 Library file goals - lib-y
 	   --- 3.6 Descending down in directories
-	   --- 3.7 Compilation flags
-	   --- 3.8 <deleted>
-	   --- 3.9 Dependency tracking
-	   --- 3.10 Special Rules
-	   --- 3.11 $(CC) support functions
-	   --- 3.12 $(LD) support functions
-	   --- 3.13 Script Invocation
+	   --- 3.7 Non-builtin vmlinux targets - extra-y
+	   --- 3.8 Always built goals - always-y
+	   --- 3.9 Compilation flags
+	   --- 3.10 Dependency tracking
+	   --- 3.11 Custom Rules
+	   --- 3.12 Command change detection
+	   --- 3.13 $(CC) support functions
+	   --- 3.14 $(LD) support functions
+	   --- 3.15 Script Invocation
 
 	=== 4 Host Program support
 	   --- 4.1 Simple Host Program
@@ -46,7 +48,7 @@ This document describes the Linux kernel Makefiles.
 	   --- 7.5 Architecture-specific boot images
 	   --- 7.6 Building non-kbuild targets
 	   --- 7.7 Commands useful for building a boot image
-	   --- 7.8 Custom kbuild commands
+	   --- 7.8 <deleted>
 	   --- 7.9 Preprocessing linker scripts
 	   --- 7.10 Generic header files
 	   --- 7.11 Post-link pass
@@ -67,11 +69,11 @@ This document describes the Linux kernel Makefiles.
 
 The Makefiles have five parts::
 
-	Makefile		the top Makefile.
-	.config			the kernel configuration file.
-	arch/$(ARCH)/Makefile	the arch Makefile.
-	scripts/Makefile.*	common rules etc. for all kbuild Makefiles.
-	kbuild Makefiles	there are about 500 of these.
+	Makefile                    the top Makefile.
+	.config                     the kernel configuration file.
+	arch/$(SRCARCH)/Makefile    the arch Makefile.
+	scripts/Makefile.*          common rules etc. for all kbuild Makefiles.
+	kbuild Makefiles            exist in every subdirectory
 
 The top Makefile reads the .config file, which comes from the kernel
 configuration process.
@@ -82,7 +84,7 @@ It builds these goals by recursively descending into the subdirectories of
 the kernel source tree.
 The list of subdirectories which are visited depends upon the kernel
 configuration. The top Makefile textually includes an arch Makefile
-with the name arch/$(ARCH)/Makefile. The arch Makefile supplies
+with the name arch/$(SRCARCH)/Makefile. The arch Makefile supplies
 architecture-specific information to the top Makefile.
 
 Each subdirectory has a kbuild Makefile which carries out the commands
@@ -278,7 +280,7 @@ more details, with real examples.
 	actually recognize that there is a lib.a being built, the directory
 	shall be listed in libs-y.
 
-	See also "6.4 List directories to visit when descending".
+	See also "7.4 List directories to visit when descending".
 
 	Use of lib-y is normally restricted to `lib/` and `arch/*/lib`.
 
@@ -317,11 +319,79 @@ more details, with real examples.
 	that directory specifies obj-y, those objects will be left orphan.
 	It is very likely a bug of the Makefile or of dependencies in Kconfig.
 
+	Kbuild also supports dedicated syntax, subdir-y and subdir-m, for
+	descending into subdirectories. It is a good fit when you know they
+	do not contain kernel-space objects at all. A typical usage is to let
+	Kbuild descend into subdirectories to build tools.
+
+	Examples::
+
+		# scripts/Makefile
+		subdir-$(CONFIG_GCC_PLUGINS) += gcc-plugins
+		subdir-$(CONFIG_MODVERSIONS) += genksyms
+		subdir-$(CONFIG_SECURITY_SELINUX) += selinux
+
+	Unlike obj-y/m, subdir-y/m does not need the trailing slash since this
+	syntax is always used for directories.
+
 	It is good practice to use a `CONFIG_` variable when assigning directory
 	names. This allows kbuild to totally skip the directory if the
 	corresponding `CONFIG_` option is neither 'y' nor 'm'.
 
-3.7 Compilation flags
+3.7 Non-builtin vmlinux targets - extra-y
+-----------------------------------------
+
+	extra-y specifies targets which are needed for building vmlinux,
+	but not combined into built-in.a.
+
+	Examples are:
+
+	1) head objects
+
+	    Some objects must be placed at the head of vmlinux. They are
+	    directly linked to vmlinux without going through built-in.a
+	    A typical use-case is an object that contains the entry point.
+
+	    arch/$(SRCARCH)/Makefile should specify such objects as head-y.
+
+	    Discussion:
+	      Given that we can control the section order in the linker script,
+	      why do we need head-y?
+
+	2) vmlinux linker script
+
+	    The linker script for vmlinux is located at
+	    arch/$(SRCARCH)/kernel/vmlinux.lds
+
+	Example::
+
+		# arch/x86/kernel/Makefile
+		extra-y	:= head_$(BITS).o
+		extra-y	+= head$(BITS).o
+		extra-y	+= ebda.o
+		extra-y	+= platform-quirks.o
+		extra-y	+= vmlinux.lds
+
+	$(extra-y) should only contain targets needed for vmlinux.
+
+	Kbuild skips extra-y when vmlinux is apparently not a final goal.
+	(e.g. 'make modules', or building external modules)
+
+	If you intend to build targets unconditionally, always-y (explained
+	in the next section) is the correct syntax to use.
+
+3.8 Always built goals - always-y
+---------------------------------
+
+	always-y specifies targets which are literally always built when
+	Kbuild visits the Makefile.
+
+	Example::
+	  # ./Kbuild
+	  offsets-file := include/generated/asm-offsets.h
+	  always-y += $(offsets-file)
+
+3.9 Compilation flags
 ---------------------
 
     ccflags-y, asflags-y and ldflags-y
@@ -410,8 +480,8 @@ more details, with real examples.
 		AFLAGS_iwmmxt.o      := -Wa,-mcpu=iwmmxt
 
 
-3.9 Dependency tracking
------------------------
+3.10 Dependency tracking
+------------------------
 
 	Kbuild tracks dependencies on the following:
 
@@ -422,21 +492,21 @@ more details, with real examples.
 	Thus, if you change an option to $(CC) all affected files will
 	be re-compiled.
 
-3.10 Special Rules
-------------------
+3.11 Custom Rules
+-----------------
 
-	Special rules are used when the kbuild infrastructure does
+	Custom rules are used when the kbuild infrastructure does
 	not provide the required support. A typical example is
 	header files generated during the build process.
 	Another example are the architecture-specific Makefiles which
-	need special rules to prepare boot images etc.
+	need custom rules to prepare boot images etc.
 
-	Special rules are written as normal Make rules.
+	Custom rules are written as normal Make rules.
 	Kbuild is not executing in the directory where the Makefile is
-	located, so all special rules shall provide a relative
+	located, so all custom rules shall use a relative
 	path to prerequisite files and target files.
 
-	Two variables are used when defining special rules:
+	Two variables are used when defining custom rules:
 
 	$(src)
 	    $(src) is a relative path which points to the directory
@@ -454,7 +524,7 @@ more details, with real examples.
 		$(obj)/53c8xx_d.h: $(src)/53c7,8xx.scr $(src)/script_asm.pl
 			$(CPP) -DCHIP=810 - < $< | ... $(src)/script_asm.pl
 
-	    This is a special rule, following the normal syntax
+	    This is a custom rule, following the normal syntax
 	    required by make.
 
 	    The target file depends on two prerequisite files. References
@@ -471,13 +541,81 @@ more details, with real examples.
 
 	Example::
 
-		#arch/blackfin/boot/Makefile
-		$(obj)/vmImage: $(obj)/vmlinux.gz
-			$(call if_changed,uimage)
-			@$(kecho) 'Kernel: $@ is ready'
+		# arch/arm/Makefile
+		$(BOOT_TARGETS): vmlinux
+			$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $(boot)/$@
+			@$(kecho) '  Kernel: $(boot)/$@ is ready'
 
+	When kbuild is executing with KBUILD_VERBOSE=0, then only a shorthand
+	of a command is normally displayed.
+	To enable this behaviour for custom commands kbuild requires
+	two variables to be set::
 
-3.11 $(CC) support functions
+		quiet_cmd_<command>	- what shall be echoed
+		      cmd_<command>	- the command to execute
+
+	Example::
+
+		# lib/Makefile
+		quiet_cmd_crc32 = GEN     $@
+		      cmd_crc32 = $< > $@
+
+		$(obj)/crc32table.h: $(obj)/gen_crc32table
+			$(call cmd,crc32)
+
+	When updating the $(obj)/crc32table.h target, the line:
+
+		  GEN     lib/crc32table.h
+
+	will be displayed with "make KBUILD_VERBOSE=0".
+
+3.12 Command change detection
+-----------------------------
+
+	When the rule is evaluated, timestamps are compared between the target
+	and its prerequisite files. GNU Make updates the target when any of the
+	prerequisites is newer than that.
+
+	The target should be rebuilt also when the command line has changed
+	since the last invocation. This is not supported by Make itself, so
+	Kbuild achieves this by a kind of meta-programming.
+
+	if_changed is the macro used for this purpose, in the following form::
+
+		quiet_cmd_<command> = ...
+		      cmd_<command> = ...
+
+		<target>: <source(s)> FORCE
+			$(call if_changed,<command>)
+
+	Any target that utilizes if_changed must be listed in $(targets),
+	otherwise the command line check will fail, and the target will
+	always be built.
+
+	If the target is already listed in the recognized syntax such as
+	obj-y/m, lib-y/m, extra-y/m, always-y/m, hostprogs, userprogs, Kbuild
+	automatically adds it to $(targets). Otherwise, the target must be
+	explicitly added to $(targets).
+
+	Assignments to $(targets) are without $(obj)/ prefix. if_changed may be
+	used in conjunction with custom rules as defined in "3.9 Custom Rules".
+
+	Note: It is a typical mistake to forget the FORCE prerequisite.
+	Another common pitfall is that whitespace is sometimes significant; for
+	instance, the below will fail (note the extra space after the comma)::
+
+		target: source(s) FORCE
+
+	**WRONG!**	$(call if_changed, objcopy)
+
+	Note:
+		if_changed should not be used more than once per target.
+		It stores the executed command in a corresponding .cmd
+		file and multiple calls would result in overwrites and
+		unwanted results when the target is up to date and only the
+		tests on changed commands trigger execution of commands.
+
+3.13 $(CC) support functions
 ----------------------------
 
 	The kernel may be built with several different versions of
@@ -592,7 +730,7 @@ more details, with real examples.
 			endif
 		endif
 
-3.12 $(LD) support functions
+3.14 $(LD) support functions
 ----------------------------
 
     ld-option
@@ -606,7 +744,7 @@ more details, with real examples.
 		#Makefile
 		LDFLAGS_vmlinux += $(call ld-option, -X)
 
-3.13 Script invocation
+3.15 Script invocation
 ----------------------
 
 	Make rules may invoke scripts to build the kernel. The rules shall
@@ -744,7 +882,7 @@ Both possibilities are described in the following.
 	as a prerequisite.
 	This is possible in two ways:
 
-	(1) List the prerequisite explicitly in a special rule.
+	(1) List the prerequisite explicitly in a custom rule.
 
 	Example::
 
@@ -755,11 +893,11 @@ Both possibilities are described in the following.
 
 	The target $(obj)/devlist.h will not be built before
 	$(obj)/gen-devlist is updated. Note that references to
-	the host programs in special rules must be prefixed with $(obj).
+	the host programs in custom rules must be prefixed with $(obj).
 
 	(2) Use always-y
 
-	When there is no suitable special rule, and the host program
+	When there is no suitable custom rule, and the host program
 	shall be built when a makefile is entered, the always-y
 	variable shall be used.
 
@@ -933,7 +1071,7 @@ When "make clean" is executed, make will descend down in arch/x86/boot,
 and clean as usual. The Makefile located in arch/x86/boot/ may use
 the subdir- trick to descend further down.
 
-Note 1: arch/$(ARCH)/Makefile cannot use "subdir-", because that file is
+Note 1: arch/$(SRCARCH)/Makefile cannot use "subdir-", because that file is
 included in the top level makefile, and the kbuild infrastructure
 is not operational at that point.
 
@@ -946,9 +1084,9 @@ be visited during "make clean".
 The top level Makefile sets up the environment and does the preparation,
 before starting to descend down in the individual directories.
 The top level makefile contains the generic part, whereas
-arch/$(ARCH)/Makefile contains what is required to set up kbuild
+arch/$(SRCARCH)/Makefile contains what is required to set up kbuild
 for said architecture.
-To do so, arch/$(ARCH)/Makefile sets up a number of variables and defines
+To do so, arch/$(SRCARCH)/Makefile sets up a number of variables and defines
 a few targets.
 
 When kbuild executes, the following steps are followed (roughly):
@@ -956,14 +1094,14 @@ When kbuild executes, the following steps are followed (roughly):
 1) Configuration of the kernel => produce .config
 2) Store kernel version in include/linux/version.h
 3) Updating all other prerequisites to the target prepare:
-   - Additional prerequisites are specified in arch/$(ARCH)/Makefile
+   - Additional prerequisites are specified in arch/$(SRCARCH)/Makefile
 4) Recursively descend down in all directories listed in
    init-* core* drivers-* net-* libs-* and build all targets.
-   - The values of the above variables are expanded in arch/$(ARCH)/Makefile.
+   - The values of the above variables are expanded in arch/$(SRCARCH)/Makefile.
 5) All object files are then linked and the resulting file vmlinux is
    located at the root of the obj tree.
    The very first objects linked are listed in head-y, assigned by
-   arch/$(ARCH)/Makefile.
+   arch/$(SRCARCH)/Makefile.
 6) Finally, the architecture-specific part does any required post processing
    and builds the final bootimage.
    - This includes building boot records
@@ -1154,7 +1292,7 @@ When kbuild executes, the following steps are followed (roughly):
 	machinery is all architecture-independent.
 
 
-	head-y, init-y, core-y, libs-y, drivers-y, net-y
+	head-y, core-y, libs-y, drivers-y
 	    $(head-y) lists objects to be linked first in vmlinux.
 
 	    $(libs-y) lists directories where a lib.a archive can be located.
@@ -1162,23 +1300,24 @@ When kbuild executes, the following steps are followed (roughly):
 	    The rest list directories where a built-in.a object file can be
 	    located.
 
-	    $(init-y) objects will be located after $(head-y).
-
 	    Then the rest follows in this order:
 
-		$(core-y), $(libs-y), $(drivers-y) and $(net-y).
+		$(core-y), $(libs-y), $(drivers-y)
 
 	    The top level Makefile defines values for all generic directories,
-	    and arch/$(ARCH)/Makefile only adds architecture-specific
+	    and arch/$(SRCARCH)/Makefile only adds architecture-specific
 	    directories.
 
 	    Example::
 
-		#arch/sparc64/Makefile
-		core-y += arch/sparc64/kernel/
-		libs-y += arch/sparc64/prom/ arch/sparc64/lib/
-		drivers-$(CONFIG_OPROFILE)  += arch/sparc64/oprofile/
+		# arch/sparc/Makefile
+		core-y                 += arch/sparc/
 
+		libs-y                 += arch/sparc/prom/
+		libs-y                 += arch/sparc/lib/
+
+		drivers-$(CONFIG_PM) += arch/sparc/power/
+		drivers-$(CONFIG_OPROFILE)	+= arch/sparc/oprofile/
 
 7.5 Architecture-specific boot images
 -------------------------------------
@@ -1189,15 +1328,15 @@ When kbuild executes, the following steps are followed (roughly):
 	The actual goals are not standardized across architectures.
 
 	It is common to locate any additional processing in a boot/
-	directory below arch/$(ARCH)/.
+	directory below arch/$(SRCARCH)/.
 
 	Kbuild does not provide any smart way to support building a
-	target specified in boot/. Therefore arch/$(ARCH)/Makefile shall
+	target specified in boot/. Therefore arch/$(SRCARCH)/Makefile shall
 	call make manually to build a target in boot/.
 
 	The recommended approach is to include shortcuts in
-	arch/$(ARCH)/Makefile, and use the full path when calling down
-	into the arch/$(ARCH)/boot/Makefile.
+	arch/$(SRCARCH)/Makefile, and use the full path when calling down
+	into the arch/$(SRCARCH)/boot/Makefile.
 
 	Example::
 
@@ -1217,7 +1356,7 @@ When kbuild executes, the following steps are followed (roughly):
 
 		#arch/x86/Makefile
 		define archhelp
-		  echo  '* bzImage      - Image (arch/$(ARCH)/boot/bzImage)'
+		  echo  '* bzImage      - Compressed kernel image (arch/x86/boot/bzImage)'
 		endif
 
 	When make is executed without arguments, the first goal encountered
@@ -1235,70 +1374,11 @@ When kbuild executes, the following steps are followed (roughly):
 
 	When "make" is executed without arguments, bzImage will be built.
 
-7.6 Building non-kbuild targets
--------------------------------
-
-    extra-y
-	extra-y specifies additional targets created in the current
-	directory, in addition to any targets specified by `obj-*`.
-
-	Listing all targets in extra-y is required for two purposes:
-
-	1) Enable kbuild to check changes in command lines
-
-	   - When $(call if_changed,xxx) is used
-
-	2) kbuild knows what files to delete during "make clean"
-
-	Example::
-
-		#arch/x86/kernel/Makefile
-		extra-y := head.o init_task.o
-
-	In this example, extra-y is used to list object files that
-	shall be built, but shall not be linked as part of built-in.a.
-
 7.7 Commands useful for building a boot image
 ---------------------------------------------
 
     Kbuild provides a few macros that are useful when building a
     boot image.
-
-    if_changed
-	if_changed is the infrastructure used for the following commands.
-
-	Usage::
-
-		target: source(s) FORCE
-			$(call if_changed,ld/objcopy/gzip/...)
-
-	When the rule is evaluated, it is checked to see if any files
-	need an update, or the command line has changed since the last
-	invocation. The latter will force a rebuild if any options
-	to the executable have changed.
-	Any target that utilises if_changed must be listed in $(targets),
-	otherwise the command line check will fail, and the target will
-	always be built.
-	Assignments to $(targets) are without $(obj)/ prefix.
-	if_changed may be used in conjunction with custom commands as
-	defined in 7.8 "Custom kbuild commands".
-
-	Note: It is a typical mistake to forget the FORCE prerequisite.
-	Another common pitfall is that whitespace is sometimes
-	significant; for instance, the below will fail (note the extra space
-	after the comma)::
-
-		target: source(s) FORCE
-
-	**WRONG!**	$(call if_changed, ld/objcopy/gzip/...)
-
-        Note:
-	      if_changed should not be used more than once per target.
-              It stores the executed command in a corresponding .cmd
-
-        file and multiple calls would result in overwrites and
-        unwanted results when the target is up to date and only the
-        tests on changed commands trigger execution of commands.
 
     ld
 	Link target. Often, LDFLAGS_$@ is used to set specific options to ld.
@@ -1332,7 +1412,7 @@ When kbuild executes, the following steps are followed (roughly):
 
     objcopy
 	Copy binary. Uses OBJCOPYFLAGS usually specified in
-	arch/$(ARCH)/Makefile.
+	arch/$(SRCARCH)/Makefile.
 	OBJCOPYFLAGS_$@ may be used to set additional options.
 
     gzip
@@ -1361,41 +1441,11 @@ When kbuild executes, the following steps are followed (roughly):
 		targets += $(dtb-y)
 		DTC_FLAGS ?= -p 1024
 
-7.8 Custom kbuild commands
---------------------------
-
-	When kbuild is executing with KBUILD_VERBOSE=0, then only a shorthand
-	of a command is normally displayed.
-	To enable this behaviour for custom commands kbuild requires
-	two variables to be set::
-
-		quiet_cmd_<command>	- what shall be echoed
-		      cmd_<command>	- the command to execute
-
-	Example::
-
-		#
-		quiet_cmd_image = BUILD   $@
-		      cmd_image = $(obj)/tools/build $(BUILDFLAGS) \
-		                                     $(obj)/vmlinux.bin > $@
-
-		targets += bzImage
-		$(obj)/bzImage: $(obj)/vmlinux.bin $(obj)/tools/build FORCE
-			$(call if_changed,image)
-			@echo 'Kernel: $@ is ready'
-
-	When updating the $(obj)/bzImage target, the line:
-
-		BUILD    arch/x86/boot/bzImage
-
-	will be displayed with "make KBUILD_VERBOSE=0".
-
-
 7.9 Preprocessing linker scripts
 --------------------------------
 
 	When the vmlinux image is built, the linker script
-	arch/$(ARCH)/kernel/vmlinux.lds is used.
+	arch/$(SRCARCH)/kernel/vmlinux.lds is used.
 	The script is a preprocessed variant of the file vmlinux.lds.S
 	located in the same directory.
 	kbuild knows .lds files and includes a rule `*lds.S` -> `*lds`.
@@ -1404,9 +1454,6 @@ When kbuild executes, the following steps are followed (roughly):
 
 		#arch/x86/kernel/Makefile
 		extra-y := vmlinux.lds
-
-		#Makefile
-		export CPPFLAGS_vmlinux.lds += -P -C -U$(ARCH)
 
 	The assignment to extra-y is used to tell kbuild to build the
 	target vmlinux.lds.
@@ -1481,7 +1528,7 @@ See subsequent chapter for the syntax of the Kbuild file.
 
 	If an architecture uses a verbatim copy of a header from
 	include/asm-generic then this is listed in the file
-	arch/$(ARCH)/include/asm/Kbuild like this:
+	arch/$(SRCARCH)/include/asm/Kbuild like this:
 
 		Example::
 
@@ -1492,7 +1539,7 @@ See subsequent chapter for the syntax of the Kbuild file.
 	During the prepare phase of the build a wrapper include
 	file is generated in the directory::
 
-		arch/$(ARCH)/include/generated/asm
+		arch/$(SRCARCH)/include/generated/asm
 
 	When a header is exported where the architecture uses
 	the generic header a similar wrapper is generated as part
@@ -1527,8 +1574,8 @@ See subsequent chapter for the syntax of the Kbuild file.
 	to define the minimum set of ASM headers that all architectures must have.
 
 	This works like optional generic-y. If a mandatory header is missing
-	in arch/$(ARCH)/include/(uapi/)/asm, Kbuild will automatically generate
-	a wrapper of the asm-generic one.
+	in arch/$(SRCARCH)/include/(uapi/)/asm, Kbuild will automatically
+	generate a wrapper of the asm-generic one.
 
 9 Kbuild Variables
 ==================
@@ -1564,6 +1611,16 @@ The top Makefile exports the following variables:
 
 	    make ARCH=m68k ...
 
+    SRCARCH
+	This variable specifies the directory in arch/ to build.
+
+	ARCH and SRCARCH may not necessarily match. A couple of arch
+	directories are biarch, that is, a single `arch/*/` directory supports
+	both 32-bit and 64-bit.
+
+	For example, you can pass in ARCH=i386, ARCH=x86_64, or ARCH=x86.
+	For all of them, SRCARCH=x86 because arch/x86/ supports	both i386 and
+	x86_64.
 
     INSTALL_PATH
 	This variable defines a place for the arch Makefiles to install

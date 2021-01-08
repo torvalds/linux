@@ -23,6 +23,8 @@
 		serial2 = &lpuart1;
 		spi0 = &fspi;
 		spi1 = &dspi2;
+		mmc0 = &esdhc1;
+		mmc1 = &esdhc;
 	};
 
 	buttons0 {
@@ -60,6 +62,10 @@
 	};
 };
 
+&can0 {
+	status = "okay";
+};
+
 &dspi2 {
 	status = "okay";
 };
@@ -75,6 +81,7 @@
 &enetc_port0 {
 	phy-handle = <&phy0>;
 	phy-connection-type = "sgmii";
+	managed = "in-band-status";
 	status = "okay";
 
 	mdio {
@@ -154,18 +161,8 @@
 		};
 
 		partition@210000 {
-			reg = <0x210000 0x0f0000>;
+			reg = <0x210000 0x1d0000>;
 			label = "bootloader";
-		};
-
-		partition@300000 {
-			reg = <0x300000 0x040000>;
-			label = "DP firmware";
-		};
-
-		partition@340000 {
-			reg = <0x340000 0x0a0000>;
-			label = "trusted firmware";
 		};
 
 		partition@3e0000 {

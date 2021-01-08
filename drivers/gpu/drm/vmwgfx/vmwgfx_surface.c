@@ -1550,8 +1550,7 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 					 &res->backup,
 					 &user_srf->backup_base);
 		if (ret == 0) {
-			if (res->backup->base.num_pages * PAGE_SIZE <
-			    res->backup_size) {
+			if (res->backup->base.base.size < res->backup_size) {
 				VMW_DEBUG_USER("Surface backup buffer too small.\n");
 				vmw_bo_unreference(&res->backup);
 				ret = -EINVAL;
@@ -1614,7 +1613,7 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 	if (res->backup) {
 		rep->buffer_map_handle =
 			drm_vma_node_offset_addr(&res->backup->base.base.vma_node);
-		rep->buffer_size = res->backup->base.num_pages * PAGE_SIZE;
+		rep->buffer_size = res->backup->base.base.size;
 		rep->buffer_handle = backup_handle;
 	} else {
 		rep->buffer_map_handle = 0;
@@ -1692,7 +1691,7 @@ vmw_gb_surface_reference_internal(struct drm_device *dev,
 	rep->crep.buffer_handle = backup_handle;
 	rep->crep.buffer_map_handle =
 		drm_vma_node_offset_addr(&srf->res.backup->base.base.vma_node);
-	rep->crep.buffer_size = srf->res.backup->base.num_pages * PAGE_SIZE;
+	rep->crep.buffer_size = srf->res.backup->base.base.size;
 
 	rep->creq.version = drm_vmw_gb_surface_v1;
 	rep->creq.svga3d_flags_upper_32_bits =

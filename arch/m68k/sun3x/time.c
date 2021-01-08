@@ -77,21 +77,20 @@ int sun3x_hwclk(int set, struct rtc_time *t)
 #if 0
 static irqreturn_t sun3x_timer_tick(int irq, void *dev_id)
 {
-	irq_handler_t timer_routine = dev_id;
 	unsigned long flags;
 
 	local_irq_save(flags);
 	/* Clear the pending interrupt - pulse the enable line low */
 	disable_irq(5);
 	enable_irq(5);
-	timer_routine(0, NULL);
+	legacy_timer_tick(1);
 	local_irq_restore(flags);
 
 	return IRQ_HANDLED;
 }
 #endif
 
-void __init sun3x_sched_init(irq_handler_t vector)
+void __init sun3x_sched_init(void)
 {
 
 	sun3_disable_interrupts();

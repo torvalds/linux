@@ -191,32 +191,13 @@ struct imxdma_filter_data {
 	int			 request;
 };
 
-static const struct platform_device_id imx_dma_devtype[] = {
-	{
-		.name = "imx1-dma",
-		.driver_data = IMX1_DMA,
-	}, {
-		.name = "imx21-dma",
-		.driver_data = IMX21_DMA,
-	}, {
-		.name = "imx27-dma",
-		.driver_data = IMX27_DMA,
-	}, {
-		/* sentinel */
-	}
-};
-MODULE_DEVICE_TABLE(platform, imx_dma_devtype);
-
 static const struct of_device_id imx_dma_of_dev_id[] = {
 	{
-		.compatible = "fsl,imx1-dma",
-		.data = &imx_dma_devtype[IMX1_DMA],
+		.compatible = "fsl,imx1-dma", .data = (const void *)IMX1_DMA,
 	}, {
-		.compatible = "fsl,imx21-dma",
-		.data = &imx_dma_devtype[IMX21_DMA],
+		.compatible = "fsl,imx21-dma", .data = (const void *)IMX21_DMA,
 	}, {
-		.compatible = "fsl,imx27-dma",
-		.data = &imx_dma_devtype[IMX27_DMA],
+		.compatible = "fsl,imx27-dma", .data = (const void *)IMX27_DMA,
 	}, {
 		/* sentinel */
 	}
@@ -1056,20 +1037,15 @@ static int __init imxdma_probe(struct platform_device *pdev)
 {
 	struct imxdma_engine *imxdma;
 	struct resource *res;
-	const struct of_device_id *of_id;
 	int ret, i;
 	int irq, irq_err;
-
-	of_id = of_match_device(imx_dma_of_dev_id, &pdev->dev);
-	if (of_id)
-		pdev->id_entry = of_id->data;
 
 	imxdma = devm_kzalloc(&pdev->dev, sizeof(*imxdma), GFP_KERNEL);
 	if (!imxdma)
 		return -ENOMEM;
 
 	imxdma->dev = &pdev->dev;
-	imxdma->devtype = pdev->id_entry->driver_data;
+	imxdma->devtype = (enum imx_dma_type)of_device_get_match_data(&pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	imxdma->base = devm_ioremap_resource(&pdev->dev, res);
@@ -1263,7 +1239,6 @@ static struct platform_driver imxdma_driver = {
 		.name	= "imx-dma",
 		.of_match_table = imx_dma_of_dev_id,
 	},
-	.id_table	= imx_dma_devtype,
 	.remove		= imxdma_remove,
 };
 

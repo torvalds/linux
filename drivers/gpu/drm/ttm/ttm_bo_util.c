@@ -32,6 +32,7 @@
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
 #include <drm/drm_vma_manager.h>
+#include <linux/dma-buf-map.h>
 #include <linux/io.h>
 #include <linux/highmem.h>
 #include <linux/wait.h>
@@ -309,7 +310,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	kref_init(&fbo->base.kref);
 	fbo->base.destroy = &ttm_transfered_destroy;
 	fbo->base.acc_size = 0;
-	fbo->base.pin_count = 1;
+	fbo->base.pin_count = 0;
 	if (bo->type != ttm_bo_type_sg)
 		fbo->base.base.resv = &fbo->base.base._resv;
 
@@ -317,6 +318,8 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	fbo->base.base.dev = NULL;
 	ret = dma_resv_trylock(&fbo->base.base._resv);
 	WARN_ON(!ret);
+
+	ttm_bo_move_to_lru_tail_unlocked(&fbo->base);
 
 	*new_obj = &fbo->base;
 	return 0;
@@ -428,9 +431,9 @@ int ttm_bo_kmap(struct ttm_buffer_object *bo,
 
 	map->virtual = NULL;
 	map->bo = bo;
-	if (num_pages > bo->num_pages)
+	if (num_pages > bo->mem.num_pages)
 		return -EINVAL;
-	if (start_page > bo->num_pages)
+	if ((start_page + num_pages) > bo->mem.num_pages)
 		return -EINVAL;
 
 	ret = ttm_mem_io_reserve(bo->bdev, &bo->mem);
@@ -470,6 +473,77 @@ void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map)
 	map->page = NULL;
 }
 EXPORT_SYMBOL(ttm_bo_kunmap);
+
+int ttm_bo_vmap(struct ttm_buffer_object *bo, struct dma_buf_map *map)
+{
+	struct ttm_resource *mem = &bo->mem;
+	int ret;
+
+	ret = ttm_mem_io_reserve(bo->bdev, mem);
+	if (ret)
+		return ret;
+
+	if (mem->bus.is_iomem) {
+		void __iomem *vaddr_iomem;
+
+		if (mem->bus.addr)
+			vaddr_iomem = (void __iomem *)mem->bus.addr;
+		else if (mem->bus.caching == ttm_write_combined)
+			vaddr_iomem = ioremap_wc(mem->bus.offset,
+						 bo->base.size);
+		else
+			vaddr_iomem = ioremap(mem->bus.offset, bo->base.size);
+
+		if (!vaddr_iomem)
+			return -ENOMEM;
+
+		dma_buf_map_set_vaddr_iomem(map, vaddr_iomem);
+
+	} else {
+		struct ttm_operation_ctx ctx = {
+			.interruptible = false,
+			.no_wait_gpu = false
+		};
+		struct ttm_tt *ttm = bo->ttm;
+		pgprot_t prot;
+		void *vaddr;
+
+		ret = ttm_tt_populate(bo->bdev, ttm, &ctx);
+		if (ret)
+			return ret;
+
+		/*
+		 * We need to use vmap to get the desired page protection
+		 * or to make the buffer object look contiguous.
+		 */
+		prot = ttm_io_prot(bo, mem, PAGE_KERNEL);
+		vaddr = vmap(ttm->pages, ttm->num_pages, 0, prot);
+		if (!vaddr)
+			return -ENOMEM;
+
+		dma_buf_map_set_vaddr(map, vaddr);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(ttm_bo_vmap);
+
+void ttm_bo_vunmap(struct ttm_buffer_object *bo, struct dma_buf_map *map)
+{
+	struct ttm_resource *mem = &bo->mem;
+
+	if (dma_buf_map_is_null(map))
+		return;
+
+	if (!map->is_iomem)
+		vunmap(map->vaddr);
+	else if (!mem->bus.addr)
+		iounmap(map->vaddr_iomem);
+	dma_buf_map_clear(map);
+
+	ttm_mem_io_free(bo->bdev, &bo->mem);
+}
+EXPORT_SYMBOL(ttm_bo_vunmap);
 
 static int ttm_bo_wait_free_node(struct ttm_buffer_object *bo,
 				 bool dst_use_tt)

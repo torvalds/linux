@@ -19,12 +19,6 @@ struct scatterlist {
 };
 
 /*
- * Since the above length field is an unsigned int, below we define the maximum
- * length in bytes that can be stored in one scatterlist entry.
- */
-#define SCATTERLIST_MAX_SEGMENT (UINT_MAX & PAGE_MASK)
-
-/*
  * These macros should be used after a dma_map_sg call has been done
  * to get bus addresses of each of the SG entries and their lengths.
  * You should only work with the number of sg entries dma_map_sg

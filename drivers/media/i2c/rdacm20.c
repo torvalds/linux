@@ -487,9 +487,18 @@ static int rdacm20_initialize(struct rdacm20_device *dev)
 	 * Reset the sensor by cycling the OV10635 reset signal connected to the
 	 * MAX9271 GPIO1 and verify communication with the OV10635.
 	 */
-	max9271_clear_gpios(dev->serializer, MAX9271_GPIO1OUT);
+	ret = max9271_enable_gpios(dev->serializer, MAX9271_GPIO1OUT);
+	if (ret)
+		return ret;
+
+	ret = max9271_clear_gpios(dev->serializer, MAX9271_GPIO1OUT);
+	if (ret)
+		return ret;
 	usleep_range(10000, 15000);
-	max9271_set_gpios(dev->serializer, MAX9271_GPIO1OUT);
+
+	ret = max9271_set_gpios(dev->serializer, MAX9271_GPIO1OUT);
+	if (ret)
+		return ret;
 	usleep_range(10000, 15000);
 
 again:

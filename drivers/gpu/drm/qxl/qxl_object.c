@@ -23,10 +23,12 @@
  *          Alon Levy
  */
 
+#include <linux/dma-buf-map.h>
+#include <linux/io-mapping.h>
+
 #include "qxl_drv.h"
 #include "qxl_object.h"
 
-#include <linux/io-mapping.h>
 static void qxl_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 {
 	struct qxl_bo *bo;
@@ -152,24 +154,27 @@ int qxl_bo_create(struct qxl_device *qdev,
 	return 0;
 }
 
-int qxl_bo_kmap(struct qxl_bo *bo, void **ptr)
+int qxl_bo_kmap(struct qxl_bo *bo, struct dma_buf_map *map)
 {
-	bool is_iomem;
 	int r;
 
 	if (bo->kptr) {
-		if (ptr)
-			*ptr = bo->kptr;
 		bo->map_count++;
-		return 0;
+		goto out;
 	}
-	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.num_pages, &bo->kmap);
+	r = ttm_bo_vmap(&bo->tbo, &bo->map);
 	if (r)
 		return r;
-	bo->kptr = ttm_kmap_obj_virtual(&bo->kmap, &is_iomem);
-	if (ptr)
-		*ptr = bo->kptr;
 	bo->map_count = 1;
+
+	/* TODO: Remove kptr in favor of map everywhere. */
+	if (bo->map.is_iomem)
+		bo->kptr = (void *)bo->map.vaddr_iomem;
+	else
+		bo->kptr = bo->map.vaddr;
+
+out:
+	*map = bo->map;
 	return 0;
 }
 
@@ -180,6 +185,7 @@ void *qxl_bo_kmap_atomic_page(struct qxl_device *qdev,
 	void *rptr;
 	int ret;
 	struct io_mapping *map;
+	struct dma_buf_map bo_map;
 
 	if (bo->tbo.mem.mem_type == TTM_PL_VRAM)
 		map = qdev->vram_mapping;
@@ -196,9 +202,10 @@ fallback:
 		return rptr;
 	}
 
-	ret = qxl_bo_kmap(bo, &rptr);
+	ret = qxl_bo_kmap(bo, &bo_map);
 	if (ret)
 		return NULL;
+	rptr = bo_map.vaddr; /* TODO: Use mapping abstraction properly */
 
 	rptr += page_offset * PAGE_SIZE;
 	return rptr;
@@ -212,7 +219,7 @@ void qxl_bo_kunmap(struct qxl_bo *bo)
 	if (bo->map_count > 0)
 		return;
 	bo->kptr = NULL;
-	ttm_bo_kunmap(&bo->kmap);
+	ttm_bo_vunmap(&bo->tbo, &bo->map);
 }
 
 void qxl_bo_kunmap_atomic_page(struct qxl_device *qdev,

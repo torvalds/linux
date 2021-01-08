@@ -1323,13 +1323,142 @@ static void mark_hw_controlled(struct device *dev, struct device_node *np,
 	dev_warn(dev, "Bad regulator node\n");
 }
 
-static int get_hw_controlled_regulators(struct device *dev,
-					struct bd718xx_regulator_data *reg_data,
-					unsigned int num_reg_data, int *info)
+/*
+ * Setups where regulator (especially the buck8) output voltage is scaled
+ * by adding external connection where some other regulator output is connected
+ * to feedback-pin (over suitable resistors) is getting popular amongst users
+ * of BD71837. (This allows for example scaling down the buck8 voltages to suit
+ * lover GPU voltages for projects where buck8 is (ab)used to supply power
+ * for GPU. Additionally some setups do allow DVS for buck8 but as this do
+ * produce voltage spikes the HW must be evaluated to be able to survive this
+ * - hence I keep the DVS disabled for non DVS bucks by default. I don't want
+ * to help you burn your proto board)
+ *
+ * So we allow describing this external connection from DT and scale the
+ * voltages accordingly. This is what the connection should look like:
+ *
+ * |------------|
+ * |	buck 8  |-------+----->Vout
+ * |		|	|
+ * |------------|	|
+ *	| FB pin	|
+ *	|		|
+ *	+-------+--R2---+
+ *		|
+ *		R1
+ *		|
+ *	V FB-pull-up
+ *
+ *	Here the buck output is sifted according to formula:
+ *
+ * Vout_o = Vo - (Vpu - Vo)*R2/R1
+ * Linear_step = step_orig*(R1+R2)/R1
+ *
+ * where:
+ * Vout_o is adjusted voltage output at vsel reg value 0
+ * Vo is original voltage output at vsel reg value 0
+ * Vpu is the pull-up voltage V FB-pull-up in the picture
+ * R1 and R2 are resistor values.
+ *
+ * As a real world example for buck8 and a specific GPU:
+ * VLDO = 1.6V (used as FB-pull-up)
+ * R1 = 1000ohms
+ * R2 = 150ohms
+ * VSEL 0x0 => 0.8V – (VLDO – 0.8) * R2 / R1 = 0.68V
+ * Linear Step = 10mV * (R1 + R2) / R1 = 11.5mV
+ */
+static int setup_feedback_loop(struct device *dev, struct device_node *np,
+			       struct bd718xx_regulator_data *reg_data,
+			       unsigned int num_reg_data, int fb_uv)
 {
+	int i, r1, r2, ret;
+
+	/*
+	 * We do adjust the values in the global desc based on DT settings.
+	 * This may not be best approach as it can cause problems if more than
+	 * one PMIC is controlled from same processor. I don't see such use-case
+	 * for BD718x7 now - so we spare some bits.
+	 *
+	 * If this will point out to be a problem - then we can allocate new
+	 * bd718xx_regulator_data array at probe and just use the global
+	 * array as a template where we copy initial values. Then we can
+	 * use allocated descs for regultor registration and do IC specific
+	 * modifications to this copy while leaving other PMICs untouched. But
+	 * that means allocating new array for each PMIC - and currently I see
+	 * no need for that.
+	 */
+
+	for (i = 0; i < num_reg_data; i++) {
+		struct regulator_desc *desc = &reg_data[i].desc;
+		int j;
+
+		if (!of_node_name_eq(np, desc->of_match))
+			continue;
+
+		pr_info("Looking at node '%s'\n", desc->of_match);
+
+		/* The feedback loop connection does not make sense for LDOs */
+		if (desc->id >= BD718XX_LDO1)
+			return -EINVAL;
+
+		ret = of_property_read_u32(np, "rohm,feedback-pull-up-r1-ohms",
+					   &r1);
+		if (ret)
+			return ret;
+
+		if (!r1)
+			return -EINVAL;
+
+		ret = of_property_read_u32(np, "rohm,feedback-pull-up-r2-ohms",
+					   &r2);
+		if (ret)
+			return ret;
+
+		if (desc->n_linear_ranges && desc->linear_ranges) {
+			struct linear_range *new;
+
+			new = devm_kzalloc(dev, desc->n_linear_ranges *
+					   sizeof(struct linear_range),
+					   GFP_KERNEL);
+			if (!new)
+				return -ENOMEM;
+
+			for (j = 0; j < desc->n_linear_ranges; j++) {
+				int min = desc->linear_ranges[j].min;
+				int step = desc->linear_ranges[j].step;
+
+				min -= (fb_uv - min)*r2/r1;
+				step = step * (r1 + r2);
+				step /= r1;
+
+				new[j].min = min;
+				new[j].step = step;
+
+				dev_dbg(dev, "%s: old range min %d, step %d\n",
+					desc->name, desc->linear_ranges[j].min,
+					desc->linear_ranges[j].step);
+				dev_dbg(dev, "new range min %d, step %d\n", min,
+					step);
+			}
+			desc->linear_ranges = new;
+		}
+		dev_dbg(dev, "regulator '%s' has FB pull-up configured\n",
+			desc->name);
+
+		return 0;
+	}
+
+	return -ENODEV;
+}
+
+static int get_special_regulators(struct device *dev,
+				  struct bd718xx_regulator_data *reg_data,
+				  unsigned int num_reg_data, int *info)
+{
+	int ret;
 	struct device_node *np;
 	struct device_node *nproot = dev->of_node;
-	const char *prop = "rohm,no-regulator-enable-control";
+	int uv;
 
 	*info = 0;
 
@@ -1338,13 +1467,32 @@ static int get_hw_controlled_regulators(struct device *dev,
 		dev_err(dev, "failed to find regulators node\n");
 		return -ENODEV;
 	}
-	for_each_child_of_node(nproot, np)
-		if (of_property_read_bool(np, prop))
+	for_each_child_of_node(nproot, np) {
+		if (of_property_read_bool(np, "rohm,no-regulator-enable-control"))
 			mark_hw_controlled(dev, np, reg_data, num_reg_data,
 					   info);
+		ret = of_property_read_u32(np, "rohm,fb-pull-up-microvolt",
+					   &uv);
+		if (ret) {
+			if (ret == -EINVAL)
+				continue;
+			else
+				goto err_out;
+		}
+
+		ret = setup_feedback_loop(dev, np, reg_data, num_reg_data, uv);
+		if (ret)
+			goto err_out;
+	}
 
 	of_node_put(nproot);
 	return 0;
+
+err_out:
+	of_node_put(np);
+	of_node_put(nproot);
+
+	return ret;
 }
 
 static int bd718xx_probe(struct platform_device *pdev)
@@ -1432,8 +1580,10 @@ static int bd718xx_probe(struct platform_device *pdev)
 	 * be affected by PMIC state machine - Eg. regulator is likely to stay
 	 * on even in SUSPEND
 	 */
-	get_hw_controlled_regulators(pdev->dev.parent, reg_data, num_reg_data,
+	err = get_special_regulators(pdev->dev.parent, reg_data, num_reg_data,
 				     &omit_enable);
+	if (err)
+		return err;
 
 	for (i = 0; i < num_reg_data; i++) {
 

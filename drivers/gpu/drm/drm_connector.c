@@ -1432,7 +1432,8 @@ void drm_hdmi_avi_infoframe_content_type(struct hdmi_avi_infoframe *frame,
 EXPORT_SYMBOL(drm_hdmi_avi_infoframe_content_type);
 
 /**
- * drm_mode_attach_tv_margin_properties - attach TV connector margin properties
+ * drm_connector_attach_tv_margin_properties - attach TV connector margin
+ * 	properties
  * @connector: DRM connector
  *
  * Called by a driver when it needs to attach TV margin props to a connector.

@@ -638,6 +638,10 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		send->s_sge[0].length = sizeof(struct rds_header);
 		send->s_sge[0].lkey = ic->i_pd->local_dma_lkey;
 
+		ib_dma_sync_single_for_cpu(ic->rds_ibdev->dev,
+					   ic->i_send_hdrs_dma[pos],
+					   sizeof(struct rds_header),
+					   DMA_TO_DEVICE);
 		memcpy(ic->i_send_hdrs[pos], &rm->m_inc.i_hdr,
 		       sizeof(struct rds_header));
 
@@ -688,6 +692,10 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 			adv_credits = 0;
 			rds_ib_stats_inc(s_ib_tx_credit_updates);
 		}
+		ib_dma_sync_single_for_device(ic->rds_ibdev->dev,
+					      ic->i_send_hdrs_dma[pos],
+					      sizeof(struct rds_header),
+					      DMA_TO_DEVICE);
 
 		if (prev)
 			prev->s_wr.next = &send->s_wr;

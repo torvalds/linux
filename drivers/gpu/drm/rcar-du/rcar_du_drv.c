@@ -18,10 +18,11 @@
 #include <linux/wait.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_drv.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_probe_helper.h>
 
 #include "rcar_du_drv.h"
@@ -507,7 +508,7 @@ MODULE_DEVICE_TABLE(of, rcar_du_of_table);
 
 DEFINE_DRM_GEM_CMA_FOPS(rcar_du_fops);
 
-static struct drm_driver rcar_du_driver = {
+static const struct drm_driver rcar_du_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	DRM_GEM_CMA_DRIVER_OPS_WITH_DUMB_CREATE(rcar_du_dumb_create),
 	.fops			= &rcar_du_fops,
@@ -527,14 +528,14 @@ static int rcar_du_pm_suspend(struct device *dev)
 {
 	struct rcar_du_device *rcdu = dev_get_drvdata(dev);
 
-	return drm_mode_config_helper_suspend(rcdu->ddev);
+	return drm_mode_config_helper_suspend(&rcdu->ddev);
 }
 
 static int rcar_du_pm_resume(struct device *dev)
 {
 	struct rcar_du_device *rcdu = dev_get_drvdata(dev);
 
-	return drm_mode_config_helper_resume(rcdu->ddev);
+	return drm_mode_config_helper_resume(&rcdu->ddev);
 }
 #endif
 
@@ -549,7 +550,7 @@ static const struct dev_pm_ops rcar_du_pm_ops = {
 static int rcar_du_remove(struct platform_device *pdev)
 {
 	struct rcar_du_device *rcdu = platform_get_drvdata(pdev);
-	struct drm_device *ddev = rcdu->ddev;
+	struct drm_device *ddev = &rcdu->ddev;
 
 	drm_dev_unregister(ddev);
 
@@ -563,14 +564,14 @@ static int rcar_du_remove(struct platform_device *pdev)
 static int rcar_du_probe(struct platform_device *pdev)
 {
 	struct rcar_du_device *rcdu;
-	struct drm_device *ddev;
 	struct resource *mem;
 	int ret;
 
 	/* Allocate and initialize the R-Car device structure. */
-	rcdu = devm_kzalloc(&pdev->dev, sizeof(*rcdu), GFP_KERNEL);
-	if (rcdu == NULL)
-		return -ENOMEM;
+	rcdu = devm_drm_dev_alloc(&pdev->dev, &rcar_du_driver,
+				  struct rcar_du_device, ddev);
+	if (IS_ERR(rcdu))
+		return PTR_ERR(rcdu);
 
 	rcdu->dev = &pdev->dev;
 	rcdu->info = of_device_get_match_data(rcdu->dev);
@@ -584,13 +585,6 @@ static int rcar_du_probe(struct platform_device *pdev)
 		return PTR_ERR(rcdu->mmio);
 
 	/* DRM/KMS objects */
-	ddev = drm_dev_alloc(&rcar_du_driver, &pdev->dev);
-	if (IS_ERR(ddev))
-		return PTR_ERR(ddev);
-
-	rcdu->ddev = ddev;
-	ddev->dev_private = rcdu;
-
 	ret = rcar_du_modeset_init(rcdu);
 	if (ret < 0) {
 		if (ret != -EPROBE_DEFER)
@@ -599,25 +593,24 @@ static int rcar_du_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	ddev->irq_enabled = 1;
+	rcdu->ddev.irq_enabled = 1;
 
 	/*
 	 * Register the DRM device with the core and the connectors with
 	 * sysfs.
 	 */
-	ret = drm_dev_register(ddev, 0);
+	ret = drm_dev_register(&rcdu->ddev, 0);
 	if (ret)
 		goto error;
 
 	DRM_INFO("Device %s probed\n", dev_name(&pdev->dev));
 
-	drm_fbdev_generic_setup(ddev, 32);
+	drm_fbdev_generic_setup(&rcdu->ddev, 32);
 
 	return 0;
 
 error:
-	rcar_du_remove(pdev);
-
+	drm_kms_helper_poll_fini(&rcdu->ddev);
 	return ret;
 }
 

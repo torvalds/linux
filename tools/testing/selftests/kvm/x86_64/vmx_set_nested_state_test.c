@@ -244,6 +244,22 @@ void test_vmx_nested_state(struct kvm_vm *vm)
 	free(state);
 }
 
+void disable_vmx(struct kvm_vm *vm)
+{
+	struct kvm_cpuid2 *cpuid = kvm_get_supported_cpuid();
+	int i;
+
+	for (i = 0; i < cpuid->nent; ++i)
+		if (cpuid->entries[i].function == 1 &&
+		    cpuid->entries[i].index == 0)
+			break;
+	TEST_ASSERT(i != cpuid->nent, "CPUID function 1 not found");
+
+	cpuid->entries[i].ecx &= ~CPUID_VMX;
+	vcpu_set_cpuid(vm, VCPU_ID, cpuid);
+	cpuid->entries[i].ecx |= CPUID_VMX;
+}
+
 int main(int argc, char *argv[])
 {
 	struct kvm_vm *vm;
@@ -263,6 +279,11 @@ int main(int argc, char *argv[])
 	nested_vmx_check_supported();
 
 	vm = vm_create_default(VCPU_ID, 0, 0);
+
+	/*
+	 * First run tests with VMX disabled to check error handling.
+	 */
+	disable_vmx(vm);
 
 	/* Passing a NULL kvm_nested_state causes a EFAULT. */
 	test_nested_state_expect_efault(vm, NULL);

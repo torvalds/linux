@@ -68,10 +68,11 @@ static int octeon_md5_init(struct shash_desc *desc)
 {
 	struct md5_state *mctx = shash_desc_ctx(desc);
 
-	mctx->hash[0] = cpu_to_le32(MD5_H0);
-	mctx->hash[1] = cpu_to_le32(MD5_H1);
-	mctx->hash[2] = cpu_to_le32(MD5_H2);
-	mctx->hash[3] = cpu_to_le32(MD5_H3);
+	mctx->hash[0] = MD5_H0;
+	mctx->hash[1] = MD5_H1;
+	mctx->hash[2] = MD5_H2;
+	mctx->hash[3] = MD5_H3;
+	cpu_to_le32_array(mctx->hash, 4);
 	mctx->byte_count = 0;
 
 	return 0;
@@ -139,8 +140,9 @@ static int octeon_md5_final(struct shash_desc *desc, u8 *out)
 	}
 
 	memset(p, 0, padding);
-	mctx->block[14] = cpu_to_le32(mctx->byte_count << 3);
-	mctx->block[15] = cpu_to_le32(mctx->byte_count >> 29);
+	mctx->block[14] = mctx->byte_count << 3;
+	mctx->block[15] = mctx->byte_count >> 29;
+	cpu_to_le32_array(mctx->block + 14, 2);
 	octeon_md5_transform(mctx->block);
 
 	octeon_md5_read_hash(mctx);

@@ -856,8 +856,7 @@ static int vmw_shader_define(struct drm_device *dev, struct drm_file *file_priv,
 			return ret;
 		}
 
-		if ((u64)buffer->base.num_pages * PAGE_SIZE <
-		    (u64)size + (u64)offset) {
+		if ((u64)buffer->base.base.size < (u64)size + (u64)offset) {
 			VMW_DEBUG_USER("Illegal buffer- or shader size.\n");
 			ret = -EINVAL;
 			goto out_bad_arg;

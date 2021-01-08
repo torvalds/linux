@@ -31,13 +31,10 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/pci.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_cache.h>
 #include "hns_roce_device.h"
-
-#define HNS_ROCE_PORT_NUM_SHIFT		24
-#define HNS_ROCE_VLAN_SL_BIT_MASK	7
-#define HNS_ROCE_VLAN_SL_SHIFT		13
 
 static inline u16 get_ah_udp_sport(const struct rdma_ah_attr *ah_attr)
 {
@@ -58,47 +55,41 @@ static inline u16 get_ah_udp_sport(const struct rdma_ah_attr *ah_attr)
 int hns_roce_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 		       struct ib_udata *udata)
 {
-	struct hns_roce_dev *hr_dev = to_hr_dev(ibah->device);
-	const struct ib_gid_attr *gid_attr;
-	struct device *dev = hr_dev->dev;
-	struct hns_roce_ah *ah = to_hr_ah(ibah);
 	struct rdma_ah_attr *ah_attr = init_attr->ah_attr;
 	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
-	u16 vlan_id = 0xffff;
-	bool vlan_en = false;
-	int ret;
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibah->device);
+	struct hns_roce_ah *ah = to_hr_ah(ibah);
+	int ret = 0;
 
-	gid_attr = ah_attr->grh.sgid_attr;
-	ret = rdma_read_gid_l2_fields(gid_attr, &vlan_id, NULL);
-	if (ret)
-		return ret;
-
-	/* Get mac address */
-	memcpy(ah->av.mac, ah_attr->roce.dmac, ETH_ALEN);
-
-	if (vlan_id < VLAN_N_VID) {
-		vlan_en = true;
-		vlan_id |= (rdma_ah_get_sl(ah_attr) &
-			     HNS_ROCE_VLAN_SL_BIT_MASK) <<
-			     HNS_ROCE_VLAN_SL_SHIFT;
-	}
+	if (hr_dev->pci_dev->revision <= PCI_REVISION_ID_HIP08 && udata)
+		return -EOPNOTSUPP;
 
 	ah->av.port = rdma_ah_get_port_num(ah_attr);
 	ah->av.gid_index = grh->sgid_index;
-	ah->av.vlan_id = vlan_id;
-	ah->av.vlan_en = vlan_en;
-	dev_dbg(dev, "gid_index = 0x%x,vlan_id = 0x%x\n", ah->av.gid_index,
-		ah->av.vlan_id);
 
 	if (rdma_ah_get_static_rate(ah_attr))
 		ah->av.stat_rate = IB_RATE_10_GBPS;
 
-	memcpy(ah->av.dgid, grh->dgid.raw, HNS_ROCE_GID_SIZE);
-	ah->av.sl = rdma_ah_get_sl(ah_attr);
+	ah->av.hop_limit = grh->hop_limit;
 	ah->av.flowlabel = grh->flow_label;
 	ah->av.udp_sport = get_ah_udp_sport(ah_attr);
+	ah->av.sl = rdma_ah_get_sl(ah_attr);
+	ah->av.tclass = get_tclass(grh);
 
-	return 0;
+	memcpy(ah->av.dgid, grh->dgid.raw, HNS_ROCE_GID_SIZE);
+	memcpy(ah->av.mac, ah_attr->roce.dmac, ETH_ALEN);
+
+	/* HIP08 needs to record vlan info in Address Vector */
+	if (hr_dev->pci_dev->revision <= PCI_REVISION_ID_HIP08) {
+		ret = rdma_read_gid_l2_fields(ah_attr->grh.sgid_attr,
+					      &ah->av.vlan_id, NULL);
+		if (ret)
+			return ret;
+
+		ah->av.vlan_en = ah->av.vlan_id < VLAN_N_VID;
+	}
+
+	return ret;
 }
 
 int hns_roce_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)

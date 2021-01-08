@@ -21,7 +21,7 @@ struct iio_trigger;
 /**
  * struct iio_trigger_ops - operations structure for an iio_trigger.
  * @set_trigger_state:	switch on/off the trigger on demand
- * @try_reenable:	function to reenable the trigger when the
+ * @reenable:		function to reenable the trigger when the
  *			use count is zero (may be NULL)
  * @validate_device:	function to validate the device when the
  *			current trigger gets changed.
@@ -31,7 +31,7 @@ struct iio_trigger;
  **/
 struct iio_trigger_ops {
 	int (*set_trigger_state)(struct iio_trigger *trig, bool state);
-	int (*try_reenable)(struct iio_trigger *trig);
+	void (*reenable)(struct iio_trigger *trig);
 	int (*validate_device)(struct iio_trigger *trig,
 			       struct iio_dev *indio_dev);
 };
@@ -97,7 +97,7 @@ static inline struct iio_trigger *iio_trigger_get(struct iio_trigger *trig)
 }
 
 /**
- * iio_device_set_drvdata() - Set trigger driver data
+ * iio_trigger_set_drvdata() - Set trigger driver data
  * @trig: IIO trigger structure
  * @data: Driver specific data
  *

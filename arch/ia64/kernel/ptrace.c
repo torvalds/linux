@@ -817,8 +817,8 @@ access_nat_bits (struct task_struct *child, struct pt_regs *pt,
 }
 
 static int
-access_uarea (struct task_struct *child, unsigned long addr,
-	      unsigned long *data, int write_access);
+access_elf_reg(struct task_struct *target, struct unw_frame_info *info,
+		unsigned long addr, unsigned long *data, int write_access);
 
 static long
 ptrace_getregs (struct task_struct *child, struct pt_all_user_regs __user *ppr)
@@ -847,13 +847,13 @@ ptrace_getregs (struct task_struct *child, struct pt_all_user_regs __user *ppr)
 		return -EIO;
 	}
 
-	if (access_uarea(child, PT_CR_IPSR, &psr, 0) < 0
-	    || access_uarea(child, PT_AR_EC, &ec, 0) < 0
-	    || access_uarea(child, PT_AR_LC, &lc, 0) < 0
-	    || access_uarea(child, PT_AR_RNAT, &rnat, 0) < 0
-	    || access_uarea(child, PT_AR_BSP, &bsp, 0) < 0
-	    || access_uarea(child, PT_CFM, &cfm, 0)
-	    || access_uarea(child, PT_NAT_BITS, &nat_bits, 0))
+	if (access_elf_reg(child, &info, ELF_CR_IPSR_OFFSET, &psr, 0) < 0 ||
+	    access_elf_reg(child, &info, ELF_AR_EC_OFFSET, &ec, 0) < 0 ||
+	    access_elf_reg(child, &info, ELF_AR_LC_OFFSET, &lc, 0) < 0 ||
+	    access_elf_reg(child, &info, ELF_AR_RNAT_OFFSET, &rnat, 0) < 0 ||
+	    access_elf_reg(child, &info, ELF_AR_BSP_OFFSET, &bsp, 0) < 0 ||
+	    access_elf_reg(child, &info, ELF_CFM_OFFSET, &cfm, 0) < 0 ||
+	    access_elf_reg(child, &info, ELF_NAT_OFFSET, &nat_bits, 0) < 0)
 		return -EIO;
 
 	/* control regs */
@@ -972,7 +972,7 @@ ptrace_setregs (struct task_struct *child, struct pt_all_user_regs __user *ppr)
 	struct switch_stack *sw;
 	struct ia64_fpreg fpval;
 	struct pt_regs *pt;
-	long ret, retval = 0;
+	long retval = 0;
 	int i;
 
 	memset(&fpval, 0, sizeof(fpval));
@@ -1097,17 +1097,16 @@ ptrace_setregs (struct task_struct *child, struct pt_all_user_regs __user *ppr)
 
 	retval |= __get_user(nat_bits, &ppr->nat);
 
-	retval |= access_uarea(child, PT_CR_IPSR, &psr, 1);
-	retval |= access_uarea(child, PT_AR_RSC, &rsc, 1);
-	retval |= access_uarea(child, PT_AR_EC, &ec, 1);
-	retval |= access_uarea(child, PT_AR_LC, &lc, 1);
-	retval |= access_uarea(child, PT_AR_RNAT, &rnat, 1);
-	retval |= access_uarea(child, PT_AR_BSP, &bsp, 1);
-	retval |= access_uarea(child, PT_CFM, &cfm, 1);
-	retval |= access_uarea(child, PT_NAT_BITS, &nat_bits, 1);
+	retval |= access_elf_reg(child, &info, ELF_CR_IPSR_OFFSET, &psr, 1);
+	retval |= access_elf_reg(child, &info, ELF_AR_RSC_OFFSET, &rsc, 1);
+	retval |= access_elf_reg(child, &info, ELF_AR_EC_OFFSET, &ec, 1);
+	retval |= access_elf_reg(child, &info, ELF_AR_LC_OFFSET, &lc, 1);
+	retval |= access_elf_reg(child, &info, ELF_AR_RNAT_OFFSET, &rnat, 1);
+	retval |= access_elf_reg(child, &info, ELF_AR_BSP_OFFSET, &bsp, 1);
+	retval |= access_elf_reg(child, &info, ELF_CFM_OFFSET, &cfm, 1);
+	retval |= access_elf_reg(child, &info, ELF_NAT_OFFSET, &nat_bits, 1);
 
-	ret = retval ? -EIO : 0;
-	return ret;
+	return retval ? -EIO : 0;
 }
 
 void
@@ -1149,6 +1148,10 @@ ptrace_disable (struct task_struct *child)
 {
 	user_disable_single_step(child);
 }
+
+static int
+access_uarea (struct task_struct *child, unsigned long addr,
+	      unsigned long *data, int write_access);
 
 long
 arch_ptrace (struct task_struct *child, long request,
@@ -1491,7 +1494,7 @@ struct regset_membuf {
 	int ret;
 };
 
-void do_gpregs_get(struct unw_frame_info *info, void *arg)
+static void do_gpregs_get(struct unw_frame_info *info, void *arg)
 {
 	struct regset_membuf *dst = arg;
 	struct membuf to = dst->to;
@@ -1524,7 +1527,7 @@ void do_gpregs_get(struct unw_frame_info *info, void *arg)
 	}
 }
 
-void do_gpregs_set(struct unw_frame_info *info, void *arg)
+static void do_gpregs_set(struct unw_frame_info *info, void *arg)
 {
 	struct regset_getset *dst = arg;
 
@@ -1569,7 +1572,7 @@ void do_gpregs_set(struct unw_frame_info *info, void *arg)
 
 #define ELF_FP_OFFSET(i)	(i * sizeof(elf_fpreg_t))
 
-void do_fpregs_get(struct unw_frame_info *info, void *arg)
+static void do_fpregs_get(struct unw_frame_info *info, void *arg)
 {
 	struct task_struct *task = info->task;
 	struct regset_membuf *dst = arg;
@@ -1603,7 +1606,7 @@ void do_fpregs_get(struct unw_frame_info *info, void *arg)
 		membuf_zero(&to, 96 * sizeof(reg));
 }
 
-void do_fpregs_set(struct unw_frame_info *info, void *arg)
+static void do_fpregs_set(struct unw_frame_info *info, void *arg)
 {
 	struct regset_getset *dst = arg;
 	elf_fpreg_t fpreg, tmp[30];

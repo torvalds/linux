@@ -16,34 +16,44 @@ import re
 from itertools import chain
 
 #
+# Python 2 lacks re.ASCII...
+#
+try:
+    ascii_p3 = re.ASCII
+except AttributeError:
+    ascii_p3 = 0
+
+#
 # Regex nastiness.  Of course.
 # Try to identify "function()" that's not already marked up some
 # other way.  Sphinx doesn't like a lot of stuff right after a
 # :c:func: block (i.e. ":c:func:`mmap()`s" flakes out), so the last
 # bit tries to restrict matches to things that won't create trouble.
 #
-RE_function = re.compile(r'\b(([a-zA-Z_]\w+)\(\))', flags=re.ASCII)
+RE_function = re.compile(r'\b(([a-zA-Z_]\w+)\(\))', flags=ascii_p3)
 
 #
 # Sphinx 2 uses the same :c:type role for struct, union, enum and typedef
 #
 RE_generic_type = re.compile(r'\b(struct|union|enum|typedef)\s+([a-zA-Z_]\w+)',
-                             flags=re.ASCII)
+                             flags=ascii_p3)
 
 #
 # Sphinx 3 uses a different C role for each one of struct, union, enum and
 # typedef
 #
-RE_struct = re.compile(r'\b(struct)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
-RE_union = re.compile(r'\b(union)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
-RE_enum = re.compile(r'\b(enum)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
-RE_typedef = re.compile(r'\b(typedef)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
+RE_struct = re.compile(r'\b(struct)\s+([a-zA-Z_]\w+)', flags=ascii_p3)
+RE_union = re.compile(r'\b(union)\s+([a-zA-Z_]\w+)', flags=ascii_p3)
+RE_enum = re.compile(r'\b(enum)\s+([a-zA-Z_]\w+)', flags=ascii_p3)
+RE_typedef = re.compile(r'\b(typedef)\s+([a-zA-Z_]\w+)', flags=ascii_p3)
 
 #
 # Detects a reference to a documentation page of the form Documentation/... with
 # an optional extension
 #
 RE_doc = re.compile(r'\bDocumentation(/[\w\-_/]+)(\.\w+)*')
+
+RE_namespace = re.compile(r'^\s*..\s*c:namespace::\s*(\S+)\s*$')
 
 #
 # Reserved C words that we should skip when cross-referencing
@@ -61,6 +71,8 @@ Skipnames = [ 'for', 'if', 'register', 'sizeof', 'struct', 'unsigned' ]
 Skipfuncs = [ 'open', 'close', 'read', 'write', 'fcntl', 'mmap',
               'select', 'poll', 'fork', 'execve', 'clone', 'ioctl',
               'socket' ]
+
+c_namespace = ''
 
 def markup_refs(docname, app, node):
     t = node.astext()
@@ -120,30 +132,38 @@ def markup_func_ref_sphinx3(docname, app, match):
     #
     # Go through the dance of getting an xref out of the C domain
     #
-    target = match.group(2)
+    base_target = match.group(2)
     target_text = nodes.Text(match.group(0))
     xref = None
-    if not (target in Skipfuncs or target in Skipnames):
-        for class_s, reftype_s in zip(class_str, reftype_str):
-            lit_text = nodes.literal(classes=['xref', 'c', class_s])
-            lit_text += target_text
-            pxref = addnodes.pending_xref('', refdomain = 'c',
-                                          reftype = reftype_s,
-                                          reftarget = target, modname = None,
-                                          classname = None)
-            #
-            # XXX The Latex builder will throw NoUri exceptions here,
-            # work around that by ignoring them.
-            #
-            try:
-                xref = cdom.resolve_xref(app.env, docname, app.builder,
-                                         reftype_s, target, pxref,
-                                         lit_text)
-            except NoUri:
-                xref = None
+    possible_targets = [base_target]
+    # Check if this document has a namespace, and if so, try
+    # cross-referencing inside it first.
+    if c_namespace:
+        possible_targets.insert(0, c_namespace + "." + base_target)
 
-            if xref:
-                return xref
+    if base_target not in Skipnames:
+        for target in possible_targets:
+            if target not in Skipfuncs:
+                for class_s, reftype_s in zip(class_str, reftype_str):
+                    lit_text = nodes.literal(classes=['xref', 'c', class_s])
+                    lit_text += target_text
+                    pxref = addnodes.pending_xref('', refdomain = 'c',
+                                                  reftype = reftype_s,
+                                                  reftarget = target, modname = None,
+                                                  classname = None)
+                    #
+                    # XXX The Latex builder will throw NoUri exceptions here,
+                    # work around that by ignoring them.
+                    #
+                    try:
+                        xref = cdom.resolve_xref(app.env, docname, app.builder,
+                                                 reftype_s, target, pxref,
+                                                 lit_text)
+                    except NoUri:
+                        xref = None
+
+                    if xref:
+                        return xref
 
     return target_text
 
@@ -171,34 +191,39 @@ def markup_c_ref(docname, app, match):
     #
     # Go through the dance of getting an xref out of the C domain
     #
-    target = match.group(2)
+    base_target = match.group(2)
     target_text = nodes.Text(match.group(0))
     xref = None
-    if not ((match.re == RE_function and target in Skipfuncs)
-            or (target in Skipnames)):
-        lit_text = nodes.literal(classes=['xref', 'c', class_str[match.re]])
-        lit_text += target_text
-        pxref = addnodes.pending_xref('', refdomain = 'c',
-                                      reftype = reftype_str[match.re],
-                                      reftarget = target, modname = None,
-                                      classname = None)
-        #
-        # XXX The Latex builder will throw NoUri exceptions here,
-        # work around that by ignoring them.
-        #
-        try:
-            xref = cdom.resolve_xref(app.env, docname, app.builder,
-                                     reftype_str[match.re], target, pxref,
-                                     lit_text)
-        except NoUri:
-            xref = None
-    #
-    # Return the xref if we got it; otherwise just return the plain text.
-    #
-    if xref:
-        return xref
-    else:
-        return target_text
+    possible_targets = [base_target]
+    # Check if this document has a namespace, and if so, try
+    # cross-referencing inside it first.
+    if c_namespace:
+        possible_targets.insert(0, c_namespace + "." + base_target)
+
+    if base_target not in Skipnames:
+        for target in possible_targets:
+            if not (match.re == RE_function and target in Skipfuncs):
+                lit_text = nodes.literal(classes=['xref', 'c', class_str[match.re]])
+                lit_text += target_text
+                pxref = addnodes.pending_xref('', refdomain = 'c',
+                                              reftype = reftype_str[match.re],
+                                              reftarget = target, modname = None,
+                                              classname = None)
+                #
+                # XXX The Latex builder will throw NoUri exceptions here,
+                # work around that by ignoring them.
+                #
+                try:
+                    xref = cdom.resolve_xref(app.env, docname, app.builder,
+                                             reftype_str[match.re], target, pxref,
+                                             lit_text)
+                except NoUri:
+                    xref = None
+
+                if xref:
+                    return xref
+
+    return target_text
 
 #
 # Try to replace a documentation reference of the form Documentation/... with a
@@ -231,7 +256,18 @@ def markup_doc_ref(docname, app, match):
     else:
         return nodes.Text(match.group(0))
 
+def get_c_namespace(app, docname):
+    source = app.env.doc2path(docname)
+    with open(source) as f:
+        for l in f:
+            match = RE_namespace.search(l)
+            if match:
+                return match.group(1)
+    return ''
+
 def auto_markup(app, doctree, name):
+    global c_namespace
+    c_namespace = get_c_namespace(app, name)
     #
     # This loop could eventually be improved on.  Someday maybe we
     # want a proper tree traversal with a lot of awareness of which

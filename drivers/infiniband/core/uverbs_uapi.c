@@ -79,10 +79,7 @@ static int uapi_create_write(struct uverbs_api *uapi,
 
 	method_elm->is_ex = def->write.is_ex;
 	method_elm->handler = def->func_write;
-	if (def->write.is_ex)
-		method_elm->disabled = !(ibdev->uverbs_ex_cmd_mask &
-					 BIT_ULL(def->write.command_num));
-	else
+	if (!def->write.is_ex)
 		method_elm->disabled = !(ibdev->uverbs_cmd_mask &
 					 BIT_ULL(def->write.command_num));
 

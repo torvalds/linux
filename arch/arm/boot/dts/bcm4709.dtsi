@@ -9,3 +9,7 @@
 	clock-frequency = <125000000>;
 	status = "okay";
 };
+
+&srab {
+	compatible = "brcm,bcm53012-srab", "brcm,bcm5301x-srab";
+};

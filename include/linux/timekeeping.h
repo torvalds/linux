@@ -10,8 +10,7 @@ void timekeeping_init(void);
 extern int timekeeping_suspended;
 
 /* Architecture timer tick functions: */
-extern void update_process_times(int user);
-extern void xtime_update(unsigned long ticks);
+extern void legacy_timer_tick(unsigned long ticks);
 
 /*
  * Get and set timeofday
@@ -303,6 +302,8 @@ extern int persistent_clock_is_local;
 extern void read_persistent_clock64(struct timespec64 *ts);
 void read_persistent_wall_and_boot_offset(struct timespec64 *wall_clock,
 					  struct timespec64 *boot_offset);
+#ifdef CONFIG_GENERIC_CMOS_UPDATE
 extern int update_persistent_clock64(struct timespec64 now);
+#endif
 
 #endif

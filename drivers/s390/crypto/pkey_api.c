@@ -35,9 +35,6 @@ MODULE_DESCRIPTION("s390 protected key interface");
 #define PROTKEYBLOBBUFSIZE 256	/* protected key buffer size used internal */
 #define MAXAPQNSINLIST 64	/* max 64 apqns within a apqn list */
 
-/* mask of available pckmo subfunctions, fetched once at module init */
-static cpacf_mask_t pckmo_functions;
-
 /*
  * debug feature data and functions
  */
@@ -91,6 +88,9 @@ static int pkey_clr2protkey(u32 keytype,
 			    const struct pkey_clrkey *clrkey,
 			    struct pkey_protkey *protkey)
 {
+	/* mask of available pckmo subfunctions */
+	static cpacf_mask_t pckmo_functions;
+
 	long fc;
 	int keysize;
 	u8 paramblock[64];
@@ -114,11 +114,13 @@ static int pkey_clr2protkey(u32 keytype,
 		return -EINVAL;
 	}
 
-	/*
-	 * Check if the needed pckmo subfunction is available.
-	 * These subfunctions can be enabled/disabled by customers
-	 * in the LPAR profile or may even change on the fly.
-	 */
+	/* Did we already check for PCKMO ? */
+	if (!pckmo_functions.bytes[0]) {
+		/* no, so check now */
+		if (!cpacf_query(CPACF_PCKMO, &pckmo_functions))
+			return -ENODEV;
+	}
+	/* check for the pckmo subfunction we need now */
 	if (!cpacf_test_func(&pckmo_functions, fc)) {
 		DEBUG_ERR("%s pckmo functions not available\n", __func__);
 		return -ENODEV;
@@ -147,6 +149,8 @@ static int pkey_skey2pkey(const u8 *key, struct pkey_protkey *pkey)
 	int rc, verify;
 	u16 cardnr, domain;
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
+
+	zcrypt_wait_api_operational();
 
 	/*
 	 * The cca_xxx2protkey call may fail when a card has been
@@ -195,6 +199,8 @@ static int pkey_clr2ep11key(const u8 *clrkey, size_t clrkeylen,
 	u16 card, dom;
 	u32 nr_apqns, *apqns = NULL;
 
+	zcrypt_wait_api_operational();
+
 	/* build a list of apqns suitable for ep11 keys with cpacf support */
 	rc = ep11_findcard2(&apqns, &nr_apqns, 0xFFFF, 0xFFFF,
 			    ZCRYPT_CEX7, EP11_API_V, NULL);
@@ -227,6 +233,8 @@ static int pkey_ep11key2pkey(const u8 *key, struct pkey_protkey *pkey)
 	u16 card, dom;
 	u32 nr_apqns, *apqns = NULL;
 	struct ep11keyblob *kb = (struct ep11keyblob *) key;
+
+	zcrypt_wait_api_operational();
 
 	/* build a list of apqns suitable for this key */
 	rc = ep11_findcard2(&apqns, &nr_apqns, 0xFFFF, 0xFFFF,
@@ -434,6 +442,7 @@ static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 		if (rc == 0)
 			break;
 		/* PCKMO failed, so try the CCA secure key way */
+		zcrypt_wait_api_operational();
 		rc = cca_clr2seckey(0xFFFF, 0xFFFF, t->keytype,
 				    ckey.clrkey, tmpbuf);
 		if (rc == 0)
@@ -623,6 +632,8 @@ static int pkey_clr2seckey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 		return -EINVAL;
 	}
 
+	zcrypt_wait_api_operational();
+
 	/* simple try all apqns from the list */
 	for (i = 0, rc = -ENODEV; i < nr_apqns; i++) {
 		card = apqns[i].card;
@@ -799,6 +810,8 @@ static int pkey_keyblob2pkey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 		return -EINVAL;
 	}
 
+	zcrypt_wait_api_operational();
+
 	/* simple try all apqns from the list */
 	for (i = 0, rc = -ENODEV; i < nr_apqns; i++) {
 		card = apqns[i].card;
@@ -835,6 +848,8 @@ static int pkey_apqns4key(const u8 *key, size_t keylen, u32 flags,
 
 	if (keylen < sizeof(struct keytoken_header) || flags == 0)
 		return -EINVAL;
+
+	zcrypt_wait_api_operational();
 
 	if (hdr->type == TOKTYPE_NON_CCA
 	    && (hdr->version == TOKVER_EP11_AES_WITH_HEADER
@@ -938,6 +953,8 @@ static int pkey_apqns4keytype(enum pkey_key_type ktype,
 {
 	int rc;
 	u32 _nr_apqns, *_apqns = NULL;
+
+	zcrypt_wait_api_operational();
 
 	if (ktype == PKEY_TYPE_CCA_DATA || ktype == PKEY_TYPE_CCA_CIPHER) {
 		u64 cur_mkvp = 0, old_mkvp = 0;
@@ -2058,7 +2075,7 @@ static struct miscdevice pkey_dev = {
  */
 static int __init pkey_init(void)
 {
-	cpacf_mask_t kmc_functions;
+	cpacf_mask_t func_mask;
 
 	/*
 	 * The pckmo instruction should be available - even if we don't
@@ -2066,15 +2083,15 @@ static int __init pkey_init(void)
 	 * is also the minimum level for the kmc instructions which
 	 * are able to work with protected keys.
 	 */
-	if (!cpacf_query(CPACF_PCKMO, &pckmo_functions))
+	if (!cpacf_query(CPACF_PCKMO, &func_mask))
 		return -ENODEV;
 
 	/* check for kmc instructions available */
-	if (!cpacf_query(CPACF_KMC, &kmc_functions))
+	if (!cpacf_query(CPACF_KMC, &func_mask))
 		return -ENODEV;
-	if (!cpacf_test_func(&kmc_functions, CPACF_KMC_PAES_128) ||
-	    !cpacf_test_func(&kmc_functions, CPACF_KMC_PAES_192) ||
-	    !cpacf_test_func(&kmc_functions, CPACF_KMC_PAES_256))
+	if (!cpacf_test_func(&func_mask, CPACF_KMC_PAES_128) ||
+	    !cpacf_test_func(&func_mask, CPACF_KMC_PAES_192) ||
+	    !cpacf_test_func(&func_mask, CPACF_KMC_PAES_256))
 		return -ENODEV;
 
 	pkey_debug_init();

@@ -21,6 +21,7 @@ struct fqdir {
 	/* Keep atomic mem on separate cachelines in structs that include it */
 	atomic_long_t		mem ____cacheline_aligned_in_smp;
 	struct work_struct	destroy_work;
+	struct llist_node	free_list;
 };
 
 /**

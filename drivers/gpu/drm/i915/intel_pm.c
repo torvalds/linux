@@ -7103,22 +7103,8 @@ static void icl_init_clock_gating(struct drm_i915_private *dev_priv)
 			 0, CNL_DELAY_PMRSP);
 }
 
-static void gen12_init_clock_gating(struct drm_i915_private *i915)
-{
-	unsigned int i;
-
-	/* This is not a WA. Enable VD HCP & MFX_ENC powergate */
-	for (i = 0; i < I915_MAX_VCS; i++)
-		if (HAS_ENGINE(&i915->gt, _VCS(i)))
-			intel_uncore_rmw(&i915->uncore, POWERGATE_ENABLE, 0,
-					 VDN_HCP_POWERGATE_ENABLE(i) |
-					 VDN_MFX_POWERGATE_ENABLE(i));
-}
-
 static void tgl_init_clock_gating(struct drm_i915_private *dev_priv)
 {
-	gen12_init_clock_gating(dev_priv);
-
 	/* Wa_1409120013:tgl */
 	intel_uncore_write(&dev_priv->uncore, ILK_DPFC_CHICKEN,
 		   ILK_DPFC_CHICKEN_COMP_DUMMY_PIXEL);
@@ -7135,8 +7121,6 @@ static void tgl_init_clock_gating(struct drm_i915_private *dev_priv)
 
 static void dg1_init_clock_gating(struct drm_i915_private *dev_priv)
 {
-	gen12_init_clock_gating(dev_priv);
-
 	/* Wa_1409836686:dg1[a0] */
 	if (IS_DG1_REVID(dev_priv, DG1_REVID_A0, DG1_REVID_A0))
 		intel_uncore_write(&dev_priv->uncore, GEN9_CLKGATE_DIS_3, intel_uncore_read(&dev_priv->uncore, GEN9_CLKGATE_DIS_3) |

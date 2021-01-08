@@ -383,7 +383,8 @@ static u32 csid_src_pad_code(struct csid_device *csid, u32 sink_code,
 			return 0;
 
 		return sink_code;
-	} else if (csid->camss->version == CAMSS_8x96) {
+	} else if (csid->camss->version == CAMSS_8x96 ||
+		   csid->camss->version == CAMSS_660) {
 		switch (sink_code) {
 		case MEDIA_BUS_FMT_SBGGR10_1X10:
 		{
@@ -718,7 +719,8 @@ static int csid_set_stream(struct v4l2_subdev *sd, int enable)
 		val |= df << CAMSS_CSID_CID_n_CFG_DECODE_FORMAT_SHIFT;
 		val |= CAMSS_CSID_CID_n_CFG_RDI_MODE_RAW_DUMP;
 
-		if (csid->camss->version == CAMSS_8x96) {
+		if (csid->camss->version == CAMSS_8x96 ||
+		    csid->camss->version == CAMSS_660) {
 			u32 sink_code = csid->fmt[MSM_CSID_PAD_SINK].code;
 			u32 src_code = csid->fmt[MSM_CSID_PAD_SRC].code;
 
@@ -1098,7 +1100,8 @@ int msm_csid_subdev_init(struct camss *camss, struct csid_device *csid,
 		csid->formats = csid_formats_8x16;
 		csid->nformats =
 				ARRAY_SIZE(csid_formats_8x16);
-	} else if (camss->version == CAMSS_8x96) {
+	} else if (camss->version == CAMSS_8x96 ||
+		   camss->version == CAMSS_660) {
 		csid->formats = csid_formats_8x96;
 		csid->nformats =
 				ARRAY_SIZE(csid_formats_8x96);

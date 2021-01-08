@@ -269,6 +269,7 @@ static int dpaa2_pcs_create(struct dpaa2_mac *mac,
 
 	if (!of_device_is_available(node)) {
 		netdev_err(mac->net_dev, "pcs-handle node not available\n");
+		of_node_put(node);
 		return -ENODEV;
 	}
 

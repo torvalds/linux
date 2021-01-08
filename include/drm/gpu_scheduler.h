@@ -171,10 +171,10 @@ struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f);
  * struct drm_sched_job - A job to be run by an entity.
  *
  * @queue_node: used to append this struct to the queue of jobs in an entity.
+ * @list: a job participates in a "pending" and "done" lists.
  * @sched: the scheduler instance on which this job is scheduled.
  * @s_fence: contains the fences for the scheduling of job.
  * @finish_cb: the callback for the finished fence.
- * @node: used to append this struct to the @drm_gpu_scheduler.ring_mirror_list.
  * @id: a unique id assigned to each job scheduled on the scheduler.
  * @karma: increment on every hang caused by this job. If this exceeds the hang
  *         limit of the scheduler then the job is marked guilty and will not
@@ -189,21 +189,21 @@ struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f);
  */
 struct drm_sched_job {
 	struct spsc_node		queue_node;
+	struct list_head		list;
 	struct drm_gpu_scheduler	*sched;
 	struct drm_sched_fence		*s_fence;
 	struct dma_fence_cb		finish_cb;
-	struct list_head		node;
 	uint64_t			id;
 	atomic_t			karma;
 	enum drm_sched_priority		s_priority;
-	struct drm_sched_entity  *entity;
+	struct drm_sched_entity         *entity;
 	struct dma_fence_cb		cb;
 };
 
 static inline bool drm_sched_invalidate_job(struct drm_sched_job *s_job,
 					    int threshold)
 {
-	return (s_job && atomic_inc_return(&s_job->karma) > threshold);
+	return s_job && atomic_inc_return(&s_job->karma) > threshold;
 }
 
 /**
@@ -260,8 +260,8 @@ struct drm_sched_backend_ops {
  * @work_tdr: schedules a delayed call to @drm_sched_job_timedout after the
  *            timeout interval is over.
  * @thread: the kthread on which the scheduler which run.
- * @ring_mirror_list: the list of jobs which are currently in the job queue.
- * @job_list_lock: lock to protect the ring_mirror_list.
+ * @pending_list: the list of jobs which are currently in the job queue.
+ * @job_list_lock: lock to protect the pending_list.
  * @hang_limit: once the hangs by a job crosses this limit then it is marked
  *              guilty and it will be considered for scheduling further.
  * @score: score to help loadbalancer pick a idle sched
@@ -282,7 +282,7 @@ struct drm_gpu_scheduler {
 	atomic64_t			job_id_count;
 	struct delayed_work		work_tdr;
 	struct task_struct		*thread;
-	struct list_head		ring_mirror_list;
+	struct list_head		pending_list;
 	spinlock_t			job_list_lock;
 	int				hang_limit;
 	atomic_t                        score;

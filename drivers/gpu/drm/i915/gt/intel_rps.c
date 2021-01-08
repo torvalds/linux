@@ -897,6 +897,10 @@ void intel_rps_park(struct intel_rps *rps)
 		adj = -2;
 	rps->last_adj = adj;
 	rps->cur_freq = max_t(int, rps->cur_freq + adj, rps->min_freq);
+	if (rps->cur_freq < rps->efficient_freq) {
+		rps->cur_freq = rps->efficient_freq;
+		rps->last_adj = 0;
+	}
 
 	GT_TRACE(rps_to_gt(rps), "park:%x\n", rps->cur_freq);
 }
@@ -1973,7 +1977,7 @@ static struct drm_i915_private *mchdev_get(void)
 
 	rcu_read_lock();
 	i915 = rcu_dereference(ips_mchdev);
-	if (!kref_get_unless_zero(&i915->drm.ref))
+	if (i915 && !kref_get_unless_zero(&i915->drm.ref))
 		i915 = NULL;
 	rcu_read_unlock();
 

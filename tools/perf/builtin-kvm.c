@@ -764,7 +764,7 @@ static s64 perf_kvm__mmap_read_idx(struct perf_kvm_stat *kvm, int idx,
 		return (err == -EAGAIN) ? 0 : -1;
 
 	while ((event = perf_mmap__read_event(&md->core)) != NULL) {
-		err = perf_evlist__parse_sample_timestamp(evlist, event, &timestamp);
+		err = evlist__parse_sample_timestamp(evlist, event, &timestamp);
 		if (err) {
 			perf_mmap__consume(&md->core);
 			pr_err("Failed to parse sample\n");
@@ -1022,7 +1022,7 @@ static int kvm_live_open_events(struct perf_kvm_stat *kvm)
 	struct evlist *evlist = kvm->evlist;
 	char sbuf[STRERR_BUFSIZE];
 
-	perf_evlist__config(evlist, &kvm->opts, NULL);
+	evlist__config(evlist, &kvm->opts, NULL);
 
 	/*
 	 * Note: exclude_{guest,host} do not apply here.
@@ -1349,8 +1349,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 		OPT_STRING('p', "pid", &kvm->opts.target.pid, "pid",
 			"record events on existing process id"),
 		OPT_CALLBACK('m', "mmap-pages", &kvm->opts.mmap_pages, "pages",
-			"number of mmap data pages",
-			perf_evlist__parse_mmap_pages),
+			"number of mmap data pages", evlist__parse_mmap_pages),
 		OPT_INCR('v', "verbose", &verbose,
 			"be more verbose (show counter open errors, etc)"),
 		OPT_BOOLEAN('a', "all-cpus", &kvm->opts.target.system_wide,
@@ -1442,7 +1441,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 		goto out;
 	}
 
-	if (perf_evlist__create_maps(kvm->evlist, &kvm->opts.target) < 0)
+	if (evlist__create_maps(kvm->evlist, &kvm->opts.target) < 0)
 		usage_with_options(live_usage, live_options);
 
 	/*

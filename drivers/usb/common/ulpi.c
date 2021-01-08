@@ -118,7 +118,7 @@ static struct attribute *ulpi_dev_attrs[] = {
 	NULL
 };
 
-static struct attribute_group ulpi_dev_attr_group = {
+static const struct attribute_group ulpi_dev_attr_group = {
 	.attrs = ulpi_dev_attrs,
 };
 

@@ -31,6 +31,10 @@
 
 #include "atom.h"
 #include "avivod.h"
+#include "cik.h"
+#include "ni.h"
+#include "rv770.h"
+#include "evergreen.h"
 #include "evergreen_blit_shaders.h"
 #include "evergreen_reg.h"
 #include "evergreend.h"
@@ -38,6 +42,7 @@
 #include "radeon_asic.h"
 #include "radeon_audio.h"
 #include "radeon_ucode.h"
+#include "si.h"
 
 #define DC_HPDx_CONTROL(x)        (DC_HPD1_CONTROL     + (x * 0xc))
 #define DC_HPDx_INT_CONTROL(x)    (DC_HPD1_INT_CONTROL + (x * 0xc))
@@ -213,17 +218,6 @@ static void evergreen_gpu_init(struct radeon_device *rdev);
 void evergreen_fini(struct radeon_device *rdev);
 void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
 void evergreen_program_aspm(struct radeon_device *rdev);
-extern void cayman_cp_int_cntl_setup(struct radeon_device *rdev,
-				     int ring, u32 cp_int_cntl);
-extern void cayman_vm_decode_fault(struct radeon_device *rdev,
-				   u32 status, u32 addr);
-void cik_init_cp_pg_table(struct radeon_device *rdev);
-
-extern u32 si_get_csb_size(struct radeon_device *rdev);
-extern void si_get_csb_buffer(struct radeon_device *rdev, volatile u32 *buffer);
-extern u32 cik_get_csb_size(struct radeon_device *rdev);
-extern void cik_get_csb_buffer(struct radeon_device *rdev, volatile u32 *buffer);
-extern void rv770_set_clk_bypass_mode(struct radeon_device *rdev);
 
 static const u32 evergreen_golden_registers[] =
 {
@@ -1411,6 +1405,7 @@ void dce4_wait_for_vblank(struct radeon_device *rdev, int crtc)
  * @rdev: radeon_device pointer
  * @crtc_id: crtc to cleanup pageflip on
  * @crtc_base: new address of the crtc (GPU MC address)
+ * @async: asynchronous flip
  *
  * Triggers the actual pageflip by updating the primary
  * surface base address (evergreen+).
@@ -3133,7 +3128,7 @@ static int evergreen_cp_resume(struct radeon_device *rdev)
 static void evergreen_gpu_init(struct radeon_device *rdev)
 {
 	u32 gb_addr_config;
-	u32 mc_shared_chmap, mc_arb_ramcfg;
+	u32 mc_arb_ramcfg;
 	u32 sx_debug_1;
 	u32 smx_dc_ctl0;
 	u32 sq_config;
@@ -3397,7 +3392,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 
 	evergreen_fix_pci_max_read_req_size(rdev);
 
-	mc_shared_chmap = RREG32(MC_SHARED_CHMAP);
+	RREG32(MC_SHARED_CHMAP);
 	if ((rdev->family == CHIP_PALM) ||
 	    (rdev->family == CHIP_SUMO) ||
 	    (rdev->family == CHIP_SUMO2))

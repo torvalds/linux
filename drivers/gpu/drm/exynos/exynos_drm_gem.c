@@ -135,8 +135,6 @@ static const struct vm_operations_struct exynos_drm_gem_vm_ops = {
 static const struct drm_gem_object_funcs exynos_drm_gem_object_funcs = {
 	.free = exynos_drm_gem_free_object,
 	.get_sg_table = exynos_drm_gem_prime_get_sg_table,
-	.vmap = exynos_drm_gem_prime_vmap,
-	.vunmap	= exynos_drm_gem_prime_vunmap,
 	.vm_ops = &exynos_drm_gem_vm_ops,
 };
 
@@ -467,16 +465,6 @@ exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
 	exynos_gem->dma_addr = sg_dma_address(sgt->sgl);
 	exynos_gem->sgt = sgt;
 	return &exynos_gem->base;
-}
-
-void *exynos_drm_gem_prime_vmap(struct drm_gem_object *obj)
-{
-	return NULL;
-}
-
-void exynos_drm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
-{
-	/* Nothing to do */
 }
 
 int exynos_drm_gem_prime_mmap(struct drm_gem_object *obj,

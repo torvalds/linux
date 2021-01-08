@@ -26,7 +26,7 @@ static const struct drm_mode_config_funcs dcss_drm_mode_config_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
-static struct drm_driver dcss_kms_driver = {
+static const struct drm_driver dcss_kms_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	DRM_GEM_CMA_DRIVER_OPS,
 	.fops			= &dcss_cma_fops,

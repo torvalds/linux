@@ -84,7 +84,7 @@ nouveau_sgdma_create_ttm(struct ttm_buffer_object *bo, uint32_t page_flags)
 	if (!nvbe)
 		return NULL;
 
-	if (ttm_dma_tt_init(&nvbe->ttm, bo, page_flags, caching)) {
+	if (ttm_sg_tt_init(&nvbe->ttm, bo, page_flags, caching)) {
 		kfree(nvbe);
 		return NULL;
 	}

@@ -48,7 +48,7 @@ void btcx_riscmem_free(struct pci_dev *pci,
 	dprintk("btcx: riscmem free [%d] dma=%lx\n",
 		memcnt, (unsigned long)risc->dma);
 
-	pci_free_consistent(pci, risc->size, risc->cpu, risc->dma);
+	dma_free_coherent(&pci->dev, risc->size, risc->cpu, risc->dma);
 	memset(risc,0,sizeof(*risc));
 }
 
@@ -62,7 +62,7 @@ int btcx_riscmem_alloc(struct pci_dev *pci,
 	if (NULL != risc->cpu && risc->size < size)
 		btcx_riscmem_free(pci,risc);
 	if (NULL == risc->cpu) {
-		cpu = pci_alloc_consistent(pci, size, &dma);
+		cpu = dma_alloc_coherent(&pci->dev, size, &dma, GFP_KERNEL);
 		if (NULL == cpu)
 			return -ENOMEM;
 		risc->cpu  = cpu;
@@ -73,7 +73,6 @@ int btcx_riscmem_alloc(struct pci_dev *pci,
 		dprintk("btcx: riscmem alloc [%d] dma=%lx cpu=%p size=%d\n",
 			memcnt, (unsigned long)dma, cpu, size);
 	}
-	memset(risc->cpu,0,risc->size);
 	return 0;
 }
 

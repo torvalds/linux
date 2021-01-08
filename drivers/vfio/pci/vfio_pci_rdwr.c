@@ -356,32 +356,58 @@ ssize_t vfio_pci_vga_rw(struct vfio_pci_device *vdev, char __user *buf,
 	return done;
 }
 
-static int vfio_pci_ioeventfd_handler(void *opaque, void *unused)
+static void vfio_pci_ioeventfd_do_write(struct vfio_pci_ioeventfd *ioeventfd,
+					bool test_mem)
 {
-	struct vfio_pci_ioeventfd *ioeventfd = opaque;
-
 	switch (ioeventfd->count) {
 	case 1:
-		vfio_pci_iowrite8(ioeventfd->vdev, ioeventfd->test_mem,
+		vfio_pci_iowrite8(ioeventfd->vdev, test_mem,
 				  ioeventfd->data, ioeventfd->addr);
 		break;
 	case 2:
-		vfio_pci_iowrite16(ioeventfd->vdev, ioeventfd->test_mem,
+		vfio_pci_iowrite16(ioeventfd->vdev, test_mem,
 				   ioeventfd->data, ioeventfd->addr);
 		break;
 	case 4:
-		vfio_pci_iowrite32(ioeventfd->vdev, ioeventfd->test_mem,
+		vfio_pci_iowrite32(ioeventfd->vdev, test_mem,
 				   ioeventfd->data, ioeventfd->addr);
 		break;
 #ifdef iowrite64
 	case 8:
-		vfio_pci_iowrite64(ioeventfd->vdev, ioeventfd->test_mem,
+		vfio_pci_iowrite64(ioeventfd->vdev, test_mem,
 				   ioeventfd->data, ioeventfd->addr);
 		break;
 #endif
 	}
+}
+
+static int vfio_pci_ioeventfd_handler(void *opaque, void *unused)
+{
+	struct vfio_pci_ioeventfd *ioeventfd = opaque;
+	struct vfio_pci_device *vdev = ioeventfd->vdev;
+
+	if (ioeventfd->test_mem) {
+		if (!down_read_trylock(&vdev->memory_lock))
+			return 1; /* Lock contended, use thread */
+		if (!__vfio_pci_memory_enabled(vdev)) {
+			up_read(&vdev->memory_lock);
+			return 0;
+		}
+	}
+
+	vfio_pci_ioeventfd_do_write(ioeventfd, false);
+
+	if (ioeventfd->test_mem)
+		up_read(&vdev->memory_lock);
 
 	return 0;
+}
+
+static void vfio_pci_ioeventfd_thread(void *opaque, void *unused)
+{
+	struct vfio_pci_ioeventfd *ioeventfd = opaque;
+
+	vfio_pci_ioeventfd_do_write(ioeventfd, ioeventfd->test_mem);
 }
 
 long vfio_pci_ioeventfd(struct vfio_pci_device *vdev, loff_t offset,
@@ -457,7 +483,8 @@ long vfio_pci_ioeventfd(struct vfio_pci_device *vdev, loff_t offset,
 	ioeventfd->test_mem = vdev->pdev->resource[bar].flags & IORESOURCE_MEM;
 
 	ret = vfio_virqfd_enable(ioeventfd, vfio_pci_ioeventfd_handler,
-				 NULL, NULL, &ioeventfd->virqfd, fd);
+				 vfio_pci_ioeventfd_thread, NULL,
+				 &ioeventfd->virqfd, fd);
 	if (ret) {
 		kfree(ioeventfd);
 		goto out_unlock;

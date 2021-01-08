@@ -32,7 +32,6 @@
 #include <linux/of_graph.h>
 #include <linux/dmi.h>
 #include <sound/core.h>
-#include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -520,13 +519,46 @@ static void snd_soc_flush_all_delayed_work(struct snd_soc_card *card)
 }
 
 #ifdef CONFIG_PM_SLEEP
+static void soc_playback_digital_mute(struct snd_soc_card *card, int mute)
+{
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *dai;
+	int playback = SNDRV_PCM_STREAM_PLAYBACK;
+	int i;
+
+	for_each_card_rtds(card, rtd) {
+
+		if (rtd->dai_link->ignore_suspend)
+			continue;
+
+		for_each_rtd_dais(rtd, i, dai) {
+			if (snd_soc_dai_stream_active(dai, playback))
+				snd_soc_dai_digital_mute(dai, mute, playback);
+		}
+	}
+}
+
+static void soc_dapm_suspend_resume(struct snd_soc_card *card, int event)
+{
+	struct snd_soc_pcm_runtime *rtd;
+	int stream;
+
+	for_each_card_rtds(card, rtd) {
+
+		if (rtd->dai_link->ignore_suspend)
+			continue;
+
+		for_each_pcm_streams(stream)
+			snd_soc_dapm_stream_event(rtd, stream, event);
+	}
+}
+
 /* powers down audio subsystem for suspend */
 int snd_soc_suspend(struct device *dev)
 {
 	struct snd_soc_card *card = dev_get_drvdata(dev);
 	struct snd_soc_component *component;
 	struct snd_soc_pcm_runtime *rtd;
-	int playback = SNDRV_PCM_STREAM_PLAYBACK;
 	int i;
 
 	/* If the card is not initialized yet there is nothing to do */
@@ -543,17 +575,7 @@ int snd_soc_suspend(struct device *dev)
 	snd_power_change_state(card->snd_card, SNDRV_CTL_POWER_D3hot);
 
 	/* mute any active DACs */
-	for_each_card_rtds(card, rtd) {
-		struct snd_soc_dai *dai;
-
-		if (rtd->dai_link->ignore_suspend)
-			continue;
-
-		for_each_rtd_dais(rtd, i, dai) {
-			if (snd_soc_dai_stream_active(dai, playback))
-				snd_soc_dai_digital_mute(dai, 1, playback);
-		}
-	}
+	soc_playback_digital_mute(card, 1);
 
 	/* suspend all pcms */
 	for_each_card_rtds(card, rtd) {
@@ -568,16 +590,7 @@ int snd_soc_suspend(struct device *dev)
 	/* close any waiting streams */
 	snd_soc_flush_all_delayed_work(card);
 
-	for_each_card_rtds(card, rtd) {
-		int stream;
-
-		if (rtd->dai_link->ignore_suspend)
-			continue;
-
-		for_each_pcm_streams(stream)
-			snd_soc_dapm_stream_event(rtd, stream,
-						  SND_SOC_DAPM_STREAM_SUSPEND);
-	}
+	soc_dapm_suspend_resume(card, SND_SOC_DAPM_STREAM_SUSPEND);
 
 	/* Recheck all endpoints too, their state is affected by suspend */
 	dapm_mark_endpoints_dirty(card);
@@ -648,9 +661,7 @@ static void soc_resume_deferred(struct work_struct *work)
 	struct snd_soc_card *card =
 			container_of(work, struct snd_soc_card,
 				     deferred_resume_work);
-	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_component *component;
-	int i;
 
 	/*
 	 * our power state is still SNDRV_CTL_POWER_D3hot from suspend time,
@@ -669,30 +680,10 @@ static void soc_resume_deferred(struct work_struct *work)
 			snd_soc_component_resume(component);
 	}
 
-	for_each_card_rtds(card, rtd) {
-		int stream;
-
-		if (rtd->dai_link->ignore_suspend)
-			continue;
-
-		for_each_pcm_streams(stream)
-			snd_soc_dapm_stream_event(rtd, stream,
-						  SND_SOC_DAPM_STREAM_RESUME);
-	}
+	soc_dapm_suspend_resume(card, SND_SOC_DAPM_STREAM_RESUME);
 
 	/* unmute any active DACs */
-	for_each_card_rtds(card, rtd) {
-		struct snd_soc_dai *dai;
-		int playback = SNDRV_PCM_STREAM_PLAYBACK;
-
-		if (rtd->dai_link->ignore_suspend)
-			continue;
-
-		for_each_rtd_dais(rtd, i, dai) {
-			if (snd_soc_dai_stream_active(dai, playback))
-				snd_soc_dai_digital_mute(dai, 0, playback);
-		}
-	}
+	soc_playback_digital_mute(card, 0);
 
 	snd_soc_card_resume_post(card);
 
@@ -1124,7 +1115,8 @@ static void soc_set_name_prefix(struct snd_soc_card *card,
 	for (i = 0; i < card->num_configs; i++) {
 		struct snd_soc_codec_conf *map = &card->codec_conf[i];
 
-		if (snd_soc_is_matching_component(&map->dlc, component)) {
+		if (snd_soc_is_matching_component(&map->dlc, component) &&
+		    map->name_prefix) {
 			component->name_prefix = map->name_prefix;
 			return;
 		}
@@ -2341,7 +2333,7 @@ struct snd_soc_dai *snd_soc_register_dai(struct snd_soc_component *component,
 }
 
 /**
- * snd_soc_unregister_dai - Unregister DAIs from the ASoC core
+ * snd_soc_unregister_dais - Unregister DAIs from the ASoC core
  *
  * @component: The component for which the DAIs should be unregistered
  */

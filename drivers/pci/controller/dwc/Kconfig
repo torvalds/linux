@@ -83,10 +83,15 @@ config PCIE_DW_PLAT_EP
 	  selected.
 
 config PCI_EXYNOS
-	bool "Samsung Exynos PCIe controller"
-	depends on SOC_EXYNOS5440 || COMPILE_TEST
+	tristate "Samsung Exynos PCIe controller"
+	depends on ARCH_EXYNOS || COMPILE_TEST
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
+	help
+	  Enables support for the PCIe controller in the Samsung Exynos SoCs
+	  to work in host mode. The PCI controller is based on the DesignWare
+	  hardware and therefore the driver re-uses the DesignWare core
+	  functions to implement the driver.
 
 config PCI_IMX6
 	bool "Freescale i.MX6/7/8 PCIe controller"
@@ -107,7 +112,7 @@ config PCI_KEYSTONE
 
 config PCI_KEYSTONE_HOST
 	bool "PCI Keystone Host Mode"
-	depends on ARCH_KEYSTONE || ARCH_K3 || ((ARM || ARM64) && COMPILE_TEST)
+	depends on ARCH_KEYSTONE || ARCH_K3 || COMPILE_TEST
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
 	select PCI_KEYSTONE
@@ -119,7 +124,7 @@ config PCI_KEYSTONE_HOST
 
 config PCI_KEYSTONE_EP
 	bool "PCI Keystone Endpoint Mode"
-	depends on ARCH_KEYSTONE || ARCH_K3 || ((ARM || ARM64) && COMPILE_TEST)
+	depends on ARCH_KEYSTONE || ARCH_K3 || COMPILE_TEST
 	depends on PCI_ENDPOINT
 	select PCIE_DW_EP
 	select PCI_KEYSTONE
@@ -169,6 +174,7 @@ config PCIE_QCOM
 	depends on OF && (ARCH_QCOM || COMPILE_TEST)
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
+	select CRC8
 	help
 	  Say Y here to enable PCIe controller support on Qualcomm SoCs. The
 	  PCIe controller uses the DesignWare core plus Qualcomm-specific

@@ -553,6 +553,41 @@ with "depends on m".  E.g.::
 
 limits FOO to module (=m) or disabled (=n).
 
+Compile-testing
+~~~~~~~~~~~~~~~
+If a config symbol has a dependency, but the code controlled by the config
+symbol can still be compiled if the dependency is not met, it is encouraged to
+increase build coverage by adding an "|| COMPILE_TEST" clause to the
+dependency. This is especially useful for drivers for more exotic hardware, as
+it allows continuous-integration systems to compile-test the code on a more
+common system, and detect bugs that way.
+Note that compile-tested code should avoid crashing when run on a system where
+the dependency is not met.
+
+Architecture and platform dependencies
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Due to the presence of stubs, most drivers can now be compiled on most
+architectures. However, this does not mean it makes sense to have all drivers
+available everywhere, as the actual hardware may only exist on specific
+architectures and platforms. This is especially true for on-SoC IP cores,
+which may be limited to a specific vendor or SoC family.
+
+To prevent asking the user about drivers that cannot be used on the system(s)
+the user is compiling a kernel for, and if it makes sense, config symbols
+controlling the compilation of a driver should contain proper dependencies,
+limiting the visibility of the symbol to (a superset of) the platform(s) the
+driver can be used on. The dependency can be an architecture (e.g. ARM) or
+platform (e.g. ARCH_OMAP4) dependency. This makes life simpler not only for
+distro config owners, but also for every single developer or user who
+configures a kernel.
+
+Such a dependency can be relaxed by combining it with the compile-testing rule
+above, leading to:
+
+  config FOO
+	bool "Support for foo hardware"
+	depends on ARCH_FOO_VENDOR || COMPILE_TEST
+
 Kconfig recursive dependency limitations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -348,11 +348,10 @@ tool.  For details on how to use the kernel bugzilla, please see:
 
 	https://bugzilla.kernel.org/page.cgi?id=faq.html
 
-The file :ref:`admin-guide/reporting-bugs.rst <reportingbugs>`
-in the main kernel source directory has a good
-template for how to report a possible kernel bug, and details what kind
-of information is needed by the kernel developers to help track down the
-problem.
+The file 'Documentation/admin-guide/reporting-issues.rst' in the main kernel
+source directory has a good template for how to report a possible kernel bug,
+and details what kind of information is needed by the kernel developers to help
+track down the problem.
 
 
 Managing bug reports

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011 Texas Instruments Incorporated - https://www.ti.com/
  * Author: Rob Clark <rob@ti.com>
  */
 
@@ -12,11 +12,11 @@
 #include <linux/workqueue.h>
 
 #include "dss/omapdss.h"
+#include "dss/dss.h"
 
 #include <drm/drm_gem.h>
 #include <drm/omap_drm.h>
 
-#include "omap_connector.h"
 #include "omap_crtc.h"
 #include "omap_encoder.h"
 #include "omap_fb.h"
@@ -47,7 +47,6 @@ struct omap_drm_private {
 
 	struct dss_device *dss;
 	struct dispc_device *dispc;
-	const struct dispc_ops *dispc_ops;
 
 	unsigned int num_pipes;
 	struct omap_drm_pipeline pipes[8];

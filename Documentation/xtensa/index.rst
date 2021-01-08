@@ -10,3 +10,5 @@ Xtensa Architecture
    atomctl
    booting
    mmu
+
+   features

@@ -584,7 +584,7 @@ static struct synth_field *parse_synth_field(int argc, const char **argv,
 {
 	struct synth_field *field;
 	const char *prefix = NULL, *field_type = argv[0], *field_name, *array;
-	int len, ret = 0;
+	int len, ret = -ENOMEM;
 	struct seq_buf s;
 	ssize_t size;
 
@@ -617,10 +617,9 @@ static struct synth_field *parse_synth_field(int argc, const char **argv,
 		len--;
 
 	field->name = kmemdup_nul(field_name, len, GFP_KERNEL);
-	if (!field->name) {
-		ret = -ENOMEM;
+	if (!field->name)
 		goto free;
-	}
+
 	if (!is_good_name(field->name)) {
 		synth_err(SYNTH_ERR_BAD_NAME, errpos(field_name));
 		ret = -EINVAL;
@@ -638,10 +637,9 @@ static struct synth_field *parse_synth_field(int argc, const char **argv,
 		len += strlen(prefix);
 
 	field->type = kzalloc(len, GFP_KERNEL);
-	if (!field->type) {
-		ret = -ENOMEM;
+	if (!field->type)
 		goto free;
-	}
+
 	seq_buf_init(&s, field->type, len);
 	if (prefix)
 		seq_buf_puts(&s, prefix);
@@ -653,6 +651,7 @@ static struct synth_field *parse_synth_field(int argc, const char **argv,
 	}
 	if (WARN_ON_ONCE(!seq_buf_buffer_left(&s)))
 		goto free;
+
 	s.buffer[s.len] = '\0';
 
 	size = synth_field_size(field->type);
@@ -666,10 +665,8 @@ static struct synth_field *parse_synth_field(int argc, const char **argv,
 
 			len = sizeof("__data_loc ") + strlen(field->type) + 1;
 			type = kzalloc(len, GFP_KERNEL);
-			if (!type) {
-				ret = -ENOMEM;
+			if (!type)
 				goto free;
-			}
 
 			seq_buf_init(&s, type, len);
 			seq_buf_puts(&s, "__data_loc ");
@@ -1279,7 +1276,7 @@ static int __create_synth_event(int argc, const char *name, const char **argv)
 
 /**
  * synth_event_create - Create a new synthetic event
- * @name: The name of the new sythetic event
+ * @name: The name of the new synthetic event
  * @fields: An array of type/name field descriptions
  * @n_fields: The number of field descriptions contained in the fields array
  * @mod: The module creating the event, NULL if not created from a module
@@ -1449,7 +1446,7 @@ __synth_event_trace_init(struct trace_event_file *file,
 	 * this code to be called, etc).  Because this is called
 	 * directly by the user, we don't have that but we still need
 	 * to honor not logging when disabled.  For the iterated
-	 * trace case, we save the enabed state upon start and just
+	 * trace case, we save the enabled state upon start and just
 	 * ignore the following data calls.
 	 */
 	if (!(file->flags & EVENT_FILE_FL_ENABLED) ||

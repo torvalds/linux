@@ -31,8 +31,6 @@
 #include <drm/qxl_drm.h>
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_module.h>
-#include <drm/ttm/ttm_page_alloc.h>
 #include <drm/ttm/ttm_placement.h>
 
 #include "qxl_drv.h"
@@ -116,7 +114,7 @@ static struct ttm_tt *qxl_ttm_tt_create(struct ttm_buffer_object *bo,
 	ttm = kzalloc(sizeof(struct ttm_tt), GFP_KERNEL);
 	if (ttm == NULL)
 		return NULL;
-	if (ttm_dma_tt_init(ttm, bo, page_flags, ttm_cached)) {
+	if (ttm_tt_init(ttm, bo, page_flags, ttm_cached)) {
 		kfree(ttm);
 		return NULL;
 	}
@@ -141,7 +139,8 @@ static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
 
 static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
 		       struct ttm_operation_ctx *ctx,
-		       struct ttm_resource *new_mem)
+		       struct ttm_resource *new_mem,
+		       struct ttm_place *hop)
 {
 	struct ttm_resource *old_mem = &bo->mem;
 	int ret;
@@ -194,11 +193,10 @@ int qxl_ttm_init(struct qxl_device *qdev)
 	int num_io_pages; /* != rom->num_io_pages, we include surface0 */
 
 	/* No others user of address space so set it to 0 */
-	r = ttm_bo_device_init(&qdev->mman.bdev,
-			       &qxl_bo_driver,
+	r = ttm_bo_device_init(&qdev->mman.bdev, &qxl_bo_driver, NULL,
 			       qdev->ddev.anon_inode->i_mapping,
 			       qdev->ddev.vma_offset_manager,
-			       false);
+			       false, false);
 	if (r) {
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
 		return r;

@@ -201,7 +201,7 @@ static void meson_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 static void meson_crtc_atomic_begin(struct drm_crtc *crtc,
-				    struct drm_crtc_state *state)
+				    struct drm_atomic_state *state)
 {
 	struct meson_crtc *meson_crtc = to_meson_crtc(crtc);
 	unsigned long flags;
@@ -217,7 +217,7 @@ static void meson_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void meson_crtc_atomic_flush(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_crtc_state)
+				    struct drm_atomic_state *state)
 {
 	struct meson_crtc *meson_crtc = to_meson_crtc(crtc);
 	struct meson_drm *priv = meson_crtc->priv;

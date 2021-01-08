@@ -400,14 +400,16 @@ void mv88e6352_serdes_get_regs(struct mv88e6xxx_chip *chip, int port, void *_p)
 {
 	u16 *p = _p;
 	u16 reg;
+	int err;
 	int i;
 
 	if (!mv88e6352_port_has_serdes(chip, port))
 		return;
 
 	for (i = 0 ; i < 32; i++) {
-		mv88e6352_serdes_read(chip, i, &reg);
-		p[i] = reg;
+		err = mv88e6352_serdes_read(chip, i, &reg);
+		if (!err)
+			p[i] = reg;
 	}
 }
 
@@ -426,6 +428,115 @@ u8 mv88e6341_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 	}
 
 	return lane;
+}
+
+int mv88e6185_serdes_power(struct mv88e6xxx_chip *chip, int port, u8 lane,
+			   bool up)
+{
+	/* The serdes power can't be controlled on this switch chip but we need
+	 * to supply this function to avoid returning -EOPNOTSUPP in
+	 * mv88e6xxx_serdes_power_up/mv88e6xxx_serdes_power_down
+	 */
+	return 0;
+}
+
+u8 mv88e6185_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
+{
+	/* There are no configurable serdes lanes on this switch chip but we
+	 * need to return non-zero so that callers of
+	 * mv88e6xxx_serdes_get_lane() know this is a serdes port.
+	 */
+	switch (chip->ports[port].cmode) {
+	case MV88E6185_PORT_STS_CMODE_SERDES:
+	case MV88E6185_PORT_STS_CMODE_1000BASE_X:
+		return 0xff;
+	default:
+		return 0;
+	}
+}
+
+int mv88e6185_serdes_pcs_get_state(struct mv88e6xxx_chip *chip, int port,
+				   u8 lane, struct phylink_link_state *state)
+{
+	int err;
+	u16 status;
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &status);
+	if (err)
+		return err;
+
+	state->link = !!(status & MV88E6XXX_PORT_STS_LINK);
+
+	if (state->link) {
+		state->duplex = status & MV88E6XXX_PORT_STS_DUPLEX ? DUPLEX_FULL : DUPLEX_HALF;
+
+		switch (status &  MV88E6XXX_PORT_STS_SPEED_MASK) {
+		case MV88E6XXX_PORT_STS_SPEED_1000:
+			state->speed = SPEED_1000;
+			break;
+		case MV88E6XXX_PORT_STS_SPEED_100:
+			state->speed = SPEED_100;
+			break;
+		case MV88E6XXX_PORT_STS_SPEED_10:
+			state->speed = SPEED_10;
+			break;
+		default:
+			dev_err(chip->dev, "invalid PHY speed\n");
+			return -EINVAL;
+		}
+	} else {
+		state->duplex = DUPLEX_UNKNOWN;
+		state->speed = SPEED_UNKNOWN;
+	}
+
+	return 0;
+}
+
+int mv88e6097_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port, u8 lane,
+				bool enable)
+{
+	u8 cmode = chip->ports[port].cmode;
+
+	/* The serdes interrupts are enabled in the G2_INT_MASK register. We
+	 * need to return 0 to avoid returning -EOPNOTSUPP in
+	 * mv88e6xxx_serdes_irq_enable/mv88e6xxx_serdes_irq_disable
+	 */
+	switch (cmode) {
+	case MV88E6185_PORT_STS_CMODE_SERDES:
+	case MV88E6185_PORT_STS_CMODE_1000BASE_X:
+		return 0;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static void mv88e6097_serdes_irq_link(struct mv88e6xxx_chip *chip, int port)
+{
+	u16 status;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &status);
+	if (err) {
+		dev_err(chip->dev, "can't read port status: %d\n", err);
+		return;
+	}
+
+	dsa_port_phylink_mac_change(chip->ds, port, !!(status & MV88E6XXX_PORT_STS_LINK));
+}
+
+irqreturn_t mv88e6097_serdes_irq_status(struct mv88e6xxx_chip *chip, int port,
+					u8 lane)
+{
+	u8 cmode = chip->ports[port].cmode;
+
+	switch (cmode) {
+	case MV88E6185_PORT_STS_CMODE_SERDES:
+	case MV88E6185_PORT_STS_CMODE_1000BASE_X:
+		mv88e6097_serdes_irq_link(chip, port);
+		return IRQ_HANDLED;
+	}
+
+	return IRQ_NONE;
 }
 
 u8 mv88e6390_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
@@ -987,6 +1098,7 @@ void mv88e6390_serdes_get_regs(struct mv88e6xxx_chip *chip, int port, void *_p)
 	u16 *p = _p;
 	int lane;
 	u16 reg;
+	int err;
 	int i;
 
 	lane = mv88e6xxx_serdes_get_lane(chip, port);
@@ -994,8 +1106,9 @@ void mv88e6390_serdes_get_regs(struct mv88e6xxx_chip *chip, int port, void *_p)
 		return;
 
 	for (i = 0 ; i < ARRAY_SIZE(mv88e6390_serdes_regs); i++) {
-		mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
-				      mv88e6390_serdes_regs[i], &reg);
-		p[i] = reg;
+		err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+					    mv88e6390_serdes_regs[i], &reg);
+		if (!err)
+			p[i] = reg;
 	}
 }

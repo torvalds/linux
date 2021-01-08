@@ -32,12 +32,6 @@ static void psb_gem_free_object(struct drm_gem_object *obj)
 	psb_gtt_free_range(obj->dev, gtt);
 }
 
-int psb_gem_get_aperture(struct drm_device *dev, void *data,
-				struct drm_file *file)
-{
-	return -EINVAL;
-}
-
 static const struct vm_operations_struct psb_gem_vm_ops = {
 	.fault = psb_gem_fault,
 	.open = drm_gem_vm_open,

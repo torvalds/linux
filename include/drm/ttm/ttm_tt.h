@@ -37,7 +37,6 @@ struct ttm_operation_ctx;
 
 #define TTM_PAGE_FLAG_SWAPPED         (1 << 4)
 #define TTM_PAGE_FLAG_ZERO_ALLOC      (1 << 6)
-#define TTM_PAGE_FLAG_DMA32           (1 << 7)
 #define TTM_PAGE_FLAG_SG              (1 << 8)
 #define TTM_PAGE_FLAG_NO_RETRY	      (1 << 9)
 
@@ -66,7 +65,6 @@ struct ttm_tt {
 	struct sg_table *sg;
 	dma_addr_t *dma_address;
 	struct file *swap_storage;
-	struct list_head pages_list;
 	enum ttm_caching caching;
 };
 
@@ -101,8 +99,6 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc);
  */
 int ttm_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
 		uint32_t page_flags, enum ttm_caching caching);
-int ttm_dma_tt_init(struct ttm_tt *ttm_dma, struct ttm_buffer_object *bo,
-		    uint32_t page_flags, enum ttm_caching caching);
 int ttm_sg_tt_init(struct ttm_tt *ttm_dma, struct ttm_buffer_object *bo,
 		   uint32_t page_flags, enum ttm_caching caching);
 

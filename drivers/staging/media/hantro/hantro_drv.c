@@ -231,7 +231,7 @@ queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq)
 
 static int hantro_try_ctrl(struct v4l2_ctrl *ctrl)
 {
-	if (ctrl->id == V4L2_CID_MPEG_VIDEO_H264_SPS) {
+	if (ctrl->id == V4L2_CID_STATELESS_H264_SPS) {
 		const struct v4l2_ctrl_h264_sps *sps = ctrl->p_new.p_h264_sps;
 
 		if (sps->chroma_format_idc > 1)
@@ -304,39 +304,39 @@ static const struct hantro_ctrl controls[] = {
 	}, {
 		.codec = HANTRO_H264_DECODER,
 		.cfg = {
-			.id = V4L2_CID_MPEG_VIDEO_H264_DECODE_PARAMS,
+			.id = V4L2_CID_STATELESS_H264_DECODE_PARAMS,
 		},
 	}, {
 		.codec = HANTRO_H264_DECODER,
 		.cfg = {
-			.id = V4L2_CID_MPEG_VIDEO_H264_SPS,
+			.id = V4L2_CID_STATELESS_H264_SPS,
 			.ops = &hantro_ctrl_ops,
 		},
 	}, {
 		.codec = HANTRO_H264_DECODER,
 		.cfg = {
-			.id = V4L2_CID_MPEG_VIDEO_H264_PPS,
+			.id = V4L2_CID_STATELESS_H264_PPS,
 		},
 	}, {
 		.codec = HANTRO_H264_DECODER,
 		.cfg = {
-			.id = V4L2_CID_MPEG_VIDEO_H264_SCALING_MATRIX,
+			.id = V4L2_CID_STATELESS_H264_SCALING_MATRIX,
 		},
 	}, {
 		.codec = HANTRO_H264_DECODER,
 		.cfg = {
-			.id = V4L2_CID_MPEG_VIDEO_H264_DECODE_MODE,
-			.min = V4L2_MPEG_VIDEO_H264_DECODE_MODE_FRAME_BASED,
-			.def = V4L2_MPEG_VIDEO_H264_DECODE_MODE_FRAME_BASED,
-			.max = V4L2_MPEG_VIDEO_H264_DECODE_MODE_FRAME_BASED,
+			.id = V4L2_CID_STATELESS_H264_DECODE_MODE,
+			.min = V4L2_STATELESS_H264_DECODE_MODE_FRAME_BASED,
+			.def = V4L2_STATELESS_H264_DECODE_MODE_FRAME_BASED,
+			.max = V4L2_STATELESS_H264_DECODE_MODE_FRAME_BASED,
 		},
 	}, {
 		.codec = HANTRO_H264_DECODER,
 		.cfg = {
-			.id = V4L2_CID_MPEG_VIDEO_H264_START_CODE,
-			.min = V4L2_MPEG_VIDEO_H264_START_CODE_ANNEX_B,
-			.def = V4L2_MPEG_VIDEO_H264_START_CODE_ANNEX_B,
-			.max = V4L2_MPEG_VIDEO_H264_START_CODE_ANNEX_B,
+			.id = V4L2_CID_STATELESS_H264_START_CODE,
+			.min = V4L2_STATELESS_H264_START_CODE_ANNEX_B,
+			.def = V4L2_STATELESS_H264_START_CODE_ANNEX_B,
+			.max = V4L2_STATELESS_H264_START_CODE_ANNEX_B,
 		},
 	}, {
 		.codec = HANTRO_H264_DECODER,

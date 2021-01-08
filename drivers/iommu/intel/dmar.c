@@ -333,6 +333,13 @@ static void  dmar_pci_bus_del_dev(struct dmar_pci_notify_info *info)
 	dmar_iommu_notify_scope_dev(info);
 }
 
+static inline void vf_inherit_msi_domain(struct pci_dev *pdev)
+{
+	struct pci_dev *physfn = pci_physfn(pdev);
+
+	dev_set_msi_domain(&pdev->dev, dev_get_msi_domain(&physfn->dev));
+}
+
 static int dmar_pci_bus_notifier(struct notifier_block *nb,
 				 unsigned long action, void *data)
 {
@@ -342,8 +349,20 @@ static int dmar_pci_bus_notifier(struct notifier_block *nb,
 	/* Only care about add/remove events for physical functions.
 	 * For VFs we actually do the lookup based on the corresponding
 	 * PF in device_to_iommu() anyway. */
-	if (pdev->is_virtfn)
+	if (pdev->is_virtfn) {
+		/*
+		 * Ensure that the VF device inherits the irq domain of the
+		 * PF device. Ideally the device would inherit the domain
+		 * from the bus, but DMAR can have multiple units per bus
+		 * which makes this impossible. The VF 'bus' could inherit
+		 * from the PF device, but that's yet another x86'sism to
+		 * inflict on everybody else.
+		 */
+		if (action == BUS_NOTIFY_ADD_DEVICE)
+			vf_inherit_msi_domain(pdev);
 		return NOTIFY_DONE;
+	}
+
 	if (action != BUS_NOTIFY_ADD_DEVICE &&
 	    action != BUS_NOTIFY_REMOVED_DEVICE)
 		return NOTIFY_DONE;
@@ -967,7 +986,8 @@ static int map_iommu(struct intel_iommu *iommu, u64 phys_addr)
 		warn_invalid_dmar(phys_addr, " returns all ones");
 		goto unmap;
 	}
-	iommu->vccap = dmar_readq(iommu->reg + DMAR_VCCAP_REG);
+	if (ecap_vcs(iommu->ecap))
+		iommu->vccap = dmar_readq(iommu->reg + DMAR_VCCAP_REG);
 
 	/* the registers might be more than one page */
 	map_size = max_t(int, ecap_max_iotlb_offset(iommu->ecap),

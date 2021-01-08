@@ -22,7 +22,7 @@ properties:
   compatible:
     items:
       - enum:
-         - tianma,fhd-video
+          - tianma,fhd-video
       - const: novatek,nt36672a
     description: This indicates the panel manufacturer of the panel that is
       in turn using the NT36672A panel driver. This compatible string

@@ -2175,11 +2175,21 @@ out:
 
 static SIMPLE_DEV_PM_OPS(de_pm_ops, de_suspend, de_resume);
 
+static void de_shutdown(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+
+	rtnl_lock();
+	dev_close(dev);
+	rtnl_unlock();
+}
+
 static struct pci_driver de_driver = {
 	.name		= DRV_NAME,
 	.id_table	= de_pci_tbl,
 	.probe		= de_init_one,
 	.remove		= de_remove_one,
+	.shutdown	= de_shutdown,
 	.driver.pm	= &de_pm_ops,
 };
 

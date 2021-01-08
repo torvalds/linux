@@ -68,7 +68,7 @@ static __always_inline void tlbiel_hash_set_isa300(unsigned int set, unsigned in
 	rs = ((unsigned long)pid << PPC_BITLSHIFT(31));
 
 	asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4)
-		     : : "r"(rb), "r"(rs), "i"(ric), "i"(prs), "r"(r)
+		     : : "r"(rb), "r"(rs), "i"(ric), "i"(prs), "i"(r)
 		     : "memory");
 }
 
@@ -92,16 +92,15 @@ static void tlbiel_all_isa300(unsigned int num_sets, unsigned int is)
 	asm volatile("ptesync": : :"memory");
 
 	/*
-	 * Flush the first set of the TLB, and any caching of partition table
-	 * entries. Then flush the remaining sets of the TLB. Hash mode uses
-	 * partition scoped TLB translations.
+	 * Flush the partition table cache if this is HV mode.
 	 */
-	tlbiel_hash_set_isa300(0, is, 0, 2, 0);
-	for (set = 1; set < num_sets; set++)
-		tlbiel_hash_set_isa300(set, is, 0, 0, 0);
+	if (early_cpu_has_feature(CPU_FTR_HVMODE))
+		tlbiel_hash_set_isa300(0, is, 0, 2, 0);
 
 	/*
-	 * Now invalidate the process table cache.
+	 * Now invalidate the process table cache. UPRT=0 HPT modes (what
+	 * current hardware implements) do not use the process table, but
+	 * add the flushes anyway.
 	 *
 	 * From ISA v3.0B p. 1078:
 	 *     The following forms are invalid.
@@ -109,6 +108,14 @@ static void tlbiel_all_isa300(unsigned int num_sets, unsigned int is)
 	 *        HPT caching is of the Process Table.)
 	 */
 	tlbiel_hash_set_isa300(0, is, 0, 2, 1);
+
+	/*
+	 * Then flush the sets of the TLB proper. Hash mode uses
+	 * partition scoped TLB translations, which may be flushed
+	 * in !HV mode.
+	 */
+	for (set = 0; set < num_sets; set++)
+		tlbiel_hash_set_isa300(set, is, 0, 0, 0);
 
 	ppc_after_tlbiel_barrier();
 

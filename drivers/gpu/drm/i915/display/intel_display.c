@@ -15812,7 +15812,6 @@ static int intel_crtc_late_register(struct drm_crtc *crtc)
 }
 
 #define INTEL_CRTC_FUNCS \
-	.gamma_set = drm_atomic_helper_legacy_gamma_set, \
 	.set_config = drm_atomic_helper_set_config, \
 	.destroy = intel_crtc_destroy, \
 	.page_flip = drm_atomic_helper_page_flip, \
@@ -17294,7 +17293,7 @@ int intel_modeset_init(struct drm_i915_private *i915)
 	 */
 	ret = intel_initial_commit(&i915->drm);
 	if (ret)
-		return ret;
+		drm_dbg_kms(&i915->drm, "Initial modeset failed, %d\n", ret);
 
 	intel_overlay_setup(i915);
 

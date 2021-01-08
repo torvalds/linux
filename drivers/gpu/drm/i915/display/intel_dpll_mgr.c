@@ -4616,7 +4616,7 @@ void intel_dpll_sanitize_state(struct drm_i915_private *i915)
 }
 
 /**
- * intel_shared_dpll_dump_hw_state - write hw_state to dmesg
+ * intel_dpll_dump_hw_state - write hw_state to dmesg
  * @dev_priv: i915 drm device
  * @hw_state: hw state to be written to the log
  *

@@ -5,7 +5,7 @@
  *          Lajos Molnar <molnar@ti.com>
  *          Andy Gross <andy.gross@ti.com>
  *
- * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
  *
  * This package is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -254,6 +254,5 @@ struct tcm *sita_init(u16 width, u16 height)
 	return tcm;
 
 error:
-	kfree(tcm);
 	return NULL;
 }

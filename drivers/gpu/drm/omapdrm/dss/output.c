@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
  * Author: Archit Taneja <archit@ti.com>
  */
 
@@ -30,19 +30,12 @@ int omapdss_device_init_output(struct omap_dss_device *out,
 		return 0;
 	}
 
-	out->next = omapdss_find_device_by_node(remote_node);
 	out->bridge = of_drm_find_bridge(remote_node);
 	out->panel = of_drm_find_panel(remote_node);
 	if (IS_ERR(out->panel))
 		out->panel = NULL;
 
 	of_node_put(remote_node);
-
-	if (out->next && out->type != out->next->type) {
-		dev_err(out->dev, "output type and display type don't match\n");
-		ret = -EINVAL;
-		goto error;
-	}
 
 	if (out->panel) {
 		struct drm_bridge *bridge;
@@ -69,7 +62,7 @@ int omapdss_device_init_output(struct omap_dss_device *out,
 		out->bridge = local_bridge;
 	}
 
-	if (!out->next && !out->bridge) {
+	if (!out->bridge) {
 		ret = -EPROBE_DEFER;
 		goto error;
 	}
@@ -78,98 +71,64 @@ int omapdss_device_init_output(struct omap_dss_device *out,
 
 error:
 	omapdss_device_cleanup_output(out);
-	out->next = NULL;
 	return ret;
 }
-EXPORT_SYMBOL(omapdss_device_init_output);
 
 void omapdss_device_cleanup_output(struct omap_dss_device *out)
 {
 	if (out->bridge && out->panel)
 		drm_panel_bridge_remove(out->next_bridge ?
 					out->next_bridge : out->bridge);
-
-	if (out->next)
-		omapdss_device_put(out->next);
 }
-EXPORT_SYMBOL(omapdss_device_cleanup_output);
-
-int dss_install_mgr_ops(struct dss_device *dss,
-			const struct dss_mgr_ops *mgr_ops,
-			struct omap_drm_private *priv)
-{
-	if (dss->mgr_ops)
-		return -EBUSY;
-
-	dss->mgr_ops = mgr_ops;
-	dss->mgr_ops_priv = priv;
-
-	return 0;
-}
-EXPORT_SYMBOL(dss_install_mgr_ops);
-
-void dss_uninstall_mgr_ops(struct dss_device *dss)
-{
-	dss->mgr_ops = NULL;
-	dss->mgr_ops_priv = NULL;
-}
-EXPORT_SYMBOL(dss_uninstall_mgr_ops);
 
 void dss_mgr_set_timings(struct omap_dss_device *dssdev,
 			 const struct videomode *vm)
 {
-	dssdev->dss->mgr_ops->set_timings(dssdev->dss->mgr_ops_priv,
+	omap_crtc_dss_set_timings(dssdev->dss->mgr_ops_priv,
 					  dssdev->dispc_channel, vm);
 }
-EXPORT_SYMBOL(dss_mgr_set_timings);
 
 void dss_mgr_set_lcd_config(struct omap_dss_device *dssdev,
 		const struct dss_lcd_mgr_config *config)
 {
-	dssdev->dss->mgr_ops->set_lcd_config(dssdev->dss->mgr_ops_priv,
+	omap_crtc_dss_set_lcd_config(dssdev->dss->mgr_ops_priv,
 					     dssdev->dispc_channel, config);
 }
-EXPORT_SYMBOL(dss_mgr_set_lcd_config);
 
 int dss_mgr_enable(struct omap_dss_device *dssdev)
 {
-	return dssdev->dss->mgr_ops->enable(dssdev->dss->mgr_ops_priv,
+	return omap_crtc_dss_enable(dssdev->dss->mgr_ops_priv,
 					    dssdev->dispc_channel);
 }
-EXPORT_SYMBOL(dss_mgr_enable);
 
 void dss_mgr_disable(struct omap_dss_device *dssdev)
 {
-	dssdev->dss->mgr_ops->disable(dssdev->dss->mgr_ops_priv,
+	omap_crtc_dss_disable(dssdev->dss->mgr_ops_priv,
 				      dssdev->dispc_channel);
 }
-EXPORT_SYMBOL(dss_mgr_disable);
 
 void dss_mgr_start_update(struct omap_dss_device *dssdev)
 {
-	dssdev->dss->mgr_ops->start_update(dssdev->dss->mgr_ops_priv,
+	omap_crtc_dss_start_update(dssdev->dss->mgr_ops_priv,
 					   dssdev->dispc_channel);
 }
-EXPORT_SYMBOL(dss_mgr_start_update);
 
 int dss_mgr_register_framedone_handler(struct omap_dss_device *dssdev,
 		void (*handler)(void *), void *data)
 {
 	struct dss_device *dss = dssdev->dss;
 
-	return dss->mgr_ops->register_framedone_handler(dss->mgr_ops_priv,
+	return omap_crtc_dss_register_framedone(dss->mgr_ops_priv,
 							dssdev->dispc_channel,
 							handler, data);
 }
-EXPORT_SYMBOL(dss_mgr_register_framedone_handler);
 
 void dss_mgr_unregister_framedone_handler(struct omap_dss_device *dssdev,
 		void (*handler)(void *), void *data)
 {
 	struct dss_device *dss = dssdev->dss;
 
-	dss->mgr_ops->unregister_framedone_handler(dss->mgr_ops_priv,
+	omap_crtc_dss_unregister_framedone(dss->mgr_ops_priv,
 						   dssdev->dispc_channel,
 						   handler, data);
 }
-EXPORT_SYMBOL(dss_mgr_unregister_framedone_handler);

@@ -276,7 +276,7 @@ static int smu8_init_dynamic_state_adjustment_rule_settings(
 {
 	struct phm_clock_voltage_dependency_table *table_clk_vlt;
 
-	table_clk_vlt = kzalloc(struct_size(table_clk_vlt, entries, 7),
+	table_clk_vlt = kzalloc(struct_size(table_clk_vlt, entries, 8),
 				GFP_KERNEL);
 
 	if (NULL == table_clk_vlt) {

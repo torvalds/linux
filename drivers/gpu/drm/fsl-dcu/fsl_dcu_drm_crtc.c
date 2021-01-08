@@ -21,7 +21,7 @@
 #include "fsl_dcu_drm_plane.h"
 
 static void fsl_dcu_drm_crtc_atomic_flush(struct drm_crtc *crtc,
-					  struct drm_crtc_state *old_crtc_state)
+					  struct drm_atomic_state *state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
