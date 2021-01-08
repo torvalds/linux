@@ -126,7 +126,7 @@ static void ubx_remove(struct serdev_device *serdev)
 	if (data->v_bckp)
 		regulator_disable(data->v_bckp);
 	gnss_serial_free(gserial);
-};
+}
 
 #ifdef CONFIG_OF
 static const struct of_device_id ubx_of_match[] = {
