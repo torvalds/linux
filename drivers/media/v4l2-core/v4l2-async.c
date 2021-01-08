@@ -5,6 +5,7 @@
  * Copyright (C) 2012-2013, Guennadi Liakhovetski <g.liakhovetski@gmx.de>
  */
 
+#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
@@ -14,6 +15,7 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 
@@ -831,3 +833,67 @@ void v4l2_async_unregister_subdev(struct v4l2_subdev *sd)
 	mutex_unlock(&list_lock);
 }
 EXPORT_SYMBOL(v4l2_async_unregister_subdev);
+
+static void print_waiting_subdev(struct seq_file *s,
+				 struct v4l2_async_subdev *asd)
+{
+	switch (asd->match_type) {
+	case V4L2_ASYNC_MATCH_DEVNAME:
+		seq_printf(s, " [devname] dev=%s\n", asd->match.device_name);
+		break;
+	case V4L2_ASYNC_MATCH_I2C:
+		seq_printf(s, " [i2c] dev=%d-%04x\n", asd->match.i2c.adapter_id,
+			   asd->match.i2c.address);
+		break;
+	case V4L2_ASYNC_MATCH_FWNODE: {
+		struct fwnode_handle *devnode, *fwnode = asd->match.fwnode;
+
+		devnode = fwnode_graph_is_endpoint(fwnode) ?
+			  fwnode_graph_get_port_parent(fwnode) :
+			  fwnode_handle_get(fwnode);
+
+		seq_printf(s, " [fwnode] dev=%s, node=%pfw\n",
+			   devnode->dev ? dev_name(devnode->dev) : "nil",
+			   fwnode);
+
+		fwnode_handle_put(devnode);
+		break;
+	}
+	}
+}
+
+static const char *
+v4l2_async_notifier_name(struct v4l2_async_notifier *notifier)
+{
+	if (notifier->v4l2_dev)
+		return notifier->v4l2_dev->name;
+	else if (notifier->sd)
+		return notifier->sd->name;
+	else
+		return "nil";
+}
+
+static int pending_subdevs_show(struct seq_file *s, void *data)
+{
+	struct v4l2_async_notifier *notif;
+	struct v4l2_async_subdev *asd;
+
+	mutex_lock(&list_lock);
+
+	list_for_each_entry(notif, &notifier_list, list) {
+		seq_printf(s, "%s:\n", v4l2_async_notifier_name(notif));
+		list_for_each_entry(asd, &notif->waiting, list)
+			print_waiting_subdev(s, asd);
+	}
+
+	mutex_unlock(&list_lock);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(pending_subdevs);
+
+void v4l2_async_debug_init(struct dentry *debugfs_dir)
+{
+	debugfs_create_file("pending_async_subdevices", 0444, debugfs_dir, NULL,
+			    &pending_subdevs_fops);
+}

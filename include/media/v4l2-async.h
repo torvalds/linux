@@ -11,6 +11,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 
+struct dentry;
 struct device;
 struct device_node;
 struct v4l2_device;
@@ -119,6 +120,13 @@ struct v4l2_async_notifier {
 	struct list_head done;
 	struct list_head list;
 };
+
+/**
+ * v4l2_async_debug_init - Initialize debugging tools.
+ *
+ * @debugfs_dir: pointer to the parent debugfs &struct dentry
+ */
+void v4l2_async_debug_init(struct dentry *debugfs_dir);
 
 /**
  * v4l2_async_notifier_init - Initialize a notifier.

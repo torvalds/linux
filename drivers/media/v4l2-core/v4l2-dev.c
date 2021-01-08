@@ -14,6 +14,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -38,6 +39,7 @@
 		       __func__, ##arg);				\
 } while (0)
 
+static struct dentry *v4l2_debugfs_dir;
 
 /*
  *	sysfs stuff
@@ -1118,6 +1120,8 @@ static int __init videodev_init(void)
 		return -EIO;
 	}
 
+	v4l2_debugfs_dir = debugfs_create_dir("video4linux", NULL);
+	v4l2_async_debug_init(v4l2_debugfs_dir);
 	return 0;
 }
 
@@ -1125,6 +1129,7 @@ static void __exit videodev_exit(void)
 {
 	dev_t dev = MKDEV(VIDEO_MAJOR, 0);
 
+	debugfs_remove_recursive(v4l2_debugfs_dir);
 	class_unregister(&video_class);
 	unregister_chrdev_region(dev, VIDEO_NUM_DEVICES);
 }
