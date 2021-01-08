@@ -43,12 +43,6 @@ out:
 	return count;
 }
 
-static enum drm_mode_status hibmc_connector_mode_valid(struct drm_connector *connector,
-						       struct drm_display_mode *mode)
-{
-	return MODE_OK;
-}
-
 static void hibmc_connector_destroy(struct drm_connector *connector)
 {
 	struct hibmc_connector *hibmc_connector = to_hibmc_connector(connector);
@@ -60,7 +54,6 @@ static void hibmc_connector_destroy(struct drm_connector *connector)
 static const struct drm_connector_helper_funcs
 	hibmc_connector_helper_funcs = {
 	.get_modes = hibmc_connector_get_modes,
-	.mode_valid = hibmc_connector_mode_valid,
 };
 
 static const struct drm_connector_funcs hibmc_connector_funcs = {
