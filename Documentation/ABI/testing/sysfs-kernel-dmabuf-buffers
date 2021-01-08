@@ -50,3 +50,10 @@ KernelVersion:	v5.12
 Contact:	Hridya Valsaraju <hridya@google.com>
 Description:	This file is read-only and contains a map_counter indicating the
 		number of distinct device mappings of the attachment.
+
+What:		/sys/kernel/dmabuf/buffers/<inode_number>/mmap_count
+Date:		January 2021
+KernelVersion:	v5.10
+Contact:	Kalesh Singh <kaleshsingh@google.com>
+Description:	This file is read-only and contains a counter indicating the
+		number of times the buffer has been mmap().

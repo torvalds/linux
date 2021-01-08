@@ -52,6 +52,13 @@ static ssize_t exporter_name_show(struct dma_buf *dmabuf,
 	return sysfs_emit(buf, "%s\n", dmabuf->exp_name);
 }
 
+static ssize_t mmap_count_show(struct dma_buf *dmabuf,
+		struct dma_buf_stats_attribute *attr,
+		char *buf)
+{
+	return sysfs_emit(buf, "%d\n", dmabuf->mmap_count);
+}
+
 static ssize_t size_show(struct dma_buf *dmabuf,
 			 struct dma_buf_stats_attribute *attr,
 			 char *buf)
@@ -62,10 +69,13 @@ static ssize_t size_show(struct dma_buf *dmabuf,
 static struct dma_buf_stats_attribute exporter_name_attribute =
 	__ATTR_RO(exporter_name);
 static struct dma_buf_stats_attribute size_attribute = __ATTR_RO(size);
+static struct dma_buf_stats_attribute mmap_count_attribute =
+	__ATTR_RO(mmap_count);
 
 static struct attribute *dma_buf_stats_default_attrs[] = {
 	&exporter_name_attribute.attr,
 	&size_attribute.attr,
+	&mmap_count_attribute.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(dma_buf_stats_default);
