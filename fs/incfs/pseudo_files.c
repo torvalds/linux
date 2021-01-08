@@ -241,7 +241,7 @@ static int dir_relative_path_resolve(
 	if (dir_fd < 0)
 		return dir_fd;
 
-	dir_f = dentry_open(base_path, O_RDONLY | O_NOATIME, mi->mi_owner);
+	dir_f = dentry_open(base_path, O_RDONLY | O_NOATIME, current_cred());
 
 	if (IS_ERR(dir_f)) {
 		error = PTR_ERR(dir_f);
@@ -309,8 +309,9 @@ static int init_new_file(struct mount_info *mi, struct dentry *dentry,
 		.mnt = mi->mi_backing_dir_path.mnt,
 		.dentry = dentry
 	};
+
 	new_file = dentry_open(&path, O_RDWR | O_NOATIME | O_LARGEFILE,
-			       mi->mi_owner);
+			       current_cred());
 
 	if (IS_ERR(new_file)) {
 		error = PTR_ERR(new_file);
@@ -629,7 +630,7 @@ static int init_new_mapped_file(struct mount_info *mi, struct dentry *dentry,
 		.dentry = dentry
 	};
 	new_file = dentry_open(&path, O_RDWR | O_NOATIME | O_LARGEFILE,
-			       mi->mi_owner);
+			       current_cred());
 
 	if (IS_ERR(new_file)) {
 		error = PTR_ERR(new_file);
