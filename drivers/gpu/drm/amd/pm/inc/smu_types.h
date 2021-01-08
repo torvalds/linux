@@ -237,6 +237,7 @@ enum smu_clk_type {
 	SMU_SCLK,
 	SMU_MCLK,
 	SMU_PCIE,
+	SMU_OD_CCLK,
 	SMU_OD_SCLK,
 	SMU_OD_MCLK,
 	SMU_OD_VDDC_CURVE,

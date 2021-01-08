@@ -468,6 +468,12 @@ struct smu_context
 
 	bool fine_grain_enabled;
 	bool fine_grain_started;
+
+	uint32_t cpu_default_soft_min_freq;
+	uint32_t cpu_default_soft_max_freq;
+	uint32_t cpu_actual_soft_min_freq;
+	uint32_t cpu_actual_soft_max_freq;
+	uint32_t cpu_core_id_select;
 };
 
 struct i2c_adapter;
