@@ -943,6 +943,30 @@ void ima_kexec_cmdline(int kernel_fd, const void *buf, int size)
 	fdput(f);
 }
 
+/**
+ * ima_measure_critical_data - measure kernel integrity critical data
+ * @event_name: event name for the record in the IMA measurement list
+ * @buf: pointer to buffer data
+ * @buf_len: length of buffer data (in bytes)
+ * @hash: measure buffer data hash
+ *
+ * Measure data critical to the integrity of the kernel into the IMA log
+ * and extend the pcr.  Examples of critical data could be various data
+ * structures, policies, and states stored in kernel memory that can
+ * impact the integrity of the system.
+ */
+void ima_measure_critical_data(const char *event_name,
+			       const void *buf, size_t buf_len,
+			       bool hash)
+{
+	if (!event_name || !buf || !buf_len)
+		return;
+
+	process_buffer_measurement(NULL, buf, buf_len, event_name,
+				   CRITICAL_DATA, 0, NULL,
+				   hash);
+}
+
 static int __init init_ima(void)
 {
 	int error;
