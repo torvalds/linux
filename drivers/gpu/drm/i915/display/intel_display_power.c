@@ -4,7 +4,6 @@
  */
 
 #include "display/intel_crt.h"
-#include "display/intel_dp.h"
 
 #include "i915_drv.h"
 #include "i915_irq.h"
@@ -16,6 +15,7 @@
 #include "intel_dpio_phy.h"
 #include "intel_hotplug.h"
 #include "intel_pm.h"
+#include "intel_pps.h"
 #include "intel_sideband.h"
 #include "intel_tc.h"
 #include "intel_vga.h"

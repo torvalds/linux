@@ -46,6 +46,7 @@
 #include "intel_hotplug.h"
 #include "intel_lspcon.h"
 #include "intel_panel.h"
+#include "intel_pps.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
 #include "intel_tc.h"
