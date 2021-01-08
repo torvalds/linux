@@ -708,7 +708,7 @@ err_ret:
 		if (retval) {
 			cpumask_clear(pr->performance->shared_cpu_map);
 			cpumask_set_cpu(i, pr->performance->shared_cpu_map);
-			pr->performance->shared_type = CPUFREQ_SHARED_TYPE_ALL;
+			pr->performance->shared_type = CPUFREQ_SHARED_TYPE_NONE;
 		}
 		pr->performance = NULL; /* Will be set for real in register */
 	}
