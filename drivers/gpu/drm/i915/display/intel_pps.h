@@ -27,11 +27,11 @@ void intel_pps_backlight_on(struct intel_dp *intel_dp);
 void intel_pps_backlight_off(struct intel_dp *intel_dp);
 void intel_pps_backlight_power(struct intel_connector *connector, bool enable);
 
-bool edp_panel_vdd_on(struct intel_dp *intel_dp);
-void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync);
-void edp_panel_vdd_off_sync(struct intel_dp *intel_dp);
-void edp_panel_on(struct intel_dp *intel_dp);
-void edp_panel_off(struct intel_dp *intel_dp);
+bool intel_pps_vdd_on_unlocked(struct intel_dp *intel_dp);
+void intel_pps_vdd_off_unlocked(struct intel_dp *intel_dp, bool sync);
+void intel_pps_vdd_off_sync_unlocked(struct intel_dp *intel_dp);
+void intel_pps_on_unlocked(struct intel_dp *intel_dp);
+void intel_pps_off_unlocked(struct intel_dp *intel_dp);
 void edp_panel_vdd_work(struct work_struct *__work);
 
 void intel_pps_vdd_sanitize(struct intel_dp *intel_dp);

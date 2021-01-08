@@ -1068,7 +1068,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	 * to turn it off. But for eg. i2c-dev access we need to turn it on/off
 	 * ourselves.
 	 */
-	vdd = edp_panel_vdd_on(intel_dp);
+	vdd = intel_pps_vdd_on_unlocked(intel_dp);
 
 	/* dp aux is extremely sensitive to irq latency, hence request the
 	 * lowest possible wakeup latency and so prevent the cpu from going into
@@ -1210,7 +1210,7 @@ out:
 	cpu_latency_qos_update_request(&intel_dp->pm_qos, PM_QOS_DEFAULT_VALUE);
 
 	if (vdd)
-		edp_panel_vdd_off(intel_dp, false);
+		intel_pps_vdd_off_unlocked(intel_dp, false);
 
 	intel_pps_unlock(intel_dp, pps_wakeref);
 	intel_display_power_put_async(i915, aux_domain, aux_wakeref);
@@ -3577,9 +3577,9 @@ static void intel_enable_dp(struct intel_atomic_state *state,
 
 		intel_dp_enable_port(intel_dp, pipe_config);
 
-		edp_panel_vdd_on(intel_dp);
-		edp_panel_on(intel_dp);
-		edp_panel_vdd_off(intel_dp, true);
+		intel_pps_vdd_on_unlocked(intel_dp);
+		intel_pps_on_unlocked(intel_dp);
+		intel_pps_vdd_off_unlocked(intel_dp, true);
 	}
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
@@ -6309,7 +6309,7 @@ void intel_dp_encoder_flush_work(struct drm_encoder *encoder)
 		 * Make sure vdd is actually turned off here.
 		 */
 		with_intel_pps_lock(intel_dp, wakeref)
-			edp_panel_vdd_off_sync(intel_dp);
+			intel_pps_vdd_off_sync_unlocked(intel_dp);
 	}
 
 	intel_dp_aux_fini(intel_dp);
@@ -6337,7 +6337,7 @@ void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder)
 	 */
 	cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
 	with_intel_pps_lock(intel_dp, wakeref)
-		edp_panel_vdd_off_sync(intel_dp);
+		intel_pps_vdd_off_sync_unlocked(intel_dp);
 }
 
 void intel_dp_encoder_shutdown(struct intel_encoder *intel_encoder)
@@ -7197,7 +7197,7 @@ out_vdd_off:
 	 * Make sure vdd is actually turned off here.
 	 */
 	with_intel_pps_lock(intel_dp, wakeref)
-		edp_panel_vdd_off_sync(intel_dp);
+		intel_pps_vdd_off_sync_unlocked(intel_dp);
 
 	return false;
 }

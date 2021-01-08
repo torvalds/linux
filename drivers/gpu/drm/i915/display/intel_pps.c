@@ -556,11 +556,11 @@ static  u32 ilk_get_pp_control(struct intel_dp *intel_dp)
 }
 
 /*
- * Must be paired with edp_panel_vdd_off().
+ * Must be paired with intel_pps_vdd_off_unlocked().
  * Must hold pps_mutex around the whole on/off sequence.
  * Can be nested with intel_pps_vdd_{on,off}() calls.
  */
-bool edp_panel_vdd_on(struct intel_dp *intel_dp)
+bool intel_pps_vdd_on_unlocked(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
@@ -631,13 +631,13 @@ void intel_pps_vdd_on(struct intel_dp *intel_dp)
 
 	vdd = false;
 	with_intel_pps_lock(intel_dp, wakeref)
-		vdd = edp_panel_vdd_on(intel_dp);
+		vdd = intel_pps_vdd_on_unlocked(intel_dp);
 	I915_STATE_WARN(!vdd, "[ENCODER:%d:%s] VDD already requested on\n",
 			dp_to_dig_port(intel_dp)->base.base.base.id,
 			dp_to_dig_port(intel_dp)->base.base.name);
 }
 
-void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
+void intel_pps_vdd_off_sync_unlocked(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port =
@@ -687,7 +687,7 @@ void edp_panel_vdd_work(struct work_struct *__work)
 
 	with_intel_pps_lock(intel_dp, wakeref) {
 		if (!intel_dp->want_panel_vdd)
-			edp_panel_vdd_off_sync(intel_dp);
+			intel_pps_vdd_off_sync_unlocked(intel_dp);
 	}
 }
 
@@ -709,7 +709,7 @@ static void edp_panel_vdd_schedule_off(struct intel_dp *intel_dp)
  * Must hold pps_mutex around the whole on/off sequence.
  * Can be nested with intel_pps_vdd_{on,off}() calls.
  */
-void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
+void intel_pps_vdd_off_unlocked(struct intel_dp *intel_dp, bool sync)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
@@ -725,12 +725,12 @@ void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 	intel_dp->want_panel_vdd = false;
 
 	if (sync)
-		edp_panel_vdd_off_sync(intel_dp);
+		intel_pps_vdd_off_sync_unlocked(intel_dp);
 	else
 		edp_panel_vdd_schedule_off(intel_dp);
 }
 
-void edp_panel_on(struct intel_dp *intel_dp)
+void intel_pps_on_unlocked(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u32 pp;
@@ -787,10 +787,10 @@ void intel_pps_on(struct intel_dp *intel_dp)
 		return;
 
 	with_intel_pps_lock(intel_dp, wakeref)
-		edp_panel_on(intel_dp);
+		intel_pps_on_unlocked(intel_dp);
 }
 
-void edp_panel_off(struct intel_dp *intel_dp)
+void intel_pps_off_unlocked(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
@@ -839,7 +839,7 @@ void intel_pps_off(struct intel_dp *intel_dp)
 		return;
 
 	with_intel_pps_lock(intel_dp, wakeref)
-		edp_panel_off(intel_dp);
+		intel_pps_off_unlocked(intel_dp);
 }
 
 /* Enable backlight in the panel power control. */
@@ -930,7 +930,7 @@ static void vlv_detach_power_sequencer(struct intel_dp *intel_dp)
 	if (drm_WARN_ON(&dev_priv->drm, pipe != PIPE_A && pipe != PIPE_B))
 		return;
 
-	edp_panel_vdd_off_sync(intel_dp);
+	intel_pps_vdd_off_sync_unlocked(intel_dp);
 
 	/*
 	 * VLV seems to get confused when multiple power sequencers
@@ -1245,7 +1245,7 @@ intel_dp_init_panel_power_sequencer_registers(struct intel_dp *intel_dp,
 	 * hooked up to any port. This would mess up the
 	 * power domain tracking the first time we pick
 	 * one of these power sequencers for use since
-	 * edp_panel_vdd_on() would notice that the VDD was
+	 * intel_pps_vdd_on_unlocked() would notice that the VDD was
 	 * already on and therefore wouldn't grab the power
 	 * domain reference. Disable VDD first to avoid this.
 	 * This also avoids spuriously turning the VDD on as
