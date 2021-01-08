@@ -1005,8 +1005,8 @@ static void vlv_steal_power_sequencer(struct drm_i915_private *dev_priv,
 	}
 }
 
-void vlv_init_panel_power_sequencer(struct intel_encoder *encoder,
-				    const struct intel_crtc_state *crtc_state)
+void vlv_pps_init(struct intel_encoder *encoder,
+		  const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);

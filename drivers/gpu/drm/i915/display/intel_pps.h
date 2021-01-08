@@ -43,7 +43,7 @@ void intel_pps_init(struct intel_dp *intel_dp);
 void intel_pps_encoder_reset(struct intel_dp *intel_dp);
 void intel_pps_reset_all(struct drm_i915_private *i915);
 
-void vlv_init_panel_power_sequencer(struct intel_encoder *encoder,
-				    const struct intel_crtc_state *crtc_state);
+void vlv_pps_init(struct intel_encoder *encoder,
+		  const struct intel_crtc_state *crtc_state);
 
 #endif /* __INTEL_PPS_H__ */
