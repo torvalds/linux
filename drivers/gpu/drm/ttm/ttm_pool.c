@@ -507,7 +507,6 @@ void ttm_pool_init(struct ttm_pool *pool, struct device *dev,
 			ttm_pool_type_init(&pool->caching[i].orders[j],
 					   pool, i, j);
 }
-EXPORT_SYMBOL(ttm_pool_init);
 
 /**
  * ttm_pool_fini - Cleanup a pool
@@ -525,7 +524,6 @@ void ttm_pool_fini(struct ttm_pool *pool)
 		for (j = 0; j < MAX_ORDER; ++j)
 			ttm_pool_type_fini(&pool->caching[i].orders[j]);
 }
-EXPORT_SYMBOL(ttm_pool_fini);
 
 #ifdef CONFIG_DEBUG_FS
 /* Count the number of pages available in a pool_type */
