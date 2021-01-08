@@ -273,11 +273,13 @@ int smu_cmn_feature_is_enabled(struct smu_context *smu,
 			       enum smu_feature_mask mask)
 {
 	struct smu_feature *feature = &smu->smu_feature;
+	struct amdgpu_device *adev = smu->adev;
 	int feature_id;
 	int ret = 0;
 
-	if (smu->is_apu)
+	if (smu->is_apu && adev->family < AMDGPU_FAMILY_VGH)
 		return 1;
+
 	feature_id = smu_cmn_to_asic_specific_index(smu,
 						    CMN2ASIC_MAPPING_FEATURE,
 						    mask);
