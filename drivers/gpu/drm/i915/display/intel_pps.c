@@ -10,11 +10,9 @@
 
 static void vlv_steal_power_sequencer(struct drm_i915_private *dev_priv,
 				      enum pipe pipe);
-static void
-intel_dp_init_panel_power_sequencer(struct intel_dp *intel_dp);
-static void
-intel_dp_init_panel_power_sequencer_registers(struct intel_dp *intel_dp,
-					      bool force_disable_vdd);
+
+static void pps_init_delays(struct intel_dp *intel_dp);
+static void pps_init_registers(struct intel_dp *intel_dp, bool force_disable_vdd);
 
 intel_wakeref_t intel_pps_lock(struct intel_dp *intel_dp)
 {
@@ -190,8 +188,8 @@ vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 		    dig_port->base.base.name);
 
 	/* init power sequencer on this pipe and port */
-	intel_dp_init_panel_power_sequencer(intel_dp);
-	intel_dp_init_panel_power_sequencer_registers(intel_dp, true);
+	pps_init_delays(intel_dp);
+	pps_init_registers(intel_dp, true);
 
 	/*
 	 * Even vdd force doesn't work until we've made
@@ -222,7 +220,7 @@ bxt_power_sequencer_idx(struct intel_dp *intel_dp)
 	 * Only the HW needs to be reprogrammed, the SW state is fixed and
 	 * has been setup during connector init.
 	 */
-	intel_dp_init_panel_power_sequencer_registers(intel_dp, false);
+	pps_init_registers(intel_dp, false);
 
 	return backlight_controller;
 }
@@ -308,8 +306,8 @@ vlv_initial_power_sequencer_setup(struct intel_dp *intel_dp)
 		    dig_port->base.base.name,
 		    pipe_name(intel_dp->pps_pipe));
 
-	intel_dp_init_panel_power_sequencer(intel_dp);
-	intel_dp_init_panel_power_sequencer_registers(intel_dp, false);
+	pps_init_delays(intel_dp);
+	pps_init_registers(intel_dp, false);
 }
 
 void intel_pps_reset_all(struct drm_i915_private *dev_priv)
@@ -1046,8 +1044,8 @@ void vlv_pps_init(struct intel_encoder *encoder,
 		    encoder->base.name);
 
 	/* init power sequencer on this pipe and port */
-	intel_dp_init_panel_power_sequencer(intel_dp);
-	intel_dp_init_panel_power_sequencer_registers(intel_dp, true);
+	pps_init_delays(intel_dp);
+	pps_init_registers(intel_dp, true);
 }
 
 static void intel_pps_vdd_sanitize(struct intel_dp *intel_dp)
@@ -1088,7 +1086,7 @@ bool intel_pps_have_power(struct intel_dp *intel_dp)
 	return have_power;
 }
 
-static void intel_dp_init_panel_power_timestamps(struct intel_dp *intel_dp)
+static void pps_init_timestamps(struct intel_dp *intel_dp)
 {
 	intel_dp->panel_power_off_time = ktime_get_boottime();
 	intel_dp->last_power_on = jiffies;
@@ -1154,8 +1152,7 @@ intel_pps_verify_state(struct intel_dp *intel_dp)
 	}
 }
 
-static void
-intel_dp_init_panel_power_sequencer(struct intel_dp *intel_dp)
+static void pps_init_delays(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct edp_power_seq cur, vbt, spec,
@@ -1250,9 +1247,7 @@ intel_dp_init_panel_power_sequencer(struct intel_dp *intel_dp)
 	final->t11_t12 = roundup(final->t11_t12, 100 * 10);
 }
 
-static void
-intel_dp_init_panel_power_sequencer_registers(struct intel_dp *intel_dp,
-					      bool force_disable_vdd)
+static void pps_init_registers(struct intel_dp *intel_dp, bool force_disable_vdd)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u32 pp_on, pp_off, port_sel = 0;
@@ -1354,8 +1349,8 @@ static void intel_dp_pps_init(struct intel_dp *intel_dp)
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		vlv_initial_power_sequencer_setup(intel_dp);
 	} else {
-		intel_dp_init_panel_power_sequencer(intel_dp);
-		intel_dp_init_panel_power_sequencer_registers(intel_dp, false);
+		pps_init_delays(intel_dp);
+		pps_init_registers(intel_dp, false);
 	}
 }
 
@@ -1383,7 +1378,7 @@ void intel_pps_init(struct intel_dp *intel_dp)
 	INIT_DELAYED_WORK(&intel_dp->panel_vdd_work, edp_panel_vdd_work);
 
 	with_intel_pps_lock(intel_dp, wakeref) {
-		intel_dp_init_panel_power_timestamps(intel_dp);
+		pps_init_timestamps(intel_dp);
 		intel_dp_pps_init(intel_dp);
 		intel_pps_vdd_sanitize(intel_dp);
 	}
