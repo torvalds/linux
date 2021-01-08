@@ -749,7 +749,6 @@ static int mipi_csis_link_setup(struct media_entity *entity,
 	struct v4l2_subdev *mipi_sd = media_entity_to_v4l2_subdev(entity);
 	struct csi_state *state = mipi_sd_to_csis_state(mipi_sd);
 	struct v4l2_subdev *remote_sd;
-	int ret = 0;
 
 	dev_dbg(state->dev, "link setup %s -> %s", remote_pad->entity->name,
 		local_pad->entity->name);
@@ -760,22 +759,16 @@ static int mipi_csis_link_setup(struct media_entity *entity,
 
 	remote_sd = media_entity_to_v4l2_subdev(remote_pad->entity);
 
-	mutex_lock(&state->lock);
-
 	if (flags & MEDIA_LNK_FL_ENABLED) {
-		if (state->src_sd) {
-			ret = -EBUSY;
-			goto out;
-		}
+		if (state->src_sd)
+			return -EBUSY;
 
 		state->src_sd = remote_sd;
 	} else {
 		state->src_sd = NULL;
 	}
 
-out:
-	mutex_unlock(&state->lock);
-	return ret;
+	return 0;
 }
 
 static struct v4l2_mbus_framefmt *
