@@ -88,7 +88,7 @@ static int jffs2_show_options(struct seq_file *s, struct dentry *root)
 
 	if (opts->override_compr)
 		seq_printf(s, ",compr=%s", jffs2_compr_name(opts->compr));
-	if (opts->rp_size)
+	if (opts->set_rp_size)
 		seq_printf(s, ",rp_size=%u", opts->rp_size / 1024);
 
 	return 0;
@@ -202,11 +202,8 @@ static int jffs2_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	case Opt_rp_size:
 		if (result.uint_32 > UINT_MAX / 1024)
 			return invalf(fc, "jffs2: rp_size unrepresentable");
-		opt = result.uint_32 * 1024;
-		if (opt > c->mtd->size)
-			return invalf(fc, "jffs2: Too large reserve pool specified, max is %llu KB",
-				      c->mtd->size / 1024);
-		c->mount_opts.rp_size = opt;
+		c->mount_opts.rp_size = result.uint_32 * 1024;
+		c->mount_opts.set_rp_size = true;
 		break;
 	default:
 		return -EINVAL;
@@ -225,8 +222,10 @@ static inline void jffs2_update_mount_opts(struct fs_context *fc)
 		c->mount_opts.override_compr = new_c->mount_opts.override_compr;
 		c->mount_opts.compr = new_c->mount_opts.compr;
 	}
-	if (new_c->mount_opts.rp_size)
+	if (new_c->mount_opts.set_rp_size) {
+		c->mount_opts.set_rp_size = new_c->mount_opts.set_rp_size;
 		c->mount_opts.rp_size = new_c->mount_opts.rp_size;
+	}
 	mutex_unlock(&c->alloc_sem);
 }
 
@@ -265,6 +264,10 @@ static int jffs2_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	c->mtd = sb->s_mtd;
 	c->os_priv = sb;
+
+	if (c->mount_opts.rp_size > c->mtd->size)
+		return invalf(fc, "jffs2: Too large reserve pool specified, max is %llu KB",
+			      c->mtd->size / 1024);
 
 	/* Initialize JFFS2 superblock locks, the further initialization will
 	 * be done later */

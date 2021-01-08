@@ -1596,6 +1596,21 @@ free_sched:
 	return err;
 }
 
+static void taprio_reset(struct Qdisc *sch)
+{
+	struct taprio_sched *q = qdisc_priv(sch);
+	struct net_device *dev = qdisc_dev(sch);
+	int i;
+
+	hrtimer_cancel(&q->advance_timer);
+	if (q->qdiscs) {
+		for (i = 0; i < dev->num_tx_queues && q->qdiscs[i]; i++)
+			qdisc_reset(q->qdiscs[i]);
+	}
+	sch->qstats.backlog = 0;
+	sch->q.qlen = 0;
+}
+
 static void taprio_destroy(struct Qdisc *sch)
 {
 	struct taprio_sched *q = qdisc_priv(sch);
@@ -1606,7 +1621,6 @@ static void taprio_destroy(struct Qdisc *sch)
 	list_del(&q->taprio_list);
 	spin_unlock(&taprio_list_lock);
 
-	hrtimer_cancel(&q->advance_timer);
 
 	taprio_disable_offload(dev, q, NULL);
 
@@ -1953,6 +1967,7 @@ static struct Qdisc_ops taprio_qdisc_ops __read_mostly = {
 	.init		= taprio_init,
 	.change		= taprio_change,
 	.destroy	= taprio_destroy,
+	.reset		= taprio_reset,
 	.peek		= taprio_peek,
 	.dequeue	= taprio_dequeue,
 	.enqueue	= taprio_enqueue,

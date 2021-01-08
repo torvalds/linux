@@ -1102,7 +1102,7 @@ static struct opp_table *_allocate_opp_table(struct device *dev, int index)
 	if (IS_ERR(opp_table->clk)) {
 		ret = PTR_ERR(opp_table->clk);
 		if (ret == -EPROBE_DEFER)
-			goto err;
+			goto remove_opp_dev;
 
 		dev_dbg(dev, "%s: Couldn't find clock: %d\n", __func__, ret);
 	}
@@ -1111,7 +1111,7 @@ static struct opp_table *_allocate_opp_table(struct device *dev, int index)
 	ret = dev_pm_opp_of_find_icc_paths(dev, opp_table);
 	if (ret) {
 		if (ret == -EPROBE_DEFER)
-			goto err;
+			goto put_clk;
 
 		dev_warn(dev, "%s: Error finding interconnect paths: %d\n",
 			 __func__, ret);
@@ -1125,6 +1125,11 @@ static struct opp_table *_allocate_opp_table(struct device *dev, int index)
 	list_add(&opp_table->node, &opp_tables);
 	return opp_table;
 
+put_clk:
+	if (!IS_ERR(opp_table->clk))
+		clk_put(opp_table->clk);
+remove_opp_dev:
+	_remove_opp_dev(opp_dev, opp_table);
 err:
 	kfree(opp_table);
 	return ERR_PTR(ret);

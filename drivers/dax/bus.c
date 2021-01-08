@@ -367,19 +367,28 @@ void kill_dev_dax(struct dev_dax *dev_dax)
 }
 EXPORT_SYMBOL_GPL(kill_dev_dax);
 
-static void free_dev_dax_ranges(struct dev_dax *dev_dax)
+static void trim_dev_dax_range(struct dev_dax *dev_dax)
 {
+	int i = dev_dax->nr_range - 1;
+	struct range *range = &dev_dax->ranges[i].range;
 	struct dax_region *dax_region = dev_dax->region;
-	int i;
 
 	device_lock_assert(dax_region->dev);
-	for (i = 0; i < dev_dax->nr_range; i++) {
-		struct range *range = &dev_dax->ranges[i].range;
+	dev_dbg(&dev_dax->dev, "delete range[%d]: %#llx:%#llx\n", i,
+		(unsigned long long)range->start,
+		(unsigned long long)range->end);
 
-		__release_region(&dax_region->res, range->start,
-				range_len(range));
+	__release_region(&dax_region->res, range->start, range_len(range));
+	if (--dev_dax->nr_range == 0) {
+		kfree(dev_dax->ranges);
+		dev_dax->ranges = NULL;
 	}
-	dev_dax->nr_range = 0;
+}
+
+static void free_dev_dax_ranges(struct dev_dax *dev_dax)
+{
+	while (dev_dax->nr_range)
+		trim_dev_dax_range(dev_dax);
 }
 
 static void unregister_dev_dax(void *dev)
@@ -804,15 +813,10 @@ static int alloc_dev_dax_range(struct dev_dax *dev_dax, u64 start,
 		return 0;
 
 	rc = devm_register_dax_mapping(dev_dax, dev_dax->nr_range - 1);
-	if (rc) {
-		dev_dbg(dev, "delete range[%d]: %pa:%pa\n", dev_dax->nr_range - 1,
-				&alloc->start, &alloc->end);
-		dev_dax->nr_range--;
-		__release_region(res, alloc->start, resource_size(alloc));
-		return rc;
-	}
+	if (rc)
+		trim_dev_dax_range(dev_dax);
 
-	return 0;
+	return rc;
 }
 
 static int adjust_dev_dax_range(struct dev_dax *dev_dax, struct resource *res, resource_size_t size)
@@ -885,12 +889,7 @@ static int dev_dax_shrink(struct dev_dax *dev_dax, resource_size_t size)
 		if (shrink >= range_len(range)) {
 			devm_release_action(dax_region->dev,
 					unregister_dax_mapping, &mapping->dev);
-			__release_region(&dax_region->res, range->start,
-					range_len(range));
-			dev_dax->nr_range--;
-			dev_dbg(dev, "delete range[%d]: %#llx:%#llx\n", i,
-					(unsigned long long) range->start,
-					(unsigned long long) range->end);
+			trim_dev_dax_range(dev_dax);
 			to_shrink -= shrink;
 			if (!to_shrink)
 				break;
@@ -1274,7 +1273,6 @@ static void dev_dax_release(struct device *dev)
 	put_dax(dax_dev);
 	free_dev_dax_id(dev_dax);
 	dax_region_put(dax_region);
-	kfree(dev_dax->ranges);
 	kfree(dev_dax->pgmap);
 	kfree(dev_dax);
 }

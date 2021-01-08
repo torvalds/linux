@@ -1335,6 +1335,8 @@ retry_lookup:
 				in, ceph_vinop(in));
 			if (in->i_state & I_NEW)
 				discard_new_inode(in);
+			else
+				iput(in);
 			goto done;
 		}
 		req->r_target_inode = in;

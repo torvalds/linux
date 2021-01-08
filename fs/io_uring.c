@@ -941,6 +941,10 @@ enum io_mem_account {
 	ACCT_PINNED,
 };
 
+static void destroy_fixed_file_ref_node(struct fixed_file_ref_node *ref_node);
+static struct fixed_file_ref_node *alloc_fixed_file_ref_node(
+			struct io_ring_ctx *ctx);
+
 static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
 			     struct io_comp_state *cs);
 static void io_cqring_fill_event(struct io_kiocb *req, long res);
@@ -1369,6 +1373,13 @@ static bool io_grab_identity(struct io_kiocb *req)
 		spin_unlock_irq(&ctx->inflight_lock);
 		req->work.flags |= IO_WQ_WORK_FILES;
 	}
+	if (!(req->work.flags & IO_WQ_WORK_MM) &&
+	    (def->work_flags & IO_WQ_WORK_MM)) {
+		if (id->mm != current->mm)
+			return false;
+		mmgrab(id->mm);
+		req->work.flags |= IO_WQ_WORK_MM;
+	}
 
 	return true;
 }
@@ -1391,13 +1402,6 @@ static void io_prep_async_work(struct io_kiocb *req)
 	} else {
 		if (def->unbound_nonreg_file)
 			req->work.flags |= IO_WQ_WORK_UNBOUND;
-	}
-
-	/* ->mm can never change on us */
-	if (!(req->work.flags & IO_WQ_WORK_MM) &&
-	    (def->work_flags & IO_WQ_WORK_MM)) {
-		mmgrab(id->mm);
-		req->work.flags |= IO_WQ_WORK_MM;
 	}
 
 	/* if we fail grabbing identity, we must COW, regrab, and retry */
@@ -1632,8 +1636,6 @@ static bool io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force,
 	LIST_HEAD(list);
 
 	if (!force) {
-		if (list_empty_careful(&ctx->cq_overflow_list))
-			return true;
 		if ((ctx->cached_cq_tail - READ_ONCE(rings->cq.head) ==
 		    rings->cq_ring_entries))
 			return false;
@@ -5861,15 +5863,15 @@ static void io_req_drop_files(struct io_kiocb *req)
 	struct io_ring_ctx *ctx = req->ctx;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ctx->inflight_lock, flags);
-	list_del(&req->inflight_entry);
-	if (waitqueue_active(&ctx->inflight_wait))
-		wake_up(&ctx->inflight_wait);
-	spin_unlock_irqrestore(&ctx->inflight_lock, flags);
-	req->flags &= ~REQ_F_INFLIGHT;
 	put_files_struct(req->work.identity->files);
 	put_nsproxy(req->work.identity->nsproxy);
+	spin_lock_irqsave(&ctx->inflight_lock, flags);
+	list_del(&req->inflight_entry);
+	spin_unlock_irqrestore(&ctx->inflight_lock, flags);
+	req->flags &= ~REQ_F_INFLIGHT;
 	req->work.flags &= ~IO_WQ_WORK_FILES;
+	if (waitqueue_active(&ctx->inflight_wait))
+		wake_up(&ctx->inflight_wait);
 }
 
 static void __io_clean_op(struct io_kiocb *req)
@@ -6575,8 +6577,7 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 
 	/* if we have a backlog and couldn't flush it all, return BUSY */
 	if (test_bit(0, &ctx->sq_check_overflow)) {
-		if (!list_empty(&ctx->cq_overflow_list) &&
-		    !io_cqring_overflow_flush(ctx, false, NULL, NULL))
+		if (!io_cqring_overflow_flush(ctx, false, NULL, NULL))
 			return -EBUSY;
 	}
 
@@ -6798,8 +6799,16 @@ static int io_sq_thread(void *data)
 		 * kthread parking. This synchronizes the thread vs users,
 		 * the users are synchronized on the sqd->ctx_lock.
 		 */
-		if (kthread_should_park())
+		if (kthread_should_park()) {
 			kthread_parkme();
+			/*
+			 * When sq thread is unparked, in case the previous park operation
+			 * comes from io_put_sq_data(), which means that sq thread is going
+			 * to be stopped, so here needs to have a check.
+			 */
+			if (kthread_should_stop())
+				break;
+		}
 
 		if (unlikely(!list_empty(&sqd->ctx_new_list)))
 			io_sqd_init_new(sqd);
@@ -6991,18 +7000,32 @@ static void io_file_ref_kill(struct percpu_ref *ref)
 	complete(&data->done);
 }
 
+static void io_sqe_files_set_node(struct fixed_file_data *file_data,
+				  struct fixed_file_ref_node *ref_node)
+{
+	spin_lock_bh(&file_data->lock);
+	file_data->node = ref_node;
+	list_add_tail(&ref_node->node, &file_data->ref_list);
+	spin_unlock_bh(&file_data->lock);
+	percpu_ref_get(&file_data->refs);
+}
+
 static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 {
 	struct fixed_file_data *data = ctx->file_data;
-	struct fixed_file_ref_node *ref_node = NULL;
+	struct fixed_file_ref_node *backup_node, *ref_node = NULL;
 	unsigned nr_tables, i;
+	int ret;
 
 	if (!data)
 		return -ENXIO;
+	backup_node = alloc_fixed_file_ref_node(ctx);
+	if (!backup_node)
+		return -ENOMEM;
 
-	spin_lock(&data->lock);
+	spin_lock_bh(&data->lock);
 	ref_node = data->node;
-	spin_unlock(&data->lock);
+	spin_unlock_bh(&data->lock);
 	if (ref_node)
 		percpu_ref_kill(&ref_node->refs);
 
@@ -7010,7 +7033,18 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 
 	/* wait for all refs nodes to complete */
 	flush_delayed_work(&ctx->file_put_work);
-	wait_for_completion(&data->done);
+	do {
+		ret = wait_for_completion_interruptible(&data->done);
+		if (!ret)
+			break;
+		ret = io_run_task_work_sig();
+		if (ret < 0) {
+			percpu_ref_resurrect(&data->refs);
+			reinit_completion(&data->done);
+			io_sqe_files_set_node(data, backup_node);
+			return ret;
+		}
+	} while (1);
 
 	__io_sqe_files_unregister(ctx);
 	nr_tables = DIV_ROUND_UP(ctx->nr_user_files, IORING_MAX_FILES_TABLE);
@@ -7021,6 +7055,7 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 	kfree(data);
 	ctx->file_data = NULL;
 	ctx->nr_user_files = 0;
+	destroy_fixed_file_ref_node(backup_node);
 	return 0;
 }
 
@@ -7385,7 +7420,7 @@ static void io_file_data_ref_zero(struct percpu_ref *ref)
 	data = ref_node->file_data;
 	ctx = data->ctx;
 
-	spin_lock(&data->lock);
+	spin_lock_bh(&data->lock);
 	ref_node->done = true;
 
 	while (!list_empty(&data->ref_list)) {
@@ -7397,7 +7432,7 @@ static void io_file_data_ref_zero(struct percpu_ref *ref)
 		list_del(&ref_node->node);
 		first_add |= llist_add(&ref_node->llist, &ctx->file_put_llist);
 	}
-	spin_unlock(&data->lock);
+	spin_unlock_bh(&data->lock);
 
 	if (percpu_ref_is_dying(&data->refs))
 		delay = 0;
@@ -7519,11 +7554,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		return PTR_ERR(ref_node);
 	}
 
-	file_data->node = ref_node;
-	spin_lock(&file_data->lock);
-	list_add_tail(&ref_node->node, &file_data->ref_list);
-	spin_unlock(&file_data->lock);
-	percpu_ref_get(&file_data->refs);
+	io_sqe_files_set_node(file_data, ref_node);
 	return ret;
 out_fput:
 	for (i = 0; i < ctx->nr_user_files; i++) {
@@ -7679,11 +7710,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 
 	if (needs_switch) {
 		percpu_ref_kill(&data->node->refs);
-		spin_lock(&data->lock);
-		list_add_tail(&ref_node->node, &data->ref_list);
-		data->node = ref_node;
-		spin_unlock(&data->lock);
-		percpu_ref_get(&ctx->file_data->refs);
+		io_sqe_files_set_node(data, ref_node);
 	} else
 		destroy_fixed_file_ref_node(ref_node);
 
