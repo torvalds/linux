@@ -945,6 +945,7 @@ void ima_kexec_cmdline(int kernel_fd, const void *buf, int size)
 
 /**
  * ima_measure_critical_data - measure kernel integrity critical data
+ * @event_label: unique event label for grouping and limiting critical data
  * @event_name: event name for the record in the IMA measurement list
  * @buf: pointer to buffer data
  * @buf_len: length of buffer data (in bytes)
@@ -955,15 +956,16 @@ void ima_kexec_cmdline(int kernel_fd, const void *buf, int size)
  * structures, policies, and states stored in kernel memory that can
  * impact the integrity of the system.
  */
-void ima_measure_critical_data(const char *event_name,
+void ima_measure_critical_data(const char *event_label,
+			       const char *event_name,
 			       const void *buf, size_t buf_len,
 			       bool hash)
 {
-	if (!event_name || !buf || !buf_len)
+	if (!event_name || !event_label || !buf || !buf_len)
 		return;
 
 	process_buffer_measurement(NULL, buf, buf_len, event_name,
-				   CRITICAL_DATA, 0, NULL,
+				   CRITICAL_DATA, 0, event_label,
 				   hash);
 }
 
