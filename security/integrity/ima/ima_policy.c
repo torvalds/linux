@@ -34,6 +34,7 @@
 #define IMA_PCR		0x0100
 #define IMA_FSNAME	0x0200
 #define IMA_KEYRINGS	0x0400
+#define IMA_LABEL	0x0800
 
 #define UNKNOWN		0
 #define MEASURE		0x0001	/* same as IMA_MEASURE */
@@ -85,6 +86,7 @@ struct ima_rule_entry {
 	} lsm[MAX_LSM_RULES];
 	char *fsname;
 	struct ima_rule_opt_list *keyrings; /* Measure keys added to these keyrings */
+	struct ima_rule_opt_list *label; /* Measure data grouped under this label */
 	struct ima_template_desc *template;
 };
 
@@ -479,7 +481,11 @@ static bool ima_match_rule_data(struct ima_rule_entry *rule,
 		opt_list = rule->keyrings;
 		break;
 	case CRITICAL_DATA:
-		return true;
+		if (!rule->label)
+			return true;
+
+		opt_list = rule->label;
+		break;
 	default:
 		return false;
 	}
@@ -924,7 +930,7 @@ enum {
 	Opt_uid_lt, Opt_euid_lt, Opt_fowner_lt,
 	Opt_appraise_type, Opt_appraise_flag,
 	Opt_permit_directio, Opt_pcr, Opt_template, Opt_keyrings,
-	Opt_err
+	Opt_label, Opt_err
 };
 
 static const match_table_t policy_tokens = {
@@ -961,6 +967,7 @@ static const match_table_t policy_tokens = {
 	{Opt_pcr, "pcr=%s"},
 	{Opt_template, "template=%s"},
 	{Opt_keyrings, "keyrings=%s"},
+	{Opt_label, "label=%s"},
 	{Opt_err, NULL}
 };
 
@@ -1128,7 +1135,8 @@ static bool ima_validate_rule(struct ima_rule_entry *entry)
 		if (entry->action & ~(MEASURE | DONT_MEASURE))
 			return false;
 
-		if (entry->flags & ~(IMA_FUNC | IMA_UID | IMA_PCR))
+		if (entry->flags & ~(IMA_FUNC | IMA_UID | IMA_PCR |
+				     IMA_LABEL))
 			return false;
 
 		if (ima_rule_contains_lsm_cond(entry))
@@ -1337,6 +1345,23 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			}
 
 			entry->flags |= IMA_KEYRINGS;
+			break;
+		case Opt_label:
+			ima_log_string(ab, "label", args[0].from);
+
+			if (entry->label) {
+				result = -EINVAL;
+				break;
+			}
+
+			entry->label = ima_alloc_rule_opt_list(args);
+			if (IS_ERR(entry->label)) {
+				result = PTR_ERR(entry->label);
+				entry->label = NULL;
+				break;
+			}
+
+			entry->flags |= IMA_LABEL;
 			break;
 		case Opt_fsuuid:
 			ima_log_string(ab, "fsuuid", args[0].from);
@@ -1715,6 +1740,12 @@ int ima_policy_show(struct seq_file *m, void *v)
 	if (entry->flags & IMA_KEYRINGS) {
 		seq_puts(m, "keyrings=");
 		ima_show_rule_opt_list(m, entry->keyrings);
+		seq_puts(m, " ");
+	}
+
+	if (entry->flags & IMA_LABEL) {
+		seq_puts(m, "label=");
+		ima_show_rule_opt_list(m, entry->label);
 		seq_puts(m, " ");
 	}
 
