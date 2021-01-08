@@ -384,4 +384,9 @@ static inline u64 vmx_get_perf_capabilities(void)
 	return PMU_CAP_FW_WRITES;
 }
 
+static inline u64 vmx_supported_debugctl(void)
+{
+	return 0;
+}
+
 #endif /* __KVM_X86_VMX_CAPS_H */

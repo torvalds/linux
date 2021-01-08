@@ -1924,6 +1924,9 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		    !guest_cpuid_has(vcpu, X86_FEATURE_RDTSCP))
 			return 1;
 		goto find_uret_msr;
+	case MSR_IA32_DEBUGCTLMSR:
+		msr_info->data = vmcs_read64(GUEST_IA32_DEBUGCTL);
+		break;
 	default:
 	find_uret_msr:
 		msr = vmx_find_uret_msr(vmx, msr_info->index);
@@ -1997,14 +2000,26 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		}
 		vmcs_writel(GUEST_SYSENTER_ESP, data);
 		break;
-	case MSR_IA32_DEBUGCTLMSR:
+	case MSR_IA32_DEBUGCTLMSR: {
+		u64 invalid = data & ~vmx_supported_debugctl();
+		if (invalid & (DEBUGCTLMSR_BTF|DEBUGCTLMSR_LBR)) {
+			if (report_ignored_msrs)
+				vcpu_unimpl(vcpu, "%s: BTF|LBR in IA32_DEBUGCTLMSR 0x%llx, nop\n",
+					    __func__, data);
+			data &= ~(DEBUGCTLMSR_BTF|DEBUGCTLMSR_LBR);
+			invalid &= ~(DEBUGCTLMSR_BTF|DEBUGCTLMSR_LBR);
+		}
+
+		if (invalid)
+			return 1;
+
 		if (is_guest_mode(vcpu) && get_vmcs12(vcpu)->vm_exit_controls &
 						VM_EXIT_SAVE_DEBUG_CONTROLS)
 			get_vmcs12(vcpu)->guest_ia32_debugctl = data;
 
-		ret = kvm_set_msr_common(vcpu, msr_info);
-		break;
-
+		vmcs_write64(GUEST_IA32_DEBUGCTL, data);
+		return 0;
+	}
 	case MSR_IA32_BNDCFGS:
 		if (!kvm_mpx_supported() ||
 		    (!msr_info->host_initiated &&
