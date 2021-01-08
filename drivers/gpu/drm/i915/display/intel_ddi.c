@@ -611,6 +611,34 @@ static const struct cnl_ddi_buf_trans jsl_combo_phy_ddi_translations_edp_hbr2[] 
 	{ 0xA, 0x35, 0x3F, 0x00, 0x00 },        /* 350   350      0.0   */
 };
 
+static const struct cnl_ddi_buf_trans dg1_combo_phy_ddi_translations_dp_rbr_hbr[] = {
+						/* NT mV Trans mV db    */
+	{ 0xA, 0x32, 0x3F, 0x00, 0x00 },	/* 350   350      0.0   */
+	{ 0xA, 0x48, 0x35, 0x00, 0x0A },	/* 350   500      3.1   */
+	{ 0xC, 0x63, 0x2F, 0x00, 0x10 },	/* 350   700      6.0   */
+	{ 0x6, 0x7F, 0x2C, 0x00, 0x13 },	/* 350   900      8.2   */
+	{ 0xA, 0x43, 0x3F, 0x00, 0x00 },	/* 500   500      0.0   */
+	{ 0xC, 0x60, 0x36, 0x00, 0x09 },	/* 500   700      2.9   */
+	{ 0x6, 0x7F, 0x30, 0x00, 0x0F },	/* 500   900      5.1   */
+	{ 0xC, 0x60, 0x3F, 0x00, 0x00 },	/* 650   700      0.6   */
+	{ 0x6, 0x7F, 0x37, 0x00, 0x08 },	/* 600   900      3.5   */
+	{ 0x6, 0x7F, 0x3F, 0x00, 0x00 },	/* 900   900      0.0   */
+};
+
+static const struct cnl_ddi_buf_trans dg1_combo_phy_ddi_translations_dp_hbr2_hbr3[] = {
+						/* NT mV Trans mV db    */
+	{ 0xA, 0x32, 0x3F, 0x00, 0x00 },	/* 350   350      0.0   */
+	{ 0xA, 0x48, 0x35, 0x00, 0x0A },	/* 350   500      3.1   */
+	{ 0xC, 0x63, 0x2F, 0x00, 0x10 },	/* 350   700      6.0   */
+	{ 0x6, 0x7F, 0x2C, 0x00, 0x13 },	/* 350   900      8.2   */
+	{ 0xA, 0x43, 0x3F, 0x00, 0x00 },	/* 500   500      0.0   */
+	{ 0xC, 0x60, 0x36, 0x00, 0x09 },	/* 500   700      2.9   */
+	{ 0x6, 0x7F, 0x30, 0x00, 0x0F },	/* 500   900      5.1   */
+	{ 0xC, 0x58, 0x3F, 0x00, 0x00 },	/* 650   700      0.6   */
+	{ 0x6, 0x7F, 0x35, 0x00, 0x0A },	/* 600   900      3.5   */
+	{ 0x6, 0x7F, 0x3F, 0x00, 0x00 },	/* 900   900      0.0   */
+};
+
 struct icl_mg_phy_ddi_buf_trans {
 	u32 cri_txdeemph_override_11_6;
 	u32 cri_txdeemph_override_5_0;
@@ -1121,6 +1149,12 @@ icl_get_combo_buf_trans_edp(struct intel_encoder *encoder,
 	} else if (dev_priv->vbt.edp.low_vswing) {
 		*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_edp_hbr2);
 		return icl_combo_phy_ddi_translations_edp_hbr2;
+	} else if (IS_DG1(dev_priv) && crtc_state->port_clock > 270000) {
+		*n_entries = ARRAY_SIZE(dg1_combo_phy_ddi_translations_dp_hbr2_hbr3);
+		return dg1_combo_phy_ddi_translations_dp_hbr2_hbr3;
+	} else if (IS_DG1(dev_priv)) {
+		*n_entries = ARRAY_SIZE(dg1_combo_phy_ddi_translations_dp_rbr_hbr);
+		return dg1_combo_phy_ddi_translations_dp_rbr_hbr;
 	}
 
 	return icl_get_combo_buf_trans_dp(encoder, crtc_state, n_entries);
