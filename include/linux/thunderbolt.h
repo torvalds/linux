@@ -185,7 +185,6 @@ void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir);
  * @link_speed: Speed of the link in Gb/s
  * @link_width: Width of the link (1 or 2)
  * @is_unplugged: The XDomain is unplugged
- * @resume: The XDomain is being resumed
  * @needs_uuid: If the XDomain does not have @remote_uuid it will be
  *		queried first
  * @transmit_path: HopID which the remote end expects us to transmit
@@ -231,7 +230,6 @@ struct tb_xdomain {
 	unsigned int link_speed;
 	unsigned int link_width;
 	bool is_unplugged;
-	bool resume;
 	bool needs_uuid;
 	u16 transmit_path;
 	u16 transmit_ring;

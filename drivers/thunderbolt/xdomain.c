@@ -946,19 +946,6 @@ static int populate_properties(struct tb_xdomain *xd,
 	return 0;
 }
 
-/* Called with @xd->lock held */
-static void tb_xdomain_restore_paths(struct tb_xdomain *xd)
-{
-	if (!xd->resume)
-		return;
-
-	xd->resume = false;
-	if (xd->transmit_path) {
-		dev_dbg(&xd->dev, "re-establishing DMA path\n");
-		tb_domain_approve_xdomain_paths(xd->tb, xd);
-	}
-}
-
 static inline struct tb_switch *tb_xdomain_parent(struct tb_xdomain *xd)
 {
 	return tb_to_switch(xd->dev.parent);
@@ -1084,16 +1071,8 @@ static void tb_xdomain_get_properties(struct work_struct *work)
 	mutex_lock(&xd->lock);
 
 	/* Only accept newer generation properties */
-	if (xd->properties && gen <= xd->property_block_gen) {
-		/*
-		 * On resume it is likely that the properties block is
-		 * not changed (unless the other end added or removed
-		 * services). However, we need to make sure the existing
-		 * DMA paths are restored properly.
-		 */
-		tb_xdomain_restore_paths(xd);
+	if (xd->properties && gen <= xd->property_block_gen)
 		goto err_free_block;
-	}
 
 	dir = tb_property_parse_dir(block, ret);
 	if (!dir) {
@@ -1117,8 +1096,6 @@ static void tb_xdomain_get_properties(struct work_struct *work)
 	xd->property_block_gen = gen;
 
 	tb_xdomain_update_link_attributes(xd);
-
-	tb_xdomain_restore_paths(xd);
 
 	mutex_unlock(&xd->lock);
 
@@ -1332,15 +1309,7 @@ static int __maybe_unused tb_xdomain_suspend(struct device *dev)
 
 static int __maybe_unused tb_xdomain_resume(struct device *dev)
 {
-	struct tb_xdomain *xd = tb_to_xdomain(dev);
-
-	/*
-	 * Ask tb_xdomain_get_properties() restore any existing DMA
-	 * paths after properties are re-read.
-	 */
-	xd->resume = true;
-	start_handshake(xd);
-
+	start_handshake(tb_to_xdomain(dev));
 	return 0;
 }
 
