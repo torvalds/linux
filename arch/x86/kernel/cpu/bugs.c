@@ -1252,6 +1252,24 @@ static void task_update_spec_tif(struct task_struct *tsk)
 		speculation_ctrl_update_current();
 }
 
+static int l1d_flush_prctl_set(struct task_struct *task, unsigned long ctrl)
+{
+
+	if (!static_branch_unlikely(&switch_mm_cond_l1d_flush))
+		return -EPERM;
+
+	switch (ctrl) {
+	case PR_SPEC_ENABLE:
+		set_ti_thread_flag(&task->thread_info, TIF_SPEC_L1D_FLUSH);
+		return 0;
+	case PR_SPEC_DISABLE:
+		clear_ti_thread_flag(&task->thread_info, TIF_SPEC_L1D_FLUSH);
+		return 0;
+	default:
+		return -ERANGE;
+	}
+}
+
 static int ssb_prctl_set(struct task_struct *task, unsigned long ctrl)
 {
 	if (ssb_mode != SPEC_STORE_BYPASS_PRCTL &&
@@ -1361,6 +1379,8 @@ int arch_prctl_spec_ctrl_set(struct task_struct *task, unsigned long which,
 		return ssb_prctl_set(task, ctrl);
 	case PR_SPEC_INDIRECT_BRANCH:
 		return ib_prctl_set(task, ctrl);
+	case PR_SPEC_L1D_FLUSH:
+		return l1d_flush_prctl_set(task, ctrl);
 	default:
 		return -ENODEV;
 	}
@@ -1376,6 +1396,17 @@ void arch_seccomp_spec_mitigate(struct task_struct *task)
 		ib_prctl_set(task, PR_SPEC_FORCE_DISABLE);
 }
 #endif
+
+static int l1d_flush_prctl_get(struct task_struct *task)
+{
+	if (!static_branch_unlikely(&switch_mm_cond_l1d_flush))
+		return PR_SPEC_FORCE_DISABLE;
+
+	if (test_ti_thread_flag(&task->thread_info, TIF_SPEC_L1D_FLUSH))
+		return PR_SPEC_PRCTL | PR_SPEC_ENABLE;
+	else
+		return PR_SPEC_PRCTL | PR_SPEC_DISABLE;
+}
 
 static int ssb_prctl_get(struct task_struct *task)
 {
@@ -1427,6 +1458,8 @@ int arch_prctl_spec_ctrl_get(struct task_struct *task, unsigned long which)
 		return ssb_prctl_get(task);
 	case PR_SPEC_INDIRECT_BRANCH:
 		return ib_prctl_get(task);
+	case PR_SPEC_L1D_FLUSH:
+		return l1d_flush_prctl_get(task);
 	default:
 		return -ENODEV;
 	}
