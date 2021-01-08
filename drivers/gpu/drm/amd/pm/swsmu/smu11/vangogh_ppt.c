@@ -1504,12 +1504,30 @@ static int vangogh_get_dpm_clock_table(struct smu_context *smu, struct dpm_clock
 static int vangogh_system_features_control(struct smu_context *smu, bool en)
 {
 	struct amdgpu_device *adev = smu->adev;
+	struct smu_feature *feature = &smu->smu_feature;
+	uint32_t feature_mask[2];
+	int ret = 0;
 
 	if (adev->pm.fw_version >= 0x43f1700)
-		return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_RlcPowerNotify,
-						en ? RLC_STATUS_NORMAL : RLC_STATUS_OFF, NULL);
-	else
-		return 0;
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_RlcPowerNotify,
+						      en ? RLC_STATUS_NORMAL : RLC_STATUS_OFF, NULL);
+
+	bitmap_zero(feature->enabled, feature->feature_num);
+	bitmap_zero(feature->supported, feature->feature_num);
+
+	if (!en)
+		return ret;
+
+	ret = smu_cmn_get_enabled_32_bits_mask(smu, feature_mask, 2);
+	if (ret)
+		return ret;
+
+	bitmap_copy(feature->enabled, (unsigned long *)&feature_mask,
+		    feature->feature_num);
+	bitmap_copy(feature->supported, (unsigned long *)&feature_mask,
+		    feature->feature_num);
+
+	return 0;
 }
 
 static int vangogh_post_smu_init(struct smu_context *smu)
