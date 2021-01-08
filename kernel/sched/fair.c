@@ -10058,6 +10058,10 @@ static void rebalance_domains(struct rq *rq, enum cpu_idle_type idle)
 	int need_serialize, need_decay = 0;
 	u64 max_cost = 0;
 
+	trace_android_rvh_sched_rebalance_domains(rq, &continue_balancing);
+	if (!continue_balancing)
+		return;
+
 	rcu_read_lock();
 	for_each_domain(cpu, sd) {
 		/*

@@ -89,6 +89,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_sched_nohz_balancer_kick,
 	TP_PROTO(struct rq *rq, unsigned int *flags, int *done),
 	TP_ARGS(rq, flags, done), 1);
 
+DECLARE_RESTRICTED_HOOK(android_rvh_sched_rebalance_domains,
+	TP_PROTO(struct rq *rq, int *continue_balancing),
+	TP_ARGS(rq, continue_balancing), 1);
+
 DECLARE_RESTRICTED_HOOK(android_rvh_find_busiest_queue,
 	TP_PROTO(int dst_cpu, struct sched_group *group,
 		 struct cpumask *env_cpus, struct rq **busiest,
