@@ -20,11 +20,18 @@
 #define DRIVER_MAJOR			1
 #define DRIVER_MINOR			1
 
+/* Platform definitions */
+#define KMB_CRTC_MIN_VFP		4
+#define KMB_CRTC_MAX_WIDTH		1920 /* max width in pixels */
+#define KMB_CRTC_MAX_HEIGHT		1080 /* max height in pixels */
+#define KMB_CRTC_MIN_WIDTH		1920
+#define KMB_CRTC_MIN_HEIGHT		1080
 #define KMB_FB_MAX_WIDTH		1920
 #define KMB_FB_MAX_HEIGHT		1080
 #define KMB_FB_MIN_WIDTH		1
 #define KMB_FB_MIN_HEIGHT		1
-
+#define KMB_MIN_VREFRESH		59    /*vertical refresh in Hz */
+#define KMB_MAX_VREFRESH		60    /*vertical refresh in Hz */
 #define KMB_LCD_DEFAULT_CLK		200000000
 #define KMB_SYS_CLK_MHZ			500
 

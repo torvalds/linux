@@ -185,11 +185,45 @@ static void kmb_crtc_atomic_flush(struct drm_crtc *crtc,
 	spin_unlock_irq(&crtc->dev->event_lock);
 }
 
+static enum drm_mode_status
+		kmb_crtc_mode_valid(struct drm_crtc *crtc,
+				    const struct drm_display_mode *mode)
+{
+	int refresh;
+	struct drm_device *dev = crtc->dev;
+	int vfp = mode->vsync_start - mode->vdisplay;
+
+	if (mode->vdisplay < KMB_CRTC_MAX_HEIGHT) {
+		drm_dbg(dev, "height = %d less than %d",
+			mode->vdisplay, KMB_CRTC_MAX_HEIGHT);
+		return MODE_BAD_VVALUE;
+	}
+	if (mode->hdisplay < KMB_CRTC_MAX_WIDTH) {
+		drm_dbg(dev, "width = %d less than %d",
+			mode->hdisplay, KMB_CRTC_MAX_WIDTH);
+		return MODE_BAD_HVALUE;
+	}
+	refresh = drm_mode_vrefresh(mode);
+	if (refresh < KMB_MIN_VREFRESH || refresh > KMB_MAX_VREFRESH) {
+		drm_dbg(dev, "refresh = %d less than %d or greater than %d",
+			refresh, KMB_MIN_VREFRESH, KMB_MAX_VREFRESH);
+		return MODE_BAD;
+	}
+
+	if (vfp < KMB_CRTC_MIN_VFP) {
+		drm_dbg(dev, "vfp = %d less than %d", vfp, KMB_CRTC_MIN_VFP);
+		return MODE_BAD;
+	}
+
+	return MODE_OK;
+}
+
 static const struct drm_crtc_helper_funcs kmb_crtc_helper_funcs = {
 	.atomic_begin = kmb_crtc_atomic_begin,
 	.atomic_enable = kmb_crtc_atomic_enable,
 	.atomic_disable = kmb_crtc_atomic_disable,
 	.atomic_flush = kmb_crtc_atomic_flush,
+	.mode_valid = kmb_crtc_mode_valid,
 };
 
 int kmb_setup_crtc(struct drm_device *drm)
