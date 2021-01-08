@@ -1060,7 +1060,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	aux_domain = intel_aux_power_domain(dig_port);
 
 	aux_wakeref = intel_display_power_get(i915, aux_domain);
-	pps_wakeref = pps_lock(intel_dp);
+	pps_wakeref = intel_pps_lock(intel_dp);
 
 	/*
 	 * We will be called with VDD already enabled for dpcd/edid/oui reads.
@@ -1212,7 +1212,7 @@ out:
 	if (vdd)
 		edp_panel_vdd_off(intel_dp, false);
 
-	pps_unlock(intel_dp, pps_wakeref);
+	intel_pps_unlock(intel_dp, pps_wakeref);
 	intel_display_power_put_async(i915, aux_domain, aux_wakeref);
 
 	if (is_tc_port)
@@ -3571,7 +3571,7 @@ static void intel_enable_dp(struct intel_atomic_state *state,
 	if (drm_WARN_ON(&dev_priv->drm, dp_reg & DP_PORT_EN))
 		return;
 
-	with_pps_lock(intel_dp, wakeref) {
+	with_intel_pps_lock(intel_dp, wakeref) {
 		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 			vlv_init_panel_power_sequencer(encoder, pipe_config);
 
@@ -4121,7 +4121,7 @@ intel_dp_link_down(struct intel_encoder *encoder,
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		intel_wakeref_t wakeref;
 
-		with_pps_lock(intel_dp, wakeref)
+		with_intel_pps_lock(intel_dp, wakeref)
 			intel_dp->active_pipe = INVALID_PIPE;
 	}
 }
@@ -6308,7 +6308,7 @@ void intel_dp_encoder_flush_work(struct drm_encoder *encoder)
 		 * vdd might still be enabled do to the delayed vdd off.
 		 * Make sure vdd is actually turned off here.
 		 */
-		with_pps_lock(intel_dp, wakeref)
+		with_intel_pps_lock(intel_dp, wakeref)
 			edp_panel_vdd_off_sync(intel_dp);
 	}
 
@@ -6336,7 +6336,7 @@ void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder)
 	 * Make sure vdd is actually turned off here.
 	 */
 	cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
-	with_pps_lock(intel_dp, wakeref)
+	with_intel_pps_lock(intel_dp, wakeref)
 		edp_panel_vdd_off_sync(intel_dp);
 }
 
@@ -6348,7 +6348,7 @@ void intel_dp_encoder_shutdown(struct intel_encoder *intel_encoder)
 	if (!intel_dp_is_edp(intel_dp))
 		return;
 
-	with_pps_lock(intel_dp, wakeref)
+	with_intel_pps_lock(intel_dp, wakeref)
 		wait_panel_power_cycle(intel_dp);
 }
 
@@ -6380,7 +6380,7 @@ void intel_dp_encoder_reset(struct drm_encoder *encoder)
 	    !intel_dp_is_edp(intel_dp))
 		return;
 
-	with_pps_lock(intel_dp, wakeref) {
+	with_intel_pps_lock(intel_dp, wakeref) {
 		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 			intel_dp->active_pipe = vlv_active_pipe(intel_dp);
 
@@ -7119,7 +7119,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 		return false;
 	}
 
-	with_pps_lock(intel_dp, wakeref) {
+	with_intel_pps_lock(intel_dp, wakeref) {
 		intel_dp_init_panel_power_timestamps(intel_dp);
 		intel_dp_pps_init(intel_dp);
 		intel_edp_panel_vdd_sanitize(intel_dp);
@@ -7196,7 +7196,7 @@ out_vdd_off:
 	 * vdd might still be enabled do to the delayed vdd off.
 	 * Make sure vdd is actually turned off here.
 	 */
-	with_pps_lock(intel_dp, wakeref)
+	with_intel_pps_lock(intel_dp, wakeref)
 		edp_panel_vdd_off_sync(intel_dp);
 
 	return false;

@@ -16,11 +16,11 @@ struct intel_crtc_state;
 struct intel_dp;
 struct intel_encoder;
 
-intel_wakeref_t pps_lock(struct intel_dp *intel_dp);
-intel_wakeref_t pps_unlock(struct intel_dp *intel_dp, intel_wakeref_t wakeref);
+intel_wakeref_t intel_pps_lock(struct intel_dp *intel_dp);
+intel_wakeref_t intel_pps_unlock(struct intel_dp *intel_dp, intel_wakeref_t wakeref);
 
-#define with_pps_lock(dp, wf)						\
-	for ((wf) = pps_lock(dp); (wf); (wf) = pps_unlock((dp), (wf)))
+#define with_intel_pps_lock(dp, wf)						\
+	for ((wf) = intel_pps_lock(dp); (wf); (wf) = intel_pps_unlock((dp), (wf)))
 
 void intel_dp_check_edp(struct intel_dp *intel_dp);
 void _intel_edp_backlight_on(struct intel_dp *intel_dp);

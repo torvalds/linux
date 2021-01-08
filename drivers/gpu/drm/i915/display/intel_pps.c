@@ -16,7 +16,7 @@ static void
 intel_dp_init_panel_power_sequencer_registers(struct intel_dp *intel_dp,
 					      bool force_disable_vdd);
 
-intel_wakeref_t pps_lock(struct intel_dp *intel_dp)
+intel_wakeref_t intel_pps_lock(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	intel_wakeref_t wakeref;
@@ -31,7 +31,8 @@ intel_wakeref_t pps_lock(struct intel_dp *intel_dp)
 	return wakeref;
 }
 
-intel_wakeref_t pps_unlock(struct intel_dp *intel_dp, intel_wakeref_t wakeref)
+intel_wakeref_t intel_pps_unlock(struct intel_dp *intel_dp,
+				 intel_wakeref_t wakeref)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
@@ -630,7 +631,7 @@ void intel_edp_panel_vdd_on(struct intel_dp *intel_dp)
 		return;
 
 	vdd = false;
-	with_pps_lock(intel_dp, wakeref)
+	with_intel_pps_lock(intel_dp, wakeref)
 		vdd = edp_panel_vdd_on(intel_dp);
 	I915_STATE_WARN(!vdd, "[ENCODER:%d:%s] VDD already requested on\n",
 			dp_to_dig_port(intel_dp)->base.base.base.id,
@@ -685,7 +686,7 @@ void edp_panel_vdd_work(struct work_struct *__work)
 			     struct intel_dp, panel_vdd_work);
 	intel_wakeref_t wakeref;
 
-	with_pps_lock(intel_dp, wakeref) {
+	with_intel_pps_lock(intel_dp, wakeref) {
 		if (!intel_dp->want_panel_vdd)
 			edp_panel_vdd_off_sync(intel_dp);
 	}
@@ -786,7 +787,7 @@ void intel_edp_panel_on(struct intel_dp *intel_dp)
 	if (!intel_dp_is_edp(intel_dp))
 		return;
 
-	with_pps_lock(intel_dp, wakeref)
+	with_intel_pps_lock(intel_dp, wakeref)
 		edp_panel_on(intel_dp);
 }
 
@@ -838,7 +839,7 @@ void intel_edp_panel_off(struct intel_dp *intel_dp)
 	if (!intel_dp_is_edp(intel_dp))
 		return;
 
-	with_pps_lock(intel_dp, wakeref)
+	with_intel_pps_lock(intel_dp, wakeref)
 		edp_panel_off(intel_dp);
 }
 
@@ -856,7 +857,7 @@ void _intel_edp_backlight_on(struct intel_dp *intel_dp)
 	 */
 	wait_backlight_on(intel_dp);
 
-	with_pps_lock(intel_dp, wakeref) {
+	with_intel_pps_lock(intel_dp, wakeref) {
 		i915_reg_t pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
 		u32 pp;
 
@@ -877,7 +878,7 @@ void _intel_edp_backlight_off(struct intel_dp *intel_dp)
 	if (!intel_dp_is_edp(intel_dp))
 		return;
 
-	with_pps_lock(intel_dp, wakeref) {
+	with_intel_pps_lock(intel_dp, wakeref) {
 		i915_reg_t pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
 		u32 pp;
 
@@ -904,7 +905,7 @@ void intel_edp_backlight_power(struct intel_connector *connector, bool enable)
 	bool is_enabled;
 
 	is_enabled = false;
-	with_pps_lock(intel_dp, wakeref)
+	with_intel_pps_lock(intel_dp, wakeref)
 		is_enabled = ilk_get_pp_control(intel_dp) & EDP_BLC_ENABLE;
 	if (is_enabled == enable)
 		return;
@@ -1054,7 +1055,7 @@ bool intel_edp_have_power(struct intel_dp *intel_dp)
 	intel_wakeref_t wakeref;
 	bool have_power = false;
 
-	with_pps_lock(intel_dp, wakeref) {
+	with_intel_pps_lock(intel_dp, wakeref) {
 		have_power = edp_have_panel_power(intel_dp) &&
 						  edp_have_panel_vdd(intel_dp);
 	}
