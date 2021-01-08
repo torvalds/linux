@@ -492,13 +492,6 @@
 		};
 	};
 
-	gsw: gsw@1e110000 {
-		compatible = "mediatek,mt7621-gsw";
-		reg = <0x1e110000 0x8000>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SHARED 23 IRQ_TYPE_LEVEL_HIGH>;
-	};
-
 	pcie: pcie@1e140000 {
 		compatible = "mediatek,mt7621-pci";
 		reg = <0x1e140000 0x100     /* host-pci bridge registers */
