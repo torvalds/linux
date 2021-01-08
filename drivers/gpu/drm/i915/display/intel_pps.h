@@ -23,9 +23,9 @@ intel_wakeref_t intel_pps_unlock(struct intel_dp *intel_dp, intel_wakeref_t wake
 	for ((wf) = intel_pps_lock(dp); (wf); (wf) = intel_pps_unlock((dp), (wf)))
 
 void intel_dp_check_edp(struct intel_dp *intel_dp);
-void _intel_edp_backlight_on(struct intel_dp *intel_dp);
-void _intel_edp_backlight_off(struct intel_dp *intel_dp);
-void intel_edp_backlight_power(struct intel_connector *connector, bool enable);
+void intel_pps_backlight_on(struct intel_dp *intel_dp);
+void intel_pps_backlight_off(struct intel_dp *intel_dp);
+void intel_pps_backlight_power(struct intel_connector *connector, bool enable);
 
 bool edp_panel_vdd_on(struct intel_dp *intel_dp);
 void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync);

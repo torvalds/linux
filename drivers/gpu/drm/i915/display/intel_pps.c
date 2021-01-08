@@ -844,7 +844,7 @@ void intel_edp_panel_off(struct intel_dp *intel_dp)
 }
 
 /* Enable backlight in the panel power control. */
-void _intel_edp_backlight_on(struct intel_dp *intel_dp)
+void intel_pps_backlight_on(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	intel_wakeref_t wakeref;
@@ -870,7 +870,7 @@ void _intel_edp_backlight_on(struct intel_dp *intel_dp)
 }
 
 /* Disable backlight in the panel power control. */
-void _intel_edp_backlight_off(struct intel_dp *intel_dp)
+void intel_pps_backlight_off(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	intel_wakeref_t wakeref;
@@ -897,7 +897,7 @@ void _intel_edp_backlight_off(struct intel_dp *intel_dp)
  * Hook for controlling the panel power control backlight through the bl_power
  * sysfs attribute. Take care to handle multiple calls.
  */
-void intel_edp_backlight_power(struct intel_connector *connector, bool enable)
+void intel_pps_backlight_power(struct intel_connector *connector, bool enable)
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
@@ -914,9 +914,9 @@ void intel_edp_backlight_power(struct intel_connector *connector, bool enable)
 		    enable ? "enable" : "disable");
 
 	if (enable)
-		_intel_edp_backlight_on(intel_dp);
+		intel_pps_backlight_on(intel_dp);
 	else
-		_intel_edp_backlight_off(intel_dp);
+		intel_pps_backlight_off(intel_dp);
 }
 
 static void vlv_detach_power_sequencer(struct intel_dp *intel_dp)

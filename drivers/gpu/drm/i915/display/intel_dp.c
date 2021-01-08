@@ -2620,7 +2620,7 @@ void intel_edp_backlight_on(const struct intel_crtc_state *crtc_state,
 	drm_dbg_kms(&i915->drm, "\n");
 
 	intel_panel_enable_backlight(crtc_state, conn_state);
-	_intel_edp_backlight_on(intel_dp);
+	intel_pps_backlight_on(intel_dp);
 }
 
 /* Disable backlight PP control and backlight PWM. */
@@ -2634,7 +2634,7 @@ void intel_edp_backlight_off(const struct drm_connector_state *old_conn_state)
 
 	drm_dbg_kms(&i915->drm, "\n");
 
-	_intel_edp_backlight_off(intel_dp);
+	intel_pps_backlight_off(intel_dp);
 	intel_panel_disable_backlight(old_conn_state);
 }
 
@@ -7179,7 +7179,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	}
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, downclock_mode);
-	intel_connector->panel.backlight.power = intel_edp_backlight_power;
+	intel_connector->panel.backlight.power = intel_pps_backlight_power;
 	intel_panel_setup_backlight(connector, pipe);
 
 	if (fixed_mode) {
