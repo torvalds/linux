@@ -2534,6 +2534,9 @@ static int eb_submit(struct i915_execbuffer *eb, struct i915_vma *batch)
 {
 	int err;
 
+	if (intel_context_nopreempt(eb->context))
+		__set_bit(I915_FENCE_FLAG_NOPREEMPT, &eb->request->fence.flags);
+
 	err = eb_move_to_gpu(eb);
 	if (err)
 		return err;
@@ -2573,9 +2576,6 @@ static int eb_submit(struct i915_execbuffer *eb, struct i915_vma *batch)
 		if (err)
 			return err;
 	}
-
-	if (intel_context_nopreempt(eb->context))
-		__set_bit(I915_FENCE_FLAG_NOPREEMPT, &eb->request->fence.flags);
 
 	return 0;
 }
