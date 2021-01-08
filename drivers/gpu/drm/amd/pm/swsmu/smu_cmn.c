@@ -92,7 +92,7 @@ static int smu_cmn_wait_for_response(struct smu_context *smu)
 	for (i = 0; i < timeout; i++) {
 		cur_value = RREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_90);
 		if ((cur_value & MP1_C2PMSG_90__CONTENT_MASK) != 0)
-			return cur_value == 0x1 ? 0 : -EIO;
+			return cur_value;
 
 		udelay(1);
 	}
@@ -101,7 +101,7 @@ static int smu_cmn_wait_for_response(struct smu_context *smu)
 	if (i == timeout)
 		return -ETIME;
 
-	return RREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_90) == 0x1 ? 0 : -EIO;
+	return RREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_90);
 }
 
 int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
@@ -123,9 +123,11 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 
 	mutex_lock(&smu->message_lock);
 	ret = smu_cmn_wait_for_response(smu);
-	if (ret) {
+	if (ret != 0x1) {
 		dev_err(adev->dev, "Msg issuing pre-check failed and "
 		       "SMU may be not in the right state!\n");
+		if (ret != -ETIME)
+			ret = -EIO;
 		goto out;
 	}
 
@@ -136,9 +138,11 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 	smu_cmn_send_msg_without_waiting(smu, (uint16_t)index);
 
 	ret = smu_cmn_wait_for_response(smu);
-	if (ret) {
+	if (ret != 0x1) {
 		dev_err(adev->dev, "failed send message: %10s (%d) \tparam: 0x%08x response %#x\n",
-		       smu_get_message_name(smu, msg), index, param, ret);
+			smu_get_message_name(smu, msg), index, param, ret);
+		if (ret != -ETIME)
+			ret = -EIO;
 		goto out;
 	}
 
