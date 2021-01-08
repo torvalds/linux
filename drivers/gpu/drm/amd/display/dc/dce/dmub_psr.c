@@ -31,7 +31,7 @@
 
 #define MAX_PIPES 6
 
-/**
+/*
  * Convert dmcub psr state to dmcu psr state.
  */
 static enum dc_psr_state convert_psr_state(uint32_t raw_state)
@@ -74,7 +74,7 @@ static enum dc_psr_state convert_psr_state(uint32_t raw_state)
 	return state;
 }
 
-/**
+/*
  * Get PSR state from firmware.
  */
 static void dmub_psr_get_state(struct dmub_psr *dmub, enum dc_psr_state *state)
@@ -90,7 +90,7 @@ static void dmub_psr_get_state(struct dmub_psr *dmub, enum dc_psr_state *state)
 	*state = convert_psr_state(raw_state);
 }
 
-/**
+/*
  * Set PSR version.
  */
 static bool dmub_psr_set_version(struct dmub_psr *dmub, struct dc_stream_state *stream)
@@ -121,7 +121,7 @@ static bool dmub_psr_set_version(struct dmub_psr *dmub, struct dc_stream_state *
 	return true;
 }
 
-/**
+/*
  * Enable/Disable PSR.
  */
 static void dmub_psr_enable(struct dmub_psr *dmub, bool enable, bool wait)
@@ -170,7 +170,7 @@ static void dmub_psr_enable(struct dmub_psr *dmub, bool enable, bool wait)
 	}
 }
 
-/**
+/*
  * Set PSR level.
  */
 static void dmub_psr_set_level(struct dmub_psr *dmub, uint16_t psr_level)
@@ -194,7 +194,7 @@ static void dmub_psr_set_level(struct dmub_psr *dmub, uint16_t psr_level)
 	dc_dmub_srv_wait_idle(dc->dmub_srv);
 }
 
-/**
+/*
  * Setup PSR by programming phy registers and sending psr hw context values to firmware.
  */
 static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
@@ -277,7 +277,7 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 	return true;
 }
 
-/**
+/*
  * Send command to PSR to force static ENTER and ignore all state changes until exit
  */
 static void dmub_psr_force_static(struct dmub_psr *dmub)
@@ -294,7 +294,7 @@ static void dmub_psr_force_static(struct dmub_psr *dmub)
 	dc_dmub_srv_wait_idle(dc->dmub_srv);
 }
 
-/**
+/*
  * Get PSR residency from firmware.
  */
 static void dmub_psr_get_residency(struct dmub_psr *dmub, uint32_t *residency)
@@ -316,7 +316,7 @@ static const struct dmub_psr_funcs psr_funcs = {
 	.psr_get_residency		= dmub_psr_get_residency,
 };
 
-/**
+/*
  * Construct PSR object.
  */
 static void dmub_psr_construct(struct dmub_psr *psr, struct dc_context *ctx)
@@ -325,7 +325,7 @@ static void dmub_psr_construct(struct dmub_psr *psr, struct dc_context *ctx)
 	psr->funcs = &psr_funcs;
 }
 
-/**
+/*
  * Allocate and initialize PSR object.
  */
 struct dmub_psr *dmub_psr_create(struct dc_context *ctx)
@@ -342,7 +342,7 @@ struct dmub_psr *dmub_psr_create(struct dc_context *ctx)
 	return psr;
 }
 
-/**
+/*
  * Deallocate PSR object.
  */
 void dmub_psr_destroy(struct dmub_psr **dmub)
