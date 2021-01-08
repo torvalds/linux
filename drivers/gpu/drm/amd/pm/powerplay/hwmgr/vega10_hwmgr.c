@@ -1549,6 +1549,7 @@ static int vega10_populate_smc_link_levels(struct pp_hwmgr *hwmgr)
  * @hwmgr:      the address of the hardware manager
  * @gfx_clock:  the GFX clock to use to populate the structure.
  * @current_gfxclk_level:  location in PPTable for the SMC GFXCLK structure.
+ * @acg_freq:   ACG frequenty to return (MHz)
  */
 static int vega10_populate_single_gfx_level(struct pp_hwmgr *hwmgr,
 		uint32_t gfx_clock, PllSetting_t *current_gfxclk_level,
@@ -1612,7 +1613,8 @@ static int vega10_populate_single_gfx_level(struct pp_hwmgr *hwmgr,
  *
  * @hwmgr:     the address of the hardware manager.
  * @soc_clock: the SOC clock to use to populate the structure.
- * @current_socclk_level: location in PPTable for the SMC SOCCLK structure.
+ * @current_soc_did:   DFS divider to pass back to caller
+ * @current_vol_index: index of current VDD to pass back to caller
  * return:      0 on success
  */
 static int vega10_populate_single_soc_level(struct pp_hwmgr *hwmgr,
@@ -1744,7 +1746,7 @@ static void vega10_populate_vddc_soc_levels(struct pp_hwmgr *hwmgr)
 	}
 }
 
-/**
+/*
  * Populates single SMC GFXCLK structure using the provided clock.
  *
  * @hwmgr:     the address of the hardware manager.
@@ -2863,8 +2865,8 @@ static int vega10_stop_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
 /**
  * Tell SMC to enabled the supported DPMs.
  *
- * @hwmgr:  the address of the powerplay hardware manager.
- * @bitmap  bitmap for the features to enabled.
+ * @hwmgr:   the address of the powerplay hardware manager.
+ * @bitmap:  bitmap for the features to enabled.
  * return:  0 on at least one DPM is successfully enabled.
  */
 static int vega10_start_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
