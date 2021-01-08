@@ -5490,10 +5490,12 @@ static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
 	else
 		dm->active_vblank_irq_count--;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	dc_allow_idle_optimizations(
 		adev->dm.dc, dm->active_vblank_irq_count == 0 ? true : false);
 
 	DRM_DEBUG_DRIVER("Allow idle optimizations (MALL): %d\n", dm->active_vblank_irq_count == 0);
+#endif
 
 	mutex_unlock(&dm->dc_lock);
 
