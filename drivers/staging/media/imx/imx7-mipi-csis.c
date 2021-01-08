@@ -694,6 +694,7 @@ static int mipi_csis_s_stream(struct v4l2_subdev *mipi_sd, int enable)
 			return ret;
 
 		mipi_csis_clear_counters(state);
+
 		ret = pm_runtime_get_sync(&state->pdev->dev);
 		if (ret < 0) {
 			pm_runtime_put_noidle(&state->pdev->dev);
@@ -701,10 +702,11 @@ static int mipi_csis_s_stream(struct v4l2_subdev *mipi_sd, int enable)
 		}
 		ret = v4l2_subdev_call(state->src_sd, core, s_power, 1);
 		if (ret < 0 && ret != -ENOIOCTLCMD)
-			return ret;
+			goto done;
 	}
 
 	mutex_lock(&state->lock);
+
 	if (enable) {
 		if (state->flags & ST_SUSPENDED) {
 			ret = -EBUSY;
@@ -732,7 +734,9 @@ static int mipi_csis_s_stream(struct v4l2_subdev *mipi_sd, int enable)
 
 unlock:
 	mutex_unlock(&state->lock);
-	if (!enable)
+
+done:
+	if (!enable || ret < 0)
 		pm_runtime_put(&state->pdev->dev);
 
 	return ret;
