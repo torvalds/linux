@@ -1671,7 +1671,8 @@ static void rnbd_destroy_sessions(void)
 	 */
 
 	list_for_each_entry_safe(sess, sn, &sess_list, list) {
-		WARN_ON(!rnbd_clt_get_sess(sess));
+		if (!rnbd_clt_get_sess(sess))
+			continue;
 		close_rtrs(sess);
 		list_for_each_entry_safe(dev, tn, &sess->devs_list, list) {
 			/*
