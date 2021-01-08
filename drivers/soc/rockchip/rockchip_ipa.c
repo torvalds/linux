@@ -25,9 +25,12 @@ static void calculate_static_coefficient(struct ipa_power_model_data *data)
 	u32 static_coeff = data->static_coefficient;
 	u32 lkg_scaling_factor;
 
-	/* leakage=0, use static_coefficient in devicetree */
-	if (!lkg)
-		return;
+	if (!lkg) {
+		if (ref_lkg)
+			lkg = ref_lkg;
+		else
+			lkg = (min + max) / 2;
+	}
 	if (ref_lkg) {
 		data->static_coefficient = static_coeff * lkg / ref_lkg;
 		return;
