@@ -770,7 +770,6 @@ mlx5_tc_ct_shared_counter_get(struct mlx5_tc_ct_priv *ct_priv,
 	struct mlx5_ct_counter *shared_counter;
 	struct mlx5_ct_entry *rev_entry;
 	__be16 tmp_port;
-	int ret;
 
 	/* get the reversed tuple */
 	tmp_port = rev_tuple.port.src;
@@ -804,10 +803,8 @@ mlx5_tc_ct_shared_counter_get(struct mlx5_tc_ct_priv *ct_priv,
 	mutex_unlock(&ct_priv->shared_counter_lock);
 
 	shared_counter = mlx5_tc_ct_counter_create(ct_priv);
-	if (IS_ERR(shared_counter)) {
-		ret = PTR_ERR(shared_counter);
-		return ERR_PTR(ret);
-	}
+	if (IS_ERR(shared_counter))
+		return shared_counter;
 
 	shared_counter->is_shared = true;
 	refcount_set(&shared_counter->refcount, 1);
