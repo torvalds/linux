@@ -1659,8 +1659,6 @@ tgl_revids_get(struct drm_i915_private *dev_priv)
 		(INTEL_INFO(dev_priv)->has_logical_ring_contexts)
 #define HAS_LOGICAL_RING_ELSQ(dev_priv) \
 		(INTEL_INFO(dev_priv)->has_logical_ring_elsq)
-#define HAS_LOGICAL_RING_PREEMPTION(dev_priv) \
-		(INTEL_INFO(dev_priv)->has_logical_ring_preemption)
 
 #define HAS_MASTER_UNIT_IRQ(dev_priv) (INTEL_INFO(dev_priv)->has_master_unit_irq)
 
