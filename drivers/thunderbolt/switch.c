@@ -1771,7 +1771,7 @@ static umode_t switch_attr_is_visible(struct kobject *kobj,
 	return sw->safe_mode ? 0 : attr->mode;
 }
 
-static struct attribute_group switch_group = {
+static const struct attribute_group switch_group = {
 	.is_visible = switch_attr_is_visible,
 	.attrs = switch_attrs,
 };

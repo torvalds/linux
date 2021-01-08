@@ -289,7 +289,7 @@ static umode_t domain_attr_is_visible(struct kobject *kobj,
 	return attr->mode;
 }
 
-static struct attribute_group domain_attr_group = {
+static const struct attribute_group domain_attr_group = {
 	.is_visible = domain_attr_is_visible,
 	.attrs = domain_attrs,
 };

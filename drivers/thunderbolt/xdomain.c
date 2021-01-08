@@ -756,7 +756,7 @@ static struct attribute *tb_service_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group tb_service_attr_group = {
+static const struct attribute_group tb_service_attr_group = {
 	.attrs = tb_service_attrs,
 };
 
@@ -1239,7 +1239,7 @@ static struct attribute *xdomain_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group xdomain_attr_group = {
+static const struct attribute_group xdomain_attr_group = {
 	.attrs = xdomain_attrs,
 };
 
