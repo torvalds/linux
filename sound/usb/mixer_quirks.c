@@ -2725,7 +2725,7 @@ static int snd_pioneer_djm_controls_info(struct snd_kcontrol *kctl, struct snd_c
 	if (info->value.enumerated.item >= count)
 		info->value.enumerated.item = count - 1;
 	name = group->options[info->value.enumerated.item].name;
-	strlcpy(info->value.enumerated.name, name, sizeof(info->value.enumerated.name));
+	strscpy(info->value.enumerated.name, name, sizeof(info->value.enumerated.name));
 	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	info->count = 1;
 	info->value.enumerated.items = count;
