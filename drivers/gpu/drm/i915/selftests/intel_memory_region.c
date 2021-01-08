@@ -852,14 +852,22 @@ static int _perf_memcpy(struct intel_memory_region *src_mr,
 		}
 
 		sort(t, ARRAY_SIZE(t), sizeof(*t), wrap_ktime_compare, NULL);
+		if (t[0] <= 0) {
+			/* ignore the impossible to protect our sanity */
+			pr_debug("Skipping %s src(%s, %s) -> dst(%s, %s) %14s %4lluKiB copy, unstable measurement [%lld, %lld]\n",
+				 __func__,
+				 src_mr->name, repr_type(src_type),
+				 dst_mr->name, repr_type(dst_type),
+				 tests[i].name, size >> 10,
+				 t[0], t[4]);
+			continue;
+		}
+
 		pr_info("%s src(%s, %s) -> dst(%s, %s) %14s %4llu KiB copy: %5lld MiB/s\n",
 			__func__,
-			src_mr->name,
-			repr_type(src_type),
-			dst_mr->name,
-			repr_type(dst_type),
-			tests[i].name,
-			size >> 10,
+			src_mr->name, repr_type(src_type),
+			dst_mr->name, repr_type(dst_type),
+			tests[i].name, size >> 10,
 			div64_u64(mul_u32_u32(4 * size,
 					      1000 * 1000 * 1000),
 				  t[1] + 2 * t[2] + t[3]) >> 20);
