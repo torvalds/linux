@@ -428,7 +428,7 @@ static bool edp_have_panel_vdd(struct intel_dp *intel_dp)
 	return intel_de_read(dev_priv, _pp_ctrl_reg(intel_dp)) & EDP_FORCE_VDD;
 }
 
-void intel_dp_check_edp(struct intel_dp *intel_dp)
+void intel_pps_check_power_unlocked(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 

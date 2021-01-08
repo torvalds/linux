@@ -1076,7 +1076,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	 */
 	cpu_latency_qos_update_request(&intel_dp->pm_qos, 0);
 
-	intel_dp_check_edp(intel_dp);
+	intel_pps_check_power_unlocked(intel_dp);
 
 	/* Try to wait for any previous AUX channel activity */
 	for (try = 0; try < 3; try++) {
