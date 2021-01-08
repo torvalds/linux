@@ -386,7 +386,7 @@ static const struct drm_gem_object_funcs vc4_gem_object_funcs = {
 	.free = vc4_free_object,
 	.export = vc4_prime_export,
 	.get_sg_table = drm_gem_cma_get_sg_table,
-	.vmap = vc4_prime_vmap,
+	.vmap = drm_gem_cma_vmap,
 	.vm_ops = &vc4_vm_ops,
 };
 
@@ -783,18 +783,6 @@ int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	}
 
 	return drm_gem_prime_mmap(obj, vma);
-}
-
-int vc4_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
-{
-	struct vc4_bo *bo = to_vc4_bo(obj);
-
-	if (bo->validated_shader) {
-		DRM_DEBUG("mmaping of shader BOs not allowed.\n");
-		return -EINVAL;
-	}
-
-	return drm_gem_cma_vmap(obj, map);
 }
 
 struct drm_gem_object *
