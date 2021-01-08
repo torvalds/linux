@@ -231,6 +231,23 @@ mlx5e_tc_match_to_reg_set_and_get_id(struct mlx5_core_dev *mdev,
 	return err;
 }
 
+struct mlx5e_tc_int_port_priv *
+mlx5e_get_int_port_priv(struct mlx5e_priv *priv)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5_rep_uplink_priv *uplink_priv;
+	struct mlx5e_rep_priv *uplink_rpriv;
+
+	if (is_mdev_switchdev_mode(priv->mdev)) {
+		uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
+		uplink_priv = &uplink_rpriv->uplink_priv;
+
+		return uplink_priv->int_port_priv;
+	}
+
+	return NULL;
+}
+
 static struct mlx5_tc_ct_priv *
 get_ct_priv(struct mlx5e_priv *priv)
 {
@@ -1572,6 +1589,9 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT)
 		mlx5_fc_destroy(esw_attr->counter_dev, attr->counter);
+
+	if (esw_attr->dest_int_port)
+		mlx5e_tc_int_port_put(mlx5e_get_int_port_priv(priv), esw_attr->dest_int_port);
 
 	if (flow_flag_test(flow, L3_TO_L2_DECAP))
 		mlx5e_detach_decap(priv, flow);
@@ -3814,6 +3834,45 @@ static int verify_uplink_forwarding(struct mlx5e_priv *priv,
 	return 0;
 }
 
+int mlx5e_set_fwd_to_int_port_actions(struct mlx5e_priv *priv,
+				      struct mlx5_flow_attr *attr,
+				      int ifindex,
+				      enum mlx5e_tc_int_port_type type,
+				      u32 *action,
+				      int out_index)
+{
+	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
+	struct mlx5e_tc_int_port_priv *int_port_priv;
+	struct mlx5e_tc_flow_parse_attr *parse_attr;
+	struct mlx5e_tc_int_port *dest_int_port;
+	int err;
+
+	parse_attr = attr->parse_attr;
+	int_port_priv = mlx5e_get_int_port_priv(priv);
+
+	dest_int_port = mlx5e_tc_int_port_get(int_port_priv, ifindex, type);
+	if (IS_ERR(dest_int_port))
+		return PTR_ERR(dest_int_port);
+
+	err = mlx5e_tc_match_to_reg_set(priv->mdev, &parse_attr->mod_hdr_acts,
+					MLX5_FLOW_NAMESPACE_FDB, VPORT_TO_REG,
+					mlx5e_tc_int_port_get_metadata(dest_int_port));
+	if (err) {
+		mlx5e_tc_int_port_put(int_port_priv, dest_int_port);
+		return err;
+	}
+
+	*action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+
+	esw_attr->dest_int_port = dest_int_port;
+	esw_attr->dests[out_index].flags |= MLX5_ESW_DEST_CHAIN_WITH_SRC_PORT_CHANGE;
+
+	/* Forward to root fdb for matching against the new source vport */
+	attr->dest_chain = 0;
+
+	return 0;
+}
+
 static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				struct flow_action *flow_action,
 				struct mlx5e_tc_flow *flow,
@@ -3833,6 +3892,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	bool encap = false, decap = false;
 	u32 action = attr->action;
 	int err, i, if_count = 0;
+	bool ptype_host = false;
 	bool mpls_push = false;
 
 	if (!flow_action_has_entries(flow_action)) {
@@ -3862,6 +3922,8 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 						   "skbedit ptype is only supported with type host");
 				return -EOPNOTSUPP;
 			}
+
+			ptype_host = true;
 			break;
 		case FLOW_ACTION_DROP:
 			action |= MLX5_FLOW_CONTEXT_ACTION_DROP |
@@ -3926,6 +3988,50 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				break;
 
 			return -EOPNOTSUPP;
+		case FLOW_ACTION_REDIRECT_INGRESS: {
+			struct net_device *out_dev;
+
+			out_dev = act->dev;
+			if (!out_dev)
+				return -EOPNOTSUPP;
+
+			if (!netif_is_ovs_master(out_dev)) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "redirect to ingress is supported only for OVS internal ports");
+				return -EOPNOTSUPP;
+			}
+
+			if (netif_is_ovs_master(parse_attr->filter_dev)) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "redirect to ingress is not supported from internal port");
+				return -EOPNOTSUPP;
+			}
+
+			if (!ptype_host) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "redirect to int port ingress requires ptype=host action");
+				return -EOPNOTSUPP;
+			}
+
+			if (esw_attr->out_count) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "redirect to int port ingress is supported only as single destination");
+				return -EOPNOTSUPP;
+			}
+
+			action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+				  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+
+			err = mlx5e_set_fwd_to_int_port_actions(priv, attr, out_dev->ifindex,
+								MLX5E_TC_INT_PORT_INGRESS,
+								&action, esw_attr->out_count);
+			if (err)
+				return err;
+
+			esw_attr->out_count++;
+
+			break;
+		}
 		case FLOW_ACTION_REDIRECT:
 		case FLOW_ACTION_MIRRED: {
 			struct mlx5e_priv *out_priv;
@@ -4036,6 +4142,16 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				esw_attr->dests[esw_attr->out_count].rep = rpriv->rep;
 				esw_attr->dests[esw_attr->out_count].mdev = out_priv->mdev;
 				esw_attr->out_count++;
+			} else if (netif_is_ovs_master(out_dev)) {
+				err = mlx5e_set_fwd_to_int_port_actions(priv, attr,
+									out_dev->ifindex,
+									MLX5E_TC_INT_PORT_EGRESS,
+									&action,
+									esw_attr->out_count);
+				if (err)
+					return err;
+
+				esw_attr->out_count++;
 			} else if (parse_attr->filter_dev != priv->netdev) {
 				/* All mlx5 devices are called to configure
 				 * high level device filters. Therefore, the
@@ -4134,6 +4250,13 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 					   "The offload action is not supported in FDB action");
 			return -EOPNOTSUPP;
 		}
+	}
+
+	/* If we forward to internal port we can only have 1 dest */
+	if (esw_attr->dest_int_port && esw_attr->out_count > 1) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Redirect to internal port should be the only destination");
+		return -EOPNOTSUPP;
 	}
 
 	/* always set IP version for indirect table handling */
