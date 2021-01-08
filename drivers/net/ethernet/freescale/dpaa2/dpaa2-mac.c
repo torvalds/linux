@@ -181,9 +181,6 @@ static void dpaa2_mac_link_up(struct phylink_config *config,
 	else if (duplex == DUPLEX_FULL)
 		dpmac_state->options &= ~DPMAC_LINK_OPT_HALF_DUPLEX;
 
-	/* This is lossy; the firmware really should take the pause
-	 * enablement status rather than pause/asym pause status.
-	 */
 	if (rx_pause)
 		dpmac_state->options |= DPMAC_LINK_OPT_PAUSE;
 	else
