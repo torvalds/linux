@@ -3789,7 +3789,7 @@ static struct attribute *nvme_fc_attrs[] = {
 	NULL
 };
 
-static struct attribute_group nvme_fc_attr_group = {
+static const struct attribute_group nvme_fc_attr_group = {
 	.attrs = nvme_fc_attrs,
 };
 
