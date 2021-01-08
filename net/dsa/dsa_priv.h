@@ -110,15 +110,6 @@ void dsa_tag_driver_put(const struct dsa_device_ops *ops);
 bool dsa_schedule_work(struct work_struct *work);
 const char *dsa_tag_protocol_to_str(const struct dsa_device_ops *ops);
 
-int dsa_legacy_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
-		       struct net_device *dev,
-		       const unsigned char *addr, u16 vid,
-		       u16 flags,
-		       struct netlink_ext_ack *extack);
-int dsa_legacy_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
-		       struct net_device *dev,
-		       const unsigned char *addr, u16 vid);
-
 /* master.c */
 int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp);
 void dsa_master_teardown(struct net_device *dev);
