@@ -1359,7 +1359,7 @@ static struct pci_driver snbep_uncore_pci_driver = {
 static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool reverse)
 {
 	struct pci_dev *ubox_dev = NULL;
-	int i, bus, nodeid, segment;
+	int i, bus, nodeid, segment, die_id;
 	struct pci2phy_map *map;
 	int err = 0;
 	u32 config = 0;
@@ -1395,7 +1395,11 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 		 */
 		for (i = 0; i < 8; i++) {
 			if (nodeid == ((config >> (3 * i)) & 0x7)) {
-				map->pbus_to_physid[bus] = i;
+				if (topology_max_die_per_package() > 1)
+					die_id = i;
+				else
+					die_id = topology_phys_to_logical_pkg(i);
+				map->pbus_to_dieid[bus] = die_id;
 				break;
 			}
 		}
@@ -1412,17 +1416,17 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 			i = -1;
 			if (reverse) {
 				for (bus = 255; bus >= 0; bus--) {
-					if (map->pbus_to_physid[bus] >= 0)
-						i = map->pbus_to_physid[bus];
+					if (map->pbus_to_dieid[bus] >= 0)
+						i = map->pbus_to_dieid[bus];
 					else
-						map->pbus_to_physid[bus] = i;
+						map->pbus_to_dieid[bus] = i;
 				}
 			} else {
 				for (bus = 0; bus <= 255; bus++) {
-					if (map->pbus_to_physid[bus] >= 0)
-						i = map->pbus_to_physid[bus];
+					if (map->pbus_to_dieid[bus] >= 0)
+						i = map->pbus_to_dieid[bus];
 					else
-						map->pbus_to_physid[bus] = i;
+						map->pbus_to_dieid[bus] = i;
 				}
 			}
 		}
@@ -4646,19 +4650,14 @@ int snr_uncore_pci_init(void)
 static struct pci_dev *snr_uncore_get_mc_dev(int id)
 {
 	struct pci_dev *mc_dev = NULL;
-	int phys_id, pkg;
+	int pkg;
 
 	while (1) {
 		mc_dev = pci_get_device(PCI_VENDOR_ID_INTEL, 0x3451, mc_dev);
 		if (!mc_dev)
 			break;
-		phys_id = uncore_pcibus_to_physid(mc_dev->bus);
-		if (phys_id < 0)
-			continue;
-		pkg = topology_phys_to_logical_pkg(phys_id);
-		if (pkg < 0)
-			continue;
-		else if (pkg == id)
+		pkg = uncore_pcibus_to_dieid(mc_dev->bus);
+		if (pkg == id)
 			break;
 	}
 	return mc_dev;
