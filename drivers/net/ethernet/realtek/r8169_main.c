@@ -763,7 +763,9 @@ static void _rtl_eri_write(struct rtl8169_private *tp, int addr, u32 mask,
 {
 	u32 cmd = ERIAR_WRITE_CMD | type | mask | addr;
 
-	BUG_ON((addr & 3) || (mask == 0));
+	if (WARN(addr & 3 || !mask, "addr: 0x%x, mask: 0x%08x\n", addr, mask))
+		return;
+
 	RTL_W32(tp, ERIDR, val);
 	r8168fp_adjust_ocp_cmd(tp, &cmd, type);
 	RTL_W32(tp, ERIAR, cmd);
