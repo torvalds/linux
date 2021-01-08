@@ -30,7 +30,7 @@
 #include "rk_ftl_api.h"
 #include "rk_nand_base.h"
 
-#define RKNAND_VERSION_AND_DATE  "rknandbase v1.2 2018-05-08"
+#define RKNAND_VERSION_AND_DATE  "rknandbase v1.2 2021-01-07"
 
 static struct rk_nandc_info g_nandc_info[2];
 struct device *g_nand_device;
@@ -453,6 +453,7 @@ static const struct dev_pm_ops rknand_dev_pm_ops = {
 #ifdef CONFIG_OF
 static const struct of_device_id of_rk_nandc_match[] = {
 	{.compatible = "rockchip,rk-nandc"},
+	{.compatible = "rockchip,rk-nandc-v9"},
 	{}
 };
 #endif
