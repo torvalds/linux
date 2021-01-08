@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"BATTERY_DBG: %s: " fmt, __func__
@@ -57,6 +57,7 @@ struct votable {
 
 struct qbg_context_req_msg {
 	struct pmic_glink_hdr hdr;
+	u32 battery_cell_id;
 };
 
 struct qbg_context_resp_msg {
@@ -101,6 +102,7 @@ struct battery_dbg_dev {
 	struct all_votables_data	all_data;
 	struct votable			*votable;
 	u8				override_voter_id;
+	u32				battery_cell_id;
 };
 
 static int battery_dbg_write(struct battery_dbg_dev *bd, void *data, size_t len)
@@ -261,18 +263,6 @@ static int battery_dbg_callback(void *priv, void *data, size_t len)
 	}
 
 	return 0;
-}
-
-static int get_qbg_context_write(void *data, u64 val)
-{
-	struct battery_dbg_dev *bd = data;
-	struct qbg_context_req_msg req_msg = { { 0 } };
-
-	req_msg.hdr.owner = MSG_OWNER_BD;
-	req_msg.hdr.type = MSG_TYPE_REQ_RESP;
-	req_msg.hdr.opcode = BD_QBG_DUMP_REQ;
-
-	return battery_dbg_write(bd, &req_msg, sizeof(req_msg));
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -658,6 +648,19 @@ static void battery_dbg_add_debugfs(struct battery_dbg_dev *bd)
 }
 #endif
 
+static int get_qbg_context_write(void *data, u64 val)
+{
+	struct battery_dbg_dev *bd = data;
+	struct qbg_context_req_msg req_msg = { { 0 } };
+
+	req_msg.hdr.owner = MSG_OWNER_BD;
+	req_msg.hdr.type = MSG_TYPE_REQ_RESP;
+	req_msg.hdr.opcode = BD_QBG_DUMP_REQ;
+	req_msg.battery_cell_id = bd->battery_cell_id;
+
+	return battery_dbg_write(bd, &req_msg, sizeof(req_msg));
+}
+
 static ssize_t qbg_blob_write(struct file *filp, struct kobject *kobj,
 				    struct bin_attribute *attr, char *buf,
 				    loff_t pos, size_t count)
@@ -693,6 +696,44 @@ static struct bin_attribute qbg_blob = {
 	.write = qbg_blob_write,
 };
 
+
+static ssize_t battery_cell_id_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct battery_dbg_dev *bd = dev_get_drvdata(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", bd->battery_cell_id);
+}
+
+static ssize_t battery_cell_id_store(struct device *dev,
+				struct device_attribute *attr, const char *buf,
+				size_t count)
+{
+	struct battery_dbg_dev *bd = dev_get_drvdata(dev);
+
+	if (kstrtou32(buf, 0, &bd->battery_cell_id))
+		return -EINVAL;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(battery_cell_id);
+
+static struct attribute *battery_dbg_attrs[] = {
+	&dev_attr_battery_cell_id.attr,
+	NULL,
+};
+
+static struct bin_attribute *battery_dbg_bin_attrs[] = {
+	&qbg_blob,
+	NULL,
+};
+
+static const struct attribute_group battery_dbg_group = {
+	.attrs		= battery_dbg_attrs,
+	.bin_attrs	= battery_dbg_bin_attrs,
+};
+
 static int battery_dbg_add_dev_attr(struct battery_dbg_dev *bd)
 {
 	int rc;
@@ -700,10 +741,10 @@ static int battery_dbg_add_dev_attr(struct battery_dbg_dev *bd)
 	bd->qbg_blob.data = bd->qbg_dump.buf;
 	bd->qbg_blob.size = 0;
 
-	rc = device_create_bin_file(bd->dev, &qbg_blob);
+	rc = sysfs_create_group(&bd->dev->kobj, &battery_dbg_group);
 	if (rc)
-		dev_err(bd->dev, "Failed to create qbg_context bin file: %d\n",
-				rc);
+		dev_err(bd->dev, "Failed to create sysfs files for qbg_context: %d\n",
+			rc);
 
 	return rc;
 }
@@ -754,6 +795,7 @@ static int battery_dbg_remove(struct platform_device *pdev)
 	struct battery_dbg_dev *bd = platform_get_drvdata(pdev);
 	int rc;
 
+	sysfs_remove_group(&bd->dev->kobj, &battery_dbg_group);
 	debugfs_remove_recursive(bd->debugfs_dir);
 	rc = pmic_glink_unregister_client(bd->client);
 	if (rc < 0) {
