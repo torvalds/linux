@@ -987,8 +987,8 @@ static enum bp_result get_ss_info_from_internal_ss_info_tbl_V2_1(
  *
  * @bp:      pointer to the BIOS parser
  * @id:      spread sprectrum info index
- * @ssinfo:  sprectrum information structure,
- * return::  BIOS parser result code
+ * @ss_info: sprectrum information structure,
+ * return:   BIOS parser result code
  */
 static enum bp_result get_ss_info_from_tbl(
 	struct bios_parser *bp,
