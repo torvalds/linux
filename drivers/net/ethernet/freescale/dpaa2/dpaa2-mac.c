@@ -302,36 +302,20 @@ static void dpaa2_pcs_destroy(struct dpaa2_mac *mac)
 
 int dpaa2_mac_connect(struct dpaa2_mac *mac)
 {
-	struct fsl_mc_device *dpmac_dev = mac->mc_dev;
 	struct net_device *net_dev = mac->net_dev;
 	struct device_node *dpmac_node;
 	struct phylink *phylink;
-	struct dpmac_attr attr;
 	int err;
 
-	err = dpmac_open(mac->mc_io, 0, dpmac_dev->obj_desc.id,
-			 &dpmac_dev->mc_handle);
-	if (err || !dpmac_dev->mc_handle) {
-		netdev_err(net_dev, "dpmac_open() = %d\n", err);
+	mac->if_link_type = mac->attr.link_type;
+
+	dpmac_node = dpaa2_mac_get_node(mac->attr.id);
+	if (!dpmac_node) {
+		netdev_err(net_dev, "No dpmac@%d node found.\n", mac->attr.id);
 		return -ENODEV;
 	}
 
-	err = dpmac_get_attributes(mac->mc_io, 0, dpmac_dev->mc_handle, &attr);
-	if (err) {
-		netdev_err(net_dev, "dpmac_get_attributes() = %d\n", err);
-		goto err_close_dpmac;
-	}
-
-	mac->if_link_type = attr.link_type;
-
-	dpmac_node = dpaa2_mac_get_node(attr.id);
-	if (!dpmac_node) {
-		netdev_err(net_dev, "No dpmac@%d node found.\n", attr.id);
-		err = -ENODEV;
-		goto err_close_dpmac;
-	}
-
-	err = dpaa2_mac_get_if_mode(dpmac_node, attr);
+	err = dpaa2_mac_get_if_mode(dpmac_node, mac->attr);
 	if (err < 0) {
 		err = -EINVAL;
 		goto err_put_node;
@@ -351,9 +335,9 @@ int dpaa2_mac_connect(struct dpaa2_mac *mac)
 		goto err_put_node;
 	}
 
-	if (attr.link_type == DPMAC_LINK_TYPE_PHY &&
-	    attr.eth_if != DPMAC_ETH_IF_RGMII) {
-		err = dpaa2_pcs_create(mac, dpmac_node, attr.id);
+	if (mac->attr.link_type == DPMAC_LINK_TYPE_PHY &&
+	    mac->attr.eth_if != DPMAC_ETH_IF_RGMII) {
+		err = dpaa2_pcs_create(mac, dpmac_node, mac->attr.id);
 		if (err)
 			goto err_put_node;
 	}
@@ -389,8 +373,7 @@ err_pcs_destroy:
 	dpaa2_pcs_destroy(mac);
 err_put_node:
 	of_node_put(dpmac_node);
-err_close_dpmac:
-	dpmac_close(mac->mc_io, 0, dpmac_dev->mc_handle);
+
 	return err;
 }
 
@@ -402,8 +385,40 @@ void dpaa2_mac_disconnect(struct dpaa2_mac *mac)
 	phylink_disconnect_phy(mac->phylink);
 	phylink_destroy(mac->phylink);
 	dpaa2_pcs_destroy(mac);
+}
 
-	dpmac_close(mac->mc_io, 0, mac->mc_dev->mc_handle);
+int dpaa2_mac_open(struct dpaa2_mac *mac)
+{
+	struct fsl_mc_device *dpmac_dev = mac->mc_dev;
+	struct net_device *net_dev = mac->net_dev;
+	int err;
+
+	err = dpmac_open(mac->mc_io, 0, dpmac_dev->obj_desc.id,
+			 &dpmac_dev->mc_handle);
+	if (err || !dpmac_dev->mc_handle) {
+		netdev_err(net_dev, "dpmac_open() = %d\n", err);
+		return -ENODEV;
+	}
+
+	err = dpmac_get_attributes(mac->mc_io, 0, dpmac_dev->mc_handle,
+				   &mac->attr);
+	if (err) {
+		netdev_err(net_dev, "dpmac_get_attributes() = %d\n", err);
+		goto err_close_dpmac;
+	}
+
+	return 0;
+
+err_close_dpmac:
+	dpmac_close(mac->mc_io, 0, dpmac_dev->mc_handle);
+	return err;
+}
+
+void dpaa2_mac_close(struct dpaa2_mac *mac)
+{
+	struct fsl_mc_device *dpmac_dev = mac->mc_dev;
+
+	dpmac_close(mac->mc_io, 0, dpmac_dev->mc_handle);
 }
 
 static char dpaa2_mac_ethtool_stats[][ETH_GSTRING_LEN] = {

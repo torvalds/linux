@@ -4056,15 +4056,24 @@ static int dpaa2_eth_connect_mac(struct dpaa2_eth_priv *priv)
 	mac->mc_io = priv->mc_io;
 	mac->net_dev = priv->net_dev;
 
+	err = dpaa2_mac_open(mac);
+	if (err)
+		goto err_free_mac;
+
 	err = dpaa2_mac_connect(mac);
 	if (err) {
 		netdev_err(priv->net_dev, "Error connecting to the MAC endpoint\n");
-		kfree(mac);
-		return err;
+		goto err_close_mac;
 	}
 	priv->mac = mac;
 
 	return 0;
+
+err_close_mac:
+	dpaa2_mac_close(mac);
+err_free_mac:
+	kfree(mac);
+	return err;
 }
 
 static void dpaa2_eth_disconnect_mac(struct dpaa2_eth_priv *priv)
@@ -4073,6 +4082,7 @@ static void dpaa2_eth_disconnect_mac(struct dpaa2_eth_priv *priv)
 		return;
 
 	dpaa2_mac_disconnect(priv->mac);
+	dpaa2_mac_close(priv->mac);
 	kfree(priv->mac);
 	priv->mac = NULL;
 }
