@@ -42,6 +42,7 @@ struct audioformat {
 };
 
 struct snd_usb_substream;
+struct snd_usb_iface_ref;
 struct snd_usb_endpoint;
 struct snd_usb_power_domain;
 
@@ -58,6 +59,7 @@ struct snd_urb_ctx {
 
 struct snd_usb_endpoint {
 	struct snd_usb_audio *chip;
+	struct snd_usb_iface_ref *iface_ref;
 
 	int opened;		/* open refcount; protect with chip->mutex */
 	atomic_t running;	/* running status */
