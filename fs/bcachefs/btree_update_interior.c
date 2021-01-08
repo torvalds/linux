@@ -1227,6 +1227,9 @@ static void btree_split_insert_keys(struct btree_update *as, struct btree *b,
 		src = n;
 	}
 
+	/* Also clear out the unwritten whiteouts area: */
+	b->whiteout_u64s = 0;
+
 	i->u64s = cpu_to_le16((u64 *) dst - i->_data);
 	set_btree_bset_end(b, b->set);
 
