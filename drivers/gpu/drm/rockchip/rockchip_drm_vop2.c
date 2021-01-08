@@ -2026,7 +2026,7 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
-	int sys_status = SYS_STATUS_LCDC0;
+	int sys_status = vp->id ? SYS_STATUS_LCDC1 : SYS_STATUS_LCDC0;
 
 	WARN_ON(vp->event);
 
@@ -2785,7 +2785,7 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
-	int sys_status = SYS_STATUS_LCDC0;
+	int sys_status = vp->id ? SYS_STATUS_LCDC1 : SYS_STATUS_LCDC0;
 
 	if (on == vop2->loader_protect)
 		return 0;
@@ -3369,7 +3369,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	u16 vact_st = adjusted_mode->crtc_vtotal - adjusted_mode->crtc_vsync_start;
 	u16 vact_end = vact_st + vdisplay;
 	bool interlaced = !!(adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE);
-	int sys_status = SYS_STATUS_LCDC0;
+	int sys_status = vp->id ? SYS_STATUS_LCDC1 : SYS_STATUS_LCDC0;
 	uint8_t out_mode;
 	int for_ddr_freq = 0;
 	bool dclk_inv, yc_swap = false;
