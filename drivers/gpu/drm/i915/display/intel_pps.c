@@ -694,7 +694,7 @@ void intel_pps_vdd_off_sync(struct intel_dp *intel_dp)
 		intel_pps_vdd_off_sync_unlocked(intel_dp);
 }
 
-void edp_panel_vdd_work(struct work_struct *__work)
+static void edp_panel_vdd_work(struct work_struct *__work)
 {
 	struct intel_dp *intel_dp =
 		container_of(to_delayed_work(__work),
@@ -1078,7 +1078,7 @@ bool intel_pps_have_power(struct intel_dp *intel_dp)
 	return have_power;
 }
 
-void intel_dp_init_panel_power_timestamps(struct intel_dp *intel_dp)
+static void intel_dp_init_panel_power_timestamps(struct intel_dp *intel_dp)
 {
 	intel_dp->panel_power_off_time = ktime_get_boottime();
 	intel_dp->last_power_on = jiffies;
@@ -1346,5 +1346,18 @@ void intel_dp_pps_init(struct intel_dp *intel_dp)
 	} else {
 		intel_dp_init_panel_power_sequencer(intel_dp);
 		intel_dp_init_panel_power_sequencer_registers(intel_dp, false);
+	}
+}
+
+void intel_pps_init(struct intel_dp *intel_dp)
+{
+	intel_wakeref_t wakeref;
+
+	INIT_DELAYED_WORK(&intel_dp->panel_vdd_work, edp_panel_vdd_work);
+
+	with_intel_pps_lock(intel_dp, wakeref) {
+		intel_dp_init_panel_power_timestamps(intel_dp);
+		intel_dp_pps_init(intel_dp);
+		intel_pps_vdd_sanitize(intel_dp);
 	}
 }

@@ -7077,13 +7077,10 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	struct drm_display_mode *downclock_mode = NULL;
 	bool has_dpcd;
 	enum pipe pipe = INVALID_PIPE;
-	intel_wakeref_t wakeref;
 	struct edid *edid;
 
 	if (!intel_dp_is_edp(intel_dp))
 		return true;
-
-	INIT_DELAYED_WORK(&intel_dp->panel_vdd_work, edp_panel_vdd_work);
 
 	/*
 	 * On IBX/CPT we may get here with LVDS already registered. Since the
@@ -7100,11 +7097,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 		return false;
 	}
 
-	with_intel_pps_lock(intel_dp, wakeref) {
-		intel_dp_init_panel_power_timestamps(intel_dp);
-		intel_dp_pps_init(intel_dp);
-		intel_pps_vdd_sanitize(intel_dp);
-	}
+	intel_pps_init(intel_dp);
 
 	/* Cache DPCD and EDID for edp. */
 	has_dpcd = intel_edp_init_dpcd(intel_dp);
