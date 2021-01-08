@@ -1040,7 +1040,7 @@ void vlv_init_panel_power_sequencer(struct intel_encoder *encoder,
 	intel_dp_init_panel_power_sequencer_registers(intel_dp, true);
 }
 
-void intel_pps_vdd_sanitize(struct intel_dp *intel_dp)
+static void intel_pps_vdd_sanitize(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
@@ -1337,7 +1337,7 @@ intel_dp_init_panel_power_sequencer_registers(struct intel_dp *intel_dp,
 		    (intel_de_read(dev_priv, regs.pp_ctrl) & BXT_POWER_CYCLE_DELAY_MASK));
 }
 
-void intel_dp_pps_init(struct intel_dp *intel_dp)
+static void intel_dp_pps_init(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
@@ -1346,6 +1346,23 @@ void intel_dp_pps_init(struct intel_dp *intel_dp)
 	} else {
 		intel_dp_init_panel_power_sequencer(intel_dp);
 		intel_dp_init_panel_power_sequencer_registers(intel_dp, false);
+	}
+}
+
+void intel_pps_encoder_reset(struct intel_dp *intel_dp)
+{
+	intel_wakeref_t wakeref;
+
+	if (!intel_dp_is_edp(intel_dp))
+		return;
+
+	with_intel_pps_lock(intel_dp, wakeref) {
+		/*
+		 * Reinit the power sequencer, in case BIOS did something nasty
+		 * with it.
+		 */
+		intel_dp_pps_init(intel_dp);
+		intel_pps_vdd_sanitize(intel_dp);
 	}
 }
 

@@ -6350,30 +6350,20 @@ void intel_dp_encoder_reset(struct drm_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(to_intel_encoder(encoder));
-	intel_wakeref_t wakeref;
 
 	if (!HAS_DDI(dev_priv))
 		intel_dp->DP = intel_de_read(dev_priv, intel_dp->output_reg);
 
 	intel_dp->reset_link_params = true;
 
-	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv) &&
-	    !intel_dp_is_edp(intel_dp))
-		return;
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+		intel_wakeref_t wakeref;
 
-	with_intel_pps_lock(intel_dp, wakeref) {
-		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		with_intel_pps_lock(intel_dp, wakeref)
 			intel_dp->active_pipe = vlv_active_pipe(intel_dp);
-
-		if (intel_dp_is_edp(intel_dp)) {
-			/*
-			 * Reinit the power sequencer, in case BIOS did
-			 * something nasty with it.
-			 */
-			intel_dp_pps_init(intel_dp);
-			intel_pps_vdd_sanitize(intel_dp);
-		}
 	}
+
+	intel_pps_encoder_reset(intel_dp);
 }
 
 static int intel_modeset_tile_group(struct intel_atomic_state *state,
