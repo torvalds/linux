@@ -3626,7 +3626,7 @@ static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	 */
 
 	/* 2. Enable Panel Power if PPS is required */
-	intel_edp_panel_on(intel_dp);
+	intel_pps_on(intel_dp);
 
 	/*
 	 * 3. For non-TBT Type-C ports, set FIA lane count
@@ -3769,7 +3769,7 @@ static void hsw_ddi_pre_enable_dp(struct intel_atomic_state *state,
 				 crtc_state->port_clock,
 				 crtc_state->lane_count);
 
-	intel_edp_panel_on(intel_dp);
+	intel_pps_on(intel_dp);
 
 	intel_ddi_clk_select(encoder, crtc_state);
 
@@ -4011,8 +4011,8 @@ static void intel_ddi_post_disable_dp(struct intel_atomic_state *state,
 	if (INTEL_GEN(dev_priv) >= 12)
 		intel_ddi_disable_pipe_clock(old_crtc_state);
 
-	intel_edp_panel_vdd_on(intel_dp);
-	intel_edp_panel_off(intel_dp);
+	intel_pps_vdd_on(intel_dp);
+	intel_pps_off(intel_dp);
 
 	if (!intel_phy_is_tc(dev_priv, phy) ||
 	    dig_port->tc_mode != TC_PORT_TBT_ALT)

@@ -34,12 +34,11 @@ void edp_panel_on(struct intel_dp *intel_dp);
 void edp_panel_off(struct intel_dp *intel_dp);
 void edp_panel_vdd_work(struct work_struct *__work);
 
-void intel_edp_panel_vdd_on(struct intel_dp *intel_dp);
-void intel_edp_panel_on(struct intel_dp *intel_dp);
-void intel_edp_panel_off(struct intel_dp *intel_dp);
-bool intel_edp_have_power(struct intel_dp *intel_dp);
-
-void intel_edp_panel_vdd_sanitize(struct intel_dp *intel_dp);
+void intel_pps_vdd_sanitize(struct intel_dp *intel_dp);
+void intel_pps_vdd_on(struct intel_dp *intel_dp);
+void intel_pps_on(struct intel_dp *intel_dp);
+void intel_pps_off(struct intel_dp *intel_dp);
+bool intel_pps_have_power(struct intel_dp *intel_dp);
 
 void wait_panel_power_cycle(struct intel_dp *intel_dp);
 

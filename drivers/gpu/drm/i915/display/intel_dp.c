@@ -3058,10 +3058,10 @@ static void intel_disable_dp(struct intel_atomic_state *state,
 
 	/* Make sure the panel is off before trying to change the mode. But also
 	 * ensure that we have vdd while we switch off the panel. */
-	intel_edp_panel_vdd_on(intel_dp);
+	intel_pps_vdd_on(intel_dp);
 	intel_edp_backlight_off(old_conn_state);
 	intel_dp_set_power(intel_dp, DP_SET_POWER_D3);
-	intel_edp_panel_off(intel_dp);
+	intel_pps_off(intel_dp);
 	intel_dp->frl.is_trained = false;
 	intel_dp->frl.trained_rate_gbps = 0;
 }
@@ -6390,7 +6390,7 @@ void intel_dp_encoder_reset(struct drm_encoder *encoder)
 			 * something nasty with it.
 			 */
 			intel_dp_pps_init(intel_dp);
-			intel_edp_panel_vdd_sanitize(intel_dp);
+			intel_pps_vdd_sanitize(intel_dp);
 		}
 	}
 }
@@ -6564,7 +6564,7 @@ intel_dp_hpd_pulse(struct intel_digital_port *dig_port, bool long_hpd)
 	struct intel_dp *intel_dp = &dig_port->dp;
 
 	if (dig_port->base.type == INTEL_OUTPUT_EDP &&
-	    (long_hpd || !intel_edp_have_power(intel_dp))) {
+	    (long_hpd || !intel_pps_have_power(intel_dp))) {
 		/*
 		 * vdd off can generate a long/short pulse on eDP which
 		 * would require vdd on to handle it, and thus we
@@ -7122,7 +7122,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	with_intel_pps_lock(intel_dp, wakeref) {
 		intel_dp_init_panel_power_timestamps(intel_dp);
 		intel_dp_pps_init(intel_dp);
-		intel_edp_panel_vdd_sanitize(intel_dp);
+		intel_pps_vdd_sanitize(intel_dp);
 	}
 
 	/* Cache DPCD and EDID for edp. */

@@ -558,7 +558,7 @@ static  u32 ilk_get_pp_control(struct intel_dp *intel_dp)
 /*
  * Must be paired with edp_panel_vdd_off().
  * Must hold pps_mutex around the whole on/off sequence.
- * Can be nested with intel_edp_panel_vdd_{on,off}() calls.
+ * Can be nested with intel_pps_vdd_{on,off}() calls.
  */
 bool edp_panel_vdd_on(struct intel_dp *intel_dp)
 {
@@ -616,13 +616,12 @@ bool edp_panel_vdd_on(struct intel_dp *intel_dp)
 }
 
 /*
- * Must be paired with intel_edp_panel_vdd_off() or
- * intel_edp_panel_off().
+ * Must be paired with intel_pps_off().
  * Nested calls to these functions are not allowed since
  * we drop the lock. Caller must use some higher level
  * locking to prevent nested calls from other threads.
  */
-void intel_edp_panel_vdd_on(struct intel_dp *intel_dp)
+void intel_pps_vdd_on(struct intel_dp *intel_dp)
 {
 	intel_wakeref_t wakeref;
 	bool vdd;
@@ -708,7 +707,7 @@ static void edp_panel_vdd_schedule_off(struct intel_dp *intel_dp)
 /*
  * Must be paired with edp_panel_vdd_on().
  * Must hold pps_mutex around the whole on/off sequence.
- * Can be nested with intel_edp_panel_vdd_{on,off}() calls.
+ * Can be nested with intel_pps_vdd_{on,off}() calls.
  */
 void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 {
@@ -780,7 +779,7 @@ void edp_panel_on(struct intel_dp *intel_dp)
 	}
 }
 
-void intel_edp_panel_on(struct intel_dp *intel_dp)
+void intel_pps_on(struct intel_dp *intel_dp)
 {
 	intel_wakeref_t wakeref;
 
@@ -832,7 +831,7 @@ void edp_panel_off(struct intel_dp *intel_dp)
 				fetch_and_zero(&intel_dp->vdd_wakeref));
 }
 
-void intel_edp_panel_off(struct intel_dp *intel_dp)
+void intel_pps_off(struct intel_dp *intel_dp)
 {
 	intel_wakeref_t wakeref;
 
@@ -1025,7 +1024,7 @@ void vlv_init_panel_power_sequencer(struct intel_encoder *encoder,
 	intel_dp_init_panel_power_sequencer_registers(intel_dp, true);
 }
 
-void intel_edp_panel_vdd_sanitize(struct intel_dp *intel_dp)
+void intel_pps_vdd_sanitize(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
@@ -1050,7 +1049,7 @@ void intel_edp_panel_vdd_sanitize(struct intel_dp *intel_dp)
 	edp_panel_vdd_schedule_off(intel_dp);
 }
 
-bool intel_edp_have_power(struct intel_dp *intel_dp)
+bool intel_pps_have_power(struct intel_dp *intel_dp)
 {
 	intel_wakeref_t wakeref;
 	bool have_power = false;
