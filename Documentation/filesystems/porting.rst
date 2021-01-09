@@ -872,3 +872,12 @@ its result is kern_unmount() or kern_unmount_array().
 
 zero-length bvec segments are disallowed, they must be filtered out before
 passed on to an iterator.
+
+---
+
+**mandatory**
+
+For bvec based itererators bio_iov_iter_get_pages() now doesn't copy bvecs but
+uses the one provided. Anyone issuing kiocb-I/O should ensure that the bvec and
+page references stay until I/O has completed, i.e. until ->ki_complete() has
+been called or returned with non -EIOCBQUEUED code.

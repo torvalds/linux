@@ -942,21 +942,17 @@ void bio_release_pages(struct bio *bio, bool mark_dirty)
 }
 EXPORT_SYMBOL_GPL(bio_release_pages);
 
-static int __bio_iov_bvec_add_pages(struct bio *bio, struct iov_iter *iter)
+static int bio_iov_bvec_set(struct bio *bio, struct iov_iter *iter)
 {
-	const struct bio_vec *bv = iter->bvec;
-	unsigned int len;
-	size_t size;
+	WARN_ON_ONCE(BVEC_POOL_IDX(bio) != 0);
 
-	if (WARN_ON_ONCE(iter->iov_offset > bv->bv_len))
-		return -EINVAL;
+	bio->bi_vcnt = iter->nr_segs;
+	bio->bi_max_vecs = iter->nr_segs;
+	bio->bi_io_vec = (struct bio_vec *)iter->bvec;
+	bio->bi_iter.bi_bvec_done = iter->iov_offset;
+	bio->bi_iter.bi_size = iter->count;
 
-	len = min_t(size_t, bv->bv_len - iter->iov_offset, iter->count);
-	size = bio_add_page(bio, bv->bv_page, len,
-				bv->bv_offset + iter->iov_offset);
-	if (unlikely(size != len))
-		return -EINVAL;
-	iov_iter_advance(iter, size);
+	iov_iter_advance(iter, iter->count);
 	return 0;
 }
 
@@ -1070,12 +1066,12 @@ static int __bio_iov_append_get_pages(struct bio *bio, struct iov_iter *iter)
  * This takes either an iterator pointing to user memory, or one pointing to
  * kernel pages (BVEC iterator). If we're adding user pages, we pin them and
  * map them into the kernel. On IO completion, the caller should put those
- * pages. If we're adding kernel pages, and the caller told us it's safe to
- * do so, we just have to add the pages to the bio directly. We don't grab an
- * extra reference to those pages (the user should already have that), and we
- * don't put the page on IO completion. The caller needs to check if the bio is
- * flagged BIO_NO_PAGE_REF on IO completion. If it isn't, then pages should be
- * released.
+ * pages. For bvec based iterators bio_iov_iter_get_pages() uses the provided
+ * bvecs rather than copying them. Hence anyone issuing kiocb based IO needs
+ * to ensure the bvecs and pages stay referenced until the submitted I/O is
+ * completed by a call to ->ki_complete() or returns with an error other than
+ * -EIOCBQUEUED. The caller needs to check if the bio is flagged BIO_NO_PAGE_REF
+ * on IO completion. If it isn't, then pages should be released.
  *
  * The function tries, but does not guarantee, to pin as many pages as
  * fit into the bio, or are requested in @iter, whatever is smaller. If
@@ -1087,27 +1083,22 @@ static int __bio_iov_append_get_pages(struct bio *bio, struct iov_iter *iter)
  */
 int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 {
-	const bool is_bvec = iov_iter_is_bvec(iter);
-	int ret;
+	int ret = 0;
 
-	if (WARN_ON_ONCE(bio->bi_vcnt))
-		return -EINVAL;
-
-	do {
-		if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
-			if (WARN_ON_ONCE(is_bvec))
-				return -EINVAL;
-			ret = __bio_iov_append_get_pages(bio, iter);
-		} else {
-			if (is_bvec)
-				ret = __bio_iov_bvec_add_pages(bio, iter);
+	if (iov_iter_is_bvec(iter)) {
+		if (WARN_ON_ONCE(bio_op(bio) == REQ_OP_ZONE_APPEND))
+			return -EINVAL;
+		bio_iov_bvec_set(bio, iter);
+		bio_set_flag(bio, BIO_NO_PAGE_REF);
+		return 0;
+	} else {
+		do {
+			if (bio_op(bio) == REQ_OP_ZONE_APPEND)
+				ret = __bio_iov_append_get_pages(bio, iter);
 			else
 				ret = __bio_iov_iter_get_pages(bio, iter);
-		}
-	} while (!ret && iov_iter_count(iter) && !bio_full(bio, 0));
-
-	if (is_bvec)
-		bio_set_flag(bio, BIO_NO_PAGE_REF);
+		} while (!ret && iov_iter_count(iter) && !bio_full(bio, 0));
+	}
 
 	/* don't account direct I/O as memory stall */
 	bio_clear_flag(bio, BIO_WORKINGSET);
