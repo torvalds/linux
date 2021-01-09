@@ -1034,6 +1034,7 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb)
 
 	if (mp_opt.mp_prio) {
 		mptcp_pm_mp_prio_received(sk, mp_opt.backup);
+		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_MPPRIORX);
 		mp_opt.mp_prio = 0;
 	}
 
