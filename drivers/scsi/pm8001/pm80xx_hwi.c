@@ -349,10 +349,15 @@ moreData:
 				sprintf(
 				pm8001_ha->forensic_info.data_buf.direct_data,
 				"%08x ", 0xFFFFFFFF);
-				pm8001_cw32(pm8001_ha, 0,
+				return((char *)pm8001_ha->forensic_info.data_buf.direct_data -
+						(char *)buf);
+			}
+	/* reset fatal_forensic_shift_offset back to zero and reset MEMBASE 2 register to zero */
+			pm8001_ha->fatal_forensic_shift_offset = 0; /* location in 64k region */
+			pm8001_cw32(pm8001_ha, 0,
 					MEMBASE_II_SHIFT_REGISTER,
 					pm8001_ha->fatal_forensic_shift_offset);
-			}
+		}
 			/* Read the next block of the debug data.*/
 			length_to_read = pm8001_mr32(fatal_table_address,
 			MPI_FATAL_EDUMP_TABLE_ACCUM_LEN) -
@@ -373,13 +378,12 @@ moreData:
 								= 0;
 				pm8001_ha->forensic_info.data_buf.read_len = 0;
 			}
-		}
 	}
 	offset = (int)((char *)pm8001_ha->forensic_info.data_buf.direct_data
 			- (char *)buf);
 	pm8001_dbg(pm8001_ha, IO, "get_fatal_spcv: return4 0x%x\n", offset);
-	return (char *)pm8001_ha->forensic_info.data_buf.direct_data -
-		(char *)buf;
+	return ((char *)pm8001_ha->forensic_info.data_buf.direct_data -
+		(char *)buf);
 }
 
 /* pm80xx_get_non_fatal_dump - dump the nonfatal data from the dma
