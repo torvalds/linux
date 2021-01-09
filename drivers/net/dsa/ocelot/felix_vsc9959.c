@@ -1408,17 +1408,6 @@ static int felix_pci_probe(struct pci_dev *pdev,
 		goto err_pci_enable;
 	}
 
-	/* set up for high or low dma */
-	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
-	if (err) {
-		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-		if (err) {
-			dev_err(&pdev->dev,
-				"DMA configuration failed: 0x%x\n", err);
-			goto err_dma;
-		}
-	}
-
 	felix = kzalloc(sizeof(struct felix), GFP_KERNEL);
 	if (!felix) {
 		err = -ENOMEM;
@@ -1474,9 +1463,8 @@ err_register_ds:
 	kfree(ds);
 err_alloc_ds:
 err_alloc_irq:
-err_alloc_felix:
 	kfree(felix);
-err_dma:
+err_alloc_felix:
 	pci_disable_device(pdev);
 err_pci_enable:
 	return err;
