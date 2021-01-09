@@ -11,7 +11,7 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 
-#define MS_SENSORS_TP_PROM_WORDS_NB		7
+#define MS_SENSORS_TP_PROM_WORDS_NB		8
 
 /**
  * struct ms_ht_dev - Humidity/Temperature sensor device structure
@@ -47,7 +47,7 @@ struct ms_tp_dev {
 	struct i2c_client *client;
 	struct mutex lock;
 	const struct ms_tp_hw_data *hw;
-	u16 prom[MS_SENSORS_TP_PROM_WORDS_NB + 1];
+	u16 prom[MS_SENSORS_TP_PROM_WORDS_NB];
 	u8 res_index;
 };
 

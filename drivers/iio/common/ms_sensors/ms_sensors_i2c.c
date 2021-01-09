@@ -493,19 +493,18 @@ EXPORT_SYMBOL(ms_sensors_ht_read_humidity);
  *     This function is only used when reading PROM coefficients
  *
  * @prom:	pointer to PROM coefficients array
- * @len:	length of PROM coefficients array
  *
  * Return: True if CRC is ok.
  */
-static bool ms_sensors_tp_crc_valid(u16 *prom, u8 len)
+static bool ms_sensors_tp_crc_valid(u16 *prom)
 {
 	unsigned int cnt, n_bit;
 	u16 n_rem = 0x0000, crc_read = prom[0], crc = (*prom & 0xF000) >> 12;
 
-	prom[len - 1] = 0;
+	prom[MS_SENSORS_TP_PROM_WORDS_NB - 1] = 0;
 	prom[0] &= 0x0FFF;      /* Clear the CRC computation part */
 
-	for (cnt = 0; cnt < len * 2; cnt++) {
+	for (cnt = 0; cnt < MS_SENSORS_TP_PROM_WORDS_NB * 2; cnt++) {
 		if (cnt % 2 == 1)
 			n_rem ^= prom[cnt >> 1] & 0x00FF;
 		else
@@ -537,7 +536,7 @@ int ms_sensors_tp_read_prom(struct ms_tp_dev *dev_data)
 {
 	int i, ret;
 
-	for (i = 0; i < MS_SENSORS_TP_PROM_WORDS_NB; i++) {
+	for (i = 0; i < dev_data->hw->prom_len; i++) {
 		ret = ms_sensors_read_prom_word(
 			dev_data->client,
 			MS_SENSORS_TP_PROM_READ + (i << 1),
@@ -547,8 +546,7 @@ int ms_sensors_tp_read_prom(struct ms_tp_dev *dev_data)
 			return ret;
 	}
 
-	if (!ms_sensors_tp_crc_valid(dev_data->prom,
-				     MS_SENSORS_TP_PROM_WORDS_NB + 1)) {
+	if (!ms_sensors_tp_crc_valid(dev_data->prom)) {
 		dev_err(&dev_data->client->dev,
 			"Calibration coefficients crc check error\n");
 		return -ENODEV;
