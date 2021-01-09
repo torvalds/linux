@@ -14,11 +14,6 @@
 #include "intel_ring.h"
 #include "shmem_utils.h"
 
-static inline unsigned int dword_in_page(void *addr)
-{
-	return offset_in_page(addr) / sizeof(u32);
-}
-
 static void set_offsets(u32 *regs,
 			const u8 *data,
 			const struct intel_engine_cs *engine,
