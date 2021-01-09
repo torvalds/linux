@@ -1526,6 +1526,41 @@ static int mpi_uninit_check(struct pm8001_hba_info *pm8001_ha)
 }
 
 /**
+ * pm80xx_fatal_errors - returns non zero *ONLY* when fatal errors
+ * @pm8001_ha: our hba card information
+ *
+ * Fatal errors are recoverable only after a host reboot.
+ */
+int
+pm80xx_fatal_errors(struct pm8001_hba_info *pm8001_ha)
+{
+	int ret = 0;
+	u32 scratch_pad_rsvd0 = pm8001_cr32(pm8001_ha, 0,
+					MSGU_HOST_SCRATCH_PAD_6);
+	u32 scratch_pad_rsvd1 = pm8001_cr32(pm8001_ha, 0,
+					MSGU_HOST_SCRATCH_PAD_7);
+	u32 scratch_pad1 = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_1);
+	u32 scratch_pad2 = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_2);
+	u32 scratch_pad3 = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_3);
+
+	if (pm8001_ha->chip_id != chip_8006 &&
+			pm8001_ha->chip_id != chip_8074 &&
+			pm8001_ha->chip_id != chip_8076) {
+		return 0;
+	}
+
+	if (MSGU_SCRATCHPAD1_STATE_FATAL_ERROR(scratch_pad1)) {
+		pm8001_dbg(pm8001_ha, FAIL,
+			"Fatal error SCRATCHPAD1 = 0x%x SCRATCHPAD2 = 0x%x SCRATCHPAD3 = 0x%x SCRATCHPAD_RSVD0 = 0x%x SCRATCHPAD_RSVD1 = 0x%x\n",
+				scratch_pad1, scratch_pad2, scratch_pad3,
+				scratch_pad_rsvd0, scratch_pad_rsvd1);
+		ret = 1;
+	}
+
+	return ret;
+}
+
+/**
  * pm8001_chip_soft_rst - soft reset the PM8001 chip, so that the clear all
  * the FW register status to the originated status.
  * @pm8001_ha: our hba card information
@@ -4959,4 +4994,5 @@ const struct pm8001_dispatch pm8001_80xx_dispatch = {
 	.set_nvmd_req		= pm8001_chip_set_nvmd_req,
 	.fw_flash_update_req	= pm8001_chip_fw_flash_update_req,
 	.set_dev_state_req	= pm8001_chip_set_dev_state_req,
+	.fatal_errors		= pm80xx_fatal_errors,
 };

@@ -1183,12 +1183,21 @@ int pm8001_abort_task(struct sas_task *task)
 	int rc = TMF_RESP_FUNC_FAILED, ret;
 	u32 phy_id;
 	struct sas_task_slow slow_task;
+
 	if (unlikely(!task || !task->lldd_task || !task->dev))
 		return TMF_RESP_FUNC_FAILED;
+
 	dev = task->dev;
 	pm8001_dev = dev->lldd_dev;
 	pm8001_ha = pm8001_find_ha_by_dev(dev);
 	phy_id = pm8001_dev->attached_phy;
+
+	if (PM8001_CHIP_DISP->fatal_errors(pm8001_ha)) {
+		// If the controller is seeing fatal errors
+		// abort task will not get a response from the controller
+		return TMF_RESP_FUNC_FAILED;
+	}
+
 	ret = pm8001_find_tag(task, &tag);
 	if (ret == 0) {
 		pm8001_info(pm8001_ha, "no tag for task:%p\n", task);
