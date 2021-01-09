@@ -997,7 +997,7 @@ static int mpi_init_check(struct pm8001_hba_info *pm8001_ha)
 		max_wait_count = SPC_DOORBELL_CLEAR_TIMEOUT;
 	}
 	do {
-		udelay(1);
+		msleep(FW_READY_INTERVAL);
 		value = pm8001_cr32(pm8001_ha, 0, MSGU_IBDB_SET);
 		value &= SPCv_MSGU_CFG_TABLE_UPDATE;
 	} while ((value != 0) && (--max_wait_count));
@@ -1010,9 +1010,9 @@ static int mpi_init_check(struct pm8001_hba_info *pm8001_ha)
 		return -EBUSY;
 	}
 	/* check the MPI-State for initialization upto 100ms*/
-	max_wait_count = 100 * 1000;/* 100 msec */
+	max_wait_count = 5;/* 100 msec */
 	do {
-		udelay(1);
+		msleep(FW_READY_INTERVAL);
 		gst_len_mpistate =
 			pm8001_mr32(pm8001_ha->general_stat_tbl_addr,
 					GST_GSTLEN_MPIS_OFFSET);
