@@ -2437,10 +2437,11 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		return;
 	}
 
-	if (unlikely(status))
-		pm8001_dbg(pm8001_ha, IOERR,
-			   "status:0x%x, tag:0x%x, task::0x%p\n",
-			   status, tag, t);
+	if (status != IO_SUCCESS) {
+		pm8001_dbg(pm8001_ha, FAIL,
+			"IO failed device_id %u status 0x%x tag %d\n",
+			pm8001_dev->device_id, status, tag);
+	}
 
 	/* Print sas address of IO failed device */
 	if ((status != IO_SUCCESS) && (status != IO_OVERFLOW) &&
@@ -2762,7 +2763,9 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			atomic_dec(&pm8001_dev->running_req);
 		break;
 	default:
-		pm8001_dbg(pm8001_ha, DEVIO, "Unknown status 0x%x\n", status);
+		pm8001_dbg(pm8001_ha, DEVIO,
+				"Unknown status device_id %u status 0x%x tag %d\n",
+			pm8001_dev->device_id, status, tag);
 		/* not allowed case. Therefore, return failed status */
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_DEV_NO_RESPONSE;
