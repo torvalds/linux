@@ -2034,10 +2034,10 @@ static void ravb_set_delay_mode(struct net_device *ndev)
 	u32 set = 0;
 
 	if (priv->rxcidm)
-		set |= APSR_DM_RDM;
+		set |= APSR_RDM;
 	if (priv->txcidm)
-		set |= APSR_DM_TDM;
-	ravb_modify(ndev, APSR, APSR_DM, set);
+		set |= APSR_TDM;
+	ravb_modify(ndev, APSR, APSR_RDM | APSR_TDM, set);
 }
 
 static int ravb_probe(struct platform_device *pdev)
