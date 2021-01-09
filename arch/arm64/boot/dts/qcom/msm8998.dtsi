@@ -1073,6 +1073,110 @@
 			#gpio-cells = <0x2>;
 			interrupt-controller;
 			#interrupt-cells = <0x2>;
+
+			sdc2_clk_on: sdc2_clk_on {
+				config {
+					pins = "sdc2_clk";
+					bias-disable;
+					drive-strength = <16>;
+				};
+			};
+
+			sdc2_clk_off: sdc2_clk_off {
+				config {
+					pins = "sdc2_clk";
+					bias-disable;
+					drive-strength = <2>;
+				};
+			};
+
+			sdc2_cmd_on: sdc2_cmd_on {
+				config {
+					pins = "sdc2_cmd";
+					bias-pull-up;
+					drive-strength = <10>;
+				};
+			};
+
+			sdc2_cmd_off: sdc2_cmd_off {
+				config {
+					pins = "sdc2_cmd";
+					bias-pull-up;
+					drive-strength = <2>;
+				};
+			};
+
+			sdc2_data_on: sdc2_data_on {
+				config {
+					pins = "sdc2_data";
+					bias-pull-up;
+					drive-strength = <10>;
+				};
+			};
+
+			sdc2_data_off: sdc2_data_off {
+				config {
+					pins = "sdc2_data";
+					bias-pull-up;
+					drive-strength = <2>;
+				};
+			};
+
+			sdc2_cd_on: sdc2_cd_on {
+				mux {
+					pins = "gpio95";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio95";
+					bias-pull-up;
+					drive-strength = <2>;
+				};
+			};
+
+			sdc2_cd_off: sdc2_cd_off {
+				mux {
+					pins = "gpio95";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio95";
+					bias-pull-up;
+					drive-strength = <2>;
+				};
+			};
+
+			blsp1_uart3_on: blsp1_uart3_on {
+				tx {
+					pins = "gpio45";
+					function = "blsp_uart3_a";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				rx {
+					pins = "gpio46";
+					function = "blsp_uart3_a";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				cts {
+					pins = "gpio47";
+					function = "blsp_uart3_a";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				rfr {
+					pins = "gpio48";
+					function = "blsp_uart3_a";
+					drive-strength = <2>;
+					bias-disable;
+				};
+			};
 		};
 
 		remoteproc_mss: remoteproc@4080000 {
@@ -2110,5 +2214,3 @@
 		};
 	};
 };
-
-#include "msm8998-pins.dtsi"
