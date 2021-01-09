@@ -3244,13 +3244,7 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 	if (engine->class == RENDER_CLASS)
 		rcs_submission_override(engine);
 
-	if (lrc_init_wa_ctx(engine))
-		/*
-		 * We continue even if we fail to initialize WA batch
-		 * because we only expect rare glitches but nothing
-		 * critical to prevent us from using GPU
-		 */
-		drm_err(&i915->drm, "WA batch buffer initialization failed\n");
+	lrc_init_wa_ctx(engine);
 
 	if (HAS_LOGICAL_RING_ELSQ(i915)) {
 		execlists->submit_reg = uncore->regs +

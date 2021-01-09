@@ -26,7 +26,7 @@ struct intel_ring;
 #define LRC_PPHWSP_SCRATCH		0x34
 #define LRC_PPHWSP_SCRATCH_ADDR		(LRC_PPHWSP_SCRATCH * sizeof(u32))
 
-int lrc_init_wa_ctx(struct intel_engine_cs *engine);
+void lrc_init_wa_ctx(struct intel_engine_cs *engine);
 void lrc_fini_wa_ctx(struct intel_engine_cs *engine);
 
 int lrc_alloc(struct intel_context *ce,

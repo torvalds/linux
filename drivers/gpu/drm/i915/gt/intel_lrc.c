@@ -1460,7 +1460,7 @@ void lrc_fini_wa_ctx(struct intel_engine_cs *engine)
 
 typedef u32 *(*wa_bb_func_t)(struct intel_engine_cs *engine, u32 *batch);
 
-int lrc_init_wa_ctx(struct intel_engine_cs *engine)
+void lrc_init_wa_ctx(struct intel_engine_cs *engine)
 {
 	struct i915_ctx_workarounds *wa_ctx = &engine->wa_ctx;
 	struct i915_wa_ctx_bb *wa_bb[] = {
@@ -1469,15 +1469,15 @@ int lrc_init_wa_ctx(struct intel_engine_cs *engine)
 	wa_bb_func_t wa_bb_fn[ARRAY_SIZE(wa_bb)];
 	void *batch, *batch_ptr;
 	unsigned int i;
-	int ret;
+	int err;
 
 	if (engine->class != RENDER_CLASS)
-		return 0;
+		return;
 
 	switch (INTEL_GEN(engine->i915)) {
 	case 12:
 	case 11:
-		return 0;
+		return;
 	case 10:
 		wa_bb_fn[0] = gen10_init_indirectctx_bb;
 		wa_bb_fn[1] = NULL;
@@ -1492,14 +1492,20 @@ int lrc_init_wa_ctx(struct intel_engine_cs *engine)
 		break;
 	default:
 		MISSING_CASE(INTEL_GEN(engine->i915));
-		return 0;
+		return;
 	}
 
-	ret = lrc_setup_wa_ctx(engine);
-	if (ret) {
-		drm_dbg(&engine->i915->drm,
-			"Failed to setup context WA page: %d\n", ret);
-		return ret;
+	err = lrc_setup_wa_ctx(engine);
+	if (err) {
+		/*
+		 * We continue even if we fail to initialize WA batch
+		 * because we only expect rare glitches but nothing
+		 * critical to prevent us from using GPU
+		 */
+		drm_err(&engine->i915->drm,
+			"Ignoring context switch w/a allocation error:%d\n",
+			err);
+		return;
 	}
 
 	batch = i915_gem_object_pin_map(wa_ctx->vma->obj, I915_MAP_WB);
@@ -1514,7 +1520,7 @@ int lrc_init_wa_ctx(struct intel_engine_cs *engine)
 		wa_bb[i]->offset = batch_ptr - batch;
 		if (GEM_DEBUG_WARN_ON(!IS_ALIGNED(wa_bb[i]->offset,
 						  CACHELINE_BYTES))) {
-			ret = -EINVAL;
+			err = -EINVAL;
 			break;
 		}
 		if (wa_bb_fn[i])
@@ -1525,10 +1531,10 @@ int lrc_init_wa_ctx(struct intel_engine_cs *engine)
 
 	__i915_gem_object_flush_map(wa_ctx->vma->obj, 0, batch_ptr - batch);
 	__i915_gem_object_release_map(wa_ctx->vma->obj);
-	if (ret)
-		lrc_fini_wa_ctx(engine);
 
-	return ret;
+	/* Verify that we can handle failure to setup the wa_ctx */
+	if (err || i915_inject_probe_error(engine->i915, -ENODEV))
+		lrc_fini_wa_ctx(engine);
 }
 
 static void st_update_runtime_underflow(struct intel_context *ce, s32 dt)
