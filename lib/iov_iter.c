@@ -72,8 +72,6 @@
 	__start.bi_bvec_done = skip;			\
 	__start.bi_idx = 0;				\
 	for_each_bvec(__v, i->bvec, __bi, __start) {	\
-		if (!__v.bv_len)			\
-			continue;			\
 		(void)(STEP);				\
 	}						\
 }

@@ -865,3 +865,10 @@ no matter what.  Everything is handled by the caller.
 
 clone_private_mount() returns a longterm mount now, so the proper destructor of
 its result is kern_unmount() or kern_unmount_array().
+
+---
+
+**mandatory**
+
+zero-length bvec segments are disallowed, they must be filtered out before
+passed on to an iterator.
