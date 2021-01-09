@@ -10077,17 +10077,11 @@ int register_netdevice(struct net_device *dev)
 	ret = call_netdevice_notifiers(NETDEV_REGISTER, dev);
 	ret = notifier_to_errno(ret);
 	if (ret) {
+		/* Expect explicit free_netdev() on failure */
+		dev->needs_free_netdev = false;
 		rollback_registered(dev);
-		rcu_barrier();
-
-		dev->reg_state = NETREG_UNREGISTERED;
-		/* We should put the kobject that hold in
-		 * netdev_unregister_kobject(), otherwise
-		 * the net device cannot be freed when
-		 * driver calls free_netdev(), because the
-		 * kobject is being hold.
-		 */
-		kobject_put(&dev->dev.kobj);
+		net_set_todo(dev);
+		goto out;
 	}
 	/*
 	 *	Prevent userspace races by waiting until the network
@@ -10631,6 +10625,17 @@ void free_netdev(struct net_device *dev)
 	struct napi_struct *p, *n;
 
 	might_sleep();
+
+	/* When called immediately after register_netdevice() failed the unwind
+	 * handling may still be dismantling the device. Handle that case by
+	 * deferring the free.
+	 */
+	if (dev->reg_state == NETREG_UNREGISTERING) {
+		ASSERT_RTNL();
+		dev->needs_free_netdev = true;
+		return;
+	}
+
 	netif_free_tx_queues(dev);
 	netif_free_rx_queues(dev);
 
