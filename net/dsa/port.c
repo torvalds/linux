@@ -310,21 +310,17 @@ int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock)
 	unsigned long ageing_jiffies = clock_t_to_jiffies(ageing_clock);
 	unsigned int ageing_time = jiffies_to_msecs(ageing_jiffies);
 	struct dsa_notifier_ageing_time_info info;
-	struct switchdev_trans trans;
 	int err;
 
 	info.ageing_time = ageing_time;
-	info.trans = &trans;
 
-	trans.ph_prepare = true;
 	err = dsa_port_notify(dp, DSA_NOTIFIER_AGEING_TIME, &info);
 	if (err)
 		return err;
 
 	dp->ageing_time = ageing_time;
 
-	trans.ph_prepare = false;
-	return dsa_port_notify(dp, DSA_NOTIFIER_AGEING_TIME, &info);
+	return 0;
 }
 
 int dsa_port_pre_bridge_flags(const struct dsa_port *dp, unsigned long flags)
