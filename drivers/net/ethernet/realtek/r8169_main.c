@@ -28,6 +28,7 @@
 #include <linux/bitfield.h>
 #include <linux/prefetch.h>
 #include <linux/ipv6.h>
+#include <asm/unaligned.h>
 #include <net/ip6_checksum.h>
 
 #include "r8169.h"
@@ -2104,18 +2105,12 @@ static void rtl8125b_config_eee_mac(struct rtl8169_private *tp)
 	r8168_mac_ocp_modify(tp, 0xe040, 0, BIT(1) | BIT(0));
 }
 
-static void rtl_rar_exgmac_set(struct rtl8169_private *tp, u8 *addr)
+static void rtl_rar_exgmac_set(struct rtl8169_private *tp, const u8 *addr)
 {
-	const u16 w[] = {
-		addr[0] | (addr[1] << 8),
-		addr[2] | (addr[3] << 8),
-		addr[4] | (addr[5] << 8)
-	};
-
-	rtl_eri_write(tp, 0xe0, ERIAR_MASK_1111, w[0] | (w[1] << 16));
-	rtl_eri_write(tp, 0xe4, ERIAR_MASK_1111, w[2]);
-	rtl_eri_write(tp, 0xf0, ERIAR_MASK_1111, w[0] << 16);
-	rtl_eri_write(tp, 0xf4, ERIAR_MASK_1111, w[1] | (w[2] << 16));
+	rtl_eri_write(tp, 0xe0, ERIAR_MASK_1111, get_unaligned_le32(addr));
+	rtl_eri_write(tp, 0xe4, ERIAR_MASK_1111, get_unaligned_le16(addr + 4));
+	rtl_eri_write(tp, 0xf0, ERIAR_MASK_1111, get_unaligned_le16(addr) << 16);
+	rtl_eri_write(tp, 0xf4, ERIAR_MASK_1111, get_unaligned_le32(addr + 2));
 }
 
 u16 rtl8168h_2_get_adc_bias_ioffset(struct rtl8169_private *tp)
@@ -2165,14 +2160,14 @@ static void rtl8169_init_phy(struct rtl8169_private *tp)
 	genphy_soft_reset(tp->phydev);
 }
 
-static void rtl_rar_set(struct rtl8169_private *tp, u8 *addr)
+static void rtl_rar_set(struct rtl8169_private *tp, const u8 *addr)
 {
 	rtl_unlock_config_regs(tp);
 
-	RTL_W32(tp, MAC4, addr[4] | addr[5] << 8);
+	RTL_W32(tp, MAC4, get_unaligned_le16(addr + 4));
 	rtl_pci_commit(tp);
 
-	RTL_W32(tp, MAC0, addr[0] | addr[1] << 8 | addr[2] << 16 | addr[3] << 24);
+	RTL_W32(tp, MAC0, get_unaligned_le32(addr));
 	rtl_pci_commit(tp);
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_34)
@@ -4977,16 +4972,12 @@ static void rtl_read_mac_address(struct rtl8169_private *tp,
 {
 	/* Get MAC address */
 	if (rtl_is_8168evl_up(tp) && tp->mac_version != RTL_GIGA_MAC_VER_34) {
-		u32 value = rtl_eri_read(tp, 0xe0);
+		u32 value;
 
-		mac_addr[0] = (value >>  0) & 0xff;
-		mac_addr[1] = (value >>  8) & 0xff;
-		mac_addr[2] = (value >> 16) & 0xff;
-		mac_addr[3] = (value >> 24) & 0xff;
-
+		value = rtl_eri_read(tp, 0xe0);
+		put_unaligned_le32(value, mac_addr);
 		value = rtl_eri_read(tp, 0xe4);
-		mac_addr[4] = (value >>  0) & 0xff;
-		mac_addr[5] = (value >>  8) & 0xff;
+		put_unaligned_le16(value, mac_addr + 4);
 	} else if (rtl_is_8125(tp)) {
 		rtl_read_mac_from_reg(tp, mac_addr, MAC0_BKP);
 	}
