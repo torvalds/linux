@@ -1196,7 +1196,6 @@ mlxsw_sp_br_ban_rif_pvid_change(struct mlxsw_sp *mlxsw_sp,
 
 static int mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 				   const struct switchdev_obj_port_vlan *vlan,
-				   struct switchdev_trans *trans,
 				   struct netlink_ext_ack *extack)
 {
 	bool flag_untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
@@ -1209,17 +1208,13 @@ static int mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 		int err = 0;
 
 		if ((vlan->flags & BRIDGE_VLAN_INFO_BRENTRY) &&
-		    br_vlan_enabled(orig_dev) &&
-		    switchdev_trans_ph_prepare(trans))
+		    br_vlan_enabled(orig_dev))
 			err = mlxsw_sp_br_ban_rif_pvid_change(mlxsw_sp,
 							      orig_dev, vlan);
 		if (!err)
 			err = -EOPNOTSUPP;
 		return err;
 	}
-
-	if (switchdev_trans_ph_commit(trans))
-		return 0;
 
 	bridge_port = mlxsw_sp_bridge_port_find(mlxsw_sp->bridge, orig_dev);
 	if (WARN_ON(!bridge_port))
@@ -1764,16 +1759,13 @@ static int mlxsw_sp_port_obj_add(struct net_device *dev,
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	const struct switchdev_obj_port_vlan *vlan;
-	struct switchdev_trans trans;
 	int err = 0;
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		vlan = SWITCHDEV_OBJ_PORT_VLAN(obj);
 
-		trans.ph_prepare = true;
-		err = mlxsw_sp_port_vlans_add(mlxsw_sp_port, vlan, &trans,
-					      extack);
+		err = mlxsw_sp_port_vlans_add(mlxsw_sp_port, vlan, extack);
 
 		/* The event is emitted before the changes are actually
 		 * applied to the bridge. Therefore schedule the respin
@@ -1781,13 +1773,6 @@ static int mlxsw_sp_port_obj_add(struct net_device *dev,
 		 * updated bridge state.
 		 */
 		mlxsw_sp_span_respin(mlxsw_sp_port->mlxsw_sp);
-
-		if (err)
-			break;
-
-		trans.ph_prepare = false;
-		err = mlxsw_sp_port_vlans_add(mlxsw_sp_port, vlan, &trans,
-					      extack);
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
 		err = mlxsw_sp_port_mdb_add(mlxsw_sp_port,
@@ -3351,8 +3336,7 @@ out:
 static int
 mlxsw_sp_switchdev_vxlan_vlans_add(struct net_device *vxlan_dev,
 				   struct switchdev_notifier_port_obj_info *
-				   port_obj_info,
-				   struct switchdev_trans *trans)
+				   port_obj_info)
 {
 	struct switchdev_obj_port_vlan *vlan =
 		SWITCHDEV_OBJ_PORT_VLAN(port_obj_info->obj);
@@ -3373,9 +3357,6 @@ mlxsw_sp_switchdev_vxlan_vlans_add(struct net_device *vxlan_dev,
 		return 0;
 
 	port_obj_info->handled = true;
-
-	if (switchdev_trans_ph_commit(trans))
-		return 0;
 
 	bridge_device = mlxsw_sp_bridge_device_find(mlxsw_sp->bridge, br_dev);
 	if (!bridge_device)
@@ -3427,22 +3408,12 @@ mlxsw_sp_switchdev_handle_vxlan_obj_add(struct net_device *vxlan_dev,
 					struct switchdev_notifier_port_obj_info *
 					port_obj_info)
 {
-	struct switchdev_trans trans;
 	int err = 0;
 
 	switch (port_obj_info->obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		trans.ph_prepare = true;
 		err = mlxsw_sp_switchdev_vxlan_vlans_add(vxlan_dev,
-							 port_obj_info,
-							 &trans);
-		if (err)
-			break;
-
-		trans.ph_prepare = false;
-		err = mlxsw_sp_switchdev_vxlan_vlans_add(vxlan_dev,
-							 port_obj_info,
-							 &trans);
+							 port_obj_info);
 		break;
 	default:
 		break;
