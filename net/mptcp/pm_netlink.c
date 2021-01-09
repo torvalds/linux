@@ -1164,6 +1164,66 @@ fail:
 	return -EMSGSIZE;
 }
 
+static int mptcp_nl_addr_backup(struct net *net,
+				struct mptcp_addr_info *addr,
+				u8 bkup)
+{
+	long s_slot = 0, s_num = 0;
+	struct mptcp_sock *msk;
+	int ret = -EINVAL;
+
+	while ((msk = mptcp_token_iter_next(net, &s_slot, &s_num)) != NULL) {
+		struct sock *sk = (struct sock *)msk;
+
+		if (list_empty(&msk->conn_list))
+			goto next;
+
+		lock_sock(sk);
+		spin_lock_bh(&msk->pm.lock);
+		ret = mptcp_pm_nl_mp_prio_send_ack(msk, addr, bkup);
+		spin_unlock_bh(&msk->pm.lock);
+		release_sock(sk);
+
+next:
+		sock_put(sk);
+		cond_resched();
+	}
+
+	return ret;
+}
+
+static int mptcp_nl_cmd_set_flags(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr *attr = info->attrs[MPTCP_PM_ATTR_ADDR];
+	struct pm_nl_pernet *pernet = genl_info_pm_nl(info);
+	struct mptcp_pm_addr_entry addr, *entry;
+	struct net *net = sock_net(skb->sk);
+	u8 bkup = 0;
+	int ret;
+
+	ret = mptcp_pm_parse_addr(attr, info, true, &addr);
+	if (ret < 0)
+		return ret;
+
+	if (addr.addr.flags & MPTCP_PM_ADDR_FLAG_BACKUP)
+		bkup = 1;
+
+	list_for_each_entry(entry, &pernet->local_addr_list, list) {
+		if (addresses_equal(&entry->addr, &addr.addr, true)) {
+			ret = mptcp_nl_addr_backup(net, &entry->addr, bkup);
+			if (ret)
+				return ret;
+
+			if (bkup)
+				entry->addr.flags |= MPTCP_PM_ADDR_FLAG_BACKUP;
+			else
+				entry->addr.flags &= ~MPTCP_PM_ADDR_FLAG_BACKUP;
+		}
+	}
+
+	return 0;
+}
+
 static const struct genl_small_ops mptcp_pm_ops[] = {
 	{
 		.cmd    = MPTCP_PM_CMD_ADD_ADDR,
@@ -1193,6 +1253,11 @@ static const struct genl_small_ops mptcp_pm_ops[] = {
 	{
 		.cmd    = MPTCP_PM_CMD_GET_LIMITS,
 		.doit   = mptcp_nl_cmd_get_limits,
+	},
+	{
+		.cmd    = MPTCP_PM_CMD_SET_FLAGS,
+		.doit   = mptcp_nl_cmd_set_flags,
+		.flags  = GENL_ADMIN_PERM,
 	},
 };
 
