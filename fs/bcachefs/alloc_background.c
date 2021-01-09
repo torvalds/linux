@@ -366,7 +366,7 @@ int bch2_alloc_write(struct bch_fs *c, unsigned flags)
 	unsigned i;
 	int ret = 0;
 
-	for_each_rw_member(ca, c, i) {
+	for_each_member_device(ca, c, i) {
 		bch2_dev_alloc_write(c, ca, flags);
 		if (ret) {
 			percpu_ref_put(&ca->io_ref);

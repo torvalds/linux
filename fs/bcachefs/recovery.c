@@ -938,7 +938,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 	struct bch_sb_field_clean *clean = NULL;
 	struct jset *last_journal_entry = NULL;
 	u64 blacklist_seq, journal_seq;
-	bool write_sb = false, need_write_alloc = false;
+	bool write_sb = false;
 	int ret;
 
 	if (c->sb.clean)
@@ -1084,10 +1084,8 @@ use_clean:
 		bch_info(c, "starting metadata mark and sweep");
 		err = "error in mark and sweep";
 		ret = bch2_gc(c, &c->journal_keys, true, true);
-		if (ret < 0)
-			goto err;
 		if (ret)
-			need_write_alloc = true;
+			goto err;
 		bch_verbose(c, "mark and sweep done");
 	}
 
@@ -1097,10 +1095,8 @@ use_clean:
 		bch_info(c, "starting mark and sweep");
 		err = "error in mark and sweep";
 		ret = bch2_gc(c, &c->journal_keys, true, false);
-		if (ret < 0)
-			goto err;
 		if (ret)
-			need_write_alloc = true;
+			goto err;
 		bch_verbose(c, "mark and sweep done");
 	}
 
@@ -1124,7 +1120,8 @@ use_clean:
 		goto err;
 	bch_verbose(c, "journal replay done");
 
-	if (need_write_alloc && !c->opts.nochanges) {
+	if (test_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags) &&
+	    !c->opts.nochanges) {
 		/*
 		 * note that even when filesystem was clean there might be work
 		 * to do here, if we ran gc (because of fsck) which recalculated
@@ -1139,8 +1136,6 @@ use_clean:
 			goto err;
 		}
 		bch_verbose(c, "alloc write done");
-
-		set_bit(BCH_FS_ALLOC_WRITTEN, &c->flags);
 	}
 
 	if (!c->sb.clean) {

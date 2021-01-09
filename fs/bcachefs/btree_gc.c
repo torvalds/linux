@@ -132,6 +132,7 @@ static int bch2_gc_mark_key(struct bch_fs *c, struct bkey_s_c k,
 					ptr->gen)) {
 				g2->_mark.gen	= g->_mark.gen		= ptr->gen;
 				g2->gen_valid	= g->gen_valid		= true;
+				set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);
 			}
 
 			if (mustfix_fsck_err_on(gen_cmp(ptr->gen, g->mark.gen) > 0, c,
@@ -145,6 +146,7 @@ static int bch2_gc_mark_key(struct bch_fs *c, struct bkey_s_c k,
 				g2->_mark.dirty_sectors		= 0;
 				g2->_mark.cached_sectors	= 0;
 				set_bit(BCH_FS_FIXED_GENS, &c->flags);
+				set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);
 			}
 		}
 	}
@@ -571,7 +573,7 @@ static int bch2_gc_done(struct bch_fs *c,
 			fsck_err(c, _msg ": got %llu, should be %llu"	\
 				, ##__VA_ARGS__, dst->_f, src->_f);	\
 		dst->_f = src->_f;					\
-		ret = 1;						\
+		set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);		\
 	}
 #define copy_stripe_field(_f, _msg, ...)				\
 	if (dst->_f != src->_f) {					\
@@ -582,7 +584,7 @@ static int bch2_gc_done(struct bch_fs *c,
 				dst->_f, src->_f);			\
 		dst->_f = src->_f;					\
 		dst->dirty = true;					\
-		ret = 1;						\
+		set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);		\
 	}
 #define copy_bucket_field(_f)						\
 	if (dst->b[b].mark._f != src->b[b].mark._f) {			\
@@ -593,7 +595,7 @@ static int bch2_gc_done(struct bch_fs *c,
 				bch2_data_types[dst->b[b].mark.data_type],\
 				dst->b[b].mark._f, src->b[b].mark._f);	\
 		dst->b[b]._mark._f = src->b[b].mark._f;			\
-		ret = 1;						\
+		set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);		\
 	}
 #define copy_dev_field(_f, _msg, ...)					\
 	copy_field(_f, "dev %u has wrong " _msg, i, ##__VA_ARGS__)
