@@ -1115,7 +1115,7 @@ static int check_fw_ready(struct pm8001_hba_info *pm8001_ha)
 	return ret;
 }
 
-static void init_pci_device_addresses(struct pm8001_hba_info *pm8001_ha)
+static int init_pci_device_addresses(struct pm8001_hba_info *pm8001_ha)
 {
 	void __iomem *base_addr;
 	u32	value;
@@ -1124,15 +1124,48 @@ static void init_pci_device_addresses(struct pm8001_hba_info *pm8001_ha)
 	u32	pcilogic;
 
 	value = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_0);
+
+	/**
+	 * lower 26 bits of SCRATCHPAD0 register describes offset within the
+	 * PCIe BAR where the MPI configuration table is present
+	 */
 	offset = value & 0x03FFFFFF; /* scratch pad 0 TBL address */
 
 	pm8001_dbg(pm8001_ha, DEV, "Scratchpad 0 Offset: 0x%x value 0x%x\n",
 		   offset, value);
+	/**
+	 * Upper 6 bits describe the offset within PCI config space where BAR
+	 * is located.
+	 */
 	pcilogic = (value & 0xFC000000) >> 26;
 	pcibar = get_pci_bar_index(pcilogic);
 	pm8001_dbg(pm8001_ha, INIT, "Scratchpad 0 PCI BAR: %d\n", pcibar);
+
+	/**
+	 * Make sure the offset falls inside the ioremapped PCI BAR
+	 */
+	if (offset > pm8001_ha->io_mem[pcibar].memsize) {
+		pm8001_dbg(pm8001_ha, FAIL,
+			"Main cfg tbl offset outside %u > %u\n",
+				offset, pm8001_ha->io_mem[pcibar].memsize);
+		return -EBUSY;
+	}
 	pm8001_ha->main_cfg_tbl_addr = base_addr =
 		pm8001_ha->io_mem[pcibar].memvirtaddr + offset;
+
+	/**
+	 * Validate main configuration table address: first DWord should read
+	 * "PMCS"
+	 */
+	value = pm8001_mr32(pm8001_ha->main_cfg_tbl_addr, 0);
+	if (memcmp(&value, "PMCS", 4) != 0) {
+		pm8001_dbg(pm8001_ha, FAIL,
+			"BAD main config signature 0x%x\n",
+				value);
+		return -EBUSY;
+	}
+	pm8001_dbg(pm8001_ha, INIT,
+			"VALID main config signature 0x%x\n", value);
 	pm8001_ha->general_stat_tbl_addr =
 		base_addr + (pm8001_cr32(pm8001_ha, pcibar, offset + 0x18) &
 					0xFFFFFF);
@@ -1171,6 +1204,7 @@ static void init_pci_device_addresses(struct pm8001_hba_info *pm8001_ha)
 	pm8001_dbg(pm8001_ha, INIT, "addr - pspa %p ivt %p\n",
 		   pm8001_ha->pspa_q_tbl_addr,
 		   pm8001_ha->ivt_tbl_addr);
+	return 0;
 }
 
 /**
@@ -1438,7 +1472,12 @@ static int pm80xx_chip_init(struct pm8001_hba_info *pm8001_ha)
 	pm8001_ha->controller_fatal_error = false;
 
 	/* Initialize pci space address eg: mpi offset */
-	init_pci_device_addresses(pm8001_ha);
+	ret = init_pci_device_addresses(pm8001_ha);
+	if (ret) {
+		pm8001_dbg(pm8001_ha, FAIL,
+			"Failed to init pci addresses");
+		return ret;
+	}
 	init_default_table_values(pm8001_ha);
 	read_main_config_table(pm8001_ha);
 	read_general_status_table(pm8001_ha);
@@ -1482,7 +1521,15 @@ static int mpi_uninit_check(struct pm8001_hba_info *pm8001_ha)
 	u32 max_wait_count;
 	u32 value;
 	u32 gst_len_mpistate;
-	init_pci_device_addresses(pm8001_ha);
+	int ret;
+
+	ret = init_pci_device_addresses(pm8001_ha);
+	if (ret) {
+		pm8001_dbg(pm8001_ha, FAIL,
+			"Failed to init pci addresses");
+		return ret;
+	}
+
 	/* Write bit1=1 to Inbound DoorBell Register to tell the SPC FW the
 	table is stop */
 	pm8001_cw32(pm8001_ha, 0, MSGU_IBDB_SET, SPCv_MSGU_CFG_TABLE_RESET);

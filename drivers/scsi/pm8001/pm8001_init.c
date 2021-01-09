@@ -466,9 +466,12 @@ static int pm8001_ioremap(struct pm8001_hba_info *pm8001_ha)
 			pm8001_ha->io_mem[logicalBar].memvirtaddr =
 				ioremap(pm8001_ha->io_mem[logicalBar].membase,
 				pm8001_ha->io_mem[logicalBar].memsize);
-			pm8001_dbg(pm8001_ha, INIT,
-				   "PCI: bar %d, logicalBar %d\n",
+			if (!pm8001_ha->io_mem[logicalBar].memvirtaddr) {
+				pm8001_dbg(pm8001_ha, INIT,
+					"Failed to ioremap bar %d, logicalBar %d",
 				   bar, logicalBar);
+				return -ENOMEM;
+			}
 			pm8001_dbg(pm8001_ha, INIT,
 				   "base addr %llx virt_addr=%llx len=%d\n",
 				   (u64)pm8001_ha->io_mem[logicalBar].membase,
@@ -540,9 +543,11 @@ static struct pm8001_hba_info *pm8001_pci_alloc(struct pci_dev *pdev,
 			tasklet_init(&pm8001_ha->tasklet[j], pm8001_tasklet,
 				(unsigned long)&(pm8001_ha->irq_vector[j]));
 #endif
-	pm8001_ioremap(pm8001_ha);
+	if (pm8001_ioremap(pm8001_ha))
+		goto failed_pci_alloc;
 	if (!pm8001_alloc(pm8001_ha, ent))
 		return pm8001_ha;
+failed_pci_alloc:
 	pm8001_free(pm8001_ha);
 	return NULL;
 }
