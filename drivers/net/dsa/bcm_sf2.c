@@ -1116,7 +1116,6 @@ static const struct dsa_switch_ops bcm_sf2_ops = {
 	.port_stp_state_set	= b53_br_set_stp_state,
 	.port_fast_age		= b53_br_fast_age,
 	.port_vlan_filtering	= b53_vlan_filtering,
-	.port_vlan_prepare	= b53_vlan_prepare,
 	.port_vlan_add		= b53_vlan_add,
 	.port_vlan_del		= b53_vlan_del,
 	.port_fdb_dump		= b53_fdb_dump,

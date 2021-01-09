@@ -374,26 +374,8 @@ int rtl8366_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
 }
 EXPORT_SYMBOL_GPL(rtl8366_vlan_filtering);
 
-int rtl8366_vlan_prepare(struct dsa_switch *ds, int port,
-			 const struct switchdev_obj_port_vlan *vlan)
-{
-	struct realtek_smi *smi = ds->priv;
-
-	if (!smi->ops->is_vlan_valid(smi, vlan->vid))
-		return -EINVAL;
-
-	dev_info(smi->dev, "prepare VLAN %04x\n", vlan->vid);
-
-	/* Enable VLAN in the hardware
-	 * FIXME: what's with this 4k business?
-	 * Just rtl8366_enable_vlan() seems inconclusive.
-	 */
-	return rtl8366_enable_vlan4k(smi, true);
-}
-EXPORT_SYMBOL_GPL(rtl8366_vlan_prepare);
-
-void rtl8366_vlan_add(struct dsa_switch *ds, int port,
-		      const struct switchdev_obj_port_vlan *vlan)
+int rtl8366_vlan_add(struct dsa_switch *ds, int port,
+		     const struct switchdev_obj_port_vlan *vlan)
 {
 	bool untagged = !!(vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED);
 	bool pvid = !!(vlan->flags & BRIDGE_VLAN_INFO_PVID);
@@ -403,7 +385,15 @@ void rtl8366_vlan_add(struct dsa_switch *ds, int port,
 	int ret;
 
 	if (!smi->ops->is_vlan_valid(smi, vlan->vid))
-		return;
+		return -EINVAL;
+
+	/* Enable VLAN in the hardware
+	 * FIXME: what's with this 4k business?
+	 * Just rtl8366_enable_vlan() seems inconclusive.
+	 */
+	ret = rtl8366_enable_vlan4k(smi, true);
+	if (ret)
+		return ret;
 
 	dev_info(smi->dev, "add VLAN %d on port %d, %s, %s\n",
 		 vlan->vid, port, untagged ? "untagged" : "tagged",
@@ -418,20 +408,22 @@ void rtl8366_vlan_add(struct dsa_switch *ds, int port,
 		untag |= BIT(port);
 
 	ret = rtl8366_set_vlan(smi, vlan->vid, member, untag, 0);
-	if (ret)
+	if (ret) {
 		dev_err(smi->dev, "failed to set up VLAN %04x", vlan->vid);
+		return ret;
+	}
 
 	if (!pvid)
-		return;
+		return 0;
 
 	ret = rtl8366_set_pvid(smi, port, vlan->vid);
-	if (ret)
+	if (ret) {
 		dev_err(smi->dev, "failed to set PVID on port %d to VLAN %04x",
 			port, vlan->vid);
+		return ret;
+	}
 
-	if (!ret)
-		dev_dbg(smi->dev, "VLAN add: added VLAN %d with PVID on port %d\n",
-			vlan->vid, port);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(rtl8366_vlan_add);
 

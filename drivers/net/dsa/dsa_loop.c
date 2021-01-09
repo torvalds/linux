@@ -198,32 +198,17 @@ static int dsa_loop_port_vlan_filtering(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int
-dsa_loop_port_vlan_prepare(struct dsa_switch *ds, int port,
-			   const struct switchdev_obj_port_vlan *vlan)
-{
-	struct dsa_loop_priv *ps = ds->priv;
-	struct mii_bus *bus = ps->bus;
-
-	dev_dbg(ds->dev, "%s: port: %d, vlan: %d", __func__, port, vlan->vid);
-
-	/* Just do a sleeping operation to make lockdep checks effective */
-	mdiobus_read(bus, ps->port_base + port, MII_BMSR);
-
-	if (vlan->vid > ARRAY_SIZE(ps->vlans))
-		return -ERANGE;
-
-	return 0;
-}
-
-static void dsa_loop_port_vlan_add(struct dsa_switch *ds, int port,
-				   const struct switchdev_obj_port_vlan *vlan)
+static int dsa_loop_port_vlan_add(struct dsa_switch *ds, int port,
+				  const struct switchdev_obj_port_vlan *vlan)
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	struct dsa_loop_priv *ps = ds->priv;
 	struct mii_bus *bus = ps->bus;
 	struct dsa_loop_vlan *vl;
+
+	if (vlan->vid > ARRAY_SIZE(ps->vlans))
+		return -ERANGE;
 
 	/* Just do a sleeping operation to make lockdep checks effective */
 	mdiobus_read(bus, ps->port_base + port, MII_BMSR);
@@ -241,6 +226,8 @@ static void dsa_loop_port_vlan_add(struct dsa_switch *ds, int port,
 
 	if (pvid)
 		ps->ports[port].pvid = vlan->vid;
+
+	return 0;
 }
 
 static int dsa_loop_port_vlan_del(struct dsa_switch *ds, int port,
@@ -300,7 +287,6 @@ static const struct dsa_switch_ops dsa_loop_driver = {
 	.port_bridge_leave	= dsa_loop_port_bridge_leave,
 	.port_stp_state_set	= dsa_loop_port_stp_state_set,
 	.port_vlan_filtering	= dsa_loop_port_vlan_filtering,
-	.port_vlan_prepare	= dsa_loop_port_vlan_prepare,
 	.port_vlan_add		= dsa_loop_port_vlan_add,
 	.port_vlan_del		= dsa_loop_port_vlan_del,
 	.port_change_mtu	= dsa_loop_port_change_mtu,

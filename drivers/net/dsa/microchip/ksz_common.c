@@ -213,15 +213,6 @@ void ksz_port_fast_age(struct dsa_switch *ds, int port)
 }
 EXPORT_SYMBOL_GPL(ksz_port_fast_age);
 
-int ksz_port_vlan_prepare(struct dsa_switch *ds, int port,
-			  const struct switchdev_obj_port_vlan *vlan)
-{
-	/* nothing needed */
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ksz_port_vlan_prepare);
-
 int ksz_port_fdb_dump(struct dsa_switch *ds, int port, dsa_fdb_dump_cb_t *cb,
 		      void *data)
 {

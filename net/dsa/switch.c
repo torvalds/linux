@@ -227,20 +227,16 @@ static int dsa_switch_vlan_add(struct dsa_switch *ds,
 {
 	int port, err;
 
-	if (!ds->ops->port_vlan_prepare || !ds->ops->port_vlan_add)
+	if (!ds->ops->port_vlan_add)
 		return -EOPNOTSUPP;
 
 	for (port = 0; port < ds->num_ports; port++) {
 		if (dsa_switch_vlan_match(ds, port, info)) {
-			err = ds->ops->port_vlan_prepare(ds, port, info->vlan);
+			err = ds->ops->port_vlan_add(ds, port, info->vlan);
 			if (err)
 				return err;
 		}
 	}
-
-	for (port = 0; port < ds->num_ports; port++)
-		if (dsa_switch_vlan_match(ds, port, info))
-			ds->ops->port_vlan_add(ds, port, info->vlan);
 
 	return 0;
 }

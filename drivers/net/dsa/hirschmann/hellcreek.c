@@ -438,18 +438,25 @@ static void hellcreek_unapply_vlan(struct hellcreek *hellcreek, int port,
 	mutex_unlock(&hellcreek->reg_lock);
 }
 
-static void hellcreek_vlan_add(struct dsa_switch *ds, int port,
-			       const struct switchdev_obj_port_vlan *vlan)
+static int hellcreek_vlan_add(struct dsa_switch *ds, int port,
+			      const struct switchdev_obj_port_vlan *vlan)
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	struct hellcreek *hellcreek = ds->priv;
+	int err;
+
+	err = hellcreek_vlan_prepare(ds, port, vlan);
+	if (err)
+		return err;
 
 	dev_dbg(hellcreek->dev, "Add VLAN %d on port %d, %s, %s\n",
 		vlan->vid, port, untagged ? "untagged" : "tagged",
 		pvid ? "PVID" : "no PVID");
 
 	hellcreek_apply_vlan(hellcreek, port, vlan->vid, pvid, untagged);
+
+	return 0;
 }
 
 static int hellcreek_vlan_del(struct dsa_switch *ds, int port,
@@ -1146,7 +1153,6 @@ static const struct dsa_switch_ops hellcreek_ds_ops = {
 	.port_vlan_add	     = hellcreek_vlan_add,
 	.port_vlan_del	     = hellcreek_vlan_del,
 	.port_vlan_filtering = hellcreek_vlan_filtering,
-	.port_vlan_prepare   = hellcreek_vlan_prepare,
 	.setup		     = hellcreek_setup,
 };
 

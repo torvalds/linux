@@ -134,15 +134,20 @@ static int felix_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
 	return ocelot_port_vlan_filtering(ocelot, port, enabled);
 }
 
-static void felix_vlan_add(struct dsa_switch *ds, int port,
-			   const struct switchdev_obj_port_vlan *vlan)
+static int felix_vlan_add(struct dsa_switch *ds, int port,
+			  const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ocelot *ocelot = ds->priv;
 	u16 flags = vlan->flags;
+	int err;
 
-	ocelot_vlan_add(ocelot, port, vlan->vid,
-			flags & BRIDGE_VLAN_INFO_PVID,
-			flags & BRIDGE_VLAN_INFO_UNTAGGED);
+	err = felix_vlan_prepare(ds, port, vlan);
+	if (err)
+		return err;
+
+	return ocelot_vlan_add(ocelot, port, vlan->vid,
+			       flags & BRIDGE_VLAN_INFO_PVID,
+			       flags & BRIDGE_VLAN_INFO_UNTAGGED);
 }
 
 static int felix_vlan_del(struct dsa_switch *ds, int port,
@@ -770,7 +775,6 @@ const struct dsa_switch_ops felix_switch_ops = {
 	.port_bridge_join	= felix_bridge_join,
 	.port_bridge_leave	= felix_bridge_leave,
 	.port_stp_state_set	= felix_bridge_stp_state_set,
-	.port_vlan_prepare	= felix_vlan_prepare,
 	.port_vlan_filtering	= felix_vlan_filtering,
 	.port_vlan_add		= felix_vlan_add,
 	.port_vlan_del		= felix_vlan_del,

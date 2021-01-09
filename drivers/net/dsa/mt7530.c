@@ -1393,15 +1393,6 @@ mt7530_port_vlan_filtering(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int
-mt7530_port_vlan_prepare(struct dsa_switch *ds, int port,
-			 const struct switchdev_obj_port_vlan *vlan)
-{
-	/* nothing needed */
-
-	return 0;
-}
-
 static void
 mt7530_hw_vlan_add(struct mt7530_priv *priv,
 		   struct mt7530_hw_vlan_entry *entry)
@@ -1489,7 +1480,7 @@ mt7530_hw_vlan_update(struct mt7530_priv *priv, u16 vid,
 	mt7530_vlan_cmd(priv, MT7530_VTCR_WR_VID, vid);
 }
 
-static void
+static int
 mt7530_port_vlan_add(struct dsa_switch *ds, int port,
 		     const struct switchdev_obj_port_vlan *vlan)
 {
@@ -1510,6 +1501,8 @@ mt7530_port_vlan_add(struct dsa_switch *ds, int port,
 	}
 
 	mutex_unlock(&priv->reg_mutex);
+
+	return 0;
 }
 
 static int
@@ -2608,7 +2601,6 @@ static const struct dsa_switch_ops mt7530_switch_ops = {
 	.port_fdb_del		= mt7530_port_fdb_del,
 	.port_fdb_dump		= mt7530_port_fdb_dump,
 	.port_vlan_filtering	= mt7530_port_vlan_filtering,
-	.port_vlan_prepare	= mt7530_port_vlan_prepare,
 	.port_vlan_add		= mt7530_port_vlan_add,
 	.port_vlan_del		= mt7530_port_vlan_del,
 	.port_mirror_add	= mt753x_port_mirror_add,

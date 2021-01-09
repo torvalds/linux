@@ -1384,8 +1384,8 @@ int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
 }
 EXPORT_SYMBOL(b53_vlan_filtering);
 
-int b53_vlan_prepare(struct dsa_switch *ds, int port,
-		     const struct switchdev_obj_port_vlan *vlan)
+static int b53_vlan_prepare(struct dsa_switch *ds, int port,
+			    const struct switchdev_obj_port_vlan *vlan)
 {
 	struct b53_device *dev = ds->priv;
 
@@ -1407,15 +1407,19 @@ int b53_vlan_prepare(struct dsa_switch *ds, int port,
 
 	return 0;
 }
-EXPORT_SYMBOL(b53_vlan_prepare);
 
-void b53_vlan_add(struct dsa_switch *ds, int port,
-		  const struct switchdev_obj_port_vlan *vlan)
+int b53_vlan_add(struct dsa_switch *ds, int port,
+		 const struct switchdev_obj_port_vlan *vlan)
 {
 	struct b53_device *dev = ds->priv;
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	struct b53_vlan *vl;
+	int err;
+
+	err = b53_vlan_prepare(ds, port, vlan);
+	if (err)
+		return err;
 
 	vl = &dev->vlans[vlan->vid];
 
@@ -1438,6 +1442,8 @@ void b53_vlan_add(struct dsa_switch *ds, int port,
 			    vlan->vid);
 		b53_fast_age_vlan(dev, vlan->vid);
 	}
+
+	return 0;
 }
 EXPORT_SYMBOL(b53_vlan_add);
 
@@ -2185,7 +2191,6 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.port_fast_age		= b53_br_fast_age,
 	.port_egress_floods	= b53_br_egress_floods,
 	.port_vlan_filtering	= b53_vlan_filtering,
-	.port_vlan_prepare	= b53_vlan_prepare,
 	.port_vlan_add		= b53_vlan_add,
 	.port_vlan_del		= b53_vlan_del,
 	.port_fdb_dump		= b53_fdb_dump,

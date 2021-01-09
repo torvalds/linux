@@ -566,10 +566,8 @@ struct dsa_switch_ops {
 	 */
 	int	(*port_vlan_filtering)(struct dsa_switch *ds, int port,
 				       bool vlan_filtering);
-	int (*port_vlan_prepare)(struct dsa_switch *ds, int port,
+	int	(*port_vlan_add)(struct dsa_switch *ds, int port,
 				 const struct switchdev_obj_port_vlan *vlan);
-	void (*port_vlan_add)(struct dsa_switch *ds, int port,
-			      const struct switchdev_obj_port_vlan *vlan);
 	int	(*port_vlan_del)(struct dsa_switch *ds, int port,
 				 const struct switchdev_obj_port_vlan *vlan);
 	/*

@@ -1617,9 +1617,6 @@ mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
 	err = mv88e6xxx_port_check_hw_vlan(ds, port, vlan->vid);
 	mv88e6xxx_reg_unlock(chip);
 
-	/* We don't need any dynamic resource from the kernel (yet),
-	 * so skip the prepare phase.
-	 */
 	return err;
 }
 
@@ -1963,17 +1960,19 @@ static int mv88e6xxx_port_vlan_join(struct mv88e6xxx_chip *chip, int port,
 	return 0;
 }
 
-static void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
-				    const struct switchdev_obj_port_vlan *vlan)
+static int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
+				   const struct switchdev_obj_port_vlan *vlan)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	bool warn;
 	u8 member;
+	int err;
 
-	if (!mv88e6xxx_max_vid(chip))
-		return;
+	err = mv88e6xxx_port_vlan_prepare(ds, port, vlan);
+	if (err)
+		return err;
 
 	if (dsa_is_dsa_port(ds, port) || dsa_is_cpu_port(ds, port))
 		member = MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_UNMODIFIED;
@@ -1989,15 +1988,25 @@ static void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 
 	mv88e6xxx_reg_lock(chip);
 
-	if (mv88e6xxx_port_vlan_join(chip, port, vlan->vid, member, warn))
+	err = mv88e6xxx_port_vlan_join(chip, port, vlan->vid, member, warn);
+	if (err) {
 		dev_err(ds->dev, "p%d: failed to add VLAN %d%c\n", port,
 			vlan->vid, untagged ? 'u' : 't');
+		goto out;
+	}
 
-	if (pvid && mv88e6xxx_port_set_pvid(chip, port, vlan->vid))
-		dev_err(ds->dev, "p%d: failed to set PVID %d\n", port,
-			vlan->vid);
-
+	if (pvid) {
+		err = mv88e6xxx_port_set_pvid(chip, port, vlan->vid);
+		if (err) {
+			dev_err(ds->dev, "p%d: failed to set PVID %d\n",
+				port, vlan->vid);
+			goto out;
+		}
+	}
+out:
 	mv88e6xxx_reg_unlock(chip);
+
+	return err;
 }
 
 static int mv88e6xxx_port_vlan_leave(struct mv88e6xxx_chip *chip,
@@ -5388,7 +5397,6 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.port_stp_state_set	= mv88e6xxx_port_stp_state_set,
 	.port_fast_age		= mv88e6xxx_port_fast_age,
 	.port_vlan_filtering	= mv88e6xxx_port_vlan_filtering,
-	.port_vlan_prepare	= mv88e6xxx_port_vlan_prepare,
 	.port_vlan_add		= mv88e6xxx_port_vlan_add,
 	.port_vlan_del		= mv88e6xxx_port_vlan_del,
 	.port_fdb_add           = mv88e6xxx_port_fdb_add,

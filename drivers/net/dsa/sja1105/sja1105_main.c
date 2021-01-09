@@ -2600,26 +2600,6 @@ out:
 	return rc;
 }
 
-static int sja1105_vlan_prepare(struct dsa_switch *ds, int port,
-				const struct switchdev_obj_port_vlan *vlan)
-{
-	struct sja1105_private *priv = ds->priv;
-
-	if (priv->vlan_state == SJA1105_VLAN_FILTERING_FULL)
-		return 0;
-
-	/* If the user wants best-effort VLAN filtering (aka vlan_filtering
-	 * bridge plus tagging), be sure to at least deny alterations to the
-	 * configuration done by dsa_8021q.
-	 */
-	if (vid_is_dsa_8021q(vlan->vid)) {
-		dev_err(ds->dev, "Range 1024-3071 reserved for dsa_8021q operation\n");
-		return -EBUSY;
-	}
-
-	return 0;
-}
-
 /* The TPID setting belongs to the General Parameters table,
  * which can only be partially reconfigured at runtime (and not the TPID).
  * So a switch reset is required.
@@ -2779,26 +2759,34 @@ static int sja1105_vlan_del_one(struct dsa_switch *ds, int port, u16 vid,
 	return 0;
 }
 
-static void sja1105_vlan_add(struct dsa_switch *ds, int port,
-			     const struct switchdev_obj_port_vlan *vlan)
+static int sja1105_vlan_add(struct dsa_switch *ds, int port,
+			    const struct switchdev_obj_port_vlan *vlan)
 {
 	struct sja1105_private *priv = ds->priv;
 	bool vlan_table_changed = false;
 	int rc;
 
+	/* If the user wants best-effort VLAN filtering (aka vlan_filtering
+	 * bridge plus tagging), be sure to at least deny alterations to the
+	 * configuration done by dsa_8021q.
+	 */
+	if (priv->vlan_state != SJA1105_VLAN_FILTERING_FULL &&
+	    vid_is_dsa_8021q(vlan->vid)) {
+		dev_err(ds->dev, "Range 1024-3071 reserved for dsa_8021q operation\n");
+		return -EBUSY;
+	}
+
 	rc = sja1105_vlan_add_one(ds, port, vlan->vid, vlan->flags,
 				  &priv->bridge_vlans);
 	if (rc < 0)
-		return;
+		return rc;
 	if (rc > 0)
 		vlan_table_changed = true;
 
 	if (!vlan_table_changed)
-		return;
+		return 0;
 
-	rc = sja1105_build_vlan_table(priv, true);
-	if (rc)
-		dev_err(ds->dev, "Failed to build VLAN table: %d\n", rc);
+	return sja1105_build_vlan_table(priv, true);
 }
 
 static int sja1105_vlan_del(struct dsa_switch *ds, int port,
@@ -3277,7 +3265,6 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.port_bridge_join	= sja1105_bridge_join,
 	.port_bridge_leave	= sja1105_bridge_leave,
 	.port_stp_state_set	= sja1105_bridge_stp_state_set,
-	.port_vlan_prepare	= sja1105_vlan_prepare,
 	.port_vlan_filtering	= sja1105_vlan_filtering,
 	.port_vlan_add		= sja1105_vlan_add,
 	.port_vlan_del		= sja1105_vlan_del,

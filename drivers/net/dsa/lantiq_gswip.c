@@ -1167,13 +1167,18 @@ static int gswip_port_vlan_prepare(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static void gswip_port_vlan_add(struct dsa_switch *ds, int port,
-				const struct switchdev_obj_port_vlan *vlan)
+static int gswip_port_vlan_add(struct dsa_switch *ds, int port,
+			       const struct switchdev_obj_port_vlan *vlan)
 {
 	struct gswip_priv *priv = ds->priv;
 	struct net_device *bridge = dsa_to_port(ds, port)->bridge_dev;
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
+	int err;
+
+	err = gswip_port_vlan_prepare(ds, port, vlan);
+	if (err)
+		return err;
 
 	/* We have to receive all packets on the CPU port and should not
 	 * do any VLAN filtering here. This is also called with bridge
@@ -1181,9 +1186,10 @@ static void gswip_port_vlan_add(struct dsa_switch *ds, int port,
 	 * this.
 	 */
 	if (dsa_is_cpu_port(ds, port))
-		return;
+		return 0;
 
-	gswip_vlan_add_aware(priv, bridge, port, vlan->vid, untagged, pvid);
+	return gswip_vlan_add_aware(priv, bridge, port, vlan->vid,
+				    untagged, pvid);
 }
 
 static int gswip_port_vlan_del(struct dsa_switch *ds, int port,
@@ -1580,7 +1586,6 @@ static const struct dsa_switch_ops gswip_switch_ops = {
 	.port_bridge_leave	= gswip_port_bridge_leave,
 	.port_fast_age		= gswip_port_fast_age,
 	.port_vlan_filtering	= gswip_port_vlan_filtering,
-	.port_vlan_prepare	= gswip_port_vlan_prepare,
 	.port_vlan_add		= gswip_port_vlan_add,
 	.port_vlan_del		= gswip_port_vlan_del,
 	.port_stp_state_set	= gswip_port_stp_state_set,
