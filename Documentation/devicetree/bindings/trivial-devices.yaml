@@ -153,6 +153,8 @@ properties:
             # Measurement Specialities I2C pressure and temperature sensor
           - meas,ms5637
             # Measurement Specialities I2C pressure and temperature sensor
+          - meas,ms5803
+            # Measurement Specialities I2C pressure and temperature sensor
           - meas,ms5805
             # Measurement Specialities I2C pressure and temperature sensor
           - meas,ms5837

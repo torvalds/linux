@@ -200,7 +200,14 @@ static const struct ms_tp_hw_data ms5637_hw_data  = {
 	.max_res_index = 5
 };
 
+static const struct ms_tp_hw_data ms5803_hw_data  = {
+	.prom_len = 8,
+	.max_res_index = 4
+};
+
 static const struct ms_tp_data ms5637_data = { .name = "ms5637", .hw = &ms5637_hw_data };
+
+static const struct ms_tp_data ms5803_data = { .name = "ms5803", .hw = &ms5803_hw_data };
 
 static const struct ms_tp_data ms5805_data = { .name = "ms5805", .hw = &ms5637_hw_data };
 
@@ -222,6 +229,7 @@ MODULE_DEVICE_TABLE(i2c, ms5637_id);
 
 static const struct of_device_id ms5637_of_match[] = {
 	{ .compatible = "meas,ms5637", .data = &ms5637_data },
+	{ .compatible = "meas,ms5803", .data = &ms5803_data },
 	{ .compatible = "meas,ms5805", .data = &ms5805_data },
 	{ .compatible = "meas,ms5837", .data = &ms5837_data },
 	{ .compatible = "meas,ms8607-temppressure", .data = &ms8607_data },
