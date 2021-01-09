@@ -945,6 +945,7 @@
 			num-lanes = <1>;
 			phys = <&pciephy>;
 			phy-names = "pciephy";
+			status = "disabled";
 
 			ranges = <0x01000000 0x0 0x1b200000 0x1b200000 0x0 0x100000>,
 				 <0x02000000 0x0 0x1b300000 0x1b300000 0x0 0xd00000>;
@@ -970,11 +971,12 @@
 			perst-gpios = <&tlmm 35 GPIO_ACTIVE_LOW>;
 		};
 
-		phy@1c06000 {
+		pcie_phy: phy@1c06000 {
 			compatible = "qcom,msm8998-qmp-pcie-phy";
 			reg = <0x01c06000 0x18c>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			status = "disabled";
 			ranges;
 
 			clocks = <&gcc GCC_PCIE_PHY_AUX_CLK>,
@@ -1007,6 +1009,7 @@
 			phy-names = "ufsphy";
 			lanes-per-direction = <2>;
 			power-domains = <&gcc UFS_GDSC>;
+			status = "disabled";
 			#reset-cells = <1>;
 
 			clock-names =
@@ -1046,6 +1049,7 @@
 			reg = <0x01da7000 0x18c>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			status = "disabled";
 			ranges;
 
 			clock-names =
