@@ -181,24 +181,21 @@ static bool dsa_switch_mdb_match(struct dsa_switch *ds, int port,
 static int dsa_switch_mdb_add(struct dsa_switch *ds,
 			      struct dsa_notifier_mdb_info *info)
 {
-	int port, err;
+	int err = 0;
+	int port;
 
-	if (!ds->ops->port_mdb_prepare || !ds->ops->port_mdb_add)
+	if (!ds->ops->port_mdb_add)
 		return -EOPNOTSUPP;
 
 	for (port = 0; port < ds->num_ports; port++) {
 		if (dsa_switch_mdb_match(ds, port, info)) {
-			err = ds->ops->port_mdb_prepare(ds, port, info->mdb);
+			err = ds->ops->port_mdb_add(ds, port, info->mdb);
 			if (err)
-				return err;
+				break;
 		}
 	}
 
-	for (port = 0; port < ds->num_ports; port++)
-		if (dsa_switch_mdb_match(ds, port, info))
-			ds->ops->port_mdb_add(ds, port, info->mdb);
-
-	return 0;
+	return err;
 }
 
 static int dsa_switch_mdb_del(struct dsa_switch *ds,

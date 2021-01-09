@@ -65,19 +65,12 @@ static int felix_fdb_del(struct dsa_switch *ds, int port,
 	return ocelot_fdb_del(ocelot, port, addr, vid);
 }
 
-/* This callback needs to be present */
-static int felix_mdb_prepare(struct dsa_switch *ds, int port,
-			     const struct switchdev_obj_port_mdb *mdb)
-{
-	return 0;
-}
-
-static void felix_mdb_add(struct dsa_switch *ds, int port,
-			  const struct switchdev_obj_port_mdb *mdb)
+static int felix_mdb_add(struct dsa_switch *ds, int port,
+			 const struct switchdev_obj_port_mdb *mdb)
 {
 	struct ocelot *ocelot = ds->priv;
 
-	ocelot_port_mdb_add(ocelot, port, mdb);
+	return ocelot_port_mdb_add(ocelot, port, mdb);
 }
 
 static int felix_mdb_del(struct dsa_switch *ds, int port,
@@ -772,7 +765,6 @@ const struct dsa_switch_ops felix_switch_ops = {
 	.port_fdb_dump		= felix_fdb_dump,
 	.port_fdb_add		= felix_fdb_add,
 	.port_fdb_del		= felix_fdb_del,
-	.port_mdb_prepare	= felix_mdb_prepare,
 	.port_mdb_add		= felix_mdb_add,
 	.port_mdb_del		= felix_mdb_del,
 	.port_bridge_join	= felix_bridge_join,
