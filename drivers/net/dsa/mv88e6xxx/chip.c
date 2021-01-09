@@ -1535,12 +1535,12 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 	struct mv88e6xxx_vtu_entry vlan;
 	int i, err;
 
+	if (!vid)
+		return -EOPNOTSUPP;
+
 	/* DSA and CPU ports have to be members of multiple vlans */
 	if (dsa_is_dsa_port(ds, port) || dsa_is_cpu_port(ds, port))
 		return 0;
-
-	if (!vid)
-		return -EOPNOTSUPP;
 
 	vlan.vid = vid - 1;
 	vlan.valid = false;
@@ -1919,9 +1919,6 @@ static int mv88e6xxx_port_vlan_join(struct mv88e6xxx_chip *chip, int port,
 	const u8 non_member = MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER;
 	struct mv88e6xxx_vtu_entry vlan;
 	int i, err;
-
-	if (!vid)
-		return -EOPNOTSUPP;
 
 	vlan.vid = vid - 1;
 	vlan.valid = false;
