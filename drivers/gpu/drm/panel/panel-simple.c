@@ -2399,6 +2399,8 @@ static const struct panel_desc innolux_n116bge = {
 		.width = 256,
 		.height = 144,
 	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+	.connector_type = DRM_MODE_CONNECTOR_eDP,
 };
 
 static const struct drm_display_mode innolux_n125hce_gn1_mode = {
