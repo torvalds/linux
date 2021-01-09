@@ -16,20 +16,6 @@
 #define SWITCHDEV_F_SKIP_EOPNOTSUPP	BIT(1)
 #define SWITCHDEV_F_DEFER		BIT(2)
 
-struct switchdev_trans {
-	bool ph_prepare;
-};
-
-static inline bool switchdev_trans_ph_prepare(struct switchdev_trans *trans)
-{
-	return trans && trans->ph_prepare;
-}
-
-static inline bool switchdev_trans_ph_commit(struct switchdev_trans *trans)
-{
-	return trans && !trans->ph_prepare;
-}
-
 enum switchdev_attr_id {
 	SWITCHDEV_ATTR_ID_UNDEFINED,
 	SWITCHDEV_ATTR_ID_PORT_STP_STATE,
