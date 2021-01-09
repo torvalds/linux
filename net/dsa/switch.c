@@ -298,10 +298,6 @@ static int dsa_switch_event(struct notifier_block *nb,
 		break;
 	}
 
-	/* Non-switchdev operations cannot be rolled back. If a DSA driver
-	 * returns an error during the chained call, switch chips may be in an
-	 * inconsistent state.
-	 */
 	if (err)
 		dev_dbg(ds->dev, "breaking chain for DSA event %lu (%d)\n",
 			event, err);
