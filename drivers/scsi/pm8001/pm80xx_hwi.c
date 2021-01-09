@@ -1043,6 +1043,7 @@ static int check_fw_ready(struct pm8001_hba_info *pm8001_ha)
 	u32 value;
 	u32 max_wait_count;
 	u32 max_wait_time;
+	u32 expected_mask;
 	int ret = 0;
 
 	/* reset / PCIe ready */
@@ -1052,70 +1053,35 @@ static int check_fw_ready(struct pm8001_hba_info *pm8001_ha)
 		value = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_1);
 	} while ((value == 0xFFFFFFFF) && (--max_wait_count));
 
-	/* check ila status */
-	max_wait_time = max_wait_count = 50;	/* 1000 milli sec */
-	do {
-		msleep(FW_READY_INTERVAL);
-		value = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_1);
-	} while (((value & SCRATCH_PAD_ILA_READY) !=
-			SCRATCH_PAD_ILA_READY) && (--max_wait_count));
-	if (!max_wait_count)
-		ret = -1;
-	else {
-		pm8001_dbg(pm8001_ha, MSG,
-			   " ila ready status in %d millisec\n",
-			   (max_wait_time - max_wait_count));
-	}
-
-	/* check RAAE status */
-	max_wait_time = max_wait_count = 90;	/* 1800 milli sec */
-	do {
-		msleep(FW_READY_INTERVAL);
-		value = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_1);
-	} while (((value & SCRATCH_PAD_RAAE_READY) !=
-				SCRATCH_PAD_RAAE_READY) && (--max_wait_count));
-	if (!max_wait_count)
-		ret = -1;
-	else {
-		pm8001_dbg(pm8001_ha, MSG,
-			   " raae ready status in %d millisec\n",
-			   (max_wait_time - max_wait_count));
-	}
-
-	/* check iop0 status */
-	max_wait_time = max_wait_count = 30;	/* 600 milli sec */
-	do {
-		msleep(FW_READY_INTERVAL);
-		value = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_1);
-	} while (((value & SCRATCH_PAD_IOP0_READY) != SCRATCH_PAD_IOP0_READY) &&
-			(--max_wait_count));
-	if (!max_wait_count)
-		ret = -1;
-	else {
-		pm8001_dbg(pm8001_ha, MSG,
-			   " iop0 ready status in %d millisec\n",
-			   (max_wait_time - max_wait_count));
-	}
-
-	/* check iop1 status only for 16 port controllers */
+	/* check ila, RAAE and iops status */
 	if ((pm8001_ha->chip_id != chip_8008) &&
 			(pm8001_ha->chip_id != chip_8009)) {
-		/* 200 milli sec */
-		max_wait_time = max_wait_count = 10;
-		do {
-			msleep(FW_READY_INTERVAL);
-			value = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_1);
-		} while (((value & SCRATCH_PAD_IOP1_READY) !=
-				SCRATCH_PAD_IOP1_READY) && (--max_wait_count));
-		if (!max_wait_count)
-			ret = -1;
-		else {
-			pm8001_dbg(pm8001_ha, MSG,
-				   "iop1 ready status in %d millisec\n",
-				   (max_wait_time - max_wait_count));
-		}
+		max_wait_time = max_wait_count = 180;   /* 3600 milli sec */
+		expected_mask = SCRATCH_PAD_ILA_READY |
+			SCRATCH_PAD_RAAE_READY |
+			SCRATCH_PAD_IOP0_READY |
+			SCRATCH_PAD_IOP1_READY;
+	} else {
+		max_wait_time = max_wait_count = 170;   /* 3400 milli sec */
+		expected_mask = SCRATCH_PAD_ILA_READY |
+			SCRATCH_PAD_RAAE_READY |
+			SCRATCH_PAD_IOP0_READY;
 	}
-
+	do {
+		msleep(FW_READY_INTERVAL);
+		value = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_1);
+	} while (((value & expected_mask) !=
+				 expected_mask) && (--max_wait_count));
+	if (!max_wait_count) {
+		pm8001_dbg(pm8001_ha, INIT,
+		"At least one FW component failed to load within %d millisec: Scratchpad1: 0x%x\n",
+			max_wait_time * FW_READY_INTERVAL, value);
+		ret = -1;
+	} else {
+		pm8001_dbg(pm8001_ha, MSG,
+			"All FW components ready by %d ms\n",
+			(max_wait_time - max_wait_count) * FW_READY_INTERVAL);
+	}
 	return ret;
 }
 
