@@ -773,13 +773,6 @@ static int vcodec_domains_get(struct device *dev)
 		core->pmdomains[i] = pd;
 	}
 
-	core->pd_dl_venus = device_link_add(dev, core->pmdomains[0],
-					    DL_FLAG_PM_RUNTIME |
-					    DL_FLAG_STATELESS |
-					    DL_FLAG_RPM_ACTIVE);
-	if (!core->pd_dl_venus)
-		return -ENODEV;
-
 skip_pmdomains:
 	if (!core->has_opp_table)
 		return 0;
@@ -806,14 +799,12 @@ skip_pmdomains:
 opp_dl_add_err:
 	dev_pm_opp_detach_genpd(core->opp_table);
 opp_attach_err:
-	if (core->pd_dl_venus) {
-		device_link_del(core->pd_dl_venus);
-		for (i = 0; i < res->vcodec_pmdomains_num; i++) {
-			if (IS_ERR_OR_NULL(core->pmdomains[i]))
-				continue;
-			dev_pm_domain_detach(core->pmdomains[i], true);
-		}
+	for (i = 0; i < res->vcodec_pmdomains_num; i++) {
+		if (IS_ERR_OR_NULL(core->pmdomains[i]))
+			continue;
+		dev_pm_domain_detach(core->pmdomains[i], true);
 	}
+
 	return ret;
 }
 
@@ -825,9 +816,6 @@ static void vcodec_domains_put(struct device *dev)
 
 	if (!res->vcodec_pmdomains_num)
 		goto skip_pmdomains;
-
-	if (core->pd_dl_venus)
-		device_link_del(core->pd_dl_venus);
 
 	for (i = 0; i < res->vcodec_pmdomains_num; i++) {
 		if (IS_ERR_OR_NULL(core->pmdomains[i]))
@@ -916,16 +904,30 @@ static void core_put_v4(struct device *dev)
 static int core_power_v4(struct device *dev, int on)
 {
 	struct venus_core *core = dev_get_drvdata(dev);
+	struct device *pmctrl = core->pmdomains[0];
 	int ret = 0;
 
 	if (on == POWER_ON) {
+		if (pmctrl) {
+			ret = pm_runtime_get_sync(pmctrl);
+			if (ret < 0) {
+				pm_runtime_put_noidle(pmctrl);
+				return ret;
+			}
+		}
+
 		ret = core_clks_enable(core);
+		if (ret < 0 && pmctrl)
+			pm_runtime_put_sync(pmctrl);
 	} else {
 		/* Drop the performance state vote */
 		if (core->opp_pmdomain)
 			dev_pm_opp_set_rate(dev, 0);
 
 		core_clks_disable(core);
+
+		if (pmctrl)
+			pm_runtime_put_sync(pmctrl);
 	}
 
 	return ret;
