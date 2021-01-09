@@ -2368,12 +2368,10 @@ static void rtl_jumbo_config(struct rtl8169_private *tp)
 			r8168dp_hw_jumbo_disable(tp);
 		break;
 	case RTL_GIGA_MAC_VER_31 ... RTL_GIGA_MAC_VER_33:
-		if (jumbo) {
-			pcie_set_readrq(tp->pci_dev, 512);
+		if (jumbo)
 			r8168e_hw_jumbo_enable(tp);
-		} else {
+		else
 			r8168e_hw_jumbo_disable(tp);
-		}
 		break;
 	default:
 		break;
