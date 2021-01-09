@@ -168,7 +168,7 @@ static const struct adreno_info gpulist[] = {
 		.init = a5xx_gpu_init,
 		.zapfw = "a530_zap.mdt",
 	}, {
-		.rev = ADRENO_REV(5, 4, 0, 2),
+		.rev = ADRENO_REV(5, 4, 0, ANY_ID),
 		.revn = 540,
 		.name = "A540",
 		.fw = {
