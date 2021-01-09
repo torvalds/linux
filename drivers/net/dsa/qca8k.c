@@ -1330,11 +1330,8 @@ qca8k_port_vlan_add(struct dsa_switch *ds, int port,
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	struct qca8k_priv *priv = ds->priv;
 	int ret = 0;
-	u16 vid;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end && !ret; ++vid)
-		ret = qca8k_vlan_add(priv, port, vid, untagged);
-
+	ret = qca8k_vlan_add(priv, port, vlan->vid, untagged);
 	if (ret)
 		dev_err(priv->dev, "Failed to add VLAN to port %d (%d)", port, ret);
 
@@ -1342,11 +1339,10 @@ qca8k_port_vlan_add(struct dsa_switch *ds, int port,
 		int shift = 16 * (port % 2);
 
 		qca8k_rmw(priv, QCA8K_EGRESS_VLAN(port),
-			  0xfff << shift,
-			  vlan->vid_end << shift);
+			  0xfff << shift, vlan->vid << shift);
 		qca8k_write(priv, QCA8K_REG_PORT_VLAN_CTRL0(port),
-			    QCA8K_PORT_VLAN_CVID(vlan->vid_end) |
-			    QCA8K_PORT_VLAN_SVID(vlan->vid_end));
+			    QCA8K_PORT_VLAN_CVID(vlan->vid) |
+			    QCA8K_PORT_VLAN_SVID(vlan->vid));
 	}
 }
 
@@ -1356,11 +1352,8 @@ qca8k_port_vlan_del(struct dsa_switch *ds, int port,
 {
 	struct qca8k_priv *priv = ds->priv;
 	int ret = 0;
-	u16 vid;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end && !ret; ++vid)
-		ret = qca8k_vlan_del(priv, port, vid);
-
+	ret = qca8k_vlan_del(priv, port, vlan->vid);
 	if (ret)
 		dev_err(priv->dev, "Failed to delete VLAN from port %d (%d)", port, ret);
 

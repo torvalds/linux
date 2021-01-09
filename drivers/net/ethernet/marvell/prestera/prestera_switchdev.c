@@ -1045,17 +1045,9 @@ static int prestera_port_vlans_add(struct prestera_port *port,
 	if (!bridge->vlan_enabled)
 		return 0;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		int err;
-
-		err = prestera_bridge_port_vlan_add(port, br_port,
-						    vid, flag_untagged,
-						    flag_pvid, extack);
-		if (err)
-			return err;
-	}
-
-	return 0;
+	return prestera_bridge_port_vlan_add(port, br_port,
+					     vid, flag_untagged,
+					     flag_pvid, extack);
 }
 
 static int prestera_port_obj_add(struct net_device *dev,
@@ -1081,7 +1073,6 @@ static int prestera_port_vlans_del(struct prestera_port *port,
 	struct net_device *dev = vlan->obj.orig_dev;
 	struct prestera_bridge_port *br_port;
 	struct prestera_switch *sw = port->sw;
-	u16 vid;
 
 	if (netif_is_bridge_master(dev))
 		return -EOPNOTSUPP;
@@ -1093,8 +1084,7 @@ static int prestera_port_vlans_del(struct prestera_port *port,
 	if (!br_port->bridge->vlan_enabled)
 		return 0;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++)
-		prestera_bridge_port_vlan_del(port, br_port, vid);
+	prestera_bridge_port_vlan_del(port, br_port, vlan->vid);
 
 	return 0;
 }

@@ -1393,7 +1393,7 @@ int b53_vlan_prepare(struct dsa_switch *ds, int port,
 {
 	struct b53_device *dev = ds->priv;
 
-	if ((is5325(dev) || is5365(dev)) && vlan->vid_begin == 0)
+	if ((is5325(dev) || is5365(dev)) && vlan->vid == 0)
 		return -EOPNOTSUPP;
 
 	/* Port 7 on 7278 connects to the ASP's UniMAC which is not capable of
@@ -1404,7 +1404,7 @@ int b53_vlan_prepare(struct dsa_switch *ds, int port,
 	    !(vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED))
 		return -EINVAL;
 
-	if (vlan->vid_end > dev->num_vlans)
+	if (vlan->vid > dev->num_vlans)
 		return -ERANGE;
 
 	b53_enable_vlan(dev, true, ds->vlan_filtering);
@@ -1420,30 +1420,27 @@ void b53_vlan_add(struct dsa_switch *ds, int port,
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	struct b53_vlan *vl;
-	u16 vid;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
-		vl = &dev->vlans[vid];
+	vl = &dev->vlans[vlan->vid];
 
-		b53_get_vlan_entry(dev, vid, vl);
+	b53_get_vlan_entry(dev, vlan->vid, vl);
 
-		if (vid == 0 && vid == b53_default_pvid(dev))
-			untagged = true;
+	if (vlan->vid == 0 && vlan->vid == b53_default_pvid(dev))
+		untagged = true;
 
-		vl->members |= BIT(port);
-		if (untagged && !dsa_is_cpu_port(ds, port))
-			vl->untag |= BIT(port);
-		else
-			vl->untag &= ~BIT(port);
+	vl->members |= BIT(port);
+	if (untagged && !dsa_is_cpu_port(ds, port))
+		vl->untag |= BIT(port);
+	else
+		vl->untag &= ~BIT(port);
 
-		b53_set_vlan_entry(dev, vid, vl);
-		b53_fast_age_vlan(dev, vid);
-	}
+	b53_set_vlan_entry(dev, vlan->vid, vl);
+	b53_fast_age_vlan(dev, vlan->vid);
 
 	if (pvid && !dsa_is_cpu_port(ds, port)) {
 		b53_write16(dev, B53_VLAN_PAGE, B53_VLAN_PORT_DEF_TAG(port),
-			    vlan->vid_end);
-		b53_fast_age_vlan(dev, vid);
+			    vlan->vid);
+		b53_fast_age_vlan(dev, vlan->vid);
 	}
 }
 EXPORT_SYMBOL(b53_vlan_add);
@@ -1454,27 +1451,24 @@ int b53_vlan_del(struct dsa_switch *ds, int port,
 	struct b53_device *dev = ds->priv;
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct b53_vlan *vl;
-	u16 vid;
 	u16 pvid;
 
 	b53_read16(dev, B53_VLAN_PAGE, B53_VLAN_PORT_DEF_TAG(port), &pvid);
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
-		vl = &dev->vlans[vid];
+	vl = &dev->vlans[vlan->vid];
 
-		b53_get_vlan_entry(dev, vid, vl);
+	b53_get_vlan_entry(dev, vlan->vid, vl);
 
-		vl->members &= ~BIT(port);
+	vl->members &= ~BIT(port);
 
-		if (pvid == vid)
-			pvid = b53_default_pvid(dev);
+	if (pvid == vlan->vid)
+		pvid = b53_default_pvid(dev);
 
-		if (untagged && !dsa_is_cpu_port(ds, port))
-			vl->untag &= ~(BIT(port));
+	if (untagged && !dsa_is_cpu_port(ds, port))
+		vl->untag &= ~(BIT(port));
 
-		b53_set_vlan_entry(dev, vid, vl);
-		b53_fast_age_vlan(dev, vid);
-	}
+	b53_set_vlan_entry(dev, vlan->vid, vl);
+	b53_fast_age_vlan(dev, vlan->vid);
 
 	b53_write16(dev, B53_VLAN_PAGE, B53_VLAN_PORT_DEF_TAG(port), pvid);
 	b53_fast_age_vlan(dev, pvid);

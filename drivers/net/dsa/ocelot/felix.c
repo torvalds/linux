@@ -116,8 +116,7 @@ static int felix_vlan_prepare(struct dsa_switch *ds, int port,
 			      const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ocelot *ocelot = ds->priv;
-	u16 vid, flags = vlan->flags;
-	int err;
+	u16 flags = vlan->flags;
 
 	/* Ocelot switches copy frames as-is to the CPU, so the flags:
 	 * egress-untagged or not, pvid or not, make no difference. This
@@ -130,15 +129,9 @@ static int felix_vlan_prepare(struct dsa_switch *ds, int port,
 	if (port == ocelot->npi)
 		return 0;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		err = ocelot_vlan_prepare(ocelot, port, vid,
-					  flags & BRIDGE_VLAN_INFO_PVID,
-					  flags & BRIDGE_VLAN_INFO_UNTAGGED);
-		if (err)
-			return err;
-	}
-
-	return 0;
+	return ocelot_vlan_prepare(ocelot, port, vlan->vid,
+				   flags & BRIDGE_VLAN_INFO_PVID,
+				   flags & BRIDGE_VLAN_INFO_UNTAGGED);
 }
 
 static int felix_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
@@ -154,37 +147,18 @@ static void felix_vlan_add(struct dsa_switch *ds, int port,
 {
 	struct ocelot *ocelot = ds->priv;
 	u16 flags = vlan->flags;
-	u16 vid;
-	int err;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		err = ocelot_vlan_add(ocelot, port, vid,
-				      flags & BRIDGE_VLAN_INFO_PVID,
-				      flags & BRIDGE_VLAN_INFO_UNTAGGED);
-		if (err) {
-			dev_err(ds->dev, "Failed to add VLAN %d to port %d: %d\n",
-				vid, port, err);
-			return;
-		}
-	}
+	ocelot_vlan_add(ocelot, port, vlan->vid,
+			flags & BRIDGE_VLAN_INFO_PVID,
+			flags & BRIDGE_VLAN_INFO_UNTAGGED);
 }
 
 static int felix_vlan_del(struct dsa_switch *ds, int port,
 			  const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ocelot *ocelot = ds->priv;
-	u16 vid;
-	int err;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		err = ocelot_vlan_del(ocelot, port, vid);
-		if (err) {
-			dev_err(ds->dev, "Failed to remove VLAN %d from port %d: %d\n",
-				vid, port, err);
-			return err;
-		}
-	}
-	return 0;
+	return ocelot_vlan_del(ocelot, port, vlan->vid);
 }
 
 static int felix_port_enable(struct dsa_switch *ds, int port,

@@ -260,10 +260,9 @@ static int cpsw_port_vlans_add(struct cpsw_priv *priv,
 	struct net_device *orig_dev = vlan->obj.orig_dev;
 	bool cpu_port = netif_is_bridge_master(orig_dev);
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
-	u16 vid;
 
 	dev_dbg(priv->dev, "VID add: %s: vid:%u flags:%X\n",
-		priv->ndev->name, vlan->vid_begin, vlan->flags);
+		priv->ndev->name, vlan->vid, vlan->flags);
 
 	if (cpu_port && !(vlan->flags & BRIDGE_VLAN_INFO_BRENTRY))
 		return 0;
@@ -271,33 +270,7 @@ static int cpsw_port_vlans_add(struct cpsw_priv *priv,
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		int err;
-
-		err = cpsw_port_vlan_add(priv, untag, pvid, vid, orig_dev);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
-static int cpsw_port_vlans_del(struct cpsw_priv *priv,
-			       const struct switchdev_obj_port_vlan *vlan)
-
-{
-	struct net_device *orig_dev = vlan->obj.orig_dev;
-	u16 vid;
-
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		int err;
-
-		err = cpsw_port_vlan_del(priv, vid, orig_dev);
-		if (err)
-			return err;
-	}
-
-	return 0;
+	return cpsw_port_vlan_add(priv, untag, pvid, vlan->vid, orig_dev);
 }
 
 static int cpsw_port_mdb_add(struct cpsw_priv *priv,
@@ -392,7 +365,7 @@ static int cpsw_port_obj_del(struct net_device *ndev,
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		err = cpsw_port_vlans_del(priv, vlan);
+		err = cpsw_port_vlan_del(priv, vlan->vid, vlan->obj.orig_dev);
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
 	case SWITCHDEV_OBJ_ID_HOST_MDB:

@@ -893,39 +893,16 @@ static int ocelot_port_obj_add_vlan(struct net_device *dev,
 				    const struct switchdev_obj_port_vlan *vlan,
 				    struct switchdev_trans *trans)
 {
+	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
+	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	int ret;
-	u16 vid;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
-		bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
+	if (switchdev_trans_ph_prepare(trans))
+		ret = ocelot_vlan_vid_prepare(dev, vlan->vid, pvid, untagged);
+	else
+		ret = ocelot_vlan_vid_add(dev, vlan->vid, pvid, untagged);
 
-		if (switchdev_trans_ph_prepare(trans))
-			ret = ocelot_vlan_vid_prepare(dev, vid, pvid,
-						      untagged);
-		else
-			ret = ocelot_vlan_vid_add(dev, vid, pvid, untagged);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-static int ocelot_port_vlan_del_vlan(struct net_device *dev,
-				     const struct switchdev_obj_port_vlan *vlan)
-{
-	int ret;
-	u16 vid;
-
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		ret = ocelot_vlan_vid_del(dev, vid);
-
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
 static int ocelot_port_obj_add_mdb(struct net_device *dev,
@@ -985,8 +962,8 @@ static int ocelot_port_obj_del(struct net_device *dev,
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		ret = ocelot_port_vlan_del_vlan(dev,
-						SWITCHDEV_OBJ_PORT_VLAN(obj));
+		ret = ocelot_vlan_vid_del(dev,
+					  SWITCHDEV_OBJ_PORT_VLAN(obj)->vid);
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
 		ret = ocelot_port_obj_del_mdb(dev, SWITCHDEV_OBJ_PORT_MDB(obj));

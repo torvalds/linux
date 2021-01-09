@@ -801,32 +801,32 @@ static void ksz8795_port_vlan_add(struct dsa_switch *ds, int port,
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct ksz_device *dev = ds->priv;
-	u16 data, vid, new_pvid = 0;
+	u16 data, new_pvid = 0;
 	u8 fid, member, valid;
 
 	ksz_port_cfg(dev, port, P_TAG_CTRL, PORT_REMOVE_TAG, untagged);
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		ksz8795_r_vlan_table(dev, vid, &data);
-		ksz8795_from_vlan(data, &fid, &member, &valid);
+	ksz8795_r_vlan_table(dev, vlan->vid, &data);
+	ksz8795_from_vlan(data, &fid, &member, &valid);
 
-		/* First time to setup the VLAN entry. */
-		if (!valid) {
-			/* Need to find a way to map VID to FID. */
-			fid = 1;
-			valid = 1;
-		}
-		member |= BIT(port);
-
-		ksz8795_to_vlan(fid, member, valid, &data);
-		ksz8795_w_vlan_table(dev, vid, data);
-
-		/* change PVID */
-		if (vlan->flags & BRIDGE_VLAN_INFO_PVID)
-			new_pvid = vid;
+	/* First time to setup the VLAN entry. */
+	if (!valid) {
+		/* Need to find a way to map VID to FID. */
+		fid = 1;
+		valid = 1;
 	}
+	member |= BIT(port);
+
+	ksz8795_to_vlan(fid, member, valid, &data);
+	ksz8795_w_vlan_table(dev, vlan->vid, data);
+
+	/* change PVID */
+	if (vlan->flags & BRIDGE_VLAN_INFO_PVID)
+		new_pvid = vlan->vid;
 
 	if (new_pvid) {
+		u16 vid;
+
 		ksz_pread16(dev, port, REG_PORT_CTRL_VID, &vid);
 		vid &= 0xfff;
 		vid |= new_pvid;
@@ -839,7 +839,7 @@ static int ksz8795_port_vlan_del(struct dsa_switch *ds, int port,
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct ksz_device *dev = ds->priv;
-	u16 data, vid, pvid, new_pvid = 0;
+	u16 data, pvid, new_pvid = 0;
 	u8 fid, member, valid;
 
 	ksz_pread16(dev, port, REG_PORT_CTRL_VID, &pvid);
@@ -847,24 +847,22 @@ static int ksz8795_port_vlan_del(struct dsa_switch *ds, int port,
 
 	ksz_port_cfg(dev, port, P_TAG_CTRL, PORT_REMOVE_TAG, untagged);
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		ksz8795_r_vlan_table(dev, vid, &data);
-		ksz8795_from_vlan(data, &fid, &member, &valid);
+	ksz8795_r_vlan_table(dev, vlan->vid, &data);
+	ksz8795_from_vlan(data, &fid, &member, &valid);
 
-		member &= ~BIT(port);
+	member &= ~BIT(port);
 
-		/* Invalidate the entry if no more member. */
-		if (!member) {
-			fid = 0;
-			valid = 0;
-		}
-
-		if (pvid == vid)
-			new_pvid = 1;
-
-		ksz8795_to_vlan(fid, member, valid, &data);
-		ksz8795_w_vlan_table(dev, vid, data);
+	/* Invalidate the entry if no more member. */
+	if (!member) {
+		fid = 0;
+		valid = 0;
 	}
+
+	if (pvid == vlan->vid)
+		new_pvid = 1;
+
+	ksz8795_to_vlan(fid, member, valid, &data);
+	ksz8795_w_vlan_table(dev, vlan->vid, data);
 
 	if (new_pvid != pvid)
 		ksz_pwrite16(dev, port, REG_PORT_CTRL_VID, pvid);

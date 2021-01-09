@@ -206,13 +206,12 @@ dsa_loop_port_vlan_prepare(struct dsa_switch *ds, int port,
 	struct dsa_loop_priv *ps = ds->priv;
 	struct mii_bus *bus = ps->bus;
 
-	dev_dbg(ds->dev, "%s: port: %d, vlan: %d-%d",
-		__func__, port, vlan->vid_begin, vlan->vid_end);
+	dev_dbg(ds->dev, "%s: port: %d, vlan: %d", __func__, port, vlan->vid);
 
 	/* Just do a sleeping operation to make lockdep checks effective */
 	mdiobus_read(bus, ps->port_base + port, MII_BMSR);
 
-	if (vlan->vid_end > ARRAY_SIZE(ps->vlans))
+	if (vlan->vid > ARRAY_SIZE(ps->vlans))
 		return -ERANGE;
 
 	return 0;
@@ -226,26 +225,23 @@ static void dsa_loop_port_vlan_add(struct dsa_switch *ds, int port,
 	struct dsa_loop_priv *ps = ds->priv;
 	struct mii_bus *bus = ps->bus;
 	struct dsa_loop_vlan *vl;
-	u16 vid;
 
 	/* Just do a sleeping operation to make lockdep checks effective */
 	mdiobus_read(bus, ps->port_base + port, MII_BMSR);
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
-		vl = &ps->vlans[vid];
+	vl = &ps->vlans[vlan->vid];
 
-		vl->members |= BIT(port);
-		if (untagged)
-			vl->untagged |= BIT(port);
-		else
-			vl->untagged &= ~BIT(port);
+	vl->members |= BIT(port);
+	if (untagged)
+		vl->untagged |= BIT(port);
+	else
+		vl->untagged &= ~BIT(port);
 
-		dev_dbg(ds->dev, "%s: port: %d vlan: %d, %stagged, pvid: %d\n",
-			__func__, port, vid, untagged ? "un" : "", pvid);
-	}
+	dev_dbg(ds->dev, "%s: port: %d vlan: %d, %stagged, pvid: %d\n",
+		__func__, port, vlan->vid, untagged ? "un" : "", pvid);
 
 	if (pvid)
-		ps->ports[port].pvid = vid;
+		ps->ports[port].pvid = vlan->vid;
 }
 
 static int dsa_loop_port_vlan_del(struct dsa_switch *ds, int port,
@@ -253,26 +249,24 @@ static int dsa_loop_port_vlan_del(struct dsa_switch *ds, int port,
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct dsa_loop_priv *ps = ds->priv;
+	u16 pvid = ps->ports[port].pvid;
 	struct mii_bus *bus = ps->bus;
 	struct dsa_loop_vlan *vl;
-	u16 vid, pvid = ps->ports[port].pvid;
 
 	/* Just do a sleeping operation to make lockdep checks effective */
 	mdiobus_read(bus, ps->port_base + port, MII_BMSR);
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
-		vl = &ps->vlans[vid];
+	vl = &ps->vlans[vlan->vid];
 
-		vl->members &= ~BIT(port);
-		if (untagged)
-			vl->untagged &= ~BIT(port);
+	vl->members &= ~BIT(port);
+	if (untagged)
+		vl->untagged &= ~BIT(port);
 
-		if (pvid == vid)
-			pvid = 1;
+	if (pvid == vlan->vid)
+		pvid = 1;
 
-		dev_dbg(ds->dev, "%s: port: %d vlan: %d, %stagged, pvid: %d\n",
-			__func__, port, vid, untagged ? "un" : "", pvid);
-	}
+	dev_dbg(ds->dev, "%s: port: %d vlan: %d, %stagged, pvid: %d\n",
+		__func__, port, vlan->vid, untagged ? "un" : "", pvid);
 	ps->ports[port].pvid = pvid;
 
 	return 0;

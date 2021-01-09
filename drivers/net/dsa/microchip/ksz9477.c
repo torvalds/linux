@@ -519,33 +519,30 @@ static void ksz9477_port_vlan_add(struct dsa_switch *ds, int port,
 {
 	struct ksz_device *dev = ds->priv;
 	u32 vlan_table[3];
-	u16 vid;
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		if (ksz9477_get_vlan_table(dev, vid, vlan_table)) {
-			dev_dbg(dev->dev, "Failed to get vlan table\n");
-			return;
-		}
-
-		vlan_table[0] = VLAN_VALID | (vid & VLAN_FID_M);
-		if (untagged)
-			vlan_table[1] |= BIT(port);
-		else
-			vlan_table[1] &= ~BIT(port);
-		vlan_table[1] &= ~(BIT(dev->cpu_port));
-
-		vlan_table[2] |= BIT(port) | BIT(dev->cpu_port);
-
-		if (ksz9477_set_vlan_table(dev, vid, vlan_table)) {
-			dev_dbg(dev->dev, "Failed to set vlan table\n");
-			return;
-		}
-
-		/* change PVID */
-		if (vlan->flags & BRIDGE_VLAN_INFO_PVID)
-			ksz_pwrite16(dev, port, REG_PORT_DEFAULT_VID, vid);
+	if (ksz9477_get_vlan_table(dev, vlan->vid, vlan_table)) {
+		dev_dbg(dev->dev, "Failed to get vlan table\n");
+		return;
 	}
+
+	vlan_table[0] = VLAN_VALID | (vlan->vid & VLAN_FID_M);
+	if (untagged)
+		vlan_table[1] |= BIT(port);
+	else
+		vlan_table[1] &= ~BIT(port);
+	vlan_table[1] &= ~(BIT(dev->cpu_port));
+
+	vlan_table[2] |= BIT(port) | BIT(dev->cpu_port);
+
+	if (ksz9477_set_vlan_table(dev, vlan->vid, vlan_table)) {
+		dev_dbg(dev->dev, "Failed to set vlan table\n");
+		return;
+	}
+
+	/* change PVID */
+	if (vlan->flags & BRIDGE_VLAN_INFO_PVID)
+		ksz_pwrite16(dev, port, REG_PORT_DEFAULT_VID, vlan->vid);
 }
 
 static int ksz9477_port_vlan_del(struct dsa_switch *ds, int port,
@@ -554,30 +551,27 @@ static int ksz9477_port_vlan_del(struct dsa_switch *ds, int port,
 	struct ksz_device *dev = ds->priv;
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	u32 vlan_table[3];
-	u16 vid;
 	u16 pvid;
 
 	ksz_pread16(dev, port, REG_PORT_DEFAULT_VID, &pvid);
 	pvid = pvid & 0xFFF;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		if (ksz9477_get_vlan_table(dev, vid, vlan_table)) {
-			dev_dbg(dev->dev, "Failed to get vlan table\n");
-			return -ETIMEDOUT;
-		}
+	if (ksz9477_get_vlan_table(dev, vlan->vid, vlan_table)) {
+		dev_dbg(dev->dev, "Failed to get vlan table\n");
+		return -ETIMEDOUT;
+	}
 
-		vlan_table[2] &= ~BIT(port);
+	vlan_table[2] &= ~BIT(port);
 
-		if (pvid == vid)
-			pvid = 1;
+	if (pvid == vlan->vid)
+		pvid = 1;
 
-		if (untagged)
-			vlan_table[1] &= ~BIT(port);
+	if (untagged)
+		vlan_table[1] &= ~BIT(port);
 
-		if (ksz9477_set_vlan_table(dev, vid, vlan_table)) {
-			dev_dbg(dev->dev, "Failed to set vlan table\n");
-			return -ETIMEDOUT;
-		}
+	if (ksz9477_set_vlan_table(dev, vlan->vid, vlan_table)) {
+		dev_dbg(dev->dev, "Failed to set vlan table\n");
+		return -ETIMEDOUT;
 	}
 
 	ksz_pwrite16(dev, port, REG_PORT_DEFAULT_VID, pvid);

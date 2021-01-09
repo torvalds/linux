@@ -1529,7 +1529,7 @@ static int mv88e6xxx_atu_new(struct mv88e6xxx_chip *chip, u16 *fid)
 }
 
 static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
-					u16 vid_begin, u16 vid_end)
+					u16 vid)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	struct mv88e6xxx_vtu_entry vlan;
@@ -1539,47 +1539,45 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 	if (dsa_is_dsa_port(ds, port) || dsa_is_cpu_port(ds, port))
 		return 0;
 
-	if (!vid_begin)
+	if (!vid)
 		return -EOPNOTSUPP;
 
-	vlan.vid = vid_begin - 1;
+	vlan.vid = vid - 1;
 	vlan.valid = false;
 
-	do {
-		err = mv88e6xxx_vtu_getnext(chip, &vlan);
-		if (err)
-			return err;
+	err = mv88e6xxx_vtu_getnext(chip, &vlan);
+	if (err)
+		return err;
 
-		if (!vlan.valid)
-			break;
+	if (!vlan.valid)
+		return 0;
 
-		if (vlan.vid > vid_end)
-			break;
+	if (vlan.vid != vid)
+		return 0;
 
-		for (i = 0; i < mv88e6xxx_num_ports(chip); ++i) {
-			if (dsa_is_dsa_port(ds, i) || dsa_is_cpu_port(ds, i))
-				continue;
+	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i) {
+		if (dsa_is_dsa_port(ds, i) || dsa_is_cpu_port(ds, i))
+			continue;
 
-			if (!dsa_to_port(ds, i)->slave)
-				continue;
+		if (!dsa_to_port(ds, i)->slave)
+			continue;
 
-			if (vlan.member[i] ==
-			    MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER)
-				continue;
+		if (vlan.member[i] ==
+		    MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER)
+			continue;
 
-			if (dsa_to_port(ds, i)->bridge_dev ==
-			    dsa_to_port(ds, port)->bridge_dev)
-				break; /* same bridge, check next VLAN */
+		if (dsa_to_port(ds, i)->bridge_dev ==
+		    dsa_to_port(ds, port)->bridge_dev)
+			break; /* same bridge, check next VLAN */
 
-			if (!dsa_to_port(ds, i)->bridge_dev)
-				continue;
+		if (!dsa_to_port(ds, i)->bridge_dev)
+			continue;
 
-			dev_err(ds->dev, "p%d: hw VLAN %d already used by port %d in %s\n",
-				port, vlan.vid, i,
-				netdev_name(dsa_to_port(ds, i)->bridge_dev));
-			return -EOPNOTSUPP;
-		}
-	} while (vlan.vid < vid_end);
+		dev_err(ds->dev, "p%d: hw VLAN %d already used by port %d in %s\n",
+			port, vlan.vid, i,
+			netdev_name(dsa_to_port(ds, i)->bridge_dev));
+		return -EOPNOTSUPP;
+	}
 
 	return 0;
 }
@@ -1617,8 +1615,7 @@ mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
 	 * members, do not support it (yet) and fallback to software VLAN.
 	 */
 	mv88e6xxx_reg_lock(chip);
-	err = mv88e6xxx_port_check_hw_vlan(ds, port, vlan->vid_begin,
-					   vlan->vid_end);
+	err = mv88e6xxx_port_check_hw_vlan(ds, port, vlan->vid);
 	mv88e6xxx_reg_unlock(chip);
 
 	/* We don't need any dynamic resource from the kernel (yet),
@@ -1978,7 +1975,6 @@ static void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	bool warn;
 	u8 member;
-	u16 vid;
 
 	if (!mv88e6xxx_max_vid(chip))
 		return;
@@ -1997,14 +1993,13 @@ static void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 
 	mv88e6xxx_reg_lock(chip);
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid)
-		if (mv88e6xxx_port_vlan_join(chip, port, vid, member, warn))
-			dev_err(ds->dev, "p%d: failed to add VLAN %d%c\n", port,
-				vid, untagged ? 'u' : 't');
+	if (mv88e6xxx_port_vlan_join(chip, port, vlan->vid, member, warn))
+		dev_err(ds->dev, "p%d: failed to add VLAN %d%c\n", port,
+			vlan->vid, untagged ? 'u' : 't');
 
-	if (pvid && mv88e6xxx_port_set_pvid(chip, port, vlan->vid_end))
+	if (pvid && mv88e6xxx_port_set_pvid(chip, port, vlan->vid))
 		dev_err(ds->dev, "p%d: failed to set PVID %d\n", port,
-			vlan->vid_end);
+			vlan->vid);
 
 	mv88e6xxx_reg_unlock(chip);
 }
@@ -2055,8 +2050,8 @@ static int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
 				   const struct switchdev_obj_port_vlan *vlan)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
-	u16 pvid, vid;
 	int err = 0;
+	u16 pvid;
 
 	if (!mv88e6xxx_max_vid(chip))
 		return -EOPNOTSUPP;
@@ -2067,16 +2062,14 @@ static int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
 	if (err)
 		goto unlock;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
-		err = mv88e6xxx_port_vlan_leave(chip, port, vid);
+	err = mv88e6xxx_port_vlan_leave(chip, port, vlan->vid);
+	if (err)
+		goto unlock;
+
+	if (vlan->vid == pvid) {
+		err = mv88e6xxx_port_set_pvid(chip, port, 0);
 		if (err)
 			goto unlock;
-
-		if (vid == pvid) {
-			err = mv88e6xxx_port_set_pvid(chip, port, 0);
-			if (err)
-				goto unlock;
-		}
 	}
 
 unlock:

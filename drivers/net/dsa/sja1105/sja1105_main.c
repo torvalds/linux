@@ -2611,7 +2611,6 @@ static int sja1105_vlan_prepare(struct dsa_switch *ds, int port,
 				const struct switchdev_obj_port_vlan *vlan)
 {
 	struct sja1105_private *priv = ds->priv;
-	u16 vid;
 
 	if (priv->vlan_state == SJA1105_VLAN_FILTERING_FULL)
 		return 0;
@@ -2620,11 +2619,9 @@ static int sja1105_vlan_prepare(struct dsa_switch *ds, int port,
 	 * bridge plus tagging), be sure to at least deny alterations to the
 	 * configuration done by dsa_8021q.
 	 */
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		if (vid_is_dsa_8021q(vid)) {
-			dev_err(ds->dev, "Range 1024-3071 reserved for dsa_8021q operation\n");
-			return -EBUSY;
-		}
+	if (vid_is_dsa_8021q(vlan->vid)) {
+		dev_err(ds->dev, "Range 1024-3071 reserved for dsa_8021q operation\n");
+		return -EBUSY;
 	}
 
 	return 0;
@@ -2799,17 +2796,14 @@ static void sja1105_vlan_add(struct dsa_switch *ds, int port,
 {
 	struct sja1105_private *priv = ds->priv;
 	bool vlan_table_changed = false;
-	u16 vid;
 	int rc;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		rc = sja1105_vlan_add_one(ds, port, vid, vlan->flags,
-					  &priv->bridge_vlans);
-		if (rc < 0)
-			return;
-		if (rc > 0)
-			vlan_table_changed = true;
-	}
+	rc = sja1105_vlan_add_one(ds, port, vlan->vid, vlan->flags,
+				  &priv->bridge_vlans);
+	if (rc < 0)
+		return;
+	if (rc > 0)
+		vlan_table_changed = true;
 
 	if (!vlan_table_changed)
 		return;
@@ -2824,14 +2818,11 @@ static int sja1105_vlan_del(struct dsa_switch *ds, int port,
 {
 	struct sja1105_private *priv = ds->priv;
 	bool vlan_table_changed = false;
-	u16 vid;
 	int rc;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		rc = sja1105_vlan_del_one(ds, port, vid, &priv->bridge_vlans);
-		if (rc > 0)
-			vlan_table_changed = true;
-	}
+	rc = sja1105_vlan_del_one(ds, port, vlan->vid, &priv->bridge_vlans);
+	if (rc > 0)
+		vlan_table_changed = true;
 
 	if (!vlan_table_changed)
 		return 0;

@@ -2540,32 +2540,16 @@ static int ofdpa_port_obj_vlan_add(struct rocker_port *rocker_port,
 				   const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
-	u16 vid;
-	int err;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		err = ofdpa_port_vlan_add(ofdpa_port, vid, vlan->flags);
-		if (err)
-			return err;
-	}
-
-	return 0;
+	return ofdpa_port_vlan_add(ofdpa_port, vlan->vid, vlan->flags);
 }
 
 static int ofdpa_port_obj_vlan_del(struct rocker_port *rocker_port,
 				   const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
-	u16 vid;
-	int err;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		err = ofdpa_port_vlan_del(ofdpa_port, vid, vlan->flags);
-		if (err)
-			return err;
-	}
-
-	return 0;
+	return ofdpa_port_vlan_del(ofdpa_port, vlan->vid, vlan->flags);
 }
 
 static int ofdpa_port_obj_fdb_add(struct rocker_port *rocker_port,

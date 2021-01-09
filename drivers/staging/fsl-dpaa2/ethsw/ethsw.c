@@ -981,19 +981,14 @@ static int dpaa2_switch_port_vlans_add(struct net_device *netdev,
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 	struct dpsw_attr *attr = &ethsw->sw_attr;
-	int vid, err = 0, new_vlans = 0;
+	int err = 0;
 
 	if (switchdev_trans_ph_prepare(trans)) {
-		for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-			if (!port_priv->ethsw_data->vlans[vid])
-				new_vlans++;
-
-			/* Make sure that the VLAN is not already configured
-			 * on the switch port
-			 */
-			if (port_priv->vlans[vid] & ETHSW_VLAN_MEMBER)
-				return -EEXIST;
-		}
+		/* Make sure that the VLAN is not already configured
+		 * on the switch port
+		 */
+		if (port_priv->vlans[vlan->vid] & ETHSW_VLAN_MEMBER)
+			return -EEXIST;
 
 		/* Check if there is space for a new VLAN */
 		err = dpsw_get_attributes(ethsw->mc_io, 0, ethsw->dpsw_handle,
@@ -1002,27 +997,22 @@ static int dpaa2_switch_port_vlans_add(struct net_device *netdev,
 			netdev_err(netdev, "dpsw_get_attributes err %d\n", err);
 			return err;
 		}
-		if (attr->max_vlans - attr->num_vlans < new_vlans)
+		if (attr->max_vlans - attr->num_vlans < 1)
 			return -ENOSPC;
 
 		return 0;
 	}
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		if (!port_priv->ethsw_data->vlans[vid]) {
-			/* this is a new VLAN */
-			err = dpaa2_switch_add_vlan(port_priv->ethsw_data, vid);
-			if (err)
-				return err;
-
-			port_priv->ethsw_data->vlans[vid] |= ETHSW_VLAN_GLOBAL;
-		}
-		err = dpaa2_switch_port_add_vlan(port_priv, vid, vlan->flags);
+	if (!port_priv->ethsw_data->vlans[vlan->vid]) {
+		/* this is a new VLAN */
+		err = dpaa2_switch_add_vlan(port_priv->ethsw_data, vlan->vid);
 		if (err)
-			break;
+			return err;
+
+		port_priv->ethsw_data->vlans[vlan->vid] |= ETHSW_VLAN_GLOBAL;
 	}
 
-	return err;
+	return dpaa2_switch_port_add_vlan(port_priv, vlan->vid, vlan->flags);
 }
 
 static int dpaa2_switch_port_lookup_address(struct net_device *netdev, int is_uc,
@@ -1155,18 +1145,11 @@ static int dpaa2_switch_port_vlans_del(struct net_device *netdev,
 				       const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
-	int vid, err = 0;
 
 	if (netif_is_bridge_master(vlan->obj.orig_dev))
 		return -EOPNOTSUPP;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		err = dpaa2_switch_port_del_vlan(port_priv, vid);
-		if (err)
-			break;
-	}
-
-	return err;
+	return dpaa2_switch_port_del_vlan(port_priv, vlan->vid);
 }
 
 static int dpaa2_switch_port_mdb_del(struct net_device *netdev,

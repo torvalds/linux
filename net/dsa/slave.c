@@ -318,7 +318,7 @@ dsa_slave_vlan_check_for_8021q_uppers(struct net_device *slave,
 			continue;
 
 		vid = vlan_dev_vlan_id(upper_dev);
-		if (vid >= vlan->vid_begin && vid <= vlan->vid_end)
+		if (vid == vlan->vid)
 			return -EBUSY;
 	}
 
@@ -332,7 +332,7 @@ static int dsa_slave_vlan_add(struct net_device *dev,
 	struct net_device *master = dsa_slave_to_master(dev);
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	struct switchdev_obj_port_vlan vlan;
-	int vid, err;
+	int err;
 
 	if (obj->orig_dev != dev)
 		return -EOPNOTSUPP;
@@ -367,13 +367,7 @@ static int dsa_slave_vlan_add(struct net_device *dev,
 	if (err)
 		return err;
 
-	for (vid = vlan.vid_begin; vid <= vlan.vid_end; vid++) {
-		err = vlan_vid_add(master, htons(ETH_P_8021Q), vid);
-		if (err)
-			return err;
-	}
-
-	return 0;
+	return vlan_vid_add(master, htons(ETH_P_8021Q), vlan.vid);
 }
 
 static int dsa_slave_port_obj_add(struct net_device *dev,
@@ -419,7 +413,7 @@ static int dsa_slave_vlan_del(struct net_device *dev,
 	struct net_device *master = dsa_slave_to_master(dev);
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	struct switchdev_obj_port_vlan *vlan;
-	int vid, err;
+	int err;
 
 	if (obj->orig_dev != dev)
 		return -EOPNOTSUPP;
@@ -436,8 +430,7 @@ static int dsa_slave_vlan_del(struct net_device *dev,
 	if (err)
 		return err;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++)
-		vlan_vid_del(master, htons(ETH_P_8021Q), vid);
+	vlan_vid_del(master, htons(ETH_P_8021Q), vlan->vid);
 
 	return 0;
 }
@@ -1289,8 +1282,7 @@ static int dsa_slave_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	struct switchdev_obj_port_vlan vlan = {
 		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
-		.vid_begin = vid,
-		.vid_end = vid,
+		.vid = vid,
 		/* This API only allows programming tagged, non-PVID VIDs */
 		.flags = 0,
 	};
@@ -1328,8 +1320,7 @@ static int dsa_slave_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
 	struct net_device *master = dsa_slave_to_master(dev);
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	struct switchdev_obj_port_vlan vlan = {
-		.vid_begin = vid,
-		.vid_end = vid,
+		.vid = vid,
 		/* This API only allows programming tagged, non-PVID VIDs */
 		.flags = 0,
 	};

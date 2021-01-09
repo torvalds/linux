@@ -1146,43 +1146,38 @@ static int gswip_port_vlan_prepare(struct dsa_switch *ds, int port,
 	struct gswip_priv *priv = ds->priv;
 	struct net_device *bridge = dsa_to_port(ds, port)->bridge_dev;
 	unsigned int max_ports = priv->hw_info->max_ports;
-	u16 vid;
-	int i;
 	int pos = max_ports;
+	int i, idx = -1;
 
 	/* We only support VLAN filtering on bridges */
 	if (!dsa_is_cpu_port(ds, port) && !bridge)
 		return -EOPNOTSUPP;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
-		int idx = -1;
+	/* Check if there is already a page for this VLAN */
+	for (i = max_ports; i < ARRAY_SIZE(priv->vlans); i++) {
+		if (priv->vlans[i].bridge == bridge &&
+		    priv->vlans[i].vid == vlan->vid) {
+			idx = i;
+			break;
+		}
+	}
 
-		/* Check if there is already a page for this VLAN */
-		for (i = max_ports; i < ARRAY_SIZE(priv->vlans); i++) {
-			if (priv->vlans[i].bridge == bridge &&
-			    priv->vlans[i].vid == vid) {
-				idx = i;
+	/* If this VLAN is not programmed yet, we have to reserve
+	 * one entry in the VLAN table. Make sure we start at the
+	 * next position round.
+	 */
+	if (idx == -1) {
+		/* Look for a free slot */
+		for (; pos < ARRAY_SIZE(priv->vlans); pos++) {
+			if (!priv->vlans[pos].bridge) {
+				idx = pos;
+				pos++;
 				break;
 			}
 		}
 
-		/* If this VLAN is not programmed yet, we have to reserve
-		 * one entry in the VLAN table. Make sure we start at the
-		 * next position round.
-		 */
-		if (idx == -1) {
-			/* Look for a free slot */
-			for (; pos < ARRAY_SIZE(priv->vlans); pos++) {
-				if (!priv->vlans[pos].bridge) {
-					idx = pos;
-					pos++;
-					break;
-				}
-			}
-
-			if (idx == -1)
-				return -ENOSPC;
-		}
+		if (idx == -1)
+			return -ENOSPC;
 	}
 
 	return 0;
@@ -1195,7 +1190,6 @@ static void gswip_port_vlan_add(struct dsa_switch *ds, int port,
 	struct net_device *bridge = dsa_to_port(ds, port)->bridge_dev;
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
-	u16 vid;
 
 	/* We have to receive all packets on the CPU port and should not
 	 * do any VLAN filtering here. This is also called with bridge
@@ -1205,8 +1199,7 @@ static void gswip_port_vlan_add(struct dsa_switch *ds, int port,
 	if (dsa_is_cpu_port(ds, port))
 		return;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid)
-		gswip_vlan_add_aware(priv, bridge, port, vid, untagged, pvid);
+	gswip_vlan_add_aware(priv, bridge, port, vlan->vid, untagged, pvid);
 }
 
 static int gswip_port_vlan_del(struct dsa_switch *ds, int port,
@@ -1215,8 +1208,6 @@ static int gswip_port_vlan_del(struct dsa_switch *ds, int port,
 	struct gswip_priv *priv = ds->priv;
 	struct net_device *bridge = dsa_to_port(ds, port)->bridge_dev;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
-	u16 vid;
-	int err;
 
 	/* We have to receive all packets on the CPU port and should not
 	 * do any VLAN filtering here. This is also called with bridge
@@ -1226,13 +1217,7 @@ static int gswip_port_vlan_del(struct dsa_switch *ds, int port,
 	if (dsa_is_cpu_port(ds, port))
 		return 0;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
-		err = gswip_vlan_remove(priv, bridge, port, vid, pvid, true);
-		if (err)
-			return err;
-	}
-
-	return 0;
+	return gswip_vlan_remove(priv, bridge, port, vlan->vid, pvid, true);
 }
 
 static void gswip_port_fast_age(struct dsa_switch *ds, int port)
