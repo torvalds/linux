@@ -3038,8 +3038,8 @@ void pm8001_mpi_set_nvmd_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	complete(pm8001_ha->nvmd_completion);
 	pm8001_dbg(pm8001_ha, MSG, "Set nvm data complete!\n");
 	if ((dlen_status & NVMD_STAT) != 0) {
-		pm8001_dbg(pm8001_ha, FAIL, "Set nvm data error!\n");
-		return;
+		pm8001_dbg(pm8001_ha, FAIL, "Set nvm data error %x\n",
+				dlen_status);
 	}
 	ccb->task = NULL;
 	ccb->ccb_tag = 0xFFFFFFFF;
@@ -3062,11 +3062,17 @@ pm8001_mpi_get_nvmd_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 
 	pm8001_dbg(pm8001_ha, MSG, "Get nvm data complete!\n");
 	if ((dlen_status & NVMD_STAT) != 0) {
-		pm8001_dbg(pm8001_ha, FAIL, "Get nvm data error!\n");
+		pm8001_dbg(pm8001_ha, FAIL, "Get nvm data error %x\n",
+				dlen_status);
 		complete(pm8001_ha->nvmd_completion);
+		/* We should free tag during failure also, the tag is not being
+		 * freed by requesting path anywhere.
+		 */
+		ccb->task = NULL;
+		ccb->ccb_tag = 0xFFFFFFFF;
+		pm8001_tag_free(pm8001_ha, tag);
 		return;
 	}
-
 	if (ir_tds_bn_dps_das_nvm & IPMode) {
 		/* indirect mode - IR bit set */
 		pm8001_dbg(pm8001_ha, MSG, "Get NVMD success, IR=1\n");
