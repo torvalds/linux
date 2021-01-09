@@ -309,8 +309,9 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp);
 struct i915_request * __must_check
 i915_request_create(struct intel_context *ce);
 
-void i915_request_set_error_once(struct i915_request *rq, int error);
 void __i915_request_skip(struct i915_request *rq);
+void i915_request_set_error_once(struct i915_request *rq, int error);
+void i915_request_mark_eio(struct i915_request *rq);
 
 struct i915_request *__i915_request_commit(struct i915_request *request);
 void __i915_request_queue(struct i915_request *rq,

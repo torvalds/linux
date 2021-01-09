@@ -515,6 +515,17 @@ void i915_request_set_error_once(struct i915_request *rq, int error)
 	} while (!try_cmpxchg(&rq->fence.error, &old, error));
 }
 
+void i915_request_mark_eio(struct i915_request *rq)
+{
+	if (__i915_request_is_complete(rq))
+		return;
+
+	GEM_BUG_ON(i915_request_signaled(rq));
+
+	i915_request_set_error_once(rq, -EIO);
+	i915_request_mark_complete(rq);
+}
+
 bool __i915_request_submit(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;

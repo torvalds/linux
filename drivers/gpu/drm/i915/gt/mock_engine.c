@@ -245,17 +245,6 @@ static void mock_reset_rewind(struct intel_engine_cs *engine, bool stalled)
 	GEM_BUG_ON(stalled);
 }
 
-static void mark_eio(struct i915_request *rq)
-{
-	if (i915_request_completed(rq))
-		return;
-
-	GEM_BUG_ON(i915_request_signaled(rq));
-
-	i915_request_set_error_once(rq, -EIO);
-	i915_request_mark_complete(rq);
-}
-
 static void mock_reset_cancel(struct intel_engine_cs *engine)
 {
 	struct mock_engine *mock =
@@ -269,12 +258,12 @@ static void mock_reset_cancel(struct intel_engine_cs *engine)
 
 	/* Mark all submitted requests as skipped. */
 	list_for_each_entry(rq, &engine->active.requests, sched.link)
-		mark_eio(rq);
+		i915_request_mark_eio(rq);
 	intel_engine_signal_breadcrumbs(engine);
 
 	/* Cancel and submit all pending requests. */
 	list_for_each_entry(rq, &mock->hw_queue, mock.link) {
-		mark_eio(rq);
+		i915_request_mark_eio(rq);
 		__i915_request_submit(rq);
 	}
 	INIT_LIST_HEAD(&mock->hw_queue);
