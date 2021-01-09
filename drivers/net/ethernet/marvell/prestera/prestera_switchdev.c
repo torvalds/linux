@@ -652,9 +652,9 @@ static int prestera_port_bridge_vlan_stp_set(struct prestera_port *port,
 	return 0;
 }
 
-static int presterar_port_attr_stp_state_set(struct prestera_port *port,
-					     struct net_device *dev,
-					     u8 state)
+static int prestera_port_attr_stp_state_set(struct prestera_port *port,
+					    struct net_device *dev,
+					    u8 state)
 {
 	struct prestera_bridge_port *br_port;
 	struct prestera_bridge_vlan *br_vlan;
@@ -702,8 +702,8 @@ static int prestera_port_obj_attr_set(struct net_device *dev,
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_ID_PORT_STP_STATE:
-		err = presterar_port_attr_stp_state_set(port, attr->orig_dev,
-							attr->u.stp_state);
+		err = prestera_port_attr_stp_state_set(port, attr->orig_dev,
+						       attr->u.stp_state);
 		break;
 	case SWITCHDEV_ATTR_ID_PORT_PRE_BRIDGE_FLAGS:
 		if (attr->u.brport_flags &
