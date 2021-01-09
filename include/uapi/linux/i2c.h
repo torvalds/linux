@@ -129,6 +129,11 @@ struct i2c_msg {
 					 I2C_FUNC_SMBUS_I2C_BLOCK | \
 					 I2C_FUNC_SMBUS_PEC)
 
+/* if I2C_M_RECV_LEN is also supported */
+#define I2C_FUNC_SMBUS_EMUL_ALL		(I2C_FUNC_SMBUS_EMUL | \
+					 I2C_FUNC_SMBUS_READ_BLOCK_DATA | \
+					 I2C_FUNC_SMBUS_BLOCK_PROC_CALL)
+
 /*
  * Data for SMBus Messages
  */
