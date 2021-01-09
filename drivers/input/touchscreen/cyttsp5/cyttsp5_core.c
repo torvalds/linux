@@ -4808,8 +4808,7 @@ static int cyttsp5_core_suspend(struct device *dev)
 	//printk("cyttsp5_core_suspend :easy_wakeup_gesture=%d\n", cd->easy_wakeup_gesture);
 	cyttsp5_core_sleep(cd);
 
-	//if (PM_SUSPEND_IDLE != get_suspend_state())
-	//{
+	if (PM_SUSPEND_MEM_LITE != mem_sleep_current) {
 		disable_irq(cd->irq);
 		cd->irq_disabled = 1;
 		//gpio_direction_output(cd->cpdata->rst_gpio, 0);
@@ -4820,11 +4819,10 @@ static int cyttsp5_core_suspend(struct device *dev)
 		gpio_direction_output(cd->cpdata->irq_gpio, 0);
 		msleep(20);
 	//	regulator_suspend_disable(cd->supply);
-	//}
-	//else {
-	//	enable_irq_wake(cd->irq);
-	//	cd->irq_wake = 1;
-	//}
+	} else {
+		enable_irq_wake(cd->irq);
+		cd->irq_wake = 1;
+	}
 /*
 	if (IS_DEEP_SLEEP_CONFIGURED(cd->easy_wakeup_gesture)){	
 		printk("cyttsp5_core_suspend 1100\n");
@@ -4845,10 +4843,10 @@ static int cyttsp5_core_resume(struct device *dev)
 {
 	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
 
-	//if (get_suspend_state() != PM_SUSPEND_IDLE) {
+	if (mem_sleep_current != PM_SUSPEND_MEM_LITE) {
 		gpio_direction_input(cd->cpdata->irq_gpio);
 		cyttsp5_hw_hard_reset(cd);
-	//}
+	}
 	//printk("cyttsp5_core_resume cd->irq_enabled=%d\n", cd->irq_enabled);
 
 	//if (IS_DEEP_SLEEP_CONFIGURED(cd->easy_wakeup_gesture))
