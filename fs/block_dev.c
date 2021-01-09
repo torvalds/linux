@@ -126,7 +126,6 @@ int truncate_bdev_range(struct block_device *bdev, fmode_t mode,
 		bd_abort_claiming(bdev, truncate_bdev_range);
 	return 0;
 }
-EXPORT_SYMBOL(truncate_bdev_range);
 
 static void set_init_blocksize(struct block_device *bdev)
 {
