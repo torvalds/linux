@@ -727,23 +727,14 @@ static int gswip_pce_load_microcode(struct gswip_priv *priv)
 }
 
 static int gswip_port_vlan_filtering(struct dsa_switch *ds, int port,
-				     bool vlan_filtering,
-				     struct switchdev_trans *trans)
+				     bool vlan_filtering)
 {
+	struct net_device *bridge = dsa_to_port(ds, port)->bridge_dev;
 	struct gswip_priv *priv = ds->priv;
 
 	/* Do not allow changing the VLAN filtering options while in bridge */
-	if (switchdev_trans_ph_prepare(trans)) {
-		struct net_device *bridge = dsa_to_port(ds, port)->bridge_dev;
-
-		if (!bridge)
-			return 0;
-
-		if (!!(priv->port_vlan_filter & BIT(port)) != vlan_filtering)
-			return -EIO;
-
-		return 0;
-	}
+	if (bridge && !!(priv->port_vlan_filter & BIT(port)) != vlan_filtering)
+		return -EIO;
 
 	if (vlan_filtering) {
 		/* Use port based VLAN tag */
@@ -781,15 +772,8 @@ static int gswip_setup(struct dsa_switch *ds)
 
 	/* disable port fetch/store dma on all ports */
 	for (i = 0; i < priv->hw_info->max_ports; i++) {
-		struct switchdev_trans trans;
-
-		/* Skip the prepare phase, this shouldn't return an error
-		 * during setup.
-		 */
-		trans.ph_prepare = false;
-
 		gswip_port_disable(ds, i);
-		gswip_port_vlan_filtering(ds, i, false, &trans);
+		gswip_port_vlan_filtering(ds, i, false);
 	}
 
 	/* enable Switch */

@@ -134,12 +134,11 @@ static int felix_vlan_prepare(struct dsa_switch *ds, int port,
 				   flags & BRIDGE_VLAN_INFO_UNTAGGED);
 }
 
-static int felix_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
-				struct switchdev_trans *trans)
+static int felix_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
 {
 	struct ocelot *ocelot = ds->priv;
 
-	return ocelot_port_vlan_filtering(ocelot, port, enabled, trans);
+	return ocelot_port_vlan_filtering(ocelot, port, enabled);
 }
 
 static void felix_vlan_add(struct dsa_switch *ds, int port,

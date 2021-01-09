@@ -580,15 +580,11 @@ int prestera_bridge_port_event(struct net_device *dev, unsigned long event,
 }
 
 static int prestera_port_attr_br_flags_set(struct prestera_port *port,
-					   struct switchdev_trans *trans,
 					   struct net_device *dev,
 					   unsigned long flags)
 {
 	struct prestera_bridge_port *br_port;
 	int err;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	br_port = prestera_bridge_port_by_dev(port->sw->swdev, dev);
 	if (!br_port)
@@ -608,34 +604,25 @@ static int prestera_port_attr_br_flags_set(struct prestera_port *port,
 }
 
 static int prestera_port_attr_br_ageing_set(struct prestera_port *port,
-					    struct switchdev_trans *trans,
 					    unsigned long ageing_clock_t)
 {
 	unsigned long ageing_jiffies = clock_t_to_jiffies(ageing_clock_t);
 	u32 ageing_time_ms = jiffies_to_msecs(ageing_jiffies);
 	struct prestera_switch *sw = port->sw;
 
-	if (switchdev_trans_ph_prepare(trans)) {
-		if (ageing_time_ms < PRESTERA_MIN_AGEING_TIME_MS ||
-		    ageing_time_ms > PRESTERA_MAX_AGEING_TIME_MS)
-			return -ERANGE;
-		else
-			return 0;
-	}
+	if (ageing_time_ms < PRESTERA_MIN_AGEING_TIME_MS ||
+	    ageing_time_ms > PRESTERA_MAX_AGEING_TIME_MS)
+		return -ERANGE;
 
 	return prestera_hw_switch_ageing_set(sw, ageing_time_ms);
 }
 
 static int prestera_port_attr_br_vlan_set(struct prestera_port *port,
-					  struct switchdev_trans *trans,
 					  struct net_device *dev,
 					  bool vlan_enabled)
 {
 	struct prestera_switch *sw = port->sw;
 	struct prestera_bridge *bridge;
-
-	if (!switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	bridge = prestera_bridge_by_dev(sw->swdev, dev);
 	if (WARN_ON(!bridge))
@@ -666,7 +653,6 @@ static int prestera_port_bridge_vlan_stp_set(struct prestera_port *port,
 }
 
 static int presterar_port_attr_stp_state_set(struct prestera_port *port,
-					     struct switchdev_trans *trans,
 					     struct net_device *dev,
 					     u8 state)
 {
@@ -674,9 +660,6 @@ static int presterar_port_attr_stp_state_set(struct prestera_port *port,
 	struct prestera_bridge_vlan *br_vlan;
 	int err;
 	u16 vid;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	br_port = prestera_bridge_port_by_dev(port->sw->swdev, dev);
 	if (!br_port)
@@ -712,16 +695,14 @@ err_port_stp_set:
 }
 
 static int prestera_port_obj_attr_set(struct net_device *dev,
-				      const struct switchdev_attr *attr,
-				      struct switchdev_trans *trans)
+				      const struct switchdev_attr *attr)
 {
 	struct prestera_port *port = netdev_priv(dev);
 	int err = 0;
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_ID_PORT_STP_STATE:
-		err = presterar_port_attr_stp_state_set(port, trans,
-							attr->orig_dev,
+		err = presterar_port_attr_stp_state_set(port, attr->orig_dev,
 							attr->u.stp_state);
 		break;
 	case SWITCHDEV_ATTR_ID_PORT_PRE_BRIDGE_FLAGS:
@@ -730,17 +711,15 @@ static int prestera_port_obj_attr_set(struct net_device *dev,
 			err = -EINVAL;
 		break;
 	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
-		err = prestera_port_attr_br_flags_set(port, trans,
-						      attr->orig_dev,
+		err = prestera_port_attr_br_flags_set(port, attr->orig_dev,
 						      attr->u.brport_flags);
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME:
-		err = prestera_port_attr_br_ageing_set(port, trans,
+		err = prestera_port_attr_br_ageing_set(port,
 						       attr->u.ageing_time);
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
-		err = prestera_port_attr_br_vlan_set(port, trans,
-						     attr->orig_dev,
+		err = prestera_port_attr_br_vlan_set(port, attr->orig_dev,
 						     attr->u.vlan_filtering);
 		break;
 	default:

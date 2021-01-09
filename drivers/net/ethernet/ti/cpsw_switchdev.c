@@ -24,15 +24,11 @@ struct cpsw_switchdev_event_work {
 	unsigned long event;
 };
 
-static int cpsw_port_stp_state_set(struct cpsw_priv *priv,
-				   struct switchdev_trans *trans, u8 state)
+static int cpsw_port_stp_state_set(struct cpsw_priv *priv, u8 state)
 {
 	struct cpsw_common *cpsw = priv->cpsw;
 	u8 cpsw_state;
 	int ret = 0;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	switch (state) {
 	case BR_STATE_FORWARDING:
@@ -60,15 +56,11 @@ static int cpsw_port_stp_state_set(struct cpsw_priv *priv,
 }
 
 static int cpsw_port_attr_br_flags_set(struct cpsw_priv *priv,
-				       struct switchdev_trans *trans,
 				       struct net_device *orig_dev,
 				       unsigned long brport_flags)
 {
 	struct cpsw_common *cpsw = priv->cpsw;
 	bool unreg_mcast_add = false;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	if (brport_flags & BR_MCAST_FLOOD)
 		unreg_mcast_add = true;
@@ -82,7 +74,6 @@ static int cpsw_port_attr_br_flags_set(struct cpsw_priv *priv,
 }
 
 static int cpsw_port_attr_br_flags_pre_set(struct net_device *netdev,
-					   struct switchdev_trans *trans,
 					   unsigned long flags)
 {
 	if (flags & ~(BR_LEARNING | BR_MCAST_FLOOD))
@@ -92,8 +83,7 @@ static int cpsw_port_attr_br_flags_pre_set(struct net_device *netdev,
 }
 
 static int cpsw_port_attr_set(struct net_device *ndev,
-			      const struct switchdev_attr *attr,
-			      struct switchdev_trans *trans)
+			      const struct switchdev_attr *attr)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	int ret;
@@ -102,15 +92,15 @@ static int cpsw_port_attr_set(struct net_device *ndev,
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_ID_PORT_PRE_BRIDGE_FLAGS:
-		ret = cpsw_port_attr_br_flags_pre_set(ndev, trans,
+		ret = cpsw_port_attr_br_flags_pre_set(ndev,
 						      attr->u.brport_flags);
 		break;
 	case SWITCHDEV_ATTR_ID_PORT_STP_STATE:
-		ret = cpsw_port_stp_state_set(priv, trans, attr->u.stp_state);
+		ret = cpsw_port_stp_state_set(priv, attr->u.stp_state);
 		dev_dbg(priv->dev, "stp state: %u\n", attr->u.stp_state);
 		break;
 	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
-		ret = cpsw_port_attr_br_flags_set(priv, trans, attr->orig_dev,
+		ret = cpsw_port_attr_br_flags_set(priv, attr->orig_dev,
 						  attr->u.brport_flags);
 		break;
 	default:

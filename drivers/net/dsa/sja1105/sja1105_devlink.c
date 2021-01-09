@@ -135,7 +135,6 @@ static int sja1105_best_effort_vlan_filtering_set(struct sja1105_private *priv,
 
 	rtnl_lock();
 	for (port = 0; port < ds->num_ports; port++) {
-		struct switchdev_trans trans;
 		struct dsa_port *dp;
 
 		if (!dsa_is_user_port(ds, port))
@@ -144,13 +143,7 @@ static int sja1105_best_effort_vlan_filtering_set(struct sja1105_private *priv,
 		dp = dsa_to_port(ds, port);
 		vlan_filtering = dsa_port_is_vlan_filtering(dp);
 
-		trans.ph_prepare = true;
-		rc = sja1105_vlan_filtering(ds, port, vlan_filtering, &trans);
-		if (rc)
-			break;
-
-		trans.ph_prepare = false;
-		rc = sja1105_vlan_filtering(ds, port, vlan_filtering, &trans);
+		rc = sja1105_vlan_filtering(ds, port, vlan_filtering);
 		if (rc)
 			break;
 	}

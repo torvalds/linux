@@ -40,17 +40,15 @@ static int dsa_port_notify(const struct dsa_port *dp, unsigned long e, void *v)
 	return notifier_to_errno(err);
 }
 
-int dsa_port_set_state(struct dsa_port *dp, u8 state,
-		       struct switchdev_trans *trans)
+int dsa_port_set_state(struct dsa_port *dp, u8 state)
 {
 	struct dsa_switch *ds = dp->ds;
 	int port = dp->index;
 
-	if (switchdev_trans_ph_prepare(trans))
-		return ds->ops->port_stp_state_set ? 0 : -EOPNOTSUPP;
+	if (!ds->ops->port_stp_state_set)
+		return -EOPNOTSUPP;
 
-	if (ds->ops->port_stp_state_set)
-		ds->ops->port_stp_state_set(ds, port, state);
+	ds->ops->port_stp_state_set(ds, port, state);
 
 	if (ds->ops->port_fast_age) {
 		/* Fast age FDB entries or flush appropriate forwarding database
@@ -75,7 +73,7 @@ static void dsa_port_set_state_now(struct dsa_port *dp, u8 state)
 {
 	int err;
 
-	err = dsa_port_set_state(dp, state, NULL);
+	err = dsa_port_set_state(dp, state);
 	if (err)
 		pr_err("DSA: failed to set STP state %u (%d)\n", state, err);
 }
@@ -145,7 +143,7 @@ int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br)
 	int err;
 
 	/* Set the flooding mode before joining the port in the switch */
-	err = dsa_port_bridge_flags(dp, BR_FLOOD | BR_MCAST_FLOOD, NULL);
+	err = dsa_port_bridge_flags(dp, BR_FLOOD | BR_MCAST_FLOOD);
 	if (err)
 		return err;
 
@@ -158,7 +156,7 @@ int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br)
 
 	/* The bridging is rolled back on error */
 	if (err) {
-		dsa_port_bridge_flags(dp, 0, NULL);
+		dsa_port_bridge_flags(dp, 0);
 		dp->bridge_dev = NULL;
 	}
 
@@ -185,7 +183,7 @@ void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 		pr_err("DSA: failed to notify DSA_NOTIFIER_BRIDGE_LEAVE\n");
 
 	/* Port is leaving the bridge, disable flooding */
-	dsa_port_bridge_flags(dp, 0, NULL);
+	dsa_port_bridge_flags(dp, 0);
 
 	/* Port left the bridge, put in BR_STATE_DISABLED by the bridge layer,
 	 * so allow it to be in BR_STATE_FORWARDING to be kept functional
@@ -259,43 +257,36 @@ static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
 	return true;
 }
 
-int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
-			    struct switchdev_trans *trans)
+int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering)
 {
 	struct dsa_switch *ds = dp->ds;
+	bool apply;
 	int err;
 
-	if (switchdev_trans_ph_prepare(trans)) {
-		bool apply;
+	if (!ds->ops->port_vlan_filtering)
+		return -EOPNOTSUPP;
 
-		if (!ds->ops->port_vlan_filtering)
-			return -EOPNOTSUPP;
-
-		/* We are called from dsa_slave_switchdev_blocking_event(),
-		 * which is not under rcu_read_lock(), unlike
-		 * dsa_slave_switchdev_event().
-		 */
-		rcu_read_lock();
-		apply = dsa_port_can_apply_vlan_filtering(dp, vlan_filtering);
-		rcu_read_unlock();
-		if (!apply)
-			return -EINVAL;
-	}
+	/* We are called from dsa_slave_switchdev_blocking_event(),
+	 * which is not under rcu_read_lock(), unlike
+	 * dsa_slave_switchdev_event().
+	 */
+	rcu_read_lock();
+	apply = dsa_port_can_apply_vlan_filtering(dp, vlan_filtering);
+	rcu_read_unlock();
+	if (!apply)
+		return -EINVAL;
 
 	if (dsa_port_is_vlan_filtering(dp) == vlan_filtering)
 		return 0;
 
-	err = ds->ops->port_vlan_filtering(ds, dp->index, vlan_filtering,
-					   trans);
+	err = ds->ops->port_vlan_filtering(ds, dp->index, vlan_filtering);
 	if (err)
 		return err;
 
-	if (switchdev_trans_ph_commit(trans)) {
-		if (ds->vlan_filtering_is_global)
-			ds->vlan_filtering = vlan_filtering;
-		else
-			dp->vlan_filtering = vlan_filtering;
-	}
+	if (ds->vlan_filtering_is_global)
+		ds->vlan_filtering = vlan_filtering;
+	else
+		dp->vlan_filtering = vlan_filtering;
 
 	return 0;
 }
@@ -314,26 +305,29 @@ bool dsa_port_skip_vlan_configuration(struct dsa_port *dp)
 		!br_vlan_enabled(dp->bridge_dev));
 }
 
-int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock,
-			 struct switchdev_trans *trans)
+int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock)
 {
 	unsigned long ageing_jiffies = clock_t_to_jiffies(ageing_clock);
 	unsigned int ageing_time = jiffies_to_msecs(ageing_jiffies);
-	struct dsa_notifier_ageing_time_info info = {
-		.ageing_time = ageing_time,
-		.trans = trans,
-	};
+	struct dsa_notifier_ageing_time_info info;
+	struct switchdev_trans trans;
+	int err;
 
-	if (switchdev_trans_ph_prepare(trans))
-		return dsa_port_notify(dp, DSA_NOTIFIER_AGEING_TIME, &info);
+	info.ageing_time = ageing_time;
+	info.trans = &trans;
+
+	trans.ph_prepare = true;
+	err = dsa_port_notify(dp, DSA_NOTIFIER_AGEING_TIME, &info);
+	if (err)
+		return err;
 
 	dp->ageing_time = ageing_time;
 
+	trans.ph_prepare = false;
 	return dsa_port_notify(dp, DSA_NOTIFIER_AGEING_TIME, &info);
 }
 
-int dsa_port_pre_bridge_flags(const struct dsa_port *dp, unsigned long flags,
-			      struct switchdev_trans *trans)
+int dsa_port_pre_bridge_flags(const struct dsa_port *dp, unsigned long flags)
 {
 	struct dsa_switch *ds = dp->ds;
 
@@ -344,15 +338,11 @@ int dsa_port_pre_bridge_flags(const struct dsa_port *dp, unsigned long flags,
 	return 0;
 }
 
-int dsa_port_bridge_flags(const struct dsa_port *dp, unsigned long flags,
-			  struct switchdev_trans *trans)
+int dsa_port_bridge_flags(const struct dsa_port *dp, unsigned long flags)
 {
 	struct dsa_switch *ds = dp->ds;
 	int port = dp->index;
 	int err = 0;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	if (ds->ops->port_egress_floods)
 		err = ds->ops->port_egress_floods(ds, port, flags & BR_FLOOD,
@@ -361,14 +351,13 @@ int dsa_port_bridge_flags(const struct dsa_port *dp, unsigned long flags,
 	return err;
 }
 
-int dsa_port_mrouter(struct dsa_port *dp, bool mrouter,
-		     struct switchdev_trans *trans)
+int dsa_port_mrouter(struct dsa_port *dp, bool mrouter)
 {
 	struct dsa_switch *ds = dp->ds;
 	int port = dp->index;
 
-	if (switchdev_trans_ph_prepare(trans))
-		return ds->ops->port_egress_floods ? 0 : -EOPNOTSUPP;
+	if (!ds->ops->port_egress_floods)
+		return -EOPNOTSUPP;
 
 	return ds->ops->port_egress_floods(ds, port, true, mrouter);
 }

@@ -2488,8 +2488,7 @@ static int ofdpa_port_attr_stp_state_set(struct rocker_port *rocker_port,
 }
 
 static int ofdpa_port_attr_bridge_flags_set(struct rocker_port *rocker_port,
-					    unsigned long brport_flags,
-					    struct switchdev_trans *trans)
+					    unsigned long brport_flags)
 {
 	struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
 	unsigned long orig_flags;
@@ -2497,13 +2496,10 @@ static int ofdpa_port_attr_bridge_flags_set(struct rocker_port *rocker_port,
 
 	orig_flags = ofdpa_port->brport_flags;
 	ofdpa_port->brport_flags = brport_flags;
-	if ((orig_flags ^ ofdpa_port->brport_flags) & BR_LEARNING &&
-	    !switchdev_trans_ph_prepare(trans))
+
+	if ((orig_flags ^ ofdpa_port->brport_flags) & BR_LEARNING)
 		err = rocker_port_set_learning(ofdpa_port->rocker_port,
 					       !!(ofdpa_port->brport_flags & BR_LEARNING));
-
-	if (switchdev_trans_ph_prepare(trans))
-		ofdpa_port->brport_flags = orig_flags;
 
 	return err;
 }
@@ -2520,18 +2516,15 @@ ofdpa_port_attr_bridge_flags_support_get(const struct rocker_port *
 
 static int
 ofdpa_port_attr_bridge_ageing_time_set(struct rocker_port *rocker_port,
-				       u32 ageing_time,
-				       struct switchdev_trans *trans)
+				       u32 ageing_time)
 {
 	struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
 	struct ofdpa *ofdpa = ofdpa_port->ofdpa;
 
-	if (!switchdev_trans_ph_prepare(trans)) {
-		ofdpa_port->ageing_time = clock_t_to_jiffies(ageing_time);
-		if (ofdpa_port->ageing_time < ofdpa->ageing_time)
-			ofdpa->ageing_time = ofdpa_port->ageing_time;
-		mod_timer(&ofdpa_port->ofdpa->fdb_cleanup_timer, jiffies);
-	}
+	ofdpa_port->ageing_time = clock_t_to_jiffies(ageing_time);
+	if (ofdpa_port->ageing_time < ofdpa->ageing_time)
+		ofdpa->ageing_time = ofdpa_port->ageing_time;
+	mod_timer(&ofdpa_port->ofdpa->fdb_cleanup_timer, jiffies);
 
 	return 0;
 }

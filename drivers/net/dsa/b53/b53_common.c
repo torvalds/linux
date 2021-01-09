@@ -1374,13 +1374,9 @@ void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
 }
 EXPORT_SYMBOL(b53_phylink_mac_link_up);
 
-int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering,
-		       struct switchdev_trans *trans)
+int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
 {
 	struct b53_device *dev = ds->priv;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	b53_enable_vlan(dev, dev->vlan_enabled, vlan_filtering);
 

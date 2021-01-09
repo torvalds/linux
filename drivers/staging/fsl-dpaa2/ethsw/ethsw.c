@@ -901,19 +901,14 @@ static void dpaa2_switch_teardown_irqs(struct fsl_mc_device *sw_dev)
 }
 
 static int dpaa2_switch_port_attr_stp_state_set(struct net_device *netdev,
-						struct switchdev_trans *trans,
 						u8 state)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	return dpaa2_switch_port_set_stp_state(port_priv, state);
 }
 
 static int dpaa2_switch_port_attr_br_flags_pre_set(struct net_device *netdev,
-						   struct switchdev_trans *trans,
 						   unsigned long flags)
 {
 	if (flags & ~(BR_LEARNING | BR_FLOOD))
@@ -923,14 +918,10 @@ static int dpaa2_switch_port_attr_br_flags_pre_set(struct net_device *netdev,
 }
 
 static int dpaa2_switch_port_attr_br_flags_set(struct net_device *netdev,
-					       struct switchdev_trans *trans,
 					       unsigned long flags)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 	int err = 0;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	/* Learning is enabled per switch */
 	err = dpaa2_switch_set_learning(port_priv->ethsw_data,
@@ -945,22 +936,21 @@ exit:
 }
 
 static int dpaa2_switch_port_attr_set(struct net_device *netdev,
-				      const struct switchdev_attr *attr,
-				      struct switchdev_trans *trans)
+				      const struct switchdev_attr *attr)
 {
 	int err = 0;
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_ID_PORT_STP_STATE:
-		err = dpaa2_switch_port_attr_stp_state_set(netdev, trans,
+		err = dpaa2_switch_port_attr_stp_state_set(netdev,
 							   attr->u.stp_state);
 		break;
 	case SWITCHDEV_ATTR_ID_PORT_PRE_BRIDGE_FLAGS:
-		err = dpaa2_switch_port_attr_br_flags_pre_set(netdev, trans,
+		err = dpaa2_switch_port_attr_br_flags_pre_set(netdev,
 							      attr->u.brport_flags);
 		break;
 	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
-		err = dpaa2_switch_port_attr_br_flags_set(netdev, trans,
+		err = dpaa2_switch_port_attr_br_flags_set(netdev,
 							  attr->u.brport_flags);
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
@@ -1197,8 +1187,7 @@ static int dpaa2_switch_port_attr_set_event(struct net_device *netdev,
 {
 	int err;
 
-	err = dpaa2_switch_port_attr_set(netdev, port_attr_info->attr,
-					 port_attr_info->trans);
+	err = dpaa2_switch_port_attr_set(netdev, port_attr_info->attr);
 
 	port_attr_info->handled = true;
 	return notifier_from_errno(err);

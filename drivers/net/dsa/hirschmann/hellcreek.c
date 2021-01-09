@@ -858,13 +858,9 @@ static int hellcreek_fdb_dump(struct dsa_switch *ds, int port,
 }
 
 static int hellcreek_vlan_filtering(struct dsa_switch *ds, int port,
-				    bool vlan_filtering,
-				    struct switchdev_trans *trans)
+				    bool vlan_filtering)
 {
 	struct hellcreek *hellcreek = ds->priv;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	dev_dbg(hellcreek->dev, "%s VLAN filtering on port %d\n",
 		vlan_filtering ? "Enable" : "Disable", port);

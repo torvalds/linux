@@ -139,17 +139,8 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 		}
 	}
 	if (unset_vlan_filtering) {
-		struct switchdev_trans trans;
-
-		trans.ph_prepare = true;
 		err = dsa_port_vlan_filtering(dsa_to_port(ds, info->port),
-					      false, &trans);
-		if (err && err != EOPNOTSUPP)
-			return err;
-
-		trans.ph_prepare = false;
-		err = dsa_port_vlan_filtering(dsa_to_port(ds, info->port),
-					      false, &trans);
+					      false);
 		if (err && err != EOPNOTSUPP)
 			return err;
 	}

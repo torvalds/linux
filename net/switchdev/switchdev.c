@@ -100,15 +100,13 @@ static int switchdev_deferred_enqueue(struct net_device *dev,
 
 static int switchdev_port_attr_notify(enum switchdev_notifier_type nt,
 				      struct net_device *dev,
-				      const struct switchdev_attr *attr,
-				      struct switchdev_trans *trans)
+				      const struct switchdev_attr *attr)
 {
 	int err;
 	int rc;
 
 	struct switchdev_notifier_port_attr_info attr_info = {
 		.attr = attr,
-		.trans = trans,
 		.handled = false,
 	};
 
@@ -129,34 +127,7 @@ static int switchdev_port_attr_notify(enum switchdev_notifier_type nt,
 static int switchdev_port_attr_set_now(struct net_device *dev,
 				       const struct switchdev_attr *attr)
 {
-	struct switchdev_trans trans;
-	int err;
-
-	/* Phase I: prepare for attr set. Driver/device should fail
-	 * here if there are going to be issues in the commit phase,
-	 * such as lack of resources or support.  The driver/device
-	 * should reserve resources needed for the commit phase here,
-	 * but should not commit the attr.
-	 */
-
-	trans.ph_prepare = true;
-	err = switchdev_port_attr_notify(SWITCHDEV_PORT_ATTR_SET, dev, attr,
-					 &trans);
-	if (err)
-		return err;
-
-	/* Phase II: commit attr set.  This cannot fail as a fault
-	 * of driver/device.  If it does, it's a bug in the driver/device
-	 * because the driver said everythings was OK in phase I.
-	 */
-
-	trans.ph_prepare = false;
-	err = switchdev_port_attr_notify(SWITCHDEV_PORT_ATTR_SET, dev, attr,
-					 &trans);
-	WARN(err, "%s: Commit of attribute (id=%d) failed.\n",
-	     dev->name, attr->id);
-
-	return err;
+	return switchdev_port_attr_notify(SWITCHDEV_PORT_ATTR_SET, dev, attr);
 }
 
 static void switchdev_port_attr_set_deferred(struct net_device *dev,
@@ -185,10 +156,6 @@ static int switchdev_port_attr_set_defer(struct net_device *dev,
  *
  *	@dev: port device
  *	@attr: attribute to set
- *
- *	Use a 2-phase prepare-commit transaction model to ensure
- *	system is not left in a partially updated state due to
- *	failure from driver/device.
  *
  *	rtnl_lock must be held and must not be in atomic section,
  *	in case SWITCHDEV_F_DEFER flag is not set.
@@ -519,8 +486,7 @@ static int __switchdev_handle_port_attr_set(struct net_device *dev,
 			struct switchdev_notifier_port_attr_info *port_attr_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*set_cb)(struct net_device *dev,
-				      const struct switchdev_attr *attr,
-				      struct switchdev_trans *trans))
+				      const struct switchdev_attr *attr))
 {
 	struct net_device *lower_dev;
 	struct list_head *iter;
@@ -528,8 +494,7 @@ static int __switchdev_handle_port_attr_set(struct net_device *dev,
 
 	if (check_cb(dev)) {
 		port_attr_info->handled = true;
-		return set_cb(dev, port_attr_info->attr,
-			      port_attr_info->trans);
+		return set_cb(dev, port_attr_info->attr);
 	}
 
 	/* Switch ports might be stacked under e.g. a LAG. Ignore the
@@ -556,8 +521,7 @@ int switchdev_handle_port_attr_set(struct net_device *dev,
 			struct switchdev_notifier_port_attr_info *port_attr_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*set_cb)(struct net_device *dev,
-				      const struct switchdev_attr *attr,
-				      struct switchdev_trans *trans))
+				      const struct switchdev_attr *attr))
 {
 	int err;
 
