@@ -36,8 +36,19 @@ struct ms_tp_data {
 };
 
 static const int ms5637_samp_freq[6] = { 960, 480, 240, 120, 60, 30 };
-/* String copy of the above const for readability purpose */
-static const char ms5637_show_samp_freq[] = "960 480 240 120 60 30";
+
+static ssize_t ms5637_show_samp_freq(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct ms_tp_dev *dev_data = iio_priv(indio_dev);
+	int i, len = 0;
+
+	for (i = 0; i <= dev_data->hw->max_res_index; i++)
+		len += sysfs_emit_at(buf, len, "%u ", ms5637_samp_freq[i]);
+	sysfs_emit_at(buf, len - 1, "\n");
+
+	return len;
+}
 
 static int ms5637_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *channel, int *val,
@@ -114,10 +125,10 @@ static const struct iio_chan_spec ms5637_channels[] = {
 	}
 };
 
-static IIO_CONST_ATTR_SAMP_FREQ_AVAIL(ms5637_show_samp_freq);
+static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(ms5637_show_samp_freq);
 
 static struct attribute *ms5637_attributes[] = {
-	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
+	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	NULL,
 };
 
