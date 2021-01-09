@@ -207,6 +207,14 @@ void mptcp_pm_rm_addr_received(struct mptcp_sock *msk, u8 rm_id)
 	spin_unlock_bh(&pm->lock);
 }
 
+void mptcp_pm_mp_prio_received(struct sock *sk, u8 bkup)
+{
+	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
+
+	pr_debug("subflow->backup=%d, bkup=%d\n", subflow->backup, bkup);
+	subflow->backup = bkup;
+}
+
 /* path manager helpers */
 
 bool mptcp_pm_add_addr_signal(struct mptcp_sock *msk, unsigned int remaining,

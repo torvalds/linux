@@ -282,6 +282,15 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 		pr_debug("RM_ADDR: id=%d", mp_opt->rm_id);
 		break;
 
+	case MPTCPOPT_MP_PRIO:
+		if (opsize != TCPOLEN_MPTCP_PRIO)
+			break;
+
+		mp_opt->mp_prio = 1;
+		mp_opt->backup = *ptr++ & MPTCP_PRIO_BKUP;
+		pr_debug("MP_PRIO: prio=%d", mp_opt->backup);
+		break;
+
 	case MPTCPOPT_MP_FASTCLOSE:
 		if (opsize != TCPOLEN_MPTCP_FASTCLOSE)
 			break;
@@ -313,6 +322,7 @@ void mptcp_get_options(const struct sk_buff *skb,
 	mp_opt->port = 0;
 	mp_opt->rm_addr = 0;
 	mp_opt->dss = 0;
+	mp_opt->mp_prio = 0;
 
 	length = (th->doff * 4) - sizeof(struct tcphdr);
 	ptr = (const unsigned char *)(th + 1);
@@ -1020,6 +1030,11 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb)
 	if (mp_opt.rm_addr) {
 		mptcp_pm_rm_addr_received(msk, mp_opt.rm_id);
 		mp_opt.rm_addr = 0;
+	}
+
+	if (mp_opt.mp_prio) {
+		mptcp_pm_mp_prio_received(sk, mp_opt.backup);
+		mp_opt.mp_prio = 0;
 	}
 
 	if (!mp_opt.dss)
