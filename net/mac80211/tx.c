@@ -3811,6 +3811,8 @@ void __ieee80211_schedule_txq(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(__ieee80211_schedule_txq);
 
+DEFINE_STATIC_KEY_FALSE(aql_disable);
+
 bool ieee80211_txq_airtime_check(struct ieee80211_hw *hw,
 				 struct ieee80211_txq *txq)
 {
@@ -3818,6 +3820,9 @@ bool ieee80211_txq_airtime_check(struct ieee80211_hw *hw,
 	struct ieee80211_local *local = hw_to_local(hw);
 
 	if (!wiphy_ext_feature_isset(local->hw.wiphy, NL80211_EXT_FEATURE_AQL))
+		return true;
+
+	if (static_branch_unlikely(&aql_disable))
 		return true;
 
 	if (!txq->sta)
