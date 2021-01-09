@@ -52,7 +52,6 @@ struct dsa_notifier_fdb_info {
 /* DSA_NOTIFIER_MDB_* */
 struct dsa_notifier_mdb_info {
 	const struct switchdev_obj_port_mdb *mdb;
-	struct switchdev_trans *trans;
 	int sw_index;
 	int port;
 };
@@ -60,7 +59,6 @@ struct dsa_notifier_mdb_info {
 /* DSA_NOTIFIER_VLAN_* */
 struct dsa_notifier_vlan_info {
 	const struct switchdev_obj_port_vlan *vlan;
-	struct switchdev_trans *trans;
 	int sw_index;
 	int port;
 };
@@ -151,8 +149,7 @@ int dsa_port_fdb_del(struct dsa_port *dp, const unsigned char *addr,
 		     u16 vid);
 int dsa_port_fdb_dump(struct dsa_port *dp, dsa_fdb_dump_cb_t *cb, void *data);
 int dsa_port_mdb_add(const struct dsa_port *dp,
-		     const struct switchdev_obj_port_mdb *mdb,
-		     struct switchdev_trans *trans);
+		     const struct switchdev_obj_port_mdb *mdb);
 int dsa_port_mdb_del(const struct dsa_port *dp,
 		     const struct switchdev_obj_port_mdb *mdb);
 int dsa_port_pre_bridge_flags(const struct dsa_port *dp, unsigned long flags,
@@ -162,8 +159,7 @@ int dsa_port_bridge_flags(const struct dsa_port *dp, unsigned long flags,
 int dsa_port_mrouter(struct dsa_port *dp, bool mrouter,
 		     struct switchdev_trans *trans);
 int dsa_port_vlan_add(struct dsa_port *dp,
-		      const struct switchdev_obj_port_vlan *vlan,
-		      struct switchdev_trans *trans);
+		      const struct switchdev_obj_port_vlan *vlan);
 int dsa_port_vlan_del(struct dsa_port *dp,
 		      const struct switchdev_obj_port_vlan *vlan);
 int dsa_port_link_register_of(struct dsa_port *dp);

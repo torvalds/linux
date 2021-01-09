@@ -975,33 +975,38 @@ static int dpaa2_switch_port_attr_set(struct net_device *netdev,
 }
 
 static int dpaa2_switch_port_vlans_add(struct net_device *netdev,
-				       const struct switchdev_obj_port_vlan *vlan,
-				       struct switchdev_trans *trans)
+				       const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 	struct dpsw_attr *attr = &ethsw->sw_attr;
 	int err = 0;
 
-	if (switchdev_trans_ph_prepare(trans)) {
-		/* Make sure that the VLAN is not already configured
-		 * on the switch port
-		 */
-		if (port_priv->vlans[vlan->vid] & ETHSW_VLAN_MEMBER)
-			return -EEXIST;
+	/* Make sure that the VLAN is not already configured
+	 * on the switch port
+	 */
+	if (port_priv->vlans[vlan->vid] & ETHSW_VLAN_MEMBER)
+		return -EEXIST;
 
-		/* Check if there is space for a new VLAN */
-		err = dpsw_get_attributes(ethsw->mc_io, 0, ethsw->dpsw_handle,
-					  &ethsw->sw_attr);
-		if (err) {
-			netdev_err(netdev, "dpsw_get_attributes err %d\n", err);
-			return err;
-		}
-		if (attr->max_vlans - attr->num_vlans < 1)
-			return -ENOSPC;
-
-		return 0;
+	/* Check if there is space for a new VLAN */
+	err = dpsw_get_attributes(ethsw->mc_io, 0, ethsw->dpsw_handle,
+				  &ethsw->sw_attr);
+	if (err) {
+		netdev_err(netdev, "dpsw_get_attributes err %d\n", err);
+		return err;
 	}
+	if (attr->max_vlans - attr->num_vlans < 1)
+		return -ENOSPC;
+
+	/* Check if there is space for a new VLAN */
+	err = dpsw_get_attributes(ethsw->mc_io, 0, ethsw->dpsw_handle,
+				  &ethsw->sw_attr);
+	if (err) {
+		netdev_err(netdev, "dpsw_get_attributes err %d\n", err);
+		return err;
+	}
+	if (attr->max_vlans - attr->num_vlans < 1)
+		return -ENOSPC;
 
 	if (!port_priv->ethsw_data->vlans[vlan->vid]) {
 		/* this is a new VLAN */
@@ -1033,14 +1038,10 @@ static int dpaa2_switch_port_lookup_address(struct net_device *netdev, int is_uc
 }
 
 static int dpaa2_switch_port_mdb_add(struct net_device *netdev,
-				     const struct switchdev_obj_port_mdb *mdb,
-				     struct switchdev_trans *trans)
+				     const struct switchdev_obj_port_mdb *mdb)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 	int err;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	/* Check if address is already set on this port */
 	if (dpaa2_switch_port_lookup_address(netdev, 0, mdb->addr))
@@ -1060,21 +1061,18 @@ static int dpaa2_switch_port_mdb_add(struct net_device *netdev,
 }
 
 static int dpaa2_switch_port_obj_add(struct net_device *netdev,
-				     const struct switchdev_obj *obj,
-				     struct switchdev_trans *trans)
+				     const struct switchdev_obj *obj)
 {
 	int err;
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		err = dpaa2_switch_port_vlans_add(netdev,
-						  SWITCHDEV_OBJ_PORT_VLAN(obj),
-						  trans);
+						  SWITCHDEV_OBJ_PORT_VLAN(obj));
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
 		err = dpaa2_switch_port_mdb_add(netdev,
-						SWITCHDEV_OBJ_PORT_MDB(obj),
-						trans);
+						SWITCHDEV_OBJ_PORT_MDB(obj));
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -1394,8 +1392,7 @@ static int dpaa2_switch_port_obj_event(unsigned long event,
 
 	switch (event) {
 	case SWITCHDEV_PORT_OBJ_ADD:
-		err = dpaa2_switch_port_obj_add(netdev, port_obj_info->obj,
-						port_obj_info->trans);
+		err = dpaa2_switch_port_obj_add(netdev, port_obj_info->obj);
 		break;
 	case SWITCHDEV_PORT_OBJ_DEL:
 		err = dpaa2_switch_port_obj_del(netdev, port_obj_info->obj);

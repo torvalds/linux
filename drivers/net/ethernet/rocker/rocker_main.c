@@ -1638,16 +1638,12 @@ rocker_world_port_attr_bridge_ageing_time_set(struct rocker_port *rocker_port,
 
 static int
 rocker_world_port_obj_vlan_add(struct rocker_port *rocker_port,
-			       const struct switchdev_obj_port_vlan *vlan,
-			       struct switchdev_trans *trans)
+			       const struct switchdev_obj_port_vlan *vlan)
 {
 	struct rocker_world_ops *wops = rocker_port->rocker->wops;
 
 	if (!wops->port_obj_vlan_add)
 		return -EOPNOTSUPP;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	return wops->port_obj_vlan_add(rocker_port, vlan);
 }
@@ -2102,8 +2098,7 @@ static int rocker_port_attr_set(struct net_device *dev,
 }
 
 static int rocker_port_obj_add(struct net_device *dev,
-			       const struct switchdev_obj *obj,
-			       struct switchdev_trans *trans)
+			       const struct switchdev_obj *obj)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
 	int err = 0;
@@ -2111,8 +2106,7 @@ static int rocker_port_obj_add(struct net_device *dev,
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		err = rocker_world_port_obj_vlan_add(rocker_port,
-						     SWITCHDEV_OBJ_PORT_VLAN(obj),
-						     trans);
+						     SWITCHDEV_OBJ_PORT_VLAN(obj));
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -2847,8 +2841,7 @@ rocker_switchdev_port_obj_event(unsigned long event, struct net_device *netdev,
 
 	switch (event) {
 	case SWITCHDEV_PORT_OBJ_ADD:
-		err = rocker_port_obj_add(netdev, port_obj_info->obj,
-					  port_obj_info->trans);
+		err = rocker_port_obj_add(netdev, port_obj_info->obj);
 		break;
 	case SWITCHDEV_PORT_OBJ_DEL:
 		err = rocker_port_obj_del(netdev, port_obj_info->obj);

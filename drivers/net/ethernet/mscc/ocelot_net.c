@@ -890,32 +890,26 @@ static int ocelot_port_attr_set(struct net_device *dev,
 }
 
 static int ocelot_port_obj_add_vlan(struct net_device *dev,
-				    const struct switchdev_obj_port_vlan *vlan,
-				    struct switchdev_trans *trans)
+				    const struct switchdev_obj_port_vlan *vlan)
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	int ret;
 
-	if (switchdev_trans_ph_prepare(trans))
-		ret = ocelot_vlan_vid_prepare(dev, vlan->vid, pvid, untagged);
-	else
-		ret = ocelot_vlan_vid_add(dev, vlan->vid, pvid, untagged);
+	ret = ocelot_vlan_vid_prepare(dev, vlan->vid, pvid, untagged);
+	if (ret)
+		return ret;
 
-	return ret;
+	return ocelot_vlan_vid_add(dev, vlan->vid, pvid, untagged);
 }
 
 static int ocelot_port_obj_add_mdb(struct net_device *dev,
-				   const struct switchdev_obj_port_mdb *mdb,
-				   struct switchdev_trans *trans)
+				   const struct switchdev_obj_port_mdb *mdb)
 {
 	struct ocelot_port_private *priv = netdev_priv(dev);
 	struct ocelot_port *ocelot_port = &priv->port;
 	struct ocelot *ocelot = ocelot_port->ocelot;
 	int port = priv->chip_port;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	return ocelot_port_mdb_add(ocelot, port, mdb);
 }
@@ -933,7 +927,6 @@ static int ocelot_port_obj_del_mdb(struct net_device *dev,
 
 static int ocelot_port_obj_add(struct net_device *dev,
 			       const struct switchdev_obj *obj,
-			       struct switchdev_trans *trans,
 			       struct netlink_ext_ack *extack)
 {
 	int ret = 0;
@@ -941,12 +934,10 @@ static int ocelot_port_obj_add(struct net_device *dev,
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		ret = ocelot_port_obj_add_vlan(dev,
-					       SWITCHDEV_OBJ_PORT_VLAN(obj),
-					       trans);
+					       SWITCHDEV_OBJ_PORT_VLAN(obj));
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
-		ret = ocelot_port_obj_add_mdb(dev, SWITCHDEV_OBJ_PORT_MDB(obj),
-					      trans);
+		ret = ocelot_port_obj_add_mdb(dev, SWITCHDEV_OBJ_PORT_MDB(obj));
 		break;
 	default:
 		return -EOPNOTSUPP;

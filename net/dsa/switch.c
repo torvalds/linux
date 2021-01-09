@@ -190,8 +190,8 @@ static bool dsa_switch_mdb_match(struct dsa_switch *ds, int port,
 	return false;
 }
 
-static int dsa_switch_mdb_prepare(struct dsa_switch *ds,
-				  struct dsa_notifier_mdb_info *info)
+static int dsa_switch_mdb_add(struct dsa_switch *ds,
+			      struct dsa_notifier_mdb_info *info)
 {
 	int port, err;
 
@@ -205,20 +205,6 @@ static int dsa_switch_mdb_prepare(struct dsa_switch *ds,
 				return err;
 		}
 	}
-
-	return 0;
-}
-
-static int dsa_switch_mdb_add(struct dsa_switch *ds,
-			      struct dsa_notifier_mdb_info *info)
-{
-	int port;
-
-	if (switchdev_trans_ph_prepare(info->trans))
-		return dsa_switch_mdb_prepare(ds, info);
-
-	if (!ds->ops->port_mdb_add)
-		return 0;
 
 	for (port = 0; port < ds->num_ports; port++)
 		if (dsa_switch_mdb_match(ds, port, info))
@@ -251,8 +237,8 @@ static bool dsa_switch_vlan_match(struct dsa_switch *ds, int port,
 	return false;
 }
 
-static int dsa_switch_vlan_prepare(struct dsa_switch *ds,
-				   struct dsa_notifier_vlan_info *info)
+static int dsa_switch_vlan_add(struct dsa_switch *ds,
+			       struct dsa_notifier_vlan_info *info)
 {
 	int port, err;
 
@@ -266,20 +252,6 @@ static int dsa_switch_vlan_prepare(struct dsa_switch *ds,
 				return err;
 		}
 	}
-
-	return 0;
-}
-
-static int dsa_switch_vlan_add(struct dsa_switch *ds,
-			       struct dsa_notifier_vlan_info *info)
-{
-	int port;
-
-	if (switchdev_trans_ph_prepare(info->trans))
-		return dsa_switch_vlan_prepare(ds, info);
-
-	if (!ds->ops->port_vlan_add)
-		return 0;
 
 	for (port = 0; port < ds->num_ports; port++)
 		if (dsa_switch_vlan_match(ds, port, info))

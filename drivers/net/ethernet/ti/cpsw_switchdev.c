@@ -253,8 +253,7 @@ static int cpsw_port_vlan_del(struct cpsw_priv *priv, u16 vid,
 }
 
 static int cpsw_port_vlans_add(struct cpsw_priv *priv,
-			       const struct switchdev_obj_port_vlan *vlan,
-			       struct switchdev_trans *trans)
+			       const struct switchdev_obj_port_vlan *vlan)
 {
 	bool untag = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct net_device *orig_dev = vlan->obj.orig_dev;
@@ -267,15 +266,11 @@ static int cpsw_port_vlans_add(struct cpsw_priv *priv,
 	if (cpu_port && !(vlan->flags & BRIDGE_VLAN_INFO_BRENTRY))
 		return 0;
 
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
-
 	return cpsw_port_vlan_add(priv, untag, pvid, vlan->vid, orig_dev);
 }
 
 static int cpsw_port_mdb_add(struct cpsw_priv *priv,
-			     struct switchdev_obj_port_mdb *mdb,
-			     struct switchdev_trans *trans)
+			     struct switchdev_obj_port_mdb *mdb)
 
 {
 	struct net_device *orig_dev = mdb->obj.orig_dev;
@@ -283,9 +278,6 @@ static int cpsw_port_mdb_add(struct cpsw_priv *priv,
 	struct cpsw_common *cpsw = priv->cpsw;
 	int port_mask;
 	int err;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	if (cpu_port)
 		port_mask = BIT(HOST_PORT_NUM);
@@ -325,7 +317,6 @@ static int cpsw_port_mdb_del(struct cpsw_priv *priv,
 
 static int cpsw_port_obj_add(struct net_device *ndev,
 			     const struct switchdev_obj *obj,
-			     struct switchdev_trans *trans,
 			     struct netlink_ext_ack *extack)
 {
 	struct switchdev_obj_port_vlan *vlan = SWITCHDEV_OBJ_PORT_VLAN(obj);
@@ -338,11 +329,11 @@ static int cpsw_port_obj_add(struct net_device *ndev,
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		err = cpsw_port_vlans_add(priv, vlan, trans);
+		err = cpsw_port_vlans_add(priv, vlan);
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
 	case SWITCHDEV_OBJ_ID_HOST_MDB:
-		err = cpsw_port_mdb_add(priv, mdb, trans);
+		err = cpsw_port_mdb_add(priv, mdb);
 		break;
 	default:
 		err = -EOPNOTSUPP;

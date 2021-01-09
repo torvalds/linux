@@ -1020,7 +1020,6 @@ prestera_bridge_port_vlan_del(struct prestera_port *port,
 
 static int prestera_port_vlans_add(struct prestera_port *port,
 				   const struct switchdev_obj_port_vlan *vlan,
-				   struct switchdev_trans *trans,
 				   struct netlink_ext_ack *extack)
 {
 	bool flag_untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
@@ -1032,9 +1031,6 @@ static int prestera_port_vlans_add(struct prestera_port *port,
 	u16 vid;
 
 	if (netif_is_bridge_master(dev))
-		return 0;
-
-	if (switchdev_trans_ph_commit(trans))
 		return 0;
 
 	br_port = prestera_bridge_port_by_dev(sw->swdev, dev);
@@ -1052,7 +1048,6 @@ static int prestera_port_vlans_add(struct prestera_port *port,
 
 static int prestera_port_obj_add(struct net_device *dev,
 				 const struct switchdev_obj *obj,
-				 struct switchdev_trans *trans,
 				 struct netlink_ext_ack *extack)
 {
 	struct prestera_port *port = netdev_priv(dev);
@@ -1061,7 +1056,7 @@ static int prestera_port_obj_add(struct net_device *dev,
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		vlan = SWITCHDEV_OBJ_PORT_VLAN(obj);
-		return prestera_port_vlans_add(port, vlan, trans, extack);
+		return prestera_port_vlans_add(port, vlan, extack);
 	default:
 		return -EOPNOTSUPP;
 	}
