@@ -281,7 +281,7 @@
 		};
 	};
 
-	ethernet-phy {
+	gmac2io {
 		eth_phy_reset_pin: eth-phy-reset-pin {
 			rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
