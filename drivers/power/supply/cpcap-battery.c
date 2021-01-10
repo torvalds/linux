@@ -111,6 +111,8 @@ struct cpcap_coulomb_counter_data {
 enum cpcap_battery_state {
 	CPCAP_BATTERY_STATE_PREVIOUS,
 	CPCAP_BATTERY_STATE_LATEST,
+	CPCAP_BATTERY_STATE_EMPTY,
+	CPCAP_BATTERY_STATE_FULL,
 	CPCAP_BATTERY_STATE_NR,
 };
 
@@ -164,6 +166,18 @@ static struct cpcap_battery_state_data *
 cpcap_battery_previous(struct cpcap_battery_ddata *ddata)
 {
 	return cpcap_battery_get_state(ddata, CPCAP_BATTERY_STATE_PREVIOUS);
+}
+
+static struct cpcap_battery_state_data *
+cpcap_battery_get_empty(struct cpcap_battery_ddata *ddata)
+{
+	return cpcap_battery_get_state(ddata, CPCAP_BATTERY_STATE_EMPTY);
+}
+
+static struct cpcap_battery_state_data *
+cpcap_battery_get_full(struct cpcap_battery_ddata *ddata)
+{
+	return cpcap_battery_get_state(ddata, CPCAP_BATTERY_STATE_FULL);
 }
 
 static int cpcap_charger_battery_temperature(struct cpcap_battery_ddata *ddata,
@@ -431,9 +445,23 @@ static bool cpcap_battery_full(struct cpcap_battery_ddata *ddata)
 	return ddata->is_full;
 }
 
+static bool cpcap_battery_low(struct cpcap_battery_ddata *ddata)
+{
+	struct cpcap_battery_state_data *state = cpcap_battery_latest(ddata);
+	static bool is_low;
+
+	if (state->current_ua > 0 && (state->voltage <= 3350000 || is_low))
+		is_low = true;
+	else
+		is_low = false;
+
+	return is_low;
+}
+
 static int cpcap_battery_update_status(struct cpcap_battery_ddata *ddata)
 {
-	struct cpcap_battery_state_data state, *latest, *previous;
+	struct cpcap_battery_state_data state, *latest, *previous,
+					*empty, *full;
 	ktime_t now;
 	int error;
 
@@ -461,6 +489,32 @@ static int cpcap_battery_update_status(struct cpcap_battery_ddata *ddata)
 	previous = cpcap_battery_previous(ddata);
 	memcpy(previous, latest, sizeof(*previous));
 	memcpy(latest, &state, sizeof(*latest));
+
+	if (cpcap_battery_full(ddata)) {
+		full = cpcap_battery_get_full(ddata);
+		memcpy(full, latest, sizeof(*full));
+
+		empty = cpcap_battery_get_empty(ddata);
+		if (empty->voltage && empty->voltage != -1) {
+			empty->voltage = -1;
+			ddata->charge_full =
+				empty->counter_uah - full->counter_uah;
+		} else if (ddata->charge_full) {
+			empty->voltage = -1;
+			empty->counter_uah =
+				full->counter_uah + ddata->charge_full;
+		}
+	} else if (cpcap_battery_low(ddata)) {
+		empty = cpcap_battery_get_empty(ddata);
+		memcpy(empty, latest, sizeof(*empty));
+
+		full = cpcap_battery_get_full(ddata);
+		if (full->voltage) {
+			full->voltage = 0;
+			ddata->charge_full =
+				empty->counter_uah - full->counter_uah;
+		}
+	}
 
 	return 0;
 }
