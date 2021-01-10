@@ -20,6 +20,7 @@
 
 static void __iomem *base;
 static unsigned int capability = PVPANIC_PANICKED | PVPANIC_CRASH_LOADED;
+static unsigned int events;
 
 static ssize_t capability_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
@@ -28,8 +29,34 @@ static ssize_t capability_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(capability);
 
+static ssize_t events_show(struct device *dev,  struct device_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "%x", events);
+}
+
+static ssize_t events_store(struct device *dev,  struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	unsigned int tmp;
+	int err;
+
+	err = kstrtouint(buf, 16, &tmp);
+	if (err)
+		return err;
+
+	if ((tmp & capability) != tmp)
+		return -EINVAL;
+
+	events = tmp;
+
+	return count;
+
+}
+static DEVICE_ATTR_RW(events);
+
 static struct attribute *pvpanic_dev_attrs[] = {
 	&dev_attr_capability.attr,
+	&dev_attr_events.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(pvpanic_dev);
@@ -41,7 +68,7 @@ MODULE_LICENSE("GPL");
 static void
 pvpanic_send_event(unsigned int event)
 {
-	if (event & capability)
+	if (event & capability & events)
 		iowrite8(event, base);
 }
 
@@ -90,6 +117,7 @@ static int pvpanic_mmio_probe(struct platform_device *pdev)
 
 	/* initlize capability by RDPT */
 	capability &= ioread8(base);
+	events = capability;
 
 	if (capability)
 		atomic_notifier_chain_register(&panic_notifier_list,
