@@ -308,9 +308,15 @@ static int fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
 	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED)
 		dev_warn(hdev->dev,
 			"Device boot warning - Skipped DRAM initialization\n");
-	if (err_val & CPU_BOOT_ERR0_BMC_WAIT_SKIPPED)
-		dev_warn(hdev->dev,
-			"Device boot error - Skipped waiting for BMC\n");
+
+	if (err_val & CPU_BOOT_ERR0_BMC_WAIT_SKIPPED) {
+		if (hdev->bmc_enable)
+			dev_warn(hdev->dev,
+				"Device boot error - Skipped waiting for BMC\n");
+		else
+			err_val &= ~CPU_BOOT_ERR0_BMC_WAIT_SKIPPED;
+	}
+
 	if (err_val & CPU_BOOT_ERR0_NIC_DATA_NOT_RDY)
 		dev_err(hdev->dev,
 			"Device boot error - Serdes data from BMC not available\n");
