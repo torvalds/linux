@@ -225,12 +225,6 @@ static int pcf2127_rtc_ioctl(struct device *dev,
 	}
 }
 
-static const struct rtc_class_ops pcf2127_rtc_ops = {
-	.ioctl		= pcf2127_rtc_ioctl,
-	.read_time	= pcf2127_rtc_read_time,
-	.set_time	= pcf2127_rtc_set_time,
-};
-
 static int pcf2127_nvmem_read(void *priv, unsigned int offset,
 			      void *val, size_t bytes)
 {
@@ -459,7 +453,7 @@ static irqreturn_t pcf2127_rtc_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static const struct rtc_class_ops pcf2127_rtc_alrm_ops = {
+static const struct rtc_class_ops pcf2127_rtc_ops = {
 	.ioctl            = pcf2127_rtc_ioctl,
 	.read_time        = pcf2127_rtc_read_time,
 	.set_time         = pcf2127_rtc_set_time,
@@ -584,6 +578,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	pcf2127->rtc->range_max = RTC_TIMESTAMP_END_2099;
 	pcf2127->rtc->set_start_time = true; /* Sets actual start to 1970 */
 	pcf2127->rtc->uie_unsupported = 1;
+	clear_bit(RTC_FEATURE_ALARM, pcf2127->rtc->features);
 
 	if (alarm_irq > 0) {
 		ret = devm_request_threaded_irq(dev, alarm_irq, NULL,
@@ -598,7 +593,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 
 	if (alarm_irq > 0 || device_property_read_bool(dev, "wakeup-source")) {
 		device_init_wakeup(dev, true);
-		pcf2127->rtc->ops = &pcf2127_rtc_alrm_ops;
+		set_bit(RTC_FEATURE_ALARM, pcf2127->rtc->features);
 	}
 
 	if (has_nvmem) {
