@@ -68,6 +68,8 @@ SECTIONS
 		SOFTIRQENTRY_TEXT
 		*(.fixup)
 		*(.gnu.warning)
+		. = ALIGN(16);
+		*(.got)	/* Global offset table */
 	} :text = 0
 	_etext = .;	/* End of text section */
 
