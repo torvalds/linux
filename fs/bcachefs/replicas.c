@@ -607,7 +607,11 @@ retry:
 			cpu_replicas_entry(&c->replicas, i);
 
 		if (e->data_type == BCH_DATA_journal ||
-		    bch2_fs_usage_read_one(c, &c->usage_base->replicas[i]))
+		    c->usage_base->replicas[i] ||
+		    percpu_u64_get(&c->usage[0]->replicas[i]) ||
+		    percpu_u64_get(&c->usage[1]->replicas[i]) ||
+		    percpu_u64_get(&c->usage[2]->replicas[i]) ||
+		    percpu_u64_get(&c->usage[3]->replicas[i]))
 			memcpy(cpu_replicas_entry(&new, new.nr++),
 			       e, new.entry_size);
 	}
