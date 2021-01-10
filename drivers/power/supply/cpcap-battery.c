@@ -542,6 +542,7 @@ static enum power_supply_property cpcap_battery_props[] = {
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
+	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
 	POWER_SUPPLY_PROP_POWER_NOW,
@@ -660,6 +661,16 @@ static int cpcap_battery_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
 		else
 			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_UNKNOWN;
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_NOW:
+		empty = cpcap_battery_get_empty(ddata);
+		if (!empty->voltage)
+			return -ENODATA;
+		val->intval = empty->counter_uah - latest->counter_uah;
+		if (val->intval < 0)
+			val->intval = 0;
+		else if (ddata->charge_full && ddata->charge_full < val->intval)
+			val->intval = ddata->charge_full;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 		if (!ddata->charge_full)
