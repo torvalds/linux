@@ -317,18 +317,12 @@ static void ufshcd_add_cmd_upiu_trace(struct ufs_hba *hba, unsigned int tag,
 			  UFS_TSF_CDB);
 }
 
-static void ufshcd_add_query_upiu_trace(struct ufs_hba *hba, unsigned int tag,
-					enum ufs_trace_str_t str_t)
+static void ufshcd_add_query_upiu_trace(struct ufs_hba *hba,
+					enum ufs_trace_str_t str_t,
+					struct utp_upiu_req *rq_rsp)
 {
-	struct utp_upiu_req *rq_rsp;
-
 	if (!trace_ufshcd_upiu_enabled())
 		return;
-
-	if (str_t == UFS_QUERY_SEND)
-		rq_rsp = hba->lrb[tag].ucd_req_ptr;
-	else
-		rq_rsp = (struct utp_upiu_req *)hba->lrb[tag].ucd_rsp_ptr;
 
 	trace_ufshcd_upiu(dev_name(hba->dev), str_t, &rq_rsp->header,
 			  &rq_rsp->qr, UFS_TSF_OSF);
@@ -2877,7 +2871,7 @@ static int ufshcd_exec_dev_cmd(struct ufs_hba *hba,
 
 	hba->dev_cmd.complete = &wait;
 
-	ufshcd_add_query_upiu_trace(hba, tag, UFS_QUERY_SEND);
+	ufshcd_add_query_upiu_trace(hba, UFS_QUERY_SEND, lrbp->ucd_req_ptr);
 	/* Make sure descriptors are ready before ringing the doorbell */
 	wmb();
 	spin_lock_irqsave(hba->host->host_lock, flags);
@@ -2887,8 +2881,8 @@ static int ufshcd_exec_dev_cmd(struct ufs_hba *hba,
 	err = ufshcd_wait_for_dev_cmd(hba, lrbp, timeout);
 
 out:
-	ufshcd_add_query_upiu_trace(hba, tag,
-			err ? UFS_QUERY_ERR : UFS_QUERY_COMP);
+	ufshcd_add_query_upiu_trace(hba, err ? UFS_QUERY_ERR : UFS_QUERY_COMP,
+				    (struct utp_upiu_req *)lrbp->ucd_rsp_ptr);
 
 out_put_tag:
 	blk_put_request(req);
