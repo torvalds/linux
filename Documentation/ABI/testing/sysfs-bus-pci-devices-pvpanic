@@ -1,0 +1,12 @@
+What:		/sys/devices/pci0000:00/*/QEMU0001:00/capability
+Date:		Jan 2021
+Contact:	zhenwei pi <pizhenwei@bytedance.com>
+Description:
+		Read-only attribute. Capabilities of pvpanic device which
+		are supported by QEMU.
+
+		Format: %x.
+
+		Detailed bit definition refers to section <Bit Definition>
+		from pvpanic device specification:
+		https://git.qemu.org/?p=qemu.git;a=blob_plain;f=docs/specs/pvpanic.txt
