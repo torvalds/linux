@@ -1981,7 +1981,11 @@ static enum mac_version rtl8169_get_mac_version(u16 xid, bool gmii)
 		{ 0x7c8, 0x280,	RTL_GIGA_MAC_VER_26 },
 
 		/* 8168DP family. */
-		{ 0x7cf, 0x288,	RTL_GIGA_MAC_VER_27 },
+		/* It seems this early RTL8168dp version never made it to
+		 * the wild. Let's see whether somebody complains, if not
+		 * we'll remove support for this chip version completely.
+		 * { 0x7cf, 0x288,      RTL_GIGA_MAC_VER_27 },
+		 */
 		{ 0x7cf, 0x28a,	RTL_GIGA_MAC_VER_28 },
 		{ 0x7cf, 0x28b,	RTL_GIGA_MAC_VER_31 },
 
@@ -5264,7 +5268,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Identify chip attached to board */
 	chipset = rtl8169_get_mac_version(xid, tp->supports_gmii);
 	if (chipset == RTL_GIGA_MAC_NONE) {
-		dev_err(&pdev->dev, "unknown chip XID %03x\n", xid);
+		dev_err(&pdev->dev, "unknown chip XID %03x, contact r8169 maintainers (see MAINTAINERS file)\n", xid);
 		return -ENODEV;
 	}
 
