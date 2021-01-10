@@ -2229,7 +2229,7 @@ static void rtl_wol_suspend_quirk(struct rtl8169_private *tp)
 	}
 }
 
-static void rtl_pll_power_down(struct rtl8169_private *tp)
+static void rtl_prepare_power_down(struct rtl8169_private *tp)
 {
 	if (r8168_check_dash(tp))
 		return;
@@ -2242,11 +2242,6 @@ static void rtl_pll_power_down(struct rtl8169_private *tp)
 		phy_speed_down(tp->phydev, false);
 		rtl_wol_suspend_quirk(tp);
 	}
-}
-
-static void rtl_pll_power_up(struct rtl8169_private *tp)
-{
-	phy_resume(tp->phydev);
 }
 
 static void rtl_init_rxcfg(struct rtl8169_private *tp)
@@ -4604,12 +4599,12 @@ static void rtl8169_down(struct rtl8169_private *tp)
 
 	rtl8169_cleanup(tp, true);
 
-	rtl_pll_power_down(tp);
+	rtl_prepare_power_down(tp);
 }
 
 static void rtl8169_up(struct rtl8169_private *tp)
 {
-	rtl_pll_power_up(tp);
+	phy_resume(tp->phydev);
 	rtl8169_init_phy(tp);
 	napi_enable(&tp->napi);
 	set_bit(RTL_FLAG_TASK_ENABLED, tp->wk.flags);
