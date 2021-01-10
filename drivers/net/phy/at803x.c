@@ -529,19 +529,12 @@ static void at803x_remove(struct phy_device *phydev)
 static int at803x_clk_out_config(struct phy_device *phydev)
 {
 	struct at803x_priv *priv = phydev->priv;
-	int val;
 
 	if (!priv->clk_25m_mask)
 		return 0;
 
-	val = phy_read_mmd(phydev, MDIO_MMD_AN, AT803X_MMD7_CLK25M);
-	if (val < 0)
-		return val;
-
-	val &= ~priv->clk_25m_mask;
-	val |= priv->clk_25m_reg;
-
-	return phy_write_mmd(phydev, MDIO_MMD_AN, AT803X_MMD7_CLK25M, val);
+	return phy_modify_mmd(phydev, MDIO_MMD_AN, AT803X_MMD7_CLK25M,
+			      priv->clk_25m_mask, priv->clk_25m_reg);
 }
 
 static int at8031_pll_config(struct phy_device *phydev)
