@@ -231,6 +231,8 @@ static struct rtc_device *rtc_allocate_device(void)
 	rtc->pie_timer.function = rtc_pie_update_irq;
 	rtc->pie_enabled = 0;
 
+	set_bit(RTC_FEATURE_ALARM, rtc->features);
+
 	return rtc;
 }
 
@@ -385,6 +387,9 @@ int __devm_rtc_register_device(struct module *owner, struct rtc_device *rtc)
 		dev_dbg(&rtc->dev, "no ops set\n");
 		return -EINVAL;
 	}
+
+	if (!rtc->ops->set_alarm)
+		clear_bit(RTC_FEATURE_ALARM, rtc->features);
 
 	rtc->owner = owner;
 	rtc_device_get_offset(rtc);

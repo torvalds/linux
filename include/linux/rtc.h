@@ -141,6 +141,8 @@ struct rtc_device {
 	 */
 	unsigned long set_offset_nsec;
 
+	unsigned long features[BITS_TO_LONGS(RTC_FEATURE_CNT)];
+
 	time64_t range_min;
 	timeu64_t range_max;
 	time64_t start_secs;
