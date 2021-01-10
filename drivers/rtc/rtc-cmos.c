@@ -574,12 +574,6 @@ static const struct rtc_class_ops cmos_rtc_ops = {
 	.alarm_irq_enable	= cmos_alarm_irq_enable,
 };
 
-static const struct rtc_class_ops cmos_rtc_ops_no_alarm = {
-	.read_time		= cmos_read_time,
-	.set_time		= cmos_set_time,
-	.proc			= cmos_procfs,
-};
-
 /*----------------------------------------------------------------*/
 
 /*
@@ -857,11 +851,11 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 			dev_dbg(dev, "IRQ %d is already in use\n", rtc_irq);
 			goto cleanup1;
 		}
-
-		cmos_rtc.rtc->ops = &cmos_rtc_ops;
 	} else {
-		cmos_rtc.rtc->ops = &cmos_rtc_ops_no_alarm;
+		clear_bit(RTC_FEATURE_ALARM, cmos_rtc.rtc->features);
 	}
+
+	cmos_rtc.rtc->ops = &cmos_rtc_ops;
 
 	retval = devm_rtc_register_device(cmos_rtc.rtc);
 	if (retval)
