@@ -337,11 +337,16 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	 * the bitrate to determine supported modes. Some BiDi modules (eg,
 	 * 1310nm/1550nm) are not 1000BASE-BX compliant due to the differing
 	 * wavelengths, so do not set any transceiver bits.
+	 *
+	 * Do the same for modules supporting 2500BASE-X. Note that some
+	 * modules use 2500Mbaud rather than 3100 or 3200Mbaud for
+	 * 2500BASE-X, so we allow some slack here.
 	 */
-	if (bitmap_empty(modes, __ETHTOOL_LINK_MODE_MASK_NBITS)) {
-		/* If the bit rate allows 1000baseX */
-		if (br_nom && br_min <= 1300 && br_max >= 1200)
+	if (bitmap_empty(modes, __ETHTOOL_LINK_MODE_MASK_NBITS) && br_nom) {
+		if (br_min <= 1300 && br_max >= 1200)
 			phylink_set(modes, 1000baseX_Full);
+		if (br_min <= 3200 && br_max >= 2500)
+			phylink_set(modes, 2500baseX_Full);
 	}
 
 	if (bus->sfp_quirk)
