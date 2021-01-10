@@ -282,6 +282,15 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 		pr_debug("RM_ADDR: id=%d", mp_opt->rm_id);
 		break;
 
+	case MPTCPOPT_MP_PRIO:
+		if (opsize != TCPOLEN_MPTCP_PRIO)
+			break;
+
+		mp_opt->mp_prio = 1;
+		mp_opt->backup = *ptr++ & MPTCP_PRIO_BKUP;
+		pr_debug("MP_PRIO: prio=%d", mp_opt->backup);
+		break;
+
 	case MPTCPOPT_MP_FASTCLOSE:
 		if (opsize != TCPOLEN_MPTCP_FASTCLOSE)
 			break;
@@ -313,6 +322,7 @@ void mptcp_get_options(const struct sk_buff *skb,
 	mp_opt->port = 0;
 	mp_opt->rm_addr = 0;
 	mp_opt->dss = 0;
+	mp_opt->mp_prio = 0;
 
 	length = (th->doff * 4) - sizeof(struct tcphdr);
 	ptr = (const unsigned char *)(th + 1);
@@ -679,6 +689,28 @@ static bool mptcp_established_options_rm_addr(struct sock *sk,
 	return true;
 }
 
+static bool mptcp_established_options_mp_prio(struct sock *sk,
+					      unsigned int *size,
+					      unsigned int remaining,
+					      struct mptcp_out_options *opts)
+{
+	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
+
+	if (!subflow->send_mp_prio)
+		return false;
+
+	if (remaining < TCPOLEN_MPTCP_PRIO)
+		return false;
+
+	*size = TCPOLEN_MPTCP_PRIO;
+	opts->suboptions |= OPTION_MPTCP_PRIO;
+	opts->backup = subflow->request_bkup;
+
+	pr_debug("prio=%d", opts->backup);
+
+	return true;
+}
+
 bool mptcp_established_options(struct sock *sk, struct sk_buff *skb,
 			       unsigned int *size, unsigned int remaining,
 			       struct mptcp_out_options *opts)
@@ -716,6 +748,12 @@ bool mptcp_established_options(struct sock *sk, struct sk_buff *skb,
 		remaining -= opt_size;
 		ret = true;
 	} else if (mptcp_established_options_rm_addr(sk, &opt_size, remaining, opts)) {
+		*size += opt_size;
+		remaining -= opt_size;
+		ret = true;
+	}
+
+	if (mptcp_established_options_mp_prio(sk, &opt_size, remaining, opts)) {
 		*size += opt_size;
 		remaining -= opt_size;
 		ret = true;
@@ -994,6 +1032,12 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb)
 		mp_opt.rm_addr = 0;
 	}
 
+	if (mp_opt.mp_prio) {
+		mptcp_pm_mp_prio_received(sk, mp_opt.backup);
+		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_MPPRIORX);
+		mp_opt.mp_prio = 0;
+	}
+
 	if (!mp_opt.dss)
 		return;
 
@@ -1166,6 +1210,18 @@ mp_capable_done:
 		*ptr++ = mptcp_option(MPTCPOPT_RM_ADDR,
 				      TCPOLEN_MPTCP_RM_ADDR_BASE,
 				      0, opts->rm_id);
+	}
+
+	if (OPTION_MPTCP_PRIO & opts->suboptions) {
+		const struct sock *ssk = (const struct sock *)tp;
+		struct mptcp_subflow_context *subflow;
+
+		subflow = mptcp_subflow_ctx(ssk);
+		subflow->send_mp_prio = 0;
+
+		*ptr++ = mptcp_option(MPTCPOPT_MP_PRIO,
+				      TCPOLEN_MPTCP_PRIO,
+				      opts->backup, TCPOPT_NOP);
 	}
 
 	if (OPTION_MPTCP_MPJ_SYN & opts->suboptions) {
