@@ -613,6 +613,16 @@ static void cpcap_charger_disconnect(struct cpcap_charger_ddata *ddata,
 {
 	int error;
 
+	/* Update battery state before disconnecting the charger */
+	switch (state) {
+	case POWER_SUPPLY_STATUS_DISCHARGING:
+	case POWER_SUPPLY_STATUS_FULL:
+		power_supply_changed(ddata->usb);
+		break;
+	default:
+		break;
+	}
+
 	error = cpcap_charger_disable(ddata);
 	if (error) {
 		cpcap_charger_update_state(ddata, POWER_SUPPLY_STATUS_UNKNOWN);
@@ -628,7 +638,7 @@ static void cpcap_usb_detect(struct work_struct *work)
 {
 	struct cpcap_charger_ddata *ddata;
 	struct cpcap_charger_ints_state s;
-	int error;
+	int error, new_state;
 
 	ddata = container_of(work, struct cpcap_charger_ddata,
 			     detect_work.work);
@@ -662,19 +672,23 @@ static void cpcap_usb_detect(struct work_struct *work)
 	case POWER_SUPPLY_STATUS_CHARGING:
 		if (s.chrgcurr2)
 			break;
+		new_state = POWER_SUPPLY_STATUS_FULL;
+
 		if (s.chrgcurr1 && s.vbusvld) {
-			cpcap_charger_disconnect(ddata,
-						 POWER_SUPPLY_STATUS_FULL,
-						 HZ * 5);
+			cpcap_charger_disconnect(ddata, new_state, HZ * 5);
 			return;
 		}
 		break;
 	case POWER_SUPPLY_STATUS_FULL:
 		if (!s.chrgcurr2)
 			break;
-		cpcap_charger_disconnect(ddata,
-					 POWER_SUPPLY_STATUS_NOT_CHARGING,
-					 HZ * 5);
+		if (s.vbusvld)
+			new_state = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		else
+			new_state = POWER_SUPPLY_STATUS_DISCHARGING;
+
+		cpcap_charger_disconnect(ddata, new_state, HZ * 5);
+
 		return;
 	default:
 		break;
@@ -832,6 +846,10 @@ out_err:
 	return error;
 }
 
+static char *cpcap_charger_supplied_to[] = {
+	"battery",
+};
+
 static const struct power_supply_desc cpcap_charger_usb_desc = {
 	.name		= "usb",
 	.type		= POWER_SUPPLY_TYPE_USB,
@@ -889,6 +907,8 @@ static int cpcap_charger_probe(struct platform_device *pdev)
 
 	psy_cfg.of_node = pdev->dev.of_node;
 	psy_cfg.drv_data = ddata;
+	psy_cfg.supplied_to = cpcap_charger_supplied_to;
+	psy_cfg.num_supplicants = ARRAY_SIZE(cpcap_charger_supplied_to),
 
 	ddata->usb = devm_power_supply_register(ddata->dev,
 						&cpcap_charger_usb_desc,

@@ -416,6 +416,18 @@ static int cpcap_battery_update_status(struct cpcap_battery_ddata *ddata)
 	return 0;
 }
 
+/*
+ * Update battery status when cpcap-charger calls power_supply_changed().
+ * This allows us to detect battery full condition before the charger
+ * disconnects.
+ */
+static void cpcap_battery_external_power_changed(struct power_supply *psy)
+{
+	union power_supply_propval prop;
+
+	power_supply_get_property(psy, POWER_SUPPLY_PROP_STATUS, &prop);
+}
+
 static enum power_supply_property cpcap_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
@@ -914,6 +926,7 @@ static int cpcap_battery_probe(struct platform_device *pdev)
 	psy_desc->get_property = cpcap_battery_get_property;
 	psy_desc->set_property = cpcap_battery_set_property;
 	psy_desc->property_is_writeable = cpcap_battery_property_is_writeable;
+	psy_desc->external_power_changed = cpcap_battery_external_power_changed;
 
 	psy_cfg.of_node = pdev->dev.of_node;
 	psy_cfg.drv_data = ddata;
