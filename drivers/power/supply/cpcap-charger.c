@@ -886,7 +886,7 @@ static int cpcap_charger_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int cpcap_charger_remove(struct platform_device *pdev)
+static void cpcap_charger_shutdown(struct platform_device *pdev)
 {
 	struct cpcap_charger_ddata *ddata = platform_get_drvdata(pdev);
 	int error;
@@ -903,6 +903,11 @@ static int cpcap_charger_remove(struct platform_device *pdev)
 			 error);
 	cancel_delayed_work_sync(&ddata->vbus_work);
 	cancel_delayed_work_sync(&ddata->detect_work);
+}
+
+static int cpcap_charger_remove(struct platform_device *pdev)
+{
+	cpcap_charger_shutdown(pdev);
 
 	return 0;
 }
@@ -913,6 +918,7 @@ static struct platform_driver cpcap_charger_driver = {
 		.name	= "cpcap-charger",
 		.of_match_table = of_match_ptr(cpcap_charger_id_table),
 	},
+	.shutdown = cpcap_charger_shutdown,
 	.remove	= cpcap_charger_remove,
 };
 module_platform_driver(cpcap_charger_driver);
