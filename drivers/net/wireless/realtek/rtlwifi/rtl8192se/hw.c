@@ -458,7 +458,7 @@ static u8 _rtl92se_halset_sysclk(struct ieee80211_hw *hw, u8 data)
 	tmpvalue = rtl_read_byte(rtlpriv, SYS_CLKR + 1);
 	bresult = ((tmpvalue & BIT(7)) == (data & BIT(7)));
 
-	if ((data & (BIT(6) | BIT(7))) == false) {
+	if (!(data & (BIT(6) | BIT(7)))) {
 		waitcount = 100;
 		tmpvalue = 0;
 
@@ -1268,7 +1268,7 @@ static u8 _rtl92s_set_sysclk(struct ieee80211_hw *hw, u8 data)
 	tmp = rtl_read_byte(rtlpriv, SYS_CLKR + 1);
 	result = ((tmp & BIT(7)) == (data & BIT(7)));
 
-	if ((data & (BIT(6) | BIT(7))) == false) {
+	if (!(data & (BIT(6) | BIT(7)))) {
 		waitcnt = 100;
 		tmp = 0;
 
