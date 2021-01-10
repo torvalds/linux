@@ -354,13 +354,7 @@ static int rx8010_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 	}
 }
 
-static const struct rtc_class_ops rx8010_rtc_ops_default = {
-	.read_time = rx8010_get_time,
-	.set_time = rx8010_set_time,
-	.ioctl = rx8010_ioctl,
-};
-
-static const struct rtc_class_ops rx8010_rtc_ops_alarm = {
+static const struct rtc_class_ops rx8010_rtc_ops = {
 	.read_time = rx8010_get_time,
 	.set_time = rx8010_set_time,
 	.ioctl = rx8010_ioctl,
@@ -409,12 +403,11 @@ static int rx8010_probe(struct i2c_client *client)
 			dev_err(dev, "unable to request IRQ\n");
 			return err;
 		}
-
-		rx8010->rtc->ops = &rx8010_rtc_ops_alarm;
 	} else {
-		rx8010->rtc->ops = &rx8010_rtc_ops_default;
+		clear_bit(RTC_FEATURE_ALARM, rx8010->rtc->features);
 	}
 
+	rx8010->rtc->ops = &rx8010_rtc_ops;
 	rx8010->rtc->max_user_freq = 1;
 	rx8010->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	rx8010->rtc->range_max = RTC_TIMESTAMP_END_2099;
