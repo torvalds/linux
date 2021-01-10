@@ -137,6 +137,11 @@ SECTIONS
 	PERCPU_SECTION(1 << CONFIG_MIPS_L1_CACHE_SHIFT)
 #endif
 
+	.rel.dyn : ALIGN(8) {
+		*(.rel)
+		*(.rel*)
+	}
+
 #ifdef CONFIG_MIPS_ELF_APPENDED_DTB
 	.appended_dtb : AT(ADDR(.appended_dtb) - LOAD_OFFSET) {
 		*(.appended_dtb)
