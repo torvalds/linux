@@ -2,6 +2,8 @@
 #ifndef _UAPI_LINUX_GTP_H_
 #define _UAPI_LINUX_GTP_H_
 
+#include <linux/types.h>
+
 #define GTP_GENL_MCGRP_NAME	"gtp"
 
 enum gtp_genl_cmds {
@@ -33,5 +35,15 @@ enum gtp_attrs {
 	__GTPA_MAX,
 };
 #define GTPA_MAX (__GTPA_MAX + 1)
+
+enum {
+	GTP_METADATA_V1
+};
+
+struct gtpu_metadata {
+	__u8    ver;
+	__u8    flags;
+	__u8    type;
+};
 
 #endif /* _UAPI_LINUX_GTP_H_ */
