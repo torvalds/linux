@@ -194,7 +194,7 @@ static void sun8i_de3_ccsc_set_coefficients(struct regmap *map, int layer,
 		return;
 	}
 
-	base_reg = SUN50I_MIXER_BLEND_CSC_COEFF(DE3_BLD_BASE, layer, 0, 0);
+	base_reg = SUN50I_MIXER_BLEND_CSC_COEFF(DE3_BLD_BASE, layer, 0);
 	regmap_bulk_write(map, base_reg, table, 12);
 }
 
