@@ -302,6 +302,7 @@ cpcap_charger_get_bat_const_charge_voltage(struct cpcap_charger_ddata *ddata)
 		if (!error)
 			voltage = prop.intval;
 	}
+	power_supply_put(battery);
 
 	return voltage;
 }
