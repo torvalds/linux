@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/acpi.h>
 #include <linux/ctype.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/hwmon.h>
@@ -258,6 +259,9 @@ struct sfp {
 	char *hwmon_name;
 #endif
 
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+	struct dentry *debugfs_dir;
+#endif
 };
 
 static bool sff_module_supported(const struct sfp_eeprom_id *id)
@@ -1390,6 +1394,54 @@ static void sfp_module_tx_enable(struct sfp *sfp)
 	sfp_set_state(sfp, sfp->state);
 }
 
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+static int sfp_debug_state_show(struct seq_file *s, void *data)
+{
+	struct sfp *sfp = s->private;
+
+	seq_printf(s, "Module state: %s\n",
+		   mod_state_to_str(sfp->sm_mod_state));
+	seq_printf(s, "Module probe attempts: %d %d\n",
+		   R_PROBE_RETRY_INIT - sfp->sm_mod_tries_init,
+		   R_PROBE_RETRY_SLOW - sfp->sm_mod_tries);
+	seq_printf(s, "Device state: %s\n",
+		   dev_state_to_str(sfp->sm_dev_state));
+	seq_printf(s, "Main state: %s\n",
+		   sm_state_to_str(sfp->sm_state));
+	seq_printf(s, "Fault recovery remaining retries: %d\n",
+		   sfp->sm_fault_retries);
+	seq_printf(s, "PHY probe remaining retries: %d\n",
+		   sfp->sm_phy_retries);
+	seq_printf(s, "moddef0: %d\n", !!(sfp->state & SFP_F_PRESENT));
+	seq_printf(s, "rx_los: %d\n", !!(sfp->state & SFP_F_LOS));
+	seq_printf(s, "tx_fault: %d\n", !!(sfp->state & SFP_F_TX_FAULT));
+	seq_printf(s, "tx_disable: %d\n", !!(sfp->state & SFP_F_TX_DISABLE));
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(sfp_debug_state);
+
+static void sfp_debugfs_init(struct sfp *sfp)
+{
+	sfp->debugfs_dir = debugfs_create_dir(dev_name(sfp->dev), NULL);
+
+	debugfs_create_file("state", 0600, sfp->debugfs_dir, sfp,
+			    &sfp_debug_state_fops);
+}
+
+static void sfp_debugfs_exit(struct sfp *sfp)
+{
+	debugfs_remove_recursive(sfp->debugfs_dir);
+}
+#else
+static void sfp_debugfs_init(struct sfp *sfp)
+{
+}
+
+static void sfp_debugfs_exit(struct sfp *sfp)
+{
+}
+#endif
+
 static void sfp_module_tx_fault_reset(struct sfp *sfp)
 {
 	unsigned int state = sfp->state;
@@ -2491,6 +2543,8 @@ static int sfp_probe(struct platform_device *pdev)
 	if (!sfp->sfp_bus)
 		return -ENOMEM;
 
+	sfp_debugfs_init(sfp);
+
 	return 0;
 }
 
@@ -2498,6 +2552,7 @@ static int sfp_remove(struct platform_device *pdev)
 {
 	struct sfp *sfp = platform_get_drvdata(pdev);
 
+	sfp_debugfs_exit(sfp);
 	sfp_unregister_socket(sfp->sfp_bus);
 
 	rtnl_lock();
