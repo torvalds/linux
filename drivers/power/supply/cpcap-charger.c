@@ -120,13 +120,6 @@ enum {
 	CPCAP_CHARGER_IIO_NR,
 };
 
-enum {
-	CPCAP_CHARGER_DISCONNECTED,
-	CPCAP_CHARGER_DETECTING,
-	CPCAP_CHARGER_CHARGING,
-	CPCAP_CHARGER_DONE,
-};
-
 struct cpcap_charger_ddata {
 	struct device *dev;
 	struct regmap *reg;
@@ -533,7 +526,7 @@ static void cpcap_charger_update_state(struct cpcap_charger_ddata *ddata,
 {
 	const char *status;
 
-	if (state > CPCAP_CHARGER_DONE) {
+	if (state > POWER_SUPPLY_STATUS_FULL) {
 		dev_warn(ddata->dev, "unknown state: %i\n", state);
 
 		return;
@@ -542,16 +535,16 @@ static void cpcap_charger_update_state(struct cpcap_charger_ddata *ddata,
 	ddata->state = state;
 
 	switch (state) {
-	case CPCAP_CHARGER_DISCONNECTED:
+	case POWER_SUPPLY_STATUS_DISCHARGING:
 		status = "DISCONNECTED";
 		break;
-	case CPCAP_CHARGER_DETECTING:
+	case POWER_SUPPLY_STATUS_NOT_CHARGING:
 		status = "DETECTING";
 		break;
-	case CPCAP_CHARGER_CHARGING:
+	case POWER_SUPPLY_STATUS_CHARGING:
 		status = "CHARGING";
 		break;
-	case CPCAP_CHARGER_DONE:
+	case POWER_SUPPLY_STATUS_FULL:
 		status = "DONE";
 		break;
 	default:
@@ -616,7 +609,8 @@ static void cpcap_usb_detect(struct work_struct *work)
 
 	/* Just init the state if a charger is connected with no chrg_det set */
 	if (!s.chrg_det && s.chrgcurr1 && s.vbusvld) {
-		cpcap_charger_update_state(ddata, CPCAP_CHARGER_DETECTING);
+		cpcap_charger_update_state(ddata,
+					   POWER_SUPPLY_STATUS_NOT_CHARGING);
 
 		return;
 	}
@@ -626,7 +620,8 @@ static void cpcap_usb_detect(struct work_struct *work)
 	 * charged to 4.35V by Android. Try again in 10 minutes.
 	 */
 	if (cpcap_charger_get_charge_voltage(ddata) > ddata->voltage) {
-		cpcap_charger_disconnect(ddata, CPCAP_CHARGER_DETECTING,
+		cpcap_charger_disconnect(ddata,
+					 POWER_SUPPLY_STATUS_NOT_CHARGING,
 					 HZ * 60 * 10);
 
 		return;
@@ -634,19 +629,21 @@ static void cpcap_usb_detect(struct work_struct *work)
 
 	/* Throttle chrgcurr2 interrupt for charger done and retry */
 	switch (ddata->state) {
-	case CPCAP_CHARGER_CHARGING:
+	case POWER_SUPPLY_STATUS_CHARGING:
 		if (s.chrgcurr2)
 			break;
 		if (s.chrgcurr1 && s.vbusvld) {
-			cpcap_charger_disconnect(ddata, CPCAP_CHARGER_DONE,
+			cpcap_charger_disconnect(ddata,
+						 POWER_SUPPLY_STATUS_FULL,
 						 HZ * 5);
 			return;
 		}
 		break;
-	case CPCAP_CHARGER_DONE:
+	case POWER_SUPPLY_STATUS_FULL:
 		if (!s.chrgcurr2)
 			break;
-		cpcap_charger_disconnect(ddata, CPCAP_CHARGER_DETECTING,
+		cpcap_charger_disconnect(ddata,
+					 POWER_SUPPLY_STATUS_NOT_CHARGING,
 					 HZ * 5);
 		return;
 	default:
@@ -669,12 +666,14 @@ static void cpcap_usb_detect(struct work_struct *work)
 						max_current, 0);
 		if (error)
 			goto out_err;
-		cpcap_charger_update_state(ddata, CPCAP_CHARGER_CHARGING);
+		cpcap_charger_update_state(ddata,
+					   POWER_SUPPLY_STATUS_CHARGING);
 	} else {
 		error = cpcap_charger_set_state(ddata, 0, 0, 0);
 		if (error)
 			goto out_err;
-		cpcap_charger_update_state(ddata, CPCAP_CHARGER_DISCONNECTED);
+		cpcap_charger_update_state(ddata,
+					   POWER_SUPPLY_STATUS_DISCHARGING);
 	}
 
 	power_supply_changed(ddata->usb);
