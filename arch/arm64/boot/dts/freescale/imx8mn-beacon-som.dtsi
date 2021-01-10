@@ -4,6 +4,11 @@
  */
 
 / {
+	aliases {
+		rtc0 = &rtc;
+		rtc1 = &snvs_rtc;
+	};
+
 	usdhc1_pwrseq: usdhc1_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		pinctrl-names = "default";
@@ -212,7 +217,7 @@
 		reg = <0x50>;
 	};
 
-	rtc@51 {
+	rtc: rtc@51 {
 		compatible = "nxp,pcf85263";
 		reg = <0x51>;
 	};
