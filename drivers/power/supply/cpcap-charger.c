@@ -140,7 +140,6 @@ struct cpcap_charger_ddata {
 	atomic_t active;
 
 	int status;
-	int state;
 	int voltage;
 	int limit_current;
 };
@@ -386,6 +385,39 @@ static void cpcap_charger_set_inductive_path(struct cpcap_charger_ddata *ddata,
 	gpiod_set_value(ddata->gpio[1], enabled);
 }
 
+static void cpcap_charger_update_state(struct cpcap_charger_ddata *ddata,
+				       int state)
+{
+	const char *status;
+
+	if (state > POWER_SUPPLY_STATUS_FULL) {
+		dev_warn(ddata->dev, "unknown state: %i\n", state);
+
+		return;
+	}
+
+	ddata->status = state;
+
+	switch (state) {
+	case POWER_SUPPLY_STATUS_DISCHARGING:
+		status = "DISCONNECTED";
+		break;
+	case POWER_SUPPLY_STATUS_NOT_CHARGING:
+		status = "DETECTING";
+		break;
+	case POWER_SUPPLY_STATUS_CHARGING:
+		status = "CHARGING";
+		break;
+	case POWER_SUPPLY_STATUS_FULL:
+		status = "DONE";
+		break;
+	default:
+		return;
+	}
+
+	dev_dbg(ddata->dev, "state: %s\n", status);
+}
+
 static int cpcap_charger_set_state(struct cpcap_charger_ddata *ddata,
 				   int max_voltage, int charge_current,
 				   int trickle_current)
@@ -402,11 +434,13 @@ static int cpcap_charger_set_state(struct cpcap_charger_ddata *ddata,
 					   CPCAP_REG_CRM_FET_OVRD |
 					   CPCAP_REG_CRM_FET_CTRL);
 		if (error) {
-			ddata->status = POWER_SUPPLY_STATUS_UNKNOWN;
+			cpcap_charger_update_state(ddata,
+						   POWER_SUPPLY_STATUS_UNKNOWN);
 			goto out_err;
 		}
 
-		ddata->status = POWER_SUPPLY_STATUS_DISCHARGING;
+		cpcap_charger_update_state(ddata,
+					   POWER_SUPPLY_STATUS_DISCHARGING);
 
 		return 0;
 	}
@@ -419,11 +453,13 @@ static int cpcap_charger_set_state(struct cpcap_charger_ddata *ddata,
 				   max_voltage |
 				   charge_current);
 	if (error) {
-		ddata->status = POWER_SUPPLY_STATUS_UNKNOWN;
+		cpcap_charger_update_state(ddata,
+					   POWER_SUPPLY_STATUS_UNKNOWN);
 		goto out_err;
 	}
 
-	ddata->status = POWER_SUPPLY_STATUS_CHARGING;
+	cpcap_charger_update_state(ddata,
+				   POWER_SUPPLY_STATUS_CHARGING);
 
 	return 0;
 
@@ -555,39 +591,6 @@ static int cpcap_charger_get_ints_state(struct cpcap_charger_ddata *ddata,
 	return 0;
 }
 
-static void cpcap_charger_update_state(struct cpcap_charger_ddata *ddata,
-				       int state)
-{
-	const char *status;
-
-	if (state > POWER_SUPPLY_STATUS_FULL) {
-		dev_warn(ddata->dev, "unknown state: %i\n", state);
-
-		return;
-	}
-
-	ddata->state = state;
-
-	switch (state) {
-	case POWER_SUPPLY_STATUS_DISCHARGING:
-		status = "DISCONNECTED";
-		break;
-	case POWER_SUPPLY_STATUS_NOT_CHARGING:
-		status = "DETECTING";
-		break;
-	case POWER_SUPPLY_STATUS_CHARGING:
-		status = "CHARGING";
-		break;
-	case POWER_SUPPLY_STATUS_FULL:
-		status = "DONE";
-		break;
-	default:
-		return;
-	}
-
-	dev_dbg(ddata->dev, "state: %s\n", status);
-}
-
 static int cpcap_charger_voltage_to_regval(int voltage)
 {
 	int offset;
@@ -662,7 +665,7 @@ static void cpcap_usb_detect(struct work_struct *work)
 	}
 
 	/* Throttle chrgcurr2 interrupt for charger done and retry */
-	switch (ddata->state) {
+	switch (ddata->status) {
 	case POWER_SUPPLY_STATUS_CHARGING:
 		if (s.chrgcurr2)
 			break;
