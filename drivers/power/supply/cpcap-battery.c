@@ -135,6 +135,7 @@ struct cpcap_battery_ddata {
 	atomic_t active;
 	int status;
 	u16 vendor;
+	unsigned int is_full:1;
 };
 
 #define CPCAP_NO_BATTERY	-400
@@ -371,15 +372,62 @@ static int cpcap_battery_cc_get_avg_current(struct cpcap_battery_ddata *ddata)
 	return cpcap_battery_cc_to_ua(ddata, sample, acc, offset);
 }
 
+static int cpcap_battery_get_charger_status(struct cpcap_battery_ddata *ddata,
+					    int *val)
+{
+	union power_supply_propval prop;
+	struct power_supply *charger;
+	int error;
+
+	charger = power_supply_get_by_name("usb");
+	if (!charger)
+		return -ENODEV;
+
+	error = power_supply_get_property(charger, POWER_SUPPLY_PROP_STATUS,
+					  &prop);
+	if (error)
+		*val = POWER_SUPPLY_STATUS_UNKNOWN;
+	else
+		*val = prop.intval;
+
+	power_supply_put(charger);
+
+	return error;
+}
+
 static bool cpcap_battery_full(struct cpcap_battery_ddata *ddata)
 {
 	struct cpcap_battery_state_data *state = cpcap_battery_latest(ddata);
+	unsigned int vfull;
+	int error, val;
 
-	if (state->voltage >=
-	    (ddata->config.bat.constant_charge_voltage_max_uv - 18000))
-		return true;
+	error = cpcap_battery_get_charger_status(ddata, &val);
+	if (!error) {
+		switch (val) {
+		case POWER_SUPPLY_STATUS_DISCHARGING:
+			dev_dbg(ddata->dev, "charger disconnected\n");
+			ddata->is_full = 0;
+			break;
+		case POWER_SUPPLY_STATUS_FULL:
+			dev_dbg(ddata->dev, "charger full status\n");
+			ddata->is_full = 1;
+			break;
+		default:
+			break;
+		}
+	}
 
-	return false;
+	/*
+	 * The full battery voltage here can be inaccurate, it's used just to
+	 * filter out any trickle charging events. We clear the is_full status
+	 * on charger disconnect above anyways.
+	 */
+	vfull = ddata->config.bat.constant_charge_voltage_max_uv - 120000;
+
+	if (ddata->is_full && state->voltage < vfull)
+		ddata->is_full = 0;
+
+	return ddata->is_full;
 }
 
 static int cpcap_battery_update_status(struct cpcap_battery_ddata *ddata)
