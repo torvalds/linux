@@ -220,6 +220,7 @@ SECTIONS
 		/* ABI crap starts here */
 		*(.MIPS.abiflags)
 		*(.MIPS.options)
+		*(.gnu.attributes)
 		*(.options)
 		*(.pdr)
 		*(.reginfo)
