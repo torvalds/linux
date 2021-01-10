@@ -669,7 +669,7 @@ for fbdev.
   https://patchwork.freedesktop.org/patch/306579/
 
 - [RFC PATCH v2 00/13] Kernel based bootsplash
-  https://lkml.org/lkml/2017/12/13/764
+  https://lore.kernel.org/r/20171213194755.3409-1-mstaudt@suse.de
 
 Contact: Sam Ravnborg
 
