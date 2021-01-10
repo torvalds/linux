@@ -418,32 +418,30 @@ static void cpcap_charger_update_state(struct cpcap_charger_ddata *ddata,
 	dev_dbg(ddata->dev, "state: %s\n", status);
 }
 
-static int cpcap_charger_set_state(struct cpcap_charger_ddata *ddata,
-				   int max_voltage, int charge_current,
-				   int trickle_current)
+static int cpcap_charger_disable(struct cpcap_charger_ddata *ddata)
 {
-	bool enable;
 	int error;
 
-	enable = (charge_current || trickle_current);
-	dev_dbg(ddata->dev, "%s enable: %i\n", __func__, enable);
+	error = regmap_update_bits(ddata->reg, CPCAP_REG_CRM, 0x3fff,
+				   CPCAP_REG_CRM_FET_OVRD |
+				   CPCAP_REG_CRM_FET_CTRL);
+	if (error)
+		dev_err(ddata->dev, "%s failed with %i\n", __func__, error);
 
-	if (!enable) {
-		error = regmap_update_bits(ddata->reg, CPCAP_REG_CRM,
-					   0x3fff,
-					   CPCAP_REG_CRM_FET_OVRD |
-					   CPCAP_REG_CRM_FET_CTRL);
-		if (error) {
-			cpcap_charger_update_state(ddata,
-						   POWER_SUPPLY_STATUS_UNKNOWN);
-			goto out_err;
-		}
+	return error;
+}
 
-		cpcap_charger_update_state(ddata,
-					   POWER_SUPPLY_STATUS_DISCHARGING);
+static int cpcap_charger_enable(struct cpcap_charger_ddata *ddata,
+				int max_voltage, int charge_current,
+				int trickle_current)
+{
+	int error;
 
-		return 0;
-	}
+	if (!max_voltage || !charge_current)
+		return -EINVAL;
+
+	dev_dbg(ddata->dev, "enable: %i %i %i\n",
+		max_voltage, charge_current, trickle_current);
 
 	error = regmap_update_bits(ddata->reg, CPCAP_REG_CRM, 0x3fff,
 				   CPCAP_REG_CRM_CHRG_LED_EN |
@@ -452,19 +450,8 @@ static int cpcap_charger_set_state(struct cpcap_charger_ddata *ddata,
 				   CPCAP_REG_CRM_FET_CTRL |
 				   max_voltage |
 				   charge_current);
-	if (error) {
-		cpcap_charger_update_state(ddata,
-					   POWER_SUPPLY_STATUS_UNKNOWN);
-		goto out_err;
-	}
-
-	cpcap_charger_update_state(ddata,
-				   POWER_SUPPLY_STATUS_CHARGING);
-
-	return 0;
-
-out_err:
-	dev_err(ddata->dev, "%s failed with %i\n", __func__, error);
+	if (error)
+		dev_err(ddata->dev, "%s failed with %i\n", __func__, error);
 
 	return error;
 }
@@ -506,9 +493,12 @@ static void cpcap_charger_vbus_work(struct work_struct *work)
 		cpcap_charger_set_cable_path(ddata, false);
 		cpcap_charger_set_inductive_path(ddata, false);
 
-		error = cpcap_charger_set_state(ddata, 0, 0, 0);
+		error = cpcap_charger_disable(ddata);
 		if (error)
 			goto out_err;
+
+		cpcap_charger_update_state(ddata,
+					   POWER_SUPPLY_STATUS_DISCHARGING);
 
 		error = regmap_update_bits(ddata->reg, CPCAP_REG_VUSBC,
 					   CPCAP_BIT_VBUS_SWITCH,
@@ -540,6 +530,7 @@ static void cpcap_charger_vbus_work(struct work_struct *work)
 	return;
 
 out_err:
+	cpcap_charger_update_state(ddata, POWER_SUPPLY_STATUS_UNKNOWN);
 	dev_err(ddata->dev, "%s could not %s vbus: %i\n", __func__,
 		ddata->vbus_enabled ? "enable" : "disable", error);
 }
@@ -622,9 +613,11 @@ static void cpcap_charger_disconnect(struct cpcap_charger_ddata *ddata,
 {
 	int error;
 
-	error = cpcap_charger_set_state(ddata, 0, 0, 0);
-	if (error)
+	error = cpcap_charger_disable(ddata);
+	if (error) {
+		cpcap_charger_update_state(ddata, POWER_SUPPLY_STATUS_UNKNOWN);
 		return;
+	}
 
 	cpcap_charger_update_state(ddata, state);
 	power_supply_changed(ddata->usb);
@@ -700,15 +693,15 @@ static void cpcap_usb_detect(struct work_struct *work)
 
 		ichrg = cpcap_charger_current_to_regval(max_current);
 		vchrg = cpcap_charger_voltage_to_regval(ddata->voltage);
-		error = cpcap_charger_set_state(ddata,
-						CPCAP_REG_CRM_VCHRG(vchrg),
-						ichrg, 0);
+		error = cpcap_charger_enable(ddata,
+					     CPCAP_REG_CRM_VCHRG(vchrg),
+					     ichrg, 0);
 		if (error)
 			goto out_err;
 		cpcap_charger_update_state(ddata,
 					   POWER_SUPPLY_STATUS_CHARGING);
 	} else {
-		error = cpcap_charger_set_state(ddata, 0, 0, 0);
+		error = cpcap_charger_disable(ddata);
 		if (error)
 			goto out_err;
 		cpcap_charger_update_state(ddata,
@@ -719,6 +712,7 @@ static void cpcap_usb_detect(struct work_struct *work)
 	return;
 
 out_err:
+	cpcap_charger_update_state(ddata, POWER_SUPPLY_STATUS_UNKNOWN);
 	dev_err(ddata->dev, "%s failed with %i\n", __func__, error);
 }
 
@@ -936,10 +930,13 @@ static void cpcap_charger_shutdown(struct platform_device *pdev)
 		dev_warn(ddata->dev, "could not clear USB comparator: %i\n",
 			 error);
 
-	error = cpcap_charger_set_state(ddata, 0, 0, 0);
-	if (error)
+	error = cpcap_charger_disable(ddata);
+	if (error) {
+		cpcap_charger_update_state(ddata, POWER_SUPPLY_STATUS_UNKNOWN);
 		dev_warn(ddata->dev, "could not clear charger: %i\n",
 			 error);
+	}
+	cpcap_charger_update_state(ddata, POWER_SUPPLY_STATUS_DISCHARGING);
 	cancel_delayed_work_sync(&ddata->vbus_work);
 	cancel_delayed_work_sync(&ddata->detect_work);
 }
