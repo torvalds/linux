@@ -770,9 +770,12 @@ static int rv3028_clkout_register_clk(struct rv3028_data *rv3028,
 }
 #endif
 
-static struct rtc_class_ops rv3028_rtc_ops = {
+static const struct rtc_class_ops rv3028_rtc_ops = {
 	.read_time = rv3028_get_time,
 	.set_time = rv3028_set_time,
+	.read_alarm = rv3028_get_alarm,
+	.set_alarm = rv3028_set_alarm,
+	.alarm_irq_enable = rv3028_alarm_irq_enable,
 	.read_offset = rv3028_read_offset,
 	.set_offset = rv3028_set_offset,
 	.ioctl = rv3028_ioctl,
@@ -841,12 +844,10 @@ static int rv3028_probe(struct i2c_client *client)
 		if (ret) {
 			dev_warn(&client->dev, "unable to request IRQ, alarms disabled\n");
 			client->irq = 0;
-		} else {
-			rv3028_rtc_ops.read_alarm = rv3028_get_alarm;
-			rv3028_rtc_ops.set_alarm = rv3028_set_alarm;
-			rv3028_rtc_ops.alarm_irq_enable = rv3028_alarm_irq_enable;
 		}
 	}
+	if (!client->irq)
+		clear_bit(RTC_FEATURE_ALARM, rv3028->rtc->features);
 
 	ret = regmap_update_bits(rv3028->regmap, RV3028_CTRL1,
 				 RV3028_CTRL1_WADA, RV3028_CTRL1_WADA);
