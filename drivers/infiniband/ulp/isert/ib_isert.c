@@ -71,14 +71,12 @@ static int isert_sg_tablesize_set(const char *val, const struct kernel_param *kp
 	return param_set_int(val, kp);
 }
 
-
 static inline bool
 isert_prot_cmd(struct isert_conn *conn, struct se_cmd *cmd)
 {
 	return (conn->pi_support &&
 		cmd->prot_op != TARGET_PROT_NORMAL);
 }
-
 
 static void
 isert_qp_event_callback(struct ib_event *e, void *context)
