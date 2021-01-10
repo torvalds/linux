@@ -3883,7 +3883,7 @@ F:	drivers/mtd/nand/raw/cadence-nand-controller.c
 CADENCE USB3 DRD IP DRIVER
 M:	Peter Chen <peter.chen@nxp.com>
 M:	Pawel Laszczak <pawell@cadence.com>
-M:	Roger Quadros <rogerq@ti.com>
+R:	Roger Quadros <rogerq@kernel.org>
 R:	Aswath Govindraju <a-govindraju@ti.com>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
