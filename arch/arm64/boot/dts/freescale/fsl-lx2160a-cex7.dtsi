@@ -134,8 +134,6 @@
 	rtc@51 {
 		compatible = "nxp,pcf2129";
 		reg = <0x51>;
-		// IRQ10_B
-		interrupts = <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>;
 	};
 };
 
