@@ -1399,7 +1399,7 @@ static void flush_notify(unsigned long error, void *fr_)
 {
 	struct flush_request *fr = fr_;
 	if (unlikely(error != 0))
-		dm_integrity_io_error(fr->ic, "flusing disk cache", -EIO);
+		dm_integrity_io_error(fr->ic, "flushing disk cache", -EIO);
 	complete(&fr->comp);
 }
 
