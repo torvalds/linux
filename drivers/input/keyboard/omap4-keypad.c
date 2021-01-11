@@ -252,8 +252,14 @@ static int omap4_keypad_check_revision(struct device *dev,
 	return 0;
 }
 
+static void omap4_disable_pm(void *d)
+{
+	pm_runtime_disable(d);
+}
+
 static int omap4_keypad_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct omap4_keypad *keypad_data;
 	struct input_dev *input_dev;
 	struct resource *res;
@@ -271,33 +277,29 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	keypad_data = kzalloc(sizeof(struct omap4_keypad), GFP_KERNEL);
+	keypad_data = devm_kzalloc(dev, sizeof(*keypad_data), GFP_KERNEL);
 	if (!keypad_data) {
-		dev_err(&pdev->dev, "keypad_data memory allocation failed\n");
+		dev_err(dev, "keypad_data memory allocation failed\n");
 		return -ENOMEM;
 	}
 
 	keypad_data->irq = irq;
 
-	error = omap4_keypad_parse_dt(&pdev->dev, keypad_data);
+	error = omap4_keypad_parse_dt(dev, keypad_data);
 	if (error)
-		goto err_free_keypad;
+		return error;
 
-	res = request_mem_region(res->start, resource_size(res), pdev->name);
-	if (!res) {
-		dev_err(&pdev->dev, "can't request mem region\n");
-		error = -EBUSY;
-		goto err_free_keypad;
+	keypad_data->base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(keypad_data->base))
+		return PTR_ERR(keypad_data->base);
+
+	pm_runtime_enable(dev);
+
+	error = devm_add_action_or_reset(dev, omap4_disable_pm, dev);
+	if (error) {
+		dev_err(dev, "unable to register cleanup action\n");
+		return error;
 	}
-
-	keypad_data->base = ioremap(res->start, resource_size(res));
-	if (!keypad_data->base) {
-		dev_err(&pdev->dev, "can't ioremap mem resource\n");
-		error = -ENOMEM;
-		goto err_release_mem;
-	}
-
-	pm_runtime_enable(&pdev->dev);
 
 	/*
 	 * Enable clocks for the keypad module so that we can read
@@ -307,27 +309,25 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 	if (error) {
 		dev_err(&pdev->dev, "pm_runtime_get_sync() failed\n");
 		pm_runtime_put_noidle(&pdev->dev);
-	} else {
-		error = omap4_keypad_check_revision(&pdev->dev,
-						    keypad_data);
-		if (!error) {
-			/* Ensure device does not raise interrupts */
-			omap4_keypad_stop(keypad_data);
-		}
-		pm_runtime_put_sync(&pdev->dev);
+		return error;
 	}
+
+	error = omap4_keypad_check_revision(&pdev->dev, keypad_data);
+	if (!error) {
+		/* Ensure device does not raise interrupts */
+		omap4_keypad_stop(keypad_data);
+	}
+
+	pm_runtime_put_sync(&pdev->dev);
 	if (error)
-		goto err_pm_disable;
+		return error;
 
 	/* input device allocation */
-	keypad_data->input = input_dev = input_allocate_device();
-	if (!input_dev) {
-		error = -ENOMEM;
-		goto err_pm_disable;
-	}
+	keypad_data->input = input_dev = devm_input_allocate_device(dev);
+	if (!input_dev)
+		return -ENOMEM;
 
 	input_dev->name = pdev->name;
-	input_dev->dev.parent = &pdev->dev;
 	input_dev->id.bustype = BUS_HOST;
 	input_dev->id.vendor = 0x0001;
 	input_dev->id.product = 0x0001;
@@ -344,83 +344,52 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 
 	keypad_data->row_shift = get_count_order(keypad_data->cols);
 	max_keys = keypad_data->rows << keypad_data->row_shift;
-	keypad_data->keymap = kcalloc(max_keys,
-				      sizeof(keypad_data->keymap[0]),
-				      GFP_KERNEL);
+	keypad_data->keymap = devm_kcalloc(dev,
+					   max_keys,
+					   sizeof(keypad_data->keymap[0]),
+					   GFP_KERNEL);
 	if (!keypad_data->keymap) {
-		dev_err(&pdev->dev, "Not enough memory for keymap\n");
-		error = -ENOMEM;
-		goto err_free_input;
+		dev_err(dev, "Not enough memory for keymap\n");
+		return -ENOMEM;
 	}
 
 	error = matrix_keypad_build_keymap(NULL, NULL,
 					   keypad_data->rows, keypad_data->cols,
 					   keypad_data->keymap, input_dev);
 	if (error) {
-		dev_err(&pdev->dev, "failed to build keymap\n");
-		goto err_free_keymap;
+		dev_err(dev, "failed to build keymap\n");
+		return error;
 	}
 
-	error = request_threaded_irq(keypad_data->irq, omap4_keypad_irq_handler,
-				     omap4_keypad_irq_thread_fn, IRQF_ONESHOT,
-				     "omap4-keypad", keypad_data);
+	error = devm_request_threaded_irq(dev, keypad_data->irq,
+					  omap4_keypad_irq_handler,
+					  omap4_keypad_irq_thread_fn,
+					  IRQF_ONESHOT,
+					  "omap4-keypad", keypad_data);
 	if (error) {
-		dev_err(&pdev->dev, "failed to register interrupt\n");
-		goto err_free_keymap;
+		dev_err(dev, "failed to register interrupt\n");
+		return error;
 	}
 
 	error = input_register_device(keypad_data->input);
-	if (error < 0) {
-		dev_err(&pdev->dev, "failed to register input device\n");
-		goto err_free_irq;
+	if (error) {
+		dev_err(dev, "failed to register input device\n");
+		return error;
 	}
 
-	device_init_wakeup(&pdev->dev, true);
-	error = dev_pm_set_wake_irq(&pdev->dev, keypad_data->irq);
+	device_init_wakeup(dev, true);
+	error = dev_pm_set_wake_irq(dev, keypad_data->irq);
 	if (error)
-		dev_warn(&pdev->dev,
-			 "failed to set up wakeup irq: %d\n", error);
+		dev_warn(dev, "failed to set up wakeup irq: %d\n", error);
 
 	platform_set_drvdata(pdev, keypad_data);
 
 	return 0;
-
-err_free_irq:
-	free_irq(keypad_data->irq, keypad_data);
-err_free_keymap:
-	kfree(keypad_data->keymap);
-err_free_input:
-	input_free_device(input_dev);
-err_pm_disable:
-	pm_runtime_disable(&pdev->dev);
-	iounmap(keypad_data->base);
-err_release_mem:
-	release_mem_region(res->start, resource_size(res));
-err_free_keypad:
-	kfree(keypad_data);
-	return error;
 }
 
 static int omap4_keypad_remove(struct platform_device *pdev)
 {
-	struct omap4_keypad *keypad_data = platform_get_drvdata(pdev);
-	struct resource *res;
-
 	dev_pm_clear_wake_irq(&pdev->dev);
-
-	free_irq(keypad_data->irq, keypad_data);
-
-	pm_runtime_disable(&pdev->dev);
-
-	input_unregister_device(keypad_data->input);
-
-	iounmap(keypad_data->base);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, resource_size(res));
-
-	kfree(keypad_data->keymap);
-	kfree(keypad_data);
 
 	return 0;
 }
