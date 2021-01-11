@@ -105,18 +105,8 @@ static void lpi_device_get_constraints_amd(void)
 
 	for (i = 0; i < out_obj->package.count; i++) {
 		union acpi_object *package = &out_obj->package.elements[i];
-		struct lpi_device_info_amd info = { };
 
-		if (package->type == ACPI_TYPE_INTEGER) {
-			switch (i) {
-			case 0:
-				info.revision = package->integer.value;
-				break;
-			case 1:
-				info.count = package->integer.value;
-				break;
-			}
-		} else if (package->type == ACPI_TYPE_PACKAGE) {
+		if (package->type == ACPI_TYPE_PACKAGE) {
 			lpi_constraints_table = kcalloc(package->package.count,
 							sizeof(*lpi_constraints_table),
 							GFP_KERNEL);
@@ -135,12 +125,10 @@ static void lpi_device_get_constraints_amd(void)
 
 				for (k = 0; k < info_obj->package.count; ++k) {
 					union acpi_object *obj = &info_obj->package.elements[k];
-					union acpi_object *obj_new;
 
 					list = &lpi_constraints_table[lpi_constraints_table_size];
 					list->min_dstate = -1;
 
-					obj_new = &obj[k];
 					switch (k) {
 					case 0:
 						dev_info.enabled = obj->integer.value;
