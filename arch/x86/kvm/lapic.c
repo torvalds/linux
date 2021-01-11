@@ -91,8 +91,8 @@ static inline int __apic_test_and_clear_vector(int vec, void *bitmap)
 	return __test_and_clear_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
 }
 
-struct static_key_deferred apic_hw_disabled __read_mostly;
-struct static_key_deferred apic_sw_disabled __read_mostly;
+__read_mostly DEFINE_STATIC_KEY_DEFERRED_FALSE(apic_hw_disabled, HZ);
+__read_mostly DEFINE_STATIC_KEY_DEFERRED_FALSE(apic_sw_disabled, HZ);
 
 static inline int apic_enabled(struct kvm_lapic *apic)
 {
@@ -290,9 +290,9 @@ static inline void apic_set_spiv(struct kvm_lapic *apic, u32 val)
 	if (enabled != apic->sw_enabled) {
 		apic->sw_enabled = enabled;
 		if (enabled)
-			static_key_slow_dec_deferred(&apic_sw_disabled);
+			static_branch_slow_dec_deferred(&apic_sw_disabled);
 		else
-			static_key_slow_inc(&apic_sw_disabled.key);
+			static_branch_inc(&apic_sw_disabled.key);
 
 		atomic_set_release(&apic->vcpu->kvm->arch.apic_map_dirty, DIRTY);
 	}
@@ -2175,10 +2175,10 @@ void kvm_free_lapic(struct kvm_vcpu *vcpu)
 	hrtimer_cancel(&apic->lapic_timer.timer);
 
 	if (!(vcpu->arch.apic_base & MSR_IA32_APICBASE_ENABLE))
-		static_key_slow_dec_deferred(&apic_hw_disabled);
+		static_branch_slow_dec_deferred(&apic_hw_disabled);
 
 	if (!apic->sw_enabled)
-		static_key_slow_dec_deferred(&apic_sw_disabled);
+		static_branch_slow_dec_deferred(&apic_sw_disabled);
 
 	if (apic->regs)
 		free_page((unsigned long)apic->regs);
@@ -2250,9 +2250,9 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 	if ((old_value ^ value) & MSR_IA32_APICBASE_ENABLE) {
 		if (value & MSR_IA32_APICBASE_ENABLE) {
 			kvm_apic_set_xapic_id(apic, vcpu->vcpu_id);
-			static_key_slow_dec_deferred(&apic_hw_disabled);
+			static_branch_slow_dec_deferred(&apic_hw_disabled);
 		} else {
-			static_key_slow_inc(&apic_hw_disabled.key);
+			static_branch_inc(&apic_hw_disabled.key);
 			atomic_set_release(&apic->vcpu->kvm->arch.apic_map_dirty, DIRTY);
 		}
 	}
@@ -2449,7 +2449,7 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu, int timer_advance_ns)
 	 * thinking that APIC state has changed.
 	 */
 	vcpu->arch.apic_base = MSR_IA32_APICBASE_ENABLE;
-	static_key_slow_inc(&apic_sw_disabled.key); /* sw disabled at reset */
+	static_branch_inc(&apic_sw_disabled.key); /* sw disabled at reset */
 	kvm_iodevice_init(&apic->dev, &apic_mmio_ops);
 
 	return 0;
@@ -2902,13 +2902,6 @@ void kvm_apic_accept_events(struct kvm_vcpu *vcpu)
 			vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 		}
 	}
-}
-
-void kvm_lapic_init(void)
-{
-	/* do not patch jump label more than once per second */
-	jump_label_rate_limit(&apic_hw_disabled, HZ);
-	jump_label_rate_limit(&apic_sw_disabled, HZ);
 }
 
 void kvm_lapic_exit(void)

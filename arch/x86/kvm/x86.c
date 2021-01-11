@@ -7967,7 +7967,6 @@ int kvm_arch_init(void *opaque)
 		supported_xcr0 = host_xcr0 & KVM_SUPPORTED_XCR0;
 	}
 
-	kvm_lapic_init();
 	if (pi_inject_timer == -1)
 		pi_inject_timer = housekeeping_enabled(HK_FLAG_TIMER);
 #ifdef CONFIG_X86_64
@@ -9991,7 +9990,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 		if (kvm_apicv_activated(vcpu->kvm))
 			vcpu->arch.apicv_active = true;
 	} else
-		static_key_slow_inc(&kvm_no_apic_vcpu);
+		static_branch_inc(&kvm_has_noapic_vcpu);
 
 	r = -ENOMEM;
 
@@ -10120,7 +10119,7 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 	free_page((unsigned long)vcpu->arch.pio_data);
 	kvfree(vcpu->arch.cpuid_entries);
 	if (!lapic_in_kernel(vcpu))
-		static_key_slow_dec(&kvm_no_apic_vcpu);
+		static_branch_dec(&kvm_has_noapic_vcpu);
 }
 
 void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
@@ -10375,8 +10374,8 @@ bool kvm_vcpu_is_bsp(struct kvm_vcpu *vcpu)
 	return (vcpu->arch.apic_base & MSR_IA32_APICBASE_BSP) != 0;
 }
 
-struct static_key kvm_no_apic_vcpu __read_mostly;
-EXPORT_SYMBOL_GPL(kvm_no_apic_vcpu);
+__read_mostly DEFINE_STATIC_KEY_FALSE(kvm_has_noapic_vcpu);
+EXPORT_SYMBOL_GPL(kvm_has_noapic_vcpu);
 
 void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu)
 {
