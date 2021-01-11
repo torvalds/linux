@@ -453,9 +453,6 @@ static int mtk_iommu_attach_device(struct iommu_domain *domain,
 	struct device *m4udev = data->dev;
 	int ret, domid;
 
-	if (!data)
-		return -ENODEV;
-
 	domid = mtk_iommu_get_domain_id(dev, data->plat_data);
 	if (domid < 0)
 		return domid;
@@ -491,9 +488,6 @@ static void mtk_iommu_detach_device(struct iommu_domain *domain,
 				    struct device *dev)
 {
 	struct mtk_iommu_data *data = dev_iommu_priv_get(dev);
-
-	if (!data)
-		return;
 
 	mtk_iommu_config(data, dev, false, 0);
 }
