@@ -2079,7 +2079,7 @@ static void ivb_display_irq_handler(struct drm_i915_private *dev_priv,
 		intel_opregion_asle_intr(dev_priv);
 
 	for_each_pipe(dev_priv, pipe) {
-		if (de_iir & (DE_PIPE_VBLANK_IVB(pipe)))
+		if (de_iir & DE_PIPE_VBLANK_IVB(pipe))
 			intel_handle_vblank(dev_priv, pipe);
 	}
 
