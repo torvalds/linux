@@ -353,6 +353,10 @@ static int mtk_iommu_domain_finalise(struct mtk_iommu_domain *dom,
 
 	/* Update our support page sizes bitmap */
 	dom->domain.pgsize_bitmap = dom->cfg.pgsize_bitmap;
+
+	dom->domain.geometry.aperture_start = 0;
+	dom->domain.geometry.aperture_end = DMA_BIT_MASK(32);
+	dom->domain.geometry.force_aperture = true;
 	return 0;
 }
 
@@ -372,9 +376,6 @@ static struct iommu_domain *mtk_iommu_domain_alloc(unsigned type)
 		return NULL;
 	}
 
-	dom->domain.geometry.aperture_start = 0;
-	dom->domain.geometry.aperture_end = DMA_BIT_MASK(32);
-	dom->domain.geometry.force_aperture = true;
 	return &dom->domain;
 }
 
