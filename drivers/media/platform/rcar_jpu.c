@@ -794,7 +794,6 @@ static int __jpu_try_fmt(struct jpu_ctx *ctx, struct jpu_fmt **fmtinfo,
 	pix->colorspace = fmt->colorspace;
 	pix->field = V4L2_FIELD_NONE;
 	pix->num_planes = fmt->num_planes;
-	memset(pix->reserved, 0, sizeof(pix->reserved));
 
 	jpu_bound_align_image(&pix->width, JPU_WIDTH_MIN, JPU_WIDTH_MAX,
 			      fmt->h_align, &pix->height, JPU_HEIGHT_MIN,
@@ -809,8 +808,6 @@ static int __jpu_try_fmt(struct jpu_ctx *ctx, struct jpu_fmt **fmtinfo,
 			pix->plane_fmt[0].sizeimage = JPU_JPEG_HDR_SIZE +
 				(JPU_JPEG_MAX_BYTES_PER_PIXEL * w * h);
 		pix->plane_fmt[0].bytesperline = 0;
-		memset(pix->plane_fmt[0].reserved, 0,
-		       sizeof(pix->plane_fmt[0].reserved));
 	} else {
 		unsigned int i, bpl = 0;
 
@@ -823,8 +820,6 @@ static int __jpu_try_fmt(struct jpu_ctx *ctx, struct jpu_fmt **fmtinfo,
 		for (i = 0; i < pix->num_planes; ++i) {
 			pix->plane_fmt[i].bytesperline = bpl;
 			pix->plane_fmt[i].sizeimage = bpl * h * fmt->bpp[i] / 8;
-			memset(pix->plane_fmt[i].reserved, 0,
-			       sizeof(pix->plane_fmt[i].reserved));
 		}
 	}
 
