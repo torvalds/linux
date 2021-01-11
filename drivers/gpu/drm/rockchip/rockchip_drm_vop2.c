@@ -410,9 +410,9 @@ struct vop2_video_port {
 	 */
 	uint32_t win_mask;
 	/**
-	 * @nr_wins: active wins attached to the video port;
+	 * @nr_layers: active layers attached to the video port;
 	 */
-	uint8_t nr_wins;
+	uint8_t nr_layers;
 
 	/**
 	 * @active_tv_state: TV connector related states
@@ -3635,7 +3635,7 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 	if (vp->hdr_in && !vp->hdr_out)
 		hdr2sdr_en = 1;
 
-	if (vp->hdr_out && (vp->nr_wins > 1))
+	if (vp->hdr_out && (vp->nr_layers > 1))
 		sdr2hdr_en = 1;
 
 	vp->sdr2hdr_en = sdr2hdr_en;
@@ -3738,12 +3738,12 @@ static void vop2_parse_alpha(struct vop2_alpha *alpha, int pixel_alpha_en,
 	alpha->dst_alpha_ctrl.bits.factor_mode = ALPHA_SRC_INVERSE;
 }
 
-static int vop2_get_mixer_number(int nr_wins)
+static int vop2_get_mixer_number(int nr_layers)
 {
-	if (nr_wins <= 1)
-		return nr_wins;
+	if (nr_layers <= 1)
+		return nr_layers;
 	else
-		return nr_wins - 1;
+		return nr_layers - 1;
 }
 
 static int vop2_find_start_mixer_id_for_vp(struct vop2 *vop2, uint8_t port_id)
@@ -3754,7 +3754,7 @@ static int vop2_find_start_mixer_id_for_vp(struct vop2 *vop2, uint8_t port_id)
 
 	for (i = 0; i < port_id; i++) {
 		vp = &vop2->vps[i];
-		mixer_id += vop2_get_mixer_number(vp->nr_wins);
+		mixer_id += vop2_get_mixer_number(vp->nr_layers);
 	}
 
 	return mixer_id;
@@ -3840,7 +3840,7 @@ static void vop2_setup_alpha(struct vop2_video_port *vp, const struct vop2_zpos 
 
 	mixer_id = vop2_find_start_mixer_id_for_vp(vop2, vp->id);
 	/* layer0 is the bottom layer, so always no alpha */
-	for (i = 1; i < vp->nr_wins; i++) {
+	for (i = 1; i < vp->nr_layers; i++) {
 		zpos = &vop2_zpos[i];
 		win = vop2_find_win_by_phys_id(vop2, zpos->win_phys_id);
 		plane = &win->base;
@@ -3873,7 +3873,7 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 	struct vop2 *vop2 = vp->vop2;
 	u8 port_id = vp->id;
 	const struct vop2_data *vop2_data = vop2->data;
-	uint8_t nr_wins = vp->nr_wins;
+	uint8_t nr_layers = vp->nr_layers;
 	const struct vop2_zpos *zpos;
 	struct vop2_win *win;
 	struct vop2_layer *layer;
@@ -3913,7 +3913,7 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 	 * old win of the layer to the layer where the new win comes from.
 	 *
 	 */
-	for (i = 0; i < nr_wins; i++) {
+	for (i = 0; i < nr_layers; i++) {
 		layer = &vop2->layers[used_layers + i];
 		zpos = &vop2_zpos[i];
 		win = vop2_find_win_by_phys_id(vop2, zpos->win_phys_id);
@@ -3989,7 +3989,7 @@ static void vop2_setup_dly_for_window(struct vop2_video_port *vp, const struct v
 	uint32_t dly;
 	int i = 0;
 
-	for (i = 0; i < vp->nr_wins; i++) {
+	for (i = 0; i < vp->nr_layers; i++) {
 		zpos = &vop2_zpos[i];
 		win = vop2_find_win_by_phys_id(vop2, zpos->win_phys_id);
 		plane = &win->base;
@@ -4013,7 +4013,7 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 	struct vop2_plane_state *vpstate;
 	struct vop2_zpos *vop2_zpos;
 	struct vop2_cluster cluster;
-	uint8_t nr_wins = 0;
+	uint8_t nr_layers = 0;
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 
 	vcstate->yuv_overlay = is_yuv_output(vcstate->bus_format);
@@ -4055,19 +4055,19 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 		vp->win_mask |=  BIT(win->phys_id);
 		win->vp_mask = BIT(vp->id);
 		vpstate = to_vop2_plane_state(plane->state);
-		vop2_zpos[nr_wins].win_phys_id = win->phys_id;
-		vop2_zpos[nr_wins].zpos = vpstate->zpos;
-		nr_wins++;
+		vop2_zpos[nr_layers].win_phys_id = win->phys_id;
+		vop2_zpos[nr_layers].zpos = vpstate->zpos;
+		nr_layers++;
 		DRM_DEV_DEBUG(vop2->dev, "%s active zpos:%d for vp%d from vp%d\n",
 			     win->name, vpstate->zpos, vp->id, old_vp->id);
 	}
 
-	DRM_DEV_DEBUG(vop2->dev, "vp%d: %d windows, active %d\n",
-		      vp->id, hweight32(vp->win_mask), nr_wins);
-	if (nr_wins) {
-		vp->nr_wins = nr_wins;
+	DRM_DEV_DEBUG(vop2->dev, "vp%d: %d windows, active layers %d\n",
+		      vp->id, hweight32(vp->win_mask), nr_layers);
+	if (nr_layers) {
+		vp->nr_layers = nr_layers;
 
-		sort(vop2_zpos, nr_wins, sizeof(vop2_zpos[0]), vop2_zpos_cmp, NULL);
+		sort(vop2_zpos, nr_layers, sizeof(vop2_zpos[0]), vop2_zpos_cmp, NULL);
 
 		vop2_setup_hdr10(vp, vop2_zpos[0].win_phys_id);
 		vop2_setup_layer_mixer_for_vp(vp, vop2_zpos);
