@@ -335,6 +335,7 @@ struct rkispp_params_cfg {
 	u32 module_cfg_update;
 	u32 module_init_ens;
 
+	u32 frame_id;
 	struct rkispp_tnr_config tnr_cfg;
 	struct rkispp_nr_config nr_cfg;
 	struct rkispp_sharp_config shp_cfg;

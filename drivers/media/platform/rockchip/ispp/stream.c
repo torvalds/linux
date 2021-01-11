@@ -1123,8 +1123,6 @@ static int config_modules(struct rkispp_device *dev)
 	if (ret < 0)
 		goto free_nr;
 
-	rkispp_params_configure(&dev->params_vdev);
-
 	return 0;
 free_nr:
 	nr_free_buf(dev);
@@ -2399,6 +2397,7 @@ static void fec_work_event(struct rkispp_device *dev,
 			offset += size;
 			reg_buf->reg_size = offset;
 		}
+
 		writel(FEC_ST, base + RKISPP_CTRL_STRT);
 		vdev->fec.is_end = false;
 	}
@@ -2578,6 +2577,7 @@ static void nr_work_event(struct rkispp_device *dev,
 			}
 			rkispp_update_regs(dev, RKISPP_NR, RKISPP_ORB_MAX_FEATURE);
 		}
+
 		writel(OTHER_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
 
 		v4l2_dbg(3, rkispp_debug, &dev->v4l2_dev,
@@ -2637,6 +2637,7 @@ static void nr_work_event(struct rkispp_device *dev,
 			offset += size;
 			reg_buf->reg_size = offset;
 		}
+
 		if (!is_quick)
 			writel(NR_SHP_ST, base + RKISPP_CTRL_STRT);
 		vdev->nr.is_end = false;
@@ -2893,6 +2894,7 @@ static void tnr_work_event(struct rkispp_device *dev,
 			offset += size;
 			reg_buf->reg_size = offset;
 		}
+
 		writel(TNR_ST, base + RKISPP_CTRL_STRT);
 		vdev->tnr.is_end = false;
 	}
@@ -3101,7 +3103,6 @@ void rkispp_isr(u32 mis_val, struct rkispp_device *dev)
 		if (rkispp_read(dev, RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM)
 			rkispp_clear_bits(dev, RKISPP_TNR_CTRL, SW_TNR_1ST_FRM);
 
-	rkispp_params_isr(&dev->params_vdev, mis_val);
 	rkispp_stats_isr(&dev->stats_vdev, mis_val);
 
 	for (i = 0; i <= STREAM_S2; i++) {
