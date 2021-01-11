@@ -8029,7 +8029,7 @@ static int kvm_pv_clock_pairing(struct kvm_vcpu *vcpu, gpa_t paddr,
 	if (clock_type != KVM_CLOCK_PAIRING_WALLCLOCK)
 		return -KVM_EOPNOTSUPP;
 
-	if (kvm_get_walltime_and_clockread(&ts, &cycle) == false)
+	if (!kvm_get_walltime_and_clockread(&ts, &cycle))
 		return -KVM_EOPNOTSUPP;
 
 	clock_pairing.sec = ts.tv_sec;
