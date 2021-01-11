@@ -45,4 +45,10 @@ u8 can_fd_dlc2len(u8 dlc);
 /* map the sanitized data length to an appropriate data length code */
 u8 can_fd_len2dlc(u8 len);
 
+/* map the data length to an appropriate data link layer length */
+static inline u8 canfd_sanitize_len(u8 len)
+{
+	return can_fd_dlc2len(can_fd_len2dlc(len));
+}
+
 #endif /* !_CAN_LENGTH_H */
