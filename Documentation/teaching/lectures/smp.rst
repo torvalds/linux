@@ -853,7 +853,7 @@ the two:
    * They have a higher latency than spin locks
 
 Conceptually, the :c:func:`mutex_lock` operation is relatively simple:
-if the mutex is not acquired we an take the fast path via an atomic
+if the mutex is not acquired we can take the fast path via an atomic
 exchange operation:
 
 
@@ -923,7 +923,7 @@ mutex debugging for locking dependency engine debug feature.
 
 
 The :c:func:`mutex_unlock` operation is symmetric: if there are no
-waiters on the mutex then we an take the fast path via an atomic exchange
+waiters on the mutex then we can take the fast path via an atomic exchange
 operation:
 
 .. slide:: :c:func:`mutex_unlock` fast path
