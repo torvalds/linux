@@ -15,6 +15,7 @@
 #define _CAN_DEV_H
 
 #include <linux/can.h>
+#include <linux/can/bittiming.h>
 #include <linux/can/error.h>
 #include <linux/can/led.h>
 #include <linux/can/netlink.h>
@@ -81,21 +82,6 @@ struct can_priv {
 	char rxtx_led_trig_name[CAN_LED_NAME_SZ];
 #endif
 };
-
-#define CAN_SYNC_SEG 1
-
-/*
- * can_bit_time() - Duration of one bit
- *
- * Please refer to ISO 11898-1:2015, section 11.3.1.1 "Bit time" for
- * additional information.
- *
- * Return: the number of time quanta in one bit.
- */
-static inline unsigned int can_bit_time(const struct can_bittiming *bt)
-{
-	return CAN_SYNC_SEG + bt->prop_seg + bt->phase_seg1 + bt->phase_seg2;
-}
 
 /*
  * can_cc_dlc2len(value) - convert a given data length code (dlc) of a
