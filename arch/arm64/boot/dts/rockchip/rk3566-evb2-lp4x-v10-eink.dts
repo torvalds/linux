@@ -199,9 +199,9 @@
 					cy,vkeys_x = <1872>;
 					cy,vkeys_y = <1404>;
 
-					cy,revert_x = <1>;
+					cy,revert_x = <0>;
 					cy,revert_y = <0>;
-					cy,xy_exchange = <1>;
+					cy,xy_exchange = <0>;
 
 					cy,virtual_keys = /* KeyCode CenterX CenterY Width Height */
 						/* KEY_BACK */
@@ -256,9 +256,9 @@
 		gpio_detect = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
 		gpio_intr = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
 		gpio_rst = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
-		revert_x = <1>;
+		revert_x = <0>;
 		revert_y = <0>;
-		xy_exchange = <1>;
+		xy_exchange = <0>;
 	};
 };
 
