@@ -84,69 +84,6 @@ struct can_priv {
 #endif
 };
 
-/* Check for outgoing skbs that have not been created by the CAN subsystem */
-static inline bool can_skb_headroom_valid(struct net_device *dev,
-					  struct sk_buff *skb)
-{
-	/* af_packet creates a headroom of HH_DATA_MOD bytes which is fine */
-	if (WARN_ON_ONCE(skb_headroom(skb) < sizeof(struct can_skb_priv)))
-		return false;
-
-	/* af_packet does not apply CAN skb specific settings */
-	if (skb->ip_summed == CHECKSUM_NONE) {
-		/* init headroom */
-		can_skb_prv(skb)->ifindex = dev->ifindex;
-		can_skb_prv(skb)->skbcnt = 0;
-
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-
-		/* perform proper loopback on capable devices */
-		if (dev->flags & IFF_ECHO)
-			skb->pkt_type = PACKET_LOOPBACK;
-		else
-			skb->pkt_type = PACKET_HOST;
-
-		skb_reset_mac_header(skb);
-		skb_reset_network_header(skb);
-		skb_reset_transport_header(skb);
-	}
-
-	return true;
-}
-
-/* Drop a given socketbuffer if it does not contain a valid CAN frame. */
-static inline bool can_dropped_invalid_skb(struct net_device *dev,
-					  struct sk_buff *skb)
-{
-	const struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
-
-	if (skb->protocol == htons(ETH_P_CAN)) {
-		if (unlikely(skb->len != CAN_MTU ||
-			     cfd->len > CAN_MAX_DLEN))
-			goto inval_skb;
-	} else if (skb->protocol == htons(ETH_P_CANFD)) {
-		if (unlikely(skb->len != CANFD_MTU ||
-			     cfd->len > CANFD_MAX_DLEN))
-			goto inval_skb;
-	} else
-		goto inval_skb;
-
-	if (!can_skb_headroom_valid(dev, skb))
-		goto inval_skb;
-
-	return false;
-
-inval_skb:
-	kfree_skb(skb);
-	dev->stats.tx_dropped++;
-	return true;
-}
-
-static inline bool can_is_canfd_skb(const struct sk_buff *skb)
-{
-	/* the CAN specific type of skb is identified by its data length */
-	return skb->len == CANFD_MTU;
-}
 
 /* helper to define static CAN controller features at device creation time */
 static inline void can_set_static_ctrlmode(struct net_device *dev,
@@ -187,23 +124,10 @@ void can_bus_off(struct net_device *dev);
 void can_change_state(struct net_device *dev, struct can_frame *cf,
 		      enum can_state tx_state, enum can_state rx_state);
 
-int can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
-		     unsigned int idx);
-struct sk_buff *__can_get_echo_skb(struct net_device *dev, unsigned int idx,
-				   u8 *len_ptr);
-unsigned int can_get_echo_skb(struct net_device *dev, unsigned int idx);
-void can_free_echo_skb(struct net_device *dev, unsigned int idx);
-
 #ifdef CONFIG_OF
 void of_can_transceiver(struct net_device *dev);
 #else
 static inline void of_can_transceiver(struct net_device *dev) { }
 #endif
-
-struct sk_buff *alloc_can_skb(struct net_device *dev, struct can_frame **cf);
-struct sk_buff *alloc_canfd_skb(struct net_device *dev,
-				struct canfd_frame **cfd);
-struct sk_buff *alloc_can_err_skb(struct net_device *dev,
-				  struct can_frame **cf);
 
 #endif /* !_CAN_DEV_H */
