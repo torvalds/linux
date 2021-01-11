@@ -425,31 +425,6 @@ void get_max_support_fbc_buffersize(unsigned int *max_x, unsigned int *max_y)
 	 */
 }
 
-
-unsigned int controller_id_to_index(enum controller_id controller_id)
-{
-	unsigned int index = 0;
-
-	switch (controller_id) {
-	case CONTROLLER_ID_D0:
-		index = 0;
-		break;
-	case CONTROLLER_ID_D1:
-		index = 1;
-		break;
-	case CONTROLLER_ID_D2:
-		index = 2;
-		break;
-	case CONTROLLER_ID_D3:
-		index = 3;
-		break;
-	default:
-		break;
-	}
-	return index;
-}
-
-
 static const struct compressor_funcs dce110_compressor_funcs = {
 	.power_up_fbc = dce110_compressor_power_up_fbc,
 	.enable_fbc = dce110_compressor_enable_fbc,
