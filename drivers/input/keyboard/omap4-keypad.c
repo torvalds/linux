@@ -71,6 +71,7 @@ struct omap4_keypad {
 
 	void __iomem *base;
 	unsigned int irq;
+	struct mutex lock;		/* for key scan */
 
 	unsigned int rows;
 	unsigned int cols;
@@ -135,6 +136,28 @@ static int omap4_keypad_report_keys(struct omap4_keypad *keypad_data,
 	return events;
 }
 
+static void omap4_keypad_scan_keys(struct omap4_keypad *keypad_data, u64 keys)
+{
+	u64 changed;
+
+	mutex_lock(&keypad_data->lock);
+
+	changed = keys ^ keypad_data->keys;
+
+	/*
+	 * Report key up events separately and first. This matters in case we
+	 * lost key-up interrupt and just now catching up.
+	 */
+	omap4_keypad_report_keys(keypad_data, changed & ~keys, false);
+
+	/* Report key down events */
+	omap4_keypad_report_keys(keypad_data, changed & keys, true);
+
+	keypad_data->keys = keys;
+
+	mutex_unlock(&keypad_data->lock);
+}
+
 /* Interrupt handlers */
 static irqreturn_t omap4_keypad_irq_handler(int irq, void *dev_id)
 {
@@ -150,24 +173,13 @@ static irqreturn_t omap4_keypad_irq_thread_fn(int irq, void *dev_id)
 {
 	struct omap4_keypad *keypad_data = dev_id;
 	u32 low, high;
-	u64 keys, changed;
+	u64 keys;
 
 	low = kbd_readl(keypad_data, OMAP4_KBD_FULLCODE31_0);
 	high = kbd_readl(keypad_data, OMAP4_KBD_FULLCODE63_32);
 	keys = low | (u64)high << 32;
 
-	changed = keys ^ keypad_data->keys;
-
-	/*
-	 * Report key up events separately and first. This matters in case we
-	 * lost key-up interrupt and just now catching up.
-	 */
-	omap4_keypad_report_keys(keypad_data, changed & ~keys, false);
-
-	/* Report key down events */
-	omap4_keypad_report_keys(keypad_data, changed & keys, true);
-
-	keypad_data->keys = keys;
+	omap4_keypad_scan_keys(keypad_data, keys);
 
 	/* clear pending interrupts */
 	kbd_write_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS,
@@ -300,6 +312,7 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 	}
 
 	keypad_data->irq = irq;
+	mutex_init(&keypad_data->lock);
 
 	error = omap4_keypad_parse_dt(dev, keypad_data);
 	if (error)
