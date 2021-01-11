@@ -1052,6 +1052,10 @@ static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
 {
 	unsigned int i;
 
+	if (!IS_ENABLED(CONFIG_SUPERH) &&
+	    !of_find_matching_node(NULL, pdrv->driver.of_match_table))
+		return;
+
 	sh_pfc_regs = kcalloc(SH_PFC_MAX_REGS, sizeof(*sh_pfc_regs),
 			      GFP_KERNEL);
 	if (!sh_pfc_regs)
