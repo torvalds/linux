@@ -502,7 +502,7 @@ FME Partial Reconfiguration Sub Feature driver (see drivers/fpga/dfl-fme-pr.c)
 could be a reference.
 
 Location of DFLs on a PCI Device
-===========================
+================================
 The original method for finding a DFL on a PCI device assumed the start of the
 first DFL to offset 0 of bar 0.  If the first node of the DFL is an FME,
 then further DFLs in the port(s) are specified in FME header registers.
@@ -514,6 +514,7 @@ data begins with a 4 byte vendor specific register for the number of DFLs follow
 Offset/BIR vendor specific registers for each DFL. Bits 2:0 of Offset/BIR register
 indicates the BAR, and bits 31:3 form the 8 byte aligned offset where bits 2:0 are
 zero.
+::
 
         +----------------------------+
         |31     Number of DFLS      0|
