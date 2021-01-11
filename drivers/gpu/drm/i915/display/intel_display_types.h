@@ -1231,6 +1231,7 @@ struct intel_plane {
 	enum pipe pipe;
 	bool has_fbc;
 	bool has_ccs;
+	bool need_async_flip_disable_wa;
 	u32 frontbuffer_bit;
 
 	struct {
@@ -1267,7 +1268,8 @@ struct intel_plane {
 			 const struct intel_plane_state *plane_state);
 	void (*async_flip)(struct intel_plane *plane,
 			   const struct intel_crtc_state *crtc_state,
-			   const struct intel_plane_state *plane_state);
+			   const struct intel_plane_state *plane_state,
+			   bool async_flip);
 	void (*enable_flip_done)(struct intel_plane *plane);
 	void (*disable_flip_done)(struct intel_plane *plane);
 };

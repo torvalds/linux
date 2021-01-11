@@ -771,7 +771,8 @@ icl_program_input_csc(struct intel_plane *plane,
 static void
 skl_plane_async_flip(struct intel_plane *plane,
 		     const struct intel_crtc_state *crtc_state,
-		     const struct intel_plane_state *plane_state)
+		     const struct intel_plane_state *plane_state,
+		     bool async_flip)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	unsigned long irqflags;
@@ -782,7 +783,8 @@ skl_plane_async_flip(struct intel_plane *plane,
 
 	plane_ctl |= skl_plane_ctl_crtc(crtc_state);
 
-	plane_ctl |= PLANE_CTL_ASYNC_FLIP;
+	if (async_flip)
+		plane_ctl |= PLANE_CTL_ASYNC_FLIP;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
@@ -3316,6 +3318,7 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	plane->min_cdclk = skl_plane_min_cdclk;
 
 	if (plane_id == PLANE_PRIMARY) {
+		plane->need_async_flip_disable_wa = IS_GEN_RANGE(dev_priv, 9, 10);
 		plane->async_flip = skl_plane_async_flip;
 		plane->enable_flip_done = skl_plane_enable_flip_done;
 		plane->disable_flip_done = skl_plane_disable_flip_done;
