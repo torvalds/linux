@@ -766,6 +766,7 @@ int typec_partner_set_num_altmodes(struct typec_partner *partner, int num_altmod
 		return ret;
 
 	sysfs_notify(&partner->dev.kobj, NULL, "number_of_alternate_modes");
+	kobject_uevent(&partner->dev.kobj, KOBJ_CHANGE);
 
 	return 0;
 }
@@ -923,6 +924,7 @@ int typec_plug_set_num_altmodes(struct typec_plug *plug, int num_altmodes)
 		return ret;
 
 	sysfs_notify(&plug->dev.kobj, NULL, "number_of_alternate_modes");
+	kobject_uevent(&plug->dev.kobj, KOBJ_CHANGE);
 
 	return 0;
 }

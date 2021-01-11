@@ -19,7 +19,9 @@ description: |
 properties:
   compatible:
     enum:
-      - nxp,pf8x00
+      - nxp,pf8100
+      - nxp,pf8121a
+      - nxp,pf8200
 
   reg:
     maxItems: 1
@@ -118,7 +120,7 @@ examples:
         #size-cells = <0>;
 
         pmic@8 {
-            compatible = "nxp,pf8x00";
+            compatible = "nxp,pf8100";
             reg = <0x08>;
 
             regulators {
