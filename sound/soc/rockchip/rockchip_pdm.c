@@ -7,6 +7,7 @@
 
 #include <linux/module.h>
 #include <linux/clk.h>
+#include <linux/clk/rockchip.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
@@ -29,6 +30,8 @@
 #define PDM_FILTER_DELAY_MS_MIN		(20)
 #define PDM_FILTER_DELAY_MS_MAX		(1000)
 #define PDM_CLK_SHIFT_PPM_MAX		(1000000) /* 1 ppm */
+#define CLK_PPM_MIN		(-1000)
+#define CLK_PPM_MAX		(1000)
 
 enum rk_pdm_version {
 	RK_PDM_RK3229,
@@ -40,6 +43,7 @@ enum rk_pdm_version {
 struct rk_pdm_dev {
 	struct device *dev;
 	struct clk *clk;
+	struct clk *clk_root;
 	struct clk *hclk;
 	struct regmap *regmap;
 	struct snd_dmaengine_dai_dma_data capture_dma_data;
@@ -47,6 +51,10 @@ struct rk_pdm_dev {
 	unsigned int start_delay_ms;
 	unsigned int filter_delay_ms;
 	enum rk_pdm_version version;
+	unsigned int clk_root_rate;
+	unsigned int clk_root_initial_rate;
+	int clk_ppm;
+	bool clk_calibrate;
 };
 
 struct rk_pdm_clkref {
@@ -103,6 +111,11 @@ static unsigned int get_pdm_clk(struct rk_pdm_dev *pdm, unsigned int sr,
 		div = sr / clkref[i].sr;
 		if ((div & (div - 1)) == 0) {
 			*clk_out = clkref[i].clk_out;
+			if (pdm->clk_calibrate) {
+				clk = clkref[i].clk;
+				*clk_src = clk;
+				break;
+			}
 			rate = clk_round_rate(pdm->clk, clkref[i].clk);
 			delta = clkref[i].clk / PDM_CLK_SHIFT_PPM_MAX;
 			if (rate < clkref[i].clk - delta ||
@@ -219,8 +232,8 @@ static void rockchip_pdm_rxctrl(struct rk_pdm_dev *pdm, int on)
 static int rockchip_pdm_set_samplerate(struct rk_pdm_dev *pdm, unsigned int samplerate)
 {
 
-	unsigned int val = 0;
-	unsigned int clk_rate, clk_div;
+	unsigned int val = 0, div = 0;
+	unsigned int clk_rate, clk_div, rate;
 	unsigned int clk_src = 0, clk_out = 0, signoff = PDM_SIGNOFF_CLK_100M;
 	unsigned long m, n;
 	bool change;
@@ -232,9 +245,30 @@ static int rockchip_pdm_set_samplerate(struct rk_pdm_dev *pdm, unsigned int samp
 	if (!clk_rate)
 		return -EINVAL;
 
+	if (pdm->clk_calibrate) {
+		ret = clk_set_parent(pdm->clk, pdm->clk_root);
+		if (ret)
+			return ret;
+
+		rate = pdm->clk_root_rate;
+		if (rate % clk_src) {
+			div = DIV_ROUND_CLOSEST(pdm->clk_root_initial_rate, clk_src);
+			if (!div)
+				return -EINVAL;
+
+			rate = clk_src * round_up(div, 2);
+			pdm->clk_ppm = 0;
+			ret = clk_set_rate(pdm->clk_root, rate);
+			if (ret)
+				return ret;
+
+			pdm->clk_root_rate = clk_get_rate(pdm->clk_root);
+		}
+	}
+
 	ret = clk_set_rate(pdm->clk, clk_src);
 	if (ret)
-		return -EINVAL;
+		return ret;
 
 	if (pdm->version == RK_PDM_RK3308 ||
 	    pdm->version == RK_PDM_RK3588 ||
@@ -496,6 +530,81 @@ static const struct snd_kcontrol_new rockchip_pdm_controls[] = {
 	},
 };
 
+static int rockchip_pdm_clk_set_rate(struct rk_pdm_dev *pdm,
+				     struct clk *clk, unsigned long rate)
+{
+	unsigned long rate_target;
+	int delta, ret;
+
+	ret = rockchip_pll_clk_compensation(clk, pdm->clk_ppm);
+	if (!ret)
+		return ret;
+
+	delta = (pdm->clk_ppm < 0) ? -1 : 1;
+	delta *= (int)div64_u64((uint64_t)rate * (uint64_t)abs(pdm->clk_ppm) + 500000, 1000000);
+
+	rate_target = rate + delta;
+
+	if (!rate_target)
+		return -EINVAL;
+
+	ret = clk_set_rate(clk, rate_target);
+
+	return ret;
+}
+
+static int rockchip_pdm_clk_compensation_info(struct snd_kcontrol *kcontrol,
+					      struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = CLK_PPM_MIN;
+	uinfo->value.integer.max = CLK_PPM_MAX;
+	uinfo->value.integer.step = 1;
+
+	return 0;
+}
+
+
+static int rockchip_pdm_clk_compensation_get(struct snd_kcontrol *kcontrol,
+					     struct snd_ctl_elem_value *ucontrol)
+
+{
+	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
+	struct rk_pdm_dev *pdm = snd_soc_dai_get_drvdata(dai);
+
+	ucontrol->value.integer.value[0] = pdm->clk_ppm;
+
+	return 0;
+}
+
+
+static int rockchip_pdm_clk_compensation_put(struct snd_kcontrol *kcontrol,
+					     struct snd_ctl_elem_value *ucontrol)
+
+{
+	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
+	struct rk_pdm_dev *pdm = snd_soc_dai_get_drvdata(dai);
+
+
+	if ((ucontrol->value.integer.value[0] < CLK_PPM_MIN) ||
+	    (ucontrol->value.integer.value[0] > CLK_PPM_MAX))
+		return -EINVAL;
+
+	pdm->clk_ppm = ucontrol->value.integer.value[0];
+
+	return rockchip_pdm_clk_set_rate(pdm, pdm->clk_root, pdm->clk_root_rate);
+}
+
+static struct snd_kcontrol_new rockchip_pdm_compensation_control = {
+	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+	.name = "PDM PCM Clk Compensation In PPM",
+	.info = rockchip_pdm_clk_compensation_info,
+	.get = rockchip_pdm_clk_compensation_get,
+	.put = rockchip_pdm_clk_compensation_put,
+
+};
+
 static int rockchip_pdm_dai_probe(struct snd_soc_dai *dai)
 {
 	struct rk_pdm_dev *pdm = to_info(dai);
@@ -503,6 +612,8 @@ static int rockchip_pdm_dai_probe(struct snd_soc_dai *dai)
 	dai->capture_dma_data = &pdm->capture_dma_data;
 	snd_soc_add_dai_controls(dai, rockchip_pdm_controls,
 				 ARRAY_SIZE(rockchip_pdm_controls));
+	if (pdm->clk_calibrate)
+		snd_soc_add_dai_controls(dai, &rockchip_pdm_compensation_control, 1);
 	return 0;
 }
 
@@ -797,6 +908,17 @@ static int rockchip_pdm_probe(struct platform_device *pdev)
 
 	pdm->start_delay_ms = PDM_START_DELAY_MS_DEFAULT;
 	pdm->filter_delay_ms = PDM_FILTER_DELAY_MS_MIN;
+
+	pdm->clk_calibrate =
+		of_property_read_bool(node, "rockchip,mclk-calibrate");
+	if (pdm->clk_calibrate) {
+		pdm->clk_root = devm_clk_get(&pdev->dev, "pdm_clk_root");
+		if (IS_ERR(pdm->clk_root))
+			return PTR_ERR(pdm->clk_root);
+
+		pdm->clk_root_initial_rate = clk_get_rate(pdm->clk_root);
+		pdm->clk_root_rate = pdm->clk_root_initial_rate;
+	}
 
 	pdm->clk = devm_clk_get(&pdev->dev, "pdm_clk");
 	if (IS_ERR(pdm->clk))
