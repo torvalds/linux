@@ -1274,6 +1274,8 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	sp = scsi_cmd_priv(cmd);
 	qpair = sp->qpair;
 
+	vha->cmd_timeout_cnt++;
+
 	if ((sp->fcport && sp->fcport->deleted) || !qpair)
 		return SUCCESS;
 
@@ -1442,6 +1444,7 @@ eh_reset_failed:
 	    "%s RESET FAILED: %s nexus=%ld:%d:%llu cmd=%p.\n", name,
 	    reset_errors[err], vha->host_no, cmd->device->id, cmd->device->lun,
 	    cmd);
+	vha->reset_cmd_err_cnt++;
 	return FAILED;
 }
 
@@ -3140,6 +3143,10 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	qla2x00_set_fcport_state(&ha->mr.fcport, FCS_UNCONFIGURED);
 	ha->mr.fcport.supported_classes = FC_COS_UNSPECIFIED;
 	ha->mr.fcport.scan_state = 1;
+
+	qla2xxx_reset_stats(host, QLA2XX_HW_ERROR | QLA2XX_SHT_LNK_DWN |
+			    QLA2XX_INT_ERR | QLA2XX_CMD_TIMEOUT |
+			    QLA2XX_RESET_CMD_ERR | QLA2XX_TGT_SHT_LNK_DOWN);
 
 	/* Set the SG table size based on ISP type */
 	if (!IS_FWI2_CAPABLE(ha)) {
@@ -5090,6 +5097,7 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 			fcport->d_id = e->u.new_sess.id;
 			fcport->flags |= FCF_FABRIC_DEVICE;
 			fcport->fw_login_state = DSC_LS_PLOGI_PEND;
+			fcport->tgt_short_link_down_cnt = 0;
 
 			memcpy(fcport->port_name, e->u.new_sess.port_name,
 			    WWN_SIZE);
@@ -7061,6 +7069,8 @@ qla2x00_timer(struct timer_list *t)
 	uint16_t        w;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req;
+	unsigned long flags;
+	fc_port_t *fcport = NULL;
 
 	if (ha->flags.eeh_busy) {
 		ql_dbg(ql_dbg_timer, vha, 0x6000,
@@ -7091,6 +7101,16 @@ qla2x00_timer(struct timer_list *t)
 
 	if (!vha->vp_idx && IS_QLAFX00(ha))
 		qlafx00_timer_routine(vha);
+
+	if (vha->link_down_time < QLA2XX_MAX_LINK_DOWN_TIME)
+		vha->link_down_time++;
+
+	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
+	list_for_each_entry(fcport, &vha->vp_fcports, list) {
+		if (fcport->tgt_link_down_time < QLA2XX_MAX_LINK_DOWN_TIME)
+			fcport->tgt_link_down_time++;
+	}
+	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 
 	/* Loop down handler. */
 	if (atomic_read(&vha->loop_down_timer) > 0 &&

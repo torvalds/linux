@@ -1059,6 +1059,9 @@ skip_rio:
 
 	case MBA_SYSTEM_ERR:		/* System Error */
 		mbx = 0;
+
+		vha->hw_err_cnt++;
+
 		if (IS_QLA81XX(ha) || IS_QLA83XX(ha) ||
 		    IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
 			u16 m[4];
@@ -1112,12 +1115,16 @@ skip_rio:
 		ql_log(ql_log_warn, vha, 0x5006,
 		    "ISP Request Transfer Error (%x).\n",  mb[1]);
 
+		vha->hw_err_cnt++;
+
 		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		break;
 
 	case MBA_RSP_TRANSFER_ERR:	/* Response Transfer Error */
 		ql_log(ql_log_warn, vha, 0x5007,
 		    "ISP Response Transfer Error (%x).\n", mb[1]);
+
+		vha->hw_err_cnt++;
 
 		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		break;
@@ -1176,12 +1183,18 @@ skip_rio:
 		vha->flags.management_server_logged_in = 0;
 		qla2x00_post_aen_work(vha, FCH_EVT_LINKUP, ha->link_data_rate);
 
+		if (vha->link_down_time < vha->hw->port_down_retry_count) {
+			vha->short_link_down_cnt++;
+			vha->link_down_time = QLA2XX_MAX_LINK_DOWN_TIME;
+		}
+
 		break;
 
 	case MBA_LOOP_DOWN:		/* Loop Down Event */
 		SAVE_TOPO(ha);
 		ha->flags.lip_ae = 0;
 		ha->current_topology = 0;
+		vha->link_down_time = 0;
 
 		mbx = (IS_QLA81XX(ha) || IS_QLA8031(ha))
 			? rd_reg_word(&reg24->mailbox4) : 0;
@@ -1503,6 +1516,7 @@ global_port_update:
 		ql_dbg(ql_dbg_async, vha, 0x5016,
 		    "Discard RND Frame -- %04x %04x %04x.\n",
 		    mb[1], mb[2], mb[3]);
+		vha->interface_err_cnt++;
 		break;
 
 	case MBA_TRACE_NOTIFICATION:
@@ -1592,6 +1606,7 @@ global_port_update:
 
 	case MBA_IDC_AEN:
 		if (IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
+			vha->hw_err_cnt++;
 			qla27xx_handle_8200_aen(vha, mb);
 		} else if (IS_QLA83XX(ha)) {
 			mb[4] = rd_reg_word(&reg24->mailbox4);
@@ -3101,6 +3116,8 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 				    "Dropped frame(s) detected (0x%x of 0x%x bytes).\n",
 				    resid, scsi_bufflen(cp));
 
+				vha->interface_err_cnt++;
+
 				res = DID_ERROR << 16 | lscsi_status;
 				goto check_scsi_status;
 			}
@@ -3125,6 +3142,8 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 			ql_dbg(ql_dbg_io, fcport->vha, 0x301f,
 			    "Dropped frame(s) detected (0x%x of 0x%x bytes).\n",
 			    resid, scsi_bufflen(cp));
+
+			vha->interface_err_cnt++;
 
 			res = DID_ERROR << 16 | lscsi_status;
 			goto check_scsi_status;
@@ -3208,6 +3227,7 @@ check_scsi_status:
 
 	case CS_TRANSPORT:
 		res = DID_ERROR << 16;
+		vha->hw_err_cnt++;
 
 		if (!IS_PI_SPLIT_DET_CAPABLE(ha))
 			break;
@@ -3228,6 +3248,7 @@ check_scsi_status:
 		ql_dump_buffer(ql_dbg_tgt + ql_dbg_verbose, vha, 0xe0ee,
 		    pkt, sizeof(*sts24));
 		res = DID_ERROR << 16;
+		vha->hw_err_cnt++;
 		break;
 	default:
 		res = DID_ERROR << 16;
@@ -3839,6 +3860,7 @@ qla24xx_msix_default(int irq, void *dev_id)
 			    hccr);
 
 			qla2xxx_check_risc_status(vha);
+			vha->hw_err_cnt++;
 
 			ha->isp_ops->fw_dump(vha);
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);

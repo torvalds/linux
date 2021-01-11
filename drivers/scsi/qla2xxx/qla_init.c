@@ -4993,6 +4993,9 @@ qla2x00_alloc_fcport(scsi_qla_host_t *vha, gfp_t flags)
 	fcport->login_retry = vha->hw->login_retry_count;
 	fcport->chip_reset = vha->hw->base_qpair->chip_reset;
 	fcport->logout_on_delete = 1;
+	fcport->tgt_link_down_time = QLA2XX_MAX_LINK_DOWN_TIME;
+	fcport->tgt_short_link_down_cnt = 0;
+	fcport->dev_loss_tmo = 0;
 
 	if (!fcport->ct_desc.ct_sns) {
 		ql_log(ql_log_warn, vha, 0xd049,
@@ -5490,6 +5493,7 @@ qla2x00_reg_remote_port(scsi_qla_host_t *vha, fc_port_t *fcport)
 	spin_lock_irqsave(fcport->vha->host->host_lock, flags);
 	*((fc_port_t **)rport->dd_data) = fcport;
 	spin_unlock_irqrestore(fcport->vha->host->host_lock, flags);
+	fcport->dev_loss_tmo = rport->dev_loss_tmo;
 
 	rport->supported_classes = fcport->supported_classes;
 
@@ -5547,6 +5551,11 @@ qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 	else
 		fcport->logout_on_delete = 1;
 	fcport->n2n_chip_reset = fcport->n2n_link_reset_cnt = 0;
+
+	if (fcport->tgt_link_down_time < fcport->dev_loss_tmo) {
+		fcport->tgt_short_link_down_cnt++;
+		fcport->tgt_link_down_time = QLA2XX_MAX_LINK_DOWN_TIME;
+	}
 
 	switch (vha->hw->current_topology) {
 	case ISP_CFG_N:
@@ -6908,6 +6917,9 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 	if (vha->flags.online) {
 		qla2x00_abort_isp_cleanup(vha);
 
+		if (vha->hw->flags.port_isolated)
+			return status;
+
 		if (test_and_clear_bit(ISP_ABORT_TO_ROM, &vha->dpc_flags)) {
 			ha->flags.chip_reset_done = 1;
 			vha->flags.online = 1;
@@ -7027,6 +7039,11 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 			}
 		}
 
+	}
+
+	if (vha->hw->flags.port_isolated) {
+		qla2x00_abort_isp_cleanup(vha);
+		return status;
 	}
 
 	if (!status) {
@@ -9170,4 +9187,203 @@ int qla2xxx_delete_qpair(struct scsi_qla_host *vha, struct qla_qpair *qpair)
 	return QLA_SUCCESS;
 fail:
 	return ret;
+}
+
+uint64_t
+qla2x00_count_set_bits(uint32_t num)
+{
+	/* Brian Kernighan's Algorithm */
+	u64 count = 0;
+
+	while (num) {
+		num &= (num - 1);
+		count++;
+	}
+	return count;
+}
+
+uint64_t
+qla2x00_get_num_tgts(scsi_qla_host_t *vha)
+{
+	fc_port_t *f, *tf;
+	u64 count = 0;
+
+	f = NULL;
+	tf = NULL;
+
+	list_for_each_entry_safe(f, tf, &vha->vp_fcports, list) {
+		if (f->port_type != FCT_TARGET)
+			continue;
+		count++;
+	}
+	return count;
+}
+
+int qla2xxx_reset_stats(struct Scsi_Host *host, u32 flags)
+{
+	scsi_qla_host_t *vha = shost_priv(host);
+	fc_port_t *fcport = NULL;
+	unsigned long int_flags;
+
+	if (flags & QLA2XX_HW_ERROR)
+		vha->hw_err_cnt = 0;
+	if (flags & QLA2XX_SHT_LNK_DWN)
+		vha->short_link_down_cnt = 0;
+	if (flags & QLA2XX_INT_ERR)
+		vha->interface_err_cnt = 0;
+	if (flags & QLA2XX_CMD_TIMEOUT)
+		vha->cmd_timeout_cnt = 0;
+	if (flags & QLA2XX_RESET_CMD_ERR)
+		vha->reset_cmd_err_cnt = 0;
+	if (flags & QLA2XX_TGT_SHT_LNK_DOWN) {
+		spin_lock_irqsave(&vha->hw->tgt.sess_lock, int_flags);
+		list_for_each_entry(fcport, &vha->vp_fcports, list) {
+			fcport->tgt_short_link_down_cnt = 0;
+			fcport->tgt_link_down_time = QLA2XX_MAX_LINK_DOWN_TIME;
+		}
+		spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, int_flags);
+	}
+	vha->link_down_time = QLA2XX_MAX_LINK_DOWN_TIME;
+	return 0;
+}
+
+int qla2xxx_start_stats(struct Scsi_Host *host, u32 flags)
+{
+	return qla2xxx_reset_stats(host, flags);
+}
+
+int qla2xxx_stop_stats(struct Scsi_Host *host, u32 flags)
+{
+	return qla2xxx_reset_stats(host, flags);
+}
+
+int qla2xxx_get_ini_stats(struct Scsi_Host *host, u32 flags,
+			  void *data, u64 size)
+{
+	scsi_qla_host_t *vha = shost_priv(host);
+	struct ql_vnd_host_stats_resp *resp = (struct ql_vnd_host_stats_resp *)data;
+	struct ql_vnd_stats *rsp_data = &resp->stats;
+	u64 ini_entry_count = 0;
+	u64 i = 0;
+	u64 entry_count = 0;
+	u64 num_tgt = 0;
+	u32 tmp_stat_type = 0;
+	fc_port_t *fcport = NULL;
+	unsigned long int_flags;
+
+	/* Copy stat type to work on it */
+	tmp_stat_type = flags;
+
+	if (tmp_stat_type & BIT_17) {
+		num_tgt = qla2x00_get_num_tgts(vha);
+		/* unset BIT_17 */
+		tmp_stat_type &= ~(1 << 17);
+	}
+	ini_entry_count = qla2x00_count_set_bits(tmp_stat_type);
+
+	entry_count = ini_entry_count + num_tgt;
+
+	rsp_data->entry_count = entry_count;
+
+	i = 0;
+	if (flags & QLA2XX_HW_ERROR) {
+		rsp_data->entry[i].stat_type = QLA2XX_HW_ERROR;
+		rsp_data->entry[i].tgt_num = 0x0;
+		rsp_data->entry[i].cnt = vha->hw_err_cnt;
+		i++;
+	}
+
+	if (flags & QLA2XX_SHT_LNK_DWN) {
+		rsp_data->entry[i].stat_type = QLA2XX_SHT_LNK_DWN;
+		rsp_data->entry[i].tgt_num = 0x0;
+		rsp_data->entry[i].cnt = vha->short_link_down_cnt;
+		i++;
+	}
+
+	if (flags & QLA2XX_INT_ERR) {
+		rsp_data->entry[i].stat_type = QLA2XX_INT_ERR;
+		rsp_data->entry[i].tgt_num = 0x0;
+		rsp_data->entry[i].cnt = vha->interface_err_cnt;
+		i++;
+	}
+
+	if (flags & QLA2XX_CMD_TIMEOUT) {
+		rsp_data->entry[i].stat_type = QLA2XX_CMD_TIMEOUT;
+		rsp_data->entry[i].tgt_num = 0x0;
+		rsp_data->entry[i].cnt = vha->cmd_timeout_cnt;
+		i++;
+	}
+
+	if (flags & QLA2XX_RESET_CMD_ERR) {
+		rsp_data->entry[i].stat_type = QLA2XX_RESET_CMD_ERR;
+		rsp_data->entry[i].tgt_num = 0x0;
+		rsp_data->entry[i].cnt = vha->reset_cmd_err_cnt;
+		i++;
+	}
+
+	/* i will continue from previous loop, as target
+	 * entries are after initiator
+	 */
+	if (flags & QLA2XX_TGT_SHT_LNK_DOWN) {
+		spin_lock_irqsave(&vha->hw->tgt.sess_lock, int_flags);
+		list_for_each_entry(fcport, &vha->vp_fcports, list) {
+			if (fcport->port_type != FCT_TARGET)
+				continue;
+			if (!fcport->rport)
+				continue;
+			rsp_data->entry[i].stat_type = QLA2XX_TGT_SHT_LNK_DOWN;
+			rsp_data->entry[i].tgt_num = fcport->rport->number;
+			rsp_data->entry[i].cnt = fcport->tgt_short_link_down_cnt;
+			i++;
+		}
+		spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, int_flags);
+	}
+	resp->status = EXT_STATUS_OK;
+
+	return 0;
+}
+
+int qla2xxx_get_tgt_stats(struct Scsi_Host *host, u32 flags,
+			  struct fc_rport *rport, void *data, u64 size)
+{
+	struct ql_vnd_tgt_stats_resp *tgt_data = data;
+	fc_port_t *fcport = *(fc_port_t **)rport->dd_data;
+
+	tgt_data->status = 0;
+	tgt_data->stats.entry_count = 1;
+	tgt_data->stats.entry[0].stat_type = flags;
+	tgt_data->stats.entry[0].tgt_num = rport->number;
+	tgt_data->stats.entry[0].cnt = fcport->tgt_short_link_down_cnt;
+
+	return 0;
+}
+
+int qla2xxx_disable_port(struct Scsi_Host *host)
+{
+	scsi_qla_host_t *vha = shost_priv(host);
+
+	vha->hw->flags.port_isolated = 1;
+
+	if (qla2x00_chip_is_down(vha))
+		return 0;
+
+	if (vha->flags.online) {
+		qla2x00_abort_isp_cleanup(vha);
+		qla2x00_wait_for_sess_deletion(vha);
+	}
+
+	return 0;
+}
+
+int qla2xxx_enable_port(struct Scsi_Host *host)
+{
+	scsi_qla_host_t *vha = shost_priv(host);
+
+	vha->hw->flags.port_isolated = 0;
+	/* Set the flag to 1, so that isp_abort can proceed */
+	vha->flags.online = 1;
+	set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+	qla2xxx_wake_dpc(vha);
+
+	return 0;
 }

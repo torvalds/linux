@@ -2557,6 +2557,10 @@ typedef struct fc_port {
 	u16 n2n_chip_reset;
 
 	struct dentry *dfs_rport_dir;
+
+	u64 tgt_short_link_down_cnt;
+	u64 tgt_link_down_time;
+	u64 dev_loss_tmo;
 } fc_port_t;
 
 enum {
@@ -3922,6 +3926,7 @@ struct qla_hw_data {
 		uint32_t	scm_enabled:1;
 		uint32_t	max_req_queue_warned:1;
 		uint32_t	plogi_template_valid:1;
+		uint32_t	port_isolated:1;
 	} flags;
 
 	uint16_t max_exchg;
@@ -4851,6 +4856,13 @@ typedef struct scsi_qla_host {
 	uint8_t	scm_fabric_connection_flags;
 
 	unsigned int irq_offset;
+
+	u64 hw_err_cnt;
+	u64 interface_err_cnt;
+	u64 cmd_timeout_cnt;
+	u64 reset_cmd_err_cnt;
+	u64 link_down_time;
+	u64 short_link_down_cnt;
 } scsi_qla_host_t;
 
 struct qla27xx_image_status {
@@ -5173,6 +5185,65 @@ struct sff_8247_a0 {
 
 #define PRLI_PHASE(_cls) \
 	((_cls == DSC_LS_PRLI_PEND) || (_cls == DSC_LS_PRLI_COMP))
+
+enum ql_vnd_host_stat_action {
+	QLA_STOP = 0,
+	QLA_START,
+	QLA_CLEAR,
+};
+
+struct ql_vnd_mng_host_stats_param {
+	u32 stat_type;
+	enum ql_vnd_host_stat_action action;
+} __packed;
+
+struct ql_vnd_mng_host_stats_resp {
+	u32 status;
+} __packed;
+
+struct ql_vnd_stats_param {
+	u32 stat_type;
+} __packed;
+
+struct ql_vnd_tgt_stats_param {
+	s32 tgt_id;
+	u32 stat_type;
+} __packed;
+
+enum ql_vnd_host_port_action {
+	QLA_ENABLE = 0,
+	QLA_DISABLE,
+};
+
+struct ql_vnd_mng_host_port_param {
+	enum ql_vnd_host_port_action action;
+} __packed;
+
+struct ql_vnd_mng_host_port_resp {
+	u32 status;
+} __packed;
+
+struct ql_vnd_stat_entry {
+	u32 stat_type;	/* Failure type */
+	u32 tgt_num;	/* Target Num */
+	u64 cnt;	/* Counter value */
+} __packed;
+
+struct ql_vnd_stats {
+	u64 entry_count; /* Num of entries */
+	u64 rservd;
+	struct ql_vnd_stat_entry entry[0]; /* Place holder of entries */
+} __packed;
+
+struct ql_vnd_host_stats_resp {
+	u32 status;
+	struct ql_vnd_stats stats;
+} __packed;
+
+struct ql_vnd_tgt_stats_resp {
+	u32 status;
+	struct ql_vnd_stats stats;
+} __packed;
 
 #include "qla_target.h"
 #include "qla_gbl.h"
