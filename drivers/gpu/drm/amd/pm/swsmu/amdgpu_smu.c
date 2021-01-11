@@ -1921,9 +1921,6 @@ int smu_set_mp1_state(void *handle,
 		msg = SMU_MSG_PrepareMp1ForUnload;
 		break;
 	case PP_MP1_STATE_RESET:
-	/*TODO: since the SMU_MSG_PrepareMp1ForReset is retired in Aldebaran
-	* Add handling here forAldebaran.
-	*/
 		msg = SMU_MSG_PrepareMp1ForReset;
 		break;
 	case PP_MP1_STATE_NONE:
