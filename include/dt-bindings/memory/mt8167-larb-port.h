@@ -8,7 +8,7 @@
 #ifndef __DTS_IOMMU_PORT_MT8167_H
 #define __DTS_IOMMU_PORT_MT8167_H
 
-#define MTK_M4U_ID(larb, port)		(((larb) << 5) | (port))
+#include <dt-bindings/memory/mtk-memory-port.h>
 
 #define M4U_LARB0_ID			0
 #define M4U_LARB1_ID			1
