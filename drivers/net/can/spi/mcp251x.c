@@ -1002,7 +1002,7 @@ static void mcp251x_tx_work_handler(struct work_struct *ws)
 				frame->len = CAN_FRAME_MAX_DATA_LEN;
 			mcp251x_hw_tx(spi, frame, 0);
 			priv->tx_len = 1 + frame->len;
-			can_put_echo_skb(priv->tx_skb, net, 0);
+			can_put_echo_skb(priv->tx_skb, net, 0, 0);
 			priv->tx_skb = NULL;
 		}
 	}

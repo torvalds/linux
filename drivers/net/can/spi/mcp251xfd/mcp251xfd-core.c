@@ -2436,7 +2436,7 @@ static netdev_tx_t mcp251xfd_start_xmit(struct sk_buff *skb,
 	if (tx_ring->head - tx_ring->tail >= tx_ring->obj_num)
 		netif_stop_queue(ndev);
 
-	can_put_echo_skb(skb, ndev, tx_head);
+	can_put_echo_skb(skb, ndev, tx_head, 0);
 
 	err = mcp251xfd_tx_obj_write(priv, tx_obj);
 	if (err)

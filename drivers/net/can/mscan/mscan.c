@@ -270,7 +270,7 @@ static netdev_tx_t mscan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	list_add_tail(&priv->tx_queue[buf_id].list, &priv->tx_head);
 
-	can_put_echo_skb(skb, dev, buf_id);
+	can_put_echo_skb(skb, dev, buf_id, 0);
 
 	/* Enable interrupt. */
 	priv->tx_active |= 1 << buf_id;

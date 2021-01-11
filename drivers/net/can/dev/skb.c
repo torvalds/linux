@@ -38,7 +38,7 @@ void can_flush_echo_skb(struct net_device *dev)
  * priv->echo_skb, if necessary.
  */
 int can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
-		     unsigned int idx)
+		     unsigned int idx, unsigned int frame_len)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
@@ -61,6 +61,9 @@ int can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
 		skb->pkt_type = PACKET_BROADCAST;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		skb->dev = dev;
+
+		/* save frame_len to reuse it when transmission is completed */
+		can_skb_prv(skb)->frame_len = frame_len;
 
 		/* save this skb for tx interrupt echo handling */
 		priv->echo_skb[idx] = skb;

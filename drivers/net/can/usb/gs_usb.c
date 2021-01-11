@@ -525,7 +525,7 @@ static netdev_tx_t gs_can_start_xmit(struct sk_buff *skb,
 	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	usb_anchor_urb(urb, &dev->tx_submitted);
 
-	can_put_echo_skb(skb, netdev, idx);
+	can_put_echo_skb(skb, netdev, idx, 0);
 
 	atomic_inc(&dev->active_tx_urbs);
 

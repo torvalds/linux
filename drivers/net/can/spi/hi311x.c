@@ -586,7 +586,7 @@ static void hi3110_tx_work_handler(struct work_struct *ws)
 			frame = (struct can_frame *)priv->tx_skb->data;
 			hi3110_hw_tx(spi, frame);
 			priv->tx_len = 1 + frame->len;
-			can_put_echo_skb(priv->tx_skb, net, 0);
+			can_put_echo_skb(priv->tx_skb, net, 0, 0);
 			priv->tx_skb = NULL;
 		}
 	}

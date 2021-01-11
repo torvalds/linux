@@ -1448,7 +1448,7 @@ static netdev_tx_t grcan_start_xmit(struct sk_buff *skb,
 	 * taken.
 	 */
 	priv->txdlc[slotindex] = cf->len; /* Store dlc for statistics */
-	can_put_echo_skb(skb, dev, slotindex);
+	can_put_echo_skb(skb, dev, slotindex, 0);
 
 	/* Make sure everything is written before allowing hardware to
 	 * read from the memory

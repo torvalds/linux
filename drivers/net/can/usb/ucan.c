@@ -1137,7 +1137,7 @@ static netdev_tx_t ucan_start_xmit(struct sk_buff *skb,
 
 	/* put the skb on can loopback stack */
 	spin_lock_irqsave(&up->echo_skb_lock, flags);
-	can_put_echo_skb(skb, up->netdev, echo_index);
+	can_put_echo_skb(skb, up->netdev, echo_index, 0);
 	spin_unlock_irqrestore(&up->echo_skb_lock, flags);
 
 	/* transmit it */

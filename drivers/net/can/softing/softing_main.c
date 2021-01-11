@@ -104,7 +104,7 @@ static netdev_tx_t softing_netdev_start_xmit(struct sk_buff *skb,
 	card->tx.last_bus = priv->index;
 	++card->tx.pending;
 	++priv->tx.pending;
-	can_put_echo_skb(skb, dev, priv->tx.echo_put);
+	can_put_echo_skb(skb, dev, priv->tx.echo_put, 0);
 	++priv->tx.echo_put;
 	if (priv->tx.echo_put >= TX_ECHO_SKB_MAX)
 		priv->tx.echo_put = 0;
