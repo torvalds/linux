@@ -589,49 +589,6 @@ static void dce120_timing_generator_set_drr(
 	}
 }
 
-/*
- *****************************************************************************
- *  Function: dce120_timing_generator_get_position
- *
- *  @brief
- *     Returns CRTC vertical/horizontal counters
- *
- *  @param [out] position
- *****************************************************************************
- */
-static void dce120_timing_generator_get_position(struct timing_generator *tg,
-	struct crtc_position *position)
-{
-	uint32_t value;
-	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
-
-	value = dm_read_reg_soc15(
-			tg->ctx,
-			mmCRTC0_CRTC_STATUS_POSITION,
-			tg110->offsets.crtc);
-
-	position->horizontal_count = get_reg_field_value(
-			value,
-			CRTC0_CRTC_STATUS_POSITION,
-			CRTC_HORZ_COUNT);
-
-	position->vertical_count = get_reg_field_value(
-			value,
-			CRTC0_CRTC_STATUS_POSITION,
-			CRTC_VERT_COUNT);
-
-	value = dm_read_reg_soc15(
-			tg->ctx,
-			mmCRTC0_CRTC_NOM_VERT_POSITION,
-			tg110->offsets.crtc);
-
-	position->nominal_vcount = get_reg_field_value(
-			value,
-			CRTC0_CRTC_NOM_VERT_POSITION,
-			CRTC_VERT_COUNT_NOM);
-}
-
-
 static void dce120_timing_generator_get_crtc_scanoutpos(
 	struct timing_generator *tg,
 	uint32_t *v_blank_start,
