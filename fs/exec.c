@@ -965,8 +965,8 @@ EXPORT_SYMBOL(read_code);
 
 /*
  * Maps the mm_struct mm into the current task struct.
- * On success, this function returns with the mutex
- * exec_update_mutex locked.
+ * On success, this function returns with exec_update_lock
+ * held for writing.
  */
 static int exec_mmap(struct mm_struct *mm)
 {
@@ -981,7 +981,7 @@ static int exec_mmap(struct mm_struct *mm)
 	if (old_mm)
 		sync_mm_rss(old_mm);
 
-	ret = mutex_lock_killable(&tsk->signal->exec_update_mutex);
+	ret = down_write_killable(&tsk->signal->exec_update_lock);
 	if (ret)
 		return ret;
 
@@ -995,7 +995,7 @@ static int exec_mmap(struct mm_struct *mm)
 		mmap_read_lock(old_mm);
 		if (unlikely(old_mm->core_state)) {
 			mmap_read_unlock(old_mm);
-			mutex_unlock(&tsk->signal->exec_update_mutex);
+			up_write(&tsk->signal->exec_update_lock);
 			return -EINTR;
 		}
 	}
@@ -1382,7 +1382,7 @@ int begin_new_exec(struct linux_binprm * bprm)
 	return 0;
 
 out_unlock:
-	mutex_unlock(&me->signal->exec_update_mutex);
+	up_write(&me->signal->exec_update_lock);
 out:
 	return retval;
 }
@@ -1423,7 +1423,7 @@ void setup_new_exec(struct linux_binprm * bprm)
 	 * some architectures like powerpc
 	 */
 	me->mm->task_size = TASK_SIZE;
-	mutex_unlock(&me->signal->exec_update_mutex);
+	up_write(&me->signal->exec_update_lock);
 	mutex_unlock(&me->signal->cred_guard_mutex);
 }
 EXPORT_SYMBOL(setup_new_exec);
