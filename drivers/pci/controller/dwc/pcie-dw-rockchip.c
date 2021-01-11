@@ -1279,6 +1279,7 @@ static int rk_pcie_probe(struct platform_device *pdev)
 static int __maybe_unused rockchip_dw_pcie_suspend(struct device *dev)
 {
 	struct rk_pcie *rk_pcie = dev_get_drvdata(dev);
+	int ret;
 
 	rk_pcie_link_status_clear(rk_pcie);
 	rk_pcie_disable_ltssm(rk_pcie);
@@ -1293,13 +1294,30 @@ static int __maybe_unused rockchip_dw_pcie_suspend(struct device *dev)
 
 	rk_pcie->in_suspend = true;
 
+	if (!IS_ERR(rk_pcie->vpcie3v3)) {
+		ret = regulator_disable(rk_pcie->vpcie3v3);
+		if (ret) {
+			dev_err(dev, "fail to disable vpcie3v3 regulator\n");
+			return ret;
+		}
+	}
+
 	return 0;
 }
 
 static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
 {
 	struct rk_pcie *rk_pcie = dev_get_drvdata(dev);
+	bool std_rc = rk_pcie->mode == RK_PCIE_RC_TYPE && !rk_pcie->dma_obj;
 	int ret;
+
+	if (!IS_ERR(rk_pcie->vpcie3v3)) {
+		ret = regulator_enable(rk_pcie->vpcie3v3);
+		if (ret) {
+			dev_err(dev, "fail to enable vpcie3v3 regulator\n");
+			return ret;
+		}
+	}
 
 	ret = clk_bulk_enable(rk_pcie->clk_cnt, rk_pcie->clks);
 	if (ret) {
@@ -1337,11 +1355,17 @@ static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
 	/* Set PCIe mode */
 	rk_pcie_set_mode(rk_pcie);
 
+	if (std_rc)
+		dw_pcie_setup_rc(&rk_pcie->pci->pp);
+
 	ret = rk_pcie_establish_link(rk_pcie->pci);
 	if (ret) {
 		dev_err(dev, "failed to establish pcie link\n");
 		goto err;
 	}
+
+	if (std_rc)
+		goto std_rc_done;
 
 	ret = rk_pcie_ep_atu_init(rk_pcie);
 	if (ret) {
@@ -1351,16 +1375,16 @@ static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
 
 	rk_pcie_ep_setup(rk_pcie);
 
+	rk_pcie->in_suspend = false;
+
+std_rc_done:
+	dw_pcie_dbi_ro_wr_dis(rk_pcie->pci);
 	/* hold link reset grant after link-up */
 	if (rk_pcie->is_rk1808) {
 		ret = rk_pcie_reset_grant_ctrl(rk_pcie, false);
 		if (ret)
 			goto err;
 	}
-
-	dw_pcie_dbi_ro_wr_dis(rk_pcie->pci);
-
-	rk_pcie->in_suspend = false;
 
 	return 0;
 err:
