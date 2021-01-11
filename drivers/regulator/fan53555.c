@@ -39,6 +39,7 @@
 #define TCS452X_VSEL1		0x10
 #define TCS452X_TIME		0x13
 #define TCS452X_COMMAND		0x14
+#define TCS452X_LIMCONF		0x16
 
 /* Control register */
 #define FAN53555_CONTROL	0x02
@@ -726,8 +727,45 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 	ret = fan53555_regulator_register(di, &config);
 	if (ret < 0)
 		dev_err(&client->dev, "Failed to register regulator!\n");
-	return ret;
 
+	return ret;
+}
+
+static void fan53555_regulator_shutdown(struct i2c_client *client)
+{
+	struct fan53555_device_info *di;
+	int ret;
+
+	di = i2c_get_clientdata(client);
+
+	dev_info(di->dev, "fan53555..... reset\n");
+
+	switch (di->vendor) {
+	case FAN53555_VENDOR_FAIRCHILD:
+	case FAN53555_VENDOR_RK:
+	case FAN53555_VENDOR_SILERGY:
+		ret = regmap_update_bits(di->regmap, di->slew_reg,
+					 CTL_RESET, CTL_RESET);
+		break;
+	case FAN53555_VENDOR_TCS:
+		ret = regmap_update_bits(di->regmap, TCS452X_LIMCONF,
+					 CTL_RESET, CTL_RESET);
+		/*
+		 * the device can't return 'ack' during the reset,
+		 * it will return -ENXIO, ignore this error.
+		 */
+		if (ret == -ENXIO)
+			ret = 0;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	if (ret < 0)
+		dev_err(di->dev, "reset: force fan53555_reset error! ret=%d\n", ret);
+	else
+		dev_info(di->dev, "reset: force fan53555_reset ok!\n");
 }
 
 static const struct i2c_device_id fan53555_id[] = {
@@ -760,6 +798,7 @@ static struct i2c_driver fan53555_regulator_driver = {
 		.of_match_table = of_match_ptr(fan53555_dt_ids),
 	},
 	.probe = fan53555_regulator_probe,
+	.shutdown = fan53555_regulator_shutdown,
 	.id_table = fan53555_id,
 };
 
