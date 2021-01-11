@@ -101,10 +101,16 @@ static bool print_trace_address(void *arg, unsigned long pc)
 	return true;
 }
 
+void dump_backtrace(struct pt_regs *regs, struct task_struct *task,
+		    const char *loglvl)
+{
+	pr_cont("%sCall Trace:\n", loglvl);
+	walk_stackframe(task, regs, print_trace_address, (void *)loglvl);
+}
+
 void show_stack(struct task_struct *task, unsigned long *sp, const char *loglvl)
 {
-	pr_cont("Call Trace:\n");
-	walk_stackframe(task, NULL, print_trace_address, (void *)loglvl);
+	dump_backtrace(NULL, task, loglvl);
 }
 
 static bool save_wchan(void *arg, unsigned long pc)

@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/irq.h>
 
+#include <asm/bug.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/csr.h>
@@ -67,7 +68,7 @@ void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr)
 			tsk->comm, task_pid_nr(tsk), signo, code, addr);
 		print_vma_addr(KERN_CONT " in ", instruction_pointer(regs));
 		pr_cont("\n");
-		show_regs(regs);
+		__show_regs(regs);
 	}
 
 	force_sig_fault(signo, code, (void __user *)addr);
