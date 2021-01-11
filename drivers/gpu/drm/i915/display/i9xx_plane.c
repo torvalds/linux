@@ -518,6 +518,23 @@ g4x_primary_async_flip(struct intel_plane *plane,
 }
 
 static void
+vlv_primary_async_flip(struct intel_plane *plane,
+		       const struct intel_crtc_state *crtc_state,
+		       const struct intel_plane_state *plane_state,
+		       bool async_flip)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	u32 dspaddr_offset = plane_state->color_plane[0].offset;
+	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+	intel_de_write_fw(dev_priv, DSPADDR_VLV(i9xx_plane),
+			  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+}
+
+static void
 bdw_primary_enable_flip_done(struct intel_plane *plane)
 {
 	struct drm_i915_private *i915 = to_i915(plane->base.dev);
@@ -576,6 +593,28 @@ ilk_primary_disable_flip_done(struct intel_plane *plane)
 
 	spin_lock_irq(&i915->irq_lock);
 	ilk_disable_display_irq(i915, DE_PLANE_FLIP_DONE(plane->i9xx_plane));
+	spin_unlock_irq(&i915->irq_lock);
+}
+
+static void
+vlv_primary_enable_flip_done(struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
+
+	spin_lock_irq(&i915->irq_lock);
+	i915_enable_pipestat(i915, pipe, PLANE_FLIP_DONE_INT_STATUS_VLV);
+	spin_unlock_irq(&i915->irq_lock);
+}
+
+static void
+vlv_primary_disable_flip_done(struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
+
+	spin_lock_irq(&i915->irq_lock);
+	i915_disable_pipestat(i915, pipe, PLANE_FLIP_DONE_INT_STATUS_VLV);
 	spin_unlock_irq(&i915->irq_lock);
 }
 
@@ -792,16 +831,20 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	plane->get_hw_state = i9xx_plane_get_hw_state;
 	plane->check_plane = i9xx_plane_check;
 
-	if (IS_BROADWELL(dev_priv)) {
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+		plane->async_flip = vlv_primary_async_flip;
+		plane->enable_flip_done = vlv_primary_enable_flip_done;
+		plane->disable_flip_done = vlv_primary_disable_flip_done;
+	} else if (IS_BROADWELL(dev_priv)) {
 		plane->need_async_flip_disable_wa = true;
 		plane->async_flip = g4x_primary_async_flip;
 		plane->enable_flip_done = bdw_primary_enable_flip_done;
 		plane->disable_flip_done = bdw_primary_disable_flip_done;
-	} else if (IS_HASWELL(dev_priv) || IS_IVYBRIDGE(dev_priv)) {
+	} else if (INTEL_GEN(dev_priv) >= 7) {
 		plane->async_flip = g4x_primary_async_flip;
 		plane->enable_flip_done = ivb_primary_enable_flip_done;
 		plane->disable_flip_done = ivb_primary_disable_flip_done;
-	} else if (IS_GEN_RANGE(dev_priv, 5, 6)) {
+	} else if (INTEL_GEN(dev_priv) >= 5) {
 		plane->async_flip = g4x_primary_async_flip;
 		plane->enable_flip_done = ilk_primary_enable_flip_done;
 		plane->disable_flip_done = ilk_primary_disable_flip_done;

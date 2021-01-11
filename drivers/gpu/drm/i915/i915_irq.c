@@ -1540,6 +1540,9 @@ static void valleyview_pipestat_irq_handler(struct drm_i915_private *dev_priv,
 		if (pipe_stats[pipe] & PIPE_START_VBLANK_INTERRUPT_STATUS)
 			intel_handle_vblank(dev_priv, pipe);
 
+		if (pipe_stats[pipe] & PLANE_FLIP_DONE_INT_STATUS_VLV)
+			flip_done_handler(dev_priv, pipe);
+
 		if (pipe_stats[pipe] & PIPE_CRC_DONE_INTERRUPT_STATUS)
 			i9xx_pipe_crc_irq_handler(dev_priv, pipe);
 
