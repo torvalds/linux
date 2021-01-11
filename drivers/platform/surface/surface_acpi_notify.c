@@ -188,7 +188,7 @@ static int san_acpi_notify_event(struct device *dev, u64 func,
 	union acpi_object *obj;
 	int status = 0;
 
-	if (!acpi_check_dsm(san, &SAN_DSM_UUID, SAN_DSM_REVISION, 1 << func))
+	if (!acpi_check_dsm(san, &SAN_DSM_UUID, SAN_DSM_REVISION, BIT_ULL(func)))
 		return 0;
 
 	dev_dbg(dev, "notify event %#04llx\n", func);
