@@ -1073,6 +1073,7 @@ void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c,
 
 void bch2_btree_cache_to_text(struct printbuf *out, struct bch_fs *c)
 {
-	pr_buf(out, "nr nodes:\t%u\n", c->btree_cache.used);
-	pr_buf(out, "nr dirty:\t%u\n", atomic_read(&c->btree_cache.dirty));
+	pr_buf(out, "nr nodes:\t\t%u\n", c->btree_cache.used);
+	pr_buf(out, "nr dirty:\t\t%u\n", atomic_read(&c->btree_cache.dirty));
+	pr_buf(out, "cannibalize lock:\t%p\n", c->btree_cache.alloc_lock);
 }
