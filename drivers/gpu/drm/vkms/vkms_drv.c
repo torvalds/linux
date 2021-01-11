@@ -40,6 +40,10 @@ static bool enable_cursor = true;
 module_param_named(enable_cursor, enable_cursor, bool, 0444);
 MODULE_PARM_DESC(enable_cursor, "Enable/Disable cursor support");
 
+static bool enable_writeback = true;
+module_param_named(enable_writeback, enable_writeback, bool, 0444);
+MODULE_PARM_DESC(enable_writeback, "Enable/Disable writeback connector support");
+
 DEFINE_DRM_GEM_FOPS(vkms_driver_fops);
 
 static void vkms_release(struct drm_device *dev)
@@ -189,6 +193,7 @@ static int __init vkms_init(void)
 	default_config = config;
 
 	config->cursor = enable_cursor;
+	config->writeback = enable_writeback;
 
 	return vkms_create(config);
 }

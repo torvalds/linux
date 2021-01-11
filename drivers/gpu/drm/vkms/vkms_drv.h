@@ -83,6 +83,7 @@ struct vkms_output {
 struct vkms_device;
 
 struct vkms_config {
+	bool writeback;
 	bool cursor;
 	/* only set when instantiated */
 	struct vkms_device *dev;
