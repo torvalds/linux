@@ -100,6 +100,8 @@ static inline void can_set_static_ctrlmode(struct net_device *dev,
 		dev->mtu = CANFD_MTU;
 }
 
+void can_setup(struct net_device *dev);
+
 struct net_device *alloc_candev_mqs(int sizeof_priv, unsigned int echo_skb_max,
 				    unsigned int txqs, unsigned int rxqs);
 #define alloc_candev(sizeof_priv, echo_skb_max) \
@@ -129,5 +131,9 @@ void of_can_transceiver(struct net_device *dev);
 #else
 static inline void of_can_transceiver(struct net_device *dev) { }
 #endif
+
+extern struct rtnl_link_ops can_link_ops;
+int can_netlink_register(void);
+void can_netlink_unregister(void);
 
 #endif /* !_CAN_DEV_H */
