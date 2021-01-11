@@ -774,6 +774,7 @@ static int vangogh_get_power_profile_mode(struct smu_context *smu,
 					   char *buf)
 {
 	static const char *profile_name[] = {
+					"BOOTUP_DEFAULT",
 					"FULL_SCREEN_3D",
 					"VIDEO",
 					"VR",
