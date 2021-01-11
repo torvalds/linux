@@ -69,7 +69,7 @@
 #define CRTC_REG_SET_3(reg, field1, val1, field2, val2, field3, val3)	\
 		CRTC_REG_SET_N(reg, 3, FD(reg##__##field1), val1, FD(reg##__##field2), val2, FD(reg##__##field3), val3)
 
-/**
+/*
  *****************************************************************************
  *  Function: is_in_vertical_blank
  *
@@ -589,7 +589,7 @@ static void dce120_timing_generator_set_drr(
 	}
 }
 
-/**
+/*
  *****************************************************************************
  *  Function: dce120_timing_generator_get_position
  *
