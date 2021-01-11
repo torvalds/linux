@@ -1659,7 +1659,7 @@ static struct dc_link *get_edp_link_with_sink(
 	return link;
 }
 
-/**
+/*
  * When ASIC goes from VBIOS/VGA mode to driver/accelerated mode we need:
  *  1. Power down all DC HW blocks
  *  2. Disable VGA engine on all controllers
