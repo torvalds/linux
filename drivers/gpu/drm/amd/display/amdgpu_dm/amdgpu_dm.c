@@ -1816,6 +1816,11 @@ static int dm_suspend(void *handle)
 
 	if (amdgpu_in_reset(adev)) {
 		mutex_lock(&dm->dc_lock);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		dc_allow_idle_optimizations(adev->dm.dc, false);
+#endif
+
 		dm->cached_dc_state = dc_copy_state(dm->dc->current_state);
 
 		dm_gpureset_toggle_interrupts(adev, dm->cached_dc_state, false);
@@ -5483,6 +5488,10 @@ static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
 	if (!dc_interrupt_set(adev->dm.dc, irq_source, enable))
 		return -EBUSY;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (amdgpu_in_reset(adev))
+		return 0;
+
 	mutex_lock(&dm->dc_lock);
 
 	if (enable)
@@ -5499,6 +5508,7 @@ static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
 
 	mutex_unlock(&dm->dc_lock);
 
+#endif
 	return 0;
 }
 
