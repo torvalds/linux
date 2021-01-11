@@ -220,6 +220,8 @@ static int tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 static void tcon_disable(struct ebc_tcon *tcon)
 {
 	disable_irq(tcon->irq);
+	/* output low */
+	tcon_update_bits(tcon, EBC_DSP_START, DSP_OUT_LOW | DSP_FRM_START_MASK, DSP_OUT_LOW);
 
 	pm_runtime_put_sync(tcon->dev);
 	clk_disable_unprepare(tcon->dclk);
