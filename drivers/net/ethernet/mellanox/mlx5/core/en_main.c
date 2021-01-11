@@ -2759,6 +2759,9 @@ static void mlx5e_build_txq_maps(struct mlx5e_priv *priv)
 	if (!priv->channels.ptp)
 		return;
 
+	if (!test_bit(MLX5E_PTP_STATE_TX, priv->channels.ptp->state))
+		return;
+
 	for (tc = 0; tc < num_tc; tc++) {
 		struct mlx5e_ptp *c = priv->channels.ptp;
 		struct mlx5e_txqsq *sq = &c->ptpsq[tc].txqsq;

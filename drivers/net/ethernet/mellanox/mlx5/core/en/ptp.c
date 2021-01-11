@@ -134,9 +134,11 @@ static int mlx5e_ptp_napi_poll(struct napi_struct *napi, int budget)
 
 	ch_stats->poll++;
 
-	for (i = 0; i < c->num_tc; i++) {
-		busy |= mlx5e_poll_tx_cq(&c->ptpsq[i].txqsq.cq, budget);
-		busy |= mlx5e_ptp_poll_ts_cq(&c->ptpsq[i].ts_cq, budget);
+	if (test_bit(MLX5E_PTP_STATE_TX, c->state)) {
+		for (i = 0; i < c->num_tc; i++) {
+			busy |= mlx5e_poll_tx_cq(&c->ptpsq[i].txqsq.cq, budget);
+			busy |= mlx5e_ptp_poll_ts_cq(&c->ptpsq[i].ts_cq, budget);
+		}
 	}
 
 	if (busy) {
@@ -149,9 +151,11 @@ static int mlx5e_ptp_napi_poll(struct napi_struct *napi, int budget)
 
 	ch_stats->arm++;
 
-	for (i = 0; i < c->num_tc; i++) {
-		mlx5e_cq_arm(&c->ptpsq[i].txqsq.cq);
-		mlx5e_cq_arm(&c->ptpsq[i].ts_cq);
+	if (test_bit(MLX5E_PTP_STATE_TX, c->state)) {
+		for (i = 0; i < c->num_tc; i++) {
+			mlx5e_cq_arm(&c->ptpsq[i].txqsq.cq);
+			mlx5e_cq_arm(&c->ptpsq[i].ts_cq);
+		}
 	}
 
 out:
@@ -422,9 +426,10 @@ static void mlx5e_ptp_build_params(struct mlx5e_ptp *c,
 	params->num_tc = orig->num_tc;
 
 	/* SQ */
-	params->log_sq_size = orig->log_sq_size;
-
-	mlx5e_ptp_build_sq_param(c->mdev, params, &cparams->txq_sq_param);
+	if (test_bit(MLX5E_PTP_STATE_TX, c->state)) {
+		params->log_sq_size = orig->log_sq_size;
+		mlx5e_ptp_build_sq_param(c->mdev, params, &cparams->txq_sq_param);
+	}
 }
 
 static int mlx5e_ptp_open_queues(struct mlx5e_ptp *c,
@@ -432,26 +437,38 @@ static int mlx5e_ptp_open_queues(struct mlx5e_ptp *c,
 {
 	int err;
 
-	err = mlx5e_ptp_open_cqs(c, cparams);
-	if (err)
-		return err;
+	if (test_bit(MLX5E_PTP_STATE_TX, c->state)) {
+		err = mlx5e_ptp_open_cqs(c, cparams);
+		if (err)
+			return err;
 
-	err = mlx5e_ptp_open_txqsqs(c, cparams);
-	if (err)
-		goto close_cqs;
-
+		err = mlx5e_ptp_open_txqsqs(c, cparams);
+		if (err)
+			goto close_cqs;
+	}
 	return 0;
 
 close_cqs:
-	mlx5e_ptp_close_cqs(c);
+	if (test_bit(MLX5E_PTP_STATE_TX, c->state))
+		mlx5e_ptp_close_cqs(c);
 
 	return err;
 }
 
 static void mlx5e_ptp_close_queues(struct mlx5e_ptp *c)
 {
-	mlx5e_ptp_close_txqsqs(c);
-	mlx5e_ptp_close_cqs(c);
+	if (test_bit(MLX5E_PTP_STATE_TX, c->state)) {
+		mlx5e_ptp_close_txqsqs(c);
+		mlx5e_ptp_close_cqs(c);
+	}
+}
+
+static int mlx5e_ptp_set_state(struct mlx5e_ptp *c, struct mlx5e_params *params)
+{
+	if (MLX5E_GET_PFLAG(params, MLX5E_PFLAG_TX_PORT_TS))
+		__set_bit(MLX5E_PTP_STATE_TX, c->state);
+
+	return bitmap_empty(c->state, MLX5E_PTP_STATE_NUM_STATES) ? -EINVAL : 0;
 }
 
 int mlx5e_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
@@ -479,6 +496,10 @@ int mlx5e_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	c->stats    = &priv->ptp_stats.ch;
 	c->lag_port = lag_port;
 
+	err = mlx5e_ptp_set_state(c, params);
+	if (err)
+		goto err_free;
+
 	netif_napi_add(netdev, &c->napi, mlx5e_ptp_napi_poll, 64);
 
 	mlx5e_ptp_build_params(c, cparams, params);
@@ -495,7 +516,7 @@ int mlx5e_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
 
 err_napi_del:
 	netif_napi_del(&c->napi);
-
+err_free:
 	kvfree(cparams);
 	kvfree(c);
 	return err;
@@ -515,16 +536,20 @@ void mlx5e_ptp_activate_channel(struct mlx5e_ptp *c)
 
 	napi_enable(&c->napi);
 
-	for (tc = 0; tc < c->num_tc; tc++)
-		mlx5e_activate_txqsq(&c->ptpsq[tc].txqsq);
+	if (test_bit(MLX5E_PTP_STATE_TX, c->state)) {
+		for (tc = 0; tc < c->num_tc; tc++)
+			mlx5e_activate_txqsq(&c->ptpsq[tc].txqsq);
+	}
 }
 
 void mlx5e_ptp_deactivate_channel(struct mlx5e_ptp *c)
 {
 	int tc;
 
-	for (tc = 0; tc < c->num_tc; tc++)
-		mlx5e_deactivate_txqsq(&c->ptpsq[tc].txqsq);
+	if (test_bit(MLX5E_PTP_STATE_TX, c->state)) {
+		for (tc = 0; tc < c->num_tc; tc++)
+			mlx5e_deactivate_txqsq(&c->ptpsq[tc].txqsq);
+	}
 
 	napi_disable(&c->napi);
 }
