@@ -37,6 +37,7 @@ Required properties (all function blocks):
 	"mediatek,<chip>-disp-aal"   		- adaptive ambient light controller
 	"mediatek,<chip>-disp-gamma" 		- gamma correction
 	"mediatek,<chip>-disp-merge" 		- merge streams from two RDMA sources
+	"mediatek,<chip>-disp-postmask" 	- control round corner for display frame
 	"mediatek,<chip>-disp-split" 		- split stream to two encoders
 	"mediatek,<chip>-disp-ufoe"  		- data compression engine
 	"mediatek,<chip>-dsi"        		- DSI controller, see mediatek,dsi.txt
