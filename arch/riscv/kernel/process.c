@@ -44,7 +44,12 @@ void __show_regs(struct pt_regs *regs)
 {
 	show_regs_print_info(KERN_DEFAULT);
 
-	pr_cont("epc: " REG_FMT " ra : " REG_FMT " sp : " REG_FMT "\n",
+	if (!user_mode(regs)) {
+		pr_cont("epc : %pS\n", (void *)regs->epc);
+		pr_cont(" ra : %pS\n", (void *)regs->ra);
+	}
+
+	pr_cont("epc : " REG_FMT " ra : " REG_FMT " sp : " REG_FMT "\n",
 		regs->epc, regs->ra, regs->sp);
 	pr_cont(" gp : " REG_FMT " tp : " REG_FMT " t0 : " REG_FMT "\n",
 		regs->gp, regs->tp, regs->t0);
