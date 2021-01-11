@@ -2505,8 +2505,8 @@ _base_check_pcie_native_sgl(struct MPT3SAS_ADAPTER *ioc,
 	}
 
 	/* Check if we need to build a native SG list. */
-	if (base_is_prp_possible(ioc, pcie_device,
-				scmd, sges_left) == 0) {
+	if (!base_is_prp_possible(ioc, pcie_device,
+				scmd, sges_left)) {
 		/* We built a native SG list, just return. */
 		goto out;
 	}
