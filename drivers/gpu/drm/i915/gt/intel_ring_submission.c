@@ -1290,7 +1290,7 @@ int intel_ring_submission_setup(struct intel_engine_cs *engine)
 
 	GEM_BUG_ON(timeline->hwsp_ggtt != engine->status_page.vma);
 
-	if (IS_HASWELL(engine->i915) && engine->class == RENDER_CLASS) {
+	if (IS_GEN(engine->i915, 7) && engine->class == RENDER_CLASS) {
 		err = gen7_ctx_switch_bb_init(engine);
 		if (err)
 			goto err_ring_unpin;
