@@ -375,17 +375,11 @@ static int rt5682_sdw_init(struct device *dev, struct regmap *regmap,
 static int rt5682_io_init(struct device *dev, struct sdw_slave *slave)
 {
 	struct rt5682_priv *rt5682 = dev_get_drvdata(dev);
-	int ret = 0;
+	int ret = 0, loop = 10;
 	unsigned int val;
 
 	if (rt5682->hw_init)
 		return 0;
-
-	regmap_read(rt5682->regmap, RT5682_DEVICE_ID, &val);
-	if (val != DEVICE_ID) {
-		dev_err(dev, "Device with ID register %x is not rt5682\n", val);
-		return -ENODEV;
-	}
 
 	/*
 	 * PM runtime is only enabled when a Slave reports as Attached
@@ -405,6 +399,19 @@ static int rt5682_io_init(struct device *dev, struct sdw_slave *slave)
 	}
 
 	pm_runtime_get_noresume(&slave->dev);
+
+	while (loop > 0) {
+		regmap_read(rt5682->regmap, RT5682_DEVICE_ID, &val);
+		if (val == DEVICE_ID)
+			break;
+		dev_warn(dev, "Device with ID register %x is not rt5682\n", val);
+		usleep_range(30000, 30005);
+		loop--;
+	}
+	if (val != DEVICE_ID) {
+		dev_err(dev, "Device with ID register %x is not rt5682\n", val);
+		return -ENODEV;
+	}
 
 	if (rt5682->first_hw_init) {
 		regcache_cache_only(rt5682->regmap, false);
