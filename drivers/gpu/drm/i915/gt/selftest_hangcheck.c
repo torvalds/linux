@@ -506,7 +506,8 @@ static int igt_reset_nop_engine(void *arg)
 			}
 			err = intel_engine_reset(engine, NULL);
 			if (err) {
-				pr_err("i915_reset_engine failed\n");
+				pr_err("intel_engine_reset(%s) failed, err:%d\n",
+				       engine->name, err);
 				break;
 			}
 
@@ -608,7 +609,8 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 
 			err = intel_engine_reset(engine, NULL);
 			if (err) {
-				pr_err("i915_reset_engine failed\n");
+				pr_err("intel_engine_reset(%s) failed, err:%d\n",
+				       engine->name, err);
 				break;
 			}
 
