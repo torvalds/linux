@@ -100,8 +100,9 @@ module_param_cb(max_lun, &iscsi_iser_size_ops, &iscsi_max_lun, S_IRUGO);
 MODULE_PARM_DESC(max_lun, "Max LUNs to allow per session, should > 0 (default:512)");
 
 unsigned int iser_max_sectors = ISER_DEF_MAX_SECTORS;
-module_param_named(max_sectors, iser_max_sectors, uint, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(max_sectors, "Max number of sectors in a single scsi command (default:1024");
+module_param_cb(max_sectors, &iscsi_iser_size_ops, &iser_max_sectors,
+		S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(max_sectors, "Max number of sectors in a single scsi command, should > 0 (default:1024)");
 
 bool iser_always_reg = true;
 module_param_named(always_register, iser_always_reg, bool, S_IRUGO);
