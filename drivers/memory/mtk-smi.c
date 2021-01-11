@@ -15,6 +15,7 @@
 #include <linux/pm_runtime.h>
 #include <soc/mediatek/smi.h>
 #include <dt-bindings/memory/mt2701-larb-port.h>
+#include <dt-bindings/memory/mtk-memory-port.h>
 
 /* mt8173 */
 #define SMI_LARB_MMU_EN		0xf00
