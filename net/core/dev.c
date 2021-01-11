@@ -5151,8 +5151,7 @@ another_round:
 		skb_reset_mac_len(skb);
 	}
 
-	if (skb->protocol == cpu_to_be16(ETH_P_8021Q) ||
-	    skb->protocol == cpu_to_be16(ETH_P_8021AD)) {
+	if (eth_type_vlan(skb->protocol)) {
 		skb = skb_vlan_untag(skb);
 		if (unlikely(!skb))
 			goto out;
@@ -5236,8 +5235,7 @@ check_vlan_id:
 			 * find vlan device.
 			 */
 			skb->pkt_type = PACKET_OTHERHOST;
-		} else if (skb->protocol == cpu_to_be16(ETH_P_8021Q) ||
-			   skb->protocol == cpu_to_be16(ETH_P_8021AD)) {
+		} else if (eth_type_vlan(skb->protocol)) {
 			/* Outer header is 802.1P with vlan 0, inner header is
 			 * 802.1Q or 802.1AD and vlan_do_receive() above could
 			 * not find vlan dev for vlan id 0.
