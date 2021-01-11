@@ -115,6 +115,7 @@
 		compatible = "nxp,pcf2127";
 		reg = <0>;
 		spi-max-frequency = <2000000>;
+		reset-source;
 	};
 };
 
