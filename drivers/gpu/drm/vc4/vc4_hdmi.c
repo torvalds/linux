@@ -1454,15 +1454,22 @@ static int vc4_hdmi_audio_init(struct vc4_hdmi *vc4_hdmi)
 }
 
 #ifdef CONFIG_DRM_VC4_HDMI_CEC
-static irqreturn_t vc4_cec_irq_handler_thread(int irq, void *priv)
+static irqreturn_t vc4_cec_irq_handler_rx_thread(int irq, void *priv)
 {
 	struct vc4_hdmi *vc4_hdmi = priv;
 
-	if (vc4_hdmi->cec_irq_was_rx) {
-		if (vc4_hdmi->cec_rx_msg.len)
-			cec_received_msg(vc4_hdmi->cec_adap,
-					 &vc4_hdmi->cec_rx_msg);
-	} else if (vc4_hdmi->cec_tx_ok) {
+	if (vc4_hdmi->cec_rx_msg.len)
+		cec_received_msg(vc4_hdmi->cec_adap,
+				 &vc4_hdmi->cec_rx_msg);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t vc4_cec_irq_handler_tx_thread(int irq, void *priv)
+{
+	struct vc4_hdmi *vc4_hdmi = priv;
+
+	if (vc4_hdmi->cec_tx_ok) {
 		cec_transmit_done(vc4_hdmi->cec_adap, CEC_TX_STATUS_OK,
 				  0, 0, 0, 0);
 	} else {
@@ -1474,6 +1481,19 @@ static irqreturn_t vc4_cec_irq_handler_thread(int irq, void *priv)
 				  0, 2, 0, 0);
 	}
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t vc4_cec_irq_handler_thread(int irq, void *priv)
+{
+	struct vc4_hdmi *vc4_hdmi = priv;
+	irqreturn_t ret;
+
+	if (vc4_hdmi->cec_irq_was_rx)
+		ret = vc4_cec_irq_handler_rx_thread(irq, priv);
+	else
+		ret = vc4_cec_irq_handler_tx_thread(irq, priv);
+
+	return ret;
 }
 
 static void vc4_cec_read_msg(struct vc4_hdmi *vc4_hdmi, u32 cntrl1)
@@ -1500,31 +1520,55 @@ static void vc4_cec_read_msg(struct vc4_hdmi *vc4_hdmi, u32 cntrl1)
 	}
 }
 
+static irqreturn_t vc4_cec_irq_handler_tx_bare(int irq, void *priv)
+{
+	struct vc4_hdmi *vc4_hdmi = priv;
+	u32 cntrl1;
+
+	cntrl1 = HDMI_READ(HDMI_CEC_CNTRL_1);
+	vc4_hdmi->cec_tx_ok = cntrl1 & VC4_HDMI_CEC_TX_STATUS_GOOD;
+	cntrl1 &= ~VC4_HDMI_CEC_START_XMIT_BEGIN;
+	HDMI_WRITE(HDMI_CEC_CNTRL_1, cntrl1);
+
+	return IRQ_WAKE_THREAD;
+}
+
+static irqreturn_t vc4_cec_irq_handler_rx_bare(int irq, void *priv)
+{
+	struct vc4_hdmi *vc4_hdmi = priv;
+	u32 cntrl1;
+
+	vc4_hdmi->cec_rx_msg.len = 0;
+	cntrl1 = HDMI_READ(HDMI_CEC_CNTRL_1);
+	vc4_cec_read_msg(vc4_hdmi, cntrl1);
+	cntrl1 |= VC4_HDMI_CEC_CLEAR_RECEIVE_OFF;
+	HDMI_WRITE(HDMI_CEC_CNTRL_1, cntrl1);
+	cntrl1 &= ~VC4_HDMI_CEC_CLEAR_RECEIVE_OFF;
+
+	HDMI_WRITE(HDMI_CEC_CNTRL_1, cntrl1);
+
+	return IRQ_WAKE_THREAD;
+}
+
 static irqreturn_t vc4_cec_irq_handler(int irq, void *priv)
 {
 	struct vc4_hdmi *vc4_hdmi = priv;
 	u32 stat = HDMI_READ(HDMI_CEC_CPU_STATUS);
-	u32 cntrl1, cntrl5;
+	irqreturn_t ret;
+	u32 cntrl5;
 
 	if (!(stat & VC4_HDMI_CPU_CEC))
 		return IRQ_NONE;
-	vc4_hdmi->cec_rx_msg.len = 0;
-	cntrl1 = HDMI_READ(HDMI_CEC_CNTRL_1);
+
 	cntrl5 = HDMI_READ(HDMI_CEC_CNTRL_5);
 	vc4_hdmi->cec_irq_was_rx = cntrl5 & VC4_HDMI_CEC_RX_CEC_INT;
-	if (vc4_hdmi->cec_irq_was_rx) {
-		vc4_cec_read_msg(vc4_hdmi, cntrl1);
-		cntrl1 |= VC4_HDMI_CEC_CLEAR_RECEIVE_OFF;
-		HDMI_WRITE(HDMI_CEC_CNTRL_1, cntrl1);
-		cntrl1 &= ~VC4_HDMI_CEC_CLEAR_RECEIVE_OFF;
-	} else {
-		vc4_hdmi->cec_tx_ok = cntrl1 & VC4_HDMI_CEC_TX_STATUS_GOOD;
-		cntrl1 &= ~VC4_HDMI_CEC_START_XMIT_BEGIN;
-	}
-	HDMI_WRITE(HDMI_CEC_CNTRL_1, cntrl1);
-	HDMI_WRITE(HDMI_CEC_CPU_CLEAR, VC4_HDMI_CPU_CEC);
+	if (vc4_hdmi->cec_irq_was_rx)
+		ret = vc4_cec_irq_handler_rx_bare(irq, priv);
+	else
+		ret = vc4_cec_irq_handler_tx_bare(irq, priv);
 
-	return IRQ_WAKE_THREAD;
+	HDMI_WRITE(HDMI_CEC_CPU_CLEAR, VC4_HDMI_CPU_CEC);
+	return ret;
 }
 
 static int vc4_hdmi_cec_adap_enable(struct cec_adapter *adap, bool enable)
