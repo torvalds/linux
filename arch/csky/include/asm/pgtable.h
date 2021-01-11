@@ -63,18 +63,20 @@
  * read. Also, write permissions imply read permissions. This is the closest
  * we can get by reasonable means..
  */
-#define PAGE_NONE	__pgprot(_PAGE_PRESENT | _CACHE_CACHED)
-#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
+#define _PAGE_BASE	(_PAGE_PRESENT | _PAGE_ACCESSED)
+
+#define PAGE_NONE	__pgprot(_PAGE_BASE | _CACHE_CACHED)
+#define PAGE_SHARED	__pgprot(_PAGE_BASE | _PAGE_READ | _PAGE_WRITE | \
 				_CACHE_CACHED)
-#define PAGE_COPY	__pgprot(_PAGE_PRESENT | _PAGE_READ | _CACHE_CACHED)
-#define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_READ | _CACHE_CACHED)
-#define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE | \
+#define PAGE_COPY	__pgprot(_PAGE_BASE | _PAGE_READ | _CACHE_CACHED)
+#define PAGE_READONLY	__pgprot(_PAGE_BASE | _PAGE_READ | _CACHE_CACHED)
+#define PAGE_KERNEL	__pgprot(_PAGE_BASE | __READABLE | __WRITEABLE | \
 				_PAGE_GLOBAL | _CACHE_CACHED)
-#define PAGE_USERIO	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
+#define PAGE_USERIO	__pgprot(_PAGE_BASE | _PAGE_READ | _PAGE_WRITE | \
 				_CACHE_CACHED)
 
 #define _PAGE_IOREMAP \
-	(_PAGE_PRESENT | __READABLE | __WRITEABLE | _PAGE_GLOBAL | \
+	(_PAGE_BASE | __READABLE | __WRITEABLE | _PAGE_GLOBAL | \
 	 _CACHE_UNCACHED | _PAGE_SO)
 
 #define __P000	PAGE_NONE
