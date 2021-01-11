@@ -276,6 +276,13 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 		}
 	}
 
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
+		drm_WARN_ON(&dev_priv->drm, src_x > 8191 || src_y > 4095);
+	} else if (INTEL_GEN(dev_priv) >= 4 &&
+		   fb->modifier == I915_FORMAT_MOD_X_TILED) {
+		drm_WARN_ON(&dev_priv->drm, src_x > 4095 || src_y > 4095);
+	}
+
 	plane_state->color_plane[0].offset = offset;
 	plane_state->color_plane[0].x = src_x;
 	plane_state->color_plane[0].y = src_y;

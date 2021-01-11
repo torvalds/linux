@@ -3089,6 +3089,8 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 		}
 	}
 
+	drm_WARN_ON(&dev_priv->drm, x > 8191 || y > 8191);
+
 	plane_state->color_plane[0].offset = offset;
 	plane_state->color_plane[0].x = x;
 	plane_state->color_plane[0].y = y;
@@ -3160,6 +3162,8 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 			return -EINVAL;
 		}
 	}
+
+	drm_WARN_ON(&i915->drm, x > 8191 || y > 8191);
 
 	plane_state->color_plane[uv_plane].offset = offset;
 	plane_state->color_plane[uv_plane].x = x;
