@@ -282,6 +282,7 @@ struct charger_platform_data {
 	int sample_res;
 	int otg5v_suspend_enable;
 	bool extcon;
+	int gate_function_disable;
 };
 
 struct rk817_charger {
@@ -1306,7 +1307,9 @@ static void rk817_charge_pre_init(struct rk817_charger *charge)
 		rk817_charge_otg_disable(charge);
 	rk817_charge_field_write(charge, OTG_EN, OTG_DISABLE);
 	rk817_charge_set_otg_in(charge, OFFLINE);
-	rk817_charge_sys_can_sd_disable(charge);
+
+	if (!charge->pdata->gate_function_disable)
+		rk817_charge_sys_can_sd_disable(charge);
 	rk817_charge_usb_to_sys_enable(charge);
 	rk817_charge_enable_charge(charge);
 
@@ -1419,6 +1422,11 @@ static int rk817_charge_parse_dt(struct rk817_charger *charge)
 		pdata->otg5v_suspend_enable = 1;
 		dev_err(dev, "otg5v_suspend_enable missing!\n");
 	}
+
+	ret = of_property_read_u32(np, "gate_function_disable",
+				   &pdata->gate_function_disable);
+	if (ret < 0)
+		dev_err(dev, "gate_function_disable missing!\n");
 
 	if (!is_battery_exist(charge))
 		pdata->virtual_power = 1;
