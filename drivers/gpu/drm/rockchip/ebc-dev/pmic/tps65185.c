@@ -116,6 +116,7 @@ struct papyrus_sess {
 	uint8_t dwnseq0;
 	uint8_t dwnseq1;
 
+	struct gpio_desc *pwr_en_pin;
 	struct gpio_desc *pwr_up_pin;
 	struct gpio_desc *wake_up_pin;
 	struct gpio_desc *vcom_ctl_pin;
@@ -305,6 +306,10 @@ static int papyrus_hw_init(struct papyrus_sess *sess)
 {
 	int stat = 0;
 
+	if (!IS_ERR_OR_NULL(sess->pwr_en_pin)) {
+		gpiod_direction_output(sess->pwr_en_pin, 1);
+		usleep_range(10 * 1000, 11 * 1000);
+	}
 	gpiod_direction_output(sess->wake_up_pin, 0);
 	/* wait to reset papyrus */
 	msleep(PAPYRUS_SLEEP_MINIMUM_MS);
@@ -435,12 +440,18 @@ static void papyrus_pm_sleep(struct ebc_pmic *pmic)
 
 	gpiod_direction_output(s->vcom_ctl_pin, 0);
 	gpiod_direction_output(s->wake_up_pin, 0);
+	if (!IS_ERR_OR_NULL(s->pwr_en_pin))
+		gpiod_direction_output(s->pwr_en_pin, 0);
 }
 
 static void papyrus_pm_resume(struct ebc_pmic *pmic)
 {
 	struct papyrus_sess *s = (struct papyrus_sess *)pmic->drvpar;
 
+	if (!IS_ERR_OR_NULL(s->pwr_en_pin)) {
+		gpiod_direction_output(s->pwr_en_pin, 1);
+		usleep_range(10 * 1000, 11 * 1000);
+	}
 	gpiod_direction_output(s->wake_up_pin, 1);
 	gpiod_direction_output(s->vcom_ctl_pin, 1);
 }
@@ -458,6 +469,11 @@ static int papyrus_probe(struct ebc_pmic *pmic, struct i2c_client *client)
 	sess->client = client;
 	mutex_init(&sess->power_lock);
 	papyrus_hw_arg_init(sess);
+
+	sess->pwr_en_pin = devm_gpiod_get_optional(&client->dev, "poweren", GPIOD_OUT_HIGH);
+	if (IS_ERR_OR_NULL(sess->pwr_en_pin)) {
+		dev_err(&client->dev, "tsp65185: failed to find poweren pin, no defined\n");
+	}
 
 	sess->wake_up_pin = devm_gpiod_get_optional(&client->dev, "wakeup", GPIOD_OUT_HIGH);
 	if (IS_ERR_OR_NULL(sess->wake_up_pin)) {
