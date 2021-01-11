@@ -495,6 +495,50 @@ static void i9xx_disable_plane(struct intel_plane *plane,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
+static void
+g4x_primary_async_flip(struct intel_plane *plane,
+		       const struct intel_crtc_state *crtc_state,
+		       const struct intel_plane_state *plane_state,
+		       bool async_flip)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	u32 dspcntr = plane_state->ctl | i9xx_plane_ctl_crtc(crtc_state);
+	u32 dspaddr_offset = plane_state->color_plane[0].offset;
+	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
+	unsigned long irqflags;
+
+	if (async_flip)
+		dspcntr |= DISPPLANE_ASYNC_FLIP;
+
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+	intel_de_write_fw(dev_priv, DSPCNTR(i9xx_plane), dspcntr);
+	intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane),
+			  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+}
+
+static void
+bdw_primary_enable_flip_done(struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
+
+	spin_lock_irq(&i915->irq_lock);
+	bdw_enable_pipe_irq(i915, pipe, GEN8_PIPE_PRIMARY_FLIP_DONE);
+	spin_unlock_irq(&i915->irq_lock);
+}
+
+static void
+bdw_primary_disable_flip_done(struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
+
+	spin_lock_irq(&i915->irq_lock);
+	bdw_disable_pipe_irq(i915, pipe, GEN8_PIPE_PRIMARY_FLIP_DONE);
+	spin_unlock_irq(&i915->irq_lock);
+}
+
 static bool i9xx_plane_get_hw_state(struct intel_plane *plane,
 				    enum pipe *pipe)
 {
@@ -707,6 +751,13 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	plane->disable_plane = i9xx_disable_plane;
 	plane->get_hw_state = i9xx_plane_get_hw_state;
 	plane->check_plane = i9xx_plane_check;
+
+	if (IS_BROADWELL(dev_priv)) {
+		plane->need_async_flip_disable_wa = true;
+		plane->async_flip = g4x_primary_async_flip;
+		plane->enable_flip_done = bdw_primary_enable_flip_done;
+		plane->disable_flip_done = bdw_primary_disable_flip_done;
+	}
 
 	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
 		ret = drm_universal_plane_init(&dev_priv->drm, &plane->base,

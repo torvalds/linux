@@ -1317,6 +1317,11 @@ static unsigned int intel_linear_alignment(const struct drm_i915_private *dev_pr
 		return 0;
 }
 
+static bool has_async_flips(struct drm_i915_private *i915)
+{
+	return INTEL_GEN(i915) >= 9 || IS_BROADWELL(i915);
+}
+
 static unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
 					 int color_plane)
 {
@@ -1331,7 +1336,7 @@ static unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
 	case DRM_FORMAT_MOD_LINEAR:
 		return intel_linear_alignment(dev_priv);
 	case I915_FORMAT_MOD_X_TILED:
-		if (INTEL_GEN(dev_priv) >= 9)
+		if (has_async_flips(dev_priv))
 			return 256 * 1024;
 		return 0;
 	case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
@@ -14784,8 +14789,7 @@ static void intel_mode_config_init(struct drm_i915_private *i915)
 
 	mode_config->funcs = &intel_mode_funcs;
 
-	if (INTEL_GEN(i915) >= 9)
-		mode_config->async_page_flip = true;
+	mode_config->async_page_flip = has_async_flips(i915);
 
 	/*
 	 * Maximum framebuffer dimensions, chosen to match

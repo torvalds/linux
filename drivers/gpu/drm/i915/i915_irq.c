@@ -2380,6 +2380,14 @@ static void gen11_dsi_te_interrupt_handler(struct drm_i915_private *dev_priv,
 	intel_uncore_write(&dev_priv->uncore, DSI_INTR_IDENT_REG(port), tmp);
 }
 
+static u32 gen8_de_pipe_flip_done_mask(struct drm_i915_private *i915)
+{
+	if (INTEL_GEN(i915) >= 9)
+		return GEN9_PIPE_PLANE1_FLIP_DONE;
+	else
+		return GEN8_PIPE_PRIMARY_FLIP_DONE;
+}
+
 static irqreturn_t
 gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 {
@@ -2482,7 +2490,7 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 		if (iir & GEN8_PIPE_VBLANK)
 			intel_handle_vblank(dev_priv, pipe);
 
-		if (iir & GEN9_PIPE_PLANE1_FLIP_DONE)
+		if (iir & gen8_de_pipe_flip_done_mask(dev_priv))
 			flip_done_handler(dev_priv, pipe);
 
 		if (iir & GEN8_PIPE_CDCLK_CRC_DONE)
@@ -3101,12 +3109,9 @@ void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 				     u8 pipe_mask)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
-
-	u32 extra_ier = GEN8_PIPE_VBLANK | GEN8_PIPE_FIFO_UNDERRUN;
+	u32 extra_ier = GEN8_PIPE_VBLANK | GEN8_PIPE_FIFO_UNDERRUN |
+		gen8_de_pipe_flip_done_mask(dev_priv);
 	enum pipe pipe;
-
-	if (INTEL_GEN(dev_priv) >= 9)
-		extra_ier |= GEN9_PIPE_PLANE1_FLIP_DONE;
 
 	spin_lock_irq(&dev_priv->irq_lock);
 
@@ -3679,11 +3684,9 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 			de_port_masked |= DSI0_TE | DSI1_TE;
 	}
 
-	de_pipe_enables = de_pipe_masked | GEN8_PIPE_VBLANK |
-					   GEN8_PIPE_FIFO_UNDERRUN;
-
-	if (INTEL_GEN(dev_priv) >= 9)
-		de_pipe_enables |= GEN9_PIPE_PLANE1_FLIP_DONE;
+	de_pipe_enables = de_pipe_masked |
+		GEN8_PIPE_VBLANK | GEN8_PIPE_FIFO_UNDERRUN |
+		gen8_de_pipe_flip_done_mask(dev_priv);
 
 	de_port_enables = de_port_masked;
 	if (IS_GEN9_LP(dev_priv))
