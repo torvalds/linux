@@ -6841,6 +6841,7 @@ static int io_sq_thread(void *data)
 
 		if (ret & SQT_SPIN) {
 			io_run_task_work();
+			io_sq_thread_drop_mm();
 			cond_resched();
 		} else if (ret == SQT_IDLE) {
 			if (kthread_should_park())
@@ -6855,6 +6856,7 @@ static int io_sq_thread(void *data)
 	}
 
 	io_run_task_work();
+	io_sq_thread_drop_mm();
 
 	if (cur_css)
 		io_sq_thread_unassociate_blkcg();
