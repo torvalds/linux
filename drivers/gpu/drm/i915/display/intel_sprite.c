@@ -958,6 +958,28 @@ skl_plane_get_hw_state(struct intel_plane *plane,
 	return ret;
 }
 
+static void
+skl_plane_enable_flip_done(struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
+
+	spin_lock_irq(&i915->irq_lock);
+	bdw_enable_pipe_irq(i915, pipe, GEN9_PIPE_PLANE_FLIP_DONE(plane->id));
+	spin_unlock_irq(&i915->irq_lock);
+}
+
+static void
+skl_plane_disable_flip_done(struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
+
+	spin_lock_irq(&i915->irq_lock);
+	bdw_disable_pipe_irq(i915, pipe, GEN9_PIPE_PLANE_FLIP_DONE(plane->id));
+	spin_unlock_irq(&i915->irq_lock);
+}
+
 static void i9xx_plane_linear_gamma(u16 gamma[8])
 {
 	/* The points are not evenly spaced. */
@@ -3291,8 +3313,11 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	plane->check_plane = skl_plane_check;
 	plane->min_cdclk = skl_plane_min_cdclk;
 
-	if (plane_id == PLANE_PRIMARY)
+	if (plane_id == PLANE_PRIMARY) {
 		plane->async_flip = skl_plane_async_flip;
+		plane->enable_flip_done = skl_plane_enable_flip_done;
+		plane->disable_flip_done = skl_plane_disable_flip_done;
+	}
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		formats = icl_get_plane_formats(dev_priv, pipe,

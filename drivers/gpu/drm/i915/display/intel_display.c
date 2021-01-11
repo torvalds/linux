@@ -4786,6 +4786,42 @@ static void intel_post_plane_update(struct intel_atomic_state *state,
 		icl_wa_scalerclkgating(dev_priv, pipe, false);
 }
 
+static void intel_crtc_enable_flip_done(struct intel_atomic_state *state,
+					struct intel_crtc *crtc)
+{
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	u8 update_planes = crtc_state->update_planes;
+	const struct intel_plane_state *plane_state;
+	struct intel_plane *plane;
+	int i;
+
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
+		if (plane->enable_flip_done &&
+		    plane->pipe == crtc->pipe &&
+		    update_planes & BIT(plane->id))
+			plane->enable_flip_done(plane);
+	}
+}
+
+static void intel_crtc_disable_flip_done(struct intel_atomic_state *state,
+					 struct intel_crtc *crtc)
+{
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	u8 update_planes = crtc_state->update_planes;
+	const struct intel_plane_state *plane_state;
+	struct intel_plane *plane;
+	int i;
+
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
+		if (plane->disable_flip_done &&
+		    plane->pipe == crtc->pipe &&
+		    update_planes & BIT(plane->id))
+			plane->disable_flip_done(plane);
+	}
+}
+
 static void skl_disable_async_flip_wa(struct intel_atomic_state *state,
 				      struct intel_crtc *crtc,
 				      const struct intel_crtc_state *new_crtc_state)
@@ -12210,7 +12246,7 @@ static void kill_bigjoiner_slave(struct intel_atomic_state *state,
  * Async flip can only change the plane surface address, so anything else
  * changing is rejected from the intel_atomic_check_async() function.
  * Once this check is cleared, flip done interrupt is enabled using
- * the skl_enable_flip_done() function.
+ * the intel_crtc_enable_flip_done() function.
  *
  * As soon as the surface address register is written, flip done interrupt is
  * generated and the requested events are sent to the usersapce in the interrupt
@@ -13155,7 +13191,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		if (new_crtc_state->uapi.async_flip)
-			skl_enable_flip_done(crtc);
+			intel_crtc_enable_flip_done(state, crtc);
 	}
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
@@ -13180,7 +13216,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		if (new_crtc_state->uapi.async_flip)
-			skl_disable_flip_done(crtc);
+			intel_crtc_disable_flip_done(state, crtc);
 
 		if (new_crtc_state->hw.active &&
 		    !intel_crtc_needs_modeset(new_crtc_state) &&

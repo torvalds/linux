@@ -1268,6 +1268,8 @@ struct intel_plane {
 	void (*async_flip)(struct intel_plane *plane,
 			   const struct intel_crtc_state *crtc_state,
 			   const struct intel_plane_state *plane_state);
+	void (*enable_flip_done)(struct intel_plane *plane);
+	void (*disable_flip_done)(struct intel_plane *plane);
 };
 
 struct intel_watermark_params {
