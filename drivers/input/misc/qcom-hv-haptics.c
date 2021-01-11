@@ -2500,8 +2500,8 @@ static int haptics_hw_init(struct haptics_chip *chip)
 static irqreturn_t fifo_empty_irq_handler(int irq, void *data)
 {
 	struct haptics_chip *chip = data;
-	struct fifo_cfg *fifo = chip->play.effect->fifo;
-	struct fifo_play_status *status = &chip->play.fifo_status;
+	struct fifo_cfg *fifo;
+	struct fifo_play_status *status;
 	u32 samples_left;
 	u8 *samples, val;
 	int rc, num;
@@ -2515,7 +2515,8 @@ static irqreturn_t fifo_empty_irq_handler(int irq, void *data)
 		return IRQ_HANDLED;
 
 	mutex_lock(&chip->play.lock);
-	if (atomic_read(&chip->play.fifo_status.written_done) == 1) {
+	status = &chip->play.fifo_status;
+	if (atomic_read(&status->written_done) == 1) {
 		/*
 		 * Check the FIFO real time fill status before stopping
 		 * play to make sure that all FIFO samples can be played
@@ -2540,6 +2541,10 @@ static irqreturn_t fifo_empty_irq_handler(int irq, void *data)
 			goto unlock;
 		}
 
+		if (!chip->play.effect)
+			goto unlock;
+
+		fifo = chip->play.effect->fifo;
 		if (!fifo || !fifo->samples) {
 			dev_err(chip->dev, "no FIFO samples available\n");
 			goto unlock;
