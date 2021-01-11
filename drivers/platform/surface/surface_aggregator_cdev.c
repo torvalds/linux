@@ -66,8 +66,8 @@ static long ssam_cdev_request(struct ssam_cdev *cdev, unsigned long arg)
 {
 	struct ssam_cdev_request __user *r;
 	struct ssam_cdev_request rqst;
-	struct ssam_request spec;
-	struct ssam_response rsp;
+	struct ssam_request spec = {};
+	struct ssam_response rsp = {};
 	const void __user *plddata;
 	void __user *rspdata;
 	int status = 0, ret = 0, tmp;
