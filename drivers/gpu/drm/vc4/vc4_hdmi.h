@@ -64,6 +64,13 @@ struct vc4_hdmi_variant {
 	/* The BCM2711 cannot deal with odd horizontal pixel timings */
 	bool unsupported_odd_h_timings;
 
+	/*
+	 * The BCM2711 CEC/hotplug IRQ controller is shared between the
+	 * two HDMI controllers, and we have a proper irqchip driver for
+	 * it.
+	 */
+	bool external_irq_controller;
+
 	/* Callback to get the resources (memory region, interrupts,
 	 * clocks, etc) for that variant.
 	 */
