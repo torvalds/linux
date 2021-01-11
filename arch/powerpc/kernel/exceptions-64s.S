@@ -2993,6 +2993,25 @@ TRAMP_REAL_BEGIN(entry_flush_fallback)
 	ld	r11,PACA_EXRFI+EX_R11(r13)
 	blr
 
+/*
+ * The SCV entry flush happens with interrupts enabled, so it must disable
+ * to prevent EXRFI being clobbered by NMIs (e.g., soft_nmi_common). r10
+ * (containing LR) does not need to be preserved here because scv entry
+ * puts 0 in the pt_regs, CTR can be clobbered for the same reason.
+ */
+TRAMP_REAL_BEGIN(scv_entry_flush_fallback)
+	li	r10,0
+	mtmsrd	r10,1
+	lbz	r10,PACAIRQHAPPENED(r13)
+	ori	r10,r10,PACA_IRQ_HARD_DIS
+	stb	r10,PACAIRQHAPPENED(r13)
+	std	r11,PACA_EXRFI+EX_R11(r13)
+	L1D_DISPLACEMENT_FLUSH
+	ld	r11,PACA_EXRFI+EX_R11(r13)
+	li	r10,MSR_RI
+	mtmsrd	r10,1
+	blr
+
 TRAMP_REAL_BEGIN(rfi_flush_fallback)
 	SET_SCRATCH0(r13);
 	GET_PACA(r13);
