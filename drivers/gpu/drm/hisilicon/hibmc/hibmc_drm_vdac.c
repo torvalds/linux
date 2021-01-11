@@ -89,6 +89,7 @@ int hibmc_vdac_init(struct hibmc_drm_private *priv)
 	struct drm_device *dev = &priv->dev;
 	struct hibmc_connector *hibmc_connector = &priv->connector;
 	struct drm_encoder *encoder = &priv->encoder;
+	struct drm_crtc *crtc = &priv->crtc;
 	struct drm_connector *connector = &hibmc_connector->base;
 	int ret;
 
@@ -98,7 +99,7 @@ int hibmc_vdac_init(struct hibmc_drm_private *priv)
 		return ret;
 	}
 
-	encoder->possible_crtcs = 0x1;
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
 	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_DAC);
 	if (ret) {
 		drm_err(dev, "failed to init encoder: %d\n", ret);
