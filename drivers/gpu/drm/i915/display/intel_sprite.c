@@ -782,6 +782,8 @@ skl_plane_async_flip(struct intel_plane *plane,
 
 	plane_ctl |= skl_plane_ctl_crtc(crtc_state);
 
+	plane_ctl |= PLANE_CTL_ASYNC_FLIP;
+
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	intel_de_write_fw(dev_priv, PLANE_CTL(pipe, plane_id), plane_ctl);
