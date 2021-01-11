@@ -95,6 +95,10 @@
 #define PCIE_GLI_9763E_MMC_CTRL  0x960
 #define   GLI_9763E_HS400_SLOW     BIT(3)
 
+#define PCIE_GLI_9763E_CLKRXDLY  0x934
+#define   GLI_9763E_HS400_RXDLY    GENMASK(31, 28)
+#define   GLI_9763E_HS400_RXDLY_5  0x5
+
 #define SDHCI_GLI_9763E_CQE_BASE_ADDR	 0x200
 #define GLI_9763E_CQE_TRNS_MODE	   (SDHCI_TRNS_MULTI | \
 				    SDHCI_TRNS_BLK_CNT_EN | \
@@ -801,6 +805,11 @@ static void gli_set_gl9763e(struct sdhci_pci_slot *slot)
 	/* set ASPM L1 entry delay to 260us */
 	value |= FIELD_PREP(GLI_9763E_CFG2_L1DLY, GLI_9763E_CFG2_L1DLY_MAX);
 	pci_write_config_dword(pdev, PCIE_GLI_9763E_CFG2, value);
+
+	pci_read_config_dword(pdev, PCIE_GLI_9763E_CLKRXDLY, &value);
+	value &= ~GLI_9763E_HS400_RXDLY;
+	value |= FIELD_PREP(GLI_9763E_HS400_RXDLY, GLI_9763E_HS400_RXDLY_5);
+	pci_write_config_dword(pdev, PCIE_GLI_9763E_CLKRXDLY, value);
 
 	pci_read_config_dword(pdev, PCIE_GLI_9763E_VHS, &value);
 	value &= ~GLI_9763E_VHS_REV;
