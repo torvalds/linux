@@ -1319,7 +1319,8 @@ static unsigned int intel_linear_alignment(const struct drm_i915_private *dev_pr
 
 static bool has_async_flips(struct drm_i915_private *i915)
 {
-	return INTEL_GEN(i915) >= 9 || IS_BROADWELL(i915);
+	return INTEL_GEN(i915) >= 9 || IS_BROADWELL(i915) ||
+		IS_HASWELL(i915) || IS_IVYBRIDGE(i915);
 }
 
 static unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,

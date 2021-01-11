@@ -539,6 +539,26 @@ bdw_primary_disable_flip_done(struct intel_plane *plane)
 	spin_unlock_irq(&i915->irq_lock);
 }
 
+static void
+ivb_primary_enable_flip_done(struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+
+	spin_lock_irq(&i915->irq_lock);
+	ilk_enable_display_irq(i915, DE_PLANE_FLIP_DONE_IVB(plane->i9xx_plane));
+	spin_unlock_irq(&i915->irq_lock);
+}
+
+static void
+ivb_primary_disable_flip_done(struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+
+	spin_lock_irq(&i915->irq_lock);
+	ilk_disable_display_irq(i915, DE_PLANE_FLIP_DONE_IVB(plane->i9xx_plane));
+	spin_unlock_irq(&i915->irq_lock);
+}
+
 static bool i9xx_plane_get_hw_state(struct intel_plane *plane,
 				    enum pipe *pipe)
 {
@@ -757,6 +777,10 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		plane->async_flip = g4x_primary_async_flip;
 		plane->enable_flip_done = bdw_primary_enable_flip_done;
 		plane->disable_flip_done = bdw_primary_disable_flip_done;
+	} else if (IS_HASWELL(dev_priv) || IS_IVYBRIDGE(dev_priv)) {
+		plane->async_flip = g4x_primary_async_flip;
+		plane->enable_flip_done = ivb_primary_enable_flip_done;
+		plane->disable_flip_done = ivb_primary_disable_flip_done;
 	}
 
 	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))

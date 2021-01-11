@@ -2104,6 +2104,9 @@ static void ivb_display_irq_handler(struct drm_i915_private *dev_priv,
 	for_each_pipe(dev_priv, pipe) {
 		if (de_iir & DE_PIPE_VBLANK_IVB(pipe))
 			intel_handle_vblank(dev_priv, pipe);
+
+		if (de_iir & DE_PLANE_FLIP_DONE_IVB(pipe))
+			flip_done_handler(dev_priv, pipe);
 	}
 
 	/* check event from PCH */
@@ -3587,6 +3590,9 @@ static void ilk_irq_postinstall(struct drm_i915_private *dev_priv)
 				DE_PCH_EVENT_IVB | DE_AUX_CHANNEL_A_IVB);
 		extra_mask = (DE_PIPEC_VBLANK_IVB | DE_PIPEB_VBLANK_IVB |
 			      DE_PIPEA_VBLANK_IVB | DE_ERR_INT_IVB |
+			      DE_PLANE_FLIP_DONE_IVB(PLANE_C) |
+			      DE_PLANE_FLIP_DONE_IVB(PLANE_B) |
+			      DE_PLANE_FLIP_DONE_IVB(PLANE_A) |
 			      DE_DP_A_HOTPLUG_IVB);
 	} else {
 		display_mask = (DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
