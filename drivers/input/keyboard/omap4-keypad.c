@@ -60,6 +60,8 @@
 	((((dbms) * 1000) / ((1 << ((ptv) + 1)) * (1000000 / 32768))) - 1)
 #define OMAP4_VAL_DEBOUNCINGTIME_16MS					\
 	OMAP4_KEYPAD_DEBOUNCINGTIME_MS(16, OMAP4_KEYPAD_PTV_DIV_128)
+#define OMAP4_KEYPAD_AUTOIDLE_MS	50	/* Approximate measured time */
+#define OMAP4_KEYPAD_IDLE_CHECK_MS	(OMAP4_KEYPAD_AUTOIDLE_MS / 2)
 
 enum {
 	KBD_REVISION_OMAP4 = 0,
@@ -306,6 +308,32 @@ static int omap4_keypad_check_revision(struct device *dev,
 	return 0;
 }
 
+/*
+ * Errata ID i689 "1.32 Keyboard Key Up Event Can Be Missed".
+ * Interrupt may not happen for key-up events. We must clear stuck
+ * key-up events after the keyboard hardware has auto-idled.
+ */
+static int __maybe_unused omap4_keypad_runtime_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct omap4_keypad *keypad_data = platform_get_drvdata(pdev);
+	u32 active;
+
+	active = kbd_readl(keypad_data, OMAP4_KBD_STATEMACHINE);
+	if (active) {
+		pm_runtime_mark_last_busy(dev);
+		return -EBUSY;
+	}
+
+	omap4_keypad_scan_keys(keypad_data, 0);
+
+	return 0;
+}
+
+static const struct dev_pm_ops omap4_keypad_pm_ops = {
+	SET_RUNTIME_PM_OPS(omap4_keypad_runtime_suspend, NULL, NULL)
+};
+
 static void omap4_disable_pm(void *d)
 {
 	pm_runtime_dont_use_autosuspend(d);
@@ -351,6 +379,7 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 		return PTR_ERR(keypad_data->base);
 
 	pm_runtime_use_autosuspend(dev);
+	pm_runtime_set_autosuspend_delay(dev, OMAP4_KEYPAD_IDLE_CHECK_MS);
 	pm_runtime_enable(dev);
 
 	error = devm_add_action_or_reset(dev, omap4_disable_pm, dev);
@@ -463,6 +492,7 @@ static struct platform_driver omap4_keypad_driver = {
 	.driver		= {
 		.name	= "omap4-keypad",
 		.of_match_table = omap_keypad_dt_match,
+		.pm = &omap4_keypad_pm_ops,
 	},
 };
 module_platform_driver(omap4_keypad_driver);
