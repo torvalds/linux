@@ -357,7 +357,7 @@ static void esd_usb2_tx_done_msg(struct esd_usb2_net_priv *priv,
 	if (!msg->msg.txdone.status) {
 		stats->tx_packets++;
 		stats->tx_bytes += context->len;
-		can_get_echo_skb(netdev, context->echo_index);
+		can_get_echo_skb(netdev, context->echo_index, NULL);
 	} else {
 		stats->tx_errors++;
 		can_free_echo_skb(netdev, context->echo_index);

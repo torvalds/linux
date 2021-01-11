@@ -655,7 +655,7 @@ static irqreturn_t sun4i_can_interrupt(int irq, void *dev_id)
 			    readl(priv->base +
 				  SUN4I_REG_RBUF_RBACK_START_ADDR) & 0xf;
 			stats->tx_packets++;
-			can_get_echo_skb(dev, 0);
+			can_get_echo_skb(dev, 0, NULL);
 			netif_wake_queue(dev);
 			can_led_event(dev, CAN_LED_EVENT_TX);
 		}

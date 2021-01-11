@@ -672,7 +672,7 @@ static void ucan_tx_complete_msg(struct ucan_priv *up,
 			/* update statistics */
 			up->netdev->stats.tx_packets++;
 			up->netdev->stats.tx_bytes += dlc;
-			can_get_echo_skb(up->netdev, echo_index);
+			can_get_echo_skb(up->netdev, echo_index, NULL);
 		} else {
 			up->netdev->stats.tx_dropped++;
 			can_free_echo_skb(up->netdev, echo_index);

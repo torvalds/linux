@@ -1044,7 +1044,7 @@ static void rcar_canfd_tx_done(struct net_device *ndev)
 		stats->tx_packets++;
 		stats->tx_bytes += priv->tx_len[sent];
 		priv->tx_len[sent] = 0;
-		can_get_echo_skb(ndev, sent);
+		can_get_echo_skb(ndev, sent, NULL);
 
 		spin_lock_irqsave(&priv->tx_lock, flags);
 		priv->tx_tail++;

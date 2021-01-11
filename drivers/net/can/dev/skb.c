@@ -121,12 +121,13 @@ __can_get_echo_skb(struct net_device *dev, unsigned int idx, u8 *len_ptr,
  * is handled in the device driver. The driver must protect
  * access to priv->echo_skb, if necessary.
  */
-unsigned int can_get_echo_skb(struct net_device *dev, unsigned int idx)
+unsigned int can_get_echo_skb(struct net_device *dev, unsigned int idx,
+			      unsigned int *frame_len_ptr)
 {
 	struct sk_buff *skb;
 	u8 len;
 
-	skb = __can_get_echo_skb(dev, idx, &len, NULL);
+	skb = __can_get_echo_skb(dev, idx, &len, frame_len_ptr);
 	if (!skb)
 		return 0;
 

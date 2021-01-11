@@ -386,7 +386,7 @@ static void rcar_can_tx_done(struct net_device *ndev)
 		stats->tx_bytes += priv->tx_dlc[priv->tx_tail %
 						RCAR_CAN_FIFO_DEPTH];
 		priv->tx_dlc[priv->tx_tail % RCAR_CAN_FIFO_DEPTH] = 0;
-		can_get_echo_skb(ndev, priv->tx_tail % RCAR_CAN_FIFO_DEPTH);
+		can_get_echo_skb(ndev, priv->tx_tail % RCAR_CAN_FIFO_DEPTH, NULL);
 		priv->tx_tail++;
 		netif_wake_queue(ndev);
 	}
