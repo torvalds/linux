@@ -3571,6 +3571,7 @@ qla24xx_abort_iocb(srb_t *sp, struct abort_entry_24xx *abt_iocb)
 	struct srb_iocb *aio = &sp->u.iocb_cmd;
 	scsi_qla_host_t *vha = sp->vha;
 	struct req_que *req = sp->qpair->req;
+	srb_t *orig_sp = sp->cmd_sp;
 
 	memset(abt_iocb, 0, sizeof(struct abort_entry_24xx));
 	abt_iocb->entry_type = ABORT_IOCB_TYPE;
@@ -3587,6 +3588,11 @@ qla24xx_abort_iocb(srb_t *sp, struct abort_entry_24xx *abt_iocb)
 			    aio->u.abt.cmd_hndl);
 	abt_iocb->vp_index = vha->vp_idx;
 	abt_iocb->req_que_no = aio->u.abt.req_que_no;
+
+	/* need to pass original sp */
+	if (orig_sp)
+		qla_nvme_abort_set_option(abt_iocb, orig_sp);
+
 	/* Send the command to the firmware */
 	wmb();
 }

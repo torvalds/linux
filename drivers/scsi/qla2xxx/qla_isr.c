@@ -5,6 +5,7 @@
  */
 #include "qla_def.h"
 #include "qla_target.h"
+#include "qla_gbl.h"
 
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -3431,6 +3432,7 @@ qla24xx_abort_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 {
 	const char func[] = "ABT_IOCB";
 	srb_t *sp;
+	srb_t *orig_sp = NULL;
 	struct srb_iocb *abt;
 
 	sp = qla2x00_get_sp_from_handle(vha, func, req, pkt);
@@ -3438,7 +3440,12 @@ qla24xx_abort_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 		return;
 
 	abt = &sp->u.iocb_cmd;
-	abt->u.abt.comp_status = pkt->nport_handle;
+	abt->u.abt.comp_status = le16_to_cpu(pkt->comp_status);
+	orig_sp = sp->cmd_sp;
+	/* Need to pass original sp */
+	if (orig_sp)
+		qla_nvme_abort_process_comp_status(pkt, orig_sp);
+
 	sp->done(sp, 0);
 }
 

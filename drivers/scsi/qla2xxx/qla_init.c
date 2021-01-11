@@ -136,6 +136,10 @@ static void qla24xx_abort_iocb_timeout(void *data)
 static void qla24xx_abort_sp_done(srb_t *sp, int res)
 {
 	struct srb_iocb *abt = &sp->u.iocb_cmd;
+	srb_t *orig_sp = sp->cmd_sp;
+
+	if (orig_sp)
+		qla_wait_nvme_release_cmd_kref(orig_sp);
 
 	del_timer(&sp->u.iocb_cmd.timer);
 	if (sp->flags & SRB_WAKEUP_ON_COMP)

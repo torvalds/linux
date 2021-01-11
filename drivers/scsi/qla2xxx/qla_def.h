@@ -2101,6 +2101,7 @@ typedef struct {
 #define CS_COMPLETE_CHKCOND	0x30	/* Error? */
 #define CS_IOCB_ERROR		0x31	/* Generic error for IOCB request
 					   failure */
+#define CS_REJECT_RECEIVED	0x4E	/* Reject received */
 #define CS_BAD_PAYLOAD		0x80	/* Driver defined */
 #define CS_UNKNOWN		0x81	/* Driver defined */
 #define CS_RETRY		0x82	/* Driver defined */
@@ -4150,6 +4151,17 @@ struct qla_hw_data {
 /* Bit 21 of fw_attributes decides the MCTP capabilities */
 #define IS_MCTP_CAPABLE(ha)	(IS_QLA2031(ha) && \
 				((ha)->fw_attributes_ext[0] & BIT_0))
+#define QLA_ABTS_FW_ENABLED(_ha)       ((_ha)->fw_attributes_ext[0] & BIT_14)
+#define QLA_SRB_NVME_LS(_sp) ((_sp)->type == SRB_NVME_LS)
+#define QLA_SRB_NVME_CMD(_sp) ((_sp)->type == SRB_NVME_CMD)
+#define QLA_NVME_IOS(_sp) (QLA_SRB_NVME_CMD(_sp) || QLA_SRB_NVME_LS(_sp))
+#define QLA_LS_ABTS_WAIT_ENABLED(_sp) \
+	(QLA_SRB_NVME_LS(_sp) && QLA_ABTS_FW_ENABLED(_sp->fcport->vha->hw))
+#define QLA_CMD_ABTS_WAIT_ENABLED(_sp) \
+	(QLA_SRB_NVME_CMD(_sp) && QLA_ABTS_FW_ENABLED(_sp->fcport->vha->hw))
+#define QLA_ABTS_WAIT_ENABLED(_sp) \
+	(QLA_NVME_IOS(_sp) && QLA_ABTS_FW_ENABLED(_sp->fcport->vha->hw))
+
 #define IS_PI_UNINIT_CAPABLE(ha)	(IS_QLA83XX(ha) || IS_QLA27XX(ha))
 #define IS_PI_IPGUARD_CAPABLE(ha)	(IS_QLA83XX(ha) || IS_QLA27XX(ha))
 #define IS_PI_DIFB_DIX0_CAPABLE(ha)	(0)

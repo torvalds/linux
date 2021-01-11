@@ -327,6 +327,11 @@ MODULE_PARM_DESC(ql2xrdpenable,
 		"Enables RDP responses. "
 		"0 - no RDP responses (default). "
 		"1 - provide RDP responses.");
+int ql2xabts_wait_nvme = 1;
+module_param(ql2xabts_wait_nvme, int, 0444);
+MODULE_PARM_DESC(ql2xabts_wait_nvme,
+		 "To wait for ABTS response on I/O timeouts for NVMe. (default: 1)");
+
 
 static void qla2x00_clear_drv_active(struct qla_hw_data *);
 static void qla2x00_free_device(scsi_qla_host_t *);

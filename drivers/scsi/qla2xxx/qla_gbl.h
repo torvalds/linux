@@ -177,6 +177,7 @@ extern int ql2xexlogins;
 extern int ql2xdifbundlinginternalbuffers;
 extern int ql2xfulldump_on_mpifail;
 extern int ql2xenforce_iocb_limit;
+extern int ql2xabts_wait_nvme;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
@@ -941,6 +942,11 @@ int qla2x00_set_data_rate(scsi_qla_host_t *vha, uint16_t mode);
 extern void qla24xx_process_purex_list(struct purex_list *);
 extern void qla2x00_dfs_create_rport(scsi_qla_host_t *vha, struct fc_port *fp);
 extern void qla2x00_dfs_remove_rport(scsi_qla_host_t *vha, struct fc_port *fp);
+extern void qla_wait_nvme_release_cmd_kref(srb_t *sp);
+extern void qla_nvme_abort_set_option
+		(struct abort_entry_24xx *abt, srb_t *sp);
+extern void qla_nvme_abort_process_comp_status
+		(struct abort_entry_24xx *abt, srb_t *sp);
 
 /* nvme.c */
 void qla_nvme_unregister_remote_port(struct fc_port *fcport);
