@@ -932,8 +932,9 @@ Description:	This entry could be used to set or show the UFS device
 		5   UFS device will be powered off, UIC link will
 		    be powered off
 		6   UFS device will be moved to deep sleep, UIC link
-		will be powered off. Note, deep sleep might not be
-		supported in which case this value will not be accepted
+		    will be powered off. Note, deep sleep might not be
+		    supported in which case this value will not be
+		    accepted
 		==  ====================================================
 
 What:		/sys/bus/platform/drivers/ufshcd/*/rpm_target_dev_state
@@ -973,8 +974,9 @@ Description:	This entry could be used to set or show the UFS device
 		5   UFS device will be powered off, UIC link will
 		    be powered off
 		6   UFS device will be moved to deep sleep, UIC link
-		will be powered off. Note, deep sleep might not be
-		supported in which case this value will not be accepted
+		    will be powered off. Note, deep sleep might not be
+		    supported in which case this value will not be
+		    accepted
 		==  ====================================================
 
 What:		/sys/bus/platform/drivers/ufshcd/*/spm_target_dev_state
