@@ -38,3 +38,53 @@ u8 can_fd_len2dlc(u8 len)
 	return len2dlc[len];
 }
 EXPORT_SYMBOL_GPL(can_fd_len2dlc);
+
+/**
+ * can_skb_get_frame_len() - Calculate the CAN Frame length in bytes
+ * 	of a given skb.
+ * @skb: socket buffer of a CAN message.
+ *
+ * Do a rough calculation: bit stuffing is ignored and length in bits
+ * is rounded up to a length in bytes.
+ *
+ * Rationale: this function is to be used for the BQL functions
+ * (netdev_sent_queue() and netdev_completed_queue()) which expect a
+ * value in bytes. Just using skb->len is insufficient because it will
+ * return the constant value of CAN(FD)_MTU. Doing the bit stuffing
+ * calculation would be too expensive in term of computing resources
+ * for no noticeable gain.
+ *
+ * Remarks: The payload of CAN FD frames with BRS flag are sent at a
+ * different bitrate. Currently, the can-utils canbusload tool does
+ * not support CAN-FD yet and so we could not run any benchmark to
+ * measure the impact. There might be possible improvement here.
+ *
+ * Return: length in bytes.
+ */
+unsigned int can_skb_get_frame_len(const struct sk_buff *skb)
+{
+	const struct canfd_frame *cf = (const struct canfd_frame *)skb->data;
+	u8 len;
+
+	if (can_is_canfd_skb(skb))
+		len = canfd_sanitize_len(cf->len);
+	else if (cf->can_id & CAN_RTR_FLAG)
+		len = 0;
+	else
+		len = cf->len;
+
+	if (can_is_canfd_skb(skb)) {
+		if (cf->can_id & CAN_EFF_FLAG)
+			len += CANFD_FRAME_OVERHEAD_EFF;
+		else
+			len += CANFD_FRAME_OVERHEAD_SFF;
+	} else {
+		if (cf->can_id & CAN_EFF_FLAG)
+			len += CAN_FRAME_OVERHEAD_EFF;
+		else
+			len += CAN_FRAME_OVERHEAD_SFF;
+	}
+
+	return len;
+}
+EXPORT_SYMBOL_GPL(can_skb_get_frame_len);
