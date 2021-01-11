@@ -60,9 +60,51 @@ static inline unsigned stripe_val_u64s(const struct bch_stripe *s)
 }
 
 static inline void *stripe_csum(struct bch_stripe *s,
-				unsigned dev, unsigned csum_idx)
+				unsigned block, unsigned csum_idx)
 {
-	return (void *) s + stripe_csum_offset(s, dev, csum_idx);
+	EBUG_ON(block >= s->nr_blocks);
+	EBUG_ON(csum_idx >= stripe_csums_per_device(s));
+
+	return (void *) s + stripe_csum_offset(s, block, csum_idx);
+}
+
+static inline struct bch_csum stripe_csum_get(struct bch_stripe *s,
+				   unsigned block, unsigned csum_idx)
+{
+	struct bch_csum csum = { 0 };
+
+	memcpy(&csum, stripe_csum(s, block, csum_idx), bch_crc_bytes[s->csum_type]);
+	return csum;
+}
+
+static inline void stripe_csum_set(struct bch_stripe *s,
+				   unsigned block, unsigned csum_idx,
+				   struct bch_csum csum)
+{
+	memcpy(stripe_csum(s, block, csum_idx), &csum, bch_crc_bytes[s->csum_type]);
+}
+
+static inline bool __bch2_ptr_matches_stripe(const struct bch_stripe *s,
+					     const struct bch_extent_ptr *ptr,
+					     unsigned block)
+{
+	unsigned nr_data = s->nr_blocks - s->nr_redundant;
+
+	if (block >= nr_data)
+		return false;
+
+	return  ptr->dev    == s->ptrs[block].dev &&
+		ptr->gen    == s->ptrs[block].gen &&
+		ptr->offset >= s->ptrs[block].offset &&
+		ptr->offset  < s->ptrs[block].offset + le16_to_cpu(s->sectors);
+}
+
+static inline bool bch2_ptr_matches_stripe(const struct bch_stripe *s,
+					   struct extent_ptr_decoded p)
+{
+	BUG_ON(!p.has_ec);
+
+	return __bch2_ptr_matches_stripe(s, &p.ptr, p.ec.block);
 }
 
 struct bch_read_bio;
