@@ -20,7 +20,7 @@ void can_flush_echo_skb(struct net_device *dev);
 int can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
 		     unsigned int idx);
 struct sk_buff *__can_get_echo_skb(struct net_device *dev, unsigned int idx,
-				   u8 *len_ptr);
+				   u8 *len_ptr, unsigned int *frame_len_ptr);
 unsigned int can_get_echo_skb(struct net_device *dev, unsigned int idx);
 void can_free_echo_skb(struct net_device *dev, unsigned int idx);
 struct sk_buff *alloc_can_skb(struct net_device *dev, struct can_frame **cf);
@@ -42,11 +42,13 @@ struct sk_buff *alloc_can_err_skb(struct net_device *dev,
  * struct can_skb_priv - private additional data inside CAN sk_buffs
  * @ifindex:	ifindex of the first interface the CAN frame appeared on
  * @skbcnt:	atomic counter to have an unique id together with skb pointer
+ * @frame_len:	length of CAN frame in data link layer
  * @cf:		align to the following CAN frame at skb->data
  */
 struct can_skb_priv {
 	int ifindex;
 	int skbcnt;
+	unsigned int frame_len;
 	struct can_frame cf[];
 };
 
