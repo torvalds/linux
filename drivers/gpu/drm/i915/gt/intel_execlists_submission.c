@@ -2539,6 +2539,14 @@ static int emit_pdps(struct i915_request *rq)
 	 * GPU hangs to forcewake errors and machine lockups!
 	 */
 
+	cs = intel_ring_begin(rq, 2);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	*cs++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
+	*cs++ = MI_NOOP;
+	intel_ring_advance(rq, cs);
+
 	/* Flush any residual operations from the context load */
 	err = engine->emit_flush(rq, EMIT_FLUSH);
 	if (err)
@@ -2564,7 +2572,8 @@ static int emit_pdps(struct i915_request *rq)
 		*cs++ = i915_mmio_reg_offset(GEN8_RING_PDP_LDW(base, i));
 		*cs++ = lower_32_bits(pd_daddr);
 	}
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
+	intel_ring_advance(rq, cs);
 
 	intel_ring_advance(rq, cs);
 
