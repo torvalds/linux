@@ -76,6 +76,7 @@ properties:
           - mediatek,mt8167-m4u  # generation two
           - mediatek,mt8173-m4u  # generation two
           - mediatek,mt8183-m4u  # generation two
+          - mediatek,mt8192-m4u  # generation two
 
       - description: mt7623 generation one
         items:
@@ -115,7 +116,11 @@ properties:
       dt-binding/memory/mt6779-larb-port.h for mt6779,
       dt-binding/memory/mt8167-larb-port.h for mt8167,
       dt-binding/memory/mt8173-larb-port.h for mt8173,
-      dt-binding/memory/mt8183-larb-port.h for mt8183.
+      dt-binding/memory/mt8183-larb-port.h for mt8183,
+      dt-binding/memory/mt8192-larb-port.h for mt8192.
+
+  power-domains:
+    maxItems: 1
 
 required:
   - compatible
@@ -133,10 +138,21 @@ allOf:
               - mediatek,mt2701-m4u
               - mediatek,mt2712-m4u
               - mediatek,mt8173-m4u
+              - mediatek,mt8192-m4u
 
     then:
       required:
         - clocks
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - mediatek,mt8192-m4u
+
+    then:
+      required:
+        - power-domains
 
 additionalProperties: false
 
