@@ -104,6 +104,25 @@ struct page_owner *get_page_owner(struct page_ext *page_ext)
 }
 EXPORT_SYMBOL_GPL(get_page_owner);
 
+depot_stack_handle_t get_page_owner_handle(struct page_ext *page_ext, unsigned long pfn)
+{
+	struct page_owner *page_owner;
+	depot_stack_handle_t handle;
+
+	if (!page_owner_enabled)
+		return 0;
+
+	page_owner = get_page_owner(page_ext);
+
+	/* skip handle for tail pages of higher order allocations */
+	if (!IS_ALIGNED(pfn, 1 << page_owner->order))
+		return 0;
+
+	handle = READ_ONCE(page_owner->handle);
+	return handle;
+}
+EXPORT_SYMBOL_GPL(get_page_owner_handle);
+
 static inline bool check_recursive_alloc(unsigned long *entries,
 					 unsigned int nr_entries,
 					 unsigned long ip)

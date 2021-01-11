@@ -9,6 +9,8 @@ extern struct static_key_false page_owner_inited;
 extern struct page_ext_operations page_owner_ops;
 
 extern struct page_owner *get_page_owner(struct page_ext *page_ext);
+extern depot_stack_handle_t get_page_owner_handle(struct page_ext *page_ext,
+					unsigned long pfn);
 extern void __reset_page_owner(struct page *page, unsigned int order);
 extern void __set_page_owner(struct page *page,
 			unsigned int order, gfp_t gfp_mask);
