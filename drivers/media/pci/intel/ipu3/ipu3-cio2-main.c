@@ -1094,12 +1094,9 @@ static int cio2_v4l2_try_fmt(struct file *file, void *fh, struct v4l2_format *f)
 	mpix->pixelformat = fmt->fourcc;
 	mpix->colorspace = V4L2_COLORSPACE_RAW;
 	mpix->field = V4L2_FIELD_NONE;
-	memset(mpix->reserved, 0, sizeof(mpix->reserved));
 	mpix->plane_fmt[0].bytesperline = cio2_bytesperline(mpix->width);
 	mpix->plane_fmt[0].sizeimage = mpix->plane_fmt[0].bytesperline *
 							mpix->height;
-	memset(mpix->plane_fmt[0].reserved, 0,
-	       sizeof(mpix->plane_fmt[0].reserved));
 
 	/* use default */
 	mpix->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
