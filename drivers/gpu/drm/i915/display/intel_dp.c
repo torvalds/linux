@@ -6205,6 +6205,17 @@ update_status:
 			    "Could not write test response to sink\n");
 }
 
+static void
+intel_dp_mst_hpd_irq(struct intel_dp *intel_dp, u8 *esi, bool *handled)
+{
+		drm_dp_mst_hpd_irq(&intel_dp->mst_mgr, esi, handled);
+
+		if (esi[1] & DP_CP_IRQ) {
+			intel_hdcp_handle_cp_irq(intel_dp->attached_connector);
+			*handled = true;
+		}
+}
+
 /**
  * intel_dp_check_mst_status - service any pending MST interrupts, check link status
  * @intel_dp: Intel DP struct
@@ -6249,7 +6260,8 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 
 		drm_dbg_kms(&i915->drm, "got esi %3ph\n", esi);
 
-		drm_dp_mst_hpd_irq(&intel_dp->mst_mgr, esi, &handled);
+		intel_dp_mst_hpd_irq(intel_dp, esi, &handled);
+
 		if (!handled)
 			break;
 
