@@ -106,6 +106,15 @@ static long ssam_cdev_request(struct ssam_cdev *cdev, unsigned long arg)
 			goto out;
 		}
 
+		/*
+		 * Note: spec.length is limited to U16_MAX bytes via struct
+		 * ssam_cdev_request. This is slightly larger than the
+		 * theoretical maximum (SSH_COMMAND_MAX_PAYLOAD_SIZE) of the
+		 * underlying protocol (note that nothing remotely this size
+		 * should ever be allocated in any normal case). This size is
+		 * validated later in ssam_request_sync(), for allocation the
+		 * bound imposed by u16 should be enough.
+		 */
 		spec.payload = kzalloc(spec.length, GFP_KERNEL);
 		if (!spec.payload) {
 			ret = -ENOMEM;
@@ -125,6 +134,16 @@ static long ssam_cdev_request(struct ssam_cdev *cdev, unsigned long arg)
 			goto out;
 		}
 
+		/*
+		 * Note: rsp.capacity is limited to U16_MAX bytes via struct
+		 * ssam_cdev_request. This is slightly larger than the
+		 * theoretical maximum (SSH_COMMAND_MAX_PAYLOAD_SIZE) of the
+		 * underlying protocol (note that nothing remotely this size
+		 * should ever be allocated in any normal case). In later use,
+		 * this capacity does not have to be strictly bounded, as it
+		 * is only used as an output buffer to be written to. For
+		 * allocation the bound imposed by u16 should be enough.
+		 */
 		rsp.pointer = kzalloc(rsp.capacity, GFP_KERNEL);
 		if (!rsp.pointer) {
 			ret = -ENOMEM;
