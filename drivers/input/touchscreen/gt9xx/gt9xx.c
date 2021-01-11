@@ -2669,8 +2669,8 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	} else if (val == 9111) {
 		m89or101 = FALSE;
 		bgt9111 = TRUE;
-		gtp_change_x2y = FALSE;
-		gtp_x_reverse = TRUE;
+		gtp_change_x2y = TRUE;
+		gtp_x_reverse = FALSE;
 		gtp_y_reverse = FALSE;
 	} else if (val == 970) {
 		m89or101 = FALSE;
@@ -2833,7 +2833,11 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     {
         gtp_irq_enable(ts);
     }
-    
+
+#ifdef CONFIG_ROCKCHIP_EBC_DEV
+    enable_irq_wake(ts->irq);
+#endif
+
 #if GTP_CREATE_WR_NODE
     init_wr_node(client);
 #endif
@@ -2845,7 +2849,6 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 
 probe_init_error:
     printk("   <%s>_%d  prob error !!!!!!!!!!!!!!!\n", __func__, __LINE__);    
-    tp_unregister_fb(&ts->tp);
     GTP_GPIO_FREE(ts->rst_pin);
     GTP_GPIO_FREE(ts->irq_pin);
 probe_init_error_requireio:
