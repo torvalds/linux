@@ -212,11 +212,6 @@ static inline int adreno_is_a540(struct adreno_gpu *gpu)
 	return gpu->revn == 540;
 }
 
-static inline bool adreno_is_a6xx(struct adreno_gpu *gpu)
-{
-	return ((gpu->revn < 700 && gpu->revn > 599));
-}
-
 static inline int adreno_is_a618(struct adreno_gpu *gpu)
 {
        return gpu->revn == 618;
@@ -277,6 +272,8 @@ int adreno_gpu_state_put(struct msm_gpu_state *state);
 struct msm_gem_address_space *
 adreno_iommu_create_address_space(struct msm_gpu *gpu,
 		struct platform_device *pdev);
+
+void adreno_set_llc_attributes(struct iommu_domain *iommu);
 
 /*
  * For a5xx and a6xx targets load the zap shader that is used to pull the GPU
