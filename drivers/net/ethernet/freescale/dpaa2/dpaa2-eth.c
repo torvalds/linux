@@ -4150,6 +4150,9 @@ static void dpaa2_eth_disconnect_mac(struct dpaa2_eth_priv *priv)
 	if (dpaa2_eth_is_type_phy(priv))
 		dpaa2_mac_disconnect(priv->mac);
 
+	if (!dpaa2_eth_has_mac(priv))
+		return;
+
 	dpaa2_mac_close(priv->mac);
 	kfree(priv->mac);
 	priv->mac = NULL;
