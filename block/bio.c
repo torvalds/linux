@@ -505,12 +505,13 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, unsigned int nr_iovecs,
 			goto err_free;
 
 		bio->bi_flags |= idx << BVEC_POOL_OFFSET;
+		bio->bi_max_vecs = bvec_nr_vecs(idx);
 	} else if (nr_iovecs) {
 		bvl = bio->bi_inline_vecs;
+		bio->bi_max_vecs = inline_vecs;
 	}
 
 	bio->bi_pool = bs;
-	bio->bi_max_vecs = nr_iovecs;
 	bio->bi_io_vec = bvl;
 	return bio;
 
