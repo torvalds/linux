@@ -89,8 +89,7 @@ fail_alloc_slab:
 
 static inline unsigned int bs_bio_slab_size(struct bio_set *bs)
 {
-	return bs->front_pad + sizeof(struct bio) +
-		BIO_INLINE_VECS * sizeof(struct bio_vec);
+	return bs->front_pad + sizeof(struct bio) + bs->back_pad;
 }
 
 static struct kmem_cache *bio_find_or_create_slab(struct bio_set *bs)
@@ -1563,6 +1562,10 @@ int bioset_init(struct bio_set *bs,
 		int flags)
 {
 	bs->front_pad = front_pad;
+	if (flags & BIOSET_NEED_BVECS)
+		bs->back_pad = BIO_INLINE_VECS * sizeof(struct bio_vec);
+	else
+		bs->back_pad = 0;
 
 	spin_lock_init(&bs->rescue_lock);
 	bio_list_init(&bs->rescue_list);
