@@ -12254,7 +12254,7 @@ static int intel_atomic_check_async(struct intel_atomic_state *state)
 		 * this(vlv/chv and icl+) should be added when async flip is
 		 * enabled in the atomic IOCTL path.
 		 */
-		if (plane->id != PLANE_PRIMARY)
+		if (!plane->async_flip)
 			return -EINVAL;
 
 		/*

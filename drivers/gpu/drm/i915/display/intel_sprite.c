@@ -3290,7 +3290,9 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	plane->get_hw_state = skl_plane_get_hw_state;
 	plane->check_plane = skl_plane_check;
 	plane->min_cdclk = skl_plane_min_cdclk;
-	plane->async_flip = skl_plane_async_flip;
+
+	if (plane_id == PLANE_PRIMARY)
+		plane->async_flip = skl_plane_async_flip;
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		formats = icl_get_plane_formats(dev_priv, pipe,
