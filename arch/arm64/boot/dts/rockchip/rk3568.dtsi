@@ -509,7 +509,6 @@
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x0 0xfd440000 0x0 0x20000>;
-			status = "disabled";
 		};
 	};
 
