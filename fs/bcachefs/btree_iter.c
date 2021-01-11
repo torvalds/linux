@@ -1067,7 +1067,8 @@ static void btree_iter_prefetch(struct btree_iter *iter)
 			break;
 
 		bch2_bkey_buf_unpack(&tmp, c, l->b, k);
-		bch2_btree_node_prefetch(c, iter, tmp.k, iter->level - 1);
+		bch2_btree_node_prefetch(c, iter, tmp.k, iter->btree_id,
+					 iter->level - 1);
 	}
 
 	if (!was_locked)

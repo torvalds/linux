@@ -206,6 +206,31 @@ void bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter *i
 
 /* Walk btree, overlaying keys from the journal: */
 
+static void btree_and_journal_iter_prefetch(struct bch_fs *c, struct btree *b,
+					   struct btree_and_journal_iter iter)
+{
+	unsigned i = 0, nr = b->c.level > 1 ? 2 : 16;
+	struct bkey_s_c k;
+	struct bkey_buf tmp;
+
+	BUG_ON(!b->c.level);
+
+	bch2_bkey_buf_init(&tmp);
+
+	while (i < nr &&
+	       (k = bch2_btree_and_journal_iter_peek(&iter)).k) {
+		bch2_bkey_buf_reassemble(&tmp, c, k);
+
+		bch2_btree_node_prefetch(c, NULL, tmp.k,
+					b->c.btree_id, b->c.level - 1);
+
+		bch2_btree_and_journal_iter_advance(&iter);
+		i++;
+	}
+
+	bch2_bkey_buf_exit(&tmp, c);
+}
+
 static int bch2_btree_and_journal_walk_recurse(struct bch_fs *c, struct btree *b,
 				struct journal_keys *journal_keys,
 				enum btree_id btree_id,
@@ -214,8 +239,11 @@ static int bch2_btree_and_journal_walk_recurse(struct bch_fs *c, struct btree *b
 {
 	struct btree_and_journal_iter iter;
 	struct bkey_s_c k;
+	struct bkey_buf tmp;
+	struct btree *child;
 	int ret = 0;
 
+	bch2_bkey_buf_init(&tmp);
 	bch2_btree_and_journal_iter_init_node_iter(&iter, journal_keys, b);
 
 	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
@@ -224,22 +252,18 @@ static int bch2_btree_and_journal_walk_recurse(struct bch_fs *c, struct btree *b
 			break;
 
 		if (b->c.level) {
-			struct btree *child;
-			struct bkey_buf tmp;
-
-			bch2_bkey_buf_init(&tmp);
 			bch2_bkey_buf_reassemble(&tmp, c, k);
-			k = bkey_i_to_s_c(tmp.k);
 
 			bch2_btree_and_journal_iter_advance(&iter);
 
 			child = bch2_btree_node_get_noiter(c, tmp.k,
 						b->c.btree_id, b->c.level - 1);
-			bch2_bkey_buf_exit(&tmp, c);
 
 			ret = PTR_ERR_OR_ZERO(child);
 			if (ret)
 				break;
+
+			btree_and_journal_iter_prefetch(c, b, iter);
 
 			ret   = (node_fn ? node_fn(c, b) : 0) ?:
 				bch2_btree_and_journal_walk_recurse(c, child,
@@ -253,6 +277,7 @@ static int bch2_btree_and_journal_walk_recurse(struct bch_fs *c, struct btree *b
 		}
 	}
 
+	bch2_bkey_buf_exit(&tmp, c);
 	return ret;
 }
 

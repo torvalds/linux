@@ -1008,20 +1008,20 @@ out:
 }
 
 void bch2_btree_node_prefetch(struct bch_fs *c, struct btree_iter *iter,
-			      const struct bkey_i *k, unsigned level)
+			      const struct bkey_i *k,
+			      enum btree_id btree_id, unsigned level)
 {
 	struct btree_cache *bc = &c->btree_cache;
 	struct btree *b;
 
-	BUG_ON(!btree_node_locked(iter, level + 1));
+	BUG_ON(iter && !btree_node_locked(iter, level + 1));
 	BUG_ON(level >= BTREE_MAX_DEPTH);
 
 	b = btree_cache_find(bc, k);
 	if (b)
 		return;
 
-	bch2_btree_node_fill(c, iter, k, iter->btree_id,
-			     level, SIX_LOCK_read, false);
+	bch2_btree_node_fill(c, iter, k, btree_id, level, SIX_LOCK_read, false);
 }
 
 void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c,
