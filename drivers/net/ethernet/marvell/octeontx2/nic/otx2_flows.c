@@ -272,14 +272,16 @@ int otx2_get_all_flows(struct otx2_nic *pfvf, struct ethtool_rxnfc *nfc,
 	return err;
 }
 
-static void otx2_prepare_ipv4_flow(struct ethtool_rx_flow_spec *fsp,
-				   struct npc_install_flow_req *req,
-				   u32 flow_type)
+static int otx2_prepare_ipv4_flow(struct ethtool_rx_flow_spec *fsp,
+				  struct npc_install_flow_req *req,
+				  u32 flow_type)
 {
 	struct ethtool_usrip4_spec *ipv4_usr_mask = &fsp->m_u.usr_ip4_spec;
 	struct ethtool_usrip4_spec *ipv4_usr_hdr = &fsp->h_u.usr_ip4_spec;
 	struct ethtool_tcpip4_spec *ipv4_l4_mask = &fsp->m_u.tcp_ip4_spec;
 	struct ethtool_tcpip4_spec *ipv4_l4_hdr = &fsp->h_u.tcp_ip4_spec;
+	struct ethtool_ah_espip4_spec *ah_esp_hdr = &fsp->h_u.ah_ip4_spec;
+	struct ethtool_ah_espip4_spec *ah_esp_mask = &fsp->m_u.ah_ip4_spec;
 	struct flow_msg *pmask = &req->mask;
 	struct flow_msg *pkt = &req->packet;
 
@@ -299,10 +301,16 @@ static void otx2_prepare_ipv4_flow(struct ethtool_rx_flow_spec *fsp,
 			       sizeof(pmask->ip4dst));
 			req->features |= BIT_ULL(NPC_DIP_IPV4);
 		}
+		pkt->etype = cpu_to_be16(ETH_P_IP);
+		pmask->etype = cpu_to_be16(0xFFFF);
+		req->features |= BIT_ULL(NPC_ETYPE);
 		break;
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
 	case SCTP_V4_FLOW:
+		pkt->etype = cpu_to_be16(ETH_P_IP);
+		pmask->etype = cpu_to_be16(0xFFFF);
+		req->features |= BIT_ULL(NPC_ETYPE);
 		if (ipv4_l4_mask->ip4src) {
 			memcpy(&pkt->ip4src, &ipv4_l4_hdr->ip4src,
 			       sizeof(pkt->ip4src));
@@ -341,20 +349,60 @@ static void otx2_prepare_ipv4_flow(struct ethtool_rx_flow_spec *fsp,
 			else
 				req->features |= BIT_ULL(NPC_DPORT_SCTP);
 		}
+		if (flow_type == UDP_V4_FLOW)
+			req->features |= BIT_ULL(NPC_IPPROTO_UDP);
+		else if (flow_type == TCP_V4_FLOW)
+			req->features |= BIT_ULL(NPC_IPPROTO_TCP);
+		else
+			req->features |= BIT_ULL(NPC_IPPROTO_SCTP);
+		break;
+	case AH_V4_FLOW:
+	case ESP_V4_FLOW:
+		pkt->etype = cpu_to_be16(ETH_P_IP);
+		pmask->etype = cpu_to_be16(0xFFFF);
+		req->features |= BIT_ULL(NPC_ETYPE);
+		if (ah_esp_mask->ip4src) {
+			memcpy(&pkt->ip4src, &ah_esp_hdr->ip4src,
+			       sizeof(pkt->ip4src));
+			memcpy(&pmask->ip4src, &ah_esp_mask->ip4src,
+			       sizeof(pmask->ip4src));
+			req->features |= BIT_ULL(NPC_SIP_IPV4);
+		}
+		if (ah_esp_mask->ip4dst) {
+			memcpy(&pkt->ip4dst, &ah_esp_hdr->ip4dst,
+			       sizeof(pkt->ip4dst));
+			memcpy(&pmask->ip4dst, &ah_esp_mask->ip4dst,
+			       sizeof(pmask->ip4dst));
+			req->features |= BIT_ULL(NPC_DIP_IPV4);
+		}
+
+		/* NPC profile doesn't extract AH/ESP header fields */
+		if ((ah_esp_mask->spi & ah_esp_hdr->spi) ||
+		    (ah_esp_mask->tos & ah_esp_mask->tos))
+			return -EOPNOTSUPP;
+
+		if (flow_type == AH_V4_FLOW)
+			req->features |= BIT_ULL(NPC_IPPROTO_AH);
+		else
+			req->features |= BIT_ULL(NPC_IPPROTO_ESP);
 		break;
 	default:
 		break;
 	}
+
+	return 0;
 }
 
-static void otx2_prepare_ipv6_flow(struct ethtool_rx_flow_spec *fsp,
-				   struct npc_install_flow_req *req,
-				   u32 flow_type)
+static int otx2_prepare_ipv6_flow(struct ethtool_rx_flow_spec *fsp,
+				  struct npc_install_flow_req *req,
+				  u32 flow_type)
 {
 	struct ethtool_usrip6_spec *ipv6_usr_mask = &fsp->m_u.usr_ip6_spec;
 	struct ethtool_usrip6_spec *ipv6_usr_hdr = &fsp->h_u.usr_ip6_spec;
 	struct ethtool_tcpip6_spec *ipv6_l4_mask = &fsp->m_u.tcp_ip6_spec;
 	struct ethtool_tcpip6_spec *ipv6_l4_hdr = &fsp->h_u.tcp_ip6_spec;
+	struct ethtool_ah_espip6_spec *ah_esp_hdr = &fsp->h_u.ah_ip6_spec;
+	struct ethtool_ah_espip6_spec *ah_esp_mask = &fsp->m_u.ah_ip6_spec;
 	struct flow_msg *pmask = &req->mask;
 	struct flow_msg *pkt = &req->packet;
 
@@ -374,10 +422,16 @@ static void otx2_prepare_ipv6_flow(struct ethtool_rx_flow_spec *fsp,
 			       sizeof(pmask->ip6dst));
 			req->features |= BIT_ULL(NPC_DIP_IPV6);
 		}
+		pkt->etype = cpu_to_be16(ETH_P_IPV6);
+		pmask->etype = cpu_to_be16(0xFFFF);
+		req->features |= BIT_ULL(NPC_ETYPE);
 		break;
 	case TCP_V6_FLOW:
 	case UDP_V6_FLOW:
 	case SCTP_V6_FLOW:
+		pkt->etype = cpu_to_be16(ETH_P_IPV6);
+		pmask->etype = cpu_to_be16(0xFFFF);
+		req->features |= BIT_ULL(NPC_ETYPE);
 		if (!ipv6_addr_any((struct in6_addr *)ipv6_l4_mask->ip6src)) {
 			memcpy(&pkt->ip6src, &ipv6_l4_hdr->ip6src,
 			       sizeof(pkt->ip6src));
@@ -416,10 +470,47 @@ static void otx2_prepare_ipv6_flow(struct ethtool_rx_flow_spec *fsp,
 			else
 				req->features |= BIT_ULL(NPC_DPORT_SCTP);
 		}
+		if (flow_type == UDP_V6_FLOW)
+			req->features |= BIT_ULL(NPC_IPPROTO_UDP);
+		else if (flow_type == TCP_V6_FLOW)
+			req->features |= BIT_ULL(NPC_IPPROTO_TCP);
+		else
+			req->features |= BIT_ULL(NPC_IPPROTO_SCTP);
 		break;
+	case AH_V6_FLOW:
+	case ESP_V6_FLOW:
+		pkt->etype = cpu_to_be16(ETH_P_IPV6);
+		pmask->etype = cpu_to_be16(0xFFFF);
+		req->features |= BIT_ULL(NPC_ETYPE);
+		if (!ipv6_addr_any((struct in6_addr *)ah_esp_hdr->ip6src)) {
+			memcpy(&pkt->ip6src, &ah_esp_hdr->ip6src,
+			       sizeof(pkt->ip6src));
+			memcpy(&pmask->ip6src, &ah_esp_mask->ip6src,
+			       sizeof(pmask->ip6src));
+			req->features |= BIT_ULL(NPC_SIP_IPV6);
+		}
+		if (!ipv6_addr_any((struct in6_addr *)ah_esp_hdr->ip6dst)) {
+			memcpy(&pkt->ip6dst, &ah_esp_hdr->ip6dst,
+			       sizeof(pkt->ip6dst));
+			memcpy(&pmask->ip6dst, &ah_esp_mask->ip6dst,
+			       sizeof(pmask->ip6dst));
+			req->features |= BIT_ULL(NPC_DIP_IPV6);
+		}
+
+		/* NPC profile doesn't extract AH/ESP header fields */
+		if ((ah_esp_mask->spi & ah_esp_hdr->spi) ||
+		    (ah_esp_mask->tclass & ah_esp_mask->tclass))
+			return -EOPNOTSUPP;
+
+		if (flow_type == AH_V6_FLOW)
+			req->features |= BIT_ULL(NPC_IPPROTO_AH);
+		else
+			req->features |= BIT_ULL(NPC_IPPROTO_ESP);
 	default:
 		break;
 	}
+
+	return 0;
 }
 
 int otx2_prepare_flow_request(struct ethtool_rx_flow_spec *fsp,
@@ -430,6 +521,7 @@ int otx2_prepare_flow_request(struct ethtool_rx_flow_spec *fsp,
 	struct flow_msg *pmask = &req->mask;
 	struct flow_msg *pkt = &req->packet;
 	u32 flow_type;
+	int ret;
 
 	flow_type = fsp->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT | FLOW_RSS);
 	switch (flow_type) {
@@ -457,13 +549,21 @@ int otx2_prepare_flow_request(struct ethtool_rx_flow_spec *fsp,
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
 	case SCTP_V4_FLOW:
-		otx2_prepare_ipv4_flow(fsp, req, flow_type);
+	case AH_V4_FLOW:
+	case ESP_V4_FLOW:
+		ret = otx2_prepare_ipv4_flow(fsp, req, flow_type);
+		if (ret)
+			return ret;
 		break;
 	case IPV6_USER_FLOW:
 	case TCP_V6_FLOW:
 	case UDP_V6_FLOW:
 	case SCTP_V6_FLOW:
-		otx2_prepare_ipv6_flow(fsp, req, flow_type);
+	case AH_V6_FLOW:
+	case ESP_V6_FLOW:
+		ret = otx2_prepare_ipv6_flow(fsp, req, flow_type);
+		if (ret)
+			return ret;
 		break;
 	default:
 		return -EOPNOTSUPP;

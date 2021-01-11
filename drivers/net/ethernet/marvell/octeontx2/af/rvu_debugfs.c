@@ -1757,6 +1757,7 @@ static void rvu_dbg_npc_mcam_show_flows(struct seq_file *s,
 			seq_printf(s, "mask 0x%x\n", ntohs(rule->mask.dport));
 			break;
 		default:
+			seq_puts(s, "\n");
 			break;
 		}
 	}
