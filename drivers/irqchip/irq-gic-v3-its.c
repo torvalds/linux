@@ -3593,6 +3593,9 @@ static int __init its_probe_one(struct resource *res,
 	if (GITS_TYPER_HCC(typer))
 		its->flags |= ITS_FLAGS_SAVE_SUSPEND_STATE;
 
+	if (of_machine_is_compatible("rockchip,rk3568") || of_machine_is_compatible("rockchip,rk3566"))
+		its->flags |= ITS_FLAGS_SAVE_SUSPEND_STATE;
+
 	err = its_init_domain(handle, its);
 	if (err)
 		goto out_free_tables;
