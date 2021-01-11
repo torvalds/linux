@@ -217,16 +217,15 @@ static bool setup_scaling_configuration(
 	return is_scaling_needed;
 }
 
-/**
-* Function:
-* void program_overscan
-*
-* Purpose: Programs overscan border
-* Input:   overscan
-*
-* Output:
-   void
-*/
+/*
+ * Function:
+ * void program_overscan
+ *
+ * Purpose: Programs overscan border
+ * Input:   overscan
+ *
+ * Output: void
+ */
 static void program_overscan(
 		struct dce_transform *xfm_dce,
 		const struct scaler_data *data)
