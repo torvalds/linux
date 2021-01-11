@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright (c) 2014 Protonic Holland
+ */
+
+/dts-v1/;
+#include "imx6q.dtsi"
+#include "imx6qdl-vicut1.dtsi"
+
+/ {
+	model = "Kverneland UT1Q Board";
+	compatible = "kvg,vicut1q", "fsl,imx6q";
+};
+
+&sata {
+	status = "okay";
+};
