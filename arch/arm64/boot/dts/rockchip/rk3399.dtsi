@@ -2919,7 +2919,7 @@
 			uart0_xfer: uart0-xfer {
 				rockchip,pins =
 					<2 16 RK_FUNC_1 &pcfg_pull_up>,
-					<2 17 RK_FUNC_1 &pcfg_pull_none>;
+					<2 17 RK_FUNC_1 &pcfg_pull_up>;
 			};
 
 			uart0_cts: uart0-cts {
@@ -2937,7 +2937,7 @@
 			uart1_xfer: uart1-xfer {
 				rockchip,pins =
 					<3 12 RK_FUNC_2 &pcfg_pull_up>,
-					<3 13 RK_FUNC_2 &pcfg_pull_none>;
+					<3 13 RK_FUNC_2 &pcfg_pull_up>;
 			};
 		};
 
@@ -2945,7 +2945,7 @@
 			uart2a_xfer: uart2a-xfer {
 				rockchip,pins =
 					<4 8 RK_FUNC_2 &pcfg_pull_up>,
-					<4 9 RK_FUNC_2 &pcfg_pull_none>;
+					<4 9 RK_FUNC_2 &pcfg_pull_up>;
 			};
 		};
 
@@ -2953,7 +2953,7 @@
 			uart2b_xfer: uart2b-xfer {
 				rockchip,pins =
 					<4 16 RK_FUNC_2 &pcfg_pull_up>,
-					<4 17 RK_FUNC_2 &pcfg_pull_none>;
+					<4 17 RK_FUNC_2 &pcfg_pull_up>;
 			};
 		};
 
@@ -2961,7 +2961,7 @@
 			uart2c_xfer: uart2c-xfer {
 				rockchip,pins =
 					<4 19 RK_FUNC_1 &pcfg_pull_up>,
-					<4 20 RK_FUNC_1 &pcfg_pull_none>;
+					<4 20 RK_FUNC_1 &pcfg_pull_up>;
 			};
 		};
 
@@ -2969,7 +2969,7 @@
 			uart3_xfer: uart3-xfer {
 				rockchip,pins =
 					<3 14 RK_FUNC_2 &pcfg_pull_up>,
-					<3 15 RK_FUNC_2 &pcfg_pull_none>;
+					<3 15 RK_FUNC_2 &pcfg_pull_up>;
 			};
 
 			uart3_cts: uart3-cts {
@@ -2987,7 +2987,7 @@
 			uart4_xfer: uart4-xfer {
 				rockchip,pins =
 					<1 7 RK_FUNC_1 &pcfg_pull_up>,
-					<1 8 RK_FUNC_1 &pcfg_pull_none>;
+					<1 8 RK_FUNC_1 &pcfg_pull_up>;
 			};
 		};
 
@@ -2995,7 +2995,7 @@
 			uarthdcp_xfer: uarthdcp-xfer {
 				rockchip,pins =
 					<4 21 RK_FUNC_2 &pcfg_pull_up>,
-					<4 22 RK_FUNC_2 &pcfg_pull_none>;
+					<4 22 RK_FUNC_2 &pcfg_pull_up>;
 			};
 		};
 
