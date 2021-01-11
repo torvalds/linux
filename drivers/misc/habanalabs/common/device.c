@@ -1037,7 +1037,7 @@ kill_processes:
 
 	if (hard_reset) {
 		/* Release kernel context */
-		if (hl_ctx_put(hdev->kernel_ctx) == 1)
+		if (hdev->kernel_ctx && hl_ctx_put(hdev->kernel_ctx) == 1)
 			hdev->kernel_ctx = NULL;
 		hl_vm_fini(hdev);
 		hl_mmu_fini(hdev);
