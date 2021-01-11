@@ -530,21 +530,56 @@ static bool i9xx_plane_get_hw_state(struct intel_plane *plane,
 	return ret;
 }
 
+static unsigned int
+hsw_primary_max_stride(struct intel_plane *plane,
+		       u32 pixel_format, u64 modifier,
+		       unsigned int rotation)
+{
+	const struct drm_format_info *info = drm_format_info(pixel_format);
+	int cpp = info->cpp[0];
+
+	/* Limit to 8k pixels to guarantee OFFSET.x doesn't get too big. */
+	return min(8192 * cpp, 32 * 1024);
+}
+
+static unsigned int
+ilk_primary_max_stride(struct intel_plane *plane,
+		       u32 pixel_format, u64 modifier,
+		       unsigned int rotation)
+{
+	const struct drm_format_info *info = drm_format_info(pixel_format);
+	int cpp = info->cpp[0];
+
+	/* Limit to 4k pixels to guarantee TILEOFF.x doesn't get too big. */
+	if (modifier == I915_FORMAT_MOD_X_TILED)
+		return min(4096 * cpp, 32 * 1024);
+	else
+		return 32 * 1024;
+}
+
 unsigned int
+i965_plane_max_stride(struct intel_plane *plane,
+		      u32 pixel_format, u64 modifier,
+		      unsigned int rotation)
+{
+	const struct drm_format_info *info = drm_format_info(pixel_format);
+	int cpp = info->cpp[0];
+
+	/* Limit to 4k pixels to guarantee TILEOFF.x doesn't get too big. */
+	if (modifier == I915_FORMAT_MOD_X_TILED)
+		return min(4096 * cpp, 16 * 1024);
+	else
+		return 32 * 1024;
+}
+
+static unsigned int
 i9xx_plane_max_stride(struct intel_plane *plane,
 		      u32 pixel_format, u64 modifier,
 		      unsigned int rotation)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 
-	if (!HAS_GMCH(dev_priv)) {
-		return 32*1024;
-	} else if (INTEL_GEN(dev_priv) >= 4) {
-		if (modifier == I915_FORMAT_MOD_X_TILED)
-			return 16*1024;
-		else
-			return 32*1024;
-	} else if (INTEL_GEN(dev_priv) >= 3) {
+	if (INTEL_GEN(dev_priv) >= 3) {
 		if (modifier == I915_FORMAT_MOD_X_TILED)
 			return 8*1024;
 		else
@@ -656,7 +691,18 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	else
 		plane->min_cdclk = i9xx_plane_min_cdclk;
 
-	plane->max_stride = i9xx_plane_max_stride;
+	if (HAS_GMCH(dev_priv)) {
+		if (INTEL_GEN(dev_priv) >= 4)
+			plane->max_stride = i965_plane_max_stride;
+		else
+			plane->max_stride = i9xx_plane_max_stride;
+	} else {
+		if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
+			plane->max_stride = hsw_primary_max_stride;
+		else
+			plane->max_stride = ilk_primary_max_stride;
+	}
+
 	plane->update_plane = i9xx_update_plane;
 	plane->disable_plane = i9xx_disable_plane;
 	plane->get_hw_state = i9xx_plane_get_hw_state;
