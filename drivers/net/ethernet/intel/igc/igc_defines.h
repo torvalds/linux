@@ -442,7 +442,6 @@
 #define MII_CR_POWER_DOWN	0x0800  /* Power down */
 #define MII_CR_AUTO_NEG_EN	0x1000  /* Auto Neg Enable */
 #define MII_CR_LOOPBACK		0x4000  /* 0 = normal, 1 = loopback */
-#define MII_CR_RESET		0x8000  /* 0 = normal, 1 = PHY reset */
 #define MII_CR_SPEED_1000	0x0040
 #define MII_CR_SPEED_100	0x2000
 #define MII_CR_SPEED_10		0x0000
