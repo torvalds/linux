@@ -581,6 +581,8 @@ patternProperties:
     description: Kontron S&T AG
   "^kosagi,.*":
     description: Sutajio Ko-Usagi PTE Ltd.
+  "^kvg,.*":
+    description: Kverneland Group
   "^kyo,.*":
     description: Kyocera Corporation
   "^lacie,.*":
