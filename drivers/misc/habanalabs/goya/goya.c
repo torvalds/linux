@@ -613,12 +613,6 @@ static int goya_early_init(struct hl_device *hdev)
 	if (rc)
 		goto free_queue_props;
 
-	if (goya_get_hw_state(hdev) == HL_DEVICE_HW_STATE_DIRTY) {
-		dev_info(hdev->dev,
-			"H/W state is dirty, must reset before initializing\n");
-		hdev->asic_funcs->hw_fini(hdev, true);
-	}
-
 	/* Before continuing in the initialization, we need to read the preboot
 	 * version to determine whether we run with a security-enabled firmware
 	 */
@@ -629,6 +623,12 @@ static int goya_early_init(struct hl_device *hdev)
 		if (hdev->reset_on_preboot_fail)
 			hdev->asic_funcs->hw_fini(hdev, true);
 		goto pci_fini;
+	}
+
+	if (goya_get_hw_state(hdev) == HL_DEVICE_HW_STATE_DIRTY) {
+		dev_info(hdev->dev,
+			"H/W state is dirty, must reset before initializing\n");
+		hdev->asic_funcs->hw_fini(hdev, true);
 	}
 
 	if (!hdev->pldm) {
@@ -694,32 +694,47 @@ static void goya_qman0_set_security(struct hl_device *hdev, bool secure)
 static void goya_fetch_psoc_frequency(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u32 trace_freq = 0;
-	u32 pll_clk = 0;
-	u32 div_fctr = RREG32(mmPSOC_PCI_PLL_DIV_FACTOR_1);
-	u32 div_sel = RREG32(mmPSOC_PCI_PLL_DIV_SEL_1);
-	u32 nr = RREG32(mmPSOC_PCI_PLL_NR);
-	u32 nf = RREG32(mmPSOC_PCI_PLL_NF);
-	u32 od = RREG32(mmPSOC_PCI_PLL_OD);
+	u32 nr = 0, nf = 0, od = 0, div_fctr = 0, pll_clk, div_sel;
+	u16 pll_freq_arr[HL_PLL_NUM_OUTPUTS], freq;
+	int rc;
 
-	if (div_sel == DIV_SEL_REF_CLK || div_sel == DIV_SEL_DIVIDED_REF) {
-		if (div_sel == DIV_SEL_REF_CLK)
-			trace_freq = PLL_REF_CLK;
-		else
-			trace_freq = PLL_REF_CLK / (div_fctr + 1);
-	} else if (div_sel == DIV_SEL_PLL_CLK ||
-					div_sel == DIV_SEL_DIVIDED_PLL) {
-		pll_clk = PLL_REF_CLK * (nf + 1) / ((nr + 1) * (od + 1));
-		if (div_sel == DIV_SEL_PLL_CLK)
-			trace_freq = pll_clk;
-		else
-			trace_freq = pll_clk / (div_fctr + 1);
+	if (hdev->asic_prop.fw_security_disabled) {
+		div_fctr = RREG32(mmPSOC_PCI_PLL_DIV_FACTOR_1);
+		div_sel = RREG32(mmPSOC_PCI_PLL_DIV_SEL_1);
+		nr = RREG32(mmPSOC_PCI_PLL_NR);
+		nf = RREG32(mmPSOC_PCI_PLL_NF);
+		od = RREG32(mmPSOC_PCI_PLL_OD);
+
+		if (div_sel == DIV_SEL_REF_CLK ||
+				div_sel == DIV_SEL_DIVIDED_REF) {
+			if (div_sel == DIV_SEL_REF_CLK)
+				freq = PLL_REF_CLK;
+			else
+				freq = PLL_REF_CLK / (div_fctr + 1);
+		} else if (div_sel == DIV_SEL_PLL_CLK ||
+				div_sel == DIV_SEL_DIVIDED_PLL) {
+			pll_clk = PLL_REF_CLK * (nf + 1) /
+					((nr + 1) * (od + 1));
+			if (div_sel == DIV_SEL_PLL_CLK)
+				freq = pll_clk;
+			else
+				freq = pll_clk / (div_fctr + 1);
+		} else {
+			dev_warn(hdev->dev,
+				"Received invalid div select value: %d",
+				div_sel);
+			freq = 0;
+		}
 	} else {
-		dev_warn(hdev->dev,
-			"Received invalid div select value: %d", div_sel);
+		rc = hl_fw_cpucp_pll_info_get(hdev, PCI_PLL, pll_freq_arr);
+
+		if (rc)
+			return;
+
+		freq = pll_freq_arr[1];
 	}
 
-	prop->psoc_timestamp_frequency = trace_freq;
+	prop->psoc_timestamp_frequency = freq;
 	prop->psoc_pci_pll_nr = nr;
 	prop->psoc_pci_pll_nf = nf;
 	prop->psoc_pci_pll_od = od;
@@ -5324,7 +5339,7 @@ static u32 goya_get_wait_cb_size(struct hl_device *hdev)
 }
 
 static u32 goya_gen_signal_cb(struct hl_device *hdev, void *data, u16 sob_id,
-		u32 size)
+				u32 size, bool eb)
 {
 	return 0;
 }
