@@ -398,8 +398,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 			}
 
 			i2c_smbus_try_get_dmabuf(&msg[0], command);
-			for (i = 1; i < msg[0].len; i++)
-				msg[0].buf[i] = data->block[i - 1];
+			memcpy(msg[0].buf + 1, data->block, msg[0].len - 1);
 		}
 		break;
 	case I2C_SMBUS_BLOCK_PROC_CALL:
@@ -414,8 +413,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 
 		msg[0].len = data->block[0] + 2;
 		i2c_smbus_try_get_dmabuf(&msg[0], command);
-		for (i = 1; i < msg[0].len; i++)
-			msg[0].buf[i] = data->block[i - 1];
+		memcpy(msg[0].buf + 1, data->block, msg[0].len - 1);
 
 		msg[1].flags |= I2C_M_RECV_LEN;
 		msg[1].len = 1; /* block length will be added by
@@ -437,8 +435,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 			msg[0].len = data->block[0] + 1;
 
 			i2c_smbus_try_get_dmabuf(&msg[0], command);
-			for (i = 1; i <= data->block[0]; i++)
-				msg[0].buf[i] = data->block[i];
+			memcpy(msg[0].buf + 1, data->block + 1, data->block[0]);
 		}
 		break;
 	default:
@@ -490,8 +487,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 			data->word = msgbuf1[0] | (msgbuf1[1] << 8);
 			break;
 		case I2C_SMBUS_I2C_BLOCK_DATA:
-			for (i = 0; i < data->block[0]; i++)
-				data->block[i + 1] = msg[1].buf[i];
+			memcpy(data->block + 1, msg[1].buf, data->block[0]);
 			break;
 		case I2C_SMBUS_BLOCK_DATA:
 		case I2C_SMBUS_BLOCK_PROC_CALL:
@@ -502,8 +498,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 				status = -EPROTO;
 				goto cleanup;
 			}
-			for (i = 0; i < msg[1].buf[0] + 1; i++)
-				data->block[i] = msg[1].buf[i];
+			memcpy(data->block, msg[1].buf, msg[1].buf[0] + 1);
 			break;
 		}
 
