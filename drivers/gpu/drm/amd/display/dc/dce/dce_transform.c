@@ -1100,7 +1100,7 @@ static void program_gamut_remap(
 
 }
 
-/**
+/*
  *****************************************************************************
  *  Function: dal_transform_wide_gamut_set_gamut_remap
  *
