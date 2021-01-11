@@ -8,19 +8,7 @@
 #ifndef __EBC_DEV_H__
 #define __EBC_DEV_H__
 
-#include <linux/wait.h>
-#include <linux/timer.h>
-#include <linux/time.h>
-#include <linux/types.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/wakelock.h>
-#include <linux/workqueue.h>
-#include "epdlut/epd_lut.h"
-#include "bufmanage/buf_manage.h"
-#include "pmic/ebc_pmic.h"
-#include "tcon/ebc_tcon.h"
-#include "ebc_panel.h"
+#include <linux/notifier.h>
 
 /*
 * max support panel size 2232x1680
@@ -100,7 +88,25 @@ struct ebc_buf_info {
 	int height_mm;
 };
 
+#if IS_ENABLED(CONFIG_ROCKCHIP_EBC_DEV)
 int ebc_register_notifier(struct notifier_block *nb);
 int ebc_unregister_notifier(struct notifier_block *nb);
 int ebc_notify(unsigned long event);
+#else
+static inline int ebc_register_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int ebc_unregister_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int ebc_notify(unsigned long event)
+{
+	return 0;
+}
+#endif
+
 #endif

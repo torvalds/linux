@@ -6,6 +6,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/module.h>
 #include <linux/string.h>
 #include <linux/soc/rockchip/rk_vendor_storage.h>
 #include "ebc_pmic.h"
