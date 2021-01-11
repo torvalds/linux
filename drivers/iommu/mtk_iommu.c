@@ -328,10 +328,9 @@ static void mtk_iommu_config(struct mtk_iommu_data *data,
 	}
 }
 
-static int mtk_iommu_domain_finalise(struct mtk_iommu_domain *dom)
+static int mtk_iommu_domain_finalise(struct mtk_iommu_domain *dom,
+				     struct mtk_iommu_data *data)
 {
-	struct mtk_iommu_data *data = mtk_iommu_get_m4u_data();
-
 	dom->cfg = (struct io_pgtable_cfg) {
 		.quirks = IO_PGTABLE_QUIRK_ARM_NS |
 			IO_PGTABLE_QUIRK_NO_PERMS |
@@ -352,7 +351,6 @@ static int mtk_iommu_domain_finalise(struct mtk_iommu_domain *dom)
 		return -EINVAL;
 	}
 
-	dom->data = data;
 	/* Update our support page sizes bitmap */
 	dom->domain.pgsize_bitmap = dom->cfg.pgsize_bitmap;
 	return 0;
@@ -369,30 +367,19 @@ static struct iommu_domain *mtk_iommu_domain_alloc(unsigned type)
 	if (!dom)
 		return NULL;
 
-	if (iommu_get_dma_cookie(&dom->domain))
-		goto  free_dom;
-
-	if (mtk_iommu_domain_finalise(dom))
-		goto  put_dma_cookie;
+	if (iommu_get_dma_cookie(&dom->domain)) {
+		kfree(dom);
+		return NULL;
+	}
 
 	dom->domain.geometry.aperture_start = 0;
 	dom->domain.geometry.aperture_end = DMA_BIT_MASK(32);
 	dom->domain.geometry.force_aperture = true;
-
 	return &dom->domain;
-
-put_dma_cookie:
-	iommu_put_dma_cookie(&dom->domain);
-free_dom:
-	kfree(dom);
-	return NULL;
 }
 
 static void mtk_iommu_domain_free(struct iommu_domain *domain)
 {
-	struct mtk_iommu_domain *dom = to_mtk_domain(domain);
-
-	free_io_pgtable_ops(dom->iop);
 	iommu_put_dma_cookie(domain);
 	kfree(to_mtk_domain(domain));
 }
@@ -407,6 +394,12 @@ static int mtk_iommu_attach_device(struct iommu_domain *domain,
 
 	if (!data)
 		return -ENODEV;
+
+	if (!dom->data) {
+		if (mtk_iommu_domain_finalise(dom, data))
+			return -ENODEV;
+		dom->data = data;
+	}
 
 	if (!data->m4u_dom) { /* Initialize the M4U HW */
 		ret = pm_runtime_resume_and_get(m4udev);
