@@ -3694,7 +3694,7 @@ static inline int wm_adsp_read_data_word(struct wm_adsp *dsp, int mem_type,
 	int ret;
 
 	ret = wm_adsp_read_raw_data_block(dsp, mem_type, mem_addr, 1, &raw);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	*data = be32_to_cpu(raw) & 0x00ffffffu;
