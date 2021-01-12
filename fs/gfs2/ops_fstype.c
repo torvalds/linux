@@ -179,7 +179,7 @@ static int gfs2_check_sb(struct gfs2_sbd *sdp, int silent)
 
 	if (sb->sb_bsize < 512 || sb->sb_bsize > PAGE_SIZE ||
 	    (sb->sb_bsize & (sb->sb_bsize - 1))) {
-		pr_warn("Invalid superblock size\n");
+		pr_warn("Invalid block size\n");
 		return -EINVAL;
 	}
 
