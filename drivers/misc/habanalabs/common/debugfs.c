@@ -310,8 +310,8 @@ static int mmu_show(struct seq_file *s, void *data)
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_device *hdev = dev_entry->hdev;
 	struct hl_ctx *ctx;
-	struct hl_mmu_hop_info hops_info;
-	u64 virt_addr = dev_entry->mmu_addr;
+	struct hl_mmu_hop_info hops_info = {0};
+	u64 virt_addr = dev_entry->mmu_addr, phys_addr;
 	int i;
 
 	if (!hdev->mmu_enable)
@@ -333,10 +333,19 @@ static int mmu_show(struct seq_file *s, void *data)
 		return 0;
 	}
 
-	seq_printf(s,
-		"asid: %u, virt_addr: 0x%llx, scrambled virt_addr: 0x%llx\n",
-		dev_entry->mmu_asid, dev_entry->mmu_addr,
-		hops_info.scrambled_vaddr);
+	phys_addr = hops_info.hop_info[hops_info.used_hops - 1].hop_pte_val;
+
+	if (hops_info.scrambled_vaddr &&
+		(dev_entry->mmu_addr != hops_info.scrambled_vaddr))
+		seq_printf(s,
+			"asid: %u, virt_addr: 0x%llx, scrambled virt_addr: 0x%llx,\nphys_addr: 0x%llx, scrambled_phys_addr: 0x%llx\n",
+			dev_entry->mmu_asid, dev_entry->mmu_addr,
+			hops_info.scrambled_vaddr,
+			hops_info.unscrambled_paddr, phys_addr);
+	else
+		seq_printf(s,
+			"asid: %u, virt_addr: 0x%llx, phys_addr: 0x%llx\n",
+			dev_entry->mmu_asid, dev_entry->mmu_addr, phys_addr);
 
 	for (i = 0 ; i < hops_info.used_hops ; i++) {
 		seq_printf(s, "hop%d_addr: 0x%llx\n",

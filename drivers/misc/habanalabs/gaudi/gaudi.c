@@ -8548,7 +8548,8 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.get_device_time = gaudi_get_device_time,
 	.collective_wait_init_cs = gaudi_collective_wait_init_cs,
 	.collective_wait_create_jobs = gaudi_collective_wait_create_jobs,
-	.scramble_vaddr = hl_mmu_scramble_vaddr,
+	.scramble_addr = hl_mmu_scramble_addr,
+	.descramble_addr = hl_mmu_descramble_addr,
 	.ack_protection_bits_errors = gaudi_ack_protection_bits_errors
 };
 

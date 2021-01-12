@@ -287,9 +287,9 @@ int hl_mmu_map_page(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 	 * after scrambling)
 	 */
 	if ((is_dram_addr &&
-			((hdev->asic_funcs->scramble_vaddr(hdev, phys_addr) &
+			((hdev->asic_funcs->scramble_addr(hdev, phys_addr) &
 				(mmu_prop->page_size - 1)) ||
-			(hdev->asic_funcs->scramble_vaddr(hdev, virt_addr) &
+			(hdev->asic_funcs->scramble_addr(hdev, virt_addr) &
 				(mmu_prop->page_size - 1)))) ||
 		(!is_dram_addr && ((phys_addr & (real_page_size - 1)) ||
 				(virt_addr & (real_page_size - 1)))))
@@ -476,19 +476,53 @@ void hl_mmu_swap_in(struct hl_ctx *ctx)
 		hdev->mmu_func[MMU_HR_PGT].swap_in(ctx);
 }
 
+static void hl_mmu_pa_page_with_offset(struct hl_ctx *ctx, u64 virt_addr,
+						struct hl_mmu_hop_info *hops,
+						u64 *phys_addr)
+{
+	struct hl_device *hdev = ctx->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 offset_mask, addr_mask, hop_shift, tmp_phys_addr;
+	u32 hop0_shift_off;
+	void *p;
+
+	/* last hop holds the phys address and flags */
+	if (hops->unscrambled_paddr)
+		tmp_phys_addr = hops->unscrambled_paddr;
+	else
+		tmp_phys_addr = hops->hop_info[hops->used_hops - 1].hop_pte_val;
+
+	if (hops->range_type == HL_VA_RANGE_TYPE_HOST_HUGE)
+		p = &prop->pmmu_huge;
+	else if (hops->range_type == HL_VA_RANGE_TYPE_HOST)
+		p = &prop->pmmu;
+	else /* HL_VA_RANGE_TYPE_DRAM */
+		p = &prop->dmmu;
+
+	/*
+	 * find the correct hop shift field in hl_mmu_properties structure
+	 * in order to determine the right maks for the page offset.
+	 */
+	hop0_shift_off = offsetof(struct hl_mmu_properties, hop0_shift);
+	p = (char *)p + hop0_shift_off;
+	p = (char *)p + ((hops->used_hops - 1) * sizeof(u64));
+	hop_shift = *(u64 *)p;
+	offset_mask = (1 << hop_shift) - 1;
+	addr_mask = ~(offset_mask);
+	*phys_addr = (tmp_phys_addr & addr_mask) |
+					(virt_addr & offset_mask);
+}
+
 int hl_mmu_va_to_pa(struct hl_ctx *ctx, u64 virt_addr, u64 *phys_addr)
 {
 	struct hl_mmu_hop_info hops;
-	u64 tmp_addr;
 	int rc;
 
 	rc = hl_mmu_get_tlb_info(ctx, virt_addr, &hops);
 	if (rc)
 		return rc;
 
-	/* last hop holds the phys address and flags */
-	tmp_addr = hops.hop_info[hops.used_hops - 1].hop_pte_val;
-	*phys_addr = (tmp_addr & HOP_PHYS_ADDR_MASK) | (virt_addr & FLAGS_MASK);
+	hl_mmu_pa_page_with_offset(ctx, virt_addr, &hops,  phys_addr);
 
 	return 0;
 }
@@ -525,6 +559,11 @@ int hl_mmu_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
 
 	mutex_unlock(&ctx->mmu_lock);
 
+	/* add page offset to physical address */
+	if (hops->unscrambled_paddr)
+		hl_mmu_pa_page_with_offset(ctx, virt_addr, hops,
+					&hops->unscrambled_paddr);
+
 	return rc;
 }
 
@@ -548,13 +587,26 @@ int hl_mmu_if_set_funcs(struct hl_device *hdev)
 }
 
 /**
- * hl_mmu_scramble_vaddr() - The generic mmu virtual address scrambling routine.
+ * hl_mmu_scramble_addr() - The generic mmu address scrambling routine.
  * @hdev: pointer to device data.
- * @virt_addr: The virtual address to scramble.
+ * @addr: The address to scramble.
  *
- * Return: The scrambled virtual address.
+ * Return: The scrambled address.
  */
-u64 hl_mmu_scramble_vaddr(struct hl_device *hdev, u64 virt_addr)
+u64 hl_mmu_scramble_addr(struct hl_device *hdev, u64 addr)
 {
-	return virt_addr;
+	return addr;
+}
+
+/**
+ * hl_mmu_descramble_addr() - The generic mmu address descrambling
+ * routine.
+ * @hdev: pointer to device data.
+ * @addr: The address to descramble.
+ *
+ * Return: The un-scrambled address.
+ */
+u64 hl_mmu_descramble_addr(struct hl_device *hdev, u64 addr)
+{
+	return addr;
 }
