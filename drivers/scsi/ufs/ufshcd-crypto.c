@@ -182,7 +182,7 @@ int ufshcd_hba_init_crypto_capabilities(struct ufs_hba *hba)
 	err = blk_ksm_init(&hba->ksm,
 			   hba->crypto_capabilities.config_count + 1);
 	if (err)
-		goto out_free_caps;
+		goto out;
 
 	hba->ksm.ksm_ll_ops = ufshcd_ksm_ops;
 	/* UFS only supports 8 bytes for any DUN */
@@ -208,8 +208,6 @@ int ufshcd_hba_init_crypto_capabilities(struct ufs_hba *hba)
 
 	return 0;
 
-out_free_caps:
-	devm_kfree(hba->dev, hba->crypto_cap_array);
 out:
 	/* Indicate that init failed by clearing UFSHCD_CAP_CRYPTO */
 	hba->caps &= ~UFSHCD_CAP_CRYPTO;
