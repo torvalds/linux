@@ -62,7 +62,8 @@ static struct cmn2asic_msg_mapping vangogh_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(GetSmuVersion,                  PPSMC_MSG_GetSmuVersion,		0),
 	MSG_MAP(GetDriverIfVersion,             PPSMC_MSG_GetDriverIfVersion,	0),
 	MSG_MAP(EnableGfxOff,                   PPSMC_MSG_EnableGfxOff,			0),
-	MSG_MAP(DisallowGfxOff,                 PPSMC_MSG_DisableGfxOff,		0),
+	MSG_MAP(AllowGfxOff,                    PPSMC_MSG_AllowGfxOff,          0),
+	MSG_MAP(DisallowGfxOff,                 PPSMC_MSG_DisallowGfxOff,		0),
 	MSG_MAP(PowerDownIspByTile,             PPSMC_MSG_PowerDownIspByTile,	0),
 	MSG_MAP(PowerUpIspByTile,               PPSMC_MSG_PowerUpIspByTile,		0),
 	MSG_MAP(PowerDownVcn,                   PPSMC_MSG_PowerDownVcn,			0),
@@ -1622,6 +1623,7 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.set_performance_level = vangogh_set_performance_level,
 	.post_init = vangogh_post_smu_init,
 	.mode2_reset = vangogh_mode2_reset,
+	.gfx_off_control = smu_v11_0_gfx_off_control,
 };
 
 void vangogh_set_ppt_funcs(struct smu_context *smu)
