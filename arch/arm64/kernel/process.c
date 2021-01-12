@@ -306,6 +306,7 @@ void show_regs(struct pt_regs * regs)
 	__show_regs(regs);
 	dump_backtrace(regs, NULL, KERN_DEFAULT);
 }
+EXPORT_SYMBOL_GPL(show_regs);
 
 static void tls_thread_flush(void)
 {
