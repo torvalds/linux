@@ -742,6 +742,10 @@
 			bias-pull-pin-default;
 		};
 
+		pcfg_pull_up: pcfg-pull-up {
+			bias-pull-up;
+		};
+
 		pcfg_pull_none: pcfg-pull-none {
 			bias-disable;
 		};
@@ -902,8 +906,8 @@
 
 		uart0 {
 			uart0_xfer: uart0-xfer {
-				rockchip,pins = <0 16 RK_FUNC_1 &pcfg_pull_default>,
-						<0 17 RK_FUNC_1 &pcfg_pull_none>;
+				rockchip,pins = <0 16 RK_FUNC_1 &pcfg_pull_up>,
+						<0 17 RK_FUNC_1 &pcfg_pull_up>;
 			};
 
 			uart0_cts: uart0-cts {
@@ -917,16 +921,16 @@
 
 		uart1 {
 			uart1_xfer: uart1-xfer {
-				rockchip,pins = <2 22 RK_FUNC_1 &pcfg_pull_default>,
-						<2 23 RK_FUNC_1 &pcfg_pull_none>;
+				rockchip,pins = <2 22 RK_FUNC_1 &pcfg_pull_up>,
+						<2 23 RK_FUNC_1 &pcfg_pull_up>;
 			};
 			/* no rts / cts for uart1 */
 		};
 
 		uart2 {
 			uart2_xfer: uart2-xfer {
-				rockchip,pins = <1 18 RK_FUNC_2 &pcfg_pull_default>,
-						<1 19 RK_FUNC_2 &pcfg_pull_none>;
+				rockchip,pins = <1 18 RK_FUNC_2 &pcfg_pull_up>,
+						<1 19 RK_FUNC_2 &pcfg_pull_up>;
 			};
 			/* no rts / cts for uart2 */
 		};
