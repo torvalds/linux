@@ -59,6 +59,26 @@
 		};
 	};
 
+	leds: gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 =<&leds_gpio>;
+
+		led@1 {
+			gpios = <&gpio3 RK_PC4 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "battery-full";
+			label = "battery_full";
+			retain-state-suspended;
+		};
+
+		led@2 {
+			gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "battery-charging";
+			label = "battery_charging";
+			retain-state-suspended;
+		};
+	};
+
 	vccsys: vccsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v8_sys";
@@ -648,6 +668,14 @@
 		camera_rst: camera-rst {
 			rockchip,pins =
 				<4 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	leds {
+		leds_gpio: leds-gpio {
+			rockchip,pins =
+				<0 RK_PC4 RK_FUNC_1 &pcfg_pull_none>,
+				<0 RK_PC5 RK_FUNC_1 &pcfg_pull_none>;
 		};
 	};
 
