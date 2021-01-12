@@ -138,6 +138,46 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg)
 }
 
 /**
+ * hl_irq_handler_user_cq - irq handler for user completion queues
+ *
+ * @irq: irq number
+ * @arg: pointer to user interrupt structure
+ *
+ */
+irqreturn_t hl_irq_handler_user_cq(int irq, void *arg)
+{
+	struct hl_user_interrupt *user_cq = arg;
+	struct hl_device *hdev = user_cq->hdev;
+	u32 interrupt_id = user_cq->interrupt_id;
+
+	dev_info(hdev->dev,
+		"got user completion interrupt id %u",
+		interrupt_id);
+
+	return IRQ_HANDLED;
+}
+
+/**
+ * hl_irq_handler_default - default irq handler
+ *
+ * @irq: irq number
+ * @arg: pointer to user interrupt structure
+ *
+ */
+irqreturn_t hl_irq_handler_default(int irq, void *arg)
+{
+	struct hl_user_interrupt *user_interrupt = arg;
+	struct hl_device *hdev = user_interrupt->hdev;
+	u32 interrupt_id = user_interrupt->interrupt_id;
+
+	dev_err(hdev->dev,
+		"got invalid user interrupt %u",
+		interrupt_id);
+
+	return IRQ_HANDLED;
+}
+
+/**
  * hl_irq_handler_eq - irq handler for event queue
  *
  * @irq: irq number

@@ -1251,7 +1251,7 @@ out_err:
  */
 int hl_device_init(struct hl_device *hdev, struct class *hclass)
 {
-	int i, rc, cq_cnt, cq_ready_cnt;
+	int i, rc, cq_cnt, user_interrupt_cnt, cq_ready_cnt;
 	char *name;
 	bool add_cdev_sysfs_on_err = false;
 
@@ -1340,6 +1340,19 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		hdev->completion_queue[i].cq_idx = i;
 	}
 
+	user_interrupt_cnt = hdev->asic_prop.user_interrupt_count;
+
+	if (user_interrupt_cnt) {
+		hdev->user_interrupt = kcalloc(user_interrupt_cnt,
+				sizeof(*hdev->user_interrupt),
+				GFP_KERNEL);
+
+		if (!hdev->user_interrupt) {
+			rc = -ENOMEM;
+			goto cq_fini;
+		}
+	}
+
 	/*
 	 * Initialize the event queue. Must be done before hw_init,
 	 * because there the address of the event queue is being
@@ -1348,7 +1361,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	rc = hl_eq_init(hdev, &hdev->event_queue);
 	if (rc) {
 		dev_err(hdev->dev, "failed to initialize event queue\n");
-		goto cq_fini;
+		goto user_interrupts_fini;
 	}
 
 	/* MMU S/W must be initialized before kernel context is created */
@@ -1486,6 +1499,8 @@ mmu_fini:
 	hl_mmu_fini(hdev);
 eq_fini:
 	hl_eq_fini(hdev, &hdev->event_queue);
+user_interrupts_fini:
+	kfree(hdev->user_interrupt);
 cq_fini:
 	for (i = 0 ; i < cq_ready_cnt ; i++)
 		hl_cq_fini(hdev, &hdev->completion_queue[i]);
@@ -1625,6 +1640,7 @@ void hl_device_fini(struct hl_device *hdev)
 	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
 		hl_cq_fini(hdev, &hdev->completion_queue[i]);
 	kfree(hdev->completion_queue);
+	kfree(hdev->user_interrupt);
 
 	hl_hw_queues_destroy(hdev);
 

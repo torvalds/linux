@@ -412,6 +412,7 @@ struct hl_mmu_properties {
  * @first_available_user_msix_interrupt: first available msix interrupt
  *                                       reserved for the user
  * @first_available_cq: first available CQ for the user.
+ * @user_interrupt_count: number of user interrupts.
  * @tpc_enabled_mask: which TPCs are enabled.
  * @completion_queues_count: number of completion queues.
  * @fw_security_disabled: true if security measures are disabled in firmware,
@@ -475,6 +476,7 @@ struct asic_fixed_properties {
 	u16				first_available_user_mon[HL_MAX_DCORES];
 	u16				first_available_user_msix_interrupt;
 	u16				first_available_cq[HL_MAX_DCORES];
+	u16				user_interrupt_count;
 	u8				tpc_enabled_mask;
 	u8				completion_queues_count;
 	u8				fw_security_disabled;
@@ -687,6 +689,16 @@ struct hl_cq {
 	u32			ci;
 	u32			pi;
 	atomic_t		free_slots_cnt;
+};
+
+/**
+ * struct hl_user_interrupt - holds user interrupt information
+ * @hdev: pointer to the device structure
+ * @interrupt_id: msix interrupt id
+ */
+struct hl_user_interrupt {
+	struct hl_device	*hdev;
+	u32			interrupt_id;
 };
 
 /**
@@ -1821,6 +1833,7 @@ struct hl_mmu_funcs {
  * @asic_name: ASIC specific name.
  * @asic_type: ASIC specific type.
  * @completion_queue: array of hl_cq.
+ * @user_interrupt: array of hl_user_interrupt.
  * @cq_wq: work queues of completion queues for executing work in process
  *         context.
  * @eq_wq: work queue of event queue for executing work in process context.
@@ -1937,6 +1950,7 @@ struct hl_device {
 	char				status[HL_DEV_STS_MAX][HL_STR_MAX];
 	enum hl_asic_type		asic_type;
 	struct hl_cq			*completion_queue;
+	struct hl_user_interrupt	*user_interrupt;
 	struct workqueue_struct		**cq_wq;
 	struct workqueue_struct		*eq_wq;
 	struct hl_ctx			*kernel_ctx;
@@ -2158,6 +2172,8 @@ void hl_cq_reset(struct hl_device *hdev, struct hl_cq *q);
 void hl_eq_reset(struct hl_device *hdev, struct hl_eq *q);
 irqreturn_t hl_irq_handler_cq(int irq, void *arg);
 irqreturn_t hl_irq_handler_eq(int irq, void *arg);
+irqreturn_t hl_irq_handler_user_cq(int irq, void *arg);
+irqreturn_t hl_irq_handler_default(int irq, void *arg);
 u32 hl_cq_inc_ptr(u32 ptr);
 
 int hl_asid_init(struct hl_device *hdev);
