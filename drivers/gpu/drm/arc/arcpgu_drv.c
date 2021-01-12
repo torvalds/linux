@@ -70,7 +70,7 @@ static int arcpgu_load(struct arcpgu_drm_private *arcpgu)
 	if (dma_set_mask_and_coherent(drm->dev, DMA_BIT_MASK(32)))
 		return -ENODEV;
 
-	if (arc_pgu_setup_crtc(drm) < 0)
+	if (arc_pgu_setup_pipe(drm) < 0)
 		return -ENODEV;
 
 	/*
