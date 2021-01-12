@@ -2068,10 +2068,8 @@ static void mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
 	u32 buf_size = 0;
 	int i;
 
-#ifdef CONFIG_MLX5_EN_IPSEC
 	if (MLX5_IPSEC_DEV(mdev))
 		byte_count += MLX5E_METADATA_ETHER_LEN;
-#endif
 
 	if (mlx5e_rx_is_linear_skb(params, xsk)) {
 		int frag_stride;
