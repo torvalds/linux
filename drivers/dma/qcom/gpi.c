@@ -584,7 +584,7 @@ static inline void gpi_write_reg_field(struct gpii *gpii, void __iomem *addr,
 	gpi_write_reg(gpii, addr, val);
 }
 
-static inline void
+static __always_inline void
 gpi_update_reg(struct gpii *gpii, u32 offset, u32 mask, u32 val)
 {
 	void __iomem *addr = gpii->regs + offset;
