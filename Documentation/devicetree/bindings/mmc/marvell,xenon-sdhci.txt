@@ -12,6 +12,7 @@ Required Properties:
   - "marvell,armada-3700-sdhci": For controllers on Armada-3700 SoC.
   Must provide a second register area and marvell,pad-type.
   - "marvell,armada-ap806-sdhci": For controllers on Armada AP806.
+  - "marvell,armada-ap807-sdhci": For controllers on Armada AP807.
   - "marvell,armada-cp110-sdhci": For controllers on Armada CP110.
 
 - clocks:
