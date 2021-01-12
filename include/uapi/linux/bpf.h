@@ -2993,10 +2993,10 @@ union bpf_attr {
  * 		string length is larger than *size*, just *size*-1 bytes are
  * 		copied and the last byte is set to NUL.
  *
- * 		On success, the length of the copied string is returned. This
- * 		makes this helper useful in tracing programs for reading
- * 		strings, and more importantly to get its length at runtime. See
- * 		the following snippet:
+ * 		On success, returns the number of bytes that were written,
+ * 		including the terminal NUL. This makes this helper useful in
+ * 		tracing programs for reading strings, and more importantly to
+ * 		get its length at runtime. See the following snippet:
  *
  * 		::
  *
@@ -3024,7 +3024,7 @@ union bpf_attr {
  * 		**->mm->env_start**: using this helper and the return value,
  * 		one can quickly iterate at the right offset of the memory area.
  * 	Return
- * 		On success, the strictly positive length of the string,
+ * 		On success, the strictly positive length of the output string,
  * 		including the trailing NUL character. On error, a negative
  * 		value.
  *
