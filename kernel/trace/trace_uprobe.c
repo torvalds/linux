@@ -1635,7 +1635,7 @@ void destroy_local_trace_uprobe(struct trace_event_call *event_call)
 }
 #endif /* CONFIG_PERF_EVENTS */
 
-/* Make a trace interface for controling probe points */
+/* Make a trace interface for controlling probe points */
 static __init int init_uprobe_trace(void)
 {
 	int ret;
