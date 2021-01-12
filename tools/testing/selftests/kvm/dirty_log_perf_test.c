@@ -92,6 +92,7 @@ struct test_params {
 	unsigned long iterations;
 	uint64_t phys_offset;
 	int wr_fract;
+	bool partition_vcpu_memory_access;
 };
 
 static void run_test(enum vm_guest_mode mode, void *arg)
@@ -129,7 +130,8 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	vcpu_threads = malloc(nr_vcpus * sizeof(*vcpu_threads));
 	TEST_ASSERT(vcpu_threads, "Memory allocation failed");
 
-	perf_test_setup_vcpus(vm, nr_vcpus, guest_percpu_mem_size);
+	perf_test_setup_vcpus(vm, nr_vcpus, guest_percpu_mem_size,
+			      p->partition_vcpu_memory_access);
 
 	sync_global_to_guest(vm, perf_test_args);
 
@@ -240,7 +242,7 @@ static void help(char *name)
 {
 	puts("");
 	printf("usage: %s [-h] [-i iterations] [-p offset] "
-	       "[-m mode] [-b vcpu bytes] [-v vcpus]\n", name);
+	       "[-m mode] [-b vcpu bytes] [-v vcpus] [-o]\n", name);
 	puts("");
 	printf(" -i: specify iteration counts (default: %"PRIu64")\n",
 	       TEST_HOST_LOOP_N);
@@ -255,6 +257,8 @@ static void help(char *name)
 	       "     1/<fraction of pages to write>.\n"
 	       "     (default: 1 i.e. all pages are written to.)\n");
 	printf(" -v: specify the number of vCPUs to run.\n");
+	printf(" -o: Overlap guest memory accesses instead of partitioning\n"
+	       "     them into a separate region of memory for each vCPU.\n");
 	puts("");
 	exit(0);
 }
@@ -265,6 +269,7 @@ int main(int argc, char *argv[])
 	struct test_params p = {
 		.iterations = TEST_HOST_LOOP_N,
 		.wr_fract = 1,
+		.partition_vcpu_memory_access = true,
 	};
 	int opt;
 
@@ -275,7 +280,7 @@ int main(int argc, char *argv[])
 
 	guest_modes_append_default();
 
-	while ((opt = getopt(argc, argv, "hi:p:m:b:f:v:")) != -1) {
+	while ((opt = getopt(argc, argv, "hi:p:m:b:f:v:o")) != -1) {
 		switch (opt) {
 		case 'i':
 			p.iterations = atoi(optarg);
@@ -298,6 +303,9 @@ int main(int argc, char *argv[])
 			nr_vcpus = atoi(optarg);
 			TEST_ASSERT(nr_vcpus > 0 && nr_vcpus <= max_vcpus,
 				    "Invalid number of vcpus, must be between 1 and %d", max_vcpus);
+			break;
+		case 'o':
+			p.partition_vcpu_memory_access = false;
 			break;
 		case 'h':
 		default:
