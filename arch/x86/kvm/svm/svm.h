@@ -84,6 +84,7 @@ struct kvm_vcpu;
 struct kvm_vmcb_info {
 	struct vmcb *ptr;
 	unsigned long pa;
+	int cpu;
 };
 
 struct svm_nested_state {

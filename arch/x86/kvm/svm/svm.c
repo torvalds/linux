@@ -1319,11 +1319,12 @@ void svm_switch_vmcb(struct vcpu_svm *svm, struct kvm_vmcb_info *target_vmcb)
 	svm->asid_generation = 0;
 
 	/*
-	* Workaround: we don't yet track the physical CPU that
-	* target_vmcb has run on.
+	* Track the physical CPU the target_vmcb is running on
+	* in order to mark the VMCB dirty if the cpu changes at
+	* its next vmrun.
 	*/
 
-	vmcb_mark_all_dirty(svm->vmcb);
+	svm->current_vmcb->cpu = svm->vcpu.cpu;
 }
 
 static int svm_create_vcpu(struct kvm_vcpu *vcpu)
@@ -1498,11 +1499,6 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct svm_cpu_data *sd = per_cpu(svm_data, cpu);
-
-	if (unlikely(cpu != vcpu->cpu)) {
-		svm->asid_generation = 0;
-		vmcb_mark_all_dirty(svm->vmcb);
-	}
 
 	if (sd->current_vmcb != svm->vmcb) {
 		sd->current_vmcb = svm->vmcb;
@@ -3434,6 +3430,17 @@ static void reload_tss(struct kvm_vcpu *vcpu)
 static void pre_svm_run(struct vcpu_svm *svm)
 {
 	struct svm_cpu_data *sd = per_cpu(svm_data, svm->vcpu.cpu);
+
+	/*
+	 * If the previous vmrun of the vmcb occurred on
+	 * a different physical cpu then we must mark the vmcb dirty.
+	 */
+
+        if (unlikely(svm->current_vmcb->cpu != svm->vcpu.cpu)) {
+		svm->asid_generation = 0;
+		vmcb_mark_all_dirty(svm->vmcb);
+		svm->current_vmcb->cpu = svm->vcpu.cpu;
+        }
 
 	if (sev_guest(svm->vcpu.kvm))
 		return pre_sev_run(svm, svm->vcpu.cpu);
