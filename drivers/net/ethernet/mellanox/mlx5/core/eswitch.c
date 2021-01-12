@@ -1042,8 +1042,7 @@ static int esw_vport_enable_qos(struct mlx5_eswitch *esw,
 	void *vport_elem;
 	int err = 0;
 
-	if (!esw->qos.enabled || !MLX5_CAP_GEN(dev, qos) ||
-	    !MLX5_CAP_QOS(dev, esw_scheduling))
+	if (!esw->qos.enabled)
 		return 0;
 
 	if (vport->qos.enabled)
