@@ -138,6 +138,7 @@
 #define MT_DEVICE_nGnRnE	4
 #define MT_DEVICE_nGnRE		5
 #define MT_DEVICE_GRE		6
+#define MT_NORMAL_iNC_oWB	7
 
 /*
  * Memory types for Stage-2 translation
