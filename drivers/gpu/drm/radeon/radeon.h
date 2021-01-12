@@ -2313,6 +2313,9 @@ struct radeon_device {
 	struct device			*dev;
 	struct drm_device		*ddev;
 	struct pci_dev			*pdev;
+#ifdef __alpha__
+	struct pci_controller		*hose;
+#endif
 	struct rw_semaphore		exclusive_lock;
 	/* ASIC */
 	union radeon_asic_config	config;

@@ -342,10 +342,6 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto err_free;
 
-#ifdef __alpha__
-	dev->hose = pdev->sysdata;
-#endif
-
 	pci_set_drvdata(pdev, dev);
 
 	if (pci_find_capability(pdev, PCI_CAP_ID_AGP))
