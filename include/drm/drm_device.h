@@ -282,10 +282,6 @@ struct drm_device {
 	/** @pdev: PCI device structure */
 	struct pci_dev *pdev;
 
-#ifdef __alpha__
-	/** @hose: PCI hose, only used on ALPHA platforms. */
-	struct pci_controller *hose;
-#endif
 	/** @num_crtcs: Number of CRTCs on this device */
 	unsigned int num_crtcs;
 
@@ -327,6 +323,11 @@ struct drm_device {
 #if IS_ENABLED(CONFIG_DRM_LEGACY)
 	/* List of devices per driver for stealth attach cleanup */
 	struct list_head legacy_dev_list;
+
+#ifdef __alpha__
+	/** @hose: PCI hose, only used on ALPHA platforms. */
+	struct pci_controller *hose;
+#endif
 
 	/* Context handle management - linked list of context handles */
 	struct list_head ctxlist;
