@@ -80,6 +80,15 @@
 			status = "disabled";
 		};
 
+		pfc: pin-controller@e6050000 {
+			compatible = "renesas,pfc-r8a779a0";
+			reg = <0 0xe6050000 0 0x16c>, <0 0xe6050800 0 0x16c>,
+			      <0 0xe6058000 0 0x16c>, <0 0xe6058800 0 0x16c>,
+			      <0 0xe6060000 0 0x16c>, <0 0xe6060800 0 0x16c>,
+			      <0 0xe6068000 0 0x16c>, <0 0xe6068800 0 0x16c>,
+			      <0 0xe6069000 0 0x16c>, <0 0xe6069800 0 0x16c>;
+		};
+
 		cpg: clock-controller@e6150000 {
 			compatible = "renesas,r8a779a0-cpg-mssr";
 			reg = <0 0xe6150000 0 0x4000>;
