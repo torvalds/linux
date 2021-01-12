@@ -538,13 +538,13 @@ mlx5_chains_create_prio(struct mlx5_fs_chains *chains,
 			u32 chain, u32 prio, u32 level)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
-	struct mlx5_flow_handle *miss_rule = NULL;
+	struct mlx5_flow_handle *miss_rule;
 	struct mlx5_flow_group *miss_group;
 	struct mlx5_flow_table *next_ft;
 	struct mlx5_flow_table *ft;
-	struct prio *prio_s = NULL;
 	struct fs_chain *chain_s;
 	struct list_head *pos;
+	struct prio *prio_s;
 	u32 *flow_group_in;
 	int err;
 
