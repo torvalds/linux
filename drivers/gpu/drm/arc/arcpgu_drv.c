@@ -17,13 +17,111 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 
-#include "arcpgu.h"
-#include "arcpgu_regs.h"
+#define ARCPGU_REG_CTRL		0x00
+#define ARCPGU_REG_STAT		0x04
+#define ARCPGU_REG_FMT		0x10
+#define ARCPGU_REG_HSYNC	0x14
+#define ARCPGU_REG_VSYNC	0x18
+#define ARCPGU_REG_ACTIVE	0x1c
+#define ARCPGU_REG_BUF0_ADDR	0x40
+#define ARCPGU_REG_STRIDE	0x50
+#define ARCPGU_REG_START_SET	0x84
+
+#define ARCPGU_REG_ID		0x3FC
+
+#define ARCPGU_CTRL_ENABLE_MASK	0x02
+#define ARCPGU_CTRL_VS_POL_MASK	0x1
+#define ARCPGU_CTRL_VS_POL_OFST	0x3
+#define ARCPGU_CTRL_HS_POL_MASK	0x1
+#define ARCPGU_CTRL_HS_POL_OFST	0x4
+#define ARCPGU_MODE_XRGB8888	BIT(2)
+#define ARCPGU_STAT_BUSY_MASK	0x02
+
+struct arcpgu_drm_private {
+	struct drm_device	drm;
+	void __iomem		*regs;
+	struct clk		*clk;
+	struct drm_simple_display_pipe pipe;
+	struct drm_connector	sim_conn;
+};
+
+#define dev_to_arcpgu(x) container_of(x, struct arcpgu_drm_private, drm)
+
+#define pipe_to_arcpgu_priv(x) container_of(x, struct arcpgu_drm_private, pipe)
+
+static inline void arc_pgu_write(struct arcpgu_drm_private *arcpgu,
+				 unsigned int reg, u32 value)
+{
+	iowrite32(value, arcpgu->regs + reg);
+}
+
+static inline u32 arc_pgu_read(struct arcpgu_drm_private *arcpgu,
+			       unsigned int reg)
+{
+	return ioread32(arcpgu->regs + reg);
+}
+
+#define XRES_DEF	640
+#define YRES_DEF	480
+
+#define XRES_MAX	8192
+#define YRES_MAX	8192
+
+static int arcpgu_drm_connector_get_modes(struct drm_connector *connector)
+{
+	int count;
+
+	count = drm_add_modes_noedid(connector, XRES_MAX, YRES_MAX);
+	drm_set_preferred_mode(connector, XRES_DEF, YRES_DEF);
+	return count;
+}
+
+static const struct drm_connector_helper_funcs
+arcpgu_drm_connector_helper_funcs = {
+	.get_modes = arcpgu_drm_connector_get_modes,
+};
+
+static const struct drm_connector_funcs arcpgu_drm_connector_funcs = {
+	.reset = drm_atomic_helper_connector_reset,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.destroy = drm_connector_cleanup,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+};
+
+static int arcpgu_drm_sim_init(struct drm_device *drm, struct device_node *np)
+{
+	struct arcpgu_drm_private *arcpgu = dev_to_arcpgu(drm);
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
+	int ret;
+
+	encoder = &arcpgu->pipe.encoder;
+
+	connector = &arcpgu->sim_conn;
+	drm_connector_helper_add(connector, &arcpgu_drm_connector_helper_funcs);
+
+	ret = drm_connector_init(drm, connector, &arcpgu_drm_connector_funcs,
+			DRM_MODE_CONNECTOR_VIRTUAL);
+	if (ret < 0) {
+		dev_err(drm->dev, "failed to initialize drm connector\n");
+		return ret;
+	}
+
+	ret = drm_connector_attach_encoder(connector, encoder);
+	if (ret < 0) {
+		dev_err(drm->dev, "could not attach connector to encoder\n");
+		return ret;
+	}
+
+	return 0;
+}
 
 #define ENCODE_PGU_XY(x, y)	((((x) - 1) << 16) | ((y) - 1))
 
