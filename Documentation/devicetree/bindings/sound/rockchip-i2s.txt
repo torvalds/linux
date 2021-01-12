@@ -52,6 +52,12 @@ playback/capture:
 
 - rockchip,grf: the phandle of the syscon node for GRF register.
 
+Optional properties:
+- rockchip,mclk-calibrate: This is a boolean value, if present, enable
+  clk calibrate and compenation.
+
+  note: the corresponding property 'i2s_clk_root' should be assigned.
+
 Example for rk3288 I2S controller:
 
 i2s@ff890000 {
@@ -65,4 +71,13 @@ i2s@ff890000 {
 	rockchip,playback-channels = <8>;
 	rockchip,capture-channels = <2>;
 	rockchip,bclk-fs = <64>;
+};
+
+Example for RV1126 I2S controller with mclk-calibrate:
+
+&i2s1_2ch {
+	status = "okay";
+	clocks = <&cru MCLK_I2S1>, <&cru HCLK_I2S1>, <&cru PLL_CPLL>;
+	clock-names = "i2s_clk", "i2s_hclk", "i2s_clk_root";
+	rockchip,mclk-calibrate;
 };
