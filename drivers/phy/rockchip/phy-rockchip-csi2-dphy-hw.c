@@ -619,6 +619,8 @@ static int rockchip_csi2_dphy_hw_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
+	platform_driver_register(&rockchip_csi2_dphy_driver);
+
 	dev_info(dev, "csi2 dphy hw probe successfully!\n");
 
 	return 0;

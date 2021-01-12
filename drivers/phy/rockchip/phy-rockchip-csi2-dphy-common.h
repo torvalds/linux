@@ -97,4 +97,6 @@ struct csi2_dphy_hw {
 	int (*stream_off)(struct csi2_dphy *dphy, struct v4l2_subdev *sd);
 };
 
+extern struct platform_driver rockchip_csi2_dphy_driver;
+
 #endif
