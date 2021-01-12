@@ -10,7 +10,6 @@
  * the Free Software Foundation.
  */
 
-#include <linux/dma-contiguous.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/refcount.h>
@@ -38,7 +37,6 @@ struct vb2_dma_sg_buf {
 	struct page			**pages;
 	struct frame_vector		*vec;
 	int				offset;
-	unsigned long			attrs;
 	enum dma_data_direction		dma_dir;
 	struct sg_table			sg_table;
 	/*
@@ -98,23 +96,6 @@ static int vb2_dma_sg_alloc_compacted(struct vb2_dma_sg_buf *buf,
 	return 0;
 }
 
-static int vb2_dma_sg_alloc_contiguous(struct device *dev,
-		struct vb2_dma_sg_buf *buf, gfp_t gfp_flags)
-{
-	struct page *page;
-	unsigned int i;
-
-	page = dma_alloc_from_contiguous(dev, buf->num_pages,
-			get_order(buf->size), gfp_flags & __GFP_NOWARN);
-	if (!page)
-		return -ENOMEM;
-
-	for (i = 0; i < buf->num_pages; i++)
-		buf->pages[i] = page + i;
-
-	return 0;
-}
-
 static void *vb2_dma_sg_alloc(struct device *dev, unsigned long dma_attrs,
 			      unsigned long size, enum dma_data_direction dma_dir,
 			      gfp_t gfp_flags)
@@ -132,7 +113,6 @@ static void *vb2_dma_sg_alloc(struct device *dev, unsigned long dma_attrs,
 		return ERR_PTR(-ENOMEM);
 
 	buf->vaddr = NULL;
-	buf->attrs = dma_attrs;
 	buf->dma_dir = dma_dir;
 	buf->offset = 0;
 	buf->size = size;
@@ -145,10 +125,7 @@ static void *vb2_dma_sg_alloc(struct device *dev, unsigned long dma_attrs,
 	if (!buf->pages)
 		goto fail_pages_array_alloc;
 
-	if (dma_attrs & DMA_ATTR_FORCE_CONTIGUOUS)
-		ret = vb2_dma_sg_alloc_contiguous(dev, buf, gfp_flags);
-	else
-		ret = vb2_dma_sg_alloc_compacted(buf, gfp_flags);
+	ret = vb2_dma_sg_alloc_compacted(buf, gfp_flags);
 	if (ret)
 		goto fail_pages_alloc;
 
@@ -185,11 +162,8 @@ fail_map:
 	sg_free_table(buf->dma_sgt);
 fail_table_alloc:
 	num_pages = buf->num_pages;
-	if (dma_attrs & DMA_ATTR_FORCE_CONTIGUOUS)
-		dma_release_from_contiguous(dev, buf->pages[0], num_pages);
-	else
-		while (num_pages--)
-			__free_page(buf->pages[num_pages]);
+	while (num_pages--)
+		__free_page(buf->pages[num_pages]);
 fail_pages_alloc:
 	kvfree(buf->pages);
 fail_pages_array_alloc:
@@ -211,11 +185,8 @@ static void vb2_dma_sg_put(void *buf_priv)
 		if (buf->vaddr)
 			vm_unmap_ram(buf->vaddr, buf->num_pages);
 		sg_free_table(buf->dma_sgt);
-		if (buf->attrs & DMA_ATTR_FORCE_CONTIGUOUS)
-			dma_release_from_contiguous(buf->dev, buf->pages[0], i);
-		else
-			while (--i >= 0)
-				__free_page(buf->pages[i]);
+		while (--i >= 0)
+			__free_page(buf->pages[i]);
 		kvfree(buf->pages);
 		put_device(buf->dev);
 		kfree(buf);
