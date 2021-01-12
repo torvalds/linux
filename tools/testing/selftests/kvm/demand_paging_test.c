@@ -64,7 +64,7 @@ static void *vcpu_worker(void *data)
 			    exit_reason_str(run->exit_reason));
 	}
 
-	ts_diff = timespec_diff_now(start);
+	ts_diff = timespec_elapsed(start);
 	PER_VCPU_DEBUG("vCPU %d execution time: %ld.%.9lds\n", vcpu_id,
 		       ts_diff.tv_sec, ts_diff.tv_nsec);
 
@@ -95,7 +95,7 @@ static int handle_uffd_page_request(int uffd, uint64_t addr)
 		return r;
 	}
 
-	ts_diff = timespec_diff_now(start);
+	ts_diff = timespec_elapsed(start);
 
 	PER_PAGE_DEBUG("UFFDIO_COPY %d \t%ld ns\n", tid,
 		       timespec_to_ns(ts_diff));
@@ -190,7 +190,7 @@ static void *uffd_handler_thread_fn(void *arg)
 		pages++;
 	}
 
-	ts_diff = timespec_diff_now(start);
+	ts_diff = timespec_elapsed(start);
 	PER_VCPU_DEBUG("userfaulted %ld pages over %ld.%.9lds. (%f/sec)\n",
 		       pages, ts_diff.tv_sec, ts_diff.tv_nsec,
 		       pages / ((double)ts_diff.tv_sec + (double)ts_diff.tv_nsec / 100000000.0));
@@ -339,7 +339,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		PER_VCPU_DEBUG("Joined thread for vCPU %d\n", vcpu_id);
 	}
 
-	ts_diff = timespec_diff_now(start);
+	ts_diff = timespec_elapsed(start);
 
 	pr_info("All vCPU threads joined\n");
 

@@ -84,7 +84,7 @@ struct timespec timespec_sub(struct timespec ts1, struct timespec ts2)
 	return timespec_add_ns((struct timespec){0}, ns1 - ns2);
 }
 
-struct timespec timespec_diff_now(struct timespec start)
+struct timespec timespec_elapsed(struct timespec start)
 {
 	struct timespec end;
 
