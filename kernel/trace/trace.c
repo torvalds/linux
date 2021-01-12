@@ -454,6 +454,7 @@ static void __trace_array_put(struct trace_array *this_tr)
 
 /**
  * trace_array_put - Decrement the reference counter for this trace array.
+ * @this_tr : pointer to the trace array
  *
  * NOTE: Use this when we no longer need the trace array returned by
  * trace_array_get_by_name(). This ensures the trace array can be later
