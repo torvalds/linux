@@ -31,6 +31,7 @@ struct pwm_fan_tach {
 struct pwm_fan_ctx {
 	struct mutex lock;
 	struct pwm_device *pwm;
+	struct pwm_state pwm_state;
 	struct regulator *reg_en;
 
 	int tach_count;
@@ -95,18 +96,17 @@ static int  __set_pwm(struct pwm_fan_ctx *ctx, unsigned long pwm)
 {
 	unsigned long period;
 	int ret = 0;
-	struct pwm_state state = { };
+	struct pwm_state *state = &ctx->pwm_state;
 
 	mutex_lock(&ctx->lock);
 	if (ctx->pwm_value == pwm)
 		goto exit_set_pwm_err;
 
-	pwm_init_state(ctx->pwm, &state);
-	period = ctx->pwm->args.period;
-	state.duty_cycle = DIV_ROUND_UP(pwm * (period - 1), MAX_PWM);
-	state.enabled = pwm ? true : false;
+	period = state->period;
+	state->duty_cycle = DIV_ROUND_UP(pwm * (period - 1), MAX_PWM);
+	state->enabled = pwm ? true : false;
 
-	ret = pwm_apply_state(ctx->pwm, &state);
+	ret = pwm_apply_state(ctx->pwm, state);
 	if (!ret)
 		ctx->pwm_value = pwm;
 exit_set_pwm_err:
@@ -288,7 +288,9 @@ static void pwm_fan_regulator_disable(void *data)
 static void pwm_fan_pwm_disable(void *__ctx)
 {
 	struct pwm_fan_ctx *ctx = __ctx;
-	pwm_disable(ctx->pwm);
+
+	ctx->pwm_state.enabled = false;
+	pwm_apply_state(ctx->pwm, &ctx->pwm_state);
 	del_timer_sync(&ctx->rpm_timer);
 }
 
@@ -299,7 +301,6 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	struct pwm_fan_ctx *ctx;
 	struct device *hwmon;
 	int ret;
-	struct pwm_state state = { };
 	const struct hwmon_channel_info **channels;
 	u32 *fan_channel_config;
 	int channel_count = 1;	/* We always have a PWM channel. */
@@ -337,22 +338,20 @@ static int pwm_fan_probe(struct platform_device *pdev)
 
 	ctx->pwm_value = MAX_PWM;
 
-	pwm_init_state(ctx->pwm, &state);
+	pwm_init_state(ctx->pwm, &ctx->pwm_state);
+
 	/*
 	 * __set_pwm assumes that MAX_PWM * (period - 1) fits into an unsigned
 	 * long. Check this here to prevent the fan running at a too low
 	 * frequency.
 	 */
-	if (state.period > ULONG_MAX / MAX_PWM + 1) {
+	if (ctx->pwm_state.period > ULONG_MAX / MAX_PWM + 1) {
 		dev_err(dev, "Configured period too big\n");
 		return -EINVAL;
 	}
 
 	/* Set duty cycle to maximum allowed and enable PWM output */
-	state.duty_cycle = ctx->pwm->args.period - 1;
-	state.enabled = true;
-
-	ret = pwm_apply_state(ctx->pwm, &state);
+	ret = __set_pwm(ctx, MAX_PWM);
 	if (ret) {
 		dev_err(dev, "Failed to configure PWM: %d\n", ret);
 		return ret;
@@ -468,17 +467,17 @@ static int pwm_fan_probe(struct platform_device *pdev)
 static int pwm_fan_disable(struct device *dev)
 {
 	struct pwm_fan_ctx *ctx = dev_get_drvdata(dev);
-	struct pwm_args args;
 	int ret;
 
-	pwm_get_args(ctx->pwm, &args);
-
 	if (ctx->pwm_value) {
-		ret = pwm_config(ctx->pwm, 0, args.period);
+		/* keep ctx->pwm_state unmodified for pwm_fan_resume() */
+		struct pwm_state state = ctx->pwm_state;
+
+		state.duty_cycle = 0;
+		state.enabled = false;
+		ret = pwm_apply_state(ctx->pwm, &state);
 		if (ret < 0)
 			return ret;
-
-		pwm_disable(ctx->pwm);
 	}
 
 	if (ctx->reg_en) {
@@ -506,8 +505,6 @@ static int pwm_fan_suspend(struct device *dev)
 static int pwm_fan_resume(struct device *dev)
 {
 	struct pwm_fan_ctx *ctx = dev_get_drvdata(dev);
-	struct pwm_args pargs;
-	unsigned long duty;
 	int ret;
 
 	if (ctx->reg_en) {
@@ -521,12 +518,7 @@ static int pwm_fan_resume(struct device *dev)
 	if (ctx->pwm_value == 0)
 		return 0;
 
-	pwm_get_args(ctx->pwm, &pargs);
-	duty = DIV_ROUND_UP_ULL(ctx->pwm_value * (pargs.period - 1), MAX_PWM);
-	ret = pwm_config(ctx->pwm, duty, pargs.period);
-	if (ret)
-		return ret;
-	return pwm_enable(ctx->pwm);
+	return pwm_apply_state(ctx->pwm, &ctx->pwm_state);
 }
 #endif
 
