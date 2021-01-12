@@ -522,7 +522,7 @@ static struct message *msg_get_from_user(struct channel *c, u64 seq)
 	return NULL;
 }
 
-void message_kill(struct message *m, mempool_t *pool)
+static void message_kill(struct message *m, mempool_t *pool)
 {
 	m->bio->bi_status = BLK_STS_IOERR;
 	bio_endio(m->bio);
@@ -536,12 +536,12 @@ void message_kill(struct message *m, mempool_t *pool)
  * When called without the lock it may spuriously indicate there is remaining
  * work, but when called with the lock it must be accurate.
  */
-int target_poll(struct target *t)
+static int target_poll(struct target *t)
 {
 	return !list_empty(&t->to_user) || t->dm_destroyed;
 }
 
-void target_release(struct kref *ref)
+static void target_release(struct kref *ref)
 {
 	struct target *t = container_of(ref, struct target, references);
 	struct list_head *cur;
@@ -562,7 +562,7 @@ void target_release(struct kref *ref)
 	kfree(t);
 }
 
-void target_put(struct target *t)
+static void target_put(struct target *t)
 {
 	/*
 	 * This both releases a reference to the target and the lock.  We leave
@@ -575,7 +575,7 @@ void target_put(struct target *t)
 		mutex_unlock(&t->lock);
 }
 
-struct channel *channel_alloc(struct target *t)
+static struct channel *channel_alloc(struct target *t)
 {
 	struct channel *c;
 
@@ -593,7 +593,7 @@ struct channel *channel_alloc(struct target *t)
 	return c;
 }
 
-void channel_free(struct channel *c)
+static void channel_free(struct channel *c)
 {
 	struct list_head *cur;
 
