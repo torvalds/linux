@@ -32,6 +32,7 @@
 #include "chtls.h"
 #include "chtls_cm.h"
 #include "clip_tbl.h"
+#include "t4_tcb.h"
 
 /*
  * State transitions and actions for close.  Note that if we are in SYN_SENT
@@ -267,7 +268,9 @@ static void chtls_send_reset(struct sock *sk, int mode, struct sk_buff *skb)
 	if (sk->sk_state != TCP_SYN_RECV)
 		chtls_send_abort(sk, mode, skb);
 	else
-		goto out;
+		chtls_set_tcb_field_rpl_skb(sk, TCB_T_FLAGS_W,
+					    TCB_T_FLAGS_V(TCB_T_FLAGS_M), 0,
+					    TCB_FIELD_COOKIE_TFLAG, 1);
 
 	return;
 out:
@@ -1949,6 +1952,8 @@ static void chtls_close_con_rpl(struct sock *sk, struct sk_buff *skb)
 		else if (tcp_sk(sk)->linger2 < 0 &&
 			 !csk_flag_nochk(csk, CSK_ABORT_SHUTDOWN))
 			chtls_abort_conn(sk, skb);
+		else if (csk_flag_nochk(csk, CSK_TX_DATA_SENT))
+			chtls_set_quiesce_ctrl(sk, 0);
 		break;
 	default:
 		pr_info("close_con_rpl in bad state %d\n", sk->sk_state);
@@ -2292,6 +2297,28 @@ static int chtls_wr_ack(struct chtls_dev *cdev, struct sk_buff *skb)
 	return 0;
 }
 
+static int chtls_set_tcb_rpl(struct chtls_dev *cdev, struct sk_buff *skb)
+{
+	struct cpl_set_tcb_rpl *rpl = cplhdr(skb) + RSS_HDR;
+	unsigned int hwtid = GET_TID(rpl);
+	struct sock *sk;
+
+	sk = lookup_tid(cdev->tids, hwtid);
+
+	/* return EINVAL if socket doesn't exist */
+	if (!sk)
+		return -EINVAL;
+
+	/* Reusing the skb as size of cpl_set_tcb_field structure
+	 * is greater than cpl_abort_req
+	 */
+	if (TCB_COOKIE_G(rpl->cookie) == TCB_FIELD_COOKIE_TFLAG)
+		chtls_send_abort(sk, CPL_ABORT_SEND_RST, NULL);
+
+	kfree_skb(skb);
+	return 0;
+}
+
 chtls_handler_func chtls_handlers[NUM_CPL_CMDS] = {
 	[CPL_PASS_OPEN_RPL]     = chtls_pass_open_rpl,
 	[CPL_CLOSE_LISTSRV_RPL] = chtls_close_listsrv_rpl,
@@ -2304,5 +2331,6 @@ chtls_handler_func chtls_handlers[NUM_CPL_CMDS] = {
 	[CPL_CLOSE_CON_RPL]     = chtls_conn_cpl,
 	[CPL_ABORT_REQ_RSS]     = chtls_conn_cpl,
 	[CPL_ABORT_RPL_RSS]     = chtls_conn_cpl,
-	[CPL_FW4_ACK]           = chtls_wr_ack,
+	[CPL_FW4_ACK]		= chtls_wr_ack,
+	[CPL_SET_TCB_RPL]	= chtls_set_tcb_rpl,
 };
