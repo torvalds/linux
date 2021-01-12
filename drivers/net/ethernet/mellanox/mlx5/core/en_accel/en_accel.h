@@ -144,9 +144,9 @@ static inline bool mlx5e_accel_tx_is_ipsec_flow(struct mlx5e_accel_tx_state *sta
 {
 #ifdef CONFIG_MLX5_EN_IPSEC
 	return mlx5e_ipsec_is_tx_flow(&state->ipsec);
-#endif
-
+#else
 	return false;
+#endif
 }
 
 static inline unsigned int mlx5e_accel_tx_ids_len(struct mlx5e_txqsq *sq,
