@@ -246,7 +246,8 @@ int smc_nl_get_sys_info(struct sk_buff *skb, struct netlink_callback *cb)
 		goto errattr;
 	smc_clc_get_hostname(&host);
 	if (host) {
-		snprintf(hostname, sizeof(hostname), "%s", host);
+		memcpy(hostname, host, SMC_MAX_HOSTNAME_LEN);
+		hostname[SMC_MAX_HOSTNAME_LEN] = 0;
 		if (nla_put_string(skb, SMC_NLA_SYS_LOCAL_HOST, hostname))
 			goto errattr;
 	}
