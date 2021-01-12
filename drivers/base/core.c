@@ -23,7 +23,6 @@
 #include <linux/of_device.h>
 #include <linux/genhd.h>
 #include <linux/mutex.h>
-#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/netdevice.h>
 #include <linux/sched/signal.h>
@@ -4287,8 +4286,6 @@ void device_shutdown(void)
 				dev_info(dev, "shutdown\n");
 			dev->driver->shutdown(dev);
 		}
-
-		dev_pm_domain_detach(dev, true);
 
 		device_unlock(dev);
 		if (parent)
