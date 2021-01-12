@@ -650,7 +650,7 @@ static int validate_hash_tree(struct backing_file_context *bfc, struct file *f,
 			int i;
 			bool zero = true;
 
-			pr_debug("incfs: Hash mismatch lvl:%d blk:%d\n",
+			pr_warn("incfs: Hash mismatch lvl:%d blk:%d\n",
 				lvl, block_index);
 			for (i = 0; i < digest_size; i++)
 				if (stored_digest[i]) {
@@ -659,7 +659,7 @@ static int validate_hash_tree(struct backing_file_context *bfc, struct file *f,
 				}
 
 			if (zero)
-				pr_debug("incfs: Note saved_digest all zero - did you forget to load the hashes?\n");
+				pr_debug("Note saved_digest all zero - did you forget to load the hashes?\n");
 			return -EBADMSG;
 		}
 
@@ -684,7 +684,7 @@ static int validate_hash_tree(struct backing_file_context *bfc, struct file *f,
 		return res;
 
 	if (memcmp(stored_digest, calculated_digest, digest_size)) {
-		pr_debug("incfs: Leaf hash mismatch blk:%d\n", block_index);
+		pr_debug("Leaf hash mismatch blk:%d\n", block_index);
 		return -EBADMSG;
 	}
 
@@ -1134,7 +1134,7 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 			 * Somehow wait finished successfully bug block still
 			 * can't be found. It's not normal.
 			 */
-			pr_warn("incfs:Wait succeeded, but block not found.\n");
+			pr_warn("incfs: Wait succeeded but block not found.\n");
 			error = -ENODATA;
 		}
 	}
