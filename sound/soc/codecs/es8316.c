@@ -681,6 +681,9 @@ static void es8316_disable_jack_detect(struct snd_soc_component *component)
 {
 	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
 
+	if (!es8316->jack)
+		return; /* Already disabled (or never enabled) */
+
 	disable_irq(es8316->irq);
 
 	mutex_lock(&es8316->lock);
