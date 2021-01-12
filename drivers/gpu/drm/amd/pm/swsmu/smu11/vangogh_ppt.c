@@ -1535,11 +1535,19 @@ static int vangogh_post_smu_init(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t tmp;
+	int ret = 0;
 	uint8_t aon_bits = 0;
 	/* Two CUs in one WGP */
 	uint32_t req_active_wgps = adev->gfx.cu_info.number/2;
 	uint32_t total_cu = adev->gfx.config.max_cu_per_sh *
 		adev->gfx.config.max_sh_per_se * adev->gfx.config.max_shader_engines;
+
+	/* allow message will be sent after enable message on Vangogh*/
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_EnableGfxOff, NULL);
+	if (ret) {
+		dev_err(adev->dev, "Failed to Enable GfxOff!\n");
+		return ret;
+	}
 
 	/* if all CUs are active, no need to power off any WGPs */
 	if (total_cu == adev->gfx.cu_info.number)
