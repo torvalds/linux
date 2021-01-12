@@ -300,7 +300,7 @@ struct sh_pfc_soc_info {
 	const u16 *pinmux_data;
 	unsigned int pinmux_data_size;
 
-	u32 unlock_reg;
+	u32 unlock_reg;		/* can be literal address or mask */
 };
 
 extern const struct sh_pfc_soc_info emev2_pinmux_info;
