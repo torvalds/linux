@@ -541,6 +541,7 @@ static int tegra_gpio_irq_set_wake(struct irq_data *d, unsigned int enable)
 	struct tegra_gpio_bank *bank;
 	unsigned int gpio = d->hwirq;
 	u32 port, bit, mask;
+	int err;
 
 	bank = &tgi->bank_info[GPIO_BANK(d->hwirq)];
 
@@ -548,13 +549,22 @@ static int tegra_gpio_irq_set_wake(struct irq_data *d, unsigned int enable)
 	bit = GPIO_BIT(gpio);
 	mask = BIT(bit);
 
+	err = irq_set_irq_wake(tgi->irqs[bank->bank], enable);
+	if (err)
+		return err;
+
+	if (d->parent_data) {
+		err = irq_chip_set_wake_parent(d, enable);
+		if (err) {
+			irq_set_irq_wake(tgi->irqs[bank->bank], !enable);
+			return err;
+		}
+	}
+
 	if (enable)
 		bank->wake_enb[port] |= mask;
 	else
 		bank->wake_enb[port] &= ~mask;
-
-	if (d->parent_data)
-		return irq_chip_set_wake_parent(d, enable);
 
 	return 0;
 }
