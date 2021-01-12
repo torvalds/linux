@@ -117,7 +117,19 @@ static int vic_boot(struct vic *vic)
 		if (spec->num_ids > 0) {
 			value = spec->ids[0] & 0xffff;
 
+			/*
+			 * STREAMID0 is used for input/output buffers.
+			 * Initialize it to SID_VIC in case context isolation
+			 * is not enabled, and SID_VIC is used for both firmware
+			 * and data buffers.
+			 *
+			 * If context isolation is enabled, it will be
+			 * overridden by the SETSTREAMID opcode as part of
+			 * each job.
+			 */
 			vic_writel(vic, value, VIC_THI_STREAMID0);
+
+			/* STREAMID1 is used for firmware loading. */
 			vic_writel(vic, value, VIC_THI_STREAMID1);
 		}
 	}
