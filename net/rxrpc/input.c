@@ -446,7 +446,7 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb,
 	if (state >= RXRPC_CALL_COMPLETE)
 		return;
 
-	if (call->state == RXRPC_CALL_SERVER_RECV_REQUEST) {
+	if (state == RXRPC_CALL_SERVER_RECV_REQUEST) {
 		unsigned long timo = READ_ONCE(call->next_req_timo);
 		unsigned long now, expect_req_by;
 
