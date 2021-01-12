@@ -146,8 +146,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	/* Allow the vCPU to populate memory */
 	pr_debug("Starting iteration %lu - Populating\n", iteration);
 	while (READ_ONCE(vcpu_last_completed_iteration[vcpu_id]) != iteration)
-		pr_debug("Waiting for vcpu_last_completed_iteration == %lu\n",
-			iteration);
+		;
 
 	ts_diff = timespec_elapsed(start);
 	pr_info("Populate memory time: %ld.%.9lds\n",
@@ -171,9 +170,9 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 		pr_debug("Starting iteration %lu\n", iteration);
 		for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
-			while (READ_ONCE(vcpu_last_completed_iteration[vcpu_id]) != iteration)
-				pr_debug("Waiting for vCPU %d vcpu_last_completed_iteration == %lu\n",
-					 vcpu_id, iteration);
+			while (READ_ONCE(vcpu_last_completed_iteration[vcpu_id])
+			       != iteration)
+				;
 		}
 
 		ts_diff = timespec_elapsed(start);
