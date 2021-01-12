@@ -6,6 +6,7 @@
 
 #include <linux/platform_device.h>
 #include <media/v4l2-subdev.h>
+#include <media/videobuf2-v4l2.h>
 #include <linux/rkisp1-config.h>
 #include <linux/rkispp-config.h>
 
@@ -125,5 +126,7 @@ static inline void rkisp_get_bridge_sd(struct platform_device *dev,
 	*sd = NULL;
 }
 #endif
+
+extern const struct vb2_mem_ops vb2_rdma_sg_memops;
 
 #endif

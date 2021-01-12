@@ -22,7 +22,8 @@ video_rkisp-objs += rkisp.o \
 			csi.o \
 			bridge.o \
 			isp_mipi_luma.o \
-			procfs.o
+			procfs.o \
+			videobuf2-rdma-sg.o
 
 ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP
 video_rkisp-objs += rkisp_tb_helper.o

@@ -718,10 +718,6 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	hw_dev->is_dma_contig = true;
 	hw_dev->is_buf_init = false;
 	hw_dev->is_mmu = is_iommu_enable(dev);
-	if (!hw_dev->is_mmu)
-		hw_dev->mem_ops = &vb2_dma_contig_memops;
-	else
-		hw_dev->mem_ops = &vb2_dma_sg_memops;
 	ret = of_reserved_mem_device_init(dev);
 	if (ret) {
 		if (!hw_dev->is_mmu)
@@ -729,6 +725,12 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 		else
 			hw_dev->is_dma_contig = false;
 	}
+	if (!hw_dev->is_mmu)
+		hw_dev->mem_ops = &vb2_dma_contig_memops;
+	else if (!hw_dev->is_dma_contig)
+		hw_dev->mem_ops = &vb2_dma_sg_memops;
+	else
+		hw_dev->mem_ops = &vb2_rdma_sg_memops;
 
 	pm_runtime_enable(dev);
 
