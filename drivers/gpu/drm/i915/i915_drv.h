@@ -81,6 +81,7 @@
 
 #include "gt/intel_engine.h"
 #include "gt/intel_gt_types.h"
+#include "gt/intel_region_lmem.h"
 #include "gt/intel_workarounds.h"
 #include "gt/uc/intel_uc.h"
 
@@ -102,7 +103,6 @@
 #include "i915_vma.h"
 #include "i915_irq.h"
 
-#include "intel_region_lmem.h"
 
 /* General customization:
  */

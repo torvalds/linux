@@ -110,6 +110,7 @@ gt-y += \
 	gt/intel_mocs.o \
 	gt/intel_ppgtt.o \
 	gt/intel_rc6.o \
+	gt/intel_region_lmem.o \
 	gt/intel_renderstate.o \
 	gt/intel_reset.o \
 	gt/intel_ring.o \
@@ -170,7 +171,6 @@ i915-y += \
 	  i915_scheduler.o \
 	  i915_trace_points.o \
 	  i915_vma.o \
-	  intel_region_lmem.o \
 	  intel_wopcm.o
 
 # general-purpose microcontroller (GuC) support
