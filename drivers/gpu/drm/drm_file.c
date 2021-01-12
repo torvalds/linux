@@ -239,9 +239,6 @@ static void drm_events_release(struct drm_file *file_priv)
  * before calling this.
  *
  * If NULL is passed, this is a no-op.
- *
- * RETURNS:
- * 0 on success, or error code on failure.
  */
 void drm_file_free(struct drm_file *file)
 {
