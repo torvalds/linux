@@ -63,6 +63,8 @@
 
 #define HL_IDLE_BUSY_TS_ARR_SIZE	4096
 
+#define HL_COMMON_USER_INTERRUPT_ID	0xFFF
+
 /* Memory */
 #define MEM_HASH_TABLE_BITS		7 /* 1 << 7 buckets */
 
@@ -694,11 +696,26 @@ struct hl_cq {
 /**
  * struct hl_user_interrupt - holds user interrupt information
  * @hdev: pointer to the device structure
+ * @wait_list_head: head to the list of user threads pending on this interrupt
+ * @wait_list_lock: protects wait_list_head
  * @interrupt_id: msix interrupt id
  */
 struct hl_user_interrupt {
 	struct hl_device	*hdev;
+	struct list_head	wait_list_head;
+	spinlock_t		wait_list_lock;
 	u32			interrupt_id;
+};
+
+/**
+ * struct hl_user_pending_interrupt - holds a context to a user thread
+ *                                    pending on an interrupt
+ * @wait_list_node: node in the list of user threads pending on an interrupt
+ * @fence: hl fence object for interrupt completion
+ */
+struct hl_user_pending_interrupt {
+	struct list_head	wait_list_node;
+	struct hl_fence		fence;
 };
 
 /**
@@ -1833,7 +1850,12 @@ struct hl_mmu_funcs {
  * @asic_name: ASIC specific name.
  * @asic_type: ASIC specific type.
  * @completion_queue: array of hl_cq.
- * @user_interrupt: array of hl_user_interrupt.
+ * @user_interrupt: array of hl_user_interrupt. upon the corresponding user
+ *                  interrupt, driver will monitor the list of fences
+ *                  registered to this interrupt.
+ * @common_user_interrupt: common user interrupt for all user interrupts.
+ *                         upon any user interrupt, driver will monitor the
+ *                         list of fences registered to this common structure.
  * @cq_wq: work queues of completion queues for executing work in process
  *         context.
  * @eq_wq: work queue of event queue for executing work in process context.
@@ -1951,6 +1973,7 @@ struct hl_device {
 	enum hl_asic_type		asic_type;
 	struct hl_cq			*completion_queue;
 	struct hl_user_interrupt	*user_interrupt;
+	struct hl_user_interrupt	common_user_interrupt;
 	struct workqueue_struct		**cq_wq;
 	struct workqueue_struct		*eq_wq;
 	struct hl_ctx			*kernel_ctx;
@@ -2351,6 +2374,7 @@ int hl_set_voltage(struct hl_device *hdev,
 			int sensor_index, u32 attr, long value);
 int hl_set_current(struct hl_device *hdev,
 			int sensor_index, u32 attr, long value);
+void hl_release_pending_user_interrupts(struct hl_device *hdev);
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -2451,7 +2475,7 @@ long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 long hl_ioctl_control(struct file *filep, unsigned int cmd, unsigned long arg);
 int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data);
 int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data);
-int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data);
+int hl_wait_ioctl(struct hl_fpriv *hpriv, void *data);
 int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data);
 
 #endif /* HABANALABSP_H_ */

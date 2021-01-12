@@ -106,6 +106,11 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 		return 0;
 	}
 
+	/* Each pending user interrupt holds the user's context, hence we
+	 * must release them all before calling hl_ctx_mgr_fini().
+	 */
+	hl_release_pending_user_interrupts(hpriv->hdev);
+
 	hl_cb_mgr_fini(hdev, &hpriv->cb_mgr);
 	hl_ctx_mgr_fini(hdev, &hpriv->ctx_mgr);
 
@@ -1036,6 +1041,11 @@ again:
 	/* Go over all the queues, release all CS and their jobs */
 	hl_cs_rollback_all(hdev);
 
+	/* Release all pending user interrupts, each pending user interrupt
+	 * holds a reference to user context
+	 */
+	hl_release_pending_user_interrupts(hdev);
+
 kill_processes:
 	if (hard_reset) {
 		/* Kill processes here after CS rollback. This is because the
@@ -1290,13 +1300,26 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	if (rc)
 		goto free_dev_ctrl;
 
+	user_interrupt_cnt = hdev->asic_prop.user_interrupt_count;
+
+	if (user_interrupt_cnt) {
+		hdev->user_interrupt = kcalloc(user_interrupt_cnt,
+				sizeof(*hdev->user_interrupt),
+				GFP_KERNEL);
+
+		if (!hdev->user_interrupt) {
+			rc = -ENOMEM;
+			goto early_fini;
+		}
+	}
+
 	/*
 	 * Start calling ASIC initialization. First S/W then H/W and finally
 	 * late init
 	 */
 	rc = hdev->asic_funcs->sw_init(hdev);
 	if (rc)
-		goto early_fini;
+		goto user_interrupts_fini;
 
 	/*
 	 * Initialize the H/W queues. Must be done before hw_init, because
@@ -1340,19 +1363,6 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		hdev->completion_queue[i].cq_idx = i;
 	}
 
-	user_interrupt_cnt = hdev->asic_prop.user_interrupt_count;
-
-	if (user_interrupt_cnt) {
-		hdev->user_interrupt = kcalloc(user_interrupt_cnt,
-				sizeof(*hdev->user_interrupt),
-				GFP_KERNEL);
-
-		if (!hdev->user_interrupt) {
-			rc = -ENOMEM;
-			goto cq_fini;
-		}
-	}
-
 	/*
 	 * Initialize the event queue. Must be done before hw_init,
 	 * because there the address of the event queue is being
@@ -1361,7 +1371,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	rc = hl_eq_init(hdev, &hdev->event_queue);
 	if (rc) {
 		dev_err(hdev->dev, "failed to initialize event queue\n");
-		goto user_interrupts_fini;
+		goto cq_fini;
 	}
 
 	/* MMU S/W must be initialized before kernel context is created */
@@ -1499,8 +1509,6 @@ mmu_fini:
 	hl_mmu_fini(hdev);
 eq_fini:
 	hl_eq_fini(hdev, &hdev->event_queue);
-user_interrupts_fini:
-	kfree(hdev->user_interrupt);
 cq_fini:
 	for (i = 0 ; i < cq_ready_cnt ; i++)
 		hl_cq_fini(hdev, &hdev->completion_queue[i]);
@@ -1509,6 +1517,8 @@ hw_queues_destroy:
 	hl_hw_queues_destroy(hdev);
 sw_fini:
 	hdev->asic_funcs->sw_fini(hdev);
+user_interrupts_fini:
+	kfree(hdev->user_interrupt);
 early_fini:
 	device_early_fini(hdev);
 free_dev_ctrl:

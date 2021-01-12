@@ -682,14 +682,46 @@ union hl_cs_args {
 	struct hl_cs_out out;
 };
 
+#define HL_WAIT_CS_FLAGS_INTERRUPT	0x2
+#define HL_WAIT_CS_FLAGS_INTERRUPT_MASK 0xFFF00000
+
 struct hl_wait_cs_in {
-	/* Command submission sequence number */
-	__u64 seq;
-	/* Absolute timeout to wait in microseconds */
-	__u64 timeout_us;
+	union {
+		struct {
+			/* Command submission sequence number */
+			__u64 seq;
+			/* Absolute timeout to wait for command submission
+			 * in microseconds
+			 */
+			__u64 timeout_us;
+		};
+
+		struct {
+			/* User address for completion comparison.
+			 * upon interrupt, driver will compare the value pointed
+			 * by this address with the supplied target value.
+			 * in order not to perform any comparison, set address
+			 * to all 1s.
+			 * Relevant only when HL_WAIT_CS_FLAGS_INTERRUPT is set
+			 */
+			__u64 addr;
+			/* Target value for completion comparison */
+			__u32 target;
+			/* Absolute timeout to wait for interrupt
+			 * in microseconds
+			 */
+			__u32 interrupt_timeout_us;
+		};
+	};
+
 	/* Context ID - Currently not in use */
 	__u32 ctx_id;
-	__u32 pad;
+	/* HL_WAIT_CS_FLAGS_*
+	 * If HL_WAIT_CS_FLAGS_INTERRUPT is set, this field should include
+	 * interrupt id according to HL_WAIT_CS_FLAGS_INTERRUPT_MASK, in order
+	 * not to specify an interrupt id ,set mask to all 1s.
+	 */
+	__u32 flags;
 };
 
 #define HL_WAIT_CS_STATUS_COMPLETED	0

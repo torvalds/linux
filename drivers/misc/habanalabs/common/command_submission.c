@@ -778,6 +778,44 @@ void hl_pending_cb_list_flush(struct hl_ctx *ctx)
 	}
 }
 
+static void
+wake_pending_user_interrupt_threads(struct hl_user_interrupt *interrupt)
+{
+	struct hl_user_pending_interrupt *pend;
+
+	spin_lock(&interrupt->wait_list_lock);
+	list_for_each_entry(pend, &interrupt->wait_list_head, wait_list_node) {
+		pend->fence.error = -EIO;
+		complete_all(&pend->fence.completion);
+	}
+	spin_unlock(&interrupt->wait_list_lock);
+}
+
+void hl_release_pending_user_interrupts(struct hl_device *hdev)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct hl_user_interrupt *interrupt;
+	int i;
+
+	if (!prop->user_interrupt_count)
+		return;
+
+	/* We iterate through the user interrupt requests and waking up all
+	 * user threads waiting for interrupt completion. We iterate the
+	 * list under a lock, this is why all user threads, once awake,
+	 * will wait on the same lock and will release the waiting object upon
+	 * unlock.
+	 */
+
+	for (i = 0 ; i < prop->user_interrupt_count ; i++) {
+		interrupt = &hdev->user_interrupt[i];
+		wake_pending_user_interrupt_threads(interrupt);
+	}
+
+	interrupt = &hdev->common_user_interrupt;
+	wake_pending_user_interrupt_threads(interrupt);
+}
+
 static void job_wq_completion(struct work_struct *work)
 {
 	struct hl_cs_job *job = container_of(work, struct hl_cs_job,
@@ -1818,7 +1856,7 @@ static int _hl_cs_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	return rc;
 }
 
-int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
+static int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 {
 	struct hl_device *hdev = hpriv->hdev;
 	union hl_wait_cs_args *args = data;
@@ -1872,4 +1910,177 @@ int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	}
 
 	return 0;
+}
+
+static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
+				u32 timeout_us, u64 user_address,
+				u32 target_value, u16 interrupt_offset,
+				enum hl_cs_wait_status *status)
+{
+	struct hl_user_pending_interrupt *pend;
+	struct hl_user_interrupt *interrupt;
+	unsigned long timeout;
+	long completion_rc;
+	u32 completion_value;
+	int rc = 0;
+
+	if (timeout_us == MAX_SCHEDULE_TIMEOUT)
+		timeout = timeout_us;
+	else
+		timeout = usecs_to_jiffies(timeout_us);
+
+	hl_ctx_get(hdev, ctx);
+
+	pend = kmalloc(sizeof(*pend), GFP_ATOMIC);
+	if (!pend) {
+		hl_ctx_put(ctx);
+		return -ENOMEM;
+	}
+
+	hl_fence_init(&pend->fence, ULONG_MAX);
+
+	if (interrupt_offset == HL_COMMON_USER_INTERRUPT_ID)
+		interrupt = &hdev->common_user_interrupt;
+	else
+		interrupt = &hdev->user_interrupt[interrupt_offset];
+
+	spin_lock(&interrupt->wait_list_lock);
+	if (!hl_device_operational(hdev, NULL)) {
+		rc = -EPERM;
+		goto unlock_and_free_fence;
+	}
+
+	if (copy_from_user(&completion_value, u64_to_user_ptr(user_address), 4)) {
+		dev_err(hdev->dev,
+			"Failed to copy completion value from user\n");
+		rc = -EFAULT;
+		goto unlock_and_free_fence;
+	}
+
+	if (completion_value >= target_value)
+		*status = CS_WAIT_STATUS_COMPLETED;
+	else
+		*status = CS_WAIT_STATUS_BUSY;
+
+	if (!timeout_us || (*status == CS_WAIT_STATUS_COMPLETED))
+		goto unlock_and_free_fence;
+
+	/* Add pending user interrupt to relevant list for the interrupt
+	 * handler to monitor
+	 */
+	list_add_tail(&pend->wait_list_node, &interrupt->wait_list_head);
+	spin_unlock(&interrupt->wait_list_lock);
+
+wait_again:
+	/* Wait for interrupt handler to signal completion */
+	completion_rc =
+		wait_for_completion_interruptible_timeout(
+				&pend->fence.completion, timeout);
+
+	/* If timeout did not expire we need to perform the comparison.
+	 * If comparison fails, keep waiting until timeout expires
+	 */
+	if (completion_rc > 0) {
+		if (copy_from_user(&completion_value,
+				u64_to_user_ptr(user_address), 4)) {
+			dev_err(hdev->dev,
+				"Failed to copy completion value from user\n");
+			rc = -EFAULT;
+			goto remove_pending_user_interrupt;
+		}
+
+		if (completion_value >= target_value) {
+			*status = CS_WAIT_STATUS_COMPLETED;
+		} else {
+			timeout -= jiffies_to_usecs(completion_rc);
+			goto wait_again;
+		}
+	} else {
+		*status = CS_WAIT_STATUS_BUSY;
+	}
+
+remove_pending_user_interrupt:
+	spin_lock(&interrupt->wait_list_lock);
+	list_del(&pend->wait_list_node);
+
+unlock_and_free_fence:
+	spin_unlock(&interrupt->wait_list_lock);
+	kfree(pend);
+	hl_ctx_put(ctx);
+
+	return rc;
+}
+
+static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
+{
+	u16 interrupt_id, interrupt_offset, first_interrupt, last_interrupt;
+	struct hl_device *hdev = hpriv->hdev;
+	struct asic_fixed_properties *prop;
+	union hl_wait_cs_args *args = data;
+	enum hl_cs_wait_status status;
+	int rc;
+
+	prop = &hdev->asic_prop;
+
+	if (!prop->user_interrupt_count) {
+		dev_err(hdev->dev, "no user interrupts allowed");
+		return -EPERM;
+	}
+
+	interrupt_id =
+		FIELD_GET(HL_WAIT_CS_FLAGS_INTERRUPT_MASK, args->in.flags);
+
+	first_interrupt = prop->first_available_user_msix_interrupt;
+	last_interrupt = prop->first_available_user_msix_interrupt +
+						prop->user_interrupt_count - 1;
+
+	if ((interrupt_id < first_interrupt || interrupt_id > last_interrupt) &&
+			interrupt_id != HL_COMMON_USER_INTERRUPT_ID) {
+		dev_err(hdev->dev, "invalid user interrupt %u", interrupt_id);
+		return -EINVAL;
+	}
+
+	if (interrupt_id == HL_COMMON_USER_INTERRUPT_ID)
+		interrupt_offset = HL_COMMON_USER_INTERRUPT_ID;
+	else
+		interrupt_offset = interrupt_id - first_interrupt;
+
+	rc = _hl_interrupt_wait_ioctl(hdev, hpriv->ctx,
+				args->in.interrupt_timeout_us, args->in.addr,
+				args->in.target, interrupt_offset, &status);
+
+	memset(args, 0, sizeof(*args));
+
+	if (rc) {
+		dev_err_ratelimited(hdev->dev,
+			"interrupt_wait_ioctl failed (%d)\n", rc);
+
+		return rc;
+	}
+
+	switch (status) {
+	case CS_WAIT_STATUS_COMPLETED:
+		args->out.status = HL_WAIT_CS_STATUS_COMPLETED;
+		break;
+	case CS_WAIT_STATUS_BUSY:
+	default:
+		args->out.status = HL_WAIT_CS_STATUS_BUSY;
+		break;
+	}
+
+	return 0;
+}
+
+int hl_wait_ioctl(struct hl_fpriv *hpriv, void *data)
+{
+	union hl_wait_cs_args *args = data;
+	u32 flags = args->in.flags;
+	int rc;
+
+	if (flags & HL_WAIT_CS_FLAGS_INTERRUPT)
+		rc = hl_interrupt_wait_ioctl(hpriv, data);
+	else
+		rc = hl_cs_wait_ioctl(hpriv, data);
+
+	return rc;
 }

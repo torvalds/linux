@@ -137,6 +137,17 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
+static void handle_user_cq(struct hl_device *hdev,
+			struct hl_user_interrupt *user_cq)
+{
+	struct hl_user_pending_interrupt *pend;
+
+	spin_lock(&user_cq->wait_list_lock);
+	list_for_each_entry(pend, &user_cq->wait_list_head, wait_list_node)
+		complete_all(&pend->fence.completion);
+	spin_unlock(&user_cq->wait_list_lock);
+}
+
 /**
  * hl_irq_handler_user_cq - irq handler for user completion queues
  *
@@ -148,11 +159,16 @@ irqreturn_t hl_irq_handler_user_cq(int irq, void *arg)
 {
 	struct hl_user_interrupt *user_cq = arg;
 	struct hl_device *hdev = user_cq->hdev;
-	u32 interrupt_id = user_cq->interrupt_id;
 
-	dev_info(hdev->dev,
+	dev_dbg(hdev->dev,
 		"got user completion interrupt id %u",
-		interrupt_id);
+		user_cq->interrupt_id);
+
+	/* Handle user cq interrupts registered on all interrupts */
+	handle_user_cq(hdev, &hdev->common_user_interrupt);
+
+	/* Handle user cq interrupts registered on this specific interrupt */
+	handle_user_cq(hdev, user_cq);
 
 	return IRQ_HANDLED;
 }
