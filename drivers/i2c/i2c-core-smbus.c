@@ -323,7 +323,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 	 */
 	unsigned char msgbuf0[I2C_SMBUS_BLOCK_MAX+3];
 	unsigned char msgbuf1[I2C_SMBUS_BLOCK_MAX+2];
-	int num = read_write == I2C_SMBUS_READ ? 2 : 1;
+	int nmsgs = read_write == I2C_SMBUS_READ ? 2 : 1;
 	u8 partial_pec = 0;
 	int status;
 	struct i2c_msg msg[2] = {
@@ -349,13 +349,13 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 		/* Special case: The read/write field is used as data */
 		msg[0].flags = flags | (read_write == I2C_SMBUS_READ ?
 					I2C_M_RD : 0);
-		num = 1;
+		nmsgs = 1;
 		break;
 	case I2C_SMBUS_BYTE:
 		if (read_write == I2C_SMBUS_READ) {
 			/* Special case: only a read! */
 			msg[0].flags = I2C_M_RD | flags;
-			num = 1;
+			nmsgs = 1;
 		}
 		break;
 	case I2C_SMBUS_BYTE_DATA:
@@ -376,7 +376,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 		}
 		break;
 	case I2C_SMBUS_PROC_CALL:
-		num = 2; /* Special case */
+		nmsgs = 2; /* Special case */
 		read_write = I2C_SMBUS_READ;
 		msg[0].len = 3;
 		msg[1].len = 2;
@@ -403,7 +403,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 		}
 		break;
 	case I2C_SMBUS_BLOCK_PROC_CALL:
-		num = 2; /* Another special case */
+		nmsgs = 2; /* Another special case */
 		read_write = I2C_SMBUS_READ;
 		if (data->block[0] > I2C_SMBUS_BLOCK_MAX) {
 			dev_err(&adapter->dev,
@@ -447,28 +447,28 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 	if (wants_pec) {
 		/* Compute PEC if first message is a write */
 		if (!(msg[0].flags & I2C_M_RD)) {
-			if (num == 1) /* Write only */
+			if (nmsgs == 1) /* Write only */
 				i2c_smbus_add_pec(&msg[0]);
 			else /* Write followed by read */
 				partial_pec = i2c_smbus_msg_pec(0, &msg[0]);
 		}
 		/* Ask for PEC if last message is a read */
-		if (msg[num-1].flags & I2C_M_RD)
-			msg[num-1].len++;
+		if (msg[nmsgs - 1].flags & I2C_M_RD)
+			msg[nmsgs - 1].len++;
 	}
 
-	status = __i2c_transfer(adapter, msg, num);
+	status = __i2c_transfer(adapter, msg, nmsgs);
 	if (status < 0)
 		goto cleanup;
-	if (status != num) {
+	if (status != nmsgs) {
 		status = -EIO;
 		goto cleanup;
 	}
 	status = 0;
 
 	/* Check PEC if last message is a read */
-	if (wants_pec && (msg[num-1].flags & I2C_M_RD)) {
-		status = i2c_smbus_check_pec(partial_pec, &msg[num-1]);
+	if (wants_pec && (msg[nmsgs - 1].flags & I2C_M_RD)) {
+		status = i2c_smbus_check_pec(partial_pec, &msg[nmsgs - 1]);
 		if (status < 0)
 			goto cleanup;
 	}
