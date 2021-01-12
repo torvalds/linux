@@ -348,14 +348,12 @@ static int hellcreek_vlan_prepare(struct dsa_switch *ds, int port,
 	 */
 	for (i = 0; i < hellcreek->pdata->num_ports; ++i) {
 		const u16 restricted_vid = hellcreek_private_vid(i);
-		u16 vid;
 
 		if (!dsa_is_user_port(ds, i))
 			continue;
 
-		for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid)
-			if (vid == restricted_vid)
-				return -EBUSY;
+		if (vlan->vid == restricted_vid)
+			return -EBUSY;
 	}
 
 	return 0;
@@ -440,34 +438,35 @@ static void hellcreek_unapply_vlan(struct hellcreek *hellcreek, int port,
 	mutex_unlock(&hellcreek->reg_lock);
 }
 
-static void hellcreek_vlan_add(struct dsa_switch *ds, int port,
-			       const struct switchdev_obj_port_vlan *vlan)
+static int hellcreek_vlan_add(struct dsa_switch *ds, int port,
+			      const struct switchdev_obj_port_vlan *vlan)
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	struct hellcreek *hellcreek = ds->priv;
-	u16 vid;
+	int err;
 
-	dev_dbg(hellcreek->dev, "Add VLANs (%d -- %d) on port %d, %s, %s\n",
-		vlan->vid_begin, vlan->vid_end, port,
-		untagged ? "untagged" : "tagged",
+	err = hellcreek_vlan_prepare(ds, port, vlan);
+	if (err)
+		return err;
+
+	dev_dbg(hellcreek->dev, "Add VLAN %d on port %d, %s, %s\n",
+		vlan->vid, port, untagged ? "untagged" : "tagged",
 		pvid ? "PVID" : "no PVID");
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid)
-		hellcreek_apply_vlan(hellcreek, port, vid, pvid, untagged);
+	hellcreek_apply_vlan(hellcreek, port, vlan->vid, pvid, untagged);
+
+	return 0;
 }
 
 static int hellcreek_vlan_del(struct dsa_switch *ds, int port,
 			      const struct switchdev_obj_port_vlan *vlan)
 {
 	struct hellcreek *hellcreek = ds->priv;
-	u16 vid;
 
-	dev_dbg(hellcreek->dev, "Remove VLANs (%d -- %d) on port %d\n",
-		vlan->vid_begin, vlan->vid_end, port);
+	dev_dbg(hellcreek->dev, "Remove VLAN %d on port %d\n", vlan->vid, port);
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid)
-		hellcreek_unapply_vlan(hellcreek, port, vid);
+	hellcreek_unapply_vlan(hellcreek, port, vlan->vid);
 
 	return 0;
 }
@@ -866,13 +865,9 @@ static int hellcreek_fdb_dump(struct dsa_switch *ds, int port,
 }
 
 static int hellcreek_vlan_filtering(struct dsa_switch *ds, int port,
-				    bool vlan_filtering,
-				    struct switchdev_trans *trans)
+				    bool vlan_filtering)
 {
 	struct hellcreek *hellcreek = ds->priv;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	dev_dbg(hellcreek->dev, "%s VLAN filtering on port %d\n",
 		vlan_filtering ? "Enable" : "Disable", port);
@@ -1158,7 +1153,6 @@ static const struct dsa_switch_ops hellcreek_ds_ops = {
 	.port_vlan_add	     = hellcreek_vlan_add,
 	.port_vlan_del	     = hellcreek_vlan_del,
 	.port_vlan_filtering = hellcreek_vlan_filtering,
-	.port_vlan_prepare   = hellcreek_vlan_prepare,
 	.setup		     = hellcreek_setup,
 };
 

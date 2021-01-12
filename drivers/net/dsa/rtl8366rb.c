@@ -1504,7 +1504,6 @@ static const struct dsa_switch_ops rtl8366rb_switch_ops = {
 	.get_ethtool_stats = rtl8366_get_ethtool_stats,
 	.get_sset_count = rtl8366_get_sset_count,
 	.port_vlan_filtering = rtl8366_vlan_filtering,
-	.port_vlan_prepare = rtl8366_vlan_prepare,
 	.port_vlan_add = rtl8366_vlan_add,
 	.port_vlan_del = rtl8366_vlan_del,
 	.port_enable = rtl8366rb_port_enable,

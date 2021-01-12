@@ -16,20 +16,6 @@
 #define SWITCHDEV_F_SKIP_EOPNOTSUPP	BIT(1)
 #define SWITCHDEV_F_DEFER		BIT(2)
 
-struct switchdev_trans {
-	bool ph_prepare;
-};
-
-static inline bool switchdev_trans_ph_prepare(struct switchdev_trans *trans)
-{
-	return trans && trans->ph_prepare;
-}
-
-static inline bool switchdev_trans_ph_commit(struct switchdev_trans *trans)
-{
-	return trans && !trans->ph_prepare;
-}
-
 enum switchdev_attr_id {
 	SWITCHDEV_ATTR_ID_UNDEFINED,
 	SWITCHDEV_ATTR_ID_PORT_STP_STATE,
@@ -97,8 +83,7 @@ struct switchdev_obj {
 struct switchdev_obj_port_vlan {
 	struct switchdev_obj obj;
 	u16 flags;
-	u16 vid_begin;
-	u16 vid_end;
+	u16 vid;
 };
 
 #define SWITCHDEV_OBJ_PORT_VLAN(OBJ) \
@@ -234,14 +219,12 @@ struct switchdev_notifier_fdb_info {
 struct switchdev_notifier_port_obj_info {
 	struct switchdev_notifier_info info; /* must be first */
 	const struct switchdev_obj *obj;
-	struct switchdev_trans *trans;
 	bool handled;
 };
 
 struct switchdev_notifier_port_attr_info {
 	struct switchdev_notifier_info info; /* must be first */
 	const struct switchdev_attr *attr;
-	struct switchdev_trans *trans;
 	bool handled;
 };
 
@@ -289,7 +272,6 @@ int switchdev_handle_port_obj_add(struct net_device *dev,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*add_cb)(struct net_device *dev,
 				      const struct switchdev_obj *obj,
-				      struct switchdev_trans *trans,
 				      struct netlink_ext_ack *extack));
 int switchdev_handle_port_obj_del(struct net_device *dev,
 			struct switchdev_notifier_port_obj_info *port_obj_info,
@@ -301,8 +283,7 @@ int switchdev_handle_port_attr_set(struct net_device *dev,
 			struct switchdev_notifier_port_attr_info *port_attr_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*set_cb)(struct net_device *dev,
-				      const struct switchdev_attr *attr,
-				      struct switchdev_trans *trans));
+				      const struct switchdev_attr *attr));
 #else
 
 static inline void switchdev_deferred_process(void)
@@ -373,7 +354,6 @@ switchdev_handle_port_obj_add(struct net_device *dev,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*add_cb)(struct net_device *dev,
 				      const struct switchdev_obj *obj,
-				      struct switchdev_trans *trans,
 				      struct netlink_ext_ack *extack))
 {
 	return 0;
@@ -394,8 +374,7 @@ switchdev_handle_port_attr_set(struct net_device *dev,
 			struct switchdev_notifier_port_attr_info *port_attr_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*set_cb)(struct net_device *dev,
-				      const struct switchdev_attr *attr,
-				      struct switchdev_trans *trans))
+				      const struct switchdev_attr *attr))
 {
 	return 0;
 }

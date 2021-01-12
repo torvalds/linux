@@ -24,15 +24,11 @@ struct cpsw_switchdev_event_work {
 	unsigned long event;
 };
 
-static int cpsw_port_stp_state_set(struct cpsw_priv *priv,
-				   struct switchdev_trans *trans, u8 state)
+static int cpsw_port_stp_state_set(struct cpsw_priv *priv, u8 state)
 {
 	struct cpsw_common *cpsw = priv->cpsw;
 	u8 cpsw_state;
 	int ret = 0;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	switch (state) {
 	case BR_STATE_FORWARDING:
@@ -60,15 +56,11 @@ static int cpsw_port_stp_state_set(struct cpsw_priv *priv,
 }
 
 static int cpsw_port_attr_br_flags_set(struct cpsw_priv *priv,
-				       struct switchdev_trans *trans,
 				       struct net_device *orig_dev,
 				       unsigned long brport_flags)
 {
 	struct cpsw_common *cpsw = priv->cpsw;
 	bool unreg_mcast_add = false;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	if (brport_flags & BR_MCAST_FLOOD)
 		unreg_mcast_add = true;
@@ -82,7 +74,6 @@ static int cpsw_port_attr_br_flags_set(struct cpsw_priv *priv,
 }
 
 static int cpsw_port_attr_br_flags_pre_set(struct net_device *netdev,
-					   struct switchdev_trans *trans,
 					   unsigned long flags)
 {
 	if (flags & ~(BR_LEARNING | BR_MCAST_FLOOD))
@@ -92,8 +83,7 @@ static int cpsw_port_attr_br_flags_pre_set(struct net_device *netdev,
 }
 
 static int cpsw_port_attr_set(struct net_device *ndev,
-			      const struct switchdev_attr *attr,
-			      struct switchdev_trans *trans)
+			      const struct switchdev_attr *attr)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	int ret;
@@ -102,15 +92,15 @@ static int cpsw_port_attr_set(struct net_device *ndev,
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_ID_PORT_PRE_BRIDGE_FLAGS:
-		ret = cpsw_port_attr_br_flags_pre_set(ndev, trans,
+		ret = cpsw_port_attr_br_flags_pre_set(ndev,
 						      attr->u.brport_flags);
 		break;
 	case SWITCHDEV_ATTR_ID_PORT_STP_STATE:
-		ret = cpsw_port_stp_state_set(priv, trans, attr->u.stp_state);
+		ret = cpsw_port_stp_state_set(priv, attr->u.stp_state);
 		dev_dbg(priv->dev, "stp state: %u\n", attr->u.stp_state);
 		break;
 	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
-		ret = cpsw_port_attr_br_flags_set(priv, trans, attr->orig_dev,
+		ret = cpsw_port_attr_br_flags_set(priv, attr->orig_dev,
 						  attr->u.brport_flags);
 		break;
 	default:
@@ -253,56 +243,24 @@ static int cpsw_port_vlan_del(struct cpsw_priv *priv, u16 vid,
 }
 
 static int cpsw_port_vlans_add(struct cpsw_priv *priv,
-			       const struct switchdev_obj_port_vlan *vlan,
-			       struct switchdev_trans *trans)
+			       const struct switchdev_obj_port_vlan *vlan)
 {
 	bool untag = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct net_device *orig_dev = vlan->obj.orig_dev;
 	bool cpu_port = netif_is_bridge_master(orig_dev);
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
-	u16 vid;
 
 	dev_dbg(priv->dev, "VID add: %s: vid:%u flags:%X\n",
-		priv->ndev->name, vlan->vid_begin, vlan->flags);
+		priv->ndev->name, vlan->vid, vlan->flags);
 
 	if (cpu_port && !(vlan->flags & BRIDGE_VLAN_INFO_BRENTRY))
 		return 0;
 
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
-
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		int err;
-
-		err = cpsw_port_vlan_add(priv, untag, pvid, vid, orig_dev);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
-static int cpsw_port_vlans_del(struct cpsw_priv *priv,
-			       const struct switchdev_obj_port_vlan *vlan)
-
-{
-	struct net_device *orig_dev = vlan->obj.orig_dev;
-	u16 vid;
-
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		int err;
-
-		err = cpsw_port_vlan_del(priv, vid, orig_dev);
-		if (err)
-			return err;
-	}
-
-	return 0;
+	return cpsw_port_vlan_add(priv, untag, pvid, vlan->vid, orig_dev);
 }
 
 static int cpsw_port_mdb_add(struct cpsw_priv *priv,
-			     struct switchdev_obj_port_mdb *mdb,
-			     struct switchdev_trans *trans)
+			     struct switchdev_obj_port_mdb *mdb)
 
 {
 	struct net_device *orig_dev = mdb->obj.orig_dev;
@@ -310,9 +268,6 @@ static int cpsw_port_mdb_add(struct cpsw_priv *priv,
 	struct cpsw_common *cpsw = priv->cpsw;
 	int port_mask;
 	int err;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	if (cpu_port)
 		port_mask = BIT(HOST_PORT_NUM);
@@ -352,7 +307,6 @@ static int cpsw_port_mdb_del(struct cpsw_priv *priv,
 
 static int cpsw_port_obj_add(struct net_device *ndev,
 			     const struct switchdev_obj *obj,
-			     struct switchdev_trans *trans,
 			     struct netlink_ext_ack *extack)
 {
 	struct switchdev_obj_port_vlan *vlan = SWITCHDEV_OBJ_PORT_VLAN(obj);
@@ -365,11 +319,11 @@ static int cpsw_port_obj_add(struct net_device *ndev,
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		err = cpsw_port_vlans_add(priv, vlan, trans);
+		err = cpsw_port_vlans_add(priv, vlan);
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
 	case SWITCHDEV_OBJ_ID_HOST_MDB:
-		err = cpsw_port_mdb_add(priv, mdb, trans);
+		err = cpsw_port_mdb_add(priv, mdb);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -392,7 +346,7 @@ static int cpsw_port_obj_del(struct net_device *ndev,
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		err = cpsw_port_vlans_del(priv, vlan);
+		err = cpsw_port_vlan_del(priv, vlan->vid, vlan->obj.orig_dev);
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
 	case SWITCHDEV_OBJ_ID_HOST_MDB:

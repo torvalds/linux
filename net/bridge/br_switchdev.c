@@ -153,8 +153,7 @@ int br_switchdev_port_vlan_add(struct net_device *dev, u16 vid, u16 flags,
 		.obj.orig_dev = dev,
 		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
 		.flags = flags,
-		.vid_begin = vid,
-		.vid_end = vid,
+		.vid = vid,
 	};
 
 	return switchdev_port_obj_add(dev, &v.obj, extack);
@@ -165,8 +164,7 @@ int br_switchdev_port_vlan_del(struct net_device *dev, u16 vid)
 	struct switchdev_obj_port_vlan v = {
 		.obj.orig_dev = dev,
 		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
-		.vid_begin = vid,
-		.vid_end = vid,
+		.vid = vid,
 	};
 
 	return switchdev_port_obj_del(dev, &v.obj);

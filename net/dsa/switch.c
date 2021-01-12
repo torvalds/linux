@@ -33,15 +33,12 @@ static int dsa_switch_ageing_time(struct dsa_switch *ds,
 				  struct dsa_notifier_ageing_time_info *info)
 {
 	unsigned int ageing_time = info->ageing_time;
-	struct switchdev_trans *trans = info->trans;
 
-	if (switchdev_trans_ph_prepare(trans)) {
-		if (ds->ageing_time_min && ageing_time < ds->ageing_time_min)
-			return -ERANGE;
-		if (ds->ageing_time_max && ageing_time > ds->ageing_time_max)
-			return -ERANGE;
-		return 0;
-	}
+	if (ds->ageing_time_min && ageing_time < ds->ageing_time_min)
+		return -ERANGE;
+
+	if (ds->ageing_time_max && ageing_time > ds->ageing_time_max)
+		return -ERANGE;
 
 	/* Program the fastest ageing time in case of multiple bridges */
 	ageing_time = dsa_switch_fastest_ageing_time(ds, ageing_time);
@@ -139,17 +136,8 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 		}
 	}
 	if (unset_vlan_filtering) {
-		struct switchdev_trans trans;
-
-		trans.ph_prepare = true;
 		err = dsa_port_vlan_filtering(dsa_to_port(ds, info->port),
-					      false, &trans);
-		if (err && err != EOPNOTSUPP)
-			return err;
-
-		trans.ph_prepare = false;
-		err = dsa_port_vlan_filtering(dsa_to_port(ds, info->port),
-					      false, &trans);
+					      false);
 		if (err && err != EOPNOTSUPP)
 			return err;
 	}
@@ -190,41 +178,24 @@ static bool dsa_switch_mdb_match(struct dsa_switch *ds, int port,
 	return false;
 }
 
-static int dsa_switch_mdb_prepare(struct dsa_switch *ds,
-				  struct dsa_notifier_mdb_info *info)
+static int dsa_switch_mdb_add(struct dsa_switch *ds,
+			      struct dsa_notifier_mdb_info *info)
 {
-	int port, err;
+	int err = 0;
+	int port;
 
-	if (!ds->ops->port_mdb_prepare || !ds->ops->port_mdb_add)
+	if (!ds->ops->port_mdb_add)
 		return -EOPNOTSUPP;
 
 	for (port = 0; port < ds->num_ports; port++) {
 		if (dsa_switch_mdb_match(ds, port, info)) {
-			err = ds->ops->port_mdb_prepare(ds, port, info->mdb);
+			err = ds->ops->port_mdb_add(ds, port, info->mdb);
 			if (err)
-				return err;
+				break;
 		}
 	}
 
-	return 0;
-}
-
-static int dsa_switch_mdb_add(struct dsa_switch *ds,
-			      struct dsa_notifier_mdb_info *info)
-{
-	int port;
-
-	if (switchdev_trans_ph_prepare(info->trans))
-		return dsa_switch_mdb_prepare(ds, info);
-
-	if (!ds->ops->port_mdb_add)
-		return 0;
-
-	for (port = 0; port < ds->num_ports; port++)
-		if (dsa_switch_mdb_match(ds, port, info))
-			ds->ops->port_mdb_add(ds, port, info->mdb);
-
-	return 0;
+	return err;
 }
 
 static int dsa_switch_mdb_del(struct dsa_switch *ds,
@@ -251,39 +222,21 @@ static bool dsa_switch_vlan_match(struct dsa_switch *ds, int port,
 	return false;
 }
 
-static int dsa_switch_vlan_prepare(struct dsa_switch *ds,
-				   struct dsa_notifier_vlan_info *info)
+static int dsa_switch_vlan_add(struct dsa_switch *ds,
+			       struct dsa_notifier_vlan_info *info)
 {
 	int port, err;
 
-	if (!ds->ops->port_vlan_prepare || !ds->ops->port_vlan_add)
+	if (!ds->ops->port_vlan_add)
 		return -EOPNOTSUPP;
 
 	for (port = 0; port < ds->num_ports; port++) {
 		if (dsa_switch_vlan_match(ds, port, info)) {
-			err = ds->ops->port_vlan_prepare(ds, port, info->vlan);
+			err = ds->ops->port_vlan_add(ds, port, info->vlan);
 			if (err)
 				return err;
 		}
 	}
-
-	return 0;
-}
-
-static int dsa_switch_vlan_add(struct dsa_switch *ds,
-			       struct dsa_notifier_vlan_info *info)
-{
-	int port;
-
-	if (switchdev_trans_ph_prepare(info->trans))
-		return dsa_switch_vlan_prepare(ds, info);
-
-	if (!ds->ops->port_vlan_add)
-		return 0;
-
-	for (port = 0; port < ds->num_ports; port++)
-		if (dsa_switch_vlan_match(ds, port, info))
-			ds->ops->port_vlan_add(ds, port, info->vlan);
 
 	return 0;
 }
@@ -345,10 +298,6 @@ static int dsa_switch_event(struct notifier_block *nb,
 		break;
 	}
 
-	/* Non-switchdev operations cannot be rolled back. If a DSA driver
-	 * returns an error during the chained call, switch chips may be in an
-	 * inconsistent state.
-	 */
 	if (err)
 		dev_dbg(ds->dev, "breaking chain for DSA event %lu (%d)\n",
 			event, err);
