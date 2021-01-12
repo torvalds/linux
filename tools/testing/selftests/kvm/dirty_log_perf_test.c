@@ -139,14 +139,19 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
 	for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
+		vcpu_last_completed_iteration[vcpu_id] = -1;
+
 		pthread_create(&vcpu_threads[vcpu_id], NULL, vcpu_worker,
 			       &perf_test_args.vcpu_args[vcpu_id]);
 	}
 
-	/* Allow the vCPU to populate memory */
+	/* Allow the vCPUs to populate memory */
 	pr_debug("Starting iteration %d - Populating\n", iteration);
-	while (READ_ONCE(vcpu_last_completed_iteration[vcpu_id]) != iteration)
-		;
+	for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
+		while (READ_ONCE(vcpu_last_completed_iteration[vcpu_id]) !=
+		       iteration)
+			;
+	}
 
 	ts_diff = timespec_elapsed(start);
 	pr_info("Populate memory time: %ld.%.9lds\n",
