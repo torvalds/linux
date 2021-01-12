@@ -30,6 +30,7 @@ config SOC_CANAAN
 	select SERIAL_SIFIVE_CONSOLE if TTY
 	select SIFIVE_PLIC
 	select ARCH_HAS_RESET_CONTROLLER
+	select PINCTRL
 	help
 	  This enables support for Canaan Kendryte K210 SoC platform hardware.
 
