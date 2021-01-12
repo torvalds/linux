@@ -241,9 +241,8 @@ mlx5e_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		eseg->cs_flags = MLX5_ETH_WQE_L3_CSUM | MLX5_ETH_WQE_L4_CSUM;
 		sq->stats->csum_partial++;
 #endif
-	} else if (unlikely(eseg->flow_table_metadata & cpu_to_be32(MLX5_ETH_WQE_FT_META_IPSEC))) {
+	} else if (unlikely(mlx5e_ipsec_eseg_meta(eseg))) {
 		ipsec_txwqe_build_eseg_csum(sq, skb, eseg);
-
 	} else
 		sq->stats->csum_none++;
 }
