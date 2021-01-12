@@ -152,6 +152,7 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 	if (read_arg)
 		smu_cmn_read_arg(smu, read_arg);
 
+	ret = 0; /* 0 as driver return value */
 out:
 	mutex_unlock(&smu->message_lock);
 	return ret;
