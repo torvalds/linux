@@ -8882,7 +8882,6 @@ F:	drivers/mfd/intel_pmc_bxt.c
 F:	include/linux/mfd/intel_pmc_bxt.h
 
 INTEL C600 SERIES SAS CONTROLLER DRIVER
-M:	Intel SCU Linux support <intel-linux-scu@intel.com>
 M:	Artur Paszkiewicz <artur.paszkiewicz@intel.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
