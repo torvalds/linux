@@ -31,7 +31,6 @@
 #include <linux/dma/pxa-dma.h>
 
 #include <media/v4l2-async.h>
-#include <media/v4l2-clk.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -675,7 +674,6 @@ struct pxa_camera_dev {
 	unsigned long		ciclk;
 	unsigned long		mclk;
 	u32			mclk_divisor;
-	struct v4l2_clk		*mclk_clk;
 	u16			width_flags;	/* max 10 bits */
 
 	struct list_head	capture;
@@ -2031,9 +2029,6 @@ static const struct v4l2_ioctl_ops pxa_camera_ioctl_ops = {
 	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
 };
 
-static const struct v4l2_clk_ops pxa_camera_mclk_ops = {
-};
-
 static const struct video_device pxa_camera_videodev_template = {
 	.name = "pxa-camera",
 	.minor = -1,
@@ -2140,11 +2135,6 @@ static void pxa_camera_sensor_unbind(struct v4l2_async_notifier *notifier,
 	pxa_dma_stop_channels(pcdev);
 
 	pxa_camera_destroy_formats(pcdev);
-
-	if (pcdev->mclk_clk) {
-		v4l2_clk_unregister(pcdev->mclk_clk);
-		pcdev->mclk_clk = NULL;
-	}
 
 	video_unregister_device(&pcdev->vdev);
 	pcdev->sensor = NULL;
@@ -2278,7 +2268,6 @@ static int pxa_camera_probe(struct platform_device *pdev)
 		.src_maxburst = 8,
 		.direction = DMA_DEV_TO_MEM,
 	};
-	char clk_name[V4L2_CLK_NAME_SIZE];
 	int irq;
 	int err = 0, i;
 
@@ -2409,24 +2398,12 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	if (err)
 		goto exit_notifier_cleanup;
 
-	v4l2_clk_name_i2c(clk_name, sizeof(clk_name),
-			  pcdev->pdata->sensor_i2c_adapter_id,
-			  pcdev->pdata->sensor_i2c_address);
-
 	pcdev->notifier.ops = &pxa_camera_sensor_ops;
-	pcdev->mclk_clk = v4l2_clk_register(&pxa_camera_mclk_ops, clk_name, NULL);
-	if (IS_ERR(pcdev->mclk_clk)) {
-		err = PTR_ERR(pcdev->mclk_clk);
-		goto exit_notifier_cleanup;
-	}
-
 	err = v4l2_async_notifier_register(&pcdev->v4l2_dev, &pcdev->notifier);
 	if (err)
-		goto exit_free_clk;
+		goto exit_notifier_cleanup;
 
 	return 0;
-exit_free_clk:
-	v4l2_clk_unregister(pcdev->mclk_clk);
 exit_notifier_cleanup:
 	v4l2_async_notifier_cleanup(&pcdev->notifier);
 	v4l2_device_unregister(&pcdev->v4l2_dev);
@@ -2454,11 +2431,6 @@ static int pxa_camera_remove(struct platform_device *pdev)
 
 	v4l2_async_notifier_unregister(&pcdev->notifier);
 	v4l2_async_notifier_cleanup(&pcdev->notifier);
-
-	if (pcdev->mclk_clk) {
-		v4l2_clk_unregister(pcdev->mclk_clk);
-		pcdev->mclk_clk = NULL;
-	}
 
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 
