@@ -361,19 +361,30 @@ int gen8_emit_init_breadcrumb(struct i915_request *rq)
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
+	*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
+	*cs++ = hwsp_offset(rq);
+	*cs++ = 0;
+	*cs++ = rq->fence.seqno - 1;
+
 	/*
 	 * Check if we have been preempted before we even get started.
 	 *
 	 * After this point i915_request_started() reports true, even if
 	 * we get preempted and so are no longer running.
+	 *
+	 * i915_request_started() is used during preemption processing
+	 * to decide if the request is currently inside the user payload
+	 * or spinning on a kernel semaphore (or earlier). For no-preemption
+	 * requests, we do allow preemption on the semaphore before the user
+	 * payload, but do not allow preemption once the request is started.
+	 *
+	 * i915_request_started() is similarly used during GPU hangs to
+	 * determine if the user's payload was guilty, and if so, the
+	 * request is banned. Before the request is started, it is assumed
+	 * to be unharmed and an innocent victim of another's hang.
 	 */
-	*cs++ = MI_ARB_CHECK;
 	*cs++ = MI_NOOP;
-
-	*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
-	*cs++ = hwsp_offset(rq);
-	*cs++ = 0;
-	*cs++ = rq->fence.seqno - 1;
+	*cs++ = MI_ARB_CHECK;
 
 	intel_ring_advance(rq, cs);
 
