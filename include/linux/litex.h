@@ -20,9 +20,11 @@
  * Supporting other configurations will require extending the logic in this
  * header and in the LiteX SoC controller driver.
  */
-#define LITEX_REG_SIZE	  0x4
 #define LITEX_SUBREG_SIZE	0x1
 #define LITEX_SUBREG_SIZE_BIT	 (LITEX_SUBREG_SIZE * 8)
+
+/* LiteX subregisters of any width are always aligned on a 4-byte boundary */
+#define LITEX_SUBREG_ALIGN	  0x4
 
 static inline void _write_litex_subregister(u32 val, void __iomem *addr)
 {
@@ -36,11 +38,11 @@ static inline u32 _read_litex_subregister(void __iomem *addr)
 
 #define WRITE_LITEX_SUBREGISTER(val, base_offset, subreg_id) \
 	_write_litex_subregister(val, (base_offset) + \
-					LITEX_REG_SIZE * (subreg_id))
+					LITEX_SUBREG_ALIGN * (subreg_id))
 
 #define READ_LITEX_SUBREGISTER(base_offset, subreg_id) \
 	_read_litex_subregister((base_offset) + \
-					LITEX_REG_SIZE * (subreg_id))
+					LITEX_SUBREG_ALIGN * (subreg_id))
 
 /*
  * LiteX SoC Generator, depending on the configuration, can split a single
