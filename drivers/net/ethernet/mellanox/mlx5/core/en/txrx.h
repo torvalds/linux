@@ -366,6 +366,15 @@ struct mlx5e_swp_spec {
 	u8 tun_l4_proto;
 };
 
+static inline void mlx5e_eseg_swp_offsets_add_vlan(struct mlx5_wqe_eth_seg *eseg)
+{
+	/* SWP offsets are in 2-bytes words */
+	eseg->swp_outer_l3_offset += VLAN_HLEN / 2;
+	eseg->swp_outer_l4_offset += VLAN_HLEN / 2;
+	eseg->swp_inner_l3_offset += VLAN_HLEN / 2;
+	eseg->swp_inner_l4_offset += VLAN_HLEN / 2;
+}
+
 static inline void
 mlx5e_set_eseg_swp(struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg,
 		   struct mlx5e_swp_spec *swp_spec)

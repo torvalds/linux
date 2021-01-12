@@ -380,7 +380,7 @@ static int bareudp6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 		goto free_dst;
 
 	min_headroom = LL_RESERVED_SPACE(dst->dev) + dst->header_len +
-		BAREUDP_BASE_HLEN + info->options_len + sizeof(struct iphdr);
+		BAREUDP_BASE_HLEN + info->options_len + sizeof(struct ipv6hdr);
 
 	err = skb_cow_head(skb, min_headroom);
 	if (unlikely(err))
@@ -534,6 +534,7 @@ static void bareudp_setup(struct net_device *dev)
 	SET_NETDEV_DEVTYPE(dev, &bareudp_type);
 	dev->features    |= NETIF_F_SG | NETIF_F_HW_CSUM;
 	dev->features    |= NETIF_F_RXCSUM;
+	dev->features    |= NETIF_F_LLTX;
 	dev->features    |= NETIF_F_GSO_SOFTWARE;
 	dev->hw_features |= NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_RXCSUM;
 	dev->hw_features |= NETIF_F_GSO_SOFTWARE;

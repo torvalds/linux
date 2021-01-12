@@ -1604,8 +1604,9 @@ static void taprio_reset(struct Qdisc *sch)
 
 	hrtimer_cancel(&q->advance_timer);
 	if (q->qdiscs) {
-		for (i = 0; i < dev->num_tx_queues && q->qdiscs[i]; i++)
-			qdisc_reset(q->qdiscs[i]);
+		for (i = 0; i < dev->num_tx_queues; i++)
+			if (q->qdiscs[i])
+				qdisc_reset(q->qdiscs[i]);
 	}
 	sch->qstats.backlog = 0;
 	sch->q.qlen = 0;
@@ -1625,7 +1626,7 @@ static void taprio_destroy(struct Qdisc *sch)
 	taprio_disable_offload(dev, q, NULL);
 
 	if (q->qdiscs) {
-		for (i = 0; i < dev->num_tx_queues && q->qdiscs[i]; i++)
+		for (i = 0; i < dev->num_tx_queues; i++)
 			qdisc_put(q->qdiscs[i]);
 
 		kfree(q->qdiscs);

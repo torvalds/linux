@@ -5232,7 +5232,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	err = mvneta_port_power_up(pp, pp->phy_interface);
 	if (err < 0) {
 		dev_err(&pdev->dev, "can't power up port\n");
-		return err;
+		goto err_netdev;
 	}
 
 	/* Armada3700 network controller does not support per-cpu

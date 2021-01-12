@@ -42,7 +42,48 @@ void kvm_mmu_uninit_tdp_mmu(struct kvm *kvm)
 	WARN_ON(!list_empty(&kvm->arch.tdp_mmu_roots));
 }
 
-#define for_each_tdp_mmu_root(_kvm, _root)			    \
+static void tdp_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *root)
+{
+	if (kvm_mmu_put_root(kvm, root))
+		kvm_tdp_mmu_free_root(kvm, root);
+}
+
+static inline bool tdp_mmu_next_root_valid(struct kvm *kvm,
+					   struct kvm_mmu_page *root)
+{
+	lockdep_assert_held(&kvm->mmu_lock);
+
+	if (list_entry_is_head(root, &kvm->arch.tdp_mmu_roots, link))
+		return false;
+
+	kvm_mmu_get_root(kvm, root);
+	return true;
+
+}
+
+static inline struct kvm_mmu_page *tdp_mmu_next_root(struct kvm *kvm,
+						     struct kvm_mmu_page *root)
+{
+	struct kvm_mmu_page *next_root;
+
+	next_root = list_next_entry(root, link);
+	tdp_mmu_put_root(kvm, root);
+	return next_root;
+}
+
+/*
+ * Note: this iterator gets and puts references to the roots it iterates over.
+ * This makes it safe to release the MMU lock and yield within the loop, but
+ * if exiting the loop early, the caller must drop the reference to the most
+ * recent root. (Unless keeping a live reference is desirable.)
+ */
+#define for_each_tdp_mmu_root_yield_safe(_kvm, _root)				\
+	for (_root = list_first_entry(&_kvm->arch.tdp_mmu_roots,	\
+				      typeof(*_root), link);		\
+	     tdp_mmu_next_root_valid(_kvm, _root);			\
+	     _root = tdp_mmu_next_root(_kvm, _root))
+
+#define for_each_tdp_mmu_root(_kvm, _root)				\
 	list_for_each_entry(_root, &_kvm->arch.tdp_mmu_roots, link)
 
 bool is_tdp_mmu_root(struct kvm *kvm, hpa_t hpa)
@@ -439,17 +480,8 @@ bool kvm_tdp_mmu_zap_gfn_range(struct kvm *kvm, gfn_t start, gfn_t end)
 	struct kvm_mmu_page *root;
 	bool flush = false;
 
-	for_each_tdp_mmu_root(kvm, root) {
-		/*
-		 * Take a reference on the root so that it cannot be freed if
-		 * this thread releases the MMU lock and yields in this loop.
-		 */
-		kvm_mmu_get_root(kvm, root);
-
+	for_each_tdp_mmu_root_yield_safe(kvm, root)
 		flush |= zap_gfn_range(kvm, root, start, end, true);
-
-		kvm_mmu_put_root(kvm, root);
-	}
 
 	return flush;
 }
@@ -609,13 +641,7 @@ static int kvm_tdp_mmu_handle_hva_range(struct kvm *kvm, unsigned long start,
 	int ret = 0;
 	int as_id;
 
-	for_each_tdp_mmu_root(kvm, root) {
-		/*
-		 * Take a reference on the root so that it cannot be freed if
-		 * this thread releases the MMU lock and yields in this loop.
-		 */
-		kvm_mmu_get_root(kvm, root);
-
+	for_each_tdp_mmu_root_yield_safe(kvm, root) {
 		as_id = kvm_mmu_page_as_id(root);
 		slots = __kvm_memslots(kvm, as_id);
 		kvm_for_each_memslot(memslot, slots) {
@@ -637,8 +663,6 @@ static int kvm_tdp_mmu_handle_hva_range(struct kvm *kvm, unsigned long start,
 			ret |= handler(kvm, memslot, root, gfn_start,
 				       gfn_end, data);
 		}
-
-		kvm_mmu_put_root(kvm, root);
 	}
 
 	return ret;
@@ -826,21 +850,13 @@ bool kvm_tdp_mmu_wrprot_slot(struct kvm *kvm, struct kvm_memory_slot *slot,
 	int root_as_id;
 	bool spte_set = false;
 
-	for_each_tdp_mmu_root(kvm, root) {
+	for_each_tdp_mmu_root_yield_safe(kvm, root) {
 		root_as_id = kvm_mmu_page_as_id(root);
 		if (root_as_id != slot->as_id)
 			continue;
 
-		/*
-		 * Take a reference on the root so that it cannot be freed if
-		 * this thread releases the MMU lock and yields in this loop.
-		 */
-		kvm_mmu_get_root(kvm, root);
-
 		spte_set |= wrprot_gfn_range(kvm, root, slot->base_gfn,
 			     slot->base_gfn + slot->npages, min_level);
-
-		kvm_mmu_put_root(kvm, root);
 	}
 
 	return spte_set;
@@ -894,21 +910,13 @@ bool kvm_tdp_mmu_clear_dirty_slot(struct kvm *kvm, struct kvm_memory_slot *slot)
 	int root_as_id;
 	bool spte_set = false;
 
-	for_each_tdp_mmu_root(kvm, root) {
+	for_each_tdp_mmu_root_yield_safe(kvm, root) {
 		root_as_id = kvm_mmu_page_as_id(root);
 		if (root_as_id != slot->as_id)
 			continue;
 
-		/*
-		 * Take a reference on the root so that it cannot be freed if
-		 * this thread releases the MMU lock and yields in this loop.
-		 */
-		kvm_mmu_get_root(kvm, root);
-
 		spte_set |= clear_dirty_gfn_range(kvm, root, slot->base_gfn,
 				slot->base_gfn + slot->npages);
-
-		kvm_mmu_put_root(kvm, root);
 	}
 
 	return spte_set;
@@ -1017,21 +1025,13 @@ bool kvm_tdp_mmu_slot_set_dirty(struct kvm *kvm, struct kvm_memory_slot *slot)
 	int root_as_id;
 	bool spte_set = false;
 
-	for_each_tdp_mmu_root(kvm, root) {
+	for_each_tdp_mmu_root_yield_safe(kvm, root) {
 		root_as_id = kvm_mmu_page_as_id(root);
 		if (root_as_id != slot->as_id)
 			continue;
 
-		/*
-		 * Take a reference on the root so that it cannot be freed if
-		 * this thread releases the MMU lock and yields in this loop.
-		 */
-		kvm_mmu_get_root(kvm, root);
-
 		spte_set |= set_dirty_gfn_range(kvm, root, slot->base_gfn,
 				slot->base_gfn + slot->npages);
-
-		kvm_mmu_put_root(kvm, root);
 	}
 	return spte_set;
 }
@@ -1077,21 +1077,13 @@ void kvm_tdp_mmu_zap_collapsible_sptes(struct kvm *kvm,
 	struct kvm_mmu_page *root;
 	int root_as_id;
 
-	for_each_tdp_mmu_root(kvm, root) {
+	for_each_tdp_mmu_root_yield_safe(kvm, root) {
 		root_as_id = kvm_mmu_page_as_id(root);
 		if (root_as_id != slot->as_id)
 			continue;
 
-		/*
-		 * Take a reference on the root so that it cannot be freed if
-		 * this thread releases the MMU lock and yields in this loop.
-		 */
-		kvm_mmu_get_root(kvm, root);
-
 		zap_collapsible_spte_range(kvm, root, slot->base_gfn,
 					   slot->base_gfn + slot->npages);
-
-		kvm_mmu_put_root(kvm, root);
 	}
 }
 
@@ -1148,12 +1140,15 @@ bool kvm_tdp_mmu_write_protect_gfn(struct kvm *kvm,
  * Return the level of the lowest level SPTE added to sptes.
  * That SPTE may be non-present.
  */
-int kvm_tdp_mmu_get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes)
+int kvm_tdp_mmu_get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes,
+			 int *root_level)
 {
 	struct tdp_iter iter;
 	struct kvm_mmu *mmu = vcpu->arch.mmu;
-	int leaf = vcpu->arch.mmu->shadow_root_level;
 	gfn_t gfn = addr >> PAGE_SHIFT;
+	int leaf = -1;
+
+	*root_level = vcpu->arch.mmu->shadow_root_level;
 
 	tdp_mmu_for_each_pte(iter, mmu, gfn, gfn + 1) {
 		leaf = iter.level;

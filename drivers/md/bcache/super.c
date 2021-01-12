@@ -64,9 +64,25 @@ static unsigned int get_bucket_size(struct cache_sb *sb, struct cache_sb_disk *s
 {
 	unsigned int bucket_size = le16_to_cpu(s->bucket_size);
 
-	if (sb->version >= BCACHE_SB_VERSION_CDEV_WITH_FEATURES &&
-	     bch_has_feature_large_bucket(sb))
-		bucket_size |= le16_to_cpu(s->bucket_size_hi) << 16;
+	if (sb->version >= BCACHE_SB_VERSION_CDEV_WITH_FEATURES) {
+		if (bch_has_feature_large_bucket(sb)) {
+			unsigned int max, order;
+
+			max = sizeof(unsigned int) * BITS_PER_BYTE - 1;
+			order = le16_to_cpu(s->bucket_size);
+			/*
+			 * bcache tool will make sure the overflow won't
+			 * happen, an error message here is enough.
+			 */
+			if (order > max)
+				pr_err("Bucket size (1 << %u) overflows\n",
+					order);
+			bucket_size = 1 << order;
+		} else if (bch_has_feature_obso_large_bucket(sb)) {
+			bucket_size +=
+				le16_to_cpu(s->obso_bucket_size_hi) << 16;
+		}
+	}
 
 	return bucket_size;
 }
@@ -228,6 +244,20 @@ static const char *read_super(struct cache_sb *sb, struct block_device *bdev,
 		sb->feature_compat = le64_to_cpu(s->feature_compat);
 		sb->feature_incompat = le64_to_cpu(s->feature_incompat);
 		sb->feature_ro_compat = le64_to_cpu(s->feature_ro_compat);
+
+		/* Check incompatible features */
+		err = "Unsupported compatible feature found";
+		if (bch_has_unknown_compat_features(sb))
+			goto err;
+
+		err = "Unsupported read-only compatible feature found";
+		if (bch_has_unknown_ro_compat_features(sb))
+			goto err;
+
+		err = "Unsupported incompatible feature found";
+		if (bch_has_unknown_incompat_features(sb))
+			goto err;
+
 		err = read_super_common(sb, bdev, s);
 		if (err)
 			goto err;
