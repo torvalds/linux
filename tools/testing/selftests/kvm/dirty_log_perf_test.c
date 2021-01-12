@@ -28,8 +28,8 @@ static uint64_t guest_percpu_mem_size = DEFAULT_PER_VCPU_MEM_SIZE;
 /* Host variables */
 static u64 dirty_log_manual_caps;
 static bool host_quit;
-static uint64_t iteration;
-static uint64_t vcpu_last_completed_iteration[KVM_MAX_VCPUS];
+static int iteration;
+static int vcpu_last_completed_iteration[KVM_MAX_VCPUS];
 
 static void *vcpu_worker(void *data)
 {
@@ -48,7 +48,7 @@ static void *vcpu_worker(void *data)
 	run = vcpu_state(vm, vcpu_id);
 
 	while (!READ_ONCE(host_quit)) {
-		uint64_t current_iteration = READ_ONCE(iteration);
+		int current_iteration = READ_ONCE(iteration);
 
 		clock_gettime(CLOCK_MONOTONIC, &start);
 		ret = _vcpu_run(vm, vcpu_id);
@@ -61,17 +61,17 @@ static void *vcpu_worker(void *data)
 
 		pr_debug("Got sync event from vCPU %d\n", vcpu_id);
 		vcpu_last_completed_iteration[vcpu_id] = current_iteration;
-		pr_debug("vCPU %d updated last completed iteration to %lu\n",
+		pr_debug("vCPU %d updated last completed iteration to %d\n",
 			 vcpu_id, vcpu_last_completed_iteration[vcpu_id]);
 
 		if (current_iteration) {
 			pages_count += vcpu_args->pages;
 			total = timespec_add(total, ts_diff);
-			pr_debug("vCPU %d iteration %lu dirty memory time: %ld.%.9lds\n",
+			pr_debug("vCPU %d iteration %d dirty memory time: %ld.%.9lds\n",
 				vcpu_id, current_iteration, ts_diff.tv_sec,
 				ts_diff.tv_nsec);
 		} else {
-			pr_debug("vCPU %d iteration %lu populate memory time: %ld.%.9lds\n",
+			pr_debug("vCPU %d iteration %d populate memory time: %ld.%.9lds\n",
 				vcpu_id, current_iteration, ts_diff.tv_sec,
 				ts_diff.tv_nsec);
 		}
@@ -81,7 +81,7 @@ static void *vcpu_worker(void *data)
 	}
 
 	avg = timespec_div(total, vcpu_last_completed_iteration[vcpu_id]);
-	pr_debug("\nvCPU %d dirtied 0x%lx pages over %lu iterations in %ld.%.9lds. (Avg %ld.%.9lds/iteration)\n",
+	pr_debug("\nvCPU %d dirtied 0x%lx pages over %d iterations in %ld.%.9lds. (Avg %ld.%.9lds/iteration)\n",
 		vcpu_id, pages_count, vcpu_last_completed_iteration[vcpu_id],
 		total.tv_sec, total.tv_nsec, avg.tv_sec, avg.tv_nsec);
 
@@ -144,7 +144,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	}
 
 	/* Allow the vCPU to populate memory */
-	pr_debug("Starting iteration %lu - Populating\n", iteration);
+	pr_debug("Starting iteration %d - Populating\n", iteration);
 	while (READ_ONCE(vcpu_last_completed_iteration[vcpu_id]) != iteration)
 		;
 
@@ -168,7 +168,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		clock_gettime(CLOCK_MONOTONIC, &start);
 		iteration++;
 
-		pr_debug("Starting iteration %lu\n", iteration);
+		pr_debug("Starting iteration %d\n", iteration);
 		for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
 			while (READ_ONCE(vcpu_last_completed_iteration[vcpu_id])
 			       != iteration)
@@ -177,7 +177,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 		ts_diff = timespec_elapsed(start);
 		vcpu_dirty_total = timespec_add(vcpu_dirty_total, ts_diff);
-		pr_info("Iteration %lu dirty memory time: %ld.%.9lds\n",
+		pr_info("Iteration %d dirty memory time: %ld.%.9lds\n",
 			iteration, ts_diff.tv_sec, ts_diff.tv_nsec);
 
 		clock_gettime(CLOCK_MONOTONIC, &start);
@@ -186,7 +186,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		ts_diff = timespec_elapsed(start);
 		get_dirty_log_total = timespec_add(get_dirty_log_total,
 						   ts_diff);
-		pr_info("Iteration %lu get dirty log time: %ld.%.9lds\n",
+		pr_info("Iteration %d get dirty log time: %ld.%.9lds\n",
 			iteration, ts_diff.tv_sec, ts_diff.tv_nsec);
 
 		if (dirty_log_manual_caps) {
@@ -197,7 +197,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 			ts_diff = timespec_elapsed(start);
 			clear_dirty_log_total = timespec_add(clear_dirty_log_total,
 							     ts_diff);
-			pr_info("Iteration %lu clear dirty log time: %ld.%.9lds\n",
+			pr_info("Iteration %d clear dirty log time: %ld.%.9lds\n",
 				iteration, ts_diff.tv_sec, ts_diff.tv_nsec);
 		}
 	}
@@ -273,7 +273,7 @@ int main(int argc, char *argv[])
 	while ((opt = getopt(argc, argv, "hi:p:m:b:f:v:")) != -1) {
 		switch (opt) {
 		case 'i':
-			p.iterations = strtol(optarg, NULL, 10);
+			p.iterations = atoi(optarg);
 			break;
 		case 'p':
 			p.phys_offset = strtoull(optarg, NULL, 0);
