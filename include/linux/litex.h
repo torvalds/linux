@@ -59,21 +59,25 @@ static inline u32 _read_litex_subregister(void __iomem *addr)
 	((off) + _litex_num_subregs(size) * LITEX_SUBREG_ALIGN)
 
 /*
- * The purpose of `litex_set_reg`/`litex_get_reg` is to implement the logic
- * of writing to/reading from the LiteX CSR in a single place that can be
- * then reused by all LiteX drivers.
+ * The purpose of `_litex_[set|get]_reg()` is to implement the logic of
+ * writing to/reading from the LiteX CSR in a single place that can be then
+ * reused by all LiteX drivers via the `litex_[write|read][8|16|32|64]()`
+ * accessors for the appropriate data width.
+ * NOTE: direct use of `_litex_[set|get]_reg()` by LiteX drivers is strongly
+ * discouraged, as they perform no error checking on the requested data width!
  */
 
 /**
- * litex_set_reg() - Writes the value to the LiteX CSR (Control&Status Register)
+ * _litex_set_reg() - Writes a value to the LiteX CSR (Control&Status Register)
  * @reg: Address of the CSR
  * @reg_size: The width of the CSR expressed in the number of bytes
  * @val: Value to be written to the CSR
  *
  * This function splits a single (possibly multi-byte) LiteX CSR write into
  * a series of subregister writes with a proper offset.
+ * NOTE: caller is responsible for ensuring (0 < reg_size <= sizeof(u64)).
  */
-static inline void litex_set_reg(void __iomem *reg, size_t reg_size, u64 val)
+static inline void _litex_set_reg(void __iomem *reg, size_t reg_size, u64 val)
 {
 	u8 shift = _litex_num_subregs(reg_size) * LITEX_SUBREG_SIZE_BIT;
 
@@ -85,7 +89,7 @@ static inline void litex_set_reg(void __iomem *reg, size_t reg_size, u64 val)
 }
 
 /**
- * litex_get_reg() - Reads the value of the LiteX CSR (Control&Status Register)
+ * _litex_get_reg() - Reads a value of the LiteX CSR (Control&Status Register)
  * @reg: Address of the CSR
  * @reg_size: The width of the CSR expressed in the number of bytes
  *
@@ -93,8 +97,9 @@ static inline void litex_set_reg(void __iomem *reg, size_t reg_size, u64 val)
  *
  * This function generates a series of subregister reads with a proper offset
  * and joins their results into a single (possibly multi-byte) LiteX CSR value.
+ * NOTE: caller is responsible for ensuring (0 < reg_size <= sizeof(u64)).
  */
-static inline u64 litex_get_reg(void __iomem *reg, size_t reg_size)
+static inline u64 _litex_get_reg(void __iomem *reg, size_t reg_size)
 {
 	u64 r;
 	u8 i;
@@ -110,42 +115,42 @@ static inline u64 litex_get_reg(void __iomem *reg, size_t reg_size)
 
 static inline void litex_write8(void __iomem *reg, u8 val)
 {
-	litex_set_reg(reg, sizeof(u8), val);
+	_litex_set_reg(reg, sizeof(u8), val);
 }
 
 static inline void litex_write16(void __iomem *reg, u16 val)
 {
-	litex_set_reg(reg, sizeof(u16), val);
+	_litex_set_reg(reg, sizeof(u16), val);
 }
 
 static inline void litex_write32(void __iomem *reg, u32 val)
 {
-	litex_set_reg(reg, sizeof(u32), val);
+	_litex_set_reg(reg, sizeof(u32), val);
 }
 
 static inline void litex_write64(void __iomem *reg, u64 val)
 {
-	litex_set_reg(reg, sizeof(u64), val);
+	_litex_set_reg(reg, sizeof(u64), val);
 }
 
 static inline u8 litex_read8(void __iomem *reg)
 {
-	return litex_get_reg(reg, sizeof(u8));
+	return _litex_get_reg(reg, sizeof(u8));
 }
 
 static inline u16 litex_read16(void __iomem *reg)
 {
-	return litex_get_reg(reg, sizeof(u16));
+	return _litex_get_reg(reg, sizeof(u16));
 }
 
 static inline u32 litex_read32(void __iomem *reg)
 {
-	return litex_get_reg(reg, sizeof(u32));
+	return _litex_get_reg(reg, sizeof(u32));
 }
 
 static inline u64 litex_read64(void __iomem *reg)
 {
-	return litex_get_reg(reg, sizeof(u64));
+	return _litex_get_reg(reg, sizeof(u64));
 }
 
 #endif /* _LINUX_LITEX_H */

@@ -11,7 +11,7 @@ config LITEX_SOC_CONTROLLER
 	select LITEX
 	help
 	  This option enables the SoC Controller Driver which verifies
-	  LiteX CSR access and provides common litex_get_reg/litex_set_reg
+	  LiteX CSR access and provides common litex_[read|write]*
 	  accessors.
 	  All drivers that use functions from litex.h must depend on
 	  LITEX.
