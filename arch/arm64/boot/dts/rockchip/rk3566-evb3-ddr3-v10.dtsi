@@ -381,6 +381,10 @@
 	status = "okay";
 };
 
+&sata1 {
+	status = "okay";
+};
+
 &sdio_pwrseq {
 	reset-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>;
 };
