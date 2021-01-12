@@ -493,8 +493,9 @@ config TI_SCI_INTA_IRQCHIP
 	  TI System Controller, say Y here. Otherwise, say N.
 
 config TI_PRUSS_INTC
-	tristate "TI PRU-ICSS Interrupt Controller"
-	depends on ARCH_DAVINCI || SOC_AM33XX || SOC_AM43XX || SOC_DRA7XX || ARCH_KEYSTONE || ARCH_K3
+	tristate
+	depends on TI_PRUSS
+	default TI_PRUSS
 	select IRQ_DOMAIN
 	help
 	  This enables support for the PRU-ICSS Local Interrupt Controller
