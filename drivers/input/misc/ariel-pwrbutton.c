@@ -149,12 +149,6 @@ static const struct of_device_id ariel_pwrbutton_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ariel_pwrbutton_of_match);
 
-static const struct spi_device_id ariel_pwrbutton_id_table[] = {
-	{ "wyse-ariel-ec-input", 0 },
-	{}
-};
-MODULE_DEVICE_TABLE(spi, ariel_pwrbutton_id_table);
-
 static struct spi_driver ariel_pwrbutton_driver = {
 	.driver = {
 		.name = "dell-wyse-ariel-ec-input",
