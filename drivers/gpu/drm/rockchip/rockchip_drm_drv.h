@@ -120,6 +120,7 @@ struct rockchip_crtc_state {
 	int right_margin;
 	int top_margin;
 	int bottom_margin;
+	int vdisplay;
 	int afbdc_win_format;
 	int afbdc_win_width;
 	int afbdc_win_height;

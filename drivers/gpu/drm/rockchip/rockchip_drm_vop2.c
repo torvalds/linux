@@ -712,11 +712,49 @@ static void vop2_load_sdr2hdr_table(struct vop2_video_port *vp, int sdr2hdr_tf)
 			    table->sdr2hdr_st2084oetf_xn[i]);
 }
 
-static inline void vop2_cfg_done(struct drm_crtc *crtc)
+static bool vop2_fs_irq_is_pending(struct vop2_video_port *vp)
+{
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	const struct vop_intr *intr = vp_data->intr;
+
+	return VOP_INTR_GET_TYPE(vop2, intr, status, FS_FIELD_INTR);
+}
+
+static void vop2_wait_for_irq_handler(struct drm_crtc *crtc)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
-	uint32_t done;
+	bool pending;
+	int ret;
+
+	/*
+	 * Spin until frame start interrupt status bit goes low, which means
+	 * that interrupt handler was invoked and cleared it. The timeout of
+	 * 10 msecs is really too long, but it is just a safety measure if
+	 * something goes really wrong. The wait will only happen in the very
+	 * unlikely case of a vblank happening exactly at the same time and
+	 * shouldn't exceed microseconds range.
+	 */
+	ret = readx_poll_timeout_atomic(vop2_fs_irq_is_pending, vp, pending,
+					!pending, 0, 10 * 1000);
+	if (ret)
+		DRM_DEV_ERROR(vop2->dev, "VOP vblank IRQ stuck for 10 ms\n");
+
+	synchronize_irq(vop2->irq);
+}
+
+
+static inline void vop2_cfg_done(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2_video_port *done_vp;
+	struct rockchip_crtc_state *vcstate;
+	struct vop2 *vop2 = vp->vop2;
+	uint32_t done_bits;
+	uint32_t vp_id;
+	uint32_t vcnt;
 	uint32_t val;
 
 	/*
@@ -735,8 +773,20 @@ static inline void vop2_cfg_done(struct drm_crtc *crtc)
 	 * So we do a read | write here.
 	 *
 	 */
-	done = vop2_readl(vop2, 0) & 0x7;
-	val = RK3568_VOP2_GLB_CFG_DONE_EN | BIT(vp->id) | done;
+	done_bits = vop2_readl(vop2, RK3568_REG_CFG_DONE) & 0x7;
+	/* we have some vp wait for config done take effect */
+	if (done_bits) {
+		vp_id = ffs(done_bits) - 1;
+		done_vp = &vop2->vps[vp_id];
+		vcstate = to_rockchip_crtc_state(done_vp->crtc.state);
+		vcnt = vop2_readl(vop2, RK3568_SYS_STATUS0 + (vp_id << 2));
+		/* if close to the last 1/4 frame, wait to next frame */
+		if (vcnt > (vcstate->vdisplay * 3 >> 2)) {
+			vop2_wait_for_irq_handler(crtc);
+			done_bits = 0;
+		}
+	}
+	val = RK3568_VOP2_GLB_CFG_DONE_EN | BIT(vp->id) | done_bits;
 	vop2_writel(vop2, 0, val);
 }
 
@@ -3403,6 +3453,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		     adjusted_mode->vrefresh, vcstate->output_type, vp->id);
 	vop2_initial(crtc);
 	VOP_MODULE_SET(vop2, vp, standby, 0);
+	vcstate->vdisplay = vdisplay;
 	vcstate->mode_update = vop2_crtc_mode_update(crtc);
 	if (vcstate->mode_update)
 		vop2_disable_all_planes_for_crtc(crtc);
@@ -4225,39 +4276,6 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 	vop2_post_config(crtc);
 
 	spin_unlock(&vop2->reg_lock);
-}
-
-static bool vop2_fs_irq_is_pending(struct vop2_video_port *vp)
-{
-	struct vop2 *vop2 = vp->vop2;
-	const struct vop2_data *vop2_data = vop2->data;
-	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
-	const struct vop_intr *intr = vp_data->intr;
-
-	return VOP_INTR_GET_TYPE(vop2, intr, status, FS_FIELD_INTR);
-}
-
-static void vop2_wait_for_irq_handler(struct drm_crtc *crtc)
-{
-	struct vop2_video_port *vp = to_vop2_video_port(crtc);
-	struct vop2 *vop2 = vp->vop2;
-	bool pending;
-	int ret;
-
-	/*
-	 * Spin until frame start interrupt status bit goes low, which means
-	 * that interrupt handler was invoked and cleared it. The timeout of
-	 * 10 msecs is really too long, but it is just a safety measure if
-	 * something goes really wrong. The wait will only happen in the very
-	 * unlikely case of a vblank happening exactly at the same time and
-	 * shouldn't exceed microseconds range.
-	 */
-	ret = readx_poll_timeout_atomic(vop2_fs_irq_is_pending, vp, pending,
-					!pending, 0, 10 * 1000);
-	if (ret)
-		DRM_DEV_ERROR(vop2->dev, "VOP vblank IRQ stuck for 10 ms\n");
-
-	synchronize_irq(vop2->irq);
 }
 
 static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state *old_cstate)
