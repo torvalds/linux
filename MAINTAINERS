@@ -16319,6 +16319,7 @@ M:	Pekka Enberg <penberg@kernel.org>
 M:	David Rientjes <rientjes@google.com>
 M:	Joonsoo Kim <iamjoonsoo.kim@lge.com>
 M:	Andrew Morton <akpm@linux-foundation.org>
+M:	Vlastimil Babka <vbabka@suse.cz>
 L:	linux-mm@kvack.org
 S:	Maintained
 F:	include/linux/sl?b*.h
