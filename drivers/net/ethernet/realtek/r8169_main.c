@@ -591,6 +591,12 @@ enum rtl_flag {
 	RTL_FLAG_MAX
 };
 
+enum rtl_dash_type {
+	RTL_DASH_NONE,
+	RTL_DASH_DP,
+	RTL_DASH_EP,
+};
+
 struct rtl8169_private {
 	void __iomem *mmio_addr;	/* memory map physical address */
 	struct pci_dev *pci_dev;
@@ -598,6 +604,7 @@ struct rtl8169_private {
 	struct phy_device *phydev;
 	struct napi_struct napi;
 	enum mac_version mac_version;
+	enum rtl_dash_type dash_type;
 	u32 cur_rx; /* Index into the Rx descriptor buffer of next Rx pkt. */
 	u32 cur_tx; /* Index into the Tx descriptor buffer of next Rx pkt. */
 	u32 dirty_tx;
@@ -1184,19 +1191,10 @@ static void rtl8168ep_driver_start(struct rtl8169_private *tp)
 
 static void rtl8168_driver_start(struct rtl8169_private *tp)
 {
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_27:
-	case RTL_GIGA_MAC_VER_28:
-	case RTL_GIGA_MAC_VER_31:
+	if (tp->dash_type == RTL_DASH_DP)
 		rtl8168dp_driver_start(tp);
-		break;
-	case RTL_GIGA_MAC_VER_49 ... RTL_GIGA_MAC_VER_52:
+	else
 		rtl8168ep_driver_start(tp);
-		break;
-	default:
-		BUG();
-		break;
-	}
 }
 
 static void rtl8168dp_driver_stop(struct rtl8169_private *tp)
@@ -1215,44 +1213,35 @@ static void rtl8168ep_driver_stop(struct rtl8169_private *tp)
 
 static void rtl8168_driver_stop(struct rtl8169_private *tp)
 {
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_27:
-	case RTL_GIGA_MAC_VER_28:
-	case RTL_GIGA_MAC_VER_31:
+	if (tp->dash_type == RTL_DASH_DP)
 		rtl8168dp_driver_stop(tp);
-		break;
-	case RTL_GIGA_MAC_VER_49 ... RTL_GIGA_MAC_VER_52:
+	else
 		rtl8168ep_driver_stop(tp);
-		break;
-	default:
-		BUG();
-		break;
-	}
 }
 
 static bool r8168dp_check_dash(struct rtl8169_private *tp)
 {
 	u16 reg = rtl8168_get_ocp_reg(tp);
 
-	return !!(r8168dp_ocp_read(tp, reg) & 0x00008000);
+	return r8168dp_ocp_read(tp, reg) & BIT(15);
 }
 
 static bool r8168ep_check_dash(struct rtl8169_private *tp)
 {
-	return r8168ep_ocp_read(tp, 0x128) & 0x00000001;
+	return r8168ep_ocp_read(tp, 0x128) & BIT(0);
 }
 
-static bool r8168_check_dash(struct rtl8169_private *tp)
+static enum rtl_dash_type rtl_check_dash(struct rtl8169_private *tp)
 {
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_27:
 	case RTL_GIGA_MAC_VER_28:
 	case RTL_GIGA_MAC_VER_31:
-		return r8168dp_check_dash(tp);
+		return r8168dp_check_dash(tp) ? RTL_DASH_DP : RTL_DASH_NONE;
 	case RTL_GIGA_MAC_VER_49 ... RTL_GIGA_MAC_VER_52:
-		return r8168ep_check_dash(tp);
+		return r8168ep_check_dash(tp) ? RTL_DASH_EP : RTL_DASH_NONE;
 	default:
-		return false;
+		return RTL_DASH_NONE;
 	}
 }
 
@@ -2222,7 +2211,7 @@ static void rtl_wol_enable_rx(struct rtl8169_private *tp)
 
 static void rtl_prepare_power_down(struct rtl8169_private *tp)
 {
-	if (r8168_check_dash(tp))
+	if (tp->dash_type != RTL_DASH_NONE)
 		return;
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_32 ||
@@ -4880,7 +4869,7 @@ static void rtl_remove_one(struct pci_dev *pdev)
 
 	unregister_netdev(tp->dev);
 
-	if (r8168_check_dash(tp))
+	if (tp->dash_type != RTL_DASH_NONE)
 		rtl8168_driver_stop(tp);
 
 	rtl_release_firmware(tp);
@@ -5240,6 +5229,8 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	tp->mac_version = chipset;
 
+	tp->dash_type = rtl_check_dash(tp);
+
 	tp->cp_cmd = RTL_R16(tp, CPlusCmd) & CPCMD_MASK;
 
 	if (sizeof(dma_addr_t) > 4 && tp->mac_version >= RTL_GIGA_MAC_VER_18 &&
@@ -5344,7 +5335,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			    jumbo_max, tp->mac_version <= RTL_GIGA_MAC_VER_06 ?
 			    "ok" : "ko");
 
-	if (r8168_check_dash(tp)) {
+	if (tp->dash_type != RTL_DASH_NONE) {
 		netdev_info(dev, "DASH enabled\n");
 		rtl8168_driver_start(tp);
 	}
