@@ -261,6 +261,9 @@ enum rtl8168_8101_registers {
 #define	CSIAR_BYTE_ENABLE		0x0000f000
 #define	CSIAR_ADDR_MASK			0x00000fff
 	PMCH			= 0x6f,
+#define D3COLD_NO_PLL_DOWN		BIT(7)
+#define D3HOT_NO_PLL_DOWN		BIT(6)
+#define D3_NO_PLL_DOWN			(BIT(7) | BIT(6))
 	EPHYAR			= 0x80,
 #define	EPHYAR_FLAG			0x80000000
 #define	EPHYAR_WRITE_CMD		0x80000000
@@ -1250,6 +1253,22 @@ static bool r8168_check_dash(struct rtl8169_private *tp)
 	}
 }
 
+static void rtl_set_d3_pll_down(struct rtl8169_private *tp, bool enable)
+{
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_25 ... RTL_GIGA_MAC_VER_26:
+	case RTL_GIGA_MAC_VER_32 ... RTL_GIGA_MAC_VER_37:
+	case RTL_GIGA_MAC_VER_39 ... RTL_GIGA_MAC_VER_63:
+		if (enable)
+			RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) & ~D3_NO_PLL_DOWN);
+		else
+			RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) | D3_NO_PLL_DOWN);
+		break;
+	default:
+		break;
+	}
+}
+
 static void rtl_reset_packet_filter(struct rtl8169_private *tp)
 {
 	rtl_eri_clear_bits(tp, 0xdc, BIT(0));
@@ -1416,6 +1435,7 @@ static void __rtl8169_set_wol(struct rtl8169_private *tp, u32 wolopts)
 	rtl_lock_config_regs(tp);
 
 	device_set_wakeup_enable(tp_to_dev(tp), wolopts);
+	rtl_set_d3_pll_down(tp, !wolopts);
 	tp->dev->wol_enabled = wolopts ? 1 : 0;
 }
 
@@ -2209,7 +2229,7 @@ static void rtl_wol_suspend_quirk(struct rtl8169_private *tp)
 	}
 }
 
-static void rtl_pll_power_down(struct rtl8169_private *tp)
+static void rtl_prepare_power_down(struct rtl8169_private *tp)
 {
 	if (r8168_check_dash(tp))
 		return;
@@ -2221,41 +2241,7 @@ static void rtl_pll_power_down(struct rtl8169_private *tp)
 	if (device_may_wakeup(tp_to_dev(tp))) {
 		phy_speed_down(tp->phydev, false);
 		rtl_wol_suspend_quirk(tp);
-		return;
 	}
-
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_25 ... RTL_GIGA_MAC_VER_26:
-	case RTL_GIGA_MAC_VER_32 ... RTL_GIGA_MAC_VER_33:
-	case RTL_GIGA_MAC_VER_37:
-	case RTL_GIGA_MAC_VER_39 ... RTL_GIGA_MAC_VER_41:
-	case RTL_GIGA_MAC_VER_43 ... RTL_GIGA_MAC_VER_63:
-		RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) & ~0x80);
-		break;
-	default:
-		break;
-	}
-}
-
-static void rtl_pll_power_up(struct rtl8169_private *tp)
-{
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_25 ... RTL_GIGA_MAC_VER_26:
-	case RTL_GIGA_MAC_VER_32 ... RTL_GIGA_MAC_VER_33:
-	case RTL_GIGA_MAC_VER_37:
-	case RTL_GIGA_MAC_VER_39:
-	case RTL_GIGA_MAC_VER_43:
-		RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) | 0x80);
-		break;
-	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_41:
-	case RTL_GIGA_MAC_VER_44 ... RTL_GIGA_MAC_VER_63:
-		RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) | 0xc0);
-		break;
-	default:
-		break;
-	}
-
-	phy_resume(tp->phydev);
 }
 
 static void rtl_init_rxcfg(struct rtl8169_private *tp)
@@ -4613,12 +4599,12 @@ static void rtl8169_down(struct rtl8169_private *tp)
 
 	rtl8169_cleanup(tp, true);
 
-	rtl_pll_power_down(tp);
+	rtl_prepare_power_down(tp);
 }
 
 static void rtl8169_up(struct rtl8169_private *tp)
 {
-	rtl_pll_power_up(tp);
+	phy_resume(tp->phydev);
 	rtl8169_init_phy(tp);
 	napi_enable(&tp->napi);
 	set_bit(RTL_FLAG_TASK_ENABLED, tp->wk.flags);
@@ -5333,6 +5319,8 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* configure chip for default features */
 	rtl8169_set_features(dev, dev->features);
 
+	rtl_set_d3_pll_down(tp, true);
+
 	jumbo_max = rtl_jumbo_max(tp);
 	if (jumbo_max)
 		dev->max_mtu = jumbo_max;
@@ -5352,9 +5340,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = r8169_mdio_register(tp);
 	if (rc)
 		return rc;
-
-	/* chip gets powered up in rtl_open() */
-	rtl_pll_power_down(tp);
 
 	rc = register_netdev(dev);
 	if (rc)
