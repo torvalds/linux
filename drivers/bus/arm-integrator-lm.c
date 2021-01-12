@@ -54,6 +54,7 @@ static int integrator_lm_populate(int num, struct device *dev)
 			ret = of_platform_default_populate(child, NULL, dev);
 			if (ret) {
 				dev_err(dev, "failed to populate module\n");
+				of_node_put(child);
 				return ret;
 			}
 		}
