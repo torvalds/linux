@@ -372,7 +372,7 @@
 		uart0 {
 			uart0_xfer: uart0-xfer {
 				rockchip,pins = <RK_GPIO1 0 RK_FUNC_1 &pcfg_pull_up>,
-						<RK_GPIO1 1 RK_FUNC_1 &pcfg_pull_none>;
+						<RK_GPIO1 1 RK_FUNC_1 &pcfg_pull_up>;
 			};
 
 			uart0_cts: uart0-cts {
@@ -387,7 +387,7 @@
 		uart1 {
 			uart1_xfer: uart1-xfer {
 				rockchip,pins = <RK_GPIO1 4 RK_FUNC_1 &pcfg_pull_up>,
-						<RK_GPIO1 5 RK_FUNC_1 &pcfg_pull_none>;
+						<RK_GPIO1 5 RK_FUNC_1 &pcfg_pull_up>;
 			};
 
 			uart1_cts: uart1-cts {
@@ -402,7 +402,7 @@
 		uart2 {
 			uart2_xfer: uart2-xfer {
 				rockchip,pins = <RK_GPIO1 8 RK_FUNC_1 &pcfg_pull_up>,
-						<RK_GPIO1 9 RK_FUNC_1 &pcfg_pull_none>;
+						<RK_GPIO1 9 RK_FUNC_1 &pcfg_pull_up>;
 			};
 			/* no rts / cts for uart2 */
 		};
@@ -410,7 +410,7 @@
 		uart3 {
 			uart3_xfer: uart3-xfer {
 				rockchip,pins = <RK_GPIO1 10 RK_FUNC_1 &pcfg_pull_up>,
-						<RK_GPIO1 11 RK_FUNC_1 &pcfg_pull_none>;
+						<RK_GPIO1 11 RK_FUNC_1 &pcfg_pull_up>;
 			};
 
 			uart3_cts: uart3-cts {
