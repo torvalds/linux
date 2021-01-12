@@ -12,6 +12,8 @@
 #include <linux/cpumask.h>
 #include <linux/ktime.h>
 
+#include <trace/hooks/pm_domain.h>
+
 static int dev_update_qos_constraint(struct device *dev, void *data)
 {
 	s64 *constraint_ns_p = data;
@@ -174,6 +176,11 @@ static bool __default_power_down_ok(struct dev_pm_domain *pd,
 	struct pm_domain_data *pdd;
 	s64 min_off_time_ns;
 	s64 off_on_time_ns;
+	bool allow = true;
+
+	trace_android_vh_allow_domain_state(genpd, state, &allow);
+	if (!allow)
+		return false;
 
 	off_on_time_ns = genpd->states[state].power_off_latency_ns +
 		genpd->states[state].power_on_latency_ns;
