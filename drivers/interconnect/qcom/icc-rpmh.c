@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 
 #include "bcm-voter.h"
+#include "icc-debug.h"
 #include "icc-rpmh.h"
 #include "qnoc-qos.h"
 
@@ -329,6 +330,8 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 	provider->set = qcom_icc_set;
 	provider->aggregate = qcom_icc_aggregate;
 
+	qcom_icc_debug_register(provider);
+
 	mutex_lock(&probe_list_lock);
 	list_add_tail(&qp->probe_list, &qnoc_probe_list);
 	mutex_unlock(&probe_list_lock);
@@ -347,6 +350,7 @@ int qcom_icc_rpmh_remove(struct platform_device *pdev)
 {
 	struct qcom_icc_provider *qp = platform_get_drvdata(pdev);
 
+	qcom_icc_debug_unregister(&qp->provider);
 	clk_bulk_put_all(qp->num_clks, qp->clks);
 
 	icc_nodes_remove(&qp->provider);
