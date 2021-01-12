@@ -587,7 +587,13 @@ static int at803x_config_init(struct phy_device *phydev)
 			return ret;
 	}
 
-	return 0;
+	/* Ar803x extended next page bit is enabled by default. Cisco
+	 * multigig switches read this bit and attempt to negotiate 10Gbps
+	 * rates even if the next page bit is disabled. This is incorrect
+	 * behaviour but we still need to accommodate it. XNP is only needed
+	 * for 10Gbps support, so disable XNP.
+	 */
+	return phy_modify(phydev, MII_ADVERTISE, MDIO_AN_CTRL1_XNP, 0);
 }
 
 static int at803x_ack_interrupt(struct phy_device *phydev)
