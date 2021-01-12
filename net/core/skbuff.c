@@ -3442,6 +3442,7 @@ void skb_prepare_seq_read(struct sk_buff *skb, unsigned int from,
 	st->root_skb = st->cur_skb = skb;
 	st->frag_idx = st->stepped_offset = 0;
 	st->frag_data = NULL;
+	st->frag_off = 0;
 }
 EXPORT_SYMBOL(skb_prepare_seq_read);
 
@@ -3496,14 +3497,27 @@ next_skb:
 		st->stepped_offset += skb_headlen(st->cur_skb);
 
 	while (st->frag_idx < skb_shinfo(st->cur_skb)->nr_frags) {
-		frag = &skb_shinfo(st->cur_skb)->frags[st->frag_idx];
-		block_limit = skb_frag_size(frag) + st->stepped_offset;
+		unsigned int pg_idx, pg_off, pg_sz;
 
+		frag = &skb_shinfo(st->cur_skb)->frags[st->frag_idx];
+
+		pg_idx = 0;
+		pg_off = skb_frag_off(frag);
+		pg_sz = skb_frag_size(frag);
+
+		if (skb_frag_must_loop(skb_frag_page(frag))) {
+			pg_idx = (pg_off + st->frag_off) >> PAGE_SHIFT;
+			pg_off = offset_in_page(pg_off + st->frag_off);
+			pg_sz = min_t(unsigned int, pg_sz - st->frag_off,
+						    PAGE_SIZE - pg_off);
+		}
+
+		block_limit = pg_sz + st->stepped_offset;
 		if (abs_offset < block_limit) {
 			if (!st->frag_data)
-				st->frag_data = kmap_atomic(skb_frag_page(frag));
+				st->frag_data = kmap_atomic(skb_frag_page(frag) + pg_idx);
 
-			*data = (u8 *) st->frag_data + skb_frag_off(frag) +
+			*data = (u8 *)st->frag_data + pg_off +
 				(abs_offset - st->stepped_offset);
 
 			return block_limit - abs_offset;
@@ -3514,8 +3528,12 @@ next_skb:
 			st->frag_data = NULL;
 		}
 
-		st->frag_idx++;
-		st->stepped_offset += skb_frag_size(frag);
+		st->stepped_offset += pg_sz;
+		st->frag_off += pg_sz;
+		if (st->frag_off == skb_frag_size(frag)) {
+			st->frag_off = 0;
+			st->frag_idx++;
+		}
 	}
 
 	if (st->frag_data) {
