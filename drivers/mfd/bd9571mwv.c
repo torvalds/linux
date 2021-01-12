@@ -3,6 +3,7 @@
  * ROHM BD9571MWV-M MFD driver
  *
  * Copyright (C) 2017 Marek Vasut <marek.vasut+renesas@gmail.com>
+ * Copyright (C) 2020 Renesas Electronics Corporation
  *
  * Based on the TPS65086 driver
  */
@@ -102,13 +103,12 @@ static struct regmap_irq_chip bd9571mwv_irq_chip = {
 	.num_irqs	= ARRAY_SIZE(bd9571mwv_irqs),
 };
 
-static int bd9571mwv_identify(struct bd9571mwv *bd)
+static int bd957x_identify(struct device *dev, struct regmap *regmap)
 {
-	struct device *dev = bd->dev;
 	unsigned int value;
 	int ret;
 
-	ret = regmap_read(bd->regmap, BD9571MWV_VENDOR_CODE, &value);
+	ret = regmap_read(regmap, BD9571MWV_VENDOR_CODE, &value);
 	if (ret) {
 		dev_err(dev, "Failed to read vendor code register (ret=%i)\n",
 			ret);
@@ -121,66 +121,71 @@ static int bd9571mwv_identify(struct bd9571mwv *bd)
 		return -EINVAL;
 	}
 
-	ret = regmap_read(bd->regmap, BD9571MWV_PRODUCT_CODE, &value);
+	ret = regmap_read(regmap, BD9571MWV_PRODUCT_CODE, &value);
 	if (ret) {
 		dev_err(dev, "Failed to read product code register (ret=%i)\n",
 			ret);
 		return ret;
 	}
-
-	if (value != BD9571MWV_PRODUCT_CODE_VAL) {
-		dev_err(dev, "Invalid product code ID %02x (expected %02x)\n",
-			value, BD9571MWV_PRODUCT_CODE_VAL);
-		return -EINVAL;
-	}
-
-	ret = regmap_read(bd->regmap, BD9571MWV_PRODUCT_REVISION, &value);
+	ret = regmap_read(regmap, BD9571MWV_PRODUCT_REVISION, &value);
 	if (ret) {
 		dev_err(dev, "Failed to read revision register (ret=%i)\n",
 			ret);
 		return ret;
 	}
 
-	dev_info(dev, "Device: BD9571MWV rev. %d\n", value & 0xff);
-
 	return 0;
 }
 
 static int bd9571mwv_probe(struct i2c_client *client,
-			  const struct i2c_device_id *ids)
+			   const struct i2c_device_id *ids)
 {
-	struct bd9571mwv *bd;
-	int ret;
+	const struct regmap_config *regmap_config;
+	const struct regmap_irq_chip *irq_chip;
+	const struct mfd_cell *cells;
+	struct device *dev = &client->dev;
+	struct regmap *regmap;
+	struct regmap_irq_chip_data *irq_data;
+	int ret, num_cells, irq = client->irq;
 
-	bd = devm_kzalloc(&client->dev, sizeof(*bd), GFP_KERNEL);
-	if (!bd)
-		return -ENOMEM;
-
-	i2c_set_clientdata(client, bd);
-	bd->dev = &client->dev;
-	bd->irq = client->irq;
-
-	bd->regmap = devm_regmap_init_i2c(client, &bd9571mwv_regmap_config);
-	if (IS_ERR(bd->regmap)) {
-		dev_err(bd->dev, "Failed to initialize register map\n");
-		return PTR_ERR(bd->regmap);
+	/* Read the PMIC product code */
+	ret = i2c_smbus_read_byte_data(client, BD9571MWV_PRODUCT_CODE);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read product code\n");
+		return ret;
 	}
 
-	ret = bd9571mwv_identify(bd);
+	switch (ret) {
+	case BD9571MWV_PRODUCT_CODE_BD9571MWV:
+		regmap_config = &bd9571mwv_regmap_config;
+		irq_chip = &bd9571mwv_irq_chip;
+		cells = bd9571mwv_cells;
+		num_cells = ARRAY_SIZE(bd9571mwv_cells);
+		break;
+	default:
+		dev_err(dev, "Unsupported device 0x%x\n", ret);
+		return -ENODEV;
+	}
+
+	regmap = devm_regmap_init_i2c(client, regmap_config);
+	if (IS_ERR(regmap)) {
+		dev_err(dev, "Failed to initialize register map\n");
+		return PTR_ERR(regmap);
+	}
+
+	ret = bd957x_identify(dev, regmap);
 	if (ret)
 		return ret;
 
-	ret = devm_regmap_add_irq_chip(bd->dev, bd->regmap, bd->irq,
-				       IRQF_ONESHOT, 0, &bd9571mwv_irq_chip,
-				       &bd->irq_data);
+	ret = devm_regmap_add_irq_chip(dev, regmap, irq, IRQF_ONESHOT, 0,
+				       irq_chip, &irq_data);
 	if (ret) {
-		dev_err(bd->dev, "Failed to register IRQ chip\n");
+		dev_err(dev, "Failed to register IRQ chip\n");
 		return ret;
 	}
 
-	return devm_mfd_add_devices(bd->dev, PLATFORM_DEVID_AUTO,
-				    bd9571mwv_cells, ARRAY_SIZE(bd9571mwv_cells),
-				    NULL, 0, regmap_irq_get_domain(bd->irq_data));
+	return devm_mfd_add_devices(dev, PLATFORM_DEVID_AUTO, cells, num_cells,
+				    NULL, 0, regmap_irq_get_domain(irq_data));
 }
 
 static const struct of_device_id bd9571mwv_of_match_table[] = {
