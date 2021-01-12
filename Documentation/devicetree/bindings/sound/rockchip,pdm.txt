@@ -44,6 +44,11 @@ Optional properties:
    path2 <-- sdi1
    path3 <-- sdi0
 
+- rockchip,mclk-calibrate: This is a boolean value, if present, enable
+  clk calibrate and compenation.
+
+  note: the corresponding property 'pdm_clk_root' should be assigned.
+
 Example for rk3328 PDM controller:
 
 pdm: pdm@ff040000 {
@@ -65,4 +70,13 @@ pdm: pdm@ff040000 {
 		     &pdmm0_sdi1_sleep
 		     &pdmm0_sdi2_sleep
 		     &pdmm0_sdi3_sleep>;
+};
+
+Example for RV1126 PDM controller with mclk-calibrate:
+
+&pdm {
+	status = "okay";
+	clocks = <&cru MCLK_PDM>, <&cru HCLK_PDM>, <&cru PLL_CPLL>;
+	clock-names = "pdm_clk", "pdm_hclk", "pdm_clk_root";
+	rockchip,mclk-calibrate;
 };
