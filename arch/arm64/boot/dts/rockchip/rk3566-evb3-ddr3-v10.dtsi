@@ -181,6 +181,34 @@
 	status = "okay";
 	pinctrl-0 = <&i2c2m1_xfer>;
 
+	gc2145: gc2145@3c {
+		status = "okay";
+		compatible = "galaxycore,gc2145";
+		reg = <0x3c>;
+		clocks = <&cru CLK_CIF_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3568_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cif_clk &cif_dvp_clk &cif_dvp_bus16>;
+
+		/*avdd-supply = <&vcc2v8_dvp>;*/
+		/*dovdd-supply = <&vcc1v8_dvp>;*/
+		/*dvdd-supply = <&vcc1v8_dvp>;*/
+
+		power-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;
+		/*reset-gpios = <&gpio3 RK_PB5 GPIO_ACTIVE_LOW>;*/
+		pwdn-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "CameraKing";
+		rockchip,camera-module-lens-name = "Largan";
+		port {
+			gc2145_out: endpoint {
+				remote-endpoint = <&dvp_in_bcam>;
+			};
+		};
+	};
+
 	ov5695: ov5695@36 {
 		status = "okay";
 		compatible = "ovti,ov5695";
@@ -318,6 +346,24 @@
 	wireless-bluetooth {
 		uart1_gpios: uart1-gpios {
 			rockchip,pins = <2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_dvp {
+	status = "okay";
+
+	port {
+		/* Parallel bus endpoint */
+		dvp_in_bcam: endpoint {
+			remote-endpoint = <&gc2145_out>;
+			bus-width = <8>;
+			vsync-active = <0>;
+			hsync-active = <1>;
 		};
 	};
 };
