@@ -133,7 +133,9 @@ static int mtd_vendor_storage_init(void)
 		if (!mtd_block_isbad(mtd, offset)) {
 			err = mtd_read(mtd, offset, sizeof(*g_vendor),
 				       &bytes_read, (u8 *)g_vendor);
-			if (!err && bytes_read == sizeof(*g_vendor) &&
+			if (err && err != -EUCLEAN)
+				continue;
+			if (bytes_read == sizeof(*g_vendor) &&
 			    g_vendor->tag == MTD_VENDOR_TAG &&
 			    g_vendor->version == g_vendor->version2) {
 				if (g_vendor->version > nand_info.version) {
@@ -141,9 +143,8 @@ static int mtd_vendor_storage_init(void)
 					nand_info.blk_offset = offset;
 				}
 			}
-		} else if (nand_info.blk_offset == offset) {
+		} else if (nand_info.blk_offset == offset)
 			nand_info.blk_offset += mtd->erasesize;
-		}
 	}
 
 	if (nand_info.version) {
@@ -151,18 +152,29 @@ static int mtd_vendor_storage_init(void)
 		     offset >= 0;
 		     offset -= nand_info.ops_size) {
 			err = mtd_read(mtd, nand_info.blk_offset + offset,
-				       512, &bytes_read, (u8 *)g_vendor);
-			if (err || g_vendor->tag != MTD_VENDOR_TAG)
-				continue;
-			err = mtd_read(mtd, nand_info.blk_offset + offset,
 				       sizeof(*g_vendor),
 				       &bytes_read,
 				       (u8 *)g_vendor);
+
+			/* the page is not programmed */
 			if (!err && bytes_read == sizeof(*g_vendor) &&
+			    g_vendor->tag == 0xFFFFFFFF &&
+			    g_vendor->version == 0xFFFFFFFF &&
+			    g_vendor->version2 == 0xFFFFFFFF)
+				continue;
+
+			/* point to the next free page */
+			if (nand_info.page_offset < offset)
+				nand_info.page_offset = offset + nand_info.ops_size;
+
+			/* ecc error or io error */
+			if (err && err != -EUCLEAN)
+				continue;
+
+			if (bytes_read == sizeof(*g_vendor) &&
 			    g_vendor->tag == MTD_VENDOR_TAG &&
 			    g_vendor->version == g_vendor->version2) {
 				nand_info.version = g_vendor->version;
-				nand_info.page_offset = offset;
 				break;
 			}
 		}
