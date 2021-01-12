@@ -83,12 +83,6 @@
 #define RV1126_GRF_PHY1_SEL_ISP		BIT(1)
 #define RV1126_GRF_PHY1_SEL_CIF		BIT(0)
 
-#define RK3568_GRF_VI_CON0	0x0340
-#define RK3568_GRF_VI_CON1	0x0344
-#define RK3568_GRF_CSIPHY_LANE_SEL_SPLIT	(0x1)
-#define RK3568_GRF_CSIPHY_SEL_SPLIT_0_1	(0x0)
-#define RK3568_GRF_CSIPHY_SEL_SPLIT_2_3	BIT(0)
-
 /* PHY */
 #define RK3288_PHY_TEST_CTRL0	0x30
 #define RK3288_PHY_TEST_CTRL1	0x34
@@ -105,7 +99,7 @@
 #define LANE1_HS_RX_CONTROL			0x54
 #define LANE2_HS_RX_CONTROL			0x84
 #define LANE3_HS_RX_CONTROL			0x94
-#define HS_RX_DATA_LANES_HS_SETTLE_CONTROL	0x75
+#define HS_RX_DATA_LANES_THS_SETTLE_CONTROL	0x75
 
 /* LOW POWER MODE SET */
 #define MIPI_CSI_DPHY_CTRL_INVALID_OFFSET	0xFFFF
@@ -127,48 +121,46 @@
 #define RV1126_CSI_DPHY_CTRL_PWRCTL	\
 		MIPI_CSI_DPHY_CTRL_INVALID_OFFSET
 #define RV1126_CSI_DPHY_CTRL_DIG_RST		0x80
-#define RK3568_CSI_DPHY_DUAL_CAL_EN		0x80
 
 #define MIPI_CSI_DPHY_CTRL_DATALANE_ENABLE_OFFSET_BIT	2
 #define MIPI_CSI_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT	6
 
-/* Configure the count time of the HS-SETTLE by protocol. */
-#define RK1808_CSI_DPHY_CLK_WR_HS_SETTLE	0x160
-#define RK1808_CSI_DPHY_LANE0_WR_HS_SETTLE	\
-		(RK1808_CSI_DPHY_CLK_WR_HS_SETTLE + 0x80)
-#define RK1808_CSI_DPHY_LANE1_WR_HS_SETTLE	\
-		(RK1808_CSI_DPHY_LANE0_WR_HS_SETTLE + 0x80)
-#define RK1808_CSI_DPHY_LANE2_WR_HS_SETTLE	\
-		(RK1808_CSI_DPHY_LANE1_WR_HS_SETTLE + 0x80)
-#define RK1808_CSI_DPHY_LANE3_WR_HS_SETTLE	\
-		(RK1808_CSI_DPHY_LANE2_WR_HS_SETTLE + 0x80)
+/* Configure the count time of the THS-SETTLE by protocol. */
+#define RK1808_CSI_DPHY_CLK_WR_THS_SETTLE	0x160
+#define RK1808_CSI_DPHY_LANE0_WR_THS_SETTLE	\
+		(RK1808_CSI_DPHY_CLK_WR_THS_SETTLE + 0x80)
+#define RK1808_CSI_DPHY_LANE1_WR_THS_SETTLE	\
+		(RK1808_CSI_DPHY_LANE0_WR_THS_SETTLE + 0x80)
+#define RK1808_CSI_DPHY_LANE2_WR_THS_SETTLE	\
+		(RK1808_CSI_DPHY_LANE1_WR_THS_SETTLE + 0x80)
+#define RK1808_CSI_DPHY_LANE3_WR_THS_SETTLE	\
+		(RK1808_CSI_DPHY_LANE2_WR_THS_SETTLE + 0x80)
 
-#define RK3326_CSI_DPHY_CLK_WR_HS_SETTLE	0x100
-#define RK3326_CSI_DPHY_LANE0_WR_HS_SETTLE	\
-		(RK3326_CSI_DPHY_CLK_WR_HS_SETTLE + 0x80)
-#define RK3326_CSI_DPHY_LANE1_WR_HS_SETTLE	\
-		(RK3326_CSI_DPHY_LANE0_WR_HS_SETTLE + 0x80)
-#define RK3326_CSI_DPHY_LANE2_WR_HS_SETTLE	\
-		(RK3326_CSI_DPHY_LANE1_WR_HS_SETTLE + 0x80)
-#define RK3326_CSI_DPHY_LANE3_WR_HS_SETTLE	\
-		(RK3326_CSI_DPHY_LANE2_WR_HS_SETTLE + 0x80)
+#define RK3326_CSI_DPHY_CLK_WR_THS_SETTLE	0x100
+#define RK3326_CSI_DPHY_LANE0_WR_THS_SETTLE	\
+		(RK3326_CSI_DPHY_CLK_WR_THS_SETTLE + 0x80)
+#define RK3326_CSI_DPHY_LANE1_WR_THS_SETTLE	\
+		(RK3326_CSI_DPHY_LANE0_WR_THS_SETTLE + 0x80)
+#define RK3326_CSI_DPHY_LANE2_WR_THS_SETTLE	\
+		(RK3326_CSI_DPHY_LANE1_WR_THS_SETTLE + 0x80)
+#define RK3326_CSI_DPHY_LANE3_WR_THS_SETTLE	\
+		(RK3326_CSI_DPHY_LANE2_WR_THS_SETTLE + 0x80)
 
-#define RK3368_CSI_DPHY_CLK_WR_HS_SETTLE	0x100
-#define RK3368_CSI_DPHY_LANE0_WR_HS_SETTLE	\
-		(RK3368_CSI_DPHY_CLK_WR_HS_SETTLE + 0x80)
-#define RK3368_CSI_DPHY_LANE1_WR_HS_SETTLE	\
-		(RK3368_CSI_DPHY_LANE0_WR_HS_SETTLE + 0x80)
-#define RK3368_CSI_DPHY_LANE2_WR_HS_SETTLE	\
-		(RK3368_CSI_DPHY_LANE1_WR_HS_SETTLE + 0x80)
-#define RK3368_CSI_DPHY_LANE3_WR_HS_SETTLE	\
-		(RK3368_CSI_DPHY_LANE2_WR_HS_SETTLE + 0x80)
+#define RK3368_CSI_DPHY_CLK_WR_THS_SETTLE	0x100
+#define RK3368_CSI_DPHY_LANE0_WR_THS_SETTLE	\
+		(RK3368_CSI_DPHY_CLK_WR_THS_SETTLE + 0x80)
+#define RK3368_CSI_DPHY_LANE1_WR_THS_SETTLE	\
+		(RK3368_CSI_DPHY_LANE0_WR_THS_SETTLE + 0x80)
+#define RK3368_CSI_DPHY_LANE2_WR_THS_SETTLE	\
+		(RK3368_CSI_DPHY_LANE1_WR_THS_SETTLE + 0x80)
+#define RK3368_CSI_DPHY_LANE3_WR_THS_SETTLE	\
+		(RK3368_CSI_DPHY_LANE2_WR_THS_SETTLE + 0x80)
 
-#define RV1126_CSI_DPHY_CLK_WR_HS_SETTLE	0x160
-#define RV1126_CSI_DPHY_LANE0_WR_HS_SETTLE	0x1e0
-#define RV1126_CSI_DPHY_LANE1_WR_HS_SETTLE	0x260
-#define RV1126_CSI_DPHY_LANE2_WR_HS_SETTLE	0x2e0
-#define RV1126_CSI_DPHY_LANE3_WR_HS_SETTLE	0x360
-#define RK3568_CSI_DPHY_CLK1_WR_HS_SETTLE	0x3e0
+#define RV1126_CSI_DPHY_CLK_WR_THS_SETTLE	0x160
+#define RV1126_CSI_DPHY_LANE0_WR_THS_SETTLE	0x1e0
+#define RV1126_CSI_DPHY_LANE1_WR_THS_SETTLE	0x260
+#define RV1126_CSI_DPHY_LANE2_WR_THS_SETTLE	0x2e0
+#define RV1126_CSI_DPHY_LANE3_WR_THS_SETTLE	0x360
 
 /* Calibration reception enable */
 #define RK1808_CSI_DPHY_CLK_CALIB_EN		0x168
@@ -204,7 +196,6 @@
 #define RV1126_CSI_DPHY_LANE1_CALIB_EN		0x268
 #define RV1126_CSI_DPHY_LANE2_CALIB_EN		0x2e8
 #define RV1126_CSI_DPHY_LANE3_CALIB_EN		0x368
-#define RK3568_CSI_DPHY_CLK1_CALIB_EN		0x3e8
 
 #define RV1126_CSI_DPHY_MIPI_LVDS_MODEL		0x2cc
 #define RV1126_CSI_DPHY_LVDS_MODE		0x300
@@ -215,23 +206,11 @@
 #define PHY_TESTEN_DATA			(0x0 << 16)
 #define PHY_TESTCLK			(0x1 << 1)
 #define PHY_TESTCLR			(0x1 << 0)
-#define HS_SETTLE_COUNTER_THRESHOLD	0x04
+#define THS_SETTLE_COUNTER_THRESHOLD	0x04
 
 #define HIWORD_UPDATE(val, mask, shift) \
 	((val) << (shift) | (mask) << ((shift) + 16))
 
-#define OF_DPHY_LANE_MODE		"rockchip,lane-mode"
-
-#define RK3568_DPHY_LANE_MODE_FULL	(0x4)
-#define RK3568_DPHY_LANE_MODE_SPLIT	(0x2)
-#define RK3568_DPHY_LANE_SPLIT_TOP	(0x1)
-#define RK3568_DPHY_LANE_SPLIT_BOT	(0x2)
-#define RK3568_DPHY_LANE_SPLIT_LANE0_1	(0x3 << 2)
-#define RK3568_DPHY_LANE_SPLIT_LANE2_3	(0x3 << 4)
-#define RK3568_DPHY_LANE_DUAL_MODE_EN	BIT(6)
-#define RK3568_DPHY_LANE_PARA_ARR_NUM	(0x2)
-
-/* add new chip id in tail by time order */
 enum mipi_dphy_chip_id {
 	CHIP_ID_RK1808 = 0,
 	CHIP_ID_RK3288,
@@ -239,7 +218,6 @@ enum mipi_dphy_chip_id {
 	CHIP_ID_RK3368,
 	CHIP_ID_RK3399,
 	CHIP_ID_RK1126,
-	CHIP_ID_RK3568,
 };
 
 enum mipi_dphy_rx_pads {
@@ -290,23 +268,17 @@ enum dphy_reg_id {
 	GRF_DPHY_RX0_CLK_INV_SEL,
 	GRF_DPHY_RX1_CLK_INV_SEL,
 	GRF_DPHY_TX1RX1_SRC_SEL,
-	/* below is for rk3568 only */
-	GRF_DPHY_CSIPHY_CLKLANE1_EN,
-	GRF_DPHY_CLK1_INV_SEL,
-	GRF_DPHY_ISP_CSIPHY_SEL,
-	GRF_DPHY_CIF_CSIPHY_SEL,
-	GRF_DPHY_CSIPHY_LANE_SEL,
 };
 
 enum csiphy_reg_id {
 	CSIPHY_CTRL_LANE_ENABLE = 0,
 	CSIPHY_CTRL_PWRCTL,
 	CSIPHY_CTRL_DIG_RST,
-	CSIPHY_CLK_HS_SETTLE,
-	CSIPHY_LANE0_HS_SETTLE,
-	CSIPHY_LANE1_HS_SETTLE,
-	CSIPHY_LANE2_HS_SETTLE,
-	CSIPHY_LANE3_HS_SETTLE,
+	CSIPHY_CLK_THS_SETTLE,
+	CSIPHY_LANE0_THS_SETTLE,
+	CSIPHY_LANE1_THS_SETTLE,
+	CSIPHY_LANE2_THS_SETTLE,
+	CSIPHY_LANE3_THS_SETTLE,
 	CSIPHY_CLK_CALIB_ENABLE,
 	CSIPHY_LANE0_CALIB_ENABLE,
 	CSIPHY_LANE1_CALIB_ENABLE,
@@ -315,10 +287,6 @@ enum csiphy_reg_id {
 	//rv1126 only
 	CSIPHY_MIPI_LVDS_MODEL,
 	CSIPHY_LVDS_MODE,
-	//rk3568 only
-	CSIPHY_DUAL_CLK_EN,
-	CSIPHY_CLK1_HS_SETTLE,
-	CSIPHY_CLK1_CALIB_ENABLE
 };
 
 enum mipi_dphy_ctl_type {
@@ -328,7 +296,6 @@ enum mipi_dphy_ctl_type {
 
 enum mipi_dphy_lane {
 	MIPI_DPHY_LANE_CLOCK = 0,
-	MIPI_DPHY_LANE_CLOCK1,
 	MIPI_DPHY_LANE_DATA0,
 	MIPI_DPHY_LANE_DATA1,
 	MIPI_DPHY_LANE_DATA2,
@@ -460,18 +427,6 @@ static const struct dphy_reg rv1126_grf_dphy1_regs[] = {
 	[GRF_DPHY_SEL] = PHY_REG(RV1126_GRF_IOFUNC_CON3, 3, 9),
 };
 
-static const struct dphy_reg rk3568_grf_dphy_regs[] = {
-	[GRF_DPHY_CSIPHY_FORCERXMODE] = PHY_REG(RK3568_GRF_VI_CON0, 4, 0),
-	[GRF_DPHY_CSIPHY_DATALANE_EN] = PHY_REG(RK3568_GRF_VI_CON0, 4, 4),
-	[GRF_DPHY_CSIPHY_CLKLANE_EN] = PHY_REG(RK3568_GRF_VI_CON0, 1, 8),
-	[GRF_DPHY_CLK_INV_SEL] = PHY_REG(RK3568_GRF_VI_CON0, 1, 9),
-	[GRF_DPHY_CSIPHY_CLKLANE1_EN] = PHY_REG(RK3568_GRF_VI_CON0, 1, 10),
-	[GRF_DPHY_CLK1_INV_SEL] = PHY_REG(RK3568_GRF_VI_CON0, 1, 11),
-	[GRF_DPHY_ISP_CSIPHY_SEL] = PHY_REG(RK3568_GRF_VI_CON1, 1, 12),
-	[GRF_DPHY_CIF_CSIPHY_SEL] = PHY_REG(RK3568_GRF_VI_CON1, 1, 11),
-	[GRF_DPHY_CSIPHY_LANE_SEL] = PHY_REG(RK3568_GRF_VI_CON1, 1, 7),
-};
-
 static const struct txrx_reg rk3288_txrx_regs[] = {
 	[TXRX_PHY_TEST_CTRL0] = TXRX_REG(RK3288_PHY_TEST_CTRL0),
 	[TXRX_PHY_TEST_CTRL1] = TXRX_REG(RK3288_PHY_TEST_CTRL1),
@@ -490,11 +445,11 @@ static const struct csiphy_reg rk1808_csiphy_regs[] = {
 	[CSIPHY_CTRL_LANE_ENABLE] = CSIPHY_REG(RK1808_CSI_DPHY_CTRL_LANE_ENABLE),
 	[CSIPHY_CTRL_PWRCTL] = CSIPHY_REG(RK1808_CSI_DPHY_CTRL_PWRCTL),
 	[CSIPHY_CTRL_DIG_RST] = CSIPHY_REG(RK1808_CSI_DPHY_CTRL_DIG_RST),
-	[CSIPHY_CLK_HS_SETTLE] = CSIPHY_REG(RK1808_CSI_DPHY_CLK_WR_HS_SETTLE),
-	[CSIPHY_LANE0_HS_SETTLE] = CSIPHY_REG(RK1808_CSI_DPHY_LANE0_WR_HS_SETTLE),
-	[CSIPHY_LANE1_HS_SETTLE] = CSIPHY_REG(RK1808_CSI_DPHY_LANE1_WR_HS_SETTLE),
-	[CSIPHY_LANE2_HS_SETTLE] = CSIPHY_REG(RK1808_CSI_DPHY_LANE2_WR_HS_SETTLE),
-	[CSIPHY_LANE3_HS_SETTLE] = CSIPHY_REG(RK1808_CSI_DPHY_LANE3_WR_HS_SETTLE),
+	[CSIPHY_CLK_THS_SETTLE] = CSIPHY_REG(RK1808_CSI_DPHY_CLK_WR_THS_SETTLE),
+	[CSIPHY_LANE0_THS_SETTLE] = CSIPHY_REG(RK1808_CSI_DPHY_LANE0_WR_THS_SETTLE),
+	[CSIPHY_LANE1_THS_SETTLE] = CSIPHY_REG(RK1808_CSI_DPHY_LANE1_WR_THS_SETTLE),
+	[CSIPHY_LANE2_THS_SETTLE] = CSIPHY_REG(RK1808_CSI_DPHY_LANE2_WR_THS_SETTLE),
+	[CSIPHY_LANE3_THS_SETTLE] = CSIPHY_REG(RK1808_CSI_DPHY_LANE3_WR_THS_SETTLE),
 	[CSIPHY_CLK_CALIB_ENABLE] = CSIPHY_REG(RK1808_CSI_DPHY_CLK_CALIB_EN),
 	[CSIPHY_LANE0_CALIB_ENABLE] = CSIPHY_REG(RK1808_CSI_DPHY_LANE0_CALIB_EN),
 	[CSIPHY_LANE1_CALIB_ENABLE] = CSIPHY_REG(RK1808_CSI_DPHY_LANE1_CALIB_EN),
@@ -506,11 +461,11 @@ static const struct csiphy_reg rk3326_csiphy_regs[] = {
 	[CSIPHY_CTRL_LANE_ENABLE] = CSIPHY_REG(RK3326_CSI_DPHY_CTRL_LANE_ENABLE),
 	[CSIPHY_CTRL_PWRCTL] = CSIPHY_REG(RK3326_CSI_DPHY_CTRL_PWRCTL),
 	[CSIPHY_CTRL_DIG_RST] = CSIPHY_REG(RK3326_CSI_DPHY_CTRL_DIG_RST),
-	[CSIPHY_CLK_HS_SETTLE] = CSIPHY_REG(RK3326_CSI_DPHY_CLK_WR_HS_SETTLE),
-	[CSIPHY_LANE0_HS_SETTLE] = CSIPHY_REG(RK3326_CSI_DPHY_LANE0_WR_HS_SETTLE),
-	[CSIPHY_LANE1_HS_SETTLE] = CSIPHY_REG(RK3326_CSI_DPHY_LANE1_WR_HS_SETTLE),
-	[CSIPHY_LANE2_HS_SETTLE] = CSIPHY_REG(RK3326_CSI_DPHY_LANE2_WR_HS_SETTLE),
-	[CSIPHY_LANE3_HS_SETTLE] = CSIPHY_REG(RK3326_CSI_DPHY_LANE3_WR_HS_SETTLE),
+	[CSIPHY_CLK_THS_SETTLE] = CSIPHY_REG(RK3326_CSI_DPHY_CLK_WR_THS_SETTLE),
+	[CSIPHY_LANE0_THS_SETTLE] = CSIPHY_REG(RK3326_CSI_DPHY_LANE0_WR_THS_SETTLE),
+	[CSIPHY_LANE1_THS_SETTLE] = CSIPHY_REG(RK3326_CSI_DPHY_LANE1_WR_THS_SETTLE),
+	[CSIPHY_LANE2_THS_SETTLE] = CSIPHY_REG(RK3326_CSI_DPHY_LANE2_WR_THS_SETTLE),
+	[CSIPHY_LANE3_THS_SETTLE] = CSIPHY_REG(RK3326_CSI_DPHY_LANE3_WR_THS_SETTLE),
 	[CSIPHY_CLK_CALIB_ENABLE] = CSIPHY_REG(RK3326_CSI_DPHY_CLK_CALIB_EN),
 	[CSIPHY_LANE0_CALIB_ENABLE] = CSIPHY_REG(RK3326_CSI_DPHY_LANE0_CALIB_EN),
 	[CSIPHY_LANE1_CALIB_ENABLE] = CSIPHY_REG(RK3326_CSI_DPHY_LANE1_CALIB_EN),
@@ -522,11 +477,11 @@ static const struct csiphy_reg rk3368_csiphy_regs[] = {
 	[CSIPHY_CTRL_LANE_ENABLE] = CSIPHY_REG(RK3368_CSI_DPHY_CTRL_LANE_ENABLE),
 	[CSIPHY_CTRL_PWRCTL] = CSIPHY_REG(RK3368_CSI_DPHY_CTRL_PWRCTL),
 	[CSIPHY_CTRL_DIG_RST] = CSIPHY_REG(RK3368_CSI_DPHY_CTRL_DIG_RST),
-	[CSIPHY_CLK_HS_SETTLE] = CSIPHY_REG(RK3368_CSI_DPHY_CLK_WR_HS_SETTLE),
-	[CSIPHY_LANE0_HS_SETTLE] = CSIPHY_REG(RK3368_CSI_DPHY_LANE0_WR_HS_SETTLE),
-	[CSIPHY_LANE1_HS_SETTLE] = CSIPHY_REG(RK3368_CSI_DPHY_LANE1_WR_HS_SETTLE),
-	[CSIPHY_LANE2_HS_SETTLE] = CSIPHY_REG(RK3368_CSI_DPHY_LANE2_WR_HS_SETTLE),
-	[CSIPHY_LANE3_HS_SETTLE] = CSIPHY_REG(RK3368_CSI_DPHY_LANE3_WR_HS_SETTLE),
+	[CSIPHY_CLK_THS_SETTLE] = CSIPHY_REG(RK3368_CSI_DPHY_CLK_WR_THS_SETTLE),
+	[CSIPHY_LANE0_THS_SETTLE] = CSIPHY_REG(RK3368_CSI_DPHY_LANE0_WR_THS_SETTLE),
+	[CSIPHY_LANE1_THS_SETTLE] = CSIPHY_REG(RK3368_CSI_DPHY_LANE1_WR_THS_SETTLE),
+	[CSIPHY_LANE2_THS_SETTLE] = CSIPHY_REG(RK3368_CSI_DPHY_LANE2_WR_THS_SETTLE),
+	[CSIPHY_LANE3_THS_SETTLE] = CSIPHY_REG(RK3368_CSI_DPHY_LANE3_WR_THS_SETTLE),
 	[CSIPHY_CLK_CALIB_ENABLE] = CSIPHY_REG(RK3368_CSI_DPHY_CLK_CALIB_EN),
 	[CSIPHY_LANE0_CALIB_ENABLE] = CSIPHY_REG(RK3368_CSI_DPHY_LANE0_CALIB_EN),
 	[CSIPHY_LANE1_CALIB_ENABLE] = CSIPHY_REG(RK3368_CSI_DPHY_LANE1_CALIB_EN),
@@ -538,11 +493,11 @@ static const struct csiphy_reg rv1126_csiphy_regs[] = {
 	[CSIPHY_CTRL_LANE_ENABLE] = CSIPHY_REG(RV1126_CSI_DPHY_CTRL_LANE_ENABLE),
 	[CSIPHY_CTRL_PWRCTL] = CSIPHY_REG(RV1126_CSI_DPHY_CTRL_PWRCTL),
 	[CSIPHY_CTRL_DIG_RST] = CSIPHY_REG(RV1126_CSI_DPHY_CTRL_DIG_RST),
-	[CSIPHY_CLK_HS_SETTLE] = CSIPHY_REG(RV1126_CSI_DPHY_CLK_WR_HS_SETTLE),
-	[CSIPHY_LANE0_HS_SETTLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE0_WR_HS_SETTLE),
-	[CSIPHY_LANE1_HS_SETTLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE1_WR_HS_SETTLE),
-	[CSIPHY_LANE2_HS_SETTLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE2_WR_HS_SETTLE),
-	[CSIPHY_LANE3_HS_SETTLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE3_WR_HS_SETTLE),
+	[CSIPHY_CLK_THS_SETTLE] = CSIPHY_REG(RV1126_CSI_DPHY_CLK_WR_THS_SETTLE),
+	[CSIPHY_LANE0_THS_SETTLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE0_WR_THS_SETTLE),
+	[CSIPHY_LANE1_THS_SETTLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE1_WR_THS_SETTLE),
+	[CSIPHY_LANE2_THS_SETTLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE2_WR_THS_SETTLE),
+	[CSIPHY_LANE3_THS_SETTLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE3_WR_THS_SETTLE),
 	[CSIPHY_CLK_CALIB_ENABLE] = CSIPHY_REG(RV1126_CSI_DPHY_CLK_CALIB_EN),
 	[CSIPHY_LANE0_CALIB_ENABLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE0_CALIB_EN),
 	[CSIPHY_LANE1_CALIB_ENABLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE1_CALIB_EN),
@@ -550,25 +505,6 @@ static const struct csiphy_reg rv1126_csiphy_regs[] = {
 	[CSIPHY_LANE3_CALIB_ENABLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE3_CALIB_EN),
 	[CSIPHY_MIPI_LVDS_MODEL] = CSIPHY_REG(RV1126_CSI_DPHY_MIPI_LVDS_MODEL),
 	[CSIPHY_LVDS_MODE] = CSIPHY_REG(RV1126_CSI_DPHY_LVDS_MODE),
-};
-
-static const struct csiphy_reg rk3568_csiphy_regs[] = {
-	[CSIPHY_CTRL_LANE_ENABLE] = CSIPHY_REG(RV1126_CSI_DPHY_CTRL_LANE_ENABLE),
-	[CSIPHY_CTRL_PWRCTL] = CSIPHY_REG(RV1126_CSI_DPHY_CTRL_PWRCTL),
-	[CSIPHY_CTRL_DIG_RST] = CSIPHY_REG(RV1126_CSI_DPHY_CTRL_PWRCTL),
-	[CSIPHY_DUAL_CLK_EN] = CSIPHY_REG(RK3568_CSI_DPHY_DUAL_CAL_EN),
-	[CSIPHY_CLK_HS_SETTLE] = CSIPHY_REG(RV1126_CSI_DPHY_CLK_WR_HS_SETTLE),
-	[CSIPHY_CLK_CALIB_ENABLE] = CSIPHY_REG(RV1126_CSI_DPHY_CLK_CALIB_EN),
-	[CSIPHY_LANE0_HS_SETTLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE0_WR_HS_SETTLE),
-	[CSIPHY_LANE0_CALIB_ENABLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE0_CALIB_EN),
-	[CSIPHY_LANE1_HS_SETTLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE1_WR_HS_SETTLE),
-	[CSIPHY_LANE1_CALIB_ENABLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE1_CALIB_EN),
-	[CSIPHY_LANE2_HS_SETTLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE2_WR_HS_SETTLE),
-	[CSIPHY_LANE2_CALIB_ENABLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE2_CALIB_EN),
-	[CSIPHY_LANE3_HS_SETTLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE3_WR_HS_SETTLE),
-	[CSIPHY_LANE3_CALIB_ENABLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE3_CALIB_EN),
-	[CSIPHY_CLK1_HS_SETTLE] = CSIPHY_REG(RK3568_CSI_DPHY_CLK1_WR_HS_SETTLE),
-	[CSIPHY_CLK1_CALIB_ENABLE] = CSIPHY_REG(RK3568_CSI_DPHY_CLK1_CALIB_EN),
 };
 
 struct hsfreq_range {
@@ -587,7 +523,7 @@ struct dphy_drv_data {
 	const struct txrx_reg *txrx_regs;
 	const struct csiphy_reg *csiphy_regs;
 	enum mipi_dphy_ctl_type ctl_type;
-	int (*individual_init)(struct mipidphy_priv *priv);
+	void (*individual_init)(struct mipidphy_priv *priv);
 	enum mipi_dphy_chip_id chip_id;
 };
 
@@ -605,18 +541,6 @@ struct mipidphy_sensor {
 	struct v4l2_mbus_config mbus;
 	struct v4l2_mbus_framefmt format;
 	int lanes;
-};
-
-enum mipidphy_lane_mode {
-	LANE_MODE_UNDEF = 0x0,
-	LANE_MODE_FULL = 0x1,
-	LANE_MODE_SPLIT = 0x2,
-};
-
-enum mipidphy_lane_sel {
-	LANE_ALL = 0x0,
-	LANE_TOP,
-	LANE_BOT,
 };
 
 struct mipidphy_priv {
@@ -637,16 +561,10 @@ struct mipidphy_priv {
 	int num_sensors;
 	int phy_index;
 	bool is_streaming;
-	bool is_dual_clk;
-	enum mipidphy_lane_mode lane_mode;
-	enum mipidphy_lane_sel lane_sel;
 	void __iomem *txrx_base_addr;
 	int (*stream_on)(struct mipidphy_priv *priv, struct v4l2_subdev *sd);
 	int (*stream_off)(struct mipidphy_priv *priv, struct v4l2_subdev *sd);
 };
-
-static int mipi_stream_cnt;
-static enum mipidphy_lane_mode g_lane_mode = LANE_MODE_UNDEF;
 
 static inline struct mipidphy_priv *to_dphy_priv(struct v4l2_subdev *subdev)
 {
@@ -742,22 +660,19 @@ static void csi_mipidphy_wr_ths_settle(struct mipidphy_priv *priv, int hsfreq,
 
 	switch (lane) {
 	case MIPI_DPHY_LANE_CLOCK:
-		offset = CSIPHY_CLK_HS_SETTLE;
-		break;
-	case MIPI_DPHY_LANE_CLOCK1:
-		offset = CSIPHY_CLK1_HS_SETTLE;
+		offset = CSIPHY_CLK_THS_SETTLE;
 		break;
 	case MIPI_DPHY_LANE_DATA0:
-		offset = CSIPHY_LANE0_HS_SETTLE;
+		offset = CSIPHY_LANE0_THS_SETTLE;
 		break;
 	case MIPI_DPHY_LANE_DATA1:
-		offset = CSIPHY_LANE1_HS_SETTLE;
+		offset = CSIPHY_LANE1_THS_SETTLE;
 		break;
 	case MIPI_DPHY_LANE_DATA2:
-		offset = CSIPHY_LANE2_HS_SETTLE;
+		offset = CSIPHY_LANE2_THS_SETTLE;
 		break;
 	case MIPI_DPHY_LANE_DATA3:
-		offset = CSIPHY_LANE3_HS_SETTLE;
+		offset = CSIPHY_LANE3_THS_SETTLE;
 		break;
 	default:
 		return;
@@ -1144,20 +1059,17 @@ static const char * const rv1126_mipidphy_clks[] = {
 	"pclk",
 };
 
-static int default_mipidphy_individual_init(struct mipidphy_priv *priv)
+static void default_mipidphy_individual_init(struct mipidphy_priv *priv)
 {
-	return 0;
 }
 
-static int rk3368_mipidphy_individual_init(struct mipidphy_priv *priv)
+static void rk3368_mipidphy_individual_init(struct mipidphy_priv *priv)
 {
 	/* isp select */
 	write_grf_reg(priv, GRF_ISP_MIPI_CSI_HOST_SEL, 1);
-
-	return 0;
 }
 
-static int rk3399_mipidphy_individual_init(struct mipidphy_priv *priv)
+static void rk3399_mipidphy_individual_init(struct mipidphy_priv *priv)
 {
 	/*
 	 * According to the sequence of RK3399_TXRX_DPHY, the setting of isp0 mipi
@@ -1168,11 +1080,9 @@ static int rk3399_mipidphy_individual_init(struct mipidphy_priv *priv)
 	write_grf_reg(priv, GRF_DPHY_TX1RX1_BASEDIR, 0);
 
 	write_grf_reg(priv, GRF_DVP_V18SEL, 0x1);
-
-	return 0;
 }
 
-static int rv1126_mipidphy_individual_init(struct mipidphy_priv *priv)
+static void rv1126_mipidphy_individual_init(struct mipidphy_priv *priv)
 {
 	struct device *dev = priv->dev;
 	struct device_node *parent = dev->of_node;
@@ -1193,110 +1103,6 @@ static int rv1126_mipidphy_individual_init(struct mipidphy_priv *priv)
 		of_node_put(remote);
 		write_grf_reg(priv, GRF_DPHY_SEL, val | sel);
 	}
-
-	return 0;
-}
-
-static void mipidphy_config_dual_mode(struct mipidphy_priv *priv,
-					     struct mipidphy_sensor *sensor)
-{
-	struct v4l2_subdev *sd = &priv->sd;
-	bool is_cif = false;
-	char *model;
-	u32 val;
-
-	model = sd->v4l2_dev->mdev->model;
-	if (!strncmp(model, "rkcif_mipi_lvds", sizeof("rkcif_mipi_lvds") - 1))
-		is_cif = true;
-	else
-		is_cif = false;
-
-	if (priv->lane_mode == LANE_MODE_FULL) {
-		val = ~RK3568_GRF_CSIPHY_LANE_SEL_SPLIT;
-		write_grf_reg(priv, GRF_DPHY_CSIPHY_LANE_SEL, val);
-		write_grf_reg(priv, GRF_DPHY_CSIPHY_DATALANE_EN,
-			      GENMASK(sensor->lanes - 1, 0));
-	} else {
-		val = RK3568_GRF_CSIPHY_LANE_SEL_SPLIT;
-		write_grf_reg(priv, GRF_DPHY_CSIPHY_LANE_SEL, val);
-		write_grf_reg(priv, GRF_DPHY_CSIPHY_DATALANE_EN,
-			      GENMASK(3, 0));
-		if (priv->lane_sel == LANE_TOP) {
-			write_grf_reg(priv, GRF_DPHY_CSIPHY_CLKLANE_EN, 0x1);
-			if (is_cif)
-				write_grf_reg(priv, GRF_DPHY_CIF_CSIPHY_SEL,
-					      RK3568_GRF_CSIPHY_SEL_SPLIT_0_1);
-			else
-				write_grf_reg(priv, GRF_DPHY_ISP_CSIPHY_SEL,
-					      RK3568_GRF_CSIPHY_SEL_SPLIT_0_1);
-		}
-
-		if (priv->lane_sel == LANE_BOT) {
-			write_grf_reg(priv, GRF_DPHY_CSIPHY_CLKLANE1_EN, 0x1);
-			if (is_cif)
-				write_grf_reg(priv, GRF_DPHY_CIF_CSIPHY_SEL,
-					      RK3568_GRF_CSIPHY_SEL_SPLIT_2_3);
-			else
-				write_grf_reg(priv, GRF_DPHY_ISP_CSIPHY_SEL,
-					      RK3568_GRF_CSIPHY_SEL_SPLIT_2_3);
-		}
-	}
-}
-
-static int rk3568_mipidphy_individual_init(struct mipidphy_priv *priv)
-{
-	struct device_node *node = priv->dev->of_node;
-	u32 mode = RK3568_DPHY_LANE_MODE_FULL;
-	u32 arr[RK3568_DPHY_LANE_PARA_ARR_NUM];
-	int i;
-
-	priv->grf_regs = rk3568_grf_dphy_regs;
-
-	if (!of_property_read_u32_array(node,
-					OF_DPHY_LANE_MODE,
-					arr,
-					RK3568_DPHY_LANE_PARA_ARR_NUM)) {
-		for (i = 0; i < RK3568_DPHY_LANE_PARA_ARR_NUM; i++) {
-			if (i == 0) {
-				if (arr[0] == RK3568_DPHY_LANE_MODE_SPLIT) {
-					mode = RK3568_DPHY_LANE_MODE_SPLIT;
-					priv->lane_mode = LANE_MODE_SPLIT;
-					priv->is_dual_clk = true;
-				} else {
-					mode = RK3568_DPHY_LANE_MODE_FULL;
-					priv->lane_mode = LANE_MODE_FULL;
-					priv->is_dual_clk = false;
-				}
-			}
-
-			if (i == 1) {
-				if (arr[1] == RK3568_DPHY_LANE_SPLIT_BOT)
-					priv->lane_sel = LANE_BOT;
-				else
-					priv->lane_sel = LANE_TOP;
-			}
-		}
-	} else {
-		priv->is_dual_clk = false;
-		priv->lane_mode = LANE_MODE_FULL;
-	}
-
-	if (g_lane_mode == LANE_MODE_UNDEF) {
-		g_lane_mode = priv->lane_mode;
-	} else {
-		if (g_lane_mode != priv->lane_mode) {
-			v4l2_err(&priv->sd, "Err: dphy has been set as %s mode, set %s mode failed!\n",
-				 g_lane_mode == LANE_MODE_FULL ? "full" : "split",
-				 priv->lane_mode == LANE_MODE_FULL ? "full" : "split");
-			return -ENODEV;
-		}
-	}
-
-	v4l2_info(&priv->sd, "%s mode:%s, lane_sel:%s\n", __func__,
-		  mode == RK3568_DPHY_LANE_MODE_FULL ? "full" : "split",
-		  priv->lane_sel == LANE_TOP ? "TOP" : "BOT");
-
-	return 0;
 }
 
 static int mipidphy_rx_stream_on(struct mipidphy_priv *priv,
@@ -1518,7 +1324,7 @@ static int csi_mipidphy_stream_on(struct mipidphy_priv *priv,
 	const struct hsfreq_range *hsfreq_ranges = drv_data->hsfreq_ranges;
 	int num_hsfreq_ranges = drv_data->num_hsfreq_ranges;
 	int i, hsfreq = 0;
-	u32 val = 0, pre_val = 0;
+	u32 val = 0;
 
 	write_grf_reg(priv, GRF_DVP_V18SEL, 0x1);
 
@@ -1526,19 +1332,9 @@ static int csi_mipidphy_stream_on(struct mipidphy_priv *priv,
 	write_csiphy_reg(priv, CSIPHY_CTRL_PWRCTL, 0xe4);
 
 	/* set data lane num and enable clock lane */
-	read_csiphy_reg(priv, CSIPHY_CTRL_LANE_ENABLE, &pre_val);
-	val = (0x1 << MIPI_CSI_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT) | 0x1;
-	if (priv->is_dual_clk) {
-		if (priv->lane_sel == LANE_BOT)
-			val |= RK3568_DPHY_LANE_SPLIT_LANE2_3;
-		else
-			val |= RK3568_DPHY_LANE_SPLIT_LANE0_1;
-	} else {
-		val |= (GENMASK(sensor->lanes - 1, 0) <<
-			MIPI_CSI_DPHY_CTRL_DATALANE_ENABLE_OFFSET_BIT);
-	}
-	val |= pre_val;
-	write_csiphy_reg(priv, CSIPHY_CTRL_LANE_ENABLE, val);
+	write_csiphy_reg(priv, CSIPHY_CTRL_LANE_ENABLE,
+		((GENMASK(sensor->lanes - 1, 0) << MIPI_CSI_DPHY_CTRL_DATALANE_ENABLE_OFFSET_BIT) |
+		(0x1 << MIPI_CSI_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT) | 0x1));
 
 	/* Reset dphy analog part */
 	write_csiphy_reg(priv, CSIPHY_CTRL_PWRCTL, 0xe0);
@@ -1546,22 +1342,8 @@ static int csi_mipidphy_stream_on(struct mipidphy_priv *priv,
 
 	if (sensor->mbus.type == V4L2_MBUS_CSI2) {
 		/* Reset dphy digital part */
-		if (priv->drv_data->chip_id < CHIP_ID_RK3568) {
-			write_csiphy_reg(priv, CSIPHY_CTRL_DIG_RST, 0x1e);
-			write_csiphy_reg(priv, CSIPHY_CTRL_DIG_RST, 0x1f);
-		} else {
-			if (priv->lane_mode == LANE_MODE_SPLIT) {
-				read_csiphy_reg(priv, CSIPHY_DUAL_CLK_EN, &val);
-				if (!(val & RK3568_DPHY_LANE_DUAL_MODE_EN)) {
-					write_csiphy_reg(priv, CSIPHY_DUAL_CLK_EN, 0x5e);
-					write_csiphy_reg(priv, CSIPHY_DUAL_CLK_EN, 0x5f);
-				}
-			} else {
-				write_csiphy_reg(priv, CSIPHY_DUAL_CLK_EN, 0x1e);
-				write_csiphy_reg(priv, CSIPHY_DUAL_CLK_EN, 0x1f);
-			}
-			mipidphy_config_dual_mode(priv, sensor);
-		}
+		write_csiphy_reg(priv, CSIPHY_CTRL_DIG_RST, 0x1e);
+		write_csiphy_reg(priv, CSIPHY_CTRL_DIG_RST, 0x1f);
 	} else {
 		/* Disable MIPI internal logical and switch to LVDS bank */
 		write_csiphy_reg(priv, CSIPHY_CTRL_DIG_RST, 0x3e);
@@ -1594,27 +1376,15 @@ static int csi_mipidphy_stream_on(struct mipidphy_priv *priv,
 
 	/* enable calibration */
 	if (priv->data_rate_mbps > 1500) {
-		if (!priv->is_dual_clk) {
-			write_csiphy_reg(priv, CSIPHY_CLK_CALIB_ENABLE, 0x80);
-			if (sensor->lanes > 0x00)
-				write_csiphy_reg(priv, CSIPHY_LANE0_CALIB_ENABLE, 0x80);
-			if (sensor->lanes > 0x01)
-				write_csiphy_reg(priv, CSIPHY_LANE1_CALIB_ENABLE, 0x80);
-			if (sensor->lanes > 0x02)
-				write_csiphy_reg(priv, CSIPHY_LANE2_CALIB_ENABLE, 0x80);
-			if (sensor->lanes > 0x03)
-				write_csiphy_reg(priv, CSIPHY_LANE3_CALIB_ENABLE, 0x80);
-		} else {
-			if (priv->lane_sel == LANE_BOT) {
-				write_csiphy_reg(priv, CSIPHY_CLK1_CALIB_ENABLE, 0x80);
-				write_csiphy_reg(priv, CSIPHY_LANE2_CALIB_ENABLE, 0x80);
-				write_csiphy_reg(priv, CSIPHY_LANE3_CALIB_ENABLE, 0x80);
-			} else {
-				write_csiphy_reg(priv, CSIPHY_CLK_CALIB_ENABLE, 0x80);
-				write_csiphy_reg(priv, CSIPHY_LANE0_CALIB_ENABLE, 0x80);
-				write_csiphy_reg(priv, CSIPHY_LANE1_CALIB_ENABLE, 0x80);
-			}
-		}
+		write_csiphy_reg(priv, CSIPHY_CLK_CALIB_ENABLE, 0x80);
+		if (sensor->lanes > 0x00)
+			write_csiphy_reg(priv, CSIPHY_LANE0_CALIB_ENABLE, 0x80);
+		if (sensor->lanes > 0x01)
+			write_csiphy_reg(priv, CSIPHY_LANE1_CALIB_ENABLE, 0x80);
+		if (sensor->lanes > 0x02)
+			write_csiphy_reg(priv, CSIPHY_LANE2_CALIB_ENABLE, 0x80);
+		if (sensor->lanes > 0x03)
+			write_csiphy_reg(priv, CSIPHY_LANE3_CALIB_ENABLE, 0x80);
 	}
 
 	/* set clock lane and data lane */
@@ -1632,38 +1402,20 @@ static int csi_mipidphy_stream_on(struct mipidphy_priv *priv,
 		hsfreq = hsfreq_ranges[i].cfg_bit;
 	}
 
-	/* TODO: when run dual mode is it necessary to distinguish data rate ? */
-	if (!priv->is_dual_clk) {
-		csi_mipidphy_wr_ths_settle(priv, hsfreq, MIPI_DPHY_LANE_CLOCK);
-		if (sensor->lanes > 0x00)
-			csi_mipidphy_wr_ths_settle(priv, hsfreq, MIPI_DPHY_LANE_DATA0);
-		if (sensor->lanes > 0x01)
-			csi_mipidphy_wr_ths_settle(priv, hsfreq, MIPI_DPHY_LANE_DATA1);
-		if (sensor->lanes > 0x02)
-			csi_mipidphy_wr_ths_settle(priv, hsfreq, MIPI_DPHY_LANE_DATA2);
-		if (sensor->lanes > 0x03)
-			csi_mipidphy_wr_ths_settle(priv, hsfreq, MIPI_DPHY_LANE_DATA3);
-	} else {
-		if (priv->lane_sel == LANE_BOT) {
-			csi_mipidphy_wr_ths_settle(priv, hsfreq, MIPI_DPHY_LANE_CLOCK1);
-			csi_mipidphy_wr_ths_settle(priv, hsfreq, MIPI_DPHY_LANE_DATA2);
-			csi_mipidphy_wr_ths_settle(priv, hsfreq, MIPI_DPHY_LANE_DATA3);
-		} else {
-			csi_mipidphy_wr_ths_settle(priv, hsfreq, MIPI_DPHY_LANE_CLOCK);
-			csi_mipidphy_wr_ths_settle(priv, hsfreq, MIPI_DPHY_LANE_DATA0);
-			csi_mipidphy_wr_ths_settle(priv, hsfreq, MIPI_DPHY_LANE_DATA1);
-		}
-	}
+	csi_mipidphy_wr_ths_settle(priv, hsfreq, MIPI_DPHY_LANE_CLOCK);
+	if (sensor->lanes > 0x00)
+		csi_mipidphy_wr_ths_settle(priv, hsfreq, MIPI_DPHY_LANE_DATA0);
+	if (sensor->lanes > 0x01)
+		csi_mipidphy_wr_ths_settle(priv, hsfreq, MIPI_DPHY_LANE_DATA1);
+	if (sensor->lanes > 0x02)
+		csi_mipidphy_wr_ths_settle(priv, hsfreq, MIPI_DPHY_LANE_DATA2);
+	if (sensor->lanes > 0x03)
+		csi_mipidphy_wr_ths_settle(priv, hsfreq, MIPI_DPHY_LANE_DATA3);
 
-	if (priv->drv_data->chip_id < CHIP_ID_RK3568) {
-		write_grf_reg(priv, GRF_DPHY_CLK_INV_SEL, 0x1);
-		write_grf_reg(priv, GRF_DPHY_CSIPHY_CLKLANE_EN, 0x1);
-		write_grf_reg(priv, GRF_DPHY_CSIPHY_DATALANE_EN,
-			      GENMASK(sensor->lanes - 1, 0));
-	}
-
-	mipi_stream_cnt++;
-
+	write_grf_reg(priv, GRF_DPHY_CLK_INV_SEL, 0x1);
+	write_grf_reg(priv, GRF_DPHY_CSIPHY_CLKLANE_EN, 0x1);
+	write_grf_reg(priv, GRF_DPHY_CSIPHY_DATALANE_EN,
+		      GENMASK(sensor->lanes - 1, 0));
 	return 0;
 }
 
@@ -1671,10 +1423,6 @@ static int csi_mipidphy_stream_off(struct mipidphy_priv *priv,
 				   struct v4l2_subdev *sd)
 {
 	/* disable all lanes */
-	mipi_stream_cnt--;
-	if (mipi_stream_cnt != 0)
-		return 0;
-
 	write_csiphy_reg(priv, CSIPHY_CTRL_LANE_ENABLE, 0x01);
 	/* disable pll and ldo */
 	write_csiphy_reg(priv, CSIPHY_CTRL_PWRCTL, 0xe3);
@@ -1743,17 +1491,6 @@ static const struct dphy_drv_data rk3399_mipidphy_drv_data = {
 	.chip_id = CHIP_ID_RK3399,
 };
 
-static const struct dphy_drv_data rk3568_mipidphy_drv_data = {
-	.clks = rv1126_mipidphy_clks,
-	.num_clks = ARRAY_SIZE(rv1126_mipidphy_clks),
-	.hsfreq_ranges = rk1808_rv1126_mipidphy_hsfreq_ranges,
-	.num_hsfreq_ranges = ARRAY_SIZE(rk1808_rv1126_mipidphy_hsfreq_ranges),
-	.csiphy_regs = rk3568_csiphy_regs,
-	.ctl_type = MIPI_DPHY_CTL_CSI_HOST,
-	.individual_init = rk3568_mipidphy_individual_init,
-	.chip_id = CHIP_ID_RK3568,
-};
-
 static const struct dphy_drv_data rv1126_mipidphy_drv_data = {
 	.clks = rv1126_mipidphy_clks,
 	.num_clks = ARRAY_SIZE(rv1126_mipidphy_clks),
@@ -1785,10 +1522,6 @@ static const struct of_device_id rockchip_mipidphy_match_id[] = {
 	{
 		.compatible = "rockchip,rk3399-mipi-dphy",
 		.data = &rk3399_mipidphy_drv_data,
-	},
-	{
-		.compatible = "rockchip,rk3568-csi-dphy",
-		.data = &rk3568_mipidphy_drv_data,
 	},
 	{
 		.compatible = "rockchip,rv1126-csi-dphy",
@@ -1947,9 +1680,7 @@ static int rockchip_mipidphy_media_init(struct mipidphy_priv *priv)
 		return ret;
 	}
 
-	ret = v4l2_async_register_subdev(&priv->sd);
-
-	return ret;
+	return v4l2_async_register_subdev(&priv->sd);
 }
 
 static int rockchip_mipidphy_probe(struct platform_device *pdev)
@@ -1995,7 +1726,6 @@ static int rockchip_mipidphy_probe(struct platform_device *pdev)
 			dev_dbg(dev, "Failed to get %s\n", drv_data->clks[i]);
 	}
 
-	priv->is_dual_clk = false;
 	priv->grf_regs = drv_data->grf_regs;
 	priv->txrx_regs = drv_data->txrx_regs;
 	priv->csiphy_regs = drv_data->csiphy_regs;
@@ -2003,16 +1733,6 @@ static int rockchip_mipidphy_probe(struct platform_device *pdev)
 	if (drv_data->ctl_type == MIPI_DPHY_CTL_CSI_HOST) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		priv->csihost_base_addr = devm_ioremap_resource(dev, res);
-		if (IS_ERR(priv->csihost_base_addr)) {
-			resource_size_t offset = res->start;
-			resource_size_t size = resource_size(res);
-
-			priv->csihost_base_addr = devm_ioremap(dev, offset, size);
-			if (IS_ERR(priv->csihost_base_addr)) {
-				dev_err(dev, "Can't find csihost_base_addr\n");
-				return -ENODEV;
-			}
-		}
 		priv->stream_on = csi_mipidphy_stream_on;
 		priv->stream_off = csi_mipidphy_stream_off;
 	} else {
@@ -2039,17 +1759,11 @@ static int rockchip_mipidphy_probe(struct platform_device *pdev)
 		goto destroy_mutex;
 
 	pm_runtime_enable(&pdev->dev);
-	if (drv_data->individual_init(priv) < 0)
-		goto clean_entity;
-
+	drv_data->individual_init(priv);
 	return 0;
-
-clean_entity:
-	media_entity_cleanup(&priv->sd.entity);
 
 destroy_mutex:
 	mutex_destroy(&priv->mutex);
-
 	return 0;
 }
 
