@@ -284,7 +284,7 @@ static int rfkill_rk_set_power(void *data, bool blocked)
 	struct rfkill_rk_gpio *reset = &rfkill->pdata->reset_gpio;
 	struct rfkill_rk_gpio *rts = &rfkill->pdata->rts_gpio;
 	struct pinctrl *pinctrl = rfkill->pdata->pinctrl;
-	int power = 0, vref_ctrl_enable = 0;
+	int wifi_power = 0;
 	bool toggle = false;
 
 	DBG("Enter %s\n", __func__);
@@ -292,18 +292,22 @@ static int rfkill_rk_set_power(void *data, bool blocked)
 	DBG("Set blocked:%d\n", blocked);
 
 	toggle = rfkill->pdata->power_toggle;
-	if (!rfkill_get_wifi_power_state(&power, &vref_ctrl_enable)) {
-		if (toggle && 1 == power) {
-			LOG("%s: bt shouldn't control the power\n",
-			    __func__);
-			return 0;
+
+	if (toggle) {
+		if (rfkill_get_wifi_power_state(&wifi_power)) {
+			LOG("%s: cannot get wifi power state!\n", __func__);
+			return -1;
 		}
-	} else {
-		LOG("%s: cannot get wifi power state!\n", __func__);
-		return -1;
 	}
 
+	DBG("%s: toggle = %s\n", __func__, toggle ? "true" : "false");
+
 	if (!blocked) {
+		if (toggle) {
+			rfkill_set_wifi_bt_power(1);
+			msleep(100);
+		}
+
 		rfkill_rk_sleep_bt(BT_WAKEUP); // ensure bt is wakeup
 
 		if (gpio_is_valid(wake_host->io)) {
@@ -363,6 +367,14 @@ static int rfkill_rk_set_power(void *data, bool blocked)
 				gpio_direction_output(reset->io,
 						      !reset->enable);
 				msleep(20);
+			}
+		}
+		if (toggle) {
+			if (!wifi_power) {
+				LOG("%s: bt will set vbat to low\n", __func__);
+				rfkill_set_wifi_bt_power(0);
+			} else {
+				LOG("%s: bt shouldn't control the vbat\n", __func__);
 			}
 		}
 	}

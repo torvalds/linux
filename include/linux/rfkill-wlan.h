@@ -46,9 +46,9 @@ struct rksdmmc_gpio_wifi_moudle {
 	struct clk *ext_clk;
 };
 
-int rfkill_get_wifi_power_state(int *power, int *vref_ctrl_enable);
+int rfkill_get_wifi_power_state(int *power);
 void *rockchip_mem_prealloc(int section, unsigned long size);
-int rockchip_wifi_ref_voltage(int on);
+int rfkill_set_wifi_bt_power(int on);
 int rockchip_wifi_power(int on);
 int rockchip_wifi_set_carddetect(int val);
 int rockchip_wifi_get_oob_irq(void);
