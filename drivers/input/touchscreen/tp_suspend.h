@@ -74,14 +74,13 @@ static int ebc_notifier_callback(struct notifier_block *self,
 		unsigned long action, void *data)
 {
 	struct tp_device *tp;
-	int ret;
 
 	tp = container_of(self, struct tp_device, ebc_notif);
 
 	mutex_lock(&tp->ops_lock);
 
 	if (action == EBC_FB_BLANK)
-		ret = tp->tp_suspend(tp);
+		tp->tp_suspend(tp);
 	else if (action == EBC_FB_UNBLANK)
 		tp->tp_resume(tp);
 
