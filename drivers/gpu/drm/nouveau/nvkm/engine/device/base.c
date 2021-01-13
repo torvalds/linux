@@ -2655,16 +2655,19 @@ nv168_chipset = {
 static const struct nvkm_device_chip
 nv170_chipset = {
 	.name = "GA100",
+	.pci = gp100_pci_new,
 };
 
 static const struct nvkm_device_chip
 nv172_chipset = {
 	.name = "GA102",
+	.pci = gp100_pci_new,
 };
 
 static const struct nvkm_device_chip
 nv174_chipset = {
 	.name = "GA104",
+	.pci = gp100_pci_new,
 };
 
 static int
