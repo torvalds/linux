@@ -1660,6 +1660,15 @@ config CPU_VR41XX
 	  kernel built with this option will not run on any other type of
 	  processor or vice versa.
 
+config CPU_R4300
+	bool "R4300"
+	depends on SYS_HAS_CPU_R4300
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_HAS_LOAD_STORE_LR
+	help
+	  MIPS Technologies R4300-series processors.
+
 config CPU_R4X00
 	bool "R4x00"
 	depends on SYS_HAS_CPU_R4X00
@@ -1992,6 +2001,9 @@ config SYS_HAS_CPU_TX39XX
 	bool
 
 config SYS_HAS_CPU_VR41XX
+	bool
+
+config SYS_HAS_CPU_R4300
 	bool
 
 config SYS_HAS_CPU_R4X00
