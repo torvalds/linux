@@ -1317,12 +1317,6 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	int err = 0;
 	int out_index;
 
-	if (!mlx5_chains_prios_supported(esw_chains(esw)) && attr->prio != 1) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "E-switch priorities unsupported, upgrade FW");
-		return -EOPNOTSUPP;
-	}
-
 	/* We check chain range only for tc flows.
 	 * For ft flows, we checked attr->chain was originally 0 and set it to
 	 * FDB_FT_CHAIN which is outside tc range.

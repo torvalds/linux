@@ -1278,7 +1278,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 	u8         reserved_at_a0[0x3];
 	u8	   ece_support[0x1];
-	u8	   reserved_at_a4[0x7];
+	u8	   reserved_at_a4[0x5];
+	u8         reg_c_preserve[0x1];
+	u8         reserved_at_aa[0x1];
 	u8         log_max_srq[0x5];
 	u8         reserved_at_b0[0x1];
 	u8         uplink_follow[0x1];
