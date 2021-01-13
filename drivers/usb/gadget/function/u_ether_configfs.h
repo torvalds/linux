@@ -148,7 +148,20 @@ out:									\
 		return ret;						\
 	}								\
 									\
-	CONFIGFS_ATTR_RO(_f_##_opts_, ifname)
+	static ssize_t _f_##_opts_ifname_store(struct config_item *item, \
+					       const char *page, size_t len)\
+	{								\
+		struct f_##_f_##_opts *opts = to_f_##_f_##_opts(item);	\
+		int ret = -EBUSY;					\
+									\
+		mutex_lock(&opts->lock);				\
+		if (!opts->refcnt)					\
+			ret = gether_set_ifname(opts->net, page, len);	\
+		mutex_unlock(&opts->lock);				\
+		return ret ?: len;					\
+	}								\
+									\
+	CONFIGFS_ATTR(_f_##_opts_, ifname)
 
 #define USB_ETHER_CONFIGFS_ITEM_ATTR_U8_RW(_f_, _n_)			\
 	static ssize_t _f_##_opts_##_n_##_show(struct config_item *item,\
