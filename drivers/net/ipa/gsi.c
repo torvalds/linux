@@ -89,7 +89,7 @@
 /* Delay period for interrupt moderation (in 32KHz IPA internal timer ticks) */
 #define GSI_EVT_RING_INT_MODT		(32 * 1) /* 1ms under 32KHz clock */
 
-#define GSI_CMD_TIMEOUT			5	/* seconds */
+#define GSI_CMD_TIMEOUT			50	/* milliseconds */
 
 #define GSI_CHANNEL_STOP_RX_RETRIES	10
 #define GSI_CHANNEL_MODEM_HALT_RETRIES	10
@@ -359,11 +359,13 @@ static u32 gsi_ring_index(struct gsi_ring *ring, u32 offset)
 static bool
 gsi_command(struct gsi *gsi, u32 reg, u32 val, struct completion *completion)
 {
+	unsigned long timeout = msecs_to_jiffies(GSI_CMD_TIMEOUT);
+
 	reinit_completion(completion);
 
 	iowrite32(val, gsi->virt + reg);
 
-	return !!wait_for_completion_timeout(completion, GSI_CMD_TIMEOUT * HZ);
+	return !!wait_for_completion_timeout(completion, timeout);
 }
 
 /* Return the hardware's notion of the current state of an event ring */
