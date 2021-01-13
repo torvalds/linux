@@ -21,10 +21,6 @@ ifdef CONFIG_PPC64
 CFLAGS_$(AMDDALPATH)/dc/dcn301/dcn301_resource.o := -mhard-float -maltivec
 endif
 
-ifdef CONFIG_ARM64
-CFLAGS_REMOVE_$(AMDDALPATH)/dc/dcn301/dcn301_resource.o := -mgeneral-regs-only
-endif
-
 ifdef CONFIG_CC_IS_GCC
 ifeq ($(call cc-ifversion, -lt, 0701, y), y)
 IS_OLD_GCC = 1

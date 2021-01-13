@@ -65,10 +65,6 @@ static bool vgic_present;
 static DEFINE_PER_CPU(unsigned char, kvm_arm_hardware_enabled);
 DEFINE_STATIC_KEY_FALSE(userspace_irqchip_in_use);
 
-extern u64 kvm_nvhe_sym(__cpu_logical_map)[NR_CPUS];
-extern u32 kvm_nvhe_sym(kvm_host_psci_version);
-extern struct psci_0_1_function_ids kvm_nvhe_sym(kvm_host_psci_0_1_function_ids);
-
 int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
 {
 	return kvm_vcpu_exiting_guest_mode(vcpu) == IN_GUEST_MODE;
@@ -584,11 +580,9 @@ static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
 		 * Map the VGIC hardware resources before running a vcpu the
 		 * first time on this VM.
 		 */
-		if (unlikely(!vgic_ready(kvm))) {
-			ret = kvm_vgic_map_resources(kvm);
-			if (ret)
-				return ret;
-		}
+		ret = kvm_vgic_map_resources(kvm);
+		if (ret)
+			return ret;
 	} else {
 		/*
 		 * Tell the rest of the code that there are userspace irqchip
@@ -1574,12 +1568,12 @@ static struct notifier_block hyp_init_cpu_pm_nb = {
 	.notifier_call = hyp_init_cpu_pm_notifier,
 };
 
-static void __init hyp_cpu_pm_init(void)
+static void hyp_cpu_pm_init(void)
 {
 	if (!is_protected_kvm_enabled())
 		cpu_pm_register_notifier(&hyp_init_cpu_pm_nb);
 }
-static void __init hyp_cpu_pm_exit(void)
+static void hyp_cpu_pm_exit(void)
 {
 	if (!is_protected_kvm_enabled())
 		cpu_pm_unregister_notifier(&hyp_init_cpu_pm_nb);
@@ -1604,8 +1598,11 @@ static void init_cpu_logical_map(void)
 	 * allow any other CPUs from the `possible` set to boot.
 	 */
 	for_each_online_cpu(cpu)
-		kvm_nvhe_sym(__cpu_logical_map)[cpu] = cpu_logical_map(cpu);
+		hyp_cpu_logical_map[cpu] = cpu_logical_map(cpu);
 }
+
+#define init_psci_0_1_impl_state(config, what)	\
+	config.psci_0_1_ ## what ## _implemented = psci_ops.what
 
 static bool init_psci_relay(void)
 {
@@ -1618,8 +1615,15 @@ static bool init_psci_relay(void)
 		return false;
 	}
 
-	kvm_nvhe_sym(kvm_host_psci_version) = psci_ops.get_version();
-	kvm_nvhe_sym(kvm_host_psci_0_1_function_ids) = get_psci_0_1_function_ids();
+	kvm_host_psci_config.version = psci_ops.get_version();
+
+	if (kvm_host_psci_config.version == PSCI_VERSION(0, 1)) {
+		kvm_host_psci_config.function_ids_0_1 = get_psci_0_1_function_ids();
+		init_psci_0_1_impl_state(kvm_host_psci_config, cpu_suspend);
+		init_psci_0_1_impl_state(kvm_host_psci_config, cpu_on);
+		init_psci_0_1_impl_state(kvm_host_psci_config, cpu_off);
+		init_psci_0_1_impl_state(kvm_host_psci_config, migrate);
+	}
 	return true;
 }
 

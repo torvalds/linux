@@ -3460,6 +3460,9 @@ int ath11k_wmi_set_hw_mode(struct ath11k_base *ab,
 	len = sizeof(*cmd);
 
 	skb = ath11k_wmi_alloc_skb(wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
 	cmd = (struct wmi_pdev_set_hw_mode_cmd_param *)skb->data;
 
 	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_PDEV_SET_HW_MODE_CMD) |

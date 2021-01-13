@@ -7,11 +7,8 @@
 #include <asm/kvm_asm.h>
 #include <asm/kvm_hyp.h>
 #include <asm/kvm_mmu.h>
-#include <kvm/arm_hypercalls.h>
 #include <linux/arm-smccc.h>
 #include <linux/kvm_host.h>
-#include <linux/psci.h>
-#include <kvm/arm_psci.h>
 #include <uapi/linux/psci.h>
 
 #include <nvhe/trap_handler.h>
@@ -22,9 +19,8 @@ void kvm_hyp_cpu_resume(unsigned long r0);
 void __noreturn __host_enter(struct kvm_cpu_context *host_ctxt);
 
 /* Config options set by the host. */
-__ro_after_init u32 kvm_host_psci_version;
-__ro_after_init struct psci_0_1_function_ids kvm_host_psci_0_1_function_ids;
-__ro_after_init s64 hyp_physvirt_offset;
+struct kvm_host_psci_config __ro_after_init kvm_host_psci_config;
+s64 __ro_after_init hyp_physvirt_offset;
 
 #define __hyp_pa(x) ((phys_addr_t)((x)) + hyp_physvirt_offset)
 
@@ -47,19 +43,16 @@ struct psci_boot_args {
 static DEFINE_PER_CPU(struct psci_boot_args, cpu_on_args) = PSCI_BOOT_ARGS_INIT;
 static DEFINE_PER_CPU(struct psci_boot_args, suspend_args) = PSCI_BOOT_ARGS_INIT;
 
-static u64 get_psci_func_id(struct kvm_cpu_context *host_ctxt)
-{
-	DECLARE_REG(u64, func_id, host_ctxt, 0);
-
-	return func_id;
-}
+#define	is_psci_0_1(what, func_id)					\
+	(kvm_host_psci_config.psci_0_1_ ## what ## _implemented &&	\
+	 (func_id) == kvm_host_psci_config.function_ids_0_1.what)
 
 static bool is_psci_0_1_call(u64 func_id)
 {
-	return (func_id == kvm_host_psci_0_1_function_ids.cpu_suspend) ||
-	       (func_id == kvm_host_psci_0_1_function_ids.cpu_on) ||
-	       (func_id == kvm_host_psci_0_1_function_ids.cpu_off) ||
-	       (func_id == kvm_host_psci_0_1_function_ids.migrate);
+	return (is_psci_0_1(cpu_suspend, func_id) ||
+		is_psci_0_1(cpu_on, func_id) ||
+		is_psci_0_1(cpu_off, func_id) ||
+		is_psci_0_1(migrate, func_id));
 }
 
 static bool is_psci_0_2_call(u64 func_id)
@@ -67,16 +60,6 @@ static bool is_psci_0_2_call(u64 func_id)
 	/* SMCCC reserves IDs 0x00-1F with the given 32/64-bit base for PSCI. */
 	return (PSCI_0_2_FN(0) <= func_id && func_id <= PSCI_0_2_FN(31)) ||
 	       (PSCI_0_2_FN64(0) <= func_id && func_id <= PSCI_0_2_FN64(31));
-}
-
-static bool is_psci_call(u64 func_id)
-{
-	switch (kvm_host_psci_version) {
-	case PSCI_VERSION(0, 1):
-		return is_psci_0_1_call(func_id);
-	default:
-		return is_psci_0_2_call(func_id);
-	}
 }
 
 static unsigned long psci_call(unsigned long fn, unsigned long arg0,
@@ -248,15 +231,14 @@ asmlinkage void __noreturn kvm_host_psci_cpu_entry(bool is_cpu_on)
 
 static unsigned long psci_0_1_handler(u64 func_id, struct kvm_cpu_context *host_ctxt)
 {
-	if ((func_id == kvm_host_psci_0_1_function_ids.cpu_off) ||
-	    (func_id == kvm_host_psci_0_1_function_ids.migrate))
+	if (is_psci_0_1(cpu_off, func_id) || is_psci_0_1(migrate, func_id))
 		return psci_forward(host_ctxt);
-	else if (func_id == kvm_host_psci_0_1_function_ids.cpu_on)
+	if (is_psci_0_1(cpu_on, func_id))
 		return psci_cpu_on(func_id, host_ctxt);
-	else if (func_id == kvm_host_psci_0_1_function_ids.cpu_suspend)
+	if (is_psci_0_1(cpu_suspend, func_id))
 		return psci_cpu_suspend(func_id, host_ctxt);
-	else
-		return PSCI_RET_NOT_SUPPORTED;
+
+	return PSCI_RET_NOT_SUPPORTED;
 }
 
 static unsigned long psci_0_2_handler(u64 func_id, struct kvm_cpu_context *host_ctxt)
@@ -298,20 +280,23 @@ static unsigned long psci_1_0_handler(u64 func_id, struct kvm_cpu_context *host_
 
 bool kvm_host_psci_handler(struct kvm_cpu_context *host_ctxt)
 {
-	u64 func_id = get_psci_func_id(host_ctxt);
+	DECLARE_REG(u64, func_id, host_ctxt, 0);
 	unsigned long ret;
 
-	if (!is_psci_call(func_id))
-		return false;
-
-	switch (kvm_host_psci_version) {
+	switch (kvm_host_psci_config.version) {
 	case PSCI_VERSION(0, 1):
+		if (!is_psci_0_1_call(func_id))
+			return false;
 		ret = psci_0_1_handler(func_id, host_ctxt);
 		break;
 	case PSCI_VERSION(0, 2):
+		if (!is_psci_0_2_call(func_id))
+			return false;
 		ret = psci_0_2_handler(func_id, host_ctxt);
 		break;
 	default:
+		if (!is_psci_0_2_call(func_id))
+			return false;
 		ret = psci_1_0_handler(func_id, host_ctxt);
 		break;
 	}

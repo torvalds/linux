@@ -223,6 +223,7 @@ while [ "$1" != "" ] ; do
 		;;
 
 	*)
+		echo "bad command: $CMD" >&2
 		usage
 		;;
 	esac

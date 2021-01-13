@@ -605,6 +605,8 @@ int thaw_bdev(struct block_device *bdev)
 		error = thaw_super(sb);
 	if (error)
 		bdev->bd_fsfreeze_count++;
+	else
+		bdev->bd_fsfreeze_sb = NULL;
 out:
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
 	return error;
@@ -774,8 +776,11 @@ static struct kmem_cache * bdev_cachep __read_mostly;
 static struct inode *bdev_alloc_inode(struct super_block *sb)
 {
 	struct bdev_inode *ei = kmem_cache_alloc(bdev_cachep, GFP_KERNEL);
+
 	if (!ei)
 		return NULL;
+	memset(&ei->bdev, 0, sizeof(ei->bdev));
+	ei->bdev.bd_bdi = &noop_backing_dev_info;
 	return &ei->vfs_inode;
 }
 
@@ -869,14 +874,12 @@ struct block_device *bdev_alloc(struct gendisk *disk, u8 partno)
 	mapping_set_gfp_mask(&inode->i_data, GFP_USER);
 
 	bdev = I_BDEV(inode);
-	memset(bdev, 0, sizeof(*bdev));
 	mutex_init(&bdev->bd_mutex);
 	mutex_init(&bdev->bd_fsfreeze_mutex);
 	spin_lock_init(&bdev->bd_size_lock);
 	bdev->bd_disk = disk;
 	bdev->bd_partno = partno;
 	bdev->bd_inode = inode;
-	bdev->bd_bdi = &noop_backing_dev_info;
 #ifdef CONFIG_SYSFS
 	INIT_LIST_HEAD(&bdev->bd_holder_disks);
 #endif

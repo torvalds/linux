@@ -96,6 +96,8 @@ static struct page **get_pages(struct drm_gem_object *obj)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 
+	WARN_ON(!msm_gem_is_locked(obj));
+
 	if (!msm_obj->pages) {
 		struct drm_device *dev = obj->dev;
 		struct page **p;
@@ -1116,6 +1118,8 @@ static struct drm_gem_object *_msm_gem_new(struct drm_device *dev,
 		struct msm_gem_vma *vma;
 		struct page **pages;
 
+		drm_gem_private_object_init(dev, obj, size);
+
 		msm_gem_lock(obj);
 
 		vma = add_vma(obj, NULL);
@@ -1127,9 +1131,9 @@ static struct drm_gem_object *_msm_gem_new(struct drm_device *dev,
 
 		to_msm_bo(obj)->vram_node = &vma->node;
 
-		drm_gem_private_object_init(dev, obj, size);
-
+		msm_gem_lock(obj);
 		pages = get_pages(obj);
+		msm_gem_unlock(obj);
 		if (IS_ERR(pages)) {
 			ret = PTR_ERR(pages);
 			goto fail;
