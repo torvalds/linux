@@ -482,7 +482,7 @@ struct dsa_switch_ops {
 	void	(*phylink_fixed_state)(struct dsa_switch *ds, int port,
 				       struct phylink_link_state *state);
 	/*
-	 * ethtool hardware statistics.
+	 * Port statistics counters.
 	 */
 	void	(*get_strings)(struct dsa_switch *ds, int port,
 			       u32 stringset, uint8_t *data);
@@ -491,6 +491,8 @@ struct dsa_switch_ops {
 	int	(*get_sset_count)(struct dsa_switch *ds, int port, int sset);
 	void	(*get_ethtool_phy_stats)(struct dsa_switch *ds,
 					 int port, uint64_t *data);
+	void	(*get_stats64)(struct dsa_switch *ds, int port,
+				   struct rtnl_link_stats64 *s);
 
 	/*
 	 * ethtool Wake-on-LAN
