@@ -611,7 +611,8 @@ static void gsi_channel_reset_command(struct gsi_channel *channel)
 	struct device *dev = channel->gsi->dev;
 	enum gsi_channel_state state;
 
-	msleep(1);	/* A short delay is required before a RESET command */
+	/* A short delay is required before a RESET command */
+	usleep_range(USEC_PER_MSEC, 2 * USEC_PER_MSEC);
 
 	state = gsi_channel_state(channel);
 	if (state != GSI_CHANNEL_STATE_STOPPED &&
@@ -900,7 +901,7 @@ int gsi_channel_stop(struct gsi *gsi, u32 channel_id)
 		ret = gsi_channel_stop_command(channel);
 		if (ret != -EAGAIN)
 			break;
-		msleep(1);
+		usleep_range(USEC_PER_MSEC, 2 * USEC_PER_MSEC);
 	} while (retries--);
 
 	mutex_unlock(&gsi->mutex);
