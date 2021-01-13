@@ -2662,6 +2662,7 @@ nv170_chipset = {
 	.imem = nv50_instmem_new,
 	.mc = ga100_mc_new,
 	.pci = gp100_pci_new,
+	.timer = gk20a_timer_new,
 };
 
 static const struct nvkm_device_chip
@@ -2674,6 +2675,7 @@ nv172_chipset = {
 	.imem = nv50_instmem_new,
 	.mc = ga100_mc_new,
 	.pci = gp100_pci_new,
+	.timer = gk20a_timer_new,
 };
 
 static const struct nvkm_device_chip
@@ -2686,6 +2688,7 @@ nv174_chipset = {
 	.imem = nv50_instmem_new,
 	.mc = ga100_mc_new,
 	.pci = gp100_pci_new,
+	.timer = gk20a_timer_new,
 };
 
 static int
