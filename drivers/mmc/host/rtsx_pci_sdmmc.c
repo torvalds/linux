@@ -906,6 +906,8 @@ static int sd_power_on(struct realtek_pci_sdmmc *host)
 	if (host->power_state == SDMMC_POWER_ON)
 		return 0;
 
+	msleep(100);
+
 	rtsx_pci_init_cmd(pcr);
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CARD_SELECT, 0x07, SD_MOD_SEL);
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CARD_SHARE_MODE,
