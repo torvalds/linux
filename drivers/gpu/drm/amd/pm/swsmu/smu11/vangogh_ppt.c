@@ -1653,5 +1653,6 @@ void vangogh_set_ppt_funcs(struct smu_context *smu)
 	smu->message_map = vangogh_message_map;
 	smu->feature_map = vangogh_feature_mask_map;
 	smu->table_map = vangogh_table_map;
+	smu->workload_map = vangogh_workload_map;
 	smu->is_apu = true;
 }
