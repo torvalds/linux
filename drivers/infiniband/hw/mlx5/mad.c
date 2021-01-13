@@ -308,8 +308,8 @@ out:
 	return err;
 }
 
-int mlx5_query_mad_ifc_smp_attr_node_info(struct ib_device *ibdev,
-					  struct ib_smp *out_mad)
+static int mlx5_query_mad_ifc_smp_attr_node_info(struct ib_device *ibdev,
+						 struct ib_smp *out_mad)
 {
 	struct ib_smp *in_mad = NULL;
 	int err = -ENOMEM;
