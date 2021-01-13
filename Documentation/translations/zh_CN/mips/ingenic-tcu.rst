@@ -53,14 +53,14 @@
 
 TCU硬件的功能分布在多个驱动程序：
 
-===========         =====
+==============      ===================================
 时钟                drivers/clk/ingenic/tcu.c
 中断                drivers/irqchip/irq-ingenic-tcu.c
 定时器              drivers/clocksource/ingenic-timer.c
 OST                 drivers/clocksource/ingenic-ost.c
 脉冲宽度调制器      drivers/pwm/pwm-jz4740.c
 看门狗              drivers/watchdog/jz4740_wdt.c
-===========         =====
+==============      ===================================
 
 因为可以从相同的寄存器控制属于不同驱动程序和框架的TCU的各种功能，所以
 所有这些驱动程序都通过相同的控制总线通用接口访问它们的寄存器。
