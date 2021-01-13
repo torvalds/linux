@@ -2655,6 +2655,7 @@ nv168_chipset = {
 static const struct nvkm_device_chip
 nv170_chipset = {
 	.name = "GA100",
+	.bar = tu102_bar_new,
 	.bios = nvkm_bios_new,
 	.devinit = ga100_devinit_new,
 	.fb = ga100_fb_new,
@@ -2669,6 +2670,7 @@ nv170_chipset = {
 static const struct nvkm_device_chip
 nv172_chipset = {
 	.name = "GA102",
+	.bar = tu102_bar_new,
 	.bios = nvkm_bios_new,
 	.devinit = ga100_devinit_new,
 	.fb = ga102_fb_new,
@@ -2683,6 +2685,7 @@ nv172_chipset = {
 static const struct nvkm_device_chip
 nv174_chipset = {
 	.name = "GA104",
+	.bar = tu102_bar_new,
 	.bios = nvkm_bios_new,
 	.devinit = ga100_devinit_new,
 	.fb = ga102_fb_new,
