@@ -385,6 +385,14 @@ int snd_sof_device_remove(struct device *dev)
 }
 EXPORT_SYMBOL(snd_sof_device_remove);
 
+int snd_sof_device_shutdown(struct device *dev)
+{
+	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
+
+	return snd_sof_shutdown(sdev);
+}
+EXPORT_SYMBOL(snd_sof_device_shutdown);
+
 MODULE_AUTHOR("Liam Girdwood");
 MODULE_DESCRIPTION("Sound Open Firmware (SOF) Core");
 MODULE_LICENSE("Dual BSD/GPL");
