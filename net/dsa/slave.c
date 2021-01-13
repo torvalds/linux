@@ -273,6 +273,9 @@ static int dsa_slave_port_attr_set(struct net_device *dev,
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	int ret;
 
+	if (attr->orig_dev != dev)
+		return -EOPNOTSUPP;
+
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_ID_PORT_STP_STATE:
 		ret = dsa_port_set_state(dp, attr->u.stp_state);
