@@ -790,14 +790,17 @@ void amdgpu_gmc_get_reserved_allocation(struct amdgpu_device *adev)
 {
 	/* Some ASICs need to reserve a region of video memory to avoid access
 	 * from driver */
+	adev->mman.stolen_reserved_offset = 0;
+	adev->mman.stolen_reserved_size = 0;
+
 	switch (adev->asic_type) {
 	case CHIP_YELLOW_CARP:
-		adev->mman.stolen_reserved_offset = 0x1ffb0000;
-		adev->mman.stolen_reserved_size = 64 * PAGE_SIZE;
+		if (amdgpu_discovery == 0) {
+			adev->mman.stolen_reserved_offset = 0x1ffb0000;
+			adev->mman.stolen_reserved_size = 64 * PAGE_SIZE;
+		}
 		break;
 	default:
-		adev->mman.stolen_reserved_offset = 0;
-		adev->mman.stolen_reserved_size = 0;
 		break;
 	}
 }
