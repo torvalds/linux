@@ -2,7 +2,7 @@
 
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: :ref:`Documentation/mips/index.rst <index>`
+:Original: :doc:`../../../mips/index`
 :Translator: Yanteng Si <siyanteng@loongson.cn>
 
 .. _cn_index:

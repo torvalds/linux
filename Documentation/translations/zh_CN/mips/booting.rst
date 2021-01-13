@@ -2,7 +2,7 @@
 
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: :ref:`Documentation/mips/booting.rst <booting>`
+:Original: :doc:`../../../mips/booting`
 :Translator: Yanteng Si <siyanteng@loongson.cn>
 
 .. _cn_booting:

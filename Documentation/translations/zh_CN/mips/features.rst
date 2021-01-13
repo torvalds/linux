@@ -2,7 +2,7 @@
 
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: :ref:`Documentation/mips/features.rst <features>`
+:Original: :doc:`../../../mips/features`
 :Translator: Yanteng Si <siyanteng@loongson.cn>
 
 .. _cn_features:
