@@ -21,6 +21,8 @@ properties:
       - ti,j721e-sdhci-4bit
       - ti,j7200-sdhci-8bit
       - ti,j721e-sdhci-4bit
+      - ti,am64-sdhci-8bit
+      - ti,am64-sdhci-4bit
 
   reg:
     maxItems: 2
