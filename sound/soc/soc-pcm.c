@@ -203,6 +203,34 @@ static inline void dpcm_remove_debugfs_state(struct snd_soc_dpcm *dpcm)
 }
 #endif
 
+/* Set FE's runtime_update state; the state is protected via PCM stream lock
+ * for avoiding the race with trigger callback.
+ * If the state is unset and a trigger is pending while the previous operation,
+ * process the pending trigger action here.
+ */
+static int dpcm_fe_dai_do_trigger(struct snd_pcm_substream *substream, int cmd);
+static void dpcm_set_fe_update_state(struct snd_soc_pcm_runtime *fe,
+				     int stream, enum snd_soc_dpcm_update state)
+{
+	struct snd_pcm_substream *substream =
+		snd_soc_dpcm_get_substream(fe, stream);
+
+	snd_pcm_stream_lock_irq(substream);
+	if (state == SND_SOC_DPCM_UPDATE_NO && fe->dpcm[stream].trigger_pending) {
+		dpcm_fe_dai_do_trigger(substream,
+				       fe->dpcm[stream].trigger_pending - 1);
+		fe->dpcm[stream].trigger_pending = 0;
+	}
+	fe->dpcm[stream].runtime_update = state;
+	snd_pcm_stream_unlock_irq(substream);
+}
+
+static void dpcm_set_be_update_state(struct snd_soc_pcm_runtime *be,
+				     int stream, enum snd_soc_dpcm_update state)
+{
+	be->dpcm[stream].runtime_update = state;
+}
+
 /**
  * snd_soc_runtime_action() - Increment/Decrement active count for
  * PCM runtime components
@@ -301,59 +329,46 @@ int dpcm_dapm_stream_event(struct snd_soc_pcm_runtime *fe, int dir,
 	return 0;
 }
 
+static void soc_pcm_set_dai_params(struct snd_soc_dai *dai,
+				   struct snd_pcm_hw_params *params)
+{
+	if (params) {
+		dai->rate	 = params_rate(params);
+		dai->channels	 = params_channels(params);
+		dai->sample_bits = snd_pcm_format_physical_width(params_format(params));
+	} else {
+		dai->rate	 = 0;
+		dai->channels	 = 0;
+		dai->sample_bits = 0;
+	}
+}
+
 static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream,
 					struct snd_soc_dai *soc_dai)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	int ret;
 
-	if (soc_dai->rate && (soc_dai->driver->symmetric_rates ||
-				rtd->dai_link->symmetric_rates)) {
-		dev_dbg(soc_dai->dev, "ASoC: Symmetry forces %dHz rate\n",
-				soc_dai->rate);
-
-		ret = snd_pcm_hw_constraint_single(substream->runtime,
-						SNDRV_PCM_HW_PARAM_RATE,
-						soc_dai->rate);
-		if (ret < 0) {
-			dev_err(soc_dai->dev,
-				"ASoC: Unable to apply rate constraint: %d\n",
-				ret);
-			return ret;
-		}
+#define __soc_pcm_apply_symmetry(name, sname, NAME)			\
+	if (soc_dai->name && (soc_dai->driver->symmetric_##sname ||	\
+			      rtd->dai_link->symmetric_##sname)) {	\
+		dev_dbg(soc_dai->dev, "ASoC: Symmetry forces %s to %d\n",\
+			#name, soc_dai->name);				\
+									\
+		ret = snd_pcm_hw_constraint_single(substream->runtime,	\
+						   SNDRV_PCM_HW_PARAM_##NAME,\
+						   soc_dai->name);	\
+		if (ret < 0) {						\
+			dev_err(soc_dai->dev,				\
+				"ASoC: Unable to apply %s constraint: %d\n",\
+				#name, ret);				\
+			return ret;					\
+		}							\
 	}
 
-	if (soc_dai->channels && (soc_dai->driver->symmetric_channels ||
-				rtd->dai_link->symmetric_channels)) {
-		dev_dbg(soc_dai->dev, "ASoC: Symmetry forces %d channel(s)\n",
-				soc_dai->channels);
-
-		ret = snd_pcm_hw_constraint_single(substream->runtime,
-						SNDRV_PCM_HW_PARAM_CHANNELS,
-						soc_dai->channels);
-		if (ret < 0) {
-			dev_err(soc_dai->dev,
-				"ASoC: Unable to apply channel symmetry constraint: %d\n",
-				ret);
-			return ret;
-		}
-	}
-
-	if (soc_dai->sample_bits && (soc_dai->driver->symmetric_samplebits ||
-				rtd->dai_link->symmetric_samplebits)) {
-		dev_dbg(soc_dai->dev, "ASoC: Symmetry forces %d sample bits\n",
-				soc_dai->sample_bits);
-
-		ret = snd_pcm_hw_constraint_single(substream->runtime,
-						SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
-						soc_dai->sample_bits);
-		if (ret < 0) {
-			dev_err(soc_dai->dev,
-				"ASoC: Unable to apply sample bits symmetry constraint: %d\n",
-				ret);
-			return ret;
-		}
-	}
+	__soc_pcm_apply_symmetry(rate,		rates,		RATE);
+	__soc_pcm_apply_symmetry(channels,	channels,	CHANNELS);
+	__soc_pcm_apply_symmetry(sample_bits,	samplebits,	SAMPLE_BITS);
 
 	return 0;
 }
@@ -362,13 +377,12 @@ static int soc_pcm_params_symmetry(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai d;
 	struct snd_soc_dai *dai;
 	struct snd_soc_dai *cpu_dai;
-	unsigned int rate, channels, sample_bits, symmetry, i;
+	unsigned int symmetry, i;
 
-	rate = params_rate(params);
-	channels = params_channels(params);
-	sample_bits = snd_pcm_format_physical_width(params_format(params));
+	soc_pcm_set_dai_params(&d, params);
 
 	/* reject unmatched parameters when applying symmetry */
 	symmetry = rtd->dai_link->symmetric_rates;
@@ -378,9 +392,9 @@ static int soc_pcm_params_symmetry(struct snd_pcm_substream *substream,
 
 	if (symmetry) {
 		for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
-			if (cpu_dai->rate && cpu_dai->rate != rate) {
+			if (cpu_dai->rate && cpu_dai->rate != d.rate) {
 				dev_err(rtd->dev, "ASoC: unmatched rate symmetry: %d - %d\n",
-					cpu_dai->rate, rate);
+					cpu_dai->rate, d.rate);
 				return -EINVAL;
 			}
 		}
@@ -394,9 +408,9 @@ static int soc_pcm_params_symmetry(struct snd_pcm_substream *substream,
 	if (symmetry) {
 		for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
 			if (cpu_dai->channels &&
-			    cpu_dai->channels != channels) {
+			    cpu_dai->channels != d.channels) {
 				dev_err(rtd->dev, "ASoC: unmatched channel symmetry: %d - %d\n",
-					cpu_dai->channels, channels);
+					cpu_dai->channels, d.channels);
 				return -EINVAL;
 			}
 		}
@@ -410,9 +424,9 @@ static int soc_pcm_params_symmetry(struct snd_pcm_substream *substream,
 	if (symmetry) {
 		for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
 			if (cpu_dai->sample_bits &&
-			    cpu_dai->sample_bits != sample_bits) {
+			    cpu_dai->sample_bits != d.sample_bits) {
 				dev_err(rtd->dev, "ASoC: unmatched sample bits symmetry: %d - %d\n",
-					cpu_dai->sample_bits, sample_bits);
+					cpu_dai->sample_bits, d.sample_bits);
 				return -EINVAL;
 			}
 		}
@@ -870,11 +884,8 @@ static int soc_pcm_hw_clean(struct snd_pcm_substream *substream, int rollback)
 	for_each_rtd_dais(rtd, i, dai) {
 		int active = snd_soc_dai_stream_active(dai, substream->stream);
 
-		if (snd_soc_dai_active(dai) == 1) {
-			dai->rate = 0;
-			dai->channels = 0;
-			dai->sample_bits = 0;
-		}
+		if (snd_soc_dai_active(dai) == 1)
+			soc_pcm_set_dai_params(dai, NULL);
 
 		if (active == 1)
 			snd_soc_dai_digital_mute(dai, 1, substream->stream);
@@ -971,11 +982,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 		if(ret < 0)
 			goto out;
 
-		codec_dai->rate = params_rate(&codec_params);
-		codec_dai->channels = params_channels(&codec_params);
-		codec_dai->sample_bits = snd_pcm_format_physical_width(
-						params_format(&codec_params));
-
+		soc_pcm_set_dai_params(codec_dai, &codec_params);
 		snd_soc_dapm_update_dai(substream, &codec_params, codec_dai);
 	}
 
@@ -992,11 +999,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 			goto out;
 
 		/* store the parameters for each DAI */
-		cpu_dai->rate = params_rate(params);
-		cpu_dai->channels = params_channels(params);
-		cpu_dai->sample_bits =
-			snd_pcm_format_physical_width(params_format(params));
-
+		soc_pcm_set_dai_params(cpu_dai, params);
 		snd_soc_dapm_update_dai(substream, params, cpu_dai);
 	}
 
@@ -1335,7 +1338,7 @@ static int dpcm_prune_paths(struct snd_soc_pcm_runtime *fe, int stream,
 			stream ? "capture" : "playback",
 			dpcm->be->dai_link->name, fe->dai_link->name);
 		dpcm->state = SND_SOC_DPCM_LINK_STATE_FREE;
-		dpcm->be->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_BE;
+		dpcm_set_be_update_state(dpcm->be, stream, SND_SOC_DPCM_UPDATE_BE);
 		prune++;
 	}
 
@@ -1390,7 +1393,7 @@ static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
 			continue;
 
 		/* new */
-		be->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_BE;
+		dpcm_set_be_update_state(be, stream, SND_SOC_DPCM_UPDATE_BE);
 		new++;
 	}
 
@@ -1418,8 +1421,7 @@ void dpcm_clear_pending_state(struct snd_soc_pcm_runtime *fe, int stream)
 
 	spin_lock_irqsave(&fe->card->dpcm_lock, flags);
 	for_each_dpcm_be(fe, stream, dpcm)
-		dpcm->be->dpcm[stream].runtime_update =
-						SND_SOC_DPCM_UPDATE_NO;
+		dpcm_set_be_update_state(dpcm->be, stream, SND_SOC_DPCM_UPDATE_NO);
 	spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
 }
 
@@ -1708,29 +1710,6 @@ static void dpcm_set_fe_runtime(struct snd_pcm_substream *substream)
 				&runtime->hw.channels_max);
 	dpcm_runtime_merge_rate(substream, &runtime->hw.rates,
 				&runtime->hw.rate_min, &runtime->hw.rate_max);
-}
-
-static int dpcm_fe_dai_do_trigger(struct snd_pcm_substream *substream, int cmd);
-
-/* Set FE's runtime_update state; the state is protected via PCM stream lock
- * for avoiding the race with trigger callback.
- * If the state is unset and a trigger is pending while the previous operation,
- * process the pending trigger action here.
- */
-static void dpcm_set_fe_update_state(struct snd_soc_pcm_runtime *fe,
-				     int stream, enum snd_soc_dpcm_update state)
-{
-	struct snd_pcm_substream *substream =
-		snd_soc_dpcm_get_substream(fe, stream);
-
-	snd_pcm_stream_lock_irq(substream);
-	if (state == SND_SOC_DPCM_UPDATE_NO && fe->dpcm[stream].trigger_pending) {
-		dpcm_fe_dai_do_trigger(substream,
-				       fe->dpcm[stream].trigger_pending - 1);
-		fe->dpcm[stream].trigger_pending = 0;
-	}
-	fe->dpcm[stream].runtime_update = state;
-	snd_pcm_stream_unlock_irq(substream);
 }
 
 static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
