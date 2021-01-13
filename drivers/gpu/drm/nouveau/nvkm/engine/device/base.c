@@ -2684,6 +2684,7 @@ nv172_chipset = {
 	.mmu = tu102_mmu_new,
 	.pci = gp100_pci_new,
 	.timer = gk20a_timer_new,
+	.dma = gv100_dma_new,
 };
 
 static const struct nvkm_device_chip
@@ -2701,6 +2702,7 @@ nv174_chipset = {
 	.mmu = tu102_mmu_new,
 	.pci = gp100_pci_new,
 	.timer = gk20a_timer_new,
+	.dma = gv100_dma_new,
 };
 
 static int
