@@ -349,7 +349,7 @@ static void test_one_clock_gettime64(int clock, const char *name)
 		return;
 	}
 
-	printf("\t%llu.%09ld %llu.%09ld %llu.%09ld\n",
+	printf("\t%llu.%09lld %llu.%09lld %llu.%09lld\n",
 	       (unsigned long long)start.tv_sec, start.tv_nsec,
 	       (unsigned long long)vdso.tv_sec, vdso.tv_nsec,
 	       (unsigned long long)end.tv_sec, end.tv_nsec);

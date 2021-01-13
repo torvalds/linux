@@ -53,7 +53,6 @@ How Linux keeps everything from happening at the same time.  See
 .. toctree::
    :maxdepth: 1
 
-   atomic_ops
    refcount-vs-atomic
    irq/index
    local_ops
