@@ -2684,6 +2684,7 @@ nv172_chipset = {
 	.mmu = tu102_mmu_new,
 	.pci = gp100_pci_new,
 	.timer = gk20a_timer_new,
+	.disp = ga102_disp_new,
 	.dma = gv100_dma_new,
 };
 
@@ -2702,6 +2703,7 @@ nv174_chipset = {
 	.mmu = tu102_mmu_new,
 	.pci = gp100_pci_new,
 	.timer = gk20a_timer_new,
+	.disp = ga102_disp_new,
 	.dma = gv100_dma_new,
 };
 

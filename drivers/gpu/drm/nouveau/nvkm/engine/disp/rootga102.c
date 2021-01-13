@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Red Hat Inc.
+ * Copyright 2021 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,36 +19,34 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "curs.h"
+#include "rootnv50.h"
+#include "channv50.h"
 
 #include <nvif/class.h>
 
-int
-nv50_curs_new(struct nouveau_drm *drm, int head, struct nv50_wndw **pwndw)
-{
-	struct {
-		s32 oclass;
-		int version;
-		int (*new)(struct nouveau_drm *, int, s32, struct nv50_wndw **);
-	} curses[] = {
-		{ GA102_DISP_CURSOR, 0, cursc37a_new },
-		{ TU102_DISP_CURSOR, 0, cursc37a_new },
-		{ GV100_DISP_CURSOR, 0, cursc37a_new },
-		{ GK104_DISP_CURSOR, 0, curs907a_new },
-		{ GF110_DISP_CURSOR, 0, curs907a_new },
-		{ GT214_DISP_CURSOR, 0, curs507a_new },
-		{   G82_DISP_CURSOR, 0, curs507a_new },
-		{  NV50_DISP_CURSOR, 0, curs507a_new },
+static const struct nv50_disp_root_func
+ga102_disp_root = {
+	.user = {
+		{{-1,-1,GV100_DISP_CAPS                }, gv100_disp_caps_new },
+		{{0,0,GA102_DISP_CURSOR                }, gv100_disp_curs_new },
+		{{0,0,GA102_DISP_WINDOW_IMM_CHANNEL_DMA}, gv100_disp_wimm_new },
+		{{0,0,GA102_DISP_CORE_CHANNEL_DMA      }, gv100_disp_core_new },
+		{{0,0,GA102_DISP_WINDOW_CHANNEL_DMA    }, gv100_disp_wndw_new },
 		{}
-	};
-	struct nv50_disp *disp = nv50_disp(drm->dev);
-	int cid;
+	},
+};
 
-	cid = nvif_mclass(&disp->disp->object, curses);
-	if (cid < 0) {
-		NV_ERROR(drm, "No supported cursor immediate class\n");
-		return cid;
-	}
-
-	return curses[cid].new(drm, head, curses[cid].oclass, pwndw);
+static int
+ga102_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
+		    void *data, u32 size, struct nvkm_object **pobject)
+{
+	return nv50_disp_root_new_(&ga102_disp_root, disp, oclass, data, size, pobject);
 }
+
+const struct nvkm_disp_oclass
+ga102_disp_root_oclass = {
+	.base.oclass = GA102_DISP,
+	.base.minver = -1,
+	.base.maxver = -1,
+	.ctor = ga102_disp_root_new,
+};
