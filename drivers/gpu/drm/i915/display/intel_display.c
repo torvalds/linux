@@ -5810,7 +5810,7 @@ static void cnl_program_nearest_filter_coefs(struct drm_i915_private *dev_priv,
 	intel_de_write_fw(dev_priv, CNL_PS_COEF_INDEX_SET(pipe, id, set), 0);
 }
 
-inline u32 skl_scaler_get_filter_select(enum drm_scaling_filter filter, int set)
+u32 skl_scaler_get_filter_select(enum drm_scaling_filter filter, int set)
 {
 	if (filter == DRM_SCALING_FILTER_NEAREST_NEIGHBOR) {
 		return (PS_FILTER_PROGRAMMED |
