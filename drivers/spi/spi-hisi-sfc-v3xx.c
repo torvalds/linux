@@ -465,14 +465,10 @@ static int hisi_sfc_v3xx_probe(struct platform_device *pdev)
 
 	version = readl(host->regbase + HISI_SFC_V3XX_VERSION);
 
-	switch (version) {
-	case 0x351:
+	if (version >= 0x351)
 		host->max_cmd_dword = 64;
-		break;
-	default:
+	else
 		host->max_cmd_dword = 16;
-		break;
-	}
 
 	ret = devm_spi_register_controller(dev, ctlr);
 	if (ret)
