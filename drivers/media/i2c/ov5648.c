@@ -2454,7 +2454,7 @@ static int ov5648_probe(struct i2c_client *client)
 
 	handle = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
 	if (!handle) {
-		dev_err(dev, "unable to find enpoint node\n");
+		dev_err(dev, "unable to find endpoint node\n");
 		return -EINVAL;
 	}
 
