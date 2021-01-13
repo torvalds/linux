@@ -45,8 +45,8 @@
 
 /* Define the macro locally since it's different for different class of chips.
  */
-#define ID(x)            \
-	ID2C(x),         \
+#define ID(x)		 \
+	ID2C(x),	 \
 	ID2C(IDIROC(x))
 
 static const struct pci_device_id ahd_linux_pci_id_table[] = {
@@ -367,7 +367,7 @@ ahd_pci_map_int(struct ahd_softc *ahd)
 			    IRQF_SHARED, "aic79xx", ahd);
 	if (!error)
 		ahd->platform_data->irq = ahd->dev_softc->irq;
-	
+
 	return (-error);
 }
 
