@@ -1697,7 +1697,7 @@ static bool are_stream_backends_same(
 	return true;
 }
 
-/**
+/*
  * dc_is_stream_unchanged() - Compare two stream states for equivalence.
  *
  * Checks if there a difference between the two states
@@ -1718,7 +1718,7 @@ bool dc_is_stream_unchanged(
 	return true;
 }
 
-/**
+/*
  * dc_is_stream_scaling_unchanged() - Compare scaling rectangles of two streams.
  */
 bool dc_is_stream_scaling_unchanged(
@@ -1833,7 +1833,7 @@ static struct audio *find_first_free_audio(
 	return 0;
 }
 
-/**
+/*
  * dc_add_stream_to_ctx() - Add a new dc_stream_state to a dc_state.
  */
 enum dc_status dc_add_stream_to_ctx(
@@ -1860,7 +1860,7 @@ enum dc_status dc_add_stream_to_ctx(
 	return res;
 }
 
-/**
+/*
  * dc_remove_stream_from_ctx() - Remove a stream from a dc_state.
  */
 enum dc_status dc_remove_stream_from_ctx(
