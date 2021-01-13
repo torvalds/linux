@@ -1,0 +1,38 @@
+Nuvoton NPCM7xx JTAG MASTER interface
+
+Nuvoton BMC NPCM7xx JTAG Master is used for debugging host CPU or programming
+CPLD device. The driver is implemented as an SPI device driver that enabling
+the option to transfer JTAG data with the assistance of SPI HW.
+
+Required properties for jtag_master node
+- compatible		: "nuvoton,npcm750-jtag-master" for Poleg NPCM7XX.
+- spi-max-frequency	: specify the max spi bus frequency.
+- reg 				: always 0
+- pinctrl-names		: contain 2 pinctrl states "pspi" and "gpio", which indicates
+					  the TCK/TDI/TDO pin state in HW mode(using PSPI hw) and
+					  SW mode (using GPIO bitbang) respectively.
+- tck-gpios			: specify the GPIO number of TCK pin
+- tdi-gpios			: specify the GPIO number of TDI pin
+- tdo-gpios			: specify the GPIO number of TDO pin
+- tms-gpios			: specify the GPIO number of TMS pin
+
+Example:
+spi1: spi@201000 {
+	...
+	jtag_master {
+		compatible = "nuvoton,npcm750-jtag-master";
+		spi-max-frequency = <25000000>;
+		reg = <0>;
+
+		pinctrl-names = "pspi", "gpio";
+		pinctrl-0 = <&pspi2_pins>;
+		pinctrl-1 = <&gpio17_pins &gpio18o_pins
+			&gpio19ol_pins>;
+
+		tck-gpios = <&gpio0 19 GPIO_ACTIVE_HIGH>;
+		tdi-gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
+		tdo-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;
+		tms-gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
