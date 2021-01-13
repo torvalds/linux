@@ -3376,7 +3376,7 @@ bool kmsg_dump_get_buffer(struct kmsg_dumper *dumper, bool syslog,
 	while (prb_read_valid_info(prb, seq, &info, &line_count)) {
 		if (r.info->seq >= dumper->next_seq)
 			break;
-		l += get_record_print_text_size(&info, line_count, true, time);
+		l += get_record_print_text_size(&info, line_count, syslog, time);
 		seq = r.info->seq + 1;
 	}
 
@@ -3386,7 +3386,7 @@ bool kmsg_dump_get_buffer(struct kmsg_dumper *dumper, bool syslog,
 						&info, &line_count)) {
 		if (r.info->seq >= dumper->next_seq)
 			break;
-		l -= get_record_print_text_size(&info, line_count, true, time);
+		l -= get_record_print_text_size(&info, line_count, syslog, time);
 		seq = r.info->seq + 1;
 	}
 
