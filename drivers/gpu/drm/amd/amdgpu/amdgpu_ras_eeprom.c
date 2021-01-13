@@ -30,6 +30,7 @@
 #define EEPROM_I2C_TARGET_ADDR_VEGA20		0xA0
 #define EEPROM_I2C_TARGET_ADDR_ARCTURUS		0xA8
 #define EEPROM_I2C_TARGET_ADDR_ARCTURUS_D342	0xA0
+#define EEPROM_I2C_TARGET_ADDR_SIENNA_CICHLID   0xA0
 
 /*
  * The 2 macros bellow represent the actual size in bytes that
@@ -62,7 +63,8 @@
 static bool __is_ras_eeprom_supported(struct amdgpu_device *adev)
 {
 	if ((adev->asic_type == CHIP_VEGA20) ||
-	    (adev->asic_type == CHIP_ARCTURUS))
+	    (adev->asic_type == CHIP_ARCTURUS) ||
+	    (adev->asic_type == CHIP_SIENNA_CICHLID))
 		return true;
 
 	return false;
@@ -99,6 +101,10 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 
 	case CHIP_ARCTURUS:
 		return __get_eeprom_i2c_addr_arct(adev, i2c_addr);
+
+	case CHIP_SIENNA_CICHLID:
+		*i2c_addr = EEPROM_I2C_TARGET_ADDR_SIENNA_CICHLID;
+		break;
 
 	default:
 		return false;

@@ -418,8 +418,11 @@ static void init_signal_cs(struct hl_device *hdev,
 		"generate signal CB, sob_id: %d, sob val: 0x%x, q_idx: %d\n",
 		cs_cmpl->hw_sob->sob_id, cs_cmpl->sob_val, q_idx);
 
+	/* we set an EB since we must make sure all oeprations are done
+	 * when sending the signal
+	 */
 	hdev->asic_funcs->gen_signal_cb(hdev, job->patched_cb,
-				cs_cmpl->hw_sob->sob_id, 0);
+				cs_cmpl->hw_sob->sob_id, 0, true);
 
 	kref_get(&hw_sob->kref);
 

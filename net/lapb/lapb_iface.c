@@ -489,6 +489,7 @@ static int lapb_device_event(struct notifier_block *this, unsigned long event,
 		break;
 	}
 
+	lapb_put(lapb);
 	return NOTIFY_DONE;
 }
 
