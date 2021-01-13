@@ -41,8 +41,7 @@ stub_clone_handler(void)
 		goto done;
 	}
 
-	remap_stack(data->fd, data->offset);
-	goto done;
+	remap_stack_and_trap();
 
  done:
 	trap_myself();
