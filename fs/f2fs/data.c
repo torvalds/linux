@@ -3761,7 +3761,7 @@ static sector_t f2fs_bmap(struct address_space *mapping, sector_t block)
 		filemap_write_and_wait(mapping);
 
 	/* Block number less than F2FS MAX BLOCKS */
-	if (unlikely(block >= F2FS_I_SB(inode)->max_file_blocks))
+	if (unlikely(block >= max_file_blocks(inode)))
 		goto out;
 
 	if (f2fs_compressed_file(inode)) {
