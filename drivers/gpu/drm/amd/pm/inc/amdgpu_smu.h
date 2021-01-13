@@ -466,9 +466,6 @@ struct smu_context
 	uint32_t gfx_actual_hard_min_freq;
 	uint32_t gfx_actual_soft_max_freq;
 
-	bool fine_grain_enabled;
-	bool fine_grain_started;
-
 	uint32_t cpu_default_soft_min_freq;
 	uint32_t cpu_default_soft_max_freq;
 	uint32_t cpu_actual_soft_min_freq;
