@@ -28,6 +28,54 @@ int is_skas_winch(int pid, int fd, void *data)
 	return pid == getpgrp();
 }
 
+static const char *ptrace_reg_name(int idx)
+{
+#define R(n) case HOST_##n: return #n
+
+	switch (idx) {
+#ifdef __x86_64__
+	R(BX);
+	R(CX);
+	R(DI);
+	R(SI);
+	R(DX);
+	R(BP);
+	R(AX);
+	R(R8);
+	R(R9);
+	R(R10);
+	R(R11);
+	R(R12);
+	R(R13);
+	R(R14);
+	R(R15);
+	R(ORIG_AX);
+	R(CS);
+	R(SS);
+	R(EFLAGS);
+#elif defined(__i386__)
+	R(IP);
+	R(SP);
+	R(EFLAGS);
+	R(AX);
+	R(BX);
+	R(CX);
+	R(DX);
+	R(SI);
+	R(DI);
+	R(BP);
+	R(CS);
+	R(SS);
+	R(DS);
+	R(FS);
+	R(ES);
+	R(GS);
+	R(ORIG_AX);
+#endif
+	}
+	return "";
+}
+
 static int ptrace_dump_regs(int pid)
 {
 	unsigned long regs[MAX_REG_NR];
@@ -37,8 +85,11 @@ static int ptrace_dump_regs(int pid)
 		return -errno;
 
 	printk(UM_KERN_ERR "Stub registers -\n");
-	for (i = 0; i < ARRAY_SIZE(regs); i++)
-		printk(UM_KERN_ERR "\t%d - %lx\n", i, regs[i]);
+	for (i = 0; i < ARRAY_SIZE(regs); i++) {
+		const char *regname = ptrace_reg_name(i);
+
+		printk(UM_KERN_ERR "\t%s\t(%2d): %lx\n", regname, i, regs[i]);
+	}
 
 	return 0;
 }
