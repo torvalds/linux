@@ -26,6 +26,7 @@
 #include "../dmub_srv.h"
 #include "dmub_reg.h"
 #include "dmub_dcn20.h"
+#include "dmub_dcn30.h"
 
 #include "sienna_cichlid_ip_offset.h"
 #include "dcn/dcn_3_0_0_offset.h"
