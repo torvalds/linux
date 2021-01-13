@@ -172,28 +172,6 @@
 
 #define SYNC_NEGO_OFFSET		15
 
-/* SCSI MSG BYTE */
-#define MSG_COMPLETE			0x00
-#define MSG_EXTENDED			0x01
-#define MSG_SAVE_PTR			0x02
-#define MSG_RESTORE_PTR			0x03
-#define MSG_DISCONNECT			0x04
-#define MSG_INITIATOR_ERROR		0x05
-#define MSG_ABORT			0x06
-#define MSG_REJECT_			0x07
-#define MSG_NOP				0x08
-#define MSG_PARITY_ERROR		0x09
-#define MSG_LINK_CMD_COMPL		0x0A
-#define MSG_LINK_CMD_COMPL_FLG		0x0B
-#define MSG_BUS_RESET			0x0C
-#define MSG_ABORT_TAG			0x0D
-#define MSG_SIMPLE_QTAG			0x20
-#define MSG_HEAD_QTAG			0x21
-#define MSG_ORDER_QTAG			0x22
-#define MSG_IGNOREWIDE			0x23
-#define MSG_IDENTIFY			0x80
-#define MSG_HOST_ID			0xC0
-
 /* cmd->result */
 #define STATUS_MASK_			0xFF
 #define MSG_MASK			0xFF00
