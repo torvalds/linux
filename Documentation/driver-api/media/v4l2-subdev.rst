@@ -123,7 +123,7 @@ Don't forget to cleanup the media entity before the sub-device is destroyed:
 	media_entity_cleanup(&sd->entity);
 
 If a sub-device driver implements sink pads, the subdev driver may set the
-link_validate field in :c:type:`v4l2_subdev_pad_ops`to provide its own link
+link_validate field in :c:type:`v4l2_subdev_pad_ops` to provide its own link
 validation function. For every link in the pipeline, the link_validate pad
 operation of the sink end of the link is called. In both cases the driver is
 still responsible for validating the correctness of the format configuration
