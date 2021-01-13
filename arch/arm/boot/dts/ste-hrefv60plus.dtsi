@@ -190,7 +190,7 @@
 		};
 
 		// External Micro SD slot
-		sdi0_per1@80126000 {
+		mmc@80126000 {
 			cd-gpios  = <&gpio2 31 GPIO_ACTIVE_HIGH>; // 95
 		};
 

@@ -72,7 +72,7 @@
 
 	soc {
 		/* External Micro SD card slot */
-		sdi0_per1@80126000 {
+		mmc@80126000 {
 			status = "okay";
 
 			arm,primecell-periphid = <0x10480180>;
@@ -100,7 +100,7 @@
 		};
 
 		/* WLAN SDIO */
-		sdi1_per2@80118000 {
+		mmc@80118000 {
 			status = "okay";
 
 			arm,primecell-periphid = <0x10480180>;
@@ -134,7 +134,7 @@
 		};
 
 		/* eMMC */
-		sdi2_per3@80005000 {
+		mmc@80005000 {
 			status = "okay";
 
 			arm,primecell-periphid = <0x10480180>;
