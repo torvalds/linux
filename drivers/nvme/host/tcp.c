@@ -201,7 +201,7 @@ static inline size_t nvme_tcp_req_cur_offset(struct nvme_tcp_request *req)
 
 static inline size_t nvme_tcp_req_cur_length(struct nvme_tcp_request *req)
 {
-	return min_t(size_t, req->iter.bvec->bv_len - req->iter.iov_offset,
+	return min_t(size_t, iov_iter_single_seg_count(&req->iter),
 			req->pdu_len - req->pdu_sent);
 }
 
