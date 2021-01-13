@@ -22,8 +22,6 @@ enum {
 
 int intel_execlists_submission_setup(struct intel_engine_cs *engine);
 
-void intel_execlists_set_default_submission(struct intel_engine_cs *engine);
-
 void intel_execlists_show_requests(struct intel_engine_cs *engine,
 				   struct drm_printer *m,
 				   void (*show_request)(struct drm_printer *m,

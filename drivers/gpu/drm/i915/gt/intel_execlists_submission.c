@@ -3100,7 +3100,7 @@ static bool can_preempt(struct intel_engine_cs *engine)
 	return engine->class != RENDER_CLASS;
 }
 
-void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
+static void execlists_set_default_submission(struct intel_engine_cs *engine)
 {
 	engine->submit_request = execlists_submit_request;
 	engine->schedule = i915_schedule;
@@ -3123,9 +3123,6 @@ void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
 				engine->flags |= I915_ENGINE_HAS_TIMESLICES;
 		}
 	}
-
-	if (INTEL_GEN(engine->i915) >= 12)
-		engine->flags |= I915_ENGINE_HAS_RELATIVE_MMIO;
 
 	if (intel_engine_has_preemption(engine))
 		engine->emit_bb_start = gen8_emit_bb_start;
@@ -3168,7 +3165,7 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 		engine->emit_fini_breadcrumb = gen12_emit_fini_breadcrumb_xcs;
 		engine->emit_flush = gen12_emit_flush_xcs;
 	}
-	engine->set_default_submission = intel_execlists_set_default_submission;
+	engine->set_default_submission = execlists_set_default_submission;
 
 	if (INTEL_GEN(engine->i915) < 11) {
 		engine->irq_enable = gen8_logical_ring_enable_irq;
@@ -3924,7 +3921,7 @@ bool
 intel_engine_in_execlists_submission_mode(const struct intel_engine_cs *engine)
 {
 	return engine->set_default_submission ==
-	       intel_execlists_set_default_submission;
+	       execlists_set_default_submission;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

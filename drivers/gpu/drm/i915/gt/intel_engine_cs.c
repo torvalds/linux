@@ -727,6 +727,9 @@ static int engine_setup_common(struct intel_engine_cs *engine)
 	intel_engine_init_whitelist(engine);
 	intel_engine_init_ctx_wa(engine);
 
+	if (INTEL_GEN(engine->i915) >= 12)
+		engine->flags |= I915_ENGINE_HAS_RELATIVE_MMIO;
+
 	return 0;
 
 err_status:

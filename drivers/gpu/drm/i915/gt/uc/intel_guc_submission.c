@@ -10,7 +10,6 @@
 #include "gt/intel_breadcrumbs.h"
 #include "gt/intel_context.h"
 #include "gt/intel_engine_pm.h"
-#include "gt/intel_execlists_submission.h" /* XXX */
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_lrc.h"
@@ -513,6 +512,34 @@ static int guc_request_alloc(struct i915_request *request)
 	return 0;
 }
 
+static inline void queue_request(struct intel_engine_cs *engine,
+				 struct i915_request *rq,
+				 int prio)
+{
+	GEM_BUG_ON(!list_empty(&rq->sched.link));
+	list_add_tail(&rq->sched.link,
+		      i915_sched_lookup_priolist(engine, prio));
+	set_bit(I915_FENCE_FLAG_PQUEUE, &rq->fence.flags);
+}
+
+static void guc_submit_request(struct i915_request *rq)
+{
+	struct intel_engine_cs *engine = rq->engine;
+	unsigned long flags;
+
+	/* Will be called from irq-context when using foreign fences. */
+	spin_lock_irqsave(&engine->active.lock, flags);
+
+	queue_request(engine, rq, rq_prio(rq));
+
+	GEM_BUG_ON(RB_EMPTY_ROOT(&engine->execlists.queue.rb_root));
+	GEM_BUG_ON(list_empty(&rq->sched.link));
+
+	tasklet_hi_schedule(&engine->execlists.tasklet);
+
+	spin_unlock_irqrestore(&engine->active.lock, flags);
+}
+
 static void sanitize_hwsp(struct intel_engine_cs *engine)
 {
 	struct intel_timeline *tl;
@@ -581,31 +608,28 @@ static int guc_resume(struct intel_engine_cs *engine)
 
 static void guc_set_default_submission(struct intel_engine_cs *engine)
 {
-	/*
-	 * We inherit a bunch of functions from execlists that we'd like
-	 * to keep using:
-	 *
-	 *    engine->submit_request = execlists_submit_request;
-	 *    engine->cancel_requests = execlists_cancel_requests;
-	 *    engine->schedule = execlists_schedule;
-	 *
-	 * But we need to override the actual submission backend in order
-	 * to talk to the GuC.
-	 */
-	intel_execlists_set_default_submission(engine);
-
+	engine->submit_request = guc_submit_request;
+	engine->schedule = i915_schedule;
 	engine->execlists.tasklet.func = guc_submission_tasklet;
-
-	/* do not use execlists park/unpark */
-	engine->park = engine->unpark = NULL;
 
 	engine->reset.prepare = guc_reset_prepare;
 	engine->reset.rewind = guc_reset_rewind;
 	engine->reset.cancel = guc_reset_cancel;
 	engine->reset.finish = guc_reset_finish;
 
-	engine->flags &= ~I915_ENGINE_SUPPORTS_STATS;
 	engine->flags |= I915_ENGINE_NEEDS_BREADCRUMB_TASKLET;
+	engine->flags |= I915_ENGINE_HAS_PREEMPTION;
+
+	/*
+	 * TODO: GuC supports timeslicing and semaphores as well, but they're
+	 * handled by the firmware so some minor tweaks are required before
+	 * enabling.
+	 *
+	 * engine->flags |= I915_ENGINE_HAS_TIMESLICES;
+	 * engine->flags |= I915_ENGINE_HAS_SEMAPHORES;
+	 */
+
+	engine->emit_bb_start = gen8_emit_bb_start;
 
 	/*
 	 * For the breadcrumb irq to work we need the interrupts to stay
