@@ -20,7 +20,7 @@
  * 'UL' and other type specifiers unilaterally.  We
  * use the following macros to deal with this.
  */
-#define STUB_START 0x100000UL
+#define STUB_START stub_start
 #define STUB_CODE STUB_START
 #define STUB_DATA (STUB_CODE + UM_KERN_PAGE_SIZE)
 #define STUB_END (STUB_DATA + UM_KERN_PAGE_SIZE)
@@ -46,6 +46,7 @@ extern unsigned long long highmem;
 extern unsigned long brk_start;
 
 extern unsigned long host_task_size;
+extern unsigned long stub_start;
 
 extern int linux_main(int argc, char **argv);
 extern void uml_finishsetup(void);

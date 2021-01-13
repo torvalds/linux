@@ -251,10 +251,6 @@ static int userspace_tramp(void *stack)
 	signal(SIGTERM, SIG_DFL);
 	signal(SIGWINCH, SIG_IGN);
 
-	/*
-	 * This has a pte, but it can't be mapped in with the usual
-	 * tlb_flush mechanism because this is part of that mechanism
-	 */
 	fd = phys_mapping(to_phys(__syscall_stub_start), &offset);
 	addr = mmap64((void *) STUB_CODE, UM_KERN_PAGE_SIZE,
 		      PROT_EXEC, MAP_FIXED | MAP_PRIVATE, fd, offset);
