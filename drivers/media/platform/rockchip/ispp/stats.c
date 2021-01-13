@@ -214,6 +214,7 @@ static void rkispp_stats_vb2_buf_queue(struct vb2_buffer *vb)
 	struct rkispp_stats_vdev *stats_dev = vq->drv_priv;
 	unsigned long lock_flags = 0;
 
+	vb2_plane_vaddr(vb, 0);
 	if (stats_dev->dev->hw_dev->is_mmu) {
 		struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
 
