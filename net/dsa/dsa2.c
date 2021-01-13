@@ -21,6 +21,65 @@
 static DEFINE_MUTEX(dsa2_mutex);
 LIST_HEAD(dsa_tree_list);
 
+/**
+ * dsa_lag_map() - Map LAG netdev to a linear LAG ID
+ * @dst: Tree in which to record the mapping.
+ * @lag: Netdev that is to be mapped to an ID.
+ *
+ * dsa_lag_id/dsa_lag_dev can then be used to translate between the
+ * two spaces. The size of the mapping space is determined by the
+ * driver by setting ds->num_lag_ids. It is perfectly legal to leave
+ * it unset if it is not needed, in which case these functions become
+ * no-ops.
+ */
+void dsa_lag_map(struct dsa_switch_tree *dst, struct net_device *lag)
+{
+	unsigned int id;
+
+	if (dsa_lag_id(dst, lag) >= 0)
+		/* Already mapped */
+		return;
+
+	for (id = 0; id < dst->lags_len; id++) {
+		if (!dsa_lag_dev(dst, id)) {
+			dst->lags[id] = lag;
+			return;
+		}
+	}
+
+	/* No IDs left, which is OK. Some drivers do not need it. The
+	 * ones that do, e.g. mv88e6xxx, will discover that dsa_lag_id
+	 * returns an error for this device when joining the LAG. The
+	 * driver can then return -EOPNOTSUPP back to DSA, which will
+	 * fall back to a software LAG.
+	 */
+}
+
+/**
+ * dsa_lag_unmap() - Remove a LAG ID mapping
+ * @dst: Tree in which the mapping is recorded.
+ * @lag: Netdev that was mapped.
+ *
+ * As there may be multiple users of the mapping, it is only removed
+ * if there are no other references to it.
+ */
+void dsa_lag_unmap(struct dsa_switch_tree *dst, struct net_device *lag)
+{
+	struct dsa_port *dp;
+	unsigned int id;
+
+	dsa_lag_foreach_port(dp, dst, lag)
+		/* There are remaining users of this mapping */
+		return;
+
+	dsa_lags_foreach_id(id, dst) {
+		if (dsa_lag_dev(dst, id) == lag) {
+			dst->lags[id] = NULL;
+			break;
+		}
+	}
+}
+
 struct dsa_switch *dsa_switch_find(int tree_index, int sw_index)
 {
 	struct dsa_switch_tree *dst;
@@ -578,6 +637,32 @@ static void dsa_tree_teardown_master(struct dsa_switch_tree *dst)
 			dsa_master_teardown(dp->master);
 }
 
+static int dsa_tree_setup_lags(struct dsa_switch_tree *dst)
+{
+	unsigned int len = 0;
+	struct dsa_port *dp;
+
+	list_for_each_entry(dp, &dst->ports, list) {
+		if (dp->ds->num_lag_ids > len)
+			len = dp->ds->num_lag_ids;
+	}
+
+	if (!len)
+		return 0;
+
+	dst->lags = kcalloc(len, sizeof(*dst->lags), GFP_KERNEL);
+	if (!dst->lags)
+		return -ENOMEM;
+
+	dst->lags_len = len;
+	return 0;
+}
+
+static void dsa_tree_teardown_lags(struct dsa_switch_tree *dst)
+{
+	kfree(dst->lags);
+}
+
 static int dsa_tree_setup(struct dsa_switch_tree *dst)
 {
 	bool complete;
@@ -605,12 +690,18 @@ static int dsa_tree_setup(struct dsa_switch_tree *dst)
 	if (err)
 		goto teardown_switches;
 
+	err = dsa_tree_setup_lags(dst);
+	if (err)
+		goto teardown_master;
+
 	dst->setup = true;
 
 	pr_info("DSA: tree %d setup\n", dst->index);
 
 	return 0;
 
+teardown_master:
+	dsa_tree_teardown_master(dst);
 teardown_switches:
 	dsa_tree_teardown_switches(dst);
 teardown_default_cpu:
@@ -625,6 +716,8 @@ static void dsa_tree_teardown(struct dsa_switch_tree *dst)
 
 	if (!dst->setup)
 		return;
+
+	dsa_tree_teardown_lags(dst);
 
 	dsa_tree_teardown_master(dst);
 
