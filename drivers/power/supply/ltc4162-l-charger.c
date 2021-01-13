@@ -666,7 +666,7 @@ static struct attribute *ltc4162l_sysfs_entries[] = {
 	NULL,
 };
 
-static struct attribute_group ltc4162l_attr_group = {
+static const struct attribute_group ltc4162l_attr_group = {
 	.name	= NULL,	/* put in device directory */
 	.attrs	= ltc4162l_sysfs_entries,
 };
