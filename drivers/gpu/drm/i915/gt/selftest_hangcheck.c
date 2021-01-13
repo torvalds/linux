@@ -540,6 +540,149 @@ static int igt_reset_nop_engine(void *arg)
 	return 0;
 }
 
+static void force_reset_timeout(struct intel_engine_cs *engine)
+{
+	engine->reset_timeout.probability = 999;
+	atomic_set(&engine->reset_timeout.times, -1);
+}
+
+static void cancel_reset_timeout(struct intel_engine_cs *engine)
+{
+	memset(&engine->reset_timeout, 0, sizeof(engine->reset_timeout));
+}
+
+static int igt_reset_fail_engine(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	/* Check that we can recover from engine-reset failues */
+
+	if (!intel_has_reset_engine(gt))
+		return 0;
+
+	for_each_engine(engine, gt, id) {
+		unsigned int count;
+		struct intel_context *ce;
+		IGT_TIMEOUT(end_time);
+		int err;
+
+		ce = intel_context_create(engine);
+		if (IS_ERR(ce))
+			return PTR_ERR(ce);
+
+		st_engine_heartbeat_disable(engine);
+		set_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
+
+		force_reset_timeout(engine);
+		err = intel_engine_reset(engine, NULL);
+		cancel_reset_timeout(engine);
+		if (err == 0) /* timeouts only generated on gen8+ */
+			goto skip;
+
+		count = 0;
+		do {
+			struct i915_request *last = NULL;
+			int i;
+
+			if (!wait_for_idle(engine)) {
+				pr_err("%s failed to idle before reset\n",
+				       engine->name);
+				err = -EIO;
+				break;
+			}
+
+			for (i = 0; i < count % 15; i++) {
+				struct i915_request *rq;
+
+				rq = intel_context_create_request(ce);
+				if (IS_ERR(rq)) {
+					struct drm_printer p =
+						drm_info_printer(gt->i915->drm.dev);
+					intel_engine_dump(engine, &p,
+							  "%s(%s): failed to submit request\n",
+							  __func__,
+							  engine->name);
+
+					GEM_TRACE("%s(%s): failed to submit request\n",
+						  __func__,
+						  engine->name);
+					GEM_TRACE_DUMP();
+
+					intel_gt_set_wedged(gt);
+					if (last)
+						i915_request_put(last);
+
+					err = PTR_ERR(rq);
+					goto out;
+				}
+
+				if (last)
+					i915_request_put(last);
+				last = i915_request_get(rq);
+				i915_request_add(rq);
+			}
+
+			if (count & 1) {
+				err = intel_engine_reset(engine, NULL);
+				if (err) {
+					GEM_TRACE_ERR("intel_engine_reset(%s) failed, err:%d\n",
+						      engine->name, err);
+					GEM_TRACE_DUMP();
+					i915_request_put(last);
+					break;
+				}
+			} else {
+				force_reset_timeout(engine);
+				err = intel_engine_reset(engine, NULL);
+				cancel_reset_timeout(engine);
+				if (err != -ETIMEDOUT) {
+					pr_err("intel_engine_reset(%s) did not fail, err:%d\n",
+					       engine->name, err);
+					i915_request_put(last);
+					break;
+				}
+			}
+
+			err = 0;
+			if (last) {
+				if (i915_request_wait(last, 0, HZ / 2) < 0) {
+					struct drm_printer p =
+						drm_info_printer(gt->i915->drm.dev);
+
+					intel_engine_dump(engine, &p,
+							  "%s(%s): failed to complete request\n",
+							  __func__,
+							  engine->name);
+
+					GEM_TRACE("%s(%s): failed to complete request\n",
+						  __func__,
+						  engine->name);
+					GEM_TRACE_DUMP();
+
+					err = -EIO;
+				}
+				i915_request_put(last);
+			}
+			count++;
+		} while (err == 0 && time_before(jiffies, end_time));
+out:
+		pr_info("%s(%s): %d resets\n", __func__, engine->name, count);
+skip:
+		clear_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
+		st_engine_heartbeat_enable(engine);
+		intel_context_put(ce);
+
+		if (igt_flush_test(gt->i915))
+			err = -EIO;
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int __igt_reset_engine(struct intel_gt *gt, bool active)
 {
 	struct i915_gpu_error *global = &gt->i915->gpu_error;
@@ -1694,6 +1837,7 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_reset_nop_engine),
 		SUBTEST(igt_reset_idle_engine),
 		SUBTEST(igt_reset_active_engine),
+		SUBTEST(igt_reset_fail_engine),
 		SUBTEST(igt_reset_engines),
 		SUBTEST(igt_reset_engines_atomic),
 		SUBTEST(igt_reset_queue),
