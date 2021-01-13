@@ -71,6 +71,11 @@
 		interrupt-parent = <&gic>;
 		ranges = <0x0 0xf0000000 0x00900000>;
 
+		fuse: fuse@18a000 {
+			compatible = "nuvoton,npcm750-fuse", "syscon", "simple-mfd";
+			reg = <0x18a000 0x1000>;
+		};
+
 		scu: scu@3fe000 {
 			compatible = "arm,cortex-a9-scu";
 			reg = <0x3fe000 0x1000>;
