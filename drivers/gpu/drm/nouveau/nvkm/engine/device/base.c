@@ -2661,6 +2661,7 @@ nv170_chipset = {
 	.ibus = gm200_ibus_new,
 	.imem = nv50_instmem_new,
 	.mc = ga100_mc_new,
+	.mmu = tu102_mmu_new,
 	.pci = gp100_pci_new,
 	.timer = gk20a_timer_new,
 };
@@ -2674,6 +2675,7 @@ nv172_chipset = {
 	.ibus = gm200_ibus_new,
 	.imem = nv50_instmem_new,
 	.mc = ga100_mc_new,
+	.mmu = tu102_mmu_new,
 	.pci = gp100_pci_new,
 	.timer = gk20a_timer_new,
 };
@@ -2687,6 +2689,7 @@ nv174_chipset = {
 	.ibus = gm200_ibus_new,
 	.imem = nv50_instmem_new,
 	.mc = ga100_mc_new,
+	.mmu = tu102_mmu_new,
 	.pci = gp100_pci_new,
 	.timer = gk20a_timer_new,
 };
