@@ -1244,10 +1244,10 @@ S: 80050-430 - Curitiba - Paraná
 S: Brazil
 
 N: Oded Gabbay
-E: oded.gabbay@gmail.com
-D: HabanaLabs and AMD KFD maintainer
-S: 12 Shraga Raphaeli
-S: Petah-Tikva, 4906418
+E: ogabbay@kernel.org
+D: HabanaLabs maintainer
+S: 29 Duchifat St.
+S: Ra'anana 4372029
 S: Israel
 
 N: Kumar Gala
