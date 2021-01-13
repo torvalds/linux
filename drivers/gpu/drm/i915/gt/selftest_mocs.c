@@ -99,7 +99,7 @@ static void live_mocs_fini(struct live_mocs *arg)
 
 static int read_regs(struct i915_request *rq,
 		     u32 addr, unsigned int count,
-		     uint32_t *offset)
+		     u32 *offset)
 {
 	unsigned int i;
 	u32 *cs;
@@ -127,7 +127,7 @@ static int read_regs(struct i915_request *rq,
 
 static int read_mocs_table(struct i915_request *rq,
 			   const struct drm_i915_mocs_table *table,
-			   uint32_t *offset)
+			   u32 *offset)
 {
 	u32 addr;
 
@@ -141,7 +141,7 @@ static int read_mocs_table(struct i915_request *rq,
 
 static int read_l3cc_table(struct i915_request *rq,
 			   const struct drm_i915_mocs_table *table,
-			   uint32_t *offset)
+			   u32 *offset)
 {
 	u32 addr = i915_mmio_reg_offset(GEN9_LNCFCMOCS(0));
 
@@ -150,7 +150,7 @@ static int read_l3cc_table(struct i915_request *rq,
 
 static int check_mocs_table(struct intel_engine_cs *engine,
 			    const struct drm_i915_mocs_table *table,
-			    uint32_t **vaddr)
+			    u32 **vaddr)
 {
 	unsigned int i;
 	u32 expect;
@@ -179,7 +179,7 @@ static bool mcr_range(struct drm_i915_private *i915, u32 offset)
 
 static int check_l3cc_table(struct intel_engine_cs *engine,
 			    const struct drm_i915_mocs_table *table,
-			    uint32_t **vaddr)
+			    u32 **vaddr)
 {
 	/* Can we read the MCR range 0xb00 directly? See intel_workarounds! */
 	u32 reg = i915_mmio_reg_offset(GEN9_LNCFCMOCS(0));
