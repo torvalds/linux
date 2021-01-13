@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Red Hat Inc.
+ * Copyright 2021 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 #include <subdev/clk/pll.h>
 
 static int
-tu102_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
+ga100_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
 {
 	struct nvkm_subdev *subdev = &init->subdev;
 	struct nvkm_device *device = subdev->device;
@@ -48,13 +48,10 @@ tu102_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
 	case PLL_VPLL1:
 	case PLL_VPLL2:
 	case PLL_VPLL3:
-		nvkm_wr32(device, 0x00ef10 + (head * 0x40), fN << 16);
-		nvkm_wr32(device, 0x00ef04 + (head * 0x40), (P << 16) |
-							    (N <<  8) |
-							    (M <<  0));
-		/*XXX*/
-		nvkm_wr32(device, 0x00ef0c + (head * 0x40), 0x00000900);
-		nvkm_wr32(device, 0x00ef00 + (head * 0x40), 0x02000014);
+		nvkm_wr32(device, 0x00ef00 + (head * 0x40), 0x02080004);
+		nvkm_wr32(device, 0x00ef18 + (head * 0x40), (N << 16) | fN);
+		nvkm_wr32(device, 0x00ef04 + (head * 0x40), (P << 16) | M);
+		nvkm_wr32(device, 0x00e9c0 + (head * 0x04), 0x00000001);
 		break;
 	default:
 		nvkm_warn(subdev, "%08x/%dKhz unimplemented\n", type, freq);
@@ -65,25 +62,15 @@ tu102_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
 	return ret;
 }
 
-int
-tu102_devinit_post(struct nvkm_devinit *base, bool post)
-{
-	struct nv50_devinit *init = nv50_devinit(base);
-	gm200_devinit_preos(init, post);
-	return 0;
-}
-
 static const struct nvkm_devinit_func
-tu102_devinit = {
+ga100_devinit = {
 	.init = nv50_devinit_init,
 	.post = tu102_devinit_post,
-	.pll_set = tu102_devinit_pll_set,
-	.disable = gm107_devinit_disable,
+	.pll_set = ga100_devinit_pll_set,
 };
 
 int
-tu102_devinit_new(struct nvkm_device *device, int index,
-		struct nvkm_devinit **pinit)
+ga100_devinit_new(struct nvkm_device *device, int index, struct nvkm_devinit **pinit)
 {
-	return nv50_devinit_new_(&tu102_devinit, device, index, pinit);
+	return nv50_devinit_new_(&ga100_devinit, device, index, pinit);
 }
