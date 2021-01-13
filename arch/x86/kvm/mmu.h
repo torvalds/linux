@@ -49,7 +49,7 @@ static inline u64 rsvd_bits(int s, int e)
 	if (e < s)
 		return 0;
 
-	return ((1ULL << (e - s + 1)) - 1) << s;
+	return ((2ULL << (e - s)) - 1) << s;
 }
 
 void kvm_mmu_set_mmio_spte_mask(u64 mmio_value, u64 access_mask);

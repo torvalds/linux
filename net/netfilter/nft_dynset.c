@@ -19,6 +19,7 @@ struct nft_dynset {
 	enum nft_registers		sreg_key:8;
 	enum nft_registers		sreg_data:8;
 	bool				invert;
+	bool				expr;
 	u8				num_exprs;
 	u64				timeout;
 	struct nft_expr			*expr_array[NFT_SET_EXPR_MAX];
@@ -175,11 +176,12 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 
 	if (tb[NFTA_DYNSET_FLAGS]) {
 		u32 flags = ntohl(nla_get_be32(tb[NFTA_DYNSET_FLAGS]));
-
-		if (flags & ~NFT_DYNSET_F_INV)
-			return -EINVAL;
+		if (flags & ~(NFT_DYNSET_F_INV | NFT_DYNSET_F_EXPR))
+			return -EOPNOTSUPP;
 		if (flags & NFT_DYNSET_F_INV)
 			priv->invert = true;
+		if (flags & NFT_DYNSET_F_EXPR)
+			priv->expr = true;
 	}
 
 	set = nft_set_lookup_global(ctx->net, ctx->table,
@@ -210,7 +212,7 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 	timeout = 0;
 	if (tb[NFTA_DYNSET_TIMEOUT] != NULL) {
 		if (!(set->flags & NFT_SET_TIMEOUT))
-			return -EINVAL;
+			return -EOPNOTSUPP;
 
 		err = nf_msecs_to_jiffies64(tb[NFTA_DYNSET_TIMEOUT], &timeout);
 		if (err)
@@ -224,7 +226,7 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 
 	if (tb[NFTA_DYNSET_SREG_DATA] != NULL) {
 		if (!(set->flags & NFT_SET_MAP))
-			return -EINVAL;
+			return -EOPNOTSUPP;
 		if (set->dtype == NFT_DATA_VERDICT)
 			return -EOPNOTSUPP;
 
@@ -260,6 +262,9 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 		struct nft_expr *dynset_expr;
 		struct nlattr *tmp;
 		int left;
+
+		if (!priv->expr)
+			return -EINVAL;
 
 		i = 0;
 		nla_for_each_nested(tmp, tb[NFTA_DYNSET_EXPRESSIONS], left) {
