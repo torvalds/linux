@@ -124,6 +124,37 @@ err0_out:
 	return -ENOMEM;
 }
 
+static int yellow_carp_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
+{
+	int ret = 0;
+
+	/* vcn dpm on is a prerequisite for vcn power gate messages */
+	if (enable)
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn,
+						      0, NULL);
+	else
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerDownVcn,
+						      0, NULL);
+
+	return ret;
+}
+
+static int yellow_carp_dpm_set_jpeg_enable(struct smu_context *smu, bool enable)
+{
+	int ret = 0;
+
+	if (enable)
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerUpJpeg,
+						      0, NULL);
+	else
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_PowerDownJpeg, 0,
+						      NULL);
+
+	return ret;
+}
+
+
 static bool yellow_carp_is_dpm_running(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
@@ -159,6 +190,8 @@ static const struct pptable_funcs yellow_carp_ppt_funcs = {
 	.fini_smc_tables = smu_v13_0_1_fini_smc_tables,
 	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
 	.send_smc_msg = smu_cmn_send_smc_msg,
+	.dpm_set_vcn_enable = yellow_carp_dpm_set_vcn_enable,
+	.dpm_set_jpeg_enable = yellow_carp_dpm_set_jpeg_enable,
 	.set_default_dpm_table = smu_v13_0_1_set_default_dpm_tables,
 	.is_dpm_running = yellow_carp_is_dpm_running,
 	.get_enabled_mask = smu_cmn_get_enabled_32_bits_mask,
