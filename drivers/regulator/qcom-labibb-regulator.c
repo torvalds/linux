@@ -19,6 +19,12 @@
 #define PMI8998_IBB_REG_BASE		0xdc00
 
 #define REG_LABIBB_STATUS1		0x08
+
+#define REG_LABIBB_VOLTAGE		0x41
+ #define LABIBB_VOLTAGE_OVERRIDE_EN	BIT(7)
+ #define LAB_VOLTAGE_SET_MASK		GENMASK(3, 0)
+ #define IBB_VOLTAGE_SET_MASK		GENMASK(5, 0)
+
 #define REG_LABIBB_ENABLE_CTL		0x46
 #define LABIBB_STATUS1_VREG_OK_BIT	BIT(7)
 #define LABIBB_CONTROL_ENABLE		BIT(7)
@@ -51,6 +57,10 @@ static const struct regulator_ops qcom_labibb_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
+	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
+	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
+	.list_voltage		= regulator_list_voltage_linear_range,
+	.map_voltage		= regulator_map_voltage_linear_range,
 };
 
 static const struct regulator_desc pmi8998_lab_desc = {
@@ -59,9 +69,18 @@ static const struct regulator_desc pmi8998_lab_desc = {
 	.enable_val		= LABIBB_CONTROL_ENABLE,
 	.enable_time		= LAB_ENABLE_TIME,
 	.poll_enabled_time	= LABIBB_POLL_ENABLED_TIME,
+	.vsel_reg		= (PMI8998_LAB_REG_BASE + REG_LABIBB_VOLTAGE),
+	.vsel_mask		= LAB_VOLTAGE_SET_MASK,
+	.apply_reg		= (PMI8998_LAB_REG_BASE + REG_LABIBB_VOLTAGE),
+	.apply_bit		= LABIBB_VOLTAGE_OVERRIDE_EN,
 	.off_on_delay		= LABIBB_OFF_ON_DELAY,
 	.owner			= THIS_MODULE,
 	.type			= REGULATOR_VOLTAGE,
+	.linear_ranges		= (struct linear_range[]) {
+		REGULATOR_LINEAR_RANGE(4600000, 0, 15, 100000),
+	},
+	.n_linear_ranges	= 1,
+	.n_voltages		= 16,
 	.ops			= &qcom_labibb_ops,
 };
 
@@ -71,9 +90,18 @@ static const struct regulator_desc pmi8998_ibb_desc = {
 	.enable_val		= LABIBB_CONTROL_ENABLE,
 	.enable_time		= IBB_ENABLE_TIME,
 	.poll_enabled_time	= LABIBB_POLL_ENABLED_TIME,
+	.vsel_reg		= (PMI8998_IBB_REG_BASE + REG_LABIBB_VOLTAGE),
+	.vsel_mask		= IBB_VOLTAGE_SET_MASK,
+	.apply_reg		= (PMI8998_IBB_REG_BASE + REG_LABIBB_VOLTAGE),
+	.apply_bit		= LABIBB_VOLTAGE_OVERRIDE_EN,
 	.off_on_delay		= LABIBB_OFF_ON_DELAY,
 	.owner			= THIS_MODULE,
 	.type			= REGULATOR_VOLTAGE,
+	.linear_ranges		= (struct linear_range[]) {
+		REGULATOR_LINEAR_RANGE(1400000, 0, 63, 100000),
+	},
+	.n_linear_ranges	= 1,
+	.n_voltages		= 64,
 	.ops			= &qcom_labibb_ops,
 };
 
