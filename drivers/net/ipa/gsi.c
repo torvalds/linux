@@ -91,7 +91,7 @@
 
 #define GSI_CMD_TIMEOUT			50	/* milliseconds */
 
-#define GSI_CHANNEL_STOP_RX_RETRIES	10
+#define GSI_CHANNEL_STOP_RETRIES	10
 #define GSI_CHANNEL_MODEM_HALT_RETRIES	10
 
 #define GSI_MHI_EVENT_ID_START		10	/* 1st reserved event id */
@@ -889,13 +889,10 @@ int gsi_channel_start(struct gsi *gsi, u32 channel_id)
 int gsi_channel_stop(struct gsi *gsi, u32 channel_id)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
-	u32 retries;
+	u32 retries = GSI_CHANNEL_STOP_RETRIES;
 	int ret;
 
 	gsi_channel_freeze(channel);
-
-	/* RX channels might require a little time to enter STOPPED state */
-	retries = channel->toward_ipa ? 0 : GSI_CHANNEL_STOP_RX_RETRIES;
 
 	mutex_lock(&gsi->mutex);
 
