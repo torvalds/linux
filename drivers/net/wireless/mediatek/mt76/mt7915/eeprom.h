@@ -35,10 +35,10 @@ enum mt7915_eeprom_field {
 #define MT_EE_WIFI_CONF7_TSSI1_5G		BIT(4)
 
 enum mt7915_eeprom_band {
-	MT_EE_DUAL_BAND,
-	MT_EE_5GHZ,
-	MT_EE_2GHZ,
-	MT_EE_DBDC,
+	MT_EE_BAND_SEL_DEFAULT,
+	MT_EE_BAND_SEL_5GHZ,
+	MT_EE_BAND_SEL_2GHZ,
+	MT_EE_BAND_SEL_DUAL,
 };
 
 #define SKU_DELTA_VAL		GENMASK(5, 0)
