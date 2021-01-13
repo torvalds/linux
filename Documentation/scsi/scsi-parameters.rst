@@ -38,9 +38,6 @@ parameters may be changed at runtime by the command
 			See drivers/scsi/BusLogic.c, comment before function
 			BusLogic_ParseDriverOptions().
 
-	gdth=		[HW,SCSI]
-			See header of drivers/scsi/gdth.c.
-
 	gvp11=		[HW,SCSI]
 
 	ips=		[HW,SCSI] Adaptec / IBM ServeRAID controller

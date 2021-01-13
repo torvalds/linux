@@ -461,10 +461,8 @@ more details, with real examples.
 
 		# drivers/scsi/Makefile
 		CFLAGS_aha152x.o =   -DAHA152X_STAT -DAUTOCONF
-		CFLAGS_gdth.o    = # -DDEBUG_GDTH=2 -D__SERIAL__ -D__COM2__ \
-				     -DGDTH_STATISTICS
 
-	These two lines specify compilation flags for aha152x.o and gdth.o.
+	This line specify compilation flags for aha152x.o.
 
 	$(AFLAGS_$@) is a similar feature for source files in assembly
 	languages.
