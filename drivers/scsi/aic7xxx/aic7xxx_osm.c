@@ -1,3 +1,4 @@
+
 /*
  * Adaptec AIC7xxx device driver for Linux.
  *
@@ -1480,10 +1481,10 @@ ahc_linux_run_command(struct ahc_softc *ahc, struct ahc_linux_device *dev,
 	if ((dev->flags & (AHC_DEV_Q_TAGGED|AHC_DEV_Q_BASIC)) != 0) {
 		if (dev->commands_since_idle_or_otag == AHC_OTAG_THRESH
 				&& (dev->flags & AHC_DEV_Q_TAGGED) != 0) {
-			hscb->control |= MSG_ORDERED_TASK;
+			hscb->control |= ORDERED_QUEUE_TAG;
 			dev->commands_since_idle_or_otag = 0;
 		} else {
-			hscb->control |= MSG_SIMPLE_TASK;
+			hscb->control |= SIMPLE_QUEUE_TAG;
 		}
 	}
 

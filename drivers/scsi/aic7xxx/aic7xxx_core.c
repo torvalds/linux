@@ -84,16 +84,16 @@ static const u_int num_errors = ARRAY_SIZE(ahc_hard_errors);
 
 static const struct ahc_phase_table_entry ahc_phase_table[] =
 {
-	{ P_DATAOUT,	MSG_NOOP,		"in Data-out phase"	},
-	{ P_DATAIN,	MSG_INITIATOR_DET_ERR,	"in Data-in phase"	},
-	{ P_DATAOUT_DT,	MSG_NOOP,		"in DT Data-out phase"	},
-	{ P_DATAIN_DT,	MSG_INITIATOR_DET_ERR,	"in DT Data-in phase"	},
-	{ P_COMMAND,	MSG_NOOP,		"in Command phase"	},
-	{ P_MESGOUT,	MSG_NOOP,		"in Message-out phase"	},
-	{ P_STATUS,	MSG_INITIATOR_DET_ERR,	"in Status phase"	},
+	{ P_DATAOUT,	NOP,			"in Data-out phase"	},
+	{ P_DATAIN,	INITIATOR_ERROR,	"in Data-in phase"	},
+	{ P_DATAOUT_DT,	NOP,			"in DT Data-out phase"	},
+	{ P_DATAIN_DT,	INITIATOR_ERROR,	"in DT Data-in phase"	},
+	{ P_COMMAND,	NOP,			"in Command phase"	},
+	{ P_MESGOUT,	NOP,			"in Message-out phase"	},
+	{ P_STATUS,	INITIATOR_ERROR,	"in Status phase"	},
 	{ P_MESGIN,	MSG_PARITY_ERROR,	"in Message-in phase"	},
-	{ P_BUSFREE,	MSG_NOOP,		"while idle"		},
-	{ 0,		MSG_NOOP,		"in unknown phase"	}
+	{ P_BUSFREE,	NOP,			"while idle"		},
+	{ 0,		NOP,			"in unknown phase"	}
 };
 
 /*
@@ -815,7 +815,7 @@ ahc_restart(struct ahc_softc *ahc)
 	ahc_clear_msg_state(ahc);
 
 	ahc_outb(ahc, SCSISIGO, 0);		/* De-assert BSY */
-	ahc_outb(ahc, MSG_OUT, MSG_NOOP);	/* No message to send */
+	ahc_outb(ahc, MSG_OUT, NOP);	/* No message to send */
 	ahc_outb(ahc, SXFRCTL1, ahc_inb(ahc, SXFRCTL1) & ~BITBUCKET);
 	ahc_outb(ahc, LASTPHASE, P_BUSFREE);
 	ahc_outb(ahc, SAVED_SCSIID, 0xFF);
@@ -1179,7 +1179,7 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 		printk("SXFRCTL0 == 0x%x\n", ahc_inb(ahc, SXFRCTL0));
 		printk("SEQCTL == 0x%x\n", ahc_inb(ahc, SEQCTL));
 		ahc_dump_card_state(ahc);
-		ahc->msgout_buf[0] = MSG_BUS_DEV_RESET;
+		ahc->msgout_buf[0] = TARGET_RESET;
 		ahc->msgout_len = 1;
 		ahc->msgout_index = 0;
 		ahc->msg_type = MSG_TYPE_INITIATOR_MSGOUT;
@@ -1683,7 +1683,7 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 			 * data direction, so ignore the value
 			 * in the phase table.
 			 */
-			mesg_out = MSG_INITIATOR_DET_ERR;
+			mesg_out = INITIATOR_ERROR;
 		}
 
 		/*
@@ -1693,7 +1693,7 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 		 * the appropriate message.  "In" phases have set
 		 * mesg_out to something other than MSG_NOP.
 		 */
-		if (mesg_out != MSG_NOOP) {
+		if (mesg_out != NOP) {
 			if (ahc->msg_type != MSG_TYPE_NONE)
 				ahc->send_msg_perror = TRUE;
 			else
@@ -1817,10 +1817,10 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 			u_int tag;
 
 			tag = SCB_LIST_NULL;
-			if (ahc_sent_msg(ahc, AHCMSG_1B, MSG_ABORT_TAG, TRUE)
-			 || ahc_sent_msg(ahc, AHCMSG_1B, MSG_ABORT, TRUE)) {
+			if (ahc_sent_msg(ahc, AHCMSG_1B, ABORT_TASK, TRUE)
+			 || ahc_sent_msg(ahc, AHCMSG_1B, ABORT_TASK_SET, TRUE)) {
 				if (ahc->msgout_buf[ahc->msgout_index - 1]
-				 == MSG_ABORT_TAG)
+				 == ABORT_TASK)
 					tag = scb->hscb->tag;
 				ahc_print_path(ahc, scb);
 				printk("SCB %d - Abort%s Completed.\n",
@@ -1832,7 +1832,7 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 					       CAM_REQ_ABORTED);
 				printerror = 0;
 			} else if (ahc_sent_msg(ahc, AHCMSG_1B,
-						MSG_BUS_DEV_RESET, TRUE)) {
+						TARGET_RESET, TRUE)) {
 				ahc_compile_devinfo(&devinfo,
 						    initiator_role_id,
 						    target,
@@ -1845,7 +1845,7 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 						    /*verbose_level*/0);
 				printerror = 0;
 			} else if (ahc_sent_msg(ahc, AHCMSG_EXT,
-						MSG_EXT_PPR, FALSE)) {
+						EXTENDED_PPR, FALSE)) {
 				struct ahc_initiator_tinfo *tinfo;
 				struct ahc_tmode_tstate *tstate;
 
@@ -1864,7 +1864,7 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 				ahc_qinfifo_requeue_tail(ahc, scb);
 				printerror = 0;
 			} else if (ahc_sent_msg(ahc, AHCMSG_EXT,
-						MSG_EXT_WDTR, FALSE)) {
+						EXTENDED_WDTR, FALSE)) {
 				/*
 				 * Negotiation Rejected.  Go-narrow and
 				 * retry command.
@@ -1876,7 +1876,7 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 				ahc_qinfifo_requeue_tail(ahc, scb);
 				printerror = 0;
 			} else if (ahc_sent_msg(ahc, AHCMSG_EXT,
-						MSG_EXT_SDTR, FALSE)) {
+						EXTENDED_SDTR, FALSE)) {
 				/*
 				 * Negotiation Rejected.  Go-async and
 				 * retry command.
@@ -2878,7 +2878,7 @@ ahc_setup_initiator_msgout(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 	}
 
 	if (scb->flags & SCB_DEVICE_RESET) {
-		ahc->msgout_buf[ahc->msgout_index++] = MSG_BUS_DEV_RESET;
+		ahc->msgout_buf[ahc->msgout_index++] = TARGET_RESET;
 		ahc->msgout_len++;
 		ahc_print_path(ahc, scb);
 		printk("Bus Device Reset Message Sent\n");
@@ -2892,9 +2892,9 @@ ahc_setup_initiator_msgout(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 		ahc_outb(ahc, SCSISEQ, (ahc_inb(ahc, SCSISEQ) & ~ENSELO));
 	} else if ((scb->flags & SCB_ABORT) != 0) {
 		if ((scb->hscb->control & TAG_ENB) != 0)
-			ahc->msgout_buf[ahc->msgout_index++] = MSG_ABORT_TAG;
+			ahc->msgout_buf[ahc->msgout_index++] = ABORT_TASK;
 		else
-			ahc->msgout_buf[ahc->msgout_index++] = MSG_ABORT;
+			ahc->msgout_buf[ahc->msgout_index++] = ABORT_TASK_SET;
 		ahc->msgout_len++;
 		ahc_print_path(ahc, scb);
 		printk("Abort%s Message Sent\n",
@@ -3104,7 +3104,7 @@ ahc_clear_msg_state(struct ahc_softc *ahc)
 		 */
 		ahc_outb(ahc, CLRSINT1, CLRATNO);
 	}
-	ahc_outb(ahc, MSG_OUT, MSG_NOOP);
+	ahc_outb(ahc, MSG_OUT, NOP);
 	ahc_outb(ahc, SEQ_FLAGS2,
 		 ahc_inb(ahc, SEQ_FLAGS2) & ~TARGET_MSG_PENDING);
 }
@@ -3190,7 +3190,7 @@ proto_violation_reset:
 		ahc_outb(ahc, MSG_OUT, HOST_MSG);
 		if (scb == NULL) {
 			ahc_print_devinfo(ahc, &devinfo);
-			ahc->msgout_buf[0] = MSG_ABORT_TASK;
+			ahc->msgout_buf[0] = ABORT_TASK;
 			ahc->msgout_len = 1;
 			ahc->msgout_index = 0;
 			ahc->msg_type = MSG_TYPE_INITIATOR_MSGOUT;
@@ -3518,7 +3518,7 @@ ahc_sent_msg(struct ahc_softc *ahc, ahc_msgtype type, u_int msgval, int full)
 	index = 0;
 
 	while (index < ahc->msgout_len) {
-		if (ahc->msgout_buf[index] == MSG_EXTENDED) {
+		if (ahc->msgout_buf[index] == EXTENDED_MESSAGE) {
 			u_int end_index;
 
 			end_index = index + 1 + ahc->msgout_buf[index + 1];
@@ -3532,8 +3532,8 @@ ahc_sent_msg(struct ahc_softc *ahc, ahc_msgtype type, u_int msgval, int full)
 					found = TRUE;
 			}
 			index = end_index;
-		} else if (ahc->msgout_buf[index] >= MSG_SIMPLE_TASK
-			&& ahc->msgout_buf[index] <= MSG_IGN_WIDE_RESIDUE) {
+		} else if (ahc->msgout_buf[index] >= SIMPLE_QUEUE_TAG
+			&& ahc->msgout_buf[index] <= IGNORE_WIDE_RESIDUE) {
 
 			/* Skip tag type and tag id or residue param*/
 			index += 2;
@@ -3584,37 +3584,37 @@ ahc_parse_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 	 * extended message type.
 	 */
 	switch (ahc->msgin_buf[0]) {
-	case MSG_DISCONNECT:
-	case MSG_SAVEDATAPOINTER:
-	case MSG_CMDCOMPLETE:
-	case MSG_RESTOREPOINTERS:
-	case MSG_IGN_WIDE_RESIDUE:
+	case DISCONNECT:
+	case SAVE_POINTERS:
+	case COMMAND_COMPLETE:
+	case RESTORE_POINTERS:
+	case IGNORE_WIDE_RESIDUE:
 		/*
 		 * End our message loop as these are messages
 		 * the sequencer handles on its own.
 		 */
 		done = MSGLOOP_TERMINATED;
 		break;
-	case MSG_MESSAGE_REJECT:
+	case MESSAGE_REJECT:
 		response = ahc_handle_msg_reject(ahc, devinfo);
 		fallthrough;
-	case MSG_NOOP:
+	case NOP:
 		done = MSGLOOP_MSGCOMPLETE;
 		break;
-	case MSG_EXTENDED:
+	case EXTENDED_MESSAGE:
 	{
 		/* Wait for enough of the message to begin validation */
 		if (ahc->msgin_index < 2)
 			break;
 		switch (ahc->msgin_buf[2]) {
-		case MSG_EXT_SDTR:
+		case EXTENDED_SDTR:
 		{
 			const struct ahc_syncrate *syncrate;
 			u_int	 period;
 			u_int	 ppr_options;
 			u_int	 offset;
 			u_int	 saved_offset;
-			
+
 			if (ahc->msgin_buf[1] != MSG_EXT_SDTR_LEN) {
 				reject = TRUE;
 				break;
@@ -3648,7 +3648,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 				       ahc->msgin_buf[3], saved_offset,
 				       period, offset);
 			}
-			ahc_set_syncrate(ahc, devinfo, 
+			ahc_set_syncrate(ahc, devinfo,
 					 syncrate, period,
 					 offset, ppr_options,
 					 AHC_TRANS_ACTIVE|AHC_TRANS_GOAL,
@@ -3659,7 +3659,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 			 * and didn't have to fall down to async
 			 * transfers.
 			 */
-			if (ahc_sent_msg(ahc, AHCMSG_EXT, MSG_EXT_SDTR, TRUE)) {
+			if (ahc_sent_msg(ahc, AHCMSG_EXT, EXTENDED_SDTR, TRUE)) {
 				/* We started it */
 				if (saved_offset != offset) {
 					/* Went too low - force async */
@@ -3686,7 +3686,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 			done = MSGLOOP_MSGCOMPLETE;
 			break;
 		}
-		case MSG_EXT_WDTR:
+		case EXTENDED_WDTR:
 		{
 			u_int bus_width;
 			u_int saved_width;
@@ -3720,7 +3720,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 				       saved_width, bus_width);
 			}
 
-			if (ahc_sent_msg(ahc, AHCMSG_EXT, MSG_EXT_WDTR, TRUE)) {
+			if (ahc_sent_msg(ahc, AHCMSG_EXT, EXTENDED_WDTR, TRUE)) {
 				/*
 				 * Don't send a WDTR back to the
 				 * target, since we asked first.
@@ -3782,7 +3782,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 			done = MSGLOOP_MSGCOMPLETE;
 			break;
 		}
-		case MSG_EXT_PPR:
+		case EXTENDED_PPR:
 		{
 			const struct ahc_syncrate *syncrate;
 			u_int	period;
@@ -3842,7 +3842,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 					    &offset, bus_width,
 					    devinfo->role);
 
-			if (ahc_sent_msg(ahc, AHCMSG_EXT, MSG_EXT_PPR, TRUE)) {
+			if (ahc_sent_msg(ahc, AHCMSG_EXT, EXTENDED_PPR, TRUE)) {
 				/*
 				 * If we are unable to do any of the
 				 * requested options (we went too low),
@@ -3906,7 +3906,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		break;
 	}
 #ifdef AHC_TARGET_MODE
-	case MSG_BUS_DEV_RESET:
+	case TARGET_RESET:
 		ahc_handle_devreset(ahc, devinfo,
 				    CAM_BDR_SENT,
 				    "Bus Device Reset Received",
@@ -3914,9 +3914,9 @@ ahc_parse_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		ahc_restart(ahc);
 		done = MSGLOOP_TERMINATED;
 		break;
-	case MSG_ABORT_TAG:
-	case MSG_ABORT:
-	case MSG_CLEAR_QUEUE:
+	case ABORT_TASK:
+	case ABORT_TASK_SET:
+	case CLEAR_QUEUE_TASK_SET:
 	{
 		int tag;
 
@@ -3926,7 +3926,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 			break;
 		}
 		tag = SCB_LIST_NULL;
-		if (ahc->msgin_buf[0] == MSG_ABORT_TAG)
+		if (ahc->msgin_buf[0] == ABORT_TASK)
 			tag = ahc_inb(ahc, INITIATOR_TAG);
 		ahc_abort_scbs(ahc, devinfo->target, devinfo->channel,
 			       devinfo->lun, tag, ROLE_TARGET,
@@ -3950,7 +3950,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		break;
 	}
 #endif
-	case MSG_TERM_IO_PROC:
+	case TERMINATE_IO_PROC:
 	default:
 		reject = TRUE;
 		break;
@@ -3962,7 +3962,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		 */
 		ahc->msgout_index = 0;
 		ahc->msgout_len = 1;
-		ahc->msgout_buf[0] = MSG_MESSAGE_REJECT;
+		ahc->msgout_buf[0] = MESSAGE_REJECT;
 		done = MSGLOOP_MSGCOMPLETE;
 		response = TRUE;
 	}
@@ -4001,7 +4001,7 @@ ahc_handle_msg_reject(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 	/* Might be necessary */
 	last_msg = ahc_inb(ahc, LAST_MSG);
 
-	if (ahc_sent_msg(ahc, AHCMSG_EXT, MSG_EXT_PPR, /*full*/FALSE)) {
+	if (ahc_sent_msg(ahc, AHCMSG_EXT, EXTENDED_PPR, /*full*/FALSE)) {
 		/*
 		 * Target does not support the PPR message.
 		 * Attempt to negotiate SPI-2 style.
@@ -4020,7 +4020,7 @@ ahc_handle_msg_reject(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		ahc_build_transfer_msg(ahc, devinfo);
 		ahc->msgout_index = 0;
 		response = 1;
-	} else if (ahc_sent_msg(ahc, AHCMSG_EXT, MSG_EXT_WDTR, /*full*/FALSE)) {
+	} else if (ahc_sent_msg(ahc, AHCMSG_EXT, EXTENDED_WDTR, /*full*/FALSE)) {
 
 		/* note 8bit xfers */
 		printk("(%s:%c:%d:%d): refuses WIDE negotiation.  Using "
@@ -4045,7 +4045,7 @@ ahc_handle_msg_reject(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 			ahc->msgout_index = 0;
 			response = 1;
 		}
-	} else if (ahc_sent_msg(ahc, AHCMSG_EXT, MSG_EXT_SDTR, /*full*/FALSE)) {
+	} else if (ahc_sent_msg(ahc, AHCMSG_EXT, EXTENDED_SDTR, /*full*/FALSE)) {
 		/* note asynch xfers and clear flag */
 		ahc_set_syncrate(ahc, devinfo, /*syncrate*/NULL, /*period*/0,
 				 /*offset*/0, /*ppr_options*/0,
@@ -4055,13 +4055,13 @@ ahc_handle_msg_reject(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		       "Using asynchronous transfers\n",
 		       ahc_name(ahc), devinfo->channel,
 		       devinfo->target, devinfo->lun);
-	} else if ((scb->hscb->control & MSG_SIMPLE_TASK) != 0) {
+	} else if ((scb->hscb->control & SIMPLE_QUEUE_TAG) != 0) {
 		int tag_type;
 		int mask;
 
-		tag_type = (scb->hscb->control & MSG_SIMPLE_TASK);
+		tag_type = (scb->hscb->control & SIMPLE_QUEUE_TAG);
 
-		if (tag_type == MSG_SIMPLE_TASK) {
+		if (tag_type == SIMPLE_QUEUE_TAG) {
 			printk("(%s:%c:%d:%d): refuses tagged commands.  "
 			       "Performing non-tagged I/O\n", ahc_name(ahc),
 			       devinfo->channel, devinfo->target, devinfo->lun);
@@ -4071,7 +4071,7 @@ ahc_handle_msg_reject(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 			printk("(%s:%c:%d:%d): refuses %s tagged commands.  "
 			       "Performing simple queue tagged I/O only\n",
 			       ahc_name(ahc), devinfo->channel, devinfo->target,
-			       devinfo->lun, tag_type == MSG_ORDERED_TASK
+			       devinfo->lun, tag_type == ORDERED_QUEUE_TAG
 			       ? "ordered" : "head of queue");
 			ahc_set_tags(ahc, scb->io_ctx, devinfo, AHC_QUEUE_BASIC);
 			mask = ~0x03;
@@ -4083,9 +4083,9 @@ ahc_handle_msg_reject(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		 */
 		ahc_outb(ahc, SCB_CONTROL,
 			 ahc_inb(ahc, SCB_CONTROL) & mask);
-	 	scb->hscb->control &= mask;
+		scb->hscb->control &= mask;
 		ahc_set_transaction_tag(scb, /*enabled*/FALSE,
-					/*type*/MSG_SIMPLE_TASK);
+					/*type*/SIMPLE_QUEUE_TAG);
 		ahc_outb(ahc, MSG_OUT, MSG_IDENTIFYFLAG);
 		ahc_assert_atn(ahc);
 
@@ -4322,7 +4322,7 @@ ahc_handle_devreset(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 				continue;
 
 			ahc_queue_lstate_event(ahc, lstate, devinfo->our_scsiid,
-					       MSG_BUS_DEV_RESET, /*arg*/0);
+					       TARGET_RESET, /*arg*/0);
 			ahc_send_lstate_events(ahc, lstate);
 		}
 	}
@@ -5168,7 +5168,7 @@ ahc_chip_init(struct ahc_softc *ahc)
 	ahc_outb(ahc, DISCONNECTED_SCBH, SCB_LIST_NULL);
 
 	/* Message out buffer starts empty */
-	ahc_outb(ahc, MSG_OUT, MSG_NOOP);
+	ahc_outb(ahc, MSG_OUT, NOP);
 
 	/*
 	 * Setup the allowed SCSI Sequences based on operational mode.
@@ -6687,7 +6687,7 @@ ahc_queue_lstate_event(struct ahc_softc *ahc, struct ahc_tmode_lstate *lstate,
 			- (lstate->event_r_idx - lstate->event_w_idx);
 
 	if (event_type == EVENT_TYPE_BUS_RESET
-	 || event_type == MSG_BUS_DEV_RESET) {
+	 || event_type == TARGET_RESET) {
 		/*
 		 * Any earlier events are irrelevant, so reset our buffer.
 		 * This has the effect of allowing us to deal with reset

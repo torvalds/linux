@@ -116,6 +116,7 @@ static inline int scsi_is_wlun(u64 lun)
 #define CLEAR_TASK_SET      0x0e
 #define INITIATE_RECOVERY   0x0f            /* SCSI-II only */
 #define RELEASE_RECOVERY    0x10            /* SCSI-II only */
+#define TERMINATE_IO_PROC   0x11            /* SCSI-II only */
 #define CLEAR_ACA           0x16
 #define LOGICAL_UNIT_RESET  0x17
 #define SIMPLE_QUEUE_TAG    0x20
