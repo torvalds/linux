@@ -196,6 +196,7 @@
 
 &lradc {
 	vref-supply = <&reg_aldo3>;
+	wakeup-source;
 	status = "okay";
 
 	button-200 {
