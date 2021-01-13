@@ -9,7 +9,7 @@
 
 #include "habanalabs.h"
 
-static bool is_dram_va(struct hl_device *hdev, u64 virt_addr)
+bool hl_is_dram_va(struct hl_device *hdev, u64 virt_addr)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 
@@ -156,7 +156,7 @@ int hl_mmu_unmap_page(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 	if (!hdev->mmu_enable)
 		return 0;
 
-	is_dram_addr = is_dram_va(hdev, virt_addr);
+	is_dram_addr = hl_is_dram_va(hdev, virt_addr);
 
 	if (is_dram_addr)
 		mmu_prop = &prop->dmmu;
@@ -236,7 +236,7 @@ int hl_mmu_map_page(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 	if (!hdev->mmu_enable)
 		return 0;
 
-	is_dram_addr = is_dram_va(hdev, virt_addr);
+	is_dram_addr = hl_is_dram_va(hdev, virt_addr);
 
 	if (is_dram_addr)
 		mmu_prop = &prop->dmmu;
