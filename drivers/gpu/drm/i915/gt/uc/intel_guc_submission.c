@@ -67,58 +67,6 @@ static struct guc_stage_desc *__get_stage_desc(struct intel_guc *guc, u32 id)
 	return &base[id];
 }
 
-static int guc_workqueue_create(struct intel_guc *guc)
-{
-	return intel_guc_allocate_and_map_vma(guc, GUC_WQ_SIZE, &guc->workqueue,
-					      &guc->workqueue_vaddr);
-}
-
-static void guc_workqueue_destroy(struct intel_guc *guc)
-{
-	i915_vma_unpin_and_release(&guc->workqueue, I915_VMA_RELEASE_MAP);
-}
-
-/*
- * Initialise the process descriptor shared with the GuC firmware.
- */
-static int guc_proc_desc_create(struct intel_guc *guc)
-{
-	const u32 size = PAGE_ALIGN(sizeof(struct guc_process_desc));
-
-	return intel_guc_allocate_and_map_vma(guc, size, &guc->proc_desc,
-					      &guc->proc_desc_vaddr);
-}
-
-static void guc_proc_desc_destroy(struct intel_guc *guc)
-{
-	i915_vma_unpin_and_release(&guc->proc_desc, I915_VMA_RELEASE_MAP);
-}
-
-static void guc_proc_desc_init(struct intel_guc *guc)
-{
-	struct guc_process_desc *desc;
-
-	desc = memset(guc->proc_desc_vaddr, 0, sizeof(*desc));
-
-	/*
-	 * XXX: pDoorbell and WQVBaseAddress are pointers in process address
-	 * space for ring3 clients (set them as in mmap_ioctl) or kernel
-	 * space for kernel clients (map on demand instead? May make debug
-	 * easier to have it mapped).
-	 */
-	desc->wq_base_addr = 0;
-	desc->db_base_addr = 0;
-
-	desc->wq_size_bytes = GUC_WQ_SIZE;
-	desc->wq_status = WQ_STATUS_ACTIVE;
-	desc->priority = GUC_CLIENT_PRIORITY_KMD_NORMAL;
-}
-
-static void guc_proc_desc_fini(struct intel_guc *guc)
-{
-	memset(guc->proc_desc_vaddr, 0, sizeof(struct guc_process_desc));
-}
-
 static int guc_stage_desc_pool_create(struct intel_guc *guc)
 {
 	u32 size = PAGE_ALIGN(sizeof(struct guc_stage_desc) *
@@ -154,8 +102,6 @@ static void guc_stage_desc_init(struct intel_guc *guc)
 	desc->stage_id = 0;
 	desc->priority = GUC_CLIENT_PRIORITY_KMD_NORMAL;
 
-	desc->process_desc = intel_guc_ggtt_offset(guc, guc->proc_desc);
-	desc->wq_addr = intel_guc_ggtt_offset(guc, guc->workqueue);
 	desc->wq_size = GUC_WQ_SIZE;
 }
 
@@ -167,62 +113,9 @@ static void guc_stage_desc_fini(struct intel_guc *guc)
 	memset(desc, 0, sizeof(*desc));
 }
 
-/* Construct a Work Item and append it to the GuC's Work Queue */
-static void guc_wq_item_append(struct intel_guc *guc,
-			       u32 target_engine, u32 context_desc,
-			       u32 ring_tail, u32 fence_id)
-{
-	/* wqi_len is in DWords, and does not include the one-word header */
-	const size_t wqi_size = sizeof(struct guc_wq_item);
-	const u32 wqi_len = wqi_size / sizeof(u32) - 1;
-	struct guc_process_desc *desc = guc->proc_desc_vaddr;
-	struct guc_wq_item *wqi;
-	u32 wq_off;
-
-	lockdep_assert_held(&guc->wq_lock);
-
-	/* For now workqueue item is 4 DWs; workqueue buffer is 2 pages. So we
-	 * should not have the case where structure wqi is across page, neither
-	 * wrapped to the beginning. This simplifies the implementation below.
-	 *
-	 * XXX: if not the case, we need save data to a temp wqi and copy it to
-	 * workqueue buffer dw by dw.
-	 */
-	BUILD_BUG_ON(wqi_size != 16);
-
-	/* We expect the WQ to be active if we're appending items to it */
-	GEM_BUG_ON(desc->wq_status != WQ_STATUS_ACTIVE);
-
-	/* Free space is guaranteed. */
-	wq_off = READ_ONCE(desc->tail);
-	GEM_BUG_ON(CIRC_SPACE(wq_off, READ_ONCE(desc->head),
-			      GUC_WQ_SIZE) < wqi_size);
-	GEM_BUG_ON(wq_off & (wqi_size - 1));
-
-	wqi = guc->workqueue_vaddr + wq_off;
-
-	/* Now fill in the 4-word work queue item */
-	wqi->header = WQ_TYPE_INORDER |
-		      (wqi_len << WQ_LEN_SHIFT) |
-		      (target_engine << WQ_TARGET_SHIFT) |
-		      WQ_NO_WCFLUSH_WAIT;
-	wqi->context_desc = context_desc;
-	wqi->submit_element_info = ring_tail << WQ_RING_TAIL_SHIFT;
-	GEM_BUG_ON(ring_tail > WQ_RING_TAIL_MAX);
-	wqi->fence_id = fence_id;
-
-	/* Make the update visible to GuC */
-	WRITE_ONCE(desc->tail, (wq_off + wqi_size) & (GUC_WQ_SIZE - 1));
-}
-
 static void guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 {
-	struct intel_engine_cs *engine = rq->engine;
-	u32 ctx_desc = rq->context->lrc.ccid;
-	u32 ring_tail = intel_ring_set_tail(rq->ring, rq->tail) / sizeof(u64);
-
-	guc_wq_item_append(guc, engine->guc_id, ctx_desc,
-			   ring_tail, rq->fence.seqno);
+	/* Leaving stub as this function will be used in future patches */
 }
 
 /*
@@ -245,16 +138,12 @@ static void guc_submit(struct intel_engine_cs *engine,
 {
 	struct intel_guc *guc = &engine->gt->uc.guc;
 
-	spin_lock(&guc->wq_lock);
-
 	do {
 		struct i915_request *rq = *out++;
 
 		flush_ggtt_writes(rq->ring->vma);
 		guc_add_request(guc, rq);
 	} while (out != end);
-
-	spin_unlock(&guc->wq_lock);
 }
 
 static inline int rq_prio(const struct i915_request *rq)
@@ -389,19 +278,6 @@ static void guc_reset_prepare(struct intel_engine_cs *engine)
 	__tasklet_disable_sync_once(&execlists->tasklet);
 }
 
-static void
-cancel_port_requests(struct intel_engine_execlists * const execlists)
-{
-	struct i915_request * const *port, *rq;
-
-	/* Note we are only using the inflight and not the pending queue */
-
-	for (port = execlists->active; (rq = *port); port++)
-		schedule_out(rq);
-	execlists->active =
-		memset(execlists->inflight, 0, sizeof(execlists->inflight));
-}
-
 static void guc_reset_state(struct intel_context *ce,
 			    struct intel_engine_cs *engine,
 			    u32 head,
@@ -431,8 +307,6 @@ static void guc_reset_rewind(struct intel_engine_cs *engine, bool stalled)
 	unsigned long flags;
 
 	spin_lock_irqsave(&engine->active.lock, flags);
-
-	cancel_port_requests(execlists);
 
 	/* Push back any incomplete requests for replay after the reset. */
 	rq = execlists_unwind_incomplete_requests(execlists);
@@ -473,9 +347,6 @@ static void guc_reset_cancel(struct intel_engine_cs *engine)
 	 * it is irq state.)
 	 */
 	spin_lock_irqsave(&engine->active.lock, flags);
-
-	/* Cancel the requests on the HW and clear the ELSP tracker. */
-	cancel_port_requests(execlists);
 
 	/* Mark all executing requests as skipped. */
 	list_for_each_entry(rq, &engine->active.requests, sched.link) {
@@ -520,12 +391,6 @@ static void guc_reset_finish(struct intel_engine_cs *engine)
 }
 
 /*
- * Everything below here is concerned with setup & teardown, and is
- * therefore not part of the somewhat time-critical batch-submission
- * path of guc_submit() above.
- */
-
-/*
  * Set up the memory resources to be shared with the GuC (via the GGTT)
  * at firmware loading time.
  */
@@ -545,30 +410,12 @@ int intel_guc_submission_init(struct intel_guc *guc)
 	 */
 	GEM_BUG_ON(!guc->stage_desc_pool);
 
-	ret = guc_workqueue_create(guc);
-	if (ret)
-		goto err_pool;
-
-	ret = guc_proc_desc_create(guc);
-	if (ret)
-		goto err_workqueue;
-
-	spin_lock_init(&guc->wq_lock);
-
 	return 0;
-
-err_workqueue:
-	guc_workqueue_destroy(guc);
-err_pool:
-	guc_stage_desc_pool_destroy(guc);
-	return ret;
 }
 
 void intel_guc_submission_fini(struct intel_guc *guc)
 {
 	if (guc->stage_desc_pool) {
-		guc_proc_desc_destroy(guc);
-		guc_workqueue_destroy(guc);
 		guc_stage_desc_pool_destroy(guc);
 	}
 }
@@ -642,20 +489,6 @@ void intel_guc_submission_enable(struct intel_guc *guc)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	/*
-	 * We're using GuC work items for submitting work through GuC. Since
-	 * we're coalescing multiple requests from a single context into a
-	 * single work item prior to assigning it to execlist_port, we can
-	 * never have more work items than the total number of ports (for all
-	 * engines). The GuC firmware is controlling the HEAD of work queue,
-	 * and it is guaranteed that it will remove the work item from the
-	 * queue before our request is completed.
-	 */
-	BUILD_BUG_ON(ARRAY_SIZE(engine->execlists.inflight) *
-		     sizeof(struct guc_wq_item) *
-		     I915_NUM_ENGINES > GUC_WQ_SIZE);
-
-	guc_proc_desc_init(guc);
 	guc_stage_desc_init(guc);
 
 	/* Take over from manual control of ELSP (execlists) */
@@ -678,7 +511,6 @@ void intel_guc_submission_disable(struct intel_guc *guc)
 	guc_interrupts_release(gt);
 
 	guc_stage_desc_fini(guc);
-	guc_proc_desc_fini(guc);
 }
 
 static bool __guc_submission_selected(struct intel_guc *guc)
