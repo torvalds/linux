@@ -1372,12 +1372,16 @@ static bool dc_link_construct(struct dc_link *link,
 	struct dc_context *dc_ctx = init_params->ctx;
 	struct encoder_init_data enc_init_data = { 0 };
 	struct panel_cntl_init_data panel_cntl_init_data = { 0 };
-	struct integrated_info info = {{{ 0 }}};
+	struct integrated_info *info;
 	struct dc_bios *bios = init_params->dc->ctx->dc_bios;
 	const struct dc_vbios_funcs *bp_funcs = bios->funcs;
 	struct bp_disp_connector_caps_info disp_connect_caps_info = { 0 };
 
 	DC_LOGGER_INIT(dc_ctx->logger);
+
+	info = kzalloc(sizeof(info), GFP_KERNEL);
+	if (!info)
+		goto create_fail;
 
 	link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
 	link->irq_source_hpd_rx = DC_IRQ_SOURCE_INVALID;
@@ -1540,12 +1544,12 @@ static bool dc_link_construct(struct dc_link *link,
 	}
 
 	if (bios->integrated_info)
-		info = *bios->integrated_info;
+		memcpy(info, bios->integrated_info, sizeof(*info));
 
 	/* Look for channel mapping corresponding to connector and device tag */
 	for (i = 0; i < MAX_NUMBER_OF_EXT_DISPLAY_PATH; i++) {
 		struct external_display_path *path =
-			&info.ext_disp_conn_info.path[i];
+			&info->ext_disp_conn_info.path[i];
 
 		if (path->device_connector_id.enum_id == link->link_id.enum_id &&
 		    path->device_connector_id.id == link->link_id.id &&
@@ -1591,6 +1595,8 @@ create_fail:
 		dal_gpio_destroy_irq(&link->hpd_gpio);
 		link->hpd_gpio = NULL;
 	}
+
+	kfree(info);
 
 	return false;
 }
