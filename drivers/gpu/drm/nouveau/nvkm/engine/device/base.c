@@ -2657,6 +2657,7 @@ nv170_chipset = {
 	.name = "GA100",
 	.bios = nvkm_bios_new,
 	.devinit = ga100_devinit_new,
+	.mc = ga100_mc_new,
 	.pci = gp100_pci_new,
 };
 
@@ -2665,6 +2666,7 @@ nv172_chipset = {
 	.name = "GA102",
 	.bios = nvkm_bios_new,
 	.devinit = ga100_devinit_new,
+	.mc = ga100_mc_new,
 	.pci = gp100_pci_new,
 };
 
@@ -2673,6 +2675,7 @@ nv174_chipset = {
 	.name = "GA104",
 	.bios = nvkm_bios_new,
 	.devinit = ga100_devinit_new,
+	.mc = ga100_mc_new,
 	.pci = gp100_pci_new,
 };
 
