@@ -41,13 +41,6 @@
 #define pfn_pte(pfn, prot) __pte(((unsigned long long)(pfn) << PAGE_SHIFT) \
 				| pgprot_val(prot))
 
-#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_MODIFIED | \
-			 _CACHE_MASK)
-
-#define __swp_type(x)			(((x).val >> 4) & 0xff)
-#define __swp_offset(x)			((x).val >> 12)
-#define __swp_entry(type, offset)	((swp_entry_t) {((type) << 4) | \
-					((offset) << 12) })
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
 
@@ -61,8 +54,7 @@
  */
 #define _PAGE_BASE	(_PAGE_PRESENT | _PAGE_ACCESSED)
 
-#define PAGE_NONE	__pgprot(_PAGE_BASE | \
-				_CACHE_CACHED)
+#define PAGE_NONE	__pgprot(_PAGE_PROT_NONE)
 #define PAGE_READ	__pgprot(_PAGE_BASE | _PAGE_READ | \
 				_CACHE_CACHED)
 #define PAGE_WRITE	__pgprot(_PAGE_BASE | _PAGE_READ | _PAGE_WRITE | \
@@ -78,6 +70,13 @@
 				_PAGE_WRITE | _PAGE_DIRTY | _PAGE_MODIFIED | \
 				_PAGE_GLOBAL | \
 				_CACHE_UNCACHED | _PAGE_SO)
+
+#define _PAGE_CHG_MASK	(~(unsigned long) \
+				(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
+				_CACHE_MASK | _PAGE_GLOBAL))
+
+#define MAX_SWAPFILES_CHECK() \
+		BUILD_BUG_ON(MAX_SWAPFILES_SHIFT != 5)
 
 #define __P000	PAGE_NONE
 #define __P001	PAGE_READ

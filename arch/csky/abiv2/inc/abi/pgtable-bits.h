@@ -24,4 +24,26 @@
 #define _CACHE_CACHED		(_PAGE_CACHE | _PAGE_BUF)
 #define _CACHE_UNCACHED		(0)
 
+#define _PAGE_PROT_NONE		_PAGE_WRITE
+
+/*
+ * Encode and decode a swap entry
+ *
+ * Format of swap PTE:
+ *     bit          0:    _PAGE_GLOBAL (zero)
+ *     bit          1:    _PAGE_VALID (zero)
+ *     bit      2 - 6:    swap type
+ *     bit      7 - 8:    swap offset[0 - 1]
+ *     bit          9:    _PAGE_WRITE (zero)
+ *     bit         10:    _PAGE_PRESENT (zero)
+ *     bit    11 - 31:    swap offset[2 - 22]
+ */
+#define __swp_type(x)			(((x).val >> 2) & 0x1f)
+#define __swp_offset(x)			((((x).val >> 7) & 0x3) | \
+					(((x).val >> 9) & 0x7ffffc))
+#define __swp_entry(type, offset)	((swp_entry_t) { \
+					((type & 0x1f) << 2) | \
+					((offset & 0x3) << 7) | \
+					((offset & 0x7ffffc) << 9)})
+
 #endif /* __ASM_CSKY_PGTABLE_BITS_H */
