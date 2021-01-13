@@ -1084,8 +1084,8 @@ static u64 svm_write_l1_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 	if (is_guest_mode(vcpu)) {
 		/* Write L1's TSC offset.  */
 		g_tsc_offset = svm->vmcb->control.tsc_offset -
-			       svm->nested.hsave->control.tsc_offset;
-		svm->nested.hsave->control.tsc_offset = offset;
+			       svm->vmcb01.ptr->control.tsc_offset;
+		svm->vmcb01.ptr->control.tsc_offset = offset;
 	}
 
 	trace_kvm_write_tsc_offset(vcpu->vcpu_id,
@@ -1305,10 +1305,31 @@ static void svm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 		avic_update_vapic_bar(svm, APIC_DEFAULT_PHYS_BASE);
 }
 
+void svm_switch_vmcb(struct vcpu_svm *svm, struct kvm_vmcb_info *target_vmcb)
+{
+	svm->current_vmcb = target_vmcb;
+	svm->vmcb = target_vmcb->ptr;
+	svm->vmcb_pa = target_vmcb->pa;
+
+	/*
+	* Workaround: we don't yet track the ASID generation
+	* that was active the last time target_vmcb was run.
+	*/
+
+	svm->asid_generation = 0;
+
+	/*
+	* Workaround: we don't yet track the physical CPU that
+	* target_vmcb has run on.
+	*/
+
+	vmcb_mark_all_dirty(svm->vmcb);
+}
+
 static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm;
-	struct page *vmcb_page;
+	struct page *vmcb01_page;
 	struct page *vmsa_page = NULL;
 	int err;
 
@@ -1316,8 +1337,8 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 	svm = to_svm(vcpu);
 
 	err = -ENOMEM;
-	vmcb_page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
-	if (!vmcb_page)
+	vmcb01_page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
+	if (!vmcb01_page)
 		goto out;
 
 	if (sev_es_guest(svm->vcpu.kvm)) {
@@ -1356,14 +1377,16 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 
 	svm_vcpu_init_msrpm(vcpu, svm->msrpm);
 
-	svm->vmcb = page_address(vmcb_page);
-	svm->vmcb_pa = __sme_set(page_to_pfn(vmcb_page) << PAGE_SHIFT);
+	svm->vmcb01.ptr = page_address(vmcb01_page);
+	svm->vmcb01.pa = __sme_set(page_to_pfn(vmcb01_page) << PAGE_SHIFT);
 
 	if (vmsa_page)
 		svm->vmsa = page_address(vmsa_page);
 
 	svm->asid_generation = 0;
 	svm->guest_state_loaded = false;
+
+	svm_switch_vmcb(svm, &svm->vmcb01);
 	init_vmcb(svm);
 
 	svm_init_osvw(vcpu);
@@ -1379,7 +1402,7 @@ error_free_vmsa_page:
 	if (vmsa_page)
 		__free_page(vmsa_page);
 error_free_vmcb_page:
-	__free_page(vmcb_page);
+	__free_page(vmcb01_page);
 out:
 	return err;
 }
@@ -1407,7 +1430,7 @@ static void svm_free_vcpu(struct kvm_vcpu *vcpu)
 
 	sev_free_vcpu(vcpu);
 
-	__free_page(pfn_to_page(__sme_clr(svm->vmcb_pa) >> PAGE_SHIFT));
+	__free_page(pfn_to_page(__sme_clr(svm->vmcb01.pa) >> PAGE_SHIFT));
 	__free_pages(virt_to_page(svm->msrpm), MSRPM_ALLOC_ORDER);
 }
 
@@ -1564,7 +1587,7 @@ static void svm_clear_vintr(struct vcpu_svm *svm)
 	/* Drop int_ctl fields related to VINTR injection.  */
 	svm->vmcb->control.int_ctl &= mask;
 	if (is_guest_mode(&svm->vcpu)) {
-		svm->nested.hsave->control.int_ctl &= mask;
+		svm->vmcb01.ptr->control.int_ctl &= mask;
 
 		WARN_ON((svm->vmcb->control.int_ctl & V_TPR_MASK) !=
 			(svm->nested.ctl.int_ctl & V_TPR_MASK));
@@ -2861,7 +2884,9 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 		if (!kvm_mtrr_valid(vcpu, MSR_IA32_CR_PAT, data))
 			return 1;
 		vcpu->arch.pat = data;
-		svm->vmcb->save.g_pat = data;
+		svm->vmcb01.ptr->save.g_pat = data;
+		if (is_guest_mode(vcpu))
+			nested_vmcb02_compute_g_pat(svm);
 		vmcb_mark_dirty(svm->vmcb, VMCB_NPT);
 		break;
 	case MSR_IA32_SPEC_CTRL:
@@ -3536,7 +3561,7 @@ bool svm_interrupt_blocked(struct kvm_vcpu *vcpu)
 	} else if (is_guest_mode(vcpu)) {
 		/* As long as interrupts are being delivered...  */
 		if ((svm->nested.ctl.int_ctl & V_INTR_MASKING_MASK)
-		    ? !(svm->nested.hsave->save.rflags & X86_EFLAGS_IF)
+		    ? !(svm->vmcb01.ptr->save.rflags & X86_EFLAGS_IF)
 		    : !(kvm_get_rflags(vcpu) & X86_EFLAGS_IF))
 			return true;
 

@@ -81,8 +81,13 @@ struct kvm_svm {
 
 struct kvm_vcpu;
 
+struct kvm_vmcb_info {
+	struct vmcb *ptr;
+	unsigned long pa;
+};
+
 struct svm_nested_state {
-	struct vmcb *hsave;
+	struct kvm_vmcb_info vmcb02;
 	u64 hsave_msr;
 	u64 vm_cr_msr;
 	u64 vmcb12_gpa;
@@ -104,6 +109,8 @@ struct vcpu_svm {
 	struct kvm_vcpu vcpu;
 	struct vmcb *vmcb;
 	unsigned long vmcb_pa;
+	struct kvm_vmcb_info vmcb01;
+	struct kvm_vmcb_info *current_vmcb;
 	struct svm_cpu_data *svm_data;
 	u32 asid;
 	uint64_t asid_generation;
@@ -244,14 +251,6 @@ static inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
 	return container_of(vcpu, struct vcpu_svm, vcpu);
 }
 
-static inline struct vmcb *get_host_vmcb(struct vcpu_svm *svm)
-{
-	if (is_guest_mode(&svm->vcpu))
-		return svm->nested.hsave;
-	else
-		return svm->vmcb;
-}
-
 static inline void vmcb_set_intercept(struct vmcb_control_area *control, u32 bit)
 {
 	WARN_ON_ONCE(bit >= 32 * MAX_INTERCEPT);
@@ -272,7 +271,7 @@ static inline bool vmcb_is_intercept(struct vmcb_control_area *control, u32 bit)
 
 static inline void set_dr_intercepts(struct vcpu_svm *svm)
 {
-	struct vmcb *vmcb = get_host_vmcb(svm);
+	struct vmcb *vmcb = svm->vmcb01.ptr;
 
 	if (!sev_es_guest(svm->vcpu.kvm)) {
 		vmcb_set_intercept(&vmcb->control, INTERCEPT_DR0_READ);
@@ -299,7 +298,7 @@ static inline void set_dr_intercepts(struct vcpu_svm *svm)
 
 static inline void clr_dr_intercepts(struct vcpu_svm *svm)
 {
-	struct vmcb *vmcb = get_host_vmcb(svm);
+	struct vmcb *vmcb = svm->vmcb01.ptr;
 
 	vmcb->control.intercepts[INTERCEPT_DR] = 0;
 
@@ -314,7 +313,7 @@ static inline void clr_dr_intercepts(struct vcpu_svm *svm)
 
 static inline void set_exception_intercept(struct vcpu_svm *svm, u32 bit)
 {
-	struct vmcb *vmcb = get_host_vmcb(svm);
+	struct vmcb *vmcb = svm->vmcb01.ptr;
 
 	WARN_ON_ONCE(bit >= 32);
 	vmcb_set_intercept(&vmcb->control, INTERCEPT_EXCEPTION_OFFSET + bit);
@@ -324,7 +323,7 @@ static inline void set_exception_intercept(struct vcpu_svm *svm, u32 bit)
 
 static inline void clr_exception_intercept(struct vcpu_svm *svm, u32 bit)
 {
-	struct vmcb *vmcb = get_host_vmcb(svm);
+	struct vmcb *vmcb = svm->vmcb01.ptr;
 
 	WARN_ON_ONCE(bit >= 32);
 	vmcb_clr_intercept(&vmcb->control, INTERCEPT_EXCEPTION_OFFSET + bit);
@@ -334,7 +333,7 @@ static inline void clr_exception_intercept(struct vcpu_svm *svm, u32 bit)
 
 static inline void svm_set_intercept(struct vcpu_svm *svm, int bit)
 {
-	struct vmcb *vmcb = get_host_vmcb(svm);
+	struct vmcb *vmcb = svm->vmcb01.ptr;
 
 	vmcb_set_intercept(&vmcb->control, bit);
 
@@ -343,7 +342,7 @@ static inline void svm_set_intercept(struct vcpu_svm *svm, int bit)
 
 static inline void svm_clr_intercept(struct vcpu_svm *svm, int bit)
 {
-	struct vmcb *vmcb = get_host_vmcb(svm);
+	struct vmcb *vmcb = svm->vmcb01.ptr;
 
 	vmcb_clr_intercept(&vmcb->control, bit);
 
@@ -451,6 +450,8 @@ int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 			       bool has_error_code, u32 error_code);
 int nested_svm_exit_special(struct vcpu_svm *svm);
 void sync_nested_vmcb_control(struct vcpu_svm *svm);
+void nested_vmcb02_compute_g_pat(struct vcpu_svm *svm);
+void svm_switch_vmcb(struct vcpu_svm *svm, struct kvm_vmcb_info *target_vmcb);
 
 extern struct kvm_x86_nested_ops svm_nested_ops;
 
