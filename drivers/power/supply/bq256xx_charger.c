@@ -135,7 +135,7 @@
 #define BQ256XX_NTC_FAULT_COLD		(BIT(2) | BIT(0))
 #define BQ256XX_NTC_FAULT_HOT		(BIT(2) | BIT(1))
 
-#define BQ256XX_NUM_WD_VAL	8
+#define BQ256XX_NUM_WD_VAL	4
 #define BQ256XX_WATCHDOG_MASK	GENMASK(5, 4)
 #define BQ256XX_WATCHDOG_MAX	1600000
 #define BQ256XX_WATCHDOG_DIS	0
@@ -1508,6 +1508,10 @@ static int bq256xx_hw_init(struct bq256xx_device *bq)
 	int i;
 
 	for (i = 0; i < BQ256XX_NUM_WD_VAL; i++) {
+		if (bq->watchdog_timer == bq256xx_watchdog_time[i]) {
+			wd_reg_val = i;
+			break;
+		}
 		if (bq->watchdog_timer > bq256xx_watchdog_time[i] &&
 		    bq->watchdog_timer < bq256xx_watchdog_time[i + 1])
 			wd_reg_val = i;
