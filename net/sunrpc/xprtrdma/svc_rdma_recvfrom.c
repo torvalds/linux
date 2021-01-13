@@ -227,11 +227,6 @@ out_empty:
 void svc_rdma_recv_ctxt_put(struct svcxprt_rdma *rdma,
 			    struct svc_rdma_recv_ctxt *ctxt)
 {
-	unsigned int i;
-
-	for (i = 0; i < ctxt->rc_page_count; i++)
-		put_page(ctxt->rc_pages[i]);
-
 	pcl_free(&ctxt->rc_call_pcl);
 	pcl_free(&ctxt->rc_read_pcl);
 	pcl_free(&ctxt->rc_write_pcl);

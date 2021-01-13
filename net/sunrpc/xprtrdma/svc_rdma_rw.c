@@ -1081,18 +1081,6 @@ int svc_rdma_process_read_list(struct svcxprt_rdma *rdma,
 	struct svc_rdma_chunk_ctxt *cc;
 	int ret;
 
-	/* The request (with page list) is constructed in
-	 * head->rc_arg. Pages involved with RDMA Read I/O are
-	 * transferred there.
-	 */
-	head->rc_arg.head[0] = rqstp->rq_arg.head[0];
-	head->rc_arg.tail[0] = rqstp->rq_arg.tail[0];
-	head->rc_arg.pages = head->rc_pages;
-	head->rc_arg.page_base = 0;
-	head->rc_arg.page_len = 0;
-	head->rc_arg.len = rqstp->rq_arg.len;
-	head->rc_arg.buflen = rqstp->rq_arg.buflen;
-
 	info = svc_rdma_read_info_alloc(rdma);
 	if (!info)
 		return -ENOMEM;

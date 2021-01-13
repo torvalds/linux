@@ -134,7 +134,6 @@ struct svc_rdma_recv_ctxt {
 	struct rpc_rdma_cid	rc_cid;
 	struct ib_sge		rc_recv_sge;
 	void			*rc_recv_buf;
-	struct xdr_buf		rc_arg;
 	struct xdr_stream	rc_stream;
 	bool			rc_temp;
 	u32			rc_byte_len;
@@ -148,8 +147,6 @@ struct svc_rdma_recv_ctxt {
 	struct svc_rdma_chunk	*rc_cur_result_payload;
 	struct svc_rdma_pcl	rc_write_pcl;
 	struct svc_rdma_pcl	rc_reply_pcl;
-
-	struct page		*rc_pages[RPCSVC_MAXPAGES];
 };
 
 struct svc_rdma_send_ctxt {
