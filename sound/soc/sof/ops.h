@@ -37,6 +37,14 @@ static inline int snd_sof_remove(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+static inline int snd_sof_shutdown(struct snd_sof_dev *sdev)
+{
+	if (sof_ops(sdev)->shutdown)
+		return sof_ops(sdev)->shutdown(sdev);
+
+	return 0;
+}
+
 /* control */
 
 /*
