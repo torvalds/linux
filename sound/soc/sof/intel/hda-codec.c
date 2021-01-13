@@ -156,7 +156,8 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address,
 		if (!hdev->bus->audio_component) {
 			dev_dbg(sdev->dev,
 				"iDisp hw present but no driver\n");
-			goto error;
+			ret = -ENOENT;
+			goto out;
 		}
 		hda_priv->need_display_power = true;
 	}
@@ -173,24 +174,23 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address,
 		 * other return codes without modification
 		 */
 		if (ret == 0)
-			goto error;
+			ret = -ENOENT;
 	}
 
-	return ret;
-
-error:
-	snd_hdac_ext_bus_device_exit(hdev);
-	return -ENOENT;
-
+out:
+	if (ret < 0) {
+		snd_hdac_device_unregister(hdev);
+		put_device(&hdev->dev);
+	}
 #else
 	hdev = devm_kzalloc(sdev->dev, sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
 		return -ENOMEM;
 
 	ret = snd_hdac_ext_bus_device_init(&hbus->core, address, hdev, HDA_DEV_ASOC);
+#endif
 
 	return ret;
-#endif
 }
 
 /* Codec initialization */
