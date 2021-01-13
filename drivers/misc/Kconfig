@@ -485,6 +485,12 @@ config NPCM7XX_PCI_MBOX
 	  Expose the NPCM750/730/715/705 PCI MBOX registers found on
 	  Nuvoton SOCs to userspace.
 
+config NPCM7XX_JTAG_MASTER
+	tristate "NPCM7xx JTAG Master driver"
+	depends on (ARCH_NPCM7XX || COMPILE_TEST)
+	help
+	  Control PSPI/GPIO to transmit jtag signals to support jtag master function.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
