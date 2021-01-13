@@ -8911,7 +8911,7 @@ ahd_handle_scsi_status(struct ahd_softc *ahd, struct scb *scb)
 					break;
 				}
 			}
-			if (siu->status == SCSI_STATUS_OK)
+			if (siu->status == SAM_STAT_GOOD)
 				ahd_set_transaction_status(scb,
 							   CAM_REQ_CMP_ERR);
 		}
@@ -8925,8 +8925,8 @@ ahd_handle_scsi_status(struct ahd_softc *ahd, struct scb *scb)
 		ahd_done(ahd, scb);
 		break;
 	}
-	case SCSI_STATUS_CMD_TERMINATED:
-	case SCSI_STATUS_CHECK_COND:
+	case SAM_STAT_COMMAND_TERMINATED:
+	case SAM_STAT_CHECK_CONDITION:
 	{
 		struct ahd_devinfo devinfo;
 		struct ahd_dma_seg *sg;
@@ -9016,7 +9016,7 @@ ahd_handle_scsi_status(struct ahd_softc *ahd, struct scb *scb)
 		ahd_queue_scb(ahd, scb);
 		break;
 	}
-	case SCSI_STATUS_OK:
+	case SAM_STAT_GOOD:
 		printk("%s: Interrupted for status of 0???\n",
 		       ahd_name(ahd));
 		fallthrough;
