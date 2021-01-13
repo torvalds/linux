@@ -627,25 +627,38 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	security_status = RREG32(cpu_security_boot_status_reg);
 
 	/* We read security status multiple times during boot:
-	 * 1. preboot - we check if fw security feature is supported
-	 * 2. boot cpu - we get boot cpu security status
-	 * 3. FW application - we get FW application security status
+	 * 1. preboot - a. Check whether the security status bits are valid
+	 *              b. Check whether fw security is enabled
+	 *              c. Check whether hard reset is done by preboot
+	 * 2. boot cpu - a. Fetch boot cpu security status
+	 *               b. Check whether hard reset is done by boot cpu
+	 * 3. FW application - a. Fetch fw application security status
+	 *                     b. Check whether hard reset is done by fw app
 	 *
 	 * Preboot:
 	 * Check security status bit (CPU_BOOT_DEV_STS0_ENABLED), if it is set
 	 * check security enabled bit (CPU_BOOT_DEV_STS0_SECURITY_EN)
 	 */
 	if (security_status & CPU_BOOT_DEV_STS0_ENABLED) {
-		hdev->asic_prop.fw_security_status_valid = 1;
-		prop->fw_security_disabled =
-			!(security_status & CPU_BOOT_DEV_STS0_SECURITY_EN);
+		prop->fw_security_status_valid = 1;
+
+		if (security_status & CPU_BOOT_DEV_STS0_SECURITY_EN)
+			prop->fw_security_disabled = false;
+		else
+			prop->fw_security_disabled = true;
+
+		if (security_status & CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
+			prop->hard_reset_done_by_fw = true;
 	} else {
-		hdev->asic_prop.fw_security_status_valid = 0;
+		prop->fw_security_status_valid = 0;
 		prop->fw_security_disabled = true;
 	}
 
+	dev_dbg(hdev->dev, "Firmware preboot hard-reset is %s\n",
+			prop->hard_reset_done_by_fw ? "enabled" : "disabled");
+
 	dev_info(hdev->dev, "firmware-level security is %s\n",
-		prop->fw_security_disabled ? "disabled" : "enabled");
+			prop->fw_security_disabled ? "disabled" : "enabled");
 
 	return 0;
 }
@@ -655,6 +668,7 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 			u32 cpu_security_boot_status_reg, u32 boot_err0_reg,
 			bool skip_bmc, u32 cpu_timeout, u32 boot_fit_timeout)
 {
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u32 status;
 	int rc;
 
@@ -723,10 +737,21 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	/* Read U-Boot version now in case we will later fail */
 	hdev->asic_funcs->read_device_fw_version(hdev, FW_COMP_UBOOT);
 
+	/* Clear reset status since we need to read it again from boot CPU */
+	prop->hard_reset_done_by_fw = false;
+
 	/* Read boot_cpu security bits */
-	if (hdev->asic_prop.fw_security_status_valid)
-		hdev->asic_prop.fw_boot_cpu_security_map =
+	if (prop->fw_security_status_valid) {
+		prop->fw_boot_cpu_security_map =
 				RREG32(cpu_security_boot_status_reg);
+
+		if (prop->fw_boot_cpu_security_map &
+				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
+			prop->hard_reset_done_by_fw = true;
+	}
+
+	dev_dbg(hdev->dev, "Firmware boot CPU hard-reset is %s\n",
+			prop->hard_reset_done_by_fw ? "enabled" : "disabled");
 
 	if (rc) {
 		detect_cpu_boot_status(hdev, status);
@@ -796,18 +821,21 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		goto out;
 	}
 
+	/* Clear reset status since we need to read again from app */
+	prop->hard_reset_done_by_fw = false;
+
 	/* Read FW application security bits */
-	if (hdev->asic_prop.fw_security_status_valid) {
-		hdev->asic_prop.fw_app_security_map =
+	if (prop->fw_security_status_valid) {
+		prop->fw_app_security_map =
 				RREG32(cpu_security_boot_status_reg);
 
-		if (hdev->asic_prop.fw_app_security_map &
+		if (prop->fw_app_security_map &
 				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
-			hdev->asic_prop.hard_reset_done_by_fw = true;
+			prop->hard_reset_done_by_fw = true;
 	}
 
-	dev_dbg(hdev->dev, "Firmware hard-reset is %s\n",
-		hdev->asic_prop.hard_reset_done_by_fw ? "enabled" : "disabled");
+	dev_dbg(hdev->dev, "Firmware application CPU hard-reset is %s\n",
+			prop->hard_reset_done_by_fw ? "enabled" : "disabled");
 
 	dev_info(hdev->dev, "Successfully loaded firmware to device\n");
 
