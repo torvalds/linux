@@ -9390,7 +9390,8 @@ static struct btrfs_delalloc_work *btrfs_alloc_delalloc_work(struct inode *inode
  * some fairly slow code that needs optimization. This walks the list
  * of all the inodes with pending delalloc and forces them to disk.
  */
-static int start_delalloc_inodes(struct btrfs_root *root, u64 *nr, bool snapshot)
+static int start_delalloc_inodes(struct btrfs_root *root, u64 *nr, bool snapshot,
+				 bool in_reclaim_context)
 {
 	struct btrfs_inode *binode;
 	struct inode *inode;
@@ -9411,6 +9412,11 @@ static int start_delalloc_inodes(struct btrfs_root *root, u64 *nr, bool snapshot
 
 		list_move_tail(&binode->delalloc_inodes,
 			       &root->delalloc_inodes);
+
+		if (in_reclaim_context &&
+		    test_bit(BTRFS_INODE_NO_DELALLOC_FLUSH, &binode->runtime_flags))
+			continue;
+
 		inode = igrab(&binode->vfs_inode);
 		if (!inode) {
 			cond_resched_lock(&root->delalloc_lock);
@@ -9464,10 +9470,11 @@ int btrfs_start_delalloc_snapshot(struct btrfs_root *root)
 	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state))
 		return -EROFS;
 
-	return start_delalloc_inodes(root, &nr, true);
+	return start_delalloc_inodes(root, &nr, true, false);
 }
 
-int btrfs_start_delalloc_roots(struct btrfs_fs_info *fs_info, u64 nr)
+int btrfs_start_delalloc_roots(struct btrfs_fs_info *fs_info, u64 nr,
+			       bool in_reclaim_context)
 {
 	struct btrfs_root *root;
 	struct list_head splice;
@@ -9490,7 +9497,7 @@ int btrfs_start_delalloc_roots(struct btrfs_fs_info *fs_info, u64 nr)
 			       &fs_info->delalloc_roots);
 		spin_unlock(&fs_info->delalloc_root_lock);
 
-		ret = start_delalloc_inodes(root, &nr, false);
+		ret = start_delalloc_inodes(root, &nr, false, in_reclaim_context);
 		btrfs_put_root(root);
 		if (ret < 0)
 			goto out;

@@ -2372,7 +2372,7 @@ static void sienna_cichlid_fill_i2c_req(SwI2cRequest_t  *req, bool write,
 {
 	int i;
 
-	req->I2CcontrollerPort = 0;
+	req->I2CcontrollerPort = 1;
 	req->I2CSpeed = 2;
 	req->SlaveAddress = address;
 	req->NumCmds = numbytes;

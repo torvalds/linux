@@ -23,7 +23,7 @@ Here is what the fields mean:
 
 - ``name``
    is an identifier string. A new /proc file will be created with this
-   ``name below /proc/sys/fs/binfmt_misc``; cannot contain slashes ``/`` for
+   name below ``/proc/sys/fs/binfmt_misc``; cannot contain slashes ``/`` for
    obvious reasons.
 - ``type``
    is the type of recognition. Give ``M`` for magic and ``E`` for extension.
@@ -83,7 +83,7 @@ Here is what the fields mean:
       ``F`` - fix binary
             The usual behaviour of binfmt_misc is to spawn the
 	    binary lazily when the misc format file is invoked.  However,
-	    this doesn``t work very well in the face of mount namespaces and
+	    this doesn't work very well in the face of mount namespaces and
 	    changeroots, so the ``F`` mode opens the binary as soon as the
 	    emulation is installed and uses the opened image to spawn the
 	    emulator, meaning it is always available once installed,
