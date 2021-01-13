@@ -6,12 +6,15 @@
 #include <linux/circ_buf.h>
 
 #include "gem/i915_gem_context.h"
+#include "gt/gen8_engine_cs.h"
+#include "gt/intel_breadcrumbs.h"
 #include "gt/intel_context.h"
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_execlists_submission.h" /* XXX */
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_lrc.h"
+#include "gt/intel_mocs.h"
 #include "gt/intel_ring.h"
 
 #include "intel_guc_submission.h"
@@ -54,6 +57,8 @@
  * See guc_add_request()
  *
  */
+
+#define GUC_REQUEST_SIZE 64 /* bytes */
 
 static inline struct i915_priolist *to_priolist(struct rb_node *rb)
 {
@@ -446,6 +451,134 @@ static void guc_interrupts_release(struct intel_gt *gt)
 	intel_uncore_rmw(uncore, GEN11_VCS_VECS_INTR_ENABLE, 0, dmask);
 }
 
+static int guc_context_alloc(struct intel_context *ce)
+{
+	return lrc_alloc(ce, ce->engine);
+}
+
+static int guc_context_pre_pin(struct intel_context *ce,
+			       struct i915_gem_ww_ctx *ww,
+			       void **vaddr)
+{
+	return lrc_pre_pin(ce, ce->engine, ww, vaddr);
+}
+
+static int guc_context_pin(struct intel_context *ce, void *vaddr)
+{
+	return lrc_pin(ce, ce->engine, vaddr);
+}
+
+static const struct intel_context_ops guc_context_ops = {
+	.alloc = guc_context_alloc,
+
+	.pre_pin = guc_context_pre_pin,
+	.pin = guc_context_pin,
+	.unpin = lrc_unpin,
+	.post_unpin = lrc_post_unpin,
+
+	.enter = intel_context_enter_engine,
+	.exit = intel_context_exit_engine,
+
+	.reset = lrc_reset,
+	.destroy = lrc_destroy,
+};
+
+static int guc_request_alloc(struct i915_request *request)
+{
+	int ret;
+
+	GEM_BUG_ON(!intel_context_is_pinned(request->context));
+
+	/*
+	 * Flush enough space to reduce the likelihood of waiting after
+	 * we start building the request - in which case we will just
+	 * have to repeat work.
+	 */
+	request->reserved_space += GUC_REQUEST_SIZE;
+
+	/*
+	 * Note that after this point, we have committed to using
+	 * this request as it is being used to both track the
+	 * state of engine initialisation and liveness of the
+	 * golden renderstate above. Think twice before you try
+	 * to cancel/unwind this request now.
+	 */
+
+	/* Unconditionally invalidate GPU caches and TLBs. */
+	ret = request->engine->emit_flush(request, EMIT_INVALIDATE);
+	if (ret)
+		return ret;
+
+	request->reserved_space -= GUC_REQUEST_SIZE;
+	return 0;
+}
+
+static void sanitize_hwsp(struct intel_engine_cs *engine)
+{
+	struct intel_timeline *tl;
+
+	list_for_each_entry(tl, &engine->status_page.timelines, engine_link)
+		intel_timeline_reset_seqno(tl);
+}
+
+static void guc_sanitize(struct intel_engine_cs *engine)
+{
+	/*
+	 * Poison residual state on resume, in case the suspend didn't!
+	 *
+	 * We have to assume that across suspend/resume (or other loss
+	 * of control) that the contents of our pinned buffers has been
+	 * lost, replaced by garbage. Since this doesn't always happen,
+	 * let's poison such state so that we more quickly spot when
+	 * we falsely assume it has been preserved.
+	 */
+	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+		memset(engine->status_page.addr, POISON_INUSE, PAGE_SIZE);
+
+	/*
+	 * The kernel_context HWSP is stored in the status_page. As above,
+	 * that may be lost on resume/initialisation, and so we need to
+	 * reset the value in the HWSP.
+	 */
+	sanitize_hwsp(engine);
+
+	/* And scrub the dirty cachelines for the HWSP */
+	clflush_cache_range(engine->status_page.addr, PAGE_SIZE);
+}
+
+static void setup_hwsp(struct intel_engine_cs *engine)
+{
+	intel_engine_set_hwsp_writemask(engine, ~0u); /* HWSTAM */
+
+	ENGINE_WRITE_FW(engine,
+			RING_HWS_PGA,
+			i915_ggtt_offset(engine->status_page.vma));
+}
+
+static void start_engine(struct intel_engine_cs *engine)
+{
+	ENGINE_WRITE_FW(engine,
+			RING_MODE_GEN7,
+			_MASKED_BIT_ENABLE(GEN11_GFX_DISABLE_LEGACY_MODE));
+
+	ENGINE_WRITE_FW(engine, RING_MI_MODE, _MASKED_BIT_DISABLE(STOP_RING));
+	ENGINE_POSTING_READ(engine, RING_MI_MODE);
+}
+
+static int guc_resume(struct intel_engine_cs *engine)
+{
+	assert_forcewakes_active(engine->uncore, FORCEWAKE_ALL);
+
+	intel_mocs_init_engine(engine);
+
+	intel_breadcrumbs_reset(engine->breadcrumbs);
+
+	setup_hwsp(engine);
+	start_engine(engine);
+
+	return 0;
+}
+
 static void guc_set_default_submission(struct intel_engine_cs *engine)
 {
 	/*
@@ -483,21 +616,92 @@ static void guc_set_default_submission(struct intel_engine_cs *engine)
 	GEM_BUG_ON(engine->irq_enable || engine->irq_disable);
 }
 
+static void guc_release(struct intel_engine_cs *engine)
+{
+	engine->sanitize = NULL; /* no longer in control, nothing to sanitize */
+
+	tasklet_kill(&engine->execlists.tasklet);
+
+	intel_engine_cleanup_common(engine);
+	lrc_fini_wa_ctx(engine);
+}
+
+static void guc_default_vfuncs(struct intel_engine_cs *engine)
+{
+	/* Default vfuncs which can be overridden by each engine. */
+
+	engine->resume = guc_resume;
+
+	engine->cops = &guc_context_ops;
+	engine->request_alloc = guc_request_alloc;
+
+	engine->emit_flush = gen8_emit_flush_xcs;
+	engine->emit_init_breadcrumb = gen8_emit_init_breadcrumb;
+	engine->emit_fini_breadcrumb = gen8_emit_fini_breadcrumb_xcs;
+	if (INTEL_GEN(engine->i915) >= 12) {
+		engine->emit_fini_breadcrumb = gen12_emit_fini_breadcrumb_xcs;
+		engine->emit_flush = gen12_emit_flush_xcs;
+	}
+	engine->set_default_submission = guc_set_default_submission;
+}
+
+static void rcs_submission_override(struct intel_engine_cs *engine)
+{
+	switch (INTEL_GEN(engine->i915)) {
+	case 12:
+		engine->emit_flush = gen12_emit_flush_rcs;
+		engine->emit_fini_breadcrumb = gen12_emit_fini_breadcrumb_rcs;
+		break;
+	case 11:
+		engine->emit_flush = gen11_emit_flush_rcs;
+		engine->emit_fini_breadcrumb = gen11_emit_fini_breadcrumb_rcs;
+		break;
+	default:
+		engine->emit_flush = gen8_emit_flush_rcs;
+		engine->emit_fini_breadcrumb = gen8_emit_fini_breadcrumb_rcs;
+		break;
+	}
+}
+
+static inline void guc_default_irqs(struct intel_engine_cs *engine)
+{
+	engine->irq_keep_mask = GT_RENDER_USER_INTERRUPT;
+}
+
+int intel_guc_submission_setup(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *i915 = engine->i915;
+
+	/*
+	 * The setup relies on several assumptions (e.g. irqs always enabled)
+	 * that are only valid on gen11+
+	 */
+	GEM_BUG_ON(INTEL_GEN(i915) < 11);
+
+	tasklet_init(&engine->execlists.tasklet,
+		     guc_submission_tasklet, (unsigned long)engine);
+
+	guc_default_vfuncs(engine);
+	guc_default_irqs(engine);
+
+	if (engine->class == RENDER_CLASS)
+		rcs_submission_override(engine);
+
+	lrc_init_wa_ctx(engine);
+
+	/* Finally, take ownership and responsibility for cleanup! */
+	engine->sanitize = guc_sanitize;
+	engine->release = guc_release;
+
+	return 0;
+}
+
 void intel_guc_submission_enable(struct intel_guc *guc)
 {
-	struct intel_gt *gt = guc_to_gt(guc);
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
 	guc_stage_desc_init(guc);
 
 	/* Take over from manual control of ELSP (execlists) */
-	guc_interrupts_capture(gt);
-
-	for_each_engine(engine, gt, id) {
-		engine->set_default_submission = guc_set_default_submission;
-		engine->set_default_submission(engine);
-	}
+	guc_interrupts_capture(guc_to_gt(guc));
 }
 
 void intel_guc_submission_disable(struct intel_guc *guc)

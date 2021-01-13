@@ -40,6 +40,7 @@
 #include "intel_lrc_reg.h"
 #include "intel_reset.h"
 #include "intel_ring.h"
+#include "uc/intel_guc_submission.h"
 
 /* Haswell does have the CXT_SIZE register however it does not appear to be
  * valid. Now, docs explain in dwords what is in the context object. The full
@@ -907,7 +908,9 @@ int intel_engines_init(struct intel_gt *gt)
 	enum intel_engine_id id;
 	int err;
 
-	if (HAS_EXECLISTS(gt->i915))
+	if (intel_uc_uses_guc_submission(&gt->uc))
+		setup = intel_guc_submission_setup;
+	else if (HAS_EXECLISTS(gt->i915))
 		setup = intel_execlists_submission_setup;
 	else
 		setup = intel_ring_submission_setup;
