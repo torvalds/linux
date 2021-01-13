@@ -44,10 +44,9 @@ ifneq ($(BPF_GCC),)
 TEST_GEN_PROGS += test_progs-bpf_gcc
 endif
 
-TEST_GEN_FILES =
-TEST_FILES = test_lwt_ip_encap.o \
-	test_tc_edt.o \
-	xsk_prereqs.sh
+TEST_GEN_FILES = test_lwt_ip_encap.o \
+	test_tc_edt.o
+TEST_FILES = xsk_prereqs.sh
 
 # Order correspond to 'make run_tests' order
 TEST_PROGS := test_kmod.sh \
