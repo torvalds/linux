@@ -481,12 +481,17 @@ void iomap_invalidate_folio(struct folio *folio, size_t offset, size_t len)
 	trace_iomap_invalidatepage(folio->mapping->host, offset, len);
 
 	/*
-	 * If we're invalidating the entire page, clear the dirty state from it
-	 * and release it to avoid unnecessary buildup of the LRU.
+	 * If we're invalidating the entire folio, clear the dirty state
+	 * from it and release it to avoid unnecessary buildup of the LRU.
 	 */
 	if (offset == 0 && len == folio_size(folio)) {
 		WARN_ON_ONCE(folio_test_writeback(folio));
 		folio_cancel_dirty(folio);
+		iomap_page_release(folio);
+	} else if (folio_test_large(folio)) {
+		/* Must release the iop so the page can be split */
+		WARN_ON_ONCE(!folio_test_uptodate(folio) &&
+			     folio_test_dirty(folio));
 		iomap_page_release(folio);
 	}
 }
