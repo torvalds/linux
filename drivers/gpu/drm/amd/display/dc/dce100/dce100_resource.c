@@ -58,6 +58,8 @@
 #include "dce/dce_abm.h"
 #include "dce/dce_i2c.h"
 
+#include "dce100_resource.h"
+
 #ifndef mmMC_HUB_RDREQ_DMIF_LIMIT
 #include "gmc/gmc_8_2_d.h"
 #include "gmc/gmc_8_2_sh_mask.h"
