@@ -77,7 +77,8 @@ gm200_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
 		   u8 type, u32 addr, u8 *data, u8 *size)
 {
 	struct gm200_i2c_aux *aux = gm200_i2c_aux(obj);
-	struct nvkm_device *device = aux->base.pad->i2c->subdev.device;
+	struct nvkm_i2c *i2c = aux->base.pad->i2c;
+	struct nvkm_device *device = i2c->subdev.device;
 	const u32 base = aux->ch * 0x50;
 	u32 ctrl, stat, timeout, retries = 0;
 	u32 xbuf[4] = {};
@@ -95,6 +96,8 @@ gm200_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
 		ret = -ENXIO;
 		goto out;
 	}
+
+	nvkm_i2c_aux_autodpcd(i2c, aux->ch, false);
 
 	if (!(type & 1)) {
 		memcpy(xbuf, data, *size);
@@ -128,7 +131,7 @@ gm200_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
 			if (!timeout--) {
 				AUX_ERR(&aux->base, "timeout %08x", ctrl);
 				ret = -EIO;
-				goto out;
+				goto out_err;
 			}
 		} while (ctrl & 0x00010000);
 		ret = 0;
@@ -155,6 +158,8 @@ gm200_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
 		*size = stat & 0x0000001f;
 	}
 
+out_err:
+	nvkm_i2c_aux_autodpcd(i2c, aux->ch, true);
 out:
 	gm200_i2c_aux_fini(aux);
 	return ret < 0 ? ret : (stat & 0x000f0000) >> 16;
