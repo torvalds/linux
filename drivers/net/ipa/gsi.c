@@ -220,6 +220,58 @@ static void gsi_irq_teardown(struct gsi *gsi)
 	/* Nothing to do */
 }
 
+/* Event ring commands are performed one at a time.  Their completion
+ * is signaled by the event ring control GSI interrupt type, which is
+ * only enabled when we issue an event ring command.  Only the event
+ * ring being operated on has this interrupt enabled.
+ */
+static void gsi_irq_ev_ctrl_enable(struct gsi *gsi, u32 evt_ring_id)
+{
+	u32 val = BIT(evt_ring_id);
+
+	/* There's a small chance that a previous command completed
+	 * after the interrupt was disabled, so make sure we have no
+	 * pending interrupts before we enable them.
+	 */
+	iowrite32(~0, gsi->virt + GSI_CNTXT_SRC_EV_CH_IRQ_CLR_OFFSET);
+
+	iowrite32(val, gsi->virt + GSI_CNTXT_SRC_EV_CH_IRQ_MSK_OFFSET);
+	gsi_irq_type_enable(gsi, GSI_EV_CTRL);
+}
+
+/* Disable event ring control interrupts */
+static void gsi_irq_ev_ctrl_disable(struct gsi *gsi)
+{
+	gsi_irq_type_disable(gsi, GSI_EV_CTRL);
+	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_EV_CH_IRQ_MSK_OFFSET);
+}
+
+/* Channel commands are performed one at a time.  Their completion is
+ * signaled by the channel control GSI interrupt type, which is only
+ * enabled when we issue a channel command.  Only the channel being
+ * operated on has this interrupt enabled.
+ */
+static void gsi_irq_ch_ctrl_enable(struct gsi *gsi, u32 channel_id)
+{
+	u32 val = BIT(channel_id);
+
+	/* There's a small chance that a previous command completed
+	 * after the interrupt was disabled, so make sure we have no
+	 * pending interrupts before we enable them.
+	 */
+	iowrite32(~0, gsi->virt + GSI_CNTXT_SRC_CH_IRQ_CLR_OFFSET);
+
+	iowrite32(val, gsi->virt + GSI_CNTXT_SRC_CH_IRQ_MSK_OFFSET);
+	gsi_irq_type_enable(gsi, GSI_CH_CTRL);
+}
+
+/* Disable channel control interrupts */
+static void gsi_irq_ch_ctrl_disable(struct gsi *gsi)
+{
+	gsi_irq_type_disable(gsi, GSI_CH_CTRL);
+	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_CH_IRQ_MSK_OFFSET);
+}
+
 static void gsi_irq_ieob_enable(struct gsi *gsi, u32 evt_ring_id)
 {
 	bool enable_ieob = !gsi->ieob_enabled_bitmap;
@@ -335,30 +387,15 @@ static void gsi_evt_ring_command(struct gsi *gsi, u32 evt_ring_id,
 	bool timeout;
 	u32 val;
 
-	/* We only perform one event ring command at a time, and event
-	 * control interrupts should only occur when such a command
-	 * is issued here.  Only permit *this* event ring to trigger
-	 * an interrupt, and only enable the event control IRQ type
-	 * when we expect it to occur.
-	 *
-	 * There's a small chance that a previous command completed
-	 * after the interrupt was disabled, so make sure we have no
-	 * pending interrupts before we enable them.
-	 */
-	iowrite32(~0, gsi->virt + GSI_CNTXT_SRC_EV_CH_IRQ_CLR_OFFSET);
-
-	val = BIT(evt_ring_id);
-	iowrite32(val, gsi->virt + GSI_CNTXT_SRC_EV_CH_IRQ_MSK_OFFSET);
-	gsi_irq_type_enable(gsi, GSI_EV_CTRL);
+	/* Enable the completion interrupt for the command */
+	gsi_irq_ev_ctrl_enable(gsi, evt_ring_id);
 
 	val = u32_encode_bits(evt_ring_id, EV_CHID_FMASK);
 	val |= u32_encode_bits(opcode, EV_OPCODE_FMASK);
 
 	timeout = !gsi_command(gsi, GSI_EV_CH_CMD_OFFSET, val, completion);
 
-	/* Disable the interrupt again */
-	gsi_irq_type_disable(gsi, GSI_EV_CTRL);
-	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_EV_CH_IRQ_MSK_OFFSET);
+	gsi_irq_ev_ctrl_disable(gsi);
 
 	if (!timeout)
 		return;
@@ -459,29 +496,14 @@ gsi_channel_command(struct gsi_channel *channel, enum gsi_ch_cmd_opcode opcode)
 	bool timeout;
 	u32 val;
 
-	/* We only perform one channel command at a time, and channel
-	 * control interrupts should only occur when such a command is
-	 * issued here.  So we only permit *this* channel to trigger
-	 * an interrupt and only enable the channel control IRQ type
-	 * when we expect it to occur.
-	 *
-	 * There's a small chance that a previous command completed
-	 * after the interrupt was disabled, so make sure we have no
-	 * pending interrupts before we enable them.
-	 */
-	iowrite32(~0, gsi->virt + GSI_CNTXT_SRC_CH_IRQ_CLR_OFFSET);
-
-	val = BIT(channel_id);
-	iowrite32(val, gsi->virt + GSI_CNTXT_SRC_CH_IRQ_MSK_OFFSET);
-	gsi_irq_type_enable(gsi, GSI_CH_CTRL);
+	/* Enable the completion interrupt for the command */
+	gsi_irq_ch_ctrl_enable(gsi, channel_id);
 
 	val = u32_encode_bits(channel_id, CH_CHID_FMASK);
 	val |= u32_encode_bits(opcode, CH_OPCODE_FMASK);
 	timeout = !gsi_command(gsi, GSI_CH_CMD_OFFSET, val, completion);
 
-	/* Disable the interrupt again */
-	gsi_irq_type_disable(gsi, GSI_CH_CTRL);
-	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_CH_IRQ_MSK_OFFSET);
+	gsi_irq_ch_ctrl_disable(gsi);
 
 	if (!timeout)
 		return;
