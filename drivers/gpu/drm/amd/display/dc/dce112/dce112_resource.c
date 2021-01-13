@@ -59,7 +59,9 @@
 #include "dce/dce_11_2_sh_mask.h"
 
 #include "dce100/dce100_resource.h"
-#define DC_LOGGER \
+#include "dce112_resource.h"
+
+#define DC_LOGGER				\
 		dc->ctx->logger
 
 #ifndef mmDP_DPHY_INTERNAL_CTRL
