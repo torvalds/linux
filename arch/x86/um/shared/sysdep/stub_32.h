@@ -86,7 +86,7 @@ static inline void remap_stack(int fd, unsigned long offset)
 			    "d" (PROT_READ | PROT_WRITE),
 			    "S" (MAP_FIXED | MAP_SHARED), "D" (fd),
 			    "a" (offset),
-			    "i" (&((struct stub_data *) STUB_DATA)->err)
+			    "i" (&((struct stub_data *) STUB_DATA)->child_err)
 			  : "memory");
 }
 

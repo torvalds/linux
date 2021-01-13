@@ -545,8 +545,14 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	 * and child's mmap2 calls
 	 */
 	*data = ((struct stub_data) {
-			.offset	= MMAP_OFFSET(new_offset),
-			.fd     = new_fd
+		.offset	= MMAP_OFFSET(new_offset),
+		.fd     = new_fd,
+		.parent_err = -ESRCH,
+		.child_err = 0,
+	});
+
+	*child_data = ((struct stub_data) {
+		.child_err = -ESRCH,
 	});
 
 	err = ptrace_setregs(pid, thread_regs);
@@ -564,9 +570,6 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 		return err;
 	}
 
-	/* set a well known return code for detection of child write failure */
-	child_data->err = 12345678;
-
 	/*
 	 * Wait, until parent has finished its work: read child's pid from
 	 * parent's stack, and check, if bad result.
@@ -581,7 +584,7 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 
 	wait_stub_done(pid);
 
-	pid = data->err;
+	pid = data->parent_err;
 	if (pid < 0) {
 		printk(UM_KERN_ERR "copy_context_skas0 - stub-parent reports "
 		       "error %d\n", -pid);
@@ -593,10 +596,10 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	 * child's stack and check it.
 	 */
 	wait_stub_done(pid);
-	if (child_data->err != STUB_DATA) {
-		printk(UM_KERN_ERR "copy_context_skas0 - stub-child reports "
-		       "error %ld\n", child_data->err);
-		err = child_data->err;
+	if (child_data->child_err != STUB_DATA) {
+		printk(UM_KERN_ERR "copy_context_skas0 - stub-child %d reports "
+		       "error %ld\n", pid, data->child_err);
+		err = data->child_err;
 		goto out_kill;
 	}
 

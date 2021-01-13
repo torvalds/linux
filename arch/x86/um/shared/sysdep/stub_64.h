@@ -92,7 +92,7 @@ static inline void remap_stack(long fd, unsigned long offset)
 			    "d" (PROT_READ | PROT_WRITE),
                             "g" (MAP_FIXED | MAP_SHARED), "g" (fd),
 			    "g" (offset),
-			    "i" (&((struct stub_data *) STUB_DATA)->err)
+			    "i" (&((struct stub_data *) STUB_DATA)->child_err)
 			  : __syscall_clobber, "r10", "r8", "r9" );
 }
 
