@@ -133,8 +133,6 @@
 	__SMU_DUMMY_MAP(PowerUpSdma),                 \
 	__SMU_DUMMY_MAP(SetHardMinIspclkByFreq),      \
 	__SMU_DUMMY_MAP(SetHardMinVcn),               \
-	__SMU_DUMMY_MAP(Spare1),                      \
-	__SMU_DUMMY_MAP(Spare2),           	      \
 	__SMU_DUMMY_MAP(SetAllowFclkSwitch),          \
 	__SMU_DUMMY_MAP(SetMinVideoGfxclkFreq),       \
 	__SMU_DUMMY_MAP(ActiveProcessNotify),         \
