@@ -2652,6 +2652,21 @@ nv168_chipset = {
 	.sec2 = tu102_sec2_new,
 };
 
+static const struct nvkm_device_chip
+nv170_chipset = {
+	.name = "GA100",
+};
+
+static const struct nvkm_device_chip
+nv172_chipset = {
+	.name = "GA102",
+};
+
+static const struct nvkm_device_chip
+nv174_chipset = {
+	.name = "GA104",
+};
+
 static int
 nvkm_device_event_ctor(struct nvkm_object *object, void *data, u32 size,
 		       struct nvkm_notify *notify)
@@ -3063,6 +3078,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 			case 0x130: device->card_type = GP100; break;
 			case 0x140: device->card_type = GV100; break;
 			case 0x160: device->card_type = TU100; break;
+			case 0x170: device->card_type = GA100; break;
 			default:
 				break;
 			}
@@ -3160,10 +3176,23 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		case 0x166: device->chip = &nv166_chipset; break;
 		case 0x167: device->chip = &nv167_chipset; break;
 		case 0x168: device->chip = &nv168_chipset; break;
+		case 0x172: device->chip = &nv172_chipset; break;
+		case 0x174: device->chip = &nv174_chipset; break;
 		default:
-			nvdev_error(device, "unknown chipset (%08x)\n", boot0);
-			ret = -ENODEV;
-			goto done;
+			if (nvkm_boolopt(device->cfgopt, "NvEnableUnsupportedChipsets", false)) {
+				switch (device->chipset) {
+				case 0x170: device->chip = &nv170_chipset; break;
+				default:
+					break;
+				}
+			}
+
+			if (!device->chip) {
+				nvdev_error(device, "unknown chipset (%08x)\n", boot0);
+				ret = -ENODEV;
+				goto done;
+			}
+			break;
 		}
 
 		nvdev_info(device, "NVIDIA %s (%08x)\n",
