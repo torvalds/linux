@@ -9,6 +9,8 @@
 
 #include <linux/tracepoint.h>
 
+#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
+
 #define DECLARE_HOOK DECLARE_TRACE
 
 #ifdef TRACE_HEADER_MULTI_READ
@@ -102,3 +104,10 @@
 			PARAMS(__data, args))
 
 #endif /* TRACE_HEADER_MULTI_READ */
+
+#else /* !CONFIG_TRACEPOINTS || !CONFIG_ANDROID_VENDOR_HOOKS */
+/* suppress trace hooks */
+#define DECLARE_HOOK DECLARE_EVENT_NOP
+#define DECLARE_RESTRICTED_HOOK(name, proto, args, cond)		\
+	DECLARE_EVENT_NOP(name, PARAMS(proto), PARAMS(args))
+#endif

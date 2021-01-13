@@ -10,7 +10,6 @@
  * Following tracepoints are not exported in tracefs and provide a
  * mechanism for vendor modules to hook and extend functionality
  */
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
 struct task_struct;
 DECLARE_RESTRICTED_HOOK(android_rvh_select_task_rq_fair,
 	TP_PROTO(struct task_struct *p, int prev_cpu, int sd_flag, int wake_flags, int *new_cpu),
@@ -218,58 +217,9 @@ DECLARE_RESTRICTED_HOOK(android_rvh_schedule_bug,
 DECLARE_RESTRICTED_HOOK(android_rvh_sched_exec,
 	TP_PROTO(bool *cond),
 	TP_ARGS(cond), 1);
-#else
-#define trace_android_rvh_select_task_rq_fair(p, prev_cpu, sd_flag, wake_flags, new_cpu)
-#define trace_android_rvh_select_task_rq_fair_enabled() 0
-#define trace_android_rvh_select_task_rq_rt(p, prev_cpu, sd_flag, wake_flags, new_cpu)
-#define trace_android_rvh_select_fallback_rq(cpu, p, dest_cpu)
-#define trace_android_vh_scheduler_tick(rq)
-#define trace_android_rvh_enqueue_task(rq, p, flags)
-#define trace_android_rvh_dequeue_task(rq, p, flags)
-#define trace_android_rvh_can_migrate_task(p, dst_cpu, can_migrate)
-#define trace_android_rvh_find_lowest_rq(p, local_cpu_mask, ret, lowest_cpu)
-#define trace_android_rvh_prepare_prio_fork(p)
-#define trace_android_rvh_finish_prio_fork(p)
-#define trace_android_rvh_rtmutex_prepare_setprio(p, pi_task)
-#define trace_android_rvh_set_user_nice(p, nice)
-#define trace_android_rvh_setscheduler(p)
-#define trace_android_rvh_find_busiest_group(busiest, dst_rq, out_balance)
-#define trace_android_vh_dump_throttled_rt_tasks(cpu, clock, rt_period, rt_runtime, rt_period_timer_expires)
-#define trace_android_vh_jiffies_update(unused)
-#define trace_android_rvh_sched_newidle_balance(this_rq, rf, pulled_task, done)
-#define trace_android_rvh_sched_nohz_balancer_kick(rq, flags, done)
-#define trace_android_rvh_find_busiest_queue(dst_cpu, group, env_cpus, busiest, done)
-#define trace_android_rvh_migrate_queued_task(rq, rf, p, new_cpu, detached)
-#define trace_android_rvh_resume_cpus(cpus, err)
-#define trace_android_rvh_find_energy_efficient_cpu(p, prev_cpu, sync, new_cpu)
-#define trace_android_vh_set_sugov_sched_attr(attr)
-#define trace_android_rvh_set_iowait(p, should_iowait_boost)
-#define trace_android_rvh_set_sugov_update(sg_policy, next_freq, should_update)
-#define trace_android_rvh_sched_setaffinity(p, in_mask, retval)
-#define trace_android_rvh_update_cpus_allowed(p, cpus_requested, new_mask, ret)
-#define trace_android_rvh_set_task_cpu(p, new_cpu)
-#define trace_android_rvh_try_to_wake_up(p)
-#define trace_android_rvh_try_to_wake_up_success(p)
-#define trace_android_rvh_sched_fork(p)
-#define trace_android_rvh_wake_up_new_task(p)
-#define trace_android_rvh_new_task_stats(p)
-#define trace_android_rvh_flush_task(prev)
-#define trace_android_rvh_tick_entry(rq)
-#define trace_android_rvh_schedule(prev, next, rq)
-#define trace_android_rvh_sched_cpu_starting(cpu)
-#define trace_android_rvh_sched_cpu_dying(cpu)
-#define trace_android_rvh_account_irq(curr, cpu, delta)
-#define trace_android_rvh_place_entity(se, vruntime)
-#define trace_android_rvh_build_perf_domains(eas_check)
-#define trace_android_rvh_update_cpu_capacity(cpu, capacity)
-#define trace_android_rvh_update_misfit_status(p, rq, need_update)
-#define trace_android_rvh_cpu_cgroup_attach(tset)
-#define trace_android_rvh_cpu_cgroup_can_attach(tset, retval)
-#define trace_android_rvh_sched_fork_init(p)
-#define trace_android_rvh_ttwu_cond(cond)
-#define trace_android_rvh_schedule_bug(unused)
-#define trace_android_rvh_sched_exec(cond)
-#endif
+
+/* macro versions of hooks are no longer required */
+
 #endif /* _TRACE_HOOK_SCHED_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>
