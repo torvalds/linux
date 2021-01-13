@@ -556,6 +556,11 @@ which stable kernel versions should receive your fix. This is the preferred
 method for indicating a bug fixed by the patch. See :ref:`describe_changes`
 for more details.
 
+Note: Attaching a Fixes: tag does not subvert the stable kernel rules
+process nor the requirement to Cc: stable@vger.kernel.org on all stable 
+patch candidates. For more information, please read
+:ref:`Documentation/process/stable-kernel-rules.rst <stable_kernel_rules>`
+     
 .. _the_canonical_patch_format:
 
 The canonical patch format
