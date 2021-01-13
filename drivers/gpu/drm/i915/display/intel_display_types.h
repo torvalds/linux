@@ -545,7 +545,7 @@ struct intel_plane_state {
 		struct drm_framebuffer *fb;
 
 		u16 alpha;
-		uint16_t pixel_blend_mode;
+		u16 pixel_blend_mode;
 		unsigned int rotation;
 		enum drm_color_encoding color_encoding;
 		enum drm_color_range color_range;

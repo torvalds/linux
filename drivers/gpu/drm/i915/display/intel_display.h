@@ -643,7 +643,7 @@ void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 
 bool
 intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
-				    uint64_t modifier);
+				    u64 modifier);
 
 int intel_plane_compute_gtt(struct intel_plane_state *plane_state);
 u32 intel_plane_compute_aligned_offset(int *x, int *y,

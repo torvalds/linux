@@ -1954,7 +1954,7 @@ int intel_main_to_aux_plane(const struct drm_framebuffer *fb, int main_plane)
 
 bool
 intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
-				    uint64_t modifier)
+				    u64 modifier)
 {
 	return info->is_yuv &&
 	       info->num_planes == (is_ccs_modifier(modifier) ? 4 : 2);
