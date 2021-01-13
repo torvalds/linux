@@ -34,6 +34,8 @@ static inline struct hostfs_inode_info *HOSTFS_I(struct inode *inode)
 
 #define FILE_HOSTFS_I(file) HOSTFS_I(file_inode(file))
 
+static struct kmem_cache *hostfs_inode_cache;
+
 /* Changed in hostfs_args before the kernel starts running */
 static char *root_ino = "";
 static int append = 0;
@@ -221,7 +223,7 @@ static struct inode *hostfs_alloc_inode(struct super_block *sb)
 {
 	struct hostfs_inode_info *hi;
 
-	hi = kmalloc(sizeof(*hi), GFP_KERNEL_ACCOUNT);
+	hi = kmem_cache_alloc(hostfs_inode_cache, GFP_KERNEL_ACCOUNT);
 	if (hi == NULL)
 		return NULL;
 	hi->fd = -1;
@@ -243,7 +245,7 @@ static void hostfs_evict_inode(struct inode *inode)
 
 static void hostfs_free_inode(struct inode *inode)
 {
-	kfree(HOSTFS_I(inode));
+	kmem_cache_free(hostfs_inode_cache, HOSTFS_I(inode));
 }
 
 static int hostfs_show_options(struct seq_file *seq, struct dentry *root)
@@ -986,12 +988,16 @@ MODULE_ALIAS_FS("hostfs");
 
 static int __init init_hostfs(void)
 {
+	hostfs_inode_cache = KMEM_CACHE(hostfs_inode_info, 0);
+	if (!hostfs_inode_cache)
+		return -ENOMEM;
 	return register_filesystem(&hostfs_type);
 }
 
 static void __exit exit_hostfs(void)
 {
 	unregister_filesystem(&hostfs_type);
+	kmem_cache_destroy(hostfs_inode_cache);
 }
 
 module_init(init_hostfs)
