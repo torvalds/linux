@@ -1035,7 +1035,7 @@ gen12_emit_indirect_ctx_xcs(const struct intel_context *ce, u32 *cs)
 	return cs;
 }
 
-static inline u32 context_wa_bb_offset(const struct intel_context *ce)
+static u32 context_wa_bb_offset(const struct intel_context *ce)
 {
 	return PAGE_SIZE * ce->wa_bb_page;
 }
@@ -1098,7 +1098,7 @@ setup_indirect_ctx_bb(const struct intel_context *ce,
  * engine info, SW context ID and SW counter need to form a unique number
  * (Context ID) per lrc.
  */
-static inline u32 lrc_descriptor(const struct intel_context *ce)
+static u32 lrc_descriptor(const struct intel_context *ce)
 {
 	u32 desc;
 

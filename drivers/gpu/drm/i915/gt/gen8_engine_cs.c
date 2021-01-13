@@ -330,7 +330,7 @@ int gen12_emit_flush_xcs(struct i915_request *rq, u32 mode)
 	return 0;
 }
 
-static inline u32 preempt_address(struct intel_engine_cs *engine)
+static u32 preempt_address(struct intel_engine_cs *engine)
 {
 	return (i915_ggtt_offset(engine->status_page.vma) +
 		I915_GEM_HWS_PREEMPT_ADDR);

@@ -12,9 +12,9 @@
 #include "intel_gt.h"
 
 /* Write pde (index) from the page directory @pd to the page table @pt */
-static inline void gen6_write_pde(const struct gen6_ppgtt *ppgtt,
-				  const unsigned int pde,
-				  const struct i915_page_table *pt)
+static void gen6_write_pde(const struct gen6_ppgtt *ppgtt,
+			   const unsigned int pde,
+			   const struct i915_page_table *pt)
 {
 	dma_addr_t addr = pt ? px_dma(pt) : px_dma(ppgtt->base.vm.scratch[1]);
 

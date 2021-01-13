@@ -79,7 +79,7 @@ static int __engine_unpark(struct intel_wakeref *wf)
 
 #if IS_ENABLED(CONFIG_LOCKDEP)
 
-static inline unsigned long __timeline_mark_lock(struct intel_context *ce)
+static unsigned long __timeline_mark_lock(struct intel_context *ce)
 {
 	unsigned long flags;
 
@@ -89,8 +89,8 @@ static inline unsigned long __timeline_mark_lock(struct intel_context *ce)
 	return flags;
 }
 
-static inline void __timeline_mark_unlock(struct intel_context *ce,
-					  unsigned long flags)
+static void __timeline_mark_unlock(struct intel_context *ce,
+				   unsigned long flags)
 {
 	mutex_release(&ce->timeline->mutex.dep_map, _THIS_IP_);
 	local_irq_restore(flags);
@@ -98,13 +98,13 @@ static inline void __timeline_mark_unlock(struct intel_context *ce,
 
 #else
 
-static inline unsigned long __timeline_mark_lock(struct intel_context *ce)
+static unsigned long __timeline_mark_lock(struct intel_context *ce)
 {
 	return 0;
 }
 
-static inline void __timeline_mark_unlock(struct intel_context *ce,
-					  unsigned long flags)
+static void __timeline_mark_unlock(struct intel_context *ce,
+				   unsigned long flags)
 {
 }
 

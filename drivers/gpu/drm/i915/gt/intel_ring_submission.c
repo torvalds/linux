@@ -670,9 +670,9 @@ static int load_pd_dir(struct i915_request *rq,
 	return rq->engine->emit_flush(rq, EMIT_FLUSH);
 }
 
-static inline int mi_set_context(struct i915_request *rq,
-				 struct intel_context *ce,
-				 u32 flags)
+static int mi_set_context(struct i915_request *rq,
+			  struct intel_context *ce,
+			  u32 flags)
 {
 	struct intel_engine_cs *engine = rq->engine;
 	struct drm_i915_private *i915 = engine->i915;

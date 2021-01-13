@@ -40,7 +40,7 @@ struct batch_vals {
 	u32 size;
 };
 
-static inline int num_primitives(const struct batch_vals *bv)
+static int num_primitives(const struct batch_vals *bv)
 {
 	/*
 	 * We need to saturate the GPU with work in order to dispatch
