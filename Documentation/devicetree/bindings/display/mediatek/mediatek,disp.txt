@@ -23,7 +23,7 @@ connected to.
 
 For a description of the display interface sink function blocks, see
 Documentation/devicetree/bindings/display/mediatek/mediatek,dsi.txt and
-Documentation/devicetree/bindings/display/mediatek/mediatek,dpi.txt.
+Documentation/devicetree/bindings/display/mediatek/mediatek,dpi.yaml.
 
 Required properties (all function blocks):
 - compatible: "mediatek,<chip>-disp-<function>", one of
