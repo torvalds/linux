@@ -36,6 +36,19 @@
 
 #define SRCNT_ESPI		BIT(3)
 
+/* reset registers */
+#define NPCM7XX_RST_WD0RCR	0x38
+#define NPCM7XX_RST_WD1RCR	0x3C
+#define NPCM7XX_RST_WD2RCR	0x40
+#define NPCM7XX_RST_SWRSTC1	0x44
+#define NPCM7XX_RST_SWRSTC2	0x48
+#define NPCM7XX_RST_SWRSTC3	0x4C
+#define NPCM7XX_RST_SWRSTC4	0x50
+#define NPCM7XX_RST_CORSTC	0x5C
+
+#define GPIOX_MODULE_RESET	BIT(16)
+#define CA9C_MODULE_RESET	BIT(0)
+
 /* GPIO registers */
 #define NPCM7XX_GP_N_TLOCK1	0x00
 #define NPCM7XX_GP_N_DIN	0x04 /* Data IN */
@@ -94,6 +107,7 @@ struct npcm7xx_pinctrl {
 	struct npcm7xx_gpio	gpio_bank[NPCM7XX_GPIO_BANK_NUM];
 	struct irq_domain	*domain;
 	struct regmap		*gcr_regmap;
+	struct regmap		*rst_regmap;
 	void __iomem		*regs;
 	u32			bank_num;
 };
@@ -1583,6 +1597,48 @@ static int npcm7xx_set_drive_strength(struct npcm7xx_pinctrl *npcm,
 	return -ENOTSUPP;
 }
 
+static int npcm7xx_gpio_reset_persist(struct npcm7xx_pinctrl *npcm,
+					unsigned int pin, int enable)
+{
+	struct npcm7xx_gpio *bank =
+		&npcm->gpio_bank[pin / NPCM7XX_GPIO_PER_BANK];
+	int banknum = pin / bank->gc.ngpio;
+
+	if (enable) {
+		regmap_update_bits(npcm->rst_regmap, NPCM7XX_RST_WD0RCR,
+				   GPIOX_MODULE_RESET << banknum, 0);
+		regmap_update_bits(npcm->rst_regmap, NPCM7XX_RST_WD1RCR,
+				   GPIOX_MODULE_RESET << banknum, 0);
+		regmap_update_bits(npcm->rst_regmap, NPCM7XX_RST_WD2RCR,
+				   GPIOX_MODULE_RESET << banknum, 0);
+		regmap_update_bits(npcm->rst_regmap, NPCM7XX_RST_CORSTC,
+				   GPIOX_MODULE_RESET << banknum, 0);
+	} else {
+		regmap_update_bits(npcm->rst_regmap, NPCM7XX_RST_WD0RCR,
+				   (GPIOX_MODULE_RESET << banknum) |
+				   CA9C_MODULE_RESET,
+				   (GPIOX_MODULE_RESET << banknum) |
+				   CA9C_MODULE_RESET);
+		regmap_update_bits(npcm->rst_regmap, NPCM7XX_RST_WD1RCR,
+				   (GPIOX_MODULE_RESET << banknum) |
+				   CA9C_MODULE_RESET,
+				   (GPIOX_MODULE_RESET << banknum) |
+				   CA9C_MODULE_RESET);
+		regmap_update_bits(npcm->rst_regmap, NPCM7XX_RST_WD2RCR,
+				   (GPIOX_MODULE_RESET << banknum) |
+				   CA9C_MODULE_RESET,
+				   (GPIOX_MODULE_RESET << banknum) |
+				   CA9C_MODULE_RESET);
+		regmap_update_bits(npcm->rst_regmap, NPCM7XX_RST_CORSTC,
+				   (GPIOX_MODULE_RESET << banknum) |
+				   CA9C_MODULE_RESET,
+				   (GPIOX_MODULE_RESET << banknum) |
+				   CA9C_MODULE_RESET);
+	}
+
+	return 0;
+}
+
 /* pinctrl_ops */
 static void npcm7xx_pin_dbg_show(struct pinctrl_dev *pctldev,
 				 struct seq_file *s, unsigned int offset)
@@ -1852,6 +1908,8 @@ static int npcm7xx_config_set_one(struct npcm7xx_pinctrl *npcm,
 		return npcm7xx_set_slew_rate(bank, npcm->gcr_regmap, pin, arg);
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		return npcm7xx_set_drive_strength(npcm, pin, arg);
+	case PIN_CONFIG_PERSIST_STATE:
+		return npcm7xx_gpio_reset_persist(npcm, pin, arg);
 	default:
 		return -ENOTSUPP;
 	}
@@ -2049,6 +2107,13 @@ static int npcm7xx_pinctrl_probe(struct platform_device *pdev)
 	if (IS_ERR(pctrl->gcr_regmap)) {
 		dev_err(pctrl->dev, "didn't find nuvoton,npcm750-gcr\n");
 		return PTR_ERR(pctrl->gcr_regmap);
+	}
+
+	pctrl->rst_regmap =
+		syscon_regmap_lookup_by_compatible("nuvoton,npcm750-rst");
+	if (IS_ERR(pctrl->rst_regmap)) {
+		dev_err(pctrl->dev, "didn't find nuvoton,npcm750-rst\n");
+		return PTR_ERR(pctrl->rst_regmap);
 	}
 
 	ret = npcm7xx_gpio_of(pctrl);
