@@ -487,8 +487,8 @@ static int scpsys_add_subdomain(struct scpsys *scpsys, struct device_node *paren
 
 		child_pd = scpsys_add_one_domain(scpsys, child);
 		if (IS_ERR(child_pd)) {
-			ret = PTR_ERR(child_pd);
-			dev_err(scpsys->dev, "%pOF: failed to get child domain id\n", child);
+			dev_err_probe(scpsys->dev, PTR_ERR(child_pd),
+				      "%pOF: failed to get child domain id\n", child);
 			goto err_put_node;
 		}
 
