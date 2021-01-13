@@ -220,6 +220,7 @@ DECLARE_RESTRICTED_HOOK(android_rvh_sched_exec,
 	TP_ARGS(cond), 1);
 #else
 #define trace_android_rvh_select_task_rq_fair(p, prev_cpu, sd_flag, wake_flags, new_cpu)
+#define trace_android_rvh_select_task_rq_fair_enabled() 0
 #define trace_android_rvh_select_task_rq_rt(p, prev_cpu, sd_flag, wake_flags, new_cpu)
 #define trace_android_rvh_select_fallback_rq(cpu, p, dest_cpu)
 #define trace_android_vh_scheduler_tick(rq)
