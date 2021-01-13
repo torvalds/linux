@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 
 # Copyright (C) 2017 Netronome Systems, Inc.
 # Copyright (c) 2019 Mellanox Technologies. All rights reserved

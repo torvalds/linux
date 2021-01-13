@@ -1,4 +1,4 @@
-#!/usr/bin/env perl
+#!/usr/bin/perl
 # SPDX-License-Identifier: GPL-2.0
 #
 # Author: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>

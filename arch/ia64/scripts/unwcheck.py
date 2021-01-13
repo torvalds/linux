@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 # SPDX-License-Identifier: GPL-2.0
 #
 # Usage: unwcheck.py FILE
