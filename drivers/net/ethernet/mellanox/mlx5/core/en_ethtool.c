@@ -34,6 +34,7 @@
 #include "en/port.h"
 #include "en/params.h"
 #include "en/xsk/pool.h"
+#include "en/ptp.h"
 #include "lib/clock.h"
 
 void mlx5e_ethtool_get_drvinfo(struct mlx5e_priv *priv,
@@ -1865,13 +1866,19 @@ int mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool new_val
 
 	new_channels.params = priv->channels.params;
 	MLX5E_SET_PFLAG(&new_channels.params, MLX5E_PFLAG_RX_CQE_COMPRESS, new_val);
+	if (priv->tstamp.rx_filter != HWTSTAMP_FILTER_NONE)
+		new_channels.params.ptp_rx = new_val;
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		priv->channels.params = new_channels.params;
 		return 0;
 	}
 
-	err = mlx5e_safe_switch_channels(priv, &new_channels, NULL, NULL);
+	if (new_channels.params.ptp_rx == priv->channels.params.ptp_rx)
+		err = mlx5e_safe_switch_channels(priv, &new_channels, NULL, NULL);
+	else
+		err = mlx5e_safe_switch_channels(priv, &new_channels, mlx5e_ptp_rx_manage_fs_ctx,
+						 &new_channels.params.ptp_rx);
 	if (err)
 		return err;
 
@@ -1891,11 +1898,6 @@ static int set_pflag_rx_cqe_compress(struct net_device *netdev,
 
 	if (!MLX5_CAP_GEN(mdev, cqe_compression))
 		return -EOPNOTSUPP;
-
-	if (enable && priv->tstamp.rx_filter != HWTSTAMP_FILTER_NONE) {
-		netdev_err(netdev, "Can't enable cqe compression while timestamping is enabled.\n");
-		return -EINVAL;
-	}
 
 	err = mlx5e_modify_rx_cqe_compression_locked(priv, enable);
 	if (err)
