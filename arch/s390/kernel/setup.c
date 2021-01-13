@@ -949,11 +949,15 @@ static int __init setup_hwcaps(void)
 			elf_hwcap |= HWCAP_S390_VXRS_EXT2;
 		if (test_facility(152))
 			elf_hwcap |= HWCAP_S390_VXRS_PDE;
+		if (test_facility(192))
+			elf_hwcap |= HWCAP_S390_VXRS_PDE2;
 	}
 	if (test_facility(150))
 		elf_hwcap |= HWCAP_S390_SORT;
 	if (test_facility(151))
 		elf_hwcap |= HWCAP_S390_DFLT;
+	if (test_facility(165))
+		elf_hwcap |= HWCAP_S390_NNPA;
 
 	/*
 	 * Guarded storage support HWCAP_S390_GS is bit 12.
