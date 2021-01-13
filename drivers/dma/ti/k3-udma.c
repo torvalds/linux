@@ -1830,7 +1830,7 @@ static int udma_tisci_m2m_channel_config(struct udma_chan *uc)
 	struct udma_tchan *tchan = uc->tchan;
 	struct udma_rchan *rchan = uc->rchan;
 	u8 burst_size = 0;
-	int ret = 0;
+	int ret;
 	u8 tpl;
 
 	/* Non synchronized - mem to mem type of transfer */
@@ -1889,7 +1889,7 @@ static int bcdma_tisci_m2m_channel_config(struct udma_chan *uc)
 	struct ti_sci_msg_rm_udmap_tx_ch_cfg req_tx = { 0 };
 	struct udma_bchan *bchan = uc->bchan;
 	u8 burst_size = 0;
-	int ret = 0;
+	int ret;
 	u8 tpl;
 
 	if (ud->match_data->flags & UDMA_FLAG_BURST_SIZE) {
@@ -1923,7 +1923,7 @@ static int udma_tisci_tx_channel_config(struct udma_chan *uc)
 	int tc_ring = k3_ringacc_get_ring_id(tchan->tc_ring);
 	struct ti_sci_msg_rm_udmap_tx_ch_cfg req_tx = { 0 };
 	u32 mode, fetch_size;
-	int ret = 0;
+	int ret;
 
 	if (uc->config.pkt_mode) {
 		mode = TI_SCI_RM_UDMAP_CHAN_TYPE_PKT_PBRR;
@@ -1964,7 +1964,7 @@ static int bcdma_tisci_tx_channel_config(struct udma_chan *uc)
 	const struct ti_sci_rm_udmap_ops *tisci_ops = tisci_rm->tisci_udmap_ops;
 	struct udma_tchan *tchan = uc->tchan;
 	struct ti_sci_msg_rm_udmap_tx_ch_cfg req_tx = { 0 };
-	int ret = 0;
+	int ret;
 
 	req_tx.valid_params = TISCI_BCDMA_TCHAN_VALID_PARAMS;
 	req_tx.nav_id = tisci_rm->tisci_dev_id;
@@ -1997,7 +1997,7 @@ static int udma_tisci_rx_channel_config(struct udma_chan *uc)
 	struct ti_sci_msg_rm_udmap_rx_ch_cfg req_rx = { 0 };
 	struct ti_sci_msg_rm_udmap_flow_cfg flow_req = { 0 };
 	u32 mode, fetch_size;
-	int ret = 0;
+	int ret;
 
 	if (uc->config.pkt_mode) {
 		mode = TI_SCI_RM_UDMAP_CHAN_TYPE_PKT_PBRR;
@@ -2074,7 +2074,7 @@ static int bcdma_tisci_rx_channel_config(struct udma_chan *uc)
 	const struct ti_sci_rm_udmap_ops *tisci_ops = tisci_rm->tisci_udmap_ops;
 	struct udma_rchan *rchan = uc->rchan;
 	struct ti_sci_msg_rm_udmap_rx_ch_cfg req_rx = { 0 };
-	int ret = 0;
+	int ret;
 
 	req_rx.valid_params = TISCI_BCDMA_RCHAN_VALID_PARAMS;
 	req_rx.nav_id = tisci_rm->tisci_dev_id;
@@ -2094,7 +2094,7 @@ static int pktdma_tisci_rx_channel_config(struct udma_chan *uc)
 	const struct ti_sci_rm_udmap_ops *tisci_ops = tisci_rm->tisci_udmap_ops;
 	struct ti_sci_msg_rm_udmap_rx_ch_cfg req_rx = { 0 };
 	struct ti_sci_msg_rm_udmap_flow_cfg flow_req = { 0 };
-	int ret = 0;
+	int ret;
 
 	req_rx.valid_params = TISCI_BCDMA_RCHAN_VALID_PARAMS;
 	req_rx.nav_id = tisci_rm->tisci_dev_id;
