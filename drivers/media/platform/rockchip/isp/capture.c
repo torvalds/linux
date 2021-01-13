@@ -848,7 +848,7 @@ static int rkisp_s_fmt_vid_cap_mplane(struct file *file,
 	struct rkisp_vdev_node *node = vdev_to_node(vdev);
 	struct rkisp_device *dev = stream->ispdev;
 
-	if (vb2_is_busy(&node->buf_queue)) {
+	if (vb2_is_streaming(&node->buf_queue)) {
 		v4l2_err(&dev->v4l2_dev, "%s queue busy\n", __func__);
 		return -EBUSY;
 	}
