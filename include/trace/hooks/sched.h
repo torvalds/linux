@@ -227,6 +227,13 @@ DECLARE_HOOK(android_vh_map_util_freq,
 		unsigned long cap, unsigned long *next_freq),
 	TP_ARGS(util, freq, cap, next_freq));
 
+struct em_perf_domain;
+DECLARE_HOOK(android_vh_em_cpu_energy,
+	TP_PROTO(struct em_perf_domain *pd,
+		unsigned long max_util, unsigned long sum_util,
+		unsigned long *energy),
+	TP_ARGS(pd, max_util, sum_util, energy));
+
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_SCHED_H */
