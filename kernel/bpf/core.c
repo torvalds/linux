@@ -1642,6 +1642,9 @@ out:
 	STX_ATOMIC_W:
 		switch (IMM) {
 		ATOMIC_ALU_OP(BPF_ADD, add)
+		ATOMIC_ALU_OP(BPF_AND, and)
+		ATOMIC_ALU_OP(BPF_OR, or)
+		ATOMIC_ALU_OP(BPF_XOR, xor)
 #undef ATOMIC_ALU_OP
 
 		case BPF_XCHG:
