@@ -136,6 +136,7 @@ gem-y += \
 	gem/i915_gem_clflush.o \
 	gem/i915_gem_client_blt.o \
 	gem/i915_gem_context.o \
+	gem/i915_gem_create.o \
 	gem/i915_gem_dmabuf.o \
 	gem/i915_gem_domain.o \
 	gem/i915_gem_execbuffer.o \
