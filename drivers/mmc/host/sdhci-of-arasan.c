@@ -1544,15 +1544,14 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 
 	sdhci_arasan->clk_ahb = devm_clk_get(dev, "clk_ahb");
 	if (IS_ERR(sdhci_arasan->clk_ahb)) {
-		dev_err(dev, "clk_ahb clock not found.\n");
-		ret = PTR_ERR(sdhci_arasan->clk_ahb);
+		ret = dev_err_probe(dev, PTR_ERR(sdhci_arasan->clk_ahb),
+				    "clk_ahb clock not found.\n");
 		goto err_pltfm_free;
 	}
 
 	clk_xin = devm_clk_get(dev, "clk_xin");
 	if (IS_ERR(clk_xin)) {
-		dev_err(dev, "clk_xin clock not found.\n");
-		ret = PTR_ERR(clk_xin);
+		ret = dev_err_probe(dev, PTR_ERR(clk_xin), "clk_xin clock not found.\n");
 		goto err_pltfm_free;
 	}
 
@@ -1605,8 +1604,7 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "parsing dt failed (%d)\n", ret);
+		ret = dev_err_probe(dev, ret, "parsing dt failed.\n");
 		goto unreg_clk;
 	}
 
@@ -1614,8 +1612,8 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 	if (of_device_is_compatible(np, "arasan,sdhci-5.1")) {
 		sdhci_arasan->phy = devm_phy_get(dev, "phy_arasan");
 		if (IS_ERR(sdhci_arasan->phy)) {
-			ret = PTR_ERR(sdhci_arasan->phy);
-			dev_err(dev, "No phy for arasan,sdhci-5.1.\n");
+			ret = dev_err_probe(dev, PTR_ERR(sdhci_arasan->phy),
+					    "No phy for arasan,sdhci-5.1.\n");
 			goto unreg_clk;
 		}
 
