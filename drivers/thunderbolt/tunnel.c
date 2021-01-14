@@ -794,24 +794,14 @@ static u32 tb_dma_credits(struct tb_port *nhi)
 	return min(max_credits, 13U);
 }
 
-static int tb_dma_activate(struct tb_tunnel *tunnel, bool active)
-{
-	struct tb_port *nhi = tunnel->src_port;
-	u32 credits;
-
-	credits = active ? tb_dma_credits(nhi) : 0;
-	return tb_port_set_initial_credits(nhi, credits);
-}
-
-static void tb_dma_init_path(struct tb_path *path, unsigned int isb,
-			     unsigned int efc, u32 credits)
+static void tb_dma_init_path(struct tb_path *path, unsigned int efc, u32 credits)
 {
 	int i;
 
 	path->egress_fc_enable = efc;
 	path->ingress_fc_enable = TB_PATH_ALL;
 	path->egress_shared_buffer = TB_PATH_NONE;
-	path->ingress_shared_buffer = isb;
+	path->ingress_shared_buffer = TB_PATH_NONE;
 	path->priority = 5;
 	path->weight = 1;
 	path->clear_fc = true;
@@ -856,7 +846,6 @@ struct tb_tunnel *tb_tunnel_alloc_dma(struct tb *tb, struct tb_port *nhi,
 	if (!tunnel)
 		return NULL;
 
-	tunnel->activate = tb_dma_activate;
 	tunnel->src_port = nhi;
 	tunnel->dst_port = dst;
 
@@ -869,8 +858,7 @@ struct tb_tunnel *tb_tunnel_alloc_dma(struct tb *tb, struct tb_port *nhi,
 			tb_tunnel_free(tunnel);
 			return NULL;
 		}
-		tb_dma_init_path(path, TB_PATH_NONE, TB_PATH_SOURCE | TB_PATH_INTERNAL,
-				 credits);
+		tb_dma_init_path(path, TB_PATH_SOURCE | TB_PATH_INTERNAL, credits);
 		tunnel->paths[i++] = path;
 	}
 
@@ -881,7 +869,7 @@ struct tb_tunnel *tb_tunnel_alloc_dma(struct tb *tb, struct tb_port *nhi,
 			tb_tunnel_free(tunnel);
 			return NULL;
 		}
-		tb_dma_init_path(path, TB_PATH_SOURCE, TB_PATH_ALL, credits);
+		tb_dma_init_path(path, TB_PATH_ALL, credits);
 		tunnel->paths[i++] = path;
 	}
 
