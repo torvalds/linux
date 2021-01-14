@@ -1851,39 +1851,39 @@ static int c2c_hists__reinit(struct c2c_hists *c2c_hists,
 
 #define DISPLAY_LINE_LIMIT  0.001
 
+static u8 filter_display(u32 val, u32 sum)
+{
+	if (sum == 0 || ((double)val / sum) < DISPLAY_LINE_LIMIT)
+		return HIST_FILTER__C2C;
+
+	return 0;
+}
+
 static bool he__display(struct hist_entry *he, struct c2c_stats *stats)
 {
 	struct c2c_hist_entry *c2c_he;
-	double ld_dist;
 
 	if (c2c.show_all)
 		return true;
 
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
 
-#define FILTER_HITM(__h)						\
-	if (stats->__h) {						\
-		ld_dist = ((double)c2c_he->stats.__h / stats->__h);	\
-		if (ld_dist < DISPLAY_LINE_LIMIT)			\
-			he->filtered = HIST_FILTER__C2C;		\
-	} else {							\
-		he->filtered = HIST_FILTER__C2C;			\
-	}
-
 	switch (c2c.display) {
 	case DISPLAY_LCL:
-		FILTER_HITM(lcl_hitm);
+		he->filtered = filter_display(c2c_he->stats.lcl_hitm,
+					      stats->lcl_hitm);
 		break;
 	case DISPLAY_RMT:
-		FILTER_HITM(rmt_hitm);
+		he->filtered = filter_display(c2c_he->stats.rmt_hitm,
+					      stats->rmt_hitm);
 		break;
 	case DISPLAY_TOT:
-		FILTER_HITM(tot_hitm);
+		he->filtered = filter_display(c2c_he->stats.tot_hitm,
+					      stats->tot_hitm);
+		break;
 	default:
 		break;
 	}
-
-#undef FILTER_HITM
 
 	return he->filtered == 0;
 }
