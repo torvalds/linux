@@ -1462,7 +1462,6 @@ static int do_server(struct sock_args *args, int ipc_fd)
 
 	ipc_write(ipc_fd, 1);
 	while (1) {
-		log_msg("\n");
 		log_msg("waiting for client connection.\n");
 		FD_ZERO(&rfds);
 		FD_SET(lsd, &rfds);
