@@ -21,6 +21,7 @@
 		compatible = "pwm-backlight";
 		pwms = <&r_pwm 0 50000 PWM_POLARITY_INVERTED>;
 		enable-gpios = <&pio 7 10 GPIO_ACTIVE_HIGH>; /* PH10 */
+		power-supply = <&reg_ps>;
 		/* Backlight configuration differs per PinePhone revision. */
 	};
 
@@ -48,6 +49,14 @@
 			color = <LED_COLOR_ID_RED>;
 			gpios = <&pio 3 19 GPIO_ACTIVE_HIGH>; /* PD19 */
 		};
+	};
+
+	reg_ps: ps-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "ps";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
 	};
 
 	reg_vbat_wifi: vbat-wifi {
