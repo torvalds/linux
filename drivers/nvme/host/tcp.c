@@ -224,24 +224,29 @@ static void nvme_tcp_init_iter(struct nvme_tcp_request *req,
 	struct request *rq = blk_mq_rq_from_pdu(req);
 	struct bio_vec *vec;
 	unsigned int size;
-	int nsegs;
+	int nr_bvec;
 	size_t offset;
 
 	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD) {
 		vec = &rq->special_vec;
-		nsegs = 1;
+		nr_bvec = 1;
 		size = blk_rq_payload_bytes(rq);
 		offset = 0;
 	} else {
 		struct bio *bio = req->curr_bio;
+		struct bvec_iter bi;
+		struct bio_vec bv;
 
 		vec = __bvec_iter_bvec(bio->bi_io_vec, bio->bi_iter);
-		nsegs = bio_segments(bio);
+		nr_bvec = 0;
+		bio_for_each_bvec(bv, bio, bi) {
+			nr_bvec++;
+		}
 		size = bio->bi_iter.bi_size;
 		offset = bio->bi_iter.bi_bvec_done;
 	}
 
-	iov_iter_bvec(&req->iter, dir, vec, nsegs, size);
+	iov_iter_bvec(&req->iter, dir, vec, nr_bvec, size);
 	req->iter.iov_offset = offset;
 }
 
