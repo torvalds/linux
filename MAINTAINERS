@@ -19056,7 +19056,6 @@ K:	regulator_get_optional
 
 VRF
 M:	David Ahern <dsahern@kernel.org>
-M:	Shrijeet Mukherjee <shrijeet@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/vrf.rst
