@@ -1288,6 +1288,10 @@ D: Major kbuild rework during the 2.5 cycle
 D: ISDN Maintainer
 S: USA
 
+N: Gerrit Renker
+E: gerrit@erg.abdn.ac.uk
+D: DCCP protocol support.
+
 N: Philip Gladstone
 E: philip@gladstonefamily.net
 D: Kernel / timekeeping stuff
