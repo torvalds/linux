@@ -738,20 +738,6 @@ static const struct drm_gem_object_funcs vc4_gem_object_funcs = {
 	.vm_ops = &vc4_vm_ops,
 };
 
-struct drm_gem_object *
-vc4_prime_import_sg_table(struct drm_device *dev,
-			  struct dma_buf_attachment *attach,
-			  struct sg_table *sgt)
-{
-	struct drm_gem_object *obj;
-
-	obj = drm_gem_cma_prime_import_sg_table(dev, attach, sgt);
-	if (IS_ERR(obj))
-		return obj;
-
-	return obj;
-}
-
 static int vc4_grab_bin_bo(struct vc4_dev *vc4, struct vc4_file *vc4file)
 {
 	int ret;
