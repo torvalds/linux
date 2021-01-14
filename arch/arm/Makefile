@@ -266,8 +266,6 @@ core-y				+= $(machdirs) $(platdirs)
 core-				+= $(patsubst %,arch/arm/mach-%/, $(machine-))
 core-				+= $(patsubst %,arch/arm/plat-%/, $(plat-))
 
-drivers-$(CONFIG_OPROFILE)      += arch/arm/oprofile/
-
 libs-y				:= arch/arm/lib/ $(libs-y)
 
 # Default target when executing plain make
