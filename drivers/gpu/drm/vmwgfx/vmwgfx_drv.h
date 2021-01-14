@@ -1525,6 +1525,8 @@ static inline void vmw_bo_unreference(struct vmw_buffer_object **buf)
 
 	*buf = NULL;
 	if (tmp_buf != NULL) {
+		if (tmp_buf->base.pin_count > 0)
+			ttm_bo_unpin(&tmp_buf->base);
 		ttm_bo_put(&tmp_buf->base);
 	}
 }
