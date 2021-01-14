@@ -31,10 +31,12 @@ config DRM_I915_DEBUG
 	select DRM_DEBUG_SELFTEST
 	select DMABUF_SELFTESTS
 	select SW_SYNC # signaling validation framework (igt/syncobj*)
+	select DRM_I915_WERROR
+	select DRM_I915_DEBUG_GEM
+	select DRM_I915_DEBUG_MMIO
+	select DRM_I915_DEBUG_RUNTIME_PM
 	select DRM_I915_SW_FENCE_DEBUG_OBJECTS
 	select DRM_I915_SELFTEST
-	select DRM_I915_DEBUG_RUNTIME_PM
-	select DRM_I915_DEBUG_MMIO
 	default n
 	help
 	  Choose this option to turn on extra driver debugging that may affect
