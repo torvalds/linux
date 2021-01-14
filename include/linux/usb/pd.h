@@ -479,6 +479,7 @@ static inline unsigned int rdo_max_power(u32 rdo)
 #define PD_T_NEWSRC		250	/* Maximum of 275ms */
 #define PD_T_SWAP_SRC_START	20	/* Minimum of 20ms */
 #define PD_T_BIST_CONT_MODE	50	/* 30 - 60 ms */
+#define PD_T_SINK_TX		16	/* 16 - 20 ms */
 
 #define PD_T_DRP_TRY		100	/* 75 - 150 ms */
 #define PD_T_DRP_TRYWAIT	600	/* 400 - 800 ms */
