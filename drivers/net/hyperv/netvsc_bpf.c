@@ -37,6 +37,12 @@ u32 netvsc_run_xdp(struct net_device *ndev, struct netvsc_channel *nvchan,
 	if (!prog)
 		goto out;
 
+	/* Ensure that the below memcpy() won't overflow the page buffer. */
+	if (len > ndev->mtu + ETH_HLEN) {
+		act = XDP_DROP;
+		goto out;
+	}
+
 	/* allocate page buffer for data */
 	page = alloc_page(GFP_ATOMIC);
 	if (!page) {

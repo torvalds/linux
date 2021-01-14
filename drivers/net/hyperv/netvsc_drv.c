@@ -761,6 +761,16 @@ void netvsc_linkstatus_callback(struct net_device *net,
 	if (indicate->status == RNDIS_STATUS_LINK_SPEED_CHANGE) {
 		u32 speed;
 
+		/* Validate status_buf_offset */
+		if (indicate->status_buflen < sizeof(speed) ||
+		    indicate->status_buf_offset < sizeof(*indicate) ||
+		    resp->msg_len - RNDIS_HEADER_SIZE < indicate->status_buf_offset ||
+		    resp->msg_len - RNDIS_HEADER_SIZE - indicate->status_buf_offset
+				< indicate->status_buflen) {
+			netdev_err(net, "invalid rndis_indicate_status packet\n");
+			return;
+		}
+
 		speed = *(u32 *)((void *)indicate
 				 + indicate->status_buf_offset) / 10000;
 		ndev_ctx->speed = speed;
@@ -866,8 +876,14 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 	 */
 	if (csum_info && csum_info->receive.ip_checksum_value_invalid &&
 	    csum_info->receive.ip_checksum_succeeded &&
-	    skb->protocol == htons(ETH_P_IP))
+	    skb->protocol == htons(ETH_P_IP)) {
+		/* Check that there is enough space to hold the IP header. */
+		if (skb_headlen(skb) < sizeof(struct iphdr)) {
+			kfree_skb(skb);
+			return NULL;
+		}
 		netvsc_comp_ipcsum(skb);
+	}
 
 	/* Do L4 checksum offload if enabled and present. */
 	if (csum_info && (net->features & NETIF_F_RXCSUM)) {
