@@ -1006,13 +1006,13 @@ Size modifier is one of ...
 
 Mode modifier is one of::
 
-  BPF_IMM  0x00  /* used for 32-bit mov in classic BPF and 64-bit in eBPF */
-  BPF_ABS  0x20
-  BPF_IND  0x40
-  BPF_MEM  0x60
-  BPF_LEN  0x80  /* classic BPF only, reserved in eBPF */
-  BPF_MSH  0xa0  /* classic BPF only, reserved in eBPF */
-  BPF_XADD 0xc0  /* eBPF only, exclusive add */
+  BPF_IMM     0x00  /* used for 32-bit mov in classic BPF and 64-bit in eBPF */
+  BPF_ABS     0x20
+  BPF_IND     0x40
+  BPF_MEM     0x60
+  BPF_LEN     0x80  /* classic BPF only, reserved in eBPF */
+  BPF_MSH     0xa0  /* classic BPF only, reserved in eBPF */
+  BPF_ATOMIC  0xc0  /* eBPF only, atomic operations */
 
 eBPF has two non-generic instructions: (BPF_ABS | <size> | BPF_LD) and
 (BPF_IND | <size> | BPF_LD) which are used to access packet data.
@@ -1044,11 +1044,19 @@ Unlike classic BPF instruction set, eBPF has generic load/store operations::
     BPF_MEM | <size> | BPF_STX:  *(size *) (dst_reg + off) = src_reg
     BPF_MEM | <size> | BPF_ST:   *(size *) (dst_reg + off) = imm32
     BPF_MEM | <size> | BPF_LDX:  dst_reg = *(size *) (src_reg + off)
-    BPF_XADD | BPF_W  | BPF_STX: lock xadd *(u32 *)(dst_reg + off16) += src_reg
-    BPF_XADD | BPF_DW | BPF_STX: lock xadd *(u64 *)(dst_reg + off16) += src_reg
 
-Where size is one of: BPF_B or BPF_H or BPF_W or BPF_DW. Note that 1 and
-2 byte atomic increments are not supported.
+Where size is one of: BPF_B or BPF_H or BPF_W or BPF_DW.
+
+It also includes atomic operations, which use the immediate field for extra
+encoding.
+
+   .imm = BPF_ADD, .code = BPF_ATOMIC | BPF_W  | BPF_STX: lock xadd *(u32 *)(dst_reg + off16) += src_reg
+   .imm = BPF_ADD, .code = BPF_ATOMIC | BPF_DW | BPF_STX: lock xadd *(u64 *)(dst_reg + off16) += src_reg
+
+Note that 1 and 2 byte atomic operations are not supported.
+
+You may encounter BPF_XADD - this is a legacy name for BPF_ATOMIC, referring to
+the exclusive-add operation encoded when the immediate field is zero.
 
 eBPF has one 16-byte instruction: BPF_LD | BPF_DW | BPF_IMM which consists
 of two consecutive ``struct bpf_insn`` 8-byte blocks and interpreted as single

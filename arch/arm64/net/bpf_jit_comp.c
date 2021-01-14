@@ -875,10 +875,18 @@ emit_cond_jmp:
 		}
 		break;
 
-	/* STX XADD: lock *(u32 *)(dst + off) += src */
-	case BPF_STX | BPF_XADD | BPF_W:
-	/* STX XADD: lock *(u64 *)(dst + off) += src */
-	case BPF_STX | BPF_XADD | BPF_DW:
+	case BPF_STX | BPF_ATOMIC | BPF_W:
+	case BPF_STX | BPF_ATOMIC | BPF_DW:
+		if (insn->imm != BPF_ADD) {
+			pr_err_once("unknown atomic op code %02x\n", insn->imm);
+			return -EINVAL;
+		}
+
+		/* STX XADD: lock *(u32 *)(dst + off) += src
+		 * and
+		 * STX XADD: lock *(u64 *)(dst + off) += src
+		 */
+
 		if (!off) {
 			reg = dst;
 		} else {
