@@ -37,7 +37,7 @@ NB: The dr_mode property described in [1] is NOT optional for this driver, as th
 is "otg", which isn't supported by this SoC. Valid dr_mode values for dwc3-st are either "host"
 or "device".
 
-[1] Documentation/devicetree/bindings/usb/generic.txt
+[1] Documentation/devicetree/bindings/usb/usb-drd.yaml
 
 Example:
 
