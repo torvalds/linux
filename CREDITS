@@ -2142,6 +2142,10 @@ E: seasons@falcon.sch.bme.hu
 E: seasons@makosteszta.sote.hu
 D: Original author of software suspend
 
+N: Alexey Kuznetsov
+E: kuznet@ms2.inr.ac.ru
+D: Author and maintainer of large parts of the networking stack
+
 N: Jaroslav Kysela
 E: perex@perex.cz
 W: https://www.perex.cz
