@@ -94,11 +94,13 @@
 		compatible = "gpio-keys";
 		autorepeat;
 
-		home {
-			debounce-interval = <100>;
-			gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+		BACK {
 			label = "GPIO Key Home";
-			linux,code = <KEY_HOME>;
+			debounce-interval = <10>;
+			interrupt-parent = <&gpio0>;
+			interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
+			linux,input-type = <EV_KEY>;
+			linux,code = <KEY_BACK>;
 		};
 	};
 
