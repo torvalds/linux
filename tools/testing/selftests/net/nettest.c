@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <linux/tcp.h>
 #include <arpa/inet.h>
 #include <net/if.h>
@@ -17,6 +18,7 @@
 #include <fcntl.h>
 #include <libgen.h>
 #include <limits.h>
+#include <sched.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,6 +35,8 @@
 #endif
 
 #define DEFAULT_PORT 12345
+
+#define NS_PREFIX "/run/netns/"
 
 #ifndef MAX
 #define MAX(a, b)  ((a) > (b) ? (a) : (b))
@@ -76,6 +80,9 @@ struct sock_args {
 	int use_cmsg;
 	const char *dev;
 	int ifindex;
+
+	const char *clientns;
+	const char *serverns;
 
 	const char *password;
 	/* prefix for MD5 password */
@@ -211,6 +218,27 @@ static void log_address(const char *desc, struct sockaddr *sa)
 	printf("\n");
 
 	fflush(stdout);
+}
+
+static int switch_ns(const char *ns)
+{
+	char path[PATH_MAX];
+	int fd, ret;
+
+	if (geteuid())
+		log_error("warning: likely need root to set netns %s!\n", ns);
+
+	snprintf(path, sizeof(path), "%s%s", NS_PREFIX, ns);
+	fd = open(path, 0);
+	if (fd < 0) {
+		log_err_errno("Failed to open netns path; can not switch netns");
+		return 1;
+	}
+
+	ret = setns(fd, CLONE_NEWNET);
+	close(fd);
+
+	return ret;
 }
 
 static int tcp_md5sig(int sd, void *addr, socklen_t alen, struct sock_args *args)
@@ -1377,6 +1405,15 @@ static int do_server(struct sock_args *args)
 	fd_set rfds;
 	int rc;
 
+	if (args->serverns) {
+		if (switch_ns(args->serverns)) {
+			log_error("Could not set server netns to %s\n",
+				  args->serverns);
+			return 1;
+		}
+		log_msg("Switched server netns\n");
+	}
+
 	if (resolve_devices(args) || validate_addresses(args))
 		return 1;
 
@@ -1565,6 +1602,15 @@ static int do_client(struct sock_args *args)
 		return 1;
 	}
 
+	if (args->clientns) {
+		if (switch_ns(args->clientns)) {
+			log_error("Could not set client netns to %s\n",
+				  args->clientns);
+			return 1;
+		}
+		log_msg("Switched client netns\n");
+	}
+
 	if (resolve_devices(args) || validate_addresses(args))
 		return 1;
 
@@ -1642,7 +1688,7 @@ static char *random_msg(int len)
 	return m;
 }
 
-#define GETOPT_STR  "sr:l:p:t:g:P:DRn:M:m:d:SCi6L:0:1:2:Fbq"
+#define GETOPT_STR  "sr:l:p:t:g:P:DRn:M:m:d:N:O:SCi6L:0:1:2:Fbq"
 
 static void print_usage(char *prog)
 {
@@ -1656,6 +1702,8 @@ static void print_usage(char *prog)
 	"    -t            timeout seconds (default: none)\n"
 	"\n"
 	"Optional:\n"
+	"    -N ns         set client to network namespace ns (requires root)\n"
+	"    -O ns         set server to network namespace ns (requires root)\n"
 	"    -F            Restart server loop\n"
 	"    -6            IPv6 (default is IPv4)\n"
 	"    -P proto      protocol for socket: icmp, ospf (default: none)\n"
@@ -1756,6 +1804,12 @@ int main(int argc, char *argv[])
 			break;
 		case 'n':
 			iter = atoi(optarg);
+			break;
+		case 'N':
+			args.clientns = optarg;
+			break;
+		case 'O':
+			args.serverns = optarg;
 			break;
 		case 'L':
 			msg = random_msg(atoi(optarg));
