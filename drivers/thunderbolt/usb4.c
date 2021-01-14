@@ -413,7 +413,7 @@ int usb4_switch_set_wake(struct tb_switch *sw, unsigned int flags)
 	}
 
 	/*
-	 * Enable wakes from PCIe and USB 3.x on this router. Only
+	 * Enable wakes from PCIe, USB 3.x and DP on this router. Only
 	 * needed for device routers.
 	 */
 	if (route) {
@@ -421,11 +421,13 @@ int usb4_switch_set_wake(struct tb_switch *sw, unsigned int flags)
 		if (ret)
 			return ret;
 
-		val &= ~(ROUTER_CS_5_WOP | ROUTER_CS_5_WOU);
+		val &= ~(ROUTER_CS_5_WOP | ROUTER_CS_5_WOU | ROUTER_CS_5_WOD);
 		if (flags & TB_WAKE_ON_USB3)
 			val |= ROUTER_CS_5_WOU;
 		if (flags & TB_WAKE_ON_PCIE)
 			val |= ROUTER_CS_5_WOP;
+		if (flags & TB_WAKE_ON_DP)
+			val |= ROUTER_CS_5_WOD;
 
 		ret = tb_sw_write(sw, &val, TB_CFG_SWITCH, ROUTER_CS_5, 1);
 		if (ret)

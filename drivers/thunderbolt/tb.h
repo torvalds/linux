@@ -347,6 +347,7 @@ struct tb_path {
 #define TB_WAKE_ON_USB4		BIT(2)
 #define TB_WAKE_ON_USB3		BIT(3)
 #define TB_WAKE_ON_PCIE		BIT(4)
+#define TB_WAKE_ON_DP		BIT(5)
 
 /**
  * struct tb_cm_ops - Connection manager specific operations vector
