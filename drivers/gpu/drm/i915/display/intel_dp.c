@@ -5561,7 +5561,7 @@ static int intel_dp_do_phy_test(struct intel_encoder *encoder,
 	return 0;
 }
 
-static void intel_dp_phy_test(struct intel_encoder *encoder)
+void intel_dp_phy_test(struct intel_encoder *encoder)
 {
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
