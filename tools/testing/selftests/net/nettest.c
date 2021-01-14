@@ -84,6 +84,7 @@ struct sock_args {
 	unsigned int prefix_len;
 
 	/* expected addresses and device index for connection */
+	const char *expected_dev;
 	int expected_ifindex;
 
 	/* local address */
@@ -520,6 +521,33 @@ static int str_to_uint(const char *str, int min, int max, unsigned int *value)
 	}
 
 	return -1;
+}
+
+static int resolve_devices(struct sock_args *args)
+{
+	if (args->dev) {
+		args->ifindex = get_ifidx(args->dev);
+		if (args->ifindex < 0) {
+			log_error("Invalid device name\n");
+			return 1;
+		}
+	}
+
+	if (args->expected_dev) {
+		unsigned int tmp;
+
+		if (str_to_uint(args->expected_dev, 0, INT_MAX, &tmp) == 0) {
+			args->expected_ifindex = (int)tmp;
+		} else {
+			args->expected_ifindex = get_ifidx(args->expected_dev);
+			if (args->expected_ifindex < 0) {
+				fprintf(stderr, "Invalid expected device\n");
+				return 1;
+			}
+		}
+	}
+
+	return 0;
 }
 
 static int expected_addr_match(struct sockaddr *sa, void *expected,
@@ -1190,6 +1218,9 @@ static int do_server(struct sock_args *args)
 	fd_set rfds;
 	int rc;
 
+	if (resolve_devices(args))
+		return 1;
+
 	if (prog_timeout)
 		ptval = &timeout;
 
@@ -1374,6 +1405,16 @@ static int do_client(struct sock_args *args)
 		fprintf(stderr, "remote IP or multicast group not given\n");
 		return 1;
 	}
+
+	if (resolve_devices(args))
+		return 1;
+
+	if ((args->use_setsockopt || args->use_cmsg) && !args->ifindex) {
+		fprintf(stderr, "Device binding not specified\n");
+		return 1;
+	}
+	if (args->use_setsockopt || args->use_cmsg)
+		args->dev = NULL;
 
 	switch (args->version) {
 	case AF_INET:
@@ -1703,11 +1744,6 @@ int main(int argc, char *argv[])
 			break;
 		case 'd':
 			args.dev = optarg;
-			args.ifindex = get_ifidx(optarg);
-			if (args.ifindex < 0) {
-				fprintf(stderr, "Invalid device name\n");
-				return 1;
-			}
 			break;
 		case 'i':
 			interactive = 1;
@@ -1738,16 +1774,7 @@ int main(int argc, char *argv[])
 
 			break;
 		case '2':
-			if (str_to_uint(optarg, 0, INT_MAX, &tmp) == 0) {
-				args.expected_ifindex = (int)tmp;
-			} else {
-				args.expected_ifindex = get_ifidx(optarg);
-				if (args.expected_ifindex < 0) {
-					fprintf(stderr,
-						"Invalid expected device\n");
-					return 1;
-				}
-			}
+			args.expected_dev = optarg;
 			break;
 		case 'q':
 			quiet = 1;
@@ -1768,13 +1795,6 @@ int main(int argc, char *argv[])
 		log_error("Prefix range for MD5 protection specified without a password\n");
 		return 1;
 	}
-
-	if ((args.use_setsockopt || args.use_cmsg) && !args.ifindex) {
-		fprintf(stderr, "Device binding not specified\n");
-		return 1;
-	}
-	if (args.use_setsockopt || args.use_cmsg)
-		args.dev = NULL;
 
 	if (iter == 0) {
 		fprintf(stderr, "Invalid number of messages to send\n");
