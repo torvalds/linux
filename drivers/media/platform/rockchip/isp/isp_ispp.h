@@ -10,7 +10,7 @@
 #include <linux/rkisp1-config.h>
 #include <linux/rkispp-config.h>
 
-#define RKISP_BUF_MAX 3
+#define RKISP_BUF_MAX 2
 #define RKISPP_BUF_MAX 2
 #define RKISP_ISPP_BUF_MAX (RKISP_BUF_MAX + RKISPP_BUF_MAX + (2 * (DEV_MAX - 1)))
 

@@ -70,6 +70,7 @@ struct sink_info {
  * rdbk_kfifo: read back event fifo
  * rdbk_lock: lock for read back event
  * mipi_di: Data Identifier (vc[7:6],dt[5:0])
+ * filt_state: multiframe read back mode to filt irq event
  * tx_first: flags for dmatx first Y_STATE irq
  * memory: compact or big/little endian byte order for tx/rx
  */
@@ -87,6 +88,7 @@ struct rkisp_csi_device {
 	int frame_cnt_x3;
 	u32 rd_mode;
 	u8 mipi_di[CSI_PAD_MAX - 1];
+	u8 filt_state[CSI_F_MAX];
 	u8 tx_first[HDR_DMA_MAX];
 	u8 memory;
 };

@@ -66,6 +66,7 @@ void rkisp_bridge_isr(u32 *mis_val, struct rkisp_device *dev);
 void rkisp_bridge_sendtopp_buffer(struct rkisp_device *dev, u32 dev_id, u32 buf_idx);
 void rkisp_bridge_save_spbuf(struct rkisp_device *dev, struct rkisp_buffer *sp_buf);
 void rkisp_bridge_stop_spstream(struct rkisp_device *dev);
+void rkisp_bridge_update_mi(struct rkisp_device *dev);
 void rkisp_get_bridge_sd(struct platform_device *dev,
 			 struct v4l2_subdev **sd);
 #endif

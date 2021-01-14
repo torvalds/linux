@@ -470,6 +470,7 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 		rkisp_set_bits(dev, CTRL_SWS_CFG,
 			       0, SW_MPIP_DROP_FRM_DIS, true);
 	}
+	memset(dev->csi_dev.filt_state, 0, sizeof(dev->csi_dev.filt_state));
 	dev->csi_dev.frame_cnt = -1;
 	dev->csi_dev.frame_cnt_x1 = -1;
 	dev->csi_dev.frame_cnt_x2 = -1;
@@ -578,6 +579,9 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 		val |= CIF_ISP_CTRL_ISP_CFG_UPD;
 		rkisp_write(dev, ISP_CTRL, val, true);
 	}
+
+	memset(csi->filt_state, 0, sizeof(csi->filt_state));
+	csi->filt_state[CSI_F_VS] = dma2frm;
 
 	val = rkisp_read(dev, CSI2RX_CTRL0, true);
 	val &= ~SW_IBUF_OP_MODE(0xf);
