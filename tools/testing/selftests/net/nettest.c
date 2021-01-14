@@ -1707,9 +1707,28 @@ static char *random_msg(int len)
 
 static int ipc_child(int fd, struct sock_args *args)
 {
+	char *outbuf, *errbuf;
+	int rc = 1;
+
+	outbuf = malloc(4096);
+	errbuf = malloc(4096);
+	if (!outbuf || !errbuf) {
+		fprintf(stderr, "server: Failed to allocate buffers for stdout and stderr\n");
+		goto out;
+	}
+
+	setbuffer(stdout, outbuf, 4096);
+	setbuffer(stderr, errbuf, 4096);
+
 	server_mode = 1; /* to tell log_msg in case we are in both_mode */
 
-	return do_server(args, fd);
+	rc = do_server(args, fd);
+
+out:
+	free(outbuf);
+	free(errbuf);
+
+	return rc;
 }
 
 static int ipc_parent(int cpid, int fd, struct sock_args *args)
