@@ -483,7 +483,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 		fwd_attr.prio = attr->prio;
 		fwd_attr.vport = esw_attr->in_rep->vport;
 
-		fdb = esw_vport_tbl_get(esw, &fwd_attr);
+		fdb = mlx5_esw_vporttbl_get(esw, &fwd_attr);
 	} else {
 		if (attr->chain || attr->prio)
 			fdb = mlx5_chains_get_table(chains, attr->chain,
@@ -515,7 +515,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 
 err_add_rule:
 	if (split)
-		esw_vport_tbl_put(esw, &fwd_attr);
+		mlx5_esw_vporttbl_put(esw, &fwd_attr);
 	else if (attr->chain || attr->prio)
 		mlx5_chains_put_table(chains, attr->chain, attr->prio, 0);
 err_esw_get:
@@ -548,7 +548,7 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 	fwd_attr.chain = attr->chain;
 	fwd_attr.prio = attr->prio;
 	fwd_attr.vport = esw_attr->in_rep->vport;
-	fwd_fdb = esw_vport_tbl_get(esw, &fwd_attr);
+	fwd_fdb = mlx5_esw_vporttbl_get(esw, &fwd_attr);
 	if (IS_ERR(fwd_fdb)) {
 		rule = ERR_CAST(fwd_fdb);
 		goto err_get_fwd;
@@ -593,7 +593,7 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 	return rule;
 err_chain_src_rewrite:
 	esw_put_dest_tables_loop(esw, attr, 0, i);
-	esw_vport_tbl_put(esw, &fwd_attr);
+	mlx5_esw_vporttbl_put(esw, &fwd_attr);
 err_get_fwd:
 	mlx5_chains_put_table(chains, attr->chain, attr->prio, 0);
 err_get_fast:
@@ -631,12 +631,12 @@ __mlx5_eswitch_del_rule(struct mlx5_eswitch *esw,
 	}
 
 	if (fwd_rule)  {
-		esw_vport_tbl_put(esw, &fwd_attr);
+		mlx5_esw_vporttbl_put(esw, &fwd_attr);
 		mlx5_chains_put_table(chains, attr->chain, attr->prio, 0);
 		esw_put_dest_tables_loop(esw, attr, 0, esw_attr->split_count);
 	} else {
 		if (split)
-			esw_vport_tbl_put(esw, &fwd_attr);
+			mlx5_esw_vporttbl_put(esw, &fwd_attr);
 		else if (attr->chain || attr->prio)
 			mlx5_chains_put_table(chains, attr->chain, attr->prio, 0);
 		esw_cleanup_dests(esw, attr);
@@ -1335,7 +1335,7 @@ static void esw_set_flow_group_source_port(struct mlx5_eswitch *esw,
 }
 
 #if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
-static void mlx5_esw_vport_tbl_put(struct mlx5_eswitch *esw)
+static void esw_vport_tbl_put(struct mlx5_eswitch *esw)
 {
 	struct mlx5_vport_tbl_attr attr;
 	struct mlx5_vport *vport;
@@ -1345,11 +1345,11 @@ static void mlx5_esw_vport_tbl_put(struct mlx5_eswitch *esw)
 	attr.prio = 1;
 	mlx5_esw_for_all_vports(esw, i, vport) {
 		attr.vport = vport->vport;
-		esw_vport_tbl_put(esw, &attr);
+		mlx5_esw_vporttbl_put(esw, &attr);
 	}
 }
 
-static int mlx5_esw_vport_tbl_get(struct mlx5_eswitch *esw)
+static int esw_vport_tbl_get(struct mlx5_eswitch *esw)
 {
 	struct mlx5_vport_tbl_attr attr;
 	struct mlx5_flow_table *fdb;
@@ -1360,14 +1360,14 @@ static int mlx5_esw_vport_tbl_get(struct mlx5_eswitch *esw)
 	attr.prio = 1;
 	mlx5_esw_for_all_vports(esw, i, vport) {
 		attr.vport = vport->vport;
-		fdb = esw_vport_tbl_get(esw, &attr);
+		fdb = mlx5_esw_vporttbl_get(esw, &attr);
 		if (IS_ERR(fdb))
 			goto out;
 	}
 	return 0;
 
 out:
-	mlx5_esw_vport_tbl_put(esw);
+	esw_vport_tbl_put(esw);
 	return PTR_ERR(fdb);
 }
 
@@ -1448,7 +1448,7 @@ esw_chains_create(struct mlx5_eswitch *esw, struct mlx5_flow_table *miss_fdb)
 
 	/* Open level 1 for split fdb rules now if prios isn't supported  */
 	if (!mlx5_chains_prios_supported(chains)) {
-		err = mlx5_esw_vport_tbl_get(esw);
+		err = esw_vport_tbl_get(esw);
 		if (err)
 			goto level_1_err;
 	}
@@ -1472,7 +1472,7 @@ static void
 esw_chains_destroy(struct mlx5_eswitch *esw, struct mlx5_fs_chains *chains)
 {
 	if (!mlx5_chains_prios_supported(chains))
-		mlx5_esw_vport_tbl_put(esw);
+		esw_vport_tbl_put(esw);
 	mlx5_chains_put_table(chains, 0, 1, 0);
 	mlx5_chains_put_table(chains, mlx5_chains_get_nf_ft_chain(chains), 1, 0);
 	mlx5_chains_destroy(chains);
