@@ -1414,7 +1414,6 @@ F:	arch/arm*/include/asm/hw_breakpoint.h
 F:	arch/arm*/include/asm/perf_event.h
 F:	arch/arm*/kernel/hw_breakpoint.c
 F:	arch/arm*/kernel/perf_*
-F:	arch/arm/oprofile/common.c
 F:	drivers/perf/
 F:	include/linux/perf/arm_pmu.h
 
@@ -4083,7 +4082,6 @@ W:	http://www.ibm.com/developerworks/power/cell/
 F:	arch/powerpc/include/asm/cell*.h
 F:	arch/powerpc/include/asm/spu*.h
 F:	arch/powerpc/include/uapi/asm/spu*.h
-F:	arch/powerpc/oprofile/*cell*
 F:	arch/powerpc/platforms/cell/
 
 CELLWISE CW2015 BATTERY DRIVER
@@ -13310,15 +13308,6 @@ L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 F:	sound/drivers/opl4/
-
-OPROFILE
-M:	Robert Richter <rric@kernel.org>
-L:	oprofile-list@lists.sf.net
-S:	Maintained
-F:	arch/*/include/asm/oprofile*.h
-F:	arch/*/oprofile/
-F:	drivers/oprofile/
-F:	include/linux/oprofile.h
 
 ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
 M:	Mark Fasheh <mark@fasheh.com>

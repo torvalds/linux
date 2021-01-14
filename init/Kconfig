@@ -2024,7 +2024,7 @@ config PROFILING
 	bool "Profiling support"
 	help
 	  Say Y here to enable the extended profiling support mechanisms used
-	  by profilers such as OProfile.
+	  by profilers.
 
 #
 # Place an empty function call at each tracepoint site. Can be
