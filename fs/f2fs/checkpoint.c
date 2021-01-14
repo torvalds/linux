@@ -17,7 +17,6 @@
 #include "f2fs.h"
 #include "node.h"
 #include "segment.h"
-#include "trace.h"
 #include <trace/events/f2fs.h>
 
 static struct kmem_cache *ino_entry_slab;
@@ -443,7 +442,6 @@ static int f2fs_set_meta_page_dirty(struct page *page)
 		__set_page_dirty_nobuffers(page);
 		inc_page_count(F2FS_P_SB(page), F2FS_DIRTY_META);
 		f2fs_set_page_private(page, 0);
-		f2fs_trace_pid(page);
 		return 1;
 	}
 	return 0;
@@ -1017,7 +1015,6 @@ void f2fs_update_dirty_page(struct inode *inode, struct page *page)
 	spin_unlock(&sbi->inode_lock[type]);
 
 	f2fs_set_page_private(page, 0);
-	f2fs_trace_pid(page);
 }
 
 void f2fs_remove_dirty_inode(struct inode *inode)
