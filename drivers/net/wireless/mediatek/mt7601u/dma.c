@@ -152,8 +152,7 @@ mt7601u_rx_process_entry(struct mt7601u_dev *dev, struct mt7601u_dma_buf_rx *e)
 
 	if (new_p) {
 		/* we have one extra ref from the allocator */
-		__free_pages(e->p, MT_RX_ORDER);
-
+		put_page(e->p);
 		e->p = new_p;
 	}
 }
