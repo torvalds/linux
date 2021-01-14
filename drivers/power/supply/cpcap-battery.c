@@ -999,9 +999,19 @@ static const struct of_device_id cpcap_battery_id_table[] = {
 MODULE_DEVICE_TABLE(of, cpcap_battery_id_table);
 #endif
 
+static const struct power_supply_desc cpcap_charger_battery_desc = {
+	.name		= "battery",
+	.type		= POWER_SUPPLY_TYPE_BATTERY,
+	.properties	= cpcap_battery_props,
+	.num_properties	= ARRAY_SIZE(cpcap_battery_props),
+	.get_property	= cpcap_battery_get_property,
+	.set_property	= cpcap_battery_set_property,
+	.property_is_writeable = cpcap_battery_property_is_writeable,
+	.external_power_changed = cpcap_battery_external_power_changed,
+};
+
 static int cpcap_battery_probe(struct platform_device *pdev)
 {
-	struct power_supply_desc *psy_desc;
 	struct cpcap_battery_ddata *ddata;
 	const struct of_device_id *match;
 	struct power_supply_config psy_cfg = {};
@@ -1056,23 +1066,11 @@ static int cpcap_battery_probe(struct platform_device *pdev)
 	if (error)
 		return error;
 
-	psy_desc = devm_kzalloc(ddata->dev, sizeof(*psy_desc), GFP_KERNEL);
-	if (!psy_desc)
-		return -ENOMEM;
-
-	psy_desc->name = "battery";
-	psy_desc->type = POWER_SUPPLY_TYPE_BATTERY;
-	psy_desc->properties = cpcap_battery_props;
-	psy_desc->num_properties = ARRAY_SIZE(cpcap_battery_props);
-	psy_desc->get_property = cpcap_battery_get_property;
-	psy_desc->set_property = cpcap_battery_set_property;
-	psy_desc->property_is_writeable = cpcap_battery_property_is_writeable;
-	psy_desc->external_power_changed = cpcap_battery_external_power_changed;
-
 	psy_cfg.of_node = pdev->dev.of_node;
 	psy_cfg.drv_data = ddata;
 
-	ddata->psy = devm_power_supply_register(ddata->dev, psy_desc,
+	ddata->psy = devm_power_supply_register(ddata->dev,
+						&cpcap_charger_battery_desc,
 						&psy_cfg);
 	error = PTR_ERR_OR_ZERO(ddata->psy);
 	if (error) {
