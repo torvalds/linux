@@ -681,9 +681,6 @@ static int vcc_remove(struct vio_dev *vdev)
 {
 	struct vcc_port *port = dev_get_drvdata(&vdev->dev);
 
-	if (!port)
-		return -ENODEV;
-
 	del_timer_sync(&port->rx_timer);
 	del_timer_sync(&port->tx_timer);
 
