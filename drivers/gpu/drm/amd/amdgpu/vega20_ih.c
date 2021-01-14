@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Advanced Micro Devices, Inc.
+ * Copyright 2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,24 +27,24 @@
 #include "amdgpu_ih.h"
 #include "soc15.h"
 
-#include "oss/osssys_4_0_offset.h"
-#include "oss/osssys_4_0_sh_mask.h"
+#include "oss/osssys_4_2_0_offset.h"
+#include "oss/osssys_4_2_0_sh_mask.h"
 
 #include "soc15_common.h"
-#include "vega10_ih.h"
+#include "vega20_ih.h"
 
 #define MAX_REARM_RETRY 10
 
-static void vega10_ih_set_interrupt_funcs(struct amdgpu_device *adev);
+static void vega20_ih_set_interrupt_funcs(struct amdgpu_device *adev);
 
 /**
- * vega10_ih_init_register_offset - Initialize register offset for ih rings
+ * vega20_ih_init_register_offset - Initialize register offset for ih rings
  *
  * @adev: amdgpu_device pointer
  *
- * Initialize register offset ih rings (VEGA10).
+ * Initialize register offset ih rings (VEGA20).
  */
-static void vega10_ih_init_register_offset(struct amdgpu_device *adev)
+static void vega20_ih_init_register_offset(struct amdgpu_device *adev)
 {
 	struct amdgpu_ih_regs *ih_regs;
 
@@ -85,15 +85,15 @@ static void vega10_ih_init_register_offset(struct amdgpu_device *adev)
 }
 
 /**
- * vega10_ih_toggle_ring_interrupts - toggle the interrupt ring buffer
+ * vega20_ih_toggle_ring_interrupts - toggle the interrupt ring buffer
  *
  * @adev: amdgpu_device pointer
  * @ih: amdgpu_ih_ring pointet
  * @enable: true - enable the interrupts, false - disable the interrupts
  *
- * Toggle the interrupt ring buffer (VEGA10)
+ * Toggle the interrupt ring buffer (VEGA20)
  */
-static int vega10_ih_toggle_ring_interrupts(struct amdgpu_device *adev,
+static int vega20_ih_toggle_ring_interrupts(struct amdgpu_device *adev,
 					    struct amdgpu_ih_ring *ih,
 					    bool enable)
 {
@@ -130,14 +130,14 @@ static int vega10_ih_toggle_ring_interrupts(struct amdgpu_device *adev,
 }
 
 /**
- * vega10_ih_toggle_interrupts - Toggle all the available interrupt ring buffers
+ * vega20_ih_toggle_interrupts - Toggle all the available interrupt ring buffers
  *
  * @adev: amdgpu_device pointer
  * @enable: enable or disable interrupt ring buffers
  *
- * Toggle all the available interrupt ring buffers (VEGA10).
+ * Toggle all the available interrupt ring buffers (VEGA20).
  */
-static int vega10_ih_toggle_interrupts(struct amdgpu_device *adev, bool enable)
+static int vega20_ih_toggle_interrupts(struct amdgpu_device *adev, bool enable)
 {
 	struct amdgpu_ih_ring *ih[] = {&adev->irq.ih, &adev->irq.ih1, &adev->irq.ih2};
 	int i;
@@ -145,7 +145,7 @@ static int vega10_ih_toggle_interrupts(struct amdgpu_device *adev, bool enable)
 
 	for (i = 0; i < ARRAY_SIZE(ih); i++) {
 		if (ih[i]->ring_size) {
-			r = vega10_ih_toggle_ring_interrupts(adev, ih[i], enable);
+			r = vega20_ih_toggle_ring_interrupts(adev, ih[i], enable);
 			if (r)
 				return r;
 		}
@@ -154,7 +154,7 @@ static int vega10_ih_toggle_interrupts(struct amdgpu_device *adev, bool enable)
 	return 0;
 }
 
-static uint32_t vega10_ih_rb_cntl(struct amdgpu_ih_ring *ih, uint32_t ih_rb_cntl)
+static uint32_t vega20_ih_rb_cntl(struct amdgpu_ih_ring *ih, uint32_t ih_rb_cntl)
 {
 	int rb_bufsz = order_base_2(ih->ring_size / 4);
 
@@ -177,7 +177,7 @@ static uint32_t vega10_ih_rb_cntl(struct amdgpu_ih_ring *ih, uint32_t ih_rb_cntl
 	return ih_rb_cntl;
 }
 
-static uint32_t vega10_ih_doorbell_rptr(struct amdgpu_ih_ring *ih)
+static uint32_t vega20_ih_doorbell_rptr(struct amdgpu_ih_ring *ih)
 {
 	u32 ih_doorbell_rtpr = 0;
 
@@ -197,14 +197,14 @@ static uint32_t vega10_ih_doorbell_rptr(struct amdgpu_ih_ring *ih)
 }
 
 /**
- * vega10_ih_enable_ring - enable an ih ring buffer
+ * vega20_ih_enable_ring - enable an ih ring buffer
  *
  * @adev: amdgpu_device pointer
  * @ih: amdgpu_ih_ring pointer
  *
- * Enable an ih ring buffer (VEGA10)
+ * Enable an ih ring buffer (VEGA20)
  */
-static int vega10_ih_enable_ring(struct amdgpu_device *adev,
+static int vega20_ih_enable_ring(struct amdgpu_device *adev,
 				 struct amdgpu_ih_ring *ih)
 {
 	struct amdgpu_ih_regs *ih_regs;
@@ -217,7 +217,7 @@ static int vega10_ih_enable_ring(struct amdgpu_device *adev,
 	WREG32(ih_regs->ih_rb_base_hi, (ih->gpu_addr >> 40) & 0xff);
 
 	tmp = RREG32(ih_regs->ih_rb_cntl);
-	tmp = vega10_ih_rb_cntl(ih, tmp);
+	tmp = vega20_ih_rb_cntl(ih, tmp);
 	if (ih == &adev->irq.ih)
 		tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, RPTR_REARM, !!adev->irq.msi_enabled);
 	if (ih == &adev->irq.ih1) {
@@ -243,13 +243,45 @@ static int vega10_ih_enable_ring(struct amdgpu_device *adev,
 	WREG32(ih_regs->ih_rb_wptr, 0);
 	WREG32(ih_regs->ih_rb_rptr, 0);
 
-	WREG32(ih_regs->ih_doorbell_rptr, vega10_ih_doorbell_rptr(ih));
+	WREG32(ih_regs->ih_doorbell_rptr, vega20_ih_doorbell_rptr(ih));
 
 	return 0;
 }
 
 /**
- * vega10_ih_irq_init - init and enable the interrupt ring
+ * vega20_ih_reroute_ih - reroute VMC/UTCL2 ih to an ih ring
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Reroute VMC and UMC interrupts on primary ih ring to
+ * ih ring 1 so they won't lose when bunches of page faults
+ * interrupts overwhelms the interrupt handler(VEGA20)
+ */
+static void vega20_ih_reroute_ih(struct amdgpu_device *adev)
+{
+	uint32_t tmp;
+
+	/* vega20 ih reroute will go through psp
+	 * this function is only used for arcturus
+	 */
+	if (adev->asic_type == CHIP_ARCTURUS) {
+		/* Reroute to IH ring 1 for VMC */
+		WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_INDEX, 0x12);
+		tmp = RREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA);
+		tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, CLIENT_TYPE, 1);
+		tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, RING_ID, 1);
+		WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA, tmp);
+
+		/* Reroute IH ring 1 for UTCL2 */
+		WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_INDEX, 0x1B);
+		tmp = RREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA);
+		tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, RING_ID, 1);
+		WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA, tmp);
+	}
+}
+
+/**
+ * vega20_ih_irq_init - init and enable the interrupt ring
  *
  * @adev: amdgpu_device pointer
  *
@@ -259,7 +291,7 @@ static int vega10_ih_enable_ring(struct amdgpu_device *adev,
  * Called at device load and reume.
  * Returns 0 for success, errors for failure.
  */
-static int vega10_ih_irq_init(struct amdgpu_device *adev)
+static int vega20_ih_irq_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ih_ring *ih[] = {&adev->irq.ih, &adev->irq.ih1, &adev->irq.ih2};
 	u32 ih_chicken;
@@ -268,13 +300,14 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 	u32 tmp;
 
 	/* disable irqs */
-	ret = vega10_ih_toggle_interrupts(adev, false);
+	ret = vega20_ih_toggle_interrupts(adev, false);
 	if (ret)
 		return ret;
 
 	adev->nbio.funcs->ih_control(adev);
 
-	if (adev->asic_type == CHIP_RENOIR) {
+	if (adev->asic_type == CHIP_ARCTURUS &&
+	    adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
 		ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN);
 		if (adev->irq.ih.use_bus_addr) {
 			ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN,
@@ -285,7 +318,9 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 
 	for (i = 0; i < ARRAY_SIZE(ih); i++) {
 		if (ih[i]->ring_size) {
-			ret = vega10_ih_enable_ring(adev, ih[i]);
+			if (i == 1)
+				vega20_ih_reroute_ih(adev);
+			ret = vega20_ih_enable_ring(adev, ih[i]);
 			if (ret)
 				return ret;
 		}
@@ -303,7 +338,7 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 	pci_set_master(adev->pdev);
 
 	/* enable interrupts */
-	ret = vega10_ih_toggle_interrupts(adev, true);
+	ret = vega20_ih_toggle_interrupts(adev, true);
 	if (ret)
 		return ret;
 
@@ -314,32 +349,31 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 }
 
 /**
- * vega10_ih_irq_disable - disable interrupts
+ * vega20_ih_irq_disable - disable interrupts
  *
  * @adev: amdgpu_device pointer
  *
- * Disable interrupts on the hw (VEGA10).
+ * Disable interrupts on the hw (VEGA20).
  */
-static void vega10_ih_irq_disable(struct amdgpu_device *adev)
+static void vega20_ih_irq_disable(struct amdgpu_device *adev)
 {
-	vega10_ih_toggle_interrupts(adev, false);
+	vega20_ih_toggle_interrupts(adev, false);
 
 	/* Wait and acknowledge irq */
 	mdelay(1);
 }
 
 /**
- * vega10_ih_get_wptr - get the IH ring buffer wptr
+ * vega20_ih_get_wptr - get the IH ring buffer wptr
  *
  * @adev: amdgpu_device pointer
- * @ih: IH ring buffer to fetch wptr
  *
  * Get the IH ring buffer wptr from either the register
- * or the writeback memory buffer (VEGA10).  Also check for
+ * or the writeback memory buffer (VEGA20).  Also check for
  * ring buffer overflow and deal with it.
  * Returns the value of the wptr.
  */
-static u32 vega10_ih_get_wptr(struct amdgpu_device *adev,
+static u32 vega20_ih_get_wptr(struct amdgpu_device *adev,
 			      struct amdgpu_ih_ring *ih)
 {
 	u32 wptr, tmp;
@@ -377,13 +411,12 @@ out:
 }
 
 /**
- * vega10_ih_irq_rearm - rearm IRQ if lost
+ * vega20_ih_irq_rearm - rearm IRQ if lost
  *
  * @adev: amdgpu_device pointer
- * @ih: IH ring to match
  *
  */
-static void vega10_ih_irq_rearm(struct amdgpu_device *adev,
+static void vega20_ih_irq_rearm(struct amdgpu_device *adev,
 			       struct amdgpu_ih_ring *ih)
 {
 	uint32_t v = 0;
@@ -391,6 +424,7 @@ static void vega10_ih_irq_rearm(struct amdgpu_device *adev,
 	struct amdgpu_ih_regs *ih_regs;
 
 	ih_regs = &ih->ih_regs;
+
 	/* Rearm IRQ / re-wwrite doorbell if doorbell write is lost */
 	for (i = 0; i < MAX_REARM_RETRY; i++) {
 		v = RREG32_NO_KIQ(ih_regs->ih_rb_rptr);
@@ -402,14 +436,13 @@ static void vega10_ih_irq_rearm(struct amdgpu_device *adev,
 }
 
 /**
- * vega10_ih_set_rptr - set the IH ring buffer rptr
+ * vega20_ih_set_rptr - set the IH ring buffer rptr
  *
  * @adev: amdgpu_device pointer
- * @ih: IH ring buffer to set rptr
  *
  * Set the IH ring buffer rptr.
  */
-static void vega10_ih_set_rptr(struct amdgpu_device *adev,
+static void vega20_ih_set_rptr(struct amdgpu_device *adev,
 			       struct amdgpu_ih_ring *ih)
 {
 	struct amdgpu_ih_regs *ih_regs;
@@ -420,7 +453,7 @@ static void vega10_ih_set_rptr(struct amdgpu_device *adev,
 		WDOORBELL32(ih->doorbell_index, ih->rptr);
 
 		if (amdgpu_sriov_vf(adev))
-			vega10_ih_irq_rearm(adev, ih);
+			vega20_ih_irq_rearm(adev, ih);
 	} else {
 		ih_regs = &ih->ih_regs;
 		WREG32(ih_regs->ih_rb_rptr, ih->rptr);
@@ -428,7 +461,7 @@ static void vega10_ih_set_rptr(struct amdgpu_device *adev,
 }
 
 /**
- * vega10_ih_self_irq - dispatch work for ring 1 and 2
+ * vega20_ih_self_irq - dispatch work for ring 1 and 2
  *
  * @adev: amdgpu_device pointer
  * @source: irq source
@@ -436,7 +469,7 @@ static void vega10_ih_set_rptr(struct amdgpu_device *adev,
  *
  * Update the WPTR from the IV and schedule work to handle the entries.
  */
-static int vega10_ih_self_irq(struct amdgpu_device *adev,
+static int vega20_ih_self_irq(struct amdgpu_device *adev,
 			      struct amdgpu_irq_src *source,
 			      struct amdgpu_iv_entry *entry)
 {
@@ -456,26 +489,26 @@ static int vega10_ih_self_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-static const struct amdgpu_irq_src_funcs vega10_ih_self_irq_funcs = {
-	.process = vega10_ih_self_irq,
+static const struct amdgpu_irq_src_funcs vega20_ih_self_irq_funcs = {
+	.process = vega20_ih_self_irq,
 };
 
-static void vega10_ih_set_self_irq_funcs(struct amdgpu_device *adev)
+static void vega20_ih_set_self_irq_funcs(struct amdgpu_device *adev)
 {
 	adev->irq.self_irq.num_types = 0;
-	adev->irq.self_irq.funcs = &vega10_ih_self_irq_funcs;
+	adev->irq.self_irq.funcs = &vega20_ih_self_irq_funcs;
 }
 
-static int vega10_ih_early_init(void *handle)
+static int vega20_ih_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	vega10_ih_set_interrupt_funcs(adev);
-	vega10_ih_set_self_irq_funcs(adev);
+	vega20_ih_set_interrupt_funcs(adev);
+	vega20_ih_set_self_irq_funcs(adev);
 	return 0;
 }
 
-static int vega10_ih_sw_init(void *handle)
+static int vega20_ih_sw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r;
@@ -492,23 +525,22 @@ static int vega10_ih_sw_init(void *handle)
 	adev->irq.ih.use_doorbell = true;
 	adev->irq.ih.doorbell_index = adev->doorbell_index.ih << 1;
 
-	if (!(adev->flags & AMD_IS_APU)) {
-		r = amdgpu_ih_ring_init(adev, &adev->irq.ih1, PAGE_SIZE, true);
-		if (r)
-			return r;
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih1, PAGE_SIZE, true);
+	if (r)
+		return r;
 
-		adev->irq.ih1.use_doorbell = true;
-		adev->irq.ih1.doorbell_index = (adev->doorbell_index.ih + 1) << 1;
+	adev->irq.ih1.use_doorbell = true;
+	adev->irq.ih1.doorbell_index = (adev->doorbell_index.ih + 1) << 1;
 
-		r = amdgpu_ih_ring_init(adev, &adev->irq.ih2, PAGE_SIZE, true);
-		if (r)
-			return r;
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih2, PAGE_SIZE, true);
+	if (r)
+		return r;
 
-		adev->irq.ih2.use_doorbell = true;
-		adev->irq.ih2.doorbell_index = (adev->doorbell_index.ih + 2) << 1;
-	}
+	adev->irq.ih2.use_doorbell = true;
+	adev->irq.ih2.doorbell_index = (adev->doorbell_index.ih + 2) << 1;
+
 	/* initialize ih control registers offset */
-	vega10_ih_init_register_offset(adev);
+	vega20_ih_init_register_offset(adev);
 
 	r = amdgpu_ih_ring_init(adev, &adev->irq.ih_soft, PAGE_SIZE, true);
 	if (r)
@@ -519,7 +551,7 @@ static int vega10_ih_sw_init(void *handle)
 	return r;
 }
 
-static int vega10_ih_sw_fini(void *handle)
+static int vega20_ih_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
@@ -532,61 +564,61 @@ static int vega10_ih_sw_fini(void *handle)
 	return 0;
 }
 
-static int vega10_ih_hw_init(void *handle)
+static int vega20_ih_hw_init(void *handle)
 {
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = vega10_ih_irq_init(adev);
+	r = vega20_ih_irq_init(adev);
 	if (r)
 		return r;
 
 	return 0;
 }
 
-static int vega10_ih_hw_fini(void *handle)
+static int vega20_ih_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	vega10_ih_irq_disable(adev);
+	vega20_ih_irq_disable(adev);
 
 	return 0;
 }
 
-static int vega10_ih_suspend(void *handle)
+static int vega20_ih_suspend(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	return vega10_ih_hw_fini(adev);
+	return vega20_ih_hw_fini(adev);
 }
 
-static int vega10_ih_resume(void *handle)
+static int vega20_ih_resume(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	return vega10_ih_hw_init(adev);
+	return vega20_ih_hw_init(adev);
 }
 
-static bool vega10_ih_is_idle(void *handle)
+static bool vega20_ih_is_idle(void *handle)
 {
 	/* todo */
 	return true;
 }
 
-static int vega10_ih_wait_for_idle(void *handle)
+static int vega20_ih_wait_for_idle(void *handle)
 {
 	/* todo */
 	return -ETIMEDOUT;
 }
 
-static int vega10_ih_soft_reset(void *handle)
+static int vega20_ih_soft_reset(void *handle)
 {
 	/* todo */
 
 	return 0;
 }
 
-static void vega10_ih_update_clockgating_state(struct amdgpu_device *adev,
+static void vega20_ih_update_clockgating_state(struct amdgpu_device *adev,
 					       bool enable)
 {
 	uint32_t data, def, field_val;
@@ -594,13 +626,10 @@ static void vega10_ih_update_clockgating_state(struct amdgpu_device *adev,
 	if (adev->cg_flags & AMD_CG_SUPPORT_IH_CG) {
 		def = data = RREG32_SOC15(OSSSYS, 0, mmIH_CLK_CTRL);
 		field_val = enable ? 0 : 1;
-		/**
-		 * Vega10/12 and RAVEN don't have IH_BUFFER_MEM_CLK_SOFT_OVERRIDE field.
-		 */
-		if (adev->asic_type == CHIP_RENOIR)
-			data = REG_SET_FIELD(data, IH_CLK_CTRL,
+		data = REG_SET_FIELD(data, IH_CLK_CTRL,
+				     IH_RETRY_INT_CAM_MEM_CLK_SOFT_OVERRIDE, field_val);
+		data = REG_SET_FIELD(data, IH_CLK_CTRL,
 				     IH_BUFFER_MEM_CLK_SOFT_OVERRIDE, field_val);
-
 		data = REG_SET_FIELD(data, IH_CLK_CTRL,
 				     DBUS_MUX_CLK_SOFT_OVERRIDE, field_val);
 		data = REG_SET_FIELD(data, IH_CLK_CTRL,
@@ -616,56 +645,56 @@ static void vega10_ih_update_clockgating_state(struct amdgpu_device *adev,
 	}
 }
 
-static int vega10_ih_set_clockgating_state(void *handle,
+static int vega20_ih_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	vega10_ih_update_clockgating_state(adev,
+	vega20_ih_update_clockgating_state(adev,
 				state == AMD_CG_STATE_GATE);
 	return 0;
 
 }
 
-static int vega10_ih_set_powergating_state(void *handle,
+static int vega20_ih_set_powergating_state(void *handle,
 					  enum amd_powergating_state state)
 {
 	return 0;
 }
 
-const struct amd_ip_funcs vega10_ih_ip_funcs = {
-	.name = "vega10_ih",
-	.early_init = vega10_ih_early_init,
+const struct amd_ip_funcs vega20_ih_ip_funcs = {
+	.name = "vega20_ih",
+	.early_init = vega20_ih_early_init,
 	.late_init = NULL,
-	.sw_init = vega10_ih_sw_init,
-	.sw_fini = vega10_ih_sw_fini,
-	.hw_init = vega10_ih_hw_init,
-	.hw_fini = vega10_ih_hw_fini,
-	.suspend = vega10_ih_suspend,
-	.resume = vega10_ih_resume,
-	.is_idle = vega10_ih_is_idle,
-	.wait_for_idle = vega10_ih_wait_for_idle,
-	.soft_reset = vega10_ih_soft_reset,
-	.set_clockgating_state = vega10_ih_set_clockgating_state,
-	.set_powergating_state = vega10_ih_set_powergating_state,
+	.sw_init = vega20_ih_sw_init,
+	.sw_fini = vega20_ih_sw_fini,
+	.hw_init = vega20_ih_hw_init,
+	.hw_fini = vega20_ih_hw_fini,
+	.suspend = vega20_ih_suspend,
+	.resume = vega20_ih_resume,
+	.is_idle = vega20_ih_is_idle,
+	.wait_for_idle = vega20_ih_wait_for_idle,
+	.soft_reset = vega20_ih_soft_reset,
+	.set_clockgating_state = vega20_ih_set_clockgating_state,
+	.set_powergating_state = vega20_ih_set_powergating_state,
 };
 
-static const struct amdgpu_ih_funcs vega10_ih_funcs = {
-	.get_wptr = vega10_ih_get_wptr,
+static const struct amdgpu_ih_funcs vega20_ih_funcs = {
+	.get_wptr = vega20_ih_get_wptr,
 	.decode_iv = amdgpu_ih_decode_iv_helper,
-	.set_rptr = vega10_ih_set_rptr
+	.set_rptr = vega20_ih_set_rptr
 };
 
-static void vega10_ih_set_interrupt_funcs(struct amdgpu_device *adev)
+static void vega20_ih_set_interrupt_funcs(struct amdgpu_device *adev)
 {
-	adev->irq.ih_funcs = &vega10_ih_funcs;
+	adev->irq.ih_funcs = &vega20_ih_funcs;
 }
 
-const struct amdgpu_ip_block_version vega10_ih_ip_block =
+const struct amdgpu_ip_block_version vega20_ih_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_IH,
 	.major = 4,
-	.minor = 0,
+	.minor = 2,
 	.rev = 0,
-	.funcs = &vega10_ih_ip_funcs,
+	.funcs = &vega20_ih_ip_funcs,
 };

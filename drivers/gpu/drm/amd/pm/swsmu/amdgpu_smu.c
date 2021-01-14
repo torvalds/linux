@@ -402,6 +402,10 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		break;
 	case CHIP_RENOIR:
 		renoir_set_ppt_funcs(smu);
+		/* enable the fine grain tuning function by default */
+		smu->fine_grain_enabled = true;
+		/* close the fine grain tuning function by default */
+		smu->fine_grain_started = false;
 		break;
 	case CHIP_VANGOGH:
 		vangogh_set_ppt_funcs(smu);
@@ -478,9 +482,6 @@ static int smu_late_init(void *handle)
 
 	smu_set_fine_grain_gfx_freq_parameters(smu);
 
-	if (adev->asic_type == CHIP_VANGOGH)
-		return 0;
-
 	if (!smu->pm_enabled)
 		return 0;
 
@@ -489,6 +490,9 @@ static int smu_late_init(void *handle)
 		dev_err(adev->dev, "Failed to post smu init!\n");
 		return ret;
 	}
+
+	if (adev->asic_type == CHIP_VANGOGH)
+		return 0;
 
 	ret = smu_set_default_od_settings(smu);
 	if (ret) {
