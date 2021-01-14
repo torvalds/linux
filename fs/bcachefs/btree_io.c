@@ -1624,7 +1624,7 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 		validate_before_checksum = true;
 
 	/* validate_bset will be modifying: */
-	if (le16_to_cpu(i->version) < bcachefs_metadata_version_max)
+	if (le16_to_cpu(i->version) <= bcachefs_metadata_version_inode_btree_change)
 		validate_before_checksum = true;
 
 	/* if we're going to be encrypting, check metadata validity first: */

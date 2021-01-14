@@ -117,6 +117,9 @@ void __bch2_journal_buf_put(struct journal *j)
 
 /*
  * Returns true if journal entry is now closed:
+ *
+ * We don't close a journal_buf until the next journal_buf is finished writing,
+ * and can be opened again - this also initializes the next journal_buf:
  */
 static bool __journal_entry_close(struct journal *j)
 {
@@ -154,6 +157,7 @@ static bool __journal_entry_close(struct journal *j)
 	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
 				       old.v, new.v)) != old.v);
 
+	/* Close out old buffer: */
 	buf->data->u64s		= cpu_to_le32(old.cur_entry_offset);
 
 	sectors = vstruct_blocks_plus(buf->data, c->block_bits,
@@ -184,6 +188,7 @@ static bool __journal_entry_close(struct journal *j)
 
 	__bch2_journal_pin_put(j, le64_to_cpu(buf->data->seq));
 
+	/* Initialize new buffer: */
 	journal_pin_new_entry(j, 1);
 
 	bch2_journal_buf_init(j);

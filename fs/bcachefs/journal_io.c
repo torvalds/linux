@@ -469,7 +469,8 @@ static int jset_validate(struct bch_fs *c,
 				  version < bcachefs_metadata_version_min) ||
 				 version >= bcachefs_metadata_version_max, c,
 			"%s sector %llu seq %llu: unknown journal entry version %u",
-			ca->name, sector, le64_to_cpu(jset->seq),
+			ca ? ca->name : c->name,
+			sector, le64_to_cpu(jset->seq),
 			version)) {
 		/* don't try to continue: */
 		return EINVAL;
@@ -481,37 +482,55 @@ static int jset_validate(struct bch_fs *c,
 
 	if (journal_entry_err_on(bytes > bucket_sectors_left << 9, c,
 			"%s sector %llu seq %llu: journal entry too big (%zu bytes)",
-			ca->name, sector, le64_to_cpu(jset->seq), bytes)) {
+			ca ? ca->name : c->name,
+			sector, le64_to_cpu(jset->seq), bytes)) {
 		ret = JOURNAL_ENTRY_BAD;
 		le32_add_cpu(&jset->u64s,
 			     -((bytes - (bucket_sectors_left << 9)) / 8));
 	}
 
-	if (fsck_err_on(!bch2_checksum_type_valid(c, JSET_CSUM_TYPE(jset)), c,
+	if (journal_entry_err_on(!bch2_checksum_type_valid(c, JSET_CSUM_TYPE(jset)), c,
 			"%s sector %llu seq %llu: journal entry with unknown csum type %llu",
-			ca->name, sector, le64_to_cpu(jset->seq),
+			ca ? ca->name : c->name,
+			sector, le64_to_cpu(jset->seq),
 			JSET_CSUM_TYPE(jset))) {
 		ret = JOURNAL_ENTRY_BAD;
-		goto bad_csum_type;
+		goto csum_done;
 	}
+
+	if (write)
+		goto csum_done;
 
 	csum = csum_vstruct(c, JSET_CSUM_TYPE(jset), journal_nonce(jset), jset);
 	if (journal_entry_err_on(bch2_crc_cmp(csum, jset->csum), c,
 				 "%s sector %llu seq %llu: journal checksum bad",
-				 ca->name, sector, le64_to_cpu(jset->seq)))
+				 ca ? ca->name : c->name,
+				 sector, le64_to_cpu(jset->seq)))
 		ret = JOURNAL_ENTRY_BAD;
 
 	bch2_encrypt(c, JSET_CSUM_TYPE(jset), journal_nonce(jset),
 		     jset->encrypted_start,
 		     vstruct_end(jset) - (void *) jset->encrypted_start);
-bad_csum_type:
-	if (journal_entry_err_on(le64_to_cpu(jset->last_seq) > le64_to_cpu(jset->seq), c,
-				 "invalid journal entry: last_seq > seq")) {
+csum_done:
+	/* last_seq is ignored when JSET_NO_FLUSH is true */
+	if (journal_entry_err_on(!JSET_NO_FLUSH(jset) &&
+				 le64_to_cpu(jset->last_seq) > le64_to_cpu(jset->seq), c,
+				 "invalid journal entry: last_seq > seq (%llu > %llu)",
+				 le64_to_cpu(jset->last_seq),
+				 le64_to_cpu(jset->seq))) {
 		jset->last_seq = jset->seq;
 		return JOURNAL_ENTRY_BAD;
 	}
 fsck_err:
 	return ret;
+}
+
+static int jset_validate_for_write(struct bch_fs *c, struct jset *jset)
+{
+	unsigned sectors = vstruct_sectors(jset, c->block_bits);
+
+	return jset_validate(c, NULL, jset, 0, sectors, sectors, WRITE) ?:
+		jset_validate_entries(c, jset, WRITE);
 }
 
 struct journal_read_buf {
@@ -1081,9 +1100,7 @@ static void journal_write_done(struct closure *cl)
 		bch2_bkey_devs(bkey_i_to_s_c(&w->key));
 	struct bch_replicas_padded replicas;
 	union journal_res_state old, new;
-	u64 seq = le64_to_cpu(w->data->seq);
-	u64 last_seq = le64_to_cpu(w->data->last_seq);
-	u64 v;
+	u64 v, seq, last_seq;
 	int err = 0;
 
 	bch2_time_stats_update(j->write_time, j->write_start_time);
@@ -1101,6 +1118,9 @@ static void journal_write_done(struct closure *cl)
 		bch2_fatal_error(c);
 
 	spin_lock(&j->lock);
+	seq = le64_to_cpu(w->data->seq);
+	last_seq = le64_to_cpu(w->data->last_seq);
+
 	if (seq >= j->pin.front)
 		journal_seq_pin(j, seq)->devs = devs;
 
@@ -1108,7 +1128,7 @@ static void journal_write_done(struct closure *cl)
 	if (err && (!j->err_seq || seq < j->err_seq))
 		j->err_seq	= seq;
 
-	if (!w->noflush) {
+	if (!JSET_NO_FLUSH(w->data)) {
 		j->flushed_seq_ondisk = seq;
 		j->last_seq_ondisk = last_seq;
 	}
@@ -1196,7 +1216,7 @@ void bch2_journal_write(struct closure *cl)
 	    test_bit(JOURNAL_MAY_SKIP_FLUSH, &j->flags)) {
 		w->noflush = true;
 		SET_JSET_NO_FLUSH(jset, true);
-		jset->last_seq = cpu_to_le64(j->last_seq_ondisk);
+		jset->last_seq = 0;
 
 		j->nr_noflush_writes++;
 	} else {
@@ -1248,11 +1268,11 @@ void bch2_journal_write(struct closure *cl)
 	if (bch2_csum_type_is_encryption(JSET_CSUM_TYPE(jset)))
 		validate_before_checksum = true;
 
-	if (le32_to_cpu(jset->version) < bcachefs_metadata_version_max)
+	if (le32_to_cpu(jset->version) <= bcachefs_metadata_version_inode_btree_change)
 		validate_before_checksum = true;
 
 	if (validate_before_checksum &&
-	    jset_validate_entries(c, jset, WRITE))
+	    jset_validate_for_write(c, jset))
 		goto err;
 
 	bch2_encrypt(c, JSET_CSUM_TYPE(jset), journal_nonce(jset),
@@ -1263,7 +1283,7 @@ void bch2_journal_write(struct closure *cl)
 				  journal_nonce(jset), jset);
 
 	if (!validate_before_checksum &&
-	    jset_validate_entries(c, jset, WRITE))
+	    jset_validate_for_write(c, jset))
 		goto err;
 
 	sectors = vstruct_sectors(jset, c->block_bits);
