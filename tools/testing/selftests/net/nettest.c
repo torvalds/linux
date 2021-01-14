@@ -1395,8 +1395,19 @@ err:
 	return -1;
 }
 
-static int do_server(struct sock_args *args)
+static void ipc_write(int fd, int message)
 {
+	/* Not in both_mode, so there's no process to signal */
+	if (fd < 0)
+		return;
+
+	if (write(fd, &message, sizeof(message)) < 0)
+		log_err_errno("Failed to send client status");
+}
+
+static int do_server(struct sock_args *args, int ipc_fd)
+{
+	/* ipc_fd = -1 if no parent process to signal */
 	struct timeval timeout = { .tv_sec = prog_timeout }, *ptval = NULL;
 	unsigned char addr[sizeof(struct sockaddr_in6)] = {};
 	socklen_t alen = sizeof(addr);
@@ -1409,13 +1420,13 @@ static int do_server(struct sock_args *args)
 		if (switch_ns(args->serverns)) {
 			log_error("Could not set server netns to %s\n",
 				  args->serverns);
-			return 1;
+			goto err_exit;
 		}
 		log_msg("Switched server netns\n");
 	}
 
 	if (resolve_devices(args) || validate_addresses(args))
-		return 1;
+		goto err_exit;
 
 	if (prog_timeout)
 		ptval = &timeout;
@@ -1426,14 +1437,16 @@ static int do_server(struct sock_args *args)
 		lsd = lsock_init(args);
 
 	if (lsd < 0)
-		return 1;
+		goto err_exit;
 
 	if (args->bind_test_only) {
 		close(lsd);
+		ipc_write(ipc_fd, 1);
 		return 0;
 	}
 
 	if (args->type != SOCK_STREAM) {
+		ipc_write(ipc_fd, 1);
 		rc = msg_loop(0, lsd, (void *) addr, alen, args);
 		close(lsd);
 		return rc;
@@ -1441,9 +1454,10 @@ static int do_server(struct sock_args *args)
 
 	if (args->password && tcp_md5_remote(lsd, args)) {
 		close(lsd);
-		return 1;
+		goto err_exit;
 	}
 
+	ipc_write(ipc_fd, 1);
 	while (1) {
 		log_msg("\n");
 		log_msg("waiting for client connection.\n");
@@ -1491,6 +1505,9 @@ static int do_server(struct sock_args *args)
 	close(lsd);
 
 	return rc;
+err_exit:
+	ipc_write(ipc_fd, 0);
+	return 1;
 }
 
 static int wait_for_connect(int sd)
@@ -1688,7 +1705,43 @@ static char *random_msg(int len)
 	return m;
 }
 
-#define GETOPT_STR  "sr:l:p:t:g:P:DRn:M:m:d:N:O:SCi6L:0:1:2:Fbq"
+static int ipc_child(int fd, struct sock_args *args)
+{
+	server_mode = 1; /* to tell log_msg in case we are in both_mode */
+
+	return do_server(args, fd);
+}
+
+static int ipc_parent(int cpid, int fd, struct sock_args *args)
+{
+	int client_status;
+	int status;
+	int buf;
+
+	/* do the client-side function here in the parent process,
+	 * waiting to be told when to continue
+	 */
+	if (read(fd, &buf, sizeof(buf)) <= 0) {
+		log_err_errno("Failed to read IPC status from status");
+		return 1;
+	}
+	if (!buf) {
+		log_error("Server failed; can not continue\n");
+		return 1;
+	}
+	log_msg("Server is ready\n");
+
+	client_status = do_client(args);
+	log_msg("parent is done!\n");
+
+	if (kill(cpid, 0) == 0)
+		kill(cpid, SIGKILL);
+
+	wait(&status);
+	return client_status;
+}
+
+#define GETOPT_STR  "sr:l:p:t:g:P:DRn:M:m:d:BN:O:SCi6L:0:1:2:Fbq"
 
 static void print_usage(char *prog)
 {
@@ -1702,6 +1755,7 @@ static void print_usage(char *prog)
 	"    -t            timeout seconds (default: none)\n"
 	"\n"
 	"Optional:\n"
+	"    -B            do both client and server via fork and IPC\n"
 	"    -N ns         set client to network namespace ns (requires root)\n"
 	"    -O ns         set server to network namespace ns (requires root)\n"
 	"    -F            Restart server loop\n"
@@ -1740,8 +1794,11 @@ int main(int argc, char *argv[])
 		.port    = DEFAULT_PORT,
 	};
 	struct protoent *pe;
+	int both_mode = 0;
 	unsigned int tmp;
 	int forever = 0;
+	int fd[2];
+	int cpid;
 
 	/* process inputs */
 	extern char *optarg;
@@ -1753,6 +1810,9 @@ int main(int argc, char *argv[])
 
 	while ((rc = getopt(argc, argv, GETOPT_STR)) != -1) {
 		switch (rc) {
+		case 'B':
+			both_mode = 1;
+			break;
 		case 's':
 			server_mode = 1;
 			break;
@@ -1892,7 +1952,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	if (!server_mode && !args.has_grp &&
+	if ((both_mode || !server_mode) && !args.has_grp &&
 	    !args.has_remote_ip && !args.has_local_ip) {
 		fprintf(stderr,
 			"Local (server mode) or remote IP (client IP) required\n");
@@ -1904,9 +1964,26 @@ int main(int argc, char *argv[])
 		msg = NULL;
 	}
 
+	if (both_mode) {
+		if (pipe(fd) < 0) {
+			perror("pipe");
+			exit(1);
+		}
+
+		cpid = fork();
+		if (cpid < 0) {
+			perror("fork");
+			exit(1);
+		}
+		if (cpid)
+			return ipc_parent(cpid, fd[0], &args);
+
+		return ipc_child(fd[1], &args);
+	}
+
 	if (server_mode) {
 		do {
-			rc = do_server(&args);
+			rc = do_server(&args, -1);
 		} while (forever);
 
 		return rc;
