@@ -4037,18 +4037,35 @@ ivb_cpu_edp_set_signal_levels(struct intel_dp *intel_dp,
 	intel_de_posting_read(dev_priv, intel_dp->output_reg);
 }
 
+static char dp_training_pattern_name(u8 train_pat)
+{
+	switch (train_pat) {
+	case DP_TRAINING_PATTERN_1:
+	case DP_TRAINING_PATTERN_2:
+	case DP_TRAINING_PATTERN_3:
+		return '0' + train_pat;
+	case DP_TRAINING_PATTERN_4:
+		return '4';
+	default:
+		MISSING_CASE(train_pat);
+		return '?';
+	}
+}
+
 void
 intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
 				       const struct intel_crtc_state *crtc_state,
 				       u8 dp_train_pat)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	u8 train_pat = intel_dp_training_pattern_symbol(dp_train_pat);
 
-	if ((intel_dp_training_pattern_symbol(dp_train_pat)) !=
-	    DP_TRAINING_PATTERN_DISABLE)
+	if (train_pat != DP_TRAINING_PATTERN_DISABLE)
 		drm_dbg_kms(&dev_priv->drm,
-			    "Using DP training pattern TPS%d\n",
-			    intel_dp_training_pattern_symbol(dp_train_pat));
+			    "[ENCODER:%d:%s] Using DP training pattern TPS%c\n",
+			    encoder->base.base.id, encoder->base.name,
+			    dp_training_pattern_name(train_pat));
 
 	intel_dp->set_link_train(intel_dp, crtc_state, dp_train_pat);
 }
