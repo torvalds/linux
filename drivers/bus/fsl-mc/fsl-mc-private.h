@@ -612,4 +612,6 @@ void fsl_mc_get_root_dprc(struct device *dev,
 struct fsl_mc_device *fsl_mc_device_lookup(struct fsl_mc_obj_desc *obj_desc,
 					   struct fsl_mc_device *mc_bus_dev);
 
+u16 mc_cmd_hdr_read_cmdid(struct fsl_mc_command *cmd);
+
 #endif /* _FSL_MC_PRIVATE_H_ */
