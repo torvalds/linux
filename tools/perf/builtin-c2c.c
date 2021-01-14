@@ -876,7 +876,7 @@ static struct c2c_stats *total_stats(struct hist_entry *he)
 	return &hists->stats;
 }
 
-static double percent(int st, int tot)
+static double percent(u32 st, u32 tot)
 {
 	return tot ? 100. * (double) st / (double) tot : 0;
 }
