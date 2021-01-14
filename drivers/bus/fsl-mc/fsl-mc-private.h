@@ -578,6 +578,7 @@ struct fsl_mc_bus {
 	struct mutex scan_mutex;    /* serializes bus scanning */
 	struct dprc_attributes dprc_attr;
 	struct fsl_mc_uapi uapi_misc;
+	int irq_enabled;
 };
 
 #define to_fsl_mc_bus(_mc_dev) \
@@ -655,5 +656,9 @@ static inline void fsl_mc_uapi_remove_device_file(struct fsl_mc_bus *mc_bus)
 }
 
 #endif
+
+int disable_dprc_irq(struct fsl_mc_device *mc_dev);
+int enable_dprc_irq(struct fsl_mc_device *mc_dev);
+int get_dprc_irq_state(struct fsl_mc_device *mc_dev);
 
 #endif /* _FSL_MC_PRIVATE_H_ */
