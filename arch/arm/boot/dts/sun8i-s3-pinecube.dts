@@ -64,9 +64,6 @@
 	status = "okay";
 
 	port {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		csi1_ep: endpoint {
 			remote-endpoint = <&ov5640_ep>;
 			bus-width = <8>;
