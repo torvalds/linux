@@ -1770,8 +1770,7 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	card_ctx->irq = irq;
 
 	/* only 32bit addressable */
-	dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
-	dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 
 	init_channel_allocations();
 
