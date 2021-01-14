@@ -245,6 +245,9 @@ struct qusb2_phy_cfg {
 
 	/* true if PHY has PLL_CORE_INPUT_OVERRIDE register to reset PLL */
 	bool has_pll_override;
+
+	/* true if PHY default clk scheme is single-ended */
+	bool se_clk_scheme_default;
 };
 
 static const struct qusb2_phy_cfg msm8996_phy_cfg = {
@@ -253,6 +256,7 @@ static const struct qusb2_phy_cfg msm8996_phy_cfg = {
 	.regs		= msm8996_regs_layout,
 
 	.has_pll_test	= true,
+	.se_clk_scheme_default = true,
 	.disable_ctrl	= (CLAMP_N_EN | FREEZIO_N | POWER_DOWN),
 	.mask_core_ready = PLL_LOCKED,
 	.autoresume_en	 = BIT(3),
@@ -266,6 +270,7 @@ static const struct qusb2_phy_cfg msm8998_phy_cfg = {
 	.disable_ctrl   = POWER_DOWN,
 	.mask_core_ready = CORE_READY_STATUS,
 	.has_pll_override = true,
+	.se_clk_scheme_default = true,
 	.autoresume_en   = BIT(0),
 	.update_tune1_with_efuse = true,
 };
@@ -279,6 +284,7 @@ static const struct qusb2_phy_cfg qusb2_v2_phy_cfg = {
 			   POWER_DOWN),
 	.mask_core_ready = CORE_READY_STATUS,
 	.has_pll_override = true,
+	.se_clk_scheme_default = true,
 	.autoresume_en	  = BIT(0),
 	.update_tune1_with_efuse = true,
 };
@@ -701,8 +707,13 @@ static int qusb2_phy_init(struct phy *phy)
 	/* Required to get phy pll lock successfully */
 	usleep_range(150, 160);
 
-	/* Default is single-ended clock on msm8996 */
-	qphy->has_se_clk_scheme = true;
+	/*
+	 * Not all the SoCs have got a readable TCSR_PHY_CLK_SCHEME
+	 * register in the TCSR so, if there's none, use the default
+	 * value hardcoded in the configuration.
+	 */
+	qphy->has_se_clk_scheme = cfg->se_clk_scheme_default;
+
 	/*
 	 * read TCSR_PHY_CLK_SCHEME register to check if single-ended
 	 * clock scheme is selected. If yes, then disable differential
