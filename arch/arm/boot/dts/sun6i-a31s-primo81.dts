@@ -115,7 +115,6 @@
 		reg = <0x1c>;
 		interrupt-parent = <&pio>;
 		interrupts = <0 9 IRQ_TYPE_LEVEL_HIGH>; /* PA9 */
-		#io-channel-cells = <1>;
 	};
 };
 
