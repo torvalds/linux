@@ -1954,7 +1954,7 @@ static void xudc_nonctrl_ep_handler(struct xusb_udc *udc, u8 epnum,
 	if (intrstatus & (XUSB_STATUS_EP0_BUFF1_COMP_MASK << epnum))
 		ep->buffer0ready = 0;
 	if (intrstatus & (XUSB_STATUS_EP0_BUFF2_COMP_MASK << epnum))
-		ep->buffer1ready = 0;
+		ep->buffer1ready = false;
 
 	if (list_empty(&ep->queue))
 		return;
