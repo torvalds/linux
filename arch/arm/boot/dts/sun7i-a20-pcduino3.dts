@@ -64,12 +64,12 @@
 	leds {
 		compatible = "gpio-leds";
 
-		tx {
+		led-0 {
 			label = "pcduino3:green:tx";
 			gpios = <&pio 7 15 GPIO_ACTIVE_LOW>;
 		};
 
-		rx {
+		led-1 {
 			label = "pcduino3:green:rx";
 			gpios = <&pio 7 16 GPIO_ACTIVE_LOW>;
 		};

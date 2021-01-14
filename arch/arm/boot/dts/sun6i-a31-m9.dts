@@ -61,7 +61,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		blue {
+		led {
 			label = "m9:blue:pwr";
 			gpios = <&pio 7 13 GPIO_ACTIVE_HIGH>;
 			default-state = "on";

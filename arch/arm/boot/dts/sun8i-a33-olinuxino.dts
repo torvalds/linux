@@ -62,7 +62,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		green {
+		led {
 			label = "a33-olinuxino:green:usr";
 			gpios = <&pio 1 7 GPIO_ACTIVE_HIGH>;
 		};

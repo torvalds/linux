@@ -59,17 +59,17 @@
 	leds {
 		compatible = "gpio-leds";
 
-		blue {
+		led-0 {
 			label = "bpi-m2:blue:usr";
 			gpios = <&pio 6 11 GPIO_ACTIVE_HIGH>; /* PG11 */
 		};
 
-		green {
+		led-1 {
 			label = "bpi-m2:green:usr";
 			gpios = <&pio 6 10 GPIO_ACTIVE_HIGH>; /* PG10 */
 		};
 
-		red {
+		led-2 {
 			label = "bpi-m2:red:usr";
 			gpios = <&pio 6 5 GPIO_ACTIVE_HIGH>; /* PG5 */
 		};

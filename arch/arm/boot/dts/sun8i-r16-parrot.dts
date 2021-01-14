@@ -64,14 +64,14 @@
 	leds {
 		compatible = "gpio-leds";
 
-		led1 {
+		led-1 {
 			label = "parrot:led1:usr";
-			gpio = <&pio 4 17 GPIO_ACTIVE_HIGH>; /* PE17 */
+			gpios = <&pio 4 17 GPIO_ACTIVE_HIGH>; /* PE17 */
 		};
 
-		led2 {
+		led-2 {
 			label = "parrot:led2:usr";
-			gpio = <&pio 4 16 GPIO_ACTIVE_HIGH>; /* PE16 */
+			gpios = <&pio 4 16 GPIO_ACTIVE_HIGH>; /* PE16 */
 		};
 	};
 

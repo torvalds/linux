@@ -64,17 +64,17 @@
 	leds {
 		compatible = "gpio-leds";
 
-		blue {
+		led-0 {
 			label = "bpi-m2m:blue:usr";
 			gpios = <&pio 2 7 GPIO_ACTIVE_LOW>;
 		};
 
-		green {
+		led-1 {
 			label = "bpi-m2m:green:usr";
 			gpios = <&r_pio 0 2 GPIO_ACTIVE_LOW>;
 		};
 
-		red {
+		led-2 {
 			label = "bpi-m2m:red:power";
 			gpios = <&r_pio 0 3 GPIO_ACTIVE_LOW>;
 			default-state = "on";

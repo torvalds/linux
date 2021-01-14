@@ -37,7 +37,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		power {
+		led {
 			gpios = <&pio 4 8 GPIO_ACTIVE_LOW>; /* PE8 */
 			default-state = "on";
 		};

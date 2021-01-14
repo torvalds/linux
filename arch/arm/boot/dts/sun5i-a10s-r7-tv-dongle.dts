@@ -63,7 +63,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pins_r7>;
 
-		green {
+		led {
 			label = "r7-tv-dongle:green:usr";
 			gpios = <&pio 1 2 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
