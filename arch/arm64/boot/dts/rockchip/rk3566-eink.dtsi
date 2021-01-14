@@ -28,10 +28,62 @@
 	};
 };
 
+&cpu0_opp_table {
+	opp-216000000 {
+		opp-hz = /bits/ 64 <216000000>;
+		opp-microvolt = <825000 825000 1150000>;
+		clock-latency-ns = <40000>;
+	};
+	opp-312000000 {
+		opp-hz = /bits/ 64 <312000000>;
+		opp-microvolt = <825000 825000 1150000>;
+		clock-latency-ns = <40000>;
+	};
+};
+
+&dfi {
+	status = "okay";
+};
+
+&dmc {
+	system-status-freq = <
+		/*system status         freq(KHz)*/
+		SYS_STATUS_NORMAL       528000
+		SYS_STATUS_REBOOT       528000
+		SYS_STATUS_SUSPEND      324000
+		SYS_STATUS_LOW_POWER	324000
+	>;
+	center-supply = <&vdd_logic>;
+	auto-freq-en = <0>;
+	status = "okay";
+};
+
+&dmc_opp_table {
+	opp-324000000 {
+		opp-microvolt = <825000>;
+	};
+	opp-528000000 {
+		opp-microvolt = <825000>;
+	};
+	/delete-node/ opp-780000000;
+	/delete-node/ opp-1056000000;
+};
+
 &ebc {
 	status = "okay";
 };
 
 &eink {
 	status = "okay";
+};
+
+&gpu_opp_table {
+	opp-100000000 {
+		opp-hz = /bits/ 64 <100000000>;
+		opp-microvolt = <825000>;
+	};
+	opp-150000000 {
+		opp-hz = /bits/ 64 <150000000>;
+		opp-microvolt = <825000>;
+	};
 };
