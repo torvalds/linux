@@ -286,6 +286,11 @@ Some of the interface modes are described below:
     Note: due to legacy usage, some 10GBASE-R usage incorrectly makes
     use of this definition.
 
+``PHY_INTERFACE_MODE_100BASEX``
+    This defines IEEE 802.3 Clause 24.  The link operates at a fixed data
+    rate of 125Mpbs using a 4B/5B encoding scheme, resulting in an underlying
+    data rate of 100Mpbs.
+
 Pause frames / flow control
 ===========================
 
