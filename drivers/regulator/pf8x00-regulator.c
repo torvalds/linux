@@ -128,7 +128,6 @@ enum pf8x00_devid {
 
 struct pf8x00_regulator {
 	struct regulator_desc desc;
-	u8 ilim;
 	u8 phase_shift;
 };
 
@@ -148,6 +147,11 @@ static const struct regmap_config pf8x00_regmap_config = {
 static const int pf8x00_ldo_voltages[] = {
 	1500000, 1600000, 1800000, 1850000, 2150000, 2500000, 2800000, 3000000,
 	3100000, 3150000, 3200000, 3300000, 3350000, 1650000, 1700000, 5000000,
+};
+
+/* Output: 2.1A to 4.5A */
+static const unsigned int pf8x00_sw_current_table[] = {
+	2100000, 2600000, 3000000, 4500000,
 };
 
 #define SWV(i)		(6250 * i + 400000)
@@ -199,10 +203,10 @@ static struct pf8x00_regulator *desc_to_regulator(const struct regulator_desc *d
 	return container_of(desc, struct pf8x00_regulator, desc);
 }
 
-static void swxilim_select(const struct regulator_desc *desc, int ilim)
+static void swxilim_select(struct pf8x00_chip *chip, int id, int ilim)
 {
-	struct pf8x00_regulator *data = desc_to_regulator(desc);
 	u8 ilim_sel;
+	u8 reg = PF8X00_SW_BASE(id) + SW_CONFIG2;
 
 	switch (ilim) {
 	case 2100:
@@ -222,7 +226,32 @@ static void swxilim_select(const struct regulator_desc *desc, int ilim)
 		break;
 	}
 
-	data->ilim = ilim_sel;
+	regmap_update_bits(chip->regmap, reg,
+					PF8X00_SWXILIM_MASK,
+					ilim_sel << PF8X00_SWXILIM_SHIFT);
+}
+
+static void handle_ilim_property(struct device_node *np,
+			      const struct regulator_desc *desc,
+			      struct regulator_config *config)
+{
+	struct pf8x00_chip *chip = config->driver_data;
+	int ret;
+	int val;
+
+	if ((desc->id >= PF8X00_BUCK1) && (desc->id <= PF8X00_BUCK7)) {
+		ret = of_property_read_u32(np, "nxp,ilim-ma", &val);
+		if (ret) {
+			dev_dbg(chip->dev, "unspecified ilim for BUCK%d, use value stored in OTP\n",
+				desc->id - PF8X00_LDO4);
+			return;
+		}
+
+		dev_warn(chip->dev, "nxp,ilim-ma is deprecated, please use regulator-max-microamp\n");
+		swxilim_select(chip, desc->id, val);
+
+	} else
+		dev_warn(chip->dev, "nxp,ilim-ma used with incorrect regulator (%d)\n", desc->id);
 }
 
 static int pf8x00_of_parse_cb(struct device_node *np,
@@ -235,12 +264,7 @@ static int pf8x00_of_parse_cb(struct device_node *np,
 	int val;
 	int ret;
 
-	ret = of_property_read_u32(np, "nxp,ilim-ma", &val);
-	if (ret)
-		dev_dbg(chip->dev, "unspecified ilim for BUCK%d, use 2100 mA\n",
-			desc->id - PF8X00_LDO4);
-
-	swxilim_select(desc, val);
+	handle_ilim_property(np, desc, config);
 
 	ret = of_property_read_u32(np, "nxp,phase-shift", &val);
 	if (ret) {
@@ -279,6 +303,8 @@ static const struct regulator_ops pf8x00_buck_ops = {
 	.list_voltage = regulator_list_voltage_table,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
+	.get_current_limit = regulator_get_current_limit_regmap,
+	.set_current_limit = regulator_set_current_limit_regmap,
 };
 
 static const struct regulator_ops pf8x00_vsnvs_ops = {
@@ -327,6 +353,11 @@ static const struct regulator_ops pf8x00_vsnvs_ops = {
 			.volt_table = voltages,			\
 			.vsel_reg = (base) + SW_RUN_VOLT,	\
 			.vsel_mask = 0xff,			\
+			.curr_table = pf8x00_sw_current_table, \
+			.n_current_limits = \
+				ARRAY_SIZE(pf8x00_sw_current_table), \
+			.csel_reg = (base) + SW_CONFIG2,	\
+			.csel_mask = PF8X00_SWXILIM_MASK,	\
 			.enable_reg = (base) + SW_MODE1,	\
 			.enable_val = 0x3,			\
 			.disable_val = 0x0,			\
@@ -458,10 +489,6 @@ static int pf8x00_i2c_probe(struct i2c_client *client)
 			regmap_update_bits(chip->regmap, reg,
 					   PF8X00_SWXPHASE_MASK,
 					   data->phase_shift);
-
-			regmap_update_bits(chip->regmap, reg,
-					   PF8X00_SWXILIM_MASK,
-					   data->ilim << PF8X00_SWXILIM_SHIFT);
 		}
 	}
 
