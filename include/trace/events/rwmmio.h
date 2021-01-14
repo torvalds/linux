@@ -30,7 +30,7 @@ TRACE_EVENT(rwmmio_write,
 		__entry->addr = (u64)addr;
 	),
 
-	TP_printk("%pS write addr=%llx of width=%x val=0x%llx\n",
+	TP_printk("%llxS write addr=%llx of width=%x val=0x%llx\n",
 		__entry->fn, __entry->addr, __entry->width, __entry->val)
 );
 
@@ -52,7 +52,7 @@ TRACE_EVENT(rwmmio_read,
 		__entry->addr = (u64)addr;
 	),
 
-	TP_printk("%pS read addr=%llx of width=%x\n",
+	TP_printk("%llxS read addr=%llx of width=%x\n",
 		 __entry->fn, __entry->addr, __entry->width)
 );
 
@@ -76,7 +76,7 @@ TRACE_EVENT(rwmmio_post_read,
 		__entry->addr = (u64)addr;
 	),
 
-	TP_printk("%pS read addr=%llx of width=%x val=0x%llx\n",
+	TP_printk("%llxS read addr=%llx of width=%x val=0x%llx\n",
 		 __entry->fn, __entry->addr, __entry->width, __entry->val)
 );
 
