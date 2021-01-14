@@ -206,11 +206,6 @@ static inline size_t nvme_tcp_req_cur_length(struct nvme_tcp_request *req)
 			req->pdu_len - req->pdu_sent);
 }
 
-static inline size_t nvme_tcp_req_offset(struct nvme_tcp_request *req)
-{
-	return req->iter.iov_offset;
-}
-
 static inline size_t nvme_tcp_pdu_data_left(struct nvme_tcp_request *req)
 {
 	return rq_data_dir(blk_mq_rq_from_pdu(req)) == WRITE ?
