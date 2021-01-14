@@ -74,11 +74,11 @@ static void nvmet_execute_get_log_page_error(struct nvmet_req *req)
 static u16 nvmet_get_smart_log_nsid(struct nvmet_req *req,
 		struct nvme_smart_log *slog)
 {
-	struct nvmet_ns *ns;
 	u64 host_reads, host_writes, data_units_read, data_units_written;
 
-	ns = nvmet_find_namespace(req->sq->ctrl, req->cmd->get_log_page.nsid);
-	if (!ns) {
+	req->ns = nvmet_find_namespace(req->sq->ctrl,
+				       req->cmd->get_log_page.nsid);
+	if (!req->ns) {
 		pr_err("Could not find namespace id : %d\n",
 				le32_to_cpu(req->cmd->get_log_page.nsid));
 		req->error_loc = offsetof(struct nvme_rw_command, nsid);
@@ -86,22 +86,20 @@ static u16 nvmet_get_smart_log_nsid(struct nvmet_req *req,
 	}
 
 	/* we don't have the right data for file backed ns */
-	if (!ns->bdev)
-		goto out;
+	if (!req->ns->bdev)
+		return NVME_SC_SUCCESS;
 
-	host_reads = part_stat_read(ns->bdev, ios[READ]);
+	host_reads = part_stat_read(req->ns->bdev, ios[READ]);
 	data_units_read =
-		DIV_ROUND_UP(part_stat_read(ns->bdev, sectors[READ]), 1000);
-	host_writes = part_stat_read(ns->bdev, ios[WRITE]);
+		DIV_ROUND_UP(part_stat_read(req->ns->bdev, sectors[READ]), 1000);
+	host_writes = part_stat_read(req->ns->bdev, ios[WRITE]);
 	data_units_written =
-		DIV_ROUND_UP(part_stat_read(ns->bdev, sectors[WRITE]), 1000);
+		DIV_ROUND_UP(part_stat_read(req->ns->bdev, sectors[WRITE]), 1000);
 
 	put_unaligned_le64(host_reads, &slog->host_reads[0]);
 	put_unaligned_le64(data_units_read, &slog->data_units_read[0]);
 	put_unaligned_le64(host_writes, &slog->host_writes[0]);
 	put_unaligned_le64(data_units_written, &slog->data_units_written[0]);
-out:
-	nvmet_put_namespace(ns);
 
 	return NVME_SC_SUCCESS;
 }
