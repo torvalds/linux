@@ -651,6 +651,9 @@ u32 intel_plane_compute_aligned_offset(int *x, int *y,
 				       int color_plane);
 int intel_plane_pin_fb(struct intel_plane_state *plane_state);
 void intel_plane_unpin_fb(struct intel_plane_state *old_plane_state);
+struct intel_encoder *
+intel_get_crtc_new_encoder(const struct intel_atomic_state *state,
+			   const struct intel_crtc_state *crtc_state);
 
 /* modesetting */
 void intel_modeset_init_hw(struct drm_i915_private *i915);

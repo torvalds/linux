@@ -202,6 +202,7 @@ i915-y += \
 	display/intel_display.o \
 	display/intel_display_power.o \
 	display/intel_dpio_phy.o \
+	display/intel_dpll.o \
 	display/intel_dpll_mgr.o \
 	display/intel_dsb.o \
 	display/intel_fbc.o \
