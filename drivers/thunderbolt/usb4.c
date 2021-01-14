@@ -399,12 +399,18 @@ int usb4_switch_set_wake(struct tb_switch *sw, unsigned int flags)
 
 		val &= ~(PORT_CS_19_WOC | PORT_CS_19_WOD | PORT_CS_19_WOU4);
 
-		if (flags & TB_WAKE_ON_CONNECT)
-			val |= PORT_CS_19_WOC;
-		if (flags & TB_WAKE_ON_DISCONNECT)
-			val |= PORT_CS_19_WOD;
-		if (flags & TB_WAKE_ON_USB4)
+		if (tb_is_upstream_port(port)) {
 			val |= PORT_CS_19_WOU4;
+		} else {
+			bool configured = val & PORT_CS_19_PC;
+
+			if ((flags & TB_WAKE_ON_CONNECT) && !configured)
+				val |= PORT_CS_19_WOC;
+			if ((flags & TB_WAKE_ON_DISCONNECT) && configured)
+				val |= PORT_CS_19_WOD;
+			if ((flags & TB_WAKE_ON_USB4) && configured)
+				val |= PORT_CS_19_WOU4;
+		}
 
 		ret = tb_port_write(port, &val, TB_CFG_PORT,
 				    port->cap_usb4 + PORT_CS_19, 1);
