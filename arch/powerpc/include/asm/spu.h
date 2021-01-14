@@ -201,20 +201,6 @@ int spu_64k_pages_available(void);
 struct mm_struct;
 extern void spu_flush_all_slbs(struct mm_struct *mm);
 
-/* This interface allows a profiler (e.g., OProfile) to store a ref
- * to spu context information that it creates.	This caching technique
- * avoids the need to recreate this information after a save/restore operation.
- *
- * Assumes the caller has already incremented the ref count to
- * profile_info; then spu_context_destroy must call kref_put
- * on prof_info_kref.
- */
-void spu_set_profile_private_kref(struct spu_context *ctx,
-				  struct kref *prof_info_kref,
-				  void ( * prof_info_release) (struct kref *kref));
-
-void *spu_get_profile_private_kref(struct spu_context *ctx);
-
 /* system callbacks from the SPU */
 struct spu_syscall_block {
 	u64 nr_ret;
@@ -265,25 +251,6 @@ void spu_remove_dev_attr(struct device_attribute *attr);
 
 int spu_add_dev_attr_group(struct attribute_group *attrs);
 void spu_remove_dev_attr_group(struct attribute_group *attrs);
-
-/*
- * Notifier blocks:
- *
- * oprofile can get notified when a context switch is performed
- * on an spe. The notifer function that gets called is passed
- * a pointer to the SPU structure as well as the object-id that
- * identifies the binary running on that SPU now.
- *
- * For a context save, the object-id that is passed is zero,
- * identifying that the kernel will run from that moment on.
- *
- * For a context restore, the object-id is the value written
- * to object-id spufs file from user space and the notifer
- * function can assume that spu->ctx is valid.
- */
-struct notifier_block;
-int spu_switch_event_register(struct notifier_block * n);
-int spu_switch_event_unregister(struct notifier_block * n);
 
 extern void notify_spus_active(void);
 extern void do_notify_spus_active(void);
