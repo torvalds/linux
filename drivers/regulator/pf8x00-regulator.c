@@ -114,7 +114,6 @@ enum swxilim_bits {
 #define PF8X00_SWXILIM_SHIFT		3
 #define PF8X00_SWXILIM_MASK		GENMASK(4, 3)
 #define PF8X00_SWXPHASE_MASK		GENMASK(2, 0)
-#define PF8X00_SWXPHASE_DEFAULT		0
 #define PF8X00_SWXPHASE_SHIFT		7
 
 enum pf8x00_devid {
@@ -128,7 +127,6 @@ enum pf8x00_devid {
 
 struct pf8x00_regulator {
 	struct regulator_desc desc;
-	u8 phase_shift;
 };
 
 struct pf8x00_chip {
@@ -173,11 +171,6 @@ static const int pf8x00_sw7_voltages[] = {
 static const int pf8x00_vsnvs_voltages[] = {
 	0, 1800000, 3000000, 3300000,
 };
-
-static struct pf8x00_regulator *desc_to_regulator(const struct regulator_desc *desc)
-{
-	return container_of(desc, struct pf8x00_regulator, desc);
-}
 
 static void swxilim_select(struct pf8x00_chip *chip, int id, int ilim)
 {
@@ -230,35 +223,55 @@ static void handle_ilim_property(struct device_node *np,
 		dev_warn(chip->dev, "nxp,ilim-ma used with incorrect regulator (%d)\n", desc->id);
 }
 
+static void handle_shift_property(struct device_node *np,
+			      const struct regulator_desc *desc,
+			      struct regulator_config *config)
+{
+	unsigned char id = desc->id - PF8X00_LDO4;
+	unsigned char reg = PF8X00_SW_BASE(id) + SW_CONFIG2;
+	struct pf8x00_chip *chip = config->driver_data;
+
+	int phase;
+	int val;
+	int ret;
+	if ((desc->id >= PF8X00_BUCK1) && (desc->id <= PF8X00_BUCK7)) {
+		ret = of_property_read_u32(np, "nxp,phase-shift", &val);
+		if (ret) {
+			dev_dbg(chip->dev,
+				"unspecified phase-shift for BUCK%d, using OTP configuration\n",
+				id);
+			return;
+		}
+
+		if (val < 0 || val > 315 || val % 45 != 0) {
+			dev_warn(config->dev,
+				"invalid phase_shift %d for BUCK%d, using OTP configuration\n",
+				val, id);
+			return;
+		}
+
+		phase = val / 45;
+
+		if (phase >= 1)
+			phase -= 1;
+		else
+			phase = PF8X00_SWXPHASE_SHIFT;
+
+		regmap_update_bits(chip->regmap, reg,
+				PF8X00_SWXPHASE_MASK,
+				phase);
+	} else
+		dev_warn(chip->dev, "nxp,phase-shift used with incorrect regulator (%d)\n", id);
+
+}
+
 static int pf8x00_of_parse_cb(struct device_node *np,
 			      const struct regulator_desc *desc,
 			      struct regulator_config *config)
 {
-	struct pf8x00_regulator *data = desc_to_regulator(desc);
-	struct pf8x00_chip *chip = config->driver_data;
-	int phase;
-	int val;
-	int ret;
 
 	handle_ilim_property(np, desc, config);
-
-	ret = of_property_read_u32(np, "nxp,phase-shift", &val);
-	if (ret) {
-		dev_dbg(chip->dev,
-			"unspecified phase-shift for BUCK%d, use 0 degrees\n",
-			desc->id - PF8X00_LDO4);
-		val = PF8X00_SWXPHASE_DEFAULT;
-	}
-
-	phase = val / 45;
-	if ((phase * 45) != val) {
-		dev_warn(config->dev,
-			 "invalid phase_shift %d for BUCK%d, use 0 degrees\n",
-			 (phase * 45), desc->id - PF8X00_LDO4);
-		phase = PF8X00_SWXPHASE_SHIFT;
-	}
-
-	data->phase_shift = (phase >= 1) ? phase - 1 : PF8X00_SWXPHASE_SHIFT;
+	handle_shift_property(np, desc, config);
 
 	return 0;
 }
@@ -500,14 +513,6 @@ static int pf8x00_i2c_probe(struct i2c_client *client)
 			dev_err(&client->dev,
 				"failed to register %s regulator\n", data->desc.name);
 			return PTR_ERR(rdev);
-		}
-
-		if ((id >= PF8X00_BUCK1) && (id <= PF8X00_BUCK7)) {
-			u8 reg = PF8X00_SW_BASE(id) + SW_CONFIG2;
-
-			regmap_update_bits(chip->regmap, reg,
-					   PF8X00_SWXPHASE_MASK,
-					   data->phase_shift);
 		}
 	}
 
