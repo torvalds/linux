@@ -1004,9 +1004,8 @@ int ssh_request_init(struct ssh_request *rqst, enum ssam_request_flags flags,
  *
  * Initializes the given request transport layer and associated packet
  * transport layer. Transmitter and receiver threads must be started
- * separately via ssh_rtl_tx_start() and ssh_rtl_rx_start(), after the
- * request-layer has been initialized and the lower-level serial device layer
- * has been set up.
+ * separately via ssh_rtl_start(), after the request-layer has been
+ * initialized and the lower-level serial device layer has been set up.
  *
  * Return: Returns zero on success and a nonzero error code on failure.
  */
