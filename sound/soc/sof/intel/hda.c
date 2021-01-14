@@ -809,13 +809,9 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	sdev->mailbox_bar = HDA_DSP_BAR;
 
 	/* allow 64bit DMA address if supported by H/W */
-	if (!dma_set_mask(&pci->dev, DMA_BIT_MASK(64))) {
-		dev_dbg(sdev->dev, "DMA mask is 64 bit\n");
-		dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(64));
-	} else {
+	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(64))) {
 		dev_dbg(sdev->dev, "DMA mask is 32 bit\n");
-		dma_set_mask(&pci->dev, DMA_BIT_MASK(32));
-		dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(32));
+		dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(32));
 	}
 
 	/* init streams */
