@@ -63,6 +63,7 @@
 
 	panel {
 		compatible = "netron-dy,e231732";
+		power-supply = <&reg_vcc3v3>;
 
 		port {
 			panel_input: endpoint {
