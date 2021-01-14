@@ -2265,11 +2265,6 @@ out:
 /*
  * This function was originally taken from fs/mpage.c, and customized for f2fs.
  * Major change was from block_size == page_size in f2fs by default.
- *
- * Note that the aops->readpages() function is ONLY used for read-ahead. If
- * this function ever deviates from doing just read-ahead, it should either
- * use ->readpage() or do the necessary surgery to decouple ->readpages()
- * from read-ahead.
  */
 static int f2fs_mpage_readpages(struct inode *inode,
 		struct readahead_control *rac, struct page *page)
@@ -2292,7 +2287,6 @@ static int f2fs_mpage_readpages(struct inode *inode,
 	unsigned nr_pages = rac ? readahead_count(rac) : 1;
 	unsigned max_nr_pages = nr_pages;
 	int ret = 0;
-	bool drop_ra = false;
 
 	map.m_pblk = 0;
 	map.m_lblk = 0;
@@ -2303,26 +2297,10 @@ static int f2fs_mpage_readpages(struct inode *inode,
 	map.m_seg_type = NO_CHECK_TYPE;
 	map.m_may_create = false;
 
-	/*
-	 * Two readahead threads for same address range can cause race condition
-	 * which fragments sequential read IOs. So let's avoid each other.
-	 */
-	if (rac && readahead_count(rac)) {
-		if (READ_ONCE(F2FS_I(inode)->ra_offset) == readahead_index(rac))
-			drop_ra = true;
-		else
-			WRITE_ONCE(F2FS_I(inode)->ra_offset,
-						readahead_index(rac));
-	}
-
 	for (; nr_pages; nr_pages--) {
 		if (rac) {
 			page = readahead_page(rac);
 			prefetchw(&page->flags);
-			if (drop_ra) {
-				f2fs_put_page(page, 1);
-				continue;
-			}
 		}
 
 #ifdef CONFIG_F2FS_FS_COMPRESSION
@@ -2385,9 +2363,6 @@ next_page:
 	}
 	if (bio)
 		__submit_bio(F2FS_I_SB(inode), bio, DATA);
-
-	if (rac && readahead_count(rac) && !drop_ra)
-		WRITE_ONCE(F2FS_I(inode)->ra_offset, -1);
 	return ret;
 }
 

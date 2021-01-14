@@ -1174,8 +1174,6 @@ static struct inode *f2fs_alloc_inode(struct super_block *sb)
 	/* Will be used by directory only */
 	fi->i_dir_level = F2FS_SB(sb)->dir_level;
 
-	fi->ra_offset = -1;
-
 	return &fi->vfs_inode;
 }
 
