@@ -17,6 +17,8 @@
 #define RKMODULE_NAME_LEN		32
 #define RKMODULE_LSCDATA_LEN		441
 
+#define RKMODULE_MAX_VC_CH		4
+
 #define RKMODULE_CAMERA_MODULE_INDEX	"rockchip,camera-module-index"
 #define RKMODULE_CAMERA_MODULE_FACING	"rockchip,camera-module-facing"
 #define RKMODULE_CAMERA_MODULE_NAME	"rockchip,camera-module-name"
@@ -57,6 +59,12 @@
 
 #define RKMODULE_GET_BT656_INTF_TYPE	\
 	_IOR('V', BASE_VIDIOC_PRIVATE + 11, __u32)
+
+#define RKMODULE_GET_VC_FMT_INFO \
+    _IOR('V', BASE_VIDIOC_PRIVATE + 12, struct rkmodule_vc_fmt_info)
+
+#define RKMODULE_GET_VC_HOTPLUG_INFO \
+    _IOR('V', BASE_VIDIOC_PRIVATE + 13, struct rkmodule_vc_hotplug_info)
 
 /**
  * struct rkmodule_base_inf - module base information
@@ -327,5 +335,24 @@ enum rkmodule_bt656_intf_type {
 	BT656_STD_RAW = 0,
 	BT656_SONY_RAW,
 };
+
+/**
+ * struct rkmodule_vc_fmt_info - virtual channels fmt info
+ *
+ */
+struct rkmodule_vc_fmt_info {
+	__u32 width[RKMODULE_MAX_VC_CH];
+	__u32 height[RKMODULE_MAX_VC_CH];
+	__u32 fps[RKMODULE_MAX_VC_CH];
+} __attribute__ ((packed));
+
+/**
+ * struct rkmodule_vc_hotplug_info - virtual channels hotplug status info
+ * detect_status: hotplug status
+ *     bit 0~3 means channels id, value : 0 -> plug out, 1 -> plug in.
+ */
+struct rkmodule_vc_hotplug_info {
+	__u8 detect_status;
+} __attribute__ ((packed));
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
