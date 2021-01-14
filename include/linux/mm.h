@@ -521,7 +521,7 @@ struct vm_fault {
 	unsigned int sequence;
 	pmd_t orig_pmd;			/* value of PMD at the time of fault */
 #endif
-	struct {
+	const struct {
 		struct vm_area_struct *vma;	/* Target VMA */
 		gfp_t gfp_mask;			/* gfp mask to be used for allocations */
 		pgoff_t pgoff;			/* Logical page offset based on vma */
