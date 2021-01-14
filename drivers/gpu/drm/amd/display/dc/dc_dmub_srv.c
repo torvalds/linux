@@ -27,6 +27,9 @@
 #include "dc_dmub_srv.h"
 #include "../dmub/dmub_srv.h"
 
+#define CTX dc_dmub_srv->ctx
+#define DC_LOGGER CTX->logger
+
 static void dc_dmub_srv_construct(struct dc_dmub_srv *dc_srv, struct dc *dc,
 				  struct dmub_srv *dmub)
 {
@@ -104,6 +107,25 @@ void dc_dmub_srv_wait_idle(struct dc_dmub_srv *dc_dmub_srv)
 	status = dmub_srv_wait_for_idle(dmub, 100000);
 	if (status != DMUB_STATUS_OK)
 		DC_ERROR("Error waiting for DMUB idle: status=%d\n", status);
+}
+
+bool dc_dmub_srv_cmd_with_reply_data(struct dc_dmub_srv *dc_dmub_srv, union dmub_rb_cmd *cmd)
+{
+	struct dmub_srv *dmub;
+	enum dmub_status status;
+
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return false;
+
+	dmub = dc_dmub_srv->dmub;
+
+	status = dmub_srv_cmd_with_reply_data(dmub, cmd);
+	if (status != DMUB_STATUS_OK) {
+		DC_LOG_DEBUG("No reply for DMUB command: status=%d\n", status);
+		return false;
+	}
+
+	return true;
 }
 
 void dc_dmub_srv_wait_phy_init(struct dc_dmub_srv *dc_dmub_srv)
