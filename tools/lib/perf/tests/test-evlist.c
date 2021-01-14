@@ -214,6 +214,7 @@ static int test_mmap_thread(void)
 		 sysfs__mountpoint());
 
 	if (filename__read_int(path, &id)) {
+		tests_failed++;
 		fprintf(stderr, "error: failed to get tracepoint id: %s\n", path);
 		return -1;
 	}
