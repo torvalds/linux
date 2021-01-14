@@ -1239,6 +1239,19 @@ config VIDEO_RDACM20
 	  This camera should be used in conjunction with a GMSL
 	  deserialiser such as the MAX9286.
 
+config VIDEO_RDACM21
+	tristate "IMI RDACM21 camera support"
+	depends on I2C
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	select MEDIA_CONTROLLER
+	help
+	  This driver supports the IMI RDACM21 GMSL camera, used in
+	  ADAS systems.
+
+	  This camera should be used in conjunction with a GMSL
+	  deserialiser such as the MAX9286.
+
 config VIDEO_RJ54N1
 	tristate "Sharp RJ54N1CB0C sensor support"
 	depends on I2C && VIDEO_V4L2
