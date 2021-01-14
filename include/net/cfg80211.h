@@ -1756,7 +1756,7 @@ struct cfg80211_sar_specs {
 
 
 /**
- * struct cfg80211_sar_chan_ranges - sar frequency ranges
+ * struct cfg80211_sar_freq_ranges - sar frequency ranges
  * @start_freq:  start range edge frequency
  * @end_freq:    end range edge frequency
  */
