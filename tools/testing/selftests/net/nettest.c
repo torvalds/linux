@@ -85,6 +85,7 @@ struct sock_args {
 	const char *serverns;
 
 	const char *password;
+	const char *client_pw;
 	/* prefix for MD5 password */
 	const char *md5_prefix_str;
 	union {
@@ -1655,6 +1656,8 @@ static int do_client(struct sock_args *args)
 		break;
 	}
 
+	args->password = args->client_pw;
+
 	if (args->has_grp)
 		sd = msock_client(args);
 	else
@@ -1764,7 +1767,7 @@ static int ipc_parent(int cpid, int fd, struct sock_args *args)
 	return client_status;
 }
 
-#define GETOPT_STR  "sr:l:p:t:g:P:DRn:M:m:d:BN:O:SCi6L:0:1:2:Fbq"
+#define GETOPT_STR  "sr:l:p:t:g:P:DRn:M:X:m:d:BN:O:SCi6L:0:1:2:Fbq"
 
 static void print_usage(char *prog)
 {
@@ -1796,6 +1799,7 @@ static void print_usage(char *prog)
 	"    -n num        number of times to send message\n"
 	"\n"
 	"    -M password   use MD5 sum protection\n"
+	"    -X password   MD5 password for client mode\n"
 	"    -m prefix/len prefix and length to use for MD5 key\n"
 	"    -g grp        multicast group (e.g., 239.1.1.1)\n"
 	"    -i            interactive mode (default is echo and terminate)\n"
@@ -1899,6 +1903,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'M':
 			args.password = optarg;
+			break;
+		case 'X':
+			args.client_pw = optarg;
 			break;
 		case 'm':
 			args.md5_prefix_str = optarg;
