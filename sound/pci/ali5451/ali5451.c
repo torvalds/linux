@@ -2057,8 +2057,7 @@ static int snd_ali_create(struct snd_card *card,
 	if (err < 0)
 		return err;
 	/* check, if we can restrict PCI DMA transfers to 31 bits */
-	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(31)) < 0 ||
-	    dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(31)) < 0) {
+	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(31))) {
 		dev_err(card->dev,
 			"architecture does not support 31bit PCI busmaster DMA\n");
 		pci_disable_device(pci);

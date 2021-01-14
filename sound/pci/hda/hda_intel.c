@@ -1967,12 +1967,8 @@ static int azx_first_init(struct azx *chip)
 	/* allow 64bit DMA address if supported by H/W */
 	if (!(gcap & AZX_GCAP_64OK))
 		dma_bits = 32;
-	if (!dma_set_mask(&pci->dev, DMA_BIT_MASK(dma_bits))) {
-		dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(dma_bits));
-	} else {
-		dma_set_mask(&pci->dev, DMA_BIT_MASK(32));
-		dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(32));
-	}
+	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(dma_bits)))
+		dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(32));
 
 	/* read number of streams from GCAP register instead of using
 	 * hardcoded value
