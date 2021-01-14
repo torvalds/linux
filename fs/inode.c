@@ -1493,7 +1493,7 @@ struct inode *find_inode_rcu(struct super_block *sb, unsigned long hashval,
 EXPORT_SYMBOL(find_inode_rcu);
 
 /**
- * find_inode_by_rcu - Find an inode in the inode cache
+ * find_inode_by_ino_rcu - Find an inode in the inode cache
  * @sb:		Super block of file system to search
  * @ino:	The inode number to match
  *
@@ -1777,7 +1777,7 @@ static int update_time(struct inode *inode, struct timespec64 *time, int flags)
 }
 
 /**
- *	touch_atime	-	update the access time
+ *	atime_needs_update	-	update the access time
  *	@path: the &struct path to update
  *	@inode: inode to update
  *
