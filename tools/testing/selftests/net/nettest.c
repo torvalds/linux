@@ -43,12 +43,14 @@
 
 struct sock_args {
 	/* local address */
+	const char *local_addr_str;
 	union {
 		struct in_addr  in;
 		struct in6_addr in6;
 	} local_addr;
 
 	/* remote address */
+	const char *remote_addr_str;
 	union {
 		struct in_addr  in;
 		struct in6_addr in6;
@@ -77,6 +79,7 @@ struct sock_args {
 
 	const char *password;
 	/* prefix for MD5 password */
+	const char *md5_prefix_str;
 	union {
 		struct sockaddr_in v4;
 		struct sockaddr_in6 v6;
@@ -88,12 +91,14 @@ struct sock_args {
 	int expected_ifindex;
 
 	/* local address */
+	const char *expected_laddr_str;
 	union {
 		struct in_addr  in;
 		struct in6_addr in6;
 	} expected_laddr;
 
 	/* remote address */
+	const char *expected_raddr_str;
 	union {
 		struct in_addr  in;
 		struct in6_addr in6;
@@ -753,6 +758,34 @@ out:
 	return rc;
 }
 
+static int validate_addresses(struct sock_args *args)
+{
+	if (args->local_addr_str &&
+	    convert_addr(args, args->local_addr_str, ADDR_TYPE_LOCAL) < 0)
+		return 1;
+
+	if (args->remote_addr_str &&
+	    convert_addr(args, args->remote_addr_str, ADDR_TYPE_REMOTE) < 0)
+		return 1;
+
+	if (args->md5_prefix_str &&
+	    convert_addr(args, args->md5_prefix_str,
+			 ADDR_TYPE_MD5_PREFIX) < 0)
+		return 1;
+
+	if (args->expected_laddr_str &&
+	    convert_addr(args, args->expected_laddr_str,
+			 ADDR_TYPE_EXPECTED_LOCAL))
+		return 1;
+
+	if (args->expected_raddr_str &&
+	    convert_addr(args, args->expected_raddr_str,
+			 ADDR_TYPE_EXPECTED_REMOTE))
+		return 1;
+
+	return 0;
+}
+
 static int get_index_from_cmsg(struct msghdr *m)
 {
 	struct cmsghdr *cm;
@@ -1344,7 +1377,7 @@ static int do_server(struct sock_args *args)
 	fd_set rfds;
 	int rc;
 
-	if (resolve_devices(args))
+	if (resolve_devices(args) || validate_addresses(args))
 		return 1;
 
 	if (prog_timeout)
@@ -1532,7 +1565,7 @@ static int do_client(struct sock_args *args)
 		return 1;
 	}
 
-	if (resolve_devices(args))
+	if (resolve_devices(args) || validate_addresses(args))
 		return 1;
 
 	if ((args->use_setsockopt || args->use_cmsg) && !args->ifindex) {
@@ -1680,13 +1713,11 @@ int main(int argc, char *argv[])
 			break;
 		case 'l':
 			args.has_local_ip = 1;
-			if (convert_addr(&args, optarg, ADDR_TYPE_LOCAL) < 0)
-				return 1;
+			args.local_addr_str = optarg;
 			break;
 		case 'r':
 			args.has_remote_ip = 1;
-			if (convert_addr(&args, optarg, ADDR_TYPE_REMOTE) < 0)
-				return 1;
+			args.remote_addr_str = optarg;
 			break;
 		case 'p':
 			if (str_to_uint(optarg, 1, 65535, &tmp) != 0) {
@@ -1733,8 +1764,7 @@ int main(int argc, char *argv[])
 			args.password = optarg;
 			break;
 		case 'm':
-			if (convert_addr(&args, optarg, ADDR_TYPE_MD5_PREFIX) < 0)
-				return 1;
+			args.md5_prefix_str = optarg;
 			break;
 		case 'S':
 			args.use_setsockopt = 1;
@@ -1762,16 +1792,11 @@ int main(int argc, char *argv[])
 			break;
 		case '0':
 			args.has_expected_laddr = 1;
-			if (convert_addr(&args, optarg,
-					 ADDR_TYPE_EXPECTED_LOCAL))
-				return 1;
+			args.expected_laddr_str = optarg;
 			break;
 		case '1':
 			args.has_expected_raddr = 1;
-			if (convert_addr(&args, optarg,
-					 ADDR_TYPE_EXPECTED_REMOTE))
-				return 1;
-
+			args.expected_raddr_str = optarg;
 			break;
 		case '2':
 			args.expected_dev = optarg;
@@ -1786,12 +1811,13 @@ int main(int argc, char *argv[])
 	}
 
 	if (args.password &&
-	    ((!args.has_remote_ip && !args.prefix_len) || args.type != SOCK_STREAM)) {
+	    ((!args.has_remote_ip && !args.md5_prefix_str) ||
+	      args.type != SOCK_STREAM)) {
 		log_error("MD5 passwords apply to TCP only and require a remote ip for the password\n");
 		return 1;
 	}
 
-	if (args.prefix_len && !args.password) {
+	if (args.md5_prefix_str && !args.password) {
 		log_error("Prefix range for MD5 protection specified without a password\n");
 		return 1;
 	}
