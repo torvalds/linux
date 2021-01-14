@@ -1048,6 +1048,19 @@ empty_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 	return 0;
 }
 
+static int display_metrics(struct perf_hpp *hpp, u32 val, u32 sum)
+{
+	int ret;
+
+	if (sum != 0)
+		ret = scnprintf(hpp->buf, hpp->size, "%5.1f%% ",
+				percent(val, sum));
+	else
+		ret = scnprintf(hpp->buf, hpp->size, "%6s ", "n/a");
+
+	return ret;
+}
+
 static int
 node_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
 	   struct hist_entry *he)
@@ -1091,28 +1104,22 @@ node_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
 			ret = scnprintf(hpp->buf, hpp->size, "%2d{%2d ", node, num);
 			advance_hpp(hpp, ret);
 
-		#define DISPLAY_HITM(__h)						\
-			if (c2c_he->stats.__h> 0) {					\
-				ret = scnprintf(hpp->buf, hpp->size, "%5.1f%% ",	\
-						percent(stats->__h, c2c_he->stats.__h));\
-			} else {							\
-				ret = scnprintf(hpp->buf, hpp->size, "%6s ", "n/a");	\
-			}
-
 			switch (c2c.display) {
 			case DISPLAY_RMT:
-				DISPLAY_HITM(rmt_hitm);
+				ret = display_metrics(hpp, stats->rmt_hitm,
+						      c2c_he->stats.rmt_hitm);
 				break;
 			case DISPLAY_LCL:
-				DISPLAY_HITM(lcl_hitm);
+				ret = display_metrics(hpp, stats->lcl_hitm,
+						      c2c_he->stats.lcl_hitm);
 				break;
 			case DISPLAY_TOT:
-				DISPLAY_HITM(tot_hitm);
+				ret = display_metrics(hpp, stats->tot_hitm,
+						      c2c_he->stats.tot_hitm);
+				break;
 			default:
 				break;
 			}
-
-		#undef DISPLAY_HITM
 
 			advance_hpp(hpp, ret);
 
