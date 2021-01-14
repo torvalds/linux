@@ -43,7 +43,7 @@
 
 #define PANEL_PWM_MAX_VALUE		0xFF
 
-static u32 dcs_get_backlight(struct intel_connector *connector)
+static u32 dcs_get_backlight(struct intel_connector *connector, enum pipe unused)
 {
 	struct intel_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
