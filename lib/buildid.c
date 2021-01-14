@@ -12,6 +12,7 @@
  */
 static inline int parse_build_id(void *page_addr,
 				 unsigned char *build_id,
+				 __u32 *size,
 				 void *note_start,
 				 Elf32_Word note_size)
 {
@@ -38,6 +39,8 @@ static inline int parse_build_id(void *page_addr,
 			       nhdr->n_descsz);
 			memset(build_id + nhdr->n_descsz, 0,
 			       BUILD_ID_SIZE_MAX - nhdr->n_descsz);
+			if (size)
+				*size = nhdr->n_descsz;
 			return 0;
 		}
 		new_offs = note_offs + sizeof(Elf32_Nhdr) +
@@ -50,7 +53,8 @@ static inline int parse_build_id(void *page_addr,
 }
 
 /* Parse build ID from 32-bit ELF */
-static int get_build_id_32(void *page_addr, unsigned char *build_id)
+static int get_build_id_32(void *page_addr, unsigned char *build_id,
+			   __u32 *size)
 {
 	Elf32_Ehdr *ehdr = (Elf32_Ehdr *)page_addr;
 	Elf32_Phdr *phdr;
@@ -65,7 +69,7 @@ static int get_build_id_32(void *page_addr, unsigned char *build_id)
 
 	for (i = 0; i < ehdr->e_phnum; ++i) {
 		if (phdr[i].p_type == PT_NOTE &&
-		    !parse_build_id(page_addr, build_id,
+		    !parse_build_id(page_addr, build_id, size,
 				    page_addr + phdr[i].p_offset,
 				    phdr[i].p_filesz))
 			return 0;
@@ -74,7 +78,8 @@ static int get_build_id_32(void *page_addr, unsigned char *build_id)
 }
 
 /* Parse build ID from 64-bit ELF */
-static int get_build_id_64(void *page_addr, unsigned char *build_id)
+static int get_build_id_64(void *page_addr, unsigned char *build_id,
+			   __u32 *size)
 {
 	Elf64_Ehdr *ehdr = (Elf64_Ehdr *)page_addr;
 	Elf64_Phdr *phdr;
@@ -89,7 +94,7 @@ static int get_build_id_64(void *page_addr, unsigned char *build_id)
 
 	for (i = 0; i < ehdr->e_phnum; ++i) {
 		if (phdr[i].p_type == PT_NOTE &&
-		    !parse_build_id(page_addr, build_id,
+		    !parse_build_id(page_addr, build_id, size,
 				    page_addr + phdr[i].p_offset,
 				    phdr[i].p_filesz))
 			return 0;
@@ -97,8 +102,16 @@ static int get_build_id_64(void *page_addr, unsigned char *build_id)
 	return -EINVAL;
 }
 
-/* Parse build ID of ELF file mapped to vma */
-int build_id_parse(struct vm_area_struct *vma, unsigned char *build_id)
+/*
+ * Parse build ID of ELF file mapped to vma
+ * @vma:      vma object
+ * @build_id: buffer to store build id, at least BUILD_ID_SIZE long
+ * @size:     returns actual build id size in case of success
+ *
+ * Returns 0 on success, otherwise error (< 0).
+ */
+int build_id_parse(struct vm_area_struct *vma, unsigned char *build_id,
+		   __u32 *size)
 {
 	Elf32_Ehdr *ehdr;
 	struct page *page;
@@ -126,9 +139,9 @@ int build_id_parse(struct vm_area_struct *vma, unsigned char *build_id)
 		goto out;
 
 	if (ehdr->e_ident[EI_CLASS] == ELFCLASS32)
-		ret = get_build_id_32(page_addr, build_id);
+		ret = get_build_id_32(page_addr, build_id, size);
 	else if (ehdr->e_ident[EI_CLASS] == ELFCLASS64)
-		ret = get_build_id_64(page_addr, build_id);
+		ret = get_build_id_64(page_addr, build_id, size);
 out:
 	kunmap_atomic(page_addr);
 	put_page(page);

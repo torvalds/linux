@@ -6,6 +6,7 @@
 
 #define BUILD_ID_SIZE_MAX 20
 
-int build_id_parse(struct vm_area_struct *vma, unsigned char *build_id);
+int build_id_parse(struct vm_area_struct *vma, unsigned char *build_id,
+		   __u32 *size);
 
 #endif
