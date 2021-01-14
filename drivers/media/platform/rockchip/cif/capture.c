@@ -2345,6 +2345,7 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct rkcif_sensor_info *sensor_info = dev->active_sensor;
 	struct rkcif_sensor_info *terminal_sensor = &dev->terminal_sensor;
 	struct rkmodule_hdr_cfg hdr_cfg;
+	int rkmodule_stream_seq = RKMODULE_START_STREAM_DEFAULT;
 	int ret;
 
 	mutex_lock(&dev->stream_lock);
@@ -2380,6 +2381,13 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 		if (ret)
 			terminal_sensor->fi.interval = (struct v4l2_fract) {1, 30};
 
+		ret = v4l2_subdev_call(terminal_sensor->sd,
+				       core, ioctl,
+				       RKMODULE_GET_START_STREAM_SEQ,
+				       &rkmodule_stream_seq);
+		if (ret)
+			rkmodule_stream_seq = RKMODULE_START_STREAM_DEFAULT;
+
 		rkcif_sync_crop_info(stream);
 	}
 
@@ -2414,7 +2422,8 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 	 * can be rising or fallling after powering on cif.
 	 * To keep the coherence of edge, open sensor in advance.
 	 */
-	if (sensor_info->mbus.type == V4L2_MBUS_PARALLEL) {
+	if (sensor_info->mbus.type == V4L2_MBUS_PARALLEL ||
+	    rkmodule_stream_seq == RKMODULE_START_STREAM_FRONT) {
 		ret = dev->pipe.set_stream(&dev->pipe, true);
 		if (ret < 0)
 			goto runtime_put;
@@ -2443,7 +2452,8 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 		goto pipe_stream_off;
 	}
 
-	if (sensor_info->mbus.type != V4L2_MBUS_PARALLEL) {
+	if (sensor_info->mbus.type != V4L2_MBUS_PARALLEL &&
+	    rkmodule_stream_seq != RKMODULE_START_STREAM_FRONT) {
 		ret = dev->pipe.set_stream(&dev->pipe, true);
 		if (ret < 0)
 			goto stop_stream;

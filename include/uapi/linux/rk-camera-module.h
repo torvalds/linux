@@ -66,6 +66,9 @@
 #define RKMODULE_GET_VC_HOTPLUG_INFO \
     _IOR('V', BASE_VIDIOC_PRIVATE + 13, struct rkmodule_vc_hotplug_info)
 
+#define RKMODULE_GET_START_STREAM_SEQ	\
+	_IOR('V', BASE_VIDIOC_PRIVATE + 14, __u32)
+
 /**
  * struct rkmodule_base_inf - module base information
  *
@@ -354,5 +357,17 @@ struct rkmodule_vc_fmt_info {
 struct rkmodule_vc_hotplug_info {
 	__u8 detect_status;
 } __attribute__ ((packed));
+
+
+/* sensor start stream sequence
+ * RKMODULE_START_STREAM_DEFAULT: by default
+ * RKMODULE_START_STREAM_BEHIND : sensor start stream should be behind the controller
+ * RKMODULE_START_STREAM_FRONT  : sensor start stream should be in front of the controller
+ */
+enum rkmodule_start_stream_seq {
+	RKMODULE_START_STREAM_DEFAULT = 0,
+	RKMODULE_START_STREAM_BEHIND,
+	RKMODULE_START_STREAM_FRONT,
+};
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
