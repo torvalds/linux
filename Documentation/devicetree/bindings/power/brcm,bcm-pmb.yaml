@@ -16,6 +16,7 @@ properties:
   compatible:
     enum:
       - brcm,bcm4908-pmb
+      - brcm,bcm63138-pmb
 
   reg:
     description: register space of one or more buses
