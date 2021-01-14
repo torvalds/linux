@@ -954,7 +954,9 @@ void wake_up_all_idle_cpus(void)
 		if (cpu == smp_processor_id())
 			continue;
 
+#if CONFIG_SUSPEND
 		if (s2idle_state == S2IDLE_STATE_ENTER || cpu_active(cpu))
+#endif
 			wake_up_if_idle(cpu);
 	}
 	preempt_enable();
