@@ -75,7 +75,6 @@ void mach_irq_dispatch(unsigned int pending)
 	if (pending & CAUSEF_IP7)
 		do_IRQ(LOONGSON_TIMER_IRQ);
 	else if (pending & CAUSEF_IP6) {	/* North Bridge, Perf counter */
-		do_perfcnt_IRQ();
 		bonito_irqdispatch();
 	} else if (pending & CAUSEF_IP3)	/* CPU UART */
 		do_IRQ(LOONGSON_UART_IRQ);
