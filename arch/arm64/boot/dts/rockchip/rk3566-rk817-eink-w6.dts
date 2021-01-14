@@ -595,30 +595,31 @@
 	};
 
 	gt9xx: gt9xx@14 {
-	       compatible = "goodix,gt9xx";
-	       reg = <0x14>;
-	       pinctrl-names = "default";
-	       pinctrl-0 = <&tp_gpio>;
-	       touch-gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
-	       reset-gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
-	       touchscreen-size-x = <1024>;
-	       touchscreen-size-y = <758>;
-	       max-x = <1024>;
-	       max-y = <758>;
-	       tp-size = <9111>;
-	       tp-supply = <&vcc3v3_pmu>;
-	       touchscreen-key-map = <158>; //KEY_HOMEPAGE=172,KEY_BACK=158,KEY_MENU=139
-	       goodix,driver-send-cfg = <0>;
-	       goodix,cfg-group0 =[
-				42 00 03 00 04 0A 45 03 22 1F 28 0F 64 3C 03 0F 00 00 00 00 11 00
-				08 00 00 00 00 8B 29 0E 71 6F B2 04 00 00 00 39 02 10 00 21 00 00
-				00 03 64 32 00 00 00 3C 78 94 D5 02 07 00 00 04 C8 40 00 B1 4A 00
-				9E 55 00 8E 61 00 7F 70 00 7F 70 00 00 00 F0 90 3C FF FF 07 00 00
-				00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-				00 00 1C 1A 18 16 14 12 10 0E 0C 0A 08 06 04 02 FF FF FF FF FF FF
-				FF FF FF FF FF FF FF FF FF FF 00 02 04 06 08 0A 0C 0F 10 12 13 16
-				18 1C 1D 1E 1F 20 21 22 FF FF FF FF FF FF FF FF FF FF FF FF FF FF
-				FF FF FF FF FF FF FF FF F6 01
+		compatible = "goodix,gt9xx";
+		reg = <0x14>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tp_gpio>;
+		touch-gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
+		reset-gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
+		touchscreen-size-x = <1024>;
+		touchscreen-size-y = <758>;
+		max-x = <1024>;
+		max-y = <758>;
+		tp-size = <9111>;
+		tp-supply = <&vcc3v3_pmu>;
+		wakeup-source;
+		touchscreen-key-map = <158>; //KEY_HOMEPAGE=172,KEY_BACK=158,KEY_MENU=139
+		goodix,driver-send-cfg = <0>;
+		goodix,cfg-group0 =[
+			42 00 03 00 04 0A 45 03 22 1F 28 0F 64 3C 03 0F 00 00 00 00 11 00
+			08 00 00 00 00 8B 29 0E 71 6F B2 04 00 00 00 39 02 10 00 21 00 00
+			00 03 64 32 00 00 00 3C 78 94 D5 02 07 00 00 04 C8 40 00 B1 4A 00
+			9E 55 00 8E 61 00 7F 70 00 7F 70 00 00 00 F0 90 3C FF FF 07 00 00
+			00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+			00 00 1C 1A 18 16 14 12 10 0E 0C 0A 08 06 04 02 FF FF FF FF FF FF
+			FF FF FF FF FF FF FF FF FF FF 00 02 04 06 08 0A 0C 0F 10 12 13 16
+			18 1C 1D 1E 1F 20 21 22 FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+			FF FF FF FF FF FF FF FF F6 01
 		];
 	};
 };
