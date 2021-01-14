@@ -4183,6 +4183,10 @@ S: 1507 145th Place SE #B5
 S: Bellevue, Washington 98007
 S: USA
 
+N: Wensong Zhang
+E: wensong@linux-vs.org
+D: IP virtual server (IPVS).
+
 N: Haojian Zhuang
 E: haojian.zhuang@gmail.com
 D: MMP support
