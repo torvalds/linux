@@ -520,7 +520,7 @@ void i915_request_show_with_schedule(struct drm_printer *m,
 		if (signaler->timeline == rq->timeline)
 			continue;
 
-		if (i915_request_completed(signaler))
+		if (__i915_request_is_complete(signaler))
 			continue;
 
 		i915_request_show(m, signaler, prefix, indent + 2);

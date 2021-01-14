@@ -3291,7 +3291,7 @@ static void rcu_virtual_context_destroy(struct work_struct *wrk)
 
 		old = fetch_and_zero(&ve->request);
 		if (old) {
-			GEM_BUG_ON(!i915_request_completed(old));
+			GEM_BUG_ON(!__i915_request_is_complete(old));
 			__i915_request_submit(old);
 			i915_request_put(old);
 		}
@@ -3568,7 +3568,7 @@ static void virtual_submit_request(struct i915_request *rq)
 	}
 
 	if (ve->request) { /* background completion from preempt-to-busy */
-		GEM_BUG_ON(!i915_request_completed(ve->request));
+		GEM_BUG_ON(!__i915_request_is_complete(ve->request));
 		__i915_request_submit(ve->request);
 		i915_request_put(ve->request);
 	}
