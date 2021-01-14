@@ -31,6 +31,7 @@
 #include <linux/limits.h>
 #include <asm/irq_remapping.h>
 #include <asm/iommu_table.h>
+#include <trace/events/intel_iommu.h>
 
 #include "../irq_remapping.h"
 
@@ -1307,6 +1308,8 @@ restart:
 		offset = ((index + i) % QI_LENGTH) << shift;
 		memcpy(qi->desc + offset, &desc[i], 1 << shift);
 		qi->desc_status[(index + i) % QI_LENGTH] = QI_IN_USE;
+		trace_qi_submit(iommu, desc[i].qw0, desc[i].qw1,
+				desc[i].qw2, desc[i].qw3);
 	}
 	qi->desc_status[wait_index] = QI_IN_USE;
 
