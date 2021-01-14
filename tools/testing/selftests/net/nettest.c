@@ -48,6 +48,7 @@
 struct sock_args {
 	/* local address */
 	const char *local_addr_str;
+	const char *client_local_addr_str;
 	union {
 		struct in_addr  in;
 		struct in6_addr in6;
@@ -1630,6 +1631,7 @@ static int do_client(struct sock_args *args)
 		log_msg("Switched client netns\n");
 	}
 
+	args->local_addr_str = args->client_local_addr_str;
 	if (resolve_devices(args) || validate_addresses(args))
 		return 1;
 
@@ -1770,7 +1772,7 @@ static int ipc_parent(int cpid, int fd, struct sock_args *args)
 	return client_status;
 }
 
-#define GETOPT_STR  "sr:l:p:t:g:P:DRn:M:X:m:d:I:BN:O:SCi6L:0:1:2:3:Fbq"
+#define GETOPT_STR  "sr:l:c:p:t:g:P:DRn:M:X:m:d:I:BN:O:SCi6L:0:1:2:3:Fbq"
 
 static void print_usage(char *prog)
 {
@@ -1791,7 +1793,8 @@ static void print_usage(char *prog)
 	"    -6            IPv6 (default is IPv4)\n"
 	"    -P proto      protocol for socket: icmp, ospf (default: none)\n"
 	"    -D|R          datagram (D) / raw (R) socket (default stream)\n"
-	"    -l addr       local address to bind to\n"
+	"    -l addr       local address to bind to in server mode\n"
+	"    -c addr       local address to bind to in client mode\n"
 	"\n"
 	"    -d dev        bind socket to given device name\n"
 	"    -I dev        bind socket to given device name - server mode\n"
@@ -1858,6 +1861,10 @@ int main(int argc, char *argv[])
 		case 'r':
 			args.has_remote_ip = 1;
 			args.remote_addr_str = optarg;
+			break;
+		case 'c':
+			args.has_local_ip = 1;
+			args.client_local_addr_str = optarg;
 			break;
 		case 'p':
 			if (str_to_uint(optarg, 1, 65535, &tmp) != 0) {
