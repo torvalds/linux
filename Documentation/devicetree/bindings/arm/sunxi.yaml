@@ -657,7 +657,8 @@ properties:
       - description: Pine64 PineCube
         items:
           - const: pine64,pinecube
-          - const: allwinner,sun8i-s3
+          - const: sochip,s3
+          - const: allwinner,sun8i-v3
 
       - description: Pine64 PineH64 model A
         items:
