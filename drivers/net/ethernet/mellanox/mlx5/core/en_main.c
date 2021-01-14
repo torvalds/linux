@@ -5900,18 +5900,18 @@ int mlx5e_init(void)
 
 	mlx5e_ipsec_build_inverse_table();
 	mlx5e_build_ptys2ethtool_map();
-	ret = mlx5e_rep_init();
+	ret = auxiliary_driver_register(&mlx5e_driver);
 	if (ret)
 		return ret;
 
-	ret = auxiliary_driver_register(&mlx5e_driver);
+	ret = mlx5e_rep_init();
 	if (ret)
-		mlx5e_rep_cleanup();
+		auxiliary_driver_unregister(&mlx5e_driver);
 	return ret;
 }
 
 void mlx5e_cleanup(void)
 {
-	auxiliary_driver_unregister(&mlx5e_driver);
 	mlx5e_rep_cleanup();
+	auxiliary_driver_unregister(&mlx5e_driver);
 }
