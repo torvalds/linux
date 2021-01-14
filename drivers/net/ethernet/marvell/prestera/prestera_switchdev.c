@@ -1007,7 +1007,6 @@ static int prestera_port_vlans_add(struct prestera_port *port,
 	struct prestera_bridge_port *br_port;
 	struct prestera_switch *sw = port->sw;
 	struct prestera_bridge *bridge;
-	u16 vid;
 
 	if (netif_is_bridge_master(dev))
 		return 0;
@@ -1021,7 +1020,7 @@ static int prestera_port_vlans_add(struct prestera_port *port,
 		return 0;
 
 	return prestera_bridge_port_vlan_add(port, br_port,
-					     vid, flag_untagged,
+					     vlan->vid, flag_untagged,
 					     flag_pvid, extack);
 }
 
