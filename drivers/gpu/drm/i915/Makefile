@@ -196,6 +196,7 @@ i915-y += \
 	display/intel_color.o \
 	display/intel_combo_phy.o \
 	display/intel_connector.o \
+	display/intel_crtc.o \
 	display/intel_csr.o \
 	display/intel_cursor.o \
 	display/intel_display.o \
