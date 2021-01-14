@@ -1720,6 +1720,12 @@ static int ipc_child(int fd, struct sock_args *args)
 
 	server_mode = 1; /* to tell log_msg in case we are in both_mode */
 
+	/* when running in both mode, address validation applies
+	 * solely to client side
+	 */
+	args->has_expected_laddr = 0;
+	args->has_expected_raddr = 0;
+
 	rc = do_server(args, fd);
 
 out:
