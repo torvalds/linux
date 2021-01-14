@@ -1056,7 +1056,7 @@ void ssh_rtl_destroy(struct ssh_rtl *rtl)
 }
 
 /**
- * ssh_rtl_tx_start() - Start request transmitter and receiver.
+ * ssh_rtl_start() - Start request transmitter and receiver.
  * @rtl: The request transport layer.
  *
  * Return: Returns zero on success, a negative error code on failure.
