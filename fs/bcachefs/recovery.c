@@ -1125,6 +1125,8 @@ use_clean:
 		bch_verbose(c, "mark and sweep done");
 	}
 
+	bch2_stripes_heap_start(c);
+
 	clear_bit(BCH_FS_REBUILD_REPLICAS, &c->flags);
 	set_bit(BCH_FS_INITIAL_GC_DONE, &c->flags);
 

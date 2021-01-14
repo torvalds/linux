@@ -607,8 +607,6 @@ static int bch2_gc_done(struct bch_fs *c,
 		struct genradix_iter src_iter = genradix_iter_init(&c->stripes[1], 0);
 		struct stripe *dst, *src;
 
-		c->ec_stripes_heap.used = 0;
-
 		while ((dst = genradix_iter_peek(&dst_iter, &c->stripes[0])) &&
 		       (src = genradix_iter_peek(&src_iter, &c->stripes[1]))) {
 			BUG_ON(src_iter.pos != dst_iter.pos);
@@ -624,12 +622,6 @@ static int bch2_gc_done(struct bch_fs *c,
 			for (i = 0; i < ARRAY_SIZE(dst->block_sectors); i++)
 				copy_stripe_field(block_sectors[i],
 						  "block_sectors[%u]", i);
-
-			if (dst->alive) {
-				spin_lock(&c->ec_stripes_heap_lock);
-				bch2_stripes_heap_insert(c, dst, dst_iter.pos);
-				spin_unlock(&c->ec_stripes_heap_lock);
-			}
 
 			genradix_iter_advance(&dst_iter, &c->stripes[0]);
 			genradix_iter_advance(&src_iter, &c->stripes[1]);

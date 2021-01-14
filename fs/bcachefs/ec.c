@@ -1450,6 +1450,16 @@ unlock:
 	mutex_unlock(&c->ec_stripe_head_lock);
 }
 
+void bch2_stripes_heap_start(struct bch_fs *c)
+{
+	struct genradix_iter iter;
+	struct stripe *m;
+
+	genradix_for_each(&c->stripes[0], iter, m)
+		if (m->alive)
+			bch2_stripes_heap_insert(c, m, iter.pos);
+}
+
 static int __bch2_stripe_write_key(struct btree_trans *trans,
 				   struct btree_iter *iter,
 				   struct stripe *m,
@@ -1529,18 +1539,11 @@ static int bch2_stripes_read_fn(struct bch_fs *c, enum btree_id id,
 	int ret = 0;
 
 	if (k.k->type == KEY_TYPE_stripe) {
-		struct stripe *m;
-
 		ret = __ec_stripe_mem_alloc(c, k.k->p.offset, GFP_KERNEL) ?:
 			bch2_mark_key(c, k, 0, 0, NULL, 0,
 				      BTREE_TRIGGER_NOATOMIC);
 		if (ret)
 			return ret;
-
-		spin_lock(&c->ec_stripes_heap_lock);
-		m = genradix_ptr(&c->stripes[0], k.k->p.offset);
-		bch2_stripes_heap_insert(c, m, k.k->p.offset);
-		spin_unlock(&c->ec_stripes_heap_lock);
 	}
 
 	return ret;

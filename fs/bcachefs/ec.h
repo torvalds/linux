@@ -200,6 +200,8 @@ void bch2_ec_stop_dev(struct bch_fs *, struct bch_dev *);
 
 void bch2_ec_flush_new_stripes(struct bch_fs *);
 
+void bch2_stripes_heap_start(struct bch_fs *);
+
 struct journal_keys;
 int bch2_stripes_read(struct bch_fs *, struct journal_keys *);
 int bch2_stripes_write(struct bch_fs *, unsigned);
