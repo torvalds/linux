@@ -694,10 +694,12 @@ int acpi_device_add(struct acpi_device *device,
 
 	if (device->wakeup.flags.valid)
 		list_add_tail(&device->wakeup_list, &acpi_wakeup_device_list);
+
 	mutex_unlock(&acpi_device_lock);
 
 	if (device->parent)
 		device->dev.parent = &device->parent->dev;
+
 	device->dev.bus = &acpi_bus_type;
 	device->dev.release = release;
 	result = device_add(&device->dev);
@@ -713,16 +715,19 @@ int acpi_device_add(struct acpi_device *device,
 
 	return 0;
 
- err:
+err:
 	mutex_lock(&acpi_device_lock);
+
 	if (device->parent)
 		list_del(&device->node);
+
 	list_del(&device->wakeup_list);
 
- err_unlock:
+err_unlock:
 	mutex_unlock(&acpi_device_lock);
 
 	acpi_detach_data(device->handle, acpi_scan_drop_device);
+
 	return result;
 }
 
