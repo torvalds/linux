@@ -57,10 +57,10 @@ struct intel_memory_region_ops {
 	int (*init)(struct intel_memory_region *mem);
 	void (*release)(struct intel_memory_region *mem);
 
-	struct drm_i915_gem_object *
-	(*create_object)(struct intel_memory_region *mem,
-			 resource_size_t size,
-			 unsigned int flags);
+	int (*init_object)(struct intel_memory_region *mem,
+			   struct drm_i915_gem_object *obj,
+			   resource_size_t size,
+			   unsigned int flags);
 };
 
 struct intel_memory_region {

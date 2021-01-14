@@ -98,7 +98,7 @@ region_lmem_init(struct intel_memory_region *mem)
 static const struct intel_memory_region_ops intel_region_lmem_ops = {
 	.init = region_lmem_init,
 	.release = region_lmem_release,
-	.create_object = __i915_gem_lmem_object_create,
+	.init_object = __i915_gem_lmem_object_init,
 };
 
 struct intel_memory_region *
