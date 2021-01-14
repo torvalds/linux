@@ -650,6 +650,11 @@ struct ibmvfc_crq {
 	volatile __be64 ioba;
 } __packed __aligned(8);
 
+struct ibmvfc_sub_crq {
+	struct ibmvfc_crq crq;
+	__be64 reserved[2];
+} __packed __aligned(8);
+
 enum ibmvfc_ae_link_state {
 	IBMVFC_AE_LS_LINK_UP		= 0x01,
 	IBMVFC_AE_LS_LINK_BOUNCED	= 0x02,
@@ -761,12 +766,14 @@ struct ibmvfc_event_pool {
 enum ibmvfc_msg_fmt {
 	IBMVFC_CRQ_FMT = 0,
 	IBMVFC_ASYNC_FMT,
+	IBMVFC_SUB_CRQ_FMT,
 };
 
 union ibmvfc_msgs {
 	void *handle;
 	struct ibmvfc_crq *crq;
 	struct ibmvfc_async_crq *async;
+	struct ibmvfc_sub_crq *scrq;
 };
 
 struct ibmvfc_queue {
@@ -781,6 +788,20 @@ struct ibmvfc_queue {
 	struct list_head sent;
 	struct list_head free;
 	spinlock_t l_lock;
+
+	/* Sub-CRQ fields */
+	struct ibmvfc_host *vhost;
+	unsigned long cookie;
+	unsigned long vios_cookie;
+	unsigned long hw_irq;
+	unsigned long irq;
+	unsigned long hwq_id;
+	char name[32];
+};
+
+struct ibmvfc_scsi_channels {
+	struct ibmvfc_queue *scrqs;
+	unsigned int active_queues;
 };
 
 enum ibmvfc_host_action {
