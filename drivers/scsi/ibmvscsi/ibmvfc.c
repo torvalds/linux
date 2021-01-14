@@ -138,6 +138,20 @@ static void ibmvfc_tgt_move_login(struct ibmvfc_target *);
 
 static const char *unknown_error = "unknown error";
 
+static long h_reg_sub_crq(unsigned long unit_address, unsigned long ioba,
+			  unsigned long length, unsigned long *cookie,
+			  unsigned long *irq)
+{
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+	long rc;
+
+	rc = plpar_hcall(H_REG_SUB_CRQ, retbuf, unit_address, ioba, length);
+	*cookie = retbuf[0];
+	*irq = retbuf[1];
+
+	return rc;
+}
+
 static int ibmvfc_check_caps(struct ibmvfc_host *vhost, unsigned long cap_flags)
 {
 	u64 host_caps = be64_to_cpu(vhost->login_buf->resp.capabilities);
