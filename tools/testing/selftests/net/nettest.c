@@ -291,13 +291,13 @@ static int tcp_md5_remote(int sd, struct sock_args *args)
 	switch (args->version) {
 	case AF_INET:
 		sin.sin_port = htons(args->port);
-		sin.sin_addr = args->remote_addr.in;
+		sin.sin_addr = args->md5_prefix.v4.sin_addr;
 		addr = &sin;
 		alen = sizeof(sin);
 		break;
 	case AF_INET6:
 		sin6.sin6_port = htons(args->port);
-		sin6.sin6_addr = args->remote_addr.in6;
+		sin6.sin6_addr = args->md5_prefix.v6.sin6_addr;
 		addr = &sin6;
 		alen = sizeof(sin6);
 		break;
@@ -725,7 +725,7 @@ static int convert_addr(struct sock_args *args, const char *_str,
 				return 1;
 			}
 		} else {
-			args->prefix_len = pfx_len_max;
+			args->prefix_len = 0;
 		}
 		break;
 	default:
