@@ -339,6 +339,10 @@ struct usb_gadget_ops {
  * @speed: Speed of current connection to USB host.
  * @max_speed: Maximal speed the UDC can handle.  UDC must support this
  *      and all slower speeds.
+ * @ssp_rate: Current connected SuperSpeed Plus signaling rate and lane count.
+ * @max_ssp_rate: Maximum SuperSpeed Plus signaling rate and lane count the UDC
+ *	can handle. The UDC must support this and all slower speeds and lower
+ *	number of lanes.
  * @state: the state we are now (attached, suspended, configured, etc)
  * @name: Identifies the controller hardware type.  Used in diagnostics
  *	and sometimes configuration.
@@ -406,6 +410,11 @@ struct usb_gadget {
 	struct list_head		ep_list;	/* of usb_ep */
 	enum usb_device_speed		speed;
 	enum usb_device_speed		max_speed;
+
+	/* USB SuperSpeed Plus only */
+	enum usb_ssp_rate		ssp_rate;
+	enum usb_ssp_rate		max_ssp_rate;
+
 	enum usb_device_state		state;
 	const char			*name;
 	struct device			dev;
