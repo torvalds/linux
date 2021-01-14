@@ -188,6 +188,7 @@ struct mt7915_dev {
 	bool dbdc_support;
 	bool flash_mode;
 	bool fw_debug;
+	bool ibf;
 };
 
 enum {
