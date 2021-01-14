@@ -617,7 +617,7 @@ static void channel_free(struct channel *c)
 	if (c->cur_from_user != &c->scratch_message_from_user)
 		message_kill(c->cur_from_user, &c->target->message_pool);
 	list_for_each (cur, &c->from_user)
-		message_kill(list_entry(cur, struct message, to_user),
+		message_kill(list_entry(cur, struct message, from_user),
 			     &c->target->message_pool);
 
 	mutex_lock(&c->target->lock);
