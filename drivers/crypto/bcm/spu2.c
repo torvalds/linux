@@ -964,7 +964,6 @@ u32 spu2_create_request(u8 *spu_hdr,
 	unsigned int cipher_offset = aead_parms->assoc_size +
 			aead_parms->aad_pad_len + aead_parms->iv_len;
 
-#ifdef DEBUG
 	/* total size of the data following OMD (without STAT word padding) */
 	unsigned int real_db_size = spu_real_db_size(aead_parms->assoc_size,
 						 aead_parms->iv_len,
@@ -973,7 +972,6 @@ u32 spu2_create_request(u8 *spu_hdr,
 						 aead_parms->aad_pad_len,
 						 aead_parms->data_pad_len,
 						 hash_parms->pad_len);
-#endif
 	unsigned int assoc_size = aead_parms->assoc_size;
 
 	if (req_opts->is_aead &&
@@ -1263,9 +1261,9 @@ void spu2_request_pad(u8 *pad_start, u32 gcm_padding, u32 hash_pad_len,
 
 		/* add the size at the end as required per alg */
 		if (auth_alg == HASH_ALG_MD5)
-			*(u64 *)ptr = cpu_to_le64((u64)total_sent * 8);
+			*(__le64 *)ptr = cpu_to_le64(total_sent * 8ull);
 		else		/* SHA1, SHA2-224, SHA2-256 */
-			*(u64 *)ptr = cpu_to_be64((u64)total_sent * 8);
+			*(__be64 *)ptr = cpu_to_be64(total_sent * 8ull);
 		ptr += sizeof(u64);
 	}
 
