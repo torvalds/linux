@@ -320,9 +320,10 @@ static int mpp_set_rcbbuf(struct mpp_dev *mpp, struct rkvdec_task *task)
 		for (i = 0; i < rcb_inf->cnt; i++) {
 			reg_idx = rcb_inf->elem[i].index;
 			rcb_size = rcb_inf->elem[i].size;
-			if (rcb_offset > dec->sram_size ||
+			if (!rcb_size ||
+			    rcb_offset > dec->sram_size ||
 			    (rcb_offset + rcb_size) > dec->rcb_size)
-				break;
+				continue;
 			mpp_debug(DEBUG_SRAM_INFO, "rcb: reg %d offset %d, size %d\n",
 				  reg_idx, rcb_offset, rcb_size);
 			task->reg[reg_idx] = dec->rcb_iova + rcb_offset;
