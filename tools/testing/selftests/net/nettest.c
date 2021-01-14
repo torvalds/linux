@@ -79,6 +79,7 @@ struct sock_args {
 	int use_setsockopt;
 	int use_cmsg;
 	const char *dev;
+	const char *server_dev;
 	int ifindex;
 
 	const char *clientns;
@@ -96,6 +97,7 @@ struct sock_args {
 
 	/* expected addresses and device index for connection */
 	const char *expected_dev;
+	const char *expected_server_dev;
 	int expected_ifindex;
 
 	/* local address */
@@ -1424,6 +1426,8 @@ static int do_server(struct sock_args *args, int ipc_fd)
 		log_msg("Switched server netns\n");
 	}
 
+	args->dev = args->server_dev;
+	args->expected_dev = args->expected_server_dev;
 	if (resolve_devices(args) || validate_addresses(args))
 		goto err_exit;
 
@@ -1767,7 +1771,7 @@ static int ipc_parent(int cpid, int fd, struct sock_args *args)
 	return client_status;
 }
 
-#define GETOPT_STR  "sr:l:p:t:g:P:DRn:M:X:m:d:BN:O:SCi6L:0:1:2:Fbq"
+#define GETOPT_STR  "sr:l:p:t:g:P:DRn:M:X:m:d:I:BN:O:SCi6L:0:1:2:3:Fbq"
 
 static void print_usage(char *prog)
 {
@@ -1791,6 +1795,7 @@ static void print_usage(char *prog)
 	"    -l addr       local address to bind to\n"
 	"\n"
 	"    -d dev        bind socket to given device name\n"
+	"    -I dev        bind socket to given device name - server mode\n"
 	"    -S            use setsockopt (IP_UNICAST_IF or IP_MULTICAST_IF)\n"
 	"                  to set device binding\n"
 	"    -C            use cmsg and IP_PKTINFO to specify device binding\n"
@@ -1807,6 +1812,7 @@ static void print_usage(char *prog)
 	"    -0 addr       Expected local address\n"
 	"    -1 addr       Expected remote address\n"
 	"    -2 dev        Expected device name (or index) to receive packet\n"
+	"    -3 dev        Expected device name (or index) to receive packets - server mode\n"
 	"\n"
 	"    -b            Bind test only.\n"
 	"    -q            Be quiet. Run test without printing anything.\n"
@@ -1919,6 +1925,9 @@ int main(int argc, char *argv[])
 		case 'd':
 			args.dev = optarg;
 			break;
+		case 'I':
+			args.server_dev = optarg;
+			break;
 		case 'i':
 			interactive = 1;
 			break;
@@ -1944,6 +1953,9 @@ int main(int argc, char *argv[])
 			break;
 		case '2':
 			args.expected_dev = optarg;
+			break;
+		case '3':
+			args.expected_server_dev = optarg;
 			break;
 		case 'q':
 			quiet = 1;
