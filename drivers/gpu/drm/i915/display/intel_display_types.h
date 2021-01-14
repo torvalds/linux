@@ -1852,4 +1852,13 @@ static inline u32 i9xx_dpll_compute_fp(struct dpll *dpll)
 	return dpll->n << 16 | dpll->m1 << 8 | dpll->m2;
 }
 
+static inline u32 intel_fdi_link_freq(struct drm_i915_private *dev_priv,
+				      const struct intel_crtc_state *pipe_config)
+{
+	if (HAS_DDI(dev_priv))
+		return pipe_config->port_clock; /* SPLL */
+	else
+		return dev_priv->fdi_pll_freq;
+}
+
 #endif /*  __INTEL_DISPLAY_TYPES_H__ */

@@ -206,6 +206,7 @@ i915-y += \
 	display/intel_dpll_mgr.o \
 	display/intel_dsb.o \
 	display/intel_fbc.o \
+	display/intel_fdi.o \
 	display/intel_fifo_underrun.o \
 	display/intel_frontbuffer.o \
 	display/intel_global_state.o \
