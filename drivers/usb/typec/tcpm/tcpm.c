@@ -352,6 +352,7 @@ struct tcpm_port {
 	struct hrtimer enable_frs_timer;
 	struct kthread_work enable_frs;
 	bool state_machine_running;
+	bool vdm_sm_running;
 
 	struct completion tx_complete;
 	enum tcpm_transmit_status tx_status;
@@ -1526,6 +1527,7 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 				rlen = 1;
 			} else {
 				tcpm_register_partner_altmodes(port);
+				port->vdm_sm_running = false;
 			}
 			break;
 		case CMD_ENTER_MODE:
@@ -1569,10 +1571,12 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 			rlen = 1;
 			break;
 		}
+		port->vdm_sm_running = false;
 		break;
 	default:
 		response[0] = p[0] | VDO_CMDT(CMDT_RSP_NAK);
 		rlen = 1;
+		port->vdm_sm_running = false;
 		break;
 	}
 
@@ -1739,6 +1743,8 @@ static void vdm_run_state_machine(struct tcpm_port *port)
 			switch (PD_VDO_CMD(vdo_hdr)) {
 			case CMD_DISCOVER_IDENT:
 				res = tcpm_ams_start(port, DISCOVER_IDENTITY);
+				if (res == 0)
+					port->send_discover = false;
 				break;
 			case CMD_DISCOVER_SVID:
 				res = tcpm_ams_start(port, DISCOVER_SVIDS);
@@ -1763,8 +1769,10 @@ static void vdm_run_state_machine(struct tcpm_port *port)
 				break;
 			}
 
-			if (res < 0)
+			if (res < 0) {
+				port->vdm_sm_running = false;
 				return;
+			}
 		}
 
 		port->vdm_state = VDM_STATE_SEND_MESSAGE;
@@ -1842,6 +1850,9 @@ static void vdm_state_machine_work(struct kthread_work *work)
 	} while (port->vdm_state != prev_state &&
 		 port->vdm_state != VDM_STATE_BUSY &&
 		 port->vdm_state != VDM_STATE_SEND_MESSAGE);
+
+	if (port->vdm_state == VDM_STATE_ERR_TMOUT)
+		port->vdm_sm_running = false;
 
 	mutex_unlock(&port->lock);
 }
@@ -2226,6 +2237,12 @@ static void tcpm_pd_data_request(struct tcpm_port *port,
 		}
 
 		port->sink_request = le32_to_cpu(msg->payload[0]);
+
+		if (port->vdm_sm_running && port->explicit_contract) {
+			tcpm_pd_handle_msg(port, PD_MSG_CTRL_WAIT, port->ams);
+			break;
+		}
+
 		if (port->state == SRC_SEND_CAPABILITIES)
 			tcpm_set_state(port, SRC_NEGOTIATE_CAPABILITIES, 0);
 		else
@@ -2328,6 +2345,10 @@ static void tcpm_pd_ctrl_request(struct tcpm_port *port,
 								       TYPEC_PWR_MODE_PD,
 								       port->pps_data.active,
 								       port->supply_voltage);
+				/* Set VDM running flag ASAP */
+				if (port->data_role == TYPEC_HOST &&
+				    port->send_discover)
+					port->vdm_sm_running = true;
 				tcpm_set_state(port, SNK_READY, 0);
 			} else {
 				/*
@@ -2365,10 +2386,14 @@ static void tcpm_pd_ctrl_request(struct tcpm_port *port,
 		switch (port->state) {
 		case SNK_NEGOTIATE_CAPABILITIES:
 			/* USB PD specification, Figure 8-43 */
-			if (port->explicit_contract)
+			if (port->explicit_contract) {
 				next_state = SNK_READY;
-			else
+				if (port->data_role == TYPEC_HOST &&
+				    port->send_discover)
+					port->vdm_sm_running = true;
+			} else {
 				next_state = SNK_WAIT_CAPABILITIES;
+			}
 			tcpm_set_state(port, next_state, 0);
 			break;
 		case SNK_NEGOTIATE_PPS_CAPABILITIES:
@@ -2377,6 +2402,11 @@ static void tcpm_pd_ctrl_request(struct tcpm_port *port,
 			port->pps_data.op_curr = port->current_limit;
 			port->pps_status = (type == PD_CTRL_WAIT ?
 					    -EAGAIN : -EOPNOTSUPP);
+
+			if (port->data_role == TYPEC_HOST &&
+			    port->send_discover)
+				port->vdm_sm_running = true;
+
 			tcpm_set_state(port, SNK_READY, 0);
 			break;
 		case DR_SWAP_SEND:
@@ -2433,6 +2463,10 @@ static void tcpm_pd_ctrl_request(struct tcpm_port *port,
 			}
 			break;
 		case DR_SWAP_SEND:
+			if (port->data_role == TYPEC_DEVICE &&
+			    port->send_discover)
+				port->vdm_sm_running = true;
+
 			tcpm_set_state(port, DR_SWAP_CHANGE_DR, 0);
 			break;
 		case PR_SWAP_SEND:
@@ -2463,26 +2497,43 @@ static void tcpm_pd_ctrl_request(struct tcpm_port *port,
 		 * 6.3.9: If an alternate mode is active, a request to swap
 		 * alternate modes shall trigger a port reset.
 		 */
-		if (port->typec_caps.data != TYPEC_PORT_DRD)
+		if (port->typec_caps.data != TYPEC_PORT_DRD) {
 			tcpm_pd_handle_msg(port,
 					   port->negotiated_rev < PD_REV30 ?
 					   PD_MSG_CTRL_REJECT :
 					   PD_MSG_CTRL_NOT_SUPP,
 					   NONE_AMS);
-		else
+		} else {
+			if (port->vdm_sm_running) {
+				tcpm_queue_message(port, PD_MSG_CTRL_WAIT);
+				break;
+			}
+
 			tcpm_pd_handle_state(port, DR_SWAP_ACCEPT, DATA_ROLE_SWAP, 0);
+		}
 		break;
 	case PD_CTRL_PR_SWAP:
-		if (port->port_type != TYPEC_PORT_DRP)
+		if (port->port_type != TYPEC_PORT_DRP) {
 			tcpm_pd_handle_msg(port,
 					   port->negotiated_rev < PD_REV30 ?
 					   PD_MSG_CTRL_REJECT :
 					   PD_MSG_CTRL_NOT_SUPP,
 					   NONE_AMS);
-		else
+		} else {
+			if (port->vdm_sm_running) {
+				tcpm_queue_message(port, PD_MSG_CTRL_WAIT);
+				break;
+			}
+
 			tcpm_pd_handle_state(port, PR_SWAP_ACCEPT, POWER_ROLE_SWAP, 0);
+		}
 		break;
 	case PD_CTRL_VCONN_SWAP:
+		if (port->vdm_sm_running) {
+			tcpm_queue_message(port, PD_MSG_CTRL_WAIT);
+			break;
+		}
+
 		tcpm_pd_handle_state(port, VCONN_SWAP_ACCEPT, VCONN_SWAP, 0);
 		break;
 	case PD_CTRL_GET_SOURCE_CAP_EXT:
@@ -3346,6 +3397,7 @@ static void tcpm_reset_port(struct tcpm_port *port)
 	}
 	port->in_ams = false;
 	port->ams = NONE_AMS;
+	port->vdm_sm_running = false;
 	tcpm_unregister_altmodes(port);
 	tcpm_typec_disconnect(port);
 	port->attached = false;
@@ -4144,6 +4196,9 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	case DR_SWAP_ACCEPT:
 		tcpm_pd_send_control(port, PD_CTRL_ACCEPT);
+		/* Set VDM state machine running flag ASAP */
+		if (port->data_role == TYPEC_DEVICE && port->send_discover)
+			port->vdm_sm_running = true;
 		tcpm_set_state_cond(port, DR_SWAP_CHANGE_DR, 0);
 		break;
 	case DR_SWAP_SEND_TIMEOUT:
@@ -4299,6 +4354,8 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	case VCONN_SWAP_SEND_TIMEOUT:
 		tcpm_swap_complete(port, -ETIMEDOUT);
+		if (port->data_role == TYPEC_HOST && port->send_discover)
+			port->vdm_sm_running = true;
 		tcpm_set_state(port, ready_state(port), 0);
 		break;
 	case VCONN_SWAP_START:
@@ -4314,10 +4371,14 @@ static void run_state_machine(struct tcpm_port *port)
 	case VCONN_SWAP_TURN_ON_VCONN:
 		tcpm_set_vconn(port, true);
 		tcpm_pd_send_control(port, PD_CTRL_PS_RDY);
+		if (port->data_role == TYPEC_HOST && port->send_discover)
+			port->vdm_sm_running = true;
 		tcpm_set_state(port, ready_state(port), 0);
 		break;
 	case VCONN_SWAP_TURN_OFF_VCONN:
 		tcpm_set_vconn(port, false);
+		if (port->data_role == TYPEC_HOST && port->send_discover)
+			port->vdm_sm_running = true;
 		tcpm_set_state(port, ready_state(port), 0);
 		break;
 
@@ -4325,6 +4386,8 @@ static void run_state_machine(struct tcpm_port *port)
 	case PR_SWAP_CANCEL:
 	case VCONN_SWAP_CANCEL:
 		tcpm_swap_complete(port, port->swap_status);
+		if (port->data_role == TYPEC_HOST && port->send_discover)
+			port->vdm_sm_running = true;
 		if (port->pwr_role == TYPEC_SOURCE)
 			tcpm_set_state(port, SRC_READY, 0);
 		else
@@ -4654,6 +4717,9 @@ static void _tcpm_pd_vbus_on(struct tcpm_port *port)
 	switch (port->state) {
 	case SNK_TRANSITION_SINK_VBUS:
 		port->explicit_contract = true;
+		/* Set the VDM flag ASAP */
+		if (port->data_role == TYPEC_HOST && port->send_discover)
+			port->vdm_sm_running = true;
 		tcpm_set_state(port, SNK_READY, 0);
 		break;
 	case SNK_DISCOVERY:
