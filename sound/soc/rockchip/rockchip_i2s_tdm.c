@@ -671,17 +671,21 @@ static void rockchip_i2s_tdm_xfer_resume(struct snd_pcm_substream *substream,
 }
 
 static int rockchip_i2s_tdm_clk_set_rate(struct rk_i2s_tdm_dev *i2s_tdm,
-					 struct clk *clk, unsigned long rate)
+					 struct clk *clk, unsigned long rate,
+					 int ppm)
 {
 	unsigned long rate_target;
 	int delta, ret;
 
-	ret = rockchip_pll_clk_compensation(clk, i2s_tdm->clk_ppm);
-	if (!ret)
-		return ret;
+	if (ppm == i2s_tdm->clk_ppm)
+		return 0;
 
-	delta = (i2s_tdm->clk_ppm < 0) ? -1 : 1;
-	delta *= (int)div64_u64((uint64_t)rate * (uint64_t)abs(i2s_tdm->clk_ppm) + 500000, 1000000);
+	ret = rockchip_pll_clk_compensation(clk, ppm);
+	if (ret != -ENOSYS)
+		goto out;
+
+	delta = (ppm < 0) ? -1 : 1;
+	delta *= (int)div64_u64((uint64_t)rate * (uint64_t)abs(ppm) + 500000, 1000000);
 
 	rate_target = rate + delta;
 
@@ -689,6 +693,11 @@ static int rockchip_i2s_tdm_clk_set_rate(struct rk_i2s_tdm_dev *i2s_tdm,
 		return -EINVAL;
 
 	ret = clk_set_rate(clk, rate_target);
+	if (ret)
+		return ret;
+out:
+	if (!ret)
+		i2s_tdm->clk_ppm = ppm;
 
 	return ret;
 }
@@ -702,7 +711,8 @@ static int rockchip_i2s_tdm_calibrate_mclk(struct rk_i2s_tdm_dev *i2s_tdm,
 	unsigned int mclk_root_freq;
 	unsigned int mclk_root_initial_freq;
 	unsigned int mclk_parent_freq;
-	unsigned int div;
+	unsigned int div, delta;
+	uint64_t ppm;
 	int ret;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -744,13 +754,21 @@ static int rockchip_i2s_tdm_calibrate_mclk(struct rk_i2s_tdm_dev *i2s_tdm,
 	if (ret)
 		goto out;
 
-	if (mclk_root_freq % mclk_parent_freq) {
+	ret = rockchip_i2s_tdm_clk_set_rate(i2s_tdm, mclk_root,
+					    mclk_root_freq, 0);
+	if (ret)
+		goto out;
+
+	delta = abs(mclk_root_freq % mclk_parent_freq - mclk_parent_freq);
+	ppm = div64_u64((uint64_t)delta * 1000000, (uint64_t)mclk_root_freq);
+
+	if (ppm) {
 		div = DIV_ROUND_CLOSEST(mclk_root_initial_freq, mclk_parent_freq);
 		if (!div)
 			return -EINVAL;
 
 		mclk_root_freq = mclk_parent_freq * round_up(div, 2);
-		i2s_tdm->clk_ppm = 0;
+
 		ret = clk_set_rate(mclk_root, mclk_root_freq);
 		if (ret)
 			goto out;
@@ -1122,16 +1140,16 @@ static int rockchip_i2s_tdm_clk_compensation_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
 	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_dai_get_drvdata(dai);
-	int ret = 0;
+	int ret = 0, ppm = 0;
 
 	if ((ucontrol->value.integer.value[0] < CLK_PPM_MIN) ||
 	    (ucontrol->value.integer.value[0] > CLK_PPM_MAX))
 		return -EINVAL;
 
-	i2s_tdm->clk_ppm = ucontrol->value.integer.value[0];
+	ppm = ucontrol->value.integer.value[0];
 
 	ret = rockchip_i2s_tdm_clk_set_rate(i2s_tdm, i2s_tdm->mclk_root0,
-					    i2s_tdm->mclk_root0_freq);
+					    i2s_tdm->mclk_root0_freq, ppm);
 	if (ret)
 		return ret;
 
@@ -1139,7 +1157,7 @@ static int rockchip_i2s_tdm_clk_compensation_put(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	ret = rockchip_i2s_tdm_clk_set_rate(i2s_tdm, i2s_tdm->mclk_root1,
-					    i2s_tdm->mclk_root1_freq);
+					    i2s_tdm->mclk_root1_freq, ppm);
 
 	return ret;
 }
