@@ -715,6 +715,20 @@ static void vop2_wait_for_irq_handler(struct drm_crtc *crtc)
 	synchronize_irq(vop2->irq);
 }
 
+static void vop2_wait_for_irq_fs(struct vop2_video_port *vp)
+{
+	struct vop2 *vop2 = vp->vop2;
+	bool pending;
+	int ret;
+
+	/*
+	 * Spin until frame start interrupts come
+	 */
+	ret = readx_poll_timeout_atomic(vop2_fs_irq_is_pending, vp, pending,
+					pending, 0, 20 * 1000);
+	if (ret)
+		DRM_DEV_ERROR(vop2->dev, "wait fs irq for vp%d timeout\n", vp->id);
+}
 
 static inline void vop2_cfg_done(struct drm_crtc *crtc)
 {
@@ -750,9 +764,10 @@ static inline void vop2_cfg_done(struct drm_crtc *crtc)
 		done_vp = &vop2->vps[vp_id];
 		vcstate = to_rockchip_crtc_state(done_vp->crtc.state);
 		vcnt = vop2_readl(vop2, RK3568_SYS_STATUS0 + (vp_id << 2));
+		vcnt >>= 16;
 		/* if close to the last 1/4 frame, wait to next frame */
 		if (vcnt > (vcstate->vdisplay * 3 >> 2)) {
-			vop2_wait_for_irq_handler(crtc);
+			vop2_wait_for_irq_fs(done_vp);
 			done_bits = 0;
 		}
 	}
