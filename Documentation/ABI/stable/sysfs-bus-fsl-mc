@@ -1,0 +1,9 @@
+What:		/sys/bus/fsl-mc/rescan
+Date:		January 2021
+KernelVersion:	5.12
+Contact:	Ioana Ciornei <ioana.ciornei@nxp.com>
+Description:	Writing a non-zero value to this attribute will
+		force a rescan of fsl-mc bus in the system and
+		synchronize the objects under fsl-mc bus and the
+		Management Complex firmware.
+Users:		Userspace drivers and management tools
