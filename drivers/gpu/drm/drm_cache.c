@@ -30,6 +30,7 @@
 
 #include <linux/export.h>
 #include <linux/highmem.h>
+#include <linux/mem_encrypt.h>
 #include <xen/xen.h>
 
 #include <drm/drm_cache.h>
