@@ -66,9 +66,6 @@ struct mt7915_fw_region {
 
 #define MCU_PATCH_ADDRESS		0x200000
 
-#define MT_STA_BFER			BIT(0)
-#define MT_STA_BFEE			BIT(1)
-
 #define FW_FEATURE_SET_ENCRYPT		BIT(0)
 #define FW_FEATURE_SET_KEY_IDX		GENMASK(2, 1)
 #define FW_FEATURE_OVERRIDE_ADDR	BIT(5)
@@ -1944,19 +1941,25 @@ mt7915_mcu_sta_bfee_tlv(struct sk_buff *skb, struct ieee80211_sta *sta,
 	}
 
 	/* reply with identity matrix to avoid 2x2 BF negative gain */
-	if (nr == 1 && tx_ant == 2)
-		bfee->fb_identity_matrix = true;
+	bfee->fb_identity_matrix = !!(nr == 1 && tx_ant == 2);
 }
 
-static u8
-mt7915_mcu_sta_txbf_type(struct mt7915_phy *phy, struct ieee80211_vif *vif,
-			 struct ieee80211_sta *sta)
+static int
+mt7915_mcu_add_txbf(struct mt7915_dev *dev, struct ieee80211_vif *vif,
+		    struct ieee80211_sta *sta, bool enable)
 {
-	u8 type = 0;
+	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
+	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
+	struct mt7915_phy *phy;
+	struct sk_buff *skb;
+	int r, len;
+	bool ebfee = 0, ebf = 0;
 
 	if (vif->type != NL80211_IFTYPE_STATION &&
 	    vif->type != NL80211_IFTYPE_AP)
 		return 0;
+
+	phy = mvif->band_idx ? mt7915_ext_phy(dev) : &dev->phy;
 
 	if (sta->he_cap.has_he) {
 		struct ieee80211_he_cap_elem *pe;
@@ -1967,15 +1970,12 @@ mt7915_mcu_sta_txbf_type(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 		vc = mt7915_get_he_phy_cap(phy, vif);
 		ve = &vc->he_cap_elem;
 
-		if ((HE_PHY(CAP3_SU_BEAMFORMER, pe->phy_cap_info[3]) ||
-		     HE_PHY(CAP4_MU_BEAMFORMER, pe->phy_cap_info[4])) &&
-		    HE_PHY(CAP4_SU_BEAMFORMEE, ve->phy_cap_info[4]))
-			type |= MT_STA_BFEE;
-
-		if ((HE_PHY(CAP3_SU_BEAMFORMER, ve->phy_cap_info[3]) ||
-		     HE_PHY(CAP4_MU_BEAMFORMER, ve->phy_cap_info[4])) &&
-		    HE_PHY(CAP4_SU_BEAMFORMEE, pe->phy_cap_info[4]))
-			type |= MT_STA_BFER;
+		ebfee = !!((HE_PHY(CAP3_SU_BEAMFORMER, pe->phy_cap_info[3]) ||
+			    HE_PHY(CAP4_MU_BEAMFORMER, pe->phy_cap_info[4])) &&
+			   HE_PHY(CAP4_SU_BEAMFORMEE, ve->phy_cap_info[4]));
+		ebf = !!((HE_PHY(CAP3_SU_BEAMFORMER, ve->phy_cap_info[3]) ||
+			  HE_PHY(CAP4_MU_BEAMFORMER, ve->phy_cap_info[4])) &&
+			 HE_PHY(CAP4_SU_BEAMFORMEE, pe->phy_cap_info[4]));
 	} else if (sta->vht_cap.vht_supported) {
 		struct ieee80211_sta_vht_cap *pc;
 		struct ieee80211_sta_vht_cap *vc;
@@ -1988,37 +1988,14 @@ mt7915_mcu_sta_txbf_type(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 		ce = IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE |
 		     IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE;
 
-		if ((pc->cap & cr) && (vc->cap & ce))
-			type |= MT_STA_BFEE;
-
-		if ((vc->cap & cr) && (pc->cap & ce))
-			type |= MT_STA_BFER;
-	} else if (sta->ht_cap.ht_supported) {
-		/* TODO: iBF */
+		ebfee = !!((pc->cap & cr) && (vc->cap & ce));
+		ebf = !!((vc->cap & cr) && (pc->cap & ce));
 	}
-
-	return type;
-}
-
-static int
-mt7915_mcu_add_txbf(struct mt7915_dev *dev, struct ieee80211_vif *vif,
-		    struct ieee80211_sta *sta, bool enable)
-{
-	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
-	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
-	struct mt7915_phy *phy;
-	struct sk_buff *skb;
-	int r, len;
-	u8 type;
-
-	phy = mvif->band_idx ? mt7915_ext_phy(dev) : &dev->phy;
-
-	type = mt7915_mcu_sta_txbf_type(phy, vif, sta);
 
 	/* must keep each tag independent */
 
 	/* starec bf */
-	if (type & MT_STA_BFER) {
+	if (ebf) {
 		len = sizeof(struct sta_req_hdr) + sizeof(struct sta_rec_bf);
 
 		skb = mt7915_mcu_alloc_sta_req(dev, mvif, msta, len);
@@ -2034,7 +2011,7 @@ mt7915_mcu_add_txbf(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 	}
 
 	/* starec bfee */
-	if (type & MT_STA_BFEE) {
+	if (ebfee) {
 		len = sizeof(struct sta_req_hdr) + sizeof(struct sta_rec_bfee);
 
 		skb = mt7915_mcu_alloc_sta_req(dev, mvif, msta, len);
