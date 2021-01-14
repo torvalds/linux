@@ -2418,18 +2418,82 @@ static struct ibmvfc_event *ibmvfc_init_tmf(struct ibmvfc_queue *queue,
 	return evt;
 }
 
-/**
- * ibmvfc_cancel_all - Cancel all outstanding commands to the device
- * @sdev:	scsi device to cancel commands
- * @type:	type of error recovery being performed
- *
- * This sends a cancel to the VIOS for the specified device. This does
- * NOT send any abort to the actual device. That must be done separately.
- *
- * Returns:
- *	0 on success / other on failure
- **/
-static int ibmvfc_cancel_all(struct scsi_device *sdev, int type)
+static int ibmvfc_cancel_all_mq(struct scsi_device *sdev, int type)
+{
+	struct ibmvfc_host *vhost = shost_priv(sdev->host);
+	struct ibmvfc_event *evt, *found_evt, *temp;
+	struct ibmvfc_queue *queues = vhost->scsi_scrqs.scrqs;
+	unsigned long flags;
+	int num_hwq, i;
+	int fail = 0;
+	LIST_HEAD(cancelq);
+	u16 status;
+
+	ENTER;
+	spin_lock_irqsave(vhost->host->host_lock, flags);
+	num_hwq = vhost->scsi_scrqs.active_queues;
+	for (i = 0; i < num_hwq; i++) {
+		spin_lock(queues[i].q_lock);
+		spin_lock(&queues[i].l_lock);
+		found_evt = NULL;
+		list_for_each_entry(evt, &queues[i].sent, queue_list) {
+			if (evt->cmnd && evt->cmnd->device == sdev) {
+				found_evt = evt;
+				break;
+			}
+		}
+		spin_unlock(&queues[i].l_lock);
+
+		if (found_evt && vhost->logged_in) {
+			evt = ibmvfc_init_tmf(&queues[i], sdev, type);
+			evt->sync_iu = &queues[i].cancel_rsp;
+			ibmvfc_send_event(evt, vhost, default_timeout);
+			list_add_tail(&evt->cancel, &cancelq);
+		}
+
+		spin_unlock(queues[i].q_lock);
+	}
+	spin_unlock_irqrestore(vhost->host->host_lock, flags);
+
+	if (list_empty(&cancelq)) {
+		if (vhost->log_level > IBMVFC_DEFAULT_LOG_LEVEL)
+			sdev_printk(KERN_INFO, sdev, "No events found to cancel\n");
+		return 0;
+	}
+
+	sdev_printk(KERN_INFO, sdev, "Cancelling outstanding commands.\n");
+
+	list_for_each_entry_safe(evt, temp, &cancelq, cancel) {
+		wait_for_completion(&evt->comp);
+		status = be16_to_cpu(evt->queue->cancel_rsp.mad_common.status);
+		list_del(&evt->cancel);
+		ibmvfc_free_event(evt);
+
+		if (status != IBMVFC_MAD_SUCCESS) {
+			sdev_printk(KERN_WARNING, sdev, "Cancel failed with rc=%x\n", status);
+			switch (status) {
+			case IBMVFC_MAD_DRIVER_FAILED:
+			case IBMVFC_MAD_CRQ_ERROR:
+			/* Host adapter most likely going through reset, return success to
+			 * the caller will wait for the command being cancelled to get returned
+			 */
+				break;
+			default:
+				fail = 1;
+				break;
+			}
+		}
+	}
+
+	if (fail)
+		return -EIO;
+
+	sdev_printk(KERN_INFO, sdev, "Successfully cancelled outstanding commands\n");
+	LEAVE;
+	return 0;
+}
+
+static int ibmvfc_cancel_all_sq(struct scsi_device *sdev, int type)
 {
 	struct ibmvfc_host *vhost = shost_priv(sdev->host);
 	struct ibmvfc_event *evt, *found_evt;
@@ -2496,6 +2560,27 @@ static int ibmvfc_cancel_all(struct scsi_device *sdev, int type)
 
 	sdev_printk(KERN_INFO, sdev, "Successfully cancelled outstanding commands\n");
 	return 0;
+}
+
+/**
+ * ibmvfc_cancel_all - Cancel all outstanding commands to the device
+ * @sdev:	scsi device to cancel commands
+ * @type:	type of error recovery being performed
+ *
+ * This sends a cancel to the VIOS for the specified device. This does
+ * NOT send any abort to the actual device. That must be done separately.
+ *
+ * Returns:
+ *	0 on success / other on failure
+ **/
+static int ibmvfc_cancel_all(struct scsi_device *sdev, int type)
+{
+	struct ibmvfc_host *vhost = shost_priv(sdev->host);
+
+	if (vhost->mq_enabled && vhost->using_channels)
+		return ibmvfc_cancel_all_mq(sdev, type);
+	else
+		return ibmvfc_cancel_all_sq(sdev, type);
 }
 
 /**

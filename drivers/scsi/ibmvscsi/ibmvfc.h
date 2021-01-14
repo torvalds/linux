@@ -737,6 +737,7 @@ struct ibmvfc_target {
 /* a unit of work for the hosting partition */
 struct ibmvfc_event {
 	struct list_head queue_list;
+	struct list_head cancel;
 	struct ibmvfc_host *vhost;
 	struct ibmvfc_queue *queue;
 	struct ibmvfc_target *tgt;
@@ -789,6 +790,8 @@ struct ibmvfc_queue {
 	struct list_head sent;
 	struct list_head free;
 	spinlock_t l_lock;
+
+	union ibmvfc_iu cancel_rsp;
 
 	/* Sub-CRQ fields */
 	struct ibmvfc_host *vhost;
