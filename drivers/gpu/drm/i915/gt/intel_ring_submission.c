@@ -189,9 +189,16 @@ static void set_pp_dir(struct intel_engine_cs *engine)
 {
 	struct i915_address_space *vm = vm_alias(engine->gt->vm);
 
-	if (vm) {
-		ENGINE_WRITE(engine, RING_PP_DIR_DCLV, PP_DIR_DCLV_2G);
-		ENGINE_WRITE(engine, RING_PP_DIR_BASE, pp_dir(vm));
+	if (!vm)
+		return;
+
+	ENGINE_WRITE(engine, RING_PP_DIR_DCLV, PP_DIR_DCLV_2G);
+	ENGINE_WRITE(engine, RING_PP_DIR_BASE, pp_dir(vm));
+
+	if (INTEL_GEN(engine->i915) >= 7) {
+		ENGINE_WRITE(engine,
+			     RING_MODE_GEN7,
+			     _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
 	}
 }
 
