@@ -627,6 +627,132 @@ static int show_sockstat(int sd, struct sock_args *args)
 	return rc;
 }
 
+enum addr_type {
+	ADDR_TYPE_LOCAL,
+	ADDR_TYPE_REMOTE,
+	ADDR_TYPE_MCAST,
+	ADDR_TYPE_EXPECTED_LOCAL,
+	ADDR_TYPE_EXPECTED_REMOTE,
+	ADDR_TYPE_MD5_PREFIX,
+};
+
+static int convert_addr(struct sock_args *args, const char *_str,
+			enum addr_type atype)
+{
+	int pfx_len_max = args->version == AF_INET6 ? 128 : 32;
+	int family = args->version;
+	char *str, *dev, *sep;
+	struct in6_addr *in6;
+	struct in_addr  *in;
+	const char *desc;
+	void *addr;
+	int rc = 0;
+
+	str = strdup(_str);
+	if (!str)
+		return -ENOMEM;
+
+	switch (atype) {
+	case ADDR_TYPE_LOCAL:
+		desc = "local";
+		addr = &args->local_addr;
+		break;
+	case ADDR_TYPE_REMOTE:
+		desc = "remote";
+		addr = &args->remote_addr;
+		break;
+	case ADDR_TYPE_MCAST:
+		desc = "mcast grp";
+		addr = &args->grp;
+		break;
+	case ADDR_TYPE_EXPECTED_LOCAL:
+		desc = "expected local";
+		addr = &args->expected_laddr;
+		break;
+	case ADDR_TYPE_EXPECTED_REMOTE:
+		desc = "expected remote";
+		addr = &args->expected_raddr;
+		break;
+	case ADDR_TYPE_MD5_PREFIX:
+		desc = "md5 prefix";
+		if (family == AF_INET) {
+			args->md5_prefix.v4.sin_family = AF_INET;
+			addr = &args->md5_prefix.v4.sin_addr;
+		} else if (family == AF_INET6) {
+			args->md5_prefix.v6.sin6_family = AF_INET6;
+			addr = &args->md5_prefix.v6.sin6_addr;
+		} else
+			return 1;
+
+		sep = strchr(str, '/');
+		if (sep) {
+			*sep = '\0';
+			sep++;
+			if (str_to_uint(sep, 1, pfx_len_max,
+					&args->prefix_len) != 0) {
+				fprintf(stderr, "Invalid port\n");
+				return 1;
+			}
+		} else {
+			args->prefix_len = pfx_len_max;
+		}
+		break;
+	default:
+		log_error("unknown address type");
+		exit(1);
+	}
+
+	switch (family) {
+	case AF_INET:
+		in  = (struct in_addr *) addr;
+		if (str) {
+			if (inet_pton(AF_INET, str, in) == 0) {
+				log_error("Invalid %s IP address\n", desc);
+				rc = -1;
+				goto out;
+			}
+		} else {
+			in->s_addr = htonl(INADDR_ANY);
+		}
+		break;
+
+	case AF_INET6:
+		dev = strchr(str, '%');
+		if (dev) {
+			*dev = '\0';
+			dev++;
+		}
+
+		in6 = (struct in6_addr *) addr;
+		if (str) {
+			if (inet_pton(AF_INET6, str, in6) == 0) {
+				log_error("Invalid %s IPv6 address\n", desc);
+				rc = -1;
+				goto out;
+			}
+		} else {
+			*in6 = in6addr_any;
+		}
+		if (dev) {
+			args->scope_id = get_ifidx(dev);
+			if (args->scope_id < 0) {
+				log_error("Invalid scope on %s IPv6 address\n",
+					  desc);
+				rc = -1;
+				goto out;
+			}
+		}
+		break;
+
+	default:
+		log_error("Invalid address family\n");
+	}
+
+out:
+	free(str);
+	return rc;
+}
+
 static int get_index_from_cmsg(struct msghdr *m)
 {
 	struct cmsghdr *cm;
@@ -1457,132 +1583,6 @@ static int do_client(struct sock_args *args)
 out:
 	close(sd);
 
-	return rc;
-}
-
-enum addr_type {
-	ADDR_TYPE_LOCAL,
-	ADDR_TYPE_REMOTE,
-	ADDR_TYPE_MCAST,
-	ADDR_TYPE_EXPECTED_LOCAL,
-	ADDR_TYPE_EXPECTED_REMOTE,
-	ADDR_TYPE_MD5_PREFIX,
-};
-
-static int convert_addr(struct sock_args *args, const char *_str,
-			enum addr_type atype)
-{
-	int pfx_len_max = args->version == AF_INET6 ? 128 : 32;
-	int family = args->version;
-	char *str, *dev, *sep;
-	struct in6_addr *in6;
-	struct in_addr  *in;
-	const char *desc;
-	void *addr;
-	int rc = 0;
-
-	str = strdup(_str);
-	if (!str)
-		return -ENOMEM;
-
-	switch (atype) {
-	case ADDR_TYPE_LOCAL:
-		desc = "local";
-		addr = &args->local_addr;
-		break;
-	case ADDR_TYPE_REMOTE:
-		desc = "remote";
-		addr = &args->remote_addr;
-		break;
-	case ADDR_TYPE_MCAST:
-		desc = "mcast grp";
-		addr = &args->grp;
-		break;
-	case ADDR_TYPE_EXPECTED_LOCAL:
-		desc = "expected local";
-		addr = &args->expected_laddr;
-		break;
-	case ADDR_TYPE_EXPECTED_REMOTE:
-		desc = "expected remote";
-		addr = &args->expected_raddr;
-		break;
-	case ADDR_TYPE_MD5_PREFIX:
-		desc = "md5 prefix";
-		if (family == AF_INET) {
-			args->md5_prefix.v4.sin_family = AF_INET;
-			addr = &args->md5_prefix.v4.sin_addr;
-		} else if (family == AF_INET6) {
-			args->md5_prefix.v6.sin6_family = AF_INET6;
-			addr = &args->md5_prefix.v6.sin6_addr;
-		} else
-			return 1;
-
-		sep = strchr(str, '/');
-		if (sep) {
-			*sep = '\0';
-			sep++;
-			if (str_to_uint(sep, 1, pfx_len_max,
-					&args->prefix_len) != 0) {
-				fprintf(stderr, "Invalid port\n");
-				return 1;
-			}
-		} else {
-			args->prefix_len = pfx_len_max;
-		}
-		break;
-	default:
-		log_error("unknown address type");
-		exit(1);
-	}
-
-	switch (family) {
-	case AF_INET:
-		in  = (struct in_addr *) addr;
-		if (str) {
-			if (inet_pton(AF_INET, str, in) == 0) {
-				log_error("Invalid %s IP address\n", desc);
-				rc = -1;
-				goto out;
-			}
-		} else {
-			in->s_addr = htonl(INADDR_ANY);
-		}
-		break;
-
-	case AF_INET6:
-		dev = strchr(str, '%');
-		if (dev) {
-			*dev = '\0';
-			dev++;
-		}
-
-		in6 = (struct in6_addr *) addr;
-		if (str) {
-			if (inet_pton(AF_INET6, str, in6) == 0) {
-				log_error("Invalid %s IPv6 address\n", desc);
-				rc = -1;
-				goto out;
-			}
-		} else {
-			*in6 = in6addr_any;
-		}
-		if (dev) {
-			args->scope_id = get_ifidx(dev);
-			if (args->scope_id < 0) {
-				log_error("Invalid scope on %s IPv6 address\n",
-					  desc);
-				rc = -1;
-				goto out;
-			}
-		}
-		break;
-
-	default:
-		log_error("Invalid address family\n");
-	}
-
-out:
-	free(str);
 	return rc;
 }
 
