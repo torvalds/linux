@@ -208,7 +208,6 @@ static int test_mmap_thread(void)
 	char path[PATH_MAX];
 	int id, err, pid, go_pipe[2];
 	union perf_event *event;
-	char bf;
 	int count = 0;
 
 	snprintf(path, PATH_MAX, "%s/kernel/debug/tracing/events/syscalls/sys_enter_prctl/id",
@@ -229,6 +228,7 @@ static int test_mmap_thread(void)
 	pid = fork();
 	if (!pid) {
 		int i;
+		char bf;
 
 		read(go_pipe[0], &bf, 1);
 
@@ -266,7 +266,7 @@ static int test_mmap_thread(void)
 	perf_evlist__enable(evlist);
 
 	/* kick the child and wait for it to finish */
-	write(go_pipe[1], &bf, 1);
+	write(go_pipe[1], "A", 1);
 	waitpid(pid, NULL, 0);
 
 	/*
