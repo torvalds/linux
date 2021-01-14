@@ -296,13 +296,15 @@ mt7615_regd_notifier(struct wiphy *wiphy,
 	struct mt7615_phy *phy = mphy->priv;
 	struct cfg80211_chan_def *chandef = &mphy->chandef;
 
+	memcpy(dev->mt76.alpha2, request->alpha2, sizeof(dev->mt76.alpha2));
 	dev->mt76.region = request->dfs_region;
 
-	if (!(chandef->chan->flags & IEEE80211_CHAN_RADAR))
-		return;
-
 	mt7615_mutex_acquire(dev);
-	mt7615_dfs_init_radar_detector(phy);
+
+	if (chandef->chan->flags & IEEE80211_CHAN_RADAR)
+		mt7615_dfs_init_radar_detector(phy);
+	mt7615_mcu_set_channel_domain(phy);
+
 	mt7615_mutex_release(dev);
 }
 
