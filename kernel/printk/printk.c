@@ -1338,11 +1338,16 @@ static size_t info_print_prefix(const struct printk_info  *info, bool syslog,
  * done:
  *
  *   - Add prefix for each line.
+ *   - Drop truncated lines that no longer fit into the buffer.
  *   - Add the trailing newline that has been removed in vprintk_store().
- *   - Drop truncated lines that do not longer fit into the buffer.
+ *   - Add a string terminator.
+ *
+ * Since the produced string is always terminated, the maximum possible
+ * return value is @r->text_buf_size - 1;
  *
  * Return: The length of the updated/prepared text, including the added
- * prefixes and the newline. The dropped line(s) are not counted.
+ * prefixes and the newline. The terminator is not counted. The dropped
+ * line(s) are not counted.
  */
 static size_t record_print_text(struct printk_record *r, bool syslog,
 				bool time)
@@ -1385,26 +1390,31 @@ static size_t record_print_text(struct printk_record *r, bool syslog,
 
 		/*
 		 * Truncate the text if there is not enough space to add the
-		 * prefix and a trailing newline.
+		 * prefix and a trailing newline and a terminator.
 		 */
-		if (len + prefix_len + text_len + 1 > buf_size) {
+		if (len + prefix_len + text_len + 1 + 1 > buf_size) {
 			/* Drop even the current line if no space. */
-			if (len + prefix_len + line_len + 1 > buf_size)
+			if (len + prefix_len + line_len + 1 + 1 > buf_size)
 				break;
 
-			text_len = buf_size - len - prefix_len - 1;
+			text_len = buf_size - len - prefix_len - 1 - 1;
 			truncated = true;
 		}
 
 		memmove(text + prefix_len, text, text_len);
 		memcpy(text, prefix, prefix_len);
 
+		/*
+		 * Increment the prepared length to include the text and
+		 * prefix that were just moved+copied. Also increment for the
+		 * newline at the end of this line. If this is the last line,
+		 * there is no newline, but it will be added immediately below.
+		 */
 		len += prefix_len + line_len + 1;
-
 		if (text_len == line_len) {
 			/*
-			 * Add the trailing newline removed in
-			 * vprintk_store().
+			 * This is the last line. Add the trailing newline
+			 * removed in vprintk_store().
 			 */
 			text[prefix_len + line_len] = '\n';
 			break;
@@ -1428,6 +1438,14 @@ static size_t record_print_text(struct printk_record *r, bool syslog,
 		 */
 		text_len -= line_len + 1;
 	}
+
+	/*
+	 * If a buffer was provided, it will be terminated. Space for the
+	 * string terminator is guaranteed to be available. The terminator is
+	 * not counted in the return value.
+	 */
+	if (buf_size > 0)
+		text[len] = 0;
 
 	return len;
 }
