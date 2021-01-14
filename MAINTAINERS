@@ -12472,7 +12472,6 @@ F:	net/ipv6/tcp*.c
 
 NETWORKING [TLS]
 M:	Boris Pismenny <borisp@nvidia.com>
-M:	Aviad Yehezkel <aviadye@nvidia.com>
 M:	John Fastabend <john.fastabend@gmail.com>
 M:	Daniel Borkmann <daniel@iogearbox.net>
 M:	Jakub Kicinski <kuba@kernel.org>
