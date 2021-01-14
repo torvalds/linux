@@ -2646,8 +2646,13 @@ static int mptcp_disconnect(struct sock *sk, int flags)
 	struct mptcp_sock *msk = mptcp_sk(sk);
 
 	__mptcp_flush_join_list(msk);
-	mptcp_for_each_subflow(msk, subflow)
-		tcp_disconnect(mptcp_subflow_tcp_sock(subflow), flags);
+	mptcp_for_each_subflow(msk, subflow) {
+		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
+
+		lock_sock(ssk);
+		tcp_disconnect(ssk, flags);
+		release_sock(ssk);
+	}
 	return 0;
 }
 
