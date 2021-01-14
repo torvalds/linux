@@ -185,6 +185,7 @@
 #define GCC_BIMC_GFX_CLK					176
 #define UFS_UNIPRO_CORE_CLK_SRC					177
 #define GCC_MMSS_GPLL0_CLK					178
+#define HMSS_GPLL0_CLK_SRC					179
 
 #define PCIE_0_GDSC						0
 #define UFS_GDSC						1
