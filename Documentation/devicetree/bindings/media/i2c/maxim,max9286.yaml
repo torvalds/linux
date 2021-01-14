@@ -50,6 +50,26 @@ properties:
   '#gpio-cells':
     const: 2
 
+  maxim,reverse-channel-microvolt:
+    minimum: 30000
+    maximum: 200000
+    default: 170000
+    description: |
+      Initial amplitude of the reverse control channel, in micro volts.
+
+      The initial amplitude shall be adjusted to a value compatible with the
+      configuration of the connected remote serializer.
+
+      Some camera modules (for example RDACM20) include an on-board MCU that
+      pre-programs the embedded serializer with power supply noise immunity
+      (high-threshold) enabled. A typical value of the deserializer's reverse
+      channel amplitude to communicate with pre-programmed serializers is
+      170000 micro volts.
+
+      A typical value for the reverse channel amplitude to communicate with
+      a remote serializer whose high-threshold noise immunity is not enabled
+      is 100000 micro volts
+
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
 
@@ -184,6 +204,8 @@ examples:
 
         gpio-controller;
         #gpio-cells = <2>;
+
+        maxim,reverse-channel-microvolt = <170000>;
 
         ports {
           #address-cells = <1>;
