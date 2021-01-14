@@ -9,7 +9,6 @@
 
 #ifdef CONFIG_X86_LOCAL_APIC
 
-extern int avail_to_resrv_perfctr_nmi_bit(unsigned int);
 extern int reserve_perfctr_nmi(unsigned int);
 extern void release_perfctr_nmi(unsigned int);
 extern int reserve_evntsel_nmi(unsigned int);

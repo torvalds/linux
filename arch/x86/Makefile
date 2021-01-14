@@ -229,9 +229,6 @@ core-y += arch/x86/
 drivers-$(CONFIG_MATH_EMULATION) += arch/x86/math-emu/
 drivers-$(CONFIG_PCI)            += arch/x86/pci/
 
-# must be linked after kernel/
-drivers-$(CONFIG_OPROFILE) += arch/x86/oprofile/
-
 # suspend and hibernation support
 drivers-$(CONFIG_PM) += arch/x86/power/
 
