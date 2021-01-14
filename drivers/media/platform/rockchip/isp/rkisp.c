@@ -650,7 +650,7 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 
 	/* interrupt mask */
 	irq_mask |= CIF_ISP_FRAME | CIF_ISP_V_START | CIF_ISP_PIC_SIZE_ERROR |
-		    CIF_ISP_FRAME_IN;
+		    CIF_ISP_FRAME_IN | ISP2X_HDR_DONE;
 	if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21)
 		irq_mask |= ISP2X_LSC_LUT_ERR;
 	rkisp_write(dev, CIF_ISP_IMSC, irq_mask, true);
