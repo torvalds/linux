@@ -382,13 +382,37 @@ minstrel_get_ratestats(struct minstrel_ht_sta *mi, int index)
 	return &mi->groups[index / MCS_GROUP_RATES].rates[index % MCS_GROUP_RATES];
 }
 
+static inline int minstrel_get_duration(int index)
+{
+	const struct mcs_group *group = &minstrel_mcs_groups[index / MCS_GROUP_RATES];
+	unsigned int duration = group->duration[index % MCS_GROUP_RATES];
+
+	return duration << group->shift;
+}
+
 static unsigned int
 minstrel_ht_avg_ampdu_len(struct minstrel_ht_sta *mi)
 {
-	if (!mi->avg_ampdu_len)
-		return AVG_AMPDU_SIZE;
+	int duration;
 
-	return MINSTREL_TRUNC(mi->avg_ampdu_len);
+	if (mi->avg_ampdu_len)
+		return MINSTREL_TRUNC(mi->avg_ampdu_len);
+
+	if (minstrel_ht_is_legacy_group(mi->max_tp_rate[0] / MCS_GROUP_RATES))
+		return 1;
+
+	duration = minstrel_get_duration(mi->max_tp_rate[0]);
+
+	if (duration > 400 * 1000)
+		return 2;
+
+	if (duration > 250 * 1000)
+		return 4;
+
+	if (duration > 150 * 1000)
+		return 8;
+
+	return 16;
 }
 
 /*
@@ -586,14 +610,6 @@ minstrel_ht_prob_rate_reduce_streams(struct minstrel_ht_sta *mi)
 								tmp_prob);
 		}
 	}
-}
-
-static inline int
-minstrel_get_duration(int index)
-{
-	const struct mcs_group *group = &minstrel_mcs_groups[index / MCS_GROUP_RATES];
-	unsigned int duration = group->duration[index % MCS_GROUP_RATES];
-	return duration << group->shift;
 }
 
 static bool
