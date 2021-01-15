@@ -115,11 +115,14 @@ find_map(const struct usbmix_name_map *p, int unitid, int control)
 static int
 check_mapped_name(const struct usbmix_name_map *p, char *buf, int buflen)
 {
+	int len;
+
 	if (!p || !p->name)
 		return 0;
 
 	buflen--;
-	return strlcpy(buf, p->name, buflen);
+	len = strscpy(buf, p->name, buflen);
+	return len < 0 ? buflen : len;
 }
 
 /* ignore the error value if ignore_ctl_error flag is set */
@@ -151,12 +154,15 @@ static int check_mapped_selector_name(struct mixer_build *state, int unitid,
 				      int index, char *buf, int buflen)
 {
 	const struct usbmix_selector_map *p;
+	int len;
 
 	if (!state->selector_map)
 		return 0;
 	for (p = state->selector_map; p->id; p++) {
-		if (p->id == unitid && index < p->count)
-			return strlcpy(buf, p->names[index], buflen);
+		if (p->id == unitid && index < p->count) {
+			len = strscpy(buf, p->names[index], buflen);
+			return len < 0 ? buflen : len;
+		}
 	}
 	return 0;
 }
