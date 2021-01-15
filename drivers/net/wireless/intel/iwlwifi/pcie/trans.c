@@ -2162,6 +2162,7 @@ static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 	while (offs < dwords) {
 		/* limit the time we spin here under lock to 1/2s */
 		unsigned long end = jiffies + HZ / 2;
+		bool resched = false;
 
 		if (iwl_trans_grab_nic_access(trans, &flags)) {
 			iwl_write32(trans, HBUS_TARG_MEM_RADDR,
@@ -2172,10 +2173,15 @@ static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 							HBUS_TARG_MEM_RDAT);
 				offs++;
 
-				if (time_after(jiffies, end))
+				if (time_after(jiffies, end)) {
+					resched = true;
 					break;
+				}
 			}
 			iwl_trans_release_nic_access(trans, &flags);
+
+			if (resched)
+				cond_resched();
 		} else {
 			return -EBUSY;
 		}
