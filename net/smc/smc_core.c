@@ -246,7 +246,8 @@ int smc_nl_get_sys_info(struct sk_buff *skb, struct netlink_callback *cb)
 		goto errattr;
 	smc_clc_get_hostname(&host);
 	if (host) {
-		snprintf(hostname, sizeof(hostname), "%s", host);
+		memcpy(hostname, host, SMC_MAX_HOSTNAME_LEN);
+		hostname[SMC_MAX_HOSTNAME_LEN] = 0;
 		if (nla_put_string(skb, SMC_NLA_SYS_LOCAL_HOST, hostname))
 			goto errattr;
 	}
@@ -257,7 +258,8 @@ int smc_nl_get_sys_info(struct sk_buff *skb, struct netlink_callback *cb)
 		smc_ism_get_system_eid(smcd_dev, &seid);
 	mutex_unlock(&smcd_dev_list.mutex);
 	if (seid && smc_ism_is_v2_capable()) {
-		snprintf(smc_seid, sizeof(smc_seid), "%s", seid);
+		memcpy(smc_seid, seid, SMC_MAX_EID_LEN);
+		smc_seid[SMC_MAX_EID_LEN] = 0;
 		if (nla_put_string(skb, SMC_NLA_SYS_SEID, smc_seid))
 			goto errattr;
 	}
@@ -295,7 +297,8 @@ static int smc_nl_fill_lgr(struct smc_link_group *lgr,
 		goto errattr;
 	if (nla_put_u8(skb, SMC_NLA_LGR_R_VLAN_ID, lgr->vlan_id))
 		goto errattr;
-	snprintf(smc_target, sizeof(smc_target), "%s", lgr->pnet_id);
+	memcpy(smc_target, lgr->pnet_id, SMC_MAX_PNETID_LEN);
+	smc_target[SMC_MAX_PNETID_LEN] = 0;
 	if (nla_put_string(skb, SMC_NLA_LGR_R_PNETID, smc_target))
 		goto errattr;
 
@@ -312,7 +315,7 @@ static int smc_nl_fill_lgr_link(struct smc_link_group *lgr,
 				struct sk_buff *skb,
 				struct netlink_callback *cb)
 {
-	char smc_ibname[IB_DEVICE_NAME_MAX + 1];
+	char smc_ibname[IB_DEVICE_NAME_MAX];
 	u8 smc_gid_target[41];
 	struct nlattr *attrs;
 	u32 link_uid = 0;
@@ -461,7 +464,8 @@ static int smc_nl_fill_smcd_lgr(struct smc_link_group *lgr,
 		goto errattr;
 	if (nla_put_u32(skb, SMC_NLA_LGR_D_CHID, smc_ism_get_chid(lgr->smcd)))
 		goto errattr;
-	snprintf(smc_pnet, sizeof(smc_pnet), "%s", lgr->smcd->pnetid);
+	memcpy(smc_pnet, lgr->smcd->pnetid, SMC_MAX_PNETID_LEN);
+	smc_pnet[SMC_MAX_PNETID_LEN] = 0;
 	if (nla_put_string(skb, SMC_NLA_LGR_D_PNETID, smc_pnet))
 		goto errattr;
 
@@ -474,10 +478,12 @@ static int smc_nl_fill_smcd_lgr(struct smc_link_group *lgr,
 		goto errv2attr;
 	if (nla_put_u8(skb, SMC_NLA_LGR_V2_OS, lgr->peer_os))
 		goto errv2attr;
-	snprintf(smc_host, sizeof(smc_host), "%s", lgr->peer_hostname);
+	memcpy(smc_host, lgr->peer_hostname, SMC_MAX_HOSTNAME_LEN);
+	smc_host[SMC_MAX_HOSTNAME_LEN] = 0;
 	if (nla_put_string(skb, SMC_NLA_LGR_V2_PEER_HOST, smc_host))
 		goto errv2attr;
-	snprintf(smc_eid, sizeof(smc_eid), "%s", lgr->negotiated_eid);
+	memcpy(smc_eid, lgr->negotiated_eid, SMC_MAX_EID_LEN);
+	smc_eid[SMC_MAX_EID_LEN] = 0;
 	if (nla_put_string(skb, SMC_NLA_LGR_V2_NEG_EID, smc_eid))
 		goto errv2attr;
 

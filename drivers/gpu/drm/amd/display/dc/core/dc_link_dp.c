@@ -3992,7 +3992,7 @@ bool dc_link_dp_set_test_pattern(
 	unsigned int cust_pattern_size)
 {
 	struct pipe_ctx *pipes = link->dc->current_state->res_ctx.pipe_ctx;
-	struct pipe_ctx *pipe_ctx = &pipes[0];
+	struct pipe_ctx *pipe_ctx = NULL;
 	unsigned int lane;
 	unsigned int i;
 	unsigned char link_qual_pattern[LANE_COUNT_DP_MAX] = {0};
@@ -4002,11 +4002,17 @@ bool dc_link_dp_set_test_pattern(
 	memset(&training_pattern, 0, sizeof(training_pattern));
 
 	for (i = 0; i < MAX_PIPES; i++) {
+		if (pipes[i].stream == NULL)
+			continue;
+
 		if (pipes[i].stream->link == link && !pipes[i].top_pipe && !pipes[i].prev_odm_pipe) {
 			pipe_ctx = &pipes[i];
 			break;
 		}
 	}
+
+	if (pipe_ctx == NULL)
+		return false;
 
 	/* Reset CRTC Test Pattern if it is currently running and request is VideoMode */
 	if (link->test_pattern_enabled && test_pattern ==
