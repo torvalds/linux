@@ -159,7 +159,7 @@ static const struct fb_ops psbfb_unaccel_ops = {
  *	@dev: our DRM device
  *	@fb: framebuffer to set up
  *	@mode_cmd: mode description
- *	@gt: backing object
+ *	@obj: backing object
  *
  *	Configure and fill in the boilerplate for our frame buffer. Return
  *	0 on success or an error code if we fail.
@@ -197,7 +197,7 @@ static int psb_framebuffer_init(struct drm_device *dev,
  *	psb_framebuffer_create	-	create a framebuffer backed by gt
  *	@dev: our DRM device
  *	@mode_cmd: the description of the requested mode
- *	@gt: the backing object
+ *	@obj: the backing object
  *
  *	Create a framebuffer object backed by the gt, and fill in the
  *	boilerplate required
@@ -252,7 +252,7 @@ static struct gtt_range *psbfb_alloc(struct drm_device *dev, int aligned_size)
 
 /**
  *	psbfb_create		-	create a framebuffer
- *	@fbdev: the framebuffer device
+ *	@fb_helper: the framebuffer helper
  *	@sizes: specification of the layout
  *
  *	Create a framebuffer to the specifications provided
