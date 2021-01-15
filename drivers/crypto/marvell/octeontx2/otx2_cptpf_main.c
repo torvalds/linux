@@ -500,6 +500,11 @@ static int cptpf_sriov_enable(struct pci_dev *pdev, int num_vfs)
 	if (ret)
 		goto destroy_flr;
 
+	/* Get CPT HW capabilities using LOAD_FVC operation. */
+	ret = otx2_cpt_discover_eng_capabilities(cptpf);
+	if (ret)
+		goto disable_intr;
+
 	ret = otx2_cpt_create_eng_grps(cptpf->pdev, &cptpf->eng_grps);
 	if (ret)
 		goto disable_intr;

@@ -4,9 +4,11 @@
 #ifndef __OTX2_CPTLF_H
 #define __OTX2_CPTLF_H
 
+#include <linux/soc/marvell/octeontx2/asm.h>
 #include <mbox.h>
 #include <rvu.h>
 #include "otx2_cpt_common.h"
+#include "otx2_cpt_reqmgr.h"
 
 /*
  * CPT instruction and pending queues user requested length in CPT_INST_S msgs
@@ -270,6 +272,66 @@ static inline void otx2_cptlf_enable_iqueues(struct otx2_cptlfs_info *lfs)
 		otx2_cptlf_enable_iqueue_exec(&lfs->lf[slot]);
 		otx2_cptlf_enable_iqueue_enq(&lfs->lf[slot]);
 	}
+}
+
+static inline void otx2_cpt_fill_inst(union otx2_cpt_inst_s *cptinst,
+				      struct otx2_cpt_iq_command *iq_cmd,
+				      u64 comp_baddr)
+{
+	cptinst->u[0] = 0x0;
+	cptinst->s.doneint = true;
+	cptinst->s.res_addr = comp_baddr;
+	cptinst->u[2] = 0x0;
+	cptinst->u[3] = 0x0;
+	cptinst->s.ei0 = iq_cmd->cmd.u;
+	cptinst->s.ei1 = iq_cmd->dptr;
+	cptinst->s.ei2 = iq_cmd->rptr;
+	cptinst->s.ei3 = iq_cmd->cptr.u;
+}
+
+/*
+ * On OcteonTX2 platform the parameter insts_num is used as a count of
+ * instructions to be enqueued. The valid values for insts_num are:
+ * 1 - 1 CPT instruction will be enqueued during LMTST operation
+ * 2 - 2 CPT instructions will be enqueued during LMTST operation
+ */
+static inline void otx2_cpt_send_cmd(union otx2_cpt_inst_s *cptinst,
+				     u32 insts_num, struct otx2_cptlf_info *lf)
+{
+	void __iomem *lmtline = lf->lmtline;
+	long ret;
+
+	/*
+	 * Make sure memory areas pointed in CPT_INST_S
+	 * are flushed before the instruction is sent to CPT
+	 */
+	dma_wmb();
+
+	do {
+		/* Copy CPT command to LMTLINE */
+		memcpy_toio(lmtline, cptinst, insts_num * OTX2_CPT_INST_SIZE);
+
+		/*
+		 * LDEOR initiates atomic transfer to I/O device
+		 * The following will cause the LMTST to fail (the LDEOR
+		 * returns zero):
+		 * - No stores have been performed to the LMTLINE since it was
+		 * last invalidated.
+		 * - The bytes which have been stored to LMTLINE since it was
+		 * last invalidated form a pattern that is non-contiguous, does
+		 * not start at byte 0, or does not end on a 8-byte boundary.
+		 * (i.e.comprises a formation of other than 1–16 8-byte
+		 * words.)
+		 *
+		 * These rules are designed such that an operating system
+		 * context switch or hypervisor guest switch need have no
+		 * knowledge of the LMTST operations; the switch code does not
+		 * need to store to LMTCANCEL. Also note as LMTLINE data cannot
+		 * be read, there is no information leakage between processes.
+		 */
+		ret = otx2_lmt_flush(lf->ioreg);
+
+	} while (!ret);
 }
 
 int otx2_cptlf_init(struct otx2_cptlfs_info *lfs, u8 eng_grp_msk, int pri,

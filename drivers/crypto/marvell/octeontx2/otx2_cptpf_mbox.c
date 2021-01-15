@@ -5,6 +5,12 @@
 #include "otx2_cptpf.h"
 #include "rvu_reg.h"
 
+/*
+ * CPT PF driver version, It will be incremented by 1 for every feature
+ * addition in CPT mailbox messages.
+ */
+#define OTX2_CPT_PF_DRV_VERSION 0x1
+
 static int forward_to_af(struct otx2_cptpf_dev *cptpf,
 			 struct otx2_cptvf_info *vf,
 			 struct mbox_msghdr *req, int size)
@@ -32,6 +38,28 @@ static int forward_to_af(struct otx2_cptpf_dev *cptpf,
 		dev_err(&cptpf->pdev->dev, "RVU MBOX error: %d.\n", ret);
 		return -EFAULT;
 	}
+	return 0;
+}
+
+static int handle_msg_get_caps(struct otx2_cptpf_dev *cptpf,
+			       struct otx2_cptvf_info *vf,
+			       struct mbox_msghdr *req)
+{
+	struct otx2_cpt_caps_rsp *rsp;
+
+	rsp = (struct otx2_cpt_caps_rsp *)
+	      otx2_mbox_alloc_msg(&cptpf->vfpf_mbox, vf->vf_id,
+				  sizeof(*rsp));
+	if (!rsp)
+		return -ENOMEM;
+
+	rsp->hdr.id = MBOX_MSG_GET_CAPS;
+	rsp->hdr.sig = OTX2_MBOX_RSP_SIG;
+	rsp->hdr.pcifunc = req->pcifunc;
+	rsp->cpt_pf_drv_version = OTX2_CPT_PF_DRV_VERSION;
+	rsp->cpt_revision = cptpf->pdev->revision;
+	memcpy(&rsp->eng_caps, &cptpf->eng_caps, sizeof(rsp->eng_caps));
+
 	return 0;
 }
 
@@ -71,6 +99,9 @@ static int cptpf_handle_vf_req(struct otx2_cptpf_dev *cptpf,
 	switch (req->id) {
 	case MBOX_MSG_GET_ENG_GRP_NUM:
 		err = handle_msg_get_eng_grp_num(cptpf, vf, req);
+		break;
+	case MBOX_MSG_GET_CAPS:
+		err = handle_msg_get_caps(cptpf, vf, req);
 		break;
 	default:
 		err = forward_to_af(cptpf, vf, req, size);

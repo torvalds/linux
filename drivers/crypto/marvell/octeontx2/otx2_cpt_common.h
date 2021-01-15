@@ -20,6 +20,7 @@
 
 #define OTX2_CPT_INVALID_CRYPTO_ENG_GRP 0xFF
 #define OTX2_CPT_NAME_LENGTH 64
+#define OTX2_CPT_DMA_MINALIGN 128
 
 #define BAD_OTX2_CPT_ENG_TYPE OTX2_CPT_MAX_ENG_TYPES
 
@@ -32,6 +33,7 @@ enum otx2_cpt_eng_type {
 
 /* Take mbox id from end of CPT mbox range in AF (range 0xA00 - 0xBFF) */
 #define MBOX_MSG_GET_ENG_GRP_NUM        0xBFF
+#define MBOX_MSG_GET_CAPS               0xBFD
 
 /*
  * Message request and response to get engine group number
@@ -47,6 +49,40 @@ struct otx2_cpt_egrp_num_rsp {
 	struct mbox_msghdr hdr;
 	u8 eng_type;
 	u8 eng_grp_num;
+};
+
+/* CPT HW capabilities */
+union otx2_cpt_eng_caps {
+	u64 u;
+	struct {
+		u64 reserved_0_4:5;
+		u64 mul:1;
+		u64 sha1_sha2:1;
+		u64 chacha20:1;
+		u64 zuc_snow3g:1;
+		u64 sha3:1;
+		u64 aes:1;
+		u64 kasumi:1;
+		u64 des:1;
+		u64 crc:1;
+		u64 reserved_14_63:50;
+	};
+};
+
+/*
+ * Message request and response to get HW capabilities for each
+ * engine type (SE, IE, AE).
+ * This messages are only used between CPT PF <=> CPT VF
+ */
+struct otx2_cpt_caps_msg {
+	struct mbox_msghdr hdr;
+};
+
+struct otx2_cpt_caps_rsp {
+	struct mbox_msghdr hdr;
+	u16 cpt_pf_drv_version;
+	u8 cpt_revision;
+	union otx2_cpt_eng_caps eng_caps[OTX2_CPT_MAX_ENG_TYPES];
 };
 
 static inline void otx2_cpt_write64(void __iomem *reg_base, u64 blk, u64 slot,

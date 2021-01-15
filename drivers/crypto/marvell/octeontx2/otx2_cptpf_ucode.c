@@ -6,6 +6,8 @@
 #include "otx2_cptpf_ucode.h"
 #include "otx2_cpt_common.h"
 #include "otx2_cptpf.h"
+#include "otx2_cptlf.h"
+#include "otx2_cpt_reqmgr.h"
 #include "rvu_reg.h"
 
 #define CSR_DELAY 30
@@ -1250,5 +1252,164 @@ int otx2_cpt_init_eng_grps(struct pci_dev *pdev,
 
 cleanup_eng_grps:
 	otx2_cpt_cleanup_eng_grps(pdev, eng_grps);
+	return ret;
+}
+
+static int create_eng_caps_discovery_grps(struct pci_dev *pdev,
+					  struct otx2_cpt_eng_grps *eng_grps)
+{
+	struct otx2_cpt_uc_info_t *uc_info[OTX2_CPT_MAX_ETYPES_PER_GRP] = {  };
+	struct otx2_cpt_engines engs[OTX2_CPT_MAX_ETYPES_PER_GRP] = { {0} };
+	struct fw_info_t fw_info;
+	int ret;
+
+	ret = cpt_ucode_load_fw(pdev, &fw_info);
+	if (ret)
+		return ret;
+
+	uc_info[0] = get_ucode(&fw_info, OTX2_CPT_SE_TYPES);
+	if (uc_info[0] == NULL) {
+		dev_err(&pdev->dev, "Unable to find firmware for AE\n");
+		ret = -EINVAL;
+		goto release_fw;
+	}
+	engs[0].type = OTX2_CPT_AE_TYPES;
+	engs[0].count = 2;
+
+	ret = create_engine_group(&pdev->dev, eng_grps, engs, 1,
+				  (void **) uc_info, 0);
+	if (ret)
+		goto release_fw;
+
+	uc_info[0] = get_ucode(&fw_info, OTX2_CPT_SE_TYPES);
+	if (uc_info[0] == NULL) {
+		dev_err(&pdev->dev, "Unable to find firmware for SE\n");
+		ret = -EINVAL;
+		goto delete_eng_grp;
+	}
+	engs[0].type = OTX2_CPT_SE_TYPES;
+	engs[0].count = 2;
+
+	ret = create_engine_group(&pdev->dev, eng_grps, engs, 1,
+				  (void **) uc_info, 0);
+	if (ret)
+		goto delete_eng_grp;
+
+	uc_info[0] = get_ucode(&fw_info, OTX2_CPT_IE_TYPES);
+	if (uc_info[0] == NULL) {
+		dev_err(&pdev->dev, "Unable to find firmware for IE\n");
+		ret = -EINVAL;
+		goto delete_eng_grp;
+	}
+	engs[0].type = OTX2_CPT_IE_TYPES;
+	engs[0].count = 2;
+
+	ret = create_engine_group(&pdev->dev, eng_grps, engs, 1,
+				  (void **) uc_info, 0);
+	if (ret)
+		goto delete_eng_grp;
+
+	cpt_ucode_release_fw(&fw_info);
+	return 0;
+
+delete_eng_grp:
+	delete_engine_grps(pdev, eng_grps);
+release_fw:
+	cpt_ucode_release_fw(&fw_info);
+	return ret;
+}
+
+/*
+ * Get CPT HW capabilities using LOAD_FVC operation.
+ */
+int otx2_cpt_discover_eng_capabilities(struct otx2_cptpf_dev *cptpf)
+{
+	struct otx2_cptlfs_info *lfs = &cptpf->lfs;
+	struct otx2_cpt_iq_command iq_cmd;
+	union otx2_cpt_opcode opcode;
+	union otx2_cpt_res_s *result;
+	union otx2_cpt_inst_s inst;
+	dma_addr_t rptr_baddr;
+	struct pci_dev *pdev;
+	u32 len, compl_rlen;
+	int ret, etype;
+	void *rptr;
+
+	/*
+	 * We don't get capabilities if it was already done
+	 * (when user enabled VFs for the first time)
+	 */
+	if (cptpf->is_eng_caps_discovered)
+		return 0;
+
+	pdev = cptpf->pdev;
+	/*
+	 * Create engine groups for each type to submit LOAD_FVC op and
+	 * get engine's capabilities.
+	 */
+	ret = create_eng_caps_discovery_grps(pdev, &cptpf->eng_grps);
+	if (ret)
+		goto delete_grps;
+
+	lfs->pdev = pdev;
+	lfs->reg_base = cptpf->reg_base;
+	lfs->mbox = &cptpf->afpf_mbox;
+	ret = otx2_cptlf_init(&cptpf->lfs, OTX2_CPT_ALL_ENG_GRPS_MASK,
+			      OTX2_CPT_QUEUE_HI_PRIO, 1);
+	if (ret)
+		goto delete_grps;
+
+	compl_rlen = ALIGN(sizeof(union otx2_cpt_res_s), OTX2_CPT_DMA_MINALIGN);
+	len = compl_rlen + LOADFVC_RLEN;
+
+	result = kzalloc(len, GFP_KERNEL);
+	if (!result) {
+		ret = -ENOMEM;
+		goto lf_cleanup;
+	}
+	rptr_baddr = dma_map_single(&pdev->dev, (void *)result, len,
+				    DMA_BIDIRECTIONAL);
+	if (dma_mapping_error(&pdev->dev, rptr_baddr)) {
+		dev_err(&pdev->dev, "DMA mapping failed\n");
+		ret = -EFAULT;
+		goto free_result;
+	}
+	rptr = (u8 *)result + compl_rlen;
+
+	/* Fill in the command */
+	opcode.s.major = LOADFVC_MAJOR_OP;
+	opcode.s.minor = LOADFVC_MINOR_OP;
+
+	iq_cmd.cmd.u = 0;
+	iq_cmd.cmd.s.opcode = cpu_to_be16(opcode.flags);
+
+	/* 64-bit swap for microcode data reads, not needed for addresses */
+	cpu_to_be64s(&iq_cmd.cmd.u);
+	iq_cmd.dptr = 0;
+	iq_cmd.rptr = rptr_baddr + compl_rlen;
+	iq_cmd.cptr.u = 0;
+
+	for (etype = 1; etype < OTX2_CPT_MAX_ENG_TYPES; etype++) {
+		result->s.compcode = OTX2_CPT_COMPLETION_CODE_INIT;
+		iq_cmd.cptr.s.grp = otx2_cpt_get_eng_grp(&cptpf->eng_grps,
+							 etype);
+		otx2_cpt_fill_inst(&inst, &iq_cmd, rptr_baddr);
+		otx2_cpt_send_cmd(&inst, 1, &cptpf->lfs.lf[0]);
+
+		while (result->s.compcode == OTX2_CPT_COMPLETION_CODE_INIT)
+			cpu_relax();
+
+		cptpf->eng_caps[etype].u = be64_to_cpup(rptr);
+	}
+	dma_unmap_single(&pdev->dev, rptr_baddr, len, DMA_BIDIRECTIONAL);
+	cptpf->is_eng_caps_discovered = true;
+
+free_result:
+	kfree(result);
+lf_cleanup:
+	otx2_cptlf_shutdown(&cptpf->lfs);
+delete_grps:
+	delete_engine_grps(pdev, &cptpf->eng_grps);
+
 	return ret;
 }
