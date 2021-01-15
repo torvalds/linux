@@ -1023,13 +1023,47 @@ static int tcpm_set_pwr_role(struct tcpm_port *port, enum typec_role role)
 	return 0;
 }
 
+/*
+ * Transform the PDO to be compliant to PD rev2.0.
+ * Return 0 if the PDO type is not defined in PD rev2.0.
+ * Otherwise, return the converted PDO.
+ */
+static u32 tcpm_forge_legacy_pdo(struct tcpm_port *port, u32 pdo, enum typec_role role)
+{
+	switch (pdo_type(pdo)) {
+	case PDO_TYPE_FIXED:
+		if (role == TYPEC_SINK)
+			return pdo & ~PDO_FIXED_FRS_CURR_MASK;
+		else
+			return pdo & ~PDO_FIXED_UNCHUNK_EXT;
+	case PDO_TYPE_VAR:
+	case PDO_TYPE_BATT:
+		return pdo;
+	case PDO_TYPE_APDO:
+	default:
+		return 0;
+	}
+}
+
 static int tcpm_pd_send_source_caps(struct tcpm_port *port)
 {
 	struct pd_message msg;
-	int i;
+	u32 pdo;
+	unsigned int i, nr_pdo = 0;
 
 	memset(&msg, 0, sizeof(msg));
-	if (!port->nr_src_pdo) {
+
+	for (i = 0; i < port->nr_src_pdo; i++) {
+		if (port->negotiated_rev >= PD_REV30) {
+			msg.payload[nr_pdo++] =	cpu_to_le32(port->src_pdo[i]);
+		} else {
+			pdo = tcpm_forge_legacy_pdo(port, port->src_pdo[i], TYPEC_SOURCE);
+			if (pdo)
+				msg.payload[nr_pdo++] = cpu_to_le32(pdo);
+		}
+	}
+
+	if (!nr_pdo) {
 		/* No source capabilities defined, sink only */
 		msg.header = PD_HEADER_LE(PD_CTRL_REJECT,
 					  port->pwr_role,
@@ -1042,10 +1076,8 @@ static int tcpm_pd_send_source_caps(struct tcpm_port *port)
 					  port->data_role,
 					  port->negotiated_rev,
 					  port->message_id,
-					  port->nr_src_pdo);
+					  nr_pdo);
 	}
-	for (i = 0; i < port->nr_src_pdo; i++)
-		msg.payload[i] = cpu_to_le32(port->src_pdo[i]);
 
 	return tcpm_pd_transmit(port, TCPC_TX_SOP, &msg);
 }
@@ -1053,10 +1085,22 @@ static int tcpm_pd_send_source_caps(struct tcpm_port *port)
 static int tcpm_pd_send_sink_caps(struct tcpm_port *port)
 {
 	struct pd_message msg;
-	int i;
+	u32 pdo;
+	unsigned int i, nr_pdo = 0;
 
 	memset(&msg, 0, sizeof(msg));
-	if (!port->nr_snk_pdo) {
+
+	for (i = 0; i < port->nr_snk_pdo; i++) {
+		if (port->negotiated_rev >= PD_REV30) {
+			msg.payload[nr_pdo++] =	cpu_to_le32(port->snk_pdo[i]);
+		} else {
+			pdo = tcpm_forge_legacy_pdo(port, port->snk_pdo[i], TYPEC_SINK);
+			if (pdo)
+				msg.payload[nr_pdo++] = cpu_to_le32(pdo);
+		}
+	}
+
+	if (!nr_pdo) {
 		/* No sink capabilities defined, source only */
 		msg.header = PD_HEADER_LE(PD_CTRL_REJECT,
 					  port->pwr_role,
@@ -1069,10 +1113,8 @@ static int tcpm_pd_send_sink_caps(struct tcpm_port *port)
 					  port->data_role,
 					  port->negotiated_rev,
 					  port->message_id,
-					  port->nr_snk_pdo);
+					  nr_pdo);
 	}
-	for (i = 0; i < port->nr_snk_pdo; i++)
-		msg.payload[i] = cpu_to_le32(port->snk_pdo[i]);
 
 	return tcpm_pd_transmit(port, TCPC_TX_SOP, &msg);
 }
