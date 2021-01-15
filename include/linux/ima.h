@@ -31,6 +31,10 @@ extern void ima_post_path_mknod(struct dentry *dentry);
 extern int ima_file_hash(struct file *file, char *buf, size_t buf_size);
 extern int ima_inode_hash(struct inode *inode, char *buf, size_t buf_size);
 extern void ima_kexec_cmdline(int kernel_fd, const void *buf, int size);
+extern void ima_measure_critical_data(const char *event_label,
+				      const char *event_name,
+				      const void *buf, size_t buf_len,
+				      bool hash);
 
 #ifdef CONFIG_IMA_APPRAISE_BOOTPARAM
 extern void ima_appraise_parse_cmdline(void);
@@ -128,6 +132,12 @@ static inline int ima_inode_hash(struct inode *inode, char *buf, size_t buf_size
 }
 
 static inline void ima_kexec_cmdline(int kernel_fd, const void *buf, int size) {}
+
+static inline void ima_measure_critical_data(const char *event_label,
+					     const char *event_name,
+					     const void *buf, size_t buf_len,
+					     bool hash) {}
+
 #endif /* CONFIG_IMA */
 
 #ifndef CONFIG_IMA_KEXEC
