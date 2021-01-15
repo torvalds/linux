@@ -16,6 +16,7 @@
 #include <drm/drm.h>
 #include <drm/drm_vma_manager.h>
 
+#include "gem.h"
 #include "psb_drv.h"
 
 static vm_fault_t psb_gem_fault(struct vm_fault *vmf);
