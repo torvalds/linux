@@ -242,15 +242,6 @@ config INTEGRATOR_AP_TIMER
 	help
 	  Enables support for the Integrator-AP timer.
 
-config CLKSRC_EFM32
-	bool "Clocksource for Energy Micro's EFM32 SoCs" if !ARCH_EFM32
-	depends on OF && ARM && (ARCH_EFM32 || COMPILE_TEST)
-	select CLKSRC_MMIO
-	default ARCH_EFM32
-	help
-	  Support to use the timers of EFM32 SoCs as clock source and clock
-	  event device.
-
 config CLKSRC_LPC32XX
 	bool "Clocksource for LPC32XX" if COMPILE_TEST
 	depends on HAS_IOMEM
