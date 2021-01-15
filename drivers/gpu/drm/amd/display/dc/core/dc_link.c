@@ -1380,7 +1380,7 @@ static bool dc_link_construct(struct dc_link *link,
 
 	DC_LOGGER_INIT(dc_ctx->logger);
 
-	info = kzalloc(sizeof(info), GFP_KERNEL);
+	info = kzalloc(sizeof(struct integrated_info), GFP_KERNEL);
 	if (!info)
 		goto create_fail;
 
@@ -1545,7 +1545,7 @@ static bool dc_link_construct(struct dc_link *link,
 	}
 
 	if (bios->integrated_info)
-		memcpy(info, bios->integrated_info, sizeof(*info));
+		memcpy(info, bios->integrated_info, sizeof(struct integrated_info));
 
 	/* Look for channel mapping corresponding to connector and device tag */
 	for (i = 0; i < MAX_NUMBER_OF_EXT_DISPLAY_PATH; i++) {
