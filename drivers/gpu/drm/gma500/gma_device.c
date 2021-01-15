@@ -6,6 +6,7 @@
  **************************************************************************/
 
 #include "psb_drv.h"
+#include "gma_device.h"
 
 void gma_get_core_freq(struct drm_device *dev)
 {
