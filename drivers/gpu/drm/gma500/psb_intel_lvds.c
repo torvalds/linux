@@ -626,6 +626,7 @@ const struct drm_connector_funcs psb_intel_lvds_connector_funcs = {
 /**
  * psb_intel_lvds_init - setup LVDS connectors on this device
  * @dev: drm device
+ * @mode_dev: mode device
  *
  * Create the connector, register the LVDS DDC bus, and try to figure out what
  * modes we can display on the LVDS panel (if present).
