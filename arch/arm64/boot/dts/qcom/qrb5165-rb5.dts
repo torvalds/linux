@@ -444,6 +444,11 @@
 	};
 };
 
+&cdsp {
+	status = "okay";
+	firmware-name = "qcom/sm8250/cdsp.mbn";
+};
+
 &dsi0 {
 	status = "okay";
 	vdda-supply = <&vreg_l9a_1p2>;
