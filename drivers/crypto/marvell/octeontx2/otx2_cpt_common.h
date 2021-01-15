@@ -18,6 +18,37 @@
 #define OTX2_CPT_RVU_FUNC_ADDR_S(blk, slot, offs) \
 		(((blk) << 20) | ((slot) << 12) | (offs))
 
+#define OTX2_CPT_INVALID_CRYPTO_ENG_GRP 0xFF
+#define OTX2_CPT_NAME_LENGTH 64
+
+#define BAD_OTX2_CPT_ENG_TYPE OTX2_CPT_MAX_ENG_TYPES
+
+enum otx2_cpt_eng_type {
+	OTX2_CPT_AE_TYPES = 1,
+	OTX2_CPT_SE_TYPES = 2,
+	OTX2_CPT_IE_TYPES = 3,
+	OTX2_CPT_MAX_ENG_TYPES,
+};
+
+/* Take mbox id from end of CPT mbox range in AF (range 0xA00 - 0xBFF) */
+#define MBOX_MSG_GET_ENG_GRP_NUM        0xBFF
+
+/*
+ * Message request and response to get engine group number
+ * which has attached a given type of engines (SE, AE, IE)
+ * This messages are only used between CPT PF <=> CPT VF
+ */
+struct otx2_cpt_egrp_num_msg {
+	struct mbox_msghdr hdr;
+	u8 eng_type;
+};
+
+struct otx2_cpt_egrp_num_rsp {
+	struct mbox_msghdr hdr;
+	u8 eng_type;
+	u8 eng_grp_num;
+};
+
 static inline void otx2_cpt_write64(void __iomem *reg_base, u64 blk, u64 slot,
 				    u64 offs, u64 val)
 {
@@ -34,4 +65,15 @@ static inline u64 otx2_cpt_read64(void __iomem *reg_base, u64 blk, u64 slot,
 
 int otx2_cpt_send_ready_msg(struct otx2_mbox *mbox, struct pci_dev *pdev);
 int otx2_cpt_send_mbox_msg(struct otx2_mbox *mbox, struct pci_dev *pdev);
+
+int otx2_cpt_send_af_reg_requests(struct otx2_mbox *mbox,
+				  struct pci_dev *pdev);
+int otx2_cpt_add_read_af_reg(struct otx2_mbox *mbox,
+			     struct pci_dev *pdev, u64 reg, u64 *val);
+int otx2_cpt_add_write_af_reg(struct otx2_mbox *mbox, struct pci_dev *pdev,
+			      u64 reg, u64 val);
+int otx2_cpt_read_af_reg(struct otx2_mbox *mbox, struct pci_dev *pdev,
+			 u64 reg, u64 *val);
+int otx2_cpt_write_af_reg(struct otx2_mbox *mbox, struct pci_dev *pdev,
+			  u64 reg, u64 val);
 #endif /* __OTX2_CPT_COMMON_H */

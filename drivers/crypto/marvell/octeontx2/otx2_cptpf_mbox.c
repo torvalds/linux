@@ -35,6 +35,29 @@ static int forward_to_af(struct otx2_cptpf_dev *cptpf,
 	return 0;
 }
 
+static int handle_msg_get_eng_grp_num(struct otx2_cptpf_dev *cptpf,
+				      struct otx2_cptvf_info *vf,
+				      struct mbox_msghdr *req)
+{
+	struct otx2_cpt_egrp_num_msg *grp_req;
+	struct otx2_cpt_egrp_num_rsp *rsp;
+
+	grp_req = (struct otx2_cpt_egrp_num_msg *)req;
+	rsp = (struct otx2_cpt_egrp_num_rsp *)
+	       otx2_mbox_alloc_msg(&cptpf->vfpf_mbox, vf->vf_id, sizeof(*rsp));
+	if (!rsp)
+		return -ENOMEM;
+
+	rsp->hdr.id = MBOX_MSG_GET_ENG_GRP_NUM;
+	rsp->hdr.sig = OTX2_MBOX_RSP_SIG;
+	rsp->hdr.pcifunc = req->pcifunc;
+	rsp->eng_type = grp_req->eng_type;
+	rsp->eng_grp_num = otx2_cpt_get_eng_grp(&cptpf->eng_grps,
+						grp_req->eng_type);
+
+	return 0;
+}
+
 static int cptpf_handle_vf_req(struct otx2_cptpf_dev *cptpf,
 			       struct otx2_cptvf_info *vf,
 			       struct mbox_msghdr *req, int size)
@@ -45,7 +68,15 @@ static int cptpf_handle_vf_req(struct otx2_cptpf_dev *cptpf,
 	if (req->sig != OTX2_MBOX_REQ_SIG)
 		goto inval_msg;
 
-	return forward_to_af(cptpf, vf, req, size);
+	switch (req->id) {
+	case MBOX_MSG_GET_ENG_GRP_NUM:
+		err = handle_msg_get_eng_grp_num(cptpf, vf, req);
+		break;
+	default:
+		err = forward_to_af(cptpf, vf, req, size);
+		break;
+	}
+	return err;
 
 inval_msg:
 	otx2_reply_invalid_msg(&cptpf->vfpf_mbox, vf->vf_id, 0, req->id);
@@ -148,6 +179,7 @@ static void process_afpf_mbox_msg(struct otx2_cptpf_dev *cptpf,
 				  struct mbox_msghdr *msg)
 {
 	struct device *dev = &cptpf->pdev->dev;
+	struct cpt_rd_wr_reg_msg *rsp_rd_wr;
 
 	if (msg->id >= MBOX_MSG_MAX) {
 		dev_err(dev, "MBOX msg with unknown ID %d\n", msg->id);
@@ -164,6 +196,18 @@ static void process_afpf_mbox_msg(struct otx2_cptpf_dev *cptpf,
 		cptpf->pf_id = (msg->pcifunc >> RVU_PFVF_PF_SHIFT) &
 				RVU_PFVF_PF_MASK;
 		break;
+	case MBOX_MSG_CPT_RD_WR_REGISTER:
+		rsp_rd_wr = (struct cpt_rd_wr_reg_msg *)msg;
+		if (msg->rc) {
+			dev_err(dev, "Reg %llx rd/wr(%d) failed %d\n",
+				rsp_rd_wr->reg_offset, rsp_rd_wr->is_write,
+				msg->rc);
+			return;
+		}
+		if (!rsp_rd_wr->is_write)
+			*rsp_rd_wr->ret_val = rsp_rd_wr->val;
+		break;
+
 	default:
 		dev_err(dev,
 			"Unsupported msg %d received.\n", msg->id);

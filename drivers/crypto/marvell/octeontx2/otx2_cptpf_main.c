@@ -4,6 +4,7 @@
 #include <linux/firmware.h>
 #include "otx2_cpt_hw_types.h"
 #include "otx2_cpt_common.h"
+#include "otx2_cptpf_ucode.h"
 #include "otx2_cptpf.h"
 #include "rvu_reg.h"
 
@@ -410,6 +411,59 @@ static int cpt_is_pf_usable(struct otx2_cptpf_dev *cptpf)
 	return 0;
 }
 
+static int cptpf_device_reset(struct otx2_cptpf_dev *cptpf)
+{
+	int timeout = 10, ret;
+	u64 reg = 0;
+
+	ret = otx2_cpt_write_af_reg(&cptpf->afpf_mbox, cptpf->pdev,
+				    CPT_AF_BLK_RST, 0x1);
+	if (ret)
+		return ret;
+
+	do {
+		ret = otx2_cpt_read_af_reg(&cptpf->afpf_mbox, cptpf->pdev,
+					   CPT_AF_BLK_RST, &reg);
+		if (ret)
+			return ret;
+
+		if (!((reg >> 63) & 0x1))
+			break;
+
+		usleep_range(10000, 20000);
+		if (timeout-- < 0)
+			return -EBUSY;
+	} while (1);
+
+	return ret;
+}
+
+static int cptpf_device_init(struct otx2_cptpf_dev *cptpf)
+{
+	union otx2_cptx_af_constants1 af_cnsts1 = {0};
+	int ret = 0;
+
+	/* Reset the CPT PF device */
+	ret = cptpf_device_reset(cptpf);
+	if (ret)
+		return ret;
+
+	/* Get number of SE, IE and AE engines */
+	ret = otx2_cpt_read_af_reg(&cptpf->afpf_mbox, cptpf->pdev,
+				   CPT_AF_CONSTANTS1, &af_cnsts1.u);
+	if (ret)
+		return ret;
+
+	cptpf->eng_grps.avail.max_se_cnt = af_cnsts1.s.se;
+	cptpf->eng_grps.avail.max_ie_cnt = af_cnsts1.s.ie;
+	cptpf->eng_grps.avail.max_ae_cnt = af_cnsts1.s.ae;
+
+	/* Disable all cores */
+	ret = otx2_cpt_disable_all_cores(cptpf);
+
+	return ret;
+}
+
 static int cptpf_sriov_disable(struct pci_dev *pdev)
 {
 	struct otx2_cptpf_dev *cptpf = pci_get_drvdata(pdev);
@@ -445,6 +499,10 @@ static int cptpf_sriov_enable(struct pci_dev *pdev, int num_vfs)
 	ret = cptpf_register_vfpf_intr(cptpf, num_vfs);
 	if (ret)
 		goto destroy_flr;
+
+	ret = otx2_cpt_create_eng_grps(cptpf->pdev, &cptpf->eng_grps);
+	if (ret)
+		goto disable_intr;
 
 	cptpf->enabled_vfs = num_vfs;
 	ret = pci_enable_sriov(pdev, num_vfs);
@@ -543,8 +601,20 @@ static int otx2_cptpf_probe(struct pci_dev *pdev,
 
 	cptpf->max_vfs = pci_sriov_get_totalvfs(pdev);
 
+	/* Initialize CPT PF device */
+	err = cptpf_device_init(cptpf);
+	if (err)
+		goto unregister_intr;
+
+	/* Initialize engine groups */
+	err = otx2_cpt_init_eng_grps(pdev, &cptpf->eng_grps);
+	if (err)
+		goto unregister_intr;
+
 	return 0;
 
+unregister_intr:
+	cptpf_disable_afpf_mbox_intr(cptpf);
 destroy_afpf_mbox:
 	cptpf_afpf_mbox_destroy(cptpf);
 clear_drvdata:
@@ -560,6 +630,8 @@ static void otx2_cptpf_remove(struct pci_dev *pdev)
 		return;
 
 	cptpf_sriov_disable(pdev);
+	/* Cleanup engine groups */
+	otx2_cpt_cleanup_eng_grps(pdev, &cptpf->eng_grps);
 	/* Disable AF-PF mailbox interrupt */
 	cptpf_disable_afpf_mbox_intr(cptpf);
 	/* Destroy AF-PF mbox */
