@@ -2502,13 +2502,15 @@ static int allegro_querycap(struct file *file, void *fh,
 static int allegro_enum_fmt_vid(struct file *file, void *fh,
 				struct v4l2_fmtdesc *f)
 {
-	if (f->index)
-		return -EINVAL;
 	switch (f->type) {
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
+		if (f->index >= 1)
+			return -EINVAL;
 		f->pixelformat = V4L2_PIX_FMT_NV12;
 		break;
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+		if (f->index >= 1)
+			return -EINVAL;
 		f->pixelformat = V4L2_PIX_FMT_H264;
 		break;
 	default:
@@ -2552,6 +2554,28 @@ static int allegro_try_fmt_vid_cap(struct file *file, void *fh,
 	f->fmt.pix.bytesperline = 0;
 	f->fmt.pix.sizeimage =
 		estimate_stream_size(f->fmt.pix.width, f->fmt.pix.height);
+
+	return 0;
+}
+
+static int allegro_s_fmt_vid_cap(struct file *file, void *fh,
+				 struct v4l2_format *f)
+{
+	struct allegro_channel *channel = fh_to_channel(fh);
+	struct vb2_queue *vq;
+	int err;
+
+	err = allegro_try_fmt_vid_cap(file, fh, f);
+	if (err)
+		return err;
+
+	vq = v4l2_m2m_get_vq(channel->fh.m2m_ctx, f->type);
+	if (!vq)
+		return -EINVAL;
+	if (vb2_is_busy(vq))
+		return -EBUSY;
+
+	channel->codec = f->fmt.pix.pixelformat;
 
 	return 0;
 }
@@ -2768,7 +2792,7 @@ static const struct v4l2_ioctl_ops allegro_ioctl_ops = {
 	.vidioc_enum_fmt_vid_out = allegro_enum_fmt_vid,
 	.vidioc_g_fmt_vid_cap = allegro_g_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap = allegro_try_fmt_vid_cap,
-	.vidioc_s_fmt_vid_cap = allegro_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap = allegro_s_fmt_vid_cap,
 	.vidioc_g_fmt_vid_out = allegro_g_fmt_vid_out,
 	.vidioc_try_fmt_vid_out = allegro_try_fmt_vid_out,
 	.vidioc_s_fmt_vid_out = allegro_s_fmt_vid_out,
