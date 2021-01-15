@@ -1531,9 +1531,9 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 
 	/* Set software limitations for synchronous mode except AC97 */
 	if (ssi->synchronous && !fsl_ssi_is_ac97(ssi)) {
-		ssi->cpu_dai_drv.symmetric_rates = 1;
+		ssi->cpu_dai_drv.symmetric_rate = 1;
 		ssi->cpu_dai_drv.symmetric_channels = 1;
-		ssi->cpu_dai_drv.symmetric_samplebits = 1;
+		ssi->cpu_dai_drv.symmetric_sample_bits = 1;
 	}
 
 	/*
