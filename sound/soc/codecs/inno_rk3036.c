@@ -325,7 +325,7 @@ static struct snd_soc_dai_driver rk3036_codec_dai_driver[] = {
 			.formats = RK3036_CODEC_FMTS,
 		},
 		.ops = &rk3036_codec_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 };
 
