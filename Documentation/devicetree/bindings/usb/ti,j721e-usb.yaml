@@ -17,6 +17,8 @@ properties:
   reg:
     description: module registers
 
+  ranges: true
+
   power-domains:
     description:
       PM domain provider node and an args specifier containing
@@ -57,6 +59,8 @@ properties:
 
   '#size-cells':
     const: 2
+
+  dma-coherent: true
 
 patternProperties:
   "^usb@":
