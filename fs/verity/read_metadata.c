@@ -7,8 +7,75 @@
 
 #include "fsverity_private.h"
 
+#include <linux/backing-dev.h>
+#include <linux/highmem.h>
+#include <linux/sched/signal.h>
 #include <linux/uaccess.h>
 
+static int fsverity_read_merkle_tree(struct inode *inode,
+				     const struct fsverity_info *vi,
+				     void __user *buf, u64 offset, int length)
+{
+	const struct fsverity_operations *vops = inode->i_sb->s_vop;
+	u64 end_offset;
+	unsigned int offs_in_page;
+	pgoff_t index, last_index;
+	int retval = 0;
+	int err = 0;
+
+	end_offset = min(offset + length, vi->tree_params.tree_size);
+	if (offset >= end_offset)
+		return 0;
+	offs_in_page = offset_in_page(offset);
+	last_index = (end_offset - 1) >> PAGE_SHIFT;
+
+	/*
+	 * Iterate through each Merkle tree page in the requested range and copy
+	 * the requested portion to userspace.  Note that the Merkle tree block
+	 * size isn't important here, as we are returning a byte stream; i.e.,
+	 * we can just work with pages even if the tree block size != PAGE_SIZE.
+	 */
+	for (index = offset >> PAGE_SHIFT; index <= last_index; index++) {
+		unsigned long num_ra_pages =
+			min_t(unsigned long, last_index - index + 1,
+			      inode->i_sb->s_bdi->io_pages);
+		unsigned int bytes_to_copy = min_t(u64, end_offset - offset,
+						   PAGE_SIZE - offs_in_page);
+		struct page *page;
+		const void *virt;
+
+		page = vops->read_merkle_tree_page(inode, index, num_ra_pages);
+		if (IS_ERR(page)) {
+			err = PTR_ERR(page);
+			fsverity_err(inode,
+				     "Error %d reading Merkle tree page %lu",
+				     err, index);
+			break;
+		}
+
+		virt = kmap(page);
+		if (copy_to_user(buf, virt + offs_in_page, bytes_to_copy)) {
+			kunmap(page);
+			put_page(page);
+			err = -EFAULT;
+			break;
+		}
+		kunmap(page);
+		put_page(page);
+
+		retval += bytes_to_copy;
+		buf += bytes_to_copy;
+		offset += bytes_to_copy;
+
+		if (fatal_signal_pending(current))  {
+			err = -EINTR;
+			break;
+		}
+		cond_resched();
+		offs_in_page = 0;
+	}
+	return retval ? retval : err;
+}
 /**
  * fsverity_ioctl_read_metadata() - read verity metadata from a file
  * @filp: file to read the metadata from
@@ -48,6 +115,9 @@ int fsverity_ioctl_read_metadata(struct file *filp, const void __user *uarg)
 	buf = u64_to_user_ptr(arg.buf_ptr);
 
 	switch (arg.metadata_type) {
+	case FS_VERITY_METADATA_TYPE_MERKLE_TREE:
+		return fsverity_read_merkle_tree(inode, vi, buf, arg.offset,
+						 length);
 	default:
 		return -EINVAL;
 	}

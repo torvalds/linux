@@ -234,6 +234,8 @@ need this ioctl.
 
 This ioctl takes in a pointer to the following structure::
 
+   #define FS_VERITY_METADATA_TYPE_MERKLE_TREE     1
+
    struct fsverity_read_metadata_arg {
            __u64 metadata_type;
            __u64 offset;
@@ -242,7 +244,13 @@ This ioctl takes in a pointer to the following structure::
            __u64 __reserved;
    };
 
-``metadata_type`` specifies the type of metadata to read.
+``metadata_type`` specifies the type of metadata to read:
+
+- ``FS_VERITY_METADATA_TYPE_MERKLE_TREE`` reads the blocks of the
+  Merkle tree.  The blocks are returned in order from the root level
+  to the leaf level.  Within each level, the blocks are returned in
+  the same order that their hashes are themselves hashed.
+  See `Merkle tree`_ for more information.
 
 The semantics are similar to those of ``pread()``.  ``offset``
 specifies the offset in bytes into the metadata item to read from, and
