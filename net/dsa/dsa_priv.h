@@ -20,6 +20,9 @@ enum {
 	DSA_NOTIFIER_BRIDGE_LEAVE,
 	DSA_NOTIFIER_FDB_ADD,
 	DSA_NOTIFIER_FDB_DEL,
+	DSA_NOTIFIER_LAG_CHANGE,
+	DSA_NOTIFIER_LAG_JOIN,
+	DSA_NOTIFIER_LAG_LEAVE,
 	DSA_NOTIFIER_MDB_ADD,
 	DSA_NOTIFIER_MDB_DEL,
 	DSA_NOTIFIER_VLAN_ADD,
@@ -53,6 +56,15 @@ struct dsa_notifier_mdb_info {
 	const struct switchdev_obj_port_mdb *mdb;
 	int sw_index;
 	int port;
+};
+
+/* DSA_NOTIFIER_LAG_* */
+struct dsa_notifier_lag_info {
+	struct net_device *lag;
+	int sw_index;
+	int port;
+
+	struct netdev_lag_upper_info *info;
 };
 
 /* DSA_NOTIFIER_VLAN_* */
@@ -134,6 +146,11 @@ void dsa_port_disable_rt(struct dsa_port *dp);
 void dsa_port_disable(struct dsa_port *dp);
 int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br);
 void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br);
+int dsa_port_lag_change(struct dsa_port *dp,
+			struct netdev_lag_lower_state_info *linfo);
+int dsa_port_lag_join(struct dsa_port *dp, struct net_device *lag_dev,
+		      struct netdev_lag_upper_info *uinfo);
+void dsa_port_lag_leave(struct dsa_port *dp, struct net_device *lag_dev);
 int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering);
 bool dsa_port_skip_vlan_configuration(struct dsa_port *dp);
 int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock);
@@ -158,6 +175,22 @@ int dsa_port_vlan_del(struct dsa_port *dp,
 int dsa_port_link_register_of(struct dsa_port *dp);
 void dsa_port_link_unregister_of(struct dsa_port *dp);
 extern const struct phylink_mac_ops dsa_port_phylink_mac_ops;
+
+static inline bool dsa_port_offloads_netdev(struct dsa_port *dp,
+					    struct net_device *dev)
+{
+	/* Switchdev offloading can be configured on: */
+
+	if (dev == dp->slave)
+		/* DSA ports directly connected to a bridge. */
+		return true;
+
+	if (dp->lag_dev == dev)
+		/* DSA ports connected to a bridge via a LAG */
+		return true;
+
+	return false;
+}
 
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;
@@ -248,6 +281,9 @@ int dsa_switch_register_notifier(struct dsa_switch *ds);
 void dsa_switch_unregister_notifier(struct dsa_switch *ds);
 
 /* dsa2.c */
+void dsa_lag_map(struct dsa_switch_tree *dst, struct net_device *lag);
+void dsa_lag_unmap(struct dsa_switch_tree *dst, struct net_device *lag);
+
 extern struct list_head dsa_tree_list;
 
 #endif
