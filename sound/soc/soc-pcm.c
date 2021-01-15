@@ -349,53 +349,26 @@ static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	int ret;
 
-	if (soc_dai->rate && (soc_dai->driver->symmetric_rate ||
-				rtd->dai_link->symmetric_rate)) {
-		dev_dbg(soc_dai->dev, "ASoC: Symmetry forces %dHz rate\n",
-				soc_dai->rate);
-
-		ret = snd_pcm_hw_constraint_single(substream->runtime,
-						SNDRV_PCM_HW_PARAM_RATE,
-						soc_dai->rate);
-		if (ret < 0) {
-			dev_err(soc_dai->dev,
-				"ASoC: Unable to apply rate constraint: %d\n",
-				ret);
-			return ret;
-		}
+#define __soc_pcm_apply_symmetry(name, NAME)				\
+	if (soc_dai->name && (soc_dai->driver->symmetric_##name ||	\
+			      rtd->dai_link->symmetric_##name)) {	\
+		dev_dbg(soc_dai->dev, "ASoC: Symmetry forces %s to %d\n",\
+			#name, soc_dai->name);				\
+									\
+		ret = snd_pcm_hw_constraint_single(substream->runtime,	\
+						   SNDRV_PCM_HW_PARAM_##NAME,\
+						   soc_dai->name);	\
+		if (ret < 0) {						\
+			dev_err(soc_dai->dev,				\
+				"ASoC: Unable to apply %s constraint: %d\n",\
+				#name, ret);				\
+			return ret;					\
+		}							\
 	}
 
-	if (soc_dai->channels && (soc_dai->driver->symmetric_channels ||
-				rtd->dai_link->symmetric_channels)) {
-		dev_dbg(soc_dai->dev, "ASoC: Symmetry forces %d channel(s)\n",
-				soc_dai->channels);
-
-		ret = snd_pcm_hw_constraint_single(substream->runtime,
-						SNDRV_PCM_HW_PARAM_CHANNELS,
-						soc_dai->channels);
-		if (ret < 0) {
-			dev_err(soc_dai->dev,
-				"ASoC: Unable to apply channel symmetry constraint: %d\n",
-				ret);
-			return ret;
-		}
-	}
-
-	if (soc_dai->sample_bits && (soc_dai->driver->symmetric_sample_bits ||
-				rtd->dai_link->symmetric_sample_bits)) {
-		dev_dbg(soc_dai->dev, "ASoC: Symmetry forces %d sample bits\n",
-				soc_dai->sample_bits);
-
-		ret = snd_pcm_hw_constraint_single(substream->runtime,
-						SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
-						soc_dai->sample_bits);
-		if (ret < 0) {
-			dev_err(soc_dai->dev,
-				"ASoC: Unable to apply sample bits symmetry constraint: %d\n",
-				ret);
-			return ret;
-		}
-	}
+	__soc_pcm_apply_symmetry(rate,		RATE);
+	__soc_pcm_apply_symmetry(channels,	CHANNELS);
+	__soc_pcm_apply_symmetry(sample_bits,	SAMPLE_BITS);
 
 	return 0;
 }
