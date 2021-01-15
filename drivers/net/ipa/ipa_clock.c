@@ -56,17 +56,33 @@ struct ipa_clock {
 	struct ipa_interconnect interconnect[IPA_INTERCONNECT_COUNT];
 };
 
-static struct icc_path *
-ipa_interconnect_init_one(struct device *dev, const char *name)
+static int ipa_interconnect_init_one(struct device *dev,
+				     struct ipa_interconnect *interconnect,
+				     const struct ipa_interconnect_data *data)
 {
 	struct icc_path *path;
 
-	path = of_icc_get(dev, name);
-	if (IS_ERR(path))
-		dev_err(dev, "error %d getting %s interconnect\n",
-			(int)PTR_ERR(path), name);
+	path = of_icc_get(dev, data->name);
+	if (IS_ERR(path)) {
+		int ret = PTR_ERR(path);
 
-	return path;
+		dev_err(dev, "error %d getting %s interconnect\n", ret,
+			data->name);
+
+		return ret;
+	}
+
+	interconnect->path = path;
+	interconnect->average_bandwidth = data->average_bandwidth;
+	interconnect->peak_bandwidth = data->peak_bandwidth;
+
+	return 0;
+}
+
+static void ipa_interconnect_exit_one(struct ipa_interconnect *interconnect)
+{
+	icc_put(interconnect->path);
+	memset(interconnect, 0, sizeof(*interconnect));
 }
 
 /* Initialize interconnects required for IPA operation */
@@ -74,51 +90,46 @@ static int ipa_interconnect_init(struct ipa_clock *clock, struct device *dev,
 				 const struct ipa_interconnect_data *data)
 {
 	struct ipa_interconnect *interconnect;
-	struct icc_path *path;
+	int ret;
 
-	path = ipa_interconnect_init_one(dev, data->name);
-	if (IS_ERR(path))
-		goto err_return;
 	interconnect = &clock->interconnect[IPA_INTERCONNECT_MEMORY];
-	interconnect->path = path;
-	interconnect->average_bandwidth = data->average_bandwidth;
-	interconnect->peak_bandwidth = data->peak_bandwidth;
-	data++;
+	ret = ipa_interconnect_init_one(dev, interconnect, data++);
+	if (ret)
+		return ret;
 
-	path = ipa_interconnect_init_one(dev, data->name);
-	if (IS_ERR(path))
-		goto err_memory_path_put;
 	interconnect = &clock->interconnect[IPA_INTERCONNECT_IMEM];
-	interconnect->path = path;
-	interconnect->average_bandwidth = data->average_bandwidth;
-	interconnect->peak_bandwidth = data->peak_bandwidth;
-	data++;
+	ret = ipa_interconnect_init_one(dev, interconnect, data++);
+	if (ret)
+		goto err_memory_path_put;
 
-	path = ipa_interconnect_init_one(dev, data->name);
-	if (IS_ERR(path))
+	interconnect = &clock->interconnect[IPA_INTERCONNECT_IMEM];
+	ret = ipa_interconnect_init_one(dev, interconnect, data++);
+	if (ret)
 		goto err_imem_path_put;
-	interconnect = &clock->interconnect[IPA_INTERCONNECT_CONFIG];
-	interconnect->path = path;
-	interconnect->average_bandwidth = data->average_bandwidth;
-	interconnect->peak_bandwidth = data->peak_bandwidth;
-	data++;
 
 	return 0;
 
 err_imem_path_put:
-	icc_put(clock->interconnect[IPA_INTERCONNECT_IMEM].path);
+	interconnect = &clock->interconnect[IPA_INTERCONNECT_IMEM];
+	ipa_interconnect_exit_one(interconnect);
 err_memory_path_put:
-	icc_put(clock->interconnect[IPA_INTERCONNECT_MEMORY].path);
-err_return:
-	return PTR_ERR(path);
+	interconnect = &clock->interconnect[IPA_INTERCONNECT_MEMORY];
+	ipa_interconnect_exit_one(interconnect);
+
+	return ret;
 }
 
 /* Inverse of ipa_interconnect_init() */
 static void ipa_interconnect_exit(struct ipa_clock *clock)
 {
-	icc_put(clock->interconnect[IPA_INTERCONNECT_CONFIG].path);
-	icc_put(clock->interconnect[IPA_INTERCONNECT_IMEM].path);
-	icc_put(clock->interconnect[IPA_INTERCONNECT_MEMORY].path);
+	struct ipa_interconnect *interconnect;
+
+	interconnect = &clock->interconnect[IPA_INTERCONNECT_CONFIG];
+	ipa_interconnect_exit_one(interconnect);
+	interconnect = &clock->interconnect[IPA_INTERCONNECT_IMEM];
+	ipa_interconnect_exit_one(interconnect);
+	interconnect = &clock->interconnect[IPA_INTERCONNECT_MEMORY];
+	ipa_interconnect_exit_one(interconnect);
 }
 
 /* Currently we only use one bandwidth level, so just "enable" interconnects */
