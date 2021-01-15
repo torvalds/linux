@@ -27,6 +27,8 @@
 #include "../../opp/opp.h"
 #include "../../devfreq/governor.h"
 
+#include "../../gpu/drm/rockchip/ebc-dev/ebc_dev.h"
+
 #define CPU_REBOOT_FREQ		816000 /* kHz */
 #define VIDEO_1080P_SIZE	(1920 * 1080)
 #define THERMAL_POLLING_DELAY	200 /* milliseconds */
@@ -1482,6 +1484,27 @@ static struct notifier_block rockchip_monitor_fb_nb = {
 	.notifier_call = rockchip_monitor_fb_notifier,
 };
 
+static int rockchip_eink_devfs_notifier(struct notifier_block *nb,
+					unsigned long action, void *ptr)
+{
+	switch (action) {
+	case EBC_ON:
+		rockchip_clear_system_status(SYS_STATUS_LOW_POWER);
+		break;
+	case EBC_OFF:
+		rockchip_set_system_status(SYS_STATUS_LOW_POWER);
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rockchip_monitor_ebc_nb = {
+	.notifier_call = rockchip_eink_devfs_notifier,
+};
+
 static int rockchip_system_monitor_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1524,6 +1547,8 @@ static int rockchip_system_monitor_probe(struct platform_device *pdev)
 
 	if (fb_register_client(&rockchip_monitor_fb_nb))
 		dev_err(dev, "failed to register fb nb\n");
+
+	ebc_register_notifier(&rockchip_monitor_ebc_nb);
 
 	dev_info(dev, "system monitor probe\n");
 
