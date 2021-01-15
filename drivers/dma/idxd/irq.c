@@ -219,29 +219,27 @@ irqreturn_t idxd_misc_thread(int vec, void *data)
 	return IRQ_HANDLED;
 }
 
-static bool process_fault(struct idxd_desc *desc, u64 fault_addr)
+static inline bool match_fault(struct idxd_desc *desc, u64 fault_addr)
 {
 	/*
 	 * Completion address can be bad as well. Check fault address match for descriptor
 	 * and completion address.
 	 */
-	if ((u64)desc->hw == fault_addr ||
-	    (u64)desc->completion == fault_addr) {
-		idxd_dma_complete_txd(desc, IDXD_COMPLETE_DEV_FAIL);
+	if ((u64)desc->hw == fault_addr || (u64)desc->completion == fault_addr) {
+		struct idxd_device *idxd = desc->wq->idxd;
+		struct device *dev = &idxd->pdev->dev;
+
+		dev_warn(dev, "desc with fault address: %#llx\n", fault_addr);
 		return true;
 	}
 
 	return false;
 }
 
-static bool complete_desc(struct idxd_desc *desc)
+static inline void complete_desc(struct idxd_desc *desc, enum idxd_complete_type reason)
 {
-	if (desc->completion->status) {
-		idxd_dma_complete_txd(desc, IDXD_COMPLETE_NORMAL);
-		return true;
-	}
-
-	return false;
+	idxd_dma_complete_txd(desc, reason);
+	idxd_free_desc(desc->wq, desc);
 }
 
 static int irq_process_pending_llist(struct idxd_irq_entry *irq_entry,
@@ -251,25 +249,25 @@ static int irq_process_pending_llist(struct idxd_irq_entry *irq_entry,
 	struct idxd_desc *desc, *t;
 	struct llist_node *head;
 	int queued = 0;
-	bool completed = false;
 	unsigned long flags;
+	enum idxd_complete_type reason;
 
 	*processed = 0;
 	head = llist_del_all(&irq_entry->pending_llist);
 	if (!head)
 		goto out;
 
-	llist_for_each_entry_safe(desc, t, head, llnode) {
-		if (wtype == IRQ_WORK_NORMAL)
-			completed = complete_desc(desc);
-		else if (wtype == IRQ_WORK_PROCESS_FAULT)
-			completed = process_fault(desc, data);
+	if (wtype == IRQ_WORK_NORMAL)
+		reason = IDXD_COMPLETE_NORMAL;
+	else
+		reason = IDXD_COMPLETE_DEV_FAIL;
 
-		if (completed) {
-			idxd_free_desc(desc->wq, desc);
+	llist_for_each_entry_safe(desc, t, head, llnode) {
+		if (desc->completion->status) {
+			if ((desc->completion->status & DSA_COMP_STATUS_MASK) != DSA_COMP_SUCCESS)
+				match_fault(desc, data);
+			complete_desc(desc, reason);
 			(*processed)++;
-			if (wtype == IRQ_WORK_PROCESS_FAULT)
-				break;
 		} else {
 			spin_lock_irqsave(&irq_entry->list_lock, flags);
 			list_add_tail(&desc->list,
@@ -287,42 +285,46 @@ static int irq_process_work_list(struct idxd_irq_entry *irq_entry,
 				 enum irq_work_type wtype,
 				 int *processed, u64 data)
 {
-	struct list_head *node, *next;
 	int queued = 0;
-	bool completed = false;
 	unsigned long flags;
+	LIST_HEAD(flist);
+	struct idxd_desc *desc, *n;
+	enum idxd_complete_type reason;
 
 	*processed = 0;
+	if (wtype == IRQ_WORK_NORMAL)
+		reason = IDXD_COMPLETE_NORMAL;
+	else
+		reason = IDXD_COMPLETE_DEV_FAIL;
+
+	/*
+	 * This lock protects list corruption from access of list outside of the irq handler
+	 * thread.
+	 */
 	spin_lock_irqsave(&irq_entry->list_lock, flags);
-	if (list_empty(&irq_entry->work_list))
-		goto out;
-
-	list_for_each_safe(node, next, &irq_entry->work_list) {
-		struct idxd_desc *desc =
-			container_of(node, struct idxd_desc, list);
-
+	if (list_empty(&irq_entry->work_list)) {
 		spin_unlock_irqrestore(&irq_entry->list_lock, flags);
-		if (wtype == IRQ_WORK_NORMAL)
-			completed = complete_desc(desc);
-		else if (wtype == IRQ_WORK_PROCESS_FAULT)
-			completed = process_fault(desc, data);
+		return 0;
+	}
 
-		if (completed) {
-			spin_lock_irqsave(&irq_entry->list_lock, flags);
+	list_for_each_entry_safe(desc, n, &irq_entry->work_list, list) {
+		if (desc->completion->status) {
 			list_del(&desc->list);
-			spin_unlock_irqrestore(&irq_entry->list_lock, flags);
-			idxd_free_desc(desc->wq, desc);
 			(*processed)++;
-			if (wtype == IRQ_WORK_PROCESS_FAULT)
-				return queued;
+			list_add_tail(&desc->list, &flist);
 		} else {
 			queued++;
 		}
-		spin_lock_irqsave(&irq_entry->list_lock, flags);
 	}
 
- out:
 	spin_unlock_irqrestore(&irq_entry->list_lock, flags);
+
+	list_for_each_entry(desc, &flist, list) {
+		if ((desc->completion->status & DSA_COMP_STATUS_MASK) != DSA_COMP_SUCCESS)
+			match_fault(desc, data);
+		complete_desc(desc, reason);
+	}
+
 	return queued;
 }
 
