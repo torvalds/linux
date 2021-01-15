@@ -232,7 +232,7 @@ static int hfi_platform_parser(struct venus_core *core, struct venus_inst *inst)
 {
 	const struct hfi_platform *plat;
 	const struct hfi_plat_caps *caps = NULL;
-	u32 enc_codecs, dec_codecs, count;
+	u32 enc_codecs, dec_codecs, count = 0;
 	unsigned int entries;
 
 	if (inst)
