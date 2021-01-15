@@ -14,6 +14,7 @@
 #include "rvu.h"
 #include "mbox.h"
 
+#define OTX2_CPT_MAX_VFS_NUM 128
 #define OTX2_CPT_RVU_FUNC_ADDR_S(blk, slot, offs) \
 		(((blk) << 20) | ((slot) << 12) | (offs))
 
