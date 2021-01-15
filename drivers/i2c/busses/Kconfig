@@ -586,13 +586,6 @@ config I2C_DIGICOLOR
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-digicolor.
 
-config I2C_EFM32
-	tristate "EFM32 I2C controller"
-	depends on ARCH_EFM32 || COMPILE_TEST
-	help
-	  This driver supports the i2c block found in Energy Micro's EFM32
-	  SoCs.
-
 config I2C_EG20T
 	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) I2C"
 	depends on PCI && (X86_32 || MIPS || COMPILE_TEST)
