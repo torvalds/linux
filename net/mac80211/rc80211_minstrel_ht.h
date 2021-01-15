@@ -6,6 +6,33 @@
 #ifndef __RC_MINSTREL_HT_H
 #define __RC_MINSTREL_HT_H
 
+/* number of highest throughput rates to consider*/
+#define MAX_THR_RATES 4
+#define SAMPLE_COLUMNS	10	/* number of columns in sample table */
+
+/* scaled fraction values */
+#define MINSTREL_SCALE  12
+#define MINSTREL_FRAC(val, div) (((val) << MINSTREL_SCALE) / div)
+#define MINSTREL_TRUNC(val) ((val) >> MINSTREL_SCALE)
+
+#define EWMA_LEVEL	96	/* ewma weighting factor [/EWMA_DIV] */
+#define EWMA_DIV	128
+
+/*
+ * Coefficients for moving average with noise filter (period=16),
+ * scaled by 10 bits
+ *
+ * a1 = exp(-pi * sqrt(2) / period)
+ * coeff2 = 2 * a1 * cos(sqrt(2) * 2 * pi / period)
+ * coeff3 = -sqr(a1)
+ * coeff1 = 1 - coeff2 - coeff3
+ */
+#define MINSTREL_AVG_COEFF1		(MINSTREL_FRAC(1, 1) - \
+					 MINSTREL_AVG_COEFF2 - \
+					 MINSTREL_AVG_COEFF3)
+#define MINSTREL_AVG_COEFF2		0x00001499
+#define MINSTREL_AVG_COEFF3		-0x0000092e
+
 /*
  * The number of streams can be changed to 2 to reduce code
  * size and memory footprint.
@@ -30,6 +57,32 @@
 
 #define MCS_GROUP_RATES		10
 
+struct minstrel_priv {
+	struct ieee80211_hw *hw;
+	bool has_mrr;
+	bool new_avg;
+	u32 sample_switch;
+	unsigned int cw_min;
+	unsigned int cw_max;
+	unsigned int max_retry;
+	unsigned int segment_size;
+	unsigned int update_interval;
+
+	u8 cck_rates[4];
+	u8 ofdm_rates[NUM_NL80211_BANDS][8];
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	/*
+	 * enable fixed rate processing per RC
+	 *   - write static index to debugfs:ieee80211/phyX/rc/fixed_rate_idx
+	 *   - write -1 to enable RC processing again
+	 *   - setting will be applied on next update
+	 */
+	u32 fixed_rate_idx;
+#endif
+};
+
+
 struct mcs_group {
 	u16 flags;
 	u8 streams;
@@ -41,6 +94,26 @@ struct mcs_group {
 extern const s16 minstrel_cck_bitrates[4];
 extern const s16 minstrel_ofdm_bitrates[8];
 extern const struct mcs_group minstrel_mcs_groups[];
+
+struct minstrel_rate_stats {
+	/* current / last sampling period attempts/success counters */
+	u16 attempts, last_attempts;
+	u16 success, last_success;
+
+	/* total attempts/success counters */
+	u32 att_hist, succ_hist;
+
+	/* prob_avg - moving average of prob */
+	u16 prob_avg;
+	u16 prob_avg_1;
+
+	/* maximum retry counts */
+	u8 retry_count;
+	u8 retry_count_rtscts;
+
+	u8 sample_skipped;
+	bool retry_updated;
+};
 
 struct minstrel_mcs_group_data {
 	u8 index;
@@ -109,12 +182,6 @@ struct minstrel_ht_sta {
 
 	/* MCS rate group info and statistics */
 	struct minstrel_mcs_group_data groups[MINSTREL_GROUPS_NB];
-};
-
-struct minstrel_ht_sta_priv {
-	struct minstrel_ht_sta ht;
-	void *ratelist;
-	void *sample_table;
 };
 
 void minstrel_ht_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir);

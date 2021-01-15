@@ -13,7 +13,6 @@
 #include <net/mac80211.h>
 #include "rate.h"
 #include "sta_info.h"
-#include "rc80211_minstrel.h"
 #include "rc80211_minstrel_ht.h"
 
 #define AVG_AMPDU_SIZE	16
@@ -716,6 +715,83 @@ out:
 	mi->sample_mode = MINSTREL_SAMPLE_ACTIVE;
 }
 
+static inline int
+minstrel_ewma(int old, int new, int weight)
+{
+	int diff, incr;
+
+	diff = new - old;
+	incr = (EWMA_DIV - weight) * diff / EWMA_DIV;
+
+	return old + incr;
+}
+
+static inline int minstrel_filter_avg_add(u16 *prev_1, u16 *prev_2, s32 in)
+{
+	s32 out_1 = *prev_1;
+	s32 out_2 = *prev_2;
+	s32 val;
+
+	if (!in)
+		in += 1;
+
+	if (!out_1) {
+		val = out_1 = in;
+		goto out;
+	}
+
+	val = MINSTREL_AVG_COEFF1 * in;
+	val += MINSTREL_AVG_COEFF2 * out_1;
+	val += MINSTREL_AVG_COEFF3 * out_2;
+	val >>= MINSTREL_SCALE;
+
+	if (val > 1 << MINSTREL_SCALE)
+		val = 1 << MINSTREL_SCALE;
+	if (val < 0)
+		val = 1;
+
+out:
+	*prev_2 = out_1;
+	*prev_1 = val;
+
+	return val;
+}
+
+/*
+* Recalculate statistics and counters of a given rate
+*/
+static void
+minstrel_ht_calc_rate_stats(struct minstrel_priv *mp,
+			    struct minstrel_rate_stats *mrs)
+{
+	unsigned int cur_prob;
+
+	if (unlikely(mrs->attempts > 0)) {
+		mrs->sample_skipped = 0;
+		cur_prob = MINSTREL_FRAC(mrs->success, mrs->attempts);
+		if (mp->new_avg) {
+			minstrel_filter_avg_add(&mrs->prob_avg,
+						&mrs->prob_avg_1, cur_prob);
+		} else if (unlikely(!mrs->att_hist)) {
+			mrs->prob_avg = cur_prob;
+		} else {
+			/*update exponential weighted moving avarage */
+			mrs->prob_avg = minstrel_ewma(mrs->prob_avg,
+						      cur_prob,
+						      EWMA_LEVEL);
+		}
+		mrs->att_hist += mrs->attempts;
+		mrs->succ_hist += mrs->success;
+	} else {
+		mrs->sample_skipped++;
+	}
+
+	mrs->last_success = mrs->success;
+	mrs->last_attempts = mrs->attempts;
+	mrs->success = 0;
+	mrs->attempts = 0;
+}
+
 /*
  * Update rate statistics and select new primary rates
  *
@@ -808,7 +884,7 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 
 			mrs = &mg->rates[i];
 			mrs->retry_updated = false;
-			minstrel_calc_rate_stats(mp, mrs);
+			minstrel_ht_calc_rate_stats(mp, mrs);
 			cur_prob = mrs->prob_avg;
 
 			if (minstrel_ht_get_tp_avg(mi, group, i, cur_prob) == 0)
@@ -960,8 +1036,7 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
                       void *priv_sta, struct ieee80211_tx_status *st)
 {
 	struct ieee80211_tx_info *info = st->info;
-	struct minstrel_ht_sta_priv *msp = priv_sta;
-	struct minstrel_ht_sta *mi = &msp->ht;
+	struct minstrel_ht_sta *mi = priv_sta;
 	struct ieee80211_tx_rate *ar = info->status.rates;
 	struct minstrel_rate_stats *rate, *rate2, *rate_sample = NULL;
 	struct minstrel_priv *mp = priv;
@@ -1372,8 +1447,7 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	const struct mcs_group *sample_group;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(txrc->skb);
 	struct ieee80211_tx_rate *rate = &info->status.rates[0];
-	struct minstrel_ht_sta_priv *msp = priv_sta;
-	struct minstrel_ht_sta *mi = &msp->ht;
+	struct minstrel_ht_sta *mi = priv_sta;
 	struct minstrel_priv *mp = priv;
 	int sample_idx;
 
@@ -1484,8 +1558,7 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 			struct ieee80211_sta *sta, void *priv_sta)
 {
 	struct minstrel_priv *mp = priv;
-	struct minstrel_ht_sta_priv *msp = priv_sta;
-	struct minstrel_ht_sta *mi = &msp->ht;
+	struct minstrel_ht_sta *mi = priv_sta;
 	struct ieee80211_mcs_info *mcs = &sta->ht_cap.mcs;
 	u16 ht_cap = sta->ht_cap.cap;
 	struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
@@ -1647,7 +1720,7 @@ static void *
 minstrel_ht_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
 {
 	struct ieee80211_supported_band *sband;
-	struct minstrel_ht_sta_priv *msp;
+	struct minstrel_ht_sta *mi;
 	struct minstrel_priv *mp = priv;
 	struct ieee80211_hw *hw = mp->hw;
 	int max_rates = 0;
@@ -1659,35 +1732,13 @@ minstrel_ht_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
 			max_rates = sband->n_bitrates;
 	}
 
-	msp = kzalloc(sizeof(*msp), gfp);
-	if (!msp)
-		return NULL;
-
-	msp->ratelist = kcalloc(max_rates, sizeof(struct minstrel_rate), gfp);
-	if (!msp->ratelist)
-		goto error;
-
-	msp->sample_table = kmalloc_array(max_rates, SAMPLE_COLUMNS, gfp);
-	if (!msp->sample_table)
-		goto error1;
-
-	return msp;
-
-error1:
-	kfree(msp->ratelist);
-error:
-	kfree(msp);
-	return NULL;
+	return kzalloc(sizeof(*mi), gfp);
 }
 
 static void
 minstrel_ht_free_sta(void *priv, struct ieee80211_sta *sta, void *priv_sta)
 {
-	struct minstrel_ht_sta_priv *msp = priv_sta;
-
-	kfree(msp->sample_table);
-	kfree(msp->ratelist);
-	kfree(msp);
+	kfree(priv_sta);
 }
 
 static void
@@ -1768,12 +1819,6 @@ minstrel_ht_alloc(struct ieee80211_hw *hw)
 	mp->cw_min = 15;
 	mp->cw_max = 1023;
 
-	/* number of packets (in %) to use for sampling other rates
-	 * sample less often for non-mrr packets, because the overhead
-	 * is much higher than with mrr */
-	mp->lookaround_rate = 5;
-	mp->lookaround_rate_mrr = 10;
-
 	/* maximum time that the hw is allowed to stay in one MRR segment */
 	mp->segment_size = 6000;
 
@@ -1821,8 +1866,7 @@ minstrel_ht_free(void *priv)
 
 static u32 minstrel_ht_get_expected_throughput(void *priv_sta)
 {
-	struct minstrel_ht_sta_priv *msp = priv_sta;
-	struct minstrel_ht_sta *mi = &msp->ht;
+	struct minstrel_ht_sta *mi = priv_sta;
 	int i, j, prob, tp_avg;
 
 	i = mi->max_tp_rate[0] / MCS_GROUP_RATES;
