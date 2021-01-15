@@ -202,13 +202,20 @@ int anon_inode_getfd(const char *name, const struct file_operations *fops,
 EXPORT_SYMBOL_GPL(anon_inode_getfd);
 
 /**
- * Like anon_inode_getfd(), but creates a new !S_PRIVATE anon inode rather than
- * reuse the singleton anon inode, and calls the inode_init_security_anon() LSM
- * hook. This allows the inode to have its own security context and for a LSM
- * to reject creation of the inode.  An optional @context_inode argument is
- * also added to provide the logical relationship with the new inode.  The LSM
- * may use @context_inode in inode_init_security_anon(), but a reference to it
- * is not held.
+ * anon_inode_getfd_secure - Like anon_inode_getfd(), but creates a new
+ * !S_PRIVATE anon inode rather than reuse the singleton anon inode, and calls
+ * the inode_init_security_anon() LSM hook. This allows the inode to have its
+ * own security context and for a LSM to reject creation of the inode.
+ *
+ * @name:    [in]    name of the "class" of the new file
+ * @fops:    [in]    file operations for the new file
+ * @priv:    [in]    private data for the new file (will be file's private_data)
+ * @flags:   [in]    flags
+ * @context_inode:
+ *           [in]    the logical relationship with the new inode (optional)
+ *
+ * The LSM may use @context_inode in inode_init_security_anon(), but a
+ * reference to it is not held.
  */
 int anon_inode_getfd_secure(const char *name, const struct file_operations *fops,
 			    void *priv, int flags,
