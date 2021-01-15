@@ -4,6 +4,7 @@
 #include "otx2_cpt_common.h"
 #include "otx2_cptvf.h"
 #include "otx2_cptlf.h"
+#include "otx2_cptvf_algs.h"
 #include <rvu_reg.h>
 
 #define OTX2_CPTVF_DRV_NAME "octeontx2-cptvf"
@@ -214,6 +215,8 @@ static void cptvf_lf_shutdown(struct otx2_cptlfs_info *lfs)
 	otx2_cptlf_free_irqs_affinity(lfs);
 	/* Disable instruction queue */
 	otx2_cptlf_disable_iqueues(lfs);
+	/* Unregister crypto algorithms */
+	otx2_cpt_crypto_exit(lfs->pdev, THIS_MODULE);
 	/* Unregister LFs interrupts */
 	otx2_cptlf_unregister_interrupts(lfs);
 	/* Cleanup LFs software side */
@@ -278,9 +281,16 @@ static int cptvf_lf_init(struct otx2_cptvf_dev *cptvf)
 		goto unregister_intr;
 
 	atomic_set(&lfs->state, OTX2_CPTLF_STARTED);
-
+	/* Register crypto algorithms */
+	ret = otx2_cpt_crypto_init(lfs->pdev, THIS_MODULE, lfs_num, 1);
+	if (ret) {
+		dev_err(&lfs->pdev->dev, "algorithms registration failed\n");
+		goto disable_irqs;
+	}
 	return 0;
 
+disable_irqs:
+	otx2_cptlf_free_irqs_affinity(lfs);
 unregister_intr:
 	otx2_cptlf_unregister_interrupts(lfs);
 cleanup_lf_sw:

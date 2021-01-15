@@ -192,5 +192,6 @@ struct otx2_cptlf_wqe;
 int otx2_cpt_do_request(struct pci_dev *pdev, struct otx2_cpt_req_info *req,
 			int cpu_num);
 void otx2_cpt_post_process(struct otx2_cptlf_wqe *wqe);
+int otx2_cpt_get_kcrypto_eng_grp_num(struct pci_dev *pdev);
 
 #endif /* __OTX2_CPT_REQMGR_H */

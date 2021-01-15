@@ -532,3 +532,10 @@ void otx2_cpt_post_process(struct otx2_cptlf_wqe *wqe)
 	process_pending_queue(wqe->lfs->pdev,
 			      &wqe->lfs->lf[wqe->lf_num].pqueue);
 }
+
+int otx2_cpt_get_kcrypto_eng_grp_num(struct pci_dev *pdev)
+{
+	struct otx2_cptvf_dev *cptvf = pci_get_drvdata(pdev);
+
+	return cptvf->lfs.kcrypto_eng_grp_num;
+}
