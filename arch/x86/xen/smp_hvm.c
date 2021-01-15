@@ -74,7 +74,9 @@ void __init xen_hvm_smp_init(void)
 	smp_ops.cpu_die = xen_hvm_cpu_die;
 
 	if (!xen_have_vector_callback) {
+#ifdef CONFIG_PARAVIRT_SPINLOCKS
 		nopvspin = true;
+#endif
 		return;
 	}
 
