@@ -180,7 +180,6 @@ static bool gma_resume_pci(struct pci_dev *pdev)
 /**
  *	gma_power_suspend		-	bus callback for suspend
  *	@_dev: our device
- *	@state: suspend type
  *
  *	Called back by the PCI layer during a suspend of the system. We
  *	perform the necessary shut down steps and save enough state that
