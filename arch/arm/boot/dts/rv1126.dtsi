@@ -2457,6 +2457,20 @@
 		rockchip,bin-voltage-sel = <
 			2	0
 		>;
+		rockchip,pvtm-voltage-sel = <
+			0        108500   1
+			108501   113500   2
+			113501   999999   3
+		>;
+		rockchip,pvtm-freq = <396000>;
+		rockchip,pvtm-volt = <800000>;
+		rockchip,pvtm-ch = <1 0>;
+		rockchip,pvtm-sample-time = <1000>;
+		rockchip,pvtm-number = <10>;
+		rockchip,pvtm-error = <1000>;
+		rockchip,pvtm-ref-temp = <37>;
+		rockchip,pvtm-temp-prop = <(-29) 0>;
+		rockchip,pvtm-thermal-zone = "npu-thermal";
 
 		opp-200000000 {
 			opp-hz = /bits/ 64 <200000000>;
@@ -2486,14 +2500,23 @@
 		opp-700000000 {
 			opp-hz = /bits/ 64 <700000000>;
 			opp-microvolt = <800000 800000 1000000>;
+			opp-microvolt-L1 = <800000 800000 1000000>;
+			opp-microvolt-L2 = <775000 775000 1000000>;
+			opp-microvolt-L3 = <750000 750000 1000000>;
 		};
 		opp-800000000 {
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <850000 850000 1000000>;
+			opp-microvolt-L1 = <850000 850000 1000000>;
+			opp-microvolt-L2 = <825000 825000 1000000>;
+			opp-microvolt-L3 = <800000 800000 1000000>;
 		};
 		opp-934000000 {
 			opp-hz = /bits/ 64 <934000000>;
 			opp-microvolt = <950000 950000 1000000>;
+			opp-microvolt-L1 = <950000 950000 1000000>;
+			opp-microvolt-L2 = <925000 925000 1000000>;
+			opp-microvolt-L3 = <900000 900000 1000000>;
 		};
 	};
 
