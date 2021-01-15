@@ -245,7 +245,7 @@ struct vmw_framebuffer_bo {
 };
 
 
-static const uint32_t vmw_primary_plane_formats[] = {
+static const uint32_t __maybe_unused vmw_primary_plane_formats[] = {
 	DRM_FORMAT_XRGB1555,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_RGB888,
@@ -253,7 +253,7 @@ static const uint32_t vmw_primary_plane_formats[] = {
 	DRM_FORMAT_ARGB8888,
 };
 
-static const uint32_t vmw_cursor_plane_formats[] = {
+static const uint32_t __maybe_unused vmw_cursor_plane_formats[] = {
 	DRM_FORMAT_ARGB8888,
 };
 
