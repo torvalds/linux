@@ -77,6 +77,8 @@ struct minstrel_ht_sta {
 	/* overhead time in usec for each frame */
 	unsigned int overhead;
 	unsigned int overhead_rtscts;
+	unsigned int overhead_legacy;
+	unsigned int overhead_legacy_rtscts;
 
 	unsigned int total_packets_last;
 	unsigned int total_packets_cur;
@@ -96,9 +98,6 @@ struct minstrel_ht_sta {
 
 	/* current MCS group to be sampled */
 	u8 sample_group;
-
-	u8 cck_supported;
-	u8 cck_supported_short;
 
 	/* Bitfield of supported MCS rates of all groups */
 	u16 supported[MINSTREL_GROUPS_NB];

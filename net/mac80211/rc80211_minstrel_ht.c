@@ -136,20 +136,16 @@
 	__VHT_GROUP(_streams, _sgi, _bw,				\
 		    VHT_GROUP_SHIFT(_streams, _sgi, _bw))
 
-#define CCK_DURATION(_bitrate, _short, _len)		\
+#define CCK_DURATION(_bitrate, _short)			\
 	(1000 * (10 /* SIFS */ +			\
 	 (_short ? 72 + 24 : 144 + 48) +		\
-	 (8 * (_len + 4) * 10) / (_bitrate)))
-
-#define CCK_ACK_DURATION(_bitrate, _short)			\
-	(CCK_DURATION((_bitrate > 10 ? 20 : 10), false, 60) +	\
-	 CCK_DURATION(_bitrate, _short, AVG_PKT_SIZE))
+	 (8 * (AVG_PKT_SIZE + 4) * 10) / (_bitrate)))
 
 #define CCK_DURATION_LIST(_short, _s)			\
-	CCK_ACK_DURATION(10, _short) >> _s,		\
-	CCK_ACK_DURATION(20, _short) >> _s,		\
-	CCK_ACK_DURATION(55, _short) >> _s,		\
-	CCK_ACK_DURATION(110, _short) >> _s
+	CCK_DURATION(10, _short) >> _s,			\
+	CCK_DURATION(20, _short) >> _s,			\
+	CCK_DURATION(55, _short) >> _s,			\
+	CCK_DURATION(110, _short) >> _s
 
 #define __CCK_GROUP(_s)					\
 	[MINSTREL_CCK_GROUP] = {			\
@@ -163,7 +159,7 @@
 	}
 
 #define CCK_GROUP_SHIFT					\
-	GROUP_SHIFT(CCK_ACK_DURATION(10, false))
+	GROUP_SHIFT(CCK_DURATION(10, false))
 
 #define CCK_GROUP __CCK_GROUP(CCK_GROUP_SHIFT)
 
@@ -349,15 +345,19 @@ int
 minstrel_ht_get_tp_avg(struct minstrel_ht_sta *mi, int group, int rate,
 		       int prob_avg)
 {
-	unsigned int nsecs = 0;
+	unsigned int nsecs = 0, overhead = mi->overhead;
+	unsigned int ampdu_len = 1;
 
 	/* do not account throughput if sucess prob is below 10% */
 	if (prob_avg < MINSTREL_FRAC(10, 100))
 		return 0;
 
-	if (group != MINSTREL_CCK_GROUP)
-		nsecs = 1000 * mi->overhead / minstrel_ht_avg_ampdu_len(mi);
+	if (group == MINSTREL_CCK_GROUP)
+		overhead = mi->overhead_legacy;
+	else
+		ampdu_len = minstrel_ht_avg_ampdu_len(mi);
 
+	nsecs = 1000 * overhead / ampdu_len;
 	nsecs += minstrel_mcs_groups[group].duration[rate] <<
 		 minstrel_mcs_groups[group].shift;
 
@@ -1031,7 +1031,10 @@ minstrel_calc_retransmit(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	ctime += (t_slot * cw) >> 1;
 	cw = min((cw << 1) | 1, mp->cw_max);
 
-	if (index / MCS_GROUP_RATES != MINSTREL_CCK_GROUP) {
+	if (index / MCS_GROUP_RATES == MINSTREL_CCK_GROUP) {
+		overhead = mi->overhead_legacy;
+		overhead_rtscts = mi->overhead_legacy_rtscts;
+	} else {
 		overhead = mi->overhead;
 		overhead_rtscts = mi->overhead_rtscts;
 	}
@@ -1369,18 +1372,14 @@ minstrel_ht_update_cck(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	if (!ieee80211_hw_check(mp->hw, SUPPORTS_HT_CCK_RATES))
 		return;
 
-	mi->cck_supported = 0;
-	mi->cck_supported_short = 0;
 	for (i = 0; i < 4; i++) {
 		if (!rate_supported(sta, sband->band, mp->cck_rates[i]))
 			continue;
 
-		mi->cck_supported |= BIT(i);
+		mi->supported[MINSTREL_CCK_GROUP] |= BIT(i);
 		if (sband->bitrates[i].flags & IEEE80211_RATE_SHORT_PREAMBLE)
-			mi->cck_supported_short |= BIT(i);
+			mi->supported[MINSTREL_CCK_GROUP] |= BIT(i + 4);
 	}
-
-	mi->supported[MINSTREL_CCK_GROUP] = mi->cck_supported;
 }
 
 static void
@@ -1394,12 +1393,13 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 	struct ieee80211_mcs_info *mcs = &sta->ht_cap.mcs;
 	u16 ht_cap = sta->ht_cap.cap;
 	struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
+	const struct ieee80211_rate *ctl_rate;
+	bool ldpc, erp;
 	int use_vht;
 	int n_supported = 0;
 	int ack_dur;
 	int stbc;
 	int i;
-	bool ldpc;
 
 	/* fall back to the old minstrel for legacy stations */
 	if (!sta->ht_cap.ht_supported)
@@ -1422,6 +1422,14 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 	mi->overhead = ieee80211_frame_duration(sband->band, 0, 60, 1, 1, 0);
 	mi->overhead += ack_dur;
 	mi->overhead_rtscts = mi->overhead + 2 * ack_dur;
+
+	ctl_rate = &sband->bitrates[rate_lowest_index(sband, sta)];
+	erp = ctl_rate->flags & IEEE80211_RATE_ERP_G;
+	ack_dur = ieee80211_frame_duration(sband->band, 10,
+					   ctl_rate->bitrate, erp, 1,
+					   ieee80211_chandef_get_shift(chandef));
+	mi->overhead_legacy = ack_dur;
+	mi->overhead_legacy_rtscts = mi->overhead_legacy + 2 * ack_dur;
 
 	mi->avg_ampdu_len = MINSTREL_FRAC(1, 1);
 
@@ -1522,8 +1530,6 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 
 	if (!n_supported)
 		goto use_legacy;
-
-	mi->supported[MINSTREL_CCK_GROUP] |= mi->cck_supported_short << 4;
 
 	/* create an initial rate table with the lowest supported rates */
 	minstrel_ht_update_stats(mp, mi, true);
