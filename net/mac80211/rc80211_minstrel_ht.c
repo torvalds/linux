@@ -445,10 +445,9 @@ minstrel_ht_get_tp_avg(struct minstrel_ht_sta *mi, int group, int rate,
 	 * (prob is scaled - see MINSTREL_FRAC above)
 	 */
 	if (prob_avg > MINSTREL_FRAC(90, 100))
-		return MINSTREL_TRUNC(100000 * ((MINSTREL_FRAC(90, 100) * 1000)
-								      / nsecs));
-	else
-		return MINSTREL_TRUNC(100000 * ((prob_avg * 1000) / nsecs));
+		prob_avg = MINSTREL_FRAC(90, 100);
+
+	return MINSTREL_TRUNC(100 * ((prob_avg * 1000000) / nsecs));
 }
 
 /*
