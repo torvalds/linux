@@ -3951,6 +3951,9 @@ static int gfx_v9_0_hw_init(void *handle)
 	if (r)
 		return r;
 
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		gfx_v9_4_2_set_power_brake_sequence(adev);
+
 	return r;
 }
 

@@ -25,6 +25,7 @@
 
 #include "gc/gc_9_4_2_offset.h"
 #include "gc/gc_9_4_2_sh_mask.h"
+#include "gfx_v9_0.h"
 
 static const struct soc15_reg_golden golden_settings_gc_9_4_2_alde_die_0[] = {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_CHAN_STEER_0, 0x3fffffff, 0x141dc920),
@@ -101,4 +102,29 @@ void gfx_v9_4_2_debug_trap_config_init(struct amdgpu_device *adev,
 
 	soc15_grbm_select(adev, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
+}
+
+void gfx_v9_4_2_set_power_brake_sequence(struct amdgpu_device *adev)
+{
+	u32 tmp;
+
+	gfx_v9_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+
+	tmp = 0;
+	tmp = REG_SET_FIELD(tmp, GC_THROTTLE_CTRL, PATTERN_MODE, 1);
+	WREG32_SOC15(GC, 0, regGC_THROTTLE_CTRL, tmp);
+
+	tmp = 0;
+	tmp = REG_SET_FIELD(tmp, GC_THROTTLE_CTRL1, PWRBRK_STALL_EN, 1);
+	WREG32_SOC15(GC, 0, regGC_THROTTLE_CTRL1, tmp);
+
+	WREG32_SOC15(GC, 0, regDIDT_IND_INDEX, ixDIDT_SQ_THROTTLE_CTRL);
+	tmp = 0;
+	tmp = REG_SET_FIELD(tmp, DIDT_SQ_THROTTLE_CTRL, PWRBRK_STALL_EN, 1);
+	WREG32_SOC15(GC, 0, regDIDT_IND_DATA, tmp);
+
+	WREG32_SOC15(GC, 0, regGC_CAC_IND_INDEX, ixPWRBRK_STALL_PATTERN_CTRL);
+	tmp = 0;
+	tmp = REG_SET_FIELD(tmp, PWRBRK_STALL_PATTERN_CTRL, PWRBRK_END_STEP, 0x12);
+	WREG32_SOC15(GC, 0, regGC_CAC_IND_DATA, tmp);
 }
