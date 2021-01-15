@@ -483,11 +483,11 @@ cdns_fill_msg_resp(struct sdw_cdns *cdns,
 	for (i = 0; i < count; i++) {
 		if (!(cdns->response_buf[i] & CDNS_MCP_RESP_ACK)) {
 			no_ack = 1;
-			dev_dbg_ratelimited(cdns->dev, "Msg Ack not received\n");
+			dev_vdbg(cdns->dev, "Msg Ack not received, cmd %d\n", i);
 		}
 		if (cdns->response_buf[i] & CDNS_MCP_RESP_NACK) {
 			nack = 1;
-			dev_err_ratelimited(cdns->dev, "Msg NACK received\n");
+			dev_err_ratelimited(cdns->dev, "Msg NACK received, cmd %d\n", i);
 		}
 	}
 
