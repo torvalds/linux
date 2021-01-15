@@ -71,7 +71,7 @@ properties:
 
   gpio-line-names:
     minItems: 1
-    maxItems: 32
+    maxItems: 40
 
   interrupts:
     maxItems: 1
