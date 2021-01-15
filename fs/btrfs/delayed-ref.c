@@ -732,11 +732,16 @@ static noinline void update_existing_head_ref(struct btrfs_trans_handle *trans,
 	 * 2. We were negative and went to 0 or positive, so no longer can say
 	 *    that the space would be pinned, decrement our counter from the
 	 *    total_bytes_pinned counter.
+	 * 3. We are now at 0 and have ->must_insert_reserved set, which means
+	 *    this was a new allocation and then we dropped it, and thus must
+	 *    add our space to the total_bytes_pinned counter.
 	 */
 	if (existing->total_ref_mod < 0 && old_ref_mod >= 0)
 		btrfs_mod_total_bytes_pinned(fs_info, flags, existing->num_bytes);
 	else if (existing->total_ref_mod >= 0 && old_ref_mod < 0)
 		btrfs_mod_total_bytes_pinned(fs_info, flags, -existing->num_bytes);
+	else if (existing->total_ref_mod == 0 && existing->must_insert_reserved)
+		btrfs_mod_total_bytes_pinned(fs_info, flags, existing->num_bytes);
 
 	spin_unlock(&existing->lock);
 }
