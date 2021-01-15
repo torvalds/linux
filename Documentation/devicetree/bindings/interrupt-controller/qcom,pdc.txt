@@ -21,6 +21,7 @@ Properties:
 		    - "qcom,sc7180-pdc": For SC7180
 		    - "qcom,sdm845-pdc": For SDM845
 		    - "qcom,sdm8250-pdc": For SM8250
+		    - "qcom,sdm8350-pdc": For SM8350
 
 - reg:
 	Usage: required
