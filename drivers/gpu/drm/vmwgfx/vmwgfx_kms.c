@@ -453,10 +453,9 @@ int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
 
 	if (!ret && new_fb) {
 		struct drm_crtc *crtc = state->crtc;
-		struct vmw_connector_state *vcs;
 		struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
 
-		vcs = vmw_connector_state_to_vcs(du->connector.state);
+		vmw_connector_state_to_vcs(du->connector.state);
 	}
 
 
