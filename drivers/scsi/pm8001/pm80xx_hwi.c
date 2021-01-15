@@ -358,26 +358,22 @@ moreData:
 					MEMBASE_II_SHIFT_REGISTER,
 					pm8001_ha->fatal_forensic_shift_offset);
 		}
-			/* Read the next block of the debug data.*/
-			length_to_read = pm8001_mr32(fatal_table_address,
-			MPI_FATAL_EDUMP_TABLE_ACCUM_LEN) -
-			pm8001_ha->forensic_preserved_accumulated_transfer;
-			if (length_to_read != 0x0) {
-				pm8001_ha->forensic_fatal_step = 0;
-				goto moreData;
-			} else {
-				pm8001_ha->forensic_info.data_buf.direct_data +=
-				sprintf(
-				pm8001_ha->forensic_info.data_buf.direct_data,
+		/* Read the next block of the debug data.*/
+		length_to_read = pm8001_mr32(fatal_table_address,
+		MPI_FATAL_EDUMP_TABLE_ACCUM_LEN) -
+		pm8001_ha->forensic_preserved_accumulated_transfer;
+		if (length_to_read != 0x0) {
+			pm8001_ha->forensic_fatal_step = 0;
+			goto moreData;
+		} else {
+			pm8001_ha->forensic_info.data_buf.direct_data +=
+			sprintf(pm8001_ha->forensic_info.data_buf.direct_data,
 				"%08x ", 4);
-				pm8001_ha->forensic_info.data_buf.read_len
-								= 0xFFFFFFFF;
-				pm8001_ha->forensic_info.data_buf.direct_len
-								=  0;
-				pm8001_ha->forensic_info.data_buf.direct_offset
-								= 0;
-				pm8001_ha->forensic_info.data_buf.read_len = 0;
-			}
+			pm8001_ha->forensic_info.data_buf.read_len = 0xFFFFFFFF;
+			pm8001_ha->forensic_info.data_buf.direct_len =  0;
+			pm8001_ha->forensic_info.data_buf.direct_offset = 0;
+			pm8001_ha->forensic_info.data_buf.read_len = 0;
+		}
 	}
 	offset = (int)((char *)pm8001_ha->forensic_info.data_buf.direct_data
 			- (char *)buf);
