@@ -701,15 +701,15 @@
 
 	sram: sram@fdcc0000 {
 		compatible = "mmio-sram";
-		reg = <0x0 0xfdcc0000 0x0 0xc000>;
+		reg = <0x0 0xfdcc0000 0x0 0xb000>;
 
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0x0 0x0 0xfdcc0000 0xc000>;
+		ranges = <0x0 0x0 0xfdcc0000 0xb000>;
 
 		/* start address and size should be 4k algin */
 		rkvdec_sram: rkvdec-sram@0 {
-			reg = <0x0 0xc000>;
+			reg = <0x0 0xb000>;
 		};
 	};
 
