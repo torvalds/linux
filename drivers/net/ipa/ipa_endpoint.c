@@ -1378,7 +1378,7 @@ static int ipa_endpoint_reset_rx_aggr(struct ipa_endpoint *endpoint)
 	do {
 		if (!ipa_endpoint_aggr_active(endpoint))
 			break;
-		msleep(1);
+		usleep_range(USEC_PER_MSEC, 2 * USEC_PER_MSEC);
 	} while (retries--);
 
 	/* Check one last time */
@@ -1399,7 +1399,7 @@ static int ipa_endpoint_reset_rx_aggr(struct ipa_endpoint *endpoint)
 	 */
 	gsi_channel_reset(gsi, endpoint->channel_id, true);
 
-	msleep(1);
+	usleep_range(USEC_PER_MSEC, 2 * USEC_PER_MSEC);
 
 	goto out_suspend_again;
 
