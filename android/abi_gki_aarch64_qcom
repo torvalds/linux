@@ -53,6 +53,7 @@
   __check_object_size
   __class_create
   class_destroy
+  _cleanup_srcu_struct
   clk_disable
   clk_enable
   clk_fixed_factor_ops
@@ -366,6 +367,7 @@
   iomem_resource
   iommu_attach_device
   iommu_detach_device
+  iommu_dma_enable_best_fit_algo
   iommu_domain_alloc
   iommu_domain_free
   iommu_domain_get_attr
@@ -400,6 +402,7 @@
   irq_set_affinity_notifier
   irq_set_chip_and_handler_name
   irq_set_chip_data
+  irq_set_irqchip_state
   irq_set_irq_type
   irq_set_irq_wake
   irq_to_desc
@@ -907,6 +910,7 @@
   strpbrk
   strrchr
   strsep
+  strstr
   __sw_hweight32
   __sw_hweight64
   __sw_hweight8
@@ -963,6 +967,7 @@
   trace_raw_output_prep
   trace_seq_printf
   try_module_get
+  try_to_del_timer_sync
   tty_flip_buffer_push
   typec_register_partner
   typec_register_port
@@ -1051,9 +1056,6 @@
   set_normalized_timespec64
   try_wait_for_completion
   vfs_statx
-
-# required by apr_dlkm.ko
-  strstr
 
 # required by arm-memlat-mon.ko
   perf_event_create_kernel_counter
@@ -1147,7 +1149,6 @@
   led_trigger_unregister_simple
 
 # required by cam_smmu_api.ko
-  iommu_dma_enable_best_fit_algo
   iommu_dma_reserve_iova
 
 # required by cam_utils.ko
@@ -1472,6 +1473,7 @@
   pci_release_region
   pci_request_region
   remove_wait_queue
+  vmemdup_user
   vm_iomap_memory
   wait_woken
   woken_wake_function
@@ -1503,7 +1505,7 @@
   snd_soc_of_parse_card_name
   snd_soc_pm_ops
   snd_soc_unregister_card
-  soc_find_component
+  soc_find_component_locked
 
 # required by mbhc_dlkm.ko
   snd_jack_set_key
@@ -1512,6 +1514,7 @@
 
 # required by minidump_log.ko
   __bss_stop
+  irq_stack_ptr
   log_buf_addr_get
   log_buf_len_get
   __per_cpu_end
@@ -1551,7 +1554,6 @@
 
 # required by msm_adreno.ko
   bpf_trace_run10
-  _cleanup_srcu_struct
   __clk_get_name
   devfreq_cooling_unregister
   device_show_int
@@ -1588,6 +1590,7 @@
   security_mmap_addr
   set_page_dirty_lock
   sg_alloc_table_from_pages
+  shmem_read_mapping_page_gfp
   sysfs_remove_files
   __tracepoint_gpu_mem_total
   unmapped_area_topdown
@@ -1963,9 +1966,6 @@
   crc8
   crc8_populate_msb
 
-# required by pac193x.ko
-  try_to_del_timer_sync
-
 # required by peripheral-loader.ko
   __iowrite32_copy
   memblock_overlaps_memory
@@ -1987,6 +1987,8 @@
   irq_chip_set_wake_parent
   irq_create_fwspec_mapping
   irq_domain_free_irqs_top
+  __irq_set_handler
+  irq_set_handler_data
   of_irq_domain_map
   register_restart_handler
   unregister_restart_handler
@@ -2176,6 +2178,12 @@
   gen_pool_best_fit
   gen_pool_set_algo
   gen_pool_virt_to_phys
+
+# required by ramdump.ko
+  init_srcu_struct
+  __srcu_read_lock
+  __srcu_read_unlock
+  synchronize_srcu
 
 # required by regmap-spmi.ko
   spmi_ext_register_read
@@ -2556,7 +2564,6 @@
   device_wakeup_disable
   extcon_get_edev_name
   extcon_get_property
-  irq_set_irqchip_state
   pm_runtime_barrier
   regulator_register_notifier
   regulator_unregister_notifier
@@ -2599,6 +2606,10 @@
   disable_percpu_irq
   enable_percpu_irq
   free_percpu_irq
+  irq_stat
+  kstat
+  kstat_irqs_usr
+  nr_irqs
   panic_timeout
   __request_percpu_irq
 
@@ -2722,7 +2733,7 @@
 
 # preserved by --additions-only
   crc32_le
-  get_next_event_cpu
   simple_strtoull
+  soc_find_component
   vm_map_ram
   vm_unmap_ram
