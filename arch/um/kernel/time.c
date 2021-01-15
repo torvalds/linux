@@ -321,6 +321,12 @@ static void time_travel_add_event(struct time_travel_event *e,
 	__time_travel_add_event(e, time);
 }
 
+void time_travel_add_event_rel(struct time_travel_event *e,
+			       unsigned long long delay_ns)
+{
+	time_travel_add_event(e, time_travel_time + delay_ns);
+}
+
 void time_travel_periodic_timer(struct time_travel_event *e)
 {
 	time_travel_add_event(&time_travel_timer_event,
@@ -384,7 +390,7 @@ static void time_travel_deliver_event(struct time_travel_event *e)
 	}
 }
 
-static bool time_travel_del_event(struct time_travel_event *e)
+bool time_travel_del_event(struct time_travel_event *e)
 {
 	unsigned long flags;
 
@@ -594,6 +600,8 @@ extern u64 time_travel_ext_req(u32 op, u64 time);
 
 /* these are empty macros so the struct/fn need not exist */
 #define time_travel_add_event(e, time) do { } while (0)
+/* externally not usable - redefine here so we can */
+#undef time_travel_del_event
 #define time_travel_del_event(e) do { } while (0)
 #endif
 

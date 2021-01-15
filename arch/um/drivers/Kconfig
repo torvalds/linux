@@ -346,3 +346,14 @@ config VIRTIO_UML
 	help
 	  This driver provides support for virtio based paravirtual device
 	  drivers over vhost-user sockets.
+
+config UML_RTC
+	bool "UML RTC driver"
+	depends on RTC_CLASS
+	# there's no use in this if PM_SLEEP isn't enabled ...
+	depends on PM_SLEEP
+	help
+	  When PM_SLEEP is configured, it may be desirable to wake up using
+	  rtcwake, especially in time-travel mode. This driver enables that
+	  by providing a fake RTC clock that causes a wakeup at the right
+	  time.
