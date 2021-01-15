@@ -3633,12 +3633,12 @@ static void amdgpu_debugfs_prints_cpu_info(struct seq_file *m,
 	int i;
 
 	if (is_support_cclk_dpm(adev)) {
-		p_val = kcalloc(boot_cpu_data.x86_max_cores, sizeof(uint16_t),
+		p_val = kcalloc(adev->smu.cpu_core_num, sizeof(uint16_t),
 				GFP_KERNEL);
 
 		if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_CPU_CLK,
 					    (void *)p_val, &size)) {
-			for (i = 0; i < boot_cpu_data.x86_max_cores; i++)
+			for (i = 0; i < adev->smu.cpu_core_num; i++)
 				seq_printf(m, "\t%u MHz (CPU%d)\n",
 					   *(p_val + i), i);
 		}

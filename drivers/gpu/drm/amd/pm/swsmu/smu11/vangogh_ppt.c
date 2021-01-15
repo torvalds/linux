@@ -297,7 +297,7 @@ static int vangogh_get_smu_metrics_data(struct smu_context *smu,
 		break;
 	case METRICS_AVERAGE_CPUCLK:
 		memcpy(value, &metrics->CoreFrequency[0],
-		       boot_cpu_data.x86_max_cores * sizeof(uint16_t));
+		       smu->cpu_core_num * sizeof(uint16_t));
 		break;
 	default:
 		*value = UINT_MAX;
@@ -334,6 +334,13 @@ static int vangogh_init_smc_tables(struct smu_context *smu)
 	ret = vangogh_allocate_dpm_context(smu);
 	if (ret)
 		return ret;
+
+#ifdef CONFIG_X86
+	/* AMD x86 APU only */
+	smu->cpu_core_num = boot_cpu_data.x86_max_cores;
+#else
+	smu->cpu_core_num = 4;
+#endif
 
 	return smu_v11_0_init_smc_tables(smu);
 }
@@ -1317,7 +1324,7 @@ static int vangogh_read_sensor(struct smu_context *smu,
 		ret = vangogh_get_smu_metrics_data(smu,
 						   METRICS_AVERAGE_CPUCLK,
 						   (uint32_t *)data);
-		*size = boot_cpu_data.x86_max_cores * sizeof(uint16_t);
+		*size = smu->cpu_core_num * sizeof(uint16_t);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
@@ -1457,9 +1464,9 @@ static int vangogh_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TAB
 			dev_err(smu->adev->dev, "Input parameter number not correct (should be 4 for processor)\n");
 			return -EINVAL;
 		}
-		if (input[0] >= boot_cpu_data.x86_max_cores) {
+		if (input[0] >= smu->cpu_core_num) {
 			dev_err(smu->adev->dev, "core index is overflow, should be less than %d\n",
-				boot_cpu_data.x86_max_cores);
+				smu->cpu_core_num);
 		}
 		smu->cpu_core_id_select = input[0];
 		if (input[1] == 0) {
@@ -1535,7 +1542,7 @@ static int vangogh_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TAB
 				break;
 			}
 
-			for (i = 0; i < boot_cpu_data.x86_max_cores; i++) {
+			for (i = 0; i < smu->cpu_core_num; i++) {
 				ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMinCclk,
 								      (i << 20) | smu->cpu_actual_soft_min_freq,
 								      NULL);
