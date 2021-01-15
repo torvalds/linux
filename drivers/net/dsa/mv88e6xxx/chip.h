@@ -662,6 +662,11 @@ static inline bool mv88e6xxx_has_pvt(struct mv88e6xxx_chip *chip)
 	return chip->info->pvt;
 }
 
+static inline bool mv88e6xxx_has_lag(struct mv88e6xxx_chip *chip)
+{
+	return !!chip->info->global2_addr;
+}
+
 static inline unsigned int mv88e6xxx_num_databases(struct mv88e6xxx_chip *chip)
 {
 	return chip->info->num_databases;
