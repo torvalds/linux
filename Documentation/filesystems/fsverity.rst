@@ -236,6 +236,7 @@ This ioctl takes in a pointer to the following structure::
 
    #define FS_VERITY_METADATA_TYPE_MERKLE_TREE     1
    #define FS_VERITY_METADATA_TYPE_DESCRIPTOR      2
+   #define FS_VERITY_METADATA_TYPE_SIGNATURE       3
 
    struct fsverity_read_metadata_arg {
            __u64 metadata_type;
@@ -255,6 +256,10 @@ This ioctl takes in a pointer to the following structure::
 
 - ``FS_VERITY_METADATA_TYPE_DESCRIPTOR`` reads the fs-verity
   descriptor.  See `fs-verity descriptor`_.
+
+- ``FS_VERITY_METADATA_TYPE_SIGNATURE`` reads the signature which was
+  passed to FS_IOC_ENABLE_VERITY, if any.  See `Built-in signature
+  verification`_.
 
 The semantics are similar to those of ``pread()``.  ``offset``
 specifies the offset in bytes into the metadata item to read from, and
@@ -279,7 +284,9 @@ FS_IOC_READ_VERITY_METADATA can fail with the following errors:
 - ``EINTR``: the ioctl was interrupted before any data was read
 - ``EINVAL``: reserved fields were set, or ``offset + length``
   overflowed
-- ``ENODATA``: the file is not a verity file
+- ``ENODATA``: the file is not a verity file, or
+  FS_VERITY_METADATA_TYPE_SIGNATURE was requested but the file doesn't
+  have a built-in signature
 - ``ENOTTY``: this type of filesystem does not implement fs-verity, or
   this ioctl is not yet implemented on it
 - ``EOPNOTSUPP``: the kernel was not configured with fs-verity
