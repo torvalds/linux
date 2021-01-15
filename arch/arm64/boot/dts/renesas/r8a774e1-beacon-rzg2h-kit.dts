@@ -5,13 +5,13 @@
 
 /dts-v1/;
 
-#include "r8a774a1.dtsi"
+#include "r8a774e1.dtsi"
 #include "beacon-renesom-som.dtsi"
 #include "beacon-renesom-baseboard.dtsi"
 
 / {
-	model = "Beacon EmbeddedWorks RZ/G2M Development Kit";
-	compatible = "beacon,beacon-rzg2m", "renesas,r8a774a1";
+	model = "Beacon Embedded Works RZ/G2H Development Kit";
+	compatible =	"beacon,beacon-rzg2h", "renesas,r8a774e1";
 
 	aliases {
 		serial0 = &scif2;
@@ -20,6 +20,7 @@
 		serial3 = &scif0;
 		serial4 = &hscif2;
 		serial5 = &scif5;
+		serial6 = &scif4;
 		ethernet0 = &avb;
 	};
 
@@ -27,9 +28,9 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory@600000000 {
+	memory@500000000 {
 		device_type = "memory";
-		reg = <0x6 0x00000000 0x0 0x80000000>;
+		reg = <0x5 0x00000000 0x0 0x80000000>;
 	};
 };
 
@@ -39,13 +40,13 @@
 	status = "okay";
 
 	clocks = <&cpg CPG_MOD 724>,
-		 <&cpg CPG_MOD 723>,
-		 <&cpg CPG_MOD 722>,
-		 <&versaclock5 1>,
-		 <&x302_clk>,
-		 <&versaclock5 2>;
-	clock-names = "du.0", "du.1", "du.2",
-		      "dclkin.0", "dclkin.1", "dclkin.2";
+		<&cpg CPG_MOD 723>,
+		<&cpg CPG_MOD 721>,
+		<&versaclock5 1>,
+		<&x302_clk>,
+		<&versaclock5 2>;
+	clock-names = "du.0", "du.1", "du.3",
+		"dclkin.0", "dclkin.1", "dclkin.3";
 };
 
 /* Reference versaclock instead of audio_clk_a */
@@ -66,5 +67,5 @@
 		 <&cpg CPG_MOD 1019>, <&cpg CPG_MOD 1018>,
 		 <&versaclock6_bb 4>, <&audio_clk_b>,
 		 <&audio_clk_c>,
-		 <&cpg CPG_CORE R8A774A1_CLK_S0D4>;
+		 <&cpg CPG_CORE R8A774E1_CLK_S0D4>;
 };
