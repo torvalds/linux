@@ -17643,7 +17643,7 @@ F:	drivers/thermal/gov_power_allocator.c
 F:	include/trace/events/thermal_power_allocator.h
 
 THINKPAD ACPI EXTRAS DRIVER
-M:	Henrique de Moraes Holschuh <ibm-acpi@hmh.eng.br>
+M:	Henrique de Moraes Holschuh <hmh@hmh.eng.br>
 L:	ibm-acpi-devel@lists.sourceforge.net
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
