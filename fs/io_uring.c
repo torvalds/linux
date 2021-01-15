@@ -7373,19 +7373,12 @@ static void io_sqe_rsrc_set_node(struct io_ring_ctx *ctx,
 	percpu_ref_get(&rsrc_data->refs);
 }
 
-static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
+static int io_rsrc_ref_quiesce(struct fixed_rsrc_data *data,
+			       struct io_ring_ctx *ctx,
+			       struct fixed_rsrc_ref_node *backup_node)
 {
-	struct fixed_rsrc_data *data = ctx->file_data;
-	struct fixed_rsrc_ref_node *backup_node, *ref_node = NULL;
-	unsigned nr_tables, i;
+	struct fixed_rsrc_ref_node *ref_node;
 	int ret;
-
-	if (!data)
-		return -ENXIO;
-	backup_node = alloc_fixed_rsrc_ref_node(ctx);
-	if (!backup_node)
-		return -ENOMEM;
-	init_fixed_file_ref_node(ctx, backup_node);
 
 	io_rsrc_ref_lock(ctx);
 	ref_node = data->node;
@@ -7410,6 +7403,28 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 		}
 	} while (1);
 
+	destroy_fixed_rsrc_ref_node(backup_node);
+	return 0;
+}
+
+static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
+{
+	struct fixed_rsrc_data *data = ctx->file_data;
+	struct fixed_rsrc_ref_node *backup_node;
+	unsigned nr_tables, i;
+	int ret;
+
+	if (!data)
+		return -ENXIO;
+	backup_node = alloc_fixed_rsrc_ref_node(ctx);
+	if (!backup_node)
+		return -ENOMEM;
+	init_fixed_file_ref_node(ctx, backup_node);
+
+	ret = io_rsrc_ref_quiesce(data, ctx, backup_node);
+	if (ret)
+		return ret;
+
 	__io_sqe_files_unregister(ctx);
 	nr_tables = DIV_ROUND_UP(ctx->nr_user_files, IORING_MAX_FILES_TABLE);
 	for (i = 0; i < nr_tables; i++)
@@ -7419,7 +7434,6 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 	kfree(data);
 	ctx->file_data = NULL;
 	ctx->nr_user_files = 0;
-	destroy_fixed_rsrc_ref_node(backup_node);
 	return 0;
 }
 
