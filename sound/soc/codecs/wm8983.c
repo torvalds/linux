@@ -971,7 +971,7 @@ static struct snd_soc_dai_driver wm8983_dai = {
 		.formats = WM8983_FORMATS,
 	},
 	.ops = &wm8983_dai_ops,
-	.symmetric_rates = 1
+	.symmetric_rate = 1
 };
 
 static const struct snd_soc_component_driver soc_component_dev_wm8983 = {
