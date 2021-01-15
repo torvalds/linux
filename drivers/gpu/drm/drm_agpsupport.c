@@ -45,13 +45,9 @@
 
 #include "drm_legacy.h"
 
-/**
+/*
  * Get AGP information.
  *
- * \param inode device inode.
- * \param file_priv DRM file private.
- * \param cmd command.
- * \param arg pointer to a (output) drm_agp_info structure.
  * \return zero on success or a negative number on failure.
  *
  * Verifies the AGP device has been initialized and acquired and fills in the
@@ -92,7 +88,7 @@ int drm_agp_info_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-/**
+/*
  * Acquire the AGP device.
  *
  * \param dev DRM device that is to acquire AGP.
@@ -115,13 +111,9 @@ int drm_agp_acquire(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_agp_acquire);
 
-/**
+/*
  * Acquire the AGP device (ioctl).
  *
- * \param inode device inode.
- * \param file_priv DRM file private.
- * \param cmd command.
- * \param arg user argument.
  * \return zero on success or a negative number on failure.
  *
  * Verifies the AGP device hasn't been acquired before and calls
@@ -133,7 +125,7 @@ int drm_agp_acquire_ioctl(struct drm_device *dev, void *data,
 	return drm_agp_acquire((struct drm_device *) file_priv->minor->dev);
 }
 
-/**
+/*
  * Release the AGP device.
  *
  * \param dev DRM device that is to release AGP.
@@ -157,7 +149,7 @@ int drm_agp_release_ioctl(struct drm_device *dev, void *data,
 	return drm_agp_release(dev);
 }
 
-/**
+/*
  * Enable the AGP bus.
  *
  * \param dev DRM device that has previously acquired AGP.
@@ -187,13 +179,9 @@ int drm_agp_enable_ioctl(struct drm_device *dev, void *data,
 	return drm_agp_enable(dev, *mode);
 }
 
-/**
+/*
  * Allocate AGP memory.
  *
- * \param inode device inode.
- * \param file_priv file private pointer.
- * \param cmd command.
- * \param arg pointer to a drm_agp_buffer structure.
  * \return zero on success or a negative number on failure.
  *
  * Verifies the AGP device is present and has been acquired, allocates the
@@ -242,7 +230,7 @@ int drm_agp_alloc_ioctl(struct drm_device *dev, void *data,
 	return drm_agp_alloc(dev, request);
 }
 
-/**
+/*
  * Search for the AGP memory entry associated with a handle.
  *
  * \param dev DRM device structure.
@@ -263,13 +251,9 @@ static struct drm_agp_mem *drm_agp_lookup_entry(struct drm_device *dev,
 	return NULL;
 }
 
-/**
+/*
  * Unbind AGP memory from the GATT (ioctl).
  *
- * \param inode device inode.
- * \param file_priv DRM file private.
- * \param cmd command.
- * \param arg pointer to a drm_agp_binding structure.
  * \return zero on success or a negative number on failure.
  *
  * Verifies the AGP device is present and acquired, looks-up the AGP memory
@@ -301,13 +285,9 @@ int drm_agp_unbind_ioctl(struct drm_device *dev, void *data,
 	return drm_agp_unbind(dev, request);
 }
 
-/**
+/*
  * Bind AGP memory into the GATT (ioctl)
  *
- * \param inode device inode.
- * \param file_priv DRM file private.
- * \param cmd command.
- * \param arg pointer to a drm_agp_binding structure.
  * \return zero on success or a negative number on failure.
  *
  * Verifies the AGP device is present and has been acquired and that no memory
@@ -345,13 +325,9 @@ int drm_agp_bind_ioctl(struct drm_device *dev, void *data,
 	return drm_agp_bind(dev, request);
 }
 
-/**
+/*
  * Free AGP memory (ioctl).
  *
- * \param inode device inode.
- * \param file_priv DRM file private.
- * \param cmd command.
- * \param arg pointer to a drm_agp_buffer structure.
  * \return zero on success or a negative number on failure.
  *
  * Verifies the AGP device is present and has been acquired and looks up the
@@ -388,7 +364,7 @@ int drm_agp_free_ioctl(struct drm_device *dev, void *data,
 	return drm_agp_free(dev, request);
 }
 
-/**
+/*
  * Initialize the AGP resources.
  *
  * \return pointer to a drm_agp_head structure.
