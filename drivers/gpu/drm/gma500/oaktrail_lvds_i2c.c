@@ -66,12 +66,12 @@
 static int get_clock(void *data)
 {
 	struct psb_intel_i2c_chan *chan = data;
-	u32 val, tmp;
+	u32 val;
 
 	val = LPC_READ_REG(chan, RGIO);
 	val |= GPIO_CLOCK;
 	LPC_WRITE_REG(chan, RGIO, val);
-	tmp = LPC_READ_REG(chan, RGLVL);
+	LPC_READ_REG(chan, RGLVL);
 	val = (LPC_READ_REG(chan, RGLVL) & GPIO_CLOCK) ? 1 : 0;
 
 	return val;
@@ -80,12 +80,12 @@ static int get_clock(void *data)
 static int get_data(void *data)
 {
 	struct psb_intel_i2c_chan *chan = data;
-	u32 val, tmp;
+	u32 val;
 
 	val = LPC_READ_REG(chan, RGIO);
 	val |= GPIO_DATA;
 	LPC_WRITE_REG(chan, RGIO, val);
-	tmp = LPC_READ_REG(chan, RGLVL);
+	LPC_READ_REG(chan, RGLVL);
 	val = (LPC_READ_REG(chan, RGLVL) & GPIO_DATA) ? 1 : 0;
 
 	return val;
