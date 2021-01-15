@@ -376,7 +376,7 @@ static int panel_simple_get_hpd_gpio(struct device *dev,
 	return 0;
 }
 
-static int panel_simple_prepare(struct drm_panel *panel)
+static int panel_simple_prepare_once(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
 	unsigned int delay;
@@ -422,8 +422,9 @@ static int panel_simple_prepare(struct drm_panel *panel)
 			err = hpd_asserted;
 
 		if (err) {
-			dev_err(panel->dev,
-				"error waiting for hpd GPIO: %d\n", err);
+			if (err != -ETIMEDOUT)
+				dev_err(panel->dev,
+					"error waiting for hpd GPIO: %d\n", err);
 			goto error;
 		}
 	}
@@ -438,6 +439,31 @@ error:
 	p->unprepared_time = ktime_get();
 
 	return err;
+}
+
+/*
+ * Some panels simply don't always come up and need to be power cycled to
+ * work properly.  We'll allow for a handful of retries.
+ */
+#define MAX_PANEL_PREPARE_TRIES		5
+
+static int panel_simple_prepare(struct drm_panel *panel)
+{
+	int ret;
+	int try;
+
+	for (try = 0; try < MAX_PANEL_PREPARE_TRIES; try++) {
+		ret = panel_simple_prepare_once(panel);
+		if (ret != -ETIMEDOUT)
+			break;
+	}
+
+	if (ret == -ETIMEDOUT)
+		dev_err(panel->dev, "Prepare timeout after %d tries\n", try);
+	else if (try)
+		dev_warn(panel->dev, "Prepare needed %d retries\n", try);
+
+	return ret;
 }
 
 static int panel_simple_enable(struct drm_panel *panel)
