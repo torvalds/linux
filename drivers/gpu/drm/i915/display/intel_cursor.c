@@ -492,8 +492,8 @@ static void i9xx_update_cursor(struct intel_plane *plane,
 	unsigned long irqflags;
 
 	if (plane_state && plane_state->uapi.visible) {
-		unsigned width = drm_rect_width(&plane_state->uapi.dst);
-		unsigned height = drm_rect_height(&plane_state->uapi.dst);
+		int width = drm_rect_width(&plane_state->uapi.dst);
+		int height = drm_rect_height(&plane_state->uapi.dst);
 
 		cntl = plane_state->ctl |
 			i9xx_cursor_ctl_crtc(crtc_state);
@@ -522,7 +522,7 @@ static void i9xx_update_cursor(struct intel_plane *plane,
 	 * cursor that doesn't appear to move, or even change
 	 * shape. Thus we always write CURBASE.
 	 *
-	 * The other registers are armed by by the CURBASE write
+	 * The other registers are armed by the CURBASE write
 	 * except when the plane is getting enabled at which time
 	 * the CURCNTR write arms the update.
 	 */

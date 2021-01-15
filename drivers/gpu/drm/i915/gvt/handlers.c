@@ -3686,8 +3686,7 @@ void intel_gvt_restore_fence(struct intel_gvt *gvt)
 	}
 }
 
-static inline int mmio_pm_restore_handler(struct intel_gvt *gvt,
-					  u32 offset, void *data)
+static int mmio_pm_restore_handler(struct intel_gvt *gvt, u32 offset, void *data)
 {
 	struct intel_vgpu *vgpu = data;
 	struct drm_i915_private *dev_priv = gvt->gt->i915;

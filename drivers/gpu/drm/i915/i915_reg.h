@@ -2928,8 +2928,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 #define HDPORT_STATE			_MMIO(0x45050)
 #define   HDPORT_DPLL_USED_MASK		REG_GENMASK(14, 12)
-#define   HDPORT_PHY_USED_DP(phy)	REG_BIT(2 * (phy) + 2)
-#define   HDPORT_PHY_USED_HDMI(phy)	REG_BIT(2 * (phy) + 1)
+#define   HDPORT_DDI_USED(phy)		REG_BIT(2 * (phy) + 1)
 #define   HDPORT_ENABLED		REG_BIT(0)
 
 /* Make render/texture TLB fetches lower priorty than associated data
