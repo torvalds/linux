@@ -1676,7 +1676,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 			   ktime_to_ms(intel_engine_get_busy_time(engine,
 								  &dummy)));
 	drm_printf(m, "\tForcewake: %x domains, %d active\n",
-		   engine->fw_domain, atomic_read(&engine->fw_active));
+		   engine->fw_domain, READ_ONCE(engine->fw_active));
 
 	rcu_read_lock();
 	rq = READ_ONCE(engine->heartbeat.systole);
