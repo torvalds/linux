@@ -188,7 +188,11 @@ out_unregister:
 
 static int __init vkms_init(void)
 {
-	struct vkms_config *config = kmalloc(sizeof(*config), GFP_KERNEL);
+	struct vkms_config *config;
+
+	config = kmalloc(sizeof(*config), GFP_KERNEL);
+	if (!config)
+		return -ENOMEM;
 
 	default_config = config;
 
