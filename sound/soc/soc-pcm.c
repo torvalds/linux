@@ -349,8 +349,8 @@ static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	int ret;
 
-	if (soc_dai->rate && (soc_dai->driver->symmetric_rates ||
-				rtd->dai_link->symmetric_rates)) {
+	if (soc_dai->rate && (soc_dai->driver->symmetric_rate ||
+				rtd->dai_link->symmetric_rate)) {
 		dev_dbg(soc_dai->dev, "ASoC: Symmetry forces %dHz rate\n",
 				soc_dai->rate);
 
@@ -381,8 +381,8 @@ static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream,
 		}
 	}
 
-	if (soc_dai->sample_bits && (soc_dai->driver->symmetric_samplebits ||
-				rtd->dai_link->symmetric_samplebits)) {
+	if (soc_dai->sample_bits && (soc_dai->driver->symmetric_sample_bits ||
+				rtd->dai_link->symmetric_sample_bits)) {
 		dev_dbg(soc_dai->dev, "ASoC: Symmetry forces %d sample bits\n",
 				soc_dai->sample_bits);
 
@@ -412,10 +412,10 @@ static int soc_pcm_params_symmetry(struct snd_pcm_substream *substream,
 	soc_pcm_set_dai_params(&d, params);
 
 	/* reject unmatched parameters when applying symmetry */
-	symmetry = rtd->dai_link->symmetric_rates;
+	symmetry = rtd->dai_link->symmetric_rate;
 
 	for_each_rtd_cpu_dais(rtd, i, dai)
-		symmetry |= dai->driver->symmetric_rates;
+		symmetry |= dai->driver->symmetric_rate;
 
 	if (symmetry) {
 		for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
@@ -443,10 +443,10 @@ static int soc_pcm_params_symmetry(struct snd_pcm_substream *substream,
 		}
 	}
 
-	symmetry = rtd->dai_link->symmetric_samplebits;
+	symmetry = rtd->dai_link->symmetric_sample_bits;
 
 	for_each_rtd_dais(rtd, i, dai)
-		symmetry |= dai->driver->symmetric_samplebits;
+		symmetry |= dai->driver->symmetric_sample_bits;
 
 	if (symmetry) {
 		for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
@@ -469,15 +469,15 @@ static bool soc_pcm_has_symmetry(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *dai;
 	unsigned int symmetry, i;
 
-	symmetry = link->symmetric_rates ||
+	symmetry = link->symmetric_rate ||
 		link->symmetric_channels ||
-		link->symmetric_samplebits;
+		link->symmetric_sample_bits;
 
 	for_each_rtd_dais(rtd, i, dai)
 		symmetry = symmetry ||
-			dai->driver->symmetric_rates ||
+			dai->driver->symmetric_rate ||
 			dai->driver->symmetric_channels ||
-			dai->driver->symmetric_samplebits;
+			dai->driver->symmetric_sample_bits;
 
 	return symmetry;
 }

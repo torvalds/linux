@@ -2509,6 +2509,15 @@ int snd_soc_register_component(struct device *dev,
 {
 	struct snd_soc_component *component;
 	int ret;
+	int i;
+
+	/* Remove ME */
+	for (i = 0; i < num_dai; i++) {
+		if (dai_drv[i].symmetric_rates)
+			dai_drv[i].symmetric_rate = dai_drv[i].symmetric_rates;
+		if (dai_drv[i].symmetric_samplebits)
+			dai_drv[i].symmetric_sample_bits = dai_drv[i].symmetric_samplebits;
+	}
 
 	component = devm_kzalloc(dev, sizeof(*component), GFP_KERNEL);
 	if (!component)
