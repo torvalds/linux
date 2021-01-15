@@ -39,12 +39,14 @@
 
 #define DC_LOGGER_INIT(logger)
 
-/*DP to Dual link DVI converter*/
+static const uint8_t DP_VGA_DONGLE_BRANCH_DEV_NAME[] = "DpVga";
+/* DP to Dual link DVI converter */
 static const uint8_t DP_DVI_CONVERTER_ID_4[] = "m2DVIa";
 static const uint8_t DP_DVI_CONVERTER_ID_5[] = "3393N2";
 
 #define AUX_POWER_UP_WA_DELAY 500
 #define I2C_OVER_AUX_DEFER_WA_DELAY 70
+#define DPVGA_DONGLE_AUX_DEFER_WA_DELAY 40
 #define I2C_OVER_AUX_DEFER_WA_DELAY_1MS 1
 
 /* CV smart dongle slave address for retrieving supported HDTV modes*/
@@ -291,6 +293,15 @@ static uint32_t defer_delay_converter_wa(
 	uint32_t defer_delay)
 {
 	struct dc_link *link = ddc->link;
+
+	if (link->dpcd_caps.dongle_type == DISPLAY_DONGLE_DP_VGA_CONVERTER &&
+		link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_0080E1 &&
+		!memcmp(link->dpcd_caps.branch_dev_name,
+		    DP_VGA_DONGLE_BRANCH_DEV_NAME,
+			sizeof(link->dpcd_caps.branch_dev_name)))
+
+		return defer_delay > DPVGA_DONGLE_AUX_DEFER_WA_DELAY ?
+			defer_delay : DPVGA_DONGLE_AUX_DEFER_WA_DELAY;
 
 	if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_0080E1 &&
 	    !memcmp(link->dpcd_caps.branch_dev_name,
