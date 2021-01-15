@@ -234,7 +234,6 @@ repeat:
 	  lexstate = ST_EXPRESSION;
 	  break;
 
-	case DOTS:
 	default:
 	  APP;
 	  break;
