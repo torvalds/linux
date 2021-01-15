@@ -85,7 +85,6 @@ static void set_data(void *data, int state_high)
 /**
  * psb_intel_i2c_create - instantiate an Intel i2c bus using the specified GPIO reg
  * @dev: DRM device
- * @output: driver specific output device
  * @reg: GPIO reg to use
  * @name: name for this bus
  *
@@ -145,7 +144,7 @@ out_free:
 
 /**
  * psb_intel_i2c_destroy - unregister and free i2c bus resources
- * @output: channel to free
+ * @chan: channel to free
  *
  * Unregister the adapter from the i2c layer, then free the structure.
  */
