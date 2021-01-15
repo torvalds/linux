@@ -1,4 +1,4 @@
-/**
+/*
  * \file r128_ioc32.c
  *
  * 32-bit ioctl compatibility routines for the R128 DRM.
