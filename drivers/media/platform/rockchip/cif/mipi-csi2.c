@@ -70,7 +70,12 @@ enum csi2_pads {
 };
 
 enum csi2_err {
-	RK_CSI2_ERR_CRC = 0,
+	RK_CSI2_ERR_SOTSYN = 0x0,
+	RK_CSI2_ERR_FS_FE_MIS,
+	RK_CSI2_ERR_FRM_SEQ_ERR,
+	RK_CSI2_ERR_CRC_ONCE,
+	RK_CSI2_ERR_CRC,
+	RK_CSI2_ERR_ALL,
 	RK_CSI2_ERR_MAX
 };
 
@@ -680,7 +685,8 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 {
 	struct device *dev = ctx;
 	struct csi2_dev *csi2 = sd_to_dev(dev_get_drvdata(dev));
-	struct csi2_err_stats *err_stats = NULL;
+	struct csi2_err_stats *err_list = NULL;
+	unsigned long err_stat = 0;
 	u32 val;
 
 	val = read_csihost_reg(csi2->base, CSIHOST_ERR1);
@@ -688,35 +694,53 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 		write_csihost_reg(csi2->base,
 				  CSIHOST_ERR1, 0x0);
 
-		if (val & CSIHOST_ERR1_PHYERR_SPTSYNCHS)
+		if (val & CSIHOST_ERR1_PHYERR_SPTSYNCHS) {
+			err_list = &csi2->err_list[RK_CSI2_ERR_SOTSYN];
+			err_list->cnt++;
 			v4l2_err(&csi2->sd,
-				 "ERR1: start of transmission error(no synchronization achieved), reg: 0x%x\n",
-				 val);
+				 "ERR1: start of transmission error(no synchronization achieved), reg: 0x%x,cnt:%d\n",
+				 val, err_list->cnt);
+		}
 
-		if (val & CSIHOST_ERR1_ERR_BNDRY_MATCH)
+		if (val & CSIHOST_ERR1_ERR_BNDRY_MATCH) {
+			err_list = &csi2->err_list[RK_CSI2_ERR_FS_FE_MIS];
+			err_list->cnt++;
 			v4l2_err(&csi2->sd,
-				 "ERR1: error matching frame start with frame end, reg: 0x%x\n",
-				 val);
+				 "ERR1: error matching frame start with frame end, reg: 0x%x,cnt:%d\n",
+				 val, err_list->cnt);
+		}
 
-		if (val & CSIHOST_ERR1_ERR_SEQ)
+		if (val & CSIHOST_ERR1_ERR_SEQ) {
+			err_list = &csi2->err_list[RK_CSI2_ERR_FRM_SEQ_ERR];
+			err_list->cnt++;
 			v4l2_err(&csi2->sd,
-				 "ERR1: incorrect frame sequence detected, reg: 0x%x\n",
-				 val);
+				 "ERR1: incorrect frame sequence detected, reg: 0x%x,cnt:%d\n",
+				 val, err_list->cnt);
+		}
 
-		if (val & CSIHOST_ERR1_ERR_FRM_DATA)
+		if (val & CSIHOST_ERR1_ERR_FRM_DATA) {
+			err_list = &csi2->err_list[RK_CSI2_ERR_CRC_ONCE];
+			err_list->cnt++;
 			v4l2_dbg(1, csi2_debug, &csi2->sd,
-				 "ERR1: at least one crc error, reg: 0x%x\n", val);
+				 "ERR1: at least one crc error, reg: 0x%x\n,cnt:%d", val, err_list->cnt);
+		}
 
 		if (val & CSIHOST_ERR1_ERR_CRC) {
-
-			err_stats = &csi2->err_list[RK_CSI2_ERR_CRC];
-			err_stats->cnt += 1;
-			atomic_notifier_call_chain(&g_csi_host_chain, err_stats->cnt, NULL);
-
+			err_list = &csi2->err_list[RK_CSI2_ERR_CRC];
+			err_list->cnt++;
 			v4l2_err(&csi2->sd,
 				 "ERR1: crc errors, reg: 0x%x, cnt:%d\n",
-				 val, err_stats->cnt);
+				 val, err_list->cnt);
 		}
+
+		csi2->err_list[RK_CSI2_ERR_ALL].cnt++;
+		err_stat = ((csi2->err_list[RK_CSI2_ERR_FS_FE_MIS].cnt & 0xff) << 8) |
+			    ((csi2->err_list[RK_CSI2_ERR_ALL].cnt) & 0xff);
+
+		atomic_notifier_call_chain(&g_csi_host_chain,
+					   err_stat,
+					   NULL);
+
 	}
 
 	return IRQ_HANDLED;

@@ -28,6 +28,9 @@
 #define CIF_DRIVER_NAME		"rkcif"
 #define CIF_VIDEODEVICE_NAME	"stream_cif"
 
+#define OF_CIF_MONITOR_PARA	"rockchip,cif-monitor"
+#define CIF_MONITOR_PARA_NUM	(5)
+
 #define RKCIF_SINGLE_STREAM	1
 #define RKCIF_STREAM_CIF	0
 #define CIF_DVP_VDEV_NAME CIF_VIDEODEVICE_NAME		"_dvp"
@@ -301,14 +304,14 @@ struct rkcif_irq_stats {
 };
 
 /*
- * the causation to do cif reset work
+ * the detecting mode of cif reset timer
+ * related with dts property:rockchip,cif-monitor
  */
-enum rkcif_reset_src {
-	RKCIF_RESET_SRC_NON = 0x0,
-	RKCIF_RESET_SRC_NORMAL,
-	RKCIF_RESET_SRC_ERR_CSI2,
-	RKCIF_RESET_SRC_ERR_LVDS,
-	RKCIF_RESET_SRC_ERR_APP,
+enum rkcif_monitor_mode {
+	RKCIF_MONITOR_MODE_IDLE = 0x0,
+	RKCIF_MONITOR_MODE_CONTINUE,
+	RKCIF_MONITOR_MODE_TRIGGER,
+	RKCIF_MONITOR_MODE_HOTPLUG,
 };
 
 /*
@@ -320,23 +323,40 @@ struct rkcif_resume_info {
 
 struct rkcif_work_struct {
 	struct work_struct	work;
-	enum rkcif_reset_src	reset_src;
+	enum rkmodule_reset_src	reset_src;
 	struct rkcif_resume_info	resume_info;
 };
 
 struct rkcif_timer {
 	struct timer_list	timer;
 	spinlock_t		timer_lock;
+	spinlock_t		csi2_err_lock;
 	unsigned long		cycle;
+	/* unit: us */
+	unsigned long		line_end_cycle;
 	unsigned int		run_cnt;
 	unsigned int		max_run_cnt;
 	unsigned int		stop_index_of_run_cnt;
 	unsigned int		last_buf_wakeup_cnt;
-	unsigned int		csi_crc_cnt;
+	unsigned long		csi2_err_cnt_even;
+	unsigned long		csi2_err_cnt_odd;
+	unsigned int		csi2_err_ref_cnt;
+	unsigned int		csi2_err_fs_fe_cnt;
+	unsigned int		csi2_err_fs_fe_detect_cnt;
+	unsigned int		frm_num_of_monitor_cycle;
+	unsigned int		triggered_frame_num;
+	unsigned int		vts;
+	unsigned int		raw_height;
+	/* unit: ms */
+	unsigned int		err_time_interval;
+	unsigned long		frame_end_cycle_us;
+	unsigned int		notifer_called_cnt;
 	bool			is_triggered;
 	bool			is_buf_stop_update;
 	bool			is_running;
-	enum rkcif_reset_src	reset_src;
+	bool			is_csi2_err_occurred;
+	enum rkcif_monitor_mode	monitor_mode;
+	enum rkmodule_reset_src	reset_src;
 };
 
 struct rkcif_extend_info {

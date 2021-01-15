@@ -5,6 +5,9 @@
 
 #include <linux/notifier.h>
 
+#define CSI2_ERR_FSFE_MASK	(0xff << 8)
+#define CSI2_ERR_COUNT_ALL_MASK	(0xff)
+
 u32 rkcif_csi2_get_sof(void);
 void rkcif_csi2_set_sof(u32 seq);
 void rkcif_csi2_event_inc_sof(void);

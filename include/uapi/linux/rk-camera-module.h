@@ -69,6 +69,12 @@
 #define RKMODULE_GET_START_STREAM_SEQ	\
 	_IOR('V', BASE_VIDIOC_PRIVATE + 14, __u32)
 
+#define RKMODULE_GET_VICAP_RST_INFO	\
+	_IOR('V', BASE_VIDIOC_PRIVATE + 15, struct rkmodule_vicap_reset_info)
+
+#define RKMODULE_SET_VICAP_RST_INFO	\
+	_IOR('V', BASE_VIDIOC_PRIVATE + 16, struct rkmodule_vicap_reset_info)
+
 /**
  * struct rkmodule_base_inf - module base information
  *
@@ -369,5 +375,22 @@ enum rkmodule_start_stream_seq {
 	RKMODULE_START_STREAM_BEHIND,
 	RKMODULE_START_STREAM_FRONT,
 };
+
+/*
+ * the causation to do cif reset work
+ */
+enum rkmodule_reset_src {
+	RKCIF_RESET_SRC_NON = 0x0,
+	RKCIF_RESET_SRC_ERR_CSI2,
+	RKCIF_RESET_SRC_ERR_LVDS,
+	RKICF_RESET_SRC_ERR_CUTOFF,
+	RKCIF_RESET_SRC_ERR_HOTPLUG,
+	RKCIF_RESET_SRC_ERR_APP,
+};
+
+struct rkmodule_vicap_reset_info {
+	__u32 is_reset;
+	enum rkmodule_reset_src src;
+} __attribute__ ((packed));
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */

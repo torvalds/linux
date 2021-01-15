@@ -826,6 +826,95 @@ static int rkcif_detach_hw(struct rkcif_device *cif_dev)
 	return 0;
 }
 
+static char* rkcif_get_monitor_mode(enum rkcif_monitor_mode mode)
+{
+	switch (mode) {
+	case RKCIF_MONITOR_MODE_IDLE:
+		return "idle";
+	case RKCIF_MONITOR_MODE_CONTINUE:
+		return "continue";
+	case RKCIF_MONITOR_MODE_TRIGGER:
+		return "trigger";
+	case RKCIF_MONITOR_MODE_HOTPLUG:
+		return "hotplug";
+	default:
+		return "unknown";
+	}
+}
+
+static void rkcif_init_reset_monitor(struct rkcif_device *dev)
+{
+	struct device_node *node = dev->dev->of_node;
+	struct rkcif_timer *timer = &dev->reset_watchdog_timer;
+	struct notifier_block *notifier = &dev->reset_notifier;
+	u32 para[8];
+	int i;
+
+	if (!of_property_read_u32_array(node,
+					OF_CIF_MONITOR_PARA,
+					para,
+					CIF_MONITOR_PARA_NUM)) {
+		for (i = 0; i < CIF_MONITOR_PARA_NUM; i++) {
+			if (i == 0) {
+				timer->monitor_mode = para[0];
+				v4l2_info(&dev->v4l2_dev,
+					  "%s: timer monitor mode:%s\n",
+					  __func__, rkcif_get_monitor_mode(timer->monitor_mode));
+			}
+
+			if (i == 1) {
+				timer->triggered_frame_num = para[1];
+				v4l2_info(&dev->v4l2_dev,
+					  "timer triggered frm num:%d\n",
+					  timer->triggered_frame_num);
+			}
+
+			if (i == 2) {
+				timer->frm_num_of_monitor_cycle = para[2];
+				v4l2_info(&dev->v4l2_dev,
+					  "timer frm num of monitor cycle:%d\n",
+					  timer->frm_num_of_monitor_cycle);
+			}
+
+			if (i == 3) {
+				timer->err_time_interval = para[3];
+				v4l2_info(&dev->v4l2_dev,
+					  "timer err time for keeping:%d ms\n",
+					  timer->err_time_interval);
+			}
+
+			if (i == 4) {
+				timer->csi2_err_ref_cnt = para[4];
+				v4l2_info(&dev->v4l2_dev,
+					  "timer csi2 err ref val for resetting:%d\n",
+					  timer->csi2_err_ref_cnt);
+			}
+		}
+
+	}else {
+		timer->monitor_mode = RKCIF_MONITOR_MODE_IDLE;
+		timer->err_time_interval = 0xffffffff;
+		timer->frm_num_of_monitor_cycle = 0xffffffff;
+		timer->triggered_frame_num =  0xffffffff;
+		timer->csi2_err_ref_cnt = 0xffffffff;
+	}
+
+	timer->is_running = false;
+	timer->is_triggered = false;
+	timer->is_buf_stop_update = false;
+	timer->csi2_err_cnt_even = 0;
+	timer->csi2_err_cnt_odd = 0;
+	timer->csi2_err_fs_fe_cnt = 0;
+	timer->csi2_err_fs_fe_detect_cnt = 0;
+
+	timer_setup(&timer->timer, rkcif_reset_watchdog_timer_handler, 0);
+
+	notifier->priority = 1;
+	notifier->notifier_call = rkcif_reset_notifier;
+	rkcif_csi2_register_notifier(notifier);
+
+}
+
 int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int inf_id)
 {
 	struct device *dev = cif_dev->dev;
@@ -838,6 +927,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	mutex_init(&cif_dev->stream_lock);
 	spin_lock_init(&cif_dev->hdr_lock);
 	spin_lock_init(&cif_dev->reset_watchdog_timer.timer_lock);
+	spin_lock_init(&cif_dev->reset_watchdog_timer.csi2_err_lock);
 	atomic_set(&cif_dev->pipe.power_cnt, 0);
 	atomic_set(&cif_dev->pipe.stream_cnt, 0);
 	atomic_set(&cif_dev->fh_cnt, 0);
@@ -998,16 +1088,7 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	if (rkcif_proc_init(cif_dev))
 		dev_warn(dev, "dev:%s create proc failed\n", dev_name(dev));
 
-	cif_dev->reset_notifier.priority = 1;
-	cif_dev->reset_notifier.notifier_call = rkcif_reset_notifier;
-	rkcif_csi2_register_notifier(&cif_dev->reset_notifier);
-#if defined(CONFIG_ROCKCHIP_CIF_RESET_MONITOR_CONTINU)
-	cif_dev->reset_watchdog_timer.reset_src = RKCIF_RESET_SRC_NORMAL;
-#else
-	cif_dev->reset_watchdog_timer.reset_src = RKCIF_RESET_SRC_NON;
-#endif
-	timer_setup(&cif_dev->reset_watchdog_timer.timer,
-		    rkcif_reset_watchdog_timer_handler, 0);
+	rkcif_init_reset_monitor(cif_dev);
 
 	rkcif_soft_reset(cif_dev, true);
 	pm_runtime_enable(&pdev->dev);

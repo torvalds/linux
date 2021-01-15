@@ -196,8 +196,26 @@ static const char *rkcif_pixelcode_to_string(u32 mbus_code)
 	return "unknown";
 }
 
+static const char *rkcif_get_monitor_mode(enum rkcif_monitor_mode monitor_mode)
+{
+	switch (monitor_mode) {
+	case RKCIF_MONITOR_MODE_IDLE:
+		return "idle";
+	case RKCIF_MONITOR_MODE_CONTINUE:
+		return "continue";
+	case RKCIF_MONITOR_MODE_TRIGGER:
+		return "trigger";
+	case RKCIF_MONITOR_MODE_HOTPLUG:
+		return "hotplug";
+	default:
+		return "unknown";
+	}
+}
+
 static void rkcif_show_mixed_info(struct rkcif_device *dev, struct seq_file *f)
 {
+	enum rkcif_monitor_mode monitor_mode;
+
 	seq_printf(f, "Driver Version:v%02x.%02x.%02x\n",
 		   RKCIF_DRIVER_VERSION >> 16,
 		   (RKCIF_DRIVER_VERSION & 0xff00) >> 8,
@@ -205,6 +223,10 @@ static void rkcif_show_mixed_info(struct rkcif_device *dev, struct seq_file *f)
 	seq_printf(f, "Work Mode:%s\n",
 		   dev->workmode == RKCIF_WORKMODE_ONEFRAME ? "one frame" :
 		   dev->workmode == RKCIF_WORKMODE_PINGPONG ? "ping pong" : "line loop");
+
+	monitor_mode = dev->reset_watchdog_timer.monitor_mode;
+	seq_printf(f, "Monitor Mode:%s\n",
+		   rkcif_get_monitor_mode(monitor_mode));
 }
 
 static void rkcif_show_clks(struct rkcif_device *dev, struct seq_file *f)
