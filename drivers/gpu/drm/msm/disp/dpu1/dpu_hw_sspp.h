@@ -28,6 +28,7 @@ struct dpu_hw_pipe;
 #define DPU_SSPP_SCALER ((1UL << DPU_SSPP_SCALER_RGB) | \
 	(1UL << DPU_SSPP_SCALER_QSEED2) | \
 	 (1UL << DPU_SSPP_SCALER_QSEED3) | \
+	 (1UL << DPU_SSPP_SCALER_QSEED3LITE) | \
 	  (1UL << DPU_SSPP_SCALER_QSEED4))
 
 /**
