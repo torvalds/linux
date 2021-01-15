@@ -1895,7 +1895,7 @@ err:
 
 static int mmc_can_sleep(struct mmc_card *card)
 {
-	return (card && card->ext_csd.rev >= 3);
+	return card->ext_csd.rev >= 3;
 }
 
 static int mmc_sleep(struct mmc_host *host)
