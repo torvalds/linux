@@ -26,6 +26,7 @@ properties:
               - fsl,imx6sll-lcdif
               - fsl,imx6ul-lcdif
               - fsl,imx7d-lcdif
+              - fsl,imx8mm-lcdif
               - fsl,imx8mq-lcdif
           - const: fsl,imx6sx-lcdif
 
