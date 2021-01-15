@@ -233,7 +233,6 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	VCPU_STAT("halt_poll_fail_ns", halt_poll_fail_ns),
 	VM_STAT("mmu_shadow_zapped", mmu_shadow_zapped),
 	VM_STAT("mmu_pte_write", mmu_pte_write),
-	VM_STAT("mmu_pte_updated", mmu_pte_updated),
 	VM_STAT("mmu_pde_zapped", mmu_pde_zapped),
 	VM_STAT("mmu_flooded", mmu_flooded),
 	VM_STAT("mmu_recycled", mmu_recycled),
