@@ -37,4 +37,5 @@ int nv50_gpio_new(struct nvkm_device *, int, struct nvkm_gpio **);
 int g94_gpio_new(struct nvkm_device *, int, struct nvkm_gpio **);
 int gf119_gpio_new(struct nvkm_device *, int, struct nvkm_gpio **);
 int gk104_gpio_new(struct nvkm_device *, int, struct nvkm_gpio **);
+int ga102_gpio_new(struct nvkm_device *, int, struct nvkm_gpio **);
 #endif
