@@ -321,7 +321,7 @@ xfs_bmap_check_leaf_extents(
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
 	struct xfs_btree_block	*block;	/* current btree block */
 	xfs_fsblock_t		bno;	/* block # of "block" */
-	xfs_buf_t		*bp;	/* buffer for "block" */
+	struct xfs_buf		*bp;	/* buffer for "block" */
 	int			error;	/* error return value */
 	xfs_extnum_t		i=0, j;	/* index into the extents list */
 	int			level;	/* btree level, for checking */
@@ -592,7 +592,7 @@ xfs_bmap_btree_to_extents(
 	struct xfs_btree_block	*rblock = ifp->if_broot;
 	struct xfs_btree_block	*cblock;/* child btree block */
 	xfs_fsblock_t		cbno;	/* child block number */
-	xfs_buf_t		*cbp;	/* child block's buffer */
+	struct xfs_buf		*cbp;	/* child block's buffer */
 	int			error;	/* error return value */
 	__be64			*pp;	/* ptr to block address */
 	struct xfs_owner_info	oinfo;
@@ -830,7 +830,7 @@ xfs_bmap_local_to_extents(
 	int		flags;		/* logging flags returned */
 	struct xfs_ifork *ifp;		/* inode fork pointer */
 	xfs_alloc_arg_t	args;		/* allocation arguments */
-	xfs_buf_t	*bp;		/* buffer for extent block */
+	struct xfs_buf	*bp;		/* buffer for extent block */
 	struct xfs_bmbt_irec rec;
 	struct xfs_iext_cursor icur;
 
@@ -6226,23 +6226,17 @@ xfs_bmap_validate_extent(
 	struct xfs_bmbt_irec	*irec)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	xfs_fsblock_t		endfsb;
-	bool			isrt;
 
-	isrt = XFS_IS_REALTIME_INODE(ip);
-	endfsb = irec->br_startblock + irec->br_blockcount - 1;
-	if (isrt && whichfork == XFS_DATA_FORK) {
-		if (!xfs_verify_rtbno(mp, irec->br_startblock))
-			return __this_address;
-		if (!xfs_verify_rtbno(mp, endfsb))
+	if (!xfs_verify_fileext(mp, irec->br_startoff, irec->br_blockcount))
+		return __this_address;
+
+	if (XFS_IS_REALTIME_INODE(ip) && whichfork == XFS_DATA_FORK) {
+		if (!xfs_verify_rtext(mp, irec->br_startblock,
+					  irec->br_blockcount))
 			return __this_address;
 	} else {
-		if (!xfs_verify_fsbno(mp, irec->br_startblock))
-			return __this_address;
-		if (!xfs_verify_fsbno(mp, endfsb))
-			return __this_address;
-		if (XFS_FSB_TO_AGNO(mp, irec->br_startblock) !=
-		    XFS_FSB_TO_AGNO(mp, endfsb))
+		if (!xfs_verify_fsbext(mp, irec->br_startblock,
+					   irec->br_blockcount))
 			return __this_address;
 	}
 	if (irec->br_state != XFS_EXT_NORM && whichfork != XFS_DATA_FORK)

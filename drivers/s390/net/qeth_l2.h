@@ -11,8 +11,6 @@
 
 extern const struct attribute_group *qeth_l2_attr_groups[];
 
-int qeth_l2_create_device_attributes(struct device *);
-void qeth_l2_remove_device_attributes(struct device *);
 int qeth_bridgeport_query_ports(struct qeth_card *card,
 				enum qeth_sbp_roles *role,
 				enum qeth_sbp_states *state);

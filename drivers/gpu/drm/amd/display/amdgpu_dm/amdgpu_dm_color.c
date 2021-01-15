@@ -119,7 +119,7 @@ static bool __is_lut_linear(const struct drm_color_lut *lut, uint32_t size)
 	return true;
 }
 
-/**
+/*
  * Convert the drm_color_lut to dc_gamma. The conversion depends on the size
  * of the lut - whether or not it's legacy.
  */
@@ -413,7 +413,7 @@ int amdgpu_dm_update_crtc_color_mgmt(struct dm_crtc_state *crtc)
 /**
  * amdgpu_dm_update_plane_color_mgmt: Maps DRM color management to DC plane.
  * @crtc: amdgpu_dm crtc state
- * @ dc_plane_state: target DC surface
+ * @dc_plane_state: target DC surface
  *
  * Update the underlying dc_stream_state's input transfer function (ITF) in
  * preparation for hardware commit. The transfer function used depends on

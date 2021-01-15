@@ -37,6 +37,7 @@
 #include "cifs_fs_sb.h"
 #include "cifs_unicode.h"
 #include "fscache.h"
+#include "fs_context.h"
 
 
 static void cifs_set_ops(struct inode *inode)
@@ -294,7 +295,7 @@ cifs_unix_basic_to_fattr(struct cifs_fattr *fattr, FILE_UNIX_BASIC_INFO *info,
 		break;
 	}
 
-	fattr->cf_uid = cifs_sb->mnt_uid;
+	fattr->cf_uid = cifs_sb->ctx->linux_uid;
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID)) {
 		u64 id = le64_to_cpu(info->Uid);
 		if (id < ((uid_t)-1)) {
@@ -304,7 +305,7 @@ cifs_unix_basic_to_fattr(struct cifs_fattr *fattr, FILE_UNIX_BASIC_INFO *info,
 		}
 	}
 	
-	fattr->cf_gid = cifs_sb->mnt_gid;
+	fattr->cf_gid = cifs_sb->ctx->linux_gid;
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID)) {
 		u64 id = le64_to_cpu(info->Gid);
 		if (id < ((gid_t)-1)) {
@@ -333,8 +334,8 @@ cifs_create_dfs_fattr(struct cifs_fattr *fattr, struct super_block *sb)
 
 	memset(fattr, 0, sizeof(*fattr));
 	fattr->cf_mode = S_IFDIR | S_IXUGO | S_IRWXU;
-	fattr->cf_uid = cifs_sb->mnt_uid;
-	fattr->cf_gid = cifs_sb->mnt_gid;
+	fattr->cf_uid = cifs_sb->ctx->linux_uid;
+	fattr->cf_gid = cifs_sb->ctx->linux_gid;
 	ktime_get_coarse_real_ts64(&fattr->cf_mtime);
 	fattr->cf_atime = fattr->cf_ctime = fattr->cf_mtime;
 	fattr->cf_nlink = 2;
@@ -644,8 +645,8 @@ smb311_posix_info_to_fattr(struct cifs_fattr *fattr, struct smb311_posix_qinfo *
 	}
 	/* else if reparse point ... TODO: add support for FIFO and blk dev; special file types */
 
-	fattr->cf_uid = cifs_sb->mnt_uid; /* TODO: map uid and gid from SID */
-	fattr->cf_gid = cifs_sb->mnt_gid;
+	fattr->cf_uid = cifs_sb->ctx->linux_uid; /* TODO: map uid and gid from SID */
+	fattr->cf_gid = cifs_sb->ctx->linux_gid;
 
 	cifs_dbg(FYI, "POSIX query info: mode 0x%x uniqueid 0x%llx nlink %d\n",
 		fattr->cf_mode, fattr->cf_uniqueid, fattr->cf_nlink);
@@ -685,25 +686,25 @@ cifs_all_info_to_fattr(struct cifs_fattr *fattr, FILE_ALL_INFO *info,
 
 	fattr->cf_nlink = le32_to_cpu(info->NumberOfLinks);
 	if (reparse_tag == IO_REPARSE_TAG_LX_SYMLINK) {
-		fattr->cf_mode |= S_IFLNK | cifs_sb->mnt_file_mode;
+		fattr->cf_mode |= S_IFLNK | cifs_sb->ctx->file_mode;
 		fattr->cf_dtype = DT_LNK;
 	} else if (reparse_tag == IO_REPARSE_TAG_LX_FIFO) {
-		fattr->cf_mode |= S_IFIFO | cifs_sb->mnt_file_mode;
+		fattr->cf_mode |= S_IFIFO | cifs_sb->ctx->file_mode;
 		fattr->cf_dtype = DT_FIFO;
 	} else if (reparse_tag == IO_REPARSE_TAG_AF_UNIX) {
-		fattr->cf_mode |= S_IFSOCK | cifs_sb->mnt_file_mode;
+		fattr->cf_mode |= S_IFSOCK | cifs_sb->ctx->file_mode;
 		fattr->cf_dtype = DT_SOCK;
 	} else if (reparse_tag == IO_REPARSE_TAG_LX_CHR) {
-		fattr->cf_mode |= S_IFCHR | cifs_sb->mnt_file_mode;
+		fattr->cf_mode |= S_IFCHR | cifs_sb->ctx->file_mode;
 		fattr->cf_dtype = DT_CHR;
 	} else if (reparse_tag == IO_REPARSE_TAG_LX_BLK) {
-		fattr->cf_mode |= S_IFBLK | cifs_sb->mnt_file_mode;
+		fattr->cf_mode |= S_IFBLK | cifs_sb->ctx->file_mode;
 		fattr->cf_dtype = DT_BLK;
 	} else if (symlink) { /* TODO add more reparse tag checks */
 		fattr->cf_mode = S_IFLNK;
 		fattr->cf_dtype = DT_LNK;
 	} else if (fattr->cf_cifsattrs & ATTR_DIRECTORY) {
-		fattr->cf_mode = S_IFDIR | cifs_sb->mnt_dir_mode;
+		fattr->cf_mode = S_IFDIR | cifs_sb->ctx->dir_mode;
 		fattr->cf_dtype = DT_DIR;
 		/*
 		 * Server can return wrong NumberOfLinks value for directories
@@ -712,7 +713,7 @@ cifs_all_info_to_fattr(struct cifs_fattr *fattr, FILE_ALL_INFO *info,
 		if (!tcon->unix_ext)
 			fattr->cf_flags |= CIFS_FATTR_UNKNOWN_NLINK;
 	} else {
-		fattr->cf_mode = S_IFREG | cifs_sb->mnt_file_mode;
+		fattr->cf_mode = S_IFREG | cifs_sb->ctx->file_mode;
 		fattr->cf_dtype = DT_REG;
 
 		/* clear write bits if ATTR_READONLY is set */
@@ -731,8 +732,8 @@ cifs_all_info_to_fattr(struct cifs_fattr *fattr, FILE_ALL_INFO *info,
 		}
 	}
 
-	fattr->cf_uid = cifs_sb->mnt_uid;
-	fattr->cf_gid = cifs_sb->mnt_gid;
+	fattr->cf_uid = cifs_sb->ctx->linux_uid;
+	fattr->cf_gid = cifs_sb->ctx->linux_gid;
 }
 
 static int
@@ -771,6 +772,7 @@ cifs_get_file_info(struct file *filp)
 		 */
 		rc = 0;
 		CIFS_I(inode)->time = 0;
+		goto cgfi_exit;
 	default:
 		goto cgfi_exit;
 	}
@@ -803,11 +805,15 @@ static __u64 simple_hashstr(const char *str)
  * cifs_backup_query_path_info - SMB1 fallback code to get ino
  *
  * Fallback code to get file metadata when we don't have access to
- * @full_path (EACCES) and have backup creds.
+ * full_path (EACCES) and have backup creds.
  *
- * @data will be set to search info result buffer
- * @resp_buf will be set to cifs resp buf and needs to be freed with
- * cifs_buf_release() when done with @data.
+ * @xid:	transaction id used to identify original request in logs
+ * @tcon:	information about the server share we have mounted
+ * @sb:	the superblock stores info such as disk space available
+ * @full_path:	name of the file we are getting the metadata for
+ * @resp_buf:	will be set to cifs resp buf and needs to be freed with
+ * 		cifs_buf_release() when done with @data
+ * @data:	will be set to search info result buffer
  */
 static int
 cifs_backup_query_path_info(int xid,
@@ -1386,8 +1392,8 @@ iget_no_retry:
 		set_nlink(inode, 2);
 		inode->i_op = &cifs_ipc_inode_ops;
 		inode->i_fop = &simple_dir_operations;
-		inode->i_uid = cifs_sb->mnt_uid;
-		inode->i_gid = cifs_sb->mnt_gid;
+		inode->i_uid = cifs_sb->ctx->linux_uid;
+		inode->i_gid = cifs_sb->ctx->linux_gid;
 		spin_unlock(&inode->i_lock);
 	} else if (rc) {
 		iget_failed(inode);
@@ -2192,11 +2198,11 @@ cifs_inode_needs_reval(struct inode *inode)
 	if (!lookupCacheEnabled)
 		return true;
 
-	if (!cifs_sb->actimeo)
+	if (!cifs_sb->ctx->actimeo)
 		return true;
 
 	if (!time_in_range(jiffies, cifs_i->time,
-				cifs_i->time + cifs_sb->actimeo))
+				cifs_i->time + cifs_sb->ctx->actimeo))
 		return true;
 
 	/* hardlinked files w/ noserverino get "special" treatment */
@@ -2228,7 +2234,9 @@ cifs_invalidate_mapping(struct inode *inode)
 
 /**
  * cifs_wait_bit_killable - helper for functions that are sleeping on bit locks
- * @word: long word containing the bit lock
+ *
+ * @key:	currently unused
+ * @mode:	the task state to sleep in
  */
 static int
 cifs_wait_bit_killable(struct wait_bit_key *key, int mode)
@@ -2401,7 +2409,7 @@ int cifs_getattr(const struct path *path, struct kstat *stat,
 	}
 
 	generic_fillattr(inode, stat);
-	stat->blksize = cifs_sb->bsize;
+	stat->blksize = cifs_sb->ctx->bsize;
 	stat->ino = CIFS_I(inode)->uniqueid;
 
 	/* old CIFS Unix Extensions doesn't return create time */
@@ -2812,7 +2820,8 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) ||
 	    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MODE_FROM_SID)) {
 		if (uid_valid(uid) || gid_valid(gid)) {
-			rc = id_mode_to_cifs_acl(inode, full_path, NO_CHANGE_64,
+			mode = NO_CHANGE_64;
+			rc = id_mode_to_cifs_acl(inode, full_path, &mode,
 							uid, gid);
 			if (rc) {
 				cifs_dbg(FYI, "%s: Setting id failed with error: %d\n",
@@ -2833,13 +2842,20 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 		rc = 0;
 		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) ||
 		    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MODE_FROM_SID)) {
-			rc = id_mode_to_cifs_acl(inode, full_path, mode,
+			rc = id_mode_to_cifs_acl(inode, full_path, &mode,
 						INVALID_UID, INVALID_GID);
 			if (rc) {
 				cifs_dbg(FYI, "%s: Setting ACL failed with error: %d\n",
 					 __func__, rc);
 				goto cifs_setattr_exit;
 			}
+
+			/*
+			 * In case of CIFS_MOUNT_CIFS_ACL, we cannot support all modes.
+			 * Pick up the actual mode bits that were set.
+			 */
+			if (mode != attrs->ia_mode)
+				attrs->ia_mode = mode;
 		} else
 		if (((mode & S_IWUGO) == 0) &&
 		    (cifsInode->cifsAttrs & ATTR_READONLY) == 0) {
@@ -2862,10 +2878,10 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 				attrs->ia_mode &= ~(S_IALLUGO);
 				if (S_ISDIR(inode->i_mode))
 					attrs->ia_mode |=
-						cifs_sb->mnt_dir_mode;
+						cifs_sb->ctx->dir_mode;
 				else
 					attrs->ia_mode |=
-						cifs_sb->mnt_file_mode;
+						cifs_sb->ctx->file_mode;
 			}
 		} else if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM)) {
 			/* ignore mode change - ATTR_READONLY hasn't changed */

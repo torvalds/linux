@@ -385,6 +385,9 @@ static inline struct tfrc_rx_hist_entry *
 
 /**
  * tfrc_rx_hist_sample_rtt  -  Sample RTT from timestamp / CCVal
+ * @h: receive histogram
+ * @skb: packet containing timestamp.
+ *
  * Based on ideas presented in RFC 4342, 8.1. Returns 0 if it was not able
  * to compute a sample with given data - calling function should check this.
  */

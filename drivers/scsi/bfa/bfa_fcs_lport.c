@@ -5671,7 +5671,7 @@ bfa_fcs_lport_scn_process_rscn(struct bfa_fcs_lport_s *port,
 				bfa_fcs_lport_ms_fabric_rscn(port);
 				break;
 			}
-			/* !!!!!!!!! Fall Through !!!!!!!!!!!!! */
+			fallthrough;
 
 		case FC_RSCN_FORMAT_AREA:
 		case FC_RSCN_FORMAT_DOMAIN:

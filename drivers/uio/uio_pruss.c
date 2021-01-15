@@ -99,7 +99,6 @@ static void pruss_cleanup(struct device *dev, struct uio_pruss_dev *gdev)
 
 	for (cnt = 0; cnt < MAX_PRUSS_EVT; cnt++, p++) {
 		uio_unregister_device(p);
-		kfree(p->name);
 	}
 	iounmap(gdev->prussio_vaddr);
 	if (gdev->ddr_vaddr) {
@@ -110,10 +109,7 @@ static void pruss_cleanup(struct device *dev, struct uio_pruss_dev *gdev)
 		gen_pool_free(gdev->sram_pool,
 			      gdev->sram_vaddr,
 			      sram_pool_sz);
-	kfree(gdev->info);
 	clk_disable(gdev->pruss_clk);
-	clk_put(gdev->pruss_clk);
-	kfree(gdev);
 }
 
 static int pruss_probe(struct platform_device *pdev)
@@ -125,28 +121,25 @@ static int pruss_probe(struct platform_device *pdev)
 	int ret, cnt, i, len;
 	struct uio_pruss_pdata *pdata = dev_get_platdata(dev);
 
-	gdev = kzalloc(sizeof(struct uio_pruss_dev), GFP_KERNEL);
+	gdev = devm_kzalloc(dev, sizeof(struct uio_pruss_dev), GFP_KERNEL);
 	if (!gdev)
 		return -ENOMEM;
 
-	gdev->info = kcalloc(MAX_PRUSS_EVT, sizeof(*p), GFP_KERNEL);
-	if (!gdev->info) {
-		ret = -ENOMEM;
-		goto err_free_gdev;
-	}
+	gdev->info = devm_kcalloc(dev, MAX_PRUSS_EVT, sizeof(*p), GFP_KERNEL);
+	if (!gdev->info)
+		return -ENOMEM;
 
 	/* Power on PRU in case its not done as part of boot-loader */
-	gdev->pruss_clk = clk_get(dev, "pruss");
+	gdev->pruss_clk = devm_clk_get(dev, "pruss");
 	if (IS_ERR(gdev->pruss_clk)) {
 		dev_err(dev, "Failed to get clock\n");
-		ret = PTR_ERR(gdev->pruss_clk);
-		goto err_free_info;
+		return PTR_ERR(gdev->pruss_clk);
 	}
 
 	ret = clk_enable(gdev->pruss_clk);
 	if (ret) {
 		dev_err(dev, "Failed to enable clock\n");
-		goto err_clk_put;
+		return ret;
 	}
 
 	regs_prussio = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -206,7 +199,7 @@ static int pruss_probe(struct platform_device *pdev)
 		p->mem[2].size = extram_pool_sz;
 		p->mem[2].memtype = UIO_MEM_PHYS;
 
-		p->name = kasprintf(GFP_KERNEL, "pruss_evt%d", cnt);
+		p->name = devm_kasprintf(dev, GFP_KERNEL, "pruss_evt%d", cnt);
 		p->version = DRV_VERSION;
 
 		/* Register PRUSS IRQ lines */
@@ -215,10 +208,8 @@ static int pruss_probe(struct platform_device *pdev)
 		p->priv = gdev;
 
 		ret = uio_register_device(dev, p);
-		if (ret < 0) {
-			kfree(p->name);
+		if (ret < 0)
 			goto err_unloop;
-		}
 	}
 
 	platform_set_drvdata(pdev, gdev);
@@ -227,7 +218,6 @@ static int pruss_probe(struct platform_device *pdev)
 err_unloop:
 	for (i = 0, p = gdev->info; i < cnt; i++, p++) {
 		uio_unregister_device(p);
-		kfree(p->name);
 	}
 	iounmap(gdev->prussio_vaddr);
 err_free_ddr_vaddr:
@@ -238,12 +228,6 @@ err_free_sram:
 		gen_pool_free(gdev->sram_pool, gdev->sram_vaddr, sram_pool_sz);
 err_clk_disable:
 	clk_disable(gdev->pruss_clk);
-err_clk_put:
-	clk_put(gdev->pruss_clk);
-err_free_info:
-	kfree(gdev->info);
-err_free_gdev:
-	kfree(gdev);
 
 	return ret;
 }

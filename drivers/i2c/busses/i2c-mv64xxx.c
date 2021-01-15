@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/mv643xx_i2c.h>
 #include <linux/platform_device.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/reset.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -147,6 +148,7 @@ struct mv64xxx_i2c_data {
 	bool			irq_clear_inverted;
 	/* Clk div is 2 to the power n, not 2 to the power n + 1 */
 	bool			clk_n_base_0;
+	struct i2c_bus_recovery_info	rinfo;
 };
 
 static struct mv64xxx_i2c_regs mv64xxx_i2c_regs_mv64xxx = {
@@ -325,7 +327,8 @@ mv64xxx_i2c_fsm(struct mv64xxx_i2c_data *drv_data, u32 status)
 			 drv_data->msg->flags);
 		drv_data->action = MV64XXX_I2C_ACTION_SEND_STOP;
 		mv64xxx_i2c_hw_init(drv_data);
-		drv_data->rc = -EIO;
+		i2c_recover_bus(&drv_data->adapter);
+		drv_data->rc = -EAGAIN;
 	}
 }
 
@@ -561,6 +564,7 @@ mv64xxx_i2c_wait_for_completion(struct mv64xxx_i2c_data *drv_data)
 				"time_left: %d\n", drv_data->block,
 				(int)time_left);
 			mv64xxx_i2c_hw_init(drv_data);
+			i2c_recover_bus(&drv_data->adapter);
 		}
 	} else
 		spin_unlock_irqrestore(&drv_data->lock, flags);
@@ -870,6 +874,25 @@ mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 }
 #endif /* CONFIG_OF */
 
+static int mv64xxx_i2c_init_recovery_info(struct mv64xxx_i2c_data *drv_data,
+					  struct device *dev)
+{
+	struct i2c_bus_recovery_info *rinfo = &drv_data->rinfo;
+
+	rinfo->pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR(rinfo->pinctrl)) {
+		if (PTR_ERR(rinfo->pinctrl) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		dev_info(dev, "can't get pinctrl, bus recovery not supported\n");
+		return PTR_ERR(rinfo->pinctrl);
+	} else if (!rinfo->pinctrl) {
+		return -ENODEV;
+	}
+
+	drv_data->adapter.bus_recovery_info = rinfo;
+	return 0;
+}
+
 static int
 mv64xxx_i2c_probe(struct platform_device *pd)
 {
@@ -925,6 +948,10 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 		rc = drv_data->irq;
 		goto exit_reset;
 	}
+
+	rc = mv64xxx_i2c_init_recovery_info(drv_data, &pd->dev);
+	if (rc == -EPROBE_DEFER)
+		goto exit_reset;
 
 	drv_data->adapter.dev.parent = &pd->dev;
 	drv_data->adapter.algo = &mv64xxx_i2c_algo;

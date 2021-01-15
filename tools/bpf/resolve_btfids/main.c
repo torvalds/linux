@@ -454,7 +454,7 @@ static int symbols_collect(struct object *obj)
 			return -ENOMEM;
 
 		if (id->addr_cnt >= ADDR_CNT) {
-			pr_err("FAILED symbol %s crossed the number of allowed lists",
+			pr_err("FAILED symbol %s crossed the number of allowed lists\n",
 				id->name);
 			return -1;
 		}
@@ -477,8 +477,8 @@ static int symbols_resolve(struct object *obj)
 	btf = btf__parse(obj->btf ?: obj->path, NULL);
 	err = libbpf_get_error(btf);
 	if (err) {
-		pr_err("FAILED: load BTF from %s: %s",
-			obj->path, strerror(err));
+		pr_err("FAILED: load BTF from %s: %s\n",
+			obj->path, strerror(-err));
 		return -1;
 	}
 

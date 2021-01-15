@@ -26,7 +26,7 @@ static int test_expand_events(struct evlist *evlist,
 	char **ev_name;
 	struct evsel *evsel;
 
-	TEST_ASSERT_VAL("evlist is empty", !perf_evlist__empty(evlist));
+	TEST_ASSERT_VAL("evlist is empty", !evlist__empty(evlist));
 
 	nr_events = evlist->core.nr_entries;
 	ev_name = calloc(nr_events, sizeof(*ev_name));
@@ -100,10 +100,9 @@ out:	for (i = 0; i < nr_events; i++)
 static int expand_default_events(void)
 {
 	int ret;
-	struct evlist *evlist;
 	struct rblist metric_events;
+	struct evlist *evlist = evlist__new_default();
 
-	evlist = perf_evlist__new_default();
 	TEST_ASSERT_VAL("failed to get evlist", evlist);
 
 	rblist__init(&metric_events);
@@ -145,7 +144,7 @@ static int expand_libpfm_events(void)
 	int ret;
 	struct evlist *evlist;
 	struct rblist metric_events;
-	const char event_str[] = "UNHALTED_CORE_CYCLES";
+	const char event_str[] = "CYCLES";
 	struct option opt = {
 		.value = &evlist,
 	};
@@ -161,7 +160,7 @@ static int expand_libpfm_events(void)
 			 event_str, ret);
 		goto out;
 	}
-	if (perf_evlist__empty(evlist)) {
+	if (evlist__empty(evlist)) {
 		pr_debug("libpfm was not enabled\n");
 		goto out;
 	}

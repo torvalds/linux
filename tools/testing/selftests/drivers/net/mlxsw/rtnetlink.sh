@@ -22,6 +22,7 @@ ALL_TESTS="
 	duplicate_vlans_test
 	vlan_rif_refcount_test
 	subport_rif_refcount_test
+	subport_rif_lag_join_test
 	vlan_dev_deletion_test
 	lag_unlink_slaves_test
 	lag_dev_deletion_test
@@ -29,6 +30,11 @@ ALL_TESTS="
 	bridge_extern_learn_test
 	neigh_offload_test
 	nexthop_offload_test
+	nexthop_obj_invalid_test
+	nexthop_obj_offload_test
+	nexthop_obj_group_offload_test
+	nexthop_obj_blackhole_offload_test
+	nexthop_obj_route_offload_test
 	devlink_reload_test
 "
 NUM_NETIFS=2
@@ -435,6 +441,48 @@ subport_rif_refcount_test()
 	ip link del dev bond1
 }
 
+subport_rif_lag_join_test()
+{
+	# Test that the reference count of a RIF configured for a LAG is
+	# incremented / decremented when ports join / leave the LAG. We use the
+	# offload indication on routes configured on the RIF to understand if
+	# it was created / destroyed
+	RET=0
+
+	ip link add name bond1 type bond mode 802.3ad
+	ip link set dev $swp1 down
+	ip link set dev $swp2 down
+	ip link set dev $swp1 master bond1
+	ip link set dev $swp2 master bond1
+
+	ip link set dev bond1 up
+	ip -6 address add 2001:db8:1::1/64 dev bond1
+
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:1::2 dev bond1
+	check_err $? "subport rif was not created on lag device"
+
+	ip link set dev $swp1 nomaster
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:1::2 dev bond1
+	check_err $? "subport rif of lag device was destroyed after removing one port"
+
+	ip link set dev $swp1 master bond1
+	ip link set dev $swp2 nomaster
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:1::2 dev bond1
+	check_err $? "subport rif of lag device was destroyed after re-adding a port and removing another"
+
+	ip link set dev $swp1 nomaster
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:1::2 dev bond1
+	check_err $? "subport rif of lag device was not destroyed when should"
+
+	log_test "subport rif lag join"
+
+	ip link del dev bond1
+}
+
 vlan_dev_deletion_test()
 {
 	# Test that VLAN devices are correctly deleted / unlinked when enslaved
@@ -672,6 +720,209 @@ nexthop_offload_test()
 	simple_if_fini $swp2 192.0.2.2/24 2001:db8:1::2/64
 	simple_if_fini $swp1 192.0.2.1/24 2001:db8:1::1/64
 	sysctl_restore net.ipv6.conf.$swp2.keep_addr_on_down
+}
+
+nexthop_obj_invalid_test()
+{
+	# Test that invalid nexthop object configurations are rejected
+	RET=0
+
+	simple_if_init $swp1 192.0.2.1/24 2001:db8:1::1/64
+	simple_if_init $swp2 192.0.2.2/24 2001:db8:1::2/64
+	setup_wait
+
+	ip nexthop add id 1 via 192.0.2.3 fdb
+	check_fail $? "managed to configure an FDB nexthop when should not"
+
+	ip nexthop add id 1 encap mpls 200/300 via 192.0.2.3 dev $swp1
+	check_fail $? "managed to configure a nexthop with MPLS encap when should not"
+
+	ip nexthop add id 1 dev $swp1
+	ip nexthop add id 2 dev $swp1
+	ip nexthop add id 10 group 1/2
+	check_fail $? "managed to configure a nexthop group with device-only nexthops when should not"
+
+	log_test "nexthop objects - invalid configurations"
+
+	ip nexthop del id 2
+	ip nexthop del id 1
+
+	simple_if_fini $swp2 192.0.2.2/24 2001:db8:1::2/64
+	simple_if_fini $swp1 192.0.2.1/24 2001:db8:1::1/64
+}
+
+nexthop_obj_offload_test()
+{
+	# Test offload indication of nexthop objects
+	RET=0
+
+	simple_if_init $swp1 192.0.2.1/24 2001:db8:1::1/64
+	simple_if_init $swp2
+	setup_wait
+
+	ip nexthop add id 1 via 192.0.2.2 dev $swp1
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud reachable \
+		dev $swp1
+
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 1
+	check_err $? "nexthop not marked as offloaded when should"
+
+	ip neigh replace 192.0.2.2 nud failed dev $swp1
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip nexthop show id 1
+	check_err $? "nexthop marked as offloaded after setting neigh to failed state"
+
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud reachable \
+		dev $swp1
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 1
+	check_err $? "nexthop not marked as offloaded after neigh replace"
+
+	ip nexthop replace id 1 via 192.0.2.3 dev $swp1
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip nexthop show id 1
+	check_err $? "nexthop marked as offloaded after replacing to use an invalid address"
+
+	ip nexthop replace id 1 via 192.0.2.2 dev $swp1
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 1
+	check_err $? "nexthop not marked as offloaded after replacing to use a valid address"
+
+	log_test "nexthop objects offload indication"
+
+	ip neigh del 192.0.2.2 dev $swp1
+	ip nexthop del id 1
+
+	simple_if_fini $swp2
+	simple_if_fini $swp1 192.0.2.1/24 2001:db8:1::1/64
+}
+
+nexthop_obj_group_offload_test()
+{
+	# Test offload indication of nexthop group objects
+	RET=0
+
+	simple_if_init $swp1 192.0.2.1/24 2001:db8:1::1/64
+	simple_if_init $swp2
+	setup_wait
+
+	ip nexthop add id 1 via 192.0.2.2 dev $swp1
+	ip nexthop add id 2 via 2001:db8:1::2 dev $swp1
+	ip nexthop add id 10 group 1/2
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud reachable \
+		dev $swp1
+	ip neigh replace 192.0.2.3 lladdr 00:11:22:33:44:55 nud reachable \
+		dev $swp1
+	ip neigh replace 2001:db8:1::2 lladdr 00:11:22:33:44:55 nud reachable \
+		dev $swp1
+
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 1
+	check_err $? "IPv4 nexthop not marked as offloaded when should"
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 2
+	check_err $? "IPv6 nexthop not marked as offloaded when should"
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 10
+	check_err $? "nexthop group not marked as offloaded when should"
+
+	# Invalidate nexthop id 1
+	ip neigh replace 192.0.2.2 nud failed dev $swp1
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip nexthop show id 10
+	check_fail $? "nexthop group not marked as offloaded with one valid nexthop"
+
+	# Invalidate nexthop id 2
+	ip neigh replace 2001:db8:1::2 nud failed dev $swp1
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip nexthop show id 10
+	check_err $? "nexthop group marked as offloaded when should not"
+
+	# Revalidate nexthop id 1
+	ip nexthop replace id 1 via 192.0.2.3 dev $swp1
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 10
+	check_err $? "nexthop group not marked as offloaded after revalidating nexthop"
+
+	log_test "nexthop group objects offload indication"
+
+	ip neigh del 2001:db8:1::2 dev $swp1
+	ip neigh del 192.0.2.3 dev $swp1
+	ip neigh del 192.0.2.2 dev $swp1
+	ip nexthop del id 10
+	ip nexthop del id 2
+	ip nexthop del id 1
+
+	simple_if_fini $swp2
+	simple_if_fini $swp1 192.0.2.1/24 2001:db8:1::1/64
+}
+
+nexthop_obj_blackhole_offload_test()
+{
+	# Test offload indication of blackhole nexthop objects
+	RET=0
+
+	ip nexthop add id 1 blackhole
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 1
+	check_err $? "Blackhole nexthop not marked as offloaded when should"
+
+	ip nexthop add id 10 group 1
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 10
+	check_err $? "Nexthop group not marked as offloaded when should"
+
+	log_test "blackhole nexthop objects offload indication"
+
+	ip nexthop del id 10
+	ip nexthop del id 1
+}
+
+nexthop_obj_route_offload_test()
+{
+	# Test offload indication of routes using nexthop objects
+	RET=0
+
+	simple_if_init $swp1 192.0.2.1/24 2001:db8:1::1/64
+	simple_if_init $swp2
+	setup_wait
+
+	ip nexthop add id 1 via 192.0.2.2 dev $swp1
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud reachable \
+		dev $swp1
+	ip neigh replace 192.0.2.3 lladdr 00:11:22:33:44:55 nud reachable \
+		dev $swp1
+
+	ip route replace 198.51.100.0/24 nhid 1
+	busywait "$TIMEOUT" wait_for_offload \
+		ip route show 198.51.100.0/24
+	check_err $? "route not marked as offloaded when using valid nexthop"
+
+	ip nexthop replace id 1 via 192.0.2.3 dev $swp1
+	busywait "$TIMEOUT" wait_for_offload \
+		ip route show 198.51.100.0/24
+	check_err $? "route not marked as offloaded after replacing valid nexthop with a valid one"
+
+	ip nexthop replace id 1 via 192.0.2.4 dev $swp1
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip route show 198.51.100.0/24
+	check_err $? "route marked as offloaded after replacing valid nexthop with an invalid one"
+
+	ip nexthop replace id 1 via 192.0.2.2 dev $swp1
+	busywait "$TIMEOUT" wait_for_offload \
+		ip route show 198.51.100.0/24
+	check_err $? "route not marked as offloaded after replacing invalid nexthop with a valid one"
+
+	log_test "routes using nexthop objects offload indication"
+
+	ip route del 198.51.100.0/24
+	ip neigh del 192.0.2.3 dev $swp1
+	ip neigh del 192.0.2.2 dev $swp1
+	ip nexthop del id 1
+
+	simple_if_fini $swp2
+	simple_if_fini $swp1 192.0.2.1/24 2001:db8:1::1/64
 }
 
 devlink_reload_test()

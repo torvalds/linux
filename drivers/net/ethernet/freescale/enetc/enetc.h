@@ -147,9 +147,8 @@ struct enetc_msg_swbd {
 
 #define ENETC_REV1	0x1
 enum enetc_errata {
-	ENETC_ERR_TXCSUM	= BIT(0),
-	ENETC_ERR_VLAN_ISOL	= BIT(1),
-	ENETC_ERR_UCMCSWP	= BIT(2),
+	ENETC_ERR_VLAN_ISOL	= BIT(0),
+	ENETC_ERR_UCMCSWP	= BIT(1),
 };
 
 #define ENETC_SI_F_QBV BIT(0)

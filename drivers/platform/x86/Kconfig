@@ -78,6 +78,17 @@ config HUAWEI_WMI
 	  To compile this driver as a module, choose M here: the module
 	  will be called huawei-wmi.
 
+config UV_SYSFS
+	tristate "Sysfs structure for UV systems"
+	depends on X86_UV
+	depends on SYSFS
+	help
+	  This driver supports a sysfs tree describing information about
+	  UV systems at /sys/firmware/sgi_uv/.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called uv_sysfs.
+
 config INTEL_WMI_SBL_FW_UPDATE
 	tristate "Intel WMI Slim Bootloader firmware update signaling driver"
 	depends on ACPI_WMI
@@ -179,6 +190,20 @@ config ACER_WMI
 
 	  If you have an ACPI-WMI compatible Acer/ Wistron laptop, say Y or M
 	  here.
+
+config AMD_PMC
+	tristate "AMD SoC PMC driver"
+	depends on ACPI && PCI
+	help
+	  The driver provides support for AMD Power Management Controller
+	  primarily responsible for S2Idle transactions that are driven from
+	  a platform firmware running on SMU. This driver also provides a debug
+	  mechanism to investigate the S2Idle transactions and failures.
+
+	  Say Y or M here if you have a notebook powered by AMD RYZEN CPU/APU.
+
+	  If you choose to compile this driver as a module the module will be
+	  called amd-pmc.
 
 config APPLE_GMUX
 	tristate "Apple Gmux Driver"
@@ -429,6 +454,18 @@ config DELL_WMI
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called dell-wmi.
+
+config DELL_WMI_SYSMAN
+	tristate "Dell WMI-based Systems management driver"
+	depends on ACPI_WMI
+	depends on DMI
+	select NLS
+	help
+	  This driver allows changing BIOS settings on many Dell machines from
+	  2018 and newer without the use of any additional software.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called dell-wmi-sysman.
 
 config DELL_WMI_DESCRIPTOR
 	tristate
@@ -869,37 +906,6 @@ config INTEL_VBTN
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called intel_vbtn.
-
-config SURFACE3_WMI
-	tristate "Surface 3 WMI Driver"
-	depends on ACPI_WMI
-	depends on DMI
-	depends on INPUT
-	depends on SPI
-	help
-	  Say Y here if you have a Surface 3.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called surface3-wmi.
-
-config SURFACE_3_BUTTON
-	tristate "Power/home/volume buttons driver for Microsoft Surface 3 tablet"
-	depends on ACPI && KEYBOARD_GPIO && I2C
-	help
-	  This driver handles the power/home/volume buttons on the Microsoft Surface 3 tablet.
-
-config SURFACE_3_POWER_OPREGION
-	tristate "Surface 3 battery platform operation region support"
-	depends on ACPI && I2C
-	help
-	  This driver provides support for ACPI operation
-	  region of the Surface 3 battery platform driver.
-
-config SURFACE_PRO3_BUTTON
-	tristate "Power/home/volume buttons driver for Microsoft Surface Pro 3/4 tablet"
-	depends on ACPI && INPUT
-	help
-	  This driver handles the power/home/volume buttons on the Microsoft Surface Pro 3/4 tablet.
 
 config MSI_LAPTOP
 	tristate "MSI Laptop Extras"
@@ -1361,6 +1367,40 @@ config INTEL_PMC_CORE
 		- PCH IP Power Gating status
 		- LTR Ignore
 		- MPHY/PLL gating status (Sunrisepoint PCH only)
+
+config INTEL_PMT_CLASS
+	tristate "Intel Platform Monitoring Technology (PMT) Class driver"
+	help
+	  The Intel Platform Monitoring Technology (PMT) class driver provides
+	  the basic sysfs interface and file hierarchy uses by PMT devices.
+
+	  For more information, see:
+	  <file:Documentation/ABI/testing/sysfs-class-intel_pmt>
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel_pmt_class.
+
+config INTEL_PMT_TELEMETRY
+	tristate "Intel Platform Monitoring Technology (PMT) Telemetry driver"
+	select INTEL_PMT_CLASS
+	help
+	  The Intel Platform Monitory Technology (PMT) Telemetry driver provides
+	  access to hardware telemetry metrics on devices that support the
+	  feature.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel_pmt_telemetry.
+
+config INTEL_PMT_CRASHLOG
+	tristate "Intel Platform Monitoring Technology (PMT) Crashlog driver"
+	select INTEL_PMT_CLASS
+	help
+	  The Intel Platform Monitoring Technology (PMT) crashlog driver provides
+	  access to hardware crashlog capabilities on devices that support the
+	  feature.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel_pmt_crashlog.
 
 config INTEL_PUNIT_IPC
 	tristate "Intel P-Unit IPC Driver"

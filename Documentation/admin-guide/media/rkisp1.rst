@@ -86,7 +86,7 @@ the driver through the rkisp_params node to improve image quality during a
 video stream.
 The buffer format is defined by struct :c:type:`rkisp1_stat_buffer`, and
 userspace should set
-:ref:`V4L2_META_FMT_RK_ISP1_STAT_3A <v4l2-meta-fmt-stat-rkisp1>` as the
+:ref:`V4L2_META_FMT_RK_ISP1_STAT_3A <v4l2-meta-fmt-rk-isp1-stat-3a>` as the
 dataformat.
 
 .. _rkisp1_params:
@@ -100,7 +100,7 @@ and others.
 
 The buffer format is defined by struct :c:type:`rkisp1_params_cfg`, and
 userspace should set
-:ref:`V4L2_META_FMT_RK_ISP1_PARAMS <v4l2-meta-fmt-params-rkisp1>` as the
+:ref:`V4L2_META_FMT_RK_ISP1_PARAMS <v4l2-meta-fmt-rk-isp1-params>` as the
 dataformat.
 
 

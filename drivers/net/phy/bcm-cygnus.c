@@ -256,8 +256,8 @@ static struct phy_driver bcm_cygnus_phy_driver[] = {
 	.name          = "Broadcom Cygnus PHY",
 	/* PHY_GBIT_FEATURES */
 	.config_init   = bcm_cygnus_config_init,
-	.ack_interrupt = bcm_phy_ack_intr,
 	.config_intr   = bcm_phy_config_intr,
+	.handle_interrupt = bcm_phy_handle_interrupt,
 	.suspend       = genphy_suspend,
 	.resume        = bcm_cygnus_resume,
 }, {

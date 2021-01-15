@@ -29,7 +29,7 @@
 				};
 			};
 
-			cpu-pwr-req {
+			cpu-pwr-req-hog {
 				gpio-hog;
 				gpios = <6 GPIO_ACTIVE_HIGH>;
 				input;

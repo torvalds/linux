@@ -459,9 +459,9 @@ int vmw_bo_cpu_blit(struct ttm_buffer_object *dst,
 	int ret = 0;
 
 	/* Buffer objects need to be either pinned or reserved: */
-	if (!(dst->mem.placement & TTM_PL_FLAG_NO_EVICT))
+	if (!(dst->pin_count))
 		dma_resv_assert_held(dst->base.resv);
-	if (!(src->mem.placement & TTM_PL_FLAG_NO_EVICT))
+	if (!(src->pin_count))
 		dma_resv_assert_held(src->base.resv);
 
 	if (!ttm_tt_is_populated(dst->ttm)) {
@@ -484,8 +484,8 @@ int vmw_bo_cpu_blit(struct ttm_buffer_object *dst,
 	d.src_pages = src->ttm->pages;
 	d.dst_num_pages = dst->num_pages;
 	d.src_num_pages = src->num_pages;
-	d.dst_prot = ttm_io_prot(dst->mem.placement, PAGE_KERNEL);
-	d.src_prot = ttm_io_prot(src->mem.placement, PAGE_KERNEL);
+	d.dst_prot = ttm_io_prot(dst, &dst->mem, PAGE_KERNEL);
+	d.src_prot = ttm_io_prot(src, &src->mem, PAGE_KERNEL);
 	d.diff = diff;
 
 	for (j = 0; j < h; ++j) {

@@ -305,7 +305,7 @@ pac7302         093a:2625	Genius iSlim 310
 pac7302         093a:2626	Labtec 2200
 pac7302         093a:2627	Genius FaceCam 300
 pac7302         093a:2628	Genius iLook 300
-pac7302         093a:2629	Genious iSlim 300
+pac7302         093a:2629	Genius iSlim 300
 pac7302         093a:262a	Webcam 300k
 pac7302         093a:262c	Philips SPC 230 NC
 jl2005bcd       0979:0227	Various brands, 19 known cameras supported

@@ -473,9 +473,7 @@ struct tomoyo_policy_namespace *tomoyo_assign_namespace(const char *domainname)
 		return ptr;
 	if (len >= TOMOYO_EXEC_TMPSIZE - 10 || !tomoyo_domain_def(domainname))
 		return NULL;
-	entry = kzalloc(sizeof(*entry) + len + 1, GFP_NOFS);
-	if (!entry)
-		return NULL;
+	entry = kzalloc(sizeof(*entry) + len + 1, GFP_NOFS | __GFP_NOWARN);
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
 	ptr = tomoyo_find_namespace(domainname, len);
@@ -891,7 +889,7 @@ force_jump_domain:
  *
  * @bprm: Pointer to "struct linux_binprm".
  * @pos:  Location to dump.
- * @dump: Poiner to "struct tomoyo_page_dump".
+ * @dump: Pointer to "struct tomoyo_page_dump".
  *
  * Returns true on success, false otherwise.
  */

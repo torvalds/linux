@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# National Instuments network device configuration
+# National Instruments network device configuration
 #
 
 config NET_VENDOR_NI

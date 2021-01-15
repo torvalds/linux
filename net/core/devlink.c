@@ -3394,7 +3394,7 @@ out_free_msg:
 	nlmsg_free(msg);
 }
 
-void devlink_flash_update_begin_notify(struct devlink *devlink)
+static void devlink_flash_update_begin_notify(struct devlink *devlink)
 {
 	struct devlink_flash_notify params = { 0 };
 
@@ -3402,9 +3402,8 @@ void devlink_flash_update_begin_notify(struct devlink *devlink)
 				      DEVLINK_CMD_FLASH_UPDATE,
 				      &params);
 }
-EXPORT_SYMBOL_GPL(devlink_flash_update_begin_notify);
 
-void devlink_flash_update_end_notify(struct devlink *devlink)
+static void devlink_flash_update_end_notify(struct devlink *devlink)
 {
 	struct devlink_flash_notify params = { 0 };
 
@@ -3412,7 +3411,6 @@ void devlink_flash_update_end_notify(struct devlink *devlink)
 				      DEVLINK_CMD_FLASH_UPDATE_END,
 				      &params);
 }
-EXPORT_SYMBOL_GPL(devlink_flash_update_end_notify);
 
 void devlink_flash_update_status_notify(struct devlink *devlink,
 					const char *status_msg,
@@ -3453,10 +3451,12 @@ EXPORT_SYMBOL_GPL(devlink_flash_update_timeout_notify);
 static int devlink_nl_cmd_flash_update(struct sk_buff *skb,
 				       struct genl_info *info)
 {
-	struct nlattr *nla_component, *nla_overwrite_mask;
+	struct nlattr *nla_component, *nla_overwrite_mask, *nla_file_name;
 	struct devlink_flash_update_params params = {};
 	struct devlink *devlink = info->user_ptr[0];
+	const char *file_name;
 	u32 supported_params;
+	int ret;
 
 	if (!devlink->ops->flash_update)
 		return -EOPNOTSUPP;
@@ -3465,8 +3465,6 @@ static int devlink_nl_cmd_flash_update(struct sk_buff *skb,
 		return -EINVAL;
 
 	supported_params = devlink->ops->supported_flash_update_params;
-
-	params.file_name = nla_data(info->attrs[DEVLINK_ATTR_FLASH_UPDATE_FILE_NAME]);
 
 	nla_component = info->attrs[DEVLINK_ATTR_FLASH_UPDATE_COMPONENT];
 	if (nla_component) {
@@ -3491,7 +3489,21 @@ static int devlink_nl_cmd_flash_update(struct sk_buff *skb,
 		params.overwrite_mask = sections.value & sections.selector;
 	}
 
-	return devlink->ops->flash_update(devlink, &params, info->extack);
+	nla_file_name = info->attrs[DEVLINK_ATTR_FLASH_UPDATE_FILE_NAME];
+	file_name = nla_data(nla_file_name);
+	ret = request_firmware(&params.fw, file_name, devlink->dev);
+	if (ret) {
+		NL_SET_ERR_MSG_ATTR(info->extack, nla_file_name, "failed to locate the requested firmware file");
+		return ret;
+	}
+
+	devlink_flash_update_begin_notify(devlink);
+	ret = devlink->ops->flash_update(devlink, &params, info->extack);
+	devlink_flash_update_end_notify(devlink);
+
+	release_firmware(params.fw);
+
+	return ret;
 }
 
 static const struct devlink_param devlink_param_generic[] = {
@@ -6981,7 +6993,6 @@ static int devlink_nl_cmd_trap_set_doit(struct sk_buff *skb,
 	struct netlink_ext_ack *extack = info->extack;
 	struct devlink *devlink = info->user_ptr[0];
 	struct devlink_trap_item *trap_item;
-	int err;
 
 	if (list_empty(&devlink->trap_list))
 		return -EOPNOTSUPP;
@@ -6992,11 +7003,7 @@ static int devlink_nl_cmd_trap_set_doit(struct sk_buff *skb,
 		return -ENOENT;
 	}
 
-	err = devlink_trap_action_set(devlink, trap_item, info);
-	if (err)
-		return err;
-
-	return 0;
+	return devlink_trap_action_set(devlink, trap_item, info);
 }
 
 static struct devlink_trap_group_item *
@@ -9500,6 +9507,7 @@ static const struct devlink_trap devlink_trap_generic[] = {
 	DEVLINK_TRAP(DCCP_PARSING, DROP),
 	DEVLINK_TRAP(GTP_PARSING, DROP),
 	DEVLINK_TRAP(ESP_PARSING, DROP),
+	DEVLINK_TRAP(BLACKHOLE_NEXTHOP, DROP),
 };
 
 #define DEVLINK_TRAP_GROUP(_id)						      \
@@ -10249,11 +10257,17 @@ int devlink_compat_flash_update(struct net_device *dev, const char *file_name)
 		goto out;
 	}
 
-	params.file_name = file_name;
+	ret = request_firmware(&params.fw, file_name, devlink->dev);
+	if (ret)
+		goto out;
 
 	mutex_lock(&devlink->lock);
+	devlink_flash_update_begin_notify(devlink);
 	ret = devlink->ops->flash_update(devlink, &params, NULL);
+	devlink_flash_update_end_notify(devlink);
 	mutex_unlock(&devlink->lock);
+
+	release_firmware(params.fw);
 
 out:
 	rtnl_lock();

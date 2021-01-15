@@ -424,7 +424,7 @@ int qbman_swp_interrupt_get_inhibit(struct qbman_swp *p)
 /**
  * qbman_swp_interrupt_set_inhibit() - write interrupt mask register
  * @p: the given software portal object
- * @mask: The mask to set in SWP_IIR register
+ * @inhibit: whether to inhibit the IRQs
  */
 void qbman_swp_interrupt_set_inhibit(struct qbman_swp *p, int inhibit)
 {
@@ -510,7 +510,7 @@ enum qb_enqueue_commands {
 #define QB_ENQUEUE_CMD_TARGET_TYPE_SHIFT     4
 #define QB_ENQUEUE_CMD_DCA_EN_SHIFT          7
 
-/**
+/*
  * qbman_eq_desc_clear() - Clear the contents of a descriptor to
  *                         default/starting state.
  */
@@ -522,7 +522,7 @@ void qbman_eq_desc_clear(struct qbman_eq_desc *d)
 /**
  * qbman_eq_desc_set_no_orp() - Set enqueue descriptor without orp
  * @d:                the enqueue descriptor.
- * @response_success: 1 = enqueue with response always; 0 = enqueue with
+ * @respond_success:  1 = enqueue with response always; 0 = enqueue with
  *                    rejections returned on a FQ.
  */
 void qbman_eq_desc_set_no_orp(struct qbman_eq_desc *d, int respond_success)
@@ -932,7 +932,7 @@ int qbman_swp_enqueue_multiple_desc_mem_back(struct qbman_swp *s,
 
 /**
  * qbman_swp_push_get() - Get the push dequeue setup
- * @p:           the software portal object
+ * @s:           the software portal object
  * @channel_idx: the channel index to query
  * @enabled:     returned boolean to show whether the push dequeue is enabled
  *               for the given channel
@@ -947,7 +947,7 @@ void qbman_swp_push_get(struct qbman_swp *s, u8 channel_idx, int *enabled)
 
 /**
  * qbman_swp_push_set() - Enable or disable push dequeue
- * @p:           the software portal object
+ * @s:           the software portal object
  * @channel_idx: the channel index (0 to 15)
  * @enable:      enable or disable push dequeue
  */
@@ -1046,6 +1046,7 @@ void qbman_pull_desc_set_numframes(struct qbman_pull_desc *d, u8 numframes)
 
 /**
  * qbman_pull_desc_set_fq() - Set fqid from which the dequeue command dequeues
+ * @d:    the pull dequeue descriptor to be set
  * @fqid: the frame queue index of the given FQ
  */
 void qbman_pull_desc_set_fq(struct qbman_pull_desc *d, u32 fqid)
@@ -1057,6 +1058,7 @@ void qbman_pull_desc_set_fq(struct qbman_pull_desc *d, u32 fqid)
 
 /**
  * qbman_pull_desc_set_wq() - Set wqid from which the dequeue command dequeues
+ * @d:    the pull dequeue descriptor to be set
  * @wqid: composed of channel id and wqid within the channel
  * @dct:  the dequeue command type
  */
@@ -1071,6 +1073,7 @@ void qbman_pull_desc_set_wq(struct qbman_pull_desc *d, u32 wqid,
 /**
  * qbman_pull_desc_set_channel() - Set channelid from which the dequeue command
  *                                 dequeues
+ * @d:    the pull dequeue descriptor to be set
  * @chid: the channel id to be dequeued
  * @dct:  the dequeue command type
  */
@@ -1398,6 +1401,7 @@ int qbman_result_has_new_result(struct qbman_swp *s, const struct dpaa2_dq *dq)
 /**
  * qbman_release_desc_clear() - Clear the contents of a descriptor to
  *                              default/starting state.
+ * @d: the pull dequeue descriptor to be cleared
  */
 void qbman_release_desc_clear(struct qbman_release_desc *d)
 {
@@ -1407,6 +1411,8 @@ void qbman_release_desc_clear(struct qbman_release_desc *d)
 
 /**
  * qbman_release_desc_set_bpid() - Set the ID of the buffer pool to release to
+ * @d:    the pull dequeue descriptor to be set
+ * @bpid: the bpid value to be set
  */
 void qbman_release_desc_set_bpid(struct qbman_release_desc *d, u16 bpid)
 {
@@ -1416,6 +1422,8 @@ void qbman_release_desc_set_bpid(struct qbman_release_desc *d, u16 bpid)
 /**
  * qbman_release_desc_set_rcdi() - Determines whether or not the portal's RCDI
  * interrupt source should be asserted after the release command is completed.
+ * @d:      the pull dequeue descriptor to be set
+ * @enable: enable (1) or disable (0) value
  */
 void qbman_release_desc_set_rcdi(struct qbman_release_desc *d, int enable)
 {

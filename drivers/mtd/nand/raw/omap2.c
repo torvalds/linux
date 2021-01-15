@@ -23,7 +23,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 
-#include <linux/mtd/nand_bch.h>
 #include <linux/platform_data/elm.h>
 
 #include <linux/omap-gpmc.h>
@@ -185,6 +184,7 @@ static inline struct omap_nand_info *mtd_to_omap(struct mtd_info *mtd)
  * @dma_mode: dma mode enable (1) or disable (0)
  * @u32_count: number of bytes to be transferred
  * @is_write: prefetch read(0) or write post(1) mode
+ * @info: NAND device structure containing platform data
  */
 static int omap_prefetch_enable(int cs, int fifo_th, int dma_mode,
 	unsigned int u32_count, int is_write, struct omap_nand_info *info)
@@ -214,7 +214,7 @@ static int omap_prefetch_enable(int cs, int fifo_th, int dma_mode,
 	return 0;
 }
 
-/**
+/*
  * omap_prefetch_reset - disables and stops the prefetch engine
  */
 static int omap_prefetch_reset(int cs, struct omap_nand_info *info)
@@ -939,7 +939,7 @@ static int omap_calculate_ecc(struct nand_chip *chip, const u_char *dat,
 
 /**
  * omap_enable_hwecc - This function enables the hardware ecc functionality
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @mode: Read/Write mode
  */
 static void omap_enable_hwecc(struct nand_chip *chip, int mode)
@@ -1009,7 +1009,7 @@ static int omap_wait(struct nand_chip *this)
 
 /**
  * omap_dev_ready - checks the NAND Ready GPIO line
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  *
  * Returns true if ready and false if busy.
  */
@@ -1022,7 +1022,7 @@ static int omap_dev_ready(struct nand_chip *chip)
 
 /**
  * omap_enable_hwecc_bch - Program GPMC to perform BCH ECC calculation
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @mode: Read/Write mode
  *
  * When using BCH with SW correction (i.e. no ELM), sector size is set
@@ -1131,7 +1131,7 @@ static u8  bch8_polynomial[] = {0xef, 0x51, 0x2e, 0x09, 0xed, 0x93, 0x9a, 0xc2,
  * _omap_calculate_ecc_bch - Generate ECC bytes for one sector
  * @mtd:	MTD device structure
  * @dat:	The pointer to data on which ecc is computed
- * @ecc_code:	The ecc_code buffer
+ * @ecc_calc:	The ecc_code buffer
  * @i:		The sector number (for a multi sector page)
  *
  * Support calculating of BCH4/8/16 ECC vectors for one sector
@@ -1259,7 +1259,7 @@ static int _omap_calculate_ecc_bch(struct mtd_info *mtd,
  * omap_calculate_ecc_bch_sw - ECC generator for sector for SW based correction
  * @chip:	NAND chip object
  * @dat:	The pointer to data on which ecc is computed
- * @ecc_code:	The ecc_code buffer
+ * @ecc_calc:	Buffer storing the calculated ECC bytes
  *
  * Support calculating of BCH4/8/16 ECC vectors for one sector. This is used
  * when SW based correction is required as ECC is required for one sector
@@ -1275,7 +1275,7 @@ static int omap_calculate_ecc_bch_sw(struct nand_chip *chip,
  * omap_calculate_ecc_bch_multi - Generate ECC for multiple sectors
  * @mtd:	MTD device structure
  * @dat:	The pointer to data on which ecc is computed
- * @ecc_code:	The ecc_code buffer
+ * @ecc_calc:	Buffer storing the calculated ECC bytes
  *
  * Support calculating of BCH4/8/16 ecc vectors for the entire page in one go.
  */
@@ -1674,7 +1674,8 @@ static int omap_read_page_bch(struct nand_chip *chip, uint8_t *buf,
 
 /**
  * is_elm_present - checks for presence of ELM module by scanning DT nodes
- * @omap_nand_info: NAND device structure containing platform data
+ * @info: NAND device structure containing platform data
+ * @elm_node: ELM's DT node
  */
 static bool is_elm_present(struct omap_nand_info *info,
 			   struct device_node *elm_node)
@@ -2041,16 +2042,16 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 		chip->ecc.bytes		= 7;
 		chip->ecc.strength	= 4;
 		chip->ecc.hwctl		= omap_enable_hwecc_bch;
-		chip->ecc.correct	= nand_bch_correct_data;
+		chip->ecc.correct	= rawnand_sw_bch_correct;
 		chip->ecc.calculate	= omap_calculate_ecc_bch_sw;
 		mtd_set_ooblayout(mtd, &omap_sw_ooblayout_ops);
 		/* Reserve one byte for the OMAP marker */
 		oobbytes_per_step	= chip->ecc.bytes + 1;
 		/* Software BCH library is used for locating errors */
-		chip->ecc.priv		= nand_bch_init(mtd);
-		if (!chip->ecc.priv) {
+		err = rawnand_sw_bch_init(chip);
+		if (err) {
 			dev_err(dev, "Unable to use BCH library\n");
-			return -EINVAL;
+			return err;
 		}
 		break;
 
@@ -2083,16 +2084,16 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 		chip->ecc.bytes		= 13;
 		chip->ecc.strength	= 8;
 		chip->ecc.hwctl		= omap_enable_hwecc_bch;
-		chip->ecc.correct	= nand_bch_correct_data;
+		chip->ecc.correct	= rawnand_sw_bch_correct;
 		chip->ecc.calculate	= omap_calculate_ecc_bch_sw;
 		mtd_set_ooblayout(mtd, &omap_sw_ooblayout_ops);
 		/* Reserve one byte for the OMAP marker */
 		oobbytes_per_step	= chip->ecc.bytes + 1;
 		/* Software BCH library is used for locating errors */
-		chip->ecc.priv		= nand_bch_init(mtd);
-		if (!chip->ecc.priv) {
+		err = rawnand_sw_bch_init(chip);
+		if (err) {
 			dev_err(dev, "unable to use BCH library\n");
-			return -EINVAL;
+			return err;
 		}
 		break;
 
@@ -2195,7 +2196,6 @@ static int omap_nand_probe(struct platform_device *pdev)
 	nand_chip		= &info->nand;
 	mtd			= nand_to_mtd(nand_chip);
 	mtd->dev.parent		= &pdev->dev;
-	nand_chip->ecc.priv	= NULL;
 	nand_set_flash_node(nand_chip, dev->of_node);
 
 	if (!mtd->name) {
@@ -2271,10 +2271,9 @@ cleanup_nand:
 return_error:
 	if (!IS_ERR_OR_NULL(info->dma))
 		dma_release_channel(info->dma);
-	if (nand_chip->ecc.priv) {
-		nand_bch_free(nand_chip->ecc.priv);
-		nand_chip->ecc.priv = NULL;
-	}
+
+	rawnand_sw_bch_cleanup(nand_chip);
+
 	return err;
 }
 
@@ -2285,10 +2284,8 @@ static int omap_nand_remove(struct platform_device *pdev)
 	struct omap_nand_info *info = mtd_to_omap(mtd);
 	int ret;
 
-	if (nand_chip->ecc.priv) {
-		nand_bch_free(nand_chip->ecc.priv);
-		nand_chip->ecc.priv = NULL;
-	}
+	rawnand_sw_bch_cleanup(nand_chip);
+
 	if (info->dma)
 		dma_release_channel(info->dma);
 	ret = mtd_device_unregister(mtd);

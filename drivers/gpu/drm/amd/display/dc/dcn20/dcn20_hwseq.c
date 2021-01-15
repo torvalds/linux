@@ -611,7 +611,6 @@ void dcn20_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
 					pipe_ctx->pipe_idx);
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 static int calc_mpc_flow_ctrl_cnt(const struct dc_stream_state *stream,
 		int opp_cnt)
 {
@@ -634,7 +633,6 @@ static int calc_mpc_flow_ctrl_cnt(const struct dc_stream_state *stream,
 
 	return flow_ctrl_cnt;
 }
-#endif
 
 enum dc_status dcn20_enable_stream_timing(
 		struct pipe_ctx *pipe_ctx,
@@ -648,16 +646,12 @@ enum dc_status dcn20_enable_stream_timing(
 	struct pipe_ctx *odm_pipe;
 	int opp_cnt = 1;
 	int opp_inst[MAX_PIPES] = { pipe_ctx->stream_res.opp->inst };
-
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	bool interlace = stream->timing.flags.INTERLACE;
 	int i;
-
 	struct mpc_dwb_flow_control flow_control;
 	struct mpc *mpc = dc->res_pool->mpc;
 	bool rate_control_2x_pclk = (interlace || optc2_is_two_pixels_per_containter(&stream->timing));
 
-#endif
 	/* by upper caller loop, pipe0 is parent pipe and be called first.
 	 * back end is set up by for pipe0. Other children pipe share back end
 	 * with pipe 0. No program is needed.
@@ -704,7 +698,6 @@ enum dc_status dcn20_enable_stream_timing(
 			pipe_ctx->stream->signal,
 			true);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	rate_control_2x_pclk = rate_control_2x_pclk || opp_cnt > 1;
 	flow_control.flow_ctrl_mode = 0;
 	flow_control.flow_ctrl_cnt0 = 0x80;
@@ -718,7 +711,7 @@ enum dc_status dcn20_enable_stream_timing(
 					&flow_control);
 		}
 	}
-#endif
+
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 		odm_pipe->stream_res.opp->funcs->opp_pipe_clock_control(
 				odm_pipe->stream_res.opp,
@@ -1030,8 +1023,8 @@ void dcn20_blank_pixel_data(
 		test_pattern = CONTROLLER_DP_TEST_PATTERN_VIDEOMODE;
 	}
 
-	stream_res->opp->funcs->opp_set_disp_pattern_generator(
-			stream_res->opp,
+	dc->hwss.set_disp_pattern_generator(dc,
+			pipe_ctx,
 			test_pattern,
 			test_pattern_color_space,
 			stream->timing.display_color_depth,
@@ -1041,8 +1034,8 @@ void dcn20_blank_pixel_data(
 			0);
 
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
-		odm_pipe->stream_res.opp->funcs->opp_set_disp_pattern_generator(
-				odm_pipe->stream_res.opp,
+		dc->hwss.set_disp_pattern_generator(dc,
+				odm_pipe,
 				dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE && blank ?
 						CONTROLLER_DP_TEST_PATTERN_COLORRAMP : test_pattern,
 				test_pattern_color_space,
@@ -1158,6 +1151,7 @@ void dcn20_pipe_control_lock(
 	struct pipe_ctx *pipe,
 	bool lock)
 {
+	struct pipe_ctx *temp_pipe;
 	bool flip_immediate = false;
 
 	/* use TG master update lock to lock everything on the TG
@@ -1169,32 +1163,56 @@ void dcn20_pipe_control_lock(
 	if (pipe->plane_state != NULL)
 		flip_immediate = pipe->plane_state->flip_immediate;
 
+	if  (pipe->stream_res.gsl_group > 0) {
+	    temp_pipe = pipe->bottom_pipe;
+	    while (!flip_immediate && temp_pipe) {
+		    if (temp_pipe->plane_state != NULL)
+			    flip_immediate = temp_pipe->plane_state->flip_immediate;
+		    temp_pipe = temp_pipe->bottom_pipe;
+	    }
+	}
+
 	if (flip_immediate && lock) {
 		const int TIMEOUT_FOR_FLIP_PENDING = 100000;
 		int i;
 
-		for (i = 0; i < TIMEOUT_FOR_FLIP_PENDING; ++i) {
-			if (!pipe->plane_res.hubp->funcs->hubp_is_flip_pending(pipe->plane_res.hubp))
-				break;
-			udelay(1);
-		}
+		temp_pipe = pipe;
+		while (temp_pipe) {
+			if (temp_pipe->plane_state && temp_pipe->plane_state->flip_immediate) {
+				for (i = 0; i < TIMEOUT_FOR_FLIP_PENDING; ++i) {
+					if (!temp_pipe->plane_res.hubp->funcs->hubp_is_flip_pending(temp_pipe->plane_res.hubp))
+						break;
+					udelay(1);
+				}
 
-		if (pipe->bottom_pipe != NULL) {
-			for (i = 0; i < TIMEOUT_FOR_FLIP_PENDING; ++i) {
-				if (!pipe->bottom_pipe->plane_res.hubp->funcs->hubp_is_flip_pending(pipe->bottom_pipe->plane_res.hubp))
-					break;
-				udelay(1);
+				/* no reason it should take this long for immediate flips */
+				ASSERT(i != TIMEOUT_FOR_FLIP_PENDING);
 			}
+			temp_pipe = temp_pipe->bottom_pipe;
 		}
 	}
 
 	/* In flip immediate and pipe splitting case, we need to use GSL
 	 * for synchronization. Only do setup on locking and on flip type change.
 	 */
-	if (lock && pipe->bottom_pipe != NULL)
+	if (lock && (pipe->bottom_pipe != NULL || !flip_immediate))
 		if ((flip_immediate && pipe->stream_res.gsl_group == 0) ||
 		    (!flip_immediate && pipe->stream_res.gsl_group > 0))
 			dcn20_setup_gsl_group_as_lock(dc, pipe, flip_immediate);
+
+	if (pipe->plane_state != NULL)
+		flip_immediate = pipe->plane_state->flip_immediate;
+
+	temp_pipe = pipe->bottom_pipe;
+	while (flip_immediate && temp_pipe) {
+	    if (temp_pipe->plane_state != NULL)
+		flip_immediate = temp_pipe->plane_state->flip_immediate;
+	    temp_pipe = temp_pipe->bottom_pipe;
+	}
+
+	if (!lock && pipe->stream_res.gsl_group > 0 && pipe->plane_state &&
+		!flip_immediate)
+	    dcn20_setup_gsl_group_as_lock(dc, pipe, false);
 
 	if (pipe->stream && should_use_dmub_lock(pipe->stream->link)) {
 		union dmub_hw_lock_flags hw_locks = { 0 };
@@ -1478,7 +1496,6 @@ static void dcn20_update_dchubp_dpp(
 	if (pipe_ctx->update_flags.bits.enable || pipe_ctx->update_flags.bits.opp_changed
 			|| pipe_ctx->stream->update_flags.bits.gamut_remap
 			|| pipe_ctx->stream->update_flags.bits.out_csc) {
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 		struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
 
 		if (mpc->funcs->set_gamut_remap) {
@@ -1509,7 +1526,6 @@ static void dcn20_update_dchubp_dpp(
 			}
 			mpc->funcs->set_gamut_remap(mpc, mpcc_id, &adjust);
 		} else
-#endif
 			/* dpp/cm gamut remap*/
 			dc->hwss.program_gamut_remap(pipe_ctx);
 
@@ -1570,7 +1586,10 @@ static void dcn20_program_pipe(
 			&& !pipe_ctx->top_pipe && !pipe_ctx->prev_odm_pipe)
 		hws->funcs.blank_pixel_data(dc, pipe_ctx, !pipe_ctx->plane_state->visible);
 
-	if (pipe_ctx->update_flags.bits.global_sync) {
+	/* Only update TG on top pipe */
+	if (pipe_ctx->update_flags.bits.global_sync && !pipe_ctx->top_pipe
+			&& !pipe_ctx->prev_odm_pipe) {
+
 		pipe_ctx->stream_res.tg->funcs->program_global_sync(
 				pipe_ctx->stream_res.tg,
 				pipe_ctx->pipe_dlg_param.vready_offset,
@@ -1578,8 +1597,11 @@ static void dcn20_program_pipe(
 				pipe_ctx->pipe_dlg_param.vupdate_offset,
 				pipe_ctx->pipe_dlg_param.vupdate_width);
 
+		pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg, CRTC_STATE_VBLANK);
+		pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg, CRTC_STATE_VACTIVE);
+
 		pipe_ctx->stream_res.tg->funcs->set_vtg_params(
-				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
+				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing, true);
 
 		if (hws->funcs.setup_vupdate_interrupt)
 			hws->funcs.setup_vupdate_interrupt(dc, pipe_ctx);
@@ -1678,6 +1700,7 @@ void dcn20_program_front_end_for_ctx(
 				&& !context->res_ctx.pipe_ctx[i].prev_odm_pipe
 				&& context->res_ctx.pipe_ctx[i].stream)
 			hws->funcs.blank_pixel_data(dc, &context->res_ctx.pipe_ctx[i], true);
+
 
 	/* Disconnect mpcc */
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
@@ -1831,7 +1854,7 @@ bool dcn20_update_bandwidth(
 					pipe_ctx->pipe_dlg_param.vupdate_width);
 
 			pipe_ctx->stream_res.tg->funcs->set_vtg_params(
-					pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
+					pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing, false);
 
 			if (pipe_ctx->prev_odm_pipe == NULL)
 				hws->funcs.blank_pixel_data(dc, pipe_ctx, blank);
@@ -2034,6 +2057,8 @@ static bool patch_address_for_sbs_tb_stereo(
 		plane_state->address.type = PLN_ADDR_TYPE_GRPH_STEREO;
 		plane_state->address.grph_stereo.right_addr =
 				plane_state->address.grph_stereo.left_addr;
+		plane_state->address.grph_stereo.right_meta_addr =
+				plane_state->address.grph_stereo.left_meta_addr;
 	}
 	return false;
 }
@@ -2224,11 +2249,11 @@ void dcn20_get_mpctree_visual_confirm_color(
 {
 	const struct tg_color pipe_colors[6] = {
 			{MAX_TG_COLOR_VALUE, 0, 0}, // red
-			{MAX_TG_COLOR_VALUE, 0, MAX_TG_COLOR_VALUE}, // yellow
-			{0, MAX_TG_COLOR_VALUE, 0}, // blue
+			{MAX_TG_COLOR_VALUE, MAX_TG_COLOR_VALUE / 4, 0}, // orange
+			{MAX_TG_COLOR_VALUE, MAX_TG_COLOR_VALUE, 0}, // yellow
+			{0, MAX_TG_COLOR_VALUE, 0}, // green
+			{0, 0, MAX_TG_COLOR_VALUE}, // blue
 			{MAX_TG_COLOR_VALUE / 2, 0, MAX_TG_COLOR_VALUE / 2}, // purple
-			{0, 0, MAX_TG_COLOR_VALUE}, // green
-			{MAX_TG_COLOR_VALUE, MAX_TG_COLOR_VALUE * 2 / 3, 0}, // orange
 	};
 
 	struct pipe_ctx *top_pipe = pipe_ctx;
@@ -2253,14 +2278,11 @@ void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 
 	// input to MPCC is always RGB, by default leave black_color at 0
 	if (dc->debug.visual_confirm == VISUAL_CONFIRM_HDR) {
-		hws->funcs.get_hdr_visual_confirm_color(
-				pipe_ctx, &blnd_cfg.black_color);
+		hws->funcs.get_hdr_visual_confirm_color(pipe_ctx, &blnd_cfg.black_color);
 	} else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SURFACE) {
-		hws->funcs.get_surface_visual_confirm_color(
-				pipe_ctx, &blnd_cfg.black_color);
+		hws->funcs.get_surface_visual_confirm_color(pipe_ctx, &blnd_cfg.black_color);
 	} else if (dc->debug.visual_confirm == VISUAL_CONFIRM_MPCTREE) {
-		dcn20_get_mpctree_visual_confirm_color(
-				pipe_ctx, &blnd_cfg.black_color);
+		dcn20_get_mpctree_visual_confirm_color(pipe_ctx, &blnd_cfg.black_color);
 	}
 
 	if (per_pixel_alpha)
@@ -2282,11 +2304,9 @@ void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	blnd_cfg.bottom_inside_gain = 0x1f000;
 	blnd_cfg.bottom_outside_gain = 0x1f000;
 	blnd_cfg.pre_multiplied_alpha = per_pixel_alpha;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	if (pipe_ctx->plane_state->format
 			== SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA)
 		blnd_cfg.pre_multiplied_alpha = false;
-#endif
 
 	/*
 	 * TODO: remove hack
@@ -2545,3 +2565,15 @@ bool dcn20_optimize_timing_for_fsft(struct dc *dc,
 	return true;
 }
 #endif
+
+void dcn20_set_disp_pattern_generator(const struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		enum controller_dp_test_pattern test_pattern,
+		enum controller_dp_color_space color_space,
+		enum dc_color_depth color_depth,
+		const struct tg_color *solid_color,
+		int width, int height, int offset)
+{
+	pipe_ctx->stream_res.opp->funcs->opp_set_disp_pattern_generator(pipe_ctx->stream_res.opp, test_pattern,
+			color_space, color_depth, solid_color, width, height, offset);
+}

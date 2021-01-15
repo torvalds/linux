@@ -1060,7 +1060,7 @@ static int acpi_pci_propagate_wakeup(struct pci_bus *bus, bool enable)
 {
 	while (bus->parent) {
 		if (acpi_pm_device_can_wakeup(&bus->self->dev))
-			return acpi_pm_set_bridge_wakeup(&bus->self->dev, enable);
+			return acpi_pm_set_device_wakeup(&bus->self->dev, enable);
 
 		bus = bus->parent;
 	}
@@ -1068,7 +1068,7 @@ static int acpi_pci_propagate_wakeup(struct pci_bus *bus, bool enable)
 	/* We have reached the root bus. */
 	if (bus->bridge) {
 		if (acpi_pm_device_can_wakeup(bus->bridge))
-			return acpi_pm_set_bridge_wakeup(bus->bridge, enable);
+			return acpi_pm_set_device_wakeup(bus->bridge, enable);
 	}
 	return 0;
 }
@@ -1162,14 +1162,34 @@ void acpi_pci_remove_bus(struct pci_bus *bus)
 static struct acpi_device *acpi_pci_find_companion(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
+	struct acpi_device *adev;
 	bool check_children;
 	u64 addr;
 
 	check_children = pci_is_bridge(pci_dev);
 	/* Please ref to ACPI spec for the syntax of _ADR */
 	addr = (PCI_SLOT(pci_dev->devfn) << 16) | PCI_FUNC(pci_dev->devfn);
-	return acpi_find_child_device(ACPI_COMPANION(dev->parent), addr,
+	adev = acpi_find_child_device(ACPI_COMPANION(dev->parent), addr,
 				      check_children);
+
+	/*
+	 * There may be ACPI device objects in the ACPI namespace that are
+	 * children of the device object representing the host bridge, but don't
+	 * represent PCI devices.  Both _HID and _ADR may be present for them,
+	 * even though that is against the specification (for example, see
+	 * Section 6.1 of ACPI 6.3), but in many cases the _ADR returns 0 which
+	 * appears to indicate that they should not be taken into consideration
+	 * as potential companions of PCI devices on the root bus.
+	 *
+	 * To catch this special case, disregard the returned device object if
+	 * it has a valid _HID, addr is 0 and the PCI device at hand is on the
+	 * root bus.
+	 */
+	if (adev && adev->pnp.type.platform_id && !addr &&
+	    pci_is_root_bus(pci_dev->bus))
+		return NULL;
+
+	return adev;
 }
 
 /**

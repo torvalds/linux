@@ -384,7 +384,7 @@ static void kvm_pmu_update_state(struct kvm_vcpu *vcpu)
 	struct kvm_pmu *pmu = &vcpu->arch.pmu;
 	bool overflow;
 
-	if (!kvm_arm_pmu_v3_ready(vcpu))
+	if (!kvm_vcpu_has_pmu(vcpu))
 		return;
 
 	overflow = !!kvm_pmu_overflow_status(vcpu);
@@ -825,8 +825,11 @@ bool kvm_arm_support_pmu_v3(void)
 
 int kvm_arm_pmu_v3_enable(struct kvm_vcpu *vcpu)
 {
-	if (!vcpu->arch.pmu.created)
+	if (!kvm_vcpu_has_pmu(vcpu))
 		return 0;
+
+	if (!vcpu->arch.pmu.created)
+		return -EINVAL;
 
 	/*
 	 * A valid interrupt configuration for the PMU is either to have a
@@ -835,9 +838,6 @@ int kvm_arm_pmu_v3_enable(struct kvm_vcpu *vcpu)
 	 */
 	if (irqchip_in_kernel(vcpu->kvm)) {
 		int irq = vcpu->arch.pmu.irq_num;
-		if (!kvm_arm_pmu_irq_initialized(vcpu))
-			return -EINVAL;
-
 		/*
 		 * If we are using an in-kernel vgic, at this point we know
 		 * the vgic will be initialized, so we can check the PMU irq
@@ -851,7 +851,6 @@ int kvm_arm_pmu_v3_enable(struct kvm_vcpu *vcpu)
 	}
 
 	kvm_pmu_vcpu_reset(vcpu);
-	vcpu->arch.pmu.ready = true;
 
 	return 0;
 }
@@ -913,8 +912,7 @@ static bool pmu_irq_is_valid(struct kvm *kvm, int irq)
 
 int kvm_arm_pmu_v3_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 {
-	if (!kvm_arm_support_pmu_v3() ||
-	    !test_bit(KVM_ARM_VCPU_PMU_V3, vcpu->arch.features))
+	if (!kvm_vcpu_has_pmu(vcpu))
 		return -ENODEV;
 
 	if (vcpu->arch.pmu.created)
@@ -1015,7 +1013,7 @@ int kvm_arm_pmu_v3_get_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 		if (!irqchip_in_kernel(vcpu->kvm))
 			return -EINVAL;
 
-		if (!test_bit(KVM_ARM_VCPU_PMU_V3, vcpu->arch.features))
+		if (!kvm_vcpu_has_pmu(vcpu))
 			return -ENODEV;
 
 		if (!kvm_arm_pmu_irq_initialized(vcpu))
@@ -1035,8 +1033,7 @@ int kvm_arm_pmu_v3_has_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 	case KVM_ARM_VCPU_PMU_V3_IRQ:
 	case KVM_ARM_VCPU_PMU_V3_INIT:
 	case KVM_ARM_VCPU_PMU_V3_FILTER:
-		if (kvm_arm_support_pmu_v3() &&
-		    test_bit(KVM_ARM_VCPU_PMU_V3, vcpu->arch.features))
+		if (kvm_vcpu_has_pmu(vcpu))
 			return 0;
 	}
 

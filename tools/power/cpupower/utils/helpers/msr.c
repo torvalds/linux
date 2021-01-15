@@ -11,7 +11,6 @@
 /* Intel specific MSRs */
 #define MSR_IA32_PERF_STATUS		0x198
 #define MSR_IA32_MISC_ENABLES		0x1a0
-#define MSR_IA32_ENERGY_PERF_BIAS	0x1b0
 #define MSR_NEHALEM_TURBO_RATIO_LIMIT	0x1ad
 
 /*
@@ -71,33 +70,6 @@ int write_msr(int cpu, unsigned int idx, unsigned long long val)
  err:
 	close(fd);
 	return -1;
-}
-
-int msr_intel_get_perf_bias(unsigned int cpu)
-{
-	unsigned long long val;
-	int ret;
-
-	if (!(cpupower_cpu_info.caps & CPUPOWER_CAP_PERF_BIAS))
-		return -1;
-
-	ret = read_msr(cpu, MSR_IA32_ENERGY_PERF_BIAS, &val);
-	if (ret)
-		return ret;
-	return val;
-}
-
-int msr_intel_set_perf_bias(unsigned int cpu, unsigned int val)
-{
-	int ret;
-
-	if (!(cpupower_cpu_info.caps & CPUPOWER_CAP_PERF_BIAS))
-		return -1;
-
-	ret = write_msr(cpu, MSR_IA32_ENERGY_PERF_BIAS, val);
-	if (ret)
-		return ret;
-	return 0;
 }
 
 unsigned long long msr_intel_get_turbo_ratio(unsigned int cpu)

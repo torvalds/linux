@@ -245,6 +245,7 @@ properties:
           - enum:
               - renesas,r8a7795
               - renesas,r8a7796
+              - renesas,r8a77961
               - renesas,r8a77965
 
       - description: R-Car M3-N (R8A77965)

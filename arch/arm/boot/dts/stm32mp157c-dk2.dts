@@ -29,6 +29,10 @@
 	};
 };
 
+&cryp1 {
+	status = "okay";
+};
+
 &dsi {
 	status = "okay";
 	phy-dsi-supply = <&reg18>;

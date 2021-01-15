@@ -13,5 +13,5 @@
 
 / {
 	model = "TechNexion PICO-IMX6 DualLite/Solo Board and Nymph baseboard";
-	compatible = "technexion,imx6dl-pico", "fsl,imx6dl";
+	compatible = "technexion,imx6dl-pico-nymph", "fsl,imx6dl";
 };

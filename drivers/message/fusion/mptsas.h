@@ -107,6 +107,7 @@ struct mptsas_hotplug_event {
 struct fw_event_work {
 	struct list_head 	list;
 	struct delayed_work	 work;
+	int			users;
 	MPT_ADAPTER	*ioc;
 	u32			event;
 	u8			retries;

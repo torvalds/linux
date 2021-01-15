@@ -19,6 +19,7 @@
 #include <sound/hdaudio_ext.h>
 #include <sound/hda_register.h>
 #include <sound/sof.h>
+#include "ext_manifest.h"
 #include "../ops.h"
 #include "hda.h"
 
@@ -87,6 +88,7 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
 	unsigned int status;
+	u32 flags;
 	int ret;
 	int i;
 
@@ -174,7 +176,13 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 			__func__);
 
 err:
-	hda_dsp_dump(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
+	flags = SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_PCI | SOF_DBG_DUMP_MBOX;
+
+	/* force error log level after max boot attempts */
+	if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
+		flags |= SOF_DBG_DUMP_FORCE_ERR_LEVEL;
+
+	hda_dsp_dump(sdev, flags);
 	hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask);
 
 	return ret;
@@ -407,10 +415,13 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	 * should be ready for code loading and firmware boot
 	 */
 	ret = cl_copy_fw(sdev, stream);
-	if (!ret)
+	if (!ret) {
 		dev_dbg(sdev->dev, "Firmware download successful, booting...\n");
-	else
+	} else {
+		hda_dsp_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_PCI | SOF_DBG_DUMP_MBOX |
+			     SOF_DBG_DUMP_FORCE_ERR_LEVEL);
 		dev_err(sdev->dev, "error: load fw failed ret: %d\n", ret);
+	}
 
 cleanup:
 	/*
@@ -433,9 +444,6 @@ cleanup:
 	 */
 	if (!ret)
 		return chip_info->init_core_mask;
-
-	/* dump dsp registers and disable DSP upon error */
-	hda_dsp_dump(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
 
 	/* disable DSP */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR,
@@ -469,4 +477,103 @@ int hda_dsp_post_fw_run(struct snd_sof_dev *sdev)
 
 	/* re-enable clock gating and power gating */
 	return hda_dsp_ctrl_clock_power_gating(sdev, true);
+}
+
+/*
+ * post fw run operations for ICL,
+ * Core 3 will be powered up and in stall when HPRO is enabled
+ */
+int hda_dsp_post_fw_run_icl(struct snd_sof_dev *sdev)
+{
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	int ret;
+
+	if (sdev->first_boot) {
+		ret = hda_sdw_startup(sdev);
+		if (ret < 0) {
+			dev_err(sdev->dev,
+				"error: could not startup SoundWire links\n");
+			return ret;
+		}
+	}
+
+	hda_sdw_int_enable(sdev, true);
+
+	/*
+	 * The recommended HW programming sequence for ICL is to
+	 * power up core 3 and keep it in stall if HPRO is enabled.
+	 * Major difference between ICL and TGL, on ICL core 3 is managed by
+	 * the host whereas on TGL it is handled by the firmware.
+	 */
+	if (!hda->clk_config_lpro) {
+		ret = snd_sof_dsp_core_power_up(sdev, BIT(3));
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: dsp core power up failed on core 3\n");
+			return ret;
+		}
+
+		snd_sof_dsp_stall(sdev, BIT(3));
+	}
+
+	/* re-enable clock gating and power gating */
+	return hda_dsp_ctrl_clock_power_gating(sdev, true);
+}
+
+int hda_dsp_ext_man_get_cavs_config_data(struct snd_sof_dev *sdev,
+					 const struct sof_ext_man_elem_header *hdr)
+{
+	const struct sof_ext_man_cavs_config_data *config_data =
+		container_of(hdr, struct sof_ext_man_cavs_config_data, hdr);
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	int i, elem_num;
+
+	/* calculate total number of config data elements */
+	elem_num = (hdr->size - sizeof(struct sof_ext_man_elem_header))
+		   / sizeof(struct sof_config_elem);
+	if (elem_num <= 0) {
+		dev_err(sdev->dev, "cavs config data is inconsistent: %d\n", elem_num);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < elem_num; i++)
+		switch (config_data->elems[i].token) {
+		case SOF_EXT_MAN_CAVS_CONFIG_EMPTY:
+			/* skip empty token */
+			break;
+		case SOF_EXT_MAN_CAVS_CONFIG_CAVS_LPRO:
+			hda->clk_config_lpro = config_data->elems[i].value;
+			dev_dbg(sdev->dev, "FW clock config: %s\n",
+				hda->clk_config_lpro ? "LPRO" : "HPRO");
+			break;
+		case SOF_EXT_MAN_CAVS_CONFIG_OUTBOX_SIZE:
+		case SOF_EXT_MAN_CAVS_CONFIG_INBOX_SIZE:
+			/* These elements are defined but not being used yet. No warn is required */
+			break;
+		default:
+			dev_info(sdev->dev, "unsupported token type: %d\n",
+				 config_data->elems[i].token);
+		}
+
+	return 0;
+}
+
+int hda_dsp_core_stall_icl(struct snd_sof_dev *sdev, unsigned int core_mask)
+{
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	const struct sof_intel_dsp_desc *chip = hda->desc;
+
+	/* make sure core_mask in host managed cores */
+	core_mask &= chip->host_managed_cores_mask;
+	if (!core_mask) {
+		dev_err(sdev->dev, "error: core_mask is not in host managed cores\n");
+		return -EINVAL;
+	}
+
+	/* stall core */
+	snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR,
+					 HDA_DSP_REG_ADSPCS,
+					 HDA_DSP_ADSPCS_CSTALL_MASK(core_mask),
+					 HDA_DSP_ADSPCS_CSTALL_MASK(core_mask));
+
+	return 0;
 }

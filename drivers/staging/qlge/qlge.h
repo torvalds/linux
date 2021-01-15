@@ -1709,7 +1709,7 @@ enum {
 #define ETS_REGS_DUMP_WORD_COUNT		10
 
 /* Each probe mux entry stores the probe type plus 64 entries
- * that are each each 64-bits in length. There are a total of
+ * that are each 64-bits in length. There are a total of
  * 34 (PRB_MX_ADDR_VALID_TOTAL) valid probes.
  */
 #define PRB_MX_ADDR_PRB_WORD_COUNT		(1 + (PRB_MX_ADDR_MAX_MUX * 2))

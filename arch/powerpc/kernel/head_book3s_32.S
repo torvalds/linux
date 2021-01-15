@@ -155,10 +155,8 @@ __after_mmu_off:
 
 	bl	initial_bats
 	bl	load_segment_registers
-BEGIN_MMU_FTR_SECTION
 	bl	reloc_offset
 	bl	early_hash_table
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 #if defined(CONFIG_BOOTX_TEXT)
 	bl	setup_disp_bat
 #endif
@@ -207,7 +205,7 @@ turn_on_mmu:
 	lis	r0,start_here@h
 	ori	r0,r0,start_here@l
 	mtspr	SPRN_SRR0,r0
-	RFI				/* enables MMU */
+	rfi				/* enables MMU */
 
 /*
  * We need __secondary_hold as a place to hold the other cpus on
@@ -288,51 +286,35 @@ MachineCheck:
 	DO_KVM  0x300
 DataAccess:
 #ifdef CONFIG_VMAP_STACK
-	mtspr	SPRN_SPRG_SCRATCH0,r10
-	mfspr	r10, SPRN_SPRG_THREAD
 BEGIN_MMU_FTR_SECTION
+	mtspr	SPRN_SPRG_SCRATCH2,r10
+	mfspr	r10, SPRN_SPRG_THREAD
 	stw	r11, THR11(r10)
 	mfspr	r10, SPRN_DSISR
 	mfcr	r11
-#ifdef CONFIG_PPC_KUAP
-	andis.	r10, r10, (DSISR_BAD_FAULT_32S | DSISR_DABRMATCH | DSISR_PROTFAULT)@h
-#else
 	andis.	r10, r10, (DSISR_BAD_FAULT_32S | DSISR_DABRMATCH)@h
-#endif
 	mfspr	r10, SPRN_SPRG_THREAD
 	beq	hash_page_dsi
 .Lhash_page_dsi_cont:
 	mtcr	r11
 	lwz	r11, THR11(r10)
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
-	mtspr	SPRN_SPRG_SCRATCH1,r11
-	mfspr	r11, SPRN_DAR
-	stw	r11, DAR(r10)
-	mfspr	r11, SPRN_DSISR
-	stw	r11, DSISR(r10)
-	mfspr	r11, SPRN_SRR0
-	stw	r11, SRR0(r10)
-	mfspr	r11, SPRN_SRR1		/* check whether user or kernel */
-	stw	r11, SRR1(r10)
-	mfcr	r10
-	andi.	r11, r11, MSR_PR
-
+	mfspr	r10, SPRN_SPRG_SCRATCH2
+MMU_FTR_SECTION_ELSE
+	b	1f
+ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_HPTE_TABLE)
+1:	EXCEPTION_PROLOG_0 handle_dar_dsisr=1
 	EXCEPTION_PROLOG_1
 	b	handle_page_fault_tramp_1
 #else	/* CONFIG_VMAP_STACK */
 	EXCEPTION_PROLOG handle_dar_dsisr=1
 	get_and_save_dar_dsisr_on_stack	r4, r5, r11
 BEGIN_MMU_FTR_SECTION
-#ifdef CONFIG_PPC_KUAP
-	andis.	r0, r5, (DSISR_BAD_FAULT_32S | DSISR_DABRMATCH | DSISR_PROTFAULT)@h
-#else
 	andis.	r0, r5, (DSISR_BAD_FAULT_32S | DSISR_DABRMATCH)@h
-#endif
 	bne	handle_page_fault_tramp_2	/* if not, try to put a PTE */
 	rlwinm	r3, r5, 32 - 15, 21, 21		/* DSISR_STORE -> _PAGE_RW */
 	bl	hash_page
 	b	handle_page_fault_tramp_1
-FTR_SECTION_ELSE
+MMU_FTR_SECTION_ELSE
 	b	handle_page_fault_tramp_2
 ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_HPTE_TABLE)
 #endif	/* CONFIG_VMAP_STACK */
@@ -394,6 +376,7 @@ Alignment:
 	. = 0x800
 	DO_KVM  0x800
 FPUnavailable:
+#ifdef CONFIG_PPC_FPU
 BEGIN_FTR_SECTION
 /*
  * Certain Freescale cores don't have a FPU and treat fp instructions
@@ -407,6 +390,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
 	b	fast_exception_return
 1:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_LITE(0x800, kernel_fp_unavailable_exception)
+#else
+	b 	ProgramCheck
+#endif
 
 /* Decrementer */
 	EXCEPTION(0x900, Decrementer, timer_interrupt, EXC_XFER_LITE)
@@ -453,13 +439,14 @@ InstructionTLBMiss:
  */
 	/* Get PTE (linux-style) and check access */
 	mfspr	r3,SPRN_IMISS
-#if defined(CONFIG_MODULES) || defined(CONFIG_DEBUG_PAGEALLOC)
+#ifdef CONFIG_MODULES
 	lis	r1, TASK_SIZE@h		/* check if kernel address */
 	cmplw	0,r1,r3
 #endif
-	mfspr	r2, SPRN_SPRG_PGDIR
+	mfspr	r2, SPRN_SDR1
 	li	r1,_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_EXEC
-#if defined(CONFIG_MODULES) || defined(CONFIG_DEBUG_PAGEALLOC)
+	rlwinm	r2, r2, 28, 0xfffff000
+#ifdef CONFIG_MODULES
 	bgt-	112f
 	lis	r2, (swapper_pg_dir - PAGE_OFFSET)@ha	/* if kernel address, use */
 	addi	r2, r2, (swapper_pg_dir - PAGE_OFFSET)@l	/* kernel page table */
@@ -519,8 +506,9 @@ DataLoadTLBMiss:
 	mfspr	r3,SPRN_DMISS
 	lis	r1, TASK_SIZE@h		/* check if kernel address */
 	cmplw	0,r1,r3
-	mfspr	r2, SPRN_SPRG_PGDIR
+	mfspr	r2, SPRN_SDR1
 	li	r1, _PAGE_PRESENT | _PAGE_ACCESSED
+	rlwinm	r2, r2, 28, 0xfffff000
 	bgt-	112f
 	lis	r2, (swapper_pg_dir - PAGE_OFFSET)@ha	/* if kernel address, use */
 	addi	r2, r2, (swapper_pg_dir - PAGE_OFFSET)@l	/* kernel page table */
@@ -595,8 +583,9 @@ DataStoreTLBMiss:
 	mfspr	r3,SPRN_DMISS
 	lis	r1, TASK_SIZE@h		/* check if kernel address */
 	cmplw	0,r1,r3
-	mfspr	r2, SPRN_SPRG_PGDIR
+	mfspr	r2, SPRN_SDR1
 	li	r1, _PAGE_RW | _PAGE_DIRTY | _PAGE_PRESENT | _PAGE_ACCESSED
+	rlwinm	r2, r2, 28, 0xfffff000
 	bgt-	112f
 	lis	r2, (swapper_pg_dir - PAGE_OFFSET)@ha	/* if kernel address, use */
 	addi	r2, r2, (swapper_pg_dir - PAGE_OFFSET)@l	/* kernel page table */
@@ -757,14 +746,14 @@ fast_hash_page_return:
 	/* DSI */
 	mtcr	r11
 	lwz	r11, THR11(r10)
-	mfspr	r10, SPRN_SPRG_SCRATCH0
-	RFI
+	mfspr	r10, SPRN_SPRG_SCRATCH2
+	rfi
 
 1:	/* ISI */
 	mtcr	r11
 	mfspr	r11, SPRN_SPRG_SCRATCH1
 	mfspr	r10, SPRN_SPRG_SCRATCH0
-	RFI
+	rfi
 
 stack_overflow:
 	vmap_stack_overflow_exception
@@ -889,9 +878,12 @@ __secondary_start:
 	tophys(r4,r2)
 	addi	r4,r4,THREAD	/* phys address of our thread_struct */
 	mtspr	SPRN_SPRG_THREAD,r4
+BEGIN_MMU_FTR_SECTION
 	lis	r4, (swapper_pg_dir - PAGE_OFFSET)@h
 	ori	r4, r4, (swapper_pg_dir - PAGE_OFFSET)@l
-	mtspr	SPRN_SPRG_PGDIR, r4
+	rlwinm	r4, r4, 4, 0xffff01ff
+	mtspr	SPRN_SDR1, r4
+END_MMU_FTR_SECTION_IFCLR(MMU_FTR_HPTE_TABLE)
 
 	/* enable MMU and jump to start_secondary */
 	li	r4,MSR_KERNEL
@@ -899,7 +891,7 @@ __secondary_start:
 	ori	r3,r3,start_secondary@l
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
-	RFI
+	rfi
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_KVM_BOOK3S_HANDLER
@@ -920,9 +912,6 @@ early_hash_table:
 	lis	r6, early_hash - PAGE_OFFSET@h
 	ori	r6, r6, 3	/* 256kB table */
 	mtspr	SPRN_SDR1, r6
-	lis	r6, early_hash@h
-	addis	r3, r3, Hash@ha
-	stw	r6, Hash@l(r3)
 	blr
 
 load_up_mmu:
@@ -931,11 +920,13 @@ load_up_mmu:
 	tlbia			/* Clear all TLB entries */
 	sync			/* wait for tlbia/tlbie to finish */
 	TLBSYNC			/* ... on all CPUs */
+BEGIN_MMU_FTR_SECTION
 	/* Load the SDR1 register (hash table base & size) */
 	lis	r6,_SDR1@ha
 	tophys(r6,r6)
 	lwz	r6,_SDR1@l(r6)
 	mtspr	SPRN_SDR1,r6
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 
 /* Load the BAT registers with the values set up by MMU_init. */
 	lis	r3,BATS@ha
@@ -991,9 +982,12 @@ start_here:
 	tophys(r4,r2)
 	addi	r4,r4,THREAD	/* init task's THREAD */
 	mtspr	SPRN_SPRG_THREAD,r4
+BEGIN_MMU_FTR_SECTION
 	lis	r4, (swapper_pg_dir - PAGE_OFFSET)@h
 	ori	r4, r4, (swapper_pg_dir - PAGE_OFFSET)@l
-	mtspr	SPRN_SPRG_PGDIR, r4
+	rlwinm	r4, r4, 4, 0xffff01ff
+	mtspr	SPRN_SDR1, r4
+END_MMU_FTR_SECTION_IFCLR(MMU_FTR_HPTE_TABLE)
 
 	/* stack */
 	lis	r1,init_thread_union@ha
@@ -1027,7 +1021,7 @@ start_here:
 	.align	4
 	mtspr	SPRN_SRR0,r4
 	mtspr	SPRN_SRR1,r3
-	RFI
+	rfi
 /* Load up the kernel context */
 2:	bl	load_up_mmu
 
@@ -1051,7 +1045,7 @@ start_here:
 	ori	r3,r3,start_kernel@l
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
-	RFI
+	rfi
 
 /*
  * void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next);
@@ -1073,16 +1067,22 @@ _ENTRY(switch_mmu_context)
 	li	r0,NUM_USER_SEGMENTS
 	mtctr	r0
 
-	lwz	r4, MM_PGD(r4)
 #ifdef CONFIG_BDI_SWITCH
 	/* Context switch the PTE pointer for the Abatron BDI2000.
 	 * The PGDIR is passed as second argument.
 	 */
+	lwz	r4, MM_PGD(r4)
 	lis	r5, abatron_pteptrs@ha
 	stw	r4, abatron_pteptrs@l + 0x4(r5)
 #endif
+BEGIN_MMU_FTR_SECTION
+#ifndef CONFIG_BDI_SWITCH
+	lwz	r4, MM_PGD(r4)
+#endif
 	tophys(r4, r4)
-	mtspr	SPRN_SPRG_PGDIR, r4
+	rlwinm	r4, r4, 4, 0xffff01ff
+	mtspr	SPRN_SDR1, r4
+END_MMU_FTR_SECTION_IFCLR(MMU_FTR_HPTE_TABLE)
 	li	r4,0
 	isync
 3:
@@ -1166,7 +1166,7 @@ _ENTRY(update_bats)
 	.align	4
 	mtspr	SPRN_SRR0, r4
 	mtspr	SPRN_SRR1, r3
-	RFI
+	rfi
 1:	bl	clear_bats
 	lis	r3, BATS@ha
 	addi	r3, r3, BATS@l
@@ -1185,7 +1185,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
 	mtmsr	r3
 	mtspr	SPRN_SRR0, r7
 	mtspr	SPRN_SRR1, r6
-	RFI
+	rfi
 
 flush_tlbs:
 	lis	r10, 0x40
@@ -1206,7 +1206,7 @@ mmu_off:
 	mtspr	SPRN_SRR0,r4
 	mtspr	SPRN_SRR1,r3
 	sync
-	RFI
+	rfi
 
 /* We use one BAT to map up to 256M of RAM at _PAGE_OFFSET */
 initial_bats:

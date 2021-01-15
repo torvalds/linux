@@ -246,7 +246,6 @@ MODULE_DEVICE_TABLE(of, mmp3_usb_phy_of_match);
 static int mmp3_usb_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource *resource;
 	struct mmp3_usb_phy *mmp3_usb_phy;
 	struct phy_provider *provider;
 
@@ -254,8 +253,7 @@ static int mmp3_usb_phy_probe(struct platform_device *pdev)
 	if (!mmp3_usb_phy)
 		return -ENOMEM;
 
-	resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mmp3_usb_phy->base = devm_ioremap_resource(dev, resource);
+	mmp3_usb_phy->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mmp3_usb_phy->base)) {
 		dev_err(dev, "failed to remap PHY regs\n");
 		return PTR_ERR(mmp3_usb_phy->base);

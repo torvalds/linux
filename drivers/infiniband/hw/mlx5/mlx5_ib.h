@@ -40,7 +40,73 @@
 #define MLX5_IB_DEFAULT_UIDX 0xffffff
 #define MLX5_USER_ASSIGNED_UIDX_MASK __mlx5_mask(qpc, user_index)
 
-#define MLX5_MKEY_PAGE_SHIFT_MASK __mlx5_mask(mkc, log_page_size)
+static __always_inline unsigned long
+__mlx5_log_page_size_to_bitmap(unsigned int log_pgsz_bits,
+			       unsigned int pgsz_shift)
+{
+	unsigned int largest_pg_shift =
+		min_t(unsigned long, (1ULL << log_pgsz_bits) - 1 + pgsz_shift,
+		      BITS_PER_LONG - 1);
+
+	/*
+	 * Despite a command allowing it, the device does not support lower than
+	 * 4k page size.
+	 */
+	pgsz_shift = max_t(unsigned int, MLX5_ADAPTER_PAGE_SHIFT, pgsz_shift);
+	return GENMASK(largest_pg_shift, pgsz_shift);
+}
+
+/*
+ * For mkc users, instead of a page_offset the command has a start_iova which
+ * specifies both the page_offset and the on-the-wire IOVA
+ */
+#define mlx5_umem_find_best_pgsz(umem, typ, log_pgsz_fld, pgsz_shift, iova)    \
+	ib_umem_find_best_pgsz(umem,                                           \
+			       __mlx5_log_page_size_to_bitmap(                 \
+				       __mlx5_bit_sz(typ, log_pgsz_fld),       \
+				       pgsz_shift),                            \
+			       iova)
+
+static __always_inline unsigned long
+__mlx5_page_offset_to_bitmask(unsigned int page_offset_bits,
+			      unsigned int offset_shift)
+{
+	unsigned int largest_offset_shift =
+		min_t(unsigned long, page_offset_bits - 1 + offset_shift,
+		      BITS_PER_LONG - 1);
+
+	return GENMASK(largest_offset_shift, offset_shift);
+}
+
+/*
+ * QP/CQ/WQ/etc type commands take a page offset that satisifies:
+ *   page_offset_quantized * (page_size/scale) = page_offset
+ * Which restricts allowed page sizes to ones that satisify the above.
+ */
+unsigned long __mlx5_umem_find_best_quantized_pgoff(
+	struct ib_umem *umem, unsigned long pgsz_bitmap,
+	unsigned int page_offset_bits, u64 pgoff_bitmask, unsigned int scale,
+	unsigned int *page_offset_quantized);
+#define mlx5_umem_find_best_quantized_pgoff(umem, typ, log_pgsz_fld,           \
+					    pgsz_shift, page_offset_fld,       \
+					    scale, page_offset_quantized)      \
+	__mlx5_umem_find_best_quantized_pgoff(                                 \
+		umem,                                                          \
+		__mlx5_log_page_size_to_bitmap(                                \
+			__mlx5_bit_sz(typ, log_pgsz_fld), pgsz_shift),         \
+		__mlx5_bit_sz(typ, page_offset_fld),                           \
+		GENMASK(31, order_base_2(scale)), scale,                       \
+		page_offset_quantized)
+
+#define mlx5_umem_find_best_cq_quantized_pgoff(umem, typ, log_pgsz_fld,        \
+					       pgsz_shift, page_offset_fld,    \
+					       scale, page_offset_quantized)   \
+	__mlx5_umem_find_best_quantized_pgoff(                                 \
+		umem,                                                          \
+		__mlx5_log_page_size_to_bitmap(                                \
+			__mlx5_bit_sz(typ, log_pgsz_fld), pgsz_shift),         \
+		__mlx5_bit_sz(typ, page_offset_fld), 0, scale,                 \
+		page_offset_quantized)
 
 enum {
 	MLX5_IB_MMAP_OFFSET_START = 9,
@@ -597,14 +663,12 @@ struct mlx5_ib_mr {
 	int			max_descs;
 	int			desc_size;
 	int			access_mode;
+	unsigned int		page_shift;
 	struct mlx5_core_mkey	mmkey;
 	struct ib_umem	       *umem;
 	struct mlx5_shared_mr_info	*smr_info;
 	struct list_head	list;
-	unsigned int		order;
 	struct mlx5_cache_ent  *cache_ent;
-	int			npages;
-	struct mlx5_ib_dev     *dev;
 	u32 out[MLX5_ST_SZ_DW(create_mkey_out)];
 	struct mlx5_core_sig_ctx    *sig;
 	void			*descs_alloc;
@@ -1042,6 +1106,11 @@ static inline struct mlx5_ib_dev *to_mdev(struct ib_device *ibdev)
 	return container_of(ibdev, struct mlx5_ib_dev, ib_dev);
 }
 
+static inline struct mlx5_ib_dev *mr_to_mdev(struct mlx5_ib_mr *mr)
+{
+	return to_mdev(mr->ibmr.device);
+}
+
 static inline struct mlx5_ib_dev *mlx5_udata_to_mdev(struct ib_udata *udata)
 {
 	struct mlx5_ib_ucontext *context = rdma_udata_to_drv_context(
@@ -1189,9 +1258,9 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 					     int access_flags);
 void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *mr);
 void mlx5_ib_fence_odp_mr(struct mlx5_ib_mr *mr);
-int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
-			  u64 length, u64 virt_addr, int access_flags,
-			  struct ib_pd *pd, struct ib_udata *udata);
+struct ib_mr *mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
+				    u64 length, u64 virt_addr, int access_flags,
+				    struct ib_pd *pd, struct ib_udata *udata);
 int mlx5_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata);
 struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 			       u32 max_num_sg);
@@ -1210,7 +1279,6 @@ int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 			size_t *out_mad_size, u16 *out_mad_pkey_index);
 int mlx5_ib_alloc_xrcd(struct ib_xrcd *xrcd, struct ib_udata *udata);
 int mlx5_ib_dealloc_xrcd(struct ib_xrcd *xrcd, struct ib_udata *udata);
-int mlx5_ib_get_buf_offset(u64 addr, int page_shift, u32 *offset);
 int mlx5_query_ext_port_caps(struct mlx5_ib_dev *dev, u8 port);
 int mlx5_query_mad_ifc_smp_attr_node_info(struct ib_device *ibdev,
 					  struct ib_smp *out_mad);
@@ -1230,15 +1298,8 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u8 port,
 			    struct ib_port_attr *props);
 int mlx5_ib_query_port(struct ib_device *ibdev, u8 port,
 		       struct ib_port_attr *props);
-void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
-			unsigned long max_page_shift,
-			int *count, int *shift,
-			int *ncont, int *order);
-void __mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
-			    int page_shift, size_t offset, size_t num_pages,
-			    __be64 *pas, int access_flags);
-void mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
-			  int page_shift, __be64 *pas, int access_flags);
+void mlx5_ib_populate_pas(struct ib_umem *umem, size_t page_size, __be64 *pas,
+			  u64 access_flags);
 void mlx5_ib_copy_pas(u64 *old, u64 *new, int step, int num);
 int mlx5_ib_get_cqe_size(struct ib_cq *ibcq);
 int mlx5_mr_cache_init(struct mlx5_ib_dev *dev);
@@ -1283,7 +1344,7 @@ void mlx5_odp_populate_xlt(void *xlt, size_t idx, size_t nentries,
 int mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 			       enum ib_uverbs_advise_mr_advice advice,
 			       u32 flags, struct ib_sge *sg_list, u32 num_sge);
-int mlx5_ib_init_odp_mr(struct mlx5_ib_mr *mr, bool enable);
+int mlx5_ib_init_odp_mr(struct mlx5_ib_mr *mr);
 #else /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
 static inline void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 {
@@ -1305,7 +1366,7 @@ mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 {
 	return -EOPNOTSUPP;
 }
-static inline int mlx5_ib_init_odp_mr(struct mlx5_ib_mr *mr, bool enable)
+static inline int mlx5_ib_init_odp_mr(struct mlx5_ib_mr *mr)
 {
 	return -EOPNOTSUPP;
 }
@@ -1317,8 +1378,8 @@ extern const struct mmu_interval_notifier_ops mlx5_mn_ops;
 void __mlx5_ib_remove(struct mlx5_ib_dev *dev,
 		      const struct mlx5_ib_profile *profile,
 		      int stage);
-void *__mlx5_ib_add(struct mlx5_ib_dev *dev,
-		    const struct mlx5_ib_profile *profile);
+int __mlx5_ib_add(struct mlx5_ib_dev *dev,
+		  const struct mlx5_ib_profile *profile);
 
 int mlx5_ib_get_vf_config(struct ib_device *device, int vf,
 			  u8 port, struct ifla_vf_info *info);
@@ -1456,8 +1517,7 @@ static inline int get_num_static_uars(struct mlx5_ib_dev *dev,
 	return get_uars_per_sys_page(dev, bfregi->lib_uar_4k) * bfregi->num_static_sys_pages;
 }
 
-unsigned long mlx5_ib_get_xlt_emergency_page(void);
-void mlx5_ib_put_xlt_emergency_page(void);
+extern void *xlt_emergency_page;
 
 int bfregn_to_uar_index(struct mlx5_ib_dev *dev,
 			struct mlx5_bfreg_info *bfregi, u32 bfregn,

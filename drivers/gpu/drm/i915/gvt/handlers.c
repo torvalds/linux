@@ -290,8 +290,8 @@ static int mul_force_wake_write(struct intel_vgpu *vgpu,
 		case FORCEWAKE_RENDER_GEN9_REG:
 			ack_reg_offset = FORCEWAKE_ACK_RENDER_GEN9_REG;
 			break;
-		case FORCEWAKE_BLITTER_GEN9_REG:
-			ack_reg_offset = FORCEWAKE_ACK_BLITTER_GEN9_REG;
+		case FORCEWAKE_GT_GEN9_REG:
+			ack_reg_offset = FORCEWAKE_ACK_GT_GEN9_REG;
 			break;
 		case FORCEWAKE_MEDIA_GEN9_REG:
 			ack_reg_offset = FORCEWAKE_ACK_MEDIA_GEN9_REG;
@@ -2238,9 +2238,9 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(PF_VSCALE(PIPE_C), D_ALL);
 	MMIO_D(PF_HSCALE(PIPE_C), D_ALL);
 
-	MMIO_D(WM0_PIPEA_ILK, D_ALL);
-	MMIO_D(WM0_PIPEB_ILK, D_ALL);
-	MMIO_D(WM0_PIPEC_IVB, D_ALL);
+	MMIO_D(WM0_PIPE_ILK(PIPE_A), D_ALL);
+	MMIO_D(WM0_PIPE_ILK(PIPE_B), D_ALL);
+	MMIO_D(WM0_PIPE_ILK(PIPE_C), D_ALL);
 	MMIO_D(WM1_LP_ILK, D_ALL);
 	MMIO_D(WM2_LP_ILK, D_ALL);
 	MMIO_D(WM3_LP_ILK, D_ALL);
@@ -2930,8 +2930,8 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 
 	MMIO_DH(FORCEWAKE_RENDER_GEN9, D_SKL_PLUS, NULL, mul_force_wake_write);
 	MMIO_DH(FORCEWAKE_ACK_RENDER_GEN9, D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(FORCEWAKE_BLITTER_GEN9, D_SKL_PLUS, NULL, mul_force_wake_write);
-	MMIO_DH(FORCEWAKE_ACK_BLITTER_GEN9, D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(FORCEWAKE_GT_GEN9, D_SKL_PLUS, NULL, mul_force_wake_write);
+	MMIO_DH(FORCEWAKE_ACK_GT_GEN9, D_SKL_PLUS, NULL, NULL);
 	MMIO_DH(FORCEWAKE_MEDIA_GEN9, D_SKL_PLUS, NULL, mul_force_wake_write);
 	MMIO_DH(FORCEWAKE_ACK_MEDIA_GEN9, D_SKL_PLUS, NULL, NULL);
 
@@ -3120,9 +3120,10 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_DFH(TRVATTL3PTRDW(2), D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(TRVATTL3PTRDW(3), D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(TRVADR, D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(TRTTE, D_SKL_PLUS, F_CMD_ACCESS,
-		NULL, gen9_trtte_write);
-	MMIO_DH(_MMIO(0x4dfc), D_SKL_PLUS, NULL, gen9_trtt_chicken_write);
+	MMIO_DFH(TRTTE, D_SKL_PLUS, F_CMD_ACCESS | F_PM_SAVE,
+		 NULL, gen9_trtte_write);
+	MMIO_DFH(_MMIO(0x4dfc), D_SKL_PLUS, F_PM_SAVE,
+		 NULL, gen9_trtt_chicken_write);
 
 	MMIO_D(_MMIO(0x46430), D_SKL_PLUS);
 
@@ -3670,4 +3671,41 @@ default_rw:
 	return is_read ?
 		intel_vgpu_default_mmio_read(vgpu, offset, pdata, bytes) :
 		intel_vgpu_default_mmio_write(vgpu, offset, pdata, bytes);
+}
+
+void intel_gvt_restore_fence(struct intel_gvt *gvt)
+{
+	struct intel_vgpu *vgpu;
+	int i, id;
+
+	idr_for_each_entry(&(gvt)->vgpu_idr, vgpu, id) {
+		mmio_hw_access_pre(gvt->gt);
+		for (i = 0; i < vgpu_fence_sz(vgpu); i++)
+			intel_vgpu_write_fence(vgpu, i, vgpu_vreg64(vgpu, fence_num_to_offset(i)));
+		mmio_hw_access_post(gvt->gt);
+	}
+}
+
+static inline int mmio_pm_restore_handler(struct intel_gvt *gvt,
+					  u32 offset, void *data)
+{
+	struct intel_vgpu *vgpu = data;
+	struct drm_i915_private *dev_priv = gvt->gt->i915;
+
+	if (gvt->mmio.mmio_attribute[offset >> 2] & F_PM_SAVE)
+		I915_WRITE(_MMIO(offset), vgpu_vreg(vgpu, offset));
+
+	return 0;
+}
+
+void intel_gvt_restore_mmio(struct intel_gvt *gvt)
+{
+	struct intel_vgpu *vgpu;
+	int id;
+
+	idr_for_each_entry(&(gvt)->vgpu_idr, vgpu, id) {
+		mmio_hw_access_pre(gvt->gt);
+		intel_gvt_for_each_tracked_mmio(gvt, mmio_pm_restore_handler, vgpu);
+		mmio_hw_access_post(gvt->gt);
+	}
 }

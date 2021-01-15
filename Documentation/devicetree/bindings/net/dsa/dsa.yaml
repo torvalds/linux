@@ -20,7 +20,7 @@ select: false
 
 properties:
   $nodename:
-    pattern: "^switch(@.*)?$"
+    pattern: "^(ethernet-)?switch(@.*)?$"
 
   dsa,member:
     minItems: 2
@@ -54,7 +54,7 @@ patternProperties:
             description:
               Describes the label associated with this port, which will become
               the netdev name
-            $ref: /schemas/types.yaml#definitions/string
+            $ref: /schemas/types.yaml#/definitions/string
 
           link:
             description:
@@ -62,13 +62,13 @@ patternProperties:
               port is used as the outgoing port towards the phandle ports. The
               full routing information must be given, not just the one hop
               routes to neighbouring switches
-            $ref: /schemas/types.yaml#definitions/phandle-array
+            $ref: /schemas/types.yaml#/definitions/phandle-array
 
           ethernet:
             description:
               Should be a phandle to a valid Ethernet device node.  This host
               device is what the switch port is connected to
-            $ref: /schemas/types.yaml#definitions/phandle
+            $ref: /schemas/types.yaml#/definitions/phandle
 
           phy-handle: true
 
@@ -77,6 +77,10 @@ patternProperties:
           fixed-link: true
 
           mac-address: true
+
+          sfp: true
+
+          managed: true
 
         required:
           - reg

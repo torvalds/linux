@@ -35,11 +35,9 @@ properties:
     description: GPIO connected to active low reset.
 
   vdd12-supply:
-    maxItems: 1
     description: Regulator for 1.2V digital core power.
 
   vdd33-supply:
-    maxItems: 1
     description: Regulator for 3.3V digital core power.
 
   ports:

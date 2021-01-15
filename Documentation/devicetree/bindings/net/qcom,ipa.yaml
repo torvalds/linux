@@ -114,14 +114,13 @@ properties:
       validating firwmare used by the GSI.
 
   modem-remoteproc:
-    $ref: /schemas/types.yaml#definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       This defines the phandle to the remoteproc node representing
       the modem subsystem.  This is requied so the IPA driver can
       receive and act on notifications of modem up/down events.
 
   memory-region:
-    $ref: /schemas/types.yaml#/definitions/phandle-array
     maxItems: 1
     description:
       If present, a phandle for a reserved memory area that holds

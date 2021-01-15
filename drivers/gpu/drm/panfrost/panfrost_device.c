@@ -18,19 +18,13 @@
 
 static int panfrost_reset_init(struct panfrost_device *pfdev)
 {
-	int err;
-
-	pfdev->rstc = devm_reset_control_array_get(pfdev->dev, false, true);
+	pfdev->rstc = devm_reset_control_array_get_optional_exclusive(pfdev->dev);
 	if (IS_ERR(pfdev->rstc)) {
 		dev_err(pfdev->dev, "get reset failed %ld\n", PTR_ERR(pfdev->rstc));
 		return PTR_ERR(pfdev->rstc);
 	}
 
-	err = reset_control_deassert(pfdev->rstc);
-	if (err)
-		return err;
-
-	return 0;
+	return reset_control_deassert(pfdev->rstc);
 }
 
 static void panfrost_reset_fini(struct panfrost_device *pfdev)
@@ -206,7 +200,6 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 	struct resource *res;
 
 	mutex_init(&pfdev->sched_lock);
-	mutex_init(&pfdev->reset_lock);
 	INIT_LIST_HEAD(&pfdev->scheduled_jobs);
 	INIT_LIST_HEAD(&pfdev->as_lru_list);
 

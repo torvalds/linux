@@ -44,6 +44,7 @@ enum amdgpu_interrupt_state {
 };
 
 struct amdgpu_iv_entry {
+	struct amdgpu_ih_ring *ih;
 	unsigned client_id;
 	unsigned src_id;
 	unsigned ring_id;
@@ -88,9 +89,9 @@ struct amdgpu_irq {
 	bool				msi_enabled; /* msi enabled */
 
 	/* interrupt rings */
-	struct amdgpu_ih_ring		ih, ih1, ih2;
+	struct amdgpu_ih_ring		ih, ih1, ih2, ih_soft;
 	const struct amdgpu_ih_funcs    *ih_funcs;
-	struct work_struct		ih1_work, ih2_work;
+	struct work_struct		ih1_work, ih2_work, ih_soft_work;
 	struct amdgpu_irq_src		self_irq;
 
 	/* gen irq stuff */
@@ -109,6 +110,9 @@ int amdgpu_irq_add_id(struct amdgpu_device *adev,
 		      struct amdgpu_irq_src *source);
 void amdgpu_irq_dispatch(struct amdgpu_device *adev,
 			 struct amdgpu_ih_ring *ih);
+void amdgpu_irq_delegate(struct amdgpu_device *adev,
+			 struct amdgpu_iv_entry *entry,
+			 unsigned int num_dw);
 int amdgpu_irq_update(struct amdgpu_device *adev, struct amdgpu_irq_src *src,
 		      unsigned type);
 int amdgpu_irq_get(struct amdgpu_device *adev, struct amdgpu_irq_src *src,

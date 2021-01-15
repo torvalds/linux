@@ -57,6 +57,7 @@ properties:
       - const: per
 
   clock-frequency:
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       The oscillator frequency driving the flexcan device, filled in by the
       boot loader. This property should only be used the used operating system
@@ -99,7 +100,7 @@ properties:
       by default.
       0: clock source 0 (oscillator clock)
       1: clock source 1 (peripheral clock)
-    $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint8
     default: 1
     minimum: 0
     maximum: 1
@@ -124,7 +125,7 @@ examples:
         interrupts = <48 0x2>;
         interrupt-parent = <&mpic>;
         clock-frequency = <200000000>;
-        fsl,clk-source = <0>;
+        fsl,clk-source = /bits/ 8 <0>;
     };
   - |
     #include <dt-bindings/interrupt-controller/irq.h>

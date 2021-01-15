@@ -4,7 +4,6 @@ obj-$(CONFIG_PINCTRL_IMX)	+= pinctrl-imx.o
 obj-$(CONFIG_PINCTRL_IMX_SCU)	+= pinctrl-scu.o
 obj-$(CONFIG_PINCTRL_IMX1_CORE)	+= pinctrl-imx1-core.o
 obj-$(CONFIG_PINCTRL_IMX1)	+= pinctrl-imx1.o
-obj-$(CONFIG_PINCTRL_IMX21)	+= pinctrl-imx21.o
 obj-$(CONFIG_PINCTRL_IMX27)	+= pinctrl-imx27.o
 obj-$(CONFIG_PINCTRL_IMX35)	+= pinctrl-imx35.o
 obj-$(CONFIG_PINCTRL_IMX50)	+= pinctrl-imx50.o

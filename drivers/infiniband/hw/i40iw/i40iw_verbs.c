@@ -180,78 +180,6 @@ static int i40iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 }
 
 /**
- * i40iw_alloc_push_page - allocate a push page for qp
- * @iwdev: iwarp device
- * @qp: hardware control qp
- */
-static void i40iw_alloc_push_page(struct i40iw_device *iwdev, struct i40iw_sc_qp *qp)
-{
-	struct i40iw_cqp_request *cqp_request;
-	struct cqp_commands_info *cqp_info;
-	enum i40iw_status_code status;
-
-	if (qp->push_idx != I40IW_INVALID_PUSH_PAGE_INDEX)
-		return;
-
-	cqp_request = i40iw_get_cqp_request(&iwdev->cqp, true);
-	if (!cqp_request)
-		return;
-
-	atomic_inc(&cqp_request->refcount);
-
-	cqp_info = &cqp_request->info;
-	cqp_info->cqp_cmd = OP_MANAGE_PUSH_PAGE;
-	cqp_info->post_sq = 1;
-
-	cqp_info->in.u.manage_push_page.info.qs_handle = qp->qs_handle;
-	cqp_info->in.u.manage_push_page.info.free_page = 0;
-	cqp_info->in.u.manage_push_page.cqp = &iwdev->cqp.sc_cqp;
-	cqp_info->in.u.manage_push_page.scratch = (uintptr_t)cqp_request;
-
-	status = i40iw_handle_cqp_op(iwdev, cqp_request);
-	if (!status)
-		qp->push_idx = cqp_request->compl_info.op_ret_val;
-	else
-		i40iw_pr_err("CQP-OP Push page fail");
-	i40iw_put_cqp_request(&iwdev->cqp, cqp_request);
-}
-
-/**
- * i40iw_dealloc_push_page - free a push page for qp
- * @iwdev: iwarp device
- * @qp: hardware control qp
- */
-static void i40iw_dealloc_push_page(struct i40iw_device *iwdev, struct i40iw_sc_qp *qp)
-{
-	struct i40iw_cqp_request *cqp_request;
-	struct cqp_commands_info *cqp_info;
-	enum i40iw_status_code status;
-
-	if (qp->push_idx == I40IW_INVALID_PUSH_PAGE_INDEX)
-		return;
-
-	cqp_request = i40iw_get_cqp_request(&iwdev->cqp, false);
-	if (!cqp_request)
-		return;
-
-	cqp_info = &cqp_request->info;
-	cqp_info->cqp_cmd = OP_MANAGE_PUSH_PAGE;
-	cqp_info->post_sq = 1;
-
-	cqp_info->in.u.manage_push_page.info.push_idx = qp->push_idx;
-	cqp_info->in.u.manage_push_page.info.qs_handle = qp->qs_handle;
-	cqp_info->in.u.manage_push_page.info.free_page = 1;
-	cqp_info->in.u.manage_push_page.cqp = &iwdev->cqp.sc_cqp;
-	cqp_info->in.u.manage_push_page.scratch = (uintptr_t)cqp_request;
-
-	status = i40iw_handle_cqp_op(iwdev, cqp_request);
-	if (!status)
-		qp->push_idx = I40IW_INVALID_PUSH_PAGE_INDEX;
-	else
-		i40iw_pr_err("CQP-OP Push page fail");
-}
-
-/**
  * i40iw_alloc_pd - allocate protection domain
  * @pd: PD pointer
  * @udata: user data
@@ -348,7 +276,6 @@ void i40iw_free_qp_resources(struct i40iw_qp *iwqp)
 	u32 qp_num = iwqp->ibqp.qp_num;
 
 	i40iw_ieq_cleanup_qp(iwdev->vsi.ieq, &iwqp->sc_qp);
-	i40iw_dealloc_push_page(iwdev, &iwqp->sc_qp);
 	if (qp_num)
 		i40iw_free_resource(iwdev, iwdev->allocated_qps, qp_num);
 	if (iwpbl->pbl_allocated)
@@ -533,7 +460,7 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 		return ERR_PTR(-ENODEV);
 
 	if (init_attr->create_flags)
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EOPNOTSUPP);
 	if (init_attr->cap.max_inline_data > I40IW_MAX_INLINE_DATA_SIZE)
 		init_attr->cap.max_inline_data = I40IW_MAX_INLINE_DATA_SIZE;
 
@@ -561,8 +488,6 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 
 	qp = &iwqp->sc_qp;
 	qp->back_qp = (void *)iwqp;
-	qp->push_idx = I40IW_INVALID_PUSH_PAGE_INDEX;
-
 	iwqp->iwdev = iwdev;
 	iwqp->ctx_info.iwarp_info = &iwqp->iwarp_info;
 
@@ -606,8 +531,6 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 		err_code = -EOPNOTSUPP;
 		goto error;
 	}
-	if (iwdev->push_mode)
-		i40iw_alloc_push_page(iwdev, qp);
 	if (udata) {
 		err_code = ib_copy_from_udata(&req, udata, sizeof(req));
 		if (err_code) {
@@ -666,13 +589,6 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	ctx_info->iwarp_info_valid = true;
 	ctx_info->send_cq_num = iwqp->iwscq->sc_cq.cq_uk.cq_id;
 	ctx_info->rcv_cq_num = iwqp->iwrcq->sc_cq.cq_uk.cq_id;
-	if (qp->push_idx == I40IW_INVALID_PUSH_PAGE_INDEX) {
-		ctx_info->push_mode_en = false;
-	} else {
-		ctx_info->push_mode_en = true;
-		ctx_info->push_idx = qp->push_idx;
-	}
-
 	ret = dev->iw_priv_qp_ops->qp_setctx(&iwqp->sc_qp,
 					     (u64 *)iwqp->host_ctx.va,
 					     ctx_info);
@@ -712,7 +628,7 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 		uresp.actual_sq_size = sq_size;
 		uresp.actual_rq_size = rq_size;
 		uresp.qp_id = qp_num;
-		uresp.push_idx = qp->push_idx;
+		uresp.push_idx = I40IW_INVALID_PUSH_PAGE_INDEX;
 		err_code = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
 		if (err_code) {
 			i40iw_pr_err("copy_to_udata failed\n");
@@ -831,6 +747,9 @@ int i40iw_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	u8 dont_wait = 0;
 	u32 err;
 	unsigned long flags;
+
+	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
+		return -EOPNOTSUPP;
 
 	memset(&info, 0, sizeof(info));
 	ctx_info = &iwqp->ctx_info;
@@ -1080,6 +999,9 @@ static int i40iw_create_cq(struct ib_cq *ibcq,
 	unsigned long flags;
 	int err_code;
 	int entries = attr->cqe;
+
+	if (attr->flags)
+		return -EOPNOTSUPP;
 
 	if (iwdev->closing)
 		return -ENODEV;
@@ -2033,7 +1955,7 @@ static ssize_t hw_rev_show(struct device *dev,
 		rdma_device_to_drv_device(dev, struct i40iw_ib_device, ibdev);
 	u32 hw_rev = iwibdev->iwdev->sc_dev.hw_rev;
 
-	return sprintf(buf, "%x\n", hw_rev);
+	return sysfs_emit(buf, "%x\n", hw_rev);
 }
 static DEVICE_ATTR_RO(hw_rev);
 
@@ -2043,7 +1965,7 @@ static DEVICE_ATTR_RO(hw_rev);
 static ssize_t hca_type_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "I40IW\n");
+	return sysfs_emit(buf, "I40IW\n");
 }
 static DEVICE_ATTR_RO(hca_type);
 
@@ -2053,7 +1975,7 @@ static DEVICE_ATTR_RO(hca_type);
 static ssize_t board_id_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%.*s\n", 32, "I40IW Board ID");
+	return sysfs_emit(buf, "%.*s\n", 32, "I40IW Board ID");
 }
 static DEVICE_ATTR_RO(board_id);
 
@@ -2661,27 +2583,6 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	iwibdev->ibdev.node_type = RDMA_NODE_RNIC;
 	ether_addr_copy((u8 *)&iwibdev->ibdev.node_guid, netdev->dev_addr);
 
-	iwibdev->ibdev.uverbs_cmd_mask =
-	    (1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |
-	    (1ull << IB_USER_VERBS_CMD_QUERY_DEVICE) |
-	    (1ull << IB_USER_VERBS_CMD_QUERY_PORT) |
-	    (1ull << IB_USER_VERBS_CMD_ALLOC_PD) |
-	    (1ull << IB_USER_VERBS_CMD_DEALLOC_PD) |
-	    (1ull << IB_USER_VERBS_CMD_REG_MR) |
-	    (1ull << IB_USER_VERBS_CMD_DEREG_MR) |
-	    (1ull << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL) |
-	    (1ull << IB_USER_VERBS_CMD_CREATE_CQ) |
-	    (1ull << IB_USER_VERBS_CMD_DESTROY_CQ) |
-	    (1ull << IB_USER_VERBS_CMD_REQ_NOTIFY_CQ) |
-	    (1ull << IB_USER_VERBS_CMD_CREATE_QP) |
-	    (1ull << IB_USER_VERBS_CMD_MODIFY_QP) |
-	    (1ull << IB_USER_VERBS_CMD_QUERY_QP) |
-	    (1ull << IB_USER_VERBS_CMD_POLL_CQ) |
-	    (1ull << IB_USER_VERBS_CMD_CREATE_AH) |
-	    (1ull << IB_USER_VERBS_CMD_DESTROY_AH) |
-	    (1ull << IB_USER_VERBS_CMD_DESTROY_QP) |
-	    (1ull << IB_USER_VERBS_CMD_POST_RECV) |
-	    (1ull << IB_USER_VERBS_CMD_POST_SEND);
 	iwibdev->ibdev.phys_port_cnt = 1;
 	iwibdev->ibdev.num_comp_vectors = iwdev->ceqs_count;
 	iwibdev->ibdev.dev.parent = &pcidev->dev;

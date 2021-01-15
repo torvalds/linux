@@ -264,7 +264,7 @@ restart:
 	return NULL;
 }
 
-static bool ceph_quota_is_same_realm(struct inode *old, struct inode *new)
+bool ceph_quota_is_same_realm(struct inode *old, struct inode *new)
 {
 	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(old->i_sb);
 	struct ceph_snap_realm *old_realm, *new_realm;
@@ -516,59 +516,3 @@ bool ceph_quota_update_statfs(struct ceph_fs_client *fsc, struct kstatfs *buf)
 	return is_updated;
 }
 
-/*
- * ceph_quota_check_rename - check if a rename can be executed
- * @mdsc:	MDS client instance
- * @old:	inode to be copied
- * @new:	destination inode (directory)
- *
- * This function verifies if a rename (e.g. moving a file or directory) can be
- * executed.  It forces an rstat update in the @new target directory (and in the
- * source @old as well, if it's a directory).  The actual check is done both for
- * max_files and max_bytes.
- *
- * This function returns 0 if it's OK to do the rename, or, if quotas are
- * exceeded, -EXDEV (if @old is a directory) or -EDQUOT.
- */
-int ceph_quota_check_rename(struct ceph_mds_client *mdsc,
-			    struct inode *old, struct inode *new)
-{
-	struct ceph_inode_info *ci_old = ceph_inode(old);
-	int ret = 0;
-
-	if (ceph_quota_is_same_realm(old, new))
-		return 0;
-
-	/*
-	 * Get the latest rstat for target directory (and for source, if a
-	 * directory)
-	 */
-	ret = ceph_do_getattr(new, CEPH_STAT_RSTAT, false);
-	if (ret)
-		return ret;
-
-	if (S_ISDIR(old->i_mode)) {
-		ret = ceph_do_getattr(old, CEPH_STAT_RSTAT, false);
-		if (ret)
-			return ret;
-		ret = check_quota_exceeded(new, QUOTA_CHECK_MAX_BYTES_OP,
-					   ci_old->i_rbytes);
-		if (!ret)
-			ret = check_quota_exceeded(new,
-						   QUOTA_CHECK_MAX_FILES_OP,
-						   ci_old->i_rfiles +
-						   ci_old->i_rsubdirs);
-		if (ret)
-			ret = -EXDEV;
-	} else {
-		ret = check_quota_exceeded(new, QUOTA_CHECK_MAX_BYTES_OP,
-					   i_size_read(old));
-		if (!ret)
-			ret = check_quota_exceeded(new,
-						   QUOTA_CHECK_MAX_FILES_OP, 1);
-		if (ret)
-			ret = -EDQUOT;
-	}
-
-	return ret;
-}

@@ -5,8 +5,6 @@
  * Copyright (C) 2018, Red Hat, Inc.
  */
 
-#define _GNU_SOURCE /* for program_invocation_name */
-
 #include <linux/compiler.h>
 
 #include "kvm_util.h"
@@ -217,21 +215,6 @@ void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 		fprintf(stream, "%*spgd: %lx: %lx at %p\n", indent, "", pgd, *ptep, ptep);
 		pte_dump(stream, vm, indent + 1, pte_addr(vm, *ptep), level);
 	}
-}
-
-struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
-				 void *guest_code)
-{
-	uint64_t ptrs_per_4k_pte = 512;
-	uint64_t extra_pg_pages = (extra_mem_pages / ptrs_per_4k_pte) * 2;
-	struct kvm_vm *vm;
-
-	vm = vm_create(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES + extra_pg_pages, O_RDWR);
-
-	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);
-	vm_vcpu_add_default(vm, vcpuid, guest_code);
-
-	return vm;
 }
 
 void aarch64_vcpu_setup(struct kvm_vm *vm, int vcpuid, struct kvm_vcpu_init *init)

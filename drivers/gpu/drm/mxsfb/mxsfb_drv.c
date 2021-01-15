@@ -134,11 +134,8 @@ static int mxsfb_attach_bridge(struct mxsfb_drm_private *mxsfb)
 		return -ENODEV;
 
 	ret = drm_bridge_attach(&mxsfb->encoder, bridge, NULL, 0);
-	if (ret) {
-		DRM_DEV_ERROR(drm->dev,
-			      "failed to attach bridge: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(drm->dev, ret, "Failed to attach bridge\n");
 
 	mxsfb->bridge = bridge;
 
@@ -212,7 +209,8 @@ static int mxsfb_load(struct drm_device *drm,
 
 	ret = mxsfb_attach_bridge(mxsfb);
 	if (ret) {
-		dev_err(drm->dev, "Cannot connect bridge: %d\n", ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(drm->dev, "Cannot connect bridge: %d\n", ret);
 		goto err_vblank;
 	}
 
@@ -289,7 +287,7 @@ static irqreturn_t mxsfb_irq_handler(int irq, void *data)
 
 DEFINE_DRM_GEM_CMA_FOPS(fops);
 
-static struct drm_driver mxsfb_driver = {
+static const struct drm_driver mxsfb_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.irq_handler		= mxsfb_irq_handler,
 	.irq_preinstall		= mxsfb_irq_disable,

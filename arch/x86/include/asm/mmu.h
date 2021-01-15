@@ -6,6 +6,12 @@
 #include <linux/rwsem.h>
 #include <linux/mutex.h>
 #include <linux/atomic.h>
+#include <linux/bits.h>
+
+/* Uprobes on this MM assume 32-bit code */
+#define MM_CONTEXT_UPROBE_IA32	BIT(0)
+/* vsyscall page is accessible on this MM */
+#define MM_CONTEXT_HAS_VSYSCALL	BIT(1)
 
 /*
  * x86 has arch-specific MMU state beyond what lives in mm_struct.
@@ -33,8 +39,7 @@ typedef struct {
 #endif
 
 #ifdef CONFIG_X86_64
-	/* True if mm supports a task running in 32 bit compatibility mode. */
-	unsigned short ia32_compat;
+	unsigned short flags;
 #endif
 
 	struct mutex lock;

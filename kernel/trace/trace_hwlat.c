@@ -485,11 +485,11 @@ hwlat_width_write(struct file *filp, const char __user *ubuf,
  * @ppos: The current position in @file
  *
  * This function provides a write implementation for the "window" interface
- * to the hardware latency detetector. The window is the total time
+ * to the hardware latency detector. The window is the total time
  * in us that will be considered one sample period. Conceptually, windows
  * occur back-to-back and contain a sample width period during which
  * actual sampling occurs. Can be used to write a new total window size. It
- * is enfoced that any value written must be greater than the sample width
+ * is enforced that any value written must be greater than the sample width
  * size, or an error results.
  */
 static ssize_t

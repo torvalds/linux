@@ -52,7 +52,8 @@ static ssize_t max_reconnect_attempts_show(struct device *dev,
 {
 	struct rtrs_clt *clt = container_of(dev, struct rtrs_clt, dev);
 
-	return sprintf(page, "%d\n", rtrs_clt_get_max_reconnect_attempts(clt));
+	return sysfs_emit(page, "%d\n",
+			  rtrs_clt_get_max_reconnect_attempts(clt));
 }
 
 static ssize_t max_reconnect_attempts_store(struct device *dev,
@@ -95,11 +96,13 @@ static ssize_t mpath_policy_show(struct device *dev,
 
 	switch (clt->mp_policy) {
 	case MP_POLICY_RR:
-		return sprintf(page, "round-robin (RR: %d)\n", clt->mp_policy);
+		return sysfs_emit(page, "round-robin (RR: %d)\n",
+				  clt->mp_policy);
 	case MP_POLICY_MIN_INFLIGHT:
-		return sprintf(page, "min-inflight (MI: %d)\n", clt->mp_policy);
+		return sysfs_emit(page, "min-inflight (MI: %d)\n",
+				  clt->mp_policy);
 	default:
-		return sprintf(page, "Unknown (%d)\n", clt->mp_policy);
+		return sysfs_emit(page, "Unknown (%d)\n", clt->mp_policy);
 	}
 }
 
@@ -138,9 +141,10 @@ static DEVICE_ATTR_RW(mpath_policy);
 static ssize_t add_path_show(struct device *dev,
 			     struct device_attribute *attr, char *page)
 {
-	return scnprintf(page, PAGE_SIZE,
-			 "Usage: echo [<source addr>@]<destination addr> > %s\n\n*addr ::= [ ip:<ipv4|ipv6> | gid:<gid> ]\n",
-			 attr->attr.name);
+	return sysfs_emit(
+		page,
+		"Usage: echo [<source addr>@]<destination addr> > %s\n\n*addr ::= [ ip:<ipv4|ipv6> | gid:<gid> ]\n",
+		attr->attr.name);
 }
 
 static ssize_t add_path_store(struct device *dev,
@@ -184,20 +188,18 @@ static ssize_t rtrs_clt_state_show(struct kobject *kobj,
 
 	sess = container_of(kobj, struct rtrs_clt_sess, kobj);
 	if (sess->state == RTRS_CLT_CONNECTED)
-		return sprintf(page, "connected\n");
+		return sysfs_emit(page, "connected\n");
 
-	return sprintf(page, "disconnected\n");
+	return sysfs_emit(page, "disconnected\n");
 }
 
 static struct kobj_attribute rtrs_clt_state_attr =
 	__ATTR(state, 0444, rtrs_clt_state_show, NULL);
 
 static ssize_t rtrs_clt_reconnect_show(struct kobject *kobj,
-					struct kobj_attribute *attr,
-					char *page)
+				       struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(page, PAGE_SIZE, "Usage: echo 1 > %s\n",
-			 attr->attr.name);
+	return sysfs_emit(buf, "Usage: echo 1 > %s\n", attr->attr.name);
 }
 
 static ssize_t rtrs_clt_reconnect_store(struct kobject *kobj,
@@ -225,11 +227,9 @@ static struct kobj_attribute rtrs_clt_reconnect_attr =
 	       rtrs_clt_reconnect_store);
 
 static ssize_t rtrs_clt_disconnect_show(struct kobject *kobj,
-					 struct kobj_attribute *attr,
-					 char *page)
+					struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(page, PAGE_SIZE, "Usage: echo 1 > %s\n",
-			 attr->attr.name);
+	return sysfs_emit(buf, "Usage: echo 1 > %s\n", attr->attr.name);
 }
 
 static ssize_t rtrs_clt_disconnect_store(struct kobject *kobj,
@@ -257,11 +257,9 @@ static struct kobj_attribute rtrs_clt_disconnect_attr =
 	       rtrs_clt_disconnect_store);
 
 static ssize_t rtrs_clt_remove_path_show(struct kobject *kobj,
-					  struct kobj_attribute *attr,
-					  char *page)
+					 struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(page, PAGE_SIZE, "Usage: echo 1 > %s\n",
-			 attr->attr.name);
+	return sysfs_emit(buf, "Usage: echo 1 > %s\n", attr->attr.name);
 }
 
 static ssize_t rtrs_clt_remove_path_store(struct kobject *kobj,
@@ -324,7 +322,7 @@ static ssize_t rtrs_clt_hca_port_show(struct kobject *kobj,
 
 	sess = container_of(kobj, typeof(*sess), kobj);
 
-	return scnprintf(page, PAGE_SIZE, "%u\n", sess->hca_port);
+	return sysfs_emit(page, "%u\n", sess->hca_port);
 }
 
 static struct kobj_attribute rtrs_clt_hca_port_attr =
@@ -338,7 +336,7 @@ static ssize_t rtrs_clt_hca_name_show(struct kobject *kobj,
 
 	sess = container_of(kobj, struct rtrs_clt_sess, kobj);
 
-	return scnprintf(page, PAGE_SIZE, "%s\n", sess->hca_name);
+	return sysfs_emit(page, "%s\n", sess->hca_name);
 }
 
 static struct kobj_attribute rtrs_clt_hca_name_attr =
@@ -349,12 +347,13 @@ static ssize_t rtrs_clt_src_addr_show(struct kobject *kobj,
 				       char *page)
 {
 	struct rtrs_clt_sess *sess;
-	int cnt;
+	int len;
 
 	sess = container_of(kobj, struct rtrs_clt_sess, kobj);
-	cnt = sockaddr_to_str((struct sockaddr *)&sess->s.src_addr,
-			      page, PAGE_SIZE);
-	return cnt + scnprintf(page + cnt, PAGE_SIZE - cnt, "\n");
+	len = sockaddr_to_str((struct sockaddr *)&sess->s.src_addr, page,
+			      PAGE_SIZE);
+	len += sysfs_emit_at(page, len, "\n");
+	return len;
 }
 
 static struct kobj_attribute rtrs_clt_src_addr_attr =
@@ -365,12 +364,13 @@ static ssize_t rtrs_clt_dst_addr_show(struct kobject *kobj,
 				       char *page)
 {
 	struct rtrs_clt_sess *sess;
-	int cnt;
+	int len;
 
 	sess = container_of(kobj, struct rtrs_clt_sess, kobj);
-	cnt = sockaddr_to_str((struct sockaddr *)&sess->s.dst_addr,
-			      page, PAGE_SIZE);
-	return cnt + scnprintf(page + cnt, PAGE_SIZE - cnt, "\n");
+	len = sockaddr_to_str((struct sockaddr *)&sess->s.dst_addr, page,
+			      PAGE_SIZE);
+	len += sysfs_emit_at(page, len, "\n");
+	return len;
 }
 
 static struct kobj_attribute rtrs_clt_dst_addr_attr =

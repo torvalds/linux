@@ -394,19 +394,6 @@ repeat:
 	return last_map_addr;
 }
 
-pte_t *kmap_pte;
-
-static void __init kmap_init(void)
-{
-	unsigned long kmap_vstart;
-
-	/*
-	 * Cache the first kmap pte:
-	 */
-	kmap_vstart = __fix_to_virt(FIX_KMAP_BEGIN);
-	kmap_pte = virt_to_kpte(kmap_vstart);
-}
-
 #ifdef CONFIG_HIGHMEM
 static void __init permanent_kmaps_init(pgd_t *pgd_base)
 {
@@ -711,8 +698,6 @@ void __init paging_init(void)
 	pagetable_init();
 
 	__flush_tlb_all();
-
-	kmap_init();
 
 	/*
 	 * NOTE: at this point the bootmem allocator is fully available.

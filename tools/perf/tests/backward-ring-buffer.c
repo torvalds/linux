@@ -109,7 +109,7 @@ int test__backward_ring_buffer(struct test *test __maybe_unused, int subtest __m
 		return TEST_FAIL;
 	}
 
-	err = perf_evlist__create_maps(evlist, &opts.target);
+	err = evlist__create_maps(evlist, &opts.target);
 	if (err < 0) {
 		pr_debug("Not enough memory to create thread/cpu maps\n");
 		goto out_delete_evlist;
@@ -127,7 +127,7 @@ int test__backward_ring_buffer(struct test *test __maybe_unused, int subtest __m
 		goto out_delete_evlist;
 	}
 
-	perf_evlist__config(evlist, &opts, NULL);
+	evlist__config(evlist, &opts, NULL);
 
 	err = evlist__open(evlist);
 	if (err < 0) {

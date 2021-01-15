@@ -75,15 +75,8 @@ int rn_get_active_display_cnt_wa(
 	for (i = 0; i < dc->link_count; i++) {
 		const struct dc_link *link = dc->links[i];
 
-		/*
-		 * Only notify active stream or virtual stream.
-		 * Need to notify virtual stream to work around
-		 * headless case. HPD does not fire when system is in
-		 * S0i2.
-		 */
 		/* abusing the fact that the dig and phy are coupled to see if the phy is enabled */
-		if (link->connector_signal == SIGNAL_TYPE_VIRTUAL ||
-				link->link_enc->funcs->is_dig_enabled(link->link_enc))
+		if (link->link_enc->funcs->is_dig_enabled(link->link_enc))
 			display_count++;
 	}
 
@@ -102,6 +95,31 @@ void rn_set_low_power_state(struct clk_mgr *clk_mgr_base)
 	/* update power state */
 	clk_mgr_base->clks.pwr_state = DCN_PWR_STATE_LOW_POWER;
 }
+
+static void rn_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
+		struct dc_state *context, int ref_dpp_clk, bool safe_to_lower)
+{
+	int i;
+
+	clk_mgr->dccg->ref_dppclk = ref_dpp_clk;
+
+	for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
+		int dpp_inst, dppclk_khz, prev_dppclk_khz;
+
+		/* Loop index will match dpp->inst if resource exists,
+		 * and we want to avoid dependency on dpp object
+		 */
+		dpp_inst = i;
+		dppclk_khz = context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz;
+
+		prev_dppclk_khz = clk_mgr->dccg->pipe_dppclk_khz[i];
+
+		if (safe_to_lower || prev_dppclk_khz < dppclk_khz)
+			clk_mgr->dccg->funcs->update_dpp_dto(
+							clk_mgr->dccg, dpp_inst, dppclk_khz);
+	}
+}
+
 
 void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 			struct dc_state *context,
@@ -124,7 +142,7 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 	 * if it is safe to lower, but we are already in the lower state, we don't have to do anything
 	 * also if safe to lower is false, we just go in the higher state
 	 */
-	if (safe_to_lower) {
+	if (safe_to_lower && !dc->debug.disable_48mhz_pwrdwn) {
 		/* check that we're not already in lower */
 		if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_LOW_POWER) {
 
@@ -158,10 +176,8 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 
 	// workaround: Limit dppclk to 100Mhz to avoid lower eDP panel switch to plus 4K monitor underflow.
 	// Do not adjust dppclk if dppclk is 0 to avoid unexpected result
-	if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
-		if (new_clocks->dppclk_khz < 100000 && new_clocks->dppclk_khz > 0)
-			new_clocks->dppclk_khz = 100000;
-	}
+	if (new_clocks->dppclk_khz < 100000 && new_clocks->dppclk_khz > 0)
+		new_clocks->dppclk_khz = 100000;
 
 	/*
 	 * Temporally ignore thew 0 cases for disp and dpp clks.
@@ -181,22 +197,41 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 
 	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, clk_mgr_base->clks.dispclk_khz)) {
 		clk_mgr_base->clks.dispclk_khz = new_clocks->dispclk_khz;
-		rn_vbios_smu_set_dispclk(clk_mgr, clk_mgr_base->clks.dispclk_khz);
+		clk_mgr_base->clks.actual_dispclk_khz = rn_vbios_smu_set_dispclk(clk_mgr, clk_mgr_base->clks.dispclk_khz);
 
 		update_dispclk = true;
 	}
 
 	if (dpp_clock_lowered) {
-		// increase per DPP DTO before lowering global dppclk
-		dcn20_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
-		rn_vbios_smu_set_dppclk(clk_mgr, clk_mgr_base->clks.dppclk_khz);
+		// increase per DPP DTO before lowering global dppclk with requested dppclk
+		rn_update_clocks_update_dpp_dto(
+				clk_mgr,
+				context,
+				clk_mgr_base->clks.dppclk_khz,
+				safe_to_lower);
+
+		clk_mgr_base->clks.actual_dppclk_khz =
+				rn_vbios_smu_set_dppclk(clk_mgr, clk_mgr_base->clks.dppclk_khz);
+
+		//update dpp dto with actual dpp clk.
+		rn_update_clocks_update_dpp_dto(
+				clk_mgr,
+				context,
+				clk_mgr_base->clks.actual_dppclk_khz,
+				safe_to_lower);
+
 	} else {
 		// increase global DPPCLK before lowering per DPP DTO
 		if (update_dppclk || update_dispclk)
-			rn_vbios_smu_set_dppclk(clk_mgr, clk_mgr_base->clks.dppclk_khz);
+			clk_mgr_base->clks.actual_dppclk_khz =
+					rn_vbios_smu_set_dppclk(clk_mgr, clk_mgr_base->clks.dppclk_khz);
+
 		// always update dtos unless clock is lowered and not safe to lower
-		if (new_clocks->dppclk_khz >= dc->current_state->bw_ctx.bw.dcn.clk.dppclk_khz)
-			dcn20_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
+		rn_update_clocks_update_dpp_dto(
+				clk_mgr,
+				context,
+				clk_mgr_base->clks.actual_dppclk_khz,
+				safe_to_lower);
 	}
 
 	if (update_dispclk &&
@@ -206,7 +241,6 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 			clk_mgr_base->clks.dispclk_khz / 1000 / 7);
 	}
 }
-
 
 static int get_vco_frequency_from_reg(struct clk_mgr_internal *clk_mgr)
 {
@@ -585,8 +619,8 @@ static struct wm_table ddr4_wm_table_gs = {
 			.wm_inst = WM_A,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 6.09,
-			.sr_enter_plus_exit_time_us = 7.14,
+			.sr_exit_time_us = 7.09,
+			.sr_enter_plus_exit_time_us = 8.14,
 			.valid = true,
 		},
 		{
@@ -696,32 +730,32 @@ static struct wm_table ddr4_wm_table_rn = {
 			.wm_inst = WM_A,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 9.09,
-			.sr_enter_plus_exit_time_us = 10.14,
+			.sr_exit_time_us = 11.90,
+			.sr_enter_plus_exit_time_us = 12.80,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_B,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 10.12,
-			.sr_enter_plus_exit_time_us = 11.48,
+			.sr_exit_time_us = 13.18,
+			.sr_enter_plus_exit_time_us = 14.30,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_C,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 10.12,
-			.sr_enter_plus_exit_time_us = 11.48,
+			.sr_exit_time_us = 13.18,
+			.sr_enter_plus_exit_time_us = 14.30,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_D,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 10.12,
-			.sr_enter_plus_exit_time_us = 11.48,
+			.sr_exit_time_us = 13.18,
+			.sr_enter_plus_exit_time_us = 14.30,
 			.valid = true,
 		},
 	}

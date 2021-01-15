@@ -163,7 +163,7 @@ static int __init pcap_rtc_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	return rtc_register_device(pcap_rtc->rtc);
+	return devm_rtc_register_device(pcap_rtc->rtc);
 }
 
 static int __exit pcap_rtc_remove(struct platform_device *pdev)

@@ -67,7 +67,7 @@ static void sig_handler(int sig __maybe_unused)
 }
 
 /*
- * perf_evlist__prepare_workload will send a SIGUSR1 if the fork fails, since
+ * evlist__prepare_workload will send a SIGUSR1 if the fork fails, since
  * we asked by setting its exec_error to the function below,
  * ftrace__workload_exec_failed_signal.
  *
@@ -600,9 +600,8 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 	if (write_tracing_file("trace", "0") < 0)
 		goto out;
 
-	if (argc && perf_evlist__prepare_workload(ftrace->evlist,
-				&ftrace->target, argv, false,
-				ftrace__workload_exec_failed_signal) < 0) {
+	if (argc && evlist__prepare_workload(ftrace->evlist, &ftrace->target, argv, false,
+					     ftrace__workload_exec_failed_signal) < 0) {
 		goto out;
 	}
 
@@ -644,7 +643,7 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 		}
 	}
 
-	perf_evlist__start_workload(ftrace->evlist);
+	evlist__start_workload(ftrace->evlist);
 
 	if (ftrace->initial_delay) {
 		usleep(ftrace->initial_delay * 1000);
@@ -958,7 +957,7 @@ int cmd_ftrace(int argc, const char **argv)
 		goto out_delete_filters;
 	}
 
-	ret = perf_evlist__create_maps(ftrace.evlist, &ftrace.target);
+	ret = evlist__create_maps(ftrace.evlist, &ftrace.target);
 	if (ret < 0)
 		goto out_delete_evlist;
 

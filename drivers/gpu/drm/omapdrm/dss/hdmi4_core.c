@@ -2,7 +2,7 @@
 /*
  * HDMI TI81xx, TI38xx, TI OMAP4 etc IP driver Library
  *
- * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2010-2011 Texas Instruments Incorporated - https://www.ti.com/
  * Authors: Yong Zhi
  *	Mythri pk <mythripk@ti.com>
  */

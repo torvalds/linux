@@ -10,6 +10,7 @@ config INT340X_THERMAL
 	select ACPI_THERMAL_REL
 	select ACPI_FAN
 	select INTEL_SOC_DTS_IOSF_CORE
+	select PROC_THERMAL_MMIO_RAPL if X86_64 && POWERCAP
 	help
 	  Newer laptops and tablets that use ACPI may have thermal sensors and
 	  other devices with thermal control capabilities outside the core
@@ -41,9 +42,6 @@ config INT3406_THERMAL
 	  power consumed by display device.
 
 config PROC_THERMAL_MMIO_RAPL
-	bool
-	depends on 64BIT
-	depends on POWERCAP
+	tristate
 	select INTEL_RAPL_CORE
-	default y
 endif

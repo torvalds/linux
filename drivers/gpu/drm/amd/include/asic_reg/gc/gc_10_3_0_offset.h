@@ -3661,6 +3661,8 @@
 #define mmGCMC_VM_XGMI_LFB_CNTL_BASE_IDX                                                               0
 #define mmGCMC_VM_XGMI_LFB_SIZE                                                                        0x16f8
 #define mmGCMC_VM_XGMI_LFB_SIZE_BASE_IDX                                                               0
+#define mmGCMC_VM_FB_NOALLOC_CNTL                                                                      0x16f9
+#define mmGCMC_VM_FB_NOALLOC_CNTL_BASE_IDX                                                             0
 #define mmGCUTCL2_HARVEST_BYPASS_GROUPS                                                                0x16fa
 #define mmGCUTCL2_HARVEST_BYPASS_GROUPS_BASE_IDX                                                       0
 

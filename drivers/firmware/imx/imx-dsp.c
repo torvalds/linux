@@ -60,21 +60,39 @@ static void imx_dsp_handle_rx(struct mbox_client *c, void *msg)
 	}
 }
 
-static int imx_dsp_probe(struct platform_device *pdev)
+struct mbox_chan *imx_dsp_request_channel(struct imx_dsp_ipc *dsp_ipc, int idx)
 {
-	struct device *dev = &pdev->dev;
-	struct imx_dsp_ipc *dsp_ipc;
+	struct imx_dsp_chan *dsp_chan;
+
+	if (idx >= DSP_MU_CHAN_NUM)
+		return ERR_PTR(-EINVAL);
+
+	dsp_chan = &dsp_ipc->chans[idx];
+	dsp_chan->ch = mbox_request_channel_byname(&dsp_chan->cl, dsp_chan->name);
+	return dsp_chan->ch;
+}
+EXPORT_SYMBOL(imx_dsp_request_channel);
+
+void imx_dsp_free_channel(struct imx_dsp_ipc *dsp_ipc, int idx)
+{
+	struct imx_dsp_chan *dsp_chan;
+
+	if (idx >= DSP_MU_CHAN_NUM)
+		return;
+
+	dsp_chan = &dsp_ipc->chans[idx];
+	mbox_free_channel(dsp_chan->ch);
+}
+EXPORT_SYMBOL(imx_dsp_free_channel);
+
+static int imx_dsp_setup_channels(struct imx_dsp_ipc *dsp_ipc)
+{
+	struct device *dev = dsp_ipc->dev;
 	struct imx_dsp_chan *dsp_chan;
 	struct mbox_client *cl;
 	char *chan_name;
 	int ret;
 	int i, j;
-
-	device_set_of_node_from_dev(&pdev->dev, pdev->dev.parent);
-
-	dsp_ipc = devm_kzalloc(dev, sizeof(*dsp_ipc), GFP_KERNEL);
-	if (!dsp_ipc)
-		return -ENOMEM;
 
 	for (i = 0; i < DSP_MU_CHAN_NUM; i++) {
 		if (i < 2)
@@ -86,6 +104,7 @@ static int imx_dsp_probe(struct platform_device *pdev)
 			return -ENOMEM;
 
 		dsp_chan = &dsp_ipc->chans[i];
+		dsp_chan->name = chan_name;
 		cl = &dsp_chan->cl;
 		cl->dev = dev;
 		cl->tx_block = false;
@@ -104,25 +123,41 @@ static int imx_dsp_probe(struct platform_device *pdev)
 		}
 
 		dev_dbg(dev, "request mbox chan %s\n", chan_name);
-		/* chan_name is not used anymore by framework */
-		kfree(chan_name);
 	}
 
-	dsp_ipc->dev = dev;
+	return 0;
+out:
+	for (j = 0; j < i; j++) {
+		dsp_chan = &dsp_ipc->chans[j];
+		mbox_free_channel(dsp_chan->ch);
+		kfree(dsp_chan->name);
+	}
 
+	return ret;
+}
+
+static int imx_dsp_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct imx_dsp_ipc *dsp_ipc;
+	int ret;
+
+	device_set_of_node_from_dev(&pdev->dev, pdev->dev.parent);
+
+	dsp_ipc = devm_kzalloc(dev, sizeof(*dsp_ipc), GFP_KERNEL);
+	if (!dsp_ipc)
+		return -ENOMEM;
+
+	dsp_ipc->dev = dev;
 	dev_set_drvdata(dev, dsp_ipc);
+
+	ret = imx_dsp_setup_channels(dsp_ipc);
+	if (ret < 0)
+		return ret;
 
 	dev_info(dev, "NXP i.MX DSP IPC initialized\n");
 
 	return 0;
-out:
-	kfree(chan_name);
-	for (j = 0; j < i; j++) {
-		dsp_chan = &dsp_ipc->chans[j];
-		mbox_free_channel(dsp_chan->ch);
-	}
-
-	return ret;
 }
 
 static int imx_dsp_remove(struct platform_device *pdev)
@@ -136,6 +171,7 @@ static int imx_dsp_remove(struct platform_device *pdev)
 	for (i = 0; i < DSP_MU_CHAN_NUM; i++) {
 		dsp_chan = &dsp_ipc->chans[i];
 		mbox_free_channel(dsp_chan->ch);
+		kfree(dsp_chan->name);
 	}
 
 	return 0;

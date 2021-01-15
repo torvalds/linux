@@ -11,6 +11,7 @@
 		d	create a debug log
 		f	synthesize first level cache events
 		m	synthesize last level cache events
+		M	synthesize memory events
 		t	synthesize TLB events
 		a	synthesize remote access events
 		g	synthesize a call chain (use with i or x)

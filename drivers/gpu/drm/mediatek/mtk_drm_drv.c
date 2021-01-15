@@ -241,21 +241,10 @@ static int mtk_drm_kms_init(struct drm_device *drm)
 	 * Configure the DMA segment size to make sure we get contiguous IOVA
 	 * when importing PRIME buffers.
 	 */
-	if (!dma_dev->dma_parms) {
-		private->dma_parms_allocated = true;
-		dma_dev->dma_parms =
-			devm_kzalloc(drm->dev, sizeof(*dma_dev->dma_parms),
-				     GFP_KERNEL);
-	}
-	if (!dma_dev->dma_parms) {
-		ret = -ENOMEM;
-		goto put_dma_dev;
-	}
-
-	ret = dma_set_max_seg_size(dma_dev, (unsigned int)DMA_BIT_MASK(32));
+	ret = dma_set_max_seg_size(dma_dev, UINT_MAX);
 	if (ret) {
 		dev_err(dma_dev, "Failed to set DMA segment size\n");
-		goto err_unset_dma_parms;
+		goto err_component_unbind;
 	}
 
 	/*
@@ -266,18 +255,13 @@ static int mtk_drm_kms_init(struct drm_device *drm)
 	drm->irq_enabled = true;
 	ret = drm_vblank_init(drm, MAX_CRTC);
 	if (ret < 0)
-		goto err_unset_dma_parms;
+		goto err_component_unbind;
 
 	drm_kms_helper_poll_init(drm);
 	drm_mode_config_reset(drm);
 
 	return 0;
 
-err_unset_dma_parms:
-	if (private->dma_parms_allocated)
-		dma_dev->dma_parms = NULL;
-put_dma_dev:
-	put_device(private->dma_dev);
 err_component_unbind:
 	component_unbind_all(drm->dev, drm);
 put_mutex_dev:
@@ -287,13 +271,8 @@ put_mutex_dev:
 
 static void mtk_drm_kms_deinit(struct drm_device *drm)
 {
-	struct mtk_drm_private *private = drm->dev_private;
-
 	drm_kms_helper_poll_fini(drm);
 	drm_atomic_helper_shutdown(drm);
-
-	if (private->dma_parms_allocated)
-		private->dma_dev->dma_parms = NULL;
 
 	component_unbind_all(drm->dev, drm);
 }
@@ -313,29 +292,24 @@ static const struct file_operations mtk_drm_fops = {
  * We need to override this because the device used to import the memory is
  * not dev->dev, as drm_gem_prime_import() expects.
  */
-struct drm_gem_object *mtk_drm_gem_prime_import(struct drm_device *dev,
-						struct dma_buf *dma_buf)
+static struct drm_gem_object *mtk_drm_gem_prime_import(struct drm_device *dev,
+						       struct dma_buf *dma_buf)
 {
 	struct mtk_drm_private *private = dev->dev_private;
 
 	return drm_gem_prime_import_dev(dev, dma_buf, private->dma_dev);
 }
 
-static struct drm_driver mtk_drm_driver = {
+static const struct drm_driver mtk_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 
-	.gem_free_object_unlocked = mtk_drm_gem_free_object,
-	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = mtk_drm_gem_dumb_create,
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import = mtk_drm_gem_prime_import,
-	.gem_prime_get_sg_table = mtk_gem_prime_get_sg_table,
 	.gem_prime_import_sg_table = mtk_gem_prime_import_sg_table,
 	.gem_prime_mmap = mtk_drm_gem_mmap_buf,
-	.gem_prime_vmap = mtk_drm_gem_prime_vmap,
-	.gem_prime_vunmap = mtk_drm_gem_prime_vunmap,
 	.fops = &mtk_drm_fops,
 
 	.name = DRIVER_NAME,
@@ -636,7 +610,6 @@ static struct platform_driver * const mtk_drm_drivers[] = {
 	&mtk_disp_rdma_driver,
 	&mtk_dpi_driver,
 	&mtk_drm_platform_driver,
-	&mtk_mipi_tx_driver,
 	&mtk_dsi_driver,
 };
 

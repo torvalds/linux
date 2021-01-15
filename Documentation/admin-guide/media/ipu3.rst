@@ -86,7 +86,7 @@ raw Bayer format that is specific to IPU3.
 Let us take the example of ov5670 sensor connected to CSI2 port 0, for a
 2592x1944 image capture.
 
-Using the media contorller APIs, the ov5670 sensor is configured to send
+Using the media controller APIs, the ov5670 sensor is configured to send
 frames in packed raw Bayer format to IPU3 CSI2 receiver.
 
 .. code-block:: none
@@ -313,8 +313,8 @@ configuration steps of 0.03125 (1/32).
 
 **Geometric Distortion Correction**
 
-Geometric Distortion Correction is used to performe correction of distortions
-and image filtering. It needs some extra filter and envelop padding pixels to
+Geometric Distortion Correction is used to perform correction of distortions
+and image filtering. It needs some extra filter and envelope padding pixels to
 work, so the input resolution of GDC should be larger than the output
 resolution.
 

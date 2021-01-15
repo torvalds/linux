@@ -451,7 +451,7 @@
 			  "", "", "", "",
 			  "", "", "", "";
 
-	unused-sd3-wp-gpio {
+	unused-sd3-wp-hog {
 		/*
 		 * See pinctrl_esdhc1 below for more details on this
 		 */

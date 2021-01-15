@@ -288,9 +288,7 @@ static void fetch_ip_params(struct display_mode_lib *mode_lib)
 
 	// IP Parameters
 	mode_lib->vba.UseMinimumRequiredDCFCLK = ip->use_min_dcfclk;
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 	mode_lib->vba.ClampMinDCFCLK = ip->clamp_min_dcfclk;
-#endif
 	mode_lib->vba.MaxNumDPP = ip->max_num_dpp;
 	mode_lib->vba.MaxNumOTG = ip->max_num_otg;
 	mode_lib->vba.MaxNumHDMIFRLOutputs = ip->max_num_hdmi_frl_outputs;
@@ -471,8 +469,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.DSCEnable[mode_lib->vba.NumberOfActivePlanes] = dout->dsc_enable;
 		mode_lib->vba.NumberOfDSCSlices[mode_lib->vba.NumberOfActivePlanes] =
 				dout->dsc_slices;
-		mode_lib->vba.DSCInputBitPerComponent[mode_lib->vba.NumberOfActivePlanes] =
-				dout->output_bpc == 0 ? 12 : dout->output_bpc;
+		mode_lib->vba.DSCInputBitPerComponent[mode_lib->vba.NumberOfActivePlanes] = dout->output_bpc;
 		mode_lib->vba.WritebackEnable[mode_lib->vba.NumberOfActivePlanes] = dout->wb_enable;
 		mode_lib->vba.ActiveWritebacksPerPlane[mode_lib->vba.NumberOfActivePlanes] =
 				dout->num_active_wb;
@@ -662,10 +659,8 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 
 	// TODO: ODMCombineEnabled => 2 * DPPPerPlane...actually maybe not since all pipes are specified
 	// Do we want the dscclk to automatically be halved? Guess not since the value is specified
-	mode_lib->vba.SynchronizeTimingsIfSingleRefreshRate = pipes[0].pipe.dest.synchronize_timing_if_single_refresh_rate;
 	mode_lib->vba.SynchronizedVBlank = pipes[0].pipe.dest.synchronized_vblank_all_planes;
 	for (k = 1; k < mode_lib->vba.cache_num_pipes; ++k) {
-		ASSERT(mode_lib->vba.SynchronizeTimingsIfSingleRefreshRate == pipes[k].pipe.dest.synchronize_timing_if_single_refresh_rate);
 		ASSERT(mode_lib->vba.SynchronizedVBlank == pipes[k].pipe.dest.synchronized_vblank_all_planes);
 	}
 

@@ -315,7 +315,7 @@ retry:
 	if (mode & FMODE_WRITE)
 		r = w = 1;
 
-	name = dentry_name(file->f_path.dentry);
+	name = dentry_name(d_real(file->f_path.dentry, file->f_inode));
 	if (name == NULL)
 		return -ENOMEM;
 

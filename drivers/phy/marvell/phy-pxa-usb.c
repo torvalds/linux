@@ -286,7 +286,6 @@ MODULE_DEVICE_TABLE(of, pxa_usb_phy_of_match);
 static int pxa_usb_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource *resource;
 	struct pxa_usb_phy *pxa_usb_phy;
 	struct phy_provider *provider;
 	const struct of_device_id *of_id;
@@ -301,8 +300,7 @@ static int pxa_usb_phy_probe(struct platform_device *pdev)
 	else
 		pxa_usb_phy->version = PXA_USB_PHY_MMP2;
 
-	resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pxa_usb_phy->base = devm_ioremap_resource(dev, resource);
+	pxa_usb_phy->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pxa_usb_phy->base)) {
 		dev_err(dev, "failed to remap PHY regs\n");
 		return PTR_ERR(pxa_usb_phy->base);

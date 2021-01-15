@@ -70,15 +70,12 @@ bool dal_bios_parser_init_cmd_tbl_helper2(
 	case DCN_VERSION_1_01:
 	case DCN_VERSION_2_0:
 	case DCN_VERSION_2_1:
-		*h = dal_cmd_tbl_helper_dce112_get_table2();
-		return true;
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	case DCN_VERSION_3_0:
+	case DCN_VERSION_3_01:
+	case DCN_VERSION_3_02:
 		*h = dal_cmd_tbl_helper_dce112_get_table2();
 		return true;
 #endif
-
 	default:
 		/* Unsupported DCE */
 		BREAK_TO_DEBUGGER();

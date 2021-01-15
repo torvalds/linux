@@ -336,10 +336,9 @@ struct omap_device *omap_device_alloc(struct platform_device *pdev,
 	struct omap_hwmod **hwmods;
 
 	od = kzalloc(sizeof(struct omap_device), GFP_KERNEL);
-	if (!od) {
-		ret = -ENOMEM;
+	if (!od)
 		goto oda_exit1;
-	}
+
 	od->hwmods_cnt = oh_cnt;
 
 	hwmods = kmemdup(ohs, sizeof(struct omap_hwmod *) * oh_cnt, GFP_KERNEL);

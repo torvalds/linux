@@ -21,7 +21,6 @@
  *
  */
 #include "amdgpu.h"
-#include "gfxhub_v1_0.h"
 #include "gfxhub_v1_1.h"
 
 #include "gc/gc_9_2_1_offset.h"
@@ -29,7 +28,7 @@
 
 #include "soc15_common.h"
 
-static int gfxhub_v1_1_get_xgmi_info(struct amdgpu_device *adev)
+int gfxhub_v1_1_get_xgmi_info(struct amdgpu_device *adev)
 {
 	u32 xgmi_lfb_cntl = RREG32_SOC15(GC, 0, mmMC_VM_XGMI_LFB_CNTL);
 	u32 max_region =
@@ -67,13 +66,3 @@ static int gfxhub_v1_1_get_xgmi_info(struct amdgpu_device *adev)
 
 	return 0;
 }
-
-const struct amdgpu_gfxhub_funcs gfxhub_v1_1_funcs = {
-	.get_mc_fb_offset = gfxhub_v1_0_get_mc_fb_offset,
-	.setup_vm_pt_regs = gfxhub_v1_0_setup_vm_pt_regs,
-	.gart_enable = gfxhub_v1_0_gart_enable,
-	.gart_disable = gfxhub_v1_0_gart_disable,
-	.set_fault_enable_default = gfxhub_v1_0_set_fault_enable_default,
-	.init = gfxhub_v1_0_init,
-	.get_xgmi_info = gfxhub_v1_1_get_xgmi_info,
-};

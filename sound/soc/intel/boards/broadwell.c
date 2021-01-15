@@ -262,19 +262,15 @@ static int broadwell_resume(struct snd_soc_card *card){
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BROADWELL)
 /* use space before codec name to simplify card ID, and simplify driver name */
-#define CARD_NAME "bdw rt286" /* card name will be 'sof-bdw rt286' */
-#define DRIVER_NAME "SOF"
-#else
+#define SOF_CARD_NAME "bdw rt286" /* card name will be 'sof-bdw rt286' */
+#define SOF_DRIVER_NAME "SOF"
+
 #define CARD_NAME "broadwell-rt286"
 #define DRIVER_NAME NULL /* card name will be used for driver name */
-#endif
 
 /* broadwell audio machine driver for WPT + RT286S */
 static struct snd_soc_card broadwell_rt286 = {
-	.name = CARD_NAME,
-	.driver_name = DRIVER_NAME,
 	.owner = THIS_MODULE,
 	.dai_link = broadwell_rt286_dais,
 	.num_links = ARRAY_SIZE(broadwell_rt286_dais),
@@ -303,6 +299,15 @@ static int broadwell_audio_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	/* set card and driver name */
+	if (snd_soc_acpi_sof_parent(&pdev->dev)) {
+		broadwell_rt286.name = SOF_CARD_NAME;
+		broadwell_rt286.driver_name = SOF_DRIVER_NAME;
+	} else {
+		broadwell_rt286.name = CARD_NAME;
+		broadwell_rt286.driver_name = DRIVER_NAME;
+	}
+
 	return devm_snd_soc_register_card(&pdev->dev, &broadwell_rt286);
 }
 
@@ -318,6 +323,7 @@ static struct platform_driver broadwell_audio = {
 	.remove = broadwell_audio_remove,
 	.driver = {
 		.name = "broadwell-audio",
+		.pm = &snd_soc_pm_ops
 	},
 };
 

@@ -33,7 +33,7 @@ What:		/sys/fs/ext4/<disk>/mb_order2_req
 Date:		March 2008
 Contact:	"Theodore Ts'o" <tytso@mit.edu>
 Description:
-		Tuning parameter which controls the minimum size for 
+		Tuning parameter which controls the minimum size for
 		requests (as a power of 2) where the buddy cache is
 		used
 

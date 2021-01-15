@@ -245,14 +245,10 @@ static long vhost_vdpa_set_config(struct vhost_vdpa *v,
 		return -EFAULT;
 	if (vhost_vdpa_config_validate(v, &config))
 		return -EINVAL;
-	buf = kvzalloc(config.len, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
 
-	if (copy_from_user(buf, c->buf, config.len)) {
-		kvfree(buf);
-		return -EFAULT;
-	}
+	buf = vmemdup_user(c->buf, config.len);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	ops->set_config(vdpa, config.off, buf, config.len);
 

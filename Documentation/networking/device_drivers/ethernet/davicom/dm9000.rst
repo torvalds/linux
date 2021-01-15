@@ -34,7 +34,7 @@ These resources should be specified in that order, as the ordering of the
 two address regions is important (the driver expects these to be address
 and then data).
 
-An example from arch/arm/mach-s3c2410/mach-bast.c is::
+An example from arch/arm/mach-s3c/mach-bast.c is::
 
   static struct resource bast_dm9k_resource[] = {
 	[0] = {

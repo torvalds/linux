@@ -281,12 +281,14 @@ static int ad7877_read_adc(struct spi_device *spi, unsigned command)
 
 	req->xfer[1].tx_buf = &req->ref_on;
 	req->xfer[1].len = 2;
-	req->xfer[1].delay_usecs = ts->vref_delay_usecs;
+	req->xfer[1].delay.value = ts->vref_delay_usecs;
+	req->xfer[1].delay.unit = SPI_DELAY_UNIT_USECS;
 	req->xfer[1].cs_change = 1;
 
 	req->xfer[2].tx_buf = &req->command;
 	req->xfer[2].len = 2;
-	req->xfer[2].delay_usecs = ts->vref_delay_usecs;
+	req->xfer[2].delay.value = ts->vref_delay_usecs;
+	req->xfer[2].delay.unit = SPI_DELAY_UNIT_USECS;
 	req->xfer[2].cs_change = 1;
 
 	req->xfer[3].rx_buf = &req->sample;

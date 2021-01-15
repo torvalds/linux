@@ -176,12 +176,10 @@ static int ext4_protect_reserved_inode(struct super_block *sb,
 			err = add_system_zone(system_blks, map.m_pblk, n, ino);
 			if (err < 0) {
 				if (err == -EFSCORRUPTED) {
-					__ext4_error(sb, __func__, __LINE__,
-						     -err, map.m_pblk,
-						     "blocks %llu-%llu from inode %u overlap system zone",
-						     map.m_pblk,
-						     map.m_pblk + map.m_len - 1,
-						     ino);
+					EXT4_ERROR_INODE_ERR(inode, -err,
+						"blocks %llu-%llu from inode overlap system zone",
+						map.m_pblk,
+						map.m_pblk + map.m_len - 1);
 				}
 				break;
 			}
@@ -206,7 +204,7 @@ static void ext4_destroy_system_zone(struct rcu_head *rcu)
  *
  * The update of system_blks pointer in this function is protected by
  * sb->s_umount semaphore. However we have to be careful as we can be
- * racing with ext4_data_block_valid() calls reading system_blks rbtree
+ * racing with ext4_inode_block_valid() calls reading system_blks rbtree
  * protected only by RCU. That's why we first build the rbtree and then
  * swap it in place.
  */
@@ -258,7 +256,7 @@ int ext4_setup_system_zone(struct super_block *sb)
 
 	/*
 	 * System blks rbtree complete, announce it once to prevent racing
-	 * with ext4_data_block_valid() accessing the rbtree at the same
+	 * with ext4_inode_block_valid() accessing the rbtree at the same
 	 * time.
 	 */
 	rcu_assign_pointer(sbi->s_system_blks, system_blks);
@@ -278,7 +276,7 @@ err:
  *
  * The update of system_blks pointer in this function is protected by
  * sb->s_umount semaphore. However we have to be careful as we can be
- * racing with ext4_data_block_valid() calls reading system_blks rbtree
+ * racing with ext4_inode_block_valid() calls reading system_blks rbtree
  * protected only by RCU. So we first clear the system_blks pointer and
  * then free the rbtree only after RCU grace period expires.
  */

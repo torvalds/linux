@@ -31,7 +31,6 @@
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
-#include <linux/mtd/nand_ecc.h>
 
 #define DRV_NAME "lpc32xx_mlc"
 

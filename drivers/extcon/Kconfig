@@ -186,4 +186,12 @@ config EXTCON_USBC_CROS_EC
 	  Say Y here to enable USB Type C cable detection extcon support when
 	  using Chrome OS EC based USB Type-C ports.
 
+config EXTCON_USBC_TUSB320
+	tristate "TI TUSB320 USB-C extcon support"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y here to enable support for USB Type C cable detection extcon
+	  support using a TUSB320.
+
 endif

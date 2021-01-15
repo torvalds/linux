@@ -101,8 +101,7 @@ static void __init rev_sku_to_speedo_ids(struct tegra_sku_info *sku_info,
 
 void __init tegra124_init_speedo_data(struct tegra_sku_info *sku_info)
 {
-	int i, threshold, cpu_speedo_0_value, soc_speedo_0_value;
-	int cpu_iddq_value, gpu_iddq_value, soc_iddq_value;
+	int i, threshold, soc_speedo_0_value;
 
 	BUILD_BUG_ON(ARRAY_SIZE(cpu_process_speedos) !=
 			THRESHOLD_INDEX_COUNT);
@@ -111,24 +110,16 @@ void __init tegra124_init_speedo_data(struct tegra_sku_info *sku_info)
 	BUILD_BUG_ON(ARRAY_SIZE(soc_process_speedos) !=
 			THRESHOLD_INDEX_COUNT);
 
-	cpu_speedo_0_value = tegra_fuse_read_early(FUSE_CPU_SPEEDO_0);
-
-	/* GPU Speedo is stored in CPU_SPEEDO_2 */
-	sku_info->gpu_speedo_value = tegra_fuse_read_early(FUSE_CPU_SPEEDO_2);
-
-	soc_speedo_0_value = tegra_fuse_read_early(FUSE_SOC_SPEEDO_0);
-
-	cpu_iddq_value = tegra_fuse_read_early(FUSE_CPU_IDDQ);
-	soc_iddq_value = tegra_fuse_read_early(FUSE_SOC_IDDQ);
-	gpu_iddq_value = tegra_fuse_read_early(FUSE_GPU_IDDQ);
-
-	sku_info->cpu_speedo_value = cpu_speedo_0_value;
-
+	sku_info->cpu_speedo_value = tegra_fuse_read_early(FUSE_CPU_SPEEDO_0);
 	if (sku_info->cpu_speedo_value == 0) {
 		pr_warn("Tegra Warning: Speedo value not fused.\n");
 		WARN_ON(1);
 		return;
 	}
+
+	/* GPU Speedo is stored in CPU_SPEEDO_2 */
+	sku_info->gpu_speedo_value = tegra_fuse_read_early(FUSE_CPU_SPEEDO_2);
+	soc_speedo_0_value = tegra_fuse_read_early(FUSE_SOC_SPEEDO_0);
 
 	rev_sku_to_speedo_ids(sku_info, &threshold);
 

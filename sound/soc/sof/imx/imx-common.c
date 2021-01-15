@@ -47,6 +47,8 @@ void imx8_get_registers(struct snd_sof_dev *sdev,
 /**
  * imx8_dump() - This function is called when a panic message is
  * received from the firmware.
+ * @sdev: SOF device
+ * @flags: parameter not used but required by ops prototype
  */
 void imx8_dump(struct snd_sof_dev *sdev, u32 flags)
 {

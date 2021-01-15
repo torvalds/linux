@@ -121,10 +121,9 @@ static void pic32_sdhci_shared_bus(struct platform_device *pdev)
 	writel(bus, host->ioaddr + SDH_SHARED_BUS_CTRL);
 }
 
-static int pic32_sdhci_probe_platform(struct platform_device *pdev,
+static void pic32_sdhci_probe_platform(struct platform_device *pdev,
 				      struct pic32_sdhci_priv *pdata)
 {
-	int ret = 0;
 	u32 caps_slot_type;
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 
@@ -133,8 +132,6 @@ static int pic32_sdhci_probe_platform(struct platform_device *pdev,
 	caps_slot_type = (host->caps & SDH_CAPS_SDH_SLOT_TYPE_MASK) >> 30;
 	if (caps_slot_type == SDH_SLOT_TYPE_SHARED_BUS)
 		pic32_sdhci_shared_bus(pdev);
-
-	return ret;
 }
 
 static int pic32_sdhci_probe(struct platform_device *pdev)
@@ -193,11 +190,7 @@ static int pic32_sdhci_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_base_clk;
 
-	ret = pic32_sdhci_probe_platform(pdev, sdhci_pdata);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to probe platform!\n");
-		goto err_base_clk;
-	}
+	pic32_sdhci_probe_platform(pdev, sdhci_pdata);
 
 	ret = sdhci_add_host(host);
 	if (ret)

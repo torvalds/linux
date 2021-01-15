@@ -1114,9 +1114,6 @@ static void cancel_writeback_rate_update_dwork(struct cached_dev *dc)
 static void cached_dev_detach_finish(struct work_struct *w)
 {
 	struct cached_dev *dc = container_of(w, struct cached_dev, detach);
-	struct closure cl;
-
-	closure_init_stack(&cl);
 
 	BUG_ON(!test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags));
 	BUG_ON(refcount_read(&dc->count));
@@ -1129,12 +1126,6 @@ static void cached_dev_detach_finish(struct work_struct *w)
 		kthread_stop(dc->writeback_thread);
 		dc->writeback_thread = NULL;
 	}
-
-	memset(&dc->sb.set_uuid, 0, 16);
-	SET_BDEV_STATE(&dc->sb, BDEV_STATE_NONE);
-
-	bch_write_bdev_super(dc, &cl);
-	closure_sync(&cl);
 
 	mutex_lock(&bch_register_lock);
 
@@ -1408,7 +1399,7 @@ static int cached_dev_init(struct cached_dev *dc, unsigned int block_size)
 			q->limits.raid_partial_stripes_expensive;
 
 	ret = bcache_device_init(&dc->disk, block_size,
-			 dc->bdev->bd_part->nr_sects - dc->sb.data_offset,
+			 bdev_nr_sectors(dc->bdev) - dc->sb.data_offset,
 			 dc->bdev, &bcache_cached_ops);
 	if (ret)
 		return ret;
@@ -1447,8 +1438,7 @@ static int register_bdev(struct cache_sb *sb, struct cache_sb_disk *sb_disk,
 		goto err;
 
 	err = "error creating kobject";
-	if (kobject_add(&dc->disk.kobj, &part_to_dev(bdev->bd_part)->kobj,
-			"bcache"))
+	if (kobject_add(&dc->disk.kobj, bdev_kobj(bdev), "bcache"))
 		goto err;
 	if (bch_cache_accounting_add_kobjs(&dc->accounting, &dc->disk.kobj))
 		goto err;
@@ -2342,9 +2332,7 @@ static int register_cache(struct cache_sb *sb, struct cache_sb_disk *sb_disk,
 		goto err;
 	}
 
-	if (kobject_add(&ca->kobj,
-			&part_to_dev(bdev->bd_part)->kobj,
-			"bcache")) {
+	if (kobject_add(&ca->kobj, bdev_kobj(bdev), "bcache")) {
 		err = "error calling kobject_add";
 		ret = -ENOMEM;
 		goto out;
@@ -2383,38 +2371,38 @@ kobj_attribute_write(register,		register_bcache);
 kobj_attribute_write(register_quiet,	register_bcache);
 kobj_attribute_write(pendings_cleanup,	bch_pending_bdevs_cleanup);
 
-static bool bch_is_open_backing(struct block_device *bdev)
+static bool bch_is_open_backing(dev_t dev)
 {
 	struct cache_set *c, *tc;
 	struct cached_dev *dc, *t;
 
 	list_for_each_entry_safe(c, tc, &bch_cache_sets, list)
 		list_for_each_entry_safe(dc, t, &c->cached_devs, list)
-			if (dc->bdev == bdev)
+			if (dc->bdev->bd_dev == dev)
 				return true;
 	list_for_each_entry_safe(dc, t, &uncached_devices, list)
-		if (dc->bdev == bdev)
+		if (dc->bdev->bd_dev == dev)
 			return true;
 	return false;
 }
 
-static bool bch_is_open_cache(struct block_device *bdev)
+static bool bch_is_open_cache(dev_t dev)
 {
 	struct cache_set *c, *tc;
 
 	list_for_each_entry_safe(c, tc, &bch_cache_sets, list) {
 		struct cache *ca = c->cache;
 
-		if (ca->bdev == bdev)
+		if (ca->bdev->bd_dev == dev)
 			return true;
 	}
 
 	return false;
 }
 
-static bool bch_is_open(struct block_device *bdev)
+static bool bch_is_open(dev_t dev)
 {
-	return bch_is_open_cache(bdev) || bch_is_open_backing(bdev);
+	return bch_is_open_cache(dev) || bch_is_open_backing(dev);
 }
 
 struct async_reg_args {
@@ -2538,15 +2526,15 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 				  sb);
 	if (IS_ERR(bdev)) {
 		if (bdev == ERR_PTR(-EBUSY)) {
-			bdev = lookup_bdev(strim(path));
+			dev_t dev;
+
 			mutex_lock(&bch_register_lock);
-			if (!IS_ERR(bdev) && bch_is_open(bdev))
+			if (lookup_bdev(strim(path), &dev) == 0 &&
+			    bch_is_open(dev))
 				err = "device already registered";
 			else
 				err = "device busy";
 			mutex_unlock(&bch_register_lock);
-			if (!IS_ERR(bdev))
-				bdput(bdev);
 			if (attr == &ksysfs_register_quiet)
 				goto done;
 		}

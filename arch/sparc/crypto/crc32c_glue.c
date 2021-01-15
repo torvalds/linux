@@ -35,7 +35,7 @@ static int crc32c_sparc64_setkey(struct crypto_shash *hash, const u8 *key,
 
 	if (keylen != sizeof(u32))
 		return -EINVAL;
-	*(__le32 *)mctx = le32_to_cpup((__le32 *)key);
+	*mctx = le32_to_cpup((__le32 *)key);
 	return 0;
 }
 

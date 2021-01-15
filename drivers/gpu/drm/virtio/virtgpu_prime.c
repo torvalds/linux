@@ -34,8 +34,8 @@ static int virtgpu_virtio_get_uuid(struct dma_buf *buf,
 	struct virtio_gpu_object *bo = gem_to_virtio_gpu_obj(obj);
 	struct virtio_gpu_device *vgdev = obj->dev->dev_private;
 
-	wait_event(vgdev->resp_wq, bo->uuid_state != UUID_INITIALIZING);
-	if (bo->uuid_state != UUID_INITIALIZED)
+	wait_event(vgdev->resp_wq, bo->uuid_state != STATE_INITIALIZING);
+	if (bo->uuid_state != STATE_OK)
 		return -ENODEV;
 
 	uuid_copy(uuid, &bo->uuid);
@@ -43,7 +43,7 @@ static int virtgpu_virtio_get_uuid(struct dma_buf *buf,
 	return 0;
 }
 
-const struct virtio_dma_buf_ops virtgpu_dmabuf_ops =  {
+static const struct virtio_dma_buf_ops virtgpu_dmabuf_ops =  {
 	.ops = {
 		.cache_sgt_mapping = true,
 		.attach = virtio_dma_buf_attach,
@@ -59,6 +59,24 @@ const struct virtio_dma_buf_ops virtgpu_dmabuf_ops =  {
 	.get_uuid = virtgpu_virtio_get_uuid,
 };
 
+int virtio_gpu_resource_assign_uuid(struct virtio_gpu_device *vgdev,
+				    struct virtio_gpu_object *bo)
+{
+	int ret;
+	struct virtio_gpu_object_array *objs;
+
+	objs = virtio_gpu_array_alloc(1);
+	if (!objs)
+		return -ENOMEM;
+
+	virtio_gpu_array_add_obj(objs, &bo->base.base);
+	ret = virtio_gpu_cmd_resource_assign_uuid(vgdev, objs);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 struct dma_buf *virtgpu_gem_prime_export(struct drm_gem_object *obj,
 					 int flags)
 {
@@ -66,22 +84,20 @@ struct dma_buf *virtgpu_gem_prime_export(struct drm_gem_object *obj,
 	struct drm_device *dev = obj->dev;
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct virtio_gpu_object *bo = gem_to_virtio_gpu_obj(obj);
-	struct virtio_gpu_object_array *objs;
 	int ret = 0;
+	bool blob = bo->host3d_blob || bo->guest_blob;
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 
-	if (vgdev->has_resource_assign_uuid) {
-		objs = virtio_gpu_array_alloc(1);
-		if (!objs)
-			return ERR_PTR(-ENOMEM);
-		virtio_gpu_array_add_obj(objs, &bo->base.base);
+	if (!blob) {
+		if (vgdev->has_resource_assign_uuid) {
+			ret = virtio_gpu_resource_assign_uuid(vgdev, bo);
+			if (ret)
+				return ERR_PTR(ret);
 
-		ret = virtio_gpu_cmd_resource_assign_uuid(vgdev, objs);
-		if (ret)
-			return ERR_PTR(ret);
-		virtio_gpu_notify(vgdev);
-	} else {
-		bo->uuid_state = UUID_INITIALIZATION_FAILED;
+			virtio_gpu_notify(vgdev);
+		} else {
+			bo->uuid_state = STATE_ERR;
+		}
 	}
 
 	exp_info.ops = &virtgpu_dmabuf_ops.ops;

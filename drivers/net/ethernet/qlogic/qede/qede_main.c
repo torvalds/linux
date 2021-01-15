@@ -1762,7 +1762,7 @@ static void qede_init_fp(struct qede_dev *edev)
 
 			/* Driver have no error path from here */
 			WARN_ON(xdp_rxq_info_reg(&fp->rxq->xdp_rxq, edev->ndev,
-						 fp->rxq->rxq_id) < 0);
+						 fp->rxq->rxq_id, 0) < 0);
 
 			if (xdp_rxq_info_reg_mem_model(&fp->rxq->xdp_rxq,
 						       MEM_TYPE_PAGE_ORDER0,

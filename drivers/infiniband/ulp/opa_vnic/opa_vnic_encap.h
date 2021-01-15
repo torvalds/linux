@@ -437,7 +437,7 @@ struct opa_veswport_trap {
 } __packed;
 
 /**
- * struct opa_vnic_iface_macs_entry - single entry in the mac list
+ * struct opa_vnic_iface_mac_entry - single entry in the mac list
  * @mac_addr: MAC address
  */
 struct opa_vnic_iface_mac_entry {

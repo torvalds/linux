@@ -353,6 +353,12 @@
 		};
 	};
 
+	sdio-pwrseq {
+		wifi_enable_h: wifi-enable-h {
+			rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	vbus_host {
 		usb1_en_oc: usb1-en-oc {
 			rockchip,pins = <4 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>;
@@ -369,6 +375,16 @@
 &pmu_io_domains {
 	status = "okay";
 	pmu1830-supply = <&vcc_1v8>;
+};
+
+&sdio_pwrseq {
+	/*
+	 * On the module itself this is one of these (depending
+	 * on the actual card populated):
+	 * - SDIO_RESET_L_WL_REG_ON
+	 * - PDN (power down when low)
+	 */
+	reset-gpios = <&gpio2 RK_PD3 GPIO_ACTIVE_LOW>;
 };
 
 &sdhci {

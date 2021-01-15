@@ -1306,6 +1306,7 @@ static int mtk_jpeg_clk_init(struct mtk_jpeg_dev *jpeg)
 				jpeg->variant->clks);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to get jpeg clock:%d\n", ret);
+		put_device(&pdev->dev);
 		return ret;
 	}
 
@@ -1331,6 +1332,12 @@ static void mtk_jpeg_job_timeout_work(struct work_struct *work)
 	v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_ERROR);
 	v4l2_m2m_job_finish(jpeg->m2m_dev, ctx->fh.m2m_ctx);
 }
+
+static inline void mtk_jpeg_clk_release(struct mtk_jpeg_dev *jpeg)
+{
+	put_device(jpeg->larb);
+}
+
 static int mtk_jpeg_probe(struct platform_device *pdev)
 {
 	struct mtk_jpeg_dev *jpeg;
@@ -1435,6 +1442,7 @@ err_m2m_init:
 	v4l2_device_unregister(&jpeg->v4l2_dev);
 
 err_dev_register:
+	mtk_jpeg_clk_release(jpeg);
 
 err_clk_init:
 
@@ -1452,6 +1460,7 @@ static int mtk_jpeg_remove(struct platform_device *pdev)
 	video_device_release(jpeg->vdev);
 	v4l2_m2m_release(jpeg->m2m_dev);
 	v4l2_device_unregister(&jpeg->v4l2_dev);
+	mtk_jpeg_clk_release(jpeg);
 
 	return 0;
 }

@@ -46,7 +46,7 @@ properties:
     const: 1
 
   syscon:
-    $ref: /schemas/types.yaml#definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: Phandle to the Baikal-T1 System Controller DT node
 
   interrupts:

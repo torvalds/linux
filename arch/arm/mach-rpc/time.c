@@ -81,7 +81,7 @@ static irqreturn_t
 ioc_timer_interrupt(int irq, void *dev_id)
 {
 	ioc_time += RPC_LATCH;
-	timer_tick();
+	legacy_timer_tick(1);
 	return IRQ_HANDLED;
 }
 

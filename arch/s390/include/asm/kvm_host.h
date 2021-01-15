@@ -459,6 +459,7 @@ struct kvm_vcpu_stat {
 	u64 diagnose_308;
 	u64 diagnose_500;
 	u64 diagnose_other;
+	u64 pfault_sync;
 };
 
 #define PGM_OPERATION			0x01

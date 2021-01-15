@@ -3742,12 +3742,7 @@ int skl_tplg_init(struct snd_soc_component *component, struct hdac_bus *bus)
 	}
 
 component_load:
-
-	/*
-	 * The complete tplg for SKL is loaded as index 0, we don't use
-	 * any other index
-	 */
-	ret = snd_soc_tplg_component_load(component, &skl_tplg_ops, fw, 0);
+	ret = snd_soc_tplg_component_load(component, &skl_tplg_ops, fw);
 	if (ret < 0) {
 		dev_err(bus->dev, "tplg component load failed%d\n", ret);
 		goto err;
@@ -3777,5 +3772,5 @@ void skl_tplg_exit(struct snd_soc_component *component, struct hdac_bus *bus)
 		list_del(&ppl->node);
 
 	/* clean up topology */
-	snd_soc_tplg_component_remove(component, SND_SOC_TPLG_INDEX_ALL);
+	snd_soc_tplg_component_remove(component);
 }

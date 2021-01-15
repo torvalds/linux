@@ -9,6 +9,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/dma-buf-map.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_state_helper.h>
@@ -794,21 +795,16 @@ static int mgag200_crtc_set_plls(struct mga_device *mdev, long clock)
 	case G200_SE_A:
 	case G200_SE_B:
 		return mga_g200se_set_plls(mdev, clock);
-		break;
 	case G200_WB:
 	case G200_EW3:
 		return mga_g200wb_set_plls(mdev, clock);
-		break;
 	case G200_EV:
 		return mga_g200ev_set_plls(mdev, clock);
-		break;
 	case G200_EH:
 	case G200_EH3:
 		return mga_g200eh_set_plls(mdev, clock);
-		break;
 	case G200_ER:
 		return mga_g200er_set_plls(mdev, clock);
-		break;
 	}
 
 	misc = RREG8(MGA_MISC_IN);
@@ -1556,15 +1552,18 @@ mgag200_handle_damage(struct mga_device *mdev, struct drm_framebuffer *fb,
 		      struct drm_rect *clip)
 {
 	struct drm_device *dev = &mdev->base;
+	struct dma_buf_map map;
 	void *vmap;
+	int ret;
 
-	vmap = drm_gem_shmem_vmap(fb->obj[0]);
-	if (drm_WARN_ON(dev, !vmap))
+	ret = drm_gem_shmem_vmap(fb->obj[0], &map);
+	if (drm_WARN_ON(dev, ret))
 		return; /* BUG: SHMEM BO should always be vmapped */
+	vmap = map.vaddr; /* TODO: Use mapping abstraction properly */
 
 	drm_fb_memcpy_dstclip(mdev->vram, vmap, fb, clip);
 
-	drm_gem_shmem_vunmap(fb->obj[0], vmap);
+	drm_gem_shmem_vunmap(fb->obj[0], &map);
 
 	/* Always scanout image at VRAM offset 0 */
 	mgag200_set_startadd(mdev, (u32)0);

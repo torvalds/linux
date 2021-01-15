@@ -364,6 +364,7 @@ int via_wait_irq(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		irqwait->request.sequence +=
 			atomic_read(&cur_irq->irq_received);
 		irqwait->request.type &= ~_DRM_VBLANK_RELATIVE;
+		break;
 	case VIA_IRQ_ABSOLUTE:
 		break;
 	default:

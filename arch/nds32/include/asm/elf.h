@@ -126,7 +126,6 @@ struct elf32_hdr;
 #define ELF_DATA	ELFDATA2LSB
 #endif
 #define ELF_ARCH	EM_NDS32
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	PAGE_SIZE
 
 /* This is the location that an ET_DYN program is loaded if exec'ed.  Typical

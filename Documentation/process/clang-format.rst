@@ -97,7 +97,7 @@ it can be very useful.
 
 There are integrations for many popular text editors. For some of them,
 like vim, emacs, BBEdit and Visual Studio you can find support built-in.
-For instructions, read the appropiate section at:
+For instructions, read the appropriate section at:
 
     https://clang.llvm.org/docs/ClangFormat.html
 

@@ -176,7 +176,7 @@ static int ls1x_rtc_probe(struct platform_device *pdev)
 	rtcdev->range_min = RTC_TIMESTAMP_BEGIN_1900;
 	rtcdev->range_max = RTC_TIMESTAMP_END_2099;
 
-	return rtc_register_device(rtcdev);
+	return devm_rtc_register_device(rtcdev);
 }
 
 static struct platform_driver  ls1x_rtc_driver = {

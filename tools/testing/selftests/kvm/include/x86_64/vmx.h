@@ -11,10 +11,6 @@
 #include <stdint.h>
 #include "processor.h"
 
-#define CPUID_VMX_BIT				5
-
-#define CPUID_VMX				(1 << 5)
-
 /*
  * Definitions of Primary Processor-Based VM-Execution Controls.
  */

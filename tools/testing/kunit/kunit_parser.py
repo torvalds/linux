@@ -135,8 +135,8 @@ def parse_ok_not_ok_test_case(lines: List[str], test_case: TestCase) -> bool:
 	else:
 		return False
 
-SUBTEST_DIAGNOSTIC = re.compile(r'^[\s]+# .*?: (.*)$')
-DIAGNOSTIC_CRASH_MESSAGE = 'kunit test case crashed!'
+SUBTEST_DIAGNOSTIC = re.compile(r'^[\s]+# (.*)$')
+DIAGNOSTIC_CRASH_MESSAGE = re.compile(r'^[\s]+# .*?: kunit test case crashed!$')
 
 def parse_diagnostic(lines: List[str], test_case: TestCase) -> bool:
 	save_non_diagnositic(lines, test_case)
@@ -146,7 +146,8 @@ def parse_diagnostic(lines: List[str], test_case: TestCase) -> bool:
 	match = SUBTEST_DIAGNOSTIC.match(line)
 	if match:
 		test_case.log.append(lines.pop(0))
-		if match.group(1) == DIAGNOSTIC_CRASH_MESSAGE:
+		crash_match = DIAGNOSTIC_CRASH_MESSAGE.match(line)
+		if crash_match:
 			test_case.status = TestStatus.TEST_CRASHED
 		return True
 	else:
