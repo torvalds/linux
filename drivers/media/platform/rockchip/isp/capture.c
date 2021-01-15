@@ -634,6 +634,10 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 
 		plane_fmt->sizeimage = plane_fmt->bytesperline * height;
 
+		/* uv address is y size offset need 64 align */
+		if (fmt->fmt_type == FMT_FBCGAIN && i == 0)
+			plane_fmt->sizeimage = ALIGN(plane_fmt->sizeimage, 64);
+
 		imagsize += plane_fmt->sizeimage;
 	}
 

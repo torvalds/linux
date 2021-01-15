@@ -673,6 +673,8 @@ static u32 calc_burst_len(struct rkisp_stream *stream)
 	u32 bus = 16, burst;
 	int i;
 
+	if (stream->out_isp_fmt.fmt_type == FMT_FBCGAIN)
+		y_size = ALIGN(y_size, 64);
 	/* y/c base addr: burstN * bus alignment */
 	cb_offs = y_size;
 	cr_offs = cr_size ? (cb_size + cb_offs) : 0;
@@ -1652,7 +1654,7 @@ static void rkisp_buf_queue(struct vb2_buffer *vb)
 	struct v4l2_pix_format_mplane *pixm = &stream->out_fmt;
 	struct capture_fmt *isp_fmt = &stream->out_isp_fmt;
 	struct sg_table *sgt;
-	int i;
+	u32 i, val;
 
 	memset(ispbuf->buff_addr, 0, sizeof(ispbuf->buff_addr));
 	for (i = 0; i < isp_fmt->mplanes; i++) {
@@ -1670,10 +1672,11 @@ static void rkisp_buf_queue(struct vb2_buffer *vb)
 	 */
 	if (isp_fmt->mplanes == 1 || isp_fmt->fmt_type == FMT_FBCGAIN) {
 		for (i = 0; i < isp_fmt->cplanes - 1; i++) {
+			val = pixm->plane_fmt[i].bytesperline * pixm->height;
+			if (isp_fmt->fmt_type == FMT_FBCGAIN)
+				val = ALIGN(val, 64);
 			ispbuf->buff_addr[i + 1] = (i == 0) ?
-				ispbuf->buff_addr[i] +
-				pixm->plane_fmt[i].bytesperline *
-				pixm->height :
+				ispbuf->buff_addr[i] + val :
 				ispbuf->buff_addr[i] +
 				pixm->plane_fmt[i].sizeimage;
 		}
