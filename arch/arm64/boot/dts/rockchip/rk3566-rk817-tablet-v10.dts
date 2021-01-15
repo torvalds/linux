@@ -171,7 +171,7 @@
 		 * - SDIO_RESET_L_WL_REG_ON
 		 * - PDN (power down when low)
 		 */
-		reset-gpios = <&gpio0 RK_PC0 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>;
 	};
 
 	vcc_sd: vcc-sd {
@@ -193,7 +193,7 @@
 		wifi_chip_type = "ap6255";
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_host_wake_irq>;
-		WIFI,host_wake_irq = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake_irq = <&gpio2 RK_PB2 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -206,9 +206,9 @@
 		pinctrl-names = "default", "rts_gpio";
 		pinctrl-0 = <&uart1m0_rtsn>;
 		pinctrl-1 = <&uart1_gpios>;
-		BT,reset_gpio    = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio     = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
+		BT,reset_gpio    = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio     = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio2 RK_PC0 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };
@@ -275,10 +275,11 @@
 		backlight = <&backlight>;
 		//power-supply=<&vcc_3v3>;
 		enable-gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
+		stbyb-gpios = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio0 RK_PC2 GPIO_ACTIVE_LOW>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&lcd_enable_gpio>, <&lcd_rst_gpio>;
+		pinctrl-0 = <&lcd_enable_gpio>, <&lcd_rst_gpio>, <&lcd_stanby_gpio>;
 
 		prepare-delay-ms = <120>;
 		reset-delay-ms = <120>;
@@ -603,8 +604,7 @@
 				regulator-initial-mode = <0x2>;
 				regulator-name = "vcc_3v3";
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <3300000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -759,6 +759,7 @@
 			virtual_power = <0>;
 			dc_det_adc = <0>;
 			extcon = <&usb2phy0>;
+			gate_function_disable = <1>;
 		};
 
 		rk817_codec: codec {
@@ -978,6 +979,9 @@
 			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
+		lcd_stanby_gpio: lcd-stanby-gpio {
+			rockchip,pins = <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
 	};
 
 	pmic {
@@ -1010,7 +1014,7 @@
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -1022,7 +1026,7 @@
 
 	wireless-wlan {
 		wifi_host_wake_irq: wifi-host-wake-irq {
-			rockchip,pins = <0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <2 RK_PB2 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
@@ -1036,7 +1040,7 @@
 &pmu_io_domains {
 	status = "okay";
 	pmuio1-supply = <&vcc3v3_pmu>;
-	pmuio2-supply = <&vcca1v8_pmu>;
+	pmuio2-supply = <&vcc3v3_pmu>;
 	vccio1-supply = <&vccio_acodec>;
 	vccio3-supply = <&vccio_sd>;
 	vccio4-supply = <&vcca1v8_pmu>;
