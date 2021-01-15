@@ -326,7 +326,8 @@ dsa_slave_vlan_check_for_8021q_uppers(struct net_device *slave,
 }
 
 static int dsa_slave_vlan_add(struct net_device *dev,
-			      const struct switchdev_obj *obj)
+			      const struct switchdev_obj *obj,
+			      struct netlink_ext_ack *extack)
 {
 	struct net_device *master = dsa_slave_to_master(dev);
 	struct dsa_port *dp = dsa_slave_to_port(dev);
@@ -336,8 +337,10 @@ static int dsa_slave_vlan_add(struct net_device *dev,
 	if (!dsa_port_offloads_netdev(dp, obj->orig_dev))
 		return -EOPNOTSUPP;
 
-	if (dsa_port_skip_vlan_configuration(dp))
+	if (dsa_port_skip_vlan_configuration(dp)) {
+		NL_SET_ERR_MSG_MOD(extack, "skipping configuration of VLAN");
 		return 0;
+	}
 
 	vlan = *SWITCHDEV_OBJ_PORT_VLAN(obj);
 
@@ -389,7 +392,7 @@ static int dsa_slave_port_obj_add(struct net_device *dev,
 		err = dsa_port_mdb_add(dp->cpu_dp, SWITCHDEV_OBJ_PORT_MDB(obj));
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		err = dsa_slave_vlan_add(dev, obj);
+		err = dsa_slave_vlan_add(dev, obj, extack);
 		break;
 	default:
 		err = -EOPNOTSUPP;

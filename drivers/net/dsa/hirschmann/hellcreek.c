@@ -1033,11 +1033,6 @@ static int hellcreek_setup(struct dsa_switch *ds)
 	/* Configure PCP <-> TC mapping */
 	hellcreek_setup_tc_identity_mapping(hellcreek);
 
-	/* Allow VLAN configurations while not filtering which is the default
-	 * for new DSA drivers.
-	 */
-	ds->configure_vlan_while_not_filtering = true;
-
 	/* The VLAN awareness is a global switch setting. Therefore, mixed vlan
 	 * filtering setups are not supported.
 	 */

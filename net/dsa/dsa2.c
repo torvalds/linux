@@ -511,6 +511,8 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 	if (err)
 		goto unregister_devlink_ports;
 
+	ds->configure_vlan_while_not_filtering = true;
+
 	err = ds->ops->setup(ds);
 	if (err < 0)
 		goto unregister_notifier;

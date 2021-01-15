@@ -599,7 +599,6 @@ static int felix_setup(struct dsa_switch *ds)
 			 ANA_PGID_PGID, PGID_UC);
 
 	ds->mtu_enforcement_ingress = true;
-	ds->configure_vlan_while_not_filtering = true;
 	ds->assisted_learning_on_cpu_port = true;
 
 	return 0;

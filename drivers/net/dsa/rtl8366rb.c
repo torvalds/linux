@@ -972,6 +972,8 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 		return -ENODEV;
 	}
 
+	ds->configure_vlan_while_not_filtering = false;
+
 	return 0;
 }
 
