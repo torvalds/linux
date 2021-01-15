@@ -1480,10 +1480,6 @@ static void ocelot_detect_features(struct ocelot *ocelot)
 
 	eq_ctrl = ocelot_read(ocelot, QSYS_EQ_CTRL);
 	ocelot->num_frame_refs = QSYS_MMGT_EQ_CTRL_FP_FREE_CNT(eq_ctrl);
-
-	dev_info(ocelot->dev,
-		 "Detected %d bytes of packet buffer and %d frame references\n",
-		 ocelot->packet_buffer_size, ocelot->num_frame_refs);
 }
 
 int ocelot_init(struct ocelot *ocelot)
@@ -1624,7 +1620,6 @@ int ocelot_init(struct ocelot *ocelot)
 	INIT_DELAYED_WORK(&ocelot->stats_work, ocelot_check_stats_work);
 	queue_delayed_work(ocelot->stats_queue, &ocelot->stats_work,
 			   OCELOT_STATS_CHECK_DELAY);
-	ocelot_watermark_init(ocelot);
 
 	return 0;
 }
