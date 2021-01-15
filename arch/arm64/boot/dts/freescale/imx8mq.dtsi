@@ -1377,6 +1377,7 @@
 			                <0 0 0 3 &gic GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
 			                <0 0 0 4 &gic GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
 			fsl,max-link-speed = <2>;
+			linux,pci-domain = <0>;
 			power-domains = <&pgc_pcie>;
 			resets = <&src IMX8MQ_RESET_PCIEPHY>,
 			         <&src IMX8MQ_RESET_PCIE_CTRL_APPS_EN>,
@@ -1406,6 +1407,7 @@
 					<0 0 0 3 &gic GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>,
 					<0 0 0 4 &gic GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			fsl,max-link-speed = <2>;
+			linux,pci-domain = <1>;
 			power-domains = <&pgc_pcie>;
 			resets = <&src IMX8MQ_RESET_PCIEPHY2>,
 			         <&src IMX8MQ_RESET_PCIE2_CTRL_APPS_EN>,
