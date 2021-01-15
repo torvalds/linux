@@ -382,6 +382,7 @@ static int panel_simple_prepare(struct drm_panel *panel)
 	unsigned int delay;
 	int err;
 	int hpd_asserted;
+	unsigned long hpd_wait_us;
 
 	if (p->prepared_time != 0)
 		return 0;
@@ -409,9 +410,14 @@ static int panel_simple_prepare(struct drm_panel *panel)
 				goto error;
 		}
 
+		if (p->desc->delay.hpd_absent_delay)
+			hpd_wait_us = p->desc->delay.hpd_absent_delay * 1000UL;
+		else
+			hpd_wait_us = 2000000;
+
 		err = readx_poll_timeout(gpiod_get_value_cansleep, p->hpd_gpio,
 					 hpd_asserted, hpd_asserted,
-					 1000, 2000000);
+					 1000, hpd_wait_us);
 		if (hpd_asserted < 0)
 			err = hpd_asserted;
 
