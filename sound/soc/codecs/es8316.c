@@ -543,7 +543,7 @@ static struct snd_soc_dai_driver es8316_dai = {
 		.formats = ES8316_FORMATS,
 	},
 	.ops = &es8316_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static void es8316_enable_micbias_for_mic_gnd_short_detect(

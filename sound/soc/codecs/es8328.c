@@ -715,7 +715,7 @@ static struct snd_soc_dai_driver es8328_dai = {
 		.formats = ES8328_FORMATS,
 	},
 	.ops = &es8328_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static int es8328_suspend(struct snd_soc_component *component)
