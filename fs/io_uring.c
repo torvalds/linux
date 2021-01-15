@@ -1009,8 +1009,10 @@ static void __io_uring_cancel_task_requests(struct io_ring_ctx *ctx,
 					    struct task_struct *task);
 
 static void destroy_fixed_rsrc_ref_node(struct fixed_rsrc_ref_node *ref_node);
-static struct fixed_rsrc_ref_node *alloc_fixed_file_ref_node(
+static struct fixed_rsrc_ref_node *alloc_fixed_rsrc_ref_node(
 			struct io_ring_ctx *ctx);
+static void init_fixed_file_ref_node(struct io_ring_ctx *ctx,
+				     struct fixed_rsrc_ref_node *ref_node);
 
 static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
 			     struct io_comp_state *cs);
@@ -7380,9 +7382,10 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 
 	if (!data)
 		return -ENXIO;
-	backup_node = alloc_fixed_file_ref_node(ctx);
+	backup_node = alloc_fixed_rsrc_ref_node(ctx);
 	if (!backup_node)
 		return -ENOMEM;
+	init_fixed_file_ref_node(ctx, backup_node);
 
 	io_rsrc_ref_lock(ctx);
 	ref_node = data->node;
@@ -7819,18 +7822,11 @@ static struct fixed_rsrc_ref_node *alloc_fixed_rsrc_ref_node(
 	return ref_node;
 }
 
-static struct fixed_rsrc_ref_node *alloc_fixed_file_ref_node(
-			struct io_ring_ctx *ctx)
+static void init_fixed_file_ref_node(struct io_ring_ctx *ctx,
+				     struct fixed_rsrc_ref_node *ref_node)
 {
-	struct fixed_rsrc_ref_node *ref_node;
-
-	ref_node = alloc_fixed_rsrc_ref_node(ctx);
-	if (!ref_node)
-		return NULL;
-
 	ref_node->rsrc_data = ctx->file_data;
 	ref_node->rsrc_put = io_ring_file_put;
-	return ref_node;
 }
 
 static void destroy_fixed_rsrc_ref_node(struct fixed_rsrc_ref_node *ref_node)
@@ -7915,11 +7911,12 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		return ret;
 	}
 
-	ref_node = alloc_fixed_file_ref_node(ctx);
+	ref_node = alloc_fixed_rsrc_ref_node(ctx);
 	if (!ref_node) {
 		io_sqe_files_unregister(ctx);
 		return -ENOMEM;
 	}
+	init_fixed_file_ref_node(ctx, ref_node);
 
 	io_sqe_rsrc_set_node(ctx, file_data, ref_node);
 	return ret;
@@ -8022,9 +8019,10 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 	if (done > ctx->nr_user_files)
 		return -EINVAL;
 
-	ref_node = alloc_fixed_file_ref_node(ctx);
+	ref_node = alloc_fixed_rsrc_ref_node(ctx);
 	if (!ref_node)
 		return -ENOMEM;
+	init_fixed_file_ref_node(ctx, ref_node);
 
 	done = 0;
 	fds = u64_to_user_ptr(up->data);
