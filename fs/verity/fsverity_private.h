@@ -140,15 +140,13 @@ void __init fsverity_exit_info_cache(void);
 
 #ifdef CONFIG_FS_VERITY_BUILTIN_SIGNATURES
 int fsverity_verify_signature(const struct fsverity_info *vi,
-			      const struct fsverity_descriptor *desc,
-			      size_t desc_size);
+			      const u8 *signature, size_t sig_size);
 
 int __init fsverity_init_signature(void);
 #else /* !CONFIG_FS_VERITY_BUILTIN_SIGNATURES */
 static inline int
 fsverity_verify_signature(const struct fsverity_info *vi,
-			  const struct fsverity_descriptor *desc,
-			  size_t desc_size)
+			  const u8 *signature, size_t sig_size)
 {
 	return 0;
 }

@@ -181,7 +181,8 @@ struct fsverity_info *fsverity_create_info(const struct inode *inode,
 		 vi->tree_params.hash_alg->name,
 		 vi->tree_params.digest_size, vi->file_digest);
 
-	err = fsverity_verify_signature(vi, desc, desc_size);
+	err = fsverity_verify_signature(vi, desc->signature,
+					le32_to_cpu(desc->sig_size));
 out:
 	if (err) {
 		fsverity_free_info(vi);
