@@ -189,14 +189,6 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 	sparse_keymap_report_event(input_dev, event, val, autorelease);
 }
 
-static bool intel_vbtn_has_buttons(acpi_handle handle)
-{
-	acpi_status status;
-
-	status = acpi_evaluate_object(handle, "VBDL", NULL, NULL);
-	return ACPI_SUCCESS(status);
-}
-
 /*
  * There are several laptops (non 2-in-1) models out there which support VGBS,
  * but simply always return 0, which we translate to SW_TABLET_MODE=1. This in
@@ -271,7 +263,7 @@ static int intel_vbtn_probe(struct platform_device *device)
 	acpi_status status;
 	int err;
 
-	has_buttons = intel_vbtn_has_buttons(handle);
+	has_buttons = acpi_has_method(handle, "VBDL");
 	has_switches = intel_vbtn_has_switches(handle);
 
 	if (!has_buttons && !has_switches) {
@@ -299,6 +291,12 @@ static int intel_vbtn_probe(struct platform_device *device)
 					     device);
 	if (ACPI_FAILURE(status))
 		return -EBUSY;
+
+	if (has_buttons) {
+		status = acpi_evaluate_object(handle, "VBDL", NULL, NULL);
+		if (ACPI_FAILURE(status))
+			dev_err(&device->dev, "Error VBDL failed with ACPI status %d\n", status);
+	}
 
 	device_init_wakeup(&device->dev, true);
 	/*
