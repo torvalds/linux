@@ -1849,12 +1849,6 @@ static void worker_attach_to_pool(struct worker *worker,
 	mutex_lock(&wq_pool_attach_mutex);
 
 	/*
-	 * set_cpus_allowed_ptr() will fail if the cpumask doesn't have any
-	 * online CPUs.  It'll be re-applied when any of the CPUs come up.
-	 */
-	set_cpus_allowed_ptr(worker->task, pool->attrs->cpumask);
-
-	/*
 	 * The wq_pool_attach_mutex ensures %POOL_DISASSOCIATED remains
 	 * stable across this function.  See the comments above the flag
 	 * definition for details.
@@ -1863,6 +1857,9 @@ static void worker_attach_to_pool(struct worker *worker,
 		worker->flags |= WORKER_UNBOUND;
 	else
 		kthread_set_per_cpu(worker->task, pool->cpu);
+
+	if (worker->rescue_wq)
+		set_cpus_allowed_ptr(worker->task, pool->attrs->cpumask);
 
 	list_add_tail(&worker->node, &pool->workers);
 	worker->pool = pool;
