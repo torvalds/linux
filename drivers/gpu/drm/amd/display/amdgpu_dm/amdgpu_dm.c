@@ -939,41 +939,6 @@ static void mmhub_read_system_context(struct amdgpu_device *adev, struct dc_phy_
 }
 #endif
 
-#ifdef CONFIG_DEBUG_FS
-static int create_crtc_crc_properties(struct amdgpu_display_manager *dm)
-{
-	dm->crc_win_x_start_property =
-		drm_property_create_range(adev_to_drm(dm->adev),
-					  DRM_MODE_PROP_ATOMIC,
-					  "AMD_CRC_WIN_X_START", 0, U16_MAX);
-	if (!dm->crc_win_x_start_property)
-		return -ENOMEM;
-
-	dm->crc_win_y_start_property =
-		drm_property_create_range(adev_to_drm(dm->adev),
-					  DRM_MODE_PROP_ATOMIC,
-					  "AMD_CRC_WIN_Y_START", 0, U16_MAX);
-	if (!dm->crc_win_y_start_property)
-		return -ENOMEM;
-
-	dm->crc_win_x_end_property =
-		drm_property_create_range(adev_to_drm(dm->adev),
-					  DRM_MODE_PROP_ATOMIC,
-					  "AMD_CRC_WIN_X_END", 0, U16_MAX);
-	if (!dm->crc_win_x_end_property)
-		return -ENOMEM;
-
-	dm->crc_win_y_end_property =
-		drm_property_create_range(adev_to_drm(dm->adev),
-					  DRM_MODE_PROP_ATOMIC,
-					  "AMD_CRC_WIN_Y_END", 0, U16_MAX);
-	if (!dm->crc_win_y_end_property)
-		return -ENOMEM;
-
-	return 0;
-}
-#endif
-
 static int amdgpu_dm_init(struct amdgpu_device *adev)
 {
 	struct dc_init_data init_data;
@@ -1120,10 +1085,6 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 		dc_init_callbacks(adev->dm.dc, &init_params);
 	}
-#endif
-#ifdef CONFIG_DEBUG_FS
-	if (create_crtc_crc_properties(&adev->dm))
-		DRM_ERROR("amdgpu: failed to create crc property.\n");
 #endif
 	if (amdgpu_dm_initialize_drm_device(adev)) {
 		DRM_ERROR(
@@ -5333,63 +5294,11 @@ dm_crtc_duplicate_state(struct drm_crtc *crtc)
 	state->crc_src = cur->crc_src;
 	state->cm_has_degamma = cur->cm_has_degamma;
 	state->cm_is_degamma_srgb = cur->cm_is_degamma_srgb;
-#ifdef CONFIG_DEBUG_FS
-	state->crc_window = cur->crc_window;
-#endif
+
 	/* TODO Duplicate dc_stream after objects are stream object is flattened */
 
 	return &state->base;
 }
-
-#ifdef CONFIG_DEBUG_FS
-static int amdgpu_dm_crtc_atomic_set_property(struct drm_crtc *crtc,
-					    struct drm_crtc_state *crtc_state,
-					    struct drm_property *property,
-					    uint64_t val)
-{
-	struct drm_device *dev = crtc->dev;
-	struct amdgpu_device *adev = drm_to_adev(dev);
-	struct dm_crtc_state *dm_new_state =
-		to_dm_crtc_state(crtc_state);
-
-	if (property == adev->dm.crc_win_x_start_property)
-		dm_new_state->crc_window.x_start = val;
-	else if (property == adev->dm.crc_win_y_start_property)
-		dm_new_state->crc_window.y_start = val;
-	else if (property == adev->dm.crc_win_x_end_property)
-		dm_new_state->crc_window.x_end = val;
-	else if (property == adev->dm.crc_win_y_end_property)
-		dm_new_state->crc_window.y_end = val;
-	else
-		return -EINVAL;
-
-	return 0;
-}
-
-static int amdgpu_dm_crtc_atomic_get_property(struct drm_crtc *crtc,
-					    const struct drm_crtc_state *state,
-					    struct drm_property *property,
-					    uint64_t *val)
-{
-	struct drm_device *dev = crtc->dev;
-	struct amdgpu_device *adev = drm_to_adev(dev);
-	struct dm_crtc_state *dm_state =
-		to_dm_crtc_state(state);
-
-	if (property == adev->dm.crc_win_x_start_property)
-		*val = dm_state->crc_window.x_start;
-	else if (property == adev->dm.crc_win_y_start_property)
-		*val = dm_state->crc_window.y_start;
-	else if (property == adev->dm.crc_win_x_end_property)
-		*val = dm_state->crc_window.x_end;
-	else if (property == adev->dm.crc_win_y_end_property)
-		*val = dm_state->crc_window.y_end;
-	else
-		return -EINVAL;
-
-	return 0;
-}
-#endif
 
 static inline int dm_set_vupdate_irq(struct drm_crtc *crtc, bool enable)
 {
@@ -5457,10 +5366,6 @@ static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
 	.enable_vblank = dm_enable_vblank,
 	.disable_vblank = dm_disable_vblank,
 	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp,
-#ifdef CONFIG_DEBUG_FS
-	.atomic_set_property = amdgpu_dm_crtc_atomic_set_property,
-	.atomic_get_property = amdgpu_dm_crtc_atomic_get_property,
-#endif
 };
 
 static enum drm_connector_status
@@ -6662,25 +6567,6 @@ static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
-static void attach_crtc_crc_properties(struct amdgpu_display_manager *dm,
-				struct amdgpu_crtc *acrtc)
-{
-	drm_object_attach_property(&acrtc->base.base,
-				   dm->crc_win_x_start_property,
-				   0);
-	drm_object_attach_property(&acrtc->base.base,
-				   dm->crc_win_y_start_property,
-				   0);
-	drm_object_attach_property(&acrtc->base.base,
-				   dm->crc_win_x_end_property,
-				   0);
-	drm_object_attach_property(&acrtc->base.base,
-				   dm->crc_win_y_end_property,
-				   0);
-}
-#endif
-
 static int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 			       struct drm_plane *plane,
 			       uint32_t crtc_index)
@@ -6728,9 +6614,7 @@ static int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 	drm_crtc_enable_color_mgmt(&acrtc->base, MAX_COLOR_LUT_ENTRIES,
 				   true, MAX_COLOR_LUT_ENTRIES);
 	drm_mode_crtc_set_gamma_size(&acrtc->base, MAX_COLOR_LEGACY_LUT_ENTRIES);
-#ifdef CONFIG_DEBUG_FS
-	attach_crtc_crc_properties(dm, acrtc);
-#endif
+
 	return 0;
 
 fail:
@@ -8367,7 +8251,6 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	 */
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
-		bool configure_crc = false;
 
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 
@@ -8377,27 +8260,20 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			dc_stream_retain(dm_new_crtc_state->stream);
 			acrtc->dm_irq_params.stream = dm_new_crtc_state->stream;
 			manage_dm_interrupts(adev, acrtc, true);
-		}
-		if (IS_ENABLED(CONFIG_DEBUG_FS) && new_crtc_state->active &&
-			amdgpu_dm_is_valid_crc_source(dm_new_crtc_state->crc_src)) {
+
+#ifdef CONFIG_DEBUG_FS
 			/**
 			 * Frontend may have changed so reapply the CRC capture
 			 * settings for the stream.
 			 */
 			dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
-			dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
 
-			if (amdgpu_dm_crc_window_is_default(dm_new_crtc_state)) {
-				if (!old_crtc_state->active || drm_atomic_crtc_needs_modeset(new_crtc_state))
-					configure_crc = true;
-			} else {
-				if (amdgpu_dm_crc_window_changed(dm_new_crtc_state, dm_old_crtc_state))
-					configure_crc = true;
-			}
-
-			if (configure_crc)
+			if (amdgpu_dm_is_valid_crc_source(dm_new_crtc_state->crc_src)) {
 				amdgpu_dm_crtc_configure_crc_source(
-					crtc, dm_new_crtc_state, dm_new_crtc_state->crc_src);
+					crtc, dm_new_crtc_state,
+					dm_new_crtc_state->crc_src);
+			}
+#endif
 		}
 	}
 

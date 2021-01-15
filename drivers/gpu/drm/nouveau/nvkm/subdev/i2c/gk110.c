@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2021 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -18,30 +18,28 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
- * Authors: Ben Skeggs
  */
 #include "priv.h"
 #include "pad.h"
 
 static void
-gm200_aux_autodpcd(struct nvkm_i2c *i2c, int aux, bool enable)
+gk110_aux_autodpcd(struct nvkm_i2c *i2c, int aux, bool enable)
 {
-	nvkm_mask(i2c->subdev.device, 0x00d968 + (aux * 0x50), 0x00010000, enable << 16);
+	nvkm_mask(i2c->subdev.device, 0x00e4f8 + (aux * 0x50), 0x00010000, enable << 16);
 }
 
 static const struct nvkm_i2c_func
-gm200_i2c = {
+gk110_i2c = {
 	.pad_x_new = gf119_i2c_pad_x_new,
-	.pad_s_new = gm200_i2c_pad_s_new,
-	.aux = 8,
+	.pad_s_new = gf119_i2c_pad_s_new,
+	.aux = 4,
 	.aux_stat = gk104_aux_stat,
 	.aux_mask = gk104_aux_mask,
-	.aux_autodpcd = gm200_aux_autodpcd,
+	.aux_autodpcd = gk110_aux_autodpcd,
 };
 
 int
-gm200_i2c_new(struct nvkm_device *device, int index, struct nvkm_i2c **pi2c)
+gk110_i2c_new(struct nvkm_device *device, int index, struct nvkm_i2c **pi2c)
 {
-	return nvkm_i2c_new_(&gm200_i2c, device, index, pi2c);
+	return nvkm_i2c_new_(&gk110_i2c, device, index, pi2c);
 }
