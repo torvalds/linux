@@ -28,6 +28,8 @@ static void process_pfvf_mbox_mbox_msg(struct otx2_cptvf_dev *cptvf,
 				       struct mbox_msghdr *msg)
 {
 	struct otx2_cptlfs_info *lfs = &cptvf->lfs;
+	struct otx2_cpt_kvf_limits_rsp *rsp_limits;
+	struct otx2_cpt_egrp_num_rsp *rsp_grp;
 	struct cpt_rd_wr_reg_msg *rsp_reg;
 	struct msix_offset_rsp *rsp_msix;
 	int i;
@@ -75,6 +77,14 @@ static void process_pfvf_mbox_mbox_msg(struct otx2_cptvf_dev *cptvf,
 		if (!rsp_reg->is_write)
 			*rsp_reg->ret_val = rsp_reg->val;
 		break;
+	case MBOX_MSG_GET_ENG_GRP_NUM:
+		rsp_grp = (struct otx2_cpt_egrp_num_rsp *) msg;
+		cptvf->lfs.kcrypto_eng_grp_num = rsp_grp->eng_grp_num;
+		break;
+	case MBOX_MSG_GET_KVF_LIMITS:
+		rsp_limits = (struct otx2_cpt_kvf_limits_rsp *) msg;
+		cptvf->lfs.kvf_limits = rsp_limits->kvf_limits;
+		break;
 	default:
 		dev_err(&cptvf->pdev->dev, "Unsupported msg %d received.\n",
 			msg->id);
@@ -110,4 +120,48 @@ void otx2_cptvf_pfvf_mbox_handler(struct work_struct *work)
 		mdev->msgs_acked++;
 	}
 	otx2_mbox_reset(pfvf_mbox, 0);
+}
+
+int otx2_cptvf_send_eng_grp_num_msg(struct otx2_cptvf_dev *cptvf, int eng_type)
+{
+	struct otx2_mbox *mbox = &cptvf->pfvf_mbox;
+	struct pci_dev *pdev = cptvf->pdev;
+	struct otx2_cpt_egrp_num_msg *req;
+
+	req = (struct otx2_cpt_egrp_num_msg *)
+	      otx2_mbox_alloc_msg_rsp(mbox, 0, sizeof(*req),
+				      sizeof(struct otx2_cpt_egrp_num_rsp));
+	if (req == NULL) {
+		dev_err(&pdev->dev, "RVU MBOX failed to get message.\n");
+		return -EFAULT;
+	}
+	req->hdr.id = MBOX_MSG_GET_ENG_GRP_NUM;
+	req->hdr.sig = OTX2_MBOX_REQ_SIG;
+	req->hdr.pcifunc = OTX2_CPT_RVU_PFFUNC(cptvf->vf_id, 0);
+	req->eng_type = eng_type;
+
+	return otx2_cpt_send_mbox_msg(mbox, pdev);
+}
+
+int otx2_cptvf_send_kvf_limits_msg(struct otx2_cptvf_dev *cptvf)
+{
+	struct otx2_mbox *mbox = &cptvf->pfvf_mbox;
+	struct pci_dev *pdev = cptvf->pdev;
+	struct mbox_msghdr *req;
+	int ret;
+
+	req = (struct mbox_msghdr *)
+	      otx2_mbox_alloc_msg_rsp(mbox, 0, sizeof(*req),
+				      sizeof(struct otx2_cpt_kvf_limits_rsp));
+	if (req == NULL) {
+		dev_err(&pdev->dev, "RVU MBOX failed to get message.\n");
+		return -EFAULT;
+	}
+	req->id = MBOX_MSG_GET_KVF_LIMITS;
+	req->sig = OTX2_MBOX_REQ_SIG;
+	req->pcifunc = OTX2_CPT_RVU_PFFUNC(cptvf->vf_id, 0);
+
+	ret = otx2_cpt_send_mbox_msg(mbox, pdev);
+
+	return ret;
 }

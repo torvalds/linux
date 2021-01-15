@@ -80,6 +80,7 @@ struct otx2_cptlf_info {
 	u8 slot;                                /* Slot number of this LF */
 
 	struct otx2_cpt_inst_queue iqueue;/* Instruction queue */
+	struct otx2_cpt_pending_queue pqueue; /* Pending queue */
 	struct otx2_cptlf_wqe *wqe;       /* Tasklet work info */
 };
 
@@ -91,6 +92,8 @@ struct otx2_cptlfs_info {
 	struct otx2_mbox *mbox;
 	u8 are_lfs_attached;	/* Whether CPT LFs are attached */
 	u8 lfs_num;		/* Number of CPT LFs */
+	u8 kcrypto_eng_grp_num;	/* Kernel crypto engine group number */
+	u8 kvf_limits;          /* Kernel crypto limits */
 	atomic_t state;         /* LF's state. started/reset */
 };
 
@@ -332,6 +335,11 @@ static inline void otx2_cpt_send_cmd(union otx2_cpt_inst_s *cptinst,
 		ret = otx2_lmt_flush(lf->ioreg);
 
 	} while (!ret);
+}
+
+static inline bool otx2_cptlf_started(struct otx2_cptlfs_info *lfs)
+{
+	return atomic_read(&lfs->state) == OTX2_CPTLF_STARTED;
 }
 
 int otx2_cptlf_init(struct otx2_cptlfs_info *lfs, u8 eng_grp_msk, int pri,

@@ -392,6 +392,46 @@ static void cptpf_afpf_mbox_destroy(struct otx2_cptpf_dev *cptpf)
 	otx2_mbox_destroy(&cptpf->afpf_mbox);
 }
 
+static ssize_t kvf_limits_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct otx2_cptpf_dev *cptpf = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", cptpf->kvf_limits);
+}
+
+static ssize_t kvf_limits_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct otx2_cptpf_dev *cptpf = dev_get_drvdata(dev);
+	int lfs_num;
+
+	if (kstrtoint(buf, 0, &lfs_num)) {
+		dev_err(dev, "lfs count %d must be in range [1 - %d]\n",
+			lfs_num, num_online_cpus());
+		return -EINVAL;
+	}
+	if (lfs_num < 1 || lfs_num > num_online_cpus()) {
+		dev_err(dev, "lfs count %d must be in range [1 - %d]\n",
+			lfs_num, num_online_cpus());
+		return -EINVAL;
+	}
+	cptpf->kvf_limits = lfs_num;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(kvf_limits);
+static struct attribute *cptpf_attrs[] = {
+	&dev_attr_kvf_limits.attr,
+	NULL
+};
+
+static const struct attribute_group cptpf_sysfs_group = {
+	.attrs = cptpf_attrs,
+};
+
 static int cpt_is_pf_usable(struct otx2_cptpf_dev *cptpf)
 {
 	u64 rev;
@@ -616,8 +656,13 @@ static int otx2_cptpf_probe(struct pci_dev *pdev,
 	if (err)
 		goto unregister_intr;
 
+	err = sysfs_create_group(&dev->kobj, &cptpf_sysfs_group);
+	if (err)
+		goto cleanup_eng_grps;
 	return 0;
 
+cleanup_eng_grps:
+	otx2_cpt_cleanup_eng_grps(pdev, &cptpf->eng_grps);
 unregister_intr:
 	cptpf_disable_afpf_mbox_intr(cptpf);
 destroy_afpf_mbox:
@@ -635,6 +680,8 @@ static void otx2_cptpf_remove(struct pci_dev *pdev)
 		return;
 
 	cptpf_sriov_disable(pdev);
+	/* Delete sysfs entry created for kernel VF limits */
+	sysfs_remove_group(&pdev->dev.kobj, &cptpf_sysfs_group);
 	/* Cleanup engine groups */
 	otx2_cpt_cleanup_eng_grps(pdev, &cptpf->eng_grps);
 	/* Disable AF-PF mailbox interrupt */

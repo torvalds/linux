@@ -17,6 +17,9 @@
 #define OTX2_CPT_MAX_VFS_NUM 128
 #define OTX2_CPT_RVU_FUNC_ADDR_S(blk, slot, offs) \
 		(((blk) << 20) | ((slot) << 12) | (offs))
+#define OTX2_CPT_RVU_PFFUNC(pf, func)	\
+		((((pf) & RVU_PFVF_PF_MASK) << RVU_PFVF_PF_SHIFT) | \
+		(((func) & RVU_PFVF_FUNC_MASK) << RVU_PFVF_FUNC_SHIFT))
 
 #define OTX2_CPT_INVALID_CRYPTO_ENG_GRP 0xFF
 #define OTX2_CPT_NAME_LENGTH 64
@@ -34,6 +37,7 @@ enum otx2_cpt_eng_type {
 /* Take mbox id from end of CPT mbox range in AF (range 0xA00 - 0xBFF) */
 #define MBOX_MSG_GET_ENG_GRP_NUM        0xBFF
 #define MBOX_MSG_GET_CAPS               0xBFD
+#define MBOX_MSG_GET_KVF_LIMITS         0xBFC
 
 /*
  * Message request and response to get engine group number
@@ -49,6 +53,19 @@ struct otx2_cpt_egrp_num_rsp {
 	struct mbox_msghdr hdr;
 	u8 eng_type;
 	u8 eng_grp_num;
+};
+
+/*
+ * Message request and response to get kernel crypto limits
+ * This messages are only used between CPT PF <-> CPT VF
+ */
+struct otx2_cpt_kvf_limits_msg {
+	struct mbox_msghdr hdr;
+};
+
+struct otx2_cpt_kvf_limits_rsp {
+	struct mbox_msghdr hdr;
+	u8 kvf_limits;
 };
 
 /* CPT HW capabilities */

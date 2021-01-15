@@ -86,6 +86,25 @@ static int handle_msg_get_eng_grp_num(struct otx2_cptpf_dev *cptpf,
 	return 0;
 }
 
+static int handle_msg_kvf_limits(struct otx2_cptpf_dev *cptpf,
+				 struct otx2_cptvf_info *vf,
+				 struct mbox_msghdr *req)
+{
+	struct otx2_cpt_kvf_limits_rsp *rsp;
+
+	rsp = (struct otx2_cpt_kvf_limits_rsp *)
+	      otx2_mbox_alloc_msg(&cptpf->vfpf_mbox, vf->vf_id, sizeof(*rsp));
+	if (!rsp)
+		return -ENOMEM;
+
+	rsp->hdr.id = MBOX_MSG_GET_KVF_LIMITS;
+	rsp->hdr.sig = OTX2_MBOX_RSP_SIG;
+	rsp->hdr.pcifunc = req->pcifunc;
+	rsp->kvf_limits = cptpf->kvf_limits;
+
+	return 0;
+}
+
 static int cptpf_handle_vf_req(struct otx2_cptpf_dev *cptpf,
 			       struct otx2_cptvf_info *vf,
 			       struct mbox_msghdr *req, int size)
@@ -102,6 +121,9 @@ static int cptpf_handle_vf_req(struct otx2_cptpf_dev *cptpf,
 		break;
 	case MBOX_MSG_GET_CAPS:
 		err = handle_msg_get_caps(cptpf, vf, req);
+		break;
+	case MBOX_MSG_GET_KVF_LIMITS:
+		err = handle_msg_kvf_limits(cptpf, vf, req);
 		break;
 	default:
 		err = forward_to_af(cptpf, vf, req, size);
