@@ -634,7 +634,7 @@ static void ocelot_mact_work(struct work_struct *work)
 		break;
 	default:
 		break;
-	};
+	}
 
 	kfree(w);
 }
