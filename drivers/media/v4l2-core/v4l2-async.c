@@ -66,12 +66,6 @@ static bool match_i2c(struct v4l2_async_notifier *notifier,
 #endif
 }
 
-static bool match_devname(struct v4l2_async_notifier *notifier,
-			  struct v4l2_subdev *sd, struct v4l2_async_subdev *asd)
-{
-	return !strcmp(asd->match.device_name, dev_name(sd->dev));
-}
-
 static bool match_fwnode(struct v4l2_async_notifier *notifier,
 			 struct v4l2_subdev *sd, struct v4l2_async_subdev *asd)
 {
@@ -164,9 +158,6 @@ v4l2_async_find_match(struct v4l2_async_notifier *notifier,
 	list_for_each_entry(asd, &notifier->waiting, list) {
 		/* bus_type has been verified valid before */
 		switch (asd->match_type) {
-		case V4L2_ASYNC_MATCH_DEVNAME:
-			match = match_devname;
-			break;
 		case V4L2_ASYNC_MATCH_I2C:
 			match = match_i2c;
 			break;
@@ -195,9 +186,6 @@ static bool asd_equal(struct v4l2_async_subdev *asd_x,
 		return false;
 
 	switch (asd_x->match_type) {
-	case V4L2_ASYNC_MATCH_DEVNAME:
-		return strcmp(asd_x->match.device_name,
-			      asd_y->match.device_name) == 0;
 	case V4L2_ASYNC_MATCH_I2C:
 		return asd_x->match.i2c.adapter_id ==
 			asd_y->match.i2c.adapter_id &&
@@ -464,7 +452,6 @@ static int v4l2_async_notifier_asd_valid(struct v4l2_async_notifier *notifier,
 		return -EINVAL;
 
 	switch (asd->match_type) {
-	case V4L2_ASYNC_MATCH_DEVNAME:
 	case V4L2_ASYNC_MATCH_I2C:
 	case V4L2_ASYNC_MATCH_FWNODE:
 		if (v4l2_async_notifier_has_async_subdev(notifier, asd,
@@ -718,31 +705,6 @@ v4l2_async_notifier_add_i2c_subdev(struct v4l2_async_notifier *notifier,
 }
 EXPORT_SYMBOL_GPL(v4l2_async_notifier_add_i2c_subdev);
 
-struct v4l2_async_subdev *
-v4l2_async_notifier_add_devname_subdev(struct v4l2_async_notifier *notifier,
-				       const char *device_name,
-				       unsigned int asd_struct_size)
-{
-	struct v4l2_async_subdev *asd;
-	int ret;
-
-	asd = kzalloc(asd_struct_size, GFP_KERNEL);
-	if (!asd)
-		return ERR_PTR(-ENOMEM);
-
-	asd->match_type = V4L2_ASYNC_MATCH_DEVNAME;
-	asd->match.device_name = device_name;
-
-	ret = v4l2_async_notifier_add_subdev(notifier, asd);
-	if (ret) {
-		kfree(asd);
-		return ERR_PTR(ret);
-	}
-
-	return asd;
-}
-EXPORT_SYMBOL_GPL(v4l2_async_notifier_add_devname_subdev);
-
 int v4l2_async_register_subdev(struct v4l2_subdev *sd)
 {
 	struct v4l2_async_notifier *subdev_notifier;
@@ -841,9 +803,6 @@ static void print_waiting_subdev(struct seq_file *s,
 				 struct v4l2_async_subdev *asd)
 {
 	switch (asd->match_type) {
-	case V4L2_ASYNC_MATCH_DEVNAME:
-		seq_printf(s, " [devname] dev=%s\n", asd->match.device_name);
-		break;
 	case V4L2_ASYNC_MATCH_I2C:
 		seq_printf(s, " [i2c] dev=%d-%04x\n", asd->match.i2c.adapter_id,
 			   asd->match.i2c.address);

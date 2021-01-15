@@ -22,7 +22,6 @@ struct v4l2_async_notifier;
  * enum v4l2_async_match_type - type of asynchronous subdevice logic to be used
  *	in order to identify a match
  *
- * @V4L2_ASYNC_MATCH_DEVNAME: Match will use the device name
  * @V4L2_ASYNC_MATCH_I2C: Match will check for I2C adapter ID and address
  * @V4L2_ASYNC_MATCH_FWNODE: Match will use firmware node
  *
@@ -30,7 +29,6 @@ struct v4l2_async_notifier;
  * algorithm that will be used to match an asynchronous device.
  */
 enum v4l2_async_match_type {
-	V4L2_ASYNC_MATCH_DEVNAME,
 	V4L2_ASYNC_MATCH_I2C,
 	V4L2_ASYNC_MATCH_FWNODE,
 };
@@ -43,9 +41,6 @@ enum v4l2_async_match_type {
  * @match.fwnode:
  *		pointer to &struct fwnode_handle to be matched.
  *		Used if @match_type is %V4L2_ASYNC_MATCH_FWNODE.
- * @match.device_name:
- *		string containing the device name to be matched.
- *		Used if @match_type is %V4L2_ASYNC_MATCH_DEVNAME.
  * @match.i2c:	embedded struct with I2C parameters to be matched.
  *		Both @match.i2c.adapter_id and @match.i2c.address
  *		should be matched.
@@ -69,7 +64,6 @@ struct v4l2_async_subdev {
 	enum v4l2_async_match_type match_type;
 	union {
 		struct fwnode_handle *fwnode;
-		const char *device_name;
 		struct {
 			int adapter_id;
 			unsigned short address;
@@ -217,25 +211,6 @@ struct v4l2_async_subdev *
 v4l2_async_notifier_add_i2c_subdev(struct v4l2_async_notifier *notifier,
 				   int adapter_id, unsigned short address,
 				   unsigned int asd_struct_size);
-
-/**
- * v4l2_async_notifier_add_devname_subdev - Allocate and add a device-name
- *				async subdev to the notifier's master asd_list.
- *
- * @notifier: pointer to &struct v4l2_async_notifier
- * @device_name: device name string to be matched
- * @asd_struct_size: size of the driver's async sub-device struct, including
- *		     sizeof(struct v4l2_async_subdev). The &struct
- *		     v4l2_async_subdev shall be the first member of
- *		     the driver's async sub-device struct, i.e. both
- *		     begin at the same memory address.
- *
- * Same as above but for device-name matched sub-devices.
- */
-struct v4l2_async_subdev *
-v4l2_async_notifier_add_devname_subdev(struct v4l2_async_notifier *notifier,
-				       const char *device_name,
-				       unsigned int asd_struct_size);
 
 /**
  * v4l2_async_notifier_register - registers a subdevice asynchronous notifier
