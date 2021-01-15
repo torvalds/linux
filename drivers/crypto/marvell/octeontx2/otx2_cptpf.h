@@ -7,6 +7,7 @@
 
 #include "otx2_cpt_common.h"
 #include "otx2_cptpf_ucode.h"
+#include "otx2_cptlf.h"
 
 struct otx2_cptpf_dev;
 struct otx2_cptvf_info {
@@ -29,6 +30,7 @@ struct otx2_cptpf_dev {
 	struct pci_dev *pdev;		/* PCI device handle */
 	struct otx2_cptvf_info vf[OTX2_CPT_MAX_VFS_NUM];
 	struct otx2_cpt_eng_grps eng_grps;/* Engine groups information */
+	struct otx2_cptlfs_info lfs;      /* CPT LFs attached to this PF */
 
 	/* AF <=> PF mbox */
 	struct otx2_mbox	afpf_mbox;

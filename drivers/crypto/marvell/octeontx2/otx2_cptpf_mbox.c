@@ -207,6 +207,14 @@ static void process_afpf_mbox_msg(struct otx2_cptpf_dev *cptpf,
 		if (!rsp_rd_wr->is_write)
 			*rsp_rd_wr->ret_val = rsp_rd_wr->val;
 		break;
+	case MBOX_MSG_ATTACH_RESOURCES:
+		if (!msg->rc)
+			cptpf->lfs.are_lfs_attached = 1;
+		break;
+	case MBOX_MSG_DETACH_RESOURCES:
+		if (!msg->rc)
+			cptpf->lfs.are_lfs_attached = 0;
+		break;
 
 	default:
 		dev_err(dev,
