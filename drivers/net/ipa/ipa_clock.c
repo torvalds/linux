@@ -76,7 +76,7 @@ static int ipa_interconnect_init(struct ipa_clock *clock, struct device *dev,
 	struct ipa_interconnect *interconnect;
 	struct icc_path *path;
 
-	path = ipa_interconnect_init_one(dev, "memory");
+	path = ipa_interconnect_init_one(dev, data->name);
 	if (IS_ERR(path))
 		goto err_return;
 	interconnect = &clock->interconnect[IPA_INTERCONNECT_MEMORY];
@@ -85,7 +85,7 @@ static int ipa_interconnect_init(struct ipa_clock *clock, struct device *dev,
 	interconnect->peak_bandwidth = data->peak_bandwidth;
 	data++;
 
-	path = ipa_interconnect_init_one(dev, "imem");
+	path = ipa_interconnect_init_one(dev, data->name);
 	if (IS_ERR(path))
 		goto err_memory_path_put;
 	interconnect = &clock->interconnect[IPA_INTERCONNECT_IMEM];
@@ -94,7 +94,7 @@ static int ipa_interconnect_init(struct ipa_clock *clock, struct device *dev,
 	interconnect->peak_bandwidth = data->peak_bandwidth;
 	data++;
 
-	path = ipa_interconnect_init_one(dev, "config");
+	path = ipa_interconnect_init_one(dev, data->name);
 	if (IS_ERR(path))
 		goto err_imem_path_put;
 	interconnect = &clock->interconnect[IPA_INTERCONNECT_CONFIG];

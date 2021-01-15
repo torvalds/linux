@@ -268,10 +268,12 @@ enum ipa_interconnect_id {
 
 /**
  * struct ipa_interconnect_data - description of IPA interconnect bandwidths
+ * @name:		Interconnect name (matches interconnect-name in DT)
  * @peak_bandwidth:	Peak interconnect bandwidth (in 1000 byte/sec units)
  * @average_bandwidth:	Average interconnect bandwidth (in 1000 byte/sec units)
  */
 struct ipa_interconnect_data {
+	const char *name;
 	u32 peak_bandwidth;
 	u32 average_bandwidth;
 };

@@ -334,15 +334,18 @@ static struct ipa_clock_data ipa_clock_data = {
 	/* Interconnect bandwidths are in 1000 byte/second units */
 	.interconnect = {
 		[IPA_INTERCONNECT_MEMORY] = {
+			.name			= "memory",
 			.peak_bandwidth		= 600000,	/* 600 MBps */
 			.average_bandwidth	= 80000,	/* 80 MBps */
 		},
 		/* Average bandwidth unused for the next two interconnects */
 		[IPA_INTERCONNECT_IMEM] = {
+			.name			= "imem",
 			.peak_bandwidth		= 350000,	/* 350 MBps */
 			.average_bandwidth	= 0,		/* unused */
 		},
 		[IPA_INTERCONNECT_CONFIG] = {
+			.name			= "config",
 			.peak_bandwidth		= 40000,	/* 40 MBps */
 			.average_bandwidth	= 0,		/* unused */
 		},
