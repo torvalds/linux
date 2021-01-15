@@ -820,7 +820,6 @@ M:	Netanel Belgazal <netanel@amazon.com>
 M:	Arthur Kiyanovski <akiyano@amazon.com>
 R:	Guy Tzalik <gtzalik@amazon.com>
 R:	Saeed Bishara <saeedb@amazon.com>
-R:	Zorik Machulsky <zorik@amazon.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/device_drivers/ethernet/amazon/ena.rst
@@ -2942,7 +2941,6 @@ S:	Maintained
 F:	drivers/hwmon/asus_atk0110.c
 
 ATLX ETHERNET DRIVERS
-M:	Jay Cliburn <jcliburn@gmail.com>
 M:	Chris Snook <chris.snook@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
@@ -3895,7 +3893,7 @@ F:	drivers/mtd/nand/raw/cadence-nand-controller.c
 CADENCE USB3 DRD IP DRIVER
 M:	Peter Chen <peter.chen@nxp.com>
 M:	Pawel Laszczak <pawell@cadence.com>
-M:	Roger Quadros <rogerq@ti.com>
+R:	Roger Quadros <rogerq@kernel.org>
 R:	Aswath Govindraju <a-govindraju@ti.com>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
@@ -4937,9 +4935,8 @@ F:	Documentation/scsi/dc395x.rst
 F:	drivers/scsi/dc395x.*
 
 DCCP PROTOCOL
-M:	Gerrit Renker <gerrit@erg.abdn.ac.uk>
 L:	dccp@vger.kernel.org
-S:	Maintained
+S:	Orphan
 W:	http://www.linuxfoundation.org/collaborate/workgroups/networking/dccp
 F:	include/linux/dccp.h
 F:	include/linux/tfrc.h
@@ -7378,7 +7375,6 @@ L:	linux-hardening@vger.kernel.org
 S:	Maintained
 F:	Documentation/kbuild/gcc-plugins.rst
 F:	scripts/Makefile.gcc-plugins
-F:	scripts/gcc-plugin.sh
 F:	scripts/gcc-plugins/
 
 GCOV BASED KERNEL PROFILING
@@ -9255,7 +9251,7 @@ F:	tools/testing/selftests/sgx/*
 K:	\bSGX_
 
 INTERCONNECT API
-M:	Georgi Djakov <georgi.djakov@linaro.org>
+M:	Georgi Djakov <djakov@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/interconnect/
@@ -9288,7 +9284,7 @@ F:	drivers/net/ethernet/sgi/ioc3-eth.c
 
 IOMAP FILESYSTEM LIBRARY
 M:	Christoph Hellwig <hch@infradead.org>
-M:	Darrick J. Wong <darrick.wong@oracle.com>
+M:	Darrick J. Wong <djwong@kernel.org>
 M:	linux-xfs@vger.kernel.org
 M:	linux-fsdevel@vger.kernel.org
 L:	linux-xfs@vger.kernel.org
@@ -9342,7 +9338,6 @@ W:	http://www.adaptec.com/
 F:	drivers/scsi/ips*
 
 IPVS
-M:	Wensong Zhang <wensong@linux-vs.org>
 M:	Simon Horman <horms@verge.net.au>
 M:	Julian Anastasov <ja@ssi.bg>
 L:	netdev@vger.kernel.org
@@ -9791,7 +9786,7 @@ F:	tools/testing/selftests/kvm/s390x/
 
 KERNEL VIRTUAL MACHINE FOR X86 (KVM/x86)
 M:	Paolo Bonzini <pbonzini@redhat.com>
-R:	Sean Christopherson <sean.j.christopherson@intel.com>
+R:	Sean Christopherson <seanjc@google.com>
 R:	Vitaly Kuznetsov <vkuznets@redhat.com>
 R:	Wanpeng Li <wanpengli@tencent.com>
 R:	Jim Mattson <jmattson@google.com>
@@ -10275,7 +10270,6 @@ S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/paulmck/linux-rcu.git dev
 F:	Documentation/atomic_bitops.txt
 F:	Documentation/atomic_t.txt
-F:	Documentation/core-api/atomic_ops.rst
 F:	Documentation/core-api/refcount-vs-atomic.rst
 F:	Documentation/litmus-tests/
 F:	Documentation/memory-barriers.txt
@@ -12433,7 +12427,6 @@ F:	tools/testing/selftests/net/ipsec.c
 
 NETWORKING [IPv4/IPv6]
 M:	"David S. Miller" <davem@davemloft.net>
-M:	Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>
 M:	Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
@@ -12490,7 +12483,6 @@ F:	net/ipv6/tcp*.c
 
 NETWORKING [TLS]
 M:	Boris Pismenny <borisp@nvidia.com>
-M:	Aviad Yehezkel <aviadye@nvidia.com>
 M:	John Fastabend <john.fastabend@gmail.com>
 M:	Daniel Borkmann <daniel@iogearbox.net>
 M:	Jakub Kicinski <kuba@kernel.org>
@@ -12865,7 +12857,7 @@ F:	include/misc/ocxl*
 F:	include/uapi/misc/ocxl.h
 
 OMAP AUDIO SUPPORT
-M:	Peter Ujfalusi <peter.ujfalusi@ti.com>
+M:	Peter Ujfalusi <peter.ujfalusi@gmail.com>
 M:	Jarkko Nikula <jarkko.nikula@bitmer.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 L:	linux-omap@vger.kernel.org
@@ -16725,6 +16717,8 @@ M:	Samuel Thibault <samuel.thibault@ens-lyon.org>
 L:	speakup@linux-speakup.org
 S:	Odd Fixes
 W:	http://www.linux-speakup.org/
+W:	https://github.com/linux-speakup/speakup
+B:	https://github.com/linux-speakup/speakup/issues
 F:	drivers/accessibility/speakup/
 
 SPEAR CLOCK FRAMEWORK SUPPORT
@@ -17556,7 +17550,7 @@ F:	arch/xtensa/
 F:	drivers/irqchip/irq-xtensa-*
 
 TEXAS INSTRUMENTS ASoC DRIVERS
-M:	Peter Ujfalusi <peter.ujfalusi@ti.com>
+M:	Peter Ujfalusi <peter.ujfalusi@gmail.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
 F:	sound/soc/ti/
@@ -17567,6 +17561,19 @@ L:	linux-iio@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/iio/dac/ti,dac7612.txt
 F:	drivers/iio/dac/ti-dac7612.c
+
+TEXAS INSTRUMENTS DMA DRIVERS
+M:	Peter Ujfalusi <peter.ujfalusi@gmail.com>
+L:	dmaengine@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/dma/ti-dma-crossbar.txt
+F:	Documentation/devicetree/bindings/dma/ti-edma.txt
+F:	Documentation/devicetree/bindings/dma/ti/
+F:	drivers/dma/ti/
+X:	drivers/dma/ti/cppi41.c
+F:	include/linux/dma/k3-udma-glue.h
+F:	include/linux/dma/ti-cppi5.h
+F:	include/linux/dma/k3-psil.h
 
 TEXAS INSTRUMENTS' SYSTEM CONTROL INTERFACE (TISCI) PROTOCOL DRIVER
 M:	Nishanth Menon <nm@ti.com>
@@ -17853,7 +17860,7 @@ F:	Documentation/devicetree/bindings/net/nfc/trf7970a.txt
 F:	drivers/nfc/trf7970a.c
 
 TI TWL4030 SERIES SOC CODEC DRIVER
-M:	Peter Ujfalusi <peter.ujfalusi@ti.com>
+M:	Peter Ujfalusi <peter.ujfalusi@gmail.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
 F:	sound/soc/codecs/twl4030*
@@ -19073,7 +19080,6 @@ K:	regulator_get_optional
 
 VRF
 M:	David Ahern <dsahern@kernel.org>
-M:	Shrijeet Mukherjee <shrijeet@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/vrf.rst
@@ -19520,7 +19526,7 @@ F:	arch/x86/xen/*swiotlb*
 F:	drivers/xen/*swiotlb*
 
 XFS FILESYSTEM
-M:	Darrick J. Wong <darrick.wong@oracle.com>
+M:	Darrick J. Wong <djwong@kernel.org>
 M:	linux-xfs@vger.kernel.org
 L:	linux-xfs@vger.kernel.org
 S:	Supported

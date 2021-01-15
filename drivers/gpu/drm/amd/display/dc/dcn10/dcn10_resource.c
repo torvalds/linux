@@ -1534,15 +1534,8 @@ static bool dcn10_resource_construct(
 	memcpy(dc->dcn_ip, &dcn10_ip_defaults, sizeof(dcn10_ip_defaults));
 	memcpy(dc->dcn_soc, &dcn10_soc_defaults, sizeof(dcn10_soc_defaults));
 
-#if defined(CONFIG_ARM64)
-	/* Aarch64 does not support -msoft-float/-mfloat-abi=soft */
-	DC_FP_START();
-	dcn10_resource_construct_fp(dc);
-	DC_FP_END();
-#else
 	/* Other architectures we build for build this with soft-float */
 	dcn10_resource_construct_fp(dc);
-#endif
 
 	pool->base.pp_smu = dcn10_pp_smu_create(ctx);
 

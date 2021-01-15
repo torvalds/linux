@@ -599,7 +599,8 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 {
 	u32 size, wid = priv->dma_cap.estwid, dep = priv->dma_cap.estdep;
 	struct plat_stmmacenet_data *plat = priv->plat;
-	struct timespec64 time;
+	struct timespec64 time, current_time;
+	ktime_t current_time_ns;
 	bool fpe = false;
 	int i, ret = 0;
 	u64 ctr;
@@ -694,7 +695,22 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 	}
 
 	/* Adjust for real system time */
-	time = ktime_to_timespec64(qopt->base_time);
+	priv->ptp_clock_ops.gettime64(&priv->ptp_clock_ops, &current_time);
+	current_time_ns = timespec64_to_ktime(current_time);
+	if (ktime_after(qopt->base_time, current_time_ns)) {
+		time = ktime_to_timespec64(qopt->base_time);
+	} else {
+		ktime_t base_time;
+		s64 n;
+
+		n = div64_s64(ktime_sub_ns(current_time_ns, qopt->base_time),
+			      qopt->cycle_time);
+		base_time = ktime_add_ns(qopt->base_time,
+					 (n + 1) * qopt->cycle_time);
+
+		time = ktime_to_timespec64(base_time);
+	}
+
 	priv->plat->est->btr[0] = (u32)time.tv_nsec;
 	priv->plat->est->btr[1] = (u32)time.tv_sec;
 

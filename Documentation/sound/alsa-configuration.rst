@@ -1501,7 +1501,7 @@ Module for Digigram miXart8 sound cards.
 
 This module supports multiple cards.
 Note: One miXart8 board will be represented as 4 alsa cards.
-See MIXART.txt for details.
+See Documentation/sound/cards/mixart.rst for details.
 
 When the driver is compiled as a module and the hotplug firmware
 is supported, the firmware data is loaded via hotplug automatically.

@@ -199,6 +199,7 @@ static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
 static bool svm_get_nested_state_pages(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
+
 	if (!nested_svm_vmrun_msrpm(svm)) {
 		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		vcpu->run->internal.suberror =
@@ -595,6 +596,8 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	svm->nested.vmcb12_gpa = 0;
 	WARN_ON_ONCE(svm->nested.nested_run_pending);
 
+	kvm_clear_request(KVM_REQ_GET_NESTED_STATE_PAGES, &svm->vcpu);
+
 	/* in case we halted in L2 */
 	svm->vcpu.arch.mp_state = KVM_MP_STATE_RUNNABLE;
 
@@ -754,6 +757,7 @@ void svm_leave_nested(struct vcpu_svm *svm)
 		leave_guest_mode(&svm->vcpu);
 		copy_vmcb_control_area(&vmcb->control, &hsave->control);
 		nested_svm_uninit_mmu_context(&svm->vcpu);
+		vmcb_mark_all_dirty(svm->vmcb);
 	}
 
 	kvm_clear_request(KVM_REQ_GET_NESTED_STATE_PAGES, &svm->vcpu);
@@ -1194,6 +1198,10 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 	 * in the registers, the save area of the nested state instead
 	 * contains saved L1 state.
 	 */
+
+	svm->nested.nested_run_pending =
+		!!(kvm_state->flags & KVM_STATE_NESTED_RUN_PENDING);
+
 	copy_vmcb_control_area(&hsave->control, &svm->vmcb->control);
 	hsave->save = *save;
 
