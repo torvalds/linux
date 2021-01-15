@@ -6,7 +6,8 @@ mscc_ocelot_switch_lib-y := \
 	ocelot_police.o \
 	ocelot_vcap.o \
 	ocelot_flower.o \
-	ocelot_ptp.o
+	ocelot_ptp.o \
+	ocelot_devlink.o
 obj-$(CONFIG_MSCC_OCELOT_SWITCH) += mscc_ocelot.o
 mscc_ocelot-y := \
 	ocelot_vsc7514.o \
