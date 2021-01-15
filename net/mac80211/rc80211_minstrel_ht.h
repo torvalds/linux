@@ -60,7 +60,6 @@
 struct minstrel_priv {
 	struct ieee80211_hw *hw;
 	bool has_mrr;
-	bool new_avg;
 	u32 sample_switch;
 	unsigned int cw_min;
 	unsigned int cw_max;

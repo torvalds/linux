@@ -769,17 +769,8 @@ minstrel_ht_calc_rate_stats(struct minstrel_priv *mp,
 	if (unlikely(mrs->attempts > 0)) {
 		mrs->sample_skipped = 0;
 		cur_prob = MINSTREL_FRAC(mrs->success, mrs->attempts);
-		if (mp->new_avg) {
-			minstrel_filter_avg_add(&mrs->prob_avg,
-						&mrs->prob_avg_1, cur_prob);
-		} else if (unlikely(!mrs->att_hist)) {
-			mrs->prob_avg = cur_prob;
-		} else {
-			/*update exponential weighted moving avarage */
-			mrs->prob_avg = minstrel_ewma(mrs->prob_avg,
-						      cur_prob,
-						      EWMA_LEVEL);
-		}
+		minstrel_filter_avg_add(&mrs->prob_avg,
+					&mrs->prob_avg_1, cur_prob);
 		mrs->att_hist += mrs->attempts;
 		mrs->succ_hist += mrs->success;
 	} else {
@@ -913,10 +904,8 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	/* Try to increase robustness of max_prob_rate*/
 	minstrel_ht_prob_rate_reduce_streams(mi);
 
-	/* try to sample all available rates during each interval */
-	mi->sample_count *= 8;
-	if (mp->new_avg)
-		mi->sample_count /= 2;
+	/* try to sample half of all available rates during each interval */
+	mi->sample_count *= 4;
 
 	if (sample)
 		minstrel_ht_rate_sample_switch(mp, mi);
@@ -1040,7 +1029,7 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	struct ieee80211_tx_rate *ar = info->status.rates;
 	struct minstrel_rate_stats *rate, *rate2, *rate_sample = NULL;
 	struct minstrel_priv *mp = priv;
-	u32 update_interval = mp->update_interval / 2;
+	u32 update_interval = mp->update_interval;
 	bool last, update = false;
 	bool sample_status = false;
 	int i;
@@ -1090,9 +1079,8 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 
 	switch (mi->sample_mode) {
 	case MINSTREL_SAMPLE_IDLE:
-		if (mp->new_avg &&
-		    (mp->hw->max_rates > 1 ||
-		     mi->total_packets_cur < SAMPLE_SWITCH_THR))
+		if (mp->hw->max_rates > 1 ||
+		     mi->total_packets_cur < SAMPLE_SWITCH_THR)
 			update_interval /= 2;
 		break;
 
@@ -1832,8 +1820,7 @@ minstrel_ht_alloc(struct ieee80211_hw *hw)
 		mp->has_mrr = true;
 
 	mp->hw = hw;
-	mp->update_interval = HZ / 10;
-	mp->new_avg = true;
+	mp->update_interval = HZ / 20;
 
 	minstrel_ht_init_cck_rates(mp);
 	for (i = 0; i < ARRAY_SIZE(mp->hw->wiphy->bands); i++)
@@ -1853,8 +1840,6 @@ static void minstrel_ht_add_debugfs(struct ieee80211_hw *hw, void *priv,
 			   &mp->fixed_rate_idx);
 	debugfs_create_u32("sample_switch", S_IRUGO | S_IWUSR, debugfsdir,
 			   &mp->sample_switch);
-	debugfs_create_bool("new_avg", S_IRUGO | S_IWUSR, debugfsdir,
-			   &mp->new_avg);
 }
 #endif
 
