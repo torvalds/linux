@@ -137,36 +137,27 @@ err_memory_path_disable:
 }
 
 /* To disable an interconnect, we just its bandwidth to 0 */
-static int ipa_interconnect_disable(struct ipa *ipa)
+static void ipa_interconnect_disable(struct ipa *ipa)
 {
-	const struct ipa_interconnect_data *data;
 	struct ipa_clock *clock = ipa->clock;
+	int result = 0;
 	int ret;
 
 	ret = icc_set_bw(clock->memory_path, 0, 0);
 	if (ret)
-		return ret;
+		result = ret;
 
 	ret = icc_set_bw(clock->imem_path, 0, 0);
-	if (ret)
-		goto err_memory_path_reenable;
+	if (ret && !result)
+		result = ret;
 
 	ret = icc_set_bw(clock->config_path, 0, 0);
-	if (ret)
-		goto err_imem_path_reenable;
+	if (ret && !result)
+		result = ret;
 
-	return 0;
-
-err_imem_path_reenable:
-	data = &clock->interconnect_data[IPA_INTERCONNECT_IMEM];
-	(void)icc_set_bw(clock->imem_path, data->average_bandwidth,
-			 data->peak_bandwidth);
-err_memory_path_reenable:
-	data = &clock->interconnect_data[IPA_INTERCONNECT_MEMORY];
-	(void)icc_set_bw(clock->memory_path, data->average_bandwidth,
-			 data->peak_bandwidth);
-
-	return ret;
+	if (result)
+		dev_err(&ipa->pdev->dev,
+			"error %d disabling IPA interconnects\n", ret);
 }
 
 /* Turn on IPA clocks, including interconnects */
@@ -189,7 +180,7 @@ static int ipa_clock_enable(struct ipa *ipa)
 static void ipa_clock_disable(struct ipa *ipa)
 {
 	clk_disable_unprepare(ipa->clock->core);
-	(void)ipa_interconnect_disable(ipa);
+	ipa_interconnect_disable(ipa);
 }
 
 /* Get an IPA clock reference, but only if the reference count is
