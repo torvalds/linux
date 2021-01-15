@@ -152,6 +152,7 @@ struct minstrel_priv {
 	unsigned int lookaround_rate_mrr;
 
 	u8 cck_rates[4];
+	u8 ofdm_rates[NUM_NL80211_BANDS][8];
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	/*

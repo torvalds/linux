@@ -18,14 +18,15 @@
 				 MINSTREL_HT_STREAM_GROUPS)
 #define MINSTREL_VHT_GROUPS_NB	(MINSTREL_MAX_STREAMS *		\
 				 MINSTREL_VHT_STREAM_GROUPS)
-#define MINSTREL_CCK_GROUPS_NB	1
+#define MINSTREL_LEGACY_GROUPS_NB	2
 #define MINSTREL_GROUPS_NB	(MINSTREL_HT_GROUPS_NB +	\
 				 MINSTREL_VHT_GROUPS_NB +	\
-				 MINSTREL_CCK_GROUPS_NB)
+				 MINSTREL_LEGACY_GROUPS_NB)
 
 #define MINSTREL_HT_GROUP_0	0
 #define MINSTREL_CCK_GROUP	(MINSTREL_HT_GROUP_0 + MINSTREL_HT_GROUPS_NB)
-#define MINSTREL_VHT_GROUP_0	(MINSTREL_CCK_GROUP + 1)
+#define MINSTREL_OFDM_GROUP	(MINSTREL_CCK_GROUP + 1)
+#define MINSTREL_VHT_GROUP_0	(MINSTREL_OFDM_GROUP + 1)
 
 #define MCS_GROUP_RATES		10
 
@@ -37,6 +38,8 @@ struct mcs_group {
 	u16 duration[MCS_GROUP_RATES];
 };
 
+extern const s16 minstrel_cck_bitrates[4];
+extern const s16 minstrel_ofdm_bitrates[8];
 extern const struct mcs_group minstrel_mcs_groups[];
 
 struct minstrel_mcs_group_data {
@@ -99,6 +102,8 @@ struct minstrel_ht_sta {
 	/* current MCS group to be sampled */
 	u8 sample_group;
 
+	u8 band;
+
 	/* Bitfield of supported MCS rates of all groups */
 	u16 supported[MINSTREL_GROUPS_NB];
 
@@ -107,13 +112,9 @@ struct minstrel_ht_sta {
 };
 
 struct minstrel_ht_sta_priv {
-	union {
-		struct minstrel_ht_sta ht;
-		struct minstrel_sta_info legacy;
-	};
+	struct minstrel_ht_sta ht;
 	void *ratelist;
 	void *sample_table;
-	bool is_ht;
 };
 
 void minstrel_ht_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir);
