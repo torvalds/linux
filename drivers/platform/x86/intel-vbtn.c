@@ -131,22 +131,17 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 
 	if (priv->wakeup_mode) {
 		ke = sparse_keymap_entry_from_scancode(priv->input_dev, event);
-		if (ke) {
-			pm_wakeup_hard_event(&device->dev);
+		if (!ke)
+			goto out_unknown;
 
-			/*
-			 * Switch events like tablet mode will wake the device
-			 * and report the new switch position to the input
-			 * subsystem.
-			 */
-			if (ke->type == KE_SW)
-				sparse_keymap_report_event(priv->input_dev,
-							   event,
-							   val,
-							   0);
+		pm_wakeup_hard_event(&device->dev);
+
+		/*
+		 * Skip reporting an evdev event for button wake events,
+		 * mirroring how the drivers/acpi/button.c code skips this too.
+		 */
+		if (ke->type == KE_KEY)
 			return;
-		}
-		goto out_unknown;
 	}
 
 	/*
