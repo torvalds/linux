@@ -621,9 +621,9 @@ static const struct drm_i915_gem_object_ops i915_gem_object_stolen_ops = {
 	.release = i915_gem_object_release_stolen,
 };
 
-int __i915_gem_object_create_stolen(struct intel_memory_region *mem,
-				    struct drm_i915_gem_object *obj,
-				    struct drm_mm_node *stolen)
+static int __i915_gem_object_create_stolen(struct intel_memory_region *mem,
+					   struct drm_i915_gem_object *obj,
+					   struct drm_mm_node *stolen)
 {
 	static struct lock_class_key lock_class;
 	unsigned int cache_level;
@@ -646,10 +646,10 @@ int __i915_gem_object_create_stolen(struct intel_memory_region *mem,
 	return 0;
 }
 
-int _i915_gem_object_stolen_init(struct intel_memory_region *mem,
-				 struct drm_i915_gem_object *obj,
-				 resource_size_t size,
-				 unsigned int flags)
+static int _i915_gem_object_stolen_init(struct intel_memory_region *mem,
+					struct drm_i915_gem_object *obj,
+					resource_size_t size,
+					unsigned int flags)
 {
 	struct drm_i915_private *i915 = mem->i915;
 	struct drm_mm_node *stolen;
