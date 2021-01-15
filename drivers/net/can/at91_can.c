@@ -484,7 +484,7 @@ static netdev_tx_t at91_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	stats->tx_bytes += cf->len;
 
 	/* _NOTE_: subtract AT91_MB_TX_FIRST offset from mb! */
-	can_put_echo_skb(skb, dev, mb - get_mb_tx_first(priv));
+	can_put_echo_skb(skb, dev, mb - get_mb_tx_first(priv), 0);
 
 	/*
 	 * we have to stop the queue and deliver all messages in case
@@ -856,7 +856,7 @@ static void at91_irq_tx(struct net_device *dev, u32 reg_sr)
 		if (likely(reg_msr & AT91_MSR_MRDY &&
 			   ~reg_msr & AT91_MSR_MABT)) {
 			/* _NOTE_: subtract AT91_MB_TX_FIRST offset from mb! */
-			can_get_echo_skb(dev, mb - get_mb_tx_first(priv));
+			can_get_echo_skb(dev, mb - get_mb_tx_first(priv), NULL);
 			dev->stats.tx_packets++;
 			can_led_event(dev, CAN_LED_EVENT_TX);
 		}

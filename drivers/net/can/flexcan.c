@@ -815,7 +815,7 @@ static netdev_tx_t flexcan_start_xmit(struct sk_buff *skb, struct net_device *de
 		priv->write(data, &priv->tx_mb->data[i / sizeof(u32)]);
 	}
 
-	can_put_echo_skb(skb, dev, 0);
+	can_put_echo_skb(skb, dev, 0, 0);
 
 	priv->write(can_id, &priv->tx_mb->can_id);
 	priv->write(ctrl, &priv->tx_mb->can_ctrl);
@@ -1122,8 +1122,9 @@ static irqreturn_t flexcan_irq(int irq, void *dev_id)
 		u32 reg_ctrl = priv->read(&priv->tx_mb->can_ctrl);
 
 		handled = IRQ_HANDLED;
-		stats->tx_bytes += can_rx_offload_get_echo_skb(&priv->offload,
-							       0, reg_ctrl << 16);
+		stats->tx_bytes +=
+			can_rx_offload_get_echo_skb(&priv->offload, 0,
+						    reg_ctrl << 16, NULL);
 		stats->tx_packets++;
 		can_led_event(dev, CAN_LED_EVENT_TX);
 

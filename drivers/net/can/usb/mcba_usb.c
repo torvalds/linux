@@ -237,7 +237,7 @@ static void mcba_usb_write_bulk_callback(struct urb *urb)
 		netdev->stats.tx_bytes += ctx->dlc;
 
 		can_led_event(netdev, CAN_LED_EVENT_TX);
-		can_get_echo_skb(netdev, ctx->ndx);
+		can_get_echo_skb(netdev, ctx->ndx, NULL);
 	}
 
 	if (urb->status)
@@ -355,7 +355,7 @@ static netdev_tx_t mcba_usb_start_xmit(struct sk_buff *skb,
 	if (cf->can_id & CAN_RTR_FLAG)
 		usb_msg.dlc |= MCBA_DLC_RTR_MASK;
 
-	can_put_echo_skb(skb, priv->netdev, ctx->ndx);
+	can_put_echo_skb(skb, priv->netdev, ctx->ndx, 0);
 
 	err = mcba_usb_xmit(priv, (struct mcba_usb_msg *)&usb_msg, ctx);
 	if (err)

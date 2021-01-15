@@ -586,7 +586,7 @@ static void hi3110_tx_work_handler(struct work_struct *ws)
 			frame = (struct can_frame *)priv->tx_skb->data;
 			hi3110_hw_tx(spi, frame);
 			priv->tx_len = 1 + frame->len;
-			can_put_echo_skb(priv->tx_skb, net, 0);
+			can_put_echo_skb(priv->tx_skb, net, 0, 0);
 			priv->tx_skb = NULL;
 		}
 	}
@@ -725,7 +725,7 @@ static irqreturn_t hi3110_can_ist(int irq, void *dev_id)
 			net->stats.tx_bytes += priv->tx_len - 1;
 			can_led_event(net, CAN_LED_EVENT_TX);
 			if (priv->tx_len) {
-				can_get_echo_skb(net, 0);
+				can_get_echo_skb(net, 0, NULL);
 				priv->tx_len = 0;
 			}
 			netif_wake_queue(net);

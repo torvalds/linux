@@ -1271,7 +1271,7 @@ mcp251xfd_handle_tefif_one(struct mcp251xfd_priv *priv,
 	stats->tx_bytes +=
 		can_rx_offload_get_echo_skb(&priv->offload,
 					    mcp251xfd_get_tef_tail(priv),
-					    hw_tef_obj->ts);
+					    hw_tef_obj->ts, NULL);
 	stats->tx_packets++;
 	priv->tef->tail++;
 
@@ -2436,7 +2436,7 @@ static netdev_tx_t mcp251xfd_start_xmit(struct sk_buff *skb,
 	if (tx_ring->head - tx_ring->tail >= tx_ring->obj_num)
 		netif_stop_queue(ndev);
 
-	can_put_echo_skb(skb, ndev, tx_head);
+	can_put_echo_skb(skb, ndev, tx_head, 0);
 
 	err = mcp251xfd_tx_obj_write(priv, tx_obj);
 	if (err)

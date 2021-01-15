@@ -386,7 +386,7 @@ static void rcar_can_tx_done(struct net_device *ndev)
 		stats->tx_bytes += priv->tx_dlc[priv->tx_tail %
 						RCAR_CAN_FIFO_DEPTH];
 		priv->tx_dlc[priv->tx_tail % RCAR_CAN_FIFO_DEPTH] = 0;
-		can_get_echo_skb(ndev, priv->tx_tail % RCAR_CAN_FIFO_DEPTH);
+		can_get_echo_skb(ndev, priv->tx_tail % RCAR_CAN_FIFO_DEPTH, NULL);
 		priv->tx_tail++;
 		netif_wake_queue(ndev);
 	}
@@ -617,7 +617,7 @@ static netdev_tx_t rcar_can_start_xmit(struct sk_buff *skb,
 	writeb(cf->len, &priv->regs->mb[RCAR_CAN_TX_FIFO_MBX].dlc);
 
 	priv->tx_dlc[priv->tx_head % RCAR_CAN_FIFO_DEPTH] = cf->len;
-	can_put_echo_skb(skb, ndev, priv->tx_head % RCAR_CAN_FIFO_DEPTH);
+	can_put_echo_skb(skb, ndev, priv->tx_head % RCAR_CAN_FIFO_DEPTH, 0);
 	priv->tx_head++;
 	/* Start Tx: write 0xff to the TFPCR register to increment
 	 * the CPU-side pointer for the transmit FIFO to the next
