@@ -37,6 +37,7 @@
 #include <linux/slab.h>
 
 #include "i915_drv.h"
+#include "gt/intel_gpu_commands.h"
 #include "gt/intel_ring.h"
 #include "gvt.h"
 #include "i915_pvinfo.h"

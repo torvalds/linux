@@ -53,6 +53,7 @@
 #include "dce/dce_i2c_hw.h"
 #include "dce/dce_panel_cntl.h"
 #include "dce/dmub_abm.h"
+#include "dce/dmub_psr.h"
 
 #include "hw_sequencer_private.h"
 #include "reg_helper.h"
@@ -238,6 +239,7 @@ static const struct dc_debug_options debug_defaults_diags = {
 		.dwb_fi_phase = -1, // -1 = disable
 		.dmub_command_table = true,
 		.enable_tri_buf = true,
+		.disable_psr = true,
 };
 
 enum dcn302_clk_src_array_id {
@@ -1213,6 +1215,9 @@ static void dcn302_resource_destruct(struct resource_pool *pool)
 			dce_abm_destroy(&pool->multiple_abms[i]);
 	}
 
+	if (pool->psr != NULL)
+		dmub_psr_destroy(&pool->psr);
+
 	if (pool->dccg != NULL)
 		dcn_dccg_destroy(&pool->dccg);
 }
@@ -1354,8 +1359,6 @@ static bool dcn302_resource_construct(
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;
-	else if (dc->ctx->dce_environment == DCE_ENV_FPGA_MAXIMUS)
-		dc->debug = debug_defaults_diags;
 	else
 		dc->debug = debug_defaults_diags;
 
@@ -1468,6 +1471,14 @@ static bool dcn302_resource_construct(
 		}
 	}
 	pool->timing_generator_count = i;
+
+	/* PSR */
+	pool->psr = dmub_psr_create(ctx);
+	if (pool->psr == NULL) {
+		dm_error("DC: failed to create psr!\n");
+		BREAK_TO_DEBUGGER();
+		goto create_fail;
+	}
 
 	/* ABMs */
 	for (i = 0; i < pool->res_cap->num_timing_generator; i++) {

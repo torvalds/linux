@@ -39,6 +39,7 @@
 #include <linux/types.h>
 
 #include "gt/intel_engine_types.h"
+#include "gt/intel_lrc_reg.h"
 #include "i915_reg.h"
 
 struct i915_request;

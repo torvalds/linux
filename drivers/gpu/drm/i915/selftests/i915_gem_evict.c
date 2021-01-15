@@ -442,28 +442,22 @@ static int igt_evict_contexts(void *arg)
 	/* Overfill the GGTT with context objects and so try to evict one. */
 	for_each_engine(engine, gt, id) {
 		struct i915_sw_fence fence;
-		struct file *file;
-
-		file = mock_file(i915);
-		if (IS_ERR(file)) {
-			err = PTR_ERR(file);
-			break;
-		}
 
 		count = 0;
 		onstack_fence_init(&fence);
 		do {
+			struct intel_context *ce;
 			struct i915_request *rq;
-			struct i915_gem_context *ctx;
 
-			ctx = live_context(i915, file);
-			if (IS_ERR(ctx))
+			ce = intel_context_create(engine);
+			if (IS_ERR(ce))
 				break;
 
 			/* We will need some GGTT space for the rq's context */
 			igt_evict_ctl.fail_if_busy = true;
-			rq = igt_request_alloc(ctx, engine);
+			rq = intel_context_create_request(ce);
 			igt_evict_ctl.fail_if_busy = false;
+			intel_context_put(ce);
 
 			if (IS_ERR(rq)) {
 				/* When full, fail_if_busy will trigger EBUSY */
@@ -490,8 +484,6 @@ static int igt_evict_contexts(void *arg)
 		onstack_fence_fini(&fence);
 		pr_info("Submitted %lu contexts/requests on %s\n",
 			count, engine->name);
-
-		fput(file);
 		if (err)
 			break;
 	}

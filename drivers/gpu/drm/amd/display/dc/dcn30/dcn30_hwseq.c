@@ -814,6 +814,19 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 	return true;
 }
 
+bool dcn30_does_plane_fit_in_mall(struct dc *dc, struct dc_plane_state *plane)
+{
+	// add meta size?
+	unsigned int surface_size = plane->plane_size.surface_pitch * plane->plane_size.surface_size.height *
+			(plane->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ? 8 : 4);
+	unsigned int mall_size = dc->caps.mall_size_total;
+
+	if (dc->debug.mall_size_override)
+		mall_size = 1024 * 1024 * dc->debug.mall_size_override;
+
+	return (surface_size + dc->caps.cursor_cache_size) < mall_size;
+}
+
 void dcn30_hardware_release(struct dc *dc)
 {
 	/* if pstate unsupported, force it supported */

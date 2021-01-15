@@ -9,6 +9,7 @@
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_context.h"
+#include "gt/intel_gpu_commands.h"
 #include "gt/intel_gt.h"
 #include "i915_vma.h"
 #include "i915_drv.h"

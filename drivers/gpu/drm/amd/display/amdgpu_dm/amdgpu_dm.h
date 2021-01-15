@@ -336,6 +336,13 @@ struct amdgpu_display_manager {
 	 */
 	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
 
+	/**
+	 * @active_vblank_irq_count
+	 *
+	 * number of currently active vblank irqs
+	 */
+	uint32_t active_vblank_irq_count;
+
 #ifdef CONFIG_DEBUG_FS
 	/**
 	 * @crc_win_x_start_property:

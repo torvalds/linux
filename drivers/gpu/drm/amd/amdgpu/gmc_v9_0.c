@@ -31,8 +31,6 @@
 #include "amdgpu_atomfirmware.h"
 #include "amdgpu_gem.h"
 
-#include "hdp/hdp_4_0_offset.h"
-#include "hdp/hdp_4_0_sh_mask.h"
 #include "gc/gc_9_0_sh_mask.h"
 #include "dce/dce_12_0_offset.h"
 #include "dce/dce_12_0_sh_mask.h"
@@ -281,20 +279,6 @@ static const char *mmhub_client_ids_arcturus[][2] = {
 	[192+13][1] = "VCN1U",
 	[192+15][1] = "SDMA6",
 	[224+15][1] = "SDMA7",
-};
-
-static const u32 golden_settings_vega10_hdp[] =
-{
-	0xf64, 0x0fffffff, 0x00000000,
-	0xf65, 0x0fffffff, 0x00000000,
-	0xf66, 0x0fffffff, 0x00000000,
-	0xf67, 0x0fffffff, 0x00000000,
-	0xf68, 0x0fffffff, 0x00000000,
-	0xf6a, 0x0fffffff, 0x00000000,
-	0xf6b, 0x0fffffff, 0x00000000,
-	0xf6c, 0x0fffffff, 0x00000000,
-	0xf6d, 0x0fffffff, 0x00000000,
-	0xf6e, 0x0fffffff, 0x00000000,
 };
 
 static const struct soc15_reg_golden golden_settings_mmhub_1_0_0[] =
@@ -1571,7 +1555,6 @@ static int gmc_v9_0_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	bool value;
 	int r, i;
-	u32 tmp;
 
 	/* The sequence of these two function calls matters.*/
 	gmc_v9_0_init_golden_registers(adev);
@@ -1583,31 +1566,13 @@ static int gmc_v9_0_hw_init(void *handle)
 		WREG32_FIELD15(DCE, 0, VGA_RENDER_CONTROL, VGA_VSTATUS_CNTL, 0);
 	}
 
-	amdgpu_device_program_register_sequence(adev,
-						golden_settings_vega10_hdp,
-						ARRAY_SIZE(golden_settings_vega10_hdp));
-
 	if (adev->mmhub.funcs->update_power_gating)
 		adev->mmhub.funcs->update_power_gating(adev, true);
 
-	switch (adev->asic_type) {
-	case CHIP_ARCTURUS:
-		WREG32_FIELD15(HDP, 0, HDP_MMHUB_CNTL, HDP_MMHUB_GCC, 1);
-		break;
-	default:
-		break;
-	}
-
-	WREG32_FIELD15(HDP, 0, HDP_MISC_CNTL, FLUSH_INVALIDATE_CACHE, 1);
-
-	tmp = RREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL);
-	WREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL, tmp);
-
-	WREG32_SOC15(HDP, 0, mmHDP_NONSURFACE_BASE, (adev->gmc.vram_start >> 8));
-	WREG32_SOC15(HDP, 0, mmHDP_NONSURFACE_BASE_HI, (adev->gmc.vram_start >> 40));
+	adev->hdp.funcs->init_registers(adev);
 
 	/* After HDP is initialized, flush HDP.*/
-	adev->nbio.funcs->hdp_flush(adev, NULL);
+	adev->hdp.funcs->flush_hdp(adev, NULL);
 
 	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS)
 		value = false;

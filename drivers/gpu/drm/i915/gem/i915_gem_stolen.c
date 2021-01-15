@@ -608,11 +608,10 @@ i915_gem_object_release_stolen(struct drm_i915_gem_object *obj)
 	struct drm_mm_node *stolen = fetch_and_zero(&obj->stolen);
 
 	GEM_BUG_ON(!stolen);
-
-	i915_gem_object_release_memory_region(obj);
-
 	i915_gem_stolen_remove_node(i915, stolen);
 	kfree(stolen);
+
+	i915_gem_object_release_memory_region(obj);
 }
 
 static const struct drm_i915_gem_object_ops i915_gem_object_stolen_ops = {
