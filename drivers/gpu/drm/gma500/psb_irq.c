@@ -126,9 +126,8 @@ static void mid_disable_pipe_event(struct drm_psb_private *dev_priv, int pipe)
 	}
 }
 
-/**
+/*
  * Display controller interrupt handler for pipe event.
- *
  */
 static void mid_pipe_event_handler(struct drm_device *dev, int pipe)
 {
