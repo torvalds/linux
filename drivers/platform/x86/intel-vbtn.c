@@ -145,6 +145,7 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 	const struct key_entry *ke, *ke_rel;
 	struct input_dev *input_dev;
 	bool autorelease;
+	int ret;
 
 	if ((ke = sparse_keymap_entry_from_scancode(priv->buttons_dev, event))) {
 		if (!priv->has_buttons) {
@@ -154,8 +155,12 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 		input_dev = priv->buttons_dev;
 	} else if ((ke = sparse_keymap_entry_from_scancode(priv->switches_dev, event))) {
 		if (!priv->has_switches) {
-			dev_warn(&device->dev, "Warning: received a switches event on a device without switchess, please report this.\n");
-			return;
+			dev_info(&device->dev, "Registering Intel Virtual Switches input-dev after receiving a switch event\n");
+			ret = input_register_device(priv->switches_dev);
+			if (ret)
+				return;
+
+			priv->has_switches = true;
 		}
 		input_dev = priv->switches_dev;
 	} else {
