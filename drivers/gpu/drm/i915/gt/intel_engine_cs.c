@@ -342,7 +342,7 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	engine->schedule = NULL;
 
 	ewma__engine_latency_init(&engine->latency);
-	seqlock_init(&engine->stats.lock);
+	seqcount_init(&engine->stats.lock);
 
 	ATOMIC_INIT_NOTIFIER_HEAD(&engine->context_status_notifier);
 
@@ -1754,7 +1754,7 @@ static ktime_t __intel_engine_get_busy_time(struct intel_engine_cs *engine,
 	 * add it to the total.
 	 */
 	*now = ktime_get();
-	if (atomic_read(&engine->stats.active))
+	if (READ_ONCE(engine->stats.active))
 		total = ktime_add(total, ktime_sub(*now, engine->stats.start));
 
 	return total;
@@ -1773,9 +1773,9 @@ ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine, ktime_t *now)
 	ktime_t total;
 
 	do {
-		seq = read_seqbegin(&engine->stats.lock);
+		seq = read_seqcount_begin(&engine->stats.lock);
 		total = __intel_engine_get_busy_time(engine, now);
-	} while (read_seqretry(&engine->stats.lock, seq));
+	} while (read_seqcount_retry(&engine->stats.lock, seq));
 
 	return total;
 }

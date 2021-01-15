@@ -516,12 +516,12 @@ struct intel_engine_cs {
 		/**
 		 * @active: Number of contexts currently scheduled in.
 		 */
-		atomic_t active;
+		unsigned int active;
 
 		/**
 		 * @lock: Lock protecting the below fields.
 		 */
-		seqlock_t lock;
+		seqcount_t lock;
 
 		/**
 		 * @total: Total time this engine was busy.
