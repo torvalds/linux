@@ -8,6 +8,7 @@
 #include "evlist.h"
 #include "expr.h"
 #include "metricgroup.h"
+#include "cgroup.h"
 #include <linux/zalloc.h>
 
 /*
@@ -28,6 +29,7 @@ struct saved_value {
 	enum stat_type type;
 	int ctx;
 	int cpu;
+	struct cgroup *cgrp;
 	struct runtime_stat *stat;
 	struct stats stats;
 	u64 metric_total;
@@ -56,6 +58,9 @@ static int saved_value_cmp(struct rb_node *rb_node, const void *entry)
 
 	if (a->ctx != b->ctx)
 		return a->ctx - b->ctx;
+
+	if (a->cgrp != b->cgrp)
+		return (char *)a->cgrp < (char *)b->cgrp ? -1 : +1;
 
 	if (a->evsel == NULL && b->evsel == NULL) {
 		if (a->stat == b->stat)
@@ -100,7 +105,8 @@ static struct saved_value *saved_value_lookup(struct evsel *evsel,
 					      bool create,
 					      enum stat_type type,
 					      int ctx,
-					      struct runtime_stat *st)
+					      struct runtime_stat *st,
+					      struct cgroup *cgrp)
 {
 	struct rblist *rblist;
 	struct rb_node *nd;
@@ -110,6 +116,7 @@ static struct saved_value *saved_value_lookup(struct evsel *evsel,
 		.type = type,
 		.ctx = ctx,
 		.stat = st,
+		.cgrp = cgrp,
 	};
 
 	rblist = &st->value_list;
@@ -197,6 +204,7 @@ void perf_stat__reset_shadow_per_stat(struct runtime_stat *st)
 
 struct runtime_stat_data {
 	int ctx;
+	struct cgroup *cgrp;
 };
 
 static void update_runtime_stat(struct runtime_stat *st,
@@ -205,7 +213,7 @@ static void update_runtime_stat(struct runtime_stat *st,
 				struct runtime_stat_data *rsd)
 {
 	struct saved_value *v = saved_value_lookup(NULL, cpu, true, type,
-						   rsd->ctx, st);
+						   rsd->ctx, st, rsd->cgrp);
 
 	if (v)
 		update_stats(&v->stats, count);
@@ -223,6 +231,7 @@ void perf_stat__update_shadow_stats(struct evsel *counter, u64 count,
 	struct saved_value *v;
 	struct runtime_stat_data rsd = {
 		.ctx = evsel_context(counter),
+		.cgrp = counter->cgrp,
 	};
 
 	count *= counter->scale;
@@ -290,13 +299,14 @@ void perf_stat__update_shadow_stats(struct evsel *counter, u64 count,
 		update_runtime_stat(st, STAT_APERF, cpu, count, &rsd);
 
 	if (counter->collect_stat) {
-		v = saved_value_lookup(counter, cpu, true, STAT_NONE, 0, st);
+		v = saved_value_lookup(counter, cpu, true, STAT_NONE, 0, st,
+				       rsd.cgrp);
 		update_stats(&v->stats, count);
 		if (counter->metric_leader)
 			v->metric_total += count;
 	} else if (counter->metric_leader) {
 		v = saved_value_lookup(counter->metric_leader,
-				       cpu, true, STAT_NONE, 0, st);
+				       cpu, true, STAT_NONE, 0, st, rsd.cgrp);
 		v->metric_total += count;
 		v->metric_other++;
 	}
@@ -438,7 +448,7 @@ static double runtime_stat_avg(struct runtime_stat *st,
 {
 	struct saved_value *v;
 
-	v = saved_value_lookup(NULL, cpu, false, type, rsd->ctx, st);
+	v = saved_value_lookup(NULL, cpu, false, type, rsd->ctx, st, rsd->cgrp);
 	if (!v)
 		return 0.0;
 
@@ -451,7 +461,7 @@ static double runtime_stat_n(struct runtime_stat *st,
 {
 	struct saved_value *v;
 
-	v = saved_value_lookup(NULL, cpu, false, type, rsd->ctx, st);
+	v = saved_value_lookup(NULL, cpu, false, type, rsd->ctx, st, rsd->cgrp);
 	if (!v)
 		return 0.0;
 
@@ -805,7 +815,8 @@ static int prepare_metric(struct evsel **metric_events,
 			scale = 1e-9;
 		} else {
 			v = saved_value_lookup(metric_events[i], cpu, false,
-					       STAT_NONE, 0, st);
+					       STAT_NONE, 0, st,
+					       metric_events[i]->cgrp);
 			if (!v)
 				break;
 			stats = &v->stats;
@@ -933,6 +944,7 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 	const char *color = NULL;
 	struct runtime_stat_data rsd = {
 		.ctx = evsel_context(evsel),
+		.cgrp = evsel->cgrp,
 	};
 	struct metric_event *me;
 	int num = 1;
