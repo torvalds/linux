@@ -232,7 +232,7 @@ int iwl_pnvm_load(struct iwl_trans *trans,
 	if (!trans->sku_id[0] && !trans->sku_id[1] && !trans->sku_id[2])
 		return 0;
 
-	/* load from disk only if we haven't done it before */
+	/* load from disk only if we haven't done it (or tried) before */
 	if (!trans->pnvm_loaded) {
 		const struct firmware *pnvm;
 		char pnvm_name[64];
@@ -253,6 +253,12 @@ int iwl_pnvm_load(struct iwl_trans *trans,
 		if (ret) {
 			IWL_DEBUG_FW(trans, "PNVM file %s not found %d\n",
 				     pnvm_name, ret);
+			/*
+			 * Pretend we've loaded it - at least we've tried and
+			 * couldn't load it at all, so there's no point in
+			 * trying again over and over.
+			 */
+			trans->pnvm_loaded = true;
 		} else {
 			iwl_pnvm_parse(trans, pnvm->data, pnvm->size);
 
