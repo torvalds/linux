@@ -32,6 +32,7 @@ properties:
       - maxim,max7327
       - nxp,pca6416
       - nxp,pca9505
+      - nxp,pca9506
       - nxp,pca9534
       - nxp,pca9535
       - nxp,pca9536
