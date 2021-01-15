@@ -12,6 +12,7 @@
 #include <linux/crypto.h>
 #include "otx2_cpt_hw_types.h"
 #include "rvu.h"
+#include "mbox.h"
 
 #define OTX2_CPT_RVU_FUNC_ADDR_S(blk, slot, offs) \
 		(((blk) << 20) | ((slot) << 12) | (offs))
@@ -29,4 +30,7 @@ static inline u64 otx2_cpt_read64(void __iomem *reg_base, u64 blk, u64 slot,
 	return readq_relaxed(reg_base +
 			     OTX2_CPT_RVU_FUNC_ADDR_S(blk, slot, offs));
 }
+
+int otx2_cpt_send_ready_msg(struct otx2_mbox *mbox, struct pci_dev *pdev);
+int otx2_cpt_send_mbox_msg(struct otx2_mbox *mbox, struct pci_dev *pdev);
 #endif /* __OTX2_CPT_COMMON_H */
