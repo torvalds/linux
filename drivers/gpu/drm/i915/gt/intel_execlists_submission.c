@@ -115,6 +115,7 @@
 #include "intel_breadcrumbs.h"
 #include "intel_context.h"
 #include "intel_engine_pm.h"
+#include "intel_engine_stats.h"
 #include "intel_execlists_submission.h"
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
@@ -429,39 +430,6 @@ execlists_context_status_change(struct i915_request *rq, unsigned long status)
 
 	atomic_notifier_call_chain(&rq->engine->context_status_notifier,
 				   status, rq);
-}
-
-static void intel_engine_context_in(struct intel_engine_cs *engine)
-{
-	unsigned long flags;
-
-	if (atomic_add_unless(&engine->stats.active, 1, 0))
-		return;
-
-	write_seqlock_irqsave(&engine->stats.lock, flags);
-	if (!atomic_add_unless(&engine->stats.active, 1, 0)) {
-		engine->stats.start = ktime_get();
-		atomic_inc(&engine->stats.active);
-	}
-	write_sequnlock_irqrestore(&engine->stats.lock, flags);
-}
-
-static void intel_engine_context_out(struct intel_engine_cs *engine)
-{
-	unsigned long flags;
-
-	GEM_BUG_ON(!atomic_read(&engine->stats.active));
-
-	if (atomic_add_unless(&engine->stats.active, -1, 1))
-		return;
-
-	write_seqlock_irqsave(&engine->stats.lock, flags);
-	if (atomic_dec_and_test(&engine->stats.active)) {
-		engine->stats.total =
-			ktime_add(engine->stats.total,
-				  ktime_sub(ktime_get(), engine->stats.start));
-	}
-	write_sequnlock_irqrestore(&engine->stats.lock, flags);
 }
 
 static void reset_active(struct i915_request *rq,
