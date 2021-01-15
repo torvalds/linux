@@ -195,9 +195,14 @@ struct io_mapped_ubuf {
 	unsigned long	acct_pages;
 };
 
+struct io_ring_ctx;
+
 struct io_rsrc_put {
 	struct list_head list;
-	struct file *file;
+	union {
+		void *rsrc;
+		struct file *file;
+	};
 };
 
 struct fixed_rsrc_table {
@@ -209,6 +214,8 @@ struct fixed_rsrc_ref_node {
 	struct list_head		node;
 	struct list_head		rsrc_list;
 	struct fixed_rsrc_data		*rsrc_data;
+	void				(*rsrc_put)(struct io_ring_ctx *ctx,
+						    struct io_rsrc_put *prsrc);
 	struct llist_node		llist;
 	bool				done;
 };
@@ -7646,8 +7653,9 @@ static int io_sqe_alloc_file_tables(struct fixed_rsrc_data *file_data,
 	return 1;
 }
 
-static void io_ring_file_put(struct io_ring_ctx *ctx, struct file *file)
+static void io_ring_file_put(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc)
 {
+	struct file *file = prsrc->file;
 #if defined(CONFIG_UNIX)
 	struct sock *sock = ctx->ring_sock->sk;
 	struct sk_buff_head list, *head = &sock->sk_receive_queue;
@@ -7716,7 +7724,7 @@ static void __io_rsrc_put_work(struct fixed_rsrc_ref_node *ref_node)
 
 	list_for_each_entry_safe(prsrc, tmp, &ref_node->rsrc_list, list) {
 		list_del(&prsrc->list);
-		io_ring_file_put(ctx, prsrc->file);
+		ref_node->rsrc_put(ctx, prsrc);
 		kfree(prsrc);
 	}
 
@@ -7795,6 +7803,7 @@ static struct fixed_rsrc_ref_node *alloc_fixed_file_ref_node(
 	INIT_LIST_HEAD(&ref_node->node);
 	INIT_LIST_HEAD(&ref_node->rsrc_list);
 	ref_node->rsrc_data = ctx->file_data;
+	ref_node->rsrc_put = io_ring_file_put;
 	ref_node->done = false;
 	return ref_node;
 }
@@ -7952,8 +7961,7 @@ static int io_sqe_file_register(struct io_ring_ctx *ctx, struct file *file,
 #endif
 }
 
-static int io_queue_rsrc_removal(struct fixed_rsrc_data *data,
-				 struct file *rsrc)
+static int io_queue_rsrc_removal(struct fixed_rsrc_data *data, void *rsrc)
 {
 	struct io_rsrc_put *prsrc;
 	struct fixed_rsrc_ref_node *ref_node = data->node;
@@ -7962,7 +7970,7 @@ static int io_queue_rsrc_removal(struct fixed_rsrc_data *data,
 	if (!prsrc)
 		return -ENOMEM;
 
-	prsrc->file = rsrc;
+	prsrc->rsrc = rsrc;
 	list_add(&prsrc->list, &ref_node->rsrc_list);
 
 	return 0;
@@ -7971,7 +7979,7 @@ static int io_queue_rsrc_removal(struct fixed_rsrc_data *data,
 static inline int io_queue_file_removal(struct fixed_rsrc_data *data,
 					struct file *file)
 {
-	return io_queue_rsrc_removal(data, file);
+	return io_queue_rsrc_removal(data, (void *)file);
 }
 
 static int __io_sqe_files_update(struct io_ring_ctx *ctx,
