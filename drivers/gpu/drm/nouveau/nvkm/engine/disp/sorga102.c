@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Red Hat Inc.
+ * Copyright 2021 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,19 +23,8 @@
 
 #include <subdev/timer.h>
 
-void
-tu102_sor_dp_vcpi(struct nvkm_ior *sor, int head,
-		  u8 slot, u8 slot_nr, u16 pbn, u16 aligned)
-{
-	struct nvkm_device *device = sor->disp->engine.subdev.device;
-	const u32 hoff = head * 0x800;
-
-	nvkm_mask(device, 0x61657c + hoff, 0xffffffff, (aligned << 16) | pbn);
-	nvkm_mask(device, 0x616578 + hoff, 0x00003f3f, (slot_nr << 8) | slot);
-}
-
 static int
-tu102_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
+ga102_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
 	const u32 soff = nv50_ior_base(sor);
@@ -43,7 +32,16 @@ tu102_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
 	u32 dpctrl = 0x00000000;
 	u32 clksor = 0x00000000;
 
-	clksor |= sor->dp.bw << 18;
+	switch (sor->dp.bw) {
+	case 0x06: clksor |= 0x00000000; break;
+	case 0x0a: clksor |= 0x00040000; break;
+	case 0x14: clksor |= 0x00080000; break;
+	case 0x1e: clksor |= 0x000c0000; break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
 	dpctrl |= ((1 << sor->dp.nr) - 1) << 16;
 	if (sor->dp.mst)
 		dpctrl |= 0x40000000;
@@ -61,22 +59,35 @@ tu102_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
 	return 0;
 }
 
+static void
+ga102_sor_clock(struct nvkm_ior *sor)
+{
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	u32 div2 = 0;
+	if (sor->asy.proto == TMDS) {
+		if (sor->tmds.high_speed)
+			div2 = 1;
+	}
+	nvkm_wr32(device, 0x00ec08 + (sor->id * 0x10), 0x00000000);
+	nvkm_wr32(device, 0x00ec04 + (sor->id * 0x10), div2);
+}
+
 static const struct nvkm_ior_func
-tu102_sor_hda = {
+ga102_sor_hda = {
 	.route = {
 		.get = gm200_sor_route_get,
 		.set = gm200_sor_route_set,
 	},
 	.state = gv100_sor_state,
 	.power = nv50_sor_power,
-	.clock = gf119_sor_clock,
+	.clock = ga102_sor_clock,
 	.hdmi = {
 		.ctrl = gv100_hdmi_ctrl,
 		.scdc = gm200_hdmi_scdc,
 	},
 	.dp = {
 		.lanes = { 0, 1, 2, 3 },
-		.links = tu102_sor_dp_links,
+		.links = ga102_sor_dp_links,
 		.power = g94_sor_dp_power,
 		.pattern = gm107_sor_dp_pattern,
 		.drive = gm200_sor_dp_drive,
@@ -93,21 +104,21 @@ tu102_sor_hda = {
 };
 
 static const struct nvkm_ior_func
-tu102_sor = {
+ga102_sor = {
 	.route = {
 		.get = gm200_sor_route_get,
 		.set = gm200_sor_route_set,
 	},
 	.state = gv100_sor_state,
 	.power = nv50_sor_power,
-	.clock = gf119_sor_clock,
+	.clock = ga102_sor_clock,
 	.hdmi = {
 		.ctrl = gv100_hdmi_ctrl,
 		.scdc = gm200_hdmi_scdc,
 	},
 	.dp = {
 		.lanes = { 0, 1, 2, 3 },
-		.links = tu102_sor_dp_links,
+		.links = ga102_sor_dp_links,
 		.power = g94_sor_dp_power,
 		.pattern = gm107_sor_dp_pattern,
 		.drive = gm200_sor_dp_drive,
@@ -119,11 +130,11 @@ tu102_sor = {
 };
 
 int
-tu102_sor_new(struct nvkm_disp *disp, int id)
+ga102_sor_new(struct nvkm_disp *disp, int id)
 {
 	struct nvkm_device *device = disp->engine.subdev.device;
 	u32 hda = nvkm_rd32(device, 0x08a15c);
 	if (hda & BIT(id))
-		return nvkm_ior_new_(&tu102_sor_hda, disp, SOR, id);
-	return nvkm_ior_new_(&tu102_sor, disp, SOR, id);
+		return nvkm_ior_new_(&ga102_sor_hda, disp, SOR, id);
+	return nvkm_ior_new_(&ga102_sor, disp, SOR, id);
 }

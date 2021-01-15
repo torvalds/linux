@@ -120,6 +120,7 @@ struct nvkm_device {
 		GP100    = 0x130,
 		GV100    = 0x140,
 		TU100    = 0x160,
+		GA100    = 0x170,
 	} card_type;
 	u32 chipset;
 	u8  chiprev;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Red Hat Inc.
+ * Copyright 2021 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,36 +19,22 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "curs.h"
+#include "gf100.h"
+#include "ram.h"
 
-#include <nvif/class.h>
+static const struct nvkm_fb_func
+ga100_fb = {
+	.dtor = gf100_fb_dtor,
+	.oneinit = gf100_fb_oneinit,
+	.init = gp100_fb_init,
+	.init_page = gv100_fb_init_page,
+	.init_unkn = gp100_fb_init_unkn,
+	.ram_new = gp100_ram_new,
+	.default_bigpage = 16,
+};
 
 int
-nv50_curs_new(struct nouveau_drm *drm, int head, struct nv50_wndw **pwndw)
+ga100_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
 {
-	struct {
-		s32 oclass;
-		int version;
-		int (*new)(struct nouveau_drm *, int, s32, struct nv50_wndw **);
-	} curses[] = {
-		{ GA102_DISP_CURSOR, 0, cursc37a_new },
-		{ TU102_DISP_CURSOR, 0, cursc37a_new },
-		{ GV100_DISP_CURSOR, 0, cursc37a_new },
-		{ GK104_DISP_CURSOR, 0, curs907a_new },
-		{ GF110_DISP_CURSOR, 0, curs907a_new },
-		{ GT214_DISP_CURSOR, 0, curs507a_new },
-		{   G82_DISP_CURSOR, 0, curs507a_new },
-		{  NV50_DISP_CURSOR, 0, curs507a_new },
-		{}
-	};
-	struct nv50_disp *disp = nv50_disp(drm->dev);
-	int cid;
-
-	cid = nvif_mclass(&disp->disp->object, curses);
-	if (cid < 0) {
-		NV_ERROR(drm, "No supported cursor immediate class\n");
-		return cid;
-	}
-
-	return curses[cid].new(drm, head, curses[cid].oclass, pwndw);
+	return gp102_fb_new_(&ga100_fb, device, index, pfb);
 }
