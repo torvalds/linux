@@ -99,6 +99,25 @@
 	status = "okay";
 };
 
+&cru {
+	assigned-clocks =
+		<&pmucru CLK_RTC32K>, <&pmucru PLL_GPLL>,
+		<&pmucru PCLK_PDPMU>, <&cru PLL_CPLL>,
+		<&cru PLL_HPLL>, <&cru ARMCLK>,
+		<&cru ACLK_PDBUS>, <&cru HCLK_PDBUS>,
+		<&cru PCLK_PDBUS>, <&cru ACLK_PDPHP>,
+		<&cru HCLK_PDPHP>, <&cru HCLK_PDAUDIO>,
+		<&cru HCLK_PDCORE_NIU>;
+	assigned-clock-rates =
+		<32768>, <1188000000>,
+		<100000000>, <491520000>,
+		<1400000000>, <600000000>,
+		<500000000>, <200000000>,
+		<100000000>, <300000000>,
+		<200000000>, <150000000>,
+		<200000000>;
+};
+
 &csi_dphy0 {
 	status = "okay";
 
