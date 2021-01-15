@@ -114,6 +114,34 @@ static int fsverity_read_descriptor(struct inode *inode,
 	kfree(desc);
 	return res;
 }
+
+static int fsverity_read_signature(struct inode *inode,
+				   void __user *buf, u64 offset, int length)
+{
+	struct fsverity_descriptor *desc;
+	size_t desc_size;
+	int res;
+
+	res = fsverity_get_descriptor(inode, &desc, &desc_size);
+	if (res)
+		return res;
+
+	if (desc->sig_size == 0) {
+		res = -ENODATA;
+		goto out;
+	}
+
+	/*
+	 * Include only the signature.  Note that fsverity_get_descriptor()
+	 * already verified that sig_size is in-bounds.
+	 */
+	res = fsverity_read_buffer(buf, offset, length, desc->signature,
+				   le32_to_cpu(desc->sig_size));
+out:
+	kfree(desc);
+	return res;
+}
+
 /**
  * fsverity_ioctl_read_metadata() - read verity metadata from a file
  * @filp: file to read the metadata from
@@ -158,6 +186,8 @@ int fsverity_ioctl_read_metadata(struct file *filp, const void __user *uarg)
 						 length);
 	case FS_VERITY_METADATA_TYPE_DESCRIPTOR:
 		return fsverity_read_descriptor(inode, buf, arg.offset, length);
+	case FS_VERITY_METADATA_TYPE_SIGNATURE:
+		return fsverity_read_signature(inode, buf, arg.offset, length);
 	default:
 		return -EINVAL;
 	}
