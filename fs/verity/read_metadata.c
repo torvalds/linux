@@ -76,6 +76,44 @@ static int fsverity_read_merkle_tree(struct inode *inode,
 	}
 	return retval ? retval : err;
 }
+
+/* Copy the requested portion of the buffer to userspace. */
+static int fsverity_read_buffer(void __user *dst, u64 offset, int length,
+				const void *src, size_t src_length)
+{
+	if (offset >= src_length)
+		return 0;
+	src += offset;
+	src_length -= offset;
+
+	length = min_t(size_t, length, src_length);
+
+	if (copy_to_user(dst, src, length))
+		return -EFAULT;
+
+	return length;
+}
+
+static int fsverity_read_descriptor(struct inode *inode,
+				    void __user *buf, u64 offset, int length)
+{
+	struct fsverity_descriptor *desc;
+	size_t desc_size;
+	int res;
+
+	res = fsverity_get_descriptor(inode, &desc, &desc_size);
+	if (res)
+		return res;
+
+	/* don't include the signature */
+	desc_size = offsetof(struct fsverity_descriptor, signature);
+	desc->sig_size = 0;
+
+	res = fsverity_read_buffer(buf, offset, length, desc, desc_size);
+
+	kfree(desc);
+	return res;
+}
 /**
  * fsverity_ioctl_read_metadata() - read verity metadata from a file
  * @filp: file to read the metadata from
@@ -118,6 +156,8 @@ int fsverity_ioctl_read_metadata(struct file *filp, const void __user *uarg)
 	case FS_VERITY_METADATA_TYPE_MERKLE_TREE:
 		return fsverity_read_merkle_tree(inode, vi, buf, arg.offset,
 						 length);
+	case FS_VERITY_METADATA_TYPE_DESCRIPTOR:
+		return fsverity_read_descriptor(inode, buf, arg.offset, length);
 	default:
 		return -EINVAL;
 	}
