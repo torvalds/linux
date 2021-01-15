@@ -676,8 +676,8 @@
 	leds {
 		leds_gpio: leds-gpio {
 			rockchip,pins =
-				<0 RK_PC4 RK_FUNC_1 &pcfg_pull_none>,
-				<0 RK_PC5 RK_FUNC_1 &pcfg_pull_none>;
+				<3 RK_PC4 RK_FUNC_1 &pcfg_pull_none>,
+				<3 RK_PC5 RK_FUNC_1 &pcfg_pull_none>;
 		};
 	};
 
