@@ -60,11 +60,19 @@ static int __engine_unpark(struct intel_wakeref *wf)
 
 		/* Scrub the context image after our loss of control */
 		ce->ops->reset(ce);
+
+		CE_TRACE(ce, "reset { seqno:%x, *hwsp:%x, ring:%x }\n",
+			 ce->timeline->seqno,
+			 READ_ONCE(*ce->timeline->hwsp_seqno),
+			 ce->ring->emit);
+		GEM_BUG_ON(ce->timeline->seqno !=
+			   READ_ONCE(*ce->timeline->hwsp_seqno));
 	}
 
 	if (engine->unpark)
 		engine->unpark(engine);
 
+	intel_breadcrumbs_unpark(engine->breadcrumbs);
 	intel_engine_unpark_heartbeat(engine);
 	return 0;
 }
@@ -136,7 +144,7 @@ __queue_and_release_pm(struct i915_request *rq,
 		list_add_tail(&tl->link, &timelines->active_list);
 
 	/* Hand the request over to HW and so engine_retire() */
-	__i915_request_queue(rq, NULL);
+	__i915_request_queue_bh(rq);
 
 	/* Let new submissions commence (and maybe retire this timeline) */
 	__intel_wakeref_defer_park(&engine->wakeref);

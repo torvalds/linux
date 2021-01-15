@@ -45,6 +45,7 @@
 #include "i915_debugfs.h"
 #include "i915_debugfs_params.h"
 #include "i915_irq.h"
+#include "i915_scheduler.h"
 #include "i915_trace.h"
 #include "intel_pm.h"
 #include "intel_sideband.h"
@@ -634,27 +635,27 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m, "RPDECLIMIT: 0x%08x\n", rpdeclimit);
 		seq_printf(m, "RPNSWREQ: %dMHz\n", reqf);
 		seq_printf(m, "CAGF: %dMHz\n", cagf);
-		seq_printf(m, "RP CUR UP EI: %d (%dns)\n",
+		seq_printf(m, "RP CUR UP EI: %d (%lldns)\n",
 			   rpupei,
 			   intel_gt_pm_interval_to_ns(&dev_priv->gt, rpupei));
-		seq_printf(m, "RP CUR UP: %d (%dun)\n",
+		seq_printf(m, "RP CUR UP: %d (%lldun)\n",
 			   rpcurup,
 			   intel_gt_pm_interval_to_ns(&dev_priv->gt, rpcurup));
-		seq_printf(m, "RP PREV UP: %d (%dns)\n",
+		seq_printf(m, "RP PREV UP: %d (%lldns)\n",
 			   rpprevup,
 			   intel_gt_pm_interval_to_ns(&dev_priv->gt, rpprevup));
 		seq_printf(m, "Up threshold: %d%%\n",
 			   rps->power.up_threshold);
 
-		seq_printf(m, "RP CUR DOWN EI: %d (%dns)\n",
+		seq_printf(m, "RP CUR DOWN EI: %d (%lldns)\n",
 			   rpdownei,
 			   intel_gt_pm_interval_to_ns(&dev_priv->gt,
 						      rpdownei));
-		seq_printf(m, "RP CUR DOWN: %d (%dns)\n",
+		seq_printf(m, "RP CUR DOWN: %d (%lldns)\n",
 			   rpcurdown,
 			   intel_gt_pm_interval_to_ns(&dev_priv->gt,
 						      rpcurdown));
-		seq_printf(m, "RP PREV DOWN: %d (%dns)\n",
+		seq_printf(m, "RP PREV DOWN: %d (%lldns)\n",
 			   rpprevdown,
 			   intel_gt_pm_interval_to_ns(&dev_priv->gt,
 						      rpprevdown));
@@ -810,7 +811,7 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 		   intel_gpu_freq(rps, rps->efficient_freq),
 		   intel_gpu_freq(rps, rps->boost_freq));
 
-	seq_printf(m, "Wait boosts: %d\n", atomic_read(&rps->boosts));
+	seq_printf(m, "Wait boosts: %d\n", READ_ONCE(rps->boosts));
 
 	return 0;
 }
@@ -850,24 +851,28 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 
 static int i915_engine_info(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct drm_i915_private *i915 = node_to_i915(m->private);
 	struct intel_engine_cs *engine;
 	intel_wakeref_t wakeref;
 	struct drm_printer p;
 
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
-	seq_printf(m, "GT awake? %s [%d]\n",
-		   yesno(dev_priv->gt.awake),
-		   atomic_read(&dev_priv->gt.wakeref.count));
-	seq_printf(m, "CS timestamp frequency: %u Hz\n",
-		   RUNTIME_INFO(dev_priv)->cs_timestamp_frequency_hz);
+	seq_printf(m, "GT awake? %s [%d], %llums\n",
+		   yesno(i915->gt.awake),
+		   atomic_read(&i915->gt.wakeref.count),
+		   ktime_to_ms(intel_gt_get_awake_time(&i915->gt)));
+	seq_printf(m, "CS timestamp frequency: %u Hz, %d ns\n",
+		   i915->gt.clock_frequency,
+		   i915->gt.clock_period_ns);
 
 	p = drm_seq_file_printer(m);
-	for_each_uabi_engine(engine, dev_priv)
+	for_each_uabi_engine(engine, i915)
 		intel_engine_dump(engine, &p, "%s\n", engine->name);
 
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
+	intel_gt_show_timelines(&i915->gt, &p, i915_request_show_with_schedule);
+
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 
 	return 0;
 }
@@ -945,7 +950,7 @@ i915_perf_noa_delay_set(void *data, u64 val)
 	 * This would lead to infinite waits as we're doing timestamp
 	 * difference on the CS with only 32bits.
 	 */
-	if (i915_cs_timestamp_ns_to_ticks(i915, val) > U32_MAX)
+	if (intel_gt_ns_to_clock_interval(&i915->gt, val) > U32_MAX)
 		return -EINVAL;
 
 	atomic64_set(&i915->perf.noa_programming_delay, val);

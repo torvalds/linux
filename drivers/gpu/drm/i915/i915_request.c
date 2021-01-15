@@ -33,6 +33,7 @@
 #include "gem/i915_gem_context.h"
 #include "gt/intel_breadcrumbs.h"
 #include "gt/intel_context.h"
+#include "gt/intel_gpu_commands.h"
 #include "gt/intel_ring.h"
 #include "gt/intel_rps.h"
 
@@ -306,10 +307,8 @@ bool i915_request_retire(struct i915_request *rq)
 		spin_unlock_irq(&rq->lock);
 	}
 
-	if (i915_request_has_waitboost(rq)) {
-		GEM_BUG_ON(!atomic_read(&rq->engine->gt->rps.num_waiters));
+	if (test_and_set_bit(I915_FENCE_FLAG_BOOST, &rq->fence.flags))
 		atomic_dec(&rq->engine->gt->rps.num_waiters);
-	}
 
 	/*
 	 * We only loosely track inflight requests across preemption,
@@ -321,7 +320,8 @@ bool i915_request_retire(struct i915_request *rq)
 	 * after removing the breadcrumb and signaling it, so that we do not
 	 * inadvertently attach the breadcrumb to a completed request.
 	 */
-	remove_from_engine(rq);
+	if (!list_empty(&rq->sched.link))
+		remove_from_engine(rq);
 	GEM_BUG_ON(!llist_empty(&rq->execute_cb));
 
 	__list_del_entry(&rq->link); /* poison neither prev/next (RCU walks) */
@@ -488,6 +488,8 @@ void __i915_request_skip(struct i915_request *rq)
 	if (rq->infix == rq->postfix)
 		return;
 
+	RQ_TRACE(rq, "error: %d\n", rq->fence.error);
+
 	/*
 	 * As this request likely depends on state from the lost
 	 * context, clear out all the user operations leaving the
@@ -511,6 +513,17 @@ void i915_request_set_error_once(struct i915_request *rq, int error)
 		if (fatal_error(old))
 			return;
 	} while (!try_cmpxchg(&rq->fence.error, &old, error));
+}
+
+void i915_request_mark_eio(struct i915_request *rq)
+{
+	if (__i915_request_is_complete(rq))
+		return;
+
+	GEM_BUG_ON(i915_request_signaled(rq));
+
+	i915_request_set_error_once(rq, -EIO);
+	i915_request_mark_complete(rq);
 }
 
 bool __i915_request_submit(struct i915_request *request)
@@ -541,10 +554,6 @@ bool __i915_request_submit(struct i915_request *request)
 	 */
 	if (i915_request_completed(request))
 		goto xfer;
-
-	if (unlikely(intel_context_is_closed(request->context) &&
-		     !intel_engine_has_heartbeat(engine)))
-		intel_context_set_banned(request->context);
 
 	if (unlikely(intel_context_is_banned(request->context)))
 		i915_request_set_error_once(request, -EIO);
@@ -1582,6 +1591,12 @@ struct i915_request *__i915_request_commit(struct i915_request *rq)
 	return __i915_request_add_to_timeline(rq);
 }
 
+void __i915_request_queue_bh(struct i915_request *rq)
+{
+	i915_sw_fence_commit(&rq->semaphore);
+	i915_sw_fence_commit(&rq->submit);
+}
+
 void __i915_request_queue(struct i915_request *rq,
 			  const struct i915_sched_attr *attr)
 {
@@ -1598,8 +1613,10 @@ void __i915_request_queue(struct i915_request *rq,
 	 */
 	if (attr && rq->engine->schedule)
 		rq->engine->schedule(rq, attr);
-	i915_sw_fence_commit(&rq->semaphore);
-	i915_sw_fence_commit(&rq->submit);
+
+	local_bh_disable();
+	__i915_request_queue_bh(rq);
+	local_bh_enable(); /* kick tasklets */
 }
 
 void i915_request_add(struct i915_request *rq)
@@ -1823,7 +1840,7 @@ long i915_request_wait(struct i915_request *rq,
 	 * for unhappy HW.
 	 */
 	if (i915_request_is_ready(rq))
-		intel_engine_flush_submission(rq->engine);
+		__intel_engine_flush_submission(rq->engine, false);
 
 	for (;;) {
 		set_current_state(state);
@@ -1853,6 +1870,106 @@ out:
 	mutex_release(&rq->engine->gt->reset.mutex.dep_map, _THIS_IP_);
 	trace_i915_request_wait_end(rq);
 	return timeout;
+}
+
+static int print_sched_attr(const struct i915_sched_attr *attr,
+			    char *buf, int x, int len)
+{
+	if (attr->priority == I915_PRIORITY_INVALID)
+		return x;
+
+	x += snprintf(buf + x, len - x,
+		      " prio=%d", attr->priority);
+
+	return x;
+}
+
+static char queue_status(const struct i915_request *rq)
+{
+	if (i915_request_is_active(rq))
+		return 'E';
+
+	if (i915_request_is_ready(rq))
+		return intel_engine_is_virtual(rq->engine) ? 'V' : 'R';
+
+	return 'U';
+}
+
+static const char *run_status(const struct i915_request *rq)
+{
+	if (i915_request_completed(rq))
+		return "!";
+
+	if (i915_request_started(rq))
+		return "*";
+
+	if (!i915_sw_fence_signaled(&rq->semaphore))
+		return "&";
+
+	return "";
+}
+
+static const char *fence_status(const struct i915_request *rq)
+{
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &rq->fence.flags))
+		return "+";
+
+	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &rq->fence.flags))
+		return "-";
+
+	return "";
+}
+
+void i915_request_show(struct drm_printer *m,
+		       const struct i915_request *rq,
+		       const char *prefix,
+		       int indent)
+{
+	const char *name = rq->fence.ops->get_timeline_name((struct dma_fence *)&rq->fence);
+	char buf[80] = "";
+	int x = 0;
+
+	/*
+	 * The prefix is used to show the queue status, for which we use
+	 * the following flags:
+	 *
+	 *  U [Unready]
+	 *    - initial status upon being submitted by the user
+	 *
+	 *    - the request is not ready for execution as it is waiting
+	 *      for external fences
+	 *
+	 *  R [Ready]
+	 *    - all fences the request was waiting on have been signaled,
+	 *      and the request is now ready for execution and will be
+	 *      in a backend queue
+	 *
+	 *    - a ready request may still need to wait on semaphores
+	 *      [internal fences]
+	 *
+	 *  V [Ready/virtual]
+	 *    - same as ready, but queued over multiple backends
+	 *
+	 *  E [Executing]
+	 *    - the request has been transferred from the backend queue and
+	 *      submitted for execution on HW
+	 *
+	 *    - a completed request may still be regarded as executing, its
+	 *      status may not be updated until it is retired and removed
+	 *      from the lists
+	 */
+
+	x = print_sched_attr(&rq->sched.attr, buf, x, sizeof(buf));
+
+	drm_printf(m, "%s%.*s%c %llx:%lld%s%s %s @ %dms: %s\n",
+		   prefix, indent, "                ",
+		   queue_status(rq),
+		   rq->fence.context, rq->fence.seqno,
+		   run_status(rq),
+		   fence_status(rq),
+		   buf,
+		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),
+		   name);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

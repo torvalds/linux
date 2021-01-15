@@ -262,7 +262,7 @@ static int live_noa_delay(void *arg)
 
 	delay = intel_read_status_page(stream->engine, 0x102);
 	delay -= intel_read_status_page(stream->engine, 0x100);
-	delay = i915_cs_timestamp_ticks_to_ns(i915, delay);
+	delay = intel_gt_clock_interval_to_ns(stream->engine->gt, delay);
 	pr_info("GPU delay: %uns, expected %lluns\n",
 		delay, expected);
 
