@@ -588,6 +588,7 @@ static void tnr_free_buf(struct rkispp_device *dev)
 		rkispp_free_buffer(dev, &vdev->tnr.buf.iir + i);
 
 	vdev->tnr.is_but_init = false;
+	vdev->tnr.is_trigger = false;
 }
 
 static int tnr_init_buf(struct rkispp_device *dev,
@@ -2699,7 +2700,7 @@ static void tnr_work_event(struct rkispp_device *dev,
 		if (vdev->tnr.cur_wr) {
 			struct rkispp_tnr_inf tnr_inf;
 
-			if (!vdev->tnr.cur_wr->is_move_judge) {
+			if (!vdev->tnr.cur_wr->is_move_judge || !vdev->tnr.is_trigger) {
 				/* tnr write buf to nr */
 				rkispp_module_work_event(dev, vdev->tnr.cur_wr, NULL,
 							 ISPP_MODULE_NR, is_isr);
@@ -3025,6 +3026,15 @@ void rkispp_sendbuf_to_nr(struct rkispp_device *dev,
 					 ISPP_MODULE_NR, false);
 	}
 	spin_unlock_irqrestore(&vdev->tnr.buf_lock, lock_flags);
+}
+
+void rkispp_set_trigger_mode(struct rkispp_device *dev,
+			     struct rkispp_trigger_mode *mode)
+{
+	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
+
+	if (mode->module & ISPP_MODULE_TNR)
+		vdev->tnr.is_trigger = mode->on;
 }
 
 void rkispp_module_work_event(struct rkispp_device *dev,

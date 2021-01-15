@@ -83,6 +83,7 @@
 
 #define TNR_BUF_IDXFD_NUM		64
 
+/************VIDIOC_PRIVATE*************/
 #define RKISPP_CMD_GET_FECBUF_INFO	\
 	_IOR('V', BASE_VIDIOC_PRIVATE + 0, struct rkispp_fecbuf_info)
 
@@ -98,6 +99,10 @@
 #define RKISPP_CMD_GET_TNRBUF_FD \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 12, struct rkispp_buf_idxfd)
 
+#define RKISPP_CMD_TRIGGER_MODE		\
+	_IOW('V', BASE_VIDIOC_PRIVATE + 13, struct rkispp_trigger_mode)
+
+/************EVENT_PRIVATE**************/
 #define RKISPP_V4L2_EVENT_TNR_COMPLETE  \
 	(V4L2_EVENT_PRIVATE_START + 3)
 
@@ -127,6 +132,11 @@ struct rkispp_buf_idxfd {
 	u32 buf_num;
 	u32 index[TNR_BUF_IDXFD_NUM];
 	s32 dmafd[TNR_BUF_IDXFD_NUM];
+} __attribute__ ((packed));
+
+struct rkispp_trigger_mode {
+	u32 module;
+	u32 on;
 } __attribute__ ((packed));
 
 struct rkispp_tnr_config {

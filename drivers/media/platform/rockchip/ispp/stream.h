@@ -103,6 +103,7 @@ struct tnr_module {
 	bool is_end;
 	bool is_3to1;
 	bool is_but_init;
+	bool is_trigger;
 };
 
 struct nr_module {
@@ -231,6 +232,8 @@ struct rkispp_stream_vdev {
 int rkispp_get_tnrbuf_fd(struct rkispp_device *dev, struct rkispp_buf_idxfd *idxfd);
 void rkispp_sendbuf_to_nr(struct rkispp_device *dev,
 			  struct rkispp_tnr_inf *tnr_inf);
+void rkispp_set_trigger_mode(struct rkispp_device *dev,
+			     struct rkispp_trigger_mode *mode);
 void rkispp_module_work_event(struct rkispp_device *dev,
 			      void *buf_rd, void *buf_wr,
 			      u32 module, bool is_isr);
