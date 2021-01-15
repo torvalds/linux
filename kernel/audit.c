@@ -2365,7 +2365,7 @@ int audit_signal_info(int sig, struct task_struct *t)
  *
  * We can not do a netlink send inside an irq context because it blocks (last
  * arg, flags, is not set to MSG_DONTWAIT), so the audit buffer is placed on a
- * queue and a tasklet is scheduled to remove them from the queue outside the
+ * queue and a kthread is scheduled to remove them from the queue outside the
  * irq context.  May be called in any context.
  */
 void audit_log_end(struct audit_buffer *ab)
