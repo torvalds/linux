@@ -84,6 +84,7 @@ struct fsverity_formatted_digest {
 };
 
 #define FS_VERITY_METADATA_TYPE_MERKLE_TREE	1
+#define FS_VERITY_METADATA_TYPE_DESCRIPTOR	2
 
 struct fsverity_read_metadata_arg {
 	__u64 metadata_type;
