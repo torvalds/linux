@@ -245,11 +245,11 @@ static const char *rcu_torture_writer_state_getname(void)
 	return rcu_torture_writer_state_names[i];
 }
 
-#if defined(CONFIG_RCU_BOOST) && !defined(CONFIG_HOTPLUG_CPU)
-#define rcu_can_boost() 1
-#else /* #if defined(CONFIG_RCU_BOOST) && !defined(CONFIG_HOTPLUG_CPU) */
-#define rcu_can_boost() 0
-#endif /* #else #if defined(CONFIG_RCU_BOOST) && !defined(CONFIG_HOTPLUG_CPU) */
+#if defined(CONFIG_RCU_BOOST) && defined(CONFIG_PREEMPT_RT)
+# define rcu_can_boost() 1
+#else
+# define rcu_can_boost() 0
+#endif
 
 #ifdef CONFIG_RCU_TRACE
 static u64 notrace rcu_trace_clock_local(void)
@@ -923,9 +923,13 @@ static void rcu_torture_enable_rt_throttle(void)
 
 static bool rcu_torture_boost_failed(unsigned long start, unsigned long end)
 {
+	static int dbg_done;
+
 	if (end - start > test_boost_duration * HZ - HZ / 2) {
 		VERBOSE_TOROUT_STRING("rcu_torture_boost boosting failed");
 		n_rcu_torture_boost_failure++;
+		if (!xchg(&dbg_done, 1) && cur_ops->gp_kthread_dbg)
+			cur_ops->gp_kthread_dbg();
 
 		return true; /* failed */
 	}
@@ -948,8 +952,8 @@ static int rcu_torture_boost(void *arg)
 	init_rcu_head_on_stack(&rbi.rcu);
 	/* Each pass through the following loop does one boost-test cycle. */
 	do {
-		/* Track if the test failed already in this test interval? */
-		bool failed = false;
+		bool failed = false; // Test failed already in this test interval
+		bool firsttime = true;
 
 		/* Increment n_rcu_torture_boosts once per boost-test */
 		while (!kthread_should_stop()) {
@@ -975,18 +979,17 @@ static int rcu_torture_boost(void *arg)
 
 		/* Do one boost-test interval. */
 		endtime = oldstarttime + test_boost_duration * HZ;
-		call_rcu_time = jiffies;
 		while (time_before(jiffies, endtime)) {
 			/* If we don't have a callback in flight, post one. */
 			if (!smp_load_acquire(&rbi.inflight)) {
 				/* RCU core before ->inflight = 1. */
 				smp_store_release(&rbi.inflight, 1);
-				call_rcu(&rbi.rcu, rcu_torture_boost_cb);
+				cur_ops->call(&rbi.rcu, rcu_torture_boost_cb);
 				/* Check if the boost test failed */
-				failed = failed ||
-					 rcu_torture_boost_failed(call_rcu_time,
-								 jiffies);
+				if (!firsttime && !failed)
+					failed = rcu_torture_boost_failed(call_rcu_time, jiffies);
 				call_rcu_time = jiffies;
+				firsttime = false;
 			}
 			if (stutter_wait("rcu_torture_boost"))
 				sched_set_fifo_low(current);
@@ -999,7 +1002,7 @@ static int rcu_torture_boost(void *arg)
 		 * this case the boost check would never happen in the above
 		 * loop so do another one here.
 		 */
-		if (!failed && smp_load_acquire(&rbi.inflight))
+		if (!firsttime && !failed && smp_load_acquire(&rbi.inflight))
 			rcu_torture_boost_failed(call_rcu_time, jiffies);
 
 		/*
@@ -1024,6 +1027,9 @@ static int rcu_torture_boost(void *arg)
 checkwait:	if (stutter_wait("rcu_torture_boost"))
 			sched_set_fifo_low(current);
 	} while (!torture_must_stop());
+
+	while (smp_load_acquire(&rbi.inflight))
+		schedule_timeout_uninterruptible(1); // rcu_barrier() deadlocks.
 
 	/* Clean up and exit. */
 	while (!kthread_should_stop() || smp_load_acquire(&rbi.inflight)) {
@@ -1797,7 +1803,7 @@ rcu_torture_stats_print(void)
 		WARN_ON_ONCE(n_rcu_torture_barrier_error);  // rcu_barrier()
 		WARN_ON_ONCE(n_rcu_torture_boost_ktrerror); // no boost kthread
 		WARN_ON_ONCE(n_rcu_torture_boost_rterror); // can't set RT prio
-		WARN_ON_ONCE(n_rcu_torture_boost_failure); // RCU boost failed
+		WARN_ON_ONCE(n_rcu_torture_boost_failure); // boost failed (TIMER_SOFTIRQ RT prio?)
 		WARN_ON_ONCE(i > 1); // Too-short grace period
 	}
 	pr_cont("Reader Pipe: ");
@@ -2594,6 +2600,8 @@ static bool rcu_torture_can_boost(void)
 	int prio;
 
 	if (!(test_boost == 1 && cur_ops->can_boost) && test_boost != 2)
+		return false;
+	if (!cur_ops->call)
 		return false;
 
 	prio = rcu_get_gp_kthreads_prio();
