@@ -206,7 +206,7 @@ static const struct regval imx307_global_regs[] = {
  * max_framerate 30fps
  * lvds_datarate per lane 222.75Mbps 4 lane
  */
-static const struct regval imx307_linear_1920x1080_lvds_regs[] = {
+static const struct regval imx307_linear_1920x1080_30fps_lvds_regs[] = {
 	{0x3003, 0x01},
 	{REG_DELAY, 0x10},
 	{0x3000, 0x01},
@@ -222,6 +222,48 @@ static const struct regval imx307_linear_1920x1080_lvds_regs[] = {
 	{0x3019, 0x04},
 	{0x301c, 0x30},
 	{0x301d, 0x11},
+	{0x3046, 0xe0},
+	{0x304b, 0x0a},
+	{0x305c, 0x18},
+	{0x305d, 0x00},
+	{0x305e, 0x20},
+	{0x305f, 0x01},
+	{0x309e, 0x4a},
+	{0x309f, 0x4a},
+	{0x311c, 0x0e},
+	{0x3128, 0x04},
+	{0x3129, 0x1d},
+	{0x313b, 0x41},
+	{0x315e, 0x1a},
+	{0x3164, 0x1a},
+	{0x317c, 0x12},
+	{0x31ec, 0x37},
+	{0x3480, 0x49},
+	{0x3002, 0x00},
+	{REG_NULL, 0x00},
+};
+
+/*
+ * Xclk 37.125Mhz
+ * max_framerate 60fps
+ * lvds_datarate per lane 445.5Mbps 4 lane
+ */
+static const struct regval imx307_linear_1920x1080_60fps_lvds_regs[] = {
+	{0x3003, 0x01},
+	{REG_DELAY, 0x10},
+	{0x3000, 0x01},
+	{0x3001, 0x00},
+	{0x3002, 0x01},
+	{0x3005, 0x00},
+	{0x3007, 0x00},
+	{0x3009, 0x01},
+	{0x300a, 0x3c},
+	{0x3010, 0x21},
+	{0x3011, 0x0a},
+	{0x3018, 0x65},
+	{0x3019, 0x04},
+	{0x301c, 0x98},
+	{0x301d, 0x08},
 	{0x3046, 0xe0},
 	{0x304b, 0x0a},
 	{0x305c, 0x18},
@@ -492,12 +534,12 @@ static const struct imx307_mode lvds_supported_modes[] = {
 		.height = 1110,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 300000,
+			.denominator = 600000,
 		},
 		.exp_def = 0x03fe,
-		.hts_def = 0x1130,
+		.hts_def = 0x0889,
 		.vts_def = 0x0465,
-		.reg_list = imx307_linear_1920x1080_lvds_regs,
+		.reg_list = imx307_linear_1920x1080_60fps_lvds_regs,
 		.hdr_mode = NO_HDR,
 		.lvds_cfg = {
 			.mode = LS_FIRST,
@@ -515,6 +557,35 @@ static const struct imx307_mode lvds_supported_modes[] = {
 			},
 		},
 	}, {
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.width = 1948,
+		.height = 1110,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x03fe,
+		.hts_def = 0x1130,
+		.vts_def = 0x0465,
+		.reg_list = imx307_linear_1920x1080_30fps_lvds_regs,
+		.hdr_mode = NO_HDR,
+		.lvds_cfg = {
+			.mode = LS_FIRST,
+			.frm_sync_code[LVDS_CODE_GRP_LINEAR] = {
+				.odd_sync_code = {
+					.act = {
+						.sav = 0x200,
+						.eav = 0x274,
+					},
+					.blk = {
+						.sav = 0x2ac,
+						.eav = 0x2d8,
+					},
+				},
+			},
+		},
+	},
+	{
 		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 1948,
 		.height = 1098,
