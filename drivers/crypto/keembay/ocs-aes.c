@@ -958,14 +958,14 @@ int ocs_aes_gcm_op(struct ocs_aes_dev *aes_dev,
 	ocs_aes_write_last_data_blk_len(aes_dev, src_size);
 
 	/* Write ciphertext bit length */
-	bit_len = src_size * 8;
+	bit_len = (u64)src_size * 8;
 	val = bit_len & 0xFFFFFFFF;
 	iowrite32(val, aes_dev->base_reg + AES_MULTIPURPOSE2_0_OFFSET);
 	val = bit_len >> 32;
 	iowrite32(val, aes_dev->base_reg + AES_MULTIPURPOSE2_1_OFFSET);
 
 	/* Write aad bit length */
-	bit_len = aad_size * 8;
+	bit_len = (u64)aad_size * 8;
 	val = bit_len & 0xFFFFFFFF;
 	iowrite32(val, aes_dev->base_reg + AES_MULTIPURPOSE2_2_OFFSET);
 	val = bit_len >> 32;
