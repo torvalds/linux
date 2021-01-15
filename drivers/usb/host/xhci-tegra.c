@@ -578,6 +578,13 @@ static void tegra_xusb_mbox_handle(struct tegra_xusb *tegra,
 								     enable);
 			if (err < 0)
 				break;
+
+			/*
+			 * wait 500us for LFPS detector to be disabled before
+			 * sending ACK
+			 */
+			if (!enable)
+				usleep_range(500, 1000);
 		}
 
 		if (err < 0) {
