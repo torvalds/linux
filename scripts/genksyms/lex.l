@@ -125,6 +125,7 @@ yylex(void)
 
   static int suppress_type_lookup, dont_want_brace_phrase;
   static struct string_list *next_node;
+  static char *source_file;
 
   int token, count = 0;
   struct string_list *cur_node;
