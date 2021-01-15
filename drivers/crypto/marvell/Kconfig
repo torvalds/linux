@@ -35,3 +35,13 @@ config CRYPTO_DEV_OCTEONTX_CPT
 
 		To compile this driver as module, choose M here:
 		the modules will be called octeontx-cpt and octeontx-cptvf
+
+config CRYPTO_DEV_OCTEONTX2_CPT
+	tristate "Marvell OcteonTX2 CPT driver"
+	depends on ARM64 || COMPILE_TEST
+	depends on PCI_MSI && 64BIT
+	select OCTEONTX2_MBOX
+	select CRYPTO_DEV_MARVELL
+	help
+		This driver allows you to utilize the Marvell Cryptographic
+		Accelerator Unit(CPT) found in OcteonTX2 series of processors.
